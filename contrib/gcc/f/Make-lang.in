@@ -1,5 +1,5 @@
 # Top level makefile fragment for GNU Fortran.           -*-makefile-*-
-#   Copyright (C) 1995, 1996, 1997, 1998, 2000, 2001, 2002 Free Software Foundation, Inc.
+#   Copyright (C) 1995, 1996, 1997, 1998, 2000, 2001, 2002, 2003 Free Software Foundation, Inc.
 
 #This file is part of GNU Fortran.
 
@@ -65,21 +65,17 @@ F77 f77: f771$(exeext)
   f77.extraclean f77.maintainer-clean f77.rebuilt \
   f77.stage1 f77.stage2 f77.stage3 f77.stage4
 
-g77spec.o: $(srcdir)/f/g77spec.c $(srcdir)/f/version.h $(SYSTEM_H) $(GCC_H) \
+g77spec.o: $(srcdir)/f/g77spec.c $(SYSTEM_H) $(GCC_H) \
 	$(CONFIG_H)
 	(SHLIB_LINK='$(SHLIB_LINK)' \
 	SHLIB_MULTILIB='$(SHLIB_MULTILIB)'; \
 	$(CC) -c $(ALL_CFLAGS) $(ALL_CPPFLAGS) $(DRIVER_DEFINES) \
 		$(INCLUDES) $(srcdir)/f/g77spec.c)
 
-g77version.o: $(srcdir)/f/version.c
-	$(CC) -c $(ALL_CFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) -o g77version.o \
-	    $(srcdir)/f/version.c
-
 # Create the compiler driver for g77.
-g77$(exeext): gcc.o g77spec.o g77version.o version.o prefix.o intl.o \
+g77$(exeext): gcc.o g77spec.o version.o prefix.o intl.o \
   $(LIBDEPS) $(EXTRA_GCC_OBJS)
-	$(CC) $(ALL_CFLAGS) $(LDFLAGS) -o $@ gcc.o g77spec.o g77version.o \
+	$(CC) $(ALL_CFLAGS) $(LDFLAGS) -o $@ gcc.o g77spec.o \
 	   version.o prefix.o intl.o $(EXTRA_GCC_OBJS) $(LIBS)
 
 # Create a version of the g77 driver which calls the cross-compiler.
@@ -93,7 +89,7 @@ F77_OBJS = f/bad.o f/bit.o f/bld.o f/com.o f/data.o f/equiv.o f/expr.o \
  f/global.o f/implic.o f/info.o f/intrin.o f/lab.o f/lex.o f/malloc.o \
  f/name.o f/parse.o f/src.o f/st.o f/sta.o f/stb.o f/stc.o \
  f/std.o f/ste.o f/storag.o f/stp.o f/str.o f/sts.o f/stt.o f/stu.o \
- f/stv.o f/stw.o f/symbol.o f/target.o f/top.o f/type.o f/version.o f/where.o
+ f/stv.o f/stw.o f/symbol.o f/target.o f/top.o f/type.o f/where.o
 
 # Use loose warnings for this front end.
 f-warn =
@@ -137,6 +133,8 @@ f/fini.o:
 	$(HOST_CC) $(HOST_CFLAGS) $(HOST_CPPFLAGS) $(INCLUDES) \
 	      -c $(srcdir)/f/fini.c $(OUTPUT_OPTION)
 
+gt-f-lex.h gt-f-where.h gt-f-com.h gt-f-ste.h gtype-f.h : s-gtype; @true
+
 #
 # Build hooks:
 
@@ -155,7 +153,8 @@ $(srcdir)/f/g77.info: $(srcdir)/f/g77.texi $(srcdir)/f/bugs.texi \
 		$(srcdir)/f/news.texi  $(srcdir)/f/intdoc.texi \
 		$(srcdir)/f/root.texi $(srcdir)/doc/include/fdl.texi \
 		$(srcdir)/doc/include/gpl.texi \
-		$(srcdir)/doc/include/funding.texi
+		$(srcdir)/doc/include/funding.texi \
+		$(srcdir)/doc/include/gcc-common.texi
 	if [ x$(BUILD_INFO) = xinfo ]; then \
 	  rm -f $(srcdir)/f/g77.info-*; \
 	  cd $(srcdir)/f && $(MAKEINFO) -I../doc/include -o g77.info g77.texi; \
@@ -166,8 +165,9 @@ f/g77.dvi: $(srcdir)/f/g77.texi $(srcdir)/f/bugs.texi \
 		$(srcdir)/f/news.texi  $(srcdir)/f/intdoc.texi \
 		$(srcdir)/f/root.texi $(srcdir)/doc/include/fdl.texi \
 		$(srcdir)/doc/include/gpl.texi \
-		$(srcdir)/doc/include/funding.texi
-	s=`cd $(srcdir); pwd`; export s; \
+		$(srcdir)/doc/include/funding.texi \
+		$(srcdir)/doc/include/gcc-common.texi
+	s=`cd $(srcdir); ${PWD_COMMAND}`; export s; \
 	cd f && $(TEXI2DVI) -I $$s/doc/include $$s/f/g77.texi
 
 $(srcdir)/f/g77.1: $(srcdir)/f/invoke.texi
@@ -226,11 +226,11 @@ f/ansify$(build_exeext): f/ansify.c hconfig.h $(SYSTEM_H)
 
 $(srcdir)/f/BUGS: f/bugs0.texi f/bugs.texi f/root.texi
 	cd $(srcdir)/f; $(MAKEINFO) -D BUGSONLY --no-header --no-split \
-	  --no-validate -o BUGS bugs0.texi
+	  --no-validate -I../doc/include -o BUGS bugs0.texi
 
 $(srcdir)/f/NEWS: f/news0.texi f/news.texi f/root.texi
 	cd $(srcdir)/f; $(MAKEINFO) -D NEWSONLY --no-header --no-split \
-	  --no-validate -o NEWS news0.texi
+	  --no-validate -I../doc/include -o NEWS news0.texi
 
 f77.rebuilt: f/g77.info $(srcdir)/f/BUGS \
   $(srcdir)/f/NEWS 
@@ -313,12 +313,13 @@ f77.uninstall: installdirs
 
 f77.mostlyclean:
 	-rm -f f/*$(objext)
+	-rm -f f/*$(coverageexts)
 	-rm -f f/fini$(build_exeext) f/stamp-str f/str-*.h f/str-*.j
 	-rm -f f/intdoc$(build_exeext) f/ansify$(build_exeext) f/intdoc.h0
 	-rm -f g77.aux g77.cps g77.ky g77.toc g77.vr g77.fn g77.kys \
 	       g77.pg g77.tp g77.vrs g77.cp g77.fns g77.log g77.pgs g77.tps 
 f77.clean:
-	-rm -f g77spec.o g77version.o
+	-rm -f g77spec.o
 f77.distclean:
 	-rm -f f/Makefile
 f77.extraclean:
@@ -329,7 +330,7 @@ f77.maintainer-clean:
 # The main makefile has already created stage?/f.
 
 G77STAGESTUFF = f/*$(objext) f/fini$(build_exeext) f/stamp-str \
-  f/str-*.h f/str-*.j g77spec.o g77version.o
+  f/str-*.h f/str-*.j g77spec.o
 
 f77.stage1: stage1-start
 	-mv -f $(G77STAGESTUFF) stage1/f
@@ -350,21 +351,22 @@ f/bad.o: f/bad.c f/proj.h $(CONFIG_H) $(SYSTEM_H) f/bad.h f/bad.def f/where.h \
  glimits.h f/top.h f/malloc.h flags.h f/com.h f/com-rt.def $(TREE_H) f/bld.h \
  f/bld-op.def f/bit.h f/info.h f/info-b.def f/info-k.def f/info-w.def \
  f/target.h f/lex.h f/type.h f/intrin.h f/intrin.def f/lab.h f/symbol.h \
- f/symbol.def f/equiv.h f/storag.h f/global.h f/name.h toplev.h intl.h
+ f/symbol.def f/equiv.h f/storag.h f/global.h f/name.h toplev.h intl.h \
+ diagnostic.h
 f/bit.o: f/bit.c f/proj.h $(CONFIG_H) $(SYSTEM_H) glimits.h f/bit.h \
  f/malloc.h
 f/bld.o: f/bld.c f/proj.h $(CONFIG_H) $(SYSTEM_H) f/bld.h f/bld-op.def f/bit.h \
  f/malloc.h f/com.h f/com-rt.def $(TREE_H) f/info.h f/info-b.def f/info-k.def \
  f/info-w.def f/target.h f/bad.h f/bad.def f/where.h glimits.h f/top.h f/lex.h \
  f/type.h f/lab.h f/storag.h f/symbol.h f/symbol.def f/equiv.h f/global.h \
- f/name.h f/intrin.h f/intrin.def
+ f/name.h f/intrin.h f/intrin.def real.h
 f/com.o: f/com.c f/proj.h $(CONFIG_H) $(SYSTEM_H) flags.h $(RTL_H) $(TREE_H) \
  output.h convert.h f/com.h f/com-rt.def f/bld.h f/bld-op.def f/bit.h \
  f/malloc.h f/info.h f/info-b.def f/info-k.def f/info-w.def f/target.h f/bad.h \
  f/bad.def f/where.h glimits.h f/top.h f/lex.h f/type.h f/intrin.h \
  f/intrin.def f/lab.h f/symbol.h f/symbol.def f/equiv.h f/storag.h f/global.h \
  f/name.h f/expr.h f/implic.h f/src.h f/st.h $(GGC_H) toplev.h diagnostic.h \
- langhooks.h langhooks-def.h intl.h
+ $(LANGHOOKS_DEF) langhooks.h intl.h real.h debug.h gt-f-com.h gtype-f.h
 f/data.o: f/data.c f/proj.h $(CONFIG_H) $(SYSTEM_H) f/data.h f/bld.h f/bld-op.def \
  f/bit.h f/malloc.h f/com.h f/com-rt.def $(TREE_H) f/info.h f/info-b.def \
  f/info-k.def f/info-w.def f/target.h f/bad.h f/bad.def f/where.h glimits.h \
@@ -380,7 +382,7 @@ f/expr.o: f/expr.c f/proj.h $(CONFIG_H) $(SYSTEM_H) f/expr.h f/bld.h f/bld-op.de
  f/info-k.def f/info-w.def f/target.h f/bad.h f/bad.def f/where.h glimits.h \
  f/top.h f/lex.h f/type.h f/lab.h f/storag.h f/symbol.h f/symbol.def f/equiv.h \
  f/global.h f/name.h f/intrin.h f/intrin.def f/implic.h f/src.h f/st.h \
- f/stamp-str
+ f/stamp-str real.h
 f/fini.o: f/fini.c f/proj.h hconfig.h $(SYSTEM_H) f/malloc.h
 f/global.o: f/global.c f/proj.h $(CONFIG_H) $(SYSTEM_H) f/global.h f/info.h \
  f/info-b.def f/info-k.def f/info-w.def f/target.h $(TREE_H) f/bad.h f/bad.def \
@@ -410,7 +412,7 @@ f/lex.o: f/lex.c f/proj.h $(CONFIG_H) $(SYSTEM_H) f/top.h f/malloc.h f/where.h \
  f/bld-op.def f/bit.h f/info.h f/info-b.def f/info-k.def f/info-w.def \
  f/target.h f/lex.h f/type.h f/intrin.h f/intrin.def f/lab.h f/symbol.h \
  f/symbol.def f/equiv.h f/storag.h f/global.h f/name.h f/src.h flags.h \
- debug.h input.h toplev.h output.h $(GGC_H)
+ debug.h input.h toplev.h output.h $(GGC_H) gt-f-lex.h
 f/malloc.o: f/malloc.c f/proj.h $(CONFIG_H) $(SYSTEM_H) f/malloc.h
 f/name.o: f/name.c f/proj.h $(CONFIG_H) $(SYSTEM_H) f/bad.h f/bad.def f/where.h \
  glimits.h f/top.h f/malloc.h f/name.h f/global.h f/info.h f/info-b.def \
@@ -421,7 +423,7 @@ f/parse.o: f/parse.c f/proj.h $(CONFIG_H) $(SYSTEM_H) f/top.h f/malloc.h \
  f/where.h glimits.h f/com.h f/com-rt.def $(TREE_H) f/bld.h f/bld-op.def \
  f/bit.h f/info.h f/info-b.def f/info-k.def f/info-w.def f/target.h f/bad.h \
  f/bad.def f/lex.h f/type.h f/intrin.h f/intrin.def f/lab.h f/symbol.h \
- f/symbol.def f/equiv.h f/storag.h f/global.h f/name.h f/version.h flags.h
+ f/symbol.def f/equiv.h f/storag.h f/global.h f/name.h version.h flags.h
 f/src.o: f/src.c f/proj.h $(CONFIG_H) $(SYSTEM_H) f/src.h f/bad.h f/bad.def \
  f/where.h glimits.h f/top.h f/malloc.h
 f/st.o: f/st.c f/proj.h $(CONFIG_H) $(SYSTEM_H) f/st.h f/bad.h f/bad.def \
@@ -460,7 +462,8 @@ f/ste.o: f/ste.c f/proj.h $(CONFIG_H) $(SYSTEM_H) $(RTL_H) toplev.h f/ste.h \
  f/info.h f/info-b.def f/info-k.def f/info-w.def f/target.h f/bad.h f/bad.def \
  f/where.h glimits.h f/top.h f/lex.h f/type.h f/lab.h f/storag.h f/symbol.h \
  f/symbol.def f/equiv.h f/global.h f/name.h f/intrin.h f/intrin.def f/stp.h \
- f/stt.h f/stamp-str f/sts.h f/stv.h f/stw.h f/expr.h f/sta.h $(GGC_H)
+ f/stt.h f/stamp-str f/sts.h f/stv.h f/stw.h f/expr.h f/sta.h $(GGC_H) \
+ gt-f-ste.h
 f/storag.o: f/storag.c f/proj.h $(CONFIG_H) $(SYSTEM_H) f/storag.h f/bld.h  \
  f/bld-op.def f/bit.h f/malloc.h f/com.h f/com-rt.def $(TREE_H) \
  f/info.h f/info-b.def f/info-k.def f/info-w.def f/target.h f/bad.h \
@@ -512,7 +515,7 @@ f/symbol.o: f/symbol.c f/proj.h $(CONFIG_H) $(SYSTEM_H) f/symbol.h \
  f/lex.h f/type.h f/lab.h f/storag.h f/intrin.h f/intrin.def f/equiv.h \
  f/global.h f/name.h f/src.h f/st.h
 f/target.o: f/target.c f/proj.h $(CONFIG_H) $(SYSTEM_H) glimits.h f/target.h \
- $(TREE_H) f/bad.h f/bad.def f/where.h f/top.h f/malloc.h f/info.h \
+ $(TREE_H) f/bad.h f/bad.def f/where.h f/top.h f/malloc.h f/info.h real.h \
  f/info-b.def f/info-k.def f/info-w.def f/type.h f/lex.h diagnostic.h
 f/top.o: f/top.c f/proj.h $(CONFIG_H) $(SYSTEM_H) f/top.h f/malloc.h f/where.h \
  glimits.h f/bad.h f/bad.def f/bit.h f/bld.h f/bld-op.def f/com.h \
@@ -522,6 +525,5 @@ f/top.o: f/top.c f/proj.h $(CONFIG_H) $(SYSTEM_H) f/top.h f/malloc.h f/where.h \
  f/intrin.def f/data.h f/expr.h f/implic.h f/src.h f/st.h flags.h \
  toplev.h
 f/type.o: f/type.c f/proj.h $(CONFIG_H) $(SYSTEM_H) f/type.h f/malloc.h
-f/version.o: f/version.c f/version.h
 f/where.o: f/where.c f/proj.h $(CONFIG_H) $(SYSTEM_H) f/where.h glimits.h f/top.h \
- f/malloc.h f/lex.h $(GGC_H)
+ f/malloc.h f/lex.h $(GGC_H) gt-f-where.h

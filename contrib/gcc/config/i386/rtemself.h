@@ -1,4 +1,4 @@
-/* Definitions for rtems targeting a ix86 using ELF.
+/* Definitions for rtems targeting an ix86 using ELF.
    Copyright (C) 1996, 1997, 2000, 2001, 2002 Free Software Foundation, Inc.
    Contributed by Joel Sherrill (joel@OARcorp.com).
 
@@ -21,11 +21,14 @@ Boston, MA 02111-1307, USA.  */
 
 /* Specify predefined symbols in preprocessor.  */
 
-#include <i386/i386elf.h>
-
-#undef CPP_PREDEFINES
-#define CPP_PREDEFINES  "-D__rtems__ -Asystem=rtems \
-    -D__ELF__ -D__i386__ -D__USE_INIT_FINI__"
-
-#undef CPP_SPEC
-#define CPP_SPEC "%(cpp_cpu) %{msoft-float:-D_SOFT_FLOAT}"
+#define TARGET_OS_CPP_BUILTINS()		\
+  do						\
+    {						\
+	builtin_define ("__rtems__");		\
+	builtin_define ("__ELF__");		\
+	builtin_define ("__USE_INIT_FINI__");	\
+	builtin_assert ("system=rtems");	\
+	if (!TARGET_80387)			\
+	  builtin_define ("_SOFT_FLOAT");	\
+    }						\
+  while (0)

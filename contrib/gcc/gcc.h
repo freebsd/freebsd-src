@@ -23,6 +23,36 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 
 #include "version.h"
 
+/* The mapping of a spec function name to the C function that
+   implements it.  */
+struct spec_function
+{       
+  const char *name;
+  const char *(*func) PARAMS ((int, const char **));
+};
+
+/* This defines which switch letters take arguments.  */
+
+#define DEFAULT_SWITCH_TAKES_ARG(CHAR) \
+  ((CHAR) == 'D' || (CHAR) == 'U' || (CHAR) == 'o' \
+   || (CHAR) == 'e' || (CHAR) == 'T' || (CHAR) == 'u' \
+   || (CHAR) == 'I' || (CHAR) == 'm' || (CHAR) == 'x' \
+   || (CHAR) == 'L' || (CHAR) == 'A' || (CHAR) == 'V' \
+   || (CHAR) == 'B' || (CHAR) == 'b')
+
+/* This defines which multi-letter switches take arguments.  */
+
+#define DEFAULT_WORD_SWITCH_TAKES_ARG(STR)		\
+ (!strcmp (STR, "Tdata") || !strcmp (STR, "Ttext")	\
+  || !strcmp (STR, "Tbss") || !strcmp (STR, "include")	\
+  || !strcmp (STR, "imacros") || !strcmp (STR, "aux-info") \
+  || !strcmp (STR, "idirafter") || !strcmp (STR, "iprefix") \
+  || !strcmp (STR, "iwithprefix") || !strcmp (STR, "iwithprefixbefore") \
+  || !strcmp (STR, "isystem") || !strcmp (STR, "-param") \
+  || !strcmp (STR, "specs") \
+  || !strcmp (STR, "MF") || !strcmp (STR, "MT") || !strcmp (STR, "MQ"))
+
+
 /* These are exported by gcc.c.  */
 extern int do_spec PARAMS ((const char *));
 extern void record_temp_file PARAMS ((const char *, int, int));
@@ -47,6 +77,9 @@ extern int n_infiles;
 
 /* Number of extra output files that lang_specific_pre_link may generate.  */
 extern int lang_specific_extra_outfiles;
+
+/* Table of language-specific spec functions.  */
+extern const struct spec_function lang_specific_spec_functions[];
 
 /* A vector of corresponding output files is made up later.  */
 

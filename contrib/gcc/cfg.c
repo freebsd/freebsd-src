@@ -38,6 +38,7 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 	 dump_flow_info, debug_flow_info, dump_edge_info
      - Allocation of AUX fields for basic blocks
 	 alloc_aux_for_blocks, free_aux_for_blocks, alloc_aux_for_block
+     - clear_bb_flags
  */
 
 #include "config.h"
@@ -63,6 +64,10 @@ static char *flow_firstobj;
 /* Number of basic blocks in the current function.  */
 
 int n_basic_blocks;
+
+/* First free basic block number.  */
+
+int last_basic_block;
 
 /* Number of edges in the current function.  */
 
@@ -92,7 +97,10 @@ struct basic_block_def entry_exit_blocks[2]
     NULL,			/* global_live_at_end */
     NULL,			/* aux */
     ENTRY_BLOCK,		/* index */
+    NULL,			/* prev_bb */
+    EXIT_BLOCK_PTR,		/* next_bb */
     0,				/* loop_depth */
+    NULL,                       /* loop_father */
     0,				/* count */
     0,				/* frequency */
     0				/* flags */
@@ -110,7 +118,10 @@ struct basic_block_def entry_exit_blocks[2]
     NULL,			/* global_live_at_end */
     NULL,			/* aux */
     EXIT_BLOCK,			/* index */
+    ENTRY_BLOCK_PTR,		/* prev_bb */
+    NULL,			/* next_bb */
     0,				/* loop_depth */
+    NULL,                       /* loop_father */
     0,				/* count */
     0,				/* frequency */
     0				/* flags */
@@ -162,12 +173,11 @@ free_edge (e)
 void
 clear_edges ()
 {
-  int i;
+  basic_block bb;
   edge e;
 
-  for (i = 0; i < n_basic_blocks; ++i)
+  FOR_EACH_BB (bb)
     {
-      basic_block bb = BASIC_BLOCK (i);
       edge e = bb->succ;
 
       while (e)
@@ -219,38 +229,99 @@ alloc_block ()
   return bb;
 }
 
-/* Remove block B from the basic block array and compact behind it.  */
-
+/* Link block B to chain after AFTER.  */
 void
-expunge_block_nocompact (b)
+link_block (b, after)
+     basic_block b, after;
+{
+  b->next_bb = after->next_bb;
+  b->prev_bb = after;
+  after->next_bb = b;
+  b->next_bb->prev_bb = b;
+}
+
+/* Unlink block B from chain.  */
+void
+unlink_block (b)
      basic_block b;
 {
+  b->next_bb->prev_bb = b->prev_bb;
+  b->prev_bb->next_bb = b->next_bb;
+}
+
+/* Sequentially order blocks and compact the arrays.  */
+void
+compact_blocks ()
+{
+  int i;
+  basic_block bb;
+ 
+  i = 0;
+  FOR_EACH_BB (bb)
+    {
+      BASIC_BLOCK (i) = bb;
+      bb->index = i;
+      i++;
+    }
+
+  if (i != n_basic_blocks)
+    abort ();
+
+  last_basic_block = n_basic_blocks;
+}
+
+
+/* Remove block B from the basic block array.  */
+
+void
+expunge_block (b)
+     basic_block b;
+{
+  unlink_block (b);
+  BASIC_BLOCK (b->index) = NULL;
+  n_basic_blocks--;
+
   /* Invalidate data to make bughunting easier.  */
   memset (b, 0, sizeof *b);
   b->index = -3;
   b->succ = (edge) first_deleted_block;
   first_deleted_block = (basic_block) b;
 }
-
-void
-expunge_block (b)
-     basic_block b;
-{
-  int i, n = n_basic_blocks;
-
-  for (i = b->index; i + 1 < n; ++i)
-    {
-      basic_block x = BASIC_BLOCK (i + 1);
-      BASIC_BLOCK (i) = x;
-      x->index = i;
-    }
-
-  n_basic_blocks--;
-  basic_block_info->num_elements--;
-
-  expunge_block_nocompact (b);
-}
 
+/* Create an edge connecting SRC and DEST with flags FLAGS.  Return newly
+   created edge.  Use this only if you are sure that this edge can't
+   possibly already exist.  */
+
+edge
+unchecked_make_edge (src, dst, flags)
+     basic_block src, dst;
+     int flags;
+{
+  edge e;
+
+  if (first_deleted_edge)
+    {
+      e = first_deleted_edge;
+      first_deleted_edge = e->succ_next;
+    }
+  else
+    {
+      e = (edge) obstack_alloc (&flow_obstack, sizeof *e);
+      memset (e, 0, sizeof *e);
+    }
+  n_edges++;
+
+  e->succ_next = src->succ;
+  e->pred_next = dst->pred;
+  e->src = src;
+  e->dest = dst;
+  e->flags = flags;
+
+  src->succ = e;
+  dst->pred = e;
+
+  return e;
+}
 /* Create an edge connecting SRC and DST with FLAGS optionally using
    edge cache CACHE.  Return the new edge, NULL if already exist.  */
 
@@ -291,26 +362,7 @@ cached_make_edge (edge_cache, src, dst, flags)
       break;
     }
 
-  if (first_deleted_edge)
-    {
-      e = first_deleted_edge;
-      first_deleted_edge = e->succ_next;
-    }
-  else
-    {
-      e = (edge) obstack_alloc (&flow_obstack, sizeof *e);
-      memset (e, 0, sizeof *e);
-    }
-  n_edges++;
-
-  e->succ_next = src->succ;
-  e->pred_next = dst->pred;
-  e->src = src;
-  e->dest = dst;
-  e->flags = flags;
-
-  src->succ = e;
-  dst->pred = e;
+  e = unchecked_make_edge (src, dst, flags);
 
   if (use_edge_cache)
     SET_BIT (edge_cache[src->index], dst->index);
@@ -418,6 +470,8 @@ redirect_edge_succ_nodup (e, new_succ)
     {
       s->flags |= e->flags;
       s->probability += e->probability;
+      if (s->probability > REG_BR_PROB_BASE)
+	s->probability = REG_BR_PROB_BASE;
       s->count += e->count;
       remove_edge (e);
       e = s;
@@ -448,12 +502,23 @@ redirect_edge_pred (e, new_pred)
   new_pred->succ = e;
   e->src = new_pred;
 }
+
+void
+clear_bb_flags ()
+{
+  basic_block bb;
+
+  FOR_BB_BETWEEN (bb, ENTRY_BLOCK_PTR, NULL, next_bb)
+    bb->flags = 0;
+}
 
 void
 dump_flow_info (file)
      FILE *file;
 {
   int i;
+  int max_regno = max_reg_num ();
+  basic_block bb;
   static const char * const reg_class_names[] = REG_CLASS_NAMES;
 
   fprintf (file, "%d registers.\n", max_regno);
@@ -469,7 +534,7 @@ dump_flow_info (file)
 	if (REG_N_SETS (i))
 	  fprintf (file, "; set %d time%s", REG_N_SETS (i),
 		   (REG_N_SETS (i) == 1) ? "" : "s");
-	if (REG_USERVAR_P (regno_reg_rtx[i]))
+	if (regno_reg_rtx[i] != NULL && REG_USERVAR_P (regno_reg_rtx[i]))
 	  fprintf (file, "; user var");
 	if (REG_N_DEATHS (i) != 1)
 	  fprintf (file, "; dies in %d places", REG_N_DEATHS (i));
@@ -477,7 +542,8 @@ dump_flow_info (file)
 	  fprintf (file, "; crosses 1 call");
 	else if (REG_N_CALLS_CROSSED (i))
 	  fprintf (file, "; crosses %d calls", REG_N_CALLS_CROSSED (i));
-	if (PSEUDO_REGNO_BYTES (i) != UNITS_PER_WORD)
+	if (regno_reg_rtx[i] != NULL
+	    && PSEUDO_REGNO_BYTES (i) != UNITS_PER_WORD)
 	  fprintf (file, "; %d bytes", PSEUDO_REGNO_BYTES (i));
 
 	class = reg_preferred_class (i);
@@ -494,22 +560,30 @@ dump_flow_info (file)
 		       reg_class_names[(int) altclass]);
 	  }
 
-	if (REG_POINTER (regno_reg_rtx[i]))
+	if (regno_reg_rtx[i] != NULL && REG_POINTER (regno_reg_rtx[i]))
 	  fprintf (file, "; pointer");
 	fprintf (file, ".\n");
       }
 
   fprintf (file, "\n%d basic blocks, %d edges.\n", n_basic_blocks, n_edges);
-  for (i = 0; i < n_basic_blocks; i++)
+  FOR_EACH_BB (bb)
     {
-      basic_block bb = BASIC_BLOCK (i);
       edge e;
+      int sum;
+      gcov_type lsum;
 
       fprintf (file, "\nBasic block %d: first insn %d, last %d, ",
-	       i, INSN_UID (bb->head), INSN_UID (bb->end));
+	       bb->index, INSN_UID (bb->head), INSN_UID (bb->end));
+      fprintf (file, "prev %d, next %d, ",
+	       bb->prev_bb->index, bb->next_bb->index);
       fprintf (file, "loop_depth %d, count ", bb->loop_depth);
       fprintf (file, HOST_WIDEST_INT_PRINT_DEC, bb->count);
-      fprintf (file, ", freq %i.\n", bb->frequency);
+      fprintf (file, ", freq %i", bb->frequency);
+      if (maybe_hot_bb_p (bb))
+	fprintf (file, ", maybe hot");
+      if (probably_never_executed_bb_p (bb))
+	fprintf (file, ", probably never executed");
+      fprintf (file, ".\n");
 
       fprintf (file, "Predecessors: ");
       for (e = bb->pred; e; e = e->pred_next)
@@ -526,6 +600,37 @@ dump_flow_info (file)
       dump_regset (bb->global_live_at_end, file);
 
       putc ('\n', file);
+
+      /* Check the consistency of profile information.  We can't do that
+	 in verify_flow_info, as the counts may get invalid for incompletely
+	 solved graphs, later elliminating of conditionals or roundoff errors.
+	 It is still practical to have them reported for debugging of simple
+	 testcases.  */
+      sum = 0;
+      for (e = bb->succ; e; e = e->succ_next)
+	sum += e->probability;
+      if (bb->succ && abs (sum - REG_BR_PROB_BASE) > 100)
+	fprintf (file, "Invalid sum of outgoing probabilities %.1f%%\n",
+		 sum * 100.0 / REG_BR_PROB_BASE);
+      sum = 0;
+      for (e = bb->pred; e; e = e->pred_next)
+	sum += EDGE_FREQUENCY (e);
+      if (abs (sum - bb->frequency) > 100)
+	fprintf (file,
+		 "Invalid sum of incomming frequencies %i, should be %i\n",
+		 sum, bb->frequency);
+      lsum = 0;
+      for (e = bb->pred; e; e = e->pred_next)
+	lsum += e->count;
+      if (lsum - bb->count > 100 || lsum - bb->count < -100)
+	fprintf (file, "Invalid sum of incomming counts %i, should be %i\n",
+		 (int)lsum, (int)bb->count);
+      lsum = 0;
+      for (e = bb->succ; e; e = e->succ_next)
+	lsum += e->count;
+      if (bb->succ && (lsum - bb->count > 100 || lsum - bb->count < -100))
+	fprintf (file, "Invalid sum of incomming counts %i, should be %i\n",
+		 (int)lsum, (int)bb->count);
     }
 
   putc ('\n', file);
@@ -564,7 +669,7 @@ dump_edge_info (file, e, do_succ)
   if (e->flags)
     {
       static const char * const bitnames[]
-	= {"fallthru", "ab", "abcall", "eh", "fake", "dfs_back"};
+	= {"fallthru", "ab", "abcall", "eh", "fake", "dfs_back", "can_fallthru"};
       int comma = 0;
       int i, flags = e->flags;
 
@@ -594,7 +699,7 @@ static void *first_block_aux_obj = 0;
 static struct obstack edge_aux_obstack;
 static void *first_edge_aux_obj = 0;
 
-/* Allocate an memory block of SIZE as BB->aux.  The obstack must
+/* Allocate a memory block of SIZE as BB->aux.  The obstack must
    be first initialized by alloc_aux_for_blocks.  */
 
 inline void
@@ -630,13 +735,10 @@ alloc_aux_for_blocks (size)
   first_block_aux_obj = (char *) obstack_alloc (&block_aux_obstack, 0);
   if (size)
     {
-      int i;
+      basic_block bb;
 
-      for (i = 0; i < n_basic_blocks; i++)
-	alloc_aux_for_block (BASIC_BLOCK (i), size);
-
-      alloc_aux_for_block (ENTRY_BLOCK_PTR, size);
-      alloc_aux_for_block (EXIT_BLOCK_PTR, size);
+      FOR_BB_BETWEEN (bb, ENTRY_BLOCK_PTR, NULL, next_bb)
+	alloc_aux_for_block (bb, size);
     }
 }
 
@@ -645,13 +747,10 @@ alloc_aux_for_blocks (size)
 void
 clear_aux_for_blocks ()
 {
-  int i;
+  basic_block bb;
 
-  for (i = 0; i < n_basic_blocks; i++)
-    BASIC_BLOCK (i)->aux = NULL;
-
-  ENTRY_BLOCK_PTR->aux = NULL;
-  EXIT_BLOCK_PTR->aux = NULL;
+  FOR_BB_BETWEEN (bb, ENTRY_BLOCK_PTR, NULL, next_bb)
+    bb->aux = NULL;
 }
 
 /* Free data allocated in block_aux_obstack and clear AUX pointers
@@ -668,7 +767,7 @@ free_aux_for_blocks ()
   clear_aux_for_blocks ();
 }
 
-/* Allocate an memory edge of SIZE as BB->aux.  The obstack must
+/* Allocate a memory edge of SIZE as BB->aux.  The obstack must
    be first initialized by alloc_aux_for_edges.  */
 
 inline void
@@ -705,16 +804,11 @@ alloc_aux_for_edges (size)
   first_edge_aux_obj = (char *) obstack_alloc (&edge_aux_obstack, 0);
   if (size)
     {
-      int i;
-      for (i = -1; i < n_basic_blocks; i++)
-	{
-	  basic_block bb;
-	  edge e;
+      basic_block bb;
 
-	  if (i >= 0)
-	    bb = BASIC_BLOCK (i);
-	  else
-	    bb = ENTRY_BLOCK_PTR;
+      FOR_BB_BETWEEN (bb, ENTRY_BLOCK_PTR, EXIT_BLOCK_PTR, next_bb)
+	{
+	  edge e;
 
 	  for (e = bb->succ; e; e = e->succ_next)
 	    alloc_aux_for_edge (e, size);
@@ -727,18 +821,11 @@ alloc_aux_for_edges (size)
 void
 clear_aux_for_edges ()
 {
-  int i;
+  basic_block bb;
+  edge e;
 
-  for (i = -1; i < n_basic_blocks; i++)
+  FOR_BB_BETWEEN (bb, ENTRY_BLOCK_PTR, EXIT_BLOCK_PTR, next_bb)
     {
-      basic_block bb;
-      edge e;
-
-      if (i >= 0)
-	bb = BASIC_BLOCK (i);
-      else
-	bb = ENTRY_BLOCK_PTR;
-
       for (e = bb->succ; e; e = e->succ_next)
 	e->aux = NULL;
     }

@@ -29,6 +29,7 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 #include "flags.h"
 #include "convert.h"
 #include "toplev.h"
+#include "langhooks.h"
 
 /* Convert EXPR to some pointer or reference type TYPE.
 
@@ -61,7 +62,8 @@ convert_to_pointer (type, expr)
 
       return
 	convert_to_pointer (type,
-			    convert (type_for_size (POINTER_SIZE, 0), expr));
+			    convert ((*lang_hooks.types.type_for_size)
+				     (POINTER_SIZE, 0), expr));
 
     default:
       error ("cannot convert to a pointer type");
@@ -138,8 +140,8 @@ convert_to_integer (type, expr)
       if (integer_zerop (expr))
 	expr = integer_zero_node;
       else
-	expr = fold (build1 (CONVERT_EXPR,
-			     type_for_size (POINTER_SIZE, 0), expr));
+	expr = fold (build1 (CONVERT_EXPR, (*lang_hooks.types.type_for_size)
+			     (POINTER_SIZE, 0), expr));
 
       return convert_to_integer (type, expr);
 
@@ -189,8 +191,8 @@ convert_to_integer (type, expr)
       else if (TREE_CODE (type) == ENUMERAL_TYPE
 	       || outprec != GET_MODE_BITSIZE (TYPE_MODE (type)))
 	return build1 (NOP_EXPR, type,
-		       convert (type_for_mode (TYPE_MODE (type),
-					       TREE_UNSIGNED (type)),
+		       convert ((*lang_hooks.types.type_for_mode)
+				(TYPE_MODE (type), TREE_UNSIGNED (type)),
 				expr));
 
       /* Here detect when we can distribute the truncation down past some
@@ -302,8 +304,8 @@ convert_to_integer (type, expr)
 		/* Can't do arithmetic in enumeral types
 		   so use an integer type that will hold the values.  */
 		if (TREE_CODE (typex) == ENUMERAL_TYPE)
-		  typex = type_for_size (TYPE_PRECISION (typex),
-					 TREE_UNSIGNED (typex));
+		  typex = (*lang_hooks.types.type_for_size)
+		    (TYPE_PRECISION (typex), TREE_UNSIGNED (typex));
 
 		/* But now perhaps TYPEX is as wide as INPREC.
 		   In that case, do nothing special here.
@@ -313,16 +315,25 @@ convert_to_integer (type, expr)
 		    /* Don't do unsigned arithmetic where signed was wanted,
 		       or vice versa.
 		       Exception: if both of the original operands were
-		       unsigned then we can safely do the work as unsigned;
-		       if we are distributing through a LSHIFT_EXPR, we must
-		       do the work as unsigned to avoid a signed overflow.
+ 		       unsigned then we can safely do the work as unsigned.
+		       Exception: shift operations take their type solely
+		       from the first argument.
+		       Exception: the LSHIFT_EXPR case above requires that
+		       we perform this operation unsigned lest we produce
+		       signed-overflow undefinedness.
 		       And we may need to do it as unsigned
 		       if we truncate to the original size.  */
-		    typex = ((TREE_UNSIGNED (TREE_TYPE (expr))
-			      || (TREE_UNSIGNED (TREE_TYPE (arg0))
-				  && TREE_UNSIGNED (TREE_TYPE (arg1)))
-			      || ex_form == LSHIFT_EXPR)
-			     ? unsigned_type (typex) : signed_type (typex));
+		    if (TREE_UNSIGNED (TREE_TYPE (expr))
+			|| (TREE_UNSIGNED (TREE_TYPE (arg0))
+			    && (TREE_UNSIGNED (TREE_TYPE (arg1))
+				|| ex_form == LSHIFT_EXPR
+				|| ex_form == RSHIFT_EXPR
+				|| ex_form == LROTATE_EXPR
+				|| ex_form == RROTATE_EXPR))
+			|| ex_form == LSHIFT_EXPR)
+		      typex = (*lang_hooks.types.unsigned_type) (typex);
+		    else
+		      typex = (*lang_hooks.types.signed_type) (typex);
 		    return convert (type,
 				    fold (build (ex_form, typex,
 						 convert (typex, arg0),
@@ -343,8 +354,8 @@ convert_to_integer (type, expr)
 	    /* Can't do arithmetic in enumeral types
 	       so use an integer type that will hold the values.  */
 	    if (TREE_CODE (typex) == ENUMERAL_TYPE)
-	      typex = type_for_size (TYPE_PRECISION (typex),
-				     TREE_UNSIGNED (typex));
+	      typex = (*lang_hooks.types.type_for_size)
+		(TYPE_PRECISION (typex), TREE_UNSIGNED (typex));
 
 	    /* But now perhaps TYPEX is as wide as INPREC.
 	       In that case, do nothing special here.
@@ -353,8 +364,10 @@ convert_to_integer (type, expr)
 	      {
 		/* Don't do unsigned arithmetic where signed was wanted,
 		   or vice versa.  */
-		typex = (TREE_UNSIGNED (TREE_TYPE (expr))
-			 ? unsigned_type (typex) : signed_type (typex));
+		if (TREE_UNSIGNED (TREE_TYPE (expr)))
+		  typex = (*lang_hooks.types.unsigned_type) (typex);
+		else
+		  typex = (*lang_hooks.types.signed_type) (typex);
 		return convert (type,
 				fold (build1 (ex_form, typex,
 					      convert (typex,
@@ -363,6 +376,12 @@ convert_to_integer (type, expr)
 	  }
 
 	case NOP_EXPR:
+	  /* Don't introduce a
+	     "can't convert between vector values of different size" error.  */
+	  if (TREE_CODE (TREE_TYPE (TREE_OPERAND (expr, 0))) == VECTOR_TYPE
+	      && (GET_MODE_SIZE (TYPE_MODE (TREE_TYPE (TREE_OPERAND (expr, 0))))
+		  != GET_MODE_SIZE (TYPE_MODE (type))))
+	    break;
 	  /* If truncating after truncating, might as well do all at once.
 	     If truncating after extending, we may get rid of wasted work.  */
 	  return convert (type, get_unwidened (TREE_OPERAND (expr, 0), type));

@@ -163,7 +163,7 @@ Naturally, this does not happen when you use GCC@.
 You must specify all three options explicitly.
 
 @item
-On a Sparc, GCC aligns all values of type @code{double} on an 8-byte
+On a SPARC, GCC aligns all values of type @code{double} on an 8-byte
 boundary, and it expects every @code{double} to be so aligned.  The Sun
 compiler usually gives @code{double} values 8-byte alignment, with one
 exception: function arguments of type @code{double} may not be aligned.
@@ -202,7 +202,7 @@ Storing into the pointer can be done likewise with the same union.
 @item
 On Solaris, the @code{malloc} function in the @file{libmalloc.a} library
 may allocate memory that is only 4 byte aligned.  Since GCC on the
-Sparc assumes that doubles are 8 byte aligned, this may result in a
+SPARC assumes that doubles are 8 byte aligned, this may result in a
 fatal signal if doubles are stored in memory allocated by the
 @file{libmalloc.a} library.
 
@@ -219,7 +219,7 @@ when linking, compile and link against the file
 @file{mit/util/misc/dlsym.c} from the MIT version of X windows.
 
 @item
-The 128-bit long double format that the Sparc port supports currently
+The 128-bit long double format that the SPARC port supports currently
 works by using the architecturally defined quad-word floating point
 instructions.  Since there is no hardware that supports these
 instructions they must be emulated by the operating system.  Long
@@ -338,47 +338,6 @@ you cannot successfully use @samp{$} in identifiers on the RS/6000 due
 to a restriction in the IBM assembler.  GAS supports these
 identifiers.
 
-@item
-@opindex mno-serialize-volatile
-There is an assembler bug in versions of DG/UX prior to 5.4.2.01 that
-occurs when the @samp{fldcr} instruction is used.  GCC uses
-@samp{fldcr} on the 88100 to serialize volatile memory references.  Use
-the option @option{-mno-serialize-volatile} if your version of the
-assembler has this bug.
-
-@item
-On VMS, GAS versions 1.38.1 and earlier may cause spurious warning
-messages from the linker.  These warning messages complain of mismatched
-psect attributes.  You can ignore them.
-
-@item
-On NewsOS version 3, if you include both of the files @file{stddef.h}
-and @file{sys/types.h}, you get an error because there are two typedefs
-of @code{size_t}.  You should change @file{sys/types.h} by adding these
-lines around the definition of @code{size_t}:
-
-@smallexample
-#ifndef _SIZE_T
-#define _SIZE_T
-@var{actual-typedef-here}
-#endif
-@end smallexample
-
-@cindex Alliant
-@item
-On the Alliant, the system's own convention for returning structures
-and unions is unusual, and is not compatible with GCC no matter
-what options are used.
-
-@cindex RT PC
-@cindex IBM RT PC
-@item
-@opindex mhc-struct-return
-On the IBM RT PC, the MetaWare HighC compiler (hc) uses a different
-convention for structure and union returning.  Use the option
-@option{-mhc-struct-return} to tell GCC to use a convention compatible
-with it.
-
 @cindex VAX calling convention
 @cindex Ultrix calling convention
 @item
@@ -395,42 +354,10 @@ these options to produce code compatible with the Fortran compiler:
 @end smallexample
 
 @item
-On the WE32k, you may find that programs compiled with GCC do not
-work with the standard shared C library.  You may need to link with
-the ordinary C compiler.  If you do so, you must specify the following
-options:
-
-@smallexample
--L/usr/local/lib/gcc-lib/we32k-att-sysv/2.8.1 -lgcc -lc_s
-@end smallexample
-
-The first specifies where to find the library @file{libgcc.a}
-specified with the @option{-lgcc} option.
-
-GCC does linking by invoking @command{ld}, just as @command{cc} does, and
-there is no reason why it @emph{should} matter which compilation program
-you use to invoke @command{ld}.  If someone tracks this problem down,
-it can probably be fixed easily.
-
-@item
 On the Alpha, you may get assembler errors about invalid syntax as a
 result of floating point constants.  This is due to a bug in the C
 library functions @code{ecvt}, @code{fcvt} and @code{gcvt}.  Given valid
 floating point numbers, they sometimes print @samp{NaN}.
-
-@item
-On Irix 4.0.5F (and perhaps in some other versions), an assembler bug
-sometimes reorders instructions incorrectly when optimization is turned
-on.  If you think this may be happening to you, try using the GNU
-assembler; GAS version 2.1 supports ECOFF on Irix.
-
-@opindex noasmopt
-Or use the @option{-noasmopt} option when you compile GCC with itself,
-and then again when you compile your program.  (This is a temporary
-kludge to turn off assembler optimization on Irix.)  If this proves to
-be what you need, edit the assembler spec in the file @file{specs} so
-that it unconditionally passes @option{-O0} to the assembler, and never
-passes @option{-O2} or @option{-O3}.
 @end itemize
 
 @node External Bugs
@@ -445,8 +372,7 @@ Parse errors may occur compiling X11 on a Decstation running Ultrix 4.2
 because of problems in DEC's versions of the X11 header files
 @file{X11/Xlib.h} and @file{X11/Xutil.h}.  People recommend adding
 @option{-I/usr/include/mit} to use the MIT versions of the header files,
-using the @option{-traditional} switch to turn off ISO C, or fixing the
-header files by adding this:
+or fixing the header files by adding this:
 
 @example
 #ifdef __STDC__
@@ -486,9 +412,7 @@ MALLOC=gmalloc.o
 @opindex traditional
 
 There are several noteworthy incompatibilities between GNU C and K&R
-(non-ISO) versions of C@.  The @option{-traditional} option
-eliminates many of these incompatibilities, @emph{but not all}, by
-telling GCC to behave like a K&R C compiler.
+(non-ISO) versions of C@.
 
 @itemize @bullet
 @cindex string constants
@@ -518,7 +442,6 @@ The best solution to these problems is to change the program to use
 purposes instead of string constants.  But if this is not possible,
 you can use the @option{-fwritable-strings} flag, which directs GCC
 to handle string constants the same way most C compilers do.
-@option{-traditional} also has this effect, among others.
 
 @item
 @code{-2147483648} is positive.
@@ -537,9 +460,6 @@ string constants.  For example, the following macro in GCC
 
 @noindent
 will produce output @code{"a"} regardless of what the argument @var{a} is.
-
-The @option{-traditional} option directs GCC to handle such cases
-(among others) in the old-fashioned (non-ISO) fashion.
 
 @cindex @code{setjmp} incompatibilities
 @cindex @code{longjmp} incompatibilities
@@ -575,11 +495,6 @@ in it.
 If you use the @option{-W} option with the @option{-O} option, you will
 get a warning when GCC thinks such a problem might be possible.
 
-The @option{-traditional} option directs GCC to put variables in
-the stack by default, rather than in registers, in functions that
-call @code{setjmp}.  This results in the behavior found in
-traditional C compilers.
-
 @item
 Programs that use preprocessing directives in the middle of macro
 arguments do not work with GCC@.  For example, a program like this
@@ -593,9 +508,7 @@ foobar (
 @end group
 @end example
 
-ISO C does not permit such a construct.  It would make sense to support
-it when @option{-traditional} is used, but it is too much work to
-implement.
+ISO C does not permit such a construct.
 
 @item
 K&R compilers allow comments to cross over an inclusion boundary
@@ -613,9 +526,6 @@ have the same scope as any other declaration in the same place.
 In some other C compilers, a @code{extern} declaration affects all the
 rest of the file even if it happens within a block.
 
-The @option{-traditional} option directs GCC to treat all @code{extern}
-declarations as global, like traditional compilers.
-
 @item
 In traditional C, you can combine @code{long}, etc., with a typedef name,
 as shown here:
@@ -626,18 +536,15 @@ typedef long foo bar;
 @end example
 
 In ISO C, this is not allowed: @code{long} and other type modifiers
-require an explicit @code{int}.  Because this criterion is expressed
-by Bison grammar rules rather than C code, the @option{-traditional}
-flag cannot alter it.
+require an explicit @code{int}.
 
 @cindex typedef names as function parameters
 @item
-PCC allows typedef names to be used as function parameters.  The
-difficulty described immediately above applies here too.
+PCC allows typedef names to be used as function parameters.
 
 @item
-When in @option{-traditional} mode, GCC allows the following erroneous
-pair of declarations to appear together in a given scope:
+Traditional C allows the following erroneous pair of declarations to
+appear together in a given scope:
 
 @example
 typedef int foo;
@@ -645,19 +552,18 @@ typedef foo foo;
 @end example
 
 @item
-GCC treats all characters of identifiers as significant, even when in
-@option{-traditional} mode.  According to K&R-1 (2.2), ``No more than the
-first eight characters are significant, although more may be used.''.
-Also according to K&R-1 (2.2), ``An identifier is a sequence of letters
-and digits; the first character must be a letter.  The underscore _
-counts as a letter.'', but GCC also allows dollar signs in identifiers.
+GCC treats all characters of identifiers as significant.  According to
+K&R-1 (2.2), ``No more than the first eight characters are significant,
+although more may be used.''.  Also according to K&R-1 (2.2), ``An
+identifier is a sequence of letters and digits; the first character must
+be a letter.  The underscore _ counts as a letter.'', but GCC also
+allows dollar signs in identifiers.
 
 @cindex whitespace
 @item
 PCC allows whitespace in the middle of compound assignment operators
 such as @samp{+=}.  GCC, following the ISO standard, does not
-allow this.  The difficulty described immediately above applies here
-too.
+allow this.
 
 @cindex apostrophes
 @cindex '
@@ -675,8 +581,7 @@ You can't expect this to work.
 @end example
 
 The best solution to such a problem is to put the text into an actual
-C comment delimited by @samp{/*@dots{}*/}.  However,
-@option{-traditional} suppresses these error messages.
+C comment delimited by @samp{/*@dots{}*/}.
 
 @item
 Many user programs contain the declaration @samp{long time ();}.  In the
@@ -916,27 +821,20 @@ You can partially avoid this problem by using the @option{-ffloat-store}
 option (@pxref{Optimize Options}).
 
 @item
-On the MIPS, variable argument functions using @file{varargs.h}
-cannot have a floating point value for the first argument.  The
-reason for this is that in the absence of a prototype in scope,
-if the first argument is a floating point, it is passed in a
-floating point register, rather than an integer register.
-
-If the code is rewritten to use the ISO standard @file{stdarg.h}
-method of variable arguments, and the prototype is in scope at
-the time of the call, everything will work fine.
-
-@item
-On the H8/300 and H8/300H, variable argument functions must be
-implemented using the ISO standard @file{stdarg.h} method of
-variable arguments.  Furthermore, calls to functions using @file{stdarg.h}
-variable arguments must have a prototype for the called function
-in scope at the time of the call.
-
-@item
 On AIX and other platforms without weak symbol support, templates
 need to be instantiated explicitly and symbols for static members
 of templates will not be generated.
+
+@item
+On AIX, GCC scans object files and library archives for static
+constructors and destructors when linking an application before the
+linker prunes unreferenced symbols.  This is necessary to prevent the
+AIX linker from mistakenly assuming that static constructor or
+destructor are unused and removing them before the scanning can occur.
+All static constructors and destructors found will be referenced even
+though the modules in which they occur may not be used by the program.
+This may lead to both increased executable size and unexpected symbol
+references.
 @end itemize
 
 @node C++ Misunderstandings
@@ -988,9 +886,9 @@ int Foo::bar = 0;
 @end example
 
 Other C++ compilers may not correctly implement the standard behavior.
-As a result, when you switch to @code{g++} from one of these compilers,
+As a result, when you switch to @command{g++} from one of these compilers,
 you may discover that a program that appeared to work correctly in fact
-does not conform to the standard: @code{g++} reports as undefined
+does not conform to the standard: @command{g++} reports as undefined
 symbols any static data members that lack definitions.
 
 @node Temporaries
@@ -1298,12 +1196,11 @@ they write programs which have the same meaning in both C dialects.)
 
 @item
 @opindex ansi
-@opindex traditional
 @opindex std
 Undefining @code{__STDC__} when @option{-ansi} is not used.
 
-Currently, GCC defines @code{__STDC__} as long as you don't use
-@option{-traditional}.  This provides good results in practice.
+Currently, GCC defines @code{__STDC__} unconditionally.  This provides
+good results in practice.
 
 Programmers normally use conditionals on @code{__STDC__} to ask whether
 it is safe to use certain features of ISO C, such as function

@@ -23,20 +23,23 @@ Boston, MA 02111-1307, USA.  */
 #undef TARGET_DEFAULT
 #define TARGET_DEFAULT (MASK_FP | MASK_FPREGS | MASK_GAS)
 
-#undef CPP_PREDEFINES
-#define CPP_PREDEFINES \
-"-D__gnu_linux__ -Dlinux -Dunix -Asystem=linux -D_LONGLONG -D__alpha__ " \
-SUB_CPP_PREDEFINES
-
-/* The GNU C++ standard library requires that these macros be defined.  */
-#undef CPLUSPLUS_CPP_SPEC
-#define CPLUSPLUS_CPP_SPEC "-D_GNU_SOURCE %(cpp)"
+#define TARGET_OS_CPP_BUILTINS()				\
+    do {							\
+	builtin_define ("__gnu_linux__");			\
+	builtin_define ("_LONGLONG");				\
+	builtin_define_std ("linux");				\
+	builtin_define_std ("unix");				\
+	builtin_assert ("system=linux");			\
+	/* The GNU C++ standard library requires this.  */	\
+	if (c_language == clk_cplusplus)			\
+	  builtin_define ("_GNU_SOURCE");			\
+    } while (0)
 
 #undef LIB_SPEC
 #define LIB_SPEC \
-  "%{shared: -lc} \
-   %{!shared: %{pthread:-lpthread} \
-              %{profile:-lc_p} %{!profile: -lc}}"
+  "%{pthread:-lpthread} \
+   %{shared:-lc} \
+   %{!shared: %{profile:-lc_p}%{!profile:-lc}}"
 
 /* Show that we need a GP when profiling.  */
 #undef TARGET_PROFILING_NEEDS_GP
@@ -55,6 +58,8 @@ SUB_CPP_PREDEFINES
 
 /* Define this so that all GNU/Linux targets handle the same pragmas.  */
 #define HANDLE_PRAGMA_PACK_PUSH_POP
+
+#define TARGET_HAS_F_SETLKW
 
 /* Do code reading to identify a signal frame, and set the frame
    state data appropriately.  See unwind-dw2.c for the structs.  */

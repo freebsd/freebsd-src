@@ -175,10 +175,12 @@ Boston, MA 02111-1307, USA.  */
 #undef TYPE_ASM_OP
 #undef SIZE_ASM_OP
 #undef SET_ASM_OP
+#undef GLOBAL_ASM_OP
 
 #define TYPE_ASM_OP	"\t.type\t"
 #define SIZE_ASM_OP	"\t.size\t"
 #define SET_ASM_OP	"\t.set\t"
+#define GLOBAL_ASM_OP	"\t.globl\t"
 
 /* The following macro defines the format used to output the second
    operand of the .type assembler directive.  */
@@ -203,11 +205,7 @@ Boston, MA 02111-1307, USA.  */
 #undef ASM_DECLARE_FUNCTION_NAME
 #define ASM_DECLARE_FUNCTION_NAME(FILE, NAME, DECL)			\
   do {									\
-    fprintf (FILE, "%s", TYPE_ASM_OP);					\
-    assemble_name (FILE, NAME);						\
-    fputs (" , ", FILE);						\
-    fprintf (FILE, TYPE_OPERAND_FMT, "function");			\
-    putc ('\n', FILE);							\
+    ASM_OUTPUT_TYPE_DIRECTIVE (FILE, NAME, "function");			\
     ASM_DECLARE_RESULT (FILE, DECL_RESULT (DECL));			\
     ASM_OUTPUT_LABEL(FILE, NAME);					\
   } while (0)
@@ -216,38 +214,29 @@ Boston, MA 02111-1307, USA.  */
 #ifndef OBSD_HAS_DECLARE_FUNCTION_SIZE
 /* Declare the size of a function.  */
 #undef ASM_DECLARE_FUNCTION_SIZE
-#define ASM_DECLARE_FUNCTION_SIZE(FILE, FNAME, DECL)			\
-  do {									\
-    if (!flag_inhibit_size_directive)					\
-      {									\
-	fprintf (FILE, "%s", SIZE_ASM_OP);				\
-	assemble_name (FILE, (FNAME));					\
-	fputs (" , . - ", FILE);					\
-	assemble_name (FILE, (FNAME));					\
-	putc ('\n', FILE);						\
-      }									\
+#define ASM_DECLARE_FUNCTION_SIZE(FILE, FNAME, DECL)		\
+  do {								\
+    if (!flag_inhibit_size_directive)				\
+      ASM_OUTPUT_MEASURED_SIZE (FILE, FNAME);			\
   } while (0)
 #endif
 
 #ifndef OBSD_HAS_DECLARE_OBJECT
 /* Extra assembler code needed to declare an object properly.  */
 #undef ASM_DECLARE_OBJECT_NAME
-#define ASM_DECLARE_OBJECT_NAME(FILE, NAME, DECL)			\
-  do {									\
-    fprintf (FILE, "%s", TYPE_ASM_OP);					\
-    assemble_name (FILE, NAME);						\
-    fputs (" , ", FILE);						\
-    fprintf (FILE, TYPE_OPERAND_FMT, "object");				\
-    putc ('\n', FILE);							\
-    size_directive_output = 0;						\
-    if (!flag_inhibit_size_directive && DECL_SIZE (DECL))		\
-      {									\
-	size_directive_output = 1;					\
-	fprintf (FILE, "%s", SIZE_ASM_OP);				\
-	assemble_name (FILE, NAME);					\
-	fprintf (FILE, " , %d\n", int_size_in_bytes (TREE_TYPE (DECL)));\
-      }									\
-    ASM_OUTPUT_LABEL (FILE, NAME);					\
+#define ASM_DECLARE_OBJECT_NAME(FILE, NAME, DECL)		\
+  do {								\
+      HOST_WIDE_INT size;					\
+      ASM_OUTPUT_TYPE_DIRECTIVE (FILE, NAME, "object");		\
+      size_directive_output = 0;				\
+      if (!flag_inhibit_size_directive				\
+	  && (DECL) && DECL_SIZE (DECL))			\
+	{							\
+	  size_directive_output = 1;				\
+	  size = int_size_in_bytes (TREE_TYPE (DECL));		\
+	  ASM_OUTPUT_SIZE_DIRECTIVE (FILE, NAME, size);		\
+	}							\
+      ASM_OUTPUT_LABEL (FILE, NAME);				\
   } while (0)
 
 /* Output the size directive for a decl in rest_of_decl_compilation
@@ -259,15 +248,15 @@ Boston, MA 02111-1307, USA.  */
 #define ASM_FINISH_DECLARE_OBJECT(FILE, DECL, TOP_LEVEL, AT_END)	 \
 do {									 \
      const char *name = XSTR (XEXP (DECL_RTL (DECL), 0), 0);		 \
+     HOST_WIDE_INT size;						 \
      if (!flag_inhibit_size_directive && DECL_SIZE (DECL)		 \
          && ! AT_END && TOP_LEVEL					 \
 	 && DECL_INITIAL (DECL) == error_mark_node			 \
 	 && !size_directive_output)					 \
        {								 \
 	 size_directive_output = 1;					 \
-	 fprintf (FILE, "%s", SIZE_ASM_OP);				 \
-	 assemble_name (FILE, name);					 \
-	 fprintf (FILE, " , %d\n", int_size_in_bytes (TREE_TYPE (DECL)));\
+	 size = int_size_in_bytes (TREE_TYPE (DECL));			 \
+	 ASM_OUTPUT_SIZE_DIRECTIVE (FILE, name, size);			 \
        }								 \
    } while (0)
 #endif
@@ -286,14 +275,6 @@ do {									 \
   do { fputs ("\t.weak\t", FILE); assemble_name (FILE, NAME); \
        fputc ('\n', FILE); } while (0)
 #endif
-
-/* Tell the assembler that a symbol is global.  */
-#ifndef ASM_GLOBALIZE_LABEL
-#define ASM_GLOBALIZE_LABEL(FILE,NAME) \
-  do { fputs ("\t.globl\t", FILE); assemble_name (FILE, NAME); \
-       fputc ('\n', FILE); } while(0)
-#endif
-
 
 /* Storage layout.  */
 
@@ -306,5 +287,5 @@ do {									 \
    code layout needs HANDLE_PRAGMA_WEAK asserted for __attribute((weak)) to
    work.  On the other hand, we don't define HANDLE_PRAGMA_WEAK directly,
    as this depends on a few other details as well...  */
-#define HANDLE_SYSV_PRAGMA
+#define HANDLE_SYSV_PRAGMA 1
 

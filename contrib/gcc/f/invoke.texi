@@ -9,7 +9,7 @@ Copyright @copyright{} 1996, 1997, 1998, 1999, 2000, 2001, 2002
 Free Software Foundation, Inc.
 
 Permission is granted to copy, distribute and/or modify this document
-under the terms of the GNU Free Documentation License, Version 1.1 or
+under the terms of the GNU Free Documentation License, Version 1.2 or
 any later version published by the Free Software Foundation; with the
 Invariant Sections being ``GNU General Public License'' and ``Funding
 Free Software'', the Front-Cover texts being (a) (see below), and with
@@ -182,7 +182,7 @@ by type.  Explanations are in the following sections.
 -malign-double @gol
 -ffloat-store  -fforce-mem  -fforce-addr  -fno-inline @gol
 -ffast-math  -fstrength-reduce  -frerun-cse-after-loop @gol
--funsafe-math-optimizations -fno-trapping-math @gol
+-funsafe-math-optimizations -ffinite-math-only -fno-trapping-math @gol
 -fexpensive-optimizations  -fdelayed-branch @gol
 -fschedule-insns  -fschedule-insn2  -fcaller-saves @gol
 -funroll-loops  -funroll-all-loops @gol
@@ -389,7 +389,7 @@ This option is supplied automatically when @option{-v} or @option{--verbose}
 is specified as a command-line option for @command{g77} or @command{gcc}
 and when the resulting commands compile Fortran source files.
 
-In GCC 3.1, this is changed back to the behaviour @command{gcc} displays
+In GCC 3.1, this is changed back to the behavior @command{gcc} displays
 for @samp{.c} files.
 
 @cindex -fset-g77-defaults option
@@ -1356,6 +1356,12 @@ Some of these have no effect when compiling programs written in Fortran:
 @cindex -Wswitch option
 @cindex options, -Wswitch
 @item -Wswitch
+@cindex -Wswitch-default option
+@cindex options, -Wswitch-default
+@item -Wswitch-default
+@cindex -Wswitch-enum option
+@cindex options, -Wswitch-enum
+@item -Wswitch-enum
 @cindex -Wtraditional option
 @cindex options, -Wtraditional
 @item -Wtraditional
@@ -1536,14 +1542,26 @@ Note that if you are not optimizing, no functions can be expanded inline.
 @cindex conformance, IEEE 754
 Might allow some programs designed to not be too dependent
 on IEEE behavior for floating-point to run faster, or die trying.
-Sets @option{-funsafe-math-optimizations}, and
-@option{-fno-trapping-math}.
+Sets @option{-funsafe-math-optimizations}, @option{-ffinite-math-only},
+and @option{-fno-trapping-math}.
 
 @cindex -funsafe-math-optimizations option
 @cindex options, -funsafe-math-optimizations
 @item -funsafe-math-optimizations
 Allow optimizations that may be give incorrect results
 for certain IEEE inputs.
+
+@cindex -ffinite-math-only option
+@cindex options, -ffinite-math-only
+@item -ffinite-math-only
+Allow optimizations for floating-point arithmetic that assume
+that arguments and results are not NaNs or +-Infs.
+
+This option should never be turned on by any @option{-O} option since
+it can result in incorrect output for programs which depend on
+an exact implementation of IEEE or ISO rules/specifications.
+
+The default is @option{-fno-finite-math-only}.
 
 @cindex -fno-trapping-math option
 @cindex options, -fno-trapping-math

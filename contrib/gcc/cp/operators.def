@@ -5,7 +5,7 @@
    non-overloadable operators (like the `?:' ternary operator).  
    Writtey by Mark Mitchell <mark@codesourcery.com>
 
-   Copyright (C) 2000, 2001, 2002, 2003 Free Software Foundation, Inc.
+   Copyright (C) 2000, 2001, 2002 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -54,7 +54,7 @@ Boston, MA 02111-1307, USA.  */
 
    ASSN_P
 
-     A boolean value.  If non-zero, this is an assignment operator.  
+     A boolean value.  If nonzero, this is an assignment operator.
 
    Before including this file, you should define DEFOPERATOR
    to take these arguments.  

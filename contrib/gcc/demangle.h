@@ -1,5 +1,5 @@
 /* Defs for interface to demanglers.
-   Copyright 1992, 1993, 1994, 1995, 1996, 1997, 1998, 2000, 2001
+   Copyright 1992, 1993, 1994, 1995, 1996, 1997, 1998, 2000, 2001, 2002
    Free Software Foundation, Inc.
    
    This program is free software; you can redistribute it and/or modify
@@ -21,7 +21,11 @@
 #if !defined (DEMANGLE_H)
 #define DEMANGLE_H
 
-#include <ansidecl.h>
+#include "ansidecl.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif /* __cplusplus */
 
 /* Options passed to cplus_demangle (in 2nd parameter). */
 
@@ -159,5 +163,9 @@ enum gnu_v3_dtor_kinds {
    it is.  */
 extern enum gnu_v3_dtor_kinds
 	is_gnu_v3_mangled_dtor PARAMS ((const char *name));
+
+#ifdef __cplusplus
+}
+#endif /* __cplusplus */
 
 #endif	/* DEMANGLE_H */

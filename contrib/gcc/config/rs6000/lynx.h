@@ -1,5 +1,5 @@
 /* Definitions for Rs6000 running LynxOS.
-   Copyright (C) 1995, 1996, 2000 Free Software Foundation, Inc.
+   Copyright (C) 1995, 1996, 2000, 2002 Free Software Foundation, Inc.
    Contributed by David Henkel-Wallace, Cygnus Support (gumby@cygnus.com)
 
 This file is part of GNU CC.
@@ -27,9 +27,10 @@ Boston, MA 02111-1307, USA.  */
 #undef ASM_FILE_START
 #undef EXTRA_SECTIONS
 #undef READONLY_DATA_SECTION
+#undef READONLY_DATA_SECTION_ASM_OP
 #undef EXTRA_SECTION_FUNCTIONS
-#undef SELECT_RTX_SECTION
-#undef SELECT_SECTION
+#undef TARGET_ASM_SELECT_RTX_SECTION
+#undef TARGET_ASM_SELECT_SECTION
 #undef USER_LABEL_PREFIX
 #undef ASM_OUTPUT_LABELREF
 #undef ASM_OUTPUT_INTERNAL_LABEL
@@ -52,8 +53,22 @@ Boston, MA 02111-1307, USA.  */
 #undef DEFAULT_SIGNED_CHAR
 #define DEFAULT_SIGNED_CHAR 1
 
-#undef CPP_PREDEFINES
-#define CPP_PREDEFINES "-Acpu=rs6000 -Amachine=rs6000 -Asystem=lynx -Asystem=unix -DLynx -D_IBMR2 -Dunix -Drs6000 -Dlynx -DLYNX"
+#undef TARGET_OS_CPP_BUILTINS
+#define TARGET_OS_CPP_BUILTINS()         \
+  do                                     \
+    {                                    \
+      builtin_assert ("cpu=rs6000");     \
+      builtin_assert ("machine=rs6000"); \
+      builtin_assert ("system=lynx");    \
+      builtin_assert ("system=unix");    \
+      builtin_define_std ("Lynx");       \
+      builtin_define ("_IBMR2");         \
+      builtin_define_std ("unix");       \
+      builtin_define_std ("rs6000");     \
+      builtin_define_std ("lynx");       \
+      builtin_define_std ("LYNX");       \
+    }                                    \
+  while (0)
 
 #undef LINK_SPEC
 #define LINK_SPEC "-T0x10001000 -H0x1000 -D0x20000000 -btextro -bhalt:4 -bnodelcsect -bnso -bro -bnoglink %{v} %{b*}"

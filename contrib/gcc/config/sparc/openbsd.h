@@ -1,5 +1,5 @@
 /* Configuration file for sparc OpenBSD target.
-   Copyright (C) 1999 Free Software Foundation, Inc.
+   Copyright (C) 1999, 2002 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -43,7 +43,7 @@ Boston, MA 02111-1307, USA.  */
 /* Specific options for DBX Output.  */
 
 /* This is BSD, so it wants DBX format.  */
-#define DBX_DEBUGGING_INFO
+#define DBX_DEBUGGING_INFO 1
 
 /* This is the char to use for continuation */
 #define DBX_CONTIN_CHAR '?'
@@ -63,5 +63,3 @@ Boston, MA 02111-1307, USA.  */
 #define DWARF2_UNWIND_INFO 0
 
 #undef ASM_PREFERRED_EH_DATA_FORMAT
-
-/* Default sparc.h does already define ASM_OUTPUT_MI_THUNK */

@@ -1,6 +1,7 @@
 /* Subroutines for insn-output.c for Windows NT.
    Contributed by Douglas Rupp (drupp@cs.washington.edu)
-   Copyright (C) 1995, 1997, 1998, 1999, 2000, 2001 Free Software Foundation, Inc.
+   Copyright (C) 1995, 1997, 1998, 1999, 2000, 2001, 2002
+   Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -30,6 +31,7 @@ Boston, MA 02111-1307, USA.  */
 #include "tm_p.h"
 #include "toplev.h"
 #include "hashtab.h"
+#include "ggc.h"
 
 /* i386/PE specific attribute support.
 
@@ -133,7 +135,7 @@ associated_type (decl)
   return t;
 }
 
-/* Return non-zero if DECL is a dllexport'd object.  */
+/* Return nonzero if DECL is a dllexport'd object.  */
 
 int
 i386_pe_dllexport_p (decl)
@@ -160,7 +162,7 @@ i386_pe_dllexport_p (decl)
   return 0;
 }
 
-/* Return non-zero if DECL is a dllimport'd object.  */
+/* Return nonzero if DECL is a dllimport'd object.  */
 
 int
 i386_pe_dllimport_p (decl)
@@ -191,22 +193,24 @@ i386_pe_dllimport_p (decl)
   return 0;
 }
 
-/* Return non-zero if SYMBOL is marked as being dllexport'd.  */
+/* Return nonzero if SYMBOL is marked as being dllexport'd.  */
 
 int
 i386_pe_dllexport_name_p (symbol)
      const char *symbol;
 {
-  return symbol[0] == '@' && symbol[1] == 'e' && symbol[2] == '.';
+  return symbol[0] == DLL_IMPORT_EXPORT_PREFIX
+         && symbol[1] == 'e' && symbol[2] == '.';
 }
 
-/* Return non-zero if SYMBOL is marked as being dllimport'd.  */
+/* Return nonzero if SYMBOL is marked as being dllimport'd.  */
 
 int
 i386_pe_dllimport_name_p (symbol)
      const char *symbol;
 {
-  return symbol[0] == '@' && symbol[1] == 'i' && symbol[2] == '.';
+  return symbol[0] == DLL_IMPORT_EXPORT_PREFIX
+         && symbol[1] == 'i' && symbol[2] == '.';
 }
 
 /* Mark a DECL as being dllexport'd.
@@ -235,7 +239,7 @@ i386_pe_mark_dllexport (decl)
     return; /* already done */
 
   newname = alloca (strlen (oldname) + 4);
-  sprintf (newname, "@e.%s", oldname);
+  sprintf (newname, "%ce.%s", DLL_IMPORT_EXPORT_PREFIX, oldname);
 
   /* We pass newname through get_identifier to ensure it has a unique
      address.  RTL processing can sometimes peek inside the symbol ref
@@ -310,7 +314,7 @@ i386_pe_mark_dllimport (decl)
     }
 
   newname = alloca (strlen (oldname) + 11);
-  sprintf (newname, "@i._imp__%s", oldname);
+  sprintf (newname, "%ci._imp__%s", DLL_IMPORT_EXPORT_PREFIX, oldname);
 
   /* We pass newname through get_identifier to ensure it has a unique
      address.  RTL processing can sometimes peek inside the symbol ref
@@ -365,12 +369,14 @@ gen_stdcall_suffix (decl)
   return IDENTIFIER_POINTER (get_identifier (newsym));
 }
 
-/* Cover function to implement ENCODE_SECTION_INFO.  */
-
 void
-i386_pe_encode_section_info (decl)
+i386_pe_encode_section_info (decl, first)
      tree decl;
+     int first;
 {
+  if (!first)
+    return;
+
   /* This bit is copied from i386.h.  */
   if (optimize > 0 && TREE_CONSTANT (decl)
       && (!flag_writable_strings || TREE_CODE (decl) != STRING_CST))
@@ -395,8 +401,8 @@ i386_pe_encode_section_info (decl)
     i386_pe_mark_dllimport (decl);
   /* It might be that DECL has already been marked as dllimport, but a
      subsequent definition nullified that.  The attribute is gone but
-     DECL_RTL still has @i._imp__foo.  We need to remove that. Ditto
-     for the DECL_NON_ADDR_CONST_P flag.  */
+     DECL_RTL still has (DLL_IMPORT_EXPORT_PREFIX)i._imp__foo.  We need
+     to remove that. Ditto for the DECL_NON_ADDR_CONST_P flag.  */
   else if ((TREE_CODE (decl) == FUNCTION_DECL
 	    || TREE_CODE (decl) == VAR_DECL)
 	   && DECL_RTL (decl) != NULL_RTX
@@ -418,7 +424,34 @@ i386_pe_encode_section_info (decl)
     }
 }
 
-/* Cover function for UNIQUE_SECTION.  */
+/* Strip only the leading encoding, leaving the stdcall suffix.  */
+
+const char *
+i386_pe_strip_name_encoding (str)
+     const char *str;
+{
+  if (*str == DLL_IMPORT_EXPORT_PREFIX)
+    str += 3;
+  if (*str == '*')
+    str += 1;
+  return str;
+}
+
+/* Also strip the stdcall suffix.  */
+
+const char *
+i386_pe_strip_name_encoding_full (str)
+     const char *str;
+{
+  const char *p;
+  const char *name = i386_pe_strip_name_encoding (str);
+ 
+  p = strchr (name, '@');
+  if (p)
+    return ggc_alloc_string (name, p - name);
+
+  return name;
+}
 
 void
 i386_pe_unique_section (decl, reloc)
@@ -430,8 +463,7 @@ i386_pe_unique_section (decl, reloc)
   char *string;
 
   name = IDENTIFIER_POINTER (DECL_ASSEMBLER_NAME (decl));
-  /* Strip off any encoding in fnname.  */
-  STRIP_NAME_ENCODING (name, name);
+  name = i386_pe_strip_name_encoding_full (name);
 
   /* The object is put in, for example, section .text$foo.
      The linker will then ultimately place them in .text
@@ -441,15 +473,8 @@ i386_pe_unique_section (decl, reloc)
      without a .rdata section.  */
   if (TREE_CODE (decl) == FUNCTION_DECL)
     prefix = ".text$";
-/* else if (DECL_INITIAL (decl) == 0
-	   || DECL_INITIAL (decl) == error_mark_node)
-    prefix = ".bss";  */
-  else if (DECL_READONLY_SECTION (decl, reloc))
-#ifdef READONLY_DATA_SECTION
+  else if (decl_readonly_section (decl, reloc))
     prefix = ".rdata$";
-#else
-    prefix = ".text$";
-#endif
   else
     prefix = ".data$";
   len = strlen (name) + strlen (prefix);
@@ -494,7 +519,7 @@ i386_pe_section_type_flags (decl, name, reloc)
 
   if (decl && TREE_CODE (decl) == FUNCTION_DECL)
     flags = SECTION_CODE;
-  else if (decl && DECL_READONLY_SECTION (decl, reloc))
+  else if (decl && decl_readonly_section (decl, reloc))
     flags = 0;
   else
     {
@@ -560,7 +585,7 @@ i386_pe_asm_named_section (name, flags)
 /* Mark a function appropriately.  This should only be called for
    functions for which we are not emitting COFF debugging information.
    FILE is the assembler output file, NAME is the name of the
-   function, and PUBLIC is non-zero if the function is globally
+   function, and PUBLIC is nonzero if the function is globally
    visible.  */
 
 void
@@ -598,7 +623,7 @@ i386_pe_record_external_function (name)
 {
   struct extern_list *p;
 
-  p = (struct extern_list *) permalloc (sizeof *p);
+  p = (struct extern_list *) xmalloc (sizeof *p);
   p->next = extern_head;
   p->name = name;
   extern_head = p;
@@ -628,7 +653,7 @@ i386_pe_record_exported_symbol (name, is_data)
 {
   struct export_list *p;
 
-  p = (struct export_list *) permalloc (sizeof *p);
+  p = (struct export_list *) xmalloc (sizeof *p);
   p->next = export_head;
   p->name = name;
   p->is_data = is_data;
@@ -668,7 +693,7 @@ i386_pe_asm_file_end (file)
       for (q = export_head; q != NULL; q = q->next)
 	{
 	  fprintf (file, "\t.ascii \" -export:%s%s\"\n",
-		   I386_PE_STRIP_ENCODING (q->name),
+		   i386_pe_strip_name_encoding (q->name),
 		   (q->is_data) ? ",data" : "");
 	}
     }

@@ -995,7 +995,7 @@ Mon Dec 17 18:27:52 CET 2001  Jan Hubicka  <jh@suse.cz>
 
 Mon Dec 17 17:57:05 CET 2001  Jan Hubicka  <jh@suse.cz>
 
-	* Makefile.in (cfgcleanup.o): Add cselib.h dependancy.
+	* Makefile.in (cfgcleanup.o): Add cselib.h dependency.
 	* basic-block.h (CLEANUP_THREADING): New constant.
 	* cfgcleanup.c: Include cselib.h
 	(thread_jump, mark_effect): New functions.
@@ -1020,10 +1020,10 @@ Mon Dec 17 17:57:05 CET 2001  Jan Hubicka  <jh@suse.cz>
 	* target.h (asm_out.byte_op, asm_out.aligned_op, asm_out.unaligned_op,
 	asm_out.integer): New fields.
 	* target-def.h (TARGET_ASM_BYTE_OP, TARGET_ASM_ALIGNED_[HSDT]I_OP,
-	TARGET_ASM_UNALIGNED_[HSDT]I_OP, TARGET_ASM_INTEGER): New initialisers.
+	TARGET_ASM_UNALIGNED_[HSDT]I_OP, TARGET_ASM_INTEGER): New initializers.
 	(TARGET_ASM_ALIGNED_INT_OP, TARGET_ASM_UNALIGNED_INT_OP): Collect
-	the individual initialisers together.
-	(TARGET_ASM_OUT): Add the new initialisers.
+	the individual initializers together.
+	(TARGET_ASM_OUT): Add the new initializers.
 	* output.h (assemble_integer): Return bool.
 	(integer_asm_op): Declare.
 	(default_assemble_integer): Declare.
@@ -5339,9 +5339,9 @@ Wed Nov 14 06:37:54 2001  Richard Kenner  <kenner@vlsi1.ultra.nyu.edu>
 2001-11-13  Kazu Hirata  <kazu@hxi.com>
 
 	* config/h8300/h8300.c (shift_alg_si): Use special code for
-	25-bit shifts on H8/S.
+	25-bit shifts on H8S.
 	(get_shift_alg): Generate special code for 25-bit shifts on
-	H8/S.
+	H8S.
 
 2001-11-13  Jakub Jelinek  <jakub@redhat.com>
 
@@ -5449,10 +5449,10 @@ Tue Nov 13 05:45:40 2001  Richard Kenner  <kenner@vlsi1.ultra.nyu.edu>
 2001-11-12  Kazu Hirata  <kazu@hxi.com>
 
 	* config/h8300/h8300.c (shift_alg_qi): Use rotations when
-	doing 6-bit logical shifts on H8/S.
-	(shift_alg_qi): Use special code for 21-bit shifts on H8/S.
+	doing 6-bit logical shifts on H8S.
+	(shift_alg_qi): Use special code for 21-bit shifts on H8S.
 	(get_shift_alg): Generate special code for 21-bit shifts on
-	H8/S.
+	H8S.
 
 2001-11-12  Kazu Hirata  <kazu@hxi.com>
 
@@ -6891,7 +6891,7 @@ Sat Nov  3 10:37:56 2001  Richard Kenner  <kenner@vlsi1.ultra.nyu.edu>
 2001-11-01  David S. Miller  <davem@redhat.com>
 
 	* doc/install.texi (Specific, sparc-sun-solaris2*): Bring
-	64-bit Sparc description more in line with reality.
+	64-bit SPARC description more in line with reality.
 
 2001-11-01  Joseph S. Myers  <jsm28@cam.ac.uk>
 
@@ -9881,7 +9881,7 @@ Fri Sep 28 14:59:34 CEST 2001  Jan Hubicka  <jh@suse.cz>
 2001-09-27  Richard Henderson  <rth@redhat.com>
 
 	* dwarf2out.c (dwarf2out_frame_finish): Never elide .debug_frame
-	in favour of .eh_frame.
+	in favor of .eh_frame.
 
 2001-09-27  Aldy Hernandez  <aldyh@redhat.com>
 
@@ -10036,7 +10036,7 @@ Tue Sep 25 17:13:56 CEST 2001  Jan Hubicka  <jh@suse.cz>
 	(builtin_decsription): Add new field mask which is used to determine
 	when to define the builtin via the macro def_builtin.
 
-	(bdesc_comi): Initialise new mask fields.
+	(bdesc_comi): Initialize new mask fields.
 	(bdesc_2srg): Likewise.
 	(bdesc_1arg): Likewise.
 
@@ -12374,7 +12374,7 @@ Thu Aug 30 10:21:43 2001  J"orn Rennecke <amylaar@redhat.com>
 	(INIT_SECTION_ASM_OP): Define.
 	(FINI_SECTION_ASM_OP): Define.
 	(SUBTARGET_EXTRA_SECTIONS): Remove trailing comma.
-	(RDATA_SECTION_FUNCITON): Provide prototype.
+	(RDATA_SECTION_FUNCTION): Provide prototype.
 
 2001-08-29  Geoffrey Keating  <geoffk@redhat.com>
 
@@ -16219,7 +16219,7 @@ Thu Jul 26 14:04:03 EDT 2001  John Wehle  (john@feith.com)
 	* flow.c (update_life_info): Simplify the CFG and
 	recalculate the global regs which are alive when
 	removing dead code during a global update.
-	(propagate_block): Return non-zero if an INSN is
+	(propagate_block): Return nonzero if an INSN is
 	deleted.
 
 2001-07-26  Rainer Orth <ro@TechFak.Uni-Bielefeld.DE>
@@ -16689,7 +16689,7 @@ Sun Jul 22 21:31:04 CEST 2001  Jan Hubicka  <jh@suse.cz>
 	(xcoff_debug_hooks, dbx_debug_hooks): Use it.
 	* sdbout.c (sdbout_finish): New.
 	(sdbout_debug_hooks): Use it, add comments.
-	(sdbout_global_decl): Defer initialised public vars to
+	(sdbout_global_decl): Defer initialized public vars to
 	sdbout_finish.
 	* varasm.c (assemble_variable): Don't output debug information
 	for file-scope variables.
@@ -16721,7 +16721,7 @@ Sun Jul 22 21:31:04 CEST 2001  Jan Hubicka  <jh@suse.cz>
 	(xcoff_debug_hooks, dbx_debug_hooks): Use it.
 	* sdbout.c (sdbout_finish): New.
 	(sdbout_debug_hooks): Use it, add comments.
-	(sdbout_global_decl): Defer initialised public vars to
+	(sdbout_global_decl): Defer initialized public vars to
 	sdbout_finish.
 	* varasm.c (assemble_variable): Don't output debug information
 	for file-scope variables.
@@ -16990,7 +16990,7 @@ Fri Jul 20 13:24:16 CEST 2001  Jan Hubicka  <jh@suse.cz>
 
 	* Makefile.in (toplev.o, dwarfout.o, final.o): Don't depend on
 	dwarfout.h.
-	* dbxout.c (dbxout_function): Rename dbxout_funciton_decl, move
+	* dbxout.c (dbxout_function): Rename dbxout_function_decl, move
 	to conditionally compiled block.
 	(dbx_debug_hooks, xcoff_debug_hooks): Update.
 	* dbxout.h (dbxout_function): Remove.
@@ -18418,7 +18418,7 @@ Mon Jul  9 06:41:07 2001  Richard Kenner  <kenner@vlsi1.ultra.nyu.edu>
 	* config/ia64/ia64.c (ia64_output_end_prologue): Rename to
 	ia64_output_function_end_prologue.  Use in target struct
 	and make static.
-	(ia64_function_prologue, ia64_funciton_epilogue): Rename
+	(ia64_function_prologue, ia64_function_epilogue): Rename
 	mistyped prototypes.
 	* config/ia64/ia64.h (FUNCTION_END_PROLOGUE): Delete.
 	* config/m88k/m88k-protos.h (m88k_end_prologue, m88k_begin_epilogue):
@@ -19186,13 +19186,13 @@ Sun Jul  1 11:53:52 2001  Richard Kenner  <kenner@vlsi1.ultra.nyu.edu>
 
 	* c-parse.in (OBJC_STRING): Kill.
 	(objc_string): Decompose to [objc_string] '@' STRING.
-	(reswords): Take the leading '@' off all the Objective C keywords.
+	(reswords): Take the leading '@' off all the Objective-C keywords.
 	(objc_rid_sans_at): Kill.
 	(init_reswords): Don't initialize it.
 	(yylexname): Use OBJC_IS_AT_KEYWORD and OBJC_IS_PQ_KEYWORD.
 	(_yylex): Kill reconsider label.  Look ahead one token after
 	an '@'; if we get an identifier, check whether it's an
-	Objective C @-keyword.  If so, return the keyword.  Otherwise,
+	Objective-C @-keyword.  If so, return the keyword.  Otherwise,
 	put back the token and return the '@' as a terminal.
 
 	* cpplib.c (lex_macro_node): Remove unnecessary check for
