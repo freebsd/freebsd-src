@@ -1404,7 +1404,8 @@ vm_page_cache(vm_page_t m)
 {
 	int s;
 
-	if ((m->flags & (PG_BUSY|PG_UNMANAGED)) || m->busy || m->wire_count) {
+	if ((m->flags & (PG_BUSY|PG_UNMANAGED)) || m->busy ||
+	    m->hold_count || m->wire_count) {
 		printf("vm_page_cache: attempting to cache busy page\n");
 		return;
 	}
