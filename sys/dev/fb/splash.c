@@ -1,5 +1,29 @@
 /*-
- * $Id:$
+ * Copyright (c) 1999 Kazutaka YOKOTA <yokota@zodiac.mech.utsunomiya-u.ac.jp>
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer as
+ *    the first lines of this file unmodified.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $Id: splash.c,v 1.1 1999/01/09 02:44:49 yokota Exp $
  */
 
 #include "splash.h"
@@ -26,90 +50,98 @@ static int		decoders;
 static splash_decoder_t **decoder_set;
 #define DECODER_ARRAY_DELTA 4
 
-/* splash image data file */
-static void		*splash_image_data;
-static size_t		splash_image_size;
-
 /* console driver callback */
 static int		(*splash_callback)(int);
 
 static int
-splash_find_image(void)
+splash_find_data(splash_decoder_t *decoder)
 {
         caddr_t image_module;
 	caddr_t p;
 
-	if (splash_image_data == NULL) {
-		image_module = preload_search_by_type(SPLASH_IMAGE);
-		if (image_module == NULL)
-			return ENOENT;
-		p = preload_search_info(image_module, MODINFO_ADDR);
-		if (p == NULL)
-			return ENOENT;
-		splash_image_data = *(void **)p;
-		p = preload_search_info(image_module, MODINFO_SIZE);
-		if (p == NULL)
-			return ENOENT;
-		splash_image_size = *(size_t *)p;
-	}
+	if (decoder->data_type == NULL)
+		return 0;
+	image_module = preload_search_by_type(decoder->data_type);
+	if (image_module == NULL)
+		return ENOENT;
+	p = preload_search_info(image_module, MODINFO_ADDR);
+	if (p == NULL)
+		return ENOENT;
+	decoder->data = *(void **)p;
+	p = preload_search_info(image_module, MODINFO_SIZE);
+	if (p == NULL)
+		return ENOENT;
+	decoder->data_size = *(size_t *)p;
+	if (bootverbose)
+		printf("splash: image@%p, size:%u\n",
+		       decoder->data, decoder->data_size);
 	return 0;
 }
 
 static int
 splash_test(splash_decoder_t *decoder)
 {
-	if ((*decoder->init)(splash_adp, splash_image_data, splash_image_size))
+	if (splash_find_data(decoder))
+		return ENOENT;	/* XXX */
+	if ((*decoder->init)(splash_adp)) {
+		decoder->data = NULL;
+		decoder->data_size = 0;
 		return ENODEV;	/* XXX */
+	}
 	if (bootverbose)
 		printf("splash: image decoder found: %s\n", decoder->name);
+	return 0;
+}
+
+static void
+splash_new(splash_decoder_t *decoder)
+{
 	splash_decoder = decoder;
 	if (splash_callback != NULL)
 		(*splash_callback)(SPLASH_INIT);
-	return 0;
 }
 
 int
 splash_register(splash_decoder_t *decoder)
 {
 	splash_decoder_t **p;
+	int error;
 	int i;
 
-	/* only one decoder can be active */
-	if (splash_decoder != NULL)
-		return ENODEV;	/* XXX */
-
-	/* if the splash image is not in memory, abort */
-	splash_find_image();
-	if (bootverbose)
-		printf("splash: image@%p, size:%u\n",
-		       splash_image_data, splash_image_size);
-	if (splash_image_data == NULL)
-		return ENOENT;
-
-	/*
-	 * If the video card has aleady been initialized, test this 
-	 * decoder immediately.
-	 */
-	if (splash_adp != NULL)
-		return splash_test(decoder);
-
-	/* register the decoder for later use */
-	for (i = 0; i < decoders; ++i) {
-		if (decoder_set[i] == NULL)
-			break;
+	if (splash_adp != NULL) {
+		/*
+		 * If the video card has aleady been initialized, test
+		 * this decoder immediately.
+		 */
+		error = splash_test(decoder);
+		if (error == 0) {
+			/* replace the current decoder with new one */
+			if (splash_decoder != NULL)
+				error = splash_term(splash_adp);
+			if (error == 0)
+				splash_new(decoder);
+		}
+		return error;
+	} else {
+		/* register the decoder for later use */
+		for (i = 0; i < decoders; ++i) {
+			if (decoder_set[i] == NULL)
+				break;
+		}
+		if ((i >= decoders) && (decoders % DECODER_ARRAY_DELTA) == 0) {
+			p = malloc(sizeof(*p)*(decoders + DECODER_ARRAY_DELTA),
+			   	M_DEVBUF, M_NOWAIT);
+			if (p == NULL)
+				return ENOMEM;
+			if (decoder_set != NULL)
+				bcopy(decoder_set, p, sizeof(*p)*decoders);
+			free(decoder_set, M_DEVBUF);
+			decoder_set = p;
+			i = decoders++;
+		}
+		decoder_set[i] = decoder;
 	}
-	if ((i >= decoders) && (decoders % DECODER_ARRAY_DELTA) == 0) {
-		p = malloc(sizeof(*p)*(decoders + DECODER_ARRAY_DELTA),
-			   M_DEVBUF, M_NOWAIT);
-		if (p == NULL)
-			return ENOMEM;
-		if (decoder_set != NULL)
-			bcopy(decoder_set, p, sizeof(*p)*decoders);
-		free(decoder_set, M_DEVBUF);
-		decoder_set = p;
-		i = decoders++;
-	}
-	decoder_set[i] = decoder;
+
 	return 0;
 }
 
@@ -117,17 +149,10 @@ int
 splash_unregister(splash_decoder_t *decoder)
 {
 	int error;
-	int i;
 
 	if (splash_decoder == decoder) {
 		if ((error = splash_term(splash_adp)) != 0)
 			return error;
-	}
-	for (i = 0; i < decoders; ++i) {
-		if (decoder_set[i] == decoder) {
-			decoder_set[i] = NULL;
-			break;
-		}
 	}
 	return 0;
 }
@@ -140,16 +165,18 @@ splash_init(video_adapter_t *adp, int (*callback)(int))
 	splash_adp = adp;
 	splash_callback = callback;
 
-	/* try registered decoders with this adapter and loaded image */
 	splash_decoder = NULL;
-	splash_find_image();
-	if (splash_image_data == NULL)
-		return 0;
 	for (i = 0; i < decoders; ++i) {
 		if (decoder_set[i] == NULL)
 			continue;
-		if (splash_test(decoder_set[i]) == 0)
+		if (splash_test(decoder_set[i]) == 0) {
+			splash_new(decoder_set[i]);
 			break;
+		}
+		decoder_set[i] = NULL;
+	}
+	for (++i; i < decoders; ++i) {
+		decoder_set[i] = NULL;
 	}
 	return 0;
 }
