@@ -236,11 +236,16 @@ HTAGSFLAGS=
 
 .endif
 
+.if exists(/etc/defaults/make.conf)
+.include </etc/defaults/make.conf>
+.endif
+
 .if exists(/etc/make.conf)
 .include </etc/make.conf>
 .endif
 
 .if exists(/etc/make.conf.local)
+.error Error, original /etc/make.conf should be moved to the /etc/defaults/ directory and /etc/make.conf.local should be renamed to /etc/make.conf.
 .include </etc/make.conf.local>
 .endif
 
