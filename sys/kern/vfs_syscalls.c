@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.51.2.3 1997/03/26 20:05:44 guido Exp $
+ * $Id: vfs_syscalls.c,v 1.51.2.4 1997/05/03 11:08:39 peter Exp $
  */
 
 /*
@@ -297,8 +297,11 @@ dounmount(mp, flags, p)
 		return (EBUSY);
 	mp->mnt_flag |= MNT_UNMOUNT;
 	error = vfs_lock(mp);
-	if (error)
+	if (error) {
+		mp->mnt_flag &= ~MNT_UNMOUNT;
+		vfs_unbusy(mp);
 		return (error);
+	}
 
 	mp->mnt_flag &=~ MNT_ASYNC;
 	vfs_msync(mp, MNT_NOWAIT);
