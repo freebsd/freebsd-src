@@ -27,6 +27,7 @@
 217:Champaign:Illinois:IL
 217:Springfield:Illinois:IL
 218:Duluth:Minnesota:MN
+218:Moorhead:Minnesota:MN
 219:Gary:Indiana:IN
 219:Hammond:Indiana:IN
 219:Michigan City:Indiana:IN
@@ -141,6 +142,7 @@
 506:Fredericton:New Brunswick:NB
 507:Austin:Minnesota:MN
 507:Rochester:Minnesota:MN
+507:Winona:Minnesota:MN
 508:Fall River:Massachusetts:MA
 508:New Bedford:Massachusetts:MA
 508:Worcester:Massachusetts:MA
@@ -193,6 +195,7 @@
 609:Atlantic City:New Jersey:NJ
 610:Allentown:Pennsylvania:PA
 610:Reading:Pennsylvania:PA
+612:Bloomington:Minnesota:MN
 612:Minneapolis:Minnesota:MN
 612:St. Louis Park:Minnesota:MN
 612:St. Paul:Minnesota:MN
