@@ -420,7 +420,7 @@ main(argc, argv)
 	if (pwd->pw_change || pwd->pw_expire)
 		(void)gettimeofday(&tp, (struct timezone *)NULL);
 
-#define DEFAULT_WARN  (2L * 7L * 86400L)  /* Two weeks */
+#define	DEFAULT_WARN  (2L * 7L * 86400L)  /* Two weeks */
 
 
 	warntime = login_getcaptime(lc, "warnexpire", DEFAULT_WARN,
@@ -438,11 +438,11 @@ main(argc, argv)
 	warntime = login_getcaptime(lc, "warnpassword", DEFAULT_WARN,
 	    DEFAULT_WARN);
 
-	changepass=0;
+	changepass = 0;
 	if (pwd->pw_change) {
 		if (tp.tv_sec >= pwd->pw_change) {
 			(void)printf("Sorry -- your password has expired.\n");
-			changepass=1;
+			changepass = 1;
 			syslog(LOG_INFO, "%s Password expired - forcing change",
 			    pwd->pw_name);
 		} else if (pwd->pw_change - tp.tv_sec < warntime && !quietlog)
@@ -879,6 +879,7 @@ ok_to_export(s)
 static void
 usage()
 {
+
 	(void)fprintf(stderr, "usage: login [-fp] [-h hostname] [username]\n");
 	exit(1);
 }
