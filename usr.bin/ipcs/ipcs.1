@@ -37,7 +37,7 @@
 .Nd report System V interprocess communication facilities status
 .Sh SYNOPSIS
 .Nm
-.Op Fl abcmopqstMQST
+.Op Fl abcmopqstMQSTy
 .Op Fl C Ar system
 .Op Fl N Ar core
 .Sh DESCRIPTION
@@ -101,12 +101,16 @@ or the last operation on a semaphore.
 Extract the name list from the specified system instead of the
 default
 .Dq Pa /kernel .
+Implies
+.Fl y .
 .It Fl M
 Display system information about shared memory.
 .It Fl N Ar core
 Extract values associated with the name list from the specified
 core instead of the default
 .Dq Pa /dev/kmem .
+Implies
+.Fl y .
 .It Fl Q
 Display system information about messages queues.
 .It Fl S
@@ -114,6 +118,19 @@ Display system information about semaphores.
 .It Fl T
 Display system information about shared memory, message queues
 and semaphores.
+.It Fl y
+Use the
+.Xr kvm 3
+interface instead of the
+.Xr sysctl 3
+interface to extract the required information.
+If
+.Nm
+is to operate on the running system,
+using
+.Xr kvm 3
+will require read privileges to
+.Pa /dev/kmem .
 .El
 .Pp
 If none of the
