@@ -440,6 +440,7 @@ vendor LANTECH			-1	Lantech Computer Company
 vendor NAKAGAWAMETAL		-1	NAKAGAWA METAL
 vendor NDC			-1	NDC
 vendor NEC			-1	NEC
+vendor OEM2			-1	Generic OEM
 vendor PLANET			-1 	Planet
 vendor PLANEX			-1	Planex Communications Inc
 vendor PREMAX			-1 	Premax
@@ -516,6 +517,7 @@ product NEC CMZ_RT_WP		{ "NEC", "Wireless&spCard&spCMZ-RT-WP", "Version&sp01.01"
 product NEC PC9801N_J03R	{ "NEC", "PC-9801N-J03R", NULL, NULL } NEC PC-9801N-J03R
 product NEWMEDIA BASICS_SCSI	{ "BASICS&spby&spNew&spMedia&spCorporation" "SCSI&spSym53C500", NULL, NULL } New Media Corporation BASICS SCSI
 product NTT_ME WLAN		{ "NTT-ME", "11Mbps&spWireless&spLAN&spPC&spCard", NULL, NULL } NTT-ME 11Mbps Wireless LAN PC Card
+product OEM2 CDROM1	{ "PCMCIA", "CD-ROM", NULL, NULL } Generic PCMCIA CD-ROM
 product PLANET SMARTCOM2000	{ "PCMCIA", "UE2212", NULL, NULL } Planet SmartCOM 2000
 /*
  * vendor ID of both FNW-3600-T and FNW-3700-T is LINKSYS (0x0149) and
