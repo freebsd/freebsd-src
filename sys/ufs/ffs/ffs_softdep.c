@@ -1,4 +1,3 @@
-
 /*
  * Copyright 1998 Marshall Kirk McKusick. All Rights Reserved.
  *
@@ -53,8 +52,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	from: @(#)ffs_softdep.c	9.32 (McKusick) 2/17/99
- *	$Id: ffs_softdep.c,v 1.21 1999/01/22 09:07:32 dg Exp $
+ *	from: @(#)ffs_softdep.c	9.33 (McKusick) 2/25/99
+ *	$Id: ffs_softdep.c,v 1.22 1999/02/17 20:01:20 mckusick Exp $
  */
 
 /*
@@ -2155,6 +2154,7 @@ softdep_setup_directory_add(bp, dp, diroffset, newinum, newdirbp)
 		/*
 		 * Dependency on "." and ".." being written to disk.
 		 */
+		mkdir1->md_buf = newdirbp;
 		LIST_INSERT_HEAD(&mkdirlisthd, mkdir1, md_mkdirs);
 		WORKLIST_INSERT(&newdirbp->b_dep, &mkdir1->md_list);
 		bdwrite(newdirbp);
@@ -3843,6 +3843,48 @@ loop:
 					return (error);
 				}
 			}
+			break;
+
+		case D_MKDIR:
+			/*
+			 * This case should never happen if the vnode has
+			 * been properly sync'ed. However, if this function
+			 * is used at a place where the vnode has not yet
+			 * been sync'ed, this dependency can show up. So,
+			 * rather than panic, just flush it.
+			 */
+			nbp = WK_MKDIR(wk)->md_buf;
+			if (getdirtybuf(&nbp, waitfor) == 0)
+				break;
+			FREE_LOCK(&lk);
+			if (waitfor == MNT_NOWAIT) {
+				bawrite(nbp);
+			} else if ((error = VOP_BWRITE(nbp)) != 0) {
+				bawrite(bp);
+				return (error);
+			}
+			ACQUIRE_LOCK(&lk);
+			break;
+
+		case D_BMSAFEMAP:
+			/*
+			 * This case should never happen if the vnode has
+			 * been properly sync'ed. However, if this function
+			 * is used at a place where the vnode has not yet
+			 * been sync'ed, this dependency can show up. So,
+			 * rather than panic, just flush it.
+			 */
+			nbp = WK_BMSAFEMAP(wk)->sm_buf;
+			if (getdirtybuf(&nbp, waitfor) == 0)
+				break;
+			FREE_LOCK(&lk);
+			if (waitfor == MNT_NOWAIT) {
+				bawrite(nbp);
+			} else if ((error = VOP_BWRITE(nbp)) != 0) {
+				bawrite(bp);
+				return (error);
+			}
+			ACQUIRE_LOCK(&lk);
 			break;
 
 		default:
