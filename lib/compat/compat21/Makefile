@@ -1,8 +1,8 @@
-# $Id$
+# $Id: Makefile,v 1.8 1997/02/22 14:57:39 peter Exp $
 
 DISTRIBUTION=	compat21
 
-LIBS=	libc.so.2.2 libgmp.so.2.0
+LIBS=	libc.so.2.2 libg++.so.3.0 libgmp.so.2.0
 
 CLEANFILES+=	${LIBS}
 
