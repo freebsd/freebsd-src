@@ -271,10 +271,6 @@ X_db_search_symbol(symtab, off, strategy, diffp)
 	for (symp = symtab_start; symp < symtab_end; symp++) {
 		if (symp->st_name == 0)
 			continue;
-		if (ELF_ST_TYPE(symp->st_info) != STT_OBJECT &&
-		    ELF_ST_TYPE(symp->st_info) != STT_FUNC)
-			continue;
-
 		if (off >= symp->st_value) {
 			if ((off - symp->st_value) < diff) {
 				diff = off - symp->st_value;
