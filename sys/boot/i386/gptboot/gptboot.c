@@ -14,7 +14,7 @@
  */
 
 /*
- *	$Id: boot2.c,v 1.21 1999/03/31 08:28:42 joerg Exp $
+ *	$Id: boot2.c,v 1.22 1999/04/04 21:15:41 obrien Exp $
  */
 
 #include <sys/param.h>
@@ -170,7 +170,7 @@ main(void)
 	    memcpy(kname, PATH_KERNEL, sizeof(PATH_KERNEL));
     }
     for (;;) {
-	printf(" \n"
+	printf(" \n>> FreeBSD/i386 BOOT\n"
 	       "Default: %u:%s(%u,%c)%s\n"
 	       "boot: ",
 	       dsk.drive & DRV_MASK, dev_nm[dsk.type], dsk.unit,
