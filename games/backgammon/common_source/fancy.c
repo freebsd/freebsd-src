@@ -85,7 +85,7 @@ int	oldw;
 int	realr;
 int	realc;
 
-int	addbuf __P((int));
+int	addbuf(int);
 
 fboard ()  {
 	int	i, j, l;
