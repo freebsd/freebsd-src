@@ -69,7 +69,9 @@
 
 #include <sys/cdefs.h>
 #include <machine/ansi.h>
-#include <sys/null.h>
+#ifndef NULL
+#define NULL	0
+#endif
 
 #ifdef	_BSD_WCHAR_T_
 typedef	_BSD_WCHAR_T_	wchar_t;
@@ -96,6 +98,8 @@ typedef	_BSD_SIZE_T_	size_t;
 #endif
 
 __BEGIN_DECLS
+#if 0
+/* XXX: not implemented */
 size_t	mbrlen __P((const char * __restrict, size_t, mbstate_t * __restrict));
 size_t	mbrtowc __P((wchar_t * __restrict, const char * __restrict, size_t,
 	    mbstate_t * __restrict));
@@ -103,6 +107,7 @@ int	mbsinit __P((const mbstate_t *));
 size_t	mbsrtowcs __P((wchar_t * __restrict, const char ** __restrict, size_t,
 	    mbstate_t * __restrict));
 size_t	wcrtomb __P((char * __restrict, wchar_t, mbstate_t * __restrict));
+#endif
 wchar_t	*wcscat __P((wchar_t * __restrict, const wchar_t * __restrict));
 wchar_t	*wcschr __P((const wchar_t *, wchar_t));
 int	wcscmp __P((const wchar_t *, const wchar_t *));
@@ -116,8 +121,11 @@ wchar_t	*wcsncpy __P((wchar_t * __restrict , const wchar_t * __restrict,
 	    size_t));
 wchar_t	*wcspbrk __P((const wchar_t *, const wchar_t *));
 wchar_t	*wcsrchr __P((const wchar_t *, wchar_t));
+#if 0
+/* XXX: not implemented */
 size_t	wcsrtombs __P((char * __restrict, const wchar_t ** __restrict, size_t,
 	    mbstate_t * __restrict));
+#endif
 size_t	wcsspn __P((const wchar_t *, const wchar_t *));
 wchar_t	*wcsstr __P((const wchar_t *, const wchar_t *));
 wchar_t	*wmemchr __P((const wchar_t *, wchar_t, size_t));
@@ -129,8 +137,11 @@ wchar_t	*wmemset __P((wchar_t *, wchar_t, size_t));
 
 size_t	wcslcat __P((wchar_t *, const wchar_t *, size_t));
 size_t	wcslcpy __P((wchar_t *, const wchar_t *, size_t));
+#if 0
+/* XXX: not implemented */
 int	wcswidth __P((const wchar_t *, size_t));
 int	wcwidth __P((wchar_t));
+#endif
 __END_DECLS
 
 #endif /* !_WCHAR_H_ */
