@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa.c,v 1.103 1997/08/28 03:36:40 msmith Exp $
+ *	$Id: isa.c,v 1.104 1997/09/19 15:20:23 jmg Exp $
  */
 
 /*
@@ -319,6 +319,11 @@ haveseen_isadev(dvp, checkbits)
 		if (status)
 			return status;
 	}
+	for (tmpdvp = isa_devtab_cam; tmpdvp->id_driver; tmpdvp++) {
+		status |= haveseen(dvp, tmpdvp, checkbits);
+		if (status)
+			return status;
+	}
 	for (tmpdvp = isa_devtab_null; tmpdvp->id_driver; tmpdvp++) {
 		status |= haveseen(dvp, tmpdvp, checkbits);
 		if (status)
@@ -358,6 +363,9 @@ isa_configure() {
 	for (dvp = isa_devtab_net; dvp->id_driver; dvp++)
 		if (dvp->id_driver->sensitive_hw)
 			config_isadev(dvp, &net_imask);
+	for (dvp = isa_devtab_cam; dvp->id_driver; dvp++)
+		if (dvp->id_driver->sensitive_hw)
+			config_isadev(dvp, &cam_imask);
 	for (dvp = isa_devtab_null; dvp->id_driver; dvp++)
 		if (dvp->id_driver->sensitive_hw)
 			config_isadev(dvp, (u_int *)NULL);
@@ -372,6 +380,9 @@ isa_configure() {
 	for (dvp = isa_devtab_net; dvp->id_driver; dvp++)
 		if (!dvp->id_driver->sensitive_hw)
 			config_isadev(dvp, &net_imask);
+	for (dvp = isa_devtab_cam; dvp->id_driver; dvp++)
+		if (!dvp->id_driver->sensitive_hw)
+			config_isadev(dvp, &cam_imask);
 	for (dvp = isa_devtab_null; dvp->id_driver; dvp++)
 		if (!dvp->id_driver->sensitive_hw)
 			config_isadev(dvp, (u_int *)NULL);
@@ -416,6 +427,8 @@ isa_configure() {
 		register_imask(dvp, bio_imask);
 	for (dvp = isa_devtab_net; dvp->id_driver; dvp++)
 		register_imask(dvp, net_imask);
+	for (dvp = isa_devtab_cam; dvp->id_driver; dvp++)
+		register_imask(dvp, cam_imask);
 	for (dvp = isa_devtab_null; dvp->id_driver; dvp++)
 		register_imask(dvp, SWI_CLOCK_MASK);
 	spl0();

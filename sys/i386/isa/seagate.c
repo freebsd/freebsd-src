@@ -60,7 +60,7 @@
  *               that category, with the possible exception of scanners and
  *               some of the older MO drives.
  *
- * $Id: seagate.c,v 1.24 1997/07/20 14:10:10 bde Exp $
+ * $Id: seagate.c,v 1.25 1997/08/25 23:06:29 bde Exp $
  */
 
 /*
@@ -676,7 +676,8 @@ int32_t sea_scsi_cmd (struct scsi_xfer *xs)
 			 * Tried to return COMPLETE but the machine hanged
 			 * with this. */
 			return (SUCCESSFULLY_QUEUED);
-		timeout (sea_timeout, (caddr_t) scb, (xs->timeout * hz) / 1000);
+		xs->timeout_ch = timeout (sea_timeout, (caddr_t) scb,
+					  (xs->timeout * hz) / 1000);
 		scb->flags |= SCB_TIMECHK;
 		PRINT (("sea%d/%d/%d command queued\n",
 			xs->sc_link->adapter_unit,
@@ -693,7 +694,7 @@ int32_t sea_scsi_cmd (struct scsi_xfer *xs)
 
 		/* Because we are polling, take out the timeout entry
 		 * sea_timeout made. */
-		untimeout (sea_timeout, (void*) scb);
+		untimeout (sea_timeout, (void*) scb, xs->timeout_ch);
 
 		if (! sea_poll (z, scb))
 			/* We timed out again... This is bad. Notice that
@@ -761,7 +762,8 @@ void sea_timeout (void *arg)
 	if (! (scb->flags & SCB_ABORTED)) {
 		sea_abort (z, scb);
 		/* 2 seconds for the abort */
-		timeout (sea_timeout, (caddr_t)scb, 2*hz);
+		scb->xfer->timeout_ch = timeout (sea_timeout,
+						 (caddr_t)scb, 2*hz);
 		scb->flags |= (SCB_ABORTED | SCB_TIMECHK);
 	} else {
 		/* abort timed out */
@@ -1010,7 +1012,7 @@ void sea_done (adapter_t *z, scb_t *scb)
 	struct scsi_xfer *xs = scb->xfer;
 
 	if (scb->flags & SCB_TIMECHK)
-		untimeout (sea_timeout, (caddr_t) scb);
+		untimeout (sea_timeout, (caddr_t) scb, xs->timeout_ch);
 
 	/* How much of the buffer was not touched. */
 	xs->resid = scb->datalen;

@@ -27,7 +27,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: cy.c,v 1.53 1997/09/03 01:50:24 bde Exp $
+ *	$Id: cy.c,v 1.54 1997/09/14 03:19:08 peter Exp $
  */
 
 #include "cy.h"
@@ -137,6 +137,7 @@
 #define	siowrite	cywrite
 #define	sio_timeout	cy_timeout
 #define	sio_timeouts_until_log	cy_timeouts_until_log
+#define	sio_timeout_handle cy_timeout_handle
 #define	sio_tty		cy_tty
 
 #define	CY_MAX_PORTS		(CD1400_NO_OF_CHANNELS * CY_MAX_CD1400s)
@@ -390,6 +391,8 @@ static	speed_t	comdefaultrate = TTYDEF_SPEED;
 static	u_int	com_events;	/* input chars + weighted output completions */
 static	int	sio_timeout;
 static	int	sio_timeouts_until_log;
+static	struct	callout_handle sio_timeout_handle
+    = CALLOUT_HANDLE_INITIALIZER(&sio_timeout_handle);
 #if 0 /* XXX */
 static struct tty	*sio_tty[NSIO];
 #else
@@ -2305,7 +2308,7 @@ siosettimeout()
 	 * Otherwise set it to max(1/200, 1/hz).
 	 * Enable timeouts iff some device is open.
 	 */
-	untimeout(comwakeup, (void *)NULL);
+	untimeout(comwakeup, (void *)NULL, sio_timeout_handle);
 	sio_timeout = hz;
 	someopen = FALSE;
 	for (unit = 0; unit < NSIO; ++unit) {
@@ -2323,12 +2326,13 @@ siosettimeout()
 	}
 	if (someopen) {
 		sio_timeouts_until_log = hz / sio_timeout;
-		timeout(comwakeup, (void *)NULL, sio_timeout);
+		sio_timeout_handle = timeout(comwakeup, (void *)NULL,
+					     sio_timeout);
 	} else {
 		/* Flush error messages, if any. */
 		sio_timeouts_until_log = 1;
 		comwakeup((void *)NULL);
-		untimeout(comwakeup, (void *)NULL);
+		untimeout(comwakeup, (void *)NULL, sio_timeout_handle);
 	}
 }
 
@@ -2339,7 +2343,7 @@ comwakeup(chan)
 	struct com_s	*com;
 	int		unit;
 
-	timeout(comwakeup, (void *)NULL, sio_timeout);
+	sio_timeout_handle = timeout(comwakeup, (void *)NULL, sio_timeout);
 
 #if 0
 	/*

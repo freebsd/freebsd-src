@@ -17,7 +17,7 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  *
  *  ft.c - QIC-40/80 floppy tape driver
- *  $Id: ft.c,v 1.34 1997/07/20 14:09:55 bde Exp $
+ *  $Id: ft.c,v 1.35 1997/09/07 04:21:20 bde Exp $
  *
  *  01/19/95 ++sg
  *  Cleaned up recalibrate/seek code at attach time for FreeBSD 2.x.
@@ -269,7 +269,7 @@ static struct ft_data {
 	int lastpos;		/* last known segment number	  */
 	int moving;		/* TRUE if tape is moving	  */
 	int rid[7];		/* read_id return values	  */
-
+	struct callout_handle tohandle;
 } *ft_data[NFT];
 
 /***********************************************************************\
@@ -414,6 +414,7 @@ ftattach(isadev, fdup, unithasfd)
   if (ftu >= NFT) return 0;
   ft = ft_data[ftu] = malloc(sizeof *ft, M_DEVBUF, M_NOWAIT);
   bzero(ft, sizeof *ft);
+  callout_handle_init(&ft->tohandle);
 
   /* Probe for tape */
   ft->attaching = 1;
@@ -585,7 +586,7 @@ restate:
 			DPRT(("ft%d: async_cmd command bad st0=$%02x pcn=$%02x\n",
 							ftu, st0, pcn));
 			async_state = 0;
-			timeout(ft_timeout, (caddr_t)ftu, hz/10);
+			ft->tohandle = timeout(ft_timeout, (caddr_t)ftu, hz/10);
 			break;
 		}
 		if (st0 & 0x20)	{ 	/* seek done */
@@ -598,7 +599,7 @@ restate:
 #endif
 		if (async_arg1) goto complete;
 		async_state = 2;
-		timeout(ft_timeout, (caddr_t)ftu, hz/50);
+		ft->tohandle = timeout(ft_timeout, (caddr_t)ftu, hz/50);
 		break;
 	    case 2:
 		goto complete;
@@ -693,7 +694,7 @@ restate:
 			DPRT(("ft%d: acmd_state exceeded retry count\n", ftu));
 			goto complete;
 		}
-		timeout(ft_timeout, (caddr_t)ftu, hz/4);
+		ft->tohandle = timeout(ft_timeout, (caddr_t)ftu, hz/4);
 		break;
 	}
 	break;
@@ -719,7 +720,7 @@ restate:
 			goto complete;
 		}
 		async_state = 1;
-		timeout(ft_timeout, (caddr_t)ftu, hz/4);
+		ft->tohandle = timeout(ft_timeout, (caddr_t)ftu, hz/4);
 		break;
 	}
 	break;
@@ -792,7 +793,7 @@ restate:
 	    case 5:
 		ft->moving = 1;
 		async_state = 0;
-		timeout(ft_timeout, (caddr_t)ftu, hz/10); /* XXX */
+		ft->tohandle = timeout(ft_timeout, (caddr_t)ftu, hz/10); /* XXX */
 		break;
 	}
 	break;
@@ -885,7 +886,7 @@ restate:
 		break;
 	    case 8:
 		async_state = 9;
-		timeout(ft_timeout, (caddr_t)ftu, hz/10);  /* XXX */
+		ft->tohandle = timeout(ft_timeout, (caddr_t)ftu, hz/10);  /* XXX */
 		break;
 	    case 9:
 		goto complete;
@@ -1064,7 +1065,7 @@ restate:
 
      case 6:
 	arq_state = 1;
-	timeout(ft_timeout, (caddr_t)ftu, hz/10); /* XXX */
+	ft->tohandle = timeout(ft_timeout, (caddr_t)ftu, hz/10); /* XXX */
 	break;
 
      case 7:
@@ -1188,7 +1189,7 @@ restate:
 
      case 4:
 	ard_state = 1;
-	timeout(ft_timeout, (caddr_t)ftu, hz/10);  /* XXX */
+	ft->tohandle = timeout(ft_timeout, (caddr_t)ftu, hz/10);  /* XXX */
 	break;
 
      default:
@@ -1314,7 +1315,7 @@ restate:
 
      case 4:
 	awr_state = 1;
-	timeout(ft_timeout, (caddr_t)ftu, hz/10); /* XXX */
+	ft->tohandle = timeout(ft_timeout, (caddr_t)ftu, hz/10); /* XXX */
 	break;
 
      default:
@@ -1483,7 +1484,8 @@ intrdone:
   }
 
   /* got interrupt */
-  if (ft->attaching == 0 && ticks) untimeout(ft_timeout, (caddr_t)ftu);
+  if (ft->attaching == 0 && ticks)
+	untimeout(ft_timeout, (caddr_t)ftu, ft->tohandle);
   ft->cmd_wait = FTCMD_NONE;
   ft->sts_wait = FTSTS_NONE;
   return(0);
@@ -1768,7 +1770,7 @@ tape_inactive(ftu_t ftu)
 		ft->xcnt = 0;
 		ft->xptr = ft->segh->buff;
 		ft->active = 1;
-		timeout(ft_timeout, (caddr_t)ftu, 1);
+		ft->tohandle = timeout(ft_timeout, (caddr_t)ftu, 1);
 	}
   }
   while (ft->active) ftsleep(wc_iosts_change, 0);
@@ -2210,7 +2212,7 @@ ftreq_rw(ftu_t ftu, int cmd, QIC_Segment *sr, struct proc *p)
 	ft->xcnt = 0;
 	ft->xptr = sp->buff;
 	ft->active = 1;
-	timeout(ft_timeout, (caddr_t)ftu, 1);
+	ft->tohandle = timeout(ft_timeout, (caddr_t)ftu, 1);
 
 rdwait:
 	ftsleep(wc_buff_done, 0);
@@ -2241,7 +2243,7 @@ rddone:
 		ft->xcnt = 0;
 		ft->xptr = ft->segh->buff;
 		ft->active = 1;
-		timeout(ft_timeout, (caddr_t)ftu, 1);
+		ft->tohandle = timeout(ft_timeout, (caddr_t)ftu, 1);
 	}
 
 	/* Sleep until a buffer becomes available. */

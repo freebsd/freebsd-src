@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.181 1997/09/14 03:19:23 peter Exp $
+ *	$Id: sio.c,v 1.182 1997/09/19 15:25:49 jmg Exp $
  */
 
 #include "opt_comconsole.h"
@@ -373,6 +373,8 @@ static	u_int	com_events;	/* input chars + weighted output completions */
 static	Port_t	siocniobase;
 static	int	sio_timeout;
 static	int	sio_timeouts_until_log;
+static	struct	callout_handle sio_timeout_handle
+    = CALLOUT_HANDLE_INITIALIZER(&sio_timeout_handle);
 #if 0 /* XXX */
 static struct tty	*sio_tty[NSIOTOT];
 #else
@@ -2410,7 +2412,7 @@ siosettimeout()
 	 * Otherwise set it to max(1/200, 1/hz).
 	 * Enable timeouts iff some device is open.
 	 */
-	untimeout(comwakeup, (void *)NULL);
+	untimeout(comwakeup, (void *)NULL, sio_timeout_handle);
 	sio_timeout = hz;
 	someopen = FALSE;
 	for (unit = 0; unit < NSIOTOT; ++unit) {
@@ -2426,12 +2428,13 @@ siosettimeout()
 	}
 	if (someopen) {
 		sio_timeouts_until_log = hz / sio_timeout;
-		timeout(comwakeup, (void *)NULL, sio_timeout);
+		sio_timeout_handle = timeout(comwakeup, (void *)NULL,
+					     sio_timeout);
 	} else {
 		/* Flush error messages, if any. */
 		sio_timeouts_until_log = 1;
 		comwakeup((void *)NULL);
-		untimeout(comwakeup, (void *)NULL);
+		untimeout(comwakeup, (void *)NULL, sio_timeout_handle);
 	}
 }
 
@@ -2442,7 +2445,7 @@ comwakeup(chan)
 	struct com_s	*com;
 	int		unit;
 
-	timeout(comwakeup, (void *)NULL, sio_timeout);
+	sio_timeout_handle = timeout(comwakeup, (void *)NULL, sio_timeout);
 
 	/*
 	 * Recover from lost output interrupts.
