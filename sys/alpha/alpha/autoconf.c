@@ -36,7 +36,6 @@
 #include <sys/conf.h>
 #include <sys/disklabel.h>
 #include <sys/diskslice.h> /* for BASE_SLICE, MAX_SLICES */
-#include <sys/ipl.h>
 #include <sys/reboot.h>
 #include <sys/kernel.h>
 #include <net/radix.h>

@@ -39,7 +39,6 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/ipl.h>
 #include <sys/kernel.h>
 #include <sys/tty.h>
 #include <sys/conf.h>
@@ -47,7 +46,6 @@
 #include <sys/fcntl.h>
 #include <sys/bus.h>
 #include <sys/interrupt.h>
-#include <sys/ipl.h>
 
 
 #include <i386/isa/isa_device.h>

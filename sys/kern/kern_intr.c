@@ -32,7 +32,6 @@
 #include <sys/bus.h>
 #include <sys/rtprio.h>
 #include <sys/systm.h>
-#include <sys/ipl.h>
 #include <sys/interrupt.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
