@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)malloc.h	8.5 (Berkeley) 5/3/95
- * $Id: malloc.h,v 1.24 1997/09/16 13:52:04 bde Exp $
+ * $Id: malloc.h,v 1.25 1997/09/21 04:24:04 dyson Exp $
  */
 
 #ifndef _SYS_MALLOC_H_
@@ -46,193 +46,10 @@
 #define	M_NOWAIT	0x0001
 #define M_KERNEL	0x0002
 
-/*
- * Types of memory to be allocated
- */
-#define	M_FREE		0	/* should be on free list */
-#define	M_MBUF		1	/* mbuf */
-#define	M_DEVBUF	2	/* device driver memory */
-#define	M_SOCKET	3	/* socket structure */
-#define	M_PCB		4	/* protocol control block */
-#define	M_RTABLE	5	/* routing tables */
-#define	M_HTABLE	6	/* IMP host tables */
-#define	M_FTABLE	7	/* fragment reassembly header */
-#define	M_ZOMBIE	8	/* zombie proc status */
-#define	M_IFADDR	9	/* interface address */
-#define	M_SOOPTS	10	/* socket options */
-#define	M_SONAME	11	/* socket name */
-#define	M_NAMEI		12	/* namei path name buffer */
-#define	M_GPROF		13	/* kernel profiling buffer */
-#define	M_IOCTLOPS	14	/* ioctl data buffer */
-#define	M_MAPMEM	15	/* mapped memory descriptors */
-#define	M_CRED		16	/* credentials */
-#define	M_PGRP		17	/* process group header */
-#define	M_SESSION	18	/* session header */
-#define	M_IOV		19	/* large iov's */
-#define	M_MOUNT		20	/* vfs mount struct */
-#define	M_FHANDLE	21	/* network file handle */
-#define	M_NFSREQ	22	/* NFS request header */
-#define	M_NFSMNT	23	/* NFS mount structure */
-#define	M_NFSNODE	24	/* NFS vnode private part */
-#define	M_VNODE		25	/* Dynamically allocated vnodes */
-#define	M_CACHE		26	/* Dynamically allocated cache entries */
-#define	M_DQUOT		27	/* UFS quota entries */
-#define	M_UFSMNT	28	/* UFS mount structure */
-#define	M_SHM		29	/* SVID compatible shared memory segments */
-#define	M_VMMAP		30	/* VM map structures */
-#define	M_VMMAPENT	31	/* VM map entry structures */
-#define	M_VMOBJ		32	/* VM object structure */
-#define	M_VMOBJHASH	33	/* VM object hash structure */
-#define	M_VMPMAP	34	/* VM pmap */
-#define	M_VMPVENT	35	/* VM phys-virt mapping entry */
-#define	M_VMPAGER	36	/* XXX: VM pager struct */
-#define	M_VMPGDATA	37	/* XXX: VM pager private data */
-#define	M_FILE		38	/* Open file structure */
-#define	M_FILEDESC	39	/* Open file descriptor table */
-#define	M_LOCKF		40	/* Byte-range locking structures */
-#define	M_PROC		41	/* Proc structures */
-#define	M_SUBPROC	42	/* Proc sub-structures */
-#define	M_SEGMENT	43	/* Segment for LFS */
-#define	M_LFSNODE	44	/* LFS vnode private part */
-#define	M_FFSNODE	45	/* FFS vnode private part */
-#define	M_MFSNODE	46	/* MFS vnode private part */
-#define	M_NQLEASE	47	/* Nqnfs lease */
-#define	M_NQMHOST	48	/* Nqnfs host address table */
-#define	M_NETADDR	49	/* Export host address structure */
-#define	M_NFSSVC	50	/* Nfs server structure */
-#define	M_NFSUID	51	/* Nfs uid mapping structure */
-#define	M_NFSD		52	/* Nfs server daemon structure */
-#define	M_IPMOPTS	53	/* internet multicast options */
-#define	M_IPMADDR	54	/* internet multicast address */
-#define	M_IFMADDR	55	/* link-level multicast address */
-#define	M_MRTABLE	56	/* multicast routing tables */
-#define M_ISOFSMNT	57	/* ISOFS mount structure */
-#define M_ISOFSNODE	58	/* ISOFS vnode private part */
-#define M_NFSRVDESC	59	/* NFS server socket descriptor */
-#define M_NFSDIROFF	60	/* NFS directory offset data */
-#define M_NFSBIGFH	61	/* NFS version 3 file handle */
-#define M_MSDOSFSMNT	67	/* MSDOSFS mount structure */
-#define M_MSDOSFSNODE	68	/* MSDOSFS vnode private part */
-#define M_MSDOSFSFAT	69	/* MSDOSFS file allocation table */
-#define M_DEVFSMNT	70	/* DEVFS mount structure */
-#define M_DEVFSBACK	71	/* DEVFS Back node */
-#define M_DEVFSFRONT	72	/* DEVFS Front node */
-#define M_DEVFSNODE	73	/* DEVFS node */
-#define	M_TEMP		74	/* misc temporary data buffers */
-#define M_TTYS		75	/* tty data structures */
-#define M_GZIP		76	/* Gzip trees */
-#define M_IPFW		77	/* IpFw/IpAcct chain's */
-#define M_DEVL		78	/* isa_device lists in userconfig() */
-#define M_PKTCLASS	79	/* structures used in packet classifier */
-#define	M_SYSCTL	80	/* sysctl internal magic */
-#define	M_SECA		81	/* security associations, key management */
-#define	M_BIOBUF	82	/* BIO buffer */
-#define	M_KTRACE	83	/* KTRACE */
-#define	M_SELECT	84	/* select() buffer */
-#define	M_GEOM_DEV	85	/* geometry device */
-#define	M_GEOM_MOD	86	/* geometry module */
-#define	M_GEOM_REQ	87	/* geometry request */
-#define	M_GEOM_MISC	88	/* geometry misc */
-#define M_VFSCONF	89	/* vfsconf structure */
-#define M_AIO		90	/* AIO structure(s) */
-#define	M_ZONE		91	/* Zone header */
-#define	M_HOSTCACHE	92	/* per-host information cache structure */
-#define	M_LAST		93	/* Must be last type + 1 */
-
-#define INITKMEMNAMES { \
-	"free",		/* 0 M_FREE */ \
-	"mbuf",		/* 1 M_MBUF */ \
-	"devbuf",	/* 2 M_DEVBUF */ \
-	"socket",	/* 3 M_SOCKET */ \
-	"pcb",		/* 4 M_PCB */ \
-	"routetbl",	/* 5 M_RTABLE */ \
-	"hosttbl",	/* 6 M_HTABLE */ \
-	"fragtbl",	/* 7 M_FTABLE */ \
-	"zombie",	/* 8 M_ZOMBIE */ \
-	"ifaddr",	/* 9 M_IFADDR */ \
-	"soopts",	/* 10 M_SOOPTS */ \
-	"soname",	/* 11 M_SONAME */ \
-	"namei",	/* 12 M_NAMEI */ \
-	"gprof",	/* 13 M_GPROF */ \
-	"ioctlops",	/* 14 M_IOCTLOPS */ \
-	"mapmem",	/* 15 M_MAPMEM */ \
-	"cred",		/* 16 M_CRED */ \
-	"pgrp",		/* 17 M_PGRP */ \
-	"session",	/* 18 M_SESSION */ \
-	"iov",		/* 19 M_IOV */ \
-	"mount",	/* 20 M_MOUNT */ \
-	"fhandle",	/* 21 M_FHANDLE */ \
-	"NFS req",	/* 22 M_NFSREQ */ \
-	"NFS mount",	/* 23 M_NFSMNT */ \
-	"NFS node",	/* 24 M_NFSNODE */ \
-	"vnodes",	/* 25 M_VNODE */ \
-	"namecache",	/* 26 M_CACHE */ \
-	"UFS quota",	/* 27 M_DQUOT */ \
-	"UFS mount",	/* 28 M_UFSMNT */ \
-	"shm",		/* 29 M_SHM */ \
-	"VM map",	/* 30 M_VMMAP */ \
-	"VM mapent",	/* 31 M_VMMAPENT */ \
-	"VM object",	/* 32 M_VMOBJ */ \
-	"VM objhash",	/* 33 M_VMOBJHASH */ \
-	"VM pmap",	/* 34 M_VMPMAP */ \
-	"VM pvmap",	/* 35 M_VMPVENT */ \
-	"VM pager",	/* 36 M_VMPAGER */ \
-	"VM pgdata",	/* 37 M_VMPGDATA */ \
-	"file",		/* 38 M_FILE */ \
-	"file desc",	/* 39 M_FILEDESC */ \
-	"lockf",	/* 40 M_LOCKF */ \
-	"proc",		/* 41 M_PROC */ \
-	"subproc",	/* 42 M_SUBPROC */ \
-	"LFS segment",	/* 43 M_SEGMENT */ \
-	"LFS node",	/* 44 M_LFSNODE */ \
-	"FFS node",	/* 45 M_FFSNODE */ \
-	"MFS node",	/* 46 M_MFSNODE */ \
-	"NQNFS Lease",	/* 47 M_NQLEASE */ \
-	"NQNFS Host",	/* 48 M_NQMHOST */ \
-	"Export Host",	/* 49 M_NETADDR */ \
-	"NFS srvsock",	/* 50 M_NFSSVC */ \
-	"NFS uid",	/* 51 M_NFSUID */ \
-	"NFS daemon",	/* 52 M_NFSD */ \
-	"ip_moptions",	/* 53 M_IPMOPTS */ \
-	"in_multi",	/* 54 M_IPMADDR */ \
-	"ether_multi",	/* 55 M_IFMADDR */ \
-	"mrt",		/* 56 M_MRTABLE */ \
-	"ISOFS mount",	/* 57 M_ISOFSMNT */ \
-	"ISOFS node",	/* 58 M_ISOFSNODE */ \
-	"NFSV3 srvdesc",/* 59 M_NFSRVDESC */ \
-	"NFSV3 diroff",	/* 60 M_NFSDIROFF */ \
-	"NFSV3 bigfh",	/* 61 M_NFSBIGFH */ \
-	NULL, \
-	NULL, NULL, NULL, NULL, \
-	"MSDOSFS mount",/* 67 M_MSDOSFSMNT */ \
-	"MSDOSFS node",	/* 68 M_MSDOSFSNODE */ \
-	"MSDOSFS FAT",  /* 69 M_MSDOSFSFAR */ \
-	"DEVFS mount",	/* 70 M_DEVFSMNT */ \
-	"DEVFS back",	/* 71 M_DEVFSBACK */ \
-	"DEVFS front",	/* 72 M_DEVFSFRONT */ \
-	"DEVFS node",	/* 73 M_DEVFSNODE */ \
-	"temp",		/* 74 M_TEMP */ \
-	"ttys",		/* 75 M_TTYS */ \
-	"Gzip trees",	/* 76 M_GZIP */ \
-	"IpFw/IpAcct",	/* 77 M_IPFW */ \
-	"isa_devlist",	/* 78 M_DEVL */ \
-	"PktClass",	/* 79 M_PKTCLASS */ \
-	"sysctl",	/* 80 M_SYSCTL */ \
-	"key mgmt",	/* 81 M_SECA */ \
-	"BIO buffer",	/* 82 M_BIOBUF */ \
-	"KTRACE",	/* 83 M_KTRACE */ \
-	"select",	/* 84 M_SELECT */ \
-	"GEOM dev",	/* 85 M_GEOM_DEV */ \
-	"GEOM mod",	/* 86 M_GEOM_MOD */ \
-	"GEOM req",	/* 87 M_GEOM_REQ */ \
-	"GEOM misc",	/* 88 M_GEOM_MISC */ \
-	"VFS conf",	/* 89 M_VFSCONF */ \
-	"AIO",		/* 90 M_AIO */ \
-	"ZONE",		/* 91 M_ZONE */ \
-	"hostcache",	/* 92 M_HOSTCACHE */ \
-}
-
 struct kmemstats {
+	char	*ks_shortdesc;	/* Short description */
+	char	*ks_longdesc;	/* Long description */
+	struct kmemstats *ks_next; /* Next pointer */
 	long	ks_inuse;	/* # of packets of this type currently in use */
 	long	ks_calls;	/* total packets of this type ever allocated */
 	long 	ks_memuse;	/* total memory held in bytes */
@@ -243,6 +60,104 @@ struct kmemstats {
 	long	ks_size;	/* sizes of this thing that are allocated */
 	long	ks_spare;
 };
+
+typedef struct kmemstats malloc_type_t[1];
+
+#ifdef MALLOC_INSTANTIATE
+#define MALLOC_MAKE_TYPE(type, short, long) \
+	malloc_type_t type = {{short, long}}
+#else
+#define MALLOC_MAKE_TYPE(type, short, long) extern malloc_type_t type;
+#endif
+
+MALLOC_MAKE_TYPE(M_FREE, "free", "should be on free list");
+MALLOC_MAKE_TYPE(M_MBUF, "mbuf", "mbuf");
+MALLOC_MAKE_TYPE(M_DEVBUF, "devbuf", "device driver memory");
+MALLOC_MAKE_TYPE(M_SOCKET, "socket", "socket structure");
+MALLOC_MAKE_TYPE(M_PCB, "pcb", "protocol control block");
+MALLOC_MAKE_TYPE(M_RTABLE, "routetbl", "routing tables");
+ MALLOC_MAKE_TYPE(M_HTABLE, "hosttbl", "IMP host tables");
+MALLOC_MAKE_TYPE(M_FTABLE, "fragtbl", "fragment reassembly header");
+MALLOC_MAKE_TYPE(M_ZOMBIE, "zombie", "zombie proc status");
+MALLOC_MAKE_TYPE(M_IFADDR, "ifaddr", "interface address");
+MALLOC_MAKE_TYPE(M_SOOPTS, "soopts", "socket options");
+MALLOC_MAKE_TYPE(M_SONAME, "soname", "socket name");
+ MALLOC_MAKE_TYPE(M_NAMEI, "namei", "namei path name buffer");
+MALLOC_MAKE_TYPE(M_GPROF, "gprof", "kernel profiling buffer");
+MALLOC_MAKE_TYPE(M_IOCTLOPS, "ioctlops", "ioctl data buffer");
+ MALLOC_MAKE_TYPE(M_MAPMEM, "mapmem", "mapped memory descriptors");
+MALLOC_MAKE_TYPE(M_CRED, "cred", "credentials");
+MALLOC_MAKE_TYPE(M_PGRP, "pgrp", "process group header");
+MALLOC_MAKE_TYPE(M_SESSION, "session", "session header");
+MALLOC_MAKE_TYPE(M_IOV, "iov", "large iov's");
+MALLOC_MAKE_TYPE(M_MOUNT, "mount", "vfs mount struct");
+ MALLOC_MAKE_TYPE(M_FHANDLE, "fhandle", "network file handle");
+MALLOC_MAKE_TYPE(M_NFSREQ, "NFS req", "NFS request header");
+MALLOC_MAKE_TYPE(M_NFSMNT, "NFS mount", "NFS mount structure");
+MALLOC_MAKE_TYPE(M_NFSNODE, "NFS node", "NFS vnode private part");
+MALLOC_MAKE_TYPE(M_VNODE, "vnodes", "Dynamically allocated vnodes");
+MALLOC_MAKE_TYPE(M_CACHE, "namecache", "Dynamically allocated cache entries");
+MALLOC_MAKE_TYPE(M_DQUOT, "UFS quota", "UFS quota entries");
+MALLOC_MAKE_TYPE(M_UFSMNT, "UFS mount", "UFS mount structure");
+MALLOC_MAKE_TYPE(M_SHM, "shm", "SVID compatible shared memory segments");
+MALLOC_MAKE_TYPE(M_VMMAP, "VM map", "VM map structures");
+ MALLOC_MAKE_TYPE(M_VMMAPENT, "VM mapent", "VM map entry structures");
+ MALLOC_MAKE_TYPE(M_VMOBJ, "VM object", "VM object structure");
+ MALLOC_MAKE_TYPE(M_VMOBJHASH, "VM objhash", "VM object hash structure");
+MALLOC_MAKE_TYPE(M_VMPMAP, "VM pmap", "VM pmap"); /* XXX */
+ MALLOC_MAKE_TYPE(M_VMPVENT, "VM pvmap", "VM phys-virt mapping entry");
+ MALLOC_MAKE_TYPE(M_VMPAGER, "VM pager", "XXX: VM pager struct");
+MALLOC_MAKE_TYPE(M_VMPGDATA, "VM pgdata", "XXX: VM pager private data");
+MALLOC_MAKE_TYPE(M_FILE, "file", "Open file structure");
+MALLOC_MAKE_TYPE(M_FILEDESC, "file desc", "Open file descriptor table");
+MALLOC_MAKE_TYPE(M_LOCKF, "lockf", "Byte-range locking structures");
+MALLOC_MAKE_TYPE(M_PROC, "proc", "Proc structures");
+MALLOC_MAKE_TYPE(M_SUBPROC, "subproc", "Proc sub-structures");
+MALLOC_MAKE_TYPE(M_SEGMENT, "LFS segment", "Segment for LFS");
+MALLOC_MAKE_TYPE(M_LFSNODE, "LFS node", "LFS vnode private part");
+MALLOC_MAKE_TYPE(M_FFSNODE, "FFS node", "FFS vnode private part");
+MALLOC_MAKE_TYPE(M_MFSNODE, "MFS node", "MFS vnode private part");
+MALLOC_MAKE_TYPE(M_NQLEASE, "NQNFS Lease", "Nqnfs lease");
+MALLOC_MAKE_TYPE(M_NQMHOST, "NQNFS Host", "Nqnfs host address table");
+MALLOC_MAKE_TYPE(M_NETADDR, "Export Host", "Export host address structure");
+MALLOC_MAKE_TYPE(M_NFSSVC, "NFS srvsock", "Nfs server structure");
+MALLOC_MAKE_TYPE(M_NFSUID, "NFS uid", "Nfs uid mapping structure");
+MALLOC_MAKE_TYPE(M_NFSD, "NFS daemon", "Nfs server daemon structure");
+MALLOC_MAKE_TYPE(M_IPMOPTS, "ip_moptions", "internet multicast options");
+MALLOC_MAKE_TYPE(M_IPMADDR, "in_multi", "internet multicast address");
+MALLOC_MAKE_TYPE(M_IFMADDR, "ether_multi", "link-level multicast address");
+MALLOC_MAKE_TYPE(M_MRTABLE, "mrt", "multicast routing tables");
+MALLOC_MAKE_TYPE(M_ISOFSMNT, "ISOFS mount", "ISOFS mount structure");
+MALLOC_MAKE_TYPE(M_ISOFSNODE, "ISOFS node", "ISOFS vnode private part");
+MALLOC_MAKE_TYPE(M_NFSRVDESC, "NFSV3 srvdesc", "NFS server socket descriptor");
+MALLOC_MAKE_TYPE(M_NFSDIROFF, "NFSV3 diroff", "NFS directory offset data");
+MALLOC_MAKE_TYPE(M_NFSBIGFH, "NFSV3 bigfh", "NFS version 3 file handle");
+MALLOC_MAKE_TYPE(M_MSDOSFSMNT, "MSDOSFS mount", "MSDOSFS mount structure");
+MALLOC_MAKE_TYPE(M_MSDOSFSNODE, "MSDOSFS node", "MSDOSFS vnode private part");
+MALLOC_MAKE_TYPE(M_MSDOSFSFAT, "MSDOSFS FAT", "MSDOSFS file allocation table");
+MALLOC_MAKE_TYPE(M_DEVFSMNT, "DEVFS mount", "DEVFS mount structure");
+MALLOC_MAKE_TYPE(M_DEVFSBACK, "DEVFS back", "DEVFS Back node");
+ MALLOC_MAKE_TYPE(M_DEVFSFRONT, "DEVFS front", "DEVFS Front node");
+MALLOC_MAKE_TYPE(M_DEVFSNODE, "DEVFS node", "DEVFS node");
+MALLOC_MAKE_TYPE(M_TEMP, "temp", "misc temporary data buffers");
+MALLOC_MAKE_TYPE(M_TTYS, "ttys", "tty data structures");
+MALLOC_MAKE_TYPE(M_GZIP, "Gzip trees", "Gzip trees");
+MALLOC_MAKE_TYPE(M_IPFW, "IpFw/IpAcct", "IpFw/IpAcct chain's");
+MALLOC_MAKE_TYPE(M_DEVL, "isa_devlist", "isa_device lists in userconfig()");
+MALLOC_MAKE_TYPE(M_PKTCLASS, "PktClass", "structures used in packet classifier");
+MALLOC_MAKE_TYPE(M_SYSCTL, "sysctl", "sysctl internal magic");
+MALLOC_MAKE_TYPE(M_SECA, "key mgmt", "security associations, key management");
+MALLOC_MAKE_TYPE(M_BIOBUF, "BIO buffer", "BIO buffer");
+MALLOC_MAKE_TYPE(M_KTRACE, "KTRACE", "KTRACE");
+MALLOC_MAKE_TYPE(M_SELECT, "select", "select() buffer");
+MALLOC_MAKE_TYPE(M_GEOM_DEV, "GEOM dev", "geometry device");
+MALLOC_MAKE_TYPE(M_GEOM_MOD, "GEOM mod", "geometry module");
+MALLOC_MAKE_TYPE(M_GEOM_REQ, "GEOM req", "geometry request");
+MALLOC_MAKE_TYPE(M_GEOM_MISC, "GEOM misc", "geometry misc");
+MALLOC_MAKE_TYPE(M_VFSCONF, "VFS conf", "vfsconf structure");
+MALLOC_MAKE_TYPE(M_AIO, "AIO", "AIO structure(s)");
+MALLOC_MAKE_TYPE(M_ZONE, "ZONE", "Zone header");
+MALLOC_MAKE_TYPE(M_HOSTCACHE, "hostcache", "per-host information cache structure");
 
 /*
  * Array of descriptors that describe the contents of each page
@@ -366,8 +281,8 @@ extern struct kmembuckets bucket[];
 void	*contigmalloc __P((unsigned long size, int type, int flags,
 			   unsigned long low, unsigned long high,
 			   unsigned long alignment, unsigned long boundary));
-void	free __P((void *addr, int type));
-void	*malloc __P((unsigned long size, int type, int flags));
+void	free __P((void *addr, struct kmemstats *type));
+void	*malloc __P((unsigned long size, struct kmemstats *type, int flags));
 #endif /* KERNEL */
 
 #endif /* !_SYS_MALLOC_H_ */
