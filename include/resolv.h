@@ -52,8 +52,8 @@
  * --Copyright--
  *
  *	@(#)resolv.h	8.1 (Berkeley) 6/2/93
- *	From Id: resolv.h,v 8.17 1996/11/26 10:11:20 vixie Exp
- *	$Id: resolv.h,v 1.11 1997/05/07 02:26:36 eivind Exp $
+ *	From Id: resolv.h,v 8.18 1997/06/01 20:34:32 vixie Exp
+ *	$Id: resolv.h,v 1.12 1997/05/07 20:00:10 eivind Exp $
  */
 
 #ifndef _RESOLV_H_
@@ -219,7 +219,6 @@ extern const struct res_sym __p_type_syms[];
 #define	dn_count_labels	__dn_count_labels
 #define	dn_comp		__dn_comp
 #define	res_randomid	__res_randomid
-#define	res_send	__res_send
 #define	res_isourserver	__res_isourserver
 #define	res_nameinquery	__res_nameinquery
 #define	res_queriesmatch __res_queriesmatch
@@ -232,6 +231,7 @@ extern const struct res_sym __p_type_syms[];
 #define	res_search	__res_search
 #define	res_querydomain	__res_querydomain
 #define	res_mkquery	__res_mkquery
+#define	res_send	__res_send
 #endif
 
 __BEGIN_DECLS
