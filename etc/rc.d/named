@@ -5,7 +5,7 @@
 #
 
 # PROVIDE: named
-# REQUIRE: SERVERS
+# REQUIRE: SERVERS cleanvar
 # BEFORE:  DAEMON
 # KEYWORD: shutdown
 
