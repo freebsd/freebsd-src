@@ -1634,6 +1634,11 @@ mlx*)
 	mknod mlx$unit c 130 `unit2minor $unit`
 	;;
 
+amr*)
+	unit=`expr $i : 'amr\(.*\)'`
+	mknod amr$unit c 132 `unit2minor $unit`
+	;;
+
 3dfx*)
 	unit=`expr $i : '3dfx\(.*\)'`
 	mknod 3dfx$unit c 107 `unit2minor $unit`
