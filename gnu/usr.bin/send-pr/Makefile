@@ -13,7 +13,7 @@ SUBDIR+= doc
 LINKS=	${BINDIR}/send-pr ${BINDIR}/sendbug
 MLINKS=	send-pr.1 sendbug.1
 
-all: send-pr _PROGSUBDIR
+all: send-pr _SUBDIR
 
 send-pr:	send-pr.sh Makefile
 	sed -e 's,@DATADIR@,/etc,g' \

@@ -1,6 +1,6 @@
 INFO=		info info-stnd makeinfo texi
-.if exists(../makeinfo/obj)
-MAKEINFO=	${.CURDIR}/../makeinfo/obj/makeinfo
+.if exists(${.OBJDIR}/../makeinfo)
+MAKEINFO=	${.OBJDIR}/../makeinfo/makeinfo
 .else
 MAKEINFO=      	${.CURDIR}/../makeinfo/makeinfo
 .endif

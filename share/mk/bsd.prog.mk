@@ -1,5 +1,5 @@
 #	from: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.prog.mk,v 1.32 1996/06/17 15:59:52 phk Exp $
+#	$Id: bsd.prog.mk,v 1.33 1996/06/22 06:01:57 phk Exp $
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
@@ -130,53 +130,27 @@ MAN1=	${PROG}.1
 .endif
 .endif
 
-_PROGSUBDIR: .USE
-.if defined(SUBDIR) && !empty(SUBDIR)
-	@for entry in ${SUBDIR}; do \
-		(${ECHODIR} "===> ${DIRPRFX}$$entry"; \
-		if test -d ${.CURDIR}/$${entry}.${MACHINE}; then \
-			cd ${.CURDIR}/$${entry}.${MACHINE}; \
-		else \
-			cd ${.CURDIR}/$${entry}; \
-		fi; \
-		${MAKE} ${.TARGET:S/realinstall/install/:S/.depend/depend/} DIRPRFX=${DIRPRFX}$$entry/); \
-	done
-.endif
-
 # XXX I think MANDEPEND is only used for groff.  It should be named more
 # generally and perhaps not be in the maninstall dependencies now it is
 # here (or does maninstall always work when nothing is made?),
 
 .MAIN: all
-all: ${PROG} all-man _PROGSUBDIR
+all: ${PROG} all-man _SUBDIR
 
 .if !target(clean)
-clean: _PROGSUBDIR
+clean: _SUBDIR
 	rm -f a.out Errs errs mklog ${PROG} ${OBJS} ${CLEANFILES} 
 .if defined(CLEANDIRS)
 	rm -rf ${CLEANDIRS}
 .endif
 .endif
 
-.if !target(cleandir)
-cleandir: _PROGSUBDIR
-	rm -f a.out Errs errs mklog ${PROG} ${OBJS} ${CLEANFILES}
-	rm -f ${.CURDIR}/tags .depend
-.if defined(CLEANDIRS)
-	rm -rf ${CLEANDIRS}
-.endif
-	cd ${.CURDIR}; rm -rf obj;
-.endif
-
 .if !target(install)
 .if !target(beforeinstall)
 beforeinstall:
 .endif
-.if !target(afterinstall)
-afterinstall:
-.endif
 
-realinstall: _PROGSUBDIR
+realinstall: beforeinstall
 .if defined(PROG)
 	${INSTALL} ${COPY} ${STRIP} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 	    ${INSTALLFLAGS} ${PROG} ${DESTDIR}${BINDIR}
@@ -198,46 +172,29 @@ realinstall: _PROGSUBDIR
 	done; true
 .endif
 
-install: afterinstall
+install: afterinstall _SUBDIR
 .if !defined(NOMAN)
 afterinstall: realinstall maninstall
 .else
 afterinstall: realinstall
 .endif
-realinstall: beforeinstall
 .endif
 
 DISTRIBUTION?=	bin
 .if !target(distribute)
-distribute:
+distribute: _SUBDIR
 	cd ${.CURDIR} ; $(MAKE) install DESTDIR=${DISTDIR}/${DISTRIBUTION} SHARED=copies
 .endif
 
 .if !target(lint)
-lint: ${SRCS} _PROGSUBDIR
+lint: ${SRCS} _SUBDIR
 .if defined(PROG)
 	@${LINT} ${LINTFLAGS} ${CFLAGS} ${.ALLSRC} | more 2>&1
 .endif
 .endif
 
-.if !target(obj)
-.if defined(NOOBJ)
-obj: _PROGSUBDIR
-.else
-obj: _PROGSUBDIR
-	@cd ${.CURDIR}; rm -rf obj; \
-	here=`pwd`; dest=/usr/obj`echo $$here | sed 's,^/usr/src,,'`; \
-	${ECHO} "$$here -> $$dest"; ln -s $$dest obj; \
-	if test -d /usr/obj -a ! -d $$dest; then \
-		mkdir -p $$dest; \
-	else \
-		true; \
-	fi;
-.endif
-.endif
-
 .if !target(tags)
-tags: ${SRCS} _PROGSUBDIR
+tags: ${SRCS} _SUBDIR
 .if defined(PROG)
 	-cd ${.CURDIR}; ctags -f /dev/stdout ${.ALLSRC} | \
 	    sed "s;\${.CURDIR}/;;" > tags
@@ -251,5 +208,5 @@ maninstall:
 all-man:
 .endif
 
-_DEPSUBDIR=	_PROGSUBDIR
 .include <bsd.dep.mk>
+.include <bsd.obj.mk>

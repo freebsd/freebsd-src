@@ -14,8 +14,8 @@ CLEANFILES+=	astosc.OUT astosc.out
 
 DEPSRCS+=	astosc.OUT map3270.c mset.c
 
-.if exists(${.CURDIR}/../tools/mkastosc/obj)
-MKOBJ=${.CURDIR}/../tools/mkastosc/obj
+.if exists(${.OBJDIR}/../tools/mkastosc)
+MKOBJ=${.OBJDIR}/../tools/mkastosc
 .else
 MKOBJ=${.CURDIR}/../tools/mkastosc
 .endif

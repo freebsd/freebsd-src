@@ -1,5 +1,5 @@
 #	from: @(#)bsd.lib.mk	5.26 (Berkeley) 5/2/91
-#	$Id: bsd.lib.mk,v 1.34 1996/06/03 13:23:31 jfieber Exp $
+#	$Id: bsd.lib.mk,v 1.35 1996/06/17 15:59:51 phk Exp $
 #
 
 .if exists(${.CURDIR}/../Makefile.inc)
@@ -124,20 +124,7 @@ _LIBS+=lib${LIB}_pic.a
 PICFLAG=-fpic
 .endif
 
-_LIBSUBDIR: .USE
-.if defined(SUBDIR) && !empty(SUBDIR)
-	@for entry in ${SUBDIR}; do \
-		(${ECHODIR} "===> ${DIRPRFX}$$entry"; \
-		if test -d ${.CURDIR}/$${entry}.${MACHINE}; then \
-			cd ${.CURDIR}/$${entry}.${MACHINE}; \
-		else \
-			cd ${.CURDIR}/$${entry}; \
-		fi; \
-		${MAKE} ${.TARGET:S/realinstall/install/:S/.depend/depend/} DIRPRFX=${DIRPRFX}$$entry/); \
-	done
-.endif
-
-all: ${_LIBS} all-man _LIBSUBDIR # llib-l${LIB}.ln
+all: ${_LIBS} all-man _SUBDIR # llib-l${LIB}.ln
 
 OBJS+=	${SRCS:N*.h:R:S/$/.o/g}
 
@@ -184,7 +171,7 @@ llib-l${LIB}.ln: ${SRCS}
 	${LINT} -C${LIB} ${CFLAGS} ${.ALLSRC:M*.c}
 
 .if !target(clean)
-clean:	_LIBSUBDIR
+clean:	_SUBDIR
 	rm -f a.out Errs errs mklog ${CLEANFILES} ${OBJS}
 	rm -f lib${LIB}.a llib-l${LIB}.ln
 	rm -f ${POBJS} profiled/*.o lib${LIB}_p.a
@@ -193,20 +180,6 @@ clean:	_LIBSUBDIR
 .if defined(CLEANDIRS)
 	rm -rf ${CLEANDIRS}
 .endif
-.endif
-
-.if !target(cleandir)
-cleandir:	_LIBSUBDIR
-	rm -f a.out Errs errs mklog ${CLEANFILES} ${OBJS}
-	rm -f lib${LIB}.a llib-l${LIB}.ln
-	rm -f ${.CURDIR}/tags .depend
-	rm -f ${POBJS} profiled/*.o lib${LIB}_p.a
-	rm -f ${SOBJS} shared/*.o
-	rm -f lib${LIB}.so.*.* lib${LIB}_pic.a
-.if defined(CLEANDIRS)
-	rm -rf ${CLEANDIRS}
-.endif
-	cd ${.CURDIR}; rm -rf obj;
 .endif
 
 .if defined(SRCS)
@@ -259,7 +232,7 @@ realinstall: beforeinstall
 	done; true
 .endif
 
-install: afterinstall _LIBSUBDIR
+install: afterinstall _SUBDIR
 .if !defined(NOMAN)
 afterinstall: realinstall maninstall
 .else
@@ -269,7 +242,7 @@ afterinstall: realinstall
 
 DISTRIBUTION?=	bin
 .if !target(distribute)
-distribute:	_LIBSUBDIR
+distribute:	_SUBDIR
 	cd ${.CURDIR} ; $(MAKE) install DESTDIR=${DISTDIR}/${DISTRIBUTION} SHARED=copies
 .endif
 
@@ -278,7 +251,7 @@ lint:
 .endif
 
 .if !target(tags)
-tags: ${SRCS}
+tags: ${SRCS} _SUBDIR
 	-cd ${.CURDIR}; ctags -f /dev/stdout ${.ALLSRC:M*.c} | \
 	    sed "s;\${.CURDIR}/;;" > tags
 .endif
@@ -290,21 +263,5 @@ maninstall:
 all-man:
 .endif
 
-.if !target(obj)
-.if defined(NOOBJ)
-obj:	_LIBSUBDIR
-.else
-obj:	_LIBSUBDIR
-	@cd ${.CURDIR}; rm -rf obj; \
-	here=`pwd`; dest=/usr/obj`echo $$here | sed 's,^/usr/src,,'`; \
-	${ECHO} "$$here -> $$dest"; ln -s $$dest obj; \
-	if test -d /usr/obj -a ! -d $$dest; then \
-		mkdir -p $$dest; \
-	else \
-		true; \
-	fi;
-.endif
-.endif
-
-_DEPSUBDIR=	_LIBSUBDIR
 .include <bsd.dep.mk>
+.include <bsd.obj.mk>

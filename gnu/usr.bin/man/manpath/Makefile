@@ -1,21 +1,21 @@
 PROG=	manpath
 SRCS=	manpath.c
 
-.if exists(${.CURDIR}/../lib/obj)
-LDADD=  -L${.CURDIR}/../lib/obj -lman
+.if exists(${.OBJDIR}/../lib)
+LDADD=  -L${.OBJDIR}/../lib -lman
 .else
 LDADD=  -L${.CURDIR}/../lib/ -lman
 .endif
 
-.if exists(${.CURDIR}/obj)
-MAN1=${.CURDIR}/obj/manpath.1
+.if exists(${.OBJDIR})
+MAN1=${.OBJDIR}/manpath.1
 .else
 MAN1=${.CURDIR}/manpath.1
 .endif
 
 DPADD+=  ${MAN1}
 CFLAGS+= -DMAIN -DSTDC_HEADERS -DPOSIX -DHAS_TROFF -DDO_UNCOMPRESS
-CFLAGS+= -DALT_SYSTEMS -I${.CURDIR}/../lib -I${.CURDIR}/../lib/obj
+CFLAGS+= -DALT_SYSTEMS -I${.CURDIR}/../lib -I${.OBJDIR}/../lib
 CLEANFILES+=	${MAN1}
 MANDEPEND+=	${MAN1}
 

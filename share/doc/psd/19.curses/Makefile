@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 8/14/93
-#	$Id: Makefile,v 1.1 1995/01/11 01:52:02 wollman Exp $
+#	$Id: Makefile,v 1.2 1995/02/08 21:27:09 bde Exp $
 
 VOLUME=	psd/19.curses
 SRCS=	Master
@@ -30,7 +30,7 @@ VFONT=	/usr/libexec/vfontedpr
 .MAIN:	all
 
 Master: ${SRCLINKS}
-	for a in Master ${.ALLSRC}; do \
+	@for a in Master ${.ALLSRC}; do \
 		test -e $$a || ln -s ${LSRCDIR}/$$a .; \
 	done
 

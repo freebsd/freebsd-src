@@ -1,40 +1,40 @@
 #	From: @(#)Makefile.inc	5.1 (Berkeley) 6/25/90
-#	$Id$
+#	$Id: Makefile.inc,v 1.10 1996/02/11 08:51:47 markm Exp $
 
 DISTRIBUTION=	krb
 
-.if exists(${.CURDIR}/../../../secure/lib/libdes/obj)
-DESOBJDIR=	${.CURDIR}/../../../secure/lib/libdes/obj
+.if exists(${.OBJDIR}/../../../secure/lib/libdes)
+DESOBJDIR=	${.OBJDIR}/../../../secure/lib/libdes
 .else
 DESOBJDIR=	${.CURDIR}/../../../secure/lib/libdes
 .endif
 
-.if exists(${.CURDIR}/../../lib/libkrb/obj)
-KRBOBJDIR=	${.CURDIR}/../../lib/libkrb/obj
+.if exists(${.OBJDIR}/../../lib/libkrb)
+KRBOBJDIR=	${.OBJDIR}/../../lib/libkrb
 .else
 KRBOBJDIR=	${.CURDIR}/../../lib/libkrb
 .endif
 
-.if exists(${.CURDIR}/../../lib/libkdb/obj)
-KDBOBJDIR=	${.CURDIR}/../../lib/libkdb/obj
+.if exists(${.OBJDIR}/../../lib/libkdb)
+KDBOBJDIR=	${.CURDIR}/../../lib/libkdb
 .else
 KDBOBJDIR=	${.CURDIR}/../../lib/libkdb
 .endif
 
-.if exists(${.CURDIR}/../../lib/libacl/obj)
-ACLOBJDIR=	${.CURDIR}/../../lib/libacl/obj
+.if exists(${.OBJDIR}/../../lib/libacl)
+ACLOBJDIR=	${.OBJDIR}/../../lib/libacl
 .else
 ACLOBJDIR=	${.CURDIR}/../../lib/libacl
 .endif
 
-.if exists(${.CURDIR}/../../lib/libkadm/obj)
-KADMOBJDIR=	${.CURDIR}/../../lib/libkadm/obj
+.if exists(${.OBJDIR}/../../lib/libkadm)
+KADMOBJDIR=	${.OBJDIR}/../../lib/libkadm
 .else
 KADMOBJDIR=	${.CURDIR}/../../lib/libkadm
 .endif
 
-.if exists(${.CURDIR}/../../lib/librkinit/obj)
-RKINITOBJDIR= ${.CURDIR}/../../lib/librkinit/obj
+.if exists(${.OBJDIR}/../../lib/librkinit)
+RKINITOBJDIR= ${.OBJDIR}/../../lib/librkinit
 .else
 RKINITOBJDIR= ${.CURDIR}/../../lib/librkinit
 .endif

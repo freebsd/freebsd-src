@@ -1,7 +1,7 @@
 LIB = man
 
-.if exists(${.CURDIR}/obj)
-CONFH=  ${.CURDIR}/obj/config.h
+.if exists(${.OBJDIR})
+CONFH=  ${.OBJDIR}/config.h
 .else
 CONFH=  ${.CURDIR}/config.h
 .endif

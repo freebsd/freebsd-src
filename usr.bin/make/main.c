@@ -375,6 +375,7 @@ main(argc, argv)
 	char mdpath[MAXPATHLEN + 1];
 	char obpath[MAXPATHLEN + 1];
 	char cdpath[MAXPATHLEN + 1];
+	char *realobjdir;	/* Where we'd like to go */
 	struct utsname utsname;
     	char *machine = getenv("MACHINE");
 
@@ -424,12 +425,10 @@ main(argc, argv)
 	 * and modify the paths for the Makefiles apropriately.  The
 	 * current directory is also placed as a variable for make scripts.
 	 */
-	if (!(path = getenv("MAKEOBJDIR"))) {
+	if (!(path = getenv("MAKEOBJDIR")))
 		path = _PATH_OBJDIR;
-		(void) sprintf(mdpath, "%s.%s", path, machine);
-	}
-	else
-		(void) strncpy(mdpath, path, MAXPATHLEN + 1);
+	(void) snprintf(mdpath, MAXPATHLEN, "%s%s", path, curdir);
+	realobjdir = mdpath;	/* This is where we'd _like_ to be, anyway */
 
 	if (stat(mdpath, &sb) == 0 && S_ISDIR(sb.st_mode)) {
 
@@ -447,27 +446,8 @@ main(argc, argv)
 				objdir = mdpath;
 		}
 	}
-	else {
-		if (stat(path, &sb) == 0 && S_ISDIR(sb.st_mode)) {
-
-			if (chdir(path)) {
-				(void)fprintf(stderr, "make warning: %s: %s.\n",
-					      path, strerror(errno));
-				objdir = curdir;
-			}
-			else {
-				if (path[0] != '/') {
-					(void) sprintf(obpath, "%s/%s", curdir,
-						       path);
-					objdir = obpath;
-				}
-				else
-					objdir = obpath;
-			}
-		}
-		else
-			objdir = curdir;
-	}
+	else
+		objdir = curdir;
 
 	setenv("PWD", objdir, 1);
 
@@ -509,6 +489,7 @@ main(argc, argv)
 	if (objdir != curdir)
 		Dir_AddDir(dirSearchPath, curdir);
 	Var_Set(".CURDIR", curdir, VAR_GLOBAL);
+	Var_Set(".TARGETOBJDIR", realobjdir, VAR_GLOBAL);
 	Var_Set(".OBJDIR", objdir, VAR_GLOBAL);
 
 	/*

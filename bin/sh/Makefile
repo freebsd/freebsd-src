@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/8/93
-#	$Id: Makefile,v 1.9 1996/02/03 13:27:54 joerg Exp $
+#	$Id: Makefile,v 1.11 1996/06/02 17:06:39 phk Exp $
 
 PROG=	sh
 SRCS=	alias.c builtins.c cd.c echo.c error.c eval.c exec.c expand.c \
@@ -27,7 +27,7 @@ ${.CURDIR}/builtins:
 	# just override the default rule
 
 builtins.h builtins.c: ${.CURDIR}/mkbuiltins ${.CURDIR}/builtins
-	cd ${.CURDIR}; sh mkbuiltins
+	cd ${.CURDIR} && env OBJDIR=${.OBJDIR} sh mkbuiltins
 
 init.c: mkinit ${SRCS}
 	./mkinit '${CC} -c ${CFLAGS} ${LDFLAGS} init.c' ${.ALLSRC}

@@ -7,8 +7,8 @@
 #	/var/log/aculog		ACU accounting file, owned by ${OWNER} and
 #				mode 6?? {if ACULOG defined}
 
-.if exists(${.CURDIR}/../libacu/obj)
-LIBACU=${.CURDIR}/../libacu/obj/libacu.a
+.if exists(${.OBJDIR}/../libacu)
+LIBACU=${.OBJDIR}/../libacu/libacu.a
 .else
 LIBACU=${.CURDIR}/../libacu/libacu.a
 .endif

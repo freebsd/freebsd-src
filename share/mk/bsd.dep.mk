@@ -1,4 +1,4 @@
-#	$Id: bsd.dep.mk,v 1.3 1996/04/01 18:58:28 wosch Exp $
+#	$Id: bsd.dep.mk,v 1.4 1996/05/25 23:09:46 wosch Exp $
 #
 # The include file <bsd.dep.mk> handles Makefile dependencies.
 #
@@ -33,7 +33,7 @@ DEPENDFILE?=	.depend
 
 # some of the rules involve .h sources, so remove them from mkdep line
 .if !target(depend)
-depend: beforedepend ${DEPENDFILE} afterdepend ${_DEPSUBDIR}
+depend: beforedepend ${DEPENDFILE} afterdepend _SUBDIR
 .if defined(SRCS)
 
 # .if defined ${SRCS:M*.[sS]} does not work
@@ -58,7 +58,7 @@ ${DEPENDFILE}: ${SRCS}
 .endif
 
 .else
-${DEPENDFILE}: ${_DEPSUBDIR}
+${DEPENDFILE}: _SUBDIR
 .endif
 .if !target(beforedepend)
 beforedepend:
@@ -70,17 +70,33 @@ afterdepend:
 
 .if !target(tags)
 .if defined(SRCS)
-tags: ${SRCS}
+tags: ${SRCS} _SUBDIR
 	-cd ${.CURDIR}; ctags -f /dev/stdout ${.ALLSRC:N*.h} | \
 	    sed "s;\${.CURDIR}/;;" > tags
 .else
-tags:
+tags: _SUBDIR
 .endif
 .endif
 
 .if defined(SRCS)
-clean:
-cleandir: cleandepend
-cleandepend:
-	rm -f ${DEPENDFILE} ${.CURDIR}/tags
+.if !target(clean)
+clean: _SUBDIR
+.endif
+.if !target(cleandepend)
+cleandepend: _SUBDIR
+	rm -f ${DEPENDFILE} tags
+.endif
+.endif
+
+_SUBDIR: .USE
+.if defined(SUBDIR) && !empty(SUBDIR)
+	@for entry in ${SUBDIR}; do \
+		(${ECHODIR} "===> ${DIRPRFX}$$entry"; \
+		if test -d ${.CURDIR}/$${entry}.${MACHINE}; then \
+			cd ${.CURDIR}/$${entry}.${MACHINE}; \
+		else \
+			cd ${.CURDIR}/$${entry}; \
+		fi; \
+		${MAKE} ${.TARGET:S/realinstall/install/:S/.depend/depend/} DIRPRFX=${DIRPRFX}$$entry/); \
+	done
 .endif

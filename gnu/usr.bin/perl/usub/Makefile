@@ -16,8 +16,8 @@ VPATH+=	${.CURDIR}/../perl
 NOMAN=	yes
 
 # If perl exists in none of these places, something is horribly wrong.
-.if exists(${.CURDIR}/../perl/obj/perl)
-PERL=${.CURDIR}/../perl/obj/perl
+.if exists(${.OBJDIR}/../perl/perl)
+PERL=${.OBJDIR}/../perl/perl
 .endif
 .if !defined(PERL) && exists(${.CURDIR}/../perl/perl)
 PERL=${.CURDIR}/../perl/perl
