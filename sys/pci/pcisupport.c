@@ -682,6 +682,8 @@ pcib_match(device_t dev)
 		return ("Intel 82443BX (440 BX) PCI-PCI (AGP) bridge");
 	case 0x71A18086:
 		return ("Intel 82443GX (440 GX) PCI-PCI (AGP) bridge");
+	case 0x11318086:
+		return ("Intel 82815 (i815 GMCH) PCI-PCI (AGP) bridge");
 	case 0x84cb8086:
 		return ("Intel 82454NX PCI Expander Bridge");
 	case 0x124b8086:
@@ -690,6 +692,8 @@ pcib_match(device_t dev)
 		return ("Intel 82801AA (ICH) Hub to PCI bridge");
 	case 0x24288086:
 		return ("Intel 82801AB (ICH0) Hub to PCI bridge");
+	case 0x244E8086:
+		return ("Intel 82801BA (ICH2) Hub to PCI bridge");
 	
 	/* VLSI -- vendor 0x1004 */
 	case 0x01021004:
@@ -902,6 +906,8 @@ isab_match(device_t dev)
 		return ("Intel 82801AA (ICH) PCI to LPC bridge");
 	case 0x24208086:
 		return ("Intel 82801AB (ICH0) PCI to LPC bridge");
+	case 0x24408086:
+		return ("Intel 82801BA (ICH2) PCI to LPC bridge");
 	
 	/* VLSI -- vendor 0x1004 */
 	case 0x00061004:
@@ -1048,6 +1054,10 @@ pci_usb_match(device_t dev)
 		return ("Intel 82801AA (ICH) USB controller");
 	case 0x24228086:
 		return ("Intel 82801AB (ICH0) USB controller");
+	case 0x24428086:
+		return ("Intel 82801BA (ICH2) USB controller #1");
+	case 0x24448086:
+		return ("Intel 82801BA (ICH2) USB controller #2");
 
 	/* VIA Technologies -- vendor 0x1106 (0x1107 on the Apollo Master) */
 	case 0x30381106:
@@ -1226,15 +1236,23 @@ pci_chip_match(device_t dev)
 	case 0x71228086:
 		return ("Intel 82810-DC100 (i810-DC100 GMCH) Host To Hub bridge");
 	case 0x71248086:
-	return ("Intel 82810E (i810E GMCH) Host To Hub bridge");
+		return ("Intel 82810E (i810E GMCH) Host To Hub bridge");
+	case 0x11308086:
+		return ("Intel 82815 (i815 GMCH) Host To Hub bridge");
 	case 0x24158086:
 		return ("Intel 82801AA (ICH) AC'97 Audio Controller");
 	case 0x24258086:
 		return ("Intel 82801AB (ICH0) AC'97 Audio Controller");
+	case 0x24458086:
+		return ("Intel 82801BA (ICH2) AC'97 Audio Controller");
+	case 0x24468086:
+		return ("Intel 82801BA (ICH2) AC'97 Modem Controller");
 	case 0x71958086:
 		return ("Intel 82443MX AC'97 Audio Controller");
 	case 0x719b8086:
 		return ("Intel 82443MX SMBus and power management controller");
+	case 0x24438086:
+		return ("Intel 82801BA (ICH2) SMBus controller");
 
 	/* Sony -- vendor 0x104d */
 	case 0x8009104d:
