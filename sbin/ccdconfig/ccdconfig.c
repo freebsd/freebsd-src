@@ -82,7 +82,6 @@ static	int do_single(int, char **, int);
 static	int do_all(int);
 static	int dump_ccd(int, char **);
 static	int flags_to_val(char *);
-static	void print_ccd_info(struct ccd_s *);
 static	int resolve_ccdname(char *);
 static	void usage(void);
 
@@ -405,14 +404,6 @@ do_io(int unit, u_long cmd, struct ccd_ioctl *cciop)
 			cp = "CCDIOCCLR";
 			break;
 
-		case CCDCONFINFO:
-			cp = "CCDCONFINFO";
-			break;
-
-		case CCDCPPINFO:
-			cp = "CCDCPPINFO";
-			break;
-
 		default:
 			cp = "unknown";
 		}
@@ -424,134 +415,50 @@ do_io(int unit, u_long cmd, struct ccd_ioctl *cciop)
 }
 
 static int
-dump_ccd(int argc, char **argv)
+dumpout(int unit)
 {
+	static int v;
+	struct gctl_req *grq;
+	int ncp;
 	char *cp;
 	char const *errstr;
-	int i, error, numccd, numconfiged = 0;
-	struct ccdconf conf;
-	int ccd;
-	struct gctl_req *grq;
+	
 
 	grq = gctl_get_handle();
+	ncp = 65536;
+	cp = malloc(ncp);
 	gctl_ro_param(grq, "verb", -1, "list");
 	gctl_ro_param(grq, "class", -1, "CCD");
-	cp = malloc(65536);
-	gctl_rw_param(grq, "output", 65536, cp);
-	if (verbose)
-		gctl_ro_param(grq, "verbose", -1, "yes");
+	gctl_ro_param(grq, "unit", sizeof(unit), &unit);
+	gctl_rw_param(grq, "output", ncp, cp);
 	errstr = gctl_issue(grq);
-	if (errstr == NULL) {
-		printf("%s", cp);
-		return (0);
-	} else {
-		warnx("%s\nor possibly kernel and ccdconfig out of sync",
-		    errstr);
+	if (errstr != NULL)
+		errx(1, "%s\nor possibly kernel and ccdconfig out of sync",
+			errstr);
+	if (strlen(cp) == 0)
+		errx(1, "ccd%d not configured", unit);
+	if (verbose && !v) {
+		printf("# ccd\t\tileave\tflags\tcomponent devices\n");
+		v = 1;
 	}
-
-	/*
-	 * Read the ccd configuration data from the kernel and dump
-	 * it to stdout.
-	 */
-	if ((ccd = resolve_ccdname("ccd0")) < 0) {		/* XXX */
-		warnx("invalid ccd name: %s", cp);
-		return (1);
-	}
-	conf.size = 0;
-	if (do_io(ccd, CCDCONFINFO, (struct ccd_ioctl *) &conf))
-		return (1);
-	if (conf.size == 0) {
-		printf("no concatenated disks configured\n");
-		return (0);
-	}
-	/* Allocate space for the configuration data. */
-	conf.buffer = alloca(conf.size);
-	if (conf.buffer == NULL) {
-		warnx("no memory for configuration data");
-		return (1);
-	}
-	if (do_io(ccd, CCDCONFINFO, (struct ccd_ioctl *) &conf))
-		return (1);
-
-	numconfiged = conf.size / sizeof(struct ccd_s);
-
-	if (argc == 0) {
-		for (i = 0; i < numconfiged; i++)
-			print_ccd_info(&(conf.buffer[i]));
-	} else {
-		while (argc) {
-			cp = *argv++; --argc;
-			if ((ccd = resolve_ccdname(cp)) < 0) {
-				warnx("invalid ccd name: %s", cp);
-				continue;
-			}
-			error = 1;
-			for (i = 0; i < numconfiged; i++) {
-				if (conf.buffer[i].sc_unit == ccd) {
-					print_ccd_info(&(conf.buffer[i]));
-					error = 0;
-					break;
-				}
-			}
-			if (error) {
-				warnx("ccd%d not configured", numccd);
-				continue;
-			}
-		}
-	}	
-
+	printf("%s", cp);
+	free(cp);
 	return (0);
 }
 
-static void
-print_ccd_info(struct ccd_s *cs)
+static int
+dump_ccd(int argc, char **argv)
 {
-	char *cp;
-	static int header_printed = 0;
-	struct ccdcpps cpps;
-	int ccd;
+	int i, err;
 
-	/* Print out header if necessary*/
-	if (header_printed == 0 && verbose) {
-		printf("# ccd\t\tileave\tflags\tcompnent devices\n");
-		header_printed = 1;
+	if (argc == 0) {
+		err = dumpout(-1);
+	} else {
+		err = 0;
+		for (i = 0; err == 0 && i < argc; i++)
+			err = dumpout(resolve_ccdname(argv[i]));
 	}
-
-	/* Dump out softc information. */
-	printf("ccd%d\t\t%d\t%d\t", cs->sc_unit, cs->sc_ileave,
-	    cs->sc_cflags & CCDF_USERMASK);
-	fflush(stdout);
-
-	/* Read in the component info. */
-	asprintf(&cp, "ccd%d", cs->sc_unit);
-	if (cp == NULL) {
-		printf("\n");
-		warn("ccd%d: can't allocate memory",
-		    cs->sc_unit);
-		return;
-	}
-
-	if ((ccd = resolve_ccdname(cp)) < 0) {
-		printf("\n");
-		warnx("can't read component info: invalid ccd name: %s", cp);
-		return;
-	}
-	cpps.size = 1024;
-	cpps.buffer = alloca(cpps.size);
-	memcpy(cpps.buffer, &ccd, sizeof ccd);
-	if (do_io(ccd, CCDCPPINFO, (struct ccd_ioctl *) &cpps)) {
-		printf("\n");
-		warnx("can't read component info");
-		return;
-	}
-
-	/* Display component info. */
-	for (cp = cpps.buffer; *cp && cp - cpps.buffer < cpps.size; cp += strlen(cp) + 1) {
-		printf((cp + strlen(cp) + 1) < (cpps.buffer + cpps.size) ?
-		    "%s " : "%s", cp);
-	}
-	printf("\n");
-	return;
+	return (err);
 }
 
 static int
