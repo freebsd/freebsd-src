@@ -618,9 +618,11 @@ vnode_pager_getpages(object, m, count, reqpage)
 
 	vp = object->handle;
 	VM_OBJECT_UNLOCK(object);
+	mtx_lock(&Giant);
 	rtval = VOP_GETPAGES(vp, m, bytes, reqpage, 0);
 	KASSERT(rtval != EOPNOTSUPP,
 	    ("vnode_pager: FS getpages not implemented\n"));
+	mtx_unlock(&Giant);
 	VM_OBJECT_LOCK(object);
 	return rtval;
 }
