@@ -216,7 +216,11 @@ MFSLABEL=		auto
 MFSSIZE=		8192
 .endif
 
+.if exists(/sbin/bsdlabel)
+DISKLABEL?=		bsdlabel
+.else
 DISKLABEL?=		disklabel
+.endif
 
 ZIPNSPLIT=		gzip --no-name -9 -c | split -b 1423k -
 
