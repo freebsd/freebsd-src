@@ -56,6 +56,8 @@
 #define FPCR_INED	(1LL << 62)	/* Inexact Disable */
 #define FPCR_SUM	(1LL << 63)	/* Summary Bit */
 #define FPCR_MASK	(~0LL << 49)
+#define	FPCR_STATUS_MASK	(FPCR_INV | FPCR_DZE | FPCR_OVF | \
+				 FPCR_UNF | FPCR_INE | FPCR_IOV)
 
 /*
  * Exception summary bits.
