@@ -17,7 +17,7 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  *
  *  ft.c - QIC-40/80 floppy tape driver
- *  $Id: ft.c,v 1.37 1998/04/17 22:36:32 des Exp $
+ *  $Id: ft.c,v 1.38 1998/07/15 09:59:31 bde Exp $
  *
  *  01/19/95 ++sg
  *  Cleaned up recalibrate/seek code at attach time for FreeBSD 2.x.
@@ -412,7 +412,7 @@ ftattach(isadev, fdup, unithasfd)
   char *manu;
 
   if (ftu >= NFT) return 0;
-  ft = ft_data[ftu] = malloc(sizeof *ft, M_DEVBUF, M_NOWAIT);
+  ft = ft_data[ftu] = malloc(sizeof *ft, M_DEVBUF, M_WAITOK);
   bzero(ft, sizeof *ft);
   callout_handle_init(&ft->tohandle);
 
