@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.16 (Berkeley) 5/27/95
- * $Id: nfs_vnops.c,v 1.61 1997/09/21 04:23:53 dyson Exp $
+ * $Id: nfs_vnops.c,v 1.62 1997/10/05 12:28:59 phk Exp $
  */
 
 
@@ -129,12 +129,7 @@ static int	nfs_readlink __P((struct vop_readlink_args *));
 static int	nfs_print __P((struct vop_print_args *));
 static int	nfs_pathconf __P((struct vop_pathconf_args *));
 static int	nfs_advlock __P((struct vop_advlock_args *));
-static int	nfs_blkatoff __P((struct vop_blkatoff_args *));
 static int	nfs_bwrite __P((struct vop_bwrite_args *));
-static int	nfs_valloc __P((struct vop_valloc_args *));
-static int	nfs_vfree __P((struct vop_vfree_args *));
-static int	nfs_truncate __P((struct vop_truncate_args *));
-static int	nfs_update __P((struct vop_update_args *));
 /*
  * Global vfs data structures for nfs
  */
@@ -178,12 +173,6 @@ static struct vnodeopv_entry_desc nfsv2_vnodeop_entries[] = {
 	{ &vop_islocked_desc, (vop_t *)nfs_islocked },	/* islocked */
 	{ &vop_pathconf_desc, (vop_t *)nfs_pathconf },	/* pathconf */
 	{ &vop_advlock_desc, (vop_t *)nfs_advlock },	/* advlock */
-	{ &vop_blkatoff_desc, (vop_t *)nfs_blkatoff },	/* blkatoff */
-	{ &vop_valloc_desc, (vop_t *)nfs_valloc },	/* valloc */
-	{ &vop_reallocblks_desc, (vop_t *)nfs_reallocblks },	/* reallocblks */
-	{ &vop_vfree_desc, (vop_t *)nfs_vfree },	/* vfree */
-	{ &vop_truncate_desc, (vop_t *)nfs_truncate },	/* truncate */
-	{ &vop_update_desc, (vop_t *)nfs_update },	/* update */
 	{ &vop_getpages_desc, (vop_t *)nfs_getpages },	/* getpages */
 /* XXX: vop_putpages */
 	{ &vop_bwrite_desc, (vop_t *)nfs_bwrite },	/* bwrite */
@@ -237,12 +226,6 @@ static struct vnodeopv_entry_desc spec_nfsv2nodeop_entries[] = {
 	{ &vop_islocked_desc, (vop_t *)nfs_islocked },	/* islocked */
 	{ &vop_pathconf_desc, (vop_t *)spec_pathconf },	/* pathconf */
 	{ &vop_advlock_desc, (vop_t *)spec_advlock },	/* advlock */
-	{ &vop_blkatoff_desc, (vop_t *)spec_blkatoff },	/* blkatoff */
-	{ &vop_valloc_desc, (vop_t *)spec_valloc },	/* valloc */
-	{ &vop_reallocblks_desc, (vop_t *)spec_reallocblks },	/* reallocblks */
-	{ &vop_vfree_desc, (vop_t *)spec_vfree },	/* vfree */
-	{ &vop_truncate_desc, (vop_t *)spec_truncate },	/* truncate */
-	{ &vop_update_desc, (vop_t *)nfs_update },	/* update */
 /* XXX: vop_getpages  - XXX: call spec_getpages here? */
 /* XXX: vop_putpages */
 	{ &vop_bwrite_desc, (vop_t *)vn_bwrite },	/* bwrite */
@@ -293,12 +276,6 @@ static struct vnodeopv_entry_desc fifo_nfsv2nodeop_entries[] = {
 	{ &vop_islocked_desc, (vop_t *)nfs_islocked },	/* islocked */
 	{ &vop_pathconf_desc, (vop_t *)fifo_pathconf },	/* pathconf */
 	{ &vop_advlock_desc, (vop_t *)fifo_advlock },	/* advlock */
-	{ &vop_blkatoff_desc, (vop_t *)fifo_blkatoff },	/* blkatoff */
-	{ &vop_valloc_desc, (vop_t *)fifo_valloc },	/* valloc */
-	{ &vop_reallocblks_desc, (vop_t *)fifo_reallocblks },	/* reallocblks */
-	{ &vop_vfree_desc, (vop_t *)fifo_vfree },	/* vfree */
-	{ &vop_truncate_desc, (vop_t *)fifo_truncate },	/* truncate */
-	{ &vop_update_desc, (vop_t *)nfs_update },	/* update */
 /* XXX: vop_getpages */
 /* XXX: vop_putpages */
 	{ &vop_bwrite_desc, (vop_t *)vn_bwrite },	/* bwrite */
@@ -3074,95 +3051,6 @@ nfs_print(ap)
 		fifo_printinfo(vp);
 	printf("\n");
 	return (0);
-}
-
-/*
- * NFS directory offset lookup.
- * Currently unsupported.
- */
-static int
-nfs_blkatoff(ap)
-	struct vop_blkatoff_args /* {
-		struct vnode *a_vp;
-		off_t a_offset;
-		char **a_res;
-		struct buf **a_bpp;
-	} */ *ap;
-{
-
-	return (EOPNOTSUPP);
-}
-
-/*
- * NFS flat namespace allocation.
- * Currently unsupported.
- */
-static int
-nfs_valloc(ap)
-	struct vop_valloc_args /* {
-		struct vnode *a_pvp;
-		int a_mode;
-		struct ucred *a_cred;
-		struct vnode **a_vpp;
-	} */ *ap;
-{
-
-	return (EOPNOTSUPP);
-}
-
-/*
- * NFS flat namespace free.
- * Currently unsupported.
- */
-static int
-nfs_vfree(ap)
-	struct vop_vfree_args /* {
-		struct vnode *a_pvp;
-		ino_t a_ino;
-		int a_mode;
-	} */ *ap;
-{
-
-	return (EOPNOTSUPP);
-}
-
-/*
- * NFS file truncation.
- */
-static int
-nfs_truncate(ap)
-	struct vop_truncate_args /* {
-		struct vnode *a_vp;
-		off_t a_length;
-		int a_flags;
-		struct ucred *a_cred;
-		struct proc *a_p;
-	} */ *ap;
-{
-
-	/* Use nfs_setattr */
-	printf("nfs_truncate: need to implement!!");
-	return (EOPNOTSUPP);
-}
-
-/*
- * NFS update.
- */
-static int
-nfs_update(ap)
-	struct vop_update_args /* {
-		struct vnode *a_vp;
-		struct timeval *a_ta;
-		struct timeval *a_tm;
-		int a_waitfor;
-	} */ *ap;
-{
-
-#if 0
-	/* Use nfs_setattr */
-	printf("nfs_update: need to implement!!");
-#endif
-	return (EOPNOTSUPP);
 }
 
 /*
