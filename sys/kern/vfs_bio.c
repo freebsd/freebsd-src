@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.40 1995/04/16 05:11:14 davidg Exp $
+ * $Id: vfs_bio.c,v 1.41 1995/04/16 11:45:30 davidg Exp $
  */
 
 /*
@@ -1395,9 +1395,4 @@ vm_hold_free_pages(struct buf * bp, vm_offset_t froma, vm_offset_t toa)
 		vm_page_free(p);
 		--bp->b_npages;
 	}
-}
-
-void
-bufstats()
-{
 }
