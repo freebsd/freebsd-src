@@ -1,6 +1,6 @@
 .\" $FreeBSD$
 .\"
-.Dd June 18, 1996
+.Dd September 14, 1996
 .Dt DIVERT 4
 .Os
 .Sh NAME
@@ -127,6 +127,17 @@ before delivery; the diversion of any one fragment causes the entire
 packet to get diverted.
 If different fragments divert to different ports,
 then which port ultimately gets chosen is unpredictable.
+.Pp
+Note that packets arriving on the divert socket by the
+.Xr ipfw 8
+.Cm tee
+action are delivered as-is and packet fragments do not get reassembled
+in this case.
+.Pp
+Note that packets arriving on the divert socket by the
+.Xr ipfw 8
+tee action are delivered as-is and packet fragments do not get reassembled
+in this case.
 .Pp
 Packets are received and sent unchanged, except that
 packets read as outgoing have invalid IP header checksums, and
