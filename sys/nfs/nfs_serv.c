@@ -249,7 +249,7 @@ nfsrv_getattr(nfsd, slp, procp, mrq)
 	register struct nfs_fattr *fp;
 	struct vattr va;
 	register struct vattr *vap = &va;
-	struct vnode *vp;
+	struct vnode *vp = NULL;
 	nfsfh_t nfh;
 	fhandle_t *fhp;
 	register u_int32_t *tl;
@@ -453,7 +453,7 @@ nfsrv_lookup(nfsd, slp, procp, mrq)
 	struct ucred *cred = &nfsd->nd_cr;
 	register struct nfs_fattr *fp;
 	struct nameidata nd, ind, *ndp = &nd;
-	struct vnode *vp, *dirp;
+	struct vnode *vp, *dirp = NULL;
 	nfsfh_t nfh;
 	fhandle_t *fhp;
 	register caddr_t cp;
@@ -775,7 +775,7 @@ nfsrv_read(nfsd, slp, procp, mrq)
 	char *cp2;
 	struct mbuf *mb, *mb2, *mreq;
 	struct mbuf *m2;
-	struct vnode *vp;
+	struct vnode *vp = NULL;
 	nfsfh_t nfh;
 	fhandle_t *fhp;
 	struct uio io, *uiop = &io;
@@ -1168,7 +1168,7 @@ nfsrv_writegather(ndp, slp, procp, mrq)
 	int ioflags, aftat_ret = 1, s, adjust, v3, zeroing;
 	char *cp2;
 	struct mbuf *mb, *mb2, *mreq, *mrep, *md;
-	struct vnode *vp;
+	struct vnode *vp = NULL;
 	struct uio io, *uiop = &io;
 	u_quad_t frev, cur_usec;
 
