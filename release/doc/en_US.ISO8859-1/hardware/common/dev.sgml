@@ -2104,22 +2104,22 @@
     <para arch="i386">Cronyx Sigma synchronous / asynchronous serial
       adapters with V.35/RS-232/RS-530/RS-449 interfaces (&man.cx.4; driver)
       <itemizedlist>
-        <listitem>
+	<listitem>
 	  <para>Cronyx Sigma-22, Sigma-24</para>
 	</listitem>
-        <listitem>
+	<listitem>
 	  <para>Cronyx Sigma-100</para>
 	</listitem>
-        <listitem>
+	<listitem>
 	  <para>Cronyx Sigma-400, Sigma-401, Sigma-404, Sigma-410, Sigma-440</para>
 	</listitem>
-        <listitem>
+	<listitem>
 	  <para>Cronyx Sigma-500</para>
 	</listitem>
-        <listitem>
+	<listitem>
 	  <para>Cronyx Sigma-703</para>
 	</listitem>
-        <listitem>
+	<listitem>
 	  <para>Cronyx Sigma-800, Sigma-801, Sigma-810, Sigma-840</para>
 	</listitem>
       </itemizedlist>
@@ -2128,19 +2128,22 @@
     <para arch="i386">Cronyx Tau-PCI synchronous serial adapters for PCI bus
       (&man.cp.4; driver)
       <itemizedlist>
-        <listitem>
+	<listitem>
 	  <para>Cronyx Tau-PCI (dual RS-232/V.35) and Cronyx Tau-PCI/R (dual RS-530(RS-449)/X.21)</para>
 	</listitem>
-        <listitem>
+	<listitem>
+	  <para>Cronyx Tau-PCI-L (one RS-232/V.35) and Cronyx Tau-PCI-L/R (one RS-530(RS-449)/X.21)</para>
+	</listitem>
+	<listitem>
 	  <para>Cronyx Tau-PCI/E1 (dual fractional E1) and Cronyx Tau-PCI/G703 (dual unframed E1)</para>
 	</listitem>
-        <listitem>
+	<listitem>
 	  <para>Cronyx Tau-PCI/2E1 (dual fractional/unframed E1)</para>
 	</listitem>
-        <listitem>
+	<listitem>
 	  <para>Cronyx Tau-PCI/4E1 (four fractional/unframed E1)</para>
 	</listitem>
-        <listitem>
+	<listitem>
 	  <para>Cronyx Tau-PCI/E3 (one E3)</para>
 	</listitem>
       </itemizedlist>
@@ -2149,10 +2152,10 @@
     <para arch="i386">Cronyx Tau synchronous serial adapters for ISA bus
       (&man.ctau.4; driver)
       <itemizedlist>
-        <listitem>
+	<listitem>
 	  <para>Cronyx Tau (RS-232/V.35) and Cronyx Tau/R (RS-530/RS-449)</para>
 	</listitem>
-        <listitem>
+	<listitem>
 	  <para>Cronyx Tau/E1 (fractional E1) and Cronyx Tau/G703 (unframed E1)</para>
 	</listitem>
       </itemizedlist>
