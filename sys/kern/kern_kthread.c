@@ -109,12 +109,11 @@ kthread_create(void (*func)(void *), void *arg,
 	TD_SET_CAN_RUN(td);
 
 	/* Delay putting it on the run queue until now. */
-	mtx_lock_spin(&sched_lock);
-	p2->p_sflag |= PS_INMEM;
 	if (!(flags & RFSTOPPED)) {
+		mtx_lock_spin(&sched_lock);
 		setrunqueue(td); 
+		mtx_unlock_spin(&sched_lock);
 	}
-	mtx_unlock_spin(&sched_lock);
 
 	return 0;
 }
