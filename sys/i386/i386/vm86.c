@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: vm86.c,v 1.13 1998/07/27 16:45:04 jlemon Exp $
+ *	$Id: vm86.c,v 1.14 1998/08/11 16:06:10 bde Exp $
  */
 
 #include "opt_vm86.h"
@@ -557,7 +557,7 @@ vm86_initflags(struct vm86frame *vmf)
 void
 vm86_prepcall(struct vm86frame vmf)
 {
-	u_long addr[] = { 0xA00, 0x1000 };	/* code, stack */
+	uintptr_t addr[] = { 0xA00, 0x1000 };	/* code, stack */
 	u_char intcall[] = {
 		CLI, INTn, 0x00, STI, HLT
 	};
