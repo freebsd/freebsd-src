@@ -236,6 +236,8 @@ struct sockproto {
 	{ "key", CTLTYPE_NODE }, \
 	{ "inet6", CTLTYPE_NODE }, \
 	{ "natm", CTLTYPE_NODE }, \
+	{ "atm", CTLTYPE_NODE }, \
+	{ "hdrcomplete", CTLTYPE_NODE }, \
 	{ "netgraph", CTLTYPE_NODE }, \
 }
 
