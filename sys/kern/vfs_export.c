@@ -2335,6 +2335,12 @@ vfs_free_addrlist(nep)
 		}
 }
 
+/*
+ * High level function to manipulate export options on a mount point
+ * and the passed in netexport.
+ * Struct export_args *argp is the variable used to twiddle options,
+ * the structure is described in sys/mount.h
+ */
 int
 vfs_export(mp, nep, argp)
 	struct mount *mp;
@@ -2363,7 +2369,6 @@ vfs_export(mp, nep, argp)
 	}
 	return (0);
 }
-
 
 /*
  * Set the publicly exported filesystem (WebNFS). Currently, only
@@ -2445,6 +2450,12 @@ vfs_setpublicfs(mp, nep, argp)
 	return (0);
 }
 
+/*
+ * Used by the filesystems to determine if a given network address
+ * (passed in 'nam') is present in thier exports list, returns a pointer
+ * to struct netcred so that the filesystem can examine it for
+ * access rights (read/write/etc).
+ */
 struct netcred *
 vfs_export_lookup(mp, nep, nam)
 	register struct mount *mp;
