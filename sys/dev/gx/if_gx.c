@@ -75,12 +75,6 @@
 MODULE_DEPEND(gx, miibus, 1, 1, 1);
 #include "miibus_if.h"
 
-#ifdef KLD_MODULE
-#define NMIIBUS 1
-#else
-#include "miibus.h"
-#endif
-
 #define TUNABLE_TX_INTR_DELAY	100
 #define TUNABLE_RX_INTR_DELAY	100
 
