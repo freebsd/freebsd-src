@@ -134,8 +134,11 @@ protoname(int proto)
   };
 
   if (proto < 0 || proto > sizeof cftypes / sizeof *cftypes ||
-      cftypes[proto] == NULL)
+      cftypes[proto] == NULL) {
+    if (proto == -1)
+      return "none";
     return HexStr(proto, NULL, 0);
+  }
 
   return cftypes[proto];
 }
