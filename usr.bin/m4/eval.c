@@ -241,8 +241,10 @@ expand_builtin(const char *argv[], int argc, int td)
 	/*
 	 * dosys - execute system command
 	 */
-		if (argc > 2)
+		if (argc > 2) {
+			fflush(NULL);
 			sysval = system(argv[2]);
+		}
 		break;
 
 	case SYSVTYPE:
