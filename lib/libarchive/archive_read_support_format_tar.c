@@ -351,12 +351,33 @@ archive_read_format_tar_read_header(struct archive *a,
 {
 	struct stat st;
 	struct tar *tar;
+	const char *p;
+	int r;
+	size_t l;
 
 	memset(&st, 0, sizeof(st));
 	tar = *(a->pformat_data);
 	tar->entry_offset = 0;
 
-	return (tar_read_header(a, tar, entry, &st));
+	r = tar_read_header(a, tar, entry, &st);
+
+	if (r == ARCHIVE_OK) {
+		/*
+		 * "Regular" entry with trailing '/' is really
+		 * directory: This is needed for certain old tar
+		 * variants and even for some broken newer ones.
+		 */
+		p = archive_entry_pathname(entry);
+		l = strlen(p);
+		if (S_ISREG(st.st_mode) && p[l-1] == '/') {
+			st.st_mode &= ~S_IFMT;
+			st.st_mode |= S_IFDIR;
+		}
+
+		/* Copy the final stat data into the entry. */
+		archive_entry_copy_stat(entry, &st);
+	}
+	return (r);
 }
 
 static int
@@ -421,8 +442,6 @@ tar_read_header(struct archive *a, struct tar *tar,
 	ssize_t bytes;
 	int err;
 	const void *h;
-	const char *p;
-	size_t l;
 	const struct archive_entry_header_ustar *header;
 
 	/* Read 512-byte header record */
@@ -513,16 +532,7 @@ tar_read_header(struct archive *a, struct tar *tar,
 			a->archive_format_name = "tar (non-POSIX)";
 			err = header_old_tar(a, tar, entry, st, h);
 		}
-
-		/* "Regular" entry with trailing '/' is really directory. */
-		p = archive_entry_pathname(entry);
-		l = strlen(p);
-		if (S_ISREG(st->st_mode) && p[l-1] == '/') {
-			st->st_mode &= ~S_IFMT;
-			st->st_mode |= S_IFDIR;
-		}
 	}
-	archive_entry_copy_stat(entry, st);
 	--tar->header_recursion_depth;
 	return (err);
 }
