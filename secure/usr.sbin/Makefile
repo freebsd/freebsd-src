@@ -5,8 +5,4 @@ SUBDIR=
 SUBDIR+=sshd
 .endif
 
-.if !defined(NO_SENDMAIL) && !defined(NO_OPENSSL)
-SUBDIR+=sendmail
-.endif
-
 .include <bsd.subdir.mk>
