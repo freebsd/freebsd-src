@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.100 1995/06/25 04:51:01 bde Exp $
+ *	$Id: sio.c,v 1.101 1995/06/28 17:58:14 ache Exp $
  */
 
 #include "sio.h"
@@ -2020,9 +2020,15 @@ siosettimeout()
 			}
 		}
 	}
-	sio_timeouts_until_log = hz / sio_timeout;
-	if (someopen)
+	if (someopen) {
+		sio_timeouts_until_log = hz / sio_timeout;
 		timeout(comwakeup, (void *)NULL, sio_timeout);
+	} else {
+		/* Flush error messages, if any. */
+		sio_timeouts_until_log = 1;
+		comwakeup((void *)NULL);
+		untimeout(comwakeup, (void *)NULL);
+	}
 }
 
 static void
@@ -2053,7 +2059,7 @@ comwakeup(chan)
 	 */
 	if (--sio_timeouts_until_log > 0)
 		return;
-	sio_timeouts_until_log = sio_timeout;
+	sio_timeouts_until_log = hz / sio_timeout;
 	for (unit = 0; unit < NSIO; ++unit) {
 		int	errnum;
 
