@@ -290,7 +290,7 @@ setup_key(local)
 		exit(1);
 	}
 	key_sched((des_cblock *)kdata.kf_key, schedule);
-	des_set_key((des_cblock *)kdata.kf_key, schedule);
+	des_set_key_krb((des_cblock *)kdata.kf_key, schedule);
 	return;
 }
 
