@@ -4500,21 +4500,35 @@ is specified,
 will never idle out before the link has been up for at least that number
 of seconds.
 .It set urgent Xo
+.Op tcp|udp
 .Oo Op +|- Ns
 .Ar port
 .Oc No ...
 .Xc
 This command controls the ports that
 .Nm
-prioritizes when transmitting data.  The default priority ports are ports
-21 (ftp control), 22 (ssh), 23 (telnet), 513 (login), 514 (shell),
-543 (klogin) and 544 (kshell).  See
+prioritizes when transmitting data.  The default priority TCP ports
+are ports 21 (ftp control), 22 (ssh), 23 (telnet), 513 (login), 514 (shell),
+543 (klogin) and 544 (kshell).  There are no priority UDP ports by default.
+See
 .Xr services 5
 for details.
 .Pp
+If neither
+.Dq tcp
+or
+.Dq udp
+are specified,
+.Dq tcp
+is assumed.
+.Pp
 If no
 .Ar port Ns No s
-are given, the priority port list is cleared.  If the first
+are given, the priority port lists are cleared (although if
+.Dq tcp
+or
+.Dq udp
+is specified, only that list is cleared).  If the first
 .Ar port
 argument is prefixed with a plus
 .Pq Dq \&+

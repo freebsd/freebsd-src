@@ -1375,7 +1375,7 @@ static int
 SetVariable(struct cmdargs const *arg)
 {
   long long_val, param = (long)arg->cmd->args;
-  int mode, dummyint, f;
+  int mode, dummyint, f, first;
   const char *argp;
   struct datalink *cx = arg->cx;	/* LOCAL_CX uses this */
   const char *err = NULL;
@@ -1789,18 +1789,40 @@ SetVariable(struct cmdargs const *arg)
     break;
 
   case VAR_URGENTPORTS:
-    if (arg->argn == arg->argc)
-      ipcp_ClearUrgentPorts(&arg->bundle->ncp.ipcp);
-    else for (f = arg->argn; f < arg->argc; f++)
-      if (*arg->argv[f] == '+')
-        ipcp_AddUrgentPort(&arg->bundle->ncp.ipcp, atoi(arg->argv[f] + 1));
-      else if (*arg->argv[f] == '-')
-        ipcp_RemoveUrgentPort(&arg->bundle->ncp.ipcp, atoi(arg->argv[f] + 1));
-      else {
-        if (f == arg->argn)
-          ipcp_ClearUrgentPorts(&arg->bundle->ncp.ipcp);
-        ipcp_AddUrgentPort(&arg->bundle->ncp.ipcp, atoi(arg->argv[f]));
-      }
+    if (arg->argn == arg->argc) {
+      ipcp_ClearUrgentTcpPorts(&arg->bundle->ncp.ipcp);
+      ipcp_ClearUrgentUdpPorts(&arg->bundle->ncp.ipcp);
+    } else if (!strcasecmp(arg->argv[arg->argn], "udp")) {
+      if (arg->argn == arg->argc - 1)
+        ipcp_ClearUrgentUdpPorts(&arg->bundle->ncp.ipcp);
+      else for (f = arg->argn + 1; f < arg->argc; f++)
+        if (*arg->argv[f] == '+')
+          ipcp_AddUrgentUdpPort(&arg->bundle->ncp.ipcp, atoi(arg->argv[f] + 1));
+        else if (*arg->argv[f] == '-')
+          ipcp_RemoveUrgentUdpPort(&arg->bundle->ncp.ipcp,
+                                   atoi(arg->argv[f] + 1));
+        else {
+          if (f == arg->argn)
+            ipcp_ClearUrgentUdpPorts(&arg->bundle->ncp.ipcp);
+          ipcp_AddUrgentUdpPort(&arg->bundle->ncp.ipcp, atoi(arg->argv[f]));
+        }
+    } else {
+      first = arg->argn;
+      if (!strcasecmp(arg->argv[first], "tcp") && ++first == arg->argc)
+        ipcp_ClearUrgentTcpPorts(&arg->bundle->ncp.ipcp);
+
+      for (f = first; f < arg->argc; f++)
+        if (*arg->argv[f] == '+')
+          ipcp_AddUrgentTcpPort(&arg->bundle->ncp.ipcp, atoi(arg->argv[f] + 1));
+        else if (*arg->argv[f] == '-')
+          ipcp_RemoveUrgentTcpPort(&arg->bundle->ncp.ipcp,
+                                   atoi(arg->argv[f] + 1));
+        else {
+          if (f == first)
+            ipcp_ClearUrgentTcpPorts(&arg->bundle->ncp.ipcp);
+          ipcp_AddUrgentTcpPort(&arg->bundle->ncp.ipcp, atoi(arg->argv[f]));
+        }
+    }
     break;
   }
 
@@ -1910,8 +1932,8 @@ static struct cmdtab const SetCommands[] = {
   "STOPPED timeouts", "set stopped [LCPseconds [CCPseconds]]"},
   {"timeout", NULL, SetVariable, LOCAL_AUTH, "Idle timeout",
   "set timeout idletime", (const void *)VAR_IDLETIMEOUT},
-  {"urgent", NULL, SetVariable, LOCAL_AUTH,
-  "urgent ports", "set urgent [+|-]port...", (const void *)VAR_URGENTPORTS},
+  {"urgent", NULL, SetVariable, LOCAL_AUTH, "urgent ports",
+  "set urgent [tcp|udp] [+|-]port...", (const void *)VAR_URGENTPORTS},
   {"vj", NULL, ipcp_vjset, LOCAL_AUTH,
   "vj values", "set vj slots|slotcomp [value]"},
   {"help", "?", HelpCommand, LOCAL_AUTH | LOCAL_NO_AUTH,

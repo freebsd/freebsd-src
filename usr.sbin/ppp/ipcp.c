@@ -89,7 +89,7 @@
 #define issep(ch) ((ch) == ' ' || (ch) == '\t')
 #define isip(ch) (((ch) >= '0' && (ch) <= '9') || (ch) == '.')
 
-static u_short default_urgent_ports[] = {
+static u_short default_urgent_tcp_ports[] = {
   21,	/* ftp */
   22,	/* ssh */
   23,	/* telnet */
@@ -99,77 +99,82 @@ static u_short default_urgent_ports[] = {
   544	/* kshell */
 };
 
-#define NDEFPORTS (sizeof default_urgent_ports / sizeof default_urgent_ports[0])
+static u_short default_urgent_udp_ports[] = { };
+
+#define NDEFTCPPORTS \
+  (sizeof default_urgent_tcp_ports / sizeof default_urgent_tcp_ports[0])
+#define NDEFUDPPORTS \
+  (sizeof default_urgent_udp_ports / sizeof default_urgent_udp_ports[0])
 
 int
-ipcp_IsUrgentPort(struct ipcp *ipcp, u_short src, u_short dst)
+ipcp_IsUrgentPort(struct port_range *range, u_short src, u_short dst)
 {
   int f;
 
-  for (f = 0; f < ipcp->cfg.urgent.nports; f++)
-    if (ipcp->cfg.urgent.port[f] == src || ipcp->cfg.urgent.port[f] == dst)
+  for (f = 0; f < range->nports; f++)
+    if (range->port[f] == src || range->port[f] == dst)
       return 1;
 
   return 0;
 }
 
 void
-ipcp_AddUrgentPort(struct ipcp *ipcp, u_short port)
+ipcp_AddUrgentPort(struct port_range *range, u_short port)
 {
   u_short *newport;
   int p;
 
-  if (ipcp->cfg.urgent.nports == ipcp->cfg.urgent.maxports) {
-    ipcp->cfg.urgent.maxports += 10;
-    newport = (u_short *)realloc(ipcp->cfg.urgent.port,
-                                 ipcp->cfg.urgent.maxports * sizeof(u_short));
+  if (range->nports == range->maxports) {
+    range->maxports += 10;
+    newport = (u_short *)realloc(range->port,
+                                 range->maxports * sizeof(u_short));
     if (newport == NULL) {
       log_Printf(LogERROR, "ipcp_AddUrgentPort: realloc: %s\n",
                  strerror(errno));
-      ipcp->cfg.urgent.maxports -= 10;
+      range->maxports -= 10;
       return;
     }
-    ipcp->cfg.urgent.port = newport;
+    range->port = newport;
   }
 
-  for (p = 0; p < ipcp->cfg.urgent.nports; p++)
-    if (ipcp->cfg.urgent.port[p] == port) {
+  for (p = 0; p < range->nports; p++)
+    if (range->port[p] == port) {
       log_Printf(LogWARN, "%u: Port already set to urgent\n", port);
       break;
-    } else if (ipcp->cfg.urgent.port[p] > port) {
-      memmove(ipcp->cfg.urgent.port + p + 1, ipcp->cfg.urgent.port + p,
-              (ipcp->cfg.urgent.nports - p) * sizeof(u_short));
-      ipcp->cfg.urgent.port[p] = port;
-      ipcp->cfg.urgent.nports++;
+    } else if (range->port[p] > port) {
+      memmove(range->port + p + 1, range->port + p,
+              (range->nports - p) * sizeof(u_short));
+      range->port[p] = port;
+      range->nports++;
       break;
     }
 
-  if (p == ipcp->cfg.urgent.nports)
-    ipcp->cfg.urgent.port[ipcp->cfg.urgent.nports++] = port;
+  if (p == range->nports)
+    range->port[range->nports++] = port;
 }
 
 void
-ipcp_RemoveUrgentPort(struct ipcp *ipcp, u_short port)
+ipcp_RemoveUrgentPort(struct port_range *range, u_short port)
 {
   int p;
 
-  for (p = 0; p < ipcp->cfg.urgent.nports; p++)
-    if (ipcp->cfg.urgent.port[p] == port) {
-      if (p != ipcp->cfg.urgent.nports - 1)
-        memmove(ipcp->cfg.urgent.port + p, ipcp->cfg.urgent.port + p + 1,
-                (ipcp->cfg.urgent.nports - p - 1) * sizeof(u_short));
-      ipcp->cfg.urgent.nports--;
+  for (p = 0; p < range->nports; p++)
+    if (range->port[p] == port) {
+      if (p != range->nports - 1)
+        memmove(range->port + p, range->port + p + 1,
+                (range->nports - p - 1) * sizeof(u_short));
+      range->nports--;
       return;
     }
 
-  if (p == ipcp->cfg.urgent.nports)
+  if (p == range->nports)
     log_Printf(LogWARN, "%u: Port not set to urgent\n", port);
 }
 
 void
-ipcp_ClearUrgentPorts(struct ipcp *ipcp)
+ipcp_ClearUrgentPorts(struct port_range *range)
 {
-  ipcp->cfg.urgent.nports = 0;
+  range->nports = 0;
 }
 
 struct compreq {
@@ -401,14 +406,24 @@ ipcp_Show(struct cmdargs const *arg)
 	        inet_ntoa(ipcp->cfg.ns.nbns[0]));
   prompt_Printf(arg->prompt, "%s\n", inet_ntoa(ipcp->cfg.ns.nbns[1]));
 
-  prompt_Printf(arg->prompt, " Urgent ports:    ");
-  if (ipcp->cfg.urgent.nports == 0)
+  prompt_Printf(arg->prompt, " Urgent ports\n");
+  prompt_Printf(arg->prompt, "          TCP:    ");
+  if (ipcp->cfg.urgent.tcp.nports == 0)
     prompt_Printf(arg->prompt, "none");
   else
-    for (p = 0; p < ipcp->cfg.urgent.nports; p++) {
+    for (p = 0; p < ipcp->cfg.urgent.tcp.nports; p++) {
       if (p)
         prompt_Printf(arg->prompt, ", ");
-      prompt_Printf(arg->prompt, "%u", ipcp->cfg.urgent.port[p]);
+      prompt_Printf(arg->prompt, "%u", ipcp->cfg.urgent.tcp.port[p]);
+    }
+  prompt_Printf(arg->prompt, "\n          UDP:    ");
+  if (ipcp->cfg.urgent.udp.nports == 0)
+    prompt_Printf(arg->prompt, "none");
+  else
+    for (p = 0; p < ipcp->cfg.urgent.udp.nports; p++) {
+      if (p)
+        prompt_Printf(arg->prompt, ", ");
+      prompt_Printf(arg->prompt, "%u", ipcp->cfg.urgent.udp.port[p]);
     }
 
   prompt_Printf(arg->prompt, "\n\n");
@@ -474,10 +489,15 @@ ipcp_Init(struct ipcp *ipcp, struct bundle *bundle, struct link *l,
   ipcp->cfg.ns.nbns[0].s_addr = INADDR_ANY;
   ipcp->cfg.ns.nbns[1].s_addr = INADDR_ANY;
 
-  ipcp->cfg.urgent.nports = ipcp->cfg.urgent.maxports = NDEFPORTS;
-  ipcp->cfg.urgent.port = (u_short *)malloc(NDEFPORTS * sizeof(u_short));
-  memcpy(ipcp->cfg.urgent.port, default_urgent_ports,
-         NDEFPORTS * sizeof(u_short));
+  ipcp->cfg.urgent.tcp.nports = ipcp->cfg.urgent.tcp.maxports = NDEFTCPPORTS;
+  ipcp->cfg.urgent.tcp.port = (u_short *)malloc(NDEFTCPPORTS * sizeof(u_short));
+  memcpy(ipcp->cfg.urgent.tcp.port, default_urgent_tcp_ports,
+         NDEFTCPPORTS * sizeof(u_short));
+
+  ipcp->cfg.urgent.udp.nports = ipcp->cfg.urgent.udp.maxports = NDEFUDPPORTS;
+  ipcp->cfg.urgent.udp.port = (u_short *)malloc(NDEFUDPPORTS * sizeof(u_short));
+  memcpy(ipcp->cfg.urgent.udp.port, default_urgent_udp_ports,
+         NDEFUDPPORTS * sizeof(u_short));
 
   ipcp->cfg.fsm.timeout = DEF_FSMRETRY;
   ipcp->cfg.fsm.maxreq = DEF_FSMTRIES;
@@ -494,10 +514,15 @@ ipcp_Init(struct ipcp *ipcp, struct bundle *bundle, struct link *l,
 void
 ipcp_Destroy(struct ipcp *ipcp)
 {
-  if (ipcp->cfg.urgent.maxports) {
-    ipcp->cfg.urgent.nports = ipcp->cfg.urgent.maxports = 0;
-    free(ipcp->cfg.urgent.port);
-    ipcp->cfg.urgent.port = NULL;
+  if (ipcp->cfg.urgent.tcp.maxports) {
+    ipcp->cfg.urgent.tcp.nports = ipcp->cfg.urgent.tcp.maxports = 0;
+    free(ipcp->cfg.urgent.tcp.port);
+    ipcp->cfg.urgent.tcp.port = NULL;
+  }
+  if (ipcp->cfg.urgent.udp.maxports) {
+    ipcp->cfg.urgent.udp.nports = ipcp->cfg.urgent.udp.maxports = 0;
+    free(ipcp->cfg.urgent.udp.port);
+    ipcp->cfg.urgent.udp.port = NULL;
   }
 }
 
