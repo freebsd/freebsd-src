@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_clock.c,v 1.8 1994/09/29 00:52:06 wollman Exp $
+ * $Id: kern_clock.c,v 1.9 1994/10/02 17:35:10 phk Exp $
  */
 
 /* Portions of this software are covered by the following: */
@@ -88,7 +88,8 @@ long dk_wpms[DK_NDRIVE];
 long dk_xfer[DK_NDRIVE];
 
 int dk_busy;
-int dk_ndrive = DK_NDRIVE;
+int dk_ndrive = 0;
+char dk_names[DK_NDRIVE][DK_NAMELEN];
 
 long tk_cancc;
 long tk_nin;
