@@ -183,8 +183,9 @@
 .Op Fl C Ar config
 .Op Fl q
 .Sh DESCRIPTION
-.Nm Pw
-is a command-line based editor for the system
+The
+.Nm
+utility is a command-line based editor for the system
 .Ar user
 and
 .Ar group
@@ -192,10 +193,15 @@ files, allowing the superuser an easy to use and standardized way of adding,
 modifying and removing users and groups.
 Note that
 .Nm
-only operates on the local user and group files.  NIS users and groups must be
-maintained on the NIS server.
-.Nm Pw
-handles updating the
+only operates on the local user and group files.
+.Tn NIS
+users and groups must be
+maintained on the
+.Tn NIS
+server.
+The
+.Nm
+utility handles updating the
 .Pa passwd ,
 .Pa master.passwd ,
 .Pa group
@@ -234,7 +240,7 @@ id as an alternative to using the
 .Fl g Ar gid
 options.
 .Pp
-The following flags are common to most or all modes of operation;
+The following flags are common to most or all modes of operation:
 .Pp
 .Bl -tag -width "-G grouplist"
 .It Fl V Ar etcdir
@@ -289,10 +295,16 @@ to run
 .Xr make 1
 after changing to the directory
 .Pa /var/yp .
-This is intended to allow automatic updating of NIS database files.
-If separate passwd and group files are being used by NIS, then use the
+This is intended to allow automatic updating of
+.Tn NIS
+database files.
+If separate passwd and group files are being used by
+.Tn NIS ,
+then use the
 .Fl y Ar path
-option to specify the location of the NIS passwd database so that
+option to specify the location of the
+.Tn NIS
+passwd database so that
 .Nm
 will concurrently update it with the system password
 databases.
@@ -385,7 +397,7 @@ Set the account's primary group to the given group.
 .Ar group
 may be defined by either its name or group number.
 .It Fl G Ar grouplist
-Sets additional group memberships for an account.
+Set additional group memberships for an account.
 .Ar grouplist
 is a comma-separated list of group names or group numbers.
 The user's name is added to the group lists in
@@ -411,7 +423,7 @@ to attempt to create the user's home directory.
 While primarily useful when adding a new account with
 .Ar useradd ,
 this may also be of use when moving an existing user's home directory elsewhere on
-the filesystem.
+the file system.
 The new home directory is populated with the contents of the
 .Ar skeleton
 directory, which typically contains a set of shell configuration files that the
@@ -629,11 +641,16 @@ method requires that the superuser use
 .Xr passwd 1
 to render the account accessible with a password.
 .It Fl y Ar path
-This sets the pathname of the database used by NIS if you are not sharing
+This sets the pathname of the database used by
+.Tn NIS
+if you are not sharing
 the information from
 .Pa /etc/master.passwd
-directly with NIS.
-You should only set this option for NIS servers.
+directly with
+.Tn NIS .
+You should only set this option for
+.Tn NIS
+servers.
 .El
 .Pp
 The
@@ -650,8 +667,9 @@ The additional option is:
 This tells
 .Nm
 to remove the user's home directory and all of its contents.
-.Nm Pw
-errs on the side of caution when removing files from the system.
+The
+.Nm
+utility errs on the side of caution when removing files from the system.
 Firstly, it will not do so if the uid of the account being removed is also used by
 another account on the system, and the 'home' directory in the password file is
 a valid path that commences with the character
@@ -775,7 +793,9 @@ The command
 .Ar groupnext
 returns the next available group id on standard output.
 .Sh USER LOCKING
-.Nm Pw
+The
+.Nm
+utility
 supports a simple password locking mechanism for users; it works by
 prepending the string
 .Ql *LOCKED*
@@ -795,8 +815,9 @@ and
 .Fl q
 options as described above are accepted by these commands.
 .Sh DIAGNOSTICS
-.Nm Pw
-returns EXIT_SUCCESS on successful operation, otherwise
+The
+.Nm
+utility returns EXIT_SUCCESS on successful operation, otherwise
 .Nm
 returns one of the
 following exit codes defined by
@@ -871,8 +892,9 @@ For example,
 .Dl pw useradd help
 lists all available options for the useradd operation.
 .Pp
-.Nm Pw
-allows 8-bit characters in the passwd GECOS field (user's full name,
+The
+.Nm
+utility allows 8-bit characters in the passwd GECOS field (user's full name,
 office, work and home phone number subfields), but disallows them in
 user login and group names.
 Use 8-bit characters with caution, as connection to the Internet will
@@ -919,8 +941,9 @@ Pw default options file
 .Xr pwd_mkdb 8 ,
 .Xr vipw 8
 .Sh HISTORY
-.Nm Pw
-was written to mimic many of the options used in the SYSV
+The
+.Nm
+utility was written to mimic many of the options used in the SYSV
 .Em shadow
 support suite, but is modified for passwd and group fields specific to
 the

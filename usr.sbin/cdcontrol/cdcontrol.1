@@ -21,16 +21,20 @@ as
 or
 .Pa mcd0 .
 .Pp
-If no command is given, then
+If no
+.Ar command
+is given, then
 .Nm
 enters an interactive mode, reading commands from the standard input.
 .Pp
 The following options are available:
 .Bl -tag -width indent
 .It Fl s
-Silent mode - do not print table headers and human readable comments.
+Silent mode.
+Do not print table headers and human readable comments.
 .It Fl v
-Verbose mode - print as much information as possible.
+Verbose mode.
+Print as much information as possible.
 .It Fl f Ar device
 Specify a device, such as
 .Pa /dev/cd0c
@@ -39,35 +43,38 @@ or
 Both absolute path and relative to
 .Pa /dev
 filename are possible.
-Suffix `c' is added to the device name if needed.
+Suffix
+.Pa c
+is added to the device name if needed.
 .El
 .Pp
-The available commands are listed below.  Only as many
+The available commands are listed below.
+Only as many
 characters as are required to uniquely identify a command
 need be specified.
 The word
-.Cm play
+.Ic play
 can be omitted or the characters
-.Dq +
+.Ic +
 and
-.Dq -
+.Ic -
 can be used in the
 place of
-.Cm next
+.Ic next
 and
-.Cm prev .
-.Bl -tag -width Cm
-.It Cm play Ar first_track Op Ar last_track
+.Ic prev .
+.Bl -tag -width indent
+.It Ic play Ar first_track Op Ar last_track
 Play from track
 .Ar first_track
 to track
 .Ar last_track .
 The first track has number 1.
 Can be omitted in all cases.
-.It Cm play Xo
+.It Xo
+.Ic play
 .Ar start_m : Ns Ar start_s . Ns Ar start_f
-.Oo Ar end_m : Ns Ar end_s . Ns
-.Ar end_f Oc
+.Op Ar end_m : Ns Ar end_s . Ns Ar end_f
 .Xc
 Play from the absolute address
 (MSF) defined by
@@ -82,113 +89,111 @@ in minutes,
 .Ar end_s ,
 in seconds and
 .Ar end_f
-(frame number). Minutes are in the range 0-99.
+(frame number).
+Minutes are in the range 0-99.
 Seconds are in the range 0-59.
 Frame numbers are in the range 0-74.
-.It Cm play Op Ar #start_block Op length
+.It Ic play Op # Ns Ar start_block Op Ar length
 Play starting from the logical block
 .Ar start_block
 using
 .Ar length
 logical blocks.
-.It Cm next Op Ar tracks
+.It Ic next Op Ar tracks
 Skip forward a number of tracks (default 1).
-.It Cm prev Op Ar tracks
+.It Ic prev Op Ar tracks
 Skip backward a number of tracks (default 1).
-.It Cm pause
+.It Ic pause
 Stop playing.
 Do not stop the disc.
-.It Cm resume
+.It Ic resume
 Resume playing.
 Used after the
-.Em pause
+.Ic pause
 command.
-.It Cm stop
+.It Ic stop
 Stop the disc.
-.It Cm eject
+.It Ic eject
 Eject the disc.
-.It Cm close
+.It Ic close
 Inject the disc.
-.It Cm volume Ar left_channel Ar right_channel
+.It Ic volume Ar left_channel right_channel
 Set the volume of left channel to
 .Ar left_channel
 and the volume of right channel to
 .Ar right_channel .
 Allowed values are in the range 0-255.
-.It Cm volume Ar mute
+.It Ic volume Cm mute
 Turn the sound off.
-.It Cm volume Ar mono
+.It Ic volume Cm mono
 Set the mono mode.
-.It Cm volume Ar stereo
+.It Ic volume Cm stereo
 Set the stereo mode.
-.It Cm volume Ar left
+.It Ic volume Cm left
 Play the left subtrack on both left and right channels.
-.It Cm volume Ar right
+.It Ic volume Cm right
 Play the right subtrack on both left and right channels.
-.It Cm info
+.It Ic info
 Print the table of contents.
-.It Cm status Xo
-.Op Ar audio | media | volume
-.Xc
+.It Ic status Op Cm audio | media | volume
 Print the information about the disc:
 .Pp
-.Bl -tag -width "volume" -compact
-.It Ar audio
+.Bl -tag -width ".Cm volume" -compact
+.It Cm audio
 the current playing status and position
-.It Ar media
+.It Cm media
 the current media catalog status
-.It Ar volume
+.It Cm volume
 the current values of the volume for left and right channels.
 .El
-.It Cm cdid
-Display the serial number of the cd using the method used by the
-cddb (http://www.cddb.org/) project.
-.It Cm help
+.It Ic cdid
+Display the serial number of the CD using the method used by the
+.Tn CDDB
+project
+.Pq Pa http://www.cddb.org/ .
+.It Ic help
 Print the list of available commands.
-.It Cm debug Ar on
+.It Ic debug Cm on
 Enable the debugging mode of the CD device driver.
-.It Cm debug Ar off
+.It Ic debug Cm off
 Disable the driver debugging mode.
-.It Cm reset
+.It Ic reset
 Perform the hardware reset of the device.
-.It Cm set Ar msf
+.It Ic set Cm msf
 Set minute-second-frame ioctl mode (default).
-.It Cm set Ar lba
+.It Ic set Cm lba
 Set LBA ioctl mode.
-.It Cm speed Ar s
+.It Ic speed Ar s
 Set the highest speed that the drive should use for reading data.
 The units are multiples of a single speed CDROM (150 KB/s).
-Specify "max" to use the drive's fastest speed.
-.It Cm quit
+Specify
+.Dq Li max
+to use the drive's fastest speed.
+.It Ic quit
 Quit the program.
 .El
 .Sh ENVIRONMENT
 The following environment variables affect the execution of
 .Nm :
-.Pp
-.Bl -tag -width CD_DRIVE -compact
+.Bl -tag -width ".Ev CD_DRIVE"
 .It Ev CDROM
-The cd device to use if one isn't specified with the
+The CD device to use, if one is not specified with the
 .Fl f
-flag.
-.Pp
-.It Ev CDPLAY
-.It Ev CD_DRIVE
-.It Ev DISC
-.It Ev MUSIC_CD
+option.
+.It Ev CDPLAY , CD_DRIVE , DISC , MUSIC_CD
 These variables have been deprecated in favour of
 .Ev CDROM .
 .El
 .Sh FILES
-.Bl -tag -width /dev/mcd0c -compact
+.Bl -tag -width ".Pa /dev/mcd0c" -compact
 .It Pa /dev/cd0c
 .It Pa /dev/mcd0c
 .It Pa /dev/acd0c
 .El
 .Sh AUTHORS
-.An Jean-Marc Zucconi ,
-.An Andrey A.\ Chernov ,
-.An Serge V.\ Vakulenko
+.An Jean-Marc Zucconi
+.An Andrey A. Chernov
+.An Serge V. Vakulenko
 .Sh HISTORY
 The
 .Nm

@@ -149,11 +149,18 @@ The default
 .Sq boot0
 image
 .El
+.Sh EXAMPLES
+The following is an example of a typical usage
+of the
+.Nm
+utility to affect the next boot:
+.Pp
+.Dl "boot0cfg -s 2 ad0"
+.Sh DIAGNOSTICS
+.Ex -std
 .Sh SEE ALSO
 .Xr boot 8 ,
 .Xr fdisk 8
-.Sh DIAGNOSTICS
-.Ex -std
 .Sh AUTHORS
 .An Robert Nordier Aq rnordier@FreeBSD.org .
 .Sh BUGS

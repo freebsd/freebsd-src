@@ -36,7 +36,7 @@
 .Sh DESCRIPTION
 The
 .Nm
-program is intended to be called by
+utility is intended to be called by
 .Xr cron 8
 to execute shell scripts
 located in the specified directory.
@@ -72,7 +72,7 @@ setting in
 .Pp
 The
 .Nm
-program will run each executable file in the directory or directories
+utility will run each executable file in the directory or directories
 specified.
 If a file does not have the executable bit set, it is silently ignored.
 .Pp
@@ -142,7 +142,7 @@ is not set or is empty, output is sent to standard output.
 .Sh ENVIRONMENT
 The
 .Nm
-command sets the
+utility sets the
 .Ev PATH
 environment to include all standard system directories, but no additional
 directories, such as
@@ -150,22 +150,22 @@ directories, such as
 If executables are added which depend upon other path components, each
 executable must be responsible for configuring its own appropriate environment.
 .Sh FILES
-.Bl -tag -width ".Pa /etc/periodic.conf"
+.Bl -tag -width ".Pa /etc/defaults/periodic.conf"
 .It Pa /etc/crontab
-The
+the
 .Nm
-program is typically called via entries in the system default
+utility is typically called via entries in the system default
 .Xr cron 8
-table.
+table
 .It Pa /etc/periodic
-The top level directory containing
+the top level directory containing
 .Pa daily ,
 .Pa weekly ,
 and
 .Pa monthly
-subdirectories which contain standard system periodic executables.
+subdirectories which contain standard system periodic executables
 .It Pa /etc/defaults/periodic.conf
-The
+the
 .Pa periodic.conf
 system registry contains variables that control the behaviour of
 .Nm
@@ -173,11 +173,11 @@ and the standard
 .Pa daily , weekly ,
 and
 .Pa monthly
-scripts.
+scripts
 .It Pa /etc/periodic.conf
-This file contains local overrides for the default
+this file contains local overrides for the default
 .Nm
-configuration.
+configuration
 .El
 .Sh EXAMPLES
 The system crontab should have entries for
@@ -236,7 +236,7 @@ Self explanatory.
 .Sh HISTORY
 The
 .Nm
-program first appeared in
+utility first appeared in
 .Fx 3.0 .
 .Sh BUGS
 Since one specifies information about a directory using shell

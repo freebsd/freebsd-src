@@ -57,9 +57,9 @@
 .Fl p Ar port
 .Fl i Ar info
 .Sh DESCRIPTION
-The mouse daemon
+The
 .Nm
-and the console driver work together to support
+utility and the console driver work together to support
 mouse operation in the text console and user programs.
 They virtualize the mouse and provide user programs with mouse data
 in the standard format
@@ -117,7 +117,7 @@ When the third button emulation is enabled
 (see above),
 the
 .Nm
-daemon waits
+utility waits
 .Ar timeout
 msec at most before deciding whether two buttons are being pressed
 simultaneously.
@@ -127,7 +127,7 @@ Set the report rate (reports/sec) of the device if supported.
 .It Fl I Ar file
 Write the process id of the
 .Nm
-daemon in the specified file.
+utility in the specified file.
 Without this option, the process id will be stored in
 .Pa /var/run/moused.pid .
 .It Fl P
@@ -137,7 +137,7 @@ If this option is given together with the
 .Fl i
 option, the
 .Nm
-command will not be able to print useful information for the serial mouse.
+utility will not be able to print useful information for the serial mouse.
 .It Fl R
 Lower RTS on the serial port.
 This option is valid only if
@@ -195,7 +195,7 @@ data format standard.
 .It Ar model
 Mouse model.  The
 .Nm
-command may not always be able to identify the model.
+utility may not always be able to identify the model.
 .It Ar all
 All of the above items.  Print port, interface, type and model in this order
 in one line.
@@ -203,7 +203,7 @@ in one line.
 .Pp
 If the
 .Nm
-command cannot determine the requested information, it prints ``unknown''
+utility cannot determine the requested information, it prints ``unknown''
 or ``generic''.
 .It Fl m Ar N=M
 Assign the physical button
@@ -237,7 +237,7 @@ You may explicitly specify a type listed below, or use
 .Ar auto
 to let the
 .Nm
-command to automatically select an appropriate protocol for the given
+utility to automatically select an appropriate protocol for the given
 mouse.
 If you entirely omit this options in the command line,
 .Fl t Ar auto
@@ -245,7 +245,7 @@ is assumed.
 Under normal circumstances,
 you need to use this option only if the
 .Nm
-command is not able to detect the protocol automatically
+utility is not able to detect the protocol automatically
 (see the
 .Sx "Configuring Mouse Daemon" ) .
 .Pp
@@ -278,7 +278,9 @@ For the serial mouse:
 .It Ar microsoft
 Microsoft serial mouse protocol.  Most 2-button serial mice use this protocol.
 .It Ar intellimouse
-Microsoft IntelliMouse protocol.  Genius NetMouse, ASCII Mie Mouse,
+Microsoft IntelliMouse protocol.  Genius NetMouse,
+.Tn ASCII
+Mie Mouse,
 Logitech MouseMan+ and FirstMouse+ use this protocol too.
 Other mice with a roller/wheel may be compatible with this protocol.
 .It Ar mousesystems
@@ -433,10 +435,10 @@ can easily distinguish which is your ``mouse'' port later.
 The next step is to guess the appropriate protocol type for the mouse.
 The
 .Nm
-command may be able to automatically determine the protocol type.
+utility may be able to automatically determine the protocol type.
 Run the
 .Nm
-command with the
+utility with the
 .Fl i
 option and see what it says.  If the command can identify
 the protocol type, no further investigation is necessary on your part.
@@ -462,7 +464,7 @@ If the
 .Fl i
 option yields nothing, you need to specify a protocol type to the
 .Nm
-command by the
+utility by the
 .Fl t
 option.
 You have to make a guess and try.
@@ -565,7 +567,7 @@ USB mouse driver
 .It Pa /var/run/moused.pid
 process id of the currently running
 .Nm
-daemon
+utility
 .It Pa /var/run/MouseRemote
 UNIX-domain stream socket for X10 MouseRemote events
 .El
@@ -574,7 +576,7 @@ UNIX-domain stream socket for X10 MouseRemote events
 .Pp
 Let the
 .Nm
-command determine the protocol type of the mouse at the serial port
+utility determine the protocol type of the mouse at the serial port
 .Pa /dev/cuaa0 .
 If successful, the command will print the type, otherwise it will say
 ``unknown''.
@@ -584,7 +586,7 @@ If successful, the command will print the type, otherwise it will say
 .Pp
 If the
 .Nm
-command is able to identify the protocol type of the mouse at the specified
+utility is able to identify the protocol type of the mouse at the specified
 port automatically, you can start the daemon without the
 .Fl t
 option and enable the mouse pointer in the text console as above.
@@ -614,7 +616,7 @@ and positive Z axis movement as the button 5 pressed.
 .Sh CAVEATS
 The
 .Nm
-command does not currently work with the alternative console driver
+utility does not currently work with the alternative console driver
 .Xr pcvt 4 .
 .Pp
 Many pad devices behave as if the first (left) button were pressed if
@@ -653,7 +655,7 @@ option to assign the physical right button to the logical middle button:
 .Sh STANDARDS
 The
 .Nm
-command partially supports
+utility partially supports
 .Dq Plug and Play External COM Device Specification
 in order to support PnP serial mice.
 However, due to various degrees of conformance to the specification by
@@ -666,7 +668,7 @@ for the given serial mouse.
 .An -nosplit
 The
 .Nm
-command was written by
+utility was written by
 .An Michael Smith Aq msmith@FreeBSD.org .
 This manual page was written by
 .An Mike Pritchard Aq mpp@FreeBSD.org .
@@ -675,5 +677,5 @@ The command and manual page have since been updated by
 .Sh HISTORY
 The
 .Nm
-command first appeared in
+utility first appeared in
 .Fx 2.2 .

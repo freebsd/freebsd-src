@@ -15,7 +15,7 @@
 .Nm ctm_dequeue ,
 .Nm ctm_rmail
 .Nd send and receive
-.Nm ctm
+.Xr ctm 1
 deltas via mail
 .Sh SYNOPSIS
 .Nm ctm_smail
@@ -56,7 +56,7 @@ Each recipient uses
 .Nm ctm_rmail
 (either manually or automatically) to decode and reassemble the delta, and
 optionally call
-.Xr ctm 1
+.Xr ctm
 to apply it to the source tree.
 At the moment,
 several source trees are distributed, and by several sites.  These include
@@ -363,7 +363,7 @@ manipulation in
 which allows
 .Nm ctm_rmail
 to execute
-.Xr ctm
+.Xr ctm 1
 on the
 .Pq non- Ns Fx
 machine that this example was taken from.

@@ -283,9 +283,9 @@ Specify hard/soft life time duration of the SA.
 .It Ar algorithm
 .Bl -tag -width Fl -compact
 .It Fl E Ar ealgo Ar key
-Specify a encryption algorithm.
+Specify an encryption algorithm.
 .It Fl A Ar aalgo Ar key
-Specify a authentication algorithm.
+Specify an authentication algorithm.
 If
 .Fl A
 is used with
@@ -416,20 +416,13 @@ all protocols
 is the one of following:
 .Bd -literal -offset
 .Xo
-.Fl P
-.Ar direction
-.Li discard
+.Fl P Ar direction Li discard
 .Xc
 .Xo
-.Fl P
-.Ar direction
-.Li none
+.Fl P Ar direction Li none
 .Xc
 .Xo
-.Fl P
-.Ar direction
-.Li ipsec
-.Ar protocol/mode/src-dst/level
+.Fl P Ar direction Li ipsec Ar protocol/mode/src-dst/level
 .Xc
 .Ed
 .Pp

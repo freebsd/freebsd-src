@@ -47,13 +47,14 @@
 .Op Fl f Ar dev
 .Op Fl v
 .Sh DESCRIPTION
+The
 .Nm
-prints a listing of all USB devices connected to the system
+utility prints a listing of all USB devices connected to the system
 with some information about each device.
 The indentation of each line indicates its distance from the root.
 .Pp
 The options are as follows:
-.Bl -tag -width Fl
+.Bl -tag -width ".Fl a Ar addr"
 .It Fl a Ar addr
 only print information about the device at the given address.
 .It Fl d
@@ -68,5 +69,5 @@ Be verbose.
 .Sh HISTORY
 The
 .Nm
-command appeared in
+utility appeared in
 .Nx 1.4 .

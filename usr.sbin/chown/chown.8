@@ -56,10 +56,11 @@
 .No : Ns Ar group
 .Ar
 .Sh DESCRIPTION
-.Nm Chown
-changes the user ID and/or the group ID of the specified files.
+The
+.Nm
+utility changes the user ID and/or the group ID of the specified files.
 Symbolic links named by arguments are silently left unchanged unless
-.Op Fl h
+.Fl h
 is used.
 .Pp
 The options are as follows:
@@ -79,8 +80,12 @@ If the
 option is specified, no symbolic links are followed.
 This is the default.
 .It Fl R
-Change the user ID and/or the group ID for the file hierarchies rooted
-in the files instead of just the files themselves.
+Change the user ID and/or the group ID of the specified directory trees
+(recursively, including their contents) and files.
+Beware of unintentionally matching the
+.Dq Pa ".."
+hard link to the parent directory when using wildcards like
+.Dq Li ".*" .
 .It Fl f
 Don't report any failure to change file owner or group, nor modify
 the exit status to reflect such failures.
@@ -150,11 +155,11 @@ option is non-standard and its use in scripts is not recommended.
 .Sh STANDARDS
 The
 .Nm
-command is expected to be
+utility is expected to be
 .St -p1003.2
 compliant.
 .Sh HISTORY
 A
 .Nm
-command appeared in
+utility appeared in
 .At v1 .
