@@ -205,6 +205,12 @@ VGA graphics to syscons ttys (sort of like Linux's libSVGA).
 Xntpd's syslogging has been moved out into a facility of its own
 (LOG_NTP, userland name "ntp").
 
+A new pair of ioctl's has been added: SIOC[SG]IFGENERIC.  The intent
+is to provide for a hook to pass arbitrary ioctl subcommands down to a
+network interface driver.  This is for example necesseray for PPP
+drivers to communicate things like CHAP names and secrets, or variable
+options between the driver and a userland utility.
+
 
 2. Supported Configurations
 ---------------------------
