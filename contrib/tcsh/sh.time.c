@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/sh.time.c,v 3.21 2000/01/14 22:57:29 christos Exp $ */
+/* $Header: /src/pub/tcsh/sh.time.c,v 3.22 2000/06/10 21:35:41 kim Exp $ */
 /*
  * sh.time.c: Shell time keeping and printing.
  */
@@ -36,7 +36,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: sh.time.c,v 3.21 2000/01/14 22:57:29 christos Exp $")
+RCSID("$Id: sh.time.c,v 3.22 2000/06/10 21:35:41 kim Exp $")
 
 #ifdef SUNOS4
 # include <machine/param.h>
@@ -457,7 +457,7 @@ prusage(bs, es,	e, b)
 		    sysinfo.cpu_count =	1;
 		    i =	(ms == 0) ? 0 :	(t * 1000.0 / (ms * sysinfo.cpu_count));
 #else /* convex	*/
-		i = (ms	== 0) ?	0 : (t * 1000.0 / ms);
+		i = (ms	== 0) ?	0 : (long)(t * 1000.0 / ms);
 #endif /* convex */
 		xprintf("%ld.%01ld%%", i / 10, i % 10);	/* nn.n% */
 		break;
