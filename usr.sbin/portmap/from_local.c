@@ -36,7 +36,11 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#) from_local.c 1.2 93/11/16 21:50:02";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif
 
 #ifdef TEST
@@ -50,6 +54,7 @@ static char sccsid[] = "@(#) from_local.c 1.2 93/11/16 21:50:02";
 
 #include <netdb.h>
 #include <syslog.h>
+#include <unistd.h>
 
 #include <net/if.h>
 #include <netinet/in.h>
@@ -67,6 +72,7 @@ static struct in_addr addrs[MAX_LOCAL];
 
 /* find_local - find all IP addresses for this host */
 
+int
 find_local()
 {
     struct ifconf ifc;
@@ -119,6 +125,7 @@ find_local()
 
 /* from_local - determine whether request comes from the local system */
 
+int
 from_local(addr)
 struct sockaddr_in *addr;
 {
