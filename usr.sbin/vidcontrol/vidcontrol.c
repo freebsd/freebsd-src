@@ -28,7 +28,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: vidcontrol.c,v 1.22 1998/09/23 10:00:15 yokota Exp $";
+	"$Id: vidcontrol.c,v 1.23 1998/09/24 01:36:36 gpalmer Exp $";
 #endif /* not lint */
 
 #include <ctype.h>
@@ -482,10 +482,10 @@ show_mode_info(void)
 			 info.vi_cwidth, info.vi_cheight); 
 		printf(" %-5s", buf);
     		printf(" 0x%05x %2dk %2dk", 
-		       info.vi_window, info.vi_window_size, 
-		       info.vi_window_gran);
+		       info.vi_window, info.vi_window_size/1024, 
+		       info.vi_window_gran/1024);
     		printf(" 0x%08x %2dk\n",
-		       info.vi_buffer, info.vi_buffer_size);
+		       info.vi_buffer, info.vi_buffer_size/1024);
 	}
 }
 
