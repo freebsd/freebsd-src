@@ -734,12 +734,10 @@ vfs_domount(
 		 * Only privileged root, or (if MNT_USER is set) the user that
 		 * did the original mount is permitted to update it.
 		 */
-		if ((mp->mnt_flag & MNT_USER) == 0 ||
-		    mp->mnt_cred->cr_uid != td->td_ucred->cr_uid) {
-			if ((error = suser(td)) != 0) {
-				vput(vp);
-				return (error);
-			}
+		error = vfs_suser(mp, td);
+		if (error) {
+			vput(vp);
+			return (error);
 		}
 		if (vfs_busy(mp, LK_NOWAIT, 0, td)) {
 			vput(vp);
@@ -1072,11 +1070,9 @@ unmount(td, uap)
 	 * Only privileged root, or (if MNT_USER is set) the user that did the
 	 * original mount is permitted to unmount this filesystem.
 	 */
-	if ((mp->mnt_flag & MNT_USER) == 0 ||
-	    mp->mnt_cred->cr_uid != td->td_ucred->cr_uid) {
-		if ((error = suser(td)) != 0)
-			return (error);
-	}
+	error = vfs_suser(mp, td);
+	if (error)
+		return (error);
 
 	/*
 	 * Don't allow unmounting the root filesystem.
