@@ -81,17 +81,14 @@ MLINKS+= \
 	pthread_mutexattr.3 pthread_mutexattr_destroy.3 \
 	pthread_mutexattr.3 pthread_mutexattr_getprioceiling.3 \
 	pthread_mutexattr.3 pthread_mutexattr_getprotocol.3 \
-	pthread_mutexattr.3 pthread_mutexattr_getpshared.3 \
 	pthread_mutexattr.3 pthread_mutexattr_gettype.3 \
 	pthread_mutexattr.3 pthread_mutexattr_setprioceiling.3 \
 	pthread_mutexattr.3 pthread_mutexattr_setprotocol.3 \
-	pthread_mutexattr.3 pthread_mutexattr_setpshared.3 \
 	pthread_mutexattr.3 pthread_mutexattr_settype.3 \
 	pthread_rwlock_rdlock.3 pthread_rwlock_tryrdlock.3 \
 	pthread_rwlock_wrlock.3 pthread_rwlock_trywrlock.3 \
 	pthread_schedparam.3 pthread_getschedparam.3 \
 	pthread_schedparam.3 pthread_setschedparam.3 \
-	pthread_testcancel.3 pthread_getcancelstate.3 \
 	pthread_testcancel.3 pthread_setcancelstate.3 \
 	pthread_testcancel.3 pthread_setcanceltype.3 \
 	sem_open.3 sem_close.3 \
