@@ -187,6 +187,7 @@ int		spansarp_svcactive(struct ipvcc *);
 void		spansarp_vcclose(struct ipvcc *);
 void		spansarp_ipact(struct spanscls *);
 void		spansarp_ipdact(struct spanscls *);
+void		spansarp_start(void);
 void		spansarp_stop(void);
 void		spansarp_input(struct spanscls *, KBuffer *);
 int		spansarp_ioctl(int, caddr_t, caddr_t);
