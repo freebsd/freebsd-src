@@ -237,7 +237,7 @@
       <para>A framework for flexible processor speed control has been
 	added.  It provides methods for various drivers to control CPU
 	power utilization by adjusting the processor speed.  More
-	details can be found in the &man.cpufreq.4; manual page.
+	details can be found in the &man.cpufreq.4; manual page. &merged;
 	Currently supported drivers include acpi_perf (ACPI CPU
 	performance states), ichss (Intel SpeedStep for ICH), and
 	acpi_throttle (ACPI CPU throttling).</para>
@@ -439,10 +439,10 @@
 	secret.  This feature is controlled by the &man.gshsec.8;
 	utility.</para>
 
-      <para>The &man.hptmv.4; driver, which supports HighPoint
-	RocketRAID 182x series has been added.  &merged;</para>
+      <para>The &man.hptmv.4; driver, which supports the HighPoint
+	RocketRAID 182x series, has been added. &merged;</para>
 
-      <para>The &man.matcd.4; driver has been removed.</para>
+      <para>The &man.matcd.4; driver has been removed. &merged;</para>
 
       <para>The default SCSI boot-time probe delay in the
 	<filename>GENERIC</filename> kernel has been reduced from
@@ -570,7 +570,7 @@
     <para>The &man.rm.1; utility now supports an <option>-I</option>
       option that asks for confirmation once if recursively
       removing directories or if more than 3 files are listed in the
-      command line.</para>
+      command line. &merged;</para>
 
     <para>An &man.rpmatch.3; library function has been added to check
       a string for being an affirmative or negative response in the
