@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from:@(#)syscons.c	1.3 940129
- *	$Id: syscons.c,v 1.43 1994/04/12 00:05:23 ache Exp $
+ *	$Id: syscons.c,v 1.44 1994/04/21 14:22:26 sos Exp $
  *
  */
 
@@ -849,11 +849,11 @@ int pcioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 				outb(TIMER_CNTR2, pitch);
 				outb(TIMER_CNTR2, (pitch>>8));
 				/* enable counter 2 output to speaker */
-				outb(0x61, inb(0x61) | 3);
+				outb(IO_PPI, inb(IO_PPI) | 3);
 			}
 			else {
 				/* disable counter 2 output to speaker */
-				outb(0x61, inb(0x61) & 0xFC);
+				outb(IO_PPI, inb(IO_PPI) & 0xFC);
 				release_timer2();
 			}
 		}
@@ -1692,6 +1692,8 @@ static void scan_esc(scr_stat *scp, u_char c)
 
 		case 'S':	/* scroll up n lines */
 			n = scp->term.param[0]; if (n < 1)  n = 1;
+			if (n > scp->ypos)
+				n = scp->ypos;
 			bcopy(scp->crt_base + (scp->xsize * n),
 			      scp->crt_base, 
 			      scp->xsize * (scp->ysize - n) * 
@@ -1704,16 +1706,20 @@ static void scan_esc(scr_stat *scp, u_char c)
 
 		case 'T':	/* scroll down n lines */
 			n = scp->term.param[0]; if (n < 1)  n = 1;
+			if (n > scp->ysize - scp->ypos)
+				n = scp->ysize - scp->ypos;
 			bcopy(scp->crt_base, 
 			      scp->crt_base + (scp->xsize * n),
 			      scp->xsize * (scp->ysize - n) * 
 			      sizeof(u_short));
-			fillw(scp->term.cur_attr | scr_map[0x20], scp->crt_base, 
-			      scp->xsize);
+			fillw(scp->term.cur_attr | scr_map[0x20], 
+			      scp->crt_base, scp->xsize);
 			break;
 
 		case 'X':	/* delete n characters in line */
 			n = scp->term.param[0]; if (n < 1)  n = 1;
+			if (n > scp->xsize - scp->xpos)
+				n = scp->xsize - scp->xpos;
 			fillw(scp->term.cur_attr | scr_map[0x20], 
                               scp->crt_base + scp->xpos + 
 			      ((scp->xsize*scp->ypos) * sizeof(u_short)), n);
