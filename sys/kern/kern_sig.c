@@ -1553,7 +1553,7 @@ issignal(p)
 		SIGSETNAND(mask, p->p_sigmask);
 		if (p->p_flag & P_PPWAIT)
 			SIG_STOPSIGMASK(mask);
-		if (!SIGNOTEMPTY(mask))		/* no signal to send */
+		if (SIGISEMPTY(mask))		/* no signal to send */
 			return (0);
 		sig = sig_ffs(&mask);
 		prop = sigprop(sig);
