@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-# $Id: sgmlfmt.pl,v 1.7 1995/09/22 18:24:32 jfieber Exp $
+# $Id: sgmlfmt.pl,v 1.8 1995/10/07 22:28:34 jfieber Exp $
 
 # Format an sgml document tagged according to the linuxdoc DTD.
 # by John Fieber <jfieber@freebsd.org> for the FreeBSD documentation
@@ -394,7 +394,7 @@ sub html2html {
 		      $footer[$st_ol[$sc]] .=
 			  "<!--#include virtual=\"./$fileroot.ftr$st_ol[$sc]\" -->";
 		  }
-                  $footer[$st_ol[$sc]] .= "\n</BODY>\n</HTML>";
+                  $footer[$st_ol[$sc]] .= "\n</BODY>\n</HTML>\n";
 	      }
 
 	      # Add this to the master table of contents
@@ -568,7 +568,7 @@ sub html2html {
       }
     }
 
-    print tocfile "</HTML>";
+    print tocfile "</HTML>\n";
     open(SECOUT, ">$fileroot.html");
     print SECOUT "$header[0] $text[0] $footer[0]";
     close(SECOUT);
