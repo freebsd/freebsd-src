@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: ip_ecn.h,v 1.6 2001/05/03 14:51:48 itojun Exp $	*/
+/*	$KAME: ip_ecn.h,v 1.8 2002/01/07 11:34:47 kjc Exp $	*/
 
 /*
  * Copyright (C) 1999 WIDE Project.
@@ -35,6 +35,9 @@
  * http://www.aciri.org/floyd/papers/draft-ipsec-ecn-00.txt
  */
 
+#ifndef _NETINET_IP_ECN_H_
+#define _NETINET_IP_ECN_H_
+
 #if defined(_KERNEL) && !defined(_LKM)
 #include "opt_inet.h"
 #endif
@@ -45,5 +48,6 @@
 
 #ifdef _KERNEL
 extern void ip_ecn_ingress(int, u_int8_t *, const u_int8_t *);
-extern void ip_ecn_egress(int, const u_int8_t *, u_int8_t *);
+extern int ip_ecn_egress(int, const u_int8_t *, u_int8_t *);
+#endif
 #endif
