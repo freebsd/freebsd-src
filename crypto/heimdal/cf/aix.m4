@@ -1,8 +1,8 @@
 dnl
-dnl $Id: aix.m4,v 1.9 2002/08/28 19:19:43 joda Exp $
+dnl $Id: aix.m4,v 1.9.6.1 2004/04/01 07:27:32 joda Exp $
 dnl
 
-AC_DEFUN(rk_AIX,[
+AC_DEFUN([rk_AIX],[
 
 aix=no
 case "$host" in 

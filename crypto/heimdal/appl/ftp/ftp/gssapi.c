@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998 - 2002 Kungliga Tekniska Högskolan
+ * Copyright (c) 1998 - 2003 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -39,7 +39,9 @@
 #include <gssapi.h>
 #include <krb5_err.h>
 
-RCSID("$Id: gssapi.c,v 1.22 2003/03/16 19:40:18 lha Exp $");
+RCSID("$Id: gssapi.c,v 1.22.2.2 2003/08/20 16:41:24 lha Exp $");
+
+int ftp_do_gss_bindings = 0;
 
 struct gss_data {
     gss_ctx_id_t context_hdl;
@@ -169,17 +171,24 @@ gss_adat(void *app_data, void *buf, size_t len)
     OM_uint32 maj_stat, min_stat;
     gss_name_t client_name;
     struct gss_data *d = app_data;
-    struct gss_channel_bindings_struct bindings;
+    gss_channel_bindings_t bindings;
 
-    sockaddr_to_gss_address (his_addr,
-			     &bindings.initiator_addrtype,
-			     &bindings.initiator_address);
-    sockaddr_to_gss_address (ctrl_addr,
-			     &bindings.acceptor_addrtype,
-			     &bindings.acceptor_address);
+    if (ftp_do_gss_bindings) {
+	bindings = malloc(sizeof(*bindings));
+	if (bindings == NULL)
+	    errx(1, "out of memory");
 
-    bindings.application_data.length = 0;
-    bindings.application_data.value = NULL;
+	sockaddr_to_gss_address (his_addr,
+				 &bindings->initiator_addrtype,
+				 &bindings->initiator_address);
+	sockaddr_to_gss_address (ctrl_addr,
+				 &bindings->acceptor_addrtype,
+				 &bindings->acceptor_address);
+	
+	bindings->application_data.length = 0;
+	bindings->application_data.value = NULL;
+    } else
+	bindings = GSS_C_NO_CHANNEL_BINDINGS;
 
     input_token.value = buf;
     input_token.length = len;
@@ -197,13 +206,16 @@ gss_adat(void *app_data, void *buf, size_t len)
 				       &d->context_hdl,
 				       GSS_C_NO_CREDENTIAL,
 				       &input_token,
-				       &bindings,
+				       bindings,
 				       &client_name,
 				       NULL,
 				       &output_token,
 				       NULL,
 				       NULL,
 				       &d->delegated_cred_handle);
+
+    if (bindings != GSS_C_NO_CHANNEL_BINDINGS)
+	free(bindings);
 
     if(output_token.length) {
 	if(base64_encode(output_token.value, output_token.length, &p) < 0) {
@@ -228,12 +240,13 @@ gss_adat(void *app_data, void *buf, size_t len)
 	    gss_release_buffer(&min_stat, &export_name);
 	    goto out;
 	}
-	name = realloc(export_name.value, export_name.length + 1);
+	name = malloc(export_name.length + 1);
 	if(name == NULL) {
 	    reply(500, "Out of memory");
 	    gss_release_buffer(&min_stat, &export_name);
 	    goto out;
 	}
+	memcpy(name, export_name.value, export_name.length);
 	name[export_name.length] = '\0';
 	gss_release_buffer(&min_stat, &export_name);
 	d->client_name = name;
@@ -350,17 +363,22 @@ gss_auth(void *app_data, char *host)
     input.length = 0;
     input.value = NULL;
 
-    bindings = malloc(sizeof(*bindings));
-
-    sockaddr_to_gss_address (myctladdr,
-			     &bindings->initiator_addrtype,
-			     &bindings->initiator_address);
-    sockaddr_to_gss_address (hisctladdr,
-			     &bindings->acceptor_addrtype,
-			     &bindings->acceptor_address);
-
-    bindings->application_data.length = 0;
-    bindings->application_data.value = NULL;
+    if (ftp_do_gss_bindings) {
+	bindings = malloc(sizeof(*bindings));
+	if (bindings == NULL)
+	    errx(1, "out of memory");
+	
+	sockaddr_to_gss_address (myctladdr,
+				 &bindings->initiator_addrtype,
+				 &bindings->initiator_address);
+	sockaddr_to_gss_address (hisctladdr,
+				 &bindings->acceptor_addrtype,
+				 &bindings->acceptor_address);
+	
+	bindings->application_data.length = 0;
+	bindings->application_data.value = NULL;
+    } else
+	bindings = GSS_C_NO_CHANNEL_BINDINGS;
 
     while(!context_established) {
 	maj_stat = gss_init_sec_context(&min_stat,
@@ -383,11 +401,17 @@ gss_auth(void *app_data, char *host)
 	    gss_buffer_desc status_string;
 
 	    if(min_stat == KRB5KDC_ERR_S_PRINCIPAL_UNKNOWN && *kname != NULL) {
-		if(import_name(*kname++, host, &target_name))
+		if(import_name(*kname++, host, &target_name)) {
+		    if (bindings != GSS_C_NO_CHANNEL_BINDINGS)
+			free(bindings);
 		    return AUTH_ERROR;
+		}
 		continue;
 	    }
 	    
+	    if (bindings != GSS_C_NO_CHANNEL_BINDINGS)
+		free(bindings);
+
 	    gss_display_status(&new_stat,
 			       min_stat,
 			       GSS_C_MECH_CODE,
@@ -400,7 +424,11 @@ gss_auth(void *app_data, char *host)
 	    return AUTH_CONTINUE;
 	}
 
-	gss_release_buffer(&min_stat, &input);
+	if (input.value) {
+	    free(input.value);
+	    input.value = NULL;
+	    input.length = 0;
+	}
 	if (output_token.length != 0) {
 	    base64_encode(output_token.value, output_token.length, &p);
 	    gss_release_buffer(&min_stat, &output_token);
@@ -419,6 +447,8 @@ gss_auth(void *app_data, char *host)
 	    if(p == NULL){
 		printf("Error: expected ADAT in reply. got: %s\n",
 		       reply_string);
+		if (bindings != GSS_C_NO_CHANNEL_BINDINGS)
+		    free(bindings);
 		return AUTH_ERROR;
 	    } else {
 		p+=5;
@@ -428,11 +458,18 @@ gss_auth(void *app_data, char *host)
 	} else {
 	    if(code != 235) {
 		printf("Unrecognized response code: %d\n", code);
+		if (bindings != GSS_C_NO_CHANNEL_BINDINGS)
+		    free(bindings);
 		return AUTH_ERROR;
 	    }
 	    context_established = 1;
 	}
     }
+
+    if (bindings != GSS_C_NO_CHANNEL_BINDINGS)
+	free(bindings);
+    if (input.value)
+	free(input.value);
 
     {
 	gss_name_t targ_name;

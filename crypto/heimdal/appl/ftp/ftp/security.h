@@ -31,7 +31,7 @@
  * SUCH DAMAGE. 
  */
 
-/* $Id: security.h,v 1.9 2000/10/04 06:07:52 assar Exp $ */
+/* $Id: security.h,v 1.9.12.1 2003/08/20 16:41:53 lha Exp $ */
 
 #ifndef __security_h__
 #define __security_h__
@@ -76,6 +76,7 @@ struct sec_server_mech {
 #define AUTH_CONTINUE	1
 #define AUTH_ERROR	2
 
+extern int ftp_do_gss_bindings;
 #ifdef FTP_SERVER
 extern struct sec_server_mech krb4_server_mech, gss_server_mech;
 #else

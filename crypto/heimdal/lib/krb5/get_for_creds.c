@@ -33,7 +33,7 @@
 
 #include <krb5_locl.h>
 
-RCSID("$Id: get_for_creds.c,v 1.34 2002/09/04 16:26:04 joda Exp $");
+RCSID("$Id: get_for_creds.c,v 1.34.4.1 2004/01/09 00:51:55 lha Exp $");
 
 static krb5_error_code
 add_addrs(krb5_context context,
@@ -41,7 +41,7 @@ add_addrs(krb5_context context,
 	  struct addrinfo *ai)
 {
     krb5_error_code ret;
-    unsigned n, i, j;
+    unsigned n, i;
     void *tmp;
     struct addrinfo *a;
 
@@ -49,29 +49,34 @@ add_addrs(krb5_context context,
     for (a = ai; a != NULL; a = a->ai_next)
 	++n;
 
-    i = addr->len;
-    addr->len += n;
-    tmp = realloc(addr->val, addr->len * sizeof(*addr->val));
+    tmp = realloc(addr->val, (addr->len + n) * sizeof(*addr->val));
     if (tmp == NULL) {
 	krb5_set_error_string(context, "malloc: out of memory");
 	ret = ENOMEM;
 	goto fail;
     }
     addr->val = tmp;
-    for (j = i; j < addr->len; ++j) {
+    for (i = addr->len; i < (addr->len + n); ++i) {
 	addr->val[i].addr_type = 0;
 	krb5_data_zero(&addr->val[i].address);
     }
+    i = addr->len;
     for (a = ai; a != NULL; a = a->ai_next) {
-	ret = krb5_sockaddr2address (context, a->ai_addr, &addr->val[i]);
-	if (ret == 0)
-	    ++i;
+	krb5_address ad;
+
+	ret = krb5_sockaddr2address (context, a->ai_addr, &ad);
+	if (ret == 0) {
+	    if (krb5_address_search(context, &ad, addr))
+		krb5_free_address(context, &ad);
+	    else
+		addr->val[i++] = ad;
+	}
 	else if (ret == KRB5_PROG_ATYPE_NOSUPP)
 	    krb5_clear_error_string (context);
 	else
 	    goto fail;
+	addr->len = i;
     }
-    addr->len = i;
     return 0;
 fail:
     krb5_free_addresses (context, addr);
@@ -157,42 +162,66 @@ krb5_get_forwarded_creds (krb5_context	    context,
 {
     krb5_error_code ret;
     krb5_creds *out_creds;
-    krb5_addresses addrs;
+    krb5_addresses addrs, *paddrs;
     KRB_CRED cred;
     KrbCredInfo *krb_cred_info;
     EncKrbCredPart enc_krb_cred_part;
     size_t len;
     unsigned char *buf;
     size_t buf_size;
-    int32_t sec, usec;
     krb5_kdc_flags kdc_flags;
     krb5_crypto crypto;
     struct addrinfo *ai;
     int save_errno;
     krb5_keyblock *key;
+    krb5_creds *ticket;
+    char *realm;
+
+    if (in_creds->client && in_creds->client->realm)
+	realm = in_creds->client->realm;
+    else
+	realm = in_creds->server->realm;
 
     addrs.len = 0;
     addrs.val = NULL;
+    paddrs = &addrs;
 
-    ret = getaddrinfo (hostname, NULL, NULL, &ai);
-    if (ret) {
-	save_errno = errno;
-	krb5_set_error_string(context, "resolving %s: %s",
-			      hostname, gai_strerror(ret));
-	return krb5_eai_to_heim_errno(ret, save_errno);
+    /*
+     * If tickets are address-less, forward address-less tickets.
+     */
+
+    ret = _krb5_get_krbtgt (context,
+			    ccache,
+			    realm,
+			    &ticket);
+    if(ret == 0) {
+	if (ticket->addresses.len == 0)
+	    paddrs = NULL;
+	krb5_free_creds (context, ticket);
     }
+    
+    if (paddrs != NULL) {
 
-    ret = add_addrs (context, &addrs, ai);
-    freeaddrinfo (ai);
-    if (ret)
-	return ret;
-
+	ret = getaddrinfo (hostname, NULL, NULL, &ai);
+	if (ret) {
+	    save_errno = errno;
+	    krb5_set_error_string(context, "resolving %s: %s",
+				  hostname, gai_strerror(ret));
+	    return krb5_eai_to_heim_errno(ret, save_errno);
+	}
+	
+	ret = add_addrs (context, &addrs, ai);
+	freeaddrinfo (ai);
+	if (ret)
+	    return ret;
+    }
+    
     kdc_flags.i = flags;
 
     ret = krb5_get_kdc_cred (context,
 			     ccache,
 			     kdc_flags,
-			     &addrs,
+			     paddrs,
 			     NULL,
 			     in_creds,
 			     &out_creds);
@@ -224,29 +253,36 @@ krb5_get_forwarded_creds (krb5_context	    context,
 	goto out4;
     }
     
-    krb5_us_timeofday (context, &sec, &usec);
-
-    ALLOC(enc_krb_cred_part.timestamp, 1);
-    if (enc_krb_cred_part.timestamp == NULL) {
-	ret = ENOMEM;
-	krb5_set_error_string(context, "malloc: out of memory");
-	goto out4;
+    if (auth_context->flags & KRB5_AUTH_CONTEXT_DO_TIME) {
+	int32_t sec, usec;
+	
+	krb5_us_timeofday (context, &sec, &usec);
+	
+	ALLOC(enc_krb_cred_part.timestamp, 1);
+	if (enc_krb_cred_part.timestamp == NULL) {
+	    ret = ENOMEM;
+	    krb5_set_error_string(context, "malloc: out of memory");
+	    goto out4;
+	}
+	*enc_krb_cred_part.timestamp = sec;
+	ALLOC(enc_krb_cred_part.usec, 1);
+	if (enc_krb_cred_part.usec == NULL) {
+	    ret = ENOMEM;
+	    krb5_set_error_string(context, "malloc: out of memory");
+	    goto out4;
+	}
+	*enc_krb_cred_part.usec      = usec;
+    } else {
+	enc_krb_cred_part.timestamp = NULL;
+	enc_krb_cred_part.usec = NULL;
     }
-    *enc_krb_cred_part.timestamp = sec;
-    ALLOC(enc_krb_cred_part.usec, 1);
-    if (enc_krb_cred_part.usec == NULL) {
- 	ret = ENOMEM;
-	krb5_set_error_string(context, "malloc: out of memory");
-	goto out4;
-    }
-    *enc_krb_cred_part.usec      = usec;
 
     if (auth_context->local_address && auth_context->local_port) {
 	krb5_boolean noaddr;
-	const krb5_realm *realm;
+	krb5_const_realm realm;
 
-	realm = krb5_princ_realm(context, out_creds->server);
-	krb5_appdefault_boolean(context, NULL, *realm, "no-addresses", FALSE,
+	realm = krb5_principal_get_realm(context, out_creds->server);
+	krb5_appdefault_boolean(context, NULL, realm, "no-addresses", FALSE,
 				&noaddr);
 	if (!noaddr) {
 	    ret = krb5_make_addrport (context,
@@ -261,10 +297,10 @@ krb5_get_forwarded_creds (krb5_context	    context,
     if (auth_context->remote_address) {
 	if (auth_context->remote_port) {
 	    krb5_boolean noaddr;
-	    const krb5_realm *realm;
+	    krb5_const_realm realm;
 
-	    realm = krb5_princ_realm(context, out_creds->server);
-	    krb5_appdefault_boolean(context, NULL, *realm, "no-addresses",
+	    realm = krb5_principal_get_realm(context, out_creds->server);
+	    krb5_appdefault_boolean(context, NULL, realm, "no-addresses",
 				    FALSE, &noaddr);
 	    if (!noaddr) {
 		ret = krb5_make_addrport (context,
@@ -367,11 +403,11 @@ krb5_get_forwarded_creds (krb5_context	    context,
     out_data->length = len;
     out_data->data   = buf;
     return 0;
-out4:
+ out4:
     free_EncKrbCredPart(&enc_krb_cred_part);
-out3:
+ out3:
     free_KRB_CRED(&cred);
-out2:
+ out2:
     krb5_free_creds (context, out_creds);
     return ret;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2002 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2003 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "kdc_locl.h"
 
-RCSID("$Id: connect.c,v 1.90 2003/02/18 15:39:10 lha Exp $");
+RCSID("$Id: connect.c,v 1.90.2.1 2003/08/25 11:46:55 lha Exp $");
 
 /*
  * a tuple describing on what to listen
@@ -547,21 +547,23 @@ grow_descr (struct descr *d, size_t n)
 {
     if (d->size - d->len < n) {
 	unsigned char *tmp;
+	size_t grow; 
 
-	d->size += max(1024, d->len + n);
-	if (d->size >= max_request) {
+	grow = max(1024, d->len + n);
+	if (d->size + grow > max_request) {
 	    kdc_log(0, "Request exceeds max request size (%lu bytes).",
-		    (unsigned long)d->size);
+		    (unsigned long)d->size + grow);
 	    clear_descr(d);
 	    return -1;
 	}
-	tmp = realloc (d->buf, d->size);
+	tmp = realloc (d->buf, d->size + grow);
 	if (tmp == NULL) {
 	    kdc_log(0, "Failed to re-allocate %lu bytes.",
-		    (unsigned long)d->size);
+		    (unsigned long)d->size + grow);
 	    clear_descr(d);
 	    return -1;
 	}
+	d->size += grow;
 	d->buf = tmp;
     }
     return 0;
@@ -701,6 +703,11 @@ handle_tcp(struct descr *d, int index, int min_free)
     n = recvfrom(d[index].s, buf, sizeof(buf), 0, NULL, NULL);
     if(n < 0){
 	krb5_warn(context, errno, "recvfrom");
+	return;
+    } else if (n == 0) {
+	krb5_warnx(context, "connection closed before end of data after %d "
+		   "bytes from %s", d[index].len, d[index].addr_string);
+	clear_descr (d + index);
 	return;
     }
     if (grow_descr (&d[index], n))

@@ -33,7 +33,7 @@
 
 #include "kadm5_locl.h"
 
-RCSID("$Id: chpass_s.c,v 1.13 2001/01/30 01:24:28 assar Exp $");
+RCSID("$Id: chpass_s.c,v 1.13.8.1 2003/12/30 15:59:58 lha Exp $");
 
 static kadm5_ret_t
 change(void *server_handle, 
@@ -53,7 +53,7 @@ change(void *server_handle,
     if(ret)
 	return ret;
     ret = context->db->fetch(context->context, context->db, 
-			     0, &ent);
+			     HDB_F_DECRYPT, &ent);
     if(ret == HDB_ERR_NOENTRY)
 	goto out;
 
@@ -73,9 +73,11 @@ change(void *server_handle,
 			       keys, num_keys);
     _kadm5_free_keys (server_handle, num_keys, keys);
 
-    if (cmp == 0)
-	goto out2;
-
+    if (cmp == 0) {
+	krb5_set_error_string(context->context, "Password reuse forbidden");
+	ret = KADM5_PASS_REUSE;
+ 	goto out2;
+    }
     ret = _kadm5_set_modifier(context, &ent);
     if(ret)
 	goto out2;

@@ -33,7 +33,7 @@
 
 #include "gssapi_locl.h"
 
-RCSID("$Id: accept_sec_context.c,v 1.33 2003/03/16 17:41:12 lha Exp $");
+RCSID("$Id: accept_sec_context.c,v 1.33.2.2 2003/12/19 00:37:06 lha Exp $");
 
 krb5_keytab gssapi_krb5_keytab;
 
@@ -291,8 +291,8 @@ gss_accept_sec_context
     }
 
     if (fwd_data.length > 0 && (flags & GSS_C_DELEG_FLAG)) {
-      
 	krb5_ccache ccache;
+	int32_t ac_flags;
       
 	if (delegated_cred_handle == NULL)
 	    /* XXX Create a new delegated_cred_handle? */
@@ -346,10 +346,19 @@ gss_accept_sec_context
 	    goto end_fwd;
 	}
       
+	krb5_auth_con_getflags(gssapi_krb5_context,
+			       (*context_handle)->auth_context,
+			       &ac_flags);
+	krb5_auth_con_setflags(gssapi_krb5_context,
+			       (*context_handle)->auth_context,
+			       ac_flags & ~KRB5_AUTH_CONTEXT_DO_TIME);
 	kret = krb5_rd_cred2(gssapi_krb5_context,
 			     (*context_handle)->auth_context,
 			     ccache,
 			     &fwd_data);
+	krb5_auth_con_setflags(gssapi_krb5_context,
+			       (*context_handle)->auth_context,
+			       ac_flags);
 	if (kret) {
 	    flags &= ~GSS_C_DELEG_FLAG;
 	    goto end_fwd;
@@ -371,8 +380,13 @@ gss_accept_sec_context
     if (mech_type)
 	*mech_type = GSS_KRB5_MECHANISM;
 
-    if (time_rec)
-	*time_rec = (*context_handle)->lifetime;
+    if (time_rec) {
+	ret = gssapi_lifetime_left(minor_status,
+				   (*context_handle)->lifetime,
+				   time_rec);
+	if (ret)
+	    goto failure;
+    }
 
     if(flags & GSS_C_MUTUAL_FLAG) {
 	krb5_data outbuf;

@@ -1,8 +1,8 @@
-dnl $Id: check-man.m4,v 1.3 2000/11/30 01:47:17 joda Exp $
+dnl $Id: check-man.m4,v 1.3.12.1 2004/04/01 07:27:32 joda Exp $
 dnl check how to format manual pages
 dnl
 
-AC_DEFUN(rk_CHECK_MAN,
+AC_DEFUN([rk_CHECK_MAN],
 [AC_PATH_PROG(NROFF, nroff)
 AC_PATH_PROG(GROFF, groff)
 AC_CACHE_CHECK(how to format man pages,ac_cv_sys_man_format,

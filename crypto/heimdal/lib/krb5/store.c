@@ -34,7 +34,7 @@
 #include "krb5_locl.h"
 #include "store-int.h"
 
-RCSID("$Id: store.c,v 1.38 2002/08/21 12:21:57 joda Exp $");
+RCSID("$Id: store.c,v 1.38.4.1 2004/03/09 19:32:14 lha Exp $");
 
 #define BYTEORDER_IS(SP, V) (((SP)->flags & KRB5_STORAGE_BYTEORDER_MASK) == (V))
 #define BYTEORDER_IS_LE(SP) BYTEORDER_IS((SP), KRB5_STORAGE_BYTEORDER_LE)
@@ -607,12 +607,25 @@ krb5_ret_authdata(krb5_storage *sp, krb5_authdata *auth)
     return ret;
 }
 
+static int32_t
+bitswap32(int32_t b)
+{
+    int32_t r = 0;
+    int i;
+    for (i = 0; i < 32; i++) {
+	r = r << 1 | (b & 1);
+	b = b >> 1;
+    }
+    return r;
+}
+
+
 /*
- * store `creds' on `sp' returning error or zero
+ *
  */
 
 krb5_error_code
-krb5_store_creds(krb5_storage *sp, krb5_creds *creds)
+_krb5_store_creds_internal(krb5_storage *sp, krb5_creds *creds, int v0_6)
 {
     int ret;
 
@@ -632,9 +645,15 @@ krb5_store_creds(krb5_storage *sp, krb5_creds *creds)
 				enc-tkt-in-skey bit from KDCOptions */
     if(ret)
 	return ret;
-    ret = krb5_store_int32(sp, creds->flags.i);
-    if(ret)
-	return ret;
+    if (v0_6) {
+	ret = krb5_store_int32(sp, creds->flags.i);
+	if(ret)
+	    return ret;
+    } else {
+	ret = krb5_store_int32(sp, bitswap32(TicketFlags2int(creds->flags.b)));
+	if(ret)
+	    return ret;
+    }
     ret = krb5_store_addrs(sp, creds->addresses);
     if(ret)
 	return ret;
@@ -646,6 +665,28 @@ krb5_store_creds(krb5_storage *sp, krb5_creds *creds)
 	return ret;
     ret = krb5_store_data(sp, creds->second_ticket);
     return ret;
+}
+
+/*
+ * store `creds' on `sp' returning error or zero
+ */
+
+krb5_error_code
+krb5_store_creds(krb5_storage *sp, krb5_creds *creds)
+{
+    return _krb5_store_creds_internal(sp, creds, 1);
+}
+
+krb5_error_code
+_krb5_store_creds_heimdal_0_7(krb5_storage *sp, krb5_creds *creds)
+{
+    return _krb5_store_creds_internal(sp, creds, 0);
+}
+
+krb5_error_code
+_krb5_store_creds_heimdal_pre_0_7(krb5_storage *sp, krb5_creds *creds)
+{
+    return _krb5_store_creds_internal(sp, creds, 1);
 }
 
 krb5_error_code
@@ -668,6 +709,22 @@ krb5_ret_creds(krb5_storage *sp, krb5_creds *creds)
     if(ret) goto cleanup;
     ret = krb5_ret_int32 (sp,  &dummy32);
     if(ret) goto cleanup;
+    /*
+     * Runtime detect the what is the higher bits of the bitfield. If
+     * any of the higher bits are set in the input data, its either a
+     * new ticket flag (and this code need to be removed), or its a
+     * MIT cache (or new Heimdal cache), lets change it to our current
+     * format.
+     */
+    {
+	u_int32_t mask = 0xffff0000;
+	creds->flags.i = 0;
+	creds->flags.b.anonymous = 1;
+	if (creds->flags.i & mask)
+	    mask = ~mask;
+	if (dummy32 & mask)
+	    dummy32 = bitswap32(dummy32);
+    }
     creds->flags.i = dummy32;
     ret = krb5_ret_addrs (sp,  &creds->addresses);
     if(ret) goto cleanup;
