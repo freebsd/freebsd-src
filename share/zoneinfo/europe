@@ -1032,7 +1032,9 @@ Rule	Finland	1942	only	-	Oct	3	0:00	0	-
 Zone	Europe/Helsinki	1:39:52 -	LMT	1878 May 31
 			1:40	-	HMT	1921 May    # Helsinki Mean Time
 			2:00	Finland	EET%s	1981 Mar 29 2:00
-			2:00	M-Eur	EET%s
+#			2:00	M-Eur	EET%s
+# Finland uses E-Eur not M-Eur rules, according to Hannu Strang.
+			2:00	E-Eur	EET%s
 
 # France
 # Shanks seems to use `24:00' ambiguously; we resolve it with Whitman.
