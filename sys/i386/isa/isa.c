@@ -56,6 +56,8 @@
  * SUCH DAMAGE.
  */
 
+#include "opt_compat_oldisa.h"
+
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/malloc.h>
@@ -69,7 +71,9 @@
 void
 isa_init(void)
 {
-    isa_wrap_old_drivers();
+#ifdef COMPAT_OLDISA
+	isa_wrap_old_drivers();
+#endif
 }
 
 /*

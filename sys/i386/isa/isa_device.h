@@ -41,12 +41,14 @@
 #ifndef _ISA_ISAVAR_H_
 #include <i386/isa/isa_dma.h>
 #endif
+#include "opt_compat_oldisa.h"
 #endif
 
 /*
  * ISA Bus Autoconfiguration
  */
 
+#ifdef COMPAT_OLDISA
 /*
  * Per device structure.
  */
@@ -94,5 +96,7 @@ int	haveseen_iobase __P((struct isa_device *dvp, int iosize));
 int	isa_compat_nextid __P((void));
 
 #endif
+
+#endif	/* COMPAT_OLDISA */
 
 #endif /* !_I386_ISA_ISA_DEVICE_H_ */
