@@ -1206,7 +1206,7 @@ X_ip_mforward(ip, ifp, m, imo)
 	    MGET(mb_rt, M_DONTWAIT, MT_MRTABLE);
 	    if (mb_rt == NULL) {
 		m_free(mb_ntry);
-		m_free(mb0);
+		m_freem(mb0);
 		splx(s);
 		return ENOBUFS;
 	    }
@@ -1216,7 +1216,7 @@ X_ip_mforward(ip, ifp, m, imo)
 		mm = m_pullup(mm, hlen);
 	    if (mm == NULL) {
 		m_free(mb_ntry);
-		m_free(mb0);
+		m_freem(mb0);
 		m_free(mb_rt);
 		splx(s);
 		return ENOBUFS;
@@ -1238,7 +1238,7 @@ X_ip_mforward(ip, ifp, m, imo)
 		log(LOG_WARNING, "ip_mforward: ip_mrouter socket queue full");
 		++mrtstat.mrts_upq_sockfull;
 		m_free(mb_ntry);
-		m_free(mb0);
+		m_freem(mb0);
 		m_free(mb_rt);
 		splx(s);
 		return ENOBUFS;
@@ -1269,7 +1269,7 @@ X_ip_mforward(ip, ifp, m, imo)
 	    if (npkts > MAX_UPQ) {
 		mrtstat.mrts_upq_ovflw++;
 		m_free(mb_ntry);
-		m_free(mb0);
+		m_freem(mb0);
 		splx(s);
 		return 0;
 	    }
