@@ -54,6 +54,8 @@
  * IBCS2 system calls that are implemented differently in BSD are
  * handled here.
  */
+#include "opt_mac.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/dirent.h>
@@ -61,6 +63,7 @@
 #include <sys/filedesc.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/file.h>			/* Must come after sys/malloc.h */
 #include <sys/mutex.h>
@@ -348,6 +351,12 @@ again:
 		cookies = NULL;
 	}
 
+#ifdef MAC
+	error = mac_check_vnode_readdir(td->td_ucred, vp);
+	if (error)
+		goto out;
+#endif
+
 	/*
 	 * First we read into the malloc'ed buffer, then
 	 * we massage it into user space, one record at a time.
@@ -502,6 +511,12 @@ again:
 		free(cookies, M_TEMP);
 		cookies = NULL;
 	}
+
+#ifdef MAC
+	error = mac_check_vnode_readdir(td->td_ucred, vp);
+	if (error)
+		goto out;
+#endif
 
 	/*
 	 * First we read into the malloc'ed buffer, then
