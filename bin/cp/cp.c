@@ -84,7 +84,7 @@ static const char rcsid[] =
 
 PATH_T to = { to.p_path, "", "" };
 
-int Rflag, iflag, pflag, rflag, fflag, vflag;
+int Rflag, fflag, iflag, nflag, pflag, rflag, vflag;
 
 enum op { FILE_TO_FILE, FILE_TO_DIR, DIR_TO_DNE };
 
@@ -102,7 +102,7 @@ main(argc, argv)
 	char *target;
 
 	Hflag = Lflag = Pflag = 0;
-	while ((ch = getopt(argc, argv, "HLPRfiprv")) != -1)
+	while ((ch = getopt(argc, argv, "HLPRfinprv")) != -1)
 		switch (ch) {
 		case 'H':
 			Hflag = 1;
@@ -121,11 +121,15 @@ main(argc, argv)
 			break;
 		case 'f':
 			fflag = 1;
-			iflag = 0;
+			iflag = nflag = 0;
 			break;
 		case 'i':
 			iflag = 1;
-			fflag = 0;
+			fflag = nflag = 0;
+			break;
+		case 'n':
+			nflag = 1;
+			fflag = iflag = 0;
 			break;
 		case 'p':
 			pflag = 1;
