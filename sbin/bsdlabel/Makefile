@@ -2,13 +2,15 @@
 # $FreeBSD$
 
 PROG=	bsdlabel
-SRCS=	bsdlabel.c
+SRCS=	bsdlabel.c geom_bsd_enc.c
 #MAN+=	bsdlabel.5
 MAN+=	bsdlabel.8
 
 .if ${MACHINE} == "pc98"
 CFLAGS+= -DPC98
 .endif
+
+.PATH:  ${.CURDIR}/../../sys/geom
 
 .include <bsd.prog.mk>
 
