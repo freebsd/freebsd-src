@@ -4,7 +4,6 @@
 
 KMOD=	daemon_saver
 SRCS=	daemon_saver.c
-NOMAN=
 
 .if ${MACHINE} == "pc98"
 CFLAGS+= -DPC98

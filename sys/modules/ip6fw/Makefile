@@ -4,7 +4,6 @@
 
 KMOD=	ip6fw
 SRCS=	ip6_fw.c
-NOMAN=
 
 CFLAGS+= -DIPV6FIREWALL
 

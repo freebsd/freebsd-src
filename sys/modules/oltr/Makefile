@@ -5,7 +5,6 @@ KMOD	= if_oltr
 SRCS	= if_oltr.c trlldbm.c trlldhm.c trlldmac.c if_iso88025subr.c \
 	  opt_inet.h opt_inet6.h opt_ipx.h device_if.h bus_if.h pci_if.h
 OBJS+=	trlld.o
-NOMAN=
 
 TR_INET?=	1	# 0/1 requires INET to be configured in the kernel
 TR_INET6?=	0	# 0/1 requires INET6 to be configured in the kernel

@@ -4,7 +4,6 @@
 
 KMOD=	if_stf
 SRCS=	if_stf.c opt_inet.h opt_inet6.h
-NOMAN=
 
 opt_inet.h:
 	echo "#define INET 1" > ${.TARGET}

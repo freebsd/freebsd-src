@@ -3,6 +3,5 @@
 
 KMOD=	ng_rfc1490
 SRCS= 	ng_rfc1490.c
-NOMAN=
 
 .include <bsd.kmod.mk>

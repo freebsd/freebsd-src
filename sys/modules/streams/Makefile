@@ -5,7 +5,6 @@ MAINTAINER=	newton@atdot.dotat.org
 
 KMOD=	streams
 SRCS=	streams.c opt_streams.h
-NOMAN=
 
 EXPORT_SYMS=	svr4_str_initialized	\
 		svr4_stream_get		\

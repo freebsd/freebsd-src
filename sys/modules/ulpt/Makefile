@@ -6,6 +6,5 @@ MAINTAINER=	n_hibma@freebsd.org
 
 KMOD=	ulpt
 SRCS=	bus_if.h device_if.h vnode_if.h opt_usb.h ulpt.c
-NOMAN=
 
 .include <bsd.kmod.mk>

@@ -5,7 +5,6 @@
 KMOD=	sppp
 SRCS=	if_spppsubr.c
 SRCS+=	opt_inet.h opt_inet6.h opt_ipx.h
-NOMAN=
 
 EXPORT_SYMS=	sppp_attach	\
 		sppp_detach	\

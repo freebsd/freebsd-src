@@ -8,7 +8,6 @@ SRCS=	vnode_if.h \
 	opt_inet.h opt_nfs.h opt_bootp.h
 
 NFS_INET?=	1	# 0/1 - requires INET to be configured in kernel
-NOMAN=
 
 opt_inet.h:
 	touch ${.TARGET}
