@@ -456,7 +456,9 @@ int	vfs_stduninit __P((struct vfsconf *));
 int	vfs_stdextattrctl __P((struct mount *mp, int cmd, const char *attrname,
 		caddr_t arg, struct proc *p));
 
+/* XXX - these should be indirect functions!!! */
 int	softdep_process_worklist __P((struct mount *));
+int	softdep_fsync __P((struct vnode *));
 #else /* !_KERNEL */
 
 #include <sys/cdefs.h>

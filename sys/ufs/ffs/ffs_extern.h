@@ -125,6 +125,9 @@ void	softdep_setup_allocindir_page __P((struct inode *, ufs_lbn_t,
 	    struct buf *, int, ufs_daddr_t, ufs_daddr_t, struct buf *));
 void	softdep_fsync_mountdev __P((struct vnode *));
 int	softdep_sync_metadata __P((struct vop_fsync_args *));
+/* XXX incorrectly moved to mount.h - should be indirect function */
+#if 0
 int	softdep_fsync __P((struct vnode *vp));
+#endif
 
 #endif /* !_UFS_FFS_EXTERN_H */
