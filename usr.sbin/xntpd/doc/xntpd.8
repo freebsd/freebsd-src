@@ -278,7 +278,7 @@ with the remote server, then enters the \*(L"broadcastclient\*(R" mode,
 in which it listens for and synchronizes to succeeding broadcast
 messages. Note that, in order to avoid accidental or malicious
 disruption in this mode, both the local and remote servers must operate
-using authentication and the same trusted key and key identifier.
+using authentication with the same trusted key and key identifier.
 .PP
 .B multicastclient
 [
@@ -381,11 +381,13 @@ operation. The operation of the
 .I xntpdc
 program are specific to this particular implementation of xntpd and can
 be expected to work only with this and previous versions of the daemon.
-Requests from a remote xntpdc program which affect the state of the
+Requests from a remote
+.I xntpdc
+program which affect the state of the
 local server must be authenticated, which requires bot the remote
 program and local server share a common key and key identifier. The
 argument to this command is a 32 bit unsigned integer. If no
-.B requestkey
+.B controlkey
 command is included in the configuration file, or if the keys don't
 match, such requests will be ignored.
 .PP
@@ -806,7 +808,7 @@ will ensure that no messages are lost when the server is started.
 .PP
 This command adds an additional system variable. These variables can be
 used to distribute additional information such as the access policy. If
-the variable of the from <name>=<value> is followed by the
+the variable of the form <name>=<value> is followed by the
 .I default
 keyword the variable will be listed as part of the default system
 variables (
@@ -1064,7 +1066,8 @@ directive or the leap warning variables. The leap warning bits that can
 be set in the
 .B leapwarning
 variable (up to one month ahead). Both, the
-.B leapwarning and in the
+.B leapwarning
+and the
 .B leapindication
 variable, have a slightly different encoding than the usual
 .B leap
