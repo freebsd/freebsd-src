@@ -353,6 +353,9 @@ typedef void (*dev_clone_fn)(void *arg, char *name, int namelen, dev_t *result);
 
 int dev_stdclone(char *name, char **namep, const char *stem, int *unit);
 EVENTHANDLER_DECLARE(dev_clone, dev_clone_fn);
+
+extern int dumping;		/* system is dumping */
+
 #endif /* _KERNEL */
 
 #endif /* !_SYS_CONF_H_ */
