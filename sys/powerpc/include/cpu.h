@@ -53,9 +53,6 @@
 void	delay(int);
 #define	DELAY(n)		delay(n)
 
-extern int want_resched;
-extern int astpending;
-
 extern char bootpath[];
 
 #if defined(_KERNEL) || defined(_STANDALONE)

@@ -927,35 +927,16 @@ s_trap:
 	FRAME_SETUP(tempsave)
 /* Now we can recover interrupts again: */
 	mfmsr	7
-	ori	7,7,(PSL_EE|PSL_ME|PSL_RI)@l
+	ori	7,7,(PSL_EE|PSL_FP|PSL_ME|PSL_RI)@l
 	mtmsr	7
 	isync
 /* Call C trap code: */
-trapagain:
 	addi	3,1,8
+	mr	30,3
 	bl	trap
-trapexit:
-/* Disable interrupts: */
-	mfmsr	3
-	andi.	3,3,~PSL_EE@l
-	mtmsr	3
-/* Test AST pending: */
-	lwz	5,FRAME_SRR1+8(1)
-	mtcr	5
-	bc	4,17,1f			/* branch if PSL_PR is false */
-	lis	3,astpending@ha
-	lwz	4,astpending@l(3)
-	andi.	4,4,1
-	beq	1f
-#if 0 /* XXX */
-	li	6,EXC_AST
-#endif
-	stw	6,FRAME_EXC+8(1)
-	b	trapagain
-1:
-#if 0
+	mr	3,30
+	bl	ast
 	FRAME_LEAVE(tempsave)
-#endif
 	rfi
 
 /*
@@ -971,7 +952,10 @@ fork_trampoline:
 	mtlr	31
 	mr	3,30
 	blrl				/* jump indirect to r31 */
-	b	trapexit
+	mr	3,30
+	bl	ast
+	FRAME_LEAVE(tempsave)
+	rfi
 
 /*
  * DSI second stage fault handler
@@ -1129,10 +1113,6 @@ intr_exit:
 	lwz	3,GD_CURPCB(3)		/* get curpcb from globaldata */
 	lwz	3,PCB_PMR(3)		/* get pmap real address from curpcb */
 	mtsr	KERNEL_SR,3
-	lis	3,astpending@ha		/* Test AST pending */
-	lwz	4,astpending@l(3)
-	andi.	4,4,1
-	beq	1f
 /* Setup for entry to realtrap: */
 	lwz	3,0(1)			/* get saved SP */
 	mtsprg	1,3
@@ -1152,7 +1132,7 @@ intr_exit:
 	lwz	31,intr_depth@l(30)
 	addi	31,31,-1
 	stw	31,intr_depth@l(30)
-	b	realtrap
+	b	realtrap		/* XXX:	should call ast(frame ptr) */
 1:
 /* Here is the normal exit of extintr: */
 	lwz	5,36(1)
