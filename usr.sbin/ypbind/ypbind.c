@@ -28,7 +28,7 @@
  */
 
 #ifndef LINT
-static char rcsid[] = "$Id: ypbind.c,v 1.3 1995/02/16 01:21:44 wpaul Exp $";
+static char rcsid[] = "$Id: ypbind.c,v 1.4 1995/02/26 04:42:48 wpaul Exp $";
 #endif
 
 #include <sys/param.h>
@@ -713,15 +713,15 @@ int force;
 	sprintf(path, "%s/%s.%d", BINDINGDIR,
 		ypdb->dom_domain, ypdb->dom_vers);
 #ifdef O_SHLOCK
-	if( (fd=open(path, O_CREAT|O_SHLOCK|O_RDWR|O_TRUNC, 0644)) == -1) {
+	if( (fd=open(path, O_CREAT|O_SHLOCK|O_RDWR|O_TRUNC, 0644)) < 0) {
 		(void)mkdir(BINDINGDIR, 0755);
-		if( (fd=open(path, O_CREAT|O_SHLOCK|O_RDWR|O_TRUNC, 0644)) == -1)
+		if( (fd=open(path, O_CREAT|O_SHLOCK|O_RDWR|O_TRUNC, 0644)) < 0)
 			return;
 	}
 #else
-	if( (fd=open(path, O_CREAT|O_RDWR|O_TRUNC, 0644)) == -1) {
+	if( (fd=open(path, O_CREAT|O_RDWR|O_TRUNC, 0644)) < 0) {
 		(void)mkdir(BINDINGDIR, 0755);
-		if( (fd=open(path, O_CREAT|O_RDWR|O_TRUNC, 0644)) == -1)
+		if( (fd=open(path, O_CREAT|O_RDWR|O_TRUNC, 0644)) < 0)
 			return;
 	}
 	flock(fd, LOCK_SH);
