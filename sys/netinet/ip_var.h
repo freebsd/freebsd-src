@@ -55,7 +55,7 @@ struct ipovly {
  * be reclaimed if memory becomes tight.
  */
 struct ipq {
-	struct	ipq *next,*prev;	/* to other reass headers */
+	TAILQ_ENTRY(ipq) ipq_list;	/* to other reass headers */
 	u_char	ipq_ttl;		/* time for reass q to live */
 	u_char	ipq_p;			/* protocol of this fragment */
 	u_short	ipq_id;			/* sequence id for reassembly */

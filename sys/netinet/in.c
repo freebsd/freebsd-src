@@ -87,8 +87,7 @@ in_localaddr(in)
 	register struct in_ifaddr *ia;
 
 	if (subnetsarelocal) {
-		for (ia = TAILQ_FIRST(&in_ifaddrhead); ia; 
-		     ia = TAILQ_NEXT(ia, ia_link))
+		TAILQ_FOREACH(ia, &in_ifaddrhead, ia_link)
 			if ((i & ia->ia_netmask) == ia->ia_net)
 				return (1);
 	} else {
@@ -235,8 +234,7 @@ in_control(so, cmd, data, ifp, p)
 	 * the first one on the interface.
 	 */
 	if (ifp)
-		for (iap = TAILQ_FIRST(&in_ifaddrhead); iap; 
-		     iap = TAILQ_NEXT(iap, ia_link))
+		TAILQ_FOREACH(iap, &in_ifaddrhead, ia_link)
 			if (iap->ia_ifp == ifp) {
 				if (((struct sockaddr_in *)&ifr->ifr_addr)->sin_addr.s_addr ==
 				    iap->ia_addr.sin_addr.s_addr) {
@@ -752,8 +750,7 @@ in_broadcast(in, ifp)
 	 * with a broadcast address.
 	 */
 #define ia ((struct in_ifaddr *)ifa)
-	for (ifa = TAILQ_FIRST(&ifp->if_addrhead); ifa; 
-	     ifa = TAILQ_NEXT(ifa, ifa_link))
+	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
 		if (ifa->ifa_addr->sa_family == AF_INET &&
 		    (in.s_addr == ia->ia_broadaddr.sin_addr.s_addr ||
 		     in.s_addr == ia->ia_netbroadcast.s_addr ||
