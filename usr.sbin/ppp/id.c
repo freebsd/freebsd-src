@@ -1,5 +1,5 @@
 /*
- * $Id: defs.c,v 1.1 1997/10/26 01:02:30 brian Exp $
+ * $Id: id.c,v 1.1 1997/11/09 06:22:40 brian Exp $
  */
 
 #include <sys/types.h>
@@ -39,8 +39,8 @@ ID0init()
 static void
 ID0setuser()
 {
-  if (setreuid(euid, uid) == -1) {
-    LogPrintf(LogERROR, "ID0setuser: Unable to setreuid!\n");
+  if (seteuid(uid) == -1) {
+    LogPrintf(LogERROR, "ID0setuser: Unable to seteuid!\n");
     Cleanup(EX_NOPERM);
   }
 }
@@ -54,8 +54,8 @@ ID0realuid()
 static void
 ID0set0()
 {
-  if (setreuid(uid, euid) == -1) {
-    LogPrintf(LogERROR, "ID0set0: Unable to setreuid!\n");
+  if (seteuid(euid) == -1) {
+    LogPrintf(LogERROR, "ID0set0: Unable to seteuid!\n");
     Cleanup(EX_NOPERM);
   }
 }
