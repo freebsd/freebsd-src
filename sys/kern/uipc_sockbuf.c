@@ -113,32 +113,38 @@ void
 soisconnected(so)
 	struct socket *so;
 {
-	struct socket *head = so->so_head;
+	struct socket *head;
 
 	so->so_state &= ~(SS_ISCONNECTING|SS_ISDISCONNECTING|SS_ISCONFIRMING);
 	so->so_state |= SS_ISCONNECTED;
-	if (head && (so->so_qstate & SQ_INCOMP)) {
-		if ((so->so_options & SO_ACCEPTFILTER) != 0) {
-			so->so_upcall = head->so_accf->so_accept_filter->accf_callback;
+	ACCEPT_LOCK();
+	head = so->so_head;
+	if (head != NULL && (so->so_qstate & SQ_INCOMP)) {
+		if ((so->so_options & SO_ACCEPTFILTER) == 0) {
+			TAILQ_REMOVE(&head->so_incomp, so, so_list);
+			head->so_incqlen--;
+			so->so_qstate &= ~SQ_INCOMP;
+			TAILQ_INSERT_TAIL(&head->so_comp, so, so_list);
+			head->so_qlen++;
+			so->so_qstate |= SQ_COMP;
+			ACCEPT_UNLOCK();
+			sorwakeup(head);
+			wakeup_one(&head->so_timeo);
+		} else {
+			ACCEPT_UNLOCK();
+			so->so_upcall =
+			    head->so_accf->so_accept_filter->accf_callback;
 			so->so_upcallarg = head->so_accf->so_accept_filter_arg;
 			so->so_rcv.sb_flags |= SB_UPCALL;
 			so->so_options &= ~SO_ACCEPTFILTER;
 			so->so_upcall(so, so->so_upcallarg, M_TRYWAIT);
-			return;
 		}
-		TAILQ_REMOVE(&head->so_incomp, so, so_list);
-		head->so_incqlen--;
-		so->so_qstate &= ~SQ_INCOMP;
-		TAILQ_INSERT_TAIL(&head->so_comp, so, so_list);
-		head->so_qlen++;
-		so->so_qstate |= SQ_COMP;
-		sorwakeup(head);
-		wakeup_one(&head->so_timeo);
-	} else {
-		wakeup(&so->so_timeo);
-		sorwakeup(so);
-		sowwakeup(so);
+		return;
 	}
+	ACCEPT_UNLOCK();
+	wakeup(&so->so_timeo);
+	sorwakeup(so);
+	sowwakeup(so);
 }
 
 void
@@ -182,8 +188,12 @@ sonewconn(head, connstatus)
 	int connstatus;
 {
 	register struct socket *so;
+	int over;
 
-	if (head->so_qlen > 3 * head->so_qlimit / 2)
+	ACCEPT_LOCK();
+	over = (head->so_qlen > 3 * head->so_qlimit / 2);
+	ACCEPT_UNLOCK();
+	if (over)
 		return ((struct socket *)0);
 	so = soalloc(M_NOWAIT);
 	if (so == NULL)
@@ -206,25 +216,39 @@ sonewconn(head, connstatus)
 		sodealloc(so);
 		return ((struct socket *)0);
 	}
-
+	ACCEPT_LOCK();
 	if (connstatus) {
 		TAILQ_INSERT_TAIL(&head->so_comp, so, so_list);
 		so->so_qstate |= SQ_COMP;
 		head->so_qlen++;
 	} else {
-		if (head->so_incqlen > head->so_qlimit) {
+		/*
+		 * XXXRW: Keep removing sockets from the head until there's
+		 * room for us to insert on the tail.  In pre-locking
+		 * revisions, this was a simple if(), but as we could be
+		 * racing with other threads and soabort() requires dropping
+		 * locks, we must loop waiting for the condition to be true.
+		 */
+		while (head->so_incqlen > head->so_qlimit) {
 			struct socket *sp;
 			sp = TAILQ_FIRST(&head->so_incomp);
+			TAILQ_REMOVE(&so->so_incomp, sp, so_list);
+			head->so_incqlen--;
+			sp->so_qstate &= ~SQ_INCOMP;
+			sp->so_head = NULL;
+			ACCEPT_UNLOCK();
 			(void) soabort(sp);
+			ACCEPT_LOCK();
 		}
 		TAILQ_INSERT_TAIL(&head->so_incomp, so, so_list);
 		so->so_qstate |= SQ_INCOMP;
 		head->so_incqlen++;
 	}
+	ACCEPT_UNLOCK();
 	if (connstatus) {
+		so->so_state |= connstatus;
 		sorwakeup(head);
 		wakeup_one(&head->so_timeo);
-		so->so_state |= connstatus;
 	}
 	return (so);
 }

@@ -1353,10 +1353,11 @@ ng_btsocket_rfcomm_session_accept(ng_btsocket_rfcomm_session_p s0)
 		return (error);
 	}
 
+	ACCEPT_LOCK();
 	if (TAILQ_EMPTY(&s0->l2so->so_comp)) {
+		ACCEPT_UNLOCK();
 		if (s0->l2so->so_state & SS_CANTRCVMORE)
 			return (ECONNABORTED);
-
 		return (EWOULDBLOCK);
 	}
 
@@ -1367,11 +1368,11 @@ ng_btsocket_rfcomm_session_accept(ng_btsocket_rfcomm_session_p s0)
 
 	TAILQ_REMOVE(&s0->l2so->so_comp, l2so, so_list);
 	s0->l2so->so_qlen --;
-
-	soref(l2so);
 	l2so->so_qstate &= ~SQ_COMP;
-	l2so->so_state |= SS_NBIO;
 	l2so->so_head = NULL;
+	soref(l2so);
+	l2so->so_state |= SS_NBIO;
+	ACCEPT_UNLOCK();
 
 	error = soaccept(l2so, (struct sockaddr **) &l2sa);
 	if (error != 0) {
