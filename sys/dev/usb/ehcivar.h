@@ -65,10 +65,14 @@ struct ehci_xfer {
 	LIST_ENTRY(ehci_xfer) inext; /* list of active xfers */
 	ehci_soft_qtd_t *sqtdstart;
 	ehci_soft_qtd_t *sqtdend;
+	u_int32_t ehci_xfer_flags;
 #ifdef DIAGNOSTIC
 	int isdone;
 #endif
 };
+#define EHCI_XFER_ABORTING	0x0001	/* xfer is aborting. */
+#define EHCI_XFER_ABORTWAIT	0x0002	/* abort completion is being awaited. */
+
 #define EXFER(xfer) ((struct ehci_xfer *)(xfer))
 
 /*
