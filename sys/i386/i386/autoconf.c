@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.18 1995/01/11 17:51:26 jkh Exp $
+ *	$Id: autoconf.c,v 1.19 1995/02/01 23:11:38 se Exp $
  */
 
 /*
@@ -111,13 +111,17 @@ configure()
 #ifdef FFS
 	if (!mountroot) {
 		mountroot = ffs_mountroot;
-#ifdef SWAP_GENERIC
-		if ((boothowto & RB_ASKNAME) == 0)
+		/*
+		 * Ignore the -a flag if this kernel isn't compiled
+		 * with a generic root/swap configuration: if we skip
+		 * setroot() and we aren't a generic kernel, chaos
+		 * will ensue because setconf() will be a no-op.
+		 * (rootdev is always initialized to NODEV in a
+		 * generic configuration, so we test for that.)
+		 */
+		if ((boothowto & RB_ASKNAME) == 0 || rootdev != NODEV)
 			setroot();
 		setconf();
-#else
-		setroot();
-#endif
 	}
 #endif
 	if (!mountroot) {
