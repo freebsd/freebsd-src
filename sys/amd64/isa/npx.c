@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)npx.c	7.2 (Berkeley) 5/12/91
- *	$Id: npx.c,v 1.49 1997/07/21 07:57:50 fsmp Exp $
+ *	$Id: npx.c,v 1.50 1997/08/09 00:03:39 dyson Exp $
  */
 
 #include "npx.h"
@@ -515,7 +515,7 @@ npxintr(unit)
 	 * Pass exception to process.
 	 */
 	frame = (struct intrframe *)&unit;	/* XXX */
-	if ((ISPL(frame->if_cs) == SEL_UPL) || (frame->if_eflags & PSL_VM)) {
+	if (CS_SECURE(frame->if_cs) || (frame->if_eflags & PSL_VM)) {
 		/*
 		 * Interrupt is essentially a trap, so we can afford to call
 		 * the SIGFPE handler (if any) as soon as the interrupt
