@@ -1,5 +1,5 @@
 /*	$NetBSD: ums.c,v 1.19 1999/01/08 11:58:25 augustss Exp $	*/
-/*	FreeBSD $Id: ums.c,v 1.6 1999/01/07 23:31:36 n_hibma Exp $ */
+/*	$FreeBSD$	*/
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -77,7 +77,7 @@
 #ifdef USB_DEBUG
 #define DPRINTF(x)	if (umsdebug) printf x
 #define DPRINTFN(n,x)	if (umsdebug>(n)) printf x
-int	umsdebug = 0;
+int	umsdebug = 6;
 #else
 #define DPRINTF(x)
 #define DPRINTFN(n,x)
@@ -116,7 +116,7 @@ struct ums_softc {
 	u_char sc_buttons;	/* mouse button status */
 	struct device *sc_wsmousedev;
 #elif defined(__FreeBSD__)
-	u_char		qbuf[QUEUE_BUFSIZE];
+	u_char		qbuf[QUEUE_BUFSIZE];	/* must be divisable by 3&4 */
 	u_char		dummy[100];	/* XXX just for safety and for now */
 	int		qcount, qhead, qtail;
 	mousehw_t	hw;
@@ -160,8 +160,8 @@ static d_poll_t ums_poll;
 static struct  cdevsw ums_cdevsw = {
 	ums_open,	ums_close,	ums_read,	nowrite,
 	ums_ioctl,	nostop,		nullreset,	nodevtotty,
-	ums_poll,	nommap,
-	NULL,		"ums",		NULL,		-1
+	ums_poll,	nommap,		nostrat,
+	"ums",		NULL,		-1
 };
 #endif
 
@@ -453,8 +453,9 @@ ums_intr(reqh, addr, status)
 		if (sc->sc_wsmousedev)
 			wsmouse_input(sc->sc_wsmousedev, buttons, dx, dy, dz);
 #elif defined(__FreeBSD__)
-	if (dx || dy || buttons != sc->status.button) {
-		DPRINTFN(10, ("ums_intr: x:%d y:%d z:%d buttons:0x%x\n",
+	if (dx || dy || (sc->flags & UMS_Z && dz)
+	    || buttons != sc->status.button) {
+		DPRINTFN(5, ("ums_intr: x:%d y:%d z:%d buttons:0x%x\n",
 			dx, dy, dz, buttons));
 
 		sc->status.button = buttons;
@@ -495,11 +496,14 @@ ums_intr(reqh, addr, status)
 			sc->qhead = 0;
 
 		/* someone waiting for data */
-		if (sc->state & UMS_ASLEEP)
+		if (sc->state & UMS_ASLEEP) {
+			DPRINTF(("Waking up %p\n", sc));
 			wakeup(sc);
-		/* wake up any pending selects */
-		selwakeup(&sc->rsel);
-		sc->state &= ~UMS_SELECT;
+		}
+		if (sc->state & UMS_SELECT) {
+			DPRINTF(("Waking up select %p\n", &sc->rsel));
+			selwakeup(&sc->rsel);
+		}
 #endif
 	}
 }
@@ -522,12 +526,6 @@ ums_enable(v)
 #elif defined(__FreeBSD__)
 	sc->qcount = 0;
 	sc->qhead = sc->qtail = 0;
-#ifdef USB_DEBUG
-	if (sizeof(sc->qbuf) % 4 || sizeof(sc->qbuf) % 3) {
-		DPRINTF(("Buffer size not divisible by 3 or 4\n"));
-		return ENXIO;
-	}
-#endif
 	sc->status.flags = 0;
 	sc->status.button = sc->status.obutton = 0;
 	sc->status.dx = sc->status.dy = sc->status.dz = 0;
@@ -588,12 +586,7 @@ ums_ioctl(v, cmd, data, flag, p)
 static int
 ums_open(dev_t dev, int flag, int fmt, struct proc *p)
 {
-	struct ums_softc *sc = devclass_get_softc(ums_devclass, UMSUNIT(dev));
-
-	if (!sc) {
-		DPRINTF(("sc not found at open"));
-		return EINVAL;
-	}
+	USB_GET_SC_OPEN(ums, UMSUNIT(dev), sc);
 
 	return ums_enable(sc);
 }
@@ -601,31 +594,22 @@ ums_open(dev_t dev, int flag, int fmt, struct proc *p)
 static int
 ums_close(dev_t dev, int flag, int fmt, struct proc *p)
 {
-	struct ums_softc *sc = devclass_get_softc(ums_devclass, UMSUNIT(dev));
-
-	if (!sc) {
-		DPRINTF(("sc not found at close"));
-		return EINVAL;
-	}
+	USB_GET_SC(ums, UMSUNIT(dev), sc);
 
 	if (sc->sc_enabled)
 		ums_disable(sc);
+
 	return 0;
 }
 
 static int
 ums_read(dev_t dev, struct uio *uio, int flag)
 {
-	struct ums_softc *sc = devclass_get_softc(ums_devclass, UMSUNIT(dev));
+	USB_GET_SC(ums, UMSUNIT(dev), sc);
 	int s;
 	char buf[sizeof(sc->qbuf)];
 	int l = 0;
 	int error;
-
-	if (!sc || !sc->sc_enabled) {
-		DPRINTF(("sc not found at read"));
-		return EINVAL;
-	}
 
 	s = splusb();
 	while (sc->qcount == 0 )  {
@@ -670,23 +654,20 @@ ums_read(dev_t dev, struct uio *uio, int flag)
 static int
 ums_poll(dev_t dev, int events, struct proc *p)
 {
-	struct ums_softc *sc = devclass_get_softc(ums_devclass, UMSUNIT(dev));
+	USB_GET_SC(ums, UMSUNIT(dev), sc);
 	int revents = 0;
 	int s;
 
-	if (!sc) {
-		DPRINTF(("sc not found at poll"));
-		return 0;	/* just to make sure */
-	}
-
 	s = splusb();
-	if (events & (POLLIN | POLLRDNORM))
+	if (events & (POLLIN | POLLRDNORM)) {
 		if (sc->qcount) {
 			revents = events & (POLLIN | POLLRDNORM);
 		} else {
 			sc->state |= UMS_SELECT;
 			selrecord(p, &sc->rsel);
+			sc->state &= ~UMS_SELECT;
 		}
+	}
 	splx(s);
 
 	return revents;
@@ -695,14 +676,9 @@ ums_poll(dev_t dev, int events, struct proc *p)
 int
 ums_ioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 {
-	struct ums_softc *sc = devclass_get_softc(ums_devclass, UMSUNIT(dev));
+	USB_GET_SC(ums, UMSUNIT(dev), sc);
 	int error = 0;
 	int s;
-
-	if (!sc) {
-		DPRINTF(("sc not found at ioctl"));
-		return ENOENT;
-	}
 
 	switch(cmd) {
 	case MOUSE_GETHWINFO:
