@@ -9,7 +9,7 @@
 Access to the
 .Ar virtual consoles 
 are obtained through the device files
-tty01 - ttynn in /dev. 
+ttyv0 - ttyvb in /dev.
 Each of these files correspond to a seperate
 virtual console.
 All virtual console devices can be open at once, but only one is 
@@ -20,7 +20,7 @@ Output to a virtual console that not currently is on the display is
 saved in a buffer that holds a "screenfull" (normally 25) lines.
 Any output written to 
 .Ar /dev/console 
-(the original console device) is echoed to /dev/tty01.
+(the original console device) is echoed to /dev/ttyv0.
 .Pp
 To switch between the virtual consoles one uses the sequence 
 .Ar ALT+Fn
