@@ -44,9 +44,7 @@
 
 unsigned int Dists;
 unsigned int SrcDists;
-unsigned int XF86Dists;
-unsigned int XF86ServerDists;
-unsigned int XF86FontDists;
+unsigned int XOrgDists;
 
 enum _disttype { DT_TARBALL, DT_SUBDIST, DT_PACKAGE };
 
@@ -63,9 +61,7 @@ typedef struct _dist {
 
 extern Distribution DistTable[];
 extern Distribution SrcDistTable[];
-extern Distribution XF86DistTable[];
-extern Distribution XF86FontDistTable[];
-extern Distribution XF86ServerDistTable[];
+extern Distribution XOrgDistTable[];
 
 #define	DTE_TARBALL(name, mask, flag, directory)			\
 	{ name, mask, DIST_ ## flag, DT_TARBALL, { directory } }
@@ -100,7 +96,7 @@ static Distribution DistTable[] = {
     DTE_TARBALL("ports",    &Dists, PORTS,    "/usr"),
     DTE_TARBALL("local",    &Dists, LOCAL,    "/"),
     DTE_PACKAGE("perl",	    &Dists, PERL,     "perl"),
-    DTE_SUBDIST("XFree86",  &Dists, XF86,     XF86DistTable),
+    DTE_SUBDIST("X.Org",    &Dists, XORG,     XOrgDistTable),
     { NULL },
 };
 
@@ -128,35 +124,26 @@ static Distribution SrcDistTable[] = {
     { NULL },
 };
 
-/* The XFree86 distribution */
-static Distribution XF86DistTable[] = {
-    DTE_SUBDIST("XFree86", &XF86Dists, XF86_FONTS,	XF86FontDistTable),
-    DTE_SUBDIST("XFree86", &XF86Dists, XF86_SERVER,	XF86ServerDistTable),
-    DTE_PACKAGE("Xbin",	   &XF86Dists, XF86_CLIENTS,	"XFree86-clients"),
-    DTE_PACKAGE("Xdoc",	   &XF86Dists, XF86_DOC,	"XFree86-documents"),
-    DTE_PACKAGE("Xlib",	   &XF86Dists, XF86_LIB,	"XFree86-libraries"),
-    DTE_PACKAGE("Xman",	   &XF86Dists, XF86_MAN,	"XFree86-manuals"),
-    DTE_PACKAGE("Xprog",   &XF86Dists, XF86_PROG,	"imake"),
-    { NULL },
-};
+/* The X.Org distribution */
+static Distribution XOrgDistTable[] = {
+    DTE_PACKAGE("Xbin",	 &XOrgDists, XORG_CLIENTS,	 "xorg-clients"),
+    DTE_PACKAGE("Xlib",	 &XOrgDists, XORG_LIB,		 "xorg-libraries"),
+    DTE_PACKAGE("Xman",	 &XOrgDists, XORG_MAN,		 "xorg-manpages"),
+    DTE_PACKAGE("Xdoc",  &XOrgDists, XORG_DOC,		 "xorg-documents"),
+    DTE_PACKAGE("Xprog", &XOrgDists, XORG_IMAKE,	 "imake"),
 
-/* The XFree86 server distribution */
-static Distribution XF86ServerDistTable[] = {
-    DTE_PACKAGE("Xsrv",  &XF86ServerDists, XF86_SERVER_FB,    "wrapper"),
-    DTE_PACKAGE("Xnest", &XF86ServerDists, XF86_SERVER_NEST,  "XFree86-NestServer"),
-    DTE_PACKAGE("Xprt",  &XF86ServerDists, XF86_SERVER_PRINT, "XFree86-PrintServer"),
-    DTE_PACKAGE("Xvfb",  &XF86ServerDists, XF86_SERVER_VFB,   "XFree86-VirtualFramebufferServer"),
-    { NULL }
-};
+    DTE_PACKAGE("Xsrv",  &XOrgDists, XORG_SERVER,	 "xorg-server"),
+    DTE_PACKAGE("Xnest", &XOrgDists, XORG_NESTSERVER,	 "xorg-nestserver"),
+    DTE_PACKAGE("Xprt",  &XOrgDists, XORG_PRINTSERVER,	 "xorg-printserver"),
+    DTE_PACKAGE("Xvfb",  &XOrgDists, XORG_VFBSERVER,	 "xorg-vfbserver"),
 
-/* The XFree86 font distribution */
-static Distribution XF86FontDistTable[] = {
-    DTE_PACKAGE("Xf75",  &XF86FontDists, XF86_FONTS_75,	     "XFree86-font75dpi"),
-    DTE_PACKAGE("Xf100", &XF86FontDists, XF86_FONTS_100,     "XFree86-font100dpi"),
-    DTE_PACKAGE("Xfcyr", &XF86FontDists, XF86_FONTS_CYR,     "XFree86-fontCyrillic"),
-    DTE_PACKAGE("Xfscl", &XF86FontDists, XF86_FONTS_SCALE,   "XFree86-fontScalable"),
-    DTE_PACKAGE("Xfnts", &XF86FontDists, XF86_FONTS_BITMAPS, "XFree86-fontDefaultBitmaps"),
-    DTE_PACKAGE("Xfsrv", &XF86FontDists, XF86_FONTS_SERVER,  "XFree86-FontServer"),
+    DTE_PACKAGE("Xfmsc", &XOrgDists, XORG_FONTS_MISC,	 "xorg-fonts-miscbitmaps"),
+    DTE_PACKAGE("Xf75",  &XOrgDists, XORG_FONTS_75,	 "xorg-fonts-75dpi"),
+    DTE_PACKAGE("Xf100", &XOrgDists, XORG_FONTS_100,	 "xorg-fonts-100dpi"),
+    DTE_PACKAGE("Xfcyr", &XOrgDists, XORG_FONTS_CYR,	 "xorg-fonts-cyrillic"),
+    DTE_PACKAGE("Xft1",  &XOrgDists, XORG_FONTS_T1,	 "xorg-fonts-type1"),
+    DTE_PACKAGE("Xftt",  &XOrgDists, XORG_FONTS_TT,	 "xorg-fonts-truetype"),
+    DTE_PACKAGE("Xfs",   &XOrgDists, XORG_FONTSERVER,	 "xorg-fontserver"),
     { NULL },
 };
 
@@ -167,17 +154,12 @@ distVerifyFlags(void)
 {
     if (SrcDists)
 	Dists |= DIST_SRC;
-    if (XF86ServerDists)
-	XF86Dists |= DIST_XF86_SERVER;
-    if (XF86FontDists)
-	XF86Dists |= DIST_XF86_FONTS;
-    if (XF86Dists || XF86ServerDists || XF86FontDists)
-	Dists |= DIST_XF86;
+    if (XOrgDists)
+	Dists |= DIST_XORG;
     if (isDebug()) {
 	msgDebug("Dist Masks: Dists: %0x, Srcs: %0x\n", Dists,
 	    SrcDists);
-	msgDebug("XServer: %0x, XFonts: %0x, XDists: %0x\n", XF86ServerDists,
-	    XF86FontDists, XF86Dists);
+	msgDebug("XServer: %0x\n", XOrgDists);
     }
 }
 
@@ -186,9 +168,7 @@ distReset(dialogMenuItem *self)
 {
     Dists = 0;
     SrcDists = 0;
-    XF86Dists = 0;
-    XF86ServerDists = 0;
-    XF86FontDists = 0;
+    XOrgDists = 0;
     return DITEM_SUCCESS | DITEM_REDRAW;
 }
 
@@ -206,13 +186,8 @@ distConfig(dialogMenuItem *self)
 	SrcDists = atoi(cp);
 
     if ((cp = variable_get(VAR_DIST_X11)) != NULL)
-	XF86Dists = atoi(cp);
+	XOrgDists = atoi(cp);
 
-    if ((cp = variable_get(VAR_DIST_XSERVER)) != NULL)
-	XF86ServerDists = atoi(cp);
-
-    if ((cp = variable_get(VAR_DIST_XFONTS)) != NULL)
-	XF86FontDists = atoi(cp);
     distVerifyFlags();
     return DITEM_SUCCESS | DITEM_REDRAW;
 }
@@ -220,11 +195,9 @@ distConfig(dialogMenuItem *self)
 static int
 distSetX(void)
 {
-    Dists |= DIST_XF86;
-    XF86Dists = DIST_XF86_CLIENTS | DIST_XF86_LIB | DIST_XF86_PROG | DIST_XF86_MAN | DIST_XF86_DOC | DIST_XF86_SERVER | DIST_XF86_FONTS;
-    XF86ServerDists = DIST_XF86_SERVER_FB;
-    XF86FontDists = DIST_XF86_FONTS_BITMAPS | DIST_XF86_FONTS_75 | DIST_XF86_FONTS_100;
-    return distSetXF86(NULL);
+    Dists |= DIST_XORG;
+    XOrgDists = DIST_XORG_MISC_ALL | DIST_XORG_SERVER | _DIST_XORG_FONTS_BASE;
+    return distSetXOrg(NULL);
 }
 
 int
@@ -312,11 +285,9 @@ distSetEverything(dialogMenuItem *self)
 {
     int i;
 
-    Dists = DIST_ALL | DIST_XF86;
+    Dists = DIST_ALL;
     SrcDists = DIST_SRC_ALL;
-    XF86Dists = DIST_XF86_ALL;
-    XF86ServerDists = DIST_XF86_SERVER_ALL;
-    XF86FontDists = DIST_XF86_FONTS_ALL;
+    XOrgDists = DIST_XORG_ALL;
     i = distMaybeSetPorts(self);
     distVerifyFlags();
     return i;
@@ -459,12 +430,12 @@ distSetSrc(dialogMenuItem *self)
 }
 
 int
-distSetXF86(dialogMenuItem *self)
+distSetXOrg(dialogMenuItem *self)
 {
     int i = DITEM_SUCCESS;
 
     dialog_clear_norefresh();
-    if (!dmenuOpenSimple(&MenuXF86Select, FALSE))
+    if (!dmenuOpenSimple(&MenuXOrgSelect, FALSE))
 	i = DITEM_FAILURE;
     distVerifyFlags();
     return i | DITEM_RESTORE;

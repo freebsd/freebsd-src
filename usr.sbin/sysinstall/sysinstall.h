@@ -110,8 +110,6 @@
 #define VAR_DIST_MAIN			"distMain"
 #define VAR_DIST_SRC			"distSRC"
 #define VAR_DIST_X11			"distX11"
-#define VAR_DIST_XSERVER		"distXserver"
-#define VAR_DIST_XFONTS			"distXfonts"
 #define VAR_DEDICATE_DISK		"dedicateDisk"
 #define VAR_DOMAINNAME			"domainname"
 #define VAR_EDITOR			"editor"
@@ -200,7 +198,7 @@
 #define VAR_VAR_SIZE			"varSize"
 #define VAR_TMP_SIZE			"tmpSize"
 #define VAR_HOME_SIZE			"homeSize"
-#define VAR_XF86_CONFIG			"_xf86config"
+#define VAR_XORG_CONFIG			"_xorgconfig"
 #define VAR_TERM			"TERM"
 #define VAR_CONSTERM                    "_consterm"
 
@@ -416,9 +414,7 @@ extern Variable		*VarHead;		/* The head of the variable chain		*/
 extern Device		*mediaDevice;		/* Where we're getting our distribution from	*/
 extern unsigned int	Dists;			/* Which distributions we want			*/
 extern unsigned int	SrcDists;		/* Which src distributions we want		*/
-extern unsigned int	XF86Dists;		/* Which XFree86 dists we want			*/
-extern unsigned int	XF86ServerDists;	/* The XFree86 servers we want			*/
-extern unsigned int	XF86FontDists;		/* The XFree86 fonts we want			*/
+extern unsigned int	XOrgDists;		/* Which X.Org dists we want			*/
 extern int		BootMgr;		/* Which boot manager to use 			*/
 extern int		StatusLine;		/* Where to print our status messages		*/
 extern DMenu		MenuInitial;		/* Initial installation menu			*/
@@ -467,16 +463,16 @@ extern DMenu		MenuDistributions;	/* Distribution menu				*/
 extern DMenu		MenuDiskDevices;	/* Disk type devices				*/
 extern DMenu		MenuSubDistributions;	/* Custom distribution menu			*/
 extern DMenu		MenuSrcDistributions;	/* Source distribution menu			*/
-extern DMenu		MenuXF86;		/* XFree86 main menu				*/
-extern DMenu		MenuXF86Select;		/* XFree86 distribution selection menu		*/
-extern DMenu		MenuXF86SelectCore;	/* XFree86 core distribution menu		*/
-extern DMenu		MenuXF86SelectServer;	/* XFree86 server distribution menu		*/
-extern DMenu		MenuXF86SelectFonts;	/* XFree86 font selection menu			*/
+extern DMenu		MenuXOrg;		/* X.Org main menu				*/
+extern DMenu		MenuXOrgSelect;		/* X.Org distribution selection menu		*/
+extern DMenu		MenuXOrgSelectCore;	/* X.Org core distribution menu			*/
+extern DMenu		MenuXOrgSelectServer;	/* X.Org server distribution menu		*/
+extern DMenu		MenuXOrgSelectFonts;	/* X.Org font selection menu			*/
 extern DMenu		MenuXDesktops;		/* Disk devices menu				*/
 extern DMenu		MenuHTMLDoc;		/* HTML Documentation menu			*/
 extern DMenu		MenuUsermgmt;		/* User management menu				*/
 extern DMenu		MenuFixit;		/* Fixit floppy/CDROM/shell menu		*/
-extern DMenu		MenuXF86Config;		/* Select XFree86 configuration type		*/
+extern DMenu		MenuXOrgConfig;		/* Select X.Org configuration tool		*/
 extern int              FixItMode;              /* FixItMode starts shell onc urrent device (ie Serial port) */
 extern const char *	StartName;		/* Which name we were started as */
 
@@ -603,7 +599,7 @@ extern int	distSetXUser(dialogMenuItem *self);
 extern int	distSetMinimum(dialogMenuItem *self);
 extern int	distSetEverything(dialogMenuItem *self);
 extern int	distSetSrc(dialogMenuItem *self);
-extern int	distSetXF86(dialogMenuItem *self);
+extern int	distSetXOrg(dialogMenuItem *self);
 extern int	distExtractAll(dialogMenuItem *self);
 
 /* dmenu.c */
