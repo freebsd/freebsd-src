@@ -36,7 +36,7 @@
 #include <i386/isa/atapi.h>
 
 #define NUNIT   (NWDC*2)        /* Max. number of devices */
-#define UNIT(d) (minor(d) & 3)  /* Unit part of minor device number */
+#define UNIT(d) ((minor(d) >> 3) & 3)  /* Unit part of minor device number */
 #define SECSIZE 2048            /* CD-ROM sector size in bytes */
 
 #define F_OPEN          0x0001  /* The drive os opened */
