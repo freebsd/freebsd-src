@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_de.c,v 1.7 1994/11/22 09:47:31 davidg Exp $
+ * $Id: if_de.c,v 1.8 1994/11/24 14:29:34 davidg Exp $
  *
  */
 
@@ -397,8 +397,6 @@ tulip_rx_intr(
 #if NBPFILTER > 0
 	    if (sc->tulip_bpf != NULL) {
 		bpf_tap(sc->tulip_bpf, bufaddr, total_len);
-		if (eh.ether_type != ETHERTYPE_IP && eh.ether_type != ETHERTYPE_ARP)
-		    goto next;
 		if ((eh.ether_dhost[0] & 1) == 0 &&
 		    !TULIP_ADDREQUAL(eh.ether_dhost, sc->tulip_ac.ac_enaddr))
 		    goto next;
