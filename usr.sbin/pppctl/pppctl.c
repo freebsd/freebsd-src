@@ -124,6 +124,7 @@ Receive(int fd, int display)
     char *last;
     fd_set f;
     int len;
+    int err;
 
     FD_ZERO(&f);
     FD_SET(fd, &f);
@@ -133,7 +134,7 @@ Receive(int fd, int display)
     len = 0;
 
     while (Result = read(fd, Buffer+len, sizeof(Buffer)-len-1), Result != -1) {
-        if (Result == 0 && errno != EINTR) {
+        if (Result == 0) {
             Result = -1;
             break;
         }
@@ -186,8 +187,11 @@ Receive(int fd, int display)
             len -= flush;
         }
         if ((Result = select(fd + 1, &f, NULL, NULL, &t)) <= 0) {
+            err = Result == -1 ? errno : 0;
             if (len)
                 write(STDOUT_FILENO, Buffer, len);
+            if (err == EINTR)
+                continue;
             break;
         }
     }
