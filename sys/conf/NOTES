@@ -2306,7 +2306,7 @@ device  ifpi
 #	iwic driver for Winbond W6692 chipset
 #
 # ASUSCOM P-IN100-ST-D (and other Winbond W6692 based cards)
-device  iwic0
+device  iwic
 #
 #---------------------------------------------------------------------------
 #	ISDN Protocol Stack - mandatory for all hardware drivers
