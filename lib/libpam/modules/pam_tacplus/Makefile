@@ -25,7 +25,7 @@
 #	$FreeBSD$
 
 LIB=		pam_tacplus
-SHLIB_NAME=	pam_tacplus.so
+SHLIB_NAME=	${LIB}.so.${SHLIB_MAJOR}
 SRCS=		pam_tacplus.c
 DPADD=		${LIBTACPLUS}
 LDADD=		-ltacplus

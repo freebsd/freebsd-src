@@ -24,7 +24,7 @@
 #
 #	$FreeBSD$
 
-SHLIB_MAJOR=	1
+SHLIB_MAJOR=	2
 SHLIB_MINOR=	0
 
 #WARNS?=		4

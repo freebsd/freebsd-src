@@ -25,7 +25,7 @@
 #	$FreeBSD$
 
 LIB=		pam_deny
-SHLIB_NAME=	pam_deny.so
+SHLIB_NAME=	${LIB}.so.${SHLIB_MAJOR}
 SRCS=		pam_deny.c
 MAN=		pam_deny.8
 

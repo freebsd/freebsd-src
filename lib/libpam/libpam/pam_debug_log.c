@@ -27,7 +27,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <security/pam_modules.h>
 #include <libgen.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -35,7 +34,9 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <syslog.h>
 
-#include "pam_mod_misc.h"
+#include <security/pam_appl.h>
+#include <security/openpam.h>
+#include <security/pam_mod_misc.h>
 
 #define	FMTBUFSIZ	256
 
@@ -114,7 +115,7 @@ _pam_verbose_error(pam_handle_t *pamh, struct options *options,
 		va_start(ap, format);
 		asprintf(&fmtbuf, "%s: %s: %s", modname, function, format);
 		vasprintf(&statusmsg, fmtbuf, ap);
-		pam_prompt(pamh, PAM_ERROR_MSG, statusmsg, NULL);
+		pam_error(pamh, "%s", statusmsg);
 		free(statusmsg);
 		free(fmtbuf);
 		va_end(ap);

@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <syslog.h>
 #include <unistd.h>
 
 #define	PAM_SM_AUTH
@@ -199,7 +200,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused, int argc, const char
 	 * Pass prompt message to application and receive
 	 * passphrase.
 	 */
-	retval = pam_get_pass(pamh, &pass, NEED_PASSPHRASE, &options);
+	retval = pam_get_authtok(pamh, &pass, NEED_PASSPHRASE);
 	if (retval != PAM_SUCCESS)
 		PAM_RETURN(retval);
 	OpenSSL_add_all_algorithms();	/* required for DSA */

@@ -237,7 +237,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused, int argc, const char
 
 	PAM_LOG("Got user: %s", user);
 
-	retval = pam_get_pass(pamh, &pass, PASSWORD_PROMPT, &options);
+	retval = pam_get_authtok(pamh, &pass, PASSWORD_PROMPT);
 	if (retval != PAM_SUCCESS)
 		PAM_RETURN(retval);
 
@@ -285,7 +285,8 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused, int argc, const char
 				 * to the value given in the "template_user"
 				 * option.
 				 */
-				retval = pam_get_item(pamh, PAM_USER, &tmpuser);
+				retval = pam_get_item(pamh, PAM_USER,
+				    (const void **)&tmpuser);
 				if (retval != PAM_SUCCESS)
 					PAM_RETURN(retval);
 				if (getpwnam(tmpuser) == NULL) {
