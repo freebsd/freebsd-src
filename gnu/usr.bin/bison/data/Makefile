@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.5 1997/02/22 15:44:44 peter Exp $
+# $Id: Makefile,v 1.6 1997/08/21 03:28:07 jmg Exp $
 
 BISONDIR=${.CURDIR}/../../../../contrib/bison
 
@@ -12,7 +12,8 @@ all:	bison.s1
 # Copy bison.simple, inserting directory name into the #line commands.
 bison.s1: bison.simple
 	sed -e "/^#line/ s|bison|${DATADIR}/bison|" \
-		< ${BISONDIR}/bison.simple > bison.s1
+	    -e "s|@bison_version@|1.28|" \
+		< ${.ALLSRC} > ${.TARGET}
 
 install:
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 bison.s1 \
