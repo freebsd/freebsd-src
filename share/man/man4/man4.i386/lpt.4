@@ -1,5 +1,6 @@
 .\"
 .\" Copyright (c) 1993 Christopher G. Demetriou
+.\" Copyright (c) 1994 Geoffrey M. Rehmet
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -69,5 +70,10 @@ first parallel port driver
 .Xr lptcontrol 1
 .Sh BUGS
 There are lots of them, especially in cheap parallel port implementations.
+.sp
+It is only possible to open a lpt port when a printer is connected and
+on-line, making it impossible to run 
+.Xr lptcontrol 1 
+when there is no printer connected.
 .Pp
 This driver could still stand a rewrite.
