@@ -338,9 +338,7 @@ AliasHandlePptpGreOut(struct libalias *la, struct ip *pip)
 
 		/* Change source IP address. */
 		DifferentialChecksum(&pip->ip_sum,
-		    (u_short *) & alias_addr,
-		    (u_short *) & pip->ip_src,
-		    2);
+		    &alias_addr, &pip->ip_src, 2);
 		pip->ip_src = alias_addr;
 	}
 	return (0);
@@ -368,9 +366,7 @@ AliasHandlePptpGreIn(struct libalias *la, struct ip *pip)
 
 		/* Restore original IP address. */
 		DifferentialChecksum(&pip->ip_sum,
-		    (u_short *) & src_addr,
-		    (u_short *) & pip->ip_dst,
-		    2);
+		    &src_addr, &pip->ip_dst, 2);
 		pip->ip_dst = src_addr;
 	}
 	return (0);
