@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.109.2.22 1998/02/18 11:36:46 markm Exp $
+#	$Id: Makefile,v 1.109.2.23 1998/02/19 00:23:43 nate Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -39,6 +39,13 @@
 
 # Put initial settings here.
 SUBDIR=
+
+# We must do share/info early so that installation of info `dir'
+# entries works correctly.  Do it first since it is less likely to
+# grow dependencies on include and lib than vice versa.
+.if exists(share/info)
+SUBDIR+= share/info
+.endif
 
 # We must do include and lib first so that the perl *.ph generation
 # works correctly as it uses the header files installed by this.
