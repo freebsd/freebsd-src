@@ -437,6 +437,8 @@ _thread_init(void)
 		TAILQ_INIT(&_thread_list);
 		TAILQ_INSERT_HEAD(&_thread_list, _thread_initial, tle);
 		_set_curthread(_thread_initial);
+		TAILQ_INIT(&_atfork_list);
+		_pthread_mutex_init(&_atfork_mutex, NULL);
 
 		/* Initialise the global signal action structure: */
 		sigfillset(&act.sa_mask);

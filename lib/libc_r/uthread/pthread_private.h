@@ -451,6 +451,13 @@ struct pthread_cleanup {
 	void			*routine_arg;
 };
 
+struct pthread_atfork {
+	TAILQ_ENTRY(pthread_atfork) qe;
+	void (*prepare)(void);
+	void (*parent)(void);
+	void (*child)(void);
+};
+
 struct pthread_attr {
 	int	sched_policy;
 	int	sched_inherit;
@@ -1024,6 +1031,9 @@ SCLASS struct pthread *_thread_initial
 #else
 ;
 #endif
+
+SCLASS TAILQ_HEAD(atfork_head, pthread_atfork)	_atfork_list;
+SCLASS pthread_mutex_t		_atfork_mutex;
 
 /* Default thread attributes: */
 SCLASS struct pthread_attr _pthread_attr_default

@@ -10,6 +10,7 @@ SRCS+= \
 	uthread_acl_set_fd.c \
 	uthread_acl_aclcheck_fd.c \
 	uthread_aio_suspend.c \
+	uthread_atfork.c \
 	uthread_attr_destroy.c \
 	uthread_attr_init.c \
 	uthread_attr_getdetachstate.c \
