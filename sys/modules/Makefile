@@ -90,6 +90,7 @@ SUBDIR=	3dfx \
 	twe \
 	tx \
 	txp \
+	ucom \
 	udbp \
 	ufm \
 	ugen \
@@ -101,9 +102,11 @@ SUBDIR=	3dfx \
 	umodem \
 	ums \
 	unionfs \
+	uplcom \
 	urio \
 	usb \
 	uscanner \
+	uvscom \
 	vinum \
 	vpo \
 	vr \
