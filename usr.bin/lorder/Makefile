@@ -3,7 +3,7 @@
 MAN1=	lorder.1
 
 beforeinstall:
-	install -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
-	    ${.CURDIR}/lorder.sh ${DESTDIR}/${BINDIR}/lorder
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
+	    ${.CURDIR}/lorder.sh ${DESTDIR}${BINDIR}/lorder
 
 .include <bsd.prog.mk>
