@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.39 1994/09/19 01:08:35 jkh Exp $
+# $Id: bsd.port.mk,v 1.40 1994/09/22 07:45:30 swallace Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -114,6 +114,10 @@ MAKEFILE?=		Makefile
 
 NCFTP?=			ncftp
 NCFTPFLAGS?=	-N
+
+PATCH?=			patch
+PATCH_STRIP?=	-p0
+PATCH_ARGS?=	 -d ${WRKSRC} --quiet -E ${PATCH_STRIP}
 
 EXTRACT_CMD?=	tar
 EXTRACT_SUFX?=	.tar.gz
@@ -245,7 +249,7 @@ ${CONFIGURE_COOKIE}:
 	@if [ -d ${PATCHDIR} ]; then \
 		echo "===>  Applying patches for ${DISTNAME}" ; \
 		for i in ${PATCHDIR}/patch-*; do \
-			patch -d ${WRKSRC} --quiet -E -p0 < $$i; \
+			${PATCH} ${PATCH_ARGS} < $$i; \
 	done; \
 	fi
 # We have a small convention for our local configure scripts, which
