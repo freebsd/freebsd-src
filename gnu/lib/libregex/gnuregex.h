@@ -28,6 +28,6 @@
  */
 
 #ifdef __GNUC__
-#warning "<gnuregex.h> has been replaced by <gnu/regex.h>"
+#warning "Use -I/usr/include/gnu and <regex.h> instead of <gnuregex.h>"
 #endif
 #include <gnu/regex.h>
