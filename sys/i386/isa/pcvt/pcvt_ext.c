@@ -2385,7 +2385,7 @@ vgapage(int new_screen)
 			 * process mode.
 			 */
 			if(pcvt_is_console)
-				cons_unavail = 0;
+				cnavaiable(pcvt_consptr, TRUE);
 		}
 	}
 	return 0;
@@ -2470,7 +2470,7 @@ usl_vt_ioctl(dev_t dev, int cmd, caddr_t data, int flag, struct thread *td)
 		 * process mode.
 		 */
 		if(pcvt_is_console)
-			cons_unavail = (newmode.mode == VT_PROCESS);
+			cnavailable(pcvt_consptr, (newmode.mode != VT_PROCESS));
 
 		splx(opri);
 		return 0;
@@ -2549,7 +2549,7 @@ usl_vt_ioctl(dev_t dev, int cmd, caddr_t data, int flag, struct thread *td)
 
 					/* XXX */
 					if(pcvt_is_console)
-						cons_unavail = 0;
+						cnavailable(pcvt_consptr, TRUE);
 				}
 				return 0;
 			}
@@ -2563,7 +2563,7 @@ usl_vt_ioctl(dev_t dev, int cmd, caddr_t data, int flag, struct thread *td)
 
 				/* XXX */
 				if(pcvt_is_console)
-					cons_unavail = 1;
+					cnavailable(pcvt_consptr, FALSE);
 
 				return 0;
 			}
