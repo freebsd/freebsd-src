@@ -1119,7 +1119,8 @@ ng_ksocket_incoming2(node_p node, hook_p hook, void *arg1, int waitflag)
 			struct sa_tag	*stag;
 
 			stag = (struct sa_tag *)m_tag_alloc(NGM_KSOCKET_COOKIE,
-			    NG_KSOCKET_TAG_SOCKADDR, sa->sa_len, M_NOWAIT);
+			    NG_KSOCKET_TAG_SOCKADDR, sizeof(ng_ID_t) +
+			    sa->sa_len, M_NOWAIT);
 			if (stag == NULL) {
 				FREE(sa, M_SONAME);
 				goto sendit;
