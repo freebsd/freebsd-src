@@ -20,7 +20,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: psm.c,v 1.50 1998/01/24 12:12:32 yokota Exp $
+ * $Id: psm.c,v 1.51 1998/03/28 10:33:01 bde Exp $
  */
 
 /*
@@ -163,7 +163,7 @@ static struct psm_softc {    /* Driver status information */
     int           button;	/* the latest button state */
 #ifdef DEVFS
     void          *devfs_token;
-    void          *n_devfs_token;
+    void          *b_devfs_token;
 #endif
 #ifdef PSM_HOOKAPM
     struct apmhook resumehook;
@@ -983,11 +983,11 @@ psmattach(struct isa_device *dvp)
     /* Done */
 #ifdef    DEVFS
     sc->devfs_token =
-        devfs_add_devswf(&psm_cdevsw, PSM_MKMINOR(unit, TRUE),
-        DV_CHR, 0, 0, 0666, "psm%d", unit);
-    sc->n_devfs_token =
         devfs_add_devswf(&psm_cdevsw, PSM_MKMINOR(unit, FALSE),
-        DV_CHR, 0, 0, 0666, "npsm%d", unit);
+        DV_CHR, 0, 0, 0666, "psm%d", unit);
+    sc->b_devfs_token =
+        devfs_add_devswf(&psm_cdevsw, PSM_MKMINOR(unit, TRUE),
+        DV_CHR, 0, 0, 0666, "bpsm%d", unit);
 #endif /* DEVFS */
 
 #ifdef PSM_HOOKAPM
