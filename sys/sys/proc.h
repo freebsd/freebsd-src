@@ -469,13 +469,13 @@ struct ksegrp {
 	struct thread 	*kg_last_assigned; /* Last thread assigned to a KSE */
 	int		kg_runnable;	/* Num runnable threads on queue. */
 	int		kg_runq_kses;	/* Num KSEs on runq. */
+	struct kse_thr_mailbox *kg_completed; /* (c) completed thread mboxes */
 #define	kg_endzero kg_pri_class
 
 #define	kg_startcopy 	kg_endzero
 	u_char		kg_pri_class;	/* (j) Scheduling class. */
 	u_char		kg_user_pri;	/* (j) User pri from estcpu and nice. */
 	char		kg_nice;	/* (j?/k?) Process "nice" value. */
-	struct kse_thr_mailbox *kg_completed; /* (c) completed thread mboxes */
 #define	kg_endcopy kg_numthreads
 	int		kg_numthreads;	/* Num threads in total */
 	int		kg_idle_kses;	/* num KSEs idle */
