@@ -1137,8 +1137,9 @@ device		agp
 
 # PCI options
 #
+#Enable pci resources left off by a "lazy" BIOS:
+options 	PCI_ENABLE_IO_MODES
 #options 	PCI_QUIET	#quiets PCI code on chipset settings
-#options	PCI_ENABLE_IO_MODES	#Enable pci resources left off by a "lazy BIOS"
 
 
 #####################################################################
