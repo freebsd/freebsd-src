@@ -563,7 +563,7 @@ pmap_bootstrap_alloc(vm_size_t size)
  * Initialize the pmap module.
  */
 void
-pmap_init(vm_paddr_t phys_start, vm_paddr_t phys_end)
+pmap_init(void)
 {
 	vm_offset_t addr;
 	vm_size_t size;

@@ -121,7 +121,7 @@ vm_mem_init(dummy)
 	vm_object_init();
 	vm_map_startup();
 	kmem_init(virtual_avail, virtual_end);
-	pmap_init(avail_start, avail_end);
+	pmap_init();
 	vm_pager_init();
 }
 
