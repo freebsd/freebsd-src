@@ -13,7 +13,7 @@
  * all derivative works or modified versions.
  *
  * From: Version 1.9, Mon Oct  9 20:27:42 MSK 1995
- * $Id: wcd.c,v 1.52 1998/04/15 17:45:53 bde Exp $
+ * $Id: wcd.c,v 1.53 1998/06/07 17:11:04 dfr Exp $
  */
 
 #include "wdc.h"
@@ -159,36 +159,36 @@ struct cappage {
 	u_char  param_len;
 	u_char  reserved2[2];
 
-	u_char  audio_play : 1;         /* audio play supported */
-	u_char  composite : 1;          /* composite audio/video supported */
-	u_char  dport1 : 1;             /* digital audio on port 1 */
-	u_char  dport2 : 1;             /* digital audio on port 2 */
-	u_char  mode2_form1 : 1;        /* mode 2 form 1 (XA) read */
-	u_char  mode2_form2 : 1;        /* mode 2 form 2 format */
-	u_char  multisession : 1;       /* multi-session photo-CD */
-	u_char  : 1;
-	u_char  cd_da : 1;              /* audio-CD read supported */
-	u_char  cd_da_stream : 1;       /* CD-DA streaming */
-	u_char  rw : 1;                 /* combined R-W subchannels */
-	u_char  rw_corr : 1;            /* R-W subchannel data corrected */
-	u_char  c2 : 1;                 /* C2 error pointers supported */
-	u_char  isrc : 1;               /* can return the ISRC info */
-	u_char  upc : 1;                /* can return the catalog number UPC */
-	u_char  : 1;
-	u_char  lock : 1;               /* could be locked */
-	u_char  locked : 1;             /* current lock state */
-	u_char  prevent : 1;            /* prevent jumper installed */
-	u_char  eject : 1;              /* can eject */
-	u_char  : 1;
-	u_char  mech : 3;               /* loading mechanism type */
+	u_int   audio_play : 1;         /* audio play supported */
+	u_int   composite : 1;          /* composite audio/video supported */
+	u_int   dport1 : 1;             /* digital audio on port 1 */
+	u_int   dport2 : 1;             /* digital audio on port 2 */
+	u_int   mode2_form1 : 1;        /* mode 2 form 1 (XA) read */
+	u_int   mode2_form2 : 1;        /* mode 2 form 2 format */
+	u_int   multisession : 1;       /* multi-session photo-CD */
+	u_int   : 1;
+	u_int   cd_da : 1;              /* audio-CD read supported */
+	u_int   cd_da_stream : 1;       /* CD-DA streaming */
+	u_int   rw : 1;                 /* combined R-W subchannels */
+	u_int   rw_corr : 1;            /* R-W subchannel data corrected */
+	u_int   c2 : 1;                 /* C2 error pointers supported */
+	u_int   isrc : 1;               /* can return the ISRC info */
+	u_int   upc : 1;                /* can return the catalog number UPC */
+	u_int   : 1;
+	u_int   lock : 1;               /* could be locked */
+	u_int   locked : 1;             /* current lock state */
+	u_int   prevent : 1;            /* prevent jumper installed */
+	u_int   eject : 1;              /* can eject */
+	u_int   : 1;
+	u_int   mech : 3;               /* loading mechanism type */
 #define MECH_CADDY      0
 #define MECH_TRAY       1
 #define MECH_POPUP      2
 #define MECH_CHANGER    4
 #define MECH_CARTRIDGE  5
-	u_char  sep_vol : 1;            /* independent volume of channels */
-	u_char  sep_mute : 1;           /* independent mute of channels */
-	u_char  : 6;
+	u_int   sep_vol : 1;            /* independent volume of channels */
+	u_int   sep_mute : 1;           /* independent mute of channels */
+	u_int   : 6;
 
 	u_short max_speed;              /* max raw data rate in bytes/1000 */
 	u_short max_vol_levels;         /* number of discrete volume levels */
@@ -197,15 +197,15 @@ struct cappage {
 
 	/* Digital drive output format description (optional?) */
 	u_char  reserved3;
-	u_char  bckf : 1;               /* data valid on failing edge of BCK */
-	u_char  rch : 1;                /* high LRCK indicates left channel */
-	u_char  lsbf : 1;               /* set if LSB first */
-	u_char  dlen: 2;
+	u_int   bckf : 1;               /* data valid on failing edge of BCK */
+	u_int   rch : 1;                /* high LRCK indicates left channel */
+	u_int   lsbf : 1;               /* set if LSB first */
+	u_int   dlen: 2;
 #define DLEN_32         0               /* 32 BCKs */
 #define DLEN_16         1               /* 16 BCKs */
 #define DLEN_24         2               /* 24 BCKs */
 #define DLEN_24_I2S     3               /* 24 BCKs (I2S) */
-	u_char  : 3;
+	u_int   : 3;
 	u_char  reserved4[2];
 };
 
@@ -213,15 +213,15 @@ struct cappage {
  * CDROM changer mechanism status structure
  */
 struct changer {
-	u_char	current_slot : 5;	/* active changer slot */
-	u_char	mech_state : 2;		/* current changer state */
+	u_int	current_slot : 5;	/* active changer slot */
+	u_int	mech_state : 2;		/* current changer state */
 #define CH_READY	0
 #define CH_LOADING	1
 #define CH_UNLOADING	2
 #define CH_INITIALIZING	3
-	u_char	fault : 1;		/* fault in last operation */
-	u_char	reserved0 : 5;
-	u_char	cd_state : 3;		/* current mechanism state */
+	u_int	fault : 1;		/* fault in last operation */
+	u_int	reserved0 : 5;
+	u_int	cd_state : 3;		/* current mechanism state */
 #define CD_IDLE		0
 #define CD_AUDIO_ACTIVE	1
 #define CD_AUDIO_SCAN	2
@@ -231,9 +231,9 @@ struct changer {
 	u_char	slots;			/* number of available slots */
 	u_short	table_length;		/* slot table length */
 	struct {
-		u_char changed : 1;	/* media has changed in this slot */
-		u_char unused : 6;
-		u_char present : 1;	/* slot has a CD present */
+		u_int  changed : 1;	/* media has changed in this slot */
+		u_int  unused : 6;
+		u_int  present : 1;	/* slot has a CD present */
 		u_char reserved0;
 		u_char reserved1;
 		u_char reserved2;
