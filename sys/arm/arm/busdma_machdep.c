@@ -99,7 +99,7 @@ struct bus_dmamap {
  */
 
 static __inline int
-bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dma_segment_t segs[],
+bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dma_segment_t *segs,
     bus_dmamap_t map, void *buf, bus_size_t buflen, struct pmap *pmap,
     int flags, vm_offset_t *lastaddrp, int *segp);
 
@@ -424,7 +424,7 @@ bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
  * first indicates if this is the first invocation of this function.
  */
 static int __inline
-bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dma_segment_t segs[],
+bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dma_segment_t *segs,
     bus_dmamap_t map, void *buf, bus_size_t buflen, struct pmap *pmap,
     int flags, vm_offset_t *lastaddrp, int *segp)
 {
@@ -526,7 +526,7 @@ bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dma_segment_t segs[],
 		     (segs[seg].ds_addr & bmask) == 
 		     (curaddr & bmask))) {
 			segs[seg].ds_len += sgsize;
-				goto segdone;
+			goto segdone;
 		} else {
 			if (++seg >= dmat->nsegments)
 				break;
@@ -611,8 +611,10 @@ bus_dmamap_load_mbuf_sg(bus_dma_tag_t dmat, bus_dmamap_t map,
 
 	flags |= BUS_DMA_NOWAIT;
 	*nsegs = -1;
+	map->flags &= ~DMAMAP_TYPE_MASK;
+	map->flags |= DMAMAP_MBUF | DMAMAP_COHERENT;
+	map->buffer = m0;			
 	if (m0->m_pkthdr.len <= dmat->maxsize) {
-		int first = 1;
 		vm_offset_t lastaddr = 0;
 		struct mbuf *m;
 
@@ -622,7 +624,6 @@ bus_dmamap_load_mbuf_sg(bus_dma_tag_t dmat, bus_dmamap_t map,
 						m->m_data, m->m_len,
 						pmap_kernel(), flags, &lastaddr,
 						nsegs);
-				first = 0;
 			}
 		}
 	} else {
