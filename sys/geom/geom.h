@@ -42,6 +42,8 @@
 #include <sys/mutex.h>
 #include <sys/sx.h>
 #include <sys/queue.h>
+#include <sys/ioccom.h>
+#include <sys/sbuf.h>
 
 #ifndef _KERNEL
 /*
@@ -283,5 +285,7 @@ extern struct sx topology_lock;
 	SYSINIT(name, SI_SUB_PSEUDO, SI_ORDER_FIRST, name##init, NULL);
 
 #endif /* _KERNEL */
+
+#define GEOMGETCONF _IOWR('G',  0, struct sbuf)
 
 #endif /* _GEOM_GEOM_H_ */
