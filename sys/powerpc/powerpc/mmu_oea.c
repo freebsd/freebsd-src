@@ -565,14 +565,15 @@ pmap_bootstrap(vm_offset_t kernelstart, vm_offset_t kernelend)
 	 */
 	batu = BATU(0x00000000, BAT_BL_256M, BAT_Vs);
 	batl = BATL(0x00000000, BAT_M, BAT_PP_RW);
-	__asm ("mtibatu 0,%0; mtibatl 0,%1; mtdbatu 0,%0; mtdbatl 0,%1"
+	__asm ("mtibatu 0,%0; mtibatl 0,%1; isync; \n"
+	       "mtdbatu 0,%0; mtdbatl 0,%1; isync"
 	    :: "r"(batu), "r"(batl));
 
 #if 0
 	/* map frame buffer */
 	batu = BATU(0x90000000, BAT_BL_256M, BAT_Vs);
 	batl = BATL(0x90000000, BAT_I|BAT_G, BAT_PP_RW);
-	__asm ("mtdbatu 1,%0; mtdbatl 1,%1"
+	__asm ("mtdbatu 1,%0; mtdbatl 1,%1; isync"
 	    :: "r"(batu), "r"(batl));
 #endif
 
@@ -580,7 +581,7 @@ pmap_bootstrap(vm_offset_t kernelstart, vm_offset_t kernelend)
 	/* map pci space */
 	batu = BATU(0x80000000, BAT_BL_256M, BAT_Vs);
 	batl = BATL(0x80000000, BAT_I|BAT_G, BAT_PP_RW);
-	__asm ("mtdbatu 1,%0; mtdbatl 1,%1"
+	__asm ("mtdbatu 1,%0; mtdbatl 1,%1; isync"
 	    :: "r"(batu), "r"(batl));
 #endif
 
