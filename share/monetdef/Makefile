@@ -44,6 +44,7 @@ LOCALES=        af_ZA.ISO8859-1 \
 		kk_KZ.PT154 \
 		kk_KZ.UTF-8 \
 		ko_KR.eucKR \
+		ko_KR.UTF-8 \
 		lt_LT.ISO8859-13 \
 		nl_BE.ISO8859-1 \
 		nl_NL.ISO8859-1 \
