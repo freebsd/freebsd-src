@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: support.s,v 1.18 1994/09/16 13:33:27 davidg Exp $
+ *	$Id: support.s,v 1.19 1994/09/25 21:31:47 davidg Exp $
  */
 
 #include "assym.s"				/* system definitions */
@@ -381,7 +381,7 @@ ENTRY(copyout)					/* copyout(from_kernel, to_user, len) */
 	movl	16(%esp),%esi
 	movl	20(%esp),%edi
 	movl	24(%esp),%ebx
-	orl	%ebx,%ebx			/* anything to do? */
+	testl	%ebx,%ebx			/* anything to do? */
 	jz	done_copyout
 
 	/*
@@ -389,17 +389,10 @@ ENTRY(copyout)					/* copyout(from_kernel, to_user, len) */
 	 * is being used, this check is essential because we are in kernel
 	 * mode so the h/w does not provide any protection against writing
 	 * kernel addresses.
-	 *
-	 * Otherwise, it saves having to load and restore %es to get the
-	 * usual segment-based protection (the destination segment for movs
-	 * is always %es).  The other explicit checks for user-writablility
-	 * are not quite sufficient.  They fail for the user area because
-	 * we mapped the user area read/write to avoid having an #ifdef in
-	 * vm_machdep.c.  They fail for user PTEs and/or PTDs!  (107
-	 * addresses including 0xff800000 and 0xfc000000).  I'm not sure if
-	 * this can be fixed.  Marking the PTEs supervisor mode and the
-	 * PDE's user mode would almost work, but there may be a problem
-	 * with the self-referential PDE.
+	 */
+
+	/*
+	 * First, prevent address wrapping.
 	 */
 	movl	%edi,%eax
 	addl	%ebx,%eax
@@ -453,7 +446,7 @@ ENTRY(copyout)					/* copyout(from_kernel, to_user, len) */
 	popl	%ecx
 	popl	%edx
 
-	orl	%eax,%eax			/* if not ok, return EFAULT */
+	testl	%eax,%eax			/* if not ok, return EFAULT */
 	jnz	copyout_fault
 
 2:
@@ -628,7 +621,7 @@ ENTRY(suword)
 	call	_trapwrite
 	popl	%edx				/* remove junk parameter from stack */
 	movl	_curpcb,%ecx			/* restore trashed register */
-	orl	%eax,%eax
+	testl	%eax,%eax
 	jnz	fusufault
 1:
 	movl	4(%esp),%edx
@@ -670,7 +663,7 @@ ENTRY(susword)
 	call	_trapwrite
 	popl	%edx				/* remove junk parameter from stack */
 	movl	_curpcb,%ecx			/* restore trashed register */
-	orl	%eax,%eax
+	testl	%eax,%eax
 	jnz	fusufault
 1:
 	movl	4(%esp),%edx
@@ -712,7 +705,7 @@ ENTRY(subyte)
 	call	_trapwrite
 	popl	%edx				/* remove junk parameter from stack */
 	movl	_curpcb,%ecx			/* restore trashed register */
-	orl	%eax,%eax
+	testl	%eax,%eax
 	jnz	fusufault
 1:
 	movl	4(%esp),%edx
@@ -777,7 +770,7 @@ ENTRY(copyoutstr)
 	cld
 	popl	%edi
 	popl	%edx
-	orl	%eax,%eax
+	testl	%eax,%eax
 	jnz	cpystrflt
 
 2:	/* copy up to end of this page */
@@ -789,7 +782,7 @@ ENTRY(copyoutstr)
 	jae	3f
 	movl	%edx,%ecx			/* ecx = min(ecx, edx) */
 3:
-	orl	%ecx,%ecx
+	testl	%ecx,%ecx
 	jz	4f
 	decl	%ecx
 	decl	%edx
@@ -804,7 +797,7 @@ ENTRY(copyoutstr)
 	jmp	6f
 
 4:	/* next page */
-	orl	%edx,%edx
+	testl	%edx,%edx
 	jnz	1b
 
 	/* edx is zero -- return ENAMETOOLONG */
@@ -947,7 +940,7 @@ ENTRY(copystr)
 	movl	20(%esp),%ecx
 	subl	%edx,%ecx
 	movl	24(%esp),%edx
-	orl	%edx,%edx
+	testl	%edx,%edx
 	jz	7f
 	movl	%ecx,(%edx)
 7:
