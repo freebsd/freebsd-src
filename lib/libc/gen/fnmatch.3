@@ -85,7 +85,12 @@ must be explicitly matched by slashes in
 .Fa pattern .
 If this flag is not set, then slashes are treated as regular characters.
 .It Dv FNM_PERIOD
-Leading periods in strings match periods in patterns.
+Leading periods in
+.Fa string
+must be explicitly matched by periods in
+.Fa pattern .
+If this flag is not set, then leading periods are treated as regular
+characters.
 The definition of ``leading'' is related to the specification of
 .Dv FNM_PATHNAME.
 A period is always ``leading'' if it is the first character in
