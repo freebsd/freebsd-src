@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1992, 1999 Hellmuth Michaelis.
+ * Copyright (c) 1992, 2000 Hellmuth Michaelis.
  *
  * All rights reserved.
  *
@@ -29,7 +29,7 @@
  *	pcvt_tbl.h	VT220 Driver Character Set Conversion Tables
  *	------------------------------------------------------------
  *
- *	Last Edit-Date: [Mon Dec 27 14:12:37 1999]
+ *	Last Edit-Date: [Sun Mar 26 10:38:49 2000]
  *
  * $FreeBSD$
  *

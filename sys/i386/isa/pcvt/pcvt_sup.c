@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999 Hellmuth Michaelis
+ * Copyright (c) 1999, 2000 Hellmuth Michaelis
  *
  * Copyright (c) 1992, 1995 Hellmuth Michaelis and Joerg Wunsch.
  *
@@ -44,7 +44,7 @@
  *	pcvt_sup.c	VT220 Driver Support Routines
  *	---------------------------------------------
  *
- *	Last Edit-Date: [Thu Dec 30 17:01:03 1999]
+ *	Last Edit-Date: [Sun Mar 26 10:38:45 2000]
  *
  * $FreeBSD$
  *
@@ -61,13 +61,13 @@ static void vid_cursor ( struct cursorshape *data );
 static void vgasetfontattr ( struct vgafontattr *data );
 static void vgagetfontattr ( struct vgafontattr *data );
 static void vgaloadchar ( struct vgaloadchar *data );
-static void vid_getscreen ( struct screeninfo *data, Dev_t dev );
-static void vid_setscreen ( struct screeninfo *data, Dev_t dev );
+static void vid_getscreen ( struct screeninfo *data, dev_t dev );
+static void vid_setscreen ( struct screeninfo *data, dev_t dev );
 static void setchargen ( void );
 static void setchargen3 ( void );
 static void resetchargen ( void );
-static void vgareadpel ( struct vgapel *data, Dev_t dev );
-static void vgawritepel ( struct vgapel *data, Dev_t dev );
+static void vgareadpel ( struct vgapel *data, dev_t dev );
+static void vgawritepel ( struct vgapel *data, dev_t dev );
 static void vgapcvtid ( struct pcvtid *data );
 static void vgapcvtinfo ( struct pcvtinfo *data );
 
@@ -105,7 +105,7 @@ static u_short getrand ( void );
  *	execute vga ioctls
  *---------------------------------------------------------------------------*/
 int
-vgaioctl(Dev_t dev, int cmd, caddr_t data, int flag)
+vgaioctl(dev_t dev, int cmd, caddr_t data, int flag)
 {
 	if(minor(dev) >= PCVT_NSCREENS)
 		return -1;
@@ -117,15 +117,10 @@ vgaioctl(Dev_t dev, int cmd, caddr_t data, int flag)
  */
 
 #ifdef XSERVER
-#if PCVT_USL_VT_COMPAT
 #define is_dev_grafx vs[minor(dev)].vt_status & VT_GRAFX
 #define is_current_grafx vsp->vt_status & VT_GRAFX
-#else   /* old X interface */
-#define is_dev_grafx pcvt_xmode
-#define is_current_grafx pcvt_xmode
-#endif /* PCVT_USL_VT_COMPAT */
 #else /* !XSERVER */
-#define is_dev_grafx 0  /* not applicable */
+#define is_dev_grafx 0
 #define is_current_grafx 0
 #endif /* XSERVER */
 
@@ -166,13 +161,6 @@ vgaioctl(Dev_t dev, int cmd, caddr_t data, int flag)
 			break;
 
 		case VGASETSCREEN:
-
-#if defined XSERVER && !PCVT_USL_VT_COMPAT
-			/* avoid screen switch if using old X mode */
-			if(is_dev_grafx)
-				return EAGAIN;
-#endif /* XSERVER && !PCVT_USL_VT_COMPAT */
-
 #if PCVT_SCREENSAVER
 			pcvt_scrnsv_reset();
 #endif /* PCVT_SCREENSAVER */
@@ -267,34 +255,16 @@ vgapcvtid(struct pcvtid *data)
 static void
 vgapcvtinfo(struct pcvtinfo *data)
 {
-#if PCVT_NETBSD
-	data->opsys	= CONF_NETBSD;
-	data->opsysrel	= PCVT_NETBSD;
-#elif PCVT_FREEBSD
 	data->opsys	= CONF_FREEBSD;
-	data->opsysrel	= PCVT_FREEBSD;
-#else
-	data->opsys	= CONF_UNKNOWNOPSYS;
-	data->opsysrel	= 0;
-#endif
+	data->opsysrel	= __FreeBSD__;
 
 	data->nscreens	= PCVT_NSCREENS;
 	data->scanset	= PCVT_SCANSET;
 	data->updatefast= PCVT_UPDATEFAST;
 	data->updateslow= PCVT_UPDATESLOW;
 	data->sysbeepf	= PCVT_SYSBEEPF;
-
-#if PCVT_NETBSD || PCVT_FREEBSD >= 200
 	data->pcburst	= PCVT_PCBURST;
-#else
-	data->pcburst	= 1;
-#endif
-
-#if PCVT_KBD_FIFO
 	data->kbd_fifo_sz = PCVT_KBD_FIFO_SZ;
-#else
-	data->kbd_fifo_sz = 0;
-#endif
 
 	data->compile_opts = (0
 
@@ -316,26 +286,11 @@ vgapcvtinfo(struct pcvtinfo *data)
 #if PCVT_24LINESDEF
 	| CONF_24LINESDEF
 #endif
-#if PCVT_EMU_MOUSE
-	| CONF_EMU_MOUSE
-#endif
 #if PCVT_SHOWKEYS
 	| CONF_SHOWKEYS
 #endif
-#if PCVT_KEYBDID
-	| CONF_KEYBDID
-#endif
-#if PCVT_SIGWINCH
-	| CONF_SIGWINCH
-#endif
 #if PCVT_NULLCHARS
 	| CONF_NULLCHARS
-#endif
-#if PCVT_BACKUP_FONTS
-	| CONF_BACKUP_FONTS
-#endif
-#if PCVT_SW0CNOUTP	/* was FORCE8BIT */
-	| CONF_SW0CNOUTP
 #endif
 #if PCVT_SETCOLOR
 	| CONF_SETCOLOR
@@ -343,32 +298,14 @@ vgapcvtinfo(struct pcvtinfo *data)
 #if PCVT_132GENERIC
 	| CONF_132GENERIC
 #endif
-#if PCVT_PALFLICKER
-	| CONF_PALFLICKER
-#endif
-#if PCVT_WAITRETRACE
-	| CONF_WAITRETRACE
-#endif
 #ifdef XSERVER
 	| CONF_XSERVER
-#endif
-#if PCVT_USL_VT_COMPAT
-	| CONF_USL_VT_COMPAT
-#endif
-#if PCVT_PORTIO_DELAY
-	| CONF_PORTIO_DELAY
 #endif
 #if PCVT_INHIBIT_NUMLOCK
 	| CONF_INHIBIT_NUMLOCK
 #endif
 #if PCVT_META_ESC
 	| CONF_META_ESC
-#endif
-#if PCVT_KBD_FIFO
-	| CONF_KBD_FIFO
-#endif
-#if PCVT_NOFASTSCROLL
-	| CONF_NOFASTSCROLL
 #endif
 #if PCVT_SLOW_INTERRUPT
 	| CONF_SLOW_INTERRUPT
@@ -553,11 +490,11 @@ vgasetfontattr(struct vgafontattr *data)
 			set_charset(&(vs[i]),vga_character_set);
 	}
 
-#if !PCVT_USL_VT_COMPAT
-	vgapage(current_video_screen);
+#ifdef XSERVER
+	switch_screen(current_video_screen, 0, 0);	
 #else
-	switch_screen(current_video_screen, 0, 0);
-#endif /* !PCVT_USL_VT_COMPAT */
+	vgapage(current_video_screen);
+#endif /* XSERVER */
 
 }
 
@@ -618,7 +555,7 @@ vgaloadchar(struct vgaloadchar *data)
  *	video ioctl - get screen information
  *---------------------------------------------------------------------------*/
 static void
-vid_getscreen(struct screeninfo *data, Dev_t dev)
+vid_getscreen(struct screeninfo *data, dev_t dev)
 {
 	int device = minor(dev);
 	data->adaptor_type = adaptor_type;	/* video adapter installed */
@@ -641,7 +578,7 @@ vid_getscreen(struct screeninfo *data, Dev_t dev)
  *	video ioctl - set screen information
  *---------------------------------------------------------------------------*/
 static void
-vid_setscreen(struct screeninfo *data, Dev_t dev)
+vid_setscreen(struct screeninfo *data, dev_t dev)
 {
 	int screen;
 
@@ -658,7 +595,7 @@ vid_setscreen(struct screeninfo *data, Dev_t dev)
 
 	vgapage(screen);
 
-#if defined XSERVER && PCVT_USL_VT_COMPAT
+#ifdef XSERVER
 	{
 		int x = spltty(), waitfor = screen + 1;
 		/* if the vt is yet to be released by a process, wait here */
@@ -670,7 +607,7 @@ vid_setscreen(struct screeninfo *data, Dev_t dev)
 	/* make sure the switch really happened */
 	if(screen != current_video_screen)
 		return;		/* XXX should say "EAGAIN" here */
-#endif /* defined XSERVER && PCVT_USL_VT_COMPAT */
+#endif /* XSERVER */
 
 	if((data->screen_size != -1) || (data->force_24lines != -1))
 	{
@@ -768,10 +705,8 @@ set_screen_size(struct video_state *svsp, int size)
 			svsp->scrr_len = svsp->screen_rows;
 			svsp->scrr_end = svsp->scrr_len - 1;
 
-#if PCVT_SIGWINCH
 			if (svsp->vs_tty && svsp->vs_tty->t_pgrp)
 				pgsignal(svsp->vs_tty->t_pgrp, SIGWINCH, 1);
-#endif /* PCVT_SIGWINCH */
 
 			reallocate_scrollbuffer(svsp, svsp->scrollback_pages);
 			break;
@@ -834,7 +769,7 @@ reallocate_scrollbuffer(struct video_state *svsp, int pages)
  *	VGA ioctl - read DAC palette entry
  *---------------------------------------------------------------------------*/
 static void
-vgareadpel(struct vgapel *data, Dev_t dev)
+vgareadpel(struct vgapel *data, dev_t dev)
 {
 	register unsigned vpage = minor(dev);
 	register unsigned idx = data->idx;
@@ -852,7 +787,7 @@ vgareadpel(struct vgapel *data, Dev_t dev)
  *	VGA ioctl - write DAC palette entry
  *---------------------------------------------------------------------------*/
 static void
-vgawritepel(struct vgapel *data, Dev_t dev)
+vgawritepel(struct vgapel *data, dev_t dev)
 {
 	register unsigned vpage = minor(dev);
 	register unsigned idx = data->idx;
@@ -876,60 +811,20 @@ vgawritepel(struct vgapel *data, Dev_t dev)
 void
 vgapaletteio(unsigned idx, struct rgb *val, int writeit)
 {
-
-#if PCVT_PALFLICKER
-	vga_screen_off();
-#endif /* PCVT_PALFLICKER */
-
 	if(writeit)
 	{
 		outb(VGA_DAC + 2, idx);
-
-#if PCVT_WAITRETRACE
-		wait_retrace();
-#endif /* PCVT_WAITRETRACE */
-
 		outb(VGA_DAC + 3, val->r & VGA_PMSK);
-
-#if PCVT_WAITRETRACE
-		wait_retrace();
-#endif /* PCVT_WAITRETRACE */
-
 		outb(VGA_DAC + 3, val->g & VGA_PMSK);
-
-#if PCVT_WAITRETRACE
-		wait_retrace();
-#endif /* PCVT_WAITRETRACE */
-
 		outb(VGA_DAC + 3, val->b & VGA_PMSK);
 	}
 	else	/* read it */
 	{
 		outb(VGA_DAC + 1, idx);
-
-#if PCVT_WAITRETRACE
-		wait_retrace();
-#endif /* PCVT_WAITRETRACE */
-
 		val->r = inb(VGA_DAC + 3) & VGA_PMSK;
-
-#if PCVT_WAITRETRACE
-		wait_retrace();
-#endif /* PCVT_WAITRETRACE */
-
 		val->g = inb(VGA_DAC + 3) & VGA_PMSK;
-
-#if PCVT_WAITRETRACE
-		wait_retrace();
-#endif /* PCVT_WAITRETRACE */
-
 		val->b = inb(VGA_DAC + 3) & VGA_PMSK;
 	}
-
-#if PCVT_PALFLICKER
-	vga_screen_on();
-#endif /* PCVT_PALFLICKER */
-
 }
 
 /*---------------------------------------------------------------------------*
@@ -960,13 +855,7 @@ async_update(void *arg)
 
 	/* first check if update is possible */
 
-	if(chargen_access		/* does no-one load characters? */
-#ifdef XSERVER				/* is vt0 not in graphics mode? */
-#if !PCVT_USL_VT_COMPAT
-	   || pcvt_xmode		/* XXX necessary ????? */
-#endif /* PCVT_USL_VT_COMPAT */
-#endif /* XSERVER */
-	   )
+	if(chargen_access)		/* does no-one load characters? */
 	{
 		goto async_update_exit;	/* do not update anything */
 	}
@@ -1033,13 +922,8 @@ async_update(void *arg)
 
 		/* display load averages in last line (taken from tty.c) */
 			i = 18;
-#ifdef NEW_AVERUNNABLE
 	 		tmp = (averunnable.ldavg[0] * 100 + FSCALE / 2)
 				>> FSHIFT;
-#else
-			tmp = (averunnable[0] * 100 + FSCALE / 2) >> FSHIFT;
-#endif
-
 			buffer[i++] =
 				((((tmp/100)/10) == 0) ?
 				 ' ' :
@@ -1049,12 +933,8 @@ async_update(void *arg)
 			buffer[i++] = ((tmp%100)/10) + '0';
 			buffer[i++] = ((tmp%100)%10) + '0';
 			i += 6;
-#ifdef NEW_AVERUNNABLE
 	 		tmp = (averunnable.ldavg[1] * 100 + FSCALE / 2)
 				>> FSHIFT;
-#else
-			tmp = (averunnable[1] * 100 + FSCALE / 2) >> FSHIFT;
-#endif
 			buffer[i++] = ((((tmp/100)/10) == 0) ?
 				       ' ' :
 				       ((tmp/100)/10) + '0');
@@ -1063,12 +943,8 @@ async_update(void *arg)
 			buffer[i++] = ((tmp%100)/10) + '0';
 			buffer[i++] = ((tmp%100)%10) + '0';
 			i += 7;
-#ifdef NEW_AVERUNNABLE
 	 		tmp = (averunnable.ldavg[2] * 100 + FSCALE / 2)
 				>> FSHIFT;
-#else
-			tmp = (averunnable[2] * 100 + FSCALE / 2) >> FSHIFT;
-#endif
 			buffer[i++] = ((((tmp/100)/10) == 0) ?
 				       ' ' :
 				       ((tmp/100)/10) + '0');
@@ -1411,28 +1287,6 @@ resetchargen(void)
 	chargen_access = 0;	/* flag we are NOT accessing the chargen ram */
 }
 
-#if PCVT_WAITRETRACE
-/*---------------------------------------------------------------------------*
- *	wait for being in a retrace time window
- *	NOTE: this is __VERY__ bad programming practice in this environment !!
- *---------------------------------------------------------------------------*/
-
-static void
-wait_retrace(void)
-{
-	if(color)
-	{
-		while(!(inb(GN_INPSTAT1C) & 0x01))
-			;
-	}
-	else
-	{
-		while(!(inb(GN_INPSTAT1M) & 0x01))
-			;
-	}
-}
-
-#endif /* PCVT_WAITRETRACE */
 
 /*---------------------------------------------------------------------------*
  *	switch screen off (VGA only)
@@ -1524,11 +1378,7 @@ void
 loadchar(int fontset, int character, int char_scanlines, u_char *char_table)
 {
 	unsigned char *d;
-
-#if PCVT_BACKUP_FONTS
 	unsigned char *bak;
-#endif /* PCVT_BACKUP_FONTS */
-
 	int j, k;
 
 	if((d = compute_charset_base(fontset)) == 0)
@@ -1556,7 +1406,6 @@ loadchar(int fontset, int character, int char_scanlines, u_char *char_table)
 
 	resetchargen();			/* access video ram */
 
-#if PCVT_BACKUP_FONTS
 	if(saved_charsets[fontset] == 0)
 		saved_charsets[fontset] =
 			(u_char *)malloc(32 * 256, M_DEVBUF, M_WAITOK);
@@ -1572,53 +1421,13 @@ loadchar(int fontset, int character, int char_scanlines, u_char *char_table)
 	else
 		panic("pcvt loadchar: no backup buffer");
 #endif /* DIAGNOSTIC */
-
-#endif /* PCVT_BACKUP_FONTS */
-
 }
 
 /*---------------------------------------------------------------------------*
  *	save/restore character set n to addr b
+ * 	since there are always backed up copies, we do not save anything here
+ *	parameter "b" is totally ignored
  *---------------------------------------------------------------------------*/
-#if !PCVT_BACKUP_FONTS
-
-void
-vga_move_charset(unsigned n, unsigned char *b, int save_it)
-{
-	unsigned char *d = compute_charset_base(n);
-
-#ifdef DIAGNOSTIC
-	if(d == 0)
-		panic("vga_move_charset: wrong adaptor");
-#endif
-
-	if(vsp->wd132col && (n == 1||n == 3||n == 5||n == 7))
-	{
-		setchargen3();
-		d -= 0x2000;
-	}
-	else
-	{
-		setchargen();
-	}
-
-	/* PLEASE, leave the following alone using bcopyb, as several	*/
-	/* chipsets have problems if their memory is accessed with 32	*/
-	/* or 16 bits wide, don't change this to using bcopy for speed!	*/
-
-	if(save_it)
-		bcopyb(d, b, 256 /* chars */ * 32 /* bytes per char */);
-	else
-		bcopyb(b, d, 256 /* chars */ * 32 /* bytes per char */);
-
-	resetchargen();
-}
-
-#else /* PCVT_BACKUP_FONTS */
-
-/* since there are always backed up copies, we do not save anything here */
-/* parameter "b" is totally ignored */
-
 void
 vga_move_charset(unsigned n, unsigned char *b, int save_it)
 {
@@ -1659,29 +1468,17 @@ vga_move_charset(unsigned n, unsigned char *b, int save_it)
 	resetchargen();
 }
 
-#endif /* PCVT_BACKUP_FONTS */
-
-
-#if !PCVT_USL_VT_COMPAT
+#ifndef XSERVER
 /*---------------------------------------------------------------------------*
  *	switch to virtual screen n (0 ... PCVT_NSCREENS-1)
  *---------------------------------------------------------------------------*/
 void
 vgapage(int n)
 {
-
-#if !PCVT_KBD_FIFO
-	int x;
-#endif	/* !PCVT_KBD_FIFO */
-
 	int cols = vsp->maxcol;		/* get current col val */
 
 	if(n < 0 || n >= totalscreens)
 		return;
-
-#if !PCVT_KBD_FIFO
-	x = spltty();			/* protect us */
-#endif	/* !PCVT_KBD_FIFO */
 
 	/* video board memory -> kernel memory */
 
@@ -1693,13 +1490,7 @@ vgapage(int n)
 
 	current_video_screen = n;	/* current screen no */
 
-#if !PCVT_NETBSD && !(PCVT_FREEBSD > 110 && PCVT_FREEBSD < 200)
 	pcconsp = &pccons[n];		/* current tty */
-#elif PCVT_FREEBSD > 110 && PCVT_FREEBSD < 200
-	pcconsp = pccons[n];		/* current tty */
-#else
-	pcconsp = pc_tty[n];		/* current tty */
-#endif
 
 	vsp = &vs[n];			/* current video state ptr */
 
@@ -1713,10 +1504,6 @@ vgapage(int n)
 	outb(addr_6845+1, 0);
 	outb(addr_6845, CRTC_STARTADRL);
 	outb(addr_6845+1, 0);
-
-#if !PCVT_KBD_FIFO
-	splx(x);
-#endif	/* !PCVT_KBD_FIFO */
 
 	select_vga_charset(vsp->vga_charset);
 
@@ -1754,12 +1541,11 @@ vgapage(int n)
 
 	update_hp(vsp);			/* update fkey labels, if present */
 }
-#endif /* !PCVT_USL_VT_COMPAT */
+#endif /* XSERVER */
 
 /*---------------------------------------------------------------------------*
  *	test if it is a vga
  *---------------------------------------------------------------------------*/
-
 int
 vga_test(void)
 {
@@ -1918,27 +1704,6 @@ vga10_vga8(u_char *invga, u_char *outvga)
 }
 
 /*---------------------------------------------------------------------------*
- *	force a vga card to behave like an ega for debugging
- *---------------------------------------------------------------------------*/
-#if FORCE_EGA
-void
-force_ega(void)
-{
-	unsigned char vgareg;
-
-	if(adaptor_type == VGA_ADAPTOR)
-	{
-		adaptor_type = EGA_ADAPTOR;
-		totalfonts = 4;
-		vgareg = inb(GN_MISCOUTR); /* Miscellaneous Output Register */
-		vgareg |= 128;		   /* Set 350 scanline mode */
-		vgareg &= ~64;
-		outb(GN_MISCOUTW,vgareg);
-	}
-}
-#endif /* FORCE_EGA */
-
-/*---------------------------------------------------------------------------*
  *	disconnect attribute bit 3 from generating intensity
  *	(and use it for a second character set !)
  *---------------------------------------------------------------------------*/
@@ -1965,9 +1730,6 @@ set_2ndcharset(void)
 static u_short
 getrand(void)
 {
-#if !PCVT_FREEBSD
-	extern struct timeval time; /* time-of-day register */
-#endif
 	static unsigned long seed = 1;
 	register u_short res = (u_short)seed;
 	seed = seed * 1103515245L + time_second;
