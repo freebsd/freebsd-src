@@ -61,12 +61,12 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <stdio.h>
-#include <syslog.h>
-#include <string.h>
 #include <errno.h>
 #include <glob.h>
 #include <paths.h>
+#include <stdio.h>
+#include <string.h>
+#include <syslog.h>
 #include <unistd.h>
 
 #include "login.h"
