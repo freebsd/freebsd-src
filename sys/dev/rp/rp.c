@@ -36,6 +36,8 @@
  * rp.c - for RocketPort FreeBSD
  */
 
+#include "opt_compat.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/fcntl.h>
@@ -1243,6 +1245,10 @@ rpioctl(dev, cmd, data, flag, td)
 	int	error = 0;
 	int	arg, flags, result, ChanStatus;
 	struct	termios *t;
+#if defined(COMPAT_43) || defined(COMPAT_SUNOS)
+	u_long	oldcmd;
+	struct	termios term;
+#endif
 
    umynor = (((minor(dev) >> 16) -1) * 32);    /* SG */
 	port  = (minor(dev) & 0x1f);                /* SG */
