@@ -1027,9 +1027,9 @@ typedef struct {
 
 static format_char_info print_char_table[] = {
 /* FreeBSD kernel extensions.  */
-  { "D",	1,	T_C,	T_C,	NULL,	NULL,	NULL,	NULL,	NULL,	"-wp"		},
-  { "b",	1,	T_C,	T_C,	NULL,	NULL,	NULL,	NULL,	NULL,	"-wp"		},
-  { "rz",	0,	NULL,	T_I,	T_I,	T_L,	NULL,	NULL,	NULL,	"-wp0 +#"	},
+  { "D",	1,	T_C,	NULL,	NULL,	NULL,	NULL,	NULL,	NULL,	"-wp"		},
+  { "b",	1,	T_C,	NULL,	NULL,	NULL,	NULL,	NULL,	NULL,	"-wp"		},
+  { "rz",	0,	T_I,	NULL,	NULL,	T_L,	NULL,	NULL,	NULL,	"-wp0 +#"	},
 #define unextended_print_char_table	(print_char_table + 3)
   { "di",	0,	T_I,	T_I,	T_I,	T_L,	T_LL,	T_LL,	T_ST,	"-wp0 +"	},
   { "oxX",	0,	T_UI,	T_UI,	T_UI,	T_UL,	T_ULL,	T_ULL,	T_ST,	"-wp0#"		},
