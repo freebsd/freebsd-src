@@ -37,12 +37,10 @@
  *
  *      @(#)bpf.c	8.2 (Berkeley) 3/28/94
  *
- * $Id: bpf.c,v 1.46 1998/12/07 21:58:36 archie Exp $
+ * $Id: bpf.c,v 1.47 1999/01/27 22:42:13 dillon Exp $
  */
 
 #include "bpfilter.h"
-
-#if NBPFILTER > 0
 
 #ifndef __GNUC__
 #define inline
@@ -86,6 +84,7 @@
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
 
+#if NBPFILTER > 0
 
 /*
  * Older BSDs don't have kernel malloc.
@@ -1308,5 +1307,45 @@ bpf_drvinit(unused)
 }
 
 SYSINIT(bpfdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,bpf_drvinit,NULL)
+
+#else /* !BPFILTER */
+/*
+ * NOP stubs to allow bpf-using drivers to load and function.
+ *
+ * A 'better' implementation would allow the core bpf functionality
+ * to be loaded at runtime.
+ */
+
+void
+bpf_tap(ifp, pkt, pktlen)
+	struct ifnet *ifp;
+	register u_char *pkt;
+	register u_int pktlen;
+{
+}
+
+void
+bpf_mtap(ifp, m)
+	struct ifnet *ifp;
+	struct mbuf *m;
+{
+}
+
+void
+bpfattach(ifp, dlt, hdrlen)
+	struct ifnet *ifp;
+	u_int dlt, hdrlen;
+{
+}
+
+u_int
+bpf_filter(pc, p, wirelen, buflen)
+	register struct bpf_insn *pc;
+	register u_char *p;
+	u_int wirelen;
+	register u_int buflen;
+{
+	return -1;	/* "no filter" behaviour */
+}
 
 #endif
