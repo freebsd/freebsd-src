@@ -1,4 +1,4 @@
-#	$Id: bsd.info.mk,v 1.38 1997/04/30 17:03:09 bde Exp $
+#	$Id: bsd.info.mk,v 1.39 1997/05/01 01:15:55 jkh Exp $
 #
 # The include file <bsd.info.mk> handles installing GNU (tech)info files.
 # Texinfo is a documentation system that uses a single source
@@ -141,8 +141,9 @@ DISTRIBUTION=	info
 
 .if !target(distribute)
 distribute: _SUBDIR
-	cd ${.CURDIR} ; \
-		$(MAKE) install DESTDIR=${DISTDIR}/${DISTRIBUTION} SHARED=copies
+.for dist in ${DISTRIBUTION}
+	cd ${.CURDIR} ; $(MAKE) install DESTDIR=${DISTDIR}/${dist} SHARED=copies
+.endfor
 .endif
 
 .if defined(SRCS)

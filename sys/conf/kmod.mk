@@ -1,5 +1,5 @@
 #	From: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.kmod.mk,v 1.36 1997/05/06 14:29:56 dfr Exp $
+#	$Id: bsd.kmod.mk,v 1.37 1997/06/18 03:10:31 asami Exp $
 #
 # The include file <bsd.kmod.mk> handles installing Loadable Kernel Modules.
 # <bsd.kmod.mk> includes the file named "../Makefile.inc" if it exists,
@@ -200,7 +200,9 @@ realinstall: beforeinstall
 DISTRIBUTION?=	bin
 .if !target(distribute)
 distribute: _SUBDIR
-	cd ${.CURDIR} ; $(MAKE) install DESTDIR=${DISTDIR}/${DISTRIBUTION} SHARED=copies
+.for dist in ${DISTRIBUTION}
+	cd ${.CURDIR} ; $(MAKE) install DESTDIR=${DISTDIR}/${dist} SHARED=copies
+.endfor
 .endif
 
 .if defined(NOTAGS)
