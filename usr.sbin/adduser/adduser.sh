@@ -205,7 +205,7 @@ add_user() {
 	yes)
 		_passwdmethod="-w yes"
 		_passwd="-h 0"
-		_upasswd="echo $upass |"
+		_upasswd="echo '$upass' |"
 		;;
 	none)
 		_passwdmethod="-w none"
