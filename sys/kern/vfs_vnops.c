@@ -443,6 +443,7 @@ vn_read(fp, uio, cred, flags, td)
 	struct vnode *vp;
 	int error, ioflag;
 
+	mtx_lock(&Giant);
 	KASSERT(uio->uio_td == td, ("uio_td %p is not td %p",
 	    uio->uio_td, td));
 	vp = (struct vnode *)fp->f_data;
@@ -463,6 +464,7 @@ vn_read(fp, uio, cred, flags, td)
 		fp->f_offset = uio->uio_offset;
 	fp->f_nextoff = uio->uio_offset;
 	VOP_UNLOCK(vp, 0, td);
+	mtx_unlock(&Giant);
 	return (error);
 }
 
@@ -481,6 +483,7 @@ vn_write(fp, uio, cred, flags, td)
 	struct mount *mp;
 	int error, ioflag;
 
+	mtx_lock(&Giant);
 	KASSERT(uio->uio_td == td, ("uio_td %p is not td %p",
 	    uio->uio_td, td));
 	vp = (struct vnode *)fp->f_data;
@@ -498,8 +501,10 @@ vn_write(fp, uio, cred, flags, td)
 		ioflag |= IO_SYNC;
 	mp = NULL;
 	if (vp->v_type != VCHR &&
-	    (error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0)
+	    (error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0) {
+		mtx_unlock(&Giant);
 		return (error);
+	}
 	VOP_LEASE(vp, td, cred, LEASE_WRITE);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	if ((flags & FOF_OFFSET) == 0)
@@ -511,6 +516,7 @@ vn_write(fp, uio, cred, flags, td)
 	fp->f_nextoff = uio->uio_offset;
 	VOP_UNLOCK(vp, 0, td);
 	vn_finished_write(mp);
+	mtx_unlock(&Giant);
 	return (error);
 }
 

@@ -102,13 +102,11 @@ read(td, uap)
 	struct file *fp;
 	int error;
 
-	mtx_lock(&Giant);
 	if ((error = fget_read(td, uap->fd, &fp)) == 0) {
 		error = dofileread(td, fp, uap->fd, uap->buf,
 			    uap->nbyte, (off_t)-1, 0);
 		fdrop(fp, td);
 	}
-	mtx_unlock(&Giant);
 	return(error);
 }
 
@@ -137,7 +135,6 @@ pread(td, uap)
 
 	if ((error = fget_read(td, uap->fd, &fp)) != 0)
 		return (error);
-	mtx_lock(&Giant);
 	if (fp->f_type != DTYPE_VNODE) {
 		error = ESPIPE;
 	} else {
@@ -145,7 +142,6 @@ pread(td, uap)
 			    uap->offset, FOF_OFFSET);
 	}
 	fdrop(fp, td);
-	mtx_unlock(&Giant);
 	return(error);
 }
 
@@ -332,7 +328,6 @@ write(td, uap)
 	struct file *fp;
 	int error;
 
-	mtx_lock(&Giant);
 	if ((error = fget_write(td, uap->fd, &fp)) == 0) {
 		error = dofilewrite(td, fp, uap->fd, uap->buf, uap->nbyte,
 			    (off_t)-1, 0);
@@ -340,7 +335,6 @@ write(td, uap)
 	} else {
 		error = EBADF;	/* XXX this can't be right */
 	}
-	mtx_unlock(&Giant);
 	return(error);
 }
 
@@ -368,7 +362,6 @@ pwrite(td, uap)
 	int error;
 
 	if ((error = fget_write(td, uap->fd, &fp)) == 0) {
-		mtx_lock(&Giant);
 		if (fp->f_type == DTYPE_VNODE) {
 			error = dofilewrite(td, fp, uap->fd, uap->buf,
 				    uap->nbyte, uap->offset, FOF_OFFSET);
@@ -376,7 +369,6 @@ pwrite(td, uap)
 			error = ESPIPE;
 		}
 		fdrop(fp, td);
-		mtx_unlock(&Giant);
 	} else {
 		error = EBADF;	/* this can't be right */
 	}
