@@ -88,17 +88,21 @@ struct fddi_header {
 };
 
 #if defined(_KERNEL)
-#define	fddibroadcastaddr	etherbroadcastaddr
 #define	fddi_ipmulticast_min	ether_ipmulticast_min
 #define	fddi_ipmulticast_max	ether_ipmulticast_max
 #define	fddi_addmulti		ether_addmulti
 #define	fddi_delmulti		ether_delmulti
 #define	fddi_sprintf		ether_sprintf
 
-void    fddi_ifattach(struct ifnet *);
-void    fddi_input(struct ifnet *, struct fddi_header *, struct mbuf *);
-int     fddi_output(struct ifnet *,
-           struct mbuf *, struct sockaddr *, struct rtentry *);
+#define	FDDI_BPF_UNSUPPORTED	0
+#define	FDDI_BPF_SUPPORTED	1
+
+void	fddi_ifattach(struct ifnet *);
+void	fddi_ifdetach(struct ifnet *, int);
+void	fddi_input(struct ifnet *, struct fddi_header *, struct mbuf *);
+int	fddi_output(struct ifnet *, struct mbuf *, struct sockaddr *,
+		    struct rtentry *);
+int	fddi_ioctl(struct ifnet *, int, caddr_t);
 
 #endif	/* _KERNEL */
 #endif	/* _NET_FDDI_H_ */
