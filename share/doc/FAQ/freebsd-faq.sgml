@@ -4,7 +4,7 @@
 
 <title>Frequently Asked Questions for FreeBSD 2.X
 <author>The FreeBSD FAQ Team, <tt/FAQ@FreeBSD.ORG/
-<date> $Id: freebsd-faq.sgml,v 1.40 1996/04/07 17:23:34 roberto Exp $
+<date> $Id: freebsd-faq.sgml,v 1.41 1996/04/13 00:12:41 jkh Exp $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -1796,6 +1796,25 @@ pseudo-device   vn   #Vnode driver (turns a file into a device)
             name="Handbook's section on how to submit code">.
 
           And thanks for the thought.
+
+       <sect1>
+         <heading>I run X with 'startx', and the permissions on /dev/console don't seem to get set correctly. Things like 'xterm -C' and 'xconsole' don't work.</heading>
+    
+         <p>
+           This is because of the way console permissions are set by default.
+	   On a multi-user system, one doesn't necessarily want just any user
+	   be able to write on the system console.  For users who are logging
+	   directly onto a machine with a VTY, the <tt/fbtab(5)/ file exists
+	   to solve such problems.
+
+	   In a nutshell, make sure an uncommented line of the form
+
+	   <verb>
+	       /dev/ttyv0 0600 /dev/console
+	   </verb>
+
+	   is in <tt>/etc/fbtab</tt> and it will ensure that whomever logs
+	   in on <tt>/dev/ttyv0</tt> will own the console.
 
       </sect1>
 
