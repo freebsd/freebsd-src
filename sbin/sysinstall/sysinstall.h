@@ -36,6 +36,9 @@
 #include <sys/dkbad.h>
 #include <sys/disklabel.h>
 
+#define min(a,b)        ((a) < (b) ? (a) : (b))
+#define max(a,b)        ((a) > (b) ? (a) : (b))
+
 #define SCRATCHSIZE 1024
 #define ERRMSGSIZE 256
 #define DEFROOTSIZE 18

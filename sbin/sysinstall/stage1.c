@@ -202,10 +202,10 @@ select_disk()
 		sprintf(options[no_disks*2], "%d", no_disks+1);
 		sprintf(options[(no_disks*2)+1], "    Done");
 
-		dialog_clear();
-		if (dialog_menu("FreeBSD Installation", scratch, 10, 75, 5, no_disks+1,
+		dialog_clear_norefresh();
+		if (dialog_menu("FreeBSD Installation", scratch, -1, -1, min(5,no_disks+1), no_disks+1,
 		                     options, selection)) {
-			dialog_clear();
+			dialog_clear_norefresh();
 			sprintf(scratch,"\n\n\nYou selected cancel\n\n");
 			AskAbort(scratch);
 			valid = 0;
@@ -253,9 +253,10 @@ configure_disks()
 		sprintf(options[(items*2)+1], "Done");
 		items++;
 
-		if (dialog_menu("FreeBSD Installation", scratch, 10, 75, 5, items,
+		dialog_clear_norefresh();
+		if (dialog_menu("FreeBSD Installation", scratch, -1, -1, min(5,items), items,
 							 options, selection)) {
-				dialog_clear();
+				dialog_clear_norefresh();
 				sprintf(scratch,"\n\n\nYou selected cancel\n\n");
 				AskAbort(scratch);
 				valid = 0;
@@ -297,10 +298,11 @@ select_partition(int disk)
           part_type(disk_list[disk].mbr.dospart[i].dp_typ),
           disk_list[disk].mbr.dospart[i].dp_size * 512 / (1024 * 1024));
    }
+   dialog_clear_norefresh();
    if (dialog_menu(TITLE,
-         scratch, 10, 75, 4, 4, options, selection)) {
+	 scratch, -1, -1, 4, 4, options, selection)) {
        sprintf(scratch,"You did not select a valid partition");
-       dialog_clear();
+       dialog_clear_norefresh();
        AskAbort(scratch);
        valid = 0;
    }
