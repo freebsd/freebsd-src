@@ -908,6 +908,18 @@
     <para arch="i386">Cronyx-Sigma synchronous / asynchronous serial
       adapters (&man.cx.4; driver)</para>
 
+    <para arch="i386">Cronyx-Tau synchronous serial adapters for ISA bus
+      (&man.ctau.4; driver)
+      <itemizedlist>
+        <listitem>
+	  <para>Cronyx Tau (RS-232/V.35) and Cronyx Tau/R (RS-530/RS-449)</para>
+	</listitem>
+        <listitem>
+	  <para>Cronyx Tau/E1 (fractional E1) and Cronyx Tau/G703 (unframed E1)</para>
+	</listitem>
+      </itemizedlist>
+    </para>
+
     <para arch="i386">Granch SBNI12 point-to-point communications
     adapters (&man.sbni.4; driver)
     </para>
