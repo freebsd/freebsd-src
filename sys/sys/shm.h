@@ -50,6 +50,13 @@
 #define SHM_R       (IPC_R)
 #define SHM_W       (IPC_W)
 
+/* predefine tbd *LOCK shmctl commands */
+#define	SHM_LOCK	11
+#define	SHM_UNLOCK	12
+
+/* ipcs shmctl commands */
+#define	SHM_STAT	13
+#define	SHM_INFO	14
 
 struct shmid_ds {
 	struct ipc_perm shm_perm;	/* operation permission structure */
@@ -78,6 +85,15 @@ struct shminfo {
 };
 extern struct shminfo	shminfo;
 extern struct shmid_ds	*shmsegs;
+
+struct shm_info {
+	int used_ids;
+	unsigned long shm_tot;
+	unsigned long shm_rss;
+	unsigned long shm_swp;
+	unsigned long swap_attempts;
+	unsigned long swap_successes;
+};
 
 struct thread;
 struct proc;
