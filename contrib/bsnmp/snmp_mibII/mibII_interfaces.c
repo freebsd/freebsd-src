@@ -57,7 +57,8 @@ struct ifchange {
 #define IFRB_TRAPS	0x0002
 
 static const struct asn_oid
-	oid_ifTable = OIDX_ifTable;
+	oid_ifTable = OIDX_ifTable,
+	oid_transmission6 = { 8, { 1, 3, 6, 1, 2, 1, 10, 7 }};
 
 /*
  * This function handles all changes to the interface table and interface
@@ -336,7 +337,10 @@ op_ifentry(struct snmp_context *ctx, struct snmp_value *value,
 		break;
 
 	  case LEAF_ifSpecific:
-		value->v.oid = oid_zeroDotZero;
+		if (ifp->mib.ifmd_data.ifi_type == 6)	/* IFT_ETHER */
+			value->v.oid = oid_transmission6;
+		else
+			value->v.oid = oid_zeroDotZero;
 		break;
 	}
 	return (SNMP_ERR_NOERROR);
