@@ -107,7 +107,7 @@ __FBSDID("$FreeBSD$");
 #include "pathnames.h"
 
 /*
- * Disklabel: read and write disklabels.
+ * Disklabel: read and write bsdlabels.
  * The label is usually placed on one of the first sectors of the disk.
  * Many machines also place a bootstrap in the same area,
  * in which case the label is embedded in the bootstrap.
@@ -1563,19 +1563,19 @@ usage(void)
 
 	fprintf(stderr,
 	"%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
-	"usage: disklabel [-r] disk",
+	"usage: bsdlabel [-r] disk",
 	"\t\t(to read label)",
-	"	disklabel -w [-nr] [-m machine] disk type [packid]",
+	"	bsdlabel -w [-nr] [-m machine] disk type [packid]",
 	"\t\t(to write label with existing boot program)",
-	"	disklabel -e [-nr] [-m machine] disk",
+	"	bsdlabel -e [-nr] [-m machine] disk",
 	"\t\t(to edit label)",
-	"	disklabel -R [-nr] [-m machine] disk protofile",
+	"	bsdlabel -R [-nr] [-m machine] disk protofile",
 	"\t\t(to restore label with existing boot program)",
-	"	disklabel -B [-b boot] [-m machine] disk",
+	"	bsdlabel -B [-b boot] [-m machine] disk",
 	"\t\t(to install boot program with existing on-disk label)",
-	"	disklabel -w -B [-n] [-b boot] [-m machine] disk type [packid]",
+	"	bsdlabel -w -B [-n] [-b boot] [-m machine] disk type [packid]",
 	"\t\t(to write label and install boot program)",
-	"	disklabel -R -B [-n] [-b boot] [-m machine] disk protofile",
+	"	bsdlabel -R -B [-n] [-b boot] [-m machine] disk protofile",
 		"\t\t(to restore label and install boot program)"
 	);
 	exit(1);
