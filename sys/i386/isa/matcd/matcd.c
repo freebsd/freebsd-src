@@ -337,7 +337,7 @@ static char	MATCDVERSION[]="Version  1(26) 18-Oct-95";
 static char	MATCDCOPYRIGHT[] = "Matsushita CD-ROM driver, Copr. 1994,1995 Frank Durda IV";
 /*	The proceeding strings may not be changed*/
 
-/* $Id: matcd.c,v 1.35 1998/07/04 22:30:20 julian Exp $ */
+/* $Id: matcd.c,v 1.36 1998/07/15 10:11:21 bde Exp $ */
 
 /*---------------------------------------------------------------------------
 	Include declarations
@@ -437,7 +437,7 @@ static	struct matcd_data {
 	void	*rlc_devfs_token;
 	void	*la_devfs_token;
 	void	*lc_devfs_token;
-#endif DEVFS
+#endif /* DEVFS */
 } matcd_data[TOTALDRIVES];
 
 
@@ -2445,7 +2445,7 @@ static int matcd_toc_entries(int ldrive, int cdrive, int controller,
 	struct	cd_toc_entry *to;
 	int	len,trk,i,z,port;
 	unsigned char cmd[MAXCMDSIZ];
-	unsigned char data[5];
+	unsigned char data[8];
 
 	cd=&matcd_data[ldrive];
 	port=cd->iobase;
