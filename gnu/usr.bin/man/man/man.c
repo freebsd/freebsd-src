@@ -85,21 +85,52 @@ static int alt_system;
 static char *alt_system_name;
 #endif
 
+#ifdef __FreeBSD__
+/* short_locale without country suffix */
+static char *locale, *short_locale, *locale_opts, *locale_nroff;
+static int use_original;
+struct ltable {
+	char *lcode;
+	char *nroff;
+};
+static struct ltable ltable[] = {
+	{"KOI8-R", " -Tkoi8-r"},
+	{"ISO_8859-1", " -Tlatin1"},
+	{NULL, NULL}
+};
+#endif
+
 static int troff = 0;
 
 int debug;
 
 #ifdef HAS_TROFF
 #ifdef ALT_SYSTEMS
+#ifdef __FreeBSD__
+static char args[] = "M:P:S:adfhkm:op:tw?";
+#else
 static char args[] = "M:P:S:adfhkm:p:tw?";
+#endif
+#else
+#ifdef __FreeBSD__
+static char args[] = "M:P:S:adfhkop:tw?";
 #else
 static char args[] = "M:P:S:adfhkp:tw?";
 #endif
+#endif
 #else
 #ifdef ALT_SYSTEMS
+#ifdef __FreeBSD__
+static char args[] = "M:P:S:adfhkm:op:w?";
+#else
 static char args[] = "M:P:S:adfhkm:p:w?";
+#endif
+#else
+#ifdef __FreeBSD__
+static char args[] = "M:P:S:adfhkop:w?";
 #else
 static char args[] = "M:P:S:adfhkp:w?";
+#endif
 #endif
 #endif
 
@@ -203,23 +234,47 @@ usage ()
 
 #ifdef HAS_TROFF
 #ifdef ALT_SYSTEMS
+#ifdef __FreeBSD__
+  static char s1[] =
+    "usage: %s [-adfhkotw] [section] [-M path] [-P pager] [-S list]\n\
+           [-m system] [-p string] name ...\n\n";
+#else
   static char s1[] =
     "usage: %s [-adfhktw] [section] [-M path] [-P pager] [-S list]\n\
            [-m system] [-p string] name ...\n\n";
+#endif
+#else
+#ifdef __FreeBSD__
+  static char s1[] =
+    "usage: %s [-adfhkotw] [section] [-M path] [-P pager] [-S list]\n\
+           [-p string] name ...\n\n";
 #else
   static char s1[] =
     "usage: %s [-adfhktw] [section] [-M path] [-P pager] [-S list]\n\
            [-p string] name ...\n\n";
 #endif
+#endif
 #else
 #ifdef ALT_SYSTEMS
+#ifdef __FreeBSD__
   static char s1[] =
-    "usage: %s [-adfhkw] [section] [-M path] [-P pager] [-S list]\n\
+    "usage: %s [-adfhkow] [section] [-M path] [-P pager] [-S list]\n\
            [-m system] [-p string] name ...\n\n";
 #else
   static char s1[] =
     "usage: %s [-adfhkw] [section] [-M path] [-P pager] [-S list]\n\
+           [-m system] [-p string] name ...\n\n";
+#endif
+#else
+#ifdef __FreeBSD__
+  static char s1[] =
+    "usage: %s [-adfhkow] [section] [-M path] [-P pager] [-S list]\n\
            [-p string] name ...\n\n";
+#else
+  static char s1[] =
+    "usage: %s [-adfhkw] [section] [-M path] [-P pager] [-S list]\n\
+           [-p string] name ...\n\n";
+#endif
 #endif
 #endif
 
@@ -228,6 +283,10 @@ static char s2[] = "  a : find all matching entries\n\
   f : same as whatis(1)\n\
   h : print this help message\n\
   k : same as apropos(1)\n";
+
+#ifdef __FreeBSD__
+  static char s21[] = "  o : use original, non-localized manpages\n";
+#endif
 
 #ifdef HAS_TROFF
   static char s3[] = "  t : use troff to format pages for printing\n";
@@ -248,6 +307,9 @@ static char s2[] = "  a : find all matching entries\n\
 
   strcat (usage_string, s1);
   strcat (usage_string, s2);
+#ifdef __FreeBSD__
+  strcat (usage_string, s21);
+#endif
 
 #ifdef HAS_TROFF
   strcat (usage_string, s3);
@@ -352,6 +414,9 @@ man_getopt (argc, argv)
 	  alt_system_name = strdup (optarg);
 	  break;
 #endif
+	case 'o':
+	  use_original++;
+	  break;
 	case 'p':
 	  roff_directive = strdup (optarg);
 	  break;
@@ -400,6 +465,36 @@ man_getopt (argc, argv)
 		 "\nsearch path for pages determined by manpath is\n%s\n\n",
 		 manp);
     }
+
+#ifdef __FreeBSD__
+  if (!use_original && (locale = setlocale(LC_CTYPE, NULL)) != NULL) {
+	char *tmp;
+	struct ltable *pltable;
+
+	if ((short_locale = strdup(locale)) == NULL) {
+		perror ("ctype locale strdup");
+		exit (1);
+	}
+	if ((tmp = strchr(short_locale, '_')) == NULL
+	    || tmp != short_locale + 2
+	    || strlen(tmp + 1) < 4
+	    || tmp[3] != '.') {
+		errno = EINVAL;
+		perror ("bad ctype locale env");
+		exit (1);
+	}
+	tmp[1] = short_locale[0];
+	tmp[2] = short_locale[1];
+	short_locale = tmp + 1;
+	tmp = short_locale + 3;
+	for (pltable = ltable; pltable->lcode != NULL; pltable++) {
+		if (strcmp(pltable->lcode, tmp) == 0) {
+			locale_nroff = pltable->nroff;
+			break;
+		}
+	}
+  }
+#endif
 
 #ifdef ALT_SYSTEMS
   if (alt_system_name == NULL || *alt_system_name == '\0')
@@ -907,6 +1002,12 @@ parse_roff_directive (cp, file, buf, bufsize)
     {
       strncat (buf, " | ", bufsize-strlen(buf)-1); 
       strncat (buf, NROFF, bufsize-strlen(buf)-1);
+#ifdef __FreeBSD__
+      if (locale_opts != NULL)
+	strncat (buf, locale_opts, bufsize-strlen(buf)-1);
+      else
+#endif
+      strncat (buf, " -Tascii", bufsize-strlen(buf)-1);
     }
   if (tbl_found && !troff && strcmp (COL, "") != 0)
     {
@@ -1017,6 +1118,13 @@ make_roff_command (file)
 	{
 	  strncpy (buf, NROFF, sizeof(buf));
 	}
+
+#ifdef __FreeBSD__
+      if (locale_opts != NULL)
+	strncat (buf, locale_opts, sizeof(buf)-strlen(buf)-1);
+      else
+#endif
+      strncat (buf, " -Tascii", sizeof(buf)-strlen(buf)-1);
 
       if (strcmp (COL, "") != 0)
 	{
@@ -1463,6 +1571,10 @@ man (name)
   register int glob;
   register char **mp;
   register char **sp;
+#ifdef __FreeBSD__
+  int l_found;
+  char buf[FILENAME_MAX];
+#endif
 
   found = 0;
 
@@ -1476,7 +1588,27 @@ man (name)
 
 	  glob = 1;
 
+#ifdef __FreeBSD__
+	  l_found = 0;
+	  if (locale != NULL) {
+	    locale_opts = locale_nroff;
+	    snprintf(buf, sizeof(buf), "%s/%s", *mp, locale);
+	    if (is_directory (buf))
+	      l_found = try_section (buf, section, name, glob);
+	    if (!l_found) {
+	      snprintf(buf, sizeof(buf), "%s/%s", *mp, short_locale);
+	      if (is_directory (buf))
+		l_found = try_section (buf, section, name, glob);
+	    }
+	    locale_opts = NULL;
+	  }
+	  if (!l_found) {
+#endif
 	  found += try_section (*mp, section, name, glob);
+#ifdef __FreeBSD__
+	  } else
+	    found += l_found;
+#endif
 
 	  if (found && !findall)   /* i.e. only do this section... */
 	    return found;
@@ -1493,7 +1625,27 @@ man (name)
 
 	      glob = 1;
 
+#ifdef __FreeBSD__
+	      l_found = 0;
+	      if (locale != NULL) {
+		locale_opts = locale_nroff;
+		snprintf(buf, sizeof(buf), "%s/%s", *mp, locale);
+		if (is_directory (buf))
+		  l_found = try_section (buf, *sp, name, glob);
+		if (!l_found) {
+		  snprintf(buf, sizeof(buf), "%s/%s", *mp, short_locale);
+		  if (is_directory (buf))
+		    l_found = try_section (buf, *sp, name, glob);
+		}
+		locale_opts = NULL;
+	      }
+	      if (!l_found) {
+#endif
 	      found += try_section (*mp, *sp, name, glob);
+#ifdef __FreeBSD__
+	      } else
+		found += l_found;
+#endif
 
 	      if (found && !findall)   /* i.e. only do this section... */
 		return found;
