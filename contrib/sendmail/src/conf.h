@@ -10,7 +10,7 @@
  * the sendmail distribution.
  *
  *
- *	$Id: conf.h,v 8.496.4.37 2001/02/12 21:40:16 gshapiro Exp $
+ *	$Id: conf.h,v 8.496.4.43 2001/05/20 22:29:59 gshapiro Exp $
  */
 
 /* $FreeBSD$ */
@@ -86,7 +86,7 @@ struct rusage;	/* forward declaration to get gcc to shut up in wait.h */
 #define MAXMIMEARGS	20		/* max args in Content-Type: */
 #define MAXMIMENESTING	20		/* max MIME multipart nesting */
 #define QUEUESEGSIZE	1000		/* increment for queue size */
-#define MAXQFNAME	20		/* max qf file name length */
+#define MAXQFNAME	21		/* max qf file name length */
 #define MACBUFSIZE	4096		/* max expanded macro buffer size */
 #define TOBUFSIZE	SM_ARG_MAX	/* max buffer to hold address list */
 #define MAXSHORTSTR	203		/* max short string length */
@@ -553,6 +553,9 @@ typedef int		pid_t;
 #   undef _PATH_SENDMAILPID	/* tmpfs /var/run added in 2.8 */
 #   define _PATH_SENDMAILPID	"/var/run/sendmail.pid"
 #  endif /* SOLARIS >= 20800 || (SOLARIS < 10000 && SOLARIS >= 208) */
+#  if SOLARIS >= 20900 || (SOLARIS < 10000 && SOLARIS >= 209)
+#   define HASURANDOMDEV	1	/* /dev/[u]random added in S9 */
+#  endif /* SOLARIS >= 20900 || (SOLARIS < 10000 && SOLARIS >= 209) */
 #  ifndef HASGETUSERSHELL
 #   define HASGETUSERSHELL 0	/* getusershell(3) causes core dumps pre-2.7 */
 #  endif /* ! HASGETUSERSHELL */
@@ -1004,6 +1007,7 @@ typedef int		pid_t;
 #  undef SPT_TYPE
 #  define SPT_TYPE	SPT_BUILTIN	/* setproctitle is in libc */
 #  define HASSETLOGIN	1	/* has setlogin(2) */
+#  define HASSETREUID	0	/* OpenBSD has broken setreuid(2) emulation */
 #  define HASURANDOMDEV	1	/* has /dev/urandom(4) */
 #  if OpenBSD < 199912
 #   define HASSTRL	0	/* strlcat(3) is broken in 2.5 and earlier */
@@ -1470,10 +1474,10 @@ extern void		*malloc();
 #   else /* (GLIBC_VERSION >= 0x201) */
 #    include <linux/in6.h>	/* IPv6 support */
 #   endif /* (GLIBC_VERSION >= 0x201) */
-#   if (GLIBC_VERSION == 0x201 && !defined(NEEDSGETIPNODE))
+#   if (GLIBC_VERSION >= 0x201 && !defined(NEEDSGETIPNODE))
      /* Have APIs in <netdb.h>, but no support in glibc */
 #    define NEEDSGETIPNODE	1
-#   endif /* (GLIBC_VERSION == 0x201 && ! NEEDSGETIPNODE) */
+#   endif /* (GLIBC_VERSION >= 0x201 && !defined(NEEDSGETIPNODE)) */
 #   undef GLIBC_VERSION
 #  endif /* defined(__GLIBC__) && defined(__GLIBC_MINOR__) */
 # endif /* NETINET6 */
@@ -2245,7 +2249,9 @@ typedef struct msgb		mblk_t;
 /* general BSD defines */
 #ifdef BSD
 # define HASGETDTABLESIZE 1	/* has getdtablesize(2) call */
-# define HASSETREUID	1	/* has setreuid(2) call */
+# ifndef HASSETREUID
+#  define HASSETREUID	1	/* has setreuid(2) call */
+# endif /* ! HASSETREUID */
 # define HASINITGROUPS	1	/* has initgroups(3) call */
 # ifndef IP_SRCROUTE
 #  define IP_SRCROUTE	1	/* can check IP source routing */

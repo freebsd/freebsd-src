@@ -11,7 +11,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: bf_portable.c,v 8.25.4.5 2001/02/14 04:07:27 gshapiro Exp $";
+static char id[] = "@(#)$Id: bf_portable.c,v 8.25.4.6 2001/05/03 17:24:01 gshapiro Exp $";
 #endif /* ! lint */
 
 #if SFIO
@@ -28,9 +28,12 @@ static char id[] = "@(#)$Id: bf_portable.c,v 8.25.4.5 2001/02/14 04:07:27 gshapi
 #if !SFIO
 # include <stdio.h>
 #endif /* !SFIO */
-#ifndef BF_STANDALONE
+#ifdef BF_STANDALONE
+# define sm_free free
+# define xalloc malloc
+#else /* BF_STANDALONE */
 # include "sendmail.h"
-#endif /* ! BF_STANDALONE */
+#endif /* BF_STANDALONE */
 #include "bf_portable.h"
 #include "bf.h"
 
@@ -95,7 +98,7 @@ bfopen(filename, fmode, bsize, flags)
 	}
 
 	/* Allocate memory */
-	bfp = (struct bf *)malloc(sizeof(struct bf));
+	bfp = (struct bf *)xalloc(sizeof(struct bf));
 	if (bfp == NULL)
 	{
 		(void) fclose(retval);
@@ -110,10 +113,10 @@ bfopen(filename, fmode, bsize, flags)
 			filename, (long) sizeof(struct bf));
 
 	l = strlen(filename) + 1;
-	bfp->bf_filename = (char *)malloc(l);
+	bfp->bf_filename = (char *)xalloc(l);
 	if (bfp->bf_filename == NULL)
 	{
-		free(bfp);
+		sm_free(bfp);
 		(void) fclose(retval);
 
 		/* don't care about errors */
@@ -224,7 +227,6 @@ bfrewind(fp)
 
 	/* check to see if there is an error on the stream */
 	err = ferror(fp);
-
 	(void) fflush(fp);
 
 	/*
@@ -379,8 +381,8 @@ bfclose(fp)
 		if (!bfp->bf_committed)
 			retval = unlink(bfp->bf_filename);
 
-		free(bfp->bf_filename);
-		free(bfp);
+		sm_free(bfp->bf_filename);
+		sm_free(bfp);
 		if (tTd(58, 8))
 			dprintf("bfclose: freed %ld\n",
 				(long) sizeof(struct bf));

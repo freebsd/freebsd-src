@@ -10,7 +10,7 @@ file.  It is necessary to first build libmilter.a, which can be done by
 issuing the './Build' command in SRCDIR/libmilter .
 
 NOTE: Both libmilter and the callouts in sendmail are marked as an FFR (For
-Future Release).  If you intend to use them in 8.10.X, you must compiled
+Future Release).  If you intend to use them in 8.11.X, you must compiled
 both libmilter and sendmail with -D_FFR_MILTER defined.  You can do this by
 adding the following to your devtools/Site/site.config.m4 file:
 
@@ -97,7 +97,8 @@ T=S:10s;R:10s;E:5m
 where 's' is seconds and 'm' is minutes.
 
 Which filters are invoked and their sequencing is handled by the 
-InputMailFilters option.
+InputMailFilters option. Note: if InputMailFilters is not defined no filters
+will be used.
 
 	O InputMailFilters=filter1, filter2, filter3
 
@@ -223,7 +224,7 @@ mlfi_envfrom(ctx, envfrom)
 	char **envfrom;
 {
 	struct mlfiPriv *priv;
-	int fd;
+	int fd = -1;
 
 	/* allocate some private memory */
 	priv = malloc(sizeof *priv);
@@ -244,6 +245,8 @@ mlfi_envfrom(ctx, envfrom)
 	if ((fd = mkstemp(priv->mlfi_fname)) < 0 ||
 	    (priv->mlfi_fp = fdopen(fd, "w+")) == NULL)
 	{
+		if (fd >= 0)
+			(void) close(fd);
 		free(priv->mlfi_fname);
 		free(priv);
 		return SMFIS_TEMPFAIL;
@@ -421,4 +424,4 @@ main(argc, argv)
 
 /* eof */
 
-$Revision: 8.9.2.1.2.14 $, Last updated $Date: 2001/02/21 23:08:19 $
+$Revision: 8.9.2.1.2.17 $, Last updated $Date: 2001/04/11 18:32:58 $

@@ -11,7 +11,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: bf_torek.c,v 8.19.18.4 2001/02/14 04:07:27 gshapiro Exp $";
+static char id[] = "@(#)$Id: bf_torek.c,v 8.19.18.6 2001/05/08 06:52:19 gshapiro Exp $";
 #endif /* ! lint */
 
 #if SFIO
@@ -26,9 +26,12 @@ static char id[] = "@(#)$Id: bf_torek.c,v 8.19.18.4 2001/02/14 04:07:27 gshapiro
 #include <string.h>
 #include <errno.h>
 #include <stdio.h>
-#ifndef BF_STANDALONE
+#ifdef BF_STANDALONE
+# define sm_free free
+# define xalloc malloc
+#else /* BF_STANDALONE */
 # include "sendmail.h"
-#endif /* ! BF_STANDALONE */
+#endif /* BF_STANDALONE */
 #include "bf_torek.h"
 #include "bf.h"
 
@@ -90,7 +93,7 @@ bfopen(filename, fmode, bsize, flags)
 	}
 
 	/* Allocate memory */
-	bfp = (struct bf *)malloc(sizeof(struct bf));
+	bfp = (struct bf *)xalloc(sizeof(struct bf));
 	if (bfp == NULL)
 	{
 		errno = ENOMEM;
@@ -100,10 +103,10 @@ bfopen(filename, fmode, bsize, flags)
 	/* A zero bsize is valid, just don't allocate memory */
 	if (bsize > 0)
 	{
-		bfp->bf_buf = (char *)malloc(bsize);
+		bfp->bf_buf = (char *)xalloc(bsize);
 		if (bfp->bf_buf == NULL)
 		{
-			free(bfp);
+			sm_free(bfp);
 			errno = ENOMEM;
 			return NULL;
 		}
@@ -119,12 +122,12 @@ bfopen(filename, fmode, bsize, flags)
 	bfp->bf_bufsize = bsize;
 	bfp->bf_buffilled = 0;
 	l = strlen(filename) + 1;
-	bfp->bf_filename = (char *)malloc(l);
+	bfp->bf_filename = (char *)xalloc(l);
 	if (bfp->bf_filename == NULL)
 	{
-		free(bfp);
 		if (bfp->bf_buf != NULL)
-			free(bfp->bf_buf);
+			sm_free(bfp->bf_buf);
+		sm_free(bfp);
 		errno = ENOMEM;
 		return NULL;
 	}
@@ -142,10 +145,10 @@ bfopen(filename, fmode, bsize, flags)
 	{
 		/* Just in case free() sets errno */
 		save_errno = errno;
-		free(bfp);
-		free(bfp->bf_filename);
+		sm_free(bfp->bf_filename);
 		if (bfp->bf_buf != NULL)
-			free(bfp->bf_buf);
+			sm_free(bfp->bf_buf);
+		sm_free(bfp);
 		errno = save_errno;
 		return NULL;
 	}
@@ -285,7 +288,7 @@ bfcommit(fp)
 	{
 		/* Don't need buffer anymore; free it */
 		bfp->bf_bufsize = 0;
-		free(bfp->bf_buf);
+		sm_free(bfp->bf_buf);
 	}
 	return 0;
 }
@@ -317,7 +320,6 @@ bfrewind(fp)
 
 	/* check to see if there is an error on the stream */
 	err = ferror(fp);
-
 	(void) fflush(fp);
 
 	/*
@@ -530,10 +532,10 @@ _bfclose(cookie)
 
 	/* Need to free the buffer */
 	if (bfp->bf_bufsize > 0)
-		free(bfp->bf_buf);
+		sm_free(bfp->bf_buf);
 
 	/* Finally, free the structure */
-	free(bfp);
+	sm_free(bfp);
 
 	return 0;
 }

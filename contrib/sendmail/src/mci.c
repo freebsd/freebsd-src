@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2000 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -12,7 +12,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: mci.c,v 8.133.10.7 2000/12/12 00:39:34 ca Exp $";
+static char id[] = "@(#)$Id: mci.c,v 8.133.10.8 2001/05/03 17:24:10 gshapiro Exp $";
 #endif /* ! lint */
 
 /* $FreeBSD$ */
@@ -424,7 +424,7 @@ mci_setstat(mci, xstat, dstat, rstat)
 
 	mci->mci_status = dstat;
 	if (mci->mci_rstatus != NULL)
-		free(mci->mci_rstatus);
+		sm_free(mci->mci_rstatus);
 	if (rstat != NULL)
 		rstat = newstr(rstat);
 	mci->mci_rstatus = rstat;
@@ -809,7 +809,7 @@ mci_read_persistent(fp, mci)
 
 	mci->mci_status = NULL;
 	if (mci->mci_rstatus != NULL)
-		free(mci->mci_rstatus);
+		sm_free(mci->mci_rstatus);
 	mci->mci_rstatus = NULL;
 
 	rewind(fp);
@@ -1028,6 +1028,8 @@ mci_traverse_persistent(action, pathname)
 					       sizeof newpath -
 					       (newptr - newpath));
 
+				if (StopRequest)
+					stop_sendmail();
 				ret = mci_traverse_persistent(action, newpath);
 				if (ret < 0)
 					break;
@@ -1127,6 +1129,9 @@ mci_print_persistent(pathname, hostname)
 	/* skip directories */
 	if (hostname == NULL)
 		return 0;
+
+	if (StopRequest)
+		stop_sendmail();
 
 	if (!initflag)
 	{

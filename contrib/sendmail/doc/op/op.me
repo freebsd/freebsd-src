@@ -9,7 +9,7 @@
 .\" the sendmail distribution.
 .\"
 .\"
-.\"	$Id: op.me,v 8.317.4.56 2001/02/15 23:38:16 ca Exp $
+.\"	$Id: op.me,v 8.317.4.64 2001/05/24 16:45:49 ca Exp $
 .\"
 .\" eqn op.me | pic | troff -me
 .eh 'SMM:08-%''Sendmail Installation and Operation Guide'
@@ -53,7 +53,7 @@ eric@Sendmail.COM
 .de Ve
 Version \\$2
 ..
-.Ve $Revision: 8.317.4.56 $
+.Ve $Revision: 8.317.4.64 $
 .rm Ve
 .sp
 For Sendmail Version 8.11
@@ -2413,7 +2413,7 @@ option divided by the difference in the current load average and the
 .b QueueLA
 option
 plus one
-exceeds the priority of the message \(em
+is less than the priority of the message \(em
 that is, the message is queued iff:
 .EQ
 pri > { bold QueueFactor } over { LA - { bold QueueLA } + 1 }
@@ -2455,7 +2455,7 @@ Legal modes are:
 i	deliver interactively (synchronously)
 b	deliver in background (asynchronously)
 q	queue only (don't deliver)
-d	defer delvery attempts (don't deliver)
+d	defer delivery attempts (don't deliver)
 .)b
 There are tradeoffs.
 Mode
@@ -3357,13 +3357,14 @@ The
 .b $#
 syntax should
 .i only
-be used in ruleset zero
-or a subroutine of ruleset zero.
+be used in ruleset zero,
+a subroutine of ruleset zero,
+or rulesets that return decisions (e.g., check_rcpt).
 It causes evaluation of the ruleset to terminate immediately,
 and signals to
 .i sendmail
 that the address has completely resolved.
-The complete syntax is:
+The complete syntax for ruleset 0 is:
 .(b
 \fB$#\fP\fImailer\fP \fB$@\fP\fIhost\fP \fB$:\fP\fIuser\fP
 .)b
@@ -5299,7 +5300,7 @@ i.e., not the header field-name; see also
 ${hdr_name} and ${currHeader}.
 The header is treated as a structured field,
 that is,
-comments (in parentheses) are deleted before processing,
+text in parentheses is deleted before processing,
 unless the second form
 .b $>+
 is used.
@@ -5498,6 +5499,8 @@ Defaults to space (i.e., no change is made).
 .ip CACERTPath
 [no short name]
 Path to directory with certificates of CAs.
+This directory directory must contain the hashes of each CA certificate
+as filenames (or as links to them).
 .ip CACERTFile
 [no short name]
 File containing one CA certificate.
@@ -5700,6 +5703,12 @@ The modifiers that are marked with "(.cf)" have only
 effect in the standard configuration file, in which
 they are available via
 .b ${daemon_flags} .
+Notice: Do
+.b not
+use the ``a'' modifier on a public accessible MTA!
+It should only be used for a MSA that is accessed by authorized
+users for initial mail submission.
+Users must authenticate to use a MSA which has this option turned on.
 The flags ``c'' and ``C'' can change the default for
 hostname canonification in the
 .i sendmail.cf
@@ -6825,13 +6834,13 @@ Don't change this unless your system uses a different UNIX mailbox format
 (very unlikely).
 .ip UnsafeGroupWrites
 [no short name]
-If set,
+If set (default),
 :include: and .forward files that are group writable are considered
 .q unsafe ,
 that is,
 they cannot reference programs or write directly to files.
 World writable :include: and .forward files
-are always unsafe..
+are always unsafe.
 .ip UseErrorsTo
 [l]
 If there is an
@@ -8705,6 +8714,14 @@ can contain several certificates of CAs.
 The DNs of these certificates are sent
 to the client during the TLS handshake (as part of the
 CertificateRequest) as the list of acceptable CAs.
+The CACERTPath directory must contain the hashes of each CA certificate
+as filenames (or as links to them).
+Symbolic links can be generated with the following
+two (Bourne) shell commands:
+.(b
+C=FileName_of_CA_Certificate
+ln -s $C `openssl x509 -noout -hash < $C`.0
+.)b
 An X.509 certificate is also required for authentication in client mode
 (ClientCertFile), however,
 .i sendmail
@@ -9259,10 +9276,6 @@ after a disastrous disk crash.
 .ip $
 A macro definition.
 The values of certain macros
-(as of this writing, only
-.b $r
-and
-.b $s )
 are passed through to the queue run phase.
 .ip B
 The body type.
@@ -9412,7 +9425,7 @@ replace it with a blank sheet for double-sided output.
 .\".sz 10
 .\"Eric Allman
 .\".sp
-.\"Version $Revision: 8.317.4.56 $
+.\"Version $Revision: 8.317.4.64 $
 .\".ce 0
 .bp 3
 .ce

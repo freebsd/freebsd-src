@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2000 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -14,14 +14,14 @@
 
 #ifndef lint
 static char copyright[] =
-"@(#) Copyright (c) 1998-2000 Sendmail, Inc. and its suppliers.\n\
+"@(#) Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.\n\
 	All rights reserved.\n\
      Copyright (c) 1988, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* ! lint */
 
 #ifndef lint
-static char id[] = "@(#)$Id: mailstats.c,v 8.53.16.12 2001/02/15 20:52:36 geir Exp $";
+static char id[] = "@(#)$Id: mailstats.c,v 8.53.16.13 2001/05/07 22:06:38 gshapiro Exp $";
 #endif /* ! lint */
 
 /* $FreeBSD$ */

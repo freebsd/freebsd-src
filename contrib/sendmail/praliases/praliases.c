@@ -21,7 +21,7 @@ static char copyright[] =
 #endif /* ! lint */
 
 #ifndef lint
-static char id[] = "@(#)$Id: praliases.c,v 8.59.4.18 2001/01/22 19:00:18 gshapiro Exp $";
+static char id[] = "@(#)$Id: praliases.c,v 8.59.4.19 2001/02/28 02:37:57 ca Exp $";
 #endif /* ! lint */
 
 /* $FreeBSD$ */
@@ -359,12 +359,20 @@ praliases(filename, argc, argv)
 	}
 	else for (; *argv != NULL; ++argv)
 	{
+		int get_res;
+
 		memset(&db_key, '\0', sizeof db_key);
 		memset(&db_value, '\0', sizeof db_value);
 		db_key.data = *argv;
-		db_key.size = strlen(*argv) + 1;
-		if (database->smdb_get(database, &db_key,
-				       &db_value, 0) == SMDBE_OK)
+		db_key.size = strlen(*argv);
+		get_res = database->smdb_get(database, &db_key, &db_value, 0);
+		if (get_res == SMDBE_NOT_FOUND)
+		{
+			db_key.size++;
+			get_res = database->smdb_get(database, &db_key,
+						     &db_value, 0);
+		}
+		if (get_res == SMDBE_OK)
 		{
 			printf("%.*s:%.*s\n",
 			       (int) db_key.size,
