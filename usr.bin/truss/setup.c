@@ -3,7 +3,7 @@
  * I'm afraid.
  */
 /*
- * $Id: setup.c,v 1.2 1997/12/06 08:01:00 sef Exp $
+ * $Id: setup.c,v 1.3 1997/12/06 14:42:58 peter Exp $
  */
 
 #include <stdio.h>
@@ -49,6 +49,14 @@ setup_and_wait(char *command[]) {
     fcntl(fd, F_SETFD, 1);
     if (ioctl(fd, PIOCBIS, &mask) == -1)
       err(3, "PIOCBIS");
+    flags = PF_LINGER;
+    /*
+     * The PF_LINGER flag tells procfs not to wake up the
+     * process on last close; normally, this is the behaviour
+     * we want.
+     */
+    if (ioctl(fd, PIOCSFL, &flags) == -1)
+      perror("cannot set PF_LINGER");
     execvp(command[0], command);
     mask = ~0;
     ioctl(fd, PIOCBIC, &mask);
@@ -92,6 +100,7 @@ start_tracing(int pid, int flags) {
   char buf[32];
   struct procfs_status tmp;
   sprintf(buf, "/proc/%d/mem", pid);
+
   fd = open(buf, O_RDWR);
   if (fd == -1)
     err(8, "cannot open %s", buf);
@@ -103,6 +112,16 @@ start_tracing(int pid, int flags) {
 
   if (ioctl(fd, PIOCBIS, &flags) == -1)
     err(9, "cannot set procfs event bit mask");
+
+  /*
+   * This clears the PF_LINGER set above in setup_and_wait();
+   * if truss happens to die before this, then the process
+   * needs to be woken up via procctl.
+   */
+
+  flags = 0;
+  if (ioctl(fd, PIOCSFL, &flags) == -1)
+    perror("cannot clear PF_LINGER");
 
   return fd;
 }
