@@ -1,5 +1,7 @@
-.\" Copyright (c) 1980, 1991, 1993
-.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Copyright (c) 1994 Simon J. Gerraty
+.\" Copyright (c) 1994 Christopher G. Demetriou
+.\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -11,88 +13,118 @@
 .\"    documentation and/or other materials provided with the distribution.
 .\" 3. All advertising materials mentioning features or use of this software
 .\"    must display the following acknowledgement:
-.\"	This product includes software developed by the University of
-.\"	California, Berkeley and its contributors.
-.\" 4. Neither the name of the University nor the names of its contributors
-.\"    may be used to endorse or promote products derived from this software
-.\"    without specific prior written permission.
+.\"      This product includes software developed by Christopher G. Demetriou.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission
 .\"
-.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
-.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
-.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
-.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
-.\" SUCH DAMAGE.
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"     @(#)ac.8	8.2 (Berkeley) 4/19/94
+.\"	$Id: ac.8,v 1.1.1.1 1994/05/18 08:00:45 csgr Exp $
 .\"
-.Dd April 19, 1994
+.Dd March 15, 1994
 .Dt AC 8
-.Os BSD 4
+.Os
 .Sh NAME
 .Nm ac
-.Nd display connect time accounting
+.Nd connect time accounting
 .Sh SYNOPSIS
 .Nm ac
-.Op Fl d
-.Op Fl p
-.Op Fl w Ar file
+.Op Fl dp
+.\".Op Fl c Ar console
+.Op Fl t Ar tty
+.Op Fl w Ar wtmp
 .Op Ar users ...
 .Sh DESCRIPTION
-If the file
+If the file 
 .Pa /var/log/wtmp
-exists,
-a record of individual
-login and logout times are written to it by
-.Xr init 8
-and
+exists, a record of individual login and logout
+times are written to it by
 .Xr login 8
+and
+.Xr init 8 ,
 respectively.
-The program
-.Nm ac
-examines these
-records and writes the accumulated connect time for all logins to the
-standard output.
+.Nm \&Ac
+examines these records and writes the accumulated connect time
+for all logins to the standard output.
 .Pp
-Options available:
-.Bl -tag -width people
+The options are as follows:
+.Bl -tag -width indentXXX
 .It Fl d
 Display the connect times in 24 hour chunks.
+.\" .It Fl c Ar console
+.\" Use 
+.\" .Ar console
+.\" as the name of the device that local X sessions (ut_host of ":0.0")
+.\" originate from.  If any login has been recorded on
+.\" .Ar console
+.\" then these X sessions are ignored unless COMPAT_SUNOS was defined at
+.\" compile time.
 .It Fl p
-Display individual user totals.
-.It Fl w Ar file
-Read raw connect time data from
-.Ar file
-instead of the default file
+Print individual users' totals.
+.It Fl t Ar tty
+Only do accounting logins on certain ttys.  The
+.Ar tty
+specification can start with '!' to indicate not this
+.Ar tty
+and end with '*' to indicate all similarly named ttys.
+Multiple
+.Fl t
+flags may be specified.
+.It Fl w Ar wtmp
+Read connect time data from
+.Ar wtmp
+instead of the default file,
 .Pa /var/log/wtmp .
 .It Ar users ...
-Display totals for the given individuals
-only.
+Display totals for the given individuals only.
 .El
 .Pp
 If no arguments are given,
-.Nm
-displays the total amount of login time for all active accounts on the
-system.
+.Nm ac
+displays the total connect time for all
+accounts with login sessions recorded in
+.Pa wtmp .
 .Pp
 The default
 .Pa wtmp
-file is an infinitely increasing file
-unless frequently truncated.  This is normally
-done by the daily daemon scripts scheduled by
-.Xr cron 8
+file will increase without bound unless it is truncated.
+It is normally truncated by the daily scripts run
+by
+.Xr cron 8 ,
 which rename and rotate the
 .Pa wtmp
-files before truncating them (and keeping about a weeks worth on hand).
-No login times are collected however, if the file does not exist.
+files, keeping a week's worth of data on
+hand.  No login or connect time accounting is performed if
+.Pa /var/log/wtmp
+does not exist.
+.Pp
+For example,
+.Bd -literal -offset
+ac -p -t "ttyd*" > modems
+ac -p -t "!ttyd*" > other
+.Ed
+.Pp
+allows times recorded in
+.Pa modems
+to be charged out at a different rate than
+.Pa other .
+.Pp
+The
+.Nm ac
+utility exits 0 on success, and >0 if a fatal error occurs.
 .Sh FILES
 .Bl -tag -width /var/log/wtmp.[0-7] -compact
 .It Pa /var/log/wtmp
+connect time accounting file
 .It Pa /var/log/wtmp.[0-7]
 rotated files
 .El
@@ -100,8 +132,24 @@ rotated files
 .Xr init 8 ,
 .Xr sa 8 ,
 .Xr login 1 ,
-.Xr utmp 5 .
-.Sh HISTORY
-A
-.Nm
-command appeared in Version 6 AT&T UNIX.
+.Xr utmp
+.\" .Sh NOTES
+.\" If COMPAT_SUNOS is defined
+.\" .Nm ac
+.\" ignores the fact that entries with ut_host of ":0.0" are not real
+.\" login sessions.  Normally such entries are ignored except in the case
+.\" of a user being logged in when the 
+.\" .Pa wtmp
+.\" file was rotated, in which case a login with ut_host of ":0.0" may
+.\" appear without any preceeding console logins.  
+.\" If no one is logged in on the console, the user is deemed to have
+.\" logged in on at the earliest time stamp found in
+.\" .Pa wtmp .
+.\" Use of
+.\" .Pa console
+.\" allows
+.\" .Nm ac
+.\" to identify and correcty process a logout for the user.  The default
+.\" value for
+.\" .Pa console
+.\" is usually correct at compile time.
