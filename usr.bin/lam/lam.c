@@ -79,13 +79,16 @@ static char    *pad(struct openfile *);
 static void	usage(void);
 
 int
-main(int argc __unused, char *argv[])
+main(int argc, char *argv[])
 {
 	struct	openfile *ip;
 
-	getargs(argv);
-	if (!morefiles)
+	if (argc > MAXOFILES)
+		errx(1, "too many input files");
+	else if (argc == 1)
 		usage();
+
+	getargs(argv);
 	for (;;) {
 		linep = line;
 		for (ip = input; ip->fp != NULL; ip++)
@@ -111,8 +114,6 @@ getargs(char *av[])
 	P = S = F = T = 0;		/* capitalized options */
 	while ((p = *++av) != NULL) {
 		if (*p != '-' || !p[1]) {
-			if (++morefiles >= MAXOFILES)
-				errx(1, "too many input files");
 			if (*p == '-')
 				ip->fp = stdin;
 			else if ((ip->fp = fopen(p, "r")) == NULL) {
