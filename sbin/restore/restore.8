@@ -440,6 +440,28 @@ To do a network restore, you have to run restore as root.  This is due
 to the previous security history of dump and restore.  (restore is
 written to be setuid root, but we are not certain all bugs are gone
 from the restore code - run setuid at your own risk.)
+.Pp
+The temporary files
+.Pa /tmp/rstdir*
+and
+.Pa /tmp/rstmode*
+are generated with a unique name based on the date of the dump
+and the process ID (see
+.Xr mktemp 3 ),
+except for when
+.Fl r
+or
+.Fl R
+is used.
+Because
+.Fl R
+allows you to restart a
+.Fl r
+operation that may have been interrupted, the temporary files should
+be the same across different processes.
+In all other cases, the files are unique because it is possible to
+have two different dumps started at the same time, and separate
+operations shouldn't conflict with each other.
 .Sh HISTORY
 The
 .Nm restore
