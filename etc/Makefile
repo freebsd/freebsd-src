@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.78 1994/09/07 07:42:56 pst Exp $
+#	$Id: Makefile,v 1.79 1994/09/08 09:33:38 rgrimes Exp $
 
 # disktab may be wrong -- hcx9 is a tahoe, but gets its own.
 # -rw-r--r--
@@ -217,7 +217,6 @@ distribution: distrib-dirs
 	        ${DESTDIR}/etc/sendmail.cf)
 	(cd ${.CURDIR}/..; \
 	    install -c -o ${BINOWN} -g ${BINGRP} -m 444 ${FREEBSD} ${DESTDIR}/)
-	(cd ${.CURDIR}/..; ${MAKE} mdec; )
 	(cd ${.CURDIR}/../share/man; ${MAKE} makedb; )
 .if ${MACHINE} == "tahoe"
 	(cd ${.CURDIR}/etc.tahoe; install -c -o ${BINOWN} -g ${BINGRP} \
@@ -569,22 +568,8 @@ release:	release-dirs distribution crunch extract kcopy-kernels \
 		floppies bin-tarball des-tarball clean
 
 release-dirs:
-	chflags -R noschg ${RELEASEDIR}/filesys
-	rm -rf ${RELEASEDIR}/filesys
-	mkdir ${RELEASEDIR}/filesys
-	chown ${BINOWN}.${BINGRP} ${RELEASEDIR}/filesys
-	chmod 755 ${RELEASEDIR}/filesys
-	rm -rf ${RELEASEDIR}/tarballs
-	mkdir ${RELEASEDIR}/tarballs
-	mkdir ${RELEASEDIR}/tarballs/bindist
-	mkdir ${RELEASEDIR}/tarballs/objdist
-	mkdir ${RELEASEDIR}/tarballs/secrdist
-	mkdir ${RELEASEDIR}/tarballs/srcdist
-	chown -R ${BINOWN}.${BINGRP} ${RELEASEDIR}/tarballs
-	chmod -R 755 ${RELEASEDIR}/tarballs
-	rm -rf ${RELEASEDIR}/floppies
-	mkdir ${RELEASEDIR}/floppies
-	chown ${BINOWN}.${BINGRP} ${RELEASEDIR}/floppies
-	chmod 755 ${RELEASEDIR}/floppies
+	chflags -R noschg ${RELEASEDIR}
+	rm -rf ${RELEASEDIR}/*
+	mtree -u -f ${.CURDIR}/mtree/BSD.release.dist -p ${RELEASEDIR}
 
 .include <bsd.prog.mk>
