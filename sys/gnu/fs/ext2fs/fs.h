@@ -57,8 +57,7 @@
  */
 #define BBSIZE		1024
 #define SBSIZE		1024
-#define	BBOFF		((off_t)(0))
-#define	SBOFF		((off_t)(BBOFF + BBSIZE))
+#define	SBOFF		((off_t)(BBSIZE))
 
 /*
  * The path name on which the file system is mounted is maintained

@@ -63,8 +63,7 @@
  */
 #define BBSIZE		8192
 #define SBSIZE		8192
-#define	BBOFF		((off_t)(0))
-#define	SBOFF		((off_t)(BBOFF + BBSIZE))
+#define	SBOFF		((off_t)(BBSIZE))
 
 /* Max number of fragments per block, this is not tweakable */
 #define MAXFRAG 	8
