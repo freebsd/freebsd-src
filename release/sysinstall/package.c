@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: package.c,v 1.32 1996/04/23 01:29:32 jkh Exp $
+ * $Id: package.c,v 1.33 1996/04/28 03:27:22 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -76,7 +76,7 @@ package_extract(Device *dev, char *name, Boolean depended)
     }
 
     /* Be initially optimistic */
-    ret = DITEM_SUCCESS;
+    ret = DITEM_SUCCESS | DITEM_RESTORE;
     /* Make a couple of paranoid locations for temp files to live if user specified none */
     if (!variable_get("PKG_TMPDIR")) {
 	Mkdir("/usr/tmp", NULL);
@@ -147,7 +147,7 @@ package_extract(Device *dev, char *name, Boolean depended)
 	    msgConfirm("Unable to fetch package %s from selected media.\n"
 		       "No package add will be done.", name);
 	}
-	ret = DITEM_FAILURE;
+	ret = DITEM_FAILURE | DITEM_RESTORE;
     }
     return ret;
 }
