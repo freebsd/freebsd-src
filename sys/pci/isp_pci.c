@@ -52,14 +52,11 @@
 #include <sys/malloc.h>
 
 #include <dev/isp/isp_freebsd.h>
-#include <dev/isp/asm_pci.h>
 
 static u_int16_t isp_pci_rd_reg __P((struct ispsoftc *, int));
 static void isp_pci_wr_reg __P((struct ispsoftc *, int, u_int16_t));
-#if !defined(ISP_DISABLE_1080_SUPPORT) || !defined(ISP_DISABLE_12160_SUPPORT)
 static u_int16_t isp_pci_rd_reg_1080 __P((struct ispsoftc *, int));
 static void isp_pci_wr_reg_1080 __P((struct ispsoftc *, int, u_int16_t));
-#endif
 static int isp_pci_mbxdma __P((struct ispsoftc *));
 static int isp_pci_dmasetup __P((struct ispsoftc *, ISP_SCSI_XFER_T *,
 	ispreq_t *, u_int16_t *, u_int16_t));
@@ -72,23 +69,7 @@ static void isp_pci_dumpregs __P((struct ispsoftc *));
 #ifndef	ISP_CODE_ORG
 #define	ISP_CODE_ORG		0x1000
 #endif
-#ifndef	ISP_1040_RISC_CODE
-#define	ISP_1040_RISC_CODE	NULL
-#endif
-#ifndef	ISP_1080_RISC_CODE
-#define	ISP_1080_RISC_CODE	NULL
-#endif
-#ifndef	ISP_12160_RISC_CODE
-#define	ISP_12160_RISC_CODE	NULL
-#endif
-#ifndef	ISP_2100_RISC_CODE
-#define	ISP_2100_RISC_CODE	NULL
-#endif
-#ifndef	ISP_2200_RISC_CODE
-#define	ISP_2200_RISC_CODE	NULL
-#endif
 
-#ifndef ISP_DISABLE_1020_SUPPORT
 static struct ispmdvec mdvec = {
 	isp_pci_rd_reg,
 	isp_pci_wr_reg,
@@ -98,16 +79,14 @@ static struct ispmdvec mdvec = {
 	NULL,
 	isp_pci_reset1,
 	isp_pci_dumpregs,
-	ISP_1040_RISC_CODE,
+	NULL,
 	0,
 	ISP_CODE_ORG,
 	0,
 	BIU_BURST_ENABLE|BIU_PCI_CONF1_FIFO_64,
 	0
 };
-#endif
 
-#ifndef ISP_DISABLE_1080_SUPPORT
 static struct ispmdvec mdvec_1080 = {
 	isp_pci_rd_reg_1080,
 	isp_pci_wr_reg_1080,
@@ -117,16 +96,14 @@ static struct ispmdvec mdvec_1080 = {
 	NULL,
 	isp_pci_reset1,
 	isp_pci_dumpregs,
-	ISP_1080_RISC_CODE,
+	NULL,
 	0,
 	ISP_CODE_ORG,
 	0,
 	BIU_BURST_ENABLE|BIU_PCI_CONF1_FIFO_64,
 	0
 };
-#endif
 
-#ifndef ISP_DISABLE_12160_SUPPORT
 static struct ispmdvec mdvec_12160 = {
 	isp_pci_rd_reg_1080,
 	isp_pci_wr_reg_1080,
@@ -136,16 +113,14 @@ static struct ispmdvec mdvec_12160 = {
 	NULL,
 	isp_pci_reset1,
 	isp_pci_dumpregs,
-	ISP_12160_RISC_CODE,
+	NULL,
 	0,
-	ISP_CODE_ORG,
+	NULL,
 	0,
 	BIU_BURST_ENABLE|BIU_PCI_CONF1_FIFO_64,
 	0
 };
-#endif
 
-#ifndef ISP_DISABLE_2100_SUPPORT
 static struct ispmdvec mdvec_2100 = {
 	isp_pci_rd_reg,
 	isp_pci_wr_reg,
@@ -155,16 +130,14 @@ static struct ispmdvec mdvec_2100 = {
 	NULL,
 	isp_pci_reset1,
 	isp_pci_dumpregs,
-	ISP_2100_RISC_CODE,
+	NULL,
 	0,
 	ISP_CODE_ORG,
 	0,
 	0,
 	0
 };
-#endif
 
-#ifndef	ISP_DISABLE_2200_SUPPORT
 static struct ispmdvec mdvec_2200 = {
 	isp_pci_rd_reg,
 	isp_pci_wr_reg,
@@ -174,18 +147,13 @@ static struct ispmdvec mdvec_2200 = {
 	NULL,
 	isp_pci_reset1,
 	isp_pci_dumpregs,
-	ISP_2200_RISC_CODE,
+	NULL,
 	0,
 	ISP_CODE_ORG,
 	0,
 	0,
 	0
 };
-#endif
-
-#ifndef	SCSI_ISP_PREFER_MEM_MAP
-#define	SCSI_ISP_PREFER_MEM_MAP	0
-#endif
 
 #ifndef	PCIM_CMD_INVEN
 #define	PCIM_CMD_INVEN			0x10
@@ -217,7 +185,7 @@ static struct ispmdvec mdvec_2200 = {
 #endif
 
 #ifndef	PCI_VENDOR_QLOGIC
-#define	PCI_VENDOR_QLOGIC	0x1077
+#define	PCI_VENDOR_QLOGIC		0x1077
 #endif
 
 #ifndef	PCI_PRODUCT_QLOGIC_ISP1020
@@ -248,7 +216,8 @@ static struct ispmdvec mdvec_2200 = {
 #define	PCI_PRODUCT_QLOGIC_ISP2200	0x2200
 #endif
 
-#define	PCI_QLOGIC_ISP	((PCI_PRODUCT_QLOGIC_ISP1020 << 16) | PCI_VENDOR_QLOGIC)
+#define	PCI_QLOGIC_ISP1020	\
+	((PCI_PRODUCT_QLOGIC_ISP1020 << 16) | PCI_VENDOR_QLOGIC)
 
 #define	PCI_QLOGIC_ISP1080	\
 	((PCI_PRODUCT_QLOGIC_ISP1080 << 16) | PCI_VENDOR_QLOGIC)
@@ -299,6 +268,7 @@ struct isp_pcisoftc {
 	bus_dmamap_t			cntrol_dmap;
 	bus_dmamap_t			*dmaps;
 };
+ispfwfunc *isp_get_firmware_p = NULL;
 
 static device_method_t isp_pci_methods[] = {
 	/* Device interface */
@@ -312,17 +282,15 @@ static driver_t isp_pci_driver = {
 };
 static devclass_t isp_devclass;
 DRIVER_MODULE(isp, pci, isp_pci_driver, isp_devclass, 0, 0);
+MODULE_VERSION(isp, 1);
 
 static int
 isp_pci_probe(device_t dev)
 {
         switch ((pci_get_device(dev) << 16) | (pci_get_vendor(dev))) {
-#ifndef	ISP_DISABLE_1020_SUPPORT
-	case PCI_QLOGIC_ISP:
+	case PCI_QLOGIC_ISP1020:
 		device_set_desc(dev, "Qlogic ISP 1020/1040 PCI SCSI Adapter");
 		break;
-#endif
-#ifndef	ISP_DISABLE_1080_SUPPORT
 	case PCI_QLOGIC_ISP1080:
 		device_set_desc(dev, "Qlogic ISP 1080 PCI SCSI Adapter");
 		break;
@@ -332,22 +300,15 @@ isp_pci_probe(device_t dev)
 	case PCI_QLOGIC_ISP1280:
 		device_set_desc(dev, "Qlogic ISP 1280 PCI SCSI Adapter");
 		break;
-#endif
-#ifndef	ISP_DISABLE_12160_SUPPORT
 	case PCI_QLOGIC_ISP12160:
 		device_set_desc(dev, "Qlogic ISP 12160 PCI SCSI Adapter");
 		break;
-#endif
-#ifndef	ISP_DISABLE_2100_SUPPORT
 	case PCI_QLOGIC_ISP2100:
 		device_set_desc(dev, "Qlogic ISP 2100 PCI FC-AL Adapter");
 		break;
-#endif
-#ifndef	ISP_DISABLE_2200_SUPPORT
 	case PCI_QLOGIC_ISP2200:
 		device_set_desc(dev, "Qlogic ISP 2200 PCI FC-AL Adapter");
 		break;
-#endif
 	default:
 		return (ENXIO);
 	}
@@ -357,16 +318,16 @@ isp_pci_probe(device_t dev)
 		    ISP_PLATFORM_VERSION_MAJOR, ISP_PLATFORM_VERSION_MINOR,
 		    ISP_CORE_VERSION_MAJOR, ISP_CORE_VERSION_MINOR);
 	}
+	/*
+	 * XXXX: Here is where we might load the f/w module
+	 * XXXX: (or increase a reference count to it).
+	 */
 	return (0);
 }
 
 static int
 isp_pci_attach(device_t dev)
 {
-#ifdef	SCSI_ISP_WWN
-	const char *name = SCSI_ISP_WWN;
-	char *vtp = NULL;
-#endif
 	struct resource *regs, *irq;
 	int unit, bitmap, rtp, rgd, iqd, m1, m2;
 	u_int32_t data, cmd, linesz, psize, basetype;
@@ -397,7 +358,7 @@ isp_pci_attach(device_t dev)
 	/*
 	 * Figure out which we should try first - memory mapping or i/o mapping?
 	 */
-#if	SCSI_ISP_PREFER_MEM_MAP == 1
+#ifdef	__alpha__
 	m1 = PCIM_CMD_MEMEN;
 	m2 = PCIM_CMD_PORTEN;
 #else
@@ -458,15 +419,12 @@ isp_pci_attach(device_t dev)
 	basetype = ISP_HA_SCSI_UNKNOWN;
 	psize = sizeof (sdparam);
 	lim = BUS_SPACE_MAXSIZE_32BIT;
-#ifndef	ISP_DISABLE_1020_SUPPORT
-	if (pci_get_devid(dev) == PCI_QLOGIC_ISP) {
+	if (pci_get_devid(dev) == PCI_QLOGIC_ISP1020) {
 		mdvp = &mdvec;
 		basetype = ISP_HA_SCSI_UNKNOWN;
 		psize = sizeof (sdparam);
 		lim = BUS_SPACE_MAXSIZE_24BIT;
 	}
-#endif
-#ifndef	ISP_DISABLE_1080_SUPPORT
 	if (pci_get_devid(dev) == PCI_QLOGIC_ISP1080) {
 		mdvp = &mdvec_1080;
 		basetype = ISP_HA_SCSI_1080;
@@ -488,8 +446,6 @@ isp_pci_attach(device_t dev)
 		pcs->pci_poff[DMA_BLOCK >> _BLK_REG_SHFT] =
 		    ISP1080_DMA_REGS_OFF;
 	}
-#endif
-#ifndef	ISP_DISABLE_12160_SUPPORT
 	if (pci_get_devid(dev) == PCI_QLOGIC_ISP12160) {
 		mdvp = &mdvec_12160;
 		basetype = ISP_HA_SCSI_12160;
@@ -497,8 +453,6 @@ isp_pci_attach(device_t dev)
 		pcs->pci_poff[DMA_BLOCK >> _BLK_REG_SHFT] =
 		    ISP1080_DMA_REGS_OFF;
 	}
-#endif
-#ifndef	ISP_DISABLE_2100_SUPPORT
 	if (pci_get_devid(dev) == PCI_QLOGIC_ISP2100) {
 		mdvp = &mdvec_2100;
 		basetype = ISP_HA_FC_2100;
@@ -515,8 +469,6 @@ isp_pci_attach(device_t dev)
 			linesz = 1;
 		}
 	}
-#endif
-#ifndef	ISP_DISABLE_2200_SUPPORT
 	if (pci_get_devid(dev) == PCI_QLOGIC_ISP2200) {
 		mdvp = &mdvec_2200;
 		basetype = ISP_HA_FC_2200;
@@ -524,7 +476,6 @@ isp_pci_attach(device_t dev)
 		pcs->pci_poff[MBOX_BLOCK >> _BLK_REG_SHFT] =
 		    PCI_MBOX_REGS2100_OFF;
 	}
-#endif
 	isp = &pcs->pci_isp;
 	isp->isp_param = malloc(psize, M_DEVBUF, M_NOWAIT);
 	if (isp->isp_param == NULL) {
@@ -537,6 +488,23 @@ isp_pci_attach(device_t dev)
 	isp->isp_revision = pci_get_revid(dev);
 	(void) snprintf(isp->isp_name, sizeof (isp->isp_name), "isp%d", unit);
 	isp->isp_osinfo.unit = unit;
+
+	/*
+	 * Try and find firmware for this device.
+	 */
+
+	if (isp_get_firmware_p) {
+		int device = (int) pci_get_device(dev);
+#ifdef	ISP_TARGET_MODE
+		(*isp_get_firmware_p)(0, 1, device, &mdvp->dv_ispfw);
+#else
+		(*isp_get_firmware_p)(0, 0, device, &mdvp->dv_ispfw);
+#endif
+	}
+
+	/*
+	 *
+	 */
 
 	ISP_LOCK(isp);
 	/*
@@ -592,10 +560,6 @@ isp_pci_attach(device_t dev)
 		goto bad;
 	}
 
-#ifdef	SCSI_ISP_NO_FWLOAD_MASK
-	if (SCSI_ISP_NO_FWLOAD_MASK && (SCSI_ISP_NO_FWLOAD_MASK & (1 << unit)))
-		isp->isp_confopts |= ISP_CFG_NORELOAD;
-#endif
 	if (getenv_int("isp_no_fwload", &bitmap)) {
 		if (bitmap & (1 << unit))
 			isp->isp_confopts |= ISP_CFG_NORELOAD;
@@ -604,13 +568,6 @@ isp_pci_attach(device_t dev)
 		if (bitmap & (1 << unit))
 			isp->isp_confopts &= ~ISP_CFG_NORELOAD;
 	}
-
-#ifdef	SCSI_ISP_NO_NVRAM_MASK
-	if (SCSI_ISP_NO_NVRAM_MASK && (SCSI_ISP_NO_NVRAM_MASK & (1 << unit))) {
-		printf("%s: ignoring NVRAM\n", isp->isp_name);
-		isp->isp_confopts |= ISP_CFG_NONVRAM;
-	}
-#endif
 	if (getenv_int("isp_no_nvram", &bitmap)) {
 		if (bitmap & (1 << unit))
 			isp->isp_confopts |= ISP_CFG_NONVRAM;
@@ -619,14 +576,6 @@ isp_pci_attach(device_t dev)
 		if (bitmap & (1 << unit))
 			isp->isp_confopts &= ~ISP_CFG_NONVRAM;
 	}
-
-#ifdef	SCSI_ISP_FCDUPLEX
-	if (IS_FC(isp)) {
-		if (SCSI_ISP_FCDUPLEX && (SCSI_ISP_FCDUPLEX & (1 << unit))) {
-			isp->isp_confopts |= ISP_CFG_FULL_DUPLEX;
-		}
-	}
-#endif
 	if (getenv_int("isp_fcduplex", &bitmap)) {
 		if (bitmap & (1 << unit))
 			isp->isp_confopts |= ISP_CFG_FULL_DUPLEX;
@@ -644,12 +593,6 @@ isp_pci_attach(device_t dev)
 	 * all FC instances. A Port WWN will be constructed from it
 	 * as appropriate.
 	 */
-#ifdef	SCSI_ISP_WWN
-	isp->isp_osinfo.default_wwn = strtoq(name, &vtp, 16);
-	if (vtp != name && *vtp == 0) {
-		isp->isp_confopts |= ISP_CFG_OWNWWN;
-	} else
-#endif
 	if (!getenv_quad("isp_wwn", (quad_t *) &isp->isp_osinfo.default_wwn)) {
 		int i;
 		u_int64_t seed = (u_int64_t) (intptr_t) isp;
@@ -707,6 +650,10 @@ isp_pci_attach(device_t dev)
 		}
 	}
 	ISP_UNLOCK(isp);
+	/*
+	 * XXXX: Here is where we might unload the f/w module
+	 * XXXX: (or decrease the reference count to it).
+	 */
 	return (0);
 
 bad:
@@ -726,6 +673,10 @@ bad:
 			free(pcs->pci_isp.isp_param, M_DEVBUF);
 		free(pcs, M_DEVBUF);
 	}
+	/*
+	 * XXXX: Here is where we might unload the f/w module
+	 * XXXX: (or decrease the reference count to it).
+	 */
 	return (ENXIO);
 }
 
@@ -778,7 +729,6 @@ isp_pci_wr_reg(isp, regoff, val)
 	}
 }
 
-#if !defined(ISP_DISABLE_1080_SUPPORT) || !defined(ISP_DISABLE_12160_SUPPORT)
 static u_int16_t
 isp_pci_rd_reg_1080(isp, regoff)
 	struct ispsoftc *isp;
@@ -847,8 +797,6 @@ isp_pci_wr_reg_1080(isp, regoff, val)
 		isp_pci_wr_reg(isp, BIU_CONF1, oc);
 	}
 }
-#endif
-
 
 static void isp_map_rquest __P((void *, bus_dma_segment_t *, int, int));
 static void isp_map_result __P((void *, bus_dma_segment_t *, int, int));
