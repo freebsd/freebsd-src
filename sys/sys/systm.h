@@ -70,8 +70,6 @@ extern dev_t rootdevs[2];	/* possible root devices */
 extern char *rootdevnames[2];	/* names of possible root devices */
 extern struct vnode *rootvp;	/* vnode equivalent to above */
 
-extern struct vnode *swapdev_vp;/* vnode for swap device */
-
 extern int boothowto;		/* reboot flags, from console subsystem */
 extern int bootverbose;		/* nonzero to print verbose messages */
 
