@@ -78,14 +78,14 @@ struct resource;
 #define	_PASCAL_CALL	(void)
 
 #define	_BUS_SPACE_CALL_FUNCS_TAB(NAME,TYPE,BWN) \
-	NAME##_space_read_##BWN##, 				\
-	NAME##_space_read_multi_##BWN##, 			\
-	NAME##_space_read_region_##BWN##,			\
-	NAME##_space_write_##BWN##, 				\
-	NAME##_space_write_multi_##BWN##, 			\
-	NAME##_space_write_region_##BWN##,			\
-	NAME##_space_set_multi_##BWN##,				\
-	NAME##_space_set_region_##BWN##,			\
+	NAME##_space_read_##BWN, 				\
+	NAME##_space_read_multi_##BWN, 				\
+	NAME##_space_read_region_##BWN,				\
+	NAME##_space_write_##BWN, 				\
+	NAME##_space_write_multi_##BWN, 			\
+	NAME##_space_write_region_##BWN,			\
+	NAME##_space_set_multi_##BWN,				\
+	NAME##_space_set_region_##BWN,				\
 	NAME##_space_copy_region_##BWN
 
 #define	_BUS_SPACE_CALL_FUNCS_PROTO(NAME,TYPE,BWN) \
@@ -100,15 +100,15 @@ struct resource;
 	void NAME##_space_copy_region_##BWN _PASCAL_CALL;
 
 #define	_BUS_SPACE_CALL_FUNCS(NAME,TYPE,BWN) \
-	TYPE (*##NAME##_read_##BWN) _PASCAL_CALL;		\
-	void (*##NAME##_read_multi_##BWN) _PASCAL_CALL;		\
-	void (*##NAME##_read_region_##BWN) _PASCAL_CALL;	\
-	void (*##NAME##_write_##BWN) _PASCAL_CALL;		\
-	void (*##NAME##_write_multi_##BWN) _PASCAL_CALL;	\
-	void (*##NAME##_write_region_##BWN) _PASCAL_CALL;	\
-	void (*##NAME##_set_multi_##BWN) _PASCAL_CALL;		\
-	void (*##NAME##_set_region_##BWN) _PASCAL_CALL;		\
-	void (*##NAME##_copy_region_##BWN) _PASCAL_CALL;	
+	TYPE (* NAME##_read_##BWN) _PASCAL_CALL;		\
+	void (* NAME##_read_multi_##BWN) _PASCAL_CALL;		\
+	void (* NAME##_read_region_##BWN) _PASCAL_CALL;		\
+	void (* NAME##_write_##BWN) _PASCAL_CALL;		\
+	void (* NAME##_write_multi_##BWN) _PASCAL_CALL;		\
+	void (* NAME##_write_region_##BWN) _PASCAL_CALL;	\
+	void (* NAME##_set_multi_##BWN) _PASCAL_CALL;		\
+	void (* NAME##_set_region_##BWN) _PASCAL_CALL;		\
+	void (* NAME##_copy_region_##BWN) _PASCAL_CALL;	
 
 struct bus_space_access_methods {
 	/* 8 bits access methods */
@@ -247,7 +247,7 @@ _BUS_ACCESS_METHODS_PROTO(u_int32_t,4)
  */
 #define	_BUS_SPACE_READ(TYPE,BWN)				\
 static __inline TYPE						\
-bus_space_read_##BWN##(tag, bsh, offset)			\
+bus_space_read_##BWN (tag, bsh, offset)				\
 	bus_space_tag_t tag;					\
 	bus_space_handle_t bsh;					\
 	bus_size_t offset;					\
@@ -274,7 +274,7 @@ _BUS_SPACE_READ(u_int32_t,4)
  */
 #define	_BUS_SPACE_WRITE(TYPE,BWN)				\
 static __inline void						\
-bus_space_write_##BWN##(tag, bsh, offset, val)			\
+bus_space_write_##BWN (tag, bsh, offset, val)			\
 	bus_space_tag_t tag;					\
 	bus_space_handle_t bsh;					\
 	bus_size_t offset;					\
@@ -299,7 +299,7 @@ _BUS_SPACE_WRITE(u_int32_t,4)
  */
 #define	_BUS_SPACE_READ_MULTI(TYPE,BWN)					\
 static __inline void							\
-bus_space_read_multi_##BWN##(tag, bsh, offset, buf, cnt) 		\
+bus_space_read_multi_##BWN (tag, bsh, offset, buf, cnt) 		\
 	bus_space_tag_t tag;						\
 	bus_space_handle_t bsh;						\
 	bus_size_t offset;						\
@@ -328,7 +328,7 @@ _BUS_SPACE_READ_MULTI(u_int32_t,4)
  */
 #define	_BUS_SPACE_WRITE_MULTI(TYPE,BWN)				\
 static __inline void							\
-bus_space_write_multi_##BWN##(tag, bsh, offset, buf, cnt) 		\
+bus_space_write_multi_##BWN (tag, bsh, offset, buf, cnt) 		\
 	bus_space_tag_t tag;						\
 	bus_space_handle_t bsh;						\
 	bus_size_t offset;						\
@@ -357,7 +357,7 @@ _BUS_SPACE_WRITE_MULTI(u_int32_t,4)
  */
 #define	_BUS_SPACE_READ_REGION(TYPE,BWN)				\
 static __inline void							\
-bus_space_read_region_##BWN##(tag, bsh, offset, buf, cnt) 		\
+bus_space_read_region_##BWN (tag, bsh, offset, buf, cnt) 		\
 	bus_space_tag_t tag;						\
 	bus_space_handle_t bsh;						\
 	bus_size_t offset;						\
@@ -386,7 +386,7 @@ _BUS_SPACE_READ_REGION(u_int32_t,4)
  */
 #define	_BUS_SPACE_WRITE_REGION(TYPE,BWN)				\
 static __inline void							\
-bus_space_write_region_##BWN##(tag, bsh, offset, buf, cnt) 		\
+bus_space_write_region_##BWN (tag, bsh, offset, buf, cnt) 		\
 	bus_space_tag_t tag;						\
 	bus_space_handle_t bsh;						\
 	bus_size_t offset;						\
@@ -415,7 +415,7 @@ _BUS_SPACE_WRITE_REGION(u_int32_t,4)
  */
 #define	_BUS_SPACE_SET_MULTI(TYPE,BWN)					\
 static __inline void							\
-bus_space_set_multi_##BWN##(tag, bsh, offset, val, cnt) 		\
+bus_space_set_multi_##BWN (tag, bsh, offset, val, cnt)	 		\
 	bus_space_tag_t tag;						\
 	bus_space_handle_t bsh;						\
 	bus_size_t offset;						\
@@ -443,7 +443,7 @@ _BUS_SPACE_SET_MULTI(u_int32_t,4)
  */
 #define	_BUS_SPACE_SET_REGION(TYPE,BWN)					\
 static __inline void							\
-bus_space_set_region_##BWN##(tag, bsh, offset, val, cnt) 		\
+bus_space_set_region_##BWN (tag, bsh, offset, val, cnt) 		\
 	bus_space_tag_t tag;						\
 	bus_space_handle_t bsh;						\
 	bus_size_t offset;						\
@@ -471,7 +471,7 @@ _BUS_SPACE_SET_REGION(u_int32_t,4)
  */
 #define	_BUS_SPACE_COPY_REGION(BWN)					\
 static __inline void							\
-bus_space_copy_region_##BWN##(tag, sbsh, src, dbsh, dst, cnt)		\
+bus_space_copy_region_##BWN (tag, sbsh, src, dbsh, dst, cnt)		\
 	bus_space_tag_t tag;						\
 	bus_space_handle_t sbsh;					\
 	bus_size_t src;							\
