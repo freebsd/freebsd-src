@@ -431,7 +431,6 @@ options 	ACPI_DEBUG
 # tdfxdrm:   3dfx Voodoo 3/4/5 and Banshee
 # r128drm:   ATI Rage 128
 # radeondrm: ATI Radeon up to 9000/9100
-# DRM_LINUX: include linux compatibility, requires COMPAT_LINUX
 # DRM_DEBUG: include debug printfs, very slow
 #
 # mga requires AGP in the kernel, and it is recommended
@@ -443,7 +442,6 @@ device		radeondrm
 device		tdfxdrm
 
 options 	DRM_DEBUG
-options 	DRM_LINUX
 
 # M-systems DiskOnchip products see src/sys/contrib/dev/fla/README
 device		fla

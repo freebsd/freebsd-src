@@ -32,7 +32,9 @@
 
 #include "dev/drm/drmP.h"
 
-#if __HAVE_CTX_BITMAP
+#if !__HAVE_CTX_BITMAP
+#error "__HAVE_CTX_BITMAP must be defined"
+#endif
 
 /* ================================================================
  * Context bitmap support
@@ -206,16 +208,10 @@ bad:
 
 int DRM(context_switch)( drm_device_t *dev, int old, int new )
 {
-        char buf[64];
-
         if ( test_and_set_bit( 0, &dev->context_flag ) ) {
                 DRM_ERROR( "Reentering -- FIXME\n" );
                 return DRM_ERR(EBUSY);
         }
-
-#if __HAVE_DMA_HISTOGRAM
-        dev->ctx_start = get_cycles();
-#endif
 
         DRM_DEBUG( "Context switch from %d to %d\n", old, new );
 
@@ -224,20 +220,12 @@ int DRM(context_switch)( drm_device_t *dev, int old, int new )
                 return 0;
         }
 
-        if ( DRM(flags) & DRM_FLAG_NOCTX ) {
-                DRM(context_switch_complete)( dev, new );
-        } else {
-                sprintf( buf, "C %d %d\n", old, new );
-                DRM(write_string)( dev, buf );
-        }
-
         return 0;
 }
 
 int DRM(context_switch_complete)( drm_device_t *dev, int new )
 {
         dev->last_context = new;  /* PRE/POST: This is the _only_ writer. */
-        dev->last_switch  = jiffies;
 
         if ( !_DRM_LOCK_IS_HELD(dev->lock.hw_lock->lock) ) {
                 DRM_ERROR( "Lock isn't held after context switch\n" );
@@ -246,13 +234,7 @@ int DRM(context_switch_complete)( drm_device_t *dev, int new )
 				/* If a context switch is ever initiated
                                    when the kernel holds the lock, release
                                    that lock here. */
-#if __HAVE_DMA_HISTOGRAM
-        atomic_inc( &dev->histo.ctx[DRM(histogram_slot)(get_cycles()
-							- dev->ctx_start)] );
-
-#endif
         clear_bit( 0, &dev->context_flag );
-        DRM_WAKEUP( (void *)&dev->context_wait );
 
         return 0;
 }
@@ -363,364 +345,3 @@ int DRM(rmctx)( DRM_IOCTL_ARGS )
 
 	return 0;
 }
-
-
-#else /* __HAVE_CTX_BITMAP */
-
-/* ================================================================
- * Old-style context support
- */
-
-
-int DRM(context_switch)(drm_device_t *dev, int old, int new)
-{
-	char	    buf[64];
-	drm_queue_t *q;
-
-#if 0
-	atomic_inc(&dev->total_ctx);
-#endif
-
-	if (test_and_set_bit(0, &dev->context_flag)) {
-		DRM_ERROR("Reentering -- FIXME\n");
-		return DRM_ERR(EBUSY);
-	}
-
-#if __HAVE_DMA_HISTOGRAM
-	dev->ctx_start = get_cycles();
-#endif
-
-	DRM_DEBUG("Context switch from %d to %d\n", old, new);
-
-	if (new >= dev->queue_count) {
-		clear_bit(0, &dev->context_flag);
-		return DRM_ERR(EINVAL);
-	}
-
-	if (new == dev->last_context) {
-		clear_bit(0, &dev->context_flag);
-		return 0;
-	}
-
-	q = dev->queuelist[new];
-	atomic_inc(&q->use_count);
-	if (atomic_read(&q->use_count) == 1) {
-		atomic_dec(&q->use_count);
-		clear_bit(0, &dev->context_flag);
-		return DRM_ERR(EINVAL);
-	}
-
-	if (DRM(flags) & DRM_FLAG_NOCTX) {
-		DRM(context_switch_complete)(dev, new);
-	} else {
-		sprintf(buf, "C %d %d\n", old, new);
-		DRM(write_string)(dev, buf);
-	}
-
-	atomic_dec(&q->use_count);
-
-	return 0;
-}
-
-int DRM(context_switch_complete)(drm_device_t *dev, int new)
-{
-	drm_device_dma_t *dma = dev->dma;
-
-	dev->last_context = new;  /* PRE/POST: This is the _only_ writer. */
-	dev->last_switch  = jiffies;
-
-	if (!_DRM_LOCK_IS_HELD(dev->lock.hw_lock->lock)) {
-		DRM_ERROR("Lock isn't held after context switch\n");
-	}
-
-	if (!dma || !(dma->next_buffer && dma->next_buffer->while_locked)) {
-		if (DRM(lock_free)(dev, &dev->lock.hw_lock->lock,
-				  DRM_KERNEL_CONTEXT)) {
-			DRM_ERROR("Cannot free lock\n");
-		}
-	}
-
-#if __HAVE_DMA_HISTOGRAM
-	atomic_inc(&dev->histo.ctx[DRM(histogram_slot)(get_cycles()
-						      - dev->ctx_start)]);
-
-#endif
-	clear_bit(0, &dev->context_flag);
-	DRM_WAKEUP_INT(&dev->context_wait);
-
-	return 0;
-}
-
-static int DRM(init_queue)(drm_device_t *dev, drm_queue_t *q, drm_ctx_t *ctx)
-{
-	DRM_DEBUG("\n");
-
-	if (atomic_read(&q->use_count) != 1
-	    || atomic_read(&q->finalization)
-	    || atomic_read(&q->block_count)) {
-		DRM_ERROR("New queue is already in use: u%ld f%ld b%ld\n",
-			  (unsigned long)atomic_read(&q->use_count),
-			  (unsigned long)atomic_read(&q->finalization),
-			  (unsigned long)atomic_read(&q->block_count));
-	}
-
-	atomic_set(&q->finalization,  0);
-	atomic_set(&q->block_count,   0);
-	atomic_set(&q->block_read,    0);
-	atomic_set(&q->block_write,   0);
-	atomic_set(&q->total_queued,  0);
-	atomic_set(&q->total_flushed, 0);
-	atomic_set(&q->total_locks,   0);
-
-	q->write_queue = 0;
-	q->read_queue = 0;
-	q->flush_queue = 0;
-
-	q->flags = ctx->flags;
-
-	DRM(waitlist_create)(&q->waitlist, dev->dma->buf_count);
-
-	return 0;
-}
-
-
-/* drm_alloc_queue:
-PRE: 1) dev->queuelist[0..dev->queue_count] is allocated and will not
-	disappear (so all deallocation must be done after IOCTLs are off)
-     2) dev->queue_count < dev->queue_slots
-     3) dev->queuelist[i].use_count == 0 and
-	dev->queuelist[i].finalization == 0 if i not in use
-POST: 1) dev->queuelist[i].use_count == 1
-      2) dev->queue_count < dev->queue_slots */
-
-static int DRM(alloc_queue)(drm_device_t *dev)
-{
-	int	    i;
-	drm_queue_t *queue;
-	int	    oldslots;
-	int	    newslots;
-				/* Check for a free queue */
-	for (i = 0; i < dev->queue_count; i++) {
-		atomic_inc(&dev->queuelist[i]->use_count);
-		if (atomic_read(&dev->queuelist[i]->use_count) == 1
-		    && !atomic_read(&dev->queuelist[i]->finalization)) {
-			DRM_DEBUG("%d (free)\n", i);
-			return i;
-		}
-		atomic_dec(&dev->queuelist[i]->use_count);
-	}
-				/* Allocate a new queue */
-	DRM_LOCK;
-
-	queue = gamma_alloc(sizeof(*queue), DRM_MEM_QUEUES);
-	memset(queue, 0, sizeof(*queue));
-	atomic_set(&queue->use_count, 1);
-
-	++dev->queue_count;
-	if (dev->queue_count >= dev->queue_slots) {
-		oldslots = dev->queue_slots * sizeof(*dev->queuelist);
-		if (!dev->queue_slots) dev->queue_slots = 1;
-		dev->queue_slots *= 2;
-		newslots = dev->queue_slots * sizeof(*dev->queuelist);
-
-		dev->queuelist = DRM(realloc)(dev->queuelist,
-					      oldslots,
-					      newslots,
-					      DRM_MEM_QUEUES);
-		if (!dev->queuelist) {
-			DRM_UNLOCK;
-			DRM_DEBUG("out of memory\n");
-			return DRM_ERR(ENOMEM);
-		}
-	}
-	dev->queuelist[dev->queue_count-1] = queue;
-
-	DRM_UNLOCK;
-	DRM_DEBUG("%d (new)\n", dev->queue_count - 1);
-	return dev->queue_count - 1;
-}
-
-int DRM(resctx)( DRM_IOCTL_ARGS )
-{
-	drm_ctx_res_t	res;
-	drm_ctx_t	ctx;
-	int		i;
-
-	DRM_DEBUG("%d\n", DRM_RESERVED_CONTEXTS);
-	
-	DRM_COPY_FROM_USER_IOCTL( res, (drm_ctx_res_t *)data, sizeof(res) );
-
-	if (res.count >= DRM_RESERVED_CONTEXTS) {
-		memset(&ctx, 0, sizeof(ctx));
-		for (i = 0; i < DRM_RESERVED_CONTEXTS; i++) {
-			ctx.handle = i;
-			if (DRM_COPY_TO_USER(&res.contexts[i],
-					 &i,
-					 sizeof(i)))
-				return DRM_ERR(EFAULT);
-		}
-	}
-	res.count = DRM_RESERVED_CONTEXTS;
-
-	DRM_COPY_TO_USER_IOCTL( (drm_ctx_res_t *)data, res, sizeof(res) );
-
-	return 0;
-}
-
-int DRM(addctx)( DRM_IOCTL_ARGS )
-{
-	DRM_DEVICE;
-	drm_ctx_t	ctx;
-
-	DRM_COPY_FROM_USER_IOCTL( ctx, (drm_ctx_t *)data, sizeof(ctx) );
-
-	if ((ctx.handle = DRM(alloc_queue)(dev)) == DRM_KERNEL_CONTEXT) {
-				/* Init kernel's context and get a new one. */
-		DRM(init_queue)(dev, dev->queuelist[ctx.handle], &ctx);
-		ctx.handle = DRM(alloc_queue)(dev);
-	}
-	DRM(init_queue)(dev, dev->queuelist[ctx.handle], &ctx);
-	DRM_DEBUG("%d\n", ctx.handle);
-	
-	DRM_COPY_TO_USER_IOCTL( (drm_ctx_t *)data, ctx, sizeof(ctx) );
-
-	return 0;
-}
-
-int DRM(modctx)( DRM_IOCTL_ARGS )
-{
-	DRM_DEVICE;
-	drm_ctx_t	ctx;
-	drm_queue_t	*q;
-
-	DRM_COPY_FROM_USER_IOCTL( ctx, (drm_ctx_t *)data, sizeof(ctx) );
-
-	DRM_DEBUG("%d\n", ctx.handle);
-
-	if (ctx.handle < 0 || ctx.handle >= dev->queue_count) 
-		return DRM_ERR(EINVAL);
-	q = dev->queuelist[ctx.handle];
-
-	atomic_inc(&q->use_count);
-	if (atomic_read(&q->use_count) == 1) {
-				/* No longer in use */
-		atomic_dec(&q->use_count);
-		return DRM_ERR(EINVAL);
-	}
-
-	if (DRM_BUFCOUNT(&q->waitlist)) {
-		atomic_dec(&q->use_count);
-		return DRM_ERR(EBUSY);
-	}
-
-	q->flags = ctx.flags;
-
-	atomic_dec(&q->use_count);
-	return 0;
-}
-
-int DRM(getctx)( DRM_IOCTL_ARGS )
-{
-	DRM_DEVICE;
-	drm_ctx_t	ctx;
-	drm_queue_t	*q;
-
-	DRM_COPY_FROM_USER_IOCTL( ctx, (drm_ctx_t *)data, sizeof(ctx) );
-
-	DRM_DEBUG("%d\n", ctx.handle);
-
-	if (ctx.handle >= dev->queue_count) 
-		return DRM_ERR(EINVAL);
-	q = dev->queuelist[ctx.handle];
-
-	atomic_inc(&q->use_count);
-	if (atomic_read(&q->use_count) == 1) {
-				/* No longer in use */
-		atomic_dec(&q->use_count);
-		return DRM_ERR(EINVAL);
-	}
-
-	ctx.flags = q->flags;
-	atomic_dec(&q->use_count);
-
-	DRM_COPY_TO_USER_IOCTL( (drm_ctx_t *)data, ctx, sizeof(ctx) );
-
-	return 0;
-}
-
-int DRM(switchctx)( DRM_IOCTL_ARGS )
-{
-	DRM_DEVICE;
-	drm_ctx_t	ctx;
-
-	DRM_COPY_FROM_USER_IOCTL( ctx, (drm_ctx_t *)data, sizeof(ctx) );
-
-	DRM_DEBUG("%d\n", ctx.handle);
-	return DRM(context_switch)(dev, dev->last_context, ctx.handle);
-}
-
-int DRM(newctx)( DRM_IOCTL_ARGS )
-{
-	DRM_DEVICE;
-	drm_ctx_t	ctx;
-
-	DRM_COPY_FROM_USER_IOCTL( ctx, (drm_ctx_t *)data, sizeof(ctx) );
-
-	DRM_DEBUG("%d\n", ctx.handle);
-	DRM(context_switch_complete)(dev, ctx.handle);
-
-	return 0;
-}
-
-int DRM(rmctx)( DRM_IOCTL_ARGS )
-{
-	DRM_DEVICE;
-	drm_ctx_t	ctx;
-	drm_queue_t	*q;
-	drm_buf_t	*buf;
-
-	DRM_COPY_FROM_USER_IOCTL( ctx, (drm_ctx_t *)data, sizeof(ctx) );
-
-	DRM_DEBUG("%d\n", ctx.handle);
-
-	if (ctx.handle >= dev->queue_count) return DRM_ERR(EINVAL);
-	q = dev->queuelist[ctx.handle];
-
-	atomic_inc(&q->use_count);
-	if (atomic_read(&q->use_count) == 1) {
-				/* No longer in use */
-		atomic_dec(&q->use_count);
-		return DRM_ERR(EINVAL);
-	}
-
-	atomic_inc(&q->finalization); /* Mark queue in finalization state */
-	atomic_sub(2, &q->use_count); /* Mark queue as unused (pending
-					 finalization) */
-
-	while (test_and_set_bit(0, &dev->interrupt_flag)) {
-		static int never;
-		int retcode;
-		retcode = tsleep(&never, PZERO|PCATCH, "never", 1);
-		if (retcode)
-			return retcode;
-	}
-				/* Remove queued buffers */
-	while ((buf = DRM(waitlist_get)(&q->waitlist))) {
-		DRM(free_buffer)(dev, buf);
-	}
-	clear_bit(0, &dev->interrupt_flag);
-
-				/* Wakeup blocked processes */
-	wakeup( &q->block_read );
-	wakeup( &q->block_write );
-	DRM_WAKEUP_INT( &q->flush_queue );
-				/* Finalization over.  Queue is made
-				   available when both use_count and
-				   finalization become 0, which won't
-				   happen until all the waiting processes
-				   stop waiting. */
-	atomic_dec(&q->finalization);
-	return 0;
-}
-
-#endif /* __HAVE_CTX_BITMAP */
