@@ -16,7 +16,7 @@
 # include <libmilter/mfdef.h>
 #endif /* MILTER */
 
-SM_RCSID("@(#)$Id: srvrsmtp.c,v 8.829.2.4 2002/08/16 14:56:01 ca Exp $")
+SM_RCSID("@(#)$Id: srvrsmtp.c,v 8.829.2.17 2002/12/09 16:46:18 ca Exp $")
 
 #if SASL || STARTTLS
 # include <sys/time.h>
@@ -218,6 +218,18 @@ static void	smtp_data __P((SMTP_T *, ENVELOPE *));
 
 #if MILTER
 # define MILTER_ABORT(e)	milter_abort((e))
+
+#if _FFR_MILTER_421
+# define MILTER_SHUTDOWN						\
+			if (strncmp(response, "421 ", 4) == 0)		\
+			{						\
+				e->e_sendqueue = NULL;			\
+				goto doquit;				\
+			}
+#else /* _FFR_MILTER_421 */
+# define MILTER_SHUTDOWN
+#endif /* _FFR_MILTER_421 */
+
 # define MILTER_REPLY(str)						\
 	{								\
 		int savelogusrerrs = LogUsrErrs;			\
@@ -233,6 +245,7 @@ static void	smtp_data __P((SMTP_T *, ENVELOPE *));
 				LogUsrErrs = false;			\
 			}						\
 			usrerr(response);				\
+			MILTER_SHUTDOWN					\
 			break;						\
 									\
 		  case SMFIR_REJECT:					\
@@ -355,9 +368,9 @@ smtp(nullserver, d_flags, e)
 	volatile unsigned int n_noop = 0;	/* count of NOOP/VERB/etc */
 	volatile unsigned int n_helo = 0;	/* count of HELO/EHLO */
 	bool ok;
-#if _FFR_ADAPTIVE_EOL
+#if _FFR_BLOCK_PROXIES || _FFR_ADAPTIVE_EOL
 	volatile bool first;
-#endif /* _FFR_ADAPTIVE_EOL */
+#endif /* _FFR_BLOCK_PROXIES || _FFR_ADAPTIVE_EOL */
 	volatile bool tempfail = false;
 	volatile time_t wt;		/* timeout after too many commands */
 	volatile time_t previous;	/* time after checksmtpattack() */
@@ -726,6 +739,23 @@ smtp(nullserver, d_flags, e)
 			tempfail = true;
 			smtp.sm_milterize = false;
 			break;
+
+#if _FFR_MILTER_421
+		  case SMFIR_SHUTDOWN:
+			if (MilterLogLevel > 3)
+				sm_syslog(LOG_INFO, e->e_id,
+					  "Milter: connect: host=%s, addr=%s, shutdown",
+					  peerhostname,
+					  anynet_ntoa(&RealHostAddr));
+			tempfail = true;
+			smtp.sm_milterize = false;
+			message("421 4.7.0 %s closing connection",
+					MyHostName);
+
+			/* arrange to ignore send list */
+			e->e_sendqueue = NULL;
+			goto doquit;
+#endif /* _FFR_MILTER_421 */
 		}
 		if (response != NULL)
 
@@ -797,9 +827,9 @@ smtp(nullserver, d_flags, e)
 	/* sendinghost's storage must outlive the current envelope */
 	if (sendinghost != NULL)
 		sendinghost = sm_strdup_x(sendinghost);
-#if _FFR_ADAPTIVE_EOL
+#if _FFR_BLOCK_PROXIES || _FFR_ADAPTIVE_EOL
 	first = true;
-#endif /* _FFR_ADAPTIVE_EOL */
+#endif /* _FFR_BLOCK_PROXIES || _FFR_ADAPTIVE_EOL */
 	gothello = false;
 	smtp.sm_gotmail = false;
 	for (;;)
@@ -851,7 +881,7 @@ smtp(nullserver, d_flags, e)
 				MyHostName, CurSmtpClient);
 			if (LogLevel > (smtp.sm_gotmail ? 1 : 19))
 				sm_syslog(LOG_NOTICE, e->e_id,
-					  "lost input channel from %.100s to %s after %s",
+					  "lost input channel from %s to %s after %s",
 					  CurSmtpClient, d,
 					  (c == NULL || c->cmd_name == NULL) ? "startup" : c->cmd_name);
 			/*
@@ -864,9 +894,36 @@ smtp(nullserver, d_flags, e)
 			goto doquit;
 		}
 
-#if _FFR_ADAPTIVE_EOL
+#if _FFR_BLOCK_PROXIES || _FFR_ADAPTIVE_EOL
 		if (first)
 		{
+#if _FFR_BLOCK_PROXIES
+			size_t inplen, cmdlen;
+			int idx;
+			char *http_cmd;
+			static char *http_cmds[] = { "GET", "POST",
+						     "CONNECT", "USER", NULL };
+
+			inplen = strlen(inp);
+			for (idx = 0; (http_cmd = http_cmds[idx]) != NULL;
+			     idx++)
+			{
+				cmdlen = strlen(http_cmd);
+				if (cmdlen < inplen &&
+				    sm_strncasecmp(inp, http_cmd, cmdlen) == 0 &&
+				    isascii(inp[cmdlen]) && isspace(inp[cmdlen]))
+				{
+					/* Open proxy, drop it */
+					message("421 4.7.0 %s Rejecting open proxy %s",
+						MyHostName, CurSmtpClient);
+					sm_syslog(LOG_INFO, e->e_id,
+						  "%s: probable open proxy: command=%.40s",
+						  CurSmtpClient, inp);
+					goto doquit;
+				}
+			}
+#endif /* _FFR_BLOCK_PROXIES */
+#if _FFR_ADAPTIVE_EOL
 			char *p;
 
 			smtp.sm_crlf = true;
@@ -878,13 +935,14 @@ smtp(nullserver, d_flags, e)
 				{
 					/* how many bad guys are there? */
 					sm_syslog(LOG_INFO, NOQID,
-						  "%.100s did not use CRLF",
+						  "%s did not use CRLF",
 						  CurSmtpClient);
 				}
 			}
+#endif /* _FFR_ADAPTIVE_EOL */
 			first = false;
 		}
-#endif /* _FFR_ADAPTIVE_EOL */
+#endif /* _FFR_BLOCK_PROXIES || _FFR_ADAPTIVE_EOL */
 
 		/* clean up end of line */
 		fixcrlf(inp, true);
@@ -900,7 +958,7 @@ smtp(nullserver, d_flags, e)
 		*/
 
 		if (bitset(SRV_NO_PIPE, features) &&
-		    sm_io_getinfo(InChannel, SM_IO_IS_READABLE, NULL))
+		    sm_io_getinfo(InChannel, SM_IO_IS_READABLE, NULL) > 0)
 		{
 			if (++np_log < 3)
 				sm_syslog(LOG_INFO, NOQID,
@@ -1054,7 +1112,7 @@ smtp(nullserver, d_flags, e)
 				/* NULL pointer ok since it's our function */
 				if (LogLevel > 8)
 					sm_syslog(LOG_INFO, NOQID,
-						  "AUTH=server, relay=%.100s, authid=%.128s, mech=%.16s, bits=%d",
+						  "AUTH=server, relay=%s, authid=%.128s, mech=%.16s, bits=%d",
 						  CurSmtpClient,
 						  shortenstring(user, 128),
 						  auth_type, *ssf);
@@ -1250,7 +1308,7 @@ smtp(nullserver, d_flags, e)
 			{
 				if (LogLevel > 9)
 					sm_syslog(LOG_INFO, e->e_id,
-						  "SMTP AUTH command (%.100s) from %.100s tempfailed (due to previous checks)",
+						  "SMTP AUTH command (%.100s) from %s tempfailed (due to previous checks)",
 						  p, CurSmtpClient);
 				usrerr("454 4.7.1 Please try again later");
 				break;
@@ -1419,7 +1477,7 @@ smtp(nullserver, d_flags, e)
 			{
 				if (LogLevel > 9)
 					sm_syslog(LOG_INFO, e->e_id,
-						  "SMTP STARTTLS command (%.100s) from %.100s tempfailed (due to previous checks)",
+						  "SMTP STARTTLS command (%.100s) from %s tempfailed (due to previous checks)",
 						  p, CurSmtpClient);
 				usrerr("454 4.7.1 Please try again later");
 				break;
@@ -1533,6 +1591,22 @@ smtp(nullserver, d_flags, e)
 					tv.tv_usec = 0;
 				}
 
+				if (!timedout && FD_SETSIZE > 0 &&
+				    (rfd >= FD_SETSIZE ||
+				     (i == SSL_ERROR_WANT_WRITE &&
+				      wfd >= FD_SETSIZE)))
+				{
+					if (LogLevel > 5)
+					{
+						sm_syslog(LOG_ERR, NOQID,
+							  "STARTTLS=server, error: fd %d/%d too large",
+							  rfd, wfd);
+						if (LogLevel > 8)
+							tlslogerr("server");
+					}
+					goto tlsfail;
+				}
+
 				/* XXX what about SSL_pending() ? */
 				if (!timedout && i == SSL_ERROR_WANT_READ)
 				{
@@ -1566,6 +1640,7 @@ smtp(nullserver, d_flags, e)
 					if (LogLevel > 8)
 						tlslogerr("server");
 				}
+tlsfail:
 				tls_ok_srv = false;
 				SSL_free(srv_ssl);
 				srv_ssl = NULL;
@@ -1723,7 +1798,7 @@ smtp(nullserver, d_flags, e)
 				usrerr("501 Invalid domain name");
 				if (LogLevel > 9)
 					sm_syslog(LOG_INFO, CurEnv->e_id,
-						  "invalid domain name (too long) from %.100s",
+						  "invalid domain name (too long) from %s",
 						  CurSmtpClient);
 				break;
 			}
@@ -1757,7 +1832,7 @@ smtp(nullserver, d_flags, e)
 				usrerr("501 Invalid domain name");
 				if (LogLevel > 9)
 					sm_syslog(LOG_INFO, CurEnv->e_id,
-						  "invalid domain name (%.100s) from %.100s",
+						  "invalid domain name (%s) from %.100s",
 						  p, CurSmtpClient);
 				break;
 			}
@@ -1943,7 +2018,7 @@ smtp(nullserver, d_flags, e)
 			{
 				if (LogLevel > 9)
 					sm_syslog(LOG_INFO, e->e_id,
-						  "SMTP MAIL command (%.100s) from %.100s tempfailed (due to previous checks)",
+						  "SMTP MAIL command (%.100s) from %s tempfailed (due to previous checks)",
 						  p, CurSmtpClient);
 				usrerr(MSG_TEMPFAIL);
 				break;
@@ -2267,7 +2342,7 @@ smtp(nullserver, d_flags, e)
 				    n_badrcpts == BadRcptThrottle)
 				{
 					sm_syslog(LOG_INFO, e->e_id,
-						  "%.100s: Possible SMTP RCPT flood, throttling.",
+						  "%s: Possible SMTP RCPT flood, throttling.",
 						  CurSmtpClient);
 
 					/* To avoid duplicated message */
@@ -2479,7 +2554,7 @@ smtp(nullserver, d_flags, e)
 			{
 				if (LogLevel > 9)
 					sm_syslog(LOG_INFO, e->e_id,
-						  "SMTP %s command (%.100s) from %.100s tempfailed (due to previous checks)",
+						  "SMTP %s command (%.100s) from %s tempfailed (due to previous checks)",
 						  vrfy ? "VRFY" : "EXPN",
 						  p, CurSmtpClient);
 
@@ -2490,8 +2565,8 @@ smtp(nullserver, d_flags, e)
 			wt = checksmtpattack(&n_verifies, MAXVRFYCOMMANDS,
 					     false, vrfy ? "VRFY" : "EXPN", e);
 			previous = curtime();
-			if (bitset(vrfy ? PRIV_NOVRFY : PRIV_NOEXPN,
-				   PrivacyFlags))
+			if ((vrfy && bitset(PRIV_NOVRFY, PrivacyFlags)) ||
+			    (!vrfy && !bitset(SRV_OFFER_EXPN, features)))
 			{
 				if (vrfy)
 					message("252 2.5.2 Cannot VRFY user; try RCPT to attempt delivery (or try finger)");
@@ -2499,7 +2574,7 @@ smtp(nullserver, d_flags, e)
 					message("502 5.7.0 Sorry, we do not allow this operation");
 				if (LogLevel > 5)
 					sm_syslog(LOG_INFO, e->e_id,
-						  "%.100s: %s [rejected]",
+						  "%s: %s [rejected]",
 						  CurSmtpClient,
 						  shortenstring(inp, MAXSHORTSTR));
 				break;
@@ -2514,7 +2589,7 @@ smtp(nullserver, d_flags, e)
 			if (Errors > 0)
 				break;
 			if (LogLevel > 5)
-				sm_syslog(LOG_INFO, e->e_id, "%.100s: %s",
+				sm_syslog(LOG_INFO, e->e_id, "%s: %s",
 					  CurSmtpClient,
 					  shortenstring(inp, MAXSHORTSTR));
 		    SM_TRY
@@ -2594,7 +2669,7 @@ smtp(nullserver, d_flags, e)
 				message("502 5.7.0 Sorry, we do not allow this operation");
 				if (LogLevel > 5)
 					sm_syslog(LOG_INFO, e->e_id,
-						  "%.100s: %s [rejected]",
+						  "%s: %s [rejected]",
 						  CurSmtpClient,
 						  shortenstring(inp, MAXSHORTSTR));
 				break;
@@ -2603,7 +2678,7 @@ smtp(nullserver, d_flags, e)
 			{
 				if (LogLevel > 9)
 					sm_syslog(LOG_INFO, e->e_id,
-						  "SMTP ETRN command (%.100s) from %.100s tempfailed (due to previous checks)",
+						  "SMTP ETRN command (%.100s) from %s tempfailed (due to previous checks)",
 						  p, CurSmtpClient);
 				usrerr(MSG_TEMPFAIL);
 				break;
@@ -2636,7 +2711,7 @@ smtp(nullserver, d_flags, e)
 
 			if (LogLevel > 5)
 				sm_syslog(LOG_INFO, e->e_id,
-					  "%.100s: ETRN %s", CurSmtpClient,
+					  "%s: ETRN %s", CurSmtpClient,
 					  shortenstring(p, MAXSHORTSTR));
 
 			id = p;
@@ -2652,8 +2727,7 @@ smtp(nullserver, d_flags, e)
 					       id);
 					break;
 				}
-				ok = run_work_group(wgrp, true, false,
-						    false, true);
+				ok = run_work_group(wgrp, RWG_FORK|RWG_RUNALL);
 				if (ok && Errors == 0)
 					message("250 2.0.0 Queuing for queue group %s started", id);
 				break;
@@ -2751,20 +2825,21 @@ doquit:
 				*/
 
 				sm_syslog(LOG_INFO, e->e_id,
-					  "%.100s did not issue MAIL/EXPN/VRFY/ETRN during connection to %s",
+					  "%s did not issue MAIL/EXPN/VRFY/ETRN during connection to %s",
 					  CurSmtpClient, d);
 			}
-#if PROFILING
-			return;
-#endif /* PROFILING */
+			if (tTd(93, 100))
+			{
+				/* return to handle next connection */
+				return;
+			}
 			finis(true, true, ExitStat);
 			/* NOTREACHED */
 
 		  case CMDVERB:		/* set verbose mode */
 			DELAY_CONN("VERB");
-			if (bitset(PRIV_NOEXPN, PrivacyFlags) ||
-			    !bitset(SRV_OFFER_VERB, features) ||
-			    bitset(PRIV_NOVERB, PrivacyFlags))
+			if (!bitset(SRV_OFFER_EXPN, features) ||
+			    !bitset(SRV_OFFER_VERB, features))
 			{
 				/* this would give out the same info */
 				message("502 5.7.0 Verbose unavailable");
@@ -2798,7 +2873,7 @@ doquit:
 			DELAY_CONN("Bogus");
 			if (LogLevel > 0)
 				sm_syslog(LOG_CRIT, e->e_id,
-					  "\"%s\" command from %.100s (%.100s)",
+					  "\"%s\" command from %s (%.100s)",
 					  c->cmd_name, CurSmtpClient,
 					  anynet_ntoa(&RealHostAddr));
 			/* FALLTHROUGH */
@@ -3289,7 +3364,7 @@ checksmtpattack(pcounter, maxcount, waitnow, cname, e)
 		if (*pcounter == maxcount && LogLevel > 5)
 		{
 			sm_syslog(LOG_INFO, e->e_id,
-				  "%.100s: possible SMTP attack: command=%.40s, count=%u",
+				  "%s: possible SMTP attack: command=%.40s, count=%u",
 				  CurSmtpClient, cname, *pcounter);
 		}
 		s = 1 << (*pcounter - maxcount);
@@ -4014,8 +4089,8 @@ initsrvtls(tls_ok)
 		return false;
 
 	/* do NOT remove assignment */
-	tls_ok_srv = inittls(&srv_ctx, TLS_Srv_Opts, true, SrvCERTfile,
-			     Srvkeyfile, CACERTpath, CACERTfile, DHParams);
+	tls_ok_srv = inittls(&srv_ctx, TLS_Srv_Opts, true, SrvCertFile,
+			     SrvKeyFile, CACertPath, CACertFile, DHParams);
 	return tls_ok_srv;
 }
 #endif /* STARTTLS */
@@ -4039,21 +4114,21 @@ static struct
 } srv_feat_table[] =
 {
 	{ 'A',	SRV_OFFER_AUTH	},
-	{ 'B',	SRV_OFFER_VERB	},
-	{ 'D',	SRV_OFFER_DSN	},
-	{ 'E',	SRV_OFFER_ETRN	},
-	{ 'L',	SRV_REQ_AUTH	},	/* not documented in 8.12 */
+	{ 'B',	SRV_OFFER_VERB	},	/* FFR; not documented in 8.12 */
+	{ 'D',	SRV_OFFER_DSN	},	/* FFR; not documented in 8.12 */
+	{ 'E',	SRV_OFFER_ETRN	},	/* FFR; not documented in 8.12 */
+	{ 'L',	SRV_REQ_AUTH	},	/* FFR; not documented in 8.12 */
 #if PIPELINING
 # if _FFR_NO_PIPE
 	{ 'N',	SRV_NO_PIPE	},
 # endif /* _FFR_NO_PIPE */
 	{ 'P',	SRV_OFFER_PIPE	},
 #endif /* PIPELINING */
-	{ 'R',	SRV_VRFY_CLT	},
+	{ 'R',	SRV_VRFY_CLT	},	/* FFR; not documented in 8.12 */
 	{ 'S',	SRV_OFFER_TLS	},
 /*	{ 'T',	SRV_TMP_FAIL	},	*/
 	{ 'V',	SRV_VRFY_CLT	},
-	{ 'X',	SRV_OFFER_EXPN	},
+	{ 'X',	SRV_OFFER_EXPN	},	/* FFR; not documented in 8.12 */
 /*	{ 'Y',	SRV_OFFER_VRFY	},	*/
 	{ '\0',	SRV_NONE	}
 };

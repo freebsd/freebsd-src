@@ -25,7 +25,7 @@ SM_UNUSED(static char copyright[]) =
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* ! lint */
 
-SM_RCSID("@(#)$Id: main.c,v 8.887.2.1 2002/08/04 17:36:06 gshapiro Exp $")
+SM_RCSID("@(#)$Id: main.c,v 8.887.2.12 2002/12/05 17:38:44 ca Exp $")
 
 
 #if NETINET || NETINET6
@@ -212,6 +212,10 @@ main(argc, argv, envp)
 
 	/* install default exception handler */
 	sm_exc_newthread(fatal_error);
+
+	/* set the default in/out channel so errors reported to screen */
+	InChannel = smioin;
+	OutChannel = smioout;
 
 	/*
 	**  Check to see if we reentered.
@@ -609,9 +613,6 @@ main(argc, argv, envp)
 		sm_printoptions(FFRCompileOptions);
 	}
 
-	InChannel = smioin;
-	OutChannel = smioout;
-
 	/* clear sendmail's environment */
 	ExternalEnviron = environ;
 	emptyenviron[0] = NULL;
@@ -845,7 +846,10 @@ main(argc, argv, envp)
 				ExitStat = EX_USAGE;
 				break;
 			}
-			from = newstr(denlstring(optarg, true, true));
+			if (optarg[0] == '\0')
+				from = newstr("<>");
+			else
+				from = newstr(denlstring(optarg, true, true));
 			if (strcmp(RealUserName, from) != 0)
 				warn_f_flag = j;
 			break;
@@ -1390,10 +1394,13 @@ main(argc, argv, envp)
 
 	if (tTd(0, 10))
 	{
+		char pidpath[MAXPATHLEN];
+
 		/* Now we know which .cf file we use */
 		sm_dprintf("     Conf file:\t%s (selected)\n",
 			   getcfname(OpMode, SubmitMode, cftype, conffile));
-		sm_dprintf("      Pid file:\t%s (selected)\n", PidFile);
+		expand(PidFile, pidpath, sizeof pidpath, &BlankEnvelope);
+		sm_dprintf("      Pid file:\t%s (selected)\n", pidpath);
 	}
 
 	if (tTd(0, 1))
@@ -2184,6 +2191,8 @@ main(argc, argv, envp)
 			CurrentPid = getpid();
 			if (qgrp != NOQGRP)
 			{
+				int rwgflags = RWG_NONE;
+
 				/*
 				**  To run a specific queue group mark it to
 				**  be run, select the work group it's in and
@@ -2194,9 +2203,13 @@ main(argc, argv, envp)
 				     i++)
 					Queue[i]->qg_nextrun = (time_t) -1;
 				Queue[qgrp]->qg_nextrun = 0;
+				if (Verbose)
+					rwgflags |= RWG_VERBOSE;
+				if (queuepersistent)
+					rwgflags |= RWG_PERSISTENT;
+				rwgflags |= RWG_FORCE;
 				(void) run_work_group(Queue[qgrp]->qg_wgrp,
-						      false, Verbose,
-						      queuepersistent, false);
+						      rwgflags);
 			}
 			else
 				(void) runqueue(false, Verbose,
@@ -2440,9 +2453,8 @@ main(argc, argv, envp)
 		/* init TLS for server, ignore result for now */
 		(void) initsrvtls(tls_ok);
 #endif /* STARTTLS */
-#if PROFILING
+
 	nextreq:
-#endif /* PROFILING */
 		p_flags = getrequests(&MainEnvelope);
 
 		/* drop privileges */
@@ -2466,7 +2478,7 @@ main(argc, argv, envp)
 	if (LogLevel > 9)
 	{
 		/* log connection information */
-		sm_syslog(LOG_INFO, NULL, "connect from %.100s", authinfo);
+		sm_syslog(LOG_INFO, NULL, "connect from %s", authinfo);
 	}
 
 	/*
@@ -2541,12 +2553,14 @@ main(argc, argv, envp)
 		/* turn off profiling */
 		SM_PROF(1);
 		smtp(nullserver, *p_flags, &MainEnvelope);
-#if PROFILING
-		/* turn off profiling */
-		SM_PROF(0);
-		if (OpMode == MD_DAEMON)
-			goto nextreq;
-#endif /* PROFILING */
+
+		if (tTd(93, 100))
+		{
+			/* turn off profiling */
+			SM_PROF(0);
+			if (OpMode == MD_DAEMON)
+				goto nextreq;
+		}
 	}
 
 	sm_rpool_free(MainEnvelope.e_rpool);
@@ -4086,7 +4100,7 @@ testmodeline(line, e)
 						     "Name too long\n");
 				return;
 			}
-			(void) getcanonname(host, sizeof host, HasWildcardMX,
+			(void) getcanonname(host, sizeof host, !HasWildcardMX,
 					    NULL);
 			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
 					     "getcanonname(%s) returns %s\n",

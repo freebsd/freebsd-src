@@ -39,7 +39,7 @@ The following command presumes that the sample code from the end of this
 README is saved to a file named 'sample.c' and built in the local platform-
 specific build subdirectory (SRCDIR/obj.*/libmilter).
 
-	cc -I../../sendmail -I../../include -o sample sample.c libmilter.a ../libsm/libsm.a -pthread
+	cc -I../../include -o sample sample.c libmilter.a ../libsm/libsm.a -pthread
 
 It is recommended that you build your filters in a location outside of
 the sendmail source tree.  Modify the compiler include references (-I)
@@ -457,4 +457,4 @@ main(argc, argv)
 
 /* eof */
 
-$Revision: 8.35 $, Last updated $Date: 2002/01/07 21:29:20 $
+$Revision: 8.35.2.1 $, Last updated $Date: 2002/10/21 14:31:57 $
