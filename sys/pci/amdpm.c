@@ -66,6 +66,8 @@ static int amdpm_debug = 0;
 
 #define AMDPM_VENDORID_AMD 0x1022
 #define AMDPM_DEVICEID_AMD756PM 0x740b
+#define AMDPM_DEVICEID_AMD766PM 0x7413
+#define AMDPM_DEVICEID_AMD768PM 0x7443
 
 /* nVidia nForce chipset */
 #define AMDPM_VENDORID_NVIDIA 0x10de
@@ -142,10 +144,14 @@ static int
 amdpm_probe(device_t dev)
 {
 	u_long base;
-	
+	u_int16_t did;
+
+	did = pci_get_device(dev);
 	if ((pci_get_vendor(dev) == AMDPM_VENDORID_AMD) &&
-	    (pci_get_device(dev) == AMDPM_DEVICEID_AMD756PM)) {
-	      device_set_desc(dev, "AMD 756 Power Management Controller");
+	    ((did == AMDPM_DEVICEID_AMD756PM) ||
+	     (did == AMDPM_DEVICEID_AMD766PM) ||
+	     (did == AMDPM_DEVICEID_AMD768PM))) {
+	      device_set_desc(dev, "AMD 756/766/768 Power Management Controller");
 	      
 	      /* 
 	       * We have to do this, since the BIOS won't give us the
