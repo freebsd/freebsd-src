@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.2 1995/12/10 23:07:16 peter Exp $
+# $Id: Makefile,v 1.3 1996/08/20 23:55:34 peter Exp $
 
 .include "${.CURDIR}/../Makefile.inc"
 
@@ -8,7 +8,7 @@ MAKEINFOFLAGS+=	-I ${CVSDIR}/doc
 
 INFO=	cvs cvsclient
 
-cvs.texinfo cvsclient.texi: CVSvn.texi
+cvs.info cvsclient.info:	CVSvn.texi
 
 CLEANFILES+= CVSvn.texi
 
