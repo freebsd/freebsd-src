@@ -1178,6 +1178,7 @@ sk_attach_xmac(dev)
 	if (mii_phy_probe(dev, &sc_if->sk_miibus,
 	    sk_ifmedia_upd, sk_ifmedia_sts)) {
 		printf("skc%d: no PHY found!\n", sc_if->sk_unit);
+		ether_ifdetach(ifp);
 		error = ENXIO;
 		goto fail_xmac;
 	}
@@ -1335,6 +1336,7 @@ sk_attach(dev)
 
 	bus_generic_attach(dev);
 
+	/* Hook interrupt last to avoid having to lock softc */
 	error = bus_setup_intr(dev, sc->sk_irq, INTR_TYPE_NET,
 	    sk_intr, sc, &sc->sk_intrhand);
 
@@ -1350,6 +1352,13 @@ fail:
 	return(error);
 }
 
+/*
+ * Shutdown hardware and free up resources. This can be called any
+ * time after the mutex has been initialized. It is called in both
+ * the error case in attach and the normal detach case so it needs
+ * to be careful about only freeing resources that have actually been
+ * allocated.
+ */
 static int
 sk_detach_xmac(dev)
 	device_t		dev;
@@ -1365,13 +1374,14 @@ sk_detach_xmac(dev)
 	SK_IF_LOCK(sc_if);
 
 	ifp = &sc_if->arpcom.ac_if;
+	/* These should only be active if attach_xmac succeeded */
 	if (device_is_alive(dev)) {
-		if (bus_child_present(dev))
-			sk_stop(sc_if);
+		sk_stop(sc_if);
 		ether_ifdetach(ifp);
-		device_delete_child(dev, sc_if->sk_miibus);
-		bus_generic_detach(dev);
 	}
+	if (sc_if->sk_miibus)
+		device_delete_child(dev, sc_if->sk_miibus);
+	bus_generic_detach(dev);
 	if (sc_if->sk_cdata.sk_jumbo_buf)
 		contigfree(sc_if->sk_cdata.sk_jumbo_buf, SK_JMEM, M_DEVBUF);
 	if (sc_if->sk_rdata) {
