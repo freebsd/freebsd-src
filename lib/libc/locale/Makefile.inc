@@ -4,14 +4,15 @@
 # locale sources
 .PATH: ${.CURDIR}/../libc/${MACHINE_ARCH}/locale ${.CURDIR}/../libc/locale
 
-SRCS+=	ansi.c big5.c btowc.c collate.c collcmp.c euc.c fix_grouping.c frune.c \
+SRCS+=	big5.c btowc.c collate.c collcmp.c euc.c fix_grouping.c frune.c \
 	isctype.c iswctype.c \
-	ldpart.c lmessages.c lmonetary.c lnumeric.c localeconv.c mbrlen.c \
-	mbrtowc.c mbrune.c mbsinit.c mbsrtowcs.c \
+	ldpart.c lmessages.c lmonetary.c lnumeric.c localeconv.c mblen.c \
+	mbrlen.c \
+	mbrtowc.c mbrune.c mbsinit.c mbsrtowcs.c mbtowc.c mbstowcs.c \
 	mskanji.c nl_langinfo.c nomacros.c none.c rune.c \
 	runetype.c setinvalidrune.c setlocale.c setrunelocale.c table.c \
-	tolower.c toupper.c utf2.c wcrtomb.c wcsrtombs.c \
-	wctob.c wctrans.c wctype.c wcwidth.c
+	tolower.c toupper.c utf2.c wcrtomb.c wcsrtombs.c wcstombs.c \
+	wctob.c wctomb.c wctrans.c wctype.c wcwidth.c
 
 .if ${LIB} == "c"
 MAN+=	btowc.3 \
