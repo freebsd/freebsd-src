@@ -168,7 +168,6 @@ struct	proc {
 
 	int	p_flag;			/* (c) P_* flags. */
 	int	p_sflag;		/* (j) PS_* flags. */
-	int	p_intr_nesting_level;	/* (k) Interrupt recursion. */
 	int	p_stat;			/* (j) S* process status. */
 
 	pid_t	p_pid;			/* (b) Process identifier. */
@@ -233,9 +232,12 @@ struct	proc {
 	u_long	p_code;			/* (n) For core dump/debugger XXX. */
 	struct	klist p_klist;	/* (c) Knotes attached to this process. */
 	LIST_HEAD(, mtx) p_heldmtx;	/* (j) For debugging code. */
-	struct mtx *p_blocked;		/* (j) Mutex process is blocked on. */
+	struct	mtx *p_blocked;		/* (j) Mutex process is blocked on. */
 	const char *p_mtxname;		/* (j) Name of mutex blocked on. */
 	LIST_HEAD(, mtx) p_contested;	/* (j) Contested locks. */
+	void	*p_aioinfo;	/* (c) ASYNC I/O info. */
+	struct	ithd *p_ithd;	/* (b) For interrupt threads only. */
+	int	p_intr_nesting_level;	/* (k) Interrupt recursion. */
 
 /* End area that is zeroed on creation. */
 #define	p_endzero	p_startcopy
@@ -265,12 +267,10 @@ struct	proc {
 	u_short	p_acflag;	/* (c) Accounting flags. */
 	struct	rusage *p_ru;	/* (a) Exit information. XXX */
 
-	void	*p_aioinfo;	/* (c) ASYNC I/O info. */
 	struct proc *p_peers;	/* (c) */
 	struct proc *p_leader;	/* (c) */
 	struct	pasleep p_asleep;	/* (k) Used by asleep()/await(). */
 	void	*p_emuldata;	/* (c) Emulator state data. */
-	struct	ithd *p_ithd;	/* (b) For interrupt threads only. */
 };
 
 #define	p_session	p_pgrp->pg_session
