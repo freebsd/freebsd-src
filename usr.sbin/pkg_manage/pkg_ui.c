@@ -54,9 +54,7 @@ view_installed(void)
     if (p_inf.Nitems == 0) {
 	use_helpfile(NULL);
 	use_helpline(NULL);
-#if 0
 	dialog_notify("No packages installed or no info available");
-#endif
 	return;
     }
     use_helpfile(VIEW_INST_HLP);
