@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.189 1999/03/19 00:05:32 brian Exp $
+ * $Id: command.c,v 1.190 1999/03/25 23:36:23 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -42,10 +42,10 @@
 #include <unistd.h>
 
 #ifndef NOALIAS
-#ifdef __OpenBSD__
-#include "alias.h"
-#else
+#ifdef __FreeBSD__
 #include <alias.h>
+#else
+#include "alias.h"
 #endif
 #endif
 #include "defs.h"
@@ -141,7 +141,7 @@
 #define NEG_DNS		52
 
 const char Version[] = "2.11";
-const char VersionDate[] = "$Date: 1999/03/19 00:05:32 $";
+const char VersionDate[] = "$Date: 1999/03/25 23:36:23 $";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
