@@ -226,7 +226,7 @@ struct xucred def_anon = {
 int force_v2 = 0;
 int resvport_only = 1;
 int dir_only = 1;
-int log = 0;
+int dolog = 0;
 int got_sighup = 0;
 
 int opt_flags;
@@ -313,7 +313,7 @@ main(argc, argv)
 			debug = debug ? 0 : 1;
 			break;
 		case 'l':
-			log = 1;
+			dolog = 1;
 			break;
 		default:
 			usage();
@@ -627,7 +627,7 @@ mntsrv(rqstp, transp)
 				add_mlist(numerichost, dirpath);
 			if (debug)
 				warnx("mount successful");
-			if (log)
+			if (dolog)
 				syslog(LOG_NOTICE,
 				    "mount request succeeded from %s for %s",
 				    numerichost, dirpath);
@@ -646,7 +646,7 @@ mntsrv(rqstp, transp)
 	case RPCMNT_DUMP:
 		if (!svc_sendreply(transp, (xdrproc_t)xdr_mlist, (caddr_t)NULL))
 			syslog(LOG_ERR, "can't send reply");
-		else if (log)
+		else if (dolog)
 			syslog(LOG_NOTICE,
 			    "dump request succeeded from %s",
 			    numerichost);
@@ -675,7 +675,7 @@ mntsrv(rqstp, transp)
 		if (!lookup_failed)
 			del_mlist(host, dirpath);
 		del_mlist(numerichost, dirpath);
-		if (log)
+		if (dolog)
 			syslog(LOG_NOTICE,
 			    "umount request succeeded from %s for %s",
 			    numerichost, dirpath);
@@ -693,7 +693,7 @@ mntsrv(rqstp, transp)
 		if (!lookup_failed)
 			del_mlist(host, NULL);
 		del_mlist(numerichost, NULL);
-		if (log)
+		if (dolog)
 			syslog(LOG_NOTICE,
 			    "umountall request succeeded from %s",
 			    numerichost);
@@ -703,7 +703,7 @@ mntsrv(rqstp, transp)
 			if (!svc_sendreply(transp, (xdrproc_t)xdr_explist_brief,
 			    (caddr_t)NULL))
 				syslog(LOG_ERR, "can't send reply");
-		if (log)
+		if (dolog)
 			syslog(LOG_NOTICE,
 			    "export request succeeded from %s",
 			    numerichost);
