@@ -40,7 +40,7 @@ static char sccsid[] = "@(#)query.c	8.1 (Berkeley) 6/5/93";
 #elif defined(__NetBSD__)
 static char rcsid[] = "$NetBSD$";
 #endif
-#ident "$Revision: 1.10 $"
+#ident "$Revision: 1.11 $"
 
 #include <sys/param.h>
 #include <sys/protosw.h>
@@ -117,7 +117,7 @@ static u_int std_mask(u_int);
 static int parse_quote(char **, char *, char *, char *, int);
 
 
-int
+void
 main(int argc,
      char *argv[])
 {
@@ -255,7 +255,7 @@ main(int argc,
 	if ((not_trace && trace) || argc == 0) {
 usage:		fprintf(stderr, "%s: [-np1v] [-r tgt_rt] [-w wtime]"
 			" [-a type=passwd] host1 [host2 ...]\n"
-			"or\t-t {on=filename|more|off|on=dump/../table}"
+			"or\t-t {on=filename|more|off|dump}"
 			" host1 [host2 ...]\n",
 			pgmname);
 		exit(1);

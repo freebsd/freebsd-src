@@ -36,7 +36,7 @@ static char sccsid[] = "@(#)if.c	8.1 (Berkeley) 6/5/93";
 #elif defined(__NetBSD__)
 static char rcsid[] = "$NetBSD$";
 #endif
-#ident "$Revision: 1.21 $"
+#ident "$Revision: 1.22 $"
 
 #include "defs.h"
 #include "pathnames.h"
@@ -60,7 +60,7 @@ struct interface *remote_if;		/* remote interfaces */
 
 /* hash for physical interface names.
  * Assume there are never more 100 or 200 real interfaces, and that
- * aliases put on the end of the hash chains.
+ * aliases are put on the end of the hash chains.
  */
 #define NHASH_LEN 97
 struct interface *nhash[NHASH_LEN];
@@ -71,11 +71,14 @@ int	foundloopback;			/* valid flag for loopaddr */
 naddr	loopaddr;			/* our address on loopback */
 
 struct timeval ifinit_timer;
+static struct timeval last_ifinit;
 
 int	have_ripv1_out;			/* have a RIPv1 interface */
 int	have_ripv1_in;
 
 
+/* Link a new interface into the lists and hash tables.
+ */
 void
 if_link(struct interface *ifp)
 {
@@ -117,6 +120,7 @@ if_link(struct interface *ifp)
 		i += *p;
 	hifp = &nhash[i % NHASH_LEN];
 	if (ifp->int_state & IS_ALIAS) {
+		/* put aliases on the end of the hash chain */
 		while (*hifp != 0)
 			hifp = &(*hifp)->int_nhash;
 	}
@@ -176,19 +180,32 @@ ifwithname(char *name,			/* "ec0" or whatever */
 	int i;
 	char *p;
 
-	for (i = 0, p = name; *p != '\0'; p++)
-		i += *p;
-	for (ifp = nhash[i % NHASH_LEN]; ifp != 0; ifp = ifp->int_nhash) {
-		/* If the network address is not specified,
-		 * ignore any alias interfaces.  Otherwise, look
-		 * for the interface with the target name and address.
+	for (;;) {
+		for (i = 0, p = name; *p != '\0'; p++)
+			i += *p;
+		ifp = nhash[i % NHASH_LEN];
+
+		while (ifp != 0) {
+			/* If the network address is not specified,
+			 * ignore any alias interfaces.  Otherwise, look
+			 * for the interface with the target name and address.
+			 */
+			if (!strcmp(ifp->int_name, name)
+			    && ((addr == 0 && !(ifp->int_state & IS_ALIAS))
+				|| (ifp->int_addr == addr)))
+				return ifp;
+			ifp = ifp->int_nhash;
+		}
+
+
+		/* If there is no known interface, maybe there is a
+		 * new interface.  So just once look for new interfaces.
 		 */
-		if (!strcmp(ifp->int_name, name)
-		    && ((addr == 0 && !(ifp->int_state & IS_ALIAS))
-			|| (ifp->int_addr == addr)))
-			return ifp;
+		if (last_ifinit.tv_sec == now.tv_sec
+		    && last_ifinit.tv_usec == now.tv_usec)
+			return 0;
+		ifinit();
 	}
-	return 0;
 }
 
 
@@ -214,7 +231,6 @@ struct interface *
 iflookup(naddr addr)
 {
 	struct interface *ifp, *maybe;
-	static struct timeval retried;
 
 	maybe = 0;
 	for (;;) {
@@ -239,15 +255,14 @@ iflookup(naddr addr)
 		}
 
 		if (maybe != 0
-		    || (retried.tv_sec == now.tv_sec
-			&& retried.tv_usec == now.tv_usec))
+		    || (last_ifinit.tv_sec == now.tv_sec
+			&& last_ifinit.tv_usec == now.tv_usec))
 			return maybe;
 
 		/* If there is no known interface, maybe there is a
 		 * new interface.  So just once look for new interfaces.
 		 */
 		ifinit();
-		retried = now;
 	}
 }
 
@@ -654,6 +669,7 @@ ifinit(void)
 #endif
 
 
+	last_ifinit = now;
 	ifinit_timer.tv_sec = now.tv_sec + (supplier
 					    ? CHECK_ACT_INTERVAL
 					    : CHECK_QUIET_INTERVAL);
