@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.40 1995/01/09 16:04:38 davidg Exp $
+ *	$Id: pmap.c,v 1.41 1995/01/14 04:58:53 davidg Exp $
  */
 
 /*
@@ -906,8 +906,8 @@ pmap_remove(pmap, sva, eva)
 
 			pv = pa_to_pvh(pa);
 			pmap_remove_entry(pmap, pv, sva);
-			pmap_unuse_pt(pmap, sva); 
 		}
+		pmap_unuse_pt(pmap, sva); 
 		pmap_update();
 		return;
 	}
@@ -981,6 +981,7 @@ pmap_remove(pmap, sva, eva)
 		 */
 		pa = ((int)oldpte) & PG_FRAME;
 		if (!pmap_is_managed(pa)) {
+			pmap_unuse_pt(pmap, va); 
 			++sva;
 			continue;
 		}
@@ -1029,6 +1030,7 @@ pmap_remove_all(pa)
 	/*
 	 * Not one of ours
 	 */
+	/* XXX this makes pmap_page_protect(NONE) illegal for non-managed pages! */
 	if (!pmap_is_managed(pa))
 		return;
 
@@ -1061,8 +1063,8 @@ pmap_remove_all(pa)
 			}
 
 			*pte = 0;
+			pmap_unuse_pt(pmap, va);
 		}
-		pmap_unuse_pt(pmap, va);
 
 		npv = pv->pv_next;
 		if (npv) {
