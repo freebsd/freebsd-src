@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.103 1997/08/18 21:47:31 jkh Exp $
+ * $Id: config.c,v 1.104 1997/09/17 16:18:10 pst Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -513,6 +513,7 @@ configXEnvironment(dialogMenuItem *self)
 {
 #ifndef USE_XIG_ENVIRONMENT
     char *config, *execfile;
+    char *moused;
 
     dialog_clear_norefresh();
     if (!dmenuOpenSimple(&MenuXF86Config, FALSE))
@@ -524,8 +525,23 @@ configXEnvironment(dialogMenuItem *self)
     execfile = string_concat("/usr/X11R6/bin/", config);
     if (file_executable(execfile)) {
 	dialog_clear_norefresh();
-	if (!file_readable("/dev/mouse") && !msgYesNo("Does this system have a mouse attached to it?"))
+	moused = variable_get(VAR_MOUSED);
+	while (!moused || strcmp(moused, "YES")) {
+	    if (msgYesNo("The X server may access the mouse in two ways: direct access\n"
+			 "or indirect access via the mouse daemon.  You have not\n"
+			 "configured the mouse daemon.  Would you like to configure it\n"
+			 "now?  If you intend to let the X server access the mouse\n"
+			 "directly, choose \"No\" at this time."))
+		break;
 	    dmenuOpenSimple(&MenuMouse, FALSE); 
+	    dialog_clear();
+	    moused = variable_get(VAR_MOUSED);
+	}
+	if (moused && !strcmp(moused, "YES"))
+	    msgConfirm("You have configured and been running the mouse daemon.\n"
+	   	       "Choose \"/dev/sysmouse\" as the mouse port and \"SysMouse\" or\n"
+		       "\"MouseSystems\" as the mouse protocol in the X configuration\n"
+		       "utility.");
 	dialog_clear();
 	systemExecute(execfile);
 	return DITEM_SUCCESS | DITEM_RESTORE;
