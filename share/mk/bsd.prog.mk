@@ -1,5 +1,5 @@
 #	from: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.prog.mk,v 1.7 1994/10/07 03:10:05 ache Exp $
+#	$Id: bsd.prog.mk,v 1.8 1994/10/10 03:18:47 rgrimes Exp $
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
@@ -30,6 +30,7 @@ LIBCRYPT?=	/usr/lib/libcrypt.a
 LIBCURSES?=	/usr/lib/libcurses.a
 LIBDBM?=	/usr/lib/libdbm.a
 LIBDES?=	/usr/lib/libdes.a
+LIBDIALOG?=	/usr/lib/libdialog.a
 LIBGNUMALLOC?=	/usr/lib/libgnumalloc.a
 LIBGNUREGEX?=	/usr/lib/libgnuregex.a
 LIBL?=		/usr/lib/libl.a
@@ -56,6 +57,7 @@ LIBCRYPT?=	${DESTDIR}/usr/lib/libcrypt.a
 LIBCURSES?=	${DESTDIR}/usr/lib/libcurses.a
 LIBDBM?=	${DESTDIR}/usr/lib/libdbm.a
 LIBDES?=	${DESTDIR}/usr/lib/libdes.a
+LIBDIALOG?=	${DESTDIR}/usr/lib/libdialog.a
 LIBGNUMALLOC?=	${DESTDIR}/usr/lib/libgnumalloc.a
 LIBGNUREGEX?=	${DESTDIR}/usr/lib/libgnuregex.a
 LIBL?=		${DESTDIR}/usr/lib/libl.a
