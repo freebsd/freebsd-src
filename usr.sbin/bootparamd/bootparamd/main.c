@@ -45,7 +45,6 @@ int argc;
 char **argv;
 {
 	SVCXPRT *transp;
-	int i;
 	struct hostent *he;
 	struct stat buf;
 	char c;
@@ -56,7 +55,7 @@ char **argv;
 	    debug = 1;
 	    break;
 	  case 'r':
-	      if ( isdigit( *optarg)) {
+	      if (isdigit((unsigned char)*optarg)) {
 		route_addr = inet_addr(optarg);
 		break;
 	      } else {
@@ -65,7 +64,7 @@ char **argv;
 		   bcopy(he->h_addr, (char *)&route_addr, sizeof(route_addr));
 		   break;
 		} else {
-		   errx(1, "no such host %s", argv[i]);
+		   errx(1, "no such host %s", optarg);
 		}
 	      }
 	  case 'f':
