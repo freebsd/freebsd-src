@@ -242,7 +242,7 @@ SUBDIR+=elf2aout
 .if ${MACHINE_ARCH} != "sparc64" && ${MACHINE_ARCH} != "ia64"
 SUBDIR+=xlint
 .endif
-.if ${MACHINE_ARCH} != "sparc64"
+.if ${CXX:T} != "c++"
 SUBDIR+=getconf
 .endif
 
