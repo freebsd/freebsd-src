@@ -464,7 +464,7 @@ i386_set_ldt(td, args)
 		return (0);
 	}
 
-	if (!(uap->start == 0 && uap->num == 1)) {
+	if (!(uap->start == LDT_AUTO_ALLOC && uap->num == 1)) {
 #ifdef	DEBUG
 		/* complain a for a while if using old methods */
 		if (ldt_warnings++ < NUM_LDT_WARNINGS) {
@@ -475,7 +475,7 @@ i386_set_ldt(td, args)
 #endif
 		/* verify range of descriptors to modify */
 		largest_ld = uap->start + uap->num;
-		if (uap->start <= LUDATA_SEL || uap->start >= MAX_LD ||
+		if (uap->start >= MAX_LD ||
 		    uap->num < 0 || largest_ld > MAX_LD) {
 			return (EINVAL);
 		}
@@ -560,7 +560,7 @@ i386_set_ldt(td, args)
 		}
 	}
 
-	if (uap->start == 0 && uap->num == 1) {
+	if (uap->start == LDT_AUTO_ALLOC && uap->num == 1) {
 		/* Allocate a free slot */
 		pldt = mdp->md_ldt;
 		if (pldt == NULL) {
@@ -574,11 +574,11 @@ i386_set_ldt(td, args)
 		}
 again:
 		mtx_lock_spin(&sched_lock);
-		dp = &((union descriptor *)(pldt->ldt_base))[NLDT];
 		/*
 		 * start scanning a bit up to leave room for NVidia and
 		 * Wine, which still user the "Blat" method of allocation.
 		 */
+		dp = &((union descriptor *)(pldt->ldt_base))[NLDT];
 		for (i = NLDT; i < pldt->ldt_len; ++i) {
 			if (dp->sd.sd_type == SDT_SYSNULL)
 				break;
