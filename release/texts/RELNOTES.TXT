@@ -68,6 +68,10 @@ require that programs that use those two interfaces be recompiled.  Ports
 that use the CAM interface include xmcd, tosha, SANE, cdrecord and cdda2wav.
 Ports that use the devstat interface include xsysinfo and xperfmon.
 
+Added driver support for Lucent Technologies WaveLAN/IEEE and
+WaveLAN/IEEE Turbo 802.11 wireless networking adapters (PCMCIA
+and ISA versions) and workalikes (NCR WaveLAN/IEEE, Cabletron
+RoamAbout 802.11 DS).
 
 1.2. SECURITY FIXES
 -------------------
@@ -412,6 +416,13 @@ Xilinx XC6200 based reconfigurable hardware cards compatible with
 the HOT1 from Virtual Computers (www.vcc.com)
 
 Support for Dave Mills experimental Loran-C receiver.
+
+Lucent Technologies WaveLAN/IEEE 802.11 PCMCIA and ISA standard speed
+(2Mbps) and turbo speed (6Mbps) wireless network adapters and workalikes
+(NCR WaveLAN/IEEE 802.11, Cabletron RoamAbout 802.11 DS). Note: the
+ISA versions of these adapters are actually PCMCIA cards combined with
+an ISA to PCMCIA bridge card, so both kinds of devices work with
+the same driver.
 
 FreeBSD currently does NOT support IBM's microchannel (MCA) bus.
 

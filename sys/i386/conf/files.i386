@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.220.2.4 1999/05/15 18:13:57 obrien Exp $
+#	$Id: files.i386,v 1.220.2.5 1999/05/21 08:37:08 des Exp $
 #
 # The long compile-with and dependency lines are required because of
 # limitations in config: backslash-newline doesn't work in strings, and
@@ -144,6 +144,7 @@ i386/isa/if_le.c		optional	le	device-driver
 i386/isa/if_lnc.c		optional	lnc	device-driver
 i386/isa/if_rdp.c		optional	rdp	device-driver
 i386/isa/if_sr.c		optional	sr	device-driver
+i386/isa/if_wi.c		optional	wi	device-driver
 i386/isa/if_wl.c		optional	wl	device-driver
 dev/pccard/if_xe.c		optional	xe	device-driver
 i386/isa/if_ze.c		optional	ze	device-driver
