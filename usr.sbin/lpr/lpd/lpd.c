@@ -367,7 +367,12 @@ main(int argc, char **argv)
 			continue;
 		}
 		if (fork() == 0) {
-			signal(SIGCHLD, SIG_IGN);
+			/*
+			 * Note that printjob() also plays around with
+			 * signal-handling routines, and may need to be
+			 * changed when making changes to signal-handling.
+			 */
+			signal(SIGCHLD, SIG_DFL);
 			signal(SIGHUP, SIG_IGN);
 			signal(SIGINT, SIG_IGN);
 			signal(SIGQUIT, SIG_IGN);
