@@ -373,14 +373,6 @@ video_update(regcontext_t *REGS)
 	    else
 		video_update_text();
 	}
-
-    	if (!booting) {
-	    *(u_long *)&BIOSDATA[0x6c] += 1;    /* ticks since midnight */
-	    while (*(u_long *)&BIOSDATA[0x6c] >= 24*60*6*182) {
-		*(u_long *)&BIOSDATA[0x6c] -= 24*60*6*182;
-		BIOSDATA[0x70]++;               /* # times past mn */
-	    }
-    	}
 #endif
 }
 
