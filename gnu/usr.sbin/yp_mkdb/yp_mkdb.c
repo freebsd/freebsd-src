@@ -20,7 +20,7 @@
 */
 
 /*
- * $Id$
+ * $Id: yp_mkdb.c,v 1.1 1995/01/31 08:43:07 wpaul Exp $
  */
 
 #define BUFFERSIZE 4096
@@ -151,6 +151,7 @@ load( char *FileName, char *DbName)
 
 		fgets(Buffer, BUFFERSIZE, infile);
 		if (feof(infile)) break;
+		if (Buffer[0] == '+' || Buffer[0] == '-') break;
 		r=strlen(Buffer)-1;
 		if (Buffer[r]!='\n' && r>=BUFFERSIZE) {
 			fprintf(stderr, "%s: Buffer overflow\n", FileName);
