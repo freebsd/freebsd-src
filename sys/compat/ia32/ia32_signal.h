@@ -62,7 +62,7 @@ struct ia32_mcontext {
 	int	mc_ownedfp;
 	int	mc_spare1[1];		/* align next field to 16 bytes */
 	/*
-	 * See <machine/npx.h> for the internals of mc_fpstate[].
+	 * See <i386/include/npx.h> for the internals of mc_fpstate[].
 	 */
 	int	mc_fpstate[128] __aligned(16);
 	int	mc_spare2[8];
