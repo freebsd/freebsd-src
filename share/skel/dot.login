@@ -1,6 +1,5 @@
 #csh .login file
 
-setenv SHELL /bin/csh
 set noglob
 eval `tset -s -m 'network:?xterm'`
 unset noglob
