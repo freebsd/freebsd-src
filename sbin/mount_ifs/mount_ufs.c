@@ -117,7 +117,7 @@ mount_ufs(argc, argv)
 			/*warnx("ufs: filesystem not found");*/
 		}
 	}
-		
+
 	if (mount(vfc ? vfc->vfc_index : MOUNT_UFS, fs_name, mntflags, &args) < 0) {
 		(void)fprintf(stderr, "%s on %s: ", args.fspec, fs_name);
 		switch (errno) {
@@ -128,7 +128,7 @@ mount_ufs(argc, argv)
 			if (mntflags & MNT_UPDATE)
 				(void)fprintf(stderr,
 		    "Specified device does not match mounted device.\n");
-			else 
+			else
 				(void)fprintf(stderr,
 				    "Incorrect super block.\n");
 			break;

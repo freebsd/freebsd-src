@@ -36,7 +36,7 @@
  *
  *	@(#)conf.c	8.2 (Berkeley) 3/27/94
  *
- * $Id: conf.c,v 1.2 1992/05/27 07:09:27 jsp Exp jsp $
+ * $Id: conf.c,v 1.2 1995/02/21 04:05:20 wollman Exp $
  */
 
 #include <stdio.h>
@@ -131,7 +131,7 @@ qelem *q0;
 	}
 	ins_que(&p0->p_q, q0->q_back);
 	return (1);
-	
+
 }
 
 static path *palloc(cline, lno)

@@ -77,11 +77,11 @@ char	action_tab[][MAXSTR]={
 "f",
 #define A_FLUSH		6
 "z",
-#define A_ZERO		7 
+#define A_ZERO		7
 "l",
-#define A_LIST		8 
+#define A_LIST		8
 "po",
-#define A_POLICY	9 
+#define A_POLICY	9
 "",
 #define A_NONE		10
 };
@@ -158,7 +158,7 @@ u_long mask;
 				return -1;
 		}
 	mask=mask>>1;
-	} 
+	}
 	return h_num;
 }
 
@@ -178,16 +178,16 @@ int i,mb;
 if (do_short && do_acct) {
 	printf("%8d:%8d ",chain->fw_bcnt,chain->fw_pcnt);
 }
-	
+
 
 if (do_short)
 	if (c_t==FW) {
-		if (chain->fw_flg & IP_FW_F_ACCEPT) 
+		if (chain->fw_flg & IP_FW_F_ACCEPT)
 			if (chain->fw_flg & IP_FW_F_PRN)
 				printf("l");
 			else
 				printf("a");
-		else 
+		else
 			if (chain->fw_flg & IP_FW_F_PRN)
 				if (chain->fw_flg & IP_FW_F_ICMPRPL)
 					printf("R");
@@ -199,19 +199,19 @@ if (do_short)
 				else
 					printf("d");
 	} else {
-		if (chain->fw_flg & IP_FW_F_BIDIR) 
+		if (chain->fw_flg & IP_FW_F_BIDIR)
 			printf("b");
-		else 
+		else
 			printf("s");
 	}
 else
 	if (c_t==FW) {
-		if (chain->fw_flg & IP_FW_F_ACCEPT) 
+		if (chain->fw_flg & IP_FW_F_ACCEPT)
 			if (chain->fw_flg & IP_FW_F_PRN)
 				printf("log ");
 			else
 				printf("accept ");
-		else 
+		else
 			if (chain->fw_flg & IP_FW_F_PRN)
 				if (chain->fw_flg & IP_FW_F_ICMPRPL)
 					printf("lreject ");
@@ -223,9 +223,9 @@ else
 				else
 					printf("deny ");
 	} else {
-		if (chain->fw_flg & IP_FW_F_BIDIR) 
+		if (chain->fw_flg & IP_FW_F_BIDIR)
 			printf("bidir  ");
-		else 
+		else
 			printf("single ");
 	}
 
@@ -299,9 +299,9 @@ else
 	comma = " ";
 	for (i=0;i<chain->fw_nsp; i++ ) {
 		printf("%s%d",comma,chain->fw_pts[i]);
-		if (i==0 && (chain->fw_flg & IP_FW_F_SRNG)) 
+		if (i==0 && (chain->fw_flg & IP_FW_F_SRNG))
 			comma = ":";
-		else 
+		else
 			comma = ",";
 	}
 
@@ -322,7 +322,7 @@ else
 			printf("%s",he->h_name);
 	} else {
 		printf(inet_ntoa(chain->fw_dst));
-		if (adrt!=ULONG_MAX) 
+		if (adrt!=ULONG_MAX)
 			if ((mb=mask_bits(chain->fw_dmsk))>=0)
 				printf("/%d",mb);
 			else {
@@ -336,7 +336,7 @@ else
 		printf("%s%d",comma,chain->fw_pts[chain->fw_nsp+i]);
 		if (i==chain->fw_nsp && (chain->fw_flg & IP_FW_F_DRNG))
 			comma = ":";
-		else 
+		else
 		    comma = ",";
 	    }
 
@@ -501,7 +501,7 @@ int		a_max;
 int		*is_range;
 {
 char 	*s_pr2,*s_h,*s_t,*cp;
-u_short	p1,p2; 
+u_short	p1,p2;
 int i=0;
 
 	(void)strtok(str,":");
@@ -556,7 +556,7 @@ struct	hostent *hptr;
 		mask->s_addr=0L;
 		return;
 	}
-		
+
 
 	if (mask) {
 		(void)strtok(str,"/");
@@ -564,7 +564,7 @@ struct	hostent *hptr;
 		(void)strtok(str,":");
 		sm_oct=strtok(NULL,"");
 	}
-	
+
 	if (!inet_aton(str,addr)) {
 		if (do_resolv) {
 			if (!(hptr=gethostbyname(str))) {
@@ -581,7 +581,7 @@ struct	hostent *hptr;
 	}
 
 		/*
-		 * This is in case mask we 
+		 * This is in case mask we
 		 * want to set IP only
 		 */
 	if (!mask)
@@ -603,7 +603,7 @@ struct	hostent *hptr;
 			     htonl(ULONG_MAX<<(sizeof(u_long)*CHAR_BIT-n_bit));
 			else
 			   mask->s_addr=0L;
-		} 
+		}
 
 		if (sm_oct) {
 			if (!inet_aton(sm_oct,mask)) {
@@ -620,14 +620,14 @@ struct	hostent *hptr;
 }
 
 
-int set_entry_ifname(str,frwl) 
+int set_entry_ifname(str,frwl)
 char 	*str;
 struct ip_fw * frwl;
 {
 char name[IFNAMSIZ],buf[IFNAMSIZ],*sptr;
 short unit;
 int i;
-	
+
 	i=0; sptr=str;
 	while(isalpha(*sptr++)) {
 		i++;
@@ -654,7 +654,7 @@ int i;
 }
 
 
-void set_entry(av,frwl) 
+void set_entry(av,frwl)
 char 	**av;
 struct ip_fw * frwl;
 {
@@ -711,7 +711,7 @@ get_next:
 			show_usage("Missing 'to' specification.");
 			exit(1);
 		}
-		
+
 		set_entry_ip(*av,&(frwl->fw_dst),&(frwl->fw_dmsk));
 		got_to = 1;
 	}
@@ -729,7 +729,7 @@ get_next:
 		}
 
 		/*
-	 	 * Try first to set interface name 
+	 	 * Try first to set interface name
 		 * from arguments.set_entry_ip() will exit on
 		 * wrong argument.
 		 */
@@ -838,7 +838,7 @@ if (*av==NULL || strlen(*av)<=0) {
  }
  if (kvm_nlist(kd,nlf) < 0 || nlf[0].n_type == 0) {
       fprintf(stderr,"%s: kvm_nlist: no namelist in %s\n",
-					progname,getbootfile()); 
+					progname,getbootfile());
       exit(1);
  }
 
@@ -900,7 +900,7 @@ struct ip_fw	frwl;
 
 	s = socket( AF_INET, SOCK_RAW, IPPROTO_RAW );
 	if ( s < 0 ) {
-		fprintf(stderr,"%s: Can't open raw socket.Must be root to use this programm. \n",progname);	
+		fprintf(stderr,"%s: Can't open raw socket.Must be root to use this programm. \n",progname);
 		exit(1);
 	}
 	   if ( ac == 1 ) {
@@ -922,7 +922,7 @@ struct ip_fw	frwl;
         	case '?':
          	default:
             		show_usage(NULL);
-            		exit(1);                                      
+            		exit(1);
 	}
 
 	if (*(av+=optind)==NULL) {
@@ -956,13 +956,13 @@ struct ip_fw	frwl;
 				int_t=AC;
 				break;
 			case A_FLUSH:
-				flush(++av); 
+				flush(++av);
 				exit(0); /* successful exit */
 			case A_LIST:
-				list(++av); 
+				list(++av);
 				exit(0); /* successful exit */
 			case A_ZERO:
-				zero(); 
+				zero();
 				exit(0); /* successful exit */
 			case A_POLICY:
 				policy(++av);
@@ -974,7 +974,7 @@ struct ip_fw	frwl;
 
 	if (is_check)
 		goto proto_switch;
-	
+
 	if (!int_notdef)
 		if (*(++av)==NULL) {
 			show_usage(NULL);
@@ -1078,14 +1078,14 @@ proto_switch:
 			exit(1);
 	}
 
-	set_entry(av,&frwl); 
+	set_entry(av,&frwl);
 	frwl.fw_flg=flags;
 
 	if (is_check) {
 #ifndef disabled
 		fprintf(stderr,"%s: checking disabled.\n",progname);
 #else
-		
+
 		struct ip 		*pkt;
 		struct tcphdr 		*th;
 		int p_len=sizeof(struct ip)+sizeof(struct tcphdr);
@@ -1120,10 +1120,10 @@ proto_switch:
 		}
 		pkt->ip_src.s_addr=frwl.fw_src.s_addr;
 		pkt->ip_dst.s_addr=frwl.fw_dst.s_addr;
-	
+
 		th->th_sport=htons(frwl.fw_pts[0]);
 		th->th_dport=htons(frwl.fw_pts[frwl.fw_nsp]);
-		
+
 		if (setsockopt(s,IPPROTO_IP,ctl,pkt,p_len))
 			printf("Packet DENYED.\n");
 		else

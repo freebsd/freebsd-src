@@ -374,7 +374,7 @@ inocleanup()
 	free((char *)inpsort);
 	inphead = inpsort = NULL;
 }
-	
+
 void
 inodirty()
 {

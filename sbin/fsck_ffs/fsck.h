@@ -112,14 +112,14 @@ struct inodesc {
 
 /*
  * Linked list of duplicate blocks.
- * 
+ *
  * The list is composed of two parts. The first part of the
  * list (from duplist through the node pointed to by muldup)
- * contains a single copy of each duplicate block that has been 
+ * contains a single copy of each duplicate block that has been
  * found. The second part of the list (from muldup to the end)
  * contains duplicate blocks that have been found more than once.
  * To check if a block has been found as a duplicate it is only
- * necessary to search from duplist through muldup. To find the 
+ * necessary to search from duplist through muldup. To find the
  * total number of times that a block has been found as a duplicate
  * the entire list must be searched for occurences of the block
  * in question. The following diagram shows a sample list where

@@ -185,7 +185,7 @@ int main(int argc, char **argv)
 	cp++;			/* trailing tty pathname component */
 	sprintf(pidfilename, "%sslattach.%s.pid", _PATH_VARRUN, cp);
 	printf("%s\n",pidfilename);
-	
+
 	if (!foreground)
 		daemon(0,0);	/* fork, setsid, chdir /, and close std*. */
 	/* daemon() closed stderr, so log errors from here on. */
@@ -252,7 +252,7 @@ void acquire_line()
 		fprintf(pidfile, "%ld\n", getpid());
 		fclose(pidfile);
 	}
-	
+
 	if ((int)signal(SIGHUP,sighup_handler) < 0) /* Re-enable HUP signal */
 		syslog(LOG_NOTICE,"cannot install SIGHUP handler: %m");
 

@@ -467,7 +467,7 @@ auth_send(data, cnt)
 	 *  We requested strong authentication, however no mechanisms worked.
 	 *  Therefore, exit on client end.
 	 */
-	printf("Unable to securely authenticate user ... exit\n"); 
+	printf("Unable to securely authenticate user ... exit\n");
 	exit(0);
 #endif /* KANNAN */
 }

@@ -1,8 +1,8 @@
 /*
- * Rdisc (this program) was developed by Sun Microsystems, Inc. and is 
- * provided for unrestricted use provided that this legend is included on 
- * all tape media and as a part of the software program in whole or part.  
- * Users may copy or modify Rdisc without charge, and they may freely 
+ * Rdisc (this program) was developed by Sun Microsystems, Inc. and is
+ * provided for unrestricted use provided that this legend is included on
+ * all tape media and as a part of the software program in whole or part.
+ * Users may copy or modify Rdisc without charge, and they may freely
  * distribute it.
  *
  * RDISC IS PROVIDED AS IS WITH NO WARRANTIES OF ANY KIND INCLUDING THE
@@ -57,7 +57,7 @@
 #include <string.h>
 #include <syslog.h>
 
-/* 
+/*
  * TBD
  *	Use 255.255.255.255 for broadcasts - not the interface broadcast
  *	address.
@@ -162,7 +162,7 @@ int solicit = 0;
 int responder;
 int ntransmitted = 0;
 int nreceived = 0;
-int forever = 0;	/* Never give up on host. If 0 defer fork until 
+int forever = 0;	/* Never give up on host. If 0 defer fork until
 			 * first response.
 			 */
 
@@ -177,7 +177,7 @@ int preference = 0;		/* Setable with -p option */
 /* Host variables */
 int max_solicitations = MAX_SOLICITATIONS;
 unsigned int solicitation_interval = SOLICITATION_INTERVAL;
-int best_preference = 1;  	/* Set to record only the router(s) with the 
+int best_preference = 1;  	/* Set to record only the router(s) with the
 				   best preference in the kernel. Not set
 				   puts all routes in the kernel. */
 
@@ -196,7 +196,7 @@ do_fork()
 {
 	int t;
 	long pid;
-	
+
 	if (trace)
 		return;
 
@@ -271,7 +271,7 @@ char *argv[];
 			if (argc != 0) {
 				val = strtol(av[0], (char **)NULL, 0);
 				if (val < 4 || val > 1800) {
-					(void) fprintf(stderr, 
+					(void) fprintf(stderr,
 				          "Bad Max Advertizement Interval\n");
 					exit(1);
 				}
@@ -281,7 +281,7 @@ char *argv[];
 			} else {
 				prusage();
 				/* NOTREACHED*/
-			} 
+			}
 			goto next;
 		case 'p':
 			argc--, av++;
@@ -403,7 +403,7 @@ char *argv[];
 		int fromlen = sizeof (from);
 		int cc;
 
-		if ( (cc=recvfrom(s, (char *)packet, len, 0, 
+		if ( (cc=recvfrom(s, (char *)packet, len, 0,
 				  (struct sockaddr *)&from, &fromlen)) < 0) {
 			if( errno == EINTR )
 				continue;
@@ -444,8 +444,8 @@ void timer()
 		if (ntransmitted < initial_advertisements)
 			left_until_advertise = initial_advert_interval;
 		else
-			left_until_advertise = min_adv_int + 
-				((max_adv_int - min_adv_int) * 
+			left_until_advertise = min_adv_int +
+				((max_adv_int - min_adv_int) *
 				 (random() % 1000)/1000);
 	} else if (solicit && left_until_solicit <= 0) {
 		ntransmitted++;
@@ -464,9 +464,9 @@ void timer()
 
 /*
  * 			S O L I C I T O R
- * 
- * Compose and transmit an ICMP ROUTER SOLICITATION REQUEST packet.  
- * The IP packet will be added on by the kernel.  
+ *
+ * Compose and transmit an ICMP ROUTER SOLICITATION REQUEST packet.
+ * The IP packet will be added on by the kernel.
  */
 void
 solicitor(sin)
@@ -475,7 +475,7 @@ solicitor(sin)
 	static u_char outpack[MAXPACKET];
 	register struct icmp *icp = (struct icmp *) ALLIGN(outpack);
 	int packetlen, i;
-	
+
 	if (verbose) {
 		logtrace("Sending solicitation to %s\n",
 			 pr_name(sin->sin_addr));
@@ -489,7 +489,7 @@ solicitor(sin)
 	/* Compute ICMP checksum here */
 	icp->icmp_cksum = in_cksum( (u_short *)icp, packetlen );
 
-	if (isbroadcast(sin)) 
+	if (isbroadcast(sin))
 		i = sendbcast(s, (char *)outpack, packetlen);
 	else if (ismulticast(sin))
 		i = sendmcast( s, (char *)outpack, packetlen, sin);
@@ -508,9 +508,9 @@ solicitor(sin)
 
 /*
  * 			A V E R T I S E
- * 
- * Compose and transmit an ICMP ROUTER ADVERTISEMENT packet.  
- * The IP packet will be added on by the kernel.  
+ *
+ * Compose and transmit an ICMP ROUTER ADVERTISEMENT packet.
+ * The IP packet will be added on by the kernel.
  */
 void
 advertise(sin)
@@ -520,23 +520,23 @@ advertise(sin)
 	register struct icmp_ra *rap = (struct icmp_ra *) ALLIGN(outpack);
 	struct icmp_ra_addr *ap;
 	int packetlen, i, cc;
-	
+
 	if (verbose) {
 		logtrace("Sending advertisement to %s\n",
 			 pr_name(sin->sin_addr));
 	}
-	
+
 	for (i = 0; i < num_interfaces; i++) {
 		rap->icmp_type = ICMP_ROUTER_ADVERTISEMENT;
 		rap->icmp_code = 0;
 		rap->icmp_cksum = 0;
-		rap->icmp_num_addrs = 0; 
+		rap->icmp_num_addrs = 0;
 		rap->icmp_wpa = 2;
 		rap->icmp_lifetime = lifetime;
 		packetlen = 8;
 
-		/* 
-		 * TODO handle multiple logical interfaces per 
+		/*
+		 * TODO handle multiple logical interfaces per
 		 * physical interface. (increment with rap->icmp_wpa * 4 for
 		 * each address.)
 		 */
@@ -550,15 +550,15 @@ advertise(sin)
 		/* Compute ICMP checksum here */
 		rap->icmp_cksum = in_cksum( (u_short *)rap, packetlen );
 
-		if (isbroadcast(sin)) 
-			cc = sendbcastif(s, (char *)outpack, packetlen, 
+		if (isbroadcast(sin))
+			cc = sendbcastif(s, (char *)outpack, packetlen,
 					&interfaces[i]);
 		else if (ismulticast(sin))
 			cc = sendmcastif( s, (char *)outpack, packetlen, sin,
 					&interfaces[i]);
 		else {
 			struct interface *ifp = &interfaces[i];
-			/* 
+			/*
 			 * Verify that the interface matches the destination
 			 * address.
 			 */
@@ -567,11 +567,11 @@ advertise(sin)
 				if (debug) {
 					logdebug("Unicast to %s ",
 						 pr_name(sin->sin_addr));
-					logdebug("on interface %s\n",	
+					logdebug("on interface %s\n",
 						 pr_name(ifp->address));
 				}
 				cc = sendto( s, (char *)outpack, packetlen, 0,
-					    (struct sockaddr *)sin, 
+					    (struct sockaddr *)sin,
 					    sizeof(struct sockaddr));
 			} else
 				cc = packetlen;
@@ -637,7 +637,7 @@ char *pr_name(addr)
 	static char buf[256];
 
 	phe = gethostbyaddr((char *)&addr.s_addr, 4, AF_INET);
-	if (phe == NULL) 
+	if (phe == NULL)
 		return( inet_ntoa(addr));
 	(void) sprintf(buf, "%s (%s)", phe->h_name, inet_ntoa(addr));
 	return(buf);
@@ -711,7 +711,7 @@ struct sockaddr_in *from;
 			return;
 		}
 		if (rap->icmp_num_addrs < 1) {
-			if (verbose) 
+			if (verbose)
 				logtrace("ICMP %s from %s: No addresses\n",
 					 pr_type((int)rap->icmp_type),
 					 pr_name(from->sin_addr));
@@ -725,14 +725,14 @@ struct sockaddr_in *from;
 					 rap->icmp_wpa);
 			return;
 		}
-		if ((unsigned)cc < 
+		if ((unsigned)cc <
 		    ICMP_MINLEN + rap->icmp_num_addrs * rap->icmp_wpa * 4) {
 			if (verbose)
 				logtrace("ICMP %s from %s: Too short %d, %d\n",
 					      pr_type((int)rap->icmp_type),
 					      pr_name(from->sin_addr),
-					      cc, 
-					      ICMP_MINLEN + 
+					      cc,
+					      ICMP_MINLEN +
 					      rap->icmp_num_addrs * rap->icmp_wpa * 4);
 			return;
 		}
@@ -756,16 +756,16 @@ struct sockaddr_in *from;
 		for (i = 0; (unsigned)i < rap->icmp_num_addrs; i++) {
 			struct in_addr ina;
 			ap = (struct icmp_ra_addr *)
-				ALLIGN(buf + hlen + ICMP_MINLEN + 
+				ALLIGN(buf + hlen + ICMP_MINLEN +
 				       i * rap->icmp_wpa * 4);
 			ina.s_addr = ntohl(ap->addr);
 			if (verbose)
-				logtrace("\taddress %s, preference 0x%x\n", 
+				logtrace("\taddress %s, preference 0x%x\n",
 					      pr_name(ina),
 					      ntohl(ap->preference));
 			if (!responder) {
 				if (is_directly_connected(ina))
-					record_router(ina, 
+					record_router(ina,
 						      (long)ntohl(ap->preference),
 						      rap->icmp_lifetime);
 			}
@@ -782,7 +782,7 @@ struct sockaddr_in *from;
 		}
 		break;
 	}
-		
+
 	case ICMP_ROUTER_SOLICITATION: {
 		struct sockaddr_in sin;
 
@@ -818,7 +818,7 @@ struct sockaddr_in *from;
 				logtrace("ICMP %s from %s: Too short %d, %d\n",
 					      pr_type((int)icp->icmp_type),
 					      pr_name(from->sin_addr),
-					      cc, 
+					      cc,
 					      ICMP_MINLEN);
 			return;
 		}
@@ -827,8 +827,8 @@ struct sockaddr_in *from;
 			logtrace("ICMP %s from %s\n",
 				      pr_type((int)icp->icmp_type),
 				      pr_name(from->sin_addr));
-		
- 		if (!responder) 
+
+ 		if (!responder)
 			break;
 
 		/* Check that ip_src is either a neighboor
@@ -844,8 +844,8 @@ struct sockaddr_in *from;
 			else
 				sin.sin_addr.s_addr = INADDR_BROADCAST;
 			/* Restart the timer when we broadcast */
-			left_until_advertise = min_adv_int + 
-				((max_adv_int - min_adv_int) 
+			left_until_advertise = min_adv_int +
+				((max_adv_int - min_adv_int)
 				 * (random() % 1000)/1000);
 		}
 		else {
@@ -932,7 +932,7 @@ finish()
 			interfaces[i].preference = IGNORE_PREFERENCE;
 		ntransmitted++;
 		advertise(&whereto);
-	}		
+	}
 	logtrace("\n----%s rdisc Statistics----\n", sendaddress );
 	logtrace("%d packets transmitted, ", ntransmitted );
 	logtrace("%d packets received, ", nreceived );
@@ -955,25 +955,25 @@ unsigned char *data;
 	while (len) {
 		register int i;
 		char charstring[17];
-			
+
 		(void)strcpy(charstring,"                "); /* 16 spaces */
 		for (i = 0; i < 16; i++) {
-			/* output the bytes one at a time, 
-			 * not going pas "len" bytes 
+			/* output the bytes one at a time,
+			 * not going pas "len" bytes
 			 */
 			if (len) {
 				char ch = *data & 0x7f; /* strip parity */
-				if (!isprint((u_char)ch)) 
+				if (!isprint((u_char)ch))
 					ch = ' '; /* ensure printable */
 				charstring[i] = ch;
 				(void) fprintf(out,"%02x ",*data++);
 				len--;
-			} else 
+			} else
 				(void) fprintf(out,"   ");
-			if (i==7) 
+			if (i==7)
 				(void) fprintf(out,"   ");
 		}
-		
+
 		(void) fprintf(out,"    *%s*\n",charstring);
 	}
 }
@@ -1000,7 +1000,7 @@ sendbcast(s, packet, packetlen)
 	int packetlen;
 {
 	int i, cc;
-	
+
 	for (i = 0; i < num_interfaces; i++) {
 		if ((interfaces[i].flags & IFF_BROADCAST) == 0)
 			continue;
@@ -1023,7 +1023,7 @@ sendbcastif(s, packet, packetlen, ifp)
 	struct sockaddr_in baddr;
 
 	baddr.sin_family = AF_INET;
-	
+
 	if ((ifp->flags & IFF_BROADCAST) == 0)
 		return (packetlen);
 
@@ -1049,7 +1049,7 @@ sendmcast(s, packet, packetlen, sin)
 	struct sockaddr_in *sin;
 {
 	int i, cc;
-	
+
 	for (i = 0; i < num_interfaces; i++) {
 		if ((interfaces[i].flags & IFF_MULTICAST) == 0)
 			continue;
@@ -1059,7 +1059,7 @@ sendmcast(s, packet, packetlen, sin)
 		}
 	}
 	return (packetlen);
-}	
+}
 
 int
 sendmcastif(s, packet, packetlen, sin, ifp)
@@ -1073,7 +1073,7 @@ sendmcastif(s, packet, packetlen, sin, ifp)
 	struct sockaddr_in ifaddr;
 
 	ifaddr.sin_family = AF_INET;
-	
+
 	if ((ifp->flags & IFF_MULTICAST) == 0)
 		return (packetlen);
 
@@ -1081,7 +1081,7 @@ sendmcastif(s, packet, packetlen, sin, ifp)
 	if (debug)
 		logdebug("Multicast to interface %s\n",
 			 pr_name(ifaddr.sin_addr));
-	if (setsockopt(s, IPPROTO_IP, IP_MULTICAST_IF, 
+	if (setsockopt(s, IPPROTO_IP, IP_MULTICAST_IF,
 		       (char *)&ifaddr.sin_addr,
 		       sizeof(ifaddr.sin_addr)) < 0) {
 		logperror("setsockopt (IP_MULTICAST_IF)");
@@ -1140,7 +1140,7 @@ initifs()
 		(void) close(sock);
 		return;
 	}
-	if (interfaces) 
+	if (interfaces)
 		interfaces = (struct interface *)ALLIGN(realloc((char *)interfaces,
 					 numifs * sizeof(struct interface)));
 	else
@@ -1153,7 +1153,7 @@ initifs()
 		return;
 	}
 	interfaces_size = numifs;
-						
+
 	ifc.ifc_len = bufsize;
 	ifc.ifc_buf = buf;
 	if (ioctl(sock, SIOCGIFCONF, (char *)&ifc) < 0) {
@@ -1169,7 +1169,7 @@ initifs()
 			logperror("initifs: ioctl (get interface flags)");
 			continue;
 		}
-		if (ifr->ifr_addr.sa_family != AF_INET) 
+		if (ifr->ifr_addr.sa_family != AF_INET)
 			continue;
 		if ((ifreq.ifr_flags & IFF_UP) == 0)
 			continue;
@@ -1229,7 +1229,7 @@ initifs()
 	(void) free(buf);
 }
 
-static int 
+static int
 join(sock, sin)
 	int sock;
 	struct sockaddr_in *sin;
@@ -1264,7 +1264,7 @@ int support_multicast()
 		return (0);
 	}
 
-	if (setsockopt(sock, IPPROTO_IP, IP_MULTICAST_TTL, 
+	if (setsockopt(sock, IPPROTO_IP, IP_MULTICAST_TTL,
 		       (char *)&ttl, sizeof(ttl)) < 0) {
 		(void) close(sock);
 		return (0);
@@ -1282,7 +1282,7 @@ is_directly_connected(in)
 	for (i = 0; i < num_interfaces; i++) {
 		/* Check that the subnetwork numbers match */
 
-		if ((in.s_addr & interfaces[i].netmask.s_addr ) == 
+		if ((in.s_addr & interfaces[i].netmask.s_addr ) ==
 		    (interfaces[i].remoteaddr.s_addr & interfaces[i].netmask.s_addr))
 			return (1);
 	}
@@ -1342,15 +1342,15 @@ age_table(time)
 	int recalculate_max = 0;
 	int max = max_preference();
 
-	tpp = &table; 
+	tpp = &table;
 	while (*tpp != NULL) {
 		tp = *tpp;
 		tp->remaining_time -= time;
 		if (tp->remaining_time <= 0) {
 			*tpp = tp->next;
-			if (tp->in_kernel) 
+			if (tp->in_kernel)
 				del_route(tp->router);
-			if (best_preference && 
+			if (best_preference &&
 			    tp->preference == max)
 				recalculate_max++;
 			free((char *)tp);
@@ -1384,9 +1384,9 @@ record_router(router, preference, ttl)
 	int old_max = max_preference();
 	int changed_up = 0;	/* max preference could have increased */
 	int changed_down = 0;	/* max preference could have decreased */
-	
+
 	if (debug)
-		logdebug("Recording %s, preference 0x%x\n", 
+		logdebug("Recording %s, preference 0x%x\n",
 			      pr_name(router),
 			      preference);
 	tp = find_router(router);
@@ -1413,7 +1413,7 @@ record_router(router, preference, ttl)
 		tp->next = table;
 		table = tp;
 	}
-	if (!tp->in_kernel && 
+	if (!tp->in_kernel &&
 	    (!best_preference || tp->preference == max_preference()) &&
 	    tp->preference != IGNORE_PREFERENCE) {
 		add_route(tp->router);
@@ -1429,7 +1429,7 @@ record_router(router, preference, ttl)
 		if (new_max != IGNORE_PREFERENCE) {
 			tp = table;
 			while (tp) {
-				if (tp->preference == new_max && 
+				if (tp->preference == new_max &&
 				    !tp->in_kernel) {
 					add_route(tp->router);
 					tp->in_kernel++;
@@ -1452,7 +1452,7 @@ record_router(router, preference, ttl)
 	}
 }
 
-	
+
 #include <net/route.h>
 
 void
@@ -1487,7 +1487,7 @@ rtioctl(addr, op)
 	sin = (struct sockaddr_in *)ALLIGN(&rt.rt_gateway);
 	sin->sin_addr = addr;
 	rt.rt_flags = RTF_UP | RTF_GATEWAY;
-	
+
 	sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 	if (sock < 0) {
 		logperror("rtioctl: socket");
@@ -1501,7 +1501,7 @@ rtioctl(addr, op)
 }
 
 
-	
+
 /*
  * LOGGER
  */

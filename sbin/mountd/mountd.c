@@ -43,7 +43,7 @@ static char copyright[] =
 #ifndef lint
 /*static char sccsid[] = "From: @(#)mountd.c	8.8 (Berkeley) 2/20/94";*/
 static const char rcsid[] =
-	"$Id: mountd.c,v 1.5 1995/03/26 23:36:38 wpaul Exp $";
+	"$Id: mountd.c,v 1.6 1995/05/21 19:31:09 phk Exp $";
 #endif /*not lint*/
 
 #include <sys/param.h>
@@ -580,14 +580,14 @@ put_exlist(dp, xdrsp, adp, putdefp)
 					if (!xdr_bool(xdrsp, &true))
 						return (1);
 					strp = grp->gr_ptr.gt_hostent->h_name;
-					if (!xdr_string(xdrsp, &strp, 
+					if (!xdr_string(xdrsp, &strp,
 					    RPCMNT_NAMELEN))
 						return (1);
 				} else if (grp->gr_type == GT_NET) {
 					if (!xdr_bool(xdrsp, &true))
 						return (1);
 					strp = grp->gr_ptr.gt_net.nt_name;
-					if (!xdr_string(xdrsp, &strp, 
+					if (!xdr_string(xdrsp, &strp,
 					    RPCMNT_NAMELEN))
 						return (1);
 				}

@@ -130,7 +130,7 @@ deletefile(name, ino, type)
 	return (descend);
 }
 
-/* 
+/*
  * The following four routines implement the incremental
  * restore algorithm. The first removes old entries, the second
  * does renames and calculates the extraction list, the third
@@ -139,7 +139,7 @@ deletefile(name, ino, type)
  *
  * Directories cannot be immediately deleted, as they may have
  * other files in them which need to be moved out first. As
- * directories to be deleted are found, they are put on the 
+ * directories to be deleted are found, they are put on the
  * following deletion list. After all deletions and renames
  * are done, this list is actually deleted.
  */
@@ -203,7 +203,7 @@ nodeupdates(name, ino, type)
 #		define MODECHG	0x8	/* mode of inode changed */
 
 	/*
-	 * This routine is called once for each element in the 
+	 * This routine is called once for each element in the
 	 * directory hierarchy, with a full path name.
 	 * The "type" value is incorrectly specified as LEAF for
 	 * directories that are not on the dump tape.
@@ -394,7 +394,7 @@ nodeupdates(name, ino, type)
 	 * that we need to rename, so we delete it from the symbol
 	 * table, and put it on the list to be deleted eventually.
 	 * Conversely if a directory is to be created, it must be
-	 * done immediately, rather than waiting until the 
+	 * done immediately, rather than waiting until the
 	 * extraction phase.
 	 */
 	case ONTAPE|INOFND|MODECHG:
@@ -464,7 +464,7 @@ nodeupdates(name, ino, type)
 	default:
 		panic("[%s] %s: impossible state\n", keyval(key), name);
 		break;
-	}	
+	}
 	return (descend);
 }
 
@@ -606,7 +606,7 @@ createleaves(symtabfile)
 		/*
 		 * If we find files on the tape that have no corresponding
 		 * directory entries, then we must have found a file that
-		 * was created while the dump was in progress. Since we have 
+		 * was created while the dump was in progress. Since we have
 		 * no name for it, we discard it knowing that it will be
 		 * on the next incremental tape.
 		 */

@@ -393,7 +393,7 @@ mkfs(pp, fsys, fi, fo)
 			    fsize, sblock.fs_fsize);
 		exit(23);
 	}
-	/* 
+	/*
 	 * Calculate the number of cylinders per group
 	 */
 	sblock.fs_cpg = cpg;
@@ -645,7 +645,7 @@ next:
 			sblock.fs_cssize - i < sblock.fs_bsize ?
 			    sblock.fs_cssize - i : sblock.fs_bsize,
 			((char *)fscs) + i);
-	/* 
+	/*
 	 * Write out the duplicate super blocks
 	 */
 	for (cylno = 0; cylno < sblock.fs_ncg; cylno++)
@@ -712,7 +712,7 @@ initcg(cylno, utime)
 		acg.cg_nclusterblks = acg.cg_ndblk / sblock.fs_frag;
 	acg.cg_btotoff = &acg.cg_space[0] - (u_char *)(&acg.cg_link);
 	acg.cg_boff = acg.cg_btotoff + sblock.fs_cpg * sizeof(long);
-	acg.cg_iusedoff = acg.cg_boff + 
+	acg.cg_iusedoff = acg.cg_boff +
 		sblock.fs_cpg * sblock.fs_nrpos * sizeof(short);
 	acg.cg_freeoff = acg.cg_iusedoff + howmany(sblock.fs_ipg, NBBY);
 	if (sblock.fs_contigsumsize <= 0) {
@@ -1110,7 +1110,7 @@ calloc(size, numelm)
 free(ptr)
 	char *ptr;
 {
-	
+
 	/* do not worry about it for now */
 }
 

@@ -68,8 +68,8 @@ static char sccsid[] = "@(#)ifconfig.c	8.2 (Berkeley) 2/16/94";
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <nlist.h> 
-#include <kvm.h>   
+#include <nlist.h>
+#include <kvm.h>
 #include <fcntl.h>
 
 struct	ifreq		ifr, ridreq;
@@ -287,7 +287,7 @@ ifconfig(argc,argv,af,rafp,flag)
 		perror("ioctl (SIOCGIFMTU)");
 	else
 		mtu = ifr.ifr_mtu;
-	if (argc == 0) {	
+	if (argc == 0) {
 		status();
 		return(0);
 	}
@@ -701,7 +701,7 @@ ether_status()
 						m += printf("%02x%c",
 							*cp++ & 0xff,
 							n > 0 ? ':' : ' ');
-					putchar('\n');	
+					putchar('\n');
 				}
 				break;
 			}
@@ -710,7 +710,7 @@ ether_status()
 	}
 	kvm_close(kvmd);
 }
-	
+
 Perror(cmd)
 	char *cmd;
 {

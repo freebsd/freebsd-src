@@ -207,7 +207,7 @@ skipdirs()
 }
 
 /*
- *	Recursively find names and inumbers of all files in subtree 
+ *	Recursively find names and inumbers of all files in subtree
  *	pname and pass them off to be processed.
  */
 void
@@ -477,7 +477,7 @@ rst_readdir(dirp)
 
 	for (;;) {
 		if (dirp->dd_loc == 0) {
-			dirp->dd_size = read(dirp->dd_fd, dirp->dd_buf, 
+			dirp->dd_size = read(dirp->dd_fd, dirp->dd_buf,
 			    DIRBLKSIZ);
 			if (dirp->dd_size <= 0) {
 				dprintf(stderr, "error reading directory\n");
@@ -583,7 +583,7 @@ setdirmodes(flags)
 	struct modeinfo node;
 	struct entry *ep;
 	char *cp;
-	
+
 	vprintf(stdout, "Set directory mode, owner, and times.\n");
 	(void) sprintf(modefile, "%s/rstmode%d", _PATH_TMP, dumpdate);
 	mf = fopen(modefile, "r");

@@ -2,11 +2,11 @@
  * Written By Julian ELischer
  * Copyright julian Elischer 1993.
  * Permission is granted to use or redistribute this file in any way as long
- * as this notice remains. Julian Elischer does not guarantee that this file 
- * is totally correct for any given task and users of this file must 
+ * as this notice remains. Julian Elischer does not guarantee that this file
+ * is totally correct for any given task and users of this file must
  * accept responsibility for any damage that occurs from the application of this
  * file.
- * 
+ *
  * (julian@tfs.com julian@dialix.oz.au)
  *
  * User SCSI hooks added by Peter Dufault:
@@ -14,7 +14,7 @@
  * Copyright (c) 1994 HD Associates
  * (contact: dufault@hda.com)
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -26,7 +26,7 @@
  * 3. The name of HD Associates
  *    may not be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY HD ASSOCIATES ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -39,7 +39,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: scsi.c,v 1.6 1995/05/01 12:54:32 dufault Exp $
+ *	$Id: scsi.c,v 1.7 1995/05/05 20:42:00 dufault Exp $
  */
 
 #include <stdio.h>
@@ -540,7 +540,7 @@ static char *mode_lookup(int page)
 			if (c == EOF) {
 				fprintf(stderr, "Expected %c.\n", END_ENTRY);
 			}
-				
+
 			if (c == START_ENTRY) {
 				match++;
 			}
@@ -757,7 +757,7 @@ mode_edit(int fd, int page, int edit, int argc, char *argv[])
 		edit_edit();
 
 		edit_rewind();
-		scsireq_buff_encode_visit(mode_pars, mh->mdl, 
+		scsireq_buff_encode_visit(mode_pars, mh->mdl,
 		fmt, edit_get, 0);
 
 		/* Eliminate block descriptors:
@@ -884,7 +884,7 @@ void main(int argc, char **argv)
 	} else if(reprobe) {
 		scaddr.scbus = bus;
 		scaddr.target = targ;
-		scaddr.lun = lun;	
+		scaddr.lun = lun;
 
 		if (ioctl(fd,SCIOCREPROBE,&scaddr) == -1)
 			perror("ioctl");

@@ -6,7 +6,7 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer 
+ *    notice, this list of conditions and the following disclaimer
  *    in this position and unchanged.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: socksys.c,v 1.1 1994/10/16 20:38:50 sos Exp $
+ *	$Id: socksys.c,v 1.2 1995/01/24 04:22:19 bde Exp $
  */
 
 #include <sys/param.h>
@@ -40,12 +40,12 @@ int sockopen();
 int sockclose();
 int sockioctl();
 
-struct cdevsw dev_socksys = { 
-	(d_open_t *)sockopen,	(d_close_t *)sockclose,	
+struct cdevsw dev_socksys = {
+	(d_open_t *)sockopen,	(d_close_t *)sockclose,
 	(d_rdwr_t *)enodev,	(d_rdwr_t *)enodev,
   	(d_ioctl_t *)sockioctl,	(d_stop_t *)enodev,
 	(d_reset_t *)nullop,	NULL,
-  	(d_select_t *)seltrue,	(d_mmap_t *)enodev,		
+  	(d_select_t *)seltrue,	(d_mmap_t *)enodev,
 	NULL
 };
 

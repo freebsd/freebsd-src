@@ -1076,7 +1076,7 @@ getptyslave()
 #ifdef	USE_TERMIO
 	ttyfd = t;
 #endif
-	if (ioctl(t, I_PUSH, "ptem") < 0) 
+	if (ioctl(t, I_PUSH, "ptem") < 0)
 		fatal(net, "I_PUSH ptem");
 	if (ioctl(t, I_PUSH, "ldterm") < 0)
 		fatal(net, "I_PUSH ldterm");
@@ -1576,7 +1576,7 @@ start_login(host, autologin, name)
 	if (bftpd) {
 		argv = addarg(argv, "-e");
 		argv = addarg(argv, BFTPPATH);
-	} else 
+	} else
 #endif
 #if	defined (SecurID)
 	/*
@@ -2061,7 +2061,7 @@ rmut()
 		if (statbf.st_size && utmp) {
 			nutmp = read(f, (char *)utmp, (int)statbf.st_size);
 			nutmp /= sizeof(struct utmp);
-		
+
 			for (u = utmp ; u < &utmp[nutmp] ; u++) {
 				if (SCMPN(u->ut_line, line+5) ||
 				    u->ut_name[0]==0)

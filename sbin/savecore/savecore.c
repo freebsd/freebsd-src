@@ -203,7 +203,7 @@ kmem_setup()
 	FILE *fp;
 	int kmem, i;
 	const char *dump_sys;
-	
+
 	/*
 	 * Some names we need for the currently running system, others for
 	 * the system that was running when the dump was made.  The values
@@ -213,7 +213,7 @@ kmem_setup()
 	 * the same!)
 	 */
 	if ((nlist(getbootfile(), current_nl)) == -1)
-		syslog(LOG_ERR, "%s: nlist: %s", getbootfile(), 
+		syslog(LOG_ERR, "%s: nlist: %s", getbootfile(),
 		       strerror(errno));
 	for (i = 0; cursyms[i] != -1; i++)
 		if (current_nl[cursyms[i]].n_value == 0) {
@@ -410,7 +410,7 @@ err2:			syslog(LOG_WARNING,
 	(void)close(ifd);
 	if (compress)
 		(void)fclose(fp);
-	else 
+	else
 		(void)close(ofd);
 
 	/* Copy the kernel. */

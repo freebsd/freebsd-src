@@ -266,7 +266,7 @@ krb4encpwd_is(ap, data, cnt)
 		  Data(ap, KRB4_ENCPWD_CHALLENGE, (void *)challenge, strlen(challenge));
 		}
 		break;
-		
+
 	default:
 		Data(ap, KRB4_ENCPWD_REJECT, 0, 0);
 		break;

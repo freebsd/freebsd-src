@@ -2,7 +2,7 @@
 #
 #
 
-PROG=	fdisk 
+PROG=	fdisk
 SRCS=	fdisk.c
 MAN8=	fdisk.8
 

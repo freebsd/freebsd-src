@@ -1,8 +1,8 @@
-#	$Id: Makefile,v 1.1 1995/01/12 13:03:01 ugen Exp $
+#	$Id: Makefile,v 1.2 1995/01/12 13:57:51 ugen Exp $
 
 .PATH:	${.CURDIR}/../../sys/netinet
 KMOD=	ipfw_mod
-SRCS=	ipfw_lkm.c ip_fw.c 
+SRCS=	ipfw_lkm.c ip_fw.c
 NOMAN=
 CFLAGS+= -DIPFIREWALL  -DIPACCT
 #

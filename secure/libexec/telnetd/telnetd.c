@@ -816,7 +816,7 @@ doit(who)
 
 #if	defined(_SC_CRAY_SECURE_SYS)
 	/*
-	 *	set ttyp line security label 
+	 *	set ttyp line security label
 	 */
 	if (secflag) {
 		char slave_dev[16];
@@ -1400,7 +1400,7 @@ telnet(f, p, host)
 	}
 	cleanup(0);
 }  /* end of telnet */
-	
+
 #ifndef	TCSIG
 # ifdef	TIOCSIG
 #  define TCSIG TIOCSIG
@@ -1476,7 +1476,7 @@ int readstream(p, ibuf, bufsize)
 			tp = (struct termio *) (ibuf+1 + sizeof(struct iocblk));
 			vstop = tp->c_cc[VSTOP];
 			vstart = tp->c_cc[VSTART];
-			ixon = tp->c_iflag & IXON;      
+			ixon = tp->c_iflag & IXON;
 			break;
 		default:
 			errno = EAGAIN;
