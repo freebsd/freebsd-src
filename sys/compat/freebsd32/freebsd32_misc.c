@@ -475,6 +475,34 @@ freebsd32_setitimer(struct thread *td, struct freebsd32_setitimer_args *uap)
 }
 
 int
+freebsd32_getitimer(struct thread *td, struct freebsd32_getitimer_args *uap)
+{
+	int error;
+	caddr_t sg;
+	struct itimerval32 *p32, s32;
+	struct itimerval *p = NULL, s;
+
+	p32 = uap->itv;
+	if (p32) {
+		sg = stackgap_init();
+		p = stackgap_alloc(&sg, sizeof(struct itimerval));
+		uap->itv = (struct itimerval32 *)p;
+	}
+	error = getitimer(td, (struct getitimer_args *) uap);
+	if (error)
+		return (error);
+	if (p32) {
+		error = copyin(p, &s, sizeof(s));
+		if (error)
+			return (error);
+		TV_CP(s, s32, it_interval);
+		TV_CP(s, s32, it_value);
+		error = copyout(&s32, p32, sizeof(s32));
+	}
+	return (error);
+}
+
+int
 freebsd32_select(struct thread *td, struct freebsd32_select_args *uap)
 {
 	int error;
