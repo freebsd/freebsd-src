@@ -1,6 +1,5 @@
 /*-
- * Copyright (c) 2001 Jake Burkholder.
- * All rights reserved.
+ * Copyright (c) 1997 Berkeley Software Design, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -10,11 +9,14 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. Berkeley Software Design Inc's name may not be used to endorse or
+ *    promote products derived from this software without specific prior
+ *    written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+ * THIS SOFTWARE IS PROVIDED BY BERKELEY SOFTWARE DESIGN INC ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL BERKELEY SOFTWARE DESIGN INC BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -23,6 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ *	from BSDI: pmap.c,v 1.28.2.15 2000/04/27 03:10:31 cp Exp
  * $FreeBSD$
  */
 
@@ -39,6 +42,8 @@
 #define	TTE_DATA		offsetof(struct tte, tte_data)
 #define	TTE_TAG			offsetof(struct tte, tte_tag)
 
+#define	PVH_FIRST		offsetof(struct pv_head, pvh_first)
+
 #define	PV_OFF(pa)		((vm_offset_t)(pa) - avail_start)
 #define	PV_INDEX(pa)		(PV_OFF(pa) >> PAGE_SHIFT)
 #define	PV_SHIFT		(3)
@@ -47,6 +52,15 @@
 	casxa((vm_offset_t *)pa, exp, src, ASI_PHYS_USE_EC)
 #define	ldxp(pa)		ldxa(pa, ASI_PHYS_USE_EC)
 #define	stxp(pa, val)		stxa(pa, ASI_PHYS_USE_EC, val)
+
+struct pv_entry {
+	vm_offset_t pv_next;
+	vm_offset_t pv_prev;
+};
+
+struct pv_head {
+	vm_offset_t pvh_first;
+};
 
 extern vm_offset_t pv_table;
 extern u_long pv_generation;
@@ -58,9 +72,9 @@ pv_lookup(vm_offset_t pa)
 }
 
 static __inline vm_offset_t
-pv_get_first(vm_offset_t pvh)
+pvh_get_first(vm_offset_t pvh)
 {
-	return (ldxp(pvh));
+	return (ldxp(pvh + PVH_FIRST));
 }
 
 static __inline vm_offset_t
@@ -95,9 +109,9 @@ pv_get_tte_tag(vm_offset_t pstp)
 })
 
 static __inline void
-pv_set_first(vm_offset_t pvh, vm_offset_t first)
+pvh_set_first(vm_offset_t pvh, vm_offset_t first)
 {
-	stxp(pvh, first);
+	stxp(pvh + PVH_FIRST, first);
 }
 
 static __inline void
@@ -115,18 +129,18 @@ pv_set_prev(vm_offset_t pstp, vm_offset_t prev)
 static __inline void
 pv_remove_phys(vm_offset_t pstp)
 {
-	vm_offset_t pv_next;
-	vm_offset_t pv_prev;
+	vm_offset_t next;
+	vm_offset_t prev;
 
-	pv_next = pv_get_next(pstp);
-	pv_prev = pv_get_prev(pstp);
-	if (pv_next != 0)
-		pv_set_prev(pv_next, pv_prev);
-	stxp(pv_prev, pv_next);
+	next = pv_get_next(pstp);
+	prev = pv_get_prev(pstp);
+	if (next != 0)
+		pv_set_next(next, prev);
+	stxp(prev, next);
 }
 
 static __inline void
-pv_bit_clear(vm_offset_t pstp, u_long bits)
+pv_atomic_bit_clear(vm_offset_t pstp, u_long bits)
 {
 	vm_offset_t dp;
 	vm_offset_t d1;
@@ -143,7 +157,7 @@ pv_bit_clear(vm_offset_t pstp, u_long bits)
 }
 
 static __inline void
-pv_bit_set(vm_offset_t pstp, u_long bits)
+pv_atomic_bit_set(vm_offset_t pstp, u_long bits)
 {
 	vm_offset_t dp;
 	vm_offset_t d1;
@@ -160,7 +174,7 @@ pv_bit_set(vm_offset_t pstp, u_long bits)
 }
 
 static __inline int
-pv_bit_test(vm_offset_t pstp, u_long bits)
+pv_atomic_bit_test(vm_offset_t pstp, u_long bits)
 {
 	vm_offset_t dp;
 
@@ -169,7 +183,14 @@ pv_bit_test(vm_offset_t pstp, u_long bits)
 }
 
 void pv_dump(vm_offset_t pvh);
+
 void pv_insert(pmap_t pm, vm_offset_t pa, vm_offset_t va, struct stte *stp);
 void pv_remove_virt(struct stte *stp);
+
+void pv_bit_clear(vm_page_t m, u_long bits);
+void pv_bit_set(vm_page_t m, u_long bits);
+int pv_bit_test(vm_page_t m, u_long bits);
+
+void pv_global_remove_all(vm_page_t m);
 
 #endif /* !_MACHINE_PV_H_ */
