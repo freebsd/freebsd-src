@@ -351,7 +351,7 @@ ident_stream(s, sep)		/* Ident service (AKA "auth") */
 	ssize_t ssize;
 	size_t size, bufsiz;
 	int c, fflag = 0, nflag = 0, rflag = 0, argc = 0, usedfallback = 0;
-	int gflag = 0, getcredfail = 0, onreadlen;
+	int gflag = 0, Fflag = 0, getcredfail = 0, onreadlen;
 	u_short lport, fport;
 
 	inetd_setproctitle(sep->se_service, s);
@@ -373,13 +373,17 @@ ident_stream(s, sep)		/* Ident service (AKA "auth") */
 		size_t i;
 		u_int32_t random;
 
-		while ((c = getopt(argc, sep->se_argv, "d:fgno:rt:")) != -1)
+		while ((c = getopt(argc, sep->se_argv, "d:fFgno:rt:")) != -1)
 			switch (c) {
 			case 'd':
 				fallback = optarg;
 				break;
 			case 'f':
 				fflag = 1;
+				break;
+			case 'F':
+				fflag = 1;
+				Fflag=1;
 				break;
 			case 'g':
 				gflag = 1;
@@ -627,7 +631,7 @@ ident_stream(s, sep)		/* Ident service (AKA "auth") */
 			 * we will return their real identity instead.
 			 */
 			
-			if (!*cp || getpwnam(cp)) {
+			if (!*cp || (!Fflag && getpwnam(cp))) {
 				errno = 0;
 				pw = getpwuid(uc.cr_uid);
 				if (pw == NULL)
