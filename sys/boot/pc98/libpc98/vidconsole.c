@@ -118,13 +118,15 @@ vidc_init(int arg)
 #endif
 
     if (vidc_started && arg == 0)
-	return(0);
+	return (0);
     vidc_started = 1;
 #ifdef PC98
     Crtat = (unsigned short *)PTOV(0xA0000);
-    while((inb(0x60) & 0x04) == 0);
+    while ((inb(0x60) & 0x04) == 0)
+	;
     outb(0x62, 0xe0);
-    while((inb(0x60) & 0x01) == 0);
+    while ((inb(0x60) & 0x01) == 0)
+	;
     hw_cursor = inb(0x62);
     hw_cursor |= (inb(0x62) << 8);
     inb(0x62);
@@ -136,19 +138,20 @@ vidc_init(int arg)
     /* Init terminal emulator */
     end_term();
     get_pos();
-    curs_move(curx,cury);
-    fg_c=7;
-    bg_c=0;
+    curs_move(curx, cury);
+    fg_c = 7;
+    bg_c = 0;
 #endif
-    for(i = 0; i < 10 && vidc_ischar(); i++)
-	  (void)vidc_getchar();
-    return(0);	/* XXX reinit? */
+    for (i = 0; i < 10 && vidc_ischar(); i++)
+	(void)vidc_getchar();
+    return (0);	/* XXX reinit? */
 }
 
 #ifdef PC98
 static void
 beep(void)
 {
+
 	outb(0x37, 6);
 	delay(40000);
 	outb(0x37, 7);
@@ -186,7 +189,7 @@ vidc_biosputchar(int c)
     if (crtat >= Crtat + col * row) {
         cp = Crtat;
 	for (i = 1; i < row; i++) {
-	    bcopy((void *)(cp+col), (void *)cp, col*2);
+	    bcopy((void *)(cp + col), (void *)cp, col * 2);
 	    cp += col;
 	}
 	for (i = 0; i < col; i++) {
@@ -195,12 +198,13 @@ vidc_biosputchar(int c)
 	crtat -= col;
     }
     pos = crtat - Crtat;
-    while((inb(0x60) & 0x04) == 0) {}
+    while ((inb(0x60) & 0x04) == 0) {}
     outb(0x62, 0x49);
     outb(0x60, pos & 0xff);
     outb(0x60, pos >> 8);
 #endif
 #else
+
     v86.ctl = 0;
     v86.addr = 0x10;
     v86.eax = 0xe00 | (c & 0xff);
@@ -215,7 +219,7 @@ vidc_rawputchar(int c)
 {
     int		i;
 
-    if(c == '\t')
+    if (c == '\t')
 	/* lame tab expansion */
 	for (i = 0; i < 8; i++)
 	    vidc_rawputchar(' ');
@@ -227,46 +231,46 @@ vidc_rawputchar(int c)
 	switch(c) {
 	case '\a':
 #ifdef PC98
-		beep();
+	    beep();
 #else
-		vidc_biosputchar(c);
+	    vidc_biosputchar(c);
 #endif
-		return;
+	    return;
 	case '\r':
-		curx=0;
-		curs_move(curx,cury);
-		return;
+	    curx = 0;
+	    curs_move(curx, cury);
+	    return;
 	case '\n':
-		cury++;
-		if(cury>24) {
-			scroll_up(1,fg_c,bg_c);
-			cury--;
-		} else {
-			curs_move(curx,cury);
-		}
-		return;
+	    cury++;
+	    if (cury > 24) {
+		scroll_up(1, fg_c, bg_c);
+		cury--;
+	    } else {
+		curs_move(curx, cury);
+	    }
+	    return;
 	case '\b':
-		if(curx>0) {
-			curx--;
-			curs_move(curx,cury);
-			/* write_char(' ',fg_c,bg_c); XXX destructive(!) */
-			return;
-		}
+	    if (curx > 0) {
+		curx--;
+		curs_move(curx, cury);
+		/* write_char(' ', fg_c, bg_c); XXX destructive(!) */
 		return;
+	    }
+	    return;
 	default:
-		write_char(c,fg_c,bg_c);
-		curx++;
-		if(curx>79) {
-			curx=0;
-			cury++;
-		}
-		if(cury>24) {
-			curx=0;
-			scroll_up(1,fg_c,bg_c);
-			cury--;
-		}
+	    write_char(c, fg_c, bg_c);
+	    curx++;
+	    if (curx > 79) {
+		curx = 0;
+		cury++;
+	    }
+	    if (cury > 24) {
+		curx = 0;
+		scroll_up(1, fg_c, bg_c);
+		cury--;
+	    }
 	}
-	curs_move(curx,cury);
+	curs_move(curx, cury);
 #endif
     }
 }
@@ -281,16 +285,18 @@ get_pos(void)
 {
 #ifdef PC98
     int pos = crtat - Crtat;
+
     curx = pos % col;
     cury = pos / col;
 #else
+
     v86.ctl = 0;
     v86.addr = 0x10;
     v86.eax = 0x0300;
     v86.ebx = 0x0;
     v86int();
-    curx=v86.edx & 0x00ff;
-    cury=(v86.edx & 0xff00)>>8;
+    curx = v86.edx & 0x00ff;
+    cury = (v86.edx & 0xff00) >> 8;
 #endif
 }
 
@@ -300,39 +306,41 @@ curs_move(int x, int y)
 {
 #ifdef PC98
     int pos;
-    pos = x + y*col;
+
+    pos = x + y * col;
     crtat = Crtat + pos;
     pos = crtat - Crtat;
     while((inb(0x60) & 0x04) == 0) {}
     outb(0x62, 0x49);
     outb(0x60, pos & 0xff);
     outb(0x60, pos >> 8);
-    curx=x;
-    cury=y;
-#define isvisible(c)	(((c)>32) && ((c)<255))
-    if(!isvisible(*crtat & 0x00ff)) {
-	write_char(' ',fg_c,bg_c);
+    curx = x;
+    cury = y;
+#define isvisible(c)	(((c) > 32) && ((c) < 255))
+    if (!isvisible(*crtat & 0x00ff)) {
+	write_char(' ', fg_c, bg_c);
     }
 #else
+
     v86.ctl = 0;
     v86.addr = 0x10;
     v86.eax = 0x0200;
     v86.ebx = 0x0;
-    v86.edx = ((0x00ff & y)<<8)+(0x00ff & x);
+    v86.edx = ((0x00ff & y) << 8) + (0x00ff & x);
     v86int();
-    curx=x;
-    cury=y;
+    curx = x;
+    cury = y;
     /* If there is ctrl char at this position, cursor would be invisible.
      * Make it a space instead.
      */
-    v86.ctl=0;
+    v86.ctl = 0;
     v86.addr = 0x10;
     v86.eax = 0x0800;
-    v86.ebx= 0x0;
+    v86.ebx = 0x0;
     v86int();
-#define isvisible(c)	(((c)>32) && ((c)<255))
-    if(!isvisible(v86.eax & 0x00ff)) {
-	write_char(' ',fg_c,bg_c);
+#define isvisible(c)	(((c) > 32) && ((c) < 255))
+    if (!isvisible(v86.eax & 0x00ff)) {
+	write_char(' ', fg_c, bg_c);
     }
 #endif
 }
@@ -345,28 +353,31 @@ void
 scroll_up(int rows, int fgcol, int bgcol)
 {
 #ifdef PC98
-        unsigned short *cp;
-	int i;
+    unsigned short *cp;
+    int i;
 
-	if(rows==0) rows=25;
-	cp = Crtat;
-	for (i = rows ; i < row; i++) {
-	    bcopy((void *)(cp+col), (void *)cp, col*2);
-	    cp += col;
-	}
-	for (i = 0; i < col; i++) {
-	    *(cp + 0x1000) = at2pc98(fgcol, bgcol);
-	    *cp++ = ' ';
-	}
+    if (rows == 0)
+	rows = 25;
+    cp = Crtat;
+    for (i = rows; i < row; i++) {
+	bcopy((void *)(cp + col), (void *)cp, col * 2);
+	cp += col;
+    }
+    for (i = 0; i < col; i++) {
+	*(cp + 0x1000) = at2pc98(fgcol, bgcol);
+	*cp++ = ' ';
+    }
 #else
-	if(rows==0) rows=25;
-	v86.ctl = 0;
-	v86.addr = 0x10;
-	v86.eax = 0x0600+(0x00ff & rows);
-	v86.ebx = (bgcol<<12)+(fgcol<<8);
-	v86.ecx = 0x0;
-	v86.edx = 0x184f;
-	v86int();
+
+    if (rows == 0)
+	rows = 25;
+    v86.ctl = 0;
+    v86.addr = 0x10;
+    v86.eax = 0x0600 + (0x00ff & rows);
+    v86.ebx = (bgcol << 12) + (fgcol << 8);
+    v86.ecx = 0x0;
+    v86.edx = 0x184f;
+    v86int();
 #endif
 }
 
@@ -374,16 +385,17 @@ scroll_up(int rows, int fgcol, int bgcol)
 void
 write_char(int c, int fgcol, int bgcol)
 {
+
 #ifdef PC98
-	*crtat = (c == 0x5c ? 0xfc : c);
-	*(crtat + 0x1000) = at2pc98(fgcol, bgcol);
+    *crtat = (c == 0x5c ? 0xfc : c);
+    *(crtat + 0x1000) = at2pc98(fgcol, bgcol);
 #else
-	v86.ctl=0;
-    	v86.addr = 0x10;
-    	v86.eax = 0x0900+(0x00ff & c);
-	v86.ebx = (bgcol<<4)+fgcol;
-    	v86.ecx = 0x1;
-    	v86int();
+    v86.ctl = 0;
+    v86.addr = 0x10;
+    v86.eax = 0x0900 + (0x00ff & c);
+    v86.ebx = (bgcol << 4) + fgcol;
+    v86.ecx = 0x1;
+    v86int();
 #endif
 }
 
@@ -391,12 +403,12 @@ write_char(int c, int fgcol, int bgcol)
 int
 pow10(int i)
 {
-	int res=1;
+    int res = 1;
 
-	while(i-->0) {
-		res*=10;
-	}
-	return res;
+    while (i-- > 0) {
+	res *= 10;
+    }
+    return res;
 }
 
 /**************************************************************/
@@ -408,26 +420,30 @@ pow10(int i)
 
 /* Set background color */
 void
-AB(void){
-	bg_c=args[0];
-	end_term();
+AB(void)
+{
+
+    bg_c = args[0];
+    end_term();
 }
 
 /* Set foreground color */
 void
 AF(void)
 {
-	fg_c=args[0];
-	end_term();
+
+    fg_c = args[0];
+    end_term();
 }
 
 /* Clear display from current position to end of screen */
 void
 CD(void)
 {
+
     get_pos();
 #ifdef PC98
-    for(;crtat <= Crtat + col*row; crtat++){
+    for (; crtat <= Crtat + col * row; crtat++) {
 	*crtat = ' ';
 	*(crtat + 0x1000) = at2pc98(fg_c, bg_c);
     }
@@ -435,13 +451,13 @@ CD(void)
     v86.ctl = 0;
     v86.addr = 0x10;
     v86.eax = 0x0600;
-    v86.ebx = (bg_c<<4)+fg_c;
+    v86.ebx = (bg_c << 4) + fg_c;
     v86.ecx = v86.edx;
     v86.edx = 0x184f;
     v86int();
 #endif
-    curx=0;
-    curs_move(curx,cury);
+    curx = 0;
+    curs_move(curx, cury);
     end_term();
 }
 
@@ -451,9 +467,12 @@ CD(void)
 void
 CM(void)
 {
-    if(args[0]>0) args[0]--;
-    if(args[1]>0) args[1]--;
-    curs_move(args[1],args[0]);
+
+    if (args[0] > 0)
+	args[0]--;
+    if (args[1] > 0)
+	args[1]--;
+    curs_move(args[1], args[0]);
     end_term();
 }
 
@@ -461,53 +480,60 @@ CM(void)
 void
 HO(void)
 {
-	argc=1;
-	args[0]=args[1]=1;
-	CM();
+
+    argc = 1;
+    args[0] = args[1] = 1;
+    CM();
 }
 
 /* Exit attribute mode (reset fore/back-ground colors to defaults) */
 void
 ME(void)
 {
-	fg_c=7;
-	bg_c=0;
-	end_term();
+
+    fg_c = 7;
+    bg_c = 0;
+    end_term();
 }
 
 /* Clear internal state of the terminal emulation code */
 void
 end_term(void)
 {
-	esc=0;
-	argc=-1;
-	fg=bg=br=0;
-	args[0]=args[1]=0;
-	dig=0;
+
+    esc = 0;
+    argc = -1;
+    fg = bg = br = 0;
+    args[0] = args[1] = 0;
+    dig = 0;
 }
 
 /* Gracefully exit ESC-sequence processing in case of misunderstanding */
 void
 bail_out(int c)
 {
-	char buf[6],*ch;
+    char buf[6],*ch;
 
-	if(esc) vidc_rawputchar('\033');
-	if(br) vidc_rawputchar('[');
-	if(argc>-1) {
-		sprintf(buf,"%d",args[0]);
-		ch=buf;
-		while(*ch) vidc_rawputchar(*ch++);
+    if (esc)
+	vidc_rawputchar('\033');
+    if (br)
+	vidc_rawputchar('[');
+    if (argc > -1) {
+	sprintf(buf, "%d", args[0]);
+	ch = buf;
+	while (*ch)
+	    vidc_rawputchar(*ch++);
 		
-		if(argc>0) {
-			vidc_rawputchar(';');
-			sprintf(buf,"%d",args[1]);
-			ch=buf;
-			while(*ch) vidc_rawputchar(*ch++);
-		}
+	if (argc > 0) {
+	    vidc_rawputchar(';');
+	    sprintf(buf, "%d", args[1]);
+	    ch = buf;
+	    while (*ch)
+		vidc_rawputchar(*ch++);
 	}
-	vidc_rawputchar(c);
-	end_term();
+    }
+    vidc_rawputchar(c);
+    end_term();
 }
 
 /* Emulate basic capabilities of cons25 terminal */
@@ -515,9 +541,9 @@ void
 vidc_term_emu(int c)
 {
 
-    if(!esc) {
-	if(c=='\033') {
-	    esc=1;
+    if (!esc) {
+	if (c == '\033') {
+	    esc = 1;
 	} else {
 	    vidc_rawputchar(c);
 	}
@@ -525,15 +551,15 @@ vidc_term_emu(int c)
     }
 
     /* Do ESC sequences processing */
-    switch(c) {
+    switch (c) {
     case '\033':
 	/* ESC in ESC sequence - error */
 	bail_out(c);
 	break;
     case '[':
 	/* Check if it's first char after ESC */
-        if(argc<0) {
-            br=1;
+        if (argc < 0) {
+            br = 1;
         } else {
 	    bail_out(c);
         }
@@ -541,14 +567,16 @@ vidc_term_emu(int c)
     case 'H':
 	/* Emulate \E[H (cursor home) and 
 	 * \E%d;%dH (cursor absolute move) */
-	if(br) {
-	    switch(argc) {
+	if (br) {
+	    switch (argc) {
 	    case -1:
 		HO();
 		break;
 	    case 1:
-		if(fg) args[0]+=pow10(dig)*3;
-		if(bg) args[0]+=pow10(dig)*4;
+		if (fg)
+		    args[0] += pow10(dig)*3;
+		if (bg)
+		    args[0] += pow10(dig)*4;
 		CM();
 		break;
 	    default:
@@ -558,26 +586,28 @@ vidc_term_emu(int c)
 	break;
     case 'J':
 	/* Emulate \EJ (clear to end of screen) */
-	if(br && argc<0) {
+	if (br && argc < 0) {
 	    CD();
 	} else bail_out(c);
 	break;
     case ';':
 	/* perhaps args separator */
-	if(br && (argc>-1)) {
+	if (br && (argc > -1)) {
 	    argc++;
 	} else bail_out(c);
 	break;
     case 'm':
 	/* Change char attributes */
-	if(br) {
-	    switch(argc) {
+	if (br) {
+	    switch (argc) {
 	    case -1:
 		ME();
 		break;
 	    case 0:
-		if(fg) AF();
-		else AB();
+		if (fg)
+		    AF();
+		else
+		    AB();
 		break;
 	    default:
 		bail_out(c);
@@ -585,29 +615,30 @@ vidc_term_emu(int c)
 	} else bail_out(c);
 	break;
     default:
-	if(isdigit(c)) {
+	if (isdigit(c)) {
 	    /* Carefully collect numeric arguments */
 	    /* XXX this is ugly. */
-	    if(br) {
-	        if(argc==-1) {
-	     	    argc=0;
-		    args[argc]=0;
-		    dig=0;
+	    if (br) {
+	        if (argc == -1) {
+	     	    argc = 0;
+		    args[argc] = 0;
+		    dig = 0;
 		    /* in case we're in error... */
-		    if(c=='3') {
-			fg=1;
+		    if (c == '3') {
+			fg = 1;
 			return;
 		    }
-		    if(c=='4') {
-			bg=1;
+		    if (c == '4') {
+			bg = 1;
 			return;
 		    }
-	     	    args[argc]=(int)(c-'0');
-		    dig=1;
-	     	    args[argc+1]=0;
+	     	    args[argc] = (int)(c - '0');
+		    dig = 1;
+	     	    args[argc + 1] = 0;
 	    	} else {
-		    args[argc]=args[argc]*10+(int)(c-'0');
-		    if(argc==0) dig++;
+		    args[argc] = args[argc]*10 + (int)(c - '0');
+		    if (argc == 0)
+			dig++;
 	    	}
 	    } else bail_out(c);
 	} else bail_out(c);
@@ -629,6 +660,7 @@ vidc_putchar(int c)
 static int
 vidc_getchar(void)
 {
+
     if (vidc_ischar()) {
 	v86.ctl = 0;
 #ifdef PC98
@@ -638,27 +670,28 @@ vidc_getchar(void)
 #endif
 	v86.eax = 0x0;
 	v86int();
-	return(v86.eax & 0xff);
+	return (v86.eax & 0xff);
     } else {
-	return(-1);
+	return (-1);
     }
 }
 
 static int
 vidc_ischar(void)
 {
+
 #ifdef PC98
     v86.ctl = 0;
     v86.addr = 0x18;
     v86.eax = 0x100;
     v86int();
-    return((v86.ebx >> 8) & 0x1);
+    return ((v86.ebx >> 8) & 0x1);
 #else
     v86.ctl = V86_FLAGS;
     v86.addr = 0x16;
     v86.eax = 0x100;
     v86int();
-    return(!(v86.efl & PSL_Z));
+    return (!(v86.efl & PSL_Z));
 #endif
 }
 
@@ -779,15 +812,19 @@ probe_keyboard(void)
 
     return (1);
 }
-#endif
+#endif /* PC98 */
 #endif /* KEYBOARD_PROBE */
 
 #ifdef TERM_EMU
 #ifdef PC98
-static u_char	ibmpc_to_pc98[16] =
- { 0x01,0x21,0x81,0xa1,0x41,0x61,0xc1,0xe1, 0x09,0x29,0x89,0xa9,0x49,0x69,0xc9,0xe9 };
-static u_char	ibmpc_to_pc98rev[16] = 
- { 0x05,0x25,0x85,0xa5,0x45,0x65,0xc5,0xe5, 0x0d,0x2d,0x8d,0xad,0x4d,0x6d,0xcd,0xed };
+static u_char	ibmpc_to_pc98[16] = {
+    0x01,0x21,0x81,0xa1,0x41,0x61,0xc1,0xe1,
+    0x09,0x29,0x89,0xa9,0x49,0x69,0xc9,0xe9
+};
+static u_char	ibmpc_to_pc98rev[16] = {
+    0x05,0x25,0x85,0xa5,0x45,0x65,0xc5,0xe5,
+    0x0d,0x2d,0x8d,0xad,0x4d,0x6d,0xcd,0xed
+};
 
 unsigned int
 at2pc98(unsigned int fg_at, unsigned int bg_at)
@@ -811,8 +848,8 @@ at2pc98(unsigned int fg_at, unsigned int bg_at)
 	/* normal */
 	at = ibmpc_to_pc98[fg_at];
     }
-    at |= ((fg_at|bg_at) << 8);
+    at |= ((fg_at | bg_at) << 8);
     return (at);
 }
-#endif
-#endif
+#endif /* PC98 */
+#endif /* TERM_EMU */
