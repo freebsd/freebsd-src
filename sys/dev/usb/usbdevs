@@ -184,6 +184,7 @@ vendor OMNIVISION	0x05a9	OmniVision
 vendor INSYSTEM		0x05ab	In-System Design
 vendor APPLE		0x05ac	Apple Computer
 vendor DIGI		0x05c5	Digi International
+vendor QUALCOMM		0x05c6	Qualcomm
 vendor QTRONIX		0x05c7	Qtronix
 vendor ELSA		0x05cc	ELSA
 vendor BRAINBOXES	0x05d1	Brainboxes Limited
@@ -349,7 +350,7 @@ vendor PNY		0x0d7d	PNY
 vendor MSI		0x0db0	Micro Star International
 vendor HAWKING		0x0e66	Hawking Technologies
 vendor MICROTUNE	0x0f4d	Microtune, Inc.
-vendor QUALCOMM		0x1004	Qualcomm
+vendor QUALCOMM2	0x1004	Qualcomm
 vendor MOTOROLA		0x1063	Motorola
 vendor PLX		0x10b5	PLX
 vendor ASANTE		0x10bd	Asante
@@ -706,7 +707,8 @@ product FUJIPHOTO MASS0100	0x0100	Mass Storage
 product	FUJITSU	AH_F401U	0x105b	AH-F401U Air H device
 
 /* Qualcomm products */
-product QUALCOMM CDMA_MSM	0x6000	CDMA Technologies MSM phone
+product QUALCOMM CDMA_MSM	0x3196	CDMA Technologies MSM modem
+product QUALCOMM2 CDMA_MSM	0x6000	CDMA Technologies MSM phone
 
 /* General Instruments (Motorola) products */
 product GENERALINSTMNTS SB5100	0x5100	SURFboard SB5100 Cable modem
