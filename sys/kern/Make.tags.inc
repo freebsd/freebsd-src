@@ -28,17 +28,17 @@ COMM=	${SYS}/conf/*.[ch] \
 	${SYS}/dev/smbus/*.[ch] \
 	${SYS}/dev/vn/*.[ch] \
 	${SYS}/dev/vx/*.[ch] \
+	${SYS}/fs/deadfs/*.[ch] \
+	${SYS}/fs/fdescfs/*.[ch] \
+	${SYS}/fs/fifofs/*.[ch] \
+	${SYS}/fs/nullfs/*.[ch] \
+	${SYS}/fs/portalfs/*.[ch] \
+	${SYS}/fs/procfs/*.[ch] \
+	${SYS}/fs/specfs/*.[ch] \
+	${SYS}/fs/umapfs/*.[ch] \
+	${SYS}/fs/unionfs/*.[ch] \
 	${SYS}/isofs/cd9660/*.[ch] \
 	${SYS}/kern/*.[ch] \
-	${SYS}/miscfs/deadfs/*.[ch] \
-	${SYS}/miscfs/fdesc/*.[ch] \
-	${SYS}/miscfs/fifofs/*.[ch] \
-	${SYS}/miscfs/nullfs/*.[ch] \
-	${SYS}/miscfs/portal/*.[ch] \
-	${SYS}/miscfs/procfs/*.[ch] \
-	${SYS}/miscfs/specfs/*.[ch] \
-	${SYS}/miscfs/umapfs/*.[ch] \
-	${SYS}/miscfs/union/*.[ch] \
 	${SYS}/msdosfs/*.[ch] \
 	${SYS}/net/*.[ch] \
 	${SYS}/netatalk/*.[ch] \
@@ -91,17 +91,17 @@ COMMDIR2= ${SYS}/dev/advansys \
 	${SYS}/dev/smbus \
 	${SYS}/dev/vn \
 	${SYS}/dev/vx \
+	${SYS}/fs/deadfs \
+	${SYS}/fs/devfs \
+	${SYS}/fs/fdescfs \
+	${SYS}/fs/fifofs \
+	${SYS}/fs/nullfs \
+	${SYS}/fs/portalfs \
+	${SYS}/fs/procfs \
+	${SYS}/fs/specfs \
+	${SYS}/fs/umapfs \
+	${SYS}/fs/unionfs \
 	${SYS}/isofs/cd9660 \
-	${SYS}/miscfs/deadfs \
-	${SYS}/miscfs/devfs \
-	${SYS}/miscfs/fdesc \
-	${SYS}/miscfs/fifofs \
-	${SYS}/miscfs/nullfs \
-	${SYS}/miscfs/portal \
-	${SYS}/miscfs/procfs \
-	${SYS}/miscfs/specfs \
-	${SYS}/miscfs/umapfs \
-	${SYS}/miscfs/union \
 	${SYS}/ufs/ffs \
 	${SYS}/ufs/mfs \
 	${SYS}/ufs/ufs

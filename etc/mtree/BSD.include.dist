@@ -20,7 +20,21 @@
         ..
     ..
     fs
+        fdescfs
+        ..
+        fifofs
+        ..
+        nullfs
+        ..
+        portalfs
+        ..
+        procfs
+        ..
         smbfs
+        ..
+        umapfs
+        ..
+        unionfs
         ..
     ..
     g++

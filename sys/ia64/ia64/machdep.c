@@ -75,7 +75,7 @@
 #include <ddb/ddb.h>
 #include <alpha/alpha/db_instruction.h>
 #include <sys/vnode.h>
-#include <miscfs/procfs/procfs.h>
+#include <fs/procfs/procfs.h>
 #include <machine/sigframe.h>
 
 u_int64_t cycles_per_usec;

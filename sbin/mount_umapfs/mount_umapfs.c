@@ -52,7 +52,7 @@ static const char rcsid[] =
 #include <sys/mount.h>
 #include <sys/stat.h>
 
-#include <miscfs/umapfs/umap.h>
+#include <fs/umapfs/umap.h>
 
 #include <err.h>
 #include <stdio.h>

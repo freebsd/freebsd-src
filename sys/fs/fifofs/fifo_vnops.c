@@ -49,7 +49,7 @@
 #include <sys/event.h>
 #include <sys/poll.h>
 #include <sys/un.h>
-#include <miscfs/fifofs/fifo.h>
+#include <fs/fifofs/fifo.h>
 
 /*
  * This structure is associated with the FIFO vnode and stores

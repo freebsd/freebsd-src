@@ -42,7 +42,7 @@
 #include <sys/proc.h>
 #include <sys/sysent.h>
 #include <sys/vnode.h>
-#include <miscfs/procfs/procfs.h>
+#include <fs/procfs/procfs.h>
 
 int
 procfs_dotype(curp, p, pfs, uio)

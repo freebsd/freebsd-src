@@ -33,11 +33,11 @@ SYSDIR=/sys
 # Directories in which to place tags links (other than machine-dependent)
 DGEN=	conf \
 	dev dev/scsi \
+	fs fs/deadfs fs/fdescfs fs/fifofs \
+	fs/lofs fs/nullfs fs/portalfs fs/procfs \
+	fs/specfs fs/umapfs fs/unionfs \
 	hp hp/dev hp/hpux \
 	kern libkern \
-	miscfs miscfs/deadfs miscfs/fdesc miscfs/fifofs \
-	miscfs/lofs miscfs/nullfs miscfs/portal miscfs/procfs \
-	miscfs/specfs miscfs/umapfs miscfs/union \
 	net netccitt netinet netiso netns nfs scripts sys \
 	ufs ufs/ffs ufs/lfs ufs/mfs ufs/ufs \
 	vm

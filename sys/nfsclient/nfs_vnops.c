@@ -66,7 +66,7 @@
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 
-#include <miscfs/fifofs/fifo.h>
+#include <fs/fifofs/fifo.h>
 
 #include <nfs/rpcv2.h>
 #include <nfs/nfsproto.h>

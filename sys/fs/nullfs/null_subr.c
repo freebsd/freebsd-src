@@ -47,7 +47,7 @@
 #include <sys/proc.h>
 #include <sys/vnode.h>
 
-#include <miscfs/nullfs/null.h>
+#include <fs/nullfs/null.h>
 
 #define LOG2_SIZEVNODE 7		/* log2(sizeof struct vnode) */
 #define	NNULLNODECACHE 16

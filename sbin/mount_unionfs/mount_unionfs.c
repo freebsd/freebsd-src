@@ -52,7 +52,7 @@ static const char rcsid[] =
 #include <sys/param.h>
 #include <sys/mount.h>
 
-#include <miscfs/union/union.h>
+#include <fs/unionfs/union.h>
 
 #include <err.h>
 #include <stdio.h>
