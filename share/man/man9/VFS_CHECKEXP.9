@@ -29,7 +29,7 @@
 .Dt VFS_CHECKEXP 9
 .Sh NAME
 .Nm VFS_CHECKEXP
-.Nd check if vnode is exported to a client
+.Nd check if a filesystem is exported to a client
 .Sh SYNOPSIS
 .Fd #include <sys/param.h>
 .Fd #include <sys/mount.h>
@@ -52,7 +52,7 @@ Return parameter for the anonymous credentials for this client.
 .El
 .Pp
 This should be called on a file system's mount structure to determine if it 
-is exported to a client whos address is contained in 
+is exported to a client whose address is contained in 
 .Fa nam .
 .Pp
 It is generally called before
