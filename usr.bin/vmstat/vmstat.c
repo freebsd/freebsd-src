@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)vmstat.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: vmstat.c,v 1.31 1999/02/10 00:46:27 ken Exp $";
+	"$Id: vmstat.c,v 1.32 1999/02/13 09:59:24 dillon Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -171,7 +171,7 @@ kvm_t *kd;
 #define	VMSTAT		0x20
 #define ZMEMSTAT	0x40
 
-void	cpustats(), dointr(), domem(), dozmem(), dosum();
+void	cpustats(), dointr(), domem(), dosum(), dozmem();
 void	dovmstat(), kread(), usage();
 #ifdef notyet
 void	dotimes(), doforkst();
@@ -194,7 +194,7 @@ main(argc, argv)
 	memf = nlistf = NULL;
 	interval = reps = todo = 0;
 	maxshowdevs = 2;
-	while ((c = getopt(argc, argv, "c:fiM:mzN:n:p:stw:")) != -1) {
+	while ((c = getopt(argc, argv, "c:fiM:mN:n:p:stw:z")) != -1) {
 		switch (c) {
 		case 'c':
 			reps = atoi(optarg);
@@ -214,9 +214,6 @@ main(argc, argv)
 			break;
 		case 'm':
 			todo |= MEMSTAT;
-			break;
-		case 'z':
-			todo |= ZMEMSTAT;
 			break;
 		case 'N':
 			nlistf = optarg;
@@ -244,6 +241,9 @@ main(argc, argv)
 			break;
 		case 'w':
 			interval = atoi(optarg);
+			break;
+		case 'z':
+			todo |= ZMEMSTAT;
 			break;
 		case '?':
 		default:
@@ -988,6 +988,6 @@ void
 usage()
 {
 	(void)fprintf(stderr,
-"usage: vmstat [-ims] [-c count] [-M core] [-N system] [-w wait] [disks]\n");
+"usage: vmstat [-imsz] [-c count] [-M core] [-N system] [-w wait] [disks]\n");
 	exit(1);
 }
