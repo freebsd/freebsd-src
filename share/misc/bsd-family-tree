@@ -180,7 +180,7 @@ FreeBSD 5.2           |      |                 |                       |
  |      |             |      |                 |                       |
  |   FreeBSD 5.2.1    |      |                 |                       |
  |                    |      |                 |                       |
-FreeBSD 5 -current    |      |                 |                       |
+FreeBSD 6 -current    |      |                 |                       |
  |                    |      |                 |                       |
  v                    v      v                 v                       v
 
@@ -419,6 +419,10 @@ Company, Inc., 1994. ISBN 0-201-54777-5
 McKusick, Marshall Kirk, Keith Bostic, Michael J Karels, and John
 Quarterman. The Design and Implementation of the 4.4BSD Operating
 System. Reading, Mass. Addison-Wesley, 1996. ISBN 0-201-54979-4
+
+McKusick, Marshall Kirk, George Neville-Neil. The Design and
+Implementation of the FreeBSD Operating System.
+Addison-Wesley Professional, Published: Aug 2, 2004. ISBN 0-201-70245-2
 
 Doug McIlroy. Research Unix Reader.
 
