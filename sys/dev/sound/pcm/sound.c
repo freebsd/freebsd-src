@@ -318,12 +318,20 @@ pcm_killchan(device_t dev)
 {
     	struct snddev_info *d = device_get_softc(dev);
     	struct snddev_channel *sce;
+	struct pcm_channel *ch;
+	int r;
 
 	snd_mtxlock(d->lock);
 	sce = SLIST_FIRST(&d->channels);
+	ch = sce->channel;
 	snd_mtxunlock(d->lock);
 
-	return pcm_chn_remove(d, sce->channel);
+	r = pcm_chn_remove(d, ch);
+	if (r)
+		return r;
+	r = pcm_chn_destroy(ch);
+
+	return r;
 }
 
 int
