@@ -1,10 +1,7 @@
-/* tilde.c -- Tilde expansion code (~/foo := $HOME/foo).
-   $Id: tilde.c,v 1.9 1998/02/22 23:03:21 karl Exp $
+/* tilde.c -- tilde expansion code (~/foo := $HOME/foo).
+   $Id: tilde.c,v 1.13 1999/03/03 22:42:21 karl Exp $
 
-   This file is part of GNU Info, a program for reading online documentation
-   stored in Info format.
-
-   Copyright (C) 1988, 89, 90, 91, 92, 93, 96, 98
+   Copyright (C) 1988, 89, 90, 91, 92, 93, 96, 98, 99
    Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
@@ -23,26 +20,8 @@
 
    Written by Brian Fox (bfox@ai.mit.edu). */
 
-/* Indent #pragma so that older Cpp's don't try to parse it. */
-#ifdef _AIX
- #pragma alloca
-#endif /* _AIX */
-
 /* Include config.h before doing alloca.  */
 #include "info.h"
-
-#ifdef __GNUC__
-# undef alloca
-# define alloca __builtin_alloca
-#else
-# ifdef HAVE_ALLOCA_H
-#  include <alloca.h>
-# else
-#  ifndef _AIX
-char *alloca ();
-#  endif
-# endif
-#endif
 
 #if defined (TEST) || defined (STATIC_MALLOC)
 static void *xmalloc (), *xrealloc ();
@@ -123,7 +102,7 @@ tilde_find_suffix (string)
 
   for (i = 0; i < string_len; i++)
     {
-      if (string[i] == '/' || !string[i])
+      if (IS_SLASH (string[i]) || !string[i])
         break;
 
       for (j = 0; suffixes && suffixes[j]; j++)
@@ -203,14 +182,12 @@ char *
 tilde_expand_word (filename)
      char *filename;
 {
-  char *dirname;
-
-  dirname = filename ? xstrdup (filename) : (char *)NULL;
+  char *dirname = filename ? xstrdup (filename) : NULL;
 
   if (dirname && *dirname == '~')
     {
       char *temp_name;
-      if (!dirname[1] || dirname[1] == '/')
+      if (!dirname[1] || IS_SLASH (dirname[1]))
         {
           /* Prepend $HOME to the rest of the string. */
           char *temp_home = getenv ("HOME");
@@ -226,30 +203,31 @@ tilde_expand_word (filename)
                 temp_home = entry->pw_dir;
             }
 
-          temp_name = (char *)
-            alloca (1 + strlen (&dirname[1])
-                    + (temp_home ? strlen (temp_home) : 0));
-          temp_name[0] = '\0';
+          temp_name = xmalloc (1 + strlen (&dirname[1])
+                               + (temp_home ? strlen (temp_home) : 0));
           if (temp_home)
             strcpy (temp_name, temp_home);
+          else
+            temp_name[0] = 0;
           strcat (temp_name, &dirname[1]);
           free (dirname);
           dirname = xstrdup (temp_name);
+          free (temp_name);
         }
       else
         {
           struct passwd *user_entry;
-          char *username = (char *)alloca (257);
+          char *username = xmalloc (257);
           int i, c;
 
           for (i = 1; (c = dirname[i]); i++)
             {
-              if (c == '/')
+              if (IS_SLASH (c))
                 break;
               else
                 username[i - 1] = c;
             }
-          username[i - 1] = '\0';
+          username[i - 1] = 0;
 
           if (!(user_entry = (struct passwd *) getpwnam (username)))
             {
@@ -264,8 +242,8 @@ tilde_expand_word (filename)
 
                   if (expansion)
                     {
-                      temp_name = (char *)alloca
-                        (1 + strlen (expansion) + strlen (&dirname[i]));
+                      temp_name = xmalloc (1 + strlen (expansion)
+                                           + strlen (&dirname[i])); 
                       strcpy (temp_name, expansion);
                       strcat (temp_name, &dirname[i]);
                       free (expansion);
@@ -276,18 +254,22 @@ tilde_expand_word (filename)
             }
           else
             {
-              temp_name = (char *)alloca
-                (1 + strlen (user_entry->pw_dir) + strlen (&dirname[i]));
+              temp_name = xmalloc (1 + strlen (user_entry->pw_dir)
+                                   + strlen (&dirname[i])); 
               strcpy (temp_name, user_entry->pw_dir);
               strcat (temp_name, &dirname[i]);
+
             return_name:
               free (dirname);
               dirname = xstrdup (temp_name);
+              free (temp_name);
             }
-            endpwent ();
+
+          endpwent ();
+          free (username);
         }
     }
-  return (dirname);
+  return dirname;
 }
 
 
@@ -322,7 +304,7 @@ main (argc, argv)
       printf ("  --> %s\n", result);
       free (result);
     }
-  exit (0);
+  xexit (0);
 }
 
 static void memory_error_and_abort ();
