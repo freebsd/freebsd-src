@@ -150,9 +150,9 @@ main(argc, argv)
 			ru.ru_stime.tv_sec, ru.ru_stime.tv_usec/10000);
 	} else if (hflag) {
 		humantime(out, after.tv_sec, after.tv_usec/10000);
-		fprintf(out, " real%c", hflag ? '\t' : ' ');
+		fprintf(out, " real\t");
 		humantime(out, ru.ru_utime.tv_sec, ru.ru_utime.tv_usec/10000);
-		fprintf(out, " user%c", hflag ? '\t' : ' ');
+		fprintf(out, " user\t");
 		humantime(out, ru.ru_stime.tv_sec, ru.ru_stime.tv_usec/10000);
 		fprintf(out, " sys\n");
 	} else {
