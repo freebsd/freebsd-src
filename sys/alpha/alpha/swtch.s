@@ -141,6 +141,13 @@ Lcs1:	LDGP(pv)
 	bne	t0, Lcs7			/* Yes!  Skip! */
 
 	/*
+	 * Save fp state if we have some.
+	 */
+	mov	s0, a0				/* curproc */
+	ldiq	a1, 1				/* clear fpcurproc */
+	CALL(alpha_fpstate_save)
+
+	/*
 	 * Deactivate the old address space before activating the
 	 * new one.  We need to do this before activating the
 	 * new process's address space in the event that new
