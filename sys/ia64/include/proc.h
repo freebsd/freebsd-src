@@ -28,6 +28,9 @@
  * rights to redistribute these changes.
  */
 
+#ifndef _MACHINE_PROC_H_
+#define	_MACHINE_PROC_H_
+
 #include <machine/globaldata.h>
 #include <machine/globals.h>
 
@@ -51,3 +54,5 @@ struct mdthread {
 struct mdproc {
 	struct user	*md_uservirt;	/* virtual address of p_addr */
 };
+
+#endif /* !_MACHINE_PROC_H_ */
