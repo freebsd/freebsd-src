@@ -56,11 +56,11 @@ and is listening for connections after a
 .Xr listen 2 .
 The
 .Fn accept
-argument
+call
 extracts the first connection request
 on the queue of pending connections, creates
-a new socket with the same properties of 
-.Fa s
+a new socket with the same properties as
+.Fa s ,
 and allocates a new file descriptor
 for the socket.  If no pending connections are
 present on the queue, and the socket is not marked
@@ -79,7 +79,7 @@ remains open.
 .Pp
 The argument
 .Fa addr
-is a result parameter that is filled in with
+is a result parameter that is filled-in with
 the address of the connecting entity,
 as known to the communications layer.
 The exact format of the
@@ -129,7 +129,7 @@ request.
 Similarly, one can provide user connection rejection information
 by issuing a
 .Xr sendmsg 2
-call with providing only the control information,
+call providing only the control information,
 or by calling
 .Xr setsockopt 2 .
 .Sh IMPLEMENTATION NOTES
@@ -147,7 +147,7 @@ syscall is assembled to
 and
 .Fn accept
 is implemented as a function which locks
-.Va s
+.Fa s
 for read and write, then calls
 .Fn _thread_sys_accept .
 If the call to
@@ -156,7 +156,7 @@ would block, a context switch is performed.
 Before returning,
 .Fn accept
 unlocks
-.Va s .
+.Fa s .
 .Pp
 .Sh RETURN VALUES
 The call returns \-1 on error.  If it succeeds, it returns a non-negative
