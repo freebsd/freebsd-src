@@ -200,32 +200,32 @@ thread_get(struct proc *p)
 * STUB KSE syscalls
 *********************/
 
+/* struct thread_wakeup_args { struct thread_mailbox *tmbx; }; */
 int
 thread_wakeup(struct thread *td, struct  thread_wakeup_args *uap)
-/* struct thread_wakeup_args { struct thread_mailbox *tmbx; }; */
 {
 
-	return(EINVAL);
+	return(ENOSYS);
 }
 
 int
 kse_exit(struct thread *td, struct kse_exit_args *uap)
 {
 
-	return(EINVAL);
+	return(ENOSYS);
 }
 
 int
 kse_yield(struct thread *td, struct kse_yield_args *uap)
 {
 
-	return(EINVAL);
+	return(ENOSYS);
 }
 
 int kse_wakeup(struct thread *td, struct kse_wakeup_args *uap)
 {
 
-	return(EINVAL);
+	return(ENOSYS);
 }
 
 
@@ -237,7 +237,7 @@ kse_new(struct thread *td, struct kse_new_args *uap)
 }; */
 {
 
-	return (EINVAL);
+	return (ENOSYS);
 }
 
 /*
