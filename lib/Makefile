@@ -51,11 +51,12 @@ _libngatm=	libngatm
 _libbind=	libbind
 .endif
 
-.if ${MACHINE_ARCH} == "i386"
 .if !defined(NO_BLUETOOTH)
 _libbluetooth=	libbluetooth
 _libsdp=	libsdp
 .endif
+
+.if ${MACHINE_ARCH} == "i386"
 _compat=	compat
 _libncp=	libncp
 _libsmb=	libsmb

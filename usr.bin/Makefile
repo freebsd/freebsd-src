@@ -240,6 +240,10 @@ _dnsquery=	dnsquery
 _host=		host
 .endif
 
+.if !defined(NO_BLUETOOTH)
+_bluetooth=	bluetooth
+.endif
+
 .if !defined(NOCRYPT) && !defined(NO_OPENSSL)
 _chkey=		chkey
 _newkey=	newkey
@@ -266,9 +270,6 @@ _usbhidctl=	usbhidctl
 .endif
 
 .if ${MACHINE_ARCH} == "i386"
-.if !defined(NO_BLUETOOTH)
-_bluetooth=	bluetooth
-.endif
 _ncplist=	ncplist
 _ncplogin=	ncplogin
 _smbutil=	smbutil
