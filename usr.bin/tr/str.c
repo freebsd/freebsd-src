@@ -198,7 +198,7 @@ genclass(s)
 {
 	int cnt, (*func)(int);
 	CLASS *cp, tmp;
-	int *p, n;
+	int *p;
 
 	tmp.name = s->str;
 	if ((cp = (CLASS *)bsearch(&tmp, classes, sizeof(classes) /
@@ -211,18 +211,15 @@ genclass(s)
 		if ((func)(cnt))
 			*p++ = cnt;
 	*p = OOBCH;
-	n = p - cp->set;
 
 	s->cnt = 0;
 	s->set = cp->set;
 	if (strcmp(s->str, "upper") == 0)
 		s->state = SET_UPPER;
-	else if (strcmp(s->str, "lower") == 0) {
+	else if (strcmp(s->str, "lower") == 0)
 		s->state = SET_LOWER;
-	} else
+	else
 		s->state = SET;
-	if ((s->state == SET_LOWER || s->state == SET_UPPER) && n > 1)
-		mergesort(s->set, n, sizeof(*(s->set)), charcoll);
 }
 
 static int
