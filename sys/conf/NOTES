@@ -2226,6 +2226,7 @@ device		firewire	# FireWire bus code
 device		sbp		# SCSI over Firewire (Requires scbus and da)
 device		sbp_targ	# SBP-2 Target mode  (Requires scbus and targ)
 device		fwe		# Ethernet over FireWire (non-standard!)
+device		fwip		# IP over FireWire (rfc2734 and rfc3146)
 
 #####################################################################
 # dcons support (Dumb Console Device)
