@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: pcaudio.c,v 1.9 1997/02/22 09:43:43 peter Exp $
  */
 
 #include "pca.h"
@@ -38,6 +38,7 @@
 #include <sys/fcntl.h>
 #include <sys/proc.h>
 #include <sys/kernel.h>
+#include <sys/filio.h>
 
 #include <machine/clock.h>
 #include <machine/pcaudioio.h>
@@ -64,9 +65,9 @@
 static struct pca_status {
 	char		open;		/* device open */
 	char		queries;	/* did others try opening */
-	unsigned char	*buf[2];	/* double buffering */
+	unsigned char	*buf[3];	/* triple buffering */
 	unsigned char   *buffer; 	/* current buffer ptr */
-	unsigned	in_use[2];	/* buffers fill */
+	unsigned	in_use[3];	/* buffers fill */
 	unsigned	index;		/* index in current buffer */
 	unsigned	counter;	/* sample counter */
 	unsigned	scale;		/* sample counter scale */
@@ -78,10 +79,12 @@ static struct pca_status {
 	unsigned char	oldval;		/* old timer port value */
 	char		timer_on;	/* is playback running */
 	struct selinfo	wsel;		/* select status */
+	char		non_block;	/* set non-block on write status */
 } pca_status;
 
 static char buffer1[BUF_SIZE];
 static char buffer2[BUF_SIZE];
+static char buffer3[BUF_SIZE];
 static char volume_table[256];
 
 #ifdef DEVFS
@@ -137,7 +140,10 @@ pca_volume(int volume)
 	int i, j;
 
 	for (i=0; i<256; i++) {
+		j = ((i-128)*volume)/25;
+/* XXX
 		j = ((i-128)*volume)/100;
+*/
 		if (j<-128)
 			j = -128;
 		if (j>127)
@@ -155,8 +161,9 @@ pca_init(void)
 	pca_status.timer_on = 0;
 	pca_status.buf[0] = (unsigned char *)&buffer1[0];
 	pca_status.buf[1] = (unsigned char *)&buffer2[0];
+	pca_status.buf[2] = (unsigned char *)&buffer3[0];
 	pca_status.buffer = pca_status.buf[0];
-	pca_status.in_use[0] = pca_status.in_use[1] = 0;
+	pca_status.in_use[0] = pca_status.in_use[1] = pca_status.in_use[3] = 0;
 	pca_status.current = 0;
 	pca_status.sample_rate = SAMPLE_RATE;
 	pca_status.scale = (pca_status.sample_rate << 8) / INTERRUPT_RATE;
@@ -218,7 +225,7 @@ pca_stop(void)
 	release_timer2();
 #endif
 	/* reset the buffer */
-	pca_status.in_use[0] = pca_status.in_use[1] = 0;
+	pca_status.in_use[0] = pca_status.in_use[1] = pca_status.in_use[2] = 0;
 	pca_status.index = 0;
 	pca_status.counter = 0;
 	pca_status.current = 0;
@@ -270,7 +277,7 @@ pca_wait(void)
 	if (!pca_status.timer_on)
 		return 0;
 
-	while (pca_status.in_use[0] || pca_status.in_use[1]) {
+	while (pca_status.in_use[0] || pca_status.in_use[1] || pca_status.in_use[2]) {
 		x = spltty();
 		pca_sleep = 1;
 		error = tsleep(&pca_sleep, PZERO|PCATCH, "pca_drain", 0);
@@ -329,10 +336,11 @@ pcaopen(dev_t dev, int flags, int fmt, struct proc *p)
 		return EBUSY;
 	}
 	pca_status.buffer = pca_status.buf[0];
-	pca_status.in_use[0] = pca_status.in_use[1] = 0;
+	pca_status.in_use[0] = pca_status.in_use[1] = pca_status.in_use[2] = 0;
 	pca_status.timer_on = 0;
 	pca_status.open = 1;
 	pca_status.processed = 0;
+	pca_status.non_block = 0;	/* block on write */
 	return 0;
 }
 
@@ -363,7 +371,9 @@ pcawrite(dev_t dev, struct uio *uio, int flag)
 		return ENXIO;
 
 	while ((count = min(BUF_SIZE, uio->uio_resid)) > 0) {
-		if (pca_status.in_use[0] && pca_status.in_use[1]) {
+		if (pca_status.in_use[0] && pca_status.in_use[1] && pca_status.in_use[2]) {
+			if(pca_status.non_block)
+				return EWOULDBLOCK;
 			x = spltty();
 			pca_sleep = 1;
 			error = tsleep(&pca_sleep, PZERO|PCATCH, "pca_wait", 0);
@@ -374,7 +384,11 @@ pcawrite(dev_t dev, struct uio *uio, int flag)
 				return error;
 			}
 		}
-		which = pca_status.in_use[0] ? 1 : 0;
+		if(!pca_status.in_use[0])
+			which = 0;
+		else if(!pca_status.in_use[1])
+			which = 1;
+		else	which = 2;
 		if (count && !pca_status.in_use[which]) {
 			uiomove(pca_status.buf[which], count, uio);
 			pca_status.processed += count;
@@ -457,7 +471,9 @@ pcaioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	case AUDIO_COMPAT_FLUSH:
 		pca_stop();
 		return 0;
-
+	case FIONBIO:
+		pca_status.non_block = (char)(*(int *)data);
+		return 0;
 	}
 	return ENXIO;
 }
@@ -493,7 +509,8 @@ pcaintr(struct clockframe *frame)
 	if (pca_status.index >= pca_status.in_use[pca_status.current]) {
 		pca_status.index = pca_status.counter = 0;
 		pca_status.in_use[pca_status.current] = 0;
-		pca_status.current ^= 1;
+		pca_status.current++;
+ 		if(pca_status.current > 2) pca_status.current = 0;
 		pca_status.buffer = pca_status.buf[pca_status.current];
                 if (pca_sleep)
 			wakeup(&pca_sleep);
@@ -515,7 +532,7 @@ pcaselect(dev_t dev, int rw, struct proc *p)
  	switch (rw) {
 
 	case FWRITE:
- 		if (!pca_status.in_use[0] || !pca_status.in_use[1]) {
+ 		if (!pca_status.in_use[0] || !pca_status.in_use[1] || !pca_status.in_use[2]) {
  			splx(s);
  			return(1);
  		}
