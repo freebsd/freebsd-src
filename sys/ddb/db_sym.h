@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_sym.h,v 1.12 1997/02/22 09:28:30 peter Exp $
+ *	$Id: db_sym.h,v 1.13 1997/06/30 23:49:17 bde Exp $
  */
 
 #ifndef _DDB_DB_SYM_H_
@@ -44,8 +44,6 @@ typedef struct {
 	char		*private;	/* optional machdep pointer */
 } db_symtab_t;
 
-extern db_symtab_t	*db_last_symtab; /* where last symbol was found */
-
 /*
  * Symbol representation is specific to the symtab style:
  * BSD compilers use dbx' nlist, other compilers might use
@@ -65,11 +63,6 @@ typedef int		db_strategy_t;	/* search strategy */
 #define	DB_STGY_ANY	0			/* anything goes */
 #define DB_STGY_XTRN	1			/* only external symbols */
 #define DB_STGY_PROC	2			/* only procedures */
-
-extern boolean_t	db_qualify_ambiguous_names;
-					/* if TRUE, check across symbol tables
-					 * for multiple occurrences of a name.
-					 * Might slow down quite a bit */
 
 /*
  * Functions exported by the symtable module
