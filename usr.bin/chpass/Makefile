@@ -24,12 +24,16 @@ LDADD+=	-lypclnt
 
 LINKS=	${BINDIR}/chpass ${BINDIR}/chfn
 LINKS+=	${BINDIR}/chpass ${BINDIR}/chsh
+.if !defined(NO_NIS)
 LINKS+=	${BINDIR}/chpass ${BINDIR}/ypchpass
 LINKS+=	${BINDIR}/chpass ${BINDIR}/ypchfn
 LINKS+=	${BINDIR}/chpass ${BINDIR}/ypchsh
+.endif
 
 MLINKS=	chpass.1 chfn.1 chpass.1 chsh.1
+.if !defined(NO_NIS)
 MLINKS+= chpass.1 ypchpass.1 chpass.1 ypchfn.1 chpass.1 ypchsh.1
+.endif
 
 beforeinstall:
 .for i in chpass chfn chsh ypchpass ypchfn ypchsh
