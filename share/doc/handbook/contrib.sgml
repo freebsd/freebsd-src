@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.103 1996/07/10 15:13:12 nate Exp $ -->
+<!-- $Id: contrib.sgml,v 1.104 1996/07/11 15:08:41 nate Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>FreeBSD contributor list<label id="contrib"></heading>
@@ -244,6 +244,7 @@
 	  <item>Martin Birgmeier
 	  <item>Masafumi Nakane &lt;max@sfc.wide.ad.jp&gt;
 	  <item>Matt Thomas &lt;thomas@lkg.dec.com&gt;
+	  <item>Matthew N. Dodd &lt;winter@jurai.net&gt;
 	  <item>Michael Elbel &lt;me@FreeBSD.ORG&gt;
 	  <item>Michael Smith &lt;msmith@atrad.adelaide.edu.au&gt;
 	  <item>Mike Peck &lt;mike@binghamton.edu&gt;
