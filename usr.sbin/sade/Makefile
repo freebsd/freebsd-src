@@ -80,7 +80,7 @@ KEYMAPS= be.iso br275.iso danish.iso finnish.iso fr.iso \
 	german.iso hr.iso hu.iso2.101keys it.iso icelandic.iso jp.106 \
 	norwegian.iso pl_PL.ISO_8859-2 pt.iso ru.koi8-r si.iso \
 	spanish.iso swedish.iso swissfrench.iso swissgerman.iso uk.iso \
-	us.dvorak us.iso
+	us.dvorak us.iso us.pc-ctrl us.unix
 
 keymap.h:
 	rm -f keymap.tmp
