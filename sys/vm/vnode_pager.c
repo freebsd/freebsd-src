@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.3 1994/08/04 03:06:48 davidg Exp $
+ *	$Id: vnode_pager.c,v 1.4 1994/08/06 09:15:42 davidg Exp $
  */
 
 /*
@@ -1043,7 +1043,7 @@ vnode_pager_input(vnp, m, count, reqpage)
 		for(i=0;i<counta;i++) {
 			vm_page_deactivate(m[count+i]);
 		}
-		pmap_qenter(bpa->b_data, &m[count], counta);
+		pmap_qenter((vm_offset_t)bpa->b_data, &m[count], counta);
 		++m[count]->object->paging_in_progress;
 		VHOLD(vp);
 		bpa->b_flags = B_BUSY | B_READ | B_CALL | B_ASYNC;

@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.27 1994/08/03 02:45:28 davidg Exp $
+ *	$Id: pmap.c,v 1.28 1994/08/06 09:15:15 davidg Exp $
  */
 
 /*
@@ -132,33 +132,28 @@ int	protection_codes[8];
 struct pmap	kernel_pmap_store;
 pmap_t		kernel_pmap;
 
-vm_offset_t	phys_avail[6];	/* 2 entries + 1 null */
-vm_offset_t    	avail_start;	/* PA of first available physical page */
-vm_offset_t	avail_end;	/* PA of last available physical page */
-vm_size_t	mem_size;	/* memory size in bytes */
-vm_offset_t	virtual_avail;  /* VA of first avail page (after kernel bss)*/
-vm_offset_t	virtual_end;	/* VA of last avail page (end of kernel AS) */
+vm_offset_t	phys_avail[6];		/* 2 entries + 1 null */
+vm_offset_t    	avail_start;		/* PA of first available physical page */
+vm_offset_t	avail_end;		/* PA of last available physical page */
+vm_size_t	mem_size;		/* memory size in bytes */
+vm_offset_t	virtual_avail; 		/* VA of first avail page (after kernel bss)*/
+vm_offset_t	virtual_end;		/* VA of last avail page (end of kernel AS) */
 int		i386pagesperpage;	/* PAGE_SIZE / I386_PAGE_SIZE */
-boolean_t	pmap_initialized = FALSE;	/* Has pmap_init completed? */
+boolean_t	pmap_initialized = FALSE; /* Has pmap_init completed? */
 vm_offset_t	vm_first_phys, vm_last_phys;
 
 static inline boolean_t		pmap_testbit();
 static inline void		pmap_changebit();
 static inline int		pmap_is_managed();
-static inline void		*vm_get_pmap();
+static inline void *		vm_get_pmap();
 static inline void		vm_put_pmap();
-inline void			pmap_use_pt();
-inline void			pmap_unuse_pt();
-inline pt_entry_t * pmap_pte();
-static inline pv_entry_t	get_pv_entry();
-void				pmap_alloc_pv_entry();
-void				pmap_clear_modify();
 static void			i386_protection_init();
+static void			pmap_alloc_pv_entry();
+static inline pv_entry_t	get_pv_entry();
+static inline void		pmap_use_pt();
+static inline void		pmap_unuse_pt();
 
-void	pmap_kenter	__P((vm_offset_t, vm_offset_t));
-void	pmap_kremove	__P((vm_offset_t));
-void	pmap_qenter	__P((vm_offset_t, vm_page_t *, int));
-void	pmap_qremove	__P((vm_offset_t, int));
+inline pt_entry_t * pmap_pte();
 
 extern vm_offset_t clean_sva, clean_eva;
 extern int cpu_class;
@@ -671,7 +666,7 @@ get_pv_entry()
  * *possibility* of a malloc failure (*FATAL*) for a pv_entry_t data structure.
  * also -- this code is MUCH MUCH faster than the malloc equiv...
  */
-void
+static void
 pmap_alloc_pv_entry()
 {
 	/*

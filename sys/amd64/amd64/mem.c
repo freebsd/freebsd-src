@@ -38,7 +38,7 @@
  *
  *	from: Utah $Hdr: mem.c 1.13 89/10/08$
  *	from: @(#)mem.c	7.2 (Berkeley) 5/9/91
- *	$Id: mem.c,v 1.6 1993/12/19 00:50:06 wollman Exp $
+ *	$Id: mem.c,v 1.8 1994/05/25 08:54:24 rgrimes Exp $
  */
 
 /*
@@ -56,6 +56,7 @@
 #include <machine/cpu.h>
 #include <machine/psl.h>
 
+#include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/lock.h>
 #include <vm/vm_prot.h>
