@@ -1406,6 +1406,12 @@ sorflush(so)
 	struct sockbuf *sb = &so->so_rcv;
 	struct protosw *pr = so->so_proto;
 	struct sockbuf asb;
+	/*
+	 * XXX: This variable is for an ugly workaround to fix problem,
+         * that was fixed in rev. 1.137 of sys/socketvar.h, and keep ABI
+         * compatibility.
+	 */
+	short save_sb_state;
 
 	/*
 	 * XXXRW: This is quite ugly.  Previously, this code made a copy of
@@ -1430,11 +1436,13 @@ sorflush(so)
 	 * Invalidate/clear most of the sockbuf structure, but leave
 	 * selinfo and mutex data unchanged.
 	 */
+	save_sb_state = sb->sb_state;
 	bzero(&asb, offsetof(struct sockbuf, sb_startzero));
 	bcopy(&sb->sb_startzero, &asb.sb_startzero,
 	    sizeof(*sb) - offsetof(struct sockbuf, sb_startzero));
 	bzero(&sb->sb_startzero,
 	    sizeof(*sb) - offsetof(struct sockbuf, sb_startzero));
+	sb->sb_state = save_sb_state;
 	SOCKBUF_UNLOCK(sb);
 
 	SOCKBUF_LOCK_INIT(&asb, "so_rcv");
