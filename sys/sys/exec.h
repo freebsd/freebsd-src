@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)exec.h	8.3 (Berkeley) 1/21/94
- * $Id: exec.h,v 1.21 1998/12/16 16:28:58 bde Exp $
+ * $Id: exec.h,v 1.22 1999/01/29 06:47:53 dillon Exp $
  */
 
 #ifndef _SYS_EXEC_H_
@@ -82,7 +82,15 @@ int exec_register __P((const struct execsw *));
 int exec_unregister __P((const struct execsw *));
 
 #ifndef LKM
+
+/*
+ * note: name##_mod cannot be const storage because the
+ * linker_file_sysinit() function modifies _file in the
+ * moduledata_t.
+ */
+
 #include <sys/module.h>
+
 #define EXEC_SET(name, execsw_arg) \
 	static int name ## _modevent(module_t mod, int type, void *data) \
 	{ \
@@ -111,7 +119,7 @@ int exec_unregister __P((const struct execsw *));
 		name ## _modevent, \
 		(void *)& execsw_arg \
 	}; \
-	C_DECLARE_MODULE(name, name ## _mod, SI_SUB_EXEC, SI_ORDER_ANY)
+	DECLARE_MODULE(name, name ## _mod, SI_SUB_EXEC, SI_ORDER_ANY)
 #endif
 #endif
 

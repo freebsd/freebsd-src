@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: module.h,v 1.8 1999/01/27 21:50:00 dillon Exp $
+ *	$Id: module.h,v 1.9 1999/01/29 06:47:53 dillon Exp $
  */
 
 #ifndef _SYS_MODULE_H_
@@ -67,11 +67,7 @@ typedef union modspecific {
     SYSINIT(name##module, sub, order, module_register_init, &data) \
     struct __hack
 
-#define C_DECLARE_MODULE(name, data, sub, order) \
-    C_SYSINIT(name##module, sub, order, module_register_init, &data) \
-    struct __hack
-
-void module_register_init(void *data);
+void module_register_init(const void *data);
 int module_register(const char *name, modeventhand_t callback, void *arg,
 		    void *file);
 module_t module_lookupbyname(const char *name);

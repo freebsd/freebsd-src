@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.114 1998/12/16 15:21:51 bde Exp $
+ *	$Id: vm_machdep.c,v 1.115 1999/01/06 23:05:37 julian Exp $
  */
 
 #include "npx.h"
@@ -201,8 +201,8 @@ cpu_fork(p1, p2)
 void
 cpu_set_fork_handler(p, func, arg)
 	struct proc *p;
-	void (*func) __P((void *));
-	void *arg;
+	void (*func) __P((const void *));
+	const void *arg;
 {
 	/*
 	 * Note that the trap frame follows the args, so the function
