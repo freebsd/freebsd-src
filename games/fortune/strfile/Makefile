@@ -2,7 +2,7 @@
 # $FreeBSD$
 
 PROG=	strfile
-MAN8=   strfile.8
+MAN=	strfile.8
 MLINKS= strfile.8 unstr.8
 CFLAGS+= -Wall
 

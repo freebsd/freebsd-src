@@ -2,6 +2,7 @@
 # $FreeBSD$
 
 PROG=	worm
+MAN=	worm.6
 DPADD=	${LIBCURSES} ${LIBCOMPAT}
 LDADD=	-lcurses -lcompat
 HIDEGAME=hidegame

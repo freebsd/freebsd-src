@@ -4,6 +4,7 @@
 PROG=	caesar
 DPADD=	${LIBM}
 LDADD=	-lm
+MAN=	caesar.6
 MLINKS=	caesar.6 rot13.6
 
 CFLAGS+= -Wall

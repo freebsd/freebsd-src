@@ -2,6 +2,7 @@
 # $FreeBSD$
 
 PROG=	pom
+MAN=	pom.6
 DPADD=	${LIBM}
 LDADD=	-lm
 CFLAGS+=-Wall
