@@ -3169,15 +3169,19 @@ setproctitle(const char *fmt, ...)
 static void
 logxfer(char *name, off_t size, time_t start)
 {
-	char buf[1024];
+	char buf[MAXPATHLEN + 1024];
 	char path[MAXPATHLEN + 1];
 	time_t now;
 
-	if (statfd >= 0 && getwd(path) != NULL) {
+	if (statfd >= 0) {
 		time(&now);
-		snprintf(buf, sizeof(buf), "%.20s!%s!%s!%s/%s!%jd!%ld\n",
+		if (realpath(name, path) == NULL) {
+			syslog(LOG_NOTICE, "realpath failed on %s: %m", path);
+			return;
+		}
+		snprintf(buf, sizeof(buf), "%.20s!%s!%s!%s!%jd!%ld\n",
 			ctime(&now)+4, ident, remotehost,
-			path, name, (intmax_t)size,
+			path, (intmax_t)size,
 			(long)(now - start + (now == start)));
 		write(statfd, buf, strlen(buf));
 	}
