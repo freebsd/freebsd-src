@@ -53,7 +53,7 @@ specifically marked as [MERGED] features.
 
 Added driver support for fast ethernet adapters based on the
 RealTek 8129/8139 and Accton MPX 5030/5038 chips, including the
-SMC EtherEZ PCI 1211-TX.
+SMC EZ Card 10/100 PCI 1211-TX.
 
 Added driver support for Lite-On PNIC-based fast ethernet cards
 including the LinkSys LNE100TX, NetGear FA310TX Rev. D1 and
@@ -215,7 +215,7 @@ RealTek 8129/8139 fast ethernet NICs including the following:
   Netronix Inc. EA-1210 NetEther 10/100
   KTX-9130TX 10/100 Fast Ethernet
   Accton "Cheetah" EN1027D (MPX 5030/5038; RealTek 8139 clone?)
-  SMC EtherEZ PCI 1211-TX
+  SMC EZ Card 10/100 PCI 1211-TX
 
 Lite-On 82c168/82c169 PNIC fast ethernet NICs including the following:
   LinkSys EtherFast LNE100TX
