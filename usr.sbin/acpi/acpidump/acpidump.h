@@ -44,7 +44,7 @@ struct ACPIgas {
 	u_int8_t	register_bit_offset;
 	u_int8_t	res;
 	u_int64_t	address;
-} __attribute__((packed));
+} __packed;
 
 /* Root System Description Pointer */
 struct ACPIrsdp {
@@ -53,7 +53,7 @@ struct ACPIrsdp {
 	u_char		oem[6];
 	u_char		res;
 	u_int32_t	addr;
-} __attribute__((packed));
+} __packed;
 
 /* System Description Table */
 struct ACPIsdt {
@@ -68,7 +68,7 @@ struct ACPIsdt {
 	u_int32_t	crerev;
 #define SIZEOF_SDT_HDR 36	/* struct size except body */
 	u_int32_t	body[1];/* This member should be casted */
-} __attribute__((packed));
+} __packed;
 
 /* Fixed ACPI Description Table (body) */
 struct FACPbody {
@@ -135,7 +135,7 @@ struct FACPbody {
 	struct ACPIgas	x_pm_tmr_blk;
 	struct ACPIgas	x_gpe0_blk;
 	struct ACPIgas	x_gpe1_blk;
-} __attribute__((packed));
+} __packed;
 
 /* Firmware ACPI Control Structure */
 struct FACS {
@@ -154,7 +154,7 @@ struct FACS {
 	u_int32_t	flags;		/* bit field */
 #define ACPI_FACS_FLAG_S4BIOS_F	1	/* Supports S4BIOS_SEQ */
 	char		reserved[40];
-} __attribute__((packed));
+} __packed;
 
 void		*acpi_map_physical(vm_offset_t, size_t);
 struct ACPIrsdp	*acpi_find_rsd_ptr(void);
