@@ -3,6 +3,8 @@
  *	Fraunhofer Institute for Open Communication Systems (FhG Fokus).
  * 	All rights reserved.
  *
+ * Author: Harti Brandt <harti@freebsd.org>
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -24,9 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * Author: Harti Brandt <harti@freebsd.org>
- *
- * $Begemot: libunimsg/sscop/common.h,v 1.3 2003/09/19 13:10:35 hbb Exp $
+ * $Begemot: libunimsg/sscop/common.h,v 1.4 2004/07/08 08:22:27 brandt Exp $
  *
  * Common declaration for the SAAL programs.
  */
