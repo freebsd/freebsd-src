@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.189 1995/07/17 23:32:53 gibbs Exp $
+#	$Id: LINT,v 1.190 1995/08/01 07:05:16 jkh Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -652,6 +652,7 @@ device pca0 at isa? port IO_TIMER1 tty
 # labpc: National Instrument's Lab-PC and Lab-PC+
 # rc: RISCom/8 multiport card
 # tw: TW-523 power line interface for use with X-10 home control products
+# si: Specialix SI/XIO 4-32 port terminal multiplexor (PRE ALPHA QUALITY!)
 
 #
 # Notes on the spigot:
@@ -660,6 +661,16 @@ device pca0 at isa? port IO_TIMER1 tty
 #  I/O memory is an 8kb region.  Possible values are:
 #    0a0000, 0a2000, ..., 0fffff, f00000, f02000, ..., ffffff
 #  Note that the start address must be on an even boundary.
+
+#
+# Notes on the *PRE-ALPHA* Specialix SI/XIO driver:
+#  **This is NOT a Specialix supported Driver!**
+#  The host card is memory, not IO mapped.
+#  The Rev 1 host cards use a 64K chunk, on a 32K boundary.
+#  The Rev 2 host cards use a 32K chunk, on a 32K boundary.
+#  The cards can use an IRQ of 11, 12 or 15.
+#  *Do* be ready for trouble is you try to use it.
+#  It currently works for me (very well) but no guarantees yet.
 
 device		mcd0	at isa? port 0x300 bio irq 10 vector mcdintr
 # for the Sony CDU31/33A CDROM
@@ -678,6 +689,7 @@ device		labpc0	at isa? port 0x260 tty irq 5 vector labpcintr
 device          rc0     at isa? port 0x220 tty irq 12 vector rcintr
 # the port and irq for tw0 are fictitious
 device          tw0     at isa? port 0x380 tty irq 11 vector twintr
+device		si0	at isa? iomem 0xd0000 tty irq 12 vector siintr
 
 #
 # PCI devices:
