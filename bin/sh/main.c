@@ -253,12 +253,13 @@ cmdloop(top)
 			evaltree(n, 0);
 		}
 		popstackmark(&smark);
+		setstackmark(&smark);
 		if (evalskip == SKIPFILE) {
 			evalskip = 0;
 			break;
 		}
 	}
-	popstackmark(&smark);		/* unnecessary */
+	popstackmark(&smark);
 }
 
 
