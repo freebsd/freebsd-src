@@ -29,15 +29,9 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $Id$
  */
-
-#if !defined(lint) && !defined(KERNEL) && defined(LIBC_SCCS)
-#if 0
-static char sccsid[] = "@(#)mcount.c	8.1 (Berkeley) 6/4/93";
-#endif
-static const char rcsid[] =
-	"$Id: mcount.c,v 1.12 1997/02/22 09:39:55 peter Exp $";
-#endif
 
 #include <sys/param.h>
 #include <sys/gmon.h>
