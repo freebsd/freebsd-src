@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_mib.c,v 1.12 1997/10/19 18:45:59 davidg Exp $
+ * $Id: kern_mib.c,v 1.13 1997/12/25 13:14:21 gpalmer Exp $
  */
 
 #include <sys/param.h>
@@ -51,6 +51,8 @@
 #if defined(SMP)
 #include <machine/smp.h>
 #endif
+
+#include "opt_posix4.h"
 
 SYSCTL_NODE(, 0,	  sysctl, CTLFLAG_RW, 0,
 	"Sysctl internal magic");
@@ -70,6 +72,11 @@ SYSCTL_NODE(, CTL_MACHDEP, machdep, CTLFLAG_RW, 0,
 	"machine dependent");
 SYSCTL_NODE(, CTL_USER,	  user,   CTLFLAG_RW, 0,
 	"user-level");
+
+#ifdef POSIX4
+SYSCTL_NODE(, CTL_POSIX4,  posix4,   CTLFLAG_RW, 0,
+	"posix4, (see posix4.h)");
+#endif
 
 SYSCTL_STRING(_kern, KERN_OSRELEASE, osrelease, CTLFLAG_RD, osrelease, 0, "");
 

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_synch.c	8.9 (Berkeley) 5/19/95
- * $Id: kern_synch.c,v 1.46 1998/02/06 12:13:25 eivind Exp $
+ * $Id: kern_synch.c,v 1.47 1998/02/25 06:04:46 bde Exp $
  */
 
 #include "opt_ktrace.h"
@@ -96,6 +96,26 @@ sysctl_kern_quantum SYSCTL_HANDLER_ARGS
 SYSCTL_PROC(_kern, OID_AUTO, quantum, CTLTYPE_INT|CTLFLAG_RW,
 	0, sizeof quantum, sysctl_kern_quantum, "I", "");
 
+/* maybe_resched: Decide if you need to reschedule or not
+ * taking the priorities and schedulers into account.
+ */
+static void maybe_resched(struct proc *chk)
+{
+	struct proc *p = curproc; /* XXX */
+
+	if (p == 0 ||
+	((chk->p_priority < curpriority) &&
+	((RTP_PRIO_BASE(chk->p_rtprio.type) ==
+	RTP_PRIO_BASE(p->p_rtprio.type)))))
+		need_resched();
+}
+
+#define ROUNDROBIN_INTERVAL (hz / quantum)
+int roundrobin_interval(void)
+{
+	return ROUNDROBIN_INTERVAL;
+}
+
 /*
  * Force switch among equal priority processes every 100ms.
  */
@@ -104,9 +124,12 @@ static void
 roundrobin(arg)
 	void *arg;
 {
+ 	struct proc *p = curproc; /* XXX */
+ 
+ 	if (p == 0 || RTP_PRIO_NEED_RR(p->p_rtprio.type))
+ 		need_resched();
 
-	need_resched();
-	timeout(roundrobin, NULL, hz / quantum);
+ 	timeout(roundrobin, NULL, ROUNDROBIN_INTERVAL);
 }
 
 /*
@@ -496,7 +519,7 @@ restart:
 				p->p_stat = SRUN;
 				if (p->p_flag & P_INMEM) {
 					setrunqueue(p);
-					need_resched();
+					maybe_resched(p);
 				} else {
 					p->p_flag |= P_SWAPINREQ;
 					wakeup((caddr_t)&proc0);
@@ -541,7 +564,7 @@ wakeup_one(ident)
 				p->p_stat = SRUN;
 				if (p->p_flag & P_INMEM) {
 					setrunqueue(p);
-					need_resched();
+					maybe_resched(p);
 					break;
 				} else {
 					p->p_flag |= P_SWAPINREQ;
@@ -692,8 +715,8 @@ setrunnable(p)
 		p->p_flag |= P_SWAPINREQ;
 		wakeup((caddr_t)&proc0);
 	}
-	else if (p->p_priority < curpriority)
-		need_resched();
+	else
+		maybe_resched(p);
 }
 
 /*
@@ -711,11 +734,8 @@ resetpriority(p)
 		newpriority = PUSER + p->p_estcpu / 4 + 2 * p->p_nice;
 		newpriority = min(newpriority, MAXPRI);
 		p->p_usrpri = newpriority;
-		if (newpriority < curpriority)
-			need_resched();
-	} else {
-		need_resched();
 	}
+	maybe_resched(p);
 }
 
 /* ARGSUSED */
