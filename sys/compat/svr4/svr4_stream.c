@@ -2274,7 +2274,7 @@ int svr4_sys_recv(td, uap)
 	SCARG(&ora, len) = SCARG(uap, len);
 	SCARG(&ora, flags) = SCARG(uap, flags);
 	SCARG(&ora, from) = NULL;
-	SCARG(&ora, fromlen) = 0;
+	SCARG(&ora, fromlenaddr) = NULL;
 	return recvfrom(td, &ora);
 }
 
