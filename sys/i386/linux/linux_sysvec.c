@@ -25,13 +25,14 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_sysvec.c,v 1.3 1996/03/10 22:42:16 peter Exp $
+ *  $Id: linux_sysvec.c,v 1.4 1996/03/17 14:31:58 peter Exp $
  */
 
 /* XXX we use functions that might not exist. */
 #define	COMPAT_43	1
 
 #include <sys/param.h>
+#include <sys/buf.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
 #include <sys/sysent.h>
