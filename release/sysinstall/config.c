@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.51.2.13 1996/12/12 22:56:57 jkh Exp $
+ * $Id: config.c,v 1.51.2.14 1996/12/13 07:55:06 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -382,6 +382,15 @@ configNTP(dialogMenuItem *self)
 	self->aux = (int)tmp;
     }
     return status | DITEM_RESTORE;
+}
+
+int
+configUsers(dialogMenuItem *self)
+{
+    dialog_clear_norefresh();
+    dmenuOpenSimple(&MenuUsermgmt, FALSE); 
+    dialog_clear();
+    return DITEM_SUCCESS | DITEM_RESTORE;
 }
 
 int

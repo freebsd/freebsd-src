@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.62.2.6 1996/12/12 11:18:21 jkh Exp $
+ * $Id: media.c,v 1.62.2.7 1996/12/14 22:23:22 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -34,8 +34,7 @@
  *
  */
 
-#include <unistd.h>
-#include <stdio.h>
+#include "sysinstall.h"
 #include <netdb.h>
 #include <sys/socket.h>
 #include <sys/param.h>
@@ -46,8 +45,6 @@
 #include <sys/wait.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-
-#include "sysinstall.h"
 
 static int
 genericHook(dialogMenuItem *self, DeviceType type)

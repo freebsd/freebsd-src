@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.70.2.3 1996/11/09 21:04:00 jkh Exp $
+ * $Id: disks.c,v 1.70.2.4 1996/11/28 08:17:38 phk Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -209,12 +209,14 @@ diskPartition(Device *dev, Disk *d)
 	    msg = NULL;
 	    break;
 	    
+	case '\020':	/* ^P */
 	case KEY_UP:
 	case '-':
 	    if (current_chunk != 0)
 		--current_chunk;
 	    break;
 	    
+	case '\016':	/* ^N */
 	case KEY_DOWN:
 	case '+':
 	case '\r':
@@ -413,6 +415,7 @@ diskPartition(Device *dev, Disk *d)
 	    clear();
 	    break;
 
+	case '\033':	/* ESC */
 	case 'Q':
 	    chunking = FALSE;
 	    /* Don't trash the MBR if the first (and therefore only) chunk is marked for a truly dedicated

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.49.2.7 1996/12/14 16:23:41 jkh Exp $
+ * $Id: devices.c,v 1.49.2.8 1997/01/03 06:38:05 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -35,20 +35,18 @@
  */
 
 #include "sysinstall.h"
-
 #include <sys/fcntl.h>
 #include <sys/param.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <sys/errno.h>
 #include <sys/time.h>
-
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_dl.h>
 #include <netinet/in.h>
 #include <netinet/in_var.h>
 #include <arpa/inet.h>
-
 #include <ctype.h>
 
 static Device *Devices[DEV_MAX];
@@ -79,8 +77,6 @@ static struct {
     { DEVICE_TYPE_NETWORK,	"cuaa3",	"%s on serial port 3 (COM4)"				},
     { DEVICE_TYPE_NETWORK,	"lp0",		"Parallel Port IP (PLIP) using laplink cable"		},
     { DEVICE_TYPE_NETWORK,	"lo",		"Loop-back (local) network interface"			},
-    { DEVICE_TYPE_NETWORK,	"sl",		"Serial-line IP (SLIP) interface"			},
-    { DEVICE_TYPE_NETWORK,	"ppp",		"Point-to-Point Protocol (PPP) interface"		},
     { DEVICE_TYPE_NETWORK,	"de",		"DEC DE435 PCI NIC or other DC21040-AA based card"	},
     { DEVICE_TYPE_NETWORK,	"fxp",		"Intel EtherExpress Pro/100B PCI Fast Ethernet card"	},
     { DEVICE_TYPE_NETWORK,	"ed",		"WD/SMC 80xx; Novell NE1000/2000; 3Com 3C503 card"	},
@@ -180,6 +176,7 @@ deviceGetAll(void)
     int ifflags;
     char buffer[INTERFACE_MAX * sizeof(struct ifreq)];
     char **names;
+    int supportSLIP = FALSE, supportPPP = FALSE;
 
     /* Try and get the disks first */
     if ((names = Disk_Names()) != NULL) {
@@ -237,9 +234,20 @@ deviceGetAll(void)
 	    continue;
 
 	/* Eliminate network devices that don't make sense */
-	if (!strncmp(ifptr->ifr_name, "tun", 3) || !strncmp(ifptr->ifr_name, "lo0", 3))
+	if (!strncmp(ifptr->ifr_name, "lo0", 3))
 	    continue;
 
+	/* If we have a slip device, don't register it but flag its support for later, when we do the serial devs */ 
+	if (!strncmp(ifptr->ifr_name, "sl", 2)) {
+	    supportSLIP = TRUE;
+	    continue;
+	}
+	/* And the same for ppp */
+	if (!strncmp(ifptr->ifr_name, "tun", 3) || !strncmp(ifptr->ifr_name, "ppp", 3)) {
+	    supportPPP = TRUE;
+	    continue;
+	}
+	msgDebug("SupportSLIP = %d, SupportPPP = %d\n", supportSLIP, supportPPP);
 	/* Try and find its description */
 	for (i = 0, descr = NULL; device_names[i].name; i++) {
 	    int len = strlen(device_names[i].name);
@@ -312,17 +320,22 @@ skipif:
 		char *newdesc, *cp;
 
 		close(fd);
-		/* Serial devices get a slip and ppp device each */
 		cp = device_names[i].description;
-		newdesc = safe_malloc(strlen(cp) + 40);
-		sprintf(newdesc, cp, "SLIP interface");
-		deviceRegister("sl0", newdesc, strdup(try), DEVICE_TYPE_NETWORK, TRUE, mediaInitNetwork,
-			       NULL, mediaShutdownNetwork, NULL);
-		newdesc = safe_malloc(strlen(cp) + 50);
-		sprintf(newdesc, cp, "PPP interface");
-		deviceRegister("ppp0", newdesc, strdup(try), DEVICE_TYPE_NETWORK, TRUE, mediaInitNetwork,
-			       NULL, mediaShutdownNetwork, NULL);
-		msgDebug("Found a serial network device named %s on %s\n", device_names[i].name, try);
+		/* Serial devices get a slip and ppp device each, if supported */
+		if (supportSLIP) {
+		    newdesc = safe_malloc(strlen(cp) + 40);
+		    sprintf(newdesc, cp, "SLIP interface");
+		    deviceRegister("sl0", newdesc, strdup(try), DEVICE_TYPE_NETWORK, TRUE, mediaInitNetwork,
+				   NULL, mediaShutdownNetwork, NULL);
+		    msgDebug("Add mapping for %s on %s to sl0\n", device_names[i].name, try);
+		}
+		if (supportPPP) {
+		    newdesc = safe_malloc(strlen(cp) + 50);
+		    sprintf(newdesc, cp, "PPP interface");
+		    deviceRegister("ppp0", newdesc, strdup(try), DEVICE_TYPE_NETWORK, TRUE, mediaInitNetwork,
+				   NULL, mediaShutdownNetwork, NULL);
+		    msgDebug("Add mapping for %s on %s to ppp0\n", device_names[i].name, try);
+		}
 	    }
 	    break;
 
@@ -343,7 +356,8 @@ deviceFind(char *name, DeviceType class)
     static Device *found[DEV_MAX];
     int i, j;
 
-    for (i = 0, j = 0; i < numDevs; i++) {
+    j = 0;
+    for (i = 0; i < numDevs; i++) {
 	if ((!name || !strcmp(Devices[i]->name, name))
 	    && (class == DEVICE_TYPE_ANY || class == Devices[i]->type))
 	    found[j++] = Devices[i];

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.63 1996/10/06 11:40:31 jkh Exp $
+ * $Id: label.c,v 1.63.2.1 1996/12/09 09:29:01 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -523,6 +523,7 @@ diskLabel(char *str)
 	    clear_wins();
 	    break;
 
+	case '\020':	/* ^P */
 	case KEY_UP:
 	case '-':
 	    if (here != 0)
@@ -532,6 +533,7 @@ diskLabel(char *str)
 		    ++here;
 	    break;
 
+	case '\016':	/* ^N */
 	case KEY_DOWN:
 	case '+':
 	case '\r':
@@ -917,6 +919,7 @@ diskLabel(char *str)
 		msg = "A most prudent choice!";
 	    break;
 
+	case '\033':	/* ESC */
 	case 'Q':
 	    labeling = FALSE;
 	    break;
