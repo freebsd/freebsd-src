@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999, 2000 Robert N. M. Watson
+ * Copyright (c) 1999, 2000, 2001 Robert N. M. Watson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ * $FreeBSD$
  */
 /*
  * TrustedBSD Project - extended attribute support for UFS-like file systems
@@ -32,13 +32,16 @@
 #include <sys/types.h>
 #include <sys/uio.h>
 #include <sys/extattr.h>
+
+#include <libutil.h>
 #include <stdio.h>
 
 void
 usage(void)
 {
 
-	fprintf(stderr, "setextattr [attrname] [filename] [attrvalue]\n");
+	fprintf(stderr, "setextattr [namespace] [attrname] [filename] "
+	    "[attrvalue]\n");
 	exit(-1);
 }
 
@@ -46,17 +49,23 @@ int
 main(int argc, char *argv[])
 {
 	struct iovec    iov_buf;
-	int	error;
+	int	error, namespace;
 
-	if (argc != 4)
+	if (argc != 5)
 		usage();
 
-	iov_buf.iov_base = argv[3];
-	iov_buf.iov_len = strlen(argv[3]);
+	error = extattr_string_to_namespace(argv[1], &namespace);
+	if (error) {
+		perror(argv[1]);
+		return (-1);
+	}
 
-	error = extattr_set_file(argv[2], argv[1], &iov_buf, 1);
+	iov_buf.iov_base = argv[4];
+	iov_buf.iov_len = strlen(argv[4]);
+
+	error = extattr_set_file(argv[3], namespace, argv[2], &iov_buf, 1);
 	if (error == -1) {
-		perror("extattr_set_file");
+		perror(argv[3]);
 		return (-1);
 	}
 
