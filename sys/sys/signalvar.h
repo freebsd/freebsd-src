@@ -49,16 +49,16 @@
  * (not necessarily resident).
  */
 struct sigacts {
-	sig_t	ps_sigact[_SIG_MAXSIG];	/* disposition of signals */
-	sigset_t ps_catchmask[_SIG_MAXSIG];	/* signals to be blocked */
-	sigset_t ps_sigonstack;		/* signals to take on sigstack */
-	sigset_t ps_sigintr;		/* signals that interrupt syscalls */
-	sigset_t ps_sigreset;		/* signals that reset when caught */
-	sigset_t ps_signodefer;		/* signals not masked while handled */
-	sigset_t ps_siginfo;		/* signals that want SA_SIGINFO args */
-	sigset_t ps_freebsd4;		/* signals that use freebsd4 ucontext */
-	sigset_t ps_osigset;		/* signals that use <= 3.x osigset_t */
-	sigset_t ps_usertramp;		/* SunOS compat; libc sigtramp XXX */
+	sig_t	ps_sigact[_SIG_MAXSIG];	/* Disposition of signals. */
+	sigset_t ps_catchmask[_SIG_MAXSIG];	/* Signals to be blocked. */
+	sigset_t ps_sigonstack;		/* Signals to take on sigstack. */
+	sigset_t ps_sigintr;		/* Signals that interrupt syscalls. */
+	sigset_t ps_sigreset;		/* Signals that reset when caught. */
+	sigset_t ps_signodefer;		/* Signals not masked while handled. */
+	sigset_t ps_siginfo;		/* Signals that want SA_SIGINFO args. */
+	sigset_t ps_freebsd4;		/* Signals using freebsd4 ucontext. */
+	sigset_t ps_osigset;		/* Signals using <= 3.x osigset_t. */
+	sigset_t ps_usertramp;		/* SunOS compat; libc sigtramp XXX. */
 };
 
 #if defined(_KERNEL) && defined(COMPAT_43)
@@ -244,12 +244,12 @@ void	pgsigio(struct sigio **, int signum, int checkctty);
 void	pgsignal(struct pgrp *pgrp, int sig, int checkctty);
 void	postsig(int sig);
 void	psignal(struct proc *p, int sig);
-void	tdsignal(struct thread *td, int sig);
 void	sigexit(struct thread *td, int signum) __dead2;
+int	sig_ffs(sigset_t *set);
 void	siginit(struct proc *p);
 void	signotify(struct thread *td);
+void	tdsignal(struct thread *td, int sig);
 void	trapsignal(struct thread *td, int sig, u_long code);
-int	sig_ffs(sigset_t *set);
 
 /*
  * Machine-dependent functions:
