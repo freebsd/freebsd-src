@@ -68,8 +68,16 @@ flag causes
 .Nm
 to be verbose about its activity.
 .Sh NOTES
-One of the system swap devices is usually chosen as the dump device, as
-swap devices are the most likely to have the required space at dump time.
+Since a
+.Xr panic 9
+condition may occur in a situation
+where the kernel cannot trust its internal representation
+of the state of any given filesystem,
+one of the system swap devices,
+and
+.Em not
+a device containing a filesystem,
+should be used as the dump device.
 .Pp
 The 
 .Nm
@@ -96,8 +104,8 @@ is the text string:
 .Xr swapon 8 ,
 .Xr panic 9
 .Sh FILES
-.Bl -tag -width "/dev/{wd,da}?s?b" -compact
-.It Pa /dev/{wd,da}?s?b
+.Bl -tag -width "/dev/{ad,da}?s?b" -compact
+.It Pa /dev/{ad,da}?s?b
 standard swap areas
 .It Pa /etc/rc.conf
 boot-time system configuration
@@ -106,9 +114,11 @@ boot-time system configuration
 Because the filesystem layer is already dead by the time a crash dump
 is taken, it is not possible to send crash dumps directly to a file.
 .Pp
-.Nm Dumpon
-currently allows only devices with minor number 1 to be used as dump 
-devices.
+Since
+.Nm
+can only be called after the system enters single-user mode,
+it can not be used to create dumps
+for system panics during kernel initialization.
 .Sh HISTORY
 The
 .Nm
