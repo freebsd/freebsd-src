@@ -5,6 +5,7 @@
 # Don't want foreign dates.
 
 LANGUAGE=
+LC_ALL=C; export LC_ALL
 
 
 (date;

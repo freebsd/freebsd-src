@@ -1,0 +1,21 @@
+.TH @G@NEQN @MAN1EXT@ "@MDATE@" "Groff Version @VERSION@"
+.SH NAME
+@g@neqn \- format equations for ascii output
+.SH SYNOPSIS
+.B @g@neqn
+[@g@eqn options]
+.SH DESCRIPTION
+The
+.B @g@neqn
+program is actually just a shell script which invokes the
+.BR @g@eqn (@MAN1EXT@)
+command with the
+.B ascii
+output device.
+.LP
+Note that
+.B @g@eqn
+does not support low-resolution, typewriter-like devices (although it may
+work adequately for very simple input).
+.SH "SEE ALSO"
+.BR @g@eqn (@MAN1EXT@)
