@@ -92,7 +92,6 @@ static struct vnodeopv_entry_desc fifo_vnodeop_entries[] = {
 	{ &vop_close_desc,		(vop_t *) fifo_close },
 	{ &vop_create_desc,		(vop_t *) vop_panic },
 	{ &vop_getattr_desc,		(vop_t *) vop_ebadf },
-	{ &vop_getwritemount_desc, 	(vop_t *) vop_stdgetwritemount },
 	{ &vop_ioctl_desc,		(vop_t *) fifo_ioctl },
 	{ &vop_kqfilter_desc,		(vop_t *) fifo_kqfilter },
 	{ &vop_lease_desc,		(vop_t *) vop_null },

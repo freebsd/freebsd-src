@@ -2598,7 +2598,6 @@ static struct vnodeopv_entry_desc ufs_vnodeop_entries[] = {
 	{ &vop_pathconf_desc,		(vop_t *) ufs_pathconf },
 	{ &vop_poll_desc,		(vop_t *) vop_stdpoll },
 	{ &vop_kqfilter_desc,		(vop_t *) ufs_kqfilter },
-	{ &vop_getwritemount_desc, 	(vop_t *) vop_stdgetwritemount },
 	{ &vop_print_desc,		(vop_t *) ufs_print },
 	{ &vop_readdir_desc,		(vop_t *) ufs_readdir },
 	{ &vop_readlink_desc,		(vop_t *) ufs_readlink },
