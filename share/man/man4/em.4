@@ -31,20 +31,20 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 24, 2004
+.Dd January 5, 2005
 .Dt EM 4
 .Os
 .Sh NAME
 .Nm em
-.Nd "Intel(R) PRO/1000 Gigabit Ethernet driver for the FreeBSD operating system"
+.Nd "Intel(R) PRO/1000 Gigabit Ethernet adapter driver"
 .Sh SYNOPSIS
 .Cd "device em"
 .Sh DESCRIPTION
 The
 .Nm
 driver provides support for PCI Gigabit Ethernet adapters based on
-the Intel 82540, 82541PI, 82542, 82543, 82544, 82546, 82546EB and 82547
-Ethernet controller chips.
+the Intel 82540, 82541ER, 82541PI, 82542, 82543, 82544, 82545, 82546,
+82546EB, 82546GB and 82547 Ethernet controller chips.
 The driver supports Transmit/Receive checksum offload
 and Jumbo Frames only on 82540, 82543, 82544 and 82546-based adapters.
 For further hardware information, see the
@@ -122,8 +122,8 @@ For more information on configuring this device, see
 The
 .Nm
 driver supports Gigabit Ethernet adapters based on the Intel
-82540, 82541PI, 82542, 82543, 82544, 82546, 82546EB and 82547
-controller chips:
+82540, 82541ER, 82541PI, 82542, 82543, 82544, 82545, 82546, 82546EB,
+82546GB and 82547 controller chips:
 .Pp
 .Bl -bullet -compact
 .It
