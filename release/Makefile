@@ -937,6 +937,7 @@ iso.1:
 	    ${CD_EXTRA_BITS} \
 	    && false
 .endif
+	@(cd ${CD} && md5 *.iso > ${BUILDNAME}-${TARGET}-iso.CHECKSUM.MD5)
 	touch ${.TARGET}
 .else
 	@echo "Do not know how to create an ISO for ${TARGET_ARCH}."
