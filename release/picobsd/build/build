@@ -6,6 +6,7 @@
 # You can set the SRC variable which points to your source tree. It's
 # /usr/src by default (most people shouldn't change it).
 SRC=/usr/src
+OBJ=/usr/obj
 
 # --------- YOU SHOULD NOT NEED TO CHANGE ANYTHING BELOW -----------
 # The "build" script will ask you for parameters. Just run it... :-)
@@ -93,7 +94,7 @@ main() {
     echo ""
     sleep 2
 
-    export MFS_SIZE LANGUAGE TYPE SRC NO_DEVFS INIT
+    export MFS_SIZE LANGUAGE TYPE SRC OBJ NO_DEVFS INIT
     export SITE MFS_INODES FLOPPY_INODES FLOPPY_SIZE
 
     ./stage1
