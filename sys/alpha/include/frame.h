@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: frame.h,v 1.1 1998/01/10 10:13:14 jb Exp $ */
 /* From: NetBSD: frame.h,v 1.4 1997/04/06 08:47:27 cgd Exp */
 
 /*
@@ -47,35 +47,39 @@
  */
 
 /* Quadword offsets of the registers to be saved. */
-#define	FRAME_V0	0
-#define	FRAME_T0	1
-#define	FRAME_T1	2
-#define	FRAME_T2	3
-#define	FRAME_T3	4
-#define	FRAME_T4	5
-#define	FRAME_T5	6
-#define	FRAME_T6	7
-#define	FRAME_T7	8
-#define	FRAME_S0	9
-#define	FRAME_S1	10
-#define	FRAME_S2	11
-#define	FRAME_S3	12
-#define	FRAME_S4	13
-#define	FRAME_S5	14
-#define	FRAME_S6	15
-#define	FRAME_A3	16
-#define	FRAME_A4	17
-#define	FRAME_A5	18
-#define	FRAME_T8	19
-#define	FRAME_T9	20
-#define	FRAME_T10	21
-#define	FRAME_T11	22
-#define	FRAME_RA	23
-#define	FRAME_T12	24
-#define	FRAME_AT	25
-#define	FRAME_SP	26
+#define	FRAME_V0		0
+#define	FRAME_T0		1
+#define	FRAME_T1		2
+#define	FRAME_T2		3
+#define	FRAME_T3		4
+#define	FRAME_T4		5
+#define	FRAME_T5		6
+#define	FRAME_T6		7
+#define	FRAME_T7		8
+#define	FRAME_S0		9
+#define	FRAME_S1		10
+#define	FRAME_S2		11
+#define	FRAME_S3		12
+#define	FRAME_S4		13
+#define	FRAME_S5		14
+#define	FRAME_S6		15
+#define	FRAME_A3		16
+#define	FRAME_A4		17
+#define	FRAME_A5		18
+#define	FRAME_T8		19
+#define	FRAME_T9		20
+#define	FRAME_T10		21
+#define	FRAME_T11		22
+#define	FRAME_RA		23
+#define	FRAME_T12		24
+#define	FRAME_AT		25
+#define	FRAME_SP		26
+/* The following are set only when a signal is to be delivered to a process. */
+#define FRAME_TRAPARG_A0	27
+#define FRAME_TRAPARG_A1	28
+#define FRAME_TRAPARG_A2	29
 
-#define	FRAME_SW_SIZE	(FRAME_SP + 1)
+#define	FRAME_SW_SIZE	(FRAME_TRAPARG_A2 + 1)
 #define	FRAME_HW_OFFSET	FRAME_SW_SIZE
 
 #define	FRAME_PS	(FRAME_HW_OFFSET + ALPHA_HWFRAME_PS)
