@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.443 1999/01/05 02:09:29 jkh Exp $
+#	$Id: Makefile,v 1.444 1999/01/05 02:35:38 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -454,21 +454,18 @@ release.8: write_mfs_in_kernel dumpnlist
 	   gzip -9c ${.CURDIR}/texts/$${i} > ${RD}/mfsfd/stand/help/$${i}.gz; done
 	-test -f ${.CURDIR}/install.cfg && cp ${.CURDIR}/install.cfg ${RD}/mfsfd
 	@echo "Making the regular boot floppy."
-	tar --exclude CVS -cf - -C ${.CURDIR}/sysinstall help | \
-		tar xvf - -C ${RD}/mfsfd/stand
+	@tar --exclude CVS -cf - -C ${.CURDIR}/sysinstall help | \
+		tar xf - -C ${RD}/mfsfd/stand
 	@echo "Compressing doc files..."
 	@gzip -9 ${RD}/mfsfd/stand/help/*.hlp
-	sh -e ${.CURDIR}/scripts/doFS.sh ${RD} ${MNT} ${BOOTMFSSIZE} \
-		${RD}/mfsfd ${MFSINODE} ${BOOTMFSLABEL}
-	@mv fs-image fs-image.std
-	@mv fs-image.size fs-image.std.size
-	@gzip -c fs-image.std > mfsroot.gz
-	@sh -e ${.CURDIR}/scripts/doFS.sh ${RD} ${MNT} ${BOOTSIZE} \
-		mfsroot.gz ${BOOTINODE} ${BOOTLABEL}
-	mv fs-image ${RD}/floppies/mfsroot.flp
-	@rm -f mfsroot.gz fs-image.size
-	@cd ${.CURDIR} && ${MAKE} doMFSKERN FSIMAGE=kern 
+	@sh -e ${.CURDIR}/scripts/doFS.sh -s mfsroot ${RD} ${MNT} \
+		${BOOTMFSSIZE} ${RD}/mfsfd ${MFSINODE} ${BOOTMFSLABEL}
+	@gzip -vc mfsroot > mfsroot.gz
+	@sh -e ${.CURDIR}/scripts/doFS.sh ${RD}/floppies/mfsroot.flp \
+		${RD} ${MNT} ${BOOTSIZE} mfsroot.gz ${BOOTINODE} ${BOOTLABEL}
+	@cd ${.CURDIR} && ${MAKE} doMFSKERN FSIMAGE=kern
 	@cd ${.CURDIR} && ${MAKE} doMFSKERN FSIMAGE=boot _MFSKERN=YES
+	@rm mfsroot mfsroot.gz mfsroot.size
 	@echo "Regular and MFS boot floppies made."
 	touch release.8
 
@@ -476,30 +473,30 @@ release.8: write_mfs_in_kernel dumpnlist
 # --==## Create a fixit floppy ##==--
 #
 release.9:
-	rm -rf ${RD}/fixitfd
-	mkdir ${RD}/fixitfd
-	cd ${RD}/fixitfd && \
+	@echo "Making fixit floppy."
+	@rm -rf ${RD}/fixitfd
+	@mkdir ${RD}/fixitfd
+	@cd ${RD}/fixitfd && \
 		mkdir -p dev stand bin sbin etc mnt mnt1 mnt2 mnt3 mnt4 tmp \
 		usr/share/misc
 	@cd ${.CURDIR} && $(MAKE) installCRUNCH CRUNCH=fixit \
 		DIR=${RD}/fixitfd/stand ZIP=false
-	( cd ${RD}/fixitfd/dev && \
+	@( cd ${RD}/fixitfd/dev && \
 		sed -e '/^PATH/s/^/#/' ${RD}/trees/bin/dev/MAKEDEV > MAKEDEV && \
 		chmod 755 MAKEDEV && \
 		sh MAKEDEV all )
-	cp ${RD}/trees/bin/etc/spwd.db ${RD}/trees/bin/etc/group \
+	@cp ${RD}/trees/bin/etc/spwd.db ${RD}/trees/bin/etc/group \
 		${RD}/trees/bin/etc/protocols ${RD}/fixitfd/etc
-	cp ${RD}/trees/bin/usr/share/misc/scsi_modes \
+	@cp ${RD}/trees/bin/usr/share/misc/scsi_modes \
 		${RD}/fixitfd/usr/share/misc
-	cp ${.CURDIR}/fixit.profile ${RD}/fixitfd/.profile
-	cp ${.CURDIR}/fixit.services ${RD}/fixitfd/etc/services
-	cp ${.CURDIR}/scripts/tar.sh ${RD}/fixitfd/stand/tar
-	chmod 555 ${RD}/fixitfd/stand/tar
-	sh -e ${.CURDIR}/scripts/doFS.sh ${RD} ${MNT} ${FIXITSIZE} \
-		${RD}/fixitfd ${FIXITINODE} ${FIXITLABEL}
-	mv fs-image ${RD}/floppies/fixit.flp
+	@cp ${.CURDIR}/fixit.profile ${RD}/fixitfd/.profile
+	@cp ${.CURDIR}/fixit.services ${RD}/fixitfd/etc/services
+	@cp ${.CURDIR}/scripts/tar.sh ${RD}/fixitfd/stand/tar
+	@chmod 555 ${RD}/fixitfd/stand/tar
+	@sh -e ${.CURDIR}/scripts/doFS.sh ${RD}/floppies/fixit.flp ${RD} \
+		${MNT} ${FIXITSIZE} ${RD}/fixitfd ${FIXITINODE} ${FIXITLABEL}
 # Do our last minute floppies directory setup in a convenient place.
-	cp ${.CURDIR}/texts/FLOPPIES.TXT ${RD}/floppies/README.TXT
+	@cp ${.CURDIR}/texts/FLOPPIES.TXT ${RD}/floppies/README.TXT
 	@(cd ${RD}/floppies; md5 * > CHECKSUM.MD5)
 	touch release.9
 
@@ -507,24 +504,26 @@ release.9:
 # --==## Setup a suitable ftp-area ##==--
 #
 ftp.1:
-	mkdir -p ${FD}
-	cd ${RD} && find floppies -print | cpio -dumpl ${FD}
-	cd ${RD}/dists && find . -print | cpio -dumpl ${FD}
-	for i in ${DIST_DOCS}; do cp ${.CURDIR}/texts/$${i} ${FD}; done
-	echo "CD_VERSION = ${BUILDNAME}" > ${FD}/cdrom.inf
+	@echo "Setting up FTP distribution area"
+	@mkdir -p ${FD}
+	@cd ${RD} && find floppies -print | cpio -dumpl ${FD}
+	@cd ${RD}/dists && find . -print | cpio -dumpl ${FD}
+	@for i in ${DIST_DOCS}; do cp ${.CURDIR}/texts/$${i} ${FD}; done
+	@echo "CD_VERSION = ${BUILDNAME}" > ${FD}/cdrom.inf
 .if !defined(NOPORTS)
-	tar -cBf - -C ${CD_DISC1} ports | tar -xBf - -C ${FD}
+	@tar -cBf - -C ${CD_DISC1} ports | tar -xBf - -C ${FD}
 .endif
 
 #
 # --==## Setup a suitable cdrom-area ##==--
 #
 cdrom.1:
-	mkdir -p ${CD_DISC1} ${CD_DISC2}
-	cd ${RD} && find floppies -print | cpio -dumpl ${CD_DISC1}
-	cd ${RD}/dists && find . -print | cpio -dumpl ${CD_DISC1}
-	ln -f ${RD}/kernels/MFSKERNEL.std ${CD_DISC1}/kernel
-	for i in ${DISTRIBUTIONS} ; \
+	@echo "Setting up CDROM distribution area"
+	@mkdir -p ${CD_DISC1} ${CD_DISC2}
+	@cd ${RD} && find floppies -print | cpio -dumpl ${CD_DISC1}
+	@cd ${RD}/dists && find . -print | cpio -dumpl ${CD_DISC1}
+	@ln -f ${RD}/kernels/MFSKERNEL.std ${CD_DISC1}/kernel
+	@for i in ${DISTRIBUTIONS} ; \
 	do \
 		if [ -d ${RD}/trees/$${i} ] ; then \
 			chflags -R noschg ${RD}/trees/$${i} ; \
@@ -532,24 +531,25 @@ cdrom.1:
 			find . -depth -print | cpio -dumpl ${CD_DISC2} ) ; \
 		fi \
 	done
-	rm -f ${CD_DISC2}/.profile
-	cp ${.CURDIR}/fixit.profile ${CD_DISC2}/.profile
-	echo "CD_VERSION = ${BUILDNAME}" > ${CD_DISC1}/cdrom.inf
-	echo "CD_VERSION = ${BUILDNAME}" > ${CD_DISC2}/cdrom.inf
-	for i in ${DIST_DOCS}; do cp ${.CURDIR}/texts/$${i} ${CD_DISC1}; done
+	@rm -f ${CD_DISC2}/.profile
+	@cp ${.CURDIR}/fixit.profile ${CD_DISC2}/.profile
+	@echo "CD_VERSION = ${BUILDNAME}" > ${CD_DISC1}/cdrom.inf
+	@echo "CD_VERSION = ${BUILDNAME}" > ${CD_DISC2}/cdrom.inf
+	@for i in ${DIST_DOCS}; do cp ${.CURDIR}/texts/$${i} ${CD_DISC1}; done
 .if !defined(NOPORTS)
-	-rm -rf /usr/ports/distfiles/*
-	mkdir -p ${CD_DISC1}/ports && \
+	@-rm -rf /usr/ports/distfiles/*
+	@mkdir -p ${CD_DISC1}/ports && \
 	  tar -czf ${CD_DISC1}/ports/ports.tgz -C /usr ports && \
 	  cp ${.CURDIR}/scripts/ports-install.sh ${CD_DISC1}/ports/install.sh \
 	  && (cd ${CD_DISC1}/ports; md5 * > CHECKSUM.MD5)
 .endif
 
 doc.1:
-	for i in ${DOCPORTS}; do \
+	@echo "Making docs..."
+	@for i in ${DOCPORTS}; do \
 	  cd /usr/ports/$$i && make all install clean FORCE_PKG_REGISTER=yes; \
 	done
-	cd /usr/doc && make all distribute DISTDIR=${RD}/trees
+	@cd /usr/doc && make all distribute DISTDIR=${RD}/trees
 	touch doc.1
 
 # Various "subroutine" and other supporting targets.
@@ -564,9 +564,9 @@ doTARBALL:
 .if !defined(ARG)
 	@echo "ARG undefined in doTARBALL" && exit 1
 .endif
-	rm -rf ${RD}/dists/${TD}/${TN}*
-	mkdir -p ${RD}/dists/${TD}
-	( cd ${SD} && \
+	@rm -rf ${RD}/dists/${TD}/${TN}*
+	@mkdir -p ${RD}/dists/${TD}
+	@( cd ${SD} && \
 		tn=`echo ${TN} | tr '[A-Z]' '[a-z]' | cut -c1-8` && \
 		echo rolling ${TD}/$$tn tarball &&\
 		tar --exclude CVS --exclude obj --exclude BOOTMFS -cf - ${ARG} | \
@@ -590,21 +590,21 @@ doTARBALL:
 
 doRELEASE:  release.1 release.2 ${DOCREL} release.3 release.4 release.5 \
 		release.6 release.7 release.8 release.9
-	cd ${.CURDIR} && ${MAKE} ${EXTRAS}
+	@cd ${.CURDIR} && ${MAKE} ${EXTRAS}
 	@echo "Release done"
 
 floppies:
-	cd ${.CURDIR} && ${MAKE} boot.flp
-	cd ${.CURDIR} && ${MAKE} fixit.flp
-	cd ${RD} && find floppies -print | cpio -dumpl ${FD}
+	@cd ${.CURDIR} && ${MAKE} boot.flp
+	@cd ${.CURDIR} && ${MAKE} fixit.flp
+	@cd ${RD} && find floppies -print | cpio -dumpl ${FD}
 
 boot.flp:
-	rm -f release.4 release.8
-	cd ${.CURDIR} && ${MAKE} release.4 release.8 CRUNCH_TARGETS=boot
+	@rm -f release.4 release.8
+	@cd ${.CURDIR} && ${MAKE} release.4 release.8 CRUNCH_TARGETS=boot
 
 fixit.flp:
-	rm -f release.4 release.9
-	cd ${.CURDIR} && ${MAKE} release.4 release.9 CRUNCH_TARGETS=fixit
+	@rm -f release.4 release.9
+	@cd ${.CURDIR} && ${MAKE} release.4 release.9 CRUNCH_TARGETS=fixit
 
 write_mfs_in_kernel:	${.CURDIR}/write_mfs_in_kernel.c
 	${CC} ${CFLAGS} -o write_mfs_in_kernel ${.CURDIR}/write_mfs_in_kernel.c
@@ -623,13 +623,13 @@ installCRUNCH:
 .if !defined(ZIP)
 	@echo "ZIP undefined in installCRUNCH" && exit 1
 .endif
-	if ${ZIP} ; then \
+	@if ${ZIP} ; then \
 		gzip -9 < ${RD}/crunch/${CRUNCH} > ${DIR}/${CRUNCH}_crunch ; \
 	else \
 		ln -f ${RD}/crunch/${CRUNCH} ${DIR}/${CRUNCH}_crunch ; \
 	fi
-	chmod 555 ${DIR}/${CRUNCH}_crunch
-	for i in `crunchgen -l ${.CURDIR}/${CRUNCH}_crunch.conf` ; do \
+	@chmod 555 ${DIR}/${CRUNCH}_crunch
+	@for i in `crunchgen -l ${.CURDIR}/${CRUNCH}_crunch.conf` ; do \
 		ln -f ${DIR}/${CRUNCH}_crunch ${DIR}/$$i ; \
 	done
 
@@ -640,9 +640,9 @@ installCRUNCH:
 # may want to reuse it (release.8 presently)
 #
 doKERNEL:
-	rm -f ${RD}/kernels/${KERNEL}
-	cd ${.CURDIR}/../sys/${MACHINE_ARCH}/conf && config ${KERNEL}
-	cd ${.CURDIR}/../sys/compile/${KERNEL} && \
+	@rm -f ${RD}/kernels/${KERNEL}
+	@cd ${.CURDIR}/../sys/${MACHINE_ARCH}/conf && config ${KERNEL}
+	@cd ${.CURDIR}/../sys/compile/${KERNEL} && \
 			make  depend && \
 			make  kernel && \
 			cp kernel ${RD}/kernels/${KERNEL}
@@ -651,6 +651,7 @@ doKERNEL:
 # --==## Put a filesystem into a BOOTMFS kernel ##==--
 #
 doMFSKERN:
+	@echo "Running doMFSKERN for ${FSIMAGE}"
 	@rm -f ${RD}/kernels/BOOTMFS.${FSIMAGE}
 	@cd ${.CURDIR}/../sys/${MACHINE_ARCH}/conf && \
 	  sh ${.CURDIR}/scripts/dokern.sh ${_MFSKERN} < GENERIC > BOOTMFS
@@ -658,15 +659,16 @@ doMFSKERN:
 	@echo "options  INTRO_USERCONFIG" >> ${.CURDIR}/../sys/i386/conf/BOOTMFS
 .endif
 .if defined(_MFSKERN)
-	@echo "options \"MFS_ROOT_SIZE=`cat fs-image.${FSIMAGE}.size`\"" >> \
+	@echo "options \"MFS_ROOT_SIZE=`cat mfsroot.size`\"" >> \
 	  ${.CURDIR}/../sys/${MACHINE_ARCH}/conf/BOOTMFS
 .endif
-	cd ${.CURDIR} && ${MAKE} doKERNEL KERNEL=BOOTMFS
+	@cd ${.CURDIR} && ${MAKE} doKERNEL KERNEL=BOOTMFS
 	@rm -rf ${RD}/image.${FSIMAGE}
 	@mkdir  ${RD}/image.${FSIMAGE}
 	@cp ${RD}/kernels/BOOTMFS ${RD}/kernels/BOOTMFS.${FSIMAGE}
-	@mv ${RD}/kernels/BOOTMFS ${RD}/image.${FSIMAGE}/kernel
+	mv ${RD}/kernels/BOOTMFS ${RD}/image.${FSIMAGE}/kernel
 .if !defined(_MFSKERN) || ${MACHINE_ARCH} == "alpha"
+	@echo "Setting up /boot directory for ${FSIMAGE} floppy"
 	@mkdir -p ${RD}/image.${FSIMAGE}/boot
 	@cp /boot/* ${RD}/image.${FSIMAGE}/boot
 	@echo "@load /kernel" > ${RD}/image.${FSIMAGE}/boot/boot.conf
@@ -677,20 +679,23 @@ doMFSKERN:
 	@echo "/boot/loader" >${RD}/image.${FSIMAGE}/boot.config
 	@touch ${RD}/image.${FSIMAGE}/boot/loader.config
 .endif
-	@vnconfig /dev/${VNDEVICE} fs-image.${FSIMAGE}
+.if defined(_MFSKERN)
+	@echo "Getting symbols from ${RD}/image.${FSIMAGE}/kernel for mfsroot"
+	@vnconfig /dev/${VNDEVICE} mfsroot
 	@mkdir -p /tmp/mnt_xx
 	@mount /dev/${VNDEVICE} /tmp/mnt_xx
-	./dumpnlist ${RD}/image.${FSIMAGE}/kernel > /tmp/mnt_xx/stand/symbols
+	@./dumpnlist ${RD}/image.${FSIMAGE}/kernel > /tmp/mnt_xx/stand/symbols
 	@umount /tmp/mnt_xx
 	@vnconfig -u /dev/${VNDEVICE}
 	@rmdir /tmp/mnt_xx
-.if defined(_MFSKERN)
-	./write_mfs_in_kernel ${RD}/image.${FSIMAGE}/kernel fs-image.${FSIMAGE}
+	@echo "Writing MFS image into kzip kernel for ${FSIMAGE} floppy"
+	@./write_mfs_in_kernel ${RD}/image.${FSIMAGE}/kernel mfsroot
 	@cp ${RD}/image.${FSIMAGE}/kernel ${RD}/kernels/MFSKERNEL.${FSIMAGE}
-	kzip -v ${RD}/image.${FSIMAGE}/kernel
+	@kzip -v ${RD}/image.${FSIMAGE}/kernel
 	@mv ${RD}/image.${FSIMAGE}/kernel.kz ${RD}/image.${FSIMAGE}/kernel
 .else
-	gzip -v ${RD}/image.${FSIMAGE}/kernel
+	@echo "Using gzip'd kernel for ${FSIMAGE}"
+	@gzip -v ${RD}/image.${FSIMAGE}/kernel
 .endif
 .if ${MACHINE_ARCH} == "i386"
 	@cp ${.CURDIR}/../sys/i386/boot/biosboot/boot.help ${RD}/image.${FSIMAGE}
@@ -699,12 +704,14 @@ doMFSKERN:
 	@touch ${RD}/image.${FSIMAGE}/kernel.config
 	@rm -f ${RD}/floppies/${FSIMAGE}.flp
 .if defined(_MFSKERN)
-	sh -e ${.CURDIR}/scripts/doFS.sh ${RD} ${MNT} ${BOOTMFSSIZE} \
-		${RD}/image.${FSIMAGE} ${BOOTINODE} ${BOOTMFSLABEL}
+	@sh -e ${.CURDIR}/scripts/doFS.sh ${RD}/floppies/${FSIMAGE}.flp \
+		${RD} ${MNT} ${BOOTMFSSIZE} ${RD}/image.${FSIMAGE} \
+		${BOOTINODE} ${BOOTMFSLABEL}
 .else
-	sh -e ${.CURDIR}/scripts/doFS.sh ${RD} ${MNT} ${BOOTSIZE} \
-		${RD}/image.${FSIMAGE} ${BOOTINODE} ${BOOTLABEL}
+	@sh -e ${.CURDIR}/scripts/doFS.sh ${RD}/floppies/${FSIMAGE}.flp \
+		${RD} ${MNT} ${BOOTSIZE} ${RD}/image.${FSIMAGE} \
+		${BOOTINODE} ${BOOTLABEL}
 .endif
-	mv fs-image ${RD}/floppies/${FSIMAGE}.flp
+	@echo "Created ${RD}/floppies/${FSIMAGE}.flp"
 
 .include <bsd.prog.mk>
