@@ -158,5 +158,6 @@ chrdev	name		comments
 139	wanrouter	Sangoma Technologies Inc. (al.feldman@sangoma.com)
 140	pcfclock	PCFCLOCK <sascha@schumann.cx>
 141	pcdmx		PCDMX theatre lighting controller
+142	skip		SKIP port (security/skip) control device
 200	??		entries from 200-255 are reserved for local use
 255	??		entries from 200-255 are reserved for local use
