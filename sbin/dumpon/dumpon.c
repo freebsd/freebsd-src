@@ -50,6 +50,7 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <fcntl.h>
 #include <paths.h>
+#include <string.h>
 #include <unistd.h>
 #include <sys/param.h>
 #include <sys/disk.h>
