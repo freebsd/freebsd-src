@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_loop.c	8.1 (Berkeley) 6/10/93
- * $Id: if_loop.c,v 1.18 1996/02/06 18:51:11 wollman Exp $
+ * $Id: if_loop.c,v 1.19 1996/04/07 17:39:06 bde Exp $
  */
 
 /*
@@ -76,6 +76,12 @@
 #include <netiso/iso.h>
 #include <netiso/iso_var.h>
 #endif
+
+#ifdef NETATALK
+#include <netinet/if_ether.h>
+#include <netatalk/at.h>
+#include <netatalk/at_var.h>
+#endif NETATALK
 
 #include "bpfilter.h"
 
@@ -194,6 +200,12 @@ looutput(ifp, m, dst, rt)
 		isr = NETISR_ISO;
 		break;
 #endif
+#ifdef NETATALK
+	case AF_APPLETALK:
+	        ifq = &atintrq2;
+		isr = NETISR_ATALK;
+		break;
+#endif NETATALK
 	default:
 		printf("lo%d: can't handle af%d\n", ifp->if_unit,
 			dst->sa_family);

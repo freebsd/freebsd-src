@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ethersubr.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ethersubr.c,v 1.14 1996/01/24 21:09:06 phk Exp $
+ * $Id: if_ethersubr.c,v 1.15 1996/04/07 17:39:03 bde Exp $
  */
 
 #include <sys/param.h>
@@ -76,14 +76,26 @@
 #include <netiso/iso_snpac.h>
 #endif
 
-#ifdef LLC
+/*#ifdef LLC
 #include <netccitt/dll.h>
 #include <netccitt/llc_var.h>
-#endif
+#endif*/
 
 #if defined(LLC) && defined(CCITT)
 extern struct ifqueue pkintrq;
 #endif
+
+#ifdef NETATALK
+#include <netatalk/at.h>
+#include <netatalk/at_var.h>
+#include <netatalk/at_extern.h>
+
+#define llc_snap_org_code llc_un.type_snap.org_code
+#define llc_snap_ether_type llc_un.type_snap.ether_type
+
+extern u_char	at_org_code[ 3 ];
+extern u_char	aarp_org_code[ 3 ];
+#endif NETATALK
 
 u_char	etherbroadcastaddr[6] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 #define senderr(e) { error = (e); goto bad;}
@@ -111,6 +123,9 @@ ether_output(ifp, m0, dst, rt0)
 	register struct ether_header *eh;
 	int off, len = m->m_pkthdr.len;
 	struct arpcom *ac = (struct arpcom *)ifp;
+#ifdef NETATALK
+	struct at_ifaddr *aa;
+#endif NETATALK
 
 	if ((ifp->if_flags & (IFF_UP|IFF_RUNNING)) != (IFF_UP|IFF_RUNNING))
 		senderr(ENETDOWN);
@@ -165,6 +180,44 @@ ether_output(ifp, m0, dst, rt0)
 			mcopy = m_copy(m, 0, (int)M_COPYALL);
 		break;
 #endif
+#ifdef NETATALK
+	case AF_APPLETALK:
+            if (!aarpresolve(ac, m, (struct sockaddr_at *)dst, edst)) {
+#ifdef NETATALKDEBUG
+                extern char *prsockaddr(struct sockaddr *);
+                printf("aarpresolv: failed for %s\n", prsockaddr(dst));
+#endif NETATALKDEBUG
+                return (0);
+            }
+	    /*
+	     * ifaddr is the first thing in at_ifaddr
+	     */
+	    if ((aa = (struct at_ifaddr *)at_ifawithnet(
+			(struct sockaddr_at *)dst, ifp->if_addrlist))
+		== 0)
+		goto bad;
+	    
+	    /*
+	     * In the phase 2 case, we need to prepend an mbuf for the llc header.
+	     * Since we must preserve the value of m, which is passed to us by
+	     * value, we m_copy() the first mbuf, and use it for our llc header.
+	     */
+	    if ( aa->aa_flags & AFA_PHASE2 ) {
+		struct llc llc;
+
+		M_PREPEND(m, sizeof(struct llc), M_WAIT);
+		len += sizeof(struct llc);
+		llc.llc_dsap = llc.llc_ssap = LLC_SNAP_LSAP;
+		llc.llc_control = LLC_UI;
+		bcopy(at_org_code, llc.llc_snap_org_code, sizeof(at_org_code));
+		llc.llc_snap_ether_type = htons( ETHERTYPE_AT );
+		bcopy(&llc, mtod(m, caddr_t), sizeof(struct llc));
+		type = m->m_pkthdr.len;
+	    } else {
+		type = ETHERTYPE_AT;
+	    }
+	    break;
+#endif NETATALK
 #ifdef NS
 	case AF_NS:
 		type = ETHERTYPE_NS;
@@ -371,12 +424,51 @@ ether_input(ifp, eh, m)
 		inq = &nsintrq;
 		break;
 #endif
+#ifdef NETATALK
+        case ETHERTYPE_AT:
+                schednetisr(NETISR_ATALK);
+                inq = &atintrq1;
+                break;
+        case ETHERTYPE_AARP:
+		/* probably this should be done with a NETISR as well */
+                aarpinput((struct arpcom *)ifp, m); /* XXX */
+                return;
+#endif NETATALK
 	default:
-#if defined (ISO) || defined (LLC)
+#if defined (ISO) || defined (LLC) || defined(NETATALK)
 		if (ether_type > ETHERMTU)
 			goto dropanyway;
 		l = mtod(m, struct llc *);
 		switch (l->llc_dsap) {
+#ifdef NETATALK
+		case LLC_SNAP_LSAP:
+		    switch (l->llc_control) {
+		    case LLC_UI:
+			if (l->llc_ssap != LLC_SNAP_LSAP)
+			    goto dropanyway;
+	
+			if (Bcmp(&(l->llc_snap_org_code)[0], at_org_code,
+				   sizeof(at_org_code)) == 0 &&
+			     ntohs(l->llc_snap_ether_type) == ETHERTYPE_AT) {
+			    inq = &atintrq2;
+			    m_adj( m, sizeof( struct llc ));
+			    schednetisr(NETISR_ATALK);
+			    break;
+			}
+
+			if (Bcmp(&(l->llc_snap_org_code)[0], aarp_org_code,
+				   sizeof(aarp_org_code)) == 0 &&
+			     ntohs(l->llc_snap_ether_type) == ETHERTYPE_AARP) {
+			    m_adj( m, sizeof( struct llc ));
+			    aarpinput((struct arpcom *)ifp, m); /* XXX */
+			    return;
+			}
+		
+		    default:
+			goto dropanyway;
+		    }
+		    break;
+#endif NETATALK	
 #ifdef	ISO
 		case LLC_ISO_LSAP:
 			switch (l->llc_control) {
@@ -469,10 +561,10 @@ ether_input(ifp, eh, m)
 			m_freem(m);
 			return;
 		}
-#else /* ISO || LLC */
+#else /* ISO || LLC || NETATALK */
 	    m_freem(m);
 	    return;
-#endif /* ISO || LLC */
+#endif /* ISO || LLC || NETATALK */
 	}
 
 	s = splimp();
