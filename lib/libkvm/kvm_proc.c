@@ -405,7 +405,8 @@ kvm_getprocs(kd, op, arg, cnt)
 			_kvm_syserr(kd, kd->program, "kvm_getprocs");
 			return (0);
 		}
-		if (kd->procbase->ki_structsize != sizeof(struct kinfo_proc)) {
+		if (size > 0 &&
+		    kd->procbase->ki_structsize != sizeof(struct kinfo_proc)) {
 			_kvm_err(kd, kd->program,
 			    "kinfo_proc size mismatch (expected %d, got %d)",
 			    sizeof(struct kinfo_proc),
