@@ -467,7 +467,7 @@ init_mode(int mode)
        SIGSEGV?), which is handled in 'trap.c:sigbus()'. */
     if (vmode.type == GRAPHICS) {
 	vmem = mmap((void *)0xa0000, 64 * 1024, PROT_NONE,
-		    MAP_ANON | MAP_FIXED | MAP_INHERIT | MAP_SHARED, -1, 0);
+		    MAP_ANON | MAP_FIXED | MAP_SHARED, -1, 0);
 	if (vmem == NULL)
 	    fatal("Could not mmap() video memory");
 
