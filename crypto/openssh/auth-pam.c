@@ -577,6 +577,7 @@ ipam_start_auth(const char *service, const char *username) {
 		ssh_conv,
 		NULL
 	};
+	const char *rhost;
 
 	cookie = malloc(sizeof(*cookie));
 	if (cookie == NULL)
@@ -613,6 +614,7 @@ ipam_start_auth(const char *service, const char *username) {
 		ipam_free_cookie(cookie);
 		return NULL;
 	}
+	rhost = get_canonical_hostname(options.verify_reverse_mapping);
 	cookie->pid = fork();
 	if (cookie->pid == -1) {
 		ipam_free_cookie(cookie);
@@ -751,6 +753,9 @@ ipam_start_auth(const char *service, const char *username) {
 
 		conv.appdata_ptr = ud;
 		retval = pam_start(service, username, &conv, &pamh);
+		fprintf(stderr, "pam_start returned %d\n", retval);
+		if (retval == PAM_SUCCESS)
+			retval = pam_set_item(pamh, PAM_RHOST, rhost);
 		/* Is user really user? */
 		if (retval == PAM_SUCCESS)
 			retval = pam_authenticate(pamh, 0);
