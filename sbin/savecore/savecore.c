@@ -39,12 +39,15 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/disk.h>
 #include <sys/kerneldump.h>
+#include <sys/param.h>
+#include <sys/mount.h>
 #include <sys/stat.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <fstab.h>
 #include <md5.h>
+#include <paths.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -52,7 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 
 int clear, force, keep, verbose;	/* flags */
-int nfound, nsaved;			/* statistics */
+int nfound, nsaved, nerr;		/* statistics */
 
 static void
 printheader(FILE *f, const struct kerneldumpheader *h, const char *device,
@@ -78,9 +81,58 @@ printheader(FILE *f, const struct kerneldumpheader *h, const char *device,
 	fflush(f);
 }
 
+/*
+ * Check that sufficient space is available on the disk that holds the
+ * save directory.
+ */
+static int
+check_space(char *savedir, off_t dumpsize)
+{
+	FILE *fp;
+	const char *tkernel;
+	off_t minfree, spacefree, totfree, kernelsize, needed;
+	struct stat st;
+	struct statfs fsbuf;
+	char buf[100], path[MAXPATHLEN];
+
+	tkernel = getbootfile();
+	if (stat(tkernel, &st) < 0)
+		err(1, "%s", tkernel);
+	kernelsize = st.st_blocks * S_BLKSIZE;
+
+	if (statfs(savedir, &fsbuf) < 0)
+		err(1, "%s", savedir);
+ 	spacefree = ((off_t) fsbuf.f_bavail * fsbuf.f_bsize) / 1024;
+	totfree = ((off_t) fsbuf.f_bfree * fsbuf.f_bsize) / 1024;
+
+	(void)snprintf(path, sizeof(path), "%s/minfree", savedir);
+	if ((fp = fopen(path, "r")) == NULL)
+		minfree = 0;
+	else {
+		if (fgets(buf, sizeof(buf), fp) == NULL)
+			minfree = 0;
+		else
+			minfree = atoi(buf);
+		(void)fclose(fp);
+	}
+
+	needed = (dumpsize + kernelsize) / 1024;
+ 	if (((minfree > 0) ? spacefree : totfree) - needed < minfree) {
+		warnx("no dump, not enough free space on device"
+		    " (%lld available, need %lld)",
+		    (long long)(minfree > 0 ? spacefree : totfree),
+		    (long long)needed);
+		return (0);
+	}
+	if (spacefree - needed < 0)
+		warnx("dump performed, but free space threshold crossed");
+	return (1);
+}
+
+
 
 static void
-DoFile(const char *device)
+DoFile(char *savedir, const char *device)
 {
 	struct kerneldumpheader kdhf, kdhl;
 	char buf[BUFSIZ];
@@ -139,6 +191,7 @@ DoFile(const char *device)
 
 	if (kerneldump_parity(&kdhl)) {
 		warnx("parity error on last dump header on %s", device);
+		nerr++;
 		goto closefd;
 	}
 	dumpsize = dtoh64(kdhl.dumplength);
@@ -148,10 +201,12 @@ DoFile(const char *device)
 	if (error != sizeof kdhf) {
 		warn("error reading first dump header at offset %lld in %s",
 		    (long long)firsthd, device);
+		nerr++;
 		goto closefd;
 	}
 	if (memcmp(&kdhl, &kdhf, sizeof kdhl)) {
 		warn("first and last dump headers disagree on %s", device);
+		nerr++;
 		goto closefd;
 	}
 	md5 = MD5Data((unsigned char *)&kdhl, sizeof kdhl, NULL);
@@ -170,15 +225,21 @@ DoFile(const char *device)
 		}
 	} else if (errno != ENOENT) {
 		warn("error while checking for pre-saved core file");
+		nerr++;
 		goto closefd;
 	}
 
+	if (!check_space(savedir, dumpsize)) {
+		nerr++;
+		goto closefd;
+	}
 	/*
 	 * Create or overwrite any existing files.
 	 */
 	fdinfo = open(buf, O_WRONLY | O_CREAT | O_TRUNC, 0600);
 	if (fdinfo < 0) {
 		warn("%s", buf);
+		nerr++;
 		goto closefd;
 	}
 	sprintf(buf, "%s.core", md5);
@@ -186,6 +247,7 @@ DoFile(const char *device)
 	if (fdcore < 0) {
 		warn("%s", buf);
 		close(fdinfo);
+		nerr++;
 		goto closefd;
 	}
 	info = fdopen(fdinfo, "w");
@@ -194,7 +256,6 @@ DoFile(const char *device)
 		printheader(stdout, &kdhl, device, md5);
 
 	printf("Saving dump to file %s\n", buf);
-	nsaved++;
 
 	printheader(info, &kdhl, device, md5);
 
@@ -205,15 +266,18 @@ DoFile(const char *device)
 		error = read(fd, buf, wl);
 		if (error != wl) {
 			warn("read error on %s", device);
+			nerr++;
 			goto closeall;
 		}
 		error = write(fdcore, buf, wl);
 		if (error != wl) {
 			warn("write error on %s.core file", md5);
+			nerr++;
 			goto closeall;
 		}
 		dumpsize -= wl;
 	}
+	nsaved++;
 	close(fdinfo);
 	close(fdcore);
 
@@ -253,7 +317,11 @@ main(int argc, char **argv)
 {
 	int i, ch, error;
 	struct fstab *fsp;
+	char *savedir;
 
+	savedir = strdup(".");
+	if (savedir == NULL)
+		errx(1, "Cannot allocate memory");
 	while ((ch = getopt(argc, argv, "cdfkN:vz")) != -1)
 		switch(ch) {
 		case 'c':
@@ -281,6 +349,7 @@ main(int argc, char **argv)
 		error = chdir(argv[0]);
 		if (error)
 			err(1, "chdir(%s)", argv[0]);
+		savedir = argv[0];
 		argc--;
 		argv++;
 	}
@@ -292,18 +361,22 @@ main(int argc, char **argv)
 			if (strcmp(fsp->fs_vfstype, "swap") &&
 			    strcmp(fsp->fs_vfstype, "dump"))
 				continue;
-			DoFile(fsp->fs_spec);
+			DoFile(savedir, fsp->fs_spec);
 		}
 	} else {
 		for (i = 0; i < argc; i++)
-			DoFile(argv[i]);
+			DoFile(savedir, argv[i]);
 	}
 
 	/* Emit minimal output. */
 	if (nfound == 0)
 		printf("No dumps found\n");
-	else if (nsaved == 0)
-		printf("No unsaved dumps found\n");
+	else if (nsaved == 0) {
+		if (nerr != 0)
+			printf("Unsaved dumps found but not saved\n");
+		else
+			printf("No unsaved dumps found\n");
+	}
 
 	return (0);
 }
