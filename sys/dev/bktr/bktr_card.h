@@ -50,8 +50,8 @@
 /*
  * If probeCard() fails to detect the correct card on boot you can
  * override it by setting adding the following option to your kernel config
- *  options OVERRIDE_CARD  <card type>
- *  eg options OVERRIDE CARD=1
+ *  options BKTR_OVERRIDE_CARD  <card type>
+ *  eg options BKTR_OVERRIDE CARD=1
  *
  * or using the sysclt  hw.bt848.card
  *  eg sysctl -w hw.bt848.card=1

@@ -68,6 +68,9 @@ void            msp_dpl_write( bktr_ptr_t bktr, int i2c_addr, unsigned char dev,
 #define VBI_SLEEP   ((caddr_t)bktr + 1)
 
 
+/* device name for printf */
+const char *bktr_name(bktr_ptr_t bktr);
+
 /* Prototypes for attatch and interrupt functions */
 void	common_bktr_attach( bktr_ptr_t bktr, int unit,
 			u_long pci_id, u_int rev ); 
