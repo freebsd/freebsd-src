@@ -162,6 +162,7 @@ SYSCTL_INT(_hw_ath, OID_AUTO, regdomain, CTLFLAG_RD, &ath_regdomain,
 int	ath_debug = 0;
 SYSCTL_INT(_hw_ath, OID_AUTO, debug, CTLFLAG_RW, &ath_debug,
 	    0, "control debugging printfs");
+TUNABLE_INT("hw.ath.debug", &ath_debug);
 #define	IFF_DUMPPKTS(_ifp, _m) \
 	((ath_debug & _m) || \
 	    ((_ifp)->if_flags & (IFF_DEBUG|IFF_LINK2)) == (IFF_DEBUG|IFF_LINK2))
