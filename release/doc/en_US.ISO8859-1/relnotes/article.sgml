@@ -260,7 +260,7 @@
 
       <para arch="i386">Detection for new processors, such as the
       FC-PGA2 Pentium III (Tualatin), Transmeta Crusoe, and Transmeta
-      Crusoe LongRun, has been added.</para>
+      Crusoe LongRun, has been added. &merged;</para>
 
     </sect3>
 
@@ -419,7 +419,7 @@
       <para>The TCP implementation no longer requires the
       allocation of a TCP template structure for each connection; this
       should reduce the buffer usage on large systems handling many
-      connections.</para>
+      connections. &merged;</para>
 
       <para>A new sysctl <varname>net.inet.ip.check_interface</varname>,
       which is on by default, causes IP to verify that an incoming
@@ -1178,12 +1178,12 @@
     <para>&man.lpd.8; now takes two new options:  <option>-c</option>
     will log all connection errors to &man.syslogd.8;, while
     <option>-w</option> will allow connections from non-reserved
-    ports.</para>
+    ports. &merged;</para>
 
     <para>&man.lpc.8; has been improved; <command>lpc clean</command>
     is now somewhat safer, and a new <command>lpc tclean</command>
     command has been added to check to see what files would be removed
-    by <command>lpc clean</command>.</para>
+    by <command>lpc clean</command>. &merged;</para>
 
     <para>If the first argument to &man.ancontrol.8; or
     &man.wicontrol.8; doesn't start with a <literal>-</literal>, it is
@@ -1370,7 +1370,7 @@
 
     <para>&man.dump.8; has a new <option>-D</option> option, allowing
     the path to the <filename>/etc/dumpdates</filename> file to be
-    changed.</para>
+    changed. &merged;</para>
 
     <para>&man.split.1; now has the ability to split a file longer
     than 2GB. &merged;</para>
@@ -1549,7 +1549,7 @@
 
     <para>&man.du.1; now takes a <option>-I</option> command-line flag
     to ignore/skip files and subdirectories matching a specified
-    shell-glob mask.</para>
+    shell-glob mask. &merged;</para>
 
     <para>The &man.resolver.3; in &os; now implements EDNS0 support,
     which will be necessary when working with IPv6 transport-ready
