@@ -931,8 +931,7 @@ DeleteLink(struct alias_link *link)
             break;
         case LINK_TCP:
             tcpLinkCount--;
-            if (link->data.tcp != NULL)
-                free(link->data.tcp);
+            free(link->data.tcp);
             break;
         case LINK_PPTP:
             pptpLinkCount--;
@@ -1033,15 +1032,6 @@ AddLink(struct in_addr  src_addr,
             return(NULL);
         }
 
-    /* Set up pointers for output lookup table */
-        start_point = StartPointOut(src_addr, dst_addr, 
-                                    src_port, dst_port, link_type);
-        LIST_INSERT_HEAD(&linkTableOut[start_point], link, list_out);
-
-    /* Set up pointers for input lookup table */
-        start_point = StartPointIn(alias_addr, link->alias_port, link_type); 
-        LIST_INSERT_HEAD(&linkTableIn[start_point], link, list_in);
-
     /* Link-type dependent initialization */
         switch(link_type)
         {
@@ -1055,7 +1045,6 @@ AddLink(struct in_addr  src_addr,
                 break;
             case LINK_TCP:
                 aux_tcp = malloc(sizeof(struct tcp_dat));
-                link->data.tcp = aux_tcp;
                 if (aux_tcp != NULL)
                 {
                     int i;
@@ -1068,6 +1057,7 @@ AddLink(struct in_addr  src_addr,
                     for (i=0; i<N_LINK_TCP_DATA; i++)
                         aux_tcp->ack[i].active = 0;
                     aux_tcp->fwhole = -1;
+                    link->data.tcp = aux_tcp;
                 }
                 else
                 {
@@ -1075,6 +1065,8 @@ AddLink(struct in_addr  src_addr,
                     fprintf(stderr, "PacketAlias/AddLink: ");
                     fprintf(stderr, " cannot allocate auxiliary TCP data\n");
 #endif
+		    free(link);
+		    return (NULL);
                 }
                 break;
             case LINK_PPTP:
@@ -1092,6 +1084,15 @@ AddLink(struct in_addr  src_addr,
                 protoLinkCount++;
                 break;
         }
+
+    /* Set up pointers for output lookup table */
+        start_point = StartPointOut(src_addr, dst_addr, 
+                                    src_port, dst_port, link_type);
+        LIST_INSERT_HEAD(&linkTableOut[start_point], link, list_out);
+
+    /* Set up pointers for input lookup table */
+        start_point = StartPointIn(alias_addr, link->alias_port, link_type); 
+        LIST_INSERT_HEAD(&linkTableIn[start_point], link, list_in);
     }
     else
     {
@@ -1127,7 +1128,6 @@ ReLink(struct alias_link *old_link,
 #ifndef NO_FW_PUNCH
     if (new_link != NULL &&
         old_link->link_type == LINK_TCP &&
-        old_link->data.tcp &&
         old_link->data.tcp->fwhole > 0) {
       PunchFWHole(new_link);
     }
@@ -2679,8 +2679,7 @@ PunchFWHole(struct alias_link *link) {
 /* Don't do anything unless we are asked to */
     if ( !(packetAliasMode & PKT_ALIAS_PUNCH_FW) ||
          fireWallFD < 0 ||
-         link->link_type != LINK_TCP ||
-         !link->data.tcp)
+         link->link_type != LINK_TCP)
         return;
 
     memset(&rule, 0, sizeof rule);
@@ -2755,7 +2754,7 @@ PunchFWHole(struct alias_link *link) {
    link.  Calling this too often is harmless. */
 static void
 ClearFWHole(struct alias_link *link) {
-    if (link->link_type == LINK_TCP && link->data.tcp) {
+    if (link->link_type == LINK_TCP) {
         int fwhole =  link->data.tcp->fwhole; /* Where is the firewall hole? */
         struct ip_fw rule;
 
