@@ -12,7 +12,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: test.c,v 1.22 1999/08/14 05:38:04 chris Exp $";
+	"$Id: test.c,v 1.23 1999/08/16 09:44:09 sheldonh Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -328,7 +328,12 @@ filstat(nm, mode)
 	case FILWR:
 		return access(nm, W_OK) == 0;
 	case FILEX:
-		return access(nm, X_OK) == 0;
+               if (access(nm, X_OK) == 0) {
+                       if (getuid() == 0 && (s.st_mode & 0111) == 0)
+                               return 0;
+                       return 1;
+               }
+               return 1;
 	case FILEXIST:
 		return access(nm, F_OK) == 0;
 	case FILREG:
