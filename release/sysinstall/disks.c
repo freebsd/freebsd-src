@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.70.2.16 1997/09/04 07:47:32 jkh Exp $
+ * $Id: disks.c,v 1.70.2.17 1997/09/07 14:07:47 joerg Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -102,13 +102,13 @@ print_chunks(Disk *d)
 	     "DISK Geometry:\t%lu cyls/%lu heads/%lu sectors = %lu sectors",
 	     d->bios_cyl, d->bios_hd, d->bios_sect,
 	     d->bios_cyl * d->bios_hd * d->bios_sect);
-    mvprintw(3, 1, "%10s %10s %10s %8s %8s %8s %8s %8s",
+    mvprintw(3, 0, "%10s %10s %10s %8s %6s %10s %8s %8s",
 	     "Offset", "Size", "End", "Name", "PType", "Desc",
 	     "Subtype", "Flags");
     for (i = 0, row = CHUNK_START_ROW; chunk_info[i]; i++, row++) {
 	if (i == current_chunk)
 	    attrset(ATTR_SELECTED);
-	mvprintw(row, 2, "%10ld %10lu %10lu %8s %8d %8s %8d\t%-6s",
+	mvprintw(row, 0, "%10ld %10lu %10lu %8s %6d %10s %8d\t%-6s",
 		 chunk_info[i]->offset, chunk_info[i]->size,
 		 chunk_info[i]->end, chunk_info[i]->name,
 		 chunk_info[i]->type, 
@@ -125,7 +125,7 @@ print_command_summary()
     mvprintw(14, 0, "The following commands are supported (in upper or lower case):");
     mvprintw(16, 0, "A = Use Entire Disk    B = Bad Block Scan       C = Create Slice");
     mvprintw(17, 0, "D = Delete Slice       G = Set Drive Geometry   S = Set Bootable");
-    mvprintw(18, 0, "U = Undo All Changes   Q = Finish");
+    mvprintw(18, 0, "T = Change Type        U = Undo All Changes     Q = Finish");
     if (!RunningAsInit)
 	mvprintw(18, 48, "W = Write Changes");
     mvprintw(21, 0, "Use F1 or ? to get more help, arrow keys to select.");
@@ -305,12 +305,12 @@ diskPartition(Device *dev, Disk *d)
 				      "for you to use another tool, such as DOS FORMAT, to later format\n"
 				      "and use the partition.");
 		    if (val && (subtype = strtol(val, NULL, 0)) > 0) {
-			if (subtype==165)
-			    partitiontype=freebsd;
-			else if (subtype==6)
-			    partitiontype=fat;
+			if (subtype == 165)
+			    partitiontype = freebsd;
+			else if (subtype == 6)
+			    partitiontype = fat;
 			else
-			    partitiontype=unknown;
+			    partitiontype = unknown;
 			Create_Chunk(d, chunk_info[current_chunk]->offset, size, partitiontype, subtype,
 				     (chunk_info[current_chunk]->flags & CHUNK_ALIGN));
 			variable_set2(DISK_PARTITIONED, "yes");
@@ -329,6 +329,39 @@ diskPartition(Device *dev, Disk *d)
 		Delete_Chunk(d, chunk_info[current_chunk]);
 		variable_set2(DISK_PARTITIONED, "yes");
 		record_chunks(d);
+	    }
+	    break;
+	    
+	case 'T':
+	    if (chunk_info[current_chunk]->type == unused)
+		msg = "Slice is currently unused (use create instead)";
+	    else {
+		char *val, tmp[20];
+		int subtype;
+		chunk_e partitiontype;
+		WINDOW *save = savescr();
+
+		strcpy(tmp, "165");
+		val = msgGetInput(tmp, "New partition type:\n\n"
+				  "Pressing Enter will choose the default, a native FreeBSD\n"
+				  "slice (type 165).  Other popular values are 6 for\n"
+				  "DOS PAT partition, 131 for a Linux ext2fs partition or\n"
+				  "130 for a Linux swap partition.\n\n"
+				  "Note:  If you choose a non-FreeBSD partition type, it will not\n"
+				  "be formatted or otherwise prepared, it will simply reserve space\n"
+				  "for you to use another tool, such as DOS format, to later format\n"
+				  "and actually use the partition.");
+		if (val && (subtype = strtol(val, NULL, 0)) > 0) {
+		    if (subtype == 165)
+			partitiontype = freebsd;
+		    else if (subtype == 6)
+			partitiontype = fat;
+		    else
+			partitiontype = unknown;
+		    chunk_info[current_chunk]->type = partitiontype;
+		    chunk_info[current_chunk]->subtype = subtype;
+		}
+		restorescr(save);
 	    }
 	    break;
 	    
