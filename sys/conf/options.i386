@@ -1,4 +1,5 @@
 # $FreeBSD$
+# Options specific to the i386 platform kernels
 
 DISABLE_PSE
 IDE_DELAY

@@ -1,4 +1,5 @@
 # $FreeBSD$
+# Options specific to the ia64 platform kernels
 
 ITANIUM			opt_global.h
 
