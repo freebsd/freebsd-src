@@ -26,7 +26,7 @@
  *
  * Author: Hartmut Brandt <harti@freebsd.org>
  *
- * $Begemot: libunimsg/atm/sig/sig_call.c,v 1.61 2003/10/16 13:35:44 hbb Exp $
+ * $Begemot: libunimsg/netnatm/sig/sig_call.c,v 1.64 2004/07/08 08:22:19 brandt Exp $
  *
  * Call instance handling
  *
@@ -144,7 +144,7 @@ uni_find_callx(struct uni *uni, u_int cref, u_int mine)
  * Create a new call instance. The type must be set by the caller.
  */
 struct call *
-uni_create_call(struct uni *uni, u_int cref, u_int mine, u_int32_t cookie)
+uni_create_call(struct uni *uni, u_int cref, u_int mine, uint32_t cookie)
 {
 	struct call *c;
 	struct uniapi_call_created *ind;
@@ -185,10 +185,10 @@ uni_create_call(struct uni *uni, u_int cref, u_int mine, u_int32_t cookie)
 }
 
 struct call *
-uni_create_new_call(struct uni *uni, u_int32_t cookie)
+uni_create_new_call(struct uni *uni, uint32_t cookie)
 {
 	struct call *c;
-	u_int32_t old = uni->cref_alloc++;
+	uint32_t old = uni->cref_alloc++;
 
   again:
 	if (uni->cref_alloc == (1 << 23))
@@ -254,7 +254,7 @@ static void
 allocate_epref(struct call *c, struct uni_ie_epref *epref)
 {
 	struct party *p;
-	u_int32_t old = c->epref_alloc++;
+	uint32_t old = c->epref_alloc++;
 
   again:
 	if (c->epref_alloc == (1 << 15))
@@ -466,7 +466,7 @@ un0_setup(struct call *c, struct uni_msg *m, struct uni_all *u,
  * Q.2971:Call-Control-N 4/39 (N0)
  */
 static void
-un0_setup_request(struct call *c, struct uni_msg *m, u_int32_t cookie,
+un0_setup_request(struct call *c, struct uni_msg *m, uint32_t cookie,
     enum call_state new_state)
 {
 	struct uniapi_setup_request *arg =
@@ -829,7 +829,7 @@ unx_alerting(struct call *c, struct uni_msg *m, struct uni_all *u,
  * Q.2971:Call-Control-N 6/39 (N1)
  */
 static void
-u6n1_proceeding_request(struct call *c, struct uni_msg *m, u_int32_t cookie,
+u6n1_proceeding_request(struct call *c, struct uni_msg *m, uint32_t cookie,
     enum call_state new_state)
 {
 	struct uni_all *msg;
@@ -866,7 +866,7 @@ u6n1_proceeding_request(struct call *c, struct uni_msg *m, u_int32_t cookie,
  * Q.2971:Call-Control-N 7/39  (N3)
  */
 static void
-unx_alerting_request(struct call *c, struct uni_msg *m, u_int32_t cookie,
+unx_alerting_request(struct call *c, struct uni_msg *m, uint32_t cookie,
     enum call_state new_state)
 {
 	struct uni_all *msg;
@@ -915,7 +915,7 @@ unx_alerting_request(struct call *c, struct uni_msg *m, u_int32_t cookie,
  * Q.2971:Call-Control-N 8/39   (N4)
  */
 static void
-unx_setup_response(struct call *c, struct uni_msg *m, u_int32_t cookie,
+unx_setup_response(struct call *c, struct uni_msg *m, uint32_t cookie,
     enum call_state new_state)
 {
 	struct uni_all *msg;
@@ -947,6 +947,7 @@ unx_setup_response(struct call *c, struct uni_msg *m, u_int32_t cookie,
 		p->flags |= PARTY_CONNECT;
 
 	} else if (c->type == CALL_LEAF) {
+		/* XXX don't mandate if only one party */
 		uniapi_call_error(c, UNIAPI_ERROR_BAD_PARTY, cookie);
 		UNI_FREE(msg);
 		uni_msg_destroy(m);
@@ -979,7 +980,7 @@ unx_setup_response(struct call *c, struct uni_msg *m, u_int32_t cookie,
  * Q.2971:Call-Control-N 15/39 (N8)
  */
 static void
-n8_setup_compl_request(struct call *c, struct uni_msg *m, u_int32_t cookie,
+n8_setup_compl_request(struct call *c, struct uni_msg *m, uint32_t cookie,
     enum call_state new_state)
 {
 	struct uni_all *msg;
@@ -1289,7 +1290,7 @@ n10_connect_ack(struct call *c, struct uni_msg *m, struct uni_all *u)
  * Q.2971:Call-Control-N 29/39 (N11)
  */
 static void
-unx_release_response(struct call *c, struct uni_msg *m, u_int32_t cookie)
+unx_release_response(struct call *c, struct uni_msg *m, uint32_t cookie)
 {
 	struct party *p;
 	struct uni_all *msg;
@@ -1544,7 +1545,7 @@ unx_notify(struct call *c, struct uni_msg *m, struct uni_all *u)
  * Q.2971:Call-Control-N 19/39
  */
 static void
-unx_notify_request(struct call *c, struct uni_msg *m, u_int32_t cookie)
+unx_notify_request(struct call *c, struct uni_msg *m, uint32_t cookie)
 {
 	struct uni_all *msg;
 	struct uniapi_notify_request *arg =
@@ -1575,7 +1576,7 @@ unx_notify_request(struct call *c, struct uni_msg *m, u_int32_t cookie)
  * Q.2971:Call-Control-N 28/39
  */
 static void
-unx_release_request(struct call *c, struct uni_msg *m, u_int32_t cookie,
+unx_release_request(struct call *c, struct uni_msg *m, uint32_t cookie,
     enum call_state new_state)
 {
 	struct uni_all *msg;
@@ -1942,7 +1943,7 @@ unx_status(struct call *c, struct uni_msg *m, struct uni_all *u)
  * Q.2971:Call-Control-N 32/39
  */
 static void
-unx_status_enquiry_request(struct call *c, struct uni_msg *msg, u_int32_t cookie)
+unx_status_enquiry_request(struct call *c, struct uni_msg *msg, uint32_t cookie)
 {
 	struct uniapi_status_enquiry_request *arg =
 	    uni_msg_rptr(msg, struct uniapi_status_enquiry_request *);
@@ -2457,7 +2458,7 @@ nx_add_party_rej_indication(struct call *c, struct uni_msg *api)
  * Q.2971:Call-Control-N 22/39 (N10)
  */
 static void
-unx_add_party_request(struct call *c, struct uni_msg *msg, u_int32_t cookie)
+unx_add_party_request(struct call *c, struct uni_msg *msg, uint32_t cookie)
 {
 	struct uniapi_add_party_request *add =
 	    uni_msg_rptr(msg, struct uniapi_add_party_request *);
@@ -2503,7 +2504,7 @@ unx_add_party_request(struct call *c, struct uni_msg *msg, u_int32_t cookie)
  * Q.2971:Call-Control-N 22/39
  */
 static void
-un10_add_party_ack_request(struct call *c, struct uni_msg *msg, u_int32_t cookie)
+un10_add_party_ack_request(struct call *c, struct uni_msg *msg, uint32_t cookie)
 {
 	struct uniapi_add_party_ack_request *ack =
 	    uni_msg_rptr(msg, struct uniapi_add_party_ack_request *);
@@ -2538,7 +2539,7 @@ un10_add_party_ack_request(struct call *c, struct uni_msg *msg, u_int32_t cookie
  * Q.2971:Call-Control-N 22/39 N10
  */
 static void
-unx_party_alerting_request(struct call *c, struct uni_msg *msg, u_int32_t cookie)
+unx_party_alerting_request(struct call *c, struct uni_msg *msg, uint32_t cookie)
 {
 	struct uniapi_party_alerting_request *alert =
 	    uni_msg_rptr(msg, struct uniapi_party_alerting_request *);
@@ -2573,7 +2574,7 @@ unx_party_alerting_request(struct call *c, struct uni_msg *msg, u_int32_t cookie
  * Q.2971:Call-Control-N 22/39 N10
  */
 static void
-unx_add_party_rej_request(struct call *c, struct uni_msg *msg, u_int32_t cookie)
+unx_add_party_rej_request(struct call *c, struct uni_msg *msg, uint32_t cookie)
 {
 	struct uniapi_add_party_rej_request *rej =
 	    uni_msg_rptr(msg, struct uniapi_add_party_rej_request *);
@@ -2607,7 +2608,7 @@ unx_add_party_rej_request(struct call *c, struct uni_msg *msg, u_int32_t cookie)
  * Q.2971:Call-Control-N 27/39 N1-N9
  */
 static void
-unx_drop_party_request(struct call *c, struct uni_msg *msg, u_int32_t cookie)
+unx_drop_party_request(struct call *c, struct uni_msg *msg, uint32_t cookie)
 {
 	struct uniapi_drop_party_request *drop =
 	    uni_msg_rptr(msg, struct uniapi_drop_party_request *);
@@ -2637,7 +2638,7 @@ unx_drop_party_request(struct call *c, struct uni_msg *msg, u_int32_t cookie)
  */
 static void
 unx_drop_party_ack_request(struct call *c, struct uni_msg *msg,
-    u_int32_t cookie)
+    uint32_t cookie)
 {
 	struct uniapi_drop_party_ack_request *ack =
 	    uni_msg_rptr(msg, struct uniapi_drop_party_ack_request *);
@@ -2667,6 +2668,7 @@ unx_drop_party_ack_request(struct call *c, struct uni_msg *msg,
  * Q.2971:Call-Control-N 21/39  N10
  *
  * Body already decoded
+ * XXX check EPREF flag
  */
 static void
 unx_add_party(struct call *c, struct uni_msg *m, struct uni_all *u,
@@ -2751,6 +2753,14 @@ unx_add_party(struct call *c, struct uni_msg *m, struct uni_all *u,
 		    &u->u.add_party.epref, -1);
 		return;
 	}
+
+	if (IE_ISGOOD(u->u.add_party.epref) && p == NULL &&
+	    u->u.add_party.epref.flag) {
+		IE_SETERROR(u->u.add_party.epref);
+		UNI_SAVE_IERR(&c->uni->cx, UNI_IE_EPREF,
+		    u->u.add_party.epref.h.act, UNI_IERR_BAD);
+	}
+
 	if (!IE_ISGOOD(u->u.add_party.epref)) {
 		/* 9.5.3.2.2 */
 		if (vfy == VFY_OK) {
@@ -3321,7 +3331,7 @@ unx_unknown(struct call *c, struct uni_msg *m, struct uni_all *u)
 /**********************************************************************/
 
 void
-uni_sig_call(struct call *c, enum call_sig sig, u_int32_t cookie,
+uni_sig_call(struct call *c, enum call_sig sig, uint32_t cookie,
     struct uni_msg *msg, struct uni_all *u)
 {
 	if (sig >= SIGC_END) {
@@ -3859,7 +3869,7 @@ uni_sig_call(struct call *c, enum call_sig sig, u_int32_t cookie,
 			unx_alerting_request(c, msg, cookie, CALLST_U7);
 			break;
 		}
-		if (c->cstate == CALLST_N1 || c->cstate == CALLST_N1) {
+		if (c->cstate == CALLST_N1 || c->cstate == CALLST_N3) {
 			/* Q.2971:Call-Control-N 38/39 (N1) */
 			/* Q.2971:Call-Control-N 7/39  (N3) */
 			unx_alerting_request(c, msg, cookie, CALLST_N4);

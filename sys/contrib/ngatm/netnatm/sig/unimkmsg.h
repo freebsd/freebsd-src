@@ -26,7 +26,7 @@
  *
  * Author: Hartmut Brandt <harti@freebsd.org>
  *
- * $Begemot: libunimsg/atm/sig/unimkmsg.h,v 1.4 2003/09/19 12:03:34 hbb Exp $
+ * $Begemot: libunimsg/netnatm/sig/unimkmsg.h,v 1.4 2003/09/19 12:03:34 hbb Exp $
  *
  * Macros to make messages.
  */

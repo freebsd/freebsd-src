@@ -26,7 +26,7 @@
  *
  * Author: Hartmut Brandt <harti@freebsd.org>
  *
- * $Begemot: libunimsg/atm/sig/unipriv.h,v 1.5 2003/09/24 10:27:50 hbb Exp $
+ * $Begemot: libunimsg/netnatm/sig/unipriv.h,v 1.17 2004/07/08 08:22:25 brandt Exp $
  *
  * Private UNI stuff.
  */
@@ -229,8 +229,8 @@ struct sig {
 	u_int		type;	/* one of the above */
 	struct call	*call;	/* call to send to */
 	struct party	*party;	/* party to send to */
-	u_int32_t	sig;	/* the signal */
-	u_int32_t	cookie;	/* user cookie */
+	uint32_t	sig;	/* the signal */
+	uint32_t	cookie;	/* user cookie */
 	struct uni_msg	*msg;	/* attached message */
 	struct uni_all	*u;	/* dito */
 };
@@ -248,15 +248,15 @@ TAILQ_HEAD(sigqueue, sig);
 	}								\
     } while(0)
 
-void uni_sig_party(struct party *, enum party_sig, u_int32_t cookie,
+void uni_sig_party(struct party *, enum party_sig, uint32_t cookie,
     struct uni_msg *, struct uni_all *);
-void uni_sig_call(struct call *, enum call_sig, u_int32_t cookie,
+void uni_sig_call(struct call *, enum call_sig, uint32_t cookie,
     struct uni_msg *, struct uni_all *);
-void uni_sig_coord(struct uni *, enum coord_sig, u_int32_t cookie,
+void uni_sig_coord(struct uni *, enum coord_sig, uint32_t cookie,
     struct uni_msg *);
-void uni_sig_start(struct uni *, enum start_sig, u_int32_t cookie,
+void uni_sig_start(struct uni *, enum start_sig, uint32_t cookie,
     struct uni_msg *, struct uni_all *);
-void uni_sig_respond(struct uni *, enum respond_sig, u_int32_t cookie,
+void uni_sig_respond(struct uni *, enum respond_sig, uint32_t cookie,
     struct uni_msg *, struct uni_all *);
 
 /*************************************************************
@@ -283,7 +283,8 @@ void uni_destroy_party(struct party *, int);
 struct party *uni_find_party(struct call *, struct uni_ie_epref *);
 struct party *uni_find_partyx(struct call *, u_int epref, u_int mine);
 struct party *uni_create_party(struct call *, struct uni_ie_epref *);
-struct party *uni_create_partyx(struct call *, u_int epref, u_int mine, u_int32_t cookie);
+struct party *uni_create_partyx(struct call *, u_int epref, u_int mine,
+    uint32_t cookie);
 u_int uni_party_act_count(struct call *, int);
 
 enum call_type {
@@ -336,8 +337,8 @@ TAILQ_HEAD(callqueue, call);
 struct call *uni_find_call(struct uni *, struct uni_cref *);
 struct call *uni_find_callx(struct uni *, u_int cref, u_int mine);
 struct call *uni_create_call(struct uni *, u_int cref, u_int mine,
-	u_int32_t cookie);
-struct call *uni_create_new_call(struct uni *, u_int32_t cookie);
+	uint32_t cookie);
+struct call *uni_create_new_call(struct uni *, uint32_t cookie);
 void uni_destroy_call(struct call *, int);
 
 void uni_bad_message(struct call *, struct uni_all *, u_int,
@@ -364,7 +365,7 @@ struct uni {
 	struct sigqueue		delq;	/* delayed signal queue */
 	int			working;
 
-	u_int32_t		cref_alloc;
+	uint32_t		cref_alloc;
 
 	enum cu_stat		custat;	/* coordinator state */
 	struct uni_timer	t309;
@@ -403,10 +404,10 @@ struct uni {
 	u_int			debug[UNI_MAXFACILITY];
 };
 
-void uniapi_uni_error(struct uni *uni, u_int32_t reason, u_int32_t cookie,
-	u_int32_t state);
-void uniapi_call_error(struct call *c, u_int32_t reason, u_int32_t cookie);
-void uniapi_party_error(struct party *p, u_int32_t reason, u_int32_t cookie);
+void uniapi_uni_error(struct uni *uni, uint32_t reason, uint32_t cookie,
+	uint32_t state);
+void uniapi_call_error(struct call *c, uint32_t reason, uint32_t cookie);
+void uniapi_party_error(struct party *p, uint32_t reason, uint32_t cookie);
 
 /*************************************************************
  *
@@ -513,17 +514,35 @@ void uni_respond_status_mtype(struct uni *uni, struct uni_cref *cref,
 	_tmp;							\
     })
 
-#define VERBOSE(UNI, FAC, LEVEL, FMT, ARGS...) do {		\
+#if defined(__GNUC__) && __GNUC__ < 3
+
+#define	VERBOSE(UNI, FAC, LEVEL, ARGS...) do {			\
 	if ((UNI)->debug[(FAC)] >= (LEVEL)) {			\
-		(UNI)->funcs->verbose((UNI), (UNI)->arg, (FAC),	\
-		    FMT , ## ARGS);				\
+		(UNI)->funcs->verbose((UNI), (UNI)->arg, (FAC) ,\
+		   ## ARGS);					\
 	}							\
     } while(0)
 
-#define VERBOSE0(UNI, FAC, FMT, ARGS...) do {			\
-	(UNI)->funcs->verbose((UNI), (UNI)->arg, (FAC), FMT ,	\
+#define VERBOSE0(UNI, FAC, ARGS...) do {			\
+	(UNI)->funcs->verbose((UNI), (UNI)->arg, (FAC) ,	\
 	    ## ARGS);						\
     } while(0)
+
+#else
+
+#define VERBOSE(UNI, FAC, LEVEL, ...) do {			\
+	if ((UNI)->debug[(FAC)] >= (LEVEL)) {			\
+		(UNI)->funcs->verbose((UNI), (UNI)->arg, (FAC),	\
+		    __VA_ARGS__);				\
+	}							\
+    } while(0)
+
+#define VERBOSE0(UNI, FAC, ...) do {				\
+	(UNI)->funcs->verbose((UNI), (UNI)->arg, (FAC),		\
+	    __VA_ARGS__);					\
+    } while(0)
+
+#endif
 
 #define TIMER_INIT_UNI(U,T)	_TIMER_INIT(U,T)
 #define TIMER_INIT_CALL(C,T)	_TIMER_INIT(C,T)

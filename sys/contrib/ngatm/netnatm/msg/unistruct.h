@@ -3,6 +3,8 @@
  *	Fraunhofer Institute for Open Communication Systems (FhG Fokus).
  * 	All rights reserved.
  *
+ * Author: Hartmut Brandt <harti@freebsd.org>
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -24,9 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * Author: Hartmut Brandt <harti@freebsd.org>
- *
- * $Begemot: libunimsg/atm/msg/unistruct.h,v 1.4 2003/09/19 11:58:16 hbb Exp $
+ * $Begemot: libunimsg/netnatm/msg/unistruct.h,v 1.6 2004/07/08 08:22:08 brandt Exp $
  *
  * This file defines all structures that are used by
  * API users.

@@ -27,7 +27,7 @@
  * Author: Hartmut Brandt <harti@freebsd.org>
  *         Kendy Kutzner <kutzner@fokus.fraunhofer.de>
  *
- * $Begemot: libunimsg/atm/sig/sig_print.c,v 1.4 2003/09/19 12:03:34 hbb Exp $
+ * $Begemot: libunimsg/netnatm/sig/sig_print.c,v 1.5 2004/07/08 08:22:22 brandt Exp $
  */
 
 #include <sys/types.h>

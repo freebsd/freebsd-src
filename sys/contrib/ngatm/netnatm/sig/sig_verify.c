@@ -26,7 +26,7 @@
  *
  * Author: Hartmut Brandt <harti@freebsd.org>
  *
- * $Begemot: libunimsg/atm/sig/sig_verify.c,v 1.16 2003/10/10 14:37:28 hbb Exp $
+ * $Begemot: libunimsg/netnatm/sig/sig_verify.c,v 1.19 2004/07/08 08:22:23 brandt Exp $
  *
  * Message verification with explicit action indicators.
  */

@@ -26,7 +26,7 @@
  *
  * Author: Hartmut Brandt <harti@freebsd.org>
  *
- * $Begemot: libunimsg/atm/sig/uni.h,v 1.3 2003/09/19 12:03:34 hbb Exp $
+ * $Begemot: libunimsg/netnatm/sig/uni.h,v 1.5 2004/07/08 08:22:24 brandt Exp $
  *
  * Public UNI interface
  */
@@ -41,7 +41,7 @@ struct uni;
 struct uni_funcs {
 	/* output to the upper layer */
 	void	(*uni_output)(struct uni *, void *, enum uni_sig,
-		    u_int32_t, struct uni_msg *);
+		    uint32_t, struct uni_msg *);
 
 	/* output to the SAAL */
 	void	(*saal_output)(struct uni *, void *, enum saal_sig,
@@ -79,13 +79,13 @@ void uni_get_config(const struct uni *, struct uni_config *);
 
 /* set new instance configuration */
 void uni_set_config(struct uni *, const struct uni_config *,
-	u_int32_t *, u_int32_t *, u_int32_t *);
+	uint32_t *, uint32_t *, uint32_t *);
 
 /* input from the SAAL to the instance */
 void  uni_saal_input(struct uni *, enum saal_sig, struct uni_msg *);
 
 /* input from the upper layer to the instance */
-void uni_uni_input(struct uni *, enum uni_sig, u_int32_t, struct uni_msg *);
+void uni_uni_input(struct uni *, enum uni_sig, uint32_t, struct uni_msg *);
 
 /* do work on pending signals */
 void uni_work(struct uni *);

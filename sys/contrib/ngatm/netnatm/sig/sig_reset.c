@@ -3,6 +3,8 @@
  *	Fraunhofer Institute for Open Communication Systems (FhG Fokus).
  * 	All rights reserved.
  *
+ * Author: Hartmut Brandt <harti@freebsd.org>
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -24,9 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * Author: Hartmut Brandt <harti@freebsd.org>
- *
- * $Begemot: libunimsg/atm/sig/sig_reset.c,v 1.5 2003/09/24 10:27:50 hbb Exp $
+ * $Begemot: libunimsg/netnatm/sig/sig_reset.c,v 1.10 2004/07/08 08:22:22 brandt Exp $
  *
  * Reset-start and reset-respond
  */
@@ -45,10 +45,13 @@ static void response_status(struct uni *, struct uni_msg *, struct uni_all *);
 
 static void response_t317(struct uni *);
 
-static void response_error(struct uni *, struct uniapi_reset_error_response *, u_int32_t cookie);
-static void response_response(struct uni *, struct uniapi_reset_response *, u_int32_t);
+static void response_error(struct uni *, struct uniapi_reset_error_response *,
+    uint32_t cookie);
+static void response_response(struct uni *, struct uniapi_reset_response *,
+    uint32_t);
 
-static void start_request(struct uni *, struct uniapi_reset_request *, u_int32_t);
+static void start_request(struct uni *, struct uniapi_reset_request *,
+    uint32_t);
 
 static void start_t316(struct uni *);
 
@@ -76,7 +79,7 @@ TIMER_FUNC_UNI(t316, t316_func)
  * Reset-Start process.
  */
 void
-uni_sig_start(struct uni *uni, u_int sig, u_int32_t cookie,
+uni_sig_start(struct uni *uni, u_int sig, uint32_t cookie,
     struct uni_msg *m, struct uni_all *u)
 {
 	if (sig >= SIGS_END) {
@@ -137,7 +140,7 @@ uni_sig_start(struct uni *uni, u_int sig, u_int32_t cookie,
  * Q.2931:Reset-Start 1/2
  */
 static void
-start_request(struct uni *uni, struct uniapi_reset_request *req, u_int32_t cookie)
+start_request(struct uni *uni, struct uniapi_reset_request *req, uint32_t cookie)
 {
 	struct uni_all *resp;
 	int err;
@@ -432,7 +435,7 @@ start_status(struct uni *uni, struct uni_msg *m, struct uni_all *u)
  * Reset-Respond process.
  */
 void
-uni_sig_respond(struct uni *uni, u_int sig, u_int32_t cookie,
+uni_sig_respond(struct uni *uni, u_int sig, uint32_t cookie,
     struct uni_msg *m, struct uni_all *u)
 {
 	if (sig >= SIGR_END) {
@@ -639,7 +642,7 @@ response_t317(struct uni *uni)
  */
 static void
 response_error(struct uni *uni, struct uniapi_reset_error_response *c,
-    u_int32_t cookie)
+    uint32_t cookie)
 {
 	struct uni_all *resp;
 
@@ -681,7 +684,7 @@ response_error(struct uni *uni, struct uniapi_reset_error_response *c,
  */
 static void
 response_response(struct uni *uni, struct uniapi_reset_response *arg,
-    u_int32_t cookie)
+    uint32_t cookie)
 {
 	struct uni_all *resp;
 

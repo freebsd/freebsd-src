@@ -26,7 +26,7 @@
  *
  * Author: Hartmut Brandt <harti@freebsd.org>
  *
- * $Begemot: libunimsg/atm/sig/sig_party.c,v 1.12 2003/10/10 14:37:28 hbb Exp $
+ * $Begemot: libunimsg/netnatm/sig/sig_party.c,v 1.17 2004/07/08 08:22:21 brandt Exp $
  *
  * Party instance handling
  */
@@ -71,7 +71,7 @@ set_party_state(struct party *p, enum uni_epstate state)
  * No check is done, that a party with this epref does not alreay exist.
  */
 struct party *
-uni_create_partyx(struct call *c, u_int epref, u_int mine, u_int32_t cookie)
+uni_create_partyx(struct call *c, u_int epref, u_int mine, uint32_t cookie)
 {
 	struct party *p;
 	struct uni_msg *api;
@@ -232,7 +232,7 @@ stop_all_party_timers(struct party *p)
  * Q.2971:Party-control-N 3 (PN0)
  */
 static void
-pun0_add_party_request(struct party *p, struct uni_msg *api, u_int32_t cookie)
+pun0_add_party_request(struct party *p, struct uni_msg *api, uint32_t cookie)
 {
 	struct uni_all *add;
 	struct uniapi_add_party_request *req =
@@ -266,7 +266,7 @@ pun0_add_party_request(struct party *p, struct uni_msg *api, u_int32_t cookie)
  * Q.2971:Party-Control-N 7 PN3
  */
 static void
-punx_add_party_ack_request(struct party *p, struct uni_msg *m, u_int32_t cookie)
+punx_add_party_ack_request(struct party *p, struct uni_msg *m, uint32_t cookie)
 {
 	struct uni_all *ack;
 	struct uniapi_add_party_ack_request *req =
@@ -295,7 +295,7 @@ punx_add_party_ack_request(struct party *p, struct uni_msg *m, u_int32_t cookie)
  * Q.2971:Party-Control-N 6 PN2
  */
 static void
-pun2_add_party_rej_request(struct party *p, struct uni_msg *m, u_int32_t cookie)
+pun2_add_party_rej_request(struct party *p, struct uni_msg *m, uint32_t cookie)
 {
 	struct uni_all *rej;
 	struct uniapi_add_party_rej_request *req =
@@ -352,7 +352,7 @@ pun0_add_party(struct party *p, struct uni_msg *m, struct uni_all *u)
  */
 static void
 pun2_party_alerting_request(struct party *p, struct uni_msg *api,
-    u_int32_t cookie)
+    uint32_t cookie)
 {
 	struct uni_all *alert;
 	struct uniapi_party_alerting_request *req =
@@ -751,7 +751,7 @@ drop_partyE(struct party *p)
  * Q.2971:Party-Control-N 8
  */
 static void
-punx_drop_party_request(struct party *p, struct uni_msg *api, u_int32_t cookie)
+punx_drop_party_request(struct party *p, struct uni_msg *api, uint32_t cookie)
 {
 	struct uniapi_drop_party_request *req =
 	    uni_msg_rptr(api, struct uniapi_drop_party_request *);
@@ -784,7 +784,7 @@ punx_drop_party_request(struct party *p, struct uni_msg *api, u_int32_t cookie)
  * Q.2971:Party-Control-N 9
  */
 static void
-pun6_drop_party_ack_request(struct party *p, struct uni_msg *api, u_int32_t cookie)
+pun6_drop_party_ack_request(struct party *p, struct uni_msg *api, uint32_t cookie)
 {
 	struct uniapi_drop_party_ack_request *req =
 	    uni_msg_rptr(api, struct uniapi_drop_party_ack_request *);
@@ -814,7 +814,7 @@ pun6_drop_party_ack_request(struct party *p, struct uni_msg *api, u_int32_t cook
  * Q.2971:Party-Control-N 12
  */
 static void
-punx_status_enquiry_request(struct party *p, u_int32_t cookie)
+punx_status_enquiry_request(struct party *p, uint32_t cookie)
 {
 	struct uni_all *enq;
 
@@ -911,7 +911,7 @@ pun5_status(struct party *p, struct uni_msg *m, struct uni_all *u)
 /************************************************************/
 
 void
-uni_sig_party(struct party *p, enum party_sig sig, u_int32_t cookie,
+uni_sig_party(struct party *p, enum party_sig sig, uint32_t cookie,
     struct uni_msg *msg, struct uni_all *u)
 {
 	if (sig >= SIGP_END) {

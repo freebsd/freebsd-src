@@ -26,7 +26,7 @@
 #
 # Author: Hartmut Brandt <harti@freebsd.org>
 #
-# $Begemot: libunimsg/atm/msg/msg.def,v 1.3 2003/09/19 11:58:15 hbb Exp $
+# $Begemot: libunimsg/netnatm/msg/msg.def,v 1.4 2003/09/29 10:47:18 hbb Exp $
 #
 # Define message contents
 #
