@@ -60,22 +60,35 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/types.h>
 
 #include "openssl/e_os.h"
 
+#ifdef VMS
+#include <unixio.h>
+#endif
+#ifndef NO_SYS_TYPES_H
+# include <sys/types.h>
+#endif
+#ifdef MAC_OS_pre_X
+# include <stat.h>
+#else
+# include <sys/stat.h>
+#endif
+
+#include <openssl/crypto.h>
 #include <openssl/rand.h>
 
 #undef BUFSIZE
 #define BUFSIZE	1024
 #define RAND_DATA 1024
 
-/* #define RFILE ".rand" - defined in ../../e_os.h */
+/* #define RFILE ".rnd" - defined in ../../e_os.h */
 
 int RAND_load_file(const char *file, long bytes)
 	{
+	/* If bytes >= 0, read up to 'bytes' bytes.
+	 * if bytes == -1, read complete file. */
+
 	MS_STATIC unsigned char buf[BUFSIZE];
 	struct stat sb;
 	int i,ret=0,n;
@@ -85,23 +98,28 @@ int RAND_load_file(const char *file, long bytes)
 
 	i=stat(file,&sb);
 	/* If the state fails, put some crap in anyway */
-	RAND_seed(&sb,sizeof(sb));
-	ret+=sizeof(sb);
+	RAND_add(&sb,sizeof(sb),0);
 	if (i < 0) return(0);
-	if (bytes <= 0) return(ret);
+	if (bytes == 0) return(ret);
 
 	in=fopen(file,"rb");
 	if (in == NULL) goto err;
 	for (;;)
 		{
-		n=(bytes < BUFSIZE)?(int)bytes:BUFSIZE;
+		if (bytes > 0)
+			n = (bytes < BUFSIZE)?(int)bytes:BUFSIZE;
+		else
+			n = BUFSIZE;
 		i=fread(buf,1,n,in);
 		if (i <= 0) break;
 		/* even if n != i, use the full array */
-		RAND_seed(buf,n);
+		RAND_add(buf,n,i);
 		ret+=i;
-		bytes-=n;
-		if (bytes <= 0) break;
+		if (bytes > 0)
+			{
+			bytes-=n;
+			if (bytes == 0) break;
+			}
 		}
 	fclose(in);
 	memset(buf,0,BUFSIZE);
@@ -112,29 +130,33 @@ err:
 int RAND_write_file(const char *file)
 	{
 	unsigned char buf[BUFSIZE];
-	int i,ret=0;
-	FILE *out;
+	int i,ret=0,err=0;
+	FILE *out = NULL;
 	int n;
+	
+#if defined(O_CREAT) && defined(O_EXCL) && !defined(WIN32)
+	/* For some reason Win32 can't write to files created this way */
 
-	/* Under VMS, fopen(file, "wb") will craete a new version of the
-	   same file.  This is not good, so let's try updating an existing
-	   one, and create file only if it doesn't already exist.  This
-	   should be completely harmless on system that have no file
-	   versions.					-- Richard Levitte */
-	out=fopen(file,"rb+");
-	if (out == NULL && errno == ENOENT)
-		{
-		errno = 0;
-		out=fopen(file,"wb");
-		}
-	if (out == NULL) goto err;
+        /* chmod(..., 0600) is too late to protect the file,
+         * permissions should be restrictive from the start */
+        int fd = open(file, O_CREAT | O_EXCL, 0600);
+        if (fd != -1)
+                out = fdopen(fd, "wb");
+#endif
+        if (out == NULL)
+                out = fopen(file,"wb");
+        if (out == NULL) goto err;
+
+#ifndef NO_CHMOD
 	chmod(file,0600);
+#endif
 	n=RAND_DATA;
 	for (;;)
 		{
 		i=(n > BUFSIZE)?BUFSIZE:n;
 		n-=BUFSIZE;
-		RAND_bytes(buf,i);
+		if (RAND_bytes(buf,i) <= 0)
+			err=1;
 		i=fwrite(buf,1,i,out);
 		if (i <= 0)
 			{
@@ -143,14 +165,34 @@ int RAND_write_file(const char *file)
 			}
 		ret+=i;
 		if (n <= 0) break;
+                }
+#ifdef VMS
+	/* Try to delete older versions of the file, until there aren't
+	   any */
+	{
+	char *tmpf;
+
+	tmpf = Malloc(strlen(file) + 4);  /* to add ";-1" and a nul */
+	if (tmpf)
+		{
+		strcpy(tmpf, file);
+		strcat(tmpf, ";-1");
+		while(delete(tmpf) == 0)
+			;
+		rename(file,";1"); /* Make sure it's version 1, or we
+				      will reach the limit (32767) at
+				      some point... */
 		}
+	}
+#endif /* VMS */
+
 	fclose(out);
 	memset(buf,0,BUFSIZE);
 err:
-	return(ret);
+	return(err ? -1 : ret);
 	}
 
-char *RAND_file_name(char *buf, int size)
+const char *RAND_file_name(char *buf, int size)
 	{
 	char *s;
 	char *ret=NULL;

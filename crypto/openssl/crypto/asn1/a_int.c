@@ -60,6 +60,18 @@
 #include "cryptlib.h"
 #include <openssl/asn1.h>
 
+ASN1_INTEGER *ASN1_INTEGER_new(void)
+{ return M_ASN1_INTEGER_new();}
+
+void ASN1_INTEGER_free(ASN1_INTEGER *x)
+{ M_ASN1_INTEGER_free(x);}
+
+ASN1_INTEGER *ASN1_INTEGER_dup(ASN1_INTEGER *x)
+{ return M_ASN1_INTEGER_dup(x);}
+
+int ASN1_INTEGER_cmp(ASN1_INTEGER *x, ASN1_INTEGER *y)
+{ return M_ASN1_INTEGER_cmp(x,y);}
+
 /* 
  * This converts an ASN1 INTEGER into its DER encoding.
  * The internal representation is an ASN1_STRING whose data is a big endian
@@ -160,7 +172,7 @@ ASN1_INTEGER *d2i_ASN1_INTEGER(ASN1_INTEGER **a, unsigned char **pp,
 
 	if ((a == NULL) || ((*a) == NULL))
 		{
-		if ((ret=ASN1_INTEGER_new()) == NULL) return(NULL);
+		if ((ret=M_ASN1_INTEGER_new()) == NULL) return(NULL);
 		ret->type=V_ASN1_INTEGER;
 		}
 	else
@@ -190,7 +202,12 @@ ASN1_INTEGER *d2i_ASN1_INTEGER(ASN1_INTEGER **a, unsigned char **pp,
 		goto err;
 		}
 	to=s;
-	if (*p & 0x80) /* a negative number */
+	if(!len) {
+		/* Strictly speaking this is an illegal INTEGER but we
+		 * tolerate it.
+		 */
+		ret->type=V_ASN1_INTEGER;
+	} else if (*p & 0x80) /* a negative number */
 		{
 		ret->type=V_ASN1_NEG_INTEGER;
 		if ((*p == 0xff) && (len != 1)) {
@@ -231,7 +248,7 @@ ASN1_INTEGER *d2i_ASN1_INTEGER(ASN1_INTEGER **a, unsigned char **pp,
 		memcpy(s,p,(int)len);
 	}
 
-	if (ret->data != NULL) Free((char *)ret->data);
+	if (ret->data != NULL) Free(ret->data);
 	ret->data=s;
 	ret->length=(int)len;
 	if (a != NULL) (*a)=ret;
@@ -240,7 +257,7 @@ ASN1_INTEGER *d2i_ASN1_INTEGER(ASN1_INTEGER **a, unsigned char **pp,
 err:
 	ASN1err(ASN1_F_D2I_ASN1_INTEGER,i);
 	if ((ret != NULL) && ((a == NULL) || (*a != ret)))
-		ASN1_INTEGER_free(ret);
+		M_ASN1_INTEGER_free(ret);
 	return(NULL);
 	}
 
@@ -260,7 +277,7 @@ ASN1_INTEGER *d2i_ASN1_UINTEGER(ASN1_INTEGER **a, unsigned char **pp,
 
 	if ((a == NULL) || ((*a) == NULL))
 		{
-		if ((ret=ASN1_INTEGER_new()) == NULL) return(NULL);
+		if ((ret=M_ASN1_INTEGER_new()) == NULL) return(NULL);
 		ret->type=V_ASN1_INTEGER;
 		}
 	else
@@ -289,7 +306,8 @@ ASN1_INTEGER *d2i_ASN1_UINTEGER(ASN1_INTEGER **a, unsigned char **pp,
 		goto err;
 		}
 	to=s;
-		ret->type=V_ASN1_INTEGER;
+	ret->type=V_ASN1_INTEGER;
+	if(len) {
 		if ((*p == 0) && (len != 1))
 			{
 			p++;
@@ -297,8 +315,9 @@ ASN1_INTEGER *d2i_ASN1_UINTEGER(ASN1_INTEGER **a, unsigned char **pp,
 			}
 		memcpy(s,p,(int)len);
 		p+=len;
+	}
 
-	if (ret->data != NULL) Free((char *)ret->data);
+	if (ret->data != NULL) Free(ret->data);
 	ret->data=s;
 	ret->length=(int)len;
 	if (a != NULL) (*a)=ret;
@@ -307,7 +326,7 @@ ASN1_INTEGER *d2i_ASN1_UINTEGER(ASN1_INTEGER **a, unsigned char **pp,
 err:
 	ASN1err(ASN1_F_D2I_ASN1_UINTEGER,i);
 	if ((ret != NULL) && ((a == NULL) || (*a != ret)))
-		ASN1_INTEGER_free(ret);
+		M_ASN1_INTEGER_free(ret);
 	return(NULL);
 	}
 
@@ -321,7 +340,7 @@ int ASN1_INTEGER_set(ASN1_INTEGER *a, long v)
 	if (a->length < (sizeof(long)+1))
 		{
 		if (a->data != NULL)
-			Free((char *)a->data);
+			Free(a->data);
 		if ((a->data=(unsigned char *)Malloc(sizeof(long)+1)) != NULL)
 			memset((char *)a->data,0,sizeof(long)+1);
 		}
@@ -385,7 +404,7 @@ ASN1_INTEGER *BN_to_ASN1_INTEGER(BIGNUM *bn, ASN1_INTEGER *ai)
 	int len,j;
 
 	if (ai == NULL)
-		ret=ASN1_INTEGER_new();
+		ret=M_ASN1_INTEGER_new();
 	else
 		ret=ai;
 	if (ret == NULL)
@@ -401,7 +420,7 @@ ASN1_INTEGER *BN_to_ASN1_INTEGER(BIGNUM *bn, ASN1_INTEGER *ai)
 	ret->length=BN_bn2bin(bn,ret->data);
 	return(ret);
 err:
-	if (ret != ai) ASN1_INTEGER_free(ret);
+	if (ret != ai) M_ASN1_INTEGER_free(ret);
 	return(NULL);
 	}
 

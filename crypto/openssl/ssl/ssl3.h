@@ -158,24 +158,8 @@ extern "C" {
 #define SSL3_RT_MAX_PACKET_SIZE		(SSL3_RT_MAX_ENCRYPTED_LENGTH+SSL3_RT_HEADER_LENGTH)
 #define SSL3_RT_MAX_DATA_SIZE			(1024*1024)
 
-/* the states that a SSL3_RECORD can be in
- * For SSL_read it goes
- * rbuf->ENCODED	-> read 
- * ENCODED		-> we need to decode everything - call decode_record
- */
- 
-#define SSL3_RS_BLANK			1
-#define SSL3_RS_DATA
-
-#define SSL3_RS_ENCODED			2
-#define SSL3_RS_READ_MORE		3
-#define SSL3_RS_WRITE_MORE
-#define SSL3_RS_PLAIN			3
-#define SSL3_RS_PART_READ		4
-#define SSL3_RS_PART_WRITE		5
-
-#define SSL3_MD_CLIENT_FINISHED_CONST	{0x43,0x4C,0x4E,0x54}
-#define SSL3_MD_SERVER_FINISHED_CONST	{0x53,0x52,0x56,0x52}
+#define SSL3_MD_CLIENT_FINISHED_CONST	"\x43\x4C\x4E\x54"
+#define SSL3_MD_SERVER_FINISHED_CONST	"\x53\x52\x56\x52"
 
 #define SSL3_VERSION			0x0300
 #define SSL3_VERSION_MAJOR		0x03
@@ -204,22 +188,20 @@ extern "C" {
 
 typedef struct ssl3_record_st
 	{
-/*r */	int type;		/* type of record */
-/*  */	/*int state;*/		/* any data in it? */
-/*rw*/	unsigned int length;	/* How many bytes available */
-/*r */	unsigned int off;	/* read/write offset into 'buf' */
-/*rw*/	unsigned char *data;	/* pointer to the record data */
-/*rw*/	unsigned char *input;	/* where the decode bytes are */
-/*r */	unsigned char *comp;	/* only used with decompression - malloc()ed */
+/*r */	int type;               /* type of record */
+/*rw*/	unsigned int length;    /* How many bytes available */
+/*r */	unsigned int off;       /* read/write offset into 'buf' */
+/*rw*/	unsigned char *data;    /* pointer to the record data */
+/*rw*/	unsigned char *input;   /* where the decode bytes are */
+/*r */	unsigned char *comp;    /* only used with decompression - malloc()ed */
 	} SSL3_RECORD;
 
 typedef struct ssl3_buffer_st
 	{
-/*r */	int total;		/* used in non-blocking writes */
-/*r */	int wanted;		/* how many more bytes we need */
-/*rw*/	int left;		/* how many bytes left */
-/*rw*/	int offset;		/* where to 'copy from' */
-/*rw*/	unsigned char *buf;	/* SSL3_RT_MAX_PACKET_SIZE bytes */
+	unsigned char *buf;	/* SSL3_RT_MAX_PACKET_SIZE bytes (more if
+	                   	 * SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER is set) */
+	int offset;		/* where to 'copy from' */
+	int left;		/* how many bytes left */
 	} SSL3_BUFFER;
 
 #define SSL3_CT_RSA_SIGN			1
@@ -236,34 +218,7 @@ typedef struct ssl3_buffer_st
 #define SSL3_FLAGS_POP_BUFFER			0x0004
 #define TLS1_FLAGS_TLS_PADDING_BUG		0x0008
 
-#if 0
-#define AD_CLOSE_NOTIFY			0
-#define AD_UNEXPECTED_MESSAGE		1
-#define AD_BAD_RECORD_MAC		2
-#define AD_DECRYPTION_FAILED		3
-#define AD_RECORD_OVERFLOW		4
-#define AD_DECOMPRESSION_FAILURE	5	/* fatal */
-#define AD_HANDSHAKE_FAILURE		6	/* fatal */
-#define AD_NO_CERTIFICATE		7	/* Not under TLS */
-#define AD_BAD_CERTIFICATE		8
-#define AD_UNSUPPORTED_CERTIFICATE	9
-#define AD_CERTIFICATE_REVOKED		10	
-#define AD_CERTIFICATE_EXPIRED		11
-#define AD_CERTIFICATE_UNKNOWN		12
-#define AD_ILLEGAL_PARAMETER		13	/* fatal */
-#define AD_UNKNOWN_CA			14	/* fatal */
-#define AD_ACCESS_DENIED		15	/* fatal */
-#define AD_DECODE_ERROR			16	/* fatal */
-#define AD_DECRYPT_ERROR		17
-#define AD_EXPORT_RESTRICION		18	/* fatal */
-#define AD_PROTOCOL_VERSION		19	/* fatal */
-#define AD_INSUFFICIENT_SECURITY	20	/* fatal */
-#define AD_INTERNAL_ERROR		21	/* fatal */
-#define AD_USER_CANCLED			22
-#define AD_NO_RENEGOTIATION		23
-#endif
-
-typedef struct ssl3_ctx_st
+typedef struct ssl3_state_st
 	{
 	long flags;
 	int delay_buf_pop_ret;
@@ -278,10 +233,16 @@ typedef struct ssl3_ctx_st
 
 	SSL3_BUFFER rbuf;	/* read IO goes into here */
 	SSL3_BUFFER wbuf;	/* write IO goes into here */
+
 	SSL3_RECORD rrec;	/* each decoded record goes in here */
 	SSL3_RECORD wrec;	/* goes out from here */
-				/* Used by ssl3_read_n to point
-				 * to input data packet */
+
+	/* storage for Alert/Handshake protocol data received but not
+	 * yet processed by ssl3_read_bytes: */
+	unsigned char alert_fragment[2];
+	unsigned int alert_fragment_len;
+	unsigned char handshake_fragment[4];
+	unsigned int handshake_fragment_len;
 
 	/* partial write - check the numbers match */
 	unsigned int wnum;	/* number of bytes sent so far */
@@ -300,7 +261,7 @@ typedef struct ssl3_ctx_st
 
 	int warn_alert;
 	int fatal_alert;
-	/* we alow one fatal and one warning alert to be outstanding,
+	/* we allow one fatal and one warning alert to be outstanding,
 	 * send close alert via the warning alert */
 	int alert_dispatch;
 	unsigned char send_alert[2];
@@ -314,8 +275,14 @@ typedef struct ssl3_ctx_st
 	int in_read_app_data;
 
 	struct	{
-		/* Actually only needs to be 16+20 for SSLv3 and 12 for TLS */
+		/* actually only needs to be 16+20 */
+		unsigned char cert_verify_md[EVP_MAX_MD_SIZE*2];
+
+		/* actually only need to be 16+20 for SSLv3 and 12 for TLS */
 		unsigned char finish_md[EVP_MAX_MD_SIZE*2];
+		int finish_md_len;
+		unsigned char peer_finish_md[EVP_MAX_MD_SIZE*2];
+		int peer_finish_md_len;
 		
 		unsigned long message_size;
 		int message_type;
@@ -351,7 +318,7 @@ typedef struct ssl3_ctx_st
 		int cert_request;
 		} tmp;
 
-	} SSL3_CTX;
+	} SSL3_STATE;
 
 /* SSLv3 */
 /*client */
@@ -429,7 +396,7 @@ typedef struct ssl3_ctx_st
 #define SSL3_ST_SW_FINISHED_A		(0x1E0|SSL_ST_ACCEPT)
 #define SSL3_ST_SW_FINISHED_B		(0x1E1|SSL_ST_ACCEPT)
 
-#define SSL3_MT_CLIENT_REQUEST			0
+#define SSL3_MT_HELLO_REQUEST			0
 #define SSL3_MT_CLIENT_HELLO			1
 #define SSL3_MT_SERVER_HELLO			2
 #define SSL3_MT_CERTIFICATE			11

@@ -56,6 +56,7 @@
  * [including the GNU Public Licence.]
  */
 
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -91,59 +92,78 @@ static char *x509_usage[]={
 " -CAkeyform arg  - CA key format - default PEM\n",
 " -in arg         - input file - default stdin\n",
 " -out arg        - output file - default stdout\n",
+" -passin arg     - private key password source\n",
 " -serial         - print serial number value\n",
 " -hash           - print hash value\n",
 " -subject        - print subject DN\n",
 " -issuer         - print issuer DN\n",
 " -startdate      - notBefore field\n",
 " -enddate        - notAfter field\n",
+" -purpose        - print out certificate purposes\n",
 " -dates          - both Before and After dates\n",
 " -modulus        - print the RSA key modulus\n",
+" -pubkey         - output the public key\n",
 " -fingerprint    - print the certificate fingerprint\n",
+" -alias          - output certificate alias\n",
 " -noout          - no certificate output\n",
-
+" -trustout       - output a \"trusted\" certificate\n",
+" -clrtrust       - clear all trusted purposes\n",
+" -clrreject      - clear all rejected purposes\n",
+" -addtrust arg   - trust certificate for a given purpose\n",
+" -addreject arg  - reject certificate for a given purpose\n",
+" -setalias arg   - set certificate alias\n",
 " -days arg       - How long till expiry of a signed certificate - def 30 days\n",
 " -signkey arg    - self sign cert with arg\n",
 " -x509toreq      - output a certification request object\n",
 " -req            - input is a certificate request, sign and output.\n",
 " -CA arg         - set the CA certificate, must be PEM format.\n",
 " -CAkey arg      - set the CA key, must be PEM format\n",
-"                   missing, it is asssumed to be in the CA file.\n",
+"                   missing, it is assumed to be in the CA file.\n",
 " -CAcreateserial - create serial number file if it does not exist\n",
 " -CAserial       - serial file\n",
 " -text           - print the certificate in text form\n",
 " -C              - print out C code forms\n",
-" -md2/-md5/-sha1/-mdc2 - digest to do an RSA sign with\n",
+" -md2/-md5/-sha1/-mdc2 - digest to use\n",
 " -extfile        - configuration file with X509V3 extensions to add\n",
+" -extensions     - section from config file with X509V3 extensions to add\n",
+" -clrext         - delete extensions before signing and input certificate\n",
 NULL
 };
 
 static int MS_CALLBACK callb(int ok, X509_STORE_CTX *ctx);
-static EVP_PKEY *load_key(char *file, int format);
+static EVP_PKEY *load_key(char *file, int format, char *passin);
 static X509 *load_cert(char *file, int format);
-static int sign (X509 *x, EVP_PKEY *pkey,int days,const EVP_MD *digest,
+static int sign (X509 *x, EVP_PKEY *pkey,int days,int clrext, const EVP_MD *digest,
 						LHASH *conf, char *section);
 static int x509_certify (X509_STORE *ctx,char *CAfile,const EVP_MD *digest,
 			 X509 *x,X509 *xca,EVP_PKEY *pkey,char *serial,
-			 int create,int days, LHASH *conf, char *section);
+			 int create,int days, int clrext, LHASH *conf, char *section);
+static int purpose_print(BIO *bio, X509 *cert, X509_PURPOSE *pt);
 static int reqfile=0;
+
+int MAIN(int, char **);
 
 int MAIN(int argc, char **argv)
 	{
 	int ret=1;
 	X509_REQ *req=NULL;
 	X509 *x=NULL,*xca=NULL;
+	ASN1_OBJECT *objtmp;
 	EVP_PKEY *Upkey=NULL,*CApkey=NULL;
 	int i,num,badops=0;
 	BIO *out=NULL;
 	BIO *STDout=NULL;
+	STACK_OF(ASN1_OBJECT) *trust = NULL, *reject = NULL;
 	int informat,outformat,keyformat,CAformat,CAkeyformat;
 	char *infile=NULL,*outfile=NULL,*keyfile=NULL,*CAfile=NULL;
 	char *CAkeyfile=NULL,*CAserial=NULL;
+	char *alias=NULL;
 	int text=0,serial=0,hash=0,subject=0,issuer=0,startdate=0,enddate=0;
 	int noout=0,sign_flag=0,CA_flag=0,CA_createserial=0;
+	int trustout=0,clrtrust=0,clrreject=0,aliasout=0,clrext=0;
 	int C=0;
-	int x509req=0,days=DEF_DAYS,modulus=0;
+	int x509req=0,days=DEF_DAYS,modulus=0,pubkey=0;
+	int pprint = 0;
 	char **pp;
 	X509_STORE *ctx=NULL;
 	X509_REQ *rq=NULL;
@@ -151,7 +171,8 @@ int MAIN(int argc, char **argv)
 	char buf[256];
 	const EVP_MD *md_alg,*digest=EVP_md5();
 	LHASH *extconf = NULL;
-	char *extsect = NULL, *extfile = NULL;
+	char *extsect = NULL, *extfile = NULL, *passin = NULL, *passargin = NULL;
+	int need_rand = 0;
 
 	reqfile=0;
 
@@ -192,7 +213,10 @@ int MAIN(int argc, char **argv)
 			keyformat=str2fmt(*(++argv));
 			}
 		else if (strcmp(*argv,"-req") == 0)
+			{
 			reqfile=1;
+			need_rand = 1;
+			}
 		else if (strcmp(*argv,"-CAform") == 0)
 			{
 			if (--argc < 1) goto bad;
@@ -213,10 +237,20 @@ int MAIN(int argc, char **argv)
 				goto bad;
 				}
 			}
+		else if (strcmp(*argv,"-passin") == 0)
+			{
+			if (--argc < 1) goto bad;
+			passargin= *(++argv);
+			}
 		else if (strcmp(*argv,"-extfile") == 0)
 			{
 			if (--argc < 1) goto bad;
 			extfile= *(++argv);
+			}
+		else if (strcmp(*argv,"-extensions") == 0)
+			{
+			if (--argc < 1) goto bad;
+			extsect= *(++argv);
 			}
 		else if (strcmp(*argv,"-in") == 0)
 			{
@@ -233,12 +267,14 @@ int MAIN(int argc, char **argv)
 			if (--argc < 1) goto bad;
 			keyfile= *(++argv);
 			sign_flag= ++num;
+			need_rand = 1;
 			}
 		else if (strcmp(*argv,"-CA") == 0)
 			{
 			if (--argc < 1) goto bad;
 			CAfile= *(++argv);
 			CA_flag= ++num;
+			need_rand = 1;
 			}
 		else if (strcmp(*argv,"-CAkey") == 0)
 			{
@@ -250,12 +286,50 @@ int MAIN(int argc, char **argv)
 			if (--argc < 1) goto bad;
 			CAserial= *(++argv);
 			}
+		else if (strcmp(*argv,"-addtrust") == 0)
+			{
+			if (--argc < 1) goto bad;
+			if(!(objtmp = OBJ_txt2obj(*(++argv), 0))) {
+				BIO_printf(bio_err,
+					"Invalid trust object value %s\n", *argv);
+				goto bad;
+			}
+			if(!trust) trust = sk_ASN1_OBJECT_new_null();
+			sk_ASN1_OBJECT_push(trust, objtmp);
+			trustout = 1;
+			}
+		else if (strcmp(*argv,"-addreject") == 0)
+			{
+			if (--argc < 1) goto bad;
+			if(!(objtmp = OBJ_txt2obj(*(++argv), 0))) {
+				BIO_printf(bio_err,
+					"Invalid reject object value %s\n", *argv);
+				goto bad;
+			}
+			if(!reject) reject = sk_ASN1_OBJECT_new_null();
+			sk_ASN1_OBJECT_push(reject, objtmp);
+			trustout = 1;
+			}
+		else if (strcmp(*argv,"-setalias") == 0)
+			{
+			if (--argc < 1) goto bad;
+			alias= *(++argv);
+			trustout = 1;
+			}
+		else if (strcmp(*argv,"-setalias") == 0)
+			{
+			if (--argc < 1) goto bad;
+			alias= *(++argv);
+			trustout = 1;
+			}
 		else if (strcmp(*argv,"-C") == 0)
 			C= ++num;
 		else if (strcmp(*argv,"-serial") == 0)
 			serial= ++num;
 		else if (strcmp(*argv,"-modulus") == 0)
 			modulus= ++num;
+		else if (strcmp(*argv,"-pubkey") == 0)
+			pubkey= ++num;
 		else if (strcmp(*argv,"-x509toreq") == 0)
 			x509req= ++num;
 		else if (strcmp(*argv,"-text") == 0)
@@ -273,15 +347,34 @@ int MAIN(int argc, char **argv)
 			startdate= ++num;
 			enddate= ++num;
 			}
+		else if (strcmp(*argv,"-purpose") == 0)
+			pprint= ++num;
 		else if (strcmp(*argv,"-startdate") == 0)
 			startdate= ++num;
 		else if (strcmp(*argv,"-enddate") == 0)
 			enddate= ++num;
 		else if (strcmp(*argv,"-noout") == 0)
 			noout= ++num;
+		else if (strcmp(*argv,"-trustout") == 0)
+			trustout= 1;
+		else if (strcmp(*argv,"-clrtrust") == 0)
+			clrtrust= ++num;
+		else if (strcmp(*argv,"-clrreject") == 0)
+			clrreject= ++num;
+		else if (strcmp(*argv,"-alias") == 0)
+			aliasout= ++num;
 		else if (strcmp(*argv,"-CAcreateserial") == 0)
 			CA_createserial= ++num;
-		else if ((md_alg=EVP_get_digestbyname(&((*argv)[1]))) != NULL)
+		else if (strcmp(*argv,"-clrext") == 0)
+			clrext = 1;
+#if 1 /* stay backwards-compatible with 0.9.5; this should go away soon */
+		else if (strcmp(*argv,"-crlext") == 0)
+			{
+			BIO_printf(bio_err,"use -clrext instead of -crlext\n");
+			clrext = 1;
+			}
+#endif
+		else if ((md_alg=EVP_get_digestbyname(*argv + 1)))
 			{
 			/* ok */
 			digest=md_alg;
@@ -304,8 +397,15 @@ bad:
 		goto end;
 		}
 
+	if (need_rand)
+		app_RAND_load_file(NULL, bio_err, 0);
+
 	ERR_load_crypto_strings();
-	X509V3_add_standard_extensions();
+
+	if(!app_passwd(bio_err, passargin, NULL, &passin, NULL)) {
+		BIO_printf(bio_err, "Error getting password\n");
+		goto end;
+	}
 
 	if (!X509_STORE_set_default_paths(ctx))
 		{
@@ -335,7 +435,7 @@ bad:
 							,errorline,extfile);
 			goto end;
 		}
-		if(!(extsect = CONF_get_string(extconf, "default",
+		if(!extsect && !(extsect = CONF_get_string(extconf, "default",
 					 "extensions"))) extsect = "default";
 		X509V3_set_ctx_test(&ctx2);
 		X509V3_set_conf_lhash(&ctx2, extconf);
@@ -425,15 +525,9 @@ bad:
 		X509_gmtime_adj(X509_get_notBefore(x),0);
 	        X509_gmtime_adj(X509_get_notAfter(x),(long)60*60*24*days);
 
-#if 0
-		X509_PUBKEY_free(ci->key);
-		ci->key=req->req_info->pubkey;
-	        req->req_info->pubkey=NULL;
-#else
 		pkey = X509_REQ_get_pubkey(req);
 		X509_set_pubkey(x,pkey);
 		EVP_PKEY_free(pkey);
-#endif
 		}
 	else
 		x=load_cert(infile,informat);
@@ -468,6 +562,25 @@ bad:
 			}
 		}
 
+	if(alias) X509_alias_set1(x, (unsigned char *)alias, -1);
+
+	if(clrtrust) X509_trust_clear(x);
+	if(clrreject) X509_reject_clear(x);
+
+	if(trust) {
+		for(i = 0; i < sk_ASN1_OBJECT_num(trust); i++) {
+			objtmp = sk_ASN1_OBJECT_value(trust, i);
+			X509_add1_trust_object(x, objtmp);
+		}
+	}
+
+	if(reject) {
+		for(i = 0; i < sk_ASN1_OBJECT_num(reject); i++) {
+			objtmp = sk_ASN1_OBJECT_value(reject, i);
+			X509_add1_reject_object(x, objtmp);
+		}
+	}
+
 	if (num)
 		{
 		for (i=1; i<=num; i++)
@@ -490,9 +603,27 @@ bad:
 				i2a_ASN1_INTEGER(STDout,x->cert_info->serialNumber);
 				BIO_printf(STDout,"\n");
 				}
+			else if (aliasout == i)
+				{
+				unsigned char *alstr;
+				alstr = X509_alias_get0(x, NULL);
+				if(alstr) BIO_printf(STDout,"%s\n", alstr);
+				else BIO_puts(STDout,"<No Alias>\n");
+				}
 			else if (hash == i)
 				{
 				BIO_printf(STDout,"%08lx\n",X509_subject_name_hash(x));
+				}
+			else if (pprint == i)
+				{
+				X509_PURPOSE *ptmp;
+				int j;
+				BIO_printf(STDout, "Certificate purposes:\n");
+				for(j = 0; j < X509_PURPOSE_get_count(); j++)
+					{
+					ptmp = X509_PURPOSE_get0(j);
+					purpose_print(STDout, x, ptmp);
+					}
 				}
 			else
 				if (modulus == i)
@@ -519,6 +650,21 @@ bad:
 #endif
 					BIO_printf(STDout,"Wrong Algorithm type");
 				BIO_printf(STDout,"\n");
+				EVP_PKEY_free(pkey);
+				}
+			else
+				if (pubkey == i)
+				{
+				EVP_PKEY *pkey;
+
+				pkey=X509_get_pubkey(x);
+				if (pkey == NULL)
+					{
+					BIO_printf(bio_err,"Error getting public key\n");
+					ERR_print_errors(bio_err);
+					goto end;
+					}
+				PEM_write_bio_PUBKEY(STDout, pkey);
 				EVP_PKEY_free(pkey);
 				}
 			else
@@ -598,12 +744,13 @@ bad:
 				unsigned int n;
 				unsigned char md[EVP_MAX_MD_SIZE];
 
-				if (!X509_digest(x,EVP_md5(),md,&n))
+				if (!X509_digest(x,digest,md,&n))
 					{
 					BIO_printf(bio_err,"out of memory\n");
 					goto end;
 					}
-				BIO_printf(STDout,"MD5 Fingerprint=");
+				BIO_printf(STDout,"%s Fingerprint=",
+						OBJ_nid2sn(EVP_MD_type(digest)));
 				for (j=0; j<(int)n; j++)
 					{
 					BIO_printf(STDout,"%02X%c",md[j],
@@ -618,7 +765,7 @@ bad:
 				BIO_printf(bio_err,"Getting Private key\n");
 				if (Upkey == NULL)
 					{
-					Upkey=load_key(keyfile,keyformat);
+					Upkey=load_key(keyfile,keyformat, passin);
 					if (Upkey == NULL) goto end;
 					}
 #ifndef NO_DSA
@@ -626,7 +773,8 @@ bad:
 		                        digest=EVP_dss1();
 #endif
 
-				if (!sign(x,Upkey,days,digest,
+				assert(need_rand);
+				if (!sign(x,Upkey,days,clrext,digest,
 						 extconf, extsect)) goto end;
 				}
 			else if (CA_flag == i)
@@ -634,7 +782,7 @@ bad:
 				BIO_printf(bio_err,"Getting CA Private Key\n");
 				if (CAkeyfile != NULL)
 					{
-					CApkey=load_key(CAkeyfile,CAkeyformat);
+					CApkey=load_key(CAkeyfile,CAkeyformat, passin);
 					if (CApkey == NULL) goto end;
 					}
 #ifndef NO_DSA
@@ -642,8 +790,9 @@ bad:
 		                        digest=EVP_dss1();
 #endif
 				
+				assert(need_rand);
 				if (!x509_certify(ctx,CAfile,digest,x,xca,
-					CApkey, CAserial,CA_createserial,days,
+					CApkey, CAserial,CA_createserial,days, clrext,
 					extconf, extsect))
 					goto end;
 				}
@@ -659,13 +808,16 @@ bad:
 					}
 				else
 					{
-					pk=load_key(keyfile,FORMAT_PEM);
+					pk=load_key(keyfile,FORMAT_PEM, passin);
 					if (pk == NULL) goto end;
 					}
 
 				BIO_printf(bio_err,"Generating certificate request\n");
 
-				rq=X509_to_X509_REQ(x,pk,EVP_md5());
+		                if (pk->type == EVP_PKEY_DSA)
+		                        digest=EVP_dss1();
+
+				rq=X509_to_X509_REQ(x,pk,digest);
 				EVP_PKEY_free(pk);
 				if (rq == NULL)
 					{
@@ -690,9 +842,10 @@ bad:
 
 	if 	(outformat == FORMAT_ASN1)
 		i=i2d_X509_bio(out,x);
-	else if (outformat == FORMAT_PEM)
-		i=PEM_write_bio_X509(out,x);
-	else if (outformat == FORMAT_NETSCAPE)
+	else if (outformat == FORMAT_PEM) {
+		if(trustout) i=PEM_write_bio_X509_AUX(out,x);
+		else i=PEM_write_bio_X509(out,x);
+	} else if (outformat == FORMAT_NETSCAPE)
 		{
 		ASN1_HEADER ah;
 		ASN1_OCTET_STRING os;
@@ -717,6 +870,8 @@ bad:
 		}
 	ret=0;
 end:
+	if (need_rand)
+		app_RAND_write_file(NULL, bio_err);
 	OBJ_cleanup();
 	CONF_free(extconf);
 	BIO_free(out);
@@ -728,13 +883,15 @@ end:
 	EVP_PKEY_free(Upkey);
 	EVP_PKEY_free(CApkey);
 	X509_REQ_free(rq);
-	X509V3_EXT_cleanup();
+	sk_ASN1_OBJECT_pop_free(trust, ASN1_OBJECT_free);
+	sk_ASN1_OBJECT_pop_free(reject, ASN1_OBJECT_free);
+	if(passin) Free(passin);
 	EXIT(ret);
 	}
 
 static int x509_certify(X509_STORE *ctx, char *CAfile, const EVP_MD *digest,
 	     X509 *x, X509 *xca, EVP_PKEY *pkey, char *serialfile, int create,
-	     int days, LHASH *conf, char *section)
+	     int days, int clrext, LHASH *conf, char *section)
 	{
 	int ret=0;
 	BIO *io=NULL;
@@ -750,7 +907,7 @@ static int x509_certify(X509_STORE *ctx, char *CAfile, const EVP_MD *digest,
 	EVP_PKEY_free(upkey);
 
 	X509_STORE_CTX_init(&xsc,ctx,x,NULL);
-	buf=(char *)Malloc(EVP_PKEY_size(pkey)*2+
+	buf=Malloc(EVP_PKEY_size(pkey)*2+
 		((serialfile == NULL)
 			?(strlen(CAfile)+strlen(POSTFIX)+1)
 			:(strlen(serialfile)))+1);
@@ -792,8 +949,8 @@ static int x509_certify(X509_STORE *ctx, char *CAfile, const EVP_MD *digest,
 			}
 		else
 			{
-			ASN1_INTEGER_set(bs,0);
-			BN_zero(serial);
+			ASN1_INTEGER_set(bs,1);
+			BN_one(serial);
 			}
 		}
 	else 
@@ -855,6 +1012,10 @@ static int x509_certify(X509_STORE *ctx, char *CAfile, const EVP_MD *digest,
 	if (X509_gmtime_adj(X509_get_notAfter(x),(long)60*60*24*days) == NULL)
 		goto end;
 
+	if(clrext) {
+		while(X509_get_ext_count(x) > 0) X509_delete_ext(x, 0);
+	}
+
 	if(conf) {
 		X509V3_CTX ctx2;
 		X509_set_version(x,2); /* version 3 certificate */
@@ -909,7 +1070,7 @@ static int MS_CALLBACK callb(int ok, X509_STORE_CTX *ctx)
 		}
 	}
 
-static EVP_PKEY *load_key(char *file, int format)
+static EVP_PKEY *load_key(char *file, int format, char *passin)
 	{
 	BIO *key=NULL;
 	EVP_PKEY *pkey=NULL;
@@ -930,25 +1091,13 @@ static EVP_PKEY *load_key(char *file, int format)
 		perror(file);
 		goto end;
 		}
-#ifndef NO_RSA
-	if	(format == FORMAT_ASN1)
+	if (format == FORMAT_ASN1)
 		{
-		RSA *rsa;
-
-		rsa=d2i_RSAPrivateKey_bio(key,NULL);
-		if (rsa != NULL)
-			{
-			if ((pkey=EVP_PKEY_new()) != NULL)
-				EVP_PKEY_assign_RSA(pkey,rsa);
-			else
-				RSA_free(rsa);
-			}
+		pkey=d2i_PrivateKey_bio(key, NULL);
 		}
-	else
-#endif
-		if (format == FORMAT_PEM)
+	else if (format == FORMAT_PEM)
 		{
-		pkey=PEM_read_bio_PrivateKey(key,NULL,NULL,NULL);
+		pkey=PEM_read_bio_PrivateKey(key,NULL,NULL,passin);
 		}
 	else
 		{
@@ -1031,7 +1180,7 @@ static X509 *load_cert(char *file, int format)
 		ah->data=NULL;
 		}
 	else if (format == FORMAT_PEM)
-		x=PEM_read_bio_X509(cert,NULL,NULL,NULL);
+		x=PEM_read_bio_X509_AUX(cert,NULL,NULL,NULL);
 	else	{
 		BIO_printf(bio_err,"bad input format specified for input cert\n");
 		goto end;
@@ -1049,7 +1198,7 @@ end:
 	}
 
 /* self sign */
-static int sign(X509 *x, EVP_PKEY *pkey, int days, const EVP_MD *digest, 
+static int sign(X509 *x, EVP_PKEY *pkey, int days, int clrext, const EVP_MD *digest, 
 						LHASH *conf, char *section)
 	{
 
@@ -1071,6 +1220,9 @@ static int sign(X509 *x, EVP_PKEY *pkey, int days, const EVP_MD *digest,
 		goto err;
 
 	if (!X509_set_pubkey(x,pkey)) goto err;
+	if(clrext) {
+		while(X509_get_ext_count(x) > 0) X509_delete_ext(x, 0);
+	}
 	if(conf) {
 		X509V3_CTX ctx;
 		X509_set_version(x,2); /* version 3 certificate */
@@ -1084,3 +1236,22 @@ err:
 	ERR_print_errors(bio_err);
 	return(0);
 	}
+
+static int purpose_print(BIO *bio, X509 *cert, X509_PURPOSE *pt)
+{
+	int id, i, idret;
+	char *pname;
+	id = X509_PURPOSE_get_id(pt);
+	pname = X509_PURPOSE_get0_name(pt);
+	for(i = 0; i < 2; i++) {
+		idret = X509_check_purpose(cert, id, i);
+		BIO_printf(bio, "%s%s : ", pname, i ? " CA" : ""); 
+		if(idret == 1) BIO_printf(bio, "Yes\n");
+		else if (idret == 0) BIO_printf(bio, "No\n");
+		else BIO_printf(bio, "Yes (WARNING code=%d)\n", idret);
+	}
+	return 1;
+}
+
+
+

@@ -73,6 +73,7 @@ static int nbiof_gets(BIO *h,char *str,int size);
 static long nbiof_ctrl(BIO *h,int cmd,long arg1,char *arg2);
 static int nbiof_new(BIO *h);
 static int nbiof_free(BIO *data);
+static long nbiof_callback_ctrl(BIO *h,int cmd,void (*fp)());
 typedef struct nbio_test_st
 	{
 	/* only set if we sent a 'should retry' error */
@@ -91,6 +92,7 @@ static BIO_METHOD methods_nbiof=
 	nbiof_ctrl,
 	nbiof_new,
 	nbiof_free,
+	nbiof_callback_ctrl,
 	};
 
 BIO_METHOD *BIO_f_nbio_test(void)
@@ -137,7 +139,7 @@ static int nbiof_read(BIO *b, char *out, int outl)
 
 	BIO_clear_retry_flags(b);
 #if 0
-	RAND_bytes(&n,1);
+	RAND_pseudo_bytes(&n,1);
 	num=(n&0x07);
 
 	if (outl > num) outl=num;
@@ -178,7 +180,7 @@ static int nbiof_write(BIO *b, char *in, int inl)
 		}
 	else
 		{
-		RAND_bytes(&n,1);
+		RAND_pseudo_bytes(&n,1);
 		num=(n&7);
 		}
 
@@ -219,6 +221,20 @@ static long nbiof_ctrl(BIO *b, int cmd, long num, char *ptr)
 		break;
 	default:
 		ret=BIO_ctrl(b->next_bio,cmd,num,ptr);
+		break;
+		}
+	return(ret);
+	}
+
+static long nbiof_callback_ctrl(BIO *b, int cmd, void (*fp)())
+	{
+	long ret=1;
+
+	if (b->next_bio == NULL) return(0);
+	switch (cmd)
+		{
+	default:
+		ret=BIO_callback_ctrl(b->next_bio,cmd,fp);
 		break;
 		}
 	return(ret);

@@ -13,12 +13,19 @@
 #endif
 
 #include <assert.h>
+#include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include <openssl/bio.h>
 #include <openssl/err.h>
+#include <openssl/err.h>
 #include <openssl/crypto.h>
+
+#include "openssl/e_os.h"
+#ifndef SSIZE_MAX
+# define SSIZE_MAX INT_MAX
+#endif
 
 static int bio_new(BIO *bio);
 static int bio_free(BIO *bio);
@@ -40,7 +47,8 @@ static BIO_METHOD methods_biop =
 	NULL /* no bio_gets */,
 	bio_ctrl,
 	bio_new,
-	bio_free
+	bio_free,
+	NULL /* no bio_callback_ctrl */
 };
 
 BIO_METHOD *BIO_s_bio(void)
@@ -64,7 +72,7 @@ struct bio_bio_st
 
 	size_t request; /* valid iff peer != NULL; 0 if len != 0,
 	                 * otherwise set by peer to number of bytes
-	                 * it (unsuccesfully) tried to read,
+	                 * it (unsuccessfully) tried to read,
 	                 * never more than buffer space (size-len) warrants. */
 };
 
@@ -195,6 +203,86 @@ static int bio_read(BIO *bio, char *buf, int size_)
 	return size;
 	}
 
+/* non-copying interface: provide pointer to available data in buffer
+ *    bio_nread0:  return number of available bytes
+ *    bio_nread:   also advance index
+ * (example usage:  bio_nread0(), read from buffer, bio_nread()
+ *  or just         bio_nread(), read from buffer)
+ */
+/* WARNING: The non-copying interface is largely untested as of yet
+ * and may contain bugs. */
+static ssize_t bio_nread0(BIO *bio, char **buf)
+	{
+	struct bio_bio_st *b, *peer_b;
+	ssize_t num;
+	
+	BIO_clear_retry_flags(bio);
+
+	if (!bio->init)
+		return 0;
+	
+	b = bio->ptr;
+	assert(b != NULL);
+	assert(b->peer != NULL);
+	peer_b = b->peer->ptr;
+	assert(peer_b != NULL);
+	assert(peer_b->buf != NULL);
+	
+	peer_b->request = 0;
+	
+	if (peer_b->len == 0)
+		{
+		char dummy;
+		
+		/* avoid code duplication -- nothing available for reading */
+		return bio_read(bio, &dummy, 1); /* returns 0 or -1 */
+		}
+
+	num = peer_b->len;
+	if (peer_b->size < peer_b->offset + num)
+		/* no ring buffer wrap-around for non-copying interface */
+		num = peer_b->size - peer_b->offset;
+	assert(num > 0);
+
+	if (buf != NULL)
+		*buf = peer_b->buf + peer_b->offset;
+	return num;
+	}
+
+static ssize_t bio_nread(BIO *bio, char **buf, size_t num_)
+	{
+	struct bio_bio_st *b, *peer_b;
+	ssize_t num, available;
+
+	if (num_ > SSIZE_MAX)
+		num = SSIZE_MAX;
+	else
+		num = (ssize_t)num_;
+
+	available = bio_nread0(bio, buf);
+	if (num > available)
+		num = available;
+	if (num <= 0)
+		return num;
+
+	b = bio->ptr;
+	peer_b = b->peer->ptr;
+
+	peer_b->len -= num;
+	if (peer_b->len) 
+		{
+		peer_b->offset += num;
+		assert(peer_b->offset <= peer_b->size);
+		if (peer_b->offset == peer_b->size)
+			peer_b->offset = 0;
+		}
+	else
+		peer_b->offset = 0;
+
+	return num;
+	}
+
+
 static int bio_write(BIO *bio, char *buf, int num_)
 	{
 	size_t num = num_;
@@ -268,6 +356,83 @@ static int bio_write(BIO *bio, char *buf, int num_)
 	return num;
 	}
 
+/* non-copying interface: provide pointer to region to write to
+ *   bio_nwrite0:  check how much space is available
+ *   bio_nwrite:   also increase length
+ * (example usage:  bio_nwrite0(), write to buffer, bio_nwrite()
+ *  or just         bio_nwrite(), write to buffer)
+ */
+static ssize_t bio_nwrite0(BIO *bio, char **buf)
+	{
+	struct bio_bio_st *b;
+	size_t num;
+	size_t write_offset;
+
+	BIO_clear_retry_flags(bio);
+
+	if (!bio->init)
+		return 0;
+
+	b = bio->ptr;		
+	assert(b != NULL);
+	assert(b->peer != NULL);
+	assert(b->buf != NULL);
+
+	b->request = 0;
+	if (b->closed)
+		{
+		BIOerr(BIO_F_BIO_NWRITE0, BIO_R_BROKEN_PIPE);
+		return -1;
+		}
+
+	assert(b->len <= b->size);
+
+	if (b->len == b->size)
+		{
+		BIO_set_retry_write(bio);
+		return -1;
+		}
+
+	num = b->size - b->len;
+	write_offset = b->offset + b->len;
+	if (write_offset >= b->size)
+		write_offset -= b->size;
+	if (write_offset + num > b->size)
+		/* no ring buffer wrap-around for non-copying interface
+		 * (to fulfil the promise by BIO_ctrl_get_write_guarantee,
+		 * BIO_nwrite may have to be called twice) */
+		num = b->size - write_offset;
+
+	if (buf != NULL)
+		*buf = b->buf + write_offset;
+	assert(write_offset + num <= b->size);
+
+	return num;
+	}
+
+static ssize_t bio_nwrite(BIO *bio, char **buf, size_t num_)
+	{
+	struct bio_bio_st *b;
+	ssize_t num, space;
+
+	if (num_ > SSIZE_MAX)
+		num = SSIZE_MAX;
+	else
+		num = (ssize_t)num_;
+
+	space = bio_nwrite0(bio, buf);
+	if (num > space)
+		num = space;
+	if (num <= 0)
+		return num;
+	b = bio->ptr;
+	assert(b != NULL);
+	b->len += num;
+	assert(b->len <= b->size);
+
+	return num;
+	}
+
 
 static long bio_ctrl(BIO *bio, int cmd, long num, void *ptr)
 	{
@@ -331,7 +496,7 @@ static long bio_ctrl(BIO *bio, int cmd, long num, void *ptr)
 
 	case BIO_C_GET_WRITE_GUARANTEE:
 		/* How many bytes can the caller feed to the next write
-		 * withouth having to keep any? */
+		 * without having to keep any? */
 		if (b->peer == NULL || b->closed)
 			ret = 0;
 		else
@@ -339,10 +504,19 @@ static long bio_ctrl(BIO *bio, int cmd, long num, void *ptr)
 		break;
 
 	case BIO_C_GET_READ_REQUEST:
-		/* If the peer unsuccesfully tried to read, how many bytes
+		/* If the peer unsuccessfully tried to read, how many bytes
 		 * were requested?  (As with BIO_CTRL_PENDING, that number
 		 * can usually be treated as boolean.) */
 		ret = (long) b->request;
+		break;
+
+	case BIO_C_RESET_READ_REQUEST:
+		/* Reset request.  (Can be useful after read attempts
+		 * at the other side that are meant to be non-blocking,
+		 * e.g. when probing SSL_read to see if any data is
+		 * available.) */
+		b->request = 0;
+		ret = 1;
 		break;
 
 	case BIO_C_SHUTDOWN_WR:
@@ -351,6 +525,26 @@ static long bio_ctrl(BIO *bio, int cmd, long num, void *ptr)
 		ret = 1;
 		break;
 
+	case BIO_C_NREAD0:
+		/* prepare for non-copying read */
+		ret = (long) bio_nread0(bio, ptr);
+		break;
+		
+	case BIO_C_NREAD:
+		/* non-copying read */
+		ret = (long) bio_nread(bio, ptr, (size_t) num);
+		break;
+		
+	case BIO_C_NWRITE0:
+		/* prepare for non-copying write */
+		ret = (long) bio_nwrite0(bio, ptr);
+		break;
+
+	case BIO_C_NWRITE:
+		/* non-copying write */
+		ret = (long) bio_nwrite(bio, ptr, (size_t) num);
+		break;
+		
 
 	/* standard CTRL codes follow */
 
@@ -585,4 +779,79 @@ size_t BIO_ctrl_get_write_guarantee(BIO *bio)
 size_t BIO_ctrl_get_read_request(BIO *bio)
 	{
 	return BIO_ctrl(bio, BIO_C_GET_READ_REQUEST, 0, NULL);
+	}
+
+int BIO_ctrl_reset_read_request(BIO *bio)
+	{
+	return (BIO_ctrl(bio, BIO_C_RESET_READ_REQUEST, 0, NULL) != 0);
+	}
+
+
+/* BIO_nread0/nread/nwrite0/nwrite are available only for BIO pairs for now
+ * (conceivably some other BIOs could allow non-copying reads and writes too.)
+ */
+int BIO_nread0(BIO *bio, char **buf)
+	{
+	long ret;
+
+	if (!bio->init)
+		{
+		BIOerr(BIO_F_BIO_NREAD0, BIO_R_UNINITIALIZED);
+		return -2;
+		}
+
+	ret = BIO_ctrl(bio, BIO_C_NREAD0, 0, buf);
+	if (ret > INT_MAX)
+		return INT_MAX;
+	else
+		return (int) ret;
+	}
+
+int BIO_nread(BIO *bio, char **buf, int num)
+	{
+	int ret;
+
+	if (!bio->init)
+		{
+		BIOerr(BIO_F_BIO_NREAD, BIO_R_UNINITIALIZED);
+		return -2;
+		}
+
+	ret = (int) BIO_ctrl(bio, BIO_C_NREAD, num, buf);
+	if (ret > 0)
+		bio->num_read += ret;
+	return ret;
+	}
+
+int BIO_nwrite0(BIO *bio, char **buf)
+	{
+	long ret;
+
+	if (!bio->init)
+		{
+		BIOerr(BIO_F_BIO_NWRITE0, BIO_R_UNINITIALIZED);
+		return -2;
+		}
+
+	ret = BIO_ctrl(bio, BIO_C_NWRITE0, 0, buf);
+	if (ret > INT_MAX)
+		return INT_MAX;
+	else
+		return (int) ret;
+	}
+
+int BIO_nwrite(BIO *bio, char **buf, int num)
+	{
+	int ret;
+
+	if (!bio->init)
+		{
+		BIOerr(BIO_F_BIO_NWRITE, BIO_R_UNINITIALIZED);
+		return -2;
+		}
+
+	ret = BIO_ctrl(bio, BIO_C_NWRITE, num, buf);
+	if (ret > 0)
+		bio->num_read += ret;
+	return ret;
 	}
