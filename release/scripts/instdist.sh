@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: instdist.sh,v 1.7 1995/01/30 22:52:50 jkh Exp $
+# $Id: instdist.sh,v 1.8 1995/02/02 04:08:13 jkh Exp $
 
 if [ "${_INSTINST_SH_LOADED_}" = "yes" ]; then
 	return 0
@@ -58,12 +58,12 @@ media_set_tmpdir()
 "Please specify the name of a directory containing enough free
 space to hold the temporary files for this distribution.  At
 minimum, a binary distribution will require around 21MB of
-temporary space.  At maximum, a srcdist may take 30MB or more.
-If the directory you specify does not exist, it will be created
-for you.  If you do not have enough free space to hold both the
-packed and unpacked distribution files, consider using the NFS
-or CDROM installation methods as they require no temporary
-storage."; then return 1; fi
+temporary space.  At maximum, a src distribution  may take 30MB
+or more.  If the directory you specify does not exist, it will
+be created for you.  If you do not have enough free space to
+hold both the packed and unpacked distribution files, consider
+using the NFS or CDROM installation methods as they require no
+temporary storage."; then return 1; fi
 	TMPDIR=${ANSWER}
 	mkdir -p ${TMPDIR}
 	return 0
