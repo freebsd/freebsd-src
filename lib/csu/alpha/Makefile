@@ -15,7 +15,7 @@ INTERNALLIB=	true
 all: ${OBJS} ${SOBJS}
 
 gcrt1.o:	crt1.c
-	${CC} ${CFLAGS} -DGCRT -c -o gcrt1.o ${.CURDIR}/crt1.c
+	${CC} ${CFLAGS} -DGCRT -c -o gcrt1.o ${.ALLSRC}
 
 realinstall:
 .for file in ${OBJS} ${SOBJS}
