@@ -819,6 +819,8 @@ vfs_stdextattrctl(mp, cmd, filename_vp, attrnamespace, attrname, td)
 	const char *attrname;
 	struct thread *td;
 {
+	if (filename_vp != NULL)
+		VOP_UNLOCK(filename_vp, 0, td);
 	return(EOPNOTSUPP);
 }
 
