@@ -41,7 +41,6 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl A
-.Op Fl a Ar maxcontig
 .Op Fl e Ar maxbpg
 .Op Fl f Ar avgfilesize
 .Op Fl m Ar minfree
@@ -70,10 +69,6 @@ Specifying
 this option will cause all backups to be modified as well as the
 primary super-block.
 This is potentially dangerous - use with caution.
-.It Fl a Ar maxcontig
-Specify the maximum number of contiguous blocks that will
-be laid out before allowing a rotational delay.
-The default value is 16.
 .It Fl e Ar maxbpg
 Indicate the maximum number of blocks any single file can
 allocate out of a cylinder group before it is forced to begin
