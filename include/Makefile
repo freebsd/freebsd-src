@@ -27,7 +27,7 @@ INCS=	a.out.h ar.h assert.h bitstring.h complex.h cpio.h ctype.h db.h \
 MHDRS=	float.h floatingpoint.h stdarg.h varargs.h
 
 # posix4/aio.h conflicts with dysons and isn't installed:
-PHDRS=	mqueue.h sched.h semaphore.h # aio.h
+PHDRS=	mqueue.h sched.h semaphore.h _semaphore.h # aio.h
 
 LHDRS=	aio.h errno.h fcntl.h linker_set.h poll.h stdint.h syslog.h \
 	termios.h ucontext.h
