@@ -72,6 +72,18 @@ not be recognized without it.
 A bug in FFS that could cause superblock corruption on very large
 filesystems has been corrected.
 
+The cs(4) driver has been updated.
+
+bridge(4) and dummynet(4) have received some enhancements and bugfixes.
+
+The ahc(4) driver has been updated.
+
+The cd(4) driver now has support for write operations.  This allows
+writing to DVD-RAM, PD and similar drives that probe as CD devices.
+Note that change affects only random-access writeable devices, not
+sequential-only writeable devices such as CD-R drives, which are
+supported by cdrecord(1).
+
 
 1.2. SECURITY FIXES
 -------------------
@@ -168,6 +180,13 @@ build a bogus kernel without a human to read the errors.
 
 In /etc/ssh/sshd_config, the ConnectionsPerPeriod parameter has been
 deprecated in favor of MaxStartups.
+
+find(1) now takes the -empty flag, which returns true if a directory
+is empty.
+
+ldconfig(8) now checks directory ownerships and permissions for
+greater security; these checks can be disabled with the -i
+flag.
 
 
 2. Supported Configurations
