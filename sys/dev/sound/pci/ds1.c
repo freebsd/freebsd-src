@@ -39,6 +39,7 @@
 
 #define	DS1_CHANS 4
 #define DS1_RECPRIMARY 0
+#define DS1_IRQHZ ((48000 << 8) / 256)
 
 struct pbank {
 	volatile u_int32_t	Format;
@@ -521,6 +522,12 @@ ds1pchan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 static int
 ds1pchan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 {
+	struct sc_pchinfo *ch = data;
+	int drate;
+
+	/* irq rate is fixed at 187.5hz */
+	drate = ch->spd * sndbuf_getbps(ch->buffer);
+	blocksize = (drate << 8) / DS1_IRQHZ;
 	return blocksize;
 }
 
@@ -842,6 +849,7 @@ ds_init(struct sc_info *sc)
 	ds_wr(sc, YDSXGR_NATIVEDACOUTVOL, 0x3fff3fff, 4);
 	ds_wr(sc, YDSXGR_NATIVEADCINVOL, 0x3fff3fff, 4);
 	ds_wr(sc, YDSXGR_NATIVEDACINVOL, 0x3fff3fff, 4);
+
 	return 0;
 }
 
