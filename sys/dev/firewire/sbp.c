@@ -259,7 +259,7 @@ static struct fw_xfer * sbp_write_cmd __P((struct sbp_dev *, int, int));
 static struct sbp_ocb * sbp_get_ocb __P((struct sbp_softc *));
 static struct sbp_ocb * sbp_enqueue_ocb __P((struct sbp_dev *, struct sbp_ocb *));
 static struct sbp_ocb * sbp_dequeue_ocb __P((struct sbp_dev *, u_int32_t));
-static void sbp_detach_target __P((struct sbp_target *));
+static void sbp_cam_detach_target __P((struct sbp_target *));
 static void sbp_timeout __P((void *arg));
 static void sbp_mgm_orb __P((struct sbp_dev *, int));
 
@@ -625,7 +625,12 @@ END_DEBUG
 		}
 		if(fwdev == NULL){
 			/* device has removed in lower driver */
-			sbp_detach_target(target);
+			sbp_cam_detach_target(target);
+			if (target->luns != NULL)
+				free(target->luns, M_SBP);
+			target->num_lun = 0;;
+			target->luns = NULL;
+			target->fwdev = NULL;
 		}
 	}
 	/* traverse device list */
@@ -1614,6 +1619,41 @@ END_DEBUG
 }
 
 static int
+sbp_logout_all(struct sbp_softc *sbp)
+{
+	struct sbp_target *target;
+	struct sbp_dev *sdev;
+	int i, j;
+
+SBP_DEBUG(0)
+	printf("sbp_logout_all\n");
+END_DEBUG
+	for (i = 0 ; i < SBP_NUM_TARGETS ; i ++) {
+		target = &sbp->targets[i];
+		if (target->luns == NULL)
+			continue;
+		for (j = 0; j < target->num_lun; j++) {
+			sdev = &target->luns[j];
+			if (sdev->status == SBP_DEV_ATTACHED) {
+				sbp_show_sdev_info(sdev, 2);
+				printf("logout\n");
+				sbp_mgm_orb(sdev, ORB_FUN_LGO);
+			}
+		}
+	}
+	return 0;
+}
+
+static int
+sbp_shutdown(device_t dev)
+{
+	struct sbp_softc *sbp = ((struct sbp_softc *)device_get_softc(dev));
+
+	sbp_logout_all(sbp);
+	return (0);
+}
+
+static int
 sbp_detach(device_t dev)
 {
 	struct sbp_softc *sbp = ((struct sbp_softc *)device_get_softc(dev));
@@ -1623,22 +1663,33 @@ sbp_detach(device_t dev)
 SBP_DEBUG(0)
 	printf("sbp_detach\n");
 END_DEBUG
-
+#if 0
 	/* bus reset for logout */
 	sbp->fd.post_explore = NULL;
 	fc->ibr(fc);
+#endif
 	
-	contigfree(sbp->ocb, sizeof (struct sbp_ocb) * SBP_NUM_OCB, M_SBP);
-	fw_bindremove(fc, &sbp->fwb);
 	for (i = 0; i < SBP_NUM_TARGETS; i ++) 
-		sbp_detach_target(&sbp->targets[i]);
+		sbp_cam_detach_target(&sbp->targets[i]);
 	xpt_bus_deregister(cam_sim_path(sbp->sim));
+
+	sbp_logout_all(sbp);
+	/* XXX wait for logout completion */
+	tsleep(&i, FWPRI, "sbpdtc", hz/2);
+
+	fw_bindremove(fc, &sbp->fwb);
+	contigfree(sbp->ocb, sizeof (struct sbp_ocb) * SBP_NUM_OCB, M_SBP);
 	bus_dma_tag_destroy(sbp->dmat);
+
+	for (i = 0; i < SBP_NUM_TARGETS; i ++) 
+		if (sbp->targets[i].luns != NULL)
+			free(sbp->targets[i].luns, M_SBP);
+
 	return (0);
 }
 
 static void
-sbp_detach_target(struct sbp_target *target)
+sbp_cam_detach_target(struct sbp_target *target)
 {
 	int i;
 	struct sbp_dev *sdev;
@@ -1658,10 +1709,7 @@ END_DEBUG
 			sdev->path = NULL;
 			sbp_abort_all_ocbs(sdev, CAM_DEV_NOT_THERE);
 		}
-		free(target->luns, M_SBP);
-		target->luns = NULL;
 	}
-	target->fwdev = NULL;
 }
 
 static void
@@ -2226,6 +2274,7 @@ static device_method_t sbp_methods[] = {
 	DEVMETHOD(device_probe,		sbp_probe),
 	DEVMETHOD(device_attach,	sbp_attach),
 	DEVMETHOD(device_detach,	sbp_detach),
+	DEVMETHOD(device_shutdown,	sbp_shutdown),
 
 	{ 0, 0 }
 };
