@@ -181,7 +181,6 @@ kdb_trap(a0, a1, a2, entry, regs)
 		if (db_nofault) {
 			jmp_buf *no_fault = db_nofault;
 			db_nofault = 0;
-			mtx_exit(&Giant, MTX_DEF);
 			longjmp(*no_fault, 1);
 		}
 	}
