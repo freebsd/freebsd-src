@@ -167,8 +167,16 @@ extern struct open_file files[];
 #define isxdigit(c)	(isdigit(c) || ((c) >= 'a' && (c) <= 'f') || ((c) >= 'A' && (c) <= 'F'))
 #define isascii(c)	((c) >= 0 || (c <= 0x7f))
 #define isalpha(c)	(isupper(c) || (islower(c)))
-#define toupper(c)	((c) - 'a' + 'A')
-#define tolower(c)	((c) - 'A' + 'a')
+
+static __inline int toupper(int c)
+{
+    return islower(c) ? c - 'a' + 'A' : c;
+}
+
+static __inline int tolower(int c)
+{
+    return isupper(c) ? c - 'A' + 'a' : c;
+}
 
 /* sbrk emulation */
 extern void	setheap(void *base, void *top);
