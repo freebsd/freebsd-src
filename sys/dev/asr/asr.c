@@ -478,7 +478,7 @@ ASR_fillMessage(char *Message, u_int16_t size)
 	PI2O_MESSAGE_FRAME Message_Ptr;
 
 	Message_Ptr = getAlignLong(I2O_MESSAGE_FRAME, Message);
-	bzero ((void *)Message_Ptr, size);
+	bzero(Message_Ptr, size);
 	I2O_MESSAGE_FRAME_setVersionOffset(Message_Ptr, I2O_VERSION_11);
 	I2O_MESSAGE_FRAME_setMessageSize(Message_Ptr,
 	  (size + sizeof(U32) - 1) >> 2);
@@ -606,7 +606,7 @@ ASR_getStatus(i2oRegs_t *virt, U8 *fvirt, PI2O_EXEC_STATUS_GET_REPLY buffer)
 	/*
 	 *  Reset the Reply Status
 	 */
-	bzero ((void *)buffer, sizeof(I2O_EXEC_STATUS_GET_REPLY));
+	bzero(buffer, sizeof(I2O_EXEC_STATUS_GET_REPLY));
 	/*
 	 *	Send the Message out
 	 */
@@ -1457,7 +1457,7 @@ ASR_getParams(Asr_softc_t *sc, tid_t TID, int Group, void *Buffer,
 	Operations_Ptr = (struct Operations *)((char *)Message_Ptr
 	  + sizeof(I2O_UTIL_PARAMS_GET_MESSAGE)
 	  + sizeof(I2O_SGE_SIMPLE_ELEMENT)*2 - sizeof(I2O_SG_ELEMENT));
-	bzero ((void *)Operations_Ptr, sizeof(struct Operations));
+	bzero(Operations_Ptr, sizeof(struct Operations));
 	I2O_PARAM_OPERATIONS_LIST_HEADER_setOperationCount(
 	  &(Operations_Ptr->Header), 1);
 	I2O_PARAM_OPERATION_ALL_TEMPLATE_setOperation(
@@ -1466,8 +1466,8 @@ ASR_getParams(Asr_softc_t *sc, tid_t TID, int Group, void *Buffer,
 	  &(Operations_Ptr->Template[0]), 0xFFFF);
 	I2O_PARAM_OPERATION_ALL_TEMPLATE_setGroupNumber(
 	  &(Operations_Ptr->Template[0]), Group);
-	bzero ((void *)(Buffer_Ptr = getAlignLong(struct ParamBuffer, Buffer)),
-	  BufferSize);
+	Buffer_Ptr = getAlignLong(struct ParamBuffer, Buffer);
+	bzero(Buffer_Ptr, BufferSize);
 
 	I2O_MESSAGE_FRAME_setVersionOffset(&(Message_Ptr->StdMessageFrame),
 	  I2O_VERSION_11
@@ -1962,7 +1962,7 @@ ASR_initOutBound(Asr_softc_t *sc)
 			if ((sc->ha_Msgs = (PI2O_SCSI_ERROR_REPLY_MESSAGE_FRAME)
 			  contigmalloc (size, M_DEVBUF, M_WAITOK, 0ul,
 			    0xFFFFFFFFul, (u_long)sizeof(U32), 0ul)) != NULL) {
-				(void)bzero ((char *)sc->ha_Msgs, size);
+				bzero(sc->ha_Msgs, size);
 				sc->ha_Msgs_Phys = KVTOPHYS(sc->ha_Msgs);
 			}
 		}
@@ -2055,7 +2055,7 @@ ASR_acquireHrt(Asr_softc_t *sc)
 	u_int8_t			      NumberOfEntries;
 	PI2O_HRT_ENTRY			      Entry;
 
-	bzero ((void *)&Hrt, sizeof (Hrt));
+	bzero(&Hrt, sizeof (Hrt));
 	Message_Ptr = (I2O_EXEC_HRT_GET_MESSAGE *)ASR_fillMessage(Message,
 	  sizeof(I2O_EXEC_HRT_GET_MESSAGE) - sizeof(I2O_SG_ELEMENT)
 	  + sizeof(I2O_SGE_SIMPLE_ELEMENT));
@@ -2149,10 +2149,10 @@ ASR_sync(Asr_softc_t *sc, int bus, int target, int lun)
 		defAlignLong(PRIVATE_SCSI_SCB_EXECUTE_MESSAGE,Message);
 		PPRIVATE_SCSI_SCB_EXECUTE_MESSAGE	      Message_Ptr;
 
-		bzero (Message_Ptr
-		  = getAlignLong(PRIVATE_SCSI_SCB_EXECUTE_MESSAGE, Message),
-		  sizeof(PRIVATE_SCSI_SCB_EXECUTE_MESSAGE)
-		  - sizeof(I2O_SG_ELEMENT) + sizeof(I2O_SGE_SIMPLE_ELEMENT));
+		Message_Ptr = getAlignLong(PRIVATE_SCSI_SCB_EXECUTE_MESSAGE,
+					   Message);
+		bzero(Message_Ptr, sizeof(PRIVATE_SCSI_SCB_EXECUTE_MESSAGE)
+		    - sizeof(I2O_SG_ELEMENT) + sizeof(I2O_SGE_SIMPLE_ELEMENT));
 
 		I2O_MESSAGE_FRAME_setVersionOffset(
 		  (PI2O_MESSAGE_FRAME)Message_Ptr,
@@ -2516,37 +2516,34 @@ asr_attach(ATTACH_ARGS)
 		PPRIVATE_SCSI_SCB_EXECUTE_MESSAGE	      Message_Ptr;
 		int					      posted = 0;
 
-		bzero (Message_Ptr
-		  = getAlignLong(PRIVATE_SCSI_SCB_EXECUTE_MESSAGE, Message),
-		  sizeof(PRIVATE_SCSI_SCB_EXECUTE_MESSAGE)
-		  - sizeof(I2O_SG_ELEMENT) + sizeof(I2O_SGE_SIMPLE_ELEMENT));
+		Message_Ptr = getAlignLong(PRIVATE_SCSI_SCB_EXECUTE_MESSAGE,
+					   Message);
+		bzero(Message_Ptr, sizeof(PRIVATE_SCSI_SCB_EXECUTE_MESSAGE) -
+		    sizeof(I2O_SG_ELEMENT) + sizeof(I2O_SGE_SIMPLE_ELEMENT));
 
 		I2O_MESSAGE_FRAME_setVersionOffset(
-		  (PI2O_MESSAGE_FRAME)Message_Ptr,
-		  I2O_VERSION_11
-		    | (((sizeof(PRIVATE_SCSI_SCB_EXECUTE_MESSAGE)
-		    - sizeof(I2O_SG_ELEMENT))
-			/ sizeof(U32)) << 4));
+		    (PI2O_MESSAGE_FRAME)Message_Ptr, I2O_VERSION_11 |
+		    (((sizeof(PRIVATE_SCSI_SCB_EXECUTE_MESSAGE)
+		    - sizeof(I2O_SG_ELEMENT)) / sizeof(U32)) << 4));
 		I2O_MESSAGE_FRAME_setMessageSize(
-		  (PI2O_MESSAGE_FRAME)Message_Ptr,
-		  (sizeof(PRIVATE_SCSI_SCB_EXECUTE_MESSAGE)
-		  - sizeof(I2O_SG_ELEMENT) + sizeof(I2O_SGE_SIMPLE_ELEMENT))
-			/ sizeof(U32));
-		I2O_MESSAGE_FRAME_setInitiatorAddress (
-		  (PI2O_MESSAGE_FRAME)Message_Ptr, 1);
+		    (PI2O_MESSAGE_FRAME)Message_Ptr,
+		    (sizeof(PRIVATE_SCSI_SCB_EXECUTE_MESSAGE) -
+		    sizeof(I2O_SG_ELEMENT) + sizeof(I2O_SGE_SIMPLE_ELEMENT)) /
+		    sizeof(U32));
+		I2O_MESSAGE_FRAME_setInitiatorAddress(
+		    (PI2O_MESSAGE_FRAME)Message_Ptr, 1);
 		I2O_MESSAGE_FRAME_setFunction(
-		  (PI2O_MESSAGE_FRAME)Message_Ptr, I2O_PRIVATE_MESSAGE);
-		I2O_PRIVATE_MESSAGE_FRAME_setXFunctionCode (
-		  (PI2O_PRIVATE_MESSAGE_FRAME)Message_Ptr,
-		  I2O_SCSI_SCB_EXEC);
+		    (PI2O_MESSAGE_FRAME)Message_Ptr, I2O_PRIVATE_MESSAGE);
+		I2O_PRIVATE_MESSAGE_FRAME_setXFunctionCode(
+		    (PI2O_PRIVATE_MESSAGE_FRAME)Message_Ptr, I2O_SCSI_SCB_EXEC);
 		PRIVATE_SCSI_SCB_EXECUTE_MESSAGE_setSCBFlags (Message_Ptr,
 		    I2O_SCB_FLAG_ENABLE_DISCONNECT
 		  | I2O_SCB_FLAG_SIMPLE_QUEUE_TAG
 		  | I2O_SCB_FLAG_SENSE_DATA_IN_BUFFER);
 		PRIVATE_SCSI_SCB_EXECUTE_MESSAGE_setInterpret(Message_Ptr, 1);
 		I2O_PRIVATE_MESSAGE_FRAME_setOrganizationID(
-		  (PI2O_PRIVATE_MESSAGE_FRAME)Message_Ptr,
-		  DPT_ORGANIZATION_ID);
+		    (PI2O_PRIVATE_MESSAGE_FRAME)Message_Ptr,
+		    DPT_ORGANIZATION_ID);
 		PRIVATE_SCSI_SCB_EXECUTE_MESSAGE_setCDBLength(Message_Ptr, 6);
 		Message_Ptr->CDB[0] = INQUIRY;
 		Message_Ptr->CDB[4] = (unsigned char)sizeof(struct scsi_inquiry_data);
@@ -3627,7 +3624,7 @@ asr_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 			u_int32_t reserved3;
 		} CtlrInfo;
 
-		bzero (&CtlrInfo, sizeof(CtlrInfo));
+		bzero(&CtlrInfo, sizeof(CtlrInfo));
 		CtlrInfo.length = sizeof(CtlrInfo) - sizeof(u_int16_t);
 		CtlrInfo.drvrHBAnum = asr_unit(dev);
 		CtlrInfo.baseAddr = (u_long)sc->ha_Base;
