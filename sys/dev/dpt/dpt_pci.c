@@ -32,7 +32,7 @@
  *  dptpci.c:  PCI Bus Attachment for DPT SCSI HBAs
  */
 
-#ident "$Id: dpt_pci.c,v 1.7 1998/08/05 00:54:37 eivind Exp $"
+#ident "$Id: dpt_pci.c,v 1.8 1998/09/15 08:33:38 gibbs Exp $"
 
 #include "opt_devfs.h"
 #include "opt_dpt.h"
@@ -126,7 +126,7 @@ dpt_pci_attach(pcici_t config_id, int unit)
 	command = pci_conf_read(config_id, PCI_COMMAND_STATUS_REG);
 #ifdef DPT_ALLOW_MEMIO
 	if ((command & PCI_COMMAND_MEM_ENABLE) == 0
-	 || (pci_map_mem(config_id, PCI_BASEADR1, &vaddr, &paddr)) == 0) {
+	 || (pci_map_mem(config_id, PCI_BASEADR1, &vaddr, &paddr)) == 0)
 #endif
 		if ((command & PCI_COMMAND_IO_ENABLE) == 0
 		 || (pci_map_port(config_id, PCI_BASEADR0, &io_base)) == 0)
