@@ -4,7 +4,7 @@
 #
 
 # PROVIDE: jail
-# REQUIRE: LOGIN
+# REQUIRE: LOGIN cleanvar
 # BEFORE: securelevel
 # KEYWORD: nojail shutdown
 
