@@ -182,10 +182,12 @@ elf_linux_fixup(register_t **stack_base, struct image_params *imgp)
 	AUXARGS_ENTRY(pos, AT_FLAGS, args->flags);
 	AUXARGS_ENTRY(pos, AT_ENTRY, args->entry);
 	AUXARGS_ENTRY(pos, AT_BASE, args->base);
+	PROC_LOCK(imgp->proc);
 	AUXARGS_ENTRY(pos, AT_UID, imgp->proc->p_cred->p_ruid);
 	AUXARGS_ENTRY(pos, AT_EUID, imgp->proc->p_cred->p_svuid);
 	AUXARGS_ENTRY(pos, AT_GID, imgp->proc->p_cred->p_rgid);
 	AUXARGS_ENTRY(pos, AT_EGID, imgp->proc->p_cred->p_svgid);
+	PROC_UNLOCK(imgp->proc);
 	AUXARGS_ENTRY(pos, AT_NULL, 0);
 	
 	free(imgp->auxargs, M_TEMP);      
@@ -217,12 +219,14 @@ linux_rt_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	/*
 	 * Allocate space for the signal handler context.
 	 */
+	PROC_LOCK(p);
 	if ((p->p_flag & P_ALTSTACK) && !oonstack &&
 	    SIGISMEMBER(p->p_sigacts->ps_sigonstack, sig)) {
 		fp = (struct linux_rt_sigframe *)(p->p_sigstk.ss_sp +
 		    p->p_sigstk.ss_size - sizeof(struct linux_rt_sigframe));
 	} else
 		fp = (struct linux_rt_sigframe *)regs->tf_esp - 1;
+	PROC_UNLOCK(p);
 
 	/*
 	 * grow() will return FALSE if the fp will not fit inside the stack
@@ -236,10 +240,12 @@ linux_rt_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		 * Process has trashed its stack; give it an illegal
 		 * instruction to halt it in its tracks.
 		 */
+		PROC_LOCK(p);
 		SIGACTION(p, SIGILL) = SIG_DFL;
 		SIGDELSET(p->p_sigignore, SIGILL);
 		SIGDELSET(p->p_sigcatch, SIGILL);
 		SIGDELSET(p->p_sigmask, SIGILL);
+		PROC_UNLOCK(p);
 #ifdef DEBUG
 		printf("Linux-emul(%ld): linux_rt_sendsig -- bad stack %p, "
 		    "oonstack=%x\n", (long)p->p_pid, fp, oonstack);
@@ -271,10 +277,12 @@ linux_rt_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	frame.sf_sc.uc_flags = 0;		/* XXX ??? */
 	frame.sf_sc.uc_link = NULL;		/* XXX ??? */
 
+	PROC_LOCK(p);
 	frame.sf_sc.uc_stack.ss_sp = p->p_sigstk.ss_sp;
 	frame.sf_sc.uc_stack.ss_size = p->p_sigstk.ss_size;
 	frame.sf_sc.uc_stack.ss_flags = (p->p_flag & P_ALTSTACK)
 	    ? ((oonstack) ? LINUX_SS_ONSTACK : 0) : LINUX_SS_DISABLE;
+	PROC_UNLOCK(p);
 
 	bsd_to_linux_sigset(mask, &frame.sf_sc.uc_sigmask);
 
@@ -367,12 +375,14 @@ linux_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	/*
 	 * Allocate space for the signal handler context.
 	 */
+	PROC_LOCK(p);
 	if ((p->p_flag & P_ALTSTACK) && !oonstack &&
 	    SIGISMEMBER(p->p_sigacts->ps_sigonstack, sig)) {
 		fp = (struct linux_sigframe *)(p->p_sigstk.ss_sp +
 		    p->p_sigstk.ss_size - sizeof(struct linux_sigframe));
 	} else
 		fp = (struct linux_sigframe *)regs->tf_esp - 1;
+	PROC_UNLOCK(p);
 
 	/*
 	 * grow() will return FALSE if the fp will not fit inside the stack
@@ -386,10 +396,12 @@ linux_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		 * Process has trashed its stack; give it an illegal
 		 * instruction to halt it in its tracks.
 		 */
+		PROC_LOCK(p);
 		SIGACTION(p, SIGILL) = SIG_DFL;
 		SIGDELSET(p->p_sigignore, SIGILL);
 		SIGDELSET(p->p_sigcatch, SIGILL);
 		SIGDELSET(p->p_sigmask, SIGILL);
+		PROC_UNLOCK(p);
 		psignal(p, SIGILL);
 		return;
 	}
@@ -524,8 +536,10 @@ linux_sigreturn(p, args)
 	lmask.__bits[0] = frame.sf_sc.sc_mask;
 	for (i = 0; i < (LINUX_NSIG_WORDS-1); i++)
 		lmask.__bits[i+1] = frame.sf_extramask[i];
+	PROC_LOCK(p);
 	linux_to_bsd_sigset(&lmask, &p->p_sigmask);
 	SIG_CANTMASK(p->p_sigmask);
+	PROC_UNLOCK(p);
 
 	/*
 	 * Restore signal context.
@@ -620,8 +634,10 @@ linux_rt_sigreturn(p, args)
 		return(EINVAL);
 	}
 
+	PROC_LOCK(p);
 	linux_to_bsd_sigset(&uc.uc_sigmask, &p->p_sigmask);
 	SIG_CANTMASK(p->p_sigmask);
+	PROC_UNLOCK(p);
 
 	/*
 	 * Restore signal context
