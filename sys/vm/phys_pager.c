@@ -31,6 +31,7 @@
 #include <sys/conf.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/proc.h>
 #include <sys/mutex.h>
 #include <sys/mman.h>
 #include <sys/sysctl.h>
@@ -62,6 +63,8 @@ phys_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 {
 	vm_object_t object;
 
+	GIANT_REQUIRED;
+
 	/*
 	 * Offset should be page aligned.
 	 */
@@ -76,7 +79,7 @@ phys_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 		 */
 		while (phys_pager_alloc_lock) {
 			phys_pager_alloc_lock = -1;
-			msleep(&phys_pager_alloc_lock, &vm_mtx, PVM, "swpalc", 0);
+			tsleep(&phys_pager_alloc_lock, PVM, "swpalc", 0);
 		}
 		phys_pager_alloc_lock = 1;
 

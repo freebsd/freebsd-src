@@ -218,7 +218,6 @@ cpu_startup(dummy)
 	/*
 	 * Good {morning,afternoon,evening,night}.
 	 */
-	mtx_lock(&vm_mtx);
 	earlysetcpuclass();
 	startrtclock();
 	printcpuinfo();
@@ -352,7 +351,6 @@ again:
 	exec_map = kmem_suballoc(kernel_map, &minaddr, &maxaddr,
 				(16*(ARG_MAX+(PAGE_SIZE*3))));
 
-	mtx_unlock(&vm_mtx);
 	/*
 	 * XXX: Mbuf system machine-specific initializations should
 	 *      go here, if anywhere.
@@ -2007,6 +2005,8 @@ f00f_hack(void *unused) {
 	if (!has_f00f_bug)
 		return;
 
+	GIANT_REQUIRED;
+
 	printf("Intel Pentium detected, installing workaround for F00F bug\n");
 
 	r_idt.rd_limit = sizeof(idt0) - 1;
@@ -2022,11 +2022,9 @@ f00f_hack(void *unused) {
 	r_idt.rd_base = (int)new_idt;
 	lidt(&r_idt);
 	idt = new_idt;
-	mtx_lock(&vm_mtx);
 	if (vm_map_protect(kernel_map, tmp, tmp + PAGE_SIZE,
 			   VM_PROT_READ, FALSE) != KERN_SUCCESS)
 		panic("vm_map_protect failed");
-	mtx_unlock(&vm_mtx);
 	return;
 }
 #endif /* defined(I586_CPU) && !NO_F00F_HACK */

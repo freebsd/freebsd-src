@@ -2763,6 +2763,8 @@ fsync(p, uap)
 	vm_object_t obj;
 	int error;
 
+	GIANT_REQUIRED;
+
 	if ((error = getvnode(p->p_fd, SCARG(uap, fd), &fp)) != 0)
 		return (error);
 	vp = (struct vnode *)fp->f_data;
@@ -2770,9 +2772,7 @@ fsync(p, uap)
 		return (error);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
 	if (VOP_GETVOBJECT(vp, &obj) == 0) {
-		mtx_lock(&vm_mtx);
 		vm_object_page_clean(obj, 0, 0, 0);
-		mtx_unlock(&vm_mtx);
 	}
 	error = VOP_FSYNC(vp, fp->f_cred, MNT_WAIT, p);
 #ifdef SOFTUPDATES

@@ -140,6 +140,8 @@ mmrw(dev_t dev, struct uio *uio, int flags)
 	int error = 0;
 	vm_offset_t addr, eaddr;
 
+	GIANT_REQUIRED;
+
 	while (uio->uio_resid > 0 && error == 0) {
 		iov = uio->uio_iov;
 		if (iov->iov_len == 0) {
@@ -155,17 +157,13 @@ mmrw(dev_t dev, struct uio *uio, int flags)
 		case 0:
 			v = uio->uio_offset;
 			v &= ~PAGE_MASK;
-			mtx_lock(&vm_mtx);
 			pmap_kenter((vm_offset_t)ptvmmap, v);
-			mtx_unlock(&vm_mtx);
 			o = (int)uio->uio_offset & PAGE_MASK;
 			c = (u_int)(PAGE_SIZE - ((int)iov->iov_base & PAGE_MASK));
 			c = min(c, (u_int)(PAGE_SIZE - o));
 			c = min(c, (u_int)iov->iov_len);
 			error = uiomove((caddr_t)&ptvmmap[o], (int)c, uio);
-			mtx_lock(&vm_mtx);
 			pmap_kremove((vm_offset_t)ptvmmap);
-			mtx_unlock(&vm_mtx);
 			continue;
 
 /* minor device 1 is kernel memory */
@@ -183,20 +181,16 @@ mmrw(dev_t dev, struct uio *uio, int flags)
 				return EFAULT;
 			if (eaddr >= (vm_offset_t)VADDR(APTDPTDI, 0))
 				return EFAULT;
-			mtx_lock(&vm_mtx);
 			for (; addr < eaddr; addr += PAGE_SIZE) 
 				if (pmap_extract(kernel_pmap, addr) == 0) {
-					mtx_unlock(&vm_mtx);
 					return EFAULT;
 				}
 
 			if (!kernacc((caddr_t)(int)uio->uio_offset, c,
 			    uio->uio_rw == UIO_READ ? 
 			    VM_PROT_READ : VM_PROT_WRITE)) {
-				mtx_unlock(&vm_mtx);
 				return (EFAULT);
 			}
-			mtx_unlock(&vm_mtx);
 			error = uiomove((caddr_t)(int)uio->uio_offset, (int)c, uio);
 			continue;
 		}

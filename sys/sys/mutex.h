@@ -372,8 +372,34 @@ do {									\
 #define	mtx_assert(m, what)						\
 	_mtx_assert((m), (what), __FILE__, __LINE__)
 
+/*
+ *  GIANT_REQUIRED;	- place at the beginning of a procedure 
+ *
+ *
+ */
+
+#define GIANT_REQUIRED							\
+	do {								\
+		KASSERT(curproc->p_giant_optional == 0, ("Giant not optional at %s: %d", __FILE__, __LINE__));						\
+		mtx_assert(&Giant, MA_OWNED);				\
+	} while(0)
+#define START_GIANT_DEPRECIATED(sysctlvar)				\
+	int __gotgiant = (curproc->p_giant_optional == 0 && sysctlvar) ? \
+		(mtx_lock(&Giant), 1) : 0
+#define END_GIANT_DEPRECIATED						\
+	if (__gotgiant) mtx_unlock(&Giant)
+#define START_GIANT_OPTIONAL						\
+	++curproc->p_giant_optional
+#define END_GIANT_OPTIONAL						\
+	--curproc->p_giant_optional
+
 #else	/* INVARIANTS */
 #define mtx_assert(m, what)
+#define GIANT_REQUIRED
+#define START_GIANT_DEPRECIATED(sysctl)
+#define END_GIANT_DEPRECIATED
+#define START_GIANT_OPTIONAL
+#define END_GIANT_OPTIONAL
 #endif	/* INVARIANTS */
 
 #endif	/* _KERNEL */

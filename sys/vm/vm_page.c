@@ -148,7 +148,6 @@ vm_set_page_size()
  *
  *	Add a new page to the freelist for use by the system.
  *	Must be called at splhigh().
- *	Must be called with the vm_mtx held.
  */
 vm_page_t
 vm_add_new_page(pa)
@@ -156,7 +155,8 @@ vm_add_new_page(pa)
 {
 	vm_page_t m;
 
-	mtx_assert(&vm_mtx, MA_OWNED);
+	GIANT_REQUIRED;
+
 	++cnt.v_page_count;
 	++cnt.v_free_count;
 	m = PHYS_TO_VM_PAGE(pa);
@@ -363,7 +363,8 @@ vm_page_insert(m, object, pindex)
 {
 	register struct vm_page **bucket;
 
-	mtx_assert(&vm_mtx, MA_OWNED);
+	GIANT_REQUIRED;
+
 	if (m->object != NULL)
 		panic("vm_page_insert: already inserted");
 
@@ -423,7 +424,8 @@ vm_page_remove(m)
 {
 	vm_object_t object;
 
-	mtx_assert(&vm_mtx, MA_OWNED);
+	GIANT_REQUIRED;
+
 	if (m->object == NULL)
 		return;
 
@@ -487,8 +489,6 @@ vm_page_remove(m)
  *	an interrupt makes a change, but the generation algorithm will not 
  *	operate properly in an SMP environment where both cpu's are able to run
  *	kernel code simultaneously.
- *	NOTE: under the giant vm lock we should be ok, there should be
- *	no reason to check vm_page_bucket_generation
  *
  *	The object must be locked.  No side effects.
  *	This routine may not block.
@@ -604,7 +604,7 @@ vm_page_unqueue(m)
 	int queue = m->queue;
 	struct vpgqueues *pq;
 
-	mtx_assert(&vm_mtx, MA_OWNED);
+	GIANT_REQUIRED;
 	if (queue != PQ_NONE) {
 		m->queue = PQ_NONE;
 		pq = &vm_page_queues[queue];
@@ -645,7 +645,7 @@ _vm_page_list_find(basequeue, index)
 	vm_page_t m = NULL;
 	struct vpgqueues *pq;
 
-	mtx_assert(&vm_mtx, MA_OWNED);
+	GIANT_REQUIRED;
 	pq = &vm_page_queues[basequeue];
 
 	/*
@@ -683,7 +683,7 @@ vm_page_select_cache(object, pindex)
 {
 	vm_page_t m;
 
-	mtx_assert(&vm_mtx, MA_OWNED);
+	GIANT_REQUIRED;
 	while (TRUE) {
 		m = vm_page_list_find(
 		    PQ_CACHE,
@@ -735,7 +735,6 @@ vm_page_select_free(vm_object_t object, vm_pindex_t pindex, boolean_t prefer_zer
  *	VM_ALLOC_INTERRUPT	interrupt time request
  *	VM_ALLOC_ZERO		zero page
  *
- *	vm_mtx must be locked.
  *	This routine may not block.
  *
  *	Additional special handling is required when called from an
@@ -752,7 +751,8 @@ vm_page_alloc(object, pindex, page_req)
 	register vm_page_t m = NULL;
 	int s;
 
-	mtx_assert(&vm_mtx, MA_OWNED);
+	GIANT_REQUIRED;
+
 	KASSERT(!vm_page_lookup(object, pindex),
 		("vm_page_alloc: page already allocated"));
 
@@ -885,13 +885,13 @@ vm_wait()
 	s = splvm();
 	if (curproc == pageproc) {
 		vm_pageout_pages_needed = 1;
-		msleep(&vm_pageout_pages_needed, &vm_mtx, PSWP, "VMWait", 0);
+		tsleep(&vm_pageout_pages_needed, PSWP, "VMWait", 0);
 	} else {
 		if (!vm_pages_needed) {
 			vm_pages_needed = 1;
 			wakeup(&vm_pages_needed);
 		}
-		msleep(&cnt.v_free_count, &vm_mtx, PVM, "vmwait", 0);
+		tsleep(&cnt.v_free_count, PVM, "vmwait", 0);
 	}
 	splx(s);
 }
@@ -938,8 +938,9 @@ vm_page_activate(m)
 {
 	int s;
 
+	GIANT_REQUIRED;
 	s = splvm();
-	mtx_assert(&vm_mtx, MA_OWNED);
+
 	if (m->queue != PQ_ACTIVE) {
 		if ((m->queue - m->pc) == PQ_CACHE)
 			cnt.v_reactivated++;
@@ -1012,9 +1013,8 @@ vm_page_free_toq(vm_page_t m)
 	struct vpgqueues *pq;
 	vm_object_t object = m->object;
 
+	GIANT_REQUIRED;
 	s = splvm();
-
-	mtx_assert(&vm_mtx, MA_OWNED);
 	cnt.v_tfree++;
 
 	if (m->busy || ((m->queue - m->pc) == PQ_FREE) ||
@@ -1252,7 +1252,7 @@ _vm_page_deactivate(vm_page_t m, int athead)
 {
 	int s;
 
-	mtx_assert(&vm_mtx, MA_OWNED);
+	GIANT_REQUIRED;
 	/*
 	 * Ignore if already inactive.
 	 */
@@ -1290,8 +1290,8 @@ vm_page_deactivate(vm_page_t m)
 int
 vm_page_try_to_cache(vm_page_t m)
 {
+	GIANT_REQUIRED;
 
-	mtx_assert(VM_PAGE_MTX(m), MA_OWNED);
 	if (m->dirty || m->hold_count || m->busy || m->wire_count ||
 	    (m->flags & (PG_BUSY|PG_UNMANAGED))) {
 		return(0);
@@ -1339,7 +1339,7 @@ vm_page_cache(m)
 {
 	int s;
 
-	mtx_assert(&vm_mtx, MA_OWNED);
+	GIANT_REQUIRED;
 	if ((m->flags & (PG_BUSY|PG_UNMANAGED)) || m->busy || m->wire_count) {
 		printf("vm_page_cache: attempting to cache busy page\n");
 		return;
@@ -1397,7 +1397,7 @@ vm_page_dontneed(m)
 	int dnw;
 	int head;
 
-	mtx_assert(&vm_mtx, MA_OWNED);
+	GIANT_REQUIRED;
 	dnw = ++dnweight;
 
 	/*
@@ -1438,7 +1438,6 @@ vm_page_dontneed(m)
  * to be in the object.  If the page doesn't exist, allocate it.
  *
  * This routine may block.
- * Requires vm_mtx.
  */
 vm_page_t
 vm_page_grab(object, pindex, allocflags)
@@ -1449,7 +1448,7 @@ vm_page_grab(object, pindex, allocflags)
 	vm_page_t m;
 	int s, generation;
 
-	mtx_assert(&vm_mtx, MA_OWNED);
+	GIANT_REQUIRED;
 retrylookup:
 	if ((m = vm_page_lookup(object, pindex)) != NULL) {
 		if (m->busy || (m->flags & PG_BUSY)) {
@@ -1459,7 +1458,7 @@ retrylookup:
 			while ((object->generation == generation) &&
 					(m->busy || (m->flags & PG_BUSY))) {
 				vm_page_flag_set(m, PG_WANTED | PG_REFERENCED);
-				msleep(m, &vm_mtx, PVM, "pgrbwt", 0);
+				tsleep(m, PVM, "pgrbwt", 0);
 				if ((allocflags & VM_ALLOC_RETRY) == 0) {
 					splx(s);
 					return NULL;
@@ -1522,8 +1521,6 @@ vm_page_bits(int base, int size)
  *	This routine may not block.
  *
  *	(base + size) must be less then or equal to PAGE_SIZE.
- *
- *	vm_mtx needs to be held
  */
 void
 vm_page_set_validclean(m, base, size)
@@ -1535,7 +1532,7 @@ vm_page_set_validclean(m, base, size)
 	int frag;
 	int endoff;
 
-	mtx_assert(&vm_mtx, MA_OWNED);
+	GIANT_REQUIRED;
 	if (size == 0)	/* handle degenerate case */
 		return;
 
@@ -1609,8 +1606,7 @@ vm_page_clear_dirty(m, base, size)
 	int base;
 	int size;
 {
-
-	mtx_assert(&vm_mtx, MA_OWNED);
+	GIANT_REQUIRED;
 	m->dirty &= ~vm_page_bits(base, size);
 }
 
@@ -1630,7 +1626,7 @@ vm_page_set_invalid(m, base, size)
 {
 	int bits;
 
-	mtx_assert(&vm_mtx, MA_OWNED);
+	GIANT_REQUIRED;
 	bits = vm_page_bits(base, size);
 	m->valid &= ~bits;
 	m->dirty &= ~bits;
@@ -1918,16 +1914,10 @@ contigmalloc(size, type, flags, low, high, alignment, boundary)
 	unsigned long boundary;
 {
 	void * ret;
-	int hadvmlock;
 
-	hadvmlock = mtx_owned(&vm_mtx);
-	if (!hadvmlock)
-		mtx_lock(&vm_mtx);
+	GIANT_REQUIRED;
 	ret = contigmalloc1(size, type, flags, low, high, alignment, boundary,
 			     kernel_map);
-	if (!hadvmlock)
-		mtx_unlock(&vm_mtx);
-
 	return (ret);
 
 }
@@ -1938,14 +1928,8 @@ contigfree(addr, size, type)
 	unsigned long size;
 	struct malloc_type *type;
 {
-	int hadvmlock;
-
-	hadvmlock = mtx_owned(&vm_mtx);
-	if (!hadvmlock)
-		mtx_lock(&vm_mtx);
+	GIANT_REQUIRED;
 	kmem_free(kernel_map, (vm_offset_t)addr, size);
-	if (!hadvmlock)
-		mtx_unlock(&vm_mtx);
 }
 
 vm_offset_t
@@ -1956,15 +1940,10 @@ vm_page_alloc_contig(size, low, high, alignment)
 	vm_offset_t alignment;
 {
 	vm_offset_t ret;
-	int hadvmlock;
 
-	hadvmlock = mtx_owned(&vm_mtx);
-	if (!hadvmlock)
-		mtx_lock(&vm_mtx);
+	GIANT_REQUIRED;
 	ret = ((vm_offset_t)contigmalloc1(size, M_DEVBUF, M_NOWAIT, low, high,
 					  alignment, 0ul, kernel_map));
-	if (!hadvmlock)
-		mtx_unlock(&vm_mtx);
 	return (ret);
 
 }

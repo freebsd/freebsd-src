@@ -445,13 +445,13 @@ exec_map_first_page(imgp)
 	vm_page_t ma[VM_INITIAL_PAGEIN];
 	vm_object_t object;
 
+	GIANT_REQUIRED;
 
 	if (imgp->firstpage) {
 		exec_unmap_first_page(imgp);
 	}
 
 	VOP_GETVOBJECT(imgp->vp, &object);
-	mtx_lock(&vm_mtx);
 
 	ma[0] = vm_page_grab(object, 0, VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
 
@@ -482,7 +482,6 @@ exec_map_first_page(imgp)
 				vm_page_protect(ma[0], VM_PROT_NONE);
 				vm_page_free(ma[0]);
 			}
-			mtx_unlock(&vm_mtx);
 			return EIO;
 		}
 	}
@@ -493,7 +492,6 @@ exec_map_first_page(imgp)
 	pmap_kenter((vm_offset_t) imgp->image_header, VM_PAGE_TO_PHYS(ma[0]));
 	imgp->firstpage = ma[0];
 
-	mtx_unlock(&vm_mtx);
 	return 0;
 }
 
@@ -501,12 +499,11 @@ void
 exec_unmap_first_page(imgp)
 	struct image_params *imgp;
 {
+	GIANT_REQUIRED;
 
 	if (imgp->firstpage) {
-		mtx_lock(&vm_mtx);
 		pmap_kremove((vm_offset_t) imgp->image_header);
 		vm_page_unwire(imgp->firstpage, 1);
-		mtx_unlock(&vm_mtx);
 		imgp->firstpage = NULL;
 	}
 }
@@ -525,7 +522,8 @@ exec_new_vmspace(imgp)
 	caddr_t	stack_addr = (caddr_t) (USRSTACK - MAXSSIZ);
 	vm_map_t map = &vmspace->vm_map;
 
-	mtx_assert(&vm_mtx, MA_OWNED);
+	GIANT_REQUIRED;
+
 	imgp->vmspace_destroyed = 1;
 
 	/*

@@ -209,6 +209,8 @@ fork1(p1, flags, procp)
 	struct forklist *ep;
 	struct filedesc *fd;
 
+	GIANT_REQUIRED;
+
 	/* Can't copy and clear */
 	if ((flags & (RFFDG|RFCFDG)) == (RFFDG|RFCFDG))
 		return (EINVAL);
@@ -218,9 +220,7 @@ fork1(p1, flags, procp)
 	 * certain parts of a process from itself.
 	 */
 	if ((flags & RFPROC) == 0) {
-
 		vm_fork(p1, 0, flags);
-		mtx_assert(&vm_mtx, MA_NOTOWNED);
 
 		/*
 		 * Close all file descriptors.
@@ -561,7 +561,6 @@ again:
 	 * execution path later.  (ie: directly into user mode)
 	 */
 	vm_fork(p1, p2, flags);
-	mtx_assert(&vm_mtx, MA_NOTOWNED);
 
 	if (flags == (RFFDG | RFPROC)) {
 		cnt.v_forks++;

@@ -248,13 +248,14 @@ pipespace(cpipe, size)
 	caddr_t buffer;
 	int npages, error;
 
+	GIANT_REQUIRED;
+
 	npages = round_page(size)/PAGE_SIZE;
 	/*
 	 * Create an object, I don't like the idea of paging to/from
 	 * kernel_object.
 	 * XXX -- minor change needed here for NetBSD/OpenBSD VM systems.
 	 */
-	mtx_lock(&vm_mtx);
 	object = vm_object_allocate(OBJT_DEFAULT, npages);
 	buffer = (caddr_t) vm_map_min(kernel_map);
 
@@ -269,13 +270,11 @@ pipespace(cpipe, size)
 
 	if (error != KERN_SUCCESS) {
 		vm_object_deallocate(object);
-		mtx_unlock(&vm_mtx);
 		return (ENOMEM);
 	}
 
 	/* free old resources if we're resizing */
 	pipe_free_kmem(cpipe);
-	mtx_unlock(&vm_mtx);
 	cpipe->pipe_buffer.object = object;
 	cpipe->pipe_buffer.buffer = buffer;
 	cpipe->pipe_buffer.size = size;
@@ -551,12 +550,13 @@ pipe_build_write_buffer(wpipe, uio)
 	int i;
 	vm_offset_t addr, endaddr, paddr;
 
+	GIANT_REQUIRED;
+
 	size = (u_int) uio->uio_iov->iov_len;
 	if (size > wpipe->pipe_buffer.size)
 		size = wpipe->pipe_buffer.size;
 
 	endaddr = round_page((vm_offset_t)uio->uio_iov->iov_base + size);
-	mtx_lock(&vm_mtx);
 	addr = trunc_page((vm_offset_t)uio->uio_iov->iov_base);
 	for (i = 0; addr < endaddr; addr += PAGE_SIZE, i++) {
 		vm_page_t m;
@@ -567,7 +567,6 @@ pipe_build_write_buffer(wpipe, uio)
 
 			for (j = 0; j < i; j++)
 				vm_page_unwire(wpipe->pipe_map.ms[j], 1);
-			mtx_unlock(&vm_mtx);
 			return (EFAULT);
 		}
 
@@ -599,7 +598,6 @@ pipe_build_write_buffer(wpipe, uio)
 	pmap_qenter(wpipe->pipe_map.kva, wpipe->pipe_map.ms,
 		wpipe->pipe_map.npages);
 
-	mtx_unlock(&vm_mtx);
 /*
  * and update the uio data
  */
@@ -622,7 +620,8 @@ pipe_destroy_write_buffer(wpipe)
 {
 	int i;
 
-	mtx_lock(&vm_mtx);
+	GIANT_REQUIRED;
+
 	if (wpipe->pipe_map.kva) {
 		pmap_qremove(wpipe->pipe_map.kva, wpipe->pipe_map.npages);
 
@@ -636,7 +635,6 @@ pipe_destroy_write_buffer(wpipe)
 	}
 	for (i = 0; i < wpipe->pipe_map.npages; i++)
 		vm_page_unwire(wpipe->pipe_map.ms[i], 1);
-	mtx_unlock(&vm_mtx);
 }
 
 /*
@@ -1167,8 +1165,8 @@ static void
 pipe_free_kmem(cpipe)
 	struct pipe *cpipe;
 {
+	GIANT_REQUIRED;
 
-	mtx_assert(&vm_mtx, MA_OWNED);
 	if (cpipe->pipe_buffer.buffer != NULL) {
 		if (cpipe->pipe_buffer.size > PIPE_SIZE)
 			--nbigpipe;
@@ -1228,13 +1226,11 @@ pipeclose(cpipe)
 		/*
 		 * free resources
 		 */
-		mtx_lock(&vm_mtx);
 		pipe_free_kmem(cpipe);
 		/* XXX: erm, doesn't zalloc already have its own locks and
 		 * not need the giant vm lock?
 		 */
 		zfree(pipe_zone, cpipe);
-		mtx_unlock(&vm_mtx);
 	}
 }
 

@@ -169,49 +169,44 @@ extern vm_object_t kmem_object;
 
 #ifdef _KERNEL
 
-/*
- * For now a global vm lock.
- */
-#define	VM_OBJECT_MTX(object)	(&vm_mtx)
-
 static __inline void
 vm_object_set_flag(vm_object_t object, u_short bits)
 {
-
-	mtx_assert(VM_OBJECT_MTX(object), MA_OWNED);
-	object->flags |= bits;
+	GIANT_REQUIRED;
+	atomic_set_short(&object->flags, bits);
+	/* object->flags |= bits; */
 }
 
 static __inline void
 vm_object_clear_flag(vm_object_t object, u_short bits)
 {
-
-	mtx_assert(VM_OBJECT_MTX(object), MA_OWNED);
-	object->flags &= ~bits;
+	GIANT_REQUIRED;
+	atomic_clear_short(&object->flags, bits);
+	/* object->flags &= ~bits; */
 }
 
 static __inline void
 vm_object_pip_add(vm_object_t object, short i)
 {
-
-	mtx_assert(VM_OBJECT_MTX(object), MA_OWNED);
-	object->paging_in_progress += i;
+	GIANT_REQUIRED;
+	atomic_add_short(&object->paging_in_progress, i);
+	/* object->paging_in_progress += i; */
 }
 
 static __inline void
 vm_object_pip_subtract(vm_object_t object, short i)
 {
-
-	mtx_assert(VM_OBJECT_MTX(object), MA_OWNED);
-	object->paging_in_progress -= i;
+	GIANT_REQUIRED;
+	atomic_subtract_short(&object->paging_in_progress, i);
+	/* object->paging_in_progress -= i; */
 }
 
 static __inline void
 vm_object_pip_wakeup(vm_object_t object)
 {
-
-	mtx_assert(VM_OBJECT_MTX(object), MA_OWNED);
-	object->paging_in_progress--;
+	GIANT_REQUIRED;
+	atomic_subtract_short(&object->paging_in_progress, 1);
+	/* object->paging_in_progress--; */
 	if ((object->flags & OBJ_PIPWNT) && object->paging_in_progress == 0) {
 		vm_object_clear_flag(object, OBJ_PIPWNT);
 		wakeup(object);
@@ -221,10 +216,9 @@ vm_object_pip_wakeup(vm_object_t object)
 static __inline void
 vm_object_pip_wakeupn(vm_object_t object, short i)
 {
-
-	mtx_assert(VM_OBJECT_MTX(object), MA_OWNED);
+	GIANT_REQUIRED;
 	if (i)
-		object->paging_in_progress -= i;
+		atomic_subtract_short(&object->paging_in_progress, i);
 	if ((object->flags & OBJ_PIPWNT) && object->paging_in_progress == 0) {
 		vm_object_clear_flag(object, OBJ_PIPWNT);
 		wakeup(object);
@@ -234,13 +228,12 @@ vm_object_pip_wakeupn(vm_object_t object, short i)
 static __inline void
 vm_object_pip_sleep(vm_object_t object, char *waitid)
 {
-
-	mtx_assert(VM_OBJECT_MTX(object), MA_OWNED);
+	GIANT_REQUIRED;
 	if (object->paging_in_progress) {
 		int s = splvm();
 		if (object->paging_in_progress) {
 			vm_object_set_flag(object, OBJ_PIPWNT);
-			msleep(object, VM_OBJECT_MTX(object), PVM, waitid, 0);
+			tsleep(object, PVM, waitid, 0);
 		}
 		splx(s);
 	}
@@ -249,8 +242,7 @@ vm_object_pip_sleep(vm_object_t object, char *waitid)
 static __inline void
 vm_object_pip_wait(vm_object_t object, char *waitid)
 {
-
-	mtx_assert(VM_OBJECT_MTX(object), MA_OWNED);
+	GIANT_REQUIRED;
 	while (object->paging_in_progress)
 		vm_object_pip_sleep(object, waitid);
 }
