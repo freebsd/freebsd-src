@@ -47,13 +47,13 @@ _pam_verbose_error(pam_handle_t *pamh, int flags,
 	va_list ap;
 	char *fmtbuf, *modname, *period;
 
-	if (!(flags & PAM_SILENT) || !openpam_get_option(pamh, "no_warn")) {
+	if (!(flags & PAM_SILENT) && !openpam_get_option(pamh, "no_warn")) {
 		modname = basename(file);
 		period = strchr(modname, '.');
 		if (period == NULL)
 			period = strchr(modname, '\0');
 		va_start(ap, format);
-		asprintf(&fmtbuf, "%.*s: %s: %s", period - modname, modname,
+		asprintf(&fmtbuf, "%.*s: %s: %s\n", period - modname, modname,
 		    function, format);
 		pam_verror(pamh, fmtbuf, ap);
 		free(fmtbuf);
