@@ -210,9 +210,20 @@ This option is to notify
 that it is dumping a live file system.
 To obtain a consistent dump image,
 .Nm
-takes a snapshot of the file system and
+takes a snapshot of the file system in the
+.Pa .snap
+directory in the root of the filesystem being dumped and
 then does a dump of the snapshot.
 The snapshot is removed when the dump is complete.
+If the
+.Pa .snap
+directory does not exist in the root of the filesystem being dumped,
+the dump will fail.
+This problem can be corrected by creating a
+.Pa .snap
+directory in the root of the filesystem to be dumped;
+its owner should be root, its group should be operator,
+and its mode should be 0770.
 .It Fl n
 Whenever
 .Nm
