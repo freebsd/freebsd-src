@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.41 1998/01/24 02:54:43 eivind Exp $
+ *	$Id: wd.c,v 1.42 1998/01/24 06:54:17 kato Exp $
  */
 
 /* TODO:
@@ -629,8 +629,9 @@ wdattach(struct isa_device *dvp)
 #else
 	for (unit=0; unit<2; ++unit) {
 #endif /* PC98 */
-		for (lunit=0; lunit<NWD && wddrives[lunit]; ++lunit)
-			if (wddrives[lunit]->dk_ctrlr == dvp->id_unit &&
+		for (lunit=0; lunit<NWD; ++lunit)
+			if (wddrives[lunit] &&
+			    wddrives[lunit]->dk_ctrlr == dvp->id_unit &&
 			    wddrives[lunit]->dk_unit == unit)
 				goto next;
 #ifdef CMD640
