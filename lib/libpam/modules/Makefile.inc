@@ -7,6 +7,7 @@ INTERNALSTATICLIB=yes
 
 CFLAGS+=	-I${PAMDIR}/include
 CFLAGS+=	-I${.CURDIR}/../../libpam
+WARNS?=		4
 
 # This is nasty.
 # For the static case, libpam.a depends on the modules.
