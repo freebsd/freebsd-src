@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.14 (Berkeley) 5/21/95
- * $Id: spec_vnops.c,v 1.72 1998/09/04 08:06:56 dfr Exp $
+ * $Id: spec_vnops.c,v 1.73 1998/09/05 14:13:12 phk Exp $
  */
 
 #include <sys/param.h>
@@ -61,7 +61,7 @@ static int	spec_advlock __P((struct vop_advlock_args *));
 static int	spec_badop __P((void));
 static int	spec_bmap __P((struct vop_bmap_args *));
 static int	spec_close __P((struct vop_close_args *));
-static void	spec_freeblks __P((struct vop_freeblks_args *));
+static int	spec_freeblks __P((struct vop_freeblks_args *));
 static int	spec_fsync __P((struct  vop_fsync_args *));
 static int	spec_getattr __P((struct  vop_getattr_args *));
 static int	spec_getpages __P((struct vop_getpages_args *));
@@ -84,6 +84,7 @@ static struct vnodeopv_entry_desc spec_vnodeop_entries[] = {
 	{ &vop_bmap_desc,		(vop_t *) spec_bmap },
 	{ &vop_close_desc,		(vop_t *) spec_close },
 	{ &vop_create_desc,		(vop_t *) spec_badop },
+	{ &vop_freeblks_desc,		(vop_t *) spec_freeblks },
 	{ &vop_fsync_desc,		(vop_t *) spec_fsync },
 	{ &vop_getattr_desc,		(vop_t *) spec_getattr },
 	{ &vop_getpages_desc,		(vop_t *) spec_getpages },
@@ -110,7 +111,6 @@ static struct vnodeopv_entry_desc spec_vnodeop_entries[] = {
 	{ &vop_strategy_desc,		(vop_t *) spec_strategy },
 	{ &vop_symlink_desc,		(vop_t *) spec_badop },
 	{ &vop_write_desc,		(vop_t *) spec_write },
-	{ &vop_freeblks_desc,		(vop_t *) spec_freeblks },
 	{ NULL, NULL }
 };
 static struct vnodeopv_desc spec_vnodeop_opv_desc =
@@ -542,7 +542,7 @@ spec_strategy(ap)
 	return (0);
 }
 
-static void
+static int
 spec_freeblks(ap)
 	struct vop_freeblks_args /* {
 		struct vnode *a_vp;
@@ -555,7 +555,7 @@ spec_freeblks(ap)
 
 	bsw = bdevsw[major(ap->a_vp->v_rdev)];
 	if ((bsw->d_flags & D_CANFREE) == 0)
-		return;
+		return (0);
 	bp = geteblk(ap->a_length);
 	bp->b_flags |= B_FREEBUF | B_BUSY;
 	bp->b_dev = ap->a_vp->v_rdev;
@@ -563,6 +563,7 @@ spec_freeblks(ap)
 	bp->b_offset = dbtob(ap->a_addr);
 	bp->b_bcount = ap->a_length;
 	(*bsw->d_strategy)(bp);
+	return (0);
 }
 
 /*
