@@ -103,7 +103,7 @@ char	*s;
 	struct cvntab		*r;
 
 	r = getcodpar(s, Yntab);
-	return ((int) r->value);
+	return ((long) r->value);
 }
 
 
