@@ -273,7 +273,7 @@ aac_disk_dump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size
 
 		if (aac_sync_fib(sc, ContainerCommand, 0, fib, size)) {
 			printf("Error dumping block 0x%jx\n",
-			       (uintptr_t)physical);
+			       (uintmax_t)physical);
 			return (EIO);
 		}
 
