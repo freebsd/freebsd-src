@@ -252,13 +252,13 @@ static int	nfsaccess_cache_timeout = NFS_MAXATTRTIMO;
 SYSCTL_INT(_vfs_nfs, OID_AUTO, access_cache_timeout, CTLFLAG_RW, 
 	   &nfsaccess_cache_timeout, 0, "NFS ACCESS cache timeout");
 
-static int	nfsaccess_cache_hits;
+#if 0
 SYSCTL_INT(_vfs_nfs, OID_AUTO, access_cache_hits, CTLFLAG_RD, 
-	   &nfsaccess_cache_hits, 0, "NFS ACCESS cache hit count");
+	   &nfsstats.accesscache_hits, 0, "NFS ACCESS cache hit count");
 
-static int	nfsaccess_cache_misses;
 SYSCTL_INT(_vfs_nfs, OID_AUTO, access_cache_misses, CTLFLAG_RD, 
-	   &nfsaccess_cache_misses, 0, "NFS ACCESS cache miss count");
+	   &nfsstats.accesscache_misses, 0, "NFS ACCESS cache miss count");
+#endif
 
 #define	NFSV3ACCESS_ALL (NFSV3ACCESS_READ | NFSV3ACCESS_MODIFY		\
 			 | NFSV3ACCESS_EXTEND | NFSV3ACCESS_EXECUTE	\
@@ -375,12 +375,12 @@ nfs_access(ap)
 		if ((time_second < (np->n_modestamp + nfsaccess_cache_timeout)) &&
 		    (ap->a_cred->cr_uid == np->n_modeuid) &&
 		    ((np->n_mode & mode) == mode)) {
-			nfsaccess_cache_hits++;
+			nfsstats.accesscache_hits++;
 		} else {
 			/*
 			 * Either a no, or a don't know.  Go to the wire.
 			 */
-			nfsaccess_cache_misses++;
+			nfsstats.accesscache_misses++;
 		        error = nfs3_access_otw(vp, wmode, ap->a_p,ap->a_cred);
 			if (!error) {
 				if ((np->n_mode & mode) != mode) {
@@ -610,6 +610,7 @@ nfs_getattr(ap)
 		return (0);
 
 	if (v3 && nfsaccess_cache_timeout > 0) {
+		nfsstats.accesscache_misses++;
 		nfs3_access_otw(vp, NFSV3ACCESS_ALL, ap->a_p, ap->a_cred);
 		if (nfs_getattrcache(vp, ap->a_vap) == 0)
 			return (0);
