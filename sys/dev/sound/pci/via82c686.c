@@ -569,9 +569,11 @@ via_attach(device_t dev)
 		goto bad;
 	}
 
-	if (bus_dmamem_alloc(via->sgd_dmat, (void **)&via->sgd_table, BUS_DMA_NOWAIT, &via->sgd_dmamap) == -1)
+	if (bus_dmamem_alloc(via->sgd_dmat, (void **)&via->sgd_table,
+	    BUS_DMA_NOWAIT, &via->sgd_dmamap) != 0)
 		goto bad;
-	if (bus_dmamap_load(via->sgd_dmat, via->sgd_dmamap, via->sgd_table, NSEGS * sizeof(struct via_dma_op), dma_cb, via, 0))
+	if (bus_dmamap_load(via->sgd_dmat, via->sgd_dmamap, via->sgd_table,
+	    NSEGS * sizeof(struct via_dma_op), dma_cb, via, 0) != 0)
 		goto bad;
 
 	snprintf(status, SND_STATUSLEN, "at io 0x%lx irq %ld %s",
