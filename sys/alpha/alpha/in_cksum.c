@@ -88,14 +88,9 @@ union q_util {
 	u_int64_t q;
 };
 
-u_int64_t	in_cksumdata __P((caddr_t buf, int len));
-
-u_int64_t
-in_cksumdata(buf, len)
-	register caddr_t buf;
-	register int len;
+static u_int64_t
+in_cksumdata(const u_int32_t *lw, int len)
 {
-	const u_int32_t *lw = (u_int32_t *) buf;
 	u_int64_t sum = 0;
 	u_int64_t prefilled;
 	int offset;
@@ -195,10 +190,7 @@ in_pseudo(u_int32_t a, u_int32_t b, u_int32_t c)
 }
 
 u_short
-in_cksum_skip(m, len, skip)
-	struct mbuf *m;
-	int len;
-	int skip;
+in_cksum_skip(struct mbuf *m, int len, int skip)
 {
 	u_int64_t sum = 0;
 	int mlen = 0;
@@ -227,9 +219,9 @@ skip_start:
 		if (len < mlen)
 			mlen = len;
 		if ((clen ^ (long) addr) & 1)
-		    sum += in_cksumdata(addr, mlen) << 8;
+		    sum += in_cksumdata((const u_int32_t *)addr, mlen) << 8;
 		else
-		    sum += in_cksumdata(addr, mlen);
+		    sum += in_cksumdata((const u_int32_t *)addr, mlen);
 
 		clen += mlen;
 		len -= mlen;
@@ -238,12 +230,12 @@ skip_start:
 	return (~sum & 0xffff);
 }
 
-u_int in_cksum_hdr(ip)
-    const struct ip *ip;
+u_int in_cksum_hdr(const struct ip *ip)
 {
-    u_int64_t sum = in_cksumdata((caddr_t) ip, sizeof(struct ip));
+    u_int64_t sum = in_cksumdata((const u_int32_t *)ip, sizeof(struct ip));
     union q_util q_util;
     union l_util l_util;
+
     REDUCE16;
     return (~sum & 0xffff);
 }
