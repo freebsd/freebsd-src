@@ -333,6 +333,7 @@ tty_device2iov(struct device *d, struct iovec *iov, int *niov,
 static struct device basettydevice = {
   TTY_DEVICE,
   "tty",
+  0,
   { CD_VARIABLE, DEF_TTYCDDELAY },
   tty_AwaitCarrier,
   NULL,

@@ -28,6 +28,8 @@
 
 #include <sys/param.h>
 
+#include <sys/socket.h>
+#include <net/route.h>
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
@@ -54,6 +56,7 @@
 #include "filter.h"
 #include "descriptor.h"
 #include "mp.h"
+#include "iface.h"
 #ifndef NORADIUS
 #include "radius.h"
 #endif
@@ -93,7 +96,7 @@ tcpmss_LayerPush(struct bundle *bundle, struct link *l, struct mbuf *bp,
       ntohs(pip->ip_len) == plen && hlen <= plen &&
       plen - hlen >= sizeof(struct tcphdr))
     MSSFixup((struct tcphdr *)(MBUF_CTOP(bp) + hlen), plen - hlen,
-             MAXMSS(bundle->mtu));
+             MAXMSS(bundle->iface->mtu));
 
   return bp;
 }

@@ -4917,32 +4917,60 @@ Setting this option enables Multi-link PPP negotiations, also known as
 Multi-link Protocol or MP.
 There is no default MRRU (Maximum Reconstructed Receive Unit) value.
 If no argument is given, multi-link mode is disabled.
-.It set mru Op Ar value
+.It set mru Oo max Ns Oo imum Oc Oc Op Ar value
 The default MRU (Maximum Receive Unit) is 1500.
 If it is increased, the other side *may* increase its MTU.
-There is no point in decreasing the MRU to below the default as the
+In theory there is no point in decreasing the MRU to below the default as the
 .Em PPP
-protocol *must* be able to accept packets of at least 1500 octets.
+protocol says implementations *must* be able to accept packets of at
+least 1500 octets.
+.Pp
+If the
+.Dq maximum
+keyword is used,
+.Nm
+will refuse to negotiate a higher value.
+The maximum MRU can be set to 2048 at most.
+Setting a maximum of less than 1500 violates the
+.Em PPP
+rfc, but may sometimes be necessary.
+For example,
+.Em PPPoE
+imposes a maximum of 1492 due to hardware limitations.
+.Pp
 If no argument is given, 1500 is assumed.
-.It set mtu Op Ar value
+A value must be given when
+.Dq maximum
+is specified.
+.It set mtu Oo max Ns Oo imum Oc Oc Op Ar value
 The default MTU is 1500.
 At negotiation time,
 .Nm
-will accept whatever MRU or MRRU that the peer wants (assuming it's
-not less than 296 bytes).
+will accept whatever MRU the peer requests (assuming it's
+not less than 296 bytes or greater than the assigned maximum).
 If the MTU is set,
 .Nm
-will not accept MRU/MRRU values less than
+will not accept MRU values less than
 .Ar value .
-When negotiations are complete, the MTU is assigned to the interface, even
-if the peer requested a higher value MRU/MRRU.
+When negotiations are complete, the MTU is used when writing to the
+interface, even if the peer requested a higher value MRU.
 This can be useful for
 limiting your packet size (giving better bandwidth sharing at the expense
 of more header data).
 .Pp
+If the
+.Dq maximum
+keyword is used,
+.Nm
+will refuse to negotiate a higher value.
+The maximum MTU can be set to 2048 at most.
+.Pp
 If no
 .Ar value
 is given, 1500, or whatever the peer asks for is used.
+A value must be given when
+.Dq maximum
+is specified.
 .It set nbns Op Ar x.x.x.x Op Ar y.y.y.y
 This option allows the setting of the Microsoft NetBIOS name server
 values to be returned at the peers request.

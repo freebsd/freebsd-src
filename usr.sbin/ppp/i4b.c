@@ -293,6 +293,7 @@ i4b_device2iov(struct device *d, struct iovec *iov, int *niov,
 static struct device basei4bdevice = {
   I4B_DEVICE,
   "i4b",
+  0,
   { CD_REQUIRED, DEF_I4BCDDELAY },
   i4b_AwaitCarrier,
   NULL,
