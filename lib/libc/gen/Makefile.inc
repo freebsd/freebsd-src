@@ -57,8 +57,6 @@ MAN3+=  alarm.3 arc4random.3 clock.3 \
 	valloc.3 vis.3
 
 MLINKS+=arc4random.3 arc4random_addrandom.3 arc4random.3 arc4random_stir.3
-MLINKS+=crypt.3 des_cipher.3 crypt.3 des_setkey.3 crypt.3 encrypt.3 \
-	crypt.3 setkey.3
 MLINKS+=ctermid.3 ctermid_r.3
 MLINKS+=directory.3 closedir.3 directory.3 dirfd.3 directory.3 opendir.3 \
 	directory.3 readdir.3 directory.3 rewinddir.3 directory.3 seekdir.3 \
