@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.119 1998/04/28 05:54:47 dyson Exp $
+ * $Id: vm_map.c,v 1.120 1998/04/29 04:28:04 dyson Exp $
  */
 
 /*
@@ -172,6 +172,7 @@ static void vm_map_entry_dispose __P((vm_map_t, vm_map_entry_t));
 static void vm_map_entry_unwire __P((vm_map_t, vm_map_entry_t));
 static void vm_map_copy_entry __P((vm_map_t, vm_map_t, vm_map_entry_t,
 		vm_map_entry_t));
+static void vm_map_split __P((vm_map_entry_t));
 
 void
 vm_map_startup()
@@ -1965,8 +1966,10 @@ vm_map_split(entry)
 			goto retry;
 		}
 			
+		m->flags |= PG_BUSY;
 		vm_page_protect(m, VM_PROT_NONE);
 		vm_page_rename(m, new_object, idx);
+		PAGE_WAKEUP(m);
 	}
 
 	if (orig_object->type == OBJT_SWAP) {
