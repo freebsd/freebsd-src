@@ -10,7 +10,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_dummynet.c,v 1.10 1999/03/26 14:15:59 luigi Exp $
+ *	$Id: ip_dummynet.c,v 1.11 1999/04/17 11:09:08 peter Exp $
  */
 
 /*
@@ -39,6 +39,7 @@
 #include <sys/mbuf.h>
 #include <sys/queue.h>			/* XXX */
 #include <sys/kernel.h>
+#include <sys/module.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/time.h>
@@ -587,7 +588,7 @@ ip_dn_ctl(struct sockopt *sopt)
     return error ;
 }
 
-void
+static void
 ip_dn_init(void)
 {
     printf("DUMMYNET initialized (990326) -- size dn_pkt %d\n",
@@ -596,11 +597,7 @@ ip_dn_init(void)
     ip_dn_ctl_ptr = ip_dn_ctl;
 }
 
-#ifdef DUMMYNET_MODULE
-
-#include <sys/module.h>
-
-static ip_dn_ctl_t *old_dn_ctl_ptr ;
+static ip_dn_ctl_t *old_dn_ctl_ptr;
 
 static int
 dummynet_modevent(module_t mod, int type, void *data)
@@ -619,7 +616,6 @@ dummynet_modevent(module_t mod, int type, void *data)
 		ip_dn_ctl_ptr = old_dn_ctl_ptr;
 		splx(s);
 		dummynet_flush();
-		printf("DUMMYNET unloaded\n");
 		break;
 	default:
 		break;
@@ -632,5 +628,4 @@ static moduledata_t dummynet_mod = {
 	dummynet_modevent,
 	NULL
 };
-DECLARE_MODULE(dummynet, dummynet_mod, SI_SUB_PSEUDO, SI_ORDER_ANY)
-#endif
+DECLARE_MODULE(dummynet, dummynet_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
