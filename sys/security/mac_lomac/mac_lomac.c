@@ -2632,6 +2632,7 @@ static struct mac_policy_ops mac_lomac_ops =
 	.mpo_destroy_socket_label = mac_lomac_destroy_label,
 	.mpo_destroy_socket_peer_label = mac_lomac_destroy_label,
 	.mpo_destroy_vnode_label = mac_lomac_destroy_label,
+	.mpo_copy_mbuf_label = mac_lomac_copy_label,
 	.mpo_copy_pipe_label = mac_lomac_copy_label,
 	.mpo_copy_vnode_label = mac_lomac_copy_label,
 	.mpo_externalize_cred_label = mac_lomac_externalize_label,
