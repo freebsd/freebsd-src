@@ -251,6 +251,15 @@ fwohci_pci_attach(device_t self)
 		return EIO;
 	}
 
+	/* XXX
+	 * Clear the bus reset event flag to start transactions even when
+	 * interrupt is disabled during the boot process.
+	 */
+#if 0
+	DELAY(100);
+#endif
+	fwohci_intr((void *)sc);
+
 	return 0;
 }
 
