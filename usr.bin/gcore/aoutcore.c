@@ -82,6 +82,8 @@ __FBSDID("$FreeBSD$");
 
 #include "extern.h"
 
+#define	UAREA_PAGES	1
+
 static void	datadump(int, int, struct kinfo_proc *, u_long, int);
 static void	userdump(int, struct kinfo_proc *, u_long, int);
 
