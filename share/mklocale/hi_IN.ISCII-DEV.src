@@ -24,6 +24,8 @@ PRINT		0x20 - 0xfa
 # SPECIAL
 # PHONEGRAM
 
+/* ?DIGIT         'ñ' - 'ú' */
+
 MAPLOWER       	<'A' - 'Z' : 'a'>
 MAPLOWER       	<'a' - 'z' : 'a'>
 MAPUPPER       	<'A' - 'Z' : 'A'>
