@@ -35,7 +35,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: cipher.c,v 1.61 2002/07/12 15:50:17 markus Exp $");
+RCSID("$OpenBSD: cipher.c,v 1.62 2002/11/21 22:45:31 markus Exp $");
 RCSID("$FreeBSD$");
 
 #include "xmalloc.h"
@@ -240,7 +240,7 @@ cipher_init(CipherContext *cc, Cipher *cipher,
 		    cipher->name);
 	klen = EVP_CIPHER_CTX_key_length(&cc->evp);
 	if (klen > 0 && keylen != klen) {
-		debug("cipher_init: set keylen (%d -> %d)", klen, keylen);
+		debug2("cipher_init: set keylen (%d -> %d)", klen, keylen);
 		if (EVP_CIPHER_CTX_set_key_length(&cc->evp, keylen) == 0)
 			fatal("cipher_init: set keylen failed (%d -> %d)",
 			    klen, keylen);

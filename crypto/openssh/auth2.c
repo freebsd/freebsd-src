@@ -23,7 +23,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: auth2.c,v 1.95 2002/08/22 21:33:58 markus Exp $");
+RCSID("$OpenBSD: auth2.c,v 1.96 2003/02/06 21:22:43 markus Exp $");
 RCSID("$FreeBSD$");
 
 #include "canohost.h"
@@ -235,8 +235,7 @@ userauth_finish(Authctxt *authctxt, int authenticated, char *method)
 		    authctxt->user);
 
 	/* Special handling for root */
-	if (!use_privsep &&
-	    authenticated && authctxt->pw->pw_uid == 0 &&
+	if (authenticated && authctxt->pw->pw_uid == 0 &&
 	    !auth_root_allowed(method))
 		authenticated = 0;
 

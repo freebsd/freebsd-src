@@ -38,7 +38,7 @@ extern char *__progname;
 
 extern int use_privsep;
 
-RCSID("$Id: auth-pam.c,v 1.54 2002/07/28 20:24:08 stevesk Exp $");
+RCSID("$Id: auth-pam.c,v 1.55 2003/01/22 04:42:26 djm Exp $");
 RCSID("$FreeBSD$");
 
 #define NEW_AUTHTOK_MSG \
@@ -210,14 +210,6 @@ int auth_pam_password(Authctxt *authctxt, const char *password)
 	struct passwd *pw = authctxt->pw;
 
 	do_pam_set_conv(&conv);
-
-	/* deny if no user. */
-	if (pw == NULL)
-		return 0;
-	if (pw->pw_uid == 0 && options.permit_root_login == PERMIT_NO_PASSWD)
-		return 0;
-	if (*password == '\0' && options.permit_empty_passwd == 0)
-		return 0;
 
 	__pampasswd = password;
 

@@ -1,4 +1,4 @@
-# $Id: configure.ac,v 1.89 2002/09/26 00:38:47 tim Exp $
+# $Id: configure.ac,v 1.113 2003/03/21 01:18:09 mouring Exp $
 # $FreeBSD$
 
 AC_INIT
@@ -15,6 +15,7 @@ AC_PROG_RANLIB
 AC_PROG_INSTALL
 AC_PATH_PROG(AR, ar)
 AC_PATH_PROGS(PERL, perl5 perl)
+AC_PATH_PROG(SED, sed)
 AC_SUBST(PERL)
 AC_PATH_PROG(ENT, ent)
 AC_SUBST(ENT)
@@ -82,8 +83,11 @@ case "$host" in
 	dnl AIX handles lastlog as part of its login message
 	AC_DEFINE(DISABLE_LASTLOG)
 	AC_DEFINE(LOGIN_NEEDS_UTMPX)
+	AC_DEFINE(SETPROCTITLE_STRATEGY,PS_USE_CLOBBER_ARGV)
+	AC_DEFINE(SETPROCTITLE_PS_PADDING, '\0')
 	;;
 *-*-cygwin*)
+	check_for_libcrypt_later=1
 	LIBS="$LIBS /usr/lib/textmode.o"
 	AC_DEFINE(HAVE_CYGWIN)
 	AC_DEFINE(USE_PIPES)
@@ -122,7 +126,7 @@ main() { if (NSVersionOfRunTimeLibrary("System") >= (60 << 16))
 	AC_DEFINE(LOGIN_NEEDS_UTMPX)
 	AC_DEFINE(DISABLE_SHADOW)
 	AC_DEFINE(DISABLE_UTMP)
-	AC_DEFINE(SPT_TYPE,SPT_PSTAT)
+	AC_DEFINE(SETPROCTITLE_STRATEGY,PS_USE_PSTAT)
 	LIBS="$LIBS -lsec -lsecpw"
 	AC_CHECK_LIB(xnet, t_error, ,AC_MSG_ERROR([*** -lxnet needed on HP-UX - check config.log ***]))
 	disable_ptmx_check=yes
@@ -138,7 +142,7 @@ main() { if (NSVersionOfRunTimeLibrary("System") >= (60 << 16))
 	AC_DEFINE(LOGIN_NEEDS_UTMPX)
 	AC_DEFINE(DISABLE_SHADOW)
 	AC_DEFINE(DISABLE_UTMP)
-	AC_DEFINE(SPT_TYPE,SPT_PSTAT)
+	AC_DEFINE(SETPROCTITLE_STRATEGY,PS_USE_PSTAT)
 	LIBS="$LIBS -lsec"
 	AC_CHECK_LIB(xnet, t_error, ,AC_MSG_ERROR([*** -lxnet needed on HP-UX - check config.log ***]))
 	;;
@@ -151,7 +155,7 @@ main() { if (NSVersionOfRunTimeLibrary("System") >= (60 << 16))
 	AC_DEFINE(LOGIN_NEEDS_UTMPX)
 	AC_DEFINE(DISABLE_SHADOW)
 	AC_DEFINE(DISABLE_UTMP)
-	AC_DEFINE(SPT_TYPE,SPT_PSTAT)
+	AC_DEFINE(SETPROCTITLE_STRATEGY,PS_USE_PSTAT)
 	LIBS="$LIBS -lsec"
 	AC_CHECK_LIB(xnet, t_error, ,AC_MSG_ERROR([*** -lxnet needed on HP-UX - check config.log ***]))
 	;;
@@ -178,6 +182,8 @@ main() { if (NSVersionOfRunTimeLibrary("System") >= (60 << 16))
 	check_for_libcrypt_later=1
 	AC_DEFINE(DONT_TRY_OTHER_AF)
 	AC_DEFINE(PAM_TTY_KLUDGE)
+	AC_DEFINE(SETPROCTITLE_STRATEGY,PS_USE_CLOBBER_ARGV)
+	AC_DEFINE(SETPROCTITLE_PS_PADDING, '\0')
 	inet6_default_4in6=yes
 	;;
 mips-sony-bsd|mips-sony-newsos4)
@@ -211,6 +217,7 @@ mips-sony-bsd|mips-sony-newsos4)
 	AC_DEFINE(LOGIN_NEEDS_UTMPX)
 	AC_DEFINE(LOGIN_NEEDS_TERM)
 	AC_DEFINE(PAM_TTY_KLUDGE)
+	AC_DEFINE(STREAMS_PUSH_ACQUIRES_CTTY)
 	# hardwire lastlog location (can't detect it on some versions)
 	conf_lastlog_location="/var/adm/lastlog"
 	AC_MSG_CHECKING(for obsolete utmp and wtmp in solaris2.x)
@@ -279,6 +286,9 @@ mips-sony-bsd|mips-sony-newsos4)
 	do_sco3_extra_lib_check=yes
 	;;
 *-*-sco3.2v5*)
+	if test -z "$GCC"; then
+		CFLAGS="$CFLAGS -belf"
+	fi
 	CPPFLAGS="$CPPFLAGS -I/usr/local/include"
 	LDFLAGS="$LDFLAGS -L/usr/local/lib"
 	LIBS="$LIBS -lprot -lx -ltinfo -lm"
@@ -291,8 +301,6 @@ mips-sony-bsd|mips-sony-newsos4)
 	MANTYPE=man
 	;;
 *-*-unicosmk*)
-	no_libsocket=1
-	no_libnsl=1
 	AC_DEFINE(USE_PIPES)
 	AC_DEFINE(DISABLE_FD_PASSING)
 	LDFLAGS="$LDFLAGS"
@@ -300,8 +308,6 @@ mips-sony-bsd|mips-sony-newsos4)
 	MANTYPE=cat
 	;;
 *-*-unicos*)
-	no_libsocket=1
-	no_libnsl=1
 	AC_DEFINE(USE_PIPES)
 	AC_DEFINE(DISABLE_FD_PASSING)
 	AC_DEFINE(NO_SSH_LASTLOG)
@@ -326,11 +332,13 @@ mips-sony-bsd|mips-sony-newsos4)
 			AC_MSG_RESULT(yes)
 			AC_DEFINE(HAVE_OSF_SIA)
 			AC_DEFINE(DISABLE_LOGIN)
+			AC_DEFINE(DISABLE_FD_PASSING)
 			LIBS="$LIBS -lsecurity -ldb -lm -laud"
 		else
 			AC_MSG_RESULT(no)
 		fi
 	fi
+	AC_DEFINE(DISABLE_FD_PASSING)
 	;;
 
 *-*-nto-qnx)
@@ -378,13 +386,13 @@ AC_ARG_WITH(libs,
 
 # Checks for header files.
 AC_CHECK_HEADERS(bstring.h crypt.h endian.h floatingpoint.h \
-	getopt.h glob.h ia.h lastlog.h limits.h login.h \
+	getopt.h glob.h ia.h lastlog.h libgen.h limits.h login.h \
 	login_cap.h maillock.h netdb.h netgroup.h \
 	netinet/in_systm.h paths.h pty.h readpassphrase.h \
 	rpc/types.h security/pam_appl.h shadow.h stddef.h stdint.h \
 	strings.h sys/bitypes.h sys/bsdtty.h sys/cdefs.h \
-	sys/mman.h sys/select.h sys/stat.h \
-	sys/stropts.h sys/sysmacros.h sys/time.h \
+	sys/mman.h sys/pstat.h sys/select.h sys/stat.h \
+	sys/stropts.h sys/sysmacros.h sys/time.h sys/timers.h \
 	sys/un.h time.h tmpdir.h ttyent.h usersec.h \
 	util.h utime.h utmp.h utmpx.h)
 
@@ -630,18 +638,25 @@ AC_ARG_WITH(tcp-wrappers,
 	]
 )
 
-dnl    Checks for library functions.
-AC_CHECK_FUNCS(arc4random b64_ntop bcopy bindresvport_sa \
-	clock fchmod fchown freeaddrinfo futimes gai_strerror \
-	getaddrinfo getcwd getgrouplist getnameinfo getopt getpeereid\
-	getrlimit getrusage getttyent glob inet_aton inet_ntoa \
-	inet_ntop innetgr login_getcapbool md5_crypt memmove \
-	mkdtemp mmap ngetaddrinfo openpty ogetaddrinfo readpassphrase \
-	realpath recvmsg rresvport_af sendmsg setdtablesize setegid \
-	setenv seteuid setgroups setlogin setproctitle setresgid setreuid \
-	setrlimit setsid setpcred setvbuf sigaction sigvec snprintf \
-	socketpair strerror strlcat strlcpy strmode strsep sysconf tcgetpgrp \
-	truncate utimes vhangup vsnprintf waitpid __b64_ntop _getpty)
+dnl    Checks for library functions. Please keep in alphabetical order
+AC_CHECK_FUNCS(\
+	arc4random __b64_ntop b64_ntop __b64_pton b64_pton basename bcopy \
+	bindresvport_sa clock fchmod fchown freeaddrinfo futimes \
+	gai_strerror getaddrinfo getcwd getgrouplist getnameinfo getopt \
+	getpeereid _getpty getrlimit getrusage getttyent glob inet_aton \
+	inet_ntoa inet_ntop innetgr login_getcapbool md5_crypt memmove \
+	mkdtemp mmap ngetaddrinfo nsleep ogetaddrinfo openpty pstat \
+	readpassphrase realpath recvmsg rresvport_af sendmsg setdtablesize \
+	setegid setenv seteuid setgroups setlogin setpcred setproctitle \
+	setresgid setreuid setrlimit setsid setvbuf sigaction sigvec \
+	snprintf socketpair strerror strlcat strlcpy strmode strnvis \
+	sysconf tcgetpgrp truncate utimes vhangup vsnprintf waitpid \
+)
+
+AC_SEARCH_LIBS(nanosleep, rt posix4, AC_DEFINE(HAVE_NANOSLEEP))
+
+dnl Make sure strsep prototype is defined before defining HAVE_STRSEP
+AC_CHECK_DECL(strsep, [AC_CHECK_FUNCS(strsep)])
 
 dnl IRIX and Solaris 2.5.1 have dirname() in libgen
 AC_CHECK_FUNCS(dirname, [AC_CHECK_HEADERS(libgen.h)] ,[
@@ -714,6 +729,32 @@ int main(void){char b[5];snprintf(b,5,"123456789");exit(b[4]!='\0');}
 			AC_MSG_WARN([****** Your snprintf() function is broken, complain to your vendor])
 		]
 	)
+fi
+
+dnl see whether mkstemp() requires XXXXXX
+if test "x$ac_cv_func_mkdtemp" = "xyes" ; then
+AC_MSG_CHECKING([for (overly) strict mkstemp])
+AC_TRY_RUN(
+	[
+#include <stdlib.h>
+main() { char template[]="conftest.mkstemp-test";
+if (mkstemp(template) == -1)
+	exit(1);
+unlink(template); exit(0);
+}
+	],
+	[
+		AC_MSG_RESULT(no)
+	],
+	[ 
+		AC_MSG_RESULT(yes)
+		AC_DEFINE(HAVE_STRICT_MKSTEMP)
+	],
+	[
+		AC_MSG_RESULT(yes)
+		AC_DEFINE(HAVE_STRICT_MKSTEMP)
+	] 
+)
 fi
 
 AC_FUNC_GETPGRP
@@ -1479,12 +1520,16 @@ if test "x$ac_cv_have_struct_timeval" = "xyes" ; then
 	have_struct_timeval=1
 fi
 
-# If we don't have int64_t then we can't compile sftp-server.  So don't
-# even attempt to do it. 
+AC_CHECK_TYPES(struct timespec)
+
+# We need int64_t or else certian parts of the compile will fail.
 if test "x$ac_cv_have_int64_t" = "xno" -a \
 	"x$ac_cv_sizeof_long_int" != "x8" -a \
 	"x$ac_cv_sizeof_long_long_int" = "x0" ; then
-	NO_SFTP='#'
+	echo "OpenSSH requires int64_t support.  Contact your vendor or install"
+	echo "an alternative compiler (I.E., GCC) before continuing."
+	echo ""
+	exit 1;
 else
 dnl test snprintf (broken on SCO w/gcc)
 	AC_TRY_RUN(
@@ -1514,7 +1559,6 @@ main() { exit(0); }
 		], [ true ], [ AC_DEFINE(BROKEN_SNPRINTF) ]
 	)
 fi
-AC_SUBST(NO_SFTP)
 
 dnl Checks for structure members
 OSSH_CHECK_HEADER_FOR_FIELD(ut_host, utmp.h, HAVE_HOST_IN_UTMP)
@@ -1946,6 +1990,17 @@ AC_ARG_WITH(xauth,
 	]
 )
 
+STRIP_OPT=-s
+AC_ARG_ENABLE(strip,
+	[  --disable-strip         Disable calling strip(1) on install],
+	[
+		if test "x$enableval" = "xno" ; then
+			STRIP_OPT=
+		fi
+	]
+)
+AC_SUBST(STRIP_OPT)
+
 if test -z "$xauth_path" ; then
 	XAUTH_PATH="undefined"
 	AC_SUBST(XAUTH_PATH)
@@ -2100,7 +2155,11 @@ Edit /etc/login.conf instead.])
 # include <paths.h>
 #endif
 #ifndef _PATH_STDPATH
-# define _PATH_STDPATH "/usr/bin:/bin:/usr/sbin:/sbin"
+# ifdef _PATH_USERPATH	/* Irix */
+#  define _PATH_STDPATH _PATH_USERPATH
+# else
+#  define _PATH_STDPATH "/usr/bin:/bin:/usr/sbin:/sbin"
+# endif
 #endif
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -2536,12 +2595,6 @@ if test "x$PAM_MSG" = "xyes" ; then
 	echo "for sshd, otherwise password authentication may fail. "
 	echo "Example PAM control files can be found in the contrib/ " 
 	echo "subdirectory"
-	echo ""
-fi
-
-if test ! -z "$NO_SFTP"; then
-	echo "sftp-server will be disabled.  Your compiler does not "
-	echo "support 64bit integers."
 	echo ""
 fi
 

@@ -34,7 +34,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: sshd_config.5,v 1.13 2002/09/16 20:12:11 stevesk Exp $
+.\" $OpenBSD: sshd_config.5,v 1.15 2003/03/28 10:11:43 jmc Exp $
 .\" $FreeBSD$
 .Dd September 25, 1999
 .Dt SSHD_CONFIG 5
@@ -90,7 +90,7 @@ own forwarders.
 .It Cm AllowUsers
 This keyword can be followed by a list of user name patterns, separated
 by spaces.
-If specified, login is allowed only for users names that
+If specified, login is allowed only for user names that
 match one of the patterns.
 .Ql \&*
 and
@@ -219,8 +219,8 @@ Specifies whether remote hosts are allowed to connect to ports
 forwarded for the client.
 By default,
 .Nm sshd
-binds remote port forwardings to the loopback address.  This
-prevents other remote hosts from connecting to forwarded ports.
+binds remote port forwardings to the loopback address.
+This prevents other remote hosts from connecting to forwarded ports.
 .Cm GatewayPorts
 can be used to specify that
 .Nm sshd
@@ -376,7 +376,8 @@ is not specified,
 will listen on the address and all prior
 .Cm Port
 options specified. The default is to listen on all local
-addresses.  Multiple
+addresses.
+Multiple
 .Cm ListenAddress
 options are permitted. Additionally, any
 .Cm Port
@@ -391,10 +392,10 @@ Gives the verbosity level that is used when logging messages from
 .Nm sshd .
 The possible values are:
 QUIET, FATAL, ERROR, INFO, VERBOSE, DEBUG, DEBUG1, DEBUG2 and DEBUG3.
-The default is INFO.  DEBUG and DEBUG1 are equivalent.  DEBUG2
-and DEBUG3 each specify higher levels of debugging output.
-Logging with a DEBUG level violates the privacy of users
-and is not recommended.
+The default is INFO.
+DEBUG and DEBUG1 are equivalent.
+DEBUG2 and DEBUG3 each specify higher levels of debugging output.
+Logging with a DEBUG level violates the privacy of users and is not recommended.
 .It Cm MACs
 Specifies the available MAC (message authentication code) algorithms.
 The MAC algorithm is used in protocol version 2
@@ -622,16 +623,18 @@ will be disabled because
 .Xr login 1
 does not know how to handle
 .Xr xauth 1
-cookies.  If
+cookies.
+If
 .Cm UsePrivilegeSeparation
 is specified, it will be disabled after authentication.
 .It Cm UsePrivilegeSeparation
 Specifies whether
 .Nm sshd
 separates privileges by creating an unprivileged child process
-to deal with incoming network traffic.  After successful authentication,
-another process will be created that has the privilege of the authenticated
-user.  The goal of privilege separation is to prevent privilege
+to deal with incoming network traffic.
+After successful authentication, another process will be created that has
+the privilege of the authenticated user.
+The goal of privilege separation is to prevent privilege
 escalation by containing any corruption within the unprivileged processes.
 The default is
 .Dq yes .
@@ -647,7 +650,7 @@ The default is
 Specifies a string to append to the regular version string to identify
 OS- or site-specific modifications.
 The default is
-.Dq FreeBSD-20030201 .
+.Dq FreeBSD-20030423 .
 .It Cm X11DisplayOffset
 Specifies the first display number available for
 .Nm sshd Ns 's
@@ -694,7 +697,8 @@ is enabled.
 Specifies whether
 .Nm sshd
 should bind the X11 forwarding server to the loopback address or to
-the wildcard address.  By default,
+the wildcard address.
+By default,
 .Nm sshd
 binds the forwarding server to the loopback address and sets the
 hostname part of the
