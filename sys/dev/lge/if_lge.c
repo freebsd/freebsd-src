@@ -1051,8 +1051,9 @@ lge_tick(xsc)
 		if (mii->mii_media_status & IFM_ACTIVE &&
 		    IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE) {
 			sc->lge_link++;
-			if (IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_SX||
-			    IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_T)
+			if (bootverbose &&
+		  	    (IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_SX||
+			    IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_T))
 				printf("lge%d: gigabit link up\n",
 				    sc->lge_unit);
 			if (ifp->if_snd.ifq_head != NULL)
