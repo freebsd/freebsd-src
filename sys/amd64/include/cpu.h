@@ -88,11 +88,15 @@
  * Arrange to handle pending profiling ticks before returning to user mode.
  *
  * XXX this is now poorly named and implemented.  It used to handle only a
- * single tick and the P_OWEUPC flag served as a counter.  Now there is a
+ * single tick and the PS_OWEUPC flag served as a counter.  Now there is a
  * counter in the proc table and flag isn't really necessary.
  */
-#define	need_proftick(p) \
-	do { (p)->p_flag |= P_OWEUPC; aston(); } while (0)
+#define	need_proftick(p) do {						\
+	mtx_enter(&sched_lock, MTX_SPIN);				\
+	(p)->p_sflag |= PS_OWEUPC;					\
+	mtx_exit(&sched_lock, MTX_SPIN);				\
+	aston();							\
+} while (0)
 
 /*
  * Notify the current process (p) that it has a signal pending,
@@ -133,7 +137,6 @@ extern char	btext[];
 extern char	etext[];
 
 void	fork_trampoline __P((void));
-void	fork_return __P((struct proc *, struct trapframe));
 
 #if defined(I386_CPU) || defined(I486_CPU)
 extern u_int   tsc_present;
