@@ -60,12 +60,7 @@
 KMODLOAD?=	/sbin/kldload
 KMODUNLOAD?=	/sbin/kldunload
 
-.if !target(__initialized__)
-__initialized__:
-.if exists(${.CURDIR}/../Makefile.inc)
-.include "${.CURDIR}/../Makefile.inc"
-.endif
-.endif
+.include <bsd.init.mk>
 
 .SUFFIXES: .out .o .c .cc .cxx .C .y .l .s .S
 
@@ -140,7 +135,6 @@ ${KMOD}.kld: ${OBJS}
 
 _ILINKS=@ machine
 
-.MAIN: all
 all: objwarn ${PROG}
 .if !defined(NOMAN)
 all: _manpages

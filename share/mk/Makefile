@@ -3,7 +3,7 @@
 
 FILES=	bsd.README
 FILES+=	bsd.cpu.mk bsd.dep.mk bsd.doc.mk bsd.files.mk
-FILES+=	bsd.info.mk
+FILES+=	bsd.info.mk bsd.init.mk
 FILES+=	bsd.kern.mk bsd.kmod.mk
 FILES+=	bsd.lib.mk bsd.libnames.mk bsd.links.mk bsd.man.mk
 FILES+=	bsd.obj.mk bsd.own.mk

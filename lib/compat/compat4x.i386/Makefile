@@ -2,8 +2,6 @@
 
 DISTRIBUTION=	compat4x
 
-LIBCOMPATDIR=	${LIBDIR}/compat
-
 LIBS=	\
 	libcrypto.so.1 \
 	libfetch.so.2 \

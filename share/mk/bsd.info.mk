@@ -69,12 +69,7 @@
 #
 # bsd.obj.mk: cleandir and obj
 
-.if !target(__initialized__)
-__initialized__:
-.if exists(${.CURDIR}/../Makefile.inc)
-.include "${.CURDIR}/../Makefile.inc"
-.endif
-.endif
+.include <bsd.init.mk>
 
 MAKEINFO?=	makeinfo
 MAKEINFOFLAGS+=	--no-split # simplify some things, e.g., compression
@@ -90,8 +85,6 @@ INFO2HTML?=	info2html
 TEX?=		tex
 DVIPS?=		dvips
 DVIPS2ASCII?=	dvips2ascii
-
-.MAIN: all
 
 .SUFFIXES: ${ICOMPRESS_EXT} .info .texi .texinfo .dvi .ps .latin1 .html
 

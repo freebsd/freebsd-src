@@ -11,7 +11,7 @@ MAN=	restore.8
 MLINKS+=restore.8 rrestore.8
 .PATH:	${.CURDIR}/../dump
 
-.if exists(${DESTDIR}${LIBDIR}/libkrb.a) && defined(MAKE_KERBEROS4)
+.if defined(MAKE_KERBEROS4) && !defined(NO_OPENSSL) && !defined(NOCRYPT)
 .PATH:	${.CURDIR}/../../crypto/kerberosIV/appl/bsd
 SRCS+=	krcmd.c kcmd.c rcmd_util.c
 DPADD+=	${LIBKRB} ${LIBCRYPTO}

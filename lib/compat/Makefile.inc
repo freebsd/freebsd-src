@@ -1,6 +1,7 @@
 # $FreeBSD$
 
-LIBCOMPATDIR?=	${LIBDIR}/compat/aout
+# Suck in ${SHLIBDIR} definition.
+.include <bsd.own.mk>
 
 .if defined(LIBS) && !empty(LIBS)
 beforeinstall: __remove-stale-libs

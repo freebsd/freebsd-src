@@ -14,12 +14,7 @@
 #
 # 	[incomplete]
 
-.if !target(__initialized__)
-__initialized__:
-.if exists(${.CURDIR}/../Makefile.inc)
-.include "${.CURDIR}/../Makefile.inc"
-.endif
-.endif
+.include <bsd.init.mk>
 
 PRINTERDEVICE?=	ascii
 
@@ -87,7 +82,6 @@ COMPAT?=	-C
 
 .PATH: ${.CURDIR} ${SRCDIR}
 
-.MAIN:	all
 all:	${DFILE}
 
 .if !target(print)

@@ -13,14 +13,14 @@ COPTS+=	-DWHEELSU
 .endif
 CFLAGS+= -Wall
 
-.if exists(${DESTDIR}${LIBDIR}/libkrb.a) && defined(MAKE_KERBEROS4)
+.if defined(MAKE_KERBEROS4) && !defined(NO_OPENSSL) && !defined(NOCRYPT)
 CFLAGS+=-DKERBEROS4
 DPADD+=	${LIBKRB} ${LIBCRYPTO} ${LIBCOM_ERR}
 LDADD+=	-lkrb -lcrypto -lcom_err
 DISTRIBUTION=	krb4
 .endif
 
-.if exists(${DESTDIR}${LIBDIR}/libkrb5.a) && defined(MAKE_KERBEROS5)
+.if defined(MAKE_KERBEROS5) && !defined(NOCRYPT) && !defined(NO_OPENSSL)
 CFLAGS+=-DKERBEROS5
 DPADD+=	${LIBKRB5} ${LIBASN1} ${LIBCRYPTO} ${LIBCRYPT} ${LIBCOM_ERR} \
 	${LIBROKEN}

@@ -1,4 +1,6 @@
 # $FreeBSD$
 
 PORTSDIR?=	/usr/ports
-.include	"${PORTSDIR}/Mk/bsd.port.mk"
+
+.include <bsd.own.mk>
+.include "${PORTSDIR}/Mk/bsd.port.mk"

@@ -29,14 +29,7 @@
 #	obj, objlink, realinstall, regress, tags
 #
 
-.if !target(__initialized__)
-__initialized__:
-.if exists(${.CURDIR}/../Makefile.inc)
-.include "${.CURDIR}/../Makefile.inc"
-.endif
-.endif  
-
-.MAIN: all
+.include <bsd.init.mk>
 
 DISTRIBUTION?=	bin
 .if !target(distribute)

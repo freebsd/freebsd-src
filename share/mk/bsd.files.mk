@@ -1,8 +1,8 @@
 # $FreeBSD$
 
-#.if !target(__<bsd.init.mk>__)
-#.error bsd.files.mk cannot be included directly.
-#.endif
+.if !target(__<bsd.init.mk>__)
+.error bsd.files.mk cannot be included directly.
+.endif
 
 FILESGROUPS?=	FILES
 
