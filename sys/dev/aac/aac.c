@@ -555,6 +555,7 @@ aac_shutdown(device_t dev)
 #endif
 
 	AAC_MASK_INTERRUPTS(sc);
+	aac_release_sync_fib(sc);
 
 	return(0);
 }
