@@ -30,6 +30,7 @@
  * rights to redistribute these changes.
  */
 
+#include <string.h>
 #include <sys/param.h>
 
 #include <machine/prom.h>
@@ -153,7 +154,7 @@ devread(char *buf, int block, size_t size)
     prom_read(prom_fd, size, buf, block);
 }
 
-static void
+static inline void
 devclose()
 {
     if (prom_fd) {
@@ -162,7 +163,7 @@ devclose()
     }
 }
 
-static void
+static inline void
 getfilename(char *filename, const char *defname)
 {
     int c;
@@ -188,7 +189,7 @@ getfilename(char *filename, const char *defname)
     return;
 }
 
-static void
+static inline void
 loadfile(char *name, char *addr)
 {
     int n;
