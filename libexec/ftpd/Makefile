@@ -20,8 +20,8 @@ CFLAGS+=-DINTERNAL_LS -Dmain=ls_main -I${.CURDIR}/${LSDIR}
 .if exists(${DESTDIR}/usr/lib/libkrb.a) && defined(MAKE_KERBEROS4)
 .PATH:  ${.CURDIR}/../../lib/libpam/modules/pam_kerberosIV
 SRCS+=	klogin.c
-LDADD+=	-lkrb -ldes
-DPADD+= ${LIBKRB} ${LIBDES}
+LDADD+=	-lkrb -ldes -lcom_err
+DPADD+= ${LIBKRB} ${LIBDES} ${LIBCOM_ERR}
 CFLAGS+=-DKERBEROS
 DISTRIBUTION=	krb
 .endif
