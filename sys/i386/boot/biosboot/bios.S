@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:34:26  rpd
- *	$Id: bios.S,v 1.5 1995/09/03 05:36:13 julian Exp $
+ *	$Id: bios.S,v 1.5.4.1 1996/11/12 08:02:23 phk Exp $
  */
 
 /*
@@ -352,12 +352,13 @@ xext:	movb	$0x88, %ah
 	cli
 
 xdone:
-	mov	%eax, %ebx
+	pushl	$0			/* actually pushw $0 */
+	pushl	%eax			/* actually pushw %ax */
 
 	data32
 	call	EXT(real_to_prot)
 
-	mov	%ebx, %eax
+	pop	%eax
 	pop     %edi
 	pop	%esi
 	pop	%ebx
