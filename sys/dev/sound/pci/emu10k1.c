@@ -183,7 +183,7 @@ static u_int32_t emu_pfmt[] = {
 	0
 };
 
-static pcmchan_caps emu_playcaps = {48000, 48000, emu_pfmt, 0};
+static pcmchan_caps emu_playcaps = {8000, 48000, emu_pfmt, 0};
 
 static pcm_channel emu_chantemplate = {
 	emupchan_init,
