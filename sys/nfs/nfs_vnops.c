@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.5 (Berkeley) 2/13/94
- * $Id: nfs_vnops.c,v 1.36.2.6 1998/05/13 05:48:45 peter Exp $
+ * $Id: nfs_vnops.c,v 1.36.2.7 1998/05/31 00:07:29 peter Exp $
  */
 
 /*
@@ -56,6 +56,7 @@
 #include <sys/dirent.h>
 #include <sys/fcntl.h>
 #include <sys/lockf.h>
+#include <sys/sysctl.h>
 #include <ufs/ufs/dir.h>
 
 #include <vm/vm.h>
@@ -342,6 +343,35 @@ struct nfsmount *nfs_iodmount[NFS_MAXASYNCDAEMON];
 int nfs_numasync = 0;
 #define	DIRHDSIZ	(sizeof (struct dirent) - (MAXNAMLEN + 1))
 
+static int	nfsaccess_cache_timeout = 0;
+SYSCTL_INT(_vfs_nfs, OID_AUTO, access_cache_timeout, CTLFLAG_RW, 
+	   &nfsaccess_cache_timeout, 0, "NFS ACCESS cache timeout");
+
+static int	nfsaccess_cache_hits;
+SYSCTL_INT(_vfs_nfs, OID_AUTO, access_cache_hits, CTLFLAG_RD, 
+	   &nfsaccess_cache_hits, 0, "NFS ACCESS cache hit count");
+
+static int	nfsaccess_cache_fills;
+SYSCTL_INT(_vfs_nfs, OID_AUTO, access_cache_fills, CTLFLAG_RD, 
+	   &nfsaccess_cache_fills, 0, "NFS ACCESS cache fill count");
+
+/*
+ * Compare two ucred structures, returns zero on equality, nonzero
+ * otherwise.
+ */
+static int
+nfsa_ucredcmp(struct ucred *c1, struct ucred *c2)
+{
+    int		i;
+    
+    if ((c1->cr_uid != c2->cr_uid) || (c1->cr_ngroups != c2->cr_ngroups))
+	return(1);
+    for (i = 0; i < c1->cr_ngroups; i++)
+	if (c1->cr_groups[i] != c2->cr_groups[i])
+	    return(1);
+    return(0);
+}
+
 /*
  * nfs access vnode op.
  * For nfs version 2, just return ok. File accesses may fail later.
@@ -364,8 +394,9 @@ nfs_access(ap)
 	caddr_t bpos, dpos, cp2;
 	int error = 0, attrflag;
 	struct mbuf *mreq, *mrep, *md, *mb, *mb2;
-	u_long mode, rmode;
+	u_long mode, rmode, wmode;
 	int v3 = NFS_ISV3(vp);
+	struct nfsnode *np = VTONFS(vp);
 
 	/*
 	 * Disallow write attempts on filesystems mounted read-only;
@@ -379,18 +410,14 @@ nfs_access(ap)
 		}
 	}
 	/*
-	 * For nfs v3, do an access rpc, otherwise you are stuck emulating
+	 * For nfs v3, check to see if we have done this recently, and if
+	 * so return our cached result instead of making an ACCESS call.
+	 * If not, do an access rpc, otherwise you are stuck emulating
 	 * ufs_access() locally using the vattr. This may not be correct,
 	 * since the server may apply other access criteria such as
-	 * client uid-->server uid mapping that we do not know about, but
-	 * this is better than just returning anything that is lying about
-	 * in the cache.
+	 * client uid-->server uid mapping that we do not know about.
 	 */
 	if (v3) {
-		nfsstats.rpccnt[NFSPROC_ACCESS]++;
-		nfsm_reqhead(vp, NFSPROC_ACCESS, NFSX_FH(v3) + NFSX_UNSIGNED);
-		nfsm_fhtom(vp, v3);
-		nfsm_build(tl, u_long *, NFSX_UNSIGNED);
 		if (ap->a_mode & VREAD)
 			mode = NFSV3ACCESS_READ;
 		else
@@ -407,21 +434,54 @@ nfs_access(ap)
 			if (ap->a_mode & VEXEC)
 				mode |= NFSV3ACCESS_EXECUTE;
 		}
-		*tl = txdr_unsigned(mode);
-		nfsm_request(vp, NFSPROC_ACCESS, ap->a_p, ap->a_cred);
-		nfsm_postop_attr(vp, attrflag);
-		if (!error) {
-			nfsm_dissect(tl, u_long *, NFSX_UNSIGNED);
-			rmode = fxdr_unsigned(u_long, *tl);
-			/*
-			 * The NFS V3 spec does not clarify whether or not
-			 * the returned access bits can be a superset of
-			 * the ones requested, so...
-			 */
-			if ((rmode & mode) != mode)
-				error = EACCES;
+		/* XXX safety belt, only make blanket request if caching */
+		if (nfsaccess_cache_timeout > 0) {
+			wmode = NFSV3ACCESS_READ | NFSV3ACCESS_MODIFY | 
+				NFSV3ACCESS_EXTEND | NFSV3ACCESS_EXECUTE | 
+				NFSV3ACCESS_DELETE | NFSV3ACCESS_LOOKUP;
+		} else {
+			wmode = mode;
 		}
-		nfsm_reqdone;
+
+		/*
+		 * Does our cached result allow us to give a definite yes to
+		 * this request?
+		 */
+		if ((time_second < (np->n_modestamp + nfsaccess_cache_timeout)) &&
+		    (ap->a_cred->cr_uid == np->n_modeuid) &&
+		    ((np->n_mode & mode) == mode)) {
+			nfsaccess_cache_hits++;
+		} else {
+			/*
+			 * Either a no, or a don't know.  Go to the wire.
+			 */
+			nfsstats.rpccnt[NFSPROC_ACCESS]++;
+			nfsm_reqhead(vp, NFSPROC_ACCESS, NFSX_FH(v3) + NFSX_UNSIGNED);
+			nfsm_fhtom(vp, v3);
+			nfsm_build(tl, u_long *, NFSX_UNSIGNED);
+			*tl = txdr_unsigned(wmode); 
+			nfsm_request(vp, NFSPROC_ACCESS, ap->a_p, ap->a_cred);
+			nfsm_postop_attr(vp, attrflag);
+			if (!error) {
+				nfsm_dissect(tl, u_long *, NFSX_UNSIGNED);
+				rmode = fxdr_unsigned(u_long, *tl);
+				/*
+				 * The NFS V3 spec does not clarify whether or not
+				 * the returned access bits can be a superset of
+				 * the ones requested, so...
+				 */
+				if ((rmode & mode) != mode) {
+					error = EACCES;
+				} else if (nfsaccess_cache_timeout > 0) {
+					/* cache the result */
+					nfsaccess_cache_fills++;
+					np->n_mode = rmode;
+					np->n_modeuid = ap->a_cred->cr_uid;
+					np->n_modestamp = time_second;
+				}
+			}
+			nfsm_reqdone;
+		}
 		return (error);
 	} else {
 		if (error = nfsspec_access(ap))
@@ -721,6 +781,11 @@ nfs_setattr(ap)
 		 ap->a_p, 1)) == EINTR)
 		return (error);
 	error = nfs_setattrrpc(vp, vap, ap->a_cred, ap->a_p);
+	/* 
+	 * Attributes on server may have changed, make no assumptions about 
+	 * the server's reaction to these changes.
+	 */
+	np->n_modestamp = 0;
 	if (error && vap->va_size != VNOVAL) {
 		np->n_size = np->n_vattr.va_size = tsize;
 		vnode_pager_setsize(vp, (u_long)np->n_size);
@@ -1561,6 +1626,7 @@ nfs_remove(ap)
 		error = nfs_sillyrename(dvp, vp, cnp);
 	FREE(cnp->cn_pnbuf, M_NAMEI);
 	np->n_attrstamp = 0;
+	np->n_modestamp = 0;
 	vput(dvp);
 	if (vp == dvp)
 		vrele(vp);
@@ -1669,6 +1735,7 @@ nfs_rename(ap)
 			cache_purge(tdvp);
 		cache_purge(fdvp);
 	}
+
 out:
 	if (tdvp == tvp)
 		vrele(tdvp);
