@@ -2,7 +2,7 @@
 #	$FreeBSD$
 KMOD=	acpi_video
 SRCS=	acpi_video.c
-SRCS+=	opt_acpi.h bus_if.h device_if.h
+SRCS+=	opt_acpi.h acpi_if.h bus_if.h device_if.h
 NOMAN=
 
 .PATH: ${.CURDIR}/../../../dev/acpica

@@ -48,7 +48,8 @@ SRCS+=	OsdDebug.c
 SRCS+=	OsdHardware.c OsdInterrupt.c OsdMemory.c OsdSchedule.c
 SRCS+=	OsdStream.c OsdSynch.c OsdTable.c OsdEnvironment.c 
 SRCS+=	opt_acpi.h opt_bus.h opt_ddb.h
-SRCS+=	device_if.h bus_if.h pci_if.h pcib_if.h isa_if.h
+SRCS+=	acpi_if.h bus_if.h device_if.h
+SRCS+=	isa_if.h pci_if.h pcib_if.h
 
 # Debugging support
 DBSRC=	dbcmds.c dbdisply.c dbexec.c dbfileio.c dbhistry.c
