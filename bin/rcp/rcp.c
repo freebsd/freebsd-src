@@ -307,7 +307,7 @@ toremote(char *targ, int argc, char *argv[])
 			    strlen(src) + (tuser ? strlen(tuser) : 0) +
 			    strlen(thost) + strlen(targ) + CMDNEEDS + 20;
 			if (!(bp = malloc(len)))
-				err(1, NULL);
+				err(1, "malloc");
 			if (host) {
 				*host++ = 0;
 				suser = argv[i];
@@ -334,7 +334,7 @@ toremote(char *targ, int argc, char *argv[])
 			if (rem == -1) {
 				len = strlen(targ) + CMDNEEDS + 20;
 				if (!(bp = malloc(len)))
-					err(1, NULL);
+					err(1, "malloc");
 				(void)snprintf(bp, len, "%s -t %s", cmd, targ);
 				host = thost;
 #ifdef KERBEROS
@@ -374,7 +374,7 @@ tolocal(int argc, char *argv[])
 			len = strlen(_PATH_CP) + strlen(argv[i]) +
 			    strlen(argv[argc - 1]) + 20;
 			if (!(bp = malloc(len)))
-				err(1, NULL);
+				err(1, "malloc");
 			(void)snprintf(bp, len, "exec %s%s%s %s %s", _PATH_CP,
 			    iamrecursive ? " -PR" : "", pflag ? " -p" : "",
 			    argv[i], argv[argc - 1]);
@@ -401,7 +401,7 @@ tolocal(int argc, char *argv[])
 		}
 		len = strlen(src) + CMDNEEDS + 20;
 		if ((bp = malloc(len)) == NULL)
-			err(1, NULL);
+			err(1, "malloc");
 		(void)snprintf(bp, len, "%s -f %s", cmd, src);
 		rem =
 #ifdef KERBEROS

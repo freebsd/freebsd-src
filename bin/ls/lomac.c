@@ -141,7 +141,7 @@ get_lattr(FTSENT *ent)
 	} else
 		strncpy(ioctl_args.path, ent->fts_accpath, MAXPATHLEN - 1);
 	if (ioctl(devlomac, LIOGETFLATTR, &ioctl_args) == -1)
-		err(1, NULL);
+		err(1, "ioctl");
 
 	/* we use ioctl_args.path as scratch space to build lattr */
 	if (ioctl_args.flags != 0)
@@ -150,6 +150,6 @@ get_lattr(FTSENT *ent)
 		asprintf(&lattr, "%d", ioctl_args.level);
 
 	if (lattr == NULL)
-		err(1, NULL);
+		err(1, "lattr");
 	return (lattr);
 }
