@@ -203,13 +203,11 @@ static device_method_t ahc_eisa_device_methods[] = {
 };
 
 static driver_t ahc_eisa_driver = {
-	"ahc_eisa",
+	"ahc",
 	ahc_eisa_device_methods,
 	sizeof(struct ahc_softc)
 };
 
-static devclass_t ahc_eisa_devclass;
-
-DRIVER_MODULE(ahc_eisa, eisa, ahc_eisa_driver, ahc_eisa_devclass, 0, 0);
+DRIVER_MODULE(ahc_eisa, eisa, ahc_eisa_driver, ahc_devclass, 0, 0);
 MODULE_DEPEND(ahc_eisa, ahc, 1, 1, 1);
 MODULE_VERSION(ahc_eisa, 1);
