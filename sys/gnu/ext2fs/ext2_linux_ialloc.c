@@ -8,7 +8,14 @@
  *
  *  BSD ufs-inspired inode and directory allocation by 
  *  Stephen Tweedie (sct@dcs.ed.ac.uk), 1993
+ *  Big-endian to little-endian byte-swapping/bitmaps by
+ *        David S. Miller (davem@caip.rutgers.edu), 1995
  */
+
+#include <linux/fs.h>
+#include <linux/locks.h>
+#include <linux/quotaops.h>
+
 
 /*
  * ialloc.c contains the inodes allocation and deallocation routines
@@ -25,59 +32,42 @@
  * when a file system is mounted (see ext2_read_super).
  */
 
-#include <linux/fs.h>
-#include <linux/ext2_fs.h>
-#include <linux/sched.h>
-#include <linux/stat.h>
-#include <linux/string.h>
-#include <linux/locks.h>
 
-#include <asm/bitops.h>
-
-static struct ext2_group_desc * get_group_desc (struct super_block * sb,
-						unsigned int block_group,
-						struct buffer_head ** bh)
-{
-	unsigned long group_desc;
-	unsigned long desc;
-	struct ext2_group_desc * gdp;
-
-	if (block_group >= sb->u.ext2_sb.s_groups_count)
-		ext2_panic (sb, "get_group_desc",
-			    "block_group >= groups_count - "
-			    "block_group = %d, groups_count = %lu",
-			    block_group, sb->u.ext2_sb.s_groups_count);
-
-	group_desc = block_group / EXT2_DESC_PER_BLOCK(sb);
-	desc = block_group % EXT2_DESC_PER_BLOCK(sb);
-	if (!sb->u.ext2_sb.s_group_desc[group_desc])
-		ext2_panic (sb, "get_group_desc",
-			    "Group descriptor not loaded - "
-			    "block_group = %d, group_desc = %lu, desc = %lu",
-			     block_group, group_desc, desc);
-	gdp = (struct ext2_group_desc *) 
-		sb->u.ext2_sb.s_group_desc[group_desc]->b_data;
-	if (bh)
-		*bh = sb->u.ext2_sb.s_group_desc[group_desc];
-	return gdp + desc;
-}
-
-static void read_inode_bitmap (struct super_block * sb,
+/*
+ * Read the inode allocation bitmap for a given block_group, reading
+ * into the specified slot in the superblock's bitmap cache.
+ *
+ * Return >=0 on success or a -ve error code.
+ */
+static int read_inode_bitmap (struct super_block * sb,
 			       unsigned long block_group,
 			       unsigned int bitmap_nr)
 {
 	struct ext2_group_desc * gdp;
-	struct buffer_head * bh;
+	struct buffer_head * bh = NULL;
+	int retval = 0;
 
-	gdp = get_group_desc (sb, block_group, NULL);
-	bh = bread (sb->s_dev, gdp->bg_inode_bitmap, sb->s_blocksize);
-	if (!bh)
-		ext2_panic (sb, "read_inode_bitmap",
+	gdp = ext2_get_group_desc (sb, block_group, NULL);
+	if (!gdp) {
+		retval = -EIO;
+		goto error_out;
+	}
+	bh = bread (sb->s_dev, le32_to_cpu(gdp->bg_inode_bitmap), sb->s_blocksize);
+	if (!bh) {
+		ext2_error (sb, "read_inode_bitmap",
 			    "Cannot read inode bitmap - "
 			    "block_group = %lu, inode_bitmap = %lu",
 			    block_group, (unsigned long) gdp->bg_inode_bitmap);
+		retval = -EIO;
+	}
+	/*
+	 * On IO error, just leave a zero in the superblock's block pointer for
+	 * this group.  The IO will be retried next time.
+	 */
+error_out:
 	sb->u.ext2_sb.s_inode_bitmap_number[bitmap_nr] = block_group;
 	sb->u.ext2_sb.s_inode_bitmap[bitmap_nr] = bh;
+	return retval;
 }
 
 /*
@@ -90,11 +80,13 @@ static void read_inode_bitmap (struct super_block * sb,
  * 1/ There is one cache per mounted file system.
  * 2/ If the file system contains less than EXT2_MAX_GROUP_LOADED groups,
  *    this function reads the bitmap without maintaining a LRU cache.
+ * 
+ * Return the slot used to store the bitmap, or a -ve error code.
  */
 static int load_inode_bitmap (struct super_block * sb,
 			      unsigned int block_group)
 {
-	int i, j;
+	int i, j, retval = 0;
 	unsigned long inode_bitmap_number;
 	struct buffer_head * inode_bitmap;
 
@@ -104,7 +96,8 @@ static int load_inode_bitmap (struct super_block * sb,
 			    "block_group = %d, groups_count = %lu",
 			     block_group, sb->u.ext2_sb.s_groups_count);
 	if (sb->u.ext2_sb.s_loaded_inode_bitmaps > 0 &&
-	    sb->u.ext2_sb.s_inode_bitmap_number[0] == block_group)
+	    sb->u.ext2_sb.s_inode_bitmap_number[0] == block_group &&
+	    sb->u.ext2_sb.s_inode_bitmap[0] != NULL)
 		return 0;
 	if (sb->u.ext2_sb.s_groups_count <= EXT2_MAX_GROUP_LOADED) {
 		if (sb->u.ext2_sb.s_inode_bitmap[block_group]) {
@@ -114,7 +107,10 @@ static int load_inode_bitmap (struct super_block * sb,
 			else
 				return block_group;
 		} else {
-			read_inode_bitmap (sb, block_group, block_group);
+			retval = read_inode_bitmap (sb, block_group,
+						    block_group);
+			if (retval < 0)
+				return retval;
 			return block_group;
 		}
 	}
@@ -135,6 +131,15 @@ static int load_inode_bitmap (struct super_block * sb,
 		}
 		sb->u.ext2_sb.s_inode_bitmap_number[0] = inode_bitmap_number;
 		sb->u.ext2_sb.s_inode_bitmap[0] = inode_bitmap;
+
+		/*
+		 * There's still one special case here --- if inode_bitmap == 0
+		 * then our last attempt to read the bitmap failed and we have
+		 * just ended up caching that failure.  Try again to read it.
+		 */
+		if (!inode_bitmap)
+			retval = read_inode_bitmap (sb, block_group, 0);
+		
 	} else {
 		if (sb->u.ext2_sb.s_loaded_inode_bitmaps < EXT2_MAX_GROUP_LOADED)
 			sb->u.ext2_sb.s_loaded_inode_bitmaps++;
@@ -146,49 +151,32 @@ static int load_inode_bitmap (struct super_block * sb,
 			sb->u.ext2_sb.s_inode_bitmap[j] =
 				sb->u.ext2_sb.s_inode_bitmap[j - 1];
 		}
-		read_inode_bitmap (sb, block_group, 0);
+		retval = read_inode_bitmap (sb, block_group, 0);
 	}
-	return 0;
+	return retval;
 }
 
 /*
- * This function sets the deletion time for the inode
+ * NOTE! When we get the inode, we're the only people
+ * that have access to it, and as such there are no
+ * race conditions we have to worry about. The inode
+ * is not on the hash-lists, and it cannot be reached
+ * through the filesystem because the directory entry
+ * has been deleted earlier.
  *
- * This may be used one day by an 'undelete' program
+ * HOWEVER: we must make sure that we get no aliases,
+ * which means that we have to call "clear_inode()"
+ * _before_ we mark the inode not in use in the inode
+ * bitmaps. Otherwise a newly created file might use
+ * the same inode number (not actually the same pointer
+ * though), and then we'd have two inodes sharing the
+ * same inode number and space on the harddisk.
  */
-static void set_inode_dtime (struct inode * inode,
-			     struct ext2_group_desc * gdp)
-{
-	unsigned long inode_block;
-	struct buffer_head * bh;
-	struct ext2_inode * raw_inode;
-
-	inode_block = gdp->bg_inode_table + (((inode->i_ino - 1) %
-			EXT2_INODES_PER_GROUP(inode->i_sb)) /
-			EXT2_INODES_PER_BLOCK(inode->i_sb));
-	bh = bread (inode->i_sb->s_dev, inode_block, inode->i_sb->s_blocksize);
-	if (!bh)
-		ext2_panic (inode->i_sb, "set_inode_dtime",
-			    "Cannot load inode table block - "
-			    "inode=%lu, inode_block=%lu",
-			    inode->i_ino, inode_block);
-	raw_inode = ((struct ext2_inode *) bh->b_data) +
-			(((inode->i_ino - 1) %
-			EXT2_INODES_PER_GROUP(inode->i_sb)) %
-			EXT2_INODES_PER_BLOCK(inode->i_sb));
-	raw_inode->i_links_count = 0;
-	raw_inode->i_dtime = CURRENT_TIME;
-	mark_buffer_dirty(bh, 1);
-	if (IS_SYNC(inode)) {
-		ll_rw_block (WRITE, 1, &bh);
-		wait_on_buffer (bh);
-	}
-	brelse (bh);
-}
-
 void ext2_free_inode (struct inode * inode)
 {
-	struct super_block * sb;
+	struct super_block * sb = inode->i_sb;
+	int is_directory;
+	unsigned long ino;
 	struct buffer_head * bh;
 	struct buffer_head * bh2;
 	unsigned long block_group;
@@ -197,15 +185,12 @@ void ext2_free_inode (struct inode * inode)
 	struct ext2_group_desc * gdp;
 	struct ext2_super_block * es;
 
-	if (!inode)
-		return;
 	if (!inode->i_dev) {
 		printk ("ext2_free_inode: inode has no device\n");
 		return;
 	}
 	if (inode->i_count > 1) {
-		printk ("ext2_free_inode: inode has count=%d\n",
-			inode->i_count);
+		printk ("ext2_free_inode: inode has count=%d\n", inode->i_count);
 		return;
 	}
 	if (inode->i_nlink) {
@@ -213,84 +198,68 @@ void ext2_free_inode (struct inode * inode)
 			inode->i_nlink);
 		return;
 	}
-	if (!inode->i_sb) {
+	if (!sb) {
 		printk("ext2_free_inode: inode on nonexistent device\n");
 		return;
 	}
 
-	ext2_debug ("freeing inode %lu\n", inode->i_ino);
+	ino = inode->i_ino;
+	ext2_debug ("freeing inode %lu\n", ino);
 
-	sb = inode->i_sb;
+	/*
+	 * Note: we must free any quota before locking the superblock,
+	 * as writing the quota to disk may need the lock as well.
+	 */
+	DQUOT_FREE_INODE(sb, inode);
+	DQUOT_DROP(inode);
+
 	lock_super (sb);
-	if (inode->i_ino < EXT2_FIRST_INO ||
-	    inode->i_ino > sb->u.ext2_sb.s_es->s_inodes_count) {
+	es = sb->u.ext2_sb.s_es;
+	if (ino < EXT2_FIRST_INO(sb) || 
+	    ino > le32_to_cpu(es->s_inodes_count)) {
 		ext2_error (sb, "free_inode",
 			    "reserved inode or nonexistent inode");
-		unlock_super (sb);
-		return;
+		goto error_return;
 	}
-	es = sb->u.ext2_sb.s_es;
-	block_group = (inode->i_ino - 1) / EXT2_INODES_PER_GROUP(sb);
-	bit = (inode->i_ino - 1) % EXT2_INODES_PER_GROUP(sb);
+	block_group = (ino - 1) / EXT2_INODES_PER_GROUP(sb);
+	bit = (ino - 1) % EXT2_INODES_PER_GROUP(sb);
 	bitmap_nr = load_inode_bitmap (sb, block_group);
+	if (bitmap_nr < 0)
+		goto error_return;
+	
 	bh = sb->u.ext2_sb.s_inode_bitmap[bitmap_nr];
-	if (!clear_bit (bit, bh->b_data))
+
+	is_directory = S_ISDIR(inode->i_mode);
+
+	/* Do this BEFORE marking the inode not in use */
+	clear_inode (inode);
+
+	/* Ok, now we can actually update the inode bitmaps.. */
+	if (!ext2_clear_bit (bit, bh->b_data))
 		ext2_warning (sb, "ext2_free_inode",
-			      "bit already cleared for inode %lu", inode->i_ino);
+			      "bit already cleared for inode %lu", ino);
 	else {
-		gdp = get_group_desc (sb, block_group, &bh2);
-		gdp->bg_free_inodes_count++;
-		if (S_ISDIR(inode->i_mode))
-			gdp->bg_used_dirs_count--;
+		gdp = ext2_get_group_desc (sb, block_group, &bh2);
+		if (gdp) {
+			gdp->bg_free_inodes_count =
+				cpu_to_le16(le16_to_cpu(gdp->bg_free_inodes_count) + 1);
+			if (is_directory)
+				gdp->bg_used_dirs_count =
+					cpu_to_le16(le16_to_cpu(gdp->bg_used_dirs_count) - 1);
+		}
 		mark_buffer_dirty(bh2, 1);
-		es->s_free_inodes_count++;
+		es->s_free_inodes_count =
+			cpu_to_le32(le32_to_cpu(es->s_free_inodes_count) + 1);
 		mark_buffer_dirty(sb->u.ext2_sb.s_sbh, 1);
-		set_inode_dtime (inode, gdp);
 	}
 	mark_buffer_dirty(bh, 1);
 	if (sb->s_flags & MS_SYNCHRONOUS) {
 		ll_rw_block (WRITE, 1, &bh);
 		wait_on_buffer (bh);
 	}
-
 	sb->s_dirt = 1;
-	clear_inode (inode);
+error_return:
 	unlock_super (sb);
-}
-
-/*
- * This function increments the inode version number
- *
- * This may be used one day by the NFS server
- */
-static void inc_inode_version (struct inode * inode,
-			       struct ext2_group_desc *gdp,
-			       int mode)
-{
-	unsigned long inode_block;
-	struct buffer_head * bh;
-	struct ext2_inode * raw_inode;
-
-	inode_block = gdp->bg_inode_table + (((inode->i_ino - 1) %
-			EXT2_INODES_PER_GROUP(inode->i_sb)) /
-			EXT2_INODES_PER_BLOCK(inode->i_sb));
-	bh = bread (inode->i_sb->s_dev, inode_block, inode->i_sb->s_blocksize);
-	if (!bh) {
-		ext2_error (inode->i_sb, "inc_inode_version",
-			    "Cannot load inode table block - "
-			    "inode=%lu, inode_block=%lu\n",
-			    inode->i_ino, inode_block);
-		inode->u.ext2_i.i_version = 1;
-		return;
-	}
-	raw_inode = ((struct ext2_inode *) bh->b_data) +
-			(((inode->i_ino - 1) %
-			EXT2_INODES_PER_GROUP(inode->i_sb)) %
-			EXT2_INODES_PER_BLOCK(inode->i_sb));
-	raw_inode->i_version++;
-	inode->u.ext2_i.i_version = raw_inode->i_version;
-	mark_buffer_dirty(bh, 1);
-	brelse (bh);
 }
 
 /*
@@ -303,7 +272,7 @@ static void inc_inode_version (struct inode * inode,
  * For other inodes, search forward from the parent directory\'s block
  * group to find a free inode.
  */
-struct inode * ext2_new_inode (const struct inode * dir, int mode)
+struct inode * ext2_new_inode (const struct inode * dir, int mode, int * err)
 {
 	struct super_block * sb;
 	struct buffer_head * bh;
@@ -315,25 +284,37 @@ struct inode * ext2_new_inode (const struct inode * dir, int mode)
 	struct ext2_group_desc * tmp;
 	struct ext2_super_block * es;
 
-	if (!dir || !(inode = get_empty_inode ()))
+	/* Cannot create files in a deleted directory */
+	if (!dir || !dir->i_nlink) {
+		*err = -EPERM;
 		return NULL;
+	}
+
+	inode = get_empty_inode ();
+	if (!inode) {
+		*err = -ENOMEM;
+		return NULL;
+	}
+
 	sb = dir->i_sb;
 	inode->i_sb = sb;
-	inode->i_flags = sb->s_flags;
+	inode->i_flags = 0;
 	lock_super (sb);
 	es = sb->u.ext2_sb.s_es;
 repeat:
 	gdp = NULL; i=0;
 	
+	*err = -ENOSPC;
 	if (S_ISDIR(mode)) {
-		avefreei = es->s_free_inodes_count /
+		avefreei = le32_to_cpu(es->s_free_inodes_count) /
 			sb->u.ext2_sb.s_groups_count;
 /* I am not yet convinced that this next bit is necessary.
 		i = dir->u.ext2_i.i_block_group;
 		for (j = 0; j < sb->u.ext2_sb.s_groups_count; j++) {
-			tmp = get_group_desc (sb, i, &bh2);
-			if ((tmp->bg_used_dirs_count << 8) < 
-			    tmp->bg_free_inodes_count) {
+			tmp = ext2_get_group_desc (sb, i, &bh2);
+			if (tmp &&
+			    (le16_to_cpu(tmp->bg_used_dirs_count) << 8) < 
+			     le16_to_cpu(tmp->bg_free_inodes_count)) {
 				gdp = tmp;
 				break;
 			}
@@ -343,12 +324,13 @@ repeat:
 */
 		if (!gdp) {
 			for (j = 0; j < sb->u.ext2_sb.s_groups_count; j++) {
-				tmp = get_group_desc (sb, j, &bh2);
-				if (tmp->bg_free_inodes_count &&
-					tmp->bg_free_inodes_count >= avefreei) {
+				tmp = ext2_get_group_desc (sb, j, &bh2);
+				if (tmp &&
+				    le16_to_cpu(tmp->bg_free_inodes_count) &&
+				    le16_to_cpu(tmp->bg_free_inodes_count) >= avefreei) {
 					if (!gdp || 
-					    (tmp->bg_free_blocks_count >
-					     gdp->bg_free_blocks_count)) {
+					    (le16_to_cpu(tmp->bg_free_blocks_count) >
+					     le16_to_cpu(gdp->bg_free_blocks_count))) {
 						i = j;
 						gdp = tmp;
 					}
@@ -362,8 +344,8 @@ repeat:
 		 * Try to place the inode in its parent directory
 		 */
 		i = dir->u.ext2_i.i_block_group;
-		tmp = get_group_desc (sb, i, &bh2);
-		if (tmp->bg_free_inodes_count)
+		tmp = ext2_get_group_desc (sb, i, &bh2);
+		if (tmp && le16_to_cpu(tmp->bg_free_inodes_count))
 			gdp = tmp;
 		else
 		{
@@ -375,8 +357,9 @@ repeat:
 				i += j;
 				if (i >= sb->u.ext2_sb.s_groups_count)
 					i -= sb->u.ext2_sb.s_groups_count;
-				tmp = get_group_desc (sb, i, &bh2);
-				if (tmp->bg_free_inodes_count) {
+				tmp = ext2_get_group_desc (sb, i, &bh2);
+				if (tmp &&
+				    le16_to_cpu(tmp->bg_free_inodes_count)) {
 					gdp = tmp;
 					break;
 				}
@@ -390,8 +373,9 @@ repeat:
 			for (j = 2; j < sb->u.ext2_sb.s_groups_count; j++) {
 				if (++i >= sb->u.ext2_sb.s_groups_count)
 					i = 0;
-				tmp = get_group_desc (sb, i, &bh2);
-				if (tmp->bg_free_inodes_count) {
+				tmp = ext2_get_group_desc (sb, i, &bh2);
+				if (tmp &&
+				    le16_to_cpu(tmp->bg_free_inodes_count)) {
 					gdp = tmp;
 					break;
 				}
@@ -405,11 +389,18 @@ repeat:
 		return NULL;
 	}
 	bitmap_nr = load_inode_bitmap (sb, i);
+	if (bitmap_nr < 0) {
+		unlock_super (sb);
+		iput(inode);
+		*err = -EIO;
+		return NULL;
+	}
+
 	bh = sb->u.ext2_sb.s_inode_bitmap[bitmap_nr];
-	if ((j = find_first_zero_bit ((unsigned long *) bh->b_data,
+	if ((j = ext2_find_first_zero_bit ((unsigned long *) bh->b_data,
 				      EXT2_INODES_PER_GROUP(sb))) <
 	    EXT2_INODES_PER_GROUP(sb)) {
-		if (set_bit (j, bh->b_data)) {
+		if (ext2_set_bit (j, bh->b_data)) {
 			ext2_warning (sb, "ext2_new_inode",
 				      "bit already set for inode %d", j);
 			goto repeat;
@@ -420,7 +411,7 @@ repeat:
 			wait_on_buffer (bh);
 		}
 	} else {
-		if (gdp->bg_free_inodes_count != 0) {
+		if (le16_to_cpu(gdp->bg_free_inodes_count) != 0) {
 			ext2_error (sb, "ext2_new_inode",
 				    "Free inodes count corrupted in group %d",
 				    i);
@@ -431,7 +422,7 @@ repeat:
 		goto repeat;
 	}
 	j += i * EXT2_INODES_PER_GROUP(sb) + 1;
-	if (j < EXT2_FIRST_INO || j > es->s_inodes_count) {
+	if (j < EXT2_FIRST_INO(sb) || j > le32_to_cpu(es->s_inodes_count)) {
 		ext2_error (sb, "ext2_new_inode",
 			    "reserved inode or inode > inodes count - "
 			    "block_group = %d,inode=%d", i, j);
@@ -439,16 +430,18 @@ repeat:
 		iput (inode);
 		return NULL;
 	}
-	gdp->bg_free_inodes_count--;
+	gdp->bg_free_inodes_count =
+		cpu_to_le16(le16_to_cpu(gdp->bg_free_inodes_count) - 1);
 	if (S_ISDIR(mode))
-		gdp->bg_used_dirs_count++;
+		gdp->bg_used_dirs_count =
+			cpu_to_le16(le16_to_cpu(gdp->bg_used_dirs_count) + 1);
 	mark_buffer_dirty(bh2, 1);
-	es->s_free_inodes_count--;
+	es->s_free_inodes_count =
+		cpu_to_le32(le32_to_cpu(es->s_free_inodes_count) - 1);
 	mark_buffer_dirty(sb->u.ext2_sb.s_sbh, 1);
 	sb->s_dirt = 1;
 	inode->i_mode = mode;
 	inode->i_sb = sb;
-	inode->i_count = 1;
 	inode->i_nlink = 1;
 	inode->i_dev = sb->s_dev;
 	inode->i_uid = current->fsuid;
@@ -460,11 +453,12 @@ repeat:
 			mode |= S_ISGID;
 	} else
 		inode->i_gid = current->fsgid;
-	inode->i_dirt = 1;
+
 	inode->i_ino = j;
-	inode->i_blksize = sb->s_blocksize;
+	inode->i_blksize = PAGE_SIZE;	/* This is the optimal IO size (for stat), not the fs block size */
 	inode->i_blocks = 0;
 	inode->i_mtime = inode->i_atime = inode->i_ctime = CURRENT_TIME;
+	inode->u.ext2_i.i_new_inode = 1;
 	inode->u.ext2_i.i_flags = dir->u.ext2_i.i_flags;
 	if (S_ISLNK(mode))
 		inode->u.ext2_i.i_flags &= ~(EXT2_IMMUTABLE_FL | EXT2_APPEND_FL);
@@ -479,11 +473,20 @@ repeat:
 	if (inode->u.ext2_i.i_flags & EXT2_SYNC_FL)
 		inode->i_flags |= MS_SYNCHRONOUS;
 	insert_inode_hash(inode);
-	inc_inode_version (inode, gdp, mode);
-
-	ext2_debug ("allocating inode %lu\n", inode->i_ino);
+	inode->i_generation = event++;
+	mark_inode_dirty(inode);
 
 	unlock_super (sb);
+	if(DQUOT_ALLOC_INODE(sb, inode)) {
+		sb->dq_op->drop(inode);
+		inode->i_nlink = 0;
+		iput(inode);
+		*err = -EDQUOT;
+		return NULL;
+	}
+	ext2_debug ("allocating inode %lu\n", inode->i_ino);
+
+	*err = 0;
 	return inode;
 }
 
@@ -502,21 +505,26 @@ unsigned long ext2_count_free_inodes (struct super_block * sb)
 	bitmap_count = 0;
 	gdp = NULL;
 	for (i = 0; i < sb->u.ext2_sb.s_groups_count; i++) {
-		gdp = get_group_desc (sb, i, NULL);
-		desc_count += gdp->bg_free_inodes_count;
+		gdp = ext2_get_group_desc (sb, i, NULL);
+		if (!gdp)
+			continue;
+		desc_count += le16_to_cpu(gdp->bg_free_inodes_count);
 		bitmap_nr = load_inode_bitmap (sb, i);
+		if (bitmap_nr < 0)
+			continue;
+
 		x = ext2_count_free (sb->u.ext2_sb.s_inode_bitmap[bitmap_nr],
 				     EXT2_INODES_PER_GROUP(sb) / 8);
 		printk ("group %d: stored = %d, counted = %lu\n",
-			i, gdp->bg_free_inodes_count, x);
+			i, le16_to_cpu(gdp->bg_free_inodes_count), x);
 		bitmap_count += x;
 	}
 	printk("ext2_count_free_inodes: stored = %lu, computed = %lu, %lu\n",
-		es->s_free_inodes_count, desc_count, bitmap_count);
+		le32_to_cpu(es->s_free_inodes_count), desc_count, bitmap_count);
 	unlock_super (sb);
 	return desc_count;
 #else
-	return sb->u.ext2_sb.s_es->s_free_inodes_count;
+	return le32_to_cpu(sb->u.ext2_sb.s_es->s_free_inodes_count);
 #endif
 }
 
@@ -534,22 +542,28 @@ void ext2_check_inodes_bitmap (struct super_block * sb)
 	bitmap_count = 0;
 	gdp = NULL;
 	for (i = 0; i < sb->u.ext2_sb.s_groups_count; i++) {
-		gdp = get_group_desc (sb, i, NULL);
-		desc_count += gdp->bg_free_inodes_count;
+		gdp = ext2_get_group_desc (sb, i, NULL);
+		if (!gdp)
+			continue;
+		desc_count += le16_to_cpu(gdp->bg_free_inodes_count);
 		bitmap_nr = load_inode_bitmap (sb, i);
+		if (bitmap_nr < 0)
+			continue;
+		
 		x = ext2_count_free (sb->u.ext2_sb.s_inode_bitmap[bitmap_nr],
 				     EXT2_INODES_PER_GROUP(sb) / 8);
-		if (gdp->bg_free_inodes_count != x)
+		if (le16_to_cpu(gdp->bg_free_inodes_count) != x)
 			ext2_error (sb, "ext2_check_inodes_bitmap",
 				    "Wrong free inodes count in group %d, "
 				    "stored = %d, counted = %lu", i,
-				    gdp->bg_free_inodes_count, x);
+				    le16_to_cpu(gdp->bg_free_inodes_count), x);
 		bitmap_count += x;
 	}
-	if (es->s_free_inodes_count != bitmap_count)
+	if (le32_to_cpu(es->s_free_inodes_count) != bitmap_count)
 		ext2_error (sb, "ext2_check_inodes_bitmap",
 			    "Wrong free inodes count in super block, "
 			    "stored = %lu, counted = %lu",
-			    (unsigned long) es->s_free_inodes_count, bitmap_count);
+			    (unsigned long) le32_to_cpu(es->s_free_inodes_count),
+			    bitmap_count);
 	unlock_super (sb);
 }
