@@ -64,18 +64,18 @@ options 	SYSVSEM			#SYSV-style semaphores
 #options 	NAPIC=1			# number of IO APICs
 #options 	NINTR=24		# number of INTs
 
-controller	isa0
-controller	pci0
+device		isa0
+device		pci0
 
 # Floppy drives
-controller	fdc0	at isa? port IO_FD1 irq 11 drq 2
+device		fdc0	at isa? port IO_FD1 irq 11 drq 2
 device		fd0	at fdc0 drive 0
 device		fd1	at fdc0 drive 1
 device		fd2	at fdc0 drive 2
 device		fd3	at fdc0 drive 3
 
 # IDE controller and disks
-controller	wdc0	at isa? port IO_WD1 irq 9
+device		wdc0	at isa? port IO_WD1 irq 9
 device		wd0	at wdc0 drive 0
 #device		wd1	at wdc0 drive 1
 #device		wd2	at wdc0 drive 2
@@ -89,12 +89,12 @@ device		wcd0		#IDE CD-ROM
 # SCSI Controllers
 # A single entry for any of these controllers (ahb, ahc, amd, ncr, etc...) is
 # sufficient for any number of installed devices.
-controller	adv0
-controller	ahc0		# AHA2940 and onboard AIC7xxx devices
-controller	amd0		# AMD 53C974 (Teckram DC-390(T))
-controller	isp0		# Qlogic family
-controller	ncr0		# NCR/Symbios Logic
-controller	sym0		# NCR/Symbios Logic (newer chipsets)
+device		adv0
+device		ahc0		# AHA2940 and onboard AIC7xxx devices
+device		amd0		# AMD 53C974 (Teckram DC-390(T))
+device		isp0		# Qlogic family
+device		ncr0		# NCR/Symbios Logic
+device		sym0		# NCR/Symbios Logic (newer chipsets)
 
 #
 # WD33C93 SCSI card (55/92 like board)
@@ -103,21 +103,21 @@ controller	sym0		# NCR/Symbios Logic (newer chipsets)
 options	BS_TARG_SAFEMODE
 
 # PC-9801-92
-controller bs0 at isa? port IO_SCSI irq 5 drq 3 flags 0
+device bs0 at isa? port IO_SCSI irq 5 drq 3 flags 0
 # SC-98
-# controller bs0 at isa? port IO_SCSI irq 5 drq 3 flags 0x10000
+# device bs0 at isa? port IO_SCSI irq 5 drq 3 flags 0x10000
 # HA-55BS2 and later
-#controller bs0 at isa? port IO_SCSI irq 5 drq 3 flags 0x20000
+#device bs0 at isa? port IO_SCSI irq 5 drq 3 flags 0x20000
 # ELECOM type
-#controller bs0 at isa? port IO_SCSI irq 5 drq 3 flags 0x30000
+#device bs0 at isa? port IO_SCSI irq 5 drq 3 flags 0x30000
 # SMIT
-#controller bs0 at isa? port IO_SCSI irq 5 drq 3 iomem 0xdd000 iosiz 0x1000 flags 0x40000
+#device bs0 at isa? port IO_SCSI irq 5 drq 3 iomem 0xdd000 iosiz 0x1000 flags 0x40000
 # Logitec LHA-20x
-#controller bs0 at isa? port IO_SCSI irq 5 drq 3 flags 0x50000
+#device bs0 at isa? port IO_SCSI irq 5 drq 3 flags 0x50000
 
 # SCSI peripherals
 # Only one of each of these is needed, they are dynamically allocated.
-controller	scbus0		# SCSI bus (required)
+device		scbus0		# SCSI bus (required)
 device		da0		# Direct Access (disks)
 device		sa0		# Sequential Access (tape etc)
 device		cd0		# CD
@@ -146,7 +146,7 @@ device		npx0	at nexus? port IO_NPX irq 8
 device		apm0    at nexus? disable flags 0x20 # Advanced Power Management
 
 # PCCARD (PCMCIA) support
-#controller	card0
+#device		card0
 #device		pcic0	at isa?
 #device		pcic1	at isa?
 
@@ -183,11 +183,11 @@ device		mse0	at isa? port IO_MSE irq 13
 
 # NEW Parallel port
 device		ppc0	at isa? port? irq 14
-controller	ppbus0		# Parallel port bus (required)
+device		ppbus0		# Parallel port bus (required)
 device		lpt0		# Printer
 device		plip0		# TCP/IP over parallel
 device		ppi0		# Parallel port interface device
-#controller	vpo0		# Requires scbus and da0
+#device		vpo0		# Requires scbus and da0
 # OLD Parallel port
 # Please stay olpt driver after ppc driver
 device		olpt0	at isa? port IO_LPT
@@ -201,7 +201,7 @@ device		vx0		# 3Com 3c590, 3c595 (``Vortex'')
 device		wx0		# Intel Gigabit Ethernet Card (``Wiseman'')
 
 # PCI Ethernet NICs that use the common MII bus controller code.
-controller	miibus0		# MII bus support
+device		miibus0		# MII bus support
 device		dc0		# DEC/Intel 21143 and various workalikes
 device		rl0		# RealTek 8129/8139
 device		sf0		# Adaptec AIC-6915 (``Starfire'')
@@ -261,7 +261,7 @@ device		ep0 at isa? port 0x40d0 irq 3
 # and resources will always be dynamically assigned by the pccard code.
 #device		wi0
 
-#controller	snd0
+#device	snd0
 #device	sb0	at isa? port 0x20d2 irq 10 conflicts drq 3
 #device	sbxvi0 	at isa? drq 3
 #device	sbmidi0	at isa? port 0x80d2
@@ -286,14 +286,14 @@ pseudo-device	bpf		#Berkeley packet filter
 #pseudo-device	compat_atdisk	#IBM-PC HDD support
 
 # USB support
-#controller	uhci0		# UHCI PCI->USB interface
-#controller	ohci0		# OHCI PCI->USB interface
-#controller	usb0		# USB Bus (required)
+#device		uhci0		# UHCI PCI->USB interface
+#device		ohci0		# OHCI PCI->USB interface
+#device		usb0		# USB Bus (required)
 #device		ugen0		# Generic
 #device		uhid0		# "Human Interface Devices"
 #device		ukbd0		# Keyboard
 #device		ulpt0		# Printer
-#controller	umass0		# Disks/Mass storage - Requires scbus and da0
+#device		umass0		# Disks/Mass storage - Requires scbus and da0
 #device		ums0		# Mouse
 #device		aue0		# ADMtek USB ethernet
 #device		kue0		# Kawasaki LSI USB ethernet
