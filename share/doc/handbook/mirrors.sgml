@@ -1,4 +1,4 @@
-<!-- $Id: mirrors.sgml,v 1.52 1997/02/26 11:07:24 jkh Exp $ -->
+<!-- $Id: mirrors.sgml,v 1.53 1997/03/11 15:19:32 ache Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -561,7 +561,7 @@ for this domain.
 
 <sect><heading>CTM Sites<label id="mirrors-ctm"></heading>
 
-<p>CTM/FreeBSD is available via anonymous FTP from the
+<p><ref id="ctm" name="CTM">/FreeBSD is available via anonymous FTP from the
       following mirror sites. If you choose to obtain CTM via
       anonymous FTP, please try to use a site near you.
 
@@ -619,7 +619,8 @@ FTP search is a great free archie server in Trondheim, Norway.
 
 <sect><heading>CVSup Sites<label id="mirrors-cvsup"></heading>
 
-<p>CVSup servers for FreeBSD are running at the following sites:
+<p><ref id="cvsup" name="CVSup"> servers for FreeBSD are running at
+the following sites:
 
 <descrip>
 
