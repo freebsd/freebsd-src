@@ -122,6 +122,7 @@ main(int argc, char **argv)
 	int			 opt;
 	char			 mode;
 	char			 buff[16];
+	char			 possible_help_request;
 
 	/*
 	 * Use a pointer for consistency, but stack-allocated storage
@@ -134,6 +135,7 @@ main(int argc, char **argv)
 	if (setlocale(LC_ALL, "") == NULL)
 		bsdtar_warnc(bsdtar, 0, "Failed to set default locale");
 	mode = '\0';
+	possible_help_request = 0;
 
 	/* Look up uid/uname of current user for future reference */
 	bsdtar->user_uid = geteuid();
@@ -220,6 +222,8 @@ main(int argc, char **argv)
 			break;
 		case 'h': /* Linux Standards Base, gtar; synonym for -L */
 			bsdtar->symlink_mode = 'L';
+			/* Hack: -h by itself is the "help" command. */
+			possible_help_request = 1;
 			break;
 #ifdef HAVE_GETOPT_LONG
 		case OPTION_HELP:
@@ -351,6 +355,11 @@ main(int argc, char **argv)
 	/*
 	 * Sanity-check options.
 	 */
+	if (mode == '\0' && possible_help_request) {
+		long_help(bsdtar);
+		exit(1);
+	}
+
 	if (mode == '\0')
 		bsdtar_errc(bsdtar, 1, 0,
 		    "Must specify one of -c, -r, -t, -u, -x");
@@ -509,7 +518,11 @@ usage(struct bsdtar *bsdtar)
 	printf("  List:    %s -tf [archive-filename]\n", p);
 	printf("  Extract: %s -xf [archive-filename]\n", p);
 	printf("  Create:  %s -cf [archive-filename] [filenames...]\n", p);
+#ifdef HAVE_GETOPT_LONG
+	printf("  Help:    %s --help\n", p);
+#else
 	printf("  Help:    %s -h\n", p);
+#endif
 	exit(1);
 }
 
