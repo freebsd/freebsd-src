@@ -205,10 +205,10 @@ int des_new_random_key(des_cblock *key);
 void des_init_random_number_generator(des_cblock *seed);
 void des_rand_data(unsigned char *data, int size);
 int des_random_key(des_cblock *ret);
-int des_read_password(des_cblock *key,const char *prompt,int verify);
+int des_read_password(des_cblock *key,const char *_prompt,int verify);
 int des_read_2passwords(des_cblock *key1,des_cblock *key2,
-			const char *prompt,int verify);
-int des_read_pw_string(char *buf,int length,const char *prompt,int verify);
+			const char *_prompt,int verify);
+int des_read_pw_string(char *buf,int length,const char *_prompt,int verify);
 void des_set_odd_parity(des_cblock *key);
 int des_check_key_parity(const_des_cblock *key);
 int des_is_weak_key(const_des_cblock *key);
@@ -226,7 +226,7 @@ void des_cfb64_encrypt(const unsigned char *in,unsigned char *out,long length,
 		       int enc);
 void des_ofb64_encrypt(const unsigned char *in,unsigned char *out,long length,
 		       des_key_schedule schedule,des_cblock *ivec,int *num);
-int des_read_pw(char *buf,char *buff,int size,const char *prompt,int verify);
+int des_read_pw(char *buf,char *buff,int size,const char *_prompt,int verify);
 
 /* The following definitions provide compatibility with the MIT Kerberos
  * library. The des_key_schedule structure is not binary compatible. */
