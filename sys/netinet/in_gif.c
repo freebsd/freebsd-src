@@ -30,7 +30,6 @@
  * SUCH DAMAGE.
  */
 
-#include "opt_mrouting.h"
 #include "opt_inet.h"
 #include "opt_inet6.h"
 
@@ -61,10 +60,6 @@
 #ifdef INET6
 #include <netinet/ip6.h>
 #endif
-
-#ifdef MROUTING
-#include <netinet/ip_mroute.h>
-#endif /* MROUTING */
 
 #include <net/if_gif.h>	
 
