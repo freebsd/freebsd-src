@@ -31,7 +31,11 @@
 .Dt DEVSTAT 9
 .Os FreeBSD 3.0
 .Sh NAME
-.Nm devstat
+.Nm devstat ,
+.Nm devstat_add_entry ,
+.Nm devstat_remove_entry ,
+.Nm devstat_start_transaction ,
+.Nm devstat_end_transaction
 .Nd kernel interface for keeping device statistics
 .Sh SYNOPSIS
 .Fd #include <sys/devicestat.h>
@@ -67,8 +71,8 @@ statistics, as its name implies.  The idea is to keep reasonably detailed
 statistics while utilizing a minimum amount of CPU time to record them.
 Thus, no statistical calculations are actually performed in the kernel
 portion of the
-.Nm
-code.  Instead, that is left for user programs to handle.
+.Nm devstat
+code. Instead, that is left for user programs to handle.
 .Pp
 .Fn devstat_add_entry
 registers a device with the
