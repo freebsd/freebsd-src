@@ -74,8 +74,8 @@ pnp_scan(int argc, char *argv[])
 	    if (pi->pi_desc != NULL) {
 		pager_output(" : ");
 		pager_output(pi->pi_desc);
-		pager_output("\n");
 	    }
+	    pager_output("\n");
 	}
 	pager_close();
     }
@@ -353,5 +353,27 @@ void
 pnp_addinfo(struct pnpinfo *pi)
 {
     STAILQ_INSERT_TAIL(&pnp_devices, pi, pi_link);
+}
+
+
+/*
+ * Format an EISA id as a string in standard ISA PnP format, AAAIIRR
+ * where 'AAA' is the EISA vendor ID, II is the product ID and RR the revision ID.
+ */
+char *
+pnp_eisaformat(u_int8_t *data)
+{
+    static char	idbuf[8];
+    const char	hextoascii[] = "0123456789abcdef";
+
+    idbuf[0] = '@' + ((data[0] & 0x7c) >> 2);
+    idbuf[1] = '@' + (((data[0] & 0x3) << 3) + ((data[1] & 0xe0) >> 5));
+    idbuf[2] = '@' + (data[1] & 0x1f);
+    idbuf[3] = hextoascii[(data[2] >> 4)];
+    idbuf[4] = hextoascii[(data[2] & 0xf)];
+    idbuf[5] = hextoascii[(data[3] >> 4)];
+    idbuf[6] = hextoascii[(data[3] & 0xf)];
+    idbuf[7] = 0;
+    return(idbuf);
 }
 
