@@ -36,10 +36,9 @@
 .Sh DESCRIPTION
 Device polling
 .Nm (
-for brevity) refers to a technique to
-handle devices that does not rely on the latter to generate
-interrupts when they need attention, but rather lets the CPU poll
-devices to service their needs.
+for brevity) refers to a technique that
+lets the operating system periodically poll devices, instead of
+relying on the devices to generate interrupts when they need attention.
 This might seem inefficient and counterintuitive, but when done
 properly,
 .Nm
