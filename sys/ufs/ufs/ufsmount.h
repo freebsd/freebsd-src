@@ -95,6 +95,7 @@ struct ufsmount {
 	struct	netexport um_export;		/* export information */
 	int64_t	um_savedmaxfilesize;		/* XXX - limit maxfilesize */
 	struct malloc_type *um_malloctype;	/* The inodes malloctype */
+	int	um_i_effnlink_valid;		/* i_effnlink valid? */
 	int	(*um_blkatoff) __P((struct vnode *, off_t, char **, struct buf **));
 	int	(*um_truncate) __P((struct vnode *, off_t, int, struct ucred *, struct proc *));
 	int	(*um_update) __P((struct vnode *, int));
