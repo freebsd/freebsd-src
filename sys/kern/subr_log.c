@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_log.c	8.1 (Berkeley) 6/10/93
- * $Id: subr_log.c,v 1.5 1994/10/02 17:35:22 phk Exp $
+ * $Id: subr_log.c,v 1.6 1995/04/29 05:09:19 jkh Exp $
  */
 
 /*
@@ -234,7 +234,7 @@ logioctl(dev, com, data, flag, p)
 		break;
 
 	default:
-		return (EINVAL);
+		return (ENOTTY);
 	}
 	return (0);
 }
