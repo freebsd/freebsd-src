@@ -383,7 +383,8 @@ ufs_getattr(ap)
 	vap->va_fsid = ip->i_dev;
 	vap->va_fileid = ip->i_number;
 	vap->va_mode = ip->i_mode & ~IFMT;
-	vap->va_nlink = ip->i_effnlink;
+	vap->va_nlink = VFSTOUFS(vp->v_mount)->um_i_effnlink_valid ?
+	    ip->i_effnlink : ip->i_nlink;
 	vap->va_uid = ip->i_uid;
 	vap->va_gid = ip->i_gid;
 	vap->va_rdev = (dev_t)ip->i_rdev;
