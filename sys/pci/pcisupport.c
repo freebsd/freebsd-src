@@ -779,7 +779,7 @@ static int pcib_attach(device_t dev)
 
 	secondary = pci_get_secondarybus(dev);
 	if (secondary) {
-		device_add_child(dev, "pci", secondary, 0);
+		device_add_child(dev, "pci", secondary);
 		return bus_generic_attach(dev);
 	} else
 		return 0;
@@ -926,10 +926,10 @@ isab_probe(device_t dev)
 		 */
 		device_set_desc_copy(dev, desc);
 		if (is_eisa && !devclass_get_device(devclass_find("eisa"), 0))
-			device_add_child(dev, "eisa", -1, 0);
+			device_add_child(dev, "eisa", -1);
 
 		if (!devclass_get_device(devclass_find("isa"), 0))
-			device_add_child(dev, "isa", -1, 0);
+			device_add_child(dev, "isa", -1);
 		return 0;
 	}
 	return ENXIO;

@@ -112,6 +112,7 @@ static devclass_t gusc_devclass;
 static int
 gusc_probe(device_t dev)
 {
+	device_t child;
 	u_int32_t vend_id, logical_id;
 	char *s;
 	struct sndcard_func *func;
@@ -133,7 +134,8 @@ gusc_probe(device_t dev)
 				return (ENOMEM);
 			bzero(func, sizeof(*func));
 			func->func = SCF_PCM;
-			device_add_child(dev, "pcm", -1, func);
+			child = device_add_child(dev, "pcm", -1);
+			device_set_ivars(child, func);
 			break;
 #if notyet
 		case LOGICALID_OPL:
@@ -143,7 +145,8 @@ gusc_probe(device_t dev)
 				return (ENOMEM);
 			bzero(func, sizeof(*func));
 			func->func = SCF_SYNTH;
-			device_add_child(dev, "midi", -1, func);
+			child = device_add_child(dev, "midi", -1);
+			device_set_ivars(child, func);
 			break;
 		case LOGICALID_MIDI:
 			s = "Gravis UltraSound Plug & Play MIDI";
@@ -152,7 +155,8 @@ gusc_probe(device_t dev)
 				return (ENOMEM);
 			bzero(func, sizeof(*func));
 			func->func = SCF_MIDI;
-			device_add_child(dev, "midi", -1, func);
+			child = device_add_child(dev, "midi", -1);
+			device_set_ivars(child, func);
 			break;
 #endif /* notyet */
 		}
@@ -186,6 +190,7 @@ port_rd(struct resource *r, int i)
 static int
 gusisa_probe(device_t dev)
 {
+	device_t child;
 	struct resource *res, *res2;
 	int base, rid, rid2, s, flags;
 	unsigned char val;
@@ -283,7 +288,8 @@ gusisa_probe(device_t dev)
 			return ENOMEM;
 		bzero(func, sizeof *func);
 		func->func = SCF_MIDI;
-		device_add_child(dev, "midi", -1, func);
+		child = device_add_child(dev, "midi", -1);
+		device_set_ivars(child, func);
 #endif /* notyet */
 
 		func = malloc(sizeof(struct sndcard_func), M_DEVBUF, M_NOWAIT);
@@ -292,7 +298,8 @@ gusisa_probe(device_t dev)
 		else {
 			bzero(func, sizeof *func);
 			func->func = SCF_PCM;
-			device_add_child(dev, "pcm", -1, func);
+			child = device_add_child(dev, "pcm", -1);
+			device_set_ivars(child, func);
 		}
 		device_set_desc(dev, "Gravis UltraSound MAX");
 		return 0;

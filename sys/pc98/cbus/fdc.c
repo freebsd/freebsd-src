@@ -964,7 +964,8 @@ fdc_add_device(device_t dev, const char *name, int unit)
 		return;
 	if (resource_int_value(name, unit, "drive", ivar) != 0)
 		*ivar = 0;
-	child = device_add_child(dev, name, unit, ivar);
+	child = device_add_child(dev, name, unit);
+	device_set_ivars(child, ivar);
 	if (child == 0)
 		return;
 	if (resource_int_value(name, unit, "disabled", &disabled) == 0

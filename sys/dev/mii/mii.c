@@ -142,7 +142,8 @@ int miibus_probe(dev)
 		args = malloc(sizeof(struct mii_attach_args),
 		    M_DEVBUF, M_NOWAIT);
 		bcopy((char *)&ma, (char *)args, sizeof(ma));
-		child = device_add_child(dev, NULL, -1, args);
+		child = device_add_child(dev, NULL, -1);
+		device_set_ivars(child, args);
 	}
 
 	if (child == NULL)
@@ -250,7 +251,8 @@ int mii_phy_probe(dev, child, ifmedia_upd, ifmedia_sts)
 	v = malloc(sizeof(vm_offset_t) * 2, M_DEVBUF, M_NOWAIT);
 	v[0] = ifmedia_upd;
 	v[1] = ifmedia_sts;
-	*child = device_add_child(dev, "miibus", -1, v);
+	*child = device_add_child(dev, "miibus", -1);
+	device_set_ivars(*child, v);
 
 	for (i = 0; i < MII_NPHY; i++) {
 		bmsr = MIIBUS_READREG(dev, i, MII_BMSR);

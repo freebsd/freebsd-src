@@ -177,7 +177,7 @@ configure(void *dummy)
 {
 	configure_start();
 
-	device_add_child(root_bus, platform.iobus, 0, 0);
+	device_add_child(root_bus, platform.iobus, 0);
 
 	root_bus_configure();
 

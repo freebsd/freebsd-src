@@ -70,7 +70,7 @@ tsunami_pcib_probe(device_t dev)
 
 	device_set_desc(dev, "21271 PCI host bus adapter");
 
-	child = device_add_child(dev, "pci", -1, 0);
+	child = device_add_child(dev, "pci", -1);
 
 	if(hoseno)
 		tsunami_hoses[hoseno] = device_get_unit(child);

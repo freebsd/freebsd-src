@@ -222,11 +222,9 @@ void	bus_delete_resource(device_t dev, int type, int rid);
 /*
  * Access functions for device.
  */
-device_t	device_add_child(device_t dev, const char *name, int unit,
-				 void *ivp);
+device_t	device_add_child(device_t dev, const char *name, int unit);
 device_t	device_add_child_ordered(device_t dev, int order,
-					 const char *name, int unit,
-					 void *ivp);
+					 const char *name, int unit);
 void	device_busy(device_t dev);
 int	device_delete_child(device_t dev, device_t child);
 int	device_detach(device_t dev);
@@ -241,6 +239,7 @@ u_int32_t	device_get_flags(device_t dev);
 device_t	device_get_parent(device_t dev);
 int	device_get_children(device_t dev, device_t **listp, int *countp);
 void	*device_get_ivars(device_t dev);
+void	device_set_ivars(device_t dev, void *ivars);
 const	char *device_get_name(device_t dev);
 const	char *device_get_nameunit(device_t dev);
 void	*device_get_softc(device_t dev);

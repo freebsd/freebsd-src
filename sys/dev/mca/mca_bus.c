@@ -245,6 +245,7 @@ mca_add_iospace (dev, iobase, iosize)
 static int
 mca_probe (device_t dev)
 {
+	device_t		child;
 	struct mca_device *	m_dev = NULL;
 	int			devices_found = 0;
 	u_int8_t		slot;
@@ -307,7 +308,8 @@ mca_probe (device_t dev)
 
 		resource_list_init(&(m_dev->rl));
 
-		device_add_child(dev, NULL, -1, m_dev);
+		child = device_add_child(dev, NULL, -1);
+		device_set_ivars(child, m_dev);
 
 		m_dev = NULL;
 	}

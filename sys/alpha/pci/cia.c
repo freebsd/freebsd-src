@@ -897,7 +897,7 @@ cia_probe(device_t dev)
 	isa_init_intr();
 	cia_init_sgmap();
 
-	device_add_child(dev, "pcib", 0, 0);
+	device_add_child(dev, "pcib", 0);
 
 	return 0;
 }

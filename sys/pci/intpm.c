@@ -711,7 +711,7 @@ intpm_attach(device_t dev)
                         device_printf(dev,"Failed to map intr\n");
 			return error;
                 }
-                smbinterface=device_add_child(dev,"intsmb",unit,NULL);
+                smbinterface=device_add_child(dev,"intsmb",unit);
 		if(!smbinterface){
 		     printf("intsmb%d:could not add SMBus device\n",unit);
 		}

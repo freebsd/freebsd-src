@@ -86,6 +86,7 @@ static devclass_t sbc_devclass;
 static int
 sbc_probe(device_t dev)
 {
+	device_t child;
 	u_int32_t vend_id, logical_id, vend_id2;
 	char *s;
 	struct sndcard_func *func;
@@ -177,7 +178,8 @@ sbc_probe(device_t dev)
 			return (ENOMEM);
 		bzero(func, sizeof(*func));
 		func->func = SCF_PCM;
-		device_add_child(dev, "pcm", -1, func);
+		child = device_add_child(dev, "pcm", -1);
+		device_set_ivars(child, func);
 
 #if notyet
 		/* Midi Interface */
@@ -186,7 +188,8 @@ sbc_probe(device_t dev)
 			return (ENOMEM);
 		bzero(func, sizeof(*func));
 		func->func = SCF_MIDI;
-		device_add_child(dev, "midi", -1, func);
+		child = device_add_child(dev, "midi", -1);
+		device_set_ivars(child, func);
 
 		/* OPL FM Synthesizer */
 		func = malloc(sizeof(struct sndcard_func), M_DEVBUF, M_NOWAIT);
@@ -194,7 +197,8 @@ sbc_probe(device_t dev)
 			return (ENOMEM);
 		bzero(func, sizeof(*func));
 		func->func = SCF_SYNTH;
-		device_add_child(dev, "midi", -1, func);
+		child = device_add_child(dev, "midi", -1);
+		device_set_ivars(child, func);
 #endif /* notyet */
 
 		return (0);
