@@ -56,7 +56,6 @@ __FBSDID("$FreeBSD$");
 
 static MALLOC_DEFINE(M_LEGACYDEV, "legacydrv", "legacy system device");
 struct legacy_device {
-	struct resource_list	lg_resources;
 	int			lg_pcibus;
 };
 
@@ -68,15 +67,8 @@ static	int legacy_attach(device_t);
 static	int legacy_print_child(device_t, device_t);
 static device_t legacy_add_child(device_t bus, int order, const char *name,
 				int unit);
-static	struct resource *legacy_alloc_resource(device_t, device_t, int, int *,
-					      u_long, u_long, u_long, u_int);
 static	int legacy_read_ivar(device_t, device_t, int, uintptr_t *);
 static	int legacy_write_ivar(device_t, device_t, int, uintptr_t);
-static	int legacy_release_resource(device_t, device_t, int, int,
-				   struct resource *);
-static	int legacy_set_resource(device_t, device_t, int, int, u_long, u_long);
-static	int legacy_get_resource(device_t, device_t, int, int, u_long *, u_long *);
-static void legacy_delete_resource(device_t, device_t, int, int);
 
 static device_method_t legacy_methods[] = {
 	/* Device interface */
@@ -93,11 +85,8 @@ static device_method_t legacy_methods[] = {
 	DEVMETHOD(bus_add_child,	legacy_add_child),
 	DEVMETHOD(bus_read_ivar,	legacy_read_ivar),
 	DEVMETHOD(bus_write_ivar,	legacy_write_ivar),
-	DEVMETHOD(bus_set_resource,	legacy_set_resource),
-	DEVMETHOD(bus_get_resource,	legacy_get_resource),
-	DEVMETHOD(bus_alloc_resource,	legacy_alloc_resource),
-	DEVMETHOD(bus_release_resource,	legacy_release_resource),
-	DEVMETHOD(bus_delete_resource,	legacy_delete_resource),
+	DEVMETHOD(bus_alloc_resource,	bus_generic_alloc_resource),
+	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
 	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
@@ -202,30 +191,12 @@ legacy_attach(device_t dev)
 }
 
 static int
-legacy_print_all_resources(device_t dev)
-{
-	struct legacy_device *atdev = DEVTOAT(dev);
-	struct resource_list *rl = &atdev->lg_resources;
-	int retval = 0;
-
-	if (SLIST_FIRST(rl) || atdev->lg_pcibus != -1)
-		retval += printf(" at");
-	
-	retval += resource_list_print_type(rl, "port", SYS_RES_IOPORT, "%#lx");
-	retval += resource_list_print_type(rl, "iomem", SYS_RES_MEMORY, "%#lx");
-	retval += resource_list_print_type(rl, "irq", SYS_RES_IRQ, "%ld");
-
-	return retval;
-}
-
-static int
 legacy_print_child(device_t bus, device_t child)
 {
 	struct legacy_device *atdev = DEVTOAT(child);
 	int retval = 0;
 
 	retval += bus_print_child_header(bus, child);
-	retval += legacy_print_all_resources(child);
 	if (atdev->lg_pcibus != -1)
 		retval += printf(" pcibus %d", atdev->lg_pcibus);
 	retval += printf(" on motherboard\n");	/* XXX "motherboard", ick */
@@ -243,7 +214,6 @@ legacy_add_child(device_t bus, int order, const char *name, int unit)
 	    M_NOWAIT | M_ZERO);
 	if (atdev == NULL)
 		return(NULL);
-	resource_list_init(&atdev->lg_resources);
 	atdev->lg_pcibus = -1;
 
 	child = device_add_child_ordered(bus, order, name, unit);
@@ -285,66 +255,6 @@ legacy_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
 		return ENOENT;
 	}
 	return 0;
-}
-
-
-static struct resource *
-legacy_alloc_resource(device_t bus, device_t child, int type, int *rid,
-		     u_long start, u_long end, u_long count, u_int flags)
-{
-	struct legacy_device *atdev = DEVTOAT(child);
-	struct resource_list *rl = &atdev->lg_resources;
-
-	return (resource_list_alloc(rl, bus, child, type, rid, start, end,
-		    count, flags));
-}
-
-static int
-legacy_release_resource(device_t bus, device_t child, int type, int rid,
-		       struct resource *r)
-{
-	struct legacy_device *atdev = DEVTOAT(child);
-	struct resource_list *rl = &atdev->lg_resources;
-
-	return (resource_list_release(rl, bus, child, type, rid, r));
-}
-
-static int
-legacy_set_resource(device_t dev, device_t child, int type, int rid,
-    u_long start, u_long count)
-{
-	struct legacy_device *atdev = DEVTOAT(child);
-	struct resource_list *rl = &atdev->lg_resources;
-
-	resource_list_add(rl, type, rid, start, start + count - 1, count);
-	return(0);
-}
-
-static int
-legacy_get_resource(device_t dev, device_t child, int type, int rid,
-    u_long *startp, u_long *countp)
-{
-	struct legacy_device *atdev = DEVTOAT(child);
-	struct resource_list *rl = &atdev->lg_resources;
-	struct resource_list_entry *rle;
-
-	rle = resource_list_find(rl, type, rid);
-	if (!rle)
-		return(ENOENT);
-	if (startp)
-		*startp = rle->start;
-	if (countp)
-		*countp = rle->count;
-	return(0);
-}
-
-static void
-legacy_delete_resource(device_t dev, device_t child, int type, int rid)
-{
-	struct legacy_device *atdev = DEVTOAT(child);
-	struct resource_list *rl = &atdev->lg_resources;
-
-	resource_list_delete(rl, type, rid);
 }
 
 /*
