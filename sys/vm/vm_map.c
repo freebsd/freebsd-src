@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.48 1996/05/29 05:12:21 dyson Exp $
+ * $Id: vm_map.c,v 1.49 1996/05/31 00:37:58 dyson Exp $
  */
 
 /*
@@ -861,8 +861,9 @@ vm_map_simplify_entry(map, entry)
 		prevsize = prev->end - prev->start;
 		if ( (prev->end == entry->start) &&
 		     (prev->object.vm_object == entry->object.vm_object) &&
-		     (!prev->object.vm_object || (prev->object.vm_object->behavior == entry->object.vm_object->behavior)) &&
-		     (prev->offset + prevsize == entry->offset) &&
+		     (prev->object.vm_object || (prev->object.vm_object->behavior == entry->object.vm_object->behavior)) &&
+		     (!prev->object.vm_object ||
+			(prev->offset + prevsize == entry->offset)) &&
 		     (prev->needs_copy == entry->needs_copy) &&
 		     (prev->copy_on_write == entry->copy_on_write) &&
 		     (prev->protection == entry->protection) &&
@@ -890,8 +891,9 @@ vm_map_simplify_entry(map, entry)
 		esize = entry->end - entry->start;
 		if ((entry->end == next->start) &&
 		    (next->object.vm_object == entry->object.vm_object) &&
-		    (!next->object.vm_object || (next->object.vm_object->behavior == entry->object.vm_object->behavior)) &&
-		    (entry->offset + esize == next->offset) &&
+		    (next->object.vm_object || (next->object.vm_object->behavior == entry->object.vm_object->behavior)) &&
+		     (!entry->object.vm_object ||
+			(entry->offset + esize == next->offset)) &&
 		    (next->needs_copy == entry->needs_copy) &&
 		    (next->copy_on_write == entry->copy_on_write) &&
 		    (next->protection == entry->protection) &&
@@ -912,7 +914,6 @@ vm_map_simplify_entry(map, entry)
 	        }
 	}
 }
-
 /*
  *	vm_map_clip_start:	[ internal use only ]
  *
