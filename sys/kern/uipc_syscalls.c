@@ -1775,10 +1775,13 @@ do_sendfile(struct thread *td, struct sendfile_args *uap, int compat)
 	 */
 	if ((error = fgetvp_read(td, uap->fd, &vp)) != 0)
 		goto done;
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	if (vp->v_type != VREG || VOP_GETVOBJECT(vp, &obj) != 0) {
 		error = EINVAL;
+		VOP_UNLOCK(vp, 0, td);
 		goto done;
 	}
+	VOP_UNLOCK(vp, 0, td);
 	if ((error = fgetsock(td, uap->s, &so, NULL)) != 0)
 		goto done;
 	if (so->so_type != SOCK_STREAM) {
