@@ -51,7 +51,7 @@ into the PRNG.
 The
 .Nm
 device can be controlled with
-.Xr sysctl 8 .
+.Ic sysctl .
 .Pp
 To see the devices' current settings, use the command line:
 .Pp
@@ -109,9 +109,8 @@ A zero (0) value means interrupts
 are not considered as an entropy source.
 Set the variable to one (1)
 if you wish to use them for entropy harvesting.
-Currently,
-only hard disk controllers
-are considered as interrupt entropy sources.
+All interrupt harvesting is setup by the 
+individual device drivers.
 .Pp
 The other variables are explained in the paper describing the
 .Em Yarrow
@@ -121,6 +120,8 @@ algorithm at
 .Bl -tag -width /dev/random
 .It Pa /dev/random
 .El
+.Sh SEE ALSO
+.Xr sysctl 8
 .Sh HISTORY
 A
 .Nm
@@ -131,7 +132,7 @@ The current implementation,
 introduced in
 .Fx 5.0 ,
 is a complete rewrite by
-.An Mark Murray ,
+.An Mark R V Murray ,
 and is an implementation of the
 .Em Yarrow
 algorithm by Bruce Schneier,
