@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.604 1999/05/28 10:27:22 roger Exp $
+#	$Id: LINT,v 1.605 1999/06/01 18:18:36 jlemon Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -55,10 +55,6 @@ maxusers	10
 #
 options		MAXDSIZ="(256*1024*1024)"
 options		DFLDSIZ="(256*1024*1024)"
-
-# When this is set, be extra conservative in various parts of the kernel
-# and choose functionality over speed (on the widest variety of systems).
-options		FAILSAFE
 
 # Options for the VM subsystem
 #options	PQ_NOOPT		# No coloring
@@ -144,8 +140,8 @@ cpu		I686_CPU		# aka Pentium Pro(tm)
 # mapped mode.  Default is 2-way set associative mode.
 #
 # CPU_CYRIX_NO_LOCK enables weak locking for the entire address space
-# of Cyrix 6x86 and 6x86MX CPUs.  If this option is not set and
-# FAILESAFE is defined, NO_LOCK bit of CCR1 is cleared.  (NOTE 3)
+# of Cyrix 6x86 and 6x86MX CPUs by setting the NO_LOCK bit of CCR1.
+# Otherwise, the NO_LOCK bit of CCR1 is cleared.  (NOTE 3)
 #
 # CPU_DISABLE_5X86_LSSER disables load store serialize (i.e. enables
 # reorder).  This option should not be used if you use memory mapped
