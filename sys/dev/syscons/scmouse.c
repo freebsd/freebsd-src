@@ -282,6 +282,18 @@ sc_remove_all_mouse(sc_softc_t *sc)
 
 #define IS_SPACE_CHAR(c)	(((c) & 0xff) == ' ')
 
+#ifdef SC_CUT_SPACES2TABS
+#define IS_BLANK_CHAR(c)	(((c) & 0xff) == ' ' || ((c) & 0xff) == '\t')
+#else
+#define IS_BLANK_CHAR(c)	IS_SPACE_CHAR(c)
+#endif /* SC_CUT_SPACES2TABS */
+
+#ifdef SC_CUT_SEPCHARS
+#define IS_SEP_CHAR(c)		(index(SC_CUT_SEPCHARS, (c) & 0xff) != NULL)
+#else
+#define IS_SEP_CHAR(c)		IS_SPACE_CHAR(c)
+#endif /* SC_CUT_SEPCHARS */
+
 /* skip spaces to right */
 static int
 skip_spc_right(scr_stat *scp, int p)
@@ -314,6 +326,66 @@ skip_spc_left(scr_stat *scp, int p)
     return i;
 }
 
+static void
+mouse_do_cut(scr_stat *scp, int from, int to)
+{
+    int blank;
+    int i;
+    int leadspaces;
+    int p;
+    int s;
+
+    for (p = from, i = blank = leadspaces = 0; p <= to; ++p) {
+	cut_buffer[i] = sc_vtb_getc(&scp->vtb, p);
+	/* Be prepared that sc_vtb_getc() can return '\0' */
+	if (cut_buffer[i] == '\0')
+	    cut_buffer[i] = ' ';
+#ifdef SC_CUT_SPACES2TABS
+	if (leadspaces != -1) {
+	    if (IS_SPACE_CHAR(cut_buffer[i])) {
+		leadspaces++;
+		/* Check that we are at tabstop position */
+		if ((p % scp->xsize) % 8 == 7) {
+		    i -= leadspaces - 1;
+		    cut_buffer[i] = '\t';
+		    leadspaces = 0;
+		}
+	    } else {
+		leadspaces = -1;
+	    }
+	}
+#endif /* SC_CUT_SPACES2TABS */
+	/* remember the position of the last non-space char */
+	if (!IS_BLANK_CHAR(cut_buffer[i]))
+	    blank = i + 1;	/* the first space after the last non-space */
+	++i;
+	/* trim trailing blank when crossing lines */
+	if ((p % scp->xsize) == (scp->xsize - 1)) {
+	    cut_buffer[blank++] = '\r';
+	    i = blank;
+	    leadspaces = 0;
+	}
+    }
+    cut_buffer[i] = '\0';
+
+    /* remove the current marking */
+    s = spltty();
+    if (scp->mouse_cut_start <= scp->mouse_cut_end) {
+	mark_for_update(scp, scp->mouse_cut_start);
+	mark_for_update(scp, scp->mouse_cut_end);
+    } else if (scp->mouse_cut_end >= 0) {
+	mark_for_update(scp, scp->mouse_cut_end);
+	mark_for_update(scp, scp->mouse_cut_start);
+    }
+
+    /* mark the new region */
+    scp->mouse_cut_start = from;
+    scp->mouse_cut_end = to;
+    mark_for_update(scp, from);
+    mark_for_update(scp, to);
+    splx(s);
+}
+
 /* copy marked region to the cut buffer */
 static void
 mouse_cut(scr_stat *scp)
@@ -322,7 +394,6 @@ mouse_cut(scr_stat *scp)
     int end;
     int from;
     int to;
-    int blank;
     int c;
     int p;
     int s;
@@ -337,21 +408,7 @@ mouse_cut(scr_stat *scp)
 	from = end = scp->mouse_pos;
 	to = start - 1;
     }
-    for (p = from, i = blank = 0; p <= to; ++p) {
-	cut_buffer[i] = sc_vtb_getc(&scp->vtb, p);
-	/* remember the position of the last non-space char */
-	if (!IS_SPACE_CHAR(cut_buffer[i++]))
-	    blank = i;		/* the first space after the last non-space */
-	/* trim trailing blank when crossing lines */
-	if ((p % scp->xsize) == (scp->xsize - 1)) {
-	    cut_buffer[blank++] = '\r';
-	    i = blank;
-	}
-    }
-    cut_buffer[i] = '\0';
-
-    /* scan towards the end of the last line */
-    --p;
+    p = to;
     for (i = p % scp->xsize; i < scp->xsize; ++i) {
 	c = sc_vtb_getc(&scp->vtb, p);
 	if (!IS_SPACE_CHAR(c))
@@ -359,47 +416,31 @@ mouse_cut(scr_stat *scp)
 	++p;
     }
     /* if there is nothing but blank chars, trim them, but mark towards eol */
-    if (i >= scp->xsize) {
+    if (i == scp->xsize) {
 	if (end >= start)
 	    to = end = p - 1;
 	else
 	    to = start = p;
-	cut_buffer[blank++] = '\r';
-	cut_buffer[blank] = '\0';
     }
-
-    /* remove the current marking */
+    mouse_do_cut(scp, from, to);
     s = spltty();
-    if (scp->mouse_cut_start <= scp->mouse_cut_end) {
-	mark_for_update(scp, scp->mouse_cut_start);
-	mark_for_update(scp, scp->mouse_cut_end);
-    } else if (scp->mouse_cut_end >= 0) {
-	mark_for_update(scp, scp->mouse_cut_end);
-	mark_for_update(scp, scp->mouse_cut_start);
-    }
-
-    /* mark the new region */
     scp->mouse_cut_start = start;
     scp->mouse_cut_end = end;
-    mark_for_update(scp, from);
-    mark_for_update(scp, to);
     splx(s);
 }
 
 /* a mouse button is pressed, start cut operation */
 static void
-mouse_cut_start(scr_stat *scp) 
+mouse_cut_start(scr_stat *scp)
 {
     int i;
-    int j;
     int s;
 
     if (scp->status & MOUSE_VISIBLE) {
-	i = scp->mouse_cut_start;
-	j = scp->mouse_cut_end;
 	sc_remove_all_cutmarkings(scp->sc);
-	if (scp->mouse_pos == i && i == j) {
+	if (scp->mouse_pos == scp->mouse_cut_start == scp->mouse_cut_end) {
 	    cut_buffer[0] = '\0';
+	    return;
 	} else if (skip_spc_right(scp, scp->mouse_pos) >= scp->xsize) {
 	    /* if the pointer is on trailing blank chars, mark towards eol */
 	    i = skip_spc_left(scp, scp->mouse_pos) + 1;
@@ -410,17 +451,15 @@ mouse_cut_start(scr_stat *scp)
 	        (scp->mouse_pos / scp->xsize + 1) * scp->xsize - 1;
 	    splx(s);
 	    cut_buffer[0] = '\r';
-	    cut_buffer[1] = '\0';
-	    scp->status |= MOUSE_CUTTING;
 	} else {
 	    s = spltty();
 	    scp->mouse_cut_start = scp->mouse_pos;
 	    scp->mouse_cut_end = scp->mouse_cut_start;
 	    splx(s);
 	    cut_buffer[0] = sc_vtb_getc(&scp->vtb, scp->mouse_cut_start);
-	    cut_buffer[1] = '\0';
-	    scp->status |= MOUSE_CUTTING;
 	}
+	cut_buffer[1] = '\0';
+	scp->status |= MOUSE_CUTTING;
     	mark_all(scp);	/* this is probably overkill XXX */
     }
 }
@@ -442,43 +481,29 @@ mouse_cut_word(scr_stat *scp)
     int sol;
     int eol;
     int c;
-    int s;
-    int i;
     int j;
 
     /*
      * Because we don't have locale information in the kernel,
      * we only distinguish space char and non-space chars.  Punctuation
-     * chars, symbols and other regular chars are all treated alike.
+     * chars, symbols and other regular chars are all treated alike
+     * unless user specified SC_CUT_SEPCHARS in his kernel config file.
      */
     if (scp->status & MOUSE_VISIBLE) {
-	/* remove the current cut mark */
-	s = spltty();
-	if (scp->mouse_cut_start <= scp->mouse_cut_end) {
-	    mark_for_update(scp, scp->mouse_cut_start);
-	    mark_for_update(scp, scp->mouse_cut_end);
-	} else if (scp->mouse_cut_end >= 0) {
-	    mark_for_update(scp, scp->mouse_cut_end);
-	    mark_for_update(scp, scp->mouse_cut_start);
-	}
-	scp->mouse_cut_start = scp->xsize*scp->ysize;
-	scp->mouse_cut_end = -1;
-	splx(s);
-
 	sol = (scp->mouse_pos / scp->xsize) * scp->xsize;
 	eol = sol + scp->xsize;
 	c = sc_vtb_getc(&scp->vtb, scp->mouse_pos);
-	if (IS_SPACE_CHAR(c)) {
+	if (IS_SEP_CHAR(c)) {
 	    /* blank space */
 	    for (j = scp->mouse_pos; j >= sol; --j) {
 		c = sc_vtb_getc(&scp->vtb, j);
-	        if (!IS_SPACE_CHAR(c))
+	        if (!IS_SEP_CHAR(c))
 		    break;
 	    }
 	    start = ++j;
 	    for (j = scp->mouse_pos; j < eol; ++j) {
 		c = sc_vtb_getc(&scp->vtb, j);
-	        if (!IS_SPACE_CHAR(c))
+	        if (!IS_SEP_CHAR(c))
 		    break;
 	    }
 	    end = j - 1;
@@ -486,31 +511,20 @@ mouse_cut_word(scr_stat *scp)
 	    /* non-space word */
 	    for (j = scp->mouse_pos; j >= sol; --j) {
 		c = sc_vtb_getc(&scp->vtb, j);
-	        if (IS_SPACE_CHAR(c))
+	        if (IS_SEP_CHAR(c))
 		    break;
 	    }
 	    start = ++j;
 	    for (j = scp->mouse_pos; j < eol; ++j) {
 		c = sc_vtb_getc(&scp->vtb, j);
-	        if (IS_SPACE_CHAR(c))
+	        if (IS_SEP_CHAR(c))
 		    break;
 	    }
 	    end = j - 1;
 	}
 
 	/* copy the found word */
-	for (i = 0, j = start; j <= end; ++j)
-	    cut_buffer[i++] = sc_vtb_getc(&scp->vtb, j);
-	cut_buffer[i] = '\0';
-	scp->status |= MOUSE_CUTTING;
-
-	/* mark the region */
-	s = spltty();
-	scp->mouse_cut_start = start;
-	scp->mouse_cut_end = end;
-	mark_for_update(scp, start);
-	mark_for_update(scp, end);
-	splx(s);
+	mouse_do_cut(scp, start, end);
     }
 }
 
@@ -518,34 +532,11 @@ mouse_cut_word(scr_stat *scp)
 static void
 mouse_cut_line(scr_stat *scp)
 {
-    int s;
-    int i;
-    int j;
+    int from;
 
     if (scp->status & MOUSE_VISIBLE) {
-	/* remove the current cut mark */
-	s = spltty();
-	if (scp->mouse_cut_start <= scp->mouse_cut_end) {
-	    mark_for_update(scp, scp->mouse_cut_start);
-	    mark_for_update(scp, scp->mouse_cut_end);
-	} else if (scp->mouse_cut_end >= 0) {
-	    mark_for_update(scp, scp->mouse_cut_end);
-	    mark_for_update(scp, scp->mouse_cut_start);
-	}
-
-	/* mark the entire line */
-	scp->mouse_cut_start =
-	    (scp->mouse_pos / scp->xsize) * scp->xsize;
-	scp->mouse_cut_end = scp->mouse_cut_start + scp->xsize - 1;
-	mark_for_update(scp, scp->mouse_cut_start);
-	mark_for_update(scp, scp->mouse_cut_end);
-	splx(s);
-
-	/* copy the line into the cut buffer */
-	for (i = 0, j = scp->mouse_cut_start; j <= scp->mouse_cut_end; ++j)
-	    cut_buffer[i++] = sc_vtb_getc(&scp->vtb, j);
-	cut_buffer[i++] = '\r';
-	cut_buffer[i] = '\0';
+	from = (scp->mouse_pos / scp->xsize) * scp->xsize;
+	mouse_do_cut(scp, from, from + scp->xsize - 1);
 	scp->status |= MOUSE_CUTTING;
     }
 }
