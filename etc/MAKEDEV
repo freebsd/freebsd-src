@@ -1092,9 +1092,9 @@ nmdm*)
 	;;
 
 bpf*)
-	nbpf=`expr $i : 'bpf\(.*\)$'`
+	units=`expr $i : 'bpf\(.*\)$'`
 	unit=0
-	while [ $unit -le $nbpf ]; do
+	while [ $unit -le $units ]; do
 		mknod bpf$unit c 23 `unit2minor $unit`
 		unit=$(($unit + 1))
 	done
@@ -1177,9 +1177,9 @@ ttym?)
 #       the manual that comes with the system.
 ttyA*)
 	major=68
-	nports=`expr $i : 'ttyA\(.*\)$'`
+	units=`expr $i : 'ttyA\(.*\)$'`
 	port=1
-	while [ $port -le $nports ]; do
+	while [ $port -le $units ]; do
 		minor=$(expr $port - 1)
 		name=$(printf %02d $port)
 		mknod ttyA$name c $major $minor
@@ -1194,9 +1194,9 @@ ttyA*)
 cuaA*)
 	umask 7
 	major=68
-	nports=`expr $i : 'cuaA\(.*\)$'`
+	units=`expr $i : 'cuaA\(.*\)$'`
 	port=1
-	while [ $port -le $nports ]; do
+	while [ $port -le $units ]; do
 		minor=$(expr $port - 1)
 		name=$(printf %02d $port)
 		mknod cuaA$name c $major `expr $minor + 128` uucp:dialer
@@ -1590,18 +1590,18 @@ bktr?)
 	;;
 
 tun*)
-	ntun=`expr $i : 'tun\(.*\)$'`
+	units=`expr $i : 'tun\(.*\)$'`
 	unit=0
-	while [ $unit -le $ntun ]; do
+	while [ $unit -le $units ]; do
 		mknod tun$unit c 52 `unit2minor $unit`
 		unit=$(($unit + 1))
 	done
 	;;
 
 tap*)
-	ntap=`expr $i : 'tap\(.*\)$'`
+	units=`expr $i : 'tap\(.*\)$'`
 	unit=0
-	while [ $unit -le $ntap ]; do
+	while [ $unit -le $units ]; do
 		mknod tap$unit c 149 `unit2minor $unit` root:network
 		unit=$(($unit + 1))
 	done
