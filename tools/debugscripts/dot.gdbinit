@@ -20,7 +20,7 @@ kldstat
 echo Select the list above with the mouse, paste into the screen\n
 echo and then press ^D.  Yes, this is annoying.\n
 # This should be the path of the real modules directory.
-shell asf modules/src/FreeBSD/5-CURRENT-ZAPHOD/src/sys/modules 
+shell asf MODPATH
 source .asf
 end
 
