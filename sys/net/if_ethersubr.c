@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ethersubr.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ethersubr.c,v 1.50 1998/06/13 02:27:10 julian Exp $
+ * $Id: if_ethersubr.c,v 1.51 1998/06/14 20:58:14 julian Exp $
  */
 
 #include "opt_atalk.h"
@@ -132,6 +132,7 @@ ether_output(ifp, m0, dst, rt0)
 	register struct rtentry *rt;
 	register struct ether_header *eh;
 	int off, len = m->m_pkthdr.len, loop_copy = 0;
+	int hlen;	/* link layer header lenght */
 	struct arpcom *ac = (struct arpcom *)ifp;
 
 	if ((ifp->if_flags & (IFF_UP|IFF_RUNNING)) != (IFF_UP|IFF_RUNNING))
@@ -161,6 +162,7 @@ ether_output(ifp, m0, dst, rt0)
 			    time_second < rt->rt_rmx.rmx_expire)
 				senderr(rt == rt0 ? EHOSTDOWN : EHOSTUNREACH);
 	}
+	hlen = ETHER_HDR_LEN;
 	switch (dst->sa_family) {
 #ifdef INET
 	case AF_INET:
@@ -203,6 +205,7 @@ ether_output(ifp, m0, dst, rt0)
 		llc.llc_snap_ether_type = htons( ETHERTYPE_AT );
 		bcopy(&llc, mtod(m, caddr_t), sizeof(struct llc));
 		type = htons(m->m_pkthdr.len);
+		hlen = sizeof(struct llc) + ETHER_HDR_LEN;
 	    } else {
 		type = htons(ETHERTYPE_AT);
 	    }
@@ -362,10 +365,10 @@ ether_output(ifp, m0, dst, rt0)
 		if ((m->m_flags & M_BCAST) || (loop_copy > 0)) {
 			struct mbuf *n = m_copy(m, 0, (int)M_COPYALL);
 
-			(void) if_simloop(ifp, n, dst, ETHER_HDR_LEN);
+			(void) if_simloop(ifp, n, dst, hlen);
 		} else if (bcmp(eh->ether_dhost,
 		    eh->ether_shost, ETHER_ADDR_LEN) == 0) {
-			(void) if_simloop(ifp, m, dst, ETHER_HDR_LEN);
+			(void) if_simloop(ifp, m, dst, hlen);
 			return(0);	/* XXX */
 		}
 	}
