@@ -45,7 +45,7 @@
 struct spinlock_extra {
 	spinlock_t	*owner;
 	struct lock	lock;
-	kse_critical_t	crit;
+	struct pthread	*crit;
 };
 
 static void	init_spinlock(spinlock_t *lck);
@@ -64,12 +64,11 @@ void
 _spinunlock(spinlock_t *lck)
 {
 	struct spinlock_extra *extra;
-	kse_critical_t crit;
+	struct pthread *curthr = _get_curthread();
 
 	extra = (struct spinlock_extra *)lck->fname;
-	crit = extra->crit;
-	KSE_LOCK_RELEASE(_get_curkse(), &extra->lock);
-	_kse_critical_leave(crit);
+	THR_ASSERT(extra->crit == curthr, "_spinunlock called without owned.");
+	THR_LOCK_RELEASE(curthr, &extra->lock);
 }
 
 
@@ -82,8 +81,8 @@ _spinunlock(spinlock_t *lck)
 void
 _spinlock(spinlock_t *lck)
 {
-	struct spinlock_extra *extra;
-	kse_critical_t crit;
+	struct spinlock_extra	*extra;
+	struct pthread		*curthr;
 
 	THR_ASSERT(__isthreaded != 0, "Spinlock called when not threaded.");
 	THR_ASSERT(initialized != 0, "Spinlocks not initialized.");
@@ -91,12 +90,12 @@ _spinlock(spinlock_t *lck)
 	 * Try to grab the lock and loop if another thread grabs
 	 * it before we do.
 	 */
-	crit = _kse_critical_enter();
+	curthr = _get_curthread();
 	if (lck->fname == NULL)
 		init_spinlock(lck);
 	extra = (struct spinlock_extra *)lck->fname;
-	KSE_LOCK_ACQUIRE(_get_curkse(), &extra->lock);
-	extra->crit = crit;
+	THR_LOCK_ACQUIRE(curthr, &extra->lock);
+	extra->crit = curthr;
 }
 
 /*
@@ -118,15 +117,15 @@ _spinlock_debug(spinlock_t *lck, char *fname, int lineno)
 static void
 init_spinlock(spinlock_t *lck)
 {
-	struct kse *curkse = _get_curkse();
+	struct pthread *curthr = _get_curthread();
 
-	KSE_LOCK_ACQUIRE(curkse, &spinlock_static_lock);
+	THR_LOCK_ACQUIRE(curthr, &spinlock_static_lock);
 	if ((lck->fname == NULL) && (spinlock_count < MAX_SPINLOCKS)) {
 		lck->fname = (char *)&extra[spinlock_count];
 		extra[spinlock_count].owner = lck;
 		spinlock_count++;
 	}
-	KSE_LOCK_RELEASE(curkse, &spinlock_static_lock);
+	THR_LOCK_RELEASE(curthr, &spinlock_static_lock);
 	THR_ASSERT(lck->fname != NULL, "Exceeded max spinlocks");
 }
 
@@ -137,19 +136,19 @@ _thr_spinlock_init(void)
 
 	if (initialized != 0) {
 		_lock_reinit(&spinlock_static_lock, LCK_ADAPTIVE,
-		    _kse_lock_wait, _kse_lock_wakeup);
+		    _thr_lock_wait, _thr_lock_wakeup);
 		for (i = 0; i < spinlock_count; i++) {
 			_lock_reinit(&extra[i].lock, LCK_ADAPTIVE,
-			    _kse_lock_wait, _kse_lock_wakeup);
+			    _thr_lock_wait, _thr_lock_wakeup);
 		}
 		spinlock_count = 0;
 	} else {
 		if (_lock_init(&spinlock_static_lock, LCK_ADAPTIVE,
-		    _kse_lock_wait, _kse_lock_wakeup) != 0)
+		    _thr_lock_wait, _thr_lock_wakeup) != 0)
 			PANIC("Cannot initialize spinlock_static_lock");
 		for (i = 0; i < MAX_SPINLOCKS; i++) {
 			if (_lock_init(&extra[i].lock, LCK_ADAPTIVE,
-			    _kse_lock_wait, _kse_lock_wakeup) != 0)
+			    _thr_lock_wait, _thr_lock_wakeup) != 0)
 				PANIC("Cannot initialize spinlock extra");
 		}
 		initialized = 1;
