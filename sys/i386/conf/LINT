@@ -2685,7 +2685,7 @@ device		fwe		# Ethernet over Firewire (non-standard!)
 # been fed back to openbsd (and hopefully will be included).
 
 pseudo-device	crypto		# core crypto support
-pseduo-device	cryptodev	# /dev/crypto for access to h/w
+pseudo-device	cryptodev	# /dev/crypto for access to h/w
 
 device		hifn		# Hifn 7951, 7781, etc.
 device		ubsec		# Broadcom 5501, 5601, 58xx
