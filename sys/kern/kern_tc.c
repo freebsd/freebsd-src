@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_clock.c,v 1.84 1998/11/23 09:34:19 sos Exp $
+ * $Id: kern_clock.c,v 1.85 1998/11/23 09:58:53 phk Exp $
  */
 
 #include <sys/param.h>
@@ -100,6 +100,13 @@ long tk_nout;
 long tk_rawcc;
 
 time_t time_second;
+
+/*
+ * Which update policy to use.
+ *   0 - every tick, bad hardware may fail with "calcru negative..."
+ *   1 - more resistent to the above hardware, but less efficient.
+ */
+static int tco_method;
 
 /*
  * Implement a dummy timecounter which we can use until we get a real one
@@ -515,8 +522,12 @@ getmicrotime(struct timeval *tvp)
 {
 	struct timecounter *tc;
 
-	tc = timecounter;
-	*tvp = tc->tc_microtime;
+	if (!tco_method) {
+		tc = timecounter;
+		*tvp = tc->tc_microtime;
+	} else {
+		microtime(tvp);
+	}
 }
 
 void
@@ -524,8 +535,12 @@ getnanotime(struct timespec *tsp)
 {
 	struct timecounter *tc;
 
-	tc = timecounter;
-	*tsp = tc->tc_nanotime;
+	if (!tco_method) {
+		tc = timecounter;
+		*tsp = tc->tc_nanotime;
+	} else {
+		nanotime(tsp);
+	}
 }
 
 void
@@ -596,9 +611,13 @@ getmicrouptime(struct timeval *tvp)
 {
 	struct timecounter *tc;
 
-	tc = timecounter;
-	tvp->tv_sec = tc->tc_offset_sec;
-	tvp->tv_usec = tc->tc_offset_micro;
+	if (!tco_method) {
+		tc = timecounter;
+		tvp->tv_sec = tc->tc_offset_sec;
+		tvp->tv_usec = tc->tc_offset_micro;
+	} else {
+		microuptime(tvp);
+	}
 }
 
 void
@@ -606,9 +625,13 @@ getnanouptime(struct timespec *tsp)
 {
 	struct timecounter *tc;
 
-	tc = timecounter;
-	tsp->tv_sec = tc->tc_offset_sec;
-	tsp->tv_nsec = tc->tc_offset_nano >> 32;
+	if (!tco_method) {
+		tc = timecounter;
+		tsp->tv_sec = tc->tc_offset_sec;
+		tsp->tv_nsec = tc->tc_offset_nano >> 32;
+	} else {
+		nanouptime(tsp);
+	}
 }
 
 void
@@ -793,7 +816,7 @@ tco_forward(int force)
 		force++;
 	}
 
-	if (!force)
+	if (tco_method && !force)
 		return;
 
 	tc->tc_offset_micro = (tc->tc_offset_nano / 1000) >> 32;
@@ -832,6 +855,13 @@ sysctl_kern_timecounter_adjustment SYSCTL_HANDLER_ARGS
 }
 
 SYSCTL_NODE(_kern, OID_AUTO, timecounter, CTLFLAG_RW, 0, "");
+
+SYSCTL_INT(_kern_timecounter, KERN_ARGMAX, method, CTLFLAG_RW, &tco_method, 0,
+    "This variable determines the method used for updating timecounters. "
+    "If the default algorithm (0) fails with \"calcru negative...\" messages "
+    "try the alternate algorithm (1) which handles bad hardware better."
+
+);
 
 SYSCTL_PROC(_kern_timecounter, OID_AUTO, frequency, CTLTYPE_INT | CTLFLAG_RW,
     0, sizeof(u_int), sysctl_kern_timecounter_frequency, "I", "");
