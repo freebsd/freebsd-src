@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: nexus.c,v 1.1 1999/04/16 21:22:14 peter Exp $
  */
 
 /*
@@ -63,7 +63,11 @@
 #include <machine/mpapic.h>
 #endif
 
+#ifdef PC98
+#include <pc98/pc98/pc98.h>
+#else
 #include <i386/isa/isa.h>
+#endif
 #include <i386/isa/icu.h>
 #include <i386/isa/intr_machdep.h>
 
@@ -194,12 +198,19 @@ nexus_probe(device_t dev)
 		panic("nexus_probe eisa");
 #endif
 #if NISA > 0
+#ifdef PC98
+	/* Add an ISA bus directly */
+	child = device_add_child(dev, "isa", 0, 0);
+	if (child == 0)
+		panic("nexus_probe isa");
+#else
 	/* Add an ISA bus directly if pci bus is not present */
 	if (pci_cfgopen() == 0) {
 		child = device_add_child(dev, "isa", 0, 0);
 		if (child == 0)
 			panic("nexus_probe isa");
 	}
+#endif
 #endif
 	return 0;
 }
