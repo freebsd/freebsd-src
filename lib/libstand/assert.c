@@ -32,8 +32,10 @@ __FBSDID("$FreeBSD$");
 #include "stand.h"
 
 void
-__assert(const char *file, int line, const char *expression)
+__assert(const char *function, const char *file, int line,
+	 const char *expression)
 {
-    printf("assertion \"%s\" failed: file \"%s\", line %d\n", expression, file, line);
-    exit();
+	printf("assertion (%s) failed: function %s(), file %s:%d\n",
+	       expression, function, file, line);
+	exit();
 }
