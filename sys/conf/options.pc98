@@ -105,29 +105,6 @@ KBDIO_DEBUG		opt_kbd.h
 SPIGOT_UNSECURE		opt_spigot.h
 
 # -------------------------------
-# isdn4bsd: passive ISA cards
-# -------------------------------
-TEL_S0_8		opt_i4b.h
-TEL_S0_16		opt_i4b.h
-TEL_S0_16_3		opt_i4b.h
-AVM_A1			opt_i4b.h
-USR_STI			opt_i4b.h
-ITKIX1			opt_i4b.h
-ELSA_PCC16		opt_i4b.h
-# -------------------------------
-# isdn4bsd: passive ISA PnP cards
-# -------------------------------
-CRTX_S0_P		opt_i4b.h
-DRN_NGO                 opt_i4b.h
-TEL_S0_16_3_P		opt_i4b.h
-SEDLBAUER		opt_i4b.h
-DYNALINK		opt_i4b.h
-ASUSCOM_IPAC		opt_i4b.h
-ELSA_QS1ISA		opt_i4b.h
-SIEMENS_ISURF2		opt_i4b.h
-EICON_DIVA		opt_i4b.h
-COMPAQ_M610		opt_i4b.h
-# -------------------------------
 # isdn4bsd: passive PCI cards
 # -------------------------------
 ELSA_QS1PCI		opt_i4b.h

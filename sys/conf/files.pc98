@@ -33,20 +33,10 @@ svr4_assym.h			optional	compat_svr4		\
 	no-obj no-implicit-rule before-depend				\
 	clean		"svr4_assym.h"
 #
-atkbdmap.h			optional	atkbd_dflt_keymap	\
-	compile-with	"/usr/sbin/kbdcontrol -L ${ATKBD_DFLT_KEYMAP} | sed -e 's/^static keymap_t.* = /static keymap_t key_map = /' -e 's/^static accentmap_t.* = /static accentmap_t accent_map = /' > atkbdmap.h"			\
-	no-obj no-implicit-rule before-depend				\
-	clean		"atkbdmap.h"
-#
 ukbdmap.h			optional	ukbd_dflt_keymap	\
 	compile-with	"/usr/sbin/kbdcontrol -L ${UKBD_DFLT_KEYMAP} | sed -e 's/^static keymap_t.* = /static keymap_t key_map = /' -e 's/^static accentmap_t.* = /static accentmap_t accent_map = /' > ukbdmap.h"			\
 	no-obj no-implicit-rule before-depend				\
 	clean		"ukbdmap.h"
-#
-msysosak.o			optional	fla			\
-	dependency	"$S/contrib/dev/fla/i386/msysosak.o.uu" 	\
-	compile-with	"uudecode < $S/contrib/dev/fla/i386/msysosak.o.uu" \
-	no-implicit-rule
 #
 trlld.o				optional	oltr			\
 	dependency	"$S/contrib/dev/oltr/i386-elf.trlld.o.uu"	\
@@ -83,7 +73,6 @@ compat/svr4/svr4_sysent.c		optional	compat_svr4
 compat/svr4/svr4_sysvec.c		optional	compat_svr4
 compat/svr4/svr4_termios.c		optional	compat_svr4
 compat/svr4/svr4_ttold.c		optional	compat_svr4
-contrib/dev/fla/fla.c		optional	fla
 contrib/dev/oltr/if_oltr.c	optional	oltr
 contrib/dev/oltr/trlldbm.c	optional	oltr
 contrib/dev/oltr/trlldhm.c	optional	oltr
@@ -106,8 +95,6 @@ crypto/des/des_setkey.c			optional	crypto
 dev/aic/aic_cbus.c		optional	aic isa
 dev/ar/if_ar.c			optional	ar
 dev/ar/if_ar_pci.c		optional	ar pci
-dev/ar/if_ar_isa.c		optional	ar isa
-dev/cm/if_cm_isa.c		optional	cm isa
 dev/ct/bshw_machdep.c		optional	ct
 dev/ct/ct.c			optional	ct
 dev/ct/ct_isa.c			optional	ct isa
@@ -123,14 +110,12 @@ dev/kbd/kbd.c			optional	ukbd
 dev/kbd/kbd.c			optional	pckbd
 dev/lnc/if_lnc_cbus.c		optional	lnc isa
 dev/sbni/if_sbni.c		optional	sbni
-dev/sbni/if_sbni_isa.c		optional	sbni isa
 dev/sbni/if_sbni_pci.c		optional	sbni pci
 dev/snc/dp83932.c		optional	snc
 dev/snc/dp83932subr.c		optional	snc
 dev/snc/if_snc.c		optional	snc
 dev/snc/if_snc_cbus.c		optional	snc isa
 dev/snc/if_snc_pccard.c		optional	snc card
-dev/sr/if_sr_isa.c		optional	sr isa
 dev/syscons/apm/apm_saver.c	optional	apm_saver apm
 dev/syscons/schistory.c		optional	sc
 dev/syscons/scmouse.c		optional	sc
