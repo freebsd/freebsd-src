@@ -1206,6 +1206,7 @@ brelse(struct buf * bp)
 		struct vnode *vp;
 
 		vp = bp->b_vp;
+		obj = bp->b_object;
 
 		/*
 		 * Get the base offset and length of the buffer.  Note that 
@@ -1233,7 +1234,6 @@ brelse(struct buf * bp)
 			 * now.
 			 */
 			if (m == bogus_page) {
-				VOP_GETVOBJECT(vp, &obj);
 				poff = OFF_TO_IDX(bp->b_offset);
 				had_bogus = 1;
 
@@ -1803,6 +1803,7 @@ restart:
 		bp->b_dirtyoff = bp->b_dirtyend = 0;
 		bp->b_magic = B_MAGIC_BIO;
 		bp->b_op = &buf_ops_bio;
+		bp->b_object = NULL;
 
 		LIST_INIT(&bp->b_dep);
 
@@ -2423,8 +2424,11 @@ loop:
 			if (vp->v_type != VREG)
 				printf("getblk: vmioing file type %d???\n", vp->v_type);
 #endif
+			VOP_GETVOBJECT(vp, &bp->b_object);
+			vm_object_reference(bp->b_object);
 		} else {
 			bp->b_flags &= ~B_VMIO;
+			bp->b_object = NULL;
 		}
 
 		allocbuf(bp, size);
@@ -2628,7 +2632,7 @@ allocbuf(struct buf *bp, int size)
 			 */
 
 			vp = bp->b_vp;
-			VOP_GETVOBJECT(vp, &obj);
+			obj = bp->b_object;
 
 			while (bp->b_npages < desiredpages) {
 				vm_page_t m;
@@ -2813,7 +2817,7 @@ bufdonebio(struct bio *bp)
 void
 bufdone(struct buf *bp)
 {
-	int s, error;
+	int s;
 	void    (*biodone)(struct buf *);
 
 	GIANT_REQUIRED;
@@ -2855,15 +2859,11 @@ bufdone(struct buf *bp)
 		int iosize;
 		struct vnode *vp = bp->b_vp;
 
-		error = VOP_GETVOBJECT(vp, &obj);
+		obj = bp->b_object;
 
 #if defined(VFS_BIO_DEBUG)
 		if (vp->v_usecount == 0) {
 			panic("biodone: zero vnode ref count");
-		}
-
-		if (error) {
-			panic("biodone: missing VM object");
 		}
 
 		if ((vp->v_flag & VOBJBUF) == 0) {
@@ -2875,9 +2875,6 @@ bufdone(struct buf *bp)
 		KASSERT(bp->b_offset != NOOFFSET,
 		    ("biodone: no buffer offset"));
 
-		if (error) {
-			panic("biodone: no object");
-		}
 #if defined(VFS_BIO_DEBUG)
 		if (obj->paging_in_progress < bp->b_npages) {
 			printf("biodone: paging in progress(%d) < bp->b_npages(%d)\n",
@@ -2999,10 +2996,9 @@ vfs_unbusy_pages(struct buf * bp)
 
 	runningbufwakeup(bp);
 	if (bp->b_flags & B_VMIO) {
-		struct vnode *vp = bp->b_vp;
 		vm_object_t obj;
 
-		VOP_GETVOBJECT(vp, &obj);
+		obj = bp->b_object;
 
 		for (i = 0; i < bp->b_npages; i++) {
 			vm_page_t m = bp->b_pages[i];
@@ -3081,11 +3077,10 @@ vfs_busy_pages(struct buf * bp, int clear_modify)
 	GIANT_REQUIRED;
 
 	if (bp->b_flags & B_VMIO) {
-		struct vnode *vp = bp->b_vp;
 		vm_object_t obj;
 		vm_ooffset_t foff;
 
-		VOP_GETVOBJECT(vp, &obj);
+		obj = bp->b_object;
 		foff = bp->b_offset;
 		KASSERT(bp->b_offset != NOOFFSET,
 		    ("vfs_busy_pages: no buffer offset"));

@@ -76,6 +76,8 @@ struct buf_ops {
 
 extern struct buf_ops buf_ops_bio;
 
+struct vm_object;
+
 /*
  * The buffer header describes an I/O operation in the kernel.
  *
@@ -128,6 +130,7 @@ struct buf {
 	int	b_kvasize;		/* size of kva for buffer */
 	daddr_t b_lblkno;		/* Logical block number. */
 	struct	vnode *b_vp;		/* Device vnode. */
+	struct	vm_object *b_object;	/* Object for vp */
 	int	b_dirtyoff;		/* Offset in buffer of dirty region. */
 	int	b_dirtyend;		/* Offset of end of dirty region. */
 	struct	ucred *b_rcred;		/* Read credentials reference. */

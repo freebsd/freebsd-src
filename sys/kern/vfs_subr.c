@@ -1139,6 +1139,10 @@ brelvp(bp)
 	splx(s);
 	bp->b_vp = (struct vnode *) 0;
 	vdrop(vp);
+	if (bp->b_object) {
+		vm_object_deallocate(bp->b_object);
+		bp->b_object = NULL;
+	}
 }
 
 /*
