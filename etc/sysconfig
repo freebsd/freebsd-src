@@ -4,12 +4,12 @@
 # This is sysconfig - a file full of useful variables that you can set 
 # to change the default startup behavior of your system.
 #
-#	$Id: sysconfig,v 1.23 1995/09/18 19:17:14 paul Exp $
+#	$Id: sysconfig,v 1.24 1995/09/19 08:33:43 jkh Exp $
 
 ######################### Start Of Local Configuration Section ###########
 
 # Location of local startup files.
-local_startup=/usr/local/etc/rc.local.d
+local_startup=/usr/local/etc/rc.d
 
 ######################### End Of Local Configuration Section #############
 
