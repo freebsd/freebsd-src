@@ -42,7 +42,6 @@ static const char rcsid[] =
 /*
  * Melbourne getty.
  */
-#define COMPAT_43
 #ifdef DEBUG
 #include <stdio.h>
 #endif
@@ -60,9 +59,6 @@ static const char rcsid[] =
 #include "extern.h"
 
 
-#ifdef COMPAT_43
-static void	compatflags(long);
-#endif
 
 /*
  * Get a table entry.
@@ -260,28 +256,6 @@ set_flags(int n)
 {
 	tcflag_t iflag, oflag, cflag, lflag;
 
-#ifdef COMPAT_43
-	switch (n) {
-	case 0:
-		if (F0set) {
-			compatflags(F0);
-			return;
-		}
-		break;
-	case 1:
-		if (F1set) {
-			compatflags(F1);
-			return;
-		}
-		break;
-	default:
-		if (F2set) {
-			compatflags(F2);
-			return;
-		}
-		break;
-	}
-#endif
 
 	switch (n) {
 	case 0:
@@ -437,130 +411,6 @@ out:
 	tmode.c_lflag = lflag;
 }
 
-#ifdef COMPAT_43
-/*
- * Old TTY => termios, snatched from <sys/kern/tty_compat.c>
- */
-void
-compatflags(long flags)
-{
-	tcflag_t iflag, oflag, cflag, lflag;
-
-	iflag = BRKINT|ICRNL|IMAXBEL|IXON|IXANY;
-	oflag = OPOST|ONLCR|OXTABS;
-	cflag = CREAD;
-	lflag = ICANON|ISIG|IEXTEN;
-
-	if (ISSET(flags, TANDEM))
-		SET(iflag, IXOFF);
-	else
-		CLR(iflag, IXOFF);
-	if (ISSET(flags, ECHO))
-		SET(lflag, ECHO);
-	else
-		CLR(lflag, ECHO);
-	if (ISSET(flags, CRMOD)) {
-		SET(iflag, ICRNL);
-		SET(oflag, ONLCR);
-	} else {
-		CLR(iflag, ICRNL);
-		CLR(oflag, ONLCR);
-	}
-	if (ISSET(flags, XTABS))
-		SET(oflag, OXTABS);
-	else
-		CLR(oflag, OXTABS);
-
-
-	if (ISSET(flags, RAW)) {
-		iflag &= IXOFF;
-		CLR(lflag, ISIG|ICANON|IEXTEN);
-		CLR(cflag, PARENB);
-	} else {
-		SET(iflag, BRKINT|IXON|IMAXBEL);
-		SET(lflag, ISIG|IEXTEN);
-		if (ISSET(flags, CBREAK))
-			CLR(lflag, ICANON);
-		else
-			SET(lflag, ICANON);
-		switch (ISSET(flags, ANYP)) {
-		case 0:
-			CLR(cflag, PARENB);
-			break;
-		case ANYP:
-			SET(cflag, PARENB);
-			CLR(iflag, INPCK);
-			break;
-		case EVENP:
-			SET(cflag, PARENB);
-			SET(iflag, INPCK);
-			CLR(cflag, PARODD);
-			break;
-		case ODDP:
-			SET(cflag, PARENB);
-			SET(iflag, INPCK);
-			SET(cflag, PARODD);
-			break;
-		}
-	}
-
-	/* Nothing we can do with CRTBS. */
-	if (ISSET(flags, PRTERA))
-		SET(lflag, ECHOPRT);
-	else
-		CLR(lflag, ECHOPRT);
-	if (ISSET(flags, CRTERA))
-		SET(lflag, ECHOE);
-	else
-		CLR(lflag, ECHOE);
-	/* Nothing we can do with TILDE. */
-	if (ISSET(flags, MDMBUF))
-		SET(cflag, MDMBUF);
-	else
-		CLR(cflag, MDMBUF);
-	if (ISSET(flags, NOHANG))
-		CLR(cflag, HUPCL);
-	else
-		SET(cflag, HUPCL);
-	if (ISSET(flags, CRTKIL))
-		SET(lflag, ECHOKE);
-	else
-		CLR(lflag, ECHOKE);
-	if (ISSET(flags, CTLECH))
-		SET(lflag, ECHOCTL);
-	else
-		CLR(lflag, ECHOCTL);
-	if (!ISSET(flags, DECCTQ))
-		SET(iflag, IXANY);
-	else
-		CLR(iflag, IXANY);
-	CLR(lflag, TOSTOP|FLUSHO|PENDIN|NOFLSH);
-	SET(lflag, ISSET(flags, TOSTOP|FLUSHO|PENDIN|NOFLSH));
-
-	if (ISSET(flags, RAW|LITOUT|PASS8)) {
-		CLR(cflag, CSIZE);
-		SET(cflag, CS8);
-		if (!ISSET(flags, RAW|PASS8))
-			SET(iflag, ISTRIP);
-		else
-			CLR(iflag, ISTRIP);
-		if (!ISSET(flags, RAW|LITOUT))
-			SET(oflag, OPOST);
-		else
-			CLR(oflag, OPOST);
-	} else {
-		CLR(cflag, CSIZE);
-		SET(cflag, CS7);
-		SET(iflag, ISTRIP);
-		SET(oflag, OPOST);
-	}
-
-	tmode.c_iflag = iflag;
-	tmode.c_oflag = oflag;
-	tmode.c_cflag = cflag;
-	tmode.c_lflag = lflag;
-}
-#endif
 
 #ifdef XXX_DELAY
 struct delayval {
