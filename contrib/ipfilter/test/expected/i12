@@ -1,0 +1,4 @@
+block in on eri0(!) from any to any head 1
+pass in on eri0(!) proto icmp from any to any group 1
+pass out on ed0(!) from any to any head 1000000
+block out on ed0(!) proto udp from any to any group 1000000
