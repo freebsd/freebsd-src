@@ -36,7 +36,6 @@
 
 #include <sys/types.h>
 #include <sys/param.h>
-#include <sys/systm.h>
 #include <sys/domain.h>
 #include <sys/errno.h>
 #include <sys/kernel.h>
@@ -45,9 +44,12 @@
 #include <sys/mbuf.h>
 #include <sys/mutex.h>
 #include <sys/protosw.h>
+#include <sys/signalvar.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
+#include <sys/sx.h>
 #include <sys/sysctl.h>
+#include <sys/systm.h>
 
 #include <net/raw_cb.h>
 #include <net/route.h>

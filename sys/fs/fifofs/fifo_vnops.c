@@ -35,22 +35,24 @@
  */
 
 #include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/unistd.h>
+#include <sys/event.h>
+#include <sys/filio.h>
+#include <sys/fcntl.h>
+#include <sys/file.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/malloc.h>
-#include <sys/vnode.h>
+#include <sys/poll.h>
 #include <sys/proc.h> /* XXXKSE */
+#include <sys/signalvar.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
-#include <sys/filio.h>
-#include <sys/fcntl.h>
-#include <sys/file.h>
-#include <sys/event.h>
-#include <sys/poll.h>
+#include <sys/sx.h>
+#include <sys/systm.h>
 #include <sys/un.h>
+#include <sys/unistd.h>
+#include <sys/vnode.h>
 #include <fs/fifofs/fifo.h>
 
 /*

@@ -36,24 +36,25 @@
 
 #include "opt_param.h"
 #include <sys/param.h>
-#include <sys/systm.h>
+#include <sys/aio.h> /* for aio_swake proto */
 #include <sys/domain.h>
+#include <sys/event.h>
 #include <sys/file.h>	/* for maxfiles */
 #include <sys/kernel.h>
 #include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/protosw.h>
 #include <sys/resourcevar.h>
-#include <sys/stat.h>
+#include <sys/signalvar.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
-#include <sys/signalvar.h>
+#include <sys/stat.h>
+#include <sys/sx.h>
 #include <sys/sysctl.h>
-#include <sys/aio.h> /* for aio_swake proto */
-#include <sys/event.h>
+#include <sys/systm.h>
 
 int	maxsockets;
 

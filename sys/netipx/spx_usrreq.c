@@ -37,15 +37,17 @@
  */
 
 #include <sys/param.h>
-#include <sys/systm.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/protosw.h>
+#include <sys/signalvar.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
+#include <sys/sx.h>
+#include <sys/systm.h>
 
 #include <net/route.h>
 #include <netinet/tcp_fsm.h>
@@ -54,9 +56,9 @@
 #include <netipx/ipx_pcb.h>
 #include <netipx/ipx_var.h>
 #include <netipx/spx.h>
+#include <netipx/spx_debug.h>
 #include <netipx/spx_timer.h>
 #include <netipx/spx_var.h>
-#include <netipx/spx_debug.h>
 
 /*
  * SPX protocol implementation.
