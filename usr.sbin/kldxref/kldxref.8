@@ -1,0 +1,25 @@
+$FreeBSD$
+
+[DRAFT]
+
+kldxref(8) used to generate linker.hints file which contains list of
+modules, their version numbers and container KLDs. This file used by loader
+and kernel linker.
+
+Each directory with KLDs should have its own linker.hints file.
+
+Typical invocation of kldxref utility may look like this:
+
+kldxref /boot/kernel /modules
+
+which will build hints file in both directories.
+
+A recursive behaviour can be specified with -R option:
+
+kldxref /boot
+
+If no hint records written, hints file will not be created and old file
+will be removed.
+
+If -d flag specified then no files generated and program prints metadata
+records to stdout.

@@ -46,6 +46,7 @@ SUBDIR=	IPXrouted \
 	kbdcontrol \
 	kbdmap \
 	kernbb \
+	kldxref \
 	lastlogin \
 	mailwrapper \
 	manctl \
