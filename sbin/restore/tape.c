@@ -497,7 +497,7 @@ setdumpnum()
 		rmtioctl(MTFSF, dumpnum - 1);
 	else
 #endif
-		if (ioctl(mt, (int)MTIOCTOP, (char *)&tcom) < 0)
+		if (ioctl(mt, MTIOCTOP, (char *)&tcom) < 0)
 			fprintf(stderr, "ioctl MTFSF: %s\n", strerror(errno));
 }
 
