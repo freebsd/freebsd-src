@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.c,v 1.46 1996/06/21 21:35:01 peter Exp $
+ *	$Id: si.c,v 1.47 1996/06/30 04:56:05 peter Exp $
  */
 
 #ifndef lint
@@ -1059,8 +1059,11 @@ siwrite(dev, uio, flag)
 		pp->sp_state |= SS_WAITWRITE;
 		DPRINT((pp, DBG_WRITE, "in siwrite, wait for SS_BLOCKWRITE to clear\n"));
 		if (error = ttysleep(tp, (caddr_t)pp, TTOPRI|PCATCH,
-				     "siwrite", 0))
+				     "siwrite", tp->t_timeout)) {
+			if (error == ETIMEDOUT)
+				error = EIO;
 			goto out;
+		}
 	}
 
 	error = (*linesw[tp->t_line].l_write)(tp, uio, flag);
