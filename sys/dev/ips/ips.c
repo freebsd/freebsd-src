@@ -322,6 +322,7 @@ static void ips_timeout(void *arg)
 /* check card and initialize it */
 int ips_adapter_init(ips_softc_t *sc)
 {
+        int i;
         DEVICE_PRINTF(1,sc->dev, "initializing\n");
         if (bus_dma_tag_create(	/* parent    */	sc->adapter_dmatag,
 				/* alignemnt */	1,
@@ -359,13 +360,18 @@ int ips_adapter_init(ips_softc_t *sc)
            can handle */
 	sc->max_cmds = 1;
 	ips_cmdqueue_init(sc);
+	callout_handle_init(&sc->timer);
 
 	if(sc->ips_adapter_reinit(sc, 0))
 		goto error;
 
 	mtx_init(&sc->cmd_mtx, "ips command mutex", NULL, MTX_DEF);
-	if(ips_get_adapter_info(sc) || ips_get_drive_info(sc)){
-		device_printf(sc->dev, "failed to get configuration data from device\n");
+	if ((i = ips_get_adapter_info(sc)) != 0) {
+		device_printf(sc->dev, "failed to get adapter configuration data from device (%d)\n", i);
+		goto error;
+	}
+ 	if ((i = ips_get_drive_info(sc)) != 0) {
+		device_printf(sc->dev, "failed to get drive configuration data from device (%d)\n", i);
 		goto error;
 	}
 	ips_update_nvram(sc); /* no error check as failure doesn't matter */
