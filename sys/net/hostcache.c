@@ -196,7 +196,7 @@ hc_delete(struct hcentry *hc)
 	LIST_REMOVE(hc, hc_link);
 	hc->hc_hct->hct_idle--;
 	splx(s);
-	FREE(hc, M_HOSTCACHE);
+	free(hc, M_HOSTCACHE);
 	return 0;
 }
 
