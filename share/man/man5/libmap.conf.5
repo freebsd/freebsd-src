@@ -71,23 +71,26 @@ changing symlinks.
 #
 # candidate		mapping
 #
-libpthread.so.5		libpthread.so.1	# Everything uses 'libpthread'
+libpthread.so.1		libpthread.so.1	# Everything uses 'libpthread'
 libpthread.so		libpthread.so
 
+libc_r.so.5		libpthread.so.1	# Everything that uses 'libc_r'
+libc_r.so		libpthread.so	# now uses 'libpthread'
+
 [/usr/local/bin/mplayer]		# 'mplayer' uses libc_r.
-libpthread.so.5		libc_r.so.5
+libpthread.so.1		libc_r.so.5
 libpthread.so		libc_r.so
 
 [mplayer]
-libpthread.so.5		libc_r.so.5
+libpthread.so.1		libc_r.so.5
 libpthread.so		libc_r.so
 
 [/usr/local/sbin/httpd]			# Apache uses libthr
-libpthread.so.5		libthr.so.1
+libpthread.so.1		libthr.so.1
 libpthread.so		libthr.so
 
 [httpd]
-libpthread.so.5		libthr.so.1
+libpthread.so.1		libthr.so.1
 libpthread.so		libthr.so
 .Ed
 .Sh FILES
