@@ -1556,7 +1556,7 @@ mlx_enquire(struct mlx_softc *sc, int command, size_t bufsize, void (* complete)
     /* we got an error, and we allocated a result */
     if ((error != 0) && (result != NULL)) {
 	free(result, M_DEVBUF);
-	mc->mc_data = NULL;
+	result = NULL;
     }
     return(result);
 }
