@@ -403,11 +403,24 @@ The format is identical to that produced by
 .Nm ls Fl dgils .
 .Ek
 .It Ic -maxdepth Ar n
-True if the depth of the current file into the tree is less than or equal to
-.Ar n .
+Always true; descend at most
+.Ar n
+directory levels below the command line arguments.
+If any
+.Ic -maxdepth
+primary is specified, it applies to the entire expression even if it would
+not normally be evaluated.
+.Ic -maxdepth Li 0
+limits the whole search to the command line arguments.
 .It Ic -mindepth Ar n
-True if the depth of the current file into the tree is greater than or equal to
+Always true; do not apply any tests or actions at levels less than
 .Ar n .
+If any
+.Ic -mindepth
+primary is specified, it applies to the entire expression even if it would
+not normally be evaluated.
+.Ic -mindepth Li 1
+processes all but the command line arguments.
 .It Ic -mmin Ar n
 True if the difference between the file last modification time and the time
 .Nm
