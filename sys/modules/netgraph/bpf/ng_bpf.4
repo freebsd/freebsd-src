@@ -164,7 +164,7 @@ END {
 }
 xxENDxx
 
-BPFPROG=`tcpdump -ddd ${PATTERN} | awk -f /tmp/bpf.awk`
+BPFPROG=`tcpdump -s 8192 -ddd ${PATTERN} | awk -f /tmp/bpf.awk`
 
 ngctl msg ${NODEPATH} setprogram { thisHook=\\"${INHOOK}\\" \\
   ifMatch=\\"${MATCHHOOK}\\" \\
