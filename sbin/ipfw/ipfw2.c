@@ -178,6 +178,8 @@ enum tokens {
 
 	TOK_OR,
 	TOK_NOT,
+	TOK_STARTBRACE,
+	TOK_ENDBRACE,
 
 	TOK_ACCEPT,
 	TOK_COUNT,
@@ -323,6 +325,10 @@ struct _s_x rule_options[] = {
 	{ "!", /* escape ? */	TOK_NOT },		/* pseudo option */
 	{ "or",			TOK_OR },		/* pseudo option */
 	{ "|", /* escape */	TOK_OR },		/* pseudo option */
+	{ "{",			TOK_STARTBRACE },	/* pseudo option */
+	{ "(",			TOK_STARTBRACE },	/* pseudo option */
+	{ "}",			TOK_ENDBRACE },		/* pseudo option */
+	{ ")",			TOK_ENDBRACE },		/* pseudo option */
 	{ NULL,			TOK_NULL },
 	{ NULL, 0 }
 };
@@ -935,6 +941,8 @@ show_ipfw(struct ip_fw *rule)
 				HAVE_PROTO|HAVE_SRCIP|HAVE_DSTIP);
 		case O_IP_SRCPORT:
 			show_prerequisites(&flags, HAVE_PROTO|HAVE_SRCIP);
+			if ((cmd->len & F_OR) && !or_block)
+				printf(" {");
 			print_newports((ipfw_insn_u16 *)cmd, proto);
 			break;
 
@@ -1696,7 +1704,7 @@ delete(int ac, char *av[])
 	else if (!strncmp(*av, "enable", strlen(*av)))
 		do_set = 3;	/* enable set */
 	av++; ac--;
-	if (!strncmp(*av, "set", strlen(*av))) {
+	if (ac > 0 && !strncmp(*av, "set", strlen(*av))) {
 		if (do_set == 0)
 			do_set = 1;	/* delete set */
 		ac--; av++;
@@ -2407,6 +2415,7 @@ add(int ac, char *av[])
 	if (ac && (*av[0] == '(' || *av[0] == '{')) {		\
 		if (open_par)					\
 			errx(EX_USAGE, "nested \"(\" not allowed\n"); \
+		prev = NULL;					\
 		open_par = 1;					\
 		if ( (av[0])[1] == '\0') {			\
 			ac--; av++;				\
@@ -2421,6 +2430,7 @@ add(int ac, char *av[])
 		if (ac && (					\
 		    !strncmp(*av, ")", strlen(*av)) ||		\
 		    !strncmp(*av, "}", strlen(*av)) )) {	\
+			prev = NULL;				\
 			open_par = 0;				\
 			ac--; av++;				\
 		} else						\
@@ -2508,17 +2518,24 @@ add(int ac, char *av[])
 	cmd = next_cmd(cmd);
     OR_BLOCK(source_ip);
 
+    OR_START(source_port);
 	/*
 	 * source ports, optional
 	 */
 	NOT_BLOCK;	/* optional "not" */
-	if (ac && fill_newports((ipfw_insn_u16 *)cmd, *av, proto)) {
-		/* XXX todo: check that we have a protocol with ports */
-		cmd->opcode = O_IP_SRCPORT;
-		ac--;
-		av++;
-		cmd = next_cmd(cmd);
+	if (ac) {
+		if (!strncmp(*av, "any", strlen(*av))) {
+			ac--;
+			av++;
+		} else if (fill_newports((ipfw_insn_u16 *)cmd, *av, proto)) {
+			/* XXX todo: check that we have a protocol with ports */
+			cmd->opcode = O_IP_SRCPORT;
+			ac--;
+			av++;
+			cmd = next_cmd(cmd);
+		}
 	}
+    OR_BLOCK(source_port);
 
 read_to:
 	/*
@@ -2552,23 +2569,33 @@ read_to:
 	cmd = next_cmd(cmd);
     OR_BLOCK(dest_ip);
 
+    OR_START(dest_port);
 	/*
 	 * dest. ports, optional
 	 */
 	NOT_BLOCK;	/* optional "not" */
-	if (ac && fill_newports((ipfw_insn_u16 *)cmd, *av, proto)) {
-		/* XXX todo: check that we have a protocol with ports */
-		cmd->opcode = O_IP_DSTPORT;
-		ac--;
-		av++;
-		cmd += F_LEN(cmd);
+	if (ac) {
+		if (!strncmp(*av, "any", strlen(*av))) {
+			ac--;
+			av++;
+		} else if (fill_newports((ipfw_insn_u16 *)cmd, *av, proto)) {
+			/* XXX todo: check that we have a protocol with ports */
+			cmd->opcode = O_IP_DSTPORT;
+			ac--;
+			av++;
+			cmd += F_LEN(cmd);
+		}
 	}
+    OR_BLOCK(dest_port);
 
 read_options:
 	prev = NULL;
 	while (ac) {
-		char *s = *av;
-		ipfw_insn_u32 *cmd32 = (ipfw_insn_u32 *)cmd;	/* alias */
+		char *s;
+		ipfw_insn_u32 *cmd32;	/* alias for cmd */
+
+		s = *av;
+		cmd32 = (ipfw_insn_u32 *)cmd;
 
 		if (*s == '!') {	/* alternate syntax for NOT */
 			if (cmd->len & F_NOT)
@@ -2586,11 +2613,23 @@ read_options:
 			break;
 
 		case TOK_OR:
-			if (prev == NULL)
+			if (open_par == 0 || prev == NULL)
 				errx(EX_USAGE, "invalid \"or\" block\n");
 			prev->len |= F_OR;
 			break;
-				
+
+		case TOK_STARTBRACE:
+			if (open_par)
+				errx(EX_USAGE, "+nested \"(\" not allowed\n");
+			open_par = 1;
+			break;
+
+		case TOK_ENDBRACE:
+			if (!open_par)
+				errx(EX_USAGE, "+missing \")\"\n");
+			open_par = 0;
+        		break;
+
 		case TOK_IN:
 			fill_cmd(cmd, O_IN, 0, 0);
 			break;
@@ -2750,6 +2789,9 @@ read_options:
 			break;
 
 		case TOK_KEEPSTATE:
+			if (open_par)
+				errx(EX_USAGE, "keep-state cannot be part "
+				    "of an or block");
 			if (have_state)
 				errx(EX_USAGE, "only one of keep-state "
 					"and limit is allowed");
@@ -2758,10 +2800,13 @@ read_options:
 			break;
 
 		case TOK_LIMIT:
-			NEED1("limit needs mask and # of connections");
+			if (open_par)
+				errx(EX_USAGE, "limit cannot be part "
+				    "of an or block");
 			if (have_state)
 				errx(EX_USAGE, "only one of keep-state "
 					"and limit is allowed");
+			NEED1("limit needs mask and # of connections");
 			have_state = cmd;
 		    {
 			ipfw_insn_limit *c = (ipfw_insn_limit *)cmd;
