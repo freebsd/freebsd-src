@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static char sccsid[] = "@(#)ns_init.c	4.38 (Berkeley) 3/21/91";
-static char rcsid[] = "$Id: ns_init.c,v 1.1.1.2 1995/08/18 21:16:00 peter Exp $";
+static char rcsid[] = "$Id: ns_init.c,v 1.3 1995/08/20 21:18:44 peter Exp $";
 #endif /* not lint */
 
 /*
@@ -65,7 +65,6 @@ static char rcsid[] = "$Id: ns_init.c,v 1.1.1.2 1995/08/18 21:16:00 peter Exp $"
 #include <arpa/nameser.h>
 #include <arpa/inet.h>
 #include <syslog.h>
-#include <signal.h>
 #include <resolv.h>
 #include <stdio.h>
 #include <errno.h>
@@ -80,7 +79,7 @@ enum limit { Datasize };
 
 static void		zoneinit __P((struct zoneinfo *)),
 			get_forwarders __P((FILE *)),
-			boot_read __P((char *)),
+			boot_read __P((const char *filename, int includefile)),
 #ifdef DEBUG
 			content_zone __P((int)),
 #endif
@@ -175,7 +174,7 @@ ns_init(bootfile)
         	content_zone(nzones - 1);
         }
 #endif
-	boot_read(bootfile);
+	boot_read(bootfile, 0);
 
         /* erase all old zones that were not found */
         for (zp = &zones[1]; zp < &zones[nzones]; zp++) {
@@ -217,8 +216,9 @@ ns_init(bootfile)
  * Set up to recurse.
  */
 static void
-boot_read(bootfile)
-	char *bootfile;
+boot_read(filename, includefile)
+	const char *filename;
+	int includefile;
 {
 	register struct zoneinfo *zp;
 	char buf[BUFSIZ], obuf[BUFSIZ], *source;
@@ -236,8 +236,8 @@ boot_read(bootfile)
 	int slineno;			/* Saved global line number. */
 	int i;
 
-	if ((fp = fopen(bootfile, "r")) == NULL) {
-		syslog(LOG_ERR, "%s: %m", bootfile);
+	if ((fp = fopen(filename, "r")) == NULL) {
+		syslog(LOG_ERR, "%s: %m", filename);
 		exit(1);
 	}
 
@@ -265,11 +265,11 @@ boot_read(bootfile)
 			get_netlist(fp, enettab, ALLOW_NETS, buf);
 			continue;
 		} else if (strcasecmp(buf, "max-fetch") == 0) {
-			max_xfers_running = getnum(fp, bootfile, GETNUM_NONE);
+			max_xfers_running = getnum(fp, filename, GETNUM_NONE);
 			continue;
 		} else if (strcasecmp(buf, "limit") == 0) {
 			(void) getword(buf, sizeof(buf), fp);
-			ns_limit(buf, getnum(fp, bootfile, GETNUM_SCALED));
+			ns_limit(buf, getnum(fp, filename, GETNUM_SCALED));
 			continue;
 		} else if (strcasecmp(buf, "options") == 0) {
 			while (getword(buf, sizeof(buf), fp))
@@ -300,7 +300,7 @@ boot_read(bootfile)
 #endif
 		} else if (strcasecmp(buf, "include") == 0) {
 			if (getword(buf, sizeof(buf), fp))
-				boot_read(buf);
+				boot_read(buf, 1);
 			continue;
 		} else if (strncasecmp(buf, "cache", 5) == 0) {
 			type = Z_CACHE;
@@ -343,7 +343,7 @@ boot_read(bootfile)
 		} else {
 			syslog(LOG_NOTICE,
 			       "%s: line %d: unknown directive '%s'\n",
-			       bootfile, lineno, buf);
+			       filename, lineno, buf);
 			endline(fp);
 			continue;
 		}
@@ -353,14 +353,14 @@ boot_read(bootfile)
 		 */
 		if (!getword(obuf, sizeof(obuf), fp)) {
 			syslog(LOG_NOTICE, "%s: line %d: missing origin\n",
-			    bootfile, lineno);
+			    filename, lineno);
 			continue;
 		}
 		i = strlen(obuf);
 		if ((obuf[i-1] == '.') && (i != 1))
 			syslog(LOG_INFO,
 			       "%s: line %d: zone \"%s\" has trailing dot\n",
-			       bootfile, lineno, obuf);
+			       filename, lineno, obuf);
 		while ((--i >= 0) && (obuf[i] == '.'))
 			obuf[i] = '\0';
 		dprintf(1, (ddt, "zone origin %s", obuf[0]?obuf:"."));
@@ -369,7 +369,7 @@ boot_read(bootfile)
 		 */
 		if (!getword(buf, sizeof(buf), fp)) {
 			syslog(LOG_NOTICE, "%s: line %d: missing %s\n",
-				bootfile, lineno,
+				filename, lineno, 
 #ifdef STUBS
 			   (type == Z_SECONDARY || type == Z_STUB)
 #else
@@ -437,14 +437,14 @@ boot_read(bootfile)
 				if (zp->z_refresh <= 0) {
 					syslog(LOG_NOTICE,
 				"%s: line %d: bad refresh time '%s', ignored\n",
-						bootfile, lineno, buf);
+						filename, lineno, buf);
 					zp->z_refresh = 0;
 				} else if (cache_file == NULL)
 					cache_file = source;
 #else
 				syslog(LOG_NOTICE,
 				       "%s: line %d: cache refresh ignored\n",
-				       bootfile, lineno);
+				       filename, lineno);
 #endif
 				endline(fp);
 			}
@@ -495,7 +495,7 @@ boot_read(bootfile)
 				    else {
 					syslog(LOG_NOTICE,
 					       "%s: line %d: bad flag '%s'\n",
-					       bootfile, lineno, flag);
+					       filename, lineno, flag);
 				    }
 				    flag = cp;
 				}
@@ -571,7 +571,7 @@ boot_read(bootfile)
 				 * We will always transfer this zone again
 				 * after a reload.
 				 */
-				sprintf(buf, "/%s/NsTmp%ld.%d", _PATH_TMPDIR,
+				sprintf(buf, "%s/NsTmp%ld.%d", _PATH_TMPDIR,
 					(long)getpid(), tmpnum++);
 				source = savestr(buf);
 				zp->z_flags |= Z_TMP_FILE;
@@ -930,8 +930,10 @@ ns_option(name)
 {
 	if (!strcasecmp(name, "no-recursion")) {
 		NoRecurse = 1;
+#ifdef QRYLOG
 	} else if (!strcasecmp(name, "query-log")) {
 		qrylog = 1;
+#endif
 	} else if (!strcasecmp(name, "forward-only")) {
 		forward_only = 1;
 #ifndef INVQ
