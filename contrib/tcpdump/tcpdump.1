@@ -265,6 +265,9 @@ protos are:
 .BR sca ,
 .BR moprc ,
 .BR mopdl ,
+.BR iso ,
+.BR esis ,
+.BR isis ,
 .B tcp
 and
 .BR udp .
@@ -445,7 +448,7 @@ True if the DECNET destination address is
 .IP "\fBdecnet host \fIhost\fR"
 True if either the DECNET source or destination address is
 .IR host .
-.IP "\fBip\fR, \fBarp\fR, \fBrarp\fR, \fBdecnet\fR"
+.IP "\fBip\fR, \fBarp\fR, \fBrarp\fR, \fBdecnet\fR, \fBiso\fR"
 Abbreviations for:
 .in +.5i
 .nf
@@ -471,6 +474,15 @@ Abbreviations for:
 .fi
 .in -.5i
 where \fIp\fR is one of the above protocols.
+.IP "\fBesis\fR, \fBisis\fR"
+Abbreviations for:
+.in +.5i
+.nf
+\fBiso proto \fIp\fR
+.fi
+.in -.5i
+where \fIp\fR is one of the above protocols.
+Note that \fItcpdump\fR does an incomplete job of parsing these protocols.
 .IP  "\fIexpr relop expr\fR"
 True if the relation holds, where \fIrelop\fR is one of >, <, >=, <=, =, !=,
 and \fIexpr\fR is an arithmetic expression composed of integer constants
