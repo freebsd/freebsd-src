@@ -2475,6 +2475,12 @@ tn(argc, argv)
 	  (void) strncpy(_hostname, hostp, sizeof(_hostname) - 1);
 	_hostname[sizeof(_hostname)-1] = '\0';
 	hostname = _hostname;
+    } else if (error != 0) {
+	    fprintf(stderr, "%s: %s\n", hostname, gai_strerror(error));
+	    if (error == EAI_SYSTEM)
+	        fprintf(stderr, "%s: %s\n", hostname, strerror(errno));
+	    setuid(getuid());
+	    return 0;
     }
     if (srcroute != 0) {
 	srp = 0;
