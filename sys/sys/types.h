@@ -255,6 +255,7 @@ typedef	__vm_size_t	vm_size_t;
 
 #ifdef _KERNEL
 typedef	int		boolean_t;
+typedef	__cpumask_t	cpumask_t;
 typedef	__intfptr_t	intfptr_t;
 
 /*-
