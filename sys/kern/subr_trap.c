@@ -176,7 +176,7 @@ ast(struct trapframe *framep)
 	p->p_sflag &= ~PS_MACPEND;
 #endif
 	td->td_flags &= ~(TDF_ASTPENDING | TDF_NEEDSIGCHK |
-	    TDF_NEEDRESCHED | TDF_OWEUPC);
+	    TDF_NEEDRESCHED | TDF_OWEUPC | TDF_INTERRUPT);
 	cnt.v_soft++;
 	prticks = 0;
 	if (flags & TDF_OWEUPC && p->p_flag & P_PROFIL) {
@@ -243,25 +243,12 @@ ast(struct trapframe *framep)
 		mtx_unlock_spin(&sched_lock);
 	}
 	if (flags & TDF_NEEDSIGCHK) {
-		int sigs;
-
-		sigs = 0;
 		PROC_LOCK(p);
 		mtx_lock(&p->p_sigacts->ps_mtx);
-		while ((sig = cursig(td)) != 0) {
+		while ((sig = cursig(td)) != 0)
 			postsig(sig);
-			sigs++;
-		}
 		mtx_unlock(&p->p_sigacts->ps_mtx);
 		PROC_UNLOCK(p);
-		if ((td->td_flags & TDF_SA) && sigs) {
-			struct kse_upcall *ku = td->td_upcall;
-			if ((void *)TRAPF_PC(framep) != ku->ku_func) {
-				mtx_lock_spin(&sched_lock);
-				ku->ku_flags |= KUF_DOUPCALL;
-				mtx_unlock_spin(&sched_lock);
-			}
-		}
 	}
 
 	userret(td, framep, sticks);

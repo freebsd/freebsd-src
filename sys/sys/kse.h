@@ -36,6 +36,7 @@
 #include <machine/kse.h>
 #include <sys/ucontext.h>
 #include <sys/time.h>
+#include <sys/signal.h>
 
 /*
  * This file defines the structures needed for communication between
@@ -59,6 +60,7 @@ struct kse_thr_mailbox {
 	void			*tm_udata;	/* For use by the UTS */
 	unsigned int		tm_uticks;
 	unsigned int		tm_sticks;
+	siginfo_t		tm_syncsig;
 	int			tm_spare[8];
 };
 
@@ -90,12 +92,13 @@ struct kse_mailbox {
 #define	KMF_NOCOMPLETED		0x02
 #define	KMF_DONE		0x04
 #define	KMF_BOUND		0x08
+#define	KMF_WAITSIGEVENT	0x10
 
 #ifndef _KERNEL
 int	kse_create(struct kse_mailbox *, int);
 int	kse_exit(void);
 int	kse_release(struct timespec *);
-int	kse_thr_interrupt(struct kse_thr_mailbox *);
+int	kse_thr_interrupt(struct kse_thr_mailbox *, int);
 int	kse_wakeup(struct kse_mailbox *);
 #endif	/* !_KERNEL */
 

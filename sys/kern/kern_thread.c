@@ -384,6 +384,7 @@ proc_linkup(struct proc *p, struct ksegrp *kg,
 /*
 struct kse_thr_interrupt_args {
 	struct kse_thr_mailbox * tmbx;
+	int sig;
 };
 */
 int
@@ -391,26 +392,48 @@ kse_thr_interrupt(struct thread *td, struct kse_thr_interrupt_args *uap)
 {
 	struct proc *p;
 	struct thread *td2;
+	int sig = uap->sig;
 
 	p = td->td_proc;
-	if (!(p->p_flag & P_SA) || (uap->tmbx == NULL))
+	if (!(p->p_flag & P_SA) || (uap->tmbx == NULL) ||
+	    (sig < -2) || (sig > _SIG_MAXSIG))
 		return (EINVAL);
+
+	PROC_LOCK(p);
 	mtx_lock_spin(&sched_lock);
 	FOREACH_THREAD_IN_PROC(p, td2) {
-		if (td2->td_mailbox == uap->tmbx) {
-			td2->td_flags |= TDF_INTERRUPT;
-			if (TD_ON_SLEEPQ(td2) && (td2->td_flags & TDF_SINTR)) {
-				if (td2->td_flags & TDF_CVWAITQ)
-					cv_abort(td2);
-				else
-					abortsleep(td2);
-			}
-			mtx_unlock_spin(&sched_lock);
-			return (0);
-		}
+		if (td2->td_mailbox == uap->tmbx)
+			break;
 	}
-	mtx_unlock_spin(&sched_lock);
-	return (ESRCH);
+	if (td2 == NULL) {
+		mtx_unlock_spin(&sched_lock);
+		PROC_UNLOCK(p);
+		return (ESRCH);
+	}
+	if (sig > 0) {
+		td2->td_flags &= ~TDF_INTERRUPT;
+		mtx_unlock_spin(&sched_lock);
+		tdsignal(td2, sig);
+	} else if (sig == 0) {
+		mtx_unlock_spin(&sched_lock);
+	} else {
+		td2->td_flags |= TDF_INTERRUPT | TDF_ASTPENDING;
+		if (TD_CAN_UNBIND(td2))
+			td->td_upcall->ku_flags |= KUF_DOUPCALL;
+		if (sig == -1)
+			td2->td_intrval = EINTR;
+		else if (sig == -2)
+			td2->td_intrval = ERESTART;
+		if (TD_ON_SLEEPQ(td2) && (td2->td_flags & TDF_SINTR)) {
+			if (td2->td_flags & TDF_CVWAITQ)
+				cv_abort(td2);
+			else
+				abortsleep(td2);
+		}
+		mtx_unlock_spin(&sched_lock);
+	}
+	PROC_UNLOCK(p);
+	return (0);
 }
 
 /*
@@ -488,6 +511,7 @@ kse_release(struct thread *td, struct kse_release_args *uap)
 	struct kse_upcall *ku;
 	struct timespec timeout;
 	struct timeval tv;
+	sigset_t sigset;
 	int error;
 
 	p = td->td_proc;
@@ -501,19 +525,39 @@ kse_release(struct thread *td, struct kse_release_args *uap)
 	}
 	if (td->td_flags & TDF_SA)
 		td->td_pflags |= TDP_UPCALLING;
+	else {
+		ku->ku_mflags = fuword(&ku->ku_mailbox->km_flags);
+		if (ku->ku_mflags == -1) {
+			PROC_LOCK(p);
+			sigexit(td, SIGSEGV);
+		}
+	}
 	PROC_LOCK(p);
-	if ((ku->ku_flags & KUF_DOUPCALL) == 0 && (kg->kg_completed == NULL)) {
-		kg->kg_upsleeps++;
-		error = msleep(&kg->kg_completed, &p->p_mtx, PPAUSE|PCATCH,
-			"kserel", (uap->timeout ? tvtohz(&tv) : 0));
-		kg->kg_upsleeps--;
+	if (ku->ku_mflags & KMF_WAITSIGEVENT) {
+		/* UTS wants to wait for signal event */
+		if (!(p->p_flag & P_SIGEVENT) && !(ku->ku_flags & KUF_DOUPCALL))
+			error = msleep(&p->p_siglist, &p->p_mtx, PPAUSE|PCATCH,
+			    "ksesigwait", (uap->timeout ? tvtohz(&tv) : 0));
+		p->p_flag &= ~P_SIGEVENT;
+		sigset = p->p_siglist;
+		PROC_UNLOCK(p);
+		error = copyout(&sigset, &ku->ku_mailbox->km_sigscaught,
+		    sizeof(sigset));
+	} else {
+		 if (! kg->kg_completed && !(ku->ku_flags & KUF_DOUPCALL)) {
+			kg->kg_upsleeps++;
+			error = msleep(&kg->kg_completed, &p->p_mtx,
+				PPAUSE|PCATCH, "kserel",
+				(uap->timeout ? tvtohz(&tv) : 0));
+			kg->kg_upsleeps--;
+		}
+		PROC_UNLOCK(p);
 	}
 	if (ku->ku_flags & KUF_DOUPCALL) {
 		mtx_lock_spin(&sched_lock);
 		ku->ku_flags &= ~KUF_DOUPCALL;
 		mtx_unlock_spin(&sched_lock);
 	}
-	PROC_UNLOCK(p);
 	return (0);
 }
 
@@ -559,7 +603,9 @@ kse_wakeup(struct thread *td, struct kse_wakeup_args *uap)
 		if ((td2 = ku->ku_owner) == NULL) {
 			panic("%s: no owner", __func__);
 		} else if (TD_ON_SLEEPQ(td2) &&
-		           (td2->td_wchan == &kg->kg_completed)) {
+		           ((td2->td_wchan == &kg->kg_completed) ||
+			    (td2->td_wchan == &p->p_siglist &&
+			     (ku->ku_mflags & KMF_WAITSIGEVENT)))) {
 			abortsleep(td2);
 		} else {
 			ku->ku_flags |= KUF_DOUPCALL;
@@ -698,12 +744,20 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 	if (td->td_standin == NULL)
 		thread_alloc_spare(td, NULL);
 
-	mtx_lock_spin(&sched_lock);
+	PROC_LOCK(p);
 	if (newkg->kg_numupcalls >= ncpus) {
-		mtx_unlock_spin(&sched_lock);
+		PROC_UNLOCK(p);
 		upcall_free(newku);
 		return (EPROCLIM);
 	}
+	if (first) {
+		SIGSETOR(p->p_siglist, td->td_siglist);
+		SIGEMPTYSET(td->td_siglist);
+		SIGFILLSET(td->td_sigmask);
+		SIG_CANTMASK(td->td_sigmask);
+	}
+	mtx_lock_spin(&sched_lock);
+	PROC_UNLOCK(p);
 	upcall_link(newku, newkg);
 	if (mbx.km_quantum)
 		newkg->kg_upquantum = max(1, mbx.km_quantum/tick);
@@ -943,7 +997,7 @@ thread_export_context(struct thread *td)
 	struct ksegrp *kg;
 	uintptr_t mbx;
 	void *addr;
-	int error = 0, temp;
+	int error = 0, temp, sig;
 	mcontext_t mc;
 
 	p = td->td_proc;
@@ -962,6 +1016,23 @@ thread_export_context(struct thread *td)
 	if (suword(addr, temp)) {
 		error = EFAULT;
 		goto bad;
+	}
+
+	/*
+	 * Post sync signal, or process SIGKILL and SIGSTOP.
+	 * For sync signal, it is only possible when the signal is not
+	 * caught by userland or process is being debugged.
+	 */
+	if (td->td_flags & TDF_NEEDSIGCHK) {
+		mtx_lock_spin(&sched_lock);
+		td->td_flags &= ~TDF_NEEDSIGCHK;
+		mtx_unlock_spin(&sched_lock);
+		PROC_LOCK(p);
+		mtx_lock(&p->p_sigacts->ps_mtx);
+		while ((sig = cursig(td)) != 0)
+			postsig(sig);
+		mtx_unlock(&p->p_sigacts->ps_mtx);
+		PROC_UNLOCK(p);
 	}
 
 	/* Get address in latest mbox of list pointer */
@@ -1399,52 +1470,39 @@ thread_schedule_upcall(struct thread *td, struct kse_upcall *ku)
 	td2->td_kse    = NULL;
 	td2->td_state  = TDS_CAN_RUN;
 	td2->td_inhibitors = 0;
+	SIGFILLSET(td2->td_sigmask);
+	SIG_CANTMASK(td2->td_sigmask);
 	return (td2);	/* bogus.. should be a void function */
 }
 
+/*
+ * It is only used when thread generated a trap and process is being
+ * debugged.
+ */
 void
 thread_signal_add(struct thread *td, int sig)
 {
-	struct kse_upcall *ku;
 	struct proc *p;
-	sigset_t ss;
+	siginfo_t siginfo;
+	struct sigacts *ps;
 	int error;
 
 	p = td->td_proc;
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	mtx_assert(&p->p_sigacts->ps_mtx, MA_OWNED);
-	td = curthread;
-	ku = td->td_upcall;
-	mtx_unlock(&p->p_sigacts->ps_mtx);
+	ps = p->p_sigacts;
+	mtx_assert(&ps->ps_mtx, MA_OWNED);
+
+	thread_siginfo(sig, 0, &siginfo);
+	mtx_unlock(&ps->ps_mtx);
 	PROC_UNLOCK(p);
-	error = copyin(&ku->ku_mailbox->km_sigscaught, &ss, sizeof(sigset_t));
-	if (error)
-		goto error;
-
-	SIGADDSET(ss, sig);
-
-	error = copyout(&ss, &ku->ku_mailbox->km_sigscaught, sizeof(sigset_t));
-	if (error)
-		goto error;
-
+	error = copyout(&siginfo, &td->td_mailbox->tm_syncsig, sizeof(siginfo));
+	if (error) {
+		PROC_LOCK(p);
+		sigexit(td, SIGILL);
+	}
 	PROC_LOCK(p);
-	mtx_lock(&p->p_sigacts->ps_mtx);
-	return;
-error:
-	PROC_LOCK(p);
-	sigexit(td, SIGILL);
-}
-
-/*
- * Schedule an upcall to notify a KSE process recieved signals.
- *
- */
-void
-thread_signal_upcall(struct thread *td)
-{
-	td->td_pflags |= TDP_UPCALLING;
-
-	return;
+	SIGADDSET(td->td_sigmask, sig);
+	mtx_lock(&ps->ps_mtx);
 }
 
 void
@@ -1623,6 +1681,13 @@ thread_userret(struct thread *td, struct trapframe *frame)
 		 */
 		td->td_pflags |= TDP_UPCALLING;
 	} else if (td->td_mailbox && (ku == NULL)) {
+		/* 
+		 * Because we are exiting, SIGKILL and SIGSTOP shouldn't
+		 * be posted to us anymore, otherwise they will be lost.
+		 */
+		mtx_lock_spin(&sched_lock);
+		td->td_flags |= TDF_NOSIGPOST;
+		mtx_unlock_spin(&sched_lock);
 		error = thread_export_context(td);
 		/* possibly upcall with error? */
 		PROC_LOCK(p);

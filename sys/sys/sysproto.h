@@ -1072,6 +1072,7 @@ struct kse_create_args {
 };
 struct kse_thr_interrupt_args {
 	char tmbx_l_[PADL_(struct kse_thr_mailbox *)]; struct kse_thr_mailbox * tmbx; char tmbx_r_[PADR_(struct kse_thr_mailbox *)];
+	char sig_l_[PADL_(int)]; int sig; char sig_r_[PADR_(int)];
 };
 struct kse_release_args {
 	char timeout_l_[PADL_(struct timespec *)]; struct timespec * timeout; char timeout_r_[PADR_(struct timespec *)];
