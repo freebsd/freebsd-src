@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.23 1994/10/04 13:59:44 ache Exp $
+ *	$Id: clock.c,v 1.24 1994/10/04 18:39:10 ache Exp $
  */
 
 /*
@@ -540,14 +540,18 @@ test_inittodr(time_t base)
 /*
  * Wire clock interrupt in.
  */
+
+static u_int clkmask = HWI_MASK | SWI_MASK;
+static u_int rtcmask = SWI_CLOCK_MASK;
+
 void
 enablertclock() 
 {
 	register_intr(/* irq */ 0, /* XXX id */ 0, /* flags */ 0, clkintr,
-		      HWI_MASK | SWI_MASK, /* unit */ 0);
+		      &clkmask, /* unit */ 0);
 	INTREN(IRQ0);
 	register_intr(/* irq */ 8, /* XXX id */ 1, /* flags */ 0, rtcintr,
-		      SWI_CLOCK_MASK, /* unit */ 0);
+		      &rtcmask, /* unit */ 0);
 	INTREN(IRQ8);
 	outb(IO_RTC, RTC_STATUSB);
 	outb(IO_RTC+1, RTCSB_PINTR | RTCSB_24HR);
