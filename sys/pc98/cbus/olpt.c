@@ -117,15 +117,6 @@
 #include <machine/clock.h>
 #include <machine/lpt.h>
 
-#include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <vm/pmap.h>
-
-#ifdef PC98
-#include <pc98/pc98/pc98.h>
-#else
-#include <i386/isa/isa.h>
-#endif
 #include <i386/isa/isa_device.h>
 #include <i386/isa/lptreg.h>
 
@@ -814,7 +805,9 @@ lptwrite(dev_t dev, struct uio * uio, int ioflag)
 static void
 lptintr(int unit)
 {
+#if defined(INET) || !defined(PC98)
 	struct lpt_softc *sc = lpt_sc + unit;
+#endif
 #ifndef PC98
 	int port = sc->sc_port, sts;
 	int i;
