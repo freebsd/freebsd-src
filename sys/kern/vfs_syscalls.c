@@ -264,6 +264,7 @@ mount(p, uap)
 	 */
 	mp = malloc(sizeof(struct mount), M_MOUNT, M_WAITOK);
 	bzero((char *)mp, (u_long)sizeof(struct mount));
+	TAILQ_INIT(&mp->mnt_nvnodelist);
 	lockinit(&mp->mnt_lock, PVFS, "vfslock", 0, LK_NOPAUSE);
 	(void)vfs_busy(mp, LK_NOWAIT, 0, p);
 	mp->mnt_op = vfsp->vfc_vfsops;
@@ -500,7 +501,7 @@ dounmount(mp, flags, p)
 		vrele(coveredvp);
 	}
 	mp->mnt_vfc->vfc_refcount--;
-	if (!LIST_EMPTY(&mp->mnt_vnodelist))
+	if (!TAILQ_EMPTY(&mp->mnt_nvnodelist))
 		panic("unmount: dangling vnode");
 	lockmgr(&mp->mnt_lock, LK_RELEASE | LK_INTERLOCK, &mountlist_slock, p);
 	if (mp->mnt_kern_flag & MNTK_MWAIT)

@@ -178,7 +178,7 @@ msdosfs_mountroot()
 	bzero((char *)mp, (u_long)sizeof(struct mount));
 	mp->mnt_op = &msdosfs_vfsops;
 	mp->mnt_flag = 0;
-	LIST_INIT(&mp->mnt_vnodelist);
+	TAILQ_INIT(&mp->mnt_nvnodelist);
 
 	args.flags = 0;
 	args.uid = 0;
@@ -865,7 +865,7 @@ msdosfs_sync(mp, waitfor, cred, p)
 	 */
 	simple_lock(&mntvnode_slock);
 loop:
-	for (vp = mp->mnt_vnodelist.lh_first; vp != NULL; vp = nvp) {
+	for (vp = TAILQ_FIRST(&mp->mnt_nvnodelist); vp != NULL; vp = nvp) {
 		/*
 		 * If the vnode that we are about to sync is no longer
 		 * associated with this mount point, start over.
@@ -874,7 +874,7 @@ loop:
 			goto loop;
 
 		simple_lock(&vp->v_interlock);
-		nvp = vp->v_mntvnodes.le_next;
+		nvp = TAILQ_NEXT(vp, v_nmntvnodes);
 		dep = VTODE(vp);
 		if (vp->v_type == VNON ||
 		    ((dep->de_flag &

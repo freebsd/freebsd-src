@@ -107,7 +107,7 @@ struct statfs {
  * array of operations and an instance record.  The file systems are
  * put on a doubly linked list.
  */
-LIST_HEAD(vnodelst, vnode);
+TAILQ_HEAD(vnodelst, vnode);
 
 struct mount {
 	TAILQ_ENTRY(mount) mnt_list;		/* mount list */
@@ -115,7 +115,7 @@ struct mount {
 	struct vfsconf	*mnt_vfc;		/* configuration info */
 	struct vnode	*mnt_vnodecovered;	/* vnode we mounted on */
 	struct vnode	*mnt_syncer;		/* syncer vnode */
-	struct vnodelst	mnt_vnodelist;		/* list of vnodes this mount */
+	struct vnodelst	mnt_nvnodelist;		/* list of vnodes this mount */
 	struct lock	mnt_lock;		/* mount structure lock */
 	int		mnt_flag;		/* flags shared with user */
 	int		mnt_kern_flag;		/* kernel only flags */

@@ -266,7 +266,7 @@ vfs_rootmountalloc(fstypename, devname, mpp)
 	bzero((char *)mp, (u_long)sizeof(struct mount));
 	lockinit(&mp->mnt_lock, PVFS, "vfslock", 0, LK_NOPAUSE);
 	(void)vfs_busy(mp, LK_NOWAIT, 0, p);
-	LIST_INIT(&mp->mnt_vnodelist);
+	TAILQ_INIT(&mp->mnt_nvnodelist);
 	mp->mnt_vfc = vfsp;
 	mp->mnt_op = vfsp->vfc_vfsops;
 	mp->mnt_flag = MNT_RDONLY;
@@ -593,7 +593,7 @@ insmntque(vp, mp)
 	 * Delete from old mount point vnode list, if on one.
 	 */
 	if (vp->v_mount != NULL)
-		LIST_REMOVE(vp, v_mntvnodes);
+		TAILQ_REMOVE(&vp->v_mount->mnt_nvnodelist, vp, v_nmntvnodes);
 	/*
 	 * Insert into list of vnodes for the new mount point, if available.
 	 */
@@ -601,7 +601,7 @@ insmntque(vp, mp)
 		simple_unlock(&mntvnode_slock);
 		return;
 	}
-	LIST_INSERT_HEAD(&mp->mnt_vnodelist, vp, v_mntvnodes);
+	TAILQ_INSERT_HEAD(&mp->mnt_nvnodelist, vp, v_nmntvnodes);
 	simple_unlock(&mntvnode_slock);
 }
 
@@ -1583,14 +1583,14 @@ vflush(mp, rootrefs, flags)
 	}
 	simple_lock(&mntvnode_slock);
 loop:
-	for (vp = LIST_FIRST(&mp->mnt_vnodelist); vp; vp = nvp) {
+	for (vp = TAILQ_FIRST(&mp->mnt_nvnodelist); vp; vp = nvp) {
 		/*
 		 * Make sure this vnode wasn't reclaimed in getnewvnode().
 		 * Start over if it has (it won't be on the list anymore).
 		 */
 		if (vp->v_mount != mp)
 			goto loop;
-		nvp = LIST_NEXT(vp, v_mntvnodes);
+		nvp = TAILQ_NEXT(vp, v_nmntvnodes);
 
 		simple_lock(&vp->v_interlock);
 		/*
@@ -2042,7 +2042,7 @@ DB_SHOW_COMMAND(lockedvnodes, lockedvnodes)
 			nmp = TAILQ_NEXT(mp, mnt_list);
 			continue;
 		}
-		LIST_FOREACH(vp, &mp->mnt_vnodelist, v_mntvnodes) {
+		TAILQ_FOREACH(vp, &mp->mnt_nvnodelist, v_nmntvnodes) {
 			if (VOP_ISLOCKED(vp, NULL))
 				vprint((char *)0, vp);
 		}
@@ -2162,7 +2162,7 @@ sysctl_vnode(SYSCTL_HANDLER_ARGS)
 		}
 again:
 		simple_lock(&mntvnode_slock);
-		for (vp = LIST_FIRST(&mp->mnt_vnodelist);
+		for (vp = TAILQ_FIRST(&mp->mnt_nvnodelist);
 		     vp != NULL;
 		     vp = nvp) {
 			/*
@@ -2174,7 +2174,7 @@ again:
 				simple_unlock(&mntvnode_slock);
 				goto again;
 			}
-			nvp = LIST_NEXT(vp, v_mntvnodes);
+			nvp = TAILQ_NEXT(vp, v_nmntvnodes);
 			simple_unlock(&mntvnode_slock);
 			if ((error = SYSCTL_OUT(req, &vp, VPTRSZ)) ||
 			    (error = SYSCTL_OUT(req, vp, VNODESZ)))
@@ -2520,9 +2520,9 @@ vfs_msync(struct mount *mp, int flags) {
 	tries = 5;
 loop:
 	anyio = 0;
-	for (vp = LIST_FIRST(&mp->mnt_vnodelist); vp != NULL; vp = nvp) {
+	for (vp = TAILQ_FIRST(&mp->mnt_nvnodelist); vp != NULL; vp = nvp) {
 
-		nvp = LIST_NEXT(vp, v_mntvnodes);
+		nvp = TAILQ_NEXT(vp, v_nmntvnodes);
 
 		if (vp->v_mount != mp) {
 			goto loop;
