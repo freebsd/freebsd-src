@@ -60,38 +60,36 @@ _pthread_join(pthread_t pthread, void **thread_return)
 	}
 
 	/*
-	 * Lock the garbage collector mutex to ensure that the garbage
-	 * collector is not using the dead thread list.
-	 */
-	if (pthread_mutex_lock(&_gc_mutex) != 0)
-		PANIC("Cannot lock gc mutex");
-
-	GIANT_LOCK(curthread);
-
-	/*
 	 * Search for the specified thread in the list of active threads.  This
 	 * is done manually here rather than calling _find_thread() because
 	 * the searches in _thread_list and _dead_list (as well as setting up
 	 * join/detach state) have to be done atomically.
 	 */
+	DEAD_LIST_LOCK;
+	THREAD_LIST_LOCK;
 	TAILQ_FOREACH(thread, &_thread_list, tle)
-		if (thread == pthread)
+		if (thread == pthread) {
+			_SPINLOCK(&pthread->lock);
 			break;
+		}
 
 	if (thread == NULL)
 		/*
 		 * Search for the specified thread in the list of dead threads:
 		 */
 		TAILQ_FOREACH(thread, &_dead_list, dle)
-			if (thread == pthread)
+			if (thread == pthread) {
+				_SPINLOCK(&pthread->lock);
 				break;
-
+			}
+	THREAD_LIST_UNLOCK;
 
 	/* Check if the thread was not found or has been detached: */
 	if (thread == NULL ||
 	    ((pthread->attr.flags & PTHREAD_DETACHED) != 0)) {
-		if (pthread_mutex_unlock(&_gc_mutex) != 0)
-			PANIC("Cannot lock gc mutex");
+		if (thread != NULL)
+			_SPINUNLOCK(&pthread->lock);
+		DEAD_LIST_UNLOCK;
 		ret = ESRCH;
 		goto out;
 
@@ -99,33 +97,32 @@ _pthread_join(pthread_t pthread, void **thread_return)
 	if (pthread->joiner != NULL) {
 		/* Multiple joiners are not supported. */
 		/* XXXTHR - support multiple joiners. */
-		if (pthread_mutex_unlock(&_gc_mutex) != 0)
-			PANIC("Cannot lock gc mutex");
+		_SPINUNLOCK(&pthread->lock);
+		DEAD_LIST_UNLOCK;
 		ret = ENOTSUP;
 		goto out;
 
 	}
-	/*
-	 * Unlock the garbage collector mutex, now that the garbage collector
-	 * can't be run:
-	 */
-	if (pthread_mutex_unlock(&_gc_mutex) != 0)
-		PANIC("Cannot lock gc mutex");
 
 	/* Check if the thread is not dead: */
 	if (pthread->state != PS_DEAD) {
+		_thread_critical_enter(curthread);
 		/* Set the running thread to be the joiner: */
 		pthread->joiner = curthread;
 
 		/* Keep track of which thread we're joining to: */
 		curthread->join_status.thread = pthread;
+		_SPINUNLOCK(&pthread->lock);
 
 		while (curthread->join_status.thread == pthread) {
 			PTHREAD_SET_STATE(curthread, PS_JOIN);
 			/* Wait for our signal to wake up. */
-			GIANT_UNLOCK(curthread);
+			_thread_critical_exit(curthread);
+			DEAD_LIST_UNLOCK;
 			_thread_suspend(curthread, NULL);
-			GIANT_LOCK(curthread);
+			/* XXX - For correctness reasons. */
+			DEAD_LIST_LOCK;
+			_thread_critical_enter(curthread);
 		}
 
 		/*
@@ -135,6 +132,15 @@ _pthread_join(pthread_t pthread, void **thread_return)
 		ret = curthread->join_status.error;
 		if ((ret == 0) && (thread_return != NULL))
 			*thread_return = curthread->join_status.ret;
+		_thread_critical_exit(curthread);
+		/*
+		 * XXX - Must unlock here, instead of doing it earlier,
+		 *	 because it could lead to a deadlock. If the thread
+		 *	 we are joining is waiting on this lock we would
+		 *	 deadlock if we released this lock before unlocking the
+		 *	 joined thread.
+		 */
+		DEAD_LIST_UNLOCK;
 	} else {
 		/*
 		 * The thread exited (is dead) without being detached, and no
@@ -149,12 +155,13 @@ _pthread_join(pthread_t pthread, void **thread_return)
 
 		/* Make the thread collectable by the garbage collector. */
 		pthread->attr.flags |= PTHREAD_DETACHED;
-
+		_SPINUNLOCK(&pthread->lock);
+		if (pthread_cond_signal(&_gc_cond) != 0)
+			PANIC("Cannot signal gc cond");
+		DEAD_LIST_UNLOCK;
 	}
 
 out:
-	GIANT_UNLOCK(curthread);
-
 	_thread_leave_cancellation_point();
 
 	/* Return the completion status: */
