@@ -248,6 +248,7 @@ tuninit(ifp)
 {
 	struct tun_softc *tp = ifp->if_softc;
 	register struct ifaddr *ifa;
+	int error = 0;
 
 	TUNDEBUG("%s%d: tuninit\n", ifp->if_name, ifp->if_unit);
 
@@ -256,21 +257,26 @@ tuninit(ifp)
 
 	for (ifa = ifp->if_addrhead.tqh_first; ifa; 
 	     ifa = ifa->ifa_link.tqe_next) {
+		if (ifa->ifa_addr == NULL)
+			error = EFAULT;
+			/* XXX: Should maybe return straight off? */
+		else {
 #ifdef INET
-		if (ifa->ifa_addr->sa_family == AF_INET) {
-		    struct sockaddr_in *si;
+			if (ifa->ifa_addr->sa_family == AF_INET) {
+			    struct sockaddr_in *si;
 
-		    si = (struct sockaddr_in *)ifa->ifa_addr;
-		    if (si && si->sin_addr.s_addr)
-			    tp->tun_flags |= TUN_IASET;
+			    si = (struct sockaddr_in *)ifa->ifa_addr;
+			    if (si->sin_addr.s_addr)
+				    tp->tun_flags |= TUN_IASET;
 
-		    si = (struct sockaddr_in *)ifa->ifa_dstaddr;
-		    if (si && si->sin_addr.s_addr)
-			    tp->tun_flags |= TUN_DSTADDR;
-		}
+			    si = (struct sockaddr_in *)ifa->ifa_dstaddr;
+			    if (si && si->sin_addr.s_addr)
+				    tp->tun_flags |= TUN_DSTADDR;
+			}
 #endif
+		}
 	}
-	return 0;
+	return (error);
 }
 
 /*
@@ -294,16 +300,16 @@ tunifioctl(ifp, cmd, data)
 		if (tp->tun_pid)
 			sprintf(ifs->ascii + strlen(ifs->ascii),
 			    "\tOpened by PID %d\n", tp->tun_pid);
-		return(0);
+		break;
 	case SIOCSIFADDR:
-		tuninit(ifp);
-		TUNDEBUG("%s%d: address set\n",
-			 ifp->if_name, ifp->if_unit);
+		error = tuninit(ifp);
+		TUNDEBUG("%s%d: address set, error=%d\n",
+			 ifp->if_name, ifp->if_unit, error);
 		break;
 	case SIOCSIFDSTADDR:
-		tuninit(ifp);
-		TUNDEBUG("%s%d: destination address set\n",
-			 ifp->if_name, ifp->if_unit);
+		error = tuninit(ifp);
+		TUNDEBUG("%s%d: destination address set, error=%d\n",
+			 ifp->if_name, ifp->if_unit, error);
 		break;
 	case SIOCSIFMTU:
 		ifp->if_mtu = ifr->ifr_mtu;
@@ -313,8 +319,6 @@ tunifioctl(ifp, cmd, data)
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 		break;
-
-
 	default:
 		error = EINVAL;
 	}
