@@ -60,6 +60,6 @@ int linux_shmat  __P((struct proc *, struct linux_shmat_args *));
 int linux_shmctl __P((struct proc *, struct linux_shmctl_args *));
 int linux_shmdt  __P((struct proc *, struct linux_shmdt_args *));
 int linux_shmget __P((struct proc *, struct linux_shmget_args *));
-#endif	/*__alpha__*/
+#endif	/*!__alpha__*/
 
 #endif /* _LINUX_IPC_H_ */
