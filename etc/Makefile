@@ -28,14 +28,49 @@ WCS1=	wcs fppwcs poc poc1 poc2 fppoc
 WCS2=	fpevent fppwcs fppwcs_dual hdcwcs load_diags start_fpp wcs wcs_dual
 
 # Special top level files for FreeBSD
-FREEBSD= CONTRIB.386BSD CONTRIB.FreeBSD COPYRIGHT
+COPYRIGHT= COPYRIGHT
+FREEBSD= CONTRIB.386BSD CONTRIB.FreeBSD ${COPYRIGHT}
 #
 # Floppy drive name and files for building FreeBSD Floppies
-FLOPPY=	fd0
-MOUNT=	/mnt
-KC_DIR=	bin dev mnt sbin
-KC_BIN=	[ cp echo sh test
-KC_SBIN= fsck halt init mount umount
+FLOPPY?=	fd0
+MOUNT=		/mnt
+#
+MDEC=		usr/mdec/bootfd usr/mdec/fdboot
+MDEC+=		usr/mdec/bootsd usr/mdec/sdboot
+MDEC+=		usr/mdec/bootwd usr/mdec/wdboot
+#
+KC_DIRS=	dev mnt
+KC_FILES=	${COPYRIGHT}
+KC_FILES+=	bin/[ bin/cp bin/echo bin/sh bin/test
+KC_FILES+=	sbin/fsck sbin/halt sbin/init sbin/mount sbin/umount
+#
+INST1_DIRS=	dev mnt
+INST1_FILES=	${COPYRIGHT}
+INST1_FILES+=	bin/[ bin/cat bin/df bin/expr bin/ls bin/mkdir
+INST1_FILES+=	bin/sh bin/sync bin/test
+INST1_FILES+=	dev/MAKEDEV dev/MAKEDEV.local
+INST1_FILES+=	etc/disktab etc/group etc/master.passwd etc/passwd
+INST1_FILES+=	etc/pwd.db etc/spwd.db
+INST1_FILES+=	sbin/disklabel sbin/halt sbin/init sbin/mount sbin/umount
+INST1_FILES+=	sbin/newfs sbin/reboot
+INST1_FILES+=	usr/bin/cpio
+INST1_FILES+=	${MDEC}
+INST1_FILES+=	usr/sbin/bad144
+
+INST2_FILES=	${COPYRIGHT}
+INST2_FILES+=	usr/bin/gunzip usr/bin/gzcat usr/bin/gzip usr/bin/zcat
+INST2_CPIO=	bin/chmod bin/cp bin/dd bin/mv bin/pwd bin/rm bin/stty
+INST2_CPIO+=	etc/protocols etc/services
+INST2_CPIO+=	sbin/ifconfig sbin/fsck sbin/mknod
+#INST2_CPIO+=	sbin/mount_pcfs sbin/mount_isofs
+INST2_CPIO+=	sbin/route sbin/shutdown sbin/slattach
+INST2_CPIO+=	tmp
+INST2_CPIO+=	usr/bin/awk usr/bin/chgrp usr/bin/ftp
+INST2_CPIO+=	usr/bin/more usr/bin/tar usr/bin/tip usr/bin/zcat
+INST2_CPIO+=	usr/bin/elvis usr/bin/ex usr/bin/vi usr/bin/view
+#INST2_CPIO+=	usr/local/bin/mread usr/local/bin/rz
+INST2_CPIO+=	usr/sbin/update usr/sbin/chown
+INST2_CPIO+=	var
 
 all clean cleandir depend etc install lint:
 
@@ -54,6 +89,7 @@ distribution: distrib-dirs
 	# Work around for above problem.
 	install -c -o root -g wheel -m 644 pwd.db ${DESTDIR}/etc
 	install -c -o root -g wheel -m 600 spwd.db ${DESTDIR}/etc
+	install -c -o root -g wheel -m 644 passwd ${DESTDIR}/etc
 	install -c -o ${BINOWN} -g ${BINGRP} -m 555 \
 	     MAKEDEV.local etc.${MACHINE}/MAKEDEV ${DESTDIR}/dev
 	(cd ${DESTDIR}/dev; sh MAKEDEV all)
@@ -84,6 +120,8 @@ distribution: distrib-dirs
 	install -c -o ${BINOWN} -g ${BINGRP} -m 664 /dev/null \
 	    ${DESTDIR}/var/log/maillog
 	install -c -o ${BINOWN} -g ${BINGRP} -m 664 /dev/null \
+	    ${DESTDIR}/var/log/lastlog
+	install -c -o ${BINOWN} -g ${BINGRP} -m 664 /dev/null \
 	    ${DESTDIR}/var/log/messages
 	install -c -o ${BINOWN} -g ${BINGRP} -m 664 /dev/null \
 	    ${DESTDIR}/var/log/wtmp
@@ -102,8 +140,8 @@ distribution: distrib-dirs
 .if ${MACHINE} == "i386"
 	(cd ../sys/i386/boot; \
 	    make depend all install cleandir)
-	(cd /usr/mdec; \
-	    find . | cpio -pdalmuv ${DESTDIR}/usr/mdec)
+	(cd /; \
+	    ls ${MDEC} | cpio -pdalmuv ${DESTDIR}/)
 	(cd ../usr.sbin/sendmail/src; \
 	    make install; \
 	 cd ../cf/cf; \
@@ -125,26 +163,62 @@ hcx9-distribution:
 	(cd etc.tahoe; install -c -o ${BINOWN} -g ${BINGRP} -m 444 ${WCS2} \
 	    ${DESTDIR}/)
 
-i386-kc_floppy:
+kc-ah-floppy:
 	disklabel -w -r ${FLOPPY} floppy5 /usr/mdec/fdboot /usr/mdec/bootfd
 	newfs -b 4096 -c 80 -f 512 -i 16384 -m 0 -o space r${FLOPPY}a floppy5
 	mount /dev/${FLOPPY}a ${MOUNT}
-	(cd ${MOUNT}; \
-	    mkdir ${KC_DIR}; \
-	    chown root.wheel ${KC_DIR}; \
-	    chmod 755 ${KC_DIR})
-	(cd ${DESTDIR}/bin; \
-	    install -c -o root -g wheel -m 555 ${KC_BIN} ${MOUNT}/bin)
-	(cd ${DESTDIR}/sbin; \
-	    install -c -o root -g wheel -m 555 ${KC_SBIN} ${MOUNT}/sbin)
+	(cd ${DESTDIR}/; \
+	    ls -d ${KC_DIRS} | cpio -pdalmuv ${MOUNT})
 	(cd ${MOUNT}/dev; \
 	    sh ${DESTDIR}/dev/MAKEDEV std; \
 	    rm -rf fd; \
 	    sh ${DESTDIR}/dev/MAKEDEV fd0 wd0 sd0)
+	(cd ${DESTDIR}/; \
+	    ls ${KC_FILES} | cpio -pdalmuv ${MOUNT})
 	install -c -o root -g wheel -m 755 etc.i386/kc.profile \
 	    ${MOUNT}/.profile
 	(cd ../sys/compile/GENERICISA; \
 	    install -c -o root -g wheel -m 755 386bsd ${MOUNT}/)
+	df -ik ${MOUNT}
+	umount /dev/${FLOPPY}a
+	fsck /dev/r${FLOPPY}a
+
+inst1-floppy:
+	disklabel -w -r ${FLOPPY} floppy5 /usr/mdec/fdboot /usr/mdec/bootfd
+	newfs -b 4096 -c 80 -f 512 -i 10240 -m 0 -o space r${FLOPPY}a floppy5
+	mount /dev/${FLOPPY}a ${MOUNT}
+	(cd ${DESTDIR}/; \
+	    ls -d ${INST1_DIRS} | cpio -pdalmuv ${MOUNT})
+	(cd ${MOUNT}/dev; \
+	    sh ${DESTDIR}/dev/MAKEDEV std; \
+	    rm -rf fd; \
+	    sh ${DESTDIR}/dev/MAKEDEV fd0 wd0 sd0)
+	(cd ${DESTDIR}/; \
+	    ls ${INST1_FILES} | cpio -pdalmuv ${MOUNT})
+	install -c -o root -g wheel -m 755 etc.i386/inst1.profile \
+	    ${MOUNT}/.profile
+	install -c -o root -g wheel -m 755 etc.i386/inst1.install \
+	    ${MOUNT}/install
+	(cd ${MOUNT}/; \
+	    ls ${INST1_FILES} >/tmp/filelist; \
+	    find ${INST1_DIRS} | sort >>/tmp/filelist; \
+	    sort -u /tmp/filelist >filelist)
+	df -ik ${MOUNT}
+	umount /dev/${FLOPPY}a
+	fsck /dev/r${FLOPPY}a
+
+inst2-floppy:
+	disklabel -w -r ${FLOPPY} floppy5 /usr/mdec/fdboot /usr/mdec/bootfd
+	newfs -b 4096 -c 80 -f 512 -i 65536 -m 0 -o space r${FLOPPY}a floppy5
+	mount /dev/${FLOPPY}a ${MOUNT}
+	(cd ${DESTDIR}/; \
+	    ls ${INST2_FILES} | cpio -pdalmuv ${MOUNT})
+	(cd ${DESTDIR}/; \
+	    find ${INST2_CPIO} | cpio -odalmuv | gzip -9 >${MOUNT}/inst2.cpio.gz)
+	install -c -o root -g wheel -m 755 etc.i386/inst2.profile \
+	    ${MOUNT}/.profile
+	install -c -o root -g wheel -m 755 etc.i386/inst2.install \
+	    ${MOUNT}/install
 	df -ik ${MOUNT}
 	umount /dev/${FLOPPY}a
 	fsck /dev/r${FLOPPY}a
