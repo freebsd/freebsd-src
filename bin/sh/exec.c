@@ -361,7 +361,10 @@ hashcmd(argc, argv)
 		if (verbose) {
 			if (entry.cmdtype != CMDUNKNOWN) {	/* if no error msg */
 				cmdp = cmdlookup(name, 0);
-				printentry(cmdp, verbose);
+				if (cmdp != NULL)
+					printentry(cmdp, verbose);
+				else
+					outfmt(&errout, "%s: not found\n", name);
 			}
 			flushall();
 		}
