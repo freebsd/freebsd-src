@@ -64,7 +64,7 @@ my %CONFIGS	= (
     # Test setup
     '9ball' => {
 	'BRANCHES'	=> [ 'CURRENT' ],
-	'TARGETS'	=> [ 'world', 'generic' ],
+	'TARGETS'	=> [ 'world', 'generic', 'lint' ],
 	'ARCHES'	=> {
 	    'powerpc'	=> [ 'powerpc' ],
 	},
