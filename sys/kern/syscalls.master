@@ -587,9 +587,11 @@
 406	MNOSTD	BSD	{ int ksem_unlink(const char *name); }
 407	MNOSTD	BSD	{ int ksem_getvalue(semid_t id, int *val); }
 408	MNOSTD	BSD	{ int ksem_destroy(semid_t id); }
-409	UNIMPL	BSD	__mac_get_pid
-410	UNIMPL	BSD	__mac_get_link
-411	UNIMPL	BSD	__mac_set_link
+409	MSTD	BSD	{ int __mac_get_pid(pid_t pid, struct mac *mac_p); }
+410	MSTD	BSD	{ int __mac_get_link(const char *path_p, \
+			    struct mac *mac_p); }
+411	MSTD	BSD	{ int __mac_set_link(const char *path_p, \
+			    struct mac *mac_p); }
 412	STD	BSD	{ int extattr_set_link(const char *path, \
 			    int attrnamespace, const char *attrname, \
 			    void *data, size_t nbytes); }
