@@ -33,7 +33,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: yp_server.c,v 1.26 1998/02/11 19:15:32 wpaul Exp $";
+	"$Id: yp_server.c,v 1.27 1999/02/10 16:16:14 wpaul Exp $";
 #endif /* not lint */
 
 #include "yp.h"
@@ -49,13 +49,23 @@ static const char rcsid[] =
 #include <arpa/inet.h>
 #include <rpc/rpc.h>
 
-int forked = 0;
 int children = 0;
 
 #define	MASTER_STRING	"YP_MASTER_NAME"
 #define	MASTER_SZ	sizeof(MASTER_STRING) - 1
 #define	ORDER_STRING	"YP_LAST_MODIFIED"
 #define	ORDER_SZ	sizeof(ORDER_STRING) - 1
+
+static pid_t yp_fork()
+{
+	if (yp_pid != getpid()) {
+		yp_error("child %d trying to fork!", getpid());
+		errno = EEXIST;
+		return(-1);
+	}
+
+	return(fork());
+}
 
 /*
  * NIS v2 support. This is where most of the action happens.
@@ -350,7 +360,7 @@ ypproc_xfr_2_svc(ypreq_xfr *argp, struct svc_req *rqstp)
 		YPXFR_RETURN(YPXFR_REFUSED)
 	}
 
-	switch(fork()) {
+	switch(yp_fork()) {
 	case 0:
 	{
 		char g[11], t[11], p[11];
@@ -380,7 +390,6 @@ ypproc_xfr_2_svc(ypreq_xfr *argp, struct svc_req *rqstp)
 			p, argp->map_parms.map,
 		      	NULL);
 		}
-		forked++;
 		yp_error("ypxfr execl(%s): %s", ypxfr_command, strerror(errno));
 		YPXFR_RETURN(YPXFR_XFRERR)
 		break;
@@ -392,7 +401,6 @@ ypproc_xfr_2_svc(ypreq_xfr *argp, struct svc_req *rqstp)
 	default:
 		result.xfrstat = YPXFR_SUCC;
 		children++;
-		forked = 0;
 		break;
 	}
 
@@ -507,9 +515,8 @@ ypproc_all_2_svc(ypreq_nokey *argp, struct svc_req *rqstp)
 	 * async socket I/O?)
 	 */
 	if (!debug) {
-		switch(fork()) {
+		switch(yp_fork()) {
 		case 0:
-			forked++;
 			break;
 		case -1:
 			yp_error("ypall fork(): %s", strerror(errno));
@@ -518,7 +525,6 @@ ypproc_all_2_svc(ypreq_nokey *argp, struct svc_req *rqstp)
 			break;
 		default:
 			children++;
-			forked = 0;
 			return (NULL);
 			break;
 		}
