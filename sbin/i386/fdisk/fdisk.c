@@ -299,11 +299,11 @@ main(int argc, char *argv[])
 	}
 
 	/* (abu)use mboot.bootinst to probe for the sector size */
-	if (mboot.bootinst != NULL)
-		free(mboot.bootinst);
 	if ((mboot.bootinst = malloc(MAX_SEC_SIZE)) == NULL)
 		err(1, "cannot allocate buffer to determine disk sector size");
 	read_disk(0, mboot.bootinst);
+	free(mboot.bootinst);
+	mboot.bootinst = NULL;
 
 	if (s_flag)
 	{
