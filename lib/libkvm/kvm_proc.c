@@ -154,7 +154,7 @@ kvm_proclist(kd, what, arg, p, bp, maxcnt)
 			kp->ki_uid = ucred.cr_uid;
 		}
 
-		switch(what) {
+		switch(what & ~KERN_PROC_INC_THREAD) {
 
 		case KERN_PROC_PID:
 			if (proc.p_pid != (pid_t)arg)
@@ -297,7 +297,7 @@ nopgrp:
 		kp->ki_ssize = vmspace.vm_ssize;
 #endif
 
-		switch (what) {
+		switch (what & ~KERN_PROC_INC_THREAD) {
 
 		case KERN_PROC_PGRP:
 			if (kp->ki_pgid != (pid_t)arg)
@@ -433,6 +433,7 @@ kvm_getprocs(kd, op, arg, cnt)
 {
 	int mib[4], st, nprocs;
 	size_t size;
+	int temp_op;
 
 	if (kd->procbase != 0) {
 		free((void *)kd->procbase);
@@ -448,7 +449,9 @@ kvm_getprocs(kd, op, arg, cnt)
 		mib[1] = KERN_PROC;
 		mib[2] = op;
 		mib[3] = arg;
-		st = sysctl(mib, op == KERN_PROC_ALL || op == KERN_PROC_PROC ?
+		temp_op = op & ~KERN_PROC_INC_THREAD;
+		st = sysctl(mib,
+		    temp_op == KERN_PROC_ALL || temp_op == KERN_PROC_PROC ?
 		    3 : 4, NULL, &size, NULL, 0);
 		if (st == -1) {
 			_kvm_syserr(kd, kd->program, "kvm_getprocs");
@@ -479,8 +482,8 @@ kvm_getprocs(kd, op, arg, cnt)
 			    _kvm_realloc(kd, kd->procbase, size);
 			if (kd->procbase == 0)
 				return (0);
-			st = sysctl(mib, op == KERN_PROC_ALL ||
-			    op == KERN_PROC_PROC ? 3 : 4,
+			st = sysctl(mib, temp_op == KERN_PROC_ALL ||
+			    temp_op == KERN_PROC_PROC ? 3 : 4,
 			    kd->procbase, &size, NULL, 0);
 		} while (st == -1 && errno == ENOMEM);
 		if (st == -1) {
