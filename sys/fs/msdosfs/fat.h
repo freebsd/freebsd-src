@@ -99,5 +99,6 @@ int fatentry(int function, struct msdosfsmount *pmp, u_long cluster, u_long *old
 int freeclusterchain(struct msdosfsmount *pmp, u_long startchain);
 int extendfile(struct denode *dep, u_long count, struct buf **bpp, u_long *ncp, int flags);
 void fc_purge(struct denode *dep, u_int frcn);
+int markvoldirty(struct msdosfsmount *pmp, int dirty);
 
 #endif	/* _KERNEL */
