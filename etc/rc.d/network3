@@ -350,6 +350,25 @@ network_pass1() {
 		sysctl -w net.link.ether.inet.proxyall=1 >/dev/null
 		;;
 	esac
+
+	case ${ip_portrange_first} in
+	[Nn][Oo] | '')
+		;;
+	*)
+		echo -n ' ip_portrange_first=$ip_portrange_first'
+		sysctl -w net.inet.ip.portrange.first=$ip_portrange_first >/dev/null
+		;;
+	esac
+
+	case ${ip_portrange_last} in
+	[Nn][Oo] | '')
+	    ;;
+	*)
+		echo -n ' ip_portrange_last=$ip_portrange_last'
+		sysctl -w net.inet.ip.portrange.last=$ip_portrange_last >/dev/null
+		;;
+	esac
+
 	echo '.'
 
 	case ${ipsec_enable} in
