@@ -487,14 +487,16 @@ void
 _mtx_lock_sleep(struct mtx *m, int opts, const char *file, int line)
 {
 	struct thread *td = curthread;
+	struct thread *td1;
 #if defined(SMP) && defined(ADAPTIVE_MUTEXES)
 	struct thread *owner;
 #endif
+	uintptr_t v;
 #ifdef KTR
 	int cont_logged = 0;
 #endif
 
-	if ((m->mtx_lock & MTX_FLAGMASK) == (uintptr_t)td) {
+	if (mtx_owned(m)) {
 		m->mtx_recurse++;
 		atomic_set_ptr(&m->mtx_lock, MTX_RECURSED);
 		if (LOCK_LOG_TEST(&m->mtx_object, opts))
@@ -508,15 +510,15 @@ _mtx_lock_sleep(struct mtx *m, int opts, const char *file, int line)
 		    m->mtx_object.lo_name, (void *)m->mtx_lock, file, line);
 
 	while (!_obtain_lock(m, td)) {
-		uintptr_t v;
-		struct thread *td1;
 
 		mtx_lock_spin(&sched_lock);
+		v = m->mtx_lock;
+
 		/*
 		 * Check if the lock has been released while spinning for
 		 * the sched_lock.
 		 */
-		if ((v = m->mtx_lock) == MTX_UNOWNED) {
+		if (v == MTX_UNOWNED) {
 			mtx_unlock_spin(&sched_lock);
 #ifdef __i386__
 			ia32_pause();
