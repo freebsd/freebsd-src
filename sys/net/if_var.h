@@ -327,6 +327,16 @@ EVENTHANDLER_DECLARE(ifnet_departure_event, ifnet_departure_event_handler_t);
 #define	IF_AFDATA_UNLOCK(ifp)	mtx_unlock(&(ifp)->if_afdata_mtx)
 #define	IF_AFDATA_DESTROY(ifp)	mtx_destroy(&(ifp)->if_afdata_mtx)
 
+#define	IFF_LOCKGIANT(ifp) do {						\
+	if ((ifp)->if_flags & IFF_NEEDSGIANT)				\
+		mtx_lock(&Giant);					\
+} while (0)
+
+#define	IFF_UNLOCKGIANT(ifp) do {					\
+	if ((ifp)->if_flags & IFF_NEEDSGIANT)				\
+		mtx_unlock(&Giant);					\
+} while (0)
+
 #define	IF_HANDOFF(ifq, m, ifp)			\
 	if_handoff((struct ifqueue *)ifq, m, ifp, 0)
 #define	IF_HANDOFF_ADJ(ifq, m, ifp, adj)	\
