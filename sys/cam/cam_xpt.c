@@ -5651,7 +5651,17 @@ probestart(struct cam_periph *periph, union ccb *start_ccb)
 		if (softc->action == PROBE_INQUIRY)
 			inquiry_len = SHORT_INQUIRY_LENGTH;
 		else
-			inquiry_len = inq_buf->additional_length + 4;
+			inquiry_len = inq_buf->additional_length
+				    + offsetof(struct scsi_inquiry_data,
+                                               additional_length) + 1;
+
+		/*
+		 * Some parallel SCSI devices fail to send an
+		 * ignore wide residue message when dealing with
+		 * odd length inquiry requests.  Round up to be
+		 * safe.
+		 */
+		inquiry_len = roundup2(inquiry_len, 2);
 	
 		scsi_inquiry(csio,
 			     /*retries*/4,
