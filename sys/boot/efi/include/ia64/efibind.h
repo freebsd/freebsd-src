@@ -113,7 +113,7 @@ typedef uint64_t   UINTN;
 #define VOLATILE    volatile
 
 /*
- * XXX Need to find out if this is portable accross compliers.
+ * XXX Need to find out if this is portable across compilers.
  */
 void __mf (void);                       
 #ifndef __GNUC__
