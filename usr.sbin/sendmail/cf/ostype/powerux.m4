@@ -32,8 +32,15 @@ divert(-1)
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-VERSIONID(`@(#)version.m4	8.8.5.3 (Berkeley) 1/21/97')
-#
+
 divert(0)
-# Configuration version number
-DZ8.8.5`'ifdef(`confCF_VERSION', `/confCF_VERSION')
+VERSIONID(`@(#)powerux.m4	8.1 (Berkeley) 1/16/97')
+
+define(`ALIAS_FILE', /etc/mail/aliases)dnl
+ifdef(`HELP_FILE',,`define(`HELP_FILE', /etc/mail/sendmail.hf)')dnl
+ifdef(`STATUS_FILE',,`define(`STATUS_FILE', /etc/mail/sendmail.st)')dnl
+define(`LOCAL_MAILER_PATH', `/usr/bin/rmail')dnl
+define(`LOCAL_MAILER_FLAGS', `mn9')dnl
+define(`LOCAL_MAILER_ARGS', `rmail $u')dnl
+define(`LOCAL_SHELL_FLAGS', `ehuP')dnl
+define(`UUCP_MAILER_ARGS', `uux - -r -a$g -gmedium $h!rmail ($u)')dnl

@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)clock.c	8.16 (Berkeley) 11/27/96";
+static char sccsid[] = "@(#)clock.c	8.18 (Berkeley) 12/31/96";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -60,7 +60,7 @@ static char sccsid[] = "@(#)clock.c	8.16 (Berkeley) 11/27/96";
 **		none.
 */
 
-static void tick __P((int));
+static SIGFUNC_DECL tick __P((int));
 
 EVENT *
 setevent(intvl, func, arg)
@@ -161,7 +161,7 @@ clrevent(ev)
 **		calls the next function in EventQueue.
 */
 
-static void
+static SIGFUNC_DECL
 tick(arg)
 	int arg;
 {
@@ -169,9 +169,6 @@ tick(arg)
 	register EVENT *ev;
 	int mypid = getpid();
 	int olderrno = errno;
-#ifdef SIG_UNBLOCK
-	sigset_t ss;
-#endif
 
 	(void) setsignal(SIGALRM, SIG_IGN);
 	(void) alarm(0);
@@ -224,6 +221,7 @@ tick(arg)
 	if (EventQueue != NULL)
 		(void) alarm((unsigned) (EventQueue->ev_time - now));
 	errno = olderrno;
+	return SIGFUNC_RETURN;
 }
 /*
 **  SLEEP -- a version of sleep that works with this stuff

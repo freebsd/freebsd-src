@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)conf.c	8.325 (Berkeley) 12/1/96";
+static char sccsid[] = "@(#)conf.c	8.333 (Berkeley) 1/21/97";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -123,14 +123,6 @@ struct hdrinfo	HdrInfo[] =
 
 	{ NULL,				0				}
 };
-
-
-
-/*
-**  Location of system files/databases/etc.
-*/
-
-char	*PidFile =	_PATH_SENDMAILPID;	/* stores daemon proc id */
 
 
 
@@ -230,6 +222,7 @@ setdefaults(e)
 	ServiceSwitchFile = "/etc/service.switch";
 	ServiceCacheMaxAge = (time_t) 10;
 	HostsFile = _PATH_HOSTS;
+	PidFile = newstr(_PATH_SENDMAILPID);
 	MustQuoteChars = "@,;:\\()[].'";
 	MciInfoTimeout = 30 MINUTES;
 	MaxRuleRecursion = MAXRULERECURSION;
@@ -1851,12 +1844,13 @@ int getla(void)
 int
 getla()
 {
-	kstat_ctl_t *kc;
-	kstat_t *ksp;
+	static kstat_ctl_t *kc = NULL;
+	static kstat_t *ksp = NULL;
 	kstat_named_t *ksn;
 	int la;
 
-	kc = kstat_open();
+	if (kc == NULL)		/* if not initialized before */
+		kc = kstat_open();
 	if (kc == NULL)
 	{
 		if (tTd(3, 1))
@@ -1864,24 +1858,25 @@ getla()
 				errstring(errno));
 		return -1;
 	}
-	ksp = kstat_lookup(kc, "unix", 0, "system_misc"); /* NULL on error */
+	if (ksp == NULL)
+		ksp = kstat_lookup(kc, "unix", 0, "system_misc");
 	if (ksp == NULL)
 	{
 		if (tTd(3, 1))
 			printf("getla: kstat_lookup(): %s\n",
-				errstring(errno);
+				errstring(errno));
 		return -1;
 	}
 	if (kstat_read(kc, ksp, NULL) < 0)
 	{
 		if (tTd(3, 1))
 			printf("getla: kstat_read(): %s\n",
-				errstring(errno);
+				errstring(errno));
 		return -1;
 	}
 	ksn = (kstat_named_t *) kstat_data_lookup(ksp, "avenrun_1min");
-	la = (ksn->value.ul + FSCALE/2) >> FSHIFT;
-	kstat_close(kc);
+	la = ((double)ksn->value.ul + FSCALE/2) / FSCALE;
+	/* kstat_close(kc); /o do not close for fast access */
 	return la;
 }
 
@@ -2377,7 +2372,7 @@ setproctitle(fmt, va_alist)
 **		Picks up extant zombies.
 */
 
-void
+SIGFUNC_DECL
 reapchild(sig)
 	int sig;
 {
@@ -2419,6 +2414,7 @@ reapchild(sig)
 	(void) setsignal(SIGCHLD, reapchild);
 # endif
 	errno = olderrno;
+	return SIGFUNC_RETURN;
 }
 /*
 **  PUTENV -- emulation of putenv() in terms of setenv()
@@ -2805,12 +2801,12 @@ getopt(nargc,nargv,ostr)
 	if(!*place) {			/* update scanning pointer */
 		if (optind >= nargc || *(place = nargv[optind]) != '-' || !*++place) {
 			atend++;
-			return(EOF);
+			return -1;
 		}
 		if (*place == '-') {	/* found "--" */
 			++optind;
 			atend++;
-			return(EOF);
+			return -1;
 		}
 	}				/* option letter okay? */
 	if ((optopt = (int)*place++) == (int)':' || !(oli = strchr(ostr,optopt))) {
@@ -3692,6 +3688,7 @@ lockfile(fd, filename, ext, type)
 #  endif
 		syserr("cannot lockf(%s%s, fd=%d, type=%o, omode=%o, euid=%d)",
 			filename, ext, fd, type, omode, geteuid());
+		dumpfd(fd, TRUE, TRUE);
 	}
 # else
 	if (ext == NULL)
@@ -3721,6 +3718,7 @@ lockfile(fd, filename, ext, type)
 #  endif
 		syserr("cannot flock(%s%s, fd=%d, type=%o, omode=%o, euid=%d)",
 			filename, ext, fd, type, omode, geteuid());
+		dumpfd(fd, TRUE, TRUE);
 	}
 # endif
 	if (tTd(55, 60))
@@ -4011,8 +4009,10 @@ vendor_set_uid(uid)
 
 #if TCPWRAPPERS
 # include <tcpd.h>
+
+/* tcpwrappers does no logging, but you still have to declare these -- ugh */
 int	allow_severity	= LOG_INFO;
-int	deny_severity	= LOG_WARNING;
+int	deny_severity	= LOG_NOTICE;
 #endif
 
 #if DAEMON
@@ -4027,7 +4027,14 @@ validate_connection(sap, hostname, e)
 
 #if TCPWRAPPERS
 	if (!hosts_ctl("sendmail", hostname, anynet_ntoa(sap), STRING_UNKNOWN))
+	{
+# ifdef LOG
+		if (LogLevel >= 4)
+			syslog(LOG_NOTICE, "tcpwrappers (%s, %s) rejection",
+				hostname, anynet_ntoa(sap));
+# endif
 		return FALSE;
+	}
 #endif
 	return TRUE;
 }
@@ -4395,7 +4402,7 @@ load_if_names()
 	int s;
 	int i;
         struct ifconf ifc;
-	char interfacebuf[1024];
+	char interfacebuf[10240];
 
 	s = socket(AF_INET, SOCK_DGRAM, 0);
 	if (s == -1)
@@ -4765,6 +4772,9 @@ char	*OsCompileOptions[] =
 #endif
 #if USE_SA_SIGACTION
 	"USE_SA_SIGACTION",
+#endif
+#if USE_SIGLONGJMP
+	"USE_SIGLONGJMP",
 #endif
 #if USESETEUID
 	"USESETEUID",
