@@ -1452,6 +1452,7 @@ options 	PUC_FASTINTR
 # Network interfaces: `cx', `ed', `el', `ep', `ie', `is', `le', `lnc'
 #
 # ar: Arnet SYNC/570i hdlc sync 2/4 port V.35/X.21 serial driver (requires sppp)
+# arl:	Aironet Arlan 655 wireless adapters.
 # cm: Arcnet SMC COM90c26 / SMC COM90c56
 #     (and SMC COM90c66 in '56 compatibility mode) adapters.
 # cs: IBM Etherjet and other Crystal Semi CS89x0-based adapters
@@ -1486,6 +1487,7 @@ options 	PUC_FASTINTR
 #       (no options needed)
 #
 device ar0 at isa? port 0x300 irq 10 iomem 0xd0000
+device arl0 at isa? irq 9 iomem 0xd0000
 device cm0 at isa? port 0x2e0 irq 9 iomem 0xdc000
 device cs0 at isa? port 0x300
 device ctau0 at isa? port 0x240 irq 15 drq 7

@@ -186,6 +186,9 @@ int	ifmedia_ioctl(struct ifnet *ifp, struct ifreq *ifr,
 #define IFM_IEEE80211_ODFM48	16	/* ODFM 48Mbps */
 #define IFM_IEEE80211_ODFM54	17	/* ODFM 54Mbps */
 #define IFM_IEEE80211_ODFM72	18	/* ODFM 72Mbps */
+#define	IFM_IEEE80211_DS354k	19	/* Direct Sequence 354Kbps */
+#define	IFM_IEEE80211_DS512k	20	/* Direct Sequence 512Kbps */
+
 #define	IFM_IEEE80211_ADHOC	0x00000100	/* Operate in Adhoc mode */
 #define	IFM_IEEE80211_HOSTAP	0x00000200	/* Operate in Host AP mode */
 #define	IFM_IEEE80211_IBSS	0x00000400	/* Operate in IBSS mode */
@@ -373,6 +376,8 @@ struct ifmedia_description {
 	{ IFM_IEEE80211_ODFM48, "ODFM/48Mbps" },			\
 	{ IFM_IEEE80211_ODFM54, "ODFM/54Mbps" },			\
 	{ IFM_IEEE80211_ODFM72, "ODFM/72Mbps" },			\
+	{ IFM_IEEE80211_DS354k, "DS/354Kbps" },				\
+	{ IFM_IEEE80211_DS512k, "DS/512Kbps" },				\
 	{ 0, NULL },							\
 }
 
@@ -400,6 +405,10 @@ struct ifmedia_description {
 	{ IFM_IEEE80211_ODFM48, "ODFM48" },				\
 	{ IFM_IEEE80211_ODFM54, "ODFM54" },				\
 	{ IFM_IEEE80211_ODFM72, "ODFM72" },				\
+	{ IFM_IEEE80211_DS354k, "DS354K" },				\
+	{ IFM_IEEE80211_DS354k, "DirectSequence/354Kbps" },		\
+	{ IFM_IEEE80211_DS512k, "DS512K" },				\
+	{ IFM_IEEE80211_DS512k, "DirectSequence/512Kbps" },		\
 	{ 0, NULL },							\
 }
 

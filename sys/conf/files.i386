@@ -91,6 +91,8 @@ crypto/des/des_setkey.c			optional	crypto
 dev/advansys/adv_isa.c		optional	adv isa
 dev/aic/aic_isa.c		optional	aic isa
 dev/ar/if_ar_isa.c		optional	ar isa
+dev/arl/if_arl.c		optional	arl
+dev/arl/if_arl_isa.c		optional	arl isa
 dev/dgb/dgm.c			optional	dgm
 dev/cm/if_cm_isa.c		optional	cm isa
 dev/ctau/ctau.c			optional	ctau

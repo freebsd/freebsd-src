@@ -33,7 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_media.h>
 #include <net/ethernet.h>
 
-#include <net80211/ieee80211_var.h>
+#include <net/if_ieee80211.h>
 
 #ifdef INET
 #include <netinet/in.h>
@@ -405,7 +405,7 @@ arl_ioctl(ifp, cmd, data)
 	struct arl_softc *sc = ifp->if_softc;
 	struct ifreq *ifr = (struct ifreq *)data;
 	struct ieee80211req *ireq = (struct ieee80211req *)data;
-	d_thread_t *td = _ARL_CURPROC;
+	struct proc *p = _ARL_CURPROC;
 	struct arl_req arlan_io;
 	int count, s, error = 0;
 	u_int8_t tmpstr[IEEE80211_NWID_LEN*2];
@@ -474,7 +474,7 @@ arl_ioctl(ifp, cmd, data)
 		break;
 
 	case SIOCS80211:
-		if ((error = suser(td)))
+		if ((error = suser(p)))
 			break;
 		switch (ireq->i_type) {
 		case IEEE80211_IOC_SSID:
@@ -547,7 +547,7 @@ arl_ioctl(ifp, cmd, data)
 	}
 	case SIOCGARLALL:
 		bzero(&arlan_io, sizeof(arlan_io));
-		if (!suser(td)) {
+		if (!suser(p)) {
 			bcopy(ar->systemId, arlan_io.cfg.sid, 4);
 		}
 
@@ -586,7 +586,7 @@ arl_ioctl(ifp, cmd, data)
 	} while (0)
 
 	case SIOCSARLALL:
-		if (suser(td))
+		if (suser(p))
 			break;
 
 		user = (void *)ifr->ifr_data;

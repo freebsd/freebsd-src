@@ -145,6 +145,7 @@ SUBDIR+=ar \
 
 .if ${MACHINE} == "i386"
 SUBDIR+=aac \
+	arl \
 	asr \
 	ciss \
 	mly \

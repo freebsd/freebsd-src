@@ -174,7 +174,8 @@ SUBDIR+=i4b
 .endif
 
 .if ${MACHINE} == "i386"
-SUBDIR+=boot0cfg
+SUBDIR+=arlcontrol \
+	boot0cfg
 .endif
 
 .if ${MACHINE} == "pc98"

@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-MAN=	aic.4 alpm.4 amdpm.4 apm.4 ar.4 asc.4 asr.4 \
+MAN=	aic.4 alpm.4 amdpm.4 apm.4 ar.4 arl.4 asc.4 asr.4 \
 	cs.4 ct.4 ctau.4 cx.4 cy.4 \
 	dgb.4 el.4 en.4 ep.4 ex.4 fe.4 gsc.4 \
 	ie.4 io.4 labpc.4 le.4 lnc.4 longrun.4 mcd.4 \
