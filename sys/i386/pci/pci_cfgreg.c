@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pcibus.c,v 1.42 1999/05/18 20:48:43 peter Exp $
+ * $Id: pcibus.c,v 1.43 1999/07/16 01:00:29 msmith Exp $
  *
  */
 
@@ -364,7 +364,7 @@ nexus_pcib_is_host_bridge(pcicfgregs *cfg,
 	case 0x00011039:
 		s = "SiS 5591 host to AGP bridge";
 		break;
-	
+
 		/* VLSI -- vendor 0x1004 */
 	case 0x00051004:
 		s = "VLSI 82C592 Host to PCI bridge";
@@ -409,10 +409,10 @@ nexus_pcib_identify(driver_t *driver, device_t parent)
 {
 	pcicfgregs probe;
 
+	if (pci_cfgopen() == 0)
+		return;
 	probe.hose = 0;
 	probe.bus = 0;
-
-	pci_cfgopen();
 	for (probe.slot = 0; probe.slot <= PCI_SLOTMAX; probe.slot++) {
 		int pcifunchigh = 0;
 		for (probe.func = 0;
@@ -442,7 +442,6 @@ nexus_pcib_identify(driver_t *driver, device_t parent)
 			}
 		}
 	}
-	
 }
 
 static int
