@@ -40,6 +40,7 @@
 #include <sys/queue.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/malloc.h>
 
 #include <machine/types.h>
 
@@ -111,6 +112,82 @@ trash_fini(void *mem, int size)
 	trash_ctor(mem, size, NULL);
 }
 
+/*
+ * Checks an item to make sure it hasn't been overwritten since freed.
+ *
+ * Complies with standard ctor arg/return
+ *
+ */
+void
+mtrash_ctor(void *mem, int size, void *arg)
+{
+	struct malloc_type **ksp;
+	u_int32_t *p = mem;
+	int cnt;
+
+	size -= sizeof(struct malloc_type *);
+	ksp = (struct malloc_type **)mem;
+	ksp += size / sizeof(struct malloc_type *);
+	cnt = size / sizeof(uma_junk);
+
+	for (p = mem; cnt > 0; cnt--, p++)
+		if (*p != uma_junk) {
+			printf("Memory modified after free %p(%d)\n",
+			    mem, size);
+			panic("Most recently used by %s\n", (*ksp == NULL)?
+			    "none" : (*ksp)->ks_shortdesc);
+		}
+}
+
+/*
+ * Fills an item with predictable garbage
+ *
+ * Complies with standard dtor arg/return
+ *
+ */
+void
+mtrash_dtor(void *mem, int size, void *arg)
+{
+	int cnt;
+	u_int32_t *p;
+
+	size -= sizeof(struct malloc_type *);
+	cnt = size / sizeof(uma_junk);
+
+	for (p = mem; cnt > 0; cnt--, p++)
+		*p = uma_junk;
+}
+
+/*
+ * Fills an item with predictable garbage
+ *
+ * Complies with standard init arg/return
+ *
+ */
+void
+mtrash_init(void *mem, int size)
+{
+	struct malloc_type **ksp;
+
+	mtrash_dtor(mem, size, NULL);
+
+	ksp = (struct malloc_type **)mem;
+	ksp += (size / sizeof(struct malloc_type *)) - 1;
+	*ksp = NULL;
+}
+
+/*
+ * Checks an item to make sure it hasn't been overwritten since it was freed.
+ *
+ * Complies with standard fini arg/return
+ *
+ */
+void
+mtrash_fini(void *mem, int size)
+{
+	mtrash_ctor(mem, size, NULL);
+}
+
 static uma_slab_t
 uma_dbg_getslab(uma_zone_t zone, void *item)
 {
@@ -169,8 +246,6 @@ void
 uma_dbg_free(uma_zone_t zone, uma_slab_t slab, void *item)
 {
 	int freei;
-
-	return;
 
 	if (slab == NULL) {
 		slab = uma_dbg_getslab(zone, item);
