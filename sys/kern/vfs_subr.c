@@ -1688,12 +1688,14 @@ loop:
 			goto loop;
 		nvp = LIST_NEXT(vp, v_mntvnodes);
 
+		mtx_unlock(&mntvnode_mtx);
 		mtx_lock(&vp->v_interlock);
 		/*
 		 * Skip over a vnodes marked VSYSTEM.
 		 */
 		if ((flags & SKIPSYSTEM) && (vp->v_flag & VSYSTEM)) {
 			mtx_unlock(&vp->v_interlock);
+			mtx_lock(&mntvnode_mtx);
 			continue;
 		}
 		/*
@@ -1703,6 +1705,7 @@ loop:
 		if ((flags & WRITECLOSE) &&
 		    (vp->v_writecount == 0 || vp->v_type != VREG)) {
 			mtx_unlock(&vp->v_interlock);
+			mtx_lock(&mntvnode_mtx);
 			continue;
 		}
 
@@ -1711,7 +1714,6 @@ loop:
 		 * vnode data structures and we are done.
 		 */
 		if (vp->v_usecount == 0) {
-			mtx_unlock(&mntvnode_mtx);
 			vgonel(vp, p);
 			mtx_lock(&mntvnode_mtx);
 			continue;
@@ -1723,7 +1725,6 @@ loop:
 		 * all other files, just kill them.
 		 */
 		if (flags & FORCECLOSE) {
-			mtx_unlock(&mntvnode_mtx);
 			if (vp->v_type != VCHR) {
 				vgonel(vp, p);
 			} else {
@@ -1739,6 +1740,7 @@ loop:
 			vprint("vflush: busy vnode", vp);
 #endif
 		mtx_unlock(&vp->v_interlock);
+		mtx_lock(&mntvnode_mtx);
 		busy++;
 	}
 	mtx_unlock(&mntvnode_mtx);
@@ -2144,10 +2146,12 @@ DB_SHOW_COMMAND(lockedvnodes, lockedvnodes)
 			nmp = TAILQ_NEXT(mp, mnt_list);
 			continue;
 		}
+		mtx_lock(&mntvnode_mtx);
 		LIST_FOREACH(vp, &mp->mnt_vnodelist, v_mntvnodes) {
 			if (VOP_ISLOCKED(vp, NULL))
 				vprint((char *)0, vp);
 		}
+		mtx_unlock(&mntvnode_mtx);
 		mtx_lock(&mountlist_mtx);
 		nmp = TAILQ_NEXT(mp, mnt_list);
 		vfs_unbusy(mp, p);
@@ -2263,8 +2267,8 @@ sysctl_vnode(SYSCTL_HANDLER_ARGS)
 			nmp = TAILQ_NEXT(mp, mnt_list);
 			continue;
 		}
-again:
 		mtx_lock(&mntvnode_mtx);
+again:
 		for (vp = LIST_FIRST(&mp->mnt_vnodelist);
 		     vp != NULL;
 		     vp = nvp) {
@@ -2273,10 +2277,8 @@ again:
 			 * this filesystem.  RACE: could have been
 			 * recycled onto the same filesystem.
 			 */
-			if (vp->v_mount != mp) {
-				mtx_unlock(&mntvnode_mtx);
+			if (vp->v_mount != mp)
 				goto again;
-			}
 			nvp = LIST_NEXT(vp, v_mntvnodes);
 			mtx_unlock(&mntvnode_mtx);
 			if ((error = SYSCTL_OUT(req, &vp, VPTRSZ)) ||
@@ -2364,11 +2366,13 @@ vfs_msync(struct mount *mp, int flags) {
 	tries = 5;
 loop:
 	anyio = 0;
+	mtx_lock(&mntvnode_mtx);
 	for (vp = LIST_FIRST(&mp->mnt_vnodelist); vp != NULL; vp = nvp) {
 
 		nvp = LIST_NEXT(vp, v_mntvnodes);
 
 		if (vp->v_mount != mp) {
+			mtx_unlock(&mntvnode_mtx);
 			goto loop;
 		}
 
@@ -2383,6 +2387,7 @@ loop:
 				continue;
 		}
 
+		mtx_unlock(&mntvnode_mtx);
 		mtx_lock(&vp->v_interlock);
 		if (VOP_GETVOBJECT(vp, &obj) == 0 &&
 		    (obj->flags & OBJ_MIGHTBEDIRTY)) {
@@ -2401,7 +2406,9 @@ loop:
 		} else {
 			mtx_unlock(&vp->v_interlock);
 		}
+		mtx_lock(&mntvnode_mtx);
 	}
+	mtx_unlock(&mntvnode_mtx);
 	if (anyio && (--tries > 0))
 		goto loop;
 }
