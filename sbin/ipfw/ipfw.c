@@ -45,13 +45,15 @@ int 		ports_ok=0;			/* flag allowing ports     */
 u_short		flags=0;			/* New entry flags 	   */
 
 
-#define FW	1	/* Firewall action   */
-#define AC	2	/* Accounting action */
+#define FW	0x001	/* Firewall action   */
+#define AC	0x002	/* Accounting action */
 
+#define S_ANY		"any"
 
-#define S_SEP1		"fr" /* of "from" */
-#define S_SEP2		"to" /* of "to"   */
-#define S_SEP3		"vi" /* of "via"  */
+#define IS_TO(x)	(!strcmp(x,"to"))
+#define IS_FROM(x)	(!strcmp(x,"from"))
+#define IS_VIA(x) 	(!strcmp(x,"via") || !strcmp(x,"on"))
+#define IS_TOKEN(x)	(IS_TO(x) || IS_FROM(x) || IS_VIA(x))
 
 #define P_AC		"a" /* of "accept" for policy action */
 #define P_DE		"d" /* of "deny" for policy action   */
@@ -86,24 +88,26 @@ char	action_tab[][MAXSTR]={
 
 
 char	type_tab[][MAXSTR]={
-"ac",
+"acc",
 #define T_ACCEPT	0
-"lo",
-#define T_LOG		1
-"r",
-#define T_REJECT	2
-"lr",
-#define T_LREJECT	3
-"d",
-#define T_DENY		4
-"ld",
-#define T_LDENY		5
-"si",
-#define T_SINGLE	6
-"bi",
-#define T_BIDIR		7
+"pas",
+#define T_PASS		1
+"log",
+#define T_LOG		2
+"rej",
+#define T_REJECT	3
+"lrej",
+#define T_LREJECT	4
+"den",
+#define T_DENY		5
+"lden",
+#define T_LDENY		6
+"sin",
+#define T_SINGLE	7
+"bid",
+#define T_BIDIR		8
 "",
-#define T_NONE		8
+#define T_NONE		9
 };
 
 
@@ -430,9 +434,14 @@ return i;
 
 
 
-void show_usage()
+void show_usage(str)
+char	*str;
 {
-	printf("%s: bad arguments\n",progname);
+	if (str)
+		fprintf(stderr,"%s: ERROR - %s\n",progname,str);
+	else
+		fprintf(stderr,"%s: ERROR - bad arguments\n",progname);
+	fprintf(stderr,"See man %s(8) for proper usage.\n",progname);
 }
 
 
@@ -542,6 +551,13 @@ char	*sm_bit,*sm_oct,*end;
 int	n_bit;
 struct	hostent *hptr;
 
+	if (!strncmp(str,S_ANY,strlen(S_ANY))) {
+		addr->s_addr=0L;
+		mask->s_addr=0L;
+		return;
+	}
+		
+
 	if (mask) {
 		(void)strtok(str,"/");
 		sm_bit=strtok(NULL,"");
@@ -575,11 +591,11 @@ struct	hostent *hptr;
 		if (sm_bit) {
 			n_bit = strtol(sm_bit,&end,10);
             		if (*end!='\0') {
-                		show_usage();
+                		show_usage(NULL);
                 		exit(1);
             		}
 			if (n_bit<0 || n_bit>sizeof(u_long)*CHAR_BIT) {
-				show_usage();
+				show_usage(NULL);
 				exit(1);
 			}
 			if (n_bit>0)
@@ -591,7 +607,7 @@ struct	hostent *hptr;
 
 		if (sm_oct) {
 			if (!inet_aton(sm_oct,mask)) {
-				show_usage();
+				show_usage(NULL);
 				exit(1);
 			}
 		}
@@ -613,16 +629,22 @@ short unit;
 int i;
 	
 	i=0; sptr=str;
-	while(isalpha(*sptr++))
+	while(isalpha(*sptr++)) {
 		i++;
+	}
+
+	*sptr--;
 
 	if (i==0)
 		return 1;
 
 	strncpy(name,str,i);
+	name[i]='\0';
+
 	unit=(short)atoi(sptr);
 
 	sprintf(buf,"%s%d",name,unit);
+printf("%s %s\n",buf,str);
 	if (strcmp(str,buf))
 		return 1;
 
@@ -637,97 +659,127 @@ void set_entry(av,frwl)
 char 	**av;
 struct ip_fw * frwl;
 {
-int p_num=0,ir=0;
+int 	ir;
+int 	got_from=0,got_to=0,got_via=0;
+#define	T_FROM	1
+#define T_TO	2
+#define T_VIA	3
+int	token;
 
+
+	/*
+	 * This section actually creates
+	 * generic entry which matches everything
+	 * in this sorry world...
+	 */
 	frwl->fw_nsp=0;
 	frwl->fw_ndp=0;
 	frwl->fw_via_ip.s_addr=0L;
+	frwl->fw_src.s_addr=0L;
+	frwl->fw_dst.s_addr=0L;
+	frwl->fw_smsk.s_addr=0L;
+	frwl->fw_dmsk.s_addr=0L;
 
-	if (strncmp(*av,S_SEP1,strlen(S_SEP1))) {
-		show_usage();
-		exit(1);
+
+get_next:
+
+	token = 0;
+
+	if (IS_FROM(*av)) {
+		token = T_FROM;
+
+		if (got_from) {
+			show_usage("Redefined 'from'.");
+			exit(1);
+		}
+		if (*(++av)==NULL) {
+			show_usage("Missing 'from' specification.");
+			exit(1);
+		}
+
+		set_entry_ip(*av,&(frwl->fw_src),&(frwl->fw_smsk));
+		got_from=1;
+	}
+
+	if (IS_TO(*av)) {
+		token = T_TO;
+
+		if (got_to) {
+			show_usage("Redefined 'to'.");
+			exit(1);
+		}
+		if (*(++av)==NULL) {
+			show_usage("Missing 'to' specification.");
+			exit(1);
+		}
+		
+		set_entry_ip(*av,&(frwl->fw_dst),&(frwl->fw_dmsk));
+		got_to = 1;
+	}
+
+	if (IS_VIA(*av)) {
+		token = T_VIA;
+
+		if (got_via) {
+			show_usage("Redefined 'via'.");
+			exit(1);
+		}
+		if (*(++av)==NULL) {
+			show_usage("Missing 'via' specification.");
+			exit(1);
+		}
+
+		/*
+	 	 * Try first to set interface name 
+		 * from arguments.set_entry_ip() will exit on
+		 * wrong argument.
+		 */
+		if (set_entry_ifname(*av,frwl))
+			set_entry_ip(*av,&(frwl->fw_via_ip),NULL);
+		else
+			flags |= IP_FW_F_IFNAME;
+
+		got_via = 1;
 	}
 
 	if (*(++av)==NULL) {
-			show_usage();
-			exit(1);
+		return;
 	}
 
-	set_entry_ip(*av,&(frwl->fw_src),&(frwl->fw_smsk));
+	if (IS_TOKEN(*av))
+		goto get_next;
 
-	if (*(++av)==NULL) {
-			show_usage();
-			exit(1);
-	}
-
-	if (!strncmp(*av,S_SEP2,strlen(S_SEP2))) 
-		goto no_src_ports;
-
-	if (ports_ok) {
+	if (ports_ok && token == T_FROM) {
+		ir = 0;
 		frwl->fw_nsp=
 			set_entry_ports(*av,frwl->fw_pts,IP_FW_MAX_PORTS,&ir);
 		if (ir)
 			flags|=IP_FW_F_SRNG;
 
 		if (*(++av)==NULL) {
-				show_usage();
-				exit(1);
+			return;
 		}
 	}
 
-no_src_ports:
-
-	if (strncmp(*av,S_SEP2,strlen(S_SEP2))) {
-		show_usage();
-		exit(1);
-	}
-
-	if (*(++av)==NULL) {
-			show_usage();
-			exit(1);
-	}
-	
-	set_entry_ip(*av,&(frwl->fw_dst),&(frwl->fw_dmsk));
-
-	if (*(++av)==NULL) 
-		goto no_tail;
-
-	if (!strncmp(*av,S_SEP3,strlen(S_SEP3))) 
-		goto no_dst_ports;
-
-	if (ports_ok) {
+	if (ports_ok && token == T_TO) {
+		ir = 0;
 		frwl->fw_ndp=
 			set_entry_ports(*av,&(frwl->fw_pts[frwl->fw_nsp]),
 					(IP_FW_MAX_PORTS-frwl->fw_nsp),&ir);
 		if (ir)
 			flags|=IP_FW_F_DRNG;
+
+		if (*(++av)==NULL) {
+			return;
+		}
 	}
 
-	if (*(++av)==NULL) 
-		goto no_tail;
-
-no_dst_ports:
-	if (strncmp(*av,S_SEP3,strlen(S_SEP3))) {
-		show_usage();
+	if (token == 0) {
+		show_usage("Unknown token.");
 		exit(1);
 	}
 
-	if (*(++av)==NULL) {
-			show_usage();
-			exit(1);
-	}
-
-	/*
-	 * Try first to set interface name 
-	 * from arguments.set_entry_ip() will exit on
-	 * wrong argument.
-	 */
-	if (set_entry_ifname(*av,frwl))
-		set_entry_ip(*av,&(frwl->fw_via_ip),NULL);
-	else
-		flags |= IP_FW_F_IFNAME;
-no_tail:
-
+	goto get_next;
 }
 
 
@@ -842,7 +894,7 @@ char 	**av;
 
 char 		ch;
 extern int 	optind;
-int 		ctl,int_t,is_check=0;
+int 		ctl,int_t,is_check=0,int_notdef=0;
 struct ip_fw	frwl;
 
 	strcpy(progname,*av);
@@ -853,7 +905,7 @@ struct ip_fw	frwl;
 		exit(1);
 	}
 	   if ( ac == 1 ) {
-	show_usage();
+	show_usage(NULL);
 	exit(1);
     }
 
@@ -870,12 +922,12 @@ struct ip_fw	frwl;
             		break;
         	case '?':
          	default:
-            		show_usage();
+            		show_usage(NULL);
             		exit(1);                                      
 	}
 
 	if (*(av+=optind)==NULL) {
-		 show_usage();
+		 show_usage(NULL);
          	 exit(1);
 	}
 
@@ -917,70 +969,84 @@ struct ip_fw	frwl;
 				policy(++av);
 				exit(0); /* we never get here */
 			default:
-				show_usage();
-				exit(1);
+				int_t=(AC|FW);
+				int_notdef=1;
 	} /*  main action switch  */
 
 	if (is_check)
 		goto proto_switch;
 	
-	if (*(++av)==NULL) {
-			show_usage();
+	if (!int_notdef)
+		if (*(++av)==NULL) {
+			show_usage(NULL);
 			exit(1);
-	}
+		}
 
 	switch(get_num(*av,type_tab)) {
 			case T_LREJECT:
 				flags|=IP_FW_F_PRN;
 			case T_REJECT:
 				flags|=IP_FW_F_ICMPRPL;
-				if (int_t!=FW) {
-					show_usage();
+				if (!int_t&FW) {
+					show_usage(NULL);
 					exit(1);
 				}
+				int_t=FW;
 				break;
 			case T_LDENY:
 				flags|=IP_FW_F_PRN;
 			case T_DENY:
 				flags|=0; /* just to show it related to flags */
-				if (int_t!=FW) {
-					show_usage();
+				if (!int_t&FW) {
+					show_usage(NULL);
 					exit(1);
 				}
+				int_t=FW;
 				break;
 			case T_LOG:
 				flags|=IP_FW_F_PRN;
 			case T_ACCEPT:
+			case T_PASS:
 				flags|=IP_FW_F_ACCEPT;
-				if (int_t!=FW) {
-					show_usage();
+				if (!int_t&FW) {
+					show_usage(NULL);
 					exit(1);
 				}
+				int_t=FW;
 				break;
 			case T_SINGLE:
 				flags|=0; /* just to show it related to flags */
-				if (int_t!=AC) {
-					show_usage();
+				if (!int_t&AC) {
+					show_usage(NULL);
 					exit(1);
 				}
+				int_t=AC;
 				break;
 			case T_BIDIR:
 				flags|=IP_FW_F_BIDIR;
-				if (int_t!=AC) {
-					show_usage();
+				if (!int_t&AC) {
+					show_usage(NULL);
 					exit(1);
 				}
+				int_t=AC;
 				break;
 			default:
-				show_usage();
+				show_usage(NULL);
 				exit(1);
 
 	} /* type of switch */
 
+	if (int_notdef) {
+		if (int_t==FW)
+			ctl=IP_FW_ADD;
+		if (int_t==AC)
+			ctl=IP_ACCT_ADD;
+	}
+
 proto_switch:
 
 	if (*(++av)==NULL) {
-			show_usage();
+			show_usage(NULL);
 			exit(1);
 	}
 
@@ -1004,12 +1070,12 @@ proto_switch:
 			strcpy(proto_name,"udp");
 			break;
 		default:
-			show_usage();
+			show_usage(NULL);
 			exit(1);
 	}
 
 	if (*(++av)==NULL) {
-			show_usage();
+			show_usage(NULL);
 			exit(1);
 	}
 
