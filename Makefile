@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.128 1997/05/26 05:27:37 peter Exp $
+#	$Id: Makefile,v 1.129 1997/06/08 14:03:23 jhay Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -197,7 +197,7 @@ world:
 	cd ${.CURDIR} && ${MAKE} libraries
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo " Rebuilding sgml tools, symorder, groff and zic(8)"
+	@echo " Rebuilding symorder, groff and zic(8)"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR} && ${MAKE} build-tools
 	@echo
@@ -503,9 +503,6 @@ build-tools:
 		share/info		\
 		gnu/usr.bin/texinfo     \
 		usr.bin/symorder	\
-		usr.bin/sgmls		\
-		usr.bin/sgmlfmt		\
-		share/sgml		\
 		usr.sbin/zic		\
 		gnu/usr.bin/awk		\
 		gnu/usr.bin/groff
