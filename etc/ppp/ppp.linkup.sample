@@ -12,7 +12,7 @@
 #
 #  3) If no label has been found, use MYADDR if it exists.
 #
-# $Id: ppp.linkup.sample,v 1.6 1997/02/23 14:04:23 brian Exp $
+# $Id: ppp.linkup.sample,v 1.7 1997/06/10 10:04:20 brian Exp $
 #
 #########################################################################
 
@@ -51,4 +51,4 @@ pmdemand:
  delete ALL
  add 0 0 HISADDR
  add MYADDR 255.255.255.255 127.0.0.1
- ! sh -c "/etc/ppp/ppp.etherup.pmdemand &"
+ !bg /etc/ppp/ppp.etherup.pmdemand
