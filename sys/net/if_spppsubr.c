@@ -1602,12 +1602,13 @@ sppp_cp_input(const struct cp *cp, struct sppp *sp, struct mbuf *m)
 		if (upper == NULL)
 			catastrophic++;
 
-		log(LOG_INFO,
-		    SPP_FMT "%s: RXJ%c (%s) for proto 0x%x (%s/%s)\n",
-		    SPP_ARGS(ifp), cp->name, catastrophic ? '-' : '+',
-		    sppp_cp_type_name(h->type), proto,
-		    upper ? upper->name : "unknown",
-		    upper ? sppp_state_name(sp->state[upper->protoidx]) : "?");
+		if (catastrophic || debug)
+			log(catastrophic? LOG_INFO: LOG_DEBUG,
+			    SPP_FMT "%s: RXJ%c (%s) for proto 0x%x (%s/%s)\n",
+			    SPP_ARGS(ifp), cp->name, catastrophic ? '-' : '+',
+			    sppp_cp_type_name(h->type), proto,
+			    upper ? upper->name : "unknown",
+			    upper ? sppp_state_name(sp->state[upper->protoidx]) : "?");
 
 		/*
 		 * if we got RXJ+ against conf-req, the peer does not implement
