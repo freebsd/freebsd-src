@@ -97,7 +97,8 @@ for things other than builds.
 .Pq Vt str
 Controls the compiler setting when compiling C code.
 Optimization levels above
-.Oo Fl O ( O2 , No ...\& ) Oc
+.Fl O
+.Pq Fl O2 , No ...
 are not supported.
 .Va BDECFLAGS
 is provided as a set of
@@ -253,8 +254,8 @@ Controls the compiler settings when building the
 kernel.
 Optimization levels above
 .Oo Fl O ( O2 , No ...\& ) Oc
-are not supported.
-.It Va KERNEL
+are not guaranteed to work.
+.It Va KERNCONF
 .Pq Vt str
 Controls which kernel configurations will be
 built by
@@ -263,7 +264,7 @@ and installed by
 .Dq Li "${MAKE} installkernel" .
 For example,
 .Bd -literal -offset indent
-KERNEL=MINE DEBUG GENERIC OTHERMACHINE
+KERNCONF=MINE DEBUG GENERIC OTHERMACHINE
 .Ed
 .Pp
 will build the kernels specified by the config files

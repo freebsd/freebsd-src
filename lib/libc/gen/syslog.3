@@ -46,7 +46,7 @@
 .Lb libc
 .Sh SYNOPSIS
 .Fd #include <syslog.h>
-.Fd #include <varargs.h>
+.Fd #include <stdarg.h>
 .Ft void
 .Fn syslog "int priority" "const char *message" "..."
 .Ft void
@@ -86,7 +86,7 @@ The
 function
 is an alternate form in which the arguments have already been captured
 using the variable-length argument facilities of
-.Xr varargs 3 .
+.Xr stdarg 3 .
 .Pp
 The message is tagged with
 .Fa priority .
