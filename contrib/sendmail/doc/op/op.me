@@ -9,7 +9,7 @@
 .\" the sendmail distribution.
 .\"
 .\"
-.\"	$Id: op.me,v 8.609.2.26 2003/07/28 21:54:53 ca Exp $
+.\"	$Id: op.me,v 8.609.2.29 2004/01/11 17:58:24 ca Exp $
 .\"
 .\" eqn op.me | pic | troff -me
 .\"
@@ -90,7 +90,7 @@ Sendmail, Inc.
 .de Ve
 Version \\$2
 ..
-.Ve $Revision: 8.609.2.26 $
+.Ve $Revision: 8.609.2.29 $
 .rm Ve
 .sp
 For Sendmail Version 8.12
@@ -1125,7 +1125,7 @@ that some sites might want.
 A complete description of the log levels
 is given in section
 .\" XREF
-4.6.
+4.7.
 .sh 2 "Dumping State"
 .pp
 You can ask
@@ -3025,7 +3025,7 @@ alias files,
 :include: files,
 and external databases)
 must be readable by that user.
-Also, since sendmail will not be able to change it's uid,
+Also, since sendmail will not be able to change its uid,
 delivery to programs or files will be marked as unsafe,
 e.g., undeliverable,
 in
@@ -6227,8 +6227,9 @@ selected SASL mechanisms.
 Explanations of these properties can be found in the Cyrus SASL documentation.
 .ip BadRcptThrottle=\fIN\fP
 [no short name]
-If set and more than the specified number of recipients in a single SMTP
-envelope are rejected, sleep for one second after each rejected RCPT command.
+If set and the specified number of recipients in a single SMTP
+transaction have been rejected, sleep for one second after each subsequent
+RCPT command in that transaction.
 .ip BlankSub=\fIc\fP
 [B]
 Set the blank substitution character to
@@ -10767,7 +10768,7 @@ replace it with a blank sheet for double-sided output.
 .\".sz 10
 .\"Eric Allman
 .\".sp
-.\"Version $Revision: 8.609.2.26 $
+.\"Version $Revision: 8.609.2.29 $
 .\".ce 0
 .bp 3
 .ce

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2002 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2003 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: alias.c,v 8.214.2.1 2003/07/28 17:47:55 ca Exp $")
+SM_RCSID("@(#)$Id: alias.c,v 8.214.2.2 2003/10/06 20:43:29 ca Exp $")
 
 #define SEPARATOR ':'
 # define ALIAS_SPEC_SEPARATORS	" ,/:"

@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 1999-2002 Sendmail, Inc. and its suppliers.
+ *  Copyright (c) 1999-2003 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -9,7 +9,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: engine.c,v 8.109.2.5 2003/08/04 18:14:33 ca Exp $")
+SM_RCSID("@(#)$Id: engine.c,v 8.109.2.8 2003/12/01 23:57:45 msk Exp $")
 
 #include "libmilter.h"
 
@@ -59,14 +59,21 @@ typedef struct cmdfct_t cmdfct;
 #define	CT_END		0x0008	/* start replying */
 
 /* index in macro array: macros only for these commands */
-#define	CI_NONE	(-1)
-#define	CI_CONN	0
-#define	CI_HELO	1
-#define	CI_MAIL	2
-#define	CI_RCPT	3
-#if CI_RCPT >= MAX_MACROS_ENTRIES
+#define	CI_NONE		(-1)
+#define	CI_CONN		0
+#define	CI_HELO		1
+#define	CI_MAIL		2
+#define CI_RCPT		3
+#if _FFR_MILTER_MACROS_EOM
+# define CI_EOM		4
+# if CI_EOM >= MAX_MACROS_ENTRIES
+ERROR: do not compile with CI_EOM >= MAX_MACROS_ENTRIES
+# endif
+#else /* _FFR_MILTER_MACROS_EOM */
+# if CI_RCPT >= MAX_MACROS_ENTRIES
 ERROR: do not compile with CI_RCPT >= MAX_MACROS_ENTRIES
-#endif
+# endif
+#endif /* _FFR_MILTER_MACROS_EOM */
 
 /* function prototypes */
 static int	st_abortfct __P((genarg *));
@@ -156,7 +163,11 @@ static cmdfct cmds[] =
 {SMFIC_MACRO,	CM_ARGV, ST_NONE,  CT_KEEP,	CI_NONE, st_macros	},
 {SMFIC_BODY,	CM_ARG1, ST_BODY,  CT_CONT,	CI_NONE, st_bodychunk	},
 {SMFIC_CONNECT,	CM_ARG2, ST_CONN,  CT_CONT,	CI_CONN, st_connectinfo	},
+#if _FFR_MILTER_MACROS_EOM
+{SMFIC_BODYEOB,	CM_ARG1, ST_ENDM,  CT_CONT,	CI_EOM,  st_bodyend	},
+#else /* _FFR_MILTER_MACROS_EOM */
 {SMFIC_BODYEOB,	CM_ARG1, ST_ENDM,  CT_CONT,	CI_NONE, st_bodyend	},
+#endif /* _FFR_MILTER_MACROS_EOM */
 {SMFIC_HELO,	CM_ARG1, ST_HELO,  CT_CONT,	CI_HELO, st_helo	},
 {SMFIC_HEADER,	CM_ARG2, ST_HDRS,  CT_CONT,	CI_NONE, st_header	},
 {SMFIC_MAIL,	CM_ARGV, ST_MAIL,  CT_CONT,	CI_MAIL, st_sender	},
@@ -599,7 +610,7 @@ st_connectinfo(g)
 	l = g->a_len;
 	while (s[i] != '\0' && i <= l)
 		++i;
-	if (i >= l)
+	if (i + 1 >= l)
 		return _SMFIS_ABORT;
 
 	/* Move past trailing \0 in host string */
@@ -608,9 +619,7 @@ st_connectinfo(g)
 	(void) memset(&sockaddr, '\0', sizeof sockaddr);
 	if (family != SMFIA_UNKNOWN)
 	{
-		(void) memcpy((void *) &port, (void *) (s + i),
-			      sizeof port);
-		if ((i += sizeof port) >= l)
+		if (i + sizeof port >= l)
 		{
 			smi_log(SMI_LOG_ERR,
 				"%s: connect[%d]: wrong len %d >= %d",
@@ -618,6 +627,9 @@ st_connectinfo(g)
 				(int) g->a_ctx->ctx_id, (int) i, (int) l);
 			return _SMFIS_ABORT;
 		}
+		(void) memcpy((void *) &port, (void *) (s + i),
+			      sizeof port);
+		i += sizeof port;
 
 		/* make sure string is terminated */
 		if (s[l - 1] != '\0')
@@ -729,7 +741,12 @@ st_helo(g)
 	mi_clr_macros(g->a_ctx, g->a_idx + 1);
 	if (g->a_ctx->ctx_smfi != NULL &&
 	    (fi_helo = g->a_ctx->ctx_smfi->xxfi_helo) != NULL)
+	{
+		/* paranoia: check for terminating '\0' */
+		if (g->a_len == 0 || g->a_buf[g->a_len - 1] != '\0')
+			return MI_FAILURE;
 		return (*fi_helo)(g->a_ctx, g->a_buf);
+	}
 	return SMFIS_CONTINUE;
 }
 /*
@@ -847,6 +864,11 @@ st_macros(g)
 	  case SMFIC_RCPT:
 		i = CI_RCPT;
 		break;
+#if _FFR_MILTER_MACROS_EOM
+	  case SMFIC_BODYEOB:
+		i = CI_EOM;
+		break;
+#endif /* _FFR_MILTER_MACROS_EOM */
 	  default:
 		free(argv);
 		return _SMFIS_FAIL;
@@ -1089,10 +1111,16 @@ dec_argv(buf, len)
 	for (i = 0, elem = 0; i < len && elem < nelem; i++)
 	{
 		if (buf[i] == '\0')
-			s[++elem] = &(buf[i + 1]);
+		{
+			++elem;
+			if (i + 1 >= len)
+				s[elem] = NULL;
+			else
+				s[elem] = &(buf[i + 1]);
+		}
 	}
 
-	/* overwrite last entry */
+	/* overwrite last entry (already done above, just paranoia) */
 	s[elem] = NULL;
 	return s;
 }
@@ -1117,6 +1145,9 @@ dec_arg2(buf, len, s1, s2)
 {
 	size_t i;
 
+	/* paranoia: check for terminating '\0' */
+	if (len == 0 || buf[len - 1] != '\0')
+		return MI_FAILURE;
 	*s1 = buf;
 	for (i = 1; i < len && buf[i] != '\0'; i++)
 		continue;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2002 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2003 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: util.c,v 8.363.2.7 2003/06/02 03:25:39 gshapiro Exp $")
+SM_RCSID("@(#)$Id: util.c,v 8.363.2.10 2003/10/15 17:19:14 ca Exp $")
 
 #include <sysexits.h>
 #include <sm/xtrap.h>
@@ -2380,7 +2380,8 @@ str2prt(s)
 				*h++ = 'r';
 				break;
 			  default:
-				(void) sm_snprintf(h, l, "%03o", (int) c);
+				(void) sm_snprintf(h, l, "%03o",
+					(unsigned int)((unsigned char) c));
 
 				/*
 				**  XXX since l is unsigned this may

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2002 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2003 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1994, 1996-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1994
@@ -14,7 +14,7 @@
 #include <sendmail.h>
 #include <string.h>
 
-SM_RCSID("@(#)$Id: mime.c,v 8.130.2.1 2003/04/15 01:05:59 ca Exp $")
+SM_RCSID("@(#)$Id: mime.c,v 8.130.2.3 2004/01/08 21:42:56 ca Exp $")
 
 /*
 **  MIME support.
@@ -32,6 +32,11 @@ SM_RCSID("@(#)$Id: mime.c,v 8.130.2.1 2003/04/15 01:05:59 ca Exp $")
 **	design bounds, but it was a useful base for understanding
 **	the problem.
 */
+
+/* use "old" mime 7 to 8 algorithm by default */
+#ifndef MIME7TO8_OLD
+# define MIME7TO8_OLD	1
+#endif /* ! MIME7TO8_OLD */
 
 #if MIME8TO7
 static int	isboundary __P((char *, char **));
@@ -1064,54 +1069,41 @@ mime7to8(mci, header, e)
 			c1 = CHAR64(c1);
 			c2 = CHAR64(c2);
 
+#if MIME7TO8_OLD
+#define CHK_EOL if (*--fbufp != '\n' || (fbufp > fbuf && *--fbufp != '\r')) \
+			++fbufp;
+#else /* MIME7TO8_OLD */
+#define CHK_EOL if (*--fbufp != '\n' || (fbufp > fbuf && *--fbufp != '\r')) \
+		{					\
+			++fbufp;			\
+			pxflags |= PXLF_NOADDEOL;	\
+		}
+#endif /* MIME7TO8_OLD */
+
+#define PUTLINE64	\
+	do		\
+	{		\
+		if (*fbufp++ == '\n' || fbufp >= &fbuf[MAXLINE])	\
+		{							\
+			CHK_EOL;					\
+			putxline((char *) fbuf, fbufp - fbuf, mci, pxflags); \
+			pxflags &= ~PXLF_NOADDEOL;			\
+			fbufp = fbuf;					\
+		}	\
+	} while (0)
+
 			*fbufp = (c1 << 2) | ((c2 & 0x30) >> 4);
-			if (*fbufp++ == '\n' || fbufp >= &fbuf[MAXLINE])
-			{
-				if (*--fbufp != '\n' ||
-				    (fbufp > fbuf && *--fbufp != '\r'))
-				{
-					pxflags |= PXLF_NOADDEOL;
-					fbufp++;
-				}
-				putxline((char *) fbuf, fbufp - fbuf,
-					 mci, pxflags);
-				pxflags &= ~PXLF_NOADDEOL;
-				fbufp = fbuf;
-			}
+			PUTLINE64;
 			if (c3 == '=')
 				continue;
 			c3 = CHAR64(c3);
 			*fbufp = ((c2 & 0x0f) << 4) | ((c3 & 0x3c) >> 2);
-			if (*fbufp++ == '\n' || fbufp >= &fbuf[MAXLINE])
-			{
-				if (*--fbufp != '\n' ||
-				    (fbufp > fbuf && *--fbufp != '\r'))
-				{
-					pxflags |= PXLF_NOADDEOL;
-					fbufp++;
-				}
-				putxline((char *) fbuf, fbufp - fbuf,
-					 mci, pxflags);
-				pxflags &= ~PXLF_NOADDEOL;
-				fbufp = fbuf;
-			}
+			PUTLINE64;
 			if (c4 == '=')
 				continue;
 			c4 = CHAR64(c4);
 			*fbufp = ((c3 & 0x03) << 6) | c4;
-			if (*fbufp++ == '\n' || fbufp >= &fbuf[MAXLINE])
-			{
-				if (*--fbufp != '\n' ||
-				    (fbufp > fbuf && *--fbufp != '\r'))
-				{
-					pxflags |= PXLF_NOADDEOL;
-					fbufp++;
-				}
-				putxline((char *) fbuf, fbufp - fbuf,
-					 mci, pxflags);
-				pxflags &= ~PXLF_NOADDEOL;
-				fbufp = fbuf;
-			}
+			PUTLINE64;
 		}
 	}
 	else
