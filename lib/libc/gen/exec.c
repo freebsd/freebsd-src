@@ -58,19 +58,20 @@ buildargv(ap, arg, envpp)
 	const char *arg;
 	char ***envpp;
 {
-	static int memsize;
-	static char **argv;
-	register int off;
+	register char **argv, **nargv;
+	register int memsize, off;
 
 	argv = NULL;
-	for (off = 0;; ++off) {
+	for (off = memsize = 0;; ++off) {
 		if (off >= memsize) {
 			memsize += 50;	/* Starts out at 0. */
 			memsize *= 2;	/* Ramp up fast. */
-			if (!(argv = realloc(argv, memsize * sizeof(char *)))) {
-				memsize = 0;
+			nargv = realloc(argv, memsize * sizeof(char *));
+			if (nargv == NULL) {
+				free(argv);
 				return (NULL);
 			}
+			argv = nargv;
 			if (off == 0) {
 				argv[0] = (char *)arg;
 				off = 1;
@@ -183,8 +184,7 @@ execvp(name, argv)
 	const char *name;
 	char * const *argv;
 {
-	static int memsize;
-	static char **memp;
+	char **memp;
 	register int cnt, lp, ln;
 	register char *p;
 	int eacces, etxtbsy;
@@ -240,18 +240,16 @@ retry:		(void)execve(bp, argv, environ);
 		case ENOENT:
 			break;
 		case ENOEXEC:
-			for (cnt = 0; argv[cnt]; ++cnt);
-			if ((cnt + 2) * sizeof(char *) > memsize) {
-				memsize = (cnt + 2) * sizeof(char *);
-				if ((memp = realloc(memp, memsize)) == NULL) {
-					memsize = 0;
-					goto done;
-				}
-			}
+			for (cnt = 0; argv[cnt]; ++cnt)
+				;
+			memp = malloc((cnt + 2) * sizeof(char *));
+			if (memp == NULL)
+				goto done;
 			memp[0] = "sh";
 			memp[1] = bp;
 			bcopy(argv + 1, memp + 2, cnt * sizeof(char *));
 			(void)execve(_PATH_BSHELL, memp, environ);
+			free(memp);
 			goto done;
 		case ETXTBSY:
 			if (etxtbsy < 3)
