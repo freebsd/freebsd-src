@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)msg.c	8.9 (Berkeley) 8/14/94";
+static const char sccsid[] = "@(#)msg.c	8.11 (Berkeley) 8/17/94";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -222,7 +222,8 @@ msg_app(gp, sp, inv_video, p, len)
 	}
 
 	/* Get enough memory for the message. */
-store:	if (len > mp->blen && binc(sp, &mp->mbuf, &mp->blen, len))
+store:	if (len > mp->blen &&
+	    (mp->mbuf = binc(sp, mp->mbuf, &mp->blen, len)) == NULL)
 		goto ret;
 
 	/* Store the message. */

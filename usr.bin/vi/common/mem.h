@@ -30,19 +30,35 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)mem.h	8.6 (Berkeley) 6/20/94
+ *	@(#)mem.h	8.8 (Berkeley) 8/16/94
  */
 
 /* Increase the size of a malloc'd buffer.  Two versions, one that
  * returns, one that jumps to an error label.
  */
 #define	BINC_GOTO(sp, lp, llen, nlen) {					\
-	if ((nlen) > llen && binc(sp, &(lp), &(llen), nlen))		\
+	void *__bincp;							\
+	if ((nlen) > llen) {						\
+		if ((__bincp = binc(sp, lp, &(llen), nlen)) == NULL)	\
 		goto binc_err;						\
+		/*							\
+		 * !!!							\
+		 * Possible pointer conversion.				\
+		 */							\
+		lp = __bincp;						\
+	}								\
 }
 #define	BINC_RET(sp, lp, llen, nlen) {					\
-	if ((nlen) > llen && binc(sp, &(lp), &(llen), nlen))		\
+	void *__bincp;							\
+	if ((nlen) > llen) {						\
+		if ((__bincp = binc(sp, lp, &(llen), nlen)) == NULL)	\
 		return (1);						\
+		/*							\
+		 * !!!							\
+		 * Possible pointer conversion.				\
+		 */							\
+		lp = __bincp;						\
+	}								\
 }
 
 /*
@@ -175,4 +191,4 @@
 #define	MEMMOVE(p, t, len)	memmove(p, t, (len) * sizeof(*(p)))
 #define	MEMSET(p, value, len)	memset(p, value, (len) * sizeof(*(p)))
 
-int	binc __P((SCR *, void *, size_t *, size_t));
+void	*binc __P((SCR *, void *, size_t *, size_t));

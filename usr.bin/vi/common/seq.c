@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)seq.c	8.30 (Berkeley) 7/15/94";
+static const char sccsid[] = "@(#)seq.c	8.32 (Berkeley) 8/17/94";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -63,13 +63,13 @@ static char sccsid[] = "@(#)seq.c	8.30 (Berkeley) 7/15/94";
 int
 seq_set(sp, name, nlen, input, ilen, output, olen, stype, flags)
 	SCR *sp;
-	char *name, *input, *output;
+	CHAR_T *name, *input, *output;
 	size_t nlen, ilen, olen;
 	enum seqtype stype;
 	int flags;
 {
-	SEQ *lastqp, *qp;
 	CHAR_T *p;
+	SEQ *lastqp, *qp;
 	int sv_errno;
 
 	/*
@@ -145,6 +145,7 @@ mem1:		errno = sv_errno;
 	}
 
 	/* Set the fast lookup bit. */
+	if (qp->input[0] < MAX_BIT_SEQ)
 	bit_set(sp->gp->seqb, qp->input[0]);
 
 	return (0);
@@ -157,7 +158,7 @@ mem1:		errno = sv_errno;
 int
 seq_delete(sp, input, ilen, stype)
 	SCR *sp;
-	char *input;
+	CHAR_T *input;
 	size_t ilen;
 	enum seqtype stype;
 {
@@ -195,7 +196,7 @@ SEQ *
 seq_find(sp, lastqp, input, ilen, stype, ispartialp)
 	SCR *sp;
 	SEQ **lastqp;
-	char *input;
+	CHAR_T *input;
 	size_t ilen;
 	enum seqtype stype;
 	int *ispartialp;
@@ -268,9 +269,9 @@ seq_dump(sp, stype, isname)
 	enum seqtype stype;
 	int isname;
 {
+	CHAR_T *p;
 	SEQ *qp;
 	int cnt, len, olen;
-	CHAR_T *p;
 
 	cnt = 0;
 	for (qp = sp->gp->seqq.lh_first; qp != NULL; qp = qp->q.le_next) {
@@ -315,10 +316,10 @@ seq_save(sp, fp, prefix, stype)
 	char *prefix;
 	enum seqtype stype;
 {
+	CHAR_T *p;
 	SEQ *qp;
 	size_t olen;
 	int ch;
-	char *p;
 
 	/* Write a sequence command for all keys the user defined. */
 	for (qp = sp->gp->seqq.lh_first; qp != NULL; qp = qp->q.le_next) {
