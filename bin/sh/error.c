@@ -221,9 +221,6 @@ STATIC const struct errname errormsg[] = {
 	{ ENXIO,	ALL,	"no such device or address" },
 	{ EROFS,	ALL,	"read-only filesystem" },
 	{ ETXTBSY,	ALL,	"text busy" },
-#ifdef SYSV
-	{ EAGAIN,	E_EXEC,	"not enough memory" },
-#endif
 	{ ENOMEM,	ALL,	"not enough memory" },
 #ifdef ENOLINK
 	{ ENOLINK,	ALL,	"remote access failed" },
