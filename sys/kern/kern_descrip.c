@@ -1122,7 +1122,7 @@ fdfree(p)
 			i = 0;
 			fpp = fdp->fd_ofiles;
 			for (i = 0, fpp = fdp->fd_ofiles;
-			     i < fdp->fd_lastfile;
+			     i <= fdp->fd_lastfile;
 			     i++, fpp++) {
 				if (*fpp == NULL ||
 				    (*fpp)->f_type != DTYPE_VNODE)
