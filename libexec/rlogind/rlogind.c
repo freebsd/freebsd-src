@@ -570,6 +570,10 @@ int
 do_rlogin(dest)
 	union sockunion *dest;
 {
+#ifndef NO_PAM
+	int retval;
+#endif
+
 	getstr(rusername, sizeof(rusername), "remuser too long");
 	getstr(lusername, sizeof(lusername), "locuser too long");
 	getstr(term+ENVSIZE, sizeof(term)-ENVSIZE, "Terminal type too long");
