@@ -107,15 +107,6 @@ typedef int	archive_close_callback(struct archive *, void *_client_data);
 struct archive	*archive_read_new(void);
 
 /*
- * XXX Kill this function.  The client callback is now responsible for
- * read blocking. XXX
- */
-/*
-  int		 archive_read_set_bytes_per_block(struct archive *,
-		     int bytes_per_blk);
-*/
-
-/*
  * The archive_read_support_XXX calls enable auto-detect for this
  * archive handle.  They also link in the necessary support code.
  * For example, if you don't want bzlib linked in, don't invoke
