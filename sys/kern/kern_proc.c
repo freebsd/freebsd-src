@@ -740,6 +740,7 @@ fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp)
 		kp->ki_sflag = p->p_sflag;
 		kp->ki_swtime = p->p_swtime;
 		kp->ki_pid = p->p_pid;
+		kp->ki_nice = p->p_nice;
 		kg = td->td_ksegrp;
 		ke = td->td_kse;
 		bintime2timeval(&p->p_runtime, &tv);
@@ -751,7 +752,6 @@ fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp)
 		kp->ki_slptime = kg->kg_slptime;
 		kp->ki_pri.pri_user = kg->kg_user_pri;
 		kp->ki_pri.pri_class = kg->kg_pri_class;
-		kp->ki_nice = kg->kg_nice;
 
 		/* Things in the thread */
 		kp->ki_wchan = td->td_wchan;

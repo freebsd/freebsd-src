@@ -951,10 +951,10 @@ ibcs2_nice(td, uap)
 
 	sa.which = PRIO_PROCESS;
 	sa.who = 0;
-	sa.prio = td->td_ksegrp->kg_nice + uap->incr;
+	sa.prio = td->td_proc->p_nice + uap->incr;
 	if ((error = setpriority(td, &sa)) != 0)
 		return EPERM;
-	td->td_retval[0] = td->td_ksegrp->kg_nice;
+	td->td_retval[0] = td->td_proc->p_nice;
 	return 0;
 }
 

@@ -88,7 +88,6 @@ getpriority(td, uap)
 	struct thread *td;
 	register struct getpriority_args *uap;
 {
-	struct ksegrp *kg;
 	struct proc *p;
 	int error, low;
 
@@ -98,16 +97,13 @@ getpriority(td, uap)
 
 	case PRIO_PROCESS:
 		if (uap->who == 0)
-			low = td->td_ksegrp->kg_nice;
+			low = td->td_proc->p_nice;
 		else {
 			p = pfind(uap->who);
 			if (p == NULL)
 				break;
 			if (p_cansee(td, p) == 0) {
-				FOREACH_KSEGRP_IN_PROC(p, kg) {
-					if (kg->kg_nice < low)
-						low = kg->kg_nice;
-				}
+				low = p->p_nice;
 			}
 			PROC_UNLOCK(p);
 		}
@@ -131,10 +127,8 @@ getpriority(td, uap)
 		LIST_FOREACH(p, &pg->pg_members, p_pglist) {
 			PROC_LOCK(p);
 			if (!p_cansee(td, p)) {
-				FOREACH_KSEGRP_IN_PROC(p, kg) {
-					if (kg->kg_nice < low)
-						low = kg->kg_nice;
-				}
+				if (p->p_nice < low)
+					low = p->p_nice;
 			}
 			PROC_UNLOCK(p);
 		}
@@ -150,10 +144,8 @@ getpriority(td, uap)
 			PROC_LOCK(p);
 			if (!p_cansee(td, p) &&
 			    p->p_ucred->cr_uid == uap->who) {
-				FOREACH_KSEGRP_IN_PROC(p, kg) {
-					if (kg->kg_nice < low)
-						low = kg->kg_nice;
-				}
+				if (p->p_nice < low)
+					low = p->p_nice;
 			}
 			PROC_UNLOCK(p);
 		}
@@ -260,19 +252,13 @@ setpriority(td, uap)
 }
 
 /* 
- * Set "nice" for a process.  Doesn't really understand threaded processes
- * well but does try.  Has the unfortunate side effect of making all the NICE
- * values for a process's ksegrps the same.  This suggests that
- * NICE values should be stored as a process nice and deltas for the ksegrps.
- * (but not yet).
+ * Set "nice" for a (whole) process.
  */
 static int
 donice(struct thread *td, struct proc *p, int n)
 {
-	struct ksegrp *kg;
-	int error, low;
+	int error;
 
-	low = PRIO_MAX + 1;
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	if ((error = p_cansched(td, p)))
 		return (error);
@@ -280,20 +266,10 @@ donice(struct thread *td, struct proc *p, int n)
 		n = PRIO_MAX;
 	if (n < PRIO_MIN)
 		n = PRIO_MIN;
-	/* 
-	 * Only allow nicing if to more than the lowest nice.
-	 * E.g., for nices of 4,3,2 allow nice to 3 but not 1
-	 */
-	FOREACH_KSEGRP_IN_PROC(p, kg) {
-		if (kg->kg_nice < low)
-			low = kg->kg_nice;
-	}
- 	if (n < low && suser(td) != 0)
+ 	if (n <  p->p_nice && suser(td) != 0)
 		return (EACCES);
 	mtx_lock_spin(&sched_lock);
-	FOREACH_KSEGRP_IN_PROC(p, kg) {
-		sched_nice(kg, n);
-	}
+	sched_nice(p, n);
 	mtx_unlock_spin(&sched_lock);
 	return (0);
 }

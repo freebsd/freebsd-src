@@ -366,9 +366,9 @@ kseq_load_add(struct kseq *kseq, struct kse *ke)
 		CTR6(KTR_ULE,
 		    "Add kse %p to %p (slice: %d, pri: %d, nice: %d(%d))",
 		    ke, ke->ke_runq, ke->ke_slice, ke->ke_thread->td_priority,
-		    ke->ke_ksegrp->kg_nice, kseq->ksq_nicemin);
+		    ke->ke_proc->p_nice, kseq->ksq_nicemin);
 	if (ke->ke_ksegrp->kg_pri_class == PRI_TIMESHARE)
-		kseq_nice_add(kseq, ke->ke_ksegrp->kg_nice);
+		kseq_nice_add(kseq, ke->ke_proc->p_nice);
 }
 
 static void
@@ -388,7 +388,7 @@ kseq_load_rem(struct kseq *kseq, struct kse *ke)
 	kseq->ksq_load--;
 	ke->ke_runq = NULL;
 	if (ke->ke_ksegrp->kg_pri_class == PRI_TIMESHARE)
-		kseq_nice_rem(kseq, ke->ke_ksegrp->kg_nice);
+		kseq_nice_rem(kseq, ke->ke_proc->p_nice);
 }
 
 static void
@@ -929,7 +929,7 @@ sched_priority(struct ksegrp *kg)
 
 	pri = SCHED_PRI_INTERACT(sched_interact_score(kg));
 	pri += SCHED_PRI_BASE;
-	pri += kg->kg_nice;
+	pri += kg->kg_proc->p_nice;
 
 	if (pri > PRI_MAX_TIMESHARE)
 		pri = PRI_MAX_TIMESHARE;
@@ -980,13 +980,13 @@ sched_slice(struct kse *ke)
 	if (!SCHED_INTERACTIVE(kg)) {
 		int nice;
 
-		nice = kg->kg_nice + (0 - kseq->ksq_nicemin);
+		nice = kg->kg_proc->p_nice + (0 - kseq->ksq_nicemin);
 		if (kseq->ksq_load_timeshare == 0 ||
-		    kg->kg_nice < kseq->ksq_nicemin)
+		    kg->kg_proc->p_nice < kseq->ksq_nicemin)
 			ke->ke_slice = SCHED_SLICE_MAX;
 		else if (nice <= SCHED_SLICE_NTHRESH)
 			ke->ke_slice = SCHED_SLICE_NICE(nice);
-		else if (kg->kg_nice == 0)
+		else if (kg->kg_proc->p_nice == 0)
 			ke->ke_slice = SCHED_SLICE_MIN;
 		else
 			ke->ke_slice = 0;
@@ -995,7 +995,7 @@ sched_slice(struct kse *ke)
 
 	CTR6(KTR_ULE,
 	    "Sliced %p(%d) (nice: %d, nicemin: %d, load: %d, interactive: %d)",
-	    ke, ke->ke_slice, kg->kg_nice, kseq->ksq_nicemin,
+	    ke, ke->ke_slice, kg->kg_proc->p_nice, kseq->ksq_nicemin,
 	    kseq->ksq_load_timeshare, SCHED_INTERACTIVE(kg));
 
 	return;
@@ -1167,29 +1167,35 @@ sched_switch(struct thread *td)
 }
 
 void
-sched_nice(struct ksegrp *kg, int nice)
+sched_nice(struct proc *p, int nice)
 {
+	struct ksegrp *kg;
 	struct kse *ke;
 	struct thread *td;
 	struct kseq *kseq;
 
-	PROC_LOCK_ASSERT(kg->kg_proc, MA_OWNED);
+	PROC_LOCK_ASSERT(p, MA_OWNED);
 	mtx_assert(&sched_lock, MA_OWNED);
 	/*
 	 * We need to adjust the nice counts for running KSEs.
 	 */
-	if (kg->kg_pri_class == PRI_TIMESHARE)
-		FOREACH_KSE_IN_GROUP(kg, ke) {
-			if (ke->ke_runq == NULL)
-				continue;
-			kseq = KSEQ_CPU(ke->ke_cpu);
-			kseq_nice_rem(kseq, kg->kg_nice);
-			kseq_nice_add(kseq, nice);
+	FOREACH_KSEGRP_IN_PROC(p, kg) {
+		if (kg->kg_pri_class == PRI_TIMESHARE) {
+			FOREACH_KSE_IN_GROUP(kg, ke) {
+				if (ke->ke_runq == NULL)
+					continue;
+				kseq = KSEQ_CPU(ke->ke_cpu);
+				kseq_nice_rem(kseq, p->p_nice);
+				kseq_nice_add(kseq, nice);
+			}
 		}
-	kg->kg_nice = nice;
-	sched_priority(kg);
-	FOREACH_THREAD_IN_GROUP(kg, td)
-		td->td_flags |= TDF_NEEDRESCHED;
+	}
+	p->p_nice = nice;
+	FOREACH_KSEGRP_IN_PROC(p, kg) {
+		sched_priority(kg);
+		FOREACH_THREAD_IN_GROUP(kg, td)
+			td->td_flags |= TDF_NEEDRESCHED;
+	}
 }
 
 void
@@ -1246,6 +1252,7 @@ sched_fork(struct proc *p, struct proc *p1)
 
 	mtx_assert(&sched_lock, MA_OWNED);
 
+	p1->p_nice = p->p_nice;
 	sched_fork_ksegrp(FIRST_KSEGRP_IN_PROC(p), FIRST_KSEGRP_IN_PROC(p1));
 	sched_fork_kse(FIRST_KSE_IN_PROC(p), FIRST_KSE_IN_PROC(p1));
 	sched_fork_thread(FIRST_THREAD_IN_PROC(p), FIRST_THREAD_IN_PROC(p1));
@@ -1273,7 +1280,6 @@ sched_fork_ksegrp(struct ksegrp *kg, struct ksegrp *child)
 	child->kg_slptime = kg->kg_slptime;
 	child->kg_runtime = kg->kg_runtime;
 	child->kg_user_pri = kg->kg_user_pri;
-	child->kg_nice = kg->kg_nice;
 	sched_interact_fork(child);
 	kg->kg_runtime += tickincr << 10;
 	sched_interact_update(kg);
@@ -1327,11 +1333,11 @@ sched_class(struct ksegrp *kg, int class)
 #endif
 		if (oclass == PRI_TIMESHARE) {
 			kseq->ksq_load_timeshare--;
-			kseq_nice_rem(kseq, kg->kg_nice);
+			kseq_nice_rem(kseq, kg->kg_proc->p_nice);
 		}
 		if (nclass == PRI_TIMESHARE) {
 			kseq->ksq_load_timeshare++;
-			kseq_nice_add(kseq, kg->kg_nice);
+			kseq_nice_add(kseq, kg->kg_proc->p_nice);
 		}
 	}
 
