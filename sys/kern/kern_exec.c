@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.68 1997/11/06 19:29:08 phk Exp $
+ *	$Id: kern_exec.c,v 1.69 1997/12/06 04:11:09 sef Exp $
  */
 
 #include <sys/param.h>
@@ -218,10 +218,9 @@ interpret:
 			if (bp != NULL) {
 				brelse(bp);
 				bp = NULL;
-			} else {
+			} else
 				free((void *)imgp->image_header, M_TEMP);
-				imgp->image_header = NULL;
-			}
+			imgp->image_header = NULL;
 			/* free old vnode and name buffer */
 			vrele(ndp->ni_vp);
 			zfree(namei_zone, ndp->ni_cnd.cn_pnbuf);
