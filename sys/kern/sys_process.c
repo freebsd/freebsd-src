@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sys_process.c,v 1.23 1996/05/02 14:20:23 phk Exp $
+ *	$Id: sys_process.c,v 1.24 1996/06/02 06:24:27 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -249,6 +249,10 @@ ptrace(curp, uap, retval)
 			if (error = suser(curp->p_ucred, &curp->p_acflag))
 				return error;
 		}
+
+		/* can't trace init when securelevel > 0 */
+		if (securelevel > 0 && p->p_pid == 1)
+			return EPERM;
 
 		/* OK */
 		break;
