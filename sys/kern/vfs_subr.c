@@ -1004,6 +1004,8 @@ getnewvnode(tag, mp, vops, vpp)
 	VI_UNLOCK(vp);
 #ifdef MAC
 	mac_init_vnode(vp);
+	if (mp != NULL && (mp->mnt_flag & MNT_MULTILABEL) == 0)
+		mac_associate_vnode_singlelabel(mp, vp);
 #endif
 	insmntque(vp, mp);
 

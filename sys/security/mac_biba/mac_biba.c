@@ -46,6 +46,7 @@
 #include <sys/param.h>
 #include <sys/acl.h>
 #include <sys/conf.h>
+#include <sys/extattr.h>
 #include <sys/kernel.h>
 #include <sys/mac.h>
 #include <sys/malloc.h>
@@ -82,6 +83,10 @@ SYSCTL_DECL(_security_mac);
 
 SYSCTL_NODE(_security_mac, OID_AUTO, biba, CTLFLAG_RW, 0,
     "TrustedBSD mac_biba policy controls");
+
+static int	mac_biba_label_size = sizeof(struct mac_biba);
+SYSCTL_INT(_security_mac_biba, OID_AUTO, label_size, CTLFLAG_RD,
+    &mac_biba_label_size, 0, "Size of struct mac_biba");
 
 static int	mac_biba_enabled = 0;
 SYSCTL_INT(_security_mac_biba, OID_AUTO, enabled, CTLFLAG_RW,
@@ -215,6 +220,19 @@ mac_biba_dominate_element(struct mac_biba_element *a,
 }
 
 static int
+mac_biba_subject_dominate_high(struct mac_biba *mac_biba)
+{
+	struct mac_biba_element *element;
+
+	KASSERT((mac_biba->mb_single->mb_flags & MAC_BIBA_FLAG_SINGLE) != 0,
+	    ("mac_biba_single_in_range: mac_biba not single"));
+	element = &mac_biba->mb_single;
+
+	return (element->mbe_type == MAC_BIBA_TYPE_EQUAL ||
+	    element->mbe_type == MAC_BIBA_TYPE_HIGH);
+}
+
+static int
 mac_biba_range_in_range(struct mac_biba *rangea, struct mac_biba *rangeb)
 {
 
@@ -317,6 +335,15 @@ mac_biba_subject_equal_ok(struct mac_biba *mac_biba)
 
 	/* It's not ok. */
 	return (EPERM);
+}
+
+mac_biba_high_single(struct mac_biba *mac_biba)
+{
+
+	KASSERT((mac_biba->mb_flags & MAC_BIBA_FLAG_SINGLE) != 0,
+	    ("mac_biba_equal_single: mac_biba not single"));
+
+	return (mac_biba->mb_single.mbe_type == MAC_BIBA_TYPE_HIGH);
 }
 
 static int
@@ -620,23 +647,6 @@ mac_biba_externalize_label(struct label *label, char *element_name,
 }
 
 static int
-mac_biba_externalize_vnode_oldmac(struct label *label, struct oldmac *extmac)
-{
-	struct mac_biba *mac_biba;
-
-	mac_biba = SLOT(label);
-
-	if (mac_biba == NULL) {
-		printf("mac_biba_externalize_vnode_oldmac: NULL pointer\n");
-		return (0);
-	}
-
-	extmac->m_biba = *mac_biba;
-
-	return (0);
-}
-
-static int
 mac_biba_parse_element(struct mac_biba_element *element, char *string)
 {
 
@@ -847,18 +857,6 @@ mac_biba_create_devfs_vnode(struct devfs_dirent *devfs_dirent,
 }
 
 static void
-mac_biba_create_vnode(struct ucred *cred, struct vnode *parent,
-    struct label *parentlabel, struct vnode *child, struct label *childlabel)
-{
-	struct mac_biba *source, *dest;
-
-	source = SLOT(&cred->cr_label);
-	dest = SLOT(childlabel);
-
-	mac_biba_copy_single(source, dest);
-}
-
-static void
 mac_biba_create_mount(struct ucred *cred, struct mount *mp,
     struct label *mntlabel, struct label *fslabel)
 {
@@ -909,53 +907,114 @@ mac_biba_update_devfsdirent(struct devfs_dirent *devfs_dirent,
 }
 
 static void
-mac_biba_update_procfsvnode(struct vnode *vp, struct label *vnodelabel,
-    struct ucred *cred)
+mac_biba_associate_vnode_devfs(struct mount *mp, struct label *fslabel,
+    struct devfs_dirent *de, struct label *delabel, struct vnode *vp,
+    struct label *vlabel)
 {
 	struct mac_biba *source, *dest;
 
-	source = SLOT(&cred->cr_label);
-	dest = SLOT(vnodelabel);
+	source = SLOT(delabel);
+	dest = SLOT(vlabel);
 
-	/*
-	 * Only copy the single, not the range, since vnodes only have
-	 * a single.
-	 */
 	mac_biba_copy_single(source, dest);
 }
 
 static int
-mac_biba_update_vnode_from_externalized(struct vnode *vp,
-    struct label *vnodelabel, struct oldmac *extmac)
+mac_biba_associate_vnode_extattr(struct mount *mp, struct label *fslabel,
+    struct vnode *vp, struct label *vlabel)
 {
-	struct mac_biba *source, *dest;
+	struct mac_biba temp, *source, *dest;
+	size_t buflen;
 	int error;
 
-	source = &extmac->m_biba;
-	dest = SLOT(vnodelabel);
+	source = SLOT(fslabel);
+	dest = SLOT(vlabel);
 
-	error = mac_biba_valid(source);
-	if (error)
+	buflen = sizeof(temp);
+	bzero(&temp, buflen);
+
+	error = vn_extattr_get(vp, IO_NODELOCKED, MAC_BIBA_EXTATTR_NAMESPACE,
+	    MAC_BIBA_EXTATTR_NAME, &buflen, (char *) &temp, curthread);
+	if (error == ENOATTR || error == EOPNOTSUPP) {
+		/* Fall back to the fslabel. */
+		mac_biba_copy_single(source, dest);
+		return (0);
+	} else if (error)
 		return (error);
 
-	if ((source->mb_flags & MAC_BIBA_FLAGS_BOTH) != MAC_BIBA_FLAG_SINGLE)
-		return (EINVAL);
+	if (buflen != sizeof(temp)) {
+		printf("mac_biba_associate_vnode_extattr: bad size %d\n",
+		    buflen);
+		return (EPERM);
+	}
+	if (mac_biba_valid(&temp) != 0) {
+		printf("mac_biba_associate_vnode_extattr: invalid\n");
+		return (EPERM);
+	}
+	if ((temp.mb_flags & MAC_BIBA_FLAGS_BOTH) != MAC_BIBA_FLAG_SINGLE) {
+		printf("mac_biba_associate_vnode_extattr: not single\n");
+		return (EPERM);
+	}
 
-	mac_biba_copy_single(source, dest);
-
+	mac_biba_copy_single(&temp, dest);
 	return (0);
 }
 
 static void
-mac_biba_update_vnode_from_mount(struct vnode *vp, struct label *vnodelabel,
-    struct mount *mp, struct label *fslabel)
+mac_biba_associate_vnode_singlelabel(struct mount *mp,
+    struct label *fslabel, struct vnode *vp, struct label *vlabel)
 {
 	struct mac_biba *source, *dest;
 
 	source = SLOT(fslabel);
-	dest = SLOT(vnodelabel);
+	dest = SLOT(vlabel);
 
 	mac_biba_copy_single(source, dest);
+}
+
+static int
+mac_biba_create_vnode_extattr(struct ucred *cred, struct mount *mp,
+    struct label *fslabel, struct vnode *dvp, struct label *dlabel,
+    struct vnode *vp, struct label *vlabel, struct componentname *cnp)
+{
+	struct mac_biba *source, *dest, temp;
+	size_t buflen;
+	int error;
+
+	buflen = sizeof(temp);
+	bzero(&temp, buflen);
+
+	source = SLOT(&cred->cr_label);
+	dest = SLOT(vlabel);
+	mac_biba_copy_single(source, &temp);
+
+	error = vn_extattr_set(vp, IO_NODELOCKED, MAC_BIBA_EXTATTR_NAMESPACE,
+	    MAC_BIBA_EXTATTR_NAME, buflen, (char *) &temp, curthread);
+	if (error == 0)
+		mac_biba_copy_single(source, dest);
+	return (error);
+}
+
+static int
+mac_biba_setlabel_vnode_extattr(struct ucred *cred, struct vnode *vp,
+    struct label *vlabel, struct label *intlabel)
+{
+	struct mac_biba *source, temp;
+	size_t buflen;
+	int error;
+
+	buflen = sizeof(temp);
+	bzero(&temp, buflen);
+
+	source = SLOT(intlabel);
+	if ((source->mb_flags & MAC_BIBA_FLAG_SINGLE) == 0)
+		return (0);
+
+	mac_biba_copy_single(source, &temp);
+
+	error = vn_extattr_set(vp, IO_NODELOCKED, MAC_BIBA_EXTATTR_NAMESPACE,
+	    MAC_BIBA_EXTATTR_NAME, buflen, (char *) &temp, curthread);
+	return (error);
 }
 
 /*
@@ -2450,8 +2509,6 @@ static struct mac_policy_op_entry mac_biba_ops[] =
 	    (macop_t)mac_biba_externalize_label },
 	{ MAC_EXTERNALIZE_VNODE_LABEL,
 	    (macop_t)mac_biba_externalize_label },
-	{ MAC_EXTERNALIZE_VNODE_OLDMAC,
-	    (macop_t)mac_biba_externalize_vnode_oldmac },
 	{ MAC_INTERNALIZE_CRED_LABEL,
 	    (macop_t)mac_biba_internalize_label },
 	{ MAC_INTERNALIZE_IFNET_LABEL,
@@ -2470,8 +2527,6 @@ static struct mac_policy_op_entry mac_biba_ops[] =
 	    (macop_t)mac_biba_create_devfs_symlink },
 	{ MAC_CREATE_DEVFS_VNODE,
 	    (macop_t)mac_biba_create_devfs_vnode },
-	{ MAC_CREATE_VNODE,
-	    (macop_t)mac_biba_create_vnode },
 	{ MAC_CREATE_MOUNT,
 	    (macop_t)mac_biba_create_mount },
 	{ MAC_CREATE_ROOT_MOUNT,
@@ -2480,12 +2535,16 @@ static struct mac_policy_op_entry mac_biba_ops[] =
 	    (macop_t)mac_biba_relabel_vnode },
 	{ MAC_UPDATE_DEVFSDIRENT,
 	    (macop_t)mac_biba_update_devfsdirent },
-	{ MAC_UPDATE_PROCFSVNODE,
-	    (macop_t)mac_biba_update_procfsvnode },
-	{ MAC_UPDATE_VNODE_FROM_EXTERNALIZED,
-	    (macop_t)mac_biba_update_vnode_from_externalized },
-	{ MAC_UPDATE_VNODE_FROM_MOUNT,
-	    (macop_t)mac_biba_update_vnode_from_mount },
+	{ MAC_ASSOCIATE_VNODE_DEVFS,
+	    (macop_t)mac_biba_associate_vnode_devfs },
+	{ MAC_ASSOCIATE_VNODE_EXTATTR,
+	    (macop_t)mac_biba_associate_vnode_extattr },
+	{ MAC_ASSOCIATE_VNODE_SINGLELABEL,
+	    (macop_t)mac_biba_associate_vnode_singlelabel },
+	{ MAC_CREATE_VNODE_EXTATTR,
+	    (macop_t)mac_biba_create_vnode_extattr },
+	{ MAC_SETLABEL_VNODE_EXTATTR,
+	    (macop_t)mac_biba_setlabel_vnode_extattr },
 	{ MAC_CREATE_MBUF_FROM_SOCKET,
 	    (macop_t)mac_biba_create_mbuf_from_socket },
 	{ MAC_CREATE_PIPE,

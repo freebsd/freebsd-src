@@ -46,6 +46,7 @@
 #include <sys/param.h>
 #include <sys/acl.h>
 #include <sys/conf.h>
+#include <sys/extattr.h>
 #include <sys/kernel.h>
 #include <sys/mac.h>
 #include <sys/malloc.h>
@@ -82,6 +83,10 @@ SYSCTL_DECL(_security_mac);
 
 SYSCTL_NODE(_security_mac, OID_AUTO, mls, CTLFLAG_RW, 0,
     "TrustedBSD mac_mls policy controls");
+
+static int	mac_mls_label_size = sizeof(struct mac_mls);
+SYSCTL_INT(_security_mac_mls, OID_AUTO, label_size, CTLFLAG_RD,
+    &mac_mls_label_size, 0, "Size of struct mac_mls");
 
 static int	mac_mls_enabled = 0;
 SYSCTL_INT(_security_mac_mls, OID_AUTO, enabled, CTLFLAG_RW,
@@ -609,23 +614,6 @@ mac_mls_externalize_label(struct label *label, char *element_name,
 }
 
 static int
-mac_mls_externalize_vnode_oldmac(struct label *label, struct oldmac *extmac)
-{
-	struct mac_mls *mac_mls;
-
-	mac_mls = SLOT(label);
-
-	if (mac_mls == NULL) {
-		printf("mac_mls_externalize: NULL pointer\n");
-		return (0);
-	}
-
-	extmac->m_mls = *mac_mls;
-
-	return (0);
-}
-
-static int
 mac_mls_parse_element(struct mac_mls_element *element, char *string)
 {
 
@@ -839,18 +827,6 @@ mac_mls_create_devfs_vnode(struct devfs_dirent *devfs_dirent,
 }
 
 static void
-mac_mls_create_vnode(struct ucred *cred, struct vnode *parent,
-    struct label *parentlabel, struct vnode *child, struct label *childlabel)
-{
-	struct mac_mls *source, *dest;
-
-	source = SLOT(&cred->cr_label);
-	dest = SLOT(childlabel);
-
-	mac_mls_copy_single(source, dest);
-}
-
-static void
 mac_mls_create_mount(struct ucred *cred, struct mount *mp,
     struct label *mntlabel, struct label *fslabel)
 {
@@ -901,53 +877,114 @@ mac_mls_update_devfsdirent(struct devfs_dirent *devfs_dirent,
 }
 
 static void
-mac_mls_update_procfsvnode(struct vnode *vp, struct label *vnodelabel,
-    struct ucred *cred)
+mac_mls_associate_vnode_devfs(struct mount *mp, struct label *fslabel,
+    struct devfs_dirent *de, struct label *delabel, struct vnode *vp,
+    struct label *vlabel)
 {
 	struct mac_mls *source, *dest;
 
-	source = SLOT(&cred->cr_label);
-	dest = SLOT(vnodelabel);
+	source = SLOT(delabel);
+	dest = SLOT(vlabel);
 
-	/*
-	 * Only copy the single, not the range, since vnodes only have
-	 * a single.
-	 */
 	mac_mls_copy_single(source, dest);
 }
 
 static int
-mac_mls_update_vnode_from_externalized(struct vnode *vp,
-    struct label *vnodelabel, struct oldmac *extmac)
+mac_mls_associate_vnode_extattr(struct mount *mp, struct label *fslabel,
+    struct vnode *vp, struct label *vlabel)
 {
-	struct mac_mls *source, *dest;
+	struct mac_mls temp, *source, *dest;
+	size_t buflen;
 	int error;
 
-	source = &extmac->m_mls;
-	dest = SLOT(vnodelabel);
+	source = SLOT(fslabel);
+	dest = SLOT(vlabel);
 
-	error = mac_mls_valid(source);
-	if (error)
+	buflen = sizeof(temp);
+	bzero(&temp, buflen);
+
+	error = vn_extattr_get(vp, IO_NODELOCKED, MAC_MLS_EXTATTR_NAMESPACE,
+	    MAC_MLS_EXTATTR_NAME, &buflen, (char *) &temp, curthread);
+	if (error == ENOATTR || error == EOPNOTSUPP) {
+		/* Fall back to the fslabel. */
+		mac_mls_copy_single(source, dest);
+		return (0);
+	} else if (error)
 		return (error);
 
-	if ((source->mm_flags & MAC_MLS_FLAGS_BOTH) != MAC_MLS_FLAG_SINGLE)
-		return (EINVAL);
+	if (buflen != sizeof(temp)) {
+		printf("mac_mls_associate_vnode_extattr: bad size %d\n",
+		    buflen);
+		return (EPERM);
+	}
+	if (mac_mls_valid(&temp) != 0) {
+		printf("mac_mls_associate_vnode_extattr: invalid\n");
+		return (EPERM);
+	}
+	if ((temp.mm_flags & MAC_MLS_FLAGS_BOTH) != MAC_MLS_FLAG_SINGLE) {
+		printf("mac_mls_associated_vnode_extattr: not single\n");
+		return (EPERM);
+	}
 
-	mac_mls_copy_single(source, dest);
-
+	mac_mls_copy_single(&temp, dest);
 	return (0);
 }
 
 static void
-mac_mls_update_vnode_from_mount(struct vnode *vp, struct label *vnodelabel,
-    struct mount *mp, struct label *fslabel)
+mac_mls_associate_vnode_singlelabel(struct mount *mp,
+    struct label *fslabel, struct vnode *vp, struct label *vlabel)
 {
 	struct mac_mls *source, *dest;
 
 	source = SLOT(fslabel);
-	dest = SLOT(vnodelabel);
+	dest = SLOT(vlabel);
 
 	mac_mls_copy_single(source, dest);
+}
+
+static int
+mac_mls_create_vnode_extattr(struct ucred *cred, struct mount *mp,
+    struct label *fslabel, struct vnode *dvp, struct label *dlabel,
+    struct vnode *vp, struct label *vlabel, struct componentname *cnp)
+{
+	struct mac_mls *source, *dest, temp;
+	size_t buflen;
+	int error;
+
+	buflen = sizeof(temp);
+	bzero(&temp, buflen);
+
+	source = SLOT(&cred->cr_label);
+	dest = SLOT(vlabel);
+	mac_mls_copy_single(source, &temp);
+
+	error = vn_extattr_set(vp, IO_NODELOCKED, MAC_MLS_EXTATTR_NAMESPACE,
+	    MAC_MLS_EXTATTR_NAME, buflen, (char *) &temp, curthread);
+	if (error == 0)
+		mac_mls_copy_single(source, dest);
+	return (error);
+}
+
+static int
+mac_mls_setlabel_vnode_extattr(struct ucred *cred, struct vnode *vp,
+    struct label *vlabel, struct label *intlabel)
+{
+	struct mac_mls *source, temp;
+	size_t buflen;
+	int error;
+
+	buflen = sizeof(temp);
+	bzero(&temp, buflen);
+
+	source = SLOT(intlabel);
+	if ((source->mm_flags & MAC_MLS_FLAG_SINGLE) == 0)
+		return (0);
+
+	mac_mls_copy_single(source, &temp);
+
+	error = vn_extattr_set(vp, IO_NODELOCKED, MAC_MLS_EXTATTR_NAMESPACE,
+	    MAC_MLS_EXTATTR_NAME, buflen, (char *) &temp, curthread);
+	return (error);
 }
 
 /*
@@ -2405,8 +2442,6 @@ static struct mac_policy_op_entry mac_mls_ops[] =
 	    (macop_t)mac_mls_externalize_label },
 	{ MAC_EXTERNALIZE_VNODE_LABEL,
 	    (macop_t)mac_mls_externalize_label },
-	{ MAC_EXTERNALIZE_VNODE_OLDMAC,
-	    (macop_t)mac_mls_externalize_vnode_oldmac },
 	{ MAC_INTERNALIZE_CRED_LABEL,
 	    (macop_t)mac_mls_internalize_label },
 	{ MAC_INTERNALIZE_IFNET_LABEL,
@@ -2425,8 +2460,6 @@ static struct mac_policy_op_entry mac_mls_ops[] =
 	    (macop_t)mac_mls_create_devfs_symlink },
 	{ MAC_CREATE_DEVFS_VNODE,
 	    (macop_t)mac_mls_create_devfs_vnode },
-	{ MAC_CREATE_VNODE,
-	    (macop_t)mac_mls_create_vnode },
 	{ MAC_CREATE_MOUNT,
 	    (macop_t)mac_mls_create_mount },
 	{ MAC_CREATE_ROOT_MOUNT,
@@ -2435,12 +2468,16 @@ static struct mac_policy_op_entry mac_mls_ops[] =
 	    (macop_t)mac_mls_relabel_vnode },
 	{ MAC_UPDATE_DEVFSDIRENT,
 	    (macop_t)mac_mls_update_devfsdirent },
-	{ MAC_UPDATE_PROCFSVNODE,
-	    (macop_t)mac_mls_update_procfsvnode },
-	{ MAC_UPDATE_VNODE_FROM_EXTERNALIZED,
-	    (macop_t)mac_mls_update_vnode_from_externalized },
-	{ MAC_UPDATE_VNODE_FROM_MOUNT,
-	    (macop_t)mac_mls_update_vnode_from_mount },
+	{ MAC_ASSOCIATE_VNODE_DEVFS,
+	    (macop_t)mac_mls_associate_vnode_devfs },
+	{ MAC_ASSOCIATE_VNODE_EXTATTR,
+	    (macop_t)mac_mls_associate_vnode_extattr },
+	{ MAC_ASSOCIATE_VNODE_SINGLELABEL,
+	    (macop_t)mac_mls_associate_vnode_singlelabel },
+	{ MAC_CREATE_VNODE_EXTATTR,
+	    (macop_t)mac_mls_create_vnode_extattr },
+	{ MAC_SETLABEL_VNODE_EXTATTR,
+	    (macop_t)mac_mls_setlabel_vnode_extattr },
 	{ MAC_CREATE_MBUF_FROM_SOCKET,
 	    (macop_t)mac_mls_create_mbuf_from_socket },
 	{ MAC_CREATE_PIPE,
