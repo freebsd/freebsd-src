@@ -2797,7 +2797,7 @@ static void dc_start(ifp)
 
 	sc = ifp->if_softc;
 
-	if (!sc->dc_link)
+	if (!sc->dc_link && ifp->if_snd.ifq_len < 10) {
 		return;
 
 	if (ifp->if_flags & IFF_OACTIVE)
