@@ -4,7 +4,7 @@
 
 /*
 ** This file is in the public domain, so clarified as of
-** June 5, 1996 by Arthur David Olson (arthur_david_olson@nih.gov).
+** 1996-06-05 by Arthur David Olson (arthur_david_olson@nih.gov).
 */
 
 /*
@@ -21,7 +21,7 @@
 
 #ifndef lint
 #ifndef NOID
-static char	privatehid[] = "@(#)private.h	7.43";
+static char	privatehid[] = "@(#)private.h	7.53";
 #endif /* !defined NOID */
 #endif /* !defined lint */
 
@@ -38,13 +38,29 @@ static char	privatehid[] = "@(#)private.h	7.43";
 #define HAVE_GETTEXT		0
 #endif /* !defined HAVE_GETTEXT */
 
+#ifndef HAVE_INCOMPATIBLE_CTIME_R
+#define HAVE_INCOMPATIBLE_CTIME_R	0
+#endif /* !defined INCOMPATIBLE_CTIME_R */
+
 #ifndef HAVE_SETTIMEOFDAY
 #define HAVE_SETTIMEOFDAY	3
 #endif /* !defined HAVE_SETTIMEOFDAY */
 
 #ifndef HAVE_STRERROR
-#define HAVE_STRERROR		0
+#define HAVE_STRERROR		1
 #endif /* !defined HAVE_STRERROR */
+
+#ifndef HAVE_SYMLINK
+#define HAVE_SYMLINK		1
+#endif /* !defined HAVE_SYMLINK */
+
+#ifndef HAVE_SYS_STAT_H
+#define HAVE_SYS_STAT_H		1
+#endif /* !defined HAVE_SYS_STAT_H */
+
+#ifndef HAVE_SYS_WAIT_H
+#define HAVE_SYS_WAIT_H		1
+#endif /* !defined HAVE_SYS_WAIT_H */
 
 #ifndef HAVE_UNISTD_H
 #define HAVE_UNISTD_H		1
@@ -57,6 +73,11 @@ static char	privatehid[] = "@(#)private.h	7.43";
 #ifndef LOCALE_HOME
 #define LOCALE_HOME		"/usr/lib/locale"
 #endif /* !defined LOCALE_HOME */
+
+#if HAVE_INCOMPATIBLE_CTIME_R
+#define asctime_r _incompatible_asctime_r
+#define ctime_r _incompatible_ctime_r
+#endif /* HAVE_INCOMPATIBLE_CTIME_R */
 
 /*
 ** Nested includes
@@ -73,6 +94,17 @@ static char	privatehid[] = "@(#)private.h	7.43";
 #if HAVE_GETTEXT - 0
 #include "libintl.h"
 #endif /* HAVE_GETTEXT - 0 */
+
+#if HAVE_SYS_WAIT_H - 0
+#include <sys/wait.h>	/* for WIFEXITED and WEXITSTATUS */
+#endif /* HAVE_SYS_WAIT_H - 0 */
+
+#ifndef WIFEXITED
+#define WIFEXITED(status)	(((status) & 0xff) == 0)
+#endif /* !defined WIFEXITED */
+#ifndef WEXITSTATUS
+#define WEXITSTATUS(status)	(((status) >> 8) & 0xff)
+#endif /* !defined WEXITSTATUS */
 
 #if HAVE_UNISTD_H - 0
 #include "unistd.h"	/* for F_OK and R_OK */
@@ -93,16 +125,6 @@ static char	privatehid[] = "@(#)private.h	7.43";
 /*
 ** Workarounds for compilers/systems.
 */
-
-/*
-** SunOS 4.1.1 cc lacks const.
-*/
-
-#ifndef const
-#ifndef __STDC__
-#define const
-#endif /* !defined __STDC__ */
-#endif /* !defined const */
 
 /*
 ** SunOS 4.1.1 cc lacks prototypes.
@@ -173,6 +195,19 @@ extern int errno;
 #endif /* !defined errno */
 
 /*
+** Private function declarations.
+*/
+char *	icalloc P((int nelem, int elsize));
+char *	icatalloc P((char * old, const char * new));
+char *	icpyalloc P((const char * string));
+char *	imalloc P((int n));
+void *	irealloc P((void * pointer, int size));
+void	icfree P((char * pointer));
+void	ifree P((char * pointer));
+char *	scheck P((const char *string, const char *format));
+
+
+/*
 ** Finally, some convenience items.
 */
 
@@ -200,7 +235,7 @@ extern int errno;
 ** add one more for a minus sign if the type is signed.
 */
 #define INT_STRLEN_MAXIMUM(type) \
-    ((TYPE_BIT(type) - TYPE_SIGNED(type)) * 302 / 100 + 1 + TYPE_SIGNED(type))
+    ((TYPE_BIT(type) - TYPE_SIGNED(type)) * 302 / 1000 + 1 + TYPE_SIGNED(type))
 #endif /* !defined INT_STRLEN_MAXIMUM */
 
 /*
@@ -245,8 +280,15 @@ extern int errno;
 #define TZ_DOMAIN "tz"
 #endif /* !defined TZ_DOMAIN */
 
+#if HAVE_INCOMPATIBLE_CTIME_R
+#undef asctime_r
+#undef ctime_r
+char *asctime_r P((struct tm const *, char *));
+char *ctime_r P((time_t const *, char *));
+#endif /* HAVE_INCOMPATIBLE_CTIME_R */
+
 /*
-** UNIX was a registered trademark of UNIX System Laboratories in 1993.
+** UNIX was a registered trademark of The Open Group in 2003.
 */
 
 #endif /* !defined PRIVATE_H */
