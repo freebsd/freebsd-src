@@ -146,6 +146,7 @@ int unlnk_exist __P((register char *, register int));
 int chk_path __P((register char *, uid_t, gid_t));
 void set_ftime __P((char *fnm, time_t mtime, time_t atime, int frc));
 int set_ids __P((char *, uid_t, gid_t));
+int set_lids __P((char *, uid_t, gid_t));
 void set_pmode __P((char *, mode_t));
 int file_write __P((int, char *, register int, int *, int *, int, char *));
 void file_flush __P((int, char *, int));
@@ -156,7 +157,7 @@ int set_crc __P((register ARCHD *, register int));
  * ftree.c
  */
 int ftree_start __P((void));
-int ftree_add __P((register char *));
+int ftree_add __P((register char *, int));
 void ftree_sel __P((register ARCHD *));
 void ftree_chk __P((void));
 int next_file __P((register ARCHD *));
@@ -164,9 +165,8 @@ int next_file __P((register ARCHD *));
 /*
  * gen_subs.c
  */
-void ls_list __P((register ARCHD *, time_t));
+void ls_list __P((register ARCHD *, time_t, FILE *));
 void ls_tty __P((register ARCHD *));
-void zf_strncpy __P((register char *, register char *, int));
 int l_strncpy __P((register char *, register char *, int));
 u_long asc_ul __P((register char *, int, register int));
 int ul_asc __P((u_long, register char *, register int, register int));
@@ -174,6 +174,11 @@ int ul_asc __P((u_long, register char *, register int, register int));
 u_quad_t asc_uqd __P((register char *, int, register int));
 int uqd_asc __P((u_quad_t, register char *, register int, register int));
 #endif
+
+/*
+ * getoldopt.c
+ */
+int getoldopt __P((int, char **, char *));
 
 /*
  * options.c
@@ -184,12 +189,13 @@ void options __P((register int, register char **));
 OPLIST * opt_next __P((void));
 int opt_add __P((register char *));
 int bad_opt __P((void));
+char *chdname;
 
 /*
  * pat_rep.c
  */
 int rep_add __P((register char *));
-int pat_add __P((char *));
+int pat_add __P((char *, char *));
 void pat_chk __P((void));
 int pat_sel __P((register ARCHD *));
 int pat_match __P((register ARCHD *));
@@ -202,6 +208,7 @@ int set_dest __P((register ARCHD *, char *, int));
 extern int act;
 extern FSUB *frmt;
 extern int cflag;
+extern int cwdfd;
 extern int dflag;
 extern int iflag;
 extern int kflag;
@@ -219,12 +226,15 @@ extern int Zflag;
 extern int vfpart;
 extern int patime;
 extern int pmtime;
+extern int nodirs;
 extern int pmode;
 extern int pids;
+extern int rmleadslash;
 extern int exit_val;
 extern int docrc;
 extern char *dirptr;
 extern char *argv0;
+extern FILE *listf;
 extern char *tempfile;
 extern char *tempbase;
 
@@ -250,7 +260,7 @@ int ftime_start __P((void));
 int chk_ftime __P((register ARCHD *));
 int name_start __P((void));
 int add_name __P((register char *, int, char *));
-void sub_name __P((register char *, int *));
+void sub_name __P((register char *, int *, size_t));
 int dev_start __P((void));
 int add_dev __P((register ARCHD *));
 int map_dev __P((register ARCHD *, u_long, u_long));

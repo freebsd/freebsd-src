@@ -180,8 +180,8 @@ chk_lnk(arcn)
 			 * other links.
 			 */
 			arcn->ln_nlen = l_strncpy(arcn->ln_name, pt->name,
-				PAXPATHLEN+1);
-			arcn->ln_name[PAXPATHLEN] = '\0';
+				sizeof(arcn->ln_name) - 1);
+			arcn->ln_name[arcn->ln_nlen] = '\0';
 			if (arcn->type == PAX_REG)
 				arcn->type = PAX_HRG;
 			else
@@ -624,12 +624,13 @@ add_name(oname, onamelen, nname)
 
 #ifdef __STDC__
 void
-sub_name(register char *oname, int *onamelen)
+sub_name(register char *oname, int *onamelen, size_t onamesize)
 #else
 void
-sub_name(oname, onamelen)
+sub_name(oname, onamelen, onamesize)
 	register char *oname;
 	int *onamelen;
+	size_t onamesize;
 #endif
 {
 	register NAMT *pt;
@@ -653,8 +654,8 @@ sub_name(oname, onamelen)
 			 * found it, replace it with the new name
 			 * and return (we know that oname has enough space)
 			 */
-			*onamelen = l_strncpy(oname, pt->nname, PAXPATHLEN+1);
-			oname[PAXPATHLEN] = '\0';
+			*onamelen = l_strncpy(oname, pt->nname, onamesize - 1);
+			oname[*onamelen] = '\0';
 			return;
 		}
 		pt = pt->fow;
