@@ -421,16 +421,19 @@ void
 showlocale(void)
 {
 	size_t	i;
-	const char *lang, *vval, *eval;
+	const char *lang, *vval, *eval, *lcall;
 
-	setlocale(LC_ALL, "");
+	(void)setlocale(LC_ALL, "");
 
-	lang = getenv("LANG");
-	if (lang == NULL) {
+	if ((lang = getenv("LANG")) == NULL)
 		lang = "";
-	}
-	printf("LANG=%s\n", lang);
 	/* XXX: if LANG is null, then set it to "C" to get implied values? */
+	if ((lcall = getenv("LC_ALL")) == NULL)
+		lcall = "";
+	if (!*lcall || !strcmp(lang, lcall))
+		printf("LANG=%s\n", lang);
+	else
+		printf("LANG=\"%s\"\n", lcall);
 
 	for (i = 0; i < NLCINFO; i++) {
 		vval = setlocale(lcinfo[i].id, NULL);
@@ -451,11 +454,7 @@ showlocale(void)
 		}
 	}
 
-	vval = getenv("LC_ALL");
-	if (vval == NULL) {
-		vval = "";
-	}
-	printf("LC_ALL=%s\n", vval);
+	printf("LC_ALL=%s\n", lcall);
 }
 
 /*
