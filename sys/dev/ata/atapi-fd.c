@@ -97,8 +97,6 @@ afdattach(struct atapi_softc *atp)
     bufq_init(&fdp->buf_queue);
     fdp->atp = atp;
     fdp->lun = ata_get_lun(&afd_lun_map);
-    fdp->atp->flags |= ATAPI_F_MEDIA_CHANGED;
-    fdp->atp->driver = fdp;
 
     if (afd_sense(fdp)) {
 	free(fdp, M_AFD);
@@ -117,6 +115,8 @@ afdattach(struct atapi_softc *atp)
     dev->si_drv1 = fdp;
     dev->si_iosize_max = 252 * DEV_BSIZE;
     fdp->dev = dev;
+    fdp->atp->flags |= ATAPI_F_MEDIA_CHANGED;
+    fdp->atp->driver = fdp;
     if ((fdp->atp->devname = malloc(8, M_AFD, M_NOWAIT)))
         sprintf(fdp->atp->devname, "afd%d", fdp->lun);
     afd_describe(fdp);
