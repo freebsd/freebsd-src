@@ -30,7 +30,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)termcap.src	8.2 (Berkeley) 11/17/93
-#	$Id$
+#	$Id: termcap.src,v 1.78 1997/02/22 13:56:40 peter Exp $
 
 #	Termcap source file
 #	John Kunze, Berkeley
@@ -2210,7 +2210,7 @@ cons25w|ansiw|ansi80x25-raw:\
 	:al=\E[L:am:bs:NP:cd=\E[J:ce=\E[K:cl=\E[H\E[J:cm=\E[%i%d;%dH:co#80:\
 	:dc=\E[P:dl=\E[M:do=\E[B:bt=\E[Z:ho=\E[H:ic=\E[@:li#25:cb=\E[1K:\
 	:ms:nd=\E[C:pt:rs=\E[x\E[m\Ec:so=\E[7m:se=\E[m:up=\E[A:\
-	:pa#64:Co#8:Sf=\E[3%dm:Sb=\E[4%dm:op=\E[x:sc=\E7:rc=\E8:\
+	:pa#64:Co#8:AF=\E[3%dm:AB=\E[4%dm:op=\E[x:sc=\E7:rc=\E8:\
 	:k1=\E[M:k2=\E[N:k3=\E[O:k4=\E[P:k5=\E[Q:k6=\E[R:k7=\E[S:k8=\E[T:\
 	:k9=\E[U:k;=\E[V:F1=\E[W:F2=\E[X:K2=\E[E:nw=\E[E:ec=\E[%dX:\
 	:kb=^H:kh=\E[H:ku=\E[A:kd=\E[B:kl=\E[D:kr=\E[C:le=^H:eo:sf=\E[S:sr=\E[T:\
@@ -2222,7 +2222,7 @@ cons25|ansis|ansi80x25:\
 	:ac=l\332m\300k\277j\331u\264t\303v\301w\302q\304x\263n\305`^Da\260f\370g\361~\371.^Y-^Xh\261I^U0\333y\363z\362:\
 	:tc=cons25w:
 cons25-m|ansis-mono|ansi80x25-mono:\
-	:pa@:Co@:Sf@:Sb@:op@:us=\E[4m:ue=\E[m:md@:mh@:tc=cons25:
+	:pa@:Co@:AF@:AB@:op@:us=\E[4m:ue=\E[m:md@:mh@:tc=cons25:
 cons30|ansi80x30:\
 	:li#30:tc=cons25:
 cons30-m|ansi80x30-mono:\
@@ -2244,7 +2244,7 @@ cons25r|pc3r|ibmpc3r|cons25-koi8-r:\
 	:ac=q\200x\201m\204v\211j\205t\206n\212u\207l\202w\210k\203y\230z\231f\234~\225a\220h\221`^D.^Y-^XI^U0\215:\
 	:kD=\E[K:tc=cons25w:
 cons25r-m|pc3r-m|ibmpc3r-mono|cons25-koi8-r-mono:\
-	:pa@:Co@:Sf@:Sb@:op@:us=\E[4m:ue=\E[m:md@:mh@:tc=cons25r:
+	:pa@:Co@:AF@:AB@:op@:us=\E[4m:ue=\E[m:md@:mh@:tc=cons25r:
 cons30r|cons30-koi8-r:\
 	:li#30:tc=cons25r:
 cons30r-m|cons30-koi8-r-mono:\
@@ -2266,7 +2266,7 @@ cons25l1|cons25-iso8859-1:\
 	:ac=l\215m\216k\214j\213u\226t\225v\227w\230q\222x\231n\217o\220s\224p\221r\223`\201a\202f\207g\210~\237.^Y-^X+\253,\273I\247y\232z\233:\
 	:tc=cons25w:
 cons25l1-m|cons25-iso8859-1-mono:\
-	:pa@:Co@:Sf@:Sb@:op@:us=\E[4m:ue=\E[m:md@:mh@:tc=cons25l1:
+	:pa@:Co@:AF@:AB@:op@:us=\E[4m:ue=\E[m:md@:mh@:tc=cons25l1:
 cons30l1|cons30-iso8859-1:\
 	:li#30:tc=cons25l1:
 cons30l1-m|cons30-iso8859-1-mono:\
@@ -2605,7 +2605,7 @@ xterms|vs100s|xterm terminal emulator (small)(X window system):\
 	:is=\E>\E[?1;3;4;5l\E[?7;8h\E[1;24r\E[24;1H:\
 	:li#24:tc=xterm:
 xterm-color|xterm-co|xterm with ANSI colors:\
-	:pa#64:Co#8:Sf=\E[3%dm:Sb=\E[4%dm:op=\E[m:tc=xterm:
+	:pa#64:Co#8:AF=\E[3%dm:AB=\E[4%dm:op=\E[m:tc=xterm:
 # dtterm termcap entry - Obtained from Xinside's CDE with permission
 # from Thomas Roell
 dtterm|dtterm-cde10:\
@@ -3832,8 +3832,8 @@ pc3|ibmpc3|IBM PC 386BSD Console:\
 	:K5=\E[G:\
 	:LE=\E[%dD:\
 	:RI=\E[%dC:\
-	:Sb=\E[1;%dx:\
-	:Sf=\E[2;%dx:\
+	:AB=\E[1;%dx:\
+	:AF=\E[2;%dx:\
 	:UP=\E[%dA:\
 	:ac=l\332m\300k\277j\331u\264t\303v\301w\302q\304x\263n\305`^Da\260f\370g\361~\371.^Y-^Xh\261I^U0\333y\363z\362:\
 	:am:\
