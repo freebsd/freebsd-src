@@ -1,4 +1,4 @@
-#	$FreeBSD$
+# $FreeBSD$
 
 LIB=	posix1e
 SHLIB_MAJOR= 2 
