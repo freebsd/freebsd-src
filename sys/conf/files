@@ -342,6 +342,8 @@ dev/dpt/dpt_scsi.c	optional dpt
 dev/dpt/dpt_eisa.c	optional dpt eisa
 dev/dpt/dpt_pci.c	optional dpt pci
 dev/ed/if_ed_pci.c	optional ed pci
+dev/em/if_em.c		optional em
+dev/em/if_em_hw.c	optional em
 dev/ep/if_ep.c		optional ep
 dev/ep/if_ep_isa.c	optional ep isa
 dev/ep/if_ep_eisa.c	optional ep eisa
