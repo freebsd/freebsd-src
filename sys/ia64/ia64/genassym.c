@@ -52,6 +52,7 @@
 #include <sys/ucontext.h>
 #include <machine/frame.h>
 #include <machine/mutex.h>
+#include <machine/elf.h>
 #include <sys/vmmeter.h>
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -139,3 +140,14 @@ ASSYM(KSTACK_PAGES, KSTACK_PAGES);
 
 ASSYM(SIZEOF_TRAPFRAME, sizeof(struct trapframe));
 ASSYM(SIZEOF_PCB, sizeof(struct pcb));
+
+ASSYM(DT_NULL,		DT_NULL);
+ASSYM(DT_RELA,		DT_RELA);
+ASSYM(DT_RELASZ,	DT_RELASZ);
+ASSYM(DT_SYMTAB,	DT_SYMTAB);
+ASSYM(DT_SYMENT,	DT_SYMENT);
+ASSYM(DT_RELAENT,	DT_RELAENT);
+ASSYM(R_IA64_NONE,	R_IA64_NONE);
+ASSYM(R_IA64_DIR64LSB,	R_IA64_DIR64LSB);
+ASSYM(R_IA64_FPTR64LSB,	R_IA64_FPTR64LSB);
+ASSYM(R_IA64_REL64LSB,	R_IA64_REL64LSB);

@@ -387,16 +387,23 @@ ia64_init()
 	/* OUTPUT NOW ALLOWED */
 
 	/*
+	 * Gross and disgusting hack. The bootinfo is written into
+	 * memory at a fixed address.
+	 */
+	bootinfo = *(struct bootinfo *) 0xe000000000508000;
+	if (bootinfo.bi_magic != BOOTINFO_MAGIC
+	    || bootinfo.bi_version != 1) {
+		bzero(&bootinfo, sizeof(bootinfo));
+		bootinfo.bi_kernend = (vm_offset_t) round_page(_end);
+	}
+
+	/*
 	 * Find the beginning and end of the kernel.
 	 */
 	kernstart = trunc_page(kernel_text);
-#ifdef DDBxx
 	ksym_start = (void *)bootinfo.bi_symtab;
 	ksym_end   = (void *)bootinfo.bi_esymtab;
 	kernend = (vm_offset_t)round_page(ksym_end);
-#else
-	kernend = (vm_offset_t)round_page(_end);
-#endif
 	/* But if the bootstrap tells us otherwise, believe it! */
 	if (bootinfo.bi_kernend)
 		kernend = round_page(bootinfo.bi_kernend);
@@ -606,74 +613,10 @@ ia64_init()
 	/*
 	 * Look at arguments passed to us and compute boothowto.
 	 */
-	boothowto = 0;
+	boothowto = bootinfo.bi_boothowto;
 #ifdef KADB
 	boothowto |= RB_KDB;
 #endif
-/*	boothowto |= RB_KDB | RB_GDB; */
-	for (p = bootinfo.bi_flags; p && *p != '\0'; p++) {
-		/*
-		 * Note that we'd really like to differentiate case here,
-		 * but the Ia64 AXP Architecture Reference Manual
-		 * says that we shouldn't.
-		 */
-		switch (*p) {
-		case 'a': /* autoboot */
-		case 'A':
-			boothowto &= ~RB_SINGLE;
-			break;
-
-#ifdef DEBUG
-		case 'c': /* crash dump immediately after autoconfig */
-		case 'C':
-			boothowto |= RB_DUMP;
-			break;
-#endif
-
-#if defined(DDB)
-		case 'd': /* break into the kernel debugger ASAP */
-		case 'D':
-			boothowto |= RB_KDB;
-			break;
-		case 'g': /* use kernel gdb */
-		case 'G':
-			boothowto |= RB_GDB;
-			break;
-#endif
-
-		case 'h': /* always halt, never reboot */
-		case 'H':
-			boothowto |= RB_HALT;
-			break;
-
-#if 0
-		case 'm': /* mini root present in memory */
-		case 'M':
-			boothowto |= RB_MINIROOT;
-			break;
-#endif
-
-		case 'n': /* askname */
-		case 'N':
-			boothowto |= RB_ASKNAME;
-			break;
-
-		case 's': /* single-user (default, supported for sanity) */
-		case 'S':
-			boothowto |= RB_SINGLE;
-			break;
-
-		case 'v':
-		case 'V':
-			boothowto |= RB_VERBOSE;
-			bootverbose = 1;
-			break;
-
-		default:
-			printf("Unrecognized boot flag '%c'.\n", *p);
-			break;
-		}
-	}
 
 	/*
 	 * Catch case of boot_verbose set in environment.
@@ -681,9 +624,11 @@ ia64_init()
 	if ((p = getenv("boot_verbose")) != NULL) {
 		if (strcmp(p, "yes") == 0 || strcmp(p, "YES") == 0) {
 			boothowto |= RB_VERBOSE;
-			bootverbose = 1;
 		}
 	}
+
+	if (boothowto & RB_VERBOSE)
+		bootverbose = 1;
 
 	/*
 	 * Force single-user for a while.
