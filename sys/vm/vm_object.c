@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.138.2.1 1999/01/22 06:00:21 dillon Exp $
+ * $Id: vm_object.c,v 1.138.2.2 1999/01/22 06:44:16 dillon Exp $
  */
 
 /*
@@ -874,6 +874,10 @@ vm_object_shadow(object, offset, length)
 	 * Our caller changes his reference to point to the new object,
 	 * removing a reference to the source object.  Net result: no change
 	 * of reference count.
+	 *
+	 * Try to optimize the result object's page color when shadowing
+	 * in order to maintain page coloring consistancy in the combined 
+	 * shadowed object.
 	 */
 	result->backing_object = source;
 	if (source) {
@@ -881,6 +885,7 @@ vm_object_shadow(object, offset, length)
 		vm_object_clear_flag(source, OBJ_ONEMAPPING);
 		source->shadow_count++;
 		source->generation++;
+		result->pg_color = (source->pg_color + OFF_TO_IDX(*offset)) & PQ_L2_MASK;
 	}
 
 	/*
