@@ -76,6 +76,11 @@ struct	ether_header;
 
 #include <sys/queue.h>		/* get TAILQ macros */
 
+#ifdef _KERNEL
+#include <sys/mbuf.h>
+#include <sys/systm.h>		/* XXX */
+#endif /* _KERNEL */
+
 TAILQ_HEAD(ifnethead, ifnet);	/* we use TAILQs so that the order of */
 TAILQ_HEAD(ifaddrhead, ifaddr);	/* instantiation is preserved in the list */
 TAILQ_HEAD(ifprefixhead, ifprefix);
@@ -143,39 +148,39 @@ struct ifnet {
 	int	if_amcount;		/* number of all-multicast requests */
 /* procedure handles */
 	int	(*if_output)		/* output routine (enqueue) */
-		__P((struct ifnet *, struct mbuf *, struct sockaddr *,
-		     struct rtentry *));
+		(struct ifnet *, struct mbuf *, struct sockaddr *,
+		     struct rtentry *);
 	void	(*if_start)		/* initiate output routine */
-		__P((struct ifnet *));
+		(struct ifnet *);
 	union {
 		int	(*if_done)		/* output complete routine */
-			__P((struct ifnet *));	/* (XXX not used) */
+			(struct ifnet *);	/* (XXX not used) */
 		int	uif_capabilities;	/* interface capabilities */
 	} _u1;
 	int	(*if_ioctl)		/* ioctl routine */
-		__P((struct ifnet *, u_long, caddr_t));
+		(struct ifnet *, u_long, caddr_t);
 	void	(*if_watchdog)		/* timer routine */
-		__P((struct ifnet *));
+		(struct ifnet *);
 	union {
 		int	(*if_poll_recv)		/* polled receive routine */
-			__P((struct ifnet *, int *));
+			(struct ifnet *, int *);
 		int	uif_capenable;		/* enabled features */
 	} _u2;
 	int	(*if_poll_xmit)		/* polled transmit routine */
-		__P((struct ifnet *, int *));
+		(struct ifnet *, int *);
 	void	(*if_poll_intren)	/* polled interrupt reenable routine */
-		__P((struct ifnet *));
+		(struct ifnet *);
 	void	(*if_poll_slowinput)	/* input routine for slow devices */
-		__P((struct ifnet *, struct mbuf *));
+		(struct ifnet *, struct mbuf *);
 	void	(*if_init)		/* Init routine */
-		__P((void *));
+		(void *);
 	int	(*if_resolvemulti)	/* validate/resolve multicast */
-		__P((struct ifnet *, struct sockaddr **, struct sockaddr *));
+		(struct ifnet *, struct sockaddr **, struct sockaddr *);
 	struct	ifqueue if_snd;		/* output queue */
 	struct	ifqueue *if_poll_slowq;	/* input queue for slow devices */
 	struct	ifprefixhead if_prefixhead; /* list of prefixes per if */
 };
-typedef void if_init_f_t __P((void *));
+typedef void if_init_f_t (void *);
 
 /*
  * Binary compatability gunk for 4.x ONLY.
@@ -252,32 +257,39 @@ typedef void if_init_f_t __P((void *));
 }
 
 #ifdef _KERNEL
-#define	IF_ENQ_DROP(ifq, m)	if_enq_drop(ifq, m)
 
-#if defined(__GNUC__) && defined(MT_HEADER)
-static __inline int
-if_queue_drop(struct ifqueue *ifq, struct mbuf *m)
-{
-	IF_DROP(ifq);
-	return 0;
-}
+/*
+ * #define _IF_QFULL for compatibility with -current
+ */
+#define	_IF_QFULL(ifq)				IF_QFULL(ifq)
+
+#define IF_HANDOFF(ifq, m, ifp)			if_handoff(ifq, m, ifp, 0)
+#define IF_HANDOFF_ADJ(ifq, m, ifp, adj)	if_handoff(ifq, m, ifp, adj)
 
 static __inline int
-if_enq_drop(struct ifqueue *ifq, struct mbuf *m)
+if_handoff(struct ifqueue *ifq, struct mbuf *m, struct ifnet *ifp, int adjust)
 {
-	if (IF_QFULL(ifq) &&
-	    !if_queue_drop(ifq, m))
-		return 0;
+	int need_if_start = 0;
+	int s = splimp();
+ 
+	if (IF_QFULL(ifq)) {
+		IF_DROP(ifq);
+		splx(s);
+		m_freem(m);
+		return (0);
+	}
+	if (ifp != NULL) {
+		ifp->if_obytes += m->m_pkthdr.len + adjust;
+		if (m->m_flags & M_MCAST)
+			ifp->if_omcasts++;
+		need_if_start = !(ifp->if_flags & IFF_OACTIVE);
+	}
 	IF_ENQUEUE(ifq, m);
-	return 1;
+	if (need_if_start)
+		(*ifp->if_start)(ifp);
+	splx(s);
+	return (1);
 }
-#else
-
-#ifdef MT_HEADER
-int	if_enq_drop __P((struct ifqueue *, struct mbuf *));
-#endif
-
-#endif
 
 /*
  * 72 was chosen below because it is the size of a TCP/IP
@@ -303,7 +315,7 @@ struct ifaddr {
 	struct	ifnet *ifa_ifp;		/* back-pointer to interface */
 	TAILQ_ENTRY(ifaddr) ifa_link;	/* queue macro glue */
 	void	(*ifa_rtrequest)	/* check or clean routes (+ or -)'d */
-		__P((int, struct rtentry *, struct rt_addrinfo *));
+		(int, struct rtentry *, struct rt_addrinfo *);
 	u_short	ifa_flags;		/* mostly rt_flags for cloning */
 	u_int	ifa_refcnt;		/* references to this structure */
 	int	ifa_metric;		/* cost of going out this interface */
@@ -311,7 +323,7 @@ struct ifaddr {
 	struct	rtentry *ifa_rt;	/* XXXX for ROUTETOIF ????? */
 #endif
 	int (*ifa_claim_addr)		/* check if an addr goes to this if */
-		__P((struct ifaddr *, struct sockaddr *));
+		(struct ifaddr *, struct sockaddr *);
 
 };
 #define	IFA_ROUTE	RTF_UP		/* route installed */
@@ -349,12 +361,12 @@ struct ifmultiaddr {
 };
 
 #ifdef _KERNEL
-#define	IFAFREE(ifa) \
-	do { \
-		if ((ifa)->ifa_refcnt <= 0) \
-			ifafree(ifa); \
-		else \
-			(ifa)->ifa_refcnt--; \
+#define	IFAFREE(ifa)					\
+	do {						\
+		if ((ifa)->ifa_refcnt <= 0)		\
+			ifafree(ifa);			\
+		else					\
+			(ifa)->ifa_refcnt--;		\
 	} while (0)
 
 extern	struct ifnethead ifnet;
@@ -364,56 +376,46 @@ extern	struct ifnet loif[];
 extern	int if_index;
 extern	struct ifaddr **ifnet_addrs;
 
-void	ether_ifattach __P((struct ifnet *, int));
-void	ether_ifdetach __P((struct ifnet *, int));
-void	ether_input __P((struct ifnet *, struct ether_header *, struct mbuf *));
-void	ether_demux __P((struct ifnet *, struct ether_header *, struct mbuf *));
-int	ether_output __P((struct ifnet *,
-	   struct mbuf *, struct sockaddr *, struct rtentry *));
-int	ether_output_frame __P((struct ifnet *, struct mbuf *));
-int	ether_ioctl __P((struct ifnet *, int, caddr_t));
+void	ether_ifattach(struct ifnet *, int);
+void	ether_ifdetach(struct ifnet *, int);
+void	ether_input(struct ifnet *, struct ether_header *, struct mbuf *);
+void	ether_demux(struct ifnet *, struct ether_header *, struct mbuf *);
+int	ether_output(struct ifnet *,
+	   struct mbuf *, struct sockaddr *, struct rtentry *);
+int	ether_output_frame(struct ifnet *, struct mbuf *);
+int	ether_ioctl(struct ifnet *, int, caddr_t);
 
-int	if_addmulti __P((struct ifnet *, struct sockaddr *,
-			 struct ifmultiaddr **));
-int	if_allmulti __P((struct ifnet *, int));
-void	if_attach __P((struct ifnet *));
-int	if_delmulti __P((struct ifnet *, struct sockaddr *));
-void	if_detach __P((struct ifnet *));
-void	if_down __P((struct ifnet *));
-void	if_route __P((struct ifnet *, int flag, int fam));
-int	if_setlladdr __P((struct ifnet *, const u_char *, int));
-void	if_unroute __P((struct ifnet *, int flag, int fam));
-void	if_up __P((struct ifnet *));
-/*void	ifinit __P((void));*/ /* declared in systm.h for main() */
-int	ifioctl __P((struct socket *, u_long, caddr_t, struct proc *));
-int	ifpromisc __P((struct ifnet *, int));
-struct	ifnet *ifunit __P((const char *));
-struct	ifnet *if_withname __P((struct sockaddr *));
+int	if_addmulti(struct ifnet *, struct sockaddr *, struct ifmultiaddr **);
+int	if_allmulti(struct ifnet *, int);
+void	if_attach(struct ifnet *);
+int	if_delmulti(struct ifnet *, struct sockaddr *);
+void	if_detach(struct ifnet *);
+void	if_down(struct ifnet *);
+void	if_route(struct ifnet *, int flag, int fam);
+int	if_setlladdr(struct ifnet *, const u_char *, int);
+void	if_unroute(struct ifnet *, int flag, int fam);
+void	if_up(struct ifnet *);
+/*void	ifinit(void);*/ /* declared in systm.h for main() */
+int	ifioctl(struct socket *, u_long, caddr_t, struct proc *);
+int	ifpromisc(struct ifnet *, int);
+struct	ifnet *ifunit(const char *);
+struct	ifnet *if_withname(struct sockaddr *);
 
-int	if_poll_recv_slow __P((struct ifnet *ifp, int *quotap));
-void	if_poll_xmit_slow __P((struct ifnet *ifp, int *quotap));
-void	if_poll_throttle __P((void));
-void	if_poll_unthrottle __P((void *));
-void	if_poll_init __P((void));
-void	if_poll __P((void));
+struct	ifaddr *ifa_ifwithaddr(struct sockaddr *);
+struct	ifaddr *ifa_ifwithdstaddr(struct sockaddr *);
+struct	ifaddr *ifa_ifwithnet(struct sockaddr *);
+struct	ifaddr *ifa_ifwithroute(int, struct sockaddr *, struct sockaddr *);
+struct	ifaddr *ifaof_ifpforaddr(struct sockaddr *, struct ifnet *);
+void	ifafree(struct ifaddr *);
 
-struct	ifaddr *ifa_ifwithaddr __P((struct sockaddr *));
-struct	ifaddr *ifa_ifwithdstaddr __P((struct sockaddr *));
-struct	ifaddr *ifa_ifwithnet __P((struct sockaddr *));
-struct	ifaddr *ifa_ifwithroute __P((int, struct sockaddr *,
-					struct sockaddr *));
-struct	ifaddr *ifaof_ifpforaddr __P((struct sockaddr *, struct ifnet *));
-void	ifafree __P((struct ifaddr *));
+struct	ifmultiaddr *ifmaof_ifpforaddr(struct sockaddr *, struct ifnet *);
+int	if_simloop(struct ifnet *ifp, struct mbuf *m, int af, int hlen);
 
-struct	ifmultiaddr *ifmaof_ifpforaddr __P((struct sockaddr *,
-					    struct ifnet *));
-int	if_simloop __P((struct ifnet *ifp, struct mbuf *m, int af, int hlen));
+void	if_clone_attach(struct if_clone *);
+void	if_clone_detach(struct if_clone *);
 
-void	if_clone_attach __P((struct if_clone *));
-void	if_clone_detach __P((struct if_clone *));
-
-int	if_clone_create __P((char *, int));
-int	if_clone_destroy __P((const char *));
+int	if_clone_create(char *, int);
+int	if_clone_destroy(const char *);
 
 #define IF_LLADDR(ifp)							\
     LLADDR((struct sockaddr_dl *) ifnet_addrs[ifp->if_index - 1]->ifa_addr)
@@ -421,10 +423,10 @@ int	if_clone_destroy __P((const char *));
 #ifdef DEVICE_POLLING
 enum poll_cmd { POLL_ONLY, POLL_AND_CHECK_STATUS, POLL_DEREGISTER };
 
-typedef	void poll_handler_t __P((struct ifnet *ifp,
-		enum poll_cmd cmd, int count));
-int	ether_poll_register __P((poll_handler_t *h, struct ifnet *ifp));
-int	ether_poll_deregister __P((struct ifnet *ifp));
+typedef	void poll_handler_t (struct ifnet *ifp,
+		enum poll_cmd cmd, int count);
+int	ether_poll_register(poll_handler_t *h, struct ifnet *ifp);
+int	ether_poll_deregister(struct ifnet *ifp);
 #endif /* DEVICE_POLLING */
 #endif /* _KERNEL */
 
