@@ -201,12 +201,11 @@ MFSLABEL=		auto
 NO_FLOPPIES=
 .elif ${TARGET_ARCH} == "sparc64"
 DISKLABEL=		sunlabel
-BIGBOOTSIZE=		4096
 MFSSIZE=		4096
-BOOTINODE=		8192
 MFSINODE=		8192
-BIGBOOTLABEL=		auto
 MFSLABEL=		auto
+MINIROOT=
+NO_FLOPPIES=
 .elif ${TARGET_ARCH} == "ia64"
 MFSINODE=		8192
 MFSLABEL=		auto
@@ -249,7 +248,7 @@ CD_DISC2=		${CD}/disc2
 # Where the bootstrap ports (see DOCPORTS) get installed.
 LOCALDIR=		/usr/local/bin
 
-.if ${TARGET} != ${MACHINE}
+.if ${TARGET} != ${MACHINE} && ${DISKLABEL} == "bsdlabel"
 DOFS_SH=	${.CURDIR}/scripts/doFS.sh ${DISKLABEL} ${TARGET}
 .else
 DOFS_SH=	${.CURDIR}/scripts/doFS.sh ${DISKLABEL} ""
@@ -884,6 +883,12 @@ cdrom.1:
 	@echo 'mfsroot_name="/boot/mfsroot"' >> ${CD_DISC2}/boot/loader.conf
 .if defined(CD_BOOT)
 	@cp -Rp ${CD_DISC2}/boot ${CD_BOOT}
+.if defined(MINIROOT)
+	@mkdir -p ${FD}/miniroot
+	@sh -e ${DOFS_SH} ${FD}/miniroot/miniroot.ufs \
+	    ${RD} ${MNT} 0 ${CD_BOOT} 8192 auto
+	@gzip -9v ${FD}/miniroot/miniroot.ufs
+.endif
 .endif
 	@cp -Rp ${CD_DISC2}/boot ${CD_DISC1}
 .if ${TARGET} == "i386" && defined(EMUL_BOOT) && !defined(NO_FLOPPIES)
