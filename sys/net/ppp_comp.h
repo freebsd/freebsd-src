@@ -24,7 +24,7 @@
  * OBLIGATION TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS,
  * OR MODIFICATIONS.
  *
- * $Id: ppp-comp.h,v 1.10 1996/09/26 06:30:11 paulus Exp $
+ * $Id: ppp-comp.h,v 1.11 1998/03/25 03:33:34 paulus Exp $
  */
 
 #ifndef _NET_PPP_COMP_H
@@ -141,7 +141,8 @@ struct compressor {
 /*
  * Definitions for Deflate.
  */
-#define CI_DEFLATE		24	/* config option for Deflate */
+#define CI_DEFLATE		26	/* config option for Deflate */
+#define CI_DEFLATE_DRAFT	24	/* value used in original draft RFC */
 #define CILEN_DEFLATE		4	/* length of its config option */
 
 #define DEFLATE_MIN_SIZE	8
