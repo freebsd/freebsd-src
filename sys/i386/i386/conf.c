@@ -41,7 +41,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.29 1994/08/30 19:36:32 davidg Exp $
+ *	$Id: conf.c,v 1.30 1994/08/30 20:11:40 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -285,12 +285,23 @@ int	nblkdev = sizeof (bdevsw) / sizeof (bdevsw[0]);
 #include "machine/cons.h"
 
 /* more console */
+#include "sc.h"
+#if NSC > 0
 d_open_t pcopen;
 d_close_t pcclose;
 d_rdwr_t pcread, pcwrite;
 d_ioctl_t pcioctl;
 d_mmap_t pcmmap;
 extern	struct tty pccons[];
+#else
+#define pcopen		(d_open_t *)enxio
+#define pcclose		(d_close_t *)enxio
+#define pcread		(d_rdwr_t *)enxio
+#define pcwrite		(d_rdwr_t *)enxio
+#define pcioctl		(d_ioctl_t *)enxio
+#define pcmmap		(d_mmap_t *)enxio
+#define pccons		NULL
+#endif
 
 /* controlling TTY */
 d_open_t cttyopen;
