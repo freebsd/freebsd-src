@@ -1311,6 +1311,7 @@ xl_attach(dev)
 	struct ifnet		*ifp;
 	int			media = IFM_ETHER|IFM_100_TX|IFM_FDX;
 	int			unit, error = 0, rid, res;
+	uint16_t		did;
 
 	sc = device_get_softc(dev);
 	unit = device_get_unit(dev);
@@ -1319,41 +1320,54 @@ xl_attach(dev)
 	    MTX_DEF | MTX_RECURSE);
 	ifmedia_init(&sc->ifmedia, 0, xl_ifmedia_upd, xl_ifmedia_sts);
 
+	did = pci_get_device(dev);
+
 	sc->xl_flags = 0;
-	if (pci_get_device(dev) == TC_DEVICEID_HURRICANE_555)
+	if (did == TC_DEVICEID_HURRICANE_555)
 		sc->xl_flags |= XL_FLAG_EEPROM_OFFSET_30 | XL_FLAG_PHYOK;
-	if (pci_get_device(dev) == TC_DEVICEID_HURRICANE_556 ||
-	    pci_get_device(dev) == TC_DEVICEID_HURRICANE_556B)
+	if (did == TC_DEVICEID_HURRICANE_556 ||
+	    did == TC_DEVICEID_HURRICANE_556B)
 		sc->xl_flags |= XL_FLAG_FUNCREG | XL_FLAG_PHYOK |
 		    XL_FLAG_EEPROM_OFFSET_30 | XL_FLAG_WEIRDRESET |
 		    XL_FLAG_INVERT_LED_PWR | XL_FLAG_INVERT_MII_PWR;
-	if (pci_get_device(dev) == TC_DEVICEID_HURRICANE_555 ||
-	    pci_get_device(dev) == TC_DEVICEID_HURRICANE_556)
+	if (did == TC_DEVICEID_HURRICANE_555 ||
+	    did == TC_DEVICEID_HURRICANE_556)
 		sc->xl_flags |= XL_FLAG_8BITROM;
-	if (pci_get_device(dev) == TC_DEVICEID_HURRICANE_556B)
+	if (did == TC_DEVICEID_HURRICANE_556B)
 		sc->xl_flags |= XL_FLAG_NO_XCVR_PWR;
 
-	if (pci_get_device(dev) == TC_DEVICEID_HURRICANE_575A ||
-	    pci_get_device(dev) == TC_DEVICEID_HURRICANE_575B ||
-	    pci_get_device(dev) == TC_DEVICEID_HURRICANE_575C ||
-	    pci_get_device(dev) == TC_DEVICEID_HURRICANE_656B ||
-	    pci_get_device(dev) == TC_DEVICEID_TORNADO_656C)
+	if (did == TC_DEVICEID_HURRICANE_575A ||
+	    did == TC_DEVICEID_HURRICANE_575B ||
+	    did == TC_DEVICEID_HURRICANE_575C ||
+	    did == TC_DEVICEID_HURRICANE_656B ||
+	    did == TC_DEVICEID_TORNADO_656C)
 		sc->xl_flags |= XL_FLAG_FUNCREG | XL_FLAG_PHYOK |
 		    XL_FLAG_EEPROM_OFFSET_30 | XL_FLAG_8BITROM;
-	if (pci_get_device(dev) == TC_DEVICEID_HURRICANE_656)
+	if (did == TC_DEVICEID_HURRICANE_656)
 		sc->xl_flags |= XL_FLAG_FUNCREG | XL_FLAG_PHYOK;
-	if (pci_get_device(dev) == TC_DEVICEID_HURRICANE_575B)
+	if (did == TC_DEVICEID_HURRICANE_575B)
 		sc->xl_flags |= XL_FLAG_INVERT_LED_PWR;
-	if (pci_get_device(dev) == TC_DEVICEID_HURRICANE_575C)
+	if (did == TC_DEVICEID_HURRICANE_575C)
 		sc->xl_flags |= XL_FLAG_INVERT_MII_PWR;
-	if (pci_get_device(dev) == TC_DEVICEID_TORNADO_656C)
+	if (did == TC_DEVICEID_TORNADO_656C)
 		sc->xl_flags |= XL_FLAG_INVERT_MII_PWR;
-	if (pci_get_device(dev) == TC_DEVICEID_HURRICANE_656 ||
-	    pci_get_device(dev) == TC_DEVICEID_HURRICANE_656B)
+	if (did == TC_DEVICEID_HURRICANE_656 ||
+	    did == TC_DEVICEID_HURRICANE_656B)
 		sc->xl_flags |= XL_FLAG_INVERT_MII_PWR |
 		    XL_FLAG_INVERT_LED_PWR;
-	if (pci_get_device(dev) == TC_DEVICEID_TORNADO_10_100BT_920B)
+	if (did == TC_DEVICEID_TORNADO_10_100BT_920B)
 		sc->xl_flags |= XL_FLAG_PHYOK;
+
+	switch (did) {
+	case TC_DEVICEID_HURRICANE_575A:
+	case TC_DEVICEID_HURRICANE_575B:
+	case TC_DEVICEID_HURRICANE_575C:
+		sc->xl_flags |= XL_FLAG_NO_MMIO;
+		break;
+	default:
+		break;
+	}
+
 #ifndef BURN_BRIDGES
 	/*
 	 * If this is a 3c905B, we have to check one extra thing.
@@ -1394,16 +1408,19 @@ xl_attach(dev)
 		pci_write_config(dev, XL_PCI_INTLINE, irq, 4);
 	}
 #endif
+
 	/*
 	 * Map control/status registers.
 	 */
 	pci_enable_busmaster(dev);
 
-	rid = XL_PCI_LOMEM;
-	res = SYS_RES_MEMORY;
+	if ((sc->xl_flags & XL_FLAG_NO_MMIO) == 0) {
+		rid = XL_PCI_LOMEM;
+		res = SYS_RES_MEMORY;
 
-	sc->xl_res = bus_alloc_resource(dev, res, &rid,
-	    0, ~0, 1, RF_ACTIVE);
+		sc->xl_res = bus_alloc_resource(dev, res, &rid,
+		    0, ~0, 1, RF_ACTIVE);
+	}
 
 	if (sc->xl_res != NULL) {
 		sc->xl_flags |= XL_FLAG_USE_MMIO;
