@@ -1188,13 +1188,7 @@ ata_start(struct ata_softc *scp)
     }
 #endif
 #if NATAPICD > 0 || NATAPIFD > 0 || NATAPIST > 0
-    /*
-     * find & call the responsible driver if anything on the ATAPI queue.
-     * check for device busy by polling the DSC bit, if busy, check
-     * for requests to the other device on the channel (if any).
-     * if the other device is an ATA disk it already had its chance above.
-     * if no request can be served, timeout a call to ata_start.
-     */
+    /* find & call the responsible driver if anything on the ATAPI queue */
     if (TAILQ_EMPTY(&scp->atapi_queue)) {
 	if (scp->devices & (ATA_ATAPI_MASTER) && scp->dev_softc[0])
 	    atapi_start((struct atapi_softc *)scp->dev_softc[0]);
@@ -1202,33 +1196,6 @@ ata_start(struct ata_softc *scp)
 	    atapi_start((struct atapi_softc *)scp->dev_softc[1]);
     }
     if ((atapi_request = TAILQ_FIRST(&scp->atapi_queue))) {
-	struct atapi_softc *atp = atapi_request->device;
-	static int32_t interval = 1;
-
-	if (atp->flags & ATAPI_F_DSC_USED) {
-	    outb(atp->controller->ioaddr + ATA_DRIVE, ATA_D_IBM | atp->unit);
-	    DELAY(1);
-	    if (!(inb(atp->controller->ioaddr + ATA_STATUS) & ATA_S_DSC)) {
-		while ((atapi_request = TAILQ_NEXT(atapi_request, chain))) {
-		    if (atapi_request->device->unit != atp->unit) {
-			struct atapi_softc *tmp = atapi_request->device;
-
-			outb(tmp->controller->ioaddr + ATA_DRIVE, 
-			     ATA_D_IBM | tmp->unit);
-			DELAY(1);
-			if (!inb(tmp->controller->ioaddr+ATA_STATUS)&ATA_S_DSC)
-			    atapi_request = NULL;
-			break;
-		    }
-	        }
-	    }
-	    if (!atapi_request) {
-		timeout((timeout_t *)ata_start, atp->controller, interval++);
-		return;
-	    }
-	    else
-		interval = 1;
-	}
 	TAILQ_REMOVE(&scp->atapi_queue, atapi_request, chain);
 	scp->active = ATA_ACTIVE_ATAPI;
 	scp->running = atapi_request;
