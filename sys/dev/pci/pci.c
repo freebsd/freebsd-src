@@ -168,10 +168,10 @@ uint32_t pci_numdevs = 0;
 /* sysctl vars */
 SYSCTL_NODE(_hw, OID_AUTO, pci, CTLFLAG_RD, 0, "PCI bus tuning parameters");
 
-static int pci_enable_io_modes = 1;
+static int pci_enable_io_modes = 0;
 TUNABLE_INT("hw.pci.enable_io_modes", (int *)&pci_enable_io_modes);
 SYSCTL_INT(_hw_pci, OID_AUTO, enable_io_modes, CTLFLAG_RW,
-    &pci_enable_io_modes, 1,
+    &pci_enable_io_modes, 0,
     "Enable I/O and memory bits in the config register.  Some BIOSes do not\n\
 enable these bits correctly.  We'd like to do this all the time, but there\n\
 are some peripherals that this causes problems with.");
