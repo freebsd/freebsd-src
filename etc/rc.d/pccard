@@ -3,6 +3,8 @@
 # PC-card startup script
 # HOSOKAWA, Tatsumi <hosokawa@mt.cs.keio.ac.jp>
 #
+#	$Id$
+#
 
 if [ "X$pccard_enable" = X"YES" ] ; then
 	if [ "x$pccard_mem" != "xDEFAULT" ] ; then
