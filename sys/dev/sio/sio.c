@@ -87,15 +87,13 @@
 #endif
 #include <isa/ic/ns16550.h>
 
-#if 0
-
 #include "card.h"
+#if 0
 #if NCARD > 0
 #include <sys/module.h>
 #include <pccard/cardinfo.h>
 #include <pccard/slot.h>
 #endif
-
 #endif
 
 #ifndef __i386__
@@ -277,6 +275,9 @@ struct com_s {
 	u_long	bytes_out;
 	u_int	delta_error_counts[CE_NTYPES];
 	u_long	error_counts[CE_NTYPES];
+
+	struct resource *irqres;
+	struct resource *ioportres;
 
 	/*
 	 * Data area for output buffers.  Someday we should build the output
@@ -493,12 +494,9 @@ sioinit(struct pccard_devinfo *devi)
 	devi->isahd.id_flags |= COM_C_NOPROBE; 
 
 	/*
-	 * Probe the device. If a value is returned, the
-	 * device was found at the location.
+	 * attach the device.
 	 */
-	if (sioprobe(&devi->isahd) == 0)
-		return(ENXIO);
-	if (sioattach(&devi->isahd) == 0)
+	if (sioattach(devi->isahd.id_device) == 0)
 		return(ENXIO);
 
 	return(0);
@@ -738,7 +736,7 @@ sioprobe(dev)
 /* EXTRA DELAY? */
 	outb(iobase + com_mcr, mcr_image);
 
-    /*
+	/*
 	 * It's a definitly Serial PCMCIA(16550A), but still be required
 	 * for IIR_TXRDY implementation ( Palido 321s, DC-1S... )
 	 */
@@ -757,7 +755,7 @@ sioprobe(dev)
 				/* Ok. we're familia this gang */
 				SET_FLAG(dev, COM_C_IIR_TXRDYBUG); /* Set IIR_TXRDYBUG */
 			} else {
-				/* Unknow, Just omit this chip.. XXX*/
+				/* Unknown, Just omit this chip.. XXX */
 				result = ENXIO;
 			}
 		} else {
@@ -912,8 +910,6 @@ sioattach(dev)
 	Port_t		iobase;
 	int		unit;
 	void		*ih;
-	struct resource *res;
-	int		zero = 0;
 	u_int		flags = isa_get_flags(dev);
 	int		rid;
 	struct resource *port;
@@ -942,6 +938,7 @@ sioattach(dev)
 	 */
 	bzero(com, sizeof *com);
 	com->unit = unit;
+	com->ioportres = port;
 	com->cfcr_image = CFCR_8BITS;
 	com->dtr_wait = 3 * hz;
 	com->loses_outints = COM_LOSESOUTINTS(flags) != 0;
@@ -1121,13 +1118,14 @@ determined_type: ;
 	    UID_UUCP, GID_DIALER, 0660, "cuaia%r", unit);
 	make_dev(&sio_cdevsw, unit | CALLOUT_MASK | CONTROL_LOCK_STATE,
 	    UID_UUCP, GID_DIALER, 0660, "cuala%r", unit);
-	com->flags = isa_get_flags(dev); /* Heritate id_flags for later */
+	com->flags = flags;
 	com->pps.ppscap = PPS_CAPTUREASSERT | PPS_CAPTURECLEAR;
 	pps_init(&com->pps);
 
-	res = bus_alloc_resource(dev, SYS_RES_IRQ, &zero, 0ul, ~0ul, 1,
-				 RF_SHAREABLE | RF_ACTIVE);
-	BUS_SETUP_INTR(device_get_parent(dev), dev, res,
+	rid = 0;
+	com->irqres = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0ul, ~0ul, 1,
+	    RF_SHAREABLE | RF_ACTIVE);
+	BUS_SETUP_INTR(device_get_parent(dev), dev, com->irqres,
 		       INTR_TYPE_TTY | INTR_TYPE_FAST,
 		       siointr, com, &ih);
 
