@@ -265,6 +265,8 @@ in the following sections.
 \-O
 \-O2
 \-O3
+\-O0
+\-Os
 .TP
 .B Preprocessor Options
 .RI \-A assertion
@@ -2458,6 +2460,12 @@ Optimize yet more. This turns on everything
 .B \-O2
 does, along with also turning on
 .B \-finline\-functions.
+.TP
+.B \-Os
+Optimize for size. This enables all
+.B \-O2
+optimizations that do not typically increase code size.  It also performs
+further optimizations designed to reduce code size.
 .TP
 .B \-O0
 Do not optimize.
