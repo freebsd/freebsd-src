@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.199 1996/08/19 20:06:52 julian Exp $
+ *	$Id: machdep.c,v 1.200 1996/09/01 02:16:07 nate Exp $
  */
 
 #include "npx.h"
@@ -1081,52 +1081,70 @@ init386(first)
 	biosextmem = rtcin(RTC_EXTLO)+ (rtcin(RTC_EXTHI)<<8);
 
 	/*
-	 * Print a warning and set it to the safest value if the official
-	 * BIOS interface (bootblock supplied) disagrees with the
-	 * hackish interface used above.  Eventually only the official
-	 * interface should be used.  This is necessary for some machines
-	 * who 'steal' memory from the basemem for use as BIOS memory.
+	 * If BIOS tells us that it has more than 640k in the basemem,
+	 *	don't believe it - set it to 640k.
+	 */
+	if (biosbasemem > 640) {
+		printf("Preposterous RTC basemem of %dK, truncating to 640K\n",
+		       biosbasemem);
+		biosbasemem = 640;
+	}
+	if (bootinfo.bi_memsizes_valid && bootinfo.bi_basemem > 640) {
+		printf("Preposterous BIOS basemem of %dK, truncating to 640K\n",
+		       bootinfo.bi_basemem);
+		bootinfo.bi_basemem = 640;
+	}
+
+	/*
+	 * Warn if the official BIOS interface disagrees with the RTC
+	 * interface used above about the amount of base memory or the
+	 * amount of extended memory.  Prefer the BIOS value for the base
+	 * memory.  This is necessary for machines that `steal' base
+	 * memory for use as BIOS memory, at least if we are going to use
+	 * the BIOS for apm.  Prefer the RTC value for extended memory.
+	 * Eventually the hackish interface shouldn't even be looked at.
 	 */
 	if (bootinfo.bi_memsizes_valid) {
 		if (bootinfo.bi_basemem != biosbasemem) {
-			vm_offset_t pa, va,  tmpva;
-			vm_size_t size;
-			unsigned *pte;
+			vm_offset_t pa;
 
-			printf("BIOS basemem (%ldK) != RTC basemem (%dK), ",
+			printf(
+	"BIOS basemem (%ldK) != RTC basemem (%dK), setting to BIOS value\n",
 			       bootinfo.bi_basemem, biosbasemem);
-			printf("setting to BIOS value.\n");
 			biosbasemem = bootinfo.bi_basemem;
+
 			/*
-			 * XXX - Map this 'hole' of memory in the same manner
-			 * as the ISA_HOLE (read/write/non-cacheable), since
-			 * the BIOS 'fudges' it to become part of the ISA_HOLE.
+			 * XXX if biosbasemem is now < 640, there is `hole'
+			 * between the end of base memory and the start of
+			 * ISA memory.  The hole may be empty or it may
+			 * contain BIOS code or data.  Map it read/write so
+			 * that the BIOS can write to it.  (Memory from 0 to
+			 * the physical end of the kernel is mapped read-only
+			 * to begin with and then parts of it are remapped.
+			 * The parts that aren't remapped form holes that
+			 * remain read-only and are unused by the kernel.
+			 * The base memory area is below the physical end of
+			 * the kernel and right now forms a read-only hole.
+			 * The part of it from 0 to
+			 * (trunc_page(biosbasemem * 1024) - 1) will be
+			 * remapped and used by the kernel later.)
+			 *
 			 * This code is similar to the code used in
 			 * pmap_mapdev, but since no memory needs to be
 			 * allocated we simply change the mapping.
 			 */
-			pa = biosbasemem * 1024;
-			va = pa + KERNBASE;
-			size = roundup(ISA_HOLE_START - pa, PAGE_SIZE);
-			for (tmpva = va; size > 0;) {
-				pte = (unsigned *)vtopte(tmpva);
-				*pte = pa | PG_RW | PG_V | PG_N;
-				size -= PAGE_SIZE;
-				tmpva += PAGE_SIZE;
-				pa += PAGE_SIZE;
+			for (pa = trunc_page(biosbasemem * 1024);
+			     pa < ISA_HOLE_START; pa += PAGE_SIZE) {
+				unsigned *pte;
+
+				pte = (unsigned *)vtopte(pa + KERNBASE);
+				*pte = pa | PG_RW | PG_V;
 			}
 		}
 		if (bootinfo.bi_extmem != biosextmem)
 			printf("BIOS extmem (%ldK) != RTC extmem (%dK)\n",
 			       bootinfo.bi_extmem, biosextmem);
 	}
-
-	/*
-	 * If BIOS tells us that it has more than 640k in the basemem,
-	 *	don't believe it - set it to 640k.
-	 */
-	if (biosbasemem > 640)
-		biosbasemem = 640;
 
 	/*
 	 * Some 386 machines might give us a bogus number for extended
