@@ -421,15 +421,13 @@ main(argc, argv)
 {
 	int c;
 	int all, namesonly, downonly, uponly;
-	int foundit = 0, need_nl = 0;
+	int need_nl = 0;
 	const struct afswtch *afp = 0;
-	int addrcount;
+	int addrcount, ifindex;
 	struct	if_msghdr *ifm, *nextifm;
 	struct	ifa_msghdr *ifam;
 	struct	sockaddr_dl *sdl;
 	char	*buf, *lim, *next;
-
-
 	size_t needed;
 	int mib[6];
 
@@ -499,6 +497,7 @@ main(argc, argv)
 		if (argc > 1)
 			usage();
 
+		ifindex = 0;
 		if (argc == 1) {
 			for (afp = afs; afp->af_name; afp++)
 				if (strcmp(afp->af_name, *argv) == 0) {
@@ -532,6 +531,9 @@ main(argc, argv)
 			if (argc == 0)
 				exit(0);
 		}
+		ifindex = if_nametoindex(name);
+		if (ifindex == 0)
+			errx(1, "interface %s does not exist", name);
 	}
 
 	/* Check for address family */
@@ -548,9 +550,9 @@ main(argc, argv)
 	mib[0] = CTL_NET;
 	mib[1] = PF_ROUTE;
 	mib[2] = 0;
-	mib[3] = 0;	/* address family */
+	mib[3] = 0;			/* address family */
 	mib[4] = NET_RT_IFLIST;
-	mib[5] = 0;
+	mib[5] = ifindex;		/* interface index */
 
 	/* if particular family specified, only ask about it */
 	if (afp)
@@ -598,6 +600,8 @@ main(argc, argv)
 			addrcount++;
 			next += nextifm->ifm_msglen;
 		}
+		strncpy(name, sdl->sdl_data, sdl->sdl_nlen);
+		name[sdl->sdl_nlen] = '\0';
 
 		if (all || namesonly) {
 			if (uponly)
@@ -606,8 +610,6 @@ main(argc, argv)
 			if (downonly)
 				if (flags & IFF_UP)
 					continue; /* not down */
-			strncpy(name, sdl->sdl_data, sdl->sdl_nlen);
-			name[sdl->sdl_nlen] = '\0';
 			if (namesonly) {
 				if (afp == NULL ||
 					afp->af_status != ether_status ||
@@ -619,35 +621,20 @@ main(argc, argv)
 				}
 				continue;
 			}
-		} else {
-			if (strlen(name) != sdl->sdl_nlen)
-				continue; /* not same len */
-			if (strncmp(name, sdl->sdl_data, sdl->sdl_nlen) != 0)
-				continue; /* not same name */
 		}
 
 		if (argc > 0)
 			ifconfig(argc, argv, afp);
 		else
 			status(afp, addrcount, sdl, ifm, ifam);
-
-		if (all == 0 && namesonly == 0) {
-			foundit++; /* flag it as 'done' */
-			break;
-		}
 	}
 	free(buf);
 
 	if (namesonly && need_nl > 0)
 		putchar('\n');
 
-	if (all == 0 && namesonly == 0 && foundit == 0)
-		errx(1, "interface %s does not exist", name);
-
-
 	exit (0);
 }
-
 
 int
 ifconfig(argc, argv, afp)
@@ -1144,7 +1131,7 @@ status(afp, addrcount, sdl, ifm, ifam)
 		allfamilies = 0;
 
 	ifr.ifr_addr.sa_family = afp->af_af == AF_LINK ? AF_INET : afp->af_af;
-	strncpy(ifr.ifr_name, name, sizeof ifr.ifr_name);
+	strncpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
 
 	if ((s = socket(ifr.ifr_addr.sa_family, SOCK_DGRAM, 0)) < 0)
 		err(1, "socket");
@@ -1961,7 +1948,6 @@ ifmaybeload(name)
 	struct module_stat mstat;
 	int fileid, modid;
 	char ifkind[35], *cp, *dp;
-
 
 	/* turn interface and unit into module name */
 	strcpy(ifkind, "if_");
