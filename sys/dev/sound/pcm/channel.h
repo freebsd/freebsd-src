@@ -90,6 +90,6 @@ extern pcm_feeder feeder_root;
  */
 #define CHN_2NDBUFBLKSIZE	(2 * 1024)
 /* The total number of blocks per secondary buffer. */
-#define CHN_2NDBUFBLKNUM	(8)
+#define CHN_2NDBUFBLKNUM	(32)
 /* The size of a whole secondary buffer. */
 #define CHN_2NDBUFWHOLESIZE	(CHN_2NDBUFBLKSIZE * CHN_2NDBUFBLKNUM)
