@@ -70,7 +70,7 @@
  * Paul Mackerras (paulus@cs.anu.edu.au).
  */
 
-/* $Id: ppp_tty.c,v 1.6 1996/06/10 23:07:36 gpalmer Exp $ */
+/* $Id: ppp_tty.c,v 1.7 1996/06/12 19:24:03 gpalmer Exp $ */
 /* from Id: ppp_tty.c,v 1.3 1995/08/16 01:36:40 paulus Exp */
 /* from if_sl.c,v 1.11 84/10/04 12:54:47 rick Exp */
 
@@ -191,7 +191,9 @@ pppasyncattach(dummy)
     update_intr_masks();
 
     splx(s);
-    printf("new masks: bio %x, tty %x, net %x\n", bio_imask, tty_imask, net_imask);
+    if ( bootverbose )
+        printf("new masks: bio %x, tty %x, net %x\n",
+                bio_imask, tty_imask, net_imask);
 #endif
 
     /* register line discipline */
