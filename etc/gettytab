@@ -11,6 +11,11 @@
 # cb, ce and ck are desirable on most crt's.  The non-crt entries need to
 # be changed to turn them off (cb@:ce@:ck@:).
 #
+# lc should always be on; it's a remainder of some stone age when there
+# have been terminals around not being able of handling lower-case
+# characters. Those terminals aren't supported any longer, but getty is
+# `smart' about them by default.
+#
 # Parity defaults to even.  There ought to be more alternative entries with
 # no parity.  The Pc entry already has no parity..  The different parities
 # are:
@@ -25,7 +30,7 @@
 #                characters on non-terminals (like pccons) that don't
 #                support parity.  It would probably better for getty not to
 #                try to fake parity.  It could just use cbreak mode so as
-#                as not to force cs8 and let the hardware handle the parity.
+#                not to force cs8 and let the hardware handle the parity.
 #                login has to be rely on the hardware anyway.
 #             2. set PASS8, giving cs8 -parenb -istrip -inpck.
 #     np:ep:  same as np except inpck.
@@ -33,7 +38,7 @@
 #     np:ap:  same as np except istrip.
 #
 default:\
-	:cb:ce:ck:fd#1000:im=\r\n   FreeBSD (%h) (%t)\r\n\r\n:sp#1200:
+	:cb:ce:ck:lc:fd#1000:im=\r\n   FreeBSD (%h) (%t)\r\n\r\n:sp#1200:
 
 #
 # Fixed speed entries

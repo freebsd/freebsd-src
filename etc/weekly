@@ -76,12 +76,4 @@ echo ""
 echo "Rebuilding whatis database:"
 MANPATH=${MANPATH:-/usr/share/man:/usr/X11R6/man:/usr/local/man}
 
-for mandir in `( IFS=":"; set -- ${MANPATH}; echo $* )`
-do
-        if [ ! -d ${mandir} ]
-        then
-                continue
-        fi
-        echo "==> ${mandir}"
-        makewhatis ${mandir}
-done
+makewhatis "${MANPATH}"
