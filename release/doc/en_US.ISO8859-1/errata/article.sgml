@@ -145,6 +145,10 @@
     <application>tcp_wrappers</application> did not work correctly.
     For more details and information on patches, see security advisory
     FreeBSD-SA-01:56.</para>
+
+    <para>&man.sendmail.8; has a local root vulnerability.  For more
+    details and patch information, see security advisory
+    FreeBSD-SA-01:57.</para>
   </sect1>
 
   <sect1>
