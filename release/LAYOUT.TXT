@@ -49,7 +49,7 @@ thorough description of each item in more detail:
    command.
 
    The ports collection may be installed like any other distribution
-   and requires about 26MB unpacked.  More information on the ports
+   and requires about 30MB unpacked.  More information on the ports
    collection may be obtained from http://www.freebsd.org/ports or
    locally from ``file:/usr/share/doc/handbook'' if you've installed
    the doc distribution.
