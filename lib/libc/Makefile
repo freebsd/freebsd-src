@@ -10,6 +10,7 @@ CFLAGS+=-DLIBC_SCCS -DSYSLIBC_SCCS
 AINC=	-I${.CURDIR}/${MACHINE}
 CLEANFILES+=tags
 INSTALL_PIC_ARCHIVE=	yes
+PRECIOUSLIB=	yes
 
 .include "${.CURDIR}/db/Makefile.inc"
 .include "${.CURDIR}/compat-43/Makefile.inc"
