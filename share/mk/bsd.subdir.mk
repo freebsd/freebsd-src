@@ -1,10 +1,8 @@
 #	from: @(#)bsd.subdir.mk	5.9 (Berkeley) 2/1/91
-#	$Id: bsd.subdir.mk,v 1.22 1998/03/26 16:02:44 eivind Exp $
+#	$Id: bsd.subdir.mk,v 1.23 1998/03/29 01:10:09 eivind Exp $
 #
 # The include file <bsd.subdir.mk> contains the default targets
-# for building subdirectories. It has the same seven targets
-# as <bsd.prog.mk>:
-#	all, clean, cleandir, depend, install, lint, and tags.
+# for building subdirectories. 
 #
 # For all of the directories listed in the variable SUBDIRS, the
 # specified directory will be visited and the target made. There is
