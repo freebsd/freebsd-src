@@ -1,49 +1,25 @@
    -----------------------------------------
-       FreeBSD 2.2  ---  GAMMA Version                 ,        ,
+       FreeBSD 2.2  ---  RELEASE Version               ,        ,
    -----------------------------------------          /(        )`
                                                       \ \___   / |
-Welcome to the 2.2 GAMMA release of FreeBSD!          /- _  `-/  '
-This release precedes our first full 2.2 release,    (/\/ \ \   /\
-which is scheduled for an early February release.    / /   | `    \
-Your testing of this GAMMA will greatly help to      O O   ) /    |
-ensure that 2.2-RELEASE is of the highest possible   `-^--'`<     '
-quality, and is much appreciated.                   (_.)  _  )   /
+Welcome to the 2.2 RELEASE version of FreeBSD!        /- _  `-/  '
+                                                     (/\/ \ \   /\
+This is the first release on the RELENG_2_2 branch   / /   | `    \
+and begins a whole new cycle of FreeBSD release      O O   ) /    |
+technology, taking over from where 2.1.7-RELEASE     `-^--'`<     '
+left off.                                           (_.)  _  )   /
                                                      `.___/`    /
                                                        `-----' /
 Feedback or offers to help with anything  <----.     __ / __   \
 you see in this release are most welcome  <----|====O)))==) \) /====
 and should be sent to one of the approp-  <----'    `--' `.__,' \
-riate mailing lists (see notes below).                 |        |
-                                                        \       /       /\
-Please also note that GAMMA releases, as much      ______( (_  / \______/
-as we enjoy seeing them tested in serious        ,'  ,-----'   |
-situations, are not recommended for production   `--{__________)
-environments!
-                                                         
+riate mailing lists - please see the                   |        |
+ABOUT.TXT file for more information.                    \       /       /\
+                                                   ______( (_  / \______/
+                                                 ,'  ,-----'   |
+                                                 `--{__________)
 
-IMPORTANT NOTE: For the most up-to-date version of 2.2-GAMMA, please
-see:
 
-        ftp://22gamma.freebsd.org/pub/FreeBSD/
-
-checking the 2.2-YYMMDD-GAMMA distribution date there against today's
-date.
-
-For the sake of convenience, and to prevent truly motivated testers
-from stumbling over bugs fixed earlier in the GAMMA test cycle, the
-2.2-release-in-progress CVS branch (RELENG_2_2) will have a full
-release distribution built from it once each day at 2AM, a successful
-build being pushed into the anonymous FTP area some 5-6 hours later.
-
-Thanks to Calweb Internet Services for making this snap-of-the-day
-service available during the 2.2-GAMMA test period.  These builds will
-continue right up until the day that 2.2-RELEASE is declared ready.
-
-In order to prevent mirror overload, these releases will also only be
-uploaded to ftp.freebsd.org once or twice during the GAMMA cycle (NOT
-once a day), so for the freshest bits you should always go to
-ftp://22gamma.freebsd.org/pub/FreeBSD (also listed as ``GAMMA FTP
-Site'' in the FTP servers menu).
 
 ** Most files here are also in the Documentation Menu of the boot floppy **
 
