@@ -98,7 +98,7 @@ main(argc, argv)
 		switch (ch) {
 		case 'd':
 			if (*destdir == '\0')
-				strcpy(destdir, optarg);
+				strlcpy(destdir, optarg, sizeof(destdir));
 			else
 				errx(2, "directory already set");
 			break;
@@ -135,8 +135,8 @@ main(argc, argv)
 			destdir[--len] = '\0';
 		get_srcdir();
 	} else {
-		strcpy(destdir, CDIR);
-		strcat(destdir, PREFIX);
+		strlcpy(destdir, CDIR, sizeof(destdir));
+		strlcat(destdir, PREFIX, sizeof(destdir));
 	}
 
 	p = path((char *)NULL);
@@ -183,7 +183,7 @@ main(argc, argv)
 	 * and similarly for "machine".
 	 */
 	{
-	char xxx[80];
+	char xxx[MAXPATHLEN];
 	if (*srcdir == '\0')
 		(void)snprintf(xxx, sizeof(xxx), "../../%s/include",
 		    machinename);
