@@ -303,6 +303,14 @@ ngt_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 	hinfo->stats.inOctets += m->m_pkthdr.len;
 	hinfo->stats.inFrames++;
 
+	/*
+	 * Don't make a copy if only the dup hook exists.
+	 */
+	if ((dup && dup->hook) && (dest->hook == NULL)) {
+		dest = dup;
+		dup = NULL;
+	}
+
 	/* Duplicate packet and meta info if requried */
 	if (dup && dup->hook) {
 		struct mbuf *m2;
