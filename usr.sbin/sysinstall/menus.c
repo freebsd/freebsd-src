@@ -2312,8 +2312,10 @@ DMenu MenuSecurity = {
 	checkTrue, dmenuExit, NULL, NULL, '<', '<', '<' },
       { " Security Profile",   "Select a security profile for the system",
 	NULL, configSecurityProfile },
+#if 0
       { " LOMAC",         "Use Low Watermark Mandatory Access Control at boot",
 	dmenuVarCheck,  dmenuToggleVariable, NULL, "lomac_enable=YES" },
+#endif
       { " NFS port",	"Require that the NFS clients used reserved ports",
 	dmenuVarCheck,  dmenuToggleVariable, NULL, "nfs_reserved_port_only=YES" },
       { NULL } },
