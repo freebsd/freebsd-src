@@ -1,5 +1,5 @@
 .\" manual page [] for ppp 0.94 beta2 + alpha
-.\" $Id: ppp.8,v 1.10 1995/09/17 16:14:49 amurai Exp $
+.\" $Id: ppp.8,v 1.11 1995/09/24 18:15:14 nate Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -314,10 +314,41 @@ daemon has an associated port number which is computed as "3000 +
 tunnel_device_number". If 3000 is not good base number, edit defs.h in
 the ppp sources (
 .Pa /usr/src/usr.sbin/ppp )
-and recompile it.  When an outgoing packet is detected,
+and recompile it.
+
+When an outgoing packet is detected,
 .Nm
-will perform the dialing action (chat script) and try to connect with
-the peer.  If dialing fails, it will wait for 30 seconds and retry.
+will perform the dialing action (chat script) and try to connect
+with the peer.
+
+If the connect fails, the default behaviour is to wait 30 seconds
+and then attempt to connect when another outgoing packet is detected.
+This behaviour can be changed with
+.Bd -literal -offset indent
+set redial seconds|random [dial_attempts]
+.Ed
+.Pp
+Seconds is the number of seconds to wait before attempting
+to connect again. If the argument is
+.Sq random ,
+the delay period is a random value between 0 and 30 seconds.
+.Sq dial_attempts
+is the number of times to try to connect for each outgoing packet
+that is received. The previous value is unchanged if this parameter
+is omitted.
+.Bd -literal -offset indent
+set redial 10 4
+.Ed
+.Pp
+will attempt to connect 4 times for each outgoing packet that is
+detected with a 10 second delay between each attempt.
+
+Modifying the dial delay is very useful when running
+.Nm
+in demand
+dial mode on both ends of the link. If each end has the same timeout,
+both ends wind up calling each other at the same time if the link
+drops and both ends have packets queued.
 
  To terminate the program, type
 
@@ -448,19 +479,21 @@ work with stdin and stdout.  You can also telnet to port 3000 to get
 command mode control in the same manner as client-side
 .Nm .
 
-.Sh SETTING IDLE TIMER
+.Sh SETTING IDLE, LINE QUALITY REQUEST, RETRY TIMER
 
 To check/set idletimer, use the
 .Dq show timeout
 and
-.Dq set timeout
+.Dq set timeout [lqrtimer [retrytimer]]
 commands.
 
  Ex:
 .Dl ppp ON tama> set timeout 600
 
-The timeout period is measured in seconds, the  default value for which
-is 180 or 3 min.  To disable the idle timer function,  use the command
+The timeout period is measured in seconds, the  default values for which
+are timeout = 180 or 3 min, lqrtimer = 30sec and retrytimer = 3sec. 
+To disable the idle timer function,
+use the command
 .Dq set timeout 0 .
 
 In
@@ -687,6 +720,9 @@ Logging and debugging information file.
 
 .It /var/spool/lock/Lck..* 
 tty port locking file.
+
+.It /var/run/PPP.system
+Holds the pid for ppp -auto system.
 
 .It /etc/services
 Get port number if port number is using service name.
