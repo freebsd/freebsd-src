@@ -57,7 +57,7 @@
  * scheme is:  <major><two digit minor><0 if release branch, otherwise 1>xx
  */
 #undef __FreeBSD_version
-#define __FreeBSD_version 501101	/* Master, propagated to newvers */
+#define __FreeBSD_version 501102	/* Master, propagated to newvers */
 
 #ifndef NULL
 #define	NULL	0
