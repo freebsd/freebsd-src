@@ -189,7 +189,8 @@ may return one of the following errors:
 The
 .Fa iovcnt
 argument
-was less than or equal to 0, or greater than 16.
+was less than or equal to 0, or greater than
+.Li IOV_MAX .
 .It Bq Er EINVAL
 One of the
 .Fa iov_len
