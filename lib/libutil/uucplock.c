@@ -122,6 +122,7 @@ int uu_unlock (char *ttyname)
 char *uu_lockerr (int uu_lockresult)
 {
 	static char errbuf[512];
+	char *fmt;
 
 	switch (uu_lockresult) {
 		case UU_LOCK_INUSE:
@@ -129,27 +130,23 @@ char *uu_lockerr (int uu_lockresult)
 		case UU_LOCK_OK:
 			return "";
 		case UU_LOCK_OPEN_ERR:
-			(void)snprintf(errbuf, sizeof(errbuf),
-				       "open error: %s", strerror(errno));
+			fmt = "open error: %s";
 			break;
 		case UU_LOCK_READ_ERR:
-			(void)snprintf(errbuf, sizeof(errbuf),
-				       "read error: %s", strerror(errno));
+			fmt = "read error: %s";
 			break;
 		case UU_LOCK_SEEK_ERR:
-			(void)snprintf(errbuf, sizeof(errbuf),
-				       "seek error: %s", strerror(errno));
+			fmt = "seek error: %s";
 			break;
 		case UU_LOCK_WRITE_ERR:
-			(void)snprintf(errbuf, sizeof(errbuf),
-				       "write error: %s", strerror(errno));
+			fmt = "write error: %s";
 			break;
 		default:
-			(void)snprintf(errbuf, sizeof(errbuf),
-				       "undefined error: %s", strerror(errno));
+			fmt = "undefined error: %s";
 			break;
 	}
 
+	(void)snprintf(errbuf, sizeof(errbuf), fmt, strerror(errno));
 	return errbuf;
 }
 
