@@ -312,8 +312,7 @@ ext2_lookup(ap)
 	struct vnode *tdp;		/* returned by VFS_VGET */
 	doff_t enduseful;		/* pointer past last used dir slot */
 	u_long bmask;			/* block offset mask */
-	int lockparent;			/* 1 => lockparent flag is set */
-	int wantparent;			/* 1 => wantparent or lockparent flag */
+	int wantparent;			/* 1 => wantparent flag */
 	int namlen, error;
 	struct vnode **vpp = ap->a_vpp;
 	struct componentname *cnp = ap->a_cnp;
@@ -329,7 +328,6 @@ ext2_lookup(ap)
 	*vpp = NULL;
 	vdp = ap->a_dvp;
 	dp = VTOI(vdp);
-	lockparent = flags & LOCKPARENT;
 	wantparent = flags & (LOCKPARENT|WANTPARENT);
 
 	/*
@@ -539,8 +537,6 @@ searchloop:
 		 * information cannot be used.
 		 */
 		cnp->cn_flags |= SAVENAME;
-		if (!lockparent)
-			VOP_UNLOCK(vdp, 0, td);
 		return (EJUSTRETURN);
 	}
 	/*
@@ -618,8 +614,6 @@ found:
 			return (EPERM);
 		}
 		*vpp = tdp;
-		if (!lockparent)
-			VOP_UNLOCK(vdp, 0, td);
 		return (0);
 	}
 
@@ -644,8 +638,6 @@ found:
 			return (error);
 		*vpp = tdp;
 		cnp->cn_flags |= SAVENAME;
-		if (!lockparent)
-			VOP_UNLOCK(vdp, 0, td);
 		return (0);
 	}
 
@@ -676,11 +668,6 @@ found:
 			vn_lock(pdp, LK_EXCLUSIVE | LK_RETRY, td);
 			return (error);
 		}
-		if (lockparent && (flags & ISLASTCN) &&
-		    (error = vn_lock(pdp, LK_EXCLUSIVE, td))) {
-			vput(tdp);
-			return (error);
-		}
 		*vpp = tdp;
 	} else if (dp->i_number == dp->i_ino) {
 		VREF(vdp);	/* we want ourself, ie "." */
@@ -689,8 +676,6 @@ found:
 		if ((error = VFS_VGET(vdp->v_mount, dp->i_ino, LK_EXCLUSIVE,
 		    &tdp)) != 0)
 			return (error);
-		if (!lockparent || !(flags & ISLASTCN))
-			VOP_UNLOCK(pdp, 0, td);
 		*vpp = tdp;
 	}
 
