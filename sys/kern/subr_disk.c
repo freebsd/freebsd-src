@@ -390,7 +390,7 @@ diskioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 	dp = pdev->si_disk;
 	if (!dp)
 		return (ENXIO);
-	if (cmd == DIOCGKERNELDUMP) {
+	if (cmd == DIOCSKERNELDUMP) {
 		u = *(u_int *)data;
 		return (diskdumpconf(u, dev, dp));
 	}

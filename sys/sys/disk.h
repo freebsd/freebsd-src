@@ -51,6 +51,6 @@ void disk_invalidate(struct disk *disk);
 #define DIOCGMEDIASIZE	_IOR('d', 129, off_t)	/* Get media size in bytes */
 #define DIOCGFWSECTORS	_IOR('d', 130, u_int)	/* Get firmware sectorcount */
 #define DIOCGFWHEADS	_IOR('d', 131, u_int)	/* Get firmware headcount */
-#define DIOCGKERNELDUMP _IOW('d', 133, u_int)	/* Set/Clear kernel dumps */
+#define DIOCSKERNELDUMP _IOW('d', 133, u_int)	/* Set/Clear kernel dumps */
 
 #endif /* _SYS_DISK_H_ */
