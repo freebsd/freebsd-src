@@ -1,169 +1,257 @@
-.\" manual page [] for natd 1.4
 .\" $FreeBSD$
-.Dd 15 April 1997
-.Os FreeBSD
+.Dd June 27, 2000
 .Dt NATD 8
+.Os FreeBSD
 .Sh NAME
 .Nm natd
-.Nd
-Network Address Translation Daemon
+.Nd Network Address Translation Daemon
 .Sh SYNOPSIS
-.Nm
-.Op Fl ldsmvu
-.Op Fl dynamic
-.Op Fl i Ar inport
-.Op Fl o Ar outport
-.Op Fl p Ar port
-.Op Fl a Ar address
-.Op Fl n Ar interface
-.Op Fl f Ar configfile
-
-.Nm
-.Op Fl log
-.Op Fl deny_incoming
-.Op Fl log_denied
-.Op Fl use_sockets
-.Op Fl same_ports
-.Op Fl verbose
-.Op Fl log_facility Ar facility_name
-.Op Fl unregistered_only
-.Op Fl dynamic
-.Op Fl inport Ar inport
-.Op Fl outport Ar outport
-.Op Fl port Ar port
-.Op Fl alias_address Ar address
-.Op Fl interface Ar interface
-.Op Fl config Ar configfile
-.Op Fl redirect_port Ar linkspec
-.Op Fl redirect_address Ar localIP publicIP
-.Op Fl reverse
+.Nm natd
+.Op Fl unregistered_only | u
+.Op Fl log | l
 .Op Fl proxy_only
+.Op Fl reverse
+.Op Fl deny_incoming | d
+.Op Fl use_sockets | s
+.Op Fl same_ports | m
+.Op Fl verbose | v
+.Op Fl dynamic
+.Op Fl in_port | i Ar port
+.Op Fl out_port | o Ar port
+.Op Fl port | p Ar port
+.Op Fl alias_address | a Ar address
+.Op Fl target_address | t Ar address
+.Op Fl interface | n Ar interface
 .Op Fl proxy_rule Ar proxyspec
-.Op Fl pptpalias Ar localIP
-
+.Op Fl redirect_port Ar linkspec
+.Op Fl redirect_proto Ar linkspec
+.Op Fl redirect_address Ar linkspec
+.Op Fl config | f Ar configfile
+.Op Fl log_denied
+.Op Fl log_facility Ar facility_name
+.Op Fl punch_fw Ar firewall_range
 .Sh DESCRIPTION
 This program provides a Network Address Translation facility for use
 with
 .Xr divert 4
-sockets under FreeBSD.  It is intended for use with NICs - if you want
-to do NAT on a PPP link, use the -nat switch to
+sockets under
+.Fx .
+It is intended for use with NICs - if you want to do NAT on a PPP link,
+use the
+.Fl nat
+switch to
 .Xr ppp 8 .
-
 .Pp
-.Nm Natd
-normally runs in the background as a daemon.  It is passed raw IP packets
-as they travel into and out of the machine, and will possibly change these
-before re-injecting them back into the IP packet stream.
-
+The
+.Nm
+normally runs in the background as a daemon.
+It is passed raw IP packets as they travel into and out of the machine,
+and will possibly change these before re-injecting them back into the
+IP packet stream.
 .Pp
-.Nm Natd
-changes all packets destined for another host so that their source
-IP number is that of the current machine.  For each packet changed
-in this manner, an internal table entry is created to record this
-fact.  The source port number is also changed to indicate the
-table entry applying to the packet.  Packets that are received with
-a target IP of the current host are checked against this internal
-table.  If an entry is found, it is used to determine the correct
-target IP number and port to place in the packet.
-
+It changes all packets destined for another host so that their source
+IP number is that of the current machine.
+For each packet changed in this manner, an internal table entry is
+created to record this fact.
+The source port number is also changed to indicate the table entry
+applying to the packet.
+Packets that are received with a target IP of the current host are
+checked against this internal table.
+If an entry is found, it is used to determine the correct target IP
+number and port to place in the packet.
 .Pp
 The following command line options are available.
 .Bl -tag -width Fl
-
 .It Fl log | l
 Log various aliasing statistics and information to the file
 .Pa /var/log/alias.log .
-This file is truncated each time natd is started.
-
+This file is truncated each time
+.Nm
+is started.
 .It Fl deny_incoming | d
-Reject packets destined for the current IP number that have no entry
-in the internal translation table.
-
+Do not pass packets destined for the current IP number that have no
+entry in the internal translation table.
 .It Fl log_denied
-Log denied incoming packets via syslog (see also log_facility)
-
+Log denied incoming packets via
+.Xr syslog 3
+.Po
+see also
+.Fl log_facility
+.Pc .
 .It Fl log_facility Ar facility_name
-Use specified log facility when logging information via syslog.
-Facility names are as in
-.Xr syslog.conf 5
-
+Use specified log facility when logging information via
+.Xr syslog 3 .
+Argument
+.Ar facility_name
+is one of the keywords specified in
+.Xr syslog.conf 5 .
 .It Fl use_sockets | s
 Allocate a
 .Xr socket 2
-in order to establish an FTP data or IRC DCC send connection.  This
-option uses more system resources, but guarantees successful connections
-when port numbers conflict.
-
+in order to establish an FTP data or IRC DCC send connection.
+This option uses more system resources, but guarantees successful
+connections when port numbers conflict.
 .It Fl same_ports | m
 Try to keep the same port number when altering outgoing packets.
 With this option, protocols such as RPC will have a better chance
-of working.  If it is not possible to maintain the port number, it
-will be silently changed as per normal.
-
+of working.
+If it is not possible to maintain the port number, it will be silently
+changed as per normal.
 .It Fl verbose | v
-Don't call
-.Xr fork 2
-or
+Do not call
 .Xr daemon 3
-on startup.  Instead, stay attached to the controling terminal and
-display all packet alterations to the standard output.  This option
-should only be used for debugging purposes.
-
+on startup.
+Instead, stay attached to the controling terminal and display all packet
+alterations to the standard output.
+This option should only be used for debugging purposes.
 .It Fl unregistered_only | u
-Only alter outgoing packets with an unregistered source address.
-According to rfc 1918, unregistered source addresses are 10.0.0.0/8,
+Only alter outgoing packets with an
+.Em unregistered
+source address.
+According to RFC 1918, unregistered source addresses are 10.0.0.0/8,
 172.16.0.0/12 and 192.168.0.0/16.
-
-.It Fl redirect_port Ar proto targetIP:targetPORT[-targetPORT] [aliasIP:]aliasPORT[-aliasPORT] [remoteIP[:remotePORT[-remotePORT]]]
+.It Fl redirect_port Ar proto Xo
+.Ar targetIP Ns : Ns Xo
+.Ar targetPORT Ns Op - Ns Ar targetPORT Xc
+.Op Ar aliasIP Ns : Ns Xo
+.Ar aliasPORT Ns Op - Ns Ar aliasPORT Xc
+.Oo Ar remoteIP Ns Oo : Ns
+.Ar remotePORT Ns Op - Ns Ar remotePORT
+.Oc Oc
+.Xc
 Redirect incoming connections arriving to given port(s) to another host
 and port(s).
-Proto is either tcp or udp, targetIP is the desired target IP
-number, targetPORT is the desired target PORT number or range, aliasPORT
-is the requested PORT number or range, and aliasIP is the aliasing address.
-RemoteIP and remotePORT can be used to specify the connection
-more accurately if necessary.
-The targetPORT range and aliasPORT range need not be the same numerically,
-but must have the same size.
-If remotePORT is not specified, it is assumed to be all ports.
-If remotePORT is specified, it must match the size of targetPORT, or be 0
-(all ports).
+Argument
+.Ar proto
+is either
+.Ar tcp
+or
+.Ar udp ,
+.Ar targetIP
+is the desired target IP number,
+.Ar targetPORT
+is the desired target port number or range,
+.Ar aliasPORT
+is the requested port number or range, and
+.Ar aliasIP
+is the aliasing address.
+Arguments
+.Ar remoteIP
+and
+.Ar remotePORT
+can be used to specify the connection more accurately if necessary.
+The
+.Ar targetPORT
+range and
+.Ar aliasPORT
+range need not be the same numerically, but must have the same size.
+If
+.Ar remotePORT
+is not specified, it is assumed to be all ports.
+If
+.Ar remotePORT
+is specified, it must match the size of
+.Ar targetPORT ,
+or be 0 (all ports).
 For example, the argument
-
+.Pp
 .Dl Ar tcp inside1:telnet 6666
-
-means that incoming tcp packets destined for port 6666 on this machine will
-be sent to the telnet port on the inside1 machine.
-
+.Pp
+means that incoming TCP packets destined for port 6666 on this machine
+will be sent to the telnet port on the inside1 machine.
+.Pp
 .Dl Ar tcp inside2:2300-2399 3300-3399
-
+.Pp
 will redirect incoming connections on ports 3300-3399 to host
 inside2, ports 2300-2399.
 The mapping is 1:1 meaning port 3300 maps to 2300, 3301 maps to 2301, etc.
-
+.It Fl redirect_proto Ar proto localIP Oo
+.Ar publicIP Op Ar remoteIP
+.Oc
+Redirect incoming IP packets of protocol
+.Ar proto
+.Po see Xr protocols 5
+.Pc
+destined for
+.Ar publicIP
+address to a
+.Ar localIP
+address and vice versa.
+.Pp
+If
+.Ar publicIP
+is not specified, then the default aliasing address is used.
+If
+.Ar remoteIP
+is specified, then only packets coming from/to
+.Ar remoteIP
+will match the rule.
 .It Fl redirect_address Ar localIP publicIP
 Redirect traffic for public IP address to a machine on the local
 network.
-This function is known as "static NAT". Normally static NAT
-is useful if your ISP has allocated a small block of IP addresses to you,
-but it can even be used in the case of single address:
-
-  redirect_address 10.0.0.8 0.0.0.0
-
+This function is known as
+.Em static NAT .
+Normally static NAT is useful if your ISP has allocated a small block
+of IP addresses to you, but it can even be used in the case of single
+address:
+.Pp
+.Dl Ar redirect_address 10.0.0.8 0.0.0.0
+.Pp
 The above command would redirect all incoming traffic
 to machine 10.0.0.8.
-
+.Pp
 If several address aliases specify the same public address
 as follows
-
-  redirect_address 192.168.0.2 public_addr
-  redirect_address 192.168.0.3 public_addr
-  redirect_address 192.168.0.4 public_addr
-  
+.Bd -literal -offset indent
+.Ar redirect_address 192.168.0.2 public_addr
+.Ar redirect_address 192.168.0.3 public_addr
+.Ar redirect_address 192.168.0.4 public_addr
+.Ed
+.Pp
 the incoming traffic will be directed to the last
 translated local address (192.168.0.4), but outgoing
-traffic to the first two addresses will still be aliased
-to specified public address.
-
+traffic from the first two addresses will still be aliased
+to appear from the specified
+.Ar public_addr .
+.It Fl redirect_port Ar proto Xo
+.Ar targetIP Ns : Ns Xo
+.Ar targetPORT Ns Oo , Ns
+.Ar targetIP Ns : Ns Xo
+.Ar targetPORT Ns Oo , Ns
+.Ar ...
+.Oc Oc
+.Xc
+.Xc
+.Op Ar aliasIP Ns : Ns Xo
+.Ar aliasPORT
+.Xc
+.Oo Ar remoteIP Ns
+.Op : Ns Ar remotePORT
+.Oc
+.Xc
+.It Fl redirect_address Xo
+.Ar localIP Ns Oo , Ns
+.Ar localIP Ns Oo , Ns
+.Ar ...
+.Oc Oc
+.Ar publicIP
+.Xc
+These forms of
+.Fl redirect_port
+and
+.Fl redirect_address
+are used to transparently offload network load on a single server and
+distribute the load across a pool of servers.
+This function is known as
+.Em LSNAT
+(RFC 2391).
+For example, the argument
+.Pp
+.Dl Ar tcp www1:http,www2:http,www3:http www:http
+.Pp
+means that incoming HTTP requests for host www will be transparently
+redirected to one of the www1, www2 or www3, where a host is selected
+simply on a round-robin basis, without regard to load on the net.
 .It Fl dynamic
 If the
 .Fl n
