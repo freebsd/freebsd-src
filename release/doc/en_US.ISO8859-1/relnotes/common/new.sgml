@@ -223,10 +223,22 @@
   <sect2 id="contrib">
     <title>Contributed Software</title>
 
+    <para>The timezone database has been updated from the
+      <application>tzdata2004e</application> release to the
+      <application>tzdata2004g</application> release. &merged;</para>
+
+    <para>A snapshot of <application>netcat</application> from OpenBSD
+      as of 4 February 2005 has been added. &merged;</para>
+
+    <para><application>OpenPAM</application> has been updated from the
+      Eelgrass release to the Feterita release.</para>
+
+    <para><application>OpenSSH</application> has been updated from 3.8p1
+      to 3.9p1.</para>
+
     <para><application>sendmail</application> has been updated from
       version 8.13.1 to version 8.13.3.</para>
 
-    <para></para>
   </sect2>
 
   <sect2 id="ports">
