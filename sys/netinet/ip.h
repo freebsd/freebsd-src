@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip.h	8.1 (Berkeley) 6/10/93
- * $Id: ip.h,v 1.2 1994/08/02 07:48:30 davidg Exp $
+ * $Id: ip.h,v 1.3 1994/08/21 05:27:30 paul Exp $
  */
 
 #ifndef _NETINET_IP_H_
@@ -80,6 +80,7 @@ struct ip {
 #define	IPTOS_LOWDELAY		0x10
 #define	IPTOS_THROUGHPUT	0x08
 #define	IPTOS_RELIABILITY	0x04
+#define	IPTOS_MINCOST		0x02
 
 /*
  * Definitions for IP precedence (also in ip_tos) (hopefully unused)
@@ -91,7 +92,7 @@ struct ip {
 #define	IPTOS_PREC_FLASH		0x60
 #define	IPTOS_PREC_IMMEDIATE		0x40
 #define	IPTOS_PREC_PRIORITY		0x20
-#define	IPTOS_PREC_ROUTINE		0x10
+#define	IPTOS_PREC_ROUTINE		0x00
 
 /*
  * Definitions for options.
