@@ -88,8 +88,10 @@ kthread_create(void (*func)(void *), void *arg,
 		*newpp = p2;
 
 	/* this is a non-swapped system process */
-	p2->p_flag |= P_INMEM | P_SYSTEM;
+	PROC_LOCK(p2);
+	p2->p_flag |= P_SYSTEM | P_KTHREAD;
 	p2->p_procsig->ps_flag |= PS_NOCLDWAIT;
+	PROC_UNLOCK(p2);
 	PHOLD(p2);
 
 	/* set up arg0 for 'ps', et al */
@@ -101,12 +103,13 @@ kthread_create(void (*func)(void *), void *arg,
 	cpu_set_fork_handler(p2, func, arg);
 
 	/* Delay putting it on the run queue until now. */
+	mtx_enter(&sched_lock, MTX_SPIN);
+	p2->p_sflag |= PS_INMEM;
 	if (!(flags & RFSTOPPED)) {
-		mtx_enter(&sched_lock, MTX_SPIN);
 		p2->p_stat = SRUN;
 		setrunqueue(p2);
-		mtx_exit(&sched_lock, MTX_SPIN);
 	}
+	mtx_exit(&sched_lock, MTX_SPIN);
 
 	return 0;
 }
