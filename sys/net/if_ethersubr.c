@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ethersubr.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ethersubr.c,v 1.19 1996/06/12 05:10:13 gpalmer Exp $
+ * $Id: if_ethersubr.c,v 1.20 1996/06/13 02:54:03 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -380,7 +380,7 @@ ether_input(ifp, eh, m)
 	register struct ifqueue *inq;
 	u_short ether_type;
 	int s;
-#if defined (ISO) || defined (LLC)
+#if defined (ISO) || defined (LLC) || defined(NETATALK)
 	register struct llc *l;
 #endif
 
