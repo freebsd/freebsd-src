@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$FreeBSD$
+.\" $FreeBSD$
 .\"
 .\" The section on comments was taken from named.conf.5, which has the
 .\" following copyright:
@@ -40,6 +40,7 @@
 .\" PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
 .\" ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 .\" SOFTWARE.
+.\"
 .Dd October 17, 2002
 .Dt DEVD.CONF 5
 .Os
@@ -47,18 +48,18 @@
 .Nm devd.conf
 .Nd configuration file for
 .Xr devd 8
-.Sh OVERVIEW
+.Sh DESCRIPTION
 .Ss General Syntax
 A
 .Xr devd 8
 configuration consists of two general features, statements
 and comments.
 All statements end with a semicolon.
-Many statements can contain substatements, which are each also
+Many statements can contain substatements, which are also
 terminated with a semicolon.
 .Pp
 The following statements are supported:
-.Bl -tag -width 0n
+.Bl -tag -width ".Ic options"
 .It Ic options
 specifies various options and parameters for the operation of
 .Xr devd 8 .
@@ -67,34 +68,36 @@ specifies various matching criteria and actions to perform when
 a newly attached device matches said criteria.
 .It Ic detach
 specifies various matching criteria and actions to perform when
-a newly attached device matches said criteria.
+a newly detached device matches said criteria.
 .It Ic nomatch
 specifies various matching criteria and actions to perform when
 no device driver currently loaded in the kernel claims a (new)
 device.
 .El
 .Pp
-Statements may occur in any order in the config file, and may be
-repated as often as required.
-Further details on the syntax and meaning of each statement, and their
-substatements is explained below.
+Statements may occur in any order in the configuration file, and may be
+repeated as often as required.
+Further details on the syntax and meaning of each statement and their
+substatements are explained below.
 .Pp
 Comments may appear anywhere that whitespace may appear in a
-configuration file.  To appeal to programmers of all kinds, they can
-be written in C, C++, or shell/perl constructs.
+configuration file.
+To appeal to programmers of all kinds, they can
+be written in C, C++, or shell/Perl constructs.
 .Pp
 C-style comments start with the two characters
-.Li /*
+.Ql /*
 (slash, star) and end with
-.Li */
+.Ql */
 (star, slash).
 Because they are completely delimited with these characters,
 they can be used to comment only a portion of a line or to span
 multiple lines.
 .Pp
-C-style comments cannot be nested.  For example, the following is
+C-style comments cannot be nested.
+For example, the following is
 not valid because the entire comment ends with the first
-.Li */ :
+.Ql */ :
 .Bd -literal -offset indent
 /* This is the start of a comment.
    This is still part of the comment.
@@ -103,19 +106,20 @@ not valid because the entire comment ends with the first
 .Ed
 .Pp
 C++-style comments start with the two characters
-.Li //
+.Ql //
 (slash, slash) and continue to the end of the physical line.
 They cannot be continued across multiple physical lines; to have
 one logical comment span multiple lines, each line must use the
-.Li //
-pair.  For example:
+.Ql //
+pair.
+For example:
 .Bd -literal -offset indent
 // This is the start of a comment.  The next line
 // is a new comment, even though it is logically
 // part of the previous comment.
 .Ed
 .Sh FILES
-.Bl -tag -width /etc/devd.conf -compact
+.Bl -tag -width ".Pa /etc/devd.conf" -compact
 .It Pa /etc/devd.conf
 The
 .Xr devd 8
