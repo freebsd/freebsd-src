@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)kvm_getvfsbyname.c	8.1 (Berkeley) 4/3/95";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: getvfsbyname.c,v 1.2 1997/03/03 13:08:33 bde Exp $";
 #endif /* not lint */
 
 #define	_NEW_VFSCONF
@@ -54,6 +54,9 @@ getvfsbyname(fsname, vfcp)
 	const char *fsname;
 	struct vfsconf *vfcp;
 {
+#ifdef	__NETBSD_SYSCALLS
+	errno = ENOSYS;
+#else
 	int name[4], maxtypenum, cnt;
 	size_t buflen;
 
@@ -76,5 +79,6 @@ getvfsbyname(fsname, vfcp)
 			return (0);
 	}
 	errno = ENOENT;
+#endif
 	return (-1);
 }
