@@ -478,7 +478,7 @@ kvprintf(char const *fmt, void (*func)(int, void*), void *arg, int radix, va_lis
 	int ch, n;
 	uintmax_t num;
 	int base, lflag, qflag, tmp, width, ladjust, sharpflag, neg, sign, dot;
-	int jflag;
+	int jflag, zflag;
 	int dwidth;
 	char padc;
 	int retval = 0;
@@ -506,7 +506,7 @@ kvprintf(char const *fmt, void (*func)(int, void*), void *arg, int radix, va_lis
 		percent = fmt - 1;
 		qflag = 0; lflag = 0; ladjust = 0; sharpflag = 0; neg = 0;
 		sign = 0; dot = 0; dwidth = 0;
-		jflag = 0;
+		jflag = 0; zflag = 0;
 reswitch:	switch (ch = (u_char)*fmt++) {
 		case '.':
 			dot = 1;
@@ -614,6 +614,8 @@ reswitch:	switch (ch = (u_char)*fmt++) {
 				*(va_arg(ap, quad_t *)) = retval;
 			else if (lflag)
 				*(va_arg(ap, long *)) = retval;
+			else if (zflag)
+				*(va_arg(ap, size_t *)) = retval;
 			else
 				*(va_arg(ap, int *)) = retval;
 			break;
@@ -662,10 +664,13 @@ reswitch:	switch (ch = (u_char)*fmt++) {
 		case 'X':
 			base = 16;
 			goto handle_nosign;
-		case 'z':
+		case 'y':
 			base = 16;
 			sign = 1;
 			goto handle_sign;
+		case 'z':
+			zflag = 1;
+			goto reswitch;
 handle_nosign:
 			sign = 0;
 			if (jflag)
@@ -674,6 +679,8 @@ handle_nosign:
 				num = va_arg(ap, u_quad_t);
 			else if (lflag)
 				num = va_arg(ap, u_long);
+			else if (zflag)
+				num = va_arg(ap, size_t);
 			else
 				num = va_arg(ap, u_int);
 			goto number;
@@ -684,6 +691,8 @@ handle_sign:
 				num = va_arg(ap, quad_t);
 			else if (lflag)
 				num = va_arg(ap, long);
+			else if (zflag)
+				num = va_arg(ap, size_t);
 			else
 				num = va_arg(ap, int);
 number:
