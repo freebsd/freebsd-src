@@ -42,7 +42,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_disksubr.c	8.5 (Berkeley) 1/21/94
- * $Id: ufs_disksubr.c,v 1.12 1995/03/18 06:32:48 davidg Exp $
+ * $Id: ufs_disksubr.c,v 1.13 1995/03/18 06:38:04 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -67,6 +67,13 @@
  * A one-way scan is natural because of the way UNIX read-ahead blocks are
  * allocated.
  */
+
+/*
+ * For portability with historic industry practice, the
+ * cylinder number has to be maintained in the `b_resid'
+ * field.
+ */
+#define	b_cylinder	b_resid
 
 void
 disksort(ap, bp)
