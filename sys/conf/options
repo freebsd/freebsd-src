@@ -216,6 +216,8 @@ DFLDSIZ			opt_rlimit.h
 MAXDSIZ			opt_rlimit.h
 
 # Net stuff.
+ACCEPT_FILTER_DATA
+ACCEPT_FILTER_HTTP
 BOOTP			opt_bootp.h
 BOOTP_COMPAT		opt_bootp.h
 BOOTP_NFSROOT		opt_bootp.h

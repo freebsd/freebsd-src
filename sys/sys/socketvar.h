@@ -48,6 +48,8 @@
  */
 typedef	u_quad_t so_gen_t;
 
+struct accept_filter;
+
 struct socket {
 	struct	vm_zone *so_zone;	/* zone we were allocated from */
 	short	so_type;		/* generic type, see socket.h */
@@ -112,6 +114,11 @@ struct socket {
 	/* NB: generation count must not be first; easiest to make it last. */
 	so_gen_t so_gencnt;		/* generation count */
 	void	*so_emuldata;		/* private data for emulators */
+	struct	so_accf { 
+		struct	accept_filter *so_accept_filter;
+		void	*so_accept_filter_arg;	/* saved filter args */
+		char	*so_accept_filter_str;	/* saved user args */
+	} *so_accf;
 };
 
 /*
@@ -270,9 +277,21 @@ struct sf_buf {
 	vm_offset_t	kva;		/* va of mapping */
 };
 
+struct accept_filter {
+	char	accf_name[16];
+	void	(*accf_callback)
+		__P((struct socket *so, void *arg, int waitflag));
+	void *	(*accf_create)
+		__P((struct socket *so, char *arg));
+	void	(*accf_destroy)
+		__P((struct socket *so));
+	SLIST_ENTRY(accept_filter) accf_next;	/* next on the list */
+};	
+
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_PCB);
 MALLOC_DECLARE(M_SONAME);
+MALLOC_DECLARE(M_ACCF);
 #endif
 
 extern int	maxsockets;
@@ -379,6 +398,14 @@ int	sosetopt __P((struct socket *so, struct sockopt *sopt));
 int	soshutdown __P((struct socket *so, int how));
 void	sotoxsocket __P((struct socket *so, struct xsocket *xso));
 void	sowakeup __P((struct socket *so, struct sockbuf *sb));
+
+/* accept filter functions */
+int	accept_filt_add __P((struct accept_filter *filt));
+int	accept_filt_del __P((char *name));
+struct accept_filter *	accept_filt_get __P((char *name));
+#ifdef ACCEPT_FILTER_MOD
+int accept_filt_generic_mod_event __P((module_t mod, int event, void *data));
+#endif /* ACCEPT_FILTER_MOD */
 
 #endif /* _KERNEL */
 

@@ -541,6 +541,10 @@ options 	IPFILTER_LOG		#ipfilter logging
 options 	IPSTEALTH		#support for stealth forwarding
 options 	TCPDEBUG
 
+# Statically Link in accept filters
+options		ACCEPT_FILTER_DATA
+options		ACCEPT_FILTER_HTTP
+
 # The following options add sysctl variables for controlling how certain
 # TCP packets are handled.
 #

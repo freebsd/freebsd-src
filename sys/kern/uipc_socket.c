@@ -58,6 +58,8 @@
 
 #include <machine/limits.h>
 
+static int	 do_setopt_accept_filter(struct socket *so, struct sockopt *sopt);
+
 static int 	filt_sorattach(struct knote *kn);
 static void 	filt_sordetach(struct knote *kn);
 static int 	filt_soread(struct knote *kn, long hint);
@@ -193,6 +195,15 @@ sodealloc(so)
 	if (so->so_snd.sb_hiwat)
 		(void)chgsbsize(so->so_cred->cr_uid,
 		    -(rlim_t)so->so_snd.sb_hiwat);
+	if (so->so_accf != NULL) {
+		if (so->so_accf->so_accept_filter != NULL && 
+			so->so_accf->so_accept_filter->accf_destroy != NULL) {
+			so->so_accf->so_accept_filter->accf_destroy(so);
+		}
+		if (so->so_accf->so_accept_filter_str != NULL)
+			FREE(so->so_accf->so_accept_filter_str, M_ACCF);
+		FREE(so->so_accf, M_ACCF);
+	}
 	crfree(so->so_cred);
 	zfreei(so->so_zone, so);
 }
@@ -977,6 +988,77 @@ sorflush(so)
 	sbrelease(&asb, so);
 }
 
+static int
+do_setopt_accept_filter(so, sopt)
+	struct	socket *so;
+	struct	sockopt *sopt;
+{
+	struct accept_filter_arg	*afap = NULL;
+	struct accept_filter	*afp;
+	struct so_accf	*af = so->so_accf;
+	int	error = 0;
+
+	/* removing the filter */
+	if (sopt == NULL) {
+		if (af != NULL) {
+			if (af->so_accept_filter != NULL && 
+				af->so_accept_filter->accf_destroy != NULL) {
+				af->so_accept_filter->accf_destroy(so);
+			}
+			if (af->so_accept_filter_str != NULL) {
+				FREE(af->so_accept_filter_str, M_ACCF);
+			}
+			FREE(af, M_ACCF);
+			so->so_accf = NULL;
+		}
+		so->so_options &= ~SO_ACCEPTFILTER;
+		return (0);
+	}
+	/* adding a filter */
+	/* must remove previous filter first */
+	if (af != NULL) {
+		error = EINVAL;
+		goto out;
+	}
+	/* don't put large objects on the kernel stack */
+	MALLOC(afap, struct accept_filter_arg *, sizeof(*afap), M_TEMP, M_WAITOK);
+	error = sooptcopyin(sopt, afap, sizeof *afap, sizeof *afap);
+	afap->af_name[sizeof(afap->af_name)-1] = '\0';
+	afap->af_arg[sizeof(afap->af_arg)-1] = '\0';
+	if (error)
+		goto out;
+	afp = accept_filt_get(afap->af_name);
+	if (afp == NULL) {
+		error = ENOENT;
+		goto out;
+	}
+	MALLOC(af, struct so_accf *, sizeof(*af), M_ACCF, M_WAITOK);
+	bzero(af, sizeof(*af));
+	if (afp->accf_create != NULL) {
+		if (afap->af_name[0] != '\0') {
+			int len = strlen(afap->af_name) + 1;
+
+			MALLOC(af->so_accept_filter_str, char *, len, M_ACCF, M_WAITOK);
+			strcpy(af->so_accept_filter_str, afap->af_name);
+		}
+		af->so_accept_filter_arg = afp->accf_create(so, afap->af_arg);
+		if (af->so_accept_filter_arg == NULL) {
+			FREE(af->so_accept_filter_str, M_ACCF);
+			FREE(af, M_ACCF);
+			so->so_accf = NULL;
+			error = EINVAL;
+			goto out;
+		}
+	}
+	af->so_accept_filter = afp;
+	so->so_accf = af;
+	so->so_options |= SO_ACCEPTFILTER;
+out:
+	if (afap != NULL)
+		FREE(afap, M_TEMP);
+	return (error);
+}
+
 /*
  * Perhaps this routine, and sooptcopyout(), below, ought to come in
  * an additional variant to handle the case where the option value needs
@@ -1137,6 +1219,11 @@ sosetopt(so, sopt)
 			}
 			break;
 
+		case SO_ACCEPTFILTER:
+			error = do_setopt_accept_filter(so, sopt);
+			if (error)
+				goto bad;
+			break;
 		default:
 			error = ENOPROTOOPT;
 			break;
@@ -1190,6 +1277,7 @@ sogetopt(so, sopt)
 	int	error, optval;
 	struct	linger l;
 	struct	timeval tv;
+	struct accept_filter_arg *afap;
 
 	error = 0;
 	if (sopt->sopt_level != SOL_SOCKET) {
@@ -1200,6 +1288,19 @@ sogetopt(so, sopt)
 			return (ENOPROTOOPT);
 	} else {
 		switch (sopt->sopt_name) {
+		case SO_ACCEPTFILTER:
+			MALLOC(afap, struct accept_filter_arg *, sizeof(*afap),
+				M_TEMP, M_WAITOK);
+			bzero(afap, sizeof(*afap));
+			if ((so->so_options & SO_ACCEPTFILTER) != 0) {
+				strcpy(afap->af_name, so->so_accf->so_accept_filter->accf_name);
+				if (so->so_accf->so_accept_filter_str != NULL)
+					strcpy(afap->af_arg, so->so_accf->so_accept_filter_str);
+			}
+			error = sooptcopyout(sopt, afap, sizeof(*afap));
+			FREE(afap, M_TEMP);
+			break;
+			
 		case SO_LINGER:
 			l.l_onoff = so->so_options & SO_LINGER;
 			l.l_linger = so->so_linger;

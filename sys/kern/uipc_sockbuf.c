@@ -107,10 +107,21 @@ soisconnected(so)
 	struct socket *so;
 {
 	struct socket *head = so->so_head;
+	int	s;
 
 	so->so_state &= ~(SS_ISCONNECTING|SS_ISDISCONNECTING|SS_ISCONFIRMING);
 	so->so_state |= SS_ISCONNECTED;
 	if (head && (so->so_state & SS_INCOMP)) {
+		if ((so->so_options & SO_ACCEPTFILTER) != 0) {
+			s = splnet();
+			so->so_upcall = head->so_accf->so_accept_filter->accf_callback;
+			so->so_upcallarg = head->so_accf->so_accept_filter_arg;
+			so->so_rcv.sb_flags |= SB_UPCALL;
+			so->so_options &= ~SO_ACCEPTFILTER;
+			splx(s);
+			so->so_upcall(so, so->so_upcallarg, 0);
+			return;
+		}
 		TAILQ_REMOVE(&head->so_incomp, so, so_list);
 		head->so_incqlen--;
 		so->so_state &= ~SS_INCOMP;
