@@ -425,6 +425,8 @@ uhidopen(dev_t dev, int flag, int mode, usb_proc_ptr p)
 			 "error=%d\n",err));
 		free(sc->sc_ibuf, M_USBDEV);
 		free(sc->sc_obuf, M_USBDEV);
+		sc->sc_ibuf = sc->sc_obuf = NULL;
+
 		sc->sc_state &= ~UHID_OPEN;
 		return (EIO);
 	}
@@ -455,6 +457,7 @@ uhidclose(dev_t dev, int flag, int mode, usb_proc_ptr p)
 
 	free(sc->sc_ibuf, M_USBDEV);
 	free(sc->sc_obuf, M_USBDEV);
+	sc->sc_ibuf = sc->sc_obuf = NULL;
 
 	sc->sc_state &= ~UHID_OPEN;
 
