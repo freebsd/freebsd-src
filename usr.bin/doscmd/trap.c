@@ -32,8 +32,12 @@
  * $FreeBSD$
  */
 
+#include <machine/trap.h>
+
 #include "doscmd.h"
 #include "trap.h"
+#include "tty.h"
+#include "video.h"
 
 /* 
 ** When the emulator is very busy, it's often common for
@@ -60,7 +64,7 @@ fake_int(regcontext_t *REGS, int intnum)
 	       intnum, R_AH, R_CS, R_IP, ivec[intnum]);
 	switch (intnum) {
 	case 0x2f: 			/* multiplex interrupt */
-	    int2f(&REGS->sc); 
+	    int2f((regcontext_t *)&REGS->sc); 
 	    break;
 	case 0xff: 			/* doscmd special */
 	    emuint(REGS); 
@@ -73,7 +77,7 @@ fake_int(regcontext_t *REGS, int intnum)
 	return;
     }
 
-user_int:
+    /* user_int: */
     debug (D_TRAPS|intnum, 
 	   "INT %02x:%02x [%04x:%04x] %04x %04x %04x %04x from %04x:%04x\n",
 	   intnum, R_AH, ivec[intnum] >> 16, ivec[intnum] & 0xffff,
@@ -295,9 +299,21 @@ sigbus(struct sigframe *sf)
 	fatal("SIGBUS in the emulator\n");
 
     if ((int)sf->sf_siginfo != 0) {
-        fatal("SIGBUS code %d, trapno: %d, err: %d\n",
-	    (int)sf->sf_siginfo, sf->sf_uc.uc_mcontext.mc_trapno, 
-	    sf->sf_uc.uc_mcontext.mc_err);
+	switch (sf->sf_uc.uc_mcontext.mc_trapno) {
+	case T_PAGEFLT:
+	    debug(D_TRAPS2, "Page fault, trying to access 0x%x\n",
+		  sf->sf_addr);
+	    /* nothing but accesses to video memory can fault for now */
+	    if (vmem_pageflt(sf) == 0)
+		goto out;
+	    /* FALLTHRU */
+	default:
+	    dump_regs(REGS);
+	    fatal("SIGBUS code %d, trapno: %d, err: %d\n",
+		  (int)sf->sf_siginfo, sf->sf_uc.uc_mcontext.mc_trapno, 
+		  sf->sf_uc.uc_mcontext.mc_err);
+	    /* NOTREACHED */
+	}
     }
 
     addr = (u_char *)MAKEPTR(R_CS, R_IP);
@@ -588,7 +604,7 @@ sigalrm(struct sigframe *sf)
 
 /*     debug(D_ALWAYS,"tick %d", update_counter); */
     update_counter = 0;			/* remember we've updated */
-    video_update(&REGS->sc);
+    video_update((regcontext_t *)&REGS->sc);
     hardint(0x08);
 /*    debug(D_ALWAYS,"\n"); */
 
