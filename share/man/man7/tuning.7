@@ -199,19 +199,29 @@ and
 .Pp
 .Fx
 performs best when using 8K or 16K filesystem block sizes.
-The default filesystem block size is 8K.
-For larger partitions it is usually a good
-idea to use a 16K block size.
-This also requires you to specify a larger
+The default filesystem block size is 16K,
+which provides best performance for most applications,
+with the exception of those that perform random access on large files
+(such as database server software).
+Such applications tend to perform better with a smaller block size,
+although modern disk characteristics are such that the performance
+gain from using a smaller block size may not be worth consideration.
+Using a block size larger than 16K
+can cause fragmentation of the buffer cache and
+lead to lower performance.
+.Pp
+The defaults may be unsuitable
+for a filesystem that requires a very large number of inodes
+or is intended to hold a large number of very small files.
+Such a filesystem should be created with an 8K or 4K block size.
+This also requires you to specify a smaller
 fragment size.
 We recommend always using a fragment size that is 1/8
 the block size (less testing has been done on other fragment size factors).
 The
 .Xr newfs 8
 options for this would be
-.Dq Li "newfs -f 2048 -b 16384 ..." .
-Using a larger block size can cause fragmentation of the buffer cache and
-lead to lower performance.
+.Dq Li "newfs -f 1024 -b 8192 ..." .
 .Pp
 If a large partition is intended to be used to hold fewer, larger files, such
 as a database files, you can increase the
