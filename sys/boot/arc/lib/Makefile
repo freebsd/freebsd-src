@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 LIB=		arc
-INTERNALLIB=	true
+INTERNALLIB=
 
 CFLAGS+=	-ffreestanding
 .PATH:		${.CURDIR}/arch/${MACHINE_ARCH}

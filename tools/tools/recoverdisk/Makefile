@@ -2,7 +2,7 @@
 
 PROG=	recoverdisk
 
-NOMAN=1
+NOMAN=
 
 WARNS?=	5
 

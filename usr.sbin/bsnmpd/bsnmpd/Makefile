@@ -14,7 +14,7 @@ XSYM=	snmpMIB begemotSnmpdModuleTable begemotSnmpd begemotTrapSinkTable \
 CLEANFILES= oid.h tree.c tree.h
 MAN=	bsnmpd.1 snmpmod.3
 WARNS?=	6
-NO_WERROR=yes
+NO_WERROR=
 
 FILESGROUPS= BMIBS DEFS
 

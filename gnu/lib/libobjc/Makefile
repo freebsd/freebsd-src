@@ -6,12 +6,12 @@ GCCDIR=	${.CURDIR}/../../../contrib/gcc
 .PATH: ${OBJCDIR}/objc ${OBJCDIR}
 
 LIB=    objc
-NOMAN=	sorry
+NOMAN=
 .if ${MACHINE_ARCH} == "amd64"
 SHLIB_MAJOR= 1
 .else
 # XXX is this still correct?
-NOPIC=	works but method lookup slowdown is significant
+NOPIC=	# works but method lookup slowdown is significant
 .endif
 
 SRCS=   archive.c class.c encoding.c gc.c hash.c init.c misc.c \

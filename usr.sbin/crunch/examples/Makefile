@@ -11,7 +11,7 @@ CONF=	$(CRUNCHED).conf
 OUTMK=	$(CRUNCHED).mk
 OUTPUTS= $(OUTMK) $(CRUNCHED).c $(CRUNCHED).cache
 
-NOMAN=	#true
+NOMAN=
 CLEANFILES+= $(CRUNCHED) *.o *.lo *.c *.mk *.cache
 CLEANDIRFILES+= $(OUTPUTS)
 

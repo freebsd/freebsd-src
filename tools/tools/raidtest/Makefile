@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	raidtest
-NOMAN=	true
+NOMAN=
 WARNS?=	6
 
 .include <bsd.prog.mk>

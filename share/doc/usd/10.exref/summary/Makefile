@@ -2,6 +2,6 @@
 
 DOC=		summary
 SRCS=		ex.summary
-USE_TBL=	YES
+USE_TBL=
 
 .include <bsd.doc.mk>

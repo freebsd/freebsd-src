@@ -5,7 +5,7 @@ DOC=		bio
 SRCS=		bio.ms-patched
 EXTRA=		bufsize.eps
 MACROS=		-ms
-USE_PIC=	YES
+USE_PIC=
 CLEANFILES=	bio.ms-patched
 
 bio.ms-patched: bio.ms

@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 LIB=	man
-INTERNALLIB= true
+INTERNALLIB=
 
 CFLAGS+= -DSTDC_HEADERS
 CLEANFILES+= config.h

@@ -17,7 +17,7 @@ WARNS?=	2
 .endif
 CFLAGS+= -D_GNU_SOURCE
 CFLAGS+= -I${SRCDIR}/bfd
-INTERNALLIB=	true
+INTERNALLIB=
 CLEANFILES+=	bfdver.h config.h targmatch.h
 
 SELARCH=

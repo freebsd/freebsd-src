@@ -3,6 +3,6 @@
 #
 
 PROG=	netblast
-NOMAN=	yes
+NOMAN=
 
 .include <bsd.prog.mk>
