@@ -81,7 +81,7 @@ umtx_lock(struct umtx *umtx, long id)
 {
 	if (atomic_cmpset_acq_ptr(&umtx->u_owner, (void *)UMTX_UNOWNED,
 	    (void *)id) == 0)
-		if (_umtx_op(umtx, UMTX_OP_LOCK, id, 0, 0) == -1)
+		if (_umtx_lock(umtx) == -1)
 			return (errno);
 	return (0);
 }
@@ -110,7 +110,7 @@ umtx_unlock(struct umtx *umtx, long id)
 {
 	if (atomic_cmpset_rel_ptr(&umtx->u_owner, (void *)id,
 	    (void *)UMTX_UNOWNED) == 0)
-		if (_umtx_op(umtx, UMTX_OP_UNLOCK, id, 0, 0) == -1)
+		if (_umtx_unlock(umtx) == -1)
 			return (errno);
 	return (0);
 }
