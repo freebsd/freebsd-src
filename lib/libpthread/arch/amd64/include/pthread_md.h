@@ -235,17 +235,31 @@ _thread_enter_uts(struct tcb *tcb, struct kcb *kcb)
 static __inline int
 _thread_switch(struct kcb *kcb, struct tcb *tcb, int setmbox)
 {
+	extern int _libkse_debug;
+
 	if ((kcb == NULL) || (tcb == NULL))
 		return (-1);
 	kcb->kcb_curtcb = tcb;
-	if (setmbox != 0)
-		_amd64_restore_context(&tcb->tcb_tmbx.tm_context.uc_mcontext,
-		    (intptr_t)&tcb->tcb_tmbx,
-		    (intptr_t *)&kcb->kcb_kmbx.km_curthread);
-	else
-		_amd64_restore_context(&tcb->tcb_tmbx.tm_context.uc_mcontext,
-		    0, NULL);
-	/* We should not reach here. */
+
+	if (_libkse_debug == 0) {
+		tcb->tcb_tmbx.tm_lwp = kcb->kcb_kmbx.km_lwp;
+		if (setmbox != 0)
+			_amd64_restore_context(
+				&tcb->tcb_tmbx.tm_context.uc_mcontext,
+				(intptr_t)&tcb->tcb_tmbx,
+				(intptr_t *)&kcb->kcb_kmbx.km_curthread);
+		else
+			_amd64_restore_context(
+				&tcb->tcb_tmbx.tm_context.uc_mcontext,
+				0, NULL);
+		/* We should not reach here. */
+	} else {
+		if (setmbox)
+			kse_switchin(&tcb->tcb_tmbx, KSE_SWITCHIN_SETTMBX);
+		else
+			kse_switchin(&tcb->tcb_tmbx, 0);
+	}
+
 	return (-1);
 }
 #endif

@@ -218,14 +218,27 @@ _thread_enter_uts(struct tcb *tcb, struct kcb *kcb)
 static __inline int
 _thread_switch(struct kcb *kcb, struct tcb *tcb, int setmbox)
 {
+	extern int _libkse_debug;
+
 	_tcb_set(kcb, tcb);
-	if (setmbox != 0)
-		_alpha_restore_context(&tcb->tcb_tmbx.tm_context.uc_mcontext,
-		    (intptr_t)&tcb->tcb_tmbx,
-		    (intptr_t *)&kcb->kcb_kmbx.km_curthread);
-	else
-		_alpha_restore_context(&tcb->tcb_tmbx.tm_context.uc_mcontext,
-		    0, NULL);
+	if (_libkse_debug == 0) {
+		tcb->tcb_tmbx.tm_lwp = kcb->kcb_kmbx.km_lwp;
+		if (setmbox != 0)
+			_alpha_restore_context(
+				&tcb->tcb_tmbx.tm_context.uc_mcontext,
+				(intptr_t)&tcb->tcb_tmbx,
+				(intptr_t *)&kcb->kcb_kmbx.km_curthread);
+		else
+			_alpha_restore_context(
+				&tcb->tcb_tmbx.tm_context.uc_mcontext,
+				0, NULL);
+	} else {
+		if (setmbox)
+			kse_switchin(&tcb->tcb_tmbx, KSE_SWITCHIN_SETTMBX);
+		else
+			kse_switchin(&tcb->tcb_tmbx, 0);
+	}
+
 	/* We should not reach here. */
 	return (-1);
 }
