@@ -43,6 +43,12 @@ trlld.o				optional	oltr			\
 	compile-with	"uudecode < $S/contrib/dev/oltr/i386-elf.trlld.o.uu"	\
 	no-implicit-rule
 #
+hal.o				optional	ath_hal			\
+	dependency	"$S/contrib/dev/ath/freebsd/i386-elf.hal.o.uu"	\
+	compile-with	"uudecode < $S/contrib/dev/ath/freebsd/i386-elf.hal.o.uu" \
+	no-implicit-rule
+#
+#
 compat/linux/linux_file.c	optional	compat_linux
 compat/linux/linux_getcwd.c	optional	compat_linux
 compat/linux/linux_ioctl.c	optional	compat_linux
