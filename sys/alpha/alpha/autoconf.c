@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: autoconf.c,v 1.18 1999/05/07 17:48:44 mjacob Exp $
+ *	$Id: autoconf.c,v 1.19 1999/05/08 06:37:50 phk Exp $
  */
 
 #include "opt_bootp.h"
@@ -69,6 +69,8 @@ device_t	isa_bus_device = 0;
 struct cam_sim *boot_sim = 0;
 extern int nfs_diskless_valid;
 
+dev_t	rootdev = NODEV;
+dev_t	dumpdev = NODEV;
 
 static void
 configure_start()
