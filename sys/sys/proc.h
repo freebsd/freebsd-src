@@ -265,19 +265,19 @@ struct thread {
 
 	TAILQ_HEAD(, selinfo) td_selq;	/* (p) List of selinfos. */
 
-/* Cleared during fork1() or thread_sched_upcall() */
+/* Cleared during fork1() or thread_sched_upcall(). */
 #define	td_startzero td_flags
 	int		td_flags;	/* (j) TDF_* flags. */
-	int		td_inhibitors;	/* (j) Why can not run */
+	int		td_inhibitors;	/* (j) Why can not run. */
 	int		td_pflags;	/* (k) Private thread (TDP_*) flags. */
-	struct kse	*td_last_kse;	/* (j) Previous value of td_kse */
+	struct kse	*td_last_kse;	/* (j) Previous value of td_kse. */
 	struct kse	*td_kse;	/* (j) Current KSE if running. */
 	int		td_dupfd;	/* (k) Ret value from fdopen. XXX */
 	void		*td_wchan;	/* (j) Sleep address. */
 	const char	*td_wmesg;	/* (j) Reason for sleep. */
 	u_char		td_lastcpu;	/* (j) Last cpu we were on. */
 	u_char		td_oncpu;	/* (j) Which cpu we are on. */
-	short		td_locks;	/* (k) DEBUG: lockmgr count of locks */
+	short		td_locks;	/* (k) DEBUG: lockmgr count of locks. */
 	struct mtx	*td_blocked;	/* (j) Mutex process is blocked on. */
 	struct ithd	*td_ithd;	/* (b) For interrupt threads only. */
 	const char	*td_lockname;	/* (j) Name of lock blocked on. */
@@ -285,25 +285,25 @@ struct thread {
 	struct lock_list_entry *td_sleeplocks; /* (k) Held sleep locks. */
 	int		td_intr_nesting_level; /* (k) Interrupt recursion. */
 	int		td_pinned;	/* (k) Temporary cpu pin count. */
-	struct kse_thr_mailbox *td_mailbox; /* (*) Userland mailbox address */
+	struct kse_thr_mailbox *td_mailbox; /* (*) Userland mailbox address. */
 	struct ucred	*td_ucred;	/* (k) Reference to credentials. */
-	struct thread	*td_standin;	/* (*) Use this for an upcall */
+	struct thread	*td_standin;	/* (*) Use this for an upcall. */
 	u_int		td_prticks;	/* (*) Profclock hits in sys for user */
 	struct kse_upcall *td_upcall;	/* (*) Upcall structure. */
 	u_int64_t	td_sticks;	/* (j) Statclock hits in system mode. */
-	u_int		td_uuticks;	/* (*) Statclock in user, for UTS */
-	u_int		td_usticks;	/* (*) Statclock in kernel, for UTS */
-	int		td_intrval;	/* (*) Return value of TDF_INTERRUPT */
+	u_int		td_uuticks;	/* (*) Statclock in user, for UTS. */
+	u_int		td_usticks;	/* (*) Statclock in kernel, for UTS. */
+	int		td_intrval;	/* (*) Return value of TDF_INTERRUPT. */
 	sigset_t	td_oldsigmask;	/* (k) Saved mask from pre sigpause. */
 	sigset_t	td_sigmask;	/* (c) Current signal mask. */
 	sigset_t	td_siglist;	/* (c) Sigs arrived, not delivered. */
-	sigset_t	*td_waitset;	/* (c) Wait set for sigwait */
+	sigset_t	*td_waitset;	/* (c) Wait set for sigwait. */
 	TAILQ_ENTRY(thread) td_umtx;	/* (c?) Link for when we're blocked. */
 	volatile u_int	td_generation;	/* (k) Enable detection of preemption */
 
 #define	td_endzero td_base_pri
 
-/* Copied during fork1() or thread_sched_upcall() */
+/* Copied during fork1() or thread_sched_upcall(). */
 #define	td_startcopy td_endzero
 	u_char		td_base_pri;	/* (j) Thread base kernel priority. */
 	u_char		td_priority;	/* (j) Thread active priority. */
@@ -332,14 +332,14 @@ struct thread {
 	int		td_altkstack_pages; /* (a) Size of the alternate kstack */
 	u_int		td_critnest;	/* (k) Critical section nest level. */
 	struct mdthread td_md;		/* (k) Any machine-dependent fields. */
-	struct td_sched	*td_sched;	/* (*) Scheduler specific data */
+	struct td_sched	*td_sched;	/* (*) Scheduler-specific data. */
 };
 /* flags kept in td_flags */ 
 #define	TDF_INPANIC	0x000002 /* Caused a panic, let it drive crashdump. */
 #define	TDF_CAN_UNBIND	0x000004 /* Only temporarily bound. */
 #define	TDF_SINTR	0x000008 /* Sleep is interruptible. */
 #define	TDF_TIMEOUT	0x000010 /* Timing out during sleep. */
-#define	TDF_IDLETD	0x000020 /* This is one of the per-CPU idle threads */
+#define	TDF_IDLETD	0x000020 /* This is one of the per-CPU idle threads. */
 #define	TDF_SELECT	0x000040 /* Selecting; wakeup/waiting danger. */
 #define	TDF_CVWAITQ	0x000080 /* Thread is on a cv_waitq (not slpq). */
 #define	TDF_ONSLEEPQ	0x000200 /* On the sleep queue. */
@@ -350,7 +350,7 @@ struct thread {
 #define	TDF_OWEUPC	0x008000 /* Owe thread an addupc() call at next AST. */
 #define	TDF_NEEDRESCHED	0x010000 /* Thread needs to yield. */
 #define	TDF_NEEDSIGCHK	0x020000 /* Thread may need signal delivery. */
-#define	TDF_SA		0x040000 /* A scheduler activation based thread */
+#define	TDF_SA		0x040000 /* A scheduler activation based thread. */
 #define TDF_UMTXWAKEUP	0x080000 /* Libthr thread must not sleep on a umtx. */
 #define	TDF_DEADLKTREAT	0x800000 /* Lock aquisition - deadlock treatment. */
 
@@ -444,14 +444,14 @@ struct kse {
 	} ke_state;			/* (j) KSE status. */
 #define	ke_endzero ke_dummy
 	u_char		ke_dummy;
-	struct ke_sched	*ke_sched;	/* (*) Scheduler specific data */
+	struct ke_sched	*ke_sched;	/* (*) Scheduler-specific data. */
 };
 
 /* flags kept in ke_flags */
-#define	KEF_SCHED0	0x00001	/* For scheduler specific use. */
-#define	KEF_SCHED1	0x00002	/* For scheduler specific use. */
-#define	KEF_SCHED2	0X00004	/* For scheduler specific use. */
-#define	KEF_SCHED3	0x00008	/* For scheduler specific use. */
+#define	KEF_SCHED0	0x00001	/* For scheduler-specific use. */
+#define	KEF_SCHED1	0x00002	/* For scheduler-specific use. */
+#define	KEF_SCHED2	0X00004	/* For scheduler-specific use. */
+#define	KEF_SCHED3	0x00008	/* For scheduler-specific use. */
 #define	KEF_DIDRUN	0x02000	/* KSE actually ran. */
 #define	KEF_EXIT	0x04000	/* KSE is being killed. */
 
@@ -471,8 +471,8 @@ struct kse_upcall {
 	unsigned int		ku_mflags;	/* cached upcall mailbox flags */
 };
 
-#define	KUF_DOUPCALL	0x00001		/* Do upcall now, don't wait */
-#define	KUF_EXITING	0x00002		/* Upcall structure is exiting */
+#define	KUF_DOUPCALL	0x00001		/* Do upcall now, don't wait. */
+#define	KUF_EXITING	0x00002		/* Upcall structure is exiting. */
 
 /*
  * Kernel-scheduled entity group (KSEG).  The scheduler considers each KSEG to
@@ -487,18 +487,18 @@ struct ksegrp {
 	TAILQ_HEAD(, thread) kg_threads;/* (td_kglist) All threads. */
 	TAILQ_HEAD(, thread) kg_runq;	/* (td_runq) waiting RUNNABLE threads */
 	TAILQ_HEAD(, thread) kg_slpq;	/* (td_runq) NONRUNNABLE threads. */
-	TAILQ_HEAD(, kse_upcall) kg_upcalls;	/* All upcalls in the group */
+	TAILQ_HEAD(, kse_upcall) kg_upcalls;	/* All upcalls in the group. */
 #define	kg_startzero kg_estcpu
 	u_int		kg_estcpu;	/* (j) Sum of the same field in KSEs. */
 	u_int		kg_slptime;	/* (j) How long completely blocked. */
 	struct thread	*kg_last_assigned; /* (j) Last thread assigned to a KSE. */
 	int		kg_runnable;	/* (j) Num runnable threads on queue. */
 	int		kg_runq_kses;	/* (j) Num KSEs on runq. */
-	int		kg_idle_kses;	/* (j) Num KSEs on iq */
-	int		kg_numupcalls;	/* (j) Num upcalls */
-	int		kg_upsleeps;	/* (c) Num threads in kse_release() */
+	int		kg_idle_kses;	/* (j) Num KSEs on iq. */
+	int		kg_numupcalls;	/* (j) Num upcalls. */
+	int		kg_upsleeps;	/* (c) Num threads in kse_release(). */
 	struct kse_thr_mailbox *kg_completed; /* (c) Completed thread mboxes. */
-	int		kg_nextupcall;	/* (*) Next upcall time */
+	int		kg_nextupcall;	/* (*) Next upcall time. */
 	int		kg_upquantum;	/* (*) Quantum to schedule an upcall */
 #define	kg_endzero kg_pri_class
 
@@ -507,9 +507,9 @@ struct ksegrp {
 	u_char		kg_user_pri;	/* (j) User pri from estcpu and nice. */
 	char		kg_nice;	/* (c + j) Process "nice" value. */
 #define	kg_endcopy kg_numthreads
-	int		kg_numthreads;	/* (j) Num threads in total */
+	int		kg_numthreads;	/* (j) Num threads in total. */
 	int		kg_kses;	/* (j) Num KSEs in group. */
-	struct kg_sched	*kg_sched;	/* (*) Scheduler specific data */
+	struct kg_sched	*kg_sched;	/* (*) Scheduler-specific data. */
 };
 
 /*
@@ -606,14 +606,14 @@ struct proc {
 	int		p_numksegrps;	/* (?) number of ksegrps */
 	struct mdproc	p_md;		/* Any machine-dependent fields. */
 	struct callout	p_itcallout;	/* (h + c) Interval timer callout. */
-	struct user	*p_uarea;	/* (k) Kernel VA of u-area (CPU) */
+	struct user	*p_uarea;	/* (k) Kernel VA of u-area (CPU). */
 	u_short		p_acflag;	/* (c) Accounting flags. */
 	struct rusage	*p_ru;		/* (a) Exit information. XXX */
 	struct proc	*p_peers;	/* (r) */
 	struct proc	*p_leader;	/* (b) */
 	void		*p_emuldata;	/* (c) Emulator state data. */
 	struct label	p_label;	/* (*) Process (not subject) MAC label */
-	struct p_sched	*p_sched;	/* (*) Scheduler specific data */
+	struct p_sched	*p_sched;	/* (*) Scheduler-specific data. */
 };
 
 #define	p_rlimit	p_limit->pl_rlimit
@@ -634,19 +634,19 @@ struct proc {
 #define	P_STOPPROF	0x00040	/* Has thread in requesting to stop prof */
 #define	P_SUGID		0x00100	/* Had set id privileges since last exec. */
 #define	P_SYSTEM	0x00200	/* System proc: no sigs, stats or swapping. */
-#define	P_SINGLE_EXIT	0x00400	/* Threads suspending should exit, not wait */
+#define	P_SINGLE_EXIT	0x00400	/* Threads suspending should exit, not wait. */
 #define	P_TRACED	0x00800	/* Debugged process being traced. */
-#define	P_WAITED	0x01000	/* Someone is waiting for us */
+#define	P_WAITED	0x01000	/* Someone is waiting for us. */
 #define	P_WEXIT		0x02000	/* Working on exiting. */
 #define	P_EXEC		0x04000	/* Process called exec. */
 #define	P_SA		0x08000	/* Using scheduler activations. */
 #define	P_CONTINUED	0x10000	/* Proc has continued from a stopped state. */
-#define	P_STOPPED_SIG	0x20000	/* Stopped due to SIGSTOP/SIGTSTP */
-#define	P_STOPPED_TRACE	0x40000	/* Stopped because of tracing */
+#define	P_STOPPED_SIG	0x20000	/* Stopped due to SIGSTOP/SIGTSTP. */
+#define	P_STOPPED_TRACE	0x40000	/* Stopped because of tracing. */
 #define	P_STOPPED_SINGLE	0x80000	/* Only one thread can continue */
 					/* (not to user) */
 #define	P_PROTECTED	0x100000 /* Do not kill on memory overcommit. */
-#define	P_SIGEVENT	0x200000 /* Process pending signals changed */
+#define	P_SIGEVENT	0x200000 /* Process pending signals changed. */
 
 #define	P_JAILED	0x1000000 /* Process is in jail. */
 #define	P_ALTSTACK	0x2000000 /* Have alternate signal stack. */
