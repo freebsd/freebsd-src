@@ -197,10 +197,6 @@ checkfilesys(filesys, mntpt, auxdata, child)
 			pfatal("CAN'T CHECK FILE SYSTEM.");
 		/* fall through */
 	case -1:
-		return (0);
-	}
-
-	if (preen && sblock.fs_clean && !fflag) {
 		pwarn("clean, %ld free ", sblock.fs_cstotal.cs_nffree +
 			sblock.fs_frag * sblock.fs_cstotal.cs_nbfree);
 		printf("(%ld frags, %ld blocks, %.1f%% fragmentation)\n",
