@@ -31,8 +31,8 @@ DPADD+=	 ${LIBKRB} ${LIBCOM_ERR}
 DISTRIBUTION=krb5
 CFLAGS+= -DKRB5
 SRCS+=	auth-krb5.c
-LDADD+=	 -lkrb5 -lkafs -lasn1 -lcom_err -lmd -L${.OBJDIR}/../../../kerberos5/lib/libroken -lroken
-DPADD+=	 ${LIBKRB5} ${LIBCOM_ERR} ${LIBKAFS} ${LIBASN1} ${LIBMD}
+LDADD+=	 -lkrb5 -lasn1 -lcom_err -lmd -L${.OBJDIR}/../../../kerberos5/lib/libroken -lroken
+DPADD+=	 ${LIBKRB5} ${LIBCOM_ERR} ${LIBASN1} ${LIBMD}
 .endif # MAKE_KERBEROS5
 
 .include <bsd.prog.mk>
