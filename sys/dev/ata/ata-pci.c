@@ -460,7 +460,6 @@ static device_method_t ata_pci_methods[] = {
     /* device interface */
     DEVMETHOD(device_probe,		ata_pci_probe),
     DEVMETHOD(device_attach,		ata_pci_attach),
-    DEVMETHOD(device_detach,		ata_pci_attach),
     DEVMETHOD(device_shutdown,		bus_generic_shutdown),
     DEVMETHOD(device_suspend,		bus_generic_suspend),
     DEVMETHOD(device_resume,		bus_generic_resume),
