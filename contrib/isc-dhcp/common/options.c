@@ -43,7 +43,7 @@
 
 #ifndef lint
 static char copyright[] =
-"$Id: options.c,v 1.85.2.9 2002/11/17 02:26:58 dhankins Exp $ Copyright (c) 1995-2002 The Internet Software Consortium.  All rights reserved.\n";
+"$Id: options.c,v 1.85.2.12 2003/03/31 03:06:55 dhankins Exp $ Copyright (c) 1995-2002 The Internet Software Consortium.  All rights reserved.\n";
 #endif /* not lint */
 
 #define DHCP_OPTION_DATA
@@ -166,15 +166,36 @@ int parse_option_buffer (options, buffer, length, universe)
 		   the parse fails, or the option isn't an encapsulation (by
 		   far the most common case), or the option isn't entirely
 		   an encapsulation, keep the raw data as well. */
-		if (!((universe -> options [code] -> format [0] == 'e' ||
+		if (universe -> options [code] &&
+		    !((universe -> options [code] -> format [0] == 'e' ||
 		       universe -> options [code] -> format [0] == 'E') &&
 		      (parse_encapsulated_suboptions
 		       (options, universe -> options [code],
 			buffer + offset + 2, len,
 			universe, (const char *)0)))) {
-		    save_option_buffer (universe, options, bp,
-					&bp -> data [offset + 2], len,
-					universe -> options [code], 1);
+		    op = lookup_option (universe, options, code);
+		    if (op) {
+			struct data_string new;
+			memset (&new, 0, sizeof new);
+			if (!buffer_allocate (&new.buffer, op -> data.len + len,
+					      MDL)) {
+			    log_error ("parse_option_buffer: No memory.");
+			    return 0;
+			}
+			memcpy (new.buffer -> data, op -> data.data,
+				op -> data.len);
+			memcpy (&new.buffer -> data [op -> data.len],
+				&bp -> data [offset + 2], len);
+			new.len = op -> data.len + len;
+			new.data = new.buffer -> data;
+			data_string_forget (&op -> data, MDL);
+			data_string_copy (&op -> data, &new, MDL);
+			data_string_forget (&new, MDL);
+		    } else {
+			save_option_buffer (universe, options, bp,
+					    &bp -> data [offset + 2], len,
+					    universe -> options [code], 1);
+		    }
 		}
 		offset += len + 2;
 	}
@@ -470,14 +491,18 @@ int cons_options (inpacket, outpacket, lease, client_state,
 	   and no alternate maximum message size has been specified, take the
 	   one in the packet. */
 
-	if (!mms && inpacket &&
+	if (inpacket &&
 	    (op = lookup_option (&dhcp_universe, inpacket -> options,
 				 DHO_DHCP_MAX_MESSAGE_SIZE))) {
 		evaluate_option_cache (&ds, inpacket,
 				       lease, client_state, in_options,
 				       cfg_options, scope, op, MDL);
-		if (ds.len >= sizeof (u_int16_t))
-			mms = getUShort (ds.data);
+		if (ds.len >= sizeof (u_int16_t)) {
+			i = getUShort (ds.data);
+
+			if(!mms || (i < mms))
+				mms = i;
+		}
 		data_string_forget (&ds, MDL);
 	}
 
