@@ -324,6 +324,28 @@ g_post_event(enum g_events ev, struct g_class *mp, struct g_geom *gp, struct g_p
 	wakeup(&g_wait_event);
 }
 
+void
+g_cancel_event(struct g_class *mp, struct g_geom *gp, struct g_provider *pp, struct g_consumer *cp)
+{
+	struct g_event *ep, *epn;
+
+	mtx_lock(&g_eventlock);
+	ep = TAILQ_FIRST(&g_events);
+	for (;ep != NULL;) {
+		epn = TAILQ_NEXT(ep, events);
+		if (
+		    (ep->class != NULL && ep->class == mp) ||
+		    (ep->geom != NULL && ep->geom == gp) ||
+		    (ep->provider != NULL && ep->provider == pp) ||
+		    (ep->consumer != NULL && ep->consumer == cp)) {
+			TAILQ_REMOVE(&g_events, ep, events);
+			g_free(ep);
+		}
+		ep = epn;
+	}
+	mtx_unlock(&g_eventlock);
+}
+
 int
 g_call_me(g_call_me_t *func, void *arg)
 {
