@@ -1,5 +1,5 @@
 /* ranlib.h -- archive library index member definition for GNU.
-   Copyright 1990-1991  Free Software Foundation, Inc.
+   Copyright 1990, 1991 Free Software Foundation, Inc.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by

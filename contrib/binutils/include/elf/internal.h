@@ -1,5 +1,6 @@
 /* ELF support for BFD.
-   Copyright (C) 1991, 92, 93, 94, 95, 97, 1998 Free Software Foundation, Inc.
+   Copyright 1991, 1992, 1993, 1994, 1995, 1997, 1998, 2000
+   Free Software Foundation, Inc.
 
    Written by Fred Fish @ Cygnus Support, from information published
    in "UNIX System V Release 4, Programmers Guide: ANSI C and
@@ -112,7 +113,7 @@ struct elf_internal_sym {
   bfd_vma	st_size;		/* Associated symbol size */
   unsigned long	st_name;		/* Symbol name, index in string tbl */
   unsigned char	st_info;		/* Type and binding attributes */
-  unsigned char	st_other;		/* No defined meaning, 0 */
+  unsigned char	st_other;		/* Visibilty, and target specific */
   unsigned short st_shndx;		/* Associated section index */
 };
 

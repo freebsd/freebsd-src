@@ -1,5 +1,6 @@
 /* BFD back-end for binary objects.
-   Copyright 1994, 95, 96, 97, 98, 1999 Free Software Foundation, Inc.
+   Copyright 1994, 1995, 1996, 1997, 1998, 1999, 2000
+   Free Software Foundation, Inc.
    Written by Ian Lance Taylor, Cygnus Support, <ian@cygnus.com>
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -255,6 +256,9 @@ binary_set_section_contents (abfd, sec, data, offset, size)
      file_ptr offset;
      bfd_size_type size;
 {
+  if (size == 0)
+    return true;
+
   if (! abfd->output_has_begun)
     {
       boolean found_low;
@@ -270,6 +274,7 @@ binary_set_section_contents (abfd, sec, data, offset, size)
 	if (((s->flags
 	      & (SEC_HAS_CONTENTS | SEC_LOAD | SEC_ALLOC | SEC_NEVER_LOAD))
 	     == (SEC_HAS_CONTENTS | SEC_LOAD | SEC_ALLOC))
+	    && (s->_raw_size > 0)
 	    && (! found_low || s->lma < low))
 	  {
 	    low = s->lma;
@@ -281,17 +286,18 @@ binary_set_section_contents (abfd, sec, data, offset, size)
 	  s->filepos = s->lma - low;
 
 	  /* Skip following warning check for sections that will not
-	     occupy file space.  */ 
+	     occupy file space.  */
 	  if ((s->flags
 	       & (SEC_HAS_CONTENTS | SEC_ALLOC | SEC_NEVER_LOAD))
-	      != (SEC_HAS_CONTENTS | SEC_ALLOC))
+	      != (SEC_HAS_CONTENTS | SEC_ALLOC)
+	      || (s->_raw_size == 0))
 	    continue;
 
 	  /* If attempting to generate a binary file from a bfd with
 	     LMA's all over the place, huge (sparse?) binary files may
 	     result.  This condition attempts to detect this situation
 	     and print a warning.  Better heuristics would be nice to
-	     have. */
+	     have.  */
 
 	  if (s->filepos < 0)
 	    (*_bfd_error_handler)
@@ -383,6 +389,6 @@ const bfd_target binary_vec =
   BFD_JUMP_TABLE_DYNAMIC (_bfd_nodynamic),
 
   NULL,
-  
+
   NULL
 };

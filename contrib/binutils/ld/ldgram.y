@@ -1,6 +1,6 @@
-/* A YACC grammer to parse a superset of the AT&T linker scripting languaue.
-   Copyright (C) 1991, 92, 93, 94, 95, 96, 97, 98, 99, 2000
-   Free Software Foundation, Inc.
+/* A YACC grammar to parse a superset of the AT&T linker scripting language.
+   Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
+   2001 Free Software Foundation, Inc.
    Written by Steve Chamberlain of Cygnus Support (steve@cygnus.com).
 
 This file is part of GNU ld.
@@ -33,8 +33,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "ldexp.h"
 #include "ldver.h"
 #include "ldlang.h"
-#include "ldemul.h"
 #include "ldfile.h"
+#include "ldemul.h"
 #include "ldmisc.h"
 #include "ldmain.h"
 #include "mri.h"
@@ -619,7 +619,9 @@ memory_spec: 		NAME
 		attributes_opt ':'
 		origin_spec opt_comma length_spec
 
-	; origin_spec:
+	;
+
+origin_spec:
 	ORIGIN '=' mustbe_exp
 		{ region->current =
 		 region->origin =
@@ -1113,6 +1115,7 @@ vers_defns:
 			}
 		vers_defns '}'
 			{
+			  $$ = $5;
 			  ldgram_vers_current_lang = $<name>4;
 			}
 	;

@@ -1,23 +1,32 @@
 #!/bin/sh
 # genscripts.sh - generate the ld-emulation-target specific files
 #
-# Usage: genscripts.sh srcdir libdir host target target_alias \
-# default_emulation native_lib_dirs this_emulation tool_dir
+# Usage: genscripts.sh srcdir libdir exec_prefix \
+#        host target target_alias default_emulation \
+#        native_lib_dirs this_emulation tool_dir
 #
 # Sample usage:
-# genscripts.sh /djm/ld-devo/devo/ld /usr/local/lib sparc-sun-sunos4.1.3 \
-# sparc-sun-sunos4.1.3 sparc-sun-sunos4.1.3 sun4 "" sun3 sparc-sun-sunos4.1.3
+# genscripts.sh /djm/ld-devo/devo/ld /usr/local/lib /usr/local \
+#  sparc-sun-sunos4.1.3 sparc-sun-sunos4.1.3 sparc-sun-sunos4.1.3 sun4 \
+#  "" sun3 sparc-sun-sunos4.1.3
 # produces sun3.x sun3.xbn sun3.xn sun3.xr sun3.xu em_sun3.c
 
 srcdir=$1
 libdir=$2
-host=$3
-target=$4
-target_alias=$5
-EMULATION_LIBPATH=$6
-NATIVE_LIB_DIRS=$7
-EMULATION_NAME=$8
-tool_lib=`echo ${libdir} | sed -e 's|/lib$||'`/${9-$target_alias}/lib
+exec_prefix=$3
+host=$4
+target=$5
+target_alias=$6
+EMULATION_LIBPATH=$7
+NATIVE_LIB_DIRS=$8
+EMULATION_NAME=$9
+shift 9
+# Can't use ${1:-$target_alias} here due to an Ultrix shell bug.
+if [ "x$1" = "x" ] ; then
+  tool_lib=${exec_prefix}/${target_alias}/lib
+else
+  tool_lib=${exec_prefix}/$1/lib
+fi
 
 # Include the emulation-specific parameters:
 . ${srcdir}/emulparams/${EMULATION_NAME}.sh

@@ -1,5 +1,5 @@
 /* alpha-dis.c -- Disassemble Alpha AXP instructions
-   Copyright 1996, 1999 Free Software Foundation, Inc.
+   Copyright 1996, 1998, 1999, 2000 Free Software Foundation, Inc.
    Contributed by Richard Henderson <rth@tamu.edu>,
    patterned after the PPC opcode handling written by Ian Lance Taylor.
 

@@ -1,5 +1,5 @@
 /* ELF 32-bit executable support for BFD.
-   Copyright 1993 Free Software Foundation, Inc.
+   Copyright 1993, 2001 Free Software Foundation, Inc.
 
 This file is part of BFD, the Binary File Descriptor library.
 
@@ -18,6 +18,5 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #define ARCH_SIZE		32
-
 
 #include "elfcode.h"

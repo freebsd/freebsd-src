@@ -1,5 +1,5 @@
 /* obj-aout.h, a.out object file format for gas, the assembler.
-   Copyright (C) 1989, 90, 91, 92, 93, 94, 95, 96, 98, 99, 2000
+   Copyright 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1998, 2000
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -17,7 +17,7 @@
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to the Free
    Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA. */
+   02111-1307, USA.  */
 
 /* Tag to validate a.out object file format processing */
 #define OBJ_AOUT 1
@@ -33,7 +33,7 @@
 #else /* ! BFD_ASSEMBLER */
 
 #ifndef VMS
-#include "aout_gnu.h"		/* Needed to define struct nlist. Sigh. */
+#include "aout_gnu.h"		/* Needed to define struct nlist. Sigh.  */
 #else
 #include "a_out.h"
 #endif
@@ -229,12 +229,12 @@ extern void obj_aout_frob_file PARAMS ((void));
 typedef struct
   {
     struct exec header;		/* a.out header */
-    long string_table_size;	/* names + '\0' + sizeof(int) */
+    long string_table_size;	/* names + '\0' + sizeof (int) */
   }
 
 object_headers;
 
-/* line numbering stuff. */
+/* line numbering stuff.  */
 #define OBJ_EMIT_LINENO(a, b, c)	{;}
 
 struct fix;
@@ -248,5 +248,3 @@ void tc_aout_fix_to_chars PARAMS ((char *where, struct fix *fixP, relax_addressT
 #define EMIT_SECTION_SYMBOLS		0
 
 #define AOUT_STABS
-
-/* end of obj-aout.h */

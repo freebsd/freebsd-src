@@ -1,5 +1,5 @@
 /* BFD backend for Extended Tektronix Hex Format  objects.
-   Copyright (C) 1992, 93, 94, 95, 96, 97, 98, 1999
+   Copyright 1992, 1993, 1994, 1995, 1996, 1998, 1999, 2000
    Free Software Foundation, Inc.
    Written by Steve Chamberlain of Cygnus Support <sac@cygnus.com>.
 
@@ -24,11 +24,11 @@ SUBSECTION
 	Tektronix Hex Format handling
 
 DESCRIPTION
-	
+
 	Tek Hex records can hold symbols and data, but not
 	relocations. Their main application is communication with
 	devices like PROM programmers and ICE equipment.
-	
+
 	It seems that the sections are descibed as being really big,
         the example I have says that the text section is 0..ffffffff.
 	BFD would barf with this, many apps would try to alloc 4GB to
@@ -49,11 +49,10 @@ DESCRIPTION
 	Any number of sections may be created for output, we save them
 	up and output them when it's time to close the bfd.
 
-
 	A TekHex record looks like:
 EXAMPLE
 	%<block length><type><checksum><stuff><cr>
-	
+
 DESCRIPTION
 	Where
 	o length
@@ -63,7 +62,6 @@ DESCRIPTION
 	3) symbol record
 	6) data record
 	8) termination record
-	
 
 The data can come out of order, and may be discontigous. This is a
 serial protocol, so big files are unlikely, so we keep a list of 8k chunks
@@ -123,7 +121,7 @@ static const bfd_target *tekhex_object_p PARAMS ((bfd *));
 static boolean tekhex_mkobject PARAMS ((bfd *));
 static long tekhex_get_symtab_upper_bound PARAMS ((bfd *));
 static long tekhex_get_symtab PARAMS ((bfd *, asymbol **));
-static void pass_over PARAMS ((bfd *, void (*)(bfd*, int, char *)));
+static void pass_over PARAMS ((bfd *, void (*) (bfd*, int, char *)));
 static void first_phase PARAMS ((bfd *, int, char *));
 static void insert_byte PARAMS ((bfd *, int, bfd_vma));
 static struct data_struct *find_chunk PARAMS ((bfd *, bfd_vma));
@@ -215,7 +213,6 @@ SYMBOL TABLE:
 fcffffff  g       T_SEGMENT i$1
 00000000  g       T_SEGMENT $
 00000010  g       T_SEGMENT $
-
 
 RELOCATION RECORDS FOR [D00000000]: (none)
 
@@ -425,7 +422,7 @@ first_phase (abfd, type, src)
 	  char *n = bfd_alloc (abfd, len + 1);
 
 	  if (!n)
-	    abort();		/* FIXME */
+	    abort ();		/* FIXME */
 	  memcpy (n, sym, len + 1);
 	  section = bfd_make_section (abfd, n);
 	}
@@ -454,7 +451,7 @@ first_phase (abfd, type, src)
 		char type = (*src);
 
 		if (!new)
-		  abort();	/* FIXME */
+		  abort ();	/* FIXME */
 		new->symbol.the_bfd = abfd;
 		src++;
 		abfd->symcount++;
@@ -464,7 +461,7 @@ first_phase (abfd, type, src)
 		len = getsym (sym, &src);
 		new->symbol.name = bfd_alloc (abfd, len + 1);
 		if (!new->symbol.name)
-		  abort();	/* FIXME */
+		  abort ();	/* FIXME */
 		memcpy ((char *) (new->symbol.name), sym, len + 1);
 		new->symbol.section = section;
 		if (type <= '4')
@@ -1063,6 +1060,6 @@ const bfd_target tekhex_vec =
   BFD_JUMP_TABLE_DYNAMIC (_bfd_nodynamic),
 
   NULL,
-  
+
   (PTR) 0
 };

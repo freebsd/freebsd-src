@@ -1,5 +1,6 @@
 /* BFD backend for core files which use the ptrace_user structure
-   Copyright 1993, 94, 95, 96, 1998 Free Software Foundation, Inc.
+   Copyright 1993, 1994, 1995, 1996, 1998, 1999, 2001
+   Free Software Foundation, Inc.
    The structure of this file is based on trad-core.c written by John Gilmore
    of Cygnus Support.
    Modified to work with the ptrace_user structure by Kevin A. Buettner.
@@ -31,7 +32,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include <sys/dir.h>
 #include <signal.h>
 #include <sys/ptrace.h>
-
 
 struct trad_core_struct
   {
@@ -66,7 +66,7 @@ ptrace_unix_core_file_p (abfd)
   struct trad_core_struct *rawptr;
 
   val = bfd_read ((void *)&u, 1, sizeof u, abfd);
-  if (val != sizeof u || u.pt_magic != _BCS_PTRACE_MAGIC 
+  if (val != sizeof u || u.pt_magic != _BCS_PTRACE_MAGIC
       || u.pt_rev != _BCS_PTRACE_REV)
     {
       /* Too small to be a core file */
@@ -83,7 +83,7 @@ ptrace_unix_core_file_p (abfd)
 
   if (rawptr == NULL)
     return 0;
-  
+
   abfd->tdata.trad_core_data = rawptr;
 
   rawptr->u = u; /*Copy the uarea into the tdata part of the bfd */
@@ -107,8 +107,7 @@ ptrace_unix_core_file_p (abfd)
 
   /* FIXME:  Need to worry about shared memory, library data, and library
      text.  I don't think that any of these things are supported on the
-     system on which I am developing this for though. */
-
+     system on which I am developing this for though.  */
 
   core_stacksec (abfd)->flags = SEC_ALLOC + SEC_LOAD + SEC_HAS_CONTENTS;
   core_datasec (abfd)->flags = SEC_ALLOC + SEC_LOAD + SEC_HAS_CONTENTS;
@@ -116,11 +115,11 @@ ptrace_unix_core_file_p (abfd)
 
   core_datasec (abfd)->_raw_size =  u.pt_dsize;
   core_stacksec (abfd)->_raw_size = u.pt_ssize;
-  core_regsec (abfd)->_raw_size = sizeof(u);
+  core_regsec (abfd)->_raw_size = sizeof (u);
 
   core_datasec (abfd)->vma = u.pt_o_data_start;
   core_stacksec (abfd)->vma = USRSTACK - u.pt_ssize;
-  core_regsec (abfd)->vma = 0 - sizeof(u);	/* see trad-core.c */
+  core_regsec (abfd)->vma = 0 - sizeof (u);	/* see trad-core.c */
 
   core_datasec (abfd)->filepos = (int) u.pt_dataptr;
   core_stacksec (abfd)->filepos = (int) (u.pt_dataptr + u.pt_dsize);
@@ -163,16 +162,16 @@ boolean
 ptrace_unix_core_file_matches_executable_p  (core_bfd, exec_bfd)
      bfd *core_bfd, *exec_bfd;
 {
-  /* FIXME: Use pt_timdat field of the ptrace_user structure to match 
+  /* FIXME: Use pt_timdat field of the ptrace_user structure to match
      the date of the executable */
   return true;
 }
 
 /* If somebody calls any byte-swapping routines, shoot them.  */
 static void
-swap_abort()
+swap_abort ()
 {
-  abort(); /* This way doesn't require any declaration for ANSI to fuck up */
+  abort (); /* This way doesn't require any declaration for ANSI to fuck up */
 }
 #define	NO_GET	((bfd_vma (*) PARAMS ((   const bfd_byte *))) swap_abort )
 #define	NO_PUT	((void    (*) PARAMS ((bfd_vma, bfd_byte *))) swap_abort )
@@ -213,7 +212,7 @@ const bfd_target ptrace_core_vec =
      bfd_false, bfd_false,
      bfd_false, bfd_false
     },
-    
+
        BFD_JUMP_TABLE_GENERIC (_bfd_generic),
        BFD_JUMP_TABLE_COPY (_bfd_generic),
        BFD_JUMP_TABLE_CORE (ptrace_unix),
@@ -225,7 +224,7 @@ const bfd_target ptrace_core_vec =
        BFD_JUMP_TABLE_DYNAMIC (_bfd_nodynamic),
 
     NULL,
-    
+
     (PTR) 0			/* backend_data */
 };
 

@@ -1,5 +1,5 @@
 /* BFD back-end for Apple M68K COFF A/UX 3.x files.
-   Copyright 1996, 1997 Free Software Foundation, Inc.
+   Copyright 1996, 1997, 2000 Free Software Foundation, Inc.
    Written by Richard Henderson <rth@tamu.edu>.
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -30,7 +30,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 /* 4k pages */
 #define COFF_PAGE_SIZE 0x1000
 
-/* On AUX, a STYP_NOLOAD|STYP_BSS section is part of a shared library. */
+/* On AUX, a STYP_NOLOAD|STYP_BSS section is part of a shared library.  */
 #define BSS_NOLOAD_IS_SHARED_LIBRARY
 
 #define STATIC_RELOCS
@@ -41,8 +41,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "sysdep.h"
 
 static boolean coff_m68k_aux_link_add_one_symbol
-  PARAMS ((struct bfd_link_info *, bfd *, const char *, flagword, 
-           asection *, bfd_vma, const char *, boolean, boolean, 
+  PARAMS ((struct bfd_link_info *, bfd *, const char *, flagword,
+           asection *, bfd_vma, const char *, boolean, boolean,
            struct bfd_link_hash_entry **));
 
 #define coff_link_add_one_symbol coff_m68k_aux_link_add_one_symbol
@@ -54,7 +54,7 @@ static boolean coff_m68k_aux_link_add_one_symbol
    mirrors Apple's "solution" to let a static library symbol override
    a shared library symbol.  On the whole not a good thing, given how
    shared libraries work here, but can work if you are careful with
-   what you include in the shared object. */
+   what you include in the shared object.  */
 
 static boolean
 coff_m68k_aux_link_add_one_symbol (info, abfd, name, flags, section, value,

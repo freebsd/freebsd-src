@@ -1,5 +1,5 @@
 /* FR30 ELF support for BFD.
-   Copyright (C) 1998 Free Software Foundation, Inc.
+   Copyright 1998, 1999, 2000 Free Software Foundation, Inc.
 
 This file is part of BFD, the Binary File Descriptor library.
 
@@ -37,7 +37,6 @@ START_RELOC_NUMBERS (elf_fr30_reloc_type)
   RELOC_NUMBER (R_FR30_12_PCREL, 10)
   RELOC_NUMBER (R_FR30_GNU_VTINHERIT, 11)
   RELOC_NUMBER (R_FR30_GNU_VTENTRY, 12)
-  EMPTY_RELOC  (R_FR30_max)
-END_RELOC_NUMBERS
+END_RELOC_NUMBERS (R_FR30_max)
 
 #endif /* _ELF_FR30_H */

@@ -1,5 +1,5 @@
 /* Coff file dumper.
-   Copyright (C) 1994, 95, 98, 99, 2000 Free Software Foundation, Inc.
+   Copyright 1994, 1995, 1998, 1999, 2000 Free Software Foundation, Inc.
 
 This file is part of GNU Binutils.
 

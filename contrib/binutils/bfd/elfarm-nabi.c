@@ -1,5 +1,5 @@
 /* 32-bit ELF support for ARM new abi option.
-   Copyright 1999 Free Software Foundation, Inc.
+   Copyright 1999, 2000, 2001 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -42,6 +42,10 @@
 
 static reloc_howto_type * elf32_arm_reloc_type_lookup
   PARAMS ((bfd * abfd, bfd_reloc_code_real_type code));
+
+/* Note: code such as elf32_arm_reloc_type_lookup expect to use e.g.
+   R_ARM_PC24 as an index into this, and find the R_ARM_PC24 HOWTO
+   in that slot.  */
 
 static reloc_howto_type elf32_arm_howto_table[] =
 {
@@ -262,36 +266,36 @@ static reloc_howto_type elf32_arm_howto_table[] =
 	 0x00000000,		/* dst_mask */
 	 false),		/* pcrel_offset */
 
-  /* These next two relocs are defined, but I do not know what they do.  */
-  
+  /* BLX instruction for the ARM.  */
   HOWTO (R_ARM_XPC25,		/* type */
-	 0,			/* rightshift */
-	 0,			/* size (0 = byte, 1 = short, 2 = long) */
-	 0,			/* bitsize */
-	 false,			/* pc_relative */
+	 2,			/* rightshift */
+	 2,			/* size (0 = byte, 1 = short, 2 = long) */
+	 25,			/* bitsize */
+	 true,			/* pc_relative */
 	 0,			/* bitpos */
 	 complain_overflow_signed,/* complain_on_overflow */
 	 bfd_elf_generic_reloc,	/* special_function */
 	 "R_ARM_XPC25",		/* name */
 	 false,			/* partial_inplace */
-	 0x00000000,		/* src_mask */
-	 0x00000000,		/* dst_mask */
-	 false),		/* pcrel_offset */
+	 0x00ffffff,		/* src_mask */
+	 0x00ffffff,		/* dst_mask */
+	 true),			/* pcrel_offset */
 
+  /* BLX instruction for the Thumb.  */
   HOWTO (R_ARM_THM_XPC22,	/* type */
-	 0,			/* rightshift */
-	 0,			/* size (0 = byte, 1 = short, 2 = long) */
-	 0,			/* bitsize */
-	 false,			/* pc_relative */
+	 2,			/* rightshift */
+	 2,			/* size (0 = byte, 1 = short, 2 = long) */
+	 22,			/* bitsize */
+	 true,			/* pc_relative */
 	 0,			/* bitpos */
 	 complain_overflow_signed,/* complain_on_overflow */
 	 bfd_elf_generic_reloc,	/* special_function */
 	 "R_ARM_THM_XPC22",	/* name */
 	 false,			/* partial_inplace */
-	 0x00000000,		/* src_mask */
-	 0x00000000,		/* dst_mask */
-	 false),		/* pcrel_offset */
-  
+	 0x07ff07ff,		/* src_mask */
+	 0x07ff07ff,		/* dst_mask */
+	 true),			/* pcrel_offset */
+
   /* These next three relocs are not defined, but we need to fill the space.  */
 
   HOWTO (R_ARM_NONE,		/* type */
@@ -337,7 +341,7 @@ static reloc_howto_type elf32_arm_howto_table[] =
 	 false),		/* pcrel_offset */
 
   /* Relocs used in ARM Linux */
-  
+
   HOWTO (R_ARM_COPY,		/* type */
          0,                     /* rightshift */
          2,                     /* size (0 = byte, 1 = short, 2 = long) */
@@ -365,7 +369,7 @@ static reloc_howto_type elf32_arm_howto_table[] =
          0xffffffff,		/* src_mask */
          0xffffffff,		/* dst_mask */
          false),                /* pcrel_offset */
-         
+
   HOWTO (R_ARM_JUMP_SLOT,	/* type */
          0,                     /* rightshift */
          2,                     /* size (0 = byte, 1 = short, 2 = long) */
@@ -379,7 +383,7 @@ static reloc_howto_type elf32_arm_howto_table[] =
          0xffffffff,		/* src_mask */
          0xffffffff,		/* dst_mask */
          false),                /* pcrel_offset */
-         
+
   HOWTO (R_ARM_RELATIVE,	/* type */
          0,                     /* rightshift */
          2,                     /* size (0 = byte, 1 = short, 2 = long) */
@@ -393,7 +397,7 @@ static reloc_howto_type elf32_arm_howto_table[] =
          0xffffffff,		/* src_mask */
          0xffffffff,		/* dst_mask */
          false),                /* pcrel_offset */
-         
+
   HOWTO (R_ARM_GOTOFF,		/* type */
          0,                     /* rightshift */
          2,                     /* size (0 = byte, 1 = short, 2 = long) */
@@ -407,7 +411,7 @@ static reloc_howto_type elf32_arm_howto_table[] =
          0xffffffff,		/* src_mask */
          0xffffffff,		/* dst_mask */
          false),                /* pcrel_offset */
-         
+
   HOWTO (R_ARM_GOTPC,		/* type */
          0,                     /* rightshift */
          2,                     /* size (0 = byte, 1 = short, 2 = long) */
@@ -421,7 +425,7 @@ static reloc_howto_type elf32_arm_howto_table[] =
          0xffffffff,		/* src_mask */
          0xffffffff,		/* dst_mask */
          true),			/* pcrel_offset */
-         
+
   HOWTO (R_ARM_GOT32,		/* type */
          0,                     /* rightshift */
          2,                     /* size (0 = byte, 1 = short, 2 = long) */
@@ -435,7 +439,7 @@ static reloc_howto_type elf32_arm_howto_table[] =
          0xffffffff,		/* src_mask */
          0xffffffff,		/* dst_mask */
          false),		/* pcrel_offset */
-         
+
   HOWTO (R_ARM_PLT32,		/* type */
          2,                     /* rightshift */
          2,                     /* size (0 = byte, 1 = short, 2 = long) */
@@ -449,8 +453,8 @@ static reloc_howto_type elf32_arm_howto_table[] =
          0x00ffffff,		/* src_mask */
          0x00ffffff,		/* dst_mask */
          true),			/* pcrel_offset */
-  
-  /* End of relocs used in ARM Linux */ 
+
+  /* End of relocs used in ARM Linux */
 
   HOWTO (R_ARM_RREL32,		/* type */
 	 0,			/* rightshift */
@@ -574,7 +578,6 @@ static reloc_howto_type elf32_arm_thm_pc9_howto =
 	 0x000000ff,		/* dst_mask */
 	 true);			/* pcrel_offset */
 
- 
 static void
 elf32_arm_info_to_howto (abfd, bfd_reloc, elf_reloc)
      bfd * abfd ATTRIBUTE_UNUSED;
@@ -582,7 +585,7 @@ elf32_arm_info_to_howto (abfd, bfd_reloc, elf_reloc)
      Elf32_Internal_Rel * elf_reloc;
 {
   unsigned int r_type;
-  
+
   r_type = ELF32_R_TYPE (elf_reloc->r_info);
 
   switch (r_type)
@@ -590,19 +593,19 @@ elf32_arm_info_to_howto (abfd, bfd_reloc, elf_reloc)
     case R_ARM_GNU_VTINHERIT:
       bfd_reloc->howto = & elf32_arm_vtinherit_howto;
       break;
-      
+
     case R_ARM_GNU_VTENTRY:
       bfd_reloc->howto = & elf32_arm_vtentry_howto;
       break;
-      
+
     case R_ARM_THM_PC11:
       bfd_reloc->howto = & elf32_arm_thm_pc11_howto;
       break;
-      
+
     case R_ARM_THM_PC9:
       bfd_reloc->howto = & elf32_arm_thm_pc9_howto;
       break;
-      
+
     default:
       if (r_type >= NUM_ELEM (elf32_arm_howto_table))
 	bfd_reloc->howto = NULL;
@@ -611,7 +614,7 @@ elf32_arm_info_to_howto (abfd, bfd_reloc, elf_reloc)
       break;
     }
 }
-  
+
 struct elf32_arm_reloc_map
   {
     bfd_reloc_code_real_type  bfd_reloc_val;
@@ -622,6 +625,8 @@ static const struct elf32_arm_reloc_map elf32_arm_reloc_map[] =
 {
   {BFD_RELOC_NONE,                 R_ARM_NONE},
   {BFD_RELOC_ARM_PCREL_BRANCH,     R_ARM_PC24},
+  {BFD_RELOC_ARM_PCREL_BLX,        R_ARM_XPC25},
+  {BFD_RELOC_THUMB_PCREL_BLX,      R_ARM_THM_XPC22},
   {BFD_RELOC_32,                   R_ARM_ABS32},
   {BFD_RELOC_32_PCREL,             R_ARM_REL32},
   {BFD_RELOC_8,                    R_ARM_ABS8},
@@ -664,7 +669,7 @@ elf32_arm_reloc_type_lookup (abfd, code)
       for (i = 0; i < NUM_ELEM (elf32_arm_reloc_map); i ++)
 	if (elf32_arm_reloc_map[i].bfd_reloc_val == code)
 	  return & elf32_arm_howto_table[elf32_arm_reloc_map[i].elf_reloc_val];
-      
+
       return NULL;
    }
 }

@@ -111,7 +111,7 @@ with gdb-4.x) may also be of help.
 Reporting bugs
 ==============
 
-Send bug reports and patches to bug-gnu-utils@gnu.org.  Always mention
+Send bug reports and patches to bug-binutils@gnu.org.  Always mention
 the version number you are running; this is printed by running any of
 the binutils with the --version option.  We appreciate reports about
 bugs, but we do not promise to fix them.

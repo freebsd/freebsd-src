@@ -1,5 +1,5 @@
 /* resrc.c -- read and write Windows rc files.
-   Copyright 1997, 1998, 1999 Free Software Foundation, Inc.
+   Copyright 1997, 1998, 1999, 2000 Free Software Foundation, Inc.
    Written by Ian Lance Taylor, Cygnus Support.
 
    This file is part of GNU Binutils.
@@ -78,7 +78,7 @@
 
 /* The default preprocessor.  */
 
-#define DEFAULT_PREPROCESSOR "gcc -E -xc-header -DRC_INVOKED"
+#define DEFAULT_PREPROCESSOR "gcc -E -xc -DRC_INVOKED"
 
 /* We read the directory entries in a cursor or icon file into
    instances of this structure.  */
@@ -498,9 +498,6 @@ read_rc_file (filename, preprocessor, preprocargs, language, use_temp_file)
 static void
 close_input_stream ()
 {
-  if (cpp_pipe != NULL)
-    pclose (cpp_pipe);
-  
   if (istream_type == ISTREAM_FILE)
     {
       if (cpp_pipe != NULL)
@@ -844,15 +841,38 @@ define_control (text, id, x, y, width, height, class, style, exstyle)
   n->height = height;
   n->class.named = 0;
   n->class.u.id = class;
-  if (text != NULL)
-    res_string_to_id (&n->text, text);
-  else
-    {
-      n->text.named = 0;
-      n->text.u.id = 0;
-    }
+  if (text == NULL)
+    text = "";
+  res_string_to_id (&n->text, text);
   n->data = NULL;
   n->help = 0;
+
+  return n;
+}
+
+struct dialog_control *
+define_icon_control (iid, id, x, y, style, exstyle, help, data, ex)
+     struct res_id iid;
+     unsigned long id;
+     unsigned long x;
+     unsigned long y;
+     unsigned long style;
+     unsigned long exstyle;
+     unsigned long help;
+     struct rcdata_item *data;
+     struct dialog_ex *ex;
+{
+  struct dialog_control *n;
+  if (style == 0)
+    style = SS_ICON | WS_CHILD | WS_VISIBLE;
+  n = define_control (0, id, x, y, 0, 0, CTL_STATIC, style, exstyle);
+  n->text = iid;
+  if (help && !ex)
+    rcparse_warning (_("help ID requires DIALOGEX"));
+  if (data && !ex)
+    rcparse_warning (_("control data requires DIALOGEX"));
+  n->help = help;
+  n->data = data;
 
   return n;
 }

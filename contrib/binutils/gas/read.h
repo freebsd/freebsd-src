@@ -1,5 +1,6 @@
 /* read.h - of read.c
-   Copyright (C) 1986, 90, 92, 93, 94, 95, 96, 1997
+   Copyright 1986, 1990, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
+   2000
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -15,23 +16,27 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with GAS; see the file COPYING.  If not, write to
-   the Free Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   along with GAS; see the file COPYING.  If not, write to the Free
+   Software Foundation, 59 Temple Place - Suite 330, Boston, MA
+   02111-1307, USA.  */
 
-extern char *input_line_pointer;/* -> char we are parsing now. */
+extern char *input_line_pointer;	/* -> char we are parsing now.  */
 
-#define PERMIT_WHITESPACE	/* Define to make whitespace be allowed in */
-/* many syntactically unnecessary places. */
-/* Normally undefined. For compatibility */
-/* with ancient GNU cc. */
+/* Define to make whitespace be allowed in many syntactically
+   unnecessary places.  Normally undefined.  For compatibility with
+   ancient GNU cc.  */
 /* #undef PERMIT_WHITESPACE */
+#define PERMIT_WHITESPACE
 
 #ifdef PERMIT_WHITESPACE
-#define SKIP_WHITESPACE() {if (* input_line_pointer == ' ') ++ input_line_pointer;}
+#define SKIP_WHITESPACE()			\
+  {						\
+    if (* input_line_pointer == ' ')		\
+      ++ input_line_pointer;			\
+  }
 #else
 #define SKIP_WHITESPACE() know(*input_line_pointer != ' ' )
 #endif
-
 
 #define	LEX_NAME	(1)	/* may continue a name */
 #define LEX_BEGIN_NAME	(2)	/* may begin a name */
@@ -47,7 +52,7 @@ extern char *input_line_pointer;/* -> char we are parsing now. */
 #ifndef is_a_char
 #define CHAR_MASK	(0xff)
 #define NOT_A_CHAR	(CHAR_MASK+1)
-#define is_a_char(c)	(((unsigned)(c)) <= CHAR_MASK)
+#define is_a_char(c)	(((unsigned) (c)) <= CHAR_MASK)
 #endif /* is_a_char() */
 
 extern char lex_type[];
@@ -76,9 +81,11 @@ extern symbolS *line_label;
 /* This is used to support MRI common sections.  */
 extern symbolS *mri_common_symbol;
 
+/* True if a stabs line debug statement is currently being emitted.  */
+extern int outputting_stabs_line_debug;
+
 /* Possible arguments to .linkonce.  */
-enum linkonce_type
-{
+enum linkonce_type {
   LINKONCE_UNSET = 0,
   LINKONCE_DISCARD,
   LINKONCE_ONE_ONLY,
@@ -86,9 +93,15 @@ enum linkonce_type
   LINKONCE_SAME_CONTENTS
 };
 
+#define IGNORE_OPCODE_CASE
+#ifdef  IGNORE_OPCODE_CASE
+extern char original_case_string[];
+#endif
+
 extern void pop_insert PARAMS ((const pseudo_typeS *));
 extern unsigned int get_stab_string_offset
   PARAMS ((const char *string, const char *stabstr_secname));
+extern void aout_process_stab PARAMS ((int, const char *, int, int, int));
 extern char *demand_copy_C_string PARAMS ((int *len_pointer));
 extern char get_absolute_expression_and_terminator
   PARAMS ((long *val_pointer));
@@ -121,7 +134,7 @@ extern void end_repeat PARAMS((int));
 
 extern void generate_lineno_debug PARAMS ((void));
 
-extern void s_abort PARAMS ((int));
+extern void s_abort PARAMS ((int)) ATTRIBUTE_NORETURN;
 extern void s_align_bytes PARAMS ((int arg));
 extern void s_align_ptwo PARAMS ((int));
 extern void s_app_file PARAMS ((int));
@@ -168,5 +181,3 @@ extern void s_text PARAMS ((int));
 extern void stringer PARAMS ((int append_zero));
 extern void s_xstab PARAMS ((int what));
 extern void s_rva PARAMS ((int));
-
-/* end of read.h */

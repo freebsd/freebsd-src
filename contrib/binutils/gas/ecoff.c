@@ -1,5 +1,6 @@
 /* ECOFF debugging support.
-   Copyright (C) 1993, 94, 95, 96, 97, 98, 1999 Free Software Foundation, Inc.
+   Copyright 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001
+   Free Software Foundation, Inc.
    Contributed by Cygnus Support.
    This file was put together by Ian Lance Taylor <ian@cygnus.com>.  A
    good deal of it comes directly from mips-tfile.c, by Michael
@@ -161,7 +162,6 @@
 			tqFar		-- 8086 far pointers
 			tqVol		-- volatile
 
-
    The dense number table is used in the front ends, and disappears by
    the time the .o is created.
 
@@ -255,8 +255,6 @@
 	    scInit	  -- .init section symbol
 
     5)	index: pointer to a local symbol or aux. entry.
-
-
 
    For the following program:
 
@@ -727,9 +725,9 @@ typedef enum bt {
 
 /* States for whether to hash type or not.  */
 typedef enum hash_state {
-  hash_no	= 0,		/* don't hash type */
-  hash_yes	= 1,		/* ok to hash type, or use previous hash */
-  hash_record	= 2		/* ok to record hash, but don't use prev. */
+  hash_no	= 0,		/* Don't hash type */
+  hash_yes	= 1,		/* OK to hash type, or use previous hash */
+  hash_record	= 2		/* OK to record hash, but don't use prev.  */
 } hash_state_t;
 
 /* Types of different sized allocation requests.  */
@@ -770,7 +768,7 @@ enum aux_type {
    can't be represented (assuming there are strings > 4096 bytes).  */
 
 /* FIXME: Yes, there can be such strings while emitting C++ class debug
-   info.  Templates are the offender here, the test case in question 
+   info.  Templates are the offender here, the test case in question
    having a mangled class name of
 
      t7rb_tree4Z4xkeyZt4pair2ZC4xkeyZt7xsocket1Z4UserZt9select1st2Zt4pair\
@@ -799,7 +797,6 @@ typedef struct vlinks {
   unsigned long	 start_index;	/* starting index # of page */
 } vlinks_t;
 
-
 /* Virtual array header.  */
 typedef struct varray {
   vlinks_t	*first;			/* first page link */
@@ -825,10 +822,8 @@ typedef struct varray {
   OBJECTS_PER_PAGE (type),	/* objects_last_page */			\
 }
 
-
-/* Master type for indexes within the symbol table. */
+/* Master type for indexes within the symbol table.  */
 typedef unsigned long symint_t;
-
 
 /* Linked list support for nested scopes (file, block, structure, etc.).  */
 typedef struct scope {
@@ -837,7 +832,6 @@ typedef struct scope {
   struct localsym *lsym;	/* pointer to local symbol node */
   st_t		 type;		/* type of the node */
 } scope_t;
-
 
 /* For a local symbol we store a gas symbol as well as the debugging
    information we generate.  The gas symbol will be NULL if this is
@@ -855,7 +849,6 @@ typedef struct localsym {
   EXTR ecoff_sym;		/* ECOFF debugging symbol */
 } localsym_t;
 
-
 /* For aux information we keep the type and the data.  */
 typedef struct ecoff_aux {
   enum aux_type type;		/* aux type */
@@ -872,7 +865,6 @@ typedef struct ecoff_proc {
 /* Number of proc_t structures allocated.  */
 static unsigned long proc_cnt;
 
-
 /* Forward reference list for tags referenced, but not yet defined.  */
 typedef struct forward {
   struct forward *next;		/* next forward reference */
@@ -880,7 +872,6 @@ typedef struct forward {
   aux_t		 *ifd_ptr;	/* pointer to store file index */
   aux_t		 *index_ptr;	/* pointer to store symbol index */
 } forward_t;
-
 
 /* Linked list support for tags.  The first tag in the list is always
    the current tag for that block.  */
@@ -895,14 +886,12 @@ typedef struct tag {
   localsym_t	 *sym;		/* file's local symbols */
 } tag_t;
 
-
 /* Head of a block's linked list of tags.  */
 typedef struct thead {
   struct thead	*prev;		/* previous block */
   struct thead	*free;		/* free list pointer */
   struct tag	*first_tag;	/* first tag in block defined */
 } thead_t;
-
 
 /* Union containing pointers to each the small structures which are freed up.  */
 typedef union small_free {
@@ -911,7 +900,6 @@ typedef union small_free {
   tag_t		*f_tag;		/* tag element structure */
   forward_t	*f_forward;	/* forward tag reference */
 } small_free_t;
-
 
 /* String hash table entry.  */
 
@@ -924,7 +912,6 @@ typedef struct shash {
   tag_t		*tag_ptr;	/* tag pointer */
   proc_t	*proc_ptr;	/* procedure descriptor pointer */
 } shash_t;
-
 
 /* Type hash table support.  The size of the hash table must fit
    within a page with the other extended file descriptor information.
@@ -942,7 +929,6 @@ typedef struct thash {
   AUXU		 type;		/* type we are hashing */
   symint_t	 indx;		/* index within string table */
 } thash_t;
-
 
 /* Extended file descriptor that contains all of the support necessary
    to add things to each file separately.  */
@@ -967,8 +953,7 @@ typedef struct efdr {
 } efdr_t;
 
 /* Pre-initialized extended file structure.  */
-static const efdr_t init_file =
-{
+static const efdr_t init_file = {
   {			/* FDR structure */
     0,			/* adr:		memory address of beginning of file */
     0,			/* rss:		file name (of source, if known) */
@@ -1015,10 +1000,8 @@ static const efdr_t init_file =
   { 0 },		/* thash_head:	type hash table */
 };
 
-
 static efdr_t *first_file;			/* first file descriptor */
 static efdr_t **last_file_ptr = &first_file;	/* file descriptor tail */
-
 
 /* Line number information is kept in a list until the assembly is
    finished.  */
@@ -1060,7 +1043,6 @@ typedef union page {
   lineno_list_t	lineno	[ PAGE_SIZE / sizeof (lineno_list_t) ];
 } page_type;
 
-
 /* Structure holding allocation information for small sized structures.  */
 typedef struct alloc_info {
   char		*alloc_name;	/* name of this allocation type (must be first) */
@@ -1071,7 +1053,6 @@ typedef struct alloc_info {
   int		 total_free;	/* total number of frees */
   int		 total_pages;	/* total number of pages allocated */
 } alloc_info_t;
-
 
 /* Type information collected together.  */
 typedef struct type_info {
@@ -1130,7 +1111,7 @@ static const type_info_t type_info_init = {
 /* Global hash table for the tags table and global table for file
    descriptors.  */
 
-static varray_t file_desc	= INIT_VARRAY (efdr_t);
+static varray_t file_desc = INIT_VARRAY (efdr_t);
 
 static struct hash_control *tag_hash;
 
@@ -1142,7 +1123,6 @@ static type_info_t int_type_info;
 static type_info_t void_type_info;
 static type_info_t last_func_type_info;
 static symbolS *last_func_sym_value;
-
 
 /* Convert COFF basic type to ECOFF basic type.  The T_NULL type
    really should use bt_Void, but this causes the current ecoff GDB to
@@ -1399,9 +1379,8 @@ static const st_t map_coff_sym_type[] = {
   st_Nil,			/* 106: C_HIDDEN ??? */
 };
 
-
 /* Keep track of different sized allocation requests.  */
-static alloc_info_t alloc_counts[ (int)alloc_type_last ];
+static alloc_info_t alloc_counts[(int) alloc_type_last];
 
 /* Record whether we have seen any debugging information.  */
 int ecoff_debugging_seen = 0;
@@ -1545,8 +1524,8 @@ add_varray_page (vp)
 #endif
     new_links->datum = allocate_page ();
 
-  alloc_counts[(int)alloc_type_varray].total_alloc++;
-  alloc_counts[(int)alloc_type_varray].total_pages++;
+  alloc_counts[(int) alloc_type_varray].total_alloc++;
+  alloc_counts[(int) alloc_type_varray].total_pages++;
 
   new_links->start_index = vp->num_allocated;
   vp->objects_last_page = 0;
@@ -1582,11 +1561,11 @@ add_string (vp, hash_tbl, str, ret_hash)
       register const char *err;
 
       if (vp->objects_last_page + len >= PAGE_USIZE)
-        {
-          vp->num_allocated =
-            ((vp->num_allocated + PAGE_USIZE - 1) / PAGE_USIZE) * PAGE_USIZE;
-          add_varray_page (vp);
-        }
+	{
+	  vp->num_allocated =
+	    ((vp->num_allocated + PAGE_USIZE - 1) / PAGE_USIZE) * PAGE_USIZE;
+	  add_varray_page (vp);
+	}
 
       hash_ptr = allocate_shash ();
       hash_ptr->indx = vp->num_allocated;
@@ -1636,10 +1615,10 @@ add_ecoff_symbol (str, type, storage, sym_value, addend, value, indx)
 
   vp = &cur_file_ptr->symbols;
 
- if (vp->objects_last_page == vp->objects_per_page)
+  if (vp->objects_last_page == vp->objects_per_page)
     add_varray_page (vp);
 
-  psym = &vp->last->datum->sym[ vp->objects_last_page++ ];
+  psym = &vp->last->datum->sym[vp->objects_last_page++];
 
   if (str == (const char *) NULL && sym_value != (symbolS *) NULL)
     psym->name = S_GET_NAME (sym_value);
@@ -1705,8 +1684,8 @@ add_ecoff_symbol (str, type, storage, sym_value, addend, value, indx)
 	scope_delta = 1;
 
       /* For every block type except file, struct, union, or
-	 enumeration blocks, push a level on the tag stack.  We omit
-	 file types, so that tags can span file boundaries.  */
+         enumeration blocks, push a level on the tag stack.  We omit
+         file types, so that tags can span file boundaries.  */
       if (type != st_File && storage != sc_Info)
 	{
 	  ptag_head = allocate_thead ();
@@ -1802,11 +1781,12 @@ add_ecoff_symbol (str, type, storage, sym_value, addend, value, indx)
 	       value, depth, sc_str);
 
       if (str_start && str_end_p1 - str_start > 0)
-	fprintf (stderr, " st= %-11s name= %.*s\n", st_str, str_end_p1 - str_start, str_start);
+	fprintf (stderr, " st= %-11s name= %.*s\n",
+		 st_str, str_end_p1 - str_start, str_start);
       else
 	{
 	  unsigned long len = strlen (st_str);
-	  fprintf (stderr, " st= %.*s\n", len-1, st_str);
+	  fprintf (stderr, " st= %.*s\n", len - 1, st_str);
 	}
     }
 #endif
@@ -1838,7 +1818,6 @@ add_aux_sym_symint (aux_word)
 
   return vp->num_allocated++;
 }
-
 
 /* Add an auxiliary symbol (passing a file/symbol index combo).  */
 
@@ -1899,9 +1878,8 @@ add_aux_sym_tir (t, state, hash_tbl)
   aux.ti.tq4 = (int) t->type_qualifiers[4];
   aux.ti.tq5 = (int) t->type_qualifiers[5];
 
-
   /* For anything that adds additional information, we must not hash,
-     so check here, and reset our state. */
+     so check here, and reset our state.  */
 
   if (state != hash_no
       && (t->type_qualifiers[0] == tq_Array
@@ -1951,11 +1929,11 @@ add_aux_sym_tir (t, state, hash_tbl)
 	}
     }
 
-  /* Everything is set up, add the aux symbol. */
+  /* Everything is set up, add the aux symbol.  */
   if (vp->objects_last_page == vp->objects_per_page)
     add_varray_page (vp);
 
-  aux_ptr = &vp->last->datum->aux[ vp->objects_last_page++ ];
+  aux_ptr = &vp->last->datum->aux[vp->objects_last_page++];
   aux_ptr->type = aux_tir;
   aux_ptr->data = aux;
 
@@ -1971,8 +1949,7 @@ add_aux_sym_tir (t, state, hash_tbl)
      for an enum bitfield.  */
 
   if (t->bitfield)
-    (void) add_aux_sym_symint ((symint_t)t->sizes[t->num_sizes-1]);
-
+    (void) add_aux_sym_symint ((symint_t) t->sizes[t->num_sizes - 1]);
 
   /* Add tag information if needed.  Structure, union, and enum
      references add 2 aux symbols: a [file index, symbol index]
@@ -1983,7 +1960,7 @@ add_aux_sym_tir (t, state, hash_tbl)
       || t->basic_type == bt_Enum)
     {
       register symint_t file_index = t->tag_ptr->ifd;
-      register localsym_t *sym  = t->tag_ptr->sym;
+      register localsym_t *sym = t->tag_ptr->sym;
       register forward_t *forward_ref = allocate_forward ();
 
       if (sym != (localsym_t *) NULL)
@@ -1999,11 +1976,11 @@ add_aux_sym_tir (t, state, hash_tbl)
 
       (void) add_aux_sym_rndx (ST_RFDESCAPE, indexNil);
       forward_ref->index_ptr
-	= &vp->last->datum->aux[ vp->objects_last_page - 1];
+	= &vp->last->datum->aux[vp->objects_last_page - 1];
 
       (void) add_aux_sym_symint (file_index);
       forward_ref->ifd_ptr
-	= &vp->last->datum->aux[ vp->objects_last_page - 1];
+	= &vp->last->datum->aux[vp->objects_last_page - 1];
     }
 
   /* Add information about array bounds if they exist.  */
@@ -2021,7 +1998,7 @@ add_aux_sym_tir (t, state, hash_tbl)
     };
 
   /* NOTE:  Mips documentation claims that the bitfield width goes here.
-     But it needs to be emitted earlier. */
+     But it needs to be emitted earlier.  */
 
   return ret;
 }
@@ -2045,16 +2022,16 @@ get_tag (tag, sym, basic_type)
 
   if (hash_ptr != (shash_t *) NULL
       && hash_ptr->tag_ptr != (tag_t *) NULL)
-  {
-    tag_ptr = hash_ptr->tag_ptr;
-    if (sym != (localsym_t *) NULL)
-      {
-	tag_ptr->basic_type = basic_type;
-	tag_ptr->ifd	    = cur_file_ptr->file_index;
-	tag_ptr->sym	    = sym;
-      }
-    return tag_ptr;
-  }
+    {
+      tag_ptr = hash_ptr->tag_ptr;
+      if (sym != (localsym_t *) NULL)
+	{
+	  tag_ptr->basic_type = basic_type;
+	  tag_ptr->ifd        = cur_file_ptr->file_index;
+	  tag_ptr->sym        = sym;
+	}
+      return tag_ptr;
+    }
 
   if (hash_ptr == (shash_t *) NULL)
     {
@@ -2091,7 +2068,7 @@ get_tag (tag, sym, basic_type)
 
 static void
 add_unknown_tag (ptag)
-     tag_t	*ptag;		/* pointer to tag information */
+     tag_t *ptag;		/* pointer to tag information */
 {
   shash_t *hash_ptr	= ptag->hash_ptr;
   char *name		= hash_ptr->string;
@@ -2101,7 +2078,7 @@ add_unknown_tag (ptag)
 #ifdef ECOFF_DEBUG
   if (debug > 1)
     {
-      char *agg_type	= "{unknown aggregate type}";
+      char *agg_type = "{unknown aggregate type}";
       switch (ptag->basic_type)
 	{
 	case bt_Struct:	agg_type = "struct";	break;
@@ -2213,7 +2190,7 @@ ecoff_get_cur_proc_sym ()
 static void
 add_file (file_name, indx, fake)
      const char *file_name;		/* file name */
-     int indx;
+     int indx ATTRIBUTE_UNUSED;
      int fake;
 {
   register int first_ch;
@@ -2240,9 +2217,11 @@ add_file (file_name, indx, fake)
          this if we see a .file directive with a string, since that
          implies that some sort of debugging information is being
          provided.  */
-      if (! symbol_table_frozen && debug_type == DEBUG_NONE)
+      if (! symbol_table_frozen && debug_type == DEBUG_UNSPECIFIED)
 	debug_type = DEBUG_ECOFF;
     }
+  else if (debug_type == DEBUG_UNSPECIFIED)
+    debug_type = DEBUG_NONE;
 
 #ifndef NO_LISTING
   if (listing)
@@ -2294,7 +2273,7 @@ add_file (file_name, indx, fake)
 	}
     }
 
-  /* If this is a new file, create it. */
+  /* If this is a new file, create it.  */
   if (fil_ptr == (efdr_t *) NULL)
     {
       if (file_desc.objects_last_page == file_desc.objects_per_page)
@@ -2334,7 +2313,7 @@ add_file (file_name, indx, fake)
       last_file_ptr = &fil_ptr->next_file;
 
       /* Add void & int types to the file (void should be first to catch
-	 errant 0's within the index fields).  */
+         errant 0's within the index fields).  */
       fil_ptr->void_type = add_aux_sym_tir (&void_type_info,
 					    hash_yes,
 					    &cur_file_ptr->thash_head[0]);
@@ -2359,7 +2338,7 @@ ecoff_new_file (name)
 
   /* This is a hand coded assembler file, so automatically turn on
      debugging information.  */
-  if (debug_type == DEBUG_NONE)
+  if (debug_type == DEBUG_UNSPECIFIED)
     debug_type = DEBUG_ECOFF;
 }
 
@@ -2368,10 +2347,10 @@ ecoff_new_file (name)
 /* Convert storage class to string.  */
 
 static char *
-sc_to_string(storage_class)
+sc_to_string (storage_class)
      sc_t storage_class;
 {
-  switch(storage_class)
+  switch (storage_class)
     {
     case sc_Nil:	 return "Nil,";
     case sc_Text:	 return "Text,";
@@ -2409,10 +2388,10 @@ sc_to_string(storage_class)
 /* Convert symbol type to string.  */
 
 static char *
-st_to_string(symbol_type)
+st_to_string (symbol_type)
      st_t symbol_type;
 {
-  switch(symbol_type)
+  switch (symbol_type)
     {
     case st_Nil:	return "Nil,";
     case st_Global:	return "Global,";
@@ -2447,7 +2426,7 @@ st_to_string(symbol_type)
 
 void
 ecoff_directive_begin (ignore)
-     int ignore;
+     int ignore ATTRIBUTE_UNUSED;
 {
   char *name;
   char name_end;
@@ -2485,7 +2464,7 @@ ecoff_directive_begin (ignore)
 
 void
 ecoff_directive_bend (ignore)
-     int ignore;
+     int ignore ATTRIBUTE_UNUSED;
 {
   char *name;
   char name_end;
@@ -2544,7 +2523,7 @@ static int coff_inside_enumeration;
 
 void
 ecoff_directive_def (ignore)
-     int ignore;
+     int ignore ATTRIBUTE_UNUSED;
 {
   char *name;
   char name_end;
@@ -2590,7 +2569,7 @@ ecoff_directive_def (ignore)
 
 void
 ecoff_directive_dim (ignore)
-     int ignore;
+     int ignore ATTRIBUTE_UNUSED;
 {
   int dimens[N_TQ];
   int i;
@@ -2640,7 +2619,7 @@ ecoff_directive_dim (ignore)
 
 void
 ecoff_directive_scl (ignore)
-     int ignore;
+     int ignore ATTRIBUTE_UNUSED;
 {
   long val;
 
@@ -2665,7 +2644,7 @@ ecoff_directive_scl (ignore)
 
 void
 ecoff_directive_size (ignore)
-     int ignore;
+     int ignore ATTRIBUTE_UNUSED;
 {
   int sizes[N_TQ];
   int i;
@@ -2715,7 +2694,7 @@ ecoff_directive_size (ignore)
 
 void
 ecoff_directive_type (ignore)
-     int ignore;
+     int ignore ATTRIBUTE_UNUSED;
 {
   long val;
   tq_t *tq_ptr;
@@ -2734,13 +2713,13 @@ ecoff_directive_type (ignore)
   coff_type.basic_type = map_coff_types[coff_type.orig_type];
 
   tq_ptr = &coff_type.type_qualifiers[N_TQ];
-  while (val &~ N_BTMASK)
+  while (val & ~N_BTMASK)
     {
       if (tq_ptr == &coff_type.type_qualifiers[0])
 	{
 	  /* FIXME: We could handle this by setting the continued bit.
-             There would still be a limit: the .type argument can not
-             be infinite.  */
+	     There would still be a limit: the .type argument can not
+	     be infinite.  */
 	  as_warn (_("The type of %s is too complex; it will be simplified"),
 		   coff_sym_name);
 	  break;
@@ -2764,11 +2743,11 @@ ecoff_directive_type (ignore)
   if (tq_shft != &coff_type.type_qualifiers[0] && tq_shft[-1] == tq_Proc)
     {
       /* If this is a function, ignore it, so that we don't get two
-	 entries (one from the .ent, and one for the .def that
-	 precedes it).  Save the type information so that the end
-	 block can properly add it after the begin block index.  For
-	 MIPS knows what reason, we must strip off the function type
-	 at this point.  */
+         entries (one from the .ent, and one for the .def that
+         precedes it).  Save the type information so that the end
+         block can properly add it after the begin block index.  For
+         MIPS knows what reason, we must strip off the function type
+         at this point.  */
       coff_is_function = 1;
       tq_shft[-1] = tq_Nil;
     }
@@ -2784,7 +2763,7 @@ ecoff_directive_type (ignore)
 
 void
 ecoff_directive_tag (ignore)
-     int ignore;
+     int ignore ATTRIBUTE_UNUSED;
 {
   char *name;
   char name_end;
@@ -2812,7 +2791,7 @@ ecoff_directive_tag (ignore)
 
 void
 ecoff_directive_val (ignore)
-     int ignore;
+     int ignore ATTRIBUTE_UNUSED;
 {
   expressionS exp;
 
@@ -2847,7 +2826,7 @@ ecoff_directive_val (ignore)
 
 void
 ecoff_directive_endef (ignore)
-     int ignore;
+     int ignore ATTRIBUTE_UNUSED;
 {
   char *name;
   symint_t indx;
@@ -2888,8 +2867,8 @@ ecoff_directive_endef (ignore)
 	}
 
       /* If this is an array, make sure the same number of dimensions
-	 and sizes were passed, creating extra sizes for multiply
-	 dimensioned arrays if not passed.  */
+         and sizes were passed, creating extra sizes for multiply
+         dimensioned arrays if not passed.  */
       coff_type.extra_sizes = 0;
       if (diff)
 	{
@@ -2914,7 +2893,7 @@ ecoff_directive_endef (ignore)
 	   && coff_type.num_sizes - coff_type.extra_sizes == 1)
     {
       /* Is this a bitfield?  This is indicated by a structure memeber
-	 having a size field that isn't an array.  */
+         having a size field that isn't an array.  */
       coff_type.bitfield = 1;
     }
 
@@ -2959,7 +2938,7 @@ ecoff_directive_endef (ignore)
       break;
 
       /* For the beginning of structs, unions, and enumerations, the
-	 size info needs to be passed in the value field.  */
+         size info needs to be passed in the value field.  */
     case st_Block:
       if (coff_type.num_sizes - coff_type.num_dims - coff_type.extra_sizes
 	  != 1)
@@ -2974,8 +2953,8 @@ ecoff_directive_endef (ignore)
       break;
 
       /* For the end of structs, unions, and enumerations, omit the
-	 name which is always ".eos".  This needs to be done last, so
-	 that any error reporting above gives the correct name.  */
+         name which is always ".eos".  This needs to be done last, so
+         that any error reporting above gives the correct name.  */
     case st_End:
       free (name);
       name = (char *) NULL;
@@ -2984,10 +2963,10 @@ ecoff_directive_endef (ignore)
       break;
 
       /* Members of structures and unions that aren't bitfields, need
-	 to adjust the value from a byte offset to a bit offset.
-	 Members of enumerations do not have the value adjusted, and
-	 can be distinguished by indx == indexNil.  For enumerations,
-	 update the maximum enumeration value.  */
+         to adjust the value from a byte offset to a bit offset.
+         Members of enumerations do not have the value adjusted, and
+         can be distinguished by indx == indexNil.  For enumerations,
+         update the maximum enumeration value.  */
     case st_Member:
       if (! coff_type.bitfield && ! coff_inside_enumeration)
 	coff_value *= 8;
@@ -3027,7 +3006,7 @@ ecoff_directive_endef (ignore)
 
 void
 ecoff_directive_end (ignore)
-     int ignore;
+     int ignore ATTRIBUTE_UNUSED;
 {
   char *name;
   char name_end;
@@ -3084,7 +3063,7 @@ ecoff_directive_end (ignore)
 
 void
 ecoff_directive_ent (ignore)
-     int ignore;
+     int ignore ATTRIBUTE_UNUSED;
 {
   char *name;
   char name_end;
@@ -3137,7 +3116,7 @@ ecoff_directive_ent (ignore)
 
 void
 ecoff_directive_extern (ignore)
-     int ignore;
+     int ignore ATTRIBUTE_UNUSED;
 {
   char *name;
   int c;
@@ -3162,7 +3141,7 @@ ecoff_directive_extern (ignore)
 
 void
 ecoff_directive_file (ignore)
-     int ignore;
+     int ignore ATTRIBUTE_UNUSED;
 {
   int indx;
   char *name;
@@ -3189,7 +3168,7 @@ ecoff_directive_file (ignore)
 
 void
 ecoff_directive_fmask (ignore)
-     int ignore;
+     int ignore ATTRIBUTE_UNUSED;
 {
   long val;
 
@@ -3218,7 +3197,7 @@ ecoff_directive_fmask (ignore)
 
 void
 ecoff_directive_frame (ignore)
-     int ignore;
+     int ignore ATTRIBUTE_UNUSED;
 {
   long val;
 
@@ -3245,9 +3224,10 @@ ecoff_directive_frame (ignore)
 
   cur_proc_ptr->pdr.pcreg = tc_get_register (0);
 
-#if 0 /* Alpha-OSF1 adds "the offset of saved $a0 from $sp", according
-	 to Sandro.  I don't yet know where this value should be stored, if
-	 anywhere.  */
+#if 0
+  /* Alpha-OSF1 adds "the offset of saved $a0 from $sp", according to
+     Sandro.  I don't yet know where this value should be stored, if
+     anywhere.  */
   demand_empty_rest_of_line ();
 #else
   s_ignore (42);
@@ -3258,7 +3238,7 @@ ecoff_directive_frame (ignore)
 
 void
 ecoff_directive_mask (ignore)
-     int ignore;
+     int ignore ATTRIBUTE_UNUSED;
 {
   long val;
 
@@ -3287,7 +3267,7 @@ ecoff_directive_mask (ignore)
 
 void
 ecoff_directive_loc (ignore)
-     int ignore;
+     int ignore ATTRIBUTE_UNUSED;
 {
   lineno_list_t *list;
   symint_t lineno;
@@ -3384,11 +3364,11 @@ ecoff_fix_loc (old_frag, old_frag_offset)
 
 static void
 mark_stabs (ignore)
-     int ignore;
+     int ignore ATTRIBUTE_UNUSED;
 {
   if (! stabs_seen)
     {
-      /* Add a dummy @stabs dymbol. */
+      /* Add a dummy @stabs dymbol.  */
       stabs_seen = 1;
       (void) add_ecoff_symbol (stabs_symbol, stNil, scInfo,
 			       (symbolS *) NULL,
@@ -3399,7 +3379,7 @@ mark_stabs (ignore)
 
 /* Parse .weakext directives.  */
 #ifndef TC_MIPS
-/* For TC_MIPS use the version in tc-mips.c. */
+/* For TC_MIPS use the version in tc-mips.c.  */
 void
 ecoff_directive_weakext (ignore)
      int ignore;
@@ -3434,7 +3414,7 @@ ecoff_directive_weakext (ignore)
 	  if (exp.X_op != O_symbol)
 	    {
 	      as_bad (_("bad .weakext directive"));
-	      ignore_rest_of_line();
+	      ignore_rest_of_line ();
 	      return;
 	    }
 	  symbol_set_value_expression (symbolP, &exp);
@@ -3481,7 +3461,7 @@ ecoff_directive_weakext (ignore)
 
 void
 ecoff_stab (sec, what, string, type, other, desc)
-     segT sec;
+     segT sec ATTRIBUTE_UNUSED;
      int what;
      const char *string;
      int type;
@@ -3640,13 +3620,13 @@ ecoff_frob_symbol (sym)
 {
   if (S_IS_COMMON (sym)
       && S_GET_VALUE (sym) > 0
-      && S_GET_VALUE (sym) <= bfd_get_gp_size (stdoutput))
+      && S_GET_VALUE (sym) <= (unsigned) bfd_get_gp_size (stdoutput))
     {
       static asection scom_section;
       static asymbol scom_symbol;
 
       /* We must construct a fake section similar to bfd_com_section
-	 but with the name .scommon.  */
+         but with the name .scommon.  */
       if (scom_section.name == NULL)
 	{
 	  scom_section = bfd_com_section;
@@ -3711,7 +3691,7 @@ ecoff_padding_adjust (backend, buf, bufend, offset, bufptrptr)
       unsigned long add;
 
       add = align - (offset & (align - 1));
-      if (*bufend - (*buf + offset) < add)
+      if ((unsigned long) (*bufend - (*buf + offset)) < add)
 	(void) ecoff_add_bytes (buf, bufend, *buf + offset, add);
       memset (*buf + offset, 0, add);
       offset += add;
@@ -3761,7 +3741,7 @@ ecoff_build_lineno (backend, buf, bufend, offset, linecntptr)
      embedded PIC code, it will put strings in the .text section
      before the first procedure.  We cope by inserting a dummy line if
      the address of the first procedure is not 0.  Hopefully this
-     won't screw things up too badly.  
+     won't screw things up too badly.
 
      Don't do this for ECOFF assembly source line numbers.  They work
      without this extra attention.  */
@@ -3789,8 +3769,8 @@ ecoff_build_lineno (backend, buf, bufend, offset, linecntptr)
       long delta;
 
       /* Get the offset to the memory address of the next line number
-	 (in words).  Do this first, so that we can skip ahead to the
-	 next useful line number entry.  */
+         (in words).  Do this first, so that we can skip ahead to the
+         next useful line number entry.  */
       if (l->next == (lineno_list_t *) NULL)
 	{
 	  /* We want a count of zero, but it will be decremented
@@ -4030,11 +4010,11 @@ ecoff_build_symbols (backend, buf, bufend, offset)
 		      symint_t indx;
 
 		      /* The value of a block start symbol is the
-			 offset from the start of the procedure.  For
-			 other symbols we just use the gas value (but
-			 we must offset it by the vma of the section,
-			 just as BFD does, because BFD will not see
-			 this value).  */
+		         offset from the start of the procedure.  For
+		         other symbols we just use the gas value (but
+		         we must offset it by the vma of the section,
+		         just as BFD does, because BFD will not see
+		         this value).  */
 		      if (sym_ptr->ecoff_sym.asym.st == (int) st_Block
 			  && sym_ptr->ecoff_sym.asym.sc == (int) sc_Text)
 			{
@@ -4066,8 +4046,8 @@ ecoff_build_symbols (backend, buf, bufend, offset)
 			sym_ptr->ecoff_sym.asym.st = st_StaticProc;
 
 		      /* Get the type and storage class based on where
-			 the symbol actually wound up.  Traditionally,
-			 N_LBRAC and N_RBRAC are *not* relocated. */
+		         the symbol actually wound up.  Traditionally,
+		         N_LBRAC and N_RBRAC are *not* relocated.  */
 		      indx = sym_ptr->ecoff_sym.asym.index;
 		      if (sym_ptr->ecoff_sym.asym.st == st_Nil
 			  && sym_ptr->ecoff_sym.asym.sc == sc_Nil
@@ -4105,7 +4085,7 @@ ecoff_build_symbols (backend, buf, bufend, offset)
 
 			      s = symbol_get_obj (as_sym)->ecoff_extern_size;
 			      if (s == 0
-				  || s > bfd_get_gp_size (stdoutput))
+				  || s > (unsigned) bfd_get_gp_size (stdoutput))
 				sc = sc_Undefined;
 			      else
 				{
@@ -4120,7 +4100,7 @@ ecoff_build_symbols (backend, buf, bufend, offset)
 			    {
 			      if (S_GET_VALUE (as_sym) > 0
 				  && (S_GET_VALUE (as_sym)
-				      <= bfd_get_gp_size (stdoutput)))
+				      <= (unsigned) bfd_get_gp_size (stdoutput)))
 				sc = sc_SCommon;
 			      else
 				sc = sc_Common;
@@ -4143,8 +4123,8 @@ ecoff_build_symbols (backend, buf, bufend, offset)
 			  else
 			    {
 			      /* This must be a user named section.
-                                 This is not possible in ECOFF, but it
-                                 is in ELF.  */
+			         This is not possible in ECOFF, but it
+			         is in ELF.  */
 			      sc = sc_Data;
 			    }
 
@@ -4153,11 +4133,11 @@ ecoff_build_symbols (backend, buf, bufend, offset)
 			}
 
 		      /* This is just an external symbol if it is
-			 outside a procedure and it has a type.
-			 FIXME: g++ will generate symbols which have
-			 different names in the debugging information
-			 than the actual symbol.  Should we handle
-			 them here?  */
+		         outside a procedure and it has a type.
+		         FIXME: g++ will generate symbols which have
+		         different names in the debugging information
+		         than the actual symbol.  Should we handle
+		         them here?  */
 		      if ((S_IS_EXTERNAL (as_sym)
 			   || S_IS_WEAK (as_sym)
 			   || ! S_IS_DEFINED (as_sym))
@@ -4167,14 +4147,14 @@ ecoff_build_symbols (backend, buf, bufend, offset)
 			local = 0;
 
 		      /* This is just an external symbol if it is a
-                         common symbol.  */
+		         common symbol.  */
 		      if (S_IS_COMMON (as_sym))
 			local = 0;
 
 		      /* If an st_end symbol has an associated gas
-			 symbol, then it is a local label created for
-			 a .bend or .end directive.  Stabs line
-			 numbers will have \001 in the names.  */
+		         symbol, then it is a local label created for
+		         a .bend or .end directive.  Stabs line
+		         numbers will have \001 in the names.  */
 		      if (local
 			  && sym_ptr->ecoff_sym.asym.st != st_End
 			  && strchr (sym_ptr->name, '\001') == 0)
@@ -4222,10 +4202,10 @@ ecoff_build_symbols (backend, buf, bufend, offset)
 			}
 
 		      /* The value of the symbol marking the end of a
-			 procedure is the size of the procedure.  The
-			 value of the symbol marking the end of a
-			 block is the offset from the start of the
-			 procedure to the block.  */
+		         procedure is the size of the procedure.  The
+		         value of the symbol marking the end of a
+		         block is the offset from the start of the
+		         procedure to the block.  */
 		      if (begin_type == st_Proc
 			  || begin_type == st_StaticProc)
 			{
@@ -4239,7 +4219,7 @@ ecoff_build_symbols (backend, buf, bufend, offset)
 			     - S_GET_VALUE (begin_ptr->as_sym));
 
 			  /* If the size is odd, this is probably a
-                             mips16 function; force it to be even.  */
+			     mips16 function; force it to be even.  */
 			  if ((sym_ptr->ecoff_sym.asym.value & 1) != 0)
 			    ++sym_ptr->ecoff_sym.asym.value;
 
@@ -4275,7 +4255,7 @@ ecoff_build_symbols (backend, buf, bufend, offset)
 
 		  if (local)
 		    {
-		      if (*bufend - sym_out < external_sym_size)
+		      if ((bfd_size_type)(*bufend - sym_out) < external_sym_size)
 			sym_out = ecoff_add_bytes (buf, bufend,
 						   sym_out,
 						   external_sym_size);
@@ -4305,7 +4285,7 @@ ecoff_build_symbols (backend, buf, bufend, offset)
 		      sym_ptr->ecoff_sym.ifd = fil_ptr->file_index;
 
 		      /* Don't try to merge an FDR which has an
-                         external symbol attached to it.  */
+		         external symbol attached to it.  */
 		      if (S_IS_EXTERNAL (as_sym) || S_IS_WEAK (as_sym))
 			fil_ptr->fdr.fMerge = 0;
 		    }
@@ -4386,14 +4366,14 @@ ecoff_build_procs (backend, buf, bufend, offset)
 		  if (first)
 		    {
 		      /* This code used to force the adr of the very
-                         first fdr to be 0.  However, the native tools
-                         don't do that, and I can't remember why it
-                         used to work that way, so I took it out.  */
+		         first fdr to be 0.  However, the native tools
+		         don't do that, and I can't remember why it
+		         used to work that way, so I took it out.  */
 		      fil_ptr->fdr.adr = adr;
 		      first = 0;
 		    }
 		  proc_ptr->pdr.adr = adr - fil_ptr->fdr.adr;
-		  if (*bufend - pdr_out < external_pdr_size)
+		  if ((bfd_size_type)(*bufend - pdr_out) < external_pdr_size)
 		    pdr_out = ecoff_add_bytes (buf, bufend,
 					       pdr_out,
 					       external_pdr_size);
@@ -4466,7 +4446,8 @@ ecoff_build_aux (backend, buf, bufend, offset)
 	      aux_end = aux_ptr + aux_cnt;
 	      for (; aux_ptr < aux_end; aux_ptr++)
 		{
-		  if (*bufend - (char *) aux_out < sizeof (union aux_ext))
+		  if ((unsigned long) (*bufend - (char *) aux_out)
+		      < sizeof (union aux_ext))
 		    aux_out = ((union aux_ext *)
 			       ecoff_add_bytes (buf, bufend,
 						(char *) aux_out,
@@ -4551,7 +4532,7 @@ ecoff_build_strings (buf, bufend, offset, vp)
       else
 	str_cnt = vp->objects_per_page;
 
-      if (*bufend - str_out < str_cnt)
+      if ((unsigned long)(*bufend - str_out) < str_cnt)
 	str_out = ecoff_add_bytes (buf, bufend, str_out, str_cnt);
 
       memcpy (str_out, str_link->datum->byte, str_cnt);
@@ -4642,7 +4623,7 @@ ecoff_build_fdr (backend, buf, bufend, offset)
       fil_end = fil_ptr + fil_cnt;
       for (; fil_ptr < fil_end; fil_ptr++)
 	{
-	  if (*bufend - fdr_out < external_fdr_size)
+	  if ((bfd_size_type)(*bufend - fdr_out) < external_fdr_size)
 	    fdr_out = ecoff_add_bytes (buf, bufend, fdr_out,
 				       external_fdr_size);
 	  (*swap_fdr_out) (stdoutput, &fil_ptr->fdr, fdr_out);
@@ -4700,7 +4681,7 @@ ecoff_build_debug (hdr, bufp, backend)
   efdr_t *fil_ptr;
   int end_warning;
   efdr_t *hold_file_ptr;
-  proc_t * hold_proc_ptr;
+  proc_t *hold_proc_ptr;
   symbolS *sym;
   char *buf;
   char *bufend;
@@ -4792,7 +4773,7 @@ ecoff_build_debug (hdr, bufp, backend)
      space at this point.  */
   hdr->ipdMax = proc_cnt;
   hdr->cbPdOffset = offset;
-  if (bufend - (buf + offset) < proc_cnt * external_pdr_size)
+  if ((bfd_size_type)(bufend - (buf + offset)) < proc_cnt * external_pdr_size)
     (void) ecoff_add_bytes (&buf, &bufend, buf + offset,
 			    proc_cnt * external_pdr_size);
   offset += proc_cnt * external_pdr_size;
@@ -4871,7 +4852,6 @@ allocate_cluster (npages)
   return value;
 }
 
-
 static page_type *cluster_ptr = NULL;
 static unsigned long pages_left = 0;
 
@@ -4893,7 +4873,7 @@ allocate_page ()
   pages_left--;
   return cluster_ptr++;
 
-#else	/* MALLOC_CHECK */
+#else /* MALLOC_CHECK */
 
   page_type *ptr;
 
@@ -4901,7 +4881,7 @@ allocate_page ()
   memset (ptr, 0, PAGE_USIZE);
   return ptr;
 
-#endif	/* MALLOC_CHECK */
+#endif /* MALLOC_CHECK */
 }
 
 /* Allocate scoping information.  */
@@ -4914,23 +4894,23 @@ allocate_scope ()
 
 #ifndef MALLOC_CHECK
 
-  ptr = alloc_counts[(int)alloc_type_scope].free_list.f_scope;
+  ptr = alloc_counts[(int) alloc_type_scope].free_list.f_scope;
   if (ptr != (scope_t *) NULL)
-    alloc_counts[ (int)alloc_type_scope ].free_list.f_scope = ptr->free;
+    alloc_counts[(int) alloc_type_scope].free_list.f_scope = ptr->free;
   else
     {
-      register int unallocated	= alloc_counts[(int)alloc_type_scope].unallocated;
-      register page_type *cur_page	= alloc_counts[(int)alloc_type_scope].cur_page;
+      register int unallocated	= alloc_counts[(int) alloc_type_scope].unallocated;
+      register page_type *cur_page	= alloc_counts[(int) alloc_type_scope].cur_page;
 
       if (unallocated == 0)
 	{
 	  unallocated = PAGE_SIZE / sizeof (scope_t);
-	  alloc_counts[(int)alloc_type_scope].cur_page = cur_page = allocate_page ();
-	  alloc_counts[(int)alloc_type_scope].total_pages++;
+	  alloc_counts[(int) alloc_type_scope].cur_page = cur_page = allocate_page ();
+	  alloc_counts[(int) alloc_type_scope].total_pages++;
 	}
 
       ptr = &cur_page->scope[--unallocated];
-      alloc_counts[(int)alloc_type_scope].unallocated = unallocated;
+      alloc_counts[(int) alloc_type_scope].unallocated = unallocated;
     }
 
 #else
@@ -4939,7 +4919,7 @@ allocate_scope ()
 
 #endif
 
-  alloc_counts[(int)alloc_type_scope].total_alloc++;
+  alloc_counts[(int) alloc_type_scope].total_alloc++;
   *ptr = initial_scope;
   return ptr;
 }
@@ -4950,11 +4930,11 @@ static void
 free_scope (ptr)
      scope_t *ptr;
 {
-  alloc_counts[(int)alloc_type_scope].total_free++;
+  alloc_counts[(int) alloc_type_scope].total_free++;
 
 #ifndef MALLOC_CHECK
-  ptr->free = alloc_counts[(int)alloc_type_scope].free_list.f_scope;
-  alloc_counts[(int)alloc_type_scope].free_list.f_scope = ptr;
+  ptr->free = alloc_counts[(int) alloc_type_scope].free_list.f_scope;
+  alloc_counts[(int) alloc_type_scope].free_list.f_scope = ptr;
 #else
   free ((PTR) ptr);
 #endif
@@ -4970,18 +4950,18 @@ allocate_vlinks ()
 
 #ifndef MALLOC_CHECK
 
-  register int unallocated = alloc_counts[(int)alloc_type_vlinks].unallocated;
-  register page_type *cur_page = alloc_counts[(int)alloc_type_vlinks].cur_page;
+  register int unallocated = alloc_counts[(int) alloc_type_vlinks].unallocated;
+  register page_type *cur_page = alloc_counts[(int) alloc_type_vlinks].cur_page;
 
   if (unallocated == 0)
     {
       unallocated = PAGE_SIZE / sizeof (vlinks_t);
-      alloc_counts[(int)alloc_type_vlinks].cur_page = cur_page = allocate_page ();
-      alloc_counts[(int)alloc_type_vlinks].total_pages++;
+      alloc_counts[(int) alloc_type_vlinks].cur_page = cur_page = allocate_page ();
+      alloc_counts[(int) alloc_type_vlinks].total_pages++;
     }
 
   ptr = &cur_page->vlinks[--unallocated];
-  alloc_counts[(int)alloc_type_vlinks].unallocated = unallocated;
+  alloc_counts[(int) alloc_type_vlinks].unallocated = unallocated;
 
 #else
 
@@ -4989,7 +4969,7 @@ allocate_vlinks ()
 
 #endif
 
-  alloc_counts[(int)alloc_type_vlinks].total_alloc++;
+  alloc_counts[(int) alloc_type_vlinks].total_alloc++;
   *ptr = initial_vlinks;
   return ptr;
 }
@@ -5004,18 +4984,18 @@ allocate_shash ()
 
 #ifndef MALLOC_CHECK
 
-  register int unallocated = alloc_counts[(int)alloc_type_shash].unallocated;
-  register page_type *cur_page = alloc_counts[(int)alloc_type_shash].cur_page;
+  register int unallocated = alloc_counts[(int) alloc_type_shash].unallocated;
+  register page_type *cur_page = alloc_counts[(int) alloc_type_shash].cur_page;
 
   if (unallocated == 0)
     {
       unallocated = PAGE_SIZE / sizeof (shash_t);
-      alloc_counts[(int)alloc_type_shash].cur_page = cur_page = allocate_page ();
-      alloc_counts[(int)alloc_type_shash].total_pages++;
+      alloc_counts[(int) alloc_type_shash].cur_page = cur_page = allocate_page ();
+      alloc_counts[(int) alloc_type_shash].total_pages++;
     }
 
   ptr = &cur_page->shash[--unallocated];
-  alloc_counts[(int)alloc_type_shash].unallocated = unallocated;
+  alloc_counts[(int) alloc_type_shash].unallocated = unallocated;
 
 #else
 
@@ -5023,7 +5003,7 @@ allocate_shash ()
 
 #endif
 
-  alloc_counts[(int)alloc_type_shash].total_alloc++;
+  alloc_counts[(int) alloc_type_shash].total_alloc++;
   *ptr = initial_shash;
   return ptr;
 }
@@ -5038,18 +5018,18 @@ allocate_thash ()
 
 #ifndef MALLOC_CHECK
 
-  register int unallocated = alloc_counts[(int)alloc_type_thash].unallocated;
-  register page_type *cur_page = alloc_counts[(int)alloc_type_thash].cur_page;
+  register int unallocated = alloc_counts[(int) alloc_type_thash].unallocated;
+  register page_type *cur_page = alloc_counts[(int) alloc_type_thash].cur_page;
 
   if (unallocated == 0)
     {
       unallocated = PAGE_SIZE / sizeof (thash_t);
-      alloc_counts[(int)alloc_type_thash].cur_page = cur_page = allocate_page ();
-      alloc_counts[(int)alloc_type_thash].total_pages++;
+      alloc_counts[(int) alloc_type_thash].cur_page = cur_page = allocate_page ();
+      alloc_counts[(int) alloc_type_thash].total_pages++;
     }
 
   ptr = &cur_page->thash[--unallocated];
-  alloc_counts[(int)alloc_type_thash].unallocated = unallocated;
+  alloc_counts[(int) alloc_type_thash].unallocated = unallocated;
 
 #else
 
@@ -5057,7 +5037,7 @@ allocate_thash ()
 
 #endif
 
-  alloc_counts[(int)alloc_type_thash].total_alloc++;
+  alloc_counts[(int) alloc_type_thash].total_alloc++;
   *ptr = initial_thash;
   return ptr;
 }
@@ -5072,23 +5052,23 @@ allocate_tag ()
 
 #ifndef MALLOC_CHECK
 
-  ptr = alloc_counts[(int)alloc_type_tag].free_list.f_tag;
+  ptr = alloc_counts[(int) alloc_type_tag].free_list.f_tag;
   if (ptr != (tag_t *) NULL)
-    alloc_counts[(int)alloc_type_tag].free_list.f_tag = ptr->free;
+    alloc_counts[(int) alloc_type_tag].free_list.f_tag = ptr->free;
   else
     {
-      register int unallocated = alloc_counts[(int)alloc_type_tag].unallocated;
-      register page_type *cur_page = alloc_counts[(int)alloc_type_tag].cur_page;
+      register int unallocated = alloc_counts[(int) alloc_type_tag].unallocated;
+      register page_type *cur_page = alloc_counts[(int) alloc_type_tag].cur_page;
 
       if (unallocated == 0)
 	{
 	  unallocated = PAGE_SIZE / sizeof (tag_t);
-	  alloc_counts[(int)alloc_type_tag].cur_page = cur_page = allocate_page ();
-	  alloc_counts[(int)alloc_type_tag].total_pages++;
+	  alloc_counts[(int) alloc_type_tag].cur_page = cur_page = allocate_page ();
+	  alloc_counts[(int) alloc_type_tag].total_pages++;
 	}
 
       ptr = &cur_page->tag[--unallocated];
-      alloc_counts[(int)alloc_type_tag].unallocated = unallocated;
+      alloc_counts[(int) alloc_type_tag].unallocated = unallocated;
     }
 
 #else
@@ -5097,7 +5077,7 @@ allocate_tag ()
 
 #endif
 
-  alloc_counts[(int)alloc_type_tag].total_alloc++;
+  alloc_counts[(int) alloc_type_tag].total_alloc++;
   *ptr = initial_tag;
   return ptr;
 }
@@ -5108,11 +5088,11 @@ static void
 free_tag (ptr)
      tag_t *ptr;
 {
-  alloc_counts[(int)alloc_type_tag].total_free++;
+  alloc_counts[(int) alloc_type_tag].total_free++;
 
 #ifndef MALLOC_CHECK
-  ptr->free = alloc_counts[(int)alloc_type_tag].free_list.f_tag;
-  alloc_counts[(int)alloc_type_tag].free_list.f_tag = ptr;
+  ptr->free = alloc_counts[(int) alloc_type_tag].free_list.f_tag;
+  alloc_counts[(int) alloc_type_tag].free_list.f_tag = ptr;
 #else
   free ((PTR_T) ptr);
 #endif
@@ -5128,18 +5108,18 @@ allocate_forward ()
 
 #ifndef MALLOC_CHECK
 
-  register int unallocated = alloc_counts[(int)alloc_type_forward].unallocated;
-  register page_type *cur_page = alloc_counts[(int)alloc_type_forward].cur_page;
+  register int unallocated = alloc_counts[(int) alloc_type_forward].unallocated;
+  register page_type *cur_page = alloc_counts[(int) alloc_type_forward].cur_page;
 
   if (unallocated == 0)
     {
       unallocated = PAGE_SIZE / sizeof (forward_t);
-      alloc_counts[(int)alloc_type_forward].cur_page = cur_page = allocate_page ();
-      alloc_counts[(int)alloc_type_forward].total_pages++;
+      alloc_counts[(int) alloc_type_forward].cur_page = cur_page = allocate_page ();
+      alloc_counts[(int) alloc_type_forward].total_pages++;
     }
 
   ptr = &cur_page->forward[--unallocated];
-  alloc_counts[(int)alloc_type_forward].unallocated = unallocated;
+  alloc_counts[(int) alloc_type_forward].unallocated = unallocated;
 
 #else
 
@@ -5147,7 +5127,7 @@ allocate_forward ()
 
 #endif
 
-  alloc_counts[(int)alloc_type_forward].total_alloc++;
+  alloc_counts[(int) alloc_type_forward].total_alloc++;
   *ptr = initial_forward;
   return ptr;
 }
@@ -5162,23 +5142,23 @@ allocate_thead ()
 
 #ifndef MALLOC_CHECK
 
-  ptr = alloc_counts[(int)alloc_type_thead].free_list.f_thead;
+  ptr = alloc_counts[(int) alloc_type_thead].free_list.f_thead;
   if (ptr != (thead_t *) NULL)
-    alloc_counts[ (int)alloc_type_thead ].free_list.f_thead = ptr->free;
+    alloc_counts[(int) alloc_type_thead].free_list.f_thead = ptr->free;
   else
     {
-      register int unallocated = alloc_counts[(int)alloc_type_thead].unallocated;
-      register page_type *cur_page = alloc_counts[(int)alloc_type_thead].cur_page;
+      register int unallocated = alloc_counts[(int) alloc_type_thead].unallocated;
+      register page_type *cur_page = alloc_counts[(int) alloc_type_thead].cur_page;
 
       if (unallocated == 0)
 	{
 	  unallocated = PAGE_SIZE / sizeof (thead_t);
-	  alloc_counts[(int)alloc_type_thead].cur_page = cur_page = allocate_page ();
-	  alloc_counts[(int)alloc_type_thead].total_pages++;
+	  alloc_counts[(int) alloc_type_thead].cur_page = cur_page = allocate_page ();
+	  alloc_counts[(int) alloc_type_thead].total_pages++;
 	}
 
       ptr = &cur_page->thead[--unallocated];
-      alloc_counts[(int)alloc_type_thead].unallocated = unallocated;
+      alloc_counts[(int) alloc_type_thead].unallocated = unallocated;
     }
 
 #else
@@ -5187,7 +5167,7 @@ allocate_thead ()
 
 #endif
 
-  alloc_counts[(int)alloc_type_thead].total_alloc++;
+  alloc_counts[(int) alloc_type_thead].total_alloc++;
   *ptr = initial_thead;
   return ptr;
 }
@@ -5198,11 +5178,11 @@ static void
 free_thead (ptr)
      thead_t *ptr;
 {
-  alloc_counts[(int)alloc_type_thead].total_free++;
+  alloc_counts[(int) alloc_type_thead].total_free++;
 
 #ifndef MALLOC_CHECK
-  ptr->free = (thead_t *) alloc_counts[(int)alloc_type_thead].free_list.f_thead;
-  alloc_counts[(int)alloc_type_thead].free_list.f_thead = ptr;
+  ptr->free = (thead_t *) alloc_counts[(int) alloc_type_thead].free_list.f_thead;
+  alloc_counts[(int) alloc_type_thead].free_list.f_thead = ptr;
 #else
   free ((PTR_T) ptr);
 #endif
@@ -5216,18 +5196,18 @@ allocate_lineno_list ()
 
 #ifndef MALLOC_CHECK
 
-  register int unallocated = alloc_counts[(int)alloc_type_lineno].unallocated;
-  register page_type *cur_page = alloc_counts[(int)alloc_type_lineno].cur_page;
+  register int unallocated = alloc_counts[(int) alloc_type_lineno].unallocated;
+  register page_type *cur_page = alloc_counts[(int) alloc_type_lineno].cur_page;
 
   if (unallocated == 0)
     {
       unallocated = PAGE_SIZE / sizeof (lineno_list_t);
-      alloc_counts[(int)alloc_type_lineno].cur_page = cur_page = allocate_page ();
-      alloc_counts[(int)alloc_type_lineno].total_pages++;
+      alloc_counts[(int) alloc_type_lineno].cur_page = cur_page = allocate_page ();
+      alloc_counts[(int) alloc_type_lineno].total_pages++;
     }
 
   ptr = &cur_page->lineno[--unallocated];
-  alloc_counts[(int)alloc_type_lineno].unallocated = unallocated;
+  alloc_counts[(int) alloc_type_lineno].unallocated = unallocated;
 
 #else
 
@@ -5235,7 +5215,7 @@ allocate_lineno_list ()
 
 #endif
 
-  alloc_counts[(int)alloc_type_lineno].total_alloc++;
+  alloc_counts[(int) alloc_type_lineno].total_alloc++;
   *ptr = initial_lineno_list;
   return ptr;
 }
@@ -5257,7 +5237,7 @@ ecoff_set_gp_prolog_size (sz)
   cur_proc_ptr->pdr.gp_used = 1;
 }
 
-int 
+int
 ecoff_no_current_file ()
 {
   return cur_file_ptr == (efdr_t *) NULL;
@@ -5272,7 +5252,7 @@ ecoff_generate_asm_lineno ()
 
   as_where (&filename, &lineno);
 
-  if (current_stabs_filename == (char *)NULL
+  if (current_stabs_filename == (char *) NULL
       || strcmp (current_stabs_filename, filename))
     add_file (filename, 0, 1);
 
@@ -5297,7 +5277,7 @@ ecoff_generate_asm_lineno ()
 
       pl = &noproc_lineno;
       while (*pl != (lineno_list_t *) NULL)
-        pl = &(*pl)->next;
+	pl = &(*pl)->next;
       *pl = list;
     }
   else

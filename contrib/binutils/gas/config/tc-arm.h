@@ -1,5 +1,5 @@
 /* This file is tc-arm.h
-   Copyright (C) 1994, 1995, 1996, 1997, 1998, 1999
+   Copyright 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001
    Free Software Foundation, Inc.
    Contributed by Richard Earnshaw (rwe@pegasus.esprit.ec.org)
 	Modified by David Taylor (dtaylor@armltd.co.uk)
@@ -68,12 +68,12 @@
 
 #if defined OBJ_COFF || defined OBJ_ELF
 # define ARM_BI_ENDIAN
-     
+
 # define TC_VALIDATE_FIX(fixP, segType, Label) \
      if (arm_validate_fix (fixP)) add_symbolP = fixP->fx_addsy
   extern boolean arm_validate_fix PARAMS ((struct fix *));
 #endif
-     
+
 #ifdef OBJ_COFF
 # if defined TE_PE
 #  define TC_FORCE_RELOCATION(x) ((x)->fx_r_type == BFD_RELOC_RVA)
@@ -90,7 +90,7 @@
 #ifdef OBJ_ELF
 # define TARGET_FORMAT elf32_arm_target_format()
   extern const char * elf32_arm_target_format PARAMS ((void));
-  
+
 # define TC_FORCE_RELOCATION(fixp) arm_force_relocation (fixp)
   extern int arm_force_relocation PARAMS ((struct fix *));
 #endif
@@ -116,10 +116,14 @@
 #define TC_FIX_TYPE PTR
 #define TC_INIT_FIX_DATA(FIXP) ((FIXP)->tc_fix_data = NULL)
 
-#ifdef OBJ_ELF
+#if defined OBJ_ELF || defined OBJ_COFF
 #include "write.h"        /* For definition of fixS */
 #define obj_fix_adjustable(fixP) arm_fix_adjustable (fixP)
 boolean arm_fix_adjustable PARAMS ((fixS *));
+
+/* This arranges for gas/write.c to not apply a relocation if
+   obj_fix_adjustable() says it is not adjustable.  */
+#define TC_FIX_ADJUSTABLE(fixP) obj_fix_adjustable (fixP)
 #else
 #define obj_fix_adjustable(fixP) 0
 #endif
@@ -142,7 +146,6 @@ boolean arm_fix_adjustable PARAMS ((fixS *));
 #define ARM_SET_THUMB(s,t)      ((t) ? ARM_SET_FLAG (s, ARM_FLAG_THUMB)     : ARM_RESET_FLAG (s, ARM_FLAG_THUMB))
 #define ARM_SET_INTERWORK(s,t)  ((t) ? ARM_SET_FLAG (s, ARM_FLAG_INTERWORK) : ARM_RESET_FLAG (s, ARM_FLAG_INTERWORK))
 #define THUMB_SET_FUNC(s,t)     ((t) ? ARM_SET_FLAG (s, THUMB_FLAG_FUNC)    : ARM_RESET_FLAG (s, THUMB_FLAG_FUNC))
-
 
 #define TC_START_LABEL(C,STR) \
   (c == ':' || (c == '/' && arm_data_in_code ()))
@@ -194,18 +197,40 @@ void armelf_frob_symbol PARAMS ((symbolS *, int *));
  extern void cons_fix_new_arm PARAMS ((fragS *, int, int, expressionS *));
 
 /* Don't allow symbols to be discarded on GOT related relocs,
-   nor on globals.  */ 
+   nor on globals.  */
 #define tc_fix_adjustable(x) (\
      ((x)->fx_r_type == BFD_RELOC_ARM_PLT32 \
    || (x)->fx_r_type == BFD_RELOC_ARM_GOT32 \
    || (x)->fx_r_type == BFD_RELOC_ARM_GOTOFF \
    || S_IS_EXTERN ((x)->fx_addsy) \
    || S_IS_WEAK ((x)->fx_addsy)) ? 0 : 1)
-     
+
 #ifdef OBJ_ELF
 #define GLOBAL_OFFSET_TABLE_NAME "_GLOBAL_OFFSET_TABLE_"
 #else
 #define GLOBAL_OFFSET_TABLE_NAME "__GLOBAL_OFFSET_TABLE_"
 #endif
-     
-/* end of tc-arm.h */
+
+#ifdef OBJ_ELF
+#define DWARF2_LINE_MIN_INSN_LENGTH 2
+#endif
+
+#define MAX_MEM_FOR_RS_ALIGN_CODE 31
+
+/* For frags in code sections we need to record whether they contain
+   ARM code or THUMB code.  This is that if they have to be aligned,
+   they can contain the correct type of no-op instruction.  */
+#define TC_FRAG_TYPE	int
+#define TC_FRAG_INIT(fragp)	arm_init_frag (fragp)
+extern void arm_init_frag PARAMS ((struct frag *));
+
+#define HANDLE_ALIGN(fragp) arm_handle_align (fragp)
+extern void arm_handle_align PARAMS ((struct frag *));
+
+#define md_do_align(N, FILL, LEN, MAX, LABEL)					\
+  if (FILL == NULL && (N) != 0 && ! need_pass_2 && subseg_text_p (now_seg))	\
+    {										\
+      arm_frag_align_code (N, MAX);						\
+      goto LABEL;								\
+    }
+extern void arm_frag_align_code PARAMS ((int, int));

@@ -28,13 +28,20 @@
  * SUCH DAMAGE.
  */
 
-#include <limits.h>
-#include <ctype.h>
-#include <errno.h>
-#if 0
-#include <stdlib.h>
+#ifdef HAVE_CONFIG_H
+#include "config.h"
 #endif
-#include "ansidecl.h"
+#ifdef HAVE_LIMITS_H
+#include <limits.h>
+#endif
+#ifdef HAVE_SYS_PARAM_H
+#include <sys/param.h>
+#endif
+#include <errno.h>
+#ifdef NEED_DECLARATION_ERRNO
+extern int errno;
+#endif
+#include "safe-ctype.h"
 
 /* FIXME: It'd be nice to configure around these, but the include files are too
    painful.  These macros should at least be more portable than hardwired hex
@@ -77,7 +84,7 @@ strtol(nptr, endptr, base)
 	 */
 	do {
 		c = *s++;
-	} while (isspace(c));
+	} while (ISSPACE(c));
 	if (c == '-') {
 		neg = 1;
 		c = *s++;
@@ -113,10 +120,10 @@ strtol(nptr, endptr, base)
 	cutlim = cutoff % (unsigned long)base;
 	cutoff /= (unsigned long)base;
 	for (acc = 0, any = 0;; c = *s++) {
-		if (isdigit(c))
+		if (ISDIGIT(c))
 			c -= '0';
-		else if (isalpha(c))
-			c -= isupper(c) ? 'A' - 10 : 'a' - 10;
+		else if (ISALPHA(c))
+			c -= ISUPPER(c) ? 'A' - 10 : 'a' - 10;
 		else
 			break;
 		if (c >= base)

@@ -1,5 +1,5 @@
 /* BFD ECOFF object file private structure.
-   Copyright (C) 1993, 94, 95, 96, 97, 1999 Free Software Foundation, Inc.
+   Copyright 1993, 1994, 1995, 1996, 1999 Free Software Foundation, Inc.
    Written by Ian Lance Taylor, Cygnus Support.
 
 This file is part of BFD, the Binary File Descriptor library.

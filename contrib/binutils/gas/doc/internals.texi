@@ -1,4 +1,7 @@
 \input texinfo
+@c  Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
+@c  2001
+@c  Free Software Foundation, Inc.
 @setfilename internals.info
 @node Top
 @top Assembler Internals
@@ -8,8 +11,7 @@
 This chapter describes the internals of the assembler.  It is incomplete, but
 it may help a bit.
 
-This chapter was last modified on $Date: 2000/03/26 14:47:33 $.  It is not updated regularly, and it
-may be out of date.
+This chapter is not updated regularly, and it may be out of date.
 
 @menu
 * GAS versions::        GAS versions
@@ -464,7 +466,7 @@ the other fields; see the definition in @file{expr.h} for the possibilities.
 
 An @code{operatorT} value of @code{O_big} indicates either a floating point
 number, stored in the global variable @code{generic_floating_point_number}, or
-an integer to large to store in an @code{offsetT} type, stored in the global
+an integer too large to store in an @code{offsetT} type, stored in the global
 array @code{generic_bignum}.  This rather inflexible approach makes it
 impossible to use floating point numbers or large expressions in complex
 expressions.
@@ -645,7 +647,7 @@ The variable characters are to be repeated @code{fr_offset} times.  If
 have this type.
 
 @item rs_leb128
-This state is used to implement the DWARF ``little endian base 128'' 
+This state is used to implement the DWARF ``little endian base 128''
 variable length number format.  The @code{fr_symbol} is always an expression
 symbol, as constant expressions are emitted directly.  The @code{fr_offset}
 field is used during relaxation to hold the previous size of the number so
@@ -774,6 +776,12 @@ variable.  Normally the default value of @samp{generic} is fine.  The
 configuration process will create a file named @file{targ-env.h} in the build
 directory which includes @file{te-@var{em}.h}.
 
+There is a special case for COFF. For historical reason, the GNU COFF
+assembler doesn't follow the documented behavior on certain debug symbols for
+the compatibility with other COFF assemblers. A port can define
+@code{STRICTCOFF} in the configure script to make the GNU COFF assembler
+to follow the documented behavior.
+
 Porting GAS to a new CPU requires writing the @file{tc-@var{CPU}} files.
 Porting GAS to a new object file format requires writing the
 @file{obj-@var{fmt}} files.  There is sometimes some interaction between these
@@ -884,7 +892,7 @@ pseudo-ops which are specific to the CPU.
 If this macro is defined, GAS will call it with a @code{pseudo_typeS} argument.
 It should return non-zero if the pseudo-op is a conditional which controls
 whether code is assembled, such as @samp{.if}.  GAS knows about the normal
-conditional pseudo-ops,and you should normally not have to define this macro.
+conditional pseudo-ops, and you should normally not have to define this macro.
 
 @item comment_chars
 @cindex comment_chars
@@ -913,7 +921,7 @@ comment when they appear at the start of a line.
 @item line_separator_chars
 @cindex line_separator_chars
 This is a null terminated @code{const char} array of characters which separate
-lines (semicolon and newline are such characters by default, and need not be
+lines (null and newline are such characters by default, and need not be
 listed in this array).  Note that line_separator_chars do not separate lines
 if found in a comment, such as after a character in line_comment_chars or
 comment_chars.
@@ -965,7 +973,7 @@ default value is @code{LEX_NAME | LEX_BEGIN_NAME}.
 @item NUMBERS_WITH_SUFFIX
 @cindex NUMBERS_WITH_SUFFIX
 When this macro is defined to be non-zero, the parser allows the radix of a
-constant to be indicated with a suffix.  Valid suffixes are binary (B), 
+constant to be indicated with a suffix.  Valid suffixes are binary (B),
 octal (Q), and hexadecimal (H).  Case is not significant.
 
 @item SINGLE_QUOTE_STRINGS
@@ -992,6 +1000,7 @@ If you define this macro, GAS will assume that any text at the start of a line
 is a label, even if it does not have a colon.
 
 @item TC_START_LABEL
+@itemx TC_START_LABEL_WITHOUT_COLON
 @cindex TC_START_LABEL
 You may define this macro to control what GAS considers to be a label.  The
 default definition is to accept any name followed by a colon character.
@@ -999,7 +1008,7 @@ default definition is to accept any name followed by a colon character.
 @item TC_START_LABEL_WITHOUT_COLON
 @cindex TC_START_LABEL_WITHOUT_COLON
 Same as TC_START_LABEL, but should be used instead of TC_START_LABEL when
-LABELS_WITHOUT_COLONS is defined. 
+LABELS_WITHOUT_COLONS is defined.
 
 @item NO_PSEUDO_DOT
 @cindex NO_PSEUDO_DOT
@@ -1133,11 +1142,13 @@ relocation entry.
 @itemx md_long_jump_size
 @itemx md_create_short_jump
 @itemx md_create_long_jump
+@itemx TC_CHECK_ADJUSTED_BROKEN_DOT_WORD
 @cindex WORKING_DOT_WORD
 @cindex md_short_jump_size
 @cindex md_long_jump_size
 @cindex md_create_short_jump
 @cindex md_create_long_jump
+@cindex TC_CHECK_ADJUSTED_BROKEN_DOT_WORD
 If @code{WORKING_DOT_WORD} is defined, GAS will not do broken word processing
 (@pxref{Broken words}).  Otherwise, you should set @code{md_short_jump_size} to
 the size of a short jump (a jump that is just long enough to jump around a
@@ -1145,6 +1156,10 @@ number of long jumps) and @code{md_long_jump_size} to the size of a long jump
 (a jump that can go anywhere in the function).  You should define
 @code{md_create_short_jump} to create a short jump around a number of long
 jumps, and define @code{md_create_long_jump} to create a long jump.
+If defined, the macro TC_CHECK_ADJUSTED_BROKEN_DOT_WORD will be called for each
+adjusted word just before the word is output.  The macro takes two arguments,
+an @code{addressT} with the adjusted word and a pointer to the current
+@code{struct broken_word}.
 
 @item md_estimate_size_before_relax
 @cindex md_estimate_size_before_relax
@@ -1154,9 +1169,10 @@ relocations.
 
 @item md_relax_frag
 @cindex md_relax_frag
-This macro may be defined to relax a frag.  GAS will call this with the frag
-and the change in size of all previous frags; @code{md_relax_frag} should
-return the change in size of the frag.  @xref{Relaxation}.
+This macro may be defined to relax a frag.  GAS will call this with the
+segment, the frag, and the change in size of all previous frags;
+@code{md_relax_frag} should return the change in size of the frag.
+@xref{Relaxation}.
 
 @item TC_GENERIC_RELAX_TABLE
 @cindex TC_GENERIC_RELAX_TABLE
@@ -1176,6 +1192,15 @@ If you define this macro, and the global variable @samp{linkrelax} is set
 (because of a command line option, or unconditionally in @code{md_begin}), a
 @samp{.align} directive will cause extra space to be allocated.  The linker can
 then discard this space when relaxing the section.
+
+@item TC_LINKRELAX_FIXUP (@var{segT})
+@cindex TC_LINKRELAX_FIXUP
+If defined, this macro allows control over whether fixups for a
+given section will be processed when the @var{linkrelax} variable is
+set.  The macro is given the N_TYPE bits for the section in its
+@var{segT} argument.  If the macro evaluates to a non-zero value
+then the fixups will be converted into relocs, otherwise they will
+be passed to @var{md_apply_fix3} as normal.
 
 @item md_convert_frag
 @cindex md_convert_frag
@@ -1251,7 +1276,7 @@ size.
 @cindex md_macro_start
 If defined, GAS will call this macro when it starts to include a macro
 expansion.  @code{macro_nest} indicates the current macro nesting level, which
-includes the one being expanded. 
+includes the one being expanded.
 
 @item md_macro_info
 @cindex md_macro_info
@@ -1263,7 +1288,7 @@ macro (macro_entry *), which includes expansion of the formal arguments.
 @item md_macro_end
 @cindex md_macro_end
 Complement to md_macro_start.  If defined, it is called when finished
-processing an inserted macro expansion, just before decrementing macro_nest. 
+processing an inserted macro expansion, just before decrementing macro_nest.
 
 @item DOUBLEBAR_PARALLEL
 @cindex DOUBLEBAR_PARALLEL
@@ -1332,6 +1357,13 @@ source line.  The default value is 4.
 @item LISTING_RHS_WIDTH
 The maximum number of characters to print from one line of the input file.  The
 default value is 100.
+
+@item TC_COFF_SECTION_DEFAULT_ATTRIBUTES
+@cindex TC_COFF_SECTION_DEFAULT_ATTRIBUTES
+The COFF @code{.section} directive will use the value of this macro to set
+a new section's attributes when a directive has no valid flags or when the
+flag is @code{w}. The default value of the macro is @code{SEC_LOAD | SEC_DATA}.
+
 @end table
 
 @node Object format backend
@@ -1400,8 +1432,8 @@ generate a @code{.file} symbol if none was generated previously.
 
 @item SEPARATE_STAB_SECTIONS
 @cindex SEPARATE_STAB_SECTIONS
-You may define this macro to indicate that stabs should be placed in separate
-sections, as in ELF.
+You may define this macro to a nonzero value to indicate that stabs should be
+placed in separate sections, as in ELF.
 
 @item INIT_STAB_SECTION
 @cindex INIT_STAB_SECTION
@@ -1572,6 +1604,16 @@ storage was allocated when @code{frag_var} was called), and @code{frag_wane} is
 called to convert the frag to an @code{rs_fill} frag with no variant part.
 Sometimes changing addressing modes may also require rewriting the instruction.
 It can be accessed via @code{fr_opcode} or @code{fr_fix}.
+
+If you generate frags separately for the basic insn opcode and any relaxable
+operands, do not call @code{fix_new} thinking you can emit fixups for the
+opcode field from the relaxable frag.  It is not garanteed to be the same frag.
+If you need to emit fixups for the opcode field from inspection of the
+relaxable frag, then you need to generate a common frag for both the basic
+opcode and relaxable fields, or you need to provide the frag for the opcode to
+pass to @code{fix_new}.  The latter can be done for example by defining
+@code{TC_FRAG_TYPE} to include a pointer to it and defining @code{TC_FRAG_INIT}
+to set the pointer.
 
 Sometimes @code{fr_var} is increased instead, and @code{frag_wane} is not
 called.  I'm not sure, but I think this is to keep @code{fr_fix} referring to

@@ -1,5 +1,6 @@
 /* MIPS ELF support for BFD.
-   Copyright (C) 1993, 1994, 1995, 1996, 1998 Free Software Foundation, Inc.
+   Copyright 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001
+   Free Software Foundation, Inc.
 
    By Ian Lance Taylor, Cygnus Support, <ian@cygnus.com>, from
    information in the System V Application Binary Interface, MIPS
@@ -33,16 +34,16 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 START_RELOC_NUMBERS (elf_mips_reloc_type)
   RELOC_NUMBER (R_MIPS_NONE, 0)
   RELOC_NUMBER (R_MIPS_16, 1)
-  RELOC_NUMBER (R_MIPS_32, 2)
-  RELOC_NUMBER (R_MIPS_REL32, 3)
+  RELOC_NUMBER (R_MIPS_32, 2)		/* In Elf 64: alias R_MIPS_ADD */
+  RELOC_NUMBER (R_MIPS_REL32, 3)	/* In Elf 64: alias R_MIPS_REL */
   RELOC_NUMBER (R_MIPS_26, 4)
   RELOC_NUMBER (R_MIPS_HI16, 5)
   RELOC_NUMBER (R_MIPS_LO16, 6)
-  RELOC_NUMBER (R_MIPS_GPREL16, 7)
+  RELOC_NUMBER (R_MIPS_GPREL16, 7)	/* In Elf 64: alias R_MIPS_GPREL */
   RELOC_NUMBER (R_MIPS_LITERAL, 8)
-  RELOC_NUMBER (R_MIPS_GOT16, 9)
+  RELOC_NUMBER (R_MIPS_GOT16, 9)	/* In Elf 64: alias R_MIPS_GOT */
   RELOC_NUMBER (R_MIPS_PC16, 10)
-  RELOC_NUMBER (R_MIPS_CALL16, 11)
+  RELOC_NUMBER (R_MIPS_CALL16, 11)	/* In Elf 64: alias R_MIPS_CALL */
   RELOC_NUMBER (R_MIPS_GPREL32, 12)
   /* The remaining relocs are defined on Irix, although they are not
      in the MIPS ELF ABI.  */
@@ -84,7 +85,7 @@ START_RELOC_NUMBERS (elf_mips_reloc_type)
   /* These are GNU extensions to enable C++ vtable garbage collection.  */
   RELOC_NUMBER (R_MIPS_GNU_VTINHERIT, 253)
   RELOC_NUMBER (R_MIPS_GNU_VTENTRY, 254)
-END_RELOC_NUMBERS
+END_RELOC_NUMBERS (R_MIPS_maxext)
 
 /* Processor specific flags for the ELF header e_flags field.  */
 
@@ -98,10 +99,25 @@ END_RELOC_NUMBERS
    position independent code.  */
 #define EF_MIPS_CPIC		0x00000004
 
+/* Code in file uses UCODE (obsolete) */
+#define EF_MIPS_UCODE		0x00000010
+
 /* Code in file uses new ABI (-n32 on Irix 6).  */
 #define EF_MIPS_ABI2		0x00000020
 
-/* Indicates code compiled for a 64-bit machine in 32-bit mode. 
+/* Process the .MIPS.options section first by ld */
+#define EF_MIPS_OPTIONS_FIRST	0x00000080
+
+/* Architectural Extensions used by this file */
+#define EF_MIPS_ARCH_ASE	0x0f000000
+
+/* Use MDMX multimedia extensions */
+#define EF_MIPS_ARCH_ASE_MDMX	0x08000000
+
+/* Use MIPS-16 ISA extensions */
+#define EF_MIPS_ARCH_ASE_M16	0x04000000
+
+/* Indicates code compiled for a 64-bit machine in 32-bit mode.
    (regs are 32-bits wide.) */
 #define EF_MIPS_32BITMODE       0x00000100
 
@@ -119,6 +135,15 @@ END_RELOC_NUMBERS
 
 /* -mips4 code.  */
 #define E_MIPS_ARCH_4		0x30000000
+
+/* -mips5 code.  */
+#define E_MIPS_ARCH_5           0x40000000
+
+/* -mips32 code.  */
+#define E_MIPS_ARCH_32          0x50000000
+
+/* -mips64 code.  */
+#define E_MIPS_ARCH_64          0x60000000
 
 /* The ABI of the file.  Also see EF_MIPS_ABI2 above. */
 #define EF_MIPS_ABI		0x0000F000
@@ -152,7 +177,8 @@ END_RELOC_NUMBERS
 #define E_MIPS_MACH_4100	0x00830000
 #define E_MIPS_MACH_4650	0x00850000
 #define E_MIPS_MACH_4111	0x00880000
-
+#define E_MIPS_MACH_MIPS32_4K	0x00890000
+#define E_MIPS_MACH_SB1         0x008a0000
 
 /* Processor specific section indices.  These sections do not actually
    exist.  Symbols with a st_shndx field corresponding to one of these
@@ -254,19 +280,19 @@ END_RELOC_NUMBERS
 /* ??? */
 #define SHT_MIPS_RFDESC		0x7000001a
 
-/* ??? */
+/* Delta C++: symbol table */
 #define SHT_MIPS_DELTASYM	0x7000001b
 
-/* ??? */
+/* Delta C++: instance table */
 #define SHT_MIPS_DELTAINST	0x7000001c
 
-/* ??? */
+/* Delta C++: class table */
 #define SHT_MIPS_DELTACLASS	0x7000001d
 
 /* DWARF debugging section.  */
 #define SHT_MIPS_DWARF		0x7000001e
 
-/* ??? */
+/* Delta C++: declarations */
 #define SHT_MIPS_DELTADECL	0x7000001f
 
 /* List of libraries the binary depends on.  Includes a time stamp, version
@@ -279,25 +305,25 @@ END_RELOC_NUMBERS
 /* ??? */
 #define SHT_MIPS_TRANSLATE	0x70000022
 
-/* ??? */
+/* Special pixie sections */
 #define SHT_MIPS_PIXIE		0x70000023
 
-/* ??? */
+/* Address translation table (for debug info) */
 #define SHT_MIPS_XLATE		0x70000024
 
-/* ??? */
+/* SGI internal address translation table (for debug info) */
 #define SHT_MIPS_XLATE_DEBUG	0x70000025
 
-/* ??? */
+/* Intermediate code */
 #define SHT_MIPS_WHIRL		0x70000026
 
-/* ??? */
+/* C++ exception handling region info */
 #define SHT_MIPS_EH_REGION	0x70000027
 
-/* ??? */
+/* Obsolete address translation table (for debug info) */
 #define SHT_MIPS_XLATE_OLD	0x70000028
 
-/* ??? */
+/* Runtime procedure descriptor table exception information (ucode) ??? */
 #define SHT_MIPS_PDR_EXCEPTION	0x70000029
 
 
@@ -435,11 +461,12 @@ extern void bfd_mips_elf32_swap_reginfo_out
 /* This section should be merged.  */
 #define SHF_MIPS_MERGE		0x20000000
 
-/* This section contains 32 bit addresses.  */
-#define SHF_MIPS_ADDR32		0x40000000
+/* This section contains address data of size implied by section
+   element size.  */
+#define SHF_MIPS_ADDR		0x40000000
 
-/* This section contains 64 bit addresses.  */
-#define SHF_MIPS_ADDR64		0x80000000
+/* This section contains string data.  */
+#define SHF_MIPS_STRING		0x80000000
 
 /* This section may not be stripped.  */
 #define SHF_MIPS_NOSTRIP	0x08000000
@@ -449,6 +476,10 @@ extern void bfd_mips_elf32_swap_reginfo_out
 
 /* Linker should generate implicit weak names for this section.  */
 #define SHF_MIPS_NAMES		0x02000000
+
+/* Section contais text/data which may be replicated in other sections.
+   Linker should retain only one copy.  */
+#define SHF_MIPS_NODUPES	0x01000000
 
 /* Processor specific program header types.  */
 
@@ -458,7 +489,7 @@ extern void bfd_mips_elf32_swap_reginfo_out
 /* Runtime procedure table.  */
 #define PT_MIPS_RTPROC		0x70000001
 
-/* Options (for what ???).  */
+/* .MIPS.options section.  */
 #define PT_MIPS_OPTIONS		0x70000002
 
 /* Processor specific dynamic array tags.  */
@@ -550,19 +581,19 @@ extern void bfd_mips_elf32_swap_reginfo_out
 /* Pixie information (???).  */
 #define DT_MIPS_PIXIE_INIT	0x70000023
 
-/* ??? */
+/* Address of .MIPS.symlib */
 #define DT_MIPS_SYMBOL_LIB	0x70000024
 
-/* ??? */
+/* The GOT index of the first PTE for a segment */
 #define DT_MIPS_LOCALPAGE_GOTIDX	0x70000025
 
-/* ??? */
+/* The GOT index of the first PTE for a local symbol */
 #define DT_MIPS_LOCAL_GOTIDX	0x70000026
 
-/* ??? */
+/* The GOT index of the first PTE for a hidden symbol */
 #define DT_MIPS_HIDDEN_GOTIDX	0x70000027
 
-/* ??? */
+/* The GOT index of the first PTE for a protected symbol */
 #define DT_MIPS_PROTECTED_GOTIDX	0x70000028
 
 /* Address of `.MIPS.options'.  */
@@ -604,20 +635,44 @@ extern void bfd_mips_elf32_swap_reginfo_out
 #define RHF_NOTPOT		0x00000002
 
 /* Ignore LD_LIBRARY_PATH.  */
-#define RHS_NO_LIBRARY_REPLACEMENT \
-				0x00000004
+#define RHS_NO_LIBRARY_REPLACEMENT 0x00000004
 
-#define RHF_NO_MOVE		   0x00000008
-#define RHF_SGI_ONLY		   0x00000010
+/* DSO address may not be relocated. */
+#define RHF_NO_MOVE		0x00000008
+
+/* SGI specific features. */
+#define RHF_SGI_ONLY		0x00000010
+
+/* Guarantee that .init will finish executing before any non-init
+   code in DSO is called. */
 #define RHF_GUARANTEE_INIT	   0x00000020
+
+/* Contains Delta C++ code. */
 #define RHF_DELTA_C_PLUS_PLUS	   0x00000040
+
+/* Guarantee that .init will start executing before any non-init
+   code in DSO is called. */
 #define RHF_GUARANTEE_START_INIT   0x00000080
+
+/* Generated by pixie. */
 #define RHF_PIXIE		   0x00000100
+
+/* Delay-load DSO by default. */
 #define RHF_DEFAULT_DELAY_LOAD	   0x00000200
+
+/* Object may be requickstarted */
 #define RHF_REQUICKSTART	   0x00000400
+
+/* Object has been requickstarted */
 #define RHF_REQUICKSTARTED	   0x00000800
+
+/* Generated by cord. */
 #define RHF_CORD		   0x00001000
+
+/* Object contains no unresolved undef symbols. */
 #define RHF_NO_UNRES_UNDEF	   0x00002000
+
+/* Symbol table is in a safe order. */
 #define RHF_RLD_ORDER_SAFE	   0x00004000
 
 /* Special values for the st_other field in the symbol table.  These
@@ -710,6 +765,12 @@ typedef struct
   /* Addend.  */
   bfd_signed_vma r_addend;
 } Elf64_Mips_Internal_Rela;
+
+/* MIPS ELF 64 relocation info access macros.  */
+#define ELF64_MIPS_R_SSYM(i) (((i) >> 24) & 0xff)
+#define ELF64_MIPS_R_TYPE3(i) (((i) >> 16) & 0xff)
+#define ELF64_MIPS_R_TYPE2(i) (((i) >> 8) & 0xff)
+#define ELF64_MIPS_R_TYPE(i) ((i) & 0xff)
 
 /* Values found in the r_ssym field of a relocation entry.  */
 
@@ -867,7 +928,8 @@ extern void bfd_mips_elf64_swap_reginfo_out
 #define OEX_FPU_MAX	0x1f00	/* FPEs which may be enabled.  */
 #define OEX_PAGE0	0x10000	/* Page zero must be mapped.  */
 #define OEX_SMM		0x20000	/* Force sequential memory mode.  */
-#define OEX_FPDBUG	0x40000	/* Force floating-point debug mode.  */
+#define OEX_FPDBUG	0x40000	/* Force precise floating-point
+				   exceptions (debug mode).  */
 #define OEX_DISMISS	0x80000	/* Dismiss invalid address faults.  */
 
 /* Masks of the FP exceptions for OEX_FPU_MIN and OEX_FPU_MAX.  */
@@ -883,10 +945,13 @@ extern void bfd_mips_elf64_swap_reginfo_out
 #define OPAD_SYMBOL	0x04
 
 /* Masks for the info word of an ODK_HWPATCH descriptor.  */
-#define OHW_R4KEOP	0x01	/* R4000 end-of-page patch.  */
-#define OHW_R8KPFETCH	0x02	/* May need R8000 prefetch patch.  */
-#define OHW_R5KEOP	0x04	/* R5000 end-of-page patch.  */
-#define OHW_R5KCVTL	0x08	/* R5000 cvt.[ds].l bug (clean == 1).  */
+#define OHW_R4KEOP	0x00000001	/* R4000 end-of-page patch.  */
+#define OHW_R8KPFETCH	0x00000002	/* May need R8000 prefetch patch.  */
+#define OHW_R5KEOP	0x00000004	/* R5000 end-of-page patch.  */
+#define OHW_R5KCVTL	0x00000008	/* R5000 cvt.[ds].l bug
+					   (clean == 1).  */
+#define OHW_R10KLDL	0x00000010	/* Needs R10K misaligned
+					   load patch. */
 
 /* Masks for the info word of an ODK_IDENT/ODK_GP_GROUP descriptor.  */
 #define OGP_GROUP	0x0000ffff	/* GP group number.  */

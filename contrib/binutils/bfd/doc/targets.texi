@@ -7,7 +7,7 @@ of a target back end. All the back end provides to the root
 part of BFD is a structure containing pointers to functions
 which perform certain low level operations on files. BFD
 translates the applications's requests through a pointer into
-calls to the back end routines. 
+calls to the back end routines.
 
 When a file is opened with @code{bfd_openr}, its format and
 target are unknown. BFD uses various mechanisms to determine
@@ -18,12 +18,12 @@ how to interpret the file. The operations performed are:
 @item
 Create a BFD by calling the internal routine
 @code{_bfd_new_bfd}, then call @code{bfd_find_target} with the
-target string supplied to @code{bfd_openr} and the new BFD pointer. 
+target string supplied to @code{bfd_openr} and the new BFD pointer.
 
 @item
 If a null target string was provided to @code{bfd_find_target},
 look up the environment variable @code{GNUTARGET} and use
-that as the target string. 
+that as the target string.
 
 @item
 If the target string is still @code{NULL}, or the target string is
@@ -35,7 +35,7 @@ cause @code{bfd_check_format} to loop through all the targets.
 @item
 Otherwise, inspect the elements in the target vector
 one by one, until a match on target name is found. When found,
-use it. 
+use it.
 
 @item
 Otherwise return the error @code{bfd_error_invalid_target} to
@@ -47,7 +47,7 @@ Otherwise return the error @code{bfd_error_invalid_target} to
 @end itemize
 Once the BFD has been opened and the target selected, the file
 format may be determined. This is done by calling
-@code{bfd_check_format} on the BFD with a suggested format. 
+@code{bfd_check_format} on the BFD with a suggested format.
 If @code{target_defaulted} has been set, each possible target
 type is tried to see if it recognizes the specified format.
 @code{bfd_check_format} returns @code{true} when the caller guesses right.
@@ -63,17 +63,17 @@ type is tried to see if it recognizes the specified format.
 @strong{Description}@*
 This structure contains everything that BFD knows about a
 target. It includes things like its byte order, name, and which
-routines to call to do various operations.   
+routines to call to do various operations.
 
 Every BFD points to a target structure with its @code{xvec}
-member. 
+member.
 
 The macros below are used to dispatch to functions through the
 @code{bfd_target} vector. They are used in a number of macros further
 down in @file{bfd.h}, and are also used when calling various
 routines by hand inside the BFD implementation.  The @var{arglist}
 argument must be parenthesized; it contains all the arguments
-to the called function. 
+to the called function.
 
 They make the documentation (more) unpleasant to read, so if
 someone wants to fix this and not break the above, please do.
@@ -92,13 +92,13 @@ someone wants to fix this and not break the above, please do.
 For operations which index on the BFD format:
 @example
 #define BFD_SEND_FMT(bfd, message, arglist) \
-            (((bfd)->xvec->message[(int)((bfd)->format)]) arglist)
+            (((bfd)->xvec->message[(int) ((bfd)->format)]) arglist)
 
 #ifdef DEBUG_BFD_SEND
 #undef BFD_SEND_FMT
 #define BFD_SEND_FMT(bfd, message, arglist) \
   (((bfd) && (bfd)->xvec && (bfd)->xvec->message) ? \
-   (((bfd)->xvec->message[(int)((bfd)->format)]) arglist) : \
+   (((bfd)->xvec->message[(int) ((bfd)->format)]) arglist) : \
    (bfd_assert (__FILE__,__LINE__), NULL))
 #endif
 @end example
@@ -109,13 +109,14 @@ defines one of these.
 
 FIXME, these names should be rationalised with the names of
 the entry points which call them. Too bad we can't have one
-macro to define them both! 
+macro to define them both!
 @example
 enum bfd_flavour @{
   bfd_target_unknown_flavour,
   bfd_target_aout_flavour,
   bfd_target_coff_flavour,
   bfd_target_ecoff_flavour,
+  bfd_target_xcoff_flavour,
   bfd_target_elf_flavour,
   bfd_target_ieee_flavour,
   bfd_target_nlm_flavour,
@@ -133,7 +134,7 @@ enum bfd_flavour @{
 
 enum bfd_endian @{ BFD_ENDIAN_BIG, BFD_ENDIAN_LITTLE, BFD_ENDIAN_UNKNOWN @};
 
- /* Forward declaration.  */
+/* Forward declaration.  */
 typedef struct bfd_link_info _bfd_link_info;
 
 typedef struct bfd_target
@@ -159,21 +160,21 @@ The order of bytes within the header parts of a file.
 A mask of all the flags which an executable may have set -
 from the set @code{BFD_NO_FLAGS}, @code{HAS_RELOC}, ...@code{D_PAGED}.
 @example
-  flagword object_flags;       
+  flagword object_flags;
 @end example
 A mask of all the flags which a section may have set - from
 the set @code{SEC_NO_FLAGS}, @code{SEC_ALLOC}, ...@code{SET_NEVER_LOAD}.
 @example
   flagword section_flags;
 @end example
-The character normally found at the front of a symbol 
+The character normally found at the front of a symbol
 (if any), perhaps `_'.
 @example
   char symbol_leading_char;
 @end example
 The pad character for file names within an archive header.
 @example
-  char ar_pad_char;            
+  char ar_pad_char;
 @end example
 The maximum number of characters in an archive header.
 @example
@@ -208,15 +209,15 @@ Byte swapping for the headers
 Format dependent routines: these are vectors of entry points
 within the target vector structure, one for each format to check.
 
-Check the format of a file being read.  Return a @code{bfd_target *} or zero. 
+Check the format of a file being read.  Return a @code{bfd_target *} or zero.
 @example
   const struct bfd_target *(*_bfd_check_format[bfd_type_end]) PARAMS ((bfd *));
 @end example
-Set the format of a file being written.  
+Set the format of a file being written.
 @example
   boolean             (*_bfd_set_format[bfd_type_end]) PARAMS ((bfd *));
 @end example
-Write cached information into a file being written, at @code{bfd_close}. 
+Write cached information into a file being written, at @code{bfd_close}.
 @example
   boolean             (*_bfd_write_contents[bfd_type_end]) PARAMS ((bfd *));
 @end example
@@ -224,7 +225,7 @@ The general target vector.  These vectors are initialized using the
 BFD_JUMP_TABLE macros.
 @example
 
-   /* Generic entry points.  */
+  /* Generic entry points.  */
 #define BFD_JUMP_TABLE_GENERIC(NAME)\
 CAT(NAME,_close_and_cleanup),\
 CAT(NAME,_bfd_free_cached_info),\
@@ -232,20 +233,20 @@ CAT(NAME,_new_section_hook),\
 CAT(NAME,_get_section_contents),\
 CAT(NAME,_get_section_contents_in_window)
 
-   /* Called when the BFD is being closed to do any necessary cleanup.  */
+  /* Called when the BFD is being closed to do any necessary cleanup.  */
   boolean       (*_close_and_cleanup) PARAMS ((bfd *));
-   /* Ask the BFD to free all cached information.  */
+  /* Ask the BFD to free all cached information.  */
   boolean (*_bfd_free_cached_info) PARAMS ((bfd *));
-   /* Called when a new section is created.  */
+  /* Called when a new section is created.  */
   boolean       (*_new_section_hook) PARAMS ((bfd *, sec_ptr));
-   /* Read the contents of a section.  */
-  boolean       (*_bfd_get_section_contents) PARAMS ((bfd *, sec_ptr, PTR, 
+  /* Read the contents of a section.  */
+  boolean       (*_bfd_get_section_contents) PARAMS ((bfd *, sec_ptr, PTR,
                                             file_ptr, bfd_size_type));
   boolean       (*_bfd_get_section_contents_in_window)
                           PARAMS ((bfd *, sec_ptr, bfd_window *,
                                    file_ptr, bfd_size_type));
 
-   /* Entry points to copy private data.  */
+  /* Entry points to copy private data.  */
 #define BFD_JUMP_TABLE_COPY(NAME)\
 CAT(NAME,_bfd_copy_private_bfd_data),\
 CAT(NAME,_bfd_merge_private_bfd_data),\
@@ -253,27 +254,27 @@ CAT(NAME,_bfd_copy_private_section_data),\
 CAT(NAME,_bfd_copy_private_symbol_data),\
 CAT(NAME,_bfd_set_private_flags),\
 CAT(NAME,_bfd_print_private_bfd_data)\
-   /* Called to copy BFD general private data from one object file
+  /* Called to copy BFD general private data from one object file
      to another.  */
   boolean       (*_bfd_copy_private_bfd_data) PARAMS ((bfd *, bfd *));
-   /* Called to merge BFD general private data from one object file
+  /* Called to merge BFD general private data from one object file
      to a common output file when linking.  */
   boolean       (*_bfd_merge_private_bfd_data) PARAMS ((bfd *, bfd *));
-   /* Called to copy BFD private section data from one object file
+  /* Called to copy BFD private section data from one object file
      to another.  */
   boolean       (*_bfd_copy_private_section_data) PARAMS ((bfd *, sec_ptr,
                                                        bfd *, sec_ptr));
-   /* Called to copy BFD private symbol data from one symbol 
+  /* Called to copy BFD private symbol data from one symbol
      to another.  */
   boolean       (*_bfd_copy_private_symbol_data) PARAMS ((bfd *, asymbol *,
                                                           bfd *, asymbol *));
-   /* Called to set private backend flags */
+  /* Called to set private backend flags */
   boolean       (*_bfd_set_private_flags) PARAMS ((bfd *, flagword));
 
-   /* Called to print private BFD data */
+  /* Called to print private BFD data */
   boolean       (*_bfd_print_private_bfd_data) PARAMS ((bfd *, PTR));
 
-   /* Core file entry points.  */
+  /* Core file entry points.  */
 #define BFD_JUMP_TABLE_CORE(NAME)\
 CAT(NAME,_core_file_failing_command),\
 CAT(NAME,_core_file_failing_signal),\
@@ -282,7 +283,7 @@ CAT(NAME,_core_file_matches_executable_p)
   int      (*_core_file_failing_signal) PARAMS ((bfd *));
   boolean  (*_core_file_matches_executable_p) PARAMS ((bfd *, bfd *));
 
-   /* Archive entry points.  */
+  /* Archive entry points.  */
 #define BFD_JUMP_TABLE_ARCHIVE(NAME)\
 CAT(NAME,_slurp_armap),\
 CAT(NAME,_slurp_extended_name_table),\
@@ -299,10 +300,10 @@ CAT(NAME,_update_armap_timestamp)
   boolean  (*_bfd_construct_extended_name_table)
              PARAMS ((bfd *, char **, bfd_size_type *, const char **));
   void     (*_bfd_truncate_arname) PARAMS ((bfd *, CONST char *, char *));
-  boolean  (*write_armap) PARAMS ((bfd *arch, 
+  boolean  (*write_armap) PARAMS ((bfd *arch,
                               unsigned int elength,
                               struct orl *map,
-                              unsigned int orl_count, 
+                              unsigned int orl_count,
                               int stridx));
   PTR (*_bfd_read_ar_hdr_fn) PARAMS ((bfd *));
   bfd *    (*openr_next_archived_file) PARAMS ((bfd *arch, bfd *prev));
@@ -311,7 +312,7 @@ CAT(NAME,_update_armap_timestamp)
   int      (*_bfd_stat_arch_elt) PARAMS ((bfd *, struct stat *));
   boolean  (*_bfd_update_armap_timestamp) PARAMS ((bfd *));
 
-   /* Entry points used for symbols.  */
+  /* Entry points used for symbols.  */
 #define BFD_JUMP_TABLE_SYMBOLS(NAME)\
 CAT(NAME,_get_symtab_upper_bound),\
 CAT(NAME,_get_symtab),\
@@ -344,7 +345,7 @@ CAT(NAME,_minisymbol_to_symbol)
                     struct sec *section, struct symbol_cache_entry **symbols,
                     bfd_vma offset, CONST char **file, CONST char **func,
                     unsigned int *line));
-  /* Back-door to allow format-aware applications to create debug symbols
+ /* Back-door to allow format-aware applications to create debug symbols
     while using BFD for everything else.  Currently used by the assembler
     when creating COFF files.  */
   asymbol *  (*_bfd_make_debug_symbol) PARAMS ((
@@ -360,7 +361,7 @@ CAT(NAME,_minisymbol_to_symbol)
   asymbol *(*_minisymbol_to_symbol) PARAMS ((bfd *, boolean, const PTR,
                                              asymbol *));
 
-   /* Routines for relocs.  */
+  /* Routines for relocs.  */
 #define BFD_JUMP_TABLE_RELOCS(NAME)\
 CAT(NAME,_get_reloc_upper_bound),\
 CAT(NAME,_canonicalize_reloc),\
@@ -368,12 +369,12 @@ CAT(NAME,_bfd_reloc_type_lookup)
   long  (*_get_reloc_upper_bound) PARAMS ((bfd *, sec_ptr));
   long  (*_bfd_canonicalize_reloc) PARAMS ((bfd *, sec_ptr, arelent **,
                                             struct symbol_cache_entry **));
-   /* See documentation on reloc types.  */
+  /* See documentation on reloc types.  */
   reloc_howto_type *
        (*reloc_type_lookup) PARAMS ((bfd *abfd,
                                      bfd_reloc_code_real_type code));
 
-   /* Routines used when writing an object file.  */
+  /* Routines used when writing an object file.  */
 #define BFD_JUMP_TABLE_WRITE(NAME)\
 CAT(NAME,_set_arch_mach),\
 CAT(NAME,_set_section_contents)
@@ -382,7 +383,7 @@ CAT(NAME,_set_section_contents)
   boolean       (*_bfd_set_section_contents) PARAMS ((bfd *, sec_ptr, PTR,
                                             file_ptr, bfd_size_type));
 
-   /* Routines used by the linker.  */
+  /* Routines used by the linker.  */
 #define BFD_JUMP_TABLE_LINK(NAME)\
 CAT(NAME,_sizeof_headers),\
 CAT(NAME,_bfd_get_relocated_section_contents),\
@@ -401,37 +402,37 @@ CAT(NAME,_bfd_gc_sections)
   boolean    (*_bfd_relax_section) PARAMS ((bfd *, struct sec *,
                     struct bfd_link_info *, boolean *again));
 
-   /* Create a hash table for the linker.  Different backends store
+  /* Create a hash table for the linker.  Different backends store
      different information in this table.  */
   struct bfd_link_hash_table *(*_bfd_link_hash_table_create) PARAMS ((bfd *));
 
-   /* Add symbols from this object file into the hash table.  */
+  /* Add symbols from this object file into the hash table.  */
   boolean (*_bfd_link_add_symbols) PARAMS ((bfd *, struct bfd_link_info *));
 
-   /* Do a link based on the link_order structures attached to each
+  /* Do a link based on the link_order structures attached to each
      section of the BFD.  */
   boolean (*_bfd_final_link) PARAMS ((bfd *, struct bfd_link_info *));
 
-   /* Should this section be split up into smaller pieces during linking.  */
+  /* Should this section be split up into smaller pieces during linking.  */
   boolean (*_bfd_link_split_section) PARAMS ((bfd *, struct sec *));
 
-   /* Remove sections that are not referenced from the output.  */
+  /* Remove sections that are not referenced from the output.  */
   boolean (*_bfd_gc_sections) PARAMS ((bfd *, struct bfd_link_info *));
 
-   /* Routines to handle dynamic symbols and relocs.  */
+  /* Routines to handle dynamic symbols and relocs.  */
 #define BFD_JUMP_TABLE_DYNAMIC(NAME)\
 CAT(NAME,_get_dynamic_symtab_upper_bound),\
 CAT(NAME,_canonicalize_dynamic_symtab),\
 CAT(NAME,_get_dynamic_reloc_upper_bound),\
 CAT(NAME,_canonicalize_dynamic_reloc)
-   /* Get the amount of memory required to hold the dynamic symbols. */
+  /* Get the amount of memory required to hold the dynamic symbols. */
   long  (*_bfd_get_dynamic_symtab_upper_bound) PARAMS ((bfd *));
-   /* Read in the dynamic symbols.  */
+  /* Read in the dynamic symbols.  */
   long  (*_bfd_canonicalize_dynamic_symtab)
     PARAMS ((bfd *, struct symbol_cache_entry **));
-   /* Get the amount of memory required to hold the dynamic relocs.  */
+  /* Get the amount of memory required to hold the dynamic relocs.  */
   long  (*_bfd_get_dynamic_reloc_upper_bound) PARAMS ((bfd *));
-   /* Read in the dynamic relocs.  */
+  /* Read in the dynamic relocs.  */
   long  (*_bfd_canonicalize_dynamic_reloc)
     PARAMS ((bfd *, arelent **, struct symbol_cache_entry **));
 
@@ -442,15 +443,15 @@ and little endian code, and target chosen by the linker has the wrong
 endianness.  The function open_output() in ld/ldlang.c uses this field
 to find an alternative output format that is suitable.
 @example
-  /* Opposite endian version of this target.  */  
+ /* Opposite endian version of this target.  */
  const struct bfd_target * alternative_target;
- 
+
 @end example
 Data for use by back-end routines, which isn't generic enough to belong
 in this structure.
 @example
  PTR backend_data;
- 
+
 @} bfd_target;
 @end example
 
@@ -497,7 +498,7 @@ modify the names.
 @subsubsection @code{bfd_seach_for_target}
 @strong{Synopsis}
 @example
-const bfd_target * bfd_search_for_target (int (* search_func)(const bfd_target *, void *), void *);
+const bfd_target * bfd_search_for_target (int (* search_func) (const bfd_target *, void *), void *);
 @end example
 @strong{Description}@*
 Return a pointer to the first transfer vector in the list of

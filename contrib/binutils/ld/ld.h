@@ -1,5 +1,5 @@
 /* ld.h -- general linker header file
-   Copyright (C) 1991, 93, 94, 95, 96, 97, 98, 99, 2000
+   Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000
    Free Software Foundation, Inc.
 
    This file is part of GLD, the Gnu Linker.
@@ -35,12 +35,11 @@
 #  define N_(String) (String)
 # endif
 #else
-/* Stubs that do something close enough.  */
-# define textdomain(String) (String)
-# define gettext(String) (String)
-# define dgettext(Domain,Message) (Message)
-# define dcgettext(Domain,Message,Type) (Message)
-# define bindtextdomain(Domain,Directory) (Domain)
+# define gettext(Msgid) (Msgid)
+# define dgettext(Domainname, Msgid) (Msgid)
+# define dcgettext(Domainname, Msgid, Category) (Msgid)
+# define textdomain(Domainname) while (0) /* nothing */
+# define bindtextdomain(Domainname, Dirname) while (0) /* nothing */
 # define _(String) (String)
 # define N_(String) (String)
 #endif
@@ -59,29 +58,26 @@
 #define DISCARD_SECTION_NAME "/DISCARD/"
 
 /* A file name list */
-typedef struct name_list
-{
-   const char *name;
-   struct name_list *next;
-} name_list;
+typedef struct name_list {
+  const char *name;
+  struct name_list *next;
+}
+name_list;
 
 /* A wildcard specification.  This is only used in ldgram.y, but it
    winds up in ldgram.h, so we need to define it outside.  */
 
-struct wildcard_spec
-{
+struct wildcard_spec {
   const char *name;
   struct name_list *exclude_name_list;
   boolean sorted;
 };
 
 /* Extra information we hold on sections */
-typedef struct  user_section_struct
-{
+typedef struct user_section_struct {
   /* Pointer to the section where this data will go */
   struct lang_input_statement_struct *file;
 } section_userdata_type;
-
 
 #define get_userdata(x) ((x)->userdata)
 
@@ -98,8 +94,7 @@ typedef struct  user_section_struct
 #define ALIGN_N(this, boundary) \
   ((( (this) + ((boundary) -1)) & (~((boundary)-1))))
 
-typedef struct
-{
+typedef struct {
   /* 1 => assign space to common symbols even if `relocatable_output'.  */
   boolean force_common_definition;
   boolean relax;
@@ -128,7 +123,7 @@ typedef struct
      file.  */
   boolean embedded_relocs;
 
-  /* If true, force generation of a file with a .exe file. */
+  /* If true, force generation of a file with a .exe file.  */
   boolean force_exe_suffix;
 
   /* If true, generate a cross reference report.  */
@@ -156,15 +151,14 @@ typedef struct
   /* If true (the default) check section addresses, once compute,
      fpor overlaps.  */
   boolean check_section_addresses;
-  
+
 } args_type;
 
 extern args_type command_line;
 
 typedef int token_code_type;
 
-typedef struct 
-{
+typedef struct {
   bfd_size_type specified_data_size;
   boolean magic_demand_paged;
   boolean make_executable;
@@ -207,14 +201,17 @@ typedef struct
 
   boolean stats;
 
-  int split_by_reloc;
-  boolean split_by_file;
+  /* If set, orphan input sections will be mapped to separate output
+     sections.  */
+  boolean unique_orphan_sections;
+
+  unsigned int split_by_reloc;
+  bfd_size_type split_by_file;
 } ld_config_type;
 
 extern ld_config_type config;
 
-typedef enum
-{
+typedef enum {
   lang_first_phase_enum,
   lang_allocating_phase_enum,
   lang_final_phase_enum

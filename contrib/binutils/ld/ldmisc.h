@@ -1,5 +1,6 @@
 /* ldmisc.h -
-   Copyright (C) 1991, 92, 93, 94, 95, 1996 Free Software Foundation, Inc.
+   Copyright 1991, 1992, 1993, 1994, 1996, 1997
+   Free Software Foundation, Inc.
 
    This file is part of GLD, the Gnu Linker.
 
@@ -41,7 +42,6 @@ extern void yyerror PARAMS ((const char *));
 extern PTR xmalloc PARAMS ((size_t));
 extern PTR xrealloc PARAMS ((PTR, size_t));
 extern void xexit PARAMS ((int));
-extern char *buystring PARAMS ((CONST char *CONST));
 
 #define ASSERT(x) \
 do { if (!(x)) info_assert(__FILE__,__LINE__); } while (0)

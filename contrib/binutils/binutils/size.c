@@ -1,5 +1,5 @@
 /* size.c -- report size of various sections of an executable file.
-   Copyright 1991, 92, 93, 94, 95, 96, 97, 98, 99, 2000
+   Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000
    Free Software Foundation, Inc.
 
 This file is part of GNU Binutils.
@@ -77,8 +77,10 @@ usage (stream, status)
      int status;
 {
   fprintf (stream, _("\
-Usage: %s [-ABdoxV] [--format=berkeley|sysv] [--radix=8|10|16]\n\
-       [--target=bfdname] [--version] [--help] [file...]\n"), program_name);
+Usage: %s [-A | --format=sysv | -B | --format=berkeley]\n\
+       [-o | --radix=8 | -d | --radix=10 | -h | --radix=16]\n\
+       [-V | --version] [--target=bfdname] [--help] [file...]\n"),
+	   program_name);
 #if BSD_DEFAULT
   fputs (_("default is --format=berkeley\n"), stream);
 #else
@@ -120,7 +122,7 @@ main (argc, argv)
   bfd_init ();
   set_default_bfd_target ();
 
-  while ((c = getopt_long (argc, argv, "ABVdox", long_options,
+  while ((c = getopt_long (argc, argv, "ABVdfox", long_options,
 			   (int *) 0)) != EOF)
     switch (c)
       {
@@ -185,6 +187,16 @@ main (argc, argv)
 	break;
       case 'o':
 	radix = octal;
+	break;
+      case 'f': /* FIXME : For sysv68, `-f' means `full format', i.e.
+		   `[fname:] M(.text) + N(.data) + O(.bss) + P(.comment) = Q'
+		   where `fname: ' appears only if there are >= 2 input files,
+		   and M, N, O, P, Q are expressed in decimal by default,
+		   hexa or octal if requested by `-x' or `-o'.
+		   Just to make things interesting, Solaris also accepts -f,
+		   which prints out the size of each allocatable section, the
+		   name of the section, and the total of the section sizes.  */
+		/* For the moment, accept `-f' silently, and ignore it.  */
 	break;
       case 0:
 	break;

@@ -1,5 +1,5 @@
 /* budbg.c -- Interfaces to the generic debugging information routines.
-   Copyright (C) 1995, 1996 Free Software Foundation, Inc.
+   Copyright 1995, 1996 Free Software Foundation, Inc.
    Written by Ian Lance Taylor <ian@cygnus.com>.
 
    This file is part of GNU Binutils.

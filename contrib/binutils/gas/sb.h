@@ -1,5 +1,5 @@
 /* sb.h - header file for string buffer manipulation routines
-   Copyright (C) 1994, 1995 Free Software Foundation, Inc.
+   Copyright 1994, 1995, 2000 Free Software Foundation, Inc.
 
    Written by Steve and Judy Chamberlain of Cygnus Support,
       sac@cygnus.com
@@ -19,7 +19,7 @@
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to the Free
    Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA. */
+   02111-1307, USA.  */
 
 #ifndef SB_H
 
@@ -54,8 +54,8 @@
 /* structure of an sb */
 typedef struct sb
   {
-    char *ptr;			/* points to the current block. */
-    int len;			/* how much is used. */
+    char *ptr;			/* points to the current block.  */
+    int len;			/* how much is used.  */
     int pot;			/* the maximum length is 1<<pot */
     struct le *item;
   }

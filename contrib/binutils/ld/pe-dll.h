@@ -1,5 +1,5 @@
 /* pe-dll.h: Header file for routines used to build Windows DLLs.
-   Copyright (C) 1999, 2000 Free Software Foundation, Inc.
+   Copyright 1999, 2000 Free Software Foundation, Inc.
 
    This file is part of GLD, the Gnu Linker.
 

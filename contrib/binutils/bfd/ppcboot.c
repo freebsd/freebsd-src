@@ -1,5 +1,6 @@
 /* BFD back-end for PPCbug boot records.
-   Copyright 1996, 1997, 1998, 1999 Free Software Foundation, Inc.
+   Copyright 1996, 1997, 1998, 1999, 2000, 2001
+   Free Software Foundation, Inc.
    Written by Michael Meissner, Cygnus Support, <meissner@cygnus.com>
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -234,7 +235,7 @@ ppcboot_get_section_contents (abfd, section, location, offset, count)
      file_ptr offset;
      bfd_size_type count;
 {
-  if (bfd_seek (abfd, offset + sizeof(ppcboot_hdr_t), SEEK_SET) != 0
+  if (bfd_seek (abfd, offset + sizeof (ppcboot_hdr_t), SEEK_SET) != 0
       || bfd_read (location, 1, count, abfd) != count)
     return false;
   return true;
@@ -536,6 +537,6 @@ const bfd_target ppcboot_vec =
   BFD_JUMP_TABLE_DYNAMIC (_bfd_nodynamic),
 
   NULL,
-  
+
   NULL
 };

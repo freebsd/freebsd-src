@@ -1,5 +1,5 @@
 /* reloc.h -- Header file for relocation information.
-   Copyright 1989-1991  Free Software Foundation, Inc.
+   Copyright 1989, 1990, 1991 Free Software Foundation, Inc.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by

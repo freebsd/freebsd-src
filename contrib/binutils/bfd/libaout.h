@@ -1,5 +1,6 @@
 /* BFD back-end data structures for a.out (and similar) files.
-   Copyright 1990, 91, 92, 93, 94, 95, 96, 97, 1998
+   Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
+   2000, 2001
    Free Software Foundation, Inc.
    Written by Cygnus Support.
 
@@ -245,7 +246,8 @@ enum machine_type {
   M_SPARCLET_5 = 211,	/* 0xd3, reserved */
   M_SPARCLET_6 = 227,	/* 0xe3, reserved */
   /*  M_SPARCLET_7 = 243	/ * 0xf3, reserved */
-  M_SPARCLITE_LE = 243
+  M_SPARCLITE_LE = 243,
+  M_CRIS = 255		/* Axis CRIS binary.  */
 };
 
 #define N_DYNAMIC(exec) ((exec).a_info & 0x80000000)

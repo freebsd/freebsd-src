@@ -1,5 +1,6 @@
 /* BFD COFF object file private structure.
-   Copyright (C) 1990, 91, 92, 93, 94, 95, 96, 97, 98, 1999
+   Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
+   2000, 2001
    Free Software Foundation, Inc.
    Written by Cygnus Support.
 
@@ -43,6 +44,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #define obj_coff_strings(bfd)	(coff_data (bfd)->strings)
 #define obj_coff_keep_strings(bfd) (coff_data (bfd)->keep_strings)
 #define obj_coff_sym_hashes(bfd) (coff_data (bfd)->sym_hashes)
+#define obj_coff_strings_written(bfd) (coff_data (bfd)->strings_written)
 
 #define obj_coff_local_toc_table(bfd) (coff_data(bfd)->local_toc_sym_map)
 
@@ -83,6 +85,8 @@ typedef struct coff_tdata
   char *strings;
   /* If this is true, the strings may not be freed.  */
   boolean keep_strings;
+  /* If this is true, the strings have been written out already.  */
+  boolean strings_written;
 
   /* is this a PE format coff file */
   int pe;
@@ -96,6 +100,9 @@ typedef struct coff_tdata
 
   /* Used by coff_find_nearest_line.  */
   PTR line_info;
+
+  /* A place to stash dwarf2 info for this bfd. */
+  PTR dwarf2_find_line_info;
 
   /* The timestamp from the COFF file header.  */
   long timestamp;
@@ -115,6 +122,8 @@ typedef struct pe_tdata
   int has_reloc_section;
   boolean (*in_reloc_p) PARAMS((bfd *, reloc_howto_type *));
   flagword real_flags;
+  int target_subsystem;
+  boolean force_minimum_alignment;
 } pe_data_type;
 
 #define pe_data(bfd)		((bfd)->tdata.pe_obj_data)
@@ -125,6 +134,9 @@ struct xcoff_tdata
 {
   /* Basic COFF information.  */
   coff_data_type coff;
+
+  /* True if this is an XCOFF64 file. */
+  boolean xcoff64;
 
   /* True if a large a.out header should be generated.  */
   boolean full_aouthdr;
@@ -151,10 +163,10 @@ struct xcoff_tdata
   short cputype;
 
   /* maxdata from optional header.  */
-  bfd_size_type maxdata;
+  bfd_vma maxdata;
 
   /* maxstack from optional header.  */
-  bfd_size_type maxstack;
+  bfd_vma maxstack;
 
   /* Used by the XCOFF backend linker.  */
   asection **csects;

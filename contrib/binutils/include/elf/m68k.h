@@ -1,5 +1,5 @@
 /* MC68k ELF support for BFD.
-   Copyright (C) 1998 Free Software Foundation, Inc.
+   Copyright 1998, 1999, 2000 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -50,8 +50,7 @@ START_RELOC_NUMBERS (elf_m68k_reloc_type)
   /* These are GNU extensions to enable C++ vtable garbage collection.  */
   RELOC_NUMBER (R_68K_GNU_VTINHERIT, 23)
   RELOC_NUMBER (R_68K_GNU_VTENTRY, 24)
-  EMPTY_RELOC  (R_68K_max)   
-END_RELOC_NUMBERS
+END_RELOC_NUMBERS (R_68K_max)
 
 #define EF_CPU32    0x00810000
 

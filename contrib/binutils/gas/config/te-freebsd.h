@@ -1,5 +1,5 @@
 /* te-freebsd.h -- FreeBSD target environment declarations.
-   Copyright (C) 2000 Free Software Foundation, Inc.
+   Copyright 2000 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 

@@ -1,4 +1,4 @@
-/* Remove leading underscore from the gcc generated symbol names */
+/* Remove leading underscore from the gcc generated symbol names.  */
 #define STRIP_UNDERSCORE
 
 #include "obj-format.h"

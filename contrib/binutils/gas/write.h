@@ -1,5 +1,6 @@
 /* write.h
-   Copyright (C) 1987, 92, 93, 94, 95, 96, 1997 Free Software Foundation, Inc.
+   Copyright 1987, 1992, 1993, 1994, 1995, 1996, 1997, 1999, 2000, 2001
+   Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -95,13 +96,13 @@ struct fix
   /* Where is the first byte to fix up?  */
   long fx_where;
 
-  /* NULL or Symbol whose value we add in. */
+  /* NULL or Symbol whose value we add in.  */
   symbolS *fx_addsy;
 
-  /* NULL or Symbol whose value we subtract. */
+  /* NULL or Symbol whose value we subtract.  */
   symbolS *fx_subsy;
 
-  /* Absolute number we add in. */
+  /* Absolute number we add in.  */
   valueT fx_offset;
 
   /* Next fixS in linked list, or NULL.  */
@@ -160,13 +161,13 @@ typedef struct fix fixS;
 extern char *next_object_file_charP;
 
 #ifndef MANY_SEGMENTS
-COMMON fixS *text_fix_root, *text_fix_tail;	/* Chains fixSs. */
-COMMON fixS *data_fix_root, *data_fix_tail;	/* Chains fixSs. */
-COMMON fixS *bss_fix_root, *bss_fix_tail;	/* Chains fixSs. */
-extern struct frag *text_last_frag;		/* Last frag in segment. */
-extern struct frag *data_last_frag;		/* Last frag in segment. */
+COMMON fixS *text_fix_root, *text_fix_tail;	/* Chains fixSs.  */
+COMMON fixS *data_fix_root, *data_fix_tail;	/* Chains fixSs.  */
+COMMON fixS *bss_fix_root, *bss_fix_tail;	/* Chains fixSs.  */
+extern struct frag *text_last_frag;		/* Last frag in segment.  */
+extern struct frag *data_last_frag;		/* Last frag in segment.  */
 #endif
-COMMON fixS **seg_fix_rootP, **seg_fix_tailP;	/* -> one of above. */
+COMMON fixS **seg_fix_rootP, **seg_fix_tailP;	/* -> one of above.  */
 #endif
 
 extern long string_byte_count;
@@ -177,9 +178,10 @@ extern bit_fixS *bit_fix_new
 	   long max, long add));
 extern void append PARAMS ((char **charPP, char *fromP, unsigned long length));
 extern void record_alignment PARAMS ((segT seg, int align));
+extern int get_recorded_alignment PARAMS ((segT seg));
 extern void subsegs_finish PARAMS ((void));
 extern void write_object_file PARAMS ((void));
-extern long relax_frag PARAMS ((fragS *, long));
+extern long relax_frag PARAMS ((segT, fragS *, long));
 extern void relax_segment
   PARAMS ((struct frag * seg_frag_root, segT seg_type));
 
@@ -205,4 +207,3 @@ extern fixS *fix_new_exp
 extern void write_print_statistics PARAMS ((FILE *));
 
 #endif /* __write_h__ */
-/* end of write.h */

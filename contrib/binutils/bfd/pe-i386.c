@@ -1,5 +1,5 @@
 /* BFD back-end for Intel 386 PECOFF files.
-   Copyright 1995, 1996, 1999 Free Software Foundation, Inc.
+   Copyright 1995, 1996, 1999, 2001 Free Software Foundation, Inc.
 
 This file is part of BFD, the Binary File Descriptor library.
 
@@ -19,7 +19,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #include "bfd.h"
 #include "sysdep.h"
-
 
 #define TARGET_SYM i386pe_vec
 #define TARGET_NAME "pe-i386"

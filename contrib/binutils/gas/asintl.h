@@ -1,5 +1,5 @@
 /* asintl.h - gas-specific header for gettext code.
-   Copyright (C) 1998, 1999 Free Software Foundation, Inc.
+   Copyright 1998, 1999, 2000 Free Software Foundation, Inc.
 
    Written by Tom Tromey <tromey@cygnus.com>
 
@@ -18,7 +18,7 @@
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to the Free
    Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA. */
+   02111-1307, USA.  */
 
 #ifdef HAVE_LOCALE_H
 # include <locale.h>
@@ -33,12 +33,11 @@
 #  define N_(String) (String)
 # endif
 #else
-/* Stubs that do something close enough.  */
-# define textdomain(String) (String)
-# define gettext(String) (String)
-# define dgettext(Domain,Message) (Message)
-# define dcgettext(Domain,Message,Type) (Message)
-# define bindtextdomain(Domain,Directory) (Domain)
+# define gettext(Msgid) (Msgid)
+# define dgettext(Domainname, Msgid) (Msgid)
+# define dcgettext(Domainname, Msgid, Category) (Msgid)
+# define textdomain(Domainname) while (0) /* nothing */
+# define bindtextdomain(Domainname, Dirname) while (0) /* nothing */
 # define _(String) (String)
 # define N_(String) (String)
 #endif

@@ -1,5 +1,5 @@
 /* ALPHA ELF support for BFD.
-   Copyright (C) 1996, 1998 Free Software Foundation, Inc.
+   Copyright 1996, 1998, 2000 Free Software Foundation, Inc.
 
    By Eric Youngdale, <eric@aib.com>.  No processor supplement available
    for this platform.
@@ -102,7 +102,6 @@ START_RELOC_NUMBERS (elf_alpha_reloc_type)
   RELOC_NUMBER (R_ALPHA_JMP_SLOT, 26)	/* Create PLT entry */
   RELOC_NUMBER (R_ALPHA_RELATIVE, 27)	/* Adjust by program base */
 
-  EMPTY_RELOC  (R_ALPHA_max)
-END_RELOC_NUMBERS
+END_RELOC_NUMBERS (R_ALPHA_max)
 
 #endif /* _ELF_ALPHA_H */

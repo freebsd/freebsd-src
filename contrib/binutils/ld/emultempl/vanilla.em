@@ -2,7 +2,7 @@
 # It does some substitutions.
 cat >e${EMULATION_NAME}.c <<EOF
 /* A vanilla emulation with no defaults
-   Copyright (C) 1991, 1993 Free Software Foundation, Inc.
+   Copyright 1991, 1992, 1994, 2000 Free Software Foundation, Inc.
    Written by Steve Chamberlain steve@cygnus.com
 
 This file is part of GLD, the Gnu Linker.
@@ -26,10 +26,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 
 #include "ld.h"
-#include "ldemul.h"
-#include "ldfile.h"
 #include "ldmisc.h"
 #include "ldmain.h"
+
+#include "ldexp.h"
+#include "ldlang.h"
+#include "ldfile.h"
+#include "ldemul.h"
 
 static void vanilla_before_parse()
 {

@@ -1,5 +1,5 @@
 /* stabs.c -- Parse COFF debugging information
-   Copyright (C) 1996, 98, 99, 2000 Free Software Foundation, Inc.
+   Copyright 1996, 2000 Free Software Foundation, Inc.
    Written by Ian Lance Taylor <ian@cygnus.com>.
 
    This file is part of GNU Binutils.
@@ -99,6 +99,7 @@ static debug_type parse_coff_enum_type
 static boolean parse_coff_symbol
   PARAMS ((bfd *, struct coff_types *, asymbol *, long,
 	   struct internal_syment *, PTR, debug_type, boolean));
+static boolean external_coff_symbol_p PARAMS ((int sym_class));
 
 /* Return the slot for a type.  */
 
@@ -588,6 +589,7 @@ parse_coff_symbol (abfd, types, sym, coff_symno, psyment, dhandle, type,
 	return false;
       break;
 
+    case C_WEAKEXT:
     case C_EXT:
       if (! debug_record_variable (dhandle, bfd_asymbol_name (sym), type,
 				   DEBUG_GLOBAL, bfd_asymbol_value (sym)))
@@ -654,6 +656,23 @@ parse_coff_symbol (abfd, types, sym, coff_symno, psyment, dhandle, type,
     }
 
   return true;				   
+}
+
+/* Determine if a symbol has external visibility.  */
+
+static boolean
+external_coff_symbol_p (sym_class)
+     int sym_class;
+{
+  switch (sym_class)
+    {
+      case C_EXT:
+      case C_WEAKEXT:
+        return true;
+    default:
+      break;
+    }
+  return false;         
 }
 
 /* This is the main routine.  It looks through all the symbols and
@@ -767,6 +786,7 @@ parse_coff (abfd, syms, symcount, dhandle)
 	  if (syment.n_type == T_NULL)
 	    break;
 	  /* Fall through.  */
+ 	case C_WEAKEXT:
 	case C_EXT:
 	  if (ISFCN (syment.n_type))
 	    {
@@ -805,7 +825,7 @@ parse_coff (abfd, syms, symcount, dhandle)
 		return false;
 
 	      if (! debug_record_function (dhandle, fnname, type,
-					   fnclass == C_EXT,
+					   external_coff_symbol_p (fnclass),
 					   bfd_asymbol_value (sym)))
 		return false;
 

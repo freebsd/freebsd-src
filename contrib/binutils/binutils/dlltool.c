@@ -1,5 +1,6 @@
 /* dlltool.c -- tool to generate stuff for PE style DLLs
-   Copyright (C) 1995, 96, 97, 98, 99, 2000 Free Software Foundation, Inc.
+   Copyright 1995, 1996, 1997, 1998, 1999, 2000
+   Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
 
@@ -383,7 +384,11 @@ static FILE *output_def;
 static FILE *base_file;
 
 #ifdef DLLTOOL_ARM
+#ifdef DLLTOOL_ARM_EPOC
+static const char *mname = "arm-epoc";
+#else
 static const char *mname = "arm";
+#endif
 #endif
 
 #ifdef DLLTOOL_I386
@@ -605,7 +610,7 @@ mtable[] =
   ,
   {
 #define MARM_EPOC 9
-    "arm", ".byte", ".short", ".long", ".asciz", "@",
+    "arm-epoc", ".byte", ".short", ".long", ".asciz", "@",
     "ldr\tip,[pc]\n\tldr\tpc,[ip]\n\t.long",
     ".global", ".space", ".align\t2",".align\t4", "",
     "epoc-pe-arm-little", bfd_arch_arm,
@@ -726,6 +731,7 @@ rvaafter (machine)
     case MMCORE_LE:
     case MMCORE_ELF:
     case MMCORE_ELF_LE:
+    case MARM_EPOC:
       break;
     default:
       /* xgettext:c-format */
@@ -750,6 +756,7 @@ rvabefore (machine)
     case MMCORE_LE:
     case MMCORE_ELF:
     case MMCORE_ELF_LE:
+    case MARM_EPOC:
       return ".rva\t";
     default:
       /* xgettext:c-format */
@@ -773,6 +780,7 @@ asm_prefix (machine)
     case MMCORE_LE:
     case MMCORE_ELF:
     case MMCORE_ELF_LE:
+    case MARM_EPOC:
       break;
     case M386:
       return "_";

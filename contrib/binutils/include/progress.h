@@ -1,5 +1,5 @@
 /* Default definitions for progress macros.
-   Copyright (C) 1994 Free Software Foundation, Inc.
+   Copyright 1994 Free Software Foundation, Inc.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by

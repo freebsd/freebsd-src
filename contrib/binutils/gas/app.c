@@ -1,5 +1,6 @@
 /* This is the Assembler Pre-Processor
-   Copyright (C) 1987, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 2000
+   Copyright 1987, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
+   1999, 2000
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -48,7 +49,7 @@ static int scrub_m68k_mri;
 static const char mri_pseudo[] = ".mri 0";
 
 #if defined TC_ARM && defined OBJ_ELF
-/* The pseudo-op for which we need to special-case `@' characters. 
+/* The pseudo-op for which we need to special-case `@' characters.
    See the comment in do_scrub_chars.  */
 static const char   symver_pseudo[] = ".symver";
 static const char * symver_state;
@@ -88,9 +89,9 @@ static int process_escape PARAMS ((int));
 
 /* FIXME-soon: The entire lexer/parser thingy should be
    built statically at compile time rather than dynamically
-   each and every time the assembler is run.  xoxorich. */
+   each and every time the assembler is run.  xoxorich.  */
 
-void 
+void
 do_scrub_begin (m68k_mri)
      int m68k_mri ATTRIBUTE_UNUSED;
 {
@@ -101,7 +102,6 @@ do_scrub_begin (m68k_mri)
   lex['\t'] = LEX_IS_WHITESPACE;
   lex['\r'] = LEX_IS_WHITESPACE;
   lex['\n'] = LEX_IS_NEWLINE;
-  lex[';'] = LEX_IS_LINE_SEPARATOR;
   lex[':'] = LEX_IS_COLON;
 
 #ifdef TC_M68K
@@ -212,24 +212,23 @@ static char mri_last_ch;
    state at the time .include is interpreted is completely unrelated.
    That's why we have to save it all.  */
 
-struct app_save
-  {
-    int          state;
-    int          old_state;
-    char *       out_string;
-    char         out_buf[sizeof (out_buf)];
-    int          add_newlines;
-    char *       saved_input;
-    int          saved_input_len;
+struct app_save {
+  int          state;
+  int          old_state;
+  char *       out_string;
+  char         out_buf[sizeof (out_buf)];
+  int          add_newlines;
+  char *       saved_input;
+  int          saved_input_len;
 #ifdef TC_M68K
-    int          scrub_m68k_mri;
+  int          scrub_m68k_mri;
 #endif
-    const char * mri_state;
-    char         mri_last_ch;
+  const char * mri_state;
+  char         mri_last_ch;
 #if defined TC_ARM && defined OBJ_ELF
-    const char * symver_state;
+  const char * symver_state;
 #endif
-  };
+};
 
 char *
 app_push ()
@@ -259,7 +258,7 @@ app_push ()
   saved->symver_state = symver_state;
 #endif
 
-  /* do_scrub_begin() is not useful, just wastes time. */
+  /* do_scrub_begin() is not useful, just wastes time.  */
 
   state = 0;
   saved_input = NULL;
@@ -267,13 +266,13 @@ app_push ()
   return (char *) saved;
 }
 
-void 
+void
 app_pop (arg)
      char *arg;
 {
   register struct app_save *saved = (struct app_save *) arg;
 
-  /* There is no do_scrub_end (). */
+  /* There is no do_scrub_end ().  */
   state = saved->state;
   old_state = saved->old_state;
   out_string = saved->out_string;
@@ -303,7 +302,7 @@ app_pop (arg)
 
 /* @@ This assumes that \n &c are the same on host and target.  This is not
    necessarily true.  */
-static int 
+static int
 process_escape (ch)
      int ch;
 {
@@ -780,19 +779,20 @@ do_scrub_chars (get, tostart, tolen)
 	    }
 
 #ifdef KEEP_WHITE_AROUND_COLON
-          if (lex[ch] == LEX_IS_COLON)
-            {
-              /* only keep this white if there's no white *after* the colon */
-              ch2 = GET ();
-              UNGET (ch2);
-              if (!IS_WHITESPACE (ch2))
-                {
-                  state = 9;
-                  UNGET (ch);
-                  PUT (' ');
-                  break;
-                }
-            }
+	  if (lex[ch] == LEX_IS_COLON)
+	    {
+	      /* Only keep this white if there's no white *after* the
+                 colon.  */
+	      ch2 = GET ();
+	      UNGET (ch2);
+	      if (!IS_WHITESPACE (ch2))
+		{
+		  state = 9;
+		  UNGET (ch);
+		  PUT (' ');
+		  break;
+		}
+	    }
 #endif
 	  if (IS_COMMENT (ch)
 	      || ch == '/'
@@ -913,6 +913,21 @@ do_scrub_chars (get, tostart, tolen)
 	      ch = ' ';
 	      goto recycle;
 	    }
+#ifdef DOUBLESLASH_LINE_COMMENTS
+	  else if (ch2 == '/')
+	    {
+	      do
+		{
+		  ch = GET ();
+		}
+	      while (ch != EOF && !IS_NEWLINE (ch));
+	      if (ch == EOF)
+		as_warn ("end of file in comment; newline inserted");
+	      state = 0;
+	      PUT ('\n');
+	      break;
+	    }
+#endif
 	  else
 	    {
 	      if (ch2 != EOF)
@@ -1000,7 +1015,7 @@ do_scrub_chars (get, tostart, tolen)
 
 	case LEX_IS_COLON:
 #ifdef KEEP_WHITE_AROUND_COLON
-          state = 9;
+	  state = 9;
 #else
 	  if (state == 9 || state == 10)
 	    state = 3;
@@ -1017,7 +1032,7 @@ do_scrub_chars (get, tostart, tolen)
 	      --add_newlines;
 	      UNGET (ch);
 	    }
-	  /* fall thru into... */
+	  /* Fall through.  */
 
 	case LEX_IS_LINE_SEPARATOR:
 	  state = 0;
@@ -1026,13 +1041,13 @@ do_scrub_chars (get, tostart, tolen)
 
 #ifdef TC_V850
 	case LEX_IS_DOUBLEDASH_1ST:
-	  ch2 = GET();
+	  ch2 = GET ();
 	  if (ch2 != '-')
 	    {
 	      UNGET (ch2);
 	      goto de_fault;
 	    }
-	  /* read and skip to end of line */
+	  /* Read and skip to end of line.  */
 	  do
 	    {
 	      ch = GET ();
@@ -1045,10 +1060,10 @@ do_scrub_chars (get, tostart, tolen)
 	  state = 0;
 	  PUT ('\n');
 	  break;
-#endif	    
+#endif
 #ifdef DOUBLEBAR_PARALLEL
 	case LEX_IS_DOUBLEBAR_1ST:
-	  ch2 = GET();
+	  ch2 = GET ();
 	  if (ch2 != '|')
 	    {
 	      UNGET (ch2);
@@ -1060,7 +1075,7 @@ do_scrub_chars (get, tostart, tolen)
 	  PUT ('|');
 	  PUT ('|');
 	  break;
-#endif	    
+#endif
 	case LEX_IS_LINE_COMMENT_START:
 	  /* FIXME-someday: The two character comment stuff was badly
 	     thought out.  On i386, we want '/' as line comment start
@@ -1109,7 +1124,7 @@ do_scrub_chars (get, tostart, tolen)
 		  PUT ('\n');
 		  break;
 		}
-	      /* Loks like `# 123 "filename"' from cpp.  */
+	      /* Looks like `# 123 "filename"' from cpp.  */
 	      UNGET (ch);
 	      old_state = 4;
 	      state = -1;
@@ -1126,12 +1141,14 @@ do_scrub_chars (get, tostart, tolen)
 	     Trap is the only short insn that has a first operand that is
 	     neither register nor label.
 	     We must prevent exef0f ||trap #1 to degenerate to exef0f ||trap#1 .
-	     We can't make '#' LEX_IS_SYMBOL_COMPONENT because it is already
-	     LEX_IS_LINE_COMMENT_START.  However, it is the only character in
-	     line_comment_chars for d10v, hence we can recognize it as such.  */
+	     We can't make '#' LEX_IS_SYMBOL_COMPONENT because it is
+	     already LEX_IS_LINE_COMMENT_START.  However, it is the
+	     only character in line_comment_chars for d10v, hence we
+	     can recognize it as such.  */
 	  /* An alternative approach would be to reset the state to 1 when
 	     we see '||', '<'- or '->', but that seems to be overkill.  */
-	  if (state == 10) PUT (' ');
+	  if (state == 10)
+	    PUT (' ');
 #endif
 	  /* We have a line comment character which is not at the
 	     start of a line.  If this is also a normal comment
@@ -1151,11 +1168,15 @@ do_scrub_chars (get, tostart, tolen)
 #if defined TC_ARM && defined OBJ_ELF
 	  /* On the ARM, `@' is the comment character.
 	     Unfortunately this is also a special character in ELF .symver
-	     directives (and .type, though we deal with those another way).  So
-	     we check if this line is such a directive, and treat the character
-	     as default if so.  This is a hack.  */
+	     directives (and .type, though we deal with those another way).
+	     So we check if this line is such a directive, and treat
+	     the character as default if so.  This is a hack.  */
 	  if ((symver_state != NULL) && (*symver_state == 0))
 	    goto de_fault;
+#endif
+#ifdef WARN_COMMENTS
+	  if (!found_comment)
+	    as_where (&found_comment_file, &found_comment);
 #endif
 	  do
 	    {
@@ -1199,7 +1220,7 @@ do_scrub_chars (get, tostart, tolen)
 		{
 		  int type;
 
-		  ch2 = * (unsigned char *) s;
+		  ch2 = *(unsigned char *) s;
 		  type = lex[ch2];
 		  if (type != 0
 		      && type != LEX_IS_SYMBOL_COMPONENT)
@@ -1236,7 +1257,7 @@ do_scrub_chars (get, tostart, tolen)
 			case 2: *to++ = *from++;
 			case 1: *to++ = *from++;
 			}
-		    } 
+		    }
 		  ch = GET ();
 		}
 	    }

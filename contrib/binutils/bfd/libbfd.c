@@ -1,5 +1,6 @@
 /* Assorted BFD support routines, only used internally.
-   Copyright 1990, 91, 92, 93, 94, 95, 96, 97, 98, 1999
+   Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
+   2000, 2001
    Free Software Foundation, Inc.
    Written by Cygnus Support.
 
@@ -42,7 +43,6 @@ DESCRIPTION
 /* A routine which is used in target vectors for unsupported
    operations.  */
 
-/*ARGSUSED*/
 boolean
 bfd_false (ignore)
      bfd *ignore ATTRIBUTE_UNUSED;
@@ -54,7 +54,6 @@ bfd_false (ignore)
 /* A routine which is used in target vectors for supported operations
    which do not actually do anything.  */
 
-/*ARGSUSED*/
 boolean
 bfd_true (ignore)
      bfd *ignore ATTRIBUTE_UNUSED;
@@ -65,7 +64,6 @@ bfd_true (ignore)
 /* A routine which is used in target vectors for unsupported
    operations which return a pointer value.  */
 
-/*ARGSUSED*/
 PTR
 bfd_nullvoidptr (ignore)
      bfd *ignore ATTRIBUTE_UNUSED;
@@ -74,23 +72,20 @@ bfd_nullvoidptr (ignore)
   return NULL;
 }
 
-/*ARGSUSED*/
-int 
+int
 bfd_0 (ignore)
      bfd *ignore ATTRIBUTE_UNUSED;
 {
   return 0;
 }
 
-/*ARGSUSED*/
-unsigned int 
+unsigned int
 bfd_0u (ignore)
      bfd *ignore ATTRIBUTE_UNUSED;
 {
    return 0;
 }
 
-/*ARGUSED*/
 long
 bfd_0l (ignore)
      bfd *ignore ATTRIBUTE_UNUSED;
@@ -101,7 +96,6 @@ bfd_0l (ignore)
 /* A routine which is used in target vectors for unsupported
    operations which return -1 on error.  */
 
-/*ARGSUSED*/
 long
 _bfd_n1 (ignore_abfd)
      bfd *ignore_abfd ATTRIBUTE_UNUSED;
@@ -110,14 +104,12 @@ _bfd_n1 (ignore_abfd)
   return -1;
 }
 
-/*ARGSUSED*/
-void 
+void
 bfd_void (ignore)
      bfd *ignore ATTRIBUTE_UNUSED;
 {
 }
 
-/*ARGSUSED*/
 boolean
 _bfd_nocore_core_file_matches_executable_p (ignore_core_bfd, ignore_exec_bfd)
      bfd *ignore_core_bfd ATTRIBUTE_UNUSED;
@@ -130,7 +122,6 @@ _bfd_nocore_core_file_matches_executable_p (ignore_core_bfd, ignore_exec_bfd)
 /* Routine to handle core_file_failing_command entry point for targets
    without core file support.  */
 
-/*ARGSUSED*/
 char *
 _bfd_nocore_core_file_failing_command (ignore_abfd)
      bfd *ignore_abfd ATTRIBUTE_UNUSED;
@@ -142,7 +133,6 @@ _bfd_nocore_core_file_failing_command (ignore_abfd)
 /* Routine to handle core_file_failing_signal entry point for targets
    without core file support.  */
 
-/*ARGSUSED*/
 int
 _bfd_nocore_core_file_failing_signal (ignore_abfd)
      bfd *ignore_abfd ATTRIBUTE_UNUSED;
@@ -151,7 +141,6 @@ _bfd_nocore_core_file_failing_signal (ignore_abfd)
   return 0;
 }
 
-/*ARGSUSED*/
 const bfd_target *
 _bfd_dummy_target (ignore_abfd)
      bfd *ignore_abfd ATTRIBUTE_UNUSED;
@@ -217,13 +206,12 @@ bfd_zmalloc (size)
 
 /* Some IO code */
 
-
 /* Note that archive entries don't have streams; they share their parent's.
    This allows someone to play with the iostream behind BFD's back.
 
    Also, note that the origin pointer points to the beginning of a file's
    contents (0 for non-archive elements).  For archive entries this is the
-   first octet in the file, NOT the beginning of the archive header. */
+   first octet in the file, NOT the beginning of the archive header.  */
 
 static int
 real_read (where, a,b, file)
@@ -243,6 +231,7 @@ real_read (where, a,b, file)
      This makes it to something reasonable. - DJ */
   if (a == 0 || b == 0)
     return 0;
+
 
 #if defined (__VAX) && defined (VMS)
   /* Apparently fread on Vax VMS does not keep the record length
@@ -285,7 +274,7 @@ bfd_read (ptr, size, nitems, abfd)
       return get;
     }
 
-  nread = real_read (ptr, 1, (size_t)(size*nitems), bfd_cache_lookup(abfd));
+  nread = real_read (ptr, 1, (size_t) (size*nitems), bfd_cache_lookup(abfd));
   if (nread > 0)
     abfd->where += nread;
 
@@ -317,7 +306,7 @@ struct _bfd_window_internal {
   struct _bfd_window_internal *next;
   PTR data;
   bfd_size_type size;
-  int refcount : 31;		/* should be enough... */
+  int refcount : 31;		/* should be enough...  */
   unsigned mapped : 1;		/* 1 = mmap, 0 = malloc */
 };
 
@@ -671,7 +660,7 @@ bfd_seek (abfd, position, direction)
   file_ptr file_position;
   /* For the time being, a BFD may not seek to it's end.  The problem
      is that we don't easily have a way to recognize the end of an
-     element in an archive. */
+     element in an archive.  */
 
   BFD_ASSERT (direction == SEEK_SET || direction == SEEK_CUR);
 
@@ -683,19 +672,39 @@ bfd_seek (abfd, position, direction)
       struct bfd_in_memory *bim;
 
       bim = (struct bfd_in_memory *) abfd->iostream;
-      
+
       if (direction == SEEK_SET)
 	abfd->where = position;
       else
 	abfd->where += position;
-      
+
       if ((bfd_size_type) abfd->where > bim->size)
 	{
-	  abfd->where = bim->size;
-	  bfd_set_error (bfd_error_file_truncated);
-	  return -1;
+	  if ((abfd->direction == write_direction) ||
+	      (abfd->direction == both_direction))
+	    {
+	      long newsize, oldsize = (bim->size + 127) & ~127;
+	      bim->size = abfd->where;
+	      /* Round up to cut down on memory fragmentation */
+	      newsize = (bim->size + 127) & ~127;
+	      if (newsize > oldsize)
+	        {
+		  bim->buffer = bfd_realloc (bim->buffer, newsize);
+		  if (bim->buffer == 0)
+		    {
+		      bim->size = 0;
+		      bfd_set_error (bfd_error_no_memory);
+		      return -1;
+		    }
+	        }
+	    }
+	  else
+	    {
+	      abfd->where = bim->size;
+	      bfd_set_error (bfd_error_file_truncated);
+	      return -1;
+	    }
 	}
-      
       return 0;
     }
 
@@ -739,7 +748,6 @@ bfd_seek (abfd, position, direction)
     file_position += abfd->origin;
 
   result = fseek (f, file_position, direction);
-
   if (result != 0)
     {
       int hold_errno = errno;
@@ -776,7 +784,7 @@ bfd_seek (abfd, position, direction)
 
 /* FIXME: Should these take a count argument?
    Answer (gnu@cygnus.com):  No, but perhaps they should be inline
-                             functions in swap.h #ifdef __GNUC__. 
+                             functions in swap.h #ifdef __GNUC__.
                              Gprof them later and find out.  */
 
 /*
@@ -807,13 +815,13 @@ DESCRIPTION
 .{* Byte swapping macros for user section data.  *}
 .
 .#define bfd_put_8(abfd, val, ptr) \
-.                ((void) (*((unsigned char *)(ptr)) = (unsigned char)(val)))
+.                ((void) (*((unsigned char *) (ptr)) = (unsigned char) (val)))
 .#define bfd_put_signed_8 \
 .		bfd_put_8
 .#define bfd_get_8(abfd, ptr) \
-.                (*(unsigned char *)(ptr))
+.                (*(unsigned char *) (ptr))
 .#define bfd_get_signed_8(abfd, ptr) \
-.		((*(unsigned char *)(ptr) ^ 0x80) - 0x80)
+.		((*(unsigned char *) (ptr) ^ 0x80) - 0x80)
 .
 .#define bfd_put_16(abfd, val, ptr) \
 .                BFD_SEND(abfd, bfd_putx16, ((val),(ptr)))
@@ -856,7 +864,7 @@ DESCRIPTION
 .		 : (bits) == 64 ? bfd_put_64 (abfd, val, ptr)	\
 .		 : (abort (), (void) 0))
 .
-*/ 
+*/
 
 /*
 FUNCTION
@@ -908,7 +916,7 @@ DESCRIPTION
 .#define bfd_h_get_signed_64(abfd, ptr) \
 .		 BFD_SEND(abfd, bfd_h_getx_signed_64, (ptr))
 .
-*/ 
+*/
 
 /* Sign extension to bfd_signed_vma.  */
 #define COERCE16(x) (((bfd_signed_vma) (x) ^ 0x8000) - 0x8000)
@@ -951,17 +959,17 @@ bfd_putb16 (data, addr)
      bfd_vma data;
      register bfd_byte *addr;
 {
-  addr[0] = (bfd_byte)(data >> 8);
-  addr[1] = (bfd_byte )data;
+  addr[0] = (bfd_byte) (data >> 8);
+  addr[1] = (bfd_byte) data;
 }
 
 void
 bfd_putl16 (data, addr)
-     bfd_vma data;             
+     bfd_vma data;
      register bfd_byte *addr;
 {
-  addr[0] = (bfd_byte )data;
-  addr[1] = (bfd_byte)(data >> 8);
+  addr[0] = (bfd_byte) data;
+  addr[1] = (bfd_byte) (data >> 8);
 }
 
 bfd_vma
@@ -1116,10 +1124,10 @@ bfd_putb32 (data, addr)
      bfd_vma data;
      register bfd_byte *addr;
 {
-        addr[0] = (bfd_byte)(data >> 24);
-        addr[1] = (bfd_byte)(data >> 16);
-        addr[2] = (bfd_byte)(data >>  8);
-        addr[3] = (bfd_byte)data;
+        addr[0] = (bfd_byte) (data >> 24);
+        addr[1] = (bfd_byte) (data >> 16);
+        addr[2] = (bfd_byte) (data >>  8);
+        addr[3] = (bfd_byte) data;
 }
 
 void
@@ -1127,10 +1135,10 @@ bfd_putl32 (data, addr)
      bfd_vma data;
      register bfd_byte *addr;
 {
-        addr[0] = (bfd_byte)data;
-        addr[1] = (bfd_byte)(data >>  8);
-        addr[2] = (bfd_byte)(data >> 16);
-        addr[3] = (bfd_byte)(data >> 24);
+        addr[0] = (bfd_byte) data;
+        addr[1] = (bfd_byte) (data >>  8);
+        addr[2] = (bfd_byte) (data >> 16);
+        addr[3] = (bfd_byte) (data >> 24);
 }
 
 void
@@ -1139,14 +1147,14 @@ bfd_putb64 (data, addr)
      register bfd_byte *addr ATTRIBUTE_UNUSED;
 {
 #ifdef BFD64
-  addr[0] = (bfd_byte)(data >> (7*8));
-  addr[1] = (bfd_byte)(data >> (6*8));
-  addr[2] = (bfd_byte)(data >> (5*8));
-  addr[3] = (bfd_byte)(data >> (4*8));
-  addr[4] = (bfd_byte)(data >> (3*8));
-  addr[5] = (bfd_byte)(data >> (2*8));
-  addr[6] = (bfd_byte)(data >> (1*8));
-  addr[7] = (bfd_byte)(data >> (0*8));
+  addr[0] = (bfd_byte) (data >> (7*8));
+  addr[1] = (bfd_byte) (data >> (6*8));
+  addr[2] = (bfd_byte) (data >> (5*8));
+  addr[3] = (bfd_byte) (data >> (4*8));
+  addr[4] = (bfd_byte) (data >> (3*8));
+  addr[5] = (bfd_byte) (data >> (2*8));
+  addr[6] = (bfd_byte) (data >> (1*8));
+  addr[7] = (bfd_byte) (data >> (0*8));
 #else
   BFD_FAIL();
 #endif
@@ -1158,17 +1166,65 @@ bfd_putl64 (data, addr)
      register bfd_byte *addr ATTRIBUTE_UNUSED;
 {
 #ifdef BFD64
-  addr[7] = (bfd_byte)(data >> (7*8));
-  addr[6] = (bfd_byte)(data >> (6*8));
-  addr[5] = (bfd_byte)(data >> (5*8));
-  addr[4] = (bfd_byte)(data >> (4*8));
-  addr[3] = (bfd_byte)(data >> (3*8));
-  addr[2] = (bfd_byte)(data >> (2*8));
-  addr[1] = (bfd_byte)(data >> (1*8));
-  addr[0] = (bfd_byte)(data >> (0*8));
+  addr[7] = (bfd_byte) (data >> (7*8));
+  addr[6] = (bfd_byte) (data >> (6*8));
+  addr[5] = (bfd_byte) (data >> (5*8));
+  addr[4] = (bfd_byte) (data >> (4*8));
+  addr[3] = (bfd_byte) (data >> (3*8));
+  addr[2] = (bfd_byte) (data >> (2*8));
+  addr[1] = (bfd_byte) (data >> (1*8));
+  addr[0] = (bfd_byte) (data >> (0*8));
 #else
   BFD_FAIL();
 #endif
+}
+
+void
+bfd_put_bits (data, addr, bits, big_p)
+     bfd_vma data;
+     bfd_byte *addr;
+     int bits;
+     boolean big_p;
+{
+  int i;
+  int bytes;
+
+  if (bits % 8 != 0)
+    abort ();
+
+  bytes = bits / 8;
+  for (i = 0; i < bytes; i++)
+    {
+      int index = big_p ? bytes - i - 1 : i;
+
+      addr[index] = (bfd_byte) data;
+      data >>= 8;
+    }
+}
+
+bfd_vma
+bfd_get_bits (addr, bits, big_p)
+     bfd_byte *addr;
+     int bits;
+     boolean big_p;
+{
+  bfd_vma data;
+  int i;
+  int bytes;
+
+  if (bits % 8 != 0)
+    abort ();
+
+  data = 0;
+  bytes = bits / 8;
+  for (i = 0; i < bytes; i++)
+    {
+      int index = big_p ? i : bytes - i - 1;
+
+      data = (data << 8) | addr[index];
+    }
+
+  return data;
 }
 
 /* Default implementation */
@@ -1306,13 +1362,17 @@ _bfd_generic_verify_endian_match (ibfd, obfd)
      bfd *obfd;
 {
   if (ibfd->xvec->byteorder != obfd->xvec->byteorder
+      && ibfd->xvec->byteorder != BFD_ENDIAN_UNKNOWN
       && obfd->xvec->byteorder != BFD_ENDIAN_UNKNOWN)
     {
-      (*_bfd_error_handler)
-	("%s: compiled for a %s endian system and target is %s endian",
-	 bfd_get_filename (ibfd),
-	 bfd_big_endian (ibfd) ? "big" : "little",
-	 bfd_big_endian (obfd) ? "big" : "little");
+      const char *msg;
+
+      if (bfd_big_endian (ibfd))
+	msg = _("%s: compiled for a big endian system and target is little endian");
+      else
+	msg = _("%s: compiled for a little endian system and target is big endian");
+
+      (*_bfd_error_handler) (msg, bfd_get_filename (ibfd));
 
       bfd_set_error (bfd_error_wrong_format);
       return false;

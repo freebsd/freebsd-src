@@ -1,5 +1,5 @@
 /* BFD back-end definitions used by all NetBSD targets.
-   Copyright (C) 1990, 91, 92, 94, 95, 96, 97, 98, 2000
+   Copyright 1990, 1991, 1992, 1994, 1995, 1996, 1997, 1998, 2000
    Free Software Foundation, Inc.
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -19,33 +19,33 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307,
 USA.  */
 
-/* Check for our machine type (part of magic number). */
+/* Check for our machine type (part of magic number).  */
 #ifndef MACHTYPE_OK
 #define MACHTYPE_OK(m) ((m) == DEFAULT_MID || (m) == M_UNKNOWN)
 #endif
 
-/* This is the normal load address for executables. */
+/* This is the normal load address for executables.  */
 #define TEXT_START_ADDR		TARGET_PAGE_SIZE
 
 /* NetBSD ZMAGIC has its header in the text segment.  */
 #define N_HEADER_IN_TEXT(x)	1
 
-/* Determine if this is a shared library using the flags. */
+/* Determine if this is a shared library using the flags.  */
 #define N_SHARED_LIB(x) 	(N_DYNAMIC(x))
 
 /* We have 6 bits of flags and 10 bits of machine ID.  */
 #define N_MACHTYPE(exec) \
-	((enum machine_type)(((exec).a_info >> 16) & 0x03ff))
+	((enum machine_type) (((exec).a_info >> 16) & 0x03ff))
 #define N_FLAGS(exec) \
 	(((exec).a_info >> 26) & 0x3f)
 
 #define N_SET_INFO(exec, magic, type, flags) \
 	((exec).a_info = ((magic) & 0xffff) \
-	 | (((int)(type) & 0x3ff) << 16) \
+	 | (((int) (type) & 0x3ff) << 16) \
 	 | (((flags) & 0x3f) << 24))
 #define N_SET_MACHTYPE(exec, machtype) \
 	((exec).a_info = \
-         ((exec).a_info & 0xfb00ffff) | ((((int)(machtype))&0x3ff) << 16))
+         ((exec).a_info & 0xfb00ffff) | ((((int) (machtype))&0x3ff) << 16))
 #define N_SET_FLAGS(exec, flags) \
 	((exec).a_info = \
 	 ((exec).a_info & 0x03ffffff) | ((flags & 0x03f) << 26))

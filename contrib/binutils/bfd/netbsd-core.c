@@ -1,5 +1,6 @@
 /* BFD back end for NetBSD style core files
-   Copyright 1988, 89, 91, 92, 93, 96, 1998 Free Software Foundation, Inc.
+   Copyright 1988, 1989, 1991, 1992, 1993, 1996, 1998, 1999, 2000
+   Free Software Foundation, Inc.
    Written by Paul Kranenburg, EUR
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -16,7 +17,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
+Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #include "bfd.h"
 #include "sysdep.h"
@@ -29,7 +30,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 #include <sys/core.h>
 
 /*
- * FIXME: On NetBSD/sparc CORE_FPU_OFFSET should be (sizeof(struct trapframe))
+ * FIXME: On NetBSD/sparc CORE_FPU_OFFSET should be (sizeof (struct trapframe))
  */
 
 struct netbsd_core_struct {
@@ -98,7 +99,7 @@ netbsd_core_file_p (abfd)
 
 		offset += core.c_seghdrsize;
 
-		asect = (asection *) bfd_zalloc (abfd, sizeof(asection));
+		asect = (asection *) bfd_zalloc (abfd, sizeof (asection));
 		if (asect == NULL) {
 			bfd_set_error(bfd_error_no_memory);
 			goto punt;
@@ -118,7 +119,7 @@ netbsd_core_file_p (abfd)
 			asect->name = ".reg";
 			asect->flags = SEC_ALLOC + SEC_HAS_CONTENTS;
 #ifdef CORE_FPU_OFFSET
-			/* Hackish... */
+			/* Hackish...  */
 			asect->_raw_size = CORE_FPU_OFFSET;
 			asect2 = (asection *)bfd_zalloc (abfd,
 							 sizeof (asection));
@@ -193,9 +194,9 @@ netbsd_core_file_matches_executable_p  (core_bfd, exec_bfd)
 
 /* If somebody calls any byte-swapping routines, shoot them.  */
 static void
-swap_abort()
+swap_abort ()
 {
-  abort(); /* This way doesn't require any declaration for ANSI to fuck up */
+  abort (); /* This way doesn't require any declaration for ANSI to fuck up */
 }
 #define	NO_GET	((bfd_vma (*) PARAMS ((   const bfd_byte *))) swap_abort )
 #define	NO_PUT	((void    (*) PARAMS ((bfd_vma, bfd_byte *))) swap_abort )
@@ -236,7 +237,7 @@ const bfd_target netbsd_core_vec =
      bfd_false, bfd_false,
      bfd_false, bfd_false
     },
-    
+
        BFD_JUMP_TABLE_GENERIC (_bfd_generic),
        BFD_JUMP_TABLE_COPY (_bfd_generic),
        BFD_JUMP_TABLE_CORE (netbsd),
@@ -248,6 +249,6 @@ const bfd_target netbsd_core_vec =
        BFD_JUMP_TABLE_DYNAMIC (_bfd_nodynamic),
 
     NULL,
-    
+
     (PTR) 0			/* backend_data */
 };

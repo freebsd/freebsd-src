@@ -1,5 +1,5 @@
 /* ldwrite.c -- write out the linked file
-   Copyright (C) 1991, 92, 93, 94, 95, 96, 97, 1998
+   Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 2000
    Free Software Foundation, Inc.
    Written by Steve Chamberlain sac@cygnus.com
 
@@ -33,7 +33,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "ldmain.h"
 
 static void build_link_order PARAMS ((lang_statement_union_type *));
-static asection *clone_section PARAMS ((bfd *, asection *, int *));
+static asection *clone_section PARAMS ((bfd *, asection *, const char *, int *));
 static void split_sections PARAMS ((bfd *, struct bfd_link_info *));
 
 /* Build link_order structures for the BFD linker.  */
@@ -290,48 +290,43 @@ build_link_order (statement)
 
 /* Call BFD to write out the linked file.  */
 
-
 /**********************************************************************/
-
 
 /* Wander around the input sections, make sure that
    we'll never try and create an output section with more relocs
    than will fit.. Do this by always assuming the worst case, and
-   creating new output sections with all the right bits */
+   creating new output sections with all the right bits.  */
 #define TESTIT 1
 static asection *
-clone_section (abfd, s, count)
+clone_section (abfd, s, name, count)
      bfd *abfd;
      asection *s;
+     const char *name;
      int *count;
 {
-#define SSIZE 8
-  char sname[SSIZE];		/* ??  find the name for this size */
+  char templ[6];
+  char *sname;
   asection *n;
   struct bfd_link_hash_entry *h;
-  /* Invent a section name - use first five
-     chars of base section name and a digit suffix */
-  do
+
+  /* Invent a section name from the first five chars of the base
+     section name and a digit suffix.  */
+  strncpy (templ, name, sizeof (templ) - 1);
+  templ[sizeof (templ) - 1] = '\0';
+  if ((sname = bfd_get_unique_section_name (abfd, templ, count)) == NULL
+      || (n = bfd_make_section_anyway (abfd, sname)) == NULL
+      || (h = bfd_link_hash_lookup (link_info.hash,
+				    sname, true, true, false)) == NULL)
     {
-      unsigned int i;
-      char b[6];
-      for (i = 0; i < sizeof (b) - 1 && s->name[i]; i++)
-	b[i] = s->name[i];
-      b[i] = 0;
-      sprintf (sname, "%s%d", b, (*count)++);
+      einfo (_("%F%P: clone section failed: %E\n"));
+      /* Silence gcc warnings.  einfo exits, so we never reach here.  */
+      return NULL;
     }
-  while (bfd_get_section_by_name (abfd, sname));
 
-  n = bfd_make_section_anyway (abfd, xstrdup (sname));
-
-  /* Create a symbol of the same name */
-
-  h = bfd_link_hash_lookup (link_info.hash,
-			    sname, true, true, false);
+  /* Set up section symbol.  */
   h->type = bfd_link_hash_defined;
   h->u.def.value = 0;
-  h->u.def.section = n   ;
-
+  h->u.def.section = n;
 
   n->flags = s->flags;
   n->vma = s->vma;
@@ -348,7 +343,7 @@ clone_section (abfd, s, count)
 }
 
 #if TESTING
-static void 
+static void
 ds (s)
      asection *s;
 {
@@ -368,6 +363,7 @@ ds (s)
     }
   printf ("\n");
 }
+
 dump (s, a1, a2)
      char *s;
      asection *a1;
@@ -378,7 +374,7 @@ dump (s, a1, a2)
   ds (a2);
 }
 
-static void 
+static void
 sanity_check (abfd)
      bfd *abfd;
 {
@@ -402,7 +398,7 @@ sanity_check (abfd)
 #define dump(a, b, c)
 #endif
 
-static void 
+static void
 split_sections (abfd, info)
      bfd *abfd;
      struct bfd_link_info *info;
@@ -410,27 +406,27 @@ split_sections (abfd, info)
   asection *original_sec;
   int nsecs = abfd->section_count;
   sanity_check (abfd);
-  /* look through all the original sections */
+  /* Look through all the original sections.  */
   for (original_sec = abfd->sections;
        original_sec && nsecs;
        original_sec = original_sec->next, nsecs--)
     {
-      boolean first = true;
       int count = 0;
-      int lines = 0;
-      int relocs = 0;
-      struct bfd_link_order **pp;
+      unsigned int lines = 0;
+      unsigned int relocs = 0;
+      bfd_size_type sec_size = 0;
+      struct bfd_link_order *l;
+      struct bfd_link_order *p;
       bfd_vma vma = original_sec->vma;
-      bfd_vma shift_offset = 0;
       asection *cursor = original_sec;
 
-      /* count up the relocations and line entries to see if
-	 anything would be too big to fit */
-      for (pp = &(cursor->link_order_head); *pp; pp = &((*pp)->next))
+      /* Count up the relocations and line entries to see if anything
+	 would be too big to fit.  Accumulate section size too.  */
+      for (l = NULL, p = cursor->link_order_head; p != NULL; p = l->next)
 	{
-	  struct bfd_link_order *p = *pp;
-	  int thislines = 0;
-	  int thisrelocs = 0;
+	  unsigned int thislines = 0;
+	  unsigned int thisrelocs = 0;
+	  bfd_size_type thissize = 0;
 	  if (p->type == bfd_indirect_link_order)
 	    {
 	      asection *sec;
@@ -444,77 +440,98 @@ split_sections (abfd, info)
 	      if (info->relocateable)
 		thisrelocs = sec->reloc_count;
 
+	      if (sec->_cooked_size != 0)
+		thissize = sec->_cooked_size;
+	      else
+		thissize = sec->_raw_size;
+
 	    }
 	  else if (info->relocateable
 		   && (p->type == bfd_section_reloc_link_order
 		       || p->type == bfd_symbol_reloc_link_order))
 	    thisrelocs++;
 
-	  if (! first
-	      && (thisrelocs + relocs > config.split_by_reloc
-		  || thislines + lines > config.split_by_reloc
-		  || config.split_by_file))
+	  if (l != NULL
+	      && (thisrelocs + relocs >= config.split_by_reloc
+		  || thislines + lines >= config.split_by_reloc
+		  || thissize + sec_size >= config.split_by_file))
 	    {
-	      /* create a new section and put this link order and the
-		 following link orders into it */
-	      struct bfd_link_order *l = p;
-	      asection *n = clone_section (abfd, cursor, &count);
-	      *pp = NULL;	/* Snip off link orders from old section */
-	      n->link_order_head = l;	/* attach to new section */
-	      pp = &n->link_order_head;
+	      /* Create a new section and put this link order and the
+		 following link orders into it.  */
+	      bfd_vma shift_offset;
+	      asection *n;
 
-	      /* change the size of the original section and
-		 update the vma of the new one */
+	      n = clone_section (abfd, cursor, original_sec->name, &count);
+
+	      /* Attach the link orders to the new section and snip
+		 them off from the old section.  */
+	      n->link_order_head = p;
+	      n->link_order_tail = cursor->link_order_tail;
+	      cursor->link_order_tail = l;
+	      l->next = NULL;
+	      l = p;
+
+	      /* Change the size of the original section and
+		 update the vma of the new one.  */
 
 	      dump ("before snip", cursor, n);
 
-	      n->_raw_size = cursor->_raw_size - l->offset;
-	      cursor->_raw_size = l->offset;
+	      shift_offset = p->offset;
+	      if (cursor->_cooked_size != 0)
+		{
+		  n->_cooked_size = cursor->_cooked_size - shift_offset;
+		  cursor->_cooked_size = shift_offset;
+		}
+	      n->_raw_size = cursor->_raw_size - shift_offset;
+	      cursor->_raw_size = shift_offset;
 
-	      vma += cursor->_raw_size;
+	      vma += shift_offset;
 	      n->lma = n->vma = vma;
 
-	      shift_offset = l->offset;
-
-	      /* run down the chain and change the output section to
-		 the right one, update the offsets too */
-
-	      while (l)
+	      /* Run down the chain and change the output section to
+		 the right one, update the offsets too.  */
+	      do
 		{
-		  l->offset -= shift_offset;
-		  if (l->type == bfd_indirect_link_order)
+		  p->offset -= shift_offset;
+		  if (p->type == bfd_indirect_link_order)
 		    {
-		      l->u.indirect.section->output_section = n;
-		      l->u.indirect.section->output_offset = l->offset;
+		      p->u.indirect.section->output_section = n;
+		      p->u.indirect.section->output_offset = p->offset;
 		    }
-		  l = l->next;
+		  p = p->next;
 		}
+	      while (p);
+
 	      dump ("after snip", cursor, n);
 	      cursor = n;
 	      relocs = thisrelocs;
 	      lines = thislines;
+	      sec_size = thissize;
 	    }
 	  else
 	    {
+	      l = p;
 	      relocs += thisrelocs;
 	      lines += thislines;
+	      sec_size += thissize;
 	    }
-
-	  first = false;
 	}
     }
   sanity_check (abfd);
 }
+
 /**********************************************************************/
+
 void
 ldwrite ()
 {
   /* Reset error indicator, which can typically something like invalid
-     format from openning up the .o files */
+     format from opening up the .o files.  */
   bfd_set_error (bfd_error_no_error);
   lang_for_each_statement (build_link_order);
 
-  if (config.split_by_reloc || config.split_by_file)
+  if (config.split_by_reloc != (unsigned) -1
+      || config.split_by_file != (bfd_size_type) -1)
     split_sections (output_bfd, &link_info);
   if (!bfd_final_link (output_bfd, &link_info))
     {
@@ -523,8 +540,8 @@ ldwrite ()
 	 out.  */
 
       if (bfd_get_error () != bfd_error_no_error)
-	einfo (_("%F%P: final link failed: %E\n"), output_bfd);
+	einfo (_("%F%P: final link failed: %E\n"));
       else
-	xexit(1);
+	xexit (1);
     }
 }

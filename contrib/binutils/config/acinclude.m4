@@ -1045,6 +1045,7 @@ dnl AC_SUBST(TCL_COMPAT_OBJS)
     AC_SUBST(TCL_RANLIB)
     AC_SUBST(TCL_BUILD_LIB_SPEC)
     AC_SUBST(TCL_LIB_SPEC)
+    AC_SUBST(TCL_BIN_DIR)
 dnl AC_SUBST(TCL_LIB_VERSIONS_OK)
 
 dnl not used, don't export to save symbols

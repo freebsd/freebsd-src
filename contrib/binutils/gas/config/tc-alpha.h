@@ -1,5 +1,6 @@
 /* This file is tc-alpha.h
-   Copyright (C) 1994, 95, 96, 97, 98, 1999 Free Software Foundation, Inc.
+   Copyright 1994, 1995, 1996, 1997, 1998, 1999, 2000
+   Free Software Foundation, Inc.
    Written by Ken Raeburn <raeburn@cygnus.com>.
 
    This file is part of GAS, the GNU Assembler.
@@ -90,6 +91,11 @@ extern void alpha_define_label PARAMS ((symbolS *));
 #define md_cons_align(nbytes) alpha_cons_align (nbytes)
 extern void alpha_cons_align PARAMS ((int));
 
+#define HANDLE_ALIGN(fragp) alpha_handle_align (fragp)
+extern void alpha_handle_align PARAMS ((struct frag *));
+
+#define MAX_MEM_FOR_RS_ALIGN_CODE  (3 + 4 + 8)
+
 #ifdef OBJ_ECOFF
 #define tc_frob_file_before_adjust() alpha_frob_file_before_adjust ()
 extern void alpha_frob_file_before_adjust PARAMS ((void));
@@ -146,3 +152,5 @@ do {									\
 	     (long)fixP->tc_fix_data.next_lituse);			\
 } while (0)
 #endif
+
+#define DWARF2_LINE_MIN_INSN_LENGTH 4

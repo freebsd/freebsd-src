@@ -20,6 +20,7 @@
 #include "config.h"
 #endif
 
+#include <sys/types.h>
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
@@ -39,7 +40,7 @@
 
 /* We need to provide a type for gcc_uint64_t.  */
 #ifdef __GNUC__
-typedef unsigned long long gcc_uint64_t;
+__extension__ typedef unsigned long long gcc_uint64_t;
 #else
 typedef unsigned long gcc_uint64_t;
 #endif

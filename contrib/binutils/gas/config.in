@@ -151,6 +151,12 @@
 /* Define if defaulting to ELF on SCO 5. */
 #undef SCO_ELF
 
+/* Using strict COFF? */
+#undef STRICTCOFF
+
+/* Use ELF stabs for MIPS, not ECOFF stabs */
+#undef MIPS_STABS_ELF
+
 /* Use ELF stabs for MIPS, not ECOFF stabs */
 #undef MIPS_STABS_ELF
 
@@ -159,6 +165,9 @@
 
 /* Define as 1 if big endian. */
 #undef TARGET_BYTES_BIG_ENDIAN
+
+/* Default architecture. */
+#undef DEFAULT_ARCH
 
 /* Default architecture. */
 #undef DEFAULT_ARCH

@@ -1,5 +1,5 @@
 /* tc-v850.h -- Header file for tc-v850.c.
-   Copyright (C) 1996, 1997 Free Software Foundation, Inc.
+   Copyright 1996, 1997, 1998, 2000 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -16,7 +16,7 @@
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to the Free
    Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA. */
+   02111-1307, USA.  */
 
 #define TC_V850
 
@@ -39,6 +39,13 @@
 
 #define obj_fix_adjustable(fixP) v850_fix_adjustable(fixP)
 #define TC_FORCE_RELOCATION(fixp) v850_force_relocation(fixp)
+
+#ifdef OBJ_ELF
+/* This arranges for gas/write.c to not apply a relocation if
+   obj_fix_adjustable() says it is not adjustable.  */
+#define TC_FIX_ADJUSTABLE(fixP) obj_fix_adjustable (fixP)
+#endif
+
 extern int v850_force_relocation PARAMS ((struct fix *));
 
 /* Permit temporary numeric labels.  */
@@ -50,14 +57,13 @@ extern int v850_force_relocation PARAMS ((struct fix *));
 #define WORKING_DOT_WORD
 
 #define md_number_to_chars number_to_chars_littleendian
-     
+
 /* We need to handle lo(), hi(), etc etc in .hword, .word, etc
    directives, so we have to parse "cons" expressions ourselves.  */
 #define TC_PARSE_CONS_EXPRESSION(EXP, NBYTES) parse_cons_expression_v850 (EXP)
 #define TC_CONS_FIX_NEW cons_fix_new_v850
 extern const struct relax_type md_relax_table[];
 #define TC_GENERIC_RELAX_TABLE md_relax_table
-
 
 /* This section must be in the small data area (pointed to by GP).  */
 #define SHF_V850_GPREL		0x10000000
@@ -83,3 +89,5 @@ extern const struct relax_type md_relax_table[];
 
 #define MD_PCREL_FROM_SECTION(fixP,section) v850_pcrel_from_section (fixP, section)
 extern long v850_pcrel_from_section ();
+
+#define DWARF2_LINE_MIN_INSN_LENGTH 2

@@ -1,5 +1,6 @@
 /* BFD back-end for ieee-695 objects.
-   Copyright (C) 1990, 91, 92, 93, 94, 95, 96, 97, 98, 1999
+   Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
+   2000, 2001
    Free Software Foundation, Inc.
 
    Written by Steve Chamberlain of Cygnus Support.
@@ -1343,27 +1344,21 @@ ieee_archive_p (abfd)
   ieee->h.abfd = abfd;
 
   if (this_byte (&(ieee->h)) != Module_Beginning)
-    {
-      abfd->tdata.ieee_ar_data = save;
-      goto got_wrong_format_error;
-    }
+    goto got_wrong_format_error;
 
   next_byte (&(ieee->h));
   library = read_id (&(ieee->h));
   if (strcmp (library, "LIBRARY") != 0)
-    {
-      bfd_release (abfd, ieee);
-      abfd->tdata.ieee_ar_data = save;
-      goto got_wrong_format_error;
-    }
-  /* Throw away the filename */
+    goto got_wrong_format_error;
+
+  /* Throw away the filename.  */
   read_id (&(ieee->h));
 
   ieee->element_count = 0;
   ieee->element_index = 0;
 
-  next_byte (&(ieee->h));	/* Drop the ad part */
-  must_parse_int (&(ieee->h));	/* And the two dummy numbers */
+  next_byte (&(ieee->h));	/* Drop the ad part.  */
+  must_parse_int (&(ieee->h));	/* And the two dummy numbers.  */
   must_parse_int (&(ieee->h));
 
   alc_elts = 10;
@@ -1371,7 +1366,7 @@ ieee_archive_p (abfd)
   if (elts == NULL)
     goto error_return;
 
-  /* Read the index of the BB table */
+  /* Read the index of the BB table.  */
   while (1)
     {
       int rec;
@@ -1400,14 +1395,14 @@ ieee_archive_p (abfd)
       t->file_offset = must_parse_int (&(ieee->h));
       t->abfd = (bfd *) NULL;
 
-      /* Make sure that we don't go over the end of the buffer */
-
+      /* Make sure that we don't go over the end of the buffer.  */
       if ((size_t) ieee_pos (abfd) > sizeof (buffer) / 2)
 	{
-	  /* Past half way, reseek and reprime */
+	  /* Past half way, reseek and reprime.  */
 	  buffer_offset += ieee_pos (abfd);
 	  if (bfd_seek (abfd, buffer_offset, SEEK_SET) != 0)
 	    goto error_return;
+
 	  /* FIXME: Check return value.  I'm not sure whether it needs
 	     to read the entire buffer or not.  */
 	  bfd_read ((PTR) buffer, 1, sizeof (buffer), abfd);
@@ -1421,36 +1416,33 @@ ieee_archive_p (abfd)
 			       ieee->element_count * sizeof *ieee->elements));
   if (ieee->elements == NULL)
     goto error_return;
+
   memcpy (ieee->elements, elts,
 	  ieee->element_count * sizeof *ieee->elements);
   free (elts);
   elts = NULL;
 
-  /* Now scan the area again, and replace BB offsets with file */
-  /* offsets */
-
+  /* Now scan the area again, and replace BB offsets with file offsets.  */
   for (i = 2; i < ieee->element_count; i++)
     {
       if (bfd_seek (abfd, ieee->elements[i].file_offset, SEEK_SET) != 0)
 	goto error_return;
+
       /* FIXME: Check return value.  I'm not sure whether it needs to
 	 read the entire buffer or not.  */
       bfd_read ((PTR) buffer, 1, sizeof (buffer), abfd);
       ieee->h.first_byte = buffer;
       ieee->h.input_p = buffer;
 
-      next_byte (&(ieee->h));	/* Drop F8 */
-      next_byte (&(ieee->h));	/* Drop 14 */
-      must_parse_int (&(ieee->h));	/* Drop size of block */
+      next_byte (&(ieee->h));		/* Drop F8.  */
+      next_byte (&(ieee->h));		/* Drop 14.  */
+      must_parse_int (&(ieee->h));	/* Drop size of block.  */
+      
       if (must_parse_int (&(ieee->h)) != 0)
-	{
-	  /* This object has been deleted */
-	  ieee->elements[i].file_offset = 0;
-	}
+	/* This object has been deleted.  */
+	ieee->elements[i].file_offset = 0;
       else
-	{
-	  ieee->elements[i].file_offset = must_parse_int (&(ieee->h));
-	}
+	ieee->elements[i].file_offset = must_parse_int (&(ieee->h));
     }
 
   /*  abfd->has_armap = ;*/
@@ -1458,10 +1450,14 @@ ieee_archive_p (abfd)
   return abfd->xvec;
 
  got_wrong_format_error:
+  bfd_release (abfd, ieee);
+  abfd->tdata.ieee_ar_data = save;
   bfd_set_error (bfd_error_wrong_format);
+
  error_return:
   if (elts != NULL)
     free (elts);
+
   return NULL;
 }
 
@@ -3197,11 +3193,8 @@ relocate_debug (output, input)
   block ();
 }
 
-/*
-  During linking, we we told about the bfds which made up our
-  contents, we have a list of them. They will still be open, so go to
-  the debug info in each, and copy it out, relocating it as we go.
-*/
+/* Gather together all the debug information from each input BFD into
+   one place, relocating it and emitting it as we go.  */
 
 static boolean
 ieee_write_debug_part (abfd)
@@ -3589,6 +3582,10 @@ ieee_write_processor (abfd)
 	  case bfd_mach_m68040: id = "68040"; break;
 	  case bfd_mach_m68060: id = "68060"; break;
 	  case bfd_mach_cpu32:  id = "cpu32"; break;
+	  case bfd_mach_mcf5200:id = "5200";  break;
+	  case bfd_mach_mcf5206e:id = "5206e"; break;
+	  case bfd_mach_mcf5307:id = "5307";  break;
+	  case bfd_mach_mcf5407:id = "5407";  break;
 	  }
 
 	if (! ieee_write_id (abfd, id))
@@ -3728,7 +3725,7 @@ ieee_make_empty_symbol (abfd)
      bfd *abfd;
 {
   ieee_symbol_type *new =
-    (ieee_symbol_type *) bfd_zmalloc (sizeof (ieee_symbol_type));
+    (ieee_symbol_type *) bfd_zalloc (abfd, sizeof (ieee_symbol_type));
   if (!new)
     return NULL;
   new->symbol.the_bfd = abfd;

@@ -1,5 +1,6 @@
 /* This file is debug.c
-   Copyright (C) 1987, 1988, 1989, 1990, 1991, 1992 Free Software Foundation, Inc.
+   Copyright 1987, 1988, 1989, 1990, 1991, 1992, 2000
+   Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -62,8 +63,7 @@ dmp_frag (fp, indent)
 	  printf ("%srs_fill(%d)\n", indent, fp->fr_offset);
 	  printf ("%s", indent);
 	  var_chars (fp, fp->fr_var + fp->fr_fix);
-	  printf ("%s\t repeated %d times,",
-		  indent, fp->fr_offset);
+	  printf ("%s\t repeated %d times,", indent, fp->fr_offset);
 	  printf (" fixed length if # chars == 0)\n");
 	  break;
 	case rs_org:

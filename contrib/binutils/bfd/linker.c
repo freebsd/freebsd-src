@@ -1,5 +1,5 @@
 /* linker.c -- BFD linker routines
-   Copyright (C) 1993, 94, 95, 96, 97, 98, 1999
+   Copyright 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001
    Free Software Foundation, Inc.
    Written by Steve Chamberlain and Ian Lance Taylor, Cygnus Support
 
@@ -60,7 +60,7 @@ SECTION
 	a.out (in <<aoutx.h>>) and ECOFF (in <<ecoff.c>>).  The a.out
 	routines are used as examples throughout this section.
 
-@menu	
+@menu
 @* Creating a Linker Hash Table::
 @* Adding Symbols to the Hash Table::
 @* Performing the Final Link::
@@ -601,7 +601,7 @@ bfd_wrapped_link_hash_lookup (abfd, info, string, create, copy, follow)
    struct bfd_link_hash_entry * with no explicit cast required on the
    call.  */
 
-void 
+void
 bfd_link_hash_traverse (table, func, info)
      struct bfd_link_hash_table *table;
      boolean (*func) PARAMS ((struct bfd_link_hash_entry *, PTR));
@@ -1361,7 +1361,7 @@ enum link_row
 
 enum link_action
 {
-  FAIL,		/* Abort. */
+  FAIL,		/* Abort.  */
   UND,		/* Mark symbol undefined.  */
   WEAK,		/* Mark symbol weak undefined.  */
   DEF,		/* Mark symbol defined.  */
@@ -1464,7 +1464,7 @@ hash_entry_bfd (h)
      or destructor names as collect2 does.
    HASHP, if not NULL, is a place to store the created hash table
      entry; if *HASHP is not NULL, the caller has already looked up
-     the hash table entry, and stored it in *HASHP. */
+     the hash table entry, and stored it in *HASHP.  */
 
 boolean
 _bfd_generic_link_add_one_symbol (info, abfd, name, flags, section, value,
@@ -1801,6 +1801,15 @@ _bfd_generic_link_add_one_symbol (info, abfd, name, flags, section, value,
 						copy, false);
 	    if (inh == (struct bfd_link_hash_entry *) NULL)
 	      return false;
+	    if (inh->type == bfd_link_hash_indirect
+		&& inh->u.i.link == h)
+	      {
+		(*_bfd_error_handler)
+		  (_("%s: indirect symbol `%s' to `%s' is a loop"),  
+		   bfd_get_filename (abfd), name, string);
+		bfd_set_error (bfd_error_invalid_operation);
+		return false;
+	      }
 	    if (inh->type == bfd_link_hash_new)
 	      {
 		inh->type = bfd_link_hash_undefined;
@@ -2054,7 +2063,7 @@ _bfd_generic_final_link (abfd, info)
 	    }
 	}
     }
-  
+
   return true;
 }
 
@@ -2452,7 +2461,7 @@ _bfd_generic_reloc_link_order (abfd, info, sec, link_order)
   r = (arelent *) bfd_alloc (abfd, sizeof (arelent));
   if (r == (arelent *) NULL)
     return false;
-      
+
   r->address = link_order->offset;
   r->howto = bfd_reloc_type_lookup (abfd, link_order->u.reloc.p->reloc);
   if (r->howto == 0)
@@ -2524,7 +2533,7 @@ _bfd_generic_reloc_link_order (abfd, info, sec, link_order)
 	  break;
 	}
       ok = bfd_set_section_contents (abfd, sec, (PTR) buf,
-				     (file_ptr) 
+				     (file_ptr)
                                      (link_order->offset *
                                       bfd_octets_per_byte (abfd)), size);
       free (buf);
@@ -2594,7 +2603,7 @@ _bfd_default_link_order (abfd, info, sec, link_order)
     case bfd_data_link_order:
       return bfd_set_section_contents (abfd, sec,
 				       (PTR) link_order->u.data.contents,
-				       (file_ptr) 
+				       (file_ptr)
                                        (link_order->offset *
                                         bfd_octets_per_byte (abfd)),
 				       link_order->size);
@@ -2603,7 +2612,6 @@ _bfd_default_link_order (abfd, info, sec, link_order)
 
 /* Default routine to handle a bfd_fill_link_order.  */
 
-/*ARGSUSED*/
 static boolean
 default_fill_link_order (abfd, info, sec, link_order)
      bfd *abfd;
@@ -2630,8 +2638,8 @@ default_fill_link_order (abfd, info, sec, link_order)
   for (i = 1; i < size; i += 2)
     space[i] = fill;
   result = bfd_set_section_contents (abfd, sec, space,
-				     (file_ptr) 
-                                     (link_order->offset * 
+				     (file_ptr)
+                                     (link_order->offset *
                                       bfd_octets_per_byte (abfd)),
 				     link_order->size);
   free (space);
@@ -2732,7 +2740,7 @@ default_indirect_link_order (output_bfd, info, output_section, link_order,
 	      if (h != NULL)
 		set_symbol_from_hash (sym, h);
 	    }
-	}	  
+	}
     }
 
   /* Get and relocate the section contents.  */
@@ -2750,8 +2758,8 @@ default_indirect_link_order (output_bfd, info, output_section, link_order,
   if (! bfd_set_section_contents (output_bfd, output_section,
 				  (PTR) new_contents,
 				  (file_ptr)
-                                  (link_order->offset * 
-                                   bfd_octets_per_byte (output_bfd)), 
+                                  (link_order->offset *
+                                   bfd_octets_per_byte (output_bfd)),
                                   link_order->size))
     goto error_return;
 
@@ -2802,8 +2810,6 @@ DESCRIPTION
 .
 
 */
-
-
 
 boolean
 _bfd_generic_link_split_section (abfd, sec)

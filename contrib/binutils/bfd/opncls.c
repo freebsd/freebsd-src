@@ -1,5 +1,6 @@
 /* opncls.c -- open and close a BFD.
-   Copyright (C) 1990, 91, 92, 93, 94, 95, 96, 1997
+   Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 2000,
+   2001
    Free Software Foundation, Inc.
 
    Written by Cygnus Support.
@@ -248,7 +249,7 @@ bfd_fdopenr (filename, target, fd)
      be written through, although doing so requires that we end
      the previous clause with a preposition.  */
   /* (O_ACCMODE) parens are to avoid Ultrix header file bug */
-  switch (fdflags & O_ACCMODE)
+  switch (fdflags & (O_ACCMODE))
     {
     case O_RDONLY: nbfd->direction = read_direction; break;
     case O_WRONLY: nbfd->direction = write_direction; break;
