@@ -1557,9 +1557,6 @@ dc_setcfg(sc, media)
 		}
 	}
 
-	if (DC_IS_ADMTEK(sc))
-		DC_SETBIT(sc, DC_AL_CR, DC_AL_CR_ATUR);
-
 	if ((media & IFM_GMASK) == IFM_FDX) {
 		DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_FULLDUPLEX);
 		if (sc->dc_pmode == DC_PMODE_SYM && DC_IS_PNIC(sc))
@@ -2243,6 +2240,13 @@ dc_attach(dev)
 		CSR_WRITE_4(sc, DC_SIAGP, DC_SIAGP_INT1_EN |
 			   DC_SIAGP_MD_GP2_OUTPUT | DC_SIAGP_MD_GP0_OUTPUT);
 		DELAY(10);
+	}
+
+	if (DC_IS_ADMTEK(sc)) {
+		/*
+		 * Set automatic TX underrun recovery for the ADMtek chips
+		 */
+		DC_SETBIT(sc, DC_AL_CR, DC_AL_CR_ATUR);
 	}
 
 	/*
