@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: syscons.c,v 1.289 1999/01/07 14:14:22 yokota Exp $
+ *	$Id: syscons.c,v 1.290 1999/01/11 03:18:27 yokota Exp $
  */
 
 #include "sc.h"
@@ -268,12 +268,21 @@ static void sc_bcopy(scr_stat *scp, u_short *p, int from, int to, int mark);
 static int get_scr_num(void);
 static timeout_t scrn_timer;
 static void scrn_update(scr_stat *scp, int show_cursor);
+#if NSPLASH > 0
+static int scsplash_callback(int);
+static void scsplash_saver(int show);
 static int add_scrn_saver(void (*this_saver)(int));
 static int remove_scrn_saver(void (*this_saver)(int));
 static int set_scrn_saver_mode(scr_stat *scp, int mode, u_char *pal, int border);
 static int restore_scrn_saver_mode(scr_stat *scp);
 static void stop_scrn_saver(void (*saver)(int));
 static int wait_scrn_saver_stop(void);
+#define scsplash_stick(stick)		(sticky_splash = (stick))
+#else /* !NSPLASH */
+#define stop_scrn_saver(saver)
+#define wait_scrn_saver_stop()		0
+#define scsplash_stick(stick)
+#endif /* NSPLASH */
 static int switch_scr(scr_stat *scp, u_int next_scr);
 static void exchange_scr(void);
 static void scan_esc(scr_stat *scp, u_char c);
@@ -305,13 +314,6 @@ static void draw_cutmarking(scr_stat *scp);
 static void remove_cutmarking(scr_stat *scp); 
 static void do_bell(scr_stat *scp, int pitch, int duration);
 static timeout_t blink_screen;
-#if NSPLASH > 0
-static int scsplash_callback(int);
-static void scsplash_saver(int show);
-#define scsplash_stick(stick)		(sticky_splash = (stick))
-#else
-#define scsplash_stick(stick)
-#endif /* NSPLASH */
 
 static cn_probe_t	sccnprobe;
 static cn_init_t	sccninit;
