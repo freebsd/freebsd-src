@@ -60,6 +60,7 @@ static const char rcsid[] =
 #include <sys/vmmeter.h>
 
 #include <vm/vm_param.h>
+#include <vm/vm_zone.h>
 
 #include <ctype.h>
 #include <err.h>
@@ -101,20 +102,22 @@ struct nlist namelist[] = {
 	{ "_kmemstatistics" },
 #define	X_KMEMBUCKETS	11
 	{ "_bucket" },
+#define	X_ZLIST		12
+	{ "_zlist" },
 #ifdef notyet
-#define	X_DEFICIT	12
+#define	X_DEFICIT	13
 	{ "_deficit" },
-#define	X_FORKSTAT	13
+#define	X_FORKSTAT	14
 	{ "_forkstat" },
-#define X_REC		14
+#define X_REC		15
 	{ "_rectime" },
-#define X_PGIN		15
+#define X_PGIN		16
 	{ "_pgintime" },
-#define	X_XSTATS	16
+#define	X_XSTATS	17
 	{ "_xstats" },
-#define X_END		17
+#define X_END		18
 #else
-#define X_END		14
+#define X_END		13
 #endif
 #if defined(hp300) || defined(luna68k)
 #define	X_HPDINIT	(X_END)
@@ -166,8 +169,9 @@ kvm_t *kd;
 #define	SUMSTAT		0x08
 #define	TIMESTAT	0x10
 #define	VMSTAT		0x20
+#define ZMEMSTAT	0x40
 
-void	cpustats(), dointr(), domem(), dosum();
+void	cpustats(), dointr(), domem(), dosum(), dozmem();
 void	dovmstat(), kread(), usage();
 #ifdef notyet
 void	dotimes(), doforkst();
@@ -190,7 +194,7 @@ main(argc, argv)
 	memf = nlistf = NULL;
 	interval = reps = todo = 0;
 	maxshowdevs = 3;
-	while ((c = getopt(argc, argv, "c:fiM:mN:n:p:stw:")) != -1) {
+	while ((c = getopt(argc, argv, "c:fiM:mN:n:p:stw:z")) != -1) {
 		switch (c) {
 		case 'c':
 			reps = atoi(optarg);
@@ -237,6 +241,9 @@ main(argc, argv)
 			break;
 		case 'w':
 			interval = atoi(optarg);
+			break;
+		case 'z':
+			todo |= ZMEMSTAT;
 			break;
 		case '?':
 		default:
@@ -316,6 +323,8 @@ main(argc, argv)
 #endif
 	if (todo & MEMSTAT)
 		domem();
+	if (todo & ZMEMSTAT)
+		dozmem();
 	if (todo & SUMSTAT)
 		dosum();
 #ifdef notyet
@@ -901,6 +910,60 @@ domem()
 	     (totuse + 1023) / 1024, (totfree + 1023) / 1024, totreq);
 }
 
+void
+dozmem()
+{
+	vm_zone_t zonep;
+	int nmax = 512;
+	int zused_bytes = 0;
+	int ztotal_bytes = 0;
+
+	printf(
+	    "\n"
+	    "%-16s%-8s%-8s%-8s\n",
+	    "ZONE", 
+	    "used",
+	    "total",
+	    "mem-use"
+	);
+
+	kread(X_ZLIST, &zonep, sizeof(zonep));
+	while (zonep != NULL && nmax) {
+		struct vm_zone zone;
+		char buf[32];
+		int n;
+
+		if (kvm_read(kd, (u_long)zonep, &zone, sizeof(zone)) != sizeof(zone))
+			break;
+		n = kvm_read(kd, (u_long)zone.zname, buf, sizeof(buf) - 1);
+		if (n < 0)
+		    n = 0;
+		buf[n] = 0;
+
+		printf(
+		    "%-15.15s %-7d %-7d %4d/%dK\n",
+		    buf,
+		    zone.ztotal - zone.zfreecnt,
+		    zone.ztotal,
+		    (zone.ztotal - zone.zfreecnt) * zone.zsize / 1024,
+		    zone.ztotal * zone.zsize / 1024
+		);
+		zused_bytes += (zone.ztotal - zone.zfreecnt) * zone.zsize;
+		ztotal_bytes += zone.ztotal * zone.zsize;
+		--nmax;
+		zonep = zone.znext;
+	}
+	printf(
+	    "------------------------------------------\n"
+	    "%-15.15s %-7s %-7s %4d/%dK\n\n",
+	    "TOTAL",
+	    "",
+	    "",
+	    zused_bytes / 1024,
+	    ztotal_bytes / 1024
+	);
+}
+
 /*
  * kread reads something from the kernel, given its nlist index.
  */
@@ -930,6 +993,6 @@ void
 usage()
 {
 	(void)fprintf(stderr,
-"usage: vmstat [-ims] [-c count] [-M core] [-N system] [-w wait] [disks]\n");
+"usage: vmstat [-imsz] [-c count] [-M core] [-N system] [-w wait] [disks]\n");
 	exit(1);
 }
