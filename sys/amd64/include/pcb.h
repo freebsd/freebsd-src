@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)pcb.h	5.10 (Berkeley) 5/12/91
- *	$Id: pcb.h,v 1.24 1997/08/09 00:03:18 dyson Exp $
+ *	$Id: pcb.h,v 1.25 1997/10/10 12:40:09 peter Exp $
  */
 
 #ifndef _I386_PCB_H_
@@ -59,10 +59,18 @@ struct pcb {
 	u_char	pcb_flags;
 #define	FP_SOFTFP	0x01	/* process using software fltng pnt emulator */
 	caddr_t	pcb_onfault;	/* copyin/out fault recovery */
+#ifdef SMP
 	u_long	pcb_mpnest;
+#else
+	u_long	pcb_mpnest_dontuse;
+#endif
 	int	pcb_fs;
 	int	pcb_gs;
+#ifdef VM86
 	struct	pcb_ext	*pcb_ext;	/* optional pcb extension */
+#else
+	struct	pcb_ext	*pcb_ext_dontuse;
+#endif
 	u_long	__pcb_spare[1];	/* adjust to avoid core dump size changes */
 };
 
