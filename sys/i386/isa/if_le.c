@@ -36,7 +36,6 @@
  */
 
 #include "le.h"
-#if NLE > 0
 #include "opt_inet.h"
 #include "opt_ipx.h"
 
@@ -2037,4 +2036,3 @@ lance_tx_intr(
     return xmits;
 }
 #endif /* !defined(LE_NOLANCE) */
-#endif /* NLE > 0 */

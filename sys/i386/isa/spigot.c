@@ -47,7 +47,6 @@
  */
 
 #include	"spigot.h"
-#if NSPIGOT > 0
 
 #if NSPIGOT > 1
 error "Can only have 1 spigot configured."
@@ -278,5 +277,3 @@ struct	spigot_softc	*ss = (struct spigot_softc *)&spigot_softc[0];
 
 	return i386_btop(ss->maddr);
 }
-
-#endif /* NSPIGOT */
