@@ -314,6 +314,18 @@ release rerelease:
 	@echo "unset NOPORTS, or set at least DOMINIMALDOCPORTS to YES!"
 	@exit 1
 .endif
+.if defined(LOCAL_PATCHES) && !empty(LOCAL_PATCHES)
+.for p in ${LOCAL_PATCHES}
+.if !exists(${p})
+	@echo "The patch file ${p} does not exist!"
+	@exit 1
+.endif
+.endfor
+.endif
+.if defined(LOCAL_SCRIPT) && !exists(${LOCAL_SCRIPT})
+	@echo "The local script ${LOCAL_SCRIPT} does not exist!"
+	@exit 1
+.endif
 .if make(release)
 .if exists(${CHROOTDIR})
 # The first command will fail on a handful of files that have their schg
@@ -347,12 +359,10 @@ release rerelease:
 .endif
 .if defined(LOCAL_PATCHES) && !empty(LOCAL_PATCHES)
 .for p in ${LOCAL_PATCHES}
-.if exists(${p})
 	patch -d ${CHROOTDIR}/usr/${RELEASESRCMODULE} ${PATCH_FLAGS} < ${p}
-.endif
 .endfor
 .endif
-.if defined(LOCAL_SCRIPT) && exists(${LOCAL_SCRIPT})
+.if defined(LOCAL_SCRIPT)
 	cd ${CHROOTDIR} && env CHROOTDIR=${CHROOTDIR} BUILDNAME=${BUILDNAME} \
 	    RELEASETAG=${RELEASETAG} ${LOCAL_SCRIPT}
 .endif
