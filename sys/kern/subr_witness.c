@@ -234,6 +234,9 @@ static struct witness_order_list_entry order_lists[] = {
 	{ "mutex profiling lock", &lock_class_mtx_spin },
 	{ "zombie_thread_lock", &lock_class_mtx_spin },
 	{ "ALD Queue", &lock_class_mtx_spin },
+#ifdef __ia64__
+	{ "MCA spin lock", &lock_class_mtx_spin },
+#endif
 	{ NULL, NULL },
 	{ NULL, NULL }
 };
