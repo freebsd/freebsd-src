@@ -54,7 +54,7 @@
 #include "yppasswd_private.h"
 
 static int yppasswd_remote(ypclnt_t *, const struct passwd *, const char *);
-static int yppasswd_local(ypclnt_t *, const struct passwd *, const char *);
+static int yppasswd_local(ypclnt_t *, const struct passwd *);
 
 /*
  * Determines the availability of rpc.yppasswdd.  Returns -1 for not
@@ -64,10 +64,12 @@ static int yppasswd_local(ypclnt_t *, const struct passwd *, const char *);
 int
 ypclnt_havepasswdd(ypclnt_t *ypclnt)
 {
-	struct addrinfo hints, *res;
-	int sd;
+	struct netconfig *nc = NULL;
+	void *localhandle = 0;
+	CLIENT *clnt = NULL;
+	int ret;
 
-	/* check that rpc.yppasswdd is running */
+	/* check if rpc.yppasswdd is running */
 	if (getrpcport(ypclnt->server, YPPASSWDPROG,
 		YPPASSWDPROC_UPDATE, IPPROTO_UDP) == 0) {
 		ypclnt_error(ypclnt, __func__, "no rpc.yppasswdd on server");
@@ -78,26 +80,35 @@ ypclnt_havepasswdd(ypclnt_t *ypclnt)
 	if (getuid() != 0)
 		return (0);
 
-	/* try to determine if we are the server */
-	memset(&hints, 0, sizeof(hints));
-	hints.ai_family = AF_UNSPEC;
-	hints.ai_socktype = SOCK_STREAM;
-	hints.ai_protocol = 0;
-	if (getaddrinfo(ypclnt->server, NULL, &hints, &res) != 0)
-		return (0);
-	sd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
-	if (sd == -1) {
-		freeaddrinfo(res);
-		return (0);
+	/* try to connect to rpc.yppasswdd */
+	localhandle = setnetconfig();
+	while ((nc = getnetconfig(localhandle)) != NULL) {
+		if (nc->nc_protofmly != NULL &&
+			strcmp(nc->nc_protofmly, NC_LOOPBACK) == 0)
+				break;
 	}
-	if (bind(sd, res->ai_addr, res->ai_addrlen) == -1) {
-		close(sd);
-		freeaddrinfo(res);
-		return (0);
+	if (nc == NULL) {
+		ypclnt_error(ypclnt, __func__,
+		    "getnetconfig: %s", nc_sperror());
+		ret = 0;
+		goto done;
 	}
-	freeaddrinfo(res);
-	close(sd);
-	return (1);
+	if ((clnt = clnt_tp_create(NULL, MASTER_YPPASSWDPROG,
+	    MASTER_YPPASSWDVERS, nc)) == NULL) {
+		ypclnt_error(ypclnt, __func__,
+		    "failed to connect to rpc.yppasswdd: %s",
+		    clnt_spcreateerror(ypclnt->server));
+		ret = 0;
+		goto done;
+	} else 
+		ret = 1;
+
+done:
+	if (clnt != NULL) {
+		clnt_destroy(clnt);
+	}
+	endnetconfig(localhandle);
+	return (ret);
 }
 
 /*
@@ -112,7 +123,7 @@ ypclnt_passwd(ypclnt_t *ypclnt, const struct passwd *pwd, const char *passwd)
 		return (yppasswd_remote(ypclnt, pwd, passwd));
 	case 1:
 		YPCLNT_DEBUG("using local update method");
-		return (yppasswd_local(ypclnt, pwd, passwd));
+		return (yppasswd_local(ypclnt, pwd));
 	default:
 		YPCLNT_DEBUG("no rpc.yppasswdd");
 		return (-1);
@@ -126,11 +137,12 @@ ypclnt_passwd(ypclnt_t *ypclnt, const struct passwd *pwd, const char *passwd)
  */
 
 static int
-yppasswd_local(ypclnt_t *ypclnt, const struct passwd *pwd, const char *passwd)
+yppasswd_local(ypclnt_t *ypclnt, const struct passwd *pwd)
 {
 	struct master_yppasswd yppwd;
 	struct rpc_err rpcerr;
 	struct netconfig *nc = NULL;
+	void *localhandle = 0;
 	CLIENT *clnt = NULL;
 	int ret, *result;
 
@@ -141,24 +153,34 @@ yppasswd_local(ypclnt_t *ypclnt, const struct passwd *pwd, const char *passwd)
 	yppwd.newpw.pw_change = pwd->pw_change;
 	yppwd.newpw.pw_expire = pwd->pw_expire;
 	yppwd.newpw.pw_fields = pwd->pw_fields;
+	yppwd.oldpass = strdup("");
+	yppwd.domain = strdup(ypclnt->domain);
 	if ((yppwd.newpw.pw_name = strdup(pwd->pw_name)) == NULL ||
 	    (yppwd.newpw.pw_passwd = strdup(pwd->pw_passwd)) == NULL ||
 	    (yppwd.newpw.pw_class = strdup(pwd->pw_class)) == NULL ||
 	    (yppwd.newpw.pw_gecos = strdup(pwd->pw_gecos)) == NULL ||
 	    (yppwd.newpw.pw_dir = strdup(pwd->pw_dir)) == NULL ||
-	    (yppwd.newpw.pw_shell = strdup(pwd->pw_shell)) == NULL ||
-	    (yppwd.oldpass = strdup(passwd ? passwd : "")) == NULL) {
+	    (yppwd.newpw.pw_shell = strdup(pwd->pw_shell)) == NULL) {
 		ypclnt_error(ypclnt, __func__, strerror(errno));
 		ret = -1;
 		goto done;
 	}
 
 	/* connect to rpc.yppasswdd */
-	nc = getnetconfigent("local");
-	if (nc == NULL)
-		nc = getnetconfigent("unix");
-	clnt = clnt_tp_create(ypclnt->server, YPPASSWDPROG, YPPASSWDVERS, nc);
-	if (clnt == NULL) {
+	localhandle = setnetconfig();
+	while ((nc = getnetconfig(localhandle)) != NULL) {
+		if (nc->nc_protofmly != NULL &&
+		    strcmp(nc->nc_protofmly, NC_LOOPBACK) == 0)
+			break;
+	}
+	if (nc == NULL) {
+		ypclnt_error(ypclnt, __func__,
+		    "getnetconfig: %s", nc_sperror());
+		ret = -1;
+		goto done;
+	}
+	if ((clnt = clnt_tp_create(NULL, MASTER_YPPASSWDPROG,
+	    MASTER_YPPASSWDVERS, nc)) == NULL) {
 		ypclnt_error(ypclnt, __func__,
 		    "failed to connect to rpc.yppasswdd: %s",
 		    clnt_spcreateerror(ypclnt->server));
@@ -197,8 +219,7 @@ yppasswd_local(ypclnt_t *ypclnt, const struct passwd *pwd, const char *passwd)
 		auth_destroy(clnt->cl_auth);
 		clnt_destroy(clnt);
 	}
-	if (nc != NULL)
-		freenetconfigent(nc);
+	endnetconfig(localhandle);
 	free(yppwd.newpw.pw_name);
 	if (yppwd.newpw.pw_passwd != NULL) {
 		memset(yppwd.newpw.pw_passwd, 0, strlen(yppwd.newpw.pw_passwd));
