@@ -61,6 +61,13 @@ static driver_t sio_isa_driver = {
 
 static struct isa_pnp_id sio_ids[] = {
 	{0x0100e4a5, "RSA-98III"},
+	{0x11802fbf, NULL},	/* OYO8011 - PC-9801-12X */
+	{0x4180a3b8, NULL},	/* NEC8041 - PC-9821CB-B04 */
+	{0x4182a3b8, NULL},	/* NEC8241 - (Nw150) */
+	{0x5181a3b8, NULL},	/* NEC8151 - PC-9821CB2-B04 */
+	{0x5182a3b8, NULL},	/* NEC8251 - PC-9801-12X */
+	{0x7182a3b8, NULL},	/* NEC8271 - PC-9801-12X */
+	{0x9181a3b8, NULL},	/* NEC8191 - PC-9801-120 */
 	{0}
 };
 
@@ -68,20 +75,28 @@ static int
 sio_isa_probe(dev)
 	device_t	dev;
 {
-#ifdef PC98
 	int	logical_id;
-#endif
+
 	/* Check isapnp ids */
 	if (ISA_PNP_PROBE(device_get_parent(dev), dev, sio_ids) == ENXIO)
 		return (ENXIO);
-#ifdef PC98
+
 	logical_id = isa_get_logicalid(dev);
 	switch (logical_id) {
 	case 0x0100e4a5:	/* RSA-98III */
 		SET_FLAG(dev, SET_IFTYPE(COM_IF_RSA98III));
 		break;
+	case 0x11802fbf:	/* PC-9801-12X */
+	case 0x4180a3b8:	/* PC-9821CB-B04 */
+	case 0x4182a3b8:	/* (Nw150) */
+	case 0x5181a3b8:	/* PC-9821CB2-B04 */
+	case 0x5182a3b8:	/* PC-9801-12X */
+	case 0x7182a3b8:	/* PC-9801-12X */
+	case 0x9181a3b8:	/* PC-9801-120 */
+		SET_FLAG(dev, SET_IFTYPE(COM_IF_NS16550));
+		break;
 	}
-#endif
+
 	return (sioprobe(dev, 0, 0UL, 0));
 }
 
