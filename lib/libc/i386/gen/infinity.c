@@ -1,4 +1,7 @@
-/* infinity.c */
+/*
+ * infinity.c
+ *	$Id$
+ */
 
 #include <math.h>
 

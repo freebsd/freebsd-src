@@ -32,11 +32,14 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ *	$Id$
  */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-	.asciz "@(#)alloca.s	5.2 (Berkeley) 5/14/90"
-#endif /* LIBC_SCCS and not lint */
+#if defined(LIBC_RCS) && !defined(lint)
+	.text
+	.asciz "$Id$"
+#endif /* LIBC_RCS and not lint */
 
 /* like alloc, but automatic automatic free in return */
 

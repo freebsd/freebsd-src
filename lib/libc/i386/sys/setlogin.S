@@ -33,12 +33,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: setlogin.S,v 1.2 1994/02/21 05:19:17 rgrimes Exp $
+ *	$Id: setlogin.S,v 1.1 1994/08/05 01:18:50 wollman Exp $
  */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-	.asciz "@(#)setlogin.s	5.2 (Berkeley) 4/12/91"
-#endif /* LIBC_SCCS and not lint */
+#if defined(LIBC_RCS) && !defined(lint)
+	.text
+	.asciz "$Id$"
+#endif /* LIBC_RCS and not lint */
 
 #include "SYS.h"
 

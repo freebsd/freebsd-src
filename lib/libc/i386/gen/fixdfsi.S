@@ -1,3 +1,7 @@
+/*
+ *	$Id$
+ */
+
 	.file	"__fixdfsi.s"
 .text
 	.align 2
