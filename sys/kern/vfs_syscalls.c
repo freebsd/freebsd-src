@@ -702,10 +702,10 @@ fchdir(td, uap)
 		return (error);
 	}
 	VOP_UNLOCK(vp, 0, td);
-	FILEDESC_LOCK(fdp);
+	FILEDESC_LOCK_FAST(fdp);
 	vpold = fdp->fd_cdir;
 	fdp->fd_cdir = vp;
-	FILEDESC_UNLOCK(fdp);
+	FILEDESC_UNLOCK_FAST(fdp);
 	vrele(vpold);
 	return (0);
 }
@@ -747,10 +747,10 @@ kern_chdir(struct thread *td, char *path, enum uio_seg pathseg)
 	}
 	VOP_UNLOCK(nd.ni_vp, 0, td);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
-	FILEDESC_LOCK(fdp);
+	FILEDESC_LOCK_FAST(fdp);
 	vp = fdp->fd_cdir;
 	fdp->fd_cdir = nd.ni_vp;
-	FILEDESC_UNLOCK(fdp);
+	FILEDESC_UNLOCK_FAST(fdp);
 	vrele(vp);
 	return (0);
 }
@@ -990,15 +990,7 @@ kern_open(struct thread *td, char *path, enum uio_seg pathseg, int flags,
 		 * Clean up the descriptor, but only if another thread hadn't
 		 * replaced or closed it.
 		 */
-		FILEDESC_LOCK(fdp);
-		if (fdp->fd_ofiles[indx] == fp) {
-			fdp->fd_ofiles[indx] = NULL;
-			fdunused(fdp, indx);
-			FILEDESC_UNLOCK(fdp);
-			fdrop(fp, td);
-		} else {
-			FILEDESC_UNLOCK(fdp);
-		}
+		fdclose(fdp, fp, indx, td);
 
 		if (error == ERESTART)
 			error = EINTR;
@@ -1023,8 +1015,8 @@ kern_open(struct thread *td, char *path, enum uio_seg pathseg, int flags,
 	if (fp->f_count == 1) {
 		KASSERT(fdp->fd_ofiles[indx] != fp,
 		    ("Open file descriptor lost all refs"));
-		FILEDESC_UNLOCK(fdp);
 		FILE_UNLOCK(fp);
+		FILEDESC_UNLOCK(fdp);
 		VOP_UNLOCK(vp, 0, td);
 		vn_close(vp, flags & FMASK, fp->f_cred, td);
 		mtx_unlock(&Giant);
@@ -1040,8 +1032,8 @@ kern_open(struct thread *td, char *path, enum uio_seg pathseg, int flags,
 		fp->f_ops = &vnops;
 	fp->f_seqcount = 1;
 	fp->f_type = (vp->v_type == VFIFO ? DTYPE_FIFO : DTYPE_VNODE);
-	FILEDESC_UNLOCK(fdp);
 	FILE_UNLOCK(fp);
+	FILEDESC_UNLOCK(fdp);
 
 	/* assert that vn_open created a backing object if one is needed */
 	KASSERT(!vn_canvmio(vp) || VOP_GETVOBJECT(vp, NULL) == 0,
@@ -1091,15 +1083,7 @@ kern_open(struct thread *td, char *path, enum uio_seg pathseg, int flags,
 	return (0);
 bad:
 	mtx_unlock(&Giant);
-	FILEDESC_LOCK(fdp);
-	if (fdp->fd_ofiles[indx] == fp) {
-		fdp->fd_ofiles[indx] = NULL;
-		fdunused(fdp, indx);
-		FILEDESC_UNLOCK(fdp);
-		fdrop(fp, td);
-	} else {
-		FILEDESC_UNLOCK(fdp);
-	}
+	fdclose(fdp, fp, indx, td);
 	fdrop(fp, td);
 	return (error);
 }
@@ -1191,10 +1175,10 @@ restart:
 		return (EEXIST);
 	} else {
 		VATTR_NULL(&vattr);
-		FILEDESC_LOCK(td->td_proc->p_fd);
+		FILEDESC_LOCK_FAST(td->td_proc->p_fd);
 		vattr.va_mode = (mode & ALLPERMS) &
 		    ~td->td_proc->p_fd->fd_cmask;
-		FILEDESC_UNLOCK(td->td_proc->p_fd);
+		FILEDESC_UNLOCK_FAST(td->td_proc->p_fd);
 		vattr.va_rdev = dev;
 		whiteout = 0;
 
@@ -1299,9 +1283,9 @@ restart:
 	}
 	VATTR_NULL(&vattr);
 	vattr.va_type = VFIFO;
-	FILEDESC_LOCK(td->td_proc->p_fd);
+	FILEDESC_LOCK_FAST(td->td_proc->p_fd);
 	vattr.va_mode = (mode & ALLPERMS) & ~td->td_proc->p_fd->fd_cmask;
-	FILEDESC_UNLOCK(td->td_proc->p_fd);
+	FILEDESC_UNLOCK_FAST(td->td_proc->p_fd);
 #ifdef MAC
 	error = mac_check_vnode_create(td->td_ucred, nd.ni_dvp, &nd.ni_cnd,
 	    &vattr);
@@ -1503,9 +1487,9 @@ restart:
 		goto restart;
 	}
 	VATTR_NULL(&vattr);
-	FILEDESC_LOCK(td->td_proc->p_fd);
+	FILEDESC_LOCK_FAST(td->td_proc->p_fd);
 	vattr.va_mode = ACCESSPERMS &~ td->td_proc->p_fd->fd_cmask;
-	FILEDESC_UNLOCK(td->td_proc->p_fd);
+	FILEDESC_UNLOCK_FAST(td->td_proc->p_fd);
 #ifdef MAC
 	vattr.va_type = VLNK;
 	error = mac_check_vnode_create(td->td_ucred, nd.ni_dvp, &nd.ni_cnd,
@@ -3270,9 +3254,9 @@ restart:
 	}
 	VATTR_NULL(&vattr);
 	vattr.va_type = VDIR;
-	FILEDESC_LOCK(td->td_proc->p_fd);
+	FILEDESC_LOCK_FAST(td->td_proc->p_fd);
 	vattr.va_mode = (mode & ACCESSPERMS) &~ td->td_proc->p_fd->fd_cmask;
-	FILEDESC_UNLOCK(td->td_proc->p_fd);
+	FILEDESC_UNLOCK_FAST(td->td_proc->p_fd);
 #ifdef MAC
 	error = mac_check_vnode_create(td->td_ucred, nd.ni_dvp, &nd.ni_cnd,
 	    &vattr);
@@ -3674,11 +3658,11 @@ umask(td, uap)
 {
 	register struct filedesc *fdp;
 
-	FILEDESC_LOCK(td->td_proc->p_fd);
+	FILEDESC_LOCK_FAST(td->td_proc->p_fd);
 	fdp = td->td_proc->p_fd;
 	td->td_retval[0] = fdp->fd_cmask;
 	fdp->fd_cmask = uap->newmask & ALLPERMS;
-	FILEDESC_UNLOCK(td->td_proc->p_fd);
+	FILEDESC_UNLOCK_FAST(td->td_proc->p_fd);
 	return (0);
 }
 
@@ -4018,15 +4002,8 @@ fhopen(td, uap)
 			 * descriptor but handle the case where someone might
 			 * have dup()d or close()d it when we weren't looking.
 			 */
-			FILEDESC_LOCK(fdp);
-			if (fdp->fd_ofiles[indx] == fp) {
-				fdp->fd_ofiles[indx] = NULL;
-				fdunused(fdp, indx);
-				FILEDESC_UNLOCK(fdp);
-				fdrop(fp, td);
-			} else {
-				FILEDESC_UNLOCK(fdp);
-			}
+			fdclose(fdp, fp, indx, td);
+
 			/*
 			 * release our private reference
 			 */
