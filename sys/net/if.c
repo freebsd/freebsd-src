@@ -51,6 +51,7 @@
 #include <sys/syslog.h>
 #include <sys/sysctl.h>
 
+#include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_arp.h>
 #include <net/if_dl.h>
@@ -241,7 +242,8 @@ if_detach(ifp)
 	 */
 	switch (ifp->if_type) {
 	case IFT_ETHER:
-		ether_ifdetach(ifp);
+		if (ng_ether_detach_p != NULL)
+			(*ng_ether_detach_p)(ifp);
 		break;
 	default:
 		break;
