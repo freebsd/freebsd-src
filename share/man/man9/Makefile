@@ -312,6 +312,7 @@ MAN=	accept_filter.9 \
 	vref.9 \
 	vrele.9 \
 	vslock.9 \
+	watchdog.9 \
 	zero_copy.9 \
 	zone.9
 
