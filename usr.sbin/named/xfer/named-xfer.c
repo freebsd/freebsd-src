@@ -80,6 +80,7 @@ static char rcsid[] = "$Id: named-xfer.c,v 4.9.1.23 1994/07/22 08:42:39 vixie Ex
 #include <sys/time.h>
 
 #include <netinet/in.h>
+#include <netiso/iso.h>
 #include <net/if.h>
 #include <netdb.h>
 #include <arpa/inet.h>
@@ -1035,6 +1036,7 @@ print_output(msg, msglen, rrp)
 	register HEADER *hp = (HEADER *) msg;
 	u_int32_t addr, ttl;
 	int i, j, tab, result, class, type, dlen, n1, n;
+	struct iso_addr isoa;
 	char data[BUFSIZ];
 	u_char *cp1, *cp2, *temp_ptr;
 	char *cdata, *origin, *proto, dname[MAXDNAME];
@@ -1391,7 +1393,11 @@ print_output(msg, msglen, rrp)
 		break;
 
 	case T_NSAP:
-		fprintf(dbfp, "%s\n", inet_nsap_ntoa(n, cp, NULL));
+		isoa.isoa_len = n;
+		if (isoa.isoa_len > sizeof(isoa.isoa_genaddr))
+			isoa.isoa_len = sizeof(isoa.isoa_genaddr);
+		bcopy(cp, isoa.isoa_genaddr, isoa.isoa_len);
+		fprintf(dbfp, "%s\n", iso_ntoa(&isoa));
 		break;
 
 	case T_UINFO:
