@@ -73,6 +73,9 @@ struct ctlname {
 #define	CTLTYPE_QUAD	4	/* name describes a 64-bit number */
 #define	CTLTYPE_OPAQUE	5	/* name describes a structure */
 #define	CTLTYPE_STRUCT	CTLTYPE_OPAQUE	/* name describes a structure */
+#define	CTLTYPE_UINT	6	/* name describes an unsigned integer */
+#define	CTLTYPE_LONG	7	/* name describes a long */
+#define	CTLTYPE_ULONG	8	/* name describes an unsigned long */
 
 #define CTLFLAG_RD	0x80000000	/* Allow reads of variable */
 #define CTLFLAG_WR	0x40000000	/* Allow writes to the variable */
@@ -208,29 +211,29 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 
 /* Oid for an unsigned int.  If ptr is NULL, val is returned. */
 #define SYSCTL_UINT(parent, nbr, name, access, ptr, val, descr) \
-	SYSCTL_OID(parent, nbr, name, CTLTYPE_INT|access, \
+	SYSCTL_OID(parent, nbr, name, CTLTYPE_UINT|access, \
 		ptr, val, sysctl_handle_int, "IU", descr)
 
 #define SYSCTL_ADD_UINT(ctx, parent, nbr, name, access, ptr, val, descr)    \
-	sysctl_add_oid(ctx, parent, nbr, name, CTLTYPE_INT|access,	    \
+	sysctl_add_oid(ctx, parent, nbr, name, CTLTYPE_UINT|access,	    \
 	ptr, val, sysctl_handle_int, "IU", descr);
 
 /* Oid for a long.  The pointer must be non NULL. */
 #define SYSCTL_LONG(parent, nbr, name, access, ptr, val, descr) \
-	SYSCTL_OID(parent, nbr, name, CTLTYPE_INT|access, \
+	SYSCTL_OID(parent, nbr, name, CTLTYPE_LONG|access, \
 		ptr, val, sysctl_handle_long, "L", descr)
 
 #define SYSCTL_ADD_LONG(ctx, parent, nbr, name, access, ptr, descr)	    \
-	sysctl_add_oid(ctx, parent, nbr, name, CTLTYPE_INT|access,	    \
+	sysctl_add_oid(ctx, parent, nbr, name, CTLTYPE_LONG|access,	    \
 	ptr, 0, sysctl_handle_long, "L", descr);
 
 /* Oid for a long.  The pointer must be non NULL. */
 #define SYSCTL_ULONG(parent, nbr, name, access, ptr, val, descr) \
-	SYSCTL_OID(parent, nbr, name, CTLTYPE_INT|access, \
+	SYSCTL_OID(parent, nbr, name, CTLTYPE_ULONG|access, \
 		ptr, val, sysctl_handle_long, "LU", descr)
 
 #define SYSCTL_ADD_ULONG(ctx, parent, nbr, name, access, ptr, descr)	    \
-	sysctl_add_oid(ctx, parent, nbr, name, CTLTYPE_INT|access,	    \
+	sysctl_add_oid(ctx, parent, nbr, name, CTLTYPE_ULONG|access,	    \
 	ptr, 0, sysctl_handle_long, "LU", descr);
 
 /* Oid for an opaque object.  Specified by a pointer and a length. */
@@ -343,7 +346,7 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 	{ "argmax", CTLTYPE_INT }, \
 	{ "securelevel", CTLTYPE_INT }, \
 	{ "hostname", CTLTYPE_STRING }, \
-	{ "hostid", CTLTYPE_INT }, \
+	{ "hostid", CTLTYPE_UINT }, \
 	{ "clockrate", CTLTYPE_STRUCT }, \
 	{ "vnode", CTLTYPE_STRUCT }, \
 	{ "proc", CTLTYPE_STRUCT }, \
@@ -424,8 +427,8 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 	{ "model", CTLTYPE_STRING }, \
 	{ "ncpu", CTLTYPE_INT }, \
 	{ "byteorder", CTLTYPE_INT }, \
-	{ "physmem", CTLTYPE_INT }, \
-	{ "usermem", CTLTYPE_INT }, \
+	{ "physmem", CTLTYPE_ULONG }, \
+	{ "usermem", CTLTYPE_ULONG }, \
 	{ "pagesize", CTLTYPE_INT }, \
 	{ "disknames", CTLTYPE_STRUCT }, \
 	{ "diskstats", CTLTYPE_STRUCT }, \
