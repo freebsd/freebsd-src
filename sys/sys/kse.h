@@ -38,6 +38,8 @@
  * the userland and the kernel when running a KSE-based threading system.
  * The only programs that should see this file are the UTS and the kernel.
  */
+struct kse_mailbox;
+typedef void kse_fn_t(struct kse_mailbox *mbx);
 
 /* 
  * Each userland thread has one of these buried in it's 
@@ -51,17 +53,19 @@ struct thread_mailbox
 	union kse_td_ctx ctx;		/* thread's saved context goes here. */
 };
 
-
 /* 
  * You need to supply one of these as the argument to the 
  * kse_new() system call.
  */
 struct kse_mailbox 
 {
-	struct thread_mailbox *current_thread;
-	struct thread_mailbox *completed_threads;
-	unsigned int	flags;
-	void		*UTS_handle;	/* The UTS can use this for anything */
+	kse_fn_t	*kmbx_upcall;
+	char *kmbx_stackbase;
+	unsigned long int kmbx_stacksize;
+	struct thread_mailbox *kmbx_current_thread;
+	struct thread_mailbox *kmbx_completed_threads;
+	unsigned int	kmbx_flags;
+	void		*kmbx_UTS_handle; /* UTS can use this for anything */
 };
 #define KEMBXF_CRITICAL 0x00000001
 
@@ -73,4 +77,10 @@ struct kse_global_mailbox
 
 /* some provisional sycalls: */
 
+#ifndef _KERNEL
+int	kse_new(struct kse_mailbox *mbx, int new_grp_flag);
+int	kse_exit(void);
+int	thread_wakeup(struct thread_mailbox *tmbx);
+int	kse_wakeup(void);
+#endif
 #endif
