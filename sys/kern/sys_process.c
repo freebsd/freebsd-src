@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sys_process.c,v 1.28 1997/04/27 19:02:34 alex Exp $
+ *	$Id: sys_process.c,v 1.29 1997/04/27 21:26:29 alex Exp $
  */
 
 #include <sys/param.h>
@@ -37,20 +37,14 @@
 #include <sys/proc.h>
 #include <sys/vnode.h>
 #include <sys/ptrace.h>
-#include <sys/errno.h>
-#include <sys/queue.h>
 
 #include <machine/reg.h>
-#include <machine/psl.h>
 #include <vm/vm.h>
-#include <vm/vm_param.h>
 #include <vm/vm_prot.h>
 #include <sys/lock.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
-#include <vm/vm_object.h>
 #include <vm/vm_page.h>
-#include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
 
 #include <sys/user.h>

@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: imgact_gzip.c,v 1.29 1997/04/13 01:48:22 dyson Exp $
+ * $Id: imgact_gzip.c,v 1.30 1997/08/26 00:02:24 bde Exp $
  *
  * This module handles execution of a.out files which have been run through
  * "gzip".  This saves diskspace, but wastes cpu-cycles and VM.
@@ -20,8 +20,6 @@
  *	so is the rest...
  *	tidy up unnecesary includes
  */
-
-#include "opt_rlimit.h"
 
 #include <sys/param.h>
 #include <sys/exec.h>

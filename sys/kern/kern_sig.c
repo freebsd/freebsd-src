@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sig.c	8.7 (Berkeley) 4/18/94
- * $Id: kern_sig.c,v 1.31 1997/03/23 03:36:21 bde Exp $
+ * $Id: kern_sig.c,v 1.32 1997/08/26 00:31:04 bde Exp $
  */
 
 #include "opt_ktrace.h"
@@ -50,12 +50,8 @@
 #include <sys/vnode.h>
 #include <sys/proc.h>
 #include <sys/systm.h>
-#include <sys/timeb.h>
-#include <sys/times.h>
-#include <sys/buf.h>
 #include <sys/acct.h>
 #include <sys/fcntl.h>
-#include <sys/kernel.h>
 #include <sys/wait.h>
 #include <sys/ktrace.h>
 #include <sys/syslog.h>
@@ -67,7 +63,6 @@
 /* All these for coredump() only. */
 #include <vm/vm.h>
 #include <vm/vm_param.h>
-#include <vm/vm_prot.h>
 #include <sys/lock.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>

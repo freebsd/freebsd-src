@@ -36,22 +36,17 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_inode.c	8.9 (Berkeley) 5/14/95
- * $Id: ufs_inode.c,v 1.13 1997/08/22 03:56:35 dyson Exp $
+ * $Id: ufs_inode.c,v 1.14 1997/08/26 04:36:26 dyson Exp $
  */
 
 #include "opt_quota.h"
 
 #include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/proc.h>
 #include <sys/vnode.h>
 #include <sys/mount.h>
-#include <sys/kernel.h>
-#include <sys/malloc.h>
 
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
-#include <ufs/ufs/ufsmount.h>
 #include <ufs/ufs/ufs_extern.h>
 
 u_long	nextgennumber;		/* Next generation number to assign. */

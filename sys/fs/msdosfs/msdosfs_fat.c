@@ -1,4 +1,4 @@
-/*	$Id$ */
+/*	$Id: msdosfs_fat.c,v 1.12 1997/02/22 09:40:47 peter Exp $ */
 /*	$NetBSD: msdosfs_fat.c,v 1.12 1994/08/21 18:44:04 ws Exp $	*/
 
 /*-
@@ -54,11 +54,8 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/buf.h>
-#include <sys/file.h>
-#include <sys/namei.h>
 #include <sys/mount.h>		/* to define statfs structure */
 #include <sys/vnode.h>		/* to define vattr structure */
-#include <sys/errno.h>
 
 /*
  * msdosfs include files.

@@ -43,7 +43,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: worm.c,v 1.43 1997/07/26 15:07:42 jmz Exp $
+ *      $Id: worm.c,v 1.44 1997/08/01 12:48:35 jmz Exp $
  */
 
 #include "opt_bounce.h"
@@ -52,7 +52,6 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/buf.h>
-#include <sys/proc.h>
 #include <sys/cdio.h>
 #include <sys/wormio.h>
 #include <sys/fcntl.h>
@@ -61,7 +60,6 @@
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
-#include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>
 #include <scsi/scsi_debug.h>
 #include <scsi/scsi_disk.h>

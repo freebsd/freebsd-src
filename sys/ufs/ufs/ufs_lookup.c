@@ -36,14 +36,13 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_lookup.c	8.15 (Berkeley) 6/16/95
- * $Id: ufs_lookup.c,v 1.14 1997/03/31 12:02:49 peter Exp $
+ * $Id: ufs_lookup.c,v 1.15 1997/08/26 07:32:51 phk Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/namei.h>
 #include <sys/buf.h>
-#include <sys/file.h>
 #include <sys/mount.h>
 #include <sys/vnode.h>
 

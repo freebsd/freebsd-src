@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *End copyright
  *
- * $Id: scsi_ioctl.c,v 1.24 1997/02/22 09:44:33 peter Exp $
+ * $Id: scsi_ioctl.c,v 1.25 1997/03/23 06:33:48 bde Exp $
  *
  *
  */
@@ -46,7 +46,6 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/errno.h>
 #include <sys/malloc.h>
 #include <sys/buf.h>
 
@@ -55,10 +54,7 @@
 
 #include <sys/fcntl.h>
 #include <sys/proc.h>
-#include <vm/vm.h>
 
-#include "scbus.h"
-#include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>
 #include <scsi/scsi_debug.h>
 #include <sys/scsiio.h>

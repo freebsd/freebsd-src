@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.93 1997/03/23 03:36:26 bde Exp $
+ * $Id: tty.c,v 1.94 1997/03/24 12:02:59 bde Exp $
  */
 
 /*-
@@ -83,10 +83,8 @@
 #include <sys/fcntl.h>
 #include <sys/conf.h>
 #include <sys/dkstat.h>
-#include <sys/uio.h>
 #include <sys/kernel.h>
 #include <sys/vnode.h>
-#include <sys/syslog.h>
 #include <sys/signalvar.h>
 #include <sys/resourcevar.h>
 #include <sys/malloc.h>
@@ -95,8 +93,6 @@
 #endif
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <vm/vm_prot.h>
 #include <sys/lock.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>

@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: sys_pipe.c,v 1.30 1997/08/05 00:05:00 dyson Exp $
+ * $Id: sys_pipe.c,v 1.31 1997/08/05 22:24:17 dyson Exp $
  */
 
 /*
@@ -54,19 +54,11 @@
 #include <sys/proc.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
-#include <sys/protosw.h>
-#include <sys/stat.h>
 #include <sys/filedesc.h>
-#include <sys/malloc.h>
 #include <sys/filio.h>
 #include <sys/ttycom.h>
 #include <sys/stat.h>
-#include <sys/select.h>
 #include <sys/signalvar.h>
-#include <sys/errno.h>
-#include <sys/queue.h>
-#include <sys/vmmeter.h>
-#include <sys/kernel.h>
 #include <sys/sysproto.h>
 #include <sys/pipe.h>
 

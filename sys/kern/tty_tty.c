@@ -31,14 +31,13 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_tty.c	8.2 (Berkeley) 9/23/93
- * $Id: tty_tty.c,v 1.15 1997/03/23 03:36:30 bde Exp $
+ * $Id: tty_tty.c,v 1.16 1997/03/24 11:24:38 bde Exp $
  */
 
 /*
  * Indirect driver for controlling tty.
  */
 #include <sys/param.h>
-#include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/proc.h>
 #include <sys/tty.h>

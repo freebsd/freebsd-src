@@ -36,24 +36,20 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_synch.c	8.9 (Berkeley) 5/19/95
- * $Id: kern_synch.c,v 1.36 1997/08/18 01:34:38 julian Exp $
+ * $Id: kern_synch.c,v 1.37 1997/08/21 20:33:39 bde Exp $
  */
 
 #include "opt_ktrace.h"
-#include "opt_smp.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
 #include <sys/kernel.h>
-#include <sys/buf.h>
 #include <sys/signalvar.h>
 #include <sys/resourcevar.h>
-#include <sys/signalvar.h>
 #include <sys/vmmeter.h>
 #include <sys/sysctl.h>
 #include <vm/vm.h>
-#include <vm/vm_param.h>
 #include <vm/vm_extern.h>
 #ifdef KTRACE
 #include <sys/ktrace.h>

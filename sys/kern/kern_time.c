@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_time.c	8.1 (Berkeley) 6/10/93
- * $Id: kern_time.c,v 1.32 1997/08/14 08:15:12 ache Exp $
+ * $Id: kern_time.c,v 1.33 1997/08/26 00:40:04 bde Exp $
  */
 
 #include <sys/param.h>
@@ -42,11 +42,9 @@
 #include <sys/systm.h>
 #include <sys/sysent.h>
 #include <sys/proc.h>
-#include <sys/signal.h>
 #include <sys/time.h>
 #include <sys/vnode.h>
 #include <vm/vm.h>
-#include <vm/vm_param.h>
 #include <vm/vm_extern.h>
 
 struct timezone tz;

@@ -15,7 +15,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.106 1997/06/25 19:07:43 tegge Exp $
+ *      $Id: sd.c,v 1.107 1997/08/09 01:44:22 julian Exp $
  */
 
 #include "opt_bounce.h"
@@ -30,21 +30,17 @@
 #include <sys/disklabel.h>
 #include <sys/diskslice.h>
 #include <sys/dkstat.h>
-#include <sys/errno.h>
-#include <sys/malloc.h>
 #include <sys/conf.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
 
-#include <scsi/scsi_all.h>
 #include <scsi/scsi_disk.h>
 #include <scsi/scsiconf.h>
 #include <scsi/scsi_debug.h>
 #include <scsi/scsi_driver.h>
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
 #include <vm/vm_prot.h>
 #include <vm/pmap.h>
 #include <machine/md_var.h>

@@ -34,18 +34,16 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cache.c	8.5 (Berkeley) 3/22/95
- * $Id: vfs_cache.c,v 1.27 1997/08/26 07:32:34 phk Exp $
+ * $Id: vfs_cache.c,v 1.28 1997/08/31 07:32:13 phk Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
-#include <sys/time.h>
 #include <sys/mount.h>
 #include <sys/vnode.h>
 #include <sys/namei.h>
-#include <sys/errno.h>
 #include <sys/malloc.h>
 
 
