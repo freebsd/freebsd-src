@@ -59,7 +59,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_glue.c,v 1.36 1996/01/19 03:59:46 dyson Exp $
+ * $Id: vm_glue.c,v 1.37 1996/01/25 07:15:40 phk Exp $
  */
 
 #include "opt_sysvipc.h"
@@ -217,7 +217,7 @@ vm_fork(p1, p2, isvfork)
 	register struct user *up;
 	vm_offset_t addr, ptaddr, ptpa;
 	int error, i;
-	vm_map_t vp;
+	vm_map_t map;
 	pmap_t pvp;
 	vm_page_t stkm;
 
@@ -246,12 +246,14 @@ vm_fork(p1, p2, isvfork)
 
 	addr = (vm_offset_t) kstack;
 
-	vp = &p2->p_vmspace->vm_map;
+	map = &p2->p_vmspace->vm_map;
 	pvp = &p2->p_vmspace->vm_pmap;
 
 	/* get new pagetables and kernel stack */
-	(void) vm_map_find(vp, NULL, 0, &addr, UPT_MAX_ADDRESS - addr, FALSE,
+	error = vm_map_find(map, NULL, 0, &addr, UPT_MAX_ADDRESS - addr, FALSE,
 		VM_PROT_ALL, VM_PROT_ALL, 0);
+	if (error != KERN_SUCCESS)
+		panic("vm_fork: vm_map_find failed, addr=0x%x, error=%d", addr, error);
 
 	/* get a kernel virtual address for the UPAGES for this proc */
 	up = (struct user *) kmem_alloc_pageable(u_map, UPAGES * PAGE_SIZE);
@@ -262,7 +264,7 @@ vm_fork(p1, p2, isvfork)
 		UPAGES);
 
 	ptaddr = trunc_page((u_int) vtopte(kstack));
-	(void) vm_fault(vp, ptaddr, VM_PROT_READ|VM_PROT_WRITE, FALSE);
+	(void) vm_fault(map, ptaddr, VM_PROT_READ|VM_PROT_WRITE, FALSE);
 	ptpa = pmap_extract(pvp, ptaddr);
 	if (ptpa == 0) {
 		panic("vm_fork: no pte for UPAGES");
