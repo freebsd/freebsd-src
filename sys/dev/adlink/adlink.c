@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003 Poul-Henning Kamp
+ * Copyright (c) 2003-2004 Poul-Henning Kamp
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,12 +25,26 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * This is a device driver or the Adlink 9812 and 9810 ADC cards, mainly
+ * intended to support Software Defined Radio reception of timesignals
+ * in the VLF band.  See http://phk.freebsd.dk/loran-c
+ *
+ * The driver is configured with ioctls which define a ringbuffer with
+ * a given number of chunks in it.  The a control structure and the
+ * ringbuffer can then be mmap(2)'ed into userland and the application
+ * can operate on the data directly.
+ *
+ * Tested with 10MHz external clock, divisor of 2 (ie: 5MHz sampling),
+ * One channel active (ie: 2 bytes per sample = 10MB/sec) on a 660MHz
+ * Celeron PC.
+ *
  */
 
+#ifdef _KERNEL
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#ifdef _KERNEL
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
@@ -52,50 +66,38 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/ioccom.h>
 
-struct wave {
-	int			index;
-	int			period;
-	int			offset;
-	int			length;
-	int			avg;
-	off_t			mapvir;
-	int			flags;
+#define ADLINK_SETDIVISOR	_IOWR('A', 255, u_int)	/* divisor */
+#define ADLINK_SETCHUNKSIZE	_IOWR('A', 254, u_int)	/* bytes */
+#define ADLINK_SETRINGSIZE	_IOWR('A', 253, u_int)	/* bytes */
+#define ADLINK_START		_IOWR('A', 252, u_int)	/* dummy */
+#define ADLINK_STOP		_IOWR('A', 251, u_int)	/* dummy */
+#define ADLINK_RESET		_IOWR('A', 250, u_int)	/* dummy */
 
-	int			npages;
-	void			**virtual;
+struct page0 {
+	u_int			version;
+	int			state;
+#	  define STATE_RESET	-1
+#	  define STATE_RUN	0
+	u_int			divisor;	/* int */
+	u_int			chunksize;	/* bytes */
+	u_int			ringsize;	/* chunks */
+	u_int			o_ringgen;	/*
+						 * offset of ring generation
+						 * array
+						 */
+	u_int			o_ring;		/* offset of ring */
 };
 
-#define ADLINK_SETWAVE		_IOWR('A', 232, struct wave)
-#define ADLINK_GETWAVE		_IOWR('A', 233, struct wave)
+#define PAGE0VERSION	20031021
 
 #ifdef _KERNEL
 
-#define INTPERPAGE (PAGE_SIZE / sizeof(int))
-#define I16PERPAGE (PAGE_SIZE / sizeof(int16_t))
-
-/*
- * Sample rate
- */
-#define SPS	1250000
-
-/*
- * We sample one channel (= 16 bits) at 1.25 msps giving 2.5Mbyte/sec,
- * 100 pages will give us about 1/6 second buffering.
- */
-#define NRING	100
-
-/*
- * How many waves are we willing to entertain
- */
-#define NWAVE	25
-
-struct info {
-	int			nring;
-	off_t			o_ring;
-	
-	int			ngri;
-	int			ppgri;
-	off_t			o_gri;
+struct pgstat {
+	u_int			*genp;
+	u_int			gen;
+	vm_paddr_t		phys;
+	void			*virt;
+	struct pgstat		*next;
 };
 
 struct softc {
@@ -104,273 +106,32 @@ struct softc {
 	struct resource		*r0, *r1, *ri;
 	bus_space_tag_t		t0, t1;
 	bus_space_handle_t	h0, h1;
-	struct cdev *dev;
+	struct cdev		*dev;
 	off_t			mapvir;
-
-	struct proc		*procp;
-
-	struct info		*info;
-
-	struct wave		*wave[NWAVE];
-
-	int			idx;
-	void			*ring[NRING];
-	vm_paddr_t		pring[NRING];
-	int			stat[NRING];
-
-	uint64_t		cnt;
-
-	u_char			flags[I16PERPAGE];
+	int			error;
+	struct page0		*p0;
+	u_int			nchunks;
+	struct pgstat		*chunks;
+	struct pgstat		*next;
 };
 
-static void
-adlink_wave(struct softc *sc, struct wave *wp, int16_t *sp)
-{
-	int f, i, k, m, *ip;
+static d_ioctl_t adlink_ioctl;
+static d_mmap_t	adlink_mmap;
+static void adlink_intr(void *arg);
 
-	f = 0;
-	for (i = 0; i < I16PERPAGE; ) {
-		k = (sc->cnt - wp->offset + i) % wp->period;
-		if (k >= wp->length) {
-			i += wp->period - k;
-			sp += wp->period - k;
-			continue;
-		}
-		m = k % INTPERPAGE;
-		ip = (int *)(wp->virtual[k / INTPERPAGE]) + m;
-		while (m < INTPERPAGE && i < I16PERPAGE && k < wp->length) {
-			if (sc->flags[i] >= wp->index)
-				*ip += (*sp * 8 - *ip) >> wp->avg;
-			if (wp->flags & 1)
-				sc->flags[i] = wp->index;
-			sp++;
-			ip++;
-			m++;
-			i++;
-			k++;
-		}
-	}
-}
-
-static void
-adlink_tickle(struct softc *sc)
-{
-
-	wakeup(sc);
-	tsleep(&sc->ring, PUSER | PCATCH, "tickle", 1);
-}
-
-static int
-adlink_new_wave(struct softc *sc, int index, int period, int offset, int length, int avg, int flags)
-{
-	struct wave *wp;
-	int l, i;
-	void **oldvir, **newvir;
-
-	if (index < 0 || index >= NWAVE)
-		return (EINVAL);
-	wp = sc->wave[index];
-	if (wp == NULL) {
-		adlink_tickle(sc);
-		wp = malloc(sizeof *wp, M_DEVBUF, M_WAITOK | M_ZERO);
-	}
-	l = howmany(length, INTPERPAGE);
-	/* Setting a high average here to neuter the realtime bits */
-	wp->avg = 31;
-	if (wp->npages < l) {
-		oldvir = wp->virtual;
-		adlink_tickle(sc);
-		newvir = malloc(sizeof(void *) * l, M_DEVBUF, M_WAITOK | M_ZERO);
-		if (wp->npages > 0) {
-			adlink_tickle(sc);
-			bcopy(oldvir, newvir, wp->npages * sizeof(void *));
-		}
-		for (i = wp->npages; i < l; i++) {
-			adlink_tickle(sc);
-			newvir[i] = malloc(PAGE_SIZE, M_DEVBUF, M_WAITOK);
-		}
-		wp->virtual = newvir;
-		wp->npages = l;
-		wp->mapvir = sc->mapvir;
-		sc->mapvir += l * PAGE_SIZE;
-	} else {
-		oldvir = NULL;
-	}
-	wp->index = index;
-	wp->period = period;
-	wp->offset = offset;
-	wp->length = length;
-	wp->flags = flags;
-	
-	for (i = 0; i < l; i++) {
-		adlink_tickle(sc);
-		bzero(wp->virtual[i], PAGE_SIZE);
-	}
-	wp->avg = avg;
-	sc->wave[index] = wp;
-	printf("Wave[%d] {period %d, offset %d, length %d, avg %d, flags %x}\n",
-	    wp->index, wp->period, wp->offset, wp->length, wp->avg, wp->flags);
-	free(oldvir, M_DEVBUF);
-	return (0);
-}
-
-static void
-adlink_loran(void *arg)
-{
-	struct softc *sc;
-	int idx, i;
-
-	sc = arg;
-	idx = 0;
-	mtx_lock(&Giant);
-	for (;;) {
-		while (sc->stat[idx] == 0)
-			msleep(sc, NULL, PRIBIO, "loran", 1);
-		memset(sc->flags, NWAVE, sizeof sc->flags);
-		for (i = 0; i < NWAVE; i++) {
-			if (sc->wave[i] != NULL)
-				adlink_wave(sc, sc->wave[i], sc->ring[idx]);
-		}
-		sc->cnt += I16PERPAGE;
-		sc->stat[idx] = 0;
-		idx++;
-		idx %= NRING;
-	}
-	mtx_unlock(&Giant);
-	kthread_exit(0);
-}
-
-static int
-adlink_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
-{
-	static int once;
-	struct softc *sc;
-	int i, error;
-	uint32_t u;
-
-	if (once)
-		return (0);
-	once = 1;
-
-	sc = dev->si_drv1;
-	sc->info = malloc(PAGE_SIZE, M_DEVBUF, M_ZERO | M_WAITOK);
-	sc->info->nring = NRING;
-
-	sc->info->o_ring = PAGE_SIZE;
-	for (i = 0; i < NRING; i++) {
-		sc->ring[i] = malloc(PAGE_SIZE, M_DEVBUF, M_ZERO | M_WAITOK);
-		sc->pring[i] = vtophys(sc->ring[i]);
-	}
-
-	error = adlink_new_wave(sc, NWAVE - 1, SPS, 0, SPS, 7, 0);
-	if (error)
-		return (error);
-
-	error = kthread_create(adlink_loran, sc, &sc->procp,
-	    0, 0, "adlink%d", device_get_unit(sc->device));
-	if (error)
-		return (error);
-
-	/* Enable interrupts on write complete */
-	bus_space_write_4(sc->t0, sc->h0, 0x38, 0x00004000);
-
-	/* Sample CH0 only */
-	bus_space_write_4(sc->t1, sc->h1, 0x00, 1);
-
-	/* Divide clock by four */
-	bus_space_write_4(sc->t1, sc->h1, 0x04, 4);
-
-	/* Software trigger mode: software */
-	bus_space_write_4(sc->t1, sc->h1, 0x08, 0);
-
-	/* Trigger level zero */
-	bus_space_write_4(sc->t1, sc->h1, 0x0c, 0);
-
-	/* Trigger source CH0 (not used) */
-	bus_space_write_4(sc->t1, sc->h1, 0x10, 0);
-
-	/* Fifo control/status: flush */
-	bus_space_write_4(sc->t1, sc->h1, 0x18, 3);
-
-	/* Clock source: external sine */
-	bus_space_write_4(sc->t1, sc->h1, 0x20, 2);
-
-	/* Set up Write DMA */
-	bus_space_write_4(sc->t0, sc->h0, 0x24, sc->pring[i]);
-	bus_space_write_4(sc->t0, sc->h0, 0x28, PAGE_SIZE);
-	u = bus_space_read_4(sc->t0, sc->h0, 0x3c);
-	bus_space_write_4(sc->t0, sc->h0, 0x3c, u | 0x00000600);
-
-	/* Acquisition Enable Register: go! */
-	bus_space_write_4(sc->t1, sc->h1, 0x1c, 1);
-	return (0);
-}
-
-static int
-adlink_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
-{
-	struct softc *sc;
-	struct wave *wp;
-	int i, error;
-	
-	sc = dev->si_drv1;
-	wp = (struct wave *)data;
-	i = wp->index;
-	if (i < 0 || i >= NWAVE)
-		return (EINVAL);
-	if (cmd == ADLINK_GETWAVE) {
-		if (sc->wave[i] == NULL)
-			return (ENOENT);
-		bcopy(sc->wave[i], wp, sizeof(*wp));
-		return (0);
-	}
-	if (cmd == ADLINK_SETWAVE) {
-		error = adlink_new_wave(sc,
-			i,
-			wp->period,
-			wp->offset,
-			wp->length,
-			wp->avg,
-			wp->flags);
-		if (error)
-			return (error);
-		bcopy(sc->wave[i], wp, sizeof(*wp));
-		return (0);
-	}
-	return (ENOIOCTL);
-}
-
-static int
-adlink_mmap(struct cdev *dev, vm_offset_t offset, vm_paddr_t *paddr, int nprot)
-{
-	struct softc *sc;
-	struct wave *wp;
-	int i, j;
-
-	sc = dev->si_drv1;
-	if (nprot != VM_PROT_READ)
-		return (-1);
-	for (i = 0; i < NWAVE; i++) {
-		if (sc->wave[i] == NULL)
-			continue;
-		wp = sc->wave[i];
-		if (offset < wp->mapvir)
-			continue;
-		j = (offset - wp->mapvir) / PAGE_SIZE;
-		if (j >= wp->npages)
-			continue;
-		*paddr = vtophys(wp->virtual[j]);
-		return (0);
-	}
-	return (-1);
-}
+static struct cdevsw adlink_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_ioctl =	adlink_ioctl,
+	.d_mmap =	adlink_mmap,
+	.d_name =	"adlink",
+};
 
 static void
 adlink_intr(void *arg)
 {
 	struct softc *sc;
+	struct pgstat *pg;
 	uint32_t u;
-	int i, j;
 
 	sc = arg;
 	u = bus_space_read_4(sc->t0, sc->h0, 0x38);
@@ -378,31 +139,206 @@ adlink_intr(void *arg)
 		return;
 	bus_space_write_4(sc->t0, sc->h0, 0x38, u | 0x003f4000);
 
-	j = sc->idx;
-	sc->stat[j] = 1;
-	i = (j + 1) % NRING;
-	sc->idx = i;
+	pg = sc->next;
+	*(pg->genp) = ++pg->gen;
+
 	u = bus_space_read_4(sc->t1, sc->h1, 0x18);
-	if (u & 1) {
-		printf("adlink FIFO overrun\n");
+	if (u & 1)
+		sc->p0->state = EIO;
+
+	if (sc->p0->state != STATE_RUN) {
+		printf("adlink: stopping %d\n", sc->p0->state);
 		return;
 	}
-	bus_space_write_4(sc->t0, sc->h0, 0x24, sc->pring[i]);
-	bus_space_write_4(sc->t0, sc->h0, 0x28, PAGE_SIZE);
+
+	pg = pg->next;
+	sc->next = pg;
+	*(pg->genp) = 0;
+	bus_space_write_4(sc->t0, sc->h0, 0x24, pg->phys);
+	bus_space_write_4(sc->t0, sc->h0, 0x28, sc->p0->chunksize);
 	wakeup(sc);
-	if (sc->stat[i]) {
-		printf("adlink page busy\n");
-	}
 }
 
-static struct cdevsw adlink_cdevsw = {
-	.d_version =	D_VERSION,
-	.d_flags =	D_NEEDGIANT,
-	.d_open =	adlink_open,
-	.d_ioctl =	adlink_ioctl,
-	.d_mmap =	adlink_mmap,
-	.d_name =	"adlink",
-};
+static int
+adlink_mmap(struct cdev *dev, vm_offset_t offset, vm_paddr_t *paddr, int nprot)
+{
+	struct softc *sc;
+	vm_offset_t o;
+	int i;
+	struct pgstat *pg;
+
+	sc = dev->si_drv1;
+	if (nprot != VM_PROT_READ)
+		return (-1);
+	if (offset == 0) {
+		*paddr = vtophys(sc->p0);
+		return (0);
+	}
+	o = PAGE_SIZE;
+	pg = sc->chunks;
+	for (i = 0; i < sc->nchunks; i++, pg++) {
+		if (offset - o >= sc->p0->chunksize) {
+			o += sc->p0->chunksize;
+			continue;
+		}
+		*paddr = pg->phys + (offset - o);
+		return (0);
+	}
+	return (-1);
+}
+
+static int
+adlink_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
+{
+	struct softc *sc;
+	int i, error;
+	u_int u;
+	struct pgstat *pg;
+	u_int *genp;
+	
+	sc = dev->si_drv1;
+	u = *(u_int*)data;
+	error = 0;
+	switch (cmd) {
+	case ADLINK_SETDIVISOR:
+		if (sc->p0->state == STATE_RUN)
+			return (EBUSY);
+		if (u & 1)
+			return (EINVAL);
+		sc->p0->divisor = u;
+		break;
+	case ADLINK_SETCHUNKSIZE:
+		if (sc->p0->state != STATE_RESET)
+			return (EBUSY);
+		if (u % PAGE_SIZE)
+			return (EINVAL);
+		if (sc->p0->ringsize != 0 && sc->p0->ringsize % u)
+			return (EINVAL);
+		sc->p0->chunksize = u;
+		break;
+	case ADLINK_SETRINGSIZE:
+		if (sc->p0->state != STATE_RESET)
+			return (EBUSY);
+		if (u % PAGE_SIZE)
+			return (EINVAL);
+		if (sc->p0->chunksize != 0 && u % sc->p0->chunksize)
+			return (EINVAL);
+		sc->p0->ringsize = u;
+		break;
+	case ADLINK_START:
+		if (sc->p0->state == STATE_RUN)
+			return (EBUSY);
+		if (sc->p0->state == STATE_RESET) {
+			
+			if (sc->p0->chunksize == 0)
+				sc->p0->chunksize = 4 * PAGE_SIZE;
+			if (sc->p0->ringsize == 0)
+				sc->p0->ringsize = 16 * sc->p0->chunksize;
+			if (sc->p0->divisor == 0)
+				sc->p0->divisor = 4;
+
+			sc->nchunks = sc->p0->ringsize / sc->p0->chunksize;
+			if (sc->nchunks * sizeof (*pg->genp) +
+			    sizeof *sc->p0 > PAGE_SIZE)
+				return (EINVAL);
+			sc->p0->o_ring = PAGE_SIZE;
+			genp = (u_int *)(sc->p0 + 1);
+			sc->p0->o_ringgen = (intptr_t)genp - (intptr_t)(sc->p0);
+			pg = malloc(sizeof *pg * sc->nchunks,
+			    M_DEVBUF, M_WAITOK | M_ZERO);
+			sc->chunks = pg;
+			for (i = 0; i < sc->nchunks; i++) {
+				pg->genp = genp;
+				*pg->genp = 1;
+				genp++;
+				pg->virt = contigmalloc(sc->p0->chunksize,
+				    M_DEVBUF, M_WAITOK,
+				    0ul, 0xfffffffful,
+				    PAGE_SIZE, 0);
+				pg->phys = vtophys(pg->virt);
+				if (i == sc->nchunks - 1)
+					pg->next = sc->chunks;
+				else
+					pg->next = pg + 1;
+				pg++;
+			}
+			sc->next = sc->chunks;
+		}
+
+		/* Reset generation numbers */
+		pg = sc->chunks;
+		for (i = 0; i < sc->nchunks; i++) {
+			*pg->genp = 0;
+			pg->gen = 0;
+			pg++;
+		}
+
+		/* Enable interrupts on write complete */
+		bus_space_write_4(sc->t0, sc->h0, 0x38, 0x00004000);
+
+		/* Sample CH0 only */
+		bus_space_write_4(sc->t1, sc->h1, 0x00, 1);
+
+		/* Divide clock by four */
+		bus_space_write_4(sc->t1, sc->h1, 0x04, sc->p0->divisor);
+
+		/* Software trigger mode: software */
+		bus_space_write_4(sc->t1, sc->h1, 0x08, 0);
+
+		/* Trigger level zero */
+		bus_space_write_4(sc->t1, sc->h1, 0x0c, 0);
+
+		/* Trigger source CH0 (not used) */
+		bus_space_write_4(sc->t1, sc->h1, 0x10, 0);
+
+		/* Fifo control/status: flush */
+		bus_space_write_4(sc->t1, sc->h1, 0x18, 3);
+
+		/* Clock source: external sine */
+		bus_space_write_4(sc->t1, sc->h1, 0x20, 2);
+
+		/* Chipmunks are go! */
+		sc->p0->state = STATE_RUN;
+
+		/* Set up Write DMA */
+		pg = sc->next = sc->chunks;
+		*(pg->genp) = 0;
+		bus_space_write_4(sc->t0, sc->h0, 0x24, pg->phys);
+		bus_space_write_4(sc->t0, sc->h0, 0x28, sc->p0->chunksize);
+		u = bus_space_read_4(sc->t0, sc->h0, 0x3c);
+		bus_space_write_4(sc->t0, sc->h0, 0x3c, u | 0x00000600);
+
+		/* Acquisition Enable Register: go! */
+		bus_space_write_4(sc->t1, sc->h1, 0x1c, 1);
+
+		break;
+	case ADLINK_STOP:
+		if (sc->p0->state == STATE_RESET)
+			break;
+		sc->p0->state = EINTR;	
+		while (*(sc->next->genp) == 0)
+			tsleep(sc, PUSER | PCATCH, "adstop", 1);
+		break;
+#ifdef notyet
+	/*
+	 * I'm not sure we can actually do this.  How do we revoke
+	 * the mmap'ed pages from any process having them mmapped ?
+	 */
+	case ADLINK_RESET:
+		if (sc->p0->state == STATE_RESET)
+			break;
+		sc->p0->state = EINTR;	
+		while (*(sc->next->genp) == 0)
+			tsleep(sc, PUSER | PCATCH, "adreset", 1);
+		/* deallocate ring buffer */
+		break;
+#endif
+	default:
+		error = ENOIOCTL;
+		break;
+	}
+	return (error);
+}
 
 static devclass_t adlink_devclass;
 
@@ -431,7 +367,8 @@ adlink_attach(device_t self)
 	 * chip.
 	 */
 	rid = 0x10;
-	sc->r0 = bus_alloc_resource_any(self, SYS_RES_IOPORT, &rid, RF_ACTIVE);
+	sc->r0 = bus_alloc_resource(self, SYS_RES_IOPORT, &rid,
+	    0, ~0, 1, RF_ACTIVE);
 	if (sc->r0 == NULL)
 		return(ENODEV);
 	sc->t0 = rman_get_bustag(sc->r0);
@@ -443,7 +380,8 @@ adlink_attach(device_t self)
 	 * are described in the manual which comes with the card.
 	 */
 	rid = 0x14;
-	sc->r1 =  bus_alloc_resource_any(self, SYS_RES_IOPORT, &rid, RF_ACTIVE);
+	sc->r1 =  bus_alloc_resource(self, SYS_RES_IOPORT, &rid, 
+            0, ~0, 1, RF_ACTIVE);
 	if (sc->r1 == NULL)
 		return(ENODEV);
 	sc->t1 = rman_get_bustag(sc->r1);
@@ -451,21 +389,27 @@ adlink_attach(device_t self)
 	printf("Res1 %x %x\n", sc->t1, sc->h1);
 
 	rid = 0x0;
-	sc->ri =  bus_alloc_resource_any(self, SYS_RES_IRQ, &rid, 
-            RF_ACTIVE | RF_SHAREABLE);
+	sc->ri =  bus_alloc_resource(self, SYS_RES_IRQ, &rid, 
+            0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
 	if (sc->ri == NULL)
 		return (ENODEV);
 
-	i = bus_setup_intr(self, sc->ri, INTR_MPSAFE | INTR_TYPE_MISC | INTR_FAST,
+	i = bus_setup_intr(self, sc->ri,
+	    INTR_MPSAFE | INTR_TYPE_MISC | INTR_FAST,
 	    adlink_intr, sc, &sc->intrhand);
 	if (i) {
 		printf("adlink: Couldn't get FAST intr\n");
-		i = bus_setup_intr(self, sc->ri, INTR_TYPE_MISC,
+		i = bus_setup_intr(self, sc->ri,
+		    INTR_MPSAFE | INTR_TYPE_MISC,
 		    adlink_intr, sc, &sc->intrhand);
 	}
 
 	if (i)
 		return (ENODEV);
+
+	sc->p0 = malloc(PAGE_SIZE, M_DEVBUF, M_WAITOK | M_ZERO);
+	sc->p0->version = PAGE0VERSION;
+	sc->p0->state = STATE_RESET;
 
 	sc->dev = make_dev(&adlink_cdevsw, device_get_unit(self),
 	    UID_ROOT, GID_WHEEL, 0444, "adlink%d", device_get_unit(self));
@@ -491,4 +435,5 @@ static driver_t adlink_driver = {
 };
 
 DRIVER_MODULE(adlink, pci, adlink_driver, adlink_devclass, 0, 0);
+
 #endif /* _KERNEL */
