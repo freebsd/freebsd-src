@@ -171,7 +171,13 @@ ata_generic_setmode(struct ata_device *atadev, int mode)
 static void
 ata_sata_setmode(struct ata_device *atadev, int mode)
 {
-    mode = ata_limit_mode(atadev, mode, ATA_DMA_MAX);
+    /*
+     * we limit the transfer mode to UDMA5/ATA100 as some chips/drive
+     * comboes that use the Marvell SATA->PATA converters has trouble
+     * with UDMA6/ATA133. This doesn't really matter as real SATA
+     * devices doesn't use this anyway.
+     */
+    mode = ata_limit_mode(atadev, mode, ATA_UDMA5);
     if (!ata_controlcmd(atadev, ATA_SETFEATURES, ATA_SF_SETXFER, 0, mode))
 	atadev->mode = mode;
 }
@@ -1632,6 +1638,16 @@ ata_sii_chipinit(device_t dev)
 
 	/* enable interrupt as BIOS might not */
 	pci_write_config(dev, 0x8a, (pci_read_config(dev, 0x8a, 1) & 0x3f), 1);
+
+	/* setup chipset defaults as BIOS might not */
+	pci_write_config(dev, 0xa2, 0x328a, 2);
+	pci_write_config(dev, 0xa4, 0x328a328a, 4);
+	pci_write_config(dev, 0xa8, 0x22082208, 4);
+	pci_write_config(dev, 0xac, 0x40094009, 4);
+	pci_write_config(dev, 0xe2, 0x328a, 2);
+	pci_write_config(dev, 0xe4, 0x328a328a, 4);
+	pci_write_config(dev, 0xe8, 0x22082208, 4);
+	pci_write_config(dev, 0xec, 0x40094009, 4);
 
 	ctlr->allocate = ata_sii_mio_allocate;
 	if (ctlr->chip->max_dma >= ATA_SA150)
