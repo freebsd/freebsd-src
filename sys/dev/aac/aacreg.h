@@ -128,8 +128,8 @@ struct aac_queue_table {
  * our private command structure and don't touch these)
  */
 struct aac_fib_list_entry {
-	struct fib_list_entry	*Flink;
-	struct fib_list_entry	*Blink;
+	u_int32_t Flink;
+	u_int32_t Blink;
 } __attribute__ ((packed));
 
 /*
@@ -269,17 +269,19 @@ typedef enum {
  */
 struct aac_adapter_init {
 	u_int32_t	InitStructRevision;
-#define AAC_INIT_STRUCT_REVISION	3
+#define AAC_INIT_STRUCT_REVISION		3
 	u_int32_t	MiniPortRevision;
+#define AAC_INIT_STRUCT_MINIPORT_REVISION	1
 	u_int32_t	FilesystemRevision;
 	u_int32_t	CommHeaderAddress;
 	u_int32_t	FastIoCommAreaAddress;
 	u_int32_t	AdapterFibsPhysicalAddress;
-	void		*AdapterFibsVirtualAddress;
+	u_int32_t 	AdapterFibsVirtualAddress;
 	u_int32_t	AdapterFibsSize;
 	u_int32_t	AdapterFibAlign;
 	u_int32_t	PrintfBufferAddress;
 	u_int32_t	PrintfBufferSize;
+#define	AAC_PAGE_SIZE				4096
 	u_int32_t	HostPhysMemPages;
 	u_int32_t	HostElapsedSeconds;
 } __attribute__ ((packed));
@@ -969,8 +971,8 @@ struct aac_mntobj {
 	char				FileSystemName[16];
 	struct aac_container_creation	CreateInfo;
 	u_int32_t			Capacity;
-	AAC_FSAVolType			VolType;
-	AAC_FType			ObjType;
+	u_int32_t			VolType;
+	u_int32_t			ObjType;
 	u_int32_t			ContentState;
 #define FSCS_READONLY		0x0002		/* XXX need more information
 						 * than this */
@@ -981,14 +983,14 @@ struct aac_mntobj {
 } __attribute__ ((packed));
 
 struct aac_mntinfo {
-	AAC_VMCommand		Command;
-	AAC_FType		MntType;
+	u_int32_t		Command;
+	u_int32_t		MntType;
 	u_int32_t		MntCount;
 } __attribute__ ((packed));
 
 struct aac_mntinforesp {
-	AAC_FSAStatus		Status;
-	AAC_FType		MntType;
+	u_int32_t		Status;
+	u_int32_t		MntType;
 	u_int32_t		MntRespCount;
 	struct aac_mntobj	MntTable[1];
 } __attribute__ ((packed));
@@ -1006,13 +1008,13 @@ struct aac_closecommand {
  */
 #define CT_GET_SCSI_METHOD	64
 struct aac_ctcfg {
-	AAC_VMCommand		Command;
+	u_int32_t		Command;
 	u_int32_t		cmd;
 	u_int32_t		param;
 } __attribute__ ((packed));
 
 struct aac_ctcfg_resp {
-	AAC_FSAStatus		Status;
+	u_int32_t		Status;
 	u_int32_t		resp;
 	u_int32_t		param;
 } __attribute__ ((packed));
@@ -1036,8 +1038,8 @@ struct aac_getbusinf {
 } __attribute__ ((packed));
 
 struct aac_vmioctl {
-	AAC_VMCommand		Command;
-	AAC_FType		ObjType;
+	u_int32_t		Command;
+	u_int32_t		ObjType;
 	u_int32_t		MethId;
 	u_int32_t		ObjId;
 	u_int32_t		IoctlCmd;
@@ -1045,8 +1047,8 @@ struct aac_vmioctl {
 } __attribute__ ((packed));
 
 struct aac_vmi_businf_resp {
-	AAC_FSAStatus		Status;
-	AAC_FType		ObjType;
+	u_int32_t		Status;
+	u_int32_t		ObjType;
 	u_int32_t		MethId;
 	u_int32_t		ObjId;
 	u_int32_t		IoctlCmd;
@@ -1058,8 +1060,8 @@ struct aac_vmi_businf_resp {
 #define GetDeviceProbeInfo 0x5
 
 struct aac_vmi_devinfo_resp {
-	AAC_FSAStatus		Status;
-	AAC_FType		ObjType;
+	u_int32_t		Status;
+	u_int32_t		ObjType;
 	u_int32_t		MethId;
 	u_int32_t		ObjId;
 	u_int32_t		IoctlCmd;
@@ -1125,7 +1127,7 @@ typedef enum {
  */
 
 struct aac_blockread {
-	AAC_VMCommand		Command;	/* not FSACommand! */
+	u_int32_t		Command;	/* not FSACommand! */
 	u_int32_t		ContainerId;
 	u_int32_t		BlockNumber;
 	u_int32_t		ByteCount;
@@ -1133,30 +1135,30 @@ struct aac_blockread {
 } __attribute__ ((packed));
 
 struct aac_blockread_response {
-	AAC_FSAStatus		Status;
+	u_int32_t		Status;
 	u_int32_t		ByteCount;
 } __attribute__ ((packed));
 
 struct aac_blockwrite {
-	AAC_VMCommand		Command;	/* not FSACommand! */
+	u_int32_t		Command;	/* not FSACommand! */
 	u_int32_t		ContainerId;
 	u_int32_t		BlockNumber;
 	u_int32_t		ByteCount;
-	AAC_CacheLevel	Stable;
+	u_int32_t		Stable;
 	struct aac_sg_table	SgMap;		/* variable size */
 } __attribute__ ((packed));
 
 struct aac_blockwrite_response {
-	AAC_FSAStatus	Status;
+	u_int32_t		Status;
 	u_int32_t		ByteCount;
-	AAC_CommitLevel	Committed;
+	u_int32_t		Committed;
 } __attribute__ ((packed));
 
 /*
  * Container shutdown command.
  */
 struct aac_close_command {
-	AAC_VMCommand      Command;
+	u_int32_t	   Command;
 	u_int32_t          ContainerId;
 };
 

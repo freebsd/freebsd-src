@@ -132,16 +132,21 @@ aac_disk_open(dev_t dev, int flags, int fmt, d_thread_t *td)
 	struct aac_disk	*sc;
 	struct disklabel *label;
 
-	debug_called(4);
+	debug_called(0);
 
 	sc = (struct aac_disk *)dev->si_drv1;
 	
-	if (sc == NULL)
+	if (sc == NULL) {
+		printf("aac_disk_open: No Softc\n");
 		return (ENXIO);
+	}
 
 	/* check that the controller is up and running */
-	if (sc->ad_controller->aac_state & AAC_STATE_SUSPEND)
+	if (sc->ad_controller->aac_state & AAC_STATE_SUSPEND) {
+		printf("Controller Suspended controller state = 0x%x\n",
+		       sc->ad_controller->aac_state);
 		return(ENXIO);
+	}
 
 	/* build synthetic label */
 	label = &sc->ad_disk.d_label;
@@ -166,7 +171,7 @@ aac_disk_close(dev_t dev, int flags, int fmt, d_thread_t *td)
 {
 	struct aac_disk	*sc;
 
-	debug_called(4);
+	debug_called(0);
 
 	sc = (struct aac_disk *)dev->si_drv1;
 	
@@ -337,7 +342,7 @@ aac_disk_attach(device_t dev)
 {
 	struct aac_disk	*sc;
 	
-	debug_called(1);
+	debug_called(0);
 
 	sc = (struct aac_disk *)device_get_softc(dev);
 
