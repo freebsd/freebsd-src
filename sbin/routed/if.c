@@ -637,29 +637,14 @@ rt_xaddrs(struct rt_addrinfo *info,
 #ifdef _HAVE_SA_LEN
 	static struct sockaddr sa_zero;
 #endif
-#ifdef sgi
-#define ROUNDUP(a) ((a) > 0 ? (1 + (((a) - 1) | (sizeof(__uint64_t) - 1))) \
-		    : sizeof(__uint64_t))
-#else
-#define ROUNDUP(a) ((a) > 0 ? (1 + (((a) - 1) | (sizeof(long) - 1))) \
-		    : sizeof(long))
-#endif
-
 
 	memset(info, 0, sizeof(*info));
 	info->rti_addrs = addrs;
 	for (i = 0; i < RTAX_MAX && sa < lim; i++) {
 		if ((addrs & (1 << i)) == 0)
 			continue;
-#ifdef _HAVE_SA_LEN
 		info->rti_info[i] = (sa->sa_len != 0) ? sa : &sa_zero;
-		sa = (struct sockaddr *)((char*)(sa)
-					 + ROUNDUP(sa->sa_len));
-#else
-		info->rti_info[i] = sa;
-		sa = (struct sockaddr *)((char*)(sa)
-					 + ROUNDUP(_FAKE_SA_LEN_DST(sa)));
-#endif
+		sa = (struct sockaddr *)((char*)(sa) + SA_SIZE(sa));
 	}
 }
 

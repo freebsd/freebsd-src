@@ -113,8 +113,6 @@ static int	expire_time, flags, doing_proxy, proxy_only;
 #define F_REPLACE	4
 #define F_DELETE	5
 
-#define ROUNDUP(a) \
-	((a) > 0 ? (1 + (((a) - 1) | (sizeof(long) - 1))) : sizeof(long))
 #define SETFUNC(f)	{ if (func) usage(); func = (f); }
 
 int
@@ -319,7 +317,7 @@ tryagain:
 		return (1);
 	}
 	addr = (struct sockaddr_inarp *)(rtm + 1);
-	sdl = (struct sockaddr_dl *)(ROUNDUP(addr->sin_len) + (char *)addr);
+	sdl = (struct sockaddr_dl *)(SA_SIZE(addr) + (char *)addr);
 	if (addr->sin_addr.s_addr == sin_m.sin_addr.s_addr) {
 		if (sdl->sdl_family == AF_LINK &&
 		    (rtm->rtm_flags & RTF_LLINFO) &&
@@ -417,7 +415,7 @@ tryagain:
 		return (1);
 	}
 	addr = (struct sockaddr_inarp *)(rtm + 1);
-	sdl = (struct sockaddr_dl *)(ROUNDUP(addr->sin_len) + (char *)addr);
+	sdl = (struct sockaddr_dl *)(SA_SIZE(addr) + (char *)addr);
 	if (addr->sin_addr.s_addr == sin_m.sin_addr.s_addr) {
 		if (sdl->sdl_family == AF_LINK &&
 		    (rtm->rtm_flags & RTF_LLINFO) &&
@@ -484,7 +482,7 @@ search(u_long addr, action_fn *action)
 	for (next = buf; next < lim; next += rtm->rtm_msglen) {
 		rtm = (struct rt_msghdr *)next;
 		sin2 = (struct sockaddr_inarp *)(rtm + 1);
-		(char *)sdl = (char *)sin2 + ROUNDUP(sin2->sin_len);
+		(char *)sdl = (char *)sin2 + SA_SIZE(sin2);
 		if (rifname && if_indextoname(sdl->sdl_index, ifname) &&
 		    strcmp(ifname, rifname))
 			continue;
@@ -537,7 +535,7 @@ print_entry(struct sockaddr_dl *sdl,
 		printf(" published (proxy only)");
 	if (rtm->rtm_addrs & RTA_NETMASK) {
 		addr = (struct sockaddr_inarp *)
-			(ROUNDUP(sdl->sdl_len) + (char *)sdl);
+			(SA_SIZE(sdl) + (char *)sdl);
 		if (addr->sin_addr.s_addr == 0xffffffff)
 			printf(" published");
 		if (addr->sin_len != 8)
@@ -673,7 +671,7 @@ rtmsg(int cmd)
 	}
 #define NEXTADDR(w, s) \
 	if (rtm->rtm_addrs & (w)) { \
-		bcopy((char *)&s, cp, sizeof(s)); cp += ROUNDUP(sizeof(s));}
+		bcopy((char *)&s, cp, sizeof(s)); cp += SA_SIZE(&s);}
 
 	NEXTADDR(RTA_DST, sin_m);
 	NEXTADDR(RTA_GATEWAY, sdl_m);
