@@ -1,4 +1,4 @@
-# $Id: ports-supfile,v 1.1 1996/08/21 00:23:52 jkh Exp $
+# $Id: ports-supfile,v 1.2 1996/08/21 00:26:25 jkh Exp $
 #
 # This file contains all of the "CVSUP collections" that comprise the FreeBSD
 # ports collection tree.  CVSup (CVS Update Protocol) allows you to download
@@ -50,6 +50,7 @@ ports-all release=cvs host=cvsup.FreeBSD.org hostbase=/home base=/usr prefix=/us
 
 #ports-base release=current host=cvsup.FreeBSD.org hostbase=/home base=/usr prefix=/usr/ports delete old use-rel-suffix
 #ports-archivers release=current host=cvsup.FreeBSD.org hostbase=/home base=/usr prefix=/usr/ports delete old use-rel-suffix
+#ports-astro release=current host=cvsup.FreeBSD.org hostbase=/home base=/usr prefix=/usr/ports delete old use-rel-suffix
 #ports-benchmarks release=current host=cvsup.FreeBSD.org hostbase=/home base=/usr prefix=/usr/ports delete old use-rel-suffix
 #ports-audio release=current host=cvsup.FreeBSD.org hostbase=/home base=/usr prefix=/usr/ports delete old use-rel-suffix
 #ports-cad release=current host=cvsup.FreeBSD.org hostbase=/home base=/usr prefix=/usr/ports delete old use-rel-suffix
