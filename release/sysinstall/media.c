@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.6 1995/05/17 14:39:51 jkh Exp $
+ * $Id: media.c,v 1.7 1995/05/20 00:13:11 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -51,13 +51,13 @@
 int
 mediaSetCDROM(char *str)
 {
-    Device *devs;
+    Device **devs;
     int cnt;
 
     if (OnCDROM == TRUE)
 	return 1;
     else {
-	devs = deviceFind(NULL, MEDIA_TYPE_CDROM);
+	devs = deviceFind(NULL, DEVICE_TYPE_CDROM);
 	cnt = deviceCount(devs);
 	if (!cnt) {
 	    msgConfirm("No CDROM devices found!  Please check that your system's\nconfiguration is correct and that the CDROM drive is of a supported\ntype.  For more information, consult the hardware guide\nin the Doc menu.");
@@ -81,10 +81,6 @@ int
 mediaSetFloppy(char *str)
 {
     dmenuOpenSimple(&MenuMediaFloppy);
-    if (getenv(MEDIA_DEVICE)) {
-	variable_set2(MEDIA_TYPE, "floppy");
-	return 1;
-    }
     return 0;
 }
 
@@ -121,10 +117,6 @@ int
 mediaSetFTP(char *str)
 {
     dmenuOpenSimple(&MenuMediaFTP);
-    if (getenv(MEDIA_DEVICE)) {
-	variable_set2(MEDIA_TYPE, "ftp");
-	return 1;
-    }
     return 0;
 }
 
@@ -149,7 +141,10 @@ mediaOpen(char *parent, char *me)
     if (parent)
 	snprintf(fname, FILENAME_MAX, "%s%s", parent, me);
     else
+	snprintf(fname, FILENAME_MAX, "%s/%s", me, me);
+#if 0
 	strncpy(fname, me, FILENAME_MAX);
+#endif
     /* XXX mediaDevice points to where we want to get it from */
     return NULL;
 }
@@ -166,9 +161,11 @@ mediaGetType(void)
     char *cp;
 
     dmenuOpenSimple(&MenuMedia);
+#if 0
     cp = getenv(MEDIA_TYPE);
     if (!cp)
 	return FALSE;
+#endif
     return TRUE;
 }
 
@@ -181,4 +178,9 @@ mediaVerify(void)
 	return FALSE;
     }
     return TRUE;
+}
+
+void
+mediaClose(void)
+{
 }
