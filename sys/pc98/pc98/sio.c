@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.63 1998/07/15 12:18:32 bde Exp $
+ *	$Id: sio.c,v 1.64 1998/08/13 07:36:40 kato Exp $
  */
 
 #include "opt_comconsole.h"
@@ -185,7 +185,6 @@
 #endif /* SMP */
 
 #define	LOTS_OF_EVENTS	64	/* helps separate urgent events from input */
-#define	RB_I_HIGH_WATER	(TTYHOG - 2 * RS_IBUFSIZE)
 #define	RS_IBUFSIZE	256
 
 #define	CALLOUT_MASK		0x80
@@ -450,7 +449,7 @@ static	int	comconsole = -1;
 static	volatile speed_t	comdefaultrate = CONSPEED;
 static	u_int	com_events;	/* input chars + weighted output completions */
 static	Port_t	siocniobase;
-static	bool_t	siopoll_registered;
+static	bool_t	sio_registered;
 static	int	sio_timeout;
 static	int	sio_timeouts_until_log;
 static	struct	callout_handle sio_timeout_handle
@@ -1428,8 +1427,6 @@ determined_type: ;
 	com_addr(unit) = com;
 	splx(s);
 
-	dev = makedev(CDEV_MAJOR, 0);
-	cdevsw_add(&dev, &sio_cdevsw, NULL);
 #ifdef DEVFS
 	com->devfs_token_ttyd = devfs_add_devswf(&sio_cdevsw,
 		unit, DV_CHR,
@@ -1450,9 +1447,11 @@ determined_type: ;
 		unit | CALLOUT_MASK | CONTROL_LOCK_STATE, DV_CHR,
 		UID_UUCP, GID_DIALER, 0660, "cuala%r", unit);
 #endif
-	if (!siopoll_registered) {
+	if (!sio_registered) {
+		dev = makedev(CDEV_MAJOR, 0);
+		cdevsw_add(&dev, &sio_cdevsw, NULL);
 		register_swi(SWI_TTY, siopoll);
-		siopoll_registered = TRUE;
+		sio_registered = TRUE;
 	}
 	com->id_flags = isdp->id_flags; /* Heritate id_flags for later */
 	return (1);
@@ -1540,6 +1539,9 @@ open_top:
 		tp->t_dev = dev;
 		tp->t_termios = mynor & CALLOUT_MASK
 				? com->it_out : com->it_in;
+		tp->t_ififosize = 2 * RS_IBUFSIZE;
+		tp->t_ispeedwat = (speed_t)-1;
+		tp->t_ospeedwat = (speed_t)-1;
 #ifdef PC98
 		if(!IS_8251(com->pc98_if_type))
 #endif
@@ -1560,7 +1562,6 @@ open_top:
 		/*
 		 * XXX we should goto open_top if comparam() slept.
 		 */
-		ttsetwater(tp);
 		iobase = com->iobase;
 		if (com->hasfifo) {
 			/*
@@ -2567,7 +2568,7 @@ repeat:
 		 * call overhead).
 		 */
 		if (tp->t_state & TS_CAN_BYPASS_L_RINT) {
-			if (tp->t_rawq.c_cc + incc >= RB_I_HIGH_WATER
+			if (tp->t_rawq.c_cc + incc > tp->t_ihiwat
 			    && (com->state & CS_RTS_IFLOW
 				|| tp->t_iflag & IXOFF)
 			    && !(tp->t_state & TS_TBLOCK))
