@@ -1343,6 +1343,12 @@ static struct isa_pnp_id pnpmss_ids[] = {
 static int
 pnpmss_probe(device_t dev)
 {
+	u_int32_t lid, vid;
+
+	lid = isa_get_logicalid(dev);
+	vid = isa_get_vendorid(dev);
+	if (lid == 0x01000000 && vid != 0x0100a90d) /* CMI0001 */
+		return ENXIO;
 	return ISA_PNP_PROBE(device_get_parent(dev), dev, pnpmss_ids);
 }
 
