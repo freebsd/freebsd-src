@@ -4,16 +4,13 @@
 # the format supported by op/regexp.t.  If you want to add a test
 # that does fit that format, add it to op/re_tests, not here.
 
-print "1..211\n";
+print "1..231\n";
 
 BEGIN {
     chdir 't' if -d 't';
-    unshift @INC, "../lib" if -d "../lib";
+    @INC = '../lib';
 }
 eval 'use Config';          #  Defaults assumed if this fails
-
-# XXX known to leak scalars
-$ENV{PERL_DESTRUCT_LEVEL} = 0 unless $ENV{PERL_DESTRUCT_LEVEL} > 3;
 
 $x = "abc\ndef\n";
 
@@ -266,12 +263,12 @@ print "ok 68\n";
 
 undef $@;
 eval "'aaa' =~ /a{1,$reg_infty}/";
-print "not " if $@ !~ m%^\Q/a{1,$reg_infty}/: Quantifier in {,} bigger than%;
+print "not " if $@ !~ m%^\QQuantifier in {,} bigger than%;
 print "ok 69\n";
 
 eval "'aaa' =~ /a{1,$reg_infty_p}/";
 print "not "
-	if $@ !~ m%^\Q/a{1,$reg_infty_p}/: Quantifier in {,} bigger than%;
+	if $@ !~ m%^\QQuantifier in {,} bigger than%;
 print "ok 70\n";
 undef $@;
 
@@ -279,7 +276,7 @@ undef $@;
 
 $context = 'x' x 256;
 eval qq("${context}y" =~ /(?<=$context)y/);
-print "not " if $@ !~ m%^\Q/(?<=\Ex+/: lookbehind longer than 255 not%;
+print "not " if $@ !~ m%^\QLookbehind longer than 255 not%;
 print "ok 71\n";
 
 # removed test
@@ -496,7 +493,7 @@ $test++;
 $_ = 'xabcx';
 foreach $ans ('', 'c') {
   /(?<=(?=a)..)((?=c)|.)/g;
-  print "not " unless $1 eq $ans;
+  print "# \$1  ='$1'\n# \$ans='$ans'\nnot " unless $1 eq $ans;
   print "ok $test\n";
   $test++;
 }
@@ -504,7 +501,7 @@ foreach $ans ('', 'c') {
 $_ = 'a';
 foreach $ans ('', 'a', '') {
   /^|a|$/g;
-  print "not " unless $& eq $ans;
+  print "# \$&  ='$&'\n# \$ans='$ans'\nnot " unless $& eq $ans;
   print "ok $test\n";
   $test++;
 }
@@ -545,10 +542,43 @@ $test++;
   print "ok $test\n";
   $test++;
 
+  local $lex_a = 2;
+  my $lex_a = 43;
+  my $lex_b = 17;
+  my $lex_c = 27;
+  my $lex_res = ($lex_b =~ qr/$lex_b(?{ $lex_c = $lex_a++ })/);
+  print "not " unless $lex_res eq '1';
+  print "ok $test\n";
+  $test++;
+  print "not " unless $lex_a eq '44';
+  print "ok $test\n";
+  $test++;
+  print "not " unless $lex_c eq '43';
+  print "ok $test\n";
+  $test++;
+
+
   no re "eval"; 
   $match = eval { /$a$c$a/ };
   print "not " 
     unless $b eq '14' and $@ =~ /Eval-group not allowed/ and not $match;
+  print "ok $test\n";
+  $test++;
+}
+
+{
+  local $lex_a = 2;
+  my $lex_a = 43;
+  my $lex_b = 17;
+  my $lex_c = 27;
+  my $lex_res = ($lex_b =~ qr/17(?{ $lex_c = $lex_a++ })/);
+  print "not " unless $lex_res eq '1';
+  print "ok $test\n";
+  $test++;
+  print "not " unless $lex_a eq '44';
+  print "ok $test\n";
+  $test++;
+  print "not " unless $lex_c eq '43';
   print "ok $test\n";
   $test++;
 }
@@ -588,8 +618,12 @@ sub make_must_warn {
 my $for_future = make_must_warn('reserved for future extensions');
 
 &$for_future('q(a:[b]:) =~ /[x[:foo:]]/');
-&$for_future('q(a=[b]=) =~ /[x[=foo=]]/');
-&$for_future('q(a.[b].) =~ /[x[.foo.]]/');
+
+#&$for_future('q(a=[b]=) =~ /[x[=foo=]]/');
+print "ok $test\n"; $test++; # now a fatal croak
+
+#&$for_future('q(a.[b].) =~ /[x[.foo.]]/');
+print "ok $test\n"; $test++; # now a fatal croak
 
 # test if failure of patterns returns empty list
 $_ = 'aaa';
@@ -686,6 +720,30 @@ $test++;
 
 print "not " 
    if defined $+[2] or defined $-[2] or defined $+[3] or defined $-[3];
+print "ok $test\n";
+$test++;
+
+eval { $+[0] = 13; };
+print "not " 
+   if $@ !~ /^Modification of a read-only value attempted/;
+print "ok $test\n";
+$test++;
+
+eval { $-[0] = 13; };
+print "not " 
+   if $@ !~ /^Modification of a read-only value attempted/;
+print "ok $test\n";
+$test++;
+
+eval { @+ = (7, 6, 5); };
+print "not " 
+   if $@ !~ /^Modification of a read-only value attempted/;
+print "ok $test\n";
+$test++;
+
+eval { @- = qw(foo bar); };
+print "not " 
+   if $@ !~ /^Modification of a read-only value attempted/;
 print "ok $test\n";
 $test++;
 
@@ -995,3 +1053,78 @@ $test++;
 "\n\n" =~ /\n+ $ \n/x or print "not ";
 print "ok $test\n";
 $test++;
+
+[] =~ /^ARRAY/ or print "# [] \nnot ";
+print "ok $test\n";
+$test++;
+
+eval << 'EOE';
+{
+ package S;
+ use overload '""' => sub { 'Object S' };
+ sub new { bless [] }
+}
+$a = 'S'->new;
+EOE
+
+$a and $a =~ /^Object\sS/ or print "# '$a' \nnot ";
+print "ok $test\n";
+$test++;
+
+# test result of match used as match (!)
+'a1b' =~ ('xyz' =~ /y/) and $` eq 'a' or print "not ";
+print "ok $test\n";
+$test++;
+
+'a1b' =~ ('xyz' =~ /t/) and $` eq 'a' or print "not ";
+print "ok $test\n";
+$test++;
+
+$w = 0;
+{
+    local $SIG{__WARN__} = sub { $w = 1 };
+    local $^W = 1;
+	$w = 1 if ("1\n" x 102) =~ /^\s*\n/m;
+}
+print $w ? "not " : "", "ok $test\n";
+$test++;
+
+my %space = ( spc   => " ",
+	      tab   => "\t",
+	      cr    => "\r",
+	      lf    => "\n",
+	      ff    => "\f",
+# There's no \v but the vertical tabulator seems miraculously
+# be 11 both in ASCII and EBCDIC.
+	      vt    => chr(11),
+	      false => "space" );
+
+my @space0 = sort grep { $space{$_} =~ /\s/ }          keys %space;
+my @space1 = sort grep { $space{$_} =~ /[[:space:]]/ } keys %space;
+my @space2 = sort grep { $space{$_} =~ /[[:blank:]]/ } keys %space;
+
+print "not " unless "@space0" eq "cr ff lf spc tab";
+print "ok $test # @space0\n";
+$test++;
+
+print "not " unless "@space1" eq "cr ff lf spc tab vt";
+print "ok $test # @space1\n";
+$test++;
+
+print "not " unless "@space2" eq "spc tab";
+print "ok $test # @space2\n";
+$test++;
+ 
+# bugid 20001021.005 - this caused a SEGV
+print "not " unless undef =~ /^([^\/]*)(.*)$/;
+print "ok $test\n";
+$test++;
+
+{
+  # japhy -- added 03/03/2001
+  () = (my $str = "abc") =~ /(...)/;
+  $str = "def";
+  print "not " if $1 ne "abc";
+  print "ok $test\n";
+  $test++;
+}

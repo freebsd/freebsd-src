@@ -39,7 +39,7 @@ print OUT <<'!NO!SUBS!';
 #############################################################################
 # pod2usage -- command to print usage messages from embedded pod docs
 #
-# Copyright (c) 1996-1999 by Bradford Appleton. All rights reserved.
+# Copyright (c) 1996-2000 by Bradford Appleton. All rights reserved.
 # This file is part of "PodParser". PodParser is free software;
 # you can redistribute it and/or modify it under the same terms
 # as Perl itself.

@@ -9,7 +9,7 @@
 
 BEGIN {
     chdir 't' if -d 't';
-    unshift @INC, '../lib' if -d '../lib';
+    @INC = '../lib';
 }
 
 use strict;
@@ -19,14 +19,20 @@ use Config;
 # just because Errno possibly failing.
 eval { require Errno; import Errno };
 
+use vars qw($ipcsysv); # did we manage to load IPC::SysV?
+
 BEGIN {
   if ($^O eq 'VMS' && !defined($Config{d_setenv})) {
       $ENV{PATH} = $ENV{PATH};
       $ENV{TERM} = $ENV{TERM} ne ''? $ENV{TERM} : 'dummy';
   }
-  if ($Config{d_shm} || $Config{d_msg}) {
-     require IPC::SysV;
-     IPC::SysV->import(qw(IPC_PRIVATE IPC_RMID IPC_CREAT S_IRWXU));
+  if ($Config{'extensions'} =~ /\bIPC\/SysV\b/
+      && ($Config{d_shm} || $Config{d_msg})) {
+      eval { require IPC::SysV };
+      unless ($@) {
+	  $ipcsysv++;
+	  IPC::SysV->import(qw(IPC_PRIVATE IPC_RMID IPC_CREAT S_IRWXU));
+      }
   }
 }
 
@@ -98,7 +104,7 @@ print PROG 'print "@ARGV\n"', "\n";
 close PROG;
 my $echo = "$Invoke_Perl $ECHO";
 
-print "1..151\n";
+print "1..155\n";
 
 # First, let's make sure that Perl is checking the dangerous
 # environment variables. Maybe they aren't set yet, so we'll
@@ -612,13 +618,17 @@ else {
 
 # test shmread
 {
-    if ($Config{d_shm}) {
+    unless ($ipcsysv) {
+	print "ok 150 # skipped: no IPC::SysV\n";
+	last;
+    }
+    if ($Config{'extensions'} =~ /\bIPC\/SysV\b/ && $Config{d_shm}) {
 	no strict 'subs';
 	my $sent = "foobar";
 	my $rcvd;
 	my $size = 2000;
-	my $id = shmget(IPC_PRIVATE, $size, S_IRWXU) ||
-	    warn "# shmget failed: $!\n";
+	my $id = shmget(IPC_PRIVATE, $size, S_IRWXU);
+
 	if (defined $id) {
 	    if (shmwrite($id, $sent, 0, 60)) {
 		if (shmread($id, $rcvd, 0, 60)) {
@@ -629,7 +639,7 @@ else {
 	    } else {
 		warn "# shmwrite failed: $!\n";
 	    }
-	    shmctl($id, IPC_RMID, 0) || warn "# shmctl failed: $!\n";
+	    shmctl($id, IPC_RMID, 0) or warn "# shmctl failed: $!\n";
 	} else {
 	    warn "# shmget failed: $!\n";
 	}
@@ -646,7 +656,11 @@ else {
 
 # test msgrcv
 {
-    if ($Config{d_msg}) {
+    unless ($ipcsysv) {
+	print "ok 151 # skipped: no IPC::SysV\n";
+	last;
+    }
+    if ($Config{'extensions'} =~ /\bIPC\/SysV\b/ && $Config{d_msg}) {
 	no strict 'subs';
 	my $id = msgget(IPC_PRIVATE, IPC_CREAT | S_IRWXU);
 
@@ -665,7 +679,7 @@ else {
 	    } else {
 		warn "# msgsnd failed\n";
 	    }
-	    msgctl($id, IPC_RMID, 0) || warn "# msgctl failed: $!\n";
+	    msgctl($id, IPC_RMID, 0) or warn "# msgctl failed: $!\n";
 	} else {
 	    warn "# msgget failed\n";
 	}
@@ -678,5 +692,44 @@ else {
     } else {
 	print "ok 151 # Skipped: SysV message queues are not available\n";
     }
+}
+
+{
+    # bug id 20001004.006
+
+    open IN, "./TEST" or warn "$0: cannot read ./TEST: $!" ;
+    local $/;
+    my $a = <IN>;
+    my $b = <IN>;
+    print "not " unless tainted($a) && tainted($b) && !defined($b);
+    print "ok 152\n";
+    close IN;
+}
+
+{
+    # bug id 20001004.007
+
+    open IN, "./TEST" or warn "$0: cannot read ./TEST: $!" ;
+    my $a = <IN>;
+
+    my $c = { a => 42,
+	      b => $a };
+    print "not " unless !tainted($c->{a}) && tainted($c->{b});
+    print "ok 153\n";
+
+    my $d = { a => $a,
+	      b => 42 };
+    print "not " unless tainted($d->{a}) && !tainted($d->{b});
+    print "ok 154\n";
+
+    my $e = { a => 42,
+	      b => { c => $a, d => 42 } };
+    print "not " unless !tainted($e->{a}) &&
+	                !tainted($e->{b}) &&
+	                 tainted($e->{b}->{c}) &&
+	                !tainted($e->{b}->{d});
+    print "ok 155\n";
+
+    close IN;
 }
 

@@ -41,10 +41,13 @@ startperl='#!perl'
 case "X$optimize" in
   X)
 	optimize="-O2 -malign-loops=2 -malign-jumps=2 -malign-functions=2"
+	ldflags='-s'
+	;;
+  X*)
+	ldflags=' '
 	;;
 esac
 ccflags="$ccflags -DPERL_EXTERNAL_GLOB"
-ldflags='-s'
 usemymalloc='n'
 timetype='time_t'
 

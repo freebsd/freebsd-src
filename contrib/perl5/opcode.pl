@@ -1,5 +1,6 @@
 #!/usr/bin/perl
 
+chmod 0666, "opcode.h", "opnames.h";
 unlink "opcode.h", "opnames.h";
 open(OC, ">opcode.h") || die "Can't create opcode.h: $!\n";
 open(ON, ">opnames.h") || die "Can't create opnames.h: $!\n";
@@ -193,6 +194,9 @@ END
     '}',  13,		# loopexop
 );
 
+my %OP_IS_SOCKET;
+my %OP_IS_FILETEST;
+
 for (@ops) {
     $argsum = 0;
     $flags = $flags{$_};
@@ -210,7 +214,12 @@ for (@ops) {
     $argsum |= $opclass{$1} << 9;
     $mul = 0x2000;				# 2 ^ OASHIFT
     for $arg (split(' ',$args{$_})) {
+	if ($arg =~ /^F/) {
+           $OP_IS_SOCKET{$_}   = 1 if $arg =~ s/s//;
+           $OP_IS_FILETEST{$_} = 1 if $arg =~ s/-//;
+        }
 	$argnum = ($arg =~ s/\?//) ? 8 : 0;
+        die "op = $_, arg = $arg\n" unless length($arg) == 1;
 	$argnum += $argnum{$arg};
 	warn "# Conflicting bit 32 for '$_'.\n"
 	    if $argnum & 8 and $mul == 0x10000000;
@@ -227,6 +236,20 @@ print <<END;
 
 END_EXTERN_C
 END
+
+if (keys %OP_IS_SOCKET) {
+    print ON "\n#define OP_IS_SOCKET(op)	\\\n\t(";
+    print ON join(" || \\\n\t ",
+               map { "(op) == OP_" . uc() } sort keys %OP_IS_SOCKET);
+    print ON ")\n\n";
+}
+
+if (keys %OP_IS_FILETEST) {
+    print ON "\n#define OP_IS_FILETEST(op)	\\\n\t(";
+    print ON join(" || \\\n\t ",
+               map { "(op) == OP_" . uc() } sort keys %OP_IS_FILETEST);
+    print ON ")\n\n";
+}
 
 close OC or die "Error closing opcode.h: $!";
 close ON or die "Error closing opnames.h: $!";
@@ -299,7 +322,7 @@ sub tab {
 #	trans not OK (dTARG; TARG = sv_newmortal();)
 #	ucfirst etc not OK: TMP arg processed inplace
 #	quotemeta not OK (unsafe when TARG == arg)
-#	each repeat not OK too due to array context
+#	each repeat not OK too due to list context
 #	pack split - unknown whether they are safe
 #	sprintf: is calling do_sprintf(TARG,...) which can act on TARG
 #	  before other args are processed.
@@ -434,7 +457,7 @@ add		addition (+)		ck_null		IfsT2	S S
 i_add		integer addition (+)	ck_null		ifsT2	S S
 subtract	subtraction (-)		ck_null		IfsT2	S S
 i_subtract	integer subtraction (-)	ck_null		ifsT2	S S
-concat		concatenation (.)	ck_concat	fsT2	S S
+concat		concatenation (.) or string	ck_concat	fsT2	S S
 stringify	string			ck_fun		fsT@	S
 
 left_shift	left bitshift (<<)	ck_bitop	fsT2	S S
@@ -493,7 +516,7 @@ abs		abs			ck_fun		fsTu%	S?
 # String stuff.
 
 length		length			ck_lengthconst	isTu%	S?
-substr		substr			ck_fun		st@	S S S? S?
+substr		substr			ck_substr	st@	S S S? S?
 vec		vec			ck_fun		ist@	S S S
 
 index		index			ck_index	isT@	S S S?
@@ -533,7 +556,7 @@ hslice		hash slice		ck_null		m@	H L
 unpack		unpack			ck_fun		@	S S
 pack		pack			ck_fun		mst@	S L
 split		split			ck_split	t@	S S S
-join		join			ck_join		mst@	S L
+join		join or string		ck_join		mst@	S L
 
 # List operators.
 
@@ -574,7 +597,7 @@ orassign	logical or assignment (||=)	ck_null		s|
 method		method lookup		ck_method	d1
 entersub	subroutine entry	ck_subr		dmt1	L
 leavesub	subroutine exit		ck_null		1	
-leavesublv	lvalue subroutine exit	ck_null		1	
+leavesublv	lvalue subroutine return	ck_null		1	
 caller		caller			ck_fun		t%	S?
 warn		warn			ck_fun		imst@	L
 die		die			ck_fun		dimst@	L
@@ -591,7 +614,7 @@ enteriter	foreach loop entry	ck_null		d{
 iter		foreach loop iterator	ck_null		0	
 enterloop	loop entry		ck_null		d{	
 leaveloop	loop exit		ck_null		2	
-return		return			ck_null		dm@	L
+return		return			ck_return	dm@	L
 last		last			ck_null		ds}	
 next		next			ck_null		ds}	
 redo		redo			ck_null		ds}	
@@ -635,8 +658,8 @@ sysseek		sysseek			ck_fun		s@	F S S
 sysread		sysread			ck_fun		imst@	F R S S?
 syswrite	syswrite		ck_fun		imst@	F S S? S?
 
-send		send			ck_fun		imst@	F S S S?
-recv		recv			ck_fun		imst@	F R S S
+send		send			ck_fun		imst@	Fs S S S?
+recv		recv			ck_fun		imst@	Fs R S S
 
 eof		eof			ck_eof		is%	F?
 tell		tell			ck_fun		st%	F?
@@ -650,52 +673,52 @@ flock		flock			ck_fun		isT@	F S
 
 # Sockets.
 
-socket		socket			ck_fun		is@	F S S S
-sockpair	socketpair		ck_fun		is@	F F S S S
+socket		socket			ck_fun		is@	Fs S S S
+sockpair	socketpair		ck_fun		is@	Fs Fs S S S
 
-bind		bind			ck_fun		is@	F S
-connect		connect			ck_fun		is@	F S
-listen		listen			ck_fun		is@	F S
-accept		accept			ck_fun		ist@	F F
-shutdown	shutdown		ck_fun		ist@	F S
+bind		bind			ck_fun		is@	Fs S
+connect		connect			ck_fun		is@	Fs S
+listen		listen			ck_fun		is@	Fs S
+accept		accept			ck_fun		ist@	Fs Fs
+shutdown	shutdown		ck_fun		ist@	Fs S
 
-gsockopt	getsockopt		ck_fun		is@	F S S
-ssockopt	setsockopt		ck_fun		is@	F S S S
+gsockopt	getsockopt		ck_fun		is@	Fs S S
+ssockopt	setsockopt		ck_fun		is@	Fs S S S
 
-getsockname	getsockname		ck_fun		is%	F
-getpeername	getpeername		ck_fun		is%	F
+getsockname	getsockname		ck_fun		is%	Fs
+getpeername	getpeername		ck_fun		is%	Fs
 
 # Stat calls.
 
 lstat		lstat			ck_ftst		u-	F
 stat		stat			ck_ftst		u-	F
-ftrread		-R			ck_ftst		isu-	F
-ftrwrite	-W			ck_ftst		isu-	F
-ftrexec		-X			ck_ftst		isu-	F
-fteread		-r			ck_ftst		isu-	F
-ftewrite	-w			ck_ftst		isu-	F
-fteexec		-x			ck_ftst		isu-	F
-ftis		-e			ck_ftst		isu-	F
-fteowned	-O			ck_ftst		isu-	F
-ftrowned	-o			ck_ftst		isu-	F
-ftzero		-z			ck_ftst		isu-	F
-ftsize		-s			ck_ftst		istu-	F
-ftmtime		-M			ck_ftst		stu-	F
-ftatime		-A			ck_ftst		stu-	F
-ftctime		-C			ck_ftst		stu-	F
-ftsock		-S			ck_ftst		isu-	F
-ftchr		-c			ck_ftst		isu-	F
-ftblk		-b			ck_ftst		isu-	F
-ftfile		-f			ck_ftst		isu-	F
-ftdir		-d			ck_ftst		isu-	F
-ftpipe		-p			ck_ftst		isu-	F
-ftlink		-l			ck_ftst		isu-	F
-ftsuid		-u			ck_ftst		isu-	F
-ftsgid		-g			ck_ftst		isu-	F
-ftsvtx		-k			ck_ftst		isu-	F
-fttty		-t			ck_ftst		is-	F
-fttext		-T			ck_ftst		isu-	F
-ftbinary	-B			ck_ftst		isu-	F
+ftrread		-R			ck_ftst		isu-	F-
+ftrwrite	-W			ck_ftst		isu-	F-
+ftrexec		-X			ck_ftst		isu-	F-
+fteread		-r			ck_ftst		isu-	F-
+ftewrite	-w			ck_ftst		isu-	F-
+fteexec		-x			ck_ftst		isu-	F-
+ftis		-e			ck_ftst		isu-	F-
+fteowned	-O			ck_ftst		isu-	F-
+ftrowned	-o			ck_ftst		isu-	F-
+ftzero		-z			ck_ftst		isu-	F-
+ftsize		-s			ck_ftst		istu-	F-
+ftmtime		-M			ck_ftst		stu-	F-
+ftatime		-A			ck_ftst		stu-	F-
+ftctime		-C			ck_ftst		stu-	F-
+ftsock		-S			ck_ftst		isu-	F-
+ftchr		-c			ck_ftst		isu-	F-
+ftblk		-b			ck_ftst		isu-	F-
+ftfile		-f			ck_ftst		isu-	F-
+ftdir		-d			ck_ftst		isu-	F-
+ftpipe		-p			ck_ftst		isu-	F-
+ftlink		-l			ck_ftst		isu-	F-
+ftsuid		-u			ck_ftst		isu-	F-
+ftsgid		-g			ck_ftst		isu-	F-
+ftsvtx		-k			ck_ftst		isu-	F-
+fttty		-t			ck_ftst		is-	F-
+fttext		-T			ck_ftst		isu-	F-
+ftbinary	-B			ck_ftst		isu-	F-
 
 # File calls.
 

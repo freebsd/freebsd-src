@@ -2,7 +2,7 @@
 
 BEGIN {
     chdir 't' if -d 't';
-    unshift @INC, '../lib';
+    @INC = '../lib';
 }
 
 my @expect;
@@ -77,7 +77,7 @@ package main;
 
 use Symbol;
 
-print "1..29\n";
+print "1..33\n";
 
 my $fh = gensym;
 
@@ -149,3 +149,19 @@ ok($data eq "qwerty");
 @expect = (CLOSE => $ob);
 $r = close $fh;
 ok($r == 5);
+
+# Does aliasing work with tied FHs?
+*ALIAS = *$fh;
+@expect = (PRINT => $ob,"some","text");
+$r = print ALIAS @expect[2,3];
+ok($r == 1);
+
+{
+    use warnings;
+    # Special case of aliasing STDERR, which used
+    # to dump core when warnings were enabled
+    *STDERR = *$fh;
+    @expect = (PRINT => $ob,"some","text");
+    $r = print STDERR @expect[2,3];
+    ok($r == 1);
+}

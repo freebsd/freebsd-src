@@ -7,7 +7,7 @@
 ##
 
 chdir 't' if -d 't';
-unshift @INC, "../lib";
+@INC = '../lib';
 $Is_VMS = $^O eq 'VMS';
 $Is_MSWin32 = $^O eq 'MSWin32';
 $ENV{PERL5LIB} = "../lib" unless $Is_VMS;
@@ -349,3 +349,18 @@ A 1
 bar
 B 2
 bar
+########
+sub n { 0 }
+sub f { my $x = shift; d(); }
+f(n());
+f();
+
+sub d {
+    my $i = 0; my @a;
+    while (do { { package DB; @a = caller($i++) } } ) {
+        @a = @DB::args;
+        for (@a) { print "$_\n"; $_ = '' }
+    }
+}
+EXPECT
+0

@@ -234,8 +234,7 @@ prepared to clean up core dumps now and again.
 
 To forbid signal handlers altogether would bars you from
 many interesting programs, including virtually everything in this manpage,
-since you could no longer even write SIGCHLD handlers.  Their dodginess
-is expected to be addresses in the 5.005 release.
+since you could no longer even write SIGCHLD handlers.  
 
 
 =head1 Using open() for IPC
@@ -661,13 +660,14 @@ instead.
     BEGIN { $ENV{PATH} = '/usr/ucb:/bin' }
     use Socket;
     use Carp;
-    $EOL = "\015\012";
+    my $EOL = "\015\012";
 
     sub logmsg { print "$0 $$: @_ at ", scalar localtime, "\n" }
 
     my $port = shift || 2345;
     my $proto = getprotobyname('tcp');
-    $port = $1 if $port =~ /(\d+)/; # untaint port number
+
+    ($port) = $port =~ /^(\d+)$/                        or die "invalid port";
 
     socket(Server, PF_INET, SOCK_STREAM, $proto)	|| die "socket: $!";
     setsockopt(Server, SOL_SOCKET, SO_REUSEADDR,
@@ -703,14 +703,15 @@ go back to service a new client.
     BEGIN { $ENV{PATH} = '/usr/ucb:/bin' }
     use Socket;
     use Carp;
-    $EOL = "\015\012";
+    my $EOL = "\015\012";
 
     sub spawn;  # forward declaration
     sub logmsg { print "$0 $$: @_ at ", scalar localtime, "\n" }
 
     my $port = shift || 2345;
     my $proto = getprotobyname('tcp');
-    $port = $1 if $port =~ /(\d+)/; # untaint port number
+
+    ($port) = $port =~ /^(\d+)$/                        or die "invalid port";
 
     socket(Server, PF_INET, SOCK_STREAM, $proto)	|| die "socket: $!";
     setsockopt(Server, SOL_SOCKET, SO_REUSEADDR,
@@ -744,6 +745,7 @@ go back to service a new client.
 		at port $port";
 
 	spawn sub {
+	    $|=1;
 	    print "Hello there, $name, it's now ", scalar localtime, $EOL;
 	    exec '/usr/games/fortune'		# XXX: `wrong' line terminators
 		or confess "can't exec fortune: $!";
@@ -835,7 +837,7 @@ domain sockets can show up in the file system with an ls(1) listing.
 You can test for these with Perl's B<-S> file test:
 
     unless ( -S '/dev/log' ) {
-	die "something's wicked with the print system";
+	die "something's wicked with the log system";
     }
 
 Here's a sample Unix-domain client:
@@ -863,6 +865,7 @@ to be on the localhost, and thus everything works right.
     use Carp;
 
     BEGIN { $ENV{PATH} = '/usr/ucb:/bin' }
+    sub spawn;  # forward declaration
     sub logmsg { print "$0 $$: @_ at ", scalar localtime, "\n" }
 
     my $NAME = '/tmp/catsock';
@@ -899,6 +902,29 @@ to be on the localhost, and thus everything works right.
 	};
     }
 
+    sub spawn {
+	my $coderef = shift;
+
+	unless (@_ == 0 && $coderef && ref($coderef) eq 'CODE') {
+	    confess "usage: spawn CODEREF";
+	}
+
+	my $pid;
+	if (!defined($pid = fork)) {
+	    logmsg "cannot fork: $!";
+	    return;
+	} elsif ($pid) {
+	    logmsg "begat $pid";
+	    return; # I'm the parent
+	}
+	# else I'm the child -- go spawn
+
+	open(STDIN,  "<&Client")   || die "can't dup client to stdin";
+	open(STDOUT, ">&Client")   || die "can't dup client to stdout";
+	## open(STDERR, ">&STDOUT") || die "can't dup stdout to stderr";
+	exit &$coderef();
+    }
+
 As you see, it's remarkably similar to the Internet domain TCP server, so
 much so, in fact, that we've omitted several duplicate functions--spawn(),
 logmsg(), ctime(), and REAPER()--which are exactly the same as in the
@@ -922,7 +948,7 @@ For those preferring a higher-level interface to socket programming, the
 IO::Socket module provides an object-oriented approach.  IO::Socket is
 included as part of the standard Perl distribution as of the 5.004
 release.  If you're running an earlier version of Perl, just fetch
-IO::Socket from CPAN, where you'll also find find modules providing easy
+IO::Socket from CPAN, where you'll also find modules providing easy
 interfaces to the following systems: DNS, FTP, Ident (RFC 931), NIS and
 NISPlus, NNTP, Ping, POP3, SMTP, SNMP, SSLeay, Telnet, and Time--just
 to name a few.
@@ -950,7 +976,7 @@ looks like this:
 
 Here are what those parameters to the C<new> constructor mean:
 
-=over
+=over 4
 
 =item C<Proto>
 
@@ -1022,7 +1048,7 @@ something to the server before fetching the server's response.
     }
 
 The web server handing the "http" service, which is assumed to be at
-its standard port, number 80.  If your the web server you're trying to
+its standard port, number 80.  If the web server you're trying to
 connect to is at a different port (like 1080 or 8080), you should specify
 as the named-parameter pair, C<< PeerPort => 8080 >>.  The C<autoflush>
 method is used on the socket because otherwise the system would buffer
@@ -1145,7 +1171,7 @@ does nothing but listen on a particular port for incoming connections.
 It does this by calling the C<< IO::Socket::INET->new() >> method with
 slightly different arguments than the client did.
 
-=over
+=over 4
 
 =item Proto
 
@@ -1245,6 +1271,11 @@ find yourself overly concerned about reliability and start building checks
 into your message system, then you probably should use just TCP to start
 with.
 
+Note that UDP datagrams are I<not> a bytestream and should not be treated
+as such. This makes using I/O mechanisms with internal buffering
+like stdio (i.e. print() and friends) especially cumbersome. Use syswrite(),
+or better send(), like in the example below.
+
 Here's a UDP program similar to the sample Internet TCP client given
 earlier.  However, instead of checking one host at a time, the UDP version
 will check many of them asynchronously by simulating a multicast and then
@@ -1294,6 +1325,11 @@ with TCP, you'd have to use a different socket handle for each host.
 	printf "%8d %s\n", $histime - time, scalar localtime($histime);
 	$count--;
     }
+
+Note that this example does not include any retries and may consequently
+fail to contact a reachable host. The most prominent reason for this
+is congestion of the queues on the sending host if the number of
+list of hosts to contact is sufficiently large.
 
 =head1 SysV IPC
 

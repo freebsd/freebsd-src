@@ -1,6 +1,6 @@
 #!./perl
 
-print "1..8\n";
+print "1..9\n";
 
 # test various operations on @_
 
@@ -52,3 +52,24 @@ sub new4 { goto &new2 }
     print "# got [@$y], expected [a b c y]\nnot " unless "@$y" eq "a b c y";
     print "ok $ord\n";
 }
+
+# see if POPSUB gets to see the right pad across a dounwind() with
+# a reified @_
+
+sub methimpl {
+    my $refarg = \@_;
+    die( "got: @_\n" );
+}
+
+sub method {
+    &methimpl;
+}
+
+sub try {
+    eval { method('foo', 'bar'); };
+    print "# $@" if $@;
+}
+
+for (1..5) { try() }
+++$ord;
+print "ok $ord\n";

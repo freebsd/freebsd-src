@@ -2,13 +2,14 @@
 
 BEGIN {
     chdir 't' if -d 't';
-    unshift @INC, '../lib';
+    @INC = '../lib';
 }    
 
 # $RCSfile$    
 $|  = 1;
 use warnings;
 $Is_VMS = $^O eq 'VMS';
+$Is_Dos = $^O eq 'dos';
 
 print "1..66\n";
 
@@ -268,13 +269,21 @@ ok;
 {
     local *F;
     for (1..2) {
-        open(F, "echo #foo|") or print "not ";
+        if ($Is_Dos) {
+        open(F, "echo \\#foo|") or print "not ";
+        } else {
+            open(F, "echo #foo|") or print "not ";
+        }
 	print <F>;
 	close F;
     }
     ok;
     for (1..2) {
-	open(F, "-|", "echo #foo") or print "not ";
+        if ($Is_Dos) {
+	open(F, "-|", "echo \\#foo") or print "not ";
+        } else {
+            open(F, "-|", "echo #foo") or print "not ";
+        }
 	print <F>;
 	close F;
     }

@@ -2,7 +2,7 @@
 
 BEGIN {
     chdir 't' if -d 't';
-    unshift @INC, '../lib';
+    @INC = '../lib';
     $ENV{PERL5LIB} = '../lib';
 }
 
@@ -19,7 +19,7 @@ my @prgs = () ;
 
 foreach (sort glob("pragma/strict-*")) {
 
-    next if /(~|\.orig)$/;
+    next if /(~|\.orig|,v)$/;
 
     open F, "<$_" or die "Cannot open $_: $!\n" ;
     while (<F>) {

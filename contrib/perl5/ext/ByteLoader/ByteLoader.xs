@@ -4,47 +4,95 @@
 #include "XSUB.h"
 #include "byterun.h"
 
-static int
-xgetc(PerlIO *io)
+/* Something arbitary for a buffer size */
+#define BYTELOADER_BUFFER 8096
+
+int
+bl_getc(struct byteloader_fdata *data)
 {
     dTHX;
-    return PerlIO_getc(io);
+    if (SvCUR(data->datasv) <= data->next_out) {
+      int result;
+      /* Run out of buffered data, so attempt to read some more */
+      *(SvPV_nolen (data->datasv)) = '\0';
+      SvCUR_set (data->datasv, 0);
+      data->next_out = 0;
+      result = FILTER_READ (data->idx + 1, data->datasv, BYTELOADER_BUFFER);
+
+      /* Filter returned error, or we got EOF and no data, then return EOF.
+	 Not sure if filter is allowed to return EOF and add data simultaneously
+	 Think not, but will bullet proof against it. */
+      if (result < 0 || SvCUR(data->datasv) == 0)
+	return EOF;
+      /* Else there must be at least one byte present, which is good enough */
+    }
+
+    return *((char *) SvPV_nolen (data->datasv) + data->next_out++);
 }
 
-static int
-xfread(char *buf, size_t size, size_t n, PerlIO *io)
+int
+bl_read(struct byteloader_fdata *data, char *buf, size_t size, size_t n)
 {
     dTHX;
-    int i = PerlIO_read(io, buf, n * size);
-    if (i > 0)
-	i /= size;
-    return i;
-}
+    char *start;
+    STRLEN len;
+    size_t wanted = size * n;
 
-static void
-freadpv(U32 len, void *data, XPV *pv)
-{
-    dTHX;
-    New(666, pv->xpv_pv, len, char);
-    PerlIO_read((PerlIO*)data, (void*)pv->xpv_pv, len);
-    pv->xpv_len = len;
-    pv->xpv_cur = len - 1;
+    start = SvPV (data->datasv, len);
+    if (len < (data->next_out + wanted)) {
+      int result;
+
+      /* Shuffle data to start of buffer */
+      len -= data->next_out;
+      if (len) {
+	memmove (start, start + data->next_out, len + 1);
+	SvCUR_set (data->datasv, len);
+      } else {
+	*start = '\0';	/* Avoid call to memmove. */
+	SvCUR_set (data->datasv, 0);
+      }
+      data->next_out = 0;
+
+      /* Attempt to read more data. */
+      do {
+	result = FILTER_READ (data->idx + 1, data->datasv, BYTELOADER_BUFFER);
+	
+	start = SvPV (data->datasv, len);
+      } while (result > 0 && len < wanted);
+      /* Loop while not (EOF || error) and short reads */
+
+      /* If not enough data read, truncate copy */
+      if (wanted > len)
+	wanted = len;
+    }
+
+    if (wanted > 0) {
+      memcpy (buf, start + data->next_out, wanted);
+	data->next_out += wanted;
+      wanted /= size;
+    }
+    return (int) wanted;
 }
 
 static I32
 byteloader_filter(pTHXo_ int idx, SV *buf_sv, int maxlen)
 {
-    dTHR;
     OP *saveroot = PL_main_root;
     OP *savestart = PL_main_start;
-    struct bytestream bs;
+    struct byteloader_state bstate;
+    struct byteloader_fdata data;
 
-    bs.data = PL_rsfp;
-    bs.pfgetc = (int(*) (void*))xgetc;
-    bs.pfread = (int(*) (char*,size_t,size_t,void*))xfread;
-    bs.pfreadpv = freadpv;
+    data.next_out = 0;
+    data.datasv = FILTER_DATA(idx);
+    data.idx = idx;
 
-    byterun(aTHXo_ bs);
+    bstate.bs_fdata = &data;
+    bstate.bs_obj_list = Null(void**);
+    bstate.bs_obj_list_fill = -1;
+    bstate.bs_sv = Nullsv;
+    bstate.bs_iv_overflows = 0;
+
+    byterun(aTHXo_ &bstate);
 
     if (PL_in_eval) {
         OP *o;
@@ -70,8 +118,12 @@ PROTOTYPES:	ENABLE
 
 void
 import(...)
+  PREINIT:
+    SV *sv = newSVpvn ("", 0);
   PPCODE:
-    filter_add(byteloader_filter, NULL);
+    if (!sv)
+      croak ("Could not allocate ByteLoader buffers");
+    filter_add(byteloader_filter, sv);
 
 void
 unimport(...)

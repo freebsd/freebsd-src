@@ -58,7 +58,7 @@ and 1 is the subversion.
 
 For compatibility with the older numbering scheme the composite floating
 point version number continues to be available as the magic variable $],
-and amounts to C<$revision + $version/1000 + $subversion/1000000>.  This
+and amounts to C<$revision + $version/1000 + $subversion/100000>.  This
 can still be used in comparisons.
 
 	print "You've got an old perl\n" if $] < 5.005_03;
@@ -210,7 +210,7 @@ unset appropriate Configure variables, based on the Configure command
 line options and possibly existing config.sh and Policy.sh files from
 previous Configure runs.
 
-The extension hints are written Perl (by the time they are used
+The extension hints are written in Perl (by the time they are used
 miniperl has been built) and control the building of their respective
 extensions.  They can be used to for example manipulate compilation
 and linking flags.
@@ -252,7 +252,8 @@ the first B<not> to have a system call also update the list of
 A file called F<README.youros> at the top level that explains things
 like how to install perl at this platform, where to get any possibly
 required additional software, and for example what test suite errors
-to expect, is nice too.
+to expect, is nice too.  Such files are in the process of being written
+in pod format and will eventually be renamed F<INSTALL.youros>.
 
 You may also want to write a separate F<.pod> file for your operating
 system to tell about existing mailing lists, os-specific modules,
@@ -449,7 +450,9 @@ safely be sorted, so it's easy to track (typically very small) changes
 to config.sh and then propoagate them to a canned 'config.h' by any
 number of means, including a perl script in win32/ or carrying 
 config.sh and config_h.SH to a Unix system and running sh
-config_h.SH.)
+config_h.SH.)  Vms uses configure.com to generate its own config.sh
+and config.h.  If you want to add a new variable to config.sh check
+with vms folk how to add it to configure.com too.
 XXX]
 
 The Porting/config.sh and Porting/config_H files are provided to
@@ -460,7 +463,7 @@ distinguish the file from config.h even on case-insensitive file systems.)
 Simply edit the existing config_H file; keep the first few explanatory
 lines and then copy your new config.h below.
 
-It may also be necessary to update win32/config.?c, vms/config.vms and
+It may also be necessary to update win32/config.?c, and
 plan9/config.plan9, though you should be quite careful in doing so if
 you are not familiar with those systems.  You might want to issue your
 patch with a promise to quickly issue a follow-up that handles those
@@ -481,8 +484,10 @@ output statements mean the patch won't apply cleanly.  Long ago I
 started to fix F<perly.fixer> to detect this, but I never completed the
 task.
 
-If C<perly.c> changes, make sure you run C<perl vms/vms_yfix.pl> to
-update the corresponding VMS files.  See L<VMS-specific updates>.
+If C<perly.c> or C<perly.h> changes, make sure you run C<perl vms/vms_yfix.pl> 
+to update the corresponding VMS files.  This could be taken care of by 
+the regen_all target in the Unix Makefile.  See also 
+L<VMS-specific updates>.
 
 Some additional notes from Larry on this:
 
@@ -506,6 +511,11 @@ This only happens when you add or remove a token type.  I suppose this
 could be automated, but it doesn't happen very often nowadays.
 
 Larry
+
+=head2 make regen_all
+
+This target takes care of the PERLYVMS, regen_headers, and regen_pods
+targets.
 
 =head2 make regen_headers
 
@@ -532,6 +542,10 @@ and effort by manually running C<make regen_headers> myself rather
 than answering all the questions and complaints about the failing
 command.
 
+=head2 make regen_pods
+
+Will run `make regen_pods` in the pod directory for indexing. 
+
 =head2 global.sym, interp.sym and perlio.sym
 
 Make sure these files are up-to-date.  Read the comments in these
@@ -541,7 +555,7 @@ files and in perl_exp.SH to see what to do.
 
 If you do change F<global.sym> or F<interp.sym>, think carefully about
 what you are doing.  To the extent reasonable, we'd like to maintain
-souce and binary compatibility with older releases of perl.  That way,
+source and binary compatibility with older releases of perl.  That way,
 extensions built under one version of perl will continue to work with
 new versions of perl.
 
@@ -594,11 +608,11 @@ things that need to be fixed in Configure.
 =head2 VMS-specific updates
 
 If you have changed F<perly.y> or F<perly.c>, then you most probably want
-to update F<vms/perly_{h,c}.vms> by running C<perl vms/vms_yfix.pl>.
+to update F<vms/perly_{h,c}.vms> by running C<perl vms/vms_yfix.pl>, or
+by running `make regen_all` which will run that script for you.
 
-The Perl version number appears in several places under F<vms>.
-It is courteous to update these versions.  For example, if you are
-making 5.004_42, replace "5.00441" with "5.00442".
+The Perl revision number appears as "perl5" in configure.com.
+It is courteous to update that if necessary.
 
 =head2 Making the new distribution
 
@@ -700,6 +714,34 @@ supports dynamic loading, you can also test static loading with
 
 You can also hand-tweak your config.h to try out different #ifdef
 branches.
+
+=head2 Other tests
+
+=over 4
+
+=item CHECK_FORMAT
+
+To test the correct use of printf-style arguments, C<Configure> with
+S<-Dccflags='-DCHECK_FORMAT -Wformat'> and run C<make>.  The compiler
+will produce warning of incorrect use of format arguments.  CHECK_FORMAT
+changes perl-defined formats to common formats, so DO NOT USE the executable
+produced by this process. 
+
+A more accurate approach is the following commands:
+
+    sh Configure -des -Dccflags=-Wformat ...
+    make miniperl		# without -DCHECK_FORMAT
+    perl -i.orig -pwe 's/-Wformat/-DCHECK_FORMAT $&/' config.sh
+    sh Configure -S
+    make >& make.log		# build from correct miniperl
+    make clean
+    make miniperl >& mini.log	# build miniperl with -DCHECK_FORMAT 
+    perl -nwe 'print if /^\S+:/ and not /^make\b/' mini.log make.log
+    make clean
+
+(-Wformat support by Robin Barker.)
+
+=back
 
 =head1 Running Purify
 
@@ -1325,7 +1367,8 @@ have good reason to do otherwise, I see no reason not to support them.
 =item File locking
 
 Somehow, straighten out, document, and implement lockf(), flock(),
-and/or fcntl() file locking.  It's a mess.
+and/or fcntl() file locking.  It's a mess.  See $d_fcntl_can_lock
+in recent config.sh files though.
 
 =back
 

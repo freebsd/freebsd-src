@@ -13,7 +13,7 @@ BEGIN
     chdir 't';
     $File =~ s/^t\W+//;                                 # Remove first directory
   }
-  unshift @INC, '../lib' if -d '../lib';
+  @INC = '../lib';
   require strict; import strict;
 }
 

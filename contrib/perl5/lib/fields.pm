@@ -172,8 +172,7 @@ sub import {
 	if ($fno and $fno != $next) {
 	    require Carp;
             if ($fno < $fattr->[0]) {
-                warnings::warn("Hides field '$f' in base class") 
-		    if warnings::enabled();
+                warnings::warnif("Hides field '$f' in base class") ;
             } else {
                 Carp::croak("Field name '$f' already in use");
             }

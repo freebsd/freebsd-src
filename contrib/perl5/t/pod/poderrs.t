@@ -1,7 +1,7 @@
-#!./perl
 BEGIN {
    chdir 't' if -d 't';
-   unshift @INC, './pod', '../lib';
+   unshift @INC, '../lib';
+   unshift @INC, './pod';
    require "testpchk.pl";
    import TestPodChecker;
 }
@@ -59,7 +59,7 @@ The above blank line contains tabs and spaces only
 
 =over 4
 
-=item oops
+=item aaps
 
 =head2 end without begin
 
@@ -75,6 +75,20 @@ The above blank line contains tabs and spaces only
 
 =end
 
+second one results in end w/o begin
+
+=head2 begin w/o formatter
+
+=begin
+
+=end
+
+=head2 for w/o formatter
+
+=for
+
+something...
+
 =head2 Nested sequences of the same type
 
 C<code I<italic C<code again!>>>
@@ -84,6 +98,9 @@ C<code I<italic C<code again!>>>
 E<alea iacta est>
 E<C<auml>>
 E<abcI<bla>>
+E<0x100>
+E<07777>
+E<300>
 
 =head2 Unresolved internal links
 
@@ -96,12 +113,15 @@ L</OoPs>
 L<abc
 def>
 L<>
+L<   aha>
+L<oho   >
 L<"Warnings"> this one is ok
+L</unescaped> ok too, this POD has an X of the same name
 
 =head2 Warnings
 
 L<passwd(5)>
-L<   some text|page/"section"   >
+L<some text with / in it|perlvar/$|> should give warnings as hell
 
 =over 4
 
@@ -109,17 +129,70 @@ L<   some text|page/"section"   >
 
 =back 200
 
+the 200 is evil
+
 =begin html
 
 What?
 
 =end xml
 
+X<unescaped>see these unescaped < and > in the text?
+
+=head2 Misc
+
+Z<ddd> should be empty
+
+X<> should not be empty
+
+=over four
+
+This paragrapgh is misplaced - it ought to be an item.
+
+=item four should be numeric!
+
+=item
+
+=item blah
+
+=item previous is all empty!!!
+
+=back
+
+All empty over/back:
+
 =over 4
 
 =back
 
-see these unescaped < and > in the text?
+item w/o name
 
 =cut
+
+=pod bla
+
+bla is evil
+
+=cut blub
+
+blub is evil
+
+=head2 reoccurence
+
+=over 4
+
+=item Misc
+
+we already have a head Misc
+
+=back
+
+=head2 some heading
+
+=head2 another one
+
+previous section is empty!
+
+=cut
+
 

@@ -6,7 +6,7 @@ our(@EXPORT, @EXPORT_OK, %EXPORT_TAGS);
 BEGIN { 
     use Exporter   ();
     @EXPORT      = qw(getprotobyname getprotobynumber getprotoent);
-    @EXPORT_OK   = qw( $p_name @p_aliases $p_proto );
+    @EXPORT_OK   = qw( $p_name @p_aliases $p_proto getproto );
     %EXPORT_TAGS = ( FIELDS => [ @EXPORT_OK, @EXPORT ] );
 }
 use vars      @EXPORT_OK;
@@ -78,6 +78,7 @@ regular array variables, so for example C<@{ $proto_obj-E<gt>aliases()
 
 The getproto() function is a simple front-end that forwards a numeric
 argument to getprotobyport(), and the rest to getprotobyname().
+This function is not exported by default.
 
 To access this functionality without the core overrides,
 pass the C<use> an empty import list, and then access

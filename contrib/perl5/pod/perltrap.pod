@@ -4,10 +4,11 @@ perltrap - Perl traps for the unwary
 
 =head1 DESCRIPTION
 
-The biggest trap of all is forgetting to use the B<-w> switch; see
-L<perlrun>.  The second biggest trap is not making your entire program
-runnable under C<use strict>.  The third biggest trap is not reading
-the list of changes in this version of Perl; see L<perldelta>.
+The biggest trap of all is forgetting to C<use warnings> or use the B<-w>
+switch; see L<perllexwarn> and L<perlrun>. The second biggest trap is not
+making your entire program runnable under C<use strict>.  The third biggest
+trap is not reading the list of changes in this version of Perl; see
+L<perldelta>.
 
 =head2 Awk Traps
 
@@ -116,7 +117,7 @@ The C<next>, C<exit>, and C<continue> keywords work differently.
 The following variables work differently:
 
       Awk	Perl
-      ARGC	$#ARGV or scalar @ARGV
+      ARGC	scalar @ARGV (compare with $#ARGV)
       ARGV[0]	$0
       FILENAME	$ARGV
       FNR	$. - something
@@ -172,12 +173,6 @@ Variables begin with "$", "@" or "%" in Perl.
 
 =item *
 
-C<printf()> does not implement the "*" format for interpolating
-field widths, but it's trivial to use interpolation of double-quoted
-strings to achieve the same effect.
-
-=item *
-
 Comments begin with "#", not "/*".
 
 =item *
@@ -193,7 +188,7 @@ ends up in C<$0>.
 =item *
 
 System calls such as link(), unlink(), rename(), etc. return nonzero for
-success, not 0.
+success, not 0. (system(), however, returns zero for success.)
 
 =item *
 
@@ -284,8 +279,8 @@ parentheses on function calls, you won't ever get them confused.
 You cannot discern from mere inspection which builtins
 are unary operators (like chop() and chdir())
 and which are list operators (like print() and unlink()).
-(User-defined subroutines can be B<only> list operators, never
-unary ones.)  See L<perlop>.
+(Unless prototyped, user-defined subroutines can B<only> be list
+operators, never unary ones.)  See L<perlop> and L<perlsub>.
 
 =item *
 
@@ -392,7 +387,7 @@ Everything else.
 =back
 
 If you find an example of a conversion trap that is not listed here,
-please submit it to Bill Middleton <F<wjm@best.com>> for inclusion.
+please submit it to <F<perlbug@perl.org>> for inclusion.
 Also note that at least some of these can be caught with the
 C<use warnings> pragma or the B<-w> switch.
 
@@ -473,7 +468,7 @@ You can't do a C<goto> into a block that is optimized away.  Darn.
     }
 
     # perl4 prints: Here I is!
-    # perl5 dumps core (SEGV)
+    # perl5 errors: Can't "goto" into the middle of a foreach loop
 
 =item * Discontinuance
 
@@ -592,6 +587,12 @@ Some error messages will be different.
 
 =item * Discontinuance
 
+In Perl 4, if in list context the delimiters to the first argument of
+C<split()> were C<??>, the result would be placed in C<@_> as well as
+being returned.   Perl 5 has more respect for your subroutine arguments.
+
+=item * Discontinuance
+
 Some bugs may have been inadvertently removed.  :-)
 
 =back
@@ -638,7 +639,7 @@ Better parsing in perl 5
 String interpolation of the C<$#array> construct differs when braces
 are to used around the name.
 
-    @ = (1..3);
+    @a = (1..3);
     print "${#a}";
 
     # perl4 prints: 2
@@ -788,7 +789,19 @@ variable is localized subsequent to the assignment
 
 Assigning C<undef> to a glob has no effect in Perl 5.   In Perl 4
 it undefines the associated scalar (but may have other side effects
-including SEGVs).
+including SEGVs). Perl 5 will also warn if C<undef> is assigned to a
+typeglob. (Note that assigning C<undef> to a typeglob is different
+than calling the C<undef> function on a typeglob (C<undef *foo>), which
+has quite a few effects.
+
+    $foo = "bar";
+    *foo = undef;
+    print $foo;
+
+    # perl4 prints:
+    # perl4 warns: "Use of uninitialized variable" if using -w
+    # perl5 prints: bar
+    # perl5 warns: "Undefined value assigned to typeglob" if using -w
 
 =item * (Scalar String)
 
@@ -922,25 +935,24 @@ scalar context to its arguments.
 
 =item * (list, builtin)
 
-C<sprintf()> funkiness (array argument converted to scalar array count)
-This test could be added to t/op/sprintf.t
+C<sprintf()> is prototyped as ($;@), so its first argument is given scalar
+context. Thus, if passed an array, it will probably not do what you want,
+unlike Perl 4:
 
     @z = ('%s%s', 'foo', 'bar');
     $x = sprintf(@z);
-    if ($x eq 'foobar') {print "ok 2\n";} else {print "not ok 2 '$x'\n";}
+    print $x;
 
-    # perl4 prints: ok 2
-    # perl5 prints: not ok 2
+    # perl4 prints: foobar
+    # perl5 prints: 3
 
-C<printf()> works fine, though:
+C<printf()> works the same as it did in Perl 4, though:
 
+    @z = ('%s%s', 'foo', 'bar');
     printf STDOUT (@z);
-    print "\n";
 
     # perl4 prints: foobar
     # perl5 prints: foobar
-
-Probably a bug.
 
 =back
 
@@ -1013,7 +1025,7 @@ Otherwise, perl5 leaves the statement as its default precedence:
     open(FOO || die);
 
     # perl4 opens or dies
-    # perl5 errors: Precedence problem: open FOO should be open(FOO)
+    # perl5 opens FOO, dying only if 'FOO' is false, i.e. never
 
 =item * Precedence
 
@@ -1089,7 +1101,7 @@ state of the searched string is lost)
     }
     sub doit{local($_) = shift; print "Got $_ "}
 
-    # perl4 prints: blah blah blah
+    # perl4 prints: Got blah Got blah Got blah Got blah
     # perl5 prints: infinite loop blah...
 
 =item * Regular Expression
@@ -1103,12 +1115,20 @@ the very first time in any such closure.  For instance, if you say
         my($left,$right) = @_;
         return sub { $_[0] =~ /$left stuff $right/o; };
     }
+    $good = build_match('foo','bar');
+    $bad = build_match('baz','blarch');
+    print $good->('foo stuff bar') ? "ok\n" : "not ok\n";
+    print $bad->('baz stuff blarch') ? "ok\n" : "not ok\n";
+    print $bad->('foo stuff bar') ? "not ok\n" : "ok\n";
+
+For most builds of Perl5, this will print:
+ok
+not ok
+not ok
 
 build_match() will always return a sub which matches the contents of
 $left and $right as they were the I<first> time that build_match()
 was called, not as they are in the current call.
-
-This is probably a bug, and may change in future versions of Perl.
 
 =item * Regular Expression
 
@@ -1207,8 +1227,8 @@ calls if a subroutine by that name is defined before the compiler sees them.
     $SIG{'TERM'} = SeeYa;
     print "SIGTERM is now $SIG{'TERM'}\n";
 
-    # perl4 prints: SIGTERM is main'SeeYa
-    # perl5 prints: SIGTERM is now main::1
+    # perl4 prints: SIGTERM is now main'SeeYa
+    # perl5 prints: SIGTERM is now main::1 (and warns "Hasta la vista, baby!")
 
 Use B<-w> to catch this one
 
@@ -1217,10 +1237,11 @@ Use B<-w> to catch this one
 reverse is no longer allowed as the name of a sort subroutine.
 
     sub reverse{ print "yup "; $a <=> $b }
-    print sort reverse a,b,c;
+    print sort reverse (2,1,3);
 
-    # perl4 prints: yup yup yup yup abc
-    # perl5 prints: abc
+    # perl4 prints: yup yup 123
+    # perl5 prints: 123
+    # perl5 warns (if using -w): Ambiguous call resolved as CORE::reverse()
 
 =item * warn() won't let you specify a filehandle.
 
@@ -1302,7 +1323,8 @@ within certain expressions, statements, contexts, or whatever.
     print "To: someone@somewhere.com\n";
 
     # perl4 prints: To:someone@somewhere.com
-    # perl5 errors : In string, @somewhere now must be written as \@somewhere
+    # perl < 5.6.1, error : In string, @somewhere now must be written as \@somewhere
+    # perl >= 5.6.1, warning : Possible unintended interpolation of @somewhere in string
 
 =item * Interpolation
 
@@ -1336,14 +1358,15 @@ Note that you can C<use strict;> to ward off such trappiness under perl5.
 
 =item * Interpolation
 
-The construct "this is $$x" used to interpolate the pid at that
-point, but now apparently tries to dereference $x.  C<$$> by itself still
-works fine, however.
+The construct "this is $$x" used to interpolate the pid at that point, but
+now tries to dereference $x.  C<$$> by itself still works fine, however.
 
+    $s = "a reference";
+    $x = *s;
     print "this is $$x\n";
 
     # perl4 prints: this is XXXx   (XXX is the current pid)
-    # perl5 prints: this is
+    # perl5 prints: this is a reference
 
 =item * Interpolation
 
@@ -1408,14 +1431,14 @@ You also have to be careful about array references.
 
 Similarly, watch out for:
 
-    $foo = "array";
+    $foo = "baz";
     print "\$$foo{bar}\n";
 
-    # perl4 prints: $array{bar}
+    # perl4 prints: $baz{bar}
     # perl5 prints: $
 
-Perl 5 is looking for C<$array{bar}> which doesn't exist, but perl 4 is
-happy just to expand $foo to "array" by itself.  Watch out for this
+Perl 5 is looking for C<$foo{bar}> which doesn't exist, but perl 4 is
+happy just to expand $foo to "baz" by itself.  Watch out for this
 especially in C<eval>'s.
 
 =item * Interpolation
@@ -1502,7 +1525,7 @@ Same behavior if you replace C<do> with C<require>.
 
 =item * C<split> on empty string with LIMIT specified
 
-	$string = '';
+    $string = '';
     @list = split(/foo/, $string, 2)
 
 Perl4 returns a one element list containing the empty string but Perl5

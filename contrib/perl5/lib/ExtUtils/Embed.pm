@@ -6,6 +6,7 @@ require Exporter;
 require FileHandle;
 use Config;
 use Getopt::Std;
+use File::Spec;
 
 #Only when we need them
 #require ExtUtils::MakeMaker;
@@ -86,33 +87,8 @@ sub xsinit {
 
 sub xsi_header {
     return <<EOF;
-#if defined(__cplusplus) && !defined(PERL_OBJECT)
-#define is_cplusplus
-#endif
-
-#ifdef is_cplusplus
-extern "C" {
-#endif
-
 #include <EXTERN.h>
 #include <perl.h>
-#ifdef PERL_OBJECT
-#define NO_XSLOCKS
-#include <XSUB.h>
-#include "win32iop.h"
-#include <fcntl.h>
-#include <perlhost.h>
-#endif
-#ifdef is_cplusplus
-}
-#  ifndef EXTERN_C
-#    define EXTERN_C extern "C"
-#  endif
-#else
-#  ifndef EXTERN_C
-#    define EXTERN_C extern
-#  endif
-#endif
 
 EOF
 }    
@@ -190,10 +166,14 @@ sub ldopts {
        }
     }
     $std = 1 unless scalar @link_args;
-    @path = $path ? split(/:/, $path) : @INC;
+    my $sep = $Config{path_sep} || ':';
+    @path = $path ? split(/\Q$sep/, $path) : @INC;
 
     push(@potential_libs, @link_args)    if scalar @link_args;
-    push(@potential_libs, $Config{libs}) if defined $std;
+    # makemaker includes std libs on windows by default
+    if ($^O ne 'MSWin32' and defined($std)) {
+	push(@potential_libs, $Config{perllibs});
+    }
 
     push(@mods, static_ext()) if $std;
 
@@ -223,12 +203,18 @@ sub ldopts {
     }
     #print STDERR "\@potential_libs = @potential_libs\n";
 
-    my $libperl = (grep(/^-l\w*perl\w*$/, @link_args))[0] || "-lperl";
+    my $libperl;
+    if ($^O eq 'MSWin32') {
+	$libperl = $Config{libperl};
+    }
+    else {
+	$libperl = (grep(/^-l\w*perl\w*$/, @link_args))[0] || "-lperl";
+    }
 
+    my $lpath = File::Spec->catdir($Config{archlibexp}, 'CORE');
+    $lpath = qq["$lpath"] if $^O eq 'MSWin32';
     my($extralibs, $bsloadlibs, $ldloadlibs, $ld_run_path) =
-	$MM->ext(join ' ', 
-		 $MM->catdir("-L$Config{archlibexp}", "CORE"), " $libperl", 
-		 @potential_libs);
+	$MM->ext(join ' ', "-L$lpath", $libperl, @potential_libs);
 
     my $ld_or_bs = $bsloadlibs || $ldloadlibs;
     print STDERR "bs: $bsloadlibs ** ld: $ldloadlibs" if $Verbose;
@@ -248,7 +234,9 @@ sub ccdlflags {
 }
 
 sub perl_inc {
-    my_return(" -I$Config{archlibexp}/CORE ");
+    my $dir = File::Spec->catdir($Config{archlibexp}, 'CORE');
+    $dir = qq["$dir"] if $^O eq 'MSWin32';
+    my_return(" -I$dir ");
 }
 
 sub ccopts {
@@ -277,6 +265,7 @@ ExtUtils::Embed - Utilities for embedding Perl in C/C++ applications
 
 
  perl -MExtUtils::Embed -e xsinit 
+ perl -MExtUtils::Embed -e ccopts 
  perl -MExtUtils::Embed -e ldopts 
 
 =head1 DESCRIPTION
@@ -484,7 +473,7 @@ B<xsinit()> uses the xsi_* functions to generate most of it's code.
 =head1 EXAMPLES
 
 For examples on how to use B<ExtUtils::Embed> for building C/C++ applications
-with embedded perl, see the eg/ directory and L<perlembed>.
+with embedded perl, see L<perlembed>.
 
 =head1 SEE ALSO
 

@@ -124,7 +124,7 @@ Here is another real-life example. By default, whenever Perl writes to
 a DBM database it always writes the key and value as strings. So when
 you use this:
 
-    $hash{12345} = "soemthing" ;
+    $hash{12345} = "something" ;
 
 the key 12345 will get stored in the DBM database as the 5 byte string
 "12345". If you actually want the key to be stored in the DBM database

@@ -51,7 +51,13 @@ my $big_iv = do {use integer; $max_uv1 * 16}; # 16 is an arbitrary number here
 
 print "# max_uv1 = $max_uv1, max_uv2 = $max_uv2, big_iv = $big_iv\n";
 if ($max_uv1 ne $max_uv2 or $big_iv > $max_uv1) {
-  print "1..0\n# Unsigned arithmetic is not sane\n";
+  print "1..0 # skipped: unsigned perl arithmetic is not sane";
+  eval { require Config; import Config };
+  use vars qw(%Config);
+  if ($Config{d_quad} eq 'define') {
+      print " (common in 64-bit platforms)";
+  }
+  print "\n";
   exit 0;
 }
 

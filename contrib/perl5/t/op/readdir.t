@@ -2,7 +2,7 @@
 
 BEGIN {
     chdir 't' if -d 't';
-    unshift @INC, '../lib';
+    @INC = '../lib';
 }
 
 eval 'opendir(NOSUCH, "no/such/directory");';
@@ -20,7 +20,11 @@ if (opendir(OP, "op")) { print "ok 1\n"; } else { print "not ok 1\n"; }
 @D = grep(/^[^\.].*\.t$/i, readdir(OP));
 closedir(OP);
 
-if (@D > 20 && @D < 100) { print "ok 2\n"; } else { print "not ok 2\n"; }
+##
+## This range will have to adjust as the number of tests expands,
+## as it's counting the number of .t files in src/t
+##
+if (@D > 90 && @D < 110) { print "ok 2\n"; } else { print "not ok 2\n"; }
 
 @R = sort @D;
 @G = sort <op/*.t>;

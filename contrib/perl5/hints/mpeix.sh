@@ -10,9 +10,10 @@
 # Created for 5.003 by Mark Klein, mklein@dis.com.
 # Substantially revised for 5.004_01 by Mark Bixby, markb@cccd.edu.
 # Revised again for 5.004_69 by Mark Bixby, markb@cccd.edu.
+# Revised for 5.6.0 by Mark Bixby, mbixby@power.net.
 #
 osname='mpeix'
-osvers='5.5'  # Isn't there a way to determine this dynamically?
+osvers=`uname -r | sed -e 's/.[A-Z]\.\([0-9]\)\([0-9]\)\.[0-9][0-9]/\1.\2/'`
 #
 # Force Configure to use our wrapper mpeix/nm script
 #
@@ -53,16 +54,34 @@ toke_cflags='ccflags="$ccflags -DARG_ZERO_IS_SCRIPT"'
 # Linking.
 #
 lddlflags='-b'
-# What if you want additional libs (e.g. gdbm)?
-# This should remove the unwanted libraries from $libswanted and
-# add on whatever ones are needed instead.
-libs="$libs -lbind -lsyslog -lcurses -lsvipc -lsocket -lm -lc"
+# Delete bsd and BSD from the library list.  Remove other randomly ordered
+# libraries and then re-add them in their proper order (the MPE linker is
+# order-sensitive).  Add additional MPE-specific libraries.
+for mpe_remove in bind bsd BSD c curses m socket str svipc syslog; do
+  set `echo " $libswanted " | sed -e 's/ /  /g' -e "s/ $mpe_remove //"`
+  libswanted="$*"
+done
+libswanted="$libswanted bind syslog curses svipc socket str m c"
 loclibpth="$loclibpth /usr/local/lib /usr/contrib/lib /BIND/PUB/lib /SYSLOG/PUB"
 #
 # External functions and data items.
 #
-# Does Configure *really* get *all* of these wrong?
+# Q: Does Configure *really* get *all* of these wrong?
 #
+# A: Yes.  There are two MPE problems here.  The 'undef' functions exist on MPE,
+# but are merely dummy routines that return ENOTIMPL or ESYSERR.  Since they're
+# useless, let's just tell Perl to avoid them.  Also, a few data items are
+# 'undef' because while they may exist in structures, they are uninitialized.
+#
+# The 'define' cases are a bit weirder.  MPE has a libc.a, libc.sl, and two
+# special kernel shared libraries, /SYS/PUB/XL and /SYS/PUB/NL.  Much of what
+# is in libc.a is duplicated within XL and NL, so when we created libc.sl, we
+# omitted the duplicated functions.  Since Configure end ups scanning libc.sl,
+# we need to 'define' the functions that had been removed.
+#
+# We don't want to scan XL or NL because we would find way too many POSIX or
+# Unix named functions that are really vanilla MPE functions that do something
+# completely different than on POSIX or Unix.
 d_crypt='define'
 d_difftime='define'
 d_dlerror='undef'
@@ -100,7 +119,7 @@ d_wctomb='define'
 #
 # Include files.
 #
-i_termios='undef'
+i_termios='undef' # we have termios, but not the full set (just tcget/setattr)
 i_time='define'
 i_systime='undef'
 i_systimek='undef'
@@ -109,3 +128,8 @@ timeincl='/usr/include/time.h'
 # Data types.
 #
 timetype='time_t'
+#
+# Functionality.
+#
+bincompat5005="$undef"
+uselargefiles="$undef"

@@ -1,6 +1,6 @@
 #!./perl -w
 
-# This file should really be a extracted from a .PL
+# This file should really be extracted from a .PL file
 
 use lib 'lib';		# use source library if present
 
@@ -592,6 +592,7 @@ sub runpod2html {
 	"--htmlroot=$htmlroot",
 	"--podpath=".join(":", @podpath),
 	"--podroot=$podroot", "--netscape",
+	"--header",
 	($doindex ? "--index" : "--noindex"),
 	"--" . ($recurse ? "" : "no") . "recurse",
 	($#libpods >= 0) ? "--libpods=" . join(":", @libpods) : "",

@@ -29,7 +29,9 @@ print OUT <<"!GROK!THIS!";
 $Config{startperl}
     eval 'exec $Config{perlpath} -S \$0 \${1+"\$@"}'
       if \$running_under_some_shell;
-my \$perlpath = "$Config{perlpath}";
+(my \$perlpath = <<'/../') =~ s/\\s*\\z//;
+$Config{perlpath}
+/../
 !GROK!THIS!
 
 # In the following, perl variables are not expanded during extraction.
@@ -37,6 +39,7 @@ my \$perlpath = "$Config{perlpath}";
 print OUT <<'!NO!SUBS!';
 use strict;
 use vars qw/$statdone/;
+use File::Spec::Functions 'curdir';
 my $startperl = "#! $perlpath -w";
 
 #
@@ -57,7 +60,7 @@ my @roots = ();
 while ($ARGV[0] =~ /^[^-!(]/) {
     push(@roots, shift);
 }
-@roots = ('.') unless @roots;
+@roots = (curdir()) unless @roots;
 for (@roots) { $_ = &quote($_) }
 my $roots = join(', ', @roots);
 
@@ -333,10 +336,8 @@ END
 if (exists $init{doexec}) {
     print <<'END';
 
-BEGIN {
-    require Cwd;
-    my $cwd = Cwd::cwd();
-}
+use Cwd ();
+my $cwd = Cwd::cwd();
 
 sub doexec {
     my $ok = shift;
@@ -674,6 +675,7 @@ sub n {
 
 sub quote {
     my $string = shift;
+    $string =~ s/\\/\\\\/g;
     $string =~ s/'/\\'/g;
     "'$string'";
 }

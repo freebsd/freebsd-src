@@ -192,13 +192,13 @@ struct regnode_charclass_class {
 /* Should be synchronized with a table in regprop() */
 /* 2n should pair with 2n+1 */
 
-#define ANYOF_ALNUM	 0	/* \w, utf8::IsWord, isALNUM() */
+#define ANYOF_ALNUM	 0	/* \w, PL_utf8_alnum, utf8::IsWord, ALNUM */
 #define ANYOF_NALNUM	 1
-#define ANYOF_SPACE	 2
+#define ANYOF_SPACE	 2	/* \s */
 #define ANYOF_NSPACE	 3
 #define ANYOF_DIGIT	 4
 #define ANYOF_NDIGIT	 5
-#define ANYOF_ALNUMC	 6	/* isalnum(3), utf8::IsAlnum, isALNUMC() */
+#define ANYOF_ALNUMC	 6	/* isalnum(3), utf8::IsAlnum, ALNUMC */
 #define ANYOF_NALNUMC	 7
 #define ANYOF_ALPHA	 8
 #define ANYOF_NALPHA	 9
@@ -218,8 +218,12 @@ struct regnode_charclass_class {
 #define ANYOF_NUPPER	23
 #define ANYOF_XDIGIT	24
 #define ANYOF_NXDIGIT	25
+#define ANYOF_PSXSPC	26	/* POSIX space: \s plus the vertical tab */
+#define ANYOF_NPSXSPC	27
+#define ANYOF_BLANK	28	/* GNU extension: space and tab */
+#define ANYOF_NBLANK	29
 
-#define ANYOF_MAX	31
+#define ANYOF_MAX	32
 
 /* Backward source code compatibility. */
 
@@ -268,20 +272,6 @@ struct regnode_charclass_class {
 #else /* lint */
 #define UCHARAT(p)	PL_regdummy
 #endif /* lint */
-
-#define	FAIL(m) \
-    STMT_START {							\
-	if (!SIZE_ONLY)							\
-	    SAVEDESTRUCTOR_X(clear_re,(void*)PL_regcomp_rx);		\
-	Perl_croak(aTHX_ "/%.127s/: %s",  PL_regprecomp,m);		\
-    } STMT_END
-
-#define	FAIL2(pat,m) \
-    STMT_START {							\
-	if (!SIZE_ONLY)							\
-	    SAVEDESTRUCTOR_X(clear_re,(void*)PL_regcomp_rx);		\
-	S_re_croak2(aTHX_ "/%.127s/: ",pat,PL_regprecomp,m);		\
-    } STMT_END
 
 #define EXTRA_SIZE(guy) ((sizeof(guy)-1)/sizeof(struct regnode))
 

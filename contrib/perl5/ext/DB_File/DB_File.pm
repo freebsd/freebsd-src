@@ -1,8 +1,8 @@
 # DB_File.pm -- Perl 5 interface to Berkeley DB 
 #
 # written by Paul Marquess (Paul.Marquess@btinternet.com)
-# last modified 16th January 2000
-# version 1.72
+# last modified 17th December 2000
+# version 1.75
 #
 #     Copyright (c) 1995-2000 Paul Marquess. All rights reserved.
 #     This program is free software; you can redistribute it and/or
@@ -13,6 +13,7 @@ package DB_File::HASHINFO ;
 
 require 5.003 ;
 
+use warnings;
 use strict;
 use Carp;
 require Tie::Hash;
@@ -104,6 +105,7 @@ sub CLEAR    { my $self = shift ; $self->NotHere("CLEAR") }
 
 package DB_File::RECNOINFO ;
 
+use warnings;
 use strict ;
 
 @DB_File::RECNOINFO::ISA = qw(DB_File::HASHINFO) ;
@@ -121,6 +123,7 @@ sub TIEHASH
 
 package DB_File::BTREEINFO ;
 
+use warnings;
 use strict ;
 
 @DB_File::BTREEINFO::ISA = qw(DB_File::HASHINFO) ;
@@ -140,6 +143,7 @@ sub TIEHASH
 
 package DB_File ;
 
+use warnings;
 use strict;
 use vars qw($VERSION @ISA @EXPORT $AUTOLOAD $DB_BTREE $DB_HASH $DB_RECNO 
             $db_version $use_XSLoader
@@ -147,7 +151,7 @@ use vars qw($VERSION @ISA @EXPORT $AUTOLOAD $DB_BTREE $DB_HASH $DB_RECNO
 use Carp;
 
 
-$VERSION = "1.72" ;
+$VERSION = "1.75" ;
 
 #typedef enum { DB_BTREE, DB_HASH, DB_RECNO } DBTYPE;
 $DB_BTREE = new DB_File::BTREEINFO ;
@@ -271,7 +275,7 @@ sub TIEARRAY
 sub CLEAR 
 {
     my $self = shift;
-    my $key = "" ;
+    my $key = 0 ;
     my $value = "" ;
     my $status = $self->seq($key, $value, R_FIRST());
     my @keys;
@@ -665,6 +669,7 @@ This example shows how to create a database, add key/value pairs to the
 database, delete keys/value pairs and finally how to enumerate the
 contents of the database.
 
+    use warnings ;
     use strict ;
     use DB_File ;
     use vars qw( %h $k $v ) ;
@@ -715,6 +720,7 @@ This script shows how to override the default sorting algorithm that
 BTREE uses. Instead of using the normal lexical ordering, a case
 insensitive compare function will be used.
 
+    use warnings ;
     use strict ;
     use DB_File ;
 
@@ -783,6 +789,7 @@ There are some difficulties in using the tied hash interface if you
 want to manipulate a BTREE database with duplicate keys. Consider this
 code:
 
+    use warnings ;
     use strict ;
     use DB_File ;
 
@@ -837,6 +844,7 @@ and the API in general.
 
 Here is the script above rewritten using the C<seq> API method.
 
+    use warnings ;
     use strict ;
     use DB_File ;
  
@@ -908,6 +916,7 @@ particular value occurred in the BTREE.
 So assuming the database created above, we can use C<get_dup> like
 this:
 
+    use warnings ;
     use strict ;
     use DB_File ;
  
@@ -957,6 +966,7 @@ returns 0. Otherwise the method returns a non-zero value.
 
 Assuming the database from the previous example:
 
+    use warnings ;
     use strict ;
     use DB_File ;
  
@@ -995,6 +1005,7 @@ Otherwise the method returns a non-zero value.
 
 Again assuming the existence of the C<tree> database
 
+    use warnings ;
     use strict ;
     use DB_File ;
  
@@ -1039,6 +1050,7 @@ the use of the R_CURSOR flag with seq:
 In the example script below, the C<match> sub uses this feature to find
 and print the first matching key/value pair given a partial key.
 
+    use warnings ;
     use strict ;
     use DB_File ;
     use Fcntl ;
@@ -1143,6 +1155,7 @@ Here is a simple example that uses RECNO (if you are using a version
 of Perl earlier than 5.004_57 this example won't work -- see 
 L<Extra RECNO Methods> for a workaround).
 
+    use warnings ;
     use strict ;
     use DB_File ;
 
@@ -1232,6 +1245,7 @@ Here is a more complete example that makes use of some of the methods
 described above. It also makes use of the API interface directly (see 
 L<THE API INTERFACE>).
 
+    use warnings ;
     use strict ;
     use vars qw(@h $H $file $i) ;
     use DB_File ;
@@ -1583,6 +1597,7 @@ the database and have them removed when you read from the database. As I'm
 sure you have already guessed, this is a problem that DBM Filters can
 fix very easily.
 
+    use warnings ;
     use strict ;
     use DB_File ;
 
@@ -1625,6 +1640,7 @@ when reading.
 
 Here is a DBM Filter that does it:
 
+    use warnings ;
     use strict ;
     use DB_File ;
     my %hash ;
@@ -1791,6 +1807,7 @@ Here is a snippet of code that is loosely based on Tom Christiansen's
 I<ggh> script (available from your nearest CPAN archive in
 F<authors/id/TOMC/scripts/nshist.gz>).
 
+    use warnings ;
     use strict ;
     use DB_File ;
     use Fcntl ;
@@ -1947,6 +1964,7 @@ You will encounter this particular error message when you have the
 C<strict 'subs'> pragma (or the full strict pragma) in your script.
 Consider this script:
 
+    use warnings ;
     use strict ;
     use DB_File ;
     use vars qw(%x) ;

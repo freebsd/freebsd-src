@@ -1,7 +1,7 @@
 # Pod::Text -- Convert POD data to formatted ASCII text.
-# $Id: Text.pm,v 2.3 1999/10/07 09:41:57 eagle Exp $
+# $Id: Text.pm,v 2.8 2001/02/10 06:50:23 eagle Exp $
 #
-# Copyright 1999 by Russ Allbery <rra@stanford.edu>
+# Copyright 1999, 2000, 2001 by Russ Allbery <rra@stanford.edu>
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the same terms as Perl itself.
@@ -33,7 +33,11 @@ use vars qw(@ISA @EXPORT %ESCAPES $VERSION);
 # We have to export pod2text for backward compatibility.
 @EXPORT = qw(pod2text);
 
-($VERSION = (split (' ', q$Revision: 2.3 $ ))[1]) =~ s/\.(\d)$/.0$1/;
+# Don't use the CVS revision as the version, since this module is also in
+# Perl core and too many things could munge CVS magic revision strings.
+# This number should ideally be the same as the CVS revision in podlators,
+# however.
+$VERSION = 2.08;
 
 
 ############################################################################
@@ -43,13 +47,15 @@ use vars qw(@ISA @EXPORT %ESCAPES $VERSION);
 # This table is taken near verbatim from Pod::PlainText in Pod::Parser,
 # which got it near verbatim from the original Pod::Text.  It is therefore
 # credited to Tom Christiansen, and I'm glad I didn't have to write it.  :)
-# "iexcl" to "divide" added by Tim Jenness
+# "iexcl" to "divide" added by Tim Jenness.
 %ESCAPES = (
     'amp'       =>    '&',      # ampersand
     'lt'        =>    '<',      # left chevron, less-than
     'gt'        =>    '>',      # right chevron, greater-than
     'quot'      =>    '"',      # double quote
-                                 
+    'sol'       =>    '/',      # solidus (forward slash)
+    'verbar'    =>    '|',      # vertical bar
+
     "Aacute"    =>    "\xC1",   # capital A, acute accent
     "aacute"    =>    "\xE1",   # small a, acute accent
     "Acirc"     =>    "\xC2",   # capital A, circumflex accent
@@ -76,8 +82,8 @@ use vars qw(@ISA @EXPORT %ESCAPES $VERSION);
     "eth"       =>    "\xF0",   # small eth, Icelandic
     "Euml"      =>    "\xCB",   # capital E, dieresis or umlaut mark
     "euml"      =>    "\xEB",   # small e, dieresis or umlaut mark
-    "Iacute"    =>    "\xCD",   # capital I, acute accent
-    "iacute"    =>    "\xED",   # small i, acute accent
+    "Iacute"    =>    "\xCC",   # capital I, acute accent
+    "iacute"    =>    "\xEC",   # small i, acute accent
     "Icirc"     =>    "\xCE",   # capital I, circumflex accent
     "icirc"     =>    "\xEE",   # small i, circumflex accent
     "Igrave"    =>    "\xCD",   # capital I, grave accent
@@ -112,43 +118,43 @@ use vars qw(@ISA @EXPORT %ESCAPES $VERSION);
     "Yacute"    =>    "\xDD",   # capital Y, acute accent
     "yacute"    =>    "\xFD",   # small y, acute accent
     "yuml"      =>    "\xFF",   # small y, dieresis or umlaut mark
-                                  
-    "lchevron"  =>    "\xAB",   # left chevron (double less than) laquo
-    "rchevron"  =>    "\xBB",   # right chevron (double greater than) raquo
 
-    "iexcl"  =>   "\xA1",   # inverted exclamation mark
-    "cent"   =>   "\xA2",   # cent sign
-    "pound"  =>   "\xA3",   # (UK) pound sign
-    "curren" =>   "\xA4",   # currency sign
-    "yen"    =>   "\xA5",   # yen sign
-    "brvbar" =>   "\xA6",   # broken vertical bar
-    "sect"   =>   "\xA7",   # section sign
-    "uml"    =>   "\xA8",   # diaresis
-    "copy"   =>   "\xA9",   # Copyright symbol
-    "ordf"   =>   "\xAA",   # feminine ordinal indicator
-    "laquo"  =>   "\xAB",   # left pointing double angle quotation mark
-    "not"    =>   "\xAC",   # not sign
-    "shy"    =>   "\xAD",   # soft hyphen
-    "reg"    =>   "\xAE",   # registered trademark
-    "macr"   =>   "\xAF",   # macron, overline
-    "deg"    =>   "\xB0",   # degree sign
-    "plusmn" =>   "\xB1",   # plus-minus sign
-    "sup2"   =>   "\xB2",   # superscript 2
-    "sup3"   =>   "\xB3",   # superscript 3
-    "acute"  =>   "\xB4",   # acute accent
-    "micro"  =>   "\xB5",   # micro sign
-    "para"   =>   "\xB6",   # pilcrow sign = paragraph sign
-    "middot" =>   "\xB7",   # middle dot = Georgian comma
-    "cedil"  =>   "\xB8",   # cedilla
-    "sup1"   =>   "\xB9",   # superscript 1
-    "ordm"   =>   "\xBA",   # masculine ordinal indicator
-    "raquo"  =>   "\xBB",   # right pointing double angle quotation mark
-    "frac14" =>   "\xBC",   # vulgar fraction one quarter
-    "frac12" =>   "\xBD",   # vulgar fraction one half
-    "frac34" =>   "\xBE",   # vulgar fraction three quarters
-    "iquest" =>   "\xBF",   # inverted question mark
-    "times"  =>   "\xD7",   # multiplication sign
-    "divide" =>   "\xF7",   # division sign
+    "laquo"     =>    "\xAB",   # left pointing double angle quotation mark
+    "lchevron"  =>    "\xAB",   #  synonym (backwards compatibility)
+    "raquo"     =>    "\xBB",   # right pointing double angle quotation mark
+    "rchevron"  =>    "\xBB",   #  synonym (backwards compatibility)
+
+    "iexcl"     =>    "\xA1",   # inverted exclamation mark
+    "cent"      =>    "\xA2",   # cent sign
+    "pound"     =>    "\xA3",   # (UK) pound sign
+    "curren"    =>    "\xA4",   # currency sign
+    "yen"       =>    "\xA5",   # yen sign
+    "brvbar"    =>    "\xA6",   # broken vertical bar
+    "sect"      =>    "\xA7",   # section sign
+    "uml"       =>    "\xA8",   # diaresis
+    "copy"      =>    "\xA9",   # Copyright symbol
+    "ordf"      =>    "\xAA",   # feminine ordinal indicator
+    "not"       =>    "\xAC",   # not sign
+    "shy"       =>    "\xAD",   # soft hyphen
+    "reg"       =>    "\xAE",   # registered trademark
+    "macr"      =>    "\xAF",   # macron, overline
+    "deg"       =>    "\xB0",   # degree sign
+    "plusmn"    =>    "\xB1",   # plus-minus sign
+    "sup2"      =>    "\xB2",   # superscript 2
+    "sup3"      =>    "\xB3",   # superscript 3
+    "acute"     =>    "\xB4",   # acute accent
+    "micro"     =>    "\xB5",   # micro sign
+    "para"      =>    "\xB6",   # pilcrow sign = paragraph sign
+    "middot"    =>    "\xB7",   # middle dot = Georgian comma
+    "cedil"     =>    "\xB8",   # cedilla
+    "sup1"      =>    "\xB9",   # superscript 1
+    "ordm"      =>    "\xBA",   # masculine ordinal indicator
+    "frac14"    =>    "\xBC",   # vulgar fraction one quarter
+    "frac12"    =>    "\xBD",   # vulgar fraction one half
+    "frac34"    =>    "\xBE",   # vulgar fraction three quarters
+    "iquest"    =>    "\xBF",   # inverted question mark
+    "times"     =>    "\xD7",   # multiplication sign
+    "divide"    =>    "\xF7",   # division sign
 );
 
 
@@ -165,6 +171,20 @@ sub initialize {
     $$self{loose}    = 0  unless defined $$self{loose};
     $$self{sentence} = 0  unless defined $$self{sentence};
     $$self{width}    = 76 unless defined $$self{width};
+
+    # Figure out what quotes we'll be using for C<> text.
+    $$self{quotes} ||= '"';
+    if ($$self{quotes} eq 'none') {
+        $$self{LQUOTE} = $$self{RQUOTE} = '';
+    } elsif (length ($$self{quotes}) == 1) {
+        $$self{LQUOTE} = $$self{RQUOTE} = $$self{quotes};
+    } elsif ($$self{quotes} =~ /^(.)(.)$/
+             || $$self{quotes} =~ /^(..)(..)$/) {
+        $$self{LQUOTE} = $1;
+        $$self{RQUOTE} = $2;
+    } else {
+        croak qq(Invalid quote specification "$$self{quotes}");
+    }
 
     $$self{INDENTS}  = [];              # Stack of indentations.
     $$self{MARGIN}   = $$self{indent};  # Current left margin in spaces.
@@ -187,8 +207,18 @@ sub command {
     return if $command eq 'pod';
     return if ($$self{EXCLUDE} && $command ne 'end');
     $self->item ("\n") if defined $$self{ITEM};
-    $command = 'cmd_' . $command;
-    $self->$command (@_);
+    if ($self->can ('cmd_' . $command)) {
+        $command = 'cmd_' . $command;
+        $self->$command (@_);
+    } else {
+        my ($text, $line, $paragraph) = @_;
+        my $file;
+        ($file, $line) = $paragraph->file_line;
+        $text =~ s/\n+\z//;
+        $text = " $text" if ($text =~ /^\S/);
+        warn qq($file:$line: Unknown command paragraph "=$command$text"\n);
+        return;
+    }
 }
 
 # Called for a verbatim paragraph.  Gets the paragraph, the line number, and
@@ -228,7 +258,7 @@ sub textblock {
           >
           (
               ,?\s+(and\s+)?    # Allow lots of them, conjuncted.
-              L<  
+              L<
                   /
                   (
                       [:\w]+
@@ -346,6 +376,32 @@ sub cmd_head2 {
     }
 }
 
+# Third level heading.
+sub cmd_head3 {
+    my $self = shift;
+    local $_ = shift;
+    s/\s+$//;
+    $_ = $self->interpolate ($_, shift);
+    if ($$self{alt}) {
+        $self->output ("\n=    $_    =\n\n");
+    } else {
+        $self->output (' ' x ($$self{indent} * 2 / 3 + 0.5) . $_ . "\n\n");
+    }
+}
+
+# Third level heading.
+sub cmd_head4 {
+    my $self = shift;
+    local $_ = shift;
+    s/\s+$//;
+    $_ = $self->interpolate ($_, shift);
+    if ($$self{alt}) {
+        $self->output ("\n-    $_    -\n\n");
+    } else {
+        $self->output (' ' x ($$self{indent} * 3 / 4 + 0.5) . $_ . "\n\n");
+    }
+}
+
 # Start a list.
 sub cmd_over {
     my $self = shift;
@@ -393,7 +449,7 @@ sub cmd_end {
     my $self = shift;
     $$self{EXCLUDE} = 0;
     $$self{VERBATIM} = 0;
-}    
+}
 
 # One paragraph for a particular translator.  Ignore it unless it's intended
 # for text, in which case we treat it as a verbatim text block.
@@ -413,9 +469,11 @@ sub cmd_for {
 # The simple formatting ones.  These are here mostly so that subclasses can
 # override them and do more complicated things.
 sub seq_b { return $_[0]{alt} ? "``$_[1]''" : $_[1] }
-sub seq_c { return $_[0]{alt} ? "``$_[1]''" : "`$_[1]'" }
 sub seq_f { return $_[0]{alt} ? "\"$_[1]\"" : $_[1] }
 sub seq_i { return '*' . $_[1] . '*' }
+sub seq_c {
+    return $_[0]{alt} ? "``$_[1]''" : "$_[0]{LQUOTE}$_[1]$_[0]{RQUOTE}"
+}
 
 # The complicated one.  Handle links.  Since this is plain text, we can't
 # actually make any real links, so this is all to figure out what text we
@@ -433,6 +491,10 @@ sub seq_l {
     # Okay, leading and trailing whitespace isn't important; get rid of it.
     s/^\s+//;
     s/\s+$//;
+
+    # If the argument looks like a URL, return it verbatim.  This only
+    # handles URLs that use the server syntax.
+    if (m%^[a-z]+://\S+$%) { return $_ }
 
     # Default to using the whole content of the link entry as a section
     # name.  Note that L<manpage/> forces a manpage interpretation, as does
@@ -586,13 +648,14 @@ sub pod2text {
     # means we need to turn the first argument into a file handle.  Magic
     # open will handle the <&STDIN case automagically.
     if (defined $_[1]) {
+        my @fhs = @_;
         local *IN;
-        unless (open (IN, $_[0])) {
-            croak ("Can't open $_[0] for reading: $!\n");
+        unless (open (IN, $fhs[0])) {
+            croak ("Can't open $fhs[0] for reading: $!\n");
             return;
         }
-        $_[0] = \*IN;
-        return $parser->parse_from_filehandle (@_);
+        $fhs[0] = \*IN;
+        return $parser->parse_from_filehandle (@fhs);
     } else {
         return $parser->parse_from_file (@_);
     }
@@ -658,6 +721,17 @@ it's the expected formatting for manual pages; if you're formatting
 arbitrary text documents, setting this to true may result in more pleasing
 output.
 
+=item quotes
+
+Sets the quote marks used to surround CE<lt>> text.  If the value is a
+single character, it is used as both the left and right quote; if it is two
+characters, the first character is used as the left quote and the second as
+the right quoted; and if it is four characters, the first two are used as
+the left quote and the second two as the right quote.
+
+This may also be set to the special value C<none>, in which case no quote
+marks are added around CE<lt>> text.
+
 =item sentence
 
 If set to a true value, Pod::Text will assume that each sentence ends in two
@@ -692,6 +766,16 @@ indicates a bug in Pod::Text; you should never see it.
 
 (F) Pod::Text was invoked via the compatibility mode pod2text() interface
 and the input file it was given could not be opened.
+
+=item Invalid quote specification "%s"
+
+(F) The quote specification given (the quotes option to the constructor) was
+invalid.  A quote specification must be one, two, or four characters long.
+
+=item %s:%d: Unknown command paragraph "%s".
+
+(W) The POD source contained a non-standard command paragraph (something of
+the form C<=command args>) that Pod::Man didn't know about.  It was ignored.
 
 =item Unknown escape: %s
 

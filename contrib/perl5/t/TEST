@@ -24,10 +24,10 @@ $ENV{EMXSHELL} = 'sh';        # For OS/2
 
 if ($#ARGV == -1) {
     @ARGV = split(/[ \n]/,
-      `echo base/*.t comp/*.t cmd/*.t io/*.t; echo op/*.t pragma/*.t lib/*.t`);
+      `echo base/*.t comp/*.t cmd/*.t run/*.t io/*.t; echo op/*.t pragma/*.t lib/*.t`);
 }
 
-%infinite = ( 'comp/require.t', 1, 'op/bop.t', 1, 'lib/hostname.t', 1 ); 
+# %infinite = ( 'comp/require.t', 1, 'op/bop.t', 1, 'lib/hostname.t', 1 ); 
 
 _testprogs('perl', @ARGV);
 _testprogs('compile', @ARGV) if (-e "../testcompile"); 
@@ -90,9 +90,10 @@ EOT
 	    open(RESULTS,"./perl$switch $test |") or print "can't run.\n";
 	}
 	else {
-	    open(RESULTS, "./perl -I../lib ../utils/perlcc ./$test "
-	    		 ."-run -verbose dcf -log ../compilelog |")
+	    open(RESULTS, "./perl -I../lib ../utils/perlcc -o ./$test.plc ./$test "
+	    		 ." && ./$test.plc |")
 		or print "can't compile.\n";
+        unlink "./$test.plc";
 	}
 
 	$ok = 0;

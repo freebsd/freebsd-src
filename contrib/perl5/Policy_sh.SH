@@ -7,18 +7,33 @@ $startsh
 #
 #  This file was produced by running the Policy_sh.SH script, which
 #  gets its values from config.sh, which is generally produced by
-#  running Configure.  The Policy.sh file gets overwritten each time
-#  Configure is run.  Any variables you add to Policy.sh will be lost
-#  unless you copy Policy.sh somewhere else before running Configure.
+#  running Configure.  
 #
 #  The idea here is to distill in one place the common site-wide
 #  "policy" answers (such as installation directories) that are
 #  to be "sticky".  If you keep the file Policy.sh around in
 #  the same directory as you are building Perl, then Configure will
 #  (by default) load up the Policy.sh file just before the
-#  platform-specific hints file.
+#  platform-specific hints file and rewrite it at the end.
 #
-
+#   The sequence of events is as follows:
+#   A:  If you are NOT re-using an old config.sh:
+#   1.  At start-up, Configure loads up the defaults from the
+#	os-specific  hints/osname_osvers.sh file and any previous
+#	Policy.sh file.
+#   2.  At the end, Configure runs Policy_sh.SH, which creates
+#	Policy.sh, overwriting a previous Policy.sh if necessary.
+#
+#   B: If you are re-using an old config.sh:
+#   1.  At start-up, Configure loads up the defaults from config.sh, 
+#	ignoring any previous Policy.sh file.
+#   2.  At the end, Configure runs Policy_sh.SH, which creates
+#	Policy.sh, overwriting a previous Policy.sh if necessary.
+#
+#  Thus the Policy.sh file gets overwritten each time
+#  Configure is run.  Any variables you add to Policy.sh will be lost
+#  unless you copy Policy.sh somewhere else before running Configure.
+#
 #  Allow Configure command-line overrides; usually these won't be
 #  needed, but something like -Dprefix=/test/location can be quite
 #  useful for testing out new versions.
@@ -37,16 +52,37 @@ esac
 case "\$prefix" in
 '') prefix='$prefix' ;;
 esac
+
+# By default, the next three are the same as \$prefix.  
+# If the user changes \$prefix, and previously \$siteprefix was the
+# same as \$prefix, then change \$siteprefix as well.
+# Use similar logic for \$vendorprefix and \$installprefix.
+
 case "\$siteprefix" in
-'') siteprefix='$siteprefix' ;;
+'') if test "$siteprefix" = "$prefix"; then
+	siteprefix="\$prefix"
+    else
+	siteprefix='$siteprefix'
+    fi
+    ;;
 esac
 case "\$vendorprefix" in
-'') vendorprefix='$vendorprefix' ;;
+'') if test "$vendorprefix" = "$prefix"; then
+	vendorprefix="\$prefix"
+    else
+	vendorprefix='$vendorprefix'
+    fi
+    ;;
 esac
 
 # Where installperl puts things.
 case "\$installprefix" in
-'') installprefix='$installprefix' ;;
+'') if test "$installprefix" = "$prefix"; then
+	installprefix="\$prefix"
+    else
+	installprefix='$installprefix'
+    fi
+    ;;
 esac
 
 # Installation directives.  Note that each one comes in three flavors.

@@ -12,7 +12,7 @@
       if (yys = getenv("YYDEBUG"))
       {
           yyn = *yys;
---- 1447,1473 ----
+--- 1447,1476 ----
   yyparse()
   {
       register int yym, yyn, yystate;
@@ -27,6 +27,9 @@
 ! #endif
   
 +     struct ysv *ysave;
++ #ifdef USE_ITHREADS
++     ENTER;			/* force yydestruct() before we return */
++ #endif
 +     New(73, ysave, 1, struct ysv);
 +     SAVEDESTRUCTOR_X(yydestruct, ysave);
 +     ysave->oldyydebug	= yydebug;
@@ -42,7 +45,7 @@
           yyn = *yys;
 ***************
 *** 1463,1468 ****
---- 1480,1495 ----
+--- 1483,1498 ----
       yyerrflag = 0;
       yychar = (-1);
   
@@ -68,7 +71,7 @@
           }
           *++yyssp = yystate = yytable[yyn];
           *++yyvsp = yylval;
---- 1520,1538 ----
+--- 1523,1541 ----
   #endif
           if (yyssp >= yyss + yystacksize - 1)
           {
@@ -97,7 +100,7 @@
                   }
                   *++yyssp = yystate = yytable[yyn];
                   *++yyvsp = yylval;
---- 1573,1591 ----
+--- 1576,1594 ----
   #endif
                   if (yyssp >= yyss + yystacksize - 1)
                   {
@@ -134,7 +137,7 @@
   yyaccept:
 !     return (0);
   }
---- 2524,2569 ----
+--- 2527,2575 ----
   #endif
       if (yyssp >= yyss + yystacksize - 1)
       {
@@ -160,6 +163,9 @@
   yyabort:
 !     retval = 1;
   yyaccept:
+! #ifdef USE_ITHREADS
+!     LEAVE;			/* force yydestruct() before we return */
+! #endif
 !     return retval;
 ! }
 ! 

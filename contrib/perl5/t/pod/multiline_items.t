@@ -1,7 +1,7 @@
-#!./perl
 BEGIN {
    chdir 't' if -d 't';
-   unshift @INC, './pod', '../lib';
+   unshift @INC, '../lib';
+   unshift @INC, './pod';
    require "testp2pt.pl";
    import TestPodIncPlainText;
 }

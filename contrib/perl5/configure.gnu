@@ -86,7 +86,7 @@ EOM
 		exit 1
 		;;
 	*)
-		opts="$opts $1"
+		opts="$opts '$1'"
 		shift
 		;;
 	esac
@@ -126,7 +126,7 @@ case "$verbose" in
 *) copt="$copt -d";;
 esac
 
-set X sh Configure $copt $create $opts
+eval "set X sh Configure $copt $create $opts"
 shift
 echo "$@"
 exec "$@"

@@ -6,7 +6,7 @@
 
 BEGIN {
     chdir 't' if -d 't';
-    unshift @INC, '../lib';
+    @INC = '../lib';
     $SIG{__WARN__} = sub { $warns++; warn $_[0] };
     print "1..14\n";
 }

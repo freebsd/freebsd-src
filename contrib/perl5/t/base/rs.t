@@ -6,6 +6,8 @@ print "1..14\n";
 $teststring = "1\n12\n123\n1234\n1234\n12345\n\n123456\n1234567\n";
 
 # Create our test datafile
+1 while unlink 'foo';                # in case junk left around
+rmdir 'foo';
 open TESTFILE, ">./foo" or die "error $! $^E opening";
 binmode TESTFILE;
 print TESTFILE $teststring;

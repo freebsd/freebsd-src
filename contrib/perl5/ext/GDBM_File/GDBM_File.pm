@@ -40,6 +40,7 @@ L<perl(1)>, L<DB_File(3)>, L<perldbmfilter>.
 package GDBM_File;
 
 use strict;
+use warnings;
 our($VERSION, @ISA, @EXPORT, $AUTOLOAD);
 
 require Carp;
@@ -53,13 +54,14 @@ use XSLoader ();
 	GDBM_FAST
 	GDBM_INSERT
 	GDBM_NEWDB
+	GDBM_NOLOCK
 	GDBM_READER
 	GDBM_REPLACE
 	GDBM_WRCREAT
 	GDBM_WRITER
 );
 
-$VERSION = "1.03";
+$VERSION = "1.05";
 
 sub AUTOLOAD {
     my($constname);

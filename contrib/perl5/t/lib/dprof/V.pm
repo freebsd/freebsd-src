@@ -13,15 +13,19 @@ $num = 0;
 $results = $expected = '';
 $perl = $opt_p || $^X;
 $dpp = $opt_d || '../utils/dprofpp';
+$dpp .= '.com' if $^O eq 'VMS';
 
 print "\nperl: $perl\n" if $opt_v;
 if( ! -f $perl ){ die "Where's Perl?" }
-if( ! -f $dpp ){ die "Where's dprofpp?" }
+if( ! -f $dpp ) { 
+    ($dpp = $^X) =~ s@(^.*)[/|\\].*@$1/dprofpp@;
+    die "Where's dprofpp?" if( ! -f $dpp );
+}
 
 sub dprofpp {
 	my $switches = shift;
 
-	open( D, "$perl -I../lib $dpp $switches 2> err |" ) || warn "$0: Can't run. $!\n";
+        open( D, "$perl \"-I../lib\" $dpp \"$switches\" 2> err |" ) || warn "$0: Can't run. $!\n";
 	@results = <D>;
 	close D;
 

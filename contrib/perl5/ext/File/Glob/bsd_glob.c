@@ -57,6 +57,9 @@ static char sccsid[] = "@(#)glob.c	8.3 (Berkeley) 10/13/93";
  *	expand {1,2}{a,b} to 1a 1b 2a 2b
  * gl_matchc:
  *	Number of matches in the current invocation of glob.
+ * GLOB_ALPHASORT:
+ *	sort alphabetically like csh (case doesn't matter) instead of in ASCII
+ *	order
  */
 
 #include <EXTERN.h>
@@ -76,8 +79,11 @@ static char sccsid[] = "@(#)glob.c	8.3 (Berkeley) 10/13/93";
 #ifndef MAXPATHLEN
 #  ifdef PATH_MAX
 #    define	MAXPATHLEN	PATH_MAX
-#  else
-#    define	MAXPATHLEN	1024
+#    ifdef MACOS_TRADITIONAL
+#      define	MAXPATHLEN	255
+#    else
+#      define	MAXPATHLEN	1024
+#    endif
 #  endif
 #endif
 
@@ -90,7 +96,11 @@ static char sccsid[] = "@(#)glob.c	8.3 (Berkeley) 10/13/93";
 #define	BG_QUOTE	'\\'
 #define	BG_RANGE	'-'
 #define	BG_RBRACKET	']'
-#define	BG_SEP		'/'
+#ifdef MACOS_TRADITIONAL
+#  define	BG_SEP	':'
+#else
+#  define	BG_SEP	'/'
+#endif
 #ifdef DOSISH
 #define BG_SEP2		'\\'
 #endif
@@ -448,6 +458,12 @@ glob0(const Char *pattern, glob_t *pglob)
 	int c, err, oldflags, oldpathc;
 	Char *bufnext, patbuf[MAXPATHLEN+1];
 
+#ifdef MACOS_TRADITIONAL
+	if ( (*pattern == BG_TILDE) && (pglob->gl_flags & GLOB_TILDE) ) {
+		return(globextend(pattern, pglob));
+	}
+#endif
+
 	qpat = globtilde(pattern, patbuf, pglob);
 	qpatnext = qpat;
 	oldflags = pglob->gl_flags;
@@ -531,7 +547,8 @@ glob0(const Char *pattern, glob_t *pglob)
 	else if (!(pglob->gl_flags & GLOB_NOSORT))
 		qsort(pglob->gl_pathv + pglob->gl_offs + oldpathc,
 		    pglob->gl_pathc - oldpathc, sizeof(char *), 
-		    (pglob->gl_flags & GLOB_NOCASE) ? ci_compare : compare);
+		    (pglob->gl_flags & (GLOB_ALPHASORT|GLOB_NOCASE))
+			? ci_compare : compare);
 	pglob->gl_flags = oldflags;
 	return(0);
 }
@@ -541,13 +558,17 @@ ci_compare(const void *p, const void *q)
 {
     const char *pp = *(const char **)p;
     const char *qq = *(const char **)q;
+    int ci;
     while (*pp && *qq) {
 	if (tolower(*pp) != tolower(*qq))
 	    break;
 	++pp;
 	++qq;
     }
-    return (tolower(*pp) - tolower(*qq));
+    ci = tolower(*pp) - tolower(*qq);
+    if (ci == 0)
+	return compare(p, q);
+    return ci;
 }
 
 static int
@@ -653,7 +674,7 @@ glob3(Char *pathbuf, Char *pathend, Char *pattern,
 	 * and dirent.h as taking pointers to differently typed opaque
 	 * structures.
 	 */
-	Direntry_t *(*readdirfunc)();
+	Direntry_t *(*readdirfunc)(DIR*);
 
 	*pathend = BG_EOS;
 	errno = 0;
@@ -689,7 +710,7 @@ glob3(Char *pathbuf, Char *pathend, Char *pattern,
 
 	/* Search directory for matching names. */
 	if (pglob->gl_flags & GLOB_ALTDIRFUNC)
-		readdirfunc = pglob->gl_readdir;
+               readdirfunc = (Direntry_t *(*)(DIR *))pglob->gl_readdir;
 	else
 		readdirfunc = my_readdir;
 	while ((dp = (*readdirfunc)(dirp))) {
@@ -853,10 +874,15 @@ g_opendir(register Char *str, glob_t *pglob)
 {
 	char buf[MAXPATHLEN];
 
-	if (!*str)
+	if (!*str) {
+#ifdef MACOS_TRADITIONAL
+		strcpy(buf, ":");
+#else
 		strcpy(buf, ".");
-	else
+#endif
+	} else {
 		g_Ctoc(str, buf);
+	}
 
 	if (pglob->gl_flags & GLOB_ALTDIRFUNC)
 		return((*pglob->gl_opendir)(buf));

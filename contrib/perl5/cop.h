@@ -1,6 +1,6 @@
 /*    cop.h
  *
- *    Copyright (c) 1991-2000, Larry Wall
+ *    Copyright (c) 1991-2001, Larry Wall
  *
  *    You may distribute under the terms of either the GNU General Public
  *    License or the Artistic License, as specified in the README file.
@@ -29,32 +29,33 @@ struct cop {
 #  define CopFILE(c)		((c)->cop_file)
 #  define CopFILEGV(c)		(CopFILE(c) \
 				 ? gv_fetchfile(CopFILE(c)) : Nullgv)
-#  define CopFILE_set(c,pv)	((c)->cop_file = savepv(pv))	/* XXX */
+#  define CopFILE_set(c,pv)	((c)->cop_file = savepv(pv))
 #  define CopFILESV(c)		(CopFILE(c) \
 				 ? GvSV(gv_fetchfile(CopFILE(c))) : Nullsv)
 #  define CopFILEAV(c)		(CopFILE(c) \
 				 ? GvAV(gv_fetchfile(CopFILE(c))) : Nullav)
 #  define CopSTASHPV(c)		((c)->cop_stashpv)
-#  define CopSTASHPV_set(c,pv)	((c)->cop_stashpv = savepv(pv))	/* XXX */
+#  define CopSTASHPV_set(c,pv)	((c)->cop_stashpv = ((pv) ? savepv(pv) : Nullch))
 #  define CopSTASH(c)		(CopSTASHPV(c) \
 				 ? gv_stashpv(CopSTASHPV(c),GV_ADD) : Nullhv)
-#  define CopSTASH_set(c,hv)	CopSTASHPV_set(c, HvNAME(hv))
-#  define CopSTASH_eq(c,hv)	(hv 					\
+#  define CopSTASH_set(c,hv)	CopSTASHPV_set(c, (hv) ? HvNAME(hv) : Nullch)
+#  define CopSTASH_eq(c,hv)	((hv) 					\
 				 && (CopSTASHPV(c) == HvNAME(hv)	\
 				     || (CopSTASHPV(c) && HvNAME(hv)	\
 					 && strEQ(CopSTASHPV(c), HvNAME(hv)))))
 #else
 #  define CopFILEGV(c)		((c)->cop_filegv)
-#  define CopFILEGV_set(c,gv)	((c)->cop_filegv = gv)
-#  define CopFILE_set(c,pv)	((c)->cop_filegv = gv_fetchfile(pv))
+#  define CopFILEGV_set(c,gv)	((c)->cop_filegv = (GV*)SvREFCNT_inc(gv))
+#  define CopFILE_set(c,pv)	CopFILEGV_set((c), gv_fetchfile(pv))
 #  define CopFILESV(c)		(CopFILEGV(c) ? GvSV(CopFILEGV(c)) : Nullsv)
 #  define CopFILEAV(c)		(CopFILEGV(c) ? GvAV(CopFILEGV(c)) : Nullav)
 #  define CopFILE(c)		(CopFILESV(c) ? SvPVX(CopFILESV(c)) : Nullch)
 #  define CopSTASH(c)		((c)->cop_stash)
-#  define CopSTASH_set(c,hv)	((c)->cop_stash = hv)
+#  define CopSTASH_set(c,hv)	((c)->cop_stash = (hv))
 #  define CopSTASHPV(c)		(CopSTASH(c) ? HvNAME(CopSTASH(c)) : Nullch)
-#  define CopSTASHPV_set(c,pv)	CopSTASH_set(c, gv_stashpv(pv,GV_ADD))
-#  define CopSTASH_eq(c,hv)	(CopSTASH(c) == hv)
+   /* cop_stash is not refcounted */
+#  define CopSTASHPV_set(c,pv)	CopSTASH_set((c), gv_stashpv(pv,GV_ADD))
+#  define CopSTASH_eq(c,hv)	(CopSTASH(c) == (hv))
 #endif /* USE_ITHREADS */
 
 #define CopSTASH_ne(c,hv)	(!CopSTASH_eq(c,hv))
@@ -79,6 +80,7 @@ struct block_sub {
     U16		olddepth;
     U8		hasargs;
     U8		lval;		/* XXX merge lval and hasargs? */
+    SV **	oldcurpad;
 };
 
 #define PUSHSUB(cx)							\
@@ -105,13 +107,14 @@ struct block_sub {
     } STMT_END
 #endif /* USE_THREADS */
 
-#ifdef USE_ITHREADS
-   /* junk in @_ spells trouble when cloning CVs, so don't leave any */
-#  define CLEAR_ARGARRAY()	av_clear(cx->blk_sub.argarray)
-#else
-#  define CLEAR_ARGARRAY()	NOOP
-#endif /* USE_ITHREADS */
-
+/* junk in @_ spells trouble when cloning CVs and in pp_caller(), so don't
+ * leave any (a fast av_clear(ary), basically) */
+#define CLEAR_ARGARRAY(ary) \
+    STMT_START {							\
+	AvMAX(ary) += AvARRAY(ary) - AvALLOC(ary);			\
+	SvPVX(ary) = (char*)AvALLOC(ary);				\
+	AvFILLp(ary) = -1;						\
+    } STMT_END
 
 #define POPSUB(cx,sv)							\
     STMT_START {							\
@@ -124,10 +127,10 @@ struct block_sub {
 		cx->blk_sub.argarray = newAV();				\
 		av_extend(cx->blk_sub.argarray, fill);			\
 		AvFLAGS(cx->blk_sub.argarray) = AVf_REIFY;		\
-		PL_curpad[0] = (SV*)cx->blk_sub.argarray;		\
+		cx->blk_sub.oldcurpad[0] = (SV*)cx->blk_sub.argarray;	\
 	    }								\
 	    else {							\
-		CLEAR_ARGARRAY();					\
+		CLEAR_ARGARRAY(cx->blk_sub.argarray);			\
 	    }								\
 	}								\
 	sv = (SV*)cx->blk_sub.cv;					\
@@ -390,7 +393,7 @@ Used to indicate scalar context.  See C<GIMME_V>, C<GIMME>, and
 L<perlcall>.
 
 =for apidoc AmU||G_ARRAY
-Used to indicate array context.  See C<GIMME_V>, C<GIMME> and
+Used to indicate list context.  See C<GIMME_V>, C<GIMME> and
 L<perlcall>.
 
 =for apidoc AmU||G_VOID
@@ -423,12 +426,14 @@ L<perlcall>.
 #define G_NOARGS	8	/* Don't construct a @_ array. */
 #define G_KEEPERR      16	/* Append errors to $@, don't overwrite it */
 #define G_NODEBUG      32	/* Disable debugging at toplevel.  */
+#define G_METHOD       64       /* Calling method. */
 
 /* flag bits for PL_in_eval */
 #define EVAL_NULL	0	/* not in an eval */
 #define EVAL_INEVAL	1	/* some enclosing scope is an eval */
 #define EVAL_WARNONLY	2	/* used by yywarn() when calling yyerror() */
 #define EVAL_KEEPERR	4	/* set by Perl_call_sv if G_KEEPERR */
+#define EVAL_INREQUIRE	8	/* The code is being required. */
 
 /* Support for switching (stack and block) contexts.
  * This ensures magic doesn't invalidate local stack and cx pointers.
@@ -494,7 +499,7 @@ typedef struct stackinfo PERL_SI;
  * PUTBACK/SPAGAIN to flush/refresh any local SP that may be active */
 #define POPSTACK \
     STMT_START {							\
-	djSP;								\
+	dSP;								\
 	PERL_SI *prev = PL_curstackinfo->si_prev;			\
 	if (!prev) {							\
 	    PerlIO_printf(Perl_error_log, "panic: POPSTACK\n");		\

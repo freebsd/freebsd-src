@@ -1,8 +1,11 @@
 package File::Spec::Mac;
 
 use strict;
-use vars qw(@ISA);
+use vars qw(@ISA $VERSION);
 require File::Spec::Unix;
+
+$VERSION = '1.2';
+
 @ISA = qw(File::Spec::Unix);
 
 =head1 NAME
@@ -79,9 +82,9 @@ sub catdir {
     shift;
     my @args = @_;
     my $result = shift @args;
-    $result =~ s/:\z//;
+    $result =~ s/:\Z(?!\n)//;
     foreach (@args) {
-	s/:\z//;
+	s/:\Z(?!\n)//;
 	s/^://s;
 	$result .= ":$_";
     }
@@ -150,7 +153,7 @@ sub rootdir {
     require Mac::Files;
     my $system =  Mac::Files::FindFolder(&Mac::Files::kOnSystemDisk,
 					 &Mac::Files::kSystemFolderType);
-    $system =~ s/:.*\z/:/s;
+    $system =~ s/:.*\Z(?!\n)/:/s;
     return $system;
 }
 
@@ -189,12 +192,16 @@ folder named "HD" in the current working directory on a drive named "HD"),
 relative wins.  Use ":" in the appropriate place in the path if you want to
 distinguish unambiguously.
 
+As a special case, the file name '' is always considered to be absolute.
+
 =cut
 
 sub file_name_is_absolute {
     my ($self,$file) = @_;
     if ($file =~ /:/) {
 	return ($file !~ m/^:/s);
+    } elsif ( $file eq '' ) {
+        return 1 ;
     } else {
 	return (! -e ":$file");
     }
@@ -228,7 +235,7 @@ sub splitpath {
     my ($volume,$directory,$file) = ('','','');
 
     if ( $nofile ) {
-        ( $volume, $directory ) = $path =~ m@((?:[^:]+(?::|\z))?)(.*)@s;
+        ( $volume, $directory ) = $path =~ m@((?:[^:]+(?::|\Z(?!\n)))?)(.*)@s;
     }
     else {
         $path =~ 
@@ -242,8 +249,8 @@ sub splitpath {
     }
 
     # Make sure non-empty volumes and directories end in ':'
-    $volume    .= ':' if $volume    =~ m@[^:]\z@ ;
-    $directory .= ':' if $directory =~ m@[^:]\z@ ;
+    $volume    .= ':' if $volume    =~ m@[^:]\Z(?!\n)@ ;
+    $directory .= ':' if $directory =~ m@[^:]\Z(?!\n)@ ;
     return ($volume,$directory,$file);
 }
 
@@ -259,7 +266,7 @@ sub splitdir {
     # check to be sure that there will not be any before handling the
     # simple case.
     #
-    if ( $directories !~ m@:\z@ ) {
+    if ( $directories !~ m@:\Z(?!\n)@ ) {
         return split( m@:@, $directories );
     }
     else {
@@ -286,11 +293,11 @@ sub catpath {
 
     my $segment ;
     for $segment ( @_ ) {
-        if ( $result =~ m@[^/]\z@ && $segment =~ m@^[^/]@s ) {
+        if ( $result =~ m@[^/]\Z(?!\n)@ && $segment =~ m@^[^/]@s ) {
             $result .= "/$segment" ;
         }
-        elsif ( $result =~ m@/\z@ && $segment =~ m@^/@s ) {
-            $result  =~ s@/+\z@/@;
+        elsif ( $result =~ m@/\Z(?!\n)@ && $segment =~ m@^/@s ) {
+            $result  =~ s@/+\Z(?!\n)@/@;
             $segment =~ s@^/+@@s;
             $result  .= "$segment" ;
         }
@@ -303,6 +310,12 @@ sub catpath {
 }
 
 =item abs2rel
+
+See L<File::Spec::Unix/abs2rel> for general documentation.
+
+Unlike C<File::Spec::Unix->abs2rel()>, this function will make
+checks against the local filesystem if necessary.  See
+L</file_name_is_absolute> for details.
 
 =cut
 
@@ -341,31 +354,15 @@ sub abs2rel {
 
 =item rel2abs
 
-Converts a relative path to an absolute path. 
+See L<File::Spec::Unix/rel2abs> for general documentation.
 
-    $abs_path = File::Spec->rel2abs( $destination ) ;
-    $abs_path = File::Spec->rel2abs( $destination, $base ) ;
-
-If $base is not present or '', then L<cwd()> is used. If $base is relative, 
-then it is converted to absolute form using L</rel2abs()>. This means that it
-is taken to be relative to L<cwd()>.
-
-On systems with the concept of a volume, this assumes that both paths 
-are on the $base volume, and ignores the $destination volume. 
-
-On systems that have a grammar that indicates filenames, this ignores the 
-$base filename as well. Otherwise all path components are assumed to be
-directories.
-
-If $path is absolute, it is cleaned up and returned using L</canonpath()>.
-
-Based on code written by Shigio Yamaguchi.
-
-No checks against the filesystem are made. 
+Unlike C<File::Spec::Unix->rel2abs()>, this function will make
+checks against the local filesystem if necessary.  See
+L</file_name_is_absolute> for details.
 
 =cut
 
-sub rel2abs($;$;) {
+sub rel2abs {
     my ($self,$path,$base ) = @_;
 
     if ( ! $self->file_name_is_absolute( $path ) ) {

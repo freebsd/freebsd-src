@@ -6,7 +6,7 @@
 # Currently it only tests the untie warning 
 
 chdir 't' if -d 't';
-unshift @INC, "../lib";
+@INC = '../lib';
 $ENV{PERL5LIB} = "../lib";
 
 $|=1;
@@ -42,6 +42,21 @@ use Tie::Hash ;
 tie %h, Tie::StdHash;
 untie %h;
 EXPECT
+########
+
+# standard behaviour, without any extra references
+use Tie::Hash ;
+{package Tie::HashUntie;
+ use base 'Tie::StdHash';
+ sub UNTIE
+  {
+   warn "Untied\n";
+  }
+}
+tie %h, Tie::HashUntie;
+untie %h;
+EXPECT
+Untied
 ########
 
 # standard behaviour, with 1 extra reference

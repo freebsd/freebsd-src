@@ -1,4 +1,4 @@
-# SpecialCasing-2.txt
+# SpecialCasing-3.txt
 #
 # Special Casing Properties
 #
@@ -26,26 +26,33 @@
 # <upper> := <code_point_list>
 # <code_point_list> := <code_point> (<s>+ <code_point>)*
 # <code_point> := <hex><hex><hex><hex>
-# <hex> := [0-1A-Fa-f]
+# <hex> := [0-9A-Fa-f]
 # <s> := <space>
 #
-# <condition_list> := <locale>? (<s>+ <context>)*
-# <locale> := <ISO_3166_code> ( "_" <ISO_639_code> )? ( "_" <variant> )?
+# <condition_list> := <locale>? (<s>+ <context>)* <sep>
+# <locale> := <ISO_639_code> ( "_" <ISO_3166_code> )? ( "_" <variant> )?
 # <ISO_3166_code> := 2-letter country code,
 #                    as in http://www.unicode.org/unicode/onlinedat/countries.html
 # <ISO_639_code> :=  2-letter code,
 #                    as in http://www.unicode.org/unicode/onlinedat/languages.html
-# <context> := "FINAL" | "NON_FINAL" | "MODERN" | "NON_MODERN"
+# <context> := "FINAL" | "NON_FINAL" | "MODERN" | "NON_MODERN" | "AFTER_i"
 #
-#  A condition list overrides the normal behavior if any of the listed conditions is true.
+#  A condition list overrides the normal behavior if all of the listed conditions are true.
+#  Case distinctions in the condition list are not significant.
+#
 #   FINAL:  The letter is not followed by a letter of category L* (e.g. Ll, Lt, Lu, Lm, or Lo).
 #   MODERN: The mapping is only used for modern text.
+#   AFTER_i: The last base character was "i" 0069
+#
 #  Conditions preceded by "NON_" represent the negation of the condition
 #
 # New contexts may be added in the future.
-# Parsers of this file must be prepared to deal with that situation.
 # Additional whitespace around elements is optional. Blank lines are ignored in parsing.
 # On any line, all text following "#" is a comment, and are ignored in parsing.
+#
+# Parsers of this file must be prepared to deal future additions to this format:
+#  * Additional contexts
+#  * Additional fields
 # ================================================================================
 
 # ================================================================================
@@ -76,7 +83,7 @@ FB17; FB17; 0544 056D; 0544 053D; # ARMENIAN SMALL LIGATURE MEN XEH
 
 # No corresponding uppercase precomposed character
 
-0149; 0149; 02BC 006E; 02BC 004E; # LATIN SMALL LETTER N PRECEDED BY APOSTROPHE
+0149; 0149; 02BC 004E; 02BC 004E; # LATIN SMALL LETTER N PRECEDED BY APOSTROPHE
 0390; 0390; 0399 0308 0301; 0399 0308 0301; # GREEK SMALL LETTER IOTA WITH DIALYTIKA AND TONOS
 03B0; 03B0; 03A5 0308 0301; 03A5 0308 0301; # GREEK SMALL LETTER UPSILON WITH DIALYTIKA AND TONOS
 01F0; 01F0; 004A 030C; 004A 030C; # LATIN SMALL LETTER J WITH CARON
@@ -199,7 +206,7 @@ FB17; FB17; 0544 056D; 0544 053D; # ARMENIAN SMALL LIGATURE MEN XEH
 # 03C3; 03C3; 03A3; 03A3; # GREEK SMALL LETTER SIGMA
 # 03C2; 03C2; 03A3; 03A3; # GREEK SMALL LETTER FINAL SIGMA
 
-# Note: the following cases are not included, since they would normalize in lowercasing
+# Note: the following cases are not included, since they would case-fold in lowercasing
 
 # 03C3; 03C2; 03A3; 03A3; FINAL; # GREEK SMALL LETTER SIGMA
 # 03C2; 03C3; 03A3; 03A3; NON_FINAL; # GREEK SMALL LETTER FINAL SIGMA
@@ -208,12 +215,16 @@ FB17; FB17; 0544 056D; 0544 053D; # ARMENIAN SMALL LIGATURE MEN XEH
 # Locale-sensitive mappings
 # ================================================================================
 
+# Lithuanian 
+
+0307; 0307; ; ; lt AFTER_i; # Remove DOT ABOVE after "i" with upper or titlecase
+
 # Turkish
 
-0049; 0131; 0049; 0049; TR; # LATIN CAPITAL LETTER I
-0069; 0069; 0130; 0130; TR; # LATIN SMALL LETTER I
+0049; 0131; 0049; 0049; tr; # LATIN CAPITAL LETTER I
+0069; 0069; 0130; 0130; tr; # LATIN SMALL LETTER I
 
 # Note: the following cases are already in the UnicodeData file.
 
-# 0131; 0131; 0049; 0049; TR; # LATIN SMALL LETTER DOTLESS I
-# 0130; 0069; 0130; 0130; TR; # LATIN CAPITAL LETTER I WITH DOT ABOVE
+# 0131; 0131; 0049; 0049; tr; # LATIN SMALL LETTER DOTLESS I
+# 0130; 0069; 0130; 0130; tr; # LATIN CAPITAL LETTER I WITH DOT ABOVE

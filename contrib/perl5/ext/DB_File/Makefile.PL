@@ -17,6 +17,7 @@ WriteMakefile(
 	OBJECT		=> 'version$(OBJ_EXT) DB_File$(OBJ_EXT)',
 	XSPROTOARG	=> '-noprototypes',
 	DEFINE		=> $OS2 || "",
+	INC => ($^O eq "MacOS" ? "-i ::::db:include" : "")
 	);
 
 sub MY::postamble {

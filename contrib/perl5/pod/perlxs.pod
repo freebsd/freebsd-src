@@ -66,14 +66,15 @@ for the library being linked.
 A file in XS format starts with a C language section which goes until the
 first C<MODULE =Z<>> directive.  Other XS directives and XSUB definitions
 may follow this line.  The "language" used in this part of the file
-is usually referred to as the XS language.
+is usually referred to as the XS language.  B<xsubpp> recognizes and
+skips POD (see L<perlpod>) in both the C and XS language sections, which
+allows the XS file to contain embedded documentation. 
 
 See L<perlxstut> for a tutorial on the whole extension creation process.
 
 Note: For some extensions, Dave Beazley's SWIG system may provide a
-significantly more convenient mechanism for creating the extension glue
-code. See L<http://www.swig.org> for more 
-information.
+significantly more convenient mechanism for creating the extension
+glue code.  See http://www.swig.org/ for more information.
 
 =head2 On The Road
 
@@ -167,21 +168,37 @@ argument and returns a single value.
      sin(x)
        double x
 
-When using parameters with C pointer types, as in
+Optionally, one can merge the description of types and the list of
+argument names, rewriting this as
 
-     double string_to_double(char *s);
+     double
+     sin(double x)
 
-there may be two ways to describe this argument to B<xsubpp>:
+This makes this XSUB look similar to an ANSI C declaration.  An optional
+semicolon is allowed after the argument list, as in
+
+     double
+     sin(double x);
+
+Parameters with C pointer types can have different semantic: C functions
+with similar declarations
+
+     bool string_looks_as_a_number(char *s);
+     bool make_char_uppercase(char *c);
+
+are used in absolutely incompatible manner.  Parameters to these functions
+could be described B<xsubpp> like this:
 
      char *  s
-     char    &s
+     char    &c
 
 Both these XS declarations correspond to the C<char*> C type, but they have
-different semantics.  It is convenient to think that the indirection operator
+different semantics, see L<"The & Unary Operator">.
+
+It is convenient to think that the indirection operator
 C<*> should be considered as a part of the type and the address operator C<&>
-should be considered part of the variable.  See L<"The Typemap"> and
-L<"The & Unary Operator"> for more info about handling qualifiers and unary
-operators in C types.
+should be considered part of the variable.  See L<"The Typemap">
+for more info about handling qualifiers and unary operators in C types.
 
 The function name and the return type must be placed on
 separate lines and should be flush left-adjusted.
@@ -192,9 +209,9 @@ separate lines and should be flush left-adjusted.
     double x                       sin(x)
 				     double x
 
-The function body may be indented or left-adjusted.  The following example
-shows a function with its body left-adjusted.  Most examples in this
-document will indent the body for better readability.
+The rest of the function description may be indented or left-adjusted. The
+following example shows a function with its body left-adjusted.  Most
+examples in this document will indent the body for better readability.
 
   CORRECT
 
@@ -261,16 +278,14 @@ mercy of this heuristics unless you use C<SV *> as return value.)
 
 =head2 The MODULE Keyword
 
-The MODULE keyword is used to start the XS code and to
-specify the package of the functions which are being
-defined.  All text preceding the first MODULE keyword is
-considered C code and is passed through to the output
-untouched.  Every XS module will have a bootstrap function
-which is used to hook the XSUBs into Perl.  The package name
-of this bootstrap function will match the value of the last
-MODULE statement in the XS source files.  The value of
-MODULE should always remain constant within the same XS
-file, though this is not required.
+The MODULE keyword is used to start the XS code and to specify the package
+of the functions which are being defined.  All text preceding the first
+MODULE keyword is considered C code and is passed through to the output with
+POD stripped, but otherwise untouched.  Every XS module will have a
+bootstrap function which is used to hook the XSUBs into Perl.  The package
+name of this bootstrap function will match the value of the last MODULE
+statement in the XS source files.  The value of MODULE should always remain
+constant within the same XS file, though this is not required.
 
 The following example will start the XS code and will place
 all functions in a package named RPC.
@@ -364,6 +379,31 @@ to disable it for the remainder of the parameters in the OUTPUT section.
 Likewise,  C<SETMAGIC: ENABLE> can be used to reenable it for the
 remainder of the OUTPUT section.  See L<perlguts> for more details
 about 'set' magic.
+
+=head2 The NO_OUTPUT Keyword
+
+The NO_OUTPUT can be placed as the first token of the XSUB.  This keyword
+indicates that while the C subroutine we provide an interface to has
+a non-C<void> return type, the return value of this C subroutine should not
+be returned from the generated Perl subroutine.
+
+With this keyword present L<The RETVAL Variable> is created, and in the
+generated call to the subroutine this variable is assigned to, but the value
+of this variable is not going to be used in the auto-generated code.
+
+This keyword makes sense only if C<RETVAL> is going to be accessed by the
+user-supplied code.  It is especially useful to make a function interface
+more Perl-like, especially when the C return value is just an error condition
+indicator.  For example,
+
+  NO_OUTPUT int
+  delete_file(char *name)
+    POST_CALL:
+      if (RETVAL != 0)
+	  croak("Error %d while deleting file '%s'", RETVAL, name);
+
+Here the generated XS function returns nothing on success, and will die()
+with a meaningful error message on error.
 
 =head2 The CODE: Keyword
 
@@ -534,7 +574,7 @@ the parameters in the correct order for that function.
 =head2 The PREINIT: Keyword
 
 The PREINIT: keyword allows extra variables to be declared immediately
-before or after the declartions of the parameters from the INPUT: section
+before or after the declarations of the parameters from the INPUT: section
 are emitted.
 
 If a variable is declared inside a CODE: section it will follow any typemap
@@ -713,6 +753,91 @@ in the parameter list of a subroutine, this may be shortened to:
 thus C<host> is initialized on the declaration line, and our assignment
 C<h = host> is not performed too early.  Otherwise one would need to have the
 assignment C<h = host> in a CODE: or INIT: section.)
+
+=head2 The IN/OUTLIST/IN_OUTLIST/OUT/IN_OUT Keywords
+
+In the list of parameters for an XSUB, one can precede parameter names
+by the C<IN>/C<OUTLIST>/C<IN_OUTLIST>/C<OUT>/C<IN_OUT> keywords.
+C<IN> keyword is the default, the other keywords indicate how the Perl
+interface should differ from the C interface.
+
+Parameters preceded by C<OUTLIST>/C<IN_OUTLIST>/C<OUT>/C<IN_OUT>
+keywords are considered to be used by the C subroutine I<via
+pointers>.  C<OUTLIST>/C<OUT> keywords indicate that the C subroutine
+does not inspect the memory pointed by this parameter, but will write
+through this pointer to provide additional return values.
+
+Parameters preceded by C<OUTLIST> keyword do not appear in the usage
+signature of the generated Perl function.
+
+Parameters preceded by C<IN_OUTLIST>/C<IN_OUT>/C<OUT> I<do> appear as
+parameters to the Perl function.  With the exception of
+C<OUT>-parameters, these parameters are converted to the corresponding
+C type, then pointers to these data are given as arguments to the C
+function.  It is expected that the C function will write through these
+pointers.
+
+The return list of the generated Perl function consists of the C return value
+from the function (unless the XSUB is of C<void> return type or
+C<The NO_OUTPUT Keyword> was used) followed by all the C<OUTLIST>
+and C<IN_OUTLIST> parameters (in the order of appearance).  On the
+return from the XSUB the C<IN_OUT>/C<OUT> Perl parameter will be
+modified to have the values written by the C function.
+
+For example, an XSUB
+
+  void
+  day_month(OUTLIST day, IN unix_time, OUTLIST month)
+    int day
+    int unix_time
+    int month
+
+should be used from Perl as
+
+  my ($day, $month) = day_month(time);
+
+The C signature of the corresponding function should be
+
+  void day_month(int *day, int unix_time, int *month);
+
+The C<IN>/C<OUTLIST>/C<IN_OUTLIST>/C<IN_OUT>/C<OUT> keywords can be
+mixed with ANSI-style declarations, as in
+
+  void
+  day_month(OUTLIST int day, int unix_time, OUTLIST int month)
+
+(here the optional C<IN> keyword is omitted).
+
+The C<IN_OUT> parameters are identical with parameters introduced with
+L<The & Unary Operator> and put into the C<OUTPUT:> section (see
+L<The OUTPUT: Keyword>).  The C<IN_OUTLIST> parameters are very similar,
+the only difference being that the value C function writes through the
+pointer would not modify the Perl parameter, but is put in the output
+list.
+
+The C<OUTLIST>/C<OUT> parameter differ from C<IN_OUTLIST>/C<IN_OUT>
+parameters only by the the initial value of the Perl parameter not
+being read (and not being given to the C function - which gets some
+garbage instead).  For example, the same C function as above can be
+interfaced with as
+
+  void day_month(OUT int day, int unix_time, OUT int month);
+
+or
+
+  void
+  day_month(day, unix_time, month)
+      int &day = NO_INIT
+      int  unix_time
+      int &month = NO_INIT
+    OUTPUT:
+      day
+      month
+
+However, the generated Perl function is called in very C-ish style:
+
+  my ($day, $month);
+  day_month($day, time, $month);
 
 =head2 Variable-length Parameter Lists
 
@@ -928,14 +1053,14 @@ rewrite this example as:
 	OUTPUT:
 	  RETVAL
 
-In fact, one can put this check into a CLEANUP: section as well.  Together
+In fact, one can put this check into a POST_CALL: section as well.  Together
 with PREINIT: simplifications, this leads to:
 
      int
      rpcb_gettime(host)
           char *host
           time_t  timep;
-	CLEANUP:
+	POST_CALL:
 	  if (RETVAL == 0)
 		XSRETURN_UNDEF;
 
@@ -955,6 +1080,16 @@ before it terminates.  When the CLEANUP:  keyword is used it must follow
 any CODE:, PPCODE:, or OUTPUT: blocks which are present in the XSUB.  The
 code specified for the cleanup block will be added as the last statements
 in the XSUB.
+
+=head2 The POST_CALL: Keyword
+
+This keyword can be used when an XSUB requires special procedures
+executed after the C subroutine call is performed.  When the POST_CALL:
+keyword is used it must precede OUTPUT: and CLEANUP: blocks which are
+present in the XSUB.
+
+The POST_CALL: block does not make a lot of sense when the C subroutine
+call is supplied by user by providing either CODE: or PPCODE: section.
 
 =head2 The BOOT: Keyword
 
@@ -1233,13 +1368,19 @@ C<&> through, so the function call looks like C<rpcb_gettime(host, &timep)>.
         OUTPUT:
           timep
 
-=head2 Inserting Comments and C Preprocessor Directives
+=head2 Inserting POD, Comments and C Preprocessor Directives
 
-C preprocessor directives are allowed within BOOT:, PREINIT: INIT:,
-CODE:, PPCODE:, and CLEANUP: blocks, as well as outside the functions.
-Comments are allowed anywhere after the MODULE keyword.  The compiler
-will pass the preprocessor directives through untouched and will remove
-the commented lines.
+C preprocessor directives are allowed within BOOT:, PREINIT: INIT:, CODE:,
+PPCODE:, POST_CALL:, and CLEANUP: blocks, as well as outside the functions.
+Comments are allowed anywhere after the MODULE keyword.  The compiler will
+pass the preprocessor directives through untouched and will remove the
+commented lines. POD documentation is allowed at any point, both in the
+C and XS language sections. POD must be terminated with a C<=cut> command;
+C<xsubpp> will exit with an error if it does not. It is very unlikely that
+human generated C code will be mistaken for POD, as most indenting styles
+result in whitespace in front of any line starting with C<=>. Machine
+generated XS files may fall into this trap unless care is taken to
+ensure that a space breaks the sequence "\n=".
 
 Comments can be added to XSUBs by placing a C<#> as the first
 non-whitespace of a line.  Care should be taken to avoid making the
@@ -1391,7 +1532,7 @@ of failure.  They may be
 candidates to return undef or an empty list in case of failure.  If the
 failure may be detected without a call to the C function, you may want to use
 an INIT: section to report the failure.  For failures detectable after the C
-function returns one may want to use a CLEANUP: section to process the
+function returns one may want to use a POST_CALL: section to process the
 failure.  In more complicated cases use CODE: or PPCODE: sections.
 
 If many functions use the same failure indication based on the return value,
@@ -1499,7 +1640,7 @@ getnetconfigent() XSUB and an object created by a normal Perl subroutine.
 
 The typemap is a collection of code fragments which are used by the B<xsubpp>
 compiler to map C function parameters and values to Perl values.  The
-typemap file may consist of three sections labeled C<TYPEMAP>, C<INPUT>, and
+typemap file may consist of three sections labelled C<TYPEMAP>, C<INPUT>, and
 C<OUTPUT>.  An unlabelled initial section is assumed to be a C<TYPEMAP>
 section.  The INPUT section tells
 the compiler how to translate Perl values
@@ -1510,10 +1651,10 @@ OUTPUT code fragments should be used to map a given C type to a Perl value.
 The section labels C<TYPEMAP>, C<INPUT>, or C<OUTPUT> must begin
 in the first column on a line by themselves, and must be in uppercase.
 
-The default typemap in the C<ext> directory of the Perl source contains many
-useful types which can be used by Perl extensions.  Some extensions define
-additional typemaps which they keep in their own directory.  These
-additional typemaps may reference INPUT and OUTPUT maps in the main
+The default typemap in the C<lib/ExtUtils> directory of the Perl source
+contains many useful types which can be used by Perl extensions.  Some
+extensions define additional typemaps which they keep in their own directory.
+These additional typemaps may reference INPUT and OUTPUT maps in the main
 typemap.  The B<xsubpp> compiler will allow the extension's own typemap to
 override any mappings which are in the default typemap.
 
@@ -1636,4 +1777,4 @@ This document covers features supported by C<xsubpp> 1.935.
 
 Originally written by Dean Roehrich <F<roehrich@cray.com>>.
 
-Maintained since 1996 by The Perl Porters <F<perlbug@perl.com>>.
+Maintained since 1996 by The Perl Porters <F<perlbug@perl.org>>.

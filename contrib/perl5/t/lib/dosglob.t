@@ -6,7 +6,7 @@
 
 BEGIN {
     chdir 't' if -d 't';
-    unshift @INC, '../lib';
+    @INC = '../lib';
 }
 
 print "1..10\n";
@@ -39,7 +39,7 @@ while (defined($_ = <*/a*.t>)) {
 print "not " if @r != $r;
 print "ok 4\n";
 
-# check if array context works
+# check if list context works
 @r = ();
 for (<*/a*.t>) {
     print "# $_\n";

@@ -78,23 +78,29 @@ print "\n";
 chdir "$relroot/$reldir" or die $!;
 
 print "Setting file permissions...\n";
-system("find . -type f -print     | xargs chmod -w");
-system("find . -type d -print     | xargs chmod g-s");
-system("find t -name '*.t' -print | xargs chmod +x");
+system("find . -type f -print     | xargs chmod a-w");
+system("find . -type d -print     | xargs chmod 0755");
+
+# the right files should already have the execute bit set
+# in the repository, but this is just insurance
+system("find t -name '*.t' -print | xargs chmod a+x");
 my @exe = qw(
     Configure
+    configure.gnu
     configpm
-    embed.pl
     installperl
+    installhtml
     installman
+    embed.pl
     keywords.pl
     opcode.pl
+    warnings.pl
     perly.fixer
     t/TEST
     t/*/*.t
     *.SH
     vms/ext/Stdio/test.pl
-    vms/ext/filespec.t
+    vms/ext/*.t
     x2p/*.SH
     Porting/patchls
     Porting/makerel
@@ -102,20 +108,31 @@ my @exe = qw(
 system("chmod +x @exe");
 
 my @writables = qw(
+    keywords.h
+    opcode.h
+    opnames.h
+    pp_proto.h
+    pp.sym
+    proto.h
     embed.h
     embedvar.h
-    ext/B/B/Asmdata.pm
-    ext/ByteLoader/byterun.c
-    ext/ByteLoader/byterun.h
     global.sym
-    keywords.h
-    lib/warnings.pm
+    pod/perlintern.pod
+    pod/perlapi.pod
     objXSUB.h
-    opcode.h
-    pp.sym
-    pp_proto.h
+    perlapi.h
+    perlapi.c
+    ext/ByteLoader/byterun.h
+    ext/ByteLoader/byterun.c
+    ext/B/B/Asmdata.pm
     regnodes.h
     warnings.h
+    lib/warnings.pm
+    vms/perly_c.vms
+    vms/perly_h.vms
+    win32/Makefile
+    win32/makefile.mk
+    win32/config_H.bc
     win32/config_H.bc
     win32/config_H.gc
     win32/config_H.vc

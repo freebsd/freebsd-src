@@ -54,4 +54,19 @@ Name "main::z" used only once: possible typo at - line 6.
 use warnings 'once' ;
 $x = 3 ;
 EXPECT
+########
 
+# perl.c
+{ use warnings 'once' ; $x = 3 ; }
+$y = 3 ;
+EXPECT
+Name "main::x" used only once: possible typo at - line 3.
+########
+
+# perl.c
+$z = 3 ;
+BEGIN { $^W = 1 }
+{ no warnings 'once' ; $x = 3 ; }
+$y = 3 ;
+EXPECT
+Name "main::y" used only once: possible typo at - line 6.

@@ -332,7 +332,17 @@ print $@ ;
 EXPECT
 Usage: warnings::warn([category,] 'message') at - line 4
 unknown warnings category 'fred' at - line 6
-	require 0 called at - line 6
+########
+
+# check warnings::warnif
+use warnings ;
+eval { warnings::warnif() } ;
+print $@ ;
+eval { warnings::warnif("fred", "joe") } ;
+print $@ ;
+EXPECT
+Usage: warnings::warnif([category,] 'message') at - line 4
+unknown warnings category 'fred' at - line 6
 ########
 
 --FILE-- abc.pm
@@ -373,6 +383,7 @@ eval { abc::check() ; } ;
 print "[[$@]]\n";
 EXPECT
 hello at - line 3
+	eval {...} called at - line 3
 [[]]
 ########
 
@@ -388,6 +399,7 @@ eval { abc::check() ; } ;
 print "[[$@]]\n";
 EXPECT
 [[hello at - line 3
+	eval {...} called at - line 3
 ]]
 ########
 -W
@@ -431,7 +443,37 @@ use warnings 'syntax' ;
 use abc ;
 abc::check() ;
 EXPECT
-package 'abc' not registered for warnings at - line 3
+package 'abc' not registered for warnings at abc.pm line 4
+########
+
+--FILE-- abc.pm
+package abc ;
+no warnings ;
+sub check {
+  warnings::warn("fred") ;
+}
+1;
+--FILE-- 
+use warnings 'syntax' ;
+use abc ;
+abc::check() ;
+EXPECT
+package 'abc' not registered for warnings at abc.pm line 4
+########
+
+--FILE-- abc.pm
+package abc ;
+no warnings ;
+sub check {
+  warnings::warnif("fred") ;
+}
+1;
+--FILE-- 
+use warnings 'syntax' ;
+use abc ;
+abc::check() ;
+EXPECT
+package 'abc' not registered for warnings at abc.pm line 4
 ########
 
 --FILE-- abc.pm
@@ -617,6 +659,7 @@ eval { abc::check() ; } ;
 print "[[$@]]\n";
 EXPECT
 hello at - line 3
+	eval {...} called at - line 3
 [[]]
 ########
 
@@ -632,6 +675,7 @@ eval { abc::check() ; } ;
 print "[[$@]]\n";
 EXPECT
 [[hello at - line 3
+	eval {...} called at - line 3
 ]]
 ########
 -W
@@ -723,6 +767,10 @@ sub check {
   print "ok1\n" if !warnings::enabled() ;
   print "ok2\n" if !warnings::enabled("io") ;
   print "ok3\n" if !warnings::enabled("all") ;
+  warnings::warnif("my message 1") ;
+  warnings::warnif('abc', "my message 2") ;
+  warnings::warnif('io', "my message 3") ;
+  warnings::warnif('all', "my message 4") ;
 }
 1;
 --FILE-- 
@@ -817,3 +865,298 @@ abc all not enabled
 def self enabled
 def abc not enabled
 def all not enabled
+########
+-w
+--FILE-- abc.pm
+package abc ;
+no warnings ;
+use warnings::register ;
+sub check { 
+  print "ok1\n" if warnings::enabled() ;
+  print "ok2\n" if warnings::enabled("io") ;
+  print "ok3\n" if warnings::enabled("all") ;
+}
+1;
+--FILE-- 
+use abc ;
+abc::check() ;
+EXPECT
+ok1
+ok2
+ok3
+########
+-w
+--FILE-- abc.pm
+package abc ;
+no warnings ;
+use warnings::register ;
+sub check { 
+  print "ok1\n" if !warnings::enabled() ;
+  print "ok2\n" if !warnings::enabled("io") ;
+  print "ok3\n" if !warnings::enabled("all") ;
+}
+1;
+--FILE-- 
+use abc ;
+use warnings 'abc';
+no warnings ;
+abc::check() ;
+EXPECT
+ok1
+ok2
+ok3
+########
+
+--FILE-- abc.pm
+package abc ;
+no warnings ;
+use warnings::register ;
+sub check { 
+  print "ok1\n" if !warnings::enabled() ;
+  print "ok2\n" if !warnings::enabled("io") ;
+  print "ok3\n" if !warnings::enabled("all") ;
+  warnings::warnif("my message 1") ;
+  warnings::warnif('abc', "my message 2") ;
+  warnings::warnif('io', "my message 3") ;
+  warnings::warnif('all', "my message 4") ;
+}
+1;
+--FILE-- 
+use abc ;
+use warnings 'abc';
+no warnings ;
+BEGIN { $^W = 1 ; }
+abc::check() ;
+EXPECT
+ok1
+ok2
+ok3
+########
+
+--FILE-- abc.pm
+package abc ;
+no warnings ;
+use warnings::register ;
+sub check { 
+  print "ok1\n" if !warnings::enabled() ;
+  print "ok2\n" if !warnings::enabled("io") ;
+  print "ok3\n" if !warnings::enabled("all") ;
+}
+1;
+--FILE-- 
+use abc ;
+use warnings 'abc';
+no warnings ;
+$^W = 1 ;
+abc::check() ;
+EXPECT
+ok1
+ok2
+ok3
+########
+
+--FILE-- abc.pm
+$| = 1;
+package abc ;
+no warnings ;
+use warnings::register ;
+sub check { 
+  print "ok1\n" if  warnings::enabled() ;
+  print "ok2\n" if !warnings::enabled("io") ;
+  print "ok3\n" if !warnings::enabled("all") ;
+  print "ok4\n" if  warnings::enabled("abc") ;
+  warnings::warn("my message 1") ;
+  warnings::warnif("my message 2") ;
+  warnings::warnif('abc', "my message 3") ;
+  warnings::warnif('io', "my message 4") ;
+  warnings::warnif('all', "my message 5") ;
+}
+sub in2 { no warnings ; check() }
+sub in1 { no warnings ; in2() }
+1;
+--FILE-- 
+use abc ;
+use warnings 'abc';
+abc::in1() ;
+EXPECT
+ok1
+ok2
+ok3
+ok4
+my message 1 at - line 3
+my message 2 at - line 3
+my message 3 at - line 3
+########
+
+--FILE-- def.pm
+package def ;
+no warnings ;
+use warnings::register ;
+sub check { 
+  print "ok1\n" if  warnings::enabled() ;
+  print "ok2\n" if !warnings::enabled("io") ;
+  print "ok3\n" if !warnings::enabled("all") ;
+  print "ok4\n" if  warnings::enabled("def") ;
+  warnings::warn("my message 1") ;
+  warnings::warnif("my message 2") ;
+  warnings::warnif('def', "my message 3") ;
+  warnings::warnif('io', "my message 4") ;
+  warnings::warnif('all', "my message 5") ;
+}
+sub in2 { no warnings ; check() }
+sub in1 { no warnings ; in2() }
+1;
+--FILE-- abc.pm
+$| = 1;
+package abc ;
+use def ;
+use warnings 'def';
+sub in1 { def::in1() ; }
+1;
+--FILE-- 
+use abc ;
+no warnings;
+abc::in1() ;
+EXPECT
+ok1
+ok2
+ok3
+ok4
+my message 1 at abc.pm line 5
+	abc::in1() called at - line 3
+my message 2 at abc.pm line 5
+	abc::in1() called at - line 3
+my message 3 at abc.pm line 5
+	abc::in1() called at - line 3
+########
+
+--FILE-- def.pm
+$| = 1;
+package def ;
+no warnings ;
+use warnings::register ;
+require Exporter;
+@ISA = qw( Exporter ) ;
+@EXPORT = qw( in1 ) ;
+sub check { 
+  print "ok1\n" if  warnings::enabled() ;
+  print "ok2\n" if !warnings::enabled("io") ;
+  print "ok3\n" if !warnings::enabled("all") ;
+  print "ok4\n" if  warnings::enabled("abc") ;
+  print "ok5\n" if !warnings::enabled("def") ;
+  warnings::warn("my message 1") ;
+  warnings::warnif("my message 2") ;
+  warnings::warnif('abc', "my message 3") ;
+  warnings::warnif('def', "my message 4") ;
+  warnings::warnif('io', "my message 5") ;
+  warnings::warnif('all', "my message 6") ;
+}
+sub in2 { no warnings ; check() }
+sub in1 { no warnings ; in2() }
+1;
+--FILE-- abc.pm
+package abc ;
+use warnings::register ;
+use def ;
+#@ISA = qw(def) ;
+1;
+--FILE-- 
+use abc ;
+no warnings;
+use warnings 'abc';
+abc::in1() ;
+EXPECT
+ok2
+ok3
+ok4
+ok5
+my message 1 at - line 4
+my message 3 at - line 4
+########
+
+--FILE-- def.pm
+package def ;
+no warnings ;
+use warnings::register ;
+
+sub new
+{
+    my $class = shift ;
+    bless [], $class ;
+}
+
+sub check 
+{ 
+  my $self = shift ;
+  print "ok1\n" if !warnings::enabled() ;
+  print "ok2\n" if !warnings::enabled("io") ;
+  print "ok3\n" if !warnings::enabled("all") ;
+  print "ok4\n" if  warnings::enabled("abc") ;
+  print "ok5\n" if !warnings::enabled("def") ;
+  print "ok6\n" if  warnings::enabled($self) ;
+
+  warnings::warn("my message 1") ;
+  warnings::warn($self, "my message 2") ;
+
+  warnings::warnif("my message 3") ;
+  warnings::warnif('abc', "my message 4") ;
+  warnings::warnif('def', "my message 5") ;
+  warnings::warnif('io', "my message 6") ;
+  warnings::warnif('all', "my message 7") ;
+  warnings::warnif($self, "my message 8") ;
+}
+sub in2 
+{
+  no warnings ; 
+  my $self = shift ;
+  $self->check() ;
+}
+sub in1 
+{ 
+  no warnings ;
+  my $self = shift ;
+  $self->in2();
+}
+1;
+--FILE-- abc.pm
+$| = 1;
+package abc ;
+use warnings::register ;
+use def ;
+@ISA = qw(def) ;
+sub new
+{
+    my $class = shift ;
+    bless [], $class ;
+}
+
+1;
+--FILE-- 
+use abc ;
+no warnings;
+use warnings 'abc';
+$a = new abc ;
+$a->in1() ;
+print "**\n";
+$b = new def ;
+$b->in1() ;
+EXPECT
+ok1
+ok2
+ok3
+ok4
+ok5
+ok6
+my message 1 at - line 5
+my message 2 at - line 5
+my message 4 at - line 5
+my message 8 at - line 5
+**
+ok1
+ok2
+ok3
+ok4
+ok5
+my message 1 at - line 8
+my message 2 at - line 8
+my message 4 at - line 8

@@ -3,8 +3,12 @@
 # hints file for BSD/OS (adapted from bsd386.sh)
 # Original by Neil Bowers <neilb@khoros.unm.edu>; Tue Oct  4 12:01:34 EDT 1994
 # Updated by Tony Sanders <sanders@bsdi.com>; Sat Aug 23 12:47:45 MDT 1997
-#     Added 3.1 with ELF dynamic libraries (NOT in 3.1 yet. Estimated for 4.0)
-#     SYSV IPC tested Ok so I re-enabled.
+#     Added 3.1 with ELF dynamic libraries (NOT in 3.1 yet.
+#     Estimated for 4.0) SYSV IPC tested Ok so I re-enabled.
+#
+# Updated to work in post-4.0 by Todd C. Miller <millert@openbsd.org>
+#
+# Updated for threads by "Timur I. Bakeyev" <bsdi@listserv.bat.ru>
 #
 # To override the compiler on the command line:
 #     ./Configure -Dcc=gcc2
@@ -18,7 +22,7 @@ d_voidsig='define'
 usemymalloc='n'
 
 # setre?[ug]id() have been replaced by the _POSIX_SAVED_IDS versions.
-# See http://www.bsdi.com/bsdi-man?setuid(2)
+# See <A HREF="http://www.bsdi.com/bsdi-man?setuid">http://www.bsdi.com/bsdi-man?setuid</A>(2)
 d_setregid='undef'
 d_setreuid='undef'
 d_setrgid='undef'
@@ -85,8 +89,8 @@ case "$osvers" in
 	libswanted="Xpm Xaw Xmu Xt SM ICE Xext X11 $libswanted"
 	libswanted="rpc curses termcap $libswanted"
 	;;
-4.0*)
-	# ELF dynamic link libraries starting in 4.0 (???)
+4.*)
+	# ELF dynamic link libraries starting in 4.0
         useshrplib='true'
 	so='so'
 	dlext='so'
@@ -94,13 +98,34 @@ case "$osvers" in
 	case "$cc" in
 	'')	cc='cc'			# cc is gcc2 in 4.0
 		cccdlflags="-fPIC"
-		ccdlflags=" " ;;
+		ccdlflags="-rdynamic -Wl,-rpath,$privlib/$archname/CORE"
+		;;
 	esac
 
 	case "$ld" in
 	'')	ld='ld'
 		lddlflags="-shared -x $lddlflags" ;;
 	esac
-	;;
+	# Due usage of static pointer from crt.o
+	libswanted="util $libswanted" ;;
 esac
 
+# This script UU/usethreads.cbu will get 'called-back' by Configure 
+# after it has prompted the user for whether to use threads.
+cat > UU/usethreads.cbu <<'EOCBU'
+case "$usethreads" in
+$define|true|[yY]*)
+	case "$osvers" in 
+	3.*|4.*)	ccflags="-D_REENTRANT $ccflags"	
+	    ;;
+	*)   cat <<EOM >&4
+I did not know that BSD/OS $osvers supports POSIX threads.
+
+Feel free to tell perlbug@perl.org otherwise.
+EOM
+	    exit 1
+	    ;;
+	esac
+	;;
+esac
+EOCBU

@@ -11,7 +11,6 @@
 void
 Perl_taint_proper(pTHX_ const char *f, const char *s)
 {
-    dTHR;	/* just for taint */
     char *ug;
 
 #ifdef HAS_SETEUID
@@ -64,12 +63,10 @@ Perl_taint_env(pTHX)
 	if (!svp || *svp == &PL_sv_undef)
 	    break;
 	if (SvTAINTED(*svp)) {
-	    dTHR;
 	    TAINT;
 	    taint_proper("Insecure %s%s", "$ENV{DCL$PATH}");
 	}
 	if ((mg = mg_find(*svp, 'e')) && MgTAINTEDDIR(mg)) {
-	    dTHR;
 	    TAINT;
 	    taint_proper("Insecure directory in %s%s", "$ENV{DCL$PATH}");
 	}
@@ -81,12 +78,10 @@ Perl_taint_env(pTHX)
     svp = hv_fetch(GvHVn(PL_envgv),"PATH",4,FALSE);
     if (svp && *svp) {
 	if (SvTAINTED(*svp)) {
-	    dTHR;
 	    TAINT;
 	    taint_proper("Insecure %s%s", "$ENV{PATH}");
 	}
 	if ((mg = mg_find(*svp, 'e')) && MgTAINTEDDIR(mg)) {
-	    dTHR;
 	    TAINT;
 	    taint_proper("Insecure directory in %s%s", "$ENV{PATH}");
 	}
@@ -96,7 +91,6 @@ Perl_taint_env(pTHX)
     /* tainted $TERM is okay if it contains no metachars */
     svp = hv_fetch(GvHVn(PL_envgv),"TERM",4,FALSE);
     if (svp && *svp && SvTAINTED(*svp)) {
-    	dTHR;	/* just for taint */
 	STRLEN n_a;
 	bool was_tainted = PL_tainted;
 	char *t = SvPV(*svp, n_a);
@@ -116,7 +110,6 @@ Perl_taint_env(pTHX)
     for (e = misc_env; *e; e++) {
 	svp = hv_fetch(GvHVn(PL_envgv), *e, strlen(*e), FALSE);
 	if (svp && *svp != &PL_sv_undef && SvTAINTED(*svp)) {
-	    dTHR;	/* just for taint */
 	    TAINT;
 	    taint_proper("Insecure $ENV{%s}%s", *e);
 	}

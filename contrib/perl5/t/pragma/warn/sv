@@ -178,7 +178,7 @@ no warnings 'uninitialized' ;
 $C = "" ;
 $C .= $A ;
 EXPECT
-Use of uninitialized value in concatenation (.) at - line 10.
+Use of uninitialized value in concatenation (.) or string at - line 10.
 ########
 # sv.c 
 use warnings 'numeric' ;

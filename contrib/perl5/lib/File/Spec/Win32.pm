@@ -2,8 +2,11 @@ package File::Spec::Win32;
 
 use strict;
 use Cwd;
-use vars qw(@ISA);
+use vars qw(@ISA $VERSION);
 require File::Spec::Unix;
+
+$VERSION = '1.2';
+
 @ISA = qw(File::Spec::Unix);
 
 =head1 NAME
@@ -40,6 +43,7 @@ from the following list:
     $ENV{TMPDIR}
     $ENV{TEMP}
     $ENV{TMP}
+    C:/temp
     /tmp
     /
 
@@ -49,7 +53,7 @@ my $tmpdir;
 sub tmpdir {
     return $tmpdir if defined $tmpdir;
     my $self = shift;
-    foreach (@ENV{qw(TMPDIR TEMP TMP)}, qw(/tmp /)) {
+    foreach (@ENV{qw(TMPDIR TEMP TMP)}, qw(C:/temp /tmp /)) {
 	next unless defined && -d;
 	$tmpdir = $_;
 	last;
@@ -105,8 +109,8 @@ sub canonpath {
     $path =~ s|([^\\])\\+|$1\\|g;                  # xx////xx  -> xx/xx
     $path =~ s|(\\\.)+\\|\\|g;                     # xx/././xx -> xx/xx
     $path =~ s|^(\.\\)+||s unless $path eq ".\\";  # ./xx      -> xx
-    $path =~ s|\\\z||
-             unless $path =~ m#^([A-Z]:)?\\\z#s;   # xx/       -> xx
+    $path =~ s|\\\Z(?!\n)||
+             unless $path =~ m#^([A-Z]:)?\\\Z(?!\n)#s;   # xx/       -> xx
     return $path;
 }
 
@@ -146,7 +150,7 @@ sub splitpath {
                       (?:\\\\|//)[^\\/]+[\\/][^\\/]+
                   )?
                 )
-                ( (?:.*[\\\\/](?:\.\.?\z)?)? )
+                ( (?:.*[\\\\/](?:\.\.?\Z(?!\n))?)? )
                 (.*)
              }xs;
         $volume    = $1;
@@ -187,7 +191,7 @@ sub splitdir {
     # check to be sure that there will not be any before handling the
     # simple case.
     #
-    if ( $directories !~ m|[\\/]\z| ) {
+    if ( $directories !~ m|[\\/]\Z(?!\n)| ) {
         return split( m|[\\/]|, $directories );
     }
     else {
@@ -216,7 +220,7 @@ sub catpath {
     # If it's UNC, make sure the glue separator is there, reusing
     # whatever separator is first in the $volume
     $volume .= $1
-        if ( $volume =~ m@^([\\/])[\\/][^\\/]+[\\/][^\\/]+\z@s &&
+        if ( $volume =~ m@^([\\/])[\\/][^\\/]+[\\/][^\\/]+\Z(?!\n)@s &&
              $directory =~ m@^[^\\/]@s
            ) ;
 
@@ -224,8 +228,8 @@ sub catpath {
 
     # If the volume is not just A:, make sure the glue separator is 
     # there, reusing whatever separator is first in the $volume if possible.
-    if ( $volume !~ m@^[a-zA-Z]:\z@s &&
-         $volume =~ m@[^\\/]\z@      &&
+    if ( $volume !~ m@^[a-zA-Z]:\Z(?!\n)@s &&
+         $volume =~ m@[^\\/]\Z(?!\n)@      &&
          $file   =~ m@[^\\/]@
        ) {
         $volume =~ m@([\\/])@ ;
@@ -238,34 +242,6 @@ sub catpath {
     return $volume ;
 }
 
-
-=item abs2rel
-
-Takes a destination path and an optional base path returns a relative path
-from the base path to the destination path:
-
-    $rel_path = File::Spec->abs2rel( $destination ) ;
-    $rel_path = File::Spec->abs2rel( $destination, $base ) ;
-
-If $base is not present or '', then L</cwd()> is used. If $base is relative, 
-then it is converted to absolute form using L</rel2abs()>. This means that it
-is taken to be relative to L<cwd()>.
-
-On systems with the concept of a volume, this assumes that both paths 
-are on the $destination volume, and ignores the $base volume.
-
-On systems that have a grammar that indicates filenames, this ignores the 
-$base filename as well. Otherwise all path components are assumed to be
-directories.
-
-If $path is relative, it is converted to absolute form using L</rel2abs()>.
-This means that it is taken to be relative to L</cwd()>.
-
-Based on code written by Shigio Yamaguchi.
-
-No checks against the filesystem are made. 
-
-=cut
 
 sub abs2rel {
     my($self,$path,$base) = @_;
@@ -293,8 +269,7 @@ sub abs2rel {
     my ( $path_volume, $path_directories, $path_file ) =
         $self->splitpath( $path, 1 ) ;
 
-    my ( undef, $base_directories, undef ) =
-        $self->splitpath( $base, 1 ) ;
+    my $base_directories = ($self->splitpath( $base, 1 ))[1] ;
 
     # Now, remove all leading components that are the same
     my @pathchunks = $self->splitdir( $path_directories );
@@ -337,33 +312,8 @@ sub abs2rel {
     ) ;
 }
 
-=item rel2abs
 
-Converts a relative path to an absolute path. 
-
-    $abs_path = File::Spec->rel2abs( $destination ) ;
-    $abs_path = File::Spec->rel2abs( $destination, $base ) ;
-
-If $base is not present or '', then L<cwd()> is used. If $base is relative, 
-then it is converted to absolute form using L</rel2abs()>. This means that it
-is taken to be relative to L</cwd()>.
-
-Assumes that both paths are on the $base volume, and ignores the 
-$destination volume. 
-
-On systems that have a grammar that indicates filenames, this ignores the 
-$base filename as well. Otherwise all path components are assumed to be
-directories.
-
-If $path is absolute, it is cleaned up and returned using L</canonpath()>.
-
-Based on code written by Shigio Yamaguchi.
-
-No checks against the filesystem are made. 
-
-=cut
-
-sub rel2abs($;$;) {
+sub rel2abs {
     my ($self,$path,$base ) = @_;
 
     if ( ! $self->file_name_is_absolute( $path ) ) {
@@ -378,10 +328,10 @@ sub rel2abs($;$;) {
             $base = $self->canonpath( $base ) ;
         }
 
-        my ( undef, $path_directories, $path_file ) =
-            $self->splitpath( $path, 1 ) ;
+        my ( $path_directories, $path_file ) =
+            ($self->splitpath( $path, 1 ))[1,2] ;
 
-        my ( $base_volume, $base_directories, undef ) =
+        my ( $base_volume, $base_directories ) =
             $self->splitpath( $base, 1 ) ;
 
         $path = $self->catpath( 

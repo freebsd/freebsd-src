@@ -4,14 +4,17 @@
 #
 #      You may distribute under the terms of either the GNU General Public
 #      License or the Artistic License, as specified in the README file.
+
 package B::Assembler;
 use Exporter;
 use B qw(ppname);
 use B::Asmdata qw(%insn_data @insn_name);
+use Config qw(%Config);
+require ByteLoader;		# we just need its $VERSIOM
 
 @ISA = qw(Exporter);
-@EXPORT_OK = qw(assemble_fh assemble_insn strip_comments
-		parse_statement uncstring);
+@EXPORT_OK = qw(assemble_fh newasm endasm assemble);
+$VERSION = 0.02;
 
 use strict;
 my %opnumber;
@@ -20,7 +23,7 @@ for ($i = 0; defined($opname = ppname($i)); $i++) {
     $opnumber{$opname} = $i;
 }
 
-my ($linenum, $errors);
+my($linenum, $errors, $out); #	global state, set up by newasm
 
 sub error {
     my $str = shift;
@@ -49,13 +52,15 @@ sub B::Asmdata::PUT_U8 {
     return $c;
 }
 
-sub B::Asmdata::PUT_U16 { pack("n", $_[0]) }
-sub B::Asmdata::PUT_U32 { pack("N", $_[0]) }
-sub B::Asmdata::PUT_I32 { pack("N", $_[0]) }
-sub B::Asmdata::PUT_NV  { sprintf("%lf\0", $_[0]) }
-sub B::Asmdata::PUT_objindex { pack("N", $_[0]) } # could allow names here
+sub B::Asmdata::PUT_U16 { pack("S", $_[0]) }
+sub B::Asmdata::PUT_U32 { pack("L", $_[0]) }
+sub B::Asmdata::PUT_I32 { pack("L", $_[0]) }
+sub B::Asmdata::PUT_NV  { sprintf("%s\0", $_[0]) } # "%lf" looses precision and pack('d',...)
+						   # may not even be portable between compilers
+sub B::Asmdata::PUT_objindex { pack("L", $_[0]) } # could allow names here
 sub B::Asmdata::PUT_svindex { &B::Asmdata::PUT_objindex }
 sub B::Asmdata::PUT_opindex { &B::Asmdata::PUT_objindex }
+sub B::Asmdata::PUT_pvindex { &B::Asmdata::PUT_objindex }
 
 sub B::Asmdata::PUT_strconst {
     my $arg = shift;
@@ -79,7 +84,7 @@ sub B::Asmdata::PUT_PV {
     my $arg = shift;
     $arg = uncstring($arg);
     error "bad string argument: $arg" unless defined($arg);
-    return pack("N", length($arg)) . $arg;
+    return pack("L", length($arg)) . $arg;
 }
 sub B::Asmdata::PUT_comment_t {
     my $arg = shift;
@@ -90,7 +95,7 @@ sub B::Asmdata::PUT_comment_t {
     }
     return $arg . "\n";
 }
-sub B::Asmdata::PUT_double { sprintf("%s\0", $_[0]) }
+sub B::Asmdata::PUT_double { sprintf("%s\0", $_[0]) } # see PUT_NV above
 sub B::Asmdata::PUT_none {
     my $arg = shift;
     error "extraneous argument: $arg" if defined $arg;
@@ -103,12 +108,12 @@ sub B::Asmdata::PUT_op_tr_array {
 	error "wrong number of arguments to op_tr_array";
 	@ary = (0) x 256;
     }
-    return pack("n256", @ary);
+    return pack("S256", @ary);
 }
 # XXX Check this works
 sub B::Asmdata::PUT_IV64 {
     my $arg = shift;
-    return pack("NN", $arg >> 32, $arg & 0xffffffff);
+    return pack("LL", $arg >> 32, $arg & 0xffffffff);
 }
 
 my %unesc = (n => "\n", r => "\r", t => "\t", a => "\a",
@@ -136,6 +141,24 @@ sub strip_comments {
 	.*$	# ...which carries on to end-of-string.
     }{$1};	# Keep only the instruction and optional argument.
     return $stmt;
+}
+
+# create the ByteCode header: magic, archname, ByteLoader $VERSION, ivsize,
+# 	ptrsize, byteorder
+# nvtype is irrelevant (floats are stored as strings)
+# byteorder is strconst not U32 because of varying size issues
+
+sub gen_header {
+    my $header = "";
+
+    $header .= B::Asmdata::PUT_U32(0x43424c50);	# 'PLBC'
+    $header .= B::Asmdata::PUT_strconst('"' . $Config{archname}. '"');
+    $header .= B::Asmdata::PUT_strconst(qq["$ByteLoader::VERSION"]);
+    $header .= B::Asmdata::PUT_U32($Config{ivsize});
+    $header .= B::Asmdata::PUT_U32($Config{ptrsize});
+    $header .= B::Asmdata::PUT_strconst(sprintf(qq["0x%s"], $Config{byteorder}));
+
+    $header;
 }
 
 sub parse_statement {
@@ -183,27 +206,52 @@ sub assemble_insn {
 
 sub assemble_fh {
     my ($fh, $out) = @_;
-    my ($line, $insn, $arg);
-    $linenum = 0;
-    $errors = 0;
+    my $line;
+    my $asm = newasm($out);
     while ($line = <$fh>) {
-	$linenum++;
-	chomp $line;
-	if ($debug) {
-	    my $quotedline = $line;
-	    $quotedline =~ s/\\/\\\\/g;
-	    $quotedline =~ s/"/\\"/g;
-	    &$out(assemble_insn("comment", qq("$quotedline")));
-	}
-	$line = strip_comments($line) or next;
-	($insn, $arg) = parse_statement($line);
-	&$out(assemble_insn($insn, $arg));
-	if ($debug) {
-	    &$out(assemble_insn("nop", undef));
-	}
+	assemble($line);
     }
+    endasm();
+}
+
+sub newasm {
+    my($outsub) = @_;
+
+    die "Invalid printing routine for B::Assembler\n" unless ref $outsub eq 'CODE';
+    die <<EOD if ref $out;
+Can't have multiple byteassembly sessions at once!
+	(perhaps you forgot an endasm()?)
+EOD
+
+    $linenum = $errors = 0;
+    $out = $outsub;
+
+    $out->(gen_header());
+}
+
+sub endasm {
     if ($errors) {
-	die "Assembly failed with $errors error(s)\n";
+	die "There were $errors assembly errors\n";
+    }
+    $linenum = $errors = $out = 0;
+}
+
+sub assemble {
+    my($line) = @_;
+    my ($insn, $arg);
+    $linenum++;
+    chomp $line;
+    if ($debug) {
+	my $quotedline = $line;
+	$quotedline =~ s/\\/\\\\/g;
+	$quotedline =~ s/"/\\"/g;
+	$out->(assemble_insn("comment", qq("$quotedline")));
+    }
+    $line = strip_comments($line) or next;
+    ($insn, $arg) = parse_statement($line);
+    $out->(assemble_insn($insn, $arg));
+    if ($debug) {
+	$out->(assemble_insn("nop", undef));
     }
 }
 
@@ -217,14 +265,21 @@ B::Assembler - Assemble Perl bytecode
 
 =head1 SYNOPSIS
 
-	use Assembler;
+	use B::Assembler qw(newasm endasm assemble);
+	newasm(\&printsub);	# sets up for assembly
+	assemble($buf); 	# assembles one line
+	endasm();		# closes down
+
+	use B::Assembler qw(assemble_fh);
+	assemble_fh($fh, \&printsub);	# assemble everything in $fh
 
 =head1 DESCRIPTION
 
 See F<ext/B/B/Assembler.pm>.
 
-=head1 AUTHOR
+=head1 AUTHORS
 
 Malcolm Beattie, C<mbeattie@sable.ox.ac.uk>
+Per-statement interface by Benjamin Stuhl, C<sho_pi@hotmail.com>
 
 =cut

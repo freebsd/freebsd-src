@@ -6,7 +6,7 @@ Install - Build and Installation guide for perl5.
 
 First, make sure you are installing an up-to-date version of Perl.   If
 you didn't get your Perl source from CPAN, check the latest version at
-<URL:http://www.perl.com/CPAN/src/>.
+<URL:http://www.cpan.org/src/>.
 
 The basic steps to build and install perl5 on a Unix system
 with all the defaults are:
@@ -23,6 +23,15 @@ with all the defaults are:
 	(cd pod && make tex  && <process the latex files>)
 
 Each of these is explained in further detail below.
+
+B<NOTE>: starting from the release 5.6.0 Perl will use a version
+scheme where even-numbered subreleases (like 5.6) are stable
+maintenance releases and odd-numbered subreleases (like 5.7) are
+unstable development releases.  Development releases should not be
+used in production environments.  Fixes and new features are first
+carefully tested in development releases and only if they prove
+themselves to be worthy will they be migrated to the maintenance
+releases.
 
 The above commands will install Perl to /usr/local or /opt, depending
 on the platform.  If that's not okay with you, use
@@ -76,7 +85,7 @@ extensions that have not been updated for the new naming convention
 with:
 
 	perl Makefile.PL POLLUTE=1
-	
+
 Alternatively, you can enable CPP symbol pollution wholesale by
 building perl itself with:
 
@@ -113,8 +122,42 @@ currently installed modules.
 
 =head1 WARNING:  This version requires a compiler that supports ANSI C.
 
-If you find that your C compiler is not ANSI-capable, try obtaining
-GCC, available from GNU mirrors worldwide (e.g. ftp://ftp.gnu.org/pub/gnu).
+Most C compilers are now ANSI-compliant.  However, a few current
+computers are delivered with an older C compiler expressly for
+rebuilding the system kernel, or for some other historical reason.
+Alternatively, you may have an old machine which was shipped before
+ANSI compliance became widespread.  Such compilers are not suitable
+for building Perl.
+
+If you find that your default C compiler is not ANSI-capable, but you
+know that an ANSI-capable compiler is installed on your system, you
+can tell F<Configure> to use the correct compiler by means of the
+C<-Dcc=> command-line option -- see L<"gcc">.
+
+If do not have an ANSI-capable compiler there are several avenues open
+to you:
+
+=over 4
+
+=item *
+
+You may try obtaining GCC, available from GNU mirrors worldwide,
+listed at <URL:http://www.gnu.org/order/ftp.html>.  If, rather than
+building gcc from source code, you locate a binary version configured
+for your platform, be sure that it is compiled for the version of the
+operating system that you are using.
+
+=item *
+
+You may purchase a commercial ANSI C compiler from your system
+supplier or elsewhere.  (Or your organization may already have
+licensed such software -- ask your colleagues to find out how to
+access it.)  If there is a README file for your system in the Perl
+distribution (for example, F<README.hpux>), it may contain advice on
+suitable compilers.
+
+=item *
+
 Another alternative may be to use a tool like ansi2knr to convert the
 sources back to K&R style, but there is no guarantee this route will get
 you anywhere, since the prototypes are not the only ANSI features used
@@ -125,8 +168,10 @@ run, you may have to run it on a platform where GCC is available, and move
 the sources back to the platform without GCC.
 
 If you succeed in automatically converting the sources to a K&R compatible
-form, be sure to email perlbug@perl.com to let us know the steps you
+form, be sure to email perlbug@perl.org to let us know the steps you
 followed.  This will enable us to officially support this option.
+
+=back
 
 Although Perl can be compiled using a C++ compiler, the Configure script
 does not work with some C++ compilers.
@@ -219,6 +264,28 @@ For more help on Configure switches, run:
 
 	sh Configure -h
 
+=head2 Building Perl outside of the source directory
+
+Sometimes it is desirable to build Perl in a directory different from
+where the sources are, for example if you want to keep your sources
+read-only, or if you want to share the sources between different binary
+architectures.
+
+Starting from Perl 5.6.1 you can do this (if your file system supports
+symbolic links) by
+	
+	mkdir /tmp/perl/build/directory
+	cd /tmp/perl/build/directory
+	sh /path/to/perl/source/Configure -Dmksymlinks ...
+
+This will create in /tmp/perl/build/directory a tree of symbolic links
+pointing to files in /path/to/perl/source.  The original files are left
+unaffected.  After Configure has finished you can just say
+
+	make all test
+
+and Perl will be built and tested, all in /tmp/perl/build/directory.
+
 =head2 Common Configure options
 
 Configure supports a number of useful options.  Run B<Configure -h> to
@@ -291,7 +358,14 @@ output, you can run
 
 	sh Configure -des
 
-For my Solaris system, I usually use
+Note: for development releases (odd subreleases, like 5.7, as opposed
+to maintenance releases which have even subreleases, like 5.6)
+if you want to use Configure -d, you will also need to supply -Dusedevel
+to Configure, because the default answer to the question "do you really
+want to Configure a development version?" is "no".  The -Dusedevel
+skips that sanity check.
+
+For example for my Solaris system, I usually use
 
 	sh Configure -Dprefix=/opt/perl -Doptimize='-xpentium -xO4' -des
 
@@ -461,9 +535,26 @@ network.  One way to do that would be something like
 
 As a final catch-all, Configure also offers an $otherlibdirs
 variable.  This variable contains a colon-separated list of additional
-directories to add to @INC.  By default, it will be set to
-$prefix/site_perl if Configure detects that you have 5.004-era modules
-installed there.  However, you can set it to anything you like.
+directories to add to @INC.  By default, it will be empty.
+Perl will search these directories (including architecture and
+version-specific subdirectories) for add-on modules and extensions.
+
+=item APPLLIB_EXP
+
+There is one other way of adding paths to @INC at perl build time, and
+that is by setting the APPLLIB_EXP C pre-processor token to a colon-
+separated list of directories, like this
+
+       sh Configure -Accflags='-DAPPLLIB_EXP=\"/usr/libperl\"'
+
+The directories defined by APPLLIB_EXP get added to @INC I<first>,
+ahead of any others, and so provide a way to override the standard perl
+modules should you, for example, want to distribute fixes without
+touching the perl distribution proper.  And, like otherlib dirs,
+version and architecture specific subdirectories are also searched, if
+present, at run time.  Of course, you can still search other @INC
+directories ahead of those in APPLLIB_EXP by using any of the standard
+run-time methods: $PERLLIB, $PERL5LIB, -I, use lib, etc.
 
 =item Man Pages
 
@@ -634,6 +725,52 @@ or by
 Eventually (by perl v5.6.0) this internal confusion ought to disappear,
 and these options may disappear as well.
 
+=head2 64 bit support.
+
+If your platform does not have 64 bits natively, but can simulate them with
+compiler flags and/or C<long long> or C<int64_t>, you can build a perl that
+uses 64 bits.
+
+There are actually two modes of 64-bitness: the first one is achieved
+using Configure -Duse64bitint and the second one using Configure
+-Duse64bitall.  The difference is that the first one is minimal and
+the second one maximal.  The first works in more places than the second.
+
+The C<use64bitint> does only as much as is required to get 64-bit
+integers into Perl (this may mean, for example, using "long longs")
+while your memory may still be limited to 2 gigabytes (because your
+pointers could still be 32-bit).  Note that the name C<64bitint> does
+not imply that your C compiler will be using 64-bit C<int>s (it might,
+but it doesn't have to): the C<use64bitint> means that you will be
+able to have 64 bits wide scalar values.
+
+The C<use64bitall> goes all the way by attempting to switch also
+integers (if it can), longs (and pointers) to being 64-bit.  This may
+create an even more binary incompatible Perl than -Duse64bitint: the
+resulting executable may not run at all in a 32-bit box, or you may
+have to reboot/reconfigure/rebuild your operating system to be 64-bit
+aware.
+
+Natively 64-bit systems like Alpha and Cray need neither -Duse64bitint
+nor -Duse64bitall.
+
+    NOTE: 64-bit support is still experimental on most platforms.
+    Existing support only covers the LP64 data model.  In particular, the
+    LLP64 data model is not yet supported.  64-bit libraries and system
+    APIs on many platforms have not stabilized--your mileage may vary.
+
+=head2 Long doubles
+
+In some systems you may be able to use long doubles to enhance the
+range and precision of your double precision floating point numbers
+(that is, Perl's numbers).  Use Configure -Duselongdouble to enable
+this support (if it is available).
+
+=head2 "more bits"
+
+You can "Configure -Dusemorebits" to turn on both the 64-bit support
+and the long double support.
+
 =head2 Selecting File IO mechanisms
 
 Previous versions of perl used the standard IO mechanisms as defined in
@@ -665,7 +802,7 @@ extension modules or external libraries may not work.  This
 configuration exists to allow these issues to be worked on.
 
 This option requires the 'sfio' package to have been built and installed.
-A (fairly old) version of sfio is in CPAN.
+The latest sfio is available from http://www.research.att.com/sw/tools/sfio/
 
 You select this option by
 
@@ -681,9 +818,6 @@ this is a problem at least for some versions of Linux and SunOS 4.
 Configure should detect this problem and warn you about problems with
 _exit vs. exit.  If you have this problem, the fix is to go back to
 your sfio sources and correct iffe's guess about atexit.
-
-There also might be a more recent release of Sfio that fixes your
-problem.
 
 =item 2.
 
@@ -702,6 +836,13 @@ If you have already selected -Duseperlio, and if Configure does not
 detect sfio, then this will be the default suggested by Configure.
 
 =back
+
+=head2 SOCKS
+
+Perl can be configured to be 'socksified', that is, to use the SOCKS
+TCP/IP proxy protocol library.  SOCKS is used to give applications
+access to transport layer network proxies.  Perl supports only SOCKS
+Version 5.  You can find more about SOCKS from http://www.socks.nec.com/
 
 =head2 Dynamic Loading
 
@@ -1029,6 +1170,39 @@ you have some libraries under /usr/local/ and others under
 
 =back
 
+=head2 Building DB, NDBM, and ODBM interfaces with Berkeley DB 3
+
+Perl interface for DB3 is part of Berkeley DB, but if you want to
+compile standard Perl DB/ODBM/NDBM interfaces, you must follow
+following instructions.
+
+Berkeley DB3 from Sleepycat Software is by default installed without
+DB1 compatibility code (needed for DB_File interface) and without
+links to compatibility files. So if you want to use packages written
+for DB/ODBM/NDBM interfaces, you need to configure DB3 with
+--enable-compat185 (and optionally with --enable-dump185) and create
+additional references (suppose you are installing DB3 with
+--prefix=/usr):
+
+    ln -s libdb-3.so /usr/lib/libdbm.so
+    ln -s libdb-3.so /usr/lib/libndbm.so
+    echo '#define DB_DBM_HSEARCH 1' >dbm.h 
+    echo '#include <db.h>' >>dbm.h
+    install -m 0644 dbm.h /usr/include/dbm.h 
+    install -m 0644 dbm.h /usr/include/ndbm.h
+
+Optionally, if you have compiled with --enable-compat185 (not needed
+for ODBM/NDBM):
+
+    ln -s libdb-3.so /usr/lib/libdb1.so
+    ln -s libdb-3.so /usr/lib/libdb.so
+
+ODBM emulation seems not to be perfect, but is quite usable,
+using DB 3.1.17:
+
+    lib/odbm.............FAILED at test 9
+        Failed 1/64 tests, 98.44% okay
+
 =head2 What if it doesn't work?
 
 If you run into problems, try some of the following ideas.
@@ -1295,36 +1469,6 @@ numbers and function name may vary in different versions of perl):
 it might well be a symptom of the gcc "varargs problem".  See the
 previous L<"varargs"> item.
 
-=item Solaris and SunOS dynamic loading
-
-If you have problems with dynamic loading using gcc on SunOS or
-Solaris, and you are using GNU as and GNU ld, you may need to add
--B/bin/ (for SunOS) or -B/usr/ccs/bin/ (for Solaris) to your
-$ccflags, $ldflags, and $lddlflags so that the system's versions of as
-and ld are used.  Note that the trailing '/' is required.
-Alternatively, you can use the GCC_EXEC_PREFIX
-environment variable to ensure that Sun's as and ld are used.  Consult
-your gcc documentation for further information on the -B option and
-the GCC_EXEC_PREFIX variable.
-
-One convenient way to ensure you are not using GNU as and ld is to
-invoke Configure with
-
-    sh Configure -Dcc='gcc -B/usr/ccs/bin/'
-
-for Solaris systems.  For a SunOS system, you must use -B/bin/
-instead.
-
-Alternatively, recent versions of GNU ld reportedly work if you
-include C<-Wl,-export-dynamic> in the ccdlflags variable in
-config.sh.
-
-=item ld.so.1: ./perl: fatal: relocation error:
-
-If you get this message on SunOS or Solaris, and you're using gcc,
-it's probably the GNU as or GNU ld problem in the previous item
-L<"Solaris and SunOS dynamic loading">.
-
 =item LD_LIBRARY_PATH
 
 If you run into dynamic loading problems, check your setting of
@@ -1332,18 +1476,6 @@ the LD_LIBRARY_PATH environment variable.  If you're creating a static
 Perl library (libperl.a rather than libperl.so) it should build
 fine with LD_LIBRARY_PATH unset, though that may depend on details
 of your local set-up.
-
-=item dlopen: stub interception failed
-
-The primary cause of the 'dlopen: stub interception failed' message is
-that the LD_LIBRARY_PATH environment variable includes a directory
-which is a symlink to /usr/lib (such as /lib).
-
-The reason this causes a problem is quite subtle.  The file libdl.so.1.0
-actually *only* contains functions which generate 'stub interception
-failed' errors!  The runtime linker intercepts links to
-"/usr/lib/libdl.so.1.0" and links in internal implementation of those
-functions instead.  [Thanks to Tim Bunce for this explanation.]
 
 =item nm extraction
 
@@ -1518,6 +1650,23 @@ to include the GNU utils before running Configure, or specify the
 vendor-supplied utilities explicitly to Configure, for example by
 Configure -Dar=/bin/ar.
 
+=item THIS PACKAGE SEEMS TO BE INCOMPLETE
+
+The F<Configure> program has not been able to find all the files which
+make up the complete Perl distribution.  You may have a damaged source
+archive file (in which case you may also have seen messages such as
+C<gzip: stdin: unexpected end of file> and C<tar: Unexpected EOF on
+archive file>), or you may have obtained a structurally-sound but
+incomplete archive.  In either case, try downloading again from the
+official site named at the start of this document.  If you do find
+that any site is carrying a corrupted or incomplete source code
+archive, please report it to the site's maintainer.
+
+=item invalid token: ##
+
+You are using a non-ANSI-compliant C compiler.  See L<WARNING:  This
+version requires a compiler that supports ANSI C>.
+
 =item Miscellaneous
 
 Some additional things that have been reported for either perl4 or perl5:
@@ -1616,6 +1765,51 @@ test, it does not necessarily mean you have a broken perl.  This test
 tries to exercise the regular expression subsystem quite thoroughly,
 and may well be far more demanding than your normal usage.
 
+=item Test failures from lib/ftmp-security saying "system possibly insecure"
+
+Firstly, test failures from the ftmp-security are not necessarily
+serious or indicative of a real security threat.  That being said,
+they bear investigating.
+
+The tests may fail for the following reasons.   Note that each of the
+tests is run both in the building directory and the temporary
+directory, as returned by File::Spec->tmpdir().
+
+(1) If the directory the tests are being run is owned by somebody else
+than the user running the tests, or root (uid 0).  This failure can
+happen if the Perl source code distribution is unpacked in a way that
+the user ids in the distribution package are used as-is.  Some tar
+programs do this.
+
+(2) If the directory the test are being run in is writable by group
+or by other (remember: with UNIX/POSIX semantics, write access to
+a directory means the right to add/remove files in that directory),
+and there is no sticky bit set in the directory.  'Sticky bit' is
+a feature used in some UNIXes to give extra protection to files: if
+the bit is on a directory, no one but the owner (or the root) can remove
+that file even if the permissions of the directory would allow file
+removal by others.  This failure can happen if the permissions in the
+directory simply are a bit too liberal for the tests' liking.  This
+may or may not be a real problem: it depends on the permissions policy
+used on this particular directory/project/system/site.  This failure
+can also happen if the system either doesn't support the sticky bit
+(this is the case with many non-UNIX platforms: in principle the
+File::Temp should know about these platforms and skip the tests), or
+if the system supports the sticky bit but for some reason or reasons
+it is not being used.  This is for example the case with HP-UX: as of
+HP-UX release 11.00, the sticky bit is very much supported, but HP-UX
+doesn't use it on its /tmp directory as shipped.  Also as with the
+permissions, some local policy might dictate that the stickiness is
+not used.
+
+(3) If the system supports the POSIX 'chown giveaway' feature and if
+any of the parent directories of the temporary file back to the root
+directory are 'unsafe', using the definitions given above in (1) and
+(2).
+
+See the documentation for the File::Temp module for more information
+about the various security aspects.
+
 =back
 
 =head1 make install
@@ -1654,12 +1848,17 @@ anything, you can run
 
 make install will install the following:
 
+    binaries
+
 	perl,
 	    perl5.nnn	where nnn is the current release number.  This
 			will be a link to perl.
 	suidperl,
 	    sperl5.nnn	If you requested setuid emulation.
 	a2p          	awk-to-perl translator
+
+    scripts
+
 	cppstdin	This is used by perl -P, if your cc -E can't
 			read from stdin.
 	c2ph, pstruct	Scripts for handling C structures in header files.
@@ -1672,13 +1871,21 @@ make install will install the following:
 	pl2pm		Convert Perl 4 .pl files to Perl 5 .pm modules
 	pod2html,	Converters from perl's pod documentation format
 	pod2latex, 	to other useful formats.
-	pod2man, and
-	pod2text
+	pod2man,
+	pod2text,
+	pod2checker,
+	pod2select,
+	pod2usage
 	splain		Describe Perl warnings and errors
 	dprofpp		Perl code profile post-processor
 
-	library files	in $privlib and $archlib specified to
+    library files
+
+			in $privlib and $archlib specified to
 			Configure, usually under /usr/local/lib/perl5/.
+
+    documentation
+
 	man pages	in $man1dir, usually /usr/local/man/man1.
 	module man
 	pages		in $man3dir, usually /usr/local/man/man3.
@@ -1687,10 +1894,27 @@ make install will install the following:
 Installperl will also create the directories listed above
 in L<"Installation Directories">.
 
-Perl's *.h header files and the libperl.a library are also installed
+Perl's *.h header files and the libperl library are also installed
 under $archlib so that any user may later build new modules, run the
 optional Perl compiler, or embed the perl interpreter into another
 program even if the Perl source is no longer available.
+
+Sometimes you only want to install the version-specific parts of the perl
+installation.  For example, you may wish to install a newer version of
+perl alongside an already installed production version of perl without
+disabling installation of new modules for the production version.
+To only install the version-specific parts of the perl installation, run
+
+	Configure -Dversiononly
+
+or answer 'y' to the appropriate Configure prompt.  Alternatively,
+you can just manually run
+
+	./perl installperl -v
+
+and skip installman altogether.
+See also L<"Maintaining completely separate versions"> for another
+approach.
 
 =head1 Coexistence with earlier versions of perl5
 
@@ -1878,7 +2102,7 @@ available in TeX format.  Type
 If you have difficulty building perl, and none of the advice in this file
 helps, and careful reading of the error message and the relevant manual
 pages on your system doesn't help either, then you should send a message
-to either the comp.lang.perl.misc newsgroup or to perlbug@perl.com with
+to either the comp.lang.perl.misc newsgroup or to perlbug@perl.org with
 an accurate description of your problem.
 
 Please include the output of the ./myconfig shell script that comes with

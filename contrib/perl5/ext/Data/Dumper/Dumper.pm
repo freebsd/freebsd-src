@@ -9,7 +9,7 @@
 
 package Data::Dumper;
 
-$VERSION = '2.101';
+$VERSION = '2.102';
 
 #$| = 1;
 
@@ -291,8 +291,7 @@ sub _dump {
     $s->{level}++;
     $ipad = $s->{xpad} x $s->{level};
 
-    
-    if ($realtype eq 'SCALAR') {
+    if ($realtype eq 'SCALAR' || $realtype eq 'REF') {
       if ($realpack) {
 	$out .= 'do{\\(my $o = ' . $s->_dump($$val, "\${$name}") . ')}';
       }
@@ -685,7 +684,7 @@ the last.
 
 Returns the stringified form of the values stored in the object (preserving
 the order in which they were supplied to C<new>), subject to the
-configuration options below.  In an array context, it returns a list
+configuration options below.  In a list context, it returns a list
 of strings corresponding to the supplied values.
 
 The second form, for convenience, simply calls the C<new> method on its
@@ -701,7 +700,7 @@ dumping subroutine references.
 
 Expects a anonymous hash of name => value pairs.  Same rules apply for names
 as in C<new>.  If no argument is supplied, will return the "seen" list of
-name => value pairs, in an array context.  Otherwise, returns the object
+name => value pairs, in a list context.  Otherwise, returns the object
 itself.
 
 =item I<$OBJ>->Values(I<[ARRAYREF]>)
@@ -732,7 +731,7 @@ itself.
 Returns the stringified form of the values in the list, subject to the
 configuration options below.  The values will be named C<$VAR>I<n> in the
 output, where I<n> is a numeric suffix.  Will return a list of strings
-in an array context.
+in a list context.
 
 =back
 

@@ -22,45 +22,6 @@
 
 #define specialWARN(x)		((x) == pWARN_STD || (x) == pWARN_ALL ||	\
 				 (x) == pWARN_NONE)
-
-#define ckDEAD(x)							\
-	   ( ! specialWARN(PL_curcop->cop_warnings) &&			\
-	    IsSet(SvPVX(PL_curcop->cop_warnings), 2*x+1))
-
-#define ckWARN(x)							\
-	( (PL_curcop->cop_warnings != pWARN_STD &&			\
-	   PL_curcop->cop_warnings != pWARN_NONE &&			\
-	      (PL_curcop->cop_warnings == pWARN_ALL ||			\
-	       IsSet(SvPVX(PL_curcop->cop_warnings), 2*x) ) )		\
-	  || (PL_curcop->cop_warnings == pWARN_STD && PL_dowarn & G_WARN_ON) )
-
-#define ckWARN2(x,y)							\
-	  ( (PL_curcop->cop_warnings != pWARN_STD  &&			\
-	     PL_curcop->cop_warnings != pWARN_NONE &&			\
-	      (PL_curcop->cop_warnings == pWARN_ALL ||			\
-	        IsSet(SvPVX(PL_curcop->cop_warnings), 2*x)  ||		\
-	        IsSet(SvPVX(PL_curcop->cop_warnings), 2*y) ) ) 		\
-	    ||	(PL_curcop->cop_warnings == pWARN_STD && PL_dowarn & G_WARN_ON) )
-
-#define ckWARN_d(x)							\
-	  (PL_curcop->cop_warnings == pWARN_STD ||			\
-	   PL_curcop->cop_warnings == pWARN_ALL ||			\
-	     (PL_curcop->cop_warnings != pWARN_NONE &&			\
-	      IsSet(SvPVX(PL_curcop->cop_warnings), 2*x) ) )
-
-#define ckWARN2_d(x,y)							\
-	  (PL_curcop->cop_warnings == pWARN_STD ||			\
-	   PL_curcop->cop_warnings == pWARN_ALL ||			\
-	     (PL_curcop->cop_warnings != pWARN_NONE &&			\
-	        (IsSet(SvPVX(PL_curcop->cop_warnings), 2*x)  ||		\
-	         IsSet(SvPVX(PL_curcop->cop_warnings), 2*y) ) ) )
-
-
-#define isLEXWARN_on 	(PL_curcop->cop_warnings != pWARN_STD)
-#define isLEXWARN_off	(PL_curcop->cop_warnings == pWARN_STD)
-#define isWARN_ONCE	(PL_dowarn & (G_WARN_ON|G_WARN_ONCE))
-#define isWARN_on(c,x)	(IsSet(SvPVX(c), 2*(x)))
-
 #define WARN_ALL		0
 #define WARN_CHMOD		1
 #define WARN_CLOSURE		2
@@ -112,6 +73,41 @@
 #define WARNsize		12
 #define WARN_ALLstring		"\125\125\125\125\125\125\125\125\125\125\125\125"
 #define WARN_NONEstring		"\0\0\0\0\0\0\0\0\0\0\0\0"
+
+#define isLEXWARN_on 	(PL_curcop->cop_warnings != pWARN_STD)
+#define isLEXWARN_off	(PL_curcop->cop_warnings == pWARN_STD)
+#define isWARN_ONCE	(PL_dowarn & (G_WARN_ON|G_WARN_ONCE))
+#define isWARN_on(c,x)	(IsSet(SvPVX(c), 2*(x)))
+#define isWARNf_on(c,x)	(IsSet(SvPVX(c), 2*(x)+1))
+
+#define ckDEAD(x)							\
+	   ( ! specialWARN(PL_curcop->cop_warnings) &&			\
+	    ( isWARNf_on(PL_curcop->cop_warnings, WARN_ALL) || 		\
+	      isWARNf_on(PL_curcop->cop_warnings, x)))
+
+#define ckWARN(x)							\
+	( (isLEXWARN_on && PL_curcop->cop_warnings != pWARN_NONE &&	\
+	      (PL_curcop->cop_warnings == pWARN_ALL ||			\
+	       isWARN_on(PL_curcop->cop_warnings, x) ) )		\
+	  || (isLEXWARN_off && PL_dowarn & G_WARN_ON) )
+
+#define ckWARN2(x,y)							\
+	  ( (isLEXWARN_on && PL_curcop->cop_warnings != pWARN_NONE &&	\
+	      (PL_curcop->cop_warnings == pWARN_ALL ||			\
+	        isWARN_on(PL_curcop->cop_warnings, x)  ||		\
+	        isWARN_on(PL_curcop->cop_warnings, y) ) ) 		\
+	    ||	(isLEXWARN_off && PL_dowarn & G_WARN_ON) )
+
+#define ckWARN_d(x)							\
+	  (isLEXWARN_off || PL_curcop->cop_warnings == pWARN_ALL ||	\
+	     (PL_curcop->cop_warnings != pWARN_NONE &&			\
+	      isWARN_on(PL_curcop->cop_warnings, x) ) )
+
+#define ckWARN2_d(x,y)							\
+	  (isLEXWARN_off || PL_curcop->cop_warnings == pWARN_ALL ||	\
+	     (PL_curcop->cop_warnings != pWARN_NONE &&			\
+	        (isWARN_on(PL_curcop->cop_warnings, x)  ||		\
+	         isWARN_on(PL_curcop->cop_warnings, y) ) ) )
 
 /* end of file warnings.h */
 

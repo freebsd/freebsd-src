@@ -1,8 +1,8 @@
 #!./perl
 
 BEGIN {
-    chdir '..' if -d '../pod';
-    unshift @INC, './lib' if -d './lib';
+    chdir '..' if -d '../pod' && -d '../t';
+    @INC = 'lib';
 }
 
 

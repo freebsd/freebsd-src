@@ -129,8 +129,15 @@ sub delete_package ($) {
     my $stem_symtab = *{$stem}{HASH};
     return unless defined $stem_symtab and exists $stem_symtab->{$leaf};
 
-    my $leaf_glob   = $stem_symtab->{$leaf};
-    my $leaf_symtab = *{$leaf_glob}{HASH};
+
+    # free all the symbols in the package
+
+    my $leaf_symtab = *{$stem_symtab->{$leaf}}{HASH};
+    foreach my $name (keys %$leaf_symtab) {
+        undef *{$pkg . $name};
+    }
+
+    # delete the symbol table
 
     %$leaf_symtab = ();
     delete $stem_symtab->{$leaf};

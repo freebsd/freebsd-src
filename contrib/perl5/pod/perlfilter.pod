@@ -2,7 +2,6 @@
 
 perlfilter - Source Filters
 
-
 =head1 DESCRIPTION
 
 This article is about a little-known feature of Perl called

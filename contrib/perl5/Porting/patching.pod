@@ -94,12 +94,7 @@ diffs.  Some examples using GNU diff:
     # show function name in every hunk (safer, more informative)
     % diff -u -F '^[_a-zA-Z0-9]+ *(' old/file new/file
 
-
-=item Directories
-
-IMPORTANT: Patches should be generated from the source root directory, not
-from the directory that the patched file resides in.  This ensures that the
-maintainer patches the proper file.
+=item Derived Files
 
 Many files in the distribution are derivative--avoid patching them.
 Patch the originals instead.  Most utilities (like perldoc) are in
@@ -119,6 +114,31 @@ the original file in such a way that it is obvious what is being patched
 If you are submitting patches that affect multiple files then you should
 backup the entire directory tree (to $source_root.old/ for example).  This
 will allow C<diff -ruN old-dir new-dir> to create all the patches at once.
+
+=item Directories
+
+IMPORTANT: Patches should be generated from the source root directory, not
+from the directory that the patched file resides in.  This ensures that the
+maintainer patches the proper file.
+
+For larger patches that are dealing with multiple files or
+directories, Johan Vromans has written a powerful utility: makepatch.
+See the JV directory on CPAN for the current version. If you have this
+program available, it is recommended to create a duplicate of the perl
+directory tree against which you are intending to provide a patch and
+let makepatch figure out all the changes you made to your copy of the
+sources. As perl comes with a MANIFEST file, you need not delete
+object files and other derivative files from the two directory trees,
+makepatch is smart about them.
+
+Say, you have created a directory perl-5.7.1@8685/ for the perl you
+are taking as the base and a directory perl-5.7.1@8685-withfoo/ where
+you have your changes, you would run makepatch as follows:
+
+    makepatch -oldman perl-5.7.1@8685/MANIFEST \
+              -newman perl-5.7.1@8685-withfoo/MANIFEST \
+              -diff "diff -u" \
+              perl-5.7.1@8685 perl-5.7.1@8685-withfoo
 
 =item Try it yourself
 

@@ -39,7 +39,7 @@ the maximal and the minimal supported true integral quantities are close to
 powers of 2.  However, "native" floats have a most fundamental
 restriction: they may represent only those numbers which have a relatively
 "short" representation when converted to a binary fraction.  For example,
-0.9 cannot be respresented by a native float, since the binary fraction
+0.9 cannot be represented by a native float, since the binary fraction
 for 0.9 is infinite:
 
   binary0.1110011001100...
@@ -59,7 +59,7 @@ finite decimal expansion.  Being strings, and thus of arbitrary length, there
 is no practical limit for the exponent or number of decimal digits for these
 numbers.  (But realize that what we are discussing the rules for just the
 I<storage> of these numbers.  The fact that you can store such "large" numbers
-does not mean that that the I<operations> over these numbers will use all
+does not mean that the I<operations> over these numbers will use all
 of the significant digits.
 See L<"Numeric operators and numeric conversions"> for details.)
 
@@ -91,7 +91,7 @@ Six such conversions are possible:
 
 These conversions are governed by the following general rules:
 
-=over
+=over 4
 
 =item *
 
@@ -141,7 +141,7 @@ argument as in modular arithmetic, e.g., C<mod 2**32> on a 32-bit
 architecture.  C<sprintf "%u", -1> therefore provides the same result as
 C<sprintf "%u", ~0>.
 
-=over
+=over 4
 
 =item Arithmetic operators except, C<no integer>
 

@@ -2,7 +2,7 @@
 
 BEGIN {
     chdir 't' if -d 't';
-    unshift @INC, '../lib';
+    @INC = '../lib';
     require Config; import Config;
     if (!$Config{'d_fork'}
        # open2/3 supported on win32 (but not Borland due to CRT bugs)
@@ -20,7 +20,7 @@ use IO::Handle;
 use IPC::Open3;
 #require 'open3.pl'; use subs 'open3';
 
-my $perl = './perl';
+my $perl = $^X;
 
 sub ok {
     my ($n, $result, $info) = @_;

@@ -1,5 +1,6 @@
 use ExtUtils::MakeMaker;
 use Config;
+use File::Spec;
 
 my $e = $Config{'exe_ext'};
 my $o = $Config{'obj_ext'};
@@ -29,8 +30,19 @@ sub post_constants {
     "\nLIBS = $Config::Config{libs}\n"
 }    
 
-sub postamble {
-'
-B$(OBJ_EXT) : defsubs.h 
-'
+sub upupfile {
+    File::Spec->catfile(File::Spec->updir,
+			File::Spec->updir, $_[0]);
+}
+
+sub MY::postamble {
+    my $op_h   = upupfile('op.h');
+    my $cop_h  = upupfile('cop.h');
+    my $noecho = shift->{NOECHO};
+"
+B\$(OBJ_EXT) : defsubs.h              
+
+defsubs.h :: $op_h $cop_h                     
+	$noecho \$(NOOP)
+" 
 }
