@@ -2626,8 +2626,6 @@ rx_accept:
 		sc->sc_stats.ast_ant_rx[ds->ds_rxstat.rs_antenna]++;
 
 		if (sc->sc_drvbpf) {
-			const void *data;
-			int hdrsize, hdrspace;
 			u_int8_t rix;
 
 			/*
@@ -2642,39 +2640,14 @@ rx_accept:
 				goto rx_next;
 			}
 			rix = ds->ds_rxstat.rs_rate;
-			sc->sc_rx_th.wr_flags = sc->sc_hwmap[rix].flags;
+			sc->sc_rx_th.wr_flags = sc->sc_hwmap[rix].rxflags;
 			sc->sc_rx_th.wr_rate = sc->sc_hwmap[rix].ieeerate;
 			sc->sc_rx_th.wr_antsignal = ds->ds_rxstat.rs_rssi;
 			sc->sc_rx_th.wr_antenna = ds->ds_rxstat.rs_antenna;
 			/* XXX TSF */
 
-			/*
-			 * Gag, deal with hardware padding of headers. This
-			 * only happens for QoS frames.  We copy the 802.11
-			 * header out-of-line and supply it separately, then
-			 * adjust the mbuf chain.  It would be better if we
-			 * could just flag the packet in the radiotap header
-			 * and have applications DTRT.
-			 */
-			if (len > sizeof(struct ieee80211_qosframe)) {
-				data = mtod(m, const void *);
-				hdrsize = ieee80211_anyhdrsize(data);
-				if (hdrsize & 3) {
-					bcopy(data, &sc->sc_rx_wh, hdrsize);
-					hdrspace = roundup(hdrsize,
-						sizeof(u_int32_t));
-					m->m_data += hdrspace;
-					m->m_len -= hdrspace;
-					bpf_mtap2(sc->sc_drvbpf, &sc->sc_rx,
-						sc->sc_rx_rt_len + hdrsize, m);
-					m->m_data -= hdrspace;
-					m->m_len += hdrspace;
-				} else
-					bpf_mtap2(sc->sc_drvbpf,
-					     &sc->sc_rx, sc->sc_rx_rt_len, m);
-			} else
-				bpf_mtap2(sc->sc_drvbpf,
-				    &sc->sc_rx, sc->sc_rx_rt_len, m);
+			bpf_mtap2(sc->sc_drvbpf,
+				&sc->sc_rx_th, sc->sc_rx_th_len, m);
 		}
 
 		/*
@@ -3241,7 +3214,7 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 	if (ic->ic_rawbpf)
 		bpf_mtap(ic->ic_rawbpf, m0);
 	if (sc->sc_drvbpf) {
-		sc->sc_tx_th.wt_flags = sc->sc_hwmap[txrate].flags;
+		sc->sc_tx_th.wt_flags = sc->sc_hwmap[txrate].txflags;
 		if (iswep)
 			sc->sc_tx_th.wt_flags |= IEEE80211_RADIOTAP_F_WEP;
 		sc->sc_tx_th.wt_rate = sc->sc_hwmap[txrate].ieeerate;
@@ -4205,9 +4178,13 @@ ath_setcurmode(struct ath_softc *sc, enum ieee80211_phymode mode)
 		}
 		sc->sc_hwmap[i].ieeerate =
 			rt->info[ix].dot11Rate & IEEE80211_RATE_VAL;
+		sc->sc_hwmap[i].txflags = IEEE80211_RADIOTAP_F_DATAPAD;
 		if (rt->info[ix].shortPreamble ||
 		    rt->info[ix].phy == IEEE80211_T_OFDM)
-			sc->sc_hwmap[i].flags |= IEEE80211_RADIOTAP_F_SHORTPRE;
+			sc->sc_hwmap[i].txflags |= IEEE80211_RADIOTAP_F_SHORTPRE;
+		/* NB: receive frames include FCS */
+		sc->sc_hwmap[i].rxflags = sc->sc_hwmap[i].txflags |
+			IEEE80211_RADIOTAP_F_FCS;
 		/* setup blink rate table to avoid per-packet lookup */
 		for (j = 0; j < N(blinkrates)-1; j++)
 			if (blinkrates[j].rate == sc->sc_hwmap[i].ieeerate)
@@ -4643,8 +4620,8 @@ ath_bpfattach(struct ath_softc *sc)
 	sc->sc_tx_th.wt_ihdr.it_len = htole16(sc->sc_tx_th_len);
 	sc->sc_tx_th.wt_ihdr.it_present = htole32(ATH_TX_RADIOTAP_PRESENT);
 
-	sc->sc_rx_rt_len = roundup(sizeof(sc->sc_rx_th), sizeof(u_int32_t));
-	sc->sc_rx_th.wr_ihdr.it_len = htole16(sc->sc_rx_rt_len);
+	sc->sc_rx_th_len = roundup(sizeof(sc->sc_rx_th), sizeof(u_int32_t));
+	sc->sc_rx_th.wr_ihdr.it_len = htole16(sc->sc_rx_th_len);
 	sc->sc_rx_th.wr_ihdr.it_present = htole32(ATH_RX_RADIOTAP_PRESENT);
 }
 
