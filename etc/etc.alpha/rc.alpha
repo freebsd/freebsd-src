@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: rc.alpha,v 1.1 1998/05/20 03:01:42 jkh Exp $
+#	$Id: rc.alpha,v 1.2 1998/08/31 08:57:56 dfr Exp $
 #	Do alpha specific processing
 #
 
@@ -76,8 +76,10 @@ fi
 # screen saver
 if [ "X${saver}" != X"NO" ] ; then
 	echo -n ' screensaver'
-	modstat | grep -q _saver || \
-		modload -u -o /tmp/saver_mod -q /lkm/${saver}_saver_mod.o
+	for i in `kldstat | awk '$5 ~ "^splash_.*$" { print $5 }'`; do
+		kldunload $i
+	done
+	kldstat -v | grep -q _saver || kldload ${saver}_saver
 fi
 
 # mouse daemon
