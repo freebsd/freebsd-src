@@ -29,12 +29,19 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	@(#)misc.c	8.1 (Berkeley) 6/6/93
  */
+
+#ifndef lint
+#if 0
+static char sccsid[] = "@(#)misc.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
+#endif /*not lint */
 
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <err.h>
 #include <fts.h>
 #include <stdio.h>
 #include "mtree.h"
@@ -79,7 +86,7 @@ parsekey(name, needvaluep)
 	k = (KEY *)bsearch(&tmp, keylist, sizeof(keylist) / sizeof(KEY),
 	    sizeof(KEY), keycompare);
 	if (k == NULL)
-		err("unknown keyword %s", name);
+		errx(1, "line %d: unknown keyword %s", lineno, name);
 
 	if (needvaluep)
 		*needvaluep = k->flags & NEEDVALUE ? 1 : 0;
@@ -91,37 +98,4 @@ keycompare(a, b)
 	const void *a, *b;
 {
 	return (strcmp(((KEY *)a)->name, ((KEY *)b)->name));
-}
-
-#if __STDC__
-#include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
-
-void
-#if __STDC__
-err(const char *fmt, ...)
-#else
-err(fmt, va_alist)
-	char *fmt;
-        va_dcl
-#endif
-{
-	va_list ap;
-#if __STDC__
-	va_start(ap, fmt);
-#else
-	va_start(ap);
-#endif
-	(void)fflush(NULL);
-	(void)fprintf(stderr, "\nmtree: ");
-	(void)vfprintf(stderr, fmt, ap);
-	va_end(ap);
-	(void)fprintf(stderr, "\n");
-	if (lineno)
-		(void)fprintf(stderr,
-		    "mtree: failed at line %d of the specification\n", lineno);
-	exit(1);
-	/* NOTREACHED */
 }

@@ -32,22 +32,28 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)compare.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/stat.h>
+#include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <fts.h>
-#include <errno.h>
+#include <md5.h>
 #include <stdio.h>
 #include <time.h>
 #include <unistd.h>
-#include <md5.h>
 #include "mtree.h"
 #include "extern.h"
 
 extern int uflag;
+extern int lineno;
 
 static char *ftype __P((u_int));
 
@@ -283,7 +289,7 @@ rlink(name)
 	register int len;
 
 	if ((len = readlink(name, lbuf, sizeof(lbuf))) == -1)
-		err("%s: %s", name, strerror(errno));
+		err(1, "line %d: %s", lineno, name);
 	lbuf[len] = '\0';
 	return (lbuf);
 }
