@@ -144,7 +144,7 @@
 #define ALIAS_CLEANUP_INTERVAL_SECS  60
 #define ALIAS_CLEANUP_MAX_SPOKES     30
 
-/* Timouts (in seconds) for different link types) */
+/* Timeouts (in seconds) for different link types */
 #define ICMP_EXPIRE_TIME             60
 #define UDP_EXPIRE_TIME              60
 #define FRAGMENT_ID_EXPIRE_TIME      10
@@ -367,9 +367,9 @@ static struct in_addr pptpAliasAddr; /* Address of source of PPTP 	*/
 
 Lookup table starting points:
     StartPointIn()           -- link table initial search point for
-                                outgoing packets
-    StartPointOut()          -- port table initial search point for
                                 incoming packets
+    StartPointOut()          -- port table initial search point for
+                                outgoing packets
     
 Miscellaneous:
     SeqDiff()                -- difference between two TCP sequences
@@ -1058,6 +1058,19 @@ FindLinkOut(struct in_addr src_addr,
         link = link->next_out;
     }
 
+/* Search for partially specified links. */
+    if (link == NULL)
+    {
+        if (dst_port != 0)
+        {
+            link = FindLinkOut(src_addr, dst_addr, src_port, 0, link_type);
+        }
+        else if (dst_addr.s_addr != 0)
+        {
+            link = FindLinkOut(src_addr, nullAddress, src_port, 0, link_type);
+        }
+    }
+
     return(link);
 }
 
@@ -1092,14 +1105,6 @@ FindLinkIn(struct in_addr  dst_addr,
         flags_in |= LINK_UNKNOWN_DEST_ADDR;
     if (dst_port == 0)
         flags_in |= LINK_UNKNOWN_DEST_PORT;
-
-/* The following allows permanent links to be
-   be specified as using the default aliasing address
-   (i.e. device interface address) without knowing
-   in advance what that address is. */
-
-    if (alias_addr.s_addr == aliasAddress.s_addr)
-        alias_addr.s_addr = 0;
 
 /* Search loop */
     start_point = StartPointIn(alias_addr, alias_port, link_type);
@@ -1190,6 +1195,15 @@ FindLinkIn(struct in_addr  dst_addr,
                    link_unknown_all->src_port, dst_port, alias_port,
                    link_type)
           : link_unknown_all;
+    }
+/* The following allows permanent links to be
+   be specified as using the default aliasing address
+   (i.e. device interface address) without knowing
+   in advance what that address is. */
+    else if (alias_addr.s_addr != 0 && alias_addr.s_addr == aliasAddress.s_addr)
+    {
+        return FindLinkIn(dst_addr, nullAddress, dst_port, alias_port,
+                          link_type, replace_partial_links);
     }
     else
     {
