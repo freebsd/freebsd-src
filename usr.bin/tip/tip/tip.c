@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)tip.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: tip.c,v 1.2.2.2 1997/08/22 22:15:21 imp Exp $";
+	"$Id: tip.c,v 1.2.2.3 1997/08/25 05:02:52 imp Exp $";
 #endif /* not lint */
 
 /*
@@ -58,6 +58,8 @@ void ttysetup (int speed);
  */
 
 #include <err.h>
+#include <sys/types.h>
+#include <libutil.h>
 #include "tipconf.h"
 #include "tip.h"
 #include "pathnames.h"
@@ -157,7 +159,7 @@ main(argc, argv)
 	for (p = system; *p; p++)
 		*p = '\0';
 	PN = PNbuf;
-	(void)sprintf(sbuf, "tip%d", BR);
+	(void)sprintf(sbuf, "tip%ld", BR);
 	system = sbuf;
 
 notnumber:
@@ -713,5 +715,5 @@ setparity(defparity)
 		(void) fflush(stderr);
 	}
 	for (i = 0; i < 0200; i++)
-		partab[i] = evenpartab[i] ^ flip | set & clr;
+		partab[i] = (evenpartab[i] ^ flip) | (set & clr);
 }
