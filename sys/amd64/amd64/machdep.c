@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.10 1993/10/10 06:01:44 rgrimes Exp $
+ *	$Id: machdep.c,v 1.11 1993/10/14 18:15:35 rgrimes Exp $
  */
 
 #include "npx.h"
@@ -198,16 +198,21 @@ again:
 #endif
 	/*
 	 * Determine how many buffers to allocate.
-	 * Use 10% of memory for the first 2 Meg, 5% of the remaining
-	 * memory. Insure a minimum of 16 buffers.
+	 * Use 20% of memory of memory beyond the first 2MB
+	 * Insure a minimum of 16 fs buffers.
 	 * We allocate 1/2 as many swap buffer headers as file i/o buffers.
 	 */
 	if (bufpages == 0)
-	    if (physmem < btoc(2 * 1024 * 1024))
-		bufpages = physmem / 10 / CLSIZE;
-	    else
-		bufpages = (btoc(2 * 1024 * 1024) + physmem) / 20 / CLSIZE;
+		bufpages = (ctob(physmem) - 2048*1024) / NBPG / 5;
+	if (bufpages < 32)
+		bufpages = 32;
 
+	/*
+	 * We must still limit the maximum number of buffers to be no
+	 * more than 2/5's of the size of the kernal malloc region, this
+	 * will only take effect for machines with lots of memory
+	 */
+	bufpages = min(bufpages, (VM_KMEM_SIZE / NBPG) * 2 / 5);
 	if (nbuf == 0) {
 		nbuf = bufpages / 2;
 		if (nbuf < 16)
@@ -240,9 +245,12 @@ again:
 
 	/*
 	 * Allocate a submap for buffer space allocations.
+	 * XXX we are NOT using buffer_map, but due to
+	 * the references to it we will just allocate 1 page of
+	 * vm (not real memory) to make things happy...
 	 */
 	buffer_map = kmem_suballoc(kernel_map, &minaddr, &maxaddr,
-				 bufpages*NBPG, TRUE);
+				/* bufpages * */NBPG, TRUE);
 	/*
 	 * Allocate a submap for exec arguments.  This map effectively
 	 * limits the number of processes exec'ing at any time.
@@ -747,7 +755,7 @@ setregs(p, entry)
 	load_cr0(rcr0() | CR0_TS);	/* start emulating */
 #if	NNPX > 0
 	npxinit(__INITIAL_NPXCW__);
-#endif
+#endif	/* NNPX > 0 */
 }
 
 /*

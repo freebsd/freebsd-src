@@ -35,9 +35,8 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.5 1993/10/12 13:53:25 rgrimes Exp $
+ *	$Id: pmap.c,v 1.6 1993/10/12 15:09:37 rgrimes Exp $
  */
-static char rcsid[] = "$Id: pmap.c,v 1.5 1993/10/12 13:53:25 rgrimes Exp $";
 
 /*
  * Derived from hp300 version by Mike Hibler, this version by William
@@ -1051,9 +1050,6 @@ validate:
 		va += NBPG;
 	} while (++ix != i386pagesperpage);
 	pte--;
-#ifdef DEBUGx
-cache, tlb flushes
-#endif
 /*pads(pmap);*/
 	/*load_cr3(((struct pcb *)curproc->p_addr)->pcb_ptd);*/
 	tlbflush();
@@ -1159,6 +1155,7 @@ struct pte *pmap_pte(pmap, va)
 	if (pmapdebug & PDB_FOLLOW)
 		printf("pmap_pte(%x, %x) ->\n", pmap, va);
 #endif
+
 	if (pmap && pmap_pde_v(pmap_pde(pmap, va))) {
 
 		/* are we current address space or kernel? */
@@ -1711,7 +1708,7 @@ pads(pm) pmap_t pm; {
 	for (i = 0; i < 1024; i++) 
 		if(pm->pm_pdir[i].pd_v)
 			for (j = 0; j < 1024 ; j++) {
-				va = (i<<22)+(j<<12);
+				va = (i<<PD_SHIFT)+(j<<PG_SHIFT);
 				if (pm == kernel_pmap && va < KERNBASE)
 						continue;
 				if (pm != kernel_pmap && va > UPT_MAX_ADDRESS)
