@@ -94,6 +94,7 @@
 #	ulpt*	printer
 #	ugen*	generic USB device
 #	urio*	Diamond Rio 500
+#  usio* USB serial devices
 #
 # SCSI devices (other than CD-ROM, tape and disk):
 #	ch*	SCSI Media-Changer (juke box) driver
@@ -951,6 +952,11 @@ ugen*)
 urio*)
 	unit=`expr $i : 'urio\(.*\)'`
 	mknod urio$unit c 143 $unit
+	;;
+
+usio*)
+	unit=`expr $i : 'usio\(.*\)'`
+	mknod usio$unit c 138 $unit
 	;;
 
 lpt*)
