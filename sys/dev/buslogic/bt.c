@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: bt.c,v 1.2 1998/09/16 03:27:11 gibbs Exp $
+ *      $Id: bt.c,v 1.3 1998/09/17 00:08:27 gibbs Exp $
  */
 
  /*
@@ -1978,6 +1978,22 @@ btfetchtransinfo(struct bt_softc *bt, struct ccb_trans_settings* cts)
 		    		 : (setup_info.high_wide_active & targ_mask);
 
 		if (wide_active)
+			cts->bus_width = MSG_EXT_WDTR_BUS_16_BIT;
+	} else if ((bt->wide_permitted & targ_mask) != 0) {
+		struct ccb_getdev cgd;
+
+		/*
+		 * Prior to rev 5.06L, wide status isn't provided,
+		 * so we "guess" that wide transfers are in effect
+		 * if the user settings allow for wide and the inquiry
+		 * data for the device indicates that it can handle
+		 * wide transfers.
+		 */
+		xpt_setup_ccb(&cgd.ccb_h, cts->ccb_h.path, /*priority*/1);
+		cgd.ccb_h.func_code = XPT_GDEV_TYPE;
+		xpt_action((union ccb *)&cgd);
+		if ((cgd.ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP
+		 && (cgd.inq_data.flags & SID_WBus16) != 0)
 			cts->bus_width = MSG_EXT_WDTR_BUS_16_BIT;
 	}
 
