@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.86 1998/12/27 07:59:25 foxfair Exp $
+**  $Id: pcisupport.c,v 1.87 1999/01/25 19:34:25 nsouch Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -43,6 +43,7 @@
 
 #include "opt_pci.h"
 #include "opt_smp.h"
+#include "intpm.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -273,7 +274,11 @@ chipset_probe (pcici_t tag, pcidi_t type)
 	case 0x71108086:
 		return ("Intel 82371AB PCI to ISA bridge");
 	case 0x71138086:
-	        return NULL;
+#if NINTPM > 0
+	        return NULL;	/* Need to stop generic_pci_bridge() */
+#else
+		return ("Intel 82371AB Power management controller");
+#endif
 	case 0x71908086:
 		return ("Intel 82443BX host to PCI bridge");
 	case 0x71918086:
