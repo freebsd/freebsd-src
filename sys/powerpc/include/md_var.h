@@ -63,6 +63,12 @@ int	alpha_platform_setup_ide_intr(struct resource *res,
 				      driver_intr_t *fn, void *arg,
 				      void **cookiep);
 int	alpha_platform_teardown_ide_intr(struct resource *res, void *cookie);
+int	alpha_platform_pci_setup_intr(device_t dev, device_t child,
+				      struct resource *irq,  int flags,
+				      driver_intr_t *intr, void *arg,
+				      void **cookiep);
+int	alpha_platform_pci_teardown_intr(device_t dev, device_t child,
+					 struct resource *irq, void *cookie);
 #endif
 void	alpha_platform_assign_pciintr(struct pcicfg *cfg);
 
