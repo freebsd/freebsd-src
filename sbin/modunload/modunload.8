@@ -23,7 +23,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: modunload.8,v 1.3 1994/08/19 13:40:41 davidg Exp $
+.\"	$Id: modunload.8,v 1.4 1995/10/26 21:44:11 torstenb Exp $
 .\"
 .Dd June 7, 1993
 .Dt MODUNLOAD 8
@@ -33,27 +33,27 @@
 .Nd unload a kernel module
 .Sh SYNOPSIS
 .Nm modunload
-.Op Fl i Ar id
-.Op Fl n Ar name
+.Op Fl i Ar module_id
+.Op Fl n Ar module_name
 .Sh DESCRIPTION
 The
 .Nm
 utility unloads a loadable kernel module from a running system.
 The
-.Ar id
+.Ar module_id
 or
-.Ar name
+.Ar module_name
 is the ID or name of the module as shown by
 .Xr modstat 8 .
 .Pp
 One of the following options must be specified:
 .Bl -tag -width indent
-.It Fl i Ar id
+.It Fl i Ar module_id
 Unload the module with the ID
-.Ar id .
-.It Fl n Ar name
+.Ar module_id .
+.It Fl n Ar module_name
 Unload the module with the name
-.Ar name .
+.Ar module_name .
 .El
 .Sh DIAGNOSTICS
 The
