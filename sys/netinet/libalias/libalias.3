@@ -9,6 +9,7 @@ of IP packets, intended for masquerading and
 network address translation (NAT).  
 
 .Sh SYNOPSIS
+.Fd #include <sys/types.h>
 .Fd #include <netinet/in.h>
 .Fd #include <alias.h>
 
@@ -166,8 +167,8 @@ It is mandatory that this function be called
 prior to any packet handling.
 .Ss 2.4 PacketAliasSetMode()
 
-.Ft void
-.Fn PacketAliasSetMode "int mode" "int mask"
+.Ft unsigned int
+.Fn PacketAliasSetMode "unsigned int mode" "unsigned int mask"
 
 This function sets or clears mode bits
 according to the value of
@@ -418,7 +419,7 @@ data type.
 .Ss 4.2 PacketAliasRedirectAddr()
 
 .Ft struct alias_link *
-.Fo PacketAliasRedirectAddress
+.Fo PacketAliasRedirectAddr
 .Fa "struct in_addr local_addr"
 .Fa "struct in_addr alias_addr"
 .Fc
@@ -592,7 +593,7 @@ is called to change the default target address.
 .Ss 6.3 PacketAliasInternetChecksum() 
 
 .Ft u_short
-.Fn PacketAliasInternetChecksum "char *buffer" "int nbytes"
+.Fn PacketAliasInternetChecksum "u_short *buffer" "int nbytes"
 
 This is a utility function that does not seem
 to be available elswhere and is included as a
