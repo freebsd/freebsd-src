@@ -5,10 +5,13 @@
 
     $FreeBSD$
 
-    Original revision: 1.1.2.3
+    Original revision: 1.2.3.4.1
 -->
 
 <!-- Text constants which probably don't need to be changed.-->
+
+<!-- Notes new to our first point release (hopefully there'll only be one!) -->
+<!ENTITY new.461 "[4.6.1]">
 
 <!-- 
   -CURRENT defines a merged entity, which we use to indicate when a
