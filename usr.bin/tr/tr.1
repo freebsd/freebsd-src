@@ -69,11 +69,11 @@ The following options are available:
 Complement the set of characters in
 .Ar string1 ,
 that is
-.Dq "-C ab"
+.Fl C Ar ab
 includes every character except for
-.Dq a
+.Ar a
 and
-.Dq b .
+.Ar b .
 .It Fl c
 Same as
 .Fl C
@@ -201,7 +201,9 @@ in the classes are in unspecified order.
 In the ``upper'' and ``lower'' classes, characters are entered in
 ascending order.
 .Pp
-For specific information as to which ASCII characters are included
+For specific information as to which
+.Tn ASCII
+characters are included
 in these classes, see
 .Xr ctype 3
 and related manual pages.
