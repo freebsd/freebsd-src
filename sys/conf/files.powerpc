@@ -91,6 +91,7 @@ libkern/ucmpdi2.c		standard
 libkern/udivdi3.c		standard
 libkern/umoddi3.c		standard
 
+powerpc/powerpc/mem.c		optional mem
 powerpc/powerpc/mp_machdep.c	optional smp
 
 powerpc/ofw/ofw_pci.c		optional	pci
