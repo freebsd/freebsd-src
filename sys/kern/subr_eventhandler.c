@@ -166,7 +166,6 @@ eventhandler_deregister(struct eventhandler_list *list, eventhandler_tag tag)
 	if (list->el_runcount == 0) {
 	    CTR2(KTR_EVH, "%s: removing all items from \"%s\"", __func__,
 		list->el_name);
-	    TAILQ_REMOVE(&list->el_entries, ep, ee_link);
 	    while (!TAILQ_EMPTY(&list->el_entries)) {
 		ep = TAILQ_FIRST(&list->el_entries);
 		TAILQ_REMOVE(&list->el_entries, ep, ee_link);
