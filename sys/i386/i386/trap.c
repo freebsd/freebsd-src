@@ -190,8 +190,7 @@ trap(frame)
 		 * interrupts and then trapped.  Enabling interrupts
 		 * now is wrong, but it is better than running with
 		 * interrupts disabled until they are accidentally
-		 * enabled later.  XXX This is really bad if we trap
-		 * while holding a spin lock.
+		 * enabled later.
 		 */
 		type = frame.tf_trapno;
 		if (ISPL(frame.tf_cs) == SEL_UPL || (frame.tf_eflags & PSL_VM))
@@ -206,10 +205,12 @@ trap(frame)
 			printf("kernel trap %d with interrupts disabled\n",
 			    type);
 			/*
-			 * We should walk p_heldmtx here and see if any are
-			 * spin mutexes, and not do this if so.
+			 * Page faults need interrupts diasabled until later,
+			 * and we shouldn't enable interrupts while holding a
+			 * spin lock.
 			 */
-			enable_intr();
+			if (type != T_PAGEFLT && PCPU_GET(spinlocks) == NULL)
+				enable_intr();
 		}
 	}
 
@@ -223,9 +224,19 @@ trap(frame)
 		 * an interrupt gate for the pagefault handler.  We
 		 * are finally ready to read %cr2 and then must
 		 * reenable interrupts.
+		 *
+		 * If we get a page fault while holding a spin lock, then
+		 * it is most likely a fatal kernel page fault.  The kernel
+		 * is already going to panic trying to get a sleep lock to
+		 * do the VM lookup, so just consider it a fatal trap so the
+		 * kernel can print out a useful trap message and even get
+		 * to the debugger.
 		 */
 		eva = rcr2();
-		enable_intr();
+		if (PCPU_GET(spinlocks) == NULL)
+			enable_intr();
+		else
+			trap_fatal(&frame, eva);
 	}
 
         if ((ISPL(frame.tf_cs) == SEL_UPL) ||
