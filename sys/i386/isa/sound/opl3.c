@@ -3,8 +3,28 @@
  * 
  * A low level driver for Yamaha YM3812 and OPL-3 -chips
  * 
- * (C) 1992  Hannu Savolainen (hsavolai@cs.helsinki.fi) See COPYING for further
- * details. Should be distributed with this file.
+ * Copyright by Hannu Savolainen 1993
+ * 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met: 1. Redistributions of source code must retain the above copyright
+ * notice, this list of conditions and the following disclaimer. 2.
+ * Redistributions in binary form must reproduce the above copyright notice,
+ * this list of conditions and the following disclaimer in the documentation
+ * and/or other materials provided with the distribution.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY
+ * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
+ * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ * 
  */
 
 /* Major improvements to the FM handling 30AUG92 by Rob Hooft, */
@@ -405,7 +425,7 @@ set_voice_volume (int voice, int volume)
 static int
 opl3_start_note (int dev, int voice, int note, int volume)
 {
-  unsigned char   data;
+  unsigned char   data, fpc;
   int             block, fnum, freq, voice_mode;
   struct sbi_instrument *instr;
   struct physical_voice_info *map;
@@ -491,8 +511,11 @@ opl3_start_note (int dev, int voice, int note, int volume)
   opl3_command (map->ioaddr, WAVE_SELECT + map->op[1], instr->operators[9]);
 
   /* Set Feedback/Connection */
-  /* Connect the voice to both stereo channels */
-  opl3_command (map->ioaddr, FEEDBACK_CONNECTION + map->voice_num, instr->operators[10] | 0x30);
+  fpc = instr->operators[10];
+  if (!(fpc & 0x30))
+    fpc |= 0x30;		/* Ensure that at least one chn is enabled */
+  opl3_command (map->ioaddr, FEEDBACK_CONNECTION + map->voice_num,
+		fpc);
 
   /*
    * If the voice is a 4 OP one, initialize the operators 3 and 4 also
@@ -518,8 +541,10 @@ opl3_start_note (int dev, int voice, int note, int volume)
       opl3_command (map->ioaddr, WAVE_SELECT + map->op[3], instr->operators[OFFS_4OP + 9]);
 
       /* Set Feedback/Connection */
-      /* Connect the voice to both stereo channels */
-      opl3_command (map->ioaddr, FEEDBACK_CONNECTION + map->voice_num + 3, instr->operators[OFFS_4OP + 10] | 0x30);
+      fpc = instr->operators[OFFS_4OP + 10];
+      if (!(fpc & 0x30))
+	fpc |= 0x30;		/* Ensure that at least one chn is enabled */
+      opl3_command (map->ioaddr, FEEDBACK_CONNECTION + map->voice_num + 3, fpc);
     }
 
   voices[voice].mode = voice_mode;
@@ -904,8 +929,6 @@ opl3_init (long mem_start)
   already_initialized = 1;
   for (i = 0; i < SBFM_MAXINSTR; i++)
     instrmap[i].channel = -1;
-
-  printk("\n");
 
   return mem_start;
 }
