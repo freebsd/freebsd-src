@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: buf.c,v 1.10 1997/02/22 14:03:11 peter Exp $
  */
 #ifndef lint
 static char * const rcsid = "@(#)buf.c,v 1.4 1994/02/01 00:34:35 alm Exp";
@@ -198,14 +198,18 @@ char sfn[15] = "";				/* scratch file name */
 int
 open_sbuf()
 {
+	int fd = -1;
 	int u;
 
 	isbinary = newline_added = 0;
 	u = umask(077);
 	strcpy(sfn, "/tmp/ed.XXXXXX");
-	if (mktemp(sfn) == NULL || (sfp = fopen(sfn, "w+")) == NULL) {
-		fprintf(stderr, "%s: %s\n", sfn, strerror(errno));
-		sprintf(errmsg, "cannot open temp file");
+	if ((fd = mkstemp(sfn)) == -1 ||
+	    (sfp = fdopen(fd, "w+")) == NULL) {
+		if (fd != -1)
+			close(fd);
+		perror(sfn);
+		strcpy(errmsg, "cannot open temp file");
 		umask(u);
 		return ERR;
 	}
