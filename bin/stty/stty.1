@@ -374,6 +374,7 @@ Recognized control-characters:
 .It eol Ta Tn VEOL	EOL No character
 .It eol2 Ta Tn VEOL2	EOL2 No character
 .It erase Ta Tn VERASE	ERASE No character
+.It erase2 Ta Tn VERASE2	ERASE2 No character
 .It werase Ta Tn VWERASE	WERASE No character
 .It intr Ta Tn VINTR	INTR No character
 .It kill Ta Tn VKILL	KILL No character
@@ -420,7 +421,8 @@ In addition
 -nl unsets inlcr and igncr.
 .It Cm ek
 Reset
-.Dv ERASE
+.Dv ERASE ,
+.Dv ERASE2 ,
 and
 .Dv KILL
 characters
