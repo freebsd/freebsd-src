@@ -1,6 +1,6 @@
 %{
 #if !defined(lint) && !defined(SABER)
-static char rcsid[] = "$Id: ns_parser.y,v 8.78 2001/12/28 04:07:48 marka Exp $";
+static char rcsid[] = "$Id: ns_parser.y,v 8.79 2002/04/25 05:27:13 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -150,7 +150,7 @@ int yyparse();
 %token			T_TRANSFER_FORMAT T_MAX_TRANSFER_TIME_IN
 %token			T_SERIAL_QUERIES T_ONE_ANSWER T_MANY_ANSWERS
 %type	<axfr_fmt>	transfer_format
-%token			T_NOTIFY T_NOTIFY_INITIAL T_AUTH_NXDOMAIN
+%token			T_NOTIFY T_EXPLICIT T_NOTIFY_INITIAL T_AUTH_NXDOMAIN
 %token			T_MULTIPLE_CNAMES T_USE_IXFR T_MAINTAIN_IXFR_BASE
 %token			T_CLEAN_INTERVAL T_INTERFACE_INTERVAL T_STATS_INTERVAL
 %token			T_MAX_LOG_SIZE_IXFR
@@ -374,10 +374,16 @@ option: /* Empty */
 		set_global_boolean_option(current_options, 
 			OPTION_HITCOUNT, $2);
 	}
+	| T_NOTIFY T_EXPLICIT
+	{
+		current_options->notify = notify_explicit;
+	}
 	| T_NOTIFY yea_or_nay
 	{
-		set_global_boolean_option(current_options, 
-			OPTION_NONOTIFY, !$2);
+		if ($2)
+			current_options->notify = notify_yes;
+		else
+			current_options->notify = notify_no;
 	}
 	| T_NOTIFY_INITIAL yea_or_nay
 	{
@@ -1681,9 +1687,16 @@ zone_option: T_TYPE zone_type
 	{
 		set_zone_max_log_size_ixfr(current_zone, $2);
         }
+	| T_NOTIFY T_EXPLICIT
+	{
+		set_zone_notify(current_zone, notify_explicit);
+	}
 	| T_NOTIFY yea_or_nay
 	{
-		set_zone_notify(current_zone, $2);
+		if ($2)
+			set_zone_notify(current_zone, notify_yes);
+		else
+			set_zone_notify(current_zone, notify_no);
 	}
 	| T_MAINTAIN_IXFR_BASE yea_or_nay
 	{
