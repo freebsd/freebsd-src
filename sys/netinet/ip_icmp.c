@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_icmp.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_icmp.c,v 1.16 1995/12/14 09:53:40 phk Exp $
+ * $Id: ip_icmp.c,v 1.17 1995/12/16 02:14:16 bde Exp $
  */
 
 #include <sys/param.h>
@@ -466,7 +466,7 @@ reflect:
 	}
 
 raw:
-	rip_input(m);
+	rip_input(m, hlen);
 	return;
 
 freeit:

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_ip.c	8.7 (Berkeley) 5/15/95
- *	$Id: raw_ip.c,v 1.28 1996/03/11 15:13:24 davidg Exp $
+ *	$Id: raw_ip.c,v 1.29 1996/03/13 08:02:45 pst Exp $
  */
 
 #include <sys/param.h>
@@ -93,8 +93,9 @@ static struct	sockaddr_in ripsrc = { sizeof(ripsrc), AF_INET };
  * mbuf chain.
  */
 void
-rip_input(m)
+rip_input(m, iphlen)
 	struct mbuf *m;
+	int iphlen;
 {
 	register struct ip *ip = mtod(m, struct ip *);
 	register struct inpcb *inp;
@@ -149,7 +150,6 @@ rip_output(m, so, dst)
 {
 	register struct ip *ip;
 	register struct inpcb *inp = sotoinpcb(so);
-	struct mbuf *opts;
 	int flags = (so->so_options & SO_DONTROUTE) | IP_ALLOWBROADCAST;
 
 	/*
