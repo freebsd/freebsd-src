@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)syslogd.8	8.1 (Berkeley) 6/6/93
-.\"	$Id: syslogd.8,v 1.6.2.1 1997/03/06 08:00:27 mpp Exp $
+.\"	$Id: syslogd.8,v 1.6.2.2 1997/04/26 00:05:18 pst Exp $
 .\"
 .Dd October 12, 1995
 .Dt SYSLOGD 8
@@ -40,16 +40,66 @@
 .Nd log systems messages
 .Sh SYNOPSIS
 .Nm syslogd
-.Op Fl \&dI
+.Op Fl a Ar allowed_peer
 .Op Fl f Ar config_file
 .Op Fl m Ar mark_interval
 .Op Fl p Ar log_socket
+.Op Fl s
 .Sh DESCRIPTION
 .Nm Syslogd
 reads and logs messages to the system console, log files, other
 machines and/or users as specified by its configuration file.
 The options are as follows:
 .Bl -tag -width Ds
+.It Fl a Ar allowed_peer
+Allow
+.Ar allowed_peer
+to log to this
+.Nm syslogd
+using UDP datagrams.  Multiple
+.Fl a
+options may be specified.
+.Pp
+.Ar Allowed_peer
+can be any of the following:
+.Bl -tag -width "ipaddr/masklen[:service]XX"
+.It Ar ipaddr/masklen Ns Op Ar :service
+Accept datagrams from
+.Ar ipaddr
+(in the usual dotted quad notation) with
+.Ar masklen
+bits being taken into account when doing the address comparision.  If
+specified,
+.Ar service
+is the name or number of an UDP service (see
+.Xr services 5 ) Ns
+the source packet must belong to.  A
+.Ar service
+of
+.Ql \&*
+allows packets being sent from any UDP port.  The default
+.Ar service
+is
+.Ql syslog .
+A missing
+.Ar masklen
+will be substituted by the historic class A or class B netmasks if
+.Ar ipaddr
+belongs into the address range of class A or B, respectively, or
+by 24 otherwise.
+.It Ar domainname Ns Op Ar :service
+Accept datagrams where the reverse address lookup yields
+.Ar domainname
+for the sender address.  The meaning of
+.Ar service
+is as explained above.
+.It Ar *domainname Ns Op Ar :service
+Same as before, except that any source host whose name
+.Em ends
+in
+.Ar domainname
+will get permission.
+.El
 .It Fl d
 Put
 .Nm syslogd
@@ -59,8 +109,6 @@ into debugging mode.  This is probably only of use to developers working on
 Specify the pathname of an alternate configuration file;
 the default is
 .Pa /etc/syslog.conf .
-.It Fl s
-Operate in secure mode.  Do not listen for log message from remote machines.
 .It Fl m
 Select the number of minutes between ``mark'' messages;
 the default is 20 minutes.
@@ -68,6 +116,8 @@ the default is 20 minutes.
 Specify the pathname of an alternate log socket;
 the default is
 .Pa /var/run/log .
+.It Fl s
+Operate in secure mode.  Do not listen for log message from remote machines.
 .El
 .Pp
 .Nm Syslogd
@@ -129,12 +179,32 @@ The
 .Nm
 command appeared in
 .Bx 4.3 .
+.Pp
+The
+.Fl s
+and
+.Fl a
+options are
+.Fx 2.2
+extensions.
 .Sh BUGS
 The ability to log messages received in UDP packets is equivalent to
 an unauthenticated remote disk-filling service, and should probably be
 disabled by default.  Some sort of
 .No inter- Ns Nm syslogd
-authentication mechanism ought to be worked out.
+authentication mechanism ought to be worked out.  To prevent the worst
+abuse, use of the
+.Fl a
+option is therefore highly recommended.
+.Pp
+The
+.Fl a
+matching algorithm doesn't pretend to be very efficient; use of numeric
+IP addresses is faster than domain name comparision.  Since the allowed
+peer list is being walked linearly, peer groups where frequent messages
+are being anticipated from should be put early into the
+.Fl a
+list.
 .Pp
 The log socket was moved from
 .Pa /dev
