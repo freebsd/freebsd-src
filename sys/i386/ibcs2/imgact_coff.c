@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_coff.c,v 1.12 1996/01/19 23:00:38 dyson Exp $
+ *	$Id: imgact_coff.c,v 1.13 1996/03/12 06:13:08 peter Exp $
  */
 
 #include <sys/param.h>
@@ -96,7 +96,7 @@ load_coff_section(vmspace, vp, offset, vmaddr, memsz, filsz, prot)
 	}
 
 	DPRINTF(("%s(%d):  vm_mmap(&vmspace->vm_map, &0x%08lx, 0x%x, 0x%x, "
-		"VM_PROT_ALL, MAP_FILE | MAP_PRIVATE | MAP_FIXED, vp, 0x%x)\n",
+		"VM_PROT_ALL, MAP_PRIVATE | MAP_FIXED, vp, 0x%x)\n",
 		__FILE__, __LINE__, map_addr, map_len, prot, map_offset));
 
 	if (error = vm_mmap(&vmspace->vm_map,
@@ -104,7 +104,7 @@ load_coff_section(vmspace, vp, offset, vmaddr, memsz, filsz, prot)
 			     map_len,
 			     prot,
 			     VM_PROT_ALL,
-			     MAP_FILE | MAP_PRIVATE | MAP_FIXED,
+			     MAP_PRIVATE | MAP_FIXED,
 			     (caddr_t) vp,
 			     map_offset))
 		return error;
@@ -140,7 +140,7 @@ load_coff_section(vmspace, vp, offset, vmaddr, memsz, filsz, prot)
 			    PAGE_SIZE,
 			    VM_PROT_READ,
 			    VM_PROT_READ,
-			    MAP_FILE,
+			    0,
 			    (caddr_t) vp,
 			    trunc_page(offset + filsz)))
 		return error;
@@ -219,7 +219,7 @@ coff_load_file(struct proc *p, char *name)
 			    PAGE_SIZE,
 			    VM_PROT_READ,
 		       	    VM_PROT_READ,
-			    MAP_FILE,
+			    0,
 			    (caddr_t) vp,
 			    0))
     	goto fail;
@@ -381,7 +381,7 @@ exec_coff_imgact(imgp)
 				    len,
 				    VM_PROT_READ,
 				    VM_PROT_READ,
-				    MAP_FILE,
+				    0,
 				    (caddr_t) imgp->vp,
 				    foff)) {
 	      		return ENOEXEC;
