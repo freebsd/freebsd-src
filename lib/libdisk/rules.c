@@ -103,7 +103,7 @@ Next_Cyl_Aligned(const struct disk *d, daddr_t offset)
  *	Only one of them can have the "active" flag
  */
 static void
-Rule_000(const struct disk *d, const struct chunk *c, char *msg)
+Rule_000(__unused const struct disk *d, const struct chunk *c, char *msg)
 {
 #ifdef PC98
 	int i = 0;
@@ -180,7 +180,7 @@ Rule_001(const struct disk *d, const struct chunk *c, char *msg)
  *	Max one 'fat' as child of 'whole'
  */
 static void
-Rule_002(const struct disk *d, const struct chunk *c, char *msg)
+Rule_002(__unused const struct disk *d, const struct chunk *c, char *msg)
 {
 	int i;
 	struct chunk *c1;
@@ -203,7 +203,7 @@ Rule_002(const struct disk *d, const struct chunk *c, char *msg)
  *	Max one extended as child of 'whole'
  */
 static void
-Rule_003(const struct disk *d, const struct chunk *c, char *msg)
+Rule_003(__unused const struct disk *d, const struct chunk *c, char *msg)
 {
 	int i;
 	struct chunk *c1;
@@ -227,7 +227,7 @@ Rule_003(const struct disk *d, const struct chunk *c, char *msg)
  *	Max one CHUNK_IS_ROOT child per 'freebsd'
  */
 static void
-Rule_004(const struct disk *d, const struct chunk *c, char *msg)
+Rule_004(__unused const struct disk *d, const struct chunk *c, char *msg)
 {
 	int i = 0, k = 0;
 	struct chunk *c1;
