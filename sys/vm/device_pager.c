@@ -97,6 +97,9 @@ dev_pager_init()
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE); 
 }
 
+/*
+ * MPSAFE
+ */
 static vm_object_t
 dev_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot, vm_ooffset_t foff)
 {
@@ -105,17 +108,6 @@ dev_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot, vm_ooffset_t fo
 	vm_object_t object;
 	unsigned int npages;
 	vm_offset_t off;
-
-	mtx_assert(&Giant, MA_OWNED);
-	/*
-	 * Make sure this device can be mapped.
-	 */
-	dev = handle;
-	mapfunc = devsw(dev)->d_mmap;
-	if (mapfunc == NULL || mapfunc == (d_mmap_t *)nullop) {
-		printf("obsolete map function %p\n", (void *)mapfunc);
-		return (NULL);
-	}
 
 	/*
 	 * Offset should be page aligned.
@@ -126,6 +118,18 @@ dev_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot, vm_ooffset_t fo
 	size = round_page(size);
 
 	/*
+	 * Make sure this device can be mapped.
+	 */
+	dev = handle;
+	mtx_lock(&Giant);
+	mapfunc = devsw(dev)->d_mmap;
+	if (mapfunc == NULL || mapfunc == (d_mmap_t *)nullop) {
+		printf("obsolete map function %p\n", (void *)mapfunc);
+		mtx_unlock(&Giant);
+		return (NULL);
+	}
+
+	/*
 	 * Check that the specified range of the device allows the desired
 	 * protection.
 	 *
@@ -133,8 +137,10 @@ dev_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot, vm_ooffset_t fo
 	 */
 	npages = OFF_TO_IDX(size);
 	for (off = foff; npages--; off += PAGE_SIZE)
-		if ((*mapfunc) (dev, off, (int) prot) == -1)
+		if ((*mapfunc)(dev, off, (int) prot) == -1) {
+			mtx_unlock(&Giant);
 			return (NULL);
+		}
 
 	/*
 	 * Lock to prevent object creation race condition.
@@ -166,7 +172,7 @@ dev_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot, vm_ooffset_t fo
 	}
 
 	sx_xunlock(&dev_pager_sx);
-
+	mtx_unlock(&Giant);
 	return (object);
 }
 
