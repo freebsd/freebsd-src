@@ -60,7 +60,7 @@ typedef struct uma_zone * uma_zone_t;
  *
  * Discussion:
  *	The constructor is called just before the memory is returned
- *	to the user. It may block if neccisary.
+ *	to the user. It may block if necessary.
  */
 typedef void (*uma_ctor)(void *mem, int size, void *arg);
 
@@ -126,7 +126,7 @@ typedef void (*uma_fini)(void *mem, int size);
  *
  * For example, in the initializer you may want to initialize embeded locks,
  * NULL list pointers, set up initial states, magic numbers, etc.  This way if
- * the object is held in the allocator and re-used it won't be neccisary to
+ * the object is held in the allocator and re-used it won't be necessary to
  * re-initialize it.
  *
  * The constructor may be used to lock a data structure, link it on to lists,
