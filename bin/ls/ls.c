@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)ls.c	8.5 (Berkeley) 4/2/94";
 #else
 static const char rcsid[] =
-	"$Id: ls.c,v 1.19 1998/04/24 07:49:47 des Exp $";
+	"$Id: ls.c,v 1.20 1998/04/24 12:43:26 des Exp $";
 #endif
 #endif /* not lint */
 
@@ -135,7 +135,7 @@ main(argc, argv)
 		f_listdot = 1;
 
 	fts_options = FTS_PHYSICAL;
-	while ((ch = getopt(argc, argv, "?1ABCFHLPRTWabcdfgikloqrstu")) != -1) {
+	while ((ch = getopt(argc, argv, "1ABCFHLPRTWabcdfgikloqrstu")) != -1) {
 		switch (ch) {
 		/*
 		 * The -1, -C and -l options all override each other so shell
