@@ -43,13 +43,13 @@
 #include "pthread_private.h"
 
 /* Prototypes: */
-static void	_thread_signal(pthread_t pthread, int sig);
+static void	_thread_sig_check_state(pthread_t pthread, int sig);
 
 /* Static variables: */
 static spinlock_t	signal_lock = _SPINLOCK_INITIALIZER;
-unsigned int		pending_sigs[NSIG];
-unsigned int		handled_sigs[NSIG];
-int			volatile check_pending = 0;
+static unsigned int	pending_sigs[NSIG];
+static unsigned int	handled_sigs[NSIG];
+static int		volatile check_pending = 0;
 
 /* Initialize signal handling facility: */
 void
@@ -73,8 +73,9 @@ _thread_sig_init(void)
 void
 _thread_sig_handler(int sig, int code, ucontext_t * scp)
 {
-	char	c;
+	pthread_t pthread;
 	int	i;
+	char	c;
 
 	/* Check if an interval timer signal: */
 	if (sig == _SCHED_SIGNAL) {
@@ -134,13 +135,20 @@ _thread_sig_handler(int sig, int code, ucontext_t * scp)
 		}
 		else {
 			/* It's safe to handle the signal now. */
-			_thread_sig_handle(sig, scp);
+			pthread = _thread_sig_handle(sig, scp);
 
 			/* Reset the pending and handled count back to 0: */
 			pending_sigs[sig - 1] = 0;
 			handled_sigs[sig - 1] = 0;
 
-			signal_lock.access_lock = 0;
+			if (pthread == NULL)
+				signal_lock.access_lock = 0;
+			else {
+				sigaddset(&pthread->sigmask, sig);
+				signal_lock.access_lock = 0;
+				_thread_sig_deliver(pthread, sig);
+				sigdelset(&pthread->sigmask, sig);
+			}
 		}
 
 		/* Enter a loop to process pending signals: */
@@ -148,15 +156,27 @@ _thread_sig_handler(int sig, int code, ucontext_t * scp)
 		    (_atomic_lock(&signal_lock.access_lock) == 0)) {
 			check_pending = 0;
 			for (i = 1; i < NSIG; i++) {
-				if (pending_sigs[i - 1] > handled_sigs[i - 1])
-					_thread_sig_handle(i, scp);
+				if (pending_sigs[i - 1] > handled_sigs[i - 1]) {
+					pending_sigs[i - 1] = handled_sigs[i - 1];
+					pthread = _thread_sig_handle(i, scp);
+					if (pthread != NULL) {
+						sigaddset(&pthread->sigmask, i);
+						signal_lock.access_lock = 0;
+						_thread_sig_deliver(pthread, i);
+						sigdelset(&pthread->sigmask, i);
+						if (_atomic_lock(&signal_lock.access_lock)) {
+							check_pending = 1;
+							return;
+						}
+					}
+				}
 			}
 			signal_lock.access_lock = 0;
 		}
 	}
 }
 
-void
+pthread_t
 _thread_sig_handle(int sig, ucontext_t * scp)
 {
 	int		i;
@@ -191,6 +211,30 @@ _thread_sig_handle(int sig, ucontext_t * scp)
 					_thread_sys_fcntl(i, F_SETFL,
 					    _thread_fd_table[i]->flags |
 					    O_NONBLOCK);
+				}
+			}
+			/*
+			 * Enter a loop to wake up all threads waiting
+			 * for a process to complete:
+			 */
+			for (pthread = TAILQ_FIRST(&_waitingq);
+			    pthread != NULL; pthread = pthread_next) {
+				/*
+				 * Grab the next thread before possibly
+				 * destroying the link entry:
+				 */
+				pthread_next = TAILQ_NEXT(pthread, pqe);
+
+				/*
+				 * If this thread is waiting for a child
+				 * process to complete, wake it up:
+				 */
+				if (pthread->state == PS_WAIT_WAIT) {
+					/* Make the thread runnable: */
+					PTHREAD_NEW_STATE(pthread,PS_RUNNING);
+
+					/* Return the signal number: */
+					pthread->signo = sig;
 				}
 			}
 		}
@@ -244,7 +288,7 @@ _thread_sig_handle(int sig, ucontext_t * scp)
 				 * Do not attempt to deliver this signal
 				 * to other threads.
 				 */
-				return;
+				return (NULL);
 			}
 			else if (!sigismember(&pthread->sigmask, sig)) {
 				if (pthread->state == PS_SIGSUSPEND) {
@@ -252,6 +296,23 @@ _thread_sig_handle(int sig, ucontext_t * scp)
 						suspended_thread = pthread;
 				} else if (signaled_thread == NULL)
 					signaled_thread = pthread;
+			}
+		}
+
+		/*
+		 * If we didn't find a thread in the waiting queue,
+		 * check the all threads queue:
+		 */
+		if (suspended_thread == NULL && signaled_thread == NULL) {
+			/*
+			 * Enter a loop to look for other threads capable
+			 * of receiving the signal: 
+			 */
+			TAILQ_FOREACH(pthread, &_thread_list, tle) {
+				if (!sigismember(&pthread->sigmask, sig)) {
+					signaled_thread = pthread;
+					break;
+				}
 			}
 		}
 
@@ -265,8 +326,6 @@ _thread_sig_handle(int sig, ucontext_t * scp)
 				 */
 				sigaddset(&_process_sigpending, sig);
 			else {
-				pthread_t pthread_saved = _thread_run;
-
 				/*
 				 * We only deliver the signal to one thread;
 				 * give preference to the suspended thread:
@@ -276,41 +335,24 @@ _thread_sig_handle(int sig, ucontext_t * scp)
 				else
 					pthread = signaled_thread;
 
-				/* Current thread inside critical region? */
-				if (_thread_run->sig_defer_count > 0)
-					pthread->sig_defer_count++;
-
-				_thread_run = pthread;
-				_thread_signal(pthread,sig);
-
 				/*
-				 * Dispatch pending signals to the
-				 * running thread:
+				 * Perform any state changes due to signal
+				 * arrival:
 				 */
-				_dispatch_signals();
-				_thread_run = pthread_saved;
-
-				/* Current thread inside critical region? */
-				if (_thread_run->sig_defer_count > 0)
-					pthread->sig_defer_count--;
+				_thread_sig_check_state(pthread, sig);
+				return (pthread);
 			}
-
 		}
 	}
 
 	/* Returns nothing. */
-	return;
+	return (NULL);
 }
 
 /* Perform thread specific actions in response to a signal: */
 static void
-_thread_signal(pthread_t pthread, int sig)
+_thread_sig_check_state(pthread_t pthread, int sig)
 {
-	/*
-	 * Flag the signal as pending. It will be dispatched later.
-	 */
-	sigaddset(&pthread->sigpend,sig);
-
 	/*
 	 * Process according to thread state:
 	 */
@@ -329,11 +371,25 @@ _thread_signal(pthread_t pthread, int sig)
 	case PS_RUNNING:
 	case PS_STATE_MAX:
 	case PS_SIGTHREAD:
-	case PS_SIGWAIT:
 	case PS_SPINBLOCK:
 	case PS_SUSPENDED:
-		/* Nothing to do here. */
+		/* Increment the pending signal count. */
+		sigaddset(&pthread->sigpend,sig);
 		break;
+
+	case PS_SIGWAIT:
+		/* Wake up the thread if the signal is blocked. */
+		if (sigismember(pthread->data.sigwait, sig)) {
+			/* Change the state of the thread to run: */
+			PTHREAD_NEW_STATE(pthread,PS_RUNNING);
+
+			/* Return the signal number: */
+			pthread->signo = sig;
+		} else
+			/* Increment the pending signal count. */
+			sigaddset(&pthread->sigpend,sig);
+		break;
+
 
 	/*
 	 * The wait state is a special case due to the handling of
@@ -364,9 +420,7 @@ _thread_signal(pthread_t pthread, int sig)
 	case PS_POLL_WAIT:
 	case PS_SLEEP_WAIT:
 	case PS_SELECT_WAIT:
-		if ((_thread_sigact[sig - 1].sa_flags & SA_RESTART) == 0 &&
-		    (sig != SIGCHLD ||
-		     _thread_sigact[sig - 1].sa_handler != SIG_DFL)) {
+		if ((_thread_sigact[sig - 1].sa_flags & SA_RESTART) == 0) {
 			/* Flag the operation as interrupted: */
 			pthread->interrupted = 1;
 
@@ -397,11 +451,41 @@ _thread_signal(pthread_t pthread, int sig)
 	}
 }
 
+/* Send a signal to a specific thread (ala pthread_kill): */
+void
+_thread_sig_send(pthread_t pthread, int sig)
+{
+	/*
+	 * Check that the signal is not being ignored:
+	 */
+	if (_thread_sigact[sig - 1].sa_handler != SIG_IGN) {
+		if (pthread->state == PS_SIGWAIT &&
+		    sigismember(pthread->data.sigwait, sig)) {
+			/* Change the state of the thread to run: */
+			PTHREAD_NEW_STATE(pthread,PS_RUNNING);
+
+			/* Return the signal number: */
+			pthread->signo = sig;
+		} else if (pthread->state != PS_SIGWAIT &&
+		    !sigismember(&pthread->sigmask, sig)) {
+			/* Perform any state changes due to signal arrival: */
+			_thread_sig_check_state(pthread, sig);
+
+			/* Call the installed signal handler: */
+			_thread_sig_deliver(pthread, sig);
+		}
+		else {
+			/* Increment the pending signal count. */
+			sigaddset(&pthread->sigpend,sig);
+		}
+	}
+}
+
 /* Dispatch pending signals to the running thread: */
 void
 _dispatch_signals()
 {
-	sigset_t sigset;
+	sigset_t sigset, mask;
 	int i;
 
 	/*
@@ -411,9 +495,16 @@ _dispatch_signals()
 	sigset = _thread_run->sigpend;
 	SIGSETOR(sigset, _process_sigpending);
 	SIGSETNAND(sigset, _thread_run->sigmask);
-	if (SIGNOTEMPTY(sigset))
-		/* Look for all possible pending signals: */
-		for (i = 1; i < NSIG; i++)
+	if (SIGNOTEMPTY(sigset)) {
+		/*
+		 * Enter a loop to calculate deliverable pending signals
+		 * before actually delivering them.  The pending signals
+		 * must be removed from the pending signal sets before
+		 * calling the signal handler because the handler may
+		 * call library routines that again check for and deliver
+		 * pending signals.
+		 */
+		for (i = 1; i < NSIG; i++) {
 			/*
 			 * Check that a custom handler is installed
 			 * and if the signal is not blocked:
@@ -427,12 +518,67 @@ _dispatch_signals()
 				else
 					/* Clear the process pending signal: */
 					sigdelset(&_process_sigpending,i);
-
-				/*
-				 * Dispatch the signal via the custom signal
-				 * handler:
-				 */
-				(*(_thread_sigact[i - 1].sa_handler))(i);
 			}
+			else
+				/* Remove the signal if it can't be handled: */
+				sigdelset(&sigset, i);
+		}
+
+		/* Now deliver the signals: */
+		for (i = 1; i < NSIG; i++) {
+			if (sigismember(&sigset, i))
+				/* Deliver the signal to the running thread: */
+				_thread_sig_deliver(_thread_run, i);
+		}
+	}
+}
+
+/* Deliver a signal to a thread: */
+void
+_thread_sig_deliver(pthread_t pthread, int sig)
+{
+	sigset_t	mask;
+	pthread_t	pthread_saved;
+
+	/*
+	 * Check that a custom handler is installed
+	 * and if the signal is not blocked:
+	 */
+	if (_thread_sigact[sig - 1].sa_handler != SIG_DFL &&
+	    _thread_sigact[sig - 1].sa_handler != SIG_IGN) {
+		/* Save the current thread: */
+		pthread_saved = _thread_run;
+
+		/* Save the threads signal mask: */
+		mask = pthread->sigmask;
+
+		/*
+		 * Add the current signal and signal handler
+		 * mask to the threads current signal mask:
+		 */
+		SIGSETOR(pthread->sigmask, _thread_sigact[sig - 1].sa_mask);
+		sigaddset(&pthread->sigmask, sig);
+
+		/* Current thread inside critical region? */
+		if (_thread_run->sig_defer_count > 0)
+			pthread->sig_defer_count++;
+
+		_thread_run = pthread;
+
+		/*
+		 * Dispatch the signal via the custom signal
+		 * handler:
+		 */
+		(*(_thread_sigact[sig - 1].sa_handler))(sig);
+
+		_thread_run = pthread_saved;
+
+		/* Current thread inside critical region? */
+		if (_thread_run->sig_defer_count > 0)
+			pthread->sig_defer_count--;
+
+		/* Restore the threads signal mask: */
+		pthread->sigmask = mask;
+	}
 }
 #endif

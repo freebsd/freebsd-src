@@ -40,7 +40,7 @@
 pid_t
 wait4(pid_t pid, int *istat, int options, struct rusage * rusage)
 {
-	pid_t           ret;
+	pid_t	ret;
 
 	_thread_enter_cancellation_point();
 	_thread_kern_sig_defer();
