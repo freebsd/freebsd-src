@@ -129,6 +129,18 @@ st	118	ST		# Schedule Transfer
 srp	119	SRP		# SpectraLink Radio Protocol
 uti	120	UTI		# UTI
 smp	121	SMP		# Simple Message Protocol
-#	122-254			# Unassigned
-divert	254	DIVERT		# Divert pseudo-protocol
+sm	122	SM		# SM
+ptp	123	PTP		# Performance Transparency Protocol
+isis	124	ISIS		# ISIS over IPv4
+fire	125	FIRE
+crtp	126	CRTP		# Combat Radio Transport Protocol
+crdup	127	CRUDP		# Combat Radio User Datagram
+sscopmce	128	SSCOPMCE
+iplt	129	IPLT
+sps	130	SPS		# Secure Packet Shield
+pipe	131	PIPE		# Private IP Encapsulation within IP
+sctp	132	SCTP		# Stream Control Transmission Protocol
+fc	133	FC		# Fibre Channel
+#	134-254			# Unassigned
+divert	254	DIVERT		# Divert pseudo-protocol [non IANA]
 #	255			# Reserved
