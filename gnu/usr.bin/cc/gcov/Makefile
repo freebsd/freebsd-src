@@ -6,7 +6,6 @@
 
 PROG=	gcov
 SRCS=	gcov.c version.c
-NOMAN=	#true
 
 DPADD=	${LIBCC_INT}
 LDADD=	${LIBCC_INT}
