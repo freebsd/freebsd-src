@@ -999,9 +999,12 @@ mptable_pass2(void)
 	while (count--) {
 		switch (type = *(u_char *) position) {
 		case 0:
-			if (processor_entry(position, cpu))
+			if (processor_entry(position, cpu)) {
+				if (logical_cpus != 0 &&
+				    cpu % logical_cpus != 0)
+					logical_cpus_mask |= (1 << cpu);
 				++cpu;
-
+			}
 			if (need_hyperthreading_fixup) {
 				/*
 				 * Create fake mptable processor entries
