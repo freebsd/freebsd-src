@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bio.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/proc.h>
 #include <sys/errno.h>
 #include <sys/time.h>
 #include <sys/disk.h>
@@ -160,6 +161,7 @@ g_dev_open(struct cdev *dev, int flags, int fmt, struct thread *td)
 
 	g_trace(G_T_ACCESS, "g_dev_open(%s, %d, %d, %p)",
 	    gp->name, flags, fmt, td);
+
 	r = flags & FREAD ? 1 : 0;
 	w = flags & FWRITE ? 1 : 0;
 #ifdef notyet
@@ -167,6 +169,15 @@ g_dev_open(struct cdev *dev, int flags, int fmt, struct thread *td)
 #else
 	e = 0;
 #endif
+	if (w) {
+		/*
+		 * When running in very secure mode, do not allow
+		 * opens for writing of any disks.
+		 */
+		error = securelevel_ge(td->td_ucred, 2);
+		if (error)
+			return (error);
+	}
 	g_topology_lock();
 	if (dev->si_devsw == NULL)
 		error = ENXIO;		/* We were orphaned */
