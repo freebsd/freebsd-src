@@ -1075,6 +1075,12 @@ fwohci_txd(struct fwohci_softc *sc, struct fwohci_dbch *dbch)
 		packets ++;
 		tr = STAILQ_NEXT(tr, link);
 		dbch->bottom = tr;
+		if (dbch->bottom == dbch->top) {
+			/* we reaches the end of context program */
+			if (firewire_debug && dbch->xferq.queued > 0)
+				printf("queued > 0\n");
+			break;
+		}
 	}
 out:
 	if ((dbch->flags & FWOHCI_DBCH_FULL) && packets > 0) {

@@ -304,11 +304,12 @@ fwmem_read (dev_t dev, struct uio *uio, int ioflag)
 				err = EINVAL;
 				break;
 			}
-			err = tsleep((caddr_t)xfer, FWPRI, "fwmrq", hz);
-			if (err !=0 || xfer->resp != 0 
-					|| xfer->recv.buf == NULL)
+			err = tsleep((caddr_t)xfer, FWPRI, "fwmrq", 0);
+			if (xfer->recv.buf == NULL)
 				err = EIO;
-			else 
+			else if (xfer->resp != 0)
+				err = xfer->resp;
+			else if (err == 0)
 				err = uiomove(xfer->recv.buf 
 					+ xfer->recv.off + 4*3, 4, uio);
 		} else {
@@ -320,11 +321,12 @@ fwmem_read (dev_t dev, struct uio *uio, int ioflag)
 				err = EINVAL;
 				break;
 			}
-			err = tsleep((caddr_t)xfer, FWPRI, "fwmrb", hz);
-			if (err != 0 || xfer->resp != 0
-					|| xfer->recv.buf == NULL)
+			err = tsleep((caddr_t)xfer, FWPRI, "fwmrb", 0);
+			if (xfer->recv.buf == NULL)
 				err = EIO;
-			else
+			else if (xfer->resp != 0)
+				err = xfer->resp;
+			else if (err == 0)
 				err = uiomove(xfer->recv.buf
 					+ xfer->recv.off + 4*4, len, uio);
 		}
@@ -372,9 +374,9 @@ fwmem_write (dev_t dev, struct uio *uio, int ioflag)
 				err = EINVAL;
 				break;
 			}
-			err = tsleep((caddr_t)xfer, FWPRI, "fwmwq", hz);
-			if (err !=0 || xfer->resp != 0)
-				err = EIO;
+			err = tsleep((caddr_t)xfer, FWPRI, "fwmwq", 0);
+			if (xfer->resp != 0)
+				err = xfer->resp;
 		} else {
 			if (len > MAXLEN)
 				len = MAXLEN;
@@ -387,9 +389,9 @@ fwmem_write (dev_t dev, struct uio *uio, int ioflag)
 				err = EINVAL;
 				break;
 			}
-			err = tsleep((caddr_t)xfer, FWPRI, "fwmwb", hz);
-			if (err != 0 || xfer->resp != 0)
-				err = EIO;
+			err = tsleep((caddr_t)xfer, FWPRI, "fwmwb", 0);
+			if (xfer->resp != 0)
+				err = xfer->resp;
 		}
 		fw_xfer_free(xfer);
 	}
