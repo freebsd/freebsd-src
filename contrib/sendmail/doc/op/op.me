@@ -9,7 +9,7 @@
 .\" the sendmail distribution.
 .\"
 .\"
-.\"	$Id: op.me,v 8.609.2.2 2002/06/25 20:30:35 ca Exp $
+.\"	$Id: op.me,v 8.609.2.5 2002/08/04 19:12:07 ca Exp $
 .\"
 .\" eqn op.me | pic | troff -me
 .\"
@@ -88,7 +88,7 @@ Sendmail, Inc.
 .de Ve
 Version \\$2
 ..
-.Ve $Revision: 8.609.2.2 $
+.Ve $Revision: 8.609.2.5 $
 .rm Ve
 .sp
 For Sendmail Version 8.12
@@ -4577,6 +4577,13 @@ and the third is either `s' or `r' for sender/recipient address.
 Notice: for header addresses no distinction is currently made
 between sender and recipient addresses, i.e., the macro contains
 only `h'.
+.ip ${alg_bits}
+The maximum keylength (in bits) of the symmetric encryption algorithm
+used for a TLS connection.
+This may be less than the effective keylength,
+which is stored in
+.b ${cipher_bits} ,
+for ``export controlled'' algorithms.
 .ip ${auth_authen}
 The client's authentication credentials as determined by authentication
 (only set if successful).
@@ -4610,7 +4617,7 @@ The cipher suite used for the connection, e.g., EDH-DSS-DES-CBC3-SHA,
 EDH-RSA-DES-CBC-SHA, DES-CBC-MD5, DES-CBC3-SHA
 (STARTTLS only).
 .ip ${cipher_bits}
-The keylength (in bits) of the symmetric encryption algorithm
+The effective keylength (in bits) of the symmetric encryption algorithm
 used for a TLS connection.
 .ip ${client_addr}
 The IP address of the SMTP client.
@@ -6769,8 +6776,12 @@ p	Print error messages (default)
 q	No messages, just give exit status
 m	Mail back errors
 w	Write back errors (mail if user not logged in)
-e	Mail back errors and give zero exit stat always
+e	Mail back errors (when applicable) and give zero exit stat always
 .)b
+Note that the last mode,
+.q e ,
+is for Berknet error processing and
+should not be used in normal circumstances.
 .ip FallbackMXhost=\fIfallbackhost\fP
 [V]
 If specified, the
@@ -6996,6 +7007,15 @@ will not be exceeded, while the remaining queue groups will be run later (in
 round robin order). See also
 .i MaxRunnersPerQueue
 and the section \fBQueue Group Declaration\fP.
+Notice:
+.i sendmail
+does not count individual queue runners, but only sets of processes
+that act on a workgroup.
+Hence the actual number of queue runners may be lower than the limit
+imposed by
+.i MaxQueueChildren .
+This discrepancy can be large if some queue runners have to wait
+for a slow server and if short intervals are used.
 .ip MaxQueueRunSize=\fIN\fP
 [no short name]
 The maximum number of jobs that will be processed
@@ -7300,7 +7320,7 @@ and the
 option divided by the difference in the current load average and the
 .b QueueLA
 option plus one
-is less than the priority of the message, 
+is less than the priority of the message,
 just queue messages
 (i.e., don't try to send them).
 Defaults to 8 multiplied by
@@ -10671,7 +10691,7 @@ replace it with a blank sheet for double-sided output.
 .\".sz 10
 .\"Eric Allman
 .\".sp
-.\"Version $Revision: 8.609.2.2 $
+.\"Version $Revision: 8.609.2.5 $
 .\".ce 0
 .bp 3
 .ce
