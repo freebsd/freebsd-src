@@ -36,10 +36,10 @@
 0	UNIMPL	unused
 1	NOPROTO	{ void sys_exit(int rval); } exit sys_exit_args void
 2	MNOPROTO { int fork(void); }
-3	NOPROTO	{ int read(int fd, char *buf, u_int nbyte); }
-4	NOPROTO	{ int write(int fd, char *buf, u_int nbyte); }
+3	MNOPROTO { int read(int fd, char *buf, u_int nbyte); }
+4	MNOPROTO { int write(int fd, char *buf, u_int nbyte); }
 5	STD	{ int svr4_sys_open(char *path, int flags, int mode); }
-6	NOPROTO	{ int close(int fd); }
+6	MNOPROTO { int close(int fd); }
 7	STD	{ int svr4_sys_wait(int *status); }
 8	STD	{ int svr4_sys_creat(char *path, int mode); }
 9	NOPROTO	{ int link(char *path, char *link); }
@@ -53,35 +53,35 @@
 17	STD	{ int svr4_sys_break(caddr_t nsize); }
 18	STD	{ int svr4_sys_stat(char* path, struct svr4_stat* ub); }
 19	NOPROTO	{ int lseek(int filedes, off_t *offset, int whence); }
-20	NOPROTO	{ pid_t getpid(void); }
+20	MNOPROTO { pid_t getpid(void); }
 21	UNIMPL	old_mount
 22	UNIMPL	sysv_umount
-23	NOPROTO	{ int setuid(uid_t uid); }
-24	NOPROTO	{ uid_t getuid(void); }
+23	MNOPROTO { int setuid(uid_t uid); }
+24	MNOPROTO { uid_t getuid(void); }
 25	UNIMPL	stime
 26	UNIMPL	ptrace
 27	STD	{ int svr4_sys_alarm(unsigned sec); }
 28	STD	{ int svr4_sys_fstat(int fd, struct svr4_stat *sb); }
-29	STD	{ int svr4_sys_pause(void); }
+29	MSTD	{ int svr4_sys_pause(void); }
 30	STD	{ int svr4_sys_utime(char *path, struct svr4_utimbuf *ubuf); }
 31	UNIMPL	stty
 32	UNIMPL	gtty
 33	STD	{ int svr4_sys_access(char *path, int flags); }
-34	STD	{ int svr4_sys_nice(int prio); }
+34	MSTD	{ int svr4_sys_nice(int prio); }
 35	UNIMPL	statfs
 36	NOPROTO	{ int sync(void); }
-37	STD	{ int svr4_sys_kill(int pid, int signum); }
+37	MSTD	{ int svr4_sys_kill(int pid, int signum); }
 38	UNIMPL	fstatfs
-39	STD	{ int svr4_sys_pgrpsys(int cmd, int pid, int pgid); }
+39	MSTD	{ int svr4_sys_pgrpsys(int cmd, int pid, int pgid); }
 40	UNIMPL	xenix
-41	NOPROTO	{ int dup(u_int fd); }
-42	NOPROTO	{ int pipe(void); }
+41	MNOPROTO { int dup(u_int fd); }
+42	MNOPROTO { int pipe(void); }
 43	STD	{ int svr4_sys_times(struct tms *tp); }
 44	UNIMPL	profil
 45	UNIMPL	plock
-46	NOPROTO	{ int setgid(gid_t gid); }
-47	NOPROTO	{ gid_t getgid(void); }
-48	STD	{ int svr4_sys_signal(int signum, svr4_sig_t handler); }
+46	MNOPROTO { int setgid(gid_t gid); }
+47	MNOPROTO { gid_t getgid(void); }
+48	MSTD	{ int svr4_sys_signal(int signum, svr4_sig_t handler); }
 #if defined(NOTYET)
 49	STD	{ int svr4_sys_msgsys(int what, int a2, int a3, int a4, \
 		    int a5); }
@@ -98,7 +98,7 @@
 57	STD	{ int svr4_sys_utssys(void *a1, void *a2, int sel, void *a3); }
 58	NOPROTO	{ int fsync(int fd); }
 59	STD	{ int svr4_sys_execve(char *path, char **argp, char **envp); }
-60	NOPROTO	{ int umask(int newmask); }
+60	MNOPROTO { int umask(int newmask); }
 61	NOPROTO	{ int chroot(char *path); }
 62	STD	{ int svr4_sys_fcntl(int fd, int cmd, char *arg); }
 63	MSTD	{ int svr4_sys_ulimit(int cmd, long newlimit); }
@@ -132,18 +132,18 @@
 88	STD	{ int svr4_sys_lstat(char *path, struct svr4_stat *ub); }
 89	NOPROTO	{ int symlink(char *path, char *link); }
 90	NOPROTO	{ int readlink(char *path, char *buf, int count); }
-91	NOPROTO	{ int getgroups(u_int gidsetsize, gid_t *gidset); }
-92	NOPROTO	{ int setgroups(u_int gidsetsize, gid_t *gidset); }
+91	MNOPROTO { int getgroups(u_int gidsetsize, gid_t *gidset); }
+92	MNOPROTO { int setgroups(u_int gidsetsize, gid_t *gidset); }
 93	NOPROTO	{ int fchmod(int fd, int mode); }
 94	NOPROTO	{ int fchown(int fd, int uid, int gid); }
-95	STD	{ int svr4_sys_sigprocmask(int how, svr4_sigset_t *set, \
+95	MSTD	{ int svr4_sys_sigprocmask(int how, svr4_sigset_t *set, \
 		    svr4_sigset_t *oset); }
-96	STD	{ int svr4_sys_sigsuspend(svr4_sigset_t *ss); }
-97	STD	{ int svr4_sys_sigaltstack(struct svr4_sigaltstack *nss, \
+96	MSTD	{ int svr4_sys_sigsuspend(svr4_sigset_t *ss); }
+97	MSTD	{ int svr4_sys_sigaltstack(struct svr4_sigaltstack *nss, \
 		    struct svr4_sigaltstack *oss); }
-98	STD	{ int svr4_sys_sigaction(int signum, \
+98	MSTD	{ int svr4_sys_sigaction(int signum, \
 		    struct svr4_sigaction *nsa, struct svr4_sigaction *osa); }
-99	STD	{ int svr4_sys_sigpending(int what, svr4_sigset_t *mask); }
+99	MSTD	{ int svr4_sys_sigpending(int what, svr4_sigset_t *mask); }
 100	STD	{ int svr4_sys_context(int func, struct svr4_ucontext *uc); }
 101	UNIMPL	evsys
 102	UNIMPL	evtrapret
@@ -163,8 +163,8 @@
 114	UNIMPL	mincore
 115	STD	{ caddr_t svr4_sys_mmap( caddr_t addr, svr4_size_t len, \
 				int prot, int flags, int fd, svr4_off_t pos); }
-116	NOPROTO	{ int mprotect(void *addr, int len, int prot); }
-117	NOPROTO	{ int munmap(void *addr, int len); }
+116	MNOPROTO { int mprotect(void *addr, int len, int prot); }
+117	MNOPROTO { int munmap(void *addr, int len); }
 118	STD	{ int svr4_sys_fpathconf(int fd, int name); }
 119	MNOPROTO { int vfork(void); }
 120	NOPROTO	{ int fchdir(int fd); }
@@ -189,13 +189,13 @@
 133	UNIMPL	putpmsg
 134	NOPROTO	{ int rename(char *from, char *to); }
 135	STD	{ int svr4_sys_uname(struct svr4_utsname* name, int dummy); }
-136	NOPROTO	{ int setegid(gid_t egid); }
+136	MNOPROTO { int setegid(gid_t egid); }
 137	STD	{ int svr4_sys_sysconfig(int name); }
 138	MNOPROTO { int adjtime(struct timeval *delta, \
 		    struct timeval *olddelta); }
 139	STD	{ long svr4_sys_systeminfo(int what, char *buf, long len); }
 140	UNIMPL	notused
-141	NOPROTO	{ int seteuid(uid_t euid); }
+141	MNOPROTO { int seteuid(uid_t euid); }
 142	UNIMPL	vtrace
 ; fork1
 143	MUNIMPL { int fork(void); } 
@@ -265,8 +265,8 @@
 200	STD	{ int svr4_sys_facl(int fd, int cmd, int num, \
 		    struct svr4_aclent *buf); }
 201	UNIMPL	door
-202	NOPROTO	{ int setreuid(int ruid, int euid); }
-203	NOPROTO	{ int setregid(int rgid, int egid); }
+202	MNOPROTO { int setreuid(int ruid, int euid); }
+203	MNOPROTO { int setregid(int rgid, int egid); }
 204	UNIMPL	install_utrap
 205	UNIMPL	signotify
 206	UNIMPL	schedctl
