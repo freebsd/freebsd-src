@@ -866,8 +866,8 @@ getmemsize(caddr_t kmdp, u_int64_t first)
 {
 	int i, physmap_idx, pa_indx;
 	vm_paddr_t pa, physmap[PHYSMAP_SIZE];
+	u_long physmem_tunable;
 	pt_entry_t *pte;
-	char *cp;
 	struct bios_smap *smapbase, *smap, *smapend;
 	u_int32_t smapsize;
 	quad_t dcons_addr, dcons_size;
@@ -956,40 +956,8 @@ getmemsize(caddr_t kmdp, u_int64_t first)
 	Maxmem = MAXMEM / 4;
 #endif
 
-	/*
-	 * hw.physmem is a size in bytes; we also allow k, m, and g suffixes
-	 * for the appropriate modifiers.  This overrides MAXMEM.
-	 */
-	cp = getenv("hw.physmem");
-	if (cp != NULL) {
-		u_int64_t AllowMem, sanity;
-		char *ep;
-
-		sanity = AllowMem = strtouq(cp, &ep, 0);
-		if ((ep != cp) && (*ep != 0)) {
-			switch(*ep) {
-			case 'g':
-			case 'G':
-				AllowMem <<= 10;
-			case 'm':
-			case 'M':
-				AllowMem <<= 10;
-			case 'k':
-			case 'K':
-				AllowMem <<= 10;
-				break;
-			default:
-				AllowMem = sanity = 0;
-			}
-			if (AllowMem < sanity)
-				AllowMem = 0;
-		}
-		if (AllowMem == 0)
-			printf("Ignoring invalid memory size of '%s'\n", cp);
-		else
-			Maxmem = atop(AllowMem);
-		freeenv(cp);
-	}
+	if (TUNABLE_ULONG_FETCH("hw.physmem", &physmem_tunable))
+		Maxmem = atop(physmem_tunable);
 
 	if (atop(physmap[physmap_idx + 1]) != Maxmem &&
 	    (boothowto & RB_VERBOSE))
