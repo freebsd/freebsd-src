@@ -136,7 +136,8 @@ struct atmio_vcc {
 #define	ATMIO_FLAG_NORX		0x0100	/* not receiving on this VCC */
 #define	ATMIO_FLAG_NOTX		0x0200	/* not transmitting on this VCC */
 #define	ATMIO_FLAG_PVC		0x0400	/* this is a PVC */
-#define	ATMIO_FLAGS	"\020\2LLCSNAP\5NG\6HARP\11NORX\12NOTX\13PVC"
+#define	ATMIO_FLAG_ASYNC	0x0800	/* async open/close */
+#define	ATMIO_FLAGS	"\020\2LLCSNAP\5NG\6HARP\11NORX\12NOTX\13PVC\14ASYNC"
 
 #define	ATMIO_AAL_0		0	/* pure cells */
 #define	ATMIO_AAL_34		4	/* AAL3 and 4 */
