@@ -3,7 +3,7 @@
 .\"
 .\" install as magic.4 on USG, magic.5 on V7 or Berkeley systems.
 .\"
-.Dd February 27, 2003
+.Dd September 12, 2003
 .Dt MAGIC 5 "Public Domain"
 .Os
 .Sh NAME
@@ -13,7 +13,7 @@
 This manual page documents the format of the magic file as
 used by the
 .Nm
-command, version 3.41.
+command, version 4.12.
 The
 .Nm file
 command identifies the type of a file using,
@@ -54,8 +54,11 @@ The
 .Dq B
 flag compacts whitespace in the target, which must contain
 at least one whitespace character.
-If the magic has "n" consecutive blanks, the target needs
-at least "n" consecutive blanks to match.
+If the magic has
+.Ar n
+consecutive blanks, the target needs at least
+.Ar n
+consecutive blanks to match.
 The
 .Dq b
 flag treats every blank in the target as an optional blank.
@@ -207,7 +210,7 @@ the file.
 The value at that offset is read, and is used again as an offset
 in the file.
 Indirect offsets are of the form:
-.Em (x[.[bslBSL]][+-][y]) .
+.Em (x[.[bslBSL]][+\-][y]) .
 The value of
 .Em x
 is used as an offset in the file.
@@ -266,4 +269,4 @@ indirect offsets.
 .\" the changes I posted to the S5R2 version.
 .\"
 .\" Modified for Ian Darwin's version of the file command.
-.\" @(#)$Id: magic.man,v 1.21 2003/02/27 20:47:46 christos Exp $
+.\" @(#)$Id: magic.man,v 1.27 2003/09/12 19:43:30 christos Exp $
