@@ -81,7 +81,7 @@ start:		cld				# String ops inc
 #
 		movw $fake,%bp			# Address variables
 		movw %bp,%di			# %di used in stosw
-		movb $0x8,%cl			# Words to clear
+		movw $0x8,%cx			# Words to clear
 		rep				# Zero
 		stosw				#  them
 		incb -0xe(%di)			# Sector number 1
