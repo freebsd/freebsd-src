@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.35 1995/05/28 09:31:37 jkh Exp $
+ * $Id: menus.c,v 1.36 1995/05/28 23:12:07 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -723,7 +723,7 @@ close to you to have your system time syncronized accordingly.",
       { "U.S. West Coast",	"clepsydra.dec.com (GOES clock)",
 	DMENU_SET_VARIABLE,	"ntpdate=clepsydra.dec.com", 0, 0	},
       { "U.S. West Coast",	"clock.llnl.gov (WWVB clock)",
-	DMENU_SET_VARIABLE,	"ntpdate=clepsydra.dec.com", 0, 0	},
+	DMENU_SET_VARIABLE,	"ntpdate=clock.llnl.gov", 0, 0	},
       { "U.S. Midwest",		"ncar.ucar.edu (WWVB clock)",
 	DMENU_SET_VARIABLE,	"ntpdate=ncar.ucar.edu", 0, 0		},	
       { "U.S. Pacific",		"chantry.hawaii.net (WWV/H clock)",
