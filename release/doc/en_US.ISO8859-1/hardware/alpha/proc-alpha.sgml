@@ -818,7 +818,8 @@ Jan  3 12:22:32 miata /kernel: pcib0: &lt;2117x PCI host bus adapter&gt; on cia0
       <para>Not all VGA cards will work behind the PCI-PCI
       bridge. This manifests itself as no video at all. Workaround
       is to put the VGA card <quote>before</quote> the bridge, in
-      one of the 64 bit PCI slots.</para>
+      one of the 64 bit PCI slots. Graphics performance using a
+      64 bit slot is generally substantially better.</para>
 
       <para>Both MX5 and MiataGL have an on-board sound chip, an
       ESS1888. It emulates a SoundBlaster and can be enabled by
