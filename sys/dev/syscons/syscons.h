@@ -508,7 +508,6 @@ extern int 	(*sc_user_ioctl)(dev_t dev, u_long cmd, caddr_t data,
 
 int		sc_probe_unit(int unit, int flags);
 int		sc_attach_unit(int unit, int flags);
-int		sc_resume_unit(int unit);
 
 int		set_mode(scr_stat *scp);
 
