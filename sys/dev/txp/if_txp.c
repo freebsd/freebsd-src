@@ -202,7 +202,7 @@ txp_probe(dev)
 		if ((pci_get_vendor(dev) == t->txp_vid) &&
 		    (pci_get_device(dev) == t->txp_did)) {
 			device_set_desc(dev, t->txp_name);
-			return(0);
+			return(BUS_PROBE_DEFAULT);
 		}
 		t++;
 	}
