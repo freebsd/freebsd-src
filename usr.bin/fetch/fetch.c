@@ -215,7 +215,7 @@ query_auth(struct url *URL)
 
 
 	fprintf(stderr, "Authentication required for <%s://%s:%d/>!\n",
-	    URL->scheme, URL->host, URL->port, URL->doc);
+	    URL->scheme, URL->host, URL->port);
 
 	fprintf(stderr, "Login: ");
 	if (fgets(URL->user, sizeof URL->user, stdin) == NULL)
