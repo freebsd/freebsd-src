@@ -30,14 +30,7 @@
 #   include <sys/socket.h>
 #   include <net/if.h>
 #   include <vm/vm.h>
-#   ifdef __FreeBSD__
-#      if __FreeBSD__ < 2
-#         include <machine/pio.h>
-#      else
-#         include <machine/cpufunc.h>
-#         include <sys/libkern.h>
-#      endif
-#   else
+#   ifndef __FreeBSD__
 #      include <machine/inline.h>
 #   endif
 #   include <machine/cronyx.h>
