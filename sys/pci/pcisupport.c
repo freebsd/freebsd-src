@@ -1101,9 +1101,8 @@ pci_ata_match(device_t dev)
 	return NULL;
 }
 
-
-static const char*
-chip_match(device_t dev)
+const char*
+pci_chip_match(device_t dev)
 {
 	unsigned	rev;
 
@@ -1312,53 +1311,6 @@ chip_match(device_t dev)
 
 	return NULL;
 }
-
-static int chip_probe(device_t dev)
-{
-	const char *desc;
-
-	desc = chip_match(dev);
-	if (desc) {
-		if (pci_get_class(dev) == PCIC_BRIDGE
-		    && pci_get_subclass(dev) == PCIS_BRIDGE_HOST) {
-			/*
-			 * Suppress printing this device since the nexus
-			 * has already described it.
-			 */
-			device_quiet(dev);
-		}
-
-		device_set_desc_copy(dev, desc);
-		return -10000;	/* Low match priority */
-	}
-
-	return ENXIO;
-}
-
-static int chip_attach(device_t dev)
-{
-	chipset_attach(dev, device_get_unit(dev));
-
-	return 0;
-}
-
-static device_method_t chip_methods[] = {
-	/* Device interface */
-	DEVMETHOD(device_probe,		chip_probe),
-	DEVMETHOD(device_attach,	chip_attach),
-
-	{ 0, 0 }
-};
-
-static driver_t chip_driver = {
-	"chip",
-	chip_methods,
-	1,
-};
-
-static devclass_t chip_devclass;
-
-DRIVER_MODULE(chip, pci, chip_driver, chip_devclass, 0, 0);
 
 /*---------------------------------------------------------
 **
