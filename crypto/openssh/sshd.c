@@ -1292,10 +1292,13 @@ do_authentication()
 	char *user;
 #ifdef LOGIN_CAP
 	login_cap_t *lc;
-	char *hosts;
-	const char *from_host, *from_ip;
-	int denied;
 #endif /* LOGIN_CAP */
+#if defined(LOGIN_CAP) || defined(LOGIN_ACCESS)
+	const char *from_host, *from_ip;
+
+	from_host = get_canonical_hostname();
+	from_ip = get_remote_ipaddr();
+#endif /* LOGIN_CAP || LOGIN_ACCESS */
 
 	/* Get the name of the user that we wish to log in as. */
 	packet_read_expect(&plen, SSH_CMSG_USER);
@@ -1374,28 +1377,25 @@ do_authentication()
 	lc = login_getpwclass(pw);
 	if (lc == NULL)
 		lc = login_getclassbyname(NULL, pw);
-	from_host = get_canonical_hostname();
-	from_ip = get_remote_ipaddr();
-
-	denied = 0;
-	if ((hosts = login_getcapstr(lc, "host.deny", NULL, NULL)) != NULL) {
-		denied = match_hostname(from_host, hosts, strlen(hosts));
-		if (!denied)
-			denied = match_hostname(from_ip, hosts, strlen(hosts));
-	}
-	if (!denied &&
-	    (hosts = login_getcapstr(lc, "host.allow", NULL, NULL)) != NULL) {
-		denied = !match_hostname(from_host, hosts, strlen(hosts));
-		if (denied)
-			denied = !match_hostname(from_ip, hosts, strlen(hosts));
-	}
-	login_close(lc);
-	if (denied) {
+	if (!auth_hostok(lc, from_host, from_ip)) {
 		log("Denied connection for %.200s from %.200s [%.200s].",
 		    pw->pw_name, from_host, from_ip);
 		packet_disconnect("Sorry, you are not allowed to connect.");
 	}
+	if (!auth_timeok(lc, time(NULL))) {
+		log("LOGIN %.200s REFUSED (TIME) FROM %.200s",
+		    pw->pw_name, from_host);
+		packet_disconnect("Logins not available right now.");
+	}
+	login_close(lc);
 #endif  /* LOGIN_CAP */
+#ifdef LOGIN_ACCESS
+	if (!login_access(pw->pw_name, from_host)) {
+		log("Denied connection for %.200s from %.200s [%.200s].",
+		    pw->pw_name, from_host, from_ip);
+		packet_disconnect("Sorry, you are not allowed to connect.");
+	}
+#endif /* LOGIN_ACCESS */
 
 	if (pw->pw_uid == 0)
 		log("ROOT LOGIN as '%.100s' from %.100s",
@@ -2340,6 +2340,15 @@ do_exec_pty(const char *command, int ptyfd, int ttyfd,
 				     ctime(&pw->pw_expire));
 		}
 #endif /* __FreeBSD__ */
+#ifdef LOGIN_CAP
+		if (!auth_ttyok(lc, ttyname)) {
+			(void)printf("Permission denied.\n");
+			log(
+		       "LOGIN %.200s REFUSED (TTY) FROM %.200s ON TTY %.200s",
+			    pw->pw_name, hostname, ttyname);
+			exit(254);
+		}
+#endif /* LOGIN_CAP */
 
 		/*
 		 * If the user has logged in before, display the time of last
