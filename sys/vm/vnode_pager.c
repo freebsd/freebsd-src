@@ -243,7 +243,9 @@ vnode_pager_haspage(object, pindex, before, after)
 		reqblock = pindex * blocksperpage;
 	}
 	VM_OBJECT_UNLOCK(object);
+	mtx_lock(&Giant);
 	err = VOP_BMAP(vp, reqblock, NULL, &bn, after, before);
+	mtx_unlock(&Giant);
 	VM_OBJECT_LOCK(object);
 	if (err)
 		return TRUE;
