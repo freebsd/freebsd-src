@@ -29,7 +29,7 @@ Here is the logic..
 
 If there are N processors, then there are at most N KSEs (kernel
 schedulable entities) working to process threads that belong to a
-KSEGOUP (kg). If there are X of these KSEs actually running at the
+KSEGROUP (kg). If there are X of these KSEs actually running at the
 moment in question, then there are at most M (N-X) of these KSEs on
 the run queue, as running KSEs are not on the queue.
 
