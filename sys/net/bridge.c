@@ -852,7 +852,7 @@ bridge_in(struct ifnet *ifp, struct ether_header *eh)
 	eh->ether_shost, ".",
 	eh->ether_dhost, ".",
 	ntohs(eh->ether_type),
-	(dst <= BDG_FORWARD) ? bdg_dst_names[(int)dst] :
+	(dst <= BDG_FORWARD) ? bdg_dst_names[(uintptr_t)dst] :
 		dst->if_name,
 	(dst <= BDG_FORWARD) ? 0 : dst->if_unit));
 
