@@ -2,7 +2,7 @@
 # $FreeBSD$
 
 PROG=	find
-SRCS=	find.c function.c ls.c main.c misc.c operator.c option.c stat_flags.c
-.PATH:	${.CURDIR}/../../bin/ls
+SRCS=	find.c function.c ls.c main.c misc.c operator.c option.c
+LDADD=	-lutil
 
 .include <bsd.prog.mk>
