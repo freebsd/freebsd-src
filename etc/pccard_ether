@@ -4,7 +4,7 @@
 #
 # pccard_ether interfacename [start|stop] [ifconfig option]
 #
-# example: pccard_ether ep0 start -link0
+# example: pccard_ether fxp0 start link0
 #
 
 stop_dhcp() {
@@ -154,7 +154,7 @@ case ${startstop} in
 		stop_dhcp
 		;;
 	*)
-		# Delelte static route if specified
+		# Delete static route if specified
 		eval ifx_routes=\$static_routes_${interface}
 		if [ -n "${ifx_routes}" ]; then
 			for i in ${ifx_routes}; do
