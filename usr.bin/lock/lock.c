@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)lock.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: lock.c,v 1.2.2.1 1997/07/22 07:28:27 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -99,7 +99,7 @@ main(argc, argv)
 	mypw = NULL;
 	usemine = 0;
        no_timeout = 0;
-       while ((ch = getopt(argc, argv, "npt:")) != EOF)
+       while ((ch = getopt(argc, argv, "npt:")) !=  -1)
 		switch((char)ch) {
 		case 't':
 			if ((sectimeout = atoi(optarg)) <= 0)

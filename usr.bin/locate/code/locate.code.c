@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * 	$Id: locate.code.c,v 1.6 1996/10/13 01:44:28 wosch Exp $
+ * 	$Id: locate.code.c,v 1.7 1996/10/27 19:04:27 wosch Exp $
  */
 
 #ifndef lint
@@ -132,7 +132,7 @@ main(argc, argv)
 	FILE *fp;
 	register int i, j;
 
-	while ((ch = getopt(argc, argv, "")) != EOF)
+	while ((ch = getopt(argc, argv, "")) !=  -1)
 		switch(ch) {
 		default:
 			usage();

@@ -46,7 +46,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)join.c	8.3 (Berkeley) 4/16/94";
 #endif
 static const char rcsid[] =
-	"$Id: join.c,v 1.3.2.3 1997/08/21 02:59:40 jlemon Exp $";
+	"$Id: join.c,v 1.3.2.4 1997/08/21 15:04:29 jlemon Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -125,7 +125,7 @@ main(argc, argv)
 
 	aflag = vflag = 0;
 	obsolete(argv);
-	while ((ch = getopt(argc, argv, "\01a:e:j:1:2:o:t:v:")) != EOF) {
+	while ((ch = getopt(argc, argv, "\01a:e:j:1:2:o:t:v:")) !=  -1) {
 		switch (ch) {
 		case '\01':		/* See comment in obsolete(). */
 			aflag = 1;

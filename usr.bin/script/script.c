@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)script.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: script.c,v 1.3.2.1 1997/08/11 07:17:45 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -90,7 +90,7 @@ main(argc, argv)
 	char ibuf[BUFSIZ];
 
 	aflg = 0;
-	while ((ch = getopt(argc, argv, "a")) != EOF)
+	while ((ch = getopt(argc, argv, "a")) !=  -1)
 		switch(ch) {
 		case 'a':
 			aflg = 1;

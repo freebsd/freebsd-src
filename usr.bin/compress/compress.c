@@ -92,7 +92,7 @@ main(argc, argv)
 		errx(1, "unknown program name");
 
 	bits = cat = 0;
-	while ((ch = getopt(argc, argv, "b:cdfv")) != EOF)
+	while ((ch = getopt(argc, argv, "b:cdfv")) !=  -1)
 		switch(ch) {
 		case 'b':
 			bits = strtol(optarg, &p, 10);

@@ -65,7 +65,7 @@ main(argc, argv)
 	register size_t len;
 	int ch;
 
-	while ((ch = getopt(argc, argv, "")) != EOF)
+	while ((ch = getopt(argc, argv, "")) !=  -1)
 		switch(ch) {
 		case '?':
 		default:

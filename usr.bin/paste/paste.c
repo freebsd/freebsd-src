@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)paste.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: paste.c,v 1.1.1.1.8.1 1997/08/01 06:44:23 charnier Exp $";
+	"$Id: paste.c,v 1.1.1.1.8.2 1997/08/05 03:40:23 asami Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -73,7 +73,7 @@ main(argc, argv)
 	int ch, seq;
 
 	seq = 0;
-	while ((ch = getopt(argc, argv, "d:s")) != EOF)
+	while ((ch = getopt(argc, argv, "d:s")) !=  -1)
 		switch(ch) {
 		case 'd':
 			delimcnt = tr(delim = optarg);

@@ -68,7 +68,7 @@ main(argc, argv)
 	char *flags, *ep;
 
 	Hflag = Lflag = Pflag = Rflag = 0;
-	while ((ch = getopt(argc, argv, "HLPR")) != EOF)
+	while ((ch = getopt(argc, argv, "HLPR")) !=  -1)
 		switch (ch) {
 		case 'H':
 			Hflag = 1;

@@ -70,7 +70,7 @@ main(argc, argv)
 
 	(void) setlocale(LC_ALL, "");
 
-	while ((ch = getopt(argc, argv, "?-af:t:A:B:")) != EOF)
+	while ((ch = getopt(argc, argv, "?-af:t:A:B:")) !=  -1)
 		switch (ch) {
 		case '-':		/* backward contemptible */
 		case 'a':

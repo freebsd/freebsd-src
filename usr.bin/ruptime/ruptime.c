@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: ruptime.c,v 1.6 1995/09/08 20:33:21 jkh Exp $ */
+/* $Id: ruptime.c,v 1.7 1996/10/23 04:23:36 scrappy Exp $ */
 
 #ifndef lint
 static char copyright[] =
@@ -96,7 +96,7 @@ main(argc, argv)
 
 	aflg = 0;
 	cmp = hscmp;
-	while ((ch = getopt(argc, argv, "alrut")) != EOF)
+	while ((ch = getopt(argc, argv, "alrut")) !=  -1)
 		switch (ch) {
 		case 'a':
 			aflg = 1;

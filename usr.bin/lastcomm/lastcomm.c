@@ -42,7 +42,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)lastcomm.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: lastcomm.c,v 1.4.2.1 1997/07/22 07:16:41 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -93,7 +93,7 @@ main(argc, argv)
 	int time = 0;
 
 	acctfile = _PATH_ACCT;
-	while ((ch = getopt(argc, argv, "f:usecSE")) != EOF)
+	while ((ch = getopt(argc, argv, "f:usecSE")) !=  -1)
 		switch((char)ch) {
 		case 'f':
 			acctfile = optarg;

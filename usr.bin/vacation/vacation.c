@@ -40,7 +40,7 @@ static char copyright[] =
 #ifndef lint
 static char sccsid[] = "From: @(#)vacation.c	8.2 (Berkeley) 1/26/94";
 static char rcsid[] =
-	"$Id: vacation.c,v 1.3 1996/09/28 13:37:38 joerg Exp $";
+	"$Id: vacation.c,v 1.3.2.1 1997/08/28 04:42:57 imp Exp $";
 #endif /* not lint */
 
 /*
@@ -112,7 +112,7 @@ main(argc, argv)
 
 	opterr = iflag = lflag = 0;
 	interval = -1;
-	while ((ch = getopt(argc, argv, "a:Iilr:")) != EOF)
+	while ((ch = getopt(argc, argv, "a:Iilr:")) !=  -1)
 		switch((char)ch) {
 		case 'a':			/* alias */
 			if (!(cur = (ALIAS *)malloc((u_int)sizeof(ALIAS))))

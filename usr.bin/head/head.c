@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)head.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: head.c,v 1.3.2.1 1997/07/11 06:23:33 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -76,7 +76,7 @@ main(argc, argv)
 
 	obsolete(argv);
 	linecnt = 10;
-	while ((ch = getopt(argc, argv, "n:")) != EOF)
+	while ((ch = getopt(argc, argv, "n:")) !=  -1)
 		switch(ch) {
 		case 'n':
 			linecnt = strtol(optarg, &ep, 10);

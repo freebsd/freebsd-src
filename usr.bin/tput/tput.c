@@ -67,7 +67,7 @@ main(argc, argv)
 	char *cptr, *p, *term, buf[1024], tbuf[1024];
 
 	term = NULL;
-	while ((ch = getopt(argc, argv, "T:")) != EOF)
+	while ((ch = getopt(argc, argv, "T:")) !=  -1)
 		switch(ch) {
 		case 'T':
 			term = optarg;

@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)tr.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: tr.c,v 1.3.2.1 1997/08/20 07:16:10 charnier Exp $";
 #endif /* not lint */
 
 #include <locale.h>
@@ -106,7 +106,7 @@ main(argc, argv)
 	(void) setlocale(LC_CTYPE, "");
 
 	cflag = dflag = sflag = 0;
-	while ((ch = getopt(argc, argv, "cds")) != EOF)
+	while ((ch = getopt(argc, argv, "cds")) !=  -1)
 		switch((char)ch) {
 		case 'c':
 			cflag = 1;

@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)strip.c	8.1 (Berkeley) 6/6/93";
 #endif
 static char rcsid[] =
-	"$Id: strip.c,v 1.6 1996/03/11 03:36:10 mpp Exp $";
+	"$Id: strip.c,v 1.6.2.1 1997/08/13 06:37:16 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -83,7 +83,7 @@ main(argc, argv)
 	char *fn;
 
 	sfcn = s_sym;
-	while ((ch = getopt(argc, argv, "dx")) != EOF)
+	while ((ch = getopt(argc, argv, "dx")) !=  -1)
 		switch(ch) {
                 case 'x':
                         xflag = 1;

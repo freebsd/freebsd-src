@@ -74,7 +74,7 @@ main(argc, argv)
 	Hflag = Lflag = Pflag = aflag = sflag = dflag = 0;
 	depth = INT_MAX;
 	ftsoptions = FTS_PHYSICAL;
-	while ((ch = getopt(argc, argv, "HLPad:ksx")) != EOF)
+	while ((ch = getopt(argc, argv, "HLPad:ksx")) !=  -1)
 		switch (ch) {
 		case 'H':
 			Hflag = 1;

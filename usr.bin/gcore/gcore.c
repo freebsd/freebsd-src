@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)gcore.c	8.2 (Berkeley) 9/23/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: gcore.c,v 1.4.2.1 1997/07/10 06:37:10 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -103,7 +103,7 @@ main(argc, argv)
 
 	sflag = 0;
 	corefile = NULL;
-        while ((ch = getopt(argc, argv, "c:s")) != EOF) {
+        while ((ch = getopt(argc, argv, "c:s")) !=  -1) {
                 switch (ch) {
                 case 'c':
 			corefile = optarg;

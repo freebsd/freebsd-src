@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)uudecode.c	8.2 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: uudecode.c,v 1.4.2.1 1997/08/25 06:27:29 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -75,7 +75,7 @@ main(argc, argv)
 {
 	int rval, ch;
 
-	while ((ch = getopt(argc, argv, "cp")) != EOF) {
+	while ((ch = getopt(argc, argv, "cp")) !=  -1) {
 		switch(ch) {
 		case 'c':
 			cflag = 1; /* multiple uudecode'd files */

@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)nm.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: nm.c,v 1.9.2.1 1997/08/01 06:33:52 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -100,7 +100,7 @@ main(argc, argv)
 	extern int optind;
 	int ch, errors;
 
-	while ((ch = getopt(argc, argv, "agnoprtuwW")) != EOF) {
+	while ((ch = getopt(argc, argv, "agnoprtuwW")) !=  -1) {
 		switch (ch) {
 		case 'a':
 			print_all_symbols = 1;

@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)whois.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: whois.c,v 1.2.2.1 1997/08/27 06:20:34 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -77,7 +77,7 @@ main(argc, argv)
 #endif
 
 	host = NICHOST;
-	while ((ch = getopt(argc, argv, "h:")) != EOF)
+	while ((ch = getopt(argc, argv, "h:")) !=  -1)
 		switch((char)ch) {
 		case 'h':
 			host = optarg;

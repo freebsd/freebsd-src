@@ -55,7 +55,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)finger.c	8.2 (Berkeley) 9/30/93";
 #else
 static const char rcsid[] =
-	"$Id$";
+	"$Id: finger.c,v 1.9.2.1 1997/07/03 07:12:38 charnier Exp $";
 #endif
 #endif /* not lint */
 
@@ -105,7 +105,7 @@ option(argc, argv)
 
 	optind = 1;		/* reset getopt */
 
-	while ((ch = getopt(argc, argv, "lmpshoT")) != EOF)
+	while ((ch = getopt(argc, argv, "lmpshoT")) !=  -1)
 		switch(ch) {
 		case 'l':
 			lflag = 1;		/* long format */

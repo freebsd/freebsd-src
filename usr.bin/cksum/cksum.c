@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: cksum.c,v 1.1.1.1.8.1 1997/06/26 11:19:02 charnier Exp $
  */
 
 #ifndef lint
@@ -73,7 +73,7 @@ main(argc, argv)
 
 	cfncn = crc;
 	pfncn = pcrc;
-	while ((ch = getopt(argc, argv, "o:")) != EOF)
+	while ((ch = getopt(argc, argv, "o:")) !=  -1)
 		switch(ch) {
 		case 'o':
 			if (*optarg == '1') {

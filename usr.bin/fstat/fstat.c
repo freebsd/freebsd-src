@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)fstat.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: fstat.c,v 1.7.2.1 1997/07/10 06:35:39 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -173,7 +173,7 @@ main(argc, argv)
 	arg = 0;
 	what = KERN_PROC_ALL;
 	nlistf = memf = NULL;
-	while ((ch = getopt(argc, argv, "fnp:u:vNM")) != EOF)
+	while ((ch = getopt(argc, argv, "fnp:u:vNM")) !=  -1)
 		switch((char)ch) {
 		case 'f':
 			fsflg = 1;

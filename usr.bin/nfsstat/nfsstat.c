@@ -43,7 +43,7 @@ static char copyright[] =
 #ifndef lint
 /*static char sccsid[] = "From: @(#)nfsstat.c	8.1 (Berkeley) 6/6/93";*/
 static const char rcsid[] =
-	"$Id: nfsstat.c,v 1.5 1995/10/30 15:44:44 phk Exp $";
+	"$Id: nfsstat.c,v 1.6 1996/03/11 03:03:12 hsu Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -93,7 +93,7 @@ main(argc, argv)
 
 	interval = 0;
 	memf = nlistf = NULL;
-	while ((ch = getopt(argc, argv, "M:N:w:")) != EOF)
+	while ((ch = getopt(argc, argv, "M:N:w:")) !=  -1)
 		switch(ch) {
 		case 'M':
 			memf = optarg;

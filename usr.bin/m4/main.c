@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: main.c,v 1.3.6.1 1997/07/24 06:53:37 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -161,7 +161,7 @@ main(argc,argv)
 
 	initkwds();
 
-	while ((c = getopt(argc, argv, "tD:U:o:")) != EOF)
+	while ((c = getopt(argc, argv, "tD:U:o:")) !=  -1)
 		switch(c) {
 
 		case 'D':               /* define something..*/

@@ -13,7 +13,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: kzip.c,v 1.5.2.1 1997/07/21 11:56:35 charnier Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -55,7 +55,7 @@ main(int argc, char **argv)
 	char out[BUFSIZ];
 	char base[32];
 	
-	while ((c = getopt(argc, argv, "l:v")) != EOF) {
+	while ((c = getopt(argc, argv, "l:v")) !=  -1) {
 		switch (c) {
 		case 'l':
 			forceaddr = strtoul(optarg, NULL, 0);

@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)hexsyntax.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: hexsyntax.c,v 1.4.2.1 1997/07/11 06:25:55 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -68,7 +68,7 @@ newsyntax(argc, argvp)
 		add("\"%08.8_ax  \" 8/1 \"%02x \" \"  \" 8/1 \"%02x \" ");
 		add("\"  |\" 16/1 \"%_p\" \"|\\n\"");
 	}
-	while ((ch = getopt(argc, argv, "bcCde:f:n:os:vx")) != EOF)
+	while ((ch = getopt(argc, argv, "bcCde:f:n:os:vx")) !=  -1)
 		switch (ch) {
 		case 'b':
 			add("\"%07.7_Ax\n\"");

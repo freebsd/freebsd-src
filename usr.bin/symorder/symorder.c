@@ -42,7 +42,7 @@ char const copyright[] =
 static char sccsid[] = "@(#)symorder.c	5.8 (Berkeley) 4/1/91";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: symorder.c,v 1.12.2.1 1997/08/13 06:39:58 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -96,7 +96,7 @@ main(argc, argv)
 	int ch, n, o;
 
 	xfilename = NULL;
-	while ((ch = getopt(argc, argv, "cmtx:")) != EOF)
+	while ((ch = getopt(argc, argv, "cmtx:")) !=  -1)
 		switch(ch) {
 		case 'c':
 			clean = 1;

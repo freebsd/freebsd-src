@@ -1030,7 +1030,7 @@ main(argc, argv)
 {
 	int ch;
 
-	while ((ch = getopt(argc, argv, "w:td")) != EOF)
+	while ((ch = getopt(argc, argv, "w:td")) !=  -1)
 		switch(ch) {
 		case 'w':
 			width = atoi(optarg);

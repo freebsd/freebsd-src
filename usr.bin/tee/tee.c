@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)tee.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: tee.c,v 1.1.1.1.8.1 1997/08/18 07:05:41 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -78,7 +78,7 @@ main(argc, argv)
 #define	BSIZE (8 * 1024)
 
 	append = 0;
-	while ((ch = getopt(argc, argv, "ai")) != EOF)
+	while ((ch = getopt(argc, argv, "ai")) !=  -1)
 		switch((char)ch) {
 		case 'a':
 			append = 1;
