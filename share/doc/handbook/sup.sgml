@@ -1,15 +1,15 @@
-<!-- $Id: sup.sgml,v 1.27 1997/03/11 06:42:03 jkh Exp $ -->
+<!-- $Id: sup.sgml,v 1.28 1997/04/27 00:32:37 asami Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 
-<sect><heading>SUP<label id="sup"></heading>
+<sect1><heading>SUP<label id="sup"></heading>
 
 <p><em>Contributed by &a.jkh; and &a.gclarkii;.</em> 
 
 SUP is a network based software update tool developed at CMU.  The
 purpose of this document is get the beginner up and running with sup.
 
-<sect1><heading>Configuration<label id="sup:setup"></heading>
+<sect2><heading>Configuration<label id="sup:setup"></heading>
 
 <p>SUP gets the information it needs to run from a configuration file 
 called a supfile.  There are different example supfiles provided
@@ -69,7 +69,7 @@ a -current user.    If you are using the stable-supfile, please
 join the &a.stable and read
 <ref id="stable" name="Staying stable with FreeBSD">.
 
-<sect1><heading>Distributions<label id="sup:dists">
+<sect2><heading>Distributions<label id="sup:dists">
 </heading>
 
 <p>For the main FreeBSD distribution using the standard-supfile:
