@@ -21,7 +21,7 @@
  */
 
 /*
- * $Id: if_fe.c,v 1.37 1998/01/08 23:40:53 eivind Exp $
+ * $Id: if_fe.c,v 1.38 1998/02/27 05:38:31 msmith Exp $
  *
  * Device driver for Fujitsu MB86960A/MB86965A based Ethernet cards.
  * To be used with FreeBSD 2.x
@@ -326,9 +326,9 @@ outblk ( struct fe_softc * sc, int offs, u_char const * mem, int len )
 /*
  *      PC-Card (PCMCIA) specific code.
  */
-static int feinit(struct pccard_devinfo *);		/* init device */
-static void feunload(struct pccard_devinfo *);		/* Disable driver */
-static int fe_card_intr(struct pccard_devinfo *);	/* Interrupt handler */
+static int feinit	(struct pccard_devinfo *);
+static void feunload	(struct pccard_devinfo *);
+static int fe_card_intr	(struct pccard_devinfo *);
 
 static struct pccard_device fe_info = {
 	"fe",
