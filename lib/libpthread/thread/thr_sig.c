@@ -54,7 +54,7 @@ static void	thread_sigframe_save(struct pthread *thread,
 static void	thread_sig_invoke_handler(int sig, siginfo_t *info,
 		    ucontext_t *ucp);
 
-/* #define DEBUG_SIGNAL */
+/*#define DEBUG_SIGNAL*/
 #ifdef DEBUG_SIGNAL
 #define DBG_MSG		stdout_debug
 #else
@@ -375,7 +375,8 @@ thread_sig_find(int sig)
 				return (NULL);
 			}
 			else if ((handler_installed != 0) &&
-			    !sigismember(&pthread->sigmask, sig)) {
+			    !sigismember(&pthread->sigmask, sig) &&
+			    ((pthread->flags & PTHREAD_FLAGS_SUSPENDED) == 0)) {
 				if (pthread->state == PS_SIGSUSPEND) {
 					if (suspended_thread == NULL)
 						suspended_thread = pthread;
@@ -791,10 +792,17 @@ thread_sig_add(struct pthread *pthread, int sig, int has_args)
 		/*
 		 * The thread should be removed from all scheduling
 		 * queues at this point.  Raise the priority and place
-		 * the thread in the run queue.
+		 * the thread in the run queue.  It is also possible
+		 * for a signal to be sent to a suspended thread,
+		 * mostly via pthread_kill().  If a thread is suspended,
+		 * don't insert it into the priority queue; just set
+		 * its state to suspended and it will run the signal
+		 * handler when it is resumed.
 		 */
 		pthread->active_priority |= PTHREAD_SIGNAL_PRIORITY;
-		if (thread_is_active == 0)
+		if ((pthread->flags & PTHREAD_FLAGS_SUSPENDED) != 0)
+			PTHREAD_SET_STATE(pthread, PS_SUSPENDED);
+		else if (thread_is_active == 0)
 			PTHREAD_PRIOQ_INSERT_TAIL(pthread);
 	}
 }
