@@ -313,6 +313,10 @@ the economy power profile.
 Delay in milliseconds to wait for the EC to respond.  Try increasing this
 number if you get the error 
 .Er AE_NO_HARDWARE_RESPONSE .
+.It Va hw.acpi.os_name
+Some systems' ASL may have problems because they look for names 
+of Microsoft operating systems.  This tunable overrides the
+default value of "FreeBSD".
 .It Va hw.acpi.pci.link.%d.%d.%d.irq
 Override the interrupt to use.
 .It Va hw.acpi.verbose
@@ -343,10 +347,11 @@ Intel Architecture Labs.
 The following people made notable contributions to the ACPI subsystem
 in
 .Fx :
-.An Michael Smith Aq msmith@FreeBSD.org ,
+.An Michael Smith ,
 .An Takanori Watanabe Aq takawata@jp.FreeBSD.org ,
 .An Mitsuru IWASAKI Aq iwasaki@jp.FreeBSD.org ,
 .An Munehiro Matsuda ,
+.An Nate Lawson ,
 the ACPI-jp mailing list at
 .Aq acpi-jp@jp.FreeBSD.org ,
 and many other contributors.
