@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_command.c,v 1.29 1999/01/14 06:22:01 jdp Exp $
+ *	$Id: db_command.c,v 1.30 1999/05/07 23:08:23 mckusick Exp $
  */
 
 /*
@@ -38,6 +38,8 @@
 #include <sys/linker_set.h>
 #include <sys/reboot.h>
 #include <sys/systm.h>
+
+#include <machine/cons.h>
 
 #include <ddb/ddb.h>
 #include <ddb/db_command.h>
@@ -535,7 +537,9 @@ db_fncall(dummy1, dummy2, dummy3, dummy4)
 
 /* Enter GDB remote protocol debugger on the next trap. */
 
-dev_t gdbdev;
+dev_t	   gdbdev = NODEV;
+cn_getc_t *gdb_getc;
+cn_putc_t *gdb_putc;
 
 static void
 db_gdb (dummy1, dummy2, dummy3, dummy4)
@@ -545,7 +549,7 @@ db_gdb (dummy1, dummy2, dummy3, dummy4)
 	char *		dummy4;
 {
 
-	if (gdbdev == -1) {
+	if (gdbdev == NODEV) {
 		db_printf("No gdb port enabled. Set flag 0x80 on desired port\n");
 		db_printf("in your configuration file (currently sio only).\n");
 		return;
