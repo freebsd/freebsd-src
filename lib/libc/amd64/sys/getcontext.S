@@ -43,7 +43,7 @@ ENTRY(__sys_getcontext)
 	mov	$SYS_getcontext,%rax
 	KERNCALL
 	jb	1f
-	addl	$8,%rsp		/* remove stale (setcontext) return address */
+	addq	$8,%rsp		/* remove stale (setcontext) return address */
 	jmp	*%rsi		/* restore return address */
 1:
 #ifdef PIC
