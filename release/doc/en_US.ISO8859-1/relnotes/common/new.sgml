@@ -226,6 +226,9 @@
       <para arch="i386">The &man.sbsh.4; driver for the Granch SBNI16
         SHDSL modem has been added.</para>
 
+      <para>&man.sk.4; now supports SK-9521 V2.0 and 3COM 3C940 based Gigabit
+        Ethernet NICs.</para>
+
       <para>The suspend/resume support for the &man.wi.4; driver
         now works correctly when the device is configured down.</para>
 
