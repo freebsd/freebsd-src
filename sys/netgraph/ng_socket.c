@@ -1,4 +1,3 @@
-
 /*
  * ng_socket.c
  *
@@ -51,6 +50,7 @@
 #include <sys/param.h>
 #include <sys/domain.h>
 #include <sys/errno.h>
+#include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -156,7 +156,7 @@ static LIST_HEAD(, ngpcb) ngsocklist;
 
 #define sotongpcb(so) ((struct ngpcb *)(so)->so_pcb)
 
-/* If getting unexplained errors returned, set this to "Debugger("X"); */
+/* If getting unexplained errors returned, set this to "kdb_enter("X"); */
 #ifndef TRAP_ERROR
 #define TRAP_ERROR
 #endif
