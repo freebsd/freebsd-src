@@ -6,7 +6,7 @@
  * forth in the LICENSE file which can be found at the top level of
  * the sendmail distribution.
  *
- *	$Id: cdefs.h,v 1.15 2002/01/16 18:30:11 ca Exp $
+ *	$Id: cdefs.h,v 1.1.1.2 2002/04/10 03:04:54 gshapiro Exp $
  */
 
 /*

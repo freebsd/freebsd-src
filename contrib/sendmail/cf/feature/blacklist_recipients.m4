@@ -10,7 +10,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`$Id: blacklist_recipients.m4,v 8.13 1999/04/02 02:25:13 gshapiro Exp $')
+VERSIONID(`$Id: blacklist_recipients.m4,v 1.1.1.3 2000/08/12 21:55:37 gshapiro Exp $')
 divert(-1)
 
 ifdef(`_ACCESS_TABLE_',

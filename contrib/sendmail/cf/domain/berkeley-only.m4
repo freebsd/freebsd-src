@@ -12,7 +12,7 @@ divert(-1)
 #
 #
 divert(0)
-VERSIONID(`$Id: unspecified-domain.m4,v 8.10 1999/02/07 07:26:07 gshapiro Exp $')
+VERSIONID(`$Id: berkeley-only.m4,v 1.1.1.3 2000/08/12 21:55:36 gshapiro Exp $')
 errprint(`*** ERROR: You are trying to use the Berkeley sample configuration')
 errprint(`	files outside of the Computer Science Division at Berkeley.')
 errprint(`	The configuration (.mc) files must be customized to reference')

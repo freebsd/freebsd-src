@@ -14,9 +14,9 @@
 #include <sendmail.h>
 
 #if USERDB
-SM_RCSID("@(#)$Id: udb.c,v 8.153 2001/09/11 04:05:17 gshapiro Exp $ (with USERDB)")
+SM_RCSID("@(#)$Id: udb.c,v 1.1.1.7 2002/02/17 21:56:42 gshapiro Exp $ (with USERDB)")
 #else /* USERDB */
-SM_RCSID("@(#)$Id: udb.c,v 8.153 2001/09/11 04:05:17 gshapiro Exp $ (without USERDB)")
+SM_RCSID("@(#)$Id: udb.c,v 1.1.1.7 2002/02/17 21:56:42 gshapiro Exp $ (without USERDB)")
 #endif /* USERDB */
 
 #if USERDB

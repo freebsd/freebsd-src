@@ -6,7 +6,7 @@
  * forth in the LICENSE file which can be found at the top level of
  * the sendmail distribution.
  *
- *	$Id: bf.h,v 8.15 2001/05/31 21:02:53 ca Exp $
+ *	$Id: bf.h,v 1.1.1.3 2002/02/17 21:56:38 gshapiro Exp $
  *
  * Contributed by Exactis.com, Inc.
  *

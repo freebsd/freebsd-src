@@ -10,7 +10,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`$Id: openbsd.m4,v 8.3 1999/04/24 05:37:42 gshapiro Exp $')
+VERSIONID(`$Id: openbsd.m4,v 1.1.1.1 2000/08/12 21:55:39 gshapiro Exp $')
 ifdef(`STATUS_FILE',, `define(`STATUS_FILE', `/var/log/sendmail.st')')dnl
 ifdef(`LOCAL_MAILER_PATH',, `define(`LOCAL_MAILER_PATH', /usr/libexec/mail.local)')dnl
 _DEFIFNOT(`LOCAL_MAILER_FLAGS', `rmn9S')dnl

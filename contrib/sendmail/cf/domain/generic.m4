@@ -20,7 +20,7 @@ divert(-1)
 #  files.
 #
 divert(0)
-VERSIONID(`$Id: generic.m4,v 8.15 1999/04/04 00:51:09 ca Exp $')
+VERSIONID(`$Id: generic.m4,v 1.1.1.3 2000/08/12 21:55:36 gshapiro Exp $')
 define(`confFORWARD_PATH', `$z/.forward.$w+$h:$z/.forward+$h:$z/.forward.$w:$z/.forward')dnl
 define(`confMAX_HEADERS_LENGTH', `32768')dnl
 FEATURE(`redirect')dnl

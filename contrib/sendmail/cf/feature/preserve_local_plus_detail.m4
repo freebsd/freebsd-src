@@ -10,7 +10,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`$Id: preserve_local_plus_detail.m4,v 8.1 2000/04/10 05:48:05 gshapiro Exp $')
+VERSIONID(`$Id: preserve_local_plus_detail.m4,v 1.1.1.1 2002/02/17 21:56:44 gshapiro Exp $')
 divert(-1)
 
 define(`_PRESERVE_LOCAL_PLUS_DETAIL_', `1')

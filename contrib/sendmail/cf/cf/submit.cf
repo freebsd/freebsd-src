@@ -24,15 +24,15 @@
 ######################################################################
 ######################################################################
 
-#####  $Id: cfhead.m4,v 8.107 2001/07/22 03:25:37 ca Exp $  #####
-#####  $Id: cf.m4,v 8.32 1999/02/07 07:26:14 gshapiro Exp $  #####
-#####  $Id: submit.mc,v 8.6 2002/03/26 03:30:58 ca Exp $  #####
-#####  $Id: msp.m4,v 1.32 2002/03/26 22:02:03 ca Exp $  #####
+#####  $Id: submit.cf,v 1.1.1.2 2002/04/10 03:04:57 gshapiro Exp $  #####
+#####  $Id: submit.cf,v 1.1.1.2 2002/04/10 03:04:57 gshapiro Exp $  #####
+#####  $Id: submit.cf,v 1.1.1.2 2002/04/10 03:04:57 gshapiro Exp $  #####
+#####  $Id: submit.cf,v 1.1.1.2 2002/04/10 03:04:57 gshapiro Exp $  #####
 
-#####  $Id: no_default_msa.m4,v 8.2 2001/02/14 05:03:22 gshapiro Exp $  #####
+#####  $Id: submit.cf,v 1.1.1.2 2002/04/10 03:04:57 gshapiro Exp $  #####
 
 
-#####  $Id: proto.m4,v 8.639 2002/04/02 23:42:42 gshapiro Exp $  #####
+#####  $Id: submit.cf,v 1.1.1.2 2002/04/10 03:04:57 gshapiro Exp $  #####
 
 # level 10 config file format
 V10/Berkeley
@@ -1229,7 +1229,7 @@ R$*			$#relay $@ ${MTAHost} $: $1 < @ $j >
 ###   Local and Program Mailer specification   ###
 ##################################################
 
-#####  $Id: local.m4,v 8.58 2000/10/26 01:58:29 ca Exp $  #####
+#####  $Id: submit.cf,v 1.1.1.2 2002/04/10 03:04:57 gshapiro Exp $  #####
 
 #
 #  Envelope sender rewriting
@@ -1281,7 +1281,7 @@ Mprog,		P=[IPC], F=lmDFMuXk5, S=EnvFromL/HdrFromL, R=EnvToL/HdrToL, D=$z:/,
 ###   SMTP Mailer specification   ###
 #####################################
 
-#####  $Id: smtp.m4,v 8.64 2001/04/03 01:52:54 gshapiro Exp $  #####
+#####  $Id: submit.cf,v 1.1.1.2 2002/04/10 03:04:57 gshapiro Exp $  #####
 
 #
 #  common sender and masquerading recipient rewriting

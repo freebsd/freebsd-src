@@ -9,7 +9,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: mpeix.c,v 1.4 2001/12/14 23:54:18 gshapiro Exp $")
+SM_RCSID("@(#)$Id: mpeix.c,v 1.1.1.1 2002/02/17 21:56:43 gshapiro Exp $")
 
 #ifdef MPE
 /*
