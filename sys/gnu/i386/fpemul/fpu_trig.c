@@ -103,7 +103,7 @@ trig_arg(FPU_REG * X)
 	rv = q & 7;
 
 	control_word = old_cw;
-	return rv;;
+	return rv;
 }
 
 
