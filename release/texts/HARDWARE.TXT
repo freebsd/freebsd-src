@@ -370,7 +370,8 @@ Adaptec 152x series ISA SCSI controllers
 Adaptec AIC-6260 and AIC-6360 based boards, which includes the AHA-152x
 and SoundBlaster SCSI cards.
 
-Adaptec 2100S, 2400A, 3200S, and 3400S SCSI RAID controllers.
+Adaptec 2100S, 3200S, and 3400S SCSI RAID controllers.
+Adaptec 2400A ATA-100 RAID controller.
 
 Adaptec FSA family RAID controllers:
     Adaptec AAC-2622
