@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.35 1998/09/17 00:45:25 brian Exp $
+ *	$Id: bundle.c,v 1.36 1998/10/22 02:32:48 brian Exp $
  */
 
 #include <sys/param.h>
@@ -1694,4 +1694,17 @@ bundle_setsid(struct bundle *bundle, int holdsession)
       exit(0);
       break;
   }
+}
+
+int
+bundle_HighestState(struct bundle *bundle)
+{
+  struct datalink *dl;
+  int result = DATALINK_CLOSED;
+
+  for (dl = bundle->links; dl; dl = dl->next)
+    if (result < dl->state)
+      result = dl->state;
+
+  return result;
 }
