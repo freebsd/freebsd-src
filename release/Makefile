@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.253 1996/11/12 15:40:52 phk Exp $
+#	$Id: Makefile,v 1.254 1996/11/12 19:18:05 jkh Exp $
 #
 # How to roll a release:
 #
@@ -429,6 +429,17 @@ release.9:
 	touch release.9
 
 #
+# --==## Create the compat distributions ##==--
+#
+release.10:
+	@for i in compat1x compat20 compat21; do \
+		mkdir ${RD}/dists/$i && ( cd ${RD}/dists/$i && \
+		uudecode ${.CURDIR}/compat/$i.tgz.uu && \
+		cp ${.CURDIR}/scripts/${i}-install.sh install.sh && \
+		md5 * > CHECKSUM.MD5 ); \
+	done
+
+#
 # --==## Setup a suitable ftp-area ##==--
 #
 ftp.1:
@@ -492,7 +503,7 @@ doTARBALL:
 			  > ${RD}/dists/${TD}/$$tn.mtree ; else true; fi )
 
 doRELEASE:  release.1 release.2 release.3 release.4 release.5 release.6 \
-		release.7 release.8 release.9
+		release.7 release.8 release.9 release.10
 	cd ${.CURDIR} && ${MAKE} cdrom.1 ftp.1
 	@echo "Release done"
 
