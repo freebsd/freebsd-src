@@ -451,7 +451,8 @@ critical_exit(void)
 	    ("critical_exit: td_critnest == 0"));
 	if (td->td_critnest == 1) {
 #ifdef PREEMPTION
-		if (td->td_flags & TDF_OWEPREEMPT) {
+		mtx_assert(&sched_lock, MA_NOTOWNED);
+		if (td->td_pflags & TDP_OWEPREEMPT) {
 			mtx_lock_spin(&sched_lock);
 			mi_switch(SW_INVOL, NULL);
 			mtx_unlock_spin(&sched_lock);
@@ -485,7 +486,9 @@ maybe_preempt(struct thread *td)
 	 * The new thread should not preempt the current thread if any of the
 	 * following conditions are true:
 	 *
-	 *  - The current thread has a higher (numerically lower) priority.
+	 *  - The current thread has a higher (numerically lower) or
+	 *    equivalent priority.  Note that this prevents curthread from
+	 *    trying to preempt to itself.
 	 *  - It is too early in the boot for context switches (cold is set).
 	 *  - The current thread has an inhibitor set or is in the process of
 	 *    exiting.  In this case, the current thread is about to switch
@@ -515,7 +518,7 @@ maybe_preempt(struct thread *td)
 	if (ctd->td_critnest > 1) {
 		CTR1(KTR_PROC, "maybe_preempt: in critical section %d",
 		    ctd->td_critnest);
-		ctd->td_flags |= TDF_OWEPREEMPT;
+		ctd->td_pflags |= TDP_OWEPREEMPT;
 		return (0);
 	}
 

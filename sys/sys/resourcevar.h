@@ -63,8 +63,6 @@ struct pstats {
 		u_long	pr_size;	/* (c + j) Buffer size. */
 		u_long	pr_off;		/* (c + j) PC offset. */
 		u_long	pr_scale;	/* (c + j) PC scaling. */
-		u_long	pr_addr;	/* (k) Temporary addr until AST. */
-		u_int	pr_ticks;	/* (k) Temporary ticks until AST. */
 	} p_prof;
 #define	pstat_endcopy	p_start
 	struct	timeval p_start;	/* (b) Starting time. */

@@ -304,6 +304,9 @@ struct thread {
 	stack_t		td_sigstk;	/* (k) Stack ptr and on-stack flag. */
 	int		td_kflags;	/* (c) Flags for KSE threading. */
 	int		td_xsig;	/* (c) Signal for ptrace */
+	u_long		td_profil_addr;	/* (k) Temporary addr until AST. */
+	u_int		td_profil_ticks; /* (k) Temporary ticks until AST. */
+
 #define	td_endzero td_base_pri
 
 /* Copied during fork1() or thread_sched_upcall(). */
@@ -346,12 +349,9 @@ struct thread {
 #define	TDF_IDLETD	0x000020 /* This is one of the per-CPU idle threads. */
 #define	TDF_SELECT	0x000040 /* Selecting; wakeup/waiting danger. */
 #define	TDF_TSNOBLOCK	0x000100 /* Don't block on a turnstile due to race. */
-#define	TDF_OWEPREEMPT	0x000200 /* Thread has a pending preemption. */
 #define	TDF_ASTPENDING	0x000800 /* Thread has some asynchronous events. */
 #define	TDF_TIMOFAIL	0x001000 /* Timeout from sleep after we were awake. */
 #define	TDF_INTERRUPT	0x002000 /* Thread is marked as interrupted. */
-#define	TDF_USTATCLOCK	0x004000 /* Finish user statclock hit at next AST. */
-#define	TDF_OWEUPC	0x008000 /* Owe thread an addupc() call at next AST. */
 #define	TDF_NEEDRESCHED	0x010000 /* Thread needs to yield. */
 #define	TDF_NEEDSIGCHK	0x020000 /* Thread may need signal delivery. */
 #define	TDF_XSIG	0x040000 /* Thread is exchanging signal under traced */ 
@@ -368,6 +368,9 @@ struct thread {
 #define	TDP_ALTSTACK	0x0020 /* Have alternate signal stack. */
 #define	TDP_DEADLKTREAT	0x0040 /* Lock aquisition - deadlock treatment. */
 #define	TDP_SA		0x0080 /* A scheduler activation based thread. */
+#define	TDP_OWEPREEMPT	0x0100 /* Thread has a pending preemption. */
+#define	TDP_OWEUPC	0x0200 /* Owe thread an addupc() call at next AST. */
+#define	TDP_USTATCLOCK	0x0400 /* Finish user statclock hit at next AST. */
 
 #define	TDI_SUSPENDED	0x0001	/* On suspension queue. */
 #define	TDI_SLEEPING	0x0002	/* Actually asleep! (tricky). */

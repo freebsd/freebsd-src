@@ -178,7 +178,7 @@ ast(struct trapframe *framep)
 	p->p_sflag &= ~PS_MACPEND;
 #endif
 	td->td_flags &= ~(TDF_ASTPENDING | TDF_NEEDSIGCHK |
-	    TDF_NEEDRESCHED | TDF_OWEUPC | TDF_INTERRUPT);
+	    TDF_NEEDRESCHED | TDF_INTERRUPT);
 	cnt.v_soft++;
 	mtx_unlock_spin(&sched_lock);
 	/*
@@ -191,10 +191,10 @@ ast(struct trapframe *framep)
 
 	if (td->td_ucred != p->p_ucred) 
 		cred_update_thread(td);
-	if (flags & TDF_OWEUPC && p->p_flag & P_PROFIL) {
-		addupc_task(td, p->p_stats->p_prof.pr_addr,
-		    p->p_stats->p_prof.pr_ticks);
-		p->p_stats->p_prof.pr_ticks = 0;
+	if (td->td_pflags & TDP_OWEUPC && p->p_flag & P_PROFIL) {
+		addupc_task(td, td->td_profil_addr, td->td_profil_ticks);
+		td->td_profil_ticks = 0;
+		td->td_pflags &= ~TDP_OWEUPC;
 	}
 	if (sflag & PS_ALRMPEND) {
 		PROC_LOCK(p);

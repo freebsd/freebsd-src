@@ -297,11 +297,12 @@ mi_switch(int flags, struct thread *newtd)
 		mtx_assert(&Giant, MA_NOTOWNED);
 #endif
 	KASSERT(td->td_critnest == 1 || (td->td_critnest == 2 &&
-	    (td->td_flags & TDF_OWEPREEMPT) != 0 && (flags & SW_INVOL) != 0 &&
+	    (td->td_pflags & TDP_OWEPREEMPT) != 0 && (flags & SW_INVOL) != 0 &&
 	    newtd == NULL),
 	    ("mi_switch: switch in a critical section"));
 	KASSERT((flags & (SW_INVOL | SW_VOL)) != 0,
 	    ("mi_switch: switch must be voluntary or involuntary"));
+	KASSERT(newtd != curthread, ("mi_switch: preempting back to ourself"));
 
 	if (flags & SW_VOL)
 		p->p_stats->p_ru.ru_nvcsw++;

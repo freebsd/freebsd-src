@@ -481,10 +481,11 @@ addupc_intr(struct thread *td, uintptr_t pc, u_int ticks)
 	addr = prof->pr_base + i;
 	mtx_unlock_spin(&sched_lock);
 	if ((v = fuswintr(addr)) == -1 || suswintr(addr, v + ticks) == -1) {
-		prof->pr_addr = pc;
-		prof->pr_ticks = ticks;
+		td->td_profil_addr = pc;
+		td->td_profil_ticks = ticks;
+		td->td_pflags |= TDP_OWEUPC;
 		mtx_lock_spin(&sched_lock);
-		td->td_flags |= TDF_OWEUPC | TDF_ASTPENDING;
+		td->td_flags |= TDF_ASTPENDING;
 		mtx_unlock_spin(&sched_lock);
 	}
 }
