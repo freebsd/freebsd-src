@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: file.c,v 1.15 1998/04/25 17:52:15 hosokawa Exp $";
+	"$Id: file.c,v 1.16 1998/04/25 18:10:10 hosokawa Exp $";
 #endif /* not lint */
 
 #include <stdio.h>
@@ -112,10 +112,16 @@ static void
 parsefile(void)
 {
 	int     i;
+	int     irq_init = 0;
 	struct allocblk *bp;
 
 	pushc = 0;
 	lineno = 1;
+	for (i = 0; i < 16 ; i++) 
+		if (pool_irq[i]) {
+			irq_init = 1;
+			break;
+		}
 	for (;;)
 		switch (keyword(next_tok())) {
 		case KWD_EOF:
@@ -138,7 +144,8 @@ parsefile(void)
 		case KWD_IRQ:
 			/* reserved irqs */
 			while ((i = irq_tok(0)) > 0)
-				pool_irq[i] = 1;
+				if (!irq_init)
+					pool_irq[i] = 1;
 			pusht = 1;
 			break;
 		case KWD_MEMORY:
