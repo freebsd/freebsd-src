@@ -30,9 +30,9 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     from: @(#)inetd.8	8.3 (Berkeley) 4/13/94
-.\"	$Id: inetd.8,v 1.6 1995/10/12 16:43:25 wollman Exp $
+.\"	$Id: inetd.8,v 1.7 1996/01/30 13:49:13 mpp Exp $
 .\"
-.Dd April 13, 1994
+.Dd February 7, 1996
 .Dt INETD 8
 .Os BSD 4.4
 .Sh NAME
@@ -70,7 +70,7 @@ reducing load on the system.
 .Pp
 The options available for
 .Nm inetd:
-.Bl -tag -width Ds
+.Bl -tag -compact -width Rratexxx
 .It Fl d
 Turns on debugging.
 .It Fl l
@@ -101,9 +101,9 @@ server program
 server program arguments
 .Ed
 .Pp
-To specify a
-.Em Sun-RPC
-based service, the entry would contain these fields:
+To specify an
+.No Tn "ONC RPC" Ns -based
+service, the entry would contain these fields:
 .Pp
 .Bd -unfilled -offset indent -compact
 service name/version
@@ -144,9 +144,9 @@ name
 .Em must
 be the official name of the service (that is, the first entry in
 .Pa /etc/services ) .
-When used to specify a
-.Em Sun-RPC
-based service, this field is a valid RPC service name in
+When used to specify an
+.No Tn "ONC RPC" Ns -based
+service, this field is a valid RPC service name in
 the file
 .Pa /etc/rpc . 
 The part on the right of the 
@@ -381,48 +381,80 @@ server
 logs error messages using
 .Xr syslog 3 .
 Important error messages and their explanations are:
-.Bd -literal
-\fIservice\fP/\fIprotocol\fP server failing (looping), service terminated.
-.Ed
+.Pp
+.Bl -ohang -compact
+.It Xo
+.Ar service Ns / Ns Ar protocol
+.No " server failing (looping), service terminated."
+.Xc
 The number of requests for the specified service in the past minute
 exceeded the limit. The limit exists to prevent a broken program
 or a malicious user from swamping the system.
 This message may occur for several reasons:
-1) there are lots of hosts requesting the service within a short time period,
-2) a 'broken' client program is requesting the service too frequently,
-3) a malicious user is running a program to invoke the service in
-a 'denial of service' attack, or
-4) the invoked service program has an error that causes clients
+.Bl -enum -offset indent
+.It
+There are many hosts requesting the service within a short time period.
+.It
+A broken client program is requesting the service too frequently.
+.It
+A malicious user is running a program to invoke the service in
+a denial-of-service attack.
+.It
+The invoked service program has an error that causes clients
 to retry quickly.
+.El
+.Pp
 Use the
-.Op Fl R 
+.Fl R Ar rate
 option,
 as described above, to change the rate limit.
 Once the limit is reached, the service will be
 reenabled automatically in 10 minutes.
-.sp
-.Bd -literal
-\fIservice\fP/\fIprotocol\fP: No such user '\fIuser\fP', service ignored
-\fIservice\fP/\fIprotocol\fP: getpwnam: \fIuser\fP: No such user
-.Ed
+.Pp
+.It Xo
+.Ar service Ns / Ns Ar protocol :
+.No \&No such user
+.Ar user ,
+.No service ignored
+.Xc
+.It Xo
+.Ar service Ns / Ns Ar protocol :
+.No getpwnam :
+.Ar user :
+.No \&No such user
+.Xc
 No entry for 
-.Em user
+.Ar user
 exists in the 
-.Pa passwd
-file. The first message
+.Xr passwd 5
+database. The first message
 occurs when
 .Nm inetd
 (re)reads the configuration file. The second message occurs when the
 service is invoked.
-.sp
-.Bd -literal
-\fIservice\fP: can't set uid \fInumber\fP
-\fIservice\fP: can't set gid \fInumber\fP
-.Ed
+.Pp
+.It Xo
+.Ar service :
+.No can't set uid
+.Ar uid
+.Xc
+.It Xo
+.Ar service :
+.No can't set gid
+.Ar gid
+.Xc
 The user or group ID for the entry's 
-.Em user
-is invalid.
+.Ar user
+field is invalid.
+.Pp
+.It "setsockopt(SO_PRIVSTATE): Operation not supported"
+The
+.Nm
+program attempted to renounce the privileged state associated with a
+socket but was unable to.
+.El
 .Sh SEE ALSO
+.Xr passwd 5 ,
 .Xr rpc 5 ,
 .Xr services 5 ,
 .Xr comsat 8 ,
@@ -433,8 +465,7 @@ is invalid.
 .Xr rshd 8 ,
 .Xr telnetd 8 ,
 .Xr tftpd 8 ,
-.Xr portmap 8 ,
-.Xr rpc 5
+.Xr portmap 8
 .Sh HISTORY
 The
 .Nm
