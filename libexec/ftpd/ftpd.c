@@ -78,6 +78,9 @@ static const char rcsid[] =
 #include <netdb.h>
 #include <pwd.h>
 #include <grp.h>
+#ifdef USE_PAM
+#include <opie.h>	/* XXX */
+#endif
 #include <setjmp.h>
 #include <signal.h>
 #include <stdio.h>
@@ -89,10 +92,6 @@ static const char rcsid[] =
 #include <libutil.h>
 #ifdef	LOGIN_CAP
 #include <login_cap.h>
-#endif
-
-#ifdef	SKEY
-#include <skey.h>
 #endif
 
 #ifdef USE_PAM
@@ -185,6 +184,10 @@ char	*tty = ttyline;		/* for klogin */
 #ifdef USE_PAM
 static int	auth_pam __P((struct passwd**, const char*));
 pam_handle_t *pamh = NULL;
+
+/* Kluge because the conversation mechanism has not been threshed out */
+static struct opie opiedata;
+static char opieprompt[OPIE_CHALLENGE_MAX+1];
 #endif
 
 char	*pid_file = NULL;
@@ -214,10 +217,6 @@ char	*LastArgv = NULL;	/* end of argv */
 #endif /* OLD_SETPROCTITLE */
 char	proctitle[LINE_MAX];	/* initial part of title */
 #endif /* SETPROCTITLE */
-
-#ifdef SKEY
-int	pwok = 0;
-#endif
 
 #define LOGCMD(cmd, file) \
 	if (logging > 1) \
@@ -960,9 +959,10 @@ user(name)
 	}
 	if (logging)
 		strncpy(curname, name, sizeof(curname)-1);
-#ifdef SKEY
-	pwok = skeyaccess(name, NULL, remotehost, remotehost);
-	reply(331, "%s", skey_challenge(name, pw, pwok));
+#ifdef USE_PAM
+	/* XXX Kluge! The conversation mechanism needs to be fixed. */
+	opiechallenge(&opiedata, name, opieprompt);
+	reply(331, "[ %s ] Password required for %s.", opieprompt, name);
 #else
 	reply(331, "Password required for %s.", name);
 #endif
@@ -1236,16 +1236,7 @@ pass(passwd)
 		if (rval >= 0)
 			goto skip;
 #endif
-#ifdef SKEY
-		if (pwok)
-			rval = strcmp(pw->pw_passwd,
-			    crypt(passwd, pw->pw_passwd));
-		if (rval)
-			rval = strcmp(pw->pw_passwd,
-			    skey_crypt(passwd, pw->pw_passwd, pw, pwok));
-#else
 		rval = strcmp(pw->pw_passwd, crypt(passwd, pw->pw_passwd));
-#endif
 		/* The strcmp does not catch null passwords! */
 		if (*pw->pw_passwd == '\0' ||
 		    (pw->pw_expire && time(NULL) >= pw->pw_expire))
@@ -1272,9 +1263,6 @@ skip:
 			return;
 		}
 	}
-#ifdef SKEY
-	pwok = 0;
-#endif
 	login_attempts = 0;		/* this time successful */
 	if (setegid((gid_t)pw->pw_gid) < 0) {
 		reply(550, "Can't set gid.");
