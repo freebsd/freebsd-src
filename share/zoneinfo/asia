@@ -104,7 +104,7 @@ Zone	Asia/Bahrain	3:22:20 -	LMT	1920		# Al-Manamah
 			4:00	-	GST	1972 Jun
 			3:00	-	AST
 
-# ZONE-DESCR Asia Bahrain All points
+# ZONE-DESCR Asia Bahrain Bahrain All points
 
 # Bangladesh
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
