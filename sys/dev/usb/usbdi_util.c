@@ -76,7 +76,7 @@ usbd_get_desc(dev, type, index, len, desc)
 	USETW2(req.wValue, type, index);
 	USETW(req.wIndex, 0);
 	USETW(req.wLength, len);
-	return (usbd_do_request(dev, &req, desc));
+	return (usbd_do_request_flags(dev, &req, desc, USBD_SHORT_XFER_OK, NULL));
 }
 
 usbd_status
