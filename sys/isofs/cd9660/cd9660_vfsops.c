@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vfsops.c	8.18 (Berkeley) 5/22/95
- * $Id: cd9660_vfsops.c,v 1.56 1999/05/31 11:27:21 phk Exp $
+ * $Id: cd9660_vfsops.c,v 1.57 1999/08/08 18:42:45 phk Exp $
  */
 
 #include <sys/param.h>
@@ -117,7 +117,7 @@ iso_get_ssector(dev, p)
 	struct cdevsw *bd;
 	d_ioctl_t *ioctlp;
 
-	bd = bdevsw(dev);
+	bd = devsw(dev);
 	ioctlp = bd->d_ioctl;
 	if (ioctlp == NULL)
 		return 0;
@@ -188,7 +188,7 @@ cd9660_mount(mp, path, data, ndp, p)
 	struct iso_mnt *imp = 0;
 
 	if ((mp->mnt_flag & MNT_ROOTFS) != 0) {
-		if (bdevsw(rootdev)->d_flags & D_NOCLUSTERR)
+		if (devsw(rootdev)->d_flags & D_NOCLUSTERR)
 			mp->mnt_flag |= MNT_NOCLUSTERR;
 		return (iso_mountroot(mp, p));
 	}
@@ -205,7 +205,7 @@ cd9660_mount(mp, path, data, ndp, p)
 	 */
 	if (mp->mnt_flag & MNT_UPDATE) {
 		imp = VFSTOISOFS(mp);
-		if (bdevsw(imp->im_devvp->v_rdev)->d_flags &
+		if (devsw(imp->im_devvp->v_rdev)->d_flags &
 		    D_NOCLUSTERR)
 			mp->mnt_flag |= MNT_NOCLUSTERR;
 		if (args.fspec == 0)
@@ -224,7 +224,7 @@ cd9660_mount(mp, path, data, ndp, p)
 		vrele(devvp);
 		return ENOTBLK;
 	}
-	if (bdevsw(devvp->v_rdev) == NULL) {
+	if (devsw(devvp->v_rdev) == NULL) {
 		vrele(devvp);
 		return ENXIO;
 	}
@@ -245,7 +245,7 @@ cd9660_mount(mp, path, data, ndp, p)
 	VOP_UNLOCK(devvp, 0, p);
 
 	if ((mp->mnt_flag & MNT_UPDATE) == 0) {
-		if (bdevsw(devvp->v_rdev)->d_flags & D_NOCLUSTERR)
+		if (devsw(devvp->v_rdev)->d_flags & D_NOCLUSTERR)
 			mp->mnt_flag |= MNT_NOCLUSTERR;
 		error = iso_mountfs(devvp, mp, p, &args);
 	} else {

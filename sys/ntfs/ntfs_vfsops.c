@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ntfs_vfsops.c,v 1.7 1999/05/31 11:28:30 phk Exp $
+ *	$Id: ntfs_vfsops.c,v 1.8 1999/08/08 18:42:58 phk Exp $
  */
 
 
@@ -294,7 +294,7 @@ ntfs_mount (
 		err = ENOTBLK;
 		goto error_2;
 	}
-	if (bdevsw(devvp->v_rdev) == NULL) {
+	if (devsw(devvp->v_rdev) == NULL) {
 		err = ENXIO;
 		goto error_2;
 	}

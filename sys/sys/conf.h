@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)conf.h	8.5 (Berkeley) 1/9/95
- * $Id: conf.h,v 1.69 1999/08/09 18:45:20 jdp Exp $
+ * $Id: conf.h,v 1.70 1999/08/13 10:10:11 phk Exp $
  */
 
 #ifndef _SYS_CONF_H_
@@ -248,7 +248,6 @@ static moduledata_t name##_mod = {					\
 DECLARE_MODULE(name, name##_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE+cmaj*256+bmaj)
 
 
-struct cdevsw *bdevsw __P((dev_t dev));
 int	cdevsw_add __P((struct cdevsw *new));
 int	cdevsw_remove __P((struct cdevsw *old));
 dev_t	chrtoblk __P((dev_t dev));
