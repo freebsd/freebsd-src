@@ -58,12 +58,18 @@
 # Define the user-driven targets. These are listed here in alphabetical
 # order, but that's not important.
 #
+# Targets that begin with underscore are internal targets intended for
+# developer convenience only.  They are intentionally not documented and
+# completely subject to change without notice.
+#
 TGTS=	all all-man buildkernel buildworld checkdpadd clean \
 	cleandepend cleandir depend distribute distributeworld everything \
 	hierarchy install installcheck installkernel installkernel.debug\
 	reinstallkernel reinstallkernel.debug installworld \
 	libraries lint maninstall \
-	obj objlink regress rerelease tags update
+	obj objlink regress rerelease tags update \
+	_worldtmp _legacy _bootstrap-tools _cleanobj _obj \
+	_build-tools _cross-tools _includes _libraries _depend
 
 BITGTS=	files includes
 BITGTS:=${BITGTS} ${BITGTS:S/^/build/} ${BITGTS:S/^/install/}
