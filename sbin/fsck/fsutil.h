@@ -31,12 +31,10 @@
  * $FreeBSD$
  */
 
-void pfatal(const char *, ...)
-    __attribute__((__format__(__printf__,1,2)));  
-void pwarn(const char *, ...)
-    __attribute__((__format__(__printf__,1,2)));  
-void panic(const char *, ...)
-    __attribute__((__noreturn__,__format__(__printf__,1,2)));  
+void perror(const char *);
+void pfatal(const char *, ...) __printflike(1, 2);
+void pwarn(const char *, ...) __printflike(1, 2);
+void panic(const char *, ...) __dead2 __printflike(1, 2);
 const char *devcheck(const char *);
 const char *cdevname(void);
 void setcdevname(const char *, int);
