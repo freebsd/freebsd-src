@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: aha1542.c,v 1.50 1995/11/04 17:07:00 bde Exp $
+ *      $Id: aha1542.c,v 1.51 1995/12/06 23:50:45 bde Exp $
  */
 
 /*
@@ -35,6 +35,8 @@
 #include <machine/cpu.h>	/* XXX for bootverbose: a funny place */
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/pmap.h>
 
 #include <i386/isa/isa_device.h>
 #endif	/* KERNEL */

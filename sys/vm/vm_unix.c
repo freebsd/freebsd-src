@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_unix.c 1.1 89/11/07$
  *
  *	@(#)vm_unix.c	8.1 (Berkeley) 6/11/93
- * $Id: vm_unix.c,v 1.7 1995/11/11 06:40:35 bde Exp $
+ * $Id: vm_unix.c,v 1.8 1995/11/12 06:43:28 bde Exp $
  */
 
 /*
@@ -51,6 +51,10 @@
 #include <sys/resourcevar.h>
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/lock.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
 #include <vm/swap_pager.h>
 
 #ifndef _SYS_SYSPROTO_H_

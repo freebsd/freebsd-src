@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_access.c,v 1.8 1995/11/24 14:13:29 bde Exp $
+ *	$Id: db_access.c,v 1.9 1995/11/29 10:25:03 phk Exp $
  */
 
 /*
@@ -33,6 +33,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
+#include <vm/vm_param.h>
 #include <ddb/ddb.h>
 #include <ddb/db_access.h>
 

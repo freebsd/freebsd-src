@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_alloc.c	8.4 (Berkeley) 1/4/94
- * $Id: lfs_alloc.c,v 1.7 1995/03/28 07:58:02 bde Exp $
+ * $Id: lfs_alloc.c,v 1.8 1995/04/16 11:25:47 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -44,6 +44,8 @@
 #include <sys/malloc.h>
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/vm_extern.h>
 
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>

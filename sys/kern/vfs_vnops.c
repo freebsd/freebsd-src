@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_vnops.c	8.2 (Berkeley) 1/21/94
- * $Id: vfs_vnops.c,v 1.18 1995/10/06 09:43:32 phk Exp $
+ * $Id: vfs_vnops.c,v 1.19 1995/10/22 09:32:29 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -52,6 +52,8 @@
 #include <sys/ioctl.h>
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/vm_object.h>
 #include <vm/vnode_pager.h>
 
 struct 	fileops vnops =

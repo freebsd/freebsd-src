@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_exit.c	8.7 (Berkeley) 2/12/94
- * $Id: kern_exit.c,v 1.19 1995/10/23 19:44:38 swallace Exp $
+ * $Id: kern_exit.c,v 1.20 1995/11/11 05:49:22 bde Exp $
  */
 
 #include <sys/param.h>
@@ -68,6 +68,11 @@
 #endif
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/vm_prot.h>
+#include <vm/lock.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
 #include <vm/vm_kern.h>
 
 static int wait1 __P((struct proc *, struct wait_args *, int [], int));

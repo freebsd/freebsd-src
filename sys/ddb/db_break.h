@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_break.h,v 1.4 1995/11/24 13:52:57 bde Exp $
+ *	$Id: db_break.h,v 1.5 1995/11/29 10:25:11 phk Exp $
  */
 
 /*
@@ -33,7 +33,6 @@
 #ifndef _DDB_DB_BREAK_H_
 #define	_DDB_DB_BREAK_H_
 
-#include <vm/vm_map.h>
 #include <machine/db_machdep.h>
 
 /*

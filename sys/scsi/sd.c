@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.73 1995/11/29 10:49:02 julian Exp $
+ *      $Id: sd.c,v 1.74 1995/11/29 14:41:02 julian Exp $
  */
 
 #define SPLSD splbio
@@ -36,6 +36,8 @@
 #include <scsi/scsiconf.h>
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/pmap.h>
 #include <machine/md_var.h>
 #include <i386/i386/cons.h>		/* XXX */
 

@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_lex.c,v 1.7 1995/11/24 14:13:37 bde Exp $
+ *	$Id: db_lex.c,v 1.8 1995/11/29 10:25:23 phk Exp $
  */
 
 /*
@@ -35,6 +35,7 @@
  */
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <vm/vm_param.h>
 #include <ddb/ddb.h>
 #include <ddb/db_lex.h>
 

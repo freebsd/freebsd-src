@@ -30,11 +30,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: db_ps.c,v 1.7 1995/08/20 05:25:11 davidg Exp $
+ *	$Id: db_ps.c,v 1.8 1995/08/27 02:40:39 bde Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
+#include <vm/vm_param.h>
 #include <ddb/ddb.h>
 #include <machine/cons.h>
 

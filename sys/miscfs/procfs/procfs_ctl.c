@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_ctl.c	8.3 (Berkeley) 1/21/94
  *
- *	$Id: procfs_ctl.c,v 1.6 1995/07/16 10:12:50 bde Exp $
+ *	$Id: procfs_ctl.c,v 1.7 1995/12/03 14:54:34 bde Exp $
  */
 
 #include <sys/param.h>
@@ -53,6 +53,8 @@
 #include <sys/signalvar.h>
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/vm_extern.h>
 
 #include <miscfs/procfs/procfs.h>
 

@@ -31,14 +31,13 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_proc.c	8.4 (Berkeley) 1/4/94
- * $Id: kern_proc.c,v 1.11 1995/11/14 09:16:27 phk Exp $
+ * $Id: kern_proc.c,v 1.12 1995/12/02 18:58:49 bde Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
-#include <sys/user.h>
 #include <sys/proc.h>
 #include <sys/buf.h>
 #include <sys/acct.h>
@@ -51,6 +50,13 @@
 #include <sys/ioctl.h>
 #include <sys/tty.h>
 #include <sys/signalvar.h>
+#include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/vm_prot.h>
+#include <vm/lock.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
+#include <sys/user.h>
 
 struct prochd qs[NQS];		/* as good a place as any... */
 struct prochd rtqs[NQS];	/* Space for REALTIME queues too */

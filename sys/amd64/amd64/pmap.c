@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.65 1995/11/20 12:10:01 phk Exp $
+ *	$Id: pmap.c,v 1.66 1995/12/03 18:35:28 bde Exp $
  */
 
 /*
@@ -89,13 +89,20 @@
 #include <sys/systm.h>
 #include <sys/proc.h>
 #include <sys/malloc.h>
-#include <sys/user.h>
 #include <sys/msgbuf.h>
+#include <sys/queue.h>
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/vm_prot.h>
+#include <vm/lock.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_page.h>
+#include <vm/vm_map.h>
+#include <vm/vm_object.h>
+#include <vm/vm_extern.h>
 
+#include <machine/pcb.h>
 #include <machine/cputypes.h>
 #include <machine/md_var.h>
 

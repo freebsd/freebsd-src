@@ -21,9 +21,14 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pdq_os.h,v 1.3 1995/07/16 10:07:20 bde Exp $
+ * $Id: pdq_os.h,v 1.4 1995/10/29 15:33:36 phk Exp $
  *
  * $Log: pdq_os.h,v $
+ * Revision 1.4  1995/10/29  15:33:36  phk
+ * Second batch of cleanup changes.
+ * This time mostly making a lot of things static and some unused
+ * variables here and there.
+ *
  * Revision 1.3  1995/07/16  10:07:20  bde
  * Fix compiler warnings (systm.h wasn't included).
  *
@@ -76,7 +81,10 @@
 #endif
 #include <sys/malloc.h>
 #include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/pmap.h>
 #include <vm/vm_kern.h>
+#include <vm/vm_extern.h>
 
 #ifdef __FreeBSD__
 #include <machine/clock.h>

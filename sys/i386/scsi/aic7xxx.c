@@ -24,7 +24,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aic7xxx.c,v 1.47 1995/11/07 07:01:05 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.48 1995/12/06 23:51:37 bde Exp $
  */
 /*
  * TODO:
@@ -45,6 +45,8 @@
 #include <machine/clock.h>
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/pmap.h>
 
 #include <i386/scsi/aic7xxx.h>
 #include <i386/scsi/93cx6.h>

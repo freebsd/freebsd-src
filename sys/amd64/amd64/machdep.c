@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.153 1995/11/29 19:57:01 wollman Exp $
+ *	$Id: machdep.c,v 1.154 1995/12/04 16:47:40 phk Exp $
  */
 
 #include "npx.h"
@@ -47,7 +47,6 @@
 #include <sys/signalvar.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
-#include <sys/user.h>
 #include <sys/buf.h>
 #include <sys/reboot.h>
 #include <sys/conf.h>
@@ -62,6 +61,7 @@
 #include <sys/tty.h>
 #include <sys/sysctl.h>
 #include <sys/devconf.h>
+#include <sys/vmmeter.h>
 
 #ifdef SYSVSHM
 #include <sys/shm.h>
@@ -76,10 +76,17 @@
 #endif
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/vm_prot.h>
+#include <vm/lock.h>
 #include <vm/vm_kern.h>
+#include <vm/vm_object.h>
 #include <vm/vm_page.h>
+#include <vm/vm_map.h>
 #include <vm/vm_pager.h>
+#include <vm/vm_extern.h>
 
+#include <sys/user.h>
 #include <sys/exec.h>
 #include <sys/vnode.h>
 

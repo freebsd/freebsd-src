@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_vnops.c	8.5 (Berkeley) 12/30/93
- * $Id: lfs_vnops.c,v 1.14 1995/08/06 11:59:48 davidg Exp $
+ * $Id: lfs_vnops.c,v 1.15 1995/11/09 08:14:15 bde Exp $
  */
 
 #include <sys/param.h>
@@ -50,8 +50,11 @@
 #include <sys/malloc.h>
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/vm_prot.h>
 #include <vm/vm_page.h>
 #include <vm/vm_object.h>
+#include <vm/vm_extern.h>
 
 #include <miscfs/specfs/specdev.h>
 #include <miscfs/fifofs/fifo.h>

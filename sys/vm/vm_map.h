@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.h,v 1.6 1995/07/13 08:48:28 davidg Exp $
+ * $Id: vm_map.h,v 1.7 1995/08/26 23:18:37 bde Exp $
  */
 
 /*
@@ -138,6 +138,30 @@ struct vm_map {
 #define max_offset		header.end
 };
 
+/* 
+ * Shareable process virtual address space.
+ * May eventually be merged with vm_map.
+ * Several fields are temporary (text, data stuff).
+ */
+struct vmspace {
+	struct vm_map vm_map;	/* VM address map */
+	struct pmap vm_pmap;	/* private physical map */
+	int vm_refcnt;		/* number of references */
+	caddr_t vm_shm;		/* SYS5 shared memory private data XXX */
+/* we copy from vm_startcopy to the end of the structure on fork */
+#define vm_startcopy vm_rssize
+	segsz_t vm_rssize;	/* current resident set size in pages */
+	segsz_t vm_swrss;	/* resident set size before last swap */
+	segsz_t vm_tsize;	/* text size (pages) XXX */
+	segsz_t vm_dsize;	/* data size (pages) XXX */
+	segsz_t vm_ssize;	/* stack size (pages) */
+	caddr_t vm_taddr;	/* user virtual address of text XXX */
+	caddr_t vm_daddr;	/* user virtual address of data XXX */
+	caddr_t vm_maxsaddr;	/* user VA at max stack growth */
+	caddr_t vm_minsaddr;	/* user VA at max stack growth */
+};
+
+
 /*
  *	Map versions are used to validate a previous lookup attempt.
  *
@@ -204,10 +228,6 @@ void vm_map_lookup_done __P((vm_map_t, vm_map_entry_t));
 boolean_t vm_map_lookup_entry __P((vm_map_t, vm_offset_t, vm_map_entry_t *));
 int vm_map_pageable __P((vm_map_t, vm_offset_t, vm_offset_t, boolean_t));
 int vm_map_clean __P((vm_map_t, vm_offset_t, vm_offset_t, boolean_t, boolean_t));
-#ifdef DDB
-void vm_map_print __P((/* db_expr_t */ int, boolean_t, /* db_expr_t */ int,
-		       char *));
-#endif
 int vm_map_protect __P((vm_map_t, vm_offset_t, vm_offset_t, vm_prot_t, boolean_t));
 void vm_map_reference __P((vm_map_t));
 int vm_map_remove __P((vm_map_t, vm_offset_t, vm_offset_t));

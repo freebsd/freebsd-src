@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.38 1995/11/20 12:19:34 phk Exp $
+ *	$Id: vm_page.c,v 1.39 1995/12/03 12:18:39 bde Exp $
  */
 
 /*
@@ -71,12 +71,19 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
+#include <sys/queue.h>
+#include <sys/vmmeter.h>
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/vm_prot.h>
+#include <vm/lock.h>
 #include <vm/vm_kern.h>
+#include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_map.h>
 #include <vm/vm_pageout.h>
+#include <vm/vm_extern.h>
 
 #ifdef DDB
 extern void	print_page_info __P((void));

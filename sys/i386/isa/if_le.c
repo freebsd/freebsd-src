@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_le.c,v 1.23 1995/11/04 17:07:33 bde Exp $
+ * $Id: if_le.c,v 1.24 1995/12/05 02:01:13 davidg Exp $
  */
 
 /*
@@ -82,6 +82,8 @@
 #include <i386/isa/icu.h>
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/pmap.h>
 
 #if NBPFILTER > 0
 #include <net/bpf.h>

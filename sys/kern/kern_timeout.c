@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_clock.c,v 1.21 1995/12/04 16:48:20 phk Exp $
+ * $Id: kern_clock.c,v 1.22 1995/12/06 13:27:37 phk Exp $
  */
 
 /* Portions of this software are covered by the following: */
@@ -66,6 +66,11 @@
 #include <sys/signalvar.h>
 #include <sys/timex.h>
 #include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/vm_prot.h>
+#include <vm/lock.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
 #include <sys/sysctl.h>
 
 #include <machine/cpu.h>

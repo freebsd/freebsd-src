@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_sysctl.c,v 1.54 1995/12/05 21:51:33 bde Exp $
+ * $Id: kern_sysctl.c,v 1.55 1995/12/06 13:27:38 phk Exp $
  */
 
 #include <sys/param.h>
@@ -49,8 +49,11 @@
 #include <sys/conf.h>
 #include <sys/sysctl.h>
 #include <sys/malloc.h>
+#include <sys/proc.h>
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/vm_extern.h>
 
 /*
  * Locking and stats

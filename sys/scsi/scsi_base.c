@@ -8,7 +8,7 @@
  * file.
  *
  * Written by Julian Elischer (julian@dialix.oz.au)
- *      $Id: scsi_base.c,v 1.30 1995/07/25 22:09:06 bde Exp $
+ *      $Id: scsi_base.c,v 1.31 1995/10/09 15:14:58 joerg Exp $
  */
 
 #define SPLSD splbio
@@ -23,6 +23,8 @@
 #include <sys/malloc.h>
 #include <sys/errno.h>
 #include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/pmap.h>
 #include <scsi/scsi_all.h>
 #include <scsi/scsi_disk.h>
 #include <scsi/scsiconf.h>
