@@ -138,6 +138,11 @@ characters (including NUL byte).
 A hook is always connected to another hook. That is, hooks are
 created at the time they are connected, and breaking an edge by
 removing either hook destroys both hooks.
+.It
+A hook can be set into a state where incoming packets are always queued
+by the input queuing system, rather than being delivered directly. This
+is used when the two joined nodes need to be decoupled, e.g. if they are
+running at different processor priority levels. (spl)
 .El
 .Pp
 A node may decide to assign special meaning to some hooks. 
@@ -165,26 +170,41 @@ and
 generic control messages below).  Nodes are not required to support
 these conversions.
 .Pp
-There are two ways to address a control message. If
+There are three ways to address a control message. If
 there is a sequence of edges connecting the two nodes, the message
 may be
 .Dq source routed
 by specifying the corresponding sequence
-of hooks as the destination address for the message (relative
-addressing).  Otherwise, the recipient node global
+of 
+.Tn ASCII
+hook names as the destination address for the message (relative
+addressing). If the destination is adjacent to the source, then the source
+node may simply specify (as a pointer in the code) the hook across which the
+message should be sent. Otherwise, the recipient node global
 .Tn ASCII
 name
 (or equivalent ID based name) is used as the destination address
-for the message (absolute addressing).  The two types of addressing
+for the message (absolute addressing).  The two types of
+.Tn ASCII
+addressing
 may be combined, by specifying an absolute start node and a sequence
-of hooks.
+of hooks. Only the 
+.Tn ASCII 
+addressing modes are available to control programs outside the kernel,
+as use of direct pointers is limited of course to kernel modules.
 .Pp
 Messages often represent commands that are followed by a reply message
 in the reverse direction. To facilitate this, the recipient of a
 control message is supplied with a
 .Dq return address
-that is suitable
-for addressing a reply.
+that is suitable for addressing a reply. 
+In addition, depending on the topology of
+the graph and whether the source has requested it, a pointer to a
+pointer that can be read by the source node may also be supplied.
+This allows the destination node to directly respond in a
+synchronous manner when control returns to the source node, by
+simply pointing the supplied pointer to the response message.
+Such synchronous message responses are more efficient but are not always possible.
 .Pp
 Each control message contains a 32 bit value called a
 .Em typecookie
@@ -193,10 +213,20 @@ Typically each type defines a unique typecookie for the messages
 that it understands.  However, a node may choose to recognize and
 implement more than one type of message.
 .Pp
-If message is delivered to an address that implies that it arrived
-at that node through a particular hook, that hook is identified to the
+If a message is delivered to an address that implies that it arrived
+at that node through a particular hook, (as opposed to having been directly
+addressed using its ID or global name), then that hook is identified to the
 receiving node. This allows a message to be rerouted or passed on, should
-a node decide that this is required.
+a node decide that this is required, in much the same way that data packets
+are passed around between nodes. A set of standard 
+messages for flow control and link management purposes are
+defined by the base system that are usually
+passed around in this manner. Flow control message would usually travel
+in the opposite direction to the data to which they pertain.
+.Pp
+Since flow control packets can also result from data being sent, it is also
+possible to return a synchronous message response to a data packet being
+sent between nodes. (See later).
 .Sh Netgraph is Functional
 In order to minimize latency, most
 .Nm
@@ -209,14 +239,16 @@ generic
 data delivery function. This function in turn locates
 node B and calls B's
 .Dq receive data
-method.
+method. There are exceptions to this.
 .Pp
 It is allowable for nodes to reject a data packet, or to pass it back to the
 caller in a modified or completely replaced form. The caller can notify the
 node being called that it does not wish to receive any such packets
 by using the
 .Fn NG_SEND_DATA
-macro, in which case, the second node should just discard rejected packets.
+and
+.Fn NG_SEND_DATA_ONLY
+macros, in which case, the second node should just discard rejected packets.
 If the sender knows how to handle returned packets, it must use the
 .Fn NG_SEND_DATA_RET
 macro, which will adjust the parameters to point to the returned data
@@ -237,12 +269,12 @@ message before the original delivery function call returns.
 Netgraph nodes and support routines generally run at
 .Fn splnet .
 However, some nodes may want to send data and control messages
-from a different priority level. Netgraph supplies queueing routines which
-utilize the NETISR system to move message delivery to 
+from a different priority level. Netgraph supplies a mechanism which
+utilizes the NETISR system to move message and data delivery to 
 .Fn splnet .
 Nodes that run at other priorities (e.g. interfaces) can be directly
 linked to other nodes so that the combination runs at the other priority,
-however any interaction with nodes running at splnet MUST be achievd via the 
+however any interaction with nodes running at splnet MUST be achieved via the 
 queueing functions, (which use the
 .Fn netisr 
 feature of the kernel).
@@ -303,7 +335,10 @@ it needs, or may reject the connection, based on the name of the hook.
 After both ends have accepted their
 hooks, and the links have been made, the nodes get a chance to
 find out who their peer is across the link and can then decide to reject
-the connection. Tear-down is automatic.
+the connection. Tear-down is automatic. This is also the time at which
+a node may decide whether to set a particular hook (or its peer) into 
+.Em queuing
+mode.
 .It Destruction of a hook
 The node is notified of a broken connection. The node may consider some hooks
 to be critical to operation and others to be expendable: the disconnection
@@ -320,7 +355,7 @@ in that a shutdown breaks all edges and resets the node,
 but doesn't remove it, in which case the generic destructor is not called.
 .El
 .Sh Sending and Receiving Data
-Three other methods are also supported by all nodes:
+Two other methods are also supported by all nodes:
 .Bl -tag -width xxx
 .It Receive data message
 An mbuf chain is passed to the node.
@@ -342,7 +377,7 @@ structure describing meta-data about the message
 .Dv NULL
 if there is no additional information. The format for this information is
 described in 
-.Pa netgraph.h .
+.Pa sys/netgraph/netgraph.h .
 The memory for meta-data must allocated via
 .Fn malloc
 with type
@@ -361,23 +396,30 @@ and if it is different, the original must be freed.
 .Pp
 The receiving node may decide to defer the data by queueing it in the
 .Nm
-NETISR system (see below).
+NETISR system (see below). It achieves this by setting the 
+.Dv HK_QUEUE
+flag in the flags word of the hook on which that data will arrive.
+The infrastructure will respect that bit and queue the data for delivery at 
+a later time, rather than deliver it directly. A node may decide to set
+the bit on the
+.Em peer
+node, so that it's own output packets are queued. This is used
+by device drivers running at different processor priorities to transfer
+packet delivery to the splnet() level at which the bulk of
+.Nm
+runs.
 .Pp
-The structure and use of meta-data is still experimental, but is presently used in
-frame-relay to indicate that management packets should be queued for transmission
+The structure and use of meta-data is still experimental, but is
+presently used in frame-relay to indicate that management packets
+should be queued for transmission
 at a higher priority than data packets. This is required for
 conformance with Frame Relay standards.
 .Pp
-.It Receive queued data message
-Usually this will be the same function as 
-.Em Receive data message.
-This is the entry point called when a data message is being handed to 
-the node after having been queued in the NETISR system.
-This allows a node to decide in the 
-.Em Receive data message
-method that a message should be deferred and queued,
-and be sure that when it is processed from the queue,
-it will not be queued again.
+The node may also receive information allowing it to send a synchronous
+message response to one of the originators of the data. it is envisionned
+that such a message would contain error or flow-control information. 
+Standard messages for these purposes have been defined in 
+.Pa sys/netgraph/netgraph.h .
 .It Receive control message
 This method is called when a control message is addressed to the node.
 A return address is always supplied, giving the address of the node
@@ -445,7 +487,7 @@ Here are some examples of valid netgraph addresses:
   foo:
   .:hook1
   foo:hook1.hook2
-  [f057cd80]:hook1
+  [d80]:hook1
 .Ed
 .Pp
 Consider the following set of nodes might be created for a site with
@@ -498,6 +540,25 @@ the next routing decision. So when B receives a frame on hook
 it decodes the frame relay header to determine the DLCI,
 and then forwards the unwrapped frame to either C or D.
 .Pp
+In a similar way, flow control messages may be routed in the reverse
+direction to outgoing data. For example a "buffer nearly full" message from 
+.Em "Frame1:
+would be passed to node 
+.Em B
+which might decide to send similar messages to both nodes
+.Em C
+and 
+.Em D .
+The nodes would use 
+.Em "Direct hook pointer"
+addressing to route the messages. The message may have travelled from
+.Em "Frame1:
+to
+.Em B
+as a synchronous reply, saving time and cycles.
+
+
+.Pp
 A similar graph might be used to represent multi-link PPP running
 over an ISDN line:
 .Pp
@@ -512,7 +573,12 @@ over an ISDN line:
             [ (no name)  ]                       [ (no name)  ]
 .Ed
 .Sh Netgraph Structures
-Interesting members of the node and hook structures are shown below:
+Interesting members of the node and hook structures are shown below
+however you should
+check
+.Pa sys/netgraph/netgraph.h 
+on your system for more up-to-date versions.
+
 .Bd -literal
 struct  ng_node {
   char    *name;                /* Optional globally unique name */
@@ -547,7 +613,7 @@ incrementing
 From a hook you can obtain the corresponding node, and from
 a node the list of all active hooks.
 .Pp
-Node types are described by these structures:
+Node types are described by the structures below:
 .Bd -literal
 /** How to convert a control message from binary <-> ASCII */
 struct ng_cmdlist {
@@ -570,22 +636,23 @@ struct ng_type {
 
   /** Methods using the node **/
   int    (*rcvmsg)(node_p node,         /* Receive control message */
-            struct ng_mesg *msg,                /* The message */
-            const char *retaddr,                /* Return address */
-            struct ng_mesg **resp               /* Synchronous response */
-            hook_p lasthook);                   /* last hook traversed */
+            struct ng_mesg *msg,        /* The message */
+            const char *retaddr,        /* Return address */
+            struct ng_mesg **resp       /* Synchronous response */
+            hook_p lasthook);           /* last hook traversed */
   int    (*shutdown)(node_p node);      /* Shutdown this node */
   int    (*newhook)(node_p node,        /* create a new hook */
-            hook_p hook,                        /* Pre-allocated struct */
-            const char *name);                  /* Name for new hook */
+            hook_p hook,                /* Pre-allocated struct */
+            const char *name);          /* Name for new hook */
 
   /** Methods using the hook **/
   int    (*connect)(hook_p hook);       /* Confirm new hook attachment */
   int    (*rcvdata)(hook_p hook,        /* Receive data on a hook */
-            struct mbuf *m,                     /* The data in an mbuf */
-            meta_p meta,                        /* Meta-data, if any */
-            struct mbuf  **ret_m,               /* return data here */
-            meta_p *ret_meta);                  /* return Meta-data here */
+            struct mbuf *m,             /* The data in an mbuf */
+            meta_p meta,                /* Meta-data, if any */
+            struct mbuf  **ret_m,       /* return data here */
+            meta_p *ret_meta,           /* return Meta-data here */
+            struct ng_message **resp);  /* Synchronous reply info */
   int    (*disconnect)(hook_p hook);    /* Notify disconnection of hook */
 
   /** How to convert control messages binary <-> ASCII */
@@ -611,7 +678,7 @@ struct ng_mesg {
   char  data[0];                /* Start of cmd/resp data */
 };
 
-#define NG_VERSION      1               /* Netgraph version */
+#define NG_VERSION      3               /* Netgraph version */
 #define NGF_ORIG        0x0000          /* Command */
 #define NGF_RESP        0x0001          /* Response */
 .Ed
@@ -828,6 +895,23 @@ header fields filled in, plus the NUL-terminated string version of
 the arguments in the arguments field.  If successful, the reply
 contains the binary version of the control message.
 .El
+
+.Sh Flow Control Messages
+In addition to the control messages that affect nodes with respect to the
+graph, there are also a number of 
+.Em Flow-control
+messages defined. At present these are
+.Em NOT
+handled automatically by the system, so
+nodes need to handle them if they are going to be used in a graph utilising
+flow control, and will be in the likely path of these messages. The
+default action of a node that doesn't understand these messages should
+be to pass them onto the next node. Hopefully some helper functions 
+will assist in this eventually. These messages are also defined in
+.Pa sys/netgraph/ng_message.h
+and have a separate cookie
+.Em NG_FLOW_COOKIE
+to help identify them. They will not be covered in depth here.
 .Sh Metadata
 Data moving through the
 .Nm
@@ -993,7 +1077,38 @@ The interfaces are named
 .Em ng0 ,
 .Em ng1 ,
 etc.
+.It ONE2MANY
+This node implements a simple round-robin multiplexer. It can be used
+for example to make several LAN ports act together to get a higher speed
+link between two machines.
+.It Various PPP related nodes.
+There is a full multilink PPP implementation that runs in Netgraph.
+The 
+.Em Mpd
+port can use these modules to make a very low latency high 
+capacity ppp system. It also supports 
+.Em PPTP
+vpns using the
+.Em PPTP
+node.
+.It PPPOE
+A server and client side implememtation of PPPoE. Used in conjunction with
+either 
+.Xr ppp 8
+or the 
+.Em mpd port.
+.It BRIDGE
+This node, togther with the ethernet nodes allows a very flexible
+bridging system to be implemented.
+.It KSOCKET
+This intriguing node looks like a socket to the system but diverts
+all data to and from the netgraph system for further processing. This allows
+such things as UDP tunnels to be almost trivially implemented from the 
+command line.
+
 .El
+.Pp
+Refer to the section at the end of this man page for more nodes types.
 .Sh NOTES
 Whether a named node exists can be checked by trying to send a control message
 to it (e.g.,
@@ -1074,14 +1189,20 @@ node type is also useful for debugging, especially in conjunction with
 .Xr ngctl 8
 and
 .Xr nghook 8 .
+.Pp
+Also look in /usr/share/examples/netgraph for solutions to several
+common networking problems, solved using 
+.Nm .
 .Sh SEE ALSO
 .Xr socket 2 ,
 .Xr netgraph 3 ,
 .Xr ng_async 4 ,
+.Xr ng_bridge 4 ,
 .Xr ng_bpf 4 ,
 .Xr ng_cisco 4 ,
 .Xr ng_ether 4 ,
 .Xr ng_echo 4 ,
+.Xr ng_ether 4 ,
 .Xr ng_frame_relay 4 ,
 .Xr ng_hole 4 ,
 .Xr ng_iface 4 ,
@@ -1090,6 +1211,7 @@ and
 .Xr ng_mppc 4 ,
 .Xr ng_ppp 4 ,
 .Xr ng_pppoe 4 ,
+.Xr ng_pptpgre 4 ,
 .Xr ng_rfc1490 4 ,
 .Xr ng_socket 4 ,
 .Xr ng_tee 4 ,

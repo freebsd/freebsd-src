@@ -464,6 +464,7 @@ ing_rx_data_rdy(int unit)
 {
 	register struct ing_softc *sc = &ing_softc[unit];
 	register struct mbuf *m;
+	int error;
 	
 	if((m = *isdn_linktab[unit]->rx_mbuf) == NULL)
 		return;
@@ -476,7 +477,7 @@ ing_rx_data_rdy(int unit)
 
 	sc->sc_inpkt++;
 	
-	ng_queue_data(sc->hook, m, NULL);
+	NG_SEND_DATA_ONLY(error, sc->hook, m);
 }
 
 /*---------------------------------------------------------------------------*
@@ -744,7 +745,7 @@ ng_ing_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
 #if defined(__FreeBSD_version) && __FreeBSD_version >= 500000
 static int
 ng_ing_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
-                struct mbuf **ret_m, meta_p *ret_meta)
+                struct mbuf **ret_m, meta_p *ret_meta, struct ng_mesg **resp)
 #else
 static int
 ng_ing_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
@@ -829,6 +830,8 @@ ng_ing_rmnode(node_p node)
 static int
 ng_ing_connect(hook_p hook)
 {
+	/* probably not at splnet, force outward queueing */
+	hook->peer->flags |= HK_QUEUE;
 	return (0);
 }
 

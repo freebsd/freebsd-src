@@ -153,7 +153,6 @@ static struct ng_type ng_mppc_typestruct = {
 	NULL,
 	NULL,
 	ng_mppc_rcvdata,
-	ng_mppc_rcvdata,
 	ng_mppc_disconnect,
 	NULL
 };
@@ -347,7 +346,7 @@ done:
  */
 static int
 ng_mppc_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
-		struct mbuf **ret_m, meta_p *ret_meta)
+		struct mbuf **ret_m, meta_p *ret_meta, struct ng_mesg **resp)
 {
 	const node_p node = hook->node;
 	const priv_p priv = node->private;
@@ -385,7 +384,9 @@ ng_mppc_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
 				    NGM_MPPC_RESETREQ, 0, M_NOWAIT);
 				if (msg == NULL)
 					return (error);
-				ng_send_msg(node, msg, priv->ctrlpath, NULL);
+				/* XXX can we use a hook instead of ctrlpath? */
+				ng_send_msg(node, msg, priv->ctrlpath,
+					NULL, NULL, NULL); 
 			}
 			return (error);
 		}

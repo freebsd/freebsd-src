@@ -352,7 +352,6 @@ static struct ng_type ng_ppp_typestruct = {
 	NULL,
 	NULL,
 	ng_ppp_rcvdata,
-	ng_ppp_rcvdata,
 	ng_ppp_disconnect,
 	ng_ppp_cmds
 };
@@ -559,12 +558,15 @@ ng_ppp_rcvmsg(node_p node, struct ng_mesg *msg,
 		char path[NG_PATHLEN + 1];
 		node_p origNode;
 
-		if ((error = ng_path2node(node,
-		    raddr, &origNode, NULL, NULL)) != 0)
+		if ((error = ng_path2node(node, raddr, &origNode, NULL)) != 0)
 			ERROUT(error);
 		snprintf(path, sizeof(path), "[%lx]:%s",
 		    (long)node, NG_PPP_HOOK_VJC_IP);
-		return ng_send_msg(origNode, msg, path, rptr);
+		return ng_send_msg(origNode, msg, path, NULL, NULL, rptr);
+/* XXX Archie, looks like you are using the wrong value for the ID here..
+ you can't use a node address as a node-ID any more.. 
+But it may be that you can use the new 'hook' arg for ng_send_msg()
+to achieve a more efficient resuld than an ID anyhow. */
 	    }
 	default:
 		error = EINVAL;
@@ -585,7 +587,7 @@ done:
  */
 static int
 ng_ppp_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
-		struct mbuf **ret_m, meta_p *ret_meta)
+		struct mbuf **ret_m, meta_p *ret_meta, struct ng_mesg **resp)
 {
 	const node_p node = hook->node;
 	const priv_p priv = node->private;
@@ -781,9 +783,9 @@ ng_ppp_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
 	}
 
 	/* Send packet out hook */
-	NG_SEND_DATA_RET(error, outHook, m, meta);
+	NG_SEND_DATA_RET(error, outHook, m, meta, resp);
 	if (m != NULL || meta != NULL)
-		return ng_ppp_rcvdata(outHook, m, meta, NULL, NULL);
+		return ng_ppp_rcvdata(outHook, m, meta, NULL, NULL, resp);
 	return (error);
 }
 

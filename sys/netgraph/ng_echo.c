@@ -71,7 +71,6 @@ static struct ng_type typestruct = {
 	NULL,
 	NULL,
 	nge_rcvdata,
-	nge_rcvdata,
 	nge_disconnect,
 	NULL
 };
@@ -98,7 +97,7 @@ nge_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
  */
 static int
 nge_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
-		struct mbuf **ret_m, meta_p *ret_meta)
+		struct mbuf **ret_m, meta_p *ret_meta, struct ng_mesg **resp)
 {
 	int error = 0;
 

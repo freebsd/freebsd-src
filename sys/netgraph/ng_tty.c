@@ -134,6 +134,7 @@ static ng_constructor_t	ngt_constructor;
 static ng_rcvmsg_t	ngt_rcvmsg;
 static ng_shutdown_t	ngt_shutdown;
 static ng_newhook_t	ngt_newhook;
+static ng_connect_t	ngt_connect;
 static ng_rcvdata_t	ngt_rcvdata;
 static ng_disconnect_t	ngt_disconnect;
 static int	ngt_mod_event(module_t mod, int event, void *data);
@@ -166,8 +167,7 @@ static struct ng_type typestruct = {
 	ngt_shutdown,
 	ngt_newhook,
 	NULL,
-	NULL,
-	ngt_rcvdata,
+	ngt_connect,
 	ngt_rcvdata,
 	ngt_disconnect,
 	NULL
@@ -394,7 +394,7 @@ ngt_input(int c, struct tty *tp)
 	/* Ship off mbuf if it's time */
 	if (sc->hotchar == -1 || c == sc->hotchar || m->m_len >= MHLEN) {
 		m->m_data = m->m_pktdat;
-		error = ng_queue_data(sc->hook, m, NULL);
+		NG_SEND_DATA_ONLY(error, sc->hook, m);
 		sc->m = NULL;
 	}
 done:
@@ -521,6 +521,16 @@ done:
 }
 
 /*
+ * set the hooks into queueing mode (for outgoing packets)
+ */
+static int
+ngt_connect(hook_p hook)
+{
+	hook->peer->flags |= HK_QUEUE;
+	return (0);
+}
+
+/*
  * Disconnect the hook
  */
 static int
@@ -567,7 +577,7 @@ ngt_shutdown(node_p node)
  */
 static int
 ngt_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
-		struct mbuf **ret_m, meta_p *ret_meta)
+		struct mbuf **ret_m, meta_p *ret_meta, struct ng_mesg **resp)
 {
 	const sc_p sc = hook->node->private;
 	int s, error = 0;

@@ -195,7 +195,6 @@ Static struct ng_type ng_udbp_typestruct = {
 	NULL,
 	ng_udbp_connect,
 	ng_udbp_rcvdata,
-	ng_udbp_rcvdata,
 	ng_udbp_disconnect,
 	ng_udbp_cmdlist
 };
@@ -485,7 +484,6 @@ udbp_in_transfer_cb(usbd_xfer_handle xfer, usbd_private_handle priv,
 	udbp_p 		sc = priv;		/* XXX see priv above */
 	int		s;
 	int		len;
-	meta_p		meta = NULL;
 	struct		mbuf *m;
 
 	if (err) {
@@ -506,7 +504,7 @@ udbp_in_transfer_cb(usbd_xfer_handle xfer, usbd_private_handle priv,
 		if (sc->hook) {
 			/* get packet from device and send on */
 			m = m_devget(sc->sc_bulkin_buffer, len, 0, NULL, NULL);
-	    		NG_SEND_DATAQ(err, sc->hook, m, meta);
+	    		NG_SEND_DATA_ONLY(err, sc->hook, m);
 		}
 		splx(s);
 	
@@ -723,7 +721,7 @@ ng_udbp_rcvmsg(node_p node,
  */
 Static int
 ng_udbp_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
-		struct mbuf **ret_m, meta_p *ret_meta)
+		struct mbuf **ret_m, meta_p *ret_meta, struct ng_mesg **resp)
 {
 	const udbp_p sc = hook->node->private;
 	int error;
@@ -793,6 +791,8 @@ ng_udbp_rmnode(node_p node)
 Static int
 ng_udbp_connect(hook_p hook)
 {
+	/* probably not at splnet, force outward queueing */
+	hook->peer->flags |= HK_QUEUE;
 	/* be really amiable and just say "YUP that's OK by me! " */
 	return (0);
 }

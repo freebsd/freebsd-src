@@ -147,7 +147,6 @@ static struct ng_type typestruct = {
 	NULL,
 	NULL,
 	ngfrm_rcvdata,
-	ngfrm_rcvdata,
 	ngfrm_disconnect,
 	NULL
 };
@@ -337,7 +336,7 @@ ngfrm_addrlen(char *hdr)
  */
 static int
 ngfrm_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
-		struct mbuf **ret_m, meta_p *ret_meta)
+		struct mbuf **ret_m, meta_p *ret_meta, struct ng_mesg **resp)
 {
 	struct	ctxinfo *const ctxp = hook->private;
 	int     error = 0;

@@ -469,7 +469,6 @@ static struct ng_type ng_ksocket_typestruct = {
 	NULL,
 	NULL,
 	ng_ksocket_rcvdata,
-	ng_ksocket_rcvdata,
 	ng_ksocket_disconnect,
 	ng_ksocket_cmds
 };
@@ -782,7 +781,7 @@ done:
  */
 static int
 ng_ksocket_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
-		struct mbuf **ret_m, meta_p *ret_meta)
+		struct mbuf **ret_m, meta_p *ret_meta, struct ng_mesg **resp)
 {
 	struct proc *p = curproc ? curproc : &proc0;	/* XXX broken */
 	const node_p node = hook->node;

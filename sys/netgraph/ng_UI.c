@@ -87,7 +87,6 @@ static struct ng_type typestruct = {
 	NULL,
 	NULL,
 	ng_UI_rcvdata,
-	ng_UI_rcvdata,
 	ng_UI_disconnect,
 	NULL
 };
@@ -151,6 +150,22 @@ static int
 ng_UI_rcvmsg(node_p node, struct ng_mesg *msg,
 	     const char *raddr, struct ng_mesg **rp, hook_p lasthook)
 {
+	const priv_p priv = node->private;
+
+	if ((msg->header.typecookie == NGM_FLOW_COOKIE) && lasthook)  {
+		if (lasthook == priv->downlink) {
+			if (priv->uplink) {
+				return (ng_send_msg(node, msg, NULL,
+					priv->uplink, raddr, rp));
+			}
+		} else {
+			if (priv->downlink) {
+				return (ng_send_msg(node, msg, NULL,
+					priv->downlink, raddr, rp));
+			}
+		}
+	}
+		
 	FREE(msg, M_NETGRAPH);
 	return (EINVAL);
 }
@@ -163,7 +178,7 @@ ng_UI_rcvmsg(node_p node, struct ng_mesg *msg,
  */
 static int
 ng_UI_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
-		struct mbuf **ret_m, meta_p *ret_meta)
+		struct mbuf **ret_m, meta_p *ret_meta,  struct ng_mesg **resp)
 {
 	const node_p node = hook->node;
 	const priv_p priv = node->private;
