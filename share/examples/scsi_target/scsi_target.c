@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_target.c,v 1.2 1998/12/10 04:00:03 gibbs Exp $
+ *      $Id: scsi_target.c,v 1.3 1999/03/05 23:12:02 gibbs Exp $
  */
 
 #include <sys/types.h>
@@ -63,6 +63,7 @@ struct	 ioc_alloc_unit alloc_unit = {
 };
 
 static void pump_events();
+static void cleanup();
 static void handle_exception();
 static void quit_handler();
 static void usage();
@@ -154,8 +155,16 @@ main(int argc, char *argv[])
 	signal(SIGINT, quit_handler);
 	signal(SIGTERM, quit_handler);
 
+	atexit(cleanup);
+
 	pump_events();
 
+	return (0);
+}
+
+static void
+cleanup()
+{
 	close(targfd);
 
 	if (ioctl(targctlfd, TARGCTLIOFREEUNIT, &alloc_unit) == -1) {
@@ -164,7 +173,6 @@ main(int argc, char *argv[])
 	}
 
 	close(targctlfd);
-	return (0);
 }
 
 static void
@@ -207,6 +215,8 @@ pump_events()
 
 			if (retval == -1) {
 				perror("Read from targ failed");
+				/* Go look for exceptions */
+				continue;
 			} else {
 				retval = write(ofd, buf, retval);
 				if (retval == -1) {
@@ -248,8 +258,10 @@ handle_exception()
 		exit(EX_SOFTWARE);
 	}
 
+	printf("Saw exceptions %x\n", exceptions);
 	if ((exceptions & TARG_EXCEPT_DEVICE_INVALID) != 0) {
 		/* Device went away.  Nothing more to do. */
+		printf("Device went away\n");
 		exit(0);
 	}
 
