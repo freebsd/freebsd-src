@@ -778,6 +778,8 @@ udf_find_partmaps(struct udf_mnt *udfmp, struct logvol_desc *lvd)
 		 */
 		if ((error = udf_readlblks(udfmp, pms->st_loc[0], pms->st_size,
 		    &bp)) != 0) {
+			if (bp != NULL)
+				brelse(bp);
 			printf("Failed to read Sparing Table at sector %d\n",
 			    pms->st_loc[0]);
 			return (error);
