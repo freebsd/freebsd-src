@@ -120,6 +120,13 @@ vlan_setmulti(struct ifnet *ifp)
 	sc = ifp->if_softc;
 	ifp_p = sc->ifv_p;
 
+	/*
+	 * If we don't have a parent, just remember the membership for
+	 * when we do.
+	 */
+	if (ifp_p == NULL)
+		return(0);
+
 	bzero((char *)&sdl, sizeof sdl);
 	sdl.sdl_len = sizeof sdl;
 	sdl.sdl_family = AF_LINK;
@@ -410,6 +417,13 @@ vlan_config(struct ifvlan *ifv, struct ifnet *p)
 	sdl1->sdl_alen = ETHER_ADDR_LEN;
 	bcopy(LLADDR(sdl2), LLADDR(sdl1), ETHER_ADDR_LEN);
 	bcopy(LLADDR(sdl2), ifv->ifv_ac.ac_enaddr, ETHER_ADDR_LEN);
+
+	/*
+	 * Configure multicast addresses that may already be
+	 * joined on the vlan device.
+	 */
+	(void)vlan_setmulti(&ifv->ifv_if);
+
 	return 0;
 }
 
@@ -426,25 +440,30 @@ vlan_unconfig(struct ifnet *ifp)
 	ifv = ifp->if_softc;
 	p = ifv->ifv_p;
 
-	/*
- 	 * Since the interface is being unconfigured, we need to
-	 * empty the list of multicast groups that we may have joined
-	 * while we were alive and remove them from the parent's list
-	 * as well.
-	 */
-	while(SLIST_FIRST(&ifv->vlan_mc_listhead) != NULL) {
-		struct sockaddr_dl	sdl;
+	if (p) {
+		struct sockaddr_dl sdl;
 
-		sdl.sdl_len = ETHER_ADDR_LEN;
+		/*
+		 * Since the interface is being unconfigured, we need to
+		 * empty the list of multicast groups that we may have joined
+		 * while we were alive from the parent's list.
+		 */
+		bzero((char *)&sdl, sizeof sdl);
+		sdl.sdl_len = sizeof sdl;
 		sdl.sdl_family = AF_LINK;
-		mc = SLIST_FIRST(&ifv->vlan_mc_listhead);
-		bcopy((char *)&mc->mc_addr, LLADDR(&sdl), ETHER_ADDR_LEN);
-		error = if_delmulti(p, (struct sockaddr *)&sdl);
-		error = if_delmulti(ifp, (struct sockaddr *)&sdl);
-		if (error)
-			return(error);
-		SLIST_REMOVE_HEAD(&ifv->vlan_mc_listhead, mc_entries);
-		free(mc, M_DEVBUF);
+		sdl.sdl_index = p->if_index;
+		sdl.sdl_type = IFT_ETHER;
+		sdl.sdl_alen = ETHER_ADDR_LEN;
+
+		while(SLIST_FIRST(&ifv->vlan_mc_listhead) != NULL) {
+			mc = SLIST_FIRST(&ifv->vlan_mc_listhead);
+			bcopy((char *)&mc->mc_addr, LLADDR(&sdl), ETHER_ADDR_LEN);
+			error = if_delmulti(p, (struct sockaddr *)&sdl);
+			if (error)
+				return(error);
+			SLIST_REMOVE_HEAD(&ifv->vlan_mc_listhead, mc_entries);
+			free(mc, M_DEVBUF);
+		}
 	}
 
 	/* Disconnect from parent. */
