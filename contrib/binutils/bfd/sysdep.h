@@ -1,5 +1,5 @@
 /* sysdep.h -- handle host dependencies for the BFD library
-   Copyright 1995, 96, 97, 98, 1999 Free Software Foundation, Inc.
+   Copyright 1995, 96, 97, 98, 99, 2000 Free Software Foundation, Inc.
    Written by Cygnus Support.
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -102,6 +102,8 @@ extern char *strrchr ();
 #define SEEK_CUR 1
 #endif
 
+#include "filenames.h"
+
 #ifdef NEED_DECLARATION_STRSTR
 extern char *strstr ();
 #endif
@@ -131,14 +133,13 @@ extern char *getenv ();
 #define N_(String) (String)
 #endif
 #else
-/* Stubs that do something close enough.  */
-#define textdomain(String) (String)
-#define gettext(String) (String)
-#define dgettext(Domain,Message) (Message)
-#define dcgettext(Domain,Message,Type) (Message)
-#define bindtextdomain(Domain,Directory) (Domain)
-#define _(String) (String)
-#define N_(String) (String)
+# define gettext(Msgid) (Msgid)
+# define dgettext(Domainname, Msgid) (Msgid)
+# define dcgettext(Domainname, Msgid, Category) (Msgid)
+# define textdomain(Domainname) while (0) /* nothing */
+# define bindtextdomain(Domainname, Dirname) while (0) /* nothing */
+# define _(String) (String)
+# define N_(String) (String)
 #endif
 
 #endif /* ! defined (BFD_SYSDEP_H) */

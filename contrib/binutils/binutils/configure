@@ -814,7 +814,7 @@ fi
 
 PACKAGE=binutils
 
-VERSION=2.9.5
+VERSION=2.10
 
 if test "`cd $srcdir && pwd`" != "`pwd`" && test -f $srcdir/config.status; then
   { echo "configure: error: source directory already configured; run "make distclean" there first" 1>&2; exit 1; }
@@ -4300,7 +4300,7 @@ EOF
 
 fi
 
-for ac_func in sbrk utimes
+for ac_func in sbrk utimes setmode
 do
 echo $ac_n "checking for $ac_func""... $ac_c" 1>&6
 echo "configure:4307: checking for $ac_func" >&5

@@ -1,3 +1,18 @@
+2000-05-23  Maciej W. Rozycki  <macro@ds2.pg.gda.pl>
+
+	* i386.h: Allow d suffix on iret, and add DefaultSize modifier.
+
+2000-05-23  Alan Modra  <alan@linuxcare.com.au>
+
+	* i386.h: Delete redundant fp instruction comments.
+
+	From Gavin Romig-Koch <gavin@cygnus.com>
+	* i386.h (wld_Suf): Define.  Use on pushf, popf, pusha, popa.
+
+2000-05-17  Maciej W. Rozycki  <macro@ds2.pg.gda.pl>
+
+	* i386.h: Use sl_FP, not sl_Suf for fild.
+
 2000-03-27  Nick Clifton  <nickc@cygnus.com>
 
 	* d30v.h (SHORT_A1): Fix value.

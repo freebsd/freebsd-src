@@ -2,6 +2,9 @@
 
 Changes in 2.10:
 
+Support for the ARM msr instruction was changed to only allow an immediate
+operand when altering the flags field.
+
 Support for ATMEL AVR.
 
 Support for IBM 370 ELF.  Somewhat experimental.
@@ -41,6 +44,8 @@ Mitsubishi D30V support added.
 Texas Instruments c80 (tms320c80) support added.
 
 i960 ELF support added.
+
+ARM ELF support added.
 
 Changes in 2.9:
 

@@ -59,6 +59,23 @@
 #include "bucomm.h"
 #include "libiberty.h"
 
+/* Some platforms need to put stdin into binary mode, to read
+    binary files.  */
+#ifdef HAVE_SETMODE
+#ifndef O_BINARY
+#ifdef _O_BINARY
+#define O_BINARY _O_BINARY
+#define setmode _setmode
+#else
+#define O_BINARY 0
+#endif
+#endif
+#if O_BINARY
+#include <io.h>
+#define SET_BINARY(f) do { if (!isatty(f)) setmode(f,O_BINARY); } while (0)
+#endif
+#endif
+
 #ifdef isascii
 #define isgraphic(c) (isascii (c) && isprint (c))
 #else
@@ -218,6 +235,9 @@ main (argc, argv)
   if (optind >= argc)
     {
       datasection_only = false;
+#ifdef SET_BINARY
+      SET_BINARY (fileno (stdin));
+#endif
       print_strings ("{standard input}", stdin, 0, 0, 0, (char *) NULL);
       files_given = true;
     }

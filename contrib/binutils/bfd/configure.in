@@ -7,7 +7,7 @@ AC_INIT(libbfd.c)
 AC_CANONICAL_SYSTEM
 AC_ISC_POSIX
 
-AM_INIT_AUTOMAKE(bfd, 2.9.5)
+AM_INIT_AUTOMAKE(bfd, 2.10)
 
 dnl These must be called before AM_PROG_LIBTOOL, because it may want
 dnl to call AC_CHECK_PROG.
@@ -119,6 +119,7 @@ if test "${target}" = "${host}"; then
 	TRAD_HEADER='"hosts/alphalinux.h"'
 	;;
   alpha*-*-netbsd*)	COREFILE=netbsd-core.lo ;;
+  alpha*-*-freebsd*)	;;
   alpha*-*-*)		COREFILE=osf-core.lo ;;
   arm-*-riscix)		COREFILE=trad-core.lo ;;
   hppa*-*-hpux*)	COREFILE=hpux-core.lo ;;
