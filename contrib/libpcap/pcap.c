@@ -33,7 +33,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/libpcap/pcap.c,v 1.36 2000/12/16 10:43:31 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/libpcap/pcap.c,v 1.38 2001/12/29 21:55:32 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -46,6 +46,8 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <fcntl.h>
+#include <errno.h>
 
 #ifdef HAVE_OS_PROTO_H
 #include "os-proto.h"
@@ -166,6 +168,65 @@ char *
 pcap_geterr(pcap_t *p)
 {
 	return (p->errbuf);
+}
+
+/*
+ * NOTE: in the future, these may need to call platform-dependent routines,
+ * e.g. on platforms with memory-mapped packet-capture mechanisms where
+ * "pcap_read()" uses "select()" or "poll()" to wait for packets to arrive.
+ */
+int
+pcap_getnonblock(pcap_t *p, char *errbuf)
+{
+	int fdflags;
+
+	if (p->sf.rfile != NULL) {
+		/*
+		 * This is a savefile, not a live capture file, so
+		 * never say it's in non-blocking mode.
+		 */
+		return (0);
+	}
+	fdflags = fcntl(p->fd, F_GETFL, 0);
+	if (fdflags == -1) {
+		snprintf(p->errbuf, PCAP_ERRBUF_SIZE, "F_GETFL: %s",
+		    pcap_strerror(errno));
+		return (-1);
+	}
+	if (fdflags & O_NONBLOCK)
+		return (1);
+	else
+		return (0);
+}
+
+int
+pcap_setnonblock(pcap_t *p, int nonblock, char *errbuf)
+{
+	int fdflags;
+
+	if (p->sf.rfile != NULL) {
+		/*
+		 * This is a savefile, not a live capture file, so
+		 * ignore requests to put it in non-blocking mode.
+		 */
+		return (0);
+	}
+	fdflags = fcntl(p->fd, F_GETFL, 0);
+	if (fdflags == -1) {
+		snprintf(p->errbuf, PCAP_ERRBUF_SIZE, "F_GETFL: %s",
+		    pcap_strerror(errno));
+		return (-1);
+	}
+	if (nonblock)
+		fdflags |= O_NONBLOCK;
+	else
+		fdflags &= ~O_NONBLOCK;
+	if (fcntl(p->fd, F_SETFL, fdflags) == -1) {
+		snprintf(p->errbuf, PCAP_ERRBUF_SIZE, "F_SETFL: %s",
+		    pcap_strerror(errno));
+		return (-1);
+	}
+	return (0);
 }
 
 /*
