@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.333 1998/01/17 14:21:17 brian Exp $
+#	$Id: Makefile,v 1.334 1998/01/19 16:10:51 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -25,9 +25,11 @@ BUILDNAME?=${BASE}-${DATE}-SNAP
 # If this is a RELEASE, then set
 #RELEASETAG=RELENG_2_2
 
-# Leave this on for now until we figure out how to build proper
-# docs in the chrootdir.
-NODOC=	YES
+# Uncomment this to disable the doc.1 target.  It is also an ERROR
+# to set NOPORTS and not set NODOC since docs depend on ports.
+#NODOC=  YES
+DOCPORTS= archivers/unzip lang/perl5 textproc/jade textproc/iso8879 \
+          textproc/linuxdoc textproc/docbook textproc/sgmlformat
 
 # Things which without too much trouble can be considered variables
 # BIN_DISTS are special in that they get full /etc installation sets.
@@ -145,6 +147,9 @@ rerelease release:
 .endif
 .if !defined(NODOC)
 	cd ${CHROOTDIR}/usr && rm -rf doc && cvs -d ${CVSROOT} co -P doc
+	cd ${CHROOTDIR}/usr/ports && for i in ${DOCPORTS}; do \
+	  (cd $$i; make fetch DISTDIR=${CHROOTDIR}/usr/ports/distfiles ); \
+        done
 .endif
 .endif
 .if make(rerelease)
@@ -526,6 +531,7 @@ cdrom.1:
 .endif
 
 doc.1:
+	for i in ${DOCPORTS}; do (cd /usr/ports/$$i; make all install); done
 	cd /usr/doc && make all distribute DISTDIR=${RD}/trees
 
 # Various "subroutine" and other supporting targets.
