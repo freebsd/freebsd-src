@@ -1,33 +1,35 @@
 /*
-
-            Coda: an Experimental Distributed File System
-                             Release 3.1
-
-          Copyright (c) 1987-1998 Carnegie Mellon University
-                         All Rights Reserved
-
-Permission  to  use, copy, modify and distribute this software and its
-documentation is hereby granted,  provided  that  both  the  copyright
-notice  and  this  permission  notice  appear  in  all  copies  of the
-software, derivative works or  modified  versions,  and  any  portions
-thereof, and that both notices appear in supporting documentation, and
-that credit is given to Carnegie Mellon University  in  all  documents
-and publicity pertaining to direct or indirect use of this code or its
-derivatives.
-
-CODA IS AN EXPERIMENTAL SOFTWARE SYSTEM AND IS  KNOWN  TO  HAVE  BUGS,
-SOME  OF  WHICH MAY HAVE SERIOUS CONSEQUENCES.  CARNEGIE MELLON ALLOWS
-FREE USE OF THIS SOFTWARE IN ITS "AS IS" CONDITION.   CARNEGIE  MELLON
-DISCLAIMS  ANY  LIABILITY  OF  ANY  KIND  FOR  ANY  DAMAGES WHATSOEVER
-RESULTING DIRECTLY OR INDIRECTLY FROM THE USE OF THIS SOFTWARE  OR  OF
-ANY DERIVATIVE WORK.
-
-Carnegie  Mellon  encourages  users  of  this  software  to return any
-improvements or extensions that  they  make,  and  to  grant  Carnegie
-Mellon the rights to redistribute these changes without encumbrance.
-*/
-
-/* $Header: /afs/cs/project/coda-src/cvs/coda/kernel-src/vfs/freebsd/cfs/cnode.h,v 1.10 1998/08/28 18:12:25 rvb Exp $ */
+ * 
+ *             Coda: an Experimental Distributed File System
+ *                              Release 3.1
+ * 
+ *           Copyright (c) 1987-1998 Carnegie Mellon University
+ *                          All Rights Reserved
+ * 
+ * Permission  to  use, copy, modify and distribute this software and its
+ * documentation is hereby granted,  provided  that  both  the  copyright
+ * notice  and  this  permission  notice  appear  in  all  copies  of the
+ * software, derivative works or  modified  versions,  and  any  portions
+ * thereof, and that both notices appear in supporting documentation, and
+ * that credit is given to Carnegie Mellon University  in  all  documents
+ * and publicity pertaining to direct or indirect use of this code or its
+ * derivatives.
+ * 
+ * CODA IS AN EXPERIMENTAL SOFTWARE SYSTEM AND IS  KNOWN  TO  HAVE  BUGS,
+ * SOME  OF  WHICH MAY HAVE SERIOUS CONSEQUENCES.  CARNEGIE MELLON ALLOWS
+ * FREE USE OF THIS SOFTWARE IN ITS "AS IS" CONDITION.   CARNEGIE  MELLON
+ * DISCLAIMS  ANY  LIABILITY  OF  ANY  KIND  FOR  ANY  DAMAGES WHATSOEVER
+ * RESULTING DIRECTLY OR INDIRECTLY FROM THE USE OF THIS SOFTWARE  OR  OF
+ * ANY DERIVATIVE WORK.
+ * 
+ * Carnegie  Mellon  encourages  users  of  this  software  to return any
+ * improvements or extensions that  they  make,  and  to  grant  Carnegie
+ * Mellon the rights to redistribute these changes without encumbrance.
+ * 
+ * 	@(#) src/sys/cfs/cnode.h,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $ 
+ *  $Id: $
+ * 
+ */
 
 /* 
  * Mach Operating System
@@ -45,6 +47,9 @@ Mellon the rights to redistribute these changes without encumbrance.
 /* 
  * HISTORY
  * $Log: cnode.h,v $
+ * Revision 1.1.1.1  1998/08/29 21:14:52  rvb
+ * Very Preliminary Coda
+ *
  * Revision 1.10  1998/08/28 18:12:25  rvb
  * Now it also works on FreeBSD -current.  This code will be
  * committed to the FreeBSD -current and NetBSD -current
@@ -144,44 +149,10 @@ Mellon the rights to redistribute these changes without encumbrance.
 #define	_CNODE_H_
 
 #include <sys/vnode.h>
-
-#ifdef	__FreeBSD__
-
-/* for the prototype of DELAY() */
+#include <sys/lock.h>
 #include <machine/clock.h>
 
-#ifdef	__FreeBSD_version
-/* You would think that <sys/param.h> or something would include this */
-#include <sys/lock.h>
-
 MALLOC_DECLARE(M_CFS);
-
-#else
-
-/* yuck yuck yuck */
-#define vref(x) cvref(x)
-extern void cvref(struct vnode *vp);
-/* yuck yuck yuck */
-
-#endif
-#endif
-
-#if	defined(__NetBSD__) && defined(NetBSD1_3) && (NetBSD1_3 >= 7)
-#define	NEW_LOCKMGR(l, f, i) lockmgr(l, f, i)
-#define	VOP_X_LOCK(vn, fl) vn_lock(vn, fl)
-#define	VOP_X_UNLOCK(vn, fl) VOP_UNLOCK(vn, fl)
-
-#elif defined(__FreeBSD_version)
-#define	NEW_LOCKMGR(l, f, i) lockmgr(l, f, i, curproc)
-#define	VOP_X_LOCK(vn, fl) vn_lock(vn, fl, curproc)
-#define	VOP_X_UNLOCK(vn, fl) VOP_UNLOCK(vn, fl, curproc)
-
-/* NetBSD 1.3 & FreeBSD 2.2.x */
-#else
-#undef	NEW_LOCKMGR
-#define	VOP_X_LOCK(vn, fl) VOP_LOCK(vn)
-#define	VOP_X_UNLOCK(vn, fl) VOP_UNLOCK(vn)
-#endif
 
 /*
  * tmp below since we need struct queue
@@ -232,9 +203,7 @@ struct cnode {
     struct vnode	*c_vnode;
     u_short		 c_flags;	/* flags (see below) */
     ViceFid		 c_fid;		/* file handle */
-#ifdef	NEW_LOCKMGR
     struct lock		 c_lock;	/* new lock protocol */
-#endif
     struct vnode	*c_ovp;		/* open vnode pointer */
     u_short		 c_ocount;	/* count of openers */
     u_short		 c_owrite;	/* count of open for write */
@@ -331,10 +300,6 @@ int cfs_vnodeopstats_init(void);
 
 /* cfs_vfsops.h */
 struct mount *devtomp(dev_t dev);
-
-#if	!(defined NetBSD1_3) && !defined(__FreeBSD_version)
-#define __RCSID(x) static char *rcsid = x
-#endif
 
 /* sigh */
 #define CFS_RDWR ((u_long) 31)
