@@ -2830,6 +2830,7 @@ pmap_emulate_reference(struct proc *p, vm_offset_t v, int user, int write)
 	pt_entry_t faultoff, *pte;
 	vm_offset_t pa;
 	vm_page_t m;
+	int user_addr;
 
 	/*
 	 * Convert process and virtual address to physical address.
@@ -2838,10 +2839,12 @@ pmap_emulate_reference(struct proc *p, vm_offset_t v, int user, int write)
 		if (user)
 			panic("pmap_emulate_reference: user ref to kernel");
 		pte = vtopte(v);
+		user_addr = 0;
 	} else {
 		KASSERT(p != NULL, ("pmap_emulate_reference: bad proc"));
 		KASSERT(p->p_vmspace != NULL, ("pmap_emulate_reference: bad p_vmspace"));
 		pte = pmap_lev3pte(p->p_vmspace->vm_map.pmap, v);
+		user_addr = 1;
 	}
 #ifdef DEBUG				/* These checks are more expensive */
 	if (!pmap_pte_v(pte))
@@ -2883,7 +2886,12 @@ pmap_emulate_reference(struct proc *p, vm_offset_t v, int user, int write)
 	m = PHYS_TO_VM_PAGE(pa);
 	m->md.pv_flags |= PV_TABLE_REF;
 	faultoff = PG_FOR | PG_FOE;
-	vm_page_flag_set(m, PG_REFERENCED);
+
+	if (user_addr && mtx_trylock(&vm_mtx)) {
+		vm_page_flag_set(m, PG_REFERENCED);
+		mtx_unlock(&vm_mtx);
+	}
+
 	if (write) {
 		m->md.pv_flags |= PV_TABLE_MOD;
 		vm_page_dirty(m);
