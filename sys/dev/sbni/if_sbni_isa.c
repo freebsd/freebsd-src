@@ -93,7 +93,6 @@ sbni_probe_isa(device_t dev)
 		return (ENOENT);
 	}
 
-	sc->base_addr = rman_get_start(sc->io_res);
 	if (sbni_probe(sc) != 0) {
 		bus_release_resource(dev, SYS_RES_IOPORT,
 				     sc->io_rid, sc->io_res);
@@ -115,7 +114,7 @@ sbni_attach_isa(device_t dev)
 	sc = device_get_softc(dev);
 
 	printf("sbni%d: <Granch SBNI12/ISA adapter> port 0x%x",
-	       next_sbni_unit, sc->base_addr);
+	       next_sbni_unit, rman_get_start(sc->io_res));
 	sc->irq_res = bus_alloc_resource(
 	    dev, SYS_RES_IRQ, &sc->irq_rid, 0ul, ~0ul, 1, RF_ACTIVE);
 
@@ -128,6 +127,8 @@ sbni_attach_isa(device_t dev)
 			printf("sbni%d: bus_setup_intr\n", next_sbni_unit);
 			bus_release_resource(
 			    dev, SYS_RES_IOPORT, sc->io_rid, sc->io_res);
+			bus_release_resource(
+			    dev, SYS_RES_IRQ, sc->irq_rid, sc->irq_res);
 			return (error);
 		}
 

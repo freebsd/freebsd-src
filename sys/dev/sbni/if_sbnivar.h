@@ -69,11 +69,11 @@ struct sbni_flags {
 struct sbni_softc {
 	struct	arpcom arpcom;		/* ethernet common */
 
-	int	base_addr;
-	int	irq;
 	int	io_rid;
-	int	irq_rid;
 	struct	resource *io_res;
+	int	io_off;
+
+	int	irq_rid;
 	struct	resource *irq_res;
 	void	*irq_handle;
 
