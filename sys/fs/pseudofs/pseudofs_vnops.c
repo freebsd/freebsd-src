@@ -28,6 +28,8 @@
  *	$FreeBSD$
  */
 
+#include "opt_mac.h"
+
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
@@ -35,6 +37,7 @@
 #include <sys/dirent.h>
 #include <sys/fcntl.h>
 #include <sys/lock.h>
+#include <sys/mac.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
 #include <sys/namei.h>
@@ -729,6 +732,50 @@ pfs_reclaim(struct vop_reclaim_args *va)
 	return (pfs_vncache_free(va->a_vp));
 }
 
+#ifdef MAC
+/*
+ * Refresh the vnode label as appropriate for the pseudo-file system.
+ */
+static int
+pfs_refreshlabel(struct vop_refreshlabel_args *va)
+{
+	struct vnode *vn = va->a_vp;
+	struct pfs_vdata *pvd = (struct pfs_vdata *)vn->v_data;
+	struct pfs_node *pn = pvd->pvd_pn;
+	struct proc *proc = NULL;
+	int error;
+
+	PFS_TRACE((pd->pn_name));
+
+	if (pn->pn_refreshlabel == NULL) {
+		mac_update_vnode_from_mount(vn, vn->v_mount);
+		return (0);
+	}
+
+	/*
+	 * This is necessary because either process' privileges may
+	 * have changed since the last open() call.
+	 */
+	if (!pfs_visible(curthread, pn, pvd->pvd_pid))
+		PFS_RETURN (EIO);
+
+	/* XXX duplicate bits of pfs_visible() */
+	if (pvd->pvd_pid != NO_PID) {
+		if ((proc = pfind(pvd->pvd_pid)) == NULL)
+			PFS_RETURN (EIO);
+		_PHOLD(proc);
+		PROC_UNLOCK(proc);
+	}
+
+	error = (pn->pn_refreshlabel)(curthread, proc, vn, pn, va->a_cred);
+
+	if (proc != NULL)
+		PRELE(proc);
+
+	PFS_RETURN (error);
+}
+#endif
+
 /*
  * Set attributes
  */
@@ -821,6 +868,9 @@ static struct vnodeopv_entry_desc pfs_vnodeop_entries[] = {
 	{ &vop_readdir_desc,		(vop_t *)pfs_readdir	},
 	{ &vop_readlink_desc,		(vop_t *)pfs_readlink	},
 	{ &vop_reclaim_desc,		(vop_t *)pfs_reclaim	},
+#ifdef MAC
+	{ &vop_refreshlabel_desc,	(vop_t *)pfs_refreshlabel },
+#endif
 	{ &vop_remove_desc,		(vop_t *)vop_eopnotsupp	},
 	{ &vop_rename_desc,		(vop_t *)vop_eopnotsupp	},
 	{ &vop_rmdir_desc,		(vop_t *)vop_eopnotsupp	},
