@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	from: @(#)make.1	8.4 (Berkeley) 3/19/94
-.\"	$Id: make.1,v 1.6.2.1 1997/03/06 07:44:39 mpp Exp $
+.\"	$Id: make.1,v 1.6.2.2 1997/07/28 06:47:30 charnier Exp $
 .\"
 .Dd March 19, 1994
 .Dt MAKE 1
@@ -940,7 +940,7 @@ utilizes the following environment variables, if they exist:
 and
 .Ev PWD .
 .Sh FILES
-.Bl -tag -width /usr/share/mk -compact
+.Bl -tag -width /usr/share/doc/psd/12.make -compact
 .It .depend
 list of dependencies
 .It Makefile
@@ -951,9 +951,14 @@ list of dependencies
 system makefile
 .It /usr/share/mk
 system makefile directory
+.It /usr/share/doc/psd/12.make
+PMake tutorial
 .El
 .Sh SEE ALSO
 .Xr mkdep 1
+.Rs
+.%T "PMake - A Tutorial"
+.Re
 .Sh HISTORY
 A
 .Nm Make

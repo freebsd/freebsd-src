@@ -47,7 +47,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)main.c	8.3 (Berkeley) 3/19/94";
 #endif
 static const char rcsid[] =
-	"$Id: main.c,v 1.14.2.2 1997/08/27 06:32:03 jkh Exp $";
+	"$Id: main.c,v 1.14.2.3 1997/08/29 05:29:34 imp Exp $";
 #endif /* not lint */
 
 /*-
@@ -118,6 +118,7 @@ static Lst		makefiles;	/* ordered list of makefiles to read */
 static Boolean		printVars;	/* print value of one or more vars */
 static Lst		variables;	/* list of variables to print */
 int			maxJobs;	/* -j argument */
+static Boolean          forceJobs;      /* -j argument given */
 static int		maxLocal;	/* -L argument */
 Boolean			compatMake;	/* -B argument */
 Boolean			debug;		/* -d flag */
@@ -162,7 +163,6 @@ MainParseArgs(argc, argv)
 	extern int optind;
 	extern char *optarg;
 	int c;
-	int forceJobs = 0;
 
 	optind = 1;	/* since we're called more than once */
 #ifdef REMOTE
@@ -170,7 +170,7 @@ MainParseArgs(argc, argv)
 #else
 # define OPTFLAGS "BD:I:PSV:d:ef:ij:km:nqrst"
 #endif
-rearg:	while((c = getopt(argc, argv, OPTFLAGS)) !=  -1) {
+rearg:	while((c = getopt(argc, argv, OPTFLAGS)) != -1) {
 		switch(c) {
 		case 'D':
 			Var_Set(optarg, "1", VAR_GLOBAL);
@@ -190,6 +190,7 @@ rearg:	while((c = getopt(argc, argv, OPTFLAGS)) !=  -1) {
 			break;
 		case 'B':
 			compatMake = TRUE;
+			Var_Append(MAKEFLAGS, "-B", VAR_GLOBAL);
 			break;
 #ifdef REMOTE
 		case 'L':
@@ -314,13 +315,6 @@ rearg:	while((c = getopt(argc, argv, OPTFLAGS)) !=  -1) {
 			usage();
 		}
 	}
-
-	/*
-	 * Be compatible if user did not specify -j and did not explicitly
-	 * turned compatibility on
-	 */
-	if (!compatMake && !forceJobs)
-		compatMake = TRUE;
 
 	oldVars = TRUE;
 
@@ -559,6 +553,7 @@ main(argc, argv)
 #else
 	maxJobs = maxLocal;
 #endif
+	forceJobs = FALSE;              /* No -j flag */
 	compatMake = FALSE;		/* No compat mode */
 
 
@@ -605,6 +600,13 @@ main(argc, argv)
 #endif
 
 	MainParseArgs(argc, argv);
+
+	/*
+	 * Be compatible if user did not specify -j and did not explicitly
+	 * turned compatibility on
+	 */
+	if (!compatMake && !forceJobs)
+		compatMake = TRUE;
 
 	/*
 	 * Initialize archive, target and suffix modules in preparation for

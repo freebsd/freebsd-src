@@ -39,10 +39,10 @@ static const char copyright[] =
 
 #ifndef lint
 #if 0
-static char sccsid[] = "@(#)mt.c	8.1 (Berkeley) 6/6/93";
+static char sccsid[] = "@(#)mt.c	8.2 (Berkeley) 5/4/95";
 #endif
 static const char rcsid[] =
-	"$Id: mt.c,v 1.9.2.2 1997/08/21 05:50:33 joerg Exp $";
+	"$Id: mt.c,v 1.9.2.3 1997/08/29 05:29:38 imp Exp $";
 #endif /* not lint */
 
 /*
@@ -52,12 +52,14 @@ static const char rcsid[] =
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/mtio.h>
+
 #include <ctype.h>
 #include <err.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 /* the appropriate sections of <sys/mtio.h> are also #ifdef'd for FreeBSD */
 #if defined(__FreeBSD__)
@@ -128,7 +130,7 @@ main(argc, argv)
 	if ((tape = getenv("TAPE")) == NULL)
 		tape = DEFTAPE;
 
-	while ((ch = getopt(argc, argv, "f:t:")) !=  -1)
+	while ((ch = getopt(argc, argv, "f:t:")) != -1)
 		switch(ch) {
 		case 'f':
 		case 't':

@@ -33,6 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)mkfifo.1	8.2 (Berkeley) 1/5/94
+.\"	$Id$
 .\"
 .Dd January 5, 1994
 .Dt MKFIFO 1
@@ -41,22 +42,25 @@
 .Nm mkfifo
 .Nd make fifos
 .Sh SYNOPSIS
-.Nm mkfifo
+.Nm
 .Ar fifo_name  ...
 .Sh DESCRIPTION
-.Nm Mkfifo
-creates the fifos requested, in the order specified,
+The
+.Nm
+command creates the fifos requested, in the order specified,
 using mode
 .Li \&0777 .
 .Pp
-.Nm Mkfifo
-requires write permission in the parent directory.
+The
+.Nm
+command requires write permission in the parent directory.
 .Pp
-.Nm Mkfifo
-exits 0 if successful, and >0 if an error occurred.
+The
+.Nm
+command exits 0 if successful, and >0 if an error occurred.
 .Sh STANDARDS
 The
-.Nm mkfifo
+.Nm
 utility is expected to be
 .St -p1003.2
 compliant.

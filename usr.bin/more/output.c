@@ -40,8 +40,9 @@ static char sccsid[] = "@(#)output.c	8.1 (Berkeley) 6/6/93";
  * High level routines dealing with the output to the screen.
  */
 
+#include <ctype.h>
 #include <stdio.h>
-#include <less.h>
+#include "less.h"
 
 int errmsgs;	/* Count of messages displayed by error() */
 
