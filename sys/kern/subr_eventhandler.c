@@ -101,11 +101,11 @@ eventhandler_register(struct eventhandler_list *list, char *name,
 	sx_init(&list->el_lock, name);
 	list->el_flags = EHE_INITTED;
     }
+    mtx_unlock(&eventhandler_mutex);
     
     /* allocate an entry for this handler, populate it */
     if ((eg = malloc(sizeof(struct eventhandler_entry_generic), 
 		     M_EVENTHANDLER, M_NOWAIT)) == NULL) {
-	mtx_unlock(&eventhandler_mutex);
 	return(NULL);
     }
     eg->func = func;
@@ -125,7 +125,6 @@ eventhandler_register(struct eventhandler_list *list, char *name,
     if (ep == NULL)
 	TAILQ_INSERT_TAIL(&list->el_entries, &eg->ee, ee_link);
     EHE_UNLOCK(list);
-    mtx_unlock(&eventhandler_mutex);
     return(&eg->ee);
 }
 
