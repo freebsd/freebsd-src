@@ -394,3 +394,4 @@ vector_devtab(fp, table, dev_idp)
 		(*dev_idp)++;
 	}
 }
+
