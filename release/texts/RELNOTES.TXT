@@ -89,6 +89,9 @@ base system.
 
 Groff/troff/eqn has been updated to version 1.11.
 
+Gdb has been updated to version 4.18 and is now part of the standard
+release for FreeBSD/alpha.
+
 
 2. Supported Configurations
 ---------------------------
