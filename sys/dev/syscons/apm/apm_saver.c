@@ -49,7 +49,7 @@
 #include <i386/apm/apm.h>
 #endif
 
-extern int apm_display __P((int newstate));                                     
+extern int apm_display(int newstate);
 
 extern struct apm_softc apm_softc;
 
