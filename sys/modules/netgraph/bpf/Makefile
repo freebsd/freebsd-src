@@ -4,7 +4,6 @@
 KMOD=		ng_bpf
 SRCS= 		ng_bpf.c bpf_filter.c
 MAN8=		ng_bpf.8
-KMODDEPS=	netgraph
 
 .PATH:		${.CURDIR}/../../../net
 

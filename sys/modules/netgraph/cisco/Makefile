@@ -4,7 +4,6 @@
 KMOD=		ng_cisco
 SRCS= 		ng_cisco.c opt_inet.h opt_atalk.h opt_ipx.h
 MAN8=		ng_cisco.8
-KMODDEPS=	netgraph
 
 IFACE_INET?=		1	# 0/1 - requires INET configured in kernel
 IFACE_NETATALK?=	0	# 0/1 - requires NETATALK configured in kernel

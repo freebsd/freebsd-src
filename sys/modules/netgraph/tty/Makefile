@@ -4,6 +4,5 @@
 KMOD=		ng_tty
 SRCS= 		ng_tty.c
 MAN8=		ng_tty.8
-KMODDEPS=	netgraph
 
 .include <bsd.kmod.mk>
