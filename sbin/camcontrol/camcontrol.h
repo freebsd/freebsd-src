@@ -46,7 +46,9 @@ void mode_sense(struct cam_device *device, int mode_page, int page_control,
 void mode_select(struct cam_device *device, int save_pages, int retry_count,
 		 int timeout, u_int8_t *data, int datalen);
 void mode_edit(struct cam_device *device, int page, int page_control, int dbd,
-	       int edit, int retry_count, int timeout);
+	       int edit, int binary, int retry_count, int timeout);
+void mode_list(struct cam_device *device, int page_control, int dbd,
+	       int retry_count, int timeout);
 char *cget(void *hook, char *name);
 int iget(void *hook, char *name);
 void arg_put(void *hook, int letter, void *arg, int count, char *name);
