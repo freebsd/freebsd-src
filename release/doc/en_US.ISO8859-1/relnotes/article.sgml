@@ -385,6 +385,10 @@
         a simple packet distribution that acts like an Ethernet hub
         has been added.  &merged;</para>
 
+      <para>The &man.ng.sppp.4; Netgraph node type, which is a &man.netgraph.4
+	interface to the original &man.sppp.4 network module for synchronous
+	lines has been added.</para>
+
       <para>The &man.ng.vlan.4; Netgraph node type, which supports
         IEEE 802.1Q VLAN tagging has been added.  &merged;</para>
 
