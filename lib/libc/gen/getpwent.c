@@ -334,7 +334,8 @@ _createcaches()
 			key.size = (sizeof(i)) + 1;
 			if (__hashpw(&key)) {
 				p = (struct _pw_cache *)malloc(sizeof (struct _pw_cache));
-				setnetgrent(_pw_passwd.pw_name+2);
+				if (_pw_passwd.pw_name[1])
+					setnetgrent(_pw_passwd.pw_name+2);
 				namehead = NULL;
 				while(getnetgrent(&host, &user, &domain)) {
 					n = (struct _namelist *)malloc(sizeof (struct _namelist));
@@ -382,7 +383,8 @@ _createcaches()
 			key.size = (sizeof(i)) + 1;
 			if (__hashpw(&key)) {
 				m = (struct _pw_cache *)malloc(sizeof (struct _pw_cache));
-				setnetgrent(_pw_passwd.pw_name+2);
+				if (_pw_passwd.pw_name[1])
+					setnetgrent(_pw_passwd.pw_name+2);
 				namehead = NULL;
 				while(getnetgrent(&host, &user, &domain)) {
 					n = (struct _namelist *)malloc(sizeof (struct _namelist));
@@ -564,7 +566,7 @@ _getyppass(struct passwd *pw, const char *name, const char *map)
 		while (m) {
 			n = m->namelist;
 			while (n) {
-				if (!strcmp(n->name, s)) {
+				if (!strcmp(n->name, s) || *n->name == '\0') {
 					free(result);
 					return (0);
 				}
@@ -578,7 +580,7 @@ _getyppass(struct passwd *pw, const char *name, const char *map)
 		while (p) {
 			n = p->namelist;
 			while (n) {
-				if (!strcmp(n->name, s))
+				if (!strcmp(n->name, s) || *n->name == '\0')
 					bcopy((char *)&p->pw_entry,
 					(char *)&_pw_passwd, sizeof(p->pw_entry));
 				n = n->next;
@@ -653,7 +655,7 @@ unpack:
 			while (m) {
 				n = m->namelist;
 				while (n) {
-					if (!strcmp(n->name, s)) {
+					if (!strcmp(n->name, s) || *n->name == '\0') {
 						free(result);
 						goto tryagain;
 					}
@@ -667,7 +669,7 @@ unpack:
 			while (p) {
 				n = p->namelist;
 				while (n) {
-					if (!strcmp(n->name, s))
+					if (!strcmp(n->name, s) || *n->name == '\0')
 						bcopy((char *)&p->pw_entry,
 						(char*)&_pw_passwd, sizeof(p->pw_entry));
 					n = n->next;
