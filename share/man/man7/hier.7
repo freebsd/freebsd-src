@@ -60,6 +60,14 @@ third-part loadable kernel modules;
 see 
 .Xr kldstat 8 
 .El
+.It Pa /cdrom/
+default mount point for CD-ROM drives
+.It Pa /compat/
+normally a link to
+.Pa /usr/compat .
+If not, then the
+.Pa /usr/compat
+comments apply.
 .It Pa /dev/
 block and character device files
 .Pp
@@ -73,6 +81,9 @@ file descriptor files;
 see
 .Xr \&fd 4
 .El
+.It Pa /dist/
+extraction directory used by
+.Xr sysinstall 8
 .It Pa /etc/
 system configuration files and scripts 
 .Pp
@@ -90,7 +101,7 @@ isdn4bsd configuration files;
 see
 .Xr isdnd 8
 .It Pa kerberosIV/ 
-configuration files for the kerberos version IV;
+configuration files for kerberos version IV;
 see
 .Xr kerberos 1
 .It Pa localtime
@@ -98,7 +109,7 @@ local timezone information;
 see
 .Xr ctime 3
 .It Pa mail/
-spam-filtering information
+Sendmail control files
 .It Pa mtree/ 
 mtree configuration files;
 see
@@ -145,7 +156,10 @@ contains the majority of user utilities and applications
 .Pp
 .Bl -tag -width "libdata/" -compact
 .It Pa bin/
-common utilities, programming tools, and applications 
+common utilities, programming tools, and applications
+.It Pa compat/
+files needed to support binary compatability with other operating systems,
+such as Linux
 .It Pa games/
 useful and semi-frivolous programs
 .It Pa include/
