@@ -61,9 +61,9 @@ proto_Prepend(struct mbuf *bp, u_short proto, unsigned comp, int extra)
   cp[1] = proto & 0xff;
 
   if (comp && cp[0] == 0)
-    bp = mbuf_Prepend(bp, cp + 1, 1, extra);
+    bp = m_prepend(bp, cp + 1, 1, extra);
   else
-    bp = mbuf_Prepend(bp, cp, 2, extra);
+    bp = m_prepend(bp, cp, 2, extra);
 
   return bp;
 }
@@ -75,7 +75,7 @@ proto_LayerPush(struct bundle *b, struct link *l, struct mbuf *bp,
   log_Printf(LogDEBUG, "proto_LayerPush: Using 0x%04x\n", *proto);
   bp = proto_Prepend(bp, *proto, l->lcp.his_protocomp,
                      acf_WrapperOctets(&l->lcp, *proto));
-  mbuf_SetType(bp, MB_PROTOOUT);
+  m_settype(bp, MB_PROTOOUT);
   link_ProtocolRecord(l, *proto, PROTO_OUT);
 
   return bp;
@@ -89,14 +89,14 @@ proto_LayerPull(struct bundle *b, struct link *l, struct mbuf *bp,
   size_t got;
 
   if ((got = mbuf_View(bp, cp, 2)) == 0) {
-    mbuf_Free(bp);
+    m_freem(bp);
     return NULL;
   }
 
   *proto = cp[0];
   if (!(*proto & 1)) {
     if (got == 1) {
-      mbuf_Free(bp);
+      m_freem(bp);
       return NULL;
     }
     bp = mbuf_Read(bp, cp, 2);
@@ -105,7 +105,7 @@ proto_LayerPull(struct bundle *b, struct link *l, struct mbuf *bp,
     bp = mbuf_Read(bp, cp, 1);
 
   log_Printf(LogDEBUG, "proto_LayerPull: unknown -> 0x%04x\n", *proto);
-  mbuf_SetType(bp, MB_PROTOIN);
+  m_settype(bp, MB_PROTOIN);
   link_ProtocolRecord(l, *proto, PROTO_IN);
 
   return bp;

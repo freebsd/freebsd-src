@@ -386,8 +386,8 @@ mp_Down(struct mp *mp)
 
     /* Received fragments go in the bit-bucket */
     while (mp->inbufs) {
-      next = mp->inbufs->pnext;
-      mbuf_Free(mp->inbufs);
+      next = mp->inbufs->m_nextpkt;
+      m_freem(mp->inbufs);
       mp->inbufs = next;
     }
 
@@ -417,7 +417,7 @@ mp_Assemble(struct mp *mp, struct mbuf *m, struct physical *p)
    */
 
   if (m && mp_ReadHeader(mp, m, &mh) == 0) {
-    mbuf_Free(m);
+    m_freem(m);
     return;
   }
 
@@ -461,10 +461,10 @@ mp_Assemble(struct mp *mp, struct mbuf *m, struct physical *p)
     if (m && isbefore(mp->local_is12bit, mh.seq, h.seq)) {
       /* Our received fragment fits in before this one, so link it in */
       if (last)
-        last->pnext = m;
+        last->m_nextpkt = m;
       else
         mp->inbufs = m;
-      m->pnext = q;
+      m->m_nextpkt = q;
       q = m;
       h = mh;
       m = NULL;
@@ -479,8 +479,8 @@ mp_Assemble(struct mp *mp, struct mbuf *m, struct physical *p)
         /* Zap all older fragments */
         while (mp->inbufs != q) {
           log_Printf(LogDEBUG, "Drop frag\n");
-          next = mp->inbufs->pnext;
-          mbuf_Free(mp->inbufs);
+          next = mp->inbufs->m_nextpkt;
+          m_freem(mp->inbufs);
           mp->inbufs = next;
         }
 
@@ -496,9 +496,9 @@ mp_Assemble(struct mp *mp, struct mbuf *m, struct physical *p)
             h.seq--;  /* We're gonna look for fragment with h.seq+1 */
             break;
           }
-          next = mp->inbufs->pnext;
+          next = mp->inbufs->m_nextpkt;
           log_Printf(LogDEBUG, "Drop frag %u\n", h.seq);
-          mbuf_Free(mp->inbufs);
+          m_freem(mp->inbufs);
           mp->inbufs = next;
         } while (mp->inbufs && (isbefore(mp->local_is12bit, mp->seq.min_in,
                                          h.seq) || h.end));
@@ -525,17 +525,17 @@ mp_Assemble(struct mp *mp, struct mbuf *m, struct physical *p)
 
       do {
         *frag = mp->inbufs;
-        mp->inbufs = mp->inbufs->pnext;
+        mp->inbufs = mp->inbufs->m_nextpkt;
         len = mp_ReadHeader(mp, *frag, &h);
         if (first == -1)
           first = h.seq;
-        (*frag)->offset += len;
-        (*frag)->cnt -= len;
-        (*frag)->pnext = NULL;
+        (*frag)->m_offset += len;
+        (*frag)->m_len -= len;
+        (*frag)->m_nextpkt = NULL;
         if (frag == &q && !h.begin) {
           log_Printf(LogWARN, "Oops - MP frag %lu should have a begin flag\n",
                     (u_long)h.seq);
-          mbuf_Free(q);
+          m_freem(q);
           q = NULL;
         } else if (frag != &q && h.begin) {
           log_Printf(LogWARN, "Oops - MP frag %lu should have an end flag\n",
@@ -544,25 +544,25 @@ mp_Assemble(struct mp *mp, struct mbuf *m, struct physical *p)
            * Stuff our fragment back at the front of the queue and zap
            * our half-assembed packet.
            */
-          (*frag)->pnext = mp->inbufs;
+          (*frag)->m_nextpkt = mp->inbufs;
           mp->inbufs = *frag;
           *frag = NULL;
-          mbuf_Free(q);
+          m_freem(q);
           q = NULL;
           frag = &q;
           h.end = 0;	/* just in case it's a whole packet */
         } else
           do
-            frag = &(*frag)->next;
+            frag = &(*frag)->m_next;
           while (*frag != NULL);
       } while (!h.end);
 
       if (q) {
-        q = mbuf_Contiguous(q);
+        q = m_pullup(q);
         log_Printf(LogDEBUG, "MP: Reassembled frags %ld-%lu, length %d\n",
-                   first, (u_long)h.seq, mbuf_Length(q));
-        link_PullPacket(&mp->link, MBUF_CTOP(q), q->cnt, mp->bundle);
-        mbuf_Free(q);
+                   first, (u_long)h.seq, m_length(q));
+        link_PullPacket(&mp->link, MBUF_CTOP(q), q->m_len, mp->bundle);
+        m_freem(q);
       }
 
       mp->seq.next_in = seq = inc_seq(mp->local_is12bit, h.seq);
@@ -572,24 +572,24 @@ mp_Assemble(struct mp *mp, struct mbuf *m, struct physical *p)
       /* Look for the next fragment */
       seq = inc_seq(mp->local_is12bit, seq);
       last = q;
-      q = q->pnext;
+      q = q->m_nextpkt;
     }
   }
 
   if (m) {
     /* We still have to find a home for our new fragment */
     last = NULL;
-    for (q = mp->inbufs; q; last = q, q = q->pnext) {
+    for (q = mp->inbufs; q; last = q, q = q->m_nextpkt) {
       mp_ReadHeader(mp, q, &h);
       if (isbefore(mp->local_is12bit, mh.seq, h.seq))
         break;
     }
     /* Our received fragment fits in here */
     if (last)
-      last->pnext = m;
+      last->m_nextpkt = m;
     else
       mp->inbufs = m;
-    m->pnext = q;
+    m->m_nextpkt = q;
   }
 }
 
@@ -604,9 +604,9 @@ mp_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
 
   if (p == NULL) {
     log_Printf(LogWARN, "DecodePacket: Can't do MP inside MP !\n");
-    mbuf_Free(bp);
+    m_freem(bp);
   } else {
-    mbuf_SetType(bp, MB_MPIN);
+    m_settype(bp, MB_MPIN);
     mp_Assemble(&bundle->ncp.mp, bp, p);
   }
 
@@ -617,30 +617,29 @@ static void
 mp_Output(struct mp *mp, struct bundle *bundle, struct link *l,
           struct mbuf *m, u_int32_t begin, u_int32_t end)
 {
-  struct mbuf *mo;
+  char prepend[4];
 
   /* Stuff an MP header on the front of our packet and send it */
-  mo = mbuf_Alloc(4, MB_MPOUT);
-  mo->next = m;
+
   if (mp->peer_is12bit) {
     u_int16_t val;
 
     val = (begin << 15) | (end << 14) | (u_int16_t)mp->out.seq;
-    ua_htons(&val, MBUF_CTOP(mo));
-    mo->cnt = 2;
+    ua_htons(&val, prepend);
+    m = m_prepend(m, prepend, 2, 0);
   } else {
     u_int32_t val;
 
     val = (begin << 31) | (end << 30) | (u_int32_t)mp->out.seq;
-    ua_htonl(&val, MBUF_CTOP(mo));
-    mo->cnt = 4;
+    ua_htonl(&val, prepend);
+    m = m_prepend(m, prepend, 4, 0);
   }
   if (log_IsKept(LogDEBUG))
     log_Printf(LogDEBUG, "MP[frag %d]: Send %d bytes on link `%s'\n",
-               mp->out.seq, mbuf_Length(mo), l->name);
+               mp->out.seq, m_length(m), l->name);
   mp->out.seq = inc_seq(mp->peer_is12bit, mp->out.seq);
 
-  link_PushPacket(l, mo, bundle, LINK_QUEUES(l) - 1, PROTO_MP);
+  link_PushPacket(l, m, bundle, LINK_QUEUES(l) - 1, PROTO_MP);
 }
 
 int
@@ -648,7 +647,8 @@ mp_FillQueues(struct bundle *bundle)
 {
   struct mp *mp = &bundle->ncp.mp;
   struct datalink *dl, *fdl;
-  int total, add, len, thislink, nlinks;
+  size_t total, add, len;
+  int thislink, nlinks;
   u_int32_t begin, end;
   struct mbuf *m, *mo;
 
@@ -696,7 +696,7 @@ mp_FillQueues(struct bundle *bundle)
       break;
 
     m = link_Dequeue(&mp->link);
-    len = mbuf_Length(m);
+    len = m_length(m);
     begin = 1;
     end = 0;
 
@@ -706,12 +706,12 @@ mp_FillQueues(struct bundle *bundle)
         if (len <= dl->physical->link.lcp.his_mru) {
           mo = m;
           end = 1;
-          mbuf_SetType(mo, MB_MPOUT);
+          m_settype(mo, MB_MPOUT);
         } else {
           /* It's > his_mru, chop the packet (`m') into bits */
-          mo = mbuf_Alloc(dl->physical->link.lcp.his_mru, MB_MPOUT);
-          len -= mo->cnt;
-          m = mbuf_Read(m, MBUF_CTOP(mo), mo->cnt);
+          mo = m_get(dl->physical->link.lcp.his_mru, MB_MPOUT);
+          len -= mo->m_len;
+          m = mbuf_Read(m, MBUF_CTOP(mo), mo->m_len);
         }
         mp_Output(mp, bundle, &dl->physical->link, mo, begin, end);
         begin = 0;
@@ -767,7 +767,7 @@ mp_ShowStatus(struct cmdargs const *arg)
     lm = NULL;
     prompt_Printf(arg->prompt, "Socket:         %s\n",
                   mp->server.socket.sun_path);
-    for (m = mp->inbufs; m; m = m->pnext) {
+    for (m = mp->inbufs; m; m = m->m_nextpkt) {
       bufs++;
       lm = m;
     }

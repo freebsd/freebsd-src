@@ -301,10 +301,10 @@ IcmpError(struct ip *pip, int code)
   struct mbuf *bp;
 
   if (pip->ip_p != IPPROTO_ICMP) {
-    bp = mbuf_Alloc(cnt, MB_IPIN);
-    memcpy(MBUF_CTOP(bp), ptr, cnt);
+    bp = m_get(m_len, MB_IPIN);
+    memcpy(MBUF_CTOP(bp), ptr, m_len);
     vj_SendFrame(bp);
-    ipcp_AddOutOctets(cnt);
+    ipcp_AddOutOctets(m_len);
   }
 }
 #endif
@@ -493,17 +493,17 @@ ip_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
 
   if (bundle->ncp.ipcp.fsm.state != ST_OPENED) {
     log_Printf(LogWARN, "ip_Input: IPCP not open - packet dropped\n");
-    mbuf_Free(bp);
+    m_freem(bp);
     return NULL;
   }
 
-  mbuf_SetType(bp, MB_IPIN);
+  m_settype(bp, MB_IPIN);
   tun_fill_header(tun, AF_INET);
-  nb = mbuf_Length(bp);
+  nb = m_length(bp);
   if (nb > sizeof tun.data) {
     log_Printf(LogWARN, "ip_Input: %s: Packet too large (got %d, max %d)\n",
                l->name, nb, (int)(sizeof tun.data));
-    mbuf_Free(bp);
+    m_freem(bp);
     return NULL;
   }
   mbuf_Read(bp, tun.data, nb);
@@ -541,14 +541,14 @@ ip_Enqueue(struct ipcp *ipcp, int pri, char *ptr, int count)
     /*
      * We allocate an extra 6 bytes, four at the front and two at the end.
      * This is an optimisation so that we need to do less work in
-     * mbuf_Prepend() in acf_LayerPush() and proto_LayerPush() and
+     * m_prepend() in acf_LayerPush() and proto_LayerPush() and
      * appending in hdlc_LayerPush().
      */
-    bp = mbuf_Alloc(count + 6, MB_IPOUT);
-    bp->offset += 4;
-    bp->cnt -= 6;
+    bp = m_get(count + 6, MB_IPOUT);
+    bp->m_offset += 4;
+    bp->m_len -= 6;
     memcpy(MBUF_CTOP(bp), ptr, count);
-    mbuf_Enqueue(ipcp->Queue + pri, bp);
+    m_enqueue(ipcp->Queue + pri, bp);
   }
 }
 
@@ -559,17 +559,18 @@ ip_DeleteQueue(struct ipcp *ipcp)
 
   for (queue = ipcp->Queue; queue < ipcp->Queue + IPCP_QUEUES(ipcp); queue++)
     while (queue->top)
-      mbuf_Free(mbuf_Dequeue(queue));
+      m_freem(m_dequeue(queue));
 }
 
-int
+size_t
 ip_QueueLen(struct ipcp *ipcp)
 {
   struct mqueue *queue;
-  int result = 0;
+  size_t result;
 
+  result = 0;
   for (queue = ipcp->Queue; queue < ipcp->Queue + IPCP_QUEUES(ipcp); queue++)
-    result += queue->qlen;
+    result += queue->len;
 
   return result;
 }
@@ -581,7 +582,7 @@ ip_PushPacket(struct link *l, struct bundle *bundle)
   struct mqueue *queue;
   struct mbuf *bp;
   struct ip *pip;
-  int cnt;
+  int m_len;
 
   if (ipcp->fsm.state != ST_OPENED)
     return 0;
@@ -589,13 +590,13 @@ ip_PushPacket(struct link *l, struct bundle *bundle)
   queue = ipcp->Queue + IPCP_QUEUES(ipcp) - 1;
   do {
     if (queue->top) {
-      bp = mbuf_Contiguous(mbuf_Dequeue(queue));
-      cnt = mbuf_Length(bp);
+      bp = m_pullup(m_dequeue(queue));
+      m_len = m_length(bp);
       pip = (struct ip *)MBUF_CTOP(bp);
       if (!FilterCheck(pip, &bundle->filter.alive))
         bundle_StartIdleTimer(bundle);
       link_PushPacket(l, bp, bundle, 0, PROTO_IP);
-      ipcp_AddOutOctets(ipcp, cnt);
+      ipcp_AddOutOctets(ipcp, m_len);
       return 1;
     }
   } while (queue-- != ipcp->Queue);

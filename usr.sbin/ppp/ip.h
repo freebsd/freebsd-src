@@ -31,4 +31,4 @@ extern int  PacketCheck(struct bundle *, char *, int, struct filter *);
 extern void ip_Enqueue(struct ipcp *, int, char *, int);
 extern struct mbuf *ip_Input(struct bundle *, struct link *, struct mbuf *);
 extern void ip_DeleteQueue(struct ipcp *);
-extern int  ip_QueueLen(struct ipcp *);
+extern size_t ip_QueueLen(struct ipcp *);

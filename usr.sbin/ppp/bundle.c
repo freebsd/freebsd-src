@@ -402,12 +402,36 @@ bundle_Down(struct bundle *bundle, int how)
     datalink_Down(dl, how);
 }
 
+static size_t
+bundle_FillQueues(struct bundle *bundle)
+{
+  size_t total;
+
+  if (bundle->ncp.mp.active)
+    total = mp_FillQueues(bundle);
+  else {
+    struct datalink *dl;
+    size_t add;
+
+    for (total = 0, dl = bundle->links; dl; dl = dl->next)
+      if (dl->state == DATALINK_OPEN) {
+        add = link_QueueLen(&dl->physical->link);
+        if (add == 0 && dl->physical->out == NULL)
+          add = ip_PushPacket(&dl->physical->link, bundle);
+        total += add;
+      }
+  }
+
+  return total + ip_QueueLen(&bundle->ncp.ipcp);
+}
+
 static int
 bundle_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
 {
   struct bundle *bundle = descriptor2bundle(d);
   struct datalink *dl;
-  int result, queued, nlinks;
+  int result, nlinks;
+  size_t queued;
 
   result = 0;
 
@@ -1030,29 +1054,6 @@ bundle2datalink(struct bundle *bundle, const char *name)
     return bundle->links;
 
   return NULL;
-}
-
-int
-bundle_FillQueues(struct bundle *bundle)
-{
-  int total;
-
-  if (bundle->ncp.mp.active)
-    total = mp_FillQueues(bundle);
-  else {
-    struct datalink *dl;
-    int add;
-
-    for (total = 0, dl = bundle->links; dl; dl = dl->next)
-      if (dl->state == DATALINK_OPEN) {
-        add = link_QueueLen(&dl->physical->link);
-        if (add == 0 && dl->physical->out == NULL)
-          add = ip_PushPacket(&dl->physical->link, bundle);
-        total += add;
-      }
-  }
-
-  return total + ip_QueueLen(&bundle->ncp.ipcp);
 }
 
 int
