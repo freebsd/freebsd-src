@@ -1,4 +1,4 @@
-/* $Id: proc.h,v 1.1.1.1 1998/03/09 05:43:16 jb Exp $ */
+/* $Id: proc.h,v 1.2 1998/06/10 10:55:17 dfr Exp $ */
 /* From: NetBSD: proc.h,v 1.3 1997/04/06 08:47:36 cgd Exp */
 
 /*
@@ -32,10 +32,18 @@
  * Machine-dependent part of the proc struct for the Alpha.
  */
 
+struct mdbpt {
+	vm_offset_t	addr;
+	u_int32_t	contents;
+};
+
 struct mdproc {
 	u_long	md_flags;
 	struct	trapframe *md_tf;	/* trap/syscall registers */
 	struct pcb *md_pcbpaddr;	/* phys addr of the pcb */
+	struct mdbpt md_sstep[2];	/* two single step breakpoints */
 };
 
 #define	MDP_FPUSED	0x0001		/* Process used the FPU */
+#define MDP_STEP1	0x0002		/* Single step normal instruction */
+#define MDP_STEP2	0x0004		/* Single step branch instruction */
