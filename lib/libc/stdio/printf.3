@@ -696,31 +696,71 @@ and
 functions are easily misused in a manner which enables malicious users
 to arbitrarily change a running program's functionality through
 a buffer overflow attack.
-(See
-the FSA
+Because
+.Fn sprintf
 and
-.Sx EXAMPLES . )
+.Fn vsprintf
+assume an infinitely long string,
+callers must be careful not to overflow the actual space;
+this is often hard to assure.
+For safety, programmers should use the
+.Fn snprintf
+interface instead.
+For example:
+.Bd -literal
+void
+foo(const char *arbitrary_string, const char *and_another)
+{
+	char onstack[8];
+
+#if defined(BAD)
+	/*
+	 * This first sprintf is bad behavior.  Do not use sprintf!
+	 */
+	(void)sprintf(onstack, "%s, %s", arbitrary_string, and_another);
+#elif defined(BETTER)
+	/*
+	 * The following two lines demonstrate better use of
+	 * snprintf().
+	 */
+	(void)snprintf(onstack, sizeof(onstack) - 1, "%s, %s",
+	    arbitrary_string, and_another);
+#endif
+}
+.Ed
 .Pp
-.\" XXX - rewrite after FSA
 The
 .Fn printf
 and
-.Fn vprintf
-functions are also easily misused in a manner allowing malicious users
-to arbitrarily change a running program's functionality by either
-causing the program to print potentially sensitive data
+.Fn sprintf
+family of functions are also easily misused in a manner
+allowing malicious users to arbitrarily change a running program's
+functionality by either causing the program
+to print potentially sensitive data
 .Dq "left on the stack,"
 or causing it to generate a memory fault or bus error
 by dereferencing an invalid pointer.
 .Pp
-Never, under any circumstances pass a string obtained from the network,
-a file, or any user as a format string to a
-.Fn printf
-or
-.Fn sprintf
-function.
-.Xc
-.Ec
+.Cm %n
+can be used to write arbitrary data to the stack.
+Programmers are therefore strongly advised to never pass untrusted strings
+as the
+.Fa format
+argument.
+.Pp
+Never pass a string with user-supplied data as a format without using
+.Ql %s .
+An attacker can put format specifiers in the string to mangle your stack,
+leading to a possible security hole.
+This holds true even if the string was built using a function like
+.Fn snprintf ,
+as the resulting string may still contain user-supplied conversion specifiers
+for later interpolation by
+.Fn printf .
+.Pp
+Always use the proper secure idiom:
+.Pp
+.Dl "snprintf(buffer, sizeof(buffer), \*q%s\*q, string);"
 .Sh SEE ALSO
 .Xr printf 1 ,
 .Xr scanf 3 ,
@@ -790,40 +830,6 @@ nonsensical combinations such as
 .Cm %Ld ,
 are not standard; such combinations
 should be avoided.
-.Pp
-Because
-.Fn sprintf
-and
-.Fn vsprintf
-assume an infinitely long string,
-callers must be careful not to overflow the actual space;
-this is often hard to assure.
-For safety, programmers should use the
-.Fn snprintf
-interface instead.
-Unfortunately, this interface was only defined in
-.St -isoC-99 .
-.Pp
-.Cm %n
-can be used to write arbitrary data to the stack.
-Programmers are therefore strongly advised to never pass untrusted strings
-as the
-.Fa format
-argument.
-.Pp
-Never pass a string with user-supplied data as a format without using
-.Ql %s .
-An attacker can put format specifiers in the string to mangle your stack,
-leading to a possible security hole.
-This holds true even if the string was built using a function like
-.Fn snprintf ,
-as the resulting string may still contain user-supplied conversion specifiers
-for later interpolation by
-.Fn printf .
-.Pp
-Always use the proper secure idiom:
-.Pp
-.Dl "snprintf(buffer, sizeof(buffer), \*q%s\*q, string);"
 .Pp
 The
 .Nm
