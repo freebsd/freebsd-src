@@ -1179,7 +1179,12 @@ make_cat_file (path, man_file, cat_file, manid)
      register char *cat_file;
 {
   int s, f;
-  FILE *fp, *pp;
+  FILE *pp;
+#if defined(HAVE_LIBZ) && defined(DO_COMPRESS)
+  gzFile fp;
+#else
+  FILE *fp;
+#endif
   char *roff_command;
   char command[FILENAME_MAX];
 
@@ -1188,7 +1193,12 @@ make_cat_file (path, man_file, cat_file, manid)
       return 0;
 
   snprintf(temp, sizeof(temp), "%s.tmpXXXXXX", cat_file);
-  if ((f = mkstemp(temp)) >= 0 && (fp = fdopen(f, "w")) != NULL)
+  if ((f = mkstemp(temp)) >= 0 && 
+#if defined(HAVE_LIBZ) && defined(DO_COMPRESS)
+      (fp = gzdopen(f, "w")) != NULL)
+#else
+      (fp = fdopen(f, "w")) != NULL)
+#endif
     {
       set_sigs();
 
@@ -1201,13 +1211,9 @@ make_cat_file (path, man_file, cat_file, manid)
       } else if (debug)
 	fprintf (stderr, "mode of %s is now %o\n", temp, CATMODE);
 
-#ifdef DO_COMPRESS
-      snprintf (command, sizeof(command), "(cd %s ; %s | %s)", path,
-		roff_command, COMPRESSOR);
-#else
       snprintf (command, sizeof(command), "(cd %s ; %s)", path,
 		roff_command);
-#endif
+
       fprintf (stderr, "Formatting page, please wait...");
       fflush(stderr);
 
@@ -1230,7 +1236,11 @@ make_cat_file (path, man_file, cat_file, manid)
 #endif
 	  unlink(temp);
 	  restore_sigs();
+#if defined(HAVE_LIBZ) && defined(DO_COMPRESS)
+	  gzclose(fp);
+#else
 	  fclose(fp);
+#endif
 	  return 0;
 	}
 #ifdef SETUID
@@ -1240,17 +1250,27 @@ make_cat_file (path, man_file, cat_file, manid)
 
 	f = 0;
 	while ((s = getc(pp)) != EOF) {
-	  putc(s, fp); f++;
+#if defined(HAVE_LIBZ) && defined(DO_COMPRESS)
+	  gzputc(fp, s);
+#else
+	  putc(s, fp);
+#endif
+	  f++;
 	}
 
 	if (!f || ((s = pclose(pp)) == -1)) {
 	  s = errno;
 	  fprintf(stderr, "Failed.\n");
 	  errno = s;
-	  perror("pclose");
+	  if (f)
+	    perror("pclose");
 	  unlink(temp);
 	  restore_sigs();
+#if defined(HAVE_LIBZ) && defined(DO_COMPRESS)
+	  gzclose(fp);
+#else
 	  fclose(fp);
+#endif
 	  return 0;
 	}
 
@@ -1259,7 +1279,11 @@ make_cat_file (path, man_file, cat_file, manid)
 	  gripe_system_command(s);
 	  unlink(temp);
 	  restore_sigs();
+#if defined(HAVE_LIBZ) && defined(DO_COMPRESS)
+	  gzclose(fp);
+#else
 	  fclose(fp);
+#endif
 	  return 0;
 	}
       }
@@ -1275,12 +1299,20 @@ make_cat_file (path, man_file, cat_file, manid)
 	perror("rename");
 	unlink(temp);
 	restore_sigs();
+#if defined(HAVE_LIBZ) && defined(DO_COMPRESS)
+	gzclose(fp);
+#else
 	fclose(fp);
+#endif
 	return 0;
       }
       restore_sigs();
 
+#if defined(HAVE_LIBZ) && defined(DO_COMPRESS)
+      if (gzclose(fp)) {
+#else
       if (fclose(fp)) {
+#endif
 	s = errno;
 	if (!debug)
 	  unlink(cat_file);
