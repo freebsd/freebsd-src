@@ -1,4 +1,4 @@
-	$Id: syscalls.master,v 1.8 1998/03/29 06:35:22 peter Exp $
+	$Id: syscalls.master,v 1.9 1998/03/29 07:53:19 peter Exp $
 
 ;	@(#)syscalls.master	8.1 (Berkeley) 7/19/93
 ; System call name/number master file (or rather, slave, from LINUX).
@@ -47,8 +47,7 @@
 13	STD	LINUX	{ int linux_time(linux_time_t *tm); }
 14	STD	LINUX	{ int linux_mknod(char *path, int mode, int dev); }
 15	STD	LINUX	{ int linux_chmod(char *path, int mode); }
-; XXX linux_chown is really meant to be linux_lchown
-16	STD	LINUX	{ int linux_chown(char *path, int uid, int gid); }
+16	STD	LINUX	{ int linux_lchown(char *path, int uid, int gid); }
 17	STD	LINUX	{ int linux_break(char *nsize); }
 18	STD	LINUX	{ int linux_stat(char *path, struct ostat *up); }
 19	STD	LINUX	{ int linux_lseek(int fdes, long off, int whence); }
@@ -253,4 +252,4 @@
 179	UNIMPL	LINUX	rt_sigsuspend
 180	UNIMPL	LINUX	pread
 181	UNIMPL	LINUX	pwrite
-182	UNIMPL	LINUX	chown
+182	STD	LINUX	{ int linux_chown(char *path, int uid, int gid); }
