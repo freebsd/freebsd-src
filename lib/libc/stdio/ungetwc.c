@@ -36,28 +36,40 @@ __FBSDID("$FreeBSD$");
 #include "libc_private.h"
 #include "local.h"
 
+/*
+ * Non-MT-safe version.
+ */
 wint_t
-ungetwc(wint_t wc, FILE *fp)
+__ungetwc(wint_t wc, FILE *fp)
 {
 	char buf[MB_LEN_MAX];
 	mbstate_t mbs;
 	size_t len;
 
-	FLOCKFILE(fp);
-	ORIENT(fp, 1);
 	if (wc == WEOF)
-		goto error;
+		return (WEOF);
 	memset(&mbs, 0, sizeof(mbs));
 	if ((len = wcrtomb(buf, wc, &mbs)) == (size_t)-1)
-		goto error;
+		return (WEOF);
 	while (len-- != 0)
 		if (__ungetc((unsigned char)buf[len], fp) == EOF)
-			goto error;
-	FUNLOCKFILE(fp);
+			return (WEOF);
 
 	return (wc);
+}
 
-error:
+/*
+ * MT-safe version.
+ */
+wint_t
+ungetwc(wint_t wc, FILE *fp)
+{
+	wint_t r;
+
+	FLOCKFILE(fp);
+	ORIENT(fp, 1);
+	r = __ungetwc(wc, fp);
 	FUNLOCKFILE(fp);
-	return (WEOF);
+
+	return (r);
 }
