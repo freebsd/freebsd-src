@@ -16,7 +16,7 @@ XSRCS=	annotate.c ax-general.c ax-gdb.c bcache.c blockframe.c		\
 	corefile.c corelow.c cp-valprint.c dcache.c dbxread.c		\
 	demangle.c dwarfread.c dwarf2read.c elfread.c environ.c eval.c	\
 	exec.c expprint.c f-exp.y f-lang.c f-typeprint.c f-valprint.c	\
-	findvar.c fork-child.c freebsd-uthread.c gdbarch.c gdbtypes.c	\
+	findvar%UAfix.c fork-child.c freebsd-uthread.c gdbarch.c gdbtypes.c \
 	infcmd.c inflow.c infptrace.c infrun.c inftarg.c language.c	\
 	jv-exp.y jv-lang.c jv-valprint.c jv-typeprint.c nlmread.c	\
 	m2-lang.c m2-exp.y m2-typeprint.c m2-valprint.c main.c maint.c	\
@@ -67,6 +67,7 @@ CFLAGS+= -DNO_MMALLOC
 YFLAGS=
 
 CLEANFILES=	init.c init.c-tmp wait.h
+CLEANFILES=	findvar%UAfix.c
 
 # We do this by grepping through sources.  If that turns out to be too slow,
 # maybe we could just require every .o file to have an initialization routine
