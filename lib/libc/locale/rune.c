@@ -70,10 +70,8 @@ _Read_RuneMagi(fp)
 		return (NULL);
 	}
 
-	if ((data = malloc(sb.st_size)) == NULL) {
-		errno = ENOMEM;
+	if ((data = malloc(sb.st_size)) == NULL)
 		return (NULL);
-	}
 
 	errno = 0;
 	rewind(fp); /* Someone might have read the magic number once already */
