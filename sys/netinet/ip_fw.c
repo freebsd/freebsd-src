@@ -173,7 +173,7 @@ SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, dyn_fin_lifetime, CTLFLAG_RW,
 SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, dyn_rst_lifetime, CTLFLAG_RW,
     &dyn_rst_lifetime, 0, "Lifetime of dyn. rules for rst");
 SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, dyn_short_lifetime, CTLFLAG_RW,
-    &dyn_rst_lifetime, 0, "Lifetime of dyn. rules for other situations");
+    &dyn_short_lifetime, 0, "Lifetime of dyn. rules for other situations");
 #endif /* STATEFUL */
 
 #endif
