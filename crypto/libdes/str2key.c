@@ -1,9 +1,9 @@
 /* crypto/des/str2key.c */
-/* Copyright (C) 1995-1997 Eric Young (eay@mincom.oz.au)
+/* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
  * This package is an SSL implementation written
- * by Eric Young (eay@mincom.oz.au).
+ * by Eric Young (eay@cryptsoft.com).
  * The implementation was written so as to conform with Netscapes SSL.
  * 
  * This library is free for commercial and non-commercial use as long as
@@ -11,7 +11,7 @@
  * apply to all code found in this distribution, be it the RC4, RSA,
  * lhash, DES, etc., code; not just the SSL code.  The SSL documentation
  * included with this distribution is covered by the same copyright terms
- * except that the holder is Tim Hudson (tjh@mincom.oz.au).
+ * except that the holder is Tim Hudson (tjh@cryptsoft.com).
  * 
  * Copyright remains Eric Young's, and as such any Copyright notices in
  * the code are not to be removed.
@@ -31,12 +31,12 @@
  * 3. All advertising materials mentioning features or use of this software
  *    must display the following acknowledgement:
  *    "This product includes cryptographic software written by
- *     Eric Young (eay@mincom.oz.au)"
+ *     Eric Young (eay@cryptsoft.com)"
  *    The word 'cryptographic' can be left out if the rouines from the library
  *    being used are not cryptographic related :-).
  * 4. If you include any Windows specific code (or a derivative thereof) from 
  *    the apps directory (application code) you must include an acknowledgement:
- *    "This product includes software written by Tim Hudson (tjh@mincom.oz.au)"
+ *    "This product includes software written by Tim Hudson (tjh@cryptsoft.com)"
  * 
  * THIS SOFTWARE IS PROVIDED BY ERIC YOUNG ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -58,11 +58,9 @@
 
 #include "des_locl.h"
 
-extern int des_check_key;
+OPENSSL_EXTERN int des_check_key;
 
-void des_string_to_key(str, key)
-char *str;
-des_cblock (*key);
+void des_string_to_key(const char *str, des_cblock *key)
 	{
 	des_key_schedule ks;
 	int i,length;
@@ -89,21 +87,17 @@ des_cblock (*key);
 			}
 		}
 #endif
-	des_set_odd_parity((des_cblock *)key);
+	des_set_odd_parity(key);
 	i=des_check_key;
 	des_check_key=0;
-	des_set_key((des_cblock *)key,ks);
+	des_set_key(key,ks);
 	des_check_key=i;
-	des_cbc_cksum((des_cblock *)str,(des_cblock *)key,(long)length,ks,
-		(des_cblock *)key);
+	des_cbc_cksum((unsigned char*)str,key,length,ks,key);
 	memset(ks,0,sizeof(ks));
-	des_set_odd_parity((des_cblock *)key);
+	des_set_odd_parity(key);
 	}
 
-void des_string_to_2keys(str, key1, key2)
-char *str;
-des_cblock (*key1);
-des_cblock (*key2);
+void des_string_to_2keys(const char *str, des_cblock *key1, des_cblock *key2)
 	{
 	des_key_schedule ks;
 	int i,length;
@@ -154,16 +148,14 @@ des_cblock (*key2);
 		}
 	if (length <= 8) memcpy(key2,key1,8);
 #endif
-	des_set_odd_parity((des_cblock *)key1);
-	des_set_odd_parity((des_cblock *)key2);
+	des_set_odd_parity(key1);
+	des_set_odd_parity(key2);
 	i=des_check_key;
 	des_check_key=0;
-	des_set_key((des_cblock *)key1,ks);
-	des_cbc_cksum((des_cblock *)str,(des_cblock *)key1,(long)length,ks,
-		(des_cblock *)key1);
-	des_set_key((des_cblock *)key2,ks);
-	des_cbc_cksum((des_cblock *)str,(des_cblock *)key2,(long)length,ks,
-		(des_cblock *)key2);
+	des_set_key(key1,ks);
+	des_cbc_cksum((unsigned char*)str,key1,length,ks,key1);
+	des_set_key(key2,ks);
+	des_cbc_cksum((unsigned char*)str,key2,length,ks,key2);
 	des_check_key=i;
 	memset(ks,0,sizeof(ks));
 	des_set_odd_parity(key1);

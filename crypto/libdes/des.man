@@ -183,4 +183,4 @@ with 424 null bytes.  To get around this problem, use the -u option
 to uuencode the data before it is send to the VMS system.
 .SH AUTHOR
 .LP
-Eric Young (eay@mincom.oz.au or eay@psych.psy.uq.oz.au)
+Eric Young (eay@cryptsoft.com)

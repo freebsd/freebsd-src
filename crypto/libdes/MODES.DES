@@ -71,7 +71,7 @@ key.  The reason for this is that an identical bit stream would be
 produced each time from the same parameters.  This would be
 susceptible to a 'known plaintext' attack.
 
-Triple ECB Mode (des_3ecb_encrypt())
+Triple ECB Mode (des_ecb3_encrypt())
 - Encrypt with key1, decrypt with key2 and encrypt with key1 again.
 - As for ECB encryption but increases the effective key length to 112 bits.
 - If both keys are the same it is equivalent to encrypting once with

@@ -116,7 +116,7 @@ functions into des_enc.c because it does make a massive performance
 difference on some boxes to have the functions code located close to
 the des_encrypt2() function.
 
-9 Jan 1996 - des-som2.pl is now the correct perl script to use for
+9 Jan 1997 - des-som2.pl is now the correct perl script to use for
 pentiums.  It contains an inner loop from
 Svend Olaf Mikkelsen <svolaf@inet.uni-c.dk> which does raw ecb DES calls at
 273,000 per second.  He had a previous version at 250,000 and the best
@@ -126,5 +126,6 @@ to keep both functional units of the pentium going.
 We may have lost the ugly register usage restrictions when x86 went 32 bit
 but for the pentium it has been replaced by evil instruction ordering tricks.
 
-13 Jan 1996 - des-som3.pl, more optimizations from Svend Olaf.
+13 Jan 1997 - des-som3.pl, more optimizations from Svend Olaf.
 raw DES at 281,000 per second on a pentium 100.
+

@@ -1,9 +1,9 @@
 /* crypto/des/ecb3_enc.c */
-/* Copyright (C) 1995-1997 Eric Young (eay@mincom.oz.au)
+/* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
  * This package is an SSL implementation written
- * by Eric Young (eay@mincom.oz.au).
+ * by Eric Young (eay@cryptsoft.com).
  * The implementation was written so as to conform with Netscapes SSL.
  * 
  * This library is free for commercial and non-commercial use as long as
@@ -11,7 +11,7 @@
  * apply to all code found in this distribution, be it the RC4, RSA,
  * lhash, DES, etc., code; not just the SSL code.  The SSL documentation
  * included with this distribution is covered by the same copyright terms
- * except that the holder is Tim Hudson (tjh@mincom.oz.au).
+ * except that the holder is Tim Hudson (tjh@cryptsoft.com).
  * 
  * Copyright remains Eric Young's, and as such any Copyright notices in
  * the code are not to be removed.
@@ -31,12 +31,12 @@
  * 3. All advertising materials mentioning features or use of this software
  *    must display the following acknowledgement:
  *    "This product includes cryptographic software written by
- *     Eric Young (eay@mincom.oz.au)"
+ *     Eric Young (eay@cryptsoft.com)"
  *    The word 'cryptographic' can be left out if the rouines from the library
  *    being used are not cryptographic related :-).
  * 4. If you include any Windows specific code (or a derivative thereof) from 
  *    the apps directory (application code) you must include an acknowledgement:
- *    "This product includes software written by Tim Hudson (tjh@mincom.oz.au)"
+ *    "This product includes software written by Tim Hudson (tjh@cryptsoft.com)"
  * 
  * THIS SOFTWARE IS PROVIDED BY ERIC YOUNG ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -58,25 +58,20 @@
 
 #include "des_locl.h"
 
-void des_ecb3_encrypt(input, output, ks1, ks2, ks3, encrypt)
-des_cblock (*input);
-des_cblock (*output);
-des_key_schedule ks1;
-des_key_schedule ks2;
-des_key_schedule ks3;
-int encrypt;
+void des_ecb3_encrypt(const_des_cblock *input, des_cblock *output,
+	     des_key_schedule ks1, des_key_schedule ks2, des_key_schedule ks3,
+	     int enc)
 	{
 	register DES_LONG l0,l1;
-	register unsigned char *in,*out;
 	DES_LONG ll[2];
+	const unsigned char *in = &(*input)[0];
+	unsigned char *out = &(*output)[0];
 
-	in=(unsigned char *)input;
-	out=(unsigned char *)output;
 	c2l(in,l0);
 	c2l(in,l1);
 	ll[0]=l0;
 	ll[1]=l1;
-	if (encrypt)
+	if (enc)
 		des_encrypt3(ll,ks1,ks2,ks3);
 	else
 		des_decrypt3(ll,ks1,ks2,ks3);

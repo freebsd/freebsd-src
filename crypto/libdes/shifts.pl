@@ -1,4 +1,4 @@
-#/usr/local/bin/perl
+#!/usr/local/bin/perl
 
 sub lab_shift
 	{
