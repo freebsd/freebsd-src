@@ -126,6 +126,11 @@ main(int argc, char **argv)
 		case 'u':
 			if (cmdline != 2 && cmdline != 3)
 				usage();
+			if (!strncmp(optarg, "/dev/", 5))
+				optarg += 5;
+			if (!strncmp(optarg, "md", 2))
+				optarg += 2;
+			mdio.md_unit = strtoul(optarg, NULL, 0);
 			mdio.md_unit = strtoul(optarg, NULL, 0);
 			mdio.md_options &= ~MD_AUTOUNIT;
 			break;
