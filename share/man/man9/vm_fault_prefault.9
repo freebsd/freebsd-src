@@ -36,10 +36,10 @@
 .In vm/vm.h
 .In vm/pmap.h
 .Ft void
-.Fn vm_map_prefault "pmap_t pmap" "vm_offset_t addra" "vm_map_entry_t entry"
+.Fn vm_fault_prefault "pmap_t pmap" "vm_offset_t addra" "vm_map_entry_t entry"
 .Sh DESCRIPTION
 The
-.Fn vm_map_prefault
+.Fn vm_fault_prefault
 function provides a means of clustering pagefaults into a process's
 address space.
 It operates upon the physical map
@@ -55,14 +55,14 @@ It is typically called by
 .Fn vm_fault
 after the first page fault.
 It benefits the
-.Fn exec
+.Xr execve 2
 system call by eliminating repetitive calls to
 .Fn vm_fault ,
 which would otherwise be made to bring the process's executable pages
 into physical memory.
 .Sh IMPLEMENTATION NOTES
 This is a machine-independent function which calls the machine-dependent
-.Fn pmap_is_prefaultable
+.Xr pmap_is_prefaultable 9
 helper function to determine if a page may be prefaulted into physical memory.
 .Sh SEE ALSO
 .Xr execve 2 ,
