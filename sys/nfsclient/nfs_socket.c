@@ -528,7 +528,7 @@ nfs_reply(struct nfsreq *rep)
 {
 	register struct socket *so;
 	register struct mbuf *m;
-	int error, sotype, slpflag;
+	int error = 0, sotype, slpflag;
 
 	NET_ASSERT_GIANT();
 
@@ -582,23 +582,9 @@ tryagain:
 	if (rep->r_nmp->nm_flag & NFSMNT_INT)
 		slpflag = PCATCH;
 	mtx_lock(&nfs_reply_mtx);
-	if (rep->r_mrep != NULL) {
-		/*
-		 * This is a very rare race, but it does occur. The reply 
-		 * could come in and the wakeup could happen before the 
-		 * process tsleeps(). Blocking here without checking for 
-		 * this results in a missed wakeup(), blocking this request 
-		 * forever. The 2 reasons why this could happen are a context
-		 * switch in the stack after the request is sent out, or heavy
-		 * interrupt activity pinning down the process within the window.
-		 * (after the request is sent).
-		 */
-		mtx_unlock(&nfs_reply_mtx);
-		nfs_mrep_before_tsleep++;
-		return (0);
-	}
-	error = msleep((caddr_t)rep, &nfs_reply_mtx, 
-		       slpflag | (PZERO - 1), "nfsreq", 0);
+	while ((rep->r_mrep == NULL) && (error == 0))
+		error = msleep((caddr_t)rep, &nfs_reply_mtx, 
+			       slpflag | (PZERO - 1), "nfsreq", 0);
 	mtx_unlock(&nfs_reply_mtx);
 	if (error == EINTR || error == ERESTART)
 		/* NFS operations aren't restartable. Map ERESTART to EINTR */
@@ -1359,13 +1345,14 @@ nfs_softterm(struct nfsreq *rep)
 
 /*
  * Any signal that can interrupt an NFS operation in an intr mount
- * should be added to this set.
+ * should be added to this set. SIGSTOP and SIGKILL cannot be masked.
  */
 int nfs_sig_set[] = {
 	SIGINT,
 	SIGTERM,
 	SIGHUP,
 	SIGKILL,
+	SIGSTOP,
 	SIGQUIT
 };
 
