@@ -27,6 +27,11 @@ to him.  See end of file for further details.
 	Make -j n doesn't work.  Work contiunes to make this work,
 	I've seen no reports of success as of April 7th.
 
+19990329:
+	Previously, one would define "NOAOUT" to keep from building
+	the legacy a.out bits.  Now one would define "WANT_AOUT" to
+	build them.
+
 19990316:
 	The name of the old wd.c and atapi.c based CDROM driver has
 	been changed back to wcd. So update your config file to use
@@ -180,4 +185,4 @@ version of FreeBSD, you are on your own to get to November 18, 1998.
 Please filter your entries through Warner (imp@village.org) so that
 the style, formatting, etc of this file can be maintained.
 
-$Id: UPDATING,v 1.23 1999/03/18 05:39:45 imp Exp $
+$Id: UPDATING,v 1.24 1999/04/09 06:17:37 imp Exp $
