@@ -1,5 +1,5 @@
 .\"	$NetBSD: poll.2,v 1.3 1996/09/07 21:53:08 mycroft Exp $
-.\"	$Id: poll.2,v 1.1 1997/09/14 05:44:35 peter Exp $
+.\"	$Id: poll.2,v 1.2 1998/06/04 21:05:45 steve Exp $
 .\"
 .\" Copyright (c) 1996 Charles M. Hannum.  All rights reserved.
 .\"
@@ -65,7 +65,9 @@ The fields of
 are as follows:
 .Bl -tag -width XXXrevents
 .It fd
-File descriptor to poll.
+File descriptor to poll.  If fd is equal to -1 then
+.Fa revents
+is cleared (set to zero), and that pollfd is not checked.
 .It events
 Events to poll for.  (See below.)
 .It revents
