@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: exception.s,v 1.18 1996/05/31 01:08:02 peter Exp $
+ *	$Id: exception.s,v 1.19 1996/08/11 17:41:23 davidg Exp $
  */
 
 #include "npx.h"				/* NNPX */
@@ -165,24 +165,17 @@ alltraps_with_regs_pushed:
 calltrap:
 	FAKE_MCOUNT(_btrap)			/* init "from" _btrap -> calltrap */
 	incl	_cnt+V_TRAP
-	orl	$SWI_AST_MASK,_cpl
+	movl	_cpl,%eax
+	movl	%eax,%ebx			/* keep orig. cpl here during trap() */
+	orl	$SWI_AST_MASK,%eax
+	movl	%eax,_cpl
 	call	_trap
 
-	/*
-	 * There was no place to save the cpl so we have to recover it
-	 * indirectly.  For traps from user mode it was 0, and for traps
-	 * from kernel mode Oring SWI_AST_MASK into it didn't change it.
-	 */
-	subl	%eax,%eax
-	testb	$SEL_RPL_MASK,TRAPF_CS_OFF(%esp)
-	jne	1f
-	movl	_cpl,%eax
-1:
 	/*
 	 * Return via _doreti to handle ASTs.  Have to change trap frame
 	 * to interrupt frame.
 	 */
-	pushl	%eax
+	pushl	%ebx				/* cpl to restore */
 	subl	$4,%esp
 	incb	_intr_nesting_level
 	MEXITCOUNT
