@@ -762,7 +762,7 @@ fill_floppy_image() {
 
     (
     cd ${BUILDDIR}
-    cc -o wmk ${PICO_TREE}/../write_mfs_in_kernel.c
+    cc -o wmk ${PICO_TREE}/build/write_mfs_in_kernel.c
     log "Preload kernel with file ${c_fs}"
     ./wmk kernel ${c_fs}
     rm wmk
