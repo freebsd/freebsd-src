@@ -31,7 +31,7 @@
 .Nm make_dev ,
 .Nm make_dev_alias ,
 .Nm destroy_dev ,
-.Nm depends_dev
+.Nm dev_depends
 .Nd manage
 .Vt dev_t Ns 's
 and DEVFS registration for devices
@@ -112,7 +112,7 @@ on devices that were created with
 .Fn make_dev_alias .
 .Pp
 The
-.Fn depends_dev
+.Fn dev_depends
 function establishes a parent-child relationship between two devices.
 The net effect is that a
 .Fn destroy_dev
@@ -133,6 +133,6 @@ The function
 first appeared in
 .Fx 4.1 .
 The function
-.Fn depends_dev
+.Fn dev_depends
 first appeared in
 .Fx 5.0 .
