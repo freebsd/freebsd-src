@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)chmod.1	8.4 (Berkeley) 3/31/94
-.\"	$Id: chmod.1,v 1.12 1999/08/08 21:08:05 chris Exp $
+.\"	$Id: chmod.1,v 1.13 1999/08/14 06:26:14 chris Exp $
 .\"
 .Dd March 31, 1994
 .Dt CHMOD 1
@@ -124,7 +124,7 @@ system supports this feature: see
 and the 
 .Ar suiddir
 option to
-.Xr mount 1 .
+.Xr mount 8 .
 .It Li 2000
 (the set-group-ID-on-execution bit)  Executable files with this bit set 
 will run with effective gid set to the gid of the file owner.  
@@ -310,7 +310,7 @@ option for the naughty bits.
 .Sh SEE ALSO
 .Xr chflags 1 ,
 .Xr install 1 ,
-.Xr mount 1 ,
+.Xr mount 8 ,
 .Xr chmod 2 ,
 .Xr stat 2 ,
 .Xr umask 2 ,
