@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)mdoc.samples.7	8.2 (Berkeley) 12/30/93
-.\"	$Id: mdoc.samples.7,v 1.10 1997/03/07 03:28:16 jmg Exp $
+.\"	$Id: mdoc.samples.7,v 1.11 1997/03/18 20:00:36 mpp Exp $
 .\"
 .\" This tutorial sampler invokes every macro in the package several
 .\" times and is guaranteed to give a worst case performance
@@ -1176,28 +1176,6 @@ without arguments.
 The
 .Ql \&.Ic
 macro is parsed and is callable.
-.Ss Literals
-The
-.Ql \&.Li
-literal macro may be used for special characters,
-variable constants, anything which should be displayed as it
-would be typed.
-.Pp
-.Dl Usage: .Li argument ... \*(Pu
-.Bl -tag -width ".Li cntrl-D ) ,"  -compact -offset 14n
-.It Li \&.Li \een
-.Li \en
-.It Li \&.Li M1 M2 M3\ ;
-.Li M1 M2 M3 ;
-.It Li \&.Li cntrl-D\ )\ ,
-.Li cntrl-D ) ,
-.It Li \&.Li 1024\ ...
-.Li 1024 ...
-.El
-.Pp
-The
-.Ql \&.Li
-macro is parsed and is callable.
 .Ss Name Macro
 The
 .Ql \&.Nm
@@ -1431,44 +1409,6 @@ callable. It accepts at most two arguments.
 The
 .Ql \&.Ux
 macro is parsed and is callable.
-.Ss Emphasis Macro
-Text may be stressed or emphasized with the
-.Ql \&.Em
-macro.
-The usual font for emphasis is italic.
-.Pp
-.Dl Usage: .Em argument ... \*(Pu
-.Bl -tag -width ".Em vide infra ) ) ," -compact -offset 14n
-.It Li ".Em does not"
-.Em does not
-.It Li ".Em exceed 1024 ."
-.Em exceed 1024 .
-.It Li ".Em vide infra ) ) ,"
-.Em vide infra ) ) ,
-.El
-.\" .Pp
-.\" The emphasis can be forced across several lines of text by using
-.\" the
-.\" .Ql \&.Bf
-.\" macro discussed in
-.\" .Sx Modes
-.\" under
-.\" .Sx PAGE STRUCTURE DOMAIN .
-.\" .Pp
-.\" .Bf -emphasis
-.\" We are certain the reason most people desire a Harvard MBA
-.\" so they can become to be successful philanthropists.  Only
-.\" mathematicians and physicists go to graduate school strictly
-.\" to acquire infinite wealthy and fame. Its that infinity
-.\" word that does it to them. Ruins them.
-.\" .Ef
-.Pp
-The
-.Ql \&.Em
-macro is parsed and is callable.
-It is an error to call
-.Ql \&.Em
-without arguments.
 .Ss Enclosure and Quoting Macros
 The concept of enclosure is similar to quoting.
 The object being to enclose one or more strings between
@@ -1629,22 +1569,6 @@ It is parsed and is callable.
 .It Li \&.Sx FILES
 .Sx FILES
 .El
-.Ss Symbolic
-The symbolic emphasis macro is generally a boldface macro in
-either the symbolic sense or the traditional English usage.
-.Pp
-.Dl Usage: .Sy symbol ... \*(Pu
-.Bl -tag -width ".Sy Important Noticex" -compact -offset 14n
-.It Li \&.Sy Important Notice
-.Sy Important Notice
-.El
-.Pp
-The
-.Ql \&.Sy
-macro is parsed and is callable.
-Arguments to
-.Ql \&.Sy
-may be quoted.
 .Ss References and Citations
 The following macros make a modest attempt to handle references.
 At best, the macros make it convenient to manually drop in a subset of
@@ -2313,6 +2237,102 @@ work and perhaps may never do the right thing by
 .El
 .It ".Ed"
 End-display.
+.El
+.Ss Font Modes
+There are five macros for changing the appearance of the manual page text:
+.Bl -tag -width \&.Emxx
+.It \&.Em
+Text may be stressed or emphasized with the
+.Ql \&.Em
+macro.
+The usual font for emphasis is italic.
+.Pp
+.Dl Usage: .Em argument ... \*(Pu
+.Bl -tag -width ".Em vide infra ) ) ," -compact -offset 14n
+.It Li ".Em does not"
+.Em does not
+.It Li ".Em exceed 1024 ."
+.Em exceed 1024 .
+.It Li ".Em vide infra ) ) ,"
+.Em vide infra ) ) ,
+.El
+.Pp
+The
+.Ql \&.Em
+macro is parsed and is callable.
+It is an error to call
+.Ql \&.Em
+without arguments.
+.It \&.Li
+The
+.Ql \&.Li
+literal macro may be used for special characters,
+variable constants, anything which should be displayed as it
+would be typed.
+.Pp
+.Dl Usage: .Li argument ... \*(Pu
+.Bl -tag -width ".Li cntrl-D ) ,"  -compact -offset 14n
+.It Li \&.Li \een
+.Li \en
+.It Li \&.Li M1 M2 M3\ ;
+.Li M1 M2 M3 ;
+.It Li \&.Li cntrl-D\ )\ ,
+.Li cntrl-D ) ,
+.It Li \&.Li 1024\ ...
+.Li 1024 ...
+.El
+.Pp
+The
+.Ql \&.Li
+macro is parsed and is callable.
+.It \&.Sy
+The symbolic emphasis macro is generally a boldface macro in
+either the symbolic sense or the traditional English usage.
+.Pp
+.Dl Usage: .Sy symbol ... \*(Pu
+.Bl -tag -width ".Sy Important Noticex" -compact -offset 14n
+.It Li \&.Sy Important Notice
+.Sy Important Notice
+.El
+.Pp
+The
+.Ql \&.Sy
+macro is parsed and is callable.
+Arguments to
+.Ql \&.Sy
+may be quoted.
+.It Li \&.Bf
+Begin font mode.
+The
+.Ql \&.Bf
+font mode must be ended with the
+.Ql \&.Ef
+macro.
+Font modes may be nested within other font modes.
+.Ql \&.Bf
+has the following syntax:
+.Pp
+.Dl ".Bf font-mode"
+.Pp
+The font-mode must be one of the following three types:
+.Ql \&.Bf .
+.Pp
+.Bl -tag -width "file file_name  " -compact
+.It Sy \&Em | Fl emphasis
+Same as if the 
+.Ql \&.Em
+macro was used for the entire block of text.
+.It Sy \&Li | Fl literal
+Same as if the
+.Ql \&.Li
+macro was used for the entire block of text.
+.It Sy \&Sy | Fl symbolic
+Same as if the
+.Ql \&.Sy
+macro was used for the entire block of text.
+.El
+.It ".Ef"
+End font mode.
 .El
 .Ss Tagged Lists and Columns
 There are several types of lists which may be initiated with the
