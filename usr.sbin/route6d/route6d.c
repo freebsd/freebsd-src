@@ -428,6 +428,8 @@ main(argc, argv)
 	alarm(ripinterval(INIT_INTERVAL6));
 
 	for (ifcp = ifc; ifcp; ifcp = ifcp->ifc_next) {
+		if (iff_find(ifcp, 'N'))
+			continue;
 		if (ifcp->ifc_index > 0 && (ifcp->ifc_flags & IFF_UP))
 			sendrequest(ifcp);
 	}
