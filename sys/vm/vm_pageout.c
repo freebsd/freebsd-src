@@ -111,7 +111,6 @@ __FBSDID("$FreeBSD$");
 /* the kernel process "vm_pageout"*/
 static void vm_pageout(void);
 static int vm_pageout_clean(vm_page_t);
-static void vm_pageout_page_free(vm_page_t);
 static void vm_pageout_pmap_collect(void);
 static void vm_pageout_scan(int pass);
 
@@ -623,28 +622,6 @@ vm_pageout_map_deactivate_pages(map, desired)
 #endif		/* !defined(NO_SWAPPING) */
 
 /*
- * Warning! The page queue lock is released and reacquired.
- */
-static void
-vm_pageout_page_free(vm_page_t m)
-{
-	vm_object_t object = m->object;
-
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
-	vm_page_busy(m);
-	vm_page_unlock_queues();
-	/*
-	 * Avoid a lock order reversal.  The page must be busy.
-	 */
-	VM_OBJECT_LOCK(object);
-	vm_page_lock_queues();
-	pmap_remove_all(m);
-	vm_page_free(m);
-	VM_OBJECT_UNLOCK(object);
-	cnt.v_dfree++;
-}
-
-/*
  * This routine is very drastic, but can save the system
  * in a pinch.
  */
@@ -1112,21 +1089,17 @@ unlock_and_continue:
 	 */
 	while (cnt.v_free_count < cnt.v_free_reserved) {
 		static int cache_rover = 0;
-		m = vm_pageq_find(PQ_CACHE, cache_rover, FALSE);
-		if (!m)
+
+		if ((m = vm_page_select_cache(cache_rover)) == NULL)
 			break;
-		if ((m->flags & (PG_BUSY|PG_UNMANAGED)) || 
-		    m->busy || 
-		    m->hold_count || 
-		    m->wire_count) {
-#ifdef INVARIANTS
-			printf("Warning: busy page %p found in cache\n", m);
-#endif
-			vm_page_deactivate(m);
-			continue;
-		}
-		cache_rover = (cache_rover + PQ_PRIME2) & PQ_L2_MASK;
-		vm_pageout_page_free(m);
+		cache_rover = (m->pc + PQ_PRIME2) & PQ_L2_MASK;
+		object = m->object;
+		VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+		vm_page_busy(m);
+		pmap_remove_all(m);
+		vm_page_free(m);
+		VM_OBJECT_UNLOCK(object);
+		cnt.v_dfree++;
 	}
 	splx(s);
 	vm_page_unlock_queues();
@@ -1291,9 +1264,8 @@ vm_pageout_page_stats()
 	while ((m != NULL) && (pcount-- > 0)) {
 		int actcount;
 
-		if (m->queue != PQ_ACTIVE) {
-			break;
-		}
+		KASSERT(m->queue == PQ_ACTIVE,
+		    ("vm_pageout_page_stats: page %p isn't active", m));
 
 		next = TAILQ_NEXT(m, pageq);
 		/*
