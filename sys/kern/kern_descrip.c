@@ -36,8 +36,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_descrip.c	8.6 (Berkeley) 4/19/94
- * $Id: kern_descrip.c,v 1.45 1997/11/23 12:24:59 bde Exp $
+ * $Id: kern_descrip.c,v 1.46 1997/11/29 01:33:01 dyson Exp $
  */
+
+#include "opt_compat.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -25,11 +25,15 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_sysvec.c,v 1.19 1997/09/01 02:12:39 bde Exp $
+ *  $Id: linux_sysvec.c,v 1.20 1997/11/06 19:29:04 phk Exp $
  */
 
 /* XXX we use functions that might not exist. */
-#define	COMPAT_43	1
+#include "opt_compat.h"
+
+#ifndef COMPAT_43
+#error "Unable to compile Linux-emulator due to missing COMPAT_43 option!"
+#endif
 
 #include <sys/param.h>
 #include <sys/buf.h>

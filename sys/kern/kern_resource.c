@@ -36,9 +36,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_resource.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_resource.c,v 1.27 1997/11/06 19:29:13 phk Exp $
+ * $Id: kern_resource.c,v 1.28 1997/11/07 08:52:57 phk Exp $
  */
 
+#include "opt_compat.h"
 #include "opt_rlimit.h"
 
 #include <sys/param.h>

@@ -31,8 +31,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_compat.c	8.1 (Berkeley) 6/10/93
- * $Id: tty_compat.c,v 1.23 1997/08/02 14:31:39 bde Exp $
+ * $Id: tty_compat.c,v 1.24 1997/12/06 13:23:58 bde Exp $
  */
+
+#include "opt_compat.h"
 
 /*
  * mapping routines for old line discipline (yuck)

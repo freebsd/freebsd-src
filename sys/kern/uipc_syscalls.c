@@ -31,9 +31,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_syscalls.c	8.4 (Berkeley) 2/21/94
- * $Id: uipc_syscalls.c,v 1.33 1997/12/14 03:15:21 msmith Exp $
+ * $Id: uipc_syscalls.c,v 1.34 1997/12/15 02:29:10 msmith Exp $
  */
 
+#include "opt_compat.h"
 #include "opt_ktrace.h"
 
 #include <sys/param.h>

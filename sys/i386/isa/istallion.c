@@ -33,10 +33,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: istallion.c,v 1.13 1997/09/14 03:19:09 peter Exp $
+ * $Id: istallion.c,v 1.14 1997/12/06 13:22:33 bde Exp $
  */
 
 /*****************************************************************************/
+
+#include "opt_compat.h"
 
 #define	TTYDEFCHARS	1
 

@@ -25,11 +25,15 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_socket.c,v 1.9 1997/11/06 19:29:03 phk Exp $
+ *  $Id: linux_socket.c,v 1.10 1997/12/14 03:17:54 msmith Exp $
  */
 
 /* XXX we use functions that might not exist. */
-#define	COMPAT_43	1
+#include "opt_compat.h"
+
+#ifndef COMPAT_43
+#error "Unable to compile Linux-emulator due to missing COMPAT_43 option!"
+#endif
 
 #include <sys/param.h>
 #include <sys/proc.h>
