@@ -33,7 +33,6 @@ maxusers	32
 
 makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 
-options 	MATH_EMULATE		#Support for x87 emulation
 options 	INET			#InterNETworking
 options 	INET6			#IPv6 communications protocols
 options 	FFS			#Berkeley Fast Filesystem
@@ -41,7 +40,7 @@ options 	SOFTUPDATES		#Enable FFS soft updates support
 options 	MD_ROOT			#MD is a potential root device
 options 	NFSCLIENT		#Network Filesystem Client
 options 	NFSSERVER		#Network Filesystem Server
-options 	NFS_ROOT		#NFS usable as root device, NFS required
+options 	NFS_ROOT		#NFS usable as root device, requires NFSCLIENT
 options 	MSDOSFS			#MSDOS Filesystem
 options 	CD9660			#ISO 9660 Filesystem
 options 	PROCFS			#Process filesystem
@@ -59,10 +58,10 @@ options 	_KPOSIX_PRIORITY_SCHEDULING
 options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
 
 # Debugging for use in -current
-options 	DDB
-options 	INVARIANTS
-options 	INVARIANT_SUPPORT
-options 	WITNESS
+options 	DDB			#Enable the kernel debugger
+options 	INVARIANTS		#Enable calls of extra sanity checking
+options 	INVARIANT_SUPPORT	#Extra sanity checks of internal structures, required by INVARIANTS
+options 	WITNESS			#Enable mutex checks to detects deadlocks and cycles
 
 # To make an SMP kernel, the next two are needed
 #options 	SMP			# Symmetric MultiProcessor Kernel
@@ -71,6 +70,7 @@ options 	WITNESS
 device		isa
 device		eisa
 device		pci
+#options		PCI_ENABLE_IO_MODES	# Enable pci resources left off by a "lazy BIOS"
 
 # Floppy drives
 device		fdc
@@ -108,10 +108,12 @@ device		mly		# Mylex AcceleRAID/eXtremeRAID
 
 # SCSI peripherals
 device		scbus		# SCSI bus (required)
+device		ch		# SCSI media changers
 device		da		# Direct Access (disks)
 device		sa		# Sequential Access (tape etc)
 device		cd		# CD
 device		pass		# Passthrough device (direct SCSI access)
+device		ses		# SCSI Environmental Services (and SAF-TE)
 
 # RAID controllers
 device		aac		# Adaptec FSA RAID
@@ -165,8 +167,8 @@ device		ppi		# Parallel port interface device
 
 # PCI Ethernet NICs.
 device		de		# DEC/Intel DC21x4x (``Tulip'')
-device		vx		# 3Com 3c590, 3c595 (``Vortex'')
 device		txp		# 3Com 3cR990 (``Typhoon'')
+device		vx		# 3Com 3c590, 3c595 (``Vortex'')
 
 # PCI Ethernet NICs that use the common MII bus controller code.
 # NOTE: Be sure to keep the 'device miibus' line in order to use these NICs!
@@ -191,13 +193,12 @@ device		ed		# NE[12]000, SMC Ultra, 3c503, DS8390 cards
 device		ex		# Intel EtherExpress Pro/10 and Pro/10+
 device		ep		# Etherlink III based cards
 device		fe		# Fujitsu MB8696x based cards
+device		lnc		# NE2100, NE32-VL Lance Ethernet cards
 device		sn		# SMC's 9000 series of ethernet chips
 device		xe		# Xircom pccard ethernet
 
-# The probe order of these is presently determined by i386/isa/isa_compat.c.
-#device		ie
+# ISA deivces that use the old ISA shims
 #device		le
-device		lnc
 
 # Wireless NIC cards
 device		an		# Aironet 4500/4800 802.11 wireless NICs. 
