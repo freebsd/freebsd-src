@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_subr.c	8.2 (Berkeley) 5/24/95
- *	$Id: tcp_subr.c,v 1.56 1999/07/05 08:46:55 msmith Exp $
+ *	$Id: tcp_subr.c,v 1.57 1999/07/11 18:32:45 green Exp $
  */
 
 #include "opt_compat.h"
@@ -85,6 +85,10 @@ SYSCTL_INT(_net_inet_tcp, TCPCTL_DO_RFC1323, rfc1323, CTLFLAG_RW,
 static int	tcp_do_rfc1644 = 0;
 SYSCTL_INT(_net_inet_tcp, TCPCTL_DO_RFC1644, rfc1644, CTLFLAG_RW, 
     &tcp_do_rfc1644 , 0, "Enable rfc1644 (TTCP) extensions");
+
+static int	tcp_tcbhashsize = 0;
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, tcbhashsize, CTLFLAG_RD,
+     &tcp_tcbhashsize, 0, "Size of TCP control-block hashtable");
 
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, pcbcount, CTLFLAG_RD, 
     &tcbinfo.ipi_count, 0, "Number of active PCBs");
@@ -140,6 +144,7 @@ tcp_init()
 		printf("WARNING: TCB hash size not a power of 2\n");
 		hashsize = 512; /* safe default */
 	}
+	tcp_tcbhashsize = hashsize;
 	tcbinfo.hashbase = hashinit(hashsize, M_PCB, &tcbinfo.hashmask);
 	tcbinfo.porthashbase = hashinit(hashsize, M_PCB,
 					&tcbinfo.porthashmask);
