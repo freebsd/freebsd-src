@@ -1,5 +1,28 @@
-# image file format
-# From Robert Potter, potter@cs.rochester.edu
-0	string		Imagefile\ version-	iff image data
-# this adds the whole header (inc. version number), informative but longish
->10	string		>\0		%s
+
+#------------------------------------------------------------------------------
+# iff:	file(1) magic for Interchange File Format (see also "audio" & "images")
+#
+# Daniel Quinlan (quinlan@yggdrasil.com) -- IFF was designed by Electronic
+# Arts for file interchange.  It has also been used by Apple, SGI, and
+# especially Commodore-Amiga.
+#
+# IFF files begin with an 8 byte FORM header, followed by a 4 character
+# FORM type, which is followed by the first chunk in the FORM.
+
+0	string		FORM		IFF data
+#>4	belong		x		\b, FORM is %d bytes long
+# audio formats
+>8	string		AIFF		\b, AIFF audio
+>8	string		AIFC		\b, AIFF-C compressed audio
+>8	string		8SVX		\b, 8SVX 8-bit sampled sound voice
+>8	string		SAMP		\b, SAMP sampled audio
+# image formats
+>8	string		ILBMBMHD	\b, ILBM interleaved image
+>>20	beshort		x		\b, %d x
+>>22	beshort		x		%d
+>8	string		RGBN		\b, RGBN 12-bit RGB image
+>8	string		RGB8		\b, RGB8 24-bit RGB image
+>8	string		DR2D		\b, DR2D 2-D object
+>8	string		TDDD		\b, TDDD 3-D rendering
+# other formats
+>8	string		FTXT		\b, FTXT formatted text

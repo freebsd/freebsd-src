@@ -1,0 +1,10 @@
+
+#------------------------------------------------------------------------------
+# lisp:  file(1) magic for lisp programs
+#
+# various lisp types, from Daniel Quinlan (quinlan@yggdrasil.com)
+0	string	;;			Lisp/Scheme program text
+# Emacs 18 - this is always correct, but not very magical.
+0	string	\012(			byte-compiled Emacs-Lisp program data
+# Emacs 19
+0	string	;ELC\023\000\000\000	byte-compiled Emacs-Lisp program data

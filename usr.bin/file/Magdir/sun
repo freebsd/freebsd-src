@@ -1,7 +1,9 @@
+
+#------------------------------------------------------------------------------
+# sun:  file(1) magic for Sun machines
 #
 # Values for big-endian Sun (MC680x0, SPARC) binaries on pre-5.x
-# releases.
-# (5.x uses ELF.)
+# releases.  (5.x uses ELF.)
 #
 0	belong&077777777	0600413		sparc demand paged
 >0	byte		&0x80

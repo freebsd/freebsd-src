@@ -1,44 +1,56 @@
+
+#------------------------------------------------------------------------------
+# elf:  file(1) magic for ELF executables
 #
-# ELF
-# Missing MIPS image type and flags
+# We have to check the byte order flag to see what byte order all the
+# other stuff in the header is in.
 #
-# Question marks on processor types flag "should not happen because the
-# byte order is wrong".  We have to check the byte order flag to see what
-# byte order all the other stuff in the header is in.
+# Byte order is probably big-endian for MIPS RS3000 and Amdahl.
+# MIPS RS3000 may also be for MIPS RS2000.
 #
+# updated by Daniel Quinlan (quinlan@yggdrasil.com)
 0	string		\177ELF		ELF
 >4	byte		0		invalid class
 >4	byte		1		32-bit
 >4	byte		2		64-bit
 >5	byte		0		invalid byte order
 >5	byte		1		LSB
->>16	leshort		0		unknown type
->>16	leshort		1		relocatable
->>16	leshort		2		executable
->>16	leshort		3		dynamic lib
->>16	leshort		4		core file
->>18	leshort		0		unknown machine
->>18	leshort		1		WE32100 and up
->>18	leshort		2		SPARC?
->>18	leshort		3		i386 (386 and up)
->>18	leshort		4		M68000?
->>18	leshort		5		M88000?
->>18	leshort		7		i860
->>20	lelong		1		Version 1
+>>16	leshort		0		no file type,
+>>16	leshort		1		relocatable,
+>>16	leshort		2		executable,
+>>16	leshort		3		shared object,
+>>16	leshort		4		core file,
+>>16	leshort		&0xff00		processor-specific,
+>>18	leshort		0		no machine,
+>>18	leshort		1		AT&T WE32100 - invalid byte order,
+>>18	leshort		2		SPARC - invalid byte order,
+>>18	leshort		3		Intel 80386,
+>>18	leshort		4		Motorola 68000 - invalid byte order,
+>>18	leshort		5		Motorola 88000 - invalid byte order,
+>>18	leshort		6		Intel 80486,
+>>18	leshort		7		Intel 80860,
+>>18	leshort		8		MIPS RS3000,
+>>18	leshort		9		Amdahl,
+>>20	lelong		0		invalid version
+>>20	lelong		1		version 1
 >>36	lelong		1		MathCoPro/FPU/MAU Required
 >5	byte		2		MSB
->>16	beshort		0		unknown type
->>16	beshort		1		relocatable
->>16	beshort		2		executable
->>16	beshort		3		dynamic lib
->>16	beshort		4		core file
->>18	beshort		0		unknown machine
->>18	beshort		1		WE32100 and up
->>18	beshort		2		SPARC
->>18	beshort		3		i386 (386 and up)?
->>18	beshort		4		M68000
->>18	beshort		5		M88000
->>18	beshort		7		i860
->>20	belong		1		Version 1
+>>16	beshort		0		no file type,
+>>16	beshort		1		relocatable,
+>>16	beshort		2		executable,
+>>16	beshort		3		shared object,
+>>16	beshort		4		core file,
+>>16	beshort		&0xff00		processor-specific,
+>>18	beshort		0		no machine,
+>>18	beshort		1		AT&T WE32100,
+>>18	beshort		2		SPARC,
+>>18	beshort		3		Intel 80386 - invalid byte order,
+>>18	beshort		4		Motorola 68000,
+>>18	beshort		5		Motorola 88000,
+>>18	beshort		6		Intel 80486 - invalid byte order,
+>>18	beshort		7		Intel 80860,
+>>18	beshort		8		MIPS RS3000,
+>>18	leshort		9		Amdahl,
+>>20	belong		0		invalid version
+>>20	belong		1		version 1
 >>36	belong		1		MathCoPro/FPU/MAU Required
-
