@@ -2348,9 +2348,6 @@ dropwithreset:
 			  &tcp_savetcp, 0);
 #endif
 
-	if (tp)
-		INP_UNLOCK(inp);
-
 	if (thflags & TH_ACK)
 		/* mtod() below is safe as long as hdr dropping is delayed */
 		tcp_respond(tp, mtod(m, void *), th, m, (tcp_seq)0, th->th_ack,
@@ -2362,6 +2359,9 @@ dropwithreset:
 		tcp_respond(tp, mtod(m, void *), th, m, th->th_seq+tlen,
 			    (tcp_seq)0, TH_RST|TH_ACK);
 	}
+
+	if (tp)
+		INP_UNLOCK(inp);
 	if (headlocked)
 		INP_INFO_WUNLOCK(&tcbinfo);
 	return;
