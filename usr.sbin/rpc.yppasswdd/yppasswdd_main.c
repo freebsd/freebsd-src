@@ -168,7 +168,7 @@ main(argc, argv)
 	debug = 1;
 
 	while ((ch = getopt(argc, argv, "t:d:p:sfamuivh")) != -1) {
-		switch(ch) {
+		switch (ch) {
 		case 't':
 			passfile_default = optarg;
 			break;

@@ -55,7 +55,7 @@ int yp_del_record(dbp,key)
 	int rval;
 
 	if ((rval = (dbp->del)(dbp,key,0))) {
-		switch(rval) {
+		switch (rval) {
 		case 1:
 			return(YP_FALSE);
 			break;

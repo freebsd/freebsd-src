@@ -448,7 +448,7 @@ int __yp_ping(restricted_addrs, cnt, dom, port)
 	char			*dom;
 	short			*port;
 {
-	struct timeval		tv = { 5 , 0 };
+	struct timeval		tv = { 5, 0 };
 	struct ping_req		**reqs;
 	unsigned long		i;
 	struct sockaddr_in	sin, *any = NULL;

@@ -103,7 +103,7 @@ static char *parse(hp)
 #define BY_DNS_ID 1
 #define BY_RPC_XID 2
 
-extern struct hostent *__dns_getanswer __P((char *, int, char *, int));
+extern struct hostent *__dns_getanswer(char *, int, char *, int);
 
 static CIRCLEQ_HEAD(dns_qhead, circleq_dnsentry) qhead;
 
@@ -202,7 +202,7 @@ static struct circleq_dnsentry *yp_find_dnsqent(id, type)
 	register struct circleq_dnsentry *q;
 
 	for (q = qhead.cqh_first; q != (void *)&qhead; q = q->links.cqe_next) {
-		switch(type) {
+		switch (type) {
 		case BY_RPC_XID:
 			if (id == q->xid)
 				return(q);
@@ -232,7 +232,7 @@ static void yp_send_dns_reply(q, buf)
 	 * Set up correct reply struct and
 	 * XDR filter depending on ypvers.
 	 */
-	switch(q->ypvers) {
+	switch (q->ypvers) {
 	case YPVERS:
 		bzero((char *)&result_v2, sizeof(result_v2));
 
@@ -319,7 +319,7 @@ void yp_prune_dnsq()
 	register struct circleq_dnsentry *q, *n;
 
 	q = qhead.cqh_first;
-	while(q != (void *)&qhead) {
+	while (q != (void *)&qhead) {
 		q->ttl--;
 		n = q->links.cqe_next;
 		if (!q->ttl) {
@@ -497,7 +497,7 @@ ypstat yp_async_lookup_addr(rqstp, addr)
 	}
 
 	/* Avoid transmitting dupe requests. */
-	if (type == SOCK_DGRAM && 
+	if (type == SOCK_DGRAM &&
 	    yp_find_dnsqent(svcudp_get_xid(rqstp->rq_xprt),BY_RPC_XID) != NULL)
 		return(YP_TRUE);
 

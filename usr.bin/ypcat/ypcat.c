@@ -81,12 +81,12 @@ char *inval;
 int invallen;
 char *indata;
 {
-	if(instatus != YP_TRUE)
-		return instatus;
-	if(key)
+	if (instatus != YP_TRUE)
+		return (instatus);
+	if (key)
 		printf("%*.*s ", inkeylen, inkeylen, inkey);
 	printf("%*.*s\n", invallen, invallen, inval);
-	return 0;
+	return (0);
 }
 
 int
@@ -101,10 +101,10 @@ char **argv;
 
 	notrans = key = 0;
 
-	while( (c=getopt(argc, argv, "xd:kt")) != -1)
-		switch(c) {
+	while ((c = getopt(argc, argv, "xd:kt")) != -1)
+		switch (c) {
 		case 'x':
-			for(i=0; i<sizeof ypaliases/sizeof ypaliases[0]; i++)
+			for (i = 0; i<sizeof ypaliases/sizeof ypaliases[0]; i++)
 				printf("Use \"%s\" for \"%s\"\n",
 					ypaliases[i].alias,
 					ypaliases[i].name);
@@ -122,21 +122,21 @@ char **argv;
 			usage();
 		}
 
-	if(optind + 1 != argc )
+	if (optind + 1 != argc)
 		usage();
 
 	if (!domainname)
 		yp_get_default_domain(&domainname);
 
 	inmap = argv[optind];
-	for(i=0; (!notrans) && i<sizeof ypaliases/sizeof ypaliases[0]; i++)
-		if( strcmp(inmap, ypaliases[i].alias) == 0)
+	for (i = 0; (!notrans) && i<sizeof ypaliases/sizeof ypaliases[0]; i++)
+		if (strcmp(inmap, ypaliases[i].alias) == 0)
 			inmap = ypaliases[i].name;
 	ypcb.foreach = printit;
 	ypcb.data = NULL;
 
 	r = yp_all(domainname, inmap, &ypcb);
-	switch(r) {
+	switch (r) {
 	case 0:
 		break;
 	case YPERR_YPBIND:

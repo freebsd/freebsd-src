@@ -1,3 +1,7 @@
+/*
+ * $FreeBSD$
+ */
+
 #include <db.h>
 
 #define	YPOP_CHANGE 1			/* change, do not add */
@@ -23,7 +27,7 @@
 #define MAP_UPDATE_PATH YPLIBDIR MAP_UPDATE
 
 extern int children;
-extern void ypu_prog_1 __P(( struct svc_req *, register SVCXPRT * ));
-extern int localupdate __P(( char *, char *, u_int, u_int, char *, u_int, char * ));
-extern int ypmap_update __P(( char *, char *, u_int, u_int, char *, u_int, char * ));
-extern int yp_del_record __P(( DB *, DBT * ));
+extern void ypu_prog_1(struct svc_req *, register SVCXPRT *);
+extern int localupdate(char *, char *, u_int, u_int, char *, u_int, char *);
+extern int ypmap_update(char *, char *, u_int, u_int, char *, u_int, char *);
+extern int yp_del_record(DB *, DBT *);

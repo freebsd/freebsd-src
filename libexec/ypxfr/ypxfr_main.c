@@ -195,7 +195,7 @@ main(argc,argv)
 
 	while ((ch = getopt(argc, argv, "fcd:h:s:p:C:")) != -1) {
 		int my_optind;
-		switch(ch) {
+		switch (ch) {
 		case 'f':
 			ypxfr_force++;
 			ypxfr_args++;
@@ -381,13 +381,13 @@ the local domain name isn't set");
 
 	key.data = "YP_LAST_MODIFIED";
 	key.size = sizeof("YP_LAST_MODIFIED") - 1;
-	
+
 	/* The order number is immaterial when the 'force' flag is set. */
 
 	if (!ypxfr_force) {
 		int ignore = 0;
 		if (yp_get_record(ypxfr_dest_domain,ypxfr_mapname,&key,&data,1) != YP_TRUE) {
-			switch(yp_errno) {
+			switch (yp_errno) {
 			case YP_NOKEY:
 				ypxfr_exit(YPXFR_FORCE,NULL);
 				break;

@@ -90,7 +90,7 @@ yp_update(domain, map, ypop, key, keylen, data, datalen)
 		return(YPERR_RPC);
 
 	/*
-	 * Assemble netname of server. 
+	 * Assemble netname of server.
 	 * NOTE: It's difficult to discern from the documentation, but
 	 * when you make a Secure RPC call, the netname you pass should
 	 * be the netname of the guy on the other side, not your own
@@ -127,7 +127,7 @@ yp_update(domain, map, ypop, key, keylen, data, datalen)
 	 * us right away, and we only have to exert a small amount of
 	 * extra effort.
 	 */
-	switch(ypop) {
+	switch (ypop) {
 	case YPOP_CHANGE:
 		upargs.mapname = map;
 		upargs.key.yp_buf_len = keylen;

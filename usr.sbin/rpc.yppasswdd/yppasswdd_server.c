@@ -76,7 +76,7 @@ void reaper(sig)
 
 	if (sig > 0) {
 		if (sig == SIGCHLD)
-			while(wait3(&st, WNOHANG, NULL) > 0) ;
+			while (wait3(&st, WNOHANG, NULL) > 0) ;
 	} else {
 		pid = waitpid(pid, &pstat, 0);
 	}
@@ -538,7 +538,7 @@ yppasswdproc_update_1_svc(yppasswd *argp, struct svc_req *rqstp)
 	key.data = argp->newpw.pw_name;
 	key.size = strlen(argp->newpw.pw_name);
 
-	if ((rval=yp_get_record(domain,"master.passwd.byname",
+	if ((rval = yp_get_record(domain,"master.passwd.byname",
 		  	&key, &data, 0)) != YP_TRUE) {
 		if (rval == YP_NOKEY) {
 			yp_error("user %s not found in passwd database",
@@ -642,7 +642,7 @@ cleaning up and bailing out");
 		}
 	}
 
-	switch((pid = fork())) {
+	switch ((pid = fork())) {
 	case 0:
 		if (inplace && !rval) {
     			execlp(MAP_UPDATE_PATH, MAP_UPDATE, passfile,
@@ -803,7 +803,7 @@ allow additions to be made to the password database");
 		snprintf(passfile_buf, sizeof(passfile_buf),
 			"%s/%s/master.passwd", yp_dir, argp->domain);
 		passfile = (char *)&passfile_buf;
-	}       
+	}
 
 	if ((pfd = pw_lock()) < 0) {
 		return (&result);
@@ -837,7 +837,7 @@ cleaning up and bailing out");
 		}
 	}
 
-	switch((pid = fork())) {
+	switch ((pid = fork())) {
 	case 0:
 		if (inplace && !rval) {
     			execlp(MAP_UPDATE_PATH, MAP_UPDATE, passfile,

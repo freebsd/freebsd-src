@@ -72,19 +72,19 @@ u_long *objp;
 	int r;
 
 	bzero(&out, sizeof out);
-	while(1) {
-		if( !xdr_ypresp_all(xdrs, &out)) {
+	while (1) {
+		if (!xdr_ypresp_all(xdrs, &out)) {
 			xdr_free(xdr_ypresp_all, (char *)&out);
 			*objp = YP_YPERR;
-			return FALSE;
+			return (FALSE);
 		}
-		if(out.more == 0) {
+		if (out.more == 0) {
 			xdr_free(xdr_ypresp_all, (char *)&out);
 			*objp = YP_NOMORE;
-			return TRUE;
+			return (TRUE);
 		}
 		status = out.ypresp_all_u.val.stat;
-		switch(status) {
+		switch (status) {
 		case YP_TRUE:
 			key = (char *)malloc(out.ypresp_all_u.val.key.keydat_len + 1);
 			bcopy(out.ypresp_all_u.val.key.keydat_val, key,
@@ -103,17 +103,17 @@ u_long *objp;
 			*objp = status;
 			free(key);
 			free(val);
-			if(r)
-				return TRUE;
+			if (r)
+				return (TRUE);
 			break;
 		case YP_NOMORE:
 			xdr_free(xdr_ypresp_all, (char *)&out);
 			*objp = YP_NOMORE;
-			return TRUE;
+			return (TRUE);
 		default:
 			xdr_free(xdr_ypresp_all, (char *)&out);
 			*objp = status;
-			return TRUE;
+			return (TRUE);
 		}
 	}
 }
