@@ -60,9 +60,9 @@ typedef struct var {
 #define	DSIZ	0x08		/* field size is dynamic*/
 	u_int	flag;
 				/* output routine */
-	void	(*oproc) __P((struct kinfo *, struct varent *));
+	void	(*oproc)(struct kinfo *, struct varent *);
 				/* sizing routine*/
-	int	(*sproc) __P((struct kinfo *));
+	int	(*sproc)(struct kinfo *);
 	short	width;		/* printing width */
 	/*
 	 * The following (optional) elements are hooks for passing information

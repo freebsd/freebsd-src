@@ -53,13 +53,10 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 
-int main __P((int, char *[]));
-void usage __P((void));
+void usage(void);
 
 int
-main(argc,argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	int ch, sflag;
 	char *p, hostname[MAXHOSTNAMELEN];
@@ -94,7 +91,7 @@ main(argc,argv)
 }
 
 void
-usage()
+usage(void)
 {
 
 	(void)fprintf(stderr, "usage: hostname [-s] [name-of-host]\n");

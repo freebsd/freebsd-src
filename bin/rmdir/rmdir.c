@@ -52,14 +52,11 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 
-int main __P((int, char *[]));
-int rm_path __P((char *));
-void usage __P((void));
+int rm_path(char *);
+void usage(void);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	int ch, errors;
 	int pflag;
@@ -92,8 +89,7 @@ main(argc, argv)
 }
 
 int
-rm_path(path)
-	char *path;
+rm_path(char *path)
 {
 	char *p;
 
@@ -117,7 +113,7 @@ rm_path(path)
 }
 
 void
-usage()
+usage(void)
 {
 
 	(void)fprintf(stderr, "usage: rmdir [-p] directory ...\n");

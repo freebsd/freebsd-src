@@ -52,11 +52,7 @@ static const char rcsid[] =
 #include <string.h>
 #include "pax.h"
 #include "extern.h"
-#ifdef __STDC__
 #include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
 
 /*
  * routines that deal with I/O to and from the user
@@ -72,13 +68,8 @@ static FILE *ttyinf = NULL;		/* input pointing at control tty */
  *	open fails, future ops that require user input will get an EOF
  */
 
-#ifdef __STDC__
 int
 tty_init(void)
-#else
-int
-tty_init()
-#endif
 {
 	int ttyfd;
 
@@ -104,22 +95,11 @@ tty_init()
  *	if there is no controlling terminal, just return.
  */
 
-#ifdef __STDC__
 void
 tty_prnt(const char *fmt, ...)
-#else
-void
-tty_prnt(fmt, va_alist)
-	const char *fmt;
-	va_dcl
-#endif
 {
 	va_list ap;
-#	ifdef __STDC__
 	va_start(ap, fmt);
-#	else
-	va_start(ap);
-#	endif
 	if (ttyoutf == NULL)
 		return;
 	(void)vfprintf(ttyoutf, fmt, ap);
@@ -135,15 +115,8 @@ tty_prnt(fmt, va_alist)
  *	0 if data was read, -1 otherwise.
  */
 
-#ifdef __STDC__
 int
 tty_read(char *str, int len)
-#else
-int
-tty_read(str, len)
-	char *str;
-	int len;
-#endif
 {
 	register char *pt;
 
@@ -165,23 +138,11 @@ tty_read(str, len)
  *	will be non-zero.
  */
 
-#ifdef __STDC__
 void
 paxwarn(int set, const char *fmt, ...)
-#else
-void
-paxwarn(set, fmt, va_alist)
-	int set;
-	const char *fmt;
-	va_dcl
-#endif
 {
 	va_list ap;
-#	ifdef __STDC__
 	va_start(ap, fmt);
-#	else
-	va_start(ap);
-#	endif
 	if (set)
 		exit_val = 1;
 	/*
@@ -205,24 +166,11 @@ paxwarn(set, fmt, va_alist)
  *	will be non-zero.
  */
 
-#ifdef __STDC__
 void
 syswarn(int set, int errnum, const char *fmt, ...)
-#else
-void
-syswarn(set, errnum, fmt, va_alist)
-	int set;
-	int errnum;
-	const char *fmt;
-	va_dcl
-#endif
 {
 	va_list ap;
-#	ifdef __STDC__
 	va_start(ap, fmt);
-#	else
-	va_start(ap);
-#	endif
 	if (set)
 		exit_val = 1;
 	/*

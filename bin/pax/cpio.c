@@ -54,9 +54,9 @@ static const char rcsid[] =
 #include "cpio.h"
 #include "extern.h"
 
-static int rd_nm __P((register ARCHD *, int));
-static int rd_ln_nm __P((register ARCHD *));
-static int com_rd __P((register ARCHD *));
+static int rd_nm(register ARCHD *, int);
+static int rd_ln_nm(register ARCHD *);
+static int com_rd(register ARCHD *);
 
 /*
  * Routines which support the different cpio versions
@@ -75,13 +75,8 @@ static int swp_head;		/* binary cpio header byte swap */
  *      0 if ok -1 otherwise (the return values of lnk_start())
  */
 
-#ifdef __STDC__
 int
 cpio_strd(void)
-#else
-int
-cpio_strd()
-#endif
 {
 	return(lnk_start());
 }
@@ -96,14 +91,8 @@ cpio_strd()
  *	0 if a valid trailer, -1 if not a valid trailer,
  */
 
-#ifdef __STDC__
 int
 cpio_trail(register ARCHD *arcn)
-#else
-int
-cpio_trail(arcn)
-	register ARCHD *arcn;
-#endif
 {
 	/*
 	 * look for trailer id in file we are about to process
@@ -120,14 +109,8 @@ cpio_trail(arcn)
  *	0
  */
 
-#ifdef __STDC__
 static int
 com_rd(register ARCHD *arcn)
-#else
-static int
-com_rd(arcn)
-	register ARCHD *arcn;
-#endif
 {
 	arcn->skip = 0;
 	arcn->pat = NULL;
@@ -175,13 +158,8 @@ com_rd(arcn)
  *	result of the write of the trailer from the cpio specific write func
  */
 
-#ifdef __STDC__
 int
 cpio_endwr(void)
-#else
-int
-cpio_endwr()
-#endif
 {
 	ARCHD last;
 
@@ -203,15 +181,8 @@ cpio_endwr()
  *	0 if ok, -1 otherwise
  */
 
-#ifdef __STDC__
 static int
 rd_nm(register ARCHD *arcn, int nsz)
-#else
-static int
-rd_nm(arcn, nsz)
-	register ARCHD *arcn;
-	int nsz;
-#endif
 {
 	/*
 	 * do not even try bogus values
@@ -240,14 +211,8 @@ rd_nm(arcn, nsz)
  *	0 if ok, -1 otherwise
  */
 
-#ifdef __STDC__
 static int
 rd_ln_nm(register ARCHD *arcn)
-#else
-static int
-rd_ln_nm(arcn)
-	register ARCHD *arcn;
-#endif
 {
 	/*
 	 * check the length specified for bogus values
@@ -297,15 +262,8 @@ rd_ln_nm(arcn)
  *      0 if a valid header, -1 otherwise
  */
 
-#ifdef __STDC__
 int
 cpio_id(char *blk, int size)
-#else
-int
-cpio_id(blk, size)
-	char *blk;
-	int size;
-#endif
 {
 	if ((size < sizeof(HD_CPIO)) ||
 	    (strncmp(blk, AMAGIC, sizeof(AMAGIC) - 1) != 0))
@@ -321,15 +279,8 @@ cpio_id(blk, size)
  *	0 if a valid header, -1 otherwise.
  */
 
-#ifdef __STDC__
 int
 cpio_rd(register ARCHD *arcn, register char *buf)
-#else
-int
-cpio_rd(arcn, buf)
-	register ARCHD *arcn;
-	register char *buf;
-#endif
 {
 	register int nsz;
 	register HD_CPIO *hd;
@@ -409,13 +360,8 @@ cpio_rd(arcn, buf)
  *      size of trailer header in this format
  */
 
-#ifdef __STDC__
 off_t
 cpio_endrd(void)
-#else
-off_t
-cpio_endrd()
-#endif
 {
 	return((off_t)(sizeof(HD_CPIO) + sizeof(TRAILER)));
 }
@@ -427,13 +373,8 @@ cpio_endrd()
  *	0 if ok, -1 otherwise (what dev_start() returns)
  */
 
-#ifdef __STDC__
 int
 cpio_stwr(void)
-#else
-int
-cpio_stwr()
-#endif
 {
 	return(dev_start());
 }
@@ -447,14 +388,8 @@ cpio_stwr()
  *	data to write after the header, -1 if archive write failed
  */
 
-#ifdef __STDC__
 int
 cpio_wr(register ARCHD *arcn)
-#else
-int
-cpio_wr(arcn)
-	register ARCHD *arcn;
-#endif
 {
 	register HD_CPIO *hd;
 	register int nsz;
@@ -583,15 +518,8 @@ cpio_wr(arcn)
  *      0 if a valid header, -1 otherwise
  */
 
-#ifdef __STDC__
 int
 vcpio_id(char *blk, int size)
-#else
-int
-vcpio_id(blk, size)
-	char *blk;
-	int size;
-#endif
 {
 	if ((size < sizeof(HD_VCPIO)) ||
 	    (strncmp(blk, AVMAGIC, sizeof(AVMAGIC) - 1) != 0))
@@ -607,15 +535,8 @@ vcpio_id(blk, size)
  *      0 if a valid header, -1 otherwise
  */
 
-#ifdef __STDC__
 int
 crc_id(char *blk, int size)
-#else
-int
-crc_id(blk, size)
-	char *blk;
-	int size;
-#endif
 {
 	if ((size < sizeof(HD_VCPIO)) ||
 	    (strncmp(blk, AVCMAGIC, sizeof(AVCMAGIC) - 1) != 0))
@@ -630,13 +551,8 @@ crc_id(blk, size)
  *      0 if ok -1 otherwise (the return values of lnk_start())
  */
 
-#ifdef __STDC__
 int
 crc_strd(void)
-#else
-int
-crc_strd()
-#endif
 {
 	docrc = 1;
 	return(lnk_start());
@@ -650,15 +566,8 @@ crc_strd()
  *	0 if a valid header, -1 otherwise.
  */
 
-#ifdef __STDC__
 int
 vcpio_rd(register ARCHD *arcn, register char *buf)
-#else
-int
-vcpio_rd(arcn, buf)
-	register ARCHD *arcn;
-	register char *buf;
-#endif
 {
 	register HD_VCPIO *hd;
 	dev_t devminor;
@@ -760,13 +669,8 @@ vcpio_rd(arcn, buf)
  *      size of trailer header in this format
  */
 
-#ifdef __STDC__
 off_t
 vcpio_endrd(void)
-#else
-off_t
-vcpio_endrd()
-#endif
 {
 	return((off_t)(sizeof(HD_VCPIO) + sizeof(TRAILER) +
 		(VCPIO_PAD(sizeof(HD_VCPIO) + sizeof(TRAILER)))));
@@ -779,13 +683,8 @@ vcpio_endrd()
  *	0 if ok, -1 otherwise (what dev_start() returns)
  */
 
-#ifdef __STDC__
 int
 crc_stwr(void)
-#else
-int
-crc_stwr()
-#endif
 {
 	docrc = 1;
 	return(dev_start());
@@ -800,14 +699,8 @@ crc_stwr()
  *	NO data to write after the header, -1 if archive write failed
  */
 
-#ifdef __STDC__
 int
 vcpio_wr(register ARCHD *arcn)
-#else
-int
-vcpio_wr(arcn)
-	register ARCHD *arcn;
-#endif
 {
 	register HD_VCPIO *hd;
 	unsigned int nsz;
@@ -963,15 +856,8 @@ vcpio_wr(arcn)
  *      0 if a valid header, -1 otherwise
  */
 
-#ifdef __STDC__
 int
 bcpio_id(char *blk, int size)
-#else
-int
-bcpio_id(blk, size)
-	char *blk;
-	int size;
-#endif
 {
 	if (size < sizeof(HD_BCPIO))
 		return(-1);
@@ -998,15 +884,8 @@ bcpio_id(blk, size)
  *	0 if a valid header, -1 otherwise.
  */
 
-#ifdef __STDC__
 int
 bcpio_rd(register ARCHD *arcn, register char *buf)
-#else
-int
-bcpio_rd(arcn, buf)
-	register ARCHD *arcn;
-	register char *buf;
-#endif
 {
 	register HD_BCPIO *hd;
 	register int nsz;
@@ -1102,13 +981,8 @@ bcpio_rd(arcn, buf)
  *      size of trailer header in this format
  */
 
-#ifdef __STDC__
 off_t
 bcpio_endrd(void)
-#else
-off_t
-bcpio_endrd()
-#endif
 {
 	return((off_t)(sizeof(HD_BCPIO) + sizeof(TRAILER) +
 		(BCPIO_PAD(sizeof(HD_BCPIO) + sizeof(TRAILER)))));
@@ -1125,14 +999,8 @@ bcpio_endrd()
  *	data to write after the header, -1 if archive write failed
  */
 
-#ifdef __STDC__
 int
 bcpio_wr(register ARCHD *arcn)
-#else
-int
-bcpio_wr(arcn)
-	register ARCHD *arcn;
-#endif
 {
 	register HD_BCPIO *hd;
 	register int nsz;

@@ -52,13 +52,10 @@ static const char rcsid[] =
 #include <unistd.h>
 #include <sys/param.h>
 
-int main __P((int, char *[]));
-void usage __P((void));
+void usage(void);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	int ch;
 	char *p;
@@ -99,7 +96,7 @@ main(argc, argv)
 }
 
 void
-usage()
+usage(void)
 {
 
 	(void)fprintf(stderr, "usage: pwd\n");
