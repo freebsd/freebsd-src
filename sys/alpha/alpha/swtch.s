@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: swtch.s,v 1.1 1998/06/10 10:53:23 dfr Exp $ */
 /* $NetBSD: locore.s,v 1.47 1998/03/22 07:26:32 thorpej Exp $ */
 
 /*
@@ -278,7 +278,7 @@ LEAF(switch_trampoline, 0)
  * exception_return: return from trap, exception, or syscall
  */
 
-BSS(ssir, 8)
+IMPORT(ipending, 8)
 IMPORT(astpending, 8)
 
 LEAF(exception_return, 1)			/* XXX should be NESTED */
@@ -290,7 +290,7 @@ Ler1:	LDGP(pv)
 	bne	t0, Lrestoreregs		/* != 0: can't do AST or SIR */
 
 	/* see if we can do an SIR */
-	ldq	t1, ssir			/* SIR pending? */
+	ldq	t1, ipending			/* SIR pending? */
 	beq	t1, Lchkast			/* no, try an AST*/
 
 	/* We've got a SIR. */
