@@ -50,6 +50,9 @@ static char sccsid[] = "@(#)local_passwd.c	8.3 (Berkeley) 4/2/94";
 
 #include <pw_copy.h>
 #include <pw_util.h>
+#ifdef YP
+#include <pw_yp.h>
+#endif
 
 #include "extern.h"
 
@@ -139,6 +142,10 @@ local_passwd(uname)
 	if (!(pw = getpwnam(uname)))
 		errx(1, "unknown user %s", uname);
 
+#ifdef YP
+	/* Use the right password information. */
+	pw = (struct passwd *)&local_password;
+#endif
 	uid = getuid();
 	if (uid && uid != pw->pw_uid)
 		errx(1, "%s", strerror(EACCES));
