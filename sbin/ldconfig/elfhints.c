@@ -46,7 +46,7 @@
 #define MAXDIRS		1024		/* Maximum directories in path */
 #define MAXFILESIZE	(16*1024)	/* Maximum hints file size */
 
-static void	add_dir(const char *, const char *);
+static void	add_dir(const char *, const char *, int);
 static void	read_dirs_from_file(const char *, const char *);
 static void	read_elf_hints(const char *, int);
 static void	write_elf_hints(const char *);
@@ -55,9 +55,30 @@ static const char	*dirs[MAXDIRS];
 static int		 ndirs;
 
 static void
-add_dir(const char *hintsfile, const char *name)
+add_dir(const char *hintsfile, const char *name, int trusted)
 {
-	int	i;
+	struct stat 	stbuf;
+	int		i;
+
+	/* Do some security checks */
+	if (!trusted && !insecure) {
+		if (stat(name, &stbuf) == -1) {
+			warn("%s", name);
+			return;
+		}
+		if (stbuf.st_uid != 0) {
+			warnx("%s: ignoring directory not owned by root", name);
+			return;
+		}
+		if ((stbuf.st_mode & S_IWOTH) != 0) {
+			warnx("%s: ignoring world-writable directory", name);
+			return;
+		}
+		if ((stbuf.st_mode & S_IWGRP) != 0) {
+			warnx("%s: ignoring group-writable directory", name);
+			return;
+		}
+	}
 
 	for (i = 0;  i < ndirs;  i++)
 		if (strcmp(dirs[i], name) == 0)
@@ -155,7 +176,7 @@ read_dirs_from_file(const char *hintsfile, const char *listfile)
 
 		if ((sp = strdup(sp)) == NULL)
 			errx(1, "Out of memory");
-		add_dir(hintsfile, sp);
+		add_dir(hintsfile, sp, 0);
 	}
 
 	fclose(fp);
@@ -203,7 +224,7 @@ read_elf_hints(const char *hintsfile, int must_exist)
 
 	if (*dirlist != '\0')
 		while ((p = strsep(&dirlist, ":")) != NULL)
-			add_dir(hintsfile, p);
+			add_dir(hintsfile, p, 1);
 }
 
 void
@@ -221,7 +242,7 @@ update_elf_hints(const char *hintsfile, int argc, char **argv, int merge)
 		else if (S_ISREG(s.st_mode))
 			read_dirs_from_file(hintsfile, argv[i]);
 		else
-			add_dir(hintsfile, argv[i]);
+			add_dir(hintsfile, argv[i], 0);
 	}
 	write_elf_hints(hintsfile);
 }
