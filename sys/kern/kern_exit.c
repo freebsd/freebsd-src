@@ -505,7 +505,7 @@ wait1(td, uap, compat)
 		uap->pid = -q->p_pgid;
 		PROC_UNLOCK(q);
 	}
-	if (uap->options &~ (WUNTRACED|WNOHANG|WLINUXCLONE))
+	if (uap->options &~ (WUNTRACED|WNOHANG|WCONTINUED|WLINUXCLONE))
 		return (EINVAL);
 	mtx_lock(&Giant);
 loop:
@@ -685,6 +685,22 @@ loop:
 				PROC_UNLOCK(p);
 				error = 0;
 			}
+			mtx_unlock(&Giant);
+			return (error);
+		}
+		if (uap->options & WCONTINUED && (p->p_flag & P_CONTINUED)) {
+			sx_xunlock(&proctree_lock);
+			td->td_retval[0] = p->p_pid;
+			p->p_flag &= ~P_CONTINUED;
+			PROC_UNLOCK(p);
+
+			if (uap->status) {
+				status = SIGCONT;
+				error = copyout((caddr_t)&status,
+				    (caddr_t)uap->status, sizeof(status));
+			} else
+				error = 0;
+
 			mtx_unlock(&Giant);
 			return (error);
 		}
