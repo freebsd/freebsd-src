@@ -64,6 +64,7 @@
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/resourcevar.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/vmmeter.h>
@@ -399,6 +400,7 @@ _mtx_lock_sleep(struct mtx *m, int opts, const char *file, int line)
 			    "_mtx_lock_sleep: p %p blocked on [%p] %s", p, m,
 			    m->mtx_object.lo_name);
 
+		p->p_stats->p_ru.ru_nvcsw++;
 		mi_switch();
 
 		if (LOCK_LOG_TEST(&m->mtx_object, opts))
@@ -536,6 +538,7 @@ _mtx_unlock_sleep(struct mtx *m, int opts, const char *file, int line)
 			    "_mtx_unlock_sleep: %p switching out lock=%p", m,
 			    (void *)m->mtx_lock);
 
+		p->p_stats->p_ru.ru_nivcsw++;
 		mi_switch();
 		if (LOCK_LOG_TEST(&m->mtx_object, opts))
 			CTR2(KTR_LOCK, "_mtx_unlock_sleep: %p resuming lock=%p",
