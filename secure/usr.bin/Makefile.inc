@@ -1,4 +1,5 @@
 # $FreeBSD$
 
-BINDIR=	/usr/bin
+BINDIR?=	/usr/bin
+
 .include "${.CURDIR}/../../Makefile.inc"
