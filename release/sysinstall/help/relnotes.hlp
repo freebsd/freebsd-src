@@ -1,31 +1,33 @@
                                  RELEASE NOTES
-                          FreeBSD Release 2.2 SNAPSHOT
+                          FreeBSD Release 2.2-ALPHA
 
-0. What's new since 2.2-961014-SNAP?
+This is an ALPHA release of FreeBSD 2.2-RELEASE and is aimed primarily
+at release testers.  Some parts of the documentation may not be updated
+yet and should be reported if and when seen.  Naturally, any installation
+failures or crashes should also be reported ASAP by sending mail to
+bugs@freebsd.org or using the send-pr command (those preferring a WEB based
+interface can also see http://www.freebsd.org/send-pr.html).
+
+
+0. What's new since 2.1.5-RELEASE
 ------------------------------------
 
 Support for the SDL RISCom N2pci sync serial card.
-
-0. What's new since 2.2-961006-SNAP?
-------------------------------------
-
-11th-hour bug in SYN attack protection code fixed [showstopper].
 
 Support for Cyclades Cyclom-Y (multi-port async serial) PCI adaptors
 as well as multiple controllers and the 32-Y (if you are currently using
 the Cyclades serial adapter, you should re-make your /dev entries and
 remove the old ones).
 
-/usr/src/contrib now part of src dist selection (doh!) [showstopper].
+Updated support for ethernet adaptors which use the DEC DC21X4X chipset.
+
+Support for HP PC Lan+ cards (model numbers: 27247B and 27252A)
+
+The 3COM 3c590 / 3c595 drivers have improved considerably.
 
 You need only change your kernel settings *once* now, on initial startup
 from the floppy.  They will be preserved on the subsequently installed
 kernel.
-
-
-0. What's new since 2.2-960801-SNAP?
-------------------------------------
-Support for HP PC Lan+ cards (model numbers: 27247B and 27252A)
 
 Update to gcc 2.7.2.1 & add support for weak symbols.
 
@@ -39,66 +41,6 @@ Update sgmlfmt to `instant'.
 Protection against the widely reported SYN attack.
 
 
-1. What's New since 2.1.0-RELEASE?
-----------------------------------
-A considerable number of changes to the VM system have been made
-to increase the stability under certain types of load.  If you
-had panics under the last snapshot, try this one and see if they
-persist.
-
-The AHC driver now does considerably more in the way of handling errors
-gracefully.
-
-More cosmetic work on the installation, /stand/sysinstall now genuinely
-useful after installation time (though still missing a man page - urk!).
-
-Early support for APM (automated power management) and PCCARD
-(formerly PCMCIA) features of laptops.  Many PCCARD devices
-are supported, from modems to ethernet cards to SCSI adaptors.
-
-Adaptec AIC7850 support has been added.
-
-The Yellow Pages (NIS) support has had many optimizations made
-and no longer has portions copyright under the GPL.
-
-Various VM system enhancements and a few bugs fixed (gzip'd binaries
-now work again, for example).
-
-The system installation tool has been revamped with slightly different
-menu behavior and a number of bugs have been fixed.  It's hoped that
-this installation will be more intuitive for new users than previous
-ones (feedback welcomed, of course).
-
-The Intel EtherExpress Pro/100B PCI ethernet card is now supported.
-
-The 3COM 3C590 and 3C595 ethernet cards are now supported.
-
-The ARNET (now Digiboard) Sync 570i high-speed serial card is now supported.
-
-The Linux emulation is now good enough to run the Linux version of
-Netscape, with JAVA support (as well as a number of other Linux
-utilities).
-
-The Matrox Meteor frame grabber card is better supported.
-
-It is now possible to burn CDROMs using the Plasmon or HP 4080i
-CDR drives (see `wormcontrol(1)').
-
-The pipe code has been substantially sped up, as have some components
-of the VM system.
-
-A /dev/random device (and associated "pool of entropy") has been added
-for applications which require more unpredicatable sequences of random
-numbers for security.  See the random(4) man page for more info.
-
-Early NFS v3 support (not enabled by default).
-
-An early implementation of the Device Filesystem (devfs) is available
-(see mount_devfs).  Device switch tables are now also dynamically built.
-
-Early IPX routing support.
-
-
 2. Technical overview
 ---------------------
 
@@ -107,7 +49,7 @@ for Intel i386/i486/Pentium (or compatible) based PC's.  It is based
 primarily on software from U.C. Berkeley's CSRG group, with some
 enhancements from NetBSD, 386BSD, and the Free Software Foundation.
 
-Since our release of FreeBSD 2.0 over a year ago, the performance,
+Since our release of FreeBSD 2.0 almost 2 years ago, the performance,
 feature set and stability of FreeBSD has improved dramatically.  The
 largest change is a revamped VM system with a merged VM/file buffer
 cache that not only increases performance but reduces FreeBSD's memory
@@ -123,11 +65,11 @@ heart and have attempted to provide what we hope is a more sane and
 easily understood installation process.  Your feedback on this
 (constantly evolving) process is especially welcome!
 
-In addition to the base distributions, FreeBSD offers a new ported
-software collection with over 390 commonly sought-after programs.  The
+In addition to the base distributions, FreeBSD offers a ported
+software collection with over 600 commonly sought-after programs.  The
 list of ports ranges from http (WWW) servers, to games, languages,
 editors and almost everything in between.  The entire ports collection
-requires only 10MB of storage, all ports being expressed as "deltas"
+requires only 6MB of storage, all ports being expressed as "deltas"
 to their original sources.  This makes it much easier for us to update
 ports and greatly reduces the disk space demands made by the ports
 collection.  To compile a port, you simply change to the directory of
@@ -263,6 +205,7 @@ DEC EtherWORKS II NICs (DE200, DE201, DE202, and DE422)
 DEC DC21040, DC21041, or DC21140 based NICs (SMC Etherpower 8432T, DE245, etc)
 DEC FDDI (DEFPA/DEFEA) NICs
 Fujitsu MB86960A/MB86965A
+HP PC Lan+ cards (model numbers: 27247B and 27252A)
 
 Intel EtherExpress (not recommended due to driver instability)
 Intel EtherExpress Pro/100B PCI Fast Ethernet
@@ -343,7 +286,7 @@ LAST resort!
 
 4.2. CDROM
 
-FreeBSD 2.1-RELEASE and these 2.2 SNAPSHOT CDs may be ordered on CDROM from:
+FreeBSD 2.1.6-RELEASE and 2.2-RELEASE CDs may be ordered on CDROM from:
 
         Walnut Creek CDROM
         4041 Pike Lane, Suite D
@@ -351,20 +294,15 @@ FreeBSD 2.1-RELEASE and these 2.2 SNAPSHOT CDs may be ordered on CDROM from:
         1-800-786-9907, +1-510-674-0783, +1-510-674-0821 (fax)
 
 Or via the internet from orders@cdrom.com or http://www.cdrom.com.
-Their current catalog can be obtained via ftp as:
+Their current catalog can be obtained via ftp from:
         ftp://ftp.cdrom.com/cdrom/catalog.
 
 Cost per -RELEASE CD is $39.95 or $24.95 with a FreeBSD subscription.
-FreeBSD 2.2-SNAP CDs are $29.95 or $14.95 with a FreeBSD-SNAP subscription
+FreeBSD 3.0-SNAP CDs are $29.95 or $14.95 with a FreeBSD-SNAP subscription
 (-RELEASE and -SNAP subscriptions are entirely seperate).  With a
 subscription, you will automatically receive updates as they are released.
 Your credit card will be billed when each disk is shipped and you may cancel
 your subscription at any time without further obligation.
-
-Walnut Creek CDROM also sells a full line of FreeBSD related
-merchandise such as T-shirts ($14.95, available in "child", Large and
-XL sizes), coffee mugs ($9.95), tattoos ($0.25 each) and posters
-($3.00).
 
 Shipping (per order not per disc) is $5 in the US, Canada or Mexico
 and $9.00 overseas.  They accept Visa, Mastercard, Discover, American
@@ -383,7 +321,8 @@ valued - please do not hesitate to report any problems you may find
 (preferably with a fix attached, if you can!).
 
 The preferred method to submit bug reports from a machine with
-internet mail connectivity is to use the send-pr command.  Bug reports
+internet mail connectivity is to use the send-pr command or use the CGI
+script at http://www.freebsd.org/send-pr.html.  Bug reports
 will be dutifully filed by our faithful bugfiler program and you can
 be sure that we'll do our best to respond to all reported bugs as soon
 as possible.  Bugs filed in this way are also visible on our WEB site
@@ -482,29 +421,40 @@ The FreeBSD Development Team, excluding core team members
         Thomas Gellekum <tg@FreeBSD.org>
         Thomas Graichen <graichen@FreeBSD.org>
         Rod Grimes <rgrimes@FreeBSD.org>
+	James FitzGibbon <jfitz@FreeBSD.org>
         John Hay <jhay@FreeBSD.org>
         Jeffrey Hsu <hsu@FreeBSD.org>
         Ugen J.S. Antsilevich <ugen@FreeBSD.org>
         Gary Jennejohn <gj@FreeBSD.org>
+	Andreas Klemm <andreas@FreeBSD.org>
+	Warner Losh <imp@FreeBSD.org>
         L Jonas Olsson <ljo@FreeBSD.org>
         Eric L. Hernes <erich@FreeBSD.org>
         Scott Mace <smace@FreeBSD.org>
         Atsushi Murai <amurai@FreeBSD.org>
         Mark Murray <markm@FreeBSD.org>
+	Alex Nash <alex@FreeBSD.org>
+	Masafumi NAKANE <max@FreeBSD.org>
+	David E. O'Brien <obrien@FreeBSD.org>
         Andras Olah <olah@FreeBSD.org>
+	Steve Passe <smp@FreeBSD.org>
         Bill Paul <wpaul@FreeBSD.org>
         Joshua Peck Macdonald <jmacd@FreeBSD.org>
         John Polstra <jdp@FreeBSD.org>
+	Steve Price <steve@FreeBSD.org>
         Mike Pritchard <mpp@FreeBSD.org>
         Doug Rabson <dfr@FreeBSD.org>
+	James Raynard <jraynard@FreeBSD.org>
         Geoff Rehmet <csgr@FreeBSD.org>
         Martin Renters <martin@FreeBSD.org>
         Paul Richards <paul@FreeBSD.org>
         Ollivier Robert <roberto@FreeBSD.org>
+	Chuck Robey <chuckr@FreeBSD.org>
         Dima Ruban <dima@FreeBSD.org>
         Wolfram Schneider <wosch@FreeBSD.org>
         Andreas Schulz <ats@FreeBSD.org>
         Karl Strickland <karl@FreeBSD.org>
+	Michael Smith <msmith@FreeBSD.org>
         Paul Traina <pst@FreeBSD.org>
         Guido van Rooij <guido@FreeBSD.org>
         Steven Wallace <swallace@FreeBSD.org>
@@ -515,8 +465,8 @@ The FreeBSD Development Team, excluding core team members
 Additional FreeBSD helpers and beta testers:
 
         Coranth Gryphon            Dave Rivers 
-        Kaleb S. Keithley          Michael Smith
-        Terry Lambert              David Dawes
+        Kaleb S. Keithley          Terry Lambert
+        David Dawes                Don Lewis
 
 Special mention to:
 
@@ -544,4 +494,4 @@ We sincerely hope you enjoy this release of FreeBSD!
 
                         The FreeBSD Core Team
 
-$Id: relnotes.hlp,v 1.16 1996/10/23 22:28:56 wosch Exp $
+$Id: relnotes.hlp,v 1.17.2.1 1996/11/13 11:49:42 jkh Exp $
