@@ -404,7 +404,7 @@ next_file(ARCHD *arcn)
 			continue;
 		case FTS_DC:
 			/*
-			 * fts claims a file system cycle
+			 * fts claims a filesystem cycle
 			 */
 			paxwarn(1,"File system cycle found at %s",ftent->fts_path);
 			continue;

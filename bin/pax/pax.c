@@ -162,11 +162,11 @@ char	*tempbase;		/* basename of tempfile to use for mkstemp(3) */
  *	archive and pax the specific format specifications.
  * 2.3	Blocking size and format is rigidly enforced on writes.
  * 2.4	Formats which may exhibit header overflow problems (they have fields
- *	too small for large file systems, such as inode number storage), use
+ *	too small for large filesystems, such as inode number storage), use
  *	routines designed to repair this problem. These techniques still
  *	conform to both pax and format specifications, but no longer truncate
  *	these fields. This removes any restrictions on using these archive
- *	formats on large file systems.
+ *	formats on large filesystems.
  * 2.5	Multiple archive volumes can be written and may span over different
  *	archive devices
  * 2.6	A archive volume record limit allows the user to specify the number
