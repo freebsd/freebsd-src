@@ -2,7 +2,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.26 1996/07/24 21:22:36 phk Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.27 1996/07/30 18:00:32 bde Exp $
  */
 
 #include "param.h"
@@ -157,25 +157,21 @@ dev_finddir(char *orig_path, dn_p dirnode, int create, dn_p *dn_pp)
 	* find the next segment of the name	*
 	\***************************************/
 	cp = name = path;
-	while((*cp != '/') && (*cp != 0))
-	{
+	while((*cp != '/') && (*cp != 0)) {
 		cp++;
 	}
 
 	/***********************************************\
 	* Check to see if it's the last component	*
 	\***********************************************/
-	if(*cp)
-	{
+	if(*cp) {
 		path = cp + 1;	/* path refers to the rest */
 		*cp = 0; 	/* name is now a separate string */
 		if(!(*path))
 		{
 			path = (char *)0; /* was trailing slash */
 		}
-	}
-	else
-	{
+	} else {
 		path = (char *)0;	/* no more to do */
 	}
 
@@ -183,13 +179,10 @@ dev_finddir(char *orig_path, dn_p dirnode, int create, dn_p *dn_pp)
 	* Start scanning along the linked list	*
 	\***************************************/
 	devnmp = dev_findname(dirnode,name);
-	if(devnmp)
-	{	/* check it's a directory */
+	if(devnmp) {	/* check it's a directory */
 		dnp = devnmp->dnp;
 		if(dnp->type != DEV_DIR) return ENOTDIR;
-	}
-	else
-	{
+	} else {
 		/***************************************\
 		* The required element does not exist	*
 		* So we will add it if asked to.	*
@@ -203,12 +196,9 @@ dev_finddir(char *orig_path, dn_p dirnode, int create, dn_p *dn_pp)
 		}
 		dnp = devnmp->dnp;
 	}
-	if(path)	/* decide whether to recurse more or return */
-	{
+	if(path) {	/* decide whether to recurse more or return */
 		return (dev_finddir(path,dnp,create,dn_pp));
-	}
-	else
-	{
+	} else {
 		*dn_pp = dnp;
 		return 0;
 	}
@@ -246,8 +236,7 @@ dev_add_name(char *name, dn_p dirnode, devnm_p back, dn_p dnp,
 	 * Allocate and fill out a new directory entry 
 	 */
 	if(!(devnmp = (devnm_p)malloc(sizeof(devnm_t),
-				M_DEVFSNAME, M_NOWAIT)))
-	{
+				M_DEVFSNAME, M_NOWAIT))) {
 		return ENOMEM;
 	}
 	bzero(devnmp,sizeof(devnm_t));
@@ -365,6 +354,10 @@ dev_add_node(int entrytype, union typeinfo *by, dn_p proto, dn_p *dn_pp)
 	{
 		return ENOMEM;
 	}
+	/*
+	 * If we have a proto, that means that we are duplicating some
+	 * other device, which can only happen if we are not at the back plane
+	 */
 	if(proto) {
 		/*  XXX should check that we are NOT copying a device node */
 		bcopy(proto, dnp, sizeof(devnode_t));
@@ -374,6 +367,9 @@ dev_add_node(int entrytype, union typeinfo *by, dn_p proto, dn_p *dn_pp)
 		dnp->vn = NULL;
 		dnp->len = 0;
 	} else {
+		/* 
+		 * We have no prototype, so start off with a clean slate
+		 */
 		bzero(dnp,sizeof(devnode_t));
 		dnp->type = entrytype;
 		TIMEVAL_TO_TIMESPEC(&time,&(dnp->ctime))
@@ -400,6 +396,26 @@ dev_add_node(int entrytype, union typeinfo *by, dn_p proto, dn_p *dn_pp)
 		 * make sure that the ops associated with it are the ops
 		 * that we use (by default) for directories
 		 */
+		dnp->ops = &devfs_vnodeop_p;
+		dnp->mode |= 0555;	/* default perms */
+		break;
+	case DEV_SLNK:
+		/*
+		 * As it's a symlink allocate and store the link info
+		 * Symlinks should only ever be created by the user,
+		 * so they are not on the back plane and should not be 
+		 * propogated forward.. a bit like directories in that way..
+		 * A symlink only exists on one plane and has it's own
+		 * node.. therefore we might be on any random plane.
+		 */
+		dnp->by.Slnk.name = malloc(by->Slnk.namelen+1,
+					M_DEVFSNODE, M_NOWAIT);
+		if (!dnp->by.Slnk.name) {
+			free(dnp,M_DEVFSNODE);
+			return ENOMEM;
+		}
+		strncpy(dnp->by.Slnk.name,by->Slnk.name,by->Slnk.namelen);
+		dnp->by.Slnk.namelen = by->Slnk.namelen;
 		dnp->ops = &devfs_vnodeop_p;
 		dnp->mode |= 0555;	/* default perms */
 		break;
@@ -461,6 +477,9 @@ devfs_dn_free(dn_p dnp)
 	if(--dnp->links <= 0 ) /* can be -1 for initial free, on error */
 	{
 		/*probably need to do other cleanups XXX */
+		if(dnp->type == DEV_SLNK) {
+			free(dnp->by.Slnk.name,M_DEVFSNODE);
+		}
 	        devfs_dropvnode(dnp);
 	        free (dnp, M_DEVFSNODE);
 	}
@@ -500,7 +519,8 @@ devfs_add_fronts(devnm_p parent,devnm_p child)
 	for (falias = parent->next_front; falias; falias = falias->next_front)
 	{
 		/*
-		 * If a Dir (XXX symlink too one day)
+		 * If a Dir (XXX symlink too one day?)
+		 * (...Nope, symlinks don't propogate..)
 		 * Make the node, using the original as a prototype)
 		 */
 		if(type == DEV_DIR) {
@@ -601,6 +621,7 @@ devfs_free_plane(struct devfsmount *devfs_mp_p)
 * Create and link in a new front element.. 			*
 * Parent can be 0 for a root node				*
 * Not presently usable to make a symlink XXX			*
+* (Ok, symlinks don't propogate)
 * recursively will create subnodes corresponding to equivalent	*
 * child nodes in the base level					*
 \***************************************************************/
@@ -703,7 +724,7 @@ dev_free_name(devnm_p devnmp)
 	 */
 	if(parent) /* if not fs root */
 	{
-		if( *devnmp->prevp = devnmp->next)/* yes, assign */
+		if( (*devnmp->prevp = devnmp->next) )/* yes, assign */
 		{
 			devnmp->next->prevp = devnmp->prevp;
 		}
@@ -721,9 +742,9 @@ dev_free_name(devnm_p devnmp)
 	 * from that..
 	 * Remember that we may not HAVE a backing node.
 	 */
-	if (back = devnmp->as.front.realthing) /* yes an assign */
+	if ( (back = devnmp->as.front.realthing) ) /* yes an assign */
 	{
-		if( *devnmp->prev_frontp = devnmp->next_front)/* yes, assign */
+		if((*devnmp->prev_frontp = devnmp->next_front))/* yes, assign */
 		{
 			devnmp->next_front->prev_frontp = devnmp->prev_frontp;
 		}
@@ -773,9 +794,12 @@ DBPRINT(("	vntodn "));
 		printf("No references! ");
 	}
 #endif
-	if((vn_p->v_type == VBAD) || (vn_p->v_type == VNON))
-	{
-		printf("bad-type2 ");
+	switch(vn_p->v_type) {
+	case VBAD:
+		printf("bad-type2 (VBAD)");
+		return(EINVAL);
+	case VNON:
+		printf("bad-type2 (VNON)");
 		return(EINVAL);
 	}
 	*dn_pp = (dn_p)vn_p->v_data;
@@ -888,6 +912,7 @@ DBPRINT(("(New vnode)"));
 		switch(dnp->type)
 		{
 		case	DEV_SLNK:
+			vn_p->v_type = VLNK;
 			break;
 		case	DEV_DIR:
 			if(dnp->by.Dir.parent == dnp)
