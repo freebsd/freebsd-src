@@ -255,6 +255,8 @@ endpwent()
 		_ypcache = (DB *)NULL;
 		_yp_exclusions = 0;
 	}
+	/* Fix for PR #12008 */
+	_yp_enabled = -1;
 #endif
 }
 
