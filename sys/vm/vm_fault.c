@@ -168,10 +168,12 @@ _unlock_things(struct faultstate *fs, int dealloc)
 	unlock_map(fs);	
 	if (fs->vp != NULL) { 
 		vput(fs->vp);
+		if (debug_mpsafevm)
+			mtx_unlock(&Giant);
 		fs->vp = NULL;
 	}
 	if (dealloc)
-		mtx_unlock(&Giant);
+		VM_UNLOCK_GIANT();
 }
 
 #define unlock_things(fs) _unlock_things(fs, 0)
@@ -293,6 +295,8 @@ RetryFault:;
 	VM_OBJECT_LOCK(fs.first_object);
 	vm_object_reference_locked(fs.first_object);
 	fs.vp = vnode_pager_lock(fs.first_object);
+	if (fs.vp == NULL && debug_mpsafevm)
+		mtx_unlock(&Giant);
 	vm_object_pip_add(fs.first_object, 1);
 
 	fs.lookup_still_valid = TRUE;
@@ -364,8 +368,8 @@ RetryFault:;
 				vm_page_lock_queues();
 				if (!vm_page_sleep_if_busy(fs.m, TRUE, "vmpfw"))
 					vm_page_unlock_queues();
-				cnt.v_intrans++;
-				mtx_unlock(&Giant);
+				atomic_add_int(&cnt.v_intrans, 1);
+				VM_UNLOCK_GIANT();
 				vm_object_deallocate(fs.first_object);
 				goto RetryFault;
 			}
@@ -637,9 +641,9 @@ readrest:
 			if ((fs.m->flags & PG_ZERO) == 0) {
 				pmap_zero_page(fs.m);
 			} else {
-				cnt.v_ozfod++;
+				atomic_add_int(&cnt.v_ozfod, 1);
 			}
-			cnt.v_zfod++;
+			atomic_add_int(&cnt.v_zfod, 1);
 			fs.m->valid = VM_PAGE_BITS_ALL;
 			break;	/* break to PAGE HAS BEEN FOUND */
 		} else {
@@ -722,7 +726,7 @@ readrest:
 				vm_page_unlock_queues();
 				fs.first_m = fs.m;
 				fs.m = NULL;
-				cnt.v_cow_optim++;
+				atomic_add_int(&cnt.v_cow_optim, 1);
 			} else {
 				/*
 				 * Oh, well, lets copy it.
@@ -750,7 +754,7 @@ readrest:
 			fs.m = fs.first_m;
 			if (!is_first_object_locked)
 				VM_OBJECT_LOCK(fs.object);
-			cnt.v_cow_faults++;
+			atomic_add_int(&cnt.v_cow_faults, 1);
 		} else {
 			prot &= ~VM_PROT_WRITE;
 		}
