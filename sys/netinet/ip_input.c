@@ -87,8 +87,6 @@
 #endif
 
 int rsvp_on = 0;
-static int ip_rsvp_on;
-struct socket *ip_rsvpd;
 
 int	ipforwarding = 0;
 SYSCTL_INT(_net_inet_ip, IPCTL_FORWARDING, forwarding, CTLFLAG_RW,
@@ -193,6 +191,12 @@ ip_dn_io_t *ip_dn_io_ptr;
 
 
 /*
+ * XXX this is ugly -- the following two global variables are
+ * used to store packet state while it travels through the stack.
+ * Note that the code even makes assumptions on the size and
+ * alignment of fields inside struct ip_srcrt so e.g. adding some
+ * fields will break the code. This needs to be fixed.
+ *
  * We need to save the IP options in case a protocol wants to respond
  * to an incoming packet over the same route if the packet got here
  * using IP source routing.  This allows connection establishment and
@@ -256,7 +260,11 @@ ip_init()
 	register_netisr(NETISR_IP, ipintr);
 }
 
-static struct	sockaddr_in ipaddr = { sizeof(ipaddr), AF_INET };
+/*
+ * XXX watch out this one. It is perhaps used as a cache for
+ * the most recently used route ? it is cleared in in_addroute()
+ * when a new route is successfully created.
+ */
 struct	route ipforward_rt;
 
 /*
@@ -1167,6 +1175,7 @@ ip_dooptions(struct mbuf *m, int pass, struct sockaddr_in *next_hop)
 	int opt, optlen, cnt, off, code, type = ICMP_PARAMPROB, forward = 0;
 	struct in_addr *sin, dst;
 	n_time ntime;
+	struct	sockaddr_in ipaddr = { sizeof(ipaddr), AF_INET };
 
 	dst = ip->ip_dst;
 	cp = (u_char *)(ip + 1);
@@ -1646,6 +1655,13 @@ ip_forward(struct mbuf *m, int srcrt, struct sockaddr_in *next_hop)
 	 * Save the IP header and at most 8 bytes of the payload,
 	 * in case we need to generate an ICMP message to the src.
 	 *
+	 * XXX this can be optimized a lot by saving the data in a local
+	 * buffer on the stack (72 bytes at most), and only allocating the
+	 * mbuf if really necessary. The vast majority of the packets
+	 * are forwarded without having to send an ICMP back (either
+	 * because unnecessary, or because rate limited), so we are
+	 * really we are wasting a lot of work here.
+	 *
 	 * We don't use m_copy() because it might return a reference
 	 * to a shared cluster. Both this function and ip_output()
 	 * assume exclusive access to the IP header in `m', so any
@@ -1884,6 +1900,15 @@ makedummy:
 	}
 }
 
+/*
+ * XXX these routines are called from the upper part of the kernel.
+ * They need to be locked when we remove Giant.
+ *
+ * They could also be moved to ip_mroute.c, since all the RSVP
+ *  handling is done there already.
+ */
+static int ip_rsvp_on;
+struct socket *ip_rsvpd;
 int
 ip_rsvp_init(struct socket *so)
 {
