@@ -50,12 +50,14 @@ SUBDIR=	IPXrouted \
 	mixer \
 	mld6query \
 	mlxcontrol \
+	mountd \
 	moused \
 	mrouted \
 	mtest \
 	mtree \
 	ndp \
 	newsyslog \
+	nfsd \
 	ngctl \
 	ntp \
 	nghook \
