@@ -1,5 +1,0 @@
-#
-# $FreeBSD$
-#
-
-TARGET=		${MACHINE_ARCH}-unknown-freebsd
