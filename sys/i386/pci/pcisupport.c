@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.2 1994/10/13 01:12:31 se Exp $
+**  $Id: pcisupport.c,v 1.3 1994/10/15 23:27:39 se Exp $
 **
 **  Device driver for INTEL PCI chipsets.
 **
@@ -258,6 +258,7 @@ static void writeconfig(pcici_t config_id, struct condmsg *tbl)
 
 void chipset_attach(pcici_t config_id, int unit)
 {
+#ifdef PROBE_VERBOSE
 	switch (pci_conf_read (config_id, 0)) {
 
 	case 0x04838086:
@@ -274,6 +275,7 @@ void chipset_attach(pcici_t config_id, int unit)
 			pci_conf_read (config_id, 0x54));
 		break;
 	};
+#endif
 }
 
 /*---------------------------------------------------------
