@@ -67,7 +67,7 @@ FILE	*fscript;
 int	master, slave;
 int	child;
 const char *fname;
-int	qflg;
+int	qflg, ttyflg;
 
 struct	termios tt;
 
@@ -126,10 +126,17 @@ main(int argc, char *argv[])
 	if ((fscript = fopen(fname, aflg ? "a" : "w")) == NULL)
 		err(1, "%s", fname);
 
-	(void)tcgetattr(STDIN_FILENO, &tt);
-	(void)ioctl(STDIN_FILENO, TIOCGWINSZ, &win);
-	if (openpty(&master, &slave, NULL, &tt, &win) == -1)
-		err(1, "openpty");
+	if (ttyflg = isatty(STDIN_FILENO)) {
+		if (tcgetattr(STDIN_FILENO, &tt) == -1)
+			err(1, "tcgetattr");
+		if (ioctl(STDIN_FILENO, TIOCGWINSZ, &win) == -1)
+			err(1, "ioctl");
+		if (openpty(&master, &slave, NULL, &tt, &win) == -1)
+			err(1, "openpty");
+	} else {
+		if (openpty(&master, &slave, NULL, NULL, NULL) == -1)
+			err(1, "openpty");
+	}
 
 	if (!qflg) {
 		tvec = time(NULL);
@@ -137,10 +144,12 @@ main(int argc, char *argv[])
 		(void)fprintf(fscript, "Script started on %s", ctime(&tvec));
 		fflush(fscript);
 	}
-	rtt = tt;
-	cfmakeraw(&rtt);
-	rtt.c_lflag &= ~ECHO;
-	(void)tcsetattr(STDIN_FILENO, TCSAFLUSH, &rtt);
+	if (ttyflg) {
+		rtt = tt;
+		cfmakeraw(&rtt);
+		rtt.c_lflag &= ~ECHO;
+		(void)tcsetattr(STDIN_FILENO, TCSAFLUSH, &rtt);
+	}
 
 	child = fork();
 	if (child < 0) {
@@ -159,7 +168,8 @@ main(int argc, char *argv[])
 	FD_ZERO(&rfd);
 	for (;;) {
 		FD_SET(master, &rfd);
-		FD_SET(STDIN_FILENO, &rfd);
+		if (argv[0] == NULL)
+			FD_SET(STDIN_FILENO, &rfd);
 		if (flushtime > 0) {
 			tv.tv_sec = flushtime;
 			tv.tv_usec = 0;
@@ -260,7 +270,8 @@ done(int eno)
 {
 	time_t tvec;
 
-	(void)tcsetattr(STDIN_FILENO, TCSAFLUSH, &tt);
+	if (ttyflg)
+		(void)tcsetattr(STDIN_FILENO, TCSAFLUSH, &tt);
 	tvec = time(NULL);
 	if (!qflg) {
 		(void)fprintf(fscript,"\nScript done on %s", ctime(&tvec));
