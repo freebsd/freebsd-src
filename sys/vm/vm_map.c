@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.33 1996/02/11 22:03:49 dyson Exp $
+ * $Id: vm_map.c,v 1.34 1996/03/02 02:54:20 dyson Exp $
  */
 
 /*
@@ -165,9 +165,7 @@ static void vm_map_entry_dispose __P((vm_map_t, vm_map_entry_t));
 static void vm_map_entry_unwire __P((vm_map_t, vm_map_entry_t));
 static void vm_map_copy_entry __P((vm_map_t, vm_map_t, vm_map_entry_t,
 		vm_map_entry_t));
-#ifdef notyet
 static void vm_map_simplify_entry __P((vm_map_t, vm_map_entry_t));
-#endif
 
 void
 vm_map_startup()
