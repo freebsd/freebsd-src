@@ -40,7 +40,7 @@ static char copyright[] =
 #ifndef lint
 static char sccsid[] = "From: @(#)chpass.c	8.4 (Berkeley) 4/2/94";
 static char rcsid[] =
-	"$Id: chpass.c,v 1.8 1996/05/25 01:05:17 wpaul Exp $";
+	"$Id: chpass.c,v 1.9 1996/07/01 19:38:07 guido Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -84,7 +84,7 @@ main(argc, argv)
 {
 	enum { NEWSH, LOADENTRY, EDITENTRY, NEWPW } op;
 	struct passwd *pw, lpw;
-	char *username;
+	char *username = NULL;
 	int ch, pfd, tfd;
 	char *arg;
 #ifdef YP
@@ -181,7 +181,6 @@ main(argc, argv)
 		default:
 			usage();
 		}
-	username = pw->pw_name;
 	if (op == NEWSH) {
 		/* protect p_shell -- it thinks NULL is /bin/sh */
 		if (!arg[0])
@@ -197,6 +196,7 @@ main(argc, argv)
 		if (!pw_scan(arg, pw))
 			exit(1);
 	}
+	username = pw->pw_name;
 
 	if (op == NEWPW) {
 		if (uid)
