@@ -134,7 +134,7 @@ cdev_load(module_t mod, int cmd, void *arg)
 	break;		/* Success*/
 
     default:	/* we only understand load/unload*/
-	err = EINVAL;
+	err = EOPNOTSUPP;
 	break;
     }
 
