@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cpufunc.h,v 1.55 1996/09/12 11:08:07 asami Exp $
+ *	$Id: cpufunc.h,v 1.56 1996/09/24 17:47:59 bde Exp $
  */
 
 /*
@@ -280,6 +280,12 @@ pmap_update(void)
 	 */
 	__asm __volatile("movl %%cr3, %0; movl %0, %%cr3" : "=r" (temp)
 			 : : "memory");
+}
+
+static __inline void
+pmap_update_1pg(u_long addr)
+{
+	__asm __volatile("invlpg (%0)": :"r"(addr));
 }
 
 static __inline u_long
