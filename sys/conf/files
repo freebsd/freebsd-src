@@ -124,10 +124,6 @@ miscfs/umapfs/umap_vnops.c	optional umapfs
 miscfs/union/union_subr.c	optional union
 miscfs/union/union_vfsops.c	optional union
 miscfs/union/union_vnops.c	optional union
-miscfs/devfs/devfs_vnops.c	optional devfs
-miscfs/devfs/devfs_vfsops.c	optional devfs
-miscfs/devfs/devfs_back.c	optional devfs
-miscfs/devfs/devfs_front.c	optional devfs
 msdosfs/msdosfs_conv.c		optional msdosfs
 msdosfs/msdosfs_denode.c	optional msdosfs
 msdosfs/msdosfs_fat.c		optional msdosfs
