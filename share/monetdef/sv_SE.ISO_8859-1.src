@@ -4,7 +4,7 @@
 # WARNING: empty lines are essential too
 #
 # int_curr_symbol
-SEK
+SEK 
 # currency_symbol
 kr
 # mon_decimal_point
