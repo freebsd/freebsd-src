@@ -456,7 +456,7 @@ static __inline u_int
 rdr0(void)
 {
 	u_int	data;
-	__asm __volatile("movl %%dr0,%0" : "=rm" (data));
+	__asm __volatile("movl %%dr0,%0" : "=r" (data));
 	return (data);
 }
 
@@ -464,7 +464,7 @@ static __inline u_int
 rdr1(void)
 {
 	u_int	data;
-	__asm __volatile("movl %%dr1,%0" : "=rm" (data));
+	__asm __volatile("movl %%dr1,%0" : "=r" (data));
 	return (data);
 }
 
@@ -472,7 +472,7 @@ static __inline u_int
 rdr2(void)
 {
 	u_int	data;
-	__asm __volatile("movl %%dr2,%0" : "=rm" (data));
+	__asm __volatile("movl %%dr2,%0" : "=r" (data));
 	return (data);
 }
 
@@ -480,7 +480,7 @@ static __inline u_int
 rdr3(void)
 {
 	u_int	data;
-	__asm __volatile("movl %%dr3,%0" : "=rm" (data));
+	__asm __volatile("movl %%dr3,%0" : "=r" (data));
 	return (data);
 }
 
@@ -488,7 +488,7 @@ static __inline u_int
 rdr6(void)
 {
 	u_int	data;
-	__asm __volatile("movl %%dr6,%0" : "=rm" (data));
+	__asm __volatile("movl %%dr6,%0" : "=r" (data));
 	return (data);
 }
 
@@ -496,7 +496,7 @@ static __inline u_int
 rdr7(void)
 {
 	u_int	data;
-	__asm __volatile("movl %%dr7,%0" : "=rm" (data));
+	__asm __volatile("movl %%dr7,%0" : "=r" (data));
 	return (data);
 }
 
