@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)fstat.c	8.3 (Berkeley) 5/2/95";
 #endif
 static const char rcsid[] =
-	"$Id: fstat.c,v 1.15 1998/05/16 21:35:37 markm Exp $";
+	"$Id: fstat.c,v 1.16 1998/07/06 21:01:16 bde Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -90,6 +90,7 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <netdb.h>
 
 #define	TEXT	-1
 #define	CDIR	-2
@@ -535,6 +536,9 @@ nfs_filestat(vp, fsp)
 	case VFIFO:
 		mode |= S_IFIFO;
 		break;
+	case VNON:
+	case VBAD:
+		return 0;
 	};
 	fsp->mode = mode;
 
@@ -733,32 +737,15 @@ void
 getinetproto(number)
 	int number;
 {
-	char *cp;
+	static int isopen;
+	register struct protoent *pe;
 
-	switch(number) {
-	case IPPROTO_IP:
-		cp = "ip"; break;
-	case IPPROTO_ICMP:
-		cp ="icmp"; break;
-	case IPPROTO_GGP:
-		cp ="ggp"; break;
-	case IPPROTO_TCP:
-		cp ="tcp"; break;
-	case IPPROTO_EGP:
-		cp ="egp"; break;
-	case IPPROTO_PUP:
-		cp ="pup"; break;
-	case IPPROTO_UDP:
-		cp ="udp"; break;
-	case IPPROTO_IDP:
-		cp ="idp"; break;
-	case IPPROTO_RAW:
-		cp ="raw"; break;
-	default:
+	if (!isopen)
+		setprotoent(++isopen);
+	if ((pe = getprotobynumber(number)) != NULL)
+		printf(" %s", pe->p_name);
+	else
 		printf(" %d", number);
-		return;
-	}
-	printf(" %s", cp);
 }
 
 int
