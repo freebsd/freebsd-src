@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: ch.c,v 1.34 1996/09/06 23:09:10 phk Exp $
+ *      $Id: ch.c,v 1.34.2.1 1997/03/07 09:34:26 joerg Exp $
  */
 
 #include "opt_scsi.h"
@@ -603,7 +603,7 @@ ch_getelemstatus(sc, first, count, data, datalen)
 	 * Send command to changer.
 	 */
 	return (scsi_scsi_cmd(sc->sc_link, (struct scsi_generic *)&cmd,
-	    sizeof(cmd), (u_char *)data, datalen, CHRETRIES, 100000, NULL, 0));
+	    sizeof(cmd), (u_char *)data, datalen, CHRETRIES, 100000, NULL, SCSI_DATA_IN));
 }
 
 
