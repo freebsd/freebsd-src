@@ -36,19 +36,13 @@ if [ -x /etc/dhclient-enter-hooks ]; then
   fi
 fi
 
-if [ x$new_network_number != x ]; then
-   $LOGGER New Network Number: $new_network_number
-fi
-
 if [ x$new_broadcast_address != x ]; then
-  $LOGGER New Broadcast Address: $new_broadcast_address
   new_broadcast_arg="broadcast $new_broadcast_address"
 fi
 if [ x$old_broadcast_address != x ]; then
   old_broadcast_arg="broadcast $old_broadcast_address"
 fi
 if [ x$new_subnet_mask != x ]; then
-  $LOGGER New Subnet Mask for $interface: $new_subnet_mask
   new_netmask_arg="netmask $new_subnet_mask"
 fi
 if [ x$old_subnet_mask != x ]; then
@@ -85,7 +79,7 @@ if [ x$reason = xBOUND ] || [ x$reason = xRENEW ] || \
   if [ x$current_hostname = x ] || \
      [ x$current_hostname = x$old_host_name ]; then
     if [ x$new_host_name != x$old_host_name ]; then
-      $LOGGER New Hostname: $new_host_name
+      $LOGGER "New Hostname: $new_host_name"
       hostname $new_host_name
     fi
   fi
@@ -113,11 +107,17 @@ if [ x$reason = xBOUND ] || [ x$reason = xRENEW ] || \
      [ x$reason = xBOUND ] || [ x$reason = xREBOOT ]; then
     ifconfig $interface inet $new_ip_address $new_netmask_arg \
 					$new_broadcast_arg $medium
+    $LOGGER "New IP Address($interface): $new_ip_address"
+    $LOGGER "New Subnet Mask ($interface): $new_subnet_mask"
+    $LOGGER "New Broadcast Address($interface): $new_broadcast_address"
+    if [ "$new_routers" != "" ]; then
+      $LOGGER "New Routers: $new_routers"
+    fi
     for router in $new_routers; do
       route add default $router >/dev/null 2>&1
     done
     if [ "$new_static_routes" != "" ]; then
-      $LOGGER New Static Routes: $new_static_routes
+      $LOGGER "New Static Routes: $new_static_routes"
       set $new_static_routes
       while [ $# -gt 1 ]; do
 	route add $1 $2
@@ -170,9 +170,12 @@ if [ x$reason = xTIMEOUT ]; then
   fi
   ifconfig $interface inet $new_ip_address $new_netmask_arg \
 					$new_broadcast_arg $medium
+  $LOGGER "New IP Address($interface): $new_ip_address"
+  $LOGGER "New Subnet Mask($interface): $new_subnet_mask"
+  $LOGGER "New Broadcast Address($interface): $new_broadcast_address"
   sleep 1
   if [ "$new_routers" != "" ]; then
-    $LOGGER New Routers: $new_routers
+    $LOGGER "New Routers: $new_routers"
     set $new_routers
     if ping -q -c 1 $1; then
       if [ x$new_ip_address != x$alias_ip_address ] && \
