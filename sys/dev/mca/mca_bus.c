@@ -538,4 +538,4 @@ static driver_t mca_driver = {
 
 static devclass_t mca_devclass;
 
-DRIVER_MODULE(mca, nexus, mca_driver, mca_devclass, 0, 0);
+DRIVER_MODULE(mca, legacy, mca_driver, mca_devclass, 0, 0);
