@@ -3,19 +3,14 @@
  * Copyright (c) 1989-1992, Brian Berliner
  * 
  * You may distribute under the terms of the GNU General Public License as
- * specified in the README file that comes with the CVS 1.4 kit.
+ * specified in the README file that comes with the CVS source distribution.
  * 
  */
 
 #include "cvs.h"
 
-#ifdef SERVER_SUPPORT
-static void sticky_ck PROTO((char *file, int aflag, Vers_TS * vers,
-			     List * entries,
-			     char *repository, char *update_dir));
-#else
-static void sticky_ck PROTO((char *file, int aflag, Vers_TS * vers, List * entries));
-#endif
+static void sticky_ck PROTO ((struct file_info *finfo, int aflag,
+			      Vers_TS * vers));
 
 /*
  * Classify the state of a file
@@ -26,7 +21,11 @@ Classify_File (finfo, tag, date, options, force_tag_match, aflag, versp,
     struct file_info *finfo;
     char *tag;
     char *date;
+
+    /* Keyword expansion options.  Can be either NULL or "" to
+       indicate none are specified here.  */
     char *options;
+
     int force_tag_match;
     int aflag;
     Vers_TS **versp;
@@ -68,8 +67,8 @@ Classify_File (finfo, tag, date, options, force_tag_match, aflag, versp,
 		   is what I would expect.  */
 		if (!force_tag_match || !(vers->tag || vers->date))
 		    if (!really_quiet)
-			error (0, 0, "use `cvs add' to create an entry for %s",
-			       finfo->fullname);
+			error (0, 0, "use `%s add' to create an entry for %s",
+			       program_name, finfo->fullname);
 		ret = T_UNKNOWN;
 	    }
 	}
@@ -79,8 +78,8 @@ Classify_File (finfo, tag, date, options, force_tag_match, aflag, versp,
 		ret = T_UPTODATE;
 	    else
 	    {
-		error (0, 0, "use `cvs add' to create an entry for %s",
-		       finfo->fullname);
+		error (0, 0, "use `%s add' to create an entry for %s",
+		       program_name, finfo->fullname);
 		ret = T_UNKNOWN;
 	    }
 	}
@@ -308,12 +307,7 @@ conflict: %s created independently by second party",
 		    ret = T_CHECKOUT;
 		else
 		{
-#ifdef SERVER_SUPPORT
-		    sticky_ck (finfo->file, aflag, vers, finfo->entries,
-			       finfo->repository, finfo->update_dir);
-#else
-		    sticky_ck (finfo->file, aflag, vers, finfo->entries);
-#endif
+		    sticky_ck (finfo, aflag, vers);
 		    ret = T_UPTODATE;
 		}
 	    }
@@ -339,12 +333,7 @@ conflict: %s created independently by second party",
 			ret = T_NEEDS_MERGE;
 #else
 		    ret = T_MODIFIED;
-#ifdef SERVER_SUPPORT
-		    sticky_ck (finfo->file, aflag, vers, finfo->entries,
-			       finfo->repository, finfo->update_dir);
-#else
-		    sticky_ck (finfo->file, aflag, vers, finfo->entries);
-#endif /* SERVER_SUPPORT */
+		    sticky_ck (finfo, aflag, vers);
 #endif
 		}
 		else
@@ -434,19 +423,10 @@ conflict: %s created independently by second party",
 }
 
 static void
-#ifdef SERVER_SUPPORT
-sticky_ck (file, aflag, vers, entries, repository, update_dir)
-#else
-sticky_ck (file, aflag, vers, entries)
-#endif
-    char *file;
+sticky_ck (finfo, aflag, vers)
+    struct file_info *finfo;
     int aflag;
     Vers_TS *vers;
-    List *entries;
-#ifdef SERVER_SUPPORT
-    char *repository;
-    char *update_dir;
-#endif
 {
     if (aflag || vers->tag || vers->date)
     {
@@ -458,7 +438,7 @@ sticky_ck (file, aflag, vers, entries)
 	    (entdate && vers->date && strcmp (entdate, vers->date)) ||
 	    ((entdate && !vers->date) || (!entdate && vers->date)))
 	{
-	    Register (entries, file, vers->vn_user, vers->ts_rcs,
+	    Register (finfo->entries, finfo->file, vers->vn_user, vers->ts_rcs,
 		      vers->options, vers->tag, vers->date, vers->ts_conflict);
 
 #ifdef SERVER_SUPPORT
@@ -468,7 +448,7 @@ sticky_ck (file, aflag, vers, entries)
 		   It is possible we will later update it again via
 		   server_updated or some such, but that is OK.  */
 		server_update_entries
-		  (file, update_dir, repository,
+		  (finfo->file, finfo->update_dir, finfo->repository,
 		   strcmp (vers->ts_rcs, vers->ts_user) == 0 ?
 		   SERVER_UPDATED : SERVER_MERGED);
 	    }

@@ -3,9 +3,10 @@
  * Copyright (c) 1989-1992, Brian Berliner
  * 
  * You may distribute under the terms of the GNU General Public License as
- * specified in the README file that comes with the CVS 1.4 kit.
+ * specified in the README file that comes with the CVS source distribution.
  */
 
+#include <assert.h>
 #include "cvs.h"
 #include "getline.h"
 
@@ -86,7 +87,6 @@ Name_Repository (dir, update_dir)
 
 	error (1, save_errno, "cannot open %s", tmp);
     }
-    free (tmp);
 
     if (getline (&repos, &repos_allocated, fpin) < 0)
     {
@@ -94,7 +94,10 @@ Name_Repository (dir, update_dir)
 	error (0, 0, "in directory %s:", xupdate_dir);
 	error (1, errno, "cannot read %s", CVSADM_REP);
     }
-    (void) fclose (fpin);
+    if (fclose (fpin) < 0)
+	error (0, errno, "cannot close %s", tmp);
+    free (tmp);
+
     if ((cp = strrchr (repos, '\n')) != NULL)
 	*cp = '\0';			/* strip the newline */
 
@@ -126,7 +129,8 @@ Name_Repository (dir, update_dir)
 	repos = newrepos;
     }
 
-    strip_trailing_slashes (repos);
+    Sanitize_Repository_Name (repos);
+
     return repos;
 }
 
@@ -151,4 +155,52 @@ Short_Repository (repository)
     }
     else
 	return (repository);
+}
+
+/* Sanitize the repository name (in place) by removing trailing
+ * slashes and a trailing "." if present.  It should be safe for
+ * callers to use strcat and friends to create repository names.
+ * Without this check, names like "/path/to/repos/./foo" and
+ * "/path/to/repos//foo" would be created.  For example, one
+ * significant case is the CVSROOT-detection code in commit.c.  It
+ * decides whether or not it needs to rebuild the administrative file
+ * database by doing a string compare.  If we've done a `cvs co .' to
+ * get the CVSROOT files, "/path/to/repos/./CVSROOT" and
+ * "/path/to/repos/CVSROOT" are the arguments that are compared!
+ *
+ * This function ends up being called from the same places as
+ * strip_path, though what it does is much more conservative.  Many
+ * comments about this operation (which was scattered around in
+ * several places in the source code) ran thus:
+ *
+ *    ``repository ends with "/."; omit it.  This sort of thing used
+ *    to be taken care of by strip_path.  Now we try to be more
+ *    selective.  I suspect that it would be even better to push it
+ *    back further someday, so that the trailing "/." doesn't get into
+ *    repository in the first place, but we haven't taken things that
+ *    far yet.''        --Jim Kingdon (recurse.c, 07-Sep-97)
+ *
+ * Ahh, all too true.  The major consideration is RELATIVE_REPOS.  If
+ * the "/." doesn't end up in the repository while RELATIVE_REPOS is
+ * defined, there will be nothing in the CVS/Repository file.  I
+ * haven't verified that the remote protocol will handle that
+ * correctly yet, so I've not made that change. */
+
+void
+Sanitize_Repository_Name (repository)
+    char *repository;
+{
+    size_t len;
+
+    assert (repository != NULL);
+
+    strip_trailing_slashes (repository);
+
+    len = strlen (repository);
+    if (len >= 2
+	&& repository[len - 1] == '.'
+	&& ISDIRSEP (repository[len - 2]))
+    {
+	repository[len - 2] = '\0';
+    }
 }

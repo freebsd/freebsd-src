@@ -4,7 +4,6 @@
 **  at the University of North Carolina at Chapel Hill.  Later tweaked by
 **  a couple of people on Usenet.  Completely overhauled by Rich $alz
 **  <rsalz@bbn.com> and Jim Berets <jberets@bbn.com> in August, 1990;
-**  send any email to Rich.
 **
 **  This grammar has 10 shift/reduce conflicts.
 **
@@ -604,10 +603,14 @@ ToSeconds(Hours, Minutes, Seconds, Meridian)
     case MERam:
 	if (Hours < 1 || Hours > 12)
 	    return -1;
+	if (Hours == 12)
+	    Hours = 0;
 	return (Hours * 60L + Minutes) * 60L + Seconds;
     case MERpm:
 	if (Hours < 1 || Hours > 12)
 	    return -1;
+	if (Hours == 12)
+	    Hours = 0;
 	return ((Hours + 12) * 60L + Minutes) * 60L + Seconds;
     default:
 	abort ();
@@ -913,17 +916,34 @@ get_date(p, now)
 
     yyInput = p;
     if (now == NULL) {
+	struct tm *gmt_ptr;
+
         now = &ftz;
 	(void)time (&nowtime);
 
-	if (! (tm = gmtime (&nowtime)))
-	    return -1;
-	gmt = *tm;	/* Make a copy, in case localtime modifies *tm.  */
+	gmt_ptr = gmtime (&nowtime);
+	if (gmt_ptr != NULL)
+	{
+	    /* Make a copy, in case localtime modifies *tm (I think
+	       that comment now applies to *gmt_ptr, but I am too
+	       lazy to dig into how gmtime and locatime allocate the
+	       structures they return pointers to).  */
+	    gmt = *gmt_ptr;
+	}
 
 	if (! (tm = localtime (&nowtime)))
 	    return -1;
-	
-	ftz.timezone = difftm (&gmt, tm) / 60;
+
+	if (gmt_ptr != NULL)
+	    ftz.timezone = difftm (&gmt, tm) / 60;
+	else
+	    /* We are on a system like VMS, where the system clock is
+	       in local time and the system has no concept of timezones.
+	       Hopefully we can fake this out (for the case in which the
+	       user specifies no timezone) by just saying the timezone
+	       is zero.  */
+	    ftz.timezone = 0;
+
 	if(tm->tm_isdst)
 	    ftz.timezone += 60;
     }

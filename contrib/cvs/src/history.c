@@ -230,13 +230,9 @@ static short repos_sort;
 static short file_sort;
 static short module_sort;
 
-#ifdef HAVE_RCS5
 static short tz_local;
 static time_t tz_seconds_east_of_GMT;
 static char *tz_name = "+0000";
-#else
-static char tz_name[] = "LT";
-#endif
 
 /* -r, -t, or -b options, malloc'd.  These are "" if the option in
    question is not specified or is overridden by another option.  The
@@ -497,9 +493,6 @@ history (argc, argv)
 		rec_types = xstrdup (optarg);
 		break;
 	    case 'z':
-#ifndef HAVE_RCS5
-		error (0, 0, "-z not supported with RCS 4");
-#else
 		tz_local = 
 		    (optarg[0] == 'l' || optarg[0] == 'L')
 		    && (optarg[1] == 't' || optarg[1] == 'T')
@@ -530,7 +523,6 @@ history (argc, argv)
 			tz_name = optarg;
 		    }
 		}
-#endif
 		break;
 	    case '?':
 	    default:
@@ -1431,15 +1423,14 @@ report_hrecs ()
 	    continue;
 
 	ty = *(lr->type);
-#ifdef HAVE_RCS5
 	if (!tz_local)
 	{
 	    time_t t = lr->date + tz_seconds_east_of_GMT;
 	    tm = gmtime (&t);
 	}
 	else
-#endif
-	tm = localtime (&(lr->date));
+	    tm = localtime (&(lr->date));
+
 	(void) printf ("%c %02d/%02d %02d:%02d %s %-*s", ty, tm->tm_mon + 1,
 		  tm->tm_mday, tm->tm_hour, tm->tm_min, tz_name,
 		  user_len, lr->user);

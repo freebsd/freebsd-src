@@ -3,7 +3,7 @@
  * Copyright (c) 1989-1992, Brian Berliner
  * 
  * You may distribute under the terms of the GNU General Public License as
- * specified in the README file that comes with the CVS 1.4 kit.
+ * specified in the README file that comes with the CVS source distribution.
  * 
  * Remove a File
  * 
@@ -37,6 +37,7 @@ static const char *const remove_usage[] =
     "\t-f\tDelete the file before removing it.\n",
     "\t-l\tProcess this directory only (not recursive).\n",
     "\t-R\tProcess directories recursively.\n",
+    "(Specify the --help global option for a list of other help options)\n",
     NULL
 };
 
@@ -214,6 +215,22 @@ remove_fileproc (callerdat, finfo)
 	if (!quiet)
 	    error (0, 0, "file `%s' already scheduled for removal",
 		   finfo->fullname);
+    }
+    else if (vers->tag != NULL && isdigit (*vers->tag))
+    {
+	/* Commit will just give an error, and so there seems to be
+	   little reason to allow the remove.  I mean, conflicts that
+	   arise out of parallel development are one thing, but conflicts
+	   that arise from sticky tags are quite another.
+
+	   I would have thought that non-branch sticky tags should be the
+	   same but at least now, removing a file with a non-branch sticky
+	   tag means to delete the tag from the file.  I'm not sure that
+	   is a good behavior, but until it is changed, we need to allow
+	   it.  */
+	error (0, 0, "\
+cannot remove file `%s' which has a numeric sticky tag of `%s'",
+	       finfo->fullname, vers->tag);
     }
     else
     {

@@ -21,6 +21,7 @@ General Public License for more details.  */
 #include <sys/types.h>
 #include <stdio.h>
 #include <assert.h>
+#include <errno.h>
 
 #if STDC_HEADERS
 #include <stdlib.h>
@@ -35,7 +36,9 @@ char *malloc (), *realloc ();
    + OFFSET (and null-terminate it). *LINEPTR is a pointer returned from
    malloc (or NULL), pointing to *N characters of space.  It is realloc'd
    as necessary.  Return the number of characters read (not including the
-   null terminator), or -1 on error or EOF.  */
+   null terminator), or -1 on error or EOF.  On a -1 return, the caller
+   should check feof(), if not then errno has been set to indicate
+   the error.  */
 
 int
 getstr (lineptr, n, stream, terminator, offset)
@@ -50,14 +53,20 @@ getstr (lineptr, n, stream, terminator, offset)
   int ret;
 
   if (!lineptr || !n || !stream)
-    return -1;
+    {
+      errno = EINVAL;
+      return -1;
+    }
 
   if (!*lineptr)
     {
       *n = MIN_CHUNK;
       *lineptr = malloc (*n);
       if (!*lineptr)
-	return -1;
+	{
+	  errno = ENOMEM;
+	  return -1;
+	}
     }
 
   nchars_avail = *n - offset;
@@ -65,7 +74,10 @@ getstr (lineptr, n, stream, terminator, offset)
 
   for (;;)
     {
+      int save_errno;
       register int c = getc (stream);
+
+      save_errno = errno;
 
       /* We always want at least one char left in the buffer, since we
 	 always (unless we get an error while reading the first char)
@@ -82,12 +94,24 @@ getstr (lineptr, n, stream, terminator, offset)
 	  nchars_avail = *n + *lineptr - read_pos;
 	  *lineptr = realloc (*lineptr, *n);
 	  if (!*lineptr)
-	    return -1;
+	    {
+	      errno = ENOMEM;
+	      return -1;
+	    }
 	  read_pos = *n - nchars_avail + *lineptr;
 	  assert((*lineptr + *n) == (read_pos + nchars_avail));
 	}
 
-      if (c == EOF || ferror (stream))
+      if (ferror (stream))
+	{
+	  /* Might like to return partial line, but there is no
+	     place for us to store errno.  And we don't want to just
+	     lose errno.  */
+	  errno = save_errno;
+	  return -1;
+	}
+
+      if (c == EOF)
 	{
 	  /* Return partial line, if any.  */
 	  if (read_pos == *lineptr)

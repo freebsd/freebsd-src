@@ -83,7 +83,13 @@ error_exit PROTO ((void))
    format string with optional args.
    If ERRNUM is nonzero, print its corresponding system error message.
    Exit with status EXIT_FAILURE if STATUS is nonzero.  If MESSAGE is "",
-   no need to print a message.  */
+   no need to print a message.
+
+   I think this is largely cleaned up to the point where it does the right
+   thing for the server, whether the normal server_active (child process)
+   case or the error_use_protocol (parent process) case.  The one exception
+   is that STATUS nonzero for error_use_protocol probably doesn't work yet;
+   in that case still need to use the pending_error machinery in server.c.  */
 /* VARARGS */
 void
 #if defined (HAVE_VPRINTF) && defined (__STDC__)

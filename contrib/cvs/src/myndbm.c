@@ -2,7 +2,7 @@
  * Copyright (c) 1992, Brian Berliner
  * 
  * You may distribute under the terms of the GNU General Public License as
- * specified in the README file that comes with the CVS 1.4 kit.
+ * specified in the README file that comes with the CVS source distribution.
  * 
  * A simple ndbm-emulator for CVS.  It parses a text file of the format:
  * 
@@ -21,6 +21,8 @@
 
 static void mydbm_load_file PROTO ((FILE *, List *));
 
+/* Returns NULL on error in which case errno has been set to indicate
+   the error.  Can also call error() itself.  */
 /* ARGSUSED */
 DBM *
 mydbm_open (file, flags, mode)
@@ -203,11 +205,12 @@ mydbm_load_file (fp, list)
     size_t value_allocated;
     char *cp, *vp;
     int len, cont;
+    int line_length;
 
     value_allocated = 1;
     value = xmalloc (value_allocated);
 
-    for (cont = 0; getline (&line, &line_len, fp) >= 0;)
+    for (cont = 0; (line_length = getline (&line, &line_len, fp)) >= 0;)
     {
 	if ((cp = strrchr (line, '\012')) != NULL)
 	    *cp = '\0';			/* strip the newline */
@@ -288,6 +291,10 @@ mydbm_load_file (fp, list)
 	    }
 	}
     }
+    if (line_length < 0 && !feof (fp))
+	/* FIXME: should give the name of the file.  */
+	error (0, errno, "cannot read file in mydbm_load_file");
+
     free (line);
     free (value);
 }
