@@ -288,10 +288,10 @@
  * acting as ap - should be able to get working from the manual
  *
  * ray_nw_param
+ *	promisc in here too? - done
  *	should be able to update the parameters before we download to the
  *		device
  * 	differeniate between parameters set in attach and init
- *	promisc in here too? - done
  * 	sc_station_addr in here too (for changing mac address)
  * 	move desired into the command structure?
  *	take downloaded MIB from a complete nw_param?
@@ -2752,6 +2752,18 @@ ray_repparams_user(struct ray_softc *sc, struct ray_param_req *pr)
 			break;
 		case  RAY_MIB_DES_PRIV_JOIN:
 		    	*pr->r_data = sc->sc_d.np_priv_join;
+			break;
+		case  RAY_MIB_CUR_AP_STATUS:
+		    	*pr->r_data = sc->sc_c.np_ap_status;
+			break;
+		case  RAY_MIB_CUR_PROMISC:
+		    	*pr->r_data = sc->sc_c.np_promisc;
+			break;
+		case  RAY_MIB_DES_AP_STATUS:
+		    	*pr->r_data = sc->sc_d.np_ap_status;
+			break;
+		case  RAY_MIB_DES_PROMISC:
+		    	*pr->r_data = sc->sc_d.np_promisc;
 			break;
 
 		default:
