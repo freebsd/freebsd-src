@@ -11,7 +11,7 @@ SRCS		 = bus_if.h device_if.h vnode_if.h \
 NOMAN		 =
 CFLAGS		+= -g -O
 CLEANFILES	+= bus_if.h device_if.h vnode_if.h \
-		   opt_usb.h ukbd.h opt_ukbd.h \
+		   opt_usb.h ukbd.h opt_kbd.h \
 		   vnode_if.c
 
 opt_usb.h:
