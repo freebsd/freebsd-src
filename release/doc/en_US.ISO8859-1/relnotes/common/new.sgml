@@ -2031,7 +2031,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <para>&man.biff.1; now accepts a <option>b</option> argument to
       enable <quote>bell notification</quote> of new mail (which does
       not disturb the terminal contents as <command>biff y</command>
-      would).</para>
+      would). &merged;</para>
 
     <para>&man.biff.1; now uses the first terminal associated with the
       standard input, standard output or standard error file
@@ -2104,6 +2104,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <para>&man.chmod.1; now supports a <option>-h</option> for
       changing the mode of a symbolic link.</para>
 
+    <para>&man.chmod.1; now also, when the mode is modified, prints
+    the old and new modes if the <option>-v</option> option is
+    specified more than once.</para>
+
     <para role="historic">&man.chown.8; now correctly follows symbolic links named as
       command line arguments if run without
       <option>-R</option>. &merged;</para>
@@ -2138,7 +2142,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
     <para>&man.cp.1; now takes a (nonstandard) <option>-n</option>
       option to automatically answer <quote>no</quote> when it would
-      ask to overwrite a file.</para>
+      ask to overwrite a file. &merged;</para>
 
     <para>A new &man.csplit.1; utility, which splits files based on
       context, has been added.</para>
@@ -2721,9 +2725,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       This makes it easier to use &man.mtree.8; as a part of an
       intrusion-detection system. &merged;</para>
 
-    <para>&man.mv.1; now takes a (nonstandard) <option>-n</option> to
+    <para>&man.mv.1; now takes a (nonstandard) <option>-n</option> option to 
       automatically answer <quote>no</quote> when it would ask to
-      overwrite a file.</para>
+      overwrite a file. &merged;</para>
 
     <para role="historic">&man.natd.8; now supports a
       <option>-log_ipfw_denied</option> option to log packets that
@@ -2803,6 +2807,13 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       &man.passwd.5; and &man.group.5; can be looked up using flat
       files, NIS, or Hesiod.  The old
       <filename>hosts.conf</filename> file is no longer used.</para>
+
+    <para>&man.od.1; now supports the <option>-A</option> option to
+      specify the input address base, the <option>-N</option> option to
+      specify the number of bytes to dump, the <option>-j</option>
+      option to specify the number of bytes to skip, the
+      <option>-s</option> option to output signed decimal shorts, and
+      the <option>-t</option> option to specify output type. &merged;</para>
 
     <para><application>PAM</application> support has been added for
       account management and sessions.</para>
