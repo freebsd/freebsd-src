@@ -675,7 +675,10 @@ found:
 			HTONS(ip->ip_len);
 			HTONS(ip->ip_off);
 			ip->ip_sum = 0;
-			ip->ip_sum = in_cksum_hdr(ip);
+			if (hlen == sizeof(struct ip))
+				ip->ip_sum = in_cksum_hdr(ip);
+			else
+				ip->ip_sum = in_cksum(m, hlen);
 			NTOHS(ip->ip_off);
 			NTOHS(ip->ip_len);
 			ip->ip_len -= hlen;
