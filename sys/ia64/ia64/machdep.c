@@ -357,7 +357,6 @@ identifycpu(void)
 	u_int64_t t;
 	int number, revision, model, family, archrev;
 	u_int64_t features;
-	char familyname[20];
 
 	/*
 	 * Assumes little-endian.
@@ -374,15 +373,15 @@ identifycpu(void)
 	archrev = (t >> 32) & 0xff;
 
 	if (family == 0x7)
-		strcpy(familyname, "Itanium");
+		strcpy(cpu_model, "Itanium");
 	else if (family == 0x1f)
-		strcpy(familyname, "McKinley");
+		strcpy(cpu_model, "McKinley");
 	else
-		snprintf(familyname, sizeof(familyname), "Family=%d", family);
+		snprintf(cpu_model, sizeof(cpu_model), "Family=%d", family);
 
 	features = ia64_get_cpuid(4);
 
-	printf("CPU: %s", familyname);
+	printf("CPU: %s", cpu_model);
 	if (processor_frequency)
 		printf(" (%ld.%02ld-Mhz)\n",
 		       (processor_frequency + 4999) / 1000000,
@@ -1209,16 +1208,25 @@ setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
 			     | IA64_PSR_DFH
 			     | IA64_PSR_BN
 			     | IA64_PSR_CPL_USER);
-	frame->tf_r[FRAME_SP] = stack;
-	frame->tf_r[FRAME_R14] = ps_strings;
+	/*
+	 * Make sure that sp is aligned to a 16 byte boundary and
+	 * reserve 16 bytes of scratch space for _start.
+	 */
+	frame->tf_r[FRAME_SP] = (stack & ~15) - 16;
 
 	/*
-	 * Setup the new backing store and make sure the new image
-	 * starts executing with an empty register stack frame.
+	 * Write values for out0, out1 and out2 to the user's backing
+	 * store and arrange for them to be restored into the user's
+	 * initial register frame. Assumes that (bspstore & 0x1f8) <
+	 * 0x1e0.
 	 */
-	frame->tf_ar_bspstore = td->td_md.md_bspstore;
+	frame->tf_ar_bspstore = td->td_md.md_bspstore + 24;
+	suword((caddr_t) frame->tf_ar_bspstore - 24, stack);
+	suword((caddr_t) frame->tf_ar_bspstore - 16, ps_strings);
+	suword((caddr_t) frame->tf_ar_bspstore -  8, 0);
 	frame->tf_ndirty = 0;
-	frame->tf_cr_ifs = (1L<<63); /* ifm=0, v=1 */
+	frame->tf_cr_ifs = (1L<<63) | 3; /* sof=3, v=1 */
+
 	frame->tf_ar_rsc = 0xf;	/* user mode rsc */
 	frame->tf_ar_fpsr = IA64_FPSR_DEFAULT;
 
