@@ -240,7 +240,7 @@ done:
 		return(ERR);
 
 	/* resolve all use references */
-	_nc_resolve_uses();
+	_nc_resolve_uses(TRUE);
 
 	for_entry_list(ep)
 		if (_nc_name_match(ep->tterm.term_names, name, "|:"))

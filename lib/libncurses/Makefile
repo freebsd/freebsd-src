@@ -16,7 +16,7 @@ NCURSES_PATCH!=egrep 'NCURSES_PATCH[ 	]*=' ${NCURSES}/dist.mk | sed -e 's/^[^0-9
 
 # From autoconf (!)
 NCURSES_CONST=
-NCURSES_XNAMES=	0
+NCURSES_XNAMES=	1
 OSPEED_INCLUDES=\#include <termios.h>
 OSPEED_TYPE=	speed_t
 BUILTIN_BOOL=	1
@@ -371,7 +371,8 @@ MANFILTER=	sed -e 's\#@DATADIR@\#${TERMINFODIR}/terminfo\#g'
 
 MAN3x=	curs_addch.3x curs_addchstr.3x curs_addstr.3x curs_attr.3x \
 	curs_beep.3x curs_bkgd.3x curs_border.3x curs_clear.3x curs_color.3x \
-	curs_delch.3x curs_deleteln.3x curs_getch.3x curs_getstr.3x \
+	curs_delch.3x curs_deleteln.3x curs_extend.3x curs_getch.3x \
+	curs_getstr.3x \
 	curs_getyx.3x curs_inch.3x curs_inchstr.3x curs_initscr.3x \
 	curs_inopts.3x curs_insch.3x curs_insstr.3x curs_instr.3x \
 	curs_kernel.3x curs_mouse.3x curs_move.3x curs_outopts.3x \
@@ -431,6 +432,7 @@ MLINKS+=curs_delch.3 delch.3 curs_delch.3 mvdelch.3 curs_delch.3 mvwdelch.3 \
 MLINKS+=curs_deleteln.3 deleteln.3 curs_deleteln.3 insdelln.3 \
 	curs_deleteln.3 insertln.3 curs_deleteln.3 wdeleteln.3 \
 	curs_deleteln.3 winsdelln.3 curs_deleteln.3 winsertln.3
+MLINKS+=curs_extend.3 curses_version.3 curs_extend.3 use_extended_names.3
 MLINKS+=curs_getch.3 getch.3 curs_getch.3 has_key.3 curs_getch.3 mvgetch.3 \
 	curs_getch.3 mvwgetch.3 curs_getch.3 ungetch.3 curs_getch.3 wgetch.3
 MLINKS+=curs_getstr.3 getnstr.3 curs_getstr.3 getstr.3 \

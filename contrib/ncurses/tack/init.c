@@ -1,18 +1,18 @@
 /*
 ** Copyright (C) 1991, 1997 Free Software Foundation, Inc.
-** 
+**
 ** This file is part of TACK.
-** 
+**
 ** TACK is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
 ** the Free Software Foundation; either version 2, or (at your option)
 ** any later version.
-** 
+**
 ** TACK is distributed in the hope that it will be useful,
 ** but WITHOUT ANY WARRANTY; without even the implied warranty of
 ** MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ** GNU General Public License for more details.
-** 
+**
 ** You should have received a copy of the GNU General Public License
 ** along with TACK; see the file COPYING.  If not, write to
 ** the Free Software Foundation, Inc., 59 Temple Place - Suite 330,
@@ -22,7 +22,7 @@
 
 #include <tack.h>
 
-MODULE_ID("$Id: init.c,v 1.1 1999/04/18 01:05:23 tom Exp $")
+MODULE_ID("$Id: init.c,v 1.2 2000/05/13 19:58:48 Daniel.Weaver Exp $")
 
 #if NCURSES_VERSION_MAJOR >= 5 || NCURSES_VERSION_PATCH >= 981219
 #define _nc_get_curterm(p) _nc_get_tty_mode(p)
@@ -244,7 +244,7 @@ curses_setup(
 	fflush(stdout);	/* waste some time */
 	sleep(1);	/* waste more time */
 	charset_can_test();
-	can_test("lines cols cr nxon rf if iprog rmp", FLAG_CAN_TEST);
+	can_test("lines cols cr nxon rf if iprog rmp smcup rmcup", FLAG_CAN_TEST);
 	edit_init();			/* initialize the edit data base */
 
 	if (send_reset_init && enter_ca_mode) {

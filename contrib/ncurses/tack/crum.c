@@ -21,7 +21,7 @@
 
 #include <tack.h>
 
-MODULE_ID("$Id: crum.c,v 1.2 1999/08/21 23:09:08 tom Exp $")
+MODULE_ID("$Id: crum.c,v 1.3 2000/03/04 21:09:18 tom Exp $")
 
 /*
  * Test cursor movement.
@@ -81,7 +81,7 @@ move_to(
 			rf = rt;
 		}
 	}
-	if (sel & 4) {	/* paramiterized relative cursor movement */
+	if (sel & 4) {	/* parameterized relative cursor movement */
 		if (parm_right_cursor)
 			if (cf < ct) {
 				s = tparm(parm_right_cursor, ct - cf);

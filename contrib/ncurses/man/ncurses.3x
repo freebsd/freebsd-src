@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: ncurses.3x,v 1.35 1999/10/23 19:50:07 tom Exp $
+.\" $Id: ncurses.3x,v 1.39 1999/12/19 01:53:04 tom Exp $
 .hy 0
 .TH ncurses 3X ""
 .ds n 5
@@ -203,6 +203,7 @@ addchnstr/\fBcurs_addchstr\fR(3X)
 addchstr/\fBcurs_addchstr\fR(3X)
 addnstr/\fBcurs_addstr\fR(3X)
 addstr/\fBcurs_addstr\fR(3X)
+assume_default_colors/\fBdft_fgbg\fR(3X)*
 attr_get/\fBcurs_attr\fR(3X)
 attr_off/\fBcurs_attr\fR(3X)
 attr_on/\fBcurs_attr\fR(3X)
@@ -227,6 +228,7 @@ color_content/\fBcurs_color\fR(3X)
 color_set/\fBcurs_attr\fR(3X)
 copywin/\fBcurs_overlay\fR(3X)
 curs_set/\fBcurs_kernel\fR(3X)
+curses_version/\fBcurs_extend\fR(3X)*
 def_prog_mode/\fBcurs_kernel\fR(3X)
 def_shell_mode/\fBcurs_kernel\fR(3X)
 define_key/\fBdefine_key\fR(3X)*
@@ -284,6 +286,7 @@ intrflush/\fBcurs_inopts\fR(3X)
 is_linetouched/\fBcurs_touch\fR(3X)
 is_wintouched/\fBcurs_touch\fR(3X)
 isendwin/\fBcurs_initscr\fR(3X)
+keybound/\fBkeybound\fR(3X)*
 keyname/\fBcurs_util\fR(3X)
 keyok/\fBkeyok\fR(3X)*
 keypad/\fBcurs_inopts\fR(3X)
@@ -432,6 +435,7 @@ ungetmouse/\fBcurs_mouse\fR(3X)*
 untouchwin/\fBcurs_touch\fR(3X)
 use_default_colors/\fBdft_fgbg\fR(3X)*
 use_env/\fBcurs_util\fR(3X)
+use_extended_names/\fBcurs_extend\fR(3X)*
 vidattr/\fBcurs_terminfo\fR(3X)
 vidputs/\fBcurs_terminfo\fR(3X)
 vline/\fBcurs_border\fR(3X)
@@ -479,7 +483,7 @@ winsertln/\fBcurs_deleteln\fR(3X)
 winsnstr/\fBcurs_insstr\fR(3X)
 winsstr/\fBcurs_insstr\fR(3X)
 winstr/\fBcurs_instr\fR(3X)
-wmouse_trafo/\fBcurs_mouse\fR(3X)
+wmouse_trafo/\fBcurs_mouse\fR(3X)*
 wmove/\fBcurs_move\fR(3X)
 wnoutrefresh/\fBcurs_refresh\fR(3X)
 wprintw/\fBcurs_printw\fR(3X)
@@ -548,14 +552,6 @@ For best results, \fBlines\fR and \fBcols\fR should not be specified in
 a terminal description for terminals which are run as emulations.
 
 Use the \fBuse_env\fR function to disable this feature.
-.TP 5
-DISPLAY
-Provides a hint to ncurses that your terminal is an X terminal
-emulator such as \fBxterm\fP.
-If the \fBkmous\fP capability is set to the beginning of the xterm
-mouse response, e.g., "kmous=\E[M", then ncurses will send the terminal
-xterm's mouse initialization strings and allow appropriate replies.
-See the \fBcurs_mouse\fR(3X) manual page for programming information.
 .TP 5
 ESCDELAY
 Specifies the total time, in milliseconds, for which ncurses will

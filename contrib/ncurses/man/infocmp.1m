@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright (c) 1998 Free Software Foundation, Inc.                        *
+.\" Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -27,14 +27,14 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: infocmp.1m,v 1.21 1999/06/15 23:12:25 tom Exp $
+.\" $Id: infocmp.1m,v 1.25 2000/06/11 02:08:16 tom Exp $
 .TH infocmp 1M ""
 .ds n 5
 .ds d @DATADIR@/terminfo
 .SH NAME
 \fBinfocmp\fR - compare or print out \fIterminfo\fR descriptions
 .SH SYNOPSIS
-\fBinfocmp\fR [\fB-dceEGgnpILCuV1\fR] [\fB-v\fR \fIn\fR] [\fB-s d\fR| \fBi\fR| \fBl\fR| \fBc\fR]
+\fBinfocmp\fR [\fB-dceEGgnpqrILCuV1\fR] [\fB-v\fR \fIn\fR] [\fB-s d\fR| \fBi\fR| \fBl\fR| \fBc\fR]
 .br
       [\fB-w\fR\ \fIwidth\fR] [\fB-A\fR\ \fIdirectory\fR] [\fB-B\fR\ \fIdirectory\fR]
 .br
@@ -213,16 +213,27 @@ filenames.  The files are searched for pairwise matches between
 entries, with two entries considered to match if any of their names do.
 The report printed to standard output lists entries with no matches in
 the other file, and entries with more than one match.  For entries
-with exactly one match it includes a difference report.
+with exactly one match it includes a difference report.  Normally,
+to reduce the volume of the report, use references are
+not resolved before looking for differences, but resolution can be forced
+by also specifying \fB-r\fR.
 .TP
 \fB-G\fR
 Display constant literals in decimal form
 rather than their character equivalents.
+.TP
+\fB-a\fR
+tells \fBinfocmp\fP to retain commented-out capabilities rather than discarding
+them.  Capabilities are commented by prefixing them with a period.
+.TP 5
+\fB-q\fR
+Make the comparison listing shorter by omitting subheadings, and using
+"-" for absent capabilities, "@" for canceled rather than "NULL".
 .TP 5
 \fB-R\fR\fIsubset\fR
 Restrict output to a given subset.  This option is for use with archaic
-versions of terminfo like those on SVr1, Ultrix, or HP/UX that don't support
-the full set of SVR4/XSI Curses terminfo; and outright broken ports like AIX
+versions of terminfo like those on SVr1, Ultrix, or HP/UX that do not support
+the full set of SVR4/XSI Curses terminfo; and variants such as AIX
 that have their own extensions incompatible with SVr4/XSI.  Available terminfo
 subsets are "SVr1", "Ultrix", "HP", and "AIX"; see \fBterminfo\fR(\*n) for
 details.  You can also choose the subset "BSD" which selects only capabilities
@@ -336,11 +347,13 @@ The
 \fB-G\fR,
 \fB-R\fR,
 \fB-T\fR,
+\fB-a\fR,
 \fB-e\fR,
 \fB-f\fR,
 \fB-g\fR,
-\fB-i\fR, and
-\fB-p\fR
+\fB-i\fR,
+\fB-p\fR, and
+\fB-q\fR
 options are not supported in SVr4 curses.
 
 The \fB-r\fR option's notion of `termcap' capabilities is System V Release 4's.
@@ -355,7 +368,7 @@ The -F option of \fBinfocmp\fR(1M) should be a \fBtoe\fR(1M) mode.
 .SH AUTHOR
 Eric S. Raymond <esr@snark.thyrsus.com>
 and
-Thomas E. Dickey <dickey@clark.net>
+Thomas E. Dickey <dickey@herndon4.his.com>
 .\"#
 .\"# The following sets edit modes for GNU EMACS
 .\"# Local Variables:

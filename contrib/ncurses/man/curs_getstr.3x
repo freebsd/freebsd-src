@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998 Free Software Foundation, Inc.                        *
+.\" Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,12 +26,17 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_getstr.3x,v 1.7 1998/03/11 21:12:53 juergen Exp $
+.\" $Id: curs_getstr.3x,v 1.9 2000/07/01 17:39:31 tom Exp $
 .TH curs_getstr 3X ""
 .SH NAME
-\fBgetstr\fR, \fBwgetstr\fR, \fBmvgetstr\fR,
-\fBmvwgetstr\fR, \fBwgetnstr\fR - accept character strings from
-\fBcurses\fR terminal keyboard
+\fBgetstr\fR,
+\fBgetnstr\fR,
+\fBwgetstr\fR,
+\fBwgetnstr\fR,
+\fBmvgetstr\fR,
+\fBmvgetnstr\fR,
+\fBmvwgetstr\fR,
+\fBmvwgetnstr\fR - accept character strings from \fBcurses\fR terminal keyboard
 .SH SYNOPSIS
 \fB#include <curses.h>\fR
 
@@ -41,6 +46,8 @@
 .br
 \fBint wgetstr(WINDOW *win, char *str);\fR
 .br
+\fBint wgetnstr(WINDOW *win, char *str, int n);\fR
+.br
 \fBint mvgetstr(int y, int x, char *str);\fR
 .br
 \fBint mvwgetstr(WINDOW *win, int y, int x, char *str);\fR
@@ -48,8 +55,6 @@
 \fBint mvgetnstr(int y, int x, char *str, int n);\fR
 .br
 \fBint mvwgetnstr(WINDOW *, int y, int x, char *str, int n);\fR
-.br
-\fBint wgetnstr(WINDOW *win, char *str, int n);\fR
 .br
 .SH DESCRIPTION
 The function \fBgetstr\fR is equivalent to a series of calls to \fBgetch\fR,

@@ -29,7 +29,7 @@
 # Author: Zeyd M. Ben-Halim <zmbenhal@netcom.com> 1992,1995
 #    and: Eric S. Raymond <esr@snark.thyrsus.com>
 #
-# $Id: Caps,v 1.24 1999/01/17 02:01:44 tom Exp $
+# $Id: Caps,v 1.25 1999/11/27 20:13:55 tom Exp $
 #
 # This is the master termcap/terminfo capability table.
 #
@@ -215,7 +215,7 @@ eat_newline_glitch	xenl	bool	xn	YBCGE	newline ignored after 80 cols (concept)
 erase_overstrike	eo	bool	eo	YBCG-	can erase overstrikes with a blank
 generic_type    	gn	bool	gn	YB-G-	generic line type
 hard_copy       	hc	bool	hc	YBCG-	hardcopy terminal
-has_meta_key    	km	bool	km	YB-GE	Has a meta key (shift, sets parity bit)
+has_meta_key    	km	bool	km	YB-GE	Has a meta key (i.e., sets 8th-bit)
 has_status_line 	hs	bool	hs	YB-G-	has extra status line
 insert_null_glitch	in	bool	in	YBCGE	insert mode distinguishes nulls
 memory_above    	da	bool	da	YBCG-	display may be retained above the screen

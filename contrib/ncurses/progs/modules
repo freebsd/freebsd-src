@@ -1,6 +1,7 @@
+# $Id: modules,v 1.10 2000/01/02 01:30:45 tom Exp $
 # Program modules (some are in ncurses lib!)
 ##############################################################################
-# Copyright (c) 1998 Free Software Foundation, Inc.                          #
+# Copyright (c) 1998-2000 Free Software Foundation, Inc.                     #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -31,10 +32,10 @@
 #
 
 @ base
-clear		progs		$(srcdir)	../include/term.h 
+clear		progs		$(srcdir)	../include/term.h
 tic		progs		$(srcdir)	../include/term.h $(INCDIR)/tic.h $(srcdir)/dump_entry.h
 toe		progs		$(srcdir)	../include/term.h $(INCDIR)/tic.h $(srcdir)/dump_entry.h
-dump_entry	progs		$(srcdir)	../include/term.h $(INCDIR)/tic.h $(srcdir)/dump_entry.h ../include/parametrized.h termsort.c
+dump_entry	progs		$(srcdir)	../include/term.h $(INCDIR)/tic.h $(srcdir)/dump_entry.h ../include/parametrized.h $(INCDIR)/capdefaults.c termsort.c
 infocmp		progs		$(srcdir)	../include/term.h $(INCDIR)/tic.h $(srcdir)/dump_entry.h
 tput		progs		$(srcdir)	../include/term.h
 tset		progs		$(srcdir)	../include/term.h

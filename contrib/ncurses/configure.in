@@ -28,10 +28,10 @@ dnl***************************************************************************
 dnl
 dnl Author: Thomas E. Dickey <dickey@clark.net> 1996,1997
 dnl
-dnl $Id: configure.in,v 1.179 1999/10/24 00:32:42 tom Exp $
+dnl $Id: configure.in,v 1.194 2000/07/01 21:31:07 tom Exp $
 dnl Process this file with autoconf to produce a configure script.
-AC_PREREQ(2.12.971222)
-AC_REVISION($Revision: 1.179 $)
+AC_PREREQ(2.12.971230)
+AC_REVISION($Revision: 1.194 $)
 AC_INIT(ncurses/base/lib_initscr.c)
 AC_CONFIG_HEADER(include/ncurses_cfg.h:include/ncurses_cfg.hin)
 
@@ -115,7 +115,11 @@ if test "X$cf_with_cxx" = Xno ; then
 	CXX=""
 	GXX=""
 else
+	pushdef([AC_MSG_ERROR],
+		[AC_MSG_RESULT([You don't have any C++ compiler, too bad]); dnl
+		cf_with_cxx=no; CXX=""; GXX="";])dnl
 	AC_PROG_CXX
+	popdef([AC_MSG_ERROR])dnl
 fi
 changequote(,)dnl
 if test -n "$GXX" ; then case "`${CXX-g++} --version`" in 1*|2.[0-6]*) GXX=""; CXX=""; ac_cv_prog_gxx=no; cf_cxx_library=no ; echo No: templates do not work;; esac; fi
@@ -190,6 +194,7 @@ CF_HELP_MESSAGE(Options to Specify the Libraries Built/Used:)
 ### Use "--without-normal --with-shared" to allow the default model to be
 ### shared, for example.
 cf_list_models=""
+AC_SUBST(cf_list_models)dnl	the complete list of models ("normal debug")
 
 AC_MSG_CHECKING(if you want to build shared libraries)
 AC_ARG_WITH(shared,
@@ -222,6 +227,39 @@ AC_ARG_WITH(profile,
 	[with_profile=no])
 AC_MSG_RESULT($with_profile)
 test "$with_profile" = "yes" && cf_list_models="$cf_list_models profile"
+
+###############################################################################
+
+AC_MSG_CHECKING(for specified models)
+test -z "$cf_list_models" && cf_list_models=normal
+AC_MSG_RESULT($cf_list_models)
+
+### Use the first model as the default, and save its suffix for use in building
+### up test-applications.
+AC_MSG_CHECKING(for default model)
+DFT_LWR_MODEL=`echo $cf_list_models | $AWK '{print $1}'`
+AC_MSG_RESULT($DFT_LWR_MODEL)
+
+CF_UPPER(DFT_UPR_MODEL,$DFT_LWR_MODEL)dnl
+
+AC_SUBST(DFT_LWR_MODEL)dnl	the default model ("normal")
+AC_SUBST(DFT_UPR_MODEL)dnl	the default model ("NORMAL")
+
+TINFO_NAME=tinfo
+AC_SUBST(TINFO_NAME)
+
+LIB_NAME=ncurses
+AC_SUBST(LIB_NAME)
+
+LIB_DIR=../lib
+CF_LIB_PREFIX(cf_prefix)
+LIB_PREFIX=$cf_prefix
+AC_SUBST(LIB_PREFIX)
+
+LIB_SUFFIX=
+AC_SUBST(LIB_SUFFIX)
+
+###############################################################################
 
 AC_MSG_CHECKING(if you want to build a separate terminfo library)
 AC_ARG_WITH(termlib,
@@ -267,42 +305,6 @@ if test $with_gpm = yes ; then
 	],AC_MSG_WARN(Cannot link with gpm library - read the FAQ))
 fi
 
-TINFO_LIST="$SHLIB_LIST"
-test $with_termlib = yes && SHLIB_LIST="$SHLIB_LIST -ltinfo"
-
-AC_SUBST(EXTRA_LIBS)
-AC_SUBST(TINFO_LIST)
-AC_SUBST(SHLIB_LIST)
-
-AC_MSG_CHECKING(for specified models)
-test -z "$cf_list_models" && cf_list_models=normal
-AC_MSG_RESULT($cf_list_models)
-
-### Use the first model as the default, and save its suffix for use in building
-### up test-applications.
-DFT_LWR_MODEL=`echo $cf_list_models | $AWK '{print $1}'`
-CF_UPPER(DFT_UPR_MODEL,$DFT_LWR_MODEL)dnl
-CF_LIB_SUFFIX($DFT_LWR_MODEL,DFT_DEP_SUFFIX)dnl
-CF_LIB_TYPE($DFT_LWR_MODEL,DFT_ARG_SUFFIX)dnl
-CF_OBJ_SUBDIR($DFT_LWR_MODEL,DFT_OBJ_SUBDIR)dnl
-AC_SUBST(DFT_OBJ_SUBDIR)dnl	the default object-directory ("obj")
-AC_SUBST(DFT_LWR_MODEL)dnl	the default model ("normal")
-AC_SUBST(DFT_UPR_MODEL)dnl	the default model ("NORMAL")
-AC_SUBST(DFT_DEP_SUFFIX)dnl	the corresponding library-suffix (".a")
-AC_SUBST(DFT_ARG_SUFFIX)dnl	the string to append to "-lncurses" ("")
-AC_SUBST(cf_list_models)dnl	the complete list of models ("normal debug")
-
-TINFO_NAME=tinfo
-AC_SUBST(TINFO_NAME)
-
-LIB_NAME=ncurses
-AC_SUBST(LIB_NAME)
-
-LIB_DIR=../lib
-CF_LIB_PREFIX(cf_prefix)
-LIB_PREFIX=$LIB_DIR/$cf_prefix
-AC_SUBST(LIB_PREFIX)
-
 dnl Not all ports of gcc support the -g option
 
 if test X"$CC_G_OPT" = X"" ; then
@@ -317,6 +319,7 @@ if test X"$CXX_G_OPT" = X"" ; then
 fi
 AC_SUBST(CXX_G_OPT)
 
+AC_MSG_CHECKING(for default loader flags)
 case $DFT_LWR_MODEL in
 normal)  LD_MODEL=''   ;;
 debug)   LD_MODEL=$CC_G_OPT ;;
@@ -324,6 +327,7 @@ profile) LD_MODEL='-pg';;
 shared)  LD_MODEL=''   ;;
 esac
 AC_SUBST(LD_MODEL)dnl		the type of link (e.g., -g or -pg)
+AC_MSG_RESULT($LD_MODEL)
 
 AC_MSG_CHECKING(if rpath option should be used)
 AC_ARG_ENABLE(rpath,
@@ -348,15 +352,9 @@ CF_HELP_MESSAGE(Fine-Tuning Your Configuration:)
 AC_MSG_CHECKING(if you wish to install ncurses overwriting curses)
 AC_ARG_ENABLE(overwrite,
 	[  --disable-overwrite     leave out the link to -lcurses],
-	[with_overwrite=$enableval
-	 test "$with_overwrite" = no && \
-	 test "x$includedir" = 'x${prefix}/include' && \
-	 	includedir='$(prefix)/include/ncurses'
-	],
+	[with_overwrite=$enableval],
 	[with_overwrite=yes])
 AC_MSG_RESULT($with_overwrite)
-AC_MSG_CHECKING(where we will install curses.h)
-AC_MSG_RESULT($includedir)
 
 AC_MSG_CHECKING(if external terminfo-database is used)
 AC_ARG_ENABLE(database,
@@ -365,14 +363,6 @@ AC_ARG_ENABLE(database,
 	[with_database=yes])
 AC_MSG_RESULT($with_database)
 test $with_database != no && AC_DEFINE(USE_DATABASE)
-
-AC_MSG_CHECKING(if you want to build with function extensions)
-AC_ARG_ENABLE(ext-funcs,
-	[  --disable-ext-funcs     disable function-extensions],
-	[with_ext_funcs=$enableval],
-	[with_ext_funcs=yes])
-AC_MSG_RESULT($with_ext_funcs)
-test "$with_ext_funcs" = yes && AC_DEFINE(NCURSES_EXT_FUNCS)
 
 AC_MSG_CHECKING(for list of fallback descriptions)
 AC_ARG_WITH(fallbacks,
@@ -480,6 +470,15 @@ fi
 test "$with_links" = yes && AC_DEFINE(USE_LINKS)
 test "$with_symlinks" = yes && AC_DEFINE(USE_SYMLINKS)
 
+###   use option --enable-broken-linker to force on use of broken-linker support
+AC_MSG_CHECKING(if you want broken-linker support code)
+AC_ARG_ENABLE(broken_linker,
+	[  --enable-broken_linker  compile with broken-linker support code],
+	[with_broken_linker=$enableval],
+	[with_broken_linker=$BROKEN_LINKER])
+AC_MSG_RESULT($with_broken_linker)
+test "$with_broken_linker" = yes && AC_DEFINE(BROKEN_LINKER)
+
 ###   use option --enable-bsdpad to have tputs process BSD-style prefix padding
 AC_MSG_CHECKING(if tputs should process BSD-style prefix padding)
 AC_ARG_ENABLE(bsdpad,
@@ -488,6 +487,33 @@ AC_ARG_ENABLE(bsdpad,
 	[with_bsdpad=no])
 AC_MSG_RESULT($with_bsdpad)
 test "$with_bsdpad" = yes && AC_DEFINE(BSD_TPUTS)
+
+### Enable compiling-in rcs id's
+AC_MSG_CHECKING(if RCS identifiers should be compiled-in)
+AC_ARG_WITH(rcs-ids,
+	[  --with-rcs-ids          compile-in RCS identifiers],
+	[with_rcs_ids=$withval],
+	[with_rcs_ids=no])
+AC_MSG_RESULT($with_rcs_ids)
+test "$with_rcs_ids" = yes && AC_DEFINE(USE_RCS_IDS)
+
+###############################################################################
+CF_HELP_MESSAGE(Extensions:)
+
+### Note that some functions (such as const) are normally disabled anyway.
+AC_MSG_CHECKING(if you want to build with function extensions)
+AC_ARG_ENABLE(ext-funcs,
+	[  --disable-ext-funcs     disable function-extensions],
+	[with_ext_funcs=$enableval],
+	[with_ext_funcs=yes])
+AC_MSG_RESULT($with_ext_funcs)
+if test "$with_ext_funcs" = yes ; then
+	AC_DEFINE(HAVE_HAS_KEY)
+	AC_DEFINE(HAVE_RESIZETERM)
+	AC_DEFINE(HAVE_USE_DEFAULT_COLORS)
+	AC_DEFINE(HAVE_WRESIZE)
+	AC_DEFINE(NCURSES_EXT_FUNCS)
+fi
 
 ###   use option --enable-const to turn on use of const beyond that in XSI.
 AC_MSG_CHECKING(for extended use of const keyword)
@@ -503,14 +529,42 @@ if test "$with_ext_const" = yes ; then
 fi
 AC_SUBST(NCURSES_CONST)
 
-### Enable compiling-in rcs id's
-AC_MSG_CHECKING(if RCS identifiers should be compiled-in)
-AC_ARG_WITH(rcs-ids,
-	[  --with-rcs-ids          compile-in RCS identifiers],
-	[with_rcs_ids=$withval],
-	[with_rcs_ids=no])
-AC_MSG_RESULT($with_rcs_ids)
-test "$with_rcs_ids" = yes && AC_DEFINE(USE_RCS_IDS)
+###   use option --enable-hashmap to turn on use of hashmap scrolling logic
+AC_MSG_CHECKING(if you want hashmap scrolling-optimization code)
+AC_ARG_ENABLE(hashmap,
+	[  --enable-hashmap        compile with hashmap scrolling-optimization code],
+	[with_hashmap=$enableval],
+	[with_hashmap=yes])
+AC_MSG_RESULT($with_hashmap)
+test "$with_hashmap" = yes && AC_DEFINE(USE_HASHMAP)
+
+AC_MSG_CHECKING(if you want \$NCURSES_NO_PADDING code)
+AC_ARG_ENABLE(no-padding,
+	[  --enable-no-padding     compile with \$NCURSES_NO_PADDING code],
+	[with_no_padding=$enableval],
+	[with_no_padding=$with_ext_funcs])
+AC_MSG_RESULT($with_no_padding)
+test "$with_no_padding" = yes && AC_DEFINE(NCURSES_NO_PADDING)
+
+###   use option --enable-sigwinch to turn on use of SIGWINCH logic
+AC_MSG_CHECKING(if you want SIGWINCH handler)
+AC_ARG_ENABLE(sigwinch,
+	[  --enable-sigwinch       compile with SIGWINCH handler],
+	[with_sigwinch=$enableval],
+	[with_sigwinch=$with_ext_funcs])
+AC_MSG_RESULT($with_sigwinch)
+test "$with_sigwinch" = yes && AC_DEFINE(USE_SIGWINCH)
+
+###   use option --enable-tcap-names to allow user to define new capabilities
+AC_MSG_CHECKING(if you want user-definable terminal capabilities like termcap)
+AC_ARG_ENABLE(tcap-names,
+	[  --enable-tcap-names     compile with user-definable terminal capabilities],
+	[with_tcap_names=$enableval],
+	[with_tcap_names=$with_ext_funcs])
+AC_MSG_RESULT($with_tcap_names)
+NCURSES_XNAMES=0
+test "$with_tcap_names" = yes && NCURSES_XNAMES=1
+AC_SUBST(NCURSES_XNAMES)
 
 ###############################################################################
 CF_HELP_MESSAGE(Experimental Code:)
@@ -521,14 +575,14 @@ AC_ARG_WITH(develop,
 	[with_develop=no])
 AC_MSG_RESULT($with_develop)
 
-###   use option --enable-broken-linker to force on use of broken-linker support
-AC_MSG_CHECKING(if you want broken-linker support code)
-AC_ARG_ENABLE(broken_linker,
-	[  --enable-broken_linker  compile with broken-linker support code],
-	[with_broken_linker=$enableval],
-	[with_broken_linker=$BROKEN_LINKER])
-AC_MSG_RESULT($with_broken_linker)
-test "$with_broken_linker" = yes && AC_DEFINE(BROKEN_LINKER)
+###   use option --enable-colorfgbg to turn on use of $COLORFGBG environment
+AC_MSG_CHECKING(if you want experimental colorfgbg code)
+AC_ARG_ENABLE(hard-tabs,
+	[  --enable-colorfgbg      compile with experimental \$COLORFGBG code],
+	[with_colorfgbg=$enableval],
+	[with_colorfgbg=$with_develop])
+AC_MSG_RESULT($with_colorfgbg)
+test "$with_colorfgbg" = yes && AC_DEFINE(USE_COLORFGBG)
 
 ###   use option --enable-hard-tabs to turn on use of hard-tabs optimize
 AC_MSG_CHECKING(if you want experimental hard-tabs code)
@@ -539,23 +593,6 @@ AC_ARG_ENABLE(hard-tabs,
 AC_MSG_RESULT($with_hardtabs)
 test "$with_hardtabs" = yes && AC_DEFINE(USE_HARD_TABS)
 
-###   use option --enable-hashmap to turn on use of hashmap scrolling logic
-AC_MSG_CHECKING(if you want experimental hashmap code)
-AC_ARG_ENABLE(hashmap,
-	[  --enable-hashmap        compile with experimental hashmap code],
-	[with_hashmap=$enableval],
-	[with_hashmap=yes])
-AC_MSG_RESULT($with_hashmap)
-test "$with_hashmap" = yes && AC_DEFINE(USE_HASHMAP)
-
-AC_MSG_CHECKING(if you want experimental no-padding code)
-AC_ARG_ENABLE(no-padding,
-	[  --enable-no-padding     compile with experimental no-padding code],
-	[with_no_padding=$enableval],
-	[with_no_padding=yes])
-AC_MSG_RESULT($with_no_padding)
-test "$with_no_padding" = yes && AC_DEFINE(NCURSES_NO_PADDING)
-
 AC_MSG_CHECKING(if you want experimental safe-sprintf code)
 AC_ARG_ENABLE(safe-sprintf,
 	[  --enable-safe-sprintf   compile with experimental safe-sprintf code],
@@ -565,35 +602,16 @@ AC_MSG_RESULT($with_safe_sprintf)
 test "$with_safe_sprintf" = yes && AC_DEFINE(USE_SAFE_SPRINTF)
 
 ###   use option --disable-scroll-hints to turn off use of scroll-hints scrolling logic
+# when hashmap is used scroll hints are useless
+if test "$with_hashmap" = no ; then
 AC_MSG_CHECKING(if you want to experiment without scrolling-hints code)
 AC_ARG_ENABLE(scroll-hints,
-	[  --disable-scroll-hints  compile hashmap without scroll-hints code],
+	[  --disable-scroll-hints  compile without scroll-hints code],
 	[with_scroll_hints=$enableval],
-	[with_scroll_hints=yes;
-	 # when hashmap is used scroll hints are useless
-	 test $with_hashmap = yes && with_scroll_hints=no])
+	[with_scroll_hints=yes])
 AC_MSG_RESULT($with_scroll_hints)
 test "$with_scroll_hints" = yes && AC_DEFINE(USE_SCROLL_HINTS)
-
-###   use option --enable-tcap-names to allow user to define new capabilities
-AC_MSG_CHECKING(if you want experimental definable names like termcap)
-AC_ARG_ENABLE(tcap-names,
-	[  --enable-tcap-names     compile with experimental definable-name code],
-	[with_tcap_names=$enableval],
-	[with_tcap_names=$with_develop])
-AC_MSG_RESULT($with_tcap_names)
-NCURSES_XNAMES=0
-test "$with_tcap_names" = yes && NCURSES_XNAMES=1
-AC_SUBST(NCURSES_XNAMES)
-
-###   use option --enable-sigwinch to turn on use of SIGWINCH logic
-AC_MSG_CHECKING(if you want experimental SIGWINCH handler)
-AC_ARG_ENABLE(sigwinch,
-	[  --enable-sigwinch       compile with experimental SIGWINCH handler],
-	[with_sigwinch=$enableval],
-	[with_sigwinch=yes])
-AC_MSG_RESULT($with_sigwinch)
-test "$with_sigwinch" = yes && AC_DEFINE(USE_SIGWINCH)
+fi
 
 ###   use option --enable-widec to turn on use of wide-character support
 AC_MSG_CHECKING(if you want experimental wide-character code)
@@ -602,7 +620,10 @@ AC_ARG_ENABLE(widec,
 	[with_widec=$enableval],
 	[with_widec=no])
 AC_MSG_RESULT($with_widec)
-test "$with_widec" = yes && AC_DEFINE(USE_WIDEC_SUPPORT)
+if test "$with_widec" = yes ; then
+	LIB_SUFFIX="w${LIB_SUFFIX}"
+	AC_DEFINE(USE_WIDEC_SUPPORT)
+fi
 
 ###   use option --enable-xmc-glitch to turn on use of magic-cookie optimize
 AC_MSG_CHECKING(if you want experimental xmc code)
@@ -678,9 +699,7 @@ AC_CHECK_LIB(bsd, gettimeofday,
 	AC_DEFINE(HAVE_GETTIMEOFDAY)
 	LIBS="$LIBS -lbsd")])dnl CLIX: bzero, select, gettimeofday
 
-MATH_LIB=""
-AC_CHECK_FUNC(sin,,
-	AC_CHECK_LIB(m, sin,[MATH_LIB="-lm"]))
+CF_MATH_LIB(MATH_LIB,sin(x))
 AC_SUBST(MATH_LIB)
 
 ###	Checks for header files.
@@ -695,19 +714,18 @@ getopt.h \
 libc.h \
 limits.h \
 locale.h \
+poll.h \
 sys/bsdtypes.h \
 sys/ioctl.h \
 sys/param.h \
-poll.h \
+sys/poll.h \
 sys/select.h \
-sys/stropts.h \
 sys/time.h \
 sys/times.h \
 termio.h \
 termios.h \
 ttyent.h \
 unistd.h \
-values.h \
 )
 
 # check for ISC (this may also define _POSIX_SOURCE)
@@ -735,9 +753,11 @@ CF_LINK_DATAONLY
 CF_SPEED_TYPE
 
 ###	Checks for library functions.
-AC_CHECK_FUNCS( getcwd \
+AC_CHECK_FUNCS( \
+getcwd \
 getttynam \
 memccpy \
+mkstemp \
 nanosleep \
 poll \
 remove \
@@ -756,8 +776,6 @@ vfscanf \
 vsnprintf \
 vsscanf \
 )
-
-
 if test "$with_getcap" = "yes" ; then
 	CF_CGETENT
 fi
@@ -776,6 +794,7 @@ AC_TYPE_SIGNAL
 CF_TYPE_SIGACTION
 CF_SIZECHANGE
 CF_FUNC_MEMMOVE
+CF_FUNC_POLL
 
 dnl We'll do our own -g libraries, unless the user's overridden via $CFLAGS
 if test -z "$cf_user_CFLAGS" ; then
@@ -882,21 +901,22 @@ if test	"$cf_cv_prog_gnat_correct" = yes; then
    CF_WITH_PATH(ada-include,
        [  --with-ada-include=DIR  Ada includes are in DIR],
        ADA_INCLUDE,
-       PREFIX/lib/gnu-Ada/adainclude,
-       [$]prefix/lib/gnu-Ada/adainclude)
+       PREFIX/lib/ada/adainclude,
+       [$]prefix/lib/ada/adainclude)
    AC_SUBST(ADA_INCLUDE)
 
    CF_WITH_PATH(ada-objects,
        [  --with-ada-objects=DIR  Ada objects are in DIR],
        ADA_OBJECTS,
-       PREFIX/lib/gnu-Ada/adalib,
-       [$]prefix/lib/gnu-Ada/adalib)
+       PREFIX/lib/ada/adalib,
+       [$]prefix/lib/ada/adalib)
    AC_SUBST(ADA_OBJECTS)
 
-   if test $with_shared = no
-   then
-      AC_MSG_WARN(Ada95 applications will not link properly with static libraries)
-   fi
+# This has been fixed!
+#   if test $with_shared = no
+#   then
+#      AC_MSG_WARN(Ada95 applications will not link properly with static libraries)
+#   fi
 fi
 fi
 
@@ -930,14 +950,50 @@ LIB_SUBSETS="${LIB_SUBSETS}base"
 test "$with_ext_funcs" = yes && LIB_SUBSETS="${LIB_SUBSETS}+ext_funcs"
 AC_MSG_RESULT($LIB_SUBSETS)
 
+LIB_TRACING=DEBUG
+case "$CFLAGS" in
+*-DTRACE*)
+	LIB_TRACING=all
+	;;
+esac
+
 ### Construct the list of include-directories to be generated
 CF_INCLUDE_DIRS
 CF_ADA_INCLUDE_DIRS
 
+### Build up pieces for makefile rules
+AC_MSG_CHECKING(default library suffix)
+CF_LIB_TYPE($DFT_LWR_MODEL,DFT_ARG_SUFFIX)dnl
+AC_SUBST(DFT_ARG_SUFFIX)dnl the string to append to "-lncurses" ("")
+AC_MSG_RESULT($DFT_ARG_SUFFIX)
+
+AC_MSG_CHECKING(default library-dependency suffix)
+CF_LIB_SUFFIX($DFT_LWR_MODEL,DFT_DEP_SUFFIX)dnl
+AC_SUBST(DFT_DEP_SUFFIX)dnl the corresponding library-suffix (".a")
+AC_MSG_RESULT($DFT_DEP_SUFFIX)
+
+AC_MSG_CHECKING(default object directory)
+CF_OBJ_SUBDIR($DFT_LWR_MODEL,DFT_OBJ_SUBDIR)dnl
+AC_SUBST(DFT_OBJ_SUBDIR)dnl the default object-directory ("obj")
+AC_MSG_RESULT($DFT_OBJ_SUBDIR)
+
+TINFO_LIST="$SHLIB_LIST"
+test $with_termlib = yes && SHLIB_LIST="$SHLIB_LIST -ltinfo${LIB_SUFFIX}"
+
+AC_MSG_CHECKING(where we will install curses.h)
+test "$with_overwrite" = no && \
+test "x$includedir" = 'x${prefix}/include' && \
+	includedir='$(prefix)/include/ncurses'${LIB_SUFFIX}
+AC_MSG_RESULT($includedir)
+
+AC_SUBST(EXTRA_LIBS)
+AC_SUBST(TINFO_LIST)
+AC_SUBST(SHLIB_LIST)
+
 ### Set up low-level terminfo dependencies for makefiles.  Note that we
 ### could override this.
 if test "$with_termlib" = yes ; then
-	TEST_DEPS="${LIB_PREFIX}${TINFO_NAME}${DFT_DEP_SUFFIX}"
+	TEST_DEPS="${LIB_DIR}/${LIB_PREFIX}${TINFO_NAME}${DFT_DEP_SUFFIX}"
 	TEST_ARGS="-l${TINFO_NAME}${DFT_ARG_SUFFIX}"
 fi
 PROG_DEPS="$TEST_DEPS"
@@ -970,7 +1026,9 @@ CF_LIST_MODELS="$cf_list_models"
 DFT_LWR_MODEL="$DFT_LWR_MODEL"
 LDCONFIG="$LDCONFIG"
 LIB_NAME="$LIB_NAME"
+LIB_SUFFIX="$LIB_SUFFIX"
 LIB_SUBSETS="$LIB_SUBSETS"
+LIB_TRACING="$LIB_TRACING"
 SRC_SUBDIRS="$SRC_SUBDIRS"
 TINFO_NAME="$TINFO_NAME"
 WITH_ECHO="$with_echo"

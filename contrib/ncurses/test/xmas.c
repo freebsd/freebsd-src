@@ -92,7 +92,7 @@
 /******************************************************************************/
 
 /*
- * $Id: xmas.c,v 1.12 1998/01/18 01:13:47 tom Exp $
+ * $Id: xmas.c,v 1.13 1999/11/13 23:39:01 tom Exp $
  */
 #include <test.priv.h>
 
@@ -183,7 +183,7 @@ int loopy;
 #endif
 	if (has_colors()) {
 		start_color();
-#ifdef NCURSES_VERSION
+#ifdef HAVE_USE_DEFAULT_COLORS
 		if (use_default_colors() == OK)
 			my_bg = -1;
 #endif

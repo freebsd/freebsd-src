@@ -6,7 +6,7 @@
  * Eric S. Raymond <esr@snark.thyrsus.com> July 22 1995.  Mouse support
  * added September 20th 1995.
  *
- * $Id: knight.c,v 1.14 1997/08/20 16:22:38 hjl Exp $
+ * $Id: knight.c,v 1.15 1999/11/13 23:39:10 tom Exp $
  */
 
 #include <test.priv.h>
@@ -98,7 +98,7 @@ static void init (void)
 	int bg = COLOR_BLACK;
 
 	start_color();
-#ifdef NCURSES_VERSION
+#ifdef HAVE_USE_DEFAULT_COLORS
 	if (use_default_colors() == OK)
 	    bg = -1;
 #endif

@@ -32,7 +32,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: version.c,v 1.1 1999/10/23 13:28:49 tom Exp $")
+MODULE_ID("$Id: version.c,v 1.2 1999/12/04 21:27:23 tom Exp $")
 
 const char *
 curses_version(void)
@@ -40,9 +40,8 @@ curses_version(void)
     static char my_version[80];
 
     T((T_CALLED("curses_version()")));
-    sprintf(my_version, "ncurses %d.%d.%d",
-	NCURSES_VERSION_MAJOR,
-	NCURSES_VERSION_MINOR,
+    sprintf(my_version, "ncurses %s.%d",
+	NCURSES_VERSION,
 	NCURSES_VERSION_PATCH);
     returnPtr(my_version);
 }

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998,1999,2000 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -31,7 +31,6 @@
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
  ****************************************************************************/
 
-
 /*
  *	lib_napms.c
  *
@@ -43,9 +42,10 @@
 
 #if HAVE_NANOSLEEP
 #include <time.h>
+#if HAVE_SYS_TIME_H
+#include <sys/time.h>		/* needed for MacOS X DP3 */
+#endif
 #elif USE_FUNC_POLL
-#include <stropts.h>
-#include <poll.h>
 #if HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
@@ -58,31 +58,32 @@
 #endif
 #endif
 
-MODULE_ID("$Id: lib_napms.c,v 1.6 1999/10/21 23:01:41 tom Exp $")
+MODULE_ID("$Id: lib_napms.c,v 1.9 2000/04/29 23:42:56 tom Exp $")
 
-int napms(int ms)
+int
+napms(int ms)
 {
-	T((T_CALLED("napms(%d)"), ms));
+    T((T_CALLED("napms(%d)"), ms));
 
 #if HAVE_NANOSLEEP
-	{
-		struct timespec ts;
-		ts.tv_sec = ms / 1000;
-		ts.tv_nsec = (ms % 1000) * 1000000;
-		nanosleep(&ts, NULL);
-	}
+    {
+	struct timespec ts;
+	ts.tv_sec = ms / 1000;
+	ts.tv_nsec = (ms % 1000) * 1000000;
+	nanosleep(&ts, NULL);
+    }
 #elif USE_FUNC_POLL
-	{
-		struct pollfd fds[1];
-		poll(fds, 0, ms);
-	}
+    {
+	struct pollfd fds[1];
+	poll(fds, 0, ms);
+    }
 #elif HAVE_SELECT
-	{
-		struct timeval tval;
-		tval.tv_sec = ms / 1000;
-		tval.tv_usec = (ms % 1000) * 1000;
-		select(0, NULL, NULL, NULL, &tval);
-	}
+    {
+	struct timeval tval;
+	tval.tv_sec = ms / 1000;
+	tval.tv_usec = (ms % 1000) * 1000;
+	select(0, NULL, NULL, NULL, &tval);
+    }
 #endif
-	returnCode(OK);
+    returnCode(OK);
 }

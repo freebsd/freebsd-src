@@ -21,7 +21,7 @@
 
 #include <tack.h>
 
-MODULE_ID("$Id: pad.c,v 1.1 1998/01/10 00:30:27 tom Exp $")
+MODULE_ID("$Id: pad.c,v 1.2 2000/03/04 21:04:58 tom Exp $")
 
 /* test the pad counts on the terminal */
 
@@ -448,12 +448,14 @@ pad_clear(
 				break;
 			}
 			clear_select++;
+			/* FALLTHRU */
 		case 2:
 			end_message = "Clear one character per line.  ";
 			if (newline) {
 				break;
 			}
 			clear_select++;
+			/* FALLTHRU */
 		case 3:
 			end_message = "Clear one full line.  ";
 			break;
@@ -1008,7 +1010,7 @@ pad_xch1(
 	if (enter_insert_mode || exit_insert_mode ||
 		enter_delete_mode || exit_delete_mode ||
 		!insert_character || !delete_character) {
-		/* this test is quitely ignored */
+		/* this test is quietly ignored */
 		return;
 	}
 	if (skip_pad_test(t, state, ch,
@@ -1025,7 +1027,7 @@ pad_xch1(
 	} while(still_testing());
 	pad_test_shutdown(t, 1);
 	ptextln(xch1);
-	ptext("The preceeding two lines should be the same.  ");
+	ptext("The preceding two lines should be the same.  ");
 	pad_done_message(t, state, ch);
 }
 

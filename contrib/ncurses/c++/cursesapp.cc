@@ -1,6 +1,6 @@
 // * this is for making emacs happy: -*-Mode: C++;-*-
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998,1999 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -34,7 +34,7 @@
 #include "cursesapp.h"
 #include "internal.h"
 
-MODULE_ID("$Id: cursesapp.cc,v 1.4 1999/05/16 17:31:11 juergen Exp $")
+MODULE_ID("$Id: cursesapp.cc,v 1.6 1999/10/30 23:59:37 tom Exp $")
 
 void
 NCursesApplication::init(bool bColors) {
@@ -85,7 +85,7 @@ int NCursesApplication::rinit(NCursesWindow& w) {
 
 void NCursesApplication::push(Soft_Label_Key_Set& S) {
   SLK_Link* L = new SLK_Link;
-  assert(L);
+  assert(L != 0);
   L->prev = slk_stack;
   L->SLKs = &S;
   slk_stack = L;
@@ -121,7 +121,7 @@ int NCursesApplication::operator()(void) {
   Soft_Label_Key_Set::Label_Layout fmt = useSLKs();
   if (fmt!=Soft_Label_Key_Set::None) {    
     S = new Soft_Label_Key_Set(fmt);
-    assert(S);
+    assert(S != 0);
     init_labels(*S);
   }
 

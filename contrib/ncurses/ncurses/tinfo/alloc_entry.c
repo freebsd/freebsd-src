@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -31,7 +31,6 @@
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
  ****************************************************************************/
 
-
 /*
  * alloc_entry.c -- allocation functions for terminfo entries
  *
@@ -48,149 +47,152 @@
 #include <tic.h>
 #include <term_entry.h>
 
-MODULE_ID("$Id: alloc_entry.c,v 1.30 1999/03/01 02:03:45 tom Exp $")
+MODULE_ID("$Id: alloc_entry.c,v 1.32 2000/03/12 00:16:31 tom Exp $")
 
 #define ABSENT_OFFSET    -1
 #define CANCELLED_OFFSET -2
 
 #define MAX_STRTAB	4096	/* documented maximum entry size */
 
-static char	stringbuf[MAX_STRTAB];	/* buffer for string capabilities */
-static size_t	next_free;		/* next free character in stringbuf */
+static char stringbuf[MAX_STRTAB];	/* buffer for string capabilities */
+static size_t next_free;	/* next free character in stringbuf */
 
-void _nc_init_entry(TERMTYPE *const tp)
+void
+_nc_init_entry(TERMTYPE * const tp)
 /* initialize a terminal type data block */
 {
-int	i;
+    int i;
 
 #if NCURSES_XNAMES
-	tp->num_Booleans = BOOLCOUNT;
-	tp->num_Numbers  = NUMCOUNT;
-	tp->num_Strings  = STRCOUNT;
-	tp->ext_Booleans = 0;
-	tp->ext_Numbers  = 0;
-	tp->ext_Strings  = 0;
+    tp->num_Booleans = BOOLCOUNT;
+    tp->num_Numbers = NUMCOUNT;
+    tp->num_Strings = STRCOUNT;
+    tp->ext_Booleans = 0;
+    tp->ext_Numbers = 0;
+    tp->ext_Strings = 0;
 #endif
-	if (tp->Booleans == 0)
-	    tp->Booleans = typeMalloc(char,BOOLCOUNT);
-	if (tp->Numbers == 0)
-	    tp->Numbers = typeMalloc(short,NUMCOUNT);
-	if (tp->Strings == 0)
-	    tp->Strings = typeMalloc(char *,STRCOUNT);
+    if (tp->Booleans == 0)
+	tp->Booleans = typeMalloc(char, BOOLCOUNT);
+    if (tp->Numbers == 0)
+	tp->Numbers = typeMalloc(short, NUMCOUNT);
+    if (tp->Strings == 0)
+	tp->Strings = typeMalloc(char *, STRCOUNT);
 
-	for_each_boolean(i,tp)
-		tp->Booleans[i] = FALSE;
+    for_each_boolean(i, tp)
+	tp->Booleans[i] = FALSE;
 
-	for_each_number(i,tp)
-		tp->Numbers[i] = ABSENT_NUMERIC;
+    for_each_number(i, tp)
+	tp->Numbers[i] = ABSENT_NUMERIC;
 
-	for_each_string(i,tp)
-		tp->Strings[i] = ABSENT_STRING;
+    for_each_string(i, tp)
+	tp->Strings[i] = ABSENT_STRING;
 
-	next_free = 0;
+    next_free = 0;
 }
 
-ENTRY *_nc_copy_entry(ENTRY *oldp)
+ENTRY *
+_nc_copy_entry(ENTRY * oldp)
 {
-	ENTRY *newp = typeCalloc(ENTRY,1);
+    ENTRY *newp = typeCalloc(ENTRY, 1);
 
-	if (newp != 0) {
-	    *newp = *oldp;
-	    _nc_copy_termtype(&(newp->tterm), &(oldp->tterm));
-	}
-	return newp;
+    if (newp != 0) {
+	*newp = *oldp;
+	_nc_copy_termtype(&(newp->tterm), &(oldp->tterm));
+    }
+    return newp;
 }
 
-char *_nc_save_str(const char *const string)
+char *
+_nc_save_str(const char *const string)
 /* save a copy of string in the string buffer */
 {
-size_t	old_next_free = next_free;
-size_t	len = strlen(string) + 1;
+    size_t old_next_free = next_free;
+    size_t len = strlen(string) + 1;
 
-	if (next_free + len < MAX_STRTAB)
-	{
-		strcpy(&stringbuf[next_free], string);
-		DEBUG(7, ("Saved string %s", _nc_visbuf(string)));
-		DEBUG(7, ("at location %d", (int) next_free));
-		next_free += len;
-	}
-	return(stringbuf + old_next_free);
+    if (next_free + len < MAX_STRTAB) {
+	strcpy(&stringbuf[next_free], string);
+	DEBUG(7, ("Saved string %s", _nc_visbuf(string)));
+	DEBUG(7, ("at location %d", (int) next_free));
+	next_free += len;
+    }
+    return (stringbuf + old_next_free);
 }
 
-void _nc_wrap_entry(ENTRY *const ep)
+void
+_nc_wrap_entry(ENTRY * const ep)
 /* copy the string parts to allocated storage, preserving pointers to it */
 {
-int	offsets[MAX_ENTRY_SIZE/2], useoffsets[MAX_USES];
-int	i, n;
-TERMTYPE *tp = &(ep->tterm);
+    int offsets[MAX_ENTRY_SIZE / 2], useoffsets[MAX_USES];
+    int i, n;
+    TERMTYPE *tp = &(ep->tterm);
 
-	n = tp->term_names - stringbuf;
-	for_each_string(i, &(ep->tterm)) {
-		if (tp->Strings[i] == ABSENT_STRING)
-			offsets[i] = ABSENT_OFFSET;
-		else if (tp->Strings[i] == CANCELLED_STRING)
-			offsets[i] = CANCELLED_OFFSET;
-		else
-			offsets[i] = tp->Strings[i] - stringbuf;
-	}
+    n = tp->term_names - stringbuf;
+    for_each_string(i, &(ep->tterm)) {
+	if (tp->Strings[i] == ABSENT_STRING)
+	    offsets[i] = ABSENT_OFFSET;
+	else if (tp->Strings[i] == CANCELLED_STRING)
+	    offsets[i] = CANCELLED_OFFSET;
+	else
+	    offsets[i] = tp->Strings[i] - stringbuf;
+    }
 
-	for (i=0; i < ep->nuses; i++) {
-		if (ep->uses[i].parent == (void *)0)
-			useoffsets[i] = ABSENT_OFFSET;
-		else
-			useoffsets[i] = (char *)(ep->uses[i].parent) - stringbuf;
-	}
+    for (i = 0; i < ep->nuses; i++) {
+	if (ep->uses[i].name == 0)
+	    useoffsets[i] = ABSENT_OFFSET;
+	else
+	    useoffsets[i] = ep->uses[i].name - stringbuf;
+    }
 
-	if ((tp->str_table = typeMalloc(char, next_free)) == (char *)0)
-		_nc_err_abort("Out of memory");
-	(void) memcpy(tp->str_table, stringbuf, next_free);
+    if ((tp->str_table = typeMalloc(char, next_free)) == (char *) 0)
+	  _nc_err_abort("Out of memory");
+    (void) memcpy(tp->str_table, stringbuf, next_free);
 
-	tp->term_names = tp->str_table + n;
-	for_each_string(i, &(ep->tterm)) {
-		if (offsets[i] == ABSENT_OFFSET)
-			tp->Strings[i] = ABSENT_STRING;
-		else if (offsets[i] == CANCELLED_OFFSET)
-			tp->Strings[i] = CANCELLED_STRING;
-		else
-			tp->Strings[i] = tp->str_table + offsets[i];
-	}
+    tp->term_names = tp->str_table + n;
+    for_each_string(i, &(ep->tterm)) {
+	if (offsets[i] == ABSENT_OFFSET)
+	    tp->Strings[i] = ABSENT_STRING;
+	else if (offsets[i] == CANCELLED_OFFSET)
+	    tp->Strings[i] = CANCELLED_STRING;
+	else
+	    tp->Strings[i] = tp->str_table + offsets[i];
+    }
 
 #if NCURSES_XNAMES
-	if ((n = NUM_EXT_NAMES(tp)) != 0) {
-		unsigned length = 0;
-		for (i = 0; i < n; i++) {
-			length += strlen(tp->ext_Names[i]) + 1;
-			offsets[i] = tp->ext_Names[i] - stringbuf;
-		}
-		if ((tp->ext_str_table = typeMalloc(char, length)) == 0)
-			_nc_err_abort("Out of memory");
-		for (i = 0, length = 0; i < n; i++) {
-			tp->ext_Names[i] = tp->ext_str_table + length;
-			strcpy(tp->ext_Names[i], stringbuf + offsets[i]);
-			length += strlen(tp->ext_Names[i]) + 1;
-		}
+    if ((n = NUM_EXT_NAMES(tp)) != 0) {
+	unsigned length = 0;
+	for (i = 0; i < n; i++) {
+	    length += strlen(tp->ext_Names[i]) + 1;
+	    offsets[i] = tp->ext_Names[i] - stringbuf;
 	}
+	if ((tp->ext_str_table = typeMalloc(char, length)) == 0)
+	      _nc_err_abort("Out of memory");
+	for (i = 0, length = 0; i < n; i++) {
+	    tp->ext_Names[i] = tp->ext_str_table + length;
+	    strcpy(tp->ext_Names[i], stringbuf + offsets[i]);
+	    length += strlen(tp->ext_Names[i]) + 1;
+	}
+    }
 #endif
 
-	for (i=0; i < ep->nuses; i++) {
-		if (useoffsets[i] == ABSENT_OFFSET)
-			ep->uses[i].parent = (void *)0;
-		else
-			ep->uses[i].parent = (char *)(tp->str_table + useoffsets[i]);
-	}
+    for (i = 0; i < ep->nuses; i++) {
+	if (useoffsets[i] == ABSENT_OFFSET)
+	    ep->uses[i].name = 0;
+	else
+	    ep->uses[i].name = (tp->str_table + useoffsets[i]);
+    }
 }
 
-void _nc_merge_entry(TERMTYPE *const to, TERMTYPE *const from)
+void
+_nc_merge_entry(TERMTYPE * const to, TERMTYPE * const from)
 /* merge capabilities from `from' entry into `to' entry */
 {
-    int	i;
+    int i;
 
 #if NCURSES_XNAMES
     _nc_align_termtype(to, from);
 #endif
-    for_each_boolean(i, from)
-    {
-	int	mergebool = from->Booleans[i];
+    for_each_boolean(i, from) {
+	int mergebool = from->Booleans[i];
 
 	if (mergebool == CANCELLED_BOOLEAN)
 	    to->Booleans[i] = FALSE;
@@ -198,9 +200,8 @@ void _nc_merge_entry(TERMTYPE *const to, TERMTYPE *const from)
 	    to->Booleans[i] = mergebool;
     }
 
-    for_each_number(i, from)
-    {
-	int	mergenum = from->Numbers[i];
+    for_each_number(i, from) {
+	int mergenum = from->Numbers[i];
 
 	if (mergenum == CANCELLED_NUMERIC)
 	    to->Numbers[i] = ABSENT_NUMERIC;
@@ -213,9 +214,8 @@ void _nc_merge_entry(TERMTYPE *const to, TERMTYPE *const from)
      * storage.  This is OK right now, but will be a problem if we
      * we ever want to deallocate entries.
      */
-    for_each_string(i, from)
-    {
-	char	*mergestring = from->Strings[i];
+    for_each_string(i, from) {
+	char *mergestring = from->Strings[i];
 
 	if (mergestring == CANCELLED_STRING)
 	    to->Strings[i] = ABSENT_STRING;
