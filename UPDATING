@@ -24,6 +24,7 @@ NOTE TO PEOPLE WHO THINK THAT 5.0-CURRENT IS SLOW:
  	versions of FreeBSD.  We have gone back to the ABI for now, and any
  	code compiled which is required to interoperate with other code (not
  	built at the same time) returning structs or unions should be 
+	rebuilt.
 
 20021216:
 	A name change in /etc/netconfig has been reverted to stay
