@@ -8501,6 +8501,7 @@ static driver_t sym_pci_driver = {
 static devclass_t sym_devclass;
 
 DRIVER_MODULE(sym, pci, sym_pci_driver, sym_devclass, 0, 0);
+MODULE_DEPEND(sym, cam, 1, 1, 1);
 
 
 static struct sym_pci_chip sym_pci_dev_table[] = {
