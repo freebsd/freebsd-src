@@ -2389,7 +2389,6 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 		}
 		DEB(printf("ipfw: opcode %d\n", cmd->opcode);)
 		switch (cmd->opcode) {
-		case O_NOP:
 		case O_PROBE_STATE:
 		case O_KEEP_STATE:
 		case O_PROTO:
@@ -2462,6 +2461,7 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 				goto bad_size;
 			break;
 
+		case O_NOP:
 		case O_IPID:
 		case O_IPTTL:
 		case O_IPLEN:
