@@ -76,7 +76,8 @@ netsettime(time_t tval)
 	struct sockaddr_in lsin, dest, from;
 	fd_set ready;
 	long waittime;
-	int s, length, port, timed_ack, found, lerr;
+	int s, port, timed_ack, found, lerr;
+	socklen_t length;
 	char hostname[MAXHOSTNAMELEN];
 
 	if ((sp = getservbyname("timed", "udp")) == NULL) {
