@@ -46,6 +46,35 @@ ifconfig_up()
 	return 1
 }
 
+# ifconfig_down if
+#	Remove all inet entries from the $if interface. It returns
+#	0 if inet entries were found and removed. It returns 1 if
+#	no entries were found or the could not be removed.
+#
+ifconfig_down()
+{
+	[ -z "$1" ] && return 1
+	_ifs="^"
+	_ret=1
+
+	inetList="`ifconfig $1 | grep 'inet ' | tr "\n" "$_ifs"`"
+
+	oldifs="$IFS"
+	IFS="$_ifs"
+	for _inet in $inetList ; do
+		# get rid of extraneous line
+		[ -z "$_inet" ] && break
+
+		_inet=`expr "$_inet" : '.*\(inet \([0-9]\{1,3\}\.\)\{3\}[0-9]\{1,3\}\).*'`
+
+		echo ifconfig $1 ${_inet} delete
+		_ret=0
+	done
+	IFS="$oldifs"
+
+	return $_ret
+}
+
 # ifalias_up if
 #	Configure aliases for network interface $if.
 #	It returns 0 if at least one alias was configured or
@@ -68,6 +97,28 @@ ifalias_up()
 	return $_ret
 }
 
+#ifalias_down if
+#	Remove aliases for network interface $if.
+#	It returns 0 if at least one alias was removed or
+#	1 if there were none.
+#
+ifalias_down()
+{
+	_ret=1
+	alias=0
+	while : ; do
+		eval ifconfig_args=\$ifconfig_$1_alias${alias}
+		if [ -n "${ifconfig_args}" ]; then
+			ifconfig $1 ${ifconfig_args} -alias
+			alias=$((${alias} + 1))
+			_ret=0
+		else
+			break
+		fi
+	done
+	return $_ret
+}
+
 # ifscript_up if
 #	Evaluate a startup script for the $if interface.
 #	It returns 0 if a script was found and processed or
@@ -77,6 +128,20 @@ ifscript_up()
 {
 	if [ -r /etc/start_if.$1 ]; then
 		. /etc/start_if.$1
+		return 0
+	fi
+	return 1
+}
+
+# ifscript_down if
+#	Evaluate a shutdown script for the $if interface.
+#	It returns 0 if a script was found and processed or
+#	1 if no script was found.
+#
+ifscript_down()
+{
+	if [ -r /etc/stop_if.$1 ]; then
+		. /etc/stop_if.$1
 		return 0
 	fi
 	return 1
@@ -150,6 +215,16 @@ ipx_up()
 		ifconfig ${ifn} ${ifconfig_args}
 		return 0
 	fi
+	return 1
+}
+
+# ipx_down ifn
+#	Remove IPX addresses for interface $ifn. Returns 0 if IPX
+#	addresses were found and unconfigured. It returns 1, otherwise.
+#
+ipx_down()
+{
+	# XXX - So, who's an IPX expert ?
 	return 1
 }
 
