@@ -189,6 +189,7 @@ static	int pagedep_lookup __P((struct inode *, ufs_lbn_t, int,
 	    struct pagedep **));
 static	void pause_timer __P((void *));
 static	int request_cleanup __P((int, int));
+static	int process_worklist_item __P((struct mount *, int));
 static	void add_to_worklist __P((struct worklist *));
 
 /*
@@ -436,7 +437,8 @@ workitem_free(item, type)
  * Workitem queue management
  */
 static struct workhead softdep_workitem_pending;
-static int softdep_worklist_busy;
+static int num_on_worklist;	/* number of worklist items to be processed */
+static int softdep_worklist_busy; /* 1 => trying to do unmount */
 static int max_softdeps;	/* maximum number of structs before slowdown */
 static int tickdelay = 2;	/* number of ticks to pause during slowdown */
 static int proc_waiting;	/* tracks whether we have a timeout posted */
@@ -450,10 +452,12 @@ static int req_clear_remove;	/* syncer process flush some freeblks */
 /*
  * runtime statistics
  */
+static int stat_worklist_push;	/* number of worklist cleanups */
 static int stat_blk_limit_push;	/* number of times block limit neared */
 static int stat_ino_limit_push;	/* number of times inode limit neared */
 static int stat_blk_limit_hit;	/* number of times block slowdown imposed */
 static int stat_ino_limit_hit;	/* number of times inode slowdown imposed */
+static int stat_sync_limit_hit;	/* number of synchronous slowdowns imposed */
 static int stat_indir_blk_ptrs;	/* bufs redirtied as indir ptrs not written */
 static int stat_inode_bitmap;	/* bufs redirtied as inode bitmap not written */
 static int stat_direct_blk_ptrs;/* bufs redirtied as direct ptrs not written */
@@ -463,10 +467,12 @@ static int stat_dir_entry;	/* bufs redirtied as dir entry cannot write */
 #include <sys/sysctl.h>
 SYSCTL_INT(_debug, OID_AUTO, max_softdeps, CTLFLAG_RW, &max_softdeps, 0, "");
 SYSCTL_INT(_debug, OID_AUTO, tickdelay, CTLFLAG_RW, &tickdelay, 0, "");
+SYSCTL_INT(_debug, OID_AUTO, worklist_push, CTLFLAG_RW, &stat_worklist_push, 0,"");
 SYSCTL_INT(_debug, OID_AUTO, blk_limit_push, CTLFLAG_RW, &stat_blk_limit_push, 0,"");
 SYSCTL_INT(_debug, OID_AUTO, ino_limit_push, CTLFLAG_RW, &stat_ino_limit_push, 0,"");
 SYSCTL_INT(_debug, OID_AUTO, blk_limit_hit, CTLFLAG_RW, &stat_blk_limit_hit, 0, "");
 SYSCTL_INT(_debug, OID_AUTO, ino_limit_hit, CTLFLAG_RW, &stat_ino_limit_hit, 0, "");
+SYSCTL_INT(_debug, OID_AUTO, sync_limit_hit, CTLFLAG_RW, &stat_sync_limit_hit, 0, "");
 SYSCTL_INT(_debug, OID_AUTO, indir_blk_ptrs, CTLFLAG_RW, &stat_indir_blk_ptrs, 0, "");
 SYSCTL_INT(_debug, OID_AUTO, inode_bitmap, CTLFLAG_RW, &stat_inode_bitmap, 0, "");
 SYSCTL_INT(_debug, OID_AUTO, direct_blk_ptrs, CTLFLAG_RW, &stat_direct_blk_ptrs, 0, "");
@@ -494,6 +500,7 @@ add_to_worklist(wk)
 	else
 		LIST_INSERT_AFTER(worklist_tail, wk, wk_list);
 	worklist_tail = wk;
+	num_on_worklist += 1;
 }
 
 /*
@@ -510,9 +517,8 @@ softdep_process_worklist(matchmnt)
 	struct mount *matchmnt;
 {
 	struct proc *p = CURPROC;
-	struct worklist *wk;
-	struct mount *mp;
 	int matchcnt, loopcount;
+	long starttime;
 
 	/*
 	 * Record the process identifier of our caller so that we can give
@@ -541,62 +547,10 @@ softdep_process_worklist(matchmnt)
 		req_clear_remove -= 1;
 		wakeup_one(&proc_waiting);
 	}
-	ACQUIRE_LOCK(&lk);
 	loopcount = 1;
-	while ((wk = LIST_FIRST(&softdep_workitem_pending)) != 0) {
-		WORKLIST_REMOVE(wk);
-		FREE_LOCK(&lk);
-		switch (wk->wk_type) {
-
-		case D_DIRREM:
-			/* removal of a directory entry */
-			mp = WK_DIRREM(wk)->dm_mnt;
-			if (vn_write_suspend_wait(NULL, mp, V_NOWAIT))
-				panic("%s: dirrem on suspended filesystem",
-					"softdep_process_worklist");
-			if (mp == matchmnt)
-				matchcnt += 1;
-			handle_workitem_remove(WK_DIRREM(wk));
-			break;
-
-		case D_FREEBLKS:
-			/* releasing blocks and/or fragments from a file */
-			mp = WK_FREEBLKS(wk)->fb_mnt;
-			if (vn_write_suspend_wait(NULL, mp, V_NOWAIT))
-				panic("%s: freeblks on suspended filesystem",
-					"softdep_process_worklist");
-			if (mp == matchmnt)
-				matchcnt += 1;
-			handle_workitem_freeblocks(WK_FREEBLKS(wk));
-			break;
-
-		case D_FREEFRAG:
-			/* releasing a fragment when replaced as a file grows */
-			mp = WK_FREEFRAG(wk)->ff_mnt;
-			if (vn_write_suspend_wait(NULL, mp, V_NOWAIT))
-				panic("%s: freefrag on suspended filesystem",
-					"softdep_process_worklist");
-			if (mp == matchmnt)
-				matchcnt += 1;
-			handle_workitem_freefrag(WK_FREEFRAG(wk));
-			break;
-
-		case D_FREEFILE:
-			/* releasing an inode when its link count drops to 0 */
-			mp = WK_FREEFILE(wk)->fx_mnt;
-			if (vn_write_suspend_wait(NULL, mp, V_NOWAIT))
-				panic("%s: freefile on suspended filesystem",
-					"softdep_process_worklist");
-			if (mp == matchmnt)
-				matchcnt += 1;
-			handle_workitem_freefile(WK_FREEFILE(wk));
-			break;
-
-		default:
-			panic("%s_process_worklist: Unknown type %s",
-			    "softdep", TYPENAME(wk->wk_type));
-			/* NOTREACHED */
-		}
+	starttime = time_second;
+	while (num_on_worklist > 0) {
+		matchcnt += process_worklist_item(matchmnt, 0);
 		if (softdep_worklist_busy && matchmnt == NULL)
 			return (-1);
 		/*
@@ -618,9 +572,103 @@ softdep_process_worklist(matchmnt)
 		 */
 		if (loopcount++ % 128 == 0)
 			bwillwrite();
-		ACQUIRE_LOCK(&lk);
+		/*
+		 * Never allow processing to run for more than one
+		 * second. Otherwise the other syncer tasks may get
+		 * excessively backlogged.
+		 */
+		if (starttime != time_second && matchmnt == NULL)
+			return (-1);
 	}
+	return (matchcnt);
+}
+
+/*
+ * Process one item on the worklist.
+ */
+static int
+process_worklist_item(matchmnt, flags)
+	struct mount *matchmnt;
+	int flags;
+{
+	struct worklist *wk;
+	struct dirrem *dirrem;
+	struct mount *mp;
+	struct vnode *vp;
+	int matchcnt = 0;
+
+	ACQUIRE_LOCK(&lk);
+	/*
+	 * Normally we just process each item on the worklist in order.
+	 * However, if we are in a situation where we cannot lock any
+	 * inodes, we have to skip over any dirrem requests whose
+	 * vnodes are resident and locked.
+	 */
+	LIST_FOREACH(wk, &softdep_workitem_pending, wk_list) {
+		if ((flags & LK_NOWAIT) == 0 || wk->wk_type != D_DIRREM)
+			break;
+		dirrem = WK_DIRREM(wk);
+		vp = ufs_ihashlookup(VFSTOUFS(dirrem->dm_mnt)->um_dev,
+		    dirrem->dm_oldinum);
+		if (vp == NULL || !VOP_ISLOCKED(vp, CURPROC))
+			break;
+	}
+	if (wk == 0)
+		return (0);
+	WORKLIST_REMOVE(wk);
+	num_on_worklist -= 1;
 	FREE_LOCK(&lk);
+	switch (wk->wk_type) {
+
+	case D_DIRREM:
+		/* removal of a directory entry */
+		mp = WK_DIRREM(wk)->dm_mnt;
+		if (vn_write_suspend_wait(NULL, mp, V_NOWAIT))
+			panic("%s: dirrem on suspended filesystem",
+				"process_worklist_item");
+		if (mp == matchmnt)
+			matchcnt += 1;
+		handle_workitem_remove(WK_DIRREM(wk));
+		break;
+
+	case D_FREEBLKS:
+		/* releasing blocks and/or fragments from a file */
+		mp = WK_FREEBLKS(wk)->fb_mnt;
+		if (vn_write_suspend_wait(NULL, mp, V_NOWAIT))
+			panic("%s: freeblks on suspended filesystem",
+				"process_worklist_item");
+		if (mp == matchmnt)
+			matchcnt += 1;
+		handle_workitem_freeblocks(WK_FREEBLKS(wk));
+		break;
+
+	case D_FREEFRAG:
+		/* releasing a fragment when replaced as a file grows */
+		mp = WK_FREEFRAG(wk)->ff_mnt;
+		if (vn_write_suspend_wait(NULL, mp, V_NOWAIT))
+			panic("%s: freefrag on suspended filesystem",
+				"process_worklist_item");
+		if (mp == matchmnt)
+			matchcnt += 1;
+		handle_workitem_freefrag(WK_FREEFRAG(wk));
+		break;
+
+	case D_FREEFILE:
+		/* releasing an inode when its link count drops to 0 */
+		mp = WK_FREEFILE(wk)->fx_mnt;
+		if (vn_write_suspend_wait(NULL, mp, V_NOWAIT))
+			panic("%s: freefile on suspended filesystem",
+				"process_worklist_item");
+		if (mp == matchmnt)
+			matchcnt += 1;
+		handle_workitem_freefile(WK_FREEFILE(wk));
+		break;
+
+	default:
+		panic("%s_process_worklist: Unknown type %s",
+		    "softdep", TYPENAME(wk->wk_type));
+		/* NOTREACHED */
+	}
 	return (matchcnt);
 }
 
@@ -871,7 +919,7 @@ top:
 	/*
 	 * If we are over our limit, try to improve the situation.
 	 */
-	if (num_inodedep > max_softdeps && firsttry && speedup_syncer() == 0 &&
+	if (num_inodedep > max_softdeps && firsttry &&
 	    request_cleanup(FLUSH_INODES, 1)) {
 		firsttry = 0;
 		goto top;
@@ -964,7 +1012,8 @@ softdep_initialize()
 
 	LIST_INIT(&mkdirlisthd);
 	LIST_INIT(&softdep_workitem_pending);
-	max_softdeps = desiredvnodes * 8;
+	max_softdeps = min(desiredvnodes * 8,
+		M_INODEDEP->ks_limit / (2 * sizeof(struct inodedep)));
 	pagedep_hashtbl = hashinit(desiredvnodes / 5, M_PAGEDEP,
 	    &pagedep_hash);
 	sema_init(&pagedep_in_progress, "pagedep", PRIBIO, 0);
@@ -2433,7 +2482,7 @@ newdirrem(bp, dp, ip, isrmdir, prevdirremp)
 	 * Limiting the number of dirrem structures will also limit
 	 * the number of freefile and freeblks structures.
 	 */
-	if (num_dirrem > max_softdeps / 2 && speedup_syncer() == 0)
+	if (num_dirrem > max_softdeps / 2)
 		(void) request_cleanup(FLUSH_REMOVE, 0);
 	num_dirrem += 1;
 	MALLOC(dirrem, struct dirrem *, sizeof(struct dirrem),
@@ -4333,9 +4382,28 @@ flush_pagedep_deps(pvp, mp, diraddhdp)
 
 /*
  * A large burst of file addition or deletion activity can drive the
- * memory load excessively high. Therefore we deliberately slow things
- * down and speed up the I/O processing if we find ourselves with too
- * many dependencies in progress.
+ * memory load excessively high. First attempt to slow things down
+ * using the techniques below. If that fails, this routine requests
+ * the offending operations to fall back to running synchronously
+ * until the memory load returns to a reasonable level.
+ */
+int
+softdep_slowdown(vp)
+	struct vnode *vp;
+{
+	int max_softdeps_hard;
+
+	max_softdeps_hard = max_softdeps * 11 / 10;
+	if (num_dirrem < max_softdeps_hard / 2 &&
+	    num_inodedep < max_softdeps_hard)
+		return (0);
+	stat_sync_limit_hit += 1;
+	return (1);
+}
+
+/*
+ * If memory utilization has gotten too high, deliberately slow things
+ * down and speed up the I/O processing.
  */
 static int
 request_cleanup(resource, islocked)
@@ -4349,6 +4417,25 @@ request_cleanup(resource, islocked)
 	 */
 	if (p == filesys_syncer)
 		return (0);
+	/*
+	 * First check to see if the work list has gotten backlogged.
+	 * If it has, co-opt this process to help clean up two entries.
+	 * Because this process may hold inodes locked, we cannot
+	 * handle any remove requests that might block on a locked
+	 * inode as that could lead to deadlock.
+	 */
+	if (num_on_worklist > max_softdeps / 10) {
+		process_worklist_item(NULL, LK_NOWAIT);
+		process_worklist_item(NULL, LK_NOWAIT);
+		stat_worklist_push += 2;
+		return(0);
+	}
+	/*
+	 * Next, we attempt to speed up the syncer process. If that
+	 * is successful, then we allow the process to continue.
+	 */
+	if (speedup_syncer())
+		return(0);
 	/*
 	 * If we are resource constrained on inode dependencies, try
 	 * flushing some dirty inodes. Otherwise, we are constrained
@@ -4382,14 +4469,13 @@ request_cleanup(resource, islocked)
 	 */
 	if (islocked == 0)
 		ACQUIRE_LOCK(&lk);
-	if (proc_waiting++ == 0) {
+	proc_waiting += 1;
+	if (handle.callout == NULL)
 		handle = timeout(pause_timer, 0, tickdelay > 2 ? tickdelay : 2);
-	}
 	FREE_LOCK_INTERLOCKED(&lk);
 	(void) tsleep((caddr_t)&proc_waiting, PPAUSE, "softupdate", 0);
 	ACQUIRE_LOCK_INTERLOCKED(&lk);
-	if (--proc_waiting == 0)
-		untimeout(pause_timer, 0, handle);
+	proc_waiting -= 1;
 	if (islocked == 0)
 		FREE_LOCK(&lk);
 	return (1);
@@ -4405,8 +4491,11 @@ pause_timer(arg)
 {
 
 	*stat_countp += 1;
-	handle = timeout(pause_timer, 0, tickdelay > 2 ? tickdelay : 2);
 	wakeup_one(&proc_waiting);
+	if (proc_waiting > 0)
+		handle = timeout(pause_timer, 0, tickdelay > 2 ? tickdelay : 2);
+	else
+		handle.callout = NULL;
 }
 
 /*

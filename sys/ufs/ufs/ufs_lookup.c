@@ -923,7 +923,12 @@ out:
 			softdep_change_linkcnt(ip);
 			softdep_setup_remove(bp, dp, ip, isrmdir);
 		}
-		bdwrite(bp);
+		if (softdep_slowdown(dvp)) {
+			error = BUF_WRITE(bp);
+		} else {
+			bdwrite(bp);
+			error = 0;
+		}
 	} else {
 		if (ip) {
 			ip->i_effnlink--;
