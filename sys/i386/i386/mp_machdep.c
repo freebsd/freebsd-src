@@ -1131,8 +1131,8 @@ forward_hardclock(void)
 		ipi_selected(map, IPI_HARDCLOCK);
 }
 
-
-void ipi_bitmap_handler(struct clockframe frame)
+void
+ipi_bitmap_handler(struct clockframe frame)
 {
 	int cpu = PCPU_GET(cpuid);
 	u_int ipi_bitmap;
@@ -1165,7 +1165,6 @@ void ipi_bitmap_handler(struct clockframe frame)
 
 	critical_exit();
 }
-
 
 /*
  * send an IPI to a set of cpus.
