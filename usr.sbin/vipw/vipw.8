@@ -39,6 +39,7 @@
 .Nd edit the password file
 .Sh SYNOPSIS
 .Nm vipw
+.Op Fl d Ar directory
 .Sh DESCRIPTION
 .Nm Vipw
 edits the password file after setting the appropriate locks,
@@ -50,6 +51,16 @@ to try again later. The default editor for
 .Nm
 is
 .Xr vi 1 .
+.Pp
+When run without options, 
+.Nm vipw
+will work with the password files in
+.Pa /etc .
+The 
+.Fl d
+option may be used to specify an alternative
+.Ar directory
+to work with.
 .Pp
 .Nm Vipw
 performs a number of consistency checks on the password entries,
