@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_proto.c	8.2 (Berkeley) 2/9/95
- *	$Id: in_proto.c,v 1.23 1995/12/02 19:37:53 bde Exp $
+ *	$Id: in_proto.c,v 1.24 1995/12/20 21:53:53 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -191,6 +191,7 @@ SYSCTL_NODE(_net_inet, IPPROTO_UDP,	udp,	CTLFLAG_RW, 0,	"UDP");
 SYSCTL_NODE(_net_inet, IPPROTO_TCP,	tcp,	CTLFLAG_RW, 0,	"TCP");
 SYSCTL_NODE(_net_inet, IPPROTO_IGMP,	igmp,	CTLFLAG_RW, 0,	"IGMP");
 
+#if 0
 #include "imp.h"
 #if NIMP > 0
 extern	struct domain impdomain;
@@ -210,6 +211,7 @@ struct domain impdomain =
 
 DOMAIN_SET(imp);
 
+#endif
 #endif
 
 #if 0
