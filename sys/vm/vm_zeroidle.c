@@ -76,6 +76,7 @@ TUNABLE_INT("vm.idlezero_maxrun", &idlezero_maxrun);
 #define ZIDLE_LO(v)	((v) * 2 / 3)
 #define ZIDLE_HI(v)	((v) * 4 / 5)
 
+static boolean_t wakeup_needed = FALSE;
 static int zero_state;
 
 static int
@@ -130,8 +131,11 @@ void
 vm_page_zero_idle_wakeup(void)
 {
 
-	if (idlezero_enable && vm_page_zero_check())
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	if (wakeup_needed && vm_page_zero_check()) {
+		wakeup_needed = FALSE;
 		wakeup(&zero_state);
+	}
 }
 
 static void
@@ -163,7 +167,10 @@ vm_pagezero(void __unused *arg)
 			}
 #endif
 		} else {
-			tsleep(&zero_state, pri, "pgzero", hz * 300);
+			vm_page_lock_queues();
+			wakeup_needed = TRUE;
+			msleep(&zero_state, &vm_page_queue_mtx, PDROP | pri,
+			    "pgzero", hz * 300);
 			pages = 0;
 		}
 	}
