@@ -34,11 +34,12 @@
  * SUCH DAMAGE.
  *
  *	@(#)sysctl.h	8.1 (Berkeley) 6/2/93
- * $Id: sysctl.h,v 1.23 1995/05/30 08:14:36 rgrimes Exp $
+ * $Id: sysctl.h,v 1.24 1995/07/10 08:39:49 davidg Exp $
  */
 
 #ifndef _SYS_SYSCTL_H_
 #define	_SYS_SYSCTL_H_
+
 
 /*
  * These are for the eproc structure defined below.
@@ -72,11 +73,72 @@ struct ctlname {
 	char	*ctl_name;	/* subsystem name */
 	int	ctl_type;	/* type of name */
 };
+
+#define CTLTYPE		0xf	/* Mask */
 #define	CTLTYPE_NODE	1	/* name is a node */
 #define	CTLTYPE_INT	2	/* name describes an integer */
 #define	CTLTYPE_STRING	3	/* name describes a string */
 #define	CTLTYPE_QUAD	4	/* name describes a 64-bit number */
-#define	CTLTYPE_STRUCT	5	/* name describes a structure */
+#define	CTLTYPE_OPAQUE	5	/* name describes a structure */
+#define	CTLTYPE_STRUCT	CTLTYPE_OPAQUE	/* name describes a structure */
+
+#define CTLFLAG_RD	0x80000000	/* Allow reads of variable */
+#define CTLFLAG_WR	0x40000000	/* Allow writes to the variable */
+#define CTLFLAG_RW	(CTLFLAG_RD|CTLFLAG_WR)
+#define CTLFLAG_XLT	0x20000000	/* Variable is xlated by function */
+#define CTLFLAG_NOLOCK	0x10000000	/* XXX Don't Lock */
+
+#define CTLBEFORE	0
+#define CTLAFTER	1
+
+
+struct sysctl_oid {
+	int		oid_number;
+	int		oid_kind;
+	void		*oid_arg1;
+	int		oid_arg2;
+	char		*oid_name;
+	int 		(*oid_handler)(struct sysctl_oid *, int, int);
+};
+typedef int (*sysctl_handler)(struct sysctl_oid *, int, int);
+
+/* This is the "raw" function for a mib-oid */
+#define SYSCTL_OID(parent,number,name,kind,arg1,arg2,handler,descr) \
+	static const struct sysctl_oid sysctl__##parent##_##name = { \
+		number, kind, arg1, arg2, #name, handler }; \
+	TEXT_SET(sysctl_##parent, sysctl__##parent##_##name);
+
+/* This makes a node from which other oids can hang */
+#define SYSCTL_NODE(parent,number,name,handler,descr) \
+	extern struct linker_set sysctl_##parent##_##name; \
+	SYSCTL_OID(parent,number,name, CTLTYPE_NODE, \
+		(void*)&sysctl_##parent##_##name,0,handler,descr); \
+	TEXT_SET(sysctl_##parent##_##name, sysctl__##parent##_##name);
+
+/* This is a string len can be 0 to indicate '\0' termination */
+#define SYSCTL_STRING(parent,number,name,access,arg,len,handler,descr) \
+	SYSCTL_OID(parent,number,name, CTLTYPE_STRING|access,\
+		arg,len,handler,descr);
+
+/* This is a integer, if ptr is NULL, val is returned */
+#define SYSCTL_INT(parent,number,name,access,ptr,val,handler,descr) \
+	SYSCTL_OID(parent,number,name,CTLTYPE_INT|access,\
+		ptr,val,handler,descr);
+
+/* This is anything, specified by a pointer and a lenth */
+#define SYSCTL_OPAQUE(parent,number,name,access,ptr,len,handler,descr) \
+	SYSCTL_OID(parent,number,name,CTLTYPE_OPAQUE|access,\
+		ptr,len,handler,descr);
+
+/* This is a struct, specified by a pointer and type */
+#define SYSCTL_STRUCT(parent,number,name,access,ptr,type,handler,descr) \
+	SYSCTL_OID(parent,number,name,CTLTYPE_OPAQUE|access,\
+		ptr,sizeof(struct type),handler,descr);
+
+/* Needs a proc.  Specify by pointer and arg */
+#define SYSCTL_PROC(parent,number,name,access,ptr,arg,handler,descr) \
+	SYSCTL_OID(parent,number,name,CTLTYPE_PROC|access,\
+		ptr,arg,handler,descr);
 
 /*
  * Top-level identifiers
