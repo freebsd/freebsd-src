@@ -67,12 +67,25 @@ static int (*openfirmware)(void *);
 static ihandle_t stdin;
 static ihandle_t stdout;
 
+static ihandle_t mmu;
+static ihandle_t memory;
+
 /* Initialiaser */
 
 void
 OF_init(int (*openfirm)(void *))
 {
+	phandle_t	chosen;
+
 	openfirmware = openfirm;
+
+	chosen = OF_finddevice("/chosen");
+	OF_getprop(chosen, "memory", &memory, sizeof(memory));
+	if (memory == 0)
+		panic("failed to get memory ihandle");
+	OF_getprop(chosen, "mmu", &mmu, sizeof(mmu));
+	if (mmu == 0)
+		panic("failed to get mmu ihandle");
 }
 
 /*
@@ -706,7 +719,7 @@ OF_exit()
 }
 
 /* Free <size> bytes starting at <virt>, then call <entry> with <arg>. */
-#ifdef	__notyet__
+#if 0
 void
 OF_chain(void *virt, u_int size, void (*entry)(), void *arg, u_int len)
 {
@@ -739,9 +752,9 @@ OF_chain(void *virt, u_int size, void (*entry)(), void *arg, u_int len)
 	/*
 	 * This is a REALLY dirty hack till the firmware gets this going
 	 */
-#if 0
-	OF_release(virt, size);
-#endif
+	if (size > 0)
+		OF_release(virt, size);
+
 	entry(0, 0, openfirmware, arg, len);
 }
 #endif

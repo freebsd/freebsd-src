@@ -82,6 +82,24 @@ int	ofw_devicetype(char *);
 extern int	ofw_boot(void);
 extern int	ofw_autoload(void);
 
+void	ofw_memmap(void);
+void	*ofw_alloc_heap(unsigned int);
+void	ofw_release_heap(void);
+
+struct preloaded_file;
+struct file_format;
+
+int	ofw_elf_loadfile(char *, vm_offset_t, struct preloaded_file **);
+int	ofw_elf_exec(struct preloaded_file *);
+
+extern struct file_format	ofw_elf;
+
 extern void	reboot(void);
 
 extern int	main(int (*openfirm)(void *));
+
+struct ofw_reg
+{
+	uint32_t	base;
+	uint32_t	size;
+};
