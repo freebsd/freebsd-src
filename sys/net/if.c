@@ -1651,7 +1651,7 @@ again:
 }
 
 /*
- * Just like if_promisc(), but for all-multicast-reception mode.
+ * Just like ifpromisc(), but for all-multicast-reception mode.
  */
 int
 if_allmulti(struct ifnet *ifp, int onswitch)
