@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_ccb.h,v 1.6 1999/05/22 21:58:45 gibbs Exp $
+ *      $Id: cam_ccb.h,v 1.7 1999/05/23 18:57:28 gibbs Exp $
  */
 
 #ifndef _CAM_CAM_CCB_H
@@ -105,10 +105,12 @@ typedef enum {
 	XPT_FC_USER_CCB		= 0x200,
 	XPT_FC_XPT_ONLY		= 0x400,
 				/* Only for the transport layer device */
+	XPT_FC_DEV_QUEUED	= 0x800 | XPT_FC_QUEUED,
+				/* Passes through the device queues */
 /* Common function commands: 0x00->0x0F */
 	XPT_NOOP 		= 0x00,
 				/* Execute Nothing */
-	XPT_SCSI_IO		= 0x01 | XPT_FC_QUEUED,
+	XPT_SCSI_IO		= 0x01 | XPT_FC_DEV_QUEUED,
 				/* Execute the requested I/O operation */
 	XPT_GDEV_TYPE		= 0x02,
 				/* Get type information for specified device */
@@ -138,7 +140,7 @@ typedef enum {
 				/* Abort the specified CCB */
 	XPT_RESET_BUS		= 0x11 | XPT_FC_XPT_ONLY,
 				/* Reset the specified SCSI bus */
-	XPT_RESET_DEV		= 0x12,
+	XPT_RESET_DEV		= 0x12 | XPT_FC_DEV_QUEUED,
 				/* Bus Device Reset the specified SCSI device */
 	XPT_TERM_IO		= 0x13,
 				/* Terminate the I/O process */
@@ -165,17 +167,17 @@ typedef enum {
 /* HBA engine commands 0x20->0x2F */
 	XPT_ENG_INQ		= 0x20 | XPT_FC_XPT_ONLY,
 				/* HBA engine feature inquiry */
-	XPT_ENG_EXEC		= 0x21 | XPT_FC_QUEUED | XPT_FC_XPT_ONLY,
+	XPT_ENG_EXEC		= 0x21 | XPT_FC_DEV_QUEUED | XPT_FC_XPT_ONLY,
 				/* HBA execute engine request */
 
 /* Target mode commands: 0x30->0x3F */
 	XPT_EN_LUN		= 0x30,
 				/* Enable LUN as a target */
-	XPT_TARGET_IO		= 0x31 | XPT_FC_QUEUED,
+	XPT_TARGET_IO		= 0x31 | XPT_FC_DEV_QUEUED,
 				/* Execute target I/O request */
 	XPT_ACCEPT_TARGET_IO	= 0x32 | XPT_FC_QUEUED | XPT_FC_USER_CCB,
 				/* Accept Host Target Mode CDB */
-	XPT_CONT_TARGET_IO	= 0x33 | XPT_FC_QUEUED,
+	XPT_CONT_TARGET_IO	= 0x33 | XPT_FC_DEV_QUEUED,
 				/* Continue Host Target I/O Connection */
 	XPT_IMMED_NOTIFY	= 0x34 | XPT_FC_QUEUED | XPT_FC_USER_CCB,
 				/* Notify Host Target driver of event */
@@ -190,10 +192,14 @@ typedef enum {
 #define XPT_FC_GROUP(op) ((op) & XPT_FC_GROUP_MASK)
 #define XPT_FC_GROUP_COMMON		0x00
 #define XPT_FC_GROUP_SCSI_CONTROL	0x10
-#define XPT_FC_GROUP_HBA_ENGINE	0x20
+#define XPT_FC_GROUP_HBA_ENGINE		0x20
 #define XPT_FC_GROUP_TMODE		0x30
 #define XPT_FC_GROUP_VENDOR_UNIQUE	0x80
 
+#define XPT_FC_IS_DEV_QUEUED(ccb) 	\
+    (((ccb)->ccb_h.func_code & XPT_FC_DEV_QUEUED) == XPT_FC_DEV_QUEUED)
+#define XPT_FC_IS_QUEUED(ccb) 	\
+    (((ccb)->ccb_h.func_code & XPT_FC_QUEUED) != 0)
 typedef union {
 	LIST_ENTRY(ccb_hdr) le;
 	SLIST_ENTRY(ccb_hdr) sle;
@@ -565,8 +571,8 @@ struct ccb_scsiio {
 	 * from scsi_message.h.
 	 */
 #define		CAM_TAG_ACTION_NONE	0x00
-	u_int8_t   tag_id;		/* tag id from initator (target mode) */
-	u_int8_t   init_id;		/* initiator id of who selected */
+	u_int	   tag_id;		/* tag id from initator (target mode) */
+	u_int	   init_id;		/* initiator id of who selected */
 };
 
 struct ccb_accept_tio {
@@ -711,8 +717,6 @@ struct ccb_immed_notify {
 	struct    scsi_sense_data sense_data;
 	u_int8_t  sense_len;		/* Number of bytes in sese buffer */
 	u_int8_t  initiator_id;		/* Id of initiator that selected */
-	u_int16_t seq_id;		/* Sequence Identifier */
-	u_int8_t  message_code;		/* Message Code */
 	u_int8_t  message_args[7];	/* Message Arguments */
 };
 
