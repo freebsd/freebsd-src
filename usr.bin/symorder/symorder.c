@@ -344,6 +344,6 @@ error(n)
 usage()
 {
 	(void)fprintf(stderr,
-	    "usage: symorder [-m] [-t] [-x excludelist] symlist file\n");
+	    "usage: symorder [-c] [-m] [-t] [-x excludelist] symlist file\n");
 	exit(ERREXIT);
 }
