@@ -2098,27 +2098,27 @@ char *arguments[];
 	}
 	while (count < numargs)
 	{
-			buff = arguments[count];
-			if (top_of_stack == NULL)
-			{
-				temp_names = top_of_stack = name_alloc();
-			}
-			else
-			{
-				temp_names->next_name = name_alloc();
-				temp_names = temp_names->next_name;
-			}
-			ptr = temp_names->name = malloc(strlen(buff) + 1);
-			while (*buff != (char) NULL)
-			{
-				*ptr = *buff;
-				buff++;
-				ptr++;
-			}
-			*ptr = (char) NULL;
-			temp_names->next_name = NULL;
-			input_file = TRUE;
-			recv_file = TRUE;
+		buff = arguments[count];
+		if (top_of_stack == NULL)
+		{
+			temp_names = top_of_stack = name_alloc();
+		}
+		else
+		{
+			temp_names->next_name = name_alloc();
+			temp_names = temp_names->next_name;
+		}
+		ptr = temp_names->name = malloc(strlen(buff) + 1);
+		while (*buff != (char) NULL)
+		{
+			*ptr = *buff;
+			buff++;
+			ptr++;
+		}
+		*ptr = (char) NULL;
+		temp_names->next_name = NULL;
+		input_file = TRUE;
+		recv_file = TRUE;
 		count++;
 	}
 }
