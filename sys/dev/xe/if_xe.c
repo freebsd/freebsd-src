@@ -120,14 +120,12 @@
 #include <sys/cdefs.h>
 #include <sys/errno.h>
 #include <sys/kernel.h>
-#include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/select.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <sys/systm.h>
 #include <sys/uio.h>
-#include <sys/conf.h>
 
 #include <sys/module.h>
 #include <sys/bus.h>

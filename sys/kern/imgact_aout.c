@@ -33,7 +33,6 @@
 #include <sys/imgact.h>
 #include <sys/imgact_aout.h>
 #include <sys/kernel.h>
-#include <sys/malloc.h>
 #include <sys/namei.h>
 #include <sys/pioctl.h>
 #include <sys/proc.h>

@@ -40,9 +40,7 @@
 #include <sys/systm.h>
 #include <sys/module.h>
 #include <sys/bus.h>
-#include <sys/conf.h>
 #include <sys/uio.h>
-#include <sys/malloc.h>
 #include <sys/select.h>
 
 #include <machine/clock.h>

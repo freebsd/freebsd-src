@@ -49,7 +49,6 @@
 #include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/ioccom.h>
-#include <sys/conf.h>
 #endif
 #include <sys/tty.h>
 #include <sys/file.h>

@@ -115,7 +115,6 @@ iomem and and with 0xffff.
 #include <sys/eventhandler.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
-#include <sys/conf.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>

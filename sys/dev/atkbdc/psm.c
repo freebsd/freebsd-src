@@ -71,7 +71,6 @@
 #include <sys/conf.h>
 #include <sys/poll.h>
 #include <sys/syslog.h>
-#include <sys/malloc.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <sys/select.h>
