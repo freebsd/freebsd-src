@@ -176,7 +176,7 @@ static int
 dead_ioctl(ap)
 	struct vop_ioctl_args /* {
 		struct vnode *a_vp;
-		int  a_command;
+		u_long  a_command;
 		caddr_t  a_data;
 		int  a_fflag;
 		struct ucred *a_cred;
@@ -186,6 +186,7 @@ dead_ioctl(ap)
 
 	if (!chkvnlock(ap->a_vp))
 		return (ENOTTY);
+	/* XXX: Doesn't this just recurse back here ? */
 	return (VCALL(ap->a_vp, VOFFSET(vop_ioctl), ap));
 }
 

@@ -188,7 +188,7 @@ struct devfs_mount {
 
 void devfs_rules_apply(struct devfs_mount *dm, struct devfs_dirent *de);
 void devfs_rules_init(void);
-int devfs_rules_ioctl(struct mount *mp, int cmd, caddr_t data, struct thread *td);
+int devfs_rules_ioctl(struct mount *mp, u_long cmd, caddr_t data, struct thread *td);
 void devfs_rules_newmount(struct devfs_mount *dm, struct thread *td);
 int devfs_allocv (struct devfs_dirent *de, struct mount *mp, struct vnode **vpp, struct thread *td);
 dev_t *devfs_itod (int inode);
