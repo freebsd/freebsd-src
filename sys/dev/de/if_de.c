@@ -3058,7 +3058,7 @@ tulip_addr_filter(
 	 * receiving every multicast.
 	 */
 	if ((sc->tulip_flags & TULIP_ALLMULTI) == 0) {
-	    hash = tulip_mchash(etherbroadcastaddr);
+	    hash = tulip_mchash(sc->tulip_if.if_broadcastaddr);
 #if BYTE_ORDER == BIG_ENDIAN
 	    sp[hash >> 4] |= bswap32(1 << (hash & 0xF));
 #else
