@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.12 1995/04/19 14:02:00 jkh Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.13 1995/04/26 15:08:02 jkh Exp $";
 #endif
 
 /*
@@ -81,8 +81,8 @@ pkg_do(char *pkg)
     char fname[FILENAME_MAX];
     Package plist;
     FILE *fp;
-    char *cp;
     struct stat sb;
+    char *cp = NULL;
     int code = 0;
 
     if (isURL(pkg)) {
