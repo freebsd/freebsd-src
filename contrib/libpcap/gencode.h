@@ -18,7 +18,7 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * @(#) $Header: gencode.h,v 1.36 96/07/17 00:11:34 leres Exp $ (LBL)
+ * @(#) $Header: /tcpdump/master/libpcap/gencode.h,v 1.37 1999/10/19 15:18:29 itojun Exp $ (LBL)
  */
 
 /*XXX*/
@@ -31,6 +31,7 @@
 #define Q_PORT		3
 #define Q_GATEWAY	4
 #define Q_PROTO		5
+#define Q_PROTOCHAIN	6
 
 /* Protocol qualifiers. */
 
@@ -52,6 +53,14 @@
 #define	Q_MOPRC		14
 #define	Q_MOPDL		15
 
+
+#define Q_IPV6		16
+#define Q_ICMPV6	17
+#define Q_AH		18
+#define Q_ESP		19
+
+#define Q_PIM		20
+
 /* Directional qualifiers. */
 
 #define Q_SRC		1
@@ -62,8 +71,12 @@
 #define Q_DEFAULT	0
 #define Q_UNDEF		255
 
+struct slist;
+
 struct stmt {
 	int code;
+	struct slist *jt;	/*only for relative jump in block*/
+	struct slist *jf;	/*only for relative jump in block*/
 	bpf_int32 k;
 };
 
@@ -150,6 +163,9 @@ void gen_not(struct block *);
 struct block *gen_scode(const char *, struct qual);
 struct block *gen_ecode(const u_char *, struct qual);
 struct block *gen_mcode(const char *, const char *, int, struct qual);
+#ifdef INET6
+struct block *gen_mcode6(const char *, const char *, int, struct qual);
+#endif
 struct block *gen_ncode(const char *, bpf_u_int32, struct qual);
 struct block *gen_proto_abbrev(int);
 struct block *gen_relation(int, struct arth *, struct arth *, int);
@@ -177,3 +193,5 @@ void sappend(struct slist *, struct slist *);
 /* XXX */
 #define JT(b)  ((b)->et.succ)
 #define JF(b)  ((b)->ef.succ)
+
+extern int no_optimize;
