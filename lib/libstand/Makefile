@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.10 1998/11/04 07:39:53 msmith Exp $
+# $Id: Makefile,v 1.11 1998/11/04 12:49:31 peter Exp $
 #
 # Originally from	$NetBSD: Makefile,v 1.21 1997/10/26 22:08:38 lukem Exp $
 #
@@ -91,7 +91,7 @@ __reml.S: ${.CURDIR}/../libc/alpha/gen/divrem.m4
 SRCS+=	inet_ntoa.c inet_addr.c
 
 # _setjmp/_longjmp
-.PATH:	${.CURDIR}/../libc/${MACHINE_ARCH}/gen
+.PATH:	${.CURDIR}/${MACHINE_ARCH}
 SRCS+=	_setjmp.S
 # really only required for i386
 CFLAGS+=-I${.CURDIR}/../libc/${MACHINE_ARCH}
