@@ -35,13 +35,17 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1980, 1990, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)quotaon.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id: quotaon.c,v 1.3 1997/10/13 11:01:33 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -51,8 +55,12 @@ static char sccsid[] = "@(#)quotaon.c	8.1 (Berkeley) 6/6/93";
 #include <sys/file.h>
 #include <sys/mount.h>
 #include <ufs/ufs/quota.h>
-#include <stdio.h>
+#include <err.h>
 #include <fstab.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 char *qfname = QUOTAFILENAME;
 char *qfextension[] = INITQFNAMES;
@@ -62,27 +70,29 @@ int	gflag;		/* operate on group quotas */
 int	uflag;		/* operate on user quotas */
 int	vflag;		/* verbose */
 
+int hasquota __P((struct fstab *, int, char **));
+int oneof __P((char *, char *[], int));
+int quotaonoff __P((struct fstab *fs, int, int, char *));
+int readonly __P((struct fstab *));
+static void usage __P((void));
+
+int
 main(argc, argv)
 	int argc;
 	char **argv;
 {
 	register struct fstab *fs;
-	char ch, *qfnp, *whoami, *rindex();
+	char ch, *qfnp, *whoami;
 	long argnum, done = 0;
 	int i, offmode = 0, errs = 0;
-	extern char *optarg;
-	extern int optind;
 
 	whoami = rindex(*argv, '/') + 1;
 	if (whoami == (char *)1)
 		whoami = *argv;
 	if (strcmp(whoami, "quotaoff") == 0)
 		offmode++;
-	else if (strcmp(whoami, "quotaon") != 0) {
-		fprintf(stderr, "Name must be quotaon or quotaoff not %s\n",
-			whoami);
-		exit(1);
-	}
+	else if (strcmp(whoami, "quotaon") != 0)
+		errx(1, "name must be quotaon or quotaoff");
 	while ((ch = getopt(argc, argv, "avug")) !=  -1) {
 		switch(ch) {
 		case 'a':
@@ -98,13 +108,13 @@ main(argc, argv)
 			vflag++;
 			break;
 		default:
-			usage(whoami);
+			usage();
 		}
 	}
 	argc -= optind;
 	argv += optind;
 	if (argc <= 0 && !aflag)
-		usage(whoami);
+		usage();
 	if (!gflag && !uflag) {
 		gflag++;
 		uflag++;
@@ -133,20 +143,23 @@ main(argc, argv)
 	endfsent();
 	for (i = 0; i < argc; i++)
 		if ((done & (1 << i)) == 0)
-			fprintf(stderr, "%s not found in fstab\n",
-				argv[i]);
+			warnx("%s not found in fstab", argv[i]);
 	exit(errs);
 }
 
-usage(whoami)
-	char *whoami;
+static void
+usage()
 {
 
-	fprintf(stderr, "Usage:\n\t%s [-g] [-u] [-v] -a\n", whoami);
-	fprintf(stderr, "\t%s [-g] [-u] [-v] filesys ...\n", whoami);
+	fprintf(stderr, "%s\n%s\n%s\n%s\n",
+		"usage: quotaon [-g] [-u] [-v] -a",
+		"       quotaon [-g] [-u] [-v] filesystem ...",
+		"       quotaoff [-g] [-u] [-v] -a",
+		"       quotaoff [-g] [-u] [-v] filesystem ...");
 	exit(1);
 }
 
+int
 quotaonoff(fs, offmode, type, qfpathname)
 	register struct fstab *fs;
 	int offmode, type;
@@ -157,8 +170,7 @@ quotaonoff(fs, offmode, type, qfpathname)
 		return (1);
 	if (offmode) {
 		if (quotactl(fs->fs_file, QCMD(Q_QUOTAOFF, type), 0, 0) < 0) {
-			fprintf(stderr, "quotaoff: ");
-			perror(fs->fs_file);
+			warn("%s", fs->fs_file);
 			return (1);
 		}
 		if (vflag)
@@ -166,8 +178,8 @@ quotaonoff(fs, offmode, type, qfpathname)
 		return (0);
 	}
 	if (quotactl(fs->fs_file, QCMD(Q_QUOTAON, type), 0, qfpathname) < 0) {
-		fprintf(stderr, "quotaon: using %s on", qfpathname);
-		perror(fs->fs_file);
+		warnx("using %s on", qfpathname);
+		warn("%s", fs->fs_file);
 		return (1);
 	}
 	if (vflag)
@@ -179,6 +191,7 @@ quotaonoff(fs, offmode, type, qfpathname)
 /*
  * Check to see if target appears in list of size cnt.
  */
+int
 oneof(target, list, cnt)
 	register char *target, *list[];
 	int cnt;
@@ -194,13 +207,14 @@ oneof(target, list, cnt)
 /*
  * Check to see if a particular quota is to be enabled.
  */
+int
 hasquota(fs, type, qfnamep)
 	register struct fstab *fs;
 	int type;
 	char **qfnamep;
 {
 	register char *opt;
-	char *cp, *index(), *strtok();
+	char *cp;
 	static char initname, usrname[100], grpname[100];
 	static char buf[BUFSIZ];
 
@@ -211,7 +225,7 @@ hasquota(fs, type, qfnamep)
 	}
 	strcpy(buf, fs->fs_mntops);
 	for (opt = strtok(buf, ","); opt; opt = strtok(NULL, ",")) {
-		if (cp = index(opt, '='))
+		if ((cp = index(opt, '=')))
 			*cp++ = '\0';
 		if (type == USRQUOTA && strcmp(opt, usrname) == 0)
 			break;
@@ -232,6 +246,7 @@ hasquota(fs, type, qfnamep)
 /*
  * Verify file system is mounted and not readonly.
  */
+int
 readonly(fs)
 	register struct fstab *fs;
 {
