@@ -78,10 +78,7 @@ static MALLOC_DEFINE(M_IPMOPTS, "ip_moptions", "internet multicast options");
 #endif /*IPSEC*/
 
 #include <netinet/ip_fw.h>
-
-#ifdef DUMMYNET
 #include <netinet/ip_dummynet.h>
-#endif
 
 #ifdef IPFIREWALL_FORWARD_DEBUG
 #define print_ip(a)	 printf("%ld.%ld.%ld.%ld",(ntohl(a.s_addr)>>24)&0xFF,\
@@ -153,7 +150,6 @@ ip_output(m0, opt, ro, flags, imo)
 	divert_cookie = 0;
 #endif
 
-#if defined(IPFIREWALL) && defined(DUMMYNET)
         /*  
          * dummynet packet are prepended a vestigial mbuf with
          * m_type = MT_DUMMYNET and m_data pointing to the matching
@@ -184,7 +180,6 @@ ip_output(m0, opt, ro, flags, imo)
             goto sendit;
         } else
             rule = NULL ;
-#endif
 #ifdef IPSEC
 	so = ipsec_getsocket(m);
 	(void)ipsec_setsocket(m, NULL);
@@ -627,8 +622,7 @@ skip_ipsec:
 		}
 		if (off == 0 && dst == old) /* common case */
 			goto pass ;
-#ifdef DUMMYNET
-                if ((off & IP_FW_PORT_DYNT_FLAG) != 0) {
+                if (ip_dn_io_ptr != NULL && (off & IP_FW_PORT_DYNT_FLAG) != 0) {
                     /*
                      * pass the pkt to dummynet. Need to include
                      * pipe number, m, ifp, ro, dst because these are
@@ -638,11 +632,10 @@ skip_ipsec:
                      * XXX note: if the ifp or ro entry are deleted
                      * while a pkt is in dummynet, we are in trouble!
                      */ 
-		    error = dummynet_io(off & 0xffff, DN_TO_IP_OUT, m,
+		    error = ip_dn_io_ptr(off & 0xffff, DN_TO_IP_OUT, m,
 				ifp,ro,dst,rule, flags);
 		    goto done;
 		}
-#endif   
 #ifdef IPDIVERT
 		if (off != 0 && (off & IP_FW_PORT_DYNT_FLAG) == 0) {
 			struct mbuf *clone = NULL;

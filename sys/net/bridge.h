@@ -76,8 +76,6 @@ typedef struct _bdg_addr {
 extern bdg_addr bdg_addresses[BDG_MAX_PORTS];
 extern int bdg_ports ;
 
-extern void bdgtakeifaces(void);
-
 /*
  * out of the 6 bytes, the last ones are more "variable". Since
  * we are on a little endian machine, we have to do some gimmick...
@@ -85,10 +83,6 @@ extern void bdgtakeifaces(void);
 #define HASH_SIZE 8192	/* must be a power of 2 */
 #define HASH_FN(addr)   (	\
 	ntohs( ((short *)addr)[1] ^ ((short *)addr)[2] ) & (HASH_SIZE -1))
-
-struct ifnet *bridge_in(struct ifnet *ifp, struct ether_header *eh);
-/* bdg_forward frees the mbuf if necessary, returning null */
-struct mbuf *bdg_forward(struct mbuf *m0, struct ether_header *eh, struct ifnet *dst);
 
 #ifdef __i386__
 #define BDG_MATCH(a,b) ( \
@@ -136,6 +130,15 @@ struct bdg_stats {
 #define BDG_STAT(ifp, type) bdg_stats.s[ifp->if_index].p_in[(int)type]++ 
  
 #ifdef _KERNEL
+typedef	struct ifnet *bridge_in_t(struct ifnet *, struct ether_header *);
+/* bdg_forward frees the mbuf if necessary, returning null */
+typedef	struct mbuf *bdg_forward_t(struct mbuf *, struct ether_header *const,
+		struct ifnet *);
+typedef void bdgtakeifaces_t(void);
+extern	bridge_in_t *bridge_in_ptr;
+extern	bdg_forward_t *bdg_forward_ptr;
+extern	bdgtakeifaces_t *bdgtakeifaces_ptr;
+
 /*
  * Find the right pkt destination:
  *	BDG_BCAST	is a broadcast

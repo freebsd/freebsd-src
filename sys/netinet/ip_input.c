@@ -79,14 +79,12 @@
 #include <sys/socketvar.h>
 
 #include <netinet/ip_fw.h>
+#include <netinet/ip_dummynet.h>
+
 
 #ifdef IPSEC
 #include <netinet6/ipsec.h>
 #include <netkey/key.h>
-#endif
-
-#ifdef DUMMYNET
-#include <netinet/ip_dummynet.h>
 #endif
 
 int rsvp_on = 0;
@@ -190,12 +188,10 @@ SYSCTL_INT(_net_inet_ip, OID_AUTO, stealth, CTLFLAG_RW,
 
 /* Firewall hooks */
 ip_fw_chk_t *ip_fw_chk_ptr;
-ip_fw_ctl_t *ip_fw_ctl_ptr;
 int fw_enable = 1 ;
 
-#ifdef DUMMYNET
-ip_dn_ctl_t *ip_dn_ctl_ptr;
-#endif
+/* Dummynet hooks */
+ip_dn_io_t *ip_dn_io_ptr;
 
 
 /*
@@ -301,7 +297,6 @@ ip_input(struct mbuf *m)
 	divert_cookie = 0;
 #endif
 
-#if defined(IPFIREWALL) && defined(DUMMYNET)
         /*
          * dummynet packet are prepended a vestigial mbuf with
          * m_type = MT_DUMMYNET and m_data pointing to the matching
@@ -315,7 +310,6 @@ ip_input(struct mbuf *m)
             goto iphack ;
         } else
             rule = NULL ;
-#endif
 
 #ifdef	DIAGNOSTIC
 	if (m == NULL || (m->m_flags & M_PKTHDR) == 0)
@@ -420,9 +414,7 @@ tooshort:
 	 * - Encapsulate: put it in another IP and send out. <unimp.>
  	 */
 
-#if defined(IPFIREWALL) && defined(DUMMYNET)
 iphack:
-#endif
 
 #ifdef PFIL_HOOKS
 	/*
@@ -477,14 +469,12 @@ iphack:
 		}
 		if (i == 0 && ip_fw_fwd_addr == NULL)	/* common case */
 			goto pass;
-#ifdef DUMMYNET
-                if ((i & IP_FW_PORT_DYNT_FLAG) != 0) {
+                if (ip_dn_io_ptr != NULL && (i & IP_FW_PORT_DYNT_FLAG) != 0) {
                         /* Send packet to the appropriate pipe */
-                        dummynet_io(i&0xffff,DN_TO_IP_IN,m,NULL,NULL,0, rule,
+                        ip_dn_io_ptr(i&0xffff,DN_TO_IP_IN,m,NULL,NULL,0, rule,
 				    0);
 			return;
 		}
-#endif
 #ifdef IPDIVERT
 		if (i != 0 && (i & IP_FW_PORT_DYNT_FLAG) == 0) {
 			/* Divert or tee packet */
