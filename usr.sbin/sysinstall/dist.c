@@ -868,7 +868,7 @@ distExtract(char *parent, Distribution *me)
 	    unmounted_dev = 0;
 	}
     }
-    save_free(buf);
+    safe_free(buf);
     properties_free(dist_attr);
     sigaction(SIGINT, &old, NULL);	/* Restore signal handler */
     restorescr(w);
