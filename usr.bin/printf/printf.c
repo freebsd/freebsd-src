@@ -51,6 +51,7 @@ static char const sccsid[] = "@(#)printf.c	8.1 (Berkeley) 7/20/93";
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #ifdef SHELL
 #define main printfcmd
