@@ -1320,7 +1320,7 @@ DMenu MenuNetworking = {
       { " NFS server",	"This machine will be an NFS server",
 	dmenuVarCheck,	configNFSServer, NULL, "nfs_server_enable=YES" },
       { " Ntpdate",	"Select a clock-synchronization server",
-	dmenuVarCheck,	dmenuSubmenu, NULL, &MenuNTP, '[', 'X', ']', (int)"ntpdate_enable=YES" },
+	dmenuVarCheck,	dmenuSubmenu, NULL, &MenuNTP, '[', 'X', ']', "ntpdate_enable=YES" },
       { " PCNFSD",	"Run authentication server for clients with PC-NFS.",
 	dmenuVarCheck,	configPCNFSD, NULL, "pcnfsd" },
       { " portmap",	"This machine wants to run the portmapper daemon",
