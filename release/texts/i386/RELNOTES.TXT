@@ -338,6 +338,8 @@ login(1) now exports environment variables set by PAM modules.
 ipfstat(8) now supports the -t option to turn on a top(1)-like
 display.
 
+pkg_sign(1) and pkg_check(1) have been added to digitally sign and
+verify the signatures on binary package files.
 
 2. Supported Configurations
 ---------------------------
