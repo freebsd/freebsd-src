@@ -327,9 +327,10 @@ ac97_initmixer(struct ac97_info *codec)
 		return ENODEV;
 	}
 
-	wrcd(codec, AC97_REG_POWER, 0);
+	wrcd(codec, AC97_REG_POWER, 0x8000);
 	wrcd(codec, AC97_REG_RESET, 0);
 	DELAY(100000);
+	wrcd(codec, AC97_REG_POWER, 0x8000);
 
 	i = rdcd(codec, AC97_REG_RESET);
 	codec->caps = i & 0x03ff;
