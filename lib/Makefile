@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/4/93
-#	$Id: Makefile,v 1.66 1998/03/21 08:18:57 markm Exp $
+#	$Id: Makefile,v 1.67 1998/05/03 05:06:13 peter Exp $
 
 # To satisfy shared library or ELF linkage when only the libraries being
 # built are visible:
@@ -41,11 +41,11 @@ _libdisk=	libdisk
 _libkvm=	libkvm
 _libscsi=	libscsi
 _libvgl=	libvgl
+.endif
 
 .if !defined(NOTCL) && exists (${.CURDIR}/../contrib/tcl) && \
     exists(${.CURDIR}/../usr.bin/tclsh) && exists (${.CURDIR}/libtcl)
 _libtcl=	libtcl
-.endif
 .endif
 
 .if defined(WANT_CSRG_LIBM)
