@@ -114,12 +114,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/wi/if_wireg.h>
 #include <dev/wi/if_wivar.h>
 
-#if 0 /* ALTQ */
-#define IF_POLL(ifq, m)		((m) = (ifq)->ifq_head)
-#define	IFQ_POLL(ifq, m)	IF_POLL((ifq), (m))
-#define IFQ_DEQUEUE(ifq, m)	IF_DEQUEUE((ifq), (m))
-#endif
-
 static void wi_start(struct ifnet *);
 static int  wi_reset(struct wi_softc *);
 static void wi_watchdog(struct ifnet *);
@@ -308,7 +302,9 @@ wi_attach(device_t dev)
 	ifp->if_start = wi_start;
 	ifp->if_watchdog = wi_watchdog;
 	ifp->if_init = wi_init;
-	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
+	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
+	ifp->if_snd.ifq_drv_maxlen = IFQ_MAXLEN;
+	IFQ_SET_READY(&ifp->if_snd);
 
 	ic->ic_phytype = IEEE80211_T_DS;
 	ic->ic_opmode = IEEE80211_M_STA;
@@ -616,7 +612,7 @@ wi_intr(void *arg)
 		wi_info_intr(sc);
 	if ((ifp->if_flags & IFF_OACTIVE) == 0 &&
 	    (sc->sc_flags & WI_FLAGS_OUTRANGE) == 0 &&
-	    _IF_QLEN(&ifp->if_snd) != 0)
+	    !IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		wi_start(ifp);
 
 	/* Re-enable interrupts. */
@@ -906,14 +902,14 @@ wi_start(struct ifnet *ifp)
 		} else {
 			if (ic->ic_state != IEEE80211_S_RUN)
 				break;
-			IFQ_POLL(&ifp->if_snd, m0);
+			IFQ_DRV_DEQUEUE(&ifp->if_snd, m0);
 			if (m0 == NULL)
 				break;
 			if (sc->sc_txd[cur].d_len != 0) {
+				IFQ_DRV_PREPEND(&ifp->if_snd, m0);
 				ifp->if_flags |= IFF_OACTIVE;
 				break;
 			}
-			IFQ_DEQUEUE(&ifp->if_snd, m0);
 			ifp->if_opackets++;
 			m_copydata(m0, 0, ETHER_HDR_LEN, 
 			    (caddr_t)&frmhdr.wi_ehdr);

@@ -276,7 +276,9 @@ hme_config(struct hme_softc *sc)
 	ifp->if_ioctl = hme_ioctl;
 	ifp->if_init = hme_init;
 	ifp->if_watchdog = hme_watchdog;
-	ifp->if_snd.ifq_maxlen = HME_NTXQ;
+	IFQ_SET_MAXLEN(&ifp->if_snd, HME_NTXQ);
+	ifp->if_snd.ifq_drv_maxlen = HME_NTXQ;
+	IFQ_SET_READY(&ifp->if_snd);
 
 	hme_mifinit(sc);
 
@@ -1002,14 +1004,14 @@ hme_start(struct ifnet *ifp)
 
 	error = 0;
 	for (;;) {
-		IF_DEQUEUE(&ifp->if_snd, m);
+		IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
 		if (m == NULL)
 			break;
 
 		error = hme_load_txmbuf(sc, m);
 		if (error == -1) {
 			ifp->if_flags |= IFF_OACTIVE;
-			IF_PREPEND(&ifp->if_snd, m);
+			IFQ_DRV_PREPEND(&ifp->if_snd, m);
 			break;
 		} else if (error > 0) {
 			printf("hme_start: error %d while loading mbuf\n",

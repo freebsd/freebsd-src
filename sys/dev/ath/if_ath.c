@@ -304,7 +304,9 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	ifp->if_watchdog = ath_watchdog;
 	ifp->if_ioctl = ath_ioctl;
 	ifp->if_init = ath_init;
-	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
+	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
+	ifp->if_snd.ifq_drv_maxlen = IFQ_MAXLEN;
+	IFQ_SET_READY(&ifp->if_snd);
 
 	ic->ic_softc = sc;
 	ic->ic_newassoc = ath_newassoc;
@@ -662,7 +664,7 @@ ath_stop(struct ifnet *ifp)
 			ath_stoprecv(sc);
 		else
 			sc->sc_rxlink = NULL;
-		IF_DRAIN(&ifp->if_snd);
+		IFQ_DRV_PURGE(&ifp->if_snd);
 		ath_beacon_free(sc);
 		ieee80211_new_state(ic, IEEE80211_S_INIT, -1);
 		if (!sc->sc_invalid)
@@ -759,7 +761,7 @@ ath_start(struct ifnet *ifp)
 				ATH_TXBUF_UNLOCK(sc);
 				break;
 			}
-			IF_DEQUEUE(&ifp->if_snd, m);
+			IFQ_DRV_DEQUEUE(&ifp->if_snd, m);	/* XXX: LOCK */
 			if (m == NULL) {
 				ATH_TXBUF_LOCK(sc);
 				TAILQ_INSERT_TAIL(&sc->sc_txbuf, bf, bf_list);
