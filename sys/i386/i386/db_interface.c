@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_interface.c,v 1.18 1996/04/07 18:34:59 bde Exp $
+ *	$Id: db_interface.c,v 1.19 1996/05/03 21:00:51 phk Exp $
  */
 
 /*
@@ -48,6 +48,7 @@
 #include <setjmp.h>
 
 static int	db_active = 0;
+extern void	gdb_handle_exception __P((db_regs_t *, int, int));
 
 db_regs_t ddb_regs;
 
@@ -93,7 +94,7 @@ kdb_trap(type, code, regs)
 	 * our breakpoints by disarming our breakpoints and fixing up
 	 * %eip.
 	 */
-	if (cons_unavail) {
+	if (cons_unavail && !(boothowto & RB_GDB)) {
 		if (type == T_TRCTRAP) {
 			regs->tf_eflags &= ~PSL_T;
 			return (1);
@@ -133,7 +134,10 @@ kdb_trap(type, code, regs)
 
 	db_active++;
 	cnpollc(TRUE);
-	db_trap(type, code);
+	if (boothowto & RB_GDB)
+	    gdb_handle_exception(&ddb_regs, type, code);
+	else
+	    db_trap(type, code);
 	cnpollc(FALSE);
 	db_active--;
 
@@ -267,7 +271,7 @@ Debugger(msg)
 	 * OK if the call is for the debugger hotkey but not if the call
 	 * is a weak form of panicing.
 	 */
-	if (cons_unavail)
+	if (cons_unavail & !(boothowto & RB_GDB))
 		return;
 
 	if (!in_Debugger) {
