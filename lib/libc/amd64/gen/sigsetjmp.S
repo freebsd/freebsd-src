@@ -58,18 +58,17 @@ __FBSDID("$FreeBSD$");
  */
 
 ENTRY(sigsetjmp)
-	pushq	%rdi
-	movq	%rdi,%rcx
-	movl	%esi,88(%rcx)
+	movl	%esi,88(%rdi)
 	testl	%esi,%esi
 	jz	2f
-	leaq	72(%rcx),%rdi		/* (sigset_t*)oset */
+	pushq	%rdi
+	movq	$1,%rdi			/* SIG_BLOCK       */
 	movq	$0,%rsi			/* (sigset_t*)set  */
-	movq	$1,%rdx			/* SIG_BLOCK       */
+	leaq	72(%rcx),%rdx		/* (sigset_t*)oset */
 	call	PIC_PLT(CNAME(_sigprocmask))
 	popq	%rdi
-	movq	%rdi,%rcx
-2:	movq	0(%rsp),%rdx		/* retval */
+2:	movq	%rdi,%rcx
+	movq	0(%rsp),%rdx		/* retval */
 	movq	%rdx, 0(%rcx)		/* retval */
 	movq	%rbx, 8(%rcx)
 	movq	%rsp,16(%rcx)
@@ -90,9 +89,9 @@ ENTRY(__siglongjmp)
 	movq	%rdi,%rdx
 	pushq	%rdi
 	pushq	%rsi
-	movq	$0,%rdi			/* (sigset_t*)oset */
+	movq	$3,%rdi			/* SIG_SETMASK     */
 	leaq	72(%rdx),%rsi		/* (sigset_t*)set  */
-	movq	$3,%rdx			/* SIG_SETMASK     */
+	movq	$0,%rdx			/* (sigset_t*)oset */
 	call	PIC_PLT(CNAME(_sigprocmask))
 	popq	%rsi
 	popq	%rdi			/* jmpbuf */

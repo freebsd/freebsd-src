@@ -55,9 +55,9 @@ __FBSDID("$FreeBSD$");
 ENTRY(setjmp)
 	pushq	%rdi
 	movq	%rdi,%rcx
-	leaq	72(%rcx),%rdi		/* (sigset_t*)oset */
+	movq	$1,%rdi			/* SIG_BLOCK       */
 	movq	$0,%rsi			/* (sigset_t*)set  */
-	movq	$1,%rdx			/* SIG_BLOCK       */
+	leaq	72(%rcx),%rdx		/* (sigset_t*)oset */
 	call	PIC_PLT(CNAME(_sigprocmask))
 	popq	%rdi
 	movq	%rdi,%rcx
@@ -80,9 +80,9 @@ ENTRY(__longjmp)
 	pushq	%rdi
 	pushq	%rsi
 	movq	%rdi,%rdx
-	movq	$0,%rdi			/* (sigset_t*)oset */
+	movq	$1,%rdi			/* SIG_SETMASK     */
 	leaq	72(%rdx),%rsi		/* (sigset_t*)set  */
-	movq	$3,%rdx			/* SIG_SETMASK     */
+	movq	$0,%rdx			/* (sigset_t*)oset */
 	call	PIC_PLT(CNAME(_sigprocmask))
 	popq	%rsi
 	popq	%rdi			/* jmpbuf */
