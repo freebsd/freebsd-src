@@ -59,6 +59,26 @@ To set up Radio Network parameters, use
 .Xr netintro 4 ,
 .Xr arlconfig 8 ,
 .Xr ifconfig 8
+.Sh LIMITATIONS
+When using
+.Xr ifconfig 8
+for setting
+.Ar SSID
+you must use a 4-byte even hexadecimal digit value and it must start with
+00 or 02.
+.Pp
+You can change
+.Ar channel
+for current 
+.Ar country
+only through
+.Xr ifconfig 8 . 
+You must use
+.Xr arlconfig 8 
+for changing
+.Ar country .
+.Pp
+Can't change lladdr.
 .Sh HISTORY
 The
 .Nm
