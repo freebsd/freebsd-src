@@ -1,7 +1,7 @@
 How to use smartcards with OpenSSH?
 
 OpenSSH contains experimental support for authentication using
-Cyberflex smartcards and TODOS card readers, in addition to the cards 
+Cyberflex smartcards and TODOS card readers, in addition to the cards
 with PKCS#15 structure supported by OpenSC. To enable this you
 need to:
 
@@ -27,8 +27,8 @@ Using libsectok:
 	sectok> login -d
 	sectok> jload /usr/libdata/ssh/Ssh.bin
 	sectok> setpass
-	Enter new AUT0 passphrase: 
-	Re-enter passphrase: 
+	Enter new AUT0 passphrase:
+	Re-enter passphrase:
 	sectok> quit
 
 	Do not forget the passphrase.  There is no way to
@@ -51,9 +51,9 @@ Using libsectok:
 
 	$ sectok
 	sectok> login -d
-	sectok> acl 0012 world: w 
-	 world: w 
-	 AUT0: w inval 
+	sectok> acl 0012 world: w
+	 world: w
+	 AUT0: w inval
 	sectok> quit
 
 	If you do this, anyone who has access to your card
@@ -90,4 +90,4 @@ Common operations:
 -markus,
 Tue Jul 17 23:54:51 CEST 2001
 
-$OpenBSD: README.smartcard,v 1.8 2002/03/26 18:56:23 rees Exp $
+$OpenBSD: README.smartcard,v 1.9 2003/11/21 11:57:02 djm Exp $

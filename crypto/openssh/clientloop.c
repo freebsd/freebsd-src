@@ -59,7 +59,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: clientloop.c,v 1.112 2003/06/28 16:23:06 deraadt Exp $");
+RCSID("$OpenBSD: clientloop.c,v 1.117 2003/12/16 15:49:51 markus Exp $");
 
 #include "ssh.h"
 #include "ssh1.h"
@@ -88,6 +88,9 @@ extern Options options;
 
 /* Flag indicating that stdin should be redirected from /dev/null. */
 extern int stdin_null_flag;
+
+/* Flag indicating that no shell has been requested */
+extern int no_shell_flag;
 
 /*
  * Name of the host we are connecting to.  This is the name given on the
@@ -124,6 +127,7 @@ static int connection_in;	/* Connection to server (input). */
 static int connection_out;	/* Connection to server (output). */
 static int need_rekeying;	/* Set to non-zero if rekeying is requested. */
 static int session_closed = 0;	/* In SSH2: login session closed. */
+static int server_alive_timeouts = 0;
 
 static void client_init_dispatch(void);
 int	session_ident = -1;
@@ -139,7 +143,6 @@ leave_non_blocking(void)
 	if (in_non_blocking_mode) {
 		(void) fcntl(fileno(stdin), F_SETFL, 0);
 		in_non_blocking_mode = 0;
-		fatal_remove_cleanup((void (*) (void *)) leave_non_blocking, NULL);
 	}
 }
 
@@ -150,7 +153,6 @@ enter_non_blocking(void)
 {
 	in_non_blocking_mode = 1;
 	(void) fcntl(fileno(stdin), F_SETFL, O_NONBLOCK);
-	fatal_add_cleanup((void (*) (void *)) leave_non_blocking, NULL);
 }
 
 /*
@@ -312,6 +314,24 @@ client_check_window_change(void)
 	}
 }
 
+static void
+client_global_request_reply(int type, u_int32_t seq, void *ctxt)
+{
+	server_alive_timeouts = 0;
+	client_global_request_reply_fwd(type, seq, ctxt);
+}
+
+static void
+server_alive_check(void)
+{
+	if (++server_alive_timeouts > options.server_alive_count_max)
+		packet_disconnect("Timeout, server not responding.");
+	packet_start(SSH2_MSG_GLOBAL_REQUEST);
+	packet_put_cstring("keepalive@openssh.com");
+	packet_put_char(1);     /* boolean: want reply */
+	packet_send();
+}
+
 /*
  * Waits until the client can do something (some data becomes available on
  * one of the file descriptors).
@@ -321,6 +341,9 @@ static void
 client_wait_until_can_do_something(fd_set **readsetp, fd_set **writesetp,
     int *maxfdp, int *nallocp, int rekeying)
 {
+	struct timeval tv, *tvp;
+	int ret;
+
 	/* Add any selections by the channel mechanism. */
 	channel_prepare_select(readsetp, writesetp, maxfdp, nallocp, rekeying);
 
@@ -362,13 +385,18 @@ client_wait_until_can_do_something(fd_set **readsetp, fd_set **writesetp,
 	/*
 	 * Wait for something to happen.  This will suspend the process until
 	 * some selected descriptor can be read, written, or has some other
-	 * event pending. Note: if you want to implement SSH_MSG_IGNORE
-	 * messages to fool traffic analysis, this might be the place to do
-	 * it: just have a random timeout for the select, and send a random
-	 * SSH_MSG_IGNORE packet when the timeout expires.
+	 * event pending.
 	 */
 
-	if (select((*maxfdp)+1, *readsetp, *writesetp, NULL, NULL) < 0) {
+	if (options.server_alive_interval == 0 || !compat20)
+		tvp = NULL;
+	else {  
+		tv.tv_sec = options.server_alive_interval;
+		tv.tv_usec = 0;
+		tvp = &tv;
+	}
+	ret = select((*maxfdp)+1, *readsetp, *writesetp, NULL, tvp);
+	if (ret < 0) {
 		char buf[100];
 
 		/*
@@ -385,7 +413,8 @@ client_wait_until_can_do_something(fd_set **readsetp, fd_set **writesetp,
 		snprintf(buf, sizeof buf, "select: %s\r\n", strerror(errno));
 		buffer_append(&stderr_buffer, buf, strlen(buf));
 		quit_pending = 1;
-	}
+	} else if (ret == 0)
+		server_alive_check();
 }
 
 static void
@@ -844,8 +873,7 @@ client_channel_closed(int id, void *arg)
 		    id, session_ident);
 	channel_cancel_cleanup(id);
 	session_closed = 1;
-	if (in_raw_mode())
-		leave_raw_mode();
+	leave_raw_mode();
 }
 
 /*
@@ -1034,11 +1062,18 @@ client_loop(int have_pty, int escape_char_arg, int ssh2_chan_id)
 	if (!isatty(fileno(stderr)))
 		unset_nonblock(fileno(stderr));
 
-	if (received_signal) {
-		if (in_non_blocking_mode)	/* XXX */
-			leave_non_blocking();
-		fatal("Killed by signal %d.", (int) received_signal);
+	/*
+	 * If there was no shell or command requested, there will be no remote
+	 * exit status to be returned.  In that case, clear error code if the
+	 * connection was deliberately terminated at this end.
+	 */
+	if (no_shell_flag && received_signal == SIGTERM) {
+		received_signal = 0;
+		exit_status = 0;
 	}
+
+	if (received_signal)
+		fatal("Killed by signal %d.", (int) received_signal);
 
 	/*
 	 * In interactive mode (with pseudo tty) display a message indicating
@@ -1130,6 +1165,46 @@ client_input_exit_status(int type, u_int32_t seq, void *ctxt)
 	packet_write_wait();
 	/* Flag that we want to exit. */
 	quit_pending = 1;
+}
+static void
+client_input_agent_open(int type, u_int32_t seq, void *ctxt)
+{
+	Channel *c = NULL;
+	int remote_id, sock;
+
+	/* Read the remote channel number from the message. */
+	remote_id = packet_get_int();
+	packet_check_eom();
+
+	/*
+	 * Get a connection to the local authentication agent (this may again
+	 * get forwarded).
+	 */
+	sock = ssh_get_authentication_socket();
+
+	/*
+	 * If we could not connect the agent, send an error message back to
+	 * the server. This should never happen unless the agent dies,
+	 * because authentication forwarding is only enabled if we have an
+	 * agent.
+	 */
+	if (sock >= 0) {
+		c = channel_new("", SSH_CHANNEL_OPEN, sock, sock,
+		    -1, 0, 0, 0, "authentication agent connection", 1);
+		c->remote_id = remote_id;
+		c->force_drain = 1;
+	}
+	if (c == NULL) {
+		packet_start(SSH_MSG_CHANNEL_OPEN_FAILURE);
+		packet_put_int(remote_id);
+	} else {
+		/* Send a confirmation to the remote host. */
+		debug("Forwarding authentication connection.");
+		packet_start(SSH_MSG_CHANNEL_OPEN_CONFIRMATION);
+		packet_put_int(remote_id);
+		packet_put_int(c->self);
+	}
+	packet_send();
 }
 
 static Channel *
@@ -1318,7 +1393,8 @@ client_input_global_request(int type, u_int32_t seq, void *ctxt)
 
 	rtype = packet_get_string(NULL);
 	want_reply = packet_get_char();
-	debug("client_input_global_request: rtype %s want_reply %d", rtype, want_reply);
+	debug("client_input_global_request: rtype %s want_reply %d",
+	    rtype, want_reply);
 	if (want_reply) {
 		packet_start(success ?
 		    SSH2_MSG_REQUEST_SUCCESS : SSH2_MSG_REQUEST_FAILURE);
@@ -1366,7 +1442,7 @@ client_init_dispatch_13(void)
 	dispatch_set(SSH_SMSG_STDOUT_DATA, &client_input_stdout_data);
 
 	dispatch_set(SSH_SMSG_AGENT_OPEN, options.forward_agent ?
-	    &auth_input_open_request : &deny_input_open);
+	    &client_input_agent_open : &deny_input_open);
 	dispatch_set(SSH_SMSG_X11_OPEN, options.forward_x11 ?
 	    &x11_input_open : &deny_input_open);
 }
@@ -1386,4 +1462,13 @@ client_init_dispatch(void)
 		client_init_dispatch_13();
 	else
 		client_init_dispatch_15();
+}
+
+/* client specific fatal cleanup */
+void
+cleanup_exit(int i)
+{
+	leave_raw_mode();
+	leave_non_blocking();
+	_exit(i);
 }

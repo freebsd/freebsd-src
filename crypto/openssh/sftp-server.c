@@ -1,28 +1,20 @@
 /*
- * Copyright (c) 2000, 2001, 2002 Markus Friedl.  All rights reserved.
+ * Copyright (c) 2000-2004 Markus Friedl.  All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
- * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
- * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
- * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 #include "includes.h"
-RCSID("$OpenBSD: sftp-server.c,v 1.43 2003/06/25 22:39:36 miod Exp $");
+RCSID("$OpenBSD: sftp-server.c,v 1.45 2004/02/19 21:15:04 markus Exp $");
 
 #include "buffer.h"
 #include "bufaux.h"
@@ -149,7 +141,7 @@ handle_init(void)
 }
 
 static int
-handle_new(int use, char *name, int fd, DIR *dirp)
+handle_new(int use, const char *name, int fd, DIR *dirp)
 {
 	int i;
 
@@ -184,7 +176,7 @@ handle_to_string(int handle, char **stringp, int *hlenp)
 }
 
 static int
-handle_from_string(char *handle, u_int hlen)
+handle_from_string(const char *handle, u_int hlen)
 {
 	int val;
 
@@ -298,7 +290,7 @@ send_status(u_int32_t id, u_int32_t error)
 	buffer_free(&msg);
 }
 static void
-send_data_or_handle(char type, u_int32_t id, char *data, int dlen)
+send_data_or_handle(char type, u_int32_t id, const char *data, int dlen)
 {
 	Buffer msg;
 
@@ -311,7 +303,7 @@ send_data_or_handle(char type, u_int32_t id, char *data, int dlen)
 }
 
 static void
-send_data(u_int32_t id, char *data, int dlen)
+send_data(u_int32_t id, const char *data, int dlen)
 {
 	TRACE("sent data id %u len %d", id, dlen);
 	send_data_or_handle(SSH2_FXP_DATA, id, data, dlen);
@@ -330,7 +322,7 @@ send_handle(u_int32_t id, int handle)
 }
 
 static void
-send_names(u_int32_t id, int count, Stat *stats)
+send_names(u_int32_t id, int count, const Stat *stats)
 {
 	Buffer msg;
 	int i;
@@ -350,7 +342,7 @@ send_names(u_int32_t id, int count, Stat *stats)
 }
 
 static void
-send_attrib(u_int32_t id, Attrib *a)
+send_attrib(u_int32_t id, const Attrib *a)
 {
 	Buffer msg;
 
@@ -567,7 +559,7 @@ process_fstat(void)
 }
 
 static struct timeval *
-attrib_to_tv(Attrib *a)
+attrib_to_tv(const Attrib *a)
 {
 	static struct timeval tv[2];
 

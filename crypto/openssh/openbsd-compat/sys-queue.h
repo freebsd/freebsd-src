@@ -1,3 +1,5 @@
+/* OPENBSD ORIGINAL: sys/sys/queue.h */
+
 /*	$OpenBSD: queue.h,v 1.23 2003/06/02 23:28:21 millert Exp $	*/
 /*	$NetBSD: queue.h,v 1.11 1996/05/16 05:17:14 mycroft Exp $	*/
 

@@ -1,4 +1,4 @@
-/*	$OpenBSD: dns.c,v 1.6 2003/06/11 10:18:47 jakob Exp $	*/
+/*	$OpenBSD: dns.c,v 1.9 2003/11/21 11:57:03 djm Exp $	*/
 
 /*
  * Copyright (c) 2003 Wesley Griffin. All rights reserved.
@@ -28,7 +28,6 @@
 
 #include "includes.h"
 
-#ifdef DNS
 #include <openssl/bn.h>
 #ifdef LWRES
 #include <lwres/netdb.h>
@@ -44,7 +43,7 @@
 #include "uuencode.h"
 
 extern char *__progname;
-RCSID("$OpenBSD: dns.c,v 1.6 2003/06/11 10:18:47 jakob Exp $");
+RCSID("$OpenBSD: dns.c,v 1.9 2003/11/21 11:57:03 djm Exp $");
 
 #ifndef LWRES
 static const char *errset_text[] = {
@@ -84,7 +83,7 @@ dns_result_totext(unsigned int error)
  */
 static int
 dns_read_key(u_int8_t *algorithm, u_int8_t *digest_type,
-    u_char **digest, u_int *digest_len, Key *key)
+    u_char **digest, u_int *digest_len, const Key *key)
 {
 	int success = 0;
 
@@ -146,16 +145,15 @@ dns_read_rdata(u_int8_t *algorithm, u_int8_t *digest_type,
 
 /*
  * Verify the given hostname, address and host key using DNS.
- * Returns 0 if key verifies or -1 if key does NOT verify
+ * Returns 0 if lookup succeeds, -1 otherwise
  */
 int
 verify_host_key_dns(const char *hostname, struct sockaddr *address,
-    Key *hostkey)
+    const Key *hostkey, int *flags)
 {
 	int counter;
 	int result;
 	struct rrsetinfo *fingerprints = NULL;
-	int failures = 0;
 
 	u_int8_t hostkey_algorithm;
 	u_int8_t hostkey_digest_type;
@@ -167,6 +165,7 @@ verify_host_key_dns(const char *hostname, struct sockaddr *address,
 	u_char *dnskey_digest;
 	u_int dnskey_digest_len;
 
+	*flags = 0;
 
 	debug3("verify_hostkey_dns");
 	if (hostkey == NULL)
@@ -176,27 +175,28 @@ verify_host_key_dns(const char *hostname, struct sockaddr *address,
 	    DNS_RDATATYPE_SSHFP, 0, &fingerprints);
 	if (result) {
 		verbose("DNS lookup error: %s", dns_result_totext(result));
-		return DNS_VERIFY_ERROR;
+		return -1;
 	}
 
-#ifdef DNSSEC
-	/* Only accept validated answers */
-	if (!fingerprints->rri_flags & RRSET_VALIDATED) {
-		error("Ignored unvalidated fingerprint from DNS.");
-		freerrset(fingerprints);
-		return DNS_VERIFY_ERROR;
+	if (fingerprints->rri_flags & RRSET_VALIDATED) {
+		*flags |= DNS_VERIFY_SECURE;
+		debug("found %d secure fingerprints in DNS",
+		    fingerprints->rri_nrdatas);
+	} else {
+		debug("found %d insecure fingerprints in DNS",
+		    fingerprints->rri_nrdatas);
 	}
-#endif
-
-	debug("found %d fingerprints in DNS", fingerprints->rri_nrdatas);
 
 	/* Initialize host key parameters */
 	if (!dns_read_key(&hostkey_algorithm, &hostkey_digest_type,
 	    &hostkey_digest, &hostkey_digest_len, hostkey)) {
 		error("Error calculating host key fingerprint.");
 		freerrset(fingerprints);
-		return DNS_VERIFY_ERROR;
+		return -1;
 	}
+
+	if (fingerprints->rri_nrdatas)
+		*flags |= DNS_VERIFY_FOUND;
 
 	for (counter = 0 ; counter < fingerprints->rri_nrdatas ; counter++)  {
 		/*
@@ -219,35 +219,22 @@ verify_host_key_dns(const char *hostname, struct sockaddr *address,
 			    memcmp(hostkey_digest, dnskey_digest,
 			    hostkey_digest_len) == 0) {
 
-				/* Matching algoritm and digest. */
-				freerrset(fingerprints);
-				debug("matching host key fingerprint found in DNS");
-				return DNS_VERIFY_OK;
-			} else {
-				/* Correct algorithm but bad digest */
-				debug("verify_hostkey_dns: failed");
-				failures++;
+				*flags |= DNS_VERIFY_MATCH;
 			}
 		}
 	}
 
 	freerrset(fingerprints);
 
-	if (failures) {
-		error("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
-		error("@    WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!     @");
-		error("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
-		error("IT IS POSSIBLE THAT SOMEONE IS DOING SOMETHING NASTY!");
-		error("Someone could be eavesdropping on you right now (man-in-the-middle attack)!");
-		error("It is also possible that the %s host key has just been changed.",
-		    key_type(hostkey));
-		error("Please contact your system administrator.");
-		return DNS_VERIFY_FAILED;
-	}
+	if (*flags & DNS_VERIFY_FOUND)
+		if (*flags & DNS_VERIFY_MATCH)
+			debug("matching host key fingerprint found in DNS");
+		else
+			debug("mismatching host key fingerprint found in DNS");
+	else
+		debug("no host key fingerprint found in DNS");
 
-	debug("fingerprints found in DNS, but none of them matched");
-
-	return DNS_VERIFY_ERROR;
+	return 0;
 }
 
 
@@ -255,7 +242,7 @@ verify_host_key_dns(const char *hostname, struct sockaddr *address,
  * Export the fingerprint of a key as a DNS resource record
  */
 int
-export_dns_rr(const char *hostname, Key *key, FILE *f, int generic)
+export_dns_rr(const char *hostname, const Key *key, FILE *f, int generic)
 {
 	u_int8_t rdata_pubkey_algorithm = 0;
 	u_int8_t rdata_digest_type = SSHFP_HASH_SHA1;
@@ -286,5 +273,3 @@ export_dns_rr(const char *hostname, Key *key, FILE *f, int generic)
 
 	return success;
 }
-
-#endif /* DNS */

@@ -23,7 +23,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: auth2-pubkey.c,v 1.4 2003/06/24 08:23:46 markus Exp $");
+RCSID("$OpenBSD: auth2-pubkey.c,v 1.6 2004/01/19 21:25:15 markus Exp $");
 
 #include "ssh2.h"
 #include "xmalloc.h"
@@ -123,9 +123,9 @@ userauth_pubkey(Authctxt *authctxt)
 		authenticated = 0;
 		if (PRIVSEP(user_key_allowed(authctxt->pw, key)) &&
 		    PRIVSEP(key_verify(key, sig, slen, buffer_ptr(&b),
-				buffer_len(&b))) == 1)
+		    buffer_len(&b))) == 1)
 			authenticated = 1;
-		buffer_clear(&b);
+		buffer_free(&b);
 		xfree(sig);
 	} else {
 		debug("test whether pkalg/pkblob are acceptable");
@@ -174,9 +174,6 @@ user_key_allowed2(struct passwd *pw, Key *key, char *file)
 	struct stat st;
 	Key *found;
 	char *fp;
-
-	if (pw == NULL)
-		return 0;
 
 	/* Temporarily use the user's uid. */
 	temporarily_use_uid(pw);
