@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id$
+ * $Id: anonFTP.c,v 1.21 1997/02/07 04:25:16 jkh Exp $
  *
  * Copyright (c) 1995
  *	Coranth Gryphon.  All rights reserved.
@@ -224,6 +224,7 @@ anonftpOpenDialog(void)
     while (layoutDialogLoop(ds_win, layout, &obj, &n, max, &cancelbutton, &cancel));
 
     /* Clear this crap off the screen */
+    delwin(ds_win);
     dialog_clear_norefresh();
     use_helpfile(NULL);
     
