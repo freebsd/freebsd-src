@@ -1,14 +1,6 @@
-/* $Id: varargs.h,v 1.1 1998/01/10 22:09:53 jb Exp $ */
-/* From: NetBSD: varargs.h,v 1.7 1997/04/06 08:47:46 cgd Exp */
-
-/*-
- * Copyright (c) 1990, 1993
- *	The Regents of the University of California.  All rights reserved.
- * (c) UNIX System Laboratories, Inc.
- * All or some portions of this file are derived from material licensed
- * to the University of California by American Telephone and Telegraph
- * Co. or Unix System Laboratories, Inc. and are reproduced herein with
- * the permission of UNIX System Laboratories, Inc.
+/*
+ * Copyright (c) 1998 John Birrell <jb@cimlogic.com.au>.
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -20,13 +12,12 @@
  *    documentation and/or other materials provided with the distribution.
  * 3. All advertising materials mentioning features or use of this software
  *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ *	This product includes software developed by John Birrell.
+ * 4. Neither the name of the author nor the names of any co-contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+ * THIS SOFTWARE IS PROVIDED BY JOHN BIRRELL AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
  * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
@@ -38,25 +29,4 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)varargs.h	8.2 (Berkeley) 3/22/94
  */
-
-#ifndef _ALPHA_VARARGS_H_
-#define	_ALPHA_VARARGS_H_
-
-#include <machine/stdarg.h>
-
-#if __GNUC__ == 1
-#define	__va_ellipsis
-#else
-#define	__va_ellipsis	...
-#endif
-
-#define	va_alist	__builtin_va_alist
-#define	va_dcl		long __builtin_va_alist; __va_ellipsis
-
-#undef va_start
-#define	va_start(ap) \
-	((ap) = *(va_list *)__builtin_saveregs(), (ap).__pad = 0)
-
-#endif /* !_ALPHA_VARARGS_H_ */

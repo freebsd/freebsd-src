@@ -1,5 +1,5 @@
-/* $Id: setjmp.h,v 1.2 1998/01/20 09:09:24 jb Exp $ */
-/* From: NetBSD: setjmp.h,v 1.2 1997/04/06 08:47:41 cgd Exp */
+/* $Id$
+/* From: NetBSD: proc.h,v 1.3 1997/04/06 08:47:36 cgd Exp */
 
 /*
  * Copyright (c) 1994, 1995 Carnegie-Mellon University.
@@ -29,18 +29,13 @@
  */
 
 /*
- * machine/setjmp.h: machine dependent setjmp-related information.
+ * Machine-dependent part of the proc struct for the Alpha.
  */
 
-#define _JBLEN  81              /* size, in longs, of a jmp_buf */
+struct mdproc {
+	u_long	md_flags;
+	struct	trapframe *md_tf;	/* trap/syscall registers */
+	struct pcb *md_pcbpaddr;	/* phys addr of the pcb */
+};
 
-/*
- * jmp_buf and sigjmp_buf are encapsulated in different structs to force
- * compile-time diagnostics for mismatches.  The structs are the same
- * internally to avoid some run-time errors for mismatches.
- */
-#ifndef _ANSI_SOURCE
-typedef struct { long _sjb[_JBLEN + 1]; } sigjmp_buf[1];
-#endif /* not ANSI */
-
-typedef struct { long _jb[_JBLEN + 1]; } jmp_buf[1];
+#define	MDP_FPUSED	0x0001		/* Process used the FPU */

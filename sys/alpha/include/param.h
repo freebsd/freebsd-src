@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: param.h,v 1.1 1998/01/10 10:13:15 jb Exp $ */
 /* From: NetBSD: param.h,v 1.20 1997/09/19 13:52:53 leo Exp */
 
 /*
@@ -71,6 +71,7 @@
 #define ALIGNED_POINTER(p,t)	((((u_long)(p)) & (sizeof(t)-1)) == 0)
 
 #define	NBPG		(1 << ALPHA_PGSHIFT)		/* bytes/page */
+#define	PAGE_SIZE	NBPG
 #define	PGOFSET		(NBPG-1)			/* byte off. into pg */
 #define	PGSHIFT		ALPHA_PGSHIFT			/* LOG2(NBPG) */
 #define	NPTEPG		(1 << (PGSHIFT-PTESHIFT))	/* pte's/page */
