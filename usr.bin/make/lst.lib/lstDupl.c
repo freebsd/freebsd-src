@@ -47,7 +47,10 @@ __FBSDID("$FreeBSD$");
  *	elements.
  */
 
+#include <stdio.h>
+
 #include "make.h"
+#include "util.h"
 #include "lst.h"
 
 /*-

@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1988, 1989, 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  * Copyright (c) 1989 by Berkeley Softworks
@@ -39,14 +39,14 @@
  * $FreeBSD$
  */
 
+#ifndef sprite_h_000823c6
+#define	sprite_h_000823c6
+
 /*
  * sprite.h --
  *
  * Common constants and type declarations for Sprite.
  */
-
-#ifndef _SPRITE
-#define	_SPRITE
 
 /*
  * A boolean type is defined as an integer, not an enum. This allows a
@@ -56,14 +56,12 @@
 typedef int Boolean;
 #ifndef TRUE
 #define	TRUE	1
-#endif /* TRUE */
-#ifndef FALSE
 #define	FALSE	0
-#endif /* FALSE */
+#endif /* TRUE */
 
 typedef int  ReturnStatus;
 
 #define	SUCCESS		0
 #define	FAILURE		1
 
-#endif /* _SPRITE */
+#endif /* sprite_h_000823c6 */

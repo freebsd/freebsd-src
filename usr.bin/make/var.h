@@ -39,6 +39,16 @@
  * $FreeBSD$
  */
 
+#ifndef var_h_9cccafce
+#define	var_h_9cccafce
+
+#include <regex.h>
+
+#include "buf.h"
+#include "config.h"
+
+struct GNode;
+
 typedef struct Var {
     char          *name;	/* the variable's name */
     Buffer	  val;	    	/* its value */
@@ -95,3 +105,18 @@ Boolean VarSYSVMatch(const char *, Boolean, Buffer, void *);
 Boolean VarNoMatch(const char *, Boolean, Buffer, void *);
 Boolean VarRESubstitute(const char *, Boolean, Buffer, void *);
 Boolean VarSubstitute(const char *, Boolean, Buffer, void *);
+
+void Var_Delete(char *, struct GNode *);
+void Var_Set(char *, char *, struct GNode *);
+void Var_Append(char *, char *, struct GNode *);
+Boolean Var_Exists(char *, struct GNode *);
+char *Var_Value(char *, struct GNode *, char **);
+char *Var_Quote(const char *);
+char *Var_Parse(char *, struct GNode *, Boolean, size_t *, Boolean *);
+char *Var_Subst(char *, char *, struct GNode *, Boolean);
+char *Var_GetTail(char *);
+char *Var_GetHead(char *);
+void Var_Init(void);
+void Var_Dump(struct GNode *);
+
+#endif /* var_h_9cccafce */

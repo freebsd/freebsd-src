@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1988, 1989, 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  * Copyright (c) 1988, 1989 by Adam de Boor
@@ -47,9 +47,12 @@ __FBSDID("$FreeBSD$");
  *	Functions for automatically-expanded buffers.
  */
 
-#include "sprite.h"
-#include "make.h"
+#include <string.h>
+#include <stdlib.h>
+
 #include "buf.h"
+#include "sprite.h"
+#include "util.h"
 
 #ifndef max
 #define	max(a,b)  ((a) > (b) ? (a) : (b))

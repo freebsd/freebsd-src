@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1988, 1989, 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  * Copyright (c) 1988, 1989 by Adam de Boor
@@ -83,14 +83,25 @@ __FBSDID("$FreeBSD$");
  *	Dir_PrintDirectories	Print stats about the directory cache.
  */
 
-#include <stdio.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <dirent.h>
 #include <err.h>
-#include "make.h"
-#include "hash.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+
+#include "arch.h"
 #include "dir.h"
+#include "globals.h"
+#include "GNode.h"
+#include "hash.h"
+#include "lst.h"
+#include "make.h"
+#include "str.h"
+#include "targ.h"
+#include "util.h"
 
 /*
  *	A search path consists of a Lst of Path structures. A Path structure

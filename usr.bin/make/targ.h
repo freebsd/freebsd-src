@@ -1,7 +1,6 @@
 /*-
  * Copyright (c) 1988, 1989, 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
- * Copyright (c) 1988, 1989 by Adam de Boor
  * Copyright (c) 1989 by Berkeley Softworks
  * All rights reserved.
  *
@@ -36,76 +35,39 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)config.h	8.2 (Berkeley) 4/28/95
  * $FreeBSD$
  */
 
-#ifndef config_h_efe0765e
-#define	config_h_efe0765e
+#ifndef targ_h_6ded1830
+#define	targ_h_6ded1830
+
+#include <time.h>
 
 /*
- * DEFMAXJOBS
- *	This control the default concurrency. On no occasion will more
- *	than DEFMAXJOBS targets be created at once.
+ * The TARG_ constants are used when calling the Targ_FindNode and
+ * Targ_FindList functions in targ.c. They simply tell the functions what to
+ * do if the desired node(s) is (are) not found. If the TARG_CREATE constant
+ * is given, a new, empty node will be created for the target, placed in the
+ * table of all targets and its address returned. If TARG_NOCREATE is given,
+ * a NULL pointer will be returned.
  */
-#define	DEFMAXJOBS	1
+#define	TARG_CREATE	0x01	  /* create node if not found */
+#define	TARG_NOCREATE	0x00	  /* don't create it */
 
-/*
- * INCLUDES
- * LIBRARIES
- *	These control the handling of the .INCLUDES and .LIBS variables.
- *	If INCLUDES is defined, the .INCLUDES variable will be filled
- *	from the search paths of those suffixes which are marked by
- *	.INCLUDES dependency lines. Similarly for LIBRARIES and .LIBS
- *	See suff.c for more details.
- */
-#define	INCLUDES
-#define	LIBRARIES
+struct GNode;
+struct Lst;
 
-/*
- * LIBSUFF
- *	Is the suffix used to denote libraries and is used by the Suff module
- *	to find the search path on which to seek any -l<xx> targets.
- *
- * RECHECK
- *	If defined, Make_Update will check a target for its current
- *	modification time after it has been re-made, setting it to the
- *	starting time of the make only if the target still doesn't exist.
- *	Unfortunately, under NFS the modification time often doesn't
- *	get updated in time, so a target will appear to not have been
- *	re-made, causing later targets to appear up-to-date. On systems
- *	that don't have this problem, you should defined this. Under
- *	NFS you probably should not, unless you aren't exporting jobs.
- */
-#define	LIBSUFF	".a"
-#define	RECHECK
+void Targ_Init(void);
+struct GNode *Targ_NewGN(char *);
+struct GNode *Targ_FindNode(char *, int);
+void Targ_FindList(struct Lst *, struct Lst *, int);
+Boolean Targ_Ignore(struct GNode *);
+Boolean Targ_Silent(struct GNode *);
+Boolean Targ_Precious(struct GNode *);
+void Targ_SetMain(struct GNode *);
+int Targ_PrintCmd(void *, void *);
+char *Targ_FmtTime(time_t);
+void Targ_PrintType(int);
+void Targ_PrintGraph(int);
 
-/*
- * SYSVINCLUDE
- *	Recognize system V like include directives [include "filename"]
- * SYSVVARSUB
- *	Recognize system V like ${VAR:x=y} variable substitutions
- */
-#define	SYSVINCLUDE
-#define	SYSVVARSUB
-
-/*
- * SUNSHCMD
- *	Recognize SunOS and Solaris:
- *		VAR :sh= CMD	# Assign VAR to the command substitution of CMD
- *		${VAR:sh}	# Return the command substitution of the value
- *				# of ${VAR}
- */
-#define	SUNSHCMD
-
-#if !defined(__svr4__) && !defined(__SVR4) && !defined(__ELF__)
-# ifndef RANLIBMAG
-#  define RANLIBMAG "__.SYMDEF"
-# endif
-#else
-# ifndef RANLIBMAG
-#  define RANLIBMAG "/"
-# endif
-#endif
-
-#endif /* config_h_efe0765e */
+#endif /* targ_h_6ded1830 */

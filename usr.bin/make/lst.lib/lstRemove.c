@@ -46,7 +46,11 @@ __FBSDID("$FreeBSD$");
  *	Remove an element from a list
  */
 
+#include <stdio.h>
+#include <stdlib.h>
+
 #include "make.h"
+#include "util.h"
 #include "lst.h"
 
 /*-

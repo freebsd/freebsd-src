@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1988, 1989, 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  * Copyright (c) 1989 by Berkeley Softworks
@@ -60,32 +60,37 @@ __FBSDID("$FreeBSD$");
  *				the .MFLAGS target.
  */
 
+#ifndef MACHINE
+#include <sys/utsname.h>
+#endif
 #include <sys/param.h>
-#include <sys/signal.h>
 #include <sys/stat.h>
 #include <sys/sysctl.h>
 #include <sys/time.h>
 #include <sys/resource.h>
-#ifndef MACHINE
-#include <sys/utsname.h>
-#endif
 #include <sys/wait.h>
-
 #include <err.h>
 #include <errno.h>
-#include <fcntl.h>
 #include <signal.h>
-#include <stdarg.h>
-#include <stdio.h>
 #include <stdlib.h>
-#include <sysexits.h>
+#include <string.h>
 #include <unistd.h>
 
-#include "make.h"
-#include "hash.h"
+#include "arch.h"
+#include "compat.h"
+#include "config.h"
 #include "dir.h"
+#include "globals.h"
 #include "job.h"
+#include "make.h"
+#include "nonints.h"
+#include "parse.h"
 #include "pathnames.h"
+#include "str.h"
+#include "suff.h"
+#include "targ.h"
+#include "util.h"
+#include "var.h"
 
 #define WANT_ENV_MKLVL	1
 #define	MKLVL_MAXVAL	500
@@ -97,7 +102,7 @@ __FBSDID("$FreeBSD$");
 Lst create = Lst_Initializer(create);
 
 time_t			now;		/* Time at start of make */
-GNode			*DEFAULT;	/* .DEFAULT node */
+struct GNode		*DEFAULT;	/* .DEFAULT node */
 Boolean			allPrecious;	/* .PRECIOUS given on line by itself */
 
 static Boolean		noBuiltins;	/* -r flag */
@@ -1140,4 +1145,9 @@ usage(void)
 "            [-E variable] [-f makefile] [-I directory] [-j max_jobs]",
 "            [-m directory] [-V variable] [variable=value] [target ...]");
 	exit(2);
+}
+
+void foo(void);
+void foo(void)
+{
 }

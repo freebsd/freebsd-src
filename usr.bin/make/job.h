@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1988, 1989, 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  * Copyright (c) 1988, 1989 by Adam de Boor
@@ -40,13 +40,20 @@
  * $FreeBSD$
  */
 
+#ifndef job_h_4678dfd1
+#define	job_h_4678dfd1
+
 /*-
  * job.h --
  *	Definitions pertaining to the running of jobs in parallel mode.
- *	Exported from job.c for the use of remote-execution modules.
  */
-#ifndef _JOB_H_
-#define	_JOB_H_
+
+#include <stdio.h>
+
+#include "sprite.h"
+
+struct GNode;
+struct LstNode;
 
 #define	TMPPAT	"/tmp/makeXXXXXXXXXX"
 
@@ -60,27 +67,8 @@
 #define	SEL_USEC	0
 #endif /* !USE_KQUEUE */
 
-/*-
+/*
  * Job Table definitions.
- *
- * Each job has several things associated with it:
- *	1) The process id of the child shell
- *	2) The graph node describing the target being made by this job
- *	3) A LstNode for the first command to be saved after the job
- *	   completes. This is NULL if there was no "..." in the job's
- *	   commands.
- *	4) An FILE* for writing out the commands. This is only
- *	   used before the job is actually started.
- *	5) A union of things used for handling the shell's output. Different
- *	   parts of the union are used based on the value of the usePipes
- *	   flag. If it is true, the output is being caught via a pipe and
- *	   the descriptors of our pipe, an array in which output is line
- *	   buffered and the current position in that buffer are all
- *	   maintained for each job. If, on the other hand, usePipes is false,
- *	   the output is routed to a temporary file and all that is kept
- *	   is the name of the file and the descriptor open to the file.
- *	6) A word of flags which determine how the module handles errors,
- *	   echoing, etc. for the job
  *
  * The job "table" is kept as a linked Lst in 'jobs', with the number of
  * active jobs maintained in the 'nJobs' variable. At no time will this
@@ -92,15 +80,30 @@
  */
 #define	JOB_BUFSIZE	1024
 typedef struct Job {
-    int       	pid;	    /* The child's process ID */
-    char	tfile[sizeof(TMPPAT)];
-			    /* Temporary file to use for job */
-    GNode    	*node;      /* The target the child is making */
-    LstNode 	*tailCmds;  /* The node of the first command to be
-			     * saved when the job has been run */
-    FILE 	*cmdFILE;   /* When creating the shell script, this is
-			     * where the commands go */
-    short      	flags;	    /* Flags to control treatment of job */
+	int		pid;	/* The child's process ID */
+
+	/* Temporary file to use for job */
+	char		tfile[sizeof(TMPPAT)];
+
+	struct GNode	*node;	/* The target the child is making */
+
+	/*
+	 * A LstNode for the first command to be saved after the job completes.
+	 * This is NULL if there was no "..." in the job's commands.
+	 */
+	LstNode		*tailCmds;
+
+	/*
+	 * An FILE* for writing out the commands. This is only
+	 * used before the job is actually started.
+	 */
+	FILE		*cmdFILE;
+
+	/*
+	 * A word of flags which determine how the module handles errors,
+	 * echoing, etc. for the job
+	 */
+	short		flags;	/* Flags to control treatment of job */
 #define	JOB_IGNERR	0x001	/* Ignore non-zero exits */
 #define	JOB_SILENT	0x002	/* no output */
 #define	JOB_SPECIAL	0x004	/* Target is a special one. i.e. run it locally
@@ -114,30 +117,57 @@ typedef struct Job {
 #define	JOB_CONTINUING	0x200	/* We are in the process of resuming this job.
 				 * Used to avoid infinite recursion between
 				 * JobFinish and JobRestart */
-    union {
-	struct {
-	    int	  	op_inPipe;	/* Input side of pipe associated
-					 * with job's output channel */
-	    int   	op_outPipe;	/* Output side of pipe associated with
-					 * job's output channel */
-	    char  	op_outBuf[JOB_BUFSIZE + 1];
-	    	  	    	    	/* Buffer for storing the output of the
-					 * job, line by line */
-	    int   	op_curPos;	/* Current position in op_outBuf */
-	}   	    o_pipe;	    /* data used when catching the output via
-				     * a pipe */
-	struct {
-	    char  	of_outFile[sizeof(TMPPAT)];
-	    	  	    	    	/* Name of file to which shell output
-					 * was rerouted */
-	    int	    	of_outFd;	/* Stream open to the output
-					 * file. Used to funnel all
-					 * from a single job to one file
-					 * while still allowing
-					 * multiple shell invocations */
-	}   	    o_file;	    /* Data used when catching the output in
-				     * a temporary file */
-    }       	output;	    /* Data for tracking a shell's output */
+
+	/* union for handling shell's output */
+	union {
+		/*
+		 * This part is used when usePipes is true.
+ 		 * The output is being caught via a pipe and the descriptors
+		 * of our pipe, an array in which output is line buffered and
+		 * the current position in that buffer are all maintained for
+		 * each job.
+		 */
+		struct {
+			/*
+			 * Input side of pipe associated with
+			 * job's output channel
+			 */
+			int	op_inPipe;
+
+			/*
+			 * Output side of pipe associated with job's
+			 * output channel
+			 */
+			int	op_outPipe;
+
+			/*
+			 * Buffer for storing the output of the
+			 * job, line by line
+			 */
+			char	op_outBuf[JOB_BUFSIZE + 1];
+
+			/* Current position in op_outBuf */
+			int	op_curPos;
+		}	o_pipe;
+
+		/*
+		 * If usePipes is false the output is routed to a temporary
+		 * file and all that is kept is the name of the file and the
+		 * descriptor open to the file.
+		 */
+		struct {
+			/* Name of file to which shell output was rerouted */
+			char	of_outFile[sizeof(TMPPAT)];
+
+			/*
+			 * Stream open to the output file. Used to funnel all
+			 * from a single job to one file while still allowing
+			 * multiple shell invocations
+			 */
+			int	of_outFd;
+		}	o_file;
+
+	}       output;	    /* Data for tracking a shell's output */
 } Job;
 
 #define	outPipe	  	output.o_pipe.op_outPipe
@@ -149,22 +179,6 @@ typedef struct Job {
 
 /*-
  * Shell Specifications:
- * Each shell type has associated with it the following information:
- *	1) The string which must match the last character of the shell name
- *	   for the shell to be considered of this type. The longest match
- *	   wins.
- *	2) A command to issue to turn off echoing of command lines
- *	3) A command to issue to turn echoing back on again
- *	4) What the shell prints, and its length, when given the echo-off
- *	   command. This line will not be printed when received from the shell
- *	5) A boolean to tell if the shell has the ability to control
- *	   error checking for individual commands.
- *	6) The string to turn this checking on.
- *	7) The string to turn it off.
- *	8) The command-flag to give to cause the shell to start echoing
- *	   commands right away.
- *	9) The command-flag to cause the shell to Lib_Exit when an error is
- *	   detected in one of the commands.
  *
  * Some special stuff goes on if a shell doesn't have error control. In such
  * a case, errCheck becomes a printf template for echoing the command,
@@ -173,30 +187,42 @@ typedef struct Job {
  * strings is empty when hasErrCtl is FALSE, the command will be executed
  * anyway as is and if it causes an error, so be it.
  */
-#define	DEF_SHELL_STRUCT(TAG, CONST) \
-struct TAG { \
-    CONST char	  *name;	/* the name of the shell. For Bourne and C \
-				 * shells, this is used only to find the \
-				 * shell description when used as the single \
-				 * source of a .SHELL target. For user-defined \
-				 * shells, this is the full path of the shell. \
-				 */ \
-    Boolean 	  hasEchoCtl;	/* True if both echoOff and echoOn defined */ \
-    CONST char    *echoOff;	/* command to turn off echo */ \
-    CONST char    *echoOn;	/* command to turn it back on again */ \
-    CONST char    *noPrint;	/* command to skip when printing output from \
-				 * shell. This is usually the command which \
-				 * was executed to turn off echoing */ \
-    int           noPLen;	/* length of noPrint command */ \
-    Boolean	  hasErrCtl;	/* set if can control error checking for \
-				 * individual commands */ \
-    CONST char	  *errCheck;	/* string to turn error checking on */ \
-    CONST char	  *ignErr;	/* string to turn off error checking */ \
-    /* \
-     * command-line flags \
-     */ \
-    CONST char          *echo;	/* echo commands */ \
-    CONST char          *exit;	/* exit on error */ \
+#define	DEF_SHELL_STRUCT(TAG, CONST)					\
+struct TAG {								\
+	/*								\
+	 * the name of the shell. For Bourne and C shells, this is used	\
+	 * only to find the shell description when used as the single	\
+	 * source of a .SHELL target. For user-defined shells, this is	\
+	 * the full path of the shell.					\
+	 */								\
+	CONST char	*name;						\
+									\
+	/* True if both echoOff and echoOn defined */			\
+	Boolean		hasEchoCtl;					\
+									\
+	CONST char	*echoOff;	/* command to turn off echo */	\
+	CONST char	*echoOn;	/* command to turn it back on */\
+									\
+	/*								\
+	 * What the shell prints, and its length, when given the	\
+	 * echo-off command. This line will not be printed when		\
+	 * received from the shell. This is usually the command which	\
+	 * was executed to turn off echoing				\
+	 */								\
+	CONST char	*noPrint;					\
+	int		noPLen;		/* length of noPrint command */	\
+									\
+	/* set if can control error checking for individual commands */	\
+	Boolean		hasErrCtl;					\
+									\
+	/* string to turn error checking on */				\
+	CONST char	*errCheck;					\
+									\
+	/* string to turn off error checking */				\
+	CONST char	*ignErr;					\
+									\
+	CONST char	*echo;	/* command line flag: echo commands */	\
+	CONST char	*exit;	/* command line flag: exit on error */	\
 }
 
 typedef DEF_SHELL_STRUCT(Shell,) Shell;
@@ -205,13 +231,12 @@ extern char *shellPath;
 extern char *shellName;
 extern int	maxJobs;	/* Number of jobs that may run */
 
-
 void Shell_Init(void);
-void Job_Touch(GNode *, Boolean);
-Boolean Job_CheckCommands(GNode *, void (*abortProc)(const char *, ...));
+void Job_Touch(struct GNode *, Boolean);
+Boolean Job_CheckCommands(struct GNode *, void (*abortProc)(const char *, ...));
 void Job_CatchChildren(Boolean);
 void Job_CatchOutput(int flag);
-void Job_Make(GNode *);
+void Job_Make(struct GNode *);
 void Job_Init(int);
 Boolean Job_Full(void);
 Boolean Job_Empty(void);
@@ -220,4 +245,4 @@ int Job_Finish(void);
 void Job_Wait(void);
 void Job_AbortAll(void);
 
-#endif /* _JOB_H_ */
+#endif /* job_h_4678dfd1 */
