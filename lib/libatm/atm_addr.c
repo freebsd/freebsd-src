@@ -219,7 +219,7 @@ char *
 format_atm_addr(const Atm_addr *addr)
 {
 	int		i;
-	char		*nsap_format;
+	const char		*nsap_format;
 	const Atm_addr_nsap	*atm_nsap;
 	const Atm_addr_e164	*atm_e164;
 	const Atm_addr_spans	*atm_spans;
@@ -230,9 +230,9 @@ format_atm_addr(const Atm_addr *addr)
 		char	c[4];
 	} u1, u2;
 
-	static char	nsap_format_DCC[] = "0x%02x.%02x%02x.%02x.%02x%02x%02x.%02x%02x.%02x%02x.%02x%02x.%02x%02x%02x%02x%02x%02x.%02x";
-	static char	nsap_format_ICD[] = "0x%02x.%02x%02x.%02x.%02x%02x%02x.%02x%02x.%02x%02x.%02x%02x.%02x%02x%02x%02x%02x%02x.%02x";
-	static char	nsap_format_E164[] = "0x%02x.%02x%02x%02x%02x%02x%02x%02x%02x.%02x%02x.%02x%02x.%02x%02x%02x%02x%02x%02x.%02x";
+	static const char	nsap_format_DCC[] = "0x%02x.%02x%02x.%02x.%02x%02x%02x.%02x%02x.%02x%02x.%02x%02x.%02x%02x%02x%02x%02x%02x.%02x";
+	static const char	nsap_format_ICD[] = "0x%02x.%02x%02x.%02x.%02x%02x%02x.%02x%02x.%02x%02x.%02x%02x.%02x%02x%02x%02x%02x%02x.%02x";
+	static const char	nsap_format_E164[] = "0x%02x.%02x%02x%02x%02x%02x%02x%02x%02x.%02x%02x.%02x%02x.%02x%02x%02x%02x%02x%02x.%02x";
 
 	/*
 	 * Clear the returned string
