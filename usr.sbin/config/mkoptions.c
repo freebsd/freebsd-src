@@ -92,7 +92,7 @@ options(void)
 	/* Fake MAXUSERS as an option. */
 	op = (struct opt *)malloc(sizeof(*op));
 	memset(op, 0, sizeof(*op));
-	op->op_name = "MAXUSERS";
+	op->op_name = ns("MAXUSERS");
 	snprintf(buf, sizeof(buf), "%d", maxusers);
 	op->op_value = ns(buf);
 	op->op_next = opt;
@@ -117,7 +117,8 @@ options(void)
 static void
 do_option(char *name)
 {
-	char *basefile, *file, *inw;
+	char *file, *inw;
+	const char *basefile;
 	struct opt_list *ol;
 	struct opt *op, *op_head, *topp;
 	FILE *inf, *outf;
