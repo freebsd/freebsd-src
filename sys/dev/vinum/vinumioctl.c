@@ -516,6 +516,19 @@ attachobject(struct vinum_ioctl_msg *msg)
 	    return;
 	plex = validplex(msg->otherobject, reply);
 	if (plex) {
+	    /*
+	     * We should be more intelligent about this.
+	     * We should be able to reattach a dead
+	     * subdisk, but if we want to increase the total
+	     * number of subdisks, we have a lot of reshuffling
+	     * to do. XXX
+	     */
+	    if ((plex->organization != plex_concat)	    /* can't attach to striped and raid-5 */
+	    &&(!msg->force)) {				    /* without using force */
+		reply->error = EINVAL;			    /* no message, the user should check */
+		strcpy(reply->msg, "Can't attach to this plex organization");
+		return;
+	    }
 	    if (sd->plexno >= 0) {			    /* already belong to a plex */
 		reply->error = EBUSY;			    /* no message, the user should check */
 		reply->msg[0] = '\0';
@@ -538,11 +551,6 @@ attachobject(struct vinum_ioctl_msg *msg)
 	plex = validplex(msg->index, reply);		    /* get plex */
 	if (plex == NULL)
 	    return;
-	if (plex->organization != plex_concat) {	    /* can't attach to striped and raid-5 */
-	    reply->error = EINVAL;			    /* no message, the user should check */
-	    reply->msg[0] = '\0';
-	    return;
-	}
 	vol = validvol(msg->otherobject, reply);	    /* and volume information */
 	if (vol) {
 	    if ((vol->plexes == MAXPLEX)		    /* we have too many already */
