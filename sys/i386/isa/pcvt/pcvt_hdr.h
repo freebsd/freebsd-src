@@ -59,12 +59,12 @@
 #include <sys/uio.h>
 #include <sys/callout.h>
 #include <sys/kernel.h>
+#include <sys/random.h>
 #include <sys/syslog.h>
 #include <sys/malloc.h>
 #include <sys/time.h>
 #include <sys/cons.h>
 
-#include <machine/random.h>
 #include <machine/bus.h>
 #include <machine/psl.h>
 #include <machine/frame.h>

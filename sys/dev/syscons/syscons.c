@@ -47,6 +47,7 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/cons.h>
+#include <sys/random.h>
 
 #include <machine/clock.h>
 #include <machine/console.h>
@@ -55,7 +56,6 @@
 #ifdef __i386__
 #include <machine/apm_bios.h>
 #include <machine/frame.h>
-#include <machine/random.h>
 #endif
 
 #include <dev/kbd/kbdreg.h>
