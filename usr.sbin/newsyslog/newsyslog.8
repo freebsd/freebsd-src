@@ -28,6 +28,7 @@
 .Op Fl CFnrsv
 .Op Fl R Ar tagname
 .Op Fl a Ar directory
+.Op Fl d Ar directory
 .Op Fl f Ar config_file
 .Op Ar
 .Sh DESCRIPTION
@@ -99,6 +100,15 @@ does not exist,
 it will be created when
 .Nm
 is run.
+.It Fl d Ar directory
+Specify a
+.Ar directory
+which all log files will be relative to.
+To allow archiving of logs outside the root, the
+.Ar directory
+passed to the
+.Fl a
+option is unaffected.
 .It Fl v
 Place
 .Nm
