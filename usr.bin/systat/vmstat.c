@@ -211,7 +211,7 @@ initkre()
 	int i;
 	size_t sz;
 
-	if ((num_devices = getnumdevs()) < 0) {
+	if ((num_devices = devstat_getnumdevs(NULL)) < 0) {
 		warnx("%s", devstat_errbuf);
 		return(0);
 	}
@@ -571,7 +571,7 @@ cmdkre(cmd, args)
 	if (prefix(cmd, "run")) {
 		retval = 1;
 		copyinfo(&s2, &s1);
-		switch (getdevs(&run)) {
+		switch (devstat_getdevs(NULL, &run)) {
 		case -1:
 			errx(1, "%s", devstat_errbuf);
 			break;
@@ -601,7 +601,7 @@ cmdkre(cmd, args)
 		retval = 1;
 		if (state == RUN) {
 			getinfo(&s1, RUN);
-			switch (getdevs(&run)) {
+			switch (devstat_getdevs(NULL, &run)) {
 			case -1:
 				errx(1, "%s", devstat_errbuf);
 				break;
@@ -792,7 +792,7 @@ getinfo(s, st)
 	cur.dinfo = tmp_dinfo;
 
 	last.busy_time = cur.busy_time;
-	switch (getdevs(&cur)) {
+	switch (devstat_getdevs(NULL, &cur)) {
 	case -1:
 		errx(1, "%s", devstat_errbuf);
 		break;
@@ -845,19 +845,18 @@ dinfo(dn, c, now, then)
 
 	di = dev_select[dn].position;
 
-	elapsed_time = compute_etime(now->busy_time, then ?
-				     then->busy_time :
-				     now->dinfo->devices[di].dev_creation_time);
+	elapsed_time = devstat_compute_etime(now->busy_time,
+	    then ? then->busy_time : now->dinfo->devices[di].dev_creation_time);
 
-	device_busy =  compute_etime(now->dinfo->devices[di].busy_time, then ?
-				     then->dinfo->devices[di].busy_time :
-				     now->dinfo->devices[di].dev_creation_time);
+	device_busy =  devstat_compute_etime(now->dinfo->devices[di].busy_time,
+	    then ? then->dinfo->devices[di].busy_time :
+	    now->dinfo->devices[di].dev_creation_time);
 
-	if (compute_stats(&now->dinfo->devices[di], then ?
-			  &then->dinfo->devices[di] : NULL, elapsed_time,
-			  NULL, NULL, NULL,
-			  &kb_per_transfer, &transfers_per_second,
-			  &mb_per_second, NULL, NULL) != 0)
+	if (devstat_compute_statistics(&now->dinfo->devices[di], then ?
+	    &then->dinfo->devices[di] : NULL, elapsed_time,
+	    DSM_KB_PER_TRANSFER, &kb_per_transfer, DSM_TRANSFERS_PER_SECOND,
+	    &transfers_per_second, DSM_MB_PER_SECOND, &mb_per_second,
+	    DSM_NONE) != 0)
 		errx(1, "%s", devstat_errbuf);
 
 	if ((device_busy == 0) && (transfers_per_second > 5))
