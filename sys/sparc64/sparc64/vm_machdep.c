@@ -131,7 +131,7 @@ cpu_sched_exit(struct thread *td)
 
 	p = td->td_proc;
 	vm = p->p_vmspace;
-	if (vm->vm_refcnt > 1)
+	if (vm->vm_refcnt > 0)
 		return;
 	SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
 		if (pc->pc_vmspace == vm) {
