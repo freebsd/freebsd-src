@@ -104,6 +104,9 @@ static struct vnodeopv_entry_desc spec_vnodeop_entries[] = {
 	{ &vop_strategy_desc,		(vop_t *) spec_strategy },
 	{ &vop_symlink_desc,		(vop_t *) vop_panic },
 	{ &vop_write_desc,		(vop_t *) spec_write },
+	{ &vop_lock_desc,		(vop_t *) vop_nolock },
+	{ &vop_unlock_desc,		(vop_t *) vop_nounlock },
+	{ &vop_islocked_desc,		(vop_t *) vop_noislocked },
 	{ NULL, NULL }
 };
 static struct vnodeopv_desc spec_vnodeop_opv_desc =
