@@ -129,7 +129,6 @@ ENTRY(vm86_bioscall)
 	/*
 	 * Return via _doreti
 	 */
-	subl	$4,%esp			/* dummy unit */
 	incb	_intr_nesting_level
 	MEXITCOUNT
 	jmp	_doreti
