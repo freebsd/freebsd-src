@@ -291,7 +291,7 @@ main(argc, argv)
 			break;
 		case 'o':
 			if (mfs)
-				getmntopts(optarg, mopts, &mntflags);
+				getmntopts(optarg, mopts, &mntflags, 0);
 			else {
 				if (strcmp(optarg, "space") == 0)
 					opt = FS_OPTSPACE;

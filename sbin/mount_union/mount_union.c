@@ -84,7 +84,7 @@ main(argc, argv)
 			args.mntflags |= UNMNT_BELOW;
 			break;
 		case 'o':
-			getmntopts(optarg, mopts, &mntflags);
+			getmntopts(optarg, mopts, &mntflags, 0);
 			break;
 		case 'r':
 			args.mntflags &= ~UNMNT_OPMASK;
