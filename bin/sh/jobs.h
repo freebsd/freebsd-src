@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)jobs.h	8.2 (Berkeley) 5/4/95
- *	$Id$
+ *	$Id: jobs.h,v 1.5 1997/02/22 13:58:29 peter Exp $
  */
 
 /* Mode argument to forkshell.  Don't change FORK_FG or FORK_BG. */
@@ -51,8 +51,8 @@
  */
 
 struct procstat {
-	short pid;		/* process id */
-	short status;		/* status flags (defined above) */
+	pid_t pid;		/* process id */
+	int status;		/* status flags (defined above) */
 	char *cmd;		/* text of command being run */
 };
 
@@ -75,7 +75,7 @@ struct job {
 #endif
 };
 
-extern short backgndpid;	/* pid of last background process */
+extern pid_t backgndpid;	/* pid of last background process */
 extern int job_warning;		/* user was warned about stopped jobs */
 
 void setjobctl __P((int));

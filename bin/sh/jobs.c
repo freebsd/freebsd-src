@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: jobs.c,v 1.14 1997/05/19 00:18:42 steve Exp $
+ *	$Id: jobs.c,v 1.15 1997/05/24 21:04:55 steve Exp $
  */
 
 #ifndef lint
@@ -81,10 +81,10 @@ static char const sccsid[] = "@(#)jobs.c	8.5 (Berkeley) 5/4/95";
 
 struct job *jobtab;		/* array of jobs */
 int njobs;			/* size of array */
-MKINIT short backgndpid = -1;	/* pid of last background process */
+MKINIT pid_t backgndpid = -1;	/* pid of last background process */
 #if JOBS
 int initialpgrp;		/* pgrp of shell on invocation */
-short curjob;			/* current job */
+int curjob;			/* current job */
 #endif
 
 #if JOBS
@@ -174,6 +174,7 @@ setjobctl(on)
 
 
 #ifdef mkinit
+INCLUDE <sys/types.h>
 INCLUDE <stdlib.h>
 
 SHELLPROC {
