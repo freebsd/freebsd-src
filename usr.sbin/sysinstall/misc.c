@@ -1,7 +1,7 @@
 /*
  * Miscellaneous support routines..
  *
- * $Id: misc.c,v 1.15 1996/03/18 15:28:03 jkh Exp $
+ * $Id: misc.c,v 1.16 1996/04/13 13:32:00 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -261,14 +261,12 @@ Mkdir(char *ipath, void *data)
 	*p = '\0';
 	if (stat(path, &sb)) {
 	    if (errno != ENOENT) {
-		dialog_clear();
 		msgConfirm("Couldn't stat directory %s: %s", path, strerror(errno));
 		return DITEM_FAILURE;
 	    }
 	    if (isDebug())
 		msgDebug("mkdir(%s..)\n", path);
 	    if (mkdir(path, S_IRWXU | S_IRWXG | S_IRWXO) < 0) {
-		dialog_clear();
 		msgConfirm("Couldn't create directory %s: %s", path,strerror(errno));
 		return DITEM_FAILURE;
 	    }
@@ -297,7 +295,6 @@ Mount(char *mountp, void *dev)
     memset(&ufsargs,0,sizeof ufsargs);
 
     if (Mkdir(mountpoint, NULL)) {
-	dialog_clear();
 	msgConfirm("Unable to make directory mountpoint for %s!", mountpoint);
 	return DITEM_FAILURE;
     }
@@ -306,7 +303,6 @@ Mount(char *mountp, void *dev)
 
     ufsargs.fspec = device;
     if (mount(MOUNT_UFS, mountpoint, MNT_ASYNC, (caddr_t)&ufsargs) == -1) {
-	dialog_clear();
 	msgConfirm("Error mounting %s on %s : %s", device, mountpoint, strerror(errno));
 	return DITEM_FAILURE;
     }

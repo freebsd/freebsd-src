@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: options.c,v 1.32 1996/04/07 03:52:34 jkh Exp $
+ * $Id: options.c,v 1.33 1996/04/13 13:32:06 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -272,12 +272,13 @@ optionsEditor(dialogMenuItem *self)
 	case 'Q':
 	    clear();
 	    dialog_clear();
-	    return DITEM_SUCCESS;
+	    return DITEM_SUCCESS | DITEM_RESTORE;
 
 	default:
 	    beep();
 	}
     }
     /* NOTREACHED */
-    return DITEM_SUCCESS;
+    return DITEM_SUCCESS | DITEM_RESTORE;
 }
+

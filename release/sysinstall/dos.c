@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: dos.c,v 1.9 1996/03/02 07:31:52 jkh Exp $
+ * $Id: dos.c,v 1.10 1996/04/13 13:31:33 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -68,7 +68,6 @@ mediaInitDOS(Device *dev)
     args.mask = 0777;
 
     if (mount(MOUNT_MSDOS, "/dos", MNT_RDONLY, (caddr_t)&args) == -1) {
-	dialog_clear();
 	msgConfirm("Error mounting %s on /dos: %s (%u)", args.fspec, strerror(errno), errno);
 	return FALSE;
     }
@@ -103,10 +102,8 @@ mediaShutdownDOS(Device *dev)
     if (!RunningAsInit || !DOSMounted)
 	return;
     msgDebug("Unmounting %s from /dos\n", dev->name);
-    if (unmount("/dos", MNT_FORCE) != 0) {
-	dialog_clear();
+    if (unmount("/dos", MNT_FORCE) != 0)
 	msgConfirm("Could not unmount the DOS partition: %s", strerror(errno));
-    }
     if (isDebug())
 	msgDebug("Unmount successful\n");
     DOSMounted = FALSE;
