@@ -38,7 +38,7 @@
  */
 
 /*
- *  $Id: if_ep.c,v 1.39 1996/01/29 03:16:12 gibbs Exp $
+ *  $Id: if_ep.c,v 1.40 1996/02/06 18:50:41 wollman Exp $
  *
  *  Promiscuous mode added and interrupt logic slightly changed
  *  to reduce the number of adapter failures. Transceiver select
@@ -689,13 +689,13 @@ epstart(ifp)
     int s, pad;
 
     s = splimp();
-    if (sc->arpcom.ac_if.if_flags & IFF_OACTIVE) {
+    if (ifp->if_flags & IFF_OACTIVE) {
 	splx(s);
 	return;
     }
 startagain:
     /* Sneak a peek at the next packet */
-    m = sc->arpcom.ac_if.if_snd.ifq_head;
+    m = ifp->if_snd.ifq_head;
     if (m == 0) {
 	splx(s);
 	return;
@@ -712,19 +712,19 @@ startagain:
      */
     if (len + pad > ETHER_MAX_LEN) {
 	/* packet is obviously too large: toss it */
-	++sc->arpcom.ac_if.if_oerrors;
-	IF_DEQUEUE(&sc->arpcom.ac_if.if_snd, m);
+	++ifp->if_oerrors;
+	IF_DEQUEUE(&ifp->if_snd, m);
 	m_freem(m);
 	goto readcheck;
     }
     if (inw(BASE + EP_W1_FREE_TX) < len + pad + 4) {
 	/* no room in FIFO */
 	outw(BASE + EP_COMMAND, SET_TX_AVAIL_THRESH | (len + pad + 4));
-	sc->arpcom.ac_if.if_flags |= IFF_OACTIVE;
+	ifp->if_flags |= IFF_OACTIVE;
 	splx(s);
 	return;
     }
-    IF_DEQUEUE(&sc->arpcom.ac_if.if_snd, m);
+    IF_DEQUEUE(&ifp->if_snd, m);
 
     outw(BASE + EP_W1_TX_PIO_WR_1, len);
     outw(BASE + EP_W1_TX_PIO_WR_1, 0x0);	/* Second dword meaningless */
@@ -761,12 +761,13 @@ startagain:
 	outb(BASE + EP_W1_TX_PIO_WR_1, 0);	/* Padding */
 
 #if NBPFILTER > 0
-    if (sc->arpcom.ac_if.if_bpf) {
-	bpf_mtap(&sc->arpcom.ac_if, top);
+    if (ifp->if_bpf) {
+	bpf_mtap(ifp, top);
     }
 #endif
 
-    sc->arpcom.ac_if.if_opackets++;
+    ifp->if_timer=2;
+    ifp->if_opackets++;
     m_freem(top);
     /*
      * Every 1024*4 packets we increment the tx_rate if we haven't had
@@ -786,7 +787,7 @@ readcheck:
 	 * we check if we have packets left, in that case we prepare to come
 	 * back later
 	 */
-	if (sc->arpcom.ac_if.if_snd.ifq_head) {
+	if (ifp->if_snd.ifq_head) {
 	    outw(BASE + EP_COMMAND, SET_TX_AVAIL_THRESH |
 		 sc->tx_start_thresh);
 	}
@@ -802,9 +803,12 @@ epintr(unit)
 {
     register int status;
     register struct ep_softc *sc = &ep_softc[unit];
+    struct ifnet *ifp;
     int x;
 
     x=splbio();
+
+    ifp = &sc->arpcom.ac_if;
 
     outw(BASE + EP_COMMAND, SET_INTR_MASK); /* disable all Ints */
 
@@ -821,19 +825,21 @@ rescan:
 	}
 	if (status & S_TX_AVAIL) {
 	    /* we need ACK */
-	    sc->arpcom.ac_if.if_flags &= ~IFF_OACTIVE;
+	    ifp->if_timer=0;
+	    ifp->if_flags &= ~IFF_OACTIVE;
 	    GO_WINDOW(1);
 	    inw(BASE + EP_W1_FREE_TX);
-	    epstart(&sc->arpcom.ac_if);
+	    epstart(ifp);
 	}
 	if (status & S_CARD_FAILURE) {
+	    ifp->if_timer=0;
 #ifdef EP_LOCAL_STATS
 	    printf("\nep%d:\n\tStatus: %x\n", unit, status);
 	    GO_WINDOW(4);
 	    printf("\tFIFO Diagnostic: %x\n", inw(BASE + EP_W4_FIFO_DIAG));
 	    printf("\tStat: %x\n", sc->stat);
 	    printf("\tIpackets=%d, Opackets=%d\n",
-		sc->arpcom.ac_if.if_ipackets, sc->arpcom.ac_if.if_opackets);
+		ifp->if_ipackets, ifp->if_opackets);
 	    printf("\tNOF=%d, NOMB=%d, BPFD=%d, RXOF=%d, RXOL=%d, TXU=%d\n",
 		   sc->rx_no_first, sc->rx_no_mbuf, sc->rx_bpf_disc, sc->rx_overrunf,
 		   sc->rx_overrunl, sc->tx_underrun);
@@ -842,7 +848,7 @@ rescan:
 #ifdef DIAGNOSTIC
 	    printf("ep%d: Status: %x (input buffer overflow)\n", unit, status);
 #else
-	    ++sc->arpcom.ac_if.if_ierrors;
+	    ++ifp->if_ierrors;
 #endif
 
 #endif
@@ -851,6 +857,7 @@ rescan:
 	    return;
 	}
 	if (status & S_TX_COMPLETE) {
+	    ifp->if_timer=0;
 	    /* we  need ACK. we do it at the end */
 	    /*
 	     * We need to read TX_STATUS until we get a 0 status in order to
@@ -871,25 +878,25 @@ rescan:
 		    } else {
 			if (status & TXS_JABBER);
 			else	/* TXS_MAX_COLLISION - we shouldn't get here */
-			    ++sc->arpcom.ac_if.if_collisions;
+			    ++ifp->if_collisions;
 		    }
-		    ++sc->arpcom.ac_if.if_oerrors;
+		    ++ifp->if_oerrors;
 		    outw(BASE + EP_COMMAND, TX_ENABLE);
 		    /*
 		     * To have a tx_avail_int but giving the chance to the
 		     * Reception
 		     */
-		    if (sc->arpcom.ac_if.if_snd.ifq_head) {
+		    if (ifp->if_snd.ifq_head) {
 			outw(BASE + EP_COMMAND, SET_TX_AVAIL_THRESH | 8);
 		    }
 		}
 		outb(BASE + EP_W1_TX_STATUS, 0x0);	/* pops up the next
 							 * status */
 	    }			/* while */
-	    sc->arpcom.ac_if.if_flags &= ~IFF_OACTIVE;
+	    ifp->if_flags &= ~IFF_OACTIVE;
 	    GO_WINDOW(1);
 	    inw(BASE + EP_W1_FREE_TX);
-	    epstart(&sc->arpcom.ac_if);
+	    epstart(ifp);
 	}			/* end TX_COMPLETE */
     }
 
@@ -910,18 +917,20 @@ epread(sc)
 {
     struct ether_header *eh;
     struct mbuf *top, *mcur, *m;
+    struct ifnet *ifp;
     int lenthisone;
 
     short rx_fifo2, status;
     register short delta;
     register short rx_fifo;
 
+    ifp = &sc->arpcom.ac_if;
     status = inw(BASE + EP_W1_RX_STATUS);
 
 read_again:
 
     if (status & ERR_RX) {
-	++sc->arpcom.ac_if.if_ierrors;
+	++ifp->if_ierrors;
 	if (status & ERR_RX_OVERRUN) {
 	    /*
 	     * we can think the rx latency is actually greather than we
@@ -1078,15 +1087,15 @@ all_pkt:
     if (delta < MIN_RX_EARLY_THRESHF)
 	delta = MIN_RX_EARLY_THRESHF;
     sc->rx_early_thresh = delta;
-    ++sc->arpcom.ac_if.if_ipackets;
+    ++ifp->if_ipackets;
     ep_fset(F_RX_FIRST);
     ep_frst(F_RX_TRAILER);
     top->m_pkthdr.rcvif = &sc->arpcom.ac_if;
     top->m_pkthdr.len = sc->cur_len;
 
 #if NBPFILTER > 0
-    if (sc->arpcom.ac_if.if_bpf) {
-	bpf_mtap(&sc->arpcom.ac_if, top);
+    if (ifp->if_bpf) {
+	bpf_mtap(ifp, top);
 
 	/*
 	 * Note that the interface cannot be in promiscuous mode if there are
@@ -1094,7 +1103,7 @@ all_pkt:
 	 * check if this packet is really ours.
 	 */
 	eh = mtod(top, struct ether_header *);
-	if ((sc->arpcom.ac_if.if_flags & IFF_PROMISC) &&
+	if ((ifp->if_flags & IFF_PROMISC) &&
 	    (eh->ether_dhost[0] & 1) == 0 &&
 	    bcmp(eh->ether_dhost, sc->arpcom.ac_enaddr,
 		 sizeof(eh->ether_dhost)) != 0 &&
@@ -1118,7 +1127,7 @@ all_pkt:
 
     eh = mtod(top, struct ether_header *);
     m_adj(top, sizeof(struct ether_header));
-    ether_input(&sc->arpcom.ac_if, eh, top);
+    ether_input(ifp, eh, top);
     if (!sc->mb[sc->next_mb])
 	epmbuffill((caddr_t) sc, 0);
     sc->top = 0;
