@@ -54,8 +54,6 @@ ASM_CFLAGS= -x assembler-with-cpp -DLOCORE ${CFLAGS}
 # then it might break building of utilities.
 .if ${KERNFORMAT} == "elf"
 FMT=		-elf
-.else
-FMT=		-aout
 .endif
 CFLAGS+=	${FMT}
 
@@ -86,12 +84,6 @@ GEN_CFILES= $S/$M/$M/genassym.c
 SYSTEM_CFILES= ioconf.c param.c vnode_if.c config.c
 SYSTEM_SFILES= $S/$M/$M/locore.s
 SYSTEM_DEP= Makefile ${SYSTEM_OBJS}
-
-.if ${KERNFORMAT} == aout || ${KERNFORMAT} == aoutkld
-SYSTEM_OBJS= locore.o vnode_if.o ${OBJS} ioconf.o param.o config.o
-SYSTEM_LD= @${LD} ${FMT} -Bforcedynamic -Z -T ${LOAD_ADDRESS} -o ${.TARGET} -X ${SYSTEM_OBJS} vers.o
-SYSTEM_LD_TAIL= @${SIZE} ${FMT} ${.TARGET} ; chmod 755 ${.TARGET}
-.endif
 
 .if ${KERNFORMAT} == elf
 SYSTEM_OBJS= locore.o setdef0.o vnode_if.o ${OBJS} ioconf.o param.o config.o \
