@@ -94,6 +94,10 @@ device		bt
 device		aha	1
 device		aic
 
+device		ncv		# NCR 53C500
+device		nsp		# Workbit Ninja SCSI-3
+device		stg		# TMC 18C30/18C50
+
 # RAID controllers interfaced to the SCSI subsystem
 device		asr		# DPT SmartRAID V, VI and Adaptec SCSI RAID
 device		dpt		# DPT Smartcache III, IV - See NOTES for options!
