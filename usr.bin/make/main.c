@@ -612,11 +612,7 @@ main(int argc, char **argv)
 	 * (Note this is *not* MAKEFLAGS since /bin/make uses that and it's
 	 * in a different format).
 	 */
-#ifdef POSIX
 	Main_ParseArgLine(getenv("MAKEFLAGS"));
-#else
-	Main_ParseArgLine(getenv("MAKE"));
-#endif
 
 	MainParseArgs(argc, argv);
 
@@ -766,11 +762,7 @@ main(int argc, char **argv)
 
 	/* Install all the flags into the MAKE envariable. */
 	if (((p = Var_Value(MAKEFLAGS, VAR_GLOBAL, &p1)) != NULL) && *p)
-#ifdef POSIX
 		setenv("MAKEFLAGS", p, 1);
-#else
-		setenv("MAKE", p, 1);
-#endif
 	free(p1);
 
 	/*
