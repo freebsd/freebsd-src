@@ -79,6 +79,7 @@ static int	ed_pccard_attach(device_t);
 static int	ed_pccard_ax88190(device_t dev);
 
 static void	ax88190_geteprom(struct ed_softc *);
+static int	ed_pccard_memread(device_t dev, off_t offset, u_char *byte);
 static int	ed_pccard_memwrite(device_t dev, off_t offset, u_char byte);
 #ifndef ED_NO_MIIBUS
 static void	ed_pccard_dlink_mii_reset(struct ed_softc *sc);
@@ -93,6 +94,8 @@ static const struct ed_product {
 	int flags;
 #define	NE2000DVF_DL10019	0x0001		/* chip is D-Link DL10019 */
 #define	NE2000DVF_AX88190	0x0002		/* chip is ASIX AX88190 */
+#define NE2000DVF_ENADDR	0x0004		/* Get MAC from attr mem */
+	int enoff;
 } ed_pccard_products[] = {
 	{ PCMCIA_CARD(ACCTON, EN2212, 0), 0},
 	{ PCMCIA_CARD(ACCTON, EN2216, 0), 0},
@@ -124,7 +127,7 @@ static const struct ed_product {
 	{ PCMCIA_CARD(EXP, THINLANCOMBO, 0), 0},
 	{ PCMCIA_CARD(GREY_CELL, DMF650TX, 0), 0},
 	{ PCMCIA_CARD(IBM, HOME_AND_AWAY, 0), 0},
-	{ PCMCIA_CARD(IBM, INFOMOVER, 0), 0},
+	{ PCMCIA_CARD(IBM, INFOMOVER, 0), NE2000DVF_ENADDR, 0xff0},
 	{ PCMCIA_CARD(IODATA3, PCLAT, 0), 0},
 	{ PCMCIA_CARD(KINGSTON, KNE2, 0), 0},
 	{ PCMCIA_CARD(LANTECH, FASTNETTX, 0),NE2000DVF_AX88190 },
@@ -231,15 +234,20 @@ ed_pccard_attach(device_t dev)
 	struct ed_softc *sc = device_get_softc(dev);
 	u_char sum;
 	u_char ether_addr[ETHER_ADDR_LEN];
+	const struct ed_product *pp;
 	
+	if ((pp = (const struct ed_product *) pccard_product_lookup(dev, 
+	    (const struct pccard_product *) ed_pccard_products,
+	    sizeof(ed_pccard_products[0]), NULL)) == NULL)
+		return (ENXIO);
 	if (sc->port_used > 0)
 		ed_alloc_port(dev, sc->port_rid, sc->port_used);
 	if (sc->mem_used)
 		ed_alloc_memory(dev, sc->mem_rid, sc->mem_used);
 	ed_alloc_irq(dev, sc->irq_rid, 0);
 		
-	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET,
-			       edintr, sc, &sc->irq_handle);
+	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET, edintr, sc,
+	    &sc->irq_handle);
 	if (error) {
 		device_printf(dev, "setup intr failed %d \n", error);
 		ed_release_resources(dev);
@@ -250,6 +258,13 @@ ed_pccard_attach(device_t dev)
 		pccard_get_ether(dev, ether_addr);
 		for (i = 0, sum = 0; i < ETHER_ADDR_LEN; i++)
 			sum |= ether_addr[i];
+		if (sum == 0 && pp->flags & NE2000DVF_ENADDR) {
+			for (i = 0; i < ETHER_ADDR_LEN; i++) {
+				ed_pccard_memread(dev, pp->enoff + i * 2,
+				    ether_addr + i);
+				sum |= ether_addr[i];
+			}
+		}
 		if (sum)
 			bcopy(ether_addr, sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
 	}
@@ -329,6 +344,29 @@ ed_pccard_memwrite(device_t dev, off_t offset, u_char byte)
 
 	bus_space_write_1(rman_get_bustag(cis), rman_get_bushandle(cis),
 	    offset, byte);
+
+	bus_deactivate_resource(dev, SYS_RES_MEMORY, cis_rid, cis);
+	bus_release_resource(dev, SYS_RES_MEMORY, cis_rid, cis);
+
+	return (0);
+}
+
+static int
+ed_pccard_memread(device_t dev, off_t offset, u_char *byte)
+{
+	int cis_rid;
+	struct resource *cis;
+
+	cis_rid = 0;
+	cis = bus_alloc_resource(dev, SYS_RES_MEMORY, &cis_rid, 0, ~0, 
+	    4 << 10, RF_ACTIVE | RF_SHAREABLE);
+	if (cis == NULL)
+		return (ENXIO);
+	CARD_SET_RES_FLAGS(device_get_parent(dev), dev, SYS_RES_MEMORY,
+	    cis_rid, PCCARD_A_MEM_ATTR);
+
+	*byte = bus_space_read_1(rman_get_bustag(cis), rman_get_bushandle(cis),
+	    offset);
 
 	bus_deactivate_resource(dev, SYS_RES_MEMORY, cis_rid, cis);
 	bus_release_resource(dev, SYS_RES_MEMORY, cis_rid, cis);
