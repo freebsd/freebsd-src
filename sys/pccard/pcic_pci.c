@@ -782,7 +782,7 @@ pcic_pci_attach(device_t dev)
 		    RF_ACTIVE | RF_SHAREABLE);
 		if (r == NULL) {
 			sc->csc_route = pcic_iw_isa;
-			sc->csc_route = pcic_iw_isa;
+			sc->func_route = pcic_iw_isa;
 			device_printf(dev,
 			    "No PCI interrupt routed, trying ISA.\n");
 		}
