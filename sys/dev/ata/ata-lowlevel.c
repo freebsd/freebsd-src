@@ -644,11 +644,13 @@ ata_reset(struct ata_channel *ch)
 static int
 ata_wait(struct ata_device *atadev, u_int8_t mask)
 {
-    int timeout = 0;
     u_int8_t status;
+    int timeout = 0;
     
     DELAY(1);
-    while (timeout < 5000000) { /* timeout 5 secs */
+
+    /* wait 5 seconds for device to get !BUSY */
+    while (timeout < 5000000) {
 	status = ATA_IDX_INB(atadev->channel, ATA_STATUS);
 
 	/* if drive fails status, reselect the drive just to be sure */
@@ -678,8 +680,10 @@ ata_wait(struct ata_device *atadev, u_int8_t mask)
 	return -1;	    
     if (!mask)	   
 	return (status & ATA_S_ERROR);	 
+
+    DELAY(1);
     
-    /* wait 50 msec for bits wanted. */	   
+    /* wait 50 msec for bits wanted */	   
     timeout = 5000;
     while (timeout--) {	  
 	status = ATA_IDX_INB(atadev->channel, ATA_STATUS);
