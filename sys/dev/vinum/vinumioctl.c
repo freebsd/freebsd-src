@@ -201,7 +201,7 @@ vinum_super_ioctl(struct cdev *dev,
 		boothowto |= RB_GDB;			    /* serial debug line */
 	    else
 		boothowto &= ~RB_GDB;			    /* local ddb */
-	    Debugger("vinum debug");
+	    kdb_enter("vinum debug");
 	}
 	ioctl_reply = (struct _ioctl_reply *) data;	    /* reinstate the address to reply to */
 	ioctl_reply->error = 0;
