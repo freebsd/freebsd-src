@@ -105,7 +105,9 @@
 #endif	/* __NetBSD__ */
 
 #ifdef __FreeBSD__
+#include <sys/bus.h>
 #include <sys/conf.h>
+#include <sys/interrupt.h>
 #include <sys/proc.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_kern.h>

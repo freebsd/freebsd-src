@@ -37,10 +37,11 @@
 #include <sys/kernel.h>
 #include <sys/bus.h>
 
+#include <sys/fbio.h>
+
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
-#include <machine/console.h>
 #include <machine/md_var.h>
 #include <machine/pc/bios.h>
 
@@ -287,7 +288,6 @@ static video_adapter_t	biosadapter[1];
 
 /* video driver declarations */
 static int			gdc_configure(int flags);
-static int			gdc_nop(void);
 static int			gdc_err(video_adapter_t *adp, ...);
 static vi_probe_t		gdc_probe;
 static vi_init_t		gdc_init;
@@ -377,7 +377,6 @@ static int		gdc_init_done = FALSE;
 /* local functions */
 static int map_gen_mode_num(int type, int color, int mode);
 static int probe_adapters(void);
-static void dump_buffer(u_char *buf, size_t len);
 
 #define	prologue(adp, flag, err)			\
 	if (!gdc_init_done || !((adp)->va_flags & (flag)))	\
@@ -515,10 +514,12 @@ static void master_gdc_word_prm(unsigned int wpmtr)
     master_gdc_prm((wpmtr >> 8) & 0x00ff);
 }	
 
+#ifdef LINE30
 static void master_gdc_fifo_empty(void)
 {
     while ( (inb(IO_GDC1) & 4) == 0);     
 }
+#endif
 
 static void master_gdc_wait_vsync(void)
 {
@@ -532,6 +533,7 @@ static void gdc_cmd(unsigned int cmd)
     outb( IO_GDC2+2, cmd);
 }
 
+#ifdef LINE30
 static void gdc_prm(unsigned int pmtr)
 {
     while ( (inb(IO_GDC2) & 2) != 0);
@@ -548,6 +550,7 @@ static void gdc_fifo_empty(void)
 {
     while ( (inb(IO_GDC2) & 0x04) == 0);          
 }
+#endif
 
 static void gdc_wait_vsync(void)
 {
@@ -555,6 +558,7 @@ static void gdc_wait_vsync(void)
     while ( (inb(IO_GDC2) & 0x20) == 0);          
 }
 
+#ifdef LINE30
 static int check_gdc_clock(void)
 {
     if ((inb(IO_SYSPORT) & 0x80) == 0){
@@ -563,6 +567,7 @@ static int check_gdc_clock(void)
        	return _2_5MHZ;
     }
 }
+#endif
 
 static void initialize_gdc(unsigned int mode, int isGraph)
 {
@@ -764,12 +769,6 @@ gdc_set_origin(video_adapter_t *adp, off_t offset)
 	writew(BIOS_PADDRTOVADDR(0x000e0004), offset >> 15);
     }
 #endif
-    return 0;
-}
-
-static int
-gdc_nop(void)
-{
     return 0;
 }
 
@@ -1241,18 +1240,6 @@ gdc_dev_ioctl(video_adapter_t *adp, u_long cmd, caddr_t arg)
 
     default:
 	return fb_commonioctl(adp, cmd, arg);
-    }
-}
-
-static void
-dump_buffer(u_char *buf, size_t len)
-{
-    int i;
-
-    for(i = 0; i < len;) {
-	printf("%02x ", buf[i]);
-	if ((++i % 16) == 0)
-	    printf("\n");
     }
 }
 
