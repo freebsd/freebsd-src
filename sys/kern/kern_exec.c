@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.15 1995/03/10 08:44:20 davidg Exp $
+ *	$Id: kern_exec.c,v 1.16 1995/03/16 18:12:30 bde Exp $
  */
 
 #include <sys/param.h>
@@ -138,6 +138,12 @@ interpret:
 	}
 
 	/*
+	 * Lose the lock on the vnode. It isn't needed, and must not
+	 * exist for the pagefault paging to work below.
+	 */
+	VOP_UNLOCK(vnodep);
+
+	/*
 	 * Check file permissions (also 'opens' file)
 	 */
 	error = exec_check_permissions(iparams);
@@ -182,7 +188,7 @@ interpret:
 			goto exec_fail_dealloc;
 		if (iparams->interpreted) {
 			/* free old vnode and name buffer */
-			vput(ndp->ni_vp);
+			vrele(ndp->ni_vp);
 			FREE(ndp->ni_cnd.cn_pnbuf, M_NAMEI);
 			if (vm_map_remove(kernel_map, (vm_offset_t)image_header,
 			    (vm_offset_t)image_header + PAGE_SIZE))
@@ -305,7 +311,7 @@ interpret:
 	if (vm_map_remove(kernel_map, (vm_offset_t)image_header,
 	    (vm_offset_t)image_header + PAGE_SIZE))
 		panic("execve: header dealloc failed (2)");
-	vput(ndp->ni_vp);
+	vrele(ndp->ni_vp);
 	FREE(ndp->ni_cnd.cn_pnbuf, M_NAMEI);
 
 	return (0);
@@ -319,7 +325,8 @@ exec_fail_dealloc:
 		if (vm_map_remove(kernel_map, (vm_offset_t)image_header,
 		    (vm_offset_t)image_header + PAGE_SIZE))
 			panic("execve: header dealloc failed (3)");
-	vput(ndp->ni_vp);
+	if (ndp->ni_vp)
+		vrele(ndp->ni_vp);
 	FREE(ndp->ni_cnd.cn_pnbuf, M_NAMEI);
 
 exec_fail:
