@@ -286,9 +286,7 @@ start_recursion (fileproc, filesdoneproc, direntproc, dirleaveproc, callerdat,
 	err += do_recursion (&frame);
 
     /* Free the data which expand_wild allocated.  */
-    for (i = 0; i < argc; ++i)
-	free (argv[i]);
-    free (argv);
+    free_names (&argc, argv);
 
  out:
     free (update_dir);

@@ -49,10 +49,11 @@ CPP=cl.exe
 OUTDIR=.\Release
 INTDIR=.\Release
 
-ALL : 
+ALL : "$(OUTDIR)\listen2.exe"
 
 CLEAN : 
-	-@erase 
+	-@erase ".\Release\listen2.exe"
+	-@erase ".\Release\listen2.obj"
 
 "$(OUTDIR)" :
     if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
@@ -72,12 +73,18 @@ BSC32_FLAGS=/nologo /o"$(OUTDIR)/listen2.bsc"
 BSC32_SBRS=
 LINK32=link.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib /nologo /subsystem:console /machine:I386
-# ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib /nologo /subsystem:console /machine:I386
+# ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib wsock32.lib /nologo /subsystem:console /machine:I386
 LINK32_FLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib\
- advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib /nologo\
+ advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib wsock32.lib /nologo\
  /subsystem:console /incremental:no /pdb:"$(OUTDIR)/listen2.pdb" /machine:I386\
  /out:"$(OUTDIR)/listen2.exe" 
-LINK32_OBJS=
+LINK32_OBJS= \
+	"$(INTDIR)/listen2.obj"
+
+"$(OUTDIR)\listen2.exe" : "$(OUTDIR)" $(DEF_FILE) $(LINK32_OBJS)
+    $(LINK32) @<<
+  $(LINK32_FLAGS) $(LINK32_OBJS)
+<<
 
 !ELSEIF  "$(CFG)" == "listen2 - Win32 Debug"
 
@@ -94,10 +101,15 @@ LINK32_OBJS=
 OUTDIR=.\Debug
 INTDIR=.\Debug
 
-ALL : 
+ALL : "$(OUTDIR)\listen2.exe"
 
 CLEAN : 
-	-@erase 
+	-@erase ".\Debug\listen2.exe"
+	-@erase ".\Debug\listen2.obj"
+	-@erase ".\Debug\listen2.ilk"
+	-@erase ".\Debug\listen2.pdb"
+	-@erase ".\Debug\vc40.pdb"
+	-@erase ".\Debug\vc40.idb"
 
 "$(OUTDIR)" :
     if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
@@ -117,12 +129,18 @@ BSC32_FLAGS=/nologo /o"$(OUTDIR)/listen2.bsc"
 BSC32_SBRS=
 LINK32=link.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib /nologo /subsystem:console /debug /machine:I386
-# ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib /nologo /subsystem:console /debug /machine:I386
+# ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib wsock32.lib /nologo /subsystem:console /debug /machine:I386
 LINK32_FLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib\
- advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib /nologo\
+ advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib wsock32.lib /nologo\
  /subsystem:console /incremental:yes /pdb:"$(OUTDIR)/listen2.pdb" /debug\
  /machine:I386 /out:"$(OUTDIR)/listen2.exe" 
-LINK32_OBJS=
+LINK32_OBJS= \
+	"$(INTDIR)/listen2.obj"
+
+"$(OUTDIR)\listen2.exe" : "$(OUTDIR)" $(DEF_FILE) $(LINK32_OBJS)
+    $(LINK32) @<<
+  $(LINK32_FLAGS) $(LINK32_OBJS)
+<<
 
 !ENDIF 
 
@@ -156,6 +174,15 @@ LINK32_OBJS=
 
 !ENDIF 
 
+################################################################################
+# Begin Source File
+
+SOURCE=.\listen2.c
+
+"$(INTDIR)\listen2.obj" : $(SOURCE) "$(INTDIR)"
+
+
+# End Source File
 # End Target
 # End Project
 ################################################################################

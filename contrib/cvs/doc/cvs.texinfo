@@ -2494,7 +2494,7 @@ files are binary and which are not.  @xref{Wrappers}.
 @c thinking of something more concise.
 @node From other version control systems
 @subsection Creating Files From Other Version Control Systems
-@cindex Importing files, from other version control systesm
+@cindex Importing files, from other version control systems
 
 If you have a project which you are maintaining with
 another version control system, such as @sc{rcs}, you
@@ -4896,6 +4896,15 @@ are checking out contains any files in that directory.
 @cindex Tracking sources
 
 @c FIXME: Need discussion of added and removed files.
+@c FIXME: This doesn't really adequately introduce the
+@c concepts of "vendor" and "you".  They don't *have*
+@c to be separate organizations or separate people.
+@c We want a description which is somewhat more based on
+@c the technical issues of which sources go where, but
+@c also with enough examples of how this relates to
+@c relationships like customer-supplier, developer-QA,
+@c maintainer-contributor, or whatever, to make it
+@c seem concrete.
 If you modify a program to better fit your site, you
 probably want to include your modifications when the next
 release of the program arrives.  @sc{cvs} can help you with
@@ -4928,6 +4937,7 @@ revision.
 * Update imports::              Updating a module with the import command
 * Reverting local changes::     Reverting a module to the latest vendor release
 * Binary files in imports::     Binary files require special handling
+* Keywords in imports::         Keyword substitution might be undesirable
 @end menu
 
 @c - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -5047,6 +5057,33 @@ after the @samp{-b}.  @xref{admin options}.
 
 Use the @samp{-k} wrapper option to tell import which
 files are binary.  @xref{Wrappers}.
+
+@node Keywords in imports
+@section How to handle keyword substitution with cvs import
+
+The sources which you are importing may contain
+keywords (@pxref{Keyword substitution}).  For example,
+the vendor may use @sc{cvs} or some other system
+which uses similar keyword expansion syntax.  If you
+just import the files in the default fashion, then
+the keyword expansions supplied by the vendor will
+be replaced by keyword expansions supplied by your
+own copy of @sc{cvs}.  It may be more convenient to
+maintain the expansions supplied by the vendor, so
+that this information can supply information about
+the sources that you imported from the vendor.
+
+To maintain the keyword expansions supplied by the
+vendor, supply the @samp{-ko} option to @code{cvs
+import} the first time you import the file.
+This will turn off keyword expansion
+for that file entirely, so if you want to be more
+selective you'll have to think about what you want
+and use the @samp{-k} option to @code{cvs update} or
+@code{cvs admin} as appropriate.
+@c Supplying -ko to import if the file already existed
+@c has no effect.  Not clear to me whether it should
+@c or not.
 
 @c ---------------------------------------------------------------------
 @node Moving files
@@ -5468,6 +5505,7 @@ Notified}); this command is useful even if you are not
 using @code{cvs watch on}.
 
 @cindex taginfo
+@cindex exit status, of taginfo
 The @file{taginfo} file defines programs to execute
 when someone executes a @code{tag} or @code{rtag}
 command.  The @file{taginfo} file has the standard form
@@ -5540,7 +5578,7 @@ But as soon as you export the files from your
 development environment it becomes harder to identify
 which revisions they are.
 
-@sc{Rcs} uses a mechanism known as @dfn{keyword
+CVS can use a mechanism known as @dfn{keyword
 substitution} (or @dfn{keyword expansion}) to help
 identifying the files.  Embedded strings of the form
 @code{$@var{keyword}$} and
@@ -5550,7 +5588,7 @@ with strings of the form
 a new revision of the file.
 
 @menu
-* Keyword list::                RCS Keywords
+* Keyword list::                Keywords
 * Using keywords::              Using keywords
 * Avoiding substitution::       Avoiding substitution
 * Substitution modes::          Substitution modes
@@ -5562,8 +5600,13 @@ a new revision of the file.
 @section RCS Keywords
 @cindex RCS keywords
 
-This is a list of the keywords that @sc{rcs} currently
-(in release 5.6.0.1) supports:
+@c FIXME: need some kind of example here I think, 
+@c perhaps in a
+@c "Keyword intro" node.  The intro in the "Keyword
+@c substitution" node itself seems OK, but to launch
+@c into a list of the keywords somehow seems too abrupt.
+
+This is a list of the keywords:
 
 @table @code
 @cindex Author keyword
@@ -5711,7 +5754,7 @@ keyword substitution.  You can use @samp{-ko}
 (@pxref{Substitution modes}) to turn off keyword
 substitution entirely.
 
-In many cases you can avoid using @sc{rcs} keywords in
+In many cases you can avoid using keywords in
 the source, even though they appear in the final
 product.  For example, the source for this manual
 contains @samp{$@@asis@{@}Author$} whenever the text
@@ -5722,7 +5765,7 @@ and @code{troff} you can embed the null-character
 @c - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 @node Substitution modes
 @section Substitution modes
-@cindex -k (RCS kflags)
+@cindex -k (keyword substitution)
 @cindex Kflag
 
 @c FIXME: This could be made more coherent, by expanding it
@@ -5805,10 +5848,14 @@ keyword---just do a @code{cvs log}.  Once you export
 the file the history information might be useless
 anyhow.
 
-A more serious concern is that @sc{rcs} is not good at
+A more serious concern is that @sc{cvs} is not good at
 handling @code{$@asis{}Log$} entries when a branch is
 merged onto the main trunk.  Conflicts often result
 from the merging operation.
+@c We say "cvs" even though it is done via rcsmerge;
+@c this is an implementation detail.  If the merging is
+@c done in CVS instead, should check if this problem
+@c still persists.
 
 People also tend to "fix" the log entries in the file
 (correcting spelling mistakes and maybe even factual
@@ -6160,6 +6207,7 @@ reference to @sc{cvs} commands, @pxref{Invoking CVS}).
 
 @menu
 * Structure::                   Overall structure of CVS commands
+* Exit status::                 Indicating CVS's success or failure
 * ~/.cvsrc::                    Default options with the ~/.csvrc file
 * Global options::              Options you give to the left of cvs_command
 * Common options::              Options you give to the right of cvs_command
@@ -6223,6 +6271,40 @@ affects some of the commands.  When it is given as a
 is accepted by more commands.  In other words, do not
 take the above categorization too seriously.  Look at
 the documentation instead.
+
+@node Exit status
+@appendixsec CVS's exit status
+@cindex exit status, of CVS
+
+CVS can indicate to the calling environment whether it
+succeeded or failed by setting its @dfn{exit status}.
+The exact way of testing the exit status will vary from
+one operating system to another.  For example in a unix
+shell script the @samp{$?} variable will be 0 if the
+last command returned a successful exit status, or
+greater than 0 if the exit status indicated failure.
+
+If CVS is successful, it returns a successful status;
+if there is an error, it prints an error message and
+returns a failure status.  The one exception to this is
+the @code{cvs diff} command.  It will return a
+successful status if it found no differences, or a
+failure status if there were differences or if there
+was an error.  Because this behavior provides no good
+way to detect errors, in the future it is possible that
+@code{cvs diff} will be changed to behave like the
+other @sc{cvs} commands.
+@c It might seem like checking whether cvs -q diff
+@c produces empty or non-empty output can tell whether
+@c there were differences or not.  But it seems like
+@c there are cases with output but no differences
+@c (testsuite basica-8b).  It is not clear to me how
+@c useful it is for a script to be able to check
+@c whether there were differences.
+@c FIXCVS? In previous versions of CVS, cvs diff
+@c returned 0 for no differences, 1 for differences, or
+@c 2 for errors.  Is this behavior worth trying to
+@c bring back (but what does it mean for VMS?)?
 
 @c - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 @node ~/.cvsrc
@@ -7482,9 +7564,8 @@ If any file names are given, only those files are
 compared.  If any directories are given, all files
 under them will be compared.
 
-The exit status will be 0 if no differences were found,
-1 if some differences were found, and 2 if any error
-occurred.
+The exit status for diff is different than for other
+@sc{cvs} commands; for details @ref{Exit status}.
 
 @menu
 * diff options::                diff options
@@ -8555,8 +8636,15 @@ recent revision (instead of ignoring the file).
 
 @item -F 
 Overwrite an existing tag of the same name on a
-different revision.  This option is new in @sc{cvs}
-1.4.  The old behavior is matched by @samp{cvs tag -F}.
+different revision.
+@c FIXME: Needs an example, and/or more explanation.
+@c Also needs to contrast this with the behavior if -F
+@c is not specified, and the description needs to be
+@c moved somewhere where it is shared between "tag" and
+@c "rtag" (probably some sub-node of Revisions and
+@c branches).  Also should be clear about whether this
+@c applies to branch tags, non-branch tags, or both.
+@c Also this is *not* a common option.
 
 @item -l
 Local; run only in current working directory.
@@ -8673,10 +8761,13 @@ These standard options are supported by @code{tag}
 them):
 
 @table @code
+@cindex renaming tags
+@cindex tags, renaming
+@cindex moving tags
 @item -F 
 Overwrite an existing tag of the same name on a
-different revision.  This option is new in @sc{cvs}
-1.4.  The old behavior is matched by @samp{cvs tag -F}.
+different revision.
+@c FIXME: See "rtag -F" for comments on this.
 
 @item -l
 Local; run only in current working directory.
@@ -9651,6 +9742,13 @@ behavior}.
 @cindex Reference manual (files)
 @cindex CVSROOT (file)
 
+@c FIXME?  Somewhere there needs to be a more "how-to"
+@c guide to writing these.  I think the triggers
+@c (commitinfo, loginfo, taginfo, &c) are perhaps a
+@c different case than files like modules.  One
+@c particular issue that people sometimes are
+@c (unnecessarily?) worried about is performance, and
+@c the impact of writing in perl or sh or ____.
 Inside the repository, in the directory
 @file{$CVSROOT/CVSROOT}, there are a number of
 supportive files for @sc{cvs}.  You can use @sc{cvs} in a limited
@@ -10114,6 +10212,7 @@ repository is appended to the template, followed by the
 file names of any files involved in the commit (added,
 removed, and modified files).
 
+@cindex exit status, of commitinfo
 The first line with a regular expression matching the
 relative path to the module will be used.  If the
 command returns a non-zero exit status the commit will
@@ -10184,6 +10283,7 @@ If the repository name does not match any of the
 regular expressions in this file, the @samp{DEFAULT}
 line is used, if it is specified.
 
+@cindex exit status, of verifymsg
 If the verification script exits with a non-zero exit status,
 the commit is aborted.
 
@@ -11015,12 +11115,19 @@ produced it should work fine.
 @c For one example see basica-1a10 in the testsuite
 @c For another example, "cvs co ." on NT; see comment
 @c at windows-NT/filesubr.c (expand_wild).
+@c For another example, "cvs co foo/bar" where foo exists.
 @item cannot open CVS/Entries for reading: No such file or directory
 This generally indicates a @sc{cvs} internal error, and
 can be handled as with other @sc{cvs} bugs
 (@pxref{BUGS}).  Usually there is a workaround---the
 exact nature of which would depend on the situation but
 which hopefully could be figured out.
+
+@item cvs [checkout aborted]: cannot rename file @var{file} to CVS/,,@var{file}: Invalid argument
+This message has been reported as intermittently
+happening with CVS 1.9 on Solaris 2.5.  The cause is
+unknown; if you know more about what causes it, let us
+know as described in @ref{BUGS}.
 
 @item cvs [update aborted]: could not patch @var{file}: No such file or directory
 This means that there was a problem finding the
@@ -11119,6 +11226,7 @@ it might be sufficient to place GNU diff3 in your
 @c Should we mention the cvsaux binaries here?
 
 @item cvs commit: warning: editor session failed
+@cindex exit status, of editor
 This means that the editor which @sc{cvs} is using exits with a nonzero
 exit status.  Some versions of vi will do this even when there was not
 a problem editing the file.  If so, point the
