@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sys_generic.c	8.5 (Berkeley) 1/21/94
- * $Id: sys_generic.c,v 1.31 1997/10/12 20:24:02 phk Exp $
+ * $Id: sys_generic.c,v 1.32 1997/11/06 19:29:20 phk Exp $
  */
 
 #include "opt_ktrace.h"
@@ -65,8 +65,8 @@ static MALLOC_DEFINE(M_IOCTLOPS, "ioctlops", "ioctl data buffer");
 static MALLOC_DEFINE(M_SELECT, "select", "select() buffer");
 MALLOC_DEFINE(M_IOV, "iov", "large iov's");
 
-static int	selscan __P((struct proc *, fd_mask **, fd_mask **, int));
 static int	pollscan __P((struct proc *, struct pollfd *, int));
+static int	selscan __P((struct proc *, fd_mask **, fd_mask **, int));
 
 /*
  * Read system call.
@@ -603,11 +603,6 @@ select(p, uap)
 		s = splclock();
 		timevaladd(&atv, &time);
 		timo = hzto(&atv);
-		/*
-		 * Avoid inadvertently sleeping forever.
-		 */
-		if (timo == 0)
-			timo = 1;
 		splx(s);
 	} else
 		timo = 0;
@@ -667,8 +662,8 @@ selscan(p, ibits, obits, nfd)
 	register fd_mask bits;
 	struct file *fp;
 	int n = 0;
-	/* Note; backend also returns POLLHUP/POLLERR if appropriate */
-	static int flag[3] = { POLLRDNORM, POLLWRNORM, POLLRDBAND};
+	/* Note: backend also returns POLLHUP/POLLERR if appropriate. */
+	static int flag[3] = { POLLRDNORM, POLLWRNORM, POLLRDBAND };
 
 	for (msk = 0; msk < 3; msk++) {
 		if (ibits[msk] == NULL)
@@ -723,11 +718,9 @@ poll(p, uap)
 		bits = malloc(ni, M_TEMP, M_WAITOK);
 	else
 		bits = smallbits;
-
 	error = copyin(SCARG(uap, fds), bits, ni);
 	if (error)
 		goto done;
-
 	if (SCARG(uap, timeout) != INFTIM) {
 		atv.tv_sec = SCARG(uap, timeout) / 1000;
 		atv.tv_usec = (SCARG(uap, timeout) % 1000) * 1000;
@@ -738,11 +731,6 @@ poll(p, uap)
 		s = splclock();
 		timevaladd(&atv, &time);
 		timo = hzto(&atv);
-		/*
-		 * Avoid inadvertently sleeping forever.
-		 */
-		if (timo == 0)
-			timo = 1;
 		splx(s);
 	} else
 		timo = 0;
@@ -805,8 +793,10 @@ pollscan(p, fds, nfd)
 				fds->revents = POLLNVAL;
 				n++;
 			} else {
-				/* Note: backend also returns POLLHUP and
-				 * POLLERR if appropriate */
+				/*
+				 * Note: backend also returns POLLHUP and
+				 * POLLERR if appropriate.
+				 */
 				fds->revents = (*fp->f_ops->fo_poll)(fp,
 				    fds->events, fp->f_cred, p);
 				if (fds->revents != 0)
