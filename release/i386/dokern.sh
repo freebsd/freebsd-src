@@ -35,6 +35,7 @@ sed	-e '/	pty	/d' \
 	-e '/WITNESS/d' \
 	-e '/	pci$/d' \
 	-e '/	adv	/d' \
+	-e '/	agp	/d' \
 	-e '/	ahc	/d' \
 	-e '/	amd	/d' \
 	-e '/	isp	/d' \
@@ -96,6 +97,7 @@ sed	-e '/	pty	/d' \
  	-e '/WITNESS/d' \
 	-e '/	ncr	/d' \
 	-e '/	pcm/d' \
+	-e '/	agp	/d' \
 	-e '/	atapist	/d' \
 	-e '/	lpt	/d' \
 	-e '/	ppi	/d' \
