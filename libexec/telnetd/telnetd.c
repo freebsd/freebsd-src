@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)telnetd.c	8.2 (Berkeley) 12/15/93";
 #endif
 static const char rcsid[] =
-	"$Id: telnetd.c,v 1.16 1999/04/06 00:29:41 brian Exp $";
+	"$Id: telnetd.c,v 1.17 1999/04/06 23:05:58 brian Exp $";
 #endif /* not lint */
 
 #include "telnetd.h"
@@ -90,7 +90,8 @@ int	auth_level = 0;
 int	require_SecurID = 0;
 #endif
 
-extern	int utmp_len;
+char	remote_hostname[UT_HOSTSIZE + 1];
+int	utmp_len = sizeof(remote_hostname) - 1;
 int	registerd_host_only = 0;
 
 #ifdef	STREAMSPTY
@@ -361,6 +362,10 @@ main(argc, argv)
 
 		case 'u':
 			utmp_len = atoi(optarg);
+			if (utmp_len < 0)
+				utmp_len = -utmp_len;
+			if (utmp_len >= sizeof(remote_hostname))
+				utmp_len = sizeof(remote_hostname) - 1;
 			break;
 
 		case 'U':
@@ -758,7 +763,6 @@ terminaltypeok(s)
 
 char *hostname;
 char host_name[MAXHOSTNAMELEN];
-char remote_hostname[UT_HOSTSIZE + 1];
 
 extern void telnet P((int, int, char *));
 
@@ -813,12 +817,14 @@ doit(who)
 #endif	/* _SC_CRAY_SECURE_SYS */
 
 	/* get name of connected client */
-	if (realhostname(remote_hostname, sizeof remote_hostname - 1,
+	if (realhostname(remote_hostname, utmp_len,
 	    &who->sin_addr) == HOSTNAME_INVALIDADDR && registerd_host_only)
 		fatal(net, "Couldn't resolve your address into a host name.\r\n\
          Please contact your net administrator");
+	remote_hostname[utmp_len] = '\0';
 
-	(void) gethostname(host_name, sizeof (host_name));
+	(void) gethostname(host_name, sizeof(host_name) - 1);
+	host_name[sizeof(host_name) - 1] = '\0';
 	hostname = host_name;
 
 #if	defined(AUTHENTICATION)

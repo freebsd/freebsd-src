@@ -42,7 +42,7 @@ static const char copyright[] =
 static const char sccsid[] = "@(#)rshd.c	8.2 (Berkeley) 4/6/94";
 #endif
 static const char rcsid[] =
-	"$Id: rshd.c,v 1.23 1998/12/16 07:20:45 peter Exp $";
+	"$Id: rshd.c,v 1.24 1999/04/06 23:05:58 brian Exp $";
 #endif /* not lint */
 
 /*
@@ -216,7 +216,7 @@ doit(fromp)
 	char *errorstr;
 	char *cp, sig, buf[BUFSIZ];
 	char cmdbuf[NCARGS+1], locuser[16], remuser[16];
-	char fromhost[2 * MAXHOSTNAMELEN + 1];
+	char fromhost[MAXHOSTNAMELEN];
 #ifdef	LOGIN_CAP
 	login_cap_t *lc;
 #endif
@@ -348,9 +348,7 @@ doit(fromp)
 	dup2(f, 2);
 #endif
 	errorstr = NULL;
-	strncpy(fromhost, inet_ntoa(fromp->sin_addr),
-		sizeof(fromhost) - 1);
-	realhostname(fromhost, sizeof fromhost - 1, &fromp->sin_addr);
+	realhostname(fromhost, sizeof(fromhost) - 1, &fromp->sin_addr);
 	fromhost[sizeof(fromhost) - 1] = '\0';
 
 #ifdef	KERBEROS
@@ -784,7 +782,8 @@ local_domain(h)
 	char *p1, *p2;
 
 	localhost[0] = 0;
-	(void) gethostname(localhost, sizeof(localhost));
+	(void) gethostname(localhost, sizeof(localhost) - 1);
+	localhost[sizeof(localhost) - 1] = '\0';
 	p1 = topdomain(localhost);
 	p2 = topdomain(h);
 	if (p1 == NULL || p2 == NULL || !strcasecmp(p1, p2))
