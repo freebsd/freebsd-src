@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: sio.c,v 1.87 1999/04/19 11:11:01 kato Exp $
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
  *	from: i386/isa sio.c,v 1.234
  */
@@ -991,7 +991,6 @@ sioprobe(dev)
 	u_int		flags = isa_get_flags(dev);
 #ifdef PC98
 	int		irqout=0;
-	int		ret = 0;
 	int		tmp;
 	int		port_shift = 0;
 	struct siodev	iod;
@@ -1045,7 +1044,7 @@ sioprobe(dev)
 	 * If the port is i8251 UART (internal, B98_01)
 	 */
 	if (pc98_check_if_type(dev, &iod) == -1)
-		return 0;
+		return ENXIO;
 	if (iod.irq > 0)
 		isa_set_irq(dev, iod.irq);
 	if (IS_8251(iod.if_type)) {
@@ -1062,14 +1061,14 @@ sioprobe(dev)
 		outb(iod.cmd, 0x01);	/* CMD (dummy) */
 		DELAY(1000);		/* for a while...*/
 		if (( inb(iod.sts) & STS8251_TxEMP ) == 0 ) {
-			ret = 0;
+		    result = ENXIO;
 		}
 		if (if_8251_type[iod.if_type & 0x0f].check_irq) {
 		    COM_INT_DISABLE
 		    tmp = ( inb( iod.ctrl ) & ~(IEN_Rx|IEN_TxEMP|IEN_Tx));
 		    outb( iod.ctrl, tmp|IEN_TxEMP );
 		    DELAY(10);
-		    ret = isa_irq_pending() ? 4 : 0;
+		    result = isa_irq_pending() ? 0 : ENXIO;
 		    outb( iod.ctrl, tmp );
 		    COM_INT_ENABLE
 		} else {
@@ -1077,12 +1076,13 @@ sioprobe(dev)
 		     * B98_01 doesn't activate TxEMP interrupt line
 		     * when being reset, so we can't check irq pending.
 		     */
-		    ret = 4;
+		    result = 0;
 		}
 		if (epson_machine_id==0x20) {	/* XXX */
-			ret = 4;
+		    result = 0;
 		}
-		return ret;
+		isa_set_portsize(dev, 4);
+		return result;
 	}
 #endif /* PC98 */
 	/*
