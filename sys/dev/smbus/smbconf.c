@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: smbconf.c,v 1.1.1.2 1998/08/13 15:16:57 son Exp $
+ *	$Id: smbconf.c,v 1.1.1.1 1998/09/03 20:52:54 nsouch Exp $
  *
  */
 #include <sys/param.h>
@@ -71,6 +71,28 @@ smbus_alloc_bus(device_t parent)
 	return (child);
 }
 
+static int
+smbus_poll(struct smbus_softc *sc, int how)
+{
+	int error;
+
+	switch (how) {
+	case (SMB_WAIT | SMB_INTR):
+		error = tsleep(sc, SMBPRI|PCATCH, "smbreq", 0);
+		break;
+
+	case (SMB_WAIT | SMB_NOINTR):
+		error = tsleep(sc, SMBPRI, "smbreq", 0);
+		break;
+
+	default:
+		return (EWOULDBLOCK);
+		break;
+	}
+
+	return (error);
+}
+
 /*
  * smbus_request_bus()
  *
@@ -84,25 +106,20 @@ smbus_request_bus(device_t bus, device_t dev, int how)
 	struct smbus_softc *sc = (struct smbus_softc *)device_get_softc(bus);
 	int s, error = 0;
 
+	/* first, ask the underlying layers if the request is ok */
+	do {
+		error = SMBUS_CALLBACK(device_get_parent(bus),
+						SMB_REQUEST_BUS, (caddr_t)&how);
+		if (error)
+			error = smbus_poll(sc, how);
+	} while (error);
+
 	while (!error) {
 		s = splhigh();	
 		if (sc->owner) {
 			splx(s);
 
-			switch (how) {
-			case (SMB_WAIT | SMB_INTR):
-				error = tsleep(sc, SMBPRI|PCATCH, "smbreq", 0);
-				break;
-
-			case (SMB_WAIT | SMB_NOINTR):
-				error = tsleep(sc, SMBPRI, "smbreq", 0);
-				break;
-
-			default:
-				return (EWOULDBLOCK);
-				break;
-			}
-
+			error = smbus_poll(sc, how);
 		} else {
 			sc->owner = dev;
 
@@ -123,7 +140,13 @@ int
 smbus_release_bus(device_t bus, device_t dev)
 {
 	struct smbus_softc *sc = (struct smbus_softc *)device_get_softc(bus);
-	int s;
+	int s, error;
+
+	/* first, ask the underlying layers if the release is ok */
+	error = SMBUS_CALLBACK(device_get_parent(bus), SMB_RELEASE_BUS, NULL);
+
+	if (error)
+		return (error);
 
 	s = splhigh();
 	if (sc->owner != dev) {

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: smbus.c,v 1.1.1.2 1998/08/13 15:16:58 son Exp $
+ *	$Id: smbus.c,v 1.1.1.1 1998/09/03 20:52:54 nsouch Exp $
  *
  */
 #include <sys/param.h>
@@ -54,7 +54,9 @@ struct smbus_device {
  * list of known devices
  */
 struct smbus_device smbus_children[] = {
+#if 0
 	{ "smb", 0, "General Call" },
+#endif
 	{ NULL, 0 }
 };
 
@@ -100,26 +102,30 @@ static driver_t smbus_driver = {
 static int
 smbus_probe(device_t dev)
 {
-	struct smbus_device *smbdev;
-	device_t child;
-
-	for (smbdev = smbus_children; smbdev->smbd_name; smbdev++) {
-
-		child = device_add_child(dev, smbdev->smbd_name, -1, smbdev);
-		device_set_desc(child, smbdev->smbd_desc);
-	}
-
+	device_set_desc(dev, "System Management Bus");
 	return (0);
 }
 
 static int
 smbus_attach(device_t dev)
 {
-	struct smbus_softc *sc = device_get_softc(dev);
-	device_t parent = device_get_parent(dev);
+	struct smbus_device *smbdev;
+	device_t child;
+	char byte;
+	u_short addr;
 
-	printf("Probing for devices on the SMB bus:\n");
 	bus_generic_attach(dev);
+
+#if 0
+	printf("Probing for devices on smbus%d:\n", device_get_unit(dev));
+
+	/* probe known devices */
+	for (smbdev = smbus_children; smbdev->smbd_name; smbdev++) {
+
+		child = device_add_child(dev, smbdev->smbd_name, -1, smbdev);
+		device_set_desc(child, smbdev->smbd_desc);
+	}
+#endif
          
         return (0);
 }
@@ -155,3 +161,4 @@ smbus_read_ivar(device_t bus, device_t dev, int index, u_long* result)
 }
 
 DRIVER_MODULE(smbus, iicsmb, smbus_driver, smbus_devclass, 0, 0);
+DRIVER_MODULE(smbus, bti2c, smbus_driver, smbus_devclass, 0, 0);
