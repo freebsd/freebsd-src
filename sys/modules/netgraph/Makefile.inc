@@ -4,4 +4,6 @@
 .PATH:		${.CURDIR}/../../../netgraph
 CFLAGS+=	-Wall
 
+EXPORT_SYMS=	YES	# XXX evaluate
+
 .include "../Makefile.inc"

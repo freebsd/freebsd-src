@@ -32,6 +32,8 @@ SRCS+=	scsi_targ_bh.c scsi_target.c
 
 NOMAN=
 
+EXPORT_SYMS=	YES	# XXX evaluate
+
 opt_scsi.h:
 	echo '#define SCSI_DELAY 15000' > opt_scsi.h
 
