@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file providing the above
  *    conditions are met.
  *
- * $FreeBSD$
+ * $Id$
  */
 
 #ifndef _LIBUTIL_H_

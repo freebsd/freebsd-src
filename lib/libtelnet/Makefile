@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.2 (Berkeley) 12/15/93
-#	$FreeBSD$
+#	$Id$
 
 LIB=	telnet
 SRCS=	genget.c getent.c misc.c

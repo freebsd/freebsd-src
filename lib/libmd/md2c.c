@@ -1,5 +1,5 @@
 /* MD2C.C - RSA Data Security, Inc., MD2 message-digest algorithm
- * $FreeBSD$
+ * $Id$
  */
 
 /* Copyright (C) 1990-2, RSA Data Security, Inc. Created 1990. All

@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$Id$
 
 LIB=	md
 NOPIC=	true

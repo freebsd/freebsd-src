@@ -35,7 +35,7 @@
 
 #include <machine/asmacros.h>
 
-RCSID("$FreeBSD$")
+RCSID("$Id$")
 
 /* e^x = 2^(x * log2(e)) */
 ENTRY(__ieee754_exp)

@@ -27,12 +27,12 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$Id$
  */
 
 #if defined(LIBC_RCS) && !defined(lint)
 	.text
-        .asciz "$FreeBSD$"
+        .asciz "$Id$"
 #endif /* LIBC_RCS and not lint */
 
 #include "DEFS.h"

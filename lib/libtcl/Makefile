@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $Id$
 #
 # This file is generated automatically, do not edit it here!
 #

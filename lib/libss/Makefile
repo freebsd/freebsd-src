@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$Id$
 
 LIB=	ss
 SRCS=	ss_err.c data.c error.c execute_cmd.c help.c invocation.c list_rqs.c \

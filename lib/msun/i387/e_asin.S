@@ -35,7 +35,7 @@
 
 #include <machine/asmacros.h>
 
-RCSID("$FreeBSD$")
+RCSID("$Id$")
 
 /*
  * asin(x) = atan2(x, sqrt(1  - x^2).
