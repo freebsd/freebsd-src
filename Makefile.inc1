@@ -630,6 +630,10 @@ _groff=		gnu/usr.bin/groff/tmac
 .endif
 .endif
 
+.if ${BOOTSTRAPPING} < 502102
+_lex=		usr.bin/lex
+.endif
+
 .if ${BOOTSTRAPPING} < 450005 || \
     ${BOOTSTRAPPING} >= 500000 && ${BOOTSTRAPPING} < 500034
 _uudecode=	usr.bin/uudecode
@@ -661,6 +665,7 @@ bootstrap-tools:
     ${_groff} \
     gnu/usr.bin/texinfo \
     usr.bin/colldef \
+    ${_lex} \
     usr.bin/makewhatis \
     usr.bin/rpcgen \
     ${_uudecode} \
