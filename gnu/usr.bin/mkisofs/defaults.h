@@ -11,8 +11,12 @@
 #define  ABSTRACT_DEFAULT 	NULL
 #define  VOLSET_ID_DEFAULT 	NULL
 #define  VOLUME_ID_DEFAULT 	"CDROM"
+#ifdef __FreeBSD__
+#define  SYSTEM_ID_DEFAULT 	"FreeBSD"
+#else
 #ifdef __QNX__
 #define  SYSTEM_ID_DEFAULT 	"QNX"
 #else
 #define  SYSTEM_ID_DEFAULT 	"LINUX"
+#endif
 #endif
