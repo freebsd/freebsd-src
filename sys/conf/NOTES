@@ -483,6 +483,11 @@ device		stf			#6to4 IPv6 over IPv4 encapsulation
 # network code where filtering is required.  See the pfil(9) man page.
 # This option is a subset of the IPFILTER option.
 #
+# TCBHASHSIZE is the target size of the TCP PCB (process control block) hash
+# tables. This must be a power of 2 and the default is 512 (2^9). Note: a
+# better mechanism to change this is via a kernel environment variable,
+# net.inet.tcp.tcbhashsize. See tcp(4) for more information.
+#
 # TCPDEBUG enables code which keeps traces of the TCP state machine
 # for sockets with the SO_DEBUG option set, which can then be examined
 # using the trpt(8) utility.
@@ -503,6 +508,7 @@ options 	IPFILTER_LOG		#ipfilter logging
 options 	IPFILTER_DEFAULT_BLOCK	#block all packets by default
 options 	IPSTEALTH		#support for stealth forwarding
 options 	PFIL_HOOKS
+options 	TCBHASHSIZE=512		#tcp pcb hash table size
 options 	TCPDEBUG
 
 # RANDOM_IP_ID causes the ID field in IP packets to be randomized
