@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995 John Birrell <jb@cimlogic.com.au>.
+ * Copyright (c) 1995-1998 John Birrell <jb@cimlogic.com.au>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -102,9 +102,6 @@ pthread_exit(void *status)
 	long            l;
 	pthread_t       pthread;
 
-	/* Block signals: */
-	_thread_kern_sig_block(NULL);
-
 	/* Save the return value: */
 	_thread_run->ret = status;
 
@@ -125,6 +122,9 @@ pthread_exit(void *status)
 		/* Wake the joined thread and let it detach this thread: */
 		PTHREAD_NEW_STATE(pthread,PS_RUNNING);
 	}
+
+	/* Lock the thread list: */
+	_lock_thread_list();
 
 	/* Check if the running thread is at the head of the linked list: */
 	if (_thread_link_list == _thread_run) {
@@ -153,45 +153,21 @@ pthread_exit(void *status)
 		}
 	}
 
-	/* Check if this is a signal handler thread: */
-	if (_thread_run->parent_thread != NULL) {
-		/*
-		 * Enter a loop to search for other threads with the same
-		 * parent: 
-		 */
-		for (pthread = _thread_link_list; pthread != NULL; pthread = pthread->nxt) {
-			/* Compare the parent thread pointers: */
-			if (pthread->parent_thread == _thread_run->parent_thread) {
-				/*
-				 * The parent thread is waiting on at least
-				 * one other signal handler. Exit the loop
-				 * now that this is known. 
-				 */
-				break;
-			}
-		}
+	/* Unlock the thread list: */
+	_unlock_thread_list();
 
-		/*
-		 * Check if the parent is not waiting on any other signal
-		 * handler threads and if it hasn't died in the meantime:
-		 */
-		if (pthread == NULL && _thread_run->parent_thread->state != PS_DEAD) {
-			/* Allow the parent thread to run again: */
-			PTHREAD_NEW_STATE(_thread_run->parent_thread,PS_RUNNING);
-		}
-		/* Get the signal number: */
-		l = (long) _thread_run->arg;
-		sig = (int) l;
+	/* Lock the dead thread list: */
+	_lock_dead_thread_list();
 
-		/* Unblock the signal from the parent thread: */
-		sigdelset(&_thread_run->parent_thread->sigmask, sig);
-	}
 	/*
 	 * This thread will never run again. Add it to the list of dead
 	 * threads: 
 	 */
 	_thread_run->nxt = _thread_dead;
 	_thread_dead = _thread_run;
+
+	/* Unlock the dead thread list: */
+	_unlock_dead_thread_list();
 
 	/*
 	 * The running thread is no longer in the thread link list so it will

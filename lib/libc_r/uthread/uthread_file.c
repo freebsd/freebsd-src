@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: uthread_file.c,v 1.2 1998/04/11 07:47:20 jb Exp $
  *
  * POSIX stdio FILE locking functions. These assume that the locking
  * is only required at FILE structure level, not at file descriptor
@@ -97,6 +97,9 @@ struct static_file_lock {
 /* Set to non-zero when initialisation is complete: */
 static	int	init_done	= 0;
 
+/* Lock for accesses to the hash table: */
+static	long	hash_lock	= 0;
+
 /*
  * Find a lock structure for a FILE, return NULL if the file is
  * not locked:
@@ -127,7 +130,7 @@ find_lock(int idx, FILE *fp)
 }
 
 /*
- * Lock a file, assuming that there is no lock structure currently1
+ * Lock a file, assuming that there is no lock structure currently
  * assigned to it.
  */
 static
@@ -185,8 +188,8 @@ _flockfile_debug(FILE * fp, char *fname, int lineno)
 
 	/* Check if this is a real file: */
 	if (fp->_file >= 0) {
-		/* Block signals: */
-		_thread_kern_sig_block(&status);
+		/* Lock the hash table: */
+		_spinlock(&hash_lock);
 
 		/* Check if the static array has not been initialised: */
 		if (!init_done) {
@@ -205,6 +208,9 @@ _flockfile_debug(FILE * fp, char *fname, int lineno)
 			 */
 			p = do_lock(idx, fp);
 
+			/* Unlock the hash table: */
+			_atomic_unlock(&hash_lock);
+
 		/*
 		 * The file is already locked, so check if the
 		 * running thread is the owner:
@@ -217,6 +223,9 @@ _flockfile_debug(FILE * fp, char *fname, int lineno)
 			 * the file:
 			 */
 			p->count++;
+
+			/* Unlock the hash table: */
+			_atomic_unlock(&hash_lock);
 		} else {
 			/*
 			 * The file is locked for another thread.
@@ -225,15 +234,12 @@ _flockfile_debug(FILE * fp, char *fname, int lineno)
 			 */
 			TAILQ_INSERT_TAIL(&p->l_head,_thread_run,qe);
 
+			/* Unlock the hash table: */
+			_atomic_unlock(&hash_lock);
+
 			/* Wait on the FILE lock: */
 			_thread_kern_sched_state(PS_FILE_WAIT, fname, lineno);
-
-			/* Block signals again: */
-			_thread_kern_sig_block(NULL);
 		}
-
-		/* Unblock signals: */
-		_thread_kern_sig_unblock(status);
 	}
 	return;
 }
@@ -255,8 +261,8 @@ _ftrylockfile(FILE * fp)
 
 	/* Check if this is a real file: */
 	if (fp->_file >= 0) {
-		/* Block signals: */
-		_thread_kern_sig_block(&status);
+		/* Lock the hash table: */
+		_spinlock(&hash_lock);
 
 		/* Get a pointer to any existing lock for the file: */
 		if ((p = find_lock(idx, fp)) == NULL) {
@@ -291,8 +297,9 @@ _ftrylockfile(FILE * fp)
 			/* Return success: */
 			ret = 0;
 
-		/* Unblock signals: */
-		_thread_kern_sig_unblock(status);
+		/* Unlock the hash table: */
+		_atomic_unlock(&hash_lock);
+
 	}
 	return (ret);
 }
@@ -306,8 +313,8 @@ _funlockfile(FILE * fp)
 
 	/* Check if this is a real file: */
 	if (fp->_file >= 0) {
-		/* Block signals: */
-		_thread_kern_sig_block(&status);
+		/* Lock the hash table: */
+		_spinlock(&hash_lock);
 
 		/*
 		 * Get a pointer to the lock for the file and check that
@@ -350,8 +357,8 @@ _funlockfile(FILE * fp)
 			}
 		}
 
-		/* Unblock signals: */
-		_thread_kern_sig_unblock(status);
+		/* Unlock the hash table: */
+		_atomic_unlock(&hash_lock);
 	}
 	return;
 }

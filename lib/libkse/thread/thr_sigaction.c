@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995 John Birrell <jb@cimlogic.com.au>.
+ * Copyright (c) 1995-1998 John Birrell <jb@cimlogic.com.au>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -39,8 +39,8 @@
 int
 sigaction(int sig, const struct sigaction * act, struct sigaction * oact)
 {
-	int             ret = 0;
-	int             status;
+	int ret = 0;
+	struct sigaction gact;
 
 	/* Check if the signal number is out of range: */
 	if (sig < 1 || sig > NSIG) {
@@ -54,25 +54,47 @@ sigaction(int sig, const struct sigaction * act, struct sigaction * oact)
 		 */
 		if (oact != NULL) {
 			/* Return the existing signal action contents: */
-			oact->sa_handler = _thread_run->act[sig - 1].sa_handler;
-			oact->sa_mask = _thread_run->act[sig - 1].sa_mask;
-			oact->sa_flags = _thread_run->act[sig - 1].sa_flags;
+			oact->sa_handler = _thread_sigact[sig - 1].sa_handler;
+			oact->sa_mask = _thread_sigact[sig - 1].sa_mask;
+			oact->sa_flags = _thread_sigact[sig - 1].sa_flags;
 		}
+
 		/* Check if a signal action was supplied: */
 		if (act != NULL) {
-			/* Block signals while the signal handler is changed: */
-			_thread_kern_sig_block(&status);
-
 			/* Set the new signal handler: */
-			_thread_run->act[sig - 1].sa_handler = act->sa_handler;
-			_thread_run->act[sig - 1].sa_mask = act->sa_mask;
-			_thread_run->act[sig - 1].sa_flags = act->sa_flags;
+			_thread_sigact[sig - 1].sa_mask = act->sa_mask;
+			_thread_sigact[sig - 1].sa_flags = act->sa_flags;
+			_thread_sigact[sig - 1].sa_handler = act->sa_handler;
+		}
+
+		/*
+		 * Check if the kernel needs to be advised of a change
+		 * in signal action:
+		 */
+		if (act != NULL && sig != SIGVTALRM && sig != SIGCHLD &&
+		    sig != SIGINFO) {
+			/* Initialise the global signal action structure: */
+			gact.sa_mask = act->sa_mask;
+			gact.sa_flags = act->sa_flags | SA_RESTART;
 
 			/*
-			 * Unblock signals to allow the new signal handler to
-			 * take effect: 
+			 * Check if the signal handler is being set to
+			 * the default or ignore handlers:
 			 */
-			_thread_kern_sig_unblock(status);
+			if (act->sa_handler == SIG_DFL ||
+			    act->sa_handler == SIG_IGN)
+				/* Specify the built in handler: */
+				gact.sa_handler = act->sa_handler;
+			else
+				/*
+				 * Specify the thread kernel signal
+				 * handler:
+				 */
+				gact.sa_handler = (void (*) ()) _thread_sig_handler;
+
+			/* Change the signal action in the kernel: */
+		    	if (_thread_sys_sigaction(sig,&gact,NULL) != 0)
+				ret = -1;
 		}
 	}
 

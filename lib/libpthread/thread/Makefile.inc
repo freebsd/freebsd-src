@@ -1,4 +1,4 @@
-#	$Id: Makefile.inc,v 1.9 1997/05/06 00:49:36 jdp Exp $
+#	$Id: Makefile.inc,v 1.10 1997/11/24 23:04:29 alex Exp $
 
 # uthread sources
 .PATH: ${.CURDIR}/uthread
@@ -34,6 +34,7 @@ SRCS+= \
 	uthread_fcntl.c \
 	uthread_fd.c \
 	uthread_file.c \
+	uthread_find_thread.c \
 	uthread_flock.c \
 	uthread_fork.c \
 	uthread_fstat.c \
@@ -51,7 +52,6 @@ SRCS+= \
 	uthread_kern.c \
 	uthread_kill.c \
 	uthread_listen.c \
-	uthread_longjmp.c \
 	uthread_mattr_init.c \
 	uthread_mattr_kind_np.c \
 	uthread_multi_np.c \
@@ -70,23 +70,22 @@ SRCS+= \
 	uthread_self.c \
 	uthread_sendto.c \
 	uthread_seterrno.c \
-	uthread_setjmp.c \
 	uthread_setprio.c \
 	uthread_setsockopt.c \
 	uthread_shutdown.c \
 	uthread_sig.c \
 	uthread_sigaction.c \
 	uthread_sigblock.c \
-	uthread_single_np.c \
 	uthread_sigmask.c \
-	uthread_signal.c \
 	uthread_sigprocmask.c \
 	uthread_sigsetmask.c \
 	uthread_sigsuspend.c \
 	uthread_sigwait.c \
+	uthread_single_np.c \
 	uthread_socket.c \
 	uthread_socketpair.c \
 	uthread_spec.c \
+	uthread_spinlock.c \
 	uthread_suspend_np.c \
 	uthread_wait4.c \
 	uthread_write.c \

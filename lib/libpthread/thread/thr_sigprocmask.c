@@ -39,8 +39,7 @@
 int
 sigprocmask(int how, const sigset_t * set, sigset_t * oset)
 {
-	int             ret = 0;
-	int             status;
+	int ret = 0;
 
 	/* Check if the existing signal process mask is to be returned: */
 	if (oset != NULL) {
@@ -49,9 +48,6 @@ sigprocmask(int how, const sigset_t * set, sigset_t * oset)
 	}
 	/* Check if a new signal set was provided by the caller: */
 	if (set != NULL) {
-		/* Block signals while the signal mask is changed: */
-		_thread_kern_sig_block(&status);
-
 		/* Process according to what to do: */
 		switch (how) {
 		/* Block signals: */
@@ -81,10 +77,10 @@ sigprocmask(int how, const sigset_t * set, sigset_t * oset)
 		}
 
 		/*
-		 * Schedule the next thread in case there are signals that
-		 * now need to be acted on: 
+		 * Dispatch signals to the running thread that are pending
+		 * and now unblocked:
 		 */
-		_thread_kern_sched(NULL);
+		_dispatch_signals();
 	}
 	/* Return the completion status: */
 	return (ret);
