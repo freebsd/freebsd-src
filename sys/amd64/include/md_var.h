@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: md_var.h,v 1.7 1996/02/04 21:20:52 davidg Exp $
+ *	$Id: md_var.h,v 1.8 1996/03/02 19:37:45 peter Exp $
  */
 
 #ifndef _MACHINE_MD_VAR_H_
@@ -37,6 +37,7 @@
  */
 
 extern	int	Maxmem;
+extern	u_int	atdevbase;	/* offset in virtual memory of ISA io mem */
 extern	u_long	cpu_feature;
 extern	u_long	cpu_high;
 extern	u_long	cpu_id;
@@ -48,9 +49,11 @@ extern	int	nfs_diskless_valid;
 extern	char	sigcode[];
 extern	int	szsigcode;
 
+typedef void alias_for_inthand_t __P((u_int cs, u_int ef, u_int esp, u_int ss));
 struct	proc;
 struct	reg;
 
+void	bcopyb __P((const void *from, void *to, size_t len));
 void	cpu_reset __P((void));
 void	doreti_iret __P((void)) __asm(__STRING(doreti_iret));
 void	doreti_iret_fault __P((void)) __asm(__STRING(doreti_iret_fault));
@@ -59,6 +62,11 @@ void	doreti_popl_ds_fault __P((void)) __asm(__STRING(doreti_popl_ds_fault));
 void	doreti_popl_es __P((void)) __asm(__STRING(doreti_popl_es));
 void	doreti_popl_es_fault __P((void)) __asm(__STRING(doreti_popl_es_fault));
 int	fill_regs __P((struct proc *p, struct reg *regs));
+void	fillw __P((int /*u_short*/ pat, void *base, size_t cnt));
+int	fusword __P((void *base));
+u_long	kvtop __P((void *addr));
+void	setidt __P((int idx, alias_for_inthand_t *func, int typ, int dpl,
+		    int selec));
 void	userconfig __P((void));
 void	vm_bounce_init __P((void));
 int	vm_page_zero_idle __P((void));
