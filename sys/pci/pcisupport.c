@@ -682,12 +682,16 @@ pcib_match(device_t dev)
 		return ("Intel 82443GX (440 GX) PCI-PCI (AGP) bridge");
 	case 0x84cb8086:
 		return ("Intel 82454NX PCI Expander Bridge");
+	case 0x11318086:
+		return ("Intel 82801BA/BAM (ICH2) PCI-PCI (AGP) bridge");
 	case 0x124b8086:
 		return ("Intel 82380FB mobile PCI to PCI bridge");
 	case 0x24188086:
 		return ("Intel 82801AA (ICH) Hub to PCI bridge");
 	case 0x24288086:
 		return ("Intel 82801AB (ICH0) Hub to PCI bridge");
+	case 0x244e8086:
+		return ("Intel 82801BA/BAM (ICH2) Hub to PCI bridge");
 	
 	/* VLSI -- vendor 0x1004 */
 	case 0x01021004:
@@ -847,6 +851,8 @@ isab_match(device_t dev)
 		return ("Intel 82801AA (ICH) PCI to LPC bridge");
 	case 0x24208086:
 		return ("Intel 82801AB (ICH0) PCI to LPC bridge");
+	case 0x24408086:
+		return ("Intel 82801BA/BAM (ICH2) PCI to LPC bridge");
 	
 	/* VLSI -- vendor 0x1004 */
 	case 0x00061004:
@@ -988,6 +994,10 @@ pci_usb_match(device_t dev)
 		return ("Intel 82801AA (ICH) USB controller");
 	case 0x24228086:
 		return ("Intel 82801AB (ICH0) USB controller");
+	case 0x24428086:
+		return ("Intel 82801BA/BAM (ICH2) USB controller USB-A");
+	case 0x24448086:
+		return ("Intel 82801BA/BAM (ICH2) USB controller USB-B");
 
 	/* VIA Technologies -- vendor 0x1106 (0x1107 on the Apollo Master) */
 	case 0x30381106:
