@@ -65,7 +65,7 @@ int
 _GB2312_mbsinit(const mbstate_t *ps)
 {
 
-	return (ps == NULL || ((_GB2312State *)ps)->count == 0);
+	return (ps == NULL || ((const _GB2312State *)ps)->count == 0);
 }
 
 static __inline int

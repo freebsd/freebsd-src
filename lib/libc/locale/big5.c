@@ -78,7 +78,7 @@ int
 _BIG5_mbsinit(const mbstate_t *ps)
 {
 
-	return (ps == NULL || ((_BIG5State *)ps)->count == 0);
+	return (ps == NULL || ((const _BIG5State *)ps)->count == 0);
 }
 
 static __inline int

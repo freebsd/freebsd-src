@@ -126,7 +126,7 @@ int
 _EUC_mbsinit(const mbstate_t *ps)
 {
 
-	return (ps == NULL || ((_EucState *)ps)->count == 0);
+	return (ps == NULL || ((const _EucState *)ps)->count == 0);
 }
 
 #define	CEI	((_EucInfo *)(_CurrentRuneLocale->variable))
