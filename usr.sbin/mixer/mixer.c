@@ -11,7 +11,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: mixer.c,v 1.4.2.1 1997/09/30 06:09:10 charnier Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -75,11 +75,11 @@ main(int argc, char *argv[])
 	if ((baz = open(name, O_RDWR)) < 0)
 		err(1, "%s", name);
 	if (ioctl(baz, SOUND_MIXER_READ_DEVMASK, &devmask) == -1)
-		err(-1, "SOUND_MIXER_READ_DEVMASK");
+		err(1, "SOUND_MIXER_READ_DEVMASK");
 	if (ioctl(baz, SOUND_MIXER_READ_RECMASK, &recmask) == -1)
-		err(-1, "SOUND_MIXER_READ_RECMASK");
+		err(1, "SOUND_MIXER_READ_RECMASK");
 	if (ioctl(baz, SOUND_MIXER_READ_RECSRC, &recsrc) == -1)
-		err(-1, "SOUND_MIXER_READ_RECSRC");
+		err(1, "SOUND_MIXER_READ_RECSRC");
 
 	switch (argc) {
 		case 3:
@@ -122,7 +122,7 @@ main(int argc, char *argv[])
 				usage();
 
 			if (!((1 << dev) & recmask))
-				errx(-1,
+				errx(1,
 				"invalid recording source %s", argv[2]);
 			if (argv[1][0] == '+')
 				recsrc |= (1 << dev);
@@ -130,7 +130,7 @@ main(int argc, char *argv[])
 				recsrc &= ~(1 << dev);
 
 			if (ioctl(baz, SOUND_MIXER_WRITE_RECSRC, &recsrc) == -1)
-				err(-1, "SOUND_MIXER_WRITE_RECSRC");
+				err(1, "SOUND_MIXER_WRITE_RECSRC");
 			print_recsrc();
 
 		} else
