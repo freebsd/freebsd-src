@@ -1331,13 +1331,14 @@ thread_exit(void)
 
 /*
  * Do any thread specific cleanups that may be needed in wait()
- * called with Giant held, proc and schedlock not held.
+ * called with Giant, proc and schedlock not held.
  */
 void
 thread_wait(struct proc *p)
 {
 	struct thread *td;
 
+	mtx_assert(&Giant, MA_NOTOWNED);
 	KASSERT((p->p_numthreads == 1), ("Multiple threads in wait1()"));
 	KASSERT((p->p_numksegrps == 1), ("Multiple ksegrps in wait1()"));
 	FOREACH_THREAD_IN_PROC(p, td) {
@@ -1468,6 +1469,7 @@ kse_purge(struct proc *p, struct thread *td)
 void
 thread_alloc_spare(struct thread *td, struct thread *spare)
 {
+
 	if (td->td_standin)
 		return;
 	if (spare == NULL)
@@ -1876,7 +1878,7 @@ thread_single(int force_exit)
 
 	td = curthread;
 	p = td->td_proc;
-	mtx_assert(&Giant, MA_OWNED);
+	mtx_assert(&Giant, MA_NOTOWNED);
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	KASSERT((td != NULL), ("curthread is NULL"));
 
@@ -1933,11 +1935,9 @@ thread_single(int force_exit)
 		 * In the mean time we suspend as well.
 		 */
 		thread_suspend_one(td);
-		DROP_GIANT();
 		PROC_UNLOCK(p);
 		mi_switch(SW_VOL);
 		mtx_unlock_spin(&sched_lock);
-		PICKUP_GIANT();
 		PROC_LOCK(p);
 		mtx_lock_spin(&sched_lock);
 	}
@@ -1991,6 +1991,7 @@ thread_suspend_check(int return_instead)
 
 	td = curthread;
 	p = td->td_proc;
+	mtx_assert(&Giant, MA_NOTOWNED);
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	while (P_SHOULDSTOP(p)) {
 		if (P_SHOULDSTOP(p) == P_STOPPED_SINGLE) {
@@ -2016,8 +2017,6 @@ thread_suspend_check(int return_instead)
 		 * Assumes that P_SINGLE_EXIT implies P_STOPPED_SINGLE.
 		 */
 		if ((p->p_flag & P_SINGLE_EXIT) && (p->p_singlethread != td)) {
-			while (mtx_owned(&Giant))
-				mtx_unlock(&Giant);
 			if (p->p_flag & P_SA)
 				thread_exit();
 			else
@@ -2035,11 +2034,9 @@ thread_suspend_check(int return_instead)
 				thread_unsuspend_one(p->p_singlethread);
 			}
 		}
-		DROP_GIANT();
 		PROC_UNLOCK(p);
 		mi_switch(SW_INVOL);
 		mtx_unlock_spin(&sched_lock);
-		PICKUP_GIANT();
 		PROC_LOCK(p);
 	}
 	return (0);

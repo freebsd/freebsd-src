@@ -114,9 +114,8 @@ userret(td, frame, oticks)
 	/*
 	 * Do special thread processing, e.g. upcall tweaking and such.
 	 */
-	if (p->p_flag & P_SA) {
+	if (p->p_flag & P_SA)
 		thread_userret(td, frame);
-	}
 
 	/*
 	 * Charge system time if profiling.

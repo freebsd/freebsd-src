@@ -253,7 +253,6 @@ kern_execve(td, fname, argv, envv, mac_p)
 	 * that might allow a local user to illicitly obtain elevated
 	 * privileges.
 	 */
-	mtx_lock(&Giant);
 	PROC_LOCK(p);
 	KASSERT((p->p_flag & P_INEXEC) == 0,
 	    ("%s(): process already has P_INEXEC flag", __func__));
@@ -271,7 +270,6 @@ kern_execve(td, fname, argv, envv, mac_p)
 		td->td_mailbox = NULL;
 		thread_single_end();
 	}
-	mtx_unlock(&Giant);
 	p->p_flag |= P_INEXEC;
 	PROC_UNLOCK(p);
 
