@@ -164,7 +164,7 @@ HDRS=	asn1/asn1.h asn1/asn1_mac.h bio/bio.h bf/blowfish.h bn/bn.h \
 	x509/x509_vfy.h x509v3/x509v3.h
 
 .if defined(RSAREF) && ${RSAREF} == YES
-HDRS+=	../rsaref/rsaref.h 
+HDRS+=	../rsaref/rsaref.h
 .endif
 
 beforedepend: ${.OBJDIR}/obj_dat.h ${.OBJDIR}/buildinf.h \
