@@ -48,6 +48,7 @@ static char sccsid[] = "@(#)nm.c	8.1 (Berkeley) 6/6/93";
 #include <a.out.h>
 #include <stab.h>
 #include <ar.h>
+#include <dirent.h>
 #include <ranlib.h>
 #include <unistd.h>
 #include <errno.h>
@@ -182,6 +183,21 @@ process_file(fname)
 	return(retval);
 }
 
+/* scat: concatenate strings, returning new concatenation point
+ * and permitting overlap.
+ */
+static char *scat(char *dest, char *src)
+{
+	char *end;
+	int l1 = strlen(dest), l2 = strlen(src);
+
+	memmove(dest + l1, src, l2);
+	end = dest + l1 + l2;
+	*end = 0;
+
+	return end;
+}
+
 /*
  * show_archive()
  *	show symbols in the given archive file
@@ -194,9 +210,10 @@ show_archive(fname, fp)
 	struct exec exec_head;
 	int i, rval;
 	long last_ar_off;
-	char *p, *name;
+	char *p, *name, *ar_name;
+	int buffend = strlen(fname) + 3;
 
-	name = emalloc(sizeof(ar_head.ar_name) + strlen(fname) + 3);
+	name = emalloc(sizeof(MAXNAMLEN) + buffend);
 
 	rval = 0;
 
@@ -214,8 +231,39 @@ show_archive(fname, fp)
 		last_ar_off = ftell(fp);
 
 		/* skip ranlib entries */
-		if (!strncmp(ar_head.ar_name, RANLIBMAG, sizeof(RANLIBMAG) - 1))
+		if (!bcmp(ar_head.ar_name, RANLIBMAG, sizeof(RANLIBMAG) - 1))
 			goto skip;
+
+		/* handle long names.  If one is present, read it in at the
+		 * end of the "name" buffer.
+		 */
+		if (!bcmp(ar_head.ar_name, AR_EFMT1, sizeof(AR_EFMT1) - 1))
+		{
+			char *end_part = name + buffend;
+			size_t len = atoi(ar_head.ar_name + sizeof(AR_EFMT1) - 1);
+
+			if (len <= 0 || len > MAXNAMLEN)
+			{
+				fprintf(stderr, "nm: Illegal length for format 1 long name.\n");
+				goto skip;
+			}
+			if (fread(end_part, 1, len, fp) != len)
+			{
+				(void)fprintf(stderr, "nm: EOF reading format 1 long name.\n");
+				(void)free(name);
+				return(1);
+			}
+			end_part[len] = 0;
+			ar_name = end_part;
+		}
+		else
+		{
+			p = ar_name = ar_head.ar_name;
+			for (i = 0; i < sizeof(ar_head.ar_name); i++)
+				if (*p && *p != ' ')
+					p++;
+			*p = '\0';
+		}
 
 		/*
 		 * construct a name of the form "archive.a:obj.o:" for the
@@ -223,16 +271,16 @@ show_archive(fname, fp)
 		 * on each output line
 		 */
 		p = name;
+		*p = 0;
 		if (print_file_each_line)
-			p += sprintf(p, "%s:", fname);
-		for (i = 0; i < sizeof(ar_head.ar_name); ++i)
-			if (ar_head.ar_name[i] && ar_head.ar_name[i] != ' ')
-				*p++ = ar_head.ar_name[i];
-		*p++ = '\0';
+		{
+			p = scat(p, fname);
+			p = scat(p, ":");
+		}
+		p = scat(p, ar_name);
 
 		/* get and check current object's header */
-		if (fread((char *)&exec_head, sizeof(exec_head),
-		    (size_t)1, fp) != 1) {
+		if (fread((char *)&exec_head, sizeof(exec_head), (size_t)1, fp) != 1) {
 			(void)fprintf(stderr, "nm: %s: premature EOF.\n", name);
 			(void)free(name);
 			return(1);
