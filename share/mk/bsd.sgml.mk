@@ -1,7 +1,7 @@
 #       bsd.sgml.mk - 8 Sep 1995 John Fieber
 #       This file is in the public domain.
 #
-#	$Id: bsd.sgml.mk,v 1.5 1996/05/27 23:12:15 wosch Exp $
+#	$Id: bsd.sgml.mk,v 1.6 1996/06/24 04:24:14 jkh Exp $
 #
 # The include file <bsd.sgml.mk> handles installing sgml documents.
 # <bsd.prog.mk> includes the file named "../Makefile.inc" if it exists,
@@ -68,7 +68,7 @@ LPR?=		lpr
 DOCS=	${FORMATS:S/^/${DOC}./g}
 
 .MAIN:	all
-all:	${DOCS}
+all:	depend ${DOCS}
 
 # If FORMATS is empty, do nothing
 .if empty(FORMATS)
