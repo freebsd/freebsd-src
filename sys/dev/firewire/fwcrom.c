@@ -32,8 +32,10 @@
  * SUCH DAMAGE.
  */
 
+#ifdef __FreeBSD__
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
+#endif
 
 #include <sys/param.h>
 #if defined(_KERNEL) || defined(TEST)
@@ -50,8 +52,14 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #endif
+
+#ifdef __DragonFly__
+#include "firewire.h"
+#include "iec13213.h"
+#else
 #include <dev/firewire/firewire.h>
 #include <dev/firewire/iec13213.h>
+#endif
 
 #define MAX_ROM (1024 - sizeof(u_int32_t) * 5)
 #define CROM_END(cc) ((vm_offset_t)(cc)->stack[0].dir + MAX_ROM - 1)
@@ -62,9 +70,10 @@ crom_init_context(struct crom_context *cc, u_int32_t *p)
 	struct csrhdr *hdr;
 
 	hdr = (struct csrhdr *)p;
-	if (hdr->info_len == 1) {
-		/* minimum ROM */
+	if (hdr->info_len <= 1) {
+		/* minimum or invalid ROM */
 		cc->depth = -1;
+		return;
 	}
 	p += 1 + hdr->info_len;
 
@@ -436,7 +445,7 @@ crom_add_simple_text(struct crom_src *src, struct crom_chunk *parent,
 
 	len = strlen(buf);
 	if (len > MAX_TEXT) {
-#if __FreeBSD_version < 500000
+#if defined(__DragonFly__) || __FreeBSD_version < 500000
 		printf("text(%d) trancated to %d.\n", len, MAX_TEXT);
 #else
 		printf("text(%d) trancated to %td.\n", len, MAX_TEXT);
@@ -574,9 +583,15 @@ main () {
 	/* private company_id */
 	crom_add_entry(&root, CSRKEY_VENDOR, 0xacde48);
 
+#ifdef __DragonFly__
+	crom_add_simple_text(&src, &root, &text1, "DragonFly");
+	crom_add_entry(&root, CSRKEY_HW, __DragonFly_cc_version);
+	crom_add_simple_text(&src, &root, &text2, "DragonFly-1");
+#else
 	crom_add_simple_text(&src, &root, &text1, "FreeBSD");
 	crom_add_entry(&root, CSRKEY_HW, __FreeBSD_version);
 	crom_add_simple_text(&src, &root, &text2, "FreeBSD-5");
+#endif
 
 	/* SBP unit directory */
 	crom_add_chunk(&src, &root, &unit1, CROM_UDIR);
