@@ -143,12 +143,12 @@ typedef	u_int16_t	nlink_t;	/* link count */
 typedef	_BSD_OFF_T_	off_t;		/* file offset */
 typedef	_BSD_PID_T_	pid_t;		/* process id */
 typedef	quad_t		rlim_t;		/* resource limit */
-#if defined(__alpha__) || defined(__sparc64__)
-/* XXX should be in <machine/types.h> */
-typedef	int64_t		segsz_t;	/* segment size */
-#else
-typedef	int32_t		segsz_t;	/* segment size */
+
+#ifdef _BSD_SEGSZ_T_
+typedef	_BSD_SEGSZ_T_	segsz_t;	/* segment size (in pages) */
+#undef _BSD_SEGSZ_T_
 #endif
+
 typedef	int32_t		swblk_t;	/* swap offset */
 typedef	int32_t		ufs_daddr_t;
 typedef	int32_t		ufs_time_t;
