@@ -557,14 +557,11 @@ static char *_pw_yp_domain;
 static int
 _havemaster(char *_pw_yp_domain)
 {
-	int *order;
+	int order;
 
 	if (yp_order(_pw_yp_domain, "master.passwd.byname", (int *)&order)) {
-		free(order);
 		return 0;
 	}
-
-	free(order);
 	return 1;
 }
 
