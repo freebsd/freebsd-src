@@ -31,19 +31,19 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
+
 #ifndef lint
 static const char copyright[] =
 "@(#) Copyright (c) 1987, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
-#endif /* not lint */
+#endif
 
 #ifndef lint
-#if 0
-static char sccsid[] = "From: @(#)xinstall.c	8.1 (Berkeley) 7/21/93";
+static const char sccsid[] = "From: @(#)xinstall.c	8.1 (Berkeley) 7/21/93";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/wait.h>
@@ -61,8 +61,8 @@ static const char rcsid[] =
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 #include <sysexits.h>
+#include <unistd.h>
 #include <utime.h>
 
 #include "pathnames.h"
@@ -83,7 +83,8 @@ gid_t gid;
 uid_t uid;
 int dobackup, docompare, dodir, dopreserve, dostrip, nommap, safecopy, verbose;
 mode_t mode = S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH;
-char *suffix = BACKUP_SUFFIX;
+char backup_suffix[] = BACKUP_SUFFIX;
+char *suffix = backup_suffix;
 
 void	copy __P((int, char *, int, char *, off_t));
 int	compare __P((int, const char *, size_t, int, const char *, size_t));
@@ -91,7 +92,7 @@ int	create_newfile __P((char *, int, struct stat *));
 int	create_tempfile __P((char *, char *, size_t));
 void	install __P((char *, char *, u_long, u_int));
 void	install_dir __P((char *));
-u_long	numeric_id __P((char *, char *));
+u_long	numeric_id __P((char *, const char *));
 void	strip __P((char *));
 int	trymmap __P((int));
 void	usage __P((void));
@@ -192,7 +193,7 @@ main(argc, argv)
 		if ((gp = getgrnam(group)) != NULL)
 			gid = gp->gr_gid;
 		else
-			gid = (uid_t)numeric_id(group, "group");
+			gid = (gid_t)numeric_id(group, "group");
 	} else
 		gid = (gid_t)-1;
 
@@ -242,7 +243,8 @@ main(argc, argv)
 
 u_long
 numeric_id(name, type)
-	char *name, *type;
+	char *name;
+	const char *type;
 {
 	u_long val;
 	char *ep;
@@ -407,7 +409,7 @@ install(from_name, to_name, fset, flags)
 			(void)chflags(to_name, to_sb.st_flags & ~NOCHANGEBITS);
 		if (dobackup) {
 			if (snprintf(backup, MAXPATHLEN, "%s%s", to_name,
-			    suffix) != strlen(to_name) + strlen(suffix)) {
+			    suffix) != (int)(strlen(to_name) + strlen(suffix))) {
 				unlink(tempfile);
 				errx(EX_OSERR, "%s: backup filename too long",
 				    to_name);
@@ -514,8 +516,8 @@ install(from_name, to_name, fset, flags)
  *	compare two files; non-zero means files differ
  */
 int
-compare(int from_fd, const char *from_name, size_t from_len,
-	int to_fd, const char *to_name, size_t to_len)
+compare(int from_fd, const char *from_name __unused, size_t from_len,
+	int to_fd, const char *to_name __unused, size_t to_len)
 {
 	char *p, *q;
 	int rv;
@@ -618,8 +620,8 @@ create_newfile(path, target, sbp)
 			(void)chflags(path, sbp->st_flags & ~NOCHANGEBITS);
 
 		if (dobackup) {
-			if (snprintf(backup, MAXPATHLEN, "%s%s",
-			    path, suffix) != strlen(path) + strlen(suffix))
+			if (snprintf(backup, MAXPATHLEN, "%s%s", path, suffix)
+			    != (int)(strlen(path) + strlen(suffix)))
 				errx(EX_OSERR, "%s: backup filename too long",
 				    path);
 			(void)snprintf(backup, MAXPATHLEN, "%s%s",
