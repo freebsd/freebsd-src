@@ -16,7 +16,10 @@ not, write to the Free Software Foundation, Inc., 675 Mass Ave,
 Cambridge, MA 02139, USA.  */
 
 #include <errno.h>
-#include <fnmatch.h>
+#include "fnmatch.h"
+#ifdef __FreeBSD__
+#include <locale.h>
+#endif
 
 #if !defined(__GNU_LIBRARY__) && !defined(STDC_HEADERS)
 extern int errno;
@@ -125,10 +128,15 @@ fnmatch (pattern, string, flags)
 		      return FNM_NOMATCH;
 		    c = *p++;
 		  }
-
+#ifdef __FreeBSD__
+		if (   collate_range_cmp (*n, cstart) >= 0
+		    && collate_range_cmp (*n, cend) <= 0
+		   )
+		  goto matched;
+#else
 		if (*n >= cstart && *n <= cend)
 		  goto matched;
-
+#endif
 		if (c == ']')
 		  break;
 	      }
