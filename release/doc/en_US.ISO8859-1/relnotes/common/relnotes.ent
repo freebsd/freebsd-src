@@ -4,6 +4,9 @@
 
 <!-- Text constants which probably don't need to be changed.-->
 
+<!-- Notes new to our first point release (hopefully there'll only be one!) -->
+<!ENTITY new.521 "[5.2.1]">
+
 <!-- The marker for MFCs. -->
 <!ENTITY merged "[MERGED]">
 
