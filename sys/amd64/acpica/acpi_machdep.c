@@ -340,7 +340,7 @@ acpi_machdep_init(device_t dev)
 
 	acpi_install_wakeup_handler(sc);
 
-#ifdef APIC_IO
+#ifdef SMP
 	acpi_SetIntrModel(ACPI_INTR_APIC);
 #endif
 	return (0);
