@@ -764,7 +764,7 @@ nfs_tryproto(struct nfs_args *nfsargsp, struct addrinfo *ai, char *hostp,
 	CLIENT *clp;
 	struct netconfig *nconf, *nconf_mnt;
 	char *netid, *netid_mnt;
-	int nfsvers, mntvers;
+	int doconnect, nfsvers, mntvers;
 	enum clnt_stat stat;
 	enum mountmode trymntmode;
 
@@ -843,6 +843,22 @@ tryagain:
 		return (returncode(rpc_createerr.cf_stat,
 		    &rpc_createerr.cf_error));
 	}
+	if (nfsargsp->sotype == SOCK_DGRAM) {
+		/*
+		 * Use connect(), to match what the kernel does. This
+		 * catches cases where the server responds from the
+		 * wrong source address.
+		 */
+		doconnect = 1;
+		if (!clnt_control(clp, CLSET_CONNECT, (char *)&doconnect)) {
+			clnt_destroy(clp);
+			snprintf(errbuf, sizeof errbuf,
+			    "[%s] %s:%s: CLSET_CONNECT failed", netid, hostp,
+			    spec);
+			return (TRYRET_LOCALERR);
+		}
+	}
+
 	try.tv_sec = 10;
 	try.tv_usec = 0;
 	stat = clnt_call(clp, NFSPROC_NULL, xdr_void, NULL, xdr_void, NULL,
@@ -935,6 +951,9 @@ returncode(enum clnt_stat stat, struct rpc_err *rpcerr)
 	case RPC_PMAPFAILURE:
 	case RPC_PROGNOTREGISTERED:
 	case RPC_PROGVERSMISMATCH:
+	/* XXX, these can be local or remote. */
+	case RPC_CANTSEND:
+	case RPC_CANTRECV:
 		return (TRYRET_REMOTEERR);
 	case RPC_SYSTEMERROR:
 		switch (rpcerr->re_errno) {
