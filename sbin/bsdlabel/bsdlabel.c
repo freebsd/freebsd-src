@@ -69,6 +69,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <string.h>
 #include <stdio.h>
+#include <libgeom.h>
 #include <stdlib.h>
 #include <signal.h>
 #include <stdarg.h>
@@ -101,12 +102,12 @@ __FBSDID("$FreeBSD$");
 #define BIG_NEWFS_CPG    64U
 
 void	makelabel(const char *, const char *, struct disklabel *);
-int	writelabel(int, void *, struct disklabel *);
+int	writelabel(void *, struct disklabel *);
 void	l_perror(const char *);
-struct disklabel *readlabel(int);
-struct disklabel *makebootarea(void *, struct disklabel *, int);
+struct disklabel *readlabel(void);
+struct disklabel *makebootarea(void *, struct disklabel *);
 void	display(FILE *, const struct disklabel *);
-int	edit(struct disklabel *, int);
+int	edit(struct disklabel *);
 int	editit(void);
 char	*skip(char *);
 char	*word(char *);
@@ -122,9 +123,9 @@ struct disklabel *getvirginlabel(void);
 
 char	*dkname;
 char	*specname;
+char	*rawname;
 char	tmpfil[] = PATH_TMPFILE;
 
-char	namebuf[BBSIZE], *np = namebuf;
 struct	disklabel lab;
 int64_t	bootarea[BBSIZE / 8];
 char	blank[] = "";
@@ -154,7 +155,6 @@ enum	{
 } op = UNSPEC;
 
 
-int	rflag;
 int	disable_write;   /* set to disable writing to disk label */
 
 int
@@ -162,7 +162,7 @@ main(int argc, char *argv[])
 {
 	struct disklabel *lp;
 	FILE *t;
-	int ch, f = 0, error = 0;
+	int ch, error = 0;
 	char *name = 0;
 
 	while ((ch = getopt(argc, argv, "Bb:em:nRrs:w")) != -1)
@@ -198,7 +198,6 @@ main(int argc, char *argv[])
 				op = EDIT;
 				break;
 			case 'r':
-				++rflag;
 				break;
 			case 'w':
 				if (op != UNSPEC)
@@ -212,7 +211,6 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 	if (installboot) {
-		rflag++;
 		if (op == UNSPEC)
 			op = WRITEBOOT;
 	} else {
@@ -223,25 +221,16 @@ main(int argc, char *argv[])
 	if (argc < 1)
 		usage();
 
-	dkname = argv[0];
-	if (dkname[0] != '/') {
-		(void)sprintf(np, "%s%s%c", _PATH_DEV, dkname, 'a' + RAW_PART);
-		specname = np;
-		np += strlen(specname) + 1;
-	} else
-		specname = dkname;
-	f = open(specname, op == READ ? O_RDONLY : O_RDWR);
-	if (f < 0 && errno == ENOENT && dkname[0] != '/') {
-		(void)sprintf(specname, "%s%s", _PATH_DEV, dkname);
-		np = namebuf + strlen(specname) + 1;
-		f = open(specname, op == READ ? O_RDONLY : O_RDWR);
+	/* Figure out the names of the thing we're working on */
+	if (argv[0][0] != '/') {
+		dkname = argv[0];
+		asprintf(&specname, "%s%s", _PATH_DEV, argv[0]);
+	} else {
+		dkname = strrchr(argv[0], '/');
+		dkname++;
+		specname = argv[0];
 	}
-	if (f < 0 && errno == EBUSY) {
-		/* lets try to get by with ioctls */
-		f = open(specname, O_RDONLY);
-	}
-	if (f < 0)
-		err(4, "%s", specname);
+	asprintf(&rawname, "%s%c", specname, 'a' + RAW_PART);
 
 	switch(op) {
 
@@ -251,14 +240,14 @@ main(int argc, char *argv[])
 	case EDIT:
 		if (argc != 1)
 			usage();
-		lp = readlabel(f);
-		error = edit(lp, f);
+		lp = readlabel();
+		error = edit(lp);
 		break;
 
 	case READ:
 		if (argc != 1)
 			usage();
-		lp = readlabel(f);
+		lp = readlabel();
 		display(stdout, lp);
 		error = checklabel(lp);
 		break;
@@ -267,12 +256,12 @@ main(int argc, char *argv[])
 		if (argc != 2)
 			usage();
 		if (!(t = fopen(argv[1], "r")))
-			err(4, "%s", argv[1]);
+			err(4, "fopen %s", argv[1]);
 		if (!getasciilabel(t, &lab))
 			exit(1);
-		lp = makebootarea(bootarea, &lab, f);
+		lp = makebootarea(bootarea, &lab);
 		*lp = lab;
-		error = writelabel(f, bootarea, lp);
+		error = writelabel(bootarea, lp);
 		break;
 
 	case WRITE:
@@ -283,24 +272,24 @@ main(int argc, char *argv[])
 		if (argc != 2)
 			usage();
 		makelabel(argv[1], name, &lab);
-		lp = makebootarea(bootarea, &lab, f);
+		lp = makebootarea(bootarea, &lab);
 		*lp = lab;
 		if (checklabel(lp) == 0)
-			error = writelabel(f, bootarea, lp);
+			error = writelabel(bootarea, lp);
 		break;
 
 	case WRITEBOOT:
 	{
 		struct disklabel tlab;
 
-		lp = readlabel(f);
+		lp = readlabel();
 		tlab = *lp;
 		if (argc == 2)
 			makelabel(argv[1], 0, &lab);
-		lp = makebootarea(bootarea, &lab, f);
+		lp = makebootarea(bootarea, &lab);
 		*lp = tlab;
 		if (checklabel(lp) == 0)
-			error = writelabel(f, bootarea, lp);
+			error = writelabel(bootarea, lp);
 		break;
 	}
 	}
@@ -328,10 +317,12 @@ makelabel(const char *type, const char *name, struct disklabel *lp)
 }
 
 int
-writelabel(int f, void *boot, struct disklabel *lp)
+writelabel(void *boot, struct disklabel *lp)
 {
 	uint64_t *p, sum;
-	int i;
+	int i, fd;
+	struct gctl_req *grq;
+	char const *errstr;
 
 	if (disable_write) {
 		Warning("write to disk label supressed - label was as follows:");
@@ -343,31 +334,43 @@ writelabel(int f, void *boot, struct disklabel *lp)
 	lp->d_magic2 = DISKMAGIC;
 	lp->d_checksum = 0;
 	lp->d_checksum = dkcksum(lp);
-	if (!rflag) {
-		if (ioctl(f, DIOCWDINFO, lp) < 0) {
-			l_perror("ioctl DIOCWDINFO");
-			return (1);
-		}
-		return (0);
-	}
-
 	bsd_disklabel_le_enc((u_char *)boot + labeloffset, lp);
-
-	(void)lseek(f, (off_t)0, SEEK_SET);
-	
 	if (alphacksum) {
-		/*
-		 * Generate the bootblock checksum for the SRM console.
-		 */
+		/* Generate the bootblock checksum for the SRM console.  */
 		for (p = (uint64_t *)boot, i = 0, sum = 0; i < 63; i++)
 			sum += p[i];
 		p[63] = sum;
 	}
-	if (ioctl(f, DIOCBSDBB, &boot) == 0)
-		return (0);
-	if (write(f, boot, bbsize) != bbsize) {
-		warn("write");
-		return (1);
+
+	fd = open(specname, O_RDWR);
+	if (fd < 0) {
+		grq = gctl_get_handle(GCTL_CONFIG_GEOM);
+		gctl_ro_param(grq, "class", -1, "BSD");
+		gctl_ro_param(grq, "geom", -1, dkname);
+		gctl_ro_param(grq, "verb", -1, "write label");
+		gctl_ro_param(grq, "label", 148+16*8, (u_char *)boot + labeloffset);
+		errstr = gctl_issue(grq);
+		if (errstr != NULL)
+			errx(1, "%s", errstr);
+		gctl_free(grq);
+		if (installboot) {
+			grq = gctl_get_handle(GCTL_CONFIG_GEOM);
+			gctl_ro_param(grq, "class", -1, "BSD");
+			gctl_ro_param(grq, "geom", -1, dkname);
+			gctl_ro_param(grq, "verb", -1, "write bootcode");
+			gctl_ro_param(grq, "bootcode", BBSIZE, boot);
+			errstr = gctl_issue(grq);
+			if (errstr != NULL)
+				errx(1, "%s", errstr);
+			gctl_free(grq);
+		}
+	} else {
+		if (write(fd, boot, bbsize) != bbsize) {
+			warn("write %s", specname);
+			close (fd);
+			return (1);
+		}
+		close (fd);
 	}
 	return (0);
 }
@@ -407,14 +410,21 @@ l_perror(const char *s)
  * Use ioctl to get label unless -r flag is given.
  */
 struct disklabel *
-readlabel(int f)
+readlabel(void)
 {
+	int f;
+	int error;
 
+	f = open(specname, O_RDONLY);
+	if (f < 0)
+		err(1, specname);
 	(void)lseek(f, (off_t)0, SEEK_SET);
 	if (read(f, bootarea, BBSIZE) < BBSIZE)
-		err(4, "%s", specname);
-	bsd_disklabel_le_dec((u_char *)bootarea + labeloffset, &lab,
-	    MAXPARTITIONS);
+		err(4, "%s read", specname);
+	error = bsd_disklabel_le_dec((u_char *)bootarea + labeloffset, &lab, MAXPARTITIONS);
+	if (error)
+		errx(1, "%s: invalid bsd label", specname);
+	close (f);
 	return (&lab);
 }
 
@@ -423,12 +433,10 @@ readlabel(int f)
  * Returns a pointer to the disklabel portion of the bootarea.
  */
 struct disklabel *
-makebootarea(void *boot, struct disklabel *dp, int f)
+makebootarea(void *boot, struct disklabel *dp)
 {
 	struct disklabel *lp;
-	char *p;
 	int b;
-	char *dkbasename;
 	struct stat sb;
 	uint64_t *bootinfo;
 	int n;
@@ -440,6 +448,7 @@ makebootarea(void *boot, struct disklabel *dp, int f)
 	}
 	lp = (struct disklabel *)((char *)boot + labeloffset);
 	bzero((char *)lp, sizeof *lp);
+#if 0
 	/*
 	 * If we are not installing a boot program but we are installing a
 	 * label on disk then we must read the current bootarea so we don't
@@ -451,25 +460,13 @@ makebootarea(void *boot, struct disklabel *dp, int f)
 		bzero((char *)lp, sizeof *lp);
 		return (lp);
 	}
+#endif
 	/*
 	 * We are installing a boot program.  Determine the name(s) and
 	 * read them into the appropriate places in the boot area.
 	 */
-	if (!xxboot) {
-		dkbasename = np;
-		if ((p = rindex(dkname, '/')) == NULL)
-			p = dkname;
-		else
-			p++;
-		while (*p && !isdigit(*p))
-			*np++ = *p++;
-		*np++ = '\0';
-
-		if (!xxboot) {
-			(void)sprintf(boot0, "%s/boot", _PATH_BOOTDIR);
-			xxboot = boot0;
-		}
-	}
+	if (xxboot == NULL)
+		asprintf(&xxboot, "%s/boot", _PATH_BOOTDIR);
 
 	b = open(xxboot, O_RDONLY);
 	if (b < 0)
@@ -477,9 +474,15 @@ makebootarea(void *boot, struct disklabel *dp, int f)
 	if (fstat(b, &sb) != 0)
 		err(4, "%s", xxboot);
 
-	if (alphacksum) {
-		if (sb.st_size > BBSIZE - dp->d_secsize)
-			errx(4, "%s too large", xxboot);
+	if (sb.st_size == BBSIZE) {
+		n = read(b, (char *)boot, bbsize);
+		if (n != bbsize)
+			err(4, "%s", xxboot);
+	} else if (alphacksum) {
+		if (sb.st_size != BBSIZE - dp->d_secsize)
+			errx(4, "%s wrong size (%jd bytes, expected %jd bytes)",
+			    xxboot, (intmax_t)sb.st_size,
+			    (intmax_t)BBSIZE - dp->d_secsize);
 		/*
 		 * On the alpha, the primary bootstrap starts at the
 		 * second sector of the boot area.  The first sector
@@ -495,12 +498,8 @@ makebootarea(void *boot, struct disklabel *dp, int f)
 		bootinfo[1] = 1;	/* start at sector 1 */
 		bootinfo[2] = 0;	/* flags (must be zero) */
 	} else {
-		if (sb.st_size != bbsize)
-			errx(4, "%s is wrong size, is %jd bytes, expected %d bytes",
+		errx(4, "%s is wrong size, is %jd bytes, expected %d bytes",
 			    xxboot, (intmax_t)sb.st_size, bbsize);
-		n = read(b, (char *)boot, bbsize);
-		if (n != bbsize)
-			err(4, "%s", xxboot);
 	}
 
 	(void)close(b);
@@ -609,7 +608,7 @@ display(FILE *f, const struct disklabel *lp)
 }
 
 int
-edit(struct disklabel *lp, int f)
+edit(struct disklabel *lp)
 {
 	int c, fd;
 	struct disklabel label;
@@ -633,7 +632,7 @@ edit(struct disklabel *lp, int f)
 		bzero((char *)&label, sizeof(label));
 		if (getasciilabel(fp, &label)) {
 			*lp = label;
-			if (writelabel(f, bootarea, lp) == 0) {
+			if (writelabel(bootarea, lp) == 0) {
 				fclose(fp);
 				(void) unlink(tmpfil);
 				return (0);
@@ -1441,13 +1440,13 @@ usage(void)
 
 	fprintf(stderr,
 	"%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
-	"usage: bsdlabel [-r] disk",
+	"usage: bsdlabel disk",
 	"\t\t(to read label)",
-	"	bsdlabel -w [-nr] [-m machine] disk type [packid]",
+	"	bsdlabel -w [-n] [-m machine] disk type [packid]",
 	"\t\t(to write label with existing boot program)",
-	"	bsdlabel -e [-nr] [-m machine] disk",
+	"	bsdlabel -e [-n] [-m machine] disk",
 	"\t\t(to edit label)",
-	"	bsdlabel -R [-nr] [-m machine] disk protofile",
+	"	bsdlabel -R [-n] [-m machine] disk protofile",
 	"\t\t(to restore label with existing boot program)",
 	"	bsdlabel -B [-b boot] [-m machine] disk",
 	"\t\t(to install boot program with existing on-disk label)",
