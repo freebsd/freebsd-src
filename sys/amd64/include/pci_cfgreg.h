@@ -50,4 +50,4 @@
 extern int		pci_cfgregopen(void);
 extern u_int32_t	pci_cfgregread(int bus, int slot, int func, int reg, int bytes);
 extern void		pci_cfgregwrite(int bus, int slot, int func, int reg, u_int32_t data, int bytes);
-
+extern int		pci_cfgintr(int bus, int device, int pin);
