@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.121 1997/12/29 22:23:10 brian Exp $
+ * $Id: command.c,v 1.122 1997/12/30 02:45:41 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -1202,11 +1202,13 @@ GetIpAddr(const char *cp)
   struct hostent *hp;
   struct in_addr ipaddr;
 
-  hp = gethostbyname(cp);
-  if (hp && hp->h_addrtype == AF_INET)
-    memcpy(&ipaddr, hp->h_addr, hp->h_length);
-  else if (inet_aton(cp, &ipaddr) == 0)
-    ipaddr.s_addr = 0;
+  if (inet_aton(cp, &ipaddr) == 0) {
+    hp = gethostbyname(cp);
+    if (hp && hp->h_addrtype == AF_INET)
+      memcpy(&ipaddr, hp->h_addr, hp->h_length);
+    else
+      ipaddr.s_addr = 0;
+  }
   return (ipaddr);
 }
 
