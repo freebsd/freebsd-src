@@ -381,7 +381,7 @@ chipset_probe (pcici_t tag, pcidi_t type)
 
 	/* Cyrix -- vendor 0x1078 */
 	case 0x00001078:
-		return ("Cyrix Cx5520 PCI-ISA bridge");
+		return ("Cyrix Cx5510 PCI-ISA bridge");
 	case 0x01001078:
 		return ("Cyrix Cx5530 PCI-ISA bridge");
 
