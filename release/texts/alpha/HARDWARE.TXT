@@ -426,8 +426,8 @@ bug. The SRM does not know about the ECO and will complain about unknown cards
 as before. So does the FreeBSD kernel by the way.
 
 EIDE:
-The Miata SRM can boot from IDE CDROM drives. Hard disk boot is known to work for
-both MiataGL and MX5 disks, so you can root FreeBSD from an IDE disk. Speeds
+The Miata SRM can boot from IDE CDROM drives. Hard disk boot is known to work 
+for both MiataGL and MX5 disks, so you can root FreeBSD from an IDE disk. Speeds
 on MX5 are around 14 Mbytes/sec assuming a suitable drive. The CMD646 chip will
 support up to WDMA2 mode as the silicon is too buggy for use with UDMA.
 
@@ -435,6 +435,10 @@ PCI-PCI bridge:
 The MiataGL has a faster PCI-PCI bridge chip on the PCI riser card than 
 some of the MX5 riser card versions. Some of the MX5 risers have the *same*
 chip as the MiataGL. All in all there is a lot of variation.
+
+Not all VGA cards will work behind the PCI-PCI bridge.
+Workaround is to put the VGA card 'before' the bridge in one of the 64 bit
+PCI slots.
 
 Sound: 
 Both MX5 and MiataGL have an on-board sound chip, an ESS1888. It emulates
@@ -465,8 +469,7 @@ Update CD V5.7, or on www.compaq.com The problem is fixed on both Miata MX5
 and Miata GL.
 
 USB:
-Does not currently seem to work on FreeBSD/alpha judging from the kernel
-probe messages.
+Supported by FreeBSD 4.1 and later.
 
 Power:
 disconnect the power cord before dismantling the machine, the soft-power
@@ -710,7 +713,7 @@ over 2 banks does not work.
 SCSI:
 The SRM can boot from Qlogic 10xx boards or the NCR/Symbios 53C810. 
 53C825[a] will also work as boot adapter. Diamond FirePort, although 
-based on Symbios chips, are not bootable by the PC164SX SRM. 
+based on Symbios chips, is not bootable by the PC164SX SRM. 
 PC164SX is reported to boot fine with NCR825, NCR875 and NCR876 based cards.
 
 SRM quirks:
@@ -744,7 +747,7 @@ For the EB164 class machines the kernel config file must contain:
 *
 
 The Digital AlphaStation 200 and 400 series systems are early PCI based
-workstations for the lower end. The 200 and 250 series is a desktop box, the
+workstations for the lower end. The 200 and 250 series is a desktop box, the 
 400 series is a desk-side mini-tower.
 
 Features:
@@ -753,24 +756,26 @@ Features:
     Cache/memory controller (one 21071-CA chip)
     PCI interface (one 21071-DA chip)
     Data path (two 21071-BA chips)
-- Bcache / L2 cache: 512 Kbytes
+- Bcache / L2 cache: 512 Kbytes (200 and 400 series)
+		     2048KBytes (250 series)
 - memory bus: 64 bit
 - memory: 8 to 384 MBytes of RAM,
 	  70 ns or better Fast Page DRAM,
-          in three pairs
+          in three pairs (200 and 400 series)
+	  in two quads, so banks of four. (250 series)
 	  uses parity 
 - PS/2 keyboard and mouse port
 - two 16550 serial ports
 - parallel port
 - floppy disk interface
-- 32 bit PCI expansion slots (3 for 400 series, 2 for 200 series)
-- ISA expansion slots (4 for 400 series, 2 for 200 series) 
+- 32 bit PCI expansion slots (3 for 400 series, 2 for 200 & 250 series)
+- ISA expansion slots (4 for 400 series, 2 for 200 & 250 series) 
   (some ISA/PCI slots are physically shared)
-- embedded 21040-based Ethernet (200 series only)
+- embedded 21040-based Ethernet (200 & 250 series)
 - embedded NCR/Symbios 53c810 Fast SCSI-2 chip
 - Intel 82378IB ("Saturn") PCI-ISA bridge chip
 - graphics is embedded TGA or PCI VGA (model dependent)
-- 16 bit sound (on 200 series)
+- 16 bit sound (on 200 & 250 series)
 
 Memory:
 the system uses parity memory SIMMs, but it does not need 36 bit wide SIMMs.
@@ -778,14 +783,14 @@ the system uses parity memory SIMMs, but it does not need 36 bit wide SIMMs.
 bit SIMMs will not work. 4, 8, 16, 32 and 64 Mbyte SIMMs are supported.
 
 Sound:
-The AS200 sound hardware is reported to work OK assuming you have the following
-line in your kernel config file:
+The AS200 & AS250 sound hardware is reported to work OK assuming you have 
+the following line in your kernel config file:
 
 	device pcm0 at isa? port 0x530 irq 9 drq 0 flags 0x10011
 
 SCSI:
-AlphaStation 200 series has an automatic SCSI terminator. This means that as
-soon as you plug a cable onto the external SCSI connector the internal
+AlphaStation 200 & 250 series has an automatic SCSI terminator. This means that 
+as soon as you plug a cable onto the external SCSI connector the internal
 terminator of the system is disabled. It also means that you should not
 leave unterminated cables plugged into the machine.
 
@@ -794,7 +799,7 @@ case you have external SCSI devices connected you must set this SRM
 variable using: "set control_scsi_term external". If only internal SCSI devices
 are present use: "set control_scsi_term internal"
 
-For the AlphaStation-[24]00 machines the kernel config file must contain:
+For the AlphaStation-[24][05]00 machines the kernel config file must contain:
         options         DEC_2100_A50
 	cpu		EV4
 
@@ -1007,7 +1012,7 @@ Expansion:
 On the PCI bus 32 and 64 bit cards are supported, in 3.3V and 5V variants.
 
 USB:
-whether this works on FreeBSD on DS10 is as yet unknown.
+Is supported in FreeBSD 4.1 and later.
 
 The kernel config file must contain:
 	options         DEC_ST6600    
@@ -1031,7 +1036,8 @@ Features:
 - Cypress 82C693 USB controller       
 - Cypress 82C693 PCI-ISA bridge       
 - Cypress 82C693 controller 
-- expansion: 2 independent PCI buses (called hoses)
+- expansion: 2 independent PCI buses, driven by high-speed I/O
+	     channels called 'hoses':
         hose 0: (the upper 3 slots)
              2 64-bit PCI slots    
              1 32-bit PCI slot     
@@ -1077,12 +1083,13 @@ If you experience problems trying to use the USB interface please check if
 the SRM variable "usb_enable" is set to "on". You can change this by
 performing: "set usb_enable on" at the SRM >>> prompt.
 
-Expansion:
-Don't try to use NCR/Symbios-chip based SCSI adapters in the PCI slots
+Expansion caveats:
+- Don't try to use NCR/Symbios-chip based SCSI adapters in the PCI slots
 connected to hose 1. There is a not-yet-found FreeBSD bug that prevents this
-from working correctly. Not all VGA cards will work behind the PCI-PCI
-bridge (so in slots 4 & 5). Only cards that implement VGA-legacy adressing
-correctly will work. Workaround is to put the VGA card 'before' the bridge.
+from working correctly. 
+- Not all VGA cards will work behind the PCI-PCI bridge (so in slots 4 & 5). 
+Only cards that implement VGA-legacy adressing correctly will work. Workaround 
+is to put the VGA card 'before' the bridge.
 
 Sound:
 The sound chip is not currently supported with FreeBSD. There is work in
@@ -1109,12 +1116,13 @@ Features:
 	  max. 4Gb
 - 21271 Core Logic chip-set ("Tsunami") 
 - embedded Adaptec ? Wide Ultra SCSI 
-- expansion: 2 independent PCI buses (called hoses)
+- expansion: 2 independent PCI buses, driven by high-speed I/O
+             channels called 'hoses'
 	     6 64-bit PCI slots (3 per hose)
 	     1 ISA slot
 
 Case:
-DS20 is housed in a fat minitower-like enclosure. The enclosure also
+DS20 is housed in a fat cube-like enclosure. The enclosure also
 contains a StorageWorks SCSI hot-swap shelf for a maximum of 7 3.5" SCSI
 devices. DS20E is a sleeker case, without the StorageWorks shelf.
 
@@ -1144,7 +1152,8 @@ The kernel config file must contain:
 Contrary to expectation there is no 'cpu EV6' defined for inclusion in the
 kernel config file. The 'cpu EV5' is mandatory to keep config(8) happy.
 
-** AlphaPC 264DP <need more info on this one; please check for correctness>
+** AlphaPC 264DP / UP2000
+	<need more info on this one; please check for correctness>
 
 Features:
 - 21264 EV6 CPU at 670 MHz
@@ -1160,7 +1169,8 @@ Features:
 - embedded Adaptec AIC7890/91 Wide Ultra SCSI 
 - 2x embedded IDE based on Cypress 82C693 chips
 - embedded USB via Cypress 82C693
-- expansion: 2 independent PCI buses (called hoses)
+- expansion: 2 independent PCI buses driven by high-speed I/O
+             channels called 'hoses'
 	     6 64-bit PCI slots (3 per hose)
 	     1 ISA slot
 
@@ -1286,7 +1296,8 @@ GENERIC contains things that are known to work on Alpha only.
 in GENERIC and has limited support (see the relevant machine model info).
 The MCA bus is not supported. The EISA bus is not supported for use with
 EISA expansion cards as the EISA support code is lacking. ISA cards in EISA 
-slots are reported to work.
+slots are reported to work. The Compaq Qvision EISA VGA card is driven in
+ISA mode and works OK as a console.
 
 - Floppy drives: 1.44 Mbyte and 1.2 Mbyte floppy drives are supported.
 2.88Mbyte drives sometimes found in Alpha machines are supported up to
@@ -1301,7 +1312,7 @@ information.
 chip-based), Qlogic family and NCR/Symbios. Be aware of the machine-specific
 bootability issues for the various adapter types.
 
-- FibreChannel: the Qlogic QL2x00 FibreChannel host adapters are fully
+- FibreChannel: the Qlogic QL2x00 FibreChhannel host adapters are fully
 supported.
 
 - graphics console/keyboard/mouse: in general the SRM console emulates 
@@ -1309,18 +1320,14 @@ a VGA-compatibility mode on PCI VGA cards. This is, however, not guaranteed
 to work by Compaq/DEC for each and every card type out there. When the SRM 
 thinks the VGA is acceptable FreeBSD will be able to use it. The console driver
 works just like on a FreeBSD/intel machine. The TGA video graphics which 
-is built-in on for example Multia is reported to be not usable with FreeBSD.
-TGA based PCI cards are also *not* supported. Please note that VESA modes 
-are not supported on Alpha, so that leaves you with 80x25 consoles
+is embedded on for example Multia does *not* work with FreeBSD. TGA based
+PCI cards are also *not* supported. Please note that VESA modes are not
+supported on Alpha, so that leaves you with 80x25 consoles
 
 - serial ports: the 'PC standard' serial ports found on most Alphas are 
 supported. For TurboChannel machines the serial ports are also supported.
 
-- parallel ports: are not currently supported on FreeBSD/alpha
-
 - ISDN (i4b): is not supported on FreeBSD/alpha
-
-- multimedia: is not really supported on FreeBSD/alpha but work is underway
 
 Acknowledgments
 ----------------
@@ -1346,4 +1353,3 @@ People who kindly helped me with creating this document:
 - Wouter Brackman, Compaq
 - Kazutaka YOKOTA <yokota@zodiac.mech.utsunomiya-u.ac.jp>
 - Peter van Dijk <petervd@vuurwerk.nl>
-
