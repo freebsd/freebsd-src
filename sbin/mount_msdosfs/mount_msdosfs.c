@@ -314,8 +314,8 @@ usage()
 {
 #ifdef TRANSITION_PERIOD_HACK
 	fprintf(stderr, "%s\n%s\n%s\n",
-	"usage: mount_msdosfs [-o options] [-u user] [-g group] [-m mask] [-M mask]"
-	"                     [-s] [-l] [-9] [-L locale] [-D dos-codepage] [-W table]"
+	"usage: mount_msdosfs [-o options] [-u user] [-g group] [-m mask] [-M mask]",
+	"                     [-s] [-l] [-9] [-L locale] [-D dos-codepage] [-W table]",
 	"                     bdev dir");
 #else
 	fprintf(stderr, "%s\n%s\n",
