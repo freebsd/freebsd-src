@@ -2,7 +2,7 @@
 
 #define _main_c_
 
-#define FTP_VERSION "1.8.7 (December 11, 1994)"
+#define FTP_VERSION "1.9.0 (December 22, 1994)"
 
 /* #define BETA 1 */ /* If defined, it prints a little warning message. */
 
@@ -46,7 +46,9 @@ int					toatty;				/* output is to a terminal */
 int					doing_script;		/* is a file being <redirected to me? */
 char				*altarg;			/* argv[1] with no shell-like preprocessing  */
 struct servent		serv;				/* service spec for tcp/ftp */
+static char			pad2a[8] = "Pad 2a";	/* SunOS overwrites jmp_bufs... */
 jmp_buf				toplevel;			/* non-local goto stuff for cmd scanner */
+static char			pad2b[8] = "Pad 2b";
 char				*line;				/* input line buffer */
 char				*stringbase;		/* current scan point in line buffer */
 char				*argbuf;			/* argument storage buffer */
@@ -391,7 +393,7 @@ For testing purposes only.  Do not re-distribute or subject to novice users."
 		(void) Signal(SIGPIPE, lostpeer);
 	}
 	for (;;) {
-		if (cmdscanner(top))
+		if (cmdscanner(top) && !fromatty)
 			exit(1);
 		top = 1;
 	}
