@@ -44,6 +44,7 @@
 #include "libc_private.h"
 
 #define OFF(f)	offsetof(struct pthread, f)
+int _thread_thr_id_offset		= OFF(thr_id);
 int _thread_next_offset			= OFF(tle.tqe_next);
 int _thread_name_offset			= OFF(name);
 int _thread_ctx_offset			= OFF(ctx);
