@@ -106,7 +106,7 @@ struct cstate {
     char csu_hdr[MAX_HDR];
     struct ip csu_ip;		/* ip/tcp hdr from most recent packet */
   } slcs_u;
- };
+};
 
 #define cs_ip slcs_u.csu_ip
 #define cs_hdr slcs_u.csu_hdr
