@@ -304,15 +304,15 @@ nat_ProxyRule(struct cmdargs const *arg)
 
   for (f = arg->argn, pos = 0; f < arg->argc; f++) {
     len = strlen(arg->argv[f]);
-    if (sizeof cmd - pos < len + (f ? 1 : 0))
+    if (sizeof cmd - pos < len + (len ? 1 : 0))
       break;
-    if (f)
+    if (len)
       cmd[pos++] = ' ';
     strcpy(cmd + pos, arg->argv[f]);
     pos += len;
   }
 
-  return PacketAliasProxyRule(cmd + strspn(cmd, " \t"));
+  return PacketAliasProxyRule(cmd);
 }
 
 int
