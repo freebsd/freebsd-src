@@ -12,7 +12,7 @@
 #
 # Sep., 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
 #
-#	$Id: Makefile,v 1.3 1995/02/17 02:22:30 phk Exp $
+#	$Id: Makefile,v 1.4 1995/05/30 07:58:11 rgrimes Exp $
 #
 
 OBJS = apm_init.o real_prot.o table.o
@@ -31,15 +31,36 @@ all: apm_init.inc
 .S.o:
 	$(CC)  $(CFLAGS) $(INC) -c $<
 
-apm_init.inc: apm_init bin2asm
-	./bin2asm apm_init apm_init.inc
+apm_init.inc: apm_initat.inc apm_init98.inc
+	echo "#ifdef PC98" > apm_init.inc
+	cat apm_init98.inc >> apm_init.inc
+	echo "#else" >> apm_init.inc
+	cat apm_initat.inc >> apm_init.inc
+	echo "#endif" >> apm_init.inc
 
-apm_init: $(OBJS)
-	$(LD) -Bstatic -N -T 0 -o apm_init $(OBJS)
-	cp apm_init apm_init.sym
-	@strip apm_init
-	@sh ${.CURDIR}/rmaouthdr apm_init apm_init.tmp
-	@mv -f apm_init.tmp apm_init
+apm_initat.inc: apm_initat bin2asm
+	./bin2asm apm_initat apm_initat.inc
+
+apm_initat: $(OBJS)
+	rm -f $(OBJS)
+	make $(OBJS)
+	$(LD) -Bstatic -N -T 0 -o apm_initat $(OBJS)
+	cp apm_initat apm_initat.sym
+	@strip apm_initat
+	@sh ${.CURDIR}/rmaouthdr apm_initat apm_initat.tmp
+	@mv -f apm_initat.tmp apm_initat
+
+apm_init98.inc: apm_init98 bin2asm
+	./bin2asm apm_init98 apm_init98.inc
+
+apm_init98: $(OBJS)
+	rm -f $(OBJS)
+	make CC="$(CC) -DPC98" $(OBJS)
+	$(LD) -Bstatic -N -T 0 -o apm_init98 $(OBJS)
+	cp apm_init98 apm_init98.sym
+	@strip apm_init98
+	@sh ${.CURDIR}/rmaouthdr apm_init98 apm_init98.tmp
+	@mv -f apm_init98.tmp apm_init98
 
 bin2asm: bin2asm.c
 	$(CC) -o bin2asm ${.CURDIR}/bin2asm.c
@@ -47,6 +68,7 @@ bin2asm: bin2asm.c
 allclean: clean
 	@rm -f apm_init.inc
 clean:
-	@rm -f *.o apm_init apm_init.sym bin2asm
+	@rm -f *.o apm_init98 apm_init98.inc apm_init98.sym \
+		apm_initat apm_initat.inc apm_initat.sym apm_init apm_init.sym bin2asm
 
 .include <bsd.prog.mk>
