@@ -388,15 +388,17 @@ distMaybeSetCRYPTO(dialogMenuItem *self)
 
     dialog_clear_norefresh();
     if (!msgYesNo("Do you wish to install cryptographic software?\n\n"
-		  "If you choose No, FreeBSD will use an MD5 based password scheme which,\n"
-		  "while perhaps more secure, is not interoperable with the traditional\n"
-		  "DES-based passwords on other Unix systems.  There will also be some\n"
-		  "differences in the type of RSA code you use.\n\n"
-		  "Please do NOT choose Yes at this point if you are outside the\n"
-		  "United States and Canada and are installing from a U.S. FTP server.\n"
-		  "Instead, install everything but the crypto bits from the U.S. site\n"
-		  "and then switch to an international FTP server to install crypto on\n"
-		  "a second pass with the Custom Installation option.")) {
+		  "If you choose No, FreeBSD will use an MD5-based password scheme which,\n"
+		  "while more secure, is not interoperable with the traditional\n"
+		  "DES-based passwords used on other Unix systems.\n\n"
+		  "Please do NOT choose Yes at this point if you are outside the United\n"
+		  "States and Canada and are installing from a U.S. FTP server (installing\n"
+		  "from the CD is fine). Instead, install everything but the crypto bits\n"
+		  "from the U.S. site and then switch to an international FTP server to\n"
+		  "install crypto on a second pass with the Custom Installation option.\n\n"
+		  "Note that the international crypto distribution has a better\n"
+		  "implementation of the RSA algorithm, which cannot be used in the U.S.\n"
+		  "for patent reasons.\n")) {
 	if (!dmenuOpenSimple(&MenuCRYPTODistributions, FALSE))
 	    i = DITEM_FAILURE;
     }
@@ -413,7 +415,7 @@ distMaybeSetPorts(dialogMenuItem *self)
 {
     dialog_clear_norefresh();
     if (!msgYesNo("Would you like to install the FreeBSD ports collection?\n\n"
-		  "This will give you ready access to over 3000 ported software packages,\n"
+		  "This will give you ready access to over 3600 ported software packages,\n"
 		  "at a cost of around 70MB of disk space when \"clean\" and possibly\n"
 		  "much more than that when a lot of the distribution tarballs are loaded\n"
 		  "(unless you have the extra CDs available from a FreeBSD CDROM distribution\n"

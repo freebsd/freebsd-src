@@ -822,9 +822,7 @@ DMenu MenuSubDistributions = {
     DMENU_CHECKLIST_TYPE | DMENU_SELECTION_RETURNS,
     "Select the distributions you wish to install.",
     "Please check off the distributions you wish to install.  At the\n"
-    "very minimum, this should be \"bin\".  WARNING:  Do not export the\n"
-    "Encryption distribution out of the U.S.!\n"
-    "It is for U.S. customers only.",
+    "very minimum, this should be \"bin\".",
     NULL,
     NULL,
     { { "X Exit", "Exit this menu (returning to previous)",
