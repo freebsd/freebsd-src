@@ -102,7 +102,9 @@ raw_detach(rp)
 	SOCK_LOCK(so);
 	so->so_pcb = 0;
 	sotryfree(so);
+	mtx_lock(&rawcb_mtx);
 	LIST_REMOVE(rp, list);
+	mtx_unlock(&rawcb_mtx);
 #ifdef notdef
 	if (rp->rcb_laddr)
 		m_freem(dtom(rp->rcb_laddr));
