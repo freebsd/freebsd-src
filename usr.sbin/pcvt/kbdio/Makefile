@@ -1,4 +1,3 @@
-
 .if !exists(${.CURDIR}/../Makefile.inc)
 error:
 	@echo
@@ -11,28 +10,29 @@ error:
 .else
 
 PROG=	kbdio
-SRCS=	kbdio.y lex.l
+SRCS=	kbdio.c lex.c
 
 #YACC=	bison
 #YFLAGS+= -yd	# Bison only
 
 YFLAGS+= -v	# verbose
+
 LFLAGS+= -I
+
+DPADD=	${LIBM} ${LIBY} ${LIBL}
 LDADD=	-lm -ly -ll
 
 NOMAN=
 NOSHARED=	no shared linkage
 
-CFLAGS+= -I ${.CURDIR}/obj -I ${.CURDIR} #-g
+CFLAGS+= -I${.CURDIR}/obj -I${.CURDIR} #-g
 
-CLEANFILES+= y.tab.h
+CLEANFILES+= kbdio.c lex.c lex.yy.c y.tab.[ch]
 CLEANFILES+= y.output	# comment file from bison
 
 install:
 	@${ECHO} "kbdio is not installed automatically ...."
 
 .include <bsd.prog.mk>
-
-lex.o: y.tab.h lex.l
 
 .endif
