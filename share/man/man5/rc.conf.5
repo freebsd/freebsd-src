@@ -1630,6 +1630,23 @@ is set to
 these are the flags to pass to the
 .Xr sendmail 8
 daemon.
+.It Va sendmail_submit_enable
+.Pq Vt bool
+If set to
+.Dq YES
+and
+.Va sendmail_enable
+is set to
+.Dq NO
+then run
+.Xr sendmail 8
+using
+.Va sendmail_submit_flags
+instead of
+.Va sendmail_flags .
+This is intended to allow local mail submission via
+a localhost-only listening SMTP service required for running
+.Xr sendmail 8 as a non-set-user-ID binary.
 .It Va sendmail_outbound_enable
 .Pq Vt bool
 If set to
@@ -1657,6 +1674,25 @@ and
 is set to
 .Dq YES
 then these are the flags to pass to the
+.Xr sendmail 8
+daemon.
+.It Va sendmail_msp_queue_enable
+.Pq Vt bool
+If set to
+.Dq YES ,
+start a client (MSP) queue runner
+.Xr sendmail 8
+daemon at system boot time.
+As of sendmail 8.12, a separate queue is used for command line
+submissions.  The client queue runner assures that nothing is
+left behind in the submission queue.
+.It Va sendmail_msp_queue_flags
+.Pq Vt str
+If
+.Va sendmail_msp_queue_enable
+is set to
+.Dq YES ,
+these are the flags to pass to the
 .Xr sendmail 8
 daemon.
 .It Va dumpdev
