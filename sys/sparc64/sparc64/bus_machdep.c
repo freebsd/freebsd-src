@@ -549,7 +549,7 @@ sparc64_bus_mem_map(bus_space_tag_t tag, bus_space_handle_t handle,
 		va += PAGE_SIZE;
 		pa += PAGE_SIZE;
 	} while ((vsz -= PAGE_SIZE) > 0);
-	tlb_range_demap(TLB_CTX_KERNEL, sva, sva + size - 1);
+	tlb_range_demap(kernel_pmap, sva, sva + size - 1);
 	return (0);
 }
 
@@ -564,7 +564,7 @@ sparc64_bus_mem_unmap(void *bh, bus_size_t size)
 	endva = sva + round_page(size);
 	for (va = sva; va < endva; va += PAGE_SIZE)
 		pmap_kremove(va);
-	tlb_range_demap(TLB_CTX_KERNEL, sva, sva + size - 1);
+	tlb_range_demap(kernel_pmap, sva, sva + size - 1);
 	kmem_free(kernel_map, va, size);
 	return (0);
 }
