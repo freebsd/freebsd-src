@@ -152,11 +152,8 @@ Verbose messages are enabled.
 # acpidump -v -d -f foo.dsdt
 .Ed
 .Sh BUGS
-In the current implementation,
-.Nm
-does not dump the
-Embedded Controller Descriptor Table (ECDT),
-or BOOT structures.
+The current implementation does not dump the BOOT structure or
+other miscellaneous tables.
 .Sh FILES
 .Bl -tag -width /dev/mem
 .It Pa /dev/mem
