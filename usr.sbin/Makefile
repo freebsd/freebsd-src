@@ -146,7 +146,8 @@ SUBDIR+=lpr
 .endif
 
 .if !defined(NO_SENDMAIL)
-SUBDIR+=mailstats \
+SUBDIR+=editmap \
+	mailstats \
 	makemap \
 	praliases \
 	sendmail
