@@ -37,7 +37,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: worm.c,v 1.17 1996/01/02 15:44:00 joerg Exp $
+ *      $Id: worm.c,v 1.18 1996/01/05 20:12:53 wollman Exp $
  */
 
 /* XXX This is PRELIMINARY.
@@ -287,11 +287,15 @@ worm_strategy(struct buf *bp, struct scsi_link *sc_link)
 	unit = minor((bp->b_dev));
 	worm = sc_link->sd;
 
-	/* XXX: Can't we move this check up to "scsi_strategy"?
+	/*
+	 * The ugly modulo operation is necessary since audio tracks
+	 * have a block size of 2352 bytes.
 	 */
 	if (!(sc_link->flags & SDEV_MEDIA_LOADED) ||
-	bp->b_blkno > worm->n_blks ||
-	bp->b_bcount & (worm->blk_size - 1)) {
+	    bp->b_blkno * DEV_BSIZE > worm->n_blks * worm->blk_size||
+	    (bp->b_bcount % worm->blk_size) != 0) {
+		SC_DEBUG(sc_link, SDEV_DB2,
+			 ("worm block size / capacity error") );
 		bp->b_error = EIO;
 		bp->b_flags |= B_ERROR;
 		biodone(bp);
@@ -355,18 +359,23 @@ struct scsi_link *sc_link)
 		sc_link->flags &= ~SDEV_OPEN;
 		return ENXIO;
 	}
-
+#if 0
 	scsi_start_unit(sc_link, SCSI_SILENT);
 
 	scsi_prevent(sc_link, PR_PREVENT, SCSI_SILENT);
 
+	/*
+	 * XXX The worm_size() is required, alas, putting it here will
+	 * result in an ICORRECT COMMAND SEQUENCE error.  Without it,
+	 * the driver will only work if the CD-R was present at boot-time.
+	 */
 	if (worm_size(sc_link, 0) == 0) {
 		scsi_stop_unit(sc_link, 0, SCSI_SILENT);
 		scsi_prevent(sc_link, PR_ALLOW, SCSI_SILENT);
 		sc_link->flags &= ~SDEV_OPEN;
 		return ENXIO;
 	}
-
+#endif
 	return 0;
 }
 
@@ -374,8 +383,10 @@ static int
 worm_close(dev_t dev, int flag, int fmt, struct proc *p,
         struct scsi_link *sc_link)
 {
+#if 0
 	scsi_stop_unit(sc_link, 0, SCSI_SILENT);
 	scsi_prevent(sc_link, PR_ALLOW, SCSI_SILENT);
+#endif
 	sc_link->flags &= ~SDEV_OPEN;
 
 	return 0;
