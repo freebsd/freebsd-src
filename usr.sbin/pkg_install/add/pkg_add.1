@@ -172,10 +172,22 @@ This all allows you to write an
 .B install
 script that does "before and after" actions.
 .PP
+All the scripts are called with the environment variable
+.B PKG_PREFIX
+set to the installation prefix (see the
+.B -p
+option above).  This allows a package author to write a script
+that reliably performs some action on the directory where the package
+is installed, even if the user might change it by
+.B -p
+when
+.B pkg_add
+is run.
+.PP
 After installation is complete, a copy of the packing list, in addition
 to any
 .B deinstall
-script the package might have, is copied into /var/pkg/<pkg-name>
+script the package might have, is copied into /var/db/pkg/<pkg-name>
 for subsequent possible use by
 .B pkg-delete.
 Finally, the staging area is deleted and the program terminates.
