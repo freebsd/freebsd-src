@@ -768,6 +768,7 @@ tcp_close(tp)
 		FREE(q, M_TSEGQ);
 	}
 	inp->inp_ppcb = NULL;
+	tp->t_inpcb = NULL;
 	soisdisconnected(so);
 #ifdef INET6
 	if (INP_CHECK_SOCKAF(so, AF_INET6))
