@@ -38,9 +38,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
- 
 /*
  * Copyright (c) 1997 Manuel Bouyer.  All rights reserved.
  *
@@ -70,13 +67,13 @@ __FBSDID("$FreeBSD$");
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 /*
  * driver for Level One's LXT-970 ethernet 10/100 PHY
  * datasheet from www.level1.com
  */
-
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>

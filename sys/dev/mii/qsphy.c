@@ -1,7 +1,4 @@
 /*	OpenBSD: qsphy.c,v 1.6 2000/08/26 20:04:18 nate Exp */
-
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
 /*	NetBSD: qsphy.c,v 1.19 2000/02/02 23:34:57 thorpej Exp 	*/
 
 /*-
@@ -70,13 +67,13 @@ __FBSDID("$FreeBSD$");
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 /*
  * driver for Quality Semiconductor's QS6612 ethernet 10/100 PHY
  * datasheet from www.qualitysemi.com
  */
-
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
