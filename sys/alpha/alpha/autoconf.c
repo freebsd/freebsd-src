@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: autoconf.c,v 1.5 1998/07/22 08:34:19 dfr Exp $
+ *	$Id: autoconf.c,v 1.6 1998/08/10 07:53:58 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -41,6 +41,7 @@
 #include <machine/ipl.h>
 #include <machine/md_var.h>
 #include <machine/cpuconf.h>
+#include <machine/rpb.h>
 
 #include "scbus.h"
 #if NSCBUS > 0
@@ -84,13 +85,15 @@ configure(void *dummy)
 
 	root_bus_configure();
 
-	pci_configure();
+	if((hwrpb->rpb_type != ST_DEC_3000_300) &&
+	   (hwrpb->rpb_type != ST_DEC_3000_500)){
+		pci_configure();
 
-	/*
-	 * Probe ISA devices after everything.
-	 */
-	bus_generic_attach(isa_bus_device);
-
+		/*
+		 * Probe ISA devices after everything.
+		 */
+		bus_generic_attach(isa_bus_device);
+	} 
 	configure_finish();
 
 	cninit_finish();
