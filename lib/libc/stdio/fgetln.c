@@ -55,8 +55,8 @@ __FBSDID("$FreeBSD$");
  * so we add 1 here.
 #endif
  */
-static int
-slbexpand(FILE *fp, size_t newsize)
+int
+__slbexpand(FILE *fp, size_t newsize)
 {
 	void *p;
 
@@ -132,7 +132,7 @@ fgetln(FILE *fp, size_t *lenp)
 		 * file buffer to line buffer, refill file and look for
 		 * newline.  The loop stops only when we find a newline.
 		 */
-		if (slbexpand(fp, len + OPTIMISTIC))
+		if (__slbexpand(fp, len + OPTIMISTIC))
 			goto error;
 		(void)memcpy((void *)(fp->_lb._base + off), (void *)fp->_p,
 		    len - off);
@@ -146,7 +146,7 @@ fgetln(FILE *fp, size_t *lenp)
 		p++;
 		diff = p - fp->_p;
 		len += diff;
-		if (slbexpand(fp, len))
+		if (__slbexpand(fp, len))
 			goto error;
 		(void)memcpy((void *)(fp->_lb._base + off), (void *)fp->_p,
 		    diff);
