@@ -76,6 +76,7 @@ netname2user(netname, uidp, gidp, gidlenp, gidlist)
 	char           *p;
 	int             gidlen;
 	uid_t           uid;
+	long		luid;
 	struct passwd  *pwd;
 	char            val[1024];
 	char           *val1, *val2;
@@ -126,14 +127,10 @@ netname2user(netname, uidp, gidp, gidlenp, gidlist)
 	if (strcmp(val2 + 1, domain))
 		return (0);	/* wrong domain */
 
-	/* XXX: uid_t have different sizes on different OS's. sigh! */
-	if (sizeof (uid_t) == sizeof (short)) {
-		if (sscanf(val, "%hd", (short *)&uid) != 1)
-			return (0);
-	} else {
-	if (sscanf(val, "%ld", &uid) != 1)
+	if (sscanf(val, "%ld", &luid) != 1)
 		return (0);
-	}
+	uid = luid;
+
 	/* use initgroups method */
 	pwd = getpwuid(uid);
 	if (pwd == NULL)
