@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_socket.c,v 1.13 1998/03/28 10:33:04 bde Exp $
+ *  $Id: linux_socket.c,v 1.14 1998/12/30 21:20:00 sos Exp $
  */
 
 /* XXX we use functions that might not exist. */
@@ -811,7 +811,40 @@ linux_socketcall(struct proc *p, struct linux_socketcall_args *args)
     case LINUX_GETSOCKOPT:
 	return linux_getsockopt(p, args->args);
     case LINUX_SENDMSG:
-	return sendmsg(p, args->args);
+	do {
+		int error;
+		int level;
+		caddr_t control;
+		struct {
+			int s;
+			const struct msghdr *msg;
+			int flags;
+		} *uap = args->args;
+
+		error = copyin(&uap->msg->msg_control,
+				&control, sizeof(caddr_t));
+		if (error)
+			return error;
+		if (control == NULL)
+			goto done;
+		error = copyin(&((struct cmsghdr *)control)->cmsg_level,
+				&level, sizeof(int));
+		if (error)
+			return error;
+		if (level == 1) {
+		/*
+		 * Linux thinks that SOL_SOCKET is 1; we know that it's really
+		 * 0xffff, of course.
+		 */
+			level = SOL_SOCKET;
+			error = copyout(&level, &((struct cmsghdr *)control)->
+					cmsg_level, sizeof(int));
+			if (error)
+				return error;
+		}
+	done:
+		return sendmsg(p, args->args);
+	} while (0);
     case LINUX_RECVMSG:
 	return recvmsg(p, args->args);
 
