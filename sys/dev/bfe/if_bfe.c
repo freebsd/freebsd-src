@@ -111,7 +111,7 @@ static void bfe_ifmedia_sts			(struct ifnet *, struct ifmediareq *);
 static int  bfe_miibus_readreg		(device_t, int, int);
 static int  bfe_miibus_writereg		(device_t, int, int, int);
 static void bfe_miibus_statchg		(device_t);
-static int  bfe_wait_bit			(struct bfe_softc *, u_int32_t, u_int32_t, 
+static int  bfe_wait_bit			(struct bfe_softc *, u_int32_t, u_int32_t,
 		u_long, const int);
 static void bfe_get_config			(struct bfe_softc *sc);
 static void bfe_read_eeprom			(struct bfe_softc *, u_int8_t *);
@@ -161,7 +161,7 @@ DRIVER_MODULE(bfe, pci, bfe_driver, bfe_devclass, 0, 0);
 DRIVER_MODULE(miibus, bfe, miibus_driver, miibus_devclass, 0, 0);
 
 /*
- * Probe for a Broadcom 4401 chip. 
+ * Probe for a Broadcom 4401 chip.
  */
 static int
 bfe_probe(device_t dev)
@@ -180,12 +180,12 @@ bfe_probe(device_t dev)
 		if ((pci_get_vendor(dev) == t->bfe_vid) &&
 				(pci_get_device(dev) == t->bfe_did)) {
 			device_set_desc_copy(dev, t->bfe_name);
-			return(0);
+			return (0);
 		}
 		t++;
 	}
 
-	return(ENXIO);
+	return (ENXIO);
 }
 
 static int
@@ -199,7 +199,7 @@ bfe_dma_alloc(device_t dev)
 	/* parent tag */
 	error = bus_dma_tag_create(NULL,  /* parent */
 			PAGE_SIZE, 0,             /* alignment, boundary */
-			BUS_SPACE_MAXADDR,        /* lowaddr */      
+			BUS_SPACE_MAXADDR,        /* lowaddr */
 			BUS_SPACE_MAXADDR_32BIT,  /* highaddr */
 			NULL, NULL,               /* filter, filterarg */
 			MAXBSIZE,                 /* maxsize */
@@ -213,7 +213,7 @@ bfe_dma_alloc(device_t dev)
 	error = bus_dma_tag_create(sc->bfe_parent_tag,
 			BFE_TX_LIST_SIZE, BFE_TX_LIST_SIZE,
 			BUS_SPACE_MAXADDR,
-			BUS_SPACE_MAXADDR, 
+			BUS_SPACE_MAXADDR,
 			NULL, NULL,
 			BFE_TX_LIST_SIZE,
 			1,
@@ -224,7 +224,7 @@ bfe_dma_alloc(device_t dev)
 
 	if (error) {
 		device_printf(dev, "could not allocate dma tag\n");
-		return(ENOMEM);
+		return (ENOMEM);
 	}
 
 	/* tag for RX ring */
@@ -242,7 +242,7 @@ bfe_dma_alloc(device_t dev)
 
 	if (error) {
 		device_printf(dev, "could not allocate dma tag\n");
-		return(ENOMEM);
+		return (ENOMEM);
 	}
 
 	/* tag for mbufs */
@@ -260,7 +260,7 @@ bfe_dma_alloc(device_t dev)
 
 	if (error) {
 		device_printf(dev, "could not allocate dma tag\n");
-		return(ENOMEM);
+		return (ENOMEM);
 	}
 
 	/* pre allocate dmamaps for RX list */
@@ -269,7 +269,7 @@ bfe_dma_alloc(device_t dev)
 		    &sc->bfe_rx_ring[i].bfe_map);
 		if (error) {
 			device_printf(dev, "cannot create DMA map for RX\n");
-			return(ENOMEM);
+			return (ENOMEM);
 		}
 	}
 
@@ -279,7 +279,7 @@ bfe_dma_alloc(device_t dev)
 		    &sc->bfe_tx_ring[i].bfe_map);
 		if (error) {
 			device_printf(dev, "cannot create DMA map for TX\n");
-			return(ENOMEM);
+			return (ENOMEM);
 		}
 	}
 
@@ -288,7 +288,7 @@ bfe_dma_alloc(device_t dev)
 			BUS_DMA_NOWAIT, &sc->bfe_rx_map);
 
 	if(error)
-		return(ENOMEM);
+		return (ENOMEM);
 
 	bzero(sc->bfe_rx_list, BFE_RX_LIST_SIZE);
 	error = bus_dmamap_load(sc->bfe_rx_tag, sc->bfe_rx_map,
@@ -296,26 +296,26 @@ bfe_dma_alloc(device_t dev)
 			bfe_dma_map, &sc->bfe_rx_dma, 0);
 
 	if(error)
-		return(ENOMEM);
+		return (ENOMEM);
 
 	bus_dmamap_sync(sc->bfe_rx_tag, sc->bfe_rx_map, BUS_DMASYNC_PREREAD);
 
-	error = bus_dmamem_alloc(sc->bfe_tx_tag, (void *)&sc->bfe_tx_list, 
+	error = bus_dmamem_alloc(sc->bfe_tx_tag, (void *)&sc->bfe_tx_list,
 			BUS_DMA_NOWAIT, &sc->bfe_tx_map);
-	if (error) 
-		return(ENOMEM);
+	if (error)
+		return (ENOMEM);
 
 
-	error = bus_dmamap_load(sc->bfe_tx_tag, sc->bfe_tx_map, 
-			sc->bfe_tx_list, sizeof(struct bfe_desc), 
+	error = bus_dmamap_load(sc->bfe_tx_tag, sc->bfe_tx_map,
+			sc->bfe_tx_list, sizeof(struct bfe_desc),
 			bfe_dma_map, &sc->bfe_tx_dma, 0);
 	if(error)
-		return(ENOMEM);
+		return (ENOMEM);
 
 	bzero(sc->bfe_tx_list, BFE_TX_LIST_SIZE);
 	bus_dmamap_sync(sc->bfe_tx_tag, sc->bfe_tx_map, BUS_DMASYNC_PREREAD);
 
-	return(0);
+	return (0);
 }
 
 static int
@@ -442,7 +442,7 @@ bfe_attach(device_t dev)
 fail:
 	if(error)
 		bfe_release_resources(sc);
-	return(error);
+	return (error);
 }
 
 static int
@@ -473,7 +473,7 @@ bfe_detach(device_t dev)
 	BFE_UNLOCK(sc);
 	mtx_destroy(&sc->bfe_mtx);
 
-	return(0);
+	return (0);
 }
 
 /*
@@ -487,7 +487,7 @@ bfe_shutdown(device_t dev)
 
 	sc = device_get_softc(dev);
 	BFE_LOCK(sc);
-	bfe_stop(sc); 
+	bfe_stop(sc);
 
 	BFE_UNLOCK(sc);
 	return;
@@ -501,10 +501,10 @@ bfe_miibus_readreg(device_t dev, int phy, int reg)
 
 	sc = device_get_softc(dev);
 	if(phy != sc->bfe_phyaddr)
-		return(0);
+		return (0);
 	bfe_readphy(sc, reg, &ret);
 
-	return(ret);
+	return (ret);
 }
 
 static int
@@ -514,10 +514,10 @@ bfe_miibus_writereg(device_t dev, int phy, int reg, int val)
 
 	sc = device_get_softc(dev);
 	if(phy != sc->bfe_phyaddr)
-		return(0);
-	bfe_writephy(sc, reg, val); 
+		return (0);
+	bfe_writephy(sc, reg, val);
 
-	return(0);
+	return (0);
 }
 
 static void
@@ -530,7 +530,7 @@ static void
 bfe_tx_ring_free(struct bfe_softc *sc)
 {
 	int i;
-	
+
 	for(i = 0; i < BFE_TX_LIST_CNT; i++) {
 		if(sc->bfe_tx_ring[i].bfe_mbuf != NULL) {
 			m_freem(sc->bfe_tx_ring[i].bfe_mbuf);
@@ -565,14 +565,14 @@ bfe_rx_ring_free(struct bfe_softc *sc)
 }
 
 
-static int 
+static int
 bfe_list_rx_init(struct bfe_softc *sc)
 {
 	int i;
 
 	for(i = 0; i < BFE_RX_LIST_CNT; i++) {
-		if(bfe_list_newbuf(sc, i, NULL) == ENOBUFS) 
-			return ENOBUFS;
+		if(bfe_list_newbuf(sc, i, NULL) == ENOBUFS)
+			return (ENOBUFS);
 	}
 
 	bus_dmamap_sync(sc->bfe_rx_tag, sc->bfe_rx_map, BUS_DMASYNC_PREREAD);
@@ -580,7 +580,7 @@ bfe_list_rx_init(struct bfe_softc *sc)
 
 	sc->bfe_rx_cons = 0;
 
-	return(0);
+	return (0);
 }
 
 static int
@@ -592,12 +592,12 @@ bfe_list_newbuf(struct bfe_softc *sc, int c, struct mbuf *m)
 	u_int32_t ctrl;
 
 	if ((c < 0) || (c >= BFE_RX_LIST_CNT))
-		return(EINVAL);
+		return (EINVAL);
 
 	if(m == NULL) {
 		m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
 		if(m == NULL)
-			return(ENOBUFS);
+			return (ENOBUFS);
 		m->m_len = m->m_pkthdr.len = MCLBYTES;
 	}
 	else
@@ -611,7 +611,7 @@ bfe_list_newbuf(struct bfe_softc *sc, int c, struct mbuf *m)
 	sc->bfe_rx_cnt = c;
 	d = &sc->bfe_rx_list[c];
 	r = &sc->bfe_rx_ring[c];
-	bus_dmamap_load(sc->bfe_tag, r->bfe_map, mtod(m, void *), 
+	bus_dmamap_load(sc->bfe_tag, r->bfe_map, mtod(m, void *),
 			MCLBYTES, bfe_dma_map_desc, d, 0);
 	bus_dmamap_sync(sc->bfe_tag, r->bfe_map, BUS_DMASYNC_PREWRITE);
 
@@ -623,7 +623,7 @@ bfe_list_newbuf(struct bfe_softc *sc, int c, struct mbuf *m)
 	d->bfe_ctrl = ctrl;
 	r->bfe_mbuf = m;
 	bus_dmamap_sync(sc->bfe_rx_tag, sc->bfe_rx_map, BUS_DMASYNC_PREREAD);
-	return(0);
+	return (0);
 }
 
 static void
@@ -643,7 +643,7 @@ bfe_get_config(struct bfe_softc *sc)
 	sc->bfe_phyaddr = eeprom[90] & 0x1f;
 	sc->bfe_mdc_port = (eeprom[90] >> 14) & 0x1;
 
-	sc->bfe_core_unit = 0; 
+	sc->bfe_core_unit = 0;
 	sc->bfe_dma_offset = BFE_PCI_DMA;
 }
 
@@ -667,7 +667,7 @@ bfe_pci_setup(struct bfe_softc *sc, u_int32_t cores)
 	pci_write_config(sc->bfe_dev, BFE_BAR0_WIN, bar_orig, 4);
 }
 
-static void 
+static void
 bfe_clear_stats(struct bfe_softc *sc)
 {
 	u_long reg;
@@ -683,7 +683,7 @@ bfe_clear_stats(struct bfe_softc *sc)
 	BFE_UNLOCK(sc);
 }
 
-static int 
+static int
 bfe_resetphy(struct bfe_softc *sc)
 {
 	u_int32_t val;
@@ -695,10 +695,10 @@ bfe_resetphy(struct bfe_softc *sc)
 	if (val & BMCR_RESET) {
 		printf("bfe%d: PHY Reset would not complete.\n", sc->bfe_unit);
 		BFE_UNLOCK(sc);
-		return ENXIO;
+		return (ENXIO);
 	}
 	BFE_UNLOCK(sc);
-	return 0;
+	return (0);
 }
 
 static void
@@ -722,7 +722,7 @@ bfe_chip_halt(struct bfe_softc *sc)
 static void
 bfe_chip_reset(struct bfe_softc *sc)
 {
-	u_int32_t val;   
+	u_int32_t val;
 
 	BFE_LOCK(sc);
 
@@ -739,7 +739,7 @@ bfe_chip_reset(struct bfe_softc *sc)
 		bfe_wait_bit(sc, BFE_ENET_CTRL, BFE_ENET_DISABLE, 100, 1);
 		CSR_WRITE_4(sc, BFE_DMATX_CTRL, 0);
 		sc->bfe_tx_cnt = sc->bfe_tx_prod = sc->bfe_tx_cons = 0;
-		if (CSR_READ_4(sc, BFE_DMARX_STAT) & BFE_STAT_EMASK) 
+		if (CSR_READ_4(sc, BFE_DMARX_STAT) & BFE_STAT_EMASK)
 			bfe_wait_bit(sc, BFE_DMARX_STAT, BFE_STAT_SIDLE,
 			    100, 0);
 		CSR_WRITE_4(sc, BFE_DMARX_CTRL, 0);
@@ -760,25 +760,25 @@ bfe_chip_reset(struct bfe_softc *sc)
 
 	/* Internal or external PHY? */
 	val = CSR_READ_4(sc, BFE_DEVCTRL);
-	if(!(val & BFE_IPP)) 
+	if(!(val & BFE_IPP))
 		CSR_WRITE_4(sc, BFE_ENET_CTRL, BFE_ENET_EPSEL);
 	else if(CSR_READ_4(sc, BFE_DEVCTRL) & BFE_EPR) {
 		BFE_AND(sc, BFE_DEVCTRL, ~BFE_EPR);
 		DELAY(100);
 	}
 
-        /* Enable CRC32 generation and set proper LED modes */
-        BFE_OR(sc, BFE_MAC_CTRL, BFE_CTRL_CRC32_ENAB | BFE_CTRL_LED);
+	/* Enable CRC32 generation and set proper LED modes */
+	BFE_OR(sc, BFE_MAC_CTRL, BFE_CTRL_CRC32_ENAB | BFE_CTRL_LED);
 
-        /* Reset or clear powerdown control bit  */
-        BFE_AND(sc, BFE_MAC_CTRL, ~BFE_CTRL_PDOWN);
+	/* Reset or clear powerdown control bit  */
+	BFE_AND(sc, BFE_MAC_CTRL, ~BFE_CTRL_PDOWN);
 
-	CSR_WRITE_4(sc, BFE_RCV_LAZY, ((1 << BFE_LAZY_FC_SHIFT) & 
+	CSR_WRITE_4(sc, BFE_RCV_LAZY, ((1 << BFE_LAZY_FC_SHIFT) &
 				BFE_LAZY_FC_MASK));
 
-	/* 
+	/*
 	 * We don't want lazy interrupts, so just send them at
-	 * the end of a frame, please 
+	 * the end of a frame, please
 	 */
 	BFE_OR(sc, BFE_RCV_LAZY, 0);
 
@@ -789,14 +789,14 @@ bfe_chip_reset(struct bfe_softc *sc)
 	/* Set watermark XXX - magic */
 	CSR_WRITE_4(sc, BFE_TX_WMARK, 56);
 
-	/* 
+	/*
 	 * Initialise DMA channels
-	 * - not forgetting dma addresses need to be added to BFE_PCI_DMA 
+	 * - not forgetting dma addresses need to be added to BFE_PCI_DMA
 	 */
 	CSR_WRITE_4(sc, BFE_DMATX_CTRL, BFE_TX_CTRL_ENABLE);
 	CSR_WRITE_4(sc, BFE_DMATX_ADDR, sc->bfe_tx_dma + BFE_PCI_DMA);
 
-	CSR_WRITE_4(sc, BFE_DMARX_CTRL, (BFE_RX_OFFSET << BFE_RX_CTRL_ROSHIFT) | 
+	CSR_WRITE_4(sc, BFE_DMARX_CTRL, (BFE_RX_OFFSET << BFE_RX_CTRL_ROSHIFT) |
 			BFE_RX_CTRL_ENABLE);
 	CSR_WRITE_4(sc, BFE_DMARX_ADDR, sc->bfe_rx_dma + BFE_PCI_DMA);
 
@@ -812,7 +812,7 @@ bfe_core_disable(struct bfe_softc *sc)
 	if((CSR_READ_4(sc, BFE_SBTMSLOW)) & BFE_RESET)
 		return;
 
-	/* 
+	/*
 	 * Set reject, wait for it set, then wait for the core to stop
 	 * being busy, then set reset and reject and enable the clocks.
 	 */
@@ -859,7 +859,7 @@ bfe_core_reset(struct bfe_softc *sc)
 	DELAY(10);
 }
 
-static void 
+static void
 bfe_cam_write(struct bfe_softc *sc, u_char *data, int index)
 {
 	u_int32_t val;
@@ -878,7 +878,7 @@ bfe_cam_write(struct bfe_softc *sc, u_char *data, int index)
 	bfe_wait_bit(sc, BFE_CAM_CTRL, BFE_CAM_BUSY, 10000, 1);
 }
 
-static void 
+static void
 bfe_set_rx_mode(struct bfe_softc *sc)
 {
 	struct ifnet *ifp = &sc->arpcom.ac_if;
@@ -1002,7 +1002,7 @@ bfe_read_eeprom(struct bfe_softc *sc, u_int8_t *data)
 }
 
 static int
-bfe_wait_bit(struct bfe_softc *sc, u_int32_t reg, u_int32_t bit, 
+bfe_wait_bit(struct bfe_softc *sc, u_int32_t reg, u_int32_t bit,
 		u_long timeout, const int clear)
 {
 	u_long i;
@@ -1018,17 +1018,17 @@ bfe_wait_bit(struct bfe_softc *sc, u_int32_t reg, u_int32_t bit,
 	}
 	if (i == timeout) {
 		printf("bfe%d: BUG!  Timeout waiting for bit %08x of register "
-				"%x to %s.\n", sc->bfe_unit, bit, reg, 
+				"%x to %s.\n", sc->bfe_unit, bit, reg,
 				(clear ? "clear" : "set"));
-		return -1;
+		return (-1);
 	}
-	return 0;
+	return (0);
 }
 
 static int
 bfe_readphy(struct bfe_softc *sc, u_int32_t reg, u_int32_t *val)
 {
-	int err; 
+	int err;
 
 	BFE_LOCK(sc);
 	/* Clear MII ISR */
@@ -1042,7 +1042,7 @@ bfe_readphy(struct bfe_softc *sc, u_int32_t reg, u_int32_t *val)
 	*val = CSR_READ_4(sc, BFE_MDIO_DATA) & BFE_MDIO_DATA_DATA;
 
 	BFE_UNLOCK(sc);
-	return err;
+	return (err);
 }
 
 static int
@@ -1061,10 +1061,10 @@ bfe_writephy(struct bfe_softc *sc, u_int32_t reg, u_int32_t val)
 	status = bfe_wait_bit(sc, BFE_EMAC_ISTAT, BFE_EMAC_INT_MII, 100, 0);
 	BFE_UNLOCK(sc);
 
-	return status;
+	return (status);
 }
 
-/* 
+/*
  * XXX - I think this is handled by the PHY driver, but it can't hurt to do it
  * twice
  */
@@ -1076,7 +1076,7 @@ bfe_setupphy(struct bfe_softc *sc)
 
 	/* Enable activity LED */
 	bfe_readphy(sc, 26, &val);
-	bfe_writephy(sc, 26, val & 0x7fff); 
+	bfe_writephy(sc, 26, val & 0x7fff);
 	bfe_readphy(sc, 26, &val);
 
 	/* Enable traffic meter LED mode */
@@ -1084,10 +1084,10 @@ bfe_setupphy(struct bfe_softc *sc)
 	bfe_writephy(sc, 27, val | (1 << 6));
 
 	BFE_UNLOCK(sc);
-	return 0;
+	return (0);
 }
 
-static void 
+static void
 bfe_stats_update(struct bfe_softc *sc)
 {
 	u_long reg;
@@ -1221,7 +1221,7 @@ bfe_intr(void *xsc)
 	istat = CSR_READ_4(sc, BFE_ISTAT);
 	imask = CSR_READ_4(sc, BFE_IMASK);
 
-	/* 
+	/*
 	 * Defer unsolicited interrupts - This is necessary because setting the
 	 * chips interrupt mask register to 0 doesn't actually stop the
 	 * interrupts
@@ -1257,7 +1257,7 @@ bfe_intr(void *xsc)
 	if(istat & BFE_ISTAT_TX)
 		bfe_txeof(sc);
 
-	/* We have packets pending, fire them out */ 
+	/* We have packets pending, fire them out */
 	if (ifp->if_flags & IFF_RUNNING && !IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		bfe_start(ifp);
 
@@ -1269,12 +1269,12 @@ bfe_encap(struct bfe_softc *sc, struct mbuf *m_head, u_int32_t *txidx)
 {
 	struct bfe_desc *d = NULL;
 	struct bfe_data *r = NULL;
-	struct mbuf 	*m;
+	struct mbuf	*m;
 	u_int32_t	   frag, cur, cnt = 0;
 	int chainlen = 0;
 
 	if(BFE_TX_LIST_CNT - sc->bfe_tx_cnt < 2)
-		return(ENOBUFS);
+		return (ENOBUFS);
 
 	/*
 	 * Count the number of frags in this chain to see if
@@ -1282,15 +1282,15 @@ bfe_encap(struct bfe_softc *sc, struct mbuf *m_head, u_int32_t *txidx)
 	 * by all packets, we'll m_defrag long chains so that they
 	 * do not use up the entire list, even if they would fit.
 	 */
-	for(m = m_head; m != NULL; m = m->m_next) 
+	for(m = m_head; m != NULL; m = m->m_next)
 		chainlen++;
 
 
-	if ((chainlen > BFE_TX_LIST_CNT / 4) || 
+	if ((chainlen > BFE_TX_LIST_CNT / 4) ||
 			((BFE_TX_LIST_CNT - (chainlen + sc->bfe_tx_cnt)) < 2)) {
 		m = m_defrag(m_head, M_DONTWAIT);
-		if (m == NULL) 
-			return(ENOBUFS);
+		if (m == NULL)
+			return (ENOBUFS);
 		m_head = m;
 	}
 
@@ -1306,7 +1306,7 @@ bfe_encap(struct bfe_softc *sc, struct mbuf *m_head, u_int32_t *txidx)
 	for(m = m_head; m != NULL; m = m->m_next) {
 		if(m->m_len != 0) {
 			if((BFE_TX_LIST_CNT - (sc->bfe_tx_cnt + cnt)) < 2)
-				return(ENOBUFS);
+				return (ENOBUFS);
 
 			d = &sc->bfe_tx_list[cur];
 			r = &sc->bfe_tx_ring[cur];
@@ -1324,7 +1324,7 @@ bfe_encap(struct bfe_softc *sc, struct mbuf *m_head, u_int32_t *txidx)
 				d->bfe_ctrl |= BFE_DESC_EOT;
 
 			bus_dmamap_load(sc->bfe_tag,
-			    r->bfe_map, mtod(m, void*), m->m_len, 
+			    r->bfe_map, mtod(m, void*), m->m_len,
 			    bfe_dma_map_desc, d, 0);
 			bus_dmamap_sync(sc->bfe_tag, r->bfe_map,
 			    BUS_DMASYNC_PREREAD);
@@ -1336,7 +1336,7 @@ bfe_encap(struct bfe_softc *sc, struct mbuf *m_head, u_int32_t *txidx)
 	}
 
 	if (m != NULL)
-		return(ENOBUFS);
+		return (ENOBUFS);
 
 	sc->bfe_tx_list[frag].bfe_ctrl |= BFE_DESC_EOF;
 	sc->bfe_tx_ring[frag].bfe_mbuf = m_head;
@@ -1362,7 +1362,7 @@ bfe_start(struct ifnet *ifp)
 
 	BFE_LOCK(sc);
 
-	/* 
+	/*
 	 * Not much point trying to send if the link is down
 	 * or we have nothing to send.
 	 */
@@ -1381,7 +1381,7 @@ bfe_start(struct ifnet *ifp)
 		if(m_head == NULL)
 			break;
 
-		/* 
+		/*
 		 * Pack the data into the tx ring.  If we dont have
 		 * enough room, let the chip drain the ring.
 		 */
@@ -1472,7 +1472,7 @@ bfe_ifmedia_upd(struct ifnet *ifp)
 	mii_mediachg(mii);
 
 	BFE_UNLOCK(sc);
-	return(0);
+	return (0);
 }
 
 /*
@@ -1526,12 +1526,12 @@ bfe_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			    command);
 			break;
 		default:
-			error = ether_ioctl(ifp, command, data); 
+			error = ether_ioctl(ifp, command, data);
 			break;
 	}
 
 	BFE_UNLOCK(sc);
-	return error;
+	return (error);
 }
 
 static void
@@ -1576,7 +1576,7 @@ bfe_tick(void *xsc)
 
 	mii_tick(mii);
 	if (!sc->bfe_link && mii->mii_media_status & IFM_ACTIVE &&
-			IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE) 
+			IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE)
 		sc->bfe_link++;
 
 	BFE_UNLOCK(sc);
