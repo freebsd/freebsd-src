@@ -175,8 +175,8 @@ struct ahc_pci_identity ahc_pci_ident_table [] =
 	},
 	/* aic7859 based controllers */
 	{
-		ID_AHA_2930CU & ID_DEV_VENDOR_MASK,
-		ID_DEV_VENDOR_MASK,
+		ID_AHA_2930CU,
+		ID_ALL_MASK,
 		"Adaptec 2930CU SCSI adapter",
 		ahc_aic7859_setup
 	},
@@ -1133,10 +1133,16 @@ configure_termination(struct ahc_softc *ahc,
 					       &enablePRI_high,
 					       &eeprom_present);
 			if ((adapter_control & CFSEAUTOTERM) == 0) {
+				if (bootverbose)
+					printf("%s: Manual SE Termination\n",
+					       ahc_name(ahc));
 				enableSEC_low = (adapter_control & CFSTERM);
 				enableSEC_high = (adapter_control & CFWSTERM);
 			}
 			if ((adapter_control & CFAUTOTERM) == 0) {
+				if (bootverbose)
+					printf("%s: Manual LVD Termination\n",
+					       ahc_name(ahc));
 				enablePRI_low = enablePRI_high =
 				    (adapter_control & CFLVDSTERM);
 			}
