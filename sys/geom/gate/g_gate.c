@@ -355,7 +355,9 @@ g_gate_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 	sbuf_printf(sb, "%s<queue_size>%u</queue_size>\n", indent,
 	    sc->sc_queue_size);
 	sbuf_printf(sb, "%s<ref>%u</ref>\n", indent, sc->sc_ref);
+	g_topology_unlock();
 	g_gate_release(sc);
+	g_topology_lock();
 }
 
 static int
