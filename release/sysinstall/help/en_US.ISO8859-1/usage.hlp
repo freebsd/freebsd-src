@@ -10,7 +10,6 @@ RIGHT ARROW     Move to next item or group (same as TAB).
 SHIFT-TAB       Move to previous item or group.
 LEFT ARROW      Move to previous item or group (same as SHIFT-TAB).
 RETURN          Select item.
-ESC             Spawn a sub-shell for diagnostic purposes.  Exit returns.
 PAGE UP         In text boxes, scrolls up one page.
 PAGE DOWN       In text boxes, scrolls down one page.
 SPACE           In "radio" or multiple choice menus, toggle the current item.
