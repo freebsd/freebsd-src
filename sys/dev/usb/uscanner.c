@@ -1,4 +1,4 @@
-/*	$NetBSD: uscanner.c,v 1.26 2001/12/31 12:15:22 augustss Exp $	*/
+/*	$NetBSD: uscanner.c,v 1.30 2002/07/11 21:14:36 augustss Exp$	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -116,6 +116,7 @@ static const struct uscan_info uscanner_devs[] = {
  {{ USB_VENDOR_KYE, USB_PRODUCT_KYE_VIVIDPRO }, 0 },
 
   /* HP */
+ {{ USB_VENDOR_HP, USB_PRODUCT_HP_2200C }, 0 },
  {{ USB_VENDOR_HP, USB_PRODUCT_HP_3300C }, 0 },
  {{ USB_VENDOR_HP, USB_PRODUCT_HP_3400CSE }, 0 },
  {{ USB_VENDOR_HP, USB_PRODUCT_HP_4100C }, 0 },
@@ -186,6 +187,7 @@ static const struct uscan_info uscanner_devs[] = {
  {{ USB_VENDOR_UMAX, USB_PRODUCT_UMAX_ASTRA3400 }, 0 },
 
   /* Visioneer */
+ {{ USB_VENDOR_VISIONEER, USB_PRODUCT_VISIONEER_3000 }, 0 },
  {{ USB_VENDOR_VISIONEER, USB_PRODUCT_VISIONEER_5300 }, 0 },
  {{ USB_VENDOR_VISIONEER, USB_PRODUCT_VISIONEER_7600 }, 0 },
  {{ USB_VENDOR_VISIONEER, USB_PRODUCT_VISIONEER_6100 }, 0 },
@@ -365,7 +367,7 @@ uscanneropen(dev_t dev, int flag, int mode, usb_proc_ptr p)
 
 	USB_GET_SC_OPEN(uscanner, unit, sc);
 
- 	DPRINTFN(5, ("uscanneropen: flag=%d, mode=%d, unit=%d\n", 
+ 	DPRINTFN(5, ("uscanneropen: flag=%d, mode=%d, unit=%d\n",
 		     flag, mode, unit));
 
 	if (sc->sc_dying)
@@ -669,12 +671,12 @@ uscannerpoll(dev_t dev, int events, usb_proc_ptr p)
 	if (sc->sc_dying)
 		return (EIO);
 
-	/* 
+	/*
 	 * We have no easy way of determining if a read will
 	 * yield any data or a write will happen.
 	 * Pretend they will.
 	 */
-	revents |= events & 
+	revents |= events &
 		   (POLLIN | POLLRDNORM | POLLOUT | POLLWRNORM);
 
 	return (revents);
