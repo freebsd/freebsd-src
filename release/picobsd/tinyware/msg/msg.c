@@ -40,7 +40,7 @@ main(int argc, char *argv[])
 {
 	int len,i;
 	char *buf,*p;
-	char *mib="machdep.msgbuf";
+	char *mib="kern.msgbuf";
 
 	/* We use sysctlbyname, because the oid is unknown (OID_AUTO) */
 
