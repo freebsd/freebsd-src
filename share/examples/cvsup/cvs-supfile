@@ -28,11 +28,11 @@
 #		You can	override this setting on the command line
 #		with cvsup's "-h host" option.
 #
-# base=/usr
+# base=/var/db
 #		This specifies the root where CVSup will store information
 #		about the collections you have transferred to your system.
-#		A setting of "/usr" will generate this information in
-#		/usr/sup.  Even if you are CVSupping a large number of
+#		A setting of "/var/db" will generate this information in
+#		/var/db/sup.  Even if you are CVSupping a large number of
 #		collections, you will be hard pressed to generate more than
 #		~1MB of data in this directory.  You can override the
 #		"base" setting on the command line with cvsup's "-b base"
@@ -50,7 +50,7 @@
 # IMPORTANT: Change the next line to use one of the CVSup mirror sites
 # listed at http://www.freebsd.org/doc/handbook/mirrors.html.
 *default host=CHANGE_THIS.FreeBSD.org
-*default base=/usr
+*default base=/var/db
 *default prefix=/home/ncvs
 *default release=cvs
 *default delete use-rel-suffix
