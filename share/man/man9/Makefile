@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$Id$
 
 MAN9=	MD5.9 at_shutdown.9 at_fork.9 at_exit.9 boot.9 cd.9 copy.9 \
 	devfs_add_devswf.9 \
