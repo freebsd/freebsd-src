@@ -1058,6 +1058,7 @@ pw_getrand(u_char *buf, int len)
 {
 	int i;
 
+	srandomdev();
 	for (i = 0; i < len; i++) {
 		unsigned long val = random();
 		/* Use all bits in the random value */
