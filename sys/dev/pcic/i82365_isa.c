@@ -313,24 +313,6 @@ pcic_isa_attach(device_t dev)
 		goto error;
 	}
 	
-#if 0
-	/*
-	 * allocate an irq.  it will be used by both controllers.  I could
-	 * use two different interrupts, but interrupts are relatively
-	 * scarce, shareable, and for PCIC controllers, very infrequent.
-	 */
-
-	if ((sc->irq = ia->ia_irq) == IRQUNK) {
-		if (isa_intr_alloc(ic,
-		    PCIC_CSC_INTR_IRQ_VALIDMASK & pcic_isa_intr_alloc_mask,
-		    IST_EDGE, &sc->irq)) {
-			printf("\n%s: can't allocate interrupt\n",
-			    sc->dev.dv_xname);
-			return;
-		}
-		printf(": using irq %d", sc->irq);
-	}
-#endif
 	sc->iot = rman_get_bustag(sc->port_res);
 	sc->ioh = rman_get_bushandle(sc->port_res);;
 	sc->memt = rman_get_bustag(sc->mem_res);
@@ -338,7 +320,6 @@ pcic_isa_attach(device_t dev)
 
 	pcic_attach(dev);
 	pcic_isa_bus_width_probe (dev);
-	pcic_attach_sockets(dev);
 
 	return 0;
  error:
