@@ -299,6 +299,19 @@ typedef struct {
 } ct_entry_t;
 
 /*
+ * For some of the dual port SCSI adapters, port (bus #) is reported
+ * in the MSbit of ct_iid. Bit fields are a bit too awkward here.
+ *
+ * Note that this does not apply to FC adapters at all which can and
+ * do report IIDs between 129 && 255 (these represent devices that have
+ * logged in across a SCSI fabric).
+ */
+#define	GET_IID_VAL(x)		(x & 0x3f)
+#define	GET_BUS_VAL(x)		((x >> 7) & 0x1)
+#define	SET_IID_VAL(y, x)	(y | (x & 0x3f))
+#define	SET_BUS_VAL(y, x)	(y | ((x & 0x1) << 7))
+
+/*
  * ct_flags values
  */
 #define CT_TQAE		0x00000001	/* bit  1, Tagged Queue Action enable */
@@ -363,7 +376,7 @@ typedef struct {
 	u_int16_t	ct_timeout;
 	u_int16_t	ct_seg_count;
 	u_int32_t	ct_reloff;	/* relative offset */
-	u_int32_t	ct_resid;	/* residual length */
+	int32_t		ct_resid;	/* residual length */
 	union {
 		/*
 		 * The three different modes that the target driver
@@ -459,92 +472,131 @@ typedef struct {
 		source -> tagb =  dest -> taga;
 #endif
 
+#define	MCIDF(d, s)	if ((void *) d != (void *)s) MEMCPY(d, s, QENTRY_LEN)
+
 /* This is really only for SBus cards on a sparc */
 #ifdef	__sparc__
 #define	ISP_SWIZ_ATIO(isp, dest, vsrc)					\
 {									\
 	at_entry_t *source = (at_entry_t *) vsrc;			\
-	dest->at_header = source->at_header;				\
-	dest->at_reserved2 = source->at_reserved2;			\
-	ISP_SBUS_SWOZZLE(isp, source, dest, at_lun, at_iid);		\
-	ISP_SBUS_SWOZZLE(isp, source, dest, at_cdblen, at_tgt);		\
-	dest->at_flags = source->at_flags;				\
-	ISP_SBUS_SWOZZLE(isp, source, dest, at_status, at_scsi_status);	\
-	ISP_SBUS_SWOZZLE(isp, source, dest, at_tag_val, at_tag_type);	\
-	MEMCPY(dest->at_cdb, source->at_cdb, ATIO_CDBLEN);		\
-	MEMCPY(dest->at_sense, source->at_sense, QLTM_SENSELEN);	\
+	at_entry_t local, *vdst;					\
+	if ((void *)dest == (void *)vsrc) {				\
+		MEMCPY(vsrc, &local, sizeof (at_entry_t));		\
+		vdst = &local;						\
+	} else {							\
+		vdst = dest;						\
+	}								\
+	vdst->at_header = source->at_header;				\
+	vdst->at_reserved2 = source->at_reserved2;			\
+	ISP_SBUS_SWOZZLE(isp, source, vdst, at_lun, at_iid);		\
+	ISP_SBUS_SWOZZLE(isp, source, vdst, at_cdblen, at_tgt);		\
+	vdst->at_flags = source->at_flags;				\
+	ISP_SBUS_SWOZZLE(isp, source, vdst, at_status, at_scsi_status);	\
+	ISP_SBUS_SWOZZLE(isp, source, vdst, at_tag_val, at_tag_type);	\
+	MEMCPY(vdst->at_cdb, source->at_cdb, ATIO_CDBLEN);		\
+	MEMCPY(vdst->at_sense, source->at_sense, QLTM_SENSELEN);	\
 }
 
 #define	ISP_SWIZ_CTIO(isp, dest, vsrc)					\
 {									\
 	ct_entry_t *source = (ct_entry-t *) vsrc;			\
-	dest->ct_header = source->ct_header;				\
-	dest->ct_reserved = source->ct_reserved;			\
-	ISP_SBUS_SWOZZLE(isp, source, dest, ct_lun, ct_iid);		\
-	ISP_SBUS_SWOZZLE(isp, source, dest, ct_rsvd, ct_tgt);		\
-	dest->ct_flags = source->ct_flags;				\
-	ISP_SBUS_SWOZZLE(isp, source, dest, ct_status, ct_scsi_status);	\
-	ISP_SBUS_SWOZZLE(isp, source, dest, ct_tag_val, ct_tag_type);	\
-	dest->ct_xfrlen = source->ct_xfrlen;				\
-	dest->ct_resid = source->ct_resid;				\
-	dest->ct_timeout = source->ct_timeout;				\
-	dest->ct_seg_count = source->ct_seg_count;			\
-	MEMCPY(dest->ct_cdb, source->ct_cdb, ATIO_CDBLEN);		\
-	MEMCPY(dest->ct_sense, source->ct_sense, QLTM_SENSELEN);	\
-	dest->ct_dataseg = source->ct_dataseg;				\
+	ct_entry_t *local, *vdst;					\
+	if ((void *)dest == (void *)vsrc) {				\
+		MEMCPY(vsrc, &local, sizeof (ct_entry_t));		\
+		vdst = &local;						\
+	} else {							\
+		vdst = dest;						\
+	}								\
+	vdst->ct_header = source->ct_header;				\
+	vdst->ct_reserved = source->ct_reserved;			\
+	ISP_SBUS_SWOZZLE(isp, source, vdst, ct_lun, ct_iid);		\
+	ISP_SBUS_SWOZZLE(isp, source, vdst, ct_rsvd, ct_tgt);		\
+	vdst->ct_flags = source->ct_flags;				\
+	ISP_SBUS_SWOZZLE(isp, source, vdst, ct_status, ct_scsi_status);	\
+	ISP_SBUS_SWOZZLE(isp, source, vdst, ct_tag_val, ct_tag_type);	\
+	vdst->ct_xfrlen = source->ct_xfrlen;				\
+	vdst->ct_resid = source->ct_resid;				\
+	vdst->ct_timeout = source->ct_timeout;				\
+	vdst->ct_seg_count = source->ct_seg_count;			\
+	MEMCPY(vdst->ct_cdb, source->ct_cdb, ATIO_CDBLEN);		\
+	MEMCPY(vdst->ct_sense, source->ct_sense, QLTM_SENSELEN);	\
+	vdst->ct_dataseg = source->ct_dataseg;				\
 }
 #define	ISP_SWIZ_ENABLE_LUN(isp, dest, vsrc)				\
 {									\
 	lun_entry_t *source = (lun_entry_t *)vsrc;			\
-	dest->le_header = source->le_header;				\
-	dest->le_reserved2 = source->le_reserved2;			\
-	ISP_SBUS_SWOZZLE(isp, source, dest, le_lun, le_rsvd);		\
-	ISP_SBUS_SWOZZLE(isp, source, dest, le_ops, le_tgt);		\
-	dest->le_flags = source->le_flags;				\
-	ISP_SBUS_SWOZZLE(isp, source, dest, le_status, le_rsvd2);	\
-	ISP_SBUS_SWOZZLE(isp, source, dest, le_cmd_count, le_in_count);	\
-	ISP_SBUS_SWOZZLE(isp, source, dest, le_cdb6len, le_cdb7len);	\
-	dest->le_timeout = source->le_timeout;				\
-	dest->le_reserved = source->le_reserved;			\
+	lun_entry_t *local, *vdst;					\
+	if ((void *)dest == (void *)vsrc) {				\
+		MEMCPY(vsrc, &local, sizeof (lun_entry_t));		\
+		vdst = &local;						\
+	} else {							\
+		vdst = dest;						\
+	}								\
+	vdst->le_header = source->le_header;				\
+	vdst->le_reserved2 = source->le_reserved2;			\
+	ISP_SBUS_SWOZZLE(isp, source, vdst, le_lun, le_rsvd);		\
+	ISP_SBUS_SWOZZLE(isp, source, vdst, le_ops, le_tgt);		\
+	vdst->le_flags = source->le_flags;				\
+	ISP_SBUS_SWOZZLE(isp, source, vdst, le_status, le_rsvd2);	\
+	ISP_SBUS_SWOZZLE(isp, source, vdst, le_cmd_count, le_in_count);	\
+	ISP_SBUS_SWOZZLE(isp, source, vdst, le_cdb6len, le_cdb7len);	\
+	vdst->le_timeout = source->le_timeout;				\
+	vdst->le_reserved = source->le_reserved;			\
 }
 #define	ISP_SWIZ_NOTIFY(isp, dest, vsrc)				\
 {									\
 	in_entry_type *source = (in_entry_t *)vsrc;			\
-	dest->in_header = source->in_header;				\
-	dest->in_reserved2 = source->in_reserved2;			\
-	ISP_SBUS_SWOZZLE(isp, source, dest, in_lun, in_iid);		\
-	ISP_SBUS_SWOZZLE(isp, source, dest, in_rsvd, in_tgt);		\
-	dest->in_flags = source->in_flags;				\
-	ISP_SBUS_SWOZZLE(isp, source, dest, in_status, in_rsvd2);	\
-	ISP_SBUS_SWOZZLE(isp, source, dest, in_tag_val, in_tag_type);	\
-	dest->in_seqid = source->in_seqid;				\
-	MEMCPY(dest->in_msg, source->in_msg, IN_MSGLEN);		\
-	MEMCPY(dest->in_reserved, source->in_reserved, IN_RESERVED);	\
-	MEMCPY(dest->in_sense, source->in_sense, QLTM_SENSELEN);	\
+	in_entry_t *local, *vdst;					\
+	if ((void *)dest == (void *)vsrc) {				\
+		MEMCPY(vsrc, &local, sizeof (in_entry_t));		\
+		vdst = &local;						\
+	} else {							\
+		vdst = dest;						\
+	}								\
+	vdst->in_header = source->in_header;				\
+	vdst->in_reserved2 = source->in_reserved2;			\
+	ISP_SBUS_SWOZZLE(isp, source, vdst, in_lun, in_iid);		\
+	ISP_SBUS_SWOZZLE(isp, source, vdst, in_rsvd, in_tgt);		\
+	vdst->in_flags = source->in_flags;				\
+	ISP_SBUS_SWOZZLE(isp, source, vdst, in_status, in_rsvd2);	\
+	ISP_SBUS_SWOZZLE(isp, source, vdst, in_tag_val, in_tag_type);	\
+	vdst->in_seqid = source->in_seqid;				\
+	MEMCPY(vdst->in_msg, source->in_msg, IN_MSGLEN);		\
+	MEMCPY(vdst->in_reserved, source->in_reserved, IN_RESERVED);	\
+	MEMCPY(vdst->in_sense, source->in_sense, QLTM_SENSELEN);	\
 }
 #define	ISP_SWIZ_NOT_ACK(isp, dest)					\
 {									\
 	na_entry_t *source = (na_entry_t *)vsrc;			\
-	dest->na_header = source->na_header;				\
-	dest->na_reserved2 = source->na_reserved2;			\
-	ISP_SBUS_SWOZZLE(isp, source, dest, na_lun, na_iid);		\
-	ISP_SBUS_SWOZZLE(isp, source, dest, na_rsvd, na_tgt);		\
-	dest->na_flags = source->na_flags;				\
-	ISP_SBUS_SWOZZLE(isp, source, dest, na_status, na_event);	\
-	dest->na_seqid = source->na_seqid;				\
-	MEMCPY(dest->na_reserved, source->na_reserved, NA_RSVDLEN);	\
+	na_entry_t *local, *vdst;					\
+	if ((void *)dest == (void *)vsrc) {				\
+		MEMCPY(vsrc, &local, sizeof (na_entry_t));		\
+		vdst = &local;						\
+	} else {							\
+		vdst = dest;						\
+	}								\
+	vdst->na_header = source->na_header;				\
+	vdst->na_reserved2 = source->na_reserved2;			\
+	ISP_SBUS_SWOZZLE(isp, source, vdst, na_lun, na_iid);		\
+	ISP_SBUS_SWOZZLE(isp, source, vdst, na_rsvd, na_tgt);		\
+	vdst->na_flags = source->na_flags;				\
+	ISP_SBUS_SWOZZLE(isp, source, vdst, na_status, na_event);	\
+	vdst->na_seqid = source->na_seqid;				\
+	MEMCPY(vdst->na_reserved, source->na_reserved, NA_RSVDLEN);	\
 }
-#define	ISP_SWIZ_NOT_ACK_FC(isp, d, s)	MEMCPY((void *)d, (void *)s, QENTRY_LEN)
+#define	ISP_SWIZ_NOT_ACK_FC(isp, d, s)	MCIDF(d, s)
+#define	ISP_SWIZ_ATIO2(isp, d, s)	MCIDF(d, s)
+#define	ISP_SWIZ_CTIO2(isp, d, s)	MCIDF(d, s)
 #else
-#define	ISP_SWIZ_ATIO(isp, d, s)	MEMCPY((void *)d, (void *)s, QENTRY_LEN)
-#define	ISP_SWIZ_CTIO(isp, d, s)	MEMCPY((void *)d, (void *)s, QENTRY_LEN)
-#define	ISP_SWIZ_ENABLE_LUN(isp, d, s)	MEMCPY((void *)d, (void *)s, QENTRY_LEN)
-#define	ISP_SWIZ_NOTIFY(isp, d, s)	MEMCPY((void *)d, (void *)s, QENTRY_LEN)
-#define	ISP_SWIZ_NOT_ACK(isp, d, s)	MEMCPY((void *)d, (void *)s, QENTRY_LEN)
-#define	ISP_SWIZ_NOT_ACK_FC(isp, d, s)	MEMCPY((void *)d, (void *)s, QENTRY_LEN)
+#define	ISP_SWIZ_ATIO(isp, d, s)	MCIDF(d, s)
+#define	ISP_SWIZ_CTIO(isp, d, s)	MCIDF(d, s)
+#define	ISP_SWIZ_ENABLE_LUN(isp, d, s)	MCIDF(d, s)
+#define	ISP_SWIZ_NOTIFY(isp, d, s)	MCIDF(d, s)
+#define	ISP_SWIZ_NOT_ACK(isp, d, s)	MCIDF(d, s)
+#define	ISP_SWIZ_NOT_ACK_FC(isp, d, s)	MCIDF(d, s)
+#define	ISP_SWIZ_ATIO2(isp, d, s)	MCIDF(d, s)
+#define	ISP_SWIZ_CTIO2(isp, d, s)	MCIDF(d, s)
 #endif
-#define	ISP_SWIZ_ATIO2(isp, d, s)	MEMCPY((void *)d, (void *)s, QENTRY_LEN)
-#define	ISP_SWIZ_CTIO2(isp, d, s)	MEMCPY((void *)d, (void *)s, QENTRY_LEN)
 
 /*
  * Debug macros
@@ -557,26 +609,8 @@ extern int isp_tdebug;
 #define	ITDEBUG(level, msg)	if (level > isp_tdebug) PRINTF msg
 
 /*
- * Common (for all platfoms) software SCSI msg/event structures.
- */
-
-typedef struct {
-	u_int8_t	nt_iid;			/* inititator id */
-	u_int8_t	nt_tgt;			/* target id */
-	u_int16_t	nt_lun;			/* logical unit */
-	u_int8_t	nt_bus;			/* bus */
-	u_int8_t	nt_tagtype;		/* tag type */
-	u_int16_t	nt_tagval;		/* tag value */
-	u_int8_t	nt_msg[IN_MSGLEN];	/* message content */
-} tmd_msg_t;
-
-typedef struct {
-	u_int16_t	ev_bus;			/* bus */
-	u_int16_t	ev_event;		/* type of async event */
-} tmd_event_t;
-
-/*
- * Target Mode functions
+ * The functions below are target mode functions that
+ * are generally internal to the Qlogic driver.
  */
 
 /*
@@ -609,6 +643,7 @@ isp_target_put_atio __P((struct ispsoftc *isp, int, int, int, int, int));
  */
 int
 isp_endcmd __P((struct ispsoftc *isp, void *, u_int32_t, u_int32_t));
+#define	ECMD_SVALID	0x100
 
 /*
  * Handle an asynchronous event
