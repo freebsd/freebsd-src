@@ -7,13 +7,12 @@
 
 PROG=	bsdtar
 VERSION=	1.01.022
-# bsd.prog.mk rewrites SRCS, but I need the unedited list below
-SRCS_ORIGINAL=	bsdtar.c getdate.y matching.c read.c util.c write.c
-SRCS= ${SRCS_ORIGINAL}
+SRCS=	bsdtar.c getdate.y matching.c read.c util.c write.c
 WARNS?=	6
 DPADD=	${LIBARCHIVE} ${LIBBZ2} ${LIBZ}
 LDADD=	-larchive -lbz2 -lz
 CFLAGS+=	-DPACKAGE_VERSION=\"${VERSION}\"
+CFLAGS+=	-I${.CURDIR}
 
 .if !defined(WITH_GTAR)
 SYMLINKS=	bsdtar ${BINDIR}/tar
