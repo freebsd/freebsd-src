@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.17 1993/11/25 01:30:48 wollman Exp $
+ *	$Id: conf.c,v 1.18 1993/11/26 22:44:17 wollman Exp $
  */
 
 #include "param.h"
@@ -217,6 +217,12 @@ int	nblkdev = sizeof (bdevsw) / sizeof (bdevsw[0]);
 
 /* console */
 #include "machine/cons.h"
+
+d_open_t cnopen;
+d_close_t cnclose;
+d_rdwr_t cnread, cnwrite;
+d_ioctl_t cnioctl;
+d_select_t cnselect;
 
 /* more console */
 d_open_t pcopen;
