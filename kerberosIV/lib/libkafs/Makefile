@@ -6,7 +6,8 @@ CFLAGS+=	-I${KRB4DIR}/include \
 		-I${KRB4DIR}/lib/roken \
 		-I${KRB4DIR}/lib/krb \
 		-I${KRB4DIR}/lib/kafs
-SRCS=		afssys.c afskrb.c
+SRCS=		afssys.c afskrb.c common.c issuid.c \
+		strcpy_truncate.c strcat_truncate.c
 MAN3=		${KRB4DIR}/man/kafs.3
 MLINKS=		kafs.3 k_hasafs.3 kafs.3 k_afsklog.3 kafs.3 k_afsklog_uid.3 \
 		kafs.3 k_pioctl.3 kafs.3 k_unlog.3 kafs.3 k_setpag.3 \
@@ -18,3 +19,4 @@ INCLUDES=	${KRB4DIR}/lib/kafs/kafs.h
 .include <bsd.lib.mk>
 
 .PATH:		${KRB4DIR}/lib/kafs
+.PATH:		${KRB4DIR}/lib/roken

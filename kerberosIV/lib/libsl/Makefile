@@ -2,10 +2,10 @@
 
 LIB=		sl
 CFLAGS+=	-I${KRB4DIR}/include \
-		-I${INCLUDEOBJDIR} \
+		-I${KRB4DIR}/lib/sl \
 		-I${KRB4DIR}/lib/roken \
-		-I${KRB4DIR}/lib/sl
-SRCS=		sl.c
+		-I${INCLUDEOBJDIR}
+SRCS=		sl.c ss.c strtok_r.c
 NOPIC=		yes
 
 install:
@@ -13,3 +13,4 @@ install:
 .include <bsd.lib.mk>
 
 .PATH:		${KRB4DIR}/lib/sl
+.PATH:		${KRB4DIR}/lib/roken
