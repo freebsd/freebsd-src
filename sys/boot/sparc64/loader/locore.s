@@ -11,7 +11,9 @@
 #include <machine/asi.h>
 #include <machine/asm.h>
 #include <machine/pstate.h>
-#include <machine/param.h>
+
+#define	PAGE_SIZE	8192
+#define	PAGE_SHIFT	13
 
 #define	SPOFF		2047
 #define	STACK_SIZE	(2 * PAGE_SIZE)
@@ -27,7 +29,7 @@ ENTRY(_start)
 	wrpr	%g0, PSTATE_PRIV|PSTATE_IE|PSTATE_PEF, %pstate
 	wr	%g0, 0x4, %fprs
 
-	setx	stack + STACK_SIZE - SPOFF, %l7, %l6
+	setx	stack + STACK_SIZE - SPOFF - CCFSZ, %l7, %l6
 	mov	%l6, %sp
 	call	main
 	 mov	%o4, %o0
@@ -85,23 +87,27 @@ ENTRY(dtlb_va_to_pa)
  * %o3 = flags
  */
 ENTRY(itlb_enter)
+	rdpr	%pstate, %o4
+	wrpr	%o4, PSTATE_IE, %pstate
 	sllx	%o0, 3, %o0
 	or	%o1, %o3, %o1
 	mov	AA_IMMU_TAR, %o3
 	stxa	%o2, [%o3] ASI_IMMU
-	membar	#Sync
 	stxa	%o1, [%o0] ASI_ITLB_DATA_ACCESS_REG
+	membar	#Sync
 	retl
-	 nop
+	 wrpr	%o4, 0, %pstate
 
 ENTRY(dtlb_enter)
+	rdpr	%pstate, %o4
+	wrpr	%o4, PSTATE_IE, %pstate
 	sllx	%o0, 3, %o0
 	or	%o1, %o3, %o1
 	mov	AA_DMMU_TAR, %o3
 	stxa	%o2, [%o3] ASI_DMMU
-	membar	#Sync
 	stxa	%o1, [%o0] ASI_DTLB_DATA_ACCESS_REG
+	membar	#Sync
 	retl
-	 nop
+	 wrpr	%o4, 0, %pstate
 
 	.comm	stack, STACK_SIZE, 32
