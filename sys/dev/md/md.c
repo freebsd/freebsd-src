@@ -76,6 +76,7 @@
 #include <sys/namei.h>
 #include <sys/proc.h>
 #include <sys/queue.h>
+#include <sys/stdint.h>
 #include <sys/sysctl.h>
 #include <sys/vnode.h>
 
@@ -279,7 +280,7 @@ s_read(struct indir *ip, off_t offset)
 	uintptr_t up;
 
 	if (md_debug > 1)
-		printf("s_read(%lld)\n", offset);
+		printf("s_read(%jd)\n", (intmax_t)offset);
 	up = 0;
 	for (cip = ip; cip != NULL;) {
 		if (cip->shift) {
@@ -306,7 +307,7 @@ s_write(struct indir *ip, off_t offset, uintptr_t ptr)
 	uintptr_t up;
 
 	if (md_debug > 1)
-		printf("s_write(%lld, %p)\n", offset, (void *)ptr);
+		printf("s_write(%jd, %p)\n", (intmax_t)offset, (void *)ptr);
 	up = 0;
 	li = 0;
 	cip = ip;
