@@ -1,0 +1,13 @@
+The FreeBSD 2.0 distribution (or later) is being mirrored at the following
+locations:
+
+Country		Site and Maintainer
+=======		=========================================================
+
+USA		ftp://gatekeeper.dec.com:/pub/BSD/FreeBSD/FreeBSD-current
+		<hubbard@gatekeeper.dec.com>
+
+USA		ftp://ftp.cybernetics.net:/pub/FreeBSD
+		<michael@Cybernetics.NET>
+
+$Id: MIRROR.SITES,v 1.16 1994/06/08 13:33:51 sean Exp $
