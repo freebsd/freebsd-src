@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: igmp.c,v 3.8 1995/11/29 22:36:57 fenner Rel $
+ * $Id: igmp.c,v 1.9 1996/01/06 21:09:44 peter Exp $
  */
 
 
@@ -327,7 +327,7 @@ send_igmp(src, dst, type, code, group, datalen)
 
     if (IN_MULTICAST(ntohl(dst))) {
 	k_set_if(src);
-	if (type != IGMP_DVMRP) {
+	if (type != IGMP_DVMRP || dst == allhosts_group) {
 	    setloop = 1;
 	    k_set_loop(TRUE);
 	}
