@@ -115,7 +115,10 @@ checkfstab(int flags, int (*docheck)(struct fstab *),
 			if (fs->fs_passno > passno && fs->fs_passno < nextpass)
 				nextpass = fs->fs_passno;
 
-			if (passno != fs->fs_passno || (*docheck)(fs) == 0)
+			if (passno != fs->fs_passno)
+				continue;
+
+			if ((*docheck)(fs) == 0)
 				continue;
 
 			if (flags & CHECK_DEBUG)
