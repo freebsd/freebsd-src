@@ -19,7 +19,6 @@
 #include <sys/types.h>
 #include <stdio.h>
 #include <ctype.h>
-#include <errno.h>
 #include <string.h>
 #include <sys/file.h>
 #include <signal.h>
@@ -132,7 +131,6 @@ main (argc, argv)
 
   prognam = mkprogname (argv[0]);
 
-  unsetenv("IFS");
   man_getopt (argc, argv);
 
   if (optind == argc)
@@ -983,7 +981,7 @@ make_roff_command (file)
     fprintf (stderr, "using default preprocessor sequence\n");
 
   if ((cp = get_expander(file)) == NULL)
-    cp = "/bin/cat";
+    cp = "cat";
   sprintf(buf, "%s %s | ", cp, file);
 #ifdef HAS_TROFF
   if (troff)
@@ -1022,33 +1020,6 @@ make_roff_command (file)
   return buf;
 }
 
-sig_t ohup, oint, oquit, oterm;
-static char temp[FILENAME_MAX];
-
-void cleantmp()
-{
-	unlink(temp);
-	exit(1);
-}
-
-void
-set_sigs()
-{
-  ohup = signal(SIGHUP, cleantmp);
-  oint = signal(SIGINT, cleantmp);
-  oquit = signal(SIGQUIT, cleantmp);
-  oterm = signal(SIGTERM, cleantmp);
-}
-
-void
-restore_sigs()
-{
-  signal(SIGHUP, ohup);
-  signal(SIGINT, oint);
-  signal(SIGQUIT, oquit);
-  signal(SIGTERM, oterm);
-}
-
 /*
  * Try to format the man page and create a new formatted file.  Return
  * 1 for success and 0 for failure.
@@ -1059,129 +1030,73 @@ make_cat_file (path, man_file, cat_file)
      register char *man_file;
      register char *cat_file;
 {
-  int s, f;
-  FILE *fp, *pp;
+  int status;
+  int mode;
+  FILE *fp;
   char *roff_command;
   char command[FILENAME_MAX];
+  char temp[FILENAME_MAX];
 
-  roff_command = make_roff_command (man_file);
-  if (roff_command == NULL)
-      return 0;
-
-  sprintf(temp, "%s.tmpXXXXXX", cat_file);
-  if ((f = mkstemp(temp)) >= 0 && (fp = fdopen(f, "w")) != NULL)
+  sprintf(temp, "%s.tmp", cat_file);
+  if ((fp = fopen (temp, "w")) != NULL)
     {
-      set_sigs();
+      fclose (fp);
+      unlink (temp);
 
-      if (fchmod (f, CATMODE) < 0) {
-	perror("fchmod");
-	unlink(temp);
-	restore_sigs();
-	fclose(fp);
+      roff_command = make_roff_command (man_file);
+      if (roff_command == NULL)
 	return 0;
-      } else if (debug)
-	fprintf (stderr, "mode of %s is now %o\n", temp, CATMODE);
-
+      else
 #ifdef DO_COMPRESS
-      sprintf (command, "(cd %s ; %s | %s)", path,
-		roff_command, COMPRESSOR);
+	sprintf (command, "(cd %s ; %s | %s > %s)", path,
+		 roff_command, COMPRESSOR, temp);
 #else
-      sprintf (command, "(cd %s ; %s)", path,
-		roff_command);
+        sprintf (command, "(cd %s ; %s > %s)", path,
+		 roff_command, temp);
 #endif
+      /*
+       * Don't let the user interrupt the system () call and screw up
+       * the formatted man page if we're not done yet.
+       */
       fprintf (stderr, "Formatting page, please wait...");
       fflush(stderr);
 
-      if (debug)
-	fprintf (stderr, "\ntrying command: %s\n", command);
-      else {
+      status = do_system_command (command);
 
-	if ((pp = popen(command, "r")) == NULL) {
-	  s = errno;
-	  fprintf(stderr, "Failed.\n");
-	  errno = s;
-	  perror("popen");
-	  unlink(temp);
-	  restore_sigs();
-	  fclose(fp);
-	  return 0;
-	}
-
-	while ((s = getc(pp)) != EOF)
-	  putc(s, fp);
-
-	if ((s = pclose(pp)) == -1) {
-	  s = errno;
-	  fprintf(stderr, "Failed.\n");
-	  errno = s;
-	  perror("pclose");
-	  unlink(temp);
-	  restore_sigs();
-	  fclose(fp);
-	  return 0;
-	}
-
-	if (s != 0) {
-	  fprintf(stderr, "Failed.\n");
-	  gripe_system_command(s);
-	  unlink(temp);
-	  restore_sigs();
-	  fclose(fp);
-	  return 0;
-	}
-      }
-
-      if (debug)
-	unlink(temp);
-      else if (rename(temp, cat_file) == -1) {
-	s = errno;
-	fprintf(stderr,
-		 "\nHmm!  Can't seem to rename %s to %s, check permissions on man dir!\n",
-		 temp, cat_file);
-	errno = s;
-	perror("rename");
-	unlink(temp);
-	restore_sigs();
-	fclose(fp);
-	return 0;
-      }
-      restore_sigs();
-
-      if (fclose(fp)) {
-	s = errno;
-	if (!debug)
-	  unlink(cat_file);
+      if (status <= 0) {
 	fprintf(stderr, "Failed.\n");
-	errno = s;
-	perror("fclose");
-	return 0;
+	unlink(temp);
+	return(0);
       }
-
-      if (debug) {
-	fprintf(stderr, "No output, debug mode.\n");
-	return 0;
+      else {
+        if (rename(temp, cat_file) == -1) {
+		/* FS might be sticky */
+		sprintf(command, "cp %s %s", temp, cat_file);
+		if (system(command))
+			fprintf(stderr,
+				"\nHmm!  Can't seem to rename %s to %s, check permissions on man dir!\n",
+				temp, cat_file);
+		unlink(temp);
+		return 0;
+	}
       }
-
       fprintf(stderr, "Done.\n");
+      if (status == 1)
+	{
+	  mode = CATMODE;
+	  chmod (cat_file, mode);
+
+	  if (debug)
+	    fprintf (stderr, "mode of %s is now %o\n", cat_file, mode);
+	}
+
 
       return 1;
     }
   else
     {
-      if (f >= 0) {
-	s = errno;
-	unlink(temp);
-	errno = s;
-      }
-      if (debug) {
-	s = errno;
-	fprintf (stderr, "Couldn't open %s for writing.\n", temp);
-	errno = s;
-      }
-      if (f >= 0) {
-	perror("fdopen");
-	close(f);
-      }
+      if (debug)
+	fprintf (stderr, "Couldn't open %s for writing.\n", cat_file);
 
       return 0;
     }

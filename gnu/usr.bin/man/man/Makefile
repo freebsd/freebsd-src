@@ -1,7 +1,5 @@
 PROG=	man
 SRCS=	man.c manpath.c glob.c
-BINOWN= man
-BINMODE=4555
 
 .if exists(${.CURDIR}/../lib/obj)
 LDADD=  -L${.CURDIR}/../lib/obj -lman
