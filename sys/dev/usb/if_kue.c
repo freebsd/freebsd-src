@@ -105,7 +105,7 @@ static const char rcsid[] =
  * Various supported device vendors/types and their names.
  */
 static struct kue_type kue_devs[] = {
-	{ USB_VENDOR_KLSI, USB_PRODUCT_KLSI_USB101,
+	{ USB_VENDOR_AOX, USB_PRODUCT_AOX_USB101,
 	    "KLSI USB ethernet" },
 	{ USB_VENDOR_ADS, USB_PRODUCT_ADS_ENET,
 	    "KLSI USB ethernet" },
