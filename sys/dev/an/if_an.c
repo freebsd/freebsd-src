@@ -1363,6 +1363,8 @@ an_ioctl(ifp, command, data)
 		an_setdef(sc, &sc->areq);
 		break;
 	case SIOCGPRIVATE_0:              /* used by Cisco client utility */
+		if ((error = suser(p)))
+			goto out;
 		copyin(ifr->ifr_data, &l_ioctl, sizeof(l_ioctl));
 		mode = l_ioctl.command;
 
@@ -1381,6 +1383,8 @@ an_ioctl(ifp, command, data)
 
 		break;
 	case SIOCGPRIVATE_1:              /* used by Cisco client utility */
+		if ((error = suser(p)))
+			goto out;
 		copyin(ifr->ifr_data, &l_ioctl, sizeof(l_ioctl));
 		l_ioctl.command = 0;
 		error = AIROMAGIC;
