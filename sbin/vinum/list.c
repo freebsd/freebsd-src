@@ -81,7 +81,7 @@ roughlength(long long bytes, int lj)
     return description;
 }
 
-void 
+void
 vinum_list(int argc, char *argv[], char *argv0[])
 {
     int object;
@@ -102,7 +102,7 @@ vinum_list(int argc, char *argv[], char *argv0[])
 }
 
 /* List an object */
-int 
+int
 vinum_li(int object, enum objecttype type)
 {
     switch (type) {
@@ -128,7 +128,7 @@ vinum_li(int object, enum objecttype type)
     return 0;
 }
 
-void 
+void
 vinum_ldi(int driveno, int recurse)
 {
     time_t t;						    /* because Bruce says so */
@@ -227,7 +227,7 @@ vinum_ldi(int driveno, int recurse)
     }
 }
 
-void 
+void
 vinum_ld(int argc, char *argv[], char *argv0[])
 {
     int i;
@@ -252,7 +252,7 @@ vinum_ld(int argc, char *argv[], char *argv0[])
     }
 }
 
-void 
+void
 vinum_lvi(int volno, int recurse)
 {
     get_volume_info(&vol, volno);
@@ -345,7 +345,7 @@ vinum_lvi(int volno, int recurse)
     }
 }
 
-void 
+void
 vinum_lv(int argc, char *argv[], char *argv0[])
 {
     int i;
@@ -370,7 +370,7 @@ vinum_lv(int argc, char *argv[], char *argv0[])
     }
 }
 
-void 
+void
 vinum_lpi(int plexno, int recurse)
 {
     get_plex_info(&plex, plexno);
@@ -490,7 +490,7 @@ vinum_lpi(int plexno, int recurse)
     }
 }
 
-void 
+void
 vinum_lp(int argc, char *argv[], char *argv0[])
 {
     int i;
@@ -515,7 +515,7 @@ vinum_lp(int argc, char *argv[], char *argv0[])
     }
 }
 
-void 
+void
 vinum_lsi(int sdno, int recurse)
 {
     get_sd_info(&sd, sdno);
@@ -600,7 +600,7 @@ vinum_lsi(int sdno, int recurse)
     }
 }
 
-void 
+void
 vinum_ls(int argc, char *argv[], char *argv0[])
 {
     int i;
@@ -632,7 +632,7 @@ vinum_ls(int argc, char *argv[], char *argv0[])
 /* List the complete configuration.
 
  * XXX Change this to specific lists */
-void 
+void
 listconfig()
 {
     if (ioctl(superdev, VINUM_GETCONFIG, &vinum_conf) < 0) {
@@ -669,7 +669,7 @@ timetext(struct timeval *time)
     return &text[11];
 }
 
-void 
+void
 vinum_info(int argc, char *argv[], char *argv0[])
 {
     struct meminfo meminfo;
@@ -725,8 +725,10 @@ vinum_info(int argc, char *argv[], char *argv0[])
 		break;
 
 	    case loginfo_user_bp:			    /* this is the bp when strategy is called */
-		printf("%s 1VS %s %p\t%d.%-6d 0x%-9x\t%ld\n",
+	    case loginfo_sdio:				    /* subdisk I/O */
+		printf("%s %dVS %s %p\t%d.%-6d 0x%-9x\t%ld\n",
 		    timetext(&rq.timestamp),
+		    rq.type,
 		    rq.info.b.b_flags & B_READ ? "Read " : "Write",
 		    rq.bp,
 		    rq.devmajor,
@@ -736,8 +738,10 @@ vinum_info(int argc, char *argv[], char *argv0[])
 		break;
 
 	    case loginfo_user_bpl:			    /* and this is the bp at launch time */
-		printf("%s 2LR %s %p\t%d.%-6d 0x%-9x\t%ld\n",
+	    case loginfo_sdiol:				    /* subdisk I/O launch */
+		printf("%s %dLR %s %p\t%d.%-6d 0x%-9x\t%ld\n",
 		    timetext(&rq.timestamp),
+		    rq.type,
 		    rq.info.b.b_flags & B_READ ? "Read " : "Write",
 		    rq.bp,
 		    rq.devmajor,
@@ -839,7 +843,7 @@ vinum_info(int argc, char *argv[], char *argv0[])
  * Print config file to a file.  This is a userland version
  * of kernel format_config
  */
-void 
+void
 vinum_printconfig(int argc, char *argv[], char *argv0[])
 {
     FILE *of;
@@ -866,7 +870,7 @@ vinum_printconfig(int argc, char *argv[], char *argv0[])
  * called without an argument, in order to give
  * the user something to edit.
  */
-void 
+void
 printconfig(FILE * of, char *comment)
 {
     struct utsname uname_s;
@@ -964,7 +968,7 @@ printconfig(FILE * of, char *comment)
     }
 }
 
-void 
+void
 list_defective_objects()
 {
     int o;						    /* object */
