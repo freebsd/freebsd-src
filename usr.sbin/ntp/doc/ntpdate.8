@@ -33,11 +33,12 @@ page.
 After a suitable period of
 mourning, the
 .Nm
-program is to be retired from this
+utility is to be retired from this
 distribution.
 .Pp
+The
 .Nm
-sets the local date and time by polling the
+utility sets the local date and time by polling the
 Network Time Protocol (NTP) server(s) given as the
 .Ar server
 arguments to determine the correct time.
@@ -167,8 +168,9 @@ version
 identification string to be logged.
 .El
 .Pp
+The
 .Nm
-can be run manually as necessary to set the
+utility can be run manually as necessary to set the
 host clock, or it can be run from the host startup script to set
 the clock at boot time.
 This is useful in some cases to set the
@@ -221,8 +223,9 @@ is run by
 every hour or
 two.
 .Pp
+The
 .Nm
-will decline to set the date if an NTP server
+utility will decline to set the date if an NTP server
 daemon (e.g.,
 .Xr ntpd 8 )
 is running on the same host.

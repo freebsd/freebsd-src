@@ -36,8 +36,9 @@
 .Op Fl l Ar length
 .Ar host
 .Sh DESCRIPTION
-.Nm Spray
-sends multiple RPC packets to
+The
+.Nm
+utility sends multiple RPC packets to
 .Ar host
 and records how many of them were correctly received and how long it took.
 .Pp
@@ -58,12 +59,14 @@ bytes.
 Not all values of
 .Ar length
 are possible because RPC data is encoded using XDR.
-.Nm Spray
-rounds up to the nearest possible value.
+The
+.Nm
+utility rounds up to the nearest possible value.
 .El
 .Pp
-.Nm Spray
-is intended for use in network testing, measurement, and management.
+The
+.Nm
+utility is intended for use in network testing, measurement, and management.
 This command
 .Em "can be very hard on a network and should be used with caution" .
 .Sh SEE ALSO

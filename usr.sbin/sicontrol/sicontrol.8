@@ -11,11 +11,13 @@
 device
 .Ar command Op Ar param ...
 .Sh DESCRIPTION
-.Nm Sicontrol
-is used to configure and monitor the SI/XIO device driver.
+The
+.Nm
+utility is used to configure and monitor the SI/XIO device driver.
 .Pp
-.Nm Sicontrol
-operates on the specified
+The
+.Nm
+utility operates on the specified
 .Ar device
 to indicate which port is to be used.
 .Pp
@@ -23,10 +25,12 @@ The special
 .Ar device
 string `-' is used to indicate the global driver settings instead.
 .Pp
-A '/dev/' is included if necessary.
+A
+.Pa /dev/
+is included if necessary.
 .Pp
 The following commands are used for the global settings and should be
-specified with the '-' device name.
+specified with the '-' device name:
 .Bl -tag -width 4n
 .It Cm int_throttle Op Cm value
 Configure the `aggregate interrupt throttle value'.
@@ -72,7 +76,7 @@ This is not much use outside of debugging the driver.
 .Bl -tag -width /dev/si_control -compact
 .It Pa /dev/si_control
 global driver control file for use by
-.Xr sicontrol 8 .
+.Xr sicontrol 8
 .It Pa /dev/ttyA*
 terminal control ports
 .It Pa /dev/ttyiA*
@@ -91,8 +95,9 @@ Generally self explanatory.....
 .Xr tty 4 ,
 .Xr comcontrol 8
 .Sh HISTORY
-.Nm Sicontrol
-is loosely based on a utility called
+The
+.Nm
+utility is loosely based on a utility called
 .Nm siconfig
 which was written by
 .An Andy Rutter Aq andy@acronym.co.uk

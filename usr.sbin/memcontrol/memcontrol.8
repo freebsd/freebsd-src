@@ -55,14 +55,16 @@ A number of supported system architectures allow the behaviour of the CPU
 cache to be programmed to behave differently depending on the region being
 written.
 .Pp
-.Nm Memcontrol
+The
+.Nm
+utility
 provides an interface to this facility, allowing CPU cache behavior to
 be altered for ranges of system physical memory.
 .Pp
 These ranges are typically power-of-2 aligned and sized, however the specific
 rules governing their layout vary between architectures.  The
 .Nm
-program does not attempt to enforce these rules, however the system will
+utility does not attempt to enforce these rules, however the system will
 reject any attempt to set an illegal combination.
 .Bl -tag -width clear
 .It Ar list

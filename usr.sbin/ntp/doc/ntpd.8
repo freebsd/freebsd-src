@@ -25,7 +25,7 @@
 .Sh DESCRIPTION
 The
 .Nm
-program is an operating system daemon which sets
+utility is an operating system daemon which sets
 and maintains the system time of day in synchronism with Internet
 standard time servers.
 It is a complete implementation of the
@@ -33,8 +33,9 @@ Network Time Protocol (NTP) version 4, but also retains
 compatibility with version 3, as defined by RFC-1305, and version 1
 and 2, as defined by RFC-1059 and RFC-1119, respectively.
 .Pp
+The
 .Nm
-does most computations in 64-bit floating point
+utility does most computations in 64-bit floating point
 arithmetic and does relatively clumsy 64-bit fixed point operations
 only when necessary to preserve the ultimate precision, about 232
 picoseconds.
@@ -206,7 +207,7 @@ option.
 .Ss "How NTP Operates"
 The
 .Nm
-program operates by exchanging messages with
+utility operates by exchanging messages with
 one or more configured servers at designated poll intervals.
 When
 started, whether for the first or subsequent times, the program
@@ -360,8 +361,9 @@ immediately.
 After that the current frequency offset is written to
 the file at hourly intervals.
 .Ss "Operating Modes"
+The
 .Nm
-can operate in any of several modes, including
+utility can operate in any of several modes, including
 symmetric active/passive, client/server broadcast/multicast and
 manycast, as described in the
 .Qq Association Management
@@ -574,8 +576,9 @@ A snapshot of this documentation is available in HTML format in
 .%O RFC1305
 .Re
 .Sh BUGS
+The
 .Nm
-has gotten rather fat.
+utility has gotten rather fat.
 While not huge, it has gotten
 larger than might be desirable for an elevated-priority
 .Nm

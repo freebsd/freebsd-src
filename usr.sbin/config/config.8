@@ -46,7 +46,7 @@
 .Sh DESCRIPTION
 This is the old version of the
 .Nm
-program.
+utility.
 It understands the old autoconfiguration scheme
 used on the HP300, i386, DECstation, and derivative platforms.
 The new version of
@@ -58,8 +58,9 @@ Only the version of
 applicable to the architecture that you are running
 will be installed on your machine.
 .Pp
+The
 .Nm
-builds a set of system configuration files from the file
+utility builds a set of system configuration files from the file
 .Ar SYSTEM_NAME
 which describes
 the system to configure.
@@ -102,8 +103,9 @@ containing device specifications, configuration options
 and other system parameters for one system configuration.
 .El
 .Pp
+The
 .Nm
-should be run from the
+utility should be run from the
 .Pa conf
 subdirectory of the system source (usually
 .Pa /sys/ Ns Va ARCH Ns Pa /conf ) ,
@@ -111,8 +113,9 @@ where
 .Va ARCH
 represents one of the architectures supported by
 .Fx .
+The
 .Nm
-creates the directory
+utility creates the directory
 .Pa ../compile/ Ns Ar SYSTEM_NAME
 or the one given with the
 .Fl d
@@ -135,16 +138,17 @@ definitions of
 the number of various devices that will be compiled into the system.
 .Pp
 After running
-.Nm ,
+.Nm Ns ,
 it is necessary to run
 .Dq Li make depend
 in the directory where the new makefile
 was created.
+The
 .Nm
-prints a reminder of this when it completes.
+utility prints a reminder of this when it completes.
 .Pp
 If any other error messages are produced by
-.Nm ,
+.Nm Ns ,
 the problems in the configuration file should be corrected and
 .Nm
 should be run again.
@@ -251,5 +255,5 @@ The line numbers reported in error messages are usually off by one.
 .Sh HISTORY
 The
 .Nm
-command appeared in
+utility appeared in
 .Bx 4.1 .
