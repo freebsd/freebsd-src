@@ -655,8 +655,7 @@ in6_control(so, cmd, data, ifp, td)
 						log(LOG_NOTICE, "in6_control: "
 						    "failed to create a "
 						    "temporary address, "
-						    "errno=%d\n",
-						    e);
+						    "errno=%d\n", e);
 					}
 				}
 			}
@@ -814,18 +813,13 @@ in6_update_ifa(ifp, ifra, ia)
 	 */
 	if (ifra->ifra_dstaddr.sin6_family == AF_INET6) {
 		if ((ifp->if_flags & (IFF_POINTOPOINT|IFF_LOOPBACK)) == 0) {
-			/* XXX: noisy message */
-			log(LOG_INFO, "in6_update_ifa: a destination can be "
-			    "specified for a p2p or a loopback IF only\n");
+			nd6log((LOG_INFO, "in6_update_ifa: a destination can "
+			    "be specified for a p2p or a loopback IF only\n"));
 			return (EINVAL);
 		}
 		if (plen != 128) {
-			/*
-			 * The following message seems noisy, but we dare to
-			 * add it for diagnosis.
-			 */
-			log(LOG_INFO, "in6_update_ifa: prefixlen must be 128 "
-			    "when dstaddr is specified\n");
+			nd6log((LOG_INFO, "in6_update_ifa: prefixlen should "
+			    "be 128 when dstaddr is specified\n"));
 			return (EINVAL);
 		}
 	}
@@ -840,9 +834,9 @@ in6_update_ifa(ifp, ifra, ia)
 		 * the following log might be noisy, but this is a typical
 		 * configuration mistake or a tool's bug.
 		 */
-		log(LOG_INFO,
+		nd6log((LOG_INFO,
 		    "in6_update_ifa: valid lifetime is 0 for %s\n",
-		    ip6_sprintf(&ifra->ifra_addr.sin6_addr));
+		    ip6_sprintf(&ifra->ifra_addr.sin6_addr)));
 	}
 	if (lt->ia6t_pltime != ND6_INFINITE_LIFETIME
 	    && lt->ia6t_pltime + time_second < time_second) {
@@ -904,9 +898,9 @@ in6_update_ifa(ifp, ifra, ia)
 		 */
 		if (ia->ia_prefixmask.sin6_len &&
 		    in6_mask2len(&ia->ia_prefixmask.sin6_addr, NULL) != plen) {
-			log(LOG_INFO, "in6_update_ifa: the prefix length of an"
+			nd6log((LOG_INFO, "in6_update_ifa: the prefix length of an"
 			    " existing (%s) address should not be changed\n",
-			    ip6_sprintf(&ia->ia_addr.sin6_addr));
+			    ip6_sprintf(&ia->ia_addr.sin6_addr)));
 			error = EINVAL;
 			goto unlink;
 		}
@@ -924,9 +918,9 @@ in6_update_ifa(ifp, ifra, ia)
 
 		if ((ia->ia_flags & IFA_ROUTE) != 0 &&
 		    (e = rtinit(&(ia->ia_ifa), (int)RTM_DELETE, RTF_HOST)) != 0) {
-			log(LOG_ERR, "in6_update_ifa: failed to remove "
+			nd6log((LOG_ERR, "in6_update_ifa: failed to remove "
 			    "a route to the old destination: %s\n",
-			    ip6_sprintf(&ia->ia_addr.sin6_addr));
+			    ip6_sprintf(&ia->ia_addr.sin6_addr)));
 			/* proceed anyway... */
 		} else
 			ia->ia_flags &= ~IFA_ROUTE;
@@ -960,11 +954,11 @@ in6_update_ifa(ifp, ifra, ia)
 			llsol.s6_addr8[12] = 0xff;
 			(void)in6_addmulti(&llsol, ifp, &error);
 			if (error != 0) {
-				log(LOG_WARNING,
+				nd6log((LOG_WARNING,
 				    "in6_update_ifa: addmulti failed for "
 				    "%s on %s (errno=%d)\n",
 				    ip6_sprintf(&llsol), if_name(ifp),
-				    error);
+				    error));
 				in6_purgeaddr((struct ifaddr *)ia);
 				return (error);
 			}
@@ -994,11 +988,11 @@ in6_update_ifa(ifp, ifra, ia)
 				  (struct rtentry **)0);
 			(void)in6_addmulti(&mltaddr.sin6_addr, ifp, &error);
 			if (error != 0) {
-				log(LOG_WARNING,
+				nd6log((LOG_WARNING,
 				    "in6_update_ifa: addmulti failed for "
 				    "%s on %s (errno=%d)\n",
-				    ip6_sprintf(&mltaddr.sin6_addr), 
-				    if_name(ifp), error);
+				    ip6_sprintf(&mltaddr.sin6_addr),
+				    if_name(ifp), error));
 			}
 		}
 
@@ -1013,11 +1007,11 @@ in6_update_ifa(ifp, ifra, ia)
 				(void)in6_addmulti(&mltaddr.sin6_addr,
 				    ifp, &error);
 				if (error != 0) {
-					log(LOG_WARNING, "in6_update_ifa: "
+					nd6log((LOG_WARNING, "in6_update_ifa: "
 					    "addmulti failed for "
 					    "%s on %s (errno=%d)\n",
-					    ip6_sprintf(&mltaddr.sin6_addr), 
-					    if_name(ifp), error);
+					    ip6_sprintf(&mltaddr.sin6_addr),
+					    if_name(ifp), error));
 				}
 			}
 		}
@@ -1048,11 +1042,11 @@ in6_update_ifa(ifp, ifra, ia)
 				(void)in6_addmulti(&mltaddr.sin6_addr, ifp,
 						   &error);
 				if (error != 0) {
-					log(LOG_WARNING, "in6_update_ifa: "
+					nd6log((LOG_WARNING, "in6_update_ifa: "
 					    "addmulti failed for %s on %s "
 					    "(errno=%d)\n",
-					    ip6_sprintf(&mltaddr.sin6_addr), 
-					    if_name(ifp), error);
+					    ip6_sprintf(&mltaddr.sin6_addr),
+					    if_name(ifp), error));
 				}
 			}
 		}
@@ -1191,8 +1185,8 @@ in6_unlink_ifa(ia, ifp)
 	 */
 	if ((oia->ia6_flags & IN6_IFF_AUTOCONF) != 0) {
 		if (oia->ia6_ndpr == NULL) {
-			log(LOG_NOTICE, "in6_unlink_ifa: autoconf'ed address "
-			    "%p has no prefix\n", oia);
+			nd6log((LOG_NOTICE, "in6_unlink_ifa: autoconf'ed address "
+			    "%p has no prefix\n", oia));
 		} else {
 			oia->ia6_ndpr->ndpr_refcnt--;
 			oia->ia6_flags &= ~IN6_IFF_AUTOCONF;
