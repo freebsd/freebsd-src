@@ -2174,8 +2174,10 @@ ed_rint(sc)
 		 * we have a length that will fit into one mbuf cluster or less;
 		 * the upper layer protocols can then figure out the length from
 		 * their own length field(s).
+		 * But make sure that we have at least a full ethernet header
+		 * or we would be unable to call ether_input() later.
 		 */
-		if ((len > sizeof(struct ed_ring)) &&
+		if ((len > sizeof(struct ed_ring) + ETHER_HDR_LEN) &&
 		    (len <= MCLBYTES) &&
 		    (packet_hdr.next_packet >= sc->rec_page_start) &&
 		    (packet_hdr.next_packet < sc->rec_page_stop)) {
