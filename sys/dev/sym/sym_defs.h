@@ -5,10 +5,9 @@
  *  Copyright (C) 1999-2000  Gerard Roudier <groudier@club-internet.fr>
  *
  *  This driver also supports the following Symbios/LSI PCI-SCSI chips:
- *	53C810A, 53C825A, 53C860, 53C875, 53C876, 53C885, 53C895.
+ *	53C810A, 53C825A, 53C860, 53C875, 53C876, 53C885, 53C895,
+ *	53C810,  53C815,  53C825 and the 53C1510D is 53C8XX mode.
  *
- *  but does not support earlier chips as the following ones:
- *	53C810, 53C815, 53C825.
  *  
  *  This driver for FreeBSD-CAM is derived from the Linux sym53c8xx driver.
  *  Copyright (C) 1998-1999  Gerard Roudier
