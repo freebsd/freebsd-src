@@ -80,6 +80,19 @@ come on line as; refer to
 .Xr scsi 4
 for details on kernel configuration.
 .Pp
+The
+.Cd target
+string is followed by the device's standard
+.Tn SCSI
+device ID number.
+The
+.Cd unit
+string is followed by the Logical Unit Number
+.Pq Tn LUN
+of the
+.Tn SCSI
+device's sub-device, if any, or zero.
+.Pp
 The system utility
 .Xr disklabel 8
 may be used to read the synthesized
@@ -109,14 +122,16 @@ and
 .It Dv DIOCSDINFO
 .Pq Li "struct disklabel"
 Read or write the in-core copy of the disklabel for the
-drive.  The disklabel is initialized with information
+drive.
+The disklabel is initialized with information
 read from the scsi inquiry commands, and should be the same as
-the information printed at boot.  This structure is defined in
+the information printed at boot.
+This structure is defined in
 .Xr disklabel 5 .
 .It Dv CDIOCCAPABILITY
 .Pq Li "struct ioc_capability"
-Retrieve information from the drive on what features it supports.  The
-information is returned in the following structure:
+Retrieve information from the drive on what features it supports.
+The information is returned in the following structure:
 .Bd -literal -offset indent
 struct ioc_capability {
 	u_long	play_function;
@@ -178,8 +193,8 @@ struct ioc_capability {
 .Ed
 .It Dv CDIOCPLAYTRACKS
 .Pq Li "struct ioc_play_track"
-Start audio playback given a track address and length.  The structure
-is defined as follows:
+Start audio playback given a track address and length.
+The structure is defined as follows:
 .Bd -literal -offset indent
 struct ioc_play_track
 {
@@ -191,8 +206,8 @@ struct ioc_play_track
 .Ed
 .It Dv CDIOCPLAYBLOCKS
 .Pq Li "struct ioc_play_blocks"
-Start audio playback given a block address and length.  The structure
-is defined as follows:
+Start audio playback given a block address and length.
+The structure is defined as follows:
 .Bd -literal -offset indent
 struct ioc_play_blocks
 {
@@ -203,7 +218,8 @@ struct ioc_play_blocks
 .It Dv CDIOCPLAYMSF
 .Pq Li "struct ioc_play_msf"
 Start audio playback given a `minutes-seconds-frames' address and
-length.  The structure is defined as follows:
+length.
+The structure is defined as follows:
 .Bd -literal -offset indent
 struct ioc_play_msf
 {
@@ -248,8 +264,9 @@ struct ioc_toc_header {
 .Ed
 .It Dv CDIOREADTOCENTRYS
 .Pq Li "struct ioc_read_toc_entry"
-Return information from the table of contents entries mentioned.  (Yes, this
-command name is misspelled.)  The argument structure is defined as follows:
+Return information from the table of contents entries mentioned.
+.Pq Yes, this command name is misspelled.
+The argument structure is defined as follows:
 .Bd -literal -offset indent
 struct ioc_read_toc_entry {
 	u_char	address_format;
@@ -264,8 +281,8 @@ and pointed to by
 .Li data .
 .It Dv CDIOCSETPATCH
 .Pq Li "struct ioc_patch"
-Attach various audio channels to various output channels.  The
-argument structure is defined thusly:
+Attach various audio channels to various output channels.
+The argument structure is defined thusly:
 .Bd -literal -offset indent
 struct ioc_patch {
 	u_char	patch[4];
@@ -275,8 +292,8 @@ struct ioc_patch {
 .It Dv CDIOCGETVOL
 .It Dv CDIOCSETVOL
 .Pq Li "struct ioc_vol"
-Get (set) information about the volume settings of the output channels.  The
-argument structure is as follows:
+Get (set) information about the volume settings of the output channels.
+The argument structure is as follows:
 .Bd -literal -offset indent
 struct	ioc_vol
 {
@@ -315,17 +332,20 @@ disc.  Not all drives support this feature.
 Eject the
 .Tn CD-ROM .
 .It Dv CDIOCCLOSE
-Tell the drive to close its door and load the media.  Not all drives
-support this feature.
+Tell the drive to close its door and load the media.
+Not all drives support this feature.
 .It Dv CDIOCPITCH
 .Pq Li "struct ioc_pitch"
 For drives that support it, this command instructs the drive to play
-the audio at a faster or slower rate than normal.  Values of
+the audio at a faster or slower rate than normal.
+Values of
 .Li speed
 between -32767 and -1 result in slower playback; a zero value
 indicates normal speed; and values from 1 to 32767 give faster
-playback.  Drives with less than 16 bits of resolution will silently
-ignore less-significant bits.  The structure is defined thusly:
+playback.
+Drives with less than 16 bits of resolution will silently
+ignore less-significant bits.
+The structure is defined thusly:
 .Bd -literal -offset indent
 struct	ioc_pitch
 {
@@ -339,10 +359,13 @@ When a
 is changed in a drive controlled by the
 .Nm
 driver, then the act of changing the media will invalidate the
-disklabel and information held within the kernel.  To stop corruption,
+disklabel and information held within the kernel.
+To stop corruption,
 all accesses to the device will be discarded until there are no more
-open file descriptors referencing the device.  During this period, all
-new open attempts will be rejected.  When no more open file descriptors
+open file descriptors referencing the device.
+During this period, all
+new open attempts will be rejected.
+When no more open file descriptors
 reference the device, the first next open will load a new set of
 parameters (including disklabel) for the drive.
 .Pp
@@ -361,28 +384,35 @@ some of the more common `broken'
 .Tn CD-ROM
 drives; however, this is not yet under way.
 .Sh CHANGER OPERATION
-This driver has built-in support for LUN-based CD changers.  A LUN-based CD
+This driver has built-in support for LUN-based CD changers.
+A LUN-based CD
 changer is a drive that can hold two or more CDs, but only has one CD
-player mechanism.  Each CD in the drive shows up as a separate logical unit
+player mechanism.
+Each CD in the drive shows up as a separate logical unit
 on the
 .Tn SCSI
 bus.  The
 .Nm
 driver automatically recognizes LUN-based changers, and routes commands for
-changers through an internal scheduler.  The scheduler prevents changer
+changers through an internal scheduler.
+The scheduler prevents changer
 "thrashing", which is caused by sending commands to different LUNs in the
 changer at the same time.
 .Pp
 The scheduler honors minimum and maximum time
-quanta that the driver will spend on a particular LUN.  The minimum time
+quanta that the driver will spend on a particular LUN.
+The minimum time
 is the guaranteed minimum amount of time that the driver will spend on a
-given LUN, even if there is no oustanding I/O for that LUN.  The maximum
+given LUN, even if there is no outstanding I/O for that LUN.
+The maximum
 time is the maximum amount of time the changer will spend on a LUN if there
-is oustdanding I/O for another LUN.  If there is no outstanding I/O for
+is outstanding I/O for another LUN.
+If there is no outstanding I/O for
 another LUN, the driver will allow indefinite access to a given LUN.
 .Pp
 The minimum and maximum time quanta are configurable via kernel options and
-also via sysctl variables.  The kernel options are:
+also via sysctl variables.
+The kernel options are:
 .Pp
 .Bl -item -compact
 .It
@@ -402,12 +432,14 @@ The sysctl variables are:
 .Pp
 It is suggested that the user try experimenting with the minimum and
 maximum timeouts via the sysctl variables to arrive at the proper values
-for your changer.  Once you have settled on the proper timeouts for your
+for your changer.
+Once you have settled on the proper timeouts for your
 changer, you can then put them in your kernel config file.
 .Pp
 If your system does have a LUN-based changer, you may notice that the
 probe messages for the various LUNs of the changer will continue to appear
-while the boot process is going on.  This is normal, and is caused by the
+while the boot process is going on.
+This is normal, and is caused by the
 changer scheduling code.
 .Sh FILES
 .Bl -tag -width /dev/cd[0-9][a-h] -compact
@@ -435,11 +467,14 @@ commands.
 There is no mechanism currently to set different minimum and maximum
 timeouts for different CD changers; the timeout values set by the kernel
 options or the sysctl variables apply to all LUN-based CD changers in the
-system.  It is possible to implement such support, but the sysctl
-impelmentation at least would be rather inelegant, because of the current
+system.
+It is possible to implement such support, but the sysctl
+implementation at least would be rather inelegant, because of the current
 inability of the sysctl code to handle the addition of nodes after compile
-time.  Thus, it would take one dynamically sized sysctl variable and a
-userland utility to get/set the timeout values.  Implementation of separate
+time.
+Thus, it would take one dynamically sized sysctl variable and a
+userland utility to get/set the timeout values.
+Implementation of separate
 timeouts for different CD devices in the kernel config file would likely
 require modification of
 .Xr config 8
