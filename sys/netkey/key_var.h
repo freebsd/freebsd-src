@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: key_var.h,v 1.9 2000/10/04 11:13:57 itojun Exp $	*/
+/*	$KAME: key_var.h,v 1.10 2001/07/27 04:14:12 itojun Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -58,38 +58,9 @@
 	{ "blockacq_count", CTLTYPE_INT }, \
 	{ "blockacq_lifetime", CTLTYPE_INT }, \
 	{ "esp_keymin", CTLTYPE_INT }, \
+	{ "esp_auth", CTLTYPE_INT }, \
 	{ "ah_keymin", CTLTYPE_INT }, \
 }
-
-#ifdef IPSEC_DEBUG
-#define KEYCTL_VARS { \
-	0, \
-	&key_debug_level, \
-	&key_spi_trycnt, \
-	&key_spi_minval, \
-	&key_spi_maxval, \
-	&key_int_random, \
-	&key_larval_lifetime, \
-	&key_blockacq_count, \
-	&key_blockacq_lifetime, \
-	&ipsec_esp_keymin, \
-	&ipsec_ah_keymin, \
-}
-#else
-#define KEYCTL_VARS { \
-	0, \
-	0, \
-	&key_spi_trycnt, \
-	&key_spi_minval, \
-	&key_spi_maxval, \
-	&key_int_random, \
-	&key_larval_lifetime, \
-	&key_blockacq_count, \
-	&key_blockacq_lifetime, \
-	&ipsec_esp_keymin, \
-	&ipsec_ah_keymin, \
-}
-#endif
 
 #ifdef _KERNEL
 #define _ARRAYLEN(p) (sizeof(p)/sizeof(p[0]))

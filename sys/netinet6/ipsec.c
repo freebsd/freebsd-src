@@ -3329,6 +3329,14 @@ ipsec6_tunnel_validate(m, off, nxt0, sav)
 
 	sp = key_gettunnel((struct sockaddr *)&osrc, (struct sockaddr *)&odst,
 	    (struct sockaddr *)&isrc, (struct sockaddr *)&idst);
+	/*
+	 * when there is no suitable inbound policy for the packet of the ipsec
+	 * tunnel mode, the kernel never decapsulate the tunneled packet
+	 * as the ipsec tunnel mode even when the system wide policy is "none".
+	 * then the kernel leaves the generic tunnel module to process this
+	 * packet.  if there is no rule of the generic tunnel, the packet
+	 * is rejected and the statistics will be counted up.
+	 */
 	if (!sp)
 		return 0;
 	key_freesp(sp);
