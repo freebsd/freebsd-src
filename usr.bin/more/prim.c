@@ -43,6 +43,8 @@ static char sccsid[] = "@(#)prim.c	8.1 (Berkeley) 6/6/93";
 #include <sys/types.h>
 #include <stdio.h>
 #include <ctype.h>
+#include <regex.h>
+#include <limits.h>
 #include <less.h>
 
 int back_scroll = -1;
@@ -591,87 +593,32 @@ search(search_forward, pattern, n, wantmatch)
 	register char *q;
 	int linenum;
 	int linematch;
-#ifdef RECOMP
-	char *re_comp();
-	char *errmsg;
-#else
-#ifdef REGCMP
-	char *regcmp();
-	static char *cpattern = NULL;
-#else
-	static char lpbuf[100];
-	static char *last_pattern = NULL;
-	char *strcpy();
-#endif
-#endif
+	static regex_t rx;
+	static int oncethru;
+	int regerr;
+	char errbuf[_POSIX2_LINE_MAX];
 
-	/*
-	 * For a caseless search, convert any uppercase in the pattern to
-	 * lowercase.
-	 */
-	if (caseless && pattern != NULL)
-		for (p = pattern;  *p;  p++)
-			if (isupper(*p))
-				*p = tolower(*p);
-#ifdef RECOMP
+	if (pattern && pattern[0]) {
+		if (oncethru) {
+			regfree(&rx);
+		}
 
-	/*
-	 * (re_comp handles a null pattern internally, 
-	 *  so there is no need to check for a null pattern here.)
-	 */
-	if ((errmsg = re_comp(pattern)) != NULL)
-	{
-		error(errmsg);
-		return(0);
-	}
-#else
-#ifdef REGCMP
-	if (pattern == NULL || *pattern == '\0')
-	{
-		/*
-		 * A null pattern means use the previous pattern.
-		 * The compiled previous pattern is in cpattern, so just use it.
-		 */
-		if (cpattern == NULL)
-		{
-			error("No previous regular expression");
-			return(0);
+		regerr = regcomp(&rx, pattern, (REG_EXTENDED | REG_NOSUB 
+						| (caseless ? REG_ICASE : 0)));
+		
+		if (regerr) {
+			regerror(regerr, &rx, errbuf, sizeof errbuf);
+			error(errbuf);
+			oncethru = 0;
+			regfree(&rx);
+			return 0;
 		}
-	} else
-	{
-		/*
-		 * Otherwise compile the given pattern.
-		 */
-		char *s;
-		if ((s = regcmp(pattern, 0)) == NULL)
-		{
-			error("Invalid pattern");
-			return(0);
-		}
-		if (cpattern != NULL)
-			free(cpattern);
-		cpattern = s;
+		oncethru = 1;
+	} else if (!oncethru) {
+		error("No previous regular expression");
+		return 0;
 	}
-#else
-	if (pattern == NULL || *pattern == '\0')
-	{
-		/*
-		 * Null pattern means use the previous pattern.
-		 */
-		if (last_pattern == NULL)
-		{
-			error("No previous regular expression");
-			return(0);
-		}
-		pattern = last_pattern;
-	} else
-	{
-		(void)strcpy(lpbuf, pattern);
-		last_pattern = lpbuf;
-	}
-#endif
-#endif
-
+	
 	/*
 	 * Figure out where to start the search.
 	 */
@@ -781,18 +728,9 @@ search(search_forward, pattern, n, wantmatch)
 
 		/*
 		 * Test the next line to see if we have a match.
-		 * This is done in a variety of ways, depending
-		 * on what pattern matching functions are available.
 		 */
-#ifdef REGCMP
-		linematch = (regex(cpattern, line) != NULL);
-#else
-#ifdef RECOMP
-		linematch = (re_exec(line) == 1);
-#else
-		linematch = match(pattern, line);
-#endif
-#endif
+		linematch = !regexec(&rx, line, 0, 0, 0);
+
 		/*
 		 * We are successful if wantmatch and linematch are
 		 * both true (want a match and got it),
@@ -809,26 +747,3 @@ search(search_forward, pattern, n, wantmatch)
 	return(1);
 }
 
-#if !defined(REGCMP) && !defined(RECOMP)
-/*
- * We have neither regcmp() nor re_comp().
- * We use this function to do simple pattern matching.
- * It supports no metacharacters like *, etc.
- */
-static
-match(pattern, buf)
-	char *pattern, *buf;
-{
-	register char *pp, *lp;
-
-	for ( ;  *buf != '\0';  buf++)
-	{
-		for (pp = pattern, lp = buf;  *pp == *lp;  pp++, lp++)
-			if (*pp == '\0' || *lp == '\0')
-				break;
-		if (*pp == '\0')
-			return (1);
-	}
-	return (0);
-}
-#endif
