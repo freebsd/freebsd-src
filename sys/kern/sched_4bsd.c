@@ -536,24 +536,24 @@ sched_clock(struct thread *td)
  * aggregated all the estcpu into the 'built-in' ksegrp.
  */
 void
-sched_exit(struct proc *p, struct proc *p1)
+sched_exit(struct proc *p, struct thread *td)
 {
-	sched_exit_kse(FIRST_KSE_IN_PROC(p), FIRST_KSE_IN_PROC(p1));
-	sched_exit_ksegrp(FIRST_KSEGRP_IN_PROC(p), FIRST_KSEGRP_IN_PROC(p1));
-	sched_exit_thread(FIRST_THREAD_IN_PROC(p), FIRST_THREAD_IN_PROC(p1));
+	sched_exit_kse(FIRST_KSE_IN_PROC(p), td);
+	sched_exit_ksegrp(FIRST_KSEGRP_IN_PROC(p), td);
+	sched_exit_thread(FIRST_THREAD_IN_PROC(p), td);
 }
 
 void
-sched_exit_kse(struct kse *ke, struct kse *child)
+sched_exit_kse(struct kse *ke, struct thread *child)
 {
 }
 
 void
-sched_exit_ksegrp(struct ksegrp *kg, struct ksegrp *child)
+sched_exit_ksegrp(struct ksegrp *kg, struct thread *childtd)
 {
 
 	mtx_assert(&sched_lock, MA_OWNED);
-	kg->kg_estcpu = ESTCPULIM(kg->kg_estcpu + child->kg_estcpu);
+	kg->kg_estcpu = ESTCPULIM(kg->kg_estcpu + childtd->td_ksegrp->kg_estcpu);
 }
 
 void
@@ -564,24 +564,24 @@ sched_exit_thread(struct thread *td, struct thread *child)
 }
 
 void
-sched_fork(struct proc *p, struct proc *p1)
+sched_fork(struct thread *td, struct proc *p1)
 {
-	sched_fork_kse(FIRST_KSE_IN_PROC(p), FIRST_KSE_IN_PROC(p1));
-	sched_fork_ksegrp(FIRST_KSEGRP_IN_PROC(p), FIRST_KSEGRP_IN_PROC(p1));
-	sched_fork_thread(FIRST_THREAD_IN_PROC(p), FIRST_THREAD_IN_PROC(p1));
+	sched_fork_kse(td, FIRST_KSE_IN_PROC(p1));
+	sched_fork_ksegrp(td, FIRST_KSEGRP_IN_PROC(p1));
+	sched_fork_thread(td, FIRST_THREAD_IN_PROC(p1));
 }
 
 void
-sched_fork_kse(struct kse *ke, struct kse *child)
+sched_fork_kse(struct thread *td, struct kse *child)
 {
 	child->ke_sched->ske_cpticks = 0;
 }
 
 void
-sched_fork_ksegrp(struct ksegrp *kg, struct ksegrp *child)
+sched_fork_ksegrp(struct thread *td, struct ksegrp *child)
 {
 	mtx_assert(&sched_lock, MA_OWNED);
-	child->kg_estcpu = kg->kg_estcpu;
+	child->kg_estcpu = td->td_ksegrp->kg_estcpu;
 }
 
 void

@@ -87,7 +87,7 @@ thr_exit1(void)
 	ke->ke_state = KES_UNQUEUED;
 	ke->ke_thread = NULL;
 	kse_unlink(ke);
-	sched_exit_kse(TAILQ_NEXT(ke, ke_kglist), ke);
+	sched_exit_kse(TAILQ_NEXT(ke, ke_kglist), td);
 
 	/*
 	 * If we were stopped while waiting for all threads to exit and this
@@ -177,7 +177,7 @@ thr_create(struct thread *td, struct thr_create_args *uap)
 	td0->td_kse = ke0;
 	ke0->ke_thread = td0;
 
-	sched_fork_kse(td->td_kse, ke0);
+	sched_fork_kse(td, ke0);
 	sched_fork_thread(td, td0);
 
 	TD_SET_CAN_RUN(td0);
