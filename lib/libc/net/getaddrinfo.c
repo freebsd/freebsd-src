@@ -578,7 +578,7 @@ explore_null(pai, hostname, servname, res)
 	s = socket(pai->ai_family, SOCK_DGRAM, 0);
 	if (s < 0)
 		return 0;
-	_libc_close(s);
+	_close(s);
 	afd = find_afd(pai->ai_family);
 	if (afd == NULL)
 		return 0;

@@ -60,7 +60,7 @@ __sread(cookie, buf, n)
 	register FILE *fp = cookie;
 	register int ret;
 
-	ret = _libc_read(fp->_file, buf, (size_t)n);
+	ret = _read(fp->_file, buf, (size_t)n);
 	/* if the read succeeded, update the current offset */
 	if (ret >= 0)
 		fp->_offset += ret;
@@ -80,7 +80,7 @@ __swrite(cookie, buf, n)
 	if (fp->_flags & __SAPP)
 		(void) lseek(fp->_file, (off_t)0, SEEK_END);
 	fp->_flags &= ~__SOFF;	/* in case FAPPEND mode is set */
-	return (_libc_write(fp->_file, buf, (size_t)n));
+	return (_write(fp->_file, buf, (size_t)n));
 }
 
 fpos_t
@@ -107,5 +107,5 @@ __sclose(cookie)
 	void *cookie;
 {
 
-	return (_libc_close(((FILE *)cookie)->_file));
+	return (_close(((FILE *)cookie)->_file));
 }

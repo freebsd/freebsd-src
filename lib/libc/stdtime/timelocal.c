@@ -157,7 +157,7 @@ __time_load_locale(const char *name)
 	strcat(filename, "/");
 	strcat(filename, name);
 	strcat(filename, "/LC_TIME");
-	fd = _libc_open(filename, O_RDONLY);
+	fd = _open(filename, O_RDONLY);
 	if (fd < 0)
 		goto no_locale;
 	if (fstat(fd, &st) != 0)
@@ -173,9 +173,9 @@ __time_load_locale(const char *name)
 	(void) strcpy(lbuf, name);
 	p = lbuf + namesize;
 	plim = p + st.st_size;
-	if (_libc_read(fd, p, (size_t) st.st_size) != st.st_size)
+	if (_read(fd, p, (size_t) st.st_size) != st.st_size)
 		goto bad_lbuf;
-	if (_libc_close(fd) != 0)
+	if (_close(fd) != 0)
 		goto bad_lbuf;
 	/*
 	** Parse the locale file into localebuf.
@@ -211,7 +211,7 @@ reset_locale:
 bad_lbuf:
 	free(lbuf);
 bad_locale:
-	(void)_libc_close(fd);
+	(void)_close(fd);
 no_locale:
 	_time_using_locale = save_using_locale;
 	return -1;

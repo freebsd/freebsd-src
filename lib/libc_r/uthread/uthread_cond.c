@@ -160,6 +160,8 @@ pthread_cond_wait(pthread_cond_t * cond, pthread_mutex_t * mutex)
 	int	rval = 0;
 	int	interrupted = 0;
 
+	_thread_enter_cancellation_point();
+	
 	if (cond == NULL)
 		rval = EINVAL;
 
@@ -286,6 +288,8 @@ pthread_cond_wait(pthread_cond_t * cond, pthread_mutex_t * mutex)
 		_thread_leave_cancellation_point();
 	}
 
+	_thread_leave_cancellation_point();
+
 	/* Return the completion status: */
 	return (rval);
 }
@@ -297,12 +301,15 @@ pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 	int	rval = 0;
 	int	interrupted = 0;
 
+	_thread_enter_cancellation_point();
+	
 	if (cond == NULL || abstime == NULL)
 		rval = EINVAL;
 
 	if (abstime->tv_sec < 0 || 
 		abstime->tv_nsec < 0 || abstime->tv_nsec >= 1000000000) {
 		errno = EINVAL;
+		_thread_leave_cancellation_point();
 		return (-1);
 	}
 
@@ -448,6 +455,8 @@ pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 		_thread_leave_cancellation_point();
 	}
 
+	_thread_leave_cancellation_point();
+	
 	/* Return the completion status: */
 	return (rval);
 }

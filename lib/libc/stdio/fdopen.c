@@ -63,7 +63,7 @@ fdopen(fd, mode)
 		return (NULL);
 
 	/* Make sure the mode the user wants is a subset of the actual mode. */
-	if ((fdflags = _libc_fcntl(fd, F_GETFL, 0)) < 0)
+	if ((fdflags = _fcntl(fd, F_GETFL, 0)) < 0)
 		return (NULL);
 	tmp = fdflags & O_ACCMODE;
 	if (tmp != O_RDWR && (tmp != (oflags & O_ACCMODE))) {

@@ -62,7 +62,7 @@ static int	s_scale;
 /* see profil(2) where this is describe (incorrectly) */
 #define		SCALE_1_TO_1	0x10000L
 
-#define ERR(s) _libc_write(2, s, sizeof(s))
+#define ERR(s) _write(2, s, sizeof(s))
 
 void	moncontrol __P((int));
 static int hertz __P((void));
@@ -172,20 +172,20 @@ _mcleanup()
 
 	moncontrol(0);
 	snprintf(outname,sizeof(outname),"%s.gmon",__progname);
-	fd = _libc_open(outname, O_CREAT|O_TRUNC|O_WRONLY, 0666);
+	fd = _open(outname, O_CREAT|O_TRUNC|O_WRONLY, 0666);
 	if (fd < 0) {
 		warnx("_mcleanup: %s - %s",outname,strerror(errno));
 		return;
 	}
 #ifdef DEBUG
-	log = _libc_open("gmon.log", O_CREAT|O_TRUNC|O_WRONLY, 0664);
+	log = _open("gmon.log", O_CREAT|O_TRUNC|O_WRONLY, 0664);
 	if (log < 0) {
 		perror("_mcleanup: gmon.log");
 		return;
 	}
 	len = sprintf(buf, "[mcleanup1] kcount 0x%x ssiz %d\n",
 	    p->kcount, p->kcountsize);
-	_libc_write(log, buf, len);
+	_write(log, buf, len);
 #endif
 	hdr = (struct gmonhdr *)&gmonhdr;
 	hdr->lpc = p->lowpc;
@@ -193,8 +193,8 @@ _mcleanup()
 	hdr->ncnt = p->kcountsize + sizeof(gmonhdr);
 	hdr->version = GMONVERSION;
 	hdr->profrate = clockinfo.profhz;
-	_libc_write(fd, (char *)hdr, sizeof *hdr);
-	_libc_write(fd, p->kcount, p->kcountsize);
+	_write(fd, (char *)hdr, sizeof *hdr);
+	_write(fd, p->kcount, p->kcountsize);
 	endfrom = p->fromssize / sizeof(*p->froms);
 	for (fromindex = 0; fromindex < endfrom; fromindex++) {
 		if (p->froms[fromindex] == 0)
@@ -209,15 +209,15 @@ _mcleanup()
 			"[mcleanup2] frompc 0x%x selfpc 0x%x count %d\n" ,
 				frompc, p->tos[toindex].selfpc,
 				p->tos[toindex].count);
-			_libc_write(log, buf, len);
+			_write(log, buf, len);
 #endif
 			rawarc.raw_frompc = frompc;
 			rawarc.raw_selfpc = p->tos[toindex].selfpc;
 			rawarc.raw_count = p->tos[toindex].count;
-			_libc_write(fd, &rawarc, sizeof rawarc);
+			_write(fd, &rawarc, sizeof rawarc);
 		}
 	}
-	_libc_close(fd);
+	_close(fd);
 }
 
 /*

@@ -85,7 +85,7 @@ pmap_getport(address, program, version, protocol)
 		CLNT_DESTROY(client);
 	}
 	if (socket != -1)
-		(void)_libc_close(socket);
+		(void)_close(socket);
 	address->sin_port = 0;
 	return (port);
 }

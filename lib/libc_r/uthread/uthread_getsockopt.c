@@ -38,7 +38,7 @@
 #include "pthread_private.h"
 
 int
-_libc_getsockopt(int fd, int level, int optname, void *optval, socklen_t
+_getsockopt(int fd, int level, int optname, void *optval, socklen_t
     *optlen)
 {
 	int             ret;
@@ -50,5 +50,5 @@ _libc_getsockopt(int fd, int level, int optname, void *optval, socklen_t
 	return ret;
 }
 
-__weak_reference(_libc_getsockopt, getsockopt);
+__weak_reference(_getsockopt, getsockopt);
 #endif

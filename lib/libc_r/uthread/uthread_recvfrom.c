@@ -40,7 +40,7 @@
 #include "pthread_private.h"
 
 ssize_t
-_libc_recvfrom(int fd, void *buf, size_t len, int flags, struct sockaddr * from,
+_recvfrom(int fd, void *buf, size_t len, int flags, struct sockaddr * from,
     socklen_t *from_len)
 {
 	int             ret;
@@ -72,5 +72,5 @@ _libc_recvfrom(int fd, void *buf, size_t len, int flags, struct sockaddr * from,
 	return (ret);
 }
 
-__weak_reference(_libc_recvfrom, recvfrom);
+__weak_reference(_recvfrom, recvfrom);
 #endif

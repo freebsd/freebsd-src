@@ -37,7 +37,7 @@
 #include "pthread_private.h"
 
 int
-_libc_flock(int fd, int operation)
+_flock(int fd, int operation)
 {
 	int             ret;
 
@@ -48,5 +48,5 @@ _libc_flock(int fd, int operation)
 	return (ret);
 }
 
-__weak_reference(_libc_flock, flock);
+__weak_reference(_flock, flock);
 #endif

@@ -42,13 +42,11 @@
 #include "pthread_private.h"
 
 int
-_libc_open(const char *path, int flags,...)
+_open(const char *path, int flags,...)
 {
 	int	fd;
 	int	mode = 0;
 	va_list	ap;
-
-	_thread_enter_cancellation_point();
 
 	/* Check if the file is being created: */
 	if (flags & O_CREAT) {
@@ -69,11 +67,30 @@ _libc_open(const char *path, int flags,...)
 		fd = -1;
 	}
 
-	_thread_leave_cancellation_point();
-
 	/* Return the file descriptor or -1 on error: */
 	return (fd);
 }
 
-__weak_reference(_libc_open, open);
+int
+open(const char *path, int flags,...)
+{
+	int	ret;
+	int	mode = 0;
+	va_list	ap;
+
+	_thread_enter_cancellation_point();
+	
+	/* Check if the file is being created: */
+	if (flags & O_CREAT) {
+		/* Get the creation mode: */
+		va_start(ap, flags);
+		mode = va_arg(ap, int);
+		va_end(ap);
+	}
+	
+	ret = _open(path, flags, mode);
+	_thread_leave_cancellation_point();
+
+	return ret;
+}
 #endif

@@ -314,7 +314,7 @@ register struct state * const	sp;
 		}
 		if (doaccess && access(name, R_OK) != 0)
 		     	return -1;
-		if ((fid = _libc_open(name, OPEN_MODE)) == -1)
+		if ((fid = _open(name, OPEN_MODE)) == -1)
 			return -1;
 		if ((fstat(fid, &stab) < 0) || !S_ISREG(stab.st_mode))
 			return -1;
@@ -325,8 +325,8 @@ register struct state * const	sp;
 		int		ttisstdcnt;
 		int		ttisgmtcnt;
 
-		i = _libc_read(fid, buf, sizeof buf);
-		if (_libc_close(fid) != 0)
+		i = _read(fid, buf, sizeof buf);
+		if (_close(fid) != 0)
 			return -1;
 		p = buf;
 		p += (sizeof tzhp->tzh_magic) + (sizeof tzhp->tzh_reserved);

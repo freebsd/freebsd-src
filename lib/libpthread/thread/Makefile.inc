@@ -5,6 +5,7 @@
 
 SRCS+= \
 	uthread_accept.c \
+	uthread_aio_suspend.c \
 	uthread_attr_destroy.c \
 	uthread_attr_init.c \
 	uthread_attr_getdetachstate.c \
@@ -31,6 +32,7 @@ SRCS+= \
 	uthread_condattr_destroy.c \
 	uthread_condattr_init.c \
 	uthread_connect.c \
+	uthread_creat.c \
 	uthread_create.c \
 	uthread_detach.c \
 	uthread_dup.c \
@@ -76,6 +78,7 @@ SRCS+= \
 	uthread_nanosleep.c \
 	uthread_once.c \
 	uthread_open.c \
+	uthread_pause.c \
 	uthread_pipe.c \
 	uthread_poll.c \
 	uthread_priority_queue.c \
@@ -106,14 +109,19 @@ SRCS+= \
 	uthread_sigsuspend.c \
 	uthread_sigwait.c \
 	uthread_single_np.c \
+	uthread_sleep.c \
 	uthread_socket.c \
 	uthread_socketpair.c \
 	uthread_spec.c \
 	uthread_spinlock.c \
 	uthread_suspend_np.c \
 	uthread_switch_np.c \
+	uthread_system.c \
+	uthread_tcdrain.c \
 	uthread_vfork.c \
+	uthread_wait.c \
 	uthread_wait4.c \
+	uthread_waitpid.c \
 	uthread_write.c \
 	uthread_writev.c \
 	uthread_yield.c

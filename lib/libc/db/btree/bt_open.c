@@ -203,7 +203,7 @@ __bt_open(fname, flags, mode, openinfo, dflags)
 			goto einval;
 		}
 		
-		if ((t->bt_fd = _libc_open(fname, flags, mode)) < 0)
+		if ((t->bt_fd = _open(fname, flags, mode)) < 0)
 			goto err;
 
 	} else {
@@ -214,13 +214,13 @@ __bt_open(fname, flags, mode, openinfo, dflags)
 		F_SET(t, B_INMEM);
 	}
 
-	if (_libc_fcntl(t->bt_fd, F_SETFD, 1) == -1)
+	if (_fcntl(t->bt_fd, F_SETFD, 1) == -1)
 		goto err;
 
 	if (fstat(t->bt_fd, &sb))
 		goto err;
 	if (sb.st_size) {
-		if ((nr = _libc_read(t->bt_fd, &m, sizeof(BTMETA))) < 0)
+		if ((nr = _read(t->bt_fd, &m, sizeof(BTMETA))) < 0)
 			goto err;
 		if (nr != sizeof(BTMETA))
 			goto eftype;
@@ -336,7 +336,7 @@ err:	if (t) {
 		if (t->bt_dbp)
 			free(t->bt_dbp);
 		if (t->bt_fd != -1)
-			(void)_libc_close(t->bt_fd);
+			(void)_close(t->bt_fd);
 		free(t);
 	}
 	return (NULL);

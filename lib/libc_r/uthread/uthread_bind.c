@@ -38,7 +38,7 @@
 #include "pthread_private.h"
 
 int
-_libc_bind(int fd, const struct sockaddr * name, socklen_t namelen)
+_bind(int fd, const struct sockaddr * name, socklen_t namelen)
 {
 	int             ret;
 
@@ -49,5 +49,5 @@ _libc_bind(int fd, const struct sockaddr * name, socklen_t namelen)
 	return (ret);
 }
 
-__weak_reference(_libc_bind, bind);
+__weak_reference(_bind, bind);
 #endif

@@ -55,5 +55,4 @@ __waitpid(pid, istat, options)
 	return (wait4(pid, istat, options, (struct rusage *)0));
 }
 
-__weak_reference(__waitpid, _libc_waitpid);
-__weak_reference(_libc_waitpid, waitpid);
+__weak_reference(__waitpid, waitpid);

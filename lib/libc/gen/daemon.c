@@ -62,12 +62,12 @@ daemon(nochdir, noclose)
 	if (!nochdir)
 		(void)chdir("/");
 
-	if (!noclose && (fd = _libc_open(_PATH_DEVNULL, O_RDWR, 0)) != -1) {
+	if (!noclose && (fd = _open(_PATH_DEVNULL, O_RDWR, 0)) != -1) {
 		(void)dup2(fd, STDIN_FILENO);
 		(void)dup2(fd, STDOUT_FILENO);
 		(void)dup2(fd, STDERR_FILENO);
 		if (fd > 2)
-			(void)_libc_close(fd);
+			(void)_close(fd);
 	}
 	return (0);
 }

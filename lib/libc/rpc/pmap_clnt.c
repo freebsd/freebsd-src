@@ -102,7 +102,7 @@ pmap_set(program, version, protocol, port)
 	}
 	CLNT_DESTROY(client);
 	if (socket != -1)
-		(void)_libc_close(socket);
+		(void)_close(socket);
 	return (rslt);
 }
 
@@ -144,6 +144,6 @@ pmap_unset(program, version)
 	    tottimeout);
 	CLNT_DESTROY(client);
 	if (socket != -1)
-		(void)_libc_close(socket);
+		(void)_close(socket);
 	return (rslt);
 }

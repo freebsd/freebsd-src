@@ -177,14 +177,14 @@ __collate_err(int ex, const char *f)
 	int serrno = errno;
 
 	s = __progname;
-	_libc_write(STDERR_FILENO, s, strlen(s));
-	_libc_write(STDERR_FILENO, ": ", 2);
+	_write(STDERR_FILENO, s, strlen(s));
+	_write(STDERR_FILENO, ": ", 2);
 	s = f;
-	_libc_write(STDERR_FILENO, s, strlen(s));
-	_libc_write(STDERR_FILENO, ": ", 2);
+	_write(STDERR_FILENO, s, strlen(s));
+	_write(STDERR_FILENO, ": ", 2);
 	s = strerror(serrno);
-	_libc_write(STDERR_FILENO, s, strlen(s));
-	_libc_write(STDERR_FILENO, "\n", 1);
+	_write(STDERR_FILENO, s, strlen(s));
+	_write(STDERR_FILENO, "\n", 1);
 	exit(ex);
 }
 

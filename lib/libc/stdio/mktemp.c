@@ -163,7 +163,7 @@ _gettemp(path, doopen, domkdir, slen)
 	for (;;) {
 		if (doopen) {
 			if ((*doopen =
-			    _libc_open(path, O_CREAT|O_EXCL|O_RDWR, 0600)) >= 0)
+			    _open(path, O_CREAT|O_EXCL|O_RDWR, 0600)) >= 0)
 				return(1);
 			if (errno != EEXIST)
 				return(0);
