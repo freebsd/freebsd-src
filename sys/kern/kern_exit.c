@@ -209,11 +209,6 @@ exit1(td, rv)
 	}
 	PROC_UNLOCK(p->p_leader);
 
-	/*
-	 * XXX Shutdown SYSV semaphores
-	 */
-	semexit(p);
-
 	/* The next two chunks should probably be moved to vmspace_exit. */
 	vm = p->p_vmspace;
 	/*
