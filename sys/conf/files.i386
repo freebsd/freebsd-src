@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.213 1998/12/27 13:55:48 sos Exp $
+#	$Id: files.i386,v 1.214 1998/12/27 14:21:08 sos Exp $
 #
 # The long compile-with and dependency lines are required because of
 # limitations in config: backslash-newline doesn't work in strings, and
@@ -195,6 +195,30 @@ i386/linux/linux_stats.c	optional	compat_linux
 i386/linux/linux_sysent.c	optional	compat_linux
 i386/linux/linux_sysvec.c	optional	compat_linux
 i386/linux/linux_util.c		optional	compat_linux
+i4b/layer1/i4b_isic.c		optional	isic	device-driver
+i4b/layer1/i4b_isic_isa.c	optional	isic	device-driver
+i4b/layer1/i4b_isic_pnp.c	optional	isic	device-driver
+i4b/layer1/i4b_isic_pci.c	optional	isic	device-driver
+i4b/layer1/i4b_isic_pcmcia.c	optional	isic	device-driver
+i4b/layer1/i4b_isac.c		optional	isic	device-driver
+i4b/layer1/i4b_hscx.c		optional	isic	device-driver
+i4b/layer1/i4b_l1.c		optional	isic	device-driver
+i4b/layer1/i4b_l1fsm.c		optional	isic	device-driver
+i4b/layer1/i4b_bchan.c		optional	isic	device-driver
+i4b/layer1/i4b_tel_s08.c	optional	isic	device-driver
+i4b/layer1/i4b_tel_s016.c	optional	isic	device-driver
+i4b/layer1/i4b_tel_s0163.c	optional	isic	device-driver
+i4b/layer1/i4b_tel_s0P.c	optional	isic	device-driver
+i4b/layer1/i4b_ctx_s0P.c	optional	isic	device-driver
+i4b/layer1/i4b_avm_a1.c		optional	isic	device-driver
+i4b/layer1/i4b_avm_fritz_pcmcia.c optional	isic	device-driver
+i4b/layer1/i4b_usr_sti.c	optional	isic	device-driver
+i4b/layer1/i4b_itk_ix1.c	optional	isic	device-driver
+i4b/layer1/i4b_drn_ngo.c	optional	isic	device-driver
+i4b/layer1/i4b_sws.c		optional	isic	device-driver
+i4b/layer1/i4b_dynalink.c	optional	isic	device-driver
+i4b/layer1/i4b_elsa_qs1i.c	optional	isic	device-driver
+i4b/layer1/i4b_elsa_qs1p.c	optional	isic	device-driver
 libkern/bcd.c			standard
 libkern/divdi3.c		standard
 libkern/inet_ntoa.c		standard

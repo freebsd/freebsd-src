@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.519 1998/12/27 14:21:08 sos Exp $
+#	$Id: LINT,v 1.520 1998/12/27 19:51:34 phk Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1533,7 +1533,121 @@ device iicsmb0	at iicbus?
 
 controller pcf0	at isa? port 0x320 net irq 5
 
+# ISDN4BSD section
+
+# i4b passive ISDN cards support (isic - I4b Siemens Isdn Chipset driver)
+# note that the ``options'' and ``device'' lines must BOTH be defined !
 #
+# Non-PnP Cards:
+# --------------
+#
+# Teles S0/8 or Niccy 1008
+options "TEL_S0_8"
+#device	isic0 at isa? iomem 0xd0000 net irq 5 flags 1 vector isicintr 
+#
+# Teles S0/16 or Creatix ISDN-S0 or Niccy 1016
+options "TEL_S0_16"
+#device	isic0 at isa? port 0xd80 iomem 0xd0000 net irq 5 flags 2 vector isicintr
+#
+# Teles S0/16.3 
+options "TEL_S0_16_3"
+#device	isic0 at isa? port 0xd80 net irq 5 flags 3 vector isicintr
+#
+# AVM A1 or AVM Fritz!Card
+options "AVM_A1"
+#device	isic0 at isa? port 0x340 net irq 5 flags 4 vector isicintr
+#
+# USRobotics Sportster ISDN TA intern
+options "USR_STI"
+#device isic0 at isa? port 0x268 net irq 5 flags 7 vector isicintr
+#
+# ITK ix1 Micro
+options "ITKIX1"
+#device isic0 at isa? port 0x398 net irq 10 flags 18 vector isicintr
+#
+# PnP-Cards:
+# ----------
+#
+# Teles S0/16.3 PnP
+options "TEL_S0_16_3_P"
+#device	isic0 at isa? port ? net irq ? vector isicintr
+#
+# Creatix ISDN-S0 P&P
+options "CRTX_S0_P"
+#device	isic0 at isa? port ? net irq ? vector isicintr
+#
+# Dr. Neuhaus Niccy Go@
+options "DRN_NGO"
+#device	isic0 at isa? port ? net irq ? vector isicintr 
+#
+# Sedlbauer Win Speed
+options "SEDLBAUER"
+#device	isic0 at isa? port ? net irq ? vector isicintr 
+#
+# Dynalink IS64PH
+options "DYNALINK"
+#device	isic0 at isa? port ? net irq ? vector isicintr 
+#
+# ELSA QuickStep 1000pro ISA
+options "ELSA_QS1ISA"
+#device	isic0 at isa? port ? net irq ? vector isicintr 
+#
+# PCI-Cards:
+# ----------
+#
+# ELSA QuickStep 1000pro PCI
+options "ELSA_QS1PCI"
+#device  isic0
+#
+# PCMCIA-Cards:
+# -------------
+#
+# AVM PCMCIA Fritz!Card
+options "AVM_A1_PCMCIA"
+device	isic0 at isa? port 0x340 net irq 5 flags 10 vector isicintr
+#
+# Active Cards:
+# -------------
+#
+# Stollmann Tina-dd control device
+device tina0 at isa? port 0x260 net irq 10 vector tinaintr
+#
+# ISDN Protocol Stack
+# -------------------
+# 
+# Q.921 / layer 2 - i4b passive cards D channel handling
+pseudo-device	"i4bq921"
+#
+# Q.931 / layer 3 - i4b passive cards D channel handling
+pseudo-device	"i4bq931"
+#
+# layer 4 - i4b common passive and active card handling
+pseudo-device	"i4b"
+#
+# ISDN devices
+# ------------
+#
+# userland driver to do ISDN tracing (for passive cards only)
+pseudo-device   "i4btrc"	4
+#
+# userland driver to control the whole thing
+pseudo-device   "i4bctl"
+#
+# userland driver for access to raw B channel
+pseudo-device   "i4brbch"       4
+#
+# userland driver for telephony
+pseudo-device   "i4btel"        2
+#
+# network driver for IP over raw HDLC ISDN
+pseudo-device   "i4bipr"	4
+# enable VJ header compression detection for ipr i/f
+options		IPR_VJ
+#
+# network driver for sync PPP over ISDN
+pseudo-device	"i4bisppp"	4
+
+
 # Parallel-Port Bus
 #
 # Parallel port bus support is provided by the `ppbus' device.

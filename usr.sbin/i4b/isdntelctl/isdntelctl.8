@@ -1,0 +1,78 @@
+.\"
+.\" Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	$Id: isdntelctl.8,v 1.4 1998/12/14 10:31:55 hm Exp $
+.\"
+.\"	last edit-date: [Mon Dec 14 11:34:51 1998]
+.\"
+.Dd December 14, 1998
+.Dt isdntelctl 8
+.Sh NAME
+.Nm isdntelctl
+.Nd control isdn4bsd telephone sound format conversion
+.Sh SYNOPSIS
+.Nm
+.Op Fl c
+.Op Fl g
+.Op Fl u Ar unit
+.Op Fl A
+.Op Fl U
+.Sh DESCRIPTION
+.Nm isdntelctl
+is part of the isdn4bsd package and is used to configure the sound format
+conversion facilities of the /dev/i4btel interfaces.
+.Pp
+The following options are available:
+.Bl -tag -width Ds
+.It Fl c
+Clear the telephone input queue.
+.It Fl g
+Get the sound format currently in use.
+.It Fl u
+Set the /dev/i4btel unit number. The default value is zero to access
+device /dev/i4btel0.
+.It Fl A
+Set sound format to A-Law.
+.It Fl U
+Set sound format to u-Law.
+.Pp
+.Sh FILES
+/dev/i4btel<n>
+
+.Sh STANDARDS
+A-Law and u-Law are specified in ITU Recommendation G.711.
+
+.Sh EXAMPLES
+The command:
+.Bd -literal -offset indent
+isdntelctl -g
+.Ed
+.Pp
+displays the currently used sound format for device /dev/i4btel0.
+
+.Sh AUTHOR
+The
+.Nm
+utility and this manpage were written by Hellmuth Michaelis. He can be
+contacted at hm@kts.org.
