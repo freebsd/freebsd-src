@@ -203,39 +203,6 @@ killdiv()
 		}
 }
 
-char *
-xalloc(n)
-unsigned long n;
-{
-	register char *p = malloc(n);
-
-	if (p == NULL)
-		err(1, "malloc");
-	return p;
-}
-
-char *
-xstrdup(s)
-const char *s;
-{
-	register char *p = strdup(s);
-	if (p == NULL)
-		err(1, "strdup");
-	return p;
-}
-
-char *
-basename(s)
-register char *s;
-{
-	register char *p;
-
-	if ((p = strrchr(s, '/')) == NULL)
-		return s;
-
-	return ++p;
-}
-
 void
 cleanup(n)
 int n;
