@@ -323,6 +323,8 @@ if_detach(ifp)
 	/* Announce that the interface is gone. */
 	rt_ifannouncemsg(ifp, IFAN_DEPARTURE);
 
+	ifindex2ifnet[ifp->if_index] = NULL;
+
 	found = 0;
 	TAILQ_FOREACH(iter, &ifnet, if_link)
 		if (iter == ifp) {
