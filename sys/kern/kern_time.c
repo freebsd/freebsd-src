@@ -621,7 +621,7 @@ expire:
  * Caveat emptor.
  */
 void
-timevaladd(struct timeval *t1, struct timeval *t2)
+timevaladd(struct timeval *t1, const struct timeval *t2)
 {
 
 	t1->tv_sec += t2->tv_sec;
@@ -630,7 +630,7 @@ timevaladd(struct timeval *t1, struct timeval *t2)
 }
 
 void
-timevalsub(struct timeval *t1, struct timeval *t2)
+timevalsub(struct timeval *t1, const struct timeval *t2)
 {
 
 	t1->tv_sec -= t2->tv_sec;
