@@ -802,20 +802,134 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386">SMC Ethernet NICs (&man.ed.4; driver)
+    <para>National Semiconductor DS8390-based Ethernet NICs, including
+    Novell NE2000 and clones
+    (&man.ed.4; driver)
       <itemizedlist>
-        <listitem>
-	  <para>Elite 16 WD8013 Ethernet interface</para>
+        <listitem arch="i386,alpha">
+	  <para>3C503 Etherlink II (&man.ed.4; driver)</para>
+        </listitem>
+        <listitem arch="i386">
+	  <para>DEC Etherworks DE305</para>
+        </listitem>
+	<listitem arch="i386">
+	  <para>Hewlett-Packard PC Lan+ 27247B and 27252A</para>
 	</listitem>
         <listitem>
-	  <para>Most WD8003E, WD8003EBT, WD8003W, WD8013W, WD8003S,
-	  WD8003SBT and WD8013EBT based clones</para>
+	  <para>NetVin 5000</para>
+        </listitem>
+        <listitem>
+          <para>Novell NE1000, NE2000, and NE2100</para>
+	</listitem>
+        <listitem>
+	  <para>RealTek 8029</para>
+        </listitem>
+        <listitem>
+	  <para>SMC Elite 16 WD8013 Ethernet interface</para>
 	</listitem>
         <listitem>
 	  <para>SMC Elite Ultra</para>
 	</listitem>
+        <listitem>
+	  <para>SMC WD8003E, WD8003EBT, WD8003W, WD8013W, WD8003S,
+	  WD8003SBT and WD8013EBT and clones</para>
+	</listitem>
+        <listitem>
+	  <para>Surecom NE-34</para>
+        </listitem>
+        <listitem>
+	  <para>VIA VT86C926</para>
+        </listitem>
+        <listitem>
+	  <para>Winbond W89C940</para>
+        </listitem>
       </itemizedlist>
     </para>    
+
+    <para arch="i386">NE2000 compatible PC-Card (PCMCIA) Ethernet and
+    FastEthernet cards (&man.ed.4; driver)
+      <itemizedlist>
+        <listitem arch="i386">
+          <para>AR-P500 Ethernet</para>
+        </listitem>
+	<listitem arch="i386">
+	  <para>Accton EN2212/EN2216/UE2216</para>
+        </listitem>
+	<listitem arch="i386">
+	  <para>Allied Telesis CentreCOM LA100-PCM_V2</para>
+        </listitem>
+	<listitem arch="i386">
+	  <para>AmbiCom 10BaseT card</para>
+        </listitem>
+	<listitem arch="i386">
+	  <para>BayNetworks NETGEAR FA410TXC Fast Ethernet</para>
+        </listitem>
+	<listitem arch="i386">
+	  <para>CNet BC40 adapter</para>
+        </listitem>
+	<listitem arch="i386">
+	  <para>COREGA Ether PCC-T/EtherII PCC-T/FEther PCC-TXF/PCC-TXD</para>
+        </listitem>
+	<listitem arch="i386">
+	  <para>Compex Net-A adapter</para>
+        </listitem>
+	<listitem arch="i386">
+	  <para>CyQ've ELA-010</para>
+        </listitem>
+	<listitem arch="i386">
+	  <para>D-Link DE-650/660</para>
+        </listitem>
+	<listitem arch="i386">
+	  <para>Danpex EN-6200P2</para>
+        </listitem>
+	<listitem arch="i386">
+	  <para>Elecom Laneed LD-CDL/TX</para>
+        </listitem>
+	<listitem arch="i386">
+	  <para>IO DATA PCLATE</para>
+        </listitem>
+	<listitem arch="i386">
+	  <para>IBM Creditcard Ethernet I/II</para>
+        </listitem>
+	<listitem arch="i386">
+	  <para>IC-CARD Ethernet/IC-CARD+ Ethernet</para>
+        </listitem>
+	<listitem arch="i386">
+	  <para>Linksys EC2T/PCMPC100,EtherFast 10/100 PC Card
+	  (PCMPC100 V2)</para>
+        </listitem>
+	<listitem arch="i386">
+	  <para>Melco LPC-T/LPC2-T/LPC2-CLT/LPC2-TX/LPC3-TX/LPC3-CLX</para>
+        </listitem>
+	<listitem arch="i386">
+	  <para>NDC Ethernet Instant-Link</para>
+        </listitem>
+	<listitem arch="i386">
+	  <para>National Semiconductor InfoMover NE4100</para>
+        </listitem>
+	<listitem arch="i386">
+	  <para>NetGear FA-410TX</para>
+	</listitem>
+	<listitem arch="i386">
+	  <para>Network Everywhere Ethernet 10BaseT PC Card</para>
+        </listitem>
+	<listitem arch="i386">
+	  <para>Planex FNW-3600-T</para>
+        </listitem>
+	<listitem arch="i386">
+	  <para>Socket LP-E</para>
+        </listitem>
+	<listitem arch="i386">
+	  <para>Surecom EtherPerfect EP-427</para>
+        </listitem>
+	<listitem arch="i386">
+	  <para>TDK LAK-CD031,Grey Cell GCS2000 Ethernet Card</para>
+        </listitem>
+	<listitem arch="i386">
+	  <para>Telecom Device SuperSocket RE450T</para>
+        </listitem>
+      </itemizedlist>
+    </para>
 
     <para arch="i386">RealTek RTL 8002 Pocket Ethernet (&man.rdp.4;
     driver)</para>
@@ -1156,8 +1270,6 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386">DEC Etherworks NICs (DE305) (&man.ed.4; driver)</para>
-
     <para>DEC DC21040, DC21041, DC21140, DC21141, DC21142, and DC21143
     based NICs (&man.de.4; driver)
       <itemizedlist>
@@ -1238,9 +1350,6 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386">HP PC Lan+ cards (model numbers: 27247B and 27252A)
-    (&man.ed.4; driver)</para>
-
     <para arch="i386,alpha,ia64">Intel 82557- or 82559-based Fast Ethernet NICs (&man.fxp.4 driver)
       <itemizedlist>
         <listitem>
@@ -1286,29 +1395,6 @@
     <para>Isolan AT 4141-0 (16 bit)</para>
 
     <para>Isolink 4110 (8 bit)</para>
-
-    <para>Novell NE1000, NE2000, and NE2100 Ethernet interface
-    (&man.ed.4; driver)</para>
-
-    <para>Novell NE2000 clones (&man.ed.4; driver)
-      <itemizedlist>
-        <listitem>
-	  <para>NetVin 5000</para>
-        </listitem>
-        <listitem>
-	  <para>RealTek 8029</para>
-        </listitem>
-        <listitem>
-	  <para>Surecom NE-34</para>
-        </listitem>
-        <listitem>
-	  <para>VIA VT86C926</para>
-        </listitem>
-        <listitem>
-	  <para>Winbond W89C940</para>
-        </listitem>
-      </itemizedlist>
-    </para>
 
     <para arch="i386">3Com 3C5x9 Etherlink III NICs (&man.ep.4; driver)
       <itemizedlist>
@@ -1380,104 +1466,11 @@
       </itemizedlist>
     </para>
 
-    <para>3Com Ethernet and Fast Ethernet NICs
-      <itemizedlist>
-        <listitem arch="i386,alpha">
-	  <para>3C503 Etherlink II (&man.ed.4; driver)</para>
-        </listitem>
-      </itemizedlist>
-    </para>
-
     <para arch="i386">Crystal Semiconductor CS89x0-based NICs 
     (&man.cs.4; driver)
       <itemizedlist>
         <listitem>
 	  <para>IBM Etherjet ISA</para>
-        </listitem>
-      </itemizedlist>
-    </para>
-
-    <para arch="i386">NE2000 compatible PC-Card (PCMCIA) Ethernet and
-    FastEthernet cards (&man.ed.4; driver)
-      <itemizedlist>
-        <listitem>
-          <para>AR-P500 Ethernet card</para>
-        </listitem>
-	<listitem>
-	  <para>Accton EN2212/EN2216/UE2216(OEM)</para>
-        </listitem>
-	<listitem>
-	  <para>Allied Telesis CentreCOM LA100-PCM_V2</para>
-        </listitem>
-	<listitem>
-	  <para>AmbiCom 10BaseT card</para>
-        </listitem>
-	<listitem>
-	  <para>BayNetworks NETGEAR FA410TXC Fast Ethernet</para>
-        </listitem>
-	<listitem>
-	  <para>CNet BC40 adapter</para>
-        </listitem>
-	<listitem>
-	  <para>COREGA Ether PCC-T/EtherII PCC-T/FEther PCC-TXF/PCC-TXD</para>
-        </listitem>
-	<listitem>
-	  <para>Compex Net-A adapter</para>
-        </listitem>
-	<listitem>
-	  <para>CyQ've ELA-010</para>
-        </listitem>
-	<listitem>
-	  <para>D-Link DE-650/660</para>
-        </listitem>
-	<listitem>
-	  <para>Danpex EN-6200P2</para>
-        </listitem>
-	<listitem>
-	  <para>Elecom Laneed LD-CDL/TX</para>
-        </listitem>
-	<listitem>
-	  <para>IO DATA PCLATE</para>
-        </listitem>
-	<listitem>
-	  <para>IBM Creditcard Ethernet I/II</para>
-        </listitem>
-	<listitem>
-	  <para>IC-CARD Ethernet/IC-CARD+ Ethernet</para>
-        </listitem>
-	<listitem>
-	  <para>Linksys EC2T/PCMPC100,EtherFast 10/100 PC Card
-	  (PCMPC100 V2)</para>
-        </listitem>
-	<listitem>
-	  <para>Melco LPC-T/LPC2-T/LPC2-CLT/LPC2-TX/LPC3-TX/LPC3-CLX</para>
-        </listitem>
-	<listitem>
-	  <para>NDC Ethernet Instant-Link</para>
-        </listitem>
-	<listitem>
-	  <para>National Semiconductor InfoMover NE4100</para>
-        </listitem>
-	<listitem>
-	  <para>NetGear FA-410TX</para>
-	</listitem>
-	<listitem>
-	  <para>Network Everywhere Ethernet 10BaseT PC Card</para>
-        </listitem>
-	<listitem>
-	  <para>Planex FNW-3600-T</para>
-        </listitem>
-	<listitem>
-	  <para>Socket LP-E</para>
-        </listitem>
-	<listitem>
-	  <para>Surecom EtherPerfect EP-427</para>
-        </listitem>
-	<listitem>
-	  <para>TDK LAK-CD031,Grey Cell GCS2000 Ethernet Card</para>
-        </listitem>
-	<listitem>
-	  <para>Telecom Device SuperSocket RE450T</para>
         </listitem>
       </itemizedlist>
     </para>
