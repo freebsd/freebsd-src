@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.98 1996/09/08 20:44:20 dyson Exp $
+ * $Id: vfs_bio.c,v 1.100 1996/09/14 04:40:33 dyson Exp $
  */
 
 /*
@@ -313,6 +313,11 @@ bwrite(struct buf * bp)
 		curproc->p_stats->p_ru.ru_oublock++;
 	VOP_STRATEGY(bp);
 
+	/*
+	 * It is possible that the buffer is reused
+	 * before this point if B_ASYNC... What to do?
+	 */
+ 
 	/* if ((bp->b_flags & B_ASYNC) == 0) { */
 	if ((oldflags & B_ASYNC) == 0) {
 		int rtval = biowait(bp);
@@ -618,20 +623,24 @@ vfs_vmio_release(bp)
 	struct buf *bp;
 {
 	int i;
-	vm_page_t m;
 
 	for (i = 0; i < bp->b_npages; i++) {
+		int s;
+		vm_page_t m;
+
 		m = bp->b_pages[i];
 		bp->b_pages[i] = NULL;
+
+		s = splbio();
 		while ((m->flags & PG_BUSY) || (m->busy != 0)) {
 			m->flags |= PG_WANTED;
 			tsleep(m, PVM, "vmiorl", 0);
 		}
+		splx(s);
 			
 		vm_page_unwire(m);
 			
 		if (m->wire_count == 0) {
-
 			if (m->flags & PG_WANTED) {
 				m->flags &= ~PG_WANTED;
 				wakeup(m);
@@ -645,15 +654,12 @@ vfs_vmio_release(bp)
 				 */
 				if ((vm_swap_size == 0) ||
 					(cnt.v_free_count < cnt.v_free_min)) {
-					if ((m->dirty == 0) &&
-						(m->hold_count == 0) &&
-						(m->busy == 0))
+					if ((m->dirty == 0) && (m->hold_count == 0))
 						vm_page_cache(m);
 					else
 						vm_page_deactivate(m);
 				}
-			} else if ((m->hold_count == 0) &&
-				(m->busy == 0)) {
+			} else if (m->hold_count == 0) {
 				vm_page_protect(m, VM_PROT_NONE);
 				vm_page_free(m);
 			}
