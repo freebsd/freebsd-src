@@ -151,6 +151,17 @@ This flag is not looked for by the actual code, which looks for
 FOLLOW.
 NOFOLLOW is used to indicate to the source code reader that symlinks
 are intentionally not followed.
+.It Dv SAVENAME
+Do not free the name buffer at the end of the
+.Fn namei
+invocation, instead free it later in
+.Fn NDFREE
+so that the caller may access the name buffer.
+See below for details.
+.It Dv SAVESTART
+Retain an additional reference to the parent directory; do not free
+the name buffer.
+See below for details.
 .El
 .Sh ALLOCATED ELEMENTS
 .Bl -tag -width WANTPARENT
