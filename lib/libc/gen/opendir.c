@@ -36,8 +36,8 @@ static char sccsid[] = "@(#)opendir.c	8.8 (Berkeley) 5/1/95";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
-#include <sys/stat.h>
 #include <sys/mount.h>
+#include <sys/stat.h>
 
 #include <dirent.h>
 #include <errno.h>
@@ -52,6 +52,7 @@ DIR *
 opendir(name)
 	const char *name;
 {
+
 	return (__opendir2(name, DTF_HIDEW|DTF_NODUP));
 }
 
@@ -63,6 +64,7 @@ __opendir2(name, flags)
 	DIR *dirp;
 	int fd;
 	int incr;
+	int saved_errno;
 	int unionstack;
 	struct stat statb;
 
@@ -71,27 +73,26 @@ __opendir2(name, flags)
 	 * harmful.  fstat() after open because the file may have changed.
 	 */
 	if (stat(name, &statb) != 0)
-		return NULL;
+		return (NULL);
 	if (!S_ISDIR(statb.st_mode)) {
 		errno = ENOTDIR;
-		return NULL;
+		return (NULL);
 	}
 	if ((fd = open(name, O_RDONLY | O_NONBLOCK)) == -1)
 		return (NULL);
-	if (fstat(fd, &statb) || !S_ISDIR(statb.st_mode)) {
+	dirp = NULL;
+	if (fstat(fd, &statb) != 0)
+		goto fail;
+	if (!S_ISDIR(statb.st_mode)) {
 		errno = ENOTDIR;
-		close(fd);
-		return (NULL);
+		goto fail;
 	}
 	if (fcntl(fd, F_SETFD, FD_CLOEXEC) == -1 ||
-	    (dirp = (DIR *)malloc(sizeof(DIR))) == NULL) {
-		close(fd);
-		return (NULL);
-	}
+	    (dirp = malloc(sizeof(DIR))) == NULL)
+		goto fail;
 
 	/*
-	 * Use the system page size if that is a multiple of DIRBLKSIZ
-	 * this could speed things up in some cases.
+	 * Use the system page size if that is a multiple of DIRBLKSIZ.
 	 * Hopefully this can be a big win someday by allowing page
 	 * trades to user space to be done by getdirentries().
 	 */
@@ -105,11 +106,8 @@ __opendir2(name, flags)
 	if (flags & DTF_NODUP) {
 		struct statfs sfb;
 
-		if (fstatfs(fd, &sfb) < 0) {
-			free(dirp);
-			close(fd);
-			return (NULL);
-		}
+		if (fstatfs(fd, &sfb) < 0)
+			goto fail;
 		unionstack = !strcmp(sfb.f_fstypename, "union");
 	} else {
 		unionstack = 0;
@@ -140,11 +138,8 @@ __opendir2(name, flags)
 				space += incr;
 				len += incr;
 				buf = realloc(buf, len);
-				if (buf == NULL) {
-					free(dirp);
-					close(fd);
-					return (NULL);
-				}
+				if (buf == NULL)
+					goto fail;
 				ddptr = buf + (len - space);
 			}
 
@@ -168,8 +163,10 @@ __opendir2(name, flags)
 		if (flags & DTF_REWIND) {
 			(void) close(fd);
 			if ((fd = open(name, O_RDONLY)) == -1) {
+				saved_errno = errno;
 				free(buf);
 				free(dirp);
+				errno = saved_errno;
 				return (NULL);
 			}
 		}
@@ -251,11 +248,8 @@ __opendir2(name, flags)
 	} else {
 		dirp->dd_len = incr;
 		dirp->dd_buf = malloc(dirp->dd_len);
-		if (dirp->dd_buf == NULL) {
-			free(dirp);
-			close (fd);
-			return (NULL);
-		}
+		if (dirp->dd_buf == NULL)
+			goto fail;
 		dirp->dd_seek = 0;
 		flags &= ~DTF_REWIND;
 	}
@@ -270,4 +264,11 @@ __opendir2(name, flags)
 	dirp->dd_rewind = telldir(dirp);
 
 	return (dirp);
+
+fail:
+	saved_errno = errno;
+	free(dirp);
+	(void) close(fd);
+	errno = saved_errno;
+	return (NULL);
 }
