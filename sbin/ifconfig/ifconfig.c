@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)ifconfig.c	8.2 (Berkeley) 2/16/94";
 */
 static const char rcsid[] =
-	"$Id: ifconfig.c,v 1.27 1997/05/04 06:27:45 peter Exp $";
+	"$Id: ifconfig.c,v 1.28 1997/05/07 04:28:26 peter Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -130,13 +130,13 @@ struct	afswtch;
 void	Perror __P((const char *cmd));
 void	checkatrange __P((struct sockaddr_at *));
 int	ifconfig __P((int argc, char *const *argv, const struct afswtch *rafp));
-void	notealias __P((const char *, int, int));
+void	notealias __P((const char *, int, int, const struct afswtch *rafp));
 void	printb __P((const char *s, unsigned value, const char *bits));
 void	rt_xaddrs __P((caddr_t, caddr_t, struct rt_addrinfo *));
-void	status __P((void));
+void	status __P((const struct afswtch *afp));
 void	usage __P((void));
 
-typedef	void c_func __P((const char *cmd, int arg, int s));
+typedef	void c_func __P((const char *cmd, int arg, int s, const struct afswtch *rafp));
 c_func	setatphase, setatrange;
 c_func	setifaddr, setifbroadaddr, setifdstaddr, setifnetmask;
 c_func	setifipdst;
@@ -152,7 +152,7 @@ const
 struct	cmd {
 	const	char *c_name;
 	int	c_parameter;		/* NEXTARG means next argv */
-	void	(*c_func) __P((const char *, int, int));
+	void	(*c_func) __P((const char *, int, int, const struct afswtch *rafp));
 } cmds[] = {
 	{ "up",		IFF_UP,		setifflags } ,
 	{ "down",	-IFF_UP,	setifflags },
@@ -247,8 +247,6 @@ struct	afswtch {
 	{ 0,	0,	    0,		0 }
 };
 
-const struct afswtch *afp;	/*the address family being set or asked about*/
-
 /*
  * Expand the compacted form of addresses as returned via the
  * configuration read via sysctl().
@@ -305,6 +303,8 @@ main(argc, argv)
 	int c;
 	int all, namesonly, downonly, uponly;
 	int foundit = 0, need_nl = 0;
+	const struct afswtch *afp = 0;	/*the address family being set or asked about*/
+
 
 	size_t needed;
 	int mib[6];
@@ -491,7 +491,7 @@ ifconfig(argc, argv, rafp)
 		mtu = ifr.ifr_mtu;
 
 	if (argc == 0) {
-		status();		/* uses global afp */
+		status(rafp);
 #ifdef USE_IF_MEDIA
 		media_status(s);
 #endif
@@ -512,10 +512,10 @@ ifconfig(argc, argv, rafp)
 				if (argv[1] == NULL)
 					errx(1, "'%s' requires argument",
 					    p->c_name);
-				(*p->c_func)(argv[1], 0, s);
+				(*p->c_func)(argv[1], 0, s, rafp);
 				argc--, argv++;
 			} else
-				(*p->c_func)(*argv, p->c_parameter, s);
+				(*p->c_func)(*argv, p->c_parameter, s, rafp);
 		}
 		argc--, argv++;
 	}
@@ -586,10 +586,11 @@ ifconfig(argc, argv, rafp)
 
 /*ARGSUSED*/
 void
-setifaddr(addr, param, s)
+setifaddr(addr, param, s, afp)
 	const char *addr;
 	int param;
 	int s;
+	const struct afswtch *afp;
 {
 	/*
 	 * Delay the ioctl to set the interface addr until flags are all set.
@@ -603,28 +604,31 @@ setifaddr(addr, param, s)
 }
 
 void
-setifnetmask(addr, dummy, s)
+setifnetmask(addr, dummy, s, afp)
 	const char *addr;
 	int dummy __unused;
 	int s;
+	const struct afswtch *afp;
 {
 	(*afp->af_getaddr)(addr, MASK);
 }
 
 void
-setifbroadaddr(addr, dummy, s)
+setifbroadaddr(addr, dummy, s, afp)
 	const char *addr;
 	int dummy __unused;
 	int s;
+	const struct afswtch *afp;
 {
 	(*afp->af_getaddr)(addr, DSTADDR);
 }
 
 void
-setifipdst(addr, dummy, s)
+setifipdst(addr, dummy, s, afp)
 	const char *addr;
 	int dummy __unused;
 	int s;
+	const struct afswtch *afp;
 {
 	in_getaddr(addr, DSTADDR);
 	setipdst++;
@@ -634,10 +638,11 @@ setifipdst(addr, dummy, s)
 #define rqtosa(x) (&(((struct ifreq *)(afp->x))->ifr_addr))
 
 void
-notealias(addr, param, s)
+notealias(addr, param, s, afp)
 	const char *addr;
 	int param;
 	int s;
+	const struct afswtch *afp;
 {
 	if (setaddr && doalias == 0 && param < 0)
 		bcopy((caddr_t)rqtosa(af_addreq),
@@ -653,19 +658,21 @@ notealias(addr, param, s)
 
 /*ARGSUSED*/
 void
-setifdstaddr(addr, param, s)
+setifdstaddr(addr, param, s, afp)
 	const char *addr;
 	int param __unused;
 	int s;
+	const struct afswtch *afp;
 {
 	(*afp->af_getaddr)(addr, DSTADDR);
 }
 
 void
-setifflags(vname, value, s)
+setifflags(vname, value, s, afp)
 	const char *vname;
 	int value;
 	int s;
+	const struct afswtch *afp;
 {
  	if (ioctl(s, SIOCGIFFLAGS, (caddr_t)&ifr) < 0) {
  		Perror("ioctl (SIOCGIFFLAGS)");
@@ -685,10 +692,11 @@ setifflags(vname, value, s)
 }
 
 void
-setifmetric(val, dummy, s)
+setifmetric(val, dummy, s, afp)
 	const char *val;
 	int dummy __unused;
 	int s;
+	const struct afswtch *afp;
 {
 	strncpy(ifr.ifr_name, name, sizeof (ifr.ifr_name));
 	ifr.ifr_metric = atoi(val);
@@ -697,10 +705,11 @@ setifmetric(val, dummy, s)
 }
 
 void
-setifmtu(val, dummy, s)
+setifmtu(val, dummy, s, afp)
 	const char *val;
 	int dummy __unused;
 	int s;
+	const struct afswtch *afp;
 {
 	strncpy(ifr.ifr_name, name, sizeof (ifr.ifr_name));
 	ifr.ifr_mtu = atoi(val);
@@ -728,7 +737,8 @@ setsnpaoffset(val, dummy)
  * specified, show it and it only; otherwise, show them all.
  */
 void
-status()
+status(afp)
+	const struct afswtch *afp;
 {
 	const struct afswtch *p = NULL;
 	char *mynext;
@@ -1137,10 +1147,11 @@ at_getaddr(addr, which)
 
 /* XXX  FIXME -- should use strtoul for better parsing. */
 void
-setatrange(range, dummy, s)
+setatrange(range, dummy, s, afp)
 	const char *range;
 	int dummy __unused;
 	int s;
+	const struct afswtch *afp;
 {
 	u_short	first = 123, last = 123;
 
@@ -1153,10 +1164,11 @@ setatrange(range, dummy, s)
 }
 
 void
-setatphase(phase, dummy, s)
+setatphase(phase, dummy, s, afp)
 	const char *phase;
 	int dummy __unused;
 	int s;
+	const struct afswtch *afp;
 {
 	if (!strcmp(phase, "1"))
 		at_nr.nr_phase = 1;
