@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_descrip.c	8.6 (Berkeley) 4/19/94
- * $Id: kern_descrip.c,v 1.28 1996/03/27 19:19:58 bde Exp $
+ * $Id: kern_descrip.c,v 1.29 1996/06/12 05:07:26 gpalmer Exp $
  */
 
 #include <sys/param.h>
@@ -1092,15 +1092,19 @@ SYSCTL_INT(_kern, KERN_MAXFILESPERPROC, maxfilesperproc,
 SYSCTL_INT(_kern, KERN_MAXFILES, maxfiles, CTLFLAG_RW, &maxfiles, 0, "");
 
 static fildesc_devsw_installed = 0;
+#ifdef DEVFS
 static	void *devfs_token_stdin;
 static	void *devfs_token_stdout;
 static	void *devfs_token_stderr;
 static	void *devfs_token_fildesc[NUMFDESC];
+#endif
 
 static void 	fildesc_drvinit(void *unused)
 {
 	dev_t dev;
+#ifdef DEVFS
 	int fd;
+#endif
 
 	if( ! fildesc_devsw_installed ) {
 		dev = makedev(CDEV_MAJOR,0);
