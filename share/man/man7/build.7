@@ -110,11 +110,27 @@ For more information about the ports build process, see
 .Sh ENVIRONMENT
 .Bl -tag -width ".Ev TARGET_ARCH"
 .It Ev TARGET_ARCH
-The target architecture.
+The target machine processor architecture.
+This is analagous to the
+.Dq "uname -p"
+output.
 Set this to cross-build for a different architecture.
+.It Ev TARGET
+The target hardware platform.
+This is analagous to the
+.Dq "uname -m"
+output.
+This is necessary to cross-build some target architectures.
+For example, cross-building for PC98 machines requires
+.Ev "TARGET_ARCH=i386"
+and
+.Ev "TARGET=pc98" .
 .It Ev NO_WERROR
 If defined, warnings will not cause the build to halt, even if the
 makefile says otherwise.
+.It Ev DESTDIR
+The directory hierarchy where the resulting binaries will be
+installed.
 .El
 .Sh FILES
 .Bl -tag -width ".Pa /usr/share/examples/etc/make.conf" -compact
@@ -167,7 +183,8 @@ The following sequence of commands can be used to cross-build the
 system for the Alpha architecture on an i386 host:
 .Bd -literal -offset indent
 cd /usr/src
-make -DNO_WERROR=1 TARGET_ARCH=alpha buildworld
+make TARGET_ARCH=alpha buildworld
+make TARGET_ARCH=alpha DESTDIR=/clients/axp installworld
 .Ed
 .Sh SEE ALSO
 .Xr cc 1 ,
