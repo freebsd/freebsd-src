@@ -51,7 +51,7 @@ stage3()
 
 	i = open("/etc/fstab", O_RDONLY);
 	if (i < 0) {
-		fatal("Couldn't open /etc/fstab");
+		Fatal("Couldn't open /etc/fstab");
 	}
 	read(i, scratch, 100);
 	for (s = scratch; *s != ' ' && *s != '\t'; s++);
@@ -60,7 +60,7 @@ stage3()
 	s = scratch + 5;
 	diskname = malloc(strlen(s) + 1);
 	if (!diskname) {
-		fatal("malloc failed");
+		Fatal("malloc failed");
 	}
 	strcpy(diskname, s);
 	close(i);
@@ -71,7 +71,7 @@ stage3()
 	ufsargs.fspec = scratch;
 	if (mount(MOUNT_UFS, "/", MNT_UPDATE, (caddr_t) & ufsargs) == -1) {
 		sprintf(errmsg, "Failed to mount root read/write: %s\n%s", strerror(errno), ufsargs.fspec);
-		fatal(errmsg);
+		Fatal(errmsg);
 	}
 	sprintf(scratch, "mount /dev/%se /usr", diskname);
 	TellEm(scratch);
@@ -79,58 +79,58 @@ stage3()
 	ufsargs.fspec = scratch;
 	if (mount(MOUNT_UFS, "/usr", 0, (caddr_t) & ufsargs) == -1) {
 		sprintf(errmsg, "Failed to mount /usr: %s\n%s", strerror(errno), ufsargs.fspec);
-		fatal(errmsg);
+		Fatal(errmsg);
 	}
 	TellEm("mkdir /proc");
 	if (mkdir("/proc", S_IRWXU) == -1) {
 		sprintf(errmsg, "Couldn't create directory /proc: %s\n",
 			strerror(errno));
-		fatal(errmsg);
+		Fatal(errmsg);
 	}
 	TellEm("mkdir /root");
 	if (mkdir("/root", S_IRWXU) == -1) {
 		sprintf(errmsg, "Couldn't create directory /root: %s\n",
 			strerror(errno));
-		fatal(errmsg);
+		Fatal(errmsg);
 	}
 	TellEm("mkdir /var");
 	if (mkdir("/var", S_IRWXU) == -1) {
 		sprintf(errmsg, "Couldn't create directory /var: %s\n",
 			strerror(errno));
-		fatal(errmsg);
+		Fatal(errmsg);
 	}
 	TellEm("mkdir /var/run");
 	if (mkdir("/var/run", S_IRWXU) == -1) {
 		sprintf(errmsg, "Couldn't create directory /var/run: %s\n",
 			strerror(errno));
-		fatal(errmsg);
+		Fatal(errmsg);
 	}
 	sprintf(scratch, "Insert CPIO floppy in floppy drive 0\n");
 	dialog_msgbox("Stage 2 installation", scratch, 6, 75, 1);
 	ufsargs.fspec = "/dev/fd0a";
 	if (mount(MOUNT_UFS, "/mnt", MNT_RDONLY, (caddr_t) & ufsargs) == -1) {
 		sprintf(errmsg, "Failed to mount /mnt: %s\n%s", strerror(errno), ufsargs.fspec);
-		fatal(errmsg);
+		Fatal(errmsg);
 	}
 	TellEm("sh -c 'cd / ; gunzip < /mnt/inst2.cpio.gz | cpio -idum'");
 	if (exec("/bin/sh", "/bin/sh", "-e", "-c",
 		 "cd / ; gunzip < /mnt/inst2.cpio.gz | cpio -idum", 0) == -1)
-		fatal(errmsg);
+		Fatal(errmsg);
 
 	TellEm("sh -c 'cd /mnt ; ls install magic | cpio -dump /'");
 	if (exec("/bin/sh", "/bin/sh", "-e", "-c",
 		 "cd /mnt ; ls magic | cpio -dump /", 0) == -1)
-		fatal(errmsg);
+		Fatal(errmsg);
 
 	TellEm("unmount /mnt");
 	if (unmount("/mnt", 0) == -1) {
 		sprintf(errmsg, "Error unmounting /mnt: %s\n", strerror(errno));
-		fatal(errmsg);
+		Fatal(errmsg);
 	}
 	TellEm("sh -c 'cd /dev ; sh MAKEDEV all'");
 	if (exec("/bin/sh", "/bin/sh", "-e", "-c",
 		 "PATH=/bin:/sbin:/usr/bin:/usr/sbin; export PATH ; cd /dev ; sh MAKEDEV all", 0) == -1)
-		fatal(errmsg);
+		Fatal(errmsg);
 
 	TellEm("unlink /sbin/oinit");
 	unlink("/sbin/oinit");
