@@ -8,10 +8,8 @@
 	(i.e. Ethernet interfaces), list broad groups of devices
 	alphabetically as paragraphs sorted alphabetically (frequently
 	these groups will be arranged by manufacturer, i.e. 3Com
-	Ethernet interfaces).  In cases where a group of devices
-	consists of multiple models (such as the 3C501, 3C503, etc.),
-	list each specific model or set of closely-related models as
-	a separate item in an itemized list, sorted alphabetically.
+	Ethernet interfaces).
+
 	Where applicable, a "Miscellaneous" section may follow all
 	other named sections.
 
@@ -776,39 +774,6 @@
 	<listitem>
 	  <para>ANA-62020 64-bit single port 100baseFX adapter</para>
         </listitem>
-      </itemizedlist>
-    </para>
-
-    <para arch="i386,pc98">Allied-Telesis AT1700 and RE2000 cards
-    (&man.fe.4; driver)
-      <itemizedlist>
-        <listitem>
-	  <para>CONTEC C-NET(PC)C PCMCIA Ethernet</para>
-	</listitem>
-	<listitem>
-	  <para>Fujitsu MBH10303, MBH10302 Ethernet PCMCIA</para>
-	</listitem>
-	<listitem>
-	  <para>Fujitsu Towa LA501 Ethernet</para>
-	</listitem>
-	<listitem>
-	  <para>Fujitsu FMV-J182, FMV-J182A</para>
-	</listitem>
-	<listitem>
-	  <para>RATOC REX-5588, REX-9822, REX-4886, and REX-R280</para>
-	</listitem>
-	<listitem>
-	  <para>Eiger Labs EPX-10BT</para>
-	</listitem>
-	<listitem>
-	  <para>HITACHI HT-4840-11</para>
-	</listitem>
-	<listitem>
-	  <para>NextCom J Link NC5310</para>
-	</listitem>
-	<listitem>
-	  <para>TDK LAK-CD021, LAK-CD021A, LAK-CD021BX</para>
-	</listitem>
       </itemizedlist>
     </para>
 
@@ -1607,53 +1572,7 @@
     <para arch="pc98">MELCO LGY-PCI-TXL (PCI) (&man.dc.4; driver)</para>
 
     <para arch="i386,pc98">Fujitsu MB86960A/MB86965A based Fast Ethernet NICs
-    (&man.fe.4; driver)
-      <itemizedlist>
-        <listitem arch="i386">
-          <para>CONTEC C-NET(PC)C Ethernet</para>
-        </listitem>
-	<listitem arch="i386">
-	  <para>Eiger Labs EPX-10BT</para>
-        </listitem>
-	<listitem arch="i386">
-	  <para>Fujitsu FMV-J182, FMV-J182A, MBH10302, MBH10303
-	  Ethernet PCMCIA</para>
-        </listitem>
-	<listitem arch="i386">
-	  <para>Fujitsu Towa LA501 Ethernet</para>
-        </listitem>
-	<listitem arch="i386">
-	  <para>HITACHI HT-4840-11</para>
-        </listitem>
-	<listitem arch="i386">
-	  <para>NextCom J Link NC5310</para>
-        </listitem>
-	<listitem arch="i386">
-	  <para>RATOC REX-5588, REX-9822, REX-4886, REX-R280</para>
-        </listitem>
-	<listitem arch="i386">
-	  <para>TDK LAK-CD021, LAK-CD021A, LAK-CD021BX</para>
-        </listitem>
-	<listitem arch="pc98">
-	  <para>Allied Telesis RE1000, RE1000Plus, ME1500 (110pin)</para>
-        </listitem>
-	<listitem arch="pc98">
-	  <para>Contec C-NET(98)P2, C-NET(9N)E (110pin),
-	  C-NET(9N)C(ExtCard)</para>
-        </listitem>
-	<listitem arch="pc98">
-          <para>Ungermann-Bass Access/PC N98C+(PC85152,PC85142),
-	  Access/NOTE N98 (PC86132) (110pin)</para>
-        </listitem>
-	<listitem arch="pc98">
-          <para>TDK LAC-98012, LAC-98013, LAC-98025, LAC-9N011
-	  (110pin)</para>
-        </listitem>
-	<listitem arch="pc98">
-          <para>Ratoc REX-9880/9881/9882/9883</para>
-        </listitem>
-      </itemizedlist>
-    </para>
+    (&man.fe.4; driver)</para>
 
     <para arch="i386,pc98,alpha,ia64,sparc64">Intel 82557-, 82258-, 82559-, 82550-
     or 82562-based Fast Ethernet NICs (&man.fxp.4; driver)
