@@ -14,7 +14,7 @@ CFLAGS+=	-DTARGET=\"elf32-bigmips\"
 .elif ${TARGET_ARCH} == "mipsel"
 CFLAGS+=	-DTARGET=\"elf32-littlemips\"
 .else
-CFLAGS+=	-DTARGET=\"${TARGET_ARCH}-unknown-freebsdelf\"
+CFLAGS+=	-DTARGET=\"${TARGET_ARCH}-unknown-freebsd\"
 .endif
 CFLAGS+=	-DVERSION=\"${VERSION}\"
 CFLAGS+=	-I${SRCDIR}/binutils
