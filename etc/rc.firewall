@@ -102,8 +102,8 @@ case ${firewall_type} in
 [Oo][Pp][Ee][Nn])
 	${fwcmd} add 65000 pass all from any to any
 	;;
-[Cc][Ll][Ii][Ee][Nn][Tt])
 
+[Cc][Ll][Ii][Ee][Nn][Tt])
 	############
 	# This is a prototype setup that will protect your system somewhat
 	# against people from outside your own network.
@@ -147,7 +147,6 @@ case ${firewall_type} in
 	;;
 
 [Ss][Ii][Mm][Pp][Ll][Ee])
-
 	############
 	# This is a prototype setup for a simple firewall.  Configure this
 	# machine as a named server and ntp server, and point all the machines
