@@ -691,15 +691,18 @@
       &man.rescue.8;.
       </para>
 
-    <para>It is now possible to build <filename>/bin</filename> and
-      <filename>/sbin</filename> directories containing
-      dynamically-linked executables.  This feature brings support for
+    <para>Executables in <filename>/bin</filename> and
+      <filename>/sbin</filename> are now built using dynamic, rather
+      than static linking.  This feature brings support for
       loadable PAM and NSS modules to base system utilities located in
       those directories.  It also reduces the storage requirements for
       the root filesystem due to the use of shared libraries.  This
-      feature can be enabled in a <literal>buildworld</literal> by
+      feature can be disabled in a <literal>buildworld</literal> by
       defining the Makefile variable
-      <varname>WITH_DYNAMICROOT</varname>.</para>
+      <varname>WITHOUT_DYNAMICROOT</varname>.  Note that
+      statically-linked, crunched executables are available in the
+      <filename>/rescue</filename> directory for use during system
+      repair and recovery operations.</para>
 
   </sect2>
 
