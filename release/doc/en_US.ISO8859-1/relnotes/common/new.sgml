@@ -341,6 +341,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <filename>libusbhid</filename>, following NetBSD's naming
       conventions.</para>
 
+    <para>&man.m4.1; now accepts a <option>-s</option> flag to cause
+      it to emit <literal>#line</literal> directives for use by
+      &man.cpp.1;.</para>
+
     <para>&man.mergemaster.8; now supports two new flags.
       The <option>-p</option> flag enables a
       <quote>pre-<literal>buildworld</literal></quote> mode to files
@@ -433,6 +437,19 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
       <para></para>
     </sect3>
+  </sect2>
+
+  <sect2>
+    <title>Release Engineering and Integration</title>
+
+    <para arch="i386,alpha"><application>XFree86</application> 4.2.0
+      is now the default version of the X Window System supported by
+      &man.sysinstall.8;.  It installs
+      <application>XFree86</application> as a set of standard binary
+      packages, so the usual package utilities such as
+      &man.pkg.info.1; can be used to examine/manipulate its
+      components.</para>
+
   </sect2>
 </sect1>
 
