@@ -105,7 +105,7 @@ static Layout layout[] = {
       tconf.homedir, STRINGOBJ, NULL },
 #define LAYOUT_UPLOAD		4
     { 14, 20, 22, ANONFTP_UPLOAD_LEN - 1,
-      "Upload Subdirectory:", "Designated sub-directory that holds uploads",
+      "Upload Subdirectory:", "Designated sub-directory that holds uploads (leave empty for none)",
       tconf.upload, STRINGOBJ, NULL },
 #define LAYOUT_OKBUTTON		5
     { 19, 15, 0, 0,
@@ -248,6 +248,9 @@ configAnonFTP(dialogMenuItem *self __unused)
 		 "ftpd(8) in inetd.conf(5) for FTP services to be available.  If you\n"
 		 "did not do so earlier, you will have the opportunity to enable inetd(8)\n"
 		 "again later.\n\n"
+		 "If you want the server to be read-only you should leave the upload\n"
+		 "directory option empty and add the -r command-line option to ftpd(8)\n"
+                 "in inetd.conf(5)\n\n"
 		 "Do you wish to continue configuring anonymous FTP?")) {
 	return DITEM_FAILURE;
     }
@@ -268,9 +271,6 @@ configAnonFTP(dialogMenuItem *self __unused)
     if (!tconf.group[0])
 	SAFE_STRCPY(tconf.group, FTP_GROUP);
     
-    if (!tconf.upload[0])
-	SAFE_STRCPY(tconf.upload, FTP_UPLOAD);
-    
     /*** If the user did not specify a directory, use default ***/
     
     if (tconf.homedir[strlen(tconf.homedir) - 1] == '/')
@@ -287,18 +287,19 @@ configAnonFTP(dialogMenuItem *self __unused)
     if (directory_exists(tconf.homedir)) {
 	msgNotify("Configuring %s for use by anon FTP.", tconf.homedir);
 	vsystem("chmod 555 %s && chown root.%s %s", tconf.homedir, tconf.group, tconf.homedir);
-	vsystem("mkdir %s/bin && chmod 555 %s/bin", tconf.homedir, tconf.homedir);
-	vsystem("cp /bin/ls %s/bin && chmod 111 %s/bin/ls", tconf.homedir, tconf.homedir);
-	vsystem("cp /bin/date %s/bin && chmod 111 %s/bin/date", tconf.homedir, tconf.homedir);
 	vsystem("mkdir %s/etc && chmod 555 %s/etc", tconf.homedir, tconf.homedir);
 	vsystem("mkdir -p %s/pub", tconf.homedir);
-	vsystem("mkdir -p %s/%s", tconf.homedir, tconf.upload);
-	vsystem("chmod 1777 %s/%s", tconf.homedir, tconf.upload);
+	if (tconf.upload[0]) {
+	    vsystem("mkdir -p %s/%s", tconf.homedir, tconf.upload);
+	    vsystem("chmod 1777 %s/%s", tconf.homedir, tconf.upload);
+	}
 	
 	if (DITEM_STATUS(createFtpUser()) == DITEM_SUCCESS) {
 	    msgNotify("Copying password information for anon FTP.");
-	    vsystem("awk -F: '{if ($3 < 10 || $1 == \"ftp\") print $0}' /etc/passwd > %s/etc/passwd && chmod 444 %s/etc/passwd", tconf.homedir, tconf.homedir);
-	    vsystem("awk -F: '{if ($3 < 100) print $0}' /etc/group > %s/etc/group && chmod 444 %s/etc/group", tconf.homedir, tconf.homedir);
+	    vsystem("awk -F: '{if ((substr($1, 1, 1) != \"+\") && (substr($1, 1, 1) != \"-\") && ($3 < 10 || $1 == \"ftp\")) print $0}' /etc/master.passwd > %s/etc/master.passwd", tconf.homedir);
+	    vsystem("/usr/sbin/pwd_mkdb -d %s/etc %s/etc/master.passwd && chmod 444 %s/etc/pwd.db", tconf.homedir, tconf.homedir, tconf.homedir);
+	    vsystem("rm -f %s/etc/master.passwd %s/etc/spwd.db", tconf.homedir, tconf.homedir);
+	    vsystem("awk -F: '{if ((substr($1, 1, 1) != \"+\") && (substr($1, 1, 1) != \"-\") && ($3 < 100)) print $0}' /etc/group > %s/etc/group && chmod 444 %s/etc/group", tconf.homedir, tconf.homedir);
 	    vsystem("chown -R root.%s %s/pub", tconf.group, tconf.homedir);
 	}
 	else {
