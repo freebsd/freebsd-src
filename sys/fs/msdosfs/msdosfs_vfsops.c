@@ -790,6 +790,10 @@ loop:
 		nvp = TAILQ_NEXT(vp, v_nmntvnodes);
 
 		VI_LOCK(vp);
+		if (vp->v_iflag & VI_XLOCK) {
+			VI_UNLOCK(vp);
+			continue;
+		}
 		mtx_unlock(&mntvnode_mtx);
 		dep = VTODE(vp);
 		if (vp->v_type == VNON ||
