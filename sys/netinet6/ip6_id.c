@@ -250,4 +250,11 @@ ip6_randomid(void)
 	return randomid(&randomtab_32);
 }
 
+u_int32_t
+ip6_randomflowlabel(void)
+{
+
+	return randomid(&randomtab_20) & 0xfffff;
+}
+
 #endif /* RANDOM_IP_ID */

@@ -70,6 +70,7 @@
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
 #include "opt_pfil_hooks.h"
+#include "opt_random_ip_id.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -198,11 +199,9 @@ ip6_init()
 	netisr_register(NETISR_IPV6, ip6_input, &ip6intrq);
 	nd6_init();
 	frag6_init();
-	/*
-	 * in many cases, random() here does NOT return random number
-	 * as initialization during bootstrap time occur in fixed order.
-	 */
+#ifndef RANDOM_IP_ID
 	ip6_flow_seq = arc4random();
+#endif
 	ip6_desync_factor = arc4random() % MAX_TEMP_DESYNC_FACTOR;
 }
 
