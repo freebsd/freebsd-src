@@ -297,7 +297,7 @@ main(int argc, char **argv)
 		else
 			do_TAO(fd, test_write, preemp, dvdrw);
 	}
-	if (fixate && !dao) {
+	if (!test_write && fixate && !dao && !dvdrw) {
 		if (!quiet)
 			fprintf(stderr, "fixating CD, please wait..\n");
 		if (ioctl(fd, CDRIOCFIXATE, &multi) < 0)
