@@ -199,6 +199,13 @@ EPSON_BOUNCEDMA		opt_pc98.h
 EPSON_MEMWIN		opt_pc98.h
 LINE30			opt_syscons.h
 
+# SMB/CIFS requester
+NETSMB			opt_netsmb.h
+NETSMBCRYPTO		opt_netsmb.h
+
+# SMB/CIFS filesystem
+SMBFS
+
 # -------------------------------
 # EOF
 # -------------------------------
