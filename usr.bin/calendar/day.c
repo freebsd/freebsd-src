@@ -29,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ *	$Id$
  */
 
 
@@ -41,6 +43,7 @@
 #include <sys/uio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <err.h>
 
 #include "pathnames.h"
 #include "calendar.h"
@@ -88,7 +91,8 @@ void setnnames(void)
 		buf[l] = '\0';
 		if (ndays[i].name != NULL)
 			free(ndays[i].name);
-		ndays[i].name = strdup(buf);
+		if ((ndays[i].name = strdup(buf)) == NULL)
+			errx(1, "cannot allocate memory");
 		ndays[i].len = strlen(buf);
 
 		strftime(buf, sizeof(buf), "%A", &tm);
@@ -99,7 +103,8 @@ void setnnames(void)
 		buf[l] = '\0';
 		if (fndays[i].name != NULL)
 			free(fndays[i].name);
-		fndays[i].name = strdup(buf);
+		if ((fndays[i].name = strdup(buf)) == NULL)
+			errx(1, "cannot allocate memory");
 		fndays[i].len = strlen(buf);
 	}
 
@@ -113,7 +118,8 @@ void setnnames(void)
 		buf[l] = '\0';
 		if (nmonths[i].name != NULL)
 			free(nmonths[i].name);
-		nmonths[i].name = strdup(buf);
+		if ((nmonths[i].name = strdup(buf)) == NULL)
+			errx(1, "cannot allocate memory");
 		nmonths[i].len = strlen(buf);
 
 		strftime(buf, sizeof(buf), "%B", &tm);
@@ -124,7 +130,8 @@ void setnnames(void)
 		buf[l] = '\0';
 		if (fnmonths[i].name != NULL)
 			free(fnmonths[i].name);
-		fnmonths[i].name = strdup(buf);
+		if ((fnmonths[i].name = strdup(buf)) == NULL)
+			errx(1, "cannot allocate memory");
 		fnmonths[i].len = strlen(buf);
 	}
 }
@@ -163,11 +170,8 @@ time_t Mktime (dp)
     int len;
     struct tm tm;
 
-    date = strdup(dp);
-    if (date == NULL) {
-	fprintf(stderr, "calendar: strdup failed in Mktime\n");
-	exit(1);
-    }
+    if ((date = strdup(dp)) == NULL)
+		errx(1, "strdup failed in Mktime");
     (void)time(&t);
     tp = localtime(&t);
     
