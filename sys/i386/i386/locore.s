@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.76 1996/11/11 04:20:18 dyson Exp $
+ *	$Id: locore.s,v 1.77 1996/11/14 15:55:21 jkh Exp $
  *
  *		originally from: locore.s, by William F. Jolitz
  *
@@ -525,7 +525,7 @@ olddiskboot:
 
 #if defined(USERCONFIG_BOOT) && defined(USERCONFIG)
 	movl	$0x10200, %esi
-	lea	$R(_userconfig_from_boot),%edi
+	movl	$R(_userconfig_from_boot),%edi
 	movl	$512,%ecx
 	cld
 	rep
