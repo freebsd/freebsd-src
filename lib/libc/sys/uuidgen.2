@@ -45,7 +45,8 @@ universally unique identifiers (UUIDs) and writes them to the buffer
 pointed to by
 .Fa store .
 The identifiers are generated according to the syntax and semantics of the
-DCE version 1 variant of universally unique identifiers. When no IEEE 802
+DCE version 1 variant of universally unique identifiers.
+When no IEEE 802
 address is available for the node field a random multicast address is
 generated for each call.
 .Pp
@@ -55,9 +56,8 @@ system call will generate identifiers that are adjacent in time.
 .Pp
 Universally unique identifiers, also known as globally unique identifiers,
 are normally represented as:
-.Bd -literal -offset indent
-63d81915-7140-11d6-903d-00022d09712b
-.Ed
+.Pp
+.Dl 63d81915-7140-11d6-903d-00022d09712b
 .Sh RETURN VALUES
 .Rv -std
 .Sh ERRORS
