@@ -4,7 +4,6 @@ SUBDIR+= doc
 
 LIB=		gnuregex
 SHLIB_MAJOR=	2
-SHLIB_MINOR=	0
 
 SRCS=	regex.c
 INCS=	regex.h

@@ -20,7 +20,6 @@ LDADD=		-lssl -lcrypto
 NO_WERROR=	yes
 
 SHLIB_MAJOR=    3
-SHLIB_MINOR=	0
 
 ftperr.h: ftp.errors
 	@echo "static struct fetcherr _ftp_errlist[] = {" > ${.TARGET}

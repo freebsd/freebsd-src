@@ -16,7 +16,6 @@ CFLAGS+=-DINET6
 .endif
 
 SHLIB_MAJOR=2
-SHLIB_MINOR=5
 
 #
 # Magic to grab sources out of src/contrib

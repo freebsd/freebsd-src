@@ -4,7 +4,6 @@ NCURSES=${.CURDIR}/../../contrib/ncurses
 
 LIB=	ncurses
 SHLIB_MAJOR=5
-SHLIB_MINOR=0
 
 # Should be elsewhere
 AWK?=	awk

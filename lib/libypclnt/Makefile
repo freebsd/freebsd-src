@@ -2,7 +2,6 @@
 
 LIB		 = ypclnt
 SHLIB_MAJOR	 = 1
-SHLIB_MINOR	 = 0
 SRCS		 =
 SRCS		+= ypclnt_connect.c
 SRCS		+= ypclnt_error.c

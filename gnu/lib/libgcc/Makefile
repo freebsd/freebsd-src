@@ -11,7 +11,6 @@ LIB=	gcc
 .endif
 
 #SHLIB_MAJOR=	1
-#SHLIB_MINOR=	0
 
 #
 # XXX This is a hack, but it seems to work.
