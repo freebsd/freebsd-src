@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.91 1996/11/04 17:42:14 jkh Exp $
+ * $Id: menus.c,v 1.92 1996/11/06 19:15:30 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -261,9 +261,11 @@ DMenu MenuIndex = {
       { "Router",		"Select routing daemon (default: routed)",	dmenuVarCheck, configRouter, NULL, "router" },
       { "Samba",		"Configure Samba for LanManager access.", dmenuVarCheck, configSamba, NULL, "samba" },
       { "Syscons",		"The system console configuration menu.",	NULL, dmenuSubmenu, NULL, &MenuSyscons },
+      { "Syscons, Font",	"The console screen font.",	  NULL, dmenuSubmenu, NULL, &MenuSysconsFont },
       { "Syscons, Keymap",	"The console keymap configuration menu.",	NULL, dmenuSubmenu, NULL, &MenuSysconsKeymap },
       { "Syscons, Keyrate",	"The console key rate configuration menu.",	NULL, dmenuSubmenu, NULL, &MenuSysconsKeyrate },
       { "Syscons, Saver",	"The console screen saver configuration menu.",	NULL, dmenuSubmenu, NULL, &MenuSysconsSaver },
+      { "Syscons, Screenmap",	"The console screenmap configuration menu.",	NULL, dmenuSubmenu, NULL, &MenuSysconsScrnmap },
       { "Time Zone",		"Set the system's time zone.",		NULL, dmenuSystemCommand, NULL, "rm -f /etc/wall_cmos_clock /etc/localtime; tzsetup" },
       { "Upgrade",		"Upgrade an existing system.",		NULL, installUpgrade },
       { "Usage",		"Quick start - How to use this menu system.",	NULL, dmenuDisplayFile, NULL, "usage" },
@@ -1148,9 +1150,11 @@ your preference.\n\n\
 When you are done setting configuration options, select Cancel.",
     "Configure your system console settings",
     NULL,
-{ { "Keymap",	"Choose an alternate keyboard map",	NULL, dmenuSubmenu, NULL, &MenuSysconsKeymap },
+{ { "Font",	"Choose an alternate screen font",	  NULL, dmenuSubmenu, NULL, &MenuSysconsFont },
+  { "Keymap",	"Choose an alternate keyboard map",	NULL, dmenuSubmenu, NULL, &MenuSysconsKeymap },
   { "Repeat",	"Set the rate at which keys repeat",	NULL, dmenuSubmenu, NULL, &MenuSysconsKeyrate },
   { "Saver",	"Configure the screen saver",		NULL, dmenuSubmenu, NULL, &MenuSysconsSaver },
+  { "Screenmap",	"Choose an alternate screenmap",	NULL, dmenuSubmenu, NULL, &MenuSysconsScrnmap },
   { "Exit",	"Exit this menu (returning to previous)", NULL, dmenuExit },
   { NULL } },
 };
@@ -1211,6 +1215,60 @@ probably enable one of these screen savers to prevent phosphor burn-in.",
   { "Star",	"A \"twinkling stars\" effect",
     dmenuVarCheck, configSaver, NULL, "saver=star" },
   { "Timeout",	"Set the screen saver timeout interval",
-    dmenuVarCheck, configSaverTimeout, NULL, "blanktime" },
+    NULL, configSaverTimeout, NULL, NULL, ' ', ' ', ' ' },
   { NULL } },
 };
+
+DMenu MenuSysconsScrnmap = {
+    DMENU_RADIO_TYPE | DMENU_SELECTION_RETURNS,
+    "System Console Screenmap",
+    "Unless you load a specific font, most PC hardware defaults to\n"
+    "displaying characters in the IBM 437 character set.  However,\n"
+    "in the Unix world, this character set is very rarely used.  Most\n"
+    "Western European countries, for example, prefer ISO 8859-1.\n"
+    "American users won't notice the difference since the bottom half\n"
+    "of all these character sets is ANSI anyway.\n"
+    "If your hardware is capable of downloading a new display font,\n"
+    "you should probably choose that option.  However, for hardware\n"
+    "where this is not possible (e.g. monochrome adapters), a screen\n"
+    "map will give you the best approximation that your hardware can\n"
+    "display at all.",
+    "Choose a screen map",
+    NULL,
+{ { "None", "No screenmap, use default font", dmenuVarCheck, dmenuSetVariable, NULL, "scrnmap=NO" },
+  { "KOI8-R to IBM866", "Russian KOI8-R to IBM 866 screenmap", dmenuVarCheck, dmenuSetVariable, NULL, "scrnmap=koi8-r2cp866" },
+  { "ISO 8859-1 to IBM437", "W-Europe ISO 8859-1 to IBM 437 screenmap", dmenuVarCheck, dmenuSetVariable, NULL, "scrnmap=iso-8859-1_to_cp437" },
+  { NULL } },
+};
+
+DMenu MenuSysconsFont = {
+    DMENU_RADIO_TYPE | DMENU_SELECTION_RETURNS,
+    "System Console Font",
+    "Most PC hardware defaults to displaying characters in the\n"
+    "IBM 437 character set.  However, in the Unix world, this\n"
+    "character set is very rarely used.  Most Western European\n"
+    "countries, for example, prefer ISO 8859-1.\n"
+    "American users won't notice the difference since the bottom half\n"
+    "of all these charactersets is ANSI anyway.  However, they might\n"
+    "want to load a font anyway to use the 30- or 50-line displays.\n"
+    "If your hardware is capable of downloading a new display font,\n"
+    "you can select the appropriate font below.",
+    "Choose a font",
+    NULL,
+{ { "None", "Use default font", dmenuVarCheck, dmenuSetVariables, NULL,
+    "font8x8=NO,font8x14=NO,font8x16=NO" },
+  { "IBM 437", "English", dmenuVarCheck, dmenuSetVariables, NULL,
+    "font8x8=cp437-8x8,font8x14=cp437-8x14,font8x16=cp437-8x16" },
+  { "IBM 850", "Western Europe, IBM encoding", dmenuVarCheck, dmenuSetVariables, NULL,
+    "font8x8=cp850-8x8,font8x14=cp850-8x14,font8x16=cp850-8x16" },
+  { "IBM 865", "Norwegian, IBM encoding", dmenuVarCheck, dmenuSetVariables, NULL,
+    "font8x8=cp865-8x8,font8x14=cp865-8x14,font8x16=cp865-8x16" },
+  { "IBM 866", "Russian, IBM encoding", dmenuVarCheck, dmenuSetVariables, NULL,
+    "font8x8=cp866-8x8,font8x14=cp866-8x14,font8x16=cp866-8x16" },
+  { "ISO 8859-1", "Western Europe, ISO encoding", dmenuVarCheck, dmenuSetVariables, NULL,
+    "font8x8=iso-8x8,font8x14=iso-8x14,font8x16=iso-8x16" },
+  { "KOI8-R", "Russian, KOI8-R encoding", dmenuVarCheck, dmenuSetVariables, NULL,
+    "font8x8=koi8-r-8x8,font8x14=koi8-r-8x14,font8x16=koi8-r-8x16" },
+  { NULL } },
+};
+
