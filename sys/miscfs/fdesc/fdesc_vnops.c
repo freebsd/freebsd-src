@@ -330,15 +330,11 @@ fdesc_getattr(ap)
 			break;
 
 		default:	
+			bzero(&stb, sizeof(stb));
 			error = fo_stat(fp, &stb, ap->a_p);
 			if (error == 0) {
 				VATTR_NULL(vap);
-				/* XXX Fake it! */
-				if (fp->f_type != DTYPE_PIPE && fp->f_type != DTYPE_SOCKET)
-					vap->va_type = VFIFO;
-				else
-					vap->va_type = IFTOVT(stb.st_mode);
-
+				vap->va_type = IFTOVT(stb.st_mode);
 				vap->va_mode = S_IRUSR | S_IWUSR | S_IRGRP |
 				    S_IWGRP | S_IROTH | S_IWOTH;
 				vap->va_nlink = 1;
