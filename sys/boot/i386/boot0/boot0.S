@@ -19,7 +19,7 @@
 /* A 512-byte boot manager. */
 #ifdef SIO
 /* ... using a serial console on COM1. */
-#endif /* SIO */
+#endif
 
 		.set NHRDRV,0x475		# Number of hard drives
 		.set ORIGIN,0x600		# Execution address
@@ -92,13 +92,13 @@ start:		cld				# String ops inc
 		jmp main-LOAD+ORIGIN		# To relocated code
 
 main:
-#ifdef SIO
+#if defined(SIO) && COMSPEED != 0
 /*
  * Initialize the serial port.  bioscom preserves the driver number in DX.
  */
 		movw COMSPEED,%ax		# defined by Makefile
 		callw bioscom
-#endif /* SIO */
+#endif
 /*
  * Check what flags were loaded with us, specifically, Use a predefined Drive.
  * If what the bios gives us is bad, use the '0' in the block instead, as well.
@@ -241,18 +241,18 @@ main.11:
 		xorb %ah,%ah			# BIOS: Get
 		int $0x16			#  keypress
 		movb %ah,%al			# Scan code
-#else /* SIO */
+#else
 		movb $0x02,%ah			# BIOS: Receive
 		call bioscom
-#endif /* SIO */
+#endif
 /*
  * If it's CR act as if timed out.
  */
 #ifndef SIO
 		cmpb $KEY_ENTER,%al		# Enter pressed?
-#else /* SIO */
+#else
 		cmpb $ASCII_CR,%al		# Enter pressed?
-#endif /* SIO */
+#endif
 		je main.9			# Yes
 /*
  * Otherwise check if legal
@@ -263,9 +263,9 @@ main.11:
 		cmpb $0x4,%al			# F1..F5?
 		jna main.12			# Yes
 		subb $(KEY_1 - KEY_F1),%al	# Less #1 scan code
-#else /* SIO */
+#else
 		subb $'1',%al			# Less '1' ascii character
-#endif /* SIO */
+#endif
 		cmpb $0x4,%al			# #1..#5?
 		ja main.10			# No
 /*
@@ -335,7 +335,7 @@ putkey:
 #ifndef SIO
 		movb $'F',%al			# Display
 		callw putchr			#  'F'
-#endif /* SIO */
+#endif
 		movb $'1',%al			# Prepare
 		addb %dl,%al			#  digit
 		jmp putstr.1			# Display the rest
