@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.24.2.10 1997/05/26 00:52:24 brian Exp $
+ * $Id: modem.c,v 1.42 1997/06/09 03:27:30 brian Exp $
  *
  *  TODO:
  */
@@ -26,6 +26,9 @@
 #include <termios.h>
 #include <sys/ioctl.h>
 #include <sys/tty.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
+#include <netdb.h>
 #include <errno.h>
 #include <time.h>
 #include <libutil.h>
@@ -57,8 +60,6 @@ static struct mbuf *modemout;
 static struct mqueue OutputQueues[PRI_LINK+1];
 static int dev_is_modem;
 
-#undef QDEBUG
-
 void
 Enqueue(queue, bp)
 struct mqueue *queue;
@@ -70,9 +71,7 @@ struct mbuf *bp;
   } else
     queue->last = queue->top = bp;
   queue->qlen++;
-#ifdef QDEBUG
-  logprintf("Enqueue: len = %d\n", queue->qlen);
-#endif
+  LogPrintf(LogDEBUG, "Enqueue: len = %d\n", queue->qlen);
 }
 
 struct mbuf *
@@ -81,19 +80,15 @@ struct mqueue *queue;
 {
   struct mbuf *bp;
 
-#ifdef QDEBUG
-  logprintf("Dequeue: len = %d\n", queue->qlen);
-#endif
+  LogPrintf(LogDEBUG, "Dequeue: len = %d\n", queue->qlen);
   bp = queue->top;
   if (bp) {
     queue->top = queue->top->pnext;
     queue->qlen--;
     if (queue->top == NULL) {
       queue->last = queue->top;
-#ifdef QDEBUG
       if (queue->qlen)
-	logprintf("!!! not zero (%d)!!!\n", queue->qlen);
-#endif
+	LogPrintf(LogDEBUG, "Dequeue: Not zero (%d)!!!\n", queue->qlen);
     }
   }
   return(bp);
@@ -211,8 +206,8 @@ static time_t uptime;
 void
 DownConnection()
 {
-  LogPrintf(LOG_PHASE_BIT, "Disconnected!\n");
-  LogPrintf(LOG_PHASE_BIT, "Connect time: %d secs\n", time(NULL) - uptime);
+  LogPrintf(LogPHASE, "Disconnected!\n");
+  LogPrintf(LogPHASE, "Connect time: %d secs\n", time(NULL) - uptime);
   if (!TermMode) {
     CloseModem();
     LcpDown();
@@ -235,7 +230,7 @@ ModemTimeout()
   if (dev_is_modem) {
     if (modem >= 0) {
       if (ioctl(modem, TIOCMGET, &mbits) < 0) {
-        LogPrintf(LOG_PHASE_BIT, "ioctl error (%s)!\n", strerror(errno));
+        LogPrintf(LogPHASE, "ioctl error (%s)!\n", strerror(errno));
         DownConnection();
         return;
       }
@@ -245,7 +240,7 @@ ModemTimeout()
     if (change & TIOCM_CD) {
       if (Online) {
         time(&uptime);
-        LogPrintf(LOG_PHASE_BIT, "*Connected!\n");
+        LogPrintf(LogPHASE, "*Connected!\n");
         connect_count++;
         /*
          * In dedicated mode, start packet mode immediate
@@ -261,7 +256,7 @@ ModemTimeout()
   } else {
     if (!Online) {
       time(&uptime);
-      LogPrintf(LOG_PHASE_BIT, "Connected!\n");
+      LogPrintf(LogPHASE, "Connected!\n");
       mbits = TIOCM_CD;
       connect_count++;
     } else if (uptime == 0) {
@@ -298,8 +293,7 @@ char *str;
   for (pp = validparity; pp->name; pp++) {
     if (strcasecmp(pp->name, str) == 0 ||
 	strcasecmp(pp->name1, str) == 0) {
-      VarParity = pp->set;
-      return(pp->set);
+      return VarParity = pp->set;
     }
   }
   return(-1);
@@ -319,13 +313,11 @@ char *str;
     rstio.c_cflag &= ~(CSIZE|PARODD|PARENB);
     rstio.c_cflag |= val;
     tcsetattr(modem, TCSADRAIN, &rstio);
+    return 0;
   }
-  return(val);
+  LogPrintf(LogWARN, "ChangeParity: %s: Invalid parity\n", str);
+  return -1;
 }
-
-#include <sys/socket.h>
-#include <arpa/inet.h>
-#include <netdb.h>
 
 int
 OpenConnection(host, port)
@@ -343,7 +335,7 @@ char *host, *port;
     if (hp) {
       bcopy(hp->h_addr_list[0], &dest.sin_addr.s_addr, 4);
     } else {
-      printf("unknown host: %s\n", host);
+      LogPrintf(LogWARN, "OpenConnection: unknown host: %s\n", host);
       return(-1);
     }
   }
@@ -353,18 +345,18 @@ char *host, *port;
     if (sp) {
       dest.sin_port = sp->s_port;
     } else {
-      printf("unknown service: %s\n", port);
+      LogPrintf(LogWARN, "OpenConnection: unknown service: %s\n", port);
       return(-1);
     }
   }
-  LogPrintf(LOG_PHASE_BIT, "Connected to %s:%s\n", host, port);
+  LogPrintf(LogPHASE, "Connected to %s:%s\n", host, port);
 
   sock = socket(PF_INET, SOCK_STREAM, 0);
   if (sock < 0) {
     return(sock);
   }
   if (connect(sock, (struct sockaddr *)&dest, sizeof(dest)) < 0) {
-    printf("connection failed.\n");
+    LogPrintf(LogWARN, "OpenConnection: connection failed.\n");
     return(-1);
   }
   return(sock);
@@ -386,7 +378,7 @@ int mode;
     if (isatty(0)) {
       modem = open(ctermid(NULL), O_RDWR|O_NONBLOCK);
       if (modem < 0) {
-	LogPrintf(LOG_PHASE_BIT, "Open Failed %s\n", ctermid(NULL));
+	LogPrintf(LogPHASE, "Open Failed %s\n", ctermid(NULL));
         return(modem);
       }
     } else if (modem < 0)
@@ -395,15 +387,15 @@ int mode;
     if (strncmp(VarDevice, "/dev/", 5) == 0) {
       if ((res = uu_lock(VarBaseDevice)) != UU_LOCK_OK) {
         if (res == UU_LOCK_INUSE)
-          LogPrintf(LOG_PHASE_BIT, "Modem %s is in use\n", VarDevice);
+          LogPrintf(LogPHASE, "Modem %s is in use\n", VarDevice);
         else
-          LogPrintf(LOG_PHASE_BIT, "Modem %s is in use: uu_lock: %s\n",
+          LogPrintf(LogPHASE, "Modem %s is in use: uu_lock: %s\n",
                     VarDevice, uu_lockerr(res));
         return(-1);
       }
       modem = open(VarDevice, O_RDWR|O_NONBLOCK);
       if (modem < 0) {
-        LogPrintf(LOG_PHASE_BIT, "Open Failed %s\n", VarDevice);
+        LogPrintf(LogPHASE, "Open Failed %s\n", VarDevice);
         (void) uu_unlock(VarBaseDevice);
         return(modem);
       }
@@ -427,21 +419,6 @@ int mode;
     }
   }
 
-  /* This code gets around the problem of closing descriptor 0
-   * when it should not have been closed and closing descriptor 1
-   * when the telnet connection dies.  Since this program always
-   * opens a descriptor for the modem in auto and direct mode,
-   * having to dup the descriptor here is a fatal error.
-   *
-   * With the other changes I have made this should no longer happen.
-   * JC
-  */
-  while (modem < 3)
-  {
-    logprintf("Duping modem fd %d\n", modem);
-    modem = dup(modem);
-  }
-
   /*
    * If we are working on tty device, change it's mode into
    * the one desired for further operation. In this implementation,
@@ -453,11 +430,9 @@ int mode;
   if (dev_is_modem && !DEV_IS_SYNC) {
     tcgetattr(modem, &rstio);
     modemios = rstio;
-#ifdef DEBUG
-    logprintf("## modem = %d\n", modem);
-    logprintf("modem (get): iflag = %x, oflag = %x, cflag = %x\n",
-    rstio.c_iflag, rstio.c_oflag, rstio.c_cflag);
-#endif
+    LogPrintf(LogDEBUG, "OpenModem: modem = %d\n", modem);
+    LogPrintf(LogDEBUG, "OpenModem: modem (get): iflag = %x, oflag = %x,"
+	      " cflag = %x\n", rstio.c_iflag, rstio.c_oflag, rstio.c_cflag);
     cfmakeraw(&rstio);
     if (VarCtsRts)
 	rstio.c_cflag |= CLOCAL | CCTS_OFLOW|CRTS_IFLOW;
@@ -475,22 +450,18 @@ int mode;
       rstio.c_cflag &= ~(CSIZE|PARODD|PARENB);
       rstio.c_cflag |= VarParity;
       if (cfsetspeed(&rstio, IntToSpeed(VarSpeed)) == -1) {
-	logprintf("Unable to set modem speed (modem %d to %d)\n",
+	LogPrintf(LogWARN, "Unable to set modem speed (modem %d to %d)\n",
 		  modem, VarSpeed);
       }
     }
     tcsetattr(modem, TCSADRAIN, &rstio);
-#ifdef DEBUG
-    logprintf("modem (put): iflag = %x, oflag = %x, cflag = %x\n",
-    rstio.c_iflag, rstio.c_oflag, rstio.c_cflag);
-#endif
+    LogPrintf(LogDEBUG, "modem (put): iflag = %x, oflag = %x, cflag = %x\n",
+              rstio.c_iflag, rstio.c_oflag, rstio.c_cflag);
 
     if (!(mode & MODE_DIRECT))
       if (ioctl(modem, TIOCMGET, &mbits))
 	return(-1);
-#ifdef DEBUG
-    fprintf(stderr, "modem control = %o\n", mbits);
-#endif
+    LogPrintf(LogDEBUG, "OpenModem: modem control = %o\n", mbits);
 
     oldflag = fcntl(modem, F_GETFL, 0);
     if (oldflag < 0)
@@ -524,12 +495,7 @@ int modem;
   if (!isatty(modem) || DEV_IS_SYNC)
     return(0);
   if (!(mode & MODE_DIRECT) && modem >= 0 && !Online) {
-#ifdef DEBUG
-    logprintf("mode = %d, modem = %d, mbits = %x\n", mode, modem, mbits);
-#endif
-#ifdef notdef
-    return(-1);
-#endif
+    LogPrintf(LogDEBUG, "RawModem: mode = %d, modem = %d, mbits = %x\n", mode, modem, mbits);
   }
   tcgetattr(modem, &rstio);
   cfmakeraw(&rstio);
@@ -545,12 +511,6 @@ int modem;
   if (oldflag < 0)
     return(-1);
   (void)fcntl(modem, F_SETFL, oldflag | O_NONBLOCK);
-#ifdef DEBUG
-  oldflag = fcntl(modem, F_GETFL, 0);
-  logprintf("modem (put2): iflag = %x, oflag = %x, cflag = %x\n",
-   rstio.c_iflag, rstio.c_oflag, rstio.c_cflag);
-  logprintf("flag = %x\n", oldflag);
-#endif
   return(0);
 }
 
@@ -589,14 +549,11 @@ int flag;
 #else
     tcgetattr(modem, &tio);
     if (cfsetspeed(&tio, B0) == -1) {
-      logprintf("Unable to set modem to speed 0\n");
+      LogPrintf(LogWARN, "Unable to set modem to speed 0\n");
     }
     tcsetattr(modem, TCSANOW, &tio);
 #endif
     sleep(1);
-#ifdef notdef
-    mbits &= ~TIOCM_CD;
-#endif
   }
   /*
    * If we are working as dedicated mode, never close it
@@ -697,33 +654,27 @@ int fd;
 {
   struct mqueue *queue;
   int nb, nw;
-#ifdef QDEBUG
   int i;
-#endif
 
     if (modemout == NULL && ModemQlen() == 0)
       IpStartOutput();
   if (modemout == NULL) {
-#ifdef QDEBUG
     i = PRI_LINK;
-#endif
     for (queue = &OutputQueues[PRI_LINK]; queue >= OutputQueues; queue--) {
       if (queue->top) {
 	modemout = Dequeue(queue);
-#ifdef QDEBUG
-	if (i > PRI_NORMAL) {
-	  struct mqueue *q;
-
-	  q = &OutputQueues[0];
-	  logprintf("output from queue %d, normal has %d\n", i, q->qlen);
-	}
-	logprintf("Dequeue(%d): ", i);
-#endif
+        if (LogIsKept(LogDEBUG)) {
+	  if (i > PRI_NORMAL) {
+	    struct mqueue *q;
+	    q = &OutputQueues[0];
+	    LogPrintf(LogDEBUG, "ModemStartOutput: Output from queue %d,"
+		      " normal has %d\n", i, q->qlen);
+	  }
+	  LogPrintf(LogDEBUG, "ModemStartOutput: Dequeued %d\n", i);
+        }
 	break;
       }
-#ifdef QDEBUG
       i--;
-#endif
     }
   }
   if (modemout) {
@@ -731,22 +682,19 @@ int fd;
     if (nb > 1600) nb = 1600;
     if (fd == 0) fd = 1;	/* XXX WTFO!  This is bogus */
     nw = write(fd, MBUF_CTOP(modemout), nb);
-#ifdef QDEBUG
-    logprintf("wrote: %d(%d)\n", nw, nb);
-    LogDumpBuff(LOG_HDLC, "modem write", MBUF_CTOP(modemout), nb);
-#endif
+    LogPrintf(LogDEBUG, "ModemStartOutput: wrote: %d(%d)\n", nw, nb);
+    LogDumpBuff(LogDEBUG, "ModemStartOutput: modem write",
+		MBUF_CTOP(modemout), nb);
     if (nw > 0) {
       modemout->cnt -= nw;
       modemout->offset += nw;
       if (modemout->cnt == 0) {
 	modemout = mbfree(modemout);
-#ifdef QDEBUG
-	logprintf(" mbfree\n");
-#endif
+	LogPrintf(LogDEBUG, "ModemStartOutput: mbfree\n");
       }
     } else if (nw < 0) {
       if (errno != EAGAIN)
-        perror("modem write");
+        LogPrintf(LogERROR, "modem write: %s", strerror(errno));
     }
   }
 }
@@ -760,22 +708,20 @@ DialModem()
   strncpy(ScriptBuffer, VarDialScript,sizeof(ScriptBuffer)-1);
   ScriptBuffer[sizeof(ScriptBuffer)-1] = '\0';
   if (DoChat(ScriptBuffer) > 0) {
-    if ((mode & (MODE_INTER|MODE_AUTO)) == MODE_INTER)
-      fprintf(stderr, "dial OK!\n");
+    if (VarTerm)
+      fprintf(VarTerm, "dial OK!\n");
     strncpy(ScriptBuffer, VarLoginScript,sizeof(ScriptBuffer)-1);
     if (DoChat(ScriptBuffer) > 0) {
-      if ((mode & (MODE_INTER|MODE_AUTO)) == MODE_INTER)
-	fprintf(stderr, "login OK!\n");
+      if (VarTerm)
+        fprintf(VarTerm, "login OK!\n");
       return EX_DONE;
     }
-    if ((mode & (MODE_INTER|MODE_AUTO)) == MODE_INTER)
-      fprintf(stderr, "login failed.\n");
+    LogPrintf(LogWARN, "DialModem: login failed.\n");
     ModemTimeout();	/* Dummy call to check modem status */
     excode = EX_NOLOGIN;
   }
   else {
-    if ((mode & (MODE_INTER|MODE_AUTO)) == MODE_INTER)
-      fprintf(stderr, "dial failed.\n");
+    LogPrintf(LogWARN, "DialModem: dial failed.\n");
     excode = EX_NODIAL;
   }
   HangupModem(0);
@@ -789,43 +735,46 @@ ShowModemStatus()
   int nb;
 #endif
 
-  printf("device: %s  speed: ", VarDevice);
+  if (!VarTerm)
+    return 1;
+
+  fprintf(VarTerm, "device: %s  speed: ", VarDevice);
   if (DEV_IS_SYNC)
-    printf("sync\n");
+    fprintf(VarTerm, "sync\n");
   else
-    printf("%d\n", VarSpeed);
+    fprintf(VarTerm, "%d\n", VarSpeed);
 
   switch (VarParity & CSIZE) {
   case CS7:
-    printf("cs7, ");
+    fprintf(VarTerm, "cs7, ");
     break;
   case CS8:
-    printf("cs8, ");
+    fprintf(VarTerm, "cs8, ");
     break;
   }
   if (VarParity & PARENB) {
     if (VarParity & PARODD)
-      printf("odd parity, ");
+      fprintf(VarTerm, "odd parity, ");
     else
-      printf("even parity, ");
+      fprintf(VarTerm, "even parity, ");
   } else
-    printf("no parity, ");
+    fprintf(VarTerm, "no parity, ");
 
-  printf("CTS/RTS %s.\n", (VarCtsRts? "on" : "off"));
+  fprintf(VarTerm, "CTS/RTS %s.\n", (VarCtsRts? "on" : "off"));
 
-#ifdef DEBUG
-  printf("fd = %d, modem control = %o\n", modem, mbits);
-#endif
-  printf("connect count: %d\n", connect_count);
+  if (LogIsKept(LogDEBUG))
+    fprintf(VarTerm, "fd = %d, modem control = %o\n", modem, mbits);
+  fprintf(VarTerm, "connect count: %d\n", connect_count);
 #ifdef TIOCOUTQ
   if (ioctl(modem, TIOCOUTQ, &nb) > 0)
-     printf("outq: %d\n", nb);
+     fprintf(VarTerm, "outq: %d\n", nb);
   else
-     printf("outq: ioctl probe failed.\n");
+     fprintf(VarTerm, "outq: ioctl probe failed.\n");
 #endif
-  printf("outqlen: %d\n", ModemQlen());
-  printf("DialScript  = %s\n", VarDialScript);
-  printf("LoginScript = %s\n", VarLoginScript);
-  printf("PhoneNumber(s) = %s\n", VarPhoneList);
-  return(1);
+  fprintf(VarTerm, "outqlen: %d\n", ModemQlen());
+  fprintf(VarTerm, "DialScript  = %s\n", VarDialScript);
+  fprintf(VarTerm, "LoginScript = %s\n", VarLoginScript);
+  fprintf(VarTerm, "PhoneNumber(s) = %s\n", VarPhoneList);
+
+  return 0;
 }

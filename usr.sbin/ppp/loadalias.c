@@ -41,7 +41,6 @@ int loadAliasHandlers(struct aliasHandlers *h)
 {
     char *path;
     char *env;
-    char *err;
     int i;
 
     path = _PATH_ALIAS;
@@ -49,25 +48,22 @@ int loadAliasHandlers(struct aliasHandlers *h)
     if (env)
         if (OrigUid() == 0)
             path = env;
-        else {
-            logprintf("Ignoring environment _PATH_ALIAS value (%s)\n", env);
-            printf("Ignoring environment _PATH_ALIAS value (%s)\n", env);
-        }
+        else
+            LogPrintf(LogALERT, "Ignoring environment _PATH_ALIAS value (%s)",
+                      env);
 
-    dl = dlopen(path, 1);
+    dl = dlopen(path, RTLD_LAZY);
     if (dl == (void *)0) {
-        err = dlerror();
-        logprintf("_PATH_ALIAS (%s): Invalid lib: %s\n", path, err);
-        printf("_PATH_ALIAS (%s): Invalid lib: %s\n", path, err);
+        LogPrintf(LogWARN, "_PATH_ALIAS (%s): Invalid lib: %s\n",
+                  path, dlerror());
         return -1;
     }
 
     for (i = 0; map[i].name; i++) {
         *(void **)((char *)h + map[i].offset) = dlsym(dl, map[i].name);
         if (*(void **)((char *)h + map[i].offset) == (void *)0) {
-            err = dlerror();
-            logprintf("_PATH_ALIAS (%s): %s: %s\n", path, map[i].name, err);
-            printf("_PATH_ALIAS (%s): %s: %s\n", path, map[i].name, err);
+            LogPrintf(LogWARN, "_PATH_ALIAS (%s): %s: %s\n", path,
+                      map[i].name, dlerror());
             (void)dlclose(dl);
             dl = (void *)0;
             return -1;

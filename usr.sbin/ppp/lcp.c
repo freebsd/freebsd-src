@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.10.2.7 1997/05/26 00:52:21 brian Exp $
+ * $Id: lcp.c,v 1.23 1997/06/09 03:27:24 brian Exp $
  *
  * TODO:
  *      o Validate magic number received from peer.
@@ -48,18 +48,19 @@ extern void StopIdleTimer();
 extern void OsLinkdown();
 extern void Cleanup();
 extern struct pppTimer IpcpReportTimer;
+extern int randinit;
 
 struct lcpstate LcpInfo;
 
-static void LcpSendConfigReq __P((struct fsm *));
-static void LcpSendTerminateReq __P((struct fsm *fp));
-static void LcpSendTerminateAck __P((struct fsm *fp));
-static void LcpDecodeConfig __P((u_char *cp, int flen,int mode));
-static void LcpInitRestartCounter __P((struct fsm *));
-static void LcpLayerUp __P((struct fsm *));
-static void LcpLayerDown __P((struct fsm *));
-static void LcpLayerStart __P((struct fsm *));
-static void LcpLayerFinish __P((struct fsm *));
+static void LcpSendConfigReq(struct fsm *);
+static void LcpSendTerminateReq(struct fsm *fp);
+static void LcpSendTerminateAck(struct fsm *fp);
+static void LcpDecodeConfig(u_char *cp, int flen,int mode);
+static void LcpInitRestartCounter(struct fsm *);
+static void LcpLayerUp(struct fsm *);
+static void LcpLayerDown(struct fsm *);
+static void LcpLayerStart(struct fsm *);
+static void LcpLayerFinish(struct fsm *);
 
 extern int ModemSpeed();
 
@@ -105,13 +106,13 @@ int new;
   struct lcpstate *lcp = &LcpInfo;
 
   phase = new;
-  LogPrintf(LOG_PHASE_BIT, "Phase: %s\n", PhaseNames[phase]);
+  LogPrintf(LogPHASE, "NewPhase: %s\n", PhaseNames[phase]);
   switch (phase) {
   case PHASE_AUTHENTICATE:
     lcp->auth_ineed = lcp->want_auth;
     lcp->auth_iwait = lcp->his_auth;
     if (lcp->his_auth || lcp->want_auth) {
-      LogPrintf(LOG_PHASE_BIT, " his = %x, mine = %x\n", lcp->his_auth, lcp->want_auth);
+      LogPrintf(LogPHASE, " his = %x, mine = %x\n", lcp->his_auth, lcp->want_auth);
       if (lcp->his_auth == PROTO_PAP)
 	StartAuthChallenge(&AuthPapInfo);
       if (lcp->want_auth == PROTO_CHAP)
@@ -137,12 +138,12 @@ int new;
 static void
 LcpReportTime()
 {
-#ifdef VERBOSE
-  time_t t;
+  if (LogIsKept(LogDEBUG)) {
+    time_t t;
 
-  time(&t);
-  logprintf("%s", ctime(&t));
-#endif
+    time(&t);
+    LogPrintf(LogDEBUG, "LcpReportTime: %s", ctime(&t));
+  }
   StopTimer(&LcpReportTimer);
   LcpReportTimer.state = TIMER_STOPPED;
   StartTimer(&LcpReportTimer);
@@ -155,20 +156,23 @@ ReportLcpStatus()
   struct lcpstate *lcp = &LcpInfo;
   struct fsm *fp = &LcpFsm;
 
-  printf("%s [%s]\n", fp->name, StateNames[fp->state]);
-  printf(
+  if (!VarTerm)
+    return 1;
+
+  fprintf(VarTerm, "%s [%s]\n", fp->name, StateNames[fp->state]);
+  fprintf(VarTerm, 
     " his side: MRU %ld, ACCMAP %08lx, PROTOCOMP %d, ACFCOMP %d, MAGIC %08lx,\n"
     "           REJECT %04lx\n",
     lcp->his_mru, lcp->his_accmap, lcp->his_protocomp, lcp->his_acfcomp,
     lcp->his_magic, lcp->his_reject);
-  printf(
+  fprintf(VarTerm, 
     " my  side: MRU %ld, ACCMAP %08lx, PROTOCOMP %d, ACFCOMP %d, MAGIC %08lx,\n"
     "           REJECT %04lx\n",
     lcp->want_mru, lcp->want_accmap, lcp->want_protocomp, lcp->want_acfcomp,
     lcp->want_magic, lcp->my_reject);
-  printf("\nDefaults:   MRU = %ld, ACCMAP = %08x\t", VarMRU, VarAccmap);
-  printf("Open Mode: %s\n", (VarOpenMode == OPEN_ACTIVE)? "active" : "passive");
-  return(1);
+  fprintf(VarTerm, "\nDefaults:   MRU = %ld, ACCMAP = %08x\t", VarMRU, VarAccmap);
+  fprintf(VarTerm, "Open Mode: %s\n", (VarOpenMode == OPEN_ACTIVE)? "active" : "passive");
+  return 0;
 }
 
 /*
@@ -236,15 +240,15 @@ u_long val;
   if (len == 6) {
     if (type == TY_IPADDR) {
       ina.s_addr = htonl(val);
-      LogPrintf(LOG_LCP_BIT, " %s [%d] %s\n",
+      LogPrintf(LogLCP, " %s [%d] %s\n",
 	types[type], len, inet_ntoa(ina));
     } else {
-      LogPrintf(LOG_LCP_BIT, " %s [%d] %08x\n", types[type], len, val);
+      LogPrintf(LogLCP, " %s [%d] %08x\n", types[type], len, val);
     }
     *cp++ = (val >> 24) & 0377;
     *cp++ = (val >> 16) & 0377;
   } else
-    LogPrintf(LOG_LCP_BIT, " %s [%d] %d\n", types[type], len, val);
+    LogPrintf(LogLCP, " %s [%d] %d\n", types[type], len, val);
   *cp++ = (val >> 8) & 0377;
   *cp++ = val & 0377;
   *cpp = cp;
@@ -258,16 +262,16 @@ struct fsm *fp;
   struct lcpstate *lcp = &LcpInfo;
   struct lqrreq *req;
 
-  LogPrintf(LOG_LCP_BIT, "%s: SendConfigReq\n", fp->name);
+  LogPrintf(LogLCP, "LcpSendConfigReq\n");
   cp = ReqBuff;
   if (!DEV_IS_SYNC) {
     if (lcp->want_acfcomp && !REJECTED(lcp, TY_ACFCOMP)) {
       *cp++ = TY_ACFCOMP; *cp++ = 2;
-      LogPrintf(LOG_LCP_BIT, " %s\n", cftypes[TY_ACFCOMP]);
+      LogPrintf(LogLCP, " %s\n", cftypes[TY_ACFCOMP]);
     }
     if (lcp->want_protocomp && !REJECTED(lcp, TY_PROTOCOMP)) {
       *cp++ = TY_PROTOCOMP; *cp++ = 2;
-      LogPrintf(LOG_LCP_BIT, " %s\n", cftypes[TY_PROTOCOMP]);
+      LogPrintf(LogLCP, " %s\n", cftypes[TY_PROTOCOMP]);
     }
     if (!REJECTED(lcp, TY_ACCMAP))
       PutConfValue(&cp, cftypes, TY_ACCMAP, 6, lcp->want_accmap);
@@ -282,7 +286,7 @@ struct fsm *fp;
     req->proto = htons(PROTO_LQR);
     req->period = htonl(lcp->want_lqrperiod);
     cp += sizeof(struct lqrreq);
-    LogPrintf(LOG_LCP_BIT, " %s (%d)\n", cftypes[TY_QUALPROTO], lcp->want_lqrperiod);
+    LogPrintf(LogLCP, " %s (%d)\n", cftypes[TY_QUALPROTO], lcp->want_lqrperiod);
   }
   switch (lcp->want_auth) {
   case PROTO_PAP:
@@ -303,7 +307,7 @@ int count;
 {
   struct fsm *fp = &LcpFsm;
 
-  LogPrintf(LOG_LCP_BIT, "%s: SendProtoRej\n", fp->name);
+  LogPrintf(LogLCP, "LcpSendProtoRej\n");
   FsmOutput(fp, CODE_PROTOREJ, fp->reqid, option, count);
 }
 
@@ -318,7 +322,7 @@ static void
 LcpSendTerminateAck(fp)
 struct fsm *fp;
 {
-  LogPrintf(LOG_LCP_BIT, "%s: SendTerminateAck.\n", fp->name);
+  LogPrintf(LogLCP, "LcpSendTerminateAck.\n");
   FsmOutput(fp, CODE_TERMACK, fp->reqid++, NULL, 0);
 }
 
@@ -326,7 +330,7 @@ static void
 LcpLayerStart(fp)
 struct fsm *fp;
 {
-  LogPrintf(LOG_LCP_BIT, "%s: LayerStart\n", fp->name);
+  LogPrintf(LogLCP, "LcpLayerStart\n");
   NewPhase(PHASE_ESTABLISH);
 }
 
@@ -345,26 +349,19 @@ static void
 LcpLayerFinish(fp)
 struct fsm *fp;
 {
-#ifdef VERBOSE
-  fprintf(stderr, "%s: LayerFinish\r\n", fp->name);
-#endif
-  Prompt();
-  LogPrintf(LOG_LCP_BIT, "%s: LayerFinish\n", fp->name);
-#ifdef notdef
-  OsCloseLink(0);
-#else
+  LogPrintf(LogLCP, "LcpLayerFinish\n");
   OsCloseLink(1);
-#endif
   NewPhase(PHASE_DEAD);
   StopAllTimers();
   (void)OsInterfaceDown(0);
+  Prompt();
 }
 
 static void
 LcpLayerUp(fp)
 struct fsm *fp;
 {
-  LogPrintf(LOG_LCP_BIT, "%s: LayerUp\n", fp->name);
+  LogPrintf(LogLCP, "LcpLayerUp\n");
   OsSetInterfaceParams(23, LcpInfo.his_mru, ModemSpeed());
   SetLinkParams(&LcpInfo);
 
@@ -382,11 +379,10 @@ static void
 LcpLayerDown(fp)
 struct fsm *fp;
 {
-  LogPrintf(LOG_LCP_BIT, "%s: LayerDown\n", fp->name);
+  LogPrintf(LogLCP, "LcpLayerDown\n");
   StopAllTimers();
   OsLinkdown();
   NewPhase(PHASE_TERMINATE);
-  Prompt();
 }
 
 void
@@ -448,7 +444,7 @@ int mode;
     case TY_MRU:
       sp = (u_short *)(cp + 2);
       mru = htons(*sp);
-      LogPrintf(LOG_LCP_BIT, " %s %d\n", request, mru);
+      LogPrintf(LogLCP, " %s %d\n", request, mru);
 
       switch (mode) {
       case MODE_REQ:
@@ -475,7 +471,7 @@ int mode;
     case TY_ACCMAP:
       lp = (u_long *)(cp + 2);
       accmap = htonl(*lp);
-      LogPrintf(LOG_LCP_BIT, " %s %08x\n", request, accmap);
+      LogPrintf(LogLCP, " %s %08x\n", request, accmap);
 
       switch (mode) {
       case MODE_REQ:
@@ -493,14 +489,14 @@ int mode;
     case TY_AUTHPROTO:
       sp = (u_short *)(cp + 2);
       proto = ntohs(*sp);
-      LogPrintf(LOG_LCP_BIT, " %s proto = %04x\n", request, proto);
+      LogPrintf(LogLCP, " %s proto = %04x\n", request, proto);
 
       switch (mode) {
       case MODE_REQ:
 	switch (proto) {
 	case PROTO_PAP:
 	  if (length != 4) {
-	    LogPrintf(LOG_LCP_BIT, " %s bad length (%d)\n", request, length);
+	    LogPrintf(LogLCP, " %s bad length (%d)\n", request, length);
 	    goto reqreject;
 	  }
 	  if (Acceptable(ConfPap)) {
@@ -516,7 +512,7 @@ int mode;
 	  break;
 	case PROTO_CHAP:
 	  if (length < 5) {
-	    LogPrintf(LOG_LCP_BIT, " %s bad length (%d)\n", request, length);
+	    LogPrintf(LogLCP, " %s bad length (%d)\n", request, length);
 	    goto reqreject;
 	  }
 	  if (Acceptable(ConfChap) && cp[4] == 5) {
@@ -530,7 +526,7 @@ int mode;
 	    goto reqreject;
 	  break;
 	default:
- 	    LogPrintf(LOG_LCP_BIT, " %s not implemented, NAK.\n", request);
+ 	    LogPrintf(LogLCP, " %s not implemented, NAK.\n", request);
             bcopy(cp, nakp, length);
             nakp += length;
             break;
@@ -545,7 +541,7 @@ int mode;
       break;
     case TY_QUALPROTO:
       req = (struct lqrreq *)cp;
-      LogPrintf(LOG_LCP_BIT, " %s proto: %x, interval: %dms\n",
+      LogPrintf(LogLCP, " %s proto: %x, interval: %dms\n",
 		request, ntohs(req->proto), ntohl(req->period)*10);
       switch (mode) {
       case MODE_REQ:
@@ -569,14 +565,14 @@ int mode;
     case TY_MAGICNUM:
       lp = (u_long *)(cp + 2);
       magic = ntohl(*lp);
-      LogPrintf(LOG_LCP_BIT, " %s %08x\n", request, magic);
+      LogPrintf(LogLCP, " %s %08x\n", request, magic);
 
       switch (mode) {
       case MODE_REQ:
 	if (LcpInfo.want_magic) {
 	  /* Validate magic number */
 	  if (magic == LcpInfo.want_magic) {
-	    LogPrintf(LOG_LCP_BIT, "Magic is same (%08x)\n", magic);
+	    LogPrintf(LogLCP, "Magic is same (%08x)\n", magic);
 	    LcpInfo.want_magic = GenerateMagic();
 	    bcopy(cp, nakp, 6);
             nakp += 6;
@@ -590,18 +586,18 @@ int mode;
 	}
 	break;
       case MODE_NAK:
-	LogPrintf(LOG_LCP_BIT, " %s magic %08x has NAKed\n", request, magic);
+	LogPrintf(LogLCP, " %s magic %08x has NAKed\n", request, magic);
 	LcpInfo.want_magic = GenerateMagic();
 	break;
       case MODE_REJ:
-	LogPrintf(LOG_LCP_BIT, " %s magic has REJected\n", request);
+	LogPrintf(LogLCP, " %s magic has REJected\n", request);
 	LcpInfo.want_magic = 0;
 	LcpInfo.his_reject |= (1 << type);
 	break;
       }
       break;
     case TY_PROTOCOMP:
-      LogPrintf(LOG_LCP_BIT, " %s\n", request);
+      LogPrintf(LogLCP, " %s\n", request);
 
       switch (mode) {
       case MODE_REQ:
@@ -628,7 +624,7 @@ int mode;
       }
       break;
     case TY_ACFCOMP:
-      LogPrintf(LOG_LCP_BIT, " %s\n", request);
+      LogPrintf(LogLCP, " %s\n", request);
       switch (mode) {
       case MODE_REQ:
         if (Acceptable(ConfAcfcomp)) {
@@ -657,7 +653,7 @@ int mode;
       }
       break;
     case TY_SDP:
-      LogPrintf(LOG_LCP_BIT, " %s\n", request);
+      LogPrintf(LogLCP, " %s\n", request);
       switch (mode) {
       case MODE_REQ:
       case MODE_NAK:
@@ -666,7 +662,7 @@ int mode;
       }
       break;
     default:
-      LogPrintf(LOG_LCP_BIT, " ???[%02x]\n", type);
+      LogPrintf(LogLCP, " ???[%02x]\n", type);
       if (mode == MODE_REQ) {
 reqreject:
         bcopy(cp, rejp, length);
@@ -677,7 +673,7 @@ reqreject:
     }
     /* to avoid inf. loop */
     if (length == 0) {
-      LogPrintf(LOG_LCP, "LCP size zero\n");
+      LogPrintf(LogLCP, "LCP size zero\n");
       break;
     }
 

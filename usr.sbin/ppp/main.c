@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.22.2.20 1997/05/29 02:30:35 brian Exp $
+ * $Id: main.c,v 1.60 1997/06/09 03:27:28 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -52,7 +52,7 @@
 #include "sig.h"
 
 #define LAUTH_M1 "Warning: No password entry for this host in ppp.secret\n"
-#define LAUTH_M2 "Warning: All manipulation is allowed by anyone in the world\n"
+#define LAUTH_M2 "Warning: Manipulation is allowed by anyone\n"
 
 #ifndef O_NONBLOCK
 #ifdef O_NDELAY
@@ -177,12 +177,12 @@ int excode;
   if (mode & MODE_BACKGROUND && BGFiledes[1] != -1) {
     char c = EX_ERRDEAD;
     if (write(BGFiledes[1],&c,1) == 1)
-      LogPrintf(LOG_PHASE_BIT,"Parent notified of failure.\n");
+      LogPrintf(LogPHASE,"Parent notified of failure.\n");
     else
-      LogPrintf(LOG_PHASE_BIT,"Failed to notify parent of failure.\n");
+      LogPrintf(LogPHASE,"Failed to notify parent of failure.\n");
     close(BGFiledes[1]);
   }
-  LogPrintf(LOG_PHASE_BIT, "PPP Terminated (%s).\n",ex_desc(excode));
+  LogPrintf(LogPHASE, "PPP Terminated (%s).\n",ex_desc(excode));
   LogClose();
   if (server >= 0) {
     close(server);
@@ -198,17 +198,19 @@ static void
 Hangup(signo)
 int signo;
 {
+#ifdef TRAPSEGV
   if (signo == SIGSEGV) {
-	LogPrintf(LOG_PHASE_BIT, "Signal %d, core dump.\n", signo);
+	LogPrintf(LogPHASE, "Signal %d, core dump.\n", signo);
 	LogClose();
 	abort();
   }
+#endif
   if (BGPid) {
       kill (BGPid, SIGTERM);
       exit (EX_HANGUP);
   }
   else {
-      LogPrintf(LOG_PHASE_BIT, "Signal %d, hangup.\n", signo);
+      LogPrintf(LogPHASE, "Signal %d, hangup.\n", signo);
       Cleanup(EX_HANGUP);
   }
 }
@@ -221,12 +223,10 @@ int signo;
      kill (BGPid, SIGINT);
      exit (EX_TERM);
    }
-   else {
-     LogPrintf(LOG_PHASE_BIT, "Signal %d, terminate.\n", signo);
-     reconnect(RECON_FALSE);
-     LcpClose();
-     Cleanup(EX_TERM);
-   }
+   LogPrintf(LogPHASE, "Signal %d, terminate.\n", signo);
+   reconnect(RECON_FALSE);
+   LcpClose();
+   Cleanup(EX_TERM);
 }
 
 static void
@@ -292,7 +292,7 @@ ProcessArgs(int argc, char **argv)
       if (loadAliasHandlers(&VarAliasHandlers) == 0)
         mode |= MODE_ALIAS;
       else
-        printf("Cannot load alias library\n");
+        LogPrintf(LogWARN, "Cannot load alias library\n");
       optc--;             /* this option isn't exclusive */
     }
     else
@@ -315,8 +315,10 @@ ProcessArgs(int argc, char **argv)
 static void
 Greetings()
 {
-  printf("User Process PPP. Written by Toshiharu OHNO.\r\n");
-  fflush(stdout);
+  if (VarTerm) {
+    fprintf(VarTerm, "User Process PPP. Written by Toshiharu OHNO.\n");
+    fflush(VarTerm);
+  }
 }
 
 void
@@ -325,8 +327,13 @@ int argc;
 char **argv;
 {
   FILE *lockfile;
-  argc--; argv++;
+  char *name;
 
+  VarTerm = stdout;
+  name = rindex(argv[0], '/');
+  LogOpen(name ? name+1 : argv[0]);
+
+  argc--; argv++;
   mode = MODE_INTER;		/* default operation is interactive mode */
   netfd = server = modem = tun_in = -1;
   ProcessArgs(argc, argv);
@@ -335,16 +342,14 @@ char **argv;
   GetUid();
   IpcpDefAddress();
 
-  if (SelectSystem("default", CONFFILE) < 0) {
-    fprintf(stderr, "Warning: No default entry is given in config file.\n");
-  }
+  if (SelectSystem("default", CONFFILE) < 0 && VarTerm)
+    fprintf(VarTerm, "Warning: No default entry is given in config file.\n");
 
   switch ( LocalAuthInit() ) {
     case NOT_FOUND:
-        if (!(mode & MODE_DIRECT)) {
-    	  fprintf(stderr,LAUTH_M1);
-    	  fprintf(stderr,LAUTH_M2);
-	  fflush (stderr);
+        if (VarTerm) {
+    	  fprintf(VarTerm,LAUTH_M1);
+    	  fprintf(VarTerm,LAUTH_M2);
         }
 	/* Fall down */
     case VALID:
@@ -355,19 +360,20 @@ char **argv;
   }
 
   if (OpenTunnel(&tunno) < 0) {
-    perror("open_tun");
+    LogPrintf(LogWARN, "open_tun: %s", strerror(errno));
     exit(EX_START);
   }
 
   if (mode & (MODE_AUTO|MODE_DIRECT|MODE_DEDICATED))
     mode &= ~MODE_INTER;
   if (mode & MODE_INTER) {
-    printf("Interactive mode\n");
+    fprintf(VarTerm, "Interactive mode\n");
     netfd = STDIN_FILENO;
   } else if (mode & MODE_AUTO) {
-    printf("Automatic Dialer mode\n");
+    fprintf(VarTerm, "Automatic Dialer mode\n");
     if (dstsystem == NULL) {
-      fprintf(stderr, "Destination system must be specified in"
+      if (VarTerm)
+        fprintf(VarTerm, "Destination system must be specified in"
               " auto, background or ddial mode.\n");
       exit(EX_START);
     }
@@ -375,11 +381,11 @@ char **argv;
 
   tcgetattr(0, &oldtio);		/* Save original tty mode */
 
-  pending_signal(SIGHUP, LogReOpen);
+  pending_signal(SIGHUP, Hangup);
   pending_signal(SIGTERM, CloseSession);
   pending_signal(SIGINT, CloseSession);
   pending_signal(SIGQUIT, CloseSession);
-#ifdef SIGSEGV
+#ifdef TRAPSEGV
   signal(SIGSEGV, Hangup);
 #endif
 #ifdef SIGPIPE
@@ -403,24 +409,26 @@ char **argv;
 
   if (dstsystem) {
     if (SelectSystem(dstsystem, CONFFILE) < 0) {
-      fprintf(stderr, "Destination system not found in conf file.\n");
+      if (VarTerm)
+        fprintf(VarTerm, "Destination system not found in conf file.\n");
       Cleanup(EX_START);
     }
     if ((mode & MODE_AUTO) && DefHisAddress.ipaddr.s_addr == INADDR_ANY) {
-      fprintf(stderr, "Must specify dstaddr with"
+      if (VarTerm)
+        fprintf(VarTerm, "Must specify dstaddr with"
               " auto, background or ddial mode.\n");
       Cleanup(EX_START);
     }
   }
   if (mode & MODE_DIRECT)
-    printf("Packet mode enabled.\n");
+    fprintf(VarTerm, "Packet mode enabled.\n");
 
   if (!(mode & MODE_INTER)) {
     int port = SERVER_PORT + tunno;
 
     if (mode & MODE_BACKGROUND) {
       if (pipe (BGFiledes)) {
-	perror("pipe");
+        LogPrintf(LogERROR, "pipe: %s", strerror(errno));
 	Cleanup(EX_SOCK);
       }
     }
@@ -428,7 +436,7 @@ char **argv;
     /* Create server socket and listen at there. */
     server = socket(PF_INET, SOCK_STREAM, 0);
     if (server < 0) {
-      perror("socket");
+      LogPrintf(LogERROR, "socket: %s", strerror(errno));
       Cleanup(EX_SOCK);
     }
     ifsin.sin_family = AF_INET;
@@ -436,22 +444,22 @@ char **argv;
     ifsin.sin_port = htons(port);
     setsockopt(server, SOL_SOCKET, SO_REUSEADDR, &server, sizeof server);
     if (bind(server, (struct sockaddr *) &ifsin, sizeof(ifsin)) < 0) {
-      perror("bind");
-      if (errno == EADDRINUSE)
-        fprintf(stderr, "Wait for a while, then try again.\n");
+      LogPrintf(LogERROR, "bind: %s", strerror(errno));
+      if (errno == EADDRINUSE && VarTerm)
+        fprintf(VarTerm, "Wait for a while, then try again.\n");
       Cleanup(EX_SOCK);
     }
     if (listen(server, 5) != 0) {
-      fprintf(stderr, "Unable to listen to socket - OS overload?\n");
+      LogPrintf(LogERROR, "Unable to listen to socket - OS overload?\n");
+      Cleanup(EX_SOCK);
     }
 
-    DupLog();
     if (!(mode & MODE_DIRECT)) {
       pid_t bgpid;
 
       bgpid = fork ();
       if (bgpid == -1) {
-	perror ("fork");
+        LogPrintf(LogERROR, "fork: %s", strerror(errno));
 	Cleanup (EX_SOCK);
       }
       if (bgpid) {
@@ -460,19 +468,19 @@ char **argv;
 	if (mode & MODE_BACKGROUND) {
 	  /* Wait for our child to close its pipe before we exit. */
 	  BGPid = bgpid;
-          close (BGFiledes[1]);
+          close(BGFiledes[1]);
 	  if (read(BGFiledes[0], &c, 1) != 1) {
-	    printf("Child exit, no status.\n");
-	    LogPrintf (LOG_PHASE_BIT, "Parent: Child exit, no status.\n");
+	    fprintf(VarTerm, "Child exit, no status.\n");
+	    LogPrintf (LogPHASE, "Parent: Child exit, no status.\n");
 	  } else if (c == EX_NORMAL) {
-	    printf("PPP enabled.\n");
-	    LogPrintf (LOG_PHASE_BIT, "Parent: PPP enabled.\n");
+	    fprintf(VarTerm, "PPP enabled.\n");
+	    LogPrintf (LogPHASE, "Parent: PPP enabled.\n");
 	  } else {
-	    printf("Child failed (%s).\n",ex_desc((int)c));
-	    LogPrintf(LOG_PHASE_BIT, "Parent: Child failed (%s).\n",
+	    fprintf(VarTerm, "Child failed (%s).\n",ex_desc((int)c));
+	    LogPrintf(LogPHASE, "Parent: Child failed (%s).\n",
                       ex_desc((int)c));
           }
-          close (BGFiledes[0]);
+          close(BGFiledes[0]);
 	}
         exit(c);
       } else if (mode & MODE_BACKGROUND)
@@ -487,7 +495,8 @@ char **argv;
       fprintf(lockfile, "%d\n", (int)getpid());
       fclose(lockfile);
     } else
-      logprintf("Warning: Can't create %s: %s\n", pid_filename, strerror(errno));
+      LogPrintf(LogALERT, "Warning: Can't create %s: %s\n",
+                pid_filename, strerror(errno));
 
     snprintf(if_filename, sizeof if_filename, "%s%s.if",
              _PATH_VARRUN, VarBaseDevice);
@@ -497,33 +506,24 @@ char **argv;
       fprintf(lockfile, "tun%d\n", tunno);
       fclose(lockfile);
     } else
-      logprintf("Warning: Can't create %s: %s\n", if_filename, strerror(errno));
+      LogPrintf(LogALERT, "Warning: Can't create %s: %s\n",
+                if_filename, strerror(errno));
 
     if (server >= 0)
-	LogPrintf(LOG_PHASE_BIT, "Listening at %d.\n", port);
+	LogPrintf(LogPHASE, "Listening at %d.\n", port);
 #ifdef DOTTYINIT
-    if (mode & (MODE_DIRECT|MODE_DEDICATED)) { /* } */
+    if (mode & (MODE_DIRECT|MODE_DEDICATED))
 #else
-    if (mode & MODE_DIRECT) {
+    if (mode & MODE_DIRECT)
 #endif
       TtyInit();
-    } else {
-      int fd;
-
-      setsid();			/* detach control tty */
-      if ((fd = open(_PATH_DEVNULL, O_RDWR, 0)) != -1) {
-	(void)dup2(fd, STDIN_FILENO);
-	(void)dup2(fd, STDOUT_FILENO);
-	(void)dup2(fd, STDERR_FILENO);
-	if (fd > 2)
-		(void)close (fd);
-      }
-    }
+    else
+      daemon(0,0);
   } else {
     TtyInit();
     TtyCommandMode(1);
   }
-  LogPrintf(LOG_PHASE_BIT, "PPP Started.\n");
+  LogPrintf(LogPHASE, "PPP Started.\n");
 
 
   do
@@ -540,7 +540,7 @@ void
 PacketMode()
 {
   if (RawModem(modem) < 0) {
-    fprintf(stderr, "Not connected.\r\n");
+    LogPrintf(LogWARN, "PacketMode: Not connected.\n");
     return;
   }
 
@@ -554,20 +554,24 @@ PacketMode()
   LcpOpen(VarOpenMode);
   if ((mode & (MODE_INTER|MODE_AUTO)) == MODE_INTER) {
     TtyCommandMode(1);
-    fprintf(stderr, "Packet mode.\r\n");
-    aft_cmd = 1;
+    if (VarTerm) {
+      fprintf(VarTerm, "Packet mode.\n");
+      aft_cmd = 1;
+    }
   }
 }
 
 static void
 ShowHelp()
 {
-  fprintf(stderr, "The following commands are available:\r\n");
-  fprintf(stderr, " ~p\tEnter to Packet mode\r\n");
-  fprintf(stderr, " ~-\tDecrease log level\r\n");
-  fprintf(stderr, " ~+\tIncrease log level\r\n");
-  fprintf(stderr, " ~.\tTerminate program\r\n");
-  fprintf(stderr, " ~?\tThis help\r\n");
+  fprintf(stderr, "The following commands are available:\n");
+  fprintf(stderr, " ~p\tEnter Packet mode\n");
+  fprintf(stderr, " ~-\tDecrease log level\n");
+  fprintf(stderr, " ~+\tIncrease log level\n");
+  fprintf(stderr, " ~t\tShow timers (only in \"log debug\" mode)\n");
+  fprintf(stderr, " ~m\tShow memory map (only in \"log debug\" mode)\n");
+  fprintf(stderr, " ~.\tTerminate program\n");
+  fprintf(stderr, " ~?\tThis help\n");
 }
 
 static void
@@ -576,25 +580,27 @@ ReadTty()
   int n;
   char ch;
   static int ttystate;
+  FILE *oVarTerm;
 #define MAXLINESIZE 200
   char linebuff[MAXLINESIZE];
 
-#ifdef DEBUG
-  logprintf("termode = %d, netfd = %d, mode = %d\n", TermMode, netfd, mode);
-#endif
+  LogPrintf(LogDEBUG, "termode = %d, netfd = %d, mode = %d\n",
+            TermMode, netfd, mode);
   if (!TermMode) {
     n = read(netfd, linebuff, sizeof(linebuff)-1);
-    aft_cmd = 1;
     if (n > 0) {
+      aft_cmd = 1;
       DecodeCommand(linebuff, n, 1);
     } else {
-      LogPrintf(LOG_PHASE_BIT, "client connection closed.\n");
+      LogPrintf(LogPHASE, "client connection closed.\n");
       VarLocalAuth = LOCAL_NO_AUTH;
-      close(netfd);
-      close(1);
-      dup2(2, 1);     /* Have to have something here or the modem will be 1 */
-      netfd = -1;
       mode &= ~MODE_INTER;
+      oVarTerm = VarTerm;
+      VarTerm = 0;
+      if (oVarTerm && oVarTerm != stdout)
+        fclose(oVarTerm);
+      close(netfd);
+      netfd = -1;
     }
     return;
   }
@@ -602,10 +608,8 @@ ReadTty()
   /*
    *  We are in terminal mode, decode special sequences
    */
-  n = read(0, &ch, 1);
-#ifdef DEBUG
-  logprintf("got %d bytes\n", n);
-#endif
+  n = read(fileno(VarTerm), &ch, 1);
+  LogPrintf(LogDEBUG, "Got %d bytes (reading from the terminal)", n);
 
   if (n > 0) {
     switch (ttystate) {
@@ -620,21 +624,6 @@ ReadTty()
       case '?':
 	ShowHelp();
 	break;
-      case '-':
-	if (loglevel > 0) {
-	  loglevel--;
-	  fprintf(stderr, "New loglevel is %d\r\n", loglevel);
-	}
-	break;
-      case '+':
-	loglevel++;
-	fprintf(stderr, "New loglevel is %d\r\n", loglevel);
-	break;
-#ifdef DEBUG
-      case 'm':
-	ShowMemMap();
-	break;
-#endif
       case 'p':
 	/*
 	 * XXX: Should check carrier.
@@ -644,18 +633,24 @@ ReadTty()
 	  PacketMode();
 	}
 	break;
-#ifdef DEBUG
-      case 't':
-	ShowTimers();
-	break;
-#endif
       case '.':
 	TermMode = 1;
+	aft_cmd = 1;
 	TtyCommandMode(1);
 	break;
+      case 't':
+	if (LogIsKept(LogDEBUG)) {
+	  ShowTimers();
+	  break;
+	}
+      case 'm':
+	if (LogIsKept(LogDEBUG)) {
+	  ShowMemMap();
+	  break;
+	}
       default:
 	if (write(modem, &ch, n) < 0)
-	  fprintf(stderr, "err in write.\r\n");
+	  LogPrintf(LogERROR, "error writing to modem.\n");
 	break;
       }
       ttystate = 0;
@@ -704,7 +699,7 @@ static void
 RedialTimeout()
 {
   StopTimer(&RedialTimer);
-  LogPrintf(LOG_PHASE_BIT, "Redialing timer expired.\n");
+  LogPrintf(LogPHASE, "Redialing timer expired.\n");
 }
 
 static void
@@ -721,7 +716,7 @@ StartRedialTimer(Timeout)
     else
 	RedialTimer.load = (random() % REDIAL_PERIOD) * SECTICKS;
 
-    LogPrintf(LOG_PHASE_BIT, "Enter pause (%d) for redialing.\n",
+    LogPrintf(LogPHASE, "Enter pause (%d) for redialing.\n",
 	      RedialTimer.load / SECTICKS);
 
     RedialTimer.func = RedialTimeout;
@@ -749,15 +744,14 @@ DoLoop()
 
   if (mode & MODE_DIRECT) {
     modem = OpenModem(mode);
-    LogPrintf(LOG_PHASE_BIT, "Packet mode enabled\n");
-    fflush(stderr);
+    LogPrintf(LogPHASE, "Packet mode enabled\n");
     PacketMode();
   } else if (mode & MODE_DEDICATED) {
     if (modem < 0)
       modem = OpenModem(mode);
   }
 
-  fflush(stdout);
+  fflush(VarTerm);
 
   timeout.tv_sec = 0;
   timeout.tv_usec = 0;
@@ -787,13 +781,13 @@ DoLoop()
     if (LcpFsm.state <= ST_CLOSED) {
       if (dial_up != TRUE && reconnectState == RECON_TRUE) {
         if (++reconnectCount <= VarReconnectTries) {
-          LogPrintf(LOG_PHASE_BIT, "Connection lost, re-establish (%d/%d)\n",
+          LogPrintf(LogPHASE, "Connection lost, re-establish (%d/%d)\n",
                     reconnectCount, VarReconnectTries);
 	  StartRedialTimer(VarReconnectTimer);
           dial_up = TRUE;
         } else {
           if (VarReconnectTries)
-            LogPrintf(LOG_PHASE_BIT, "Connection lost, maximum (%d) times\n",
+            LogPrintf(LogPHASE, "Connection lost, maximum (%d) times\n",
                       VarReconnectTries);
           reconnectCount = 0;
           if (mode & MODE_BACKGROUND)
@@ -808,19 +802,17 @@ DoLoop()
     * Just do it!
     */
     if ( dial_up && RedialTimer.state != TIMER_RUNNING ) {
-#ifdef DEBUG
-      logprintf("going to dial: modem = %d\n", modem);
-#endif
+      LogPrintf(LogDEBUG, "going to dial: modem = %d\n", modem);
       modem = OpenModem(mode);
       if (modem < 0) {
 	StartRedialTimer(VarRedialTimeout);
       } else {
 	tries++;    /* Tries are per number, not per list of numbers. */
         if (VarDialTries)
-	  LogPrintf(LOG_CHAT_BIT, "Dial attempt %u of %d\n", tries,
+	  LogPrintf(LogCHAT, "Dial attempt %u of %d\n", tries,
 		    VarDialTries);
         else
-	  LogPrintf(LOG_CHAT_BIT, "Dial attempt %u\n", tries);
+	  LogPrintf(LogCHAT, "Dial attempt %u\n", tries);
 	if (DialModem() == EX_DONE) {
 	  sleep(1);	       /* little pause to allow peer starts */
 	  ModemTimeout();
@@ -928,20 +920,20 @@ DoLoop()
           handle_signals();
           continue;
        }
-       perror("select");
+       LogPrintf(LogERROR, "select: %s", strerror(errno));
        break;
     }
 
     if ((netfd >= 0 && FD_ISSET(netfd, &efds)) || (modem >= 0 && FD_ISSET(modem, &efds))) {
-      logprintf("Exception detected.\n");
+      LogPrintf(LogALERT, "Exception detected.\n");
       break;
     }
 
     if (server >= 0 && FD_ISSET(server, &rfds)) {
-      LogPrintf(LOG_PHASE_BIT, "connected to client.\n");
+      LogPrintf(LogPHASE, "connected to client.\n");
       wfd = accept(server, (struct sockaddr *)&hisaddr, &ssize);
       if (wfd < 0) {
-	perror("accept");
+        LogPrintf(LogERROR, "accept: %s", strerror(errno));
 	continue;
       }
       if (netfd >= 0) {
@@ -950,19 +942,16 @@ DoLoop()
 	continue;
       } else
 	netfd = wfd;
-      if (dup2(netfd, 1) < 0) {
-	perror("dup2");
-	close(netfd);
-	netfd = -1;
-	continue;
-      }
+      VarTerm = fdopen(netfd, "a+");
       mode |= MODE_INTER;
       Greetings();
       switch ( LocalAuthInit() ) {
          case NOT_FOUND:
-    	    fprintf(stdout,LAUTH_M1);
-    	    fprintf(stdout,LAUTH_M2);
-            fflush(stdout);
+	    if (VarTerm) {
+    	      fprintf(VarTerm,LAUTH_M1);
+    	      fprintf(VarTerm,LAUTH_M2);
+              fflush(VarTerm);
+            }
 	    /* Fall down */
          case VALID:
 	    VarLocalAuth = LOCAL_AUTH;
@@ -990,7 +979,7 @@ DoLoop()
 	if ((mode & MODE_DIRECT) && n <= 0) {
 	  DownConnection();
 	} else
-          LogDumpBuff(LOG_ASYNC, "ReadFromModem", rbuff, n);
+          LogDumpBuff(LogASYNC, "ReadFromModem", rbuff, n);
 
 	if (LcpFsm.state <= ST_CLOSED) {
 	  /*
@@ -1003,12 +992,12 @@ DoLoop()
 	       * LCP packet is detected. Turn ourselves into packet mode.
 	       */
 	      if (cp != rbuff) {
-	        write(1, rbuff, cp - rbuff);
-	        write(1, "\r\n", 2);
+	        write(modem, rbuff, cp - rbuff);
+	        write(modem, "\r\n", 2);
 	      }
 	      PacketMode();
 	    } else
-	      write(1, rbuff, n);
+	      write(fileno(VarTerm), rbuff, n);
 	  }
 	} else {
 	  if (n > 0)
@@ -1020,7 +1009,7 @@ DoLoop()
     if (tun_in >= 0 && FD_ISSET(tun_in, &rfds)) {       /* something to read from tun */
       n = read(tun_in, rbuff, sizeof(rbuff));
       if (n < 0) {
-	perror("read from tun");
+        LogPrintf(LogERROR, "read from tun: %s", strerror(errno));
 	continue;
       }
       /*
@@ -1049,5 +1038,5 @@ DoLoop()
       }
     }
   }
-  logprintf("job done.\n");
+  LogPrintf(LogDEBUG, "Job (DoLoop) done.\n");
 }

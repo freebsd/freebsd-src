@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *
- * $Id: pathnames.h,v 1.3 1995/02/26 12:17:52 amurai Exp $
+ * $Id: pathnames.h,v 1.6 1997/02/22 16:10:43 peter Exp $
  *
  *	@(#)pathnames.h	5.2 (Berkeley) 6/1/90
  */

@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vars.h,v 1.7.2.6 1997/05/26 00:52:27 brian Exp $
+ * $Id: vars.h,v 1.18 1997/06/09 03:27:42 brian Exp $
  *
  *	TODO:
  */
@@ -67,15 +67,16 @@ struct pppvars {
   int    reconnect_tries;	/* Attempt reconnect on carrier loss */
   int    redial_timeout;	/* Redial timeout value */
   int    redial_next_timeout;	/* Redial next timeout value */
-  int    dial_tries;		/* Dial attempts before giving up, 0 == forever */
+  int    dial_tries;		/* Dial attempts before giving up, 0 == inf */
   char   modem_dev[20];		/* Name of device */
   char  *base_modem_dev;        /* Pointer to base of modem_dev */
   int	 open_mode;		/* LCP open mode */
-  #define LOCAL_AUTH	0x01
-  #define LOCAL_NO_AUTH	0x02
+#define LOCAL_AUTH	0x01
+#define LOCAL_NO_AUTH	0x02
   u_char lauth;			/* Local Authorized status */
-  #define DIALUP_REQ	0x01
-  #define DIALUP_DONE	0x02
+  FILE *termfp;			/* The terminal */
+#define DIALUP_REQ	0x01
+#define DIALUP_DONE	0x02
   char   dial_script[200];	/* Dial script */
   char   login_script[200];	/* Login script */
   char   auth_key[50];		/* PAP/CHAP key */
@@ -113,6 +114,7 @@ struct pppvars {
 #define VarRedialTimeout pppVars.redial_timeout
 #define VarRedialNextTimeout pppVars.redial_next_timeout
 #define VarDialTries	pppVars.dial_tries
+#define VarTerm		pppVars.termfp
 
 #define VarAliasHandlers	   pppVars.handler
 #define VarGetNextFragmentPtr	   (*pppVars.handler.GetNextFragmentPtr)

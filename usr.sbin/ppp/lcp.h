@@ -15,14 +15,13 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.h,v 1.2 1995/02/26 12:17:36 amurai Exp $
+ * $Id: lcp.h,v 1.7 1997/06/09 03:27:25 brian Exp $
  *
  *	TODO:
  */
 
 #ifndef _LCP_H_
 #define _LPC_H_
-#include "cdefs.h"
 
 struct lcpstate {
   u_long  his_mru;
@@ -75,10 +74,10 @@ struct lqrreq {
 
 extern struct lcpstate LcpInfo;
 
-extern void LcpInit __P((void));
-extern void LcpUp __P((void));
-extern void LcpSendProtoRej __P((u_char *, int));
-extern void LcpOpen __P((int mode));
-extern void LcpClose __P((void));
-extern void LcpDown __P((void));
+extern void LcpInit(void);
+extern void LcpUp(void);
+extern void LcpSendProtoRej(u_char *, int);
+extern void LcpOpen(int mode);
+extern void LcpClose(void);
+extern void LcpDown(void);
 #endif

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lqr.c,v 1.7.2.3 1997/05/24 17:34:53 brian Exp $
+ * $Id: lqr.c,v 1.15 1997/06/09 03:27:27 brian Exp $
  *
  *	o LQR based on RFC1333
  *
@@ -61,7 +61,7 @@ SendEchoReq()
     lqr = &lqrdata;
     lqr->magic = htonl(LcpInfo.want_magic);
     lqr->signature = htonl(SIGNATURE);
-    LogPrintf(LOG_LQM_BIT, "Send echo LQR [%d]\n", echoseq);
+    LogPrintf(LogLQM, "Send echo LQR [%d]\n", echoseq);
     lqr->sequence = htonl(echoseq++);
     FsmOutput(fp, CODE_ECHOREQ, fp->reqid++,
 	      (u_char *)lqr, sizeof(struct echolqr));
@@ -79,7 +79,7 @@ struct mbuf *bp;
     lqr = (struct echolqr *)MBUF_CTOP(bp);
     if (htonl(lqr->signature) == SIGNATURE) {
       seq = ntohl(lqr->sequence);
-      LogPrintf(LOG_LQM_BIT, "Got echo LQR [%d]\n", ntohl(lqr->sequence));
+      LogPrintf(LogLQM, "Got echo LQR [%d]\n", ntohl(lqr->sequence));
       gotseq = seq;
     }
   }
@@ -109,7 +109,7 @@ SendLqrReport()
       /*
        * XXX: Should implement LQM strategy
        */
-      LogPrintf(LOG_PHASE_BIT, "** 1 Too many ECHO packets are lost. **\n");
+      LogPrintf(LogPHASE, "** 1 Too many ECHO packets are lost. **\n");
       lqmmethod = 0;   /* Prevent rcursion via LcpClose() */
       reconnect(RECON_TRUE);
       LcpClose();
@@ -120,7 +120,7 @@ SendLqrReport()
     }
   } else if (lqmmethod & LQM_ECHO) {
     if (echoseq - gotseq > 5) {
-      LogPrintf(LOG_PHASE_BIT, "** 2 Too many ECHO packets are lost. **\n");
+      LogPrintf(LogPHASE, "** 2 Too many ECHO packets are lost. **\n");
       lqmmethod = 0;   /* Prevent rcursion via LcpClose() */
       reconnect(RECON_TRUE);
       LcpClose();
@@ -155,9 +155,8 @@ LqrInput(struct mbuf *bp)
     cp = MBUF_CTOP(bp);
     lqr = (struct lqrdata *)cp;
     if (ntohl(lqr->MagicNumber) != LcpInfo.his_magic) {
-#ifdef notdef
-logprintf("*** magic %x != expecting %x\n", ntohl(lqr->MagicNumber), LcpInfo.his_magic);
-#endif
+      LogPrintf(LogERROR, "LqrInput: magic %x != expecting %x\n",
+	ntohl(lqr->MagicNumber), LcpInfo.his_magic);
       pfree(bp);
       return;
     }
@@ -197,7 +196,7 @@ StartLqm()
   if (Enabled(ConfLqr))
     lqmmethod |= LQM_LQR;
   StopTimer(&LqrTimer);
-  LogPrintf(LOG_LQM_BIT, "LQM method = %d\n", lqmmethod);
+  LogPrintf(LogLQM, "LQM method = %d\n", lqmmethod);
 
   if (lcp->his_lqrperiod || lcp->want_lqrperiod) {
     /*
@@ -210,10 +209,10 @@ StartLqm()
     LqrTimer.func = SendLqrReport;
     SendLqrReport();
     StartTimer(&LqrTimer);
-    LogPrintf(LOG_LQM_BIT, "Will send LQR every %d.%d secs\n",
+    LogPrintf(LogLQM, "Will send LQR every %d.%d secs\n",
 	      period/100, period % 100);
   } else {
-    LogPrintf(LOG_LQM_BIT, "LQR is not activated.\n");
+    LogPrintf(LogLQM, "LQR is not activated.\n");
   }
 }
 
@@ -227,12 +226,12 @@ void
 StopLqr(method)
 int method;
 {
-  LogPrintf(LOG_LQM_BIT, "StopLqr method = %x\n", method);
+  LogPrintf(LogLQM, "StopLqr method = %x\n", method);
 
   if (method == LQM_LQR)
-    LogPrintf(LOG_LQM_BIT, "Stop sending LQR, Use LCP ECHO instead.\n");
+    LogPrintf(LogLQM, "Stop sending LQR, Use LCP ECHO instead.\n");
   if (method == LQM_ECHO)
-    LogPrintf(LOG_LQM_BIT, "Stop sending LCP ECHO.\n");
+    LogPrintf(LogLQM, "Stop sending LCP ECHO.\n");
   lqmmethod &= ~method;
   if (lqmmethod)
     SendLqrReport();
@@ -245,26 +244,19 @@ LqrDump(message, lqr)
 char *message;
 struct lqrdata *lqr;
 {
-  if (loglevel & (1 << LOG_LQM)) {
-    LogTimeStamp();
-    logprintf("%s:\n", message);
-    LogTimeStamp();
-    logprintf("  Magic:          %08x   LastOutLQRs:    %08x\n",
-	lqr->MagicNumber, lqr->LastOutLQRs);
-    LogTimeStamp();
-    logprintf("  LastOutPackets: %08x   LastOutOctets:  %08x\n",
-	lqr->LastOutPackets, lqr->LastOutOctets);
-    LogTimeStamp();
-    logprintf("  PeerInLQRs:     %08x   PeerInPackets:  %08x\n",
-	lqr->PeerInLQRs, lqr->PeerInPackets);
-    LogTimeStamp();
-    logprintf("  PeerInDiscards: %08x   PeerInErrors:   %08x\n",
-	lqr->PeerInDiscards, lqr->PeerInErrors);
-    LogTimeStamp();
-    logprintf("  PeerInOctets:   %08x   PeerOutLQRs:    %08x\n",
-	lqr->PeerInOctets, lqr->PeerOutLQRs);
-    LogTimeStamp();
-    logprintf("  PeerOutPackets: %08x   PeerOutOctets:  %08x\n",
-	lqr->PeerOutPackets, lqr->PeerOutOctets);
+  if (LogIsKept(LogLQM)) {
+    LogPrintf(LogLQM, "%s:", message);
+    LogPrintf(LogLQM, "  Magic:          %08x   LastOutLQRs:    %08x\n",
+	      lqr->MagicNumber, lqr->LastOutLQRs);
+    LogPrintf(LogLQM, "  LastOutPackets: %08x   LastOutOctets:  %08x\n",
+	      lqr->LastOutPackets, lqr->LastOutOctets);
+    LogPrintf(LogLQM, "  PeerInLQRs:     %08x   PeerInPackets:  %08x\n",
+	      lqr->PeerInLQRs, lqr->PeerInPackets);
+    LogPrintf(LogLQM, "  PeerInDiscards: %08x   PeerInErrors:   %08x\n",
+	      lqr->PeerInDiscards, lqr->PeerInErrors);
+    LogPrintf(LogLQM, "  PeerInOctets:   %08x   PeerOutLQRs:    %08x\n",
+	      lqr->PeerInOctets, lqr->PeerOutLQRs);
+    LogPrintf(LogLQM, "  PeerOutPackets: %08x   PeerOutOctets:  %08x\n",
+	      lqr->PeerOutPackets, lqr->PeerOutOctets);
   }
 }

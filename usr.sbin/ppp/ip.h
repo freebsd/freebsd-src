@@ -17,13 +17,13 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.12 1996/01/10 21:27:53 phk Exp $
+ * $Id: ip.h,v 1.4 1997/06/09 03:27:23 brian Exp $
  *
  */
 
 #ifndef _IP_H_
 #define	_IP_H_
-extern void IpStartOutput __P((void));
-extern int PacketCheck __P((char *, int , int));
-extern void IpEnqueue __P((int, char *, int));
+extern void IpStartOutput(void);
+extern int PacketCheck(char *, int , int);
+extern void IpEnqueue(int, char *, int);
 #endif

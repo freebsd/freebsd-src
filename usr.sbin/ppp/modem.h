@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.h,v 1.4 1995/02/27 03:18:22 amurai Exp $
+ * $Id: modem.h,v 1.8 1997/06/09 03:27:30 brian Exp $
  *
  *	TODO:
  */
@@ -24,22 +24,21 @@
 #define	_MODEM_H_
 #include <termios.h>
 #include "mbuf.h"
-#include "cdefs.h"
 
-extern int RawModem __P((int));
-extern void UnrawModem __P((int));
-extern void UpModem __P((int));
-extern void DownModem __P((int));
-extern void WriteModem __P((int, char *, int));
-extern void ModemStartOutput __P((int));
-extern int OpenModem __P((int));
-extern void CloseModem __P((void));
-extern int ModemSpeed __P((void));
-extern int ModemQlen __P((void));
-extern int DialModem __P((void));
-extern int SpeedToInt __P((speed_t));
-extern speed_t IntToSpeed __P((int));
-extern void ModemTimeout __P((void));
-extern void DownConnection __P((void));
-extern void ModemOutput __P((int, struct mbuf *));
+extern int RawModem(int);
+extern void UnrawModem(int);
+extern void UpModem(int);
+extern void DownModem(int);
+extern void WriteModem(int, char *, int);
+extern void ModemStartOutput(int);
+extern int OpenModem(int);
+extern void CloseModem(void);
+extern int ModemSpeed(void);
+extern int ModemQlen(void);
+extern int DialModem(void);
+extern int SpeedToInt(speed_t);
+extern speed_t IntToSpeed(int);
+extern void ModemTimeout(void);
+extern void DownConnection(void);
+extern void ModemOutput(int, struct mbuf *);
 #endif
