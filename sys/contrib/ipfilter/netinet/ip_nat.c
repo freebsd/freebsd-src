@@ -2250,15 +2250,6 @@ void *ifp;
 			nat->nat_sumd[1] = nat->nat_sumd[0];
 		}
 
-<<<<<<< ip_nat.c
-	for (n = nat_list; (n != NULL); n = n->in_next)
-		if (n->in_ifp == ifp) {
-			n->in_ifp = (void *)GETUNIT(n->in_ifname);
-			if (!n->in_ifp)
-				n->in_ifp = (void *)-1;
-		}
-	RWLOCK_EXIT(&ipf_nat);
-=======
 	for (n = nat_list; (n != NULL); n = n->in_next)
 		if (n->in_ifp == ifp) {
 			n->in_ifp = (void *)GETUNIT(n->in_ifname, 4);
@@ -2266,7 +2257,6 @@ void *ifp;
 				n->in_ifp = (void *)-1;
 		}
 	RWLOCK_EXIT(&ipf_nat);
->>>>>>> 1.1.1.8
 	SPL_X(s);
 }
 
