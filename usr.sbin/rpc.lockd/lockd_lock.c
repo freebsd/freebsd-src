@@ -1401,12 +1401,17 @@ lock_partialfilelock(struct file_lock *fl)
 	if (retval == PFL_NFSDENIED || retval == PFL_HWDENIED) {
 		/* Once last chance to check the lock */
 		if (fl->blocking == 1) {
-			/* Queue the lock */
-			debuglog("BLOCKING LOCK RECEIVED\n");
-			retval = (retval == PFL_NFSDENIED ?
-			    PFL_NFSBLOCKED : PFL_HWBLOCKED);
-			add_blockingfilelock(fl);
-			dump_filelock(fl);
+			if (retval == PFL_NFSDENIED) {
+				/* Queue the lock */
+				debuglog("BLOCKING LOCK RECEIVED\n");
+				retval = PFL_NFSBLOCKED;
+				add_blockingfilelock(fl);
+				dump_filelock(fl);
+			} else {
+				/* retval is okay as PFL_HWDENIED */
+				debuglog("BLOCKING LOCK DENIED IN HARDWARE\n");
+				dump_filelock(fl);
+			}
 		} else {
 			/* Leave retval alone, it's already correct */
 			debuglog("Lock denied.  Non-blocking failure\n");
