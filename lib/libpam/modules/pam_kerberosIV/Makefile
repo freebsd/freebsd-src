@@ -30,5 +30,6 @@ NO_WERROR=	yes
 CFLAGS+=	-DKERBEROS
 DPADD=		${LIBKRB} ${LIBCRYPTO} ${LIBCOM_ERR}
 LDADD=		-lkrb -lcrypto -lcom_err
+MAN=		pam_kerberosIV.8
 
 .include <bsd.lib.mk>
