@@ -26,18 +26,11 @@
  * $FreeBSD$
  */
 
-#ifndef _INTRQ_H_
-#define	_INTRQ_H_
+#ifndef _NET_INTRQ_H_
+#define	_NET_INTRQ_H_
 
 #ifdef _KERNEL
-extern const int	atintrq1_present;
-extern const int	atintrq2_present;
-extern const int	atmintrq_present;
-extern const int	ipintrq_present;
-extern const int	ip6intrq_present;
-extern const int	ipxintrq_present;
-extern const int	natmintrq_present;
-extern const int	nsintrq_present;
+extern int	family_enqueue __P((sa_family_t, struct mbuf *));
 #endif
 
-#endif /* _INTRQ_H_ */
+#endif /* _NET_INTRQ_H_ */
