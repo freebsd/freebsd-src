@@ -33,44 +33,45 @@
 #if NEP > 0
 #include "bpfilter.h"
 
-#include <sys/param.h>
-#include <sys/mbuf.h>
-#include <sys/socket.h>
-#include <sys/ioctl.h>
-#include <sys/errno.h>
-#include <sys/syslog.h>
-#include <sys/select.h>
+#include "param.h"
+#include "systm.h"
+#include "kernel.h"
+#include "mbuf.h"
+#include "socket.h"
+#include "ioctl.h"
+#include "errno.h"
+#include "syslog.h"
 
-#include <net/if.h>
-#include <net/netisr.h>
-#include <net/if_dl.h>
-#include <net/if_types.h>
-#include <net/netisr.h>
+#include "net/if.h"
+#include "net/netisr.h"
+#include "net/if_dl.h"
+#include "net/if_types.h"
+#include "net/netisr.h"
 
 #ifdef INET
-#include <netinet/in.h>
-#include <netinet/in_systm.h>
-#include <netinet/in_var.h>
-#include <netinet/ip.h>
-#include <netinet/if_ether.h>
+#include "netinet/in.h"
+#include "netinet/in_systm.h"
+#include "netinet/in_var.h"
+#include "netinet/ip.h"
+#include "netinet/if_ether.h"
 #endif
 
 #ifdef NS
-#include <netns/ns.h>
-#include <netns/ns_if.h>
+#include "netns/ns.h"
+#include "netns/ns_if.h"
 #endif
 
 #if NBPFILTER > 0
-#include <net/bpf.h>
-#include <net/bpfdesc.h>
+#include "net/bpf.h"
+#include "net/bpfdesc.h"
 #endif
 
-#include <machine/pio.h>
+#include "i386/include/pio.h"
 
-#include <i386/isa/isa.h>
-#include <i386/isa/isa_device.h>
-#include <i386/isa/icu.h>
-#include <i386/isa/if_epreg.h>
+#include "i386/isa/isa.h"
+#include "i386/isa/isa_device.h"
+#include "i386/isa/icu.h"
+#include "i386/isa/if_epreg.h"
 
 #define ETHER_MIN_LEN 64
 #define ETHER_MAX_LEN   1518
@@ -92,26 +93,29 @@ struct  ep_softc {
 	caddr_t bpf;			/* BPF  "magic cookie"		*/
 } ep_softc[NEP];
 
+void epinit(int);
+void epreset(int, int);
+void epwatchdog(int);
+void epstop(int);
+void epintr(int);
+void epstart(struct ifnet *);
+void epread(struct ep_softc *);
 
+int epprobe(struct isa_device *);
 int ether_output(),
-    epprobe(),
     epattach(),
-    epintr(),
-    epinit(),
-    epioctl(),
-    epreset(),
-    epwatchdog(),
-    epstart(),
-    fill_mbuf_queue();
+    epioctl();
+
+static void send_ID_sequence(u_short);
+static u_short get_eeprom_data(int, int);
+static int is_eeprom_busy(struct isa_device *);
+static void fill_mbuf_queue(caddr_t, int);
 
 struct isa_driver epdriver = {
 	epprobe, 
 	epattach,
 	"ep"
 };
-
-extern u_short get_eeprom_data(int id_port, int offset);
-extern int is_eeprom_busy(struct isa_device *is);
 
 /*
  * Rudimentary support for multiple cards is here but is not
@@ -120,12 +124,11 @@ extern int is_eeprom_busy(struct isa_device *is);
  * about the id_port.  We're limited due to current config procedure.
  * Magnum config holds promise of a fix but we'll have to wait a bit. 
  */
-epprobe(is)
+int epprobe(is)
 	struct isa_device *is;
 {
 	struct ep_softc *sc = &ep_softc[is->id_unit];
 	u_short k;
-	char buf[8];
 	int id_port = 0x100;   /* XXX */
 
 	outw(BASE+EP_COMMAND, GLOBAL_RESET);
@@ -147,7 +150,7 @@ epprobe(is)
 
 	k = get_eeprom_data(id_port, EEPROM_ADDR_CFG); /* get addr cfg */
 	k = (k & 0x1f)*0x10+0x200;	/* decode base addr. */
-	if (k != is->id_iobase)
+	if (k != (u_short) is->id_iobase)
 		return(0);
 
 	k = get_eeprom_data(id_port, EEPROM_RESOURCE_CFG);
@@ -160,7 +163,7 @@ epprobe(is)
 	return(0x10); /* 16 bytes of I/O space used. */
 }
 
-epattach(is)
+int epattach(is)
 	struct isa_device *is;
 {
 	struct ep_softc *sc = &ep_softc[is->id_unit];
@@ -168,6 +171,36 @@ epattach(is)
 	u_short i;
 	struct ifaddr *ifa;
 	struct sockaddr_dl *sdl;
+
+	ifp->if_unit = is->id_unit;
+	ifp->if_name = "ep" ;
+	ifp->if_mtu = ETHERMTU;
+	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_NOTRAILERS;
+	ifp->if_init = epinit;
+	ifp->if_output = ether_output;
+	ifp->if_start = epstart;
+	ifp->if_ioctl = epioctl;
+	ifp->if_watchdog = epwatchdog;
+
+	if_attach(ifp);
+
+/*
+ * Fill the hardware address into ifa_addr if we find an AF_LINK entry.
+ * We need to do this so bpf's can get the hardware addr of this card.
+ * netstat likes this too!
+ */
+	ifa = ifp->if_addrlist;
+	while ((ifa != 0) && (ifa->ifa_addr != 0) &&
+		(ifa->ifa_addr->sa_family != AF_LINK))
+			ifa = ifa->ifa_next;
+
+	if ((ifa != 0) && (ifa->ifa_addr != 0)) {
+		sdl = (struct sockaddr_dl *)ifa->ifa_addr;
+		sdl->sdl_type = IFT_ETHER;
+		sdl->sdl_alen = ETHER_ADDR_LEN;
+		sdl->sdl_slen = 0;
+		bcopy(sc->ep_addr, LLADDR(sdl), ETHER_ADDR_LEN);
+	}
 
 	sc->ep_io_addr = is->id_iobase;
 
@@ -204,10 +237,10 @@ epattach(is)
 		u_short *p;
 		GO_WINDOW(0);
 		if (is_eeprom_busy(is)) 
-			return;
+			return 0;
 		outw(BASE+EP_W0_EEPROM_COMMAND, READ_EEPROM | i);
 		if (is_eeprom_busy(is)) 
-			return;
+			return 0;
 		p =(u_short *)&sc->ep_addr[i*2];
 		*p=htons(inw(BASE+EP_W0_EEPROM_DATA));
 		GO_WINDOW(2);
@@ -215,58 +248,31 @@ epattach(is)
 	}
 	printf(" address %s\n", ether_sprintf(sc->ep_addr));
 
-	ifp->if_unit = is->id_unit;
-	ifp->if_name = "ep" ;
-	ifp->if_mtu = ETHERMTU;
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_NOTRAILERS;
-	ifp->if_init = epinit;
-	ifp->if_output = ether_output;
-	ifp->if_start = epstart;
-	ifp->if_ioctl = epioctl;
-	ifp->if_watchdog = epwatchdog;
-
-	if_attach(ifp);
-
-/*
- * Fill the hardware address into ifa_addr if we find an AF_LINK entry.
- * We need to do this so bpf's can get the hardware addr of this card.
- * netstat likes this too!
- */
-	ifa = ifp->if_addrlist;
-	while ((ifa != 0) && (ifa->ifa_addr != 0) &&
-		(ifa->ifa_addr->sa_family != AF_LINK))
-			ifa = ifa->ifa_next;
-
-	if ((ifa != 0) && (ifa->ifa_addr != 0)) {
-		sdl = (struct sockaddr_dl *)ifa->ifa_addr;
-		sdl->sdl_type = IFT_ETHER;
-		sdl->sdl_alen = ETHER_ADDR_LEN;
-		sdl->sdl_slen = 0;
-		bcopy(sc->ep_addr, LLADDR(sdl), ETHER_ADDR_LEN);
-	}
 #if NBPFILTER > 0
 	bpfattach(&sc->bpf, ifp, DLT_EN10MB, sizeof(struct ether_header));
 #endif
+	return 1;
 }
 
 /* The order in here seems important. Otherwise we may not receive interrupts. ?! */
-epinit(unit)
+void epinit(unit)
 	int unit;
 {
 	register struct ep_softc *sc = &ep_softc[unit];
 	register struct ifnet *ifp = &sc->ep_if;
 	int s,i;
 
-	s=splnet();
 
 	if (ifp->if_addrlist == (struct ifaddr *) 0) {
 		printf("ep: address not known...\n");
-		splx(s);
 		return;
 	}
 
+	s=splimp();
+
 	while (inb(BASE+EP_STATUS) & S_COMMAND_IN_PROGRESS) 
 		;
+
 
 	GO_WINDOW(0);
 	outw(BASE+EP_W0_CONFIG_CTRL, 0);   /* Disable the card */
@@ -294,14 +300,20 @@ epinit(unit)
 	outw(BASE+EP_COMMAND, SET_RX_FILTER | FIL_INDIVIDUAL | 
 		FIL_GROUP | FIL_BRDCST);
 
-	if (!(ifp->if_flags & IFF_LINK0) && (sc->ep_connectors & BNC)) {	/* Want BNC? */
+	if (!(ifp->if_flags & IFF_ALTPHYS) && (sc->ep_connectors & BNC)) {	/* Want BNC? */
 		outw(BASE+EP_COMMAND, START_TRANSCEIVER);
 		DELAY(1000);
+#ifdef EP_DEBUG
+printf("ed0: selected BNC\n");
+#endif
 	}
-	if ((sc->ep_connectors & UTP) & !(ifp->if_flags & IFF_LINK0)) {    /* Want UTP? */
+	if (!(ifp->if_flags & IFF_ALTPHYS) && (sc->ep_connectors & UTP)) {    /* Want UTP? */
 		GO_WINDOW(4);
 		outw(BASE+EP_W4_MEDIA_TYPE, ENABLE_UTP);
 		GO_WINDOW(1);
+#ifdef EP_DEBUG
+printf("ed0: selected UTP\n");
+#endif
 	}
 		
 	outw(BASE+EP_COMMAND, RX_ENABLE);
@@ -317,21 +329,21 @@ epinit(unit)
 	 */
 	sc->last_mb = 0;
 	sc->next_mb = 0;
-	fill_mbuf_queue(sc);
+	fill_mbuf_queue((caddr_t) sc, 0);
 
 	epstart(ifp);
 
-	splx(s);
+	(void) splx(s);
 }
 
-epstart(ifp)
+void epstart(ifp)
 	struct ifnet *ifp;
 {
 	register struct ep_softc *sc = &ep_softc[ifp->if_unit];
 	struct mbuf *m, *top;
 	int s, len, pad;
 
-	s=splnet();
+	s=splimp();
 	if (sc->ep_if.if_flags & IFF_OACTIVE) {
 		splx(s);
 		return;
@@ -452,7 +464,7 @@ startagain:
 	goto startagain;
 }
 
-epintr(unit)
+void epintr(unit)
 	int unit;
 {
 	int status, i;
@@ -516,7 +528,7 @@ checkintr:
 	goto checkintr;
 }
 
-epread(sc)
+void epread(sc)
 	register struct ep_softc *sc;
 {
 	struct ether_header *eh;
@@ -593,7 +605,7 @@ epread(sc)
 				if (m==0)
 					goto out;
 			} else {
-				timeout(fill_mbuf_queue, sc, 1);
+				timeout(fill_mbuf_queue, (caddr_t) sc, 1);
 				sc->next_mb = (sc->next_mb + 1) % MAX_MBS;
 			}
 			if (totlen >= MINCLSIZE)
@@ -651,7 +663,7 @@ out:	outw(BASE+EP_COMMAND, RX_DISCARD_TOP_PACK);
 /*
  * Look familiar?
  */
-epioctl(ifp, cmd, data)
+int epioctl(ifp, cmd, data)
 	register struct ifnet *ifp;
 	int cmd;
 	caddr_t data;
@@ -695,10 +707,13 @@ epioctl(ifp, cmd, data)
 		}
 		break;
 	case SIOCSIFFLAGS:
+#ifdef EP_DEBUG
+printf("ep: ioctl SIOCSIFFLAGS = 0x%x\n", ifp->if_flags);
+#endif
 		if ((ifp->if_flags & IFF_UP) == 0 && ifp->if_flags & IFF_RUNNING) {
-			ifp->if_flags &= ~IFF_RUNNING;
 			epstop(ifp->if_unit);
-		} else if (ifp->if_flags & IFF_UP && (ifp->if_flags & IFF_RUNNING) == 0)
+			ifp->if_flags &= ~IFF_RUNNING;
+		} else if ((ifp->if_flags & IFF_UP) && (ifp->if_flags & IFF_RUNNING) == 0)
 			 epinit(ifp->if_unit);
 		break;
 
@@ -714,26 +729,33 @@ epioctl(ifp, cmd, data)
 	return (error);
 }
 
-epreset(unit)
+void epreset(unit, uban)
 	int unit;
+	int uban;	/* XXXX */
 {
 	int s;
 
+	s = splimp();
 	epstop(unit);
 	epinit(unit);
-	return;
+	(void) splx(s);
 }
 
-epwatchdog(unit)
+void epwatchdog(unit)
 	int unit;
 {
-	return;
+	struct ep_softc *sc = &ep_softc[unit];
+
+	log(LOG_ERR, "ep%d: device timeout\n", unit);
+	++sc->ep_ac.ac_if.if_oerrors;
+
+	epreset(unit, 0);
 }
 
-epstop(unit)
+void epstop(unit)
 	int unit;
 {
-        register struct ep_softc *sc = &ep_softc[unit];
+        struct ep_softc *sc = &ep_softc[unit];
 
 	outw(BASE+EP_COMMAND, RX_DISABLE);
 	outw(BASE+EP_COMMAND, RX_DISCARD_TOP_PACK);
@@ -747,13 +769,12 @@ epstop(unit)
 	outw(BASE+EP_COMMAND, SET_RD_0_MASK);
 	outw(BASE+EP_COMMAND, SET_INTR_MASK);
 	outw(BASE+EP_COMMAND, SET_RX_FILTER);
-	return;
 }
 
 /*
  * This is adapted straight from the book. There's probably a better way.
  */
-send_ID_sequence(port)
+void send_ID_sequence(port)
 	u_short port;
 {
 	char cx, al;
@@ -793,7 +814,7 @@ loop1:  cx--;
  * returned to us by inb().  Hence; we read 16 times getting one
  * bit of data with each read.  
  */
-u_short get_eeprom_data(id_port, offset)
+static u_short get_eeprom_data(id_port, offset)
 	int id_port;
 	int offset;
 {
@@ -805,8 +826,7 @@ u_short get_eeprom_data(id_port, offset)
 	return(data);
 }
 
-int 
-is_eeprom_busy(is)
+static int is_eeprom_busy(is)
 	struct isa_device *is;
 {
 	int i=0, j;
@@ -830,11 +850,13 @@ is_eeprom_busy(is)
 	return(0);
 }
 
-int
-fill_mbuf_queue(sc)
-	struct ep_softc *sc;
+static void fill_mbuf_queue(sp, dummy)
+	caddr_t sp;
+	int dummy;
 {
+	struct ep_softc *sc = (struct ep_softc *) sp;
 	int i=0;
+
 	if (sc->mb[sc->last_mb])
 		return;
 	i=sc->last_mb;
