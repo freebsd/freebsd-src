@@ -86,7 +86,7 @@ typedef int  ReturnStatus;
  * by user processes.
  */
 
-#define NIL 		(~0)
+#define NIL 		~0
 #define USER_NIL 	0
 #ifndef NULL
 #define NULL	 	0
@@ -103,12 +103,9 @@ typedef char *Address;
  * ClientData is an uninterpreted word.  It is defined as an int so that
  * kdbx will not interpret client data as a string.  Unlike an "Address",
  * client data will generally not be used in arithmetic.
+ * But we don't have kdbx anymore so we define it as void (christos)
  */
 
-typedef int *ClientData;
+typedef void *ClientData;
 
-#ifdef notdef
-#include "status.h"
-#endif
-
-#endif _SPRITE
+#endif /* _SPRITE */

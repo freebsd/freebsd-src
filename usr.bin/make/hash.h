@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1988, 1989, 1990, 1993
- *	The Regents of the University of California.  All rights reserved.
+ * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
+ * Copyright (c) 1988, 1989 by Adam de Boor
  * Copyright (c) 1989 by Berkeley Softworks
  * All rights reserved.
  *
@@ -105,12 +105,12 @@ typedef struct Hash_Search {
 
 #define	Hash_Size(n)	(((n) + sizeof (int) - 1) / sizeof (int))
 
-Hash_Entry	*Hash_CreateEntry __P((Hash_Table *, char *, Boolean *));
-void		 Hash_DeleteEntry __P((Hash_Table *, Hash_Entry *));
-void		 Hash_DeleteTable __P((Hash_Table *));
-Hash_Entry	*Hash_EnumFirst __P((Hash_Table *, Hash_Search *));
-Hash_Entry	*Hash_EnumNext __P((Hash_Search *));
-Hash_Entry	*Hash_FindEntry __P((Hash_Table *, char *));
-void		 Hash_InitTable __P((Hash_Table *, int));
+void Hash_InitTable __P((Hash_Table *, int));
+void Hash_DeleteTable __P((Hash_Table *));
+Hash_Entry *Hash_FindEntry __P((Hash_Table *, char *));
+Hash_Entry *Hash_CreateEntry __P((Hash_Table *, char *, Boolean *));
+void Hash_DeleteEntry __P((Hash_Table *, Hash_Entry *));
+Hash_Entry *Hash_EnumFirst __P((Hash_Table *, Hash_Search *));
+Hash_Entry *Hash_EnumNext __P((Hash_Search *));
 
 #endif /* _HASH */

@@ -37,10 +37,42 @@
  */
 
 #ifndef lint
-static char     sccsid[] = "@(#)str.c	8.4 (Berkeley) 3/21/94";
-#endif /* not lint */
+/* from: static char     sccsid[] = "@(#)str.c	5.8 (Berkeley) 6/1/90"; */
+static char *rcsid = "$Id: str.c,v 1.8 1994/06/16 18:50:18 jtc Exp $";
+#endif				/* not lint */
 
 #include "make.h"
+
+static char **argv, *buffer;
+static int argmax, curlen;
+
+/*
+ * str_init --
+ *	Initialize the strings package
+ *
+ */
+void
+str_init()
+{
+    char *p1;
+    argv = (char **)emalloc((argmax = 50) * sizeof(char *));
+    argv[0] = Var_Value(".MAKE", VAR_GLOBAL, &p1);
+}
+
+
+/*
+ * str_end --
+ *	Cleanup the strings package
+ *
+ */
+void
+str_end()
+{
+    free(argv[0]);
+    free((Address) argv);
+    if (buffer)
+	free(buffer);
+}
 
 /*-
  * str_concat --
@@ -99,29 +131,25 @@ str_concat(s1, s2, flags)
  *	the first word is always the value of the .MAKE variable.
  */
 char **
-brk_string(str, store_argc)
+brk_string(str, store_argc, expand)
 	register char *str;
 	int *store_argc;
+	Boolean expand;
 {
-	static int argmax, curlen;
-	static char **argv, *buf;
 	register int argc, ch;
 	register char inquote, *p, *start, *t;
 	int len;
-
-	/* save off pmake variable */
-	if (!argv) {
-		argv = (char **)emalloc((argmax = 50) * sizeof(char *));
-		argv[0] = Var_Value(".MAKE", VAR_GLOBAL);
-	}
 
 	/* skip leading space chars. */
 	for (; *str == ' ' || *str == '\t'; ++str)
 		continue;
 
 	/* allocate room for a copy of the string */
-	if ((len = strlen(str) + 1) > curlen)
-		buf = emalloc(curlen = len);
+	if ((len = strlen(str) + 1) > curlen) {
+		if (buffer)
+		    free(buffer);
+		buffer = emalloc(curlen = len);
+	}
 
 	/*
 	 * copy the string; at the same time, parse backslashes,
@@ -129,34 +157,45 @@ brk_string(str, store_argc)
 	 */
 	argc = 1;
 	inquote = '\0';
-	for (p = str, start = t = buf;; ++p) {
+	for (p = str, start = t = buffer;; ++p) {
 		switch(ch = *p) {
 		case '"':
 		case '\'':
-			if (inquote) {
+			if (inquote)
 				if (inquote == ch)
 					inquote = '\0';
 				else
 					break;
-			} else {
+			else {
 				inquote = (char) ch;
-				start = t;
-				continue;
+				/* Don't miss "" or '' */
+				if (start == NULL && p[1] == inquote) {
+					start = t + 1;
+					break;
+				}
 			}
-			/* FALLTHROUGH */
+			if (!expand) {
+				if (!start)
+					start = t;
+				*t++ = ch;
+			}
+			continue;
 		case ' ':
 		case '\t':
+		case '\n':
 			if (inquote)
 				break;
 			if (!start)
 				continue;
 			/* FALLTHROUGH */
-		case '\n':
 		case '\0':
 			/*
 			 * end of a token -- make sure there's enough argv
 			 * space and save off a pointer.
 			 */
+			if (!start)
+			    goto done;
+
 			*t++ = '\0';
 			if (argc == argmax) {
 				argmax *= 2;		/* ramp up fast */
@@ -170,6 +209,14 @@ brk_string(str, store_argc)
 				goto done;
 			continue;
 		case '\\':
+			if (!expand) {
+				if (!start)
+					start = t;
+				*t++ = '\\';
+				ch = *++p;
+				break;
+			}
+				
 			switch (ch = *++p) {
 			case '\0':
 			case '\n':
