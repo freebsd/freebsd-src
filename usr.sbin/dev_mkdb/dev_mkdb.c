@@ -32,33 +32,35 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1990, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)dev_mkdb.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/stat.h>
 
-#include <fcntl.h>
-#undef DIRBLKSIZ
-#include <dirent.h>
-#include <nlist.h>
-#include <kvm.h>
 #include <db.h>
-#include <errno.h>
-#include <unistd.h>
-#include <stdio.h>
+#include <dirent.h>
+#include <err.h>
+#include <fcntl.h>
+#include <kvm.h>
+#include <nlist.h>
 #include <paths.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
-void	err __P((const char *, ...));
-void	usage __P((void));
+static void	usage __P((void));
 
 int
 main(argc, argv)
@@ -91,7 +93,7 @@ main(argc, argv)
 		usage();
 
 	if (chdir(_PATH_DEV))
-		err("%s: %s", _PATH_DEV, strerror(errno));
+		err(1, "%s", _PATH_DEV);
 
 	dirp = opendir(".");
 
@@ -100,7 +102,7 @@ main(argc, argv)
 	db = dbopen(dbtmp, O_CREAT|O_EXLOCK|O_RDWR|O_TRUNC,
 	    S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH, DB_HASH, NULL);
 	if (db == NULL)
-		err("%s: %s", dbtmp, strerror(errno));
+		err(1, "%s", dbtmp);
 
 	/*
 	 * Keys are a mode_t followed by a dev_t.  The former is the type of
@@ -112,10 +114,9 @@ main(argc, argv)
 	key.data = &bkey;
 	key.size = sizeof(bkey);
 	data.data = buf;
-	while (dp = readdir(dirp)) {
+	while ((dp = readdir(dirp))) {
 		if (lstat(dp->d_name, &sb)) {
-			(void)fprintf(stderr,
-			    "dev_mkdb: %s: %s\n", dp->d_name, strerror(errno));
+			warn("%s", dp->d_name);
 			continue;
 		}
 
@@ -136,46 +137,17 @@ main(argc, argv)
 		buf[dp->d_namlen] = '\0';
 		data.size = dp->d_namlen + 1;
 		if ((db->put)(db, &key, &data, 0))
-			err("dbput %s: %s\n", dbtmp, strerror(errno));
+			err(1, "dbput %s", dbtmp);
 	}
 	(void)(db->close)(db);
 	if (rename(dbtmp, dbname))
-		err("rename %s to %s: %s", dbtmp, dbname, strerror(errno));
+		err(1, "rename %s to %s", dbtmp, dbname);
 	exit(0);
 }
 
-void
+static void
 usage()
 {
 	(void)fprintf(stderr, "usage: dev_mkdb\n");
 	exit(1);
-}
-
-#if __STDC__
-#include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
-
-void
-#if __STDC__
-err(const char *fmt, ...)
-#else
-err(fmt, va_alist)
-	char *fmt;
-        va_dcl
-#endif
-{
-	va_list ap;
-#if __STDC__
-	va_start(ap, fmt);
-#else
-	va_start(ap);
-#endif
-	(void)fprintf(stderr, "dev_mkdb: ");
-	(void)vfprintf(stderr, fmt, ap);
-	va_end(ap);
-	(void)fprintf(stderr, "\n");
-	exit(1);
-	/* NOTREACHED */
 }
