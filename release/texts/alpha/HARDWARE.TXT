@@ -134,8 +134,7 @@ Most PCI devices from the PC-world will also work in FreeBSD/alpha PCI-based
 machines. Check the /sys/alpha/conf/GENERIC file for the latest word on
 this.
 
-Currently parallel ports do not work on FreeBSD/alpha. The driver needs
-work to make this happen. 
+Parallel printer ports work on FreeBSD/alpha starting with 4.0-stable. 
 
 For Alpha CPUs you will find multiple versions. The original Alpha
 design is the 21064. It was produced in a chip process called MOS4,
@@ -1306,8 +1305,6 @@ is built-in on for example Multia is reported to be not usable with FreeBSD.
 
 - serial ports: the 'PC standard' serial ports found on most Alphas are 
 supported. For TurboChannel machines the serial ports are also supported.
-
-- parallel ports: are not currently supported on FreeBSD/alpha
 
 - ISDN (i4b): is not supported on FreeBSD/alpha
 
