@@ -38,7 +38,9 @@
 .Nm getpw
 .Nd get name from uid
 .Sh SYNOPSIS
-.Fn getpw uid "char *buf"
+.Fd #include <sys/types.h>
+.Ft int
+.Fn getpw "uid_t uid" "char *buf"
 .Sh DESCRIPTION
 .Bf -symbolic
 The getpw function is made obsolete by getpwuid(3).
