@@ -35,9 +35,7 @@
 static char sccsid[] = "@(#)stat_flags.c	8.1 (Berkeley) 5/31/93";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-#ifdef __FBSDID
 __FBSDID("$FreeBSD$");
-#endif
 
 #include <sys/types.h>
 #include <sys/stat.h>
