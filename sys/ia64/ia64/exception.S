@@ -1125,6 +1125,7 @@ IVT_ENTRY(Break_Instruction, 0x2c00)
 }
 {	.mmi
 	alloc		r15=ar.pfs,0,0,2,0
+	;;
 	flushrs
 	mov		out0=11
 	;;
