@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: ibcs2_sysvec.c,v 1.12 1998/12/14 18:53:47 dt Exp $
+ * $Id: ibcs2_sysvec.c,v 1.13 1999/01/17 20:39:08 peter Exp $
  */
 
 #include <sys/param.h>
@@ -35,6 +35,7 @@
 #include <sys/module.h>
 #include <sys/sysent.h>
 #include <sys/signalvar.h>
+#include <sys/proc.h>
 #include <i386/ibcs2/ibcs2_syscall.h>
 
 extern int bsd_to_ibcs2_sig[];
@@ -68,7 +69,18 @@ struct sysentvec ibcs2_svr3_sysvec = {
 static int
 ibcs2_modevent(module_t mod, int type, void *unused)
 {
-	/* Do not care */
+	struct proc *p = NULL;
+
+	switch(type) {
+	case MOD_UNLOAD:
+		/* if this was an ELF module we'd use elf_brand_inuse()... */
+		for (p = allproc.lh_first; p != 0; p = p->p_list.le_next) {
+			if (p->p_sysent == &ibcs2_svr3_sysvec)
+				return EBUSY;
+		}
+	default:
+	        /* do not care */
+	}
 	return 0;
 }
 moduledata_t ibcs2_mod = {
