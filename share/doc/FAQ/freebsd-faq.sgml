@@ -4,7 +4,7 @@
 
 <title>Frequently Asked Questions for FreeBSD 2.X
 <author>The FreeBSD FAQ Team, <tt/FAQ@FreeBSD.ORG/
-<date> $Id: freebsd-faq.sgml,v 1.56 1996/08/04 14:14:05 jraynard Exp $
+<date> $Id: freebsd-faq.sgml,v 1.57 1996/08/04 15:13:42 roberto Exp $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -247,8 +247,8 @@ Any entries with a &lt;XXX&gt; are under construction.
 
           Advanced Multimedia Distributors<newline>
           Factory 1/1 Ovata Drive<newline>
-          Tullamarine, Melbourne<newline>
-          Victoria<newline>
+          Tullamarine, Victoria<newline>
+          Melbourne<newline>
           Australia<newline>
 
           Voice: +61 3 9338 67777<newline>
