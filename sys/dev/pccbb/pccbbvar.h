@@ -66,12 +66,13 @@ struct pccbb_softc {
 	void *sc_intrhand;
 	struct pccbb_socketreg *sc_socketreg;
 	u_int32_t sc_flags;
+	struct mtx sc_mtx;
 #define PCCBB_PCIC_IO_RELOC	0x01
 #define PCCBB_PCIC_MEM_32	0x02
-#define	PCCBB_CARDSTATUS_BUSY	0x01000000
-#define	PCCBB_CARDATTACHED	0x02000000
-#define	PCCBB_16BIT_CARD	0x04000000
-#define	PCCBB_INITIALCARD	0x08000000
+#define	PCCBB_CARDATTACHED	0x01000000
+#define	PCCBB_16BIT_CARD	0x02000000
+#define	PCCBB_KTHREAD_RUNNING	0x04000000
+#define	PCCBB_KTHREAD_DONE	0x08000000
 	int sc_chipset;		/* chipset id */
 #define	CB_UNKNOWN	0		/* NOT Cardbus-PCI bridge */
 #define	CB_TI113X	1		/* TI PCI1130/1131 */
@@ -97,9 +98,30 @@ struct pccbb_softc {
 	struct proc *event_thread;
 };
 
+/* result of detect_card */
+#define CARD_UKN_CARD	0x00
+#define CARD_5V_CARD	0x01
+#define CARD_3V_CARD	0x02
+#define CARD_XV_CARD	0x04
+#define CARD_YV_CARD	0x08
+
+/* for power_socket */
+#define CARD_VCC_UC	0x0000
+#define CARD_VCC_3V	0x0001
+#define CARD_VCC_XV	0x0002
+#define CARD_VCC_YV	0x0003
+#define CARD_VCC_0V	0x0004
+#define CARD_VCC_5V	0x0005
+#define CARD_VCCMASK	0x000f
+#define CARD_VPP_UC	0x0000
+#define CARD_VPP_VCC	0x0010
+#define CARD_VPP_12V	0x0030
+#define CARD_VPP_0V	0x0040
+#define CARD_VPPMASK	0x00f0
+
 /* XXX: rman is dumb */
 #define CARDBUS_SYS_RES_MEMORY_START    0x18020000
 #define CARDBUS_SYS_RES_MEMORY_END      0xEFFFFFFF
-#define CARDBUS_SYS_RES_IOPORT_START    0x2000
+#define CARDBUS_SYS_RES_IOPORT_START    0x3000
 #define CARDBUS_SYS_RES_IOPORT_END      0xEFFF
 
