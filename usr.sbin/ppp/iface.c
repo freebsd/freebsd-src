@@ -647,7 +647,8 @@ iface_Show(struct cmdargs const *arg)
         prompt_Printf(arg->prompt, " --> %s",
                       ncpaddr_ntoa(&iface->addr[f].peer));
       ncprange_getwidth(&iface->addr[f].ifa, &width);
-      prompt_Printf(arg->prompt, " prefixlen %d", width);
+      if (ncpaddr_family(&iface->addr[f].peer) == AF_UNSPEC)
+        prompt_Printf(arg->prompt, " prefixlen %d", width);
       if ((scopeid = ncprange_scopeid(&iface->addr[f].ifa)) != -1)
         prompt_Printf(arg->prompt, " scopeid 0x%x", (unsigned)scopeid);
       break;
