@@ -57,6 +57,8 @@ static void dec_eb164_cons_init __P((void));
 static void eb164_intr_init(void);
 extern void eb164_intr_enable(int irq);
 extern void eb164_intr_disable(int irq);
+extern void eb164_intr_enable_icsr(int irq);
+extern void eb164_intr_disable_icsr(int irq);
 
 extern int siocnattach __P((int, int));
 extern int siogdbattach __P((int, int));
@@ -76,8 +78,13 @@ dec_eb164_init()
 	platform.cons_init = dec_eb164_cons_init;
 	platform.pci_intr_init = eb164_intr_init;
 	platform.pci_intr_map = NULL;
-	platform.pci_intr_disable = eb164_intr_disable;
-	platform.pci_intr_enable = eb164_intr_enable;
+	if (strncmp(platform.model, "Digital AlphaPC 164 ", 20) == 0) {
+		platform.pci_intr_disable = eb164_intr_disable_icsr;
+		platform.pci_intr_enable = eb164_intr_enable_icsr;
+	} else {
+		platform.pci_intr_disable = eb164_intr_disable;
+		platform.pci_intr_enable = eb164_intr_enable;
+	}
 }
 
 extern int comconsole; /* XXX for forcing comconsole when srm serial console is used */
