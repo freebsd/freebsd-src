@@ -442,18 +442,6 @@ From 1 to the square root of 3
 	Of 3 PI over nine
 Is the log of the cube root of e
 %
-	   (1/2)
-	/ 3
-	|       2         3 x 3.14            (1/2)
-	|      z dz  cos (--------)   =  ln(e     )
-	/ 1		     9
-
-The integral, from one to root three,
-Of z to the second dz,
-	Times the cosine
-	Of 3 pi over nine
-Is the log of the third root of e.
-%
 	   THE DAILY PLANET
 
 	SUPERMAN SAVES DESSERT!
