@@ -3,7 +3,12 @@
 TARDIR=	${.CURDIR}/../../../contrib/tar
 .PATH: ${TARDIR}/lib ${TARDIR}/src
 
-PROG=	tar
+PROG=	gtar
+
+.if !defined(WITH_BSDTAR)
+LINKS=  ${BINDIR}/gtar ${BINDIR}/tar
+MLINKS= gtar.1 tar.1
+.endif
 
 SUBDIR=	doc
 
@@ -17,5 +22,10 @@ SRCS+=	buffer.c compare.c create.c delete.c extract.c incremen.c list.c \
 	mangle.c misc.c names.c rtapelib.c tar.c update.c
 
 CFLAGS+= -DHAVE_CONFIG_H -I${.CURDIR} -I${TARDIR}/lib -I${TARDIR}/src
+
+# "Rename" tar.1 to gtar.1 so that we can install gtar.1 with
+# tar.1 as an optional link (rather than vice versa)
+gtar.1: tar.1
+	cp $(.CURDIR)/tar.1 $(.TARGET)
 
 .include <bsd.prog.mk>
