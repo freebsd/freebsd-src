@@ -75,7 +75,7 @@ int otyp;
 		/* if tins are to be identified, need to adapt doname() etc */
 		if(otmp->otyp == TIN)
 			otmp->spe = rnd(...);
-#endif NOT_YET_IMPLEMENTED
+#endif /* NOT_YET_IMPLEMENTED */
 		/* fall into next case */
 	case GEM_SYM:
 		otmp->quan = rn2(6) ? 1 : 2;

@@ -257,4 +257,4 @@ struct monst *mtmp, *mtmp2;
 		guard = mtmp2;
 }
 
-#endif QUEST
+#endif /* QUEST */
