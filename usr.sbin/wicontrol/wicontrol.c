@@ -50,7 +50,6 @@ static const char rcsid[] =
 
 #include <net/if_ieee80211.h>
 #include <dev/wi/if_wavelan_ieee.h>
-#include <dev/wi/wi_hostap.h>
 #include <dev/wi/if_wireg.h>
 
 #include <stdio.h>
@@ -61,7 +60,7 @@ static const char rcsid[] =
 #include <errno.h>
 #include <err.h>
 
-static void wi_getval(const char *, struct wi_req *);
+static int wi_getval(const char *, struct wi_req *);
 static void wi_setval(const char *, struct wi_req *);
 static void wi_printstr(struct wi_req *);
 static void wi_setstr(const char *, int, char *);
@@ -71,6 +70,7 @@ static void wi_sethex(const char *, int, char *);
 static void wi_printwords(struct wi_req *);
 static void wi_printbool(struct wi_req *);
 static void wi_printhex(struct wi_req *);
+static void wi_printaps(struct wi_req *);
 static void wi_dumpinfo(const char *);
 static void wi_dumpstats(const char *);
 static void wi_setkeys(const char *, char *, int);
@@ -118,7 +118,7 @@ printb(char *s, uint32_t v, char *bits)
 	}
 }
 
-static void
+static int
 wi_getval(const char *iface, struct wi_req *wreq)
 {
 	struct ifreq		ifr;
@@ -134,12 +134,15 @@ wi_getval(const char *iface, struct wi_req *wreq)
 	if (s == -1)
 		err(1, "socket");
 
-	if (ioctl(s, SIOCGWAVELAN, &ifr) == -1)
-		err(1, "SIOCGWAVELAN");
+	if (ioctl(s, SIOCGWAVELAN, &ifr) == -1) {
+		if (errno != EINPROGRESS)
+			err(1, "SIOCGWAVELAN");
+		return (-1);
+	}
 
 	close(s);
 
-	return;
+	return (0);
 }
 
 static void
@@ -495,10 +498,11 @@ wi_printhex(struct wi_req *wreq)
 void
 wi_printaplist(const char *iface)
 {
-	int			prism2, len, i = 0, j;
+	int			prism2;
 	struct wi_req		wreq;
-	struct wi_scan_p2_hdr	*wi_p2_h;
-	struct wi_scan_res	*res;
+	struct wi_apinfo	*w;
+	int i, nstations;
+	float rate;
 
 	printf("Available APs:\n");
 
@@ -520,73 +524,62 @@ wi_printaplist(const char *iface)
 
 	wi_setval(iface, &wreq);
 
-	/*
-	 * sleep for 100 milliseconds so there's enough time for the card to
-	 * respond... prism2's take a little longer.
-	 */
-	usleep(prism2 ? 500000 : 100000);
+	do {
+		/*
+		 * sleep for 100 milliseconds so there's enough time for the card to
+		 * respond... prism2's take a little longer.
+		 */
+		usleep(prism2 ? 500000 : 100000);
 
-	/* get the scan results */
-	wreq.wi_len = WI_MAX_DATALEN;
-	wreq.wi_type = WI_RID_SCAN_RES;
+		/* get the scan results */
+		wreq.wi_len = WI_MAX_DATALEN;
+		wreq.wi_type = WI_RID_SCAN_RES;
+	} while (wi_getval(iface, &wreq) == -1 && errno == EINPROGRESS);
 
-	wi_getval(iface, &wreq);
+	nstations = *(int *)wreq.wi_val;
+	printf("%d station%s:\n", nstations, nstations == 1 ? "" : "s");
+	w =  (struct wi_apinfo *)(((char *)&wreq.wi_val) + sizeof(int));
+	for ( i = 0; i < nstations; i++, w++) {
+		printf("    %-8.*s  [ %02x:%02x:%02x:%02x:%02x:%02x ]  [ %-2d ]  "
+		    "[ %d %d %d ]  %-3d  "
+		    , w->namelen, w->name
+		    , w->bssid[0]&0xff, w->bssid[1]&0xff
+		    , w->bssid[2]&0xff, w->bssid[3]&0xff
+		    , w->bssid[4]&0xff, w->bssid[5]&0xff
+		    , w->channel
+		    , w->quality, w->signal, w->noise
+		    , w->interval
+		);
+		printf("[ ");
+		if (w->capinfo & IEEE80211_CAPINFO_ESS)
+			printf("ESS ");
+		if (w->capinfo & IEEE80211_CAPINFO_PRIVACY)
+			printf("WEP ");
+		printf("]\n              ");
 
-	if (prism2) {
-		wi_p2_h = (struct wi_scan_p2_hdr *)wreq.wi_val;
-
-		/* if the reason is 0, this info is invalid */
-		if (wi_p2_h->wi_reason == 0)
-			return;
-
-		i = 4;
-	}
-
-	len = prism2 ? WI_PRISM2_RES_SIZE : WI_WAVELAN_RES_SIZE;
-
-	for (; i < (wreq.wi_len * 2) - len; i += len) {
-		res = (struct wi_scan_res *)((char *)wreq.wi_val + i);
-
-		res->wi_ssid[res->wi_ssid_len] = '\0';
-
-		printf("    %-8s  [ %02x:%02x:%02x:%02x:%02x:%02x ]  [ %-2d ]  "
-		    "[ %d %d %d ]  %-3d  ", res->wi_ssid,
-		    res->wi_bssid[0], res->wi_bssid[1], res->wi_bssid[2],
-		    res->wi_bssid[3], res->wi_bssid[4], res->wi_bssid[5],
-		    res->wi_chan, res->wi_signal - res->wi_noise,
-		    res->wi_signal, res->wi_noise, res->wi_interval);
-
-		if (res->wi_capinfo) {
-			printf("[ ");
-			if (res->wi_capinfo & WI_CAPINFO_ESS)
-				printf("ess ");
-			if (res->wi_capinfo & WI_CAPINFO_IBSS)
-				printf("ibss ");
-			if (res->wi_capinfo & WI_CAPINFO_PRIV)
-				printf("priv ");
-			printf("]  ");
+		switch (w->rate) {
+		case WI_APRATE_1:
+			rate = 1;
+			break;
+		case WI_APRATE_2:
+			rate = 2;
+			break;
+		case WI_APRATE_5:
+			rate = 5.5;
+			break;
+		case WI_APRATE_11:
+			rate = 11;
+			break;
+#ifdef WI_APRATE_0
+		case WI_APRATE_0:
+#endif
+		default:
+			rate = 0;
+			break;
 		}
-
-		if (prism2) {
-			printf("\n              [ ");
-			for (j = 0; res->wi_srates[j] != 0; j++) {
-				res->wi_srates[j] = res->wi_srates[j] &
-				    WI_VAR_SRATES_MASK;
-				printf("%d.%d ", res->wi_srates[j] / 2,
-				    (res->wi_srates[j] % 2) * 5);
-			}
-			printf("]  ");
-
-			printf("* %2.1f *", res->wi_rate == 0xa ? 1 :
-			    (res->wi_rate == 0x14 ? 2 :
-			    (res->wi_rate == 0x37 ? 5.5 :
-			    (res->wi_rate == 0x6e ? 11 : 0))));
-		}
-
+		if (rate) printf("* %2.1f *\n", rate);
 		putchar('\n');
 	}
-
-	return;
 }
 
 #define WI_STRING		0x01
@@ -836,44 +829,86 @@ usage(const char *p)
 }
 
 static void
+wi_printaps(struct wi_req *wreq)
+{
+	struct wi_apinfo	*w;
+	int i, j, nstations, rate;
+
+	nstations = *(int *)wreq->wi_val;
+	printf("%d station%s:\n", nstations, nstations == 1 ? "" : "s");
+	w =  (struct wi_apinfo *)(((char *)&wreq->wi_val) + sizeof(int));
+	for ( i = 0; i < nstations; i++, w++) {
+		printf("ap[%d]:\n", i);
+		if (w->scanreason) {
+			static char *scanm[] = {
+				"Host initiated",
+				"Firmware initiated",
+				"Inquiry request from host"
+			};
+			printf("\tScanReason:\t\t\t[ %s ]\n",
+				scanm[w->scanreason - 1]);
+		}
+		printf("\tnetname (SSID):\t\t\t[ ");
+			for (j = 0; j < w->namelen; j++) {
+				printf("%c", w->name[j]);
+			}
+			printf(" ]\n");
+		printf("\tBSSID:\t\t\t\t[ %02x:%02x:%02x:%02x:%02x:%02x ]\n",
+			w->bssid[0]&0xff, w->bssid[1]&0xff,
+			w->bssid[2]&0xff, w->bssid[3]&0xff,
+			w->bssid[4]&0xff, w->bssid[5]&0xff);
+		printf("\tChannel:\t\t\t[ %d ]\n", w->channel);
+		printf("\tQuality/Signal/Noise [signal]:\t[ %d / %d / %d ]\n"
+		       "\t                        [dBm]:\t[ %d / %d / %d ]\n", 
+			w->quality, w->signal, w->noise,
+			w->quality, w->signal - 149, w->noise - 149);
+		printf("\tBSS Beacon Interval [msec]:\t[ %d ]\n", w->interval); 
+		printf("\tCapinfo:\t\t\t[ "); 
+			if (w->capinfo & IEEE80211_CAPINFO_ESS)
+				printf("ESS ");
+			if (w->capinfo & IEEE80211_CAPINFO_PRIVACY)
+				printf("WEP ");
+			printf("]\n");
+
+		switch (w->rate) {
+		case WI_APRATE_1:
+			rate = 1;
+			break;
+		case WI_APRATE_2:
+			rate = 2;
+			break;
+		case WI_APRATE_5:
+			rate = 5.5;
+			break;
+		case WI_APRATE_11:
+			rate = 11;
+			break;
+#ifdef WI_APRATE_0
+		case WI_APRATE_0:
+#endif
+		default:
+			rate = 0;
+			break;
+		}
+		if (rate) printf("\tDataRate [Mbps]:\t\t[ %d ]\n", rate);
+	}
+}
+
+static void
 wi_dumpstations(const char *iface)
 {
-	struct hostap_getall    reqall;
-	struct hostap_sta       stas[WIHAP_MAX_STATIONS];
-	struct ifreq		ifr;
-	int i, s;
+	struct wi_req		wreq;
 
-	bzero(&ifr, sizeof(ifr));
-	strlcpy(ifr.ifr_name, iface, sizeof(ifr.ifr_name));
-	ifr.ifr_data = (caddr_t) & reqall;
-	bzero(&reqall, sizeof(reqall));
-	reqall.size = sizeof(stas);
-	reqall.addr = stas;
-	bzero(&stas, sizeof(stas));
+	if (iface == NULL)
+		errx(1, "must specify interface name");
 
-	s = socket(AF_INET, SOCK_DGRAM, 0);
-	if (s == -1)
-		err(1, "socket");
+	bzero((char *)&wreq, sizeof(wreq));
+	wreq.wi_len = WI_MAX_DATALEN;
+	wreq.wi_type = WI_RID_READ_APS;
 
-	if (ioctl(s, SIOCHOSTAP_GETALL, &ifr) < 0)
-		err(1, "SIOCHOSTAP_GETALL");
+	wi_getval(iface, &wreq);
 
-	printf("%d station%s:\n", reqall.nstations, reqall.nstations>1?"s":"");
-	for (i = 0; i < reqall.nstations; i++) {
-		struct hostap_sta *info = &stas[i];
-
-	        printf("%02x:%02x:%02x:%02x:%02x:%02x  asid=%04x",
-			info->addr[0], info->addr[1], info->addr[2],
-			info->addr[3], info->addr[4], info->addr[5],
-			info->asid - 0xc001);
-		printb(", flags", info->flags, HOSTAP_FLAGS_BITS);
-		printb(", caps", info->capinfo, IEEE80211_CAPINFO_BITS);
-		printb(", rates", info->rates, WI_RATES_BITS);
-		if (info->sig_info)
-			printf(", sig=%d/%d",
-			    info->sig_info >> 8, info->sig_info & 0xff);
-		putchar('\n');
-	}
+	wi_printaps(&wreq);
 }
 
 #ifdef WICACHE
