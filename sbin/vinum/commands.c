@@ -719,8 +719,10 @@ reset_sd_stats(int sdno, int recurse)
     if (ioctl(superdev, VINUM_RESETSTATS, &msg) < 0) {
 	fprintf(stderr, "Can't reset stats for subdisk %d: %s\n", sdno, reply->msg);
 	longjmp(command_fail, -1);
-    } else if (recurse)
-	reset_drive_stats(sd.driveno);
+    } else if (recurse) {
+	get_sd_info(&sd, sdno);				    /* get the info */
+	reset_drive_stats(sd.driveno);			    /* and clear the drive */
+    }
 }
 
 void 
