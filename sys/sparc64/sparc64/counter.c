@@ -72,14 +72,14 @@ sparc64_counter_init(bus_space_tag_t tag, bus_space_handle_t handle,
 	struct timecounter *tc;
 	struct ct_softc *sc;
 
-	printf("initialializing counter-timer\n");
+	printf("initializing counter-timer\n");
 	/*
 	 * Turn off interrupts from both counters. Set the limit to the maximum
 	 * value (although that should not change anything with CTLR_INTEN and
 	 * CTLR_PERIODIC off).
 	 */
-	bus_space_write_8(tag, handle, offset + CTR_CT0 + CTR_LIMIT
-	    , COUNTER_MASK);
+	bus_space_write_8(tag, handle, offset + CTR_CT0 + CTR_LIMIT,
+	    COUNTER_MASK);
 	bus_space_write_8(tag, handle, offset + CTR_CT1 + CTR_LIMIT,
 	    COUNTER_MASK);
 	/* Register as a time counter. */
@@ -97,7 +97,7 @@ sparc64_counter_init(bus_space_tag_t tag, bus_space_handle_t handle,
 	tc_init(tc);
 }
 
-static unsigned
+static unsigned int
 counter_get_timecount(struct timecounter *tc)
 {
 	struct ct_softc *sc;
@@ -106,4 +106,3 @@ counter_get_timecount(struct timecounter *tc)
 	return (bus_space_read_8(sc->sc_tag, sc->sc_handle, sc->sc_offset) &
 	    COUNTER_MASK);
 }
-
