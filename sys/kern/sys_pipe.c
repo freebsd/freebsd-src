@@ -1108,12 +1108,12 @@ pipe_poll(fp, events, cred, td)
 
 	if (revents == 0) {
 		if (events & (POLLIN | POLLRDNORM)) {
-			selrecord(curthread, &rpipe->pipe_sel);
+			selrecord(td, &rpipe->pipe_sel);
 			rpipe->pipe_state |= PIPE_SEL;
 		}
 
 		if (events & (POLLOUT | POLLWRNORM)) {
-			selrecord(curthread, &wpipe->pipe_sel);
+			selrecord(td, &wpipe->pipe_sel);
 			wpipe->pipe_state |= PIPE_SEL;
 		}
 	}

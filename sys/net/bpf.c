@@ -990,7 +990,7 @@ bpfpoll(dev, events, td)
 		if (d->bd_hlen != 0 || (d->bd_immediate && d->bd_slen != 0))
 			revents |= events & (POLLIN | POLLRDNORM);
 		else
-			selrecord(curthread, &d->bd_sel);
+			selrecord(td, &d->bd_sel);
 	}
 	BPFD_UNLOCK(d);
 	return (revents);
