@@ -30,7 +30,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	@(#)READ_ME	8.132 (Berkeley) 12/1/96
+#	@(#)READ_ME	8.135 (Berkeley) 1/21/97
 #
 
 This directory contains the source files for sendmail.
@@ -529,9 +529,7 @@ HES_GETMAILHOST	Define this to 1 if you are using Hesiod with the
 XDEBUG		Do additional internal checking.  These don't cost too
 		much; you might as well leave this on.
 TCPWRAPPERS	Turns on support for the TCP wrappers library (-lwrap).
-		This library is available on ftp.win.tue.nl in /pub/security;
-		grab tcp_wrappers_<VER>.tar.gz (where <VER> is the highest
-		numbered version).
+		See below for further information.
 SECUREWARE	Enable calls to the SecureWare luid enabling/changing routines.
 		SecureWare is a C2 security package added to several UNIX's
 		(notably ConvexOS) to get a C2 Secure system.  This
@@ -787,6 +785,12 @@ Solaris 2.4 (SunOS 5.4)
 	>>
 	>> here, path 2 would be the first used.
 
+Solaris 2.6 (SunOS 5.6)
+	If you built sendmail 8.8.1 through 8.8.4 inclusive on a Solaris 2.5
+	system, that binary will not run on Solaris 2.6, due to problems with
+	incompatible snprintf(3s) calls.  This problem is fixed in sendmail
+	8.8.5.
+
 Ultrix
 	By default, the IDENT protocol is turned off on Ultrix.  If you
 	are running Ultrix 4.4 or later, or if you have included patch
@@ -803,7 +807,7 @@ Solaris 2.5.1 (SunOS 5.5.1)
 	   /usr/include/resolv.h:208: warning: `__P' redefined
 	   cdefs.h:58: warning: this is the location of the previous definition
 
-	If you are running with this patch, create a file in the
+	If you are running with this patch, create a resolv.h file in the
 	obj.SunOS.5.5.1.* directory that reads:
 
 	   #undef __P
@@ -1289,14 +1293,19 @@ LDAP
 	    send them along.
 
 TCP Wrappers
-	If you are using -DTCPWRAPPERS to get TCP Wrappers support, you will
-	also need to install libwrap.a (you can get it from ftp.win.tue.nl)
-	and modify the Makefile to include -lwrap in the LIBS line.
+	If you are using -DTCPWRAPPERS to get TCP Wrappers support you will
+	also need to install libwrap.a and modify the Makefile to include
+	-lwrap in the LIBS line (make sure that INCDIRS and LIBDIRS point
+	to where the tcpd.h and libwrap.a can be found).
+
+	TCP Wrappers is available on ftp.win.tue.nl in /pub/security;
+	grab tcp_wrappers_<VER>.tar.gz (where <VER> is the highest
+	numbered version).
 
 	If you have alternate MX sites for your site, be sure that all of
 	your MX sites reject the same set of hosts.  If not, a bad guy whom
 	you reject will connect to your site, fail, and move on to the next
-	MX site, which will accept the mail for your and forward it on to you.
+	MX site, which will accept the mail for you and forward it on to you.
 
 
 +--------------+
@@ -1398,4 +1407,4 @@ version.c	The version number and information about this
 
 Eric Allman
 
-(Version 8.132, last update 12/1/96 09:34:37)
+(Version 8.135, last update 1/21/97 07:47:02)

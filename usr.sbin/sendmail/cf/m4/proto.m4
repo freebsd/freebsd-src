@@ -34,7 +34,7 @@ divert(-1)
 #
 divert(0)
 
-VERSIONID(`@(#)proto.m4	8.136 (Berkeley) 11/24/96')
+VERSIONID(`@(#)proto.m4	8.139 (Berkeley) 12/31/96')
 
 MAILER(local)dnl
 
@@ -171,17 +171,18 @@ DR`'ifdef(`LOCAL_RELAY', LOCAL_RELAY)
 # who gets all local email traffic ($R has precedence for unqualified names)
 DH`'ifdef(`MAIL_HUB', MAIL_HUB)
 
-# class L: names that should be delivered locally, even if we have a relay
-# class E: names that should be exposed as from this host, even if we masquerade
-# class M: domains that should be converted to $M
-#CL root
-CE root
-undivert(5)dnl
-
 # dequoting map
 Kdequote dequote
 
 divert(0)dnl	# end of nullclient diversion
+# class E: names that should be exposed as from this host, even if we masquerade
+ifdef(`_NULL_CLIENT_ONLY_', `#',
+`# class L: names that should be delivered locally, even if we have a relay
+# class M: domains that should be converted to $M
+#CL root
+')CE root
+undivert(5)dnl
+
 # who I masquerade as (null for no masquerading) (see also $=M)
 DM`'ifdef(`MASQUERADE_NAME', MASQUERADE_NAME)
 
@@ -685,7 +686,7 @@ define(`X', ifdef(`VIRTUSER_TABLE', `', `#'))dnl
 X`'R$+ < @ $=w . > 	$: < $(virtuser $1 @ $2 $@ $1 $: @ $) > $1 < @ $2 . >
 X`'R< @ > $+ < @ $+ . >	$: < $(virtuser @ $2 $@ $1 $: @ $) > $1 < @ $2 . >
 X`'R< @ > $+		$: $1
-X`'R< error : $- $+ > $* 	$#error $@ $1 $: $2
+X`'R< error : $- $+ > $* 	$#error $@ $( dequote $1 $) $: $2
 X`'R< $+ > $+ < @ $+ >	$: $>97 $1
 undefine(`X')dnl
 
@@ -798,6 +799,8 @@ R< > $+ + $*		$#_LOCAL_ $@ $2 $: $1
 R< > $+			$: < $H > $1			try hub
 R< > $+			$: < $R > $1			try relay
 R< > $+			$@ $1				nope, give up
+R< local : $* > $*	$: $>95 < local : $1 > $2	no host extension
+R< error : $* > $*	$: $>95 < error : $1 > $2	no host extension
 R< $- : $+ > $+		$: $>95 < $1 : $2 > $3 < @ $2 >
 R< $+ > $+		$@ $>95 < $1 > $2 < @ $1 >
 
@@ -821,13 +824,31 @@ undefine(`X')dnl
 
 S95
 R< > $*				$@ $1			strip off null relay
-R< error : $- $+ > $*		$#error $@ $1 $: $2	special case errors
-R< local : > $* < @ $* >	$#local $@ $1@$2 $: $1	no host: use old user
-R< local : $+ > $* <@ $* . > $*	$#local $@ $2@$3 $: $1	special case local
+R< error : $- $+ > $*		$#error $@ $( dequote $1 $) $: $2
+R< local : $* > $*		$>CanonLocal < $1 > $2
 R< $- : $+ @ $+ > $*<$*>$*	$# $1 $@ $3 $: $2<@$3>	use literal user
 R< $- : $+ > $*			$# $1 $@ $2 $: $3	try qualified mailer
 R< $=w > $*			$@ $2			delete local host
 R< $+ > $*			$#_RELAY_ $@ $1 $: $2	use unqualified mailer
+
+###################################################################
+###  Ruleset CanonLocal -- canonify local: syntax		###
+###################################################################
+
+SCanonLocal
+# strip trailing dot from any host name that may appear
+R< $* > $* < @ $* . >		$: < $1 > $2 < @ $3 >
+
+# handle local: syntax -- use old user, either with or without host
+R< > $* < @ $* > $*		$#local $@ $1@$2 $: $1
+R< > $+				$#local $@ $1    $: $1
+
+# handle local:user@host syntax -- ignore host part
+R< $+ @ $+ > $*			$: < $1 > $3
+
+# handle local:user syntax
+R< $+ > $* <@ $* > $*		$#local $@ $2@$3 $: $1
+R< $+ > $* 			$#local $@ $2    $: $1
 
 ###################################################################
 ###  Ruleset 93 -- convert header names to masqueraded form	###
