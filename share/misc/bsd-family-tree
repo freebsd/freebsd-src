@@ -141,25 +141,28 @@ FreeBSD 4.0  |      |  |  |  | NetBSD 1.4.2    |             |
  |      |             |      |    v            |             |
  |      |             |      |                 |             |
  |      |           10.0  NetBSD 1.5           |             |
- |   FreeBSD 4.3      |      |    |            |             v
- |      |             |      |    |        OpenBSD 2.9
- |      |             |      | NetBSD 1.5.1    |
- |      |             |      |    |            |
- |   FreeBSD 4.4      |      | NetBSD 1.5.2    |
- |      |             |      |    |            |
- |      |             |      |    |        OpenBSD 3.0
- |   FreeBSD 4.5      |      |    |            |
- |      |             |      |    |            |
- |   FreeBSD 4.6      |      |    |        OpenBSD 3.1
- |      |             |      | NetBSD 1.5.3    |
- |   FreeBSD 4.7      |      |    |            |
- |      |             |      |    |            |
- |      v             |      |    v            |
+ |   FreeBSD 4.3      |      |    |            |             |
+ |      |             |      |    |        OpenBSD 2.9       |
+ |      |             |      | NetBSD 1.5.1    |             |
+ |      |             |      |    |            |             |
+ |   FreeBSD 4.4-.    |      | NetBSD 1.5.2    |             |
+ |      |        | Mac OS X  |    |            |             |
+ |      |        |   10.1    |    |        OpenBSD 3.0       |
+ |   FreeBSD 4.5 |    |      |    |            |             |
+ |      |         \   |      |    |            |           BSD/OS 4.3
+ |   FreeBSD 4.6   \  |      |    |        OpenBSD 3.1       |
+ |      |           \ |      | NetBSD 1.5.3    |             v
+ |      |          Mac OS X  |    |            |
+ |   FreeBSD 4.6.2   10.2    |    v            |
+ |      |             |      |                 |
+ |      |             |   NetBSD 1.6           |
+ |   FreeBSD 4.7      |      |                 |
+ |      |             |      |                 |
+ |      v             |      |                 |
  |                    |      |                 |
 FreeBSD 5.0-current   |   NetBSD -current  OpenBSD -current
  |                    |      |                 |
- v                 Mac OS X  v                 v
-                     10.1
+ v                    v      v                 v
 
 Time
 ----------------
@@ -171,23 +174,23 @@ was the announcement in Usenet or if it was available as tape.
 	and John Quarterman. The Design and Implementation of
 	the 4.4BSD Operating System.
 [APL] Apple website [http://www.apple.com/macosx/]
+[BSDI] Berkeley Software Design, Inc.
 [DOC] README, COPYRIGHT on tape.
-[QCU] Salus, Peter H. A quarter century of UNIX.
-[U25] Peter H. Salus. Unix at 25.
-[USE] Usenet announcement.
-[KSJ] Michael J. Karels, Carl F. Smith, and William F. Jolitz.
-	Changes in the Kernel in 2.9BSD. Second Berkeley Software
-	Distribution UNIX Version 2.9, July, 1983.
+[FBD] FreeBSD Project, The.
 [KB]  Keith Bostic. BSD2.10 available from Usenix. comp.unix.sources,
 	Volume 11, Info 4, April, 1987.
 [KKK] Mike Karels, Kirk McKusick, and Keith Bostic. tahoe announcement.
 	comp.bugs.4bsd.ucb-fixes, June 15, 1988.
-[SMS] Steven M. Schultz. 2.11BSD, UNIX for the PDP-11.
-[FBD] FreeBSD Project, The.
+[KSJ] Michael J. Karels, Carl F. Smith, and William F. Jolitz.
+	Changes in the Kernel in 2.9BSD. Second Berkeley Software
+	Distribution UNIX Version 2.9, July, 1983.
 [NBD] NetBSD Project, The.
 [OBD] OpenBSD Project, The.
+[QCU] Salus, Peter H. A quarter century of UNIX.
+[SMS] Steven M. Schultz. 2.11BSD, UNIX for the PDP-11.
+[USE] Usenet announcement.
+[WRS] Wind River Systems, Inc.
 [dmr] Dennis Ritchie, via E-Mail
-[BSDI] Berkeley Software Design, Inc.
 
 Multics                 1965
 UNIX                    Summer 1969
@@ -351,12 +354,16 @@ OpenBSD 2.9  		2001-06-01 [OBD]
 NetBSD 1.5.1		2001-07-11 [NBD] (patch release)
 NetBSD 1.5.2		2001-09-13 [NBD] (patch release)
 FreeBSD 4.4  		2001-09-18 [FBD]
-Mac OS X 10.1		2001-09-xx [APL]
+Mac OS X 10.1		2001-09-29 [APL]
 OpenBSD 3.0		2001-12-01 [OBD]
 FreeBSD 4.5  		2002-01-29 [FBD]
+BSD/OS 4.3		2002-03-14 [WRS]
 OpenBSD 3.1		2002-05-19 [OBD]
 FreeBSD 4.6  		2002-06-15 [FBD]
-NetBSD 1.5.3            2002-07-22 [NBD] (patch release)
+NetBSD 1.5.3		2002-07-22 [NBD] (patch release)
+FreeBSD 4.6.2		2002-08-15 [FBD] (patch release)
+Mac OS X 10.2		2002-08-23 [APL]
+NetBSD 1.6		2002-09-14 [NBD]
 FreeBSD 4.7		2002-10-08 [FBD]
 
 Bibliography
@@ -395,7 +402,7 @@ UNIX history graphing project
 URL: http://minnie.tuhs.org/Unix_History/index.html
 
 UNIX history
-URL: http://perso.wanadoo.fr/levenez/unix/
+URL: http://www.levenez.com/unix/
 
 James Howard: The BSD Family Tree
 URL: http://www.daemonnews.org/200104/bsd_family.html
