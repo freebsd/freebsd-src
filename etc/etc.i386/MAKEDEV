@@ -86,7 +86,7 @@
 #	isdn*	ISDN devices
 #	labpc*	National Instrument's Lab-PC and LAB-PC+
 #
-#	$Id: MAKEDEV,v 1.97 1995/07/29 00:40:40 jkh Exp $
+#	$Id: MAKEDEV,v 1.98 1995/07/29 05:25:08 bde Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -878,7 +878,7 @@ joy)
 
 spigot)
 	rm -f spigot
-	mknod spigot 11 0
+	mknod spigot c 11 0
 	chmod 444 spigot
 	;;
 
