@@ -329,6 +329,7 @@ fddi_output(ifp, m, dst, rt0)
 	return (error);
 
 bad:
+	ifp->if_oerrors++;
 	if (m)
 		m_freem(m);
 	return (error);
@@ -348,12 +349,24 @@ fddi_input(ifp, fh, m)
 	struct ifqueue *inq;
 	struct llc *l;
 
-	if ((ifp->if_flags & IFF_UP) == 0) {
-		m_freem(m);
-		return;
-	}
-	getmicrotime(&ifp->if_lastchange);
-	ifp->if_ibytes += m->m_pkthdr.len + sizeof (*fh);
+	/*
+	 * Discard packet if interface is not up.
+	 */
+	if ((ifp->if_flags & (IFF_UP|IFF_RUNNING)) != (IFF_UP|IFF_RUNNING))
+		goto dropanyway;
+
+	/*
+	 * Discard non local unicast packets when interface
+	 * is in promiscuous mode.
+	 */
+	if ((ifp->if_flags & IFF_PROMISC) && ((fh->fddi_dhost[0] & 1) == 0) &&
+	    (bcmp(IFP2AC(ifp)->ac_enaddr, (caddr_t)fh->fddi_dhost,
+	     FDDI_ADDR_LEN) != 0))
+		goto dropanyway;
+
+	/*
+	 * Set mbuf flags for bcast/mcast.
+	 */
 	if (fh->fddi_dhost[0] & 1) {
 		if (bcmp((caddr_t)fddibroadcastaddr, (caddr_t)fh->fddi_dhost,
 		    FDDI_ADDR_LEN) == 0)
@@ -361,12 +374,13 @@ fddi_input(ifp, fh, m)
 		else
 			m->m_flags |= M_MCAST;
 		ifp->if_imcasts++;
-	} else if ((ifp->if_flags & IFF_PROMISC)
-	    && bcmp(IFP2AC(ifp)->ac_enaddr, (caddr_t)fh->fddi_dhost,
-		    FDDI_ADDR_LEN) != 0) {
-		m_freem(m);
-		return;
 	}
+
+	/*
+	 * Update interface statistics.
+	 */
+	getmicrotime(&ifp->if_lastchange);
+	ifp->if_ibytes += (m->m_pkthdr.len + FDDI_HDR_LEN);
 
 #ifdef M_LINK0
 	/*
@@ -378,6 +392,11 @@ fddi_input(ifp, fh, m)
 		m->m_flags |= M_LINK0;
 #endif
 
+	m = m_pullup(m, sizeof(struct llc));
+	if (m == 0) {
+		ifp->if_ierrors++;
+		goto dropanyway;
+	}
 	l = mtod(m, struct llc *);
 
 	switch (l->llc_dsap) {
@@ -385,8 +404,10 @@ fddi_input(ifp, fh, m)
 	case LLC_SNAP_LSAP:
 	{
 		u_int16_t type;
-		if (l->llc_control != LLC_UI || l->llc_ssap != LLC_SNAP_LSAP)
+		if (l->llc_control != LLC_UI || l->llc_ssap != LLC_SNAP_LSAP) {
+			ifp->if_noproto++;
 			goto dropanyway;
+		}
 #ifdef NETATALK
 		if (Bcmp(&(l->llc_snap.org_code)[0], at_org_code,
 			 sizeof(at_org_code)) == 0 &&
@@ -407,8 +428,10 @@ fddi_input(ifp, fh, m)
 #endif /* NETATALK */
 		if (l->llc_snap.org_code[0] != 0 ||
 		    l->llc_snap.org_code[1] != 0 ||
-		    l->llc_snap.org_code[2] != 0)
+		    l->llc_snap.org_code[2] != 0) {
+			ifp->if_noproto++;
 			goto dropanyway;
+		}
 
 		type = ntohs(l->llc_snap.ether_type);
 		m_adj(m, LLC_SNAPFRAMELEN);
@@ -500,18 +523,32 @@ fddi_ifattach(ifp)
 	ifp->if_type = IFT_FDDI;
 	ifp->if_addrlen = FDDI_ADDR_LEN;
 	ifp->if_hdrlen = 21;
+
+	if_attach(ifp);         /* Must be called before additional assignments */
+
 	ifp->if_mtu = FDDIMTU;
+	ifp->if_output = fddi_output;
 	ifp->if_resolvemulti = fddi_resolvemulti;
+	ifp->if_broadcastaddr = fddibroadcastaddr;
 	ifp->if_baudrate = 100000000;
 #ifdef IFF_NOTRAILERS
 	ifp->if_flags |= IFF_NOTRAILERS;
 #endif
 	ifp->if_broadcastaddr = fddibroadcastaddr;
 	ifa = ifaddr_byindex(ifp->if_index);
+	if (ifa == NULL) {
+		printf("%s(): no lladdr for %s%d!\n", __FUNCTION__,
+		       ifp->if_name, ifp->if_unit);
+		return;
+	}
+
+	ifa = ifaddr_byindex(ifp->if_index);
 	sdl = (struct sockaddr_dl *)ifa->ifa_addr;
 	sdl->sdl_type = IFT_FDDI;
 	sdl->sdl_alen = ifp->if_addrlen;
 	bcopy(IFP2AC(ifp)->ac_enaddr, LLADDR(sdl), ifp->if_addrlen);
+
+	return;
 }
 
 static int
