@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: load_aout.c,v 1.5 1998/09/18 01:12:23 msmith Exp $
+ *	$Id: load_aout.c,v 1.6 1998/09/26 10:51:38 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -93,7 +93,7 @@ aout_loadmodule(char *filename, vm_offset_t dest, struct loaded_module **result)
 	    goto oerr;
 	}
 	if (strcmp(aout_kerneltype, kmp->m_type)) {
-	    printf("out_loadmodule: can't load module with kernel type '%s'\n", kmp->m_type);
+	    printf("aout_loadmodule: can't load module with kernel type '%s'\n", kmp->m_type);
 	    err = EPERM;
 	    goto oerr;
 	}
