@@ -16,7 +16,7 @@
 .Cd "device asr"
 .Sh DESCRIPTION
 The Adaptec
-.Nm asr
+.Nm
 driver provides access to SCSI disks
 and disk arrays controlled by I2O based host bus adapters and
 SmartRAID SCSI RAID adapters through the standard SCSI disk
@@ -70,12 +70,17 @@ Adaptec SCSI RAID device nodes
 .Xr da 4
 .Sh HISTORY
 The
-.Nm asr
+.Nm
 (Adaptec SCSI RAID)
 driver first appeared as the dpti2o driver under BSDi BSD/OS 3.2,
 then under FreeBSD 2.2.8
 and was ported over to the CAM layer represented in 4.0.
 .Sh AUTHORS
+The
+.Nm
+driver was kindly donated by Adaptec
+and is maintained by 
+.An Mark Salyzyn Aq mark_salyzyn@adaptec.com .
 This manual page was written by
 .An Mark Salyzyn
 and fixed up by
