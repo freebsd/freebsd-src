@@ -575,6 +575,7 @@ sendsig(catcher, sig, mask, code)
 	sf.sf_siginfo.si_sc.sc_ss = regs->tf_ss;
 	sf.sf_siginfo.si_sc.sc_es = regs->tf_es;
 	sf.sf_siginfo.si_sc.sc_fs = regs->tf_fs;
+	sf.sf_siginfo.si_sc.sc_gs = rgs();
 	sf.sf_siginfo.si_sc.sc_isp = regs->tf_isp;
 
 	/*
