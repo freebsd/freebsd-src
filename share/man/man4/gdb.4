@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 30, 2003
+.Dd February 8, 2005
 .Dt GDB 4
 .Os
 .Sh NAME
@@ -33,7 +33,6 @@
 .Sh SYNOPSIS
 .Cd "makeoptions DEBUG=-g"
 .Cd "options DDB"
-.Cd "options GDB_REMOTE_CHAT"
 .Sh DESCRIPTION
 The
 .Nm
@@ -138,18 +137,10 @@ so the entry in
 should be:
 .Pp
 .Dl hint.sio.0.flags="0x90"
-.Pp
-To share a console and debug connection on a serial line, use the
-.Cd "options GDB_REMOTE_CHAT"
-option.
 .Ss "Debugging a live system with a remote firewire link"
 As with serial debugging, to debug a live system with a firewire link, the
 kernel must be compiled with the option
 .Cd "options DDB" .
-The
-.Cd "options GDB_REMOTE_CHAT"
-is not necessary, since the firewire implementation uses separate ports for the
-console and debug connection.
 .Pp
 A number of steps must be performed to set up a firewire link:
 .Bl -bullet
