@@ -226,12 +226,12 @@ main(argc, argv)
 	args.gnentries = gnentries;
 	args.gmapdata = gmapdata;
 
-	error = getvfsbyname("umap", &vfc);
-	if (error && vfsisloadable("umap")) {
-		if(vfsload("umap"))
-			err(1, "vfsload(umap)");
+	error = getvfsbyname("umapfs", &vfc);
+	if (error && vfsisloadable("umapfs")) {
+		if(vfsload("umapfs"))
+			err(1, "vfsload(umapfs)");
 		endvfsent();
-		error = getvfsbyname("umap", &vfc);
+		error = getvfsbyname("umapfs", &vfc);
 	}
 	if (error)
 		errx(1, "umap filesystem is not available");
