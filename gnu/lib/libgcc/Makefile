@@ -78,7 +78,7 @@ LIB2ADD = $(LIB2FUNCS_EXTRA)
 LIB2ADD_ST = $(LIB2FUNCS_STATIC_EXTRA)
 
 # Additional sources to handle exceptions; overridden on ia64.
-LIB2ADDEH = unwind-dw2.c unwind-dw2-fde.c unwind-sjlj.c
+LIB2ADDEH = unwind-dw2.c unwind-dw2-fde.c unwind-sjlj.c unwind-c.c
 
 #-----------------------------------------------------------------------
 #
@@ -107,7 +107,7 @@ LIB1ASMFUNCS  = __divtf3 __divdf3 __divsf3 \
 	__divdi3 __moddi3 __udivdi3 __umoddi3 \
 	__divsi3 __modsi3 __udivsi3 __umodsi3 __save_stack_nonlocal \
 	__nonlocal_goto __restore_stack_nonlocal __trampoline
-LIB2ADDEH = unwind-ia64.c unwind-sjlj.c
+LIB2ADDEH = unwind-ia64.c unwind-sjlj.c unwind-c.c
 .endif
 
 .if ${TARGET_ARCH} == "powerpc"
