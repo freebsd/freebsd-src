@@ -344,6 +344,7 @@ vendor REALTEK		0x0bda	RealTek
 vendor AGATE		0x0c08	Agate Technologies
 vendor DMI		0x0c0b	DMI
 vendor LUWEN		0x0c76	Luwen
+vendor SMC3		0x0d5c  Standard Microsystems
 vendor HAWKING		0x0e66	Hawking Technologies
 vendor MOTOROLA		0x1063	Motorola
 vendor PLX		0x10b5	PLX
@@ -1100,6 +1101,7 @@ product SMC 2102USB		0x0100	10Mbps ethernet adapter
 product SMC 2202USB		0x0200	10/100 ethernet adapter
 product SMC 2206USB		0x0201	EZ Connect USB Ethernet Adapter
 product SMC2 2020HUB		0x2020	USB Hub
+product SMC3 2662WUSB		0xa002	2662W-AR Wireless Adapter
 
 /* SOHOware products */
 product	SOHOWARE NUB100		0x9100	10/100 USB Ethernet
