@@ -167,7 +167,7 @@ targbhinit(void)
 
 		xpt_setup_ccb(&csa.ccb_h, path, /*priority*/5);
 		csa.ccb_h.func_code = XPT_SASYNC_CB;
-		csa.event_enable = AC_PATH_REGISTERED;
+		csa.event_enable = AC_PATH_REGISTERED | AC_PATH_DEREGISTERED;
 		csa.callback = targbhasync;
 		csa.callback_arg = NULL;
 		xpt_action((union ccb *)&csa);
@@ -185,15 +185,26 @@ static void
 targbhasync(void *callback_arg, u_int32_t code,
 	    struct cam_path *path, void *arg)
 {
-	struct cam_periph *periph;
+	struct cam_path *new_path;
+	cam_status status;
 
-	periph = (struct cam_periph *)callback_arg;
+	/*
+	 * Allocate a peripheral instance for
+	 * this target instance.
+	 */
+	status = xpt_create_path(&new_path, NULL,
+				 xpt_path_path_id(path),
+				 CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD);
+	if (status != CAM_REQ_CMP) {
+		printf("targbhasync: Unable to create path "
+			"due to status 0x%x\n", status);
+		return;
+	}
+
 	switch (code) {
 	case AC_PATH_REGISTERED:
 	{
 		struct ccb_pathinq *cpi;
-		struct cam_path *new_path;
-		cam_status status;
  
 		cpi = (struct ccb_pathinq *)arg;
 
@@ -201,35 +212,23 @@ targbhasync(void *callback_arg, u_int32_t code,
 		if ((cpi->target_sprt & PIT_PROCESSOR) == 0)
 			break;
 
-		/*
-		 * Allocate a peripheral instance for
-		 * this target instance.
-		 */
-		status = xpt_create_path(&new_path, NULL,
-					 xpt_path_path_id(path),
-					 CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD);
-		if (status != CAM_REQ_CMP) {
-			printf("targbhasync: Unable to create path "
-				"due to status 0x%x\n", status);
-			break;
-		}
 		status = cam_periph_alloc(targbhctor, NULL, targbhdtor,
 					  targbhstart,
 					  "targbh", CAM_PERIPH_BIO,
 					  new_path, targbhasync,
 					  AC_PATH_REGISTERED,
 					  cpi);
-		xpt_free_path(new_path);
 		break;
 	}
 	case AC_PATH_DEREGISTERED:
 	{
-		targbhdislun(periph);
+		cam_periph_invalidate(cam_periph_find(new_path, "targbh"));
 		break;
 	}
 	default:
 		break;
 	}
+	xpt_free_path(new_path);
 }
 
 /* Attempt to enable our lun */
@@ -439,6 +438,8 @@ targbhdtor(struct cam_periph *periph)
 	case 1:
 		/* FALLTHROUGH */
 	default:
+		/* XXX Wait for callback of targbhdislun() */
+		tsleep(softc, PRIBIO, "targbh", hz/2);
 		free(softc, M_DEVBUF);
 		break;
 	}
