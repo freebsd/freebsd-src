@@ -284,7 +284,7 @@ cont:
 		case 'A':
 		case 'a':
 			/*
-			 * Insert named variable in message
+			 * Insert named variable in message.
 			 */
 			switch(c) {
 				case 'i':
