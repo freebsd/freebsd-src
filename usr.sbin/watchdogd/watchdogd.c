@@ -59,7 +59,7 @@ int debugging = 0;
 int end_program = 0;
 const char *pidfile = _PATH_VARRUN "watchdogd.pid";
 int reset_mib[3];
-int reset_miblen = 3;
+size_t reset_miblen = 3;
 
 /*
  * Periodically write to the debug.watchdog.reset sysctl OID
@@ -180,7 +180,7 @@ watchdog_onoff(int onoff)
 {
 	int mib[3];
 	int error;
-	int len;
+	size_t len;
 
 	len = 3;
 
