@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-TARGET_TUPLE=	sparc64-unknown-freebsd
+TARGET_TUPLE?=	sparc64-unknown-freebsd
 
 .if ${TARGET_ARCH} == "sparc64"
 HOST=	${TARGET_TUPLE}
