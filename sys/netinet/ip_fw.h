@@ -151,7 +151,7 @@ struct ip_fw {
 #define	fw_pipe_nr	fw_un.fu_pipe_nr
 #define	fw_fwd_ip	fw_un.fu_fwd_ip
 
-/**
+/*
  *
  *   rule_ptr  -------------+
  *                          V
@@ -241,7 +241,7 @@ struct ipfw_dyn_rule {
 
 #define	IP_FW_F_MASK	0x7FFFFFFF	/* All possible flag bits mask */
 
-/* 
+/*
  * Flags for the 'fw_ipflg' field, for comparing values
  * of ip and its protocols.
  */
