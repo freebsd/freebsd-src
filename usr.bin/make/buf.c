@@ -434,3 +434,28 @@ Buf_Destroy (buf, freeData)
     }
     free ((char *)buf);
 }
+
+/*-
+ *-----------------------------------------------------------------------
+ * Buf_ReplaceLastByte --
+ *     Replace the last byte in a buffer.
+ *
+ * Results:
+ *     None.
+ *
+ * Side Effects:
+ *     If the buffer was empty intially, then a new byte will be added.
+ *     Otherwise, the last byte is overwritten.
+ *
+ *-----------------------------------------------------------------------
+ */
+void
+Buf_ReplaceLastByte (buf, byte)
+    Buffer buf;	/* buffer to augment */
+    Byte byte;	/* byte to be written */
+{
+    if (buf->inPtr == buf->outPtr)
+        Buf_AddByte(buf, byte);
+    else
+        *(buf->inPtr - 1) = byte;
+}

@@ -2009,54 +2009,44 @@ ParseSkipLine(skip)
     int skip; 		/* Skip lines that don't start with . */
 {
     char *line;
-    int c, lastc = '\0', lineLength;
+    int c, lastc, lineLength = 0;
     Buffer buf;
 
-    c = ParseReadc();
+    buf = Buf_Init(MAKE_BSIZE);
 
-    if (skip) {
-	/*
-	 * Skip lines until get to one that begins with a
-	 * special char.
-	 */
-	while ((c != '.') && (c != EOF)) {
-	    while (((c != '\n') || (lastc == '\\')) && (c != EOF))
-	    {
-		/*
-		 * Advance to next unescaped newline
-		 */
-		if ((lastc = c) == '\n') {
-		    lineno++;
-		}
-		c = ParseReadc();
-	    }
-	    lineno++;
+    do {
+        Buf_Discard(buf, lineLength);
+        lastc = '\0';
 
-	    lastc = c;
-	    c = ParseReadc ();
-	}
-    }
+        while (((c = ParseReadc()) != '\n' || lastc == '\\')
+               && c != EOF) {
+            if (c == '\n') {
+                Buf_ReplaceLastByte(buf, (Byte)' ');
+                lineno++;
 
-    if (c == EOF) {
-	Parse_Error (PARSE_FATAL, "Unclosed conditional/for loop");
-	return ((char *)NULL);
-    }
+                while ((c = ParseReadc()) == ' ' || c == '\t');
 
-    /*
-     * Read the entire line into buf
-     */
-    buf = Buf_Init (MAKE_BSIZE);
-    if (c != '\n') {
-	do {
-	    Buf_AddByte (buf, (Byte)c);
-	    c = ParseReadc();
-	} while ((c != '\n') && (c != EOF));
-    }
-    lineno++;
+                if (c == EOF)
+                    break;
+            }
 
-    Buf_AddByte (buf, (Byte)'\0');
-    line = (char *)Buf_GetAll (buf, &lineLength);
-    Buf_Destroy (buf, FALSE);
+            Buf_AddByte(buf, (Byte)c);
+            lastc = c;
+        }
+
+        if (c == EOF) {
+            Parse_Error(PARSE_FATAL, "Unclosed conditional/for loop");
+            Buf_Destroy(buf, TRUE);
+            return((char *)NULL);
+        }
+
+        lineno++;
+        Buf_AddByte(buf, (Byte)c);
+        Buf_AddByte(buf, (Byte)'\0');
+        line = (char *)Buf_GetAll(buf, &lineLength);
+    } while (skip == 1 && line[0] != '.');
+
+    Buf_Destroy(buf, FALSE);
     return line;
 }
 
