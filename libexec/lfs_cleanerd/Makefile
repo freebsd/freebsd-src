@@ -5,6 +5,6 @@ CFLAGS+=-I/sys/ufs/lfs -I${.CURDIR} -DDIAGNOSTIC
 MAN8=	lfs_cleanerd.8
 SRCS=	cleanerd.c lfs_cksum.c library.c misc.c print.c
 
-.PATH:	/sys/ufs/lfs
+.PATH:	${.CURDIR}/../../sys/ufs/lfs
 
 .include <bsd.prog.mk>
