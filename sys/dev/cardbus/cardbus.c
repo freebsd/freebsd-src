@@ -55,9 +55,9 @@
 #include <dev/cardbus/cardbusreg.h>
 #include <dev/cardbus/cardbusvar.h>
 #include <dev/cardbus/cardbus_cis.h>
+#include <dev/pccard/pccardvar.h>
 
 #include "power_if.h"
-#include "card_if.h"
 #include "pcib_if.h"
 
 /* sysctl vars */
@@ -1236,6 +1236,8 @@ static driver_t cardbus_driver = {
 static devclass_t cardbus_devclass;
 
 DRIVER_MODULE(cardbus, pccbb, cardbus_driver, cardbus_devclass, 0, 0);
+MODULE_VERSION(cardbus, 1);
+MODULE_DEPEND(cardbus, exca, 1, 1, 1);
 /*
 MODULE_DEPEND(cardbus, pccbb, 1, 1, 1);
 */

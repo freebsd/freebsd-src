@@ -1944,3 +1944,7 @@ static driver_t pccbb_driver = {
 static devclass_t pccbb_devclass;
 
 DRIVER_MODULE(pccbb, pci, pccbb_driver, pccbb_devclass, 0, 0);
+MODULE_VERSION(pccbb, 1);
+MODULE_DEPEND(pccbb, exca, 1, 1, 1);
+MODULE_DEPEND(pccbb, pccard, 1, 1, 1);
+MODULE_DEPEND(pccbb, cardbus, 1, 1, 1);

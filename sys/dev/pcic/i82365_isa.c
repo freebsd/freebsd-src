@@ -401,3 +401,4 @@ static driver_t pcic_driver = {
 static devclass_t pcic_devclass;
 
 DRIVER_MODULE(pcic, isa, pcic_driver, pcic_devclass, 0, 0);
+MODULE_DEPEND(pcic, pccard, 1, 1, 1);
