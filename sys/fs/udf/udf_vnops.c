@@ -965,7 +965,11 @@ lookloop:
 
 		/* XXX Should we return an error on a bad fid? */
 		if (udf_checktag(&fid->tag, TAGID_FID))
-			break;
+			goto continue_lookup;
+
+		/* Is this a deleted file? */
+		if (fid->file_char & 0x4)
+			goto continue_lookup;
 
 		if ((fid->l_fi == 0) && (fid->file_char & 0x08)) {
 			if (flags & ISDOTDOT) {
@@ -985,6 +989,7 @@ lookloop:
 		 * looking for.  It's therefore safe to clean up from a
 		 * fragmented fid.
 		 */
+continue_lookup:
 		if (fid_fragment) {
 			FREE(fid, M_UDFFID);
 			fid_fragment = 0;
