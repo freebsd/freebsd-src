@@ -46,8 +46,9 @@
 SYSCTL="/sbin/sysctl"
 SYSCTL_N="${SYSCTL} -n"
 CMD_OSTYPE="${SYSCTL_N} kern.ostype"
+OSTYPE=`${CMD_OSTYPE}`
 
-case `${CMD_OSTYPE}` in
+case ${OSTYPE} in
 FreeBSD)
 	SYSCTL_W="${SYSCTL}"
 	;;
@@ -78,7 +79,7 @@ set_rcvar()
 		base_var="$1"
 	fi
 
-	case `${CMD_OSTYPE}` in
+	case ${OSTYPE} in
 	FreeBSD)
 		echo ${base_var}_enable
 		;;
@@ -817,7 +818,7 @@ load_rc_config()
 
 	# XXX - Deprecated variable name support
 	#
-	case `${CMD_OSTYPE}` in
+	case ${OSTYPE} in
 	FreeBSD)
         	[ -n "$portmap_enable" ] && rpcbind_enable="$portmap_enable"
         	[ -n "$portmap_program" ] && rpcbind_program="$portmap_program"
