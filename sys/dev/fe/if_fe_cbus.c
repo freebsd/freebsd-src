@@ -30,8 +30,6 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/socket.h>
-#include <sys/sockio.h>
-#include <sys/mbuf.h>
 #include <sys/module.h>
 #include <machine/clock.h>
 
@@ -42,21 +40,15 @@
 
 #include <net/ethernet.h>
 #include <net/if.h>
-#include <net/if_dl.h>
 #include <net/if_mib.h>
 #include <net/if_media.h>
-#include <net/if_types.h>
 
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
 
-#include <net/bpf.h>
-
 #include <i386/isa/ic/mb86960.h>
 #include <dev/fe/if_fereg.h>
 #include <dev/fe/if_fevar.h>
-
-#include <isa/isavar.h>
 
 /*
  *	Cbus specific code.
