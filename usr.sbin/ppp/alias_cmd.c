@@ -2,7 +2,7 @@
  * The code in this file was written by Eivind Eklund <perhaps@yes.no>,
  * who places it in the public domain without restriction.
  *
- *	$Id: alias_cmd.c,v 1.19 1999/01/28 01:56:30 brian Exp $
+ *	$Id: alias_cmd.c,v 1.20 1999/03/07 15:02:37 brian Exp $
  */
 
 #include <sys/param.h>
@@ -238,4 +238,28 @@ alias_ProxyRule(struct cmdargs const *arg)
   }
 
   return PacketAliasProxyRule(cmd);
+}
+
+int
+alias_Pptp(struct cmdargs const *arg)
+{
+  struct in_addr addr;
+
+  if (arg->argc == arg->argn) {
+    addr.s_addr = INADDR_NONE;
+    PacketAliasPptp(addr);
+    return 0;
+  }
+
+  if (arg->argc != arg->argn + 1)
+    return -1;
+
+  addr = GetIpAddr(arg->argv[arg->argn]);
+  if (addr.s_addr == INADDR_NONE) {
+    log_Printf(LogWARN, "%s: invalid address\n", arg->argv[arg->argn]);
+    return 1;
+  }
+
+  PacketAliasPptp(addr);
+  return 0;
 }

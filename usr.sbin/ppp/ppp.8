@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.155 1999/03/07 11:54:42 brian Exp $
+.\" $Id: ppp.8,v 1.156 1999/03/07 15:02:38 brian Exp $
 .Dd 20 September 1995
 .nr XX \w'\fC00'
 .Os FreeBSD
@@ -2681,6 +2681,29 @@ or
 and only connections of the given protocol
 are matched.  This option is useful if you wish to run things like
 Internet phone on the machines behind your gateway.
+.It "alias pptp" Op Ar addr
+This tells
+.Nm
+to alias any
+.Em G Ns No eneral
+.Em R Ns No outing
+.Em E Ns No encapsulated
+.Pq Dv IPPROTO_GRE
+packets using
+.Ar addr
+rather than the local interface address.  This allows the uses of the
+.Em P Ns No oint
+to
+.Em P Ns No oint
+.Em T Ns No unneling
+.Em P Ns No rotocol
+on a machine on the internal network.
+.Pp
+If
+.Ar addr
+is not specified,
+.Dv PPTP
+aliasing is disabled.
 .It "alias proxy cmd" Ar arg Ns No ...
 This command tells
 .Nm
