@@ -529,8 +529,6 @@ installExpress(dialogMenuItem *self)
 
     if (DITEM_STATUS((i = installCommit(self))) == DITEM_SUCCESS) {
 	i |= DITEM_LEAVE_MENU;
-	/* Set default security level */
-	configSecurityModerate(NULL);
 
 	/* Give user the option of one last configuration spree */
 	installConfigure();
@@ -622,6 +620,10 @@ nodisks:
         configInetd(self);
 
     dialog_clear_norefresh();
+    if (!msgNoYes("Would you like to enable SSH login?"))
+	variable_set2("sshd_enable", "YES", 1);
+
+    dialog_clear_norefresh();
     if (!msgNoYes("Do you want to have anonymous FTP access to this machine?"))
 	configAnonFTP(self);
 
@@ -632,12 +634,6 @@ nodisks:
     dialog_clear_norefresh();
     if (!msgNoYes("Do you want to configure this machine as an NFS client?"))
 	variable_set2("nfs_client_enable", "YES", 1);
-
-    if (!msgNoYes("Do you want to select a default security profile for\n"
-	         "this host (select No for \"moderate\" security)?"))
-	configSecurityProfile(self);
-    else
-	configSecurityModerate(self);
 
 #ifdef WITH_SYSCONS
     dialog_clear_norefresh();
@@ -720,9 +716,6 @@ installCustomCommit(dialogMenuItem *self)
 
     i = installCommit(self);
     if (DITEM_STATUS(i) == DITEM_SUCCESS) {
-	/* Set default security level */
-	configSecurityModerate(NULL);
-
 	/* Give user the option of one last configuration spree */
 	installConfigure();
 	return i;
