@@ -203,7 +203,7 @@ check_pidfile()
 	fi
 	read _pid _junk < $_pidfile
 	if [ -z "$_pid" ]; then
-		debug "pid file {$_pidfile): no pid in file."
+		debug "pid file ($_pidfile): no pid in file."
 		return
 	fi
 	_find_processes $_procname ${_interpreter:-.} '-p '"$_pid"
