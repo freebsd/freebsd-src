@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)param.h	5.8 (Berkeley) 6/28/91
- *	$Id: param.h,v 1.35 1997/08/21 05:07:56 fsmp Exp $
+ *	$Id: param.h,v 1.14 1997/08/23 05:14:23 smp Exp $
  */
 
 #ifndef _MACHINE_PARAM_H_
@@ -145,6 +145,19 @@
 #ifndef _SIMPLELOCK_H_
 #define _SIMPLELOCK_H_
 
+/*
+ * XXX some temp debug control of cpl locks
+ */
+#define REAL_ECPL	/* exception.s:		SCPL_LOCK/SCPL_UNLOCK */
+#define REAL_ICPL	/* ipl.s:		CPL_LOCK/CPL_UNLOCK/FAST */
+#define REAL_AICPL	/* apic_ipl.s:		SCPL_LOCK/SCPL_UNLOCK */
+#define REAL_AVCPL	/* apic_vector.s:	CPL_LOCK/CPL_UNLOCK */
+
+#define REAL_IFCPL	/* ipl_funcs.c:		SCPL_LOCK/SCPL_UNLOCK */
+
+#define REAL_MCPL_NOT	/* microtime.s:		CPL_LOCK/movl $0,_cpl_lock */
+
+
 #ifdef LOCORE
 
 #ifdef SMP
@@ -188,12 +201,21 @@
 	addl	$4, %esp
 
 /*
- * Protects spl updates as a critical region.
+ * Variations of CPL_LOCK protect spl updates as a critical region.
  * Items within this 'region' include:
  *  cpl
  *  cil
  *  ipending
  *  ???
+ */
+
+/*
+ * Botom half routines, ie. those already protected from INTs.
+ *
+ * Used in:
+ *  sys/i386/i386/microtime.s (XXX currently NOT used, possible race?)
+ *  sys/i386/isa/ipl.s:		_doreti
+ *  sys/i386/isa/apic_vector.s:	_Xintr0, ..., _Xintr23
  */
 #define CPL_LOCK							\
 	pushl	$_cpl_lock ;			/* address of lock */	\
@@ -203,6 +225,23 @@
 #define CPL_UNLOCK							\
 	pushl	$_cpl_lock ;			/* address of lock */	\
 	call	_s_unlock ;			/* MP-safe */		\
+	addl	$4, %esp
+
+/*
+ * INT safe version for top half of kernel.
+ *
+ * Used in:
+ *  sys/i386/i386/exception.s:	_Xfpu, _Xalign, _Xsyscall, _Xint0x80_syscall
+ *  sys/i386/isa/apic_ipl.s:	splz()
+ */
+#define SCPL_LOCK 							\
+	pushl	$_cpl_lock ;						\
+	call	_ss_lock ;						\
+	addl	$4, %esp
+
+#define SCPL_UNLOCK							\
+	pushl	$_cpl_lock ;						\
+	call	_ss_unlock ;						\
 	addl	$4, %esp
 
 #else  /* SMP */
@@ -221,12 +260,33 @@
 #ifdef SMP
 
 /*
+ * Protects cpl/cil/ipending data as a critical region.
+ *
+ * Used in:
+ *  sys/i386/isa/ipl_funcs.c:	DO_SETBITS, softclockpending(), GENSPL,
+ *				spl0(), splx(), splq()
+ */
+
+/* Bottom half */
+#define CPL_LOCK() 	s_lock(&cpl_lock)
+#define CPL_UNLOCK() 	s_unlock(&cpl_lock)
+
+/* INT safe version for top half of kernel */
+#define SCPL_LOCK() 	ss_lock(&cpl_lock)
+#define SCPL_UNLOCK() 	ss_unlock(&cpl_lock)
+
+/*
  * Protects com/tty data as a critical region.
  */
 #define COM_LOCK() 	s_lock(&com_lock)
 #define COM_UNLOCK() 	s_unlock(&com_lock)
 
 #else /* SMP */
+
+#define CPL_LOCK()
+#define CPL_UNLOCK()
+#define SCPL_LOCK()
+#define SCPL_UNLOCK()
 
 #define COM_LOCK()
 #define COM_UNLOCK()
@@ -251,6 +311,8 @@ void	s_lock_init		__P((struct simplelock *));
 void	s_lock			__P((struct simplelock *));
 int	s_lock_try		__P((struct simplelock *));
 void	s_unlock		__P((struct simplelock *));
+void	ss_lock			__P((struct simplelock *));
+void	ss_unlock		__P((struct simplelock *));
 
 /* global data in mp_machdep.c */
 extern struct simplelock	imen_lock;

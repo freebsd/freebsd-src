@@ -22,12 +22,28 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: apic_ipl.s,v 1.23 1997/08/21 04:52:30 smp Exp smp $
+ *	$Id: apic_ipl.s,v 1.28 1997/08/23 05:15:12 smp Exp smp $
  */
 
 
+#if defined(SMP) && defined(REAL_AICPL)
+
+#define AICPL_LOCK	SCPL_LOCK
+#define AICPL_UNLOCK	SCPL_UNLOCK
+
+#else /* SMP */
+
+#define AICPL_LOCK
+#define AICPL_UNLOCK
+
+#endif /* SMP */
+
 	.data
 	ALIGN_DATA
+
+/* current INTerrupt level */
+	.globl	_cil
+_cil:	.long	0
 
 /* this allows us to change the 8254 APIC pin# assignment */
 	.globl _Xintr8254
@@ -46,31 +62,6 @@ _vec:
 	.long	 vec8,  vec9, vec10, vec11, vec12, vec13, vec14, vec15
 	.long	vec16, vec17, vec18, vec19, vec20, vec21, vec22, vec23
 
-/* various simple locks */
-	.align 2				/* MUST be 32bit aligned */
-
-#if 0
-/* critical region around IO APIC */
-	.globl _imen_lock
-_imen_lock:
-	.long	0
-
-/* critical region around spl & cpl */
-	.globl _cpl_lock
-_cpl_lock:
-	.long	0
-
-/* critical region around FAST_INTR() routines */
-	.globl _fast_intr_lock
-_fast_intr_lock:
-	.long	0
-
-/* critical region around INTR() routines */
-	.globl _intr_lock
-_intr_lock:
-	.long	0
-#endif
-
 /*
  * Note:
  *	This is the UP equivilant of _imen.
@@ -83,15 +74,85 @@ _intr_lock:
  *		MAYBE_UNMASK_IRQ
  *		imen_dump()
  */
+	.align 2				/* MUST be 32bit aligned */
 	.globl _apic_imen
 _apic_imen:
 	.long	HWI_MASK
+
 
 /*
  * 
  */
 	.text
 	SUPERALIGN_TEXT
+
+/*
+ * Interrupt priority mechanism
+ *	-- soft splXX masks with group mechanism (cpl)
+ *	-- h/w masks for currently active or unused interrupts (imen)
+ *	-- ipending = active interrupts currently masked by cpl
+ */
+
+ENTRY(splz)
+	/*
+	 * The caller has restored cpl and checked that (ipending & ~cpl)
+	 * is nonzero.  We have to repeat the check since if there is an
+	 * interrupt while we're looking, _doreti processing for the
+	 * interrupt will handle all the unmasked pending interrupts
+	 * because we restored early.  We're repeating the calculation
+	 * of (ipending & ~cpl) anyway so that the caller doesn't have
+	 * to pass it, so this only costs one "jne".  "bsfl %ecx,%ecx"
+	 * is undefined when %ecx is 0 so we can't rely on the secondary
+	 * btrl tests.
+	 */
+	AICPL_LOCK
+	movl	_cpl,%eax
+splz_next:
+	/*
+	 * We don't need any locking here.  (ipending & ~cpl) cannot grow 
+	 * while we're looking at it - any interrupt will shrink it to 0.
+	 */
+	movl	%eax,%ecx
+	notl	%ecx			/* set bit = unmasked level */
+	andl	_ipending,%ecx		/* set bit = unmasked pending INT */
+	jne	splz_unpend
+	AICPL_UNLOCK
+	ret
+
+	ALIGN_TEXT
+splz_unpend:
+	bsfl	%ecx,%ecx
+	lock
+	btrl %ecx, _ipending
+	jnc	splz_next
+	movl	ihandlers(,%ecx,4),%edx
+	testl	%edx,%edx
+	je	splz_next		/* "can't happen" */
+	cmpl	$NHWI,%ecx
+	jae	splz_swi
+	AICPL_UNLOCK
+	/*
+	 * We would prefer to call the intr handler directly here but that
+	 * doesn't work for badly behaved handlers that want the interrupt
+	 * frame.  Also, there's a problem determining the unit number.
+	 * We should change the interface so that the unit number is not
+	 * determined at config time.
+	 */
+	jmp	*_vec(,%ecx,4)
+
+	ALIGN_TEXT
+splz_swi:
+	cmpl	$SWI_AST,%ecx
+	je	splz_next		/* "can't happen" */
+	pushl	%eax
+	orl	imasks(,%ecx,4),%eax
+	movl	%eax,_cpl
+	AICPL_UNLOCK
+	call	%edx
+	AICPL_LOCK
+	popl	%eax
+	movl	%eax,_cpl
+	jmp	splz_next
 
 /*
  * Fake clock interrupt(s) so that they appear to come from our caller instead

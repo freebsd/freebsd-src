@@ -36,9 +36,23 @@
  *
  *	@(#)ipl.s
  *
- *	$Id: ipl.s,v 1.8 1997/08/20 19:46:22 smp Exp $
+ *	$Id: ipl.s,v 1.13 1997/08/23 05:15:12 smp Exp smp $
  */
 
+
+#if defined(SMP) && defined(REAL_ICPL)
+
+#define ICPL_LOCK		CPL_LOCK
+#define ICPL_UNLOCK		CPL_UNLOCK
+#define FAST_ICPL_UNLOCK	movl	$0, _cpl_lock
+
+#else /* SMP */
+
+#define ICPL_LOCK
+#define ICPL_UNLOCK
+#define FAST_ICPL_UNLOCK
+
+#endif /* SMP */
 
 /*
  * AT/386
@@ -51,16 +65,6 @@
 /* current priority (all off) */
 	.globl	_cpl
 _cpl:	.long	HWI_MASK | SWI_MASK
-
-/* current INTerrupt level */
-	.globl	_cil
-_cil:	.long	0
-
-#ifndef APIC_IO
-/* interrupt mask enable (all h/w off) */
-	.globl	_imen
-_imen:	.long	HWI_MASK
-#endif /* APIC_IO */
 
 	.globl	_tty_imask
 _tty_imask:	.long	0
@@ -75,9 +79,9 @@ _softnet_imask:	.long	SWI_NET_MASK
 	.globl	_softtty_imask
 _softtty_imask:	.long	SWI_TTY_MASK
 
-	.globl	_ipending
 
 /* pending interrupts blocked by splxxx() */
+	.globl	_ipending
 _ipending:	.long	0
 
 /* set with bits for which queue to service */
@@ -115,14 +119,23 @@ doreti_next:
 	 * so that the stack cannot pile up (the nesting level of interrupt
 	 * handlers is limited by the number of bits in cpl).
 	 */
+#ifdef SMP
+	cli				/* early to prevent INT deadlock */
+	movl	%eax, %edx		/* preserve cpl while getting lock */
+	ICPL_LOCK
+	movl	%edx, %eax
+#endif
 	movl	%eax,%ecx
-	notl	%ecx
+	notl	%ecx			/* set bit = unmasked level */
+#ifndef SMP
 	cli
-	andl	_ipending,%ecx
+#endif
+	andl	_ipending,%ecx		/* set bit = unmasked pending INT */
 	jne	doreti_unpend
 doreti_exit:
 	movl	%eax,_cpl
-	decb	_intr_nesting_level
+	FAST_ICPL_UNLOCK		/* preserves %eax */
+	MPLOCKED decb _intr_nesting_level
 	MEXITCOUNT
 #ifdef VM86
 	/*
@@ -132,6 +145,7 @@ doreti_exit:
 	 * vm86 mode.  doreti_stop is a convenient place to set a breakpoint.
 	 * When the cpl problem is solved, this code can disappear.
 	 */
+	ICPL_LOCK
 	cmpl	$0,_cpl
 	je	1f
 	testl	$PSL_VM,TF_EFLAGS(%esp)
@@ -140,6 +154,7 @@ doreti_stop:
 	movl	$0,_cpl
 	nop
 1:
+	FAST_ICPL_UNLOCK		/* preserves %eax */
 #endif /* VM86 */
 
 #ifdef SMP
@@ -184,9 +199,17 @@ doreti_unpend:
 	 * We won't miss any new pending interrupts because we will check
 	 * for them again.
 	 */
+#ifdef SMP
+	/* we enter with cpl locked */
+	bsfl	%ecx, %ecx		/* slow, but not worth optimizing */
+	btrl	%ecx, _ipending
+	FAST_ICPL_UNLOCK		/* preserves %eax */
+	sti				/* late to prevent INT deadlock */
+#else
 	sti
 	bsfl	%ecx,%ecx		/* slow, but not worth optimizing */
-	MPLOCKED btrl %ecx, _ipending
+	btrl	%ecx,_ipending
+#endif /* SMP */
 	jnc	doreti_next		/* some intr cleared memory copy */
 	movl	ihandlers(,%ecx,4),%edx
 	testl	%edx,%edx
@@ -194,7 +217,14 @@ doreti_unpend:
 	cmpl	$NHWI,%ecx
 	jae	doreti_swi
 	cli
+#ifdef SMP
+	pushl	%eax			/* preserve %eax */
+	ICPL_LOCK
+	popl	_cpl
+	FAST_ICPL_UNLOCK
+#else
 	movl	%eax,_cpl
+#endif
 	MEXITCOUNT
 	jmp	%edx
 
@@ -210,8 +240,18 @@ doreti_swi:
 	 * interrupt frames.  There are only 4 different SWIs and the HWI
 	 * and SWI masks limit the nesting further.
 	 */
+#ifdef SMP
+	orl imasks(,%ecx,4), %eax
+	cli				/* prevent INT deadlock */
+	pushl	%eax			/* save cpl */
+	ICPL_LOCK
+	popl	_cpl			/* restore cpl */
+	FAST_ICPL_UNLOCK
+	sti
+#else
 	orl	imasks(,%ecx,4),%eax
 	movl	%eax,_cpl
+#endif
 	call	%edx
 	popl	%eax
 	jmp	doreti_next
@@ -247,71 +287,11 @@ swi_ast_phantom:
 	 * using by using cli, but they are unavoidable for lcall entries.
 	 */
 	cli
-	MPLOCKED orl $SWI_AST_PENDING, _ipending
+	ICPL_LOCK
+	orl $SWI_AST_PENDING, _ipending
+	/* cpl is unlocked in doreti_exit */
 	subl	%eax,%eax
 	jmp	doreti_exit	/* SWI_AST is highest so we must be done */
-
-/*
- * Interrupt priority mechanism
- *	-- soft splXX masks with group mechanism (cpl)
- *	-- h/w masks for currently active or unused interrupts (imen)
- *	-- ipending = active interrupts currently masked by cpl
- */
-
-ENTRY(splz)
-	/*
-	 * The caller has restored cpl and checked that (ipending & ~cpl)
-	 * is nonzero.  We have to repeat the check since if there is an
-	 * interrupt while we're looking, _doreti processing for the
-	 * interrupt will handle all the unmasked pending interrupts
-	 * because we restored early.  We're repeating the calculation
-	 * of (ipending & ~cpl) anyway so that the caller doesn't have
-	 * to pass it, so this only costs one "jne".  "bsfl %ecx,%ecx"
-	 * is undefined when %ecx is 0 so we can't rely on the secondary
-	 * btrl tests.
-	 */
-	movl	_cpl,%eax
-splz_next:
-	/*
-	 * We don't need any locking here.  (ipending & ~cpl) cannot grow 
-	 * while we're looking at it - any interrupt will shrink it to 0.
-	 */
-	movl	%eax,%ecx
-	notl	%ecx
-	andl	_ipending,%ecx
-	jne	splz_unpend
-	ret
-
-	ALIGN_TEXT
-splz_unpend:
-	bsfl	%ecx,%ecx
-	MPLOCKED btrl %ecx, _ipending
-	jnc	splz_next
-	movl	ihandlers(,%ecx,4),%edx
-	testl	%edx,%edx
-	je	splz_next		/* "can't happen" */
-	cmpl	$NHWI,%ecx
-	jae	splz_swi
-	/*
-	 * We would prefer to call the intr handler directly here but that
-	 * doesn't work for badly behaved handlers that want the interrupt
-	 * frame.  Also, there's a problem determining the unit number.
-	 * We should change the interface so that the unit number is not
-	 * determined at config time.
-	 */
-	jmp	*_vec(,%ecx,4)
-
-	ALIGN_TEXT
-splz_swi:
-	cmpl	$SWI_AST,%ecx
-	je	splz_next		/* "can't happen" */
-	pushl	%eax
-	orl	imasks(,%ecx,4),%eax
-	movl	%eax,_cpl
-	call	%edx
-	popl	%eax
-	movl	%eax,_cpl
-	jmp	splz_next
 
 
 	ALIGN_TEXT
