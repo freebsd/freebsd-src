@@ -1,8 +1,9 @@
-#       $Id: Makefile,v 1.7 1997/08/21 10:17:29 jmg Exp $
+#       $Id: Makefile,v 1.8 1997/10/18 01:37:52 peter Exp $
 
 .PATH:  ${.CURDIR}/../../sys/net
 KMOD=   if_ppp_mod
-SRCS=	bsd_comp.c if_ppp.c ppp_tty.c slcompress.c bpfilter.h ppp.h opt_ppp.h
+SRCS=	bsd_comp.c if_ppp.c ppp_tty.c slcompress.c bpfilter.h ppp.h \
+	opt_ipx.h opt_ppp.h
 NOMAN=
 PSEUDO_LKM=
 CFLAGS+= -I.
@@ -11,10 +12,11 @@ NPPP?=		2
 PPP_BSDCOMP?=	1	# 0/1
 PPP_DEFLATE?=	1	# 0/1
 PPP_FILTER?=	0	# 0/1 - requires bpf to be configured in kernel
+PPP_IPX?=	0	# 0/1 - requires IPX to be configured in kernel
 PROTOS?=	-DINET	# add -DIPX if you have IPX in the kernel
 
 CFLAGS+= ${PROTOS}
-CLEANFILES+=	bpfilter.h ppp.h opt_ppp.h
+CLEANFILES+=	bpfilter.h ppp.h opt_ipx.h opt_ppp.h
 
 bpfilter.h:
 	echo "#define NBPFILTER ${PPP_FILTER}" > bpfilter.h
@@ -22,7 +24,14 @@ bpfilter.h:
 ppp.h:
 	echo "#define NPPP ${NPPP}" > ppp.h
 
+opt_ipx.h:
+	touch opt_ipx.h
+.if ${PPP_IPX} > 0
+	echo "#define IPX ${PPP_BSDCOMP}" > opt_ipx.h
+.endif
+
 opt_ppp.h:
+	touch opt_ppp.h
 .if ${PPP_BSDCOMP} > 0
 	echo "#define PPP_BSDCOMP ${PPP_BSDCOMP}" > opt_ppp.h
 .endif
