@@ -619,7 +619,7 @@ ng_iface_newhook(node_p node, hook_p hook, const char *name)
  */
 static int
 ng_iface_rcvmsg(node_p node, struct ng_mesg *msg,
-		const char *retaddr, struct ng_mesg **rptr)
+		const char *retaddr, struct ng_mesg **rptr, hook_p lasthook)
 {
 	const priv_p priv = node->private;
 	struct ifnet *const ifp = priv->ifp;
@@ -722,7 +722,8 @@ ng_iface_rcvmsg(node_p node, struct ng_mesg *msg,
  * Recive data from a hook. Pass the packet to the correct input routine.
  */
 static int
-ng_iface_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
+ng_iface_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
+		struct mbuf **ret_m, meta_p *ret_meta)
 {
 	const priv_p priv = hook->node->private;
 	const iffam_p iffam = get_iffam_from_hook(priv, hook);

@@ -255,7 +255,7 @@ cisco_newhook(node_p node, hook_p hook, const char *name)
  */
 static int
 cisco_rcvmsg(node_p node, struct ng_mesg *msg,
-	const char *retaddr, struct ng_mesg **rptr)
+	const char *retaddr, struct ng_mesg **rptr, hook_p lasthook)
 {
 	const sc_p sc = node->private;
 	struct ng_mesg *resp = NULL;
@@ -353,7 +353,8 @@ cisco_rcvmsg(node_p node, struct ng_mesg *msg,
  * Receive data
  */
 static int
-cisco_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
+cisco_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
+		struct mbuf **ret_m, meta_p *ret_meta)
 {
 	const sc_p sc = hook->node->private;
 	struct protoent *pep;
@@ -504,7 +505,8 @@ cisco_input(sc_p sc, struct mbuf *m, meta_p meta)
 				ng_send_msg(sc->node, msg,
 				    NG_CISCO_HOOK_INET, &resp);
 				if (resp != NULL)
-					cisco_rcvmsg(sc->node, resp, ".", NULL);
+					cisco_rcvmsg(sc->node, resp, ".",
+								NULL, NULL);
 
 		nomsg:
 				/* Send reply to peer device */

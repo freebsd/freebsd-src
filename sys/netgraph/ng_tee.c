@@ -194,7 +194,7 @@ ngt_newhook(node_p node, hook_p hook, const char *name)
  */
 static int
 ngt_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
-	   struct ng_mesg **rptr)
+	   struct ng_mesg **rptr, hook_p lasthook)
 {
 	const sc_p sc = node->private;
 	struct ng_mesg *resp = NULL;
@@ -262,7 +262,8 @@ done:
  * from the other side.
  */
 static int
-ngt_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
+ngt_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
+		struct mbuf **ret_m, meta_p *ret_meta)
 {
 	const sc_p sc = hook->node->private;
 	struct hookinfo *const hinfo = (struct hookinfo *) hook->private;

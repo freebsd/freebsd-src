@@ -289,7 +289,7 @@ ng_pptpgre_newhook(node_p node, hook_p hook, const char *name)
  */
 static int
 ng_pptpgre_rcvmsg(node_p node, struct ng_mesg *msg,
-	      const char *raddr, struct ng_mesg **rptr)
+	      const char *raddr, struct ng_mesg **rptr, hook_p lasthook)
 {
 	const priv_p priv = node->private;
 	struct ng_mesg *resp = NULL;
@@ -339,7 +339,8 @@ done:
  * Receive incoming data on a hook.
  */
 static int
-ng_pptpgre_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
+ng_pptpgre_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
+		struct mbuf **ret_m, meta_p *ret_meta)
 {
 	const node_p node = hook->node;
 	const priv_p priv = node->private;
