@@ -54,6 +54,7 @@ struct sc_chinfo {
 	u_int32_t num, run;
 	u_int32_t blksz, blkcnt;
 	u_int32_t regbase, spdreg;
+	u_int32_t imask;
 	u_int32_t civ;
 
 	struct snd_dbuf *buffer;
@@ -247,18 +248,21 @@ ichchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *
 		KASSERT(dir == PCMDIR_PLAY, ("wrong direction"));
 		ch->regbase = ICH_REG_PO_BASE;
 		ch->spdreg = sc->hasvra? AC97_REGEXT_FDACRATE : 0;
+		ch->imask = ICH_GLOB_STA_POINT;
 		break;
 
 	case 1: /* record */
 		KASSERT(dir == PCMDIR_REC, ("wrong direction"));
 		ch->regbase = ICH_REG_PI_BASE;
 		ch->spdreg = sc->hasvra? AC97_REGEXT_LADCRATE : 0;
+		ch->imask = ICH_GLOB_STA_PIINT;
 		break;
 
 	case 2: /* mic */
 		KASSERT(dir == PCMDIR_REC, ("wrong direction"));
 		ch->regbase = ICH_REG_MC_BASE;
 		ch->spdreg = sc->hasvrm? AC97_REGEXT_MADCRATE : 0;
+		ch->imask = ICH_GLOB_STA_MINT;
 		break;
 
 	default:
@@ -373,36 +377,48 @@ ich_intr(void *p)
 {
 	struct sc_info *sc = (struct sc_info *)p;
 	struct sc_chinfo *ch;
-	u_int32_t cbi, lbi, lvi, st;
+	u_int32_t cbi, lbi, lvi, st, gs;
 	int i;
+
+	gs = ich_rd(sc, ICH_REG_GLOB_STA, 4) | ICH_GLOB_STA_IMASK;
+	if (gs & (ICH_GLOB_STA_PRES | ICH_GLOB_STA_SRES)) {
+		/* Clear resume interrupt(s) - nothing doing with them */
+		ich_wr(sc, ICH_REG_GLOB_STA, gs, 4);
+	}
+	gs &= ~(ICH_GLOB_STA_PRES | ICH_GLOB_STA_SRES);
 
 	for (i = 0; i < 3; i++) {
 		ch = &sc->ch[i];
-		/* check channel status */
+		if ((ch->imask & gs) == 0) 
+			continue;
+		gs &= ~ch->imask;
 		st = ich_rd(sc, ch->regbase + ICH_REG_X_SR, 2);
 		st &= ICH_X_SR_FIFOE | ICH_X_SR_BCIS | ICH_X_SR_LVBCI;
-		if (st != 0) {
-			if (st & (ICH_X_SR_BCIS | ICH_X_SR_LVBCI)) {
+		if (st & (ICH_X_SR_BCIS | ICH_X_SR_LVBCI)) {
 				/* block complete - update buffer */
-				if (ch->run)
-					chn_intr(ch->channel);
-				lvi = ich_rd(sc, ch->regbase + ICH_REG_X_LVI, 1);
-				cbi = ch->civ % ch->blkcnt;
-				if (cbi == 0)
-					cbi = ch->blkcnt - 1;
-				else
-					cbi--;
-				lbi = lvi % ch->blkcnt;
-				if (cbi >= lbi)
-					lvi += cbi - lbi;
-				else
-					lvi += cbi + ch->blkcnt - lbi;
-				lvi %= ICH_DTBL_LENGTH;
-				ich_wr(sc, ch->regbase + ICH_REG_X_LVI, lvi, 1);
-			}
-			/* clear status bit */
-			ich_wr(sc, ch->regbase + ICH_REG_X_SR, st, 2);
+			if (ch->run)
+				chn_intr(ch->channel);
+			lvi = ich_rd(sc, ch->regbase + ICH_REG_X_LVI, 1);
+			cbi = ch->civ % ch->blkcnt;
+			if (cbi == 0)
+				cbi = ch->blkcnt - 1;
+			else
+				cbi--;
+			lbi = lvi % ch->blkcnt;
+			if (cbi >= lbi)
+				lvi += cbi - lbi;
+			else
+				lvi += cbi + ch->blkcnt - lbi;
+			lvi %= ICH_DTBL_LENGTH;
+			ich_wr(sc, ch->regbase + ICH_REG_X_LVI, lvi, 1);
+
 		}
+		/* clear status bit */
+		ich_wr(sc, ch->regbase + ICH_REG_X_SR, st, 2);
+	}
+	if (gs != 0) {
+		device_printf(sc->dev, 
+			      "Unhandled interrupt, gs_intr = %x\n", gs);
 	}
 }
 
