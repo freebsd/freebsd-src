@@ -739,10 +739,9 @@ vcanrecycle(struct vnode *vp)
 
 	/* We should be able to immediately acquire this */
 	/* XXX This looks like it should panic if it fails */
-	if (vn_lock(vp, LK_INTERLOCK | LK_EXCLUSIVE, td) != 0) {
-		VI_UNLOCK(vp);
+	if (vn_lock(vp, LK_INTERLOCK | LK_EXCLUSIVE, td) != 0)
 		return (EWOULDBLOCK);
-	}
+
 	/*
 	 * Don't recycle if we still have cached pages.
 	 */
@@ -1917,18 +1916,11 @@ vget(vp, flags, td)
 	 */
 	if ((flags & LK_INTERLOCK) == 0)
 		VI_LOCK(vp);
-	if (vp->v_iflag & VI_XLOCK) {
-		if (vp->v_vxproc == curthread) {
-#if 0
-			/* this can now occur in normal operation */
-			log(LOG_INFO, "VXLOCK interlock avoided\n");
-#endif
-		} else {
-			vp->v_iflag |= VI_XWANT;
-			msleep(vp, VI_MTX(vp), PINOD | PDROP, "vget", 0);
-			mp_fixme("interlock not released.");
-			return (ENOENT);
-		}
+	if (vp->v_iflag & VI_XLOCK && vp->v_vxproc != curthread) {
+		vp->v_iflag |= VI_XWANT;
+		msleep(vp, VI_MTX(vp), PINOD | PDROP, "vget", 0);
+		VI_UNLOCK(vp);
+		return (ENOENT);
 	}
 
 	vp->v_usecount++;
