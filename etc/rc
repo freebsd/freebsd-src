@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.104.2.11 1997/05/01 06:01:35 jkh Exp $
+#	$Id: rc,v 1.119 1997/05/03 11:22:16 jkh Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -232,9 +232,9 @@ echo '.'
 
 # configure implementation specific stuff
 arch=`uname -m`
-if [ -f /etc/rc.${arch} ]; then
-	. /etc/rc.${arch}
-fi
+if [ -f /etc/etc.${arch}/rc.${arch} ]; then
+        . /etc/etc.${arch}/rc.${arch}
+fi 
 
 # Recover vi editor files.
 vibackup=`echo /var/tmp/vi.recover/vi.*`
