@@ -42,6 +42,8 @@ my $COPYRIGHT	= "Copyright (c) 2003 Dag-Erling Smørgrav. " .
 my @configs;			# Names of requested configations
 my $dump;			# Dump configuration and exit
 my $etcdir;			# Configuration directory
+my $lockfile;			# Lock file name
+my $lock;			# Lock file descriptor
 
 my %INITIAL_CONFIG = (
     'BRANCHES'	=> [ 'CURRENT' ],
@@ -349,6 +351,46 @@ sub tinderbox($$$) {
 }
 
 ###
+### Open and lock a file reliably
+###
+sub open_locked($;$$) {
+    my $fn = shift;		# File name
+    my $flags = shift;		# Open flags
+    my $mode = shift;		# File mode
+
+    local *FILE;		# File handle
+    my (@sb1, @sb2);		# File status
+
+    for (;; close(FILE)) {
+	sysopen(FILE, $fn, $flags || O_RDONLY, $mode || 0640)
+	    or last;
+	if (!(@sb1 = stat(FILE))) {
+	    # Huh? shouldn't happen
+	    warning("$fn: stat(): $!");
+	    last;
+	}
+	if (!flock(FILE, LOCK_EX|LOCK_NB)) {
+	    # A failure here means the file can't be locked, or
+	    # something really weird happened, so just give up.
+	    warning("$fn: flock(): $!");
+	    last;
+	}
+	if (!(@sb2 = stat($fn))) {
+	    # File was pulled from under our feet, though it may
+	    # reappear in the next pass
+	    next;
+	}
+	if ($sb1[0] != $sb2[0] || $sb1[1] != $sb2[1]) {
+	    # File changed under our feet, try again
+	    next;
+	}
+	return *FILE{IO};
+    }
+    close(FILE);
+    return undef;
+}
+
+###
 ### Print a usage message and exit
 ###
 sub usage() {
@@ -363,8 +405,9 @@ Options:
   -d, --dump                    Dump the processed configuration
 
 Parameters:
-  -c, --config=FILE             Configuration name
+  -c, --config=NAME             Configuration name
   -e, --etcdir=DIR              Configuration directory
+  -l, --lockfile=FILE           Lock file name
 
 Report bugs to <des\@freebsd.org>.
 ");
@@ -448,6 +491,7 @@ MAIN:{
 	"c|config=s"	        => \@configs,
 	"d|dump"		=> \$dump,
 	"e|etcdir=s"		=> \$etcdir,
+	"l|lockfile=s"		=> \$lockfile,
 	) or usage();
     if (@ARGV) {
 	usage();
@@ -473,6 +517,17 @@ MAIN:{
 	$configs[$n] =~ m/^(\w+)$/
 	    or die("invalid config: $configs[$n]\n");
 	$configs[$n] = $1;
+    }
+
+    # Acquire lock
+    if (defined($lockfile)) {
+	if ($lockfile !~ m/^([\w\/\.-]+)$/) {
+	    die("invalid lockfile\n");
+	}
+	$lockfile = $1;
+	$lock = open_locked($lockfile, O_CREAT, 0600)
+	    or die("unable to acquire lock on $lockfile");
+	# Lock will be released upon termination.
     }
 
     # Run all specified or implied configurations
