@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id: vm_mmap.c,v 1.42 1996/05/18 03:37:51 dyson Exp $
+ * $Id: vm_mmap.c,v 1.43 1996/05/19 07:36:49 dyson Exp $
  */
 
 /*
@@ -546,7 +546,7 @@ madvise(p, uap, retval)
 {
 	vm_map_t map;
 	pmap_t pmap;
-	vm_offset_t start, end, addr, nextaddr;
+	vm_offset_t start, end;
 	/*
 	 * Check for illegal addresses.  Watch out for address wrap... Note
 	 * that VM_*_ADDRESS are not constants due to casts (argh).

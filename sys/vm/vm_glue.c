@@ -59,7 +59,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_glue.c,v 1.48 1996/05/02 09:34:51 phk Exp $
+ * $Id: vm_glue.c,v 1.49 1996/05/18 03:37:37 dyson Exp $
  */
 
 #include "opt_ddb.h"
@@ -196,7 +196,7 @@ vm_fork(p1, p2)
 	register struct proc *p1, *p2;
 {
 	register struct user *up;
-	int error, i;
+	int i;
 	pmap_t pvp;
 	vm_object_t upobj;
 
@@ -204,15 +204,6 @@ vm_fork(p1, p2)
 		VM_WAIT;
 	}
 
-#if 0
-	/*
-	 * avoid copying any of the parent's pagetables or other per-process
-	 * objects that reside in the map by marking all of them
-	 * non-inheritable
-	 */
-	(void) vm_map_inherit(&p1->p_vmspace->vm_map,
-	    UPT_MIN_ADDRESS - UPAGES * PAGE_SIZE, VM_MAX_ADDRESS, VM_INHERIT_NONE);
-#endif
 	p2->p_vmspace = vmspace_fork(p1->p_vmspace);
 
 	if (p1->p_vmspace->vm_shm)
@@ -328,13 +319,11 @@ faultin(p)
 	struct proc *p;
 {
 	vm_offset_t i;
-	vm_offset_t ptaddr;
 	int s;
 
 	if ((p->p_flag & P_INMEM) == 0) {
 		pmap_t pmap = &p->p_vmspace->vm_pmap;
-		vm_page_t stkm, m;
-		int error;
+		vm_page_t m;
 		vm_object_t upobj = p->p_vmspace->vm_upages_obj;
 
 		++p->p_lock;
@@ -536,9 +525,7 @@ static void
 swapout(p)
 	register struct proc *p;
 {
-	vm_map_t map = &p->p_vmspace->vm_map;
 	pmap_t pmap = &p->p_vmspace->vm_pmap;
-	vm_offset_t ptaddr;
 	int i;
 
 #if defined(SWAP_DEBUG)
