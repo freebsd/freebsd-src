@@ -606,6 +606,8 @@ ngmn_connect(hook_p hook)
 	/* XXX: we actually send a 1 byte packet */
 	dp = mn_alloc_desc();
 	MGETHDR(m, M_WAIT, MT_DATA);
+	if (m == NULL)
+		return ENOBUFS;
 	m->m_pkthdr.len = 0;
 	dp->m = m;
 	dp->flags = 0xc0000000 + (1 << 16);
@@ -619,8 +621,18 @@ ngmn_connect(hook_p hook)
 	/* Setup a receive chain with 5 + NTS descriptors */
 
 	dp = mn_alloc_desc();
+	m = NULL;
 	MGETHDR(m, M_WAIT, MT_DATA);
+	if (m == NULL) {
+		mn_free_desc(dp);
+		return (ENOBUFS);
+	}
 	MCLGET(m, M_WAIT);
+	if ((m->m_flags & M_EXT) == 0) {
+		mn_free_desc(dp);
+		m_freem(m);
+		return (ENOBUFS);
+	}
 	dp->m = m;
 	dp->data = vtophys(m->m_data);
 	dp->flags = 0x40000000;
@@ -632,8 +644,19 @@ ngmn_connect(hook_p hook)
 	for (i = 0; i < (nts + 10); i++) {
 		dp2 = dp;
 		dp = mn_alloc_desc();
+		m = NULL;
 		MGETHDR(m, M_WAIT, MT_DATA);
+		if (m == NULL) {
+			mn_free_desc(dp);
+			m_freem(m);
+			return (ENOBUFS);
+		}
 		MCLGET(m, M_WAIT);
+		if ((m->m_flags & M_EXT) == 0) {
+			mn_free_desc(dp);
+			m_freem(m);
+			return (ENOBUFS);
+		}
 		dp->m = m;
 		dp->data = vtophys(m->m_data);
 		dp->flags = 0x00000000;
@@ -1063,12 +1086,13 @@ mn_rx_intr(struct softc *sc, u_int32_t vector)
 			MGETHDR(m, M_DONTWAIT, MT_DATA);
 			if (m == NULL) {
 				mn_free_desc(dp);
-				return;
+				return; /* ENOBUFS */
 			}
 			MCLGET(m, M_DONTWAIT);
 			if((m->m_flags & M_EXT) == 0) {
 				mn_free_desc(dp);
-				return;
+				m_freem(m);
+				return; /* ENOBUFS */
 			}
 		}
 		dp->m = m;
