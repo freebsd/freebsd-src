@@ -320,6 +320,7 @@ rerelease release:
 	echo "	touch /tmp/.world_done"		>> ${CHROOTDIR}/mk
 	echo "fi"				>> ${CHROOTDIR}/mk
 	echo "cd /usr/src/release"		>> ${CHROOTDIR}/mk
+	echo "make obj"				>> ${CHROOTDIR}/mk
 	echo "make \$${_RELTARGET}"		>> ${CHROOTDIR}/mk
 	echo "echo \">>> make ${.TARGET} finished on \`LC_ALL=C TZ=GMT date\`\"" >> ${CHROOTDIR}/mk
 	chmod 755 ${CHROOTDIR}/mk
