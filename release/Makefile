@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.193.2.38 1995/10/24 04:03:53 jkh Exp $
+#	$Id: Makefile,v 1.193.2.39 1995/10/26 08:23:28 jkh Exp $
 #
 # How to roll a release:
 #
@@ -409,6 +409,8 @@ release.9:
 	mv ${RD}/rootfd/stand/info/src/ssecure.inf ${RD}/rootfd/stand/info/des
 	mv ${RD}/rootfd/stand/info/src/sebones.inf ${RD}/rootfd/stand/info/des
 	tar -cf - -C ${RD}/trees/bin/dev MAKEDEV | tar xvf - -C ${RD}/rootfd/stand
+	cp ${.CURDIR}/sysinstall/power.uu ${RD}/rootfd/stand && \
+		cd ${RD}/rootfd/stand && uudecode power.uu && rm power.uu
 	cd ${RD}/rootfd && ( rm -f OK && find . -print && touch OK && echo OK ) | cpio -H newc -oa | gzip -9 -c | dd conv=osync > ${RD}/floppies/root.tmp
 	mv ${RD}/floppies/root.tmp ${RD}/floppies/root.flp
 	touch release.9
