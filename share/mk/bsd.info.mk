@@ -1,4 +1,4 @@
-# $Id: bsd.info.mk,v 1.13 1995/03/10 08:54:42 rgrimes Exp $
+# $Id: bsd.info.mk,v 1.14 1995/07/26 13:51:46 wollman Exp $
 
 BINMODE=        444
 BINDIR?=	/usr/share/info
@@ -23,11 +23,11 @@ IFILES=	${INFO:S/$/.info/g}
 all: ${IFILES}
 .endif
 
-GZIP?=	gzip
+GZIPCMD?=	gzip
 
 .for x in ${INFO:S/$/.info/g}
 ${x:S/$/.gz/}:	${x}
-	${GZIP} -c ${.ALLSRC} > ${.TARGET}
+	${GZIPCMD} -c ${.ALLSRC} > ${.TARGET}
 .endfor
 
 # The default is "info" and it can never be "bin"
