@@ -446,6 +446,27 @@ cmd_lookup(const char *name)
 #undef N
 }
 
+struct callback {
+	callback_func *cb_func;
+	void	*cb_arg;
+	struct callback *cb_next;
+};
+static struct callback *callbacks = NULL;
+
+void
+callback_register(callback_func *func, void *arg)
+{
+	struct callback *cb;
+
+	cb = malloc(sizeof(struct callback));
+	if (cb == NULL)
+		errx(1, "unable to allocate memory for callback");
+	cb->cb_func = func;
+	cb->cb_arg = arg;
+	cb->cb_next = callbacks;
+	callbacks = cb;
+}
+
 /* specially-handled comamnds */
 static void setifaddr(const char *, int, int, const struct afswtch *);
 static const struct cmd setifaddr_cmd = DEF_CMD("ifaddr", 0, setifaddr);
@@ -457,6 +478,7 @@ static const struct cmd setifdstaddr_cmd =
 static int
 ifconfig(int argc, char *const *argv, const struct afswtch *afp)
 {
+	struct callback *cb;
 	int s;
 
 	if (afp == NULL)
@@ -541,6 +563,14 @@ ifconfig(int argc, char *const *argv, const struct afswtch *afp)
 		if (ioctl(s, afp->af_aifaddr, afp->af_addreq) < 0)
 			Perror("ioctl (SIOCAIFADDR)");
 	}
+
+	/*
+	 * Do deferred callbacks registered while processing
+	 * command-line arguments.
+	 */
+	for (cb = callbacks; cb != NULL; cb = cb->cb_next)
+		cb->cb_func(s, cb->cb_arg);
+
 	close(s);
 	return(0);
 }
