@@ -107,7 +107,7 @@
 #	pci	PCI configuration-space access from user mode
 #	ipl	ipfilter control devices (ipl, ipnat, ipstate, ipauth)
 #
-#	$Id: MAKEDEV,v 1.170 1998/09/10 18:47:20 phk Exp $
+#	$Id: MAKEDEV,v 1.171 1998/09/15 10:21:35 gibbs Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:$PATH
@@ -521,7 +521,7 @@ targ[0-9]*)
 
 # CAM transport layer device
 xpt*)
-	umask $disk_umask
+	umask 077
 	# This major number is temporary
 	chr=104
 	name=xpt
@@ -536,11 +536,10 @@ xpt*)
 				chgrp operator %s%d;", \
 				name, i, name, i, name, i, c, i, \
 				name, i); }'`
-	umask 077
 	;;
 # CAM passthrough device
 pass*|uk*)
-	umask $disk_umask
+	umask 077
 	# This major number is temporary
 	chr=31
 	name=pass
@@ -555,7 +554,6 @@ pass*|uk*)
 				chgrp operator %s%d;", \
 				name, i, name, i, name, i, c, i, \
 				name, i); }'`
-	umask 077
 	;;
 pty*)
 	class=`expr $i : 'pty\(.*\)'`
