@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: camcontrol.c,v 1.7 1998/12/20 18:51:56 mjacob Exp $
+ *	$Id: camcontrol.c,v 1.8 1998/12/20 20:32:34 mjacob Exp $
  */
 
 #include <sys/ioctl.h>
@@ -350,6 +350,9 @@ getdevtree(void)
 					dev_result->path_id,
 					dev_result->target_id,
 					dev_result->target_lun);
+
+				need_close = 1;
+
 				break;
 			}
 			case DEV_MATCH_PERIPH: {
@@ -358,14 +361,14 @@ getdevtree(void)
 				periph_result =
 				      &ccb.cdm.matches[i].result.periph_result;
 
-				if (need_close)
+				if (need_close > 1)
 					fprintf(stdout, ",");
 
 				fprintf(stdout, "%s%d",
 					periph_result->periph_name,
 					periph_result->unit_number);
 
-				need_close = 1;
+				need_close++;
 				break;
 			}
 			default:
