@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static char sccsid[] = "@(#)db_glue.c	4.4 (Berkeley) 6/1/90";
-static char rcsid[] = "$Id: db_glue.c,v 8.7 1995/06/29 09:26:17 vixie Exp $";
+static char rcsid[] = "$Id: db_glue.c,v 1.1.1.3 1995/10/23 09:26:04 peter Exp $";
 #endif /* not lint */
 
 /*
@@ -1179,14 +1179,17 @@ ctimel(l)
 
 /*
  * This is nec'y for systems that croak when deref'ing unaligned pointers.
- * SPARC is an example.
+ * SPARC is an example.  Note that in_addr.s_addr needn't be a 32-bit int,
+ * so we want to avoid bcopy and let the compiler do the casting for us.
  */
 struct in_addr
 data_inaddr(data)
 	const u_char *data;
 {
 	struct in_addr ret;
+	u_int32_t tmp;
 
-	bcopy((char *)data, (char *)&ret, INADDRSZ);
+	bcopy((char *)data, (char *)&tmp, INADDRSZ);
+	ret.s_addr = tmp;
 	return (ret);
 }

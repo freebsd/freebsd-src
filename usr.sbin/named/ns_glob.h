@@ -1,6 +1,6 @@
 /*
  *	from ns.h	4.33 (Berkeley) 8/23/90
- *	$Id: ns_glob.h,v 8.3 1995/06/19 20:55:40 vixie Exp $
+ *	$Id: ns_glob.h,v 1.1.1.3 1995/10/23 09:26:16 peter Exp $
  */
 
 /*
@@ -176,9 +176,6 @@ DECL	u_int16_t		ns_port;
 
 	/* Source addr of last packet */
 DECL	struct sockaddr_in	from_addr;
-
-	/* Source addr size of last packet */
-DECL	int			from_len;
 
 	/* Used by ns_stats */
 DECL	time_t			boottime,
