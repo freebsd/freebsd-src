@@ -27,6 +27,7 @@
  */
 
 #include <limits.h>
+#include <stdlib.h>
 #include "lmonetary.h"
 #include "ldpart.h"
 
@@ -60,6 +61,14 @@ static struct lc_monetary_T _monetary_locale;
 static int	_monetary_using_locale;
 static char	*_monetary_locale_buf;
 
+static char
+cnv(const char *str) {
+	int i = strtol(str, NULL, 10);
+	if (i == -1)
+		i = CHAR_MAX;
+	return (char)i;
+}
+
 int
 __monetary_load_locale(const char *name) {
 
@@ -69,9 +78,22 @@ __monetary_load_locale(const char *name) {
 		_monetary_locale_buf, "LC_MONETARY",
 		LCMONETARY_SIZE, LCMONETARY_SIZE,
 		(const char **)&_monetary_locale);
-	if (ret == 0 && _monetary_using_locale)
+	if (ret == 0 && _monetary_using_locale) {
 		_monetary_locale.mon_grouping =
 		     __fix_locale_grouping_str(_monetary_locale.mon_grouping);
+
+#define M_ASSIGN_CHAR(NAME) (((char *)_monetary_locale.NAME)[0] = \
+			     cnv(_monetary_locale.NAME))
+
+		M_ASSIGN_CHAR(int_frac_digits);
+		M_ASSIGN_CHAR(frac_digits);
+		M_ASSIGN_CHAR(p_cs_precedes);
+		M_ASSIGN_CHAR(p_sep_by_space);
+		M_ASSIGN_CHAR(n_cs_precedes);
+		M_ASSIGN_CHAR(n_sep_by_space);
+		M_ASSIGN_CHAR(p_sign_posn);
+		M_ASSIGN_CHAR(n_sign_posn);
+	}
 	return ret;
 }
 
@@ -93,14 +115,14 @@ printf(	"int_curr_symbol = %s\n"
 	"mon_grouping = %s\n"
 	"positive_sign = %s\n"
 	"negative_sign = %s\n"
-	"int_frac_digits = %s\n"
-	"frac_digits = %s\n"
-	"p_cs_precedes = %s\n"
-	"p_sep_by_space = %s\n"
-	"n_cs_precedes = %s\n"
-	"n_sep_by_space = %s\n"
-	"p_sign_posn = %s\n"
-	"n_sign_posn = %s\n",
+	"int_frac_digits = %d\n"
+	"frac_digits = %d\n"
+	"p_cs_precedes = %d\n"
+	"p_sep_by_space = %d\n"
+	"n_cs_precedes = %d\n"
+	"n_sep_by_space = %d\n"
+	"p_sign_posn = %d\n"
+	"n_sign_posn = %d\n",
 	_monetary_locale.int_curr_symbol,
 	_monetary_locale.currency_symbol,
 	_monetary_locale.mon_decimal_point,
@@ -108,14 +130,14 @@ printf(	"int_curr_symbol = %s\n"
 	_monetary_locale.mon_grouping,
 	_monetary_locale.positive_sign,
 	_monetary_locale.negative_sign,
-	_monetary_locale.int_frac_digits,
-	_monetary_locale.frac_digits,
-	_monetary_locale.p_cs_precedes,
-	_monetary_locale.p_sep_by_space,
-	_monetary_locale.n_cs_precedes,
-	_monetary_locale.n_sep_by_space,
-	_monetary_locale.p_sign_posn,
-	_monetary_locale.n_sign_posn
+	_monetary_locale.int_frac_digits[0],
+	_monetary_locale.frac_digits[0],
+	_monetary_locale.p_cs_precedes[0],
+	_monetary_locale.p_sep_by_space[0],
+	_monetary_locale.n_cs_precedes[0],
+	_monetary_locale.n_sep_by_space[0],
+	_monetary_locale.p_sign_posn[0],
+	_monetary_locale.n_sign_posn[0]
 );
 }
 #endif /* LOCALE_DEBUG */
