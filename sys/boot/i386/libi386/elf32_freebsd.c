@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: elf_freebsd.c,v 1.1 1998/09/30 19:48:09 peter Exp $
+ *	$Id: elf_freebsd.c,v 1.2 1998/10/02 08:04:56 peter Exp $
  */
 
 #include <sys/param.h>
@@ -53,35 +53,23 @@ static struct bootinfo	bi;
 static int
 elf_exec(struct loaded_module *mp)
 {
-    struct loaded_module	*xp;
-    struct i386_devdesc		*currdev;
     struct module_metadata	*md;
     Elf_Ehdr 			*ehdr;
-    u_int32_t			argv[6];	/* kernel arguments */
-    int				major, bootdevnr;
-    vm_offset_t			addr, entry;
-    u_int			pad;
-    vm_offset_t			ssym, esym, *symptr;
+    vm_offset_t			entry, bootinfop;
+    int				boothowto, err, bootdev;
+    struct bootinfo		*bi;
+    vm_offset_t			ssym, esym;
 
     if ((md = mod_findmetadata(mp, MODINFOMD_ELFHDR)) == NULL)
 	return(EFTYPE);			/* XXX actually EFUCKUP */
     ehdr = (Elf_Ehdr *)&(md->md_data);
 
-    /* Boot from whatever the current device is */
-    i386_getdev((void **)(&currdev), NULL, NULL);
-    switch(currdev->d_type) {
-    case DEVT_DISK:	    
-	major = 0;			/* XXX work out the best possible major here */
-	bootdevnr = MAKEBOOTDEV(major, 
-				currdev->d_kind.biosdisk.slice >> 4, 
-				currdev->d_kind.biosdisk.slice & 0xf, 
-				currdev->d_kind.biosdisk.unit,
-				currdev->d_kind.biosdisk.partition);
-	break;
-    default:
-	printf("elf_exec: WARNING - don't know how to boot from device type %d\n", currdev->d_type);
-    }
-    free(currdev);
+    /* XXX allow override? */
+    setenv("kernelname", mp->m_name, 1);
+
+    if ((err = bi_load(mp->m_args, &boothowto, &bootdev, &bootinfop)) != 0)
+	return(err);
+    entry = ehdr->e_entry & 0xffffff;
 
     if ((md = mod_findmetadata(mp, MODINFOMD_ELFSSYM)) != NULL)
 	ssym = *((vm_offset_t *)&(md->md_data));
@@ -90,92 +78,16 @@ elf_exec(struct loaded_module *mp)
     if (ssym == 0 || esym == 0)
 	ssym = esym = 0;		/* sanity */
 
-    /* legacy bootinfo structure */
-    bi.bi_version = BOOTINFO_VERSION;
-    bi.bi_kernelname = 0;		/* XXX char * -> kernel name */
-    bi.bi_nfs_diskless = 0;		/* struct nfs_diskless * */
-    bi.bi_n_bios_used = 0;		/* XXX would have to hook biosdisk driver for these */
-    /* bi.bi_bios_geom[] */
-    bi.bi_size = sizeof(bi);
-    bi.bi_memsizes_valid = 1;
-    bi.bi_vesa = 0;			/* XXX correct value? */
-    bi.bi_basemem = getbasemem();
-    bi.bi_extmem = getextmem();
-    bi.bi_symtab = ssym;
-    bi.bi_esymtab = esym;
+    bi = (struct bootinfo *)PTOV(bootinfop);
+    bi->bi_symtab = ssym;
+    bi->bi_esymtab = esym;
 
-    /* Device data is kept in the kernel argv array */
-    argv[0] = bi_getboothowto(mp->m_args);	/* boothowto */
-    argv[1] = bootdevnr;			/* bootdev */
-    argv[2] = 0;				/* old cyloffset */
-    argv[3] = 0;				/* old esym */
-    argv[4] = 0;				/* "new" bootinfo magic */
-    argv[5] = 0;				/* physical addr of bootinfo */
-
-    /* find the last module in the chain */
-    for (xp = mp; xp->m_next != NULL; xp = xp->m_next)
-	;
-    addr = xp->m_addr + xp->m_size;
-    /* pad to a page boundary */
-    pad = (u_int)addr & PAGE_MASK;
-    if (pad != 0) {
-	pad = PAGE_SIZE - pad;
-	addr += pad;
-    }
-    /* copy our environment */
-    bi.bi_envp = addr;
-    addr = bi_copyenv(addr);
-
-    /*
-     * Note, we could move the following onto a seperate page for reclaiming,
-     * but the environment is so small and so is this.
-     */
-
-    /* pad to a 4-byte boundary */
-    addr = (addr + 0x3) & ~0x3;
-
-    /* leave space for bootinfo */
-    argv[5] = (u_int32_t)addr;
-    addr += sizeof(struct bootinfo);
-
-    /* pad to a 4-byte boundary */
-    addr = (addr + 0x3) & ~0x3;
-
-    /* save in kernel name */
-    bi.bi_kernelname = addr;
-    i386_copyin(mp->m_name, addr, strlen(mp->m_name) + 1);
-    addr += strlen(mp->m_name) + 1;
-
-    /* pad to a page boundary */
-    pad = (u_int)addr & PAGE_MASK;
-    if (pad != 0) {
-	pad = PAGE_SIZE - pad;
-	addr += pad;
-    }
-    /* copy module list and metadata */
-    bi.bi_modulep = addr;
-    addr = bi_copymodules(addr);
-
-    /* all done copying stuff in, save end of loaded object space */
-    bi.bi_kernend = addr;
-
-    /* and insert bootinfo struct into reserved spot */
-    i386_copyin(&bi, (vm_offset_t)argv[5], sizeof(bi));
-    argv[0] |= RB_BOOTINFO;		/* it's there now */
-
-    entry = ehdr->e_entry & 0xffffff;
 
 #ifdef DEBUG
-    {
-	int i;
-	for (i = 0; i < 6; i++)
-	    printf("argv[%d]=%lx\n", i, argv[i]);
-    }
-
     printf("Start @ 0x%lx ...\n", entry);
 #endif
 
-    __exec((void *)entry, argv[0], argv[1], argv[2], argv[3], argv[4], argv[5]);
+    __exec((void *)entry, boothowto, bootdev, 0, 0, 0, bootinfop);
 
     panic("exec returned");
 }

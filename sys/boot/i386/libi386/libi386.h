@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: libi386.h,v 1.6 1998/09/26 10:51:38 dfr Exp $
+ *	$Id: libi386.h,v 1.7 1998/10/02 16:32:45 msmith Exp $
  */
 
 
@@ -81,14 +81,6 @@ extern int		i386_autoload(void);
 
 extern int		bi_getboothowto(char *kargs);
 extern vm_offset_t	bi_copyenv(vm_offset_t addr);
-
-/*
- * BIOS functions from bioscalls.c
- */
-extern int		BIOS_cominit(int port);
-extern int		BIOS_computc(int c, int port);
-extern int		BIOS_comgetc(int port);
-extern int		BIOS_comisc(int port);
-extern int		BIOS_diskinfo_old(int drive, int *param);
+extern int		bi_load(char *args, int *howtop, int *bootdevp, vm_offset_t *bip);
 
 
