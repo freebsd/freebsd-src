@@ -568,7 +568,7 @@ set $fno = 0
 set $searching = 1
 if ($myvectorproc->p_flag & 4)
   set $frame = $myvectorproc->p_addr->u_pcb->pcb_ebp
-  while (($searching == 1) && (*(int *) $frame > 0xf0000000))
+  while (($searching == 1) && (*(int *) $frame > 0xc0000000))
     set $myebp = *(int *) $frame
     set $myeip = *(int *) ($frame + 4)
     if ($fno == $arg0)
