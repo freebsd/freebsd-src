@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.31 (Berkeley) 5/20/95
- * $Id: ffs_vfsops.c,v 1.79 1998/04/19 23:32:49 julian Exp $
+ * $Id: ffs_vfsops.c,v 1.80 1998/04/20 03:57:41 julian Exp $
  */
 
 #include "opt_devfs.h" /* for SLICE */
@@ -84,7 +84,6 @@ static struct vfsops ufs_vfsops = {
 	ffs_statfs,
 	ffs_sync,
 	ffs_vget,
-	vfs_vrele,
 	ffs_fhtovp,
 	ffs_vptofh,
 	ffs_init,
