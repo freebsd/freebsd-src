@@ -373,11 +373,16 @@
  * _POSIX_C_SOURCE, we will assume that it wants the broader compilation
  * environment (and in fact we will never get here).
  */
-#ifdef _ANSI_SOURCE		/* Hide almost everything. */
+#if defined(_ANSI_SOURCE)	/* Hide almost everything. */
 #define	__POSIX_VISIBLE		0
 #define	__XSI_VISIBLE		0
 #define	__BSD_VISIBLE		0
 #define	__ISO_C_VISIBLE		1990
+#elif defined(_C99_SOURCE)	/* Localism to specify strict C99 env. */
+#define	__POSIX_VISIBLE		0
+#define	__XSI_VISIBLE		0
+#define	__BSD_VISIBLE		0
+#define	__ISO_C_VISIBLE		1999
 #else				/* Default environment: show everything. */
 #define	__POSIX_VISIBLE		200112
 #define	__XSI_VISIBLE		600
