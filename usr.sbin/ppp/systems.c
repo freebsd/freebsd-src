@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: systems.c,v 1.10 1997/05/10 01:22:19 brian Exp $
+ * $Id: systems.c,v 1.11 1997/05/26 00:44:09 brian Exp $
  *
  *  TODO:
  */
@@ -55,11 +55,11 @@ SetUserId()
 {
   if (!usermode) {
     if (setreuid(euid, uid) == -1) {
-      logprintf("unable to setreuid!\n");
+      LogPrintf(LogERROR, "unable to setreuid!\n");
       exit(1);
     }
     if (setregid(egid, gid) == -1) {
-      logprintf("unable to setregid!\n");
+      LogPrintf(LogERROR, "unable to setregid!\n");
       exit(1);
     }
     usermode = 1;
@@ -71,11 +71,11 @@ SetPppId()
 {
   if (usermode) {
     if (setreuid(uid, euid) == -1) {
-      logprintf("unable to setreuid!\n");
+      LogPrintf(LogERROR, "unable to setreuid!\n");
       exit(1);
     }
     if (setregid(gid, egid) == -1) {
-      logprintf("unable to setregid!\n");
+      LogPrintf(LogERROR, "unable to setregid!\n");
       exit(1);
     }
     usermode = 0;
@@ -103,7 +103,7 @@ char *file;
     fp = fopen(line, "r");
   }
   if (fp == NULL) {
-    fprintf(stderr, "can't open %s.\n", line);
+    LogPrintf(LogWARN, "OpenSecret: Can't open %s.\n", line);
     SetPppId();
     return(NULL);
   }
@@ -126,7 +126,6 @@ char *file;
   FILE *fp;
   char *cp, *wp;
   int n;
-  int val = -1;
   u_char  olauth;
   char line[200];
   char filename[200];
@@ -145,15 +144,11 @@ char *file;
     fp = fopen(filename, "r");
   }
   if (fp == NULL) {
-#ifdef DEBUG
-    fprintf(stderr, "can't open %s.\n", filename);
-#endif
+    LogPrintf(LogDEBUG, "SelectSystem: Can't open %s.\n", filename);
     SetPppId();
     return(-1);
   }
-#ifdef DEBUG
-  fprintf(stderr, "checking %s (%s).\n", name, filename);
-#endif
+  LogPrintf(LogDEBUG, "SelectSystem: Checking %s (%s).\n", name, filename);
 
   linenum = 0;
   while (fgets(line, sizeof(line), fp)) {
@@ -168,7 +163,7 @@ char *file;
     default:
       wp = strpbrk(cp, ":\n");
       if (wp == NULL) {
-	fprintf(stderr, "Bad rule in %s (line %d) - missing colon.\n",
+	LogPrintf(LogWARN, "Bad rule in %s (line %d) - missing colon.\n",
 		filename, linenum);
 	exit(1);
       }
@@ -179,9 +174,7 @@ char *file;
 	  if (*cp == ' ' || *cp == '\t') {
 	    n = strspn(cp, " \t");
 	    cp += n;
-#ifdef DEBUG
-	    fprintf(stderr, "%s", cp);
-#endif
+	    LogPrintf(LogCOMMAND, "%s: %s", name, cp);
 	    SetPppId();
             olauth = VarLocalAuth;
 	    VarLocalAuth = LOCAL_AUTH;
@@ -202,7 +195,7 @@ char *file;
   }
   fclose(fp);
   SetPppId();
-  return(val);
+  return -1;
 }
 
 int
@@ -219,10 +212,11 @@ char **argv;
     name = "default";
 
   if (SelectSystem(name, CONFFILE) < 0) {
-    printf("%s: not found.\n", name);
-    return(-1);
+    LogPrintf(LogWARN, "%s: not found.\n", name);
+    return -1;
   }
-  return(1);
+
+  return 0;
 }
 
 int
@@ -231,6 +225,6 @@ struct cmdtab *list;
 int argc;
 char **argv;
 {
-  printf("save command is not implemented (yet).\n");
-  return(1);
+  LogPrintf(LogWARN, "save command is not implemented (yet).\n");
+  return 1;
 }

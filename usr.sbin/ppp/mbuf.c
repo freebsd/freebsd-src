@@ -17,10 +17,16 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: mbuf.c,v 1.5 1997/02/22 16:10:34 peter Exp $
+ * $Id: mbuf.c,v 1.6 1997/05/10 01:22:15 brian Exp $
  *
  */
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/param.h>
+#include <netinet/in.h>
 #include "defs.h"
+#include "loadalias.h"
+#include "vars.h"
 
 struct memmap {
   struct mbuf *queue;
@@ -49,19 +55,17 @@ int type;
   struct mbuf *bp;
 
   if (type > MB_MAX)
-    logprintf("bad type %d\n", type);
+    LogPrintf(LogERROR, "Bad mbuf type %d\n", type);
   bp = (struct mbuf *)malloc(sizeof(struct mbuf));
   if (bp == NULL) {
-	  logprintf("failed to allocate memory: %u\n", sizeof(struct mbuf));
-	  fprintf(stderr,"failed to allocate memory: %u\n", sizeof(struct mbuf));
-	  exit(0);
+    LogPrintf(LogALERT, "failed to allocate memory: %u\n", sizeof(struct mbuf));
+    exit(1);
   }
   bzero(bp, sizeof(struct mbuf));
   p = (u_char *)malloc(cnt);
   if (p == NULL) {
-	  logprintf("failed to allocate memory: %d\n", cnt);
-	  fprintf(stderr,"failed to allocate memory: %d\n", cnt);
-	  exit(0);
+    LogPrintf(LogALERT, "failed to allocate memory: %d\n", cnt);
+    exit(1);
   }
   MemMap[type].count += cnt;
   totalalloced += cnt;
@@ -144,53 +148,27 @@ int cnt;
   }
 }
 
-void
-DumpBp(bp)
-struct mbuf *bp;
-{
-  u_char *cp;
-  int cnt, loc;
-
-  logprintf("dump bp = %x (%d)\n", bp, plength(bp));
-  loc = 0;
-  while (bp) {
-    cp = MBUF_CTOP(bp);
-    cnt = bp->cnt;
-    while (cnt > 0) {
-      logprintf("%02x", *cp++);
-      loc++;
-      if (loc == 16) {
-	loc = 0;
-	logprintf("\n");
-      } else
-	logprintf(" ");
-      cnt--;
-    }
-    bp = bp->next;
-  }
-  if (loc) logprintf("\n");
-}
-
 int
 ShowMemMap()
 {
   int i;
 
-  for (i = 0; i <= MB_MAX; i += 2) {
-    printf("%d: %d   %d: %d\r\n",
+  if (!VarTerm)
+    return 1;
+
+  for (i = 0; i <= MB_MAX; i += 2)
+    fprintf(VarTerm, "%d: %d   %d: %d\n",
 	i, MemMap[i].count, i+1, MemMap[i+1].count);
-  }
-  return(1);
+
+  return 0;
 }
 
 void
 LogMemory()
 {
-#ifdef DEBUG
-  logprintf("mem alloced: %d\n", totalalloced);
-  logprintf(" 1: %d  2: %d   3: %d   4: %d\n",
+  LogPrintf(LogDEBUG, "LogMemory: mem alloced: %d\n", totalalloced);
+  LogPrintf(LogDEBUG, "LogMemory:  1: %d  2: %d   3: %d   4: %d\n",
 	MemMap[1].count, MemMap[2].count, MemMap[3].count, MemMap[4].count);
-  logprintf(" 5: %d  6: %d   7: %d   8: %d\n",
+  LogPrintf(LogDEBUG, "LogMemory:  5: %d  6: %d   7: %d   8: %d\n",
 	MemMap[5].count, MemMap[6].count, MemMap[7].count, MemMap[8].count);
-#endif
 }

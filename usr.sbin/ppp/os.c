@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: os.c,v 1.20 1997/06/01 01:13:03 brian Exp $
+ * $Id: os.c,v 1.21 1997/06/01 03:43:26 brian Exp $
  *
  */
 #include "fsm.h"
@@ -70,7 +70,7 @@ int updown;
 
   s = socket(AF_INET, SOCK_DGRAM, 0);
   if (s < 0) {
-    perror("socket");
+    LogPrintf(LogERROR, "socket: %s", strerror(errno));
     return(-1);
   }
 
@@ -84,11 +84,8 @@ int updown;
     bzero(&ifra.ifra_addr, sizeof(ifra.ifra_addr));
     bzero(&ifra.ifra_broadaddr, sizeof(ifra.ifra_addr));
     bzero(&ifra.ifra_mask, sizeof(ifra.ifra_addr));
-#ifdef DEBUG
-    logprintf("DIFADDR\n");
-#endif
     if (ioctl(s, SIOCDIFADDR, &ifra) < 0) {
-      perror("SIOCDIFADDR");
+      LogPrintf(LogERROR, "ioctl(SIOCDIFADDR): %s", strerror(errno));
       close(s);
       return(-1);
     }
@@ -148,17 +145,17 @@ int updown;
        */
       bcopy(&ifra.ifra_addr, &ifrq.ifr_addr, sizeof(struct sockaddr));
       if (ioctl(s, SIOCSIFADDR, &ifra) < 0)
-	perror("SIFADDR");;
+        LogPrintf(LogERROR, "ioctl(SIFADDR): %s", strerror(errno));
       bcopy(&ifra.ifra_broadaddr, &ifrq.ifr_dstaddr, sizeof(struct sockaddr));
       if (ioctl(s, SIOCSIFDSTADDR, &ifrq) < 0)
-	perror("SIFDSTADDR");;
+        LogPrintf(LogERROR, "ioctl(SIFDSTADDR): %s", strerror(errno));
 #ifdef notdef
       bcopy(&ifra.ifra_mask, &ifrq.ifr_broadaddr, sizeof(struct sockaddr));
       if (ioctl(s, SIOCSIFBRDADDR, &ifrq) < 0)
-	perror("SIFBRDADDR");
+        LogPrintf(LogERROR, "ioctl(SIFBRDADDR): %s", strerror(errno));
 #endif
     } else if (ioctl(s, SIOCAIFADDR, &ifra) < 0) {
-      perror("SIOCAIFADDR");
+      LogPrintf(LogERROR, "ioctl(SIOCAIFADDR): %s", strerror(errno));
       close(s);
       return(-1);
     }
@@ -186,20 +183,23 @@ OsLinkup()
 
   if (linkup == 0) {
     if (setuid(0) < 0)
-	logprintf("setuid failed\n");
+	LogPrintf(LogERROR, "setuid failed\n");
     reconnectState = RECON_UNKNOWN;
     if (mode & MODE_BACKGROUND && BGFiledes[1] != -1) {
         char c = EX_NORMAL;
         if (write(BGFiledes[1],&c,1) == 1)
-          LogPrintf(LOG_PHASE_BIT,"Parent notified of success.\n");
+          LogPrintf(LogPHASE,"Parent notified of success.\n");
         else
-          LogPrintf(LOG_PHASE_BIT,"Failed to notify parent of success.\n");
+          LogPrintf(LogPHASE,"Failed to notify parent of success.\n");
         close(BGFiledes[1]);
         BGFiledes[1] = -1;
     }
     peer_addr = IpcpInfo.his_ipaddr;
     s = (char *)inet_ntoa(peer_addr);
-    LogPrintf(LOG_LINK_BIT|LOG_LCP_BIT, "OsLinkup: %s\n", s);
+    if (LogIsKept(LogLINK))
+      LogPrintf(LogLINK, "OsLinkup: %s\n", s);
+    else
+      LogPrintf(LogLCP, "OsLinkup: %s\n", s);
 
     if (SelectSystem(inet_ntoa(IpcpInfo.want_ipaddr), LINKFILE) < 0) {
       if (dstsystem) {
@@ -219,9 +219,14 @@ OsLinkdown()
 
   if (linkup) {
     s = (char *)inet_ntoa(peer_addr);
-    LogPrintf(LOG_LINK_BIT|LOG_LCP_BIT, "OsLinkdown: %s\n", s);
+    if (LogIsKept(LogLINK))
+      LogPrintf(LogLINK, "OsLinkdown: %s\n", s);
+    else
+      LogPrintf(LogLCP, "OsLinkdown: %s\n", s);
+
     if (!(mode & MODE_AUTO))
       DeleteIfRoutes(0);
+
     linkup = 0;
   }
 }
@@ -238,12 +243,12 @@ int final;
     return(0);
   s = socket(AF_INET, SOCK_DGRAM, 0);
   if (s < 0) {
-    perror("socket");
+    LogPrintf(LogERROR, "socket: %s", strerror(errno));
     return(-1);
   }
   ifrq.ifr_flags &= ~IFF_UP;
   if (ioctl(s, SIOCSIFFLAGS, &ifrq) < 0) {
-    perror("SIOCSIFFLAGS");
+    LogPrintf(LogERROR, "ioctl(SIOCSIFFLAGS): %s", strerror(errno));
     close(s);
     return(-1);
   }
@@ -267,7 +272,7 @@ int type, mtu, speed;
     info.mtu = VarPrefMTU;
   info.baudrate = speed;
   if (ioctl(tun_out, TUNSIFINFO, &info) < 0)
-    perror("TUNSIFINFO");
+    LogPrintf(LogERROR, "ioctl(TUNSIFINFO): %s", strerror(errno));
 }
 
 /*
@@ -287,30 +292,32 @@ int *ptun;
   char ifname[IFNAMSIZ];
   static char devname[14];  /* sufficient room for "/dev/tun65535" */
   unsigned unit, enoentcount=0;
+  int err;
 
+  err = ENOENT;
   for( unit=0; unit <= MAX_TUN ; unit++ ) {
     snprintf( devname, sizeof(devname), "/dev/tun%d", unit );
     tun_out = open(devname, O_RDWR);
     if( tun_out >= 0 )
 	break;
-    if( errno == ENXIO )
-	unit=MAX_TUN+1;
-    else if( errno == ENOENT ) {
+    if( errno == ENXIO ) {
+	unit = MAX_TUN;
+	err = errno;
+    } else if( errno == ENOENT ) {
 	enoentcount++;
 	if( enoentcount > 2 )
-		unit=MAX_TUN+1;
-    }
+	    unit=MAX_TUN;
+    } else
+	err = errno;
   }
   if( unit > MAX_TUN ) {
-    fprintf(stderr, "No tunnel device is available.\n");
-    return(-1);
+    if (VarTerm)
+      fprintf(VarTerm, "No tunnel device is available (%s).\n", strerror(err));
+    return -1;
   }
   *ptun = unit;
 
-  if (logptr != NULL)
-    LogClose();
-  if (LogOpen(unit))
-    return(-1);
+  LogSetTun(unit);
 
   /*
    * At first, name the interface.
@@ -325,7 +332,7 @@ int *ptun;
 
   s = socket(AF_INET, SOCK_DGRAM, 0);
   if (s < 0) {
-    perror("socket");
+    LogPrintf(LogERROR, "socket: %s", strerror(errno));
     return(-1);
   }
 
@@ -333,14 +340,14 @@ int *ptun;
    *  Now, bring up the interface.
    */
   if (ioctl(s, SIOCGIFFLAGS, &ifrq) < 0) {
-    perror("SIOCGIFFLAGS");
+    LogPrintf(LogERROR, "ioctl(SIOCGIFFLAGS): %s", strerror(errno));
     close(s);
     return(-1);
   }
 
   ifrq.ifr_flags |= IFF_UP;
   if (ioctl(s, SIOCSIFFLAGS, &ifrq) < 0) {
-    perror("SIOCSIFFLAGS");
+    LogPrintf(LogERROR, "ioctl(SIOCSIFFLAGS): %s", strerror(errno));
     close(s);
     return(-1);
   }
@@ -348,13 +355,13 @@ int *ptun;
   tun_in = tun_out;
   IfDevName = devname + 5;
   if (GetIfIndex(IfDevName) < 0) {
-    fprintf(stderr, "can't find ifindex.\n");
+    LogPrintf(LogERROR, "OpenTunnel: Can't find ifindex.\n");
     close(s);
     return(-1);
   }
-  if (!(mode & MODE_DIRECT))
-    printf("Using interface: %s\r\n", IfDevName);
-  LogPrintf(LOG_PHASE_BIT, "Using interface: %s\n", IfDevName);
+  if (VarTerm)
+    fprintf(VarTerm, "Using interface: %s\n", IfDevName);
+  LogPrintf(LogPHASE, "Using interface: %s\n", IfDevName);
   close(s);
   return(0);
 }

@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id$
+ * $Id: mbuf.h,v 1.4 1997/02/22 16:10:35 peter Exp $
  *
  *	TODO:
  */
@@ -55,13 +55,15 @@ struct mqueue {
 #define	MB_IPQ		10
 #define	MB_MAX		MB_IPQ
 
-extern int plength __P((struct mbuf *bp));
-extern struct mbuf *mballoc __P((int cnt, int type));
-extern struct mbuf *mbfree __P((struct mbuf *bp));
-extern void pfree __P((struct mbuf *bp));
-extern void mbwrite __P((struct mbuf *bp, u_char *ptr, int cnt));
-extern struct mbuf *mbread __P((struct mbuf *bp, u_char *ptr, int cnt));
-extern void DumpBp __P((struct mbuf *bp));
-extern void Enqueue __P((struct mqueue *queue, struct mbuf *bp));
-extern struct mbuf *Dequeue __P((struct mqueue *queue));
+extern int plength(struct mbuf *bp);
+extern struct mbuf *mballoc(int cnt, int type);
+extern struct mbuf *mbfree(struct mbuf *bp);
+extern void pfree(struct mbuf *bp);
+extern void mbwrite(struct mbuf *bp, u_char *ptr, int cnt);
+extern struct mbuf *mbread(struct mbuf *bp, u_char *ptr, int cnt);
+extern void DumpBp(struct mbuf *bp);
+extern void Enqueue(struct mqueue *queue, struct mbuf *bp);
+extern struct mbuf *Dequeue(struct mqueue *queue);
+extern void LogMemory();
+extern int ShowMemMap();
 #endif

@@ -15,15 +15,15 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id$
+ * $Id: chap.h,v 1.5 1997/02/22 16:10:06 peter Exp $
  *
  *	TODO:
  */
 
 #ifndef _CHAP_H_
 #define	_CHAP_H_
-#include "global.h"
 #include <md5.h>
+#include "global.h"
 
 #define	CHAP_CHALLENGE	1
 #define	CHAP_RESPONSE	2
