@@ -40,7 +40,7 @@
 .Sh SYNOPSIS
 .Fd #include <fcntl.h>
 .Ft int
-.Fn open "const char *path" "int flags" "mode_t mode"
+.Fn open "const char *path" "int flags" "..."
 .Sh DESCRIPTION
 The file name specified by
 .Fa path
@@ -54,7 +54,11 @@ The
 argument may indicate the file is to be
 created if it does not exist (by specifying the
 .Dv O_CREAT
-flag), in which case the file is created with mode
+flag).  In this case 
+.Nm
+requires a third argument
+.Fa "mode_t mode" ,
+and the file is created with mode
 .Fa mode
 as described in
 .Xr chmod 2
