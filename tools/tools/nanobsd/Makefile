@@ -1,11 +1,19 @@
 # Copyright (c) 2003-2004 Poul-Henning Kamp.
+# Copyright (c) 2004      Thomas Quinot.
 #
 # See /usr/share/examples/etc/bsd-style-copyright for license terms.
 #
 # $FreeBSD$
 
+.include "${.CURDIR}/make.conf"
+
 # parallism flag for make.
 MAKEJ?="-j12"
+
+# Some CF cards behave as slaves, (eg Lexar) and are assigned ad1.
+DEVICE?=	ad0
+ROOTSLICE=	${DEVICE}s1a
+CONFSLICE=	${DEVICE}s3
 
 # Physical disk paramters.  Use diskinfo(8) on the target platform
 # to find the correct numbers.  We assume 512 bytes sectors.
@@ -17,20 +25,28 @@ SECTS?=501760
 # will be split evenly between the two image slices (ad0s1/ad0s2)
 DATASLICE?=10240
 
-# Name of kernel configuration file to use.
-KERNCONF?= GENERIC
-
 # You probably do not need to change these.
 WORLDDIR?= ${.CURDIR}/../../..
 WD?=	${.OBJDIR}/_.w
 
 # Set this to the name of a script if you want to customize the
 # contents of the image filesystems.
-#CUSTOMIZE?=	${.CURDIR}/somescript.sh
+#CUSTOMIZE?=		${.CURDIR}/somescript.sh
+#CUSTOMIZE_ARGS?=	some_arguments
 
 # Set this to the name of a directory used to populate the
 # configuration slice.
 #CFGMASTER?=	${.CURDIR}/cfgmaster
+
+.for cust in CUSTOMIZE CFGMASTER
+.if !empty(${cust})
+.if exists(${.CURDIR}/${${cust}})
+${cust}_PATH=	${.CURDIR}/${${cust}}
+.elif exists(${${cust}})
+${cust}_PATH=	${${cust}}
+.endif
+.endif
+.endfor
 
 #
 # The final resulting image is in ${.OBJDIR}/_.i and the single slice
@@ -46,19 +62,14 @@ all:	buildworld installworld buildimage
 #
 Customize:	_.cs
 _.cs:	_.iw _.di _.ik _.di
-	echo "/dev/ad0s1a / ufs ro 1 1" >  ${WD}/etc/fstab
-.if empty(CUSTOMIZE)
+	echo "/dev/${ROOTSLICE} / ufs ro 1 1" >  ${WD}/etc/fstab
+.if empty(CUSTOMIZE_PATH)
 	# useful stuff for diskless boot
 	sed -i "" -e /beastie/d ${WD}/boot/loader.rc
 	sed -i "" -e /ttyd0/s/off/on/ ${WD}/etc/ttys
 	echo " -h" > ${WD}/boot.config
-.elif exists(${.CURDIR}/${CUSTOMIZE})
-	sh -e ${.CURDIR}/${CUSTOMIZE} ${WD} ${WORLDDIR} ${.CURDIR}
-.elif exists(${CUSTOMIZE})
-	sh -e ${CUSTOMIZE} ${WD} ${WORLDDIR} ${.CURDIR}
 .else
-	echo "CUSTOMIZE script not found" 1>&2
-	false
+	sh -e ${CUSTOMIZE_PATH} ${WD} ${WORLDDIR} ${.CURDIR} ${CUSTOMIZE_ARGS}
 .endif
 	touch _.cs
 
@@ -102,10 +113,9 @@ _.di:	_.iw
 	mv _.di.tmp _.di
 
 # Build kernel
-_.bk:	${WORLDDIR}/sys/i386/conf/${KERNCONF}
+_.bk:
 	(cd ${WORLDDIR} && \
 		make ${MAKEJ} -s buildkernel \
-		KERNCONF=${KERNCONF} \
 		__MAKE_CONF=${.CURDIR}/make.conf \
 		) > _.bk.tmp 2>&1
 	mv _.bk.tmp _.bk
@@ -115,7 +125,6 @@ _.ik:	_.bk _.di
 	cp ${WORLDDIR}/sys/i386/conf/GENERIC.hints ${WD}/boot/device.hints
 	(cd ${WORLDDIR} && \
 		make ${MAKEJ} installkernel \
-		KERNCONF=${KERNCONF} \
 		DESTDIR=${WD} \
 		__MAKE_CONF=${.CURDIR}/make.conf \
 		) > _.ik.tmp 2>&1
@@ -135,7 +144,7 @@ _.md:	_.cs
 	mkdir -p ${WD}/conf/base/etc
 	( cd ${WD}/etc && find . -print | cpio -dumpl ../conf/base/etc )
 	mkdir -p ${WD}/conf/default/etc
-	echo "mount -o ro /dev/ad0s3" > ${WD}/conf/default/etc/remount
+	echo "mount -o ro /dev/${CONFSLICE}" > ${WD}/conf/default/etc/remount
 	ln -s var/tmp ${WD}/tmp
 	mtree -deU -f ${WD}/etc/mtree/BSD.root.dist -p ${WD}/
 	mtree -deU -f ${WD}/etc/mtree/BSD.usr.dist -p ${WD}/usr
@@ -150,7 +159,7 @@ _.md:	_.cs
 		${SC} \
 		${DATASLICE} \
 		${WD} ${.OBJDIR}/_.i \
-		${CFGMASTER} \
+		${CFGMASTER_PATH} \
 		> _.md.tmp 2>&1
 	mv _.mtree.tmp _.mtree
 	mv _.md.tmp _.md
