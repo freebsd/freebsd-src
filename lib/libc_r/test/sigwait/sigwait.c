@@ -12,13 +12,13 @@
  *    documentation and/or other materials provided with the distribution.
  * 3. All advertising materials mentioning features or use of this software
  *    must display the following acknowledgement:
- *	This product includes software developed by John Birrell.
+ *	This product includes software developed by Daniel M. Eischen.
  * 4. Neither the name of the author nor the names of any co-contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY JOHN BIRRELL AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * THIS SOFTWARE IS PROVIDED BY DANIEL M. EISCHEN AND CONTRIBUTORS ``AS IS''
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
  * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
@@ -31,21 +31,33 @@
  *
  */
 #include <stdlib.h>
-#include <stdio.h>
 #include <unistd.h>
 
 #include <errno.h>
 #include <pthread.h>
 #include <signal.h>
+#include <stdio.h>
 #include <string.h>
 
-static int	sigcounts[NSIG + 1];
-static sigset_t	wait_mask;
+#if defined(__FreeBSD__)
+#include <pthread_np.h>
+#endif
+
+static int		sigcounts[NSIG + 1];
+static sigset_t		wait_mask;
+static pthread_mutex_t	waiter_mutex;
+
 
 static void *
 sigwaiter (void *arg)
 {
 	int signo;
+	sigset_t mask;
+
+	/* Block SIGHUP */
+	sigemptyset (&mask);
+	sigaddset (&mask, SIGHUP);
+	sigprocmask (SIG_BLOCK, &mask, NULL);
 
 	while (sigcounts[SIGINT] == 0) {
 		if (sigwait (&wait_mask, &signo) != 0) {
@@ -55,6 +67,10 @@ sigwaiter (void *arg)
 		}
 		sigcounts[signo]++;
 		printf ("Sigwait caught signal %d\n", signo);
+
+		/* Allow the main thread to prevent the sigwait. */
+		pthread_mutex_lock (&waiter_mutex);
+		pthread_mutex_unlock (&waiter_mutex);
 	}
 
 	pthread_exit (arg);
@@ -65,7 +81,7 @@ sigwaiter (void *arg)
 static void
 sighandler (int signo)
 {
-	printf ("Signal handler caught signal %d\n", signo);
+	printf ("  -> Signal handler caught signal %d\n", signo);
 
 	if ((signo >= 0) && (signo <= NSIG))
 		sigcounts[signo]++;
@@ -92,6 +108,7 @@ send_process_signal (int signo)
 
 int main (int argc, char *argv[])
 {
+	pthread_mutexattr_t mattr;
 	pthread_attr_t	pattr;
 	pthread_t	tid;
 	void *		exit_status;
@@ -102,18 +119,20 @@ int main (int argc, char *argv[])
 
 	/* Setupt our wait mask. */
 	sigemptyset (&wait_mask);		/* Default action	*/
-	sigaddset (&wait_mask, SIGINT);		/* terminate		*/
 	sigaddset (&wait_mask, SIGHUP);		/* terminate		*/
+	sigaddset (&wait_mask, SIGINT);		/* terminate		*/
 	sigaddset (&wait_mask, SIGQUIT);	/* create core image	*/
 	sigaddset (&wait_mask, SIGURG);		/* ignore		*/
 	sigaddset (&wait_mask, SIGIO);		/* ignore		*/
 	sigaddset (&wait_mask, SIGUSR1);	/* terminate		*/
 
-	/* Ignore signal SIGIO. */
+	/* Ignore signals SIGHUP and SIGIO. */
 	sigemptyset (&act.sa_mask);
+	sigaddset (&act.sa_mask, SIGHUP);
 	sigaddset (&act.sa_mask, SIGIO);
 	act.sa_handler = SIG_IGN;
 	act.sa_flags = 0;
+	sigaction (SIGHUP, &act, NULL);
 	sigaction (SIGIO, &act, NULL);
 
 	/* Install a signal handler for SIGURG */
@@ -139,21 +158,31 @@ int main (int argc, char *argv[])
 	}
 
 	/*
+	 * Initialize and create a mutex.
+	 */
+	if ((pthread_mutexattr_init (&mattr) != 0) ||
+	    (pthread_mutex_init (&waiter_mutex, &mattr) != 0)) {
+		printf ("Unable to create waiter mutex.\n");
+		exit (1);
+	}
+
+	/*
 	 * Create the sigwaiter thread.
 	 */
 	if (pthread_create (&tid, &pattr, sigwaiter, NULL) != 0) {
-		printf ("Unable to create thread, errno %d.\n", errno);
+		printf ("Unable to create thread.\n");
 		exit (1);
 	}
+#if defined(__FreeBSD__)
+	pthread_set_name_np (tid, "sigwaiter");
+#endif
 
 	/*
 	 * Verify that an ignored signal doesn't cause a wakeup.
 	 * We don't have a handler installed for SIGIO.
 	 */
-	printf ("Sending pthread_kill SIGIO.\n");
 	send_thread_signal (tid, SIGIO);
 	sleep (1);
-	printf ("Sending kill SIGIO.\n");
 	send_process_signal (SIGIO);
 	sleep (1);
 	if (sigcounts[SIGIO] != 0)
@@ -180,6 +209,75 @@ int main (int argc, char *argv[])
 	sleep (1);
 	if (sigcounts[SIGUSR1] != 2)
 		printf ("FAIL: sigwait doesn't wake up for SIGUSR1.\n");
+
+	/*
+	 * Verify that if we install a signal handler for a previously
+	 * ignored signal, an occurrence of this signal will release
+	 * the (already waiting) sigwait.
+	 */
+
+	/* Install a signal handler for SIGHUP. */
+	sigemptyset (&act.sa_mask);
+	sigaddset (&act.sa_mask, SIGHUP);
+	act.sa_handler = sighandler;
+	act.sa_flags = SA_RESTART;
+	sigaction (SIGHUP, &act, NULL);
+
+	/* Sending SIGHUP should release the sigwait. */
+	send_process_signal (SIGHUP);
+	sleep (1);
+	send_thread_signal (tid, SIGHUP);
+	sleep (1);
+	if (sigcounts[SIGHUP] != 2)
+		printf ("FAIL: sigwait doesn't wake up for SIGHUP.\n");
+
+	/*
+	 * Verify that a pending signal in the waiters mask will
+	 * cause sigwait to return the pending signal.  We do this
+	 * by taking the waiters mutex and signaling the waiter to
+	 * release him from the sigwait.  The waiter will block
+	 * on taking the mutex, and we can then send the waiter a
+	 * signal which should be added to his pending signals.
+	 * The next time the waiter does a sigwait, he should
+	 * return with the pending signal.
+	 */
+	sigcounts[SIGHUP] = 0;
+ 	pthread_mutex_lock (&waiter_mutex);
+	/* Release the waiter from sigwait. */
+	send_process_signal (SIGHUP);
+	sleep (1);
+	if (sigcounts[SIGHUP] != 1)
+		printf ("FAIL: sigwait doesn't wake up for SIGHUP.\n");
+	/*
+	 * Add SIGHUP to all threads pending signals.  Since there is
+	 * a signal handler installed for SIGHUP and this signal is
+	 * blocked from the waiter thread and unblocked in the main
+	 * thread, the signal handler should be called once for SIGHUP.
+	 */
+	send_process_signal (SIGHUP);
+	/* Release the waiter thread and allow him to run. */
+	pthread_mutex_unlock (&waiter_mutex);
+	sleep (1);
+	if (sigcounts[SIGHUP] != 3)
+		printf ("FAIL: sigwait doesn't return for pending SIGHUP.\n");
+
+	/*
+	 * Repeat the above test using pthread_kill and SIGUSR1
+	 */
+	sigcounts[SIGUSR1] = 0;
+ 	pthread_mutex_lock (&waiter_mutex);
+	/* Release the waiter from sigwait. */
+	send_thread_signal (tid, SIGUSR1);
+	sleep (1);
+	if (sigcounts[SIGUSR1] != 1)
+		printf ("FAIL: sigwait doesn't wake up for SIGUSR1.\n");
+	/* Add SIGHUP to the waiters pending signals. */
+	send_thread_signal (tid, SIGUSR1);
+	/* Release the waiter thread and allow him to run. */
+	pthread_mutex_unlock (&waiter_mutex);
+	sleep (1);
+	if (sigcounts[SIGUSR1] != 2)
+		printf ("FAIL: sigwait doesn't return for pending SIGUSR1.\n");
 
 	/*
 	 * Verify that we can still kill the process for a signal
