@@ -116,8 +116,9 @@ double	speed;
 	evtime = Now.eventptr[E_LRTB]->date - Now.date;
 #	ifdef xTRACE
 	if (Trace)
-		printf("E.ep = %u, ->evcode = %d, ->date = %.2f, evtime = %.2f\n",
-			Now.eventptr[E_LRTB], Now.eventptr[E_LRTB]->evcode,
+		printf("E.ep = %p, ->evcode = %d, ->date = %.2f, evtime = %.2f\n",
+			(void *)Now.eventptr[E_LRTB],
+			Now.eventptr[E_LRTB]->evcode,
 			Now.eventptr[E_LRTB]->date, evtime);
 #	endif
 	if (time > evtime && Etc.nkling < 3)
