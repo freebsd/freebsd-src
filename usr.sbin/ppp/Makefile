@@ -41,6 +41,13 @@ DPADD+= ${LIBALIAS}
 .endif
 .endif
 
+NOATM=	/usr/include/netnatm required
+.if defined(NOATM) || defined(RELEASE_CRUNCH)
+CFLAGS+=-DNOATM
+.else
+SRCS+=	atm.c
+.endif
+
 .if defined(NOSUID) || defined(PPP_NOSUID)
 CFLAGS+=-DNOSUID
 .else
