@@ -33,6 +33,7 @@ of the text.
     4.2 PacketAliasRedirectAddr()
     4.3 PacketAliasRedirectDelete()
     4.4 PacketAliasProxyRule()
+    4.5 PacketAliasPptp()
 5. Fragment Handling
     5.1 PacketAliasSaveFragment()
     5.2 PacketAliasGetFragment()
@@ -507,6 +508,7 @@ re-mapped in the same manner the header fragment
 was.  Fragments which arrive before the header
 are saved and then retrieved once the header fragment
 has been resolved.
+
 .Ss 4.4 PacketAliasProxyRule()
 
 .Ft int
@@ -593,6 +595,34 @@ network will be matched.
 This function is usually used to redirect outgoing connections for
 internal machines that are not permitted certain types of internet
 access, or to restrict access to certain external machines.
+
+.Ss 4.5 PacketAliasPptp()
+
+.Ft extern int
+.Fn PacketAliasPptp "struct in_addr addr"
+
+This function causes any
+.Em G Ns No eneral
+.Em R Ns No outing
+.Em E Ns No encapsulated
+.Pq Dv IPPROTO_GRE
+packets to be aliased using
+.Ar addr
+rather than the address set via
+.Fn PacketAliasSetAddress .
+This allows the uses of the
+.Em P Ns No oint
+to
+.Em P Ns No oint
+.Em T Ns No unneling
+.Em P Ns No rotocol
+on a machine on the internal network.
+.Pp
+If the passed address is
+.Dv INADDR_NONE
+.Pq 255.255.255.255 ,
+.Dv PPTP
+aliasing is disabled.
 
 .Ss 5.1 PacketAliasSaveFragment()
 
