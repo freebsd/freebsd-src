@@ -25,8 +25,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 /*
@@ -73,6 +71,9 @@
  *  * YAMAMOTO Shigeru: Author of another FreeBSD cardbus driver
  *  * David Cross: Author of the initial ugly hack for a specific cardbus card
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -337,7 +338,7 @@ cbb_insert_res(struct cbb_softc *sc, struct resource *res, int type,
 	 * it later.
 	 */
 	rle = malloc(sizeof(struct cbb_reslist), M_DEVBUF, M_NOWAIT);
-	if (!res)
+	if (rle == NULL)
 		panic("cbb_cardbus_alloc_resource: can't record entry!");
 	rle->res = res;
 	rle->type = type;
