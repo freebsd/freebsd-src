@@ -1873,10 +1873,10 @@ uma_zone_set_obj(uma_zone_t zone, struct vm_object *obj, int count)
 
 	if (obj == NULL)
 		obj = vm_object_allocate(OBJT_DEFAULT,
-		    zone->uz_maxpages);
+		    pages);
 	else 
 		_vm_object_allocate(OBJT_DEFAULT,
-		    zone->uz_maxpages, obj);
+		    pages, obj);
 
 	ZONE_LOCK(zone);
 	zone->uz_kva = kva;
