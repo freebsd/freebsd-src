@@ -426,8 +426,7 @@ osetrlimit(td, uap)
 	struct rlimit lim;
 	int error;
 
-	if ((error =
-	    copyin((caddr_t)uap->rlp, (caddr_t)&olim, sizeof(struct orlimit))))
+	if ((error = copyin(uap->rlp, &olim, sizeof(struct orlimit))))
 		return (error);
 	lim.rlim_cur = olim.rlim_cur;
 	lim.rlim_max = olim.rlim_max;
@@ -465,7 +464,7 @@ ogetrlimit(td, uap)
 	olim.rlim_max = p->p_rlimit[uap->which].rlim_max;
 	if (olim.rlim_max == -1)
 		olim.rlim_max = 0x7fffffff;
-	error = copyout((caddr_t)&olim, (caddr_t)uap->rlp, sizeof(olim));
+	error = copyout(&olim, uap->rlp, sizeof(olim));
 	mtx_unlock(&Giant);
 	return (error);
 }
@@ -489,8 +488,7 @@ setrlimit(td, uap)
 	struct rlimit alim;
 	int error;
 
-	if ((error =
-	    copyin((caddr_t)uap->rlp, (caddr_t)&alim, sizeof (struct rlimit))))
+	if ((error = copyin(uap->rlp, &alim, sizeof (struct rlimit))))
 		return (error);
 	mtx_lock(&Giant);
 	error = dosetrlimit(td, uap->which, &alim);
@@ -625,7 +623,7 @@ getrlimit(td, uap)
 	if (uap->which >= RLIM_NLIMITS)
 		return (EINVAL);
 	mtx_lock(&Giant);
-	error = copyout((caddr_t)&p->p_rlimit[uap->which], (caddr_t)uap->rlp,
+	error = copyout(&p->p_rlimit[uap->which], uap->rlp,
 		    sizeof (struct rlimit));
 	mtx_unlock(&Giant);
 	return(error);
@@ -779,8 +777,7 @@ getrusage(td, uap)
 	}
 	mtx_unlock(&Giant);
 	if (error == 0) {
-		error = copyout((caddr_t)rup, (caddr_t)uap->rusage,
-		    sizeof (struct rusage));
+		error = copyout(rup, uap->rusage, sizeof (struct rusage));
 	}
 	return(error);
 }

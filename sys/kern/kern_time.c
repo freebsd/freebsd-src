@@ -333,12 +333,11 @@ gettimeofday(td, uap)
 
 	if (uap->tp) {
 		microtime(&atv);
-		error = copyout((caddr_t)&atv, (caddr_t)uap->tp, sizeof (atv));
+		error = copyout(&atv, uap->tp, sizeof (atv));
 	}
 	if (error == 0 && uap->tzp != NULL) {
 		mtx_lock(&Giant);
-		error = copyout((caddr_t)&tz, (caddr_t)uap->tzp,
-		    sizeof (tz));
+		error = copyout(&tz, uap->tzp, sizeof (tz));
 		mtx_unlock(&Giant);
 	}
 	return (error);
@@ -367,14 +366,13 @@ settimeofday(td, uap)
 		return (error);
 	/* Verify all parameters before changing time. */
 	if (uap->tv) {
-		if ((error = copyin((caddr_t)uap->tv, (caddr_t)&atv,
-		    sizeof(atv))))
+		if ((error = copyin(uap->tv, &atv, sizeof(atv))))
 			return (error);
 		if (atv.tv_usec < 0 || atv.tv_usec >= 1000000)
 			return (EINVAL);
 	}
 	if (uap->tzp &&
-	    (error = copyin((caddr_t)uap->tzp, (caddr_t)&atz, sizeof(atz))))
+	    (error = copyin(uap->tzp, &atz, sizeof(atz))))
 		return (error);
 	
 	if (uap->tv && (error = settime(td, &atv)))
@@ -453,8 +451,7 @@ getitimer(td, uap)
 		aitv = p->p_stats->p_timer[uap->which];
 	}
 	splx(s);
-	error = copyout((caddr_t)&aitv, (caddr_t)uap->itv,
-	    sizeof (struct itimerval));
+	error = copyout(&aitv, uap->itv, sizeof (struct itimerval));
 	mtx_unlock(&Giant);
 	return(error);
 }
@@ -483,8 +480,7 @@ setitimer(td, uap)
 	if (uap->which > ITIMER_PROF)
 		return (EINVAL);
 	itvp = uap->itv;
-	if (itvp && (error = copyin((caddr_t)itvp, (caddr_t)&aitv,
-	    sizeof(struct itimerval))))
+	if (itvp && (error = copyin(itvp, &aitv, sizeof(struct itimerval))))
 		return (error);
 
 	mtx_lock(&Giant);
