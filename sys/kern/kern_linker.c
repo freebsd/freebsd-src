@@ -1619,14 +1619,16 @@ linker_load_module(const char *kldname, const char *modname,
 	} else {
 		if (modlist_lookup2(modname, verinfo) != NULL)
 			return (EEXIST);
-		if (kldname == NULL)
+		if (kldname != NULL)
+			pathname = linker_strdup(kldname);
+		else if (rootdev == NODEV)
+			pathname = NULL;
+		else
 			/*
 			 * Need to find a KLD with required module
 			 */
 			pathname = linker_search_module(modname,
 			    strlen(modname), verinfo);
-		else
-			pathname = linker_strdup(kldname);
 	}
 	if (pathname == NULL)
 		return (ENOENT);
