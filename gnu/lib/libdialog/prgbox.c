@@ -81,6 +81,7 @@ int dialog_prgbox(unsigned char *title, const char *line, int height, int width,
       *s++ = ' ';
     print_autowrap(dialog, buf, height-(pause?3:1), width-2, width, 1, 2, FALSE, TRUE);
     print_autowrap(dialog, "\n", height-(pause?3:1), width-2, width, 1, 2, FALSE, FALSE);
+    wrefresh(dialog);
   }
   raw_pclose(f);
 
