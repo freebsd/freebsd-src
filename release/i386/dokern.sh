@@ -25,8 +25,10 @@ sed	-e '/pty/d' \
 	-e '/AHD_REG_PRETTY_PRINT/d' \
 	-e '/P1003_1B/d' \
 	-e '/	ncr/d' \
+	-e '/	sa/d' \
 	-e '/	awi$/d' \
 	-e '/atapist/d' \
+	-e '/pass/d' \
 	-e '/lpt/d' \
 	-e '/ppi/d' \
 	-e '/ugen/d' \
