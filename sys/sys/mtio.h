@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mtio.h	8.1 (Berkeley) 6/2/93
- * $Id: mtio.h,v 1.13 1998/12/19 20:21:56 mjacob Exp $
+ * $Id: mtio.h,v 1.14 1998/12/21 22:14:02 mjacob Exp $
  */
 
 #ifndef	_SYS_MTIO_H_
@@ -132,8 +132,10 @@ struct scsi_tape_errors {
 	 */
 	u_int8_t io_sense[32];	/* Last Sense Data For Data I/O */
 	u_int32_t io_resid;	/* residual count from last Data I/O */
+	u_int8_t io_cdb[16];	/* Command that Caused the Last Data Sense */
 	u_int8_t ctl_sense[32];	/* Last Sense Data For Control I/O */
 	u_int32_t ctl_resid;	/* residual count from last Control I/O */
+	u_int8_t ctl_cdb[16];	/* Command that Caused the Last Control Sense */
 	/*
 	 * These are the read and write cumulative error counters.
 	 * (how to reset cumulative error counters is not yet defined).
