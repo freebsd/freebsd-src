@@ -17,7 +17,7 @@
 #define MSG_NOOP		0x08 /* M/M */
 #define MSG_PARITY_ERROR	0x09 /* M/M */
 #define MSG_LINK_CMD_COMPLETE	0x0a /* O/O */
-#define MSG_LINK_CMD_COMPLETEF	0x0b /* O/O */
+#define MSG_LINK_CMD_COMPLETEF	0x0b /* O/O */ /* Obsolete */
 #define MSG_BUS_DEV_RESET	0x0c /* O/M */
 #define MSG_TARGET_RESET	0x0c /* O/M */ /* SPI3 Terminology */
 #define MSG_ABORT_TAG		0x0d /* O/O */
@@ -58,8 +58,13 @@
 #define MSG_EXT_WDTR_BUS_16_BIT	0x01
 #define MSG_EXT_WDTR_BUS_32_BIT	0x02 /* Deprecated in SPI3 */
 
-#define MSG_EXT_PPR		0x04 /* SPI3 */
-#define MSG_EXT_PPR_LEN		0x06
-#define MSG_EXT_PPR_QAS_REQ	0x04
-#define MSG_EXT_PPR_DT_REQ	0x02
-#define MSG_EXT_PPR_IU_REQ	0x01
+#define	MSG_EXT_PPR		0x04 /* SPI3/SPI4 */
+#define	MSG_EXT_PPR_LEN		0x06
+#define	MSG_EXT_PPR_PCOMP_EN	0x80
+#define	MSG_EXT_PPR_RTI		0x40
+#define	MSG_EXT_PPR_RD_STRM	0x20
+#define	MSG_EXT_PPR_WR_FLOW	0x10
+#define	MSG_EXT_PPR_HOLD_MCS	0x08
+#define	MSG_EXT_PPR_QAS_REQ	0x04
+#define	MSG_EXT_PPR_DT_REQ	0x02
+#define	MSG_EXT_PPR_IU_REQ	0x01
