@@ -58,16 +58,15 @@
 /* Types. */
 typedef void (*func_ptr_type)();
 
-typedef struct Struct_LockInfo {
-    void *context;		/* Client context for creating locks */
-    void *thelock;		/* The one big lock */
-    /* Methods */
-    void (*rlock_acquire)(void *lock);
-    void (*wlock_acquire)(void *lock);
-    void (*lock_release)(void *lock);
-    void (*lock_destroy)(void *lock);
-    void (*context_destroy)(void *context);
-} LockInfo;
+/*
+ * This structure provides a reentrant way to keep a list of objects and
+ * check which ones have already been processed in some way.
+ */
+typedef struct Struct_DoneList {
+    Obj_Entry **objs;			/* Array of object pointers */
+    unsigned int num_alloc;		/* Allocated size of the array */
+    unsigned int num_used;		/* Number of array slots used */
+} DoneList;
 
 /*
  * Function declarations.
@@ -77,6 +76,7 @@ static void die(void);
 static void digest_dynamic(Obj_Entry *);
 static Obj_Entry *digest_phdr(const Elf_Phdr *, int, caddr_t, const char *);
 static Obj_Entry *dlcheck(void *);
+static bool donelist_check(DoneList *, Obj_Entry *);
 static char *find_library(const char *, const Obj_Entry *);
 static void funclist_call(Funclist *);
 static void funclist_clear(Funclist *);
@@ -85,7 +85,7 @@ static void funclist_push_head(Funclist *, InitFunc);
 static void funclist_push_tail(Funclist *, InitFunc);
 static const char *gethints(void);
 static void init_dag(Obj_Entry *);
-static void init_dag1(Obj_Entry *root, Obj_Entry *obj);
+static void init_dag1(Obj_Entry *root, Obj_Entry *obj, DoneList *);
 static void init_rtld(caddr_t);
 static bool is_exported(const Elf_Sym *);
 static void linkmap_add(Obj_Entry *);
@@ -93,18 +93,17 @@ static void linkmap_delete(Obj_Entry *);
 static int load_needed_objects(Obj_Entry *);
 static int load_preload_objects(void);
 static Obj_Entry *load_object(char *);
-static void lock_nop(void *);
+static void lock_check(void);
 static Obj_Entry *obj_from_addr(const void *);
 static void objlist_add(Objlist *, Obj_Entry *);
 static Objlist_Entry *objlist_find(Objlist *, const Obj_Entry *);
 static void objlist_remove(Objlist *, Obj_Entry *);
-static void prebind(void *);
 static int relocate_objects(Obj_Entry *, bool);
 static void rtld_exit(void);
 static char *search_library_path(const char *, const char *);
 static void set_program_var(const char *, const void *);
 static const Elf_Sym *symlook_list(const char *, unsigned long,
-  Objlist *, const Obj_Entry **, bool in_plt);
+  Objlist *, const Obj_Entry **, bool in_plt, DoneList *);
 static void trace_loaded_objects(Obj_Entry *obj);
 static void unload_object(Obj_Entry *);
 static void unref_dag(Obj_Entry *);
@@ -128,7 +127,7 @@ static Obj_Entry *obj_list;	/* Head of linked list of shared objects */
 static Obj_Entry **obj_tail;	/* Link field of last object in list */
 static Obj_Entry *obj_main;	/* The main program shared object */
 static Obj_Entry obj_rtld;	/* The dynamic linker shared object */
-static unsigned long curmark;	/* Current mark value */
+static unsigned int obj_count;	/* Number of objects in obj_list */
 
 static Objlist list_global =	/* Objects dlopened with RTLD_GLOBAL */
   STAILQ_HEAD_INITIALIZER(list_global);
@@ -167,22 +166,45 @@ static func_ptr_type exports[] = {
 char *__progname;
 char **environ;
 
+/*
+ * Fill in a DoneList with an allocation large enough to hold all of
+ * the currently-loaded objects.  Keep this as a macro since it calls
+ * alloca and we want that to occur within the scope of the caller.
+ */
+#define donelist_init(dlp)					\
+    ((dlp)->objs = alloca(obj_count * sizeof (dlp)->objs[0]),	\
+    assert((dlp)->objs != NULL),				\
+    (dlp)->num_alloc = obj_count,				\
+    (dlp)->num_used = 0)
+
 static __inline void
 rlock_acquire(void)
 {
     lockinfo.rlock_acquire(lockinfo.thelock);
+    atomic_incr_int(&lockinfo.rcount);
+    lock_check();
 }
 
 static __inline void
 wlock_acquire(void)
 {
     lockinfo.wlock_acquire(lockinfo.thelock);
+    atomic_incr_int(&lockinfo.wcount);
+    lock_check();
 }
 
 static __inline void
-lock_release(void)
+rlock_release(void)
 {
-    lockinfo.lock_release(lockinfo.thelock);
+    atomic_decr_int(&lockinfo.rcount);
+    lockinfo.rlock_release(lockinfo.thelock);
+}
+
+static __inline void
+wlock_release(void)
+{
+    atomic_decr_int(&lockinfo.wcount);
+    lockinfo.wlock_release(lockinfo.thelock);
 }
 
 /*
@@ -316,6 +338,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     /* Link the main program into the list of objects. */
     *obj_tail = obj_main;
     obj_tail = &obj_main->next;
+    obj_count++;
     obj_main->refcount++;
 
     /* Initialize a fake symbol for resolving undefined weak references. */
@@ -358,15 +381,16 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     set_program_var("__progname", argv[0] != NULL ? basename(argv[0]) : "");
     set_program_var("environ", env);
 
-    dbg("initializing default locks");
-    dllockinit(NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+    dbg("initializing thread locks");
+    lockdflt_init(&lockinfo);
+    lockinfo.thelock = lockinfo.lock_create(lockinfo.context);
 
     r_debug_state();		/* say hello to gdb! */
 
     funclist_call(&initlist);
     wlock_acquire();
     funclist_clear(&initlist);
-    lock_release();
+    wlock_release();
 
     dbg("transferring control to program entry point = %p", obj_main->entry);
 
@@ -385,7 +409,7 @@ _rtld_bind(Obj_Entry *obj, Elf_Word reloff)
     Elf_Addr *where;
     Elf_Addr target;
 
-    wlock_acquire();
+    rlock_acquire();
     if (obj->pltrel)
 	rel = (const Elf_Rel *) ((caddr_t) obj->pltrel + reloff);
     else
@@ -403,7 +427,7 @@ _rtld_bind(Obj_Entry *obj, Elf_Word reloff)
       (void *)target, basename(defobj->path));
 
     reloc_jmpslot(where, target);
-    lock_release();
+    rlock_release();
     return target;
 }
 
@@ -671,6 +695,29 @@ dlcheck(void *handle)
 }
 
 /*
+ * If the given object is already in the donelist, return true.  Otherwise
+ * add the object to the list and return false.
+ */
+static bool
+donelist_check(DoneList *dlp, Obj_Entry *obj)
+{
+    unsigned int i;
+
+    for (i = 0;  i < dlp->num_used;  i++)
+	if (dlp->objs[i] == obj)
+	    return true;
+    /*
+     * Our donelist allocation should always be sufficient.  But if
+     * our threads locking isn't working properly, more shared objects
+     * could have been loaded since we allocated the list.  That should
+     * never happen, but we'll handle it properly just in case it does.
+     */
+    if (dlp->num_used < dlp->num_alloc)
+	dlp->objs[dlp->num_used++] = obj;
+    return false;
+}
+
+/*
  * Hash function for symbol table lookup.  Don't even think about changing
  * this.  It is specified by the System V ABI.
  */
@@ -741,6 +788,7 @@ const Elf_Sym *
 find_symdef(unsigned long symnum, Obj_Entry *refobj,
     const Obj_Entry **defobj_out, bool in_plt)
 {
+    DoneList donelist;
     const Elf_Sym *ref;
     const Elf_Sym *def;
     const Elf_Sym *symp;
@@ -755,11 +803,11 @@ find_symdef(unsigned long symnum, Obj_Entry *refobj,
     hash = elf_hash(name);
     def = NULL;
     defobj = NULL;
-    curmark++;
+    donelist_init(&donelist);
 
-    if (refobj->symbolic) {	/* Look first in the referencing object */
+    /* Look first in the referencing object if linked symbolically. */
+    if (refobj->symbolic && !donelist_check(&donelist, refobj)) {
 	symp = symlook_obj(name, hash, refobj, in_plt);
-	refobj->mark = curmark;
 	if (symp != NULL) {
 	    def = symp;
 	    defobj = refobj;
@@ -768,7 +816,7 @@ find_symdef(unsigned long symnum, Obj_Entry *refobj,
 
     /* Search all objects loaded at program start up. */
     if (def == NULL || ELF_ST_BIND(def->st_info) == STB_WEAK) {
-	symp = symlook_list(name, hash, &list_main, &obj, in_plt);
+	symp = symlook_list(name, hash, &list_main, &obj, in_plt, &donelist);
 	if (symp != NULL &&
 	  (def == NULL || ELF_ST_BIND(symp->st_info) != STB_WEAK)) {
 	    def = symp;
@@ -780,7 +828,8 @@ find_symdef(unsigned long symnum, Obj_Entry *refobj,
     STAILQ_FOREACH(elm, &refobj->dldags, link) {
 	if (def != NULL && ELF_ST_BIND(def->st_info) != STB_WEAK)
 	    break;
-	symp = symlook_list(name, hash, &elm->obj->dagmembers, &obj, in_plt);
+	symp = symlook_list(name, hash, &elm->obj->dagmembers, &obj, in_plt,
+	  &donelist);
 	if (symp != NULL &&
 	  (def == NULL || ELF_ST_BIND(symp->st_info) != STB_WEAK)) {
 	    def = symp;
@@ -790,7 +839,7 @@ find_symdef(unsigned long symnum, Obj_Entry *refobj,
 
     /* Search all RTLD_GLOBAL objects. */
     if (def == NULL || ELF_ST_BIND(def->st_info) == STB_WEAK) {
-	symp = symlook_list(name, hash, &list_global, &obj, in_plt);
+	symp = symlook_list(name, hash, &list_global, &obj, in_plt, &donelist);
 	if (symp != NULL &&
 	  (def == NULL || ELF_ST_BIND(symp->st_info) != STB_WEAK)) {
 	    def = symp;
@@ -919,23 +968,24 @@ gethints(void)
 static void
 init_dag(Obj_Entry *root)
 {
-    curmark++;
-    init_dag1(root, root);
+    DoneList donelist;
+
+    donelist_init(&donelist);
+    init_dag1(root, root, &donelist);
 }
 
 static void
-init_dag1(Obj_Entry *root, Obj_Entry *obj)
+init_dag1(Obj_Entry *root, Obj_Entry *obj, DoneList *dlp)
 {
     const Needed_Entry *needed;
 
-    if (obj->mark == curmark)
+    if (donelist_check(dlp, obj))
 	return;
-    obj->mark = curmark;
     objlist_add(&obj->dldags, root);
     objlist_add(&root->dagmembers, obj);
     for (needed = obj->needed;  needed != NULL;  needed = needed->next)
 	if (needed->obj != NULL)
-	    init_dag1(root, needed->obj);
+	    init_dag1(root, needed->obj, dlp);
 }
 
 /*
@@ -971,6 +1021,7 @@ init_rtld(caddr_t mapbase)
 	 */
 	obj_list = &obj_rtld;
 	obj_tail = &obj_rtld.next;
+	obj_count = 1;
 
 	relocate_objects(&obj_rtld, true);
     }
@@ -978,6 +1029,7 @@ init_rtld(caddr_t mapbase)
     /* Make the object list empty again. */
     obj_list = NULL;
     obj_tail = &obj_list;
+    obj_count = 0;
 
     /* Replace the path with a dynamically allocated copy. */
     obj_rtld.path = xstrdup(obj_rtld.path);
@@ -1118,6 +1170,7 @@ load_object(char *path)
 
 	*obj_tail = obj;
 	obj_tail = &obj->next;
+	obj_count++;
 	linkmap_add(obj);	/* for GDB */
 
 	dbg("  %p .. %p: %s", obj->mapbase,
@@ -1131,9 +1184,24 @@ load_object(char *path)
     return obj;
 }
 
+/*
+ * Check for locking violations and die if one is found.
+ */
 static void
-lock_nop(void *lock)
+lock_check(void)
 {
+    int rcount, wcount;
+
+    rcount = lockinfo.rcount;
+    wcount = lockinfo.wcount;
+    assert(rcount >= 0);
+    assert(wcount >= 0);
+    if (wcount > 1 || (wcount != 0 && rcount != 0)) {
+	_rtld_error("Application locking error: %d readers and %d writers"
+	  " in dynamic linker.  See DLLOCKINIT(3) in manual pages.",
+	  rcount, wcount);
+	die();
+    }
 }
 
 static Obj_Entry *
@@ -1317,7 +1385,7 @@ dlclose(void *handle)
     wlock_acquire();
     root = dlcheck(handle);
     if (root == NULL) {
-	lock_release();
+	wlock_release();
 	return -1;
     }
 
@@ -1336,7 +1404,7 @@ dlclose(void *handle)
 	    if (obj->refcount == 0 && obj->fini != NULL)
 		funclist_push_tail(&finilist, obj->fini);
 
-	lock_release();
+	wlock_release();
 	funclist_call(&finilist);
 	wlock_acquire();
 	funclist_clear(&finilist);
@@ -1346,7 +1414,7 @@ dlclose(void *handle)
 	unload_object(root);
 	GDB_STATE(RT_CONSISTENT);
     }
-    lock_release();
+    wlock_release();
     return 0;
 }
 
@@ -1358,6 +1426,9 @@ dlerror(void)
     return msg;
 }
 
+/*
+ * This function is deprecated and has no effect.
+ */
 void
 dllockinit(void *context,
 	   void *(*lock_create)(void *context),
@@ -1367,68 +1438,14 @@ dllockinit(void *context,
            void (*lock_destroy)(void *lock),
 	   void (*context_destroy)(void *context))
 {
-    bool is_dflt = false;
+    static void *cur_context;
+    static void (*cur_context_destroy)(void *);
 
-    /* NULL arguments mean reset to the built-in locks. */
-    if (lock_create == NULL) {
-	is_dflt = true;
-	context = NULL;
-	lock_create = lockdflt_create;
-	rlock_acquire = wlock_acquire = lockdflt_acquire;
-	lock_release = lockdflt_release;
-	lock_destroy = lockdflt_destroy;
-	context_destroy = NULL;
-    }
-
-    /* Temporarily set locking methods to no-ops. */
-    lockinfo.rlock_acquire = lock_nop;
-    lockinfo.wlock_acquire = lock_nop;
-    lockinfo.lock_release = lock_nop;
-
-    /* Release any existing locks and context. */
-    if (lockinfo.lock_destroy != NULL)
-	lockinfo.lock_destroy(lockinfo.thelock);
-    if (lockinfo.context_destroy != NULL)
-	lockinfo.context_destroy(lockinfo.context);
-
-    /*
-     * Make sure the shared objects containing the locking methods are
-     * fully bound, to avoid infinite recursion when they are called
-     * from the lazy binding code.
-     */
-    if (!is_dflt) {
-	prebind((void *)rlock_acquire);
-	prebind((void *)wlock_acquire);
-	prebind((void *)lock_release);
-    }
-
-    /* Allocate our lock. */
-    lockinfo.thelock = lock_create(lockinfo.context);
-
-    /* Record the new method information. */
-    lockinfo.context = context;
-    lockinfo.rlock_acquire = rlock_acquire;
-    lockinfo.wlock_acquire = wlock_acquire;
-    lockinfo.lock_release = lock_release;
-    lockinfo.lock_destroy = lock_destroy;
-    lockinfo.context_destroy = context_destroy;
-}
-
-static void
-prebind(void *addr)
-{
-    Obj_Entry *obj;
-
-    if ((obj = obj_from_addr(addr)) == NULL) {
-	_rtld_error("Cannot determine shared object of locking method at %p",
-	  addr);
-	die();
-    }
-    if (!obj->rtld && !obj->jmpslots_done) {
-	dbg("Pre-binding %s for locking", obj->path);
-	if (reloc_jmpslots(obj) == -1)
-	    die();
-    }
+    /* Just destroy the context from the previous call, if necessary. */
+    if (cur_context_destroy != NULL)
+	cur_context_destroy(cur_context);
+    cur_context = context;
+    cur_context_destroy = context_destroy;
 }
 
 void *
@@ -1482,11 +1499,11 @@ dlopen(const char *name, int mode)
     GDB_STATE(RT_CONSISTENT);
 
     /* Call the init functions with no locks held. */
-    lock_release();
+    wlock_release();
     funclist_call(&initlist);
     wlock_acquire();
     funclist_clear(&initlist);
-    lock_release();
+    wlock_release();
     return obj;
 }
 
@@ -1502,14 +1519,14 @@ dlsym(void *handle, const char *name)
     def = NULL;
     defobj = NULL;
 
-    wlock_acquire();
+    rlock_acquire();
     if (handle == NULL || handle == RTLD_NEXT) {
 	void *retaddr;
 
 	retaddr = __builtin_return_address(0);	/* __GNUC__ only */
 	if ((obj = obj_from_addr(retaddr)) == NULL) {
 	    _rtld_error("Cannot determine caller's shared object");
-	    lock_release();
+	    rlock_release();
 	    return NULL;
 	}
 	if (handle == NULL) {	/* Just the caller's shared object. */
@@ -1525,14 +1542,17 @@ dlsym(void *handle, const char *name)
 	}
     } else {
 	if ((obj = dlcheck(handle)) == NULL) {
-	    lock_release();
+	    rlock_release();
 	    return NULL;
 	}
 
 	if (obj->mainprog) {
+	    DoneList donelist;
+
 	    /* Search main program and all libraries loaded by it. */
-	    curmark++;
-	    def = symlook_list(name, hash, &list_main, &defobj, true);
+	    donelist_init(&donelist);
+	    def = symlook_list(name, hash, &list_main, &defobj, true,
+	      &donelist);
 	} else {
 	    /*
 	     * XXX - This isn't correct.  The search should include the whole
@@ -1544,12 +1564,12 @@ dlsym(void *handle, const char *name)
     }
 
     if (def != NULL) {
-	lock_release();
+	rlock_release();
 	return defobj->relocbase + def->st_value;
     }
 
     _rtld_error("Undefined symbol \"%s\"", name);
-    lock_release();
+    rlock_release();
     return NULL;
 }
 
@@ -1561,11 +1581,11 @@ dladdr(const void *addr, Dl_info *info)
     void *symbol_addr;
     unsigned long symoffset;
     
-    wlock_acquire();
+    rlock_acquire();
     obj = obj_from_addr(addr);
     if (obj == NULL) {
         _rtld_error("No shared object contains address");
-	lock_release();
+	rlock_release();
         return 0;
     }
     info->dli_fname = obj->path;
@@ -1604,7 +1624,7 @@ dladdr(const void *addr, Dl_info *info)
         if (info->dli_saddr == addr)
             break;
     }
-    lock_release();
+    rlock_release();
     return 1;
 }
 
@@ -1695,7 +1715,7 @@ set_program_var(const char *name, const void *value)
 
 static const Elf_Sym *
 symlook_list(const char *name, unsigned long hash, Objlist *objlist,
-  const Obj_Entry **defobj_out, bool in_plt)
+  const Obj_Entry **defobj_out, bool in_plt, DoneList *dlp)
 {
     const Elf_Sym *symp;
     const Elf_Sym *def;
@@ -1705,9 +1725,8 @@ symlook_list(const char *name, unsigned long hash, Objlist *objlist,
     def = NULL;
     defobj = NULL;
     STAILQ_FOREACH(elm, objlist, link) {
-	if (elm->obj->mark == curmark)
+	if (donelist_check(dlp, elm->obj))
 	    continue;
-	elm->obj->mark = curmark;
 	if ((symp = symlook_obj(name, hash, elm->obj, in_plt)) != NULL) {
 	    if (def == NULL || ELF_ST_BIND(symp->st_info) != STB_WEAK) {
 		def = symp;
@@ -1877,6 +1896,7 @@ unload_object(Obj_Entry *root)
 	    munmap(obj->mapbase, obj->mapsize);
 	    linkmap_delete(obj);
 	    *linkp = obj->next;
+	    obj_count--;
 	    obj_free(obj);
 	} else
 	    linkp = &obj->next;

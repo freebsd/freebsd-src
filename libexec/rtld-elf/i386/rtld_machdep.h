@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999 John D. Polstra.
+ * Copyright (c) 1999, 2000 John D. Polstra.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,5 +40,26 @@
 	  (void *)(target));				\
 	(*(Elf_Addr *)(where) = (Elf_Addr)(target));	\
     } while (0)
+
+static inline void
+atomic_decr_int(volatile int *p)
+{
+    __asm __volatile ("lock; decl %0" : "=m"(*p) : "0"(*p) : "cc");
+}
+
+static inline void
+atomic_incr_int(volatile int *p)
+{
+    __asm __volatile ("lock; incl %0" : "=m"(*p) : "0"(*p) : "cc");
+}
+
+static inline void
+atomic_add_int(volatile int *p, int val)
+{
+    __asm __volatile ("lock; addl %1, %0"
+	: "=m"(*p)
+	: "ri"(val), "0"(*p)
+	: "cc");
+}
 
 #endif
