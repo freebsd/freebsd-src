@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2000 Free Software Foundation, Inc.                   *
+ * Copyright (c) 1998-2001,2002 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,6 +29,7 @@
 /****************************************************************************
  *  Author: Zeyd M. Ben-Halim <zmbenhal@netcom.com> 1992,1995               *
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
+ *     and: Thomas E. Dickey 1996 on                                        *
  ****************************************************************************/
 
 #define __INTERNAL_CAPS_VISIBLE
@@ -38,7 +39,7 @@
 #include "termsort.c"		/* this C file is generated */
 #include <parametrized.h>	/* so is this */
 
-MODULE_ID("$Id: dump_entry.c,v 1.56 2001/08/12 00:21:22 tom Exp $")
+MODULE_ID("$Id: dump_entry.c,v 1.58 2002/06/01 22:58:11 tom Exp $")
 
 #define INDENT			8
 #define DISCARD(string) string = ABSENT_STRING
@@ -166,7 +167,7 @@ nametrans(const char *name)
 
 void
 dump_init(const char *version, int mode, int sort, int twidth, int traceval,
-    bool formatted)
+	  bool formatted)
 /* set up for entry display */
 {
     width = twidth;
@@ -176,7 +177,7 @@ dump_init(const char *version, int mode, int sort, int twidth, int traceval,
     if (version == 0)
 	tversion = V_ALLCAPS;
     else if (!strcmp(version, "SVr1") || !strcmp(version, "SVR1")
-	|| !strcmp(version, "Ultrix"))
+	     || !strcmp(version, "Ultrix"))
 	tversion = V_SVR1;
     else if (!strcmp(version, "HP"))
 	tversion = V_HPUX;
@@ -221,13 +222,13 @@ dump_init(const char *version, int mode, int sort, int twidth, int traceval,
     case S_NOSORT:
 	if (traceval)
 	    (void) fprintf(stderr,
-		"%s: sorting by term structure order\n", _nc_progname);
+			   "%s: sorting by term structure order\n", _nc_progname);
 	break;
 
     case S_TERMINFO:
 	if (traceval)
 	    (void) fprintf(stderr,
-		"%s: sorting by terminfo name order\n", _nc_progname);
+			   "%s: sorting by terminfo name order\n", _nc_progname);
 	bool_indirect = bool_terminfo_sort;
 	num_indirect = num_terminfo_sort;
 	str_indirect = str_terminfo_sort;
@@ -236,7 +237,7 @@ dump_init(const char *version, int mode, int sort, int twidth, int traceval,
     case S_VARIABLE:
 	if (traceval)
 	    (void) fprintf(stderr,
-		"%s: sorting by C variable order\n", _nc_progname);
+			   "%s: sorting by C variable order\n", _nc_progname);
 	bool_indirect = bool_variable_sort;
 	num_indirect = num_variable_sort;
 	str_indirect = str_variable_sort;
@@ -245,7 +246,7 @@ dump_init(const char *version, int mode, int sort, int twidth, int traceval,
     case S_TERMCAP:
 	if (traceval)
 	    (void) fprintf(stderr,
-		"%s: sorting by termcap name order\n", _nc_progname);
+			   "%s: sorting by termcap name order\n", _nc_progname);
 	bool_indirect = bool_termcap_sort;
 	num_indirect = num_termcap_sort;
 	str_indirect = str_termcap_sort;
@@ -254,8 +255,8 @@ dump_init(const char *version, int mode, int sort, int twidth, int traceval,
 
     if (traceval)
 	(void) fprintf(stderr,
-	    "%s: width = %d, tversion = %d, outform = %d\n",
-	    _nc_progname, width, tversion, outform);
+		       "%s: width = %d, tversion = %d, outform = %d\n",
+		       _nc_progname, width, tversion, outform);
 }
 
 static TERMTYPE *cur_type;
@@ -496,10 +497,10 @@ fmt_complex(char *src, int level)
 
 int
 fmt_entry(TERMTYPE * tterm,
-    int (*pred) (int type, int idx),
-    bool suppress_untranslatable,
-    bool infodump,
-    int numbers)
+	  int (*pred) (int type, int idx),
+	  bool suppress_untranslatable,
+	  bool infodump,
+	  int numbers)
 {
     int i, j;
     char buffer[MAX_TERMINFO_LENGTH];
@@ -639,14 +640,16 @@ fmt_entry(TERMTYPE * tterm,
 		sprintf(buffer, "%s@", name);
 		WRAP_CONCAT;
 	    } else if (outform == F_TERMCAP || outform == F_TCONVERR) {
-		int params = (i < (int) SIZEOF(parametrized)) ? parametrized[i] : 0;
+		int params = ((i < (int) SIZEOF(parametrized))
+			      ? parametrized[i]
+			      : 0);
 		char *srccap = _nc_tic_expand(tterm->Strings[i], TRUE, numbers);
 		char *cv = _nc_infotocap(name, srccap, params);
 
 		if (cv == 0) {
 		    if (outform == F_TCONVERR) {
 			sprintf(buffer, "%s=!!! %s WILL NOT CONVERT !!!",
-			    name, srccap);
+				name, srccap);
 		    } else if (suppress_untranslatable) {
 			continue;
 		    } else {
@@ -670,7 +673,7 @@ fmt_entry(TERMTYPE * tterm,
 		WRAP_CONCAT;
 	    } else {
 		char *src = _nc_tic_expand(tterm->Strings[i],
-		    outform == F_TERMINFO, numbers);
+					   outform == F_TERMINFO, numbers);
 
 		strcpy_DYN(&tmpbuf, 0);
 		strcpy_DYN(&tmpbuf, name);
@@ -726,7 +729,7 @@ fmt_entry(TERMTYPE * tterm,
 	    if (box_ok) {
 		(void) strcpy(buffer, "box1=");
 		(void) strcat(buffer, _nc_tic_expand(boxchars,
-			outform == F_TERMINFO, numbers));
+						     outform == F_TERMINFO, numbers));
 		WRAP_CONCAT;
 	    }
 	}
@@ -745,10 +748,10 @@ fmt_entry(TERMTYPE * tterm,
 	    outbuf.used -= 2;
 	    trimmed = TRUE;
 	} else if (j >= 4
-		&& outbuf.text[j - 1] == ':'
-		&& outbuf.text[j - 2] == '\t'
-		&& outbuf.text[j - 3] == '\n'
-	    && outbuf.text[j - 4] == '\\') {
+		   && outbuf.text[j - 1] == ':'
+		   && outbuf.text[j - 2] == '\t'
+		   && outbuf.text[j - 3] == '\n'
+		   && outbuf.text[j - 4] == '\\') {
 	    outbuf.used -= 4;
 	    trimmed = TRUE;
 	}
@@ -762,7 +765,7 @@ fmt_entry(TERMTYPE * tterm,
     fprintf(stderr, "num_values = %d\n", num_values);
     fprintf(stderr, "num_strings = %d\n", num_strings);
     fprintf(stderr, "term_names=%s, len=%d, strlen(outbuf)=%d, outbuf=%s\n",
-	tterm->term_names, len, outbuf.used, outbuf.text);
+	    tterm->term_names, len, outbuf.used, outbuf.text);
 #endif
     /*
      * Here's where we use infodump to trigger a more stringent length check
@@ -774,9 +777,91 @@ fmt_entry(TERMTYPE * tterm,
     return (infodump ? len : (int) termcap_length(outbuf.text));
 }
 
+static bool
+kill_string(TERMTYPE * tterm, char *cap)
+{
+    int n;
+    for (n = 0; n < tterm->num_Strings; ++n) {
+	if (cap == tterm->Strings[n]) {
+	    tterm->Strings[n] = ABSENT_STRING;
+	    return TRUE;
+	}
+    }
+    return FALSE;
+}
+
+static char *
+find_string(TERMTYPE * tterm, char *name)
+{
+    int n;
+    for (n = 0; n < tterm->num_Strings; ++n) {
+	if (version_filter(STRING, n)
+	    && !strcmp(name, strnames[n])) {
+	    char *cap = tterm->Strings[n];
+	    if (VALID_STRING(cap)) {
+		return cap;
+	    }
+	    break;
+	}
+    }
+    return ABSENT_STRING;
+}
+
+/*
+ * This is used to remove function-key labels from a termcap entry to
+ * make it smaller.
+ */
+static int
+kill_labels(TERMTYPE * tterm, int target)
+{
+    int n;
+    int result = 0;
+    char *cap;
+    char name[10];
+
+    for (n = 0; n <= 10; ++n) {
+	sprintf(name, "lf%d", n);
+	if ((cap = find_string(tterm, name)) != ABSENT_STRING
+	    && kill_string(tterm, cap)) {
+	    target -= (strlen(cap) + 5);
+	    ++result;
+	    if (target < 0)
+		break;
+	}
+    }
+    return result;
+}
+
+/*
+ * This is used to remove function-key definitions from a termcap entry to
+ * make it smaller.
+ */
+static int
+kill_fkeys(TERMTYPE * tterm, int target)
+{
+    int n;
+    int result = 0;
+    char *cap;
+    char name[10];
+
+    for (n = 60; n >= 0; --n) {
+	sprintf(name, "kf%d", n);
+	if ((cap = find_string(tterm, name)) != ABSENT_STRING
+	    && kill_string(tterm, cap)) {
+	    target -= (strlen(cap) + 5);
+	    ++result;
+	    if (target < 0)
+		break;
+	}
+    }
+    return result;
+}
+
 int
-dump_entry(TERMTYPE * tterm, bool limited, int numbers, int (*pred) (int
-	type, int idx))
+dump_entry(TERMTYPE * tterm,
+	   bool limited,
+	   int numbers,
+	   int (*pred) (int type, int idx))
 /* dump a single entry */
 {
     int len, critlen;
@@ -797,7 +882,7 @@ dump_entry(TERMTYPE * tterm, bool limited, int numbers, int (*pred) (int
     if (((len = fmt_entry(tterm, pred, FALSE, infodump, numbers)) > critlen)
 	&& limited) {
 	PRINTF("# (untranslatable capabilities removed to fit entry within %d bytes)\n",
-	    critlen);
+	       critlen);
 	if ((len = fmt_entry(tterm, pred, TRUE, infodump, numbers)) > critlen) {
 	    /*
 	     * We pick on sgr because it's a nice long string capability that
@@ -808,28 +893,40 @@ dump_entry(TERMTYPE * tterm, bool limited, int numbers, int (*pred) (int
 	    char *oldacsc = acs_chars;
 	    set_attributes = ABSENT_STRING;
 	    PRINTF("# (sgr removed to fit entry within %d bytes)\n",
-		critlen);
+		   critlen);
 	    if ((len = fmt_entry(tterm, pred, TRUE, infodump, numbers)) > critlen) {
 		acs_chars = ABSENT_STRING;
 		PRINTF("# (acsc removed to fit entry within %d bytes)\n",
-		    critlen);
+		       critlen);
 	    }
 	    if ((len = fmt_entry(tterm, pred, TRUE, infodump, numbers)) > critlen) {
 		int oldversion = tversion;
 
 		tversion = V_BSD;
 		PRINTF("# (terminfo-only capabilities suppressed to fit entry within %d bytes)\n",
-		    critlen);
+		       critlen);
 
-		if ((len = fmt_entry(tterm, pred, TRUE, infodump, numbers))
-		    > critlen) {
+		len = fmt_entry(tterm, pred, TRUE, infodump, numbers);
+		if (len > critlen
+		    && kill_labels(tterm, len - critlen)) {
+		    PRINTF("# (some labels capabilities suppressed to fit entry within %d bytes)\n",
+			   critlen);
+		    len = fmt_entry(tterm, pred, TRUE, infodump, numbers);
+		}
+		if (len > critlen
+		    && kill_fkeys(tterm, len - critlen)) {
+		    PRINTF("# (some function-key capabilities suppressed to fit entry within %d bytes)\n",
+			   critlen);
+		    len = fmt_entry(tterm, pred, TRUE, infodump, numbers);
+		}
+		if (len > critlen) {
 		    (void) fprintf(stderr,
-			"warning: %s entry is %d bytes long\n",
-			_nc_first_name(tterm->term_names),
-			len);
+				   "warning: %s entry is %d bytes long\n",
+				   _nc_first_name(tterm->term_names),
+				   len);
 		    PRINTF(
-			"# WARNING: this entry, %d bytes long, may core-dump %s libraries!\n",
-			len, legend);
+			      "# WARNING: this entry, %d bytes long, may core-dump %s libraries!\n",
+			      len, legend);
 		}
 		tversion = oldversion;
 	    }
@@ -857,7 +954,7 @@ dump_uses(const char *name, bool infodump)
 
 void
 compare_entry(void (*hook) (int t, int i, const char *name), TERMTYPE * tp
-    GCC_UNUSED, bool quiet)
+	      GCC_UNUSED, bool quiet)
 /* compare two entries */
 {
     int i, j;

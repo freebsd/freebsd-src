@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,1999,2000,2001 Free Software Foundation, Inc.         *
+ * Copyright (c) 1998-2001,2002 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -43,7 +43,7 @@
 #include <term.h>		/* cur_term */
 #include <tic.h>
 
-MODULE_ID("$Id: lib_set_term.c,v 1.64 2002/02/10 00:21:10 tom Exp $")
+MODULE_ID("$Id: lib_set_term.c,v 1.65 2002/06/15 18:40:20 tom Exp $")
 
 NCURSES_EXPORT(SCREEN *)
 set_term(SCREEN * screenp)
@@ -181,7 +181,7 @@ extract_fgbg(char *src, int *result)
     if (dst == 0) {
 	dst = src;
     } else if (value >= 0) {
-	*result = value % max_colors;
+	*result = value;
     }
     while (*dst != 0 && *dst != ';')
 	dst++;
@@ -275,6 +275,22 @@ _nc_setupscreen
 	    p = extract_fgbg(p, &(SP->_default_bg));
 	TR(TRACE_CHARPUT | TRACE_MOVE, ("decoded fg=%d, bg=%d",
 					SP->_default_fg, SP->_default_bg));
+	if (SP->_default_fg > max_colors) {
+	    if (set_a_foreground != ABSENT_STRING
+		&& !strcmp(set_a_foreground, "\033[3%p1%dm")) {
+		set_a_foreground = "\033[3%?%p1%{8}%>%t9%e%p1%d%;m";
+	    } else {
+		SP->_default_fg %= max_colors;
+	    }
+	}
+	if (SP->_default_bg > max_colors) {
+	    if (set_a_background != ABSENT_STRING
+		&& !strcmp(set_a_background, "\033[4%p1%dm")) {
+		set_a_background = "\033[4%?%p1%{8}%>%t9%e%p1%d%;m";
+	    } else {
+		SP->_default_bg %= max_colors;
+	    }
+	}
     }
 #endif
 #endif /* NCURSES_EXT_FUNCS */
