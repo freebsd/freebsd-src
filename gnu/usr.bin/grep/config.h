@@ -64,7 +64,7 @@
 /* Hack for Visual C++ suggested by irox. */
 /* #undef alloca */
 
-/* #undef HAVE_STPCPY */
+#define HAVE_STPCPY 1
 
 /* #undef ENABLE_NLS */
 
@@ -125,7 +125,7 @@
 #define HAVE_SETMODE 1
 
 /* Define if you have the stpcpy function.  */
-/* #undef HAVE_STPCPY */
+#define HAVE_STPCPY 1
 
 /* Define if you have the strcasecmp function.  */
 #define HAVE_STRCASECMP 1

@@ -247,7 +247,7 @@
 
 /* Define to 1 if you have the declaration of `stpcpy', and to 0 if you don't.
    */
-#define HAVE_DECL_STPCPY 0
+#define HAVE_DECL_STPCPY 1
 
 /* Define to 1 if you have the declaration of `strerror', and to 0 if you
    don't. */
@@ -720,7 +720,7 @@
 /* #undef HAVE_STIME */
 
 /* Define to 1 if you have the `stpcpy' function. */
-/* #undef HAVE_STPCPY */
+#define HAVE_STPCPY 1
 
 /* Define to 1 if you have the `strcasecmp' function. */
 #define HAVE_STRCASECMP 1
