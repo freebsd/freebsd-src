@@ -71,7 +71,9 @@ However, it is possible to dispense with the third stage altogether,
 either by specifying a kernel name in the boot block parameter
 file,
 .Pa /boot.config ,
-or by hitting a key during a brief pause (while one of the characters
+or, unless option
+.Fl n
+is set, by hitting a key during a brief pause (while one of the characters
 .Sy - ,
 .Sy \e ,
 .Sy \&| ,
@@ -115,7 +117,7 @@ the listing will be of the relevant subdirectory.)
 .Ar bios_drive : Ns Ar interface Ns Po
 .Ar unit , Ns Ar part Pc
 .Ar filename
-.Op Fl aCcDdghPprsv
+.Op Fl aCcDdghnPprsv
 .Xc
 Specify boot file and flags.
 .Bl -tag -width indent
@@ -161,7 +163,7 @@ The pathname of the file to boot (relative to the root directory
 on the specified partition).  Defaults to
 .Pa /kernel .
 Symbolic links are not supported (hard links are).
-.It Fl acCdDghPrsv
+.It Fl acCdDghnPrsv
 Boot flags:
 .Pp
 .Bl -tag -width "-CXX" -compact
@@ -217,6 +219,8 @@ regardless of the
 option described here.  See the man page for
 .Xr sio 4
 for more details.
+.It Fl n
+ignore key press to interrupt boot before loader(8) is invoked.
 .It Fl P
 probe the keyboard.  If no keyboard is found, the
 .Fl D

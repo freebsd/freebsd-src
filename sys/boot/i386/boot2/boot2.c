@@ -48,6 +48,7 @@
 #define RBX_GDB 	0xf	/* -g */
 #define RBX_DUAL	0x1d	/* -D */
 #define RBX_PROBEKBD	0x1e	/* -P */
+#define RBX_NOINTR	0x1f	/* -n */
 
 #define RBX_MASK	0xffff
 
@@ -56,7 +57,7 @@
 #define PATH_KERNEL	"/kernel"
 
 #define ARGS		0x900
-#define NOPT		11
+#define NOPT		12
 #define BSIZEMAX	16384
 #define NDEV		5
 #define MEM_BASE	0x12
@@ -75,7 +76,7 @@
 
 extern uint32_t _end;
 
-static const char optstr[NOPT] = "DhaCcdgPrsv";
+static const char optstr[NOPT] = "DhaCcdgnPrsv";
 static const unsigned char flags[NOPT] = {
     RBX_DUAL,
     RBX_SERIAL,
@@ -84,6 +85,7 @@ static const unsigned char flags[NOPT] = {
     RBX_CONFIG,
     RBX_KDB,
     RBX_GDB,
+    RBX_NOINTR,
     RBX_PROBEKBD,
     RBX_DFLTROOT,
     RBX_SINGLE,
@@ -761,6 +763,8 @@ keyhit(unsigned ticks)
 {
     uint32_t t0, t1;
 
+    if (opts & 1 << RBX_NOINTR)
+	return 0;
     t0 = 0;
     for (;;) {
 	if (xgetc(1))
@@ -786,6 +790,8 @@ xputc(int c)
 static int
 xgetc(int fn)
 {
+    if (opts & 1 << RBX_NOINTR)
+	return 0;
     for (;;) {
 	if (ioctrl & 0x1 && getc(1))
 	    return fn ? 1 : getc(0);
