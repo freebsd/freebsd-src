@@ -7,6 +7,7 @@
 # PROVIDE: named
 # REQUIRE: SERVERS
 # BEFORE:  DAEMON
+# KEYWORD: shutdown
 
 . /etc/rc.subr
 
