@@ -27,7 +27,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: cy.c,v 1.41.2.2 1996/12/14 14:32:59 joerg Exp $
+ *	$Id: cy.c,v 1.41.2.3 1998/03/18 21:05:19 dg Exp $
  */
 
 #include "cy.h"
@@ -900,7 +900,7 @@ comhardclose(com)
 					       | CD1400_CCR_RCVDIS;
 			cd1400_channel_cmd(iobase, com->channel_control, com->cy_align);
 
-			if (com->dtr_wait != 0) {
+			if (com->dtr_wait != 0 && !(com->state & CS_DTR_OFF)) {
 				timeout(siodtrwakeup, com, com->dtr_wait);
 				com->state |= CS_DTR_OFF;
 			}
