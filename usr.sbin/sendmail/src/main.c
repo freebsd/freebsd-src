@@ -39,7 +39,7 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)main.c	8.223 (Berkeley) 12/1/96";
+static char sccsid[] = "@(#)main.c	8.230 (Berkeley) 1/17/97";
 #endif /* not lint */
 
 #define	_DEFINE
@@ -145,12 +145,12 @@ main(argc, argv, envp)
 	extern char *optarg;
 	extern char **environ;
 	extern time_t convtime();
-	extern void intsig();
+	extern SIGFUNC_DECL intsig __P((int));
 	extern struct hostent *myhostname();
 	extern char *getauthinfo();
 	extern char *getcfname();
-	extern void sigusr1();
-	extern void sighup();
+	extern SIGFUNC_DECL sigusr1 __P((int));
+	extern SIGFUNC_DECL sighup __P((int));
 	extern void initmacros __P((ENVELOPE *));
 	extern void init_md __P((int, char **));
 	extern int getdtsize __P((void));
@@ -165,6 +165,7 @@ main(argc, argv, envp)
 	extern void printqueue __P((void));
 	extern void sendtoargv __P((char **, ENVELOPE *));
 	extern void resetlimits __P((void));
+	extern void drop_privileges __P((void));
 
 	/*
 	**  Check to see if we reentered.
@@ -228,6 +229,9 @@ main(argc, argv, envp)
 
 	tTsetup(tTdvect, sizeof tTdvect, "0-99.1");
 
+	/* drop group id privileges (RunAsUser not yet set) */
+	drop_privileges();
+
 	/* Handle any non-getoptable constructions. */
 	obsolete(argv);
 
@@ -245,7 +249,7 @@ main(argc, argv, envp)
 # define OPTIONS	"B:b:C:cd:e:F:f:h:IiM:mN:nO:o:p:q:R:r:sTtUV:vX:"
 #endif
 	opterr = 0;
-	while ((j = getopt(argc, argv, OPTIONS)) != EOF)
+	while ((j = getopt(argc, argv, OPTIONS)) != -1)
 	{
 		switch (j)
 		{
@@ -511,7 +515,7 @@ main(argc, argv, envp)
 		OpMode = MD_PURGESTAT;
 
 	optind = 1;
-	while ((j = getopt(argc, argv, OPTIONS)) != EOF)
+	while ((j = getopt(argc, argv, OPTIONS)) != -1)
 	{
 		switch (j)
 		{
@@ -806,10 +810,7 @@ main(argc, argv, envp)
 	if (OpMode != MD_DAEMON && OpMode != MD_FGDAEMON)
 	{
 		/* drop privileges -- daemon mode done after socket/bind */
-		if (RunAsGid != 0)
-			(void) setgid(RunAsGid);
-		if (RunAsUid != 0)
-			(void) setuid(RunAsUid);
+		drop_privileges();
 	}
 
 	/*
@@ -900,6 +901,20 @@ main(argc, argv, envp)
 		printf("Warning: HostStatusDirectory required for SingleThreadDelivery\n");
 	}
 
+	/* check for permissions */
+	if ((OpMode == MD_DAEMON || OpMode == MD_PURGESTAT) && RealUid != 0)
+	{
+#ifdef LOG
+		if (LogLevel > 1)
+			syslog(LOG_ALERT, "user %d attempted to %s",
+				RealUid,
+				OpMode == MD_DAEMON ? "run daemon"
+						    : "purge host status");
+#endif
+		usrerr("Permission denied");
+		exit(EX_USAGE);
+	}
+
 	if (MeToo)
 		BlankEnvelope.e_flags |= EF_METOO;
 
@@ -916,17 +931,6 @@ main(argc, argv, envp)
 		/* fall through ... */
 
 	  case MD_DAEMON:
-		/* check for permissions */
-		if (RealUid != 0)
-		{
-#ifdef LOG
-			if (LogLevel > 1)
-				syslog(LOG_ALERT, "user %d attempted to run daemon",
-					RealUid);
-#endif
-			usrerr("Permission denied");
-			exit(EX_USAGE);
-		}
 		vendor_daemon_setup(CurEnv);
 
 		/* remove things that don't make sense in daemon mode */
@@ -946,6 +950,11 @@ main(argc, argv, envp)
 
 	  case MD_INITALIAS:
 		Verbose = TRUE;
+		/* fall through... */
+
+	  case MD_PRINT:
+		/* to handle sendmail -bp -qSfoobar properly */
+		queuemode = FALSE;
 		/* fall through... */
 
 	  default:
@@ -1214,7 +1223,7 @@ main(argc, argv, envp)
 	if (OpMode == MD_TEST)
 	{
 		char buf[MAXLINE];
-		void intindebug();
+		SIGFUNC_DECL intindebug __P((int));
 
 		if (isatty(fileno(stdin)))
 			Verbose = TRUE;
@@ -1318,10 +1327,7 @@ main(argc, argv, envp)
 		nullserver = getrequests(CurEnv);
 
 		/* drop privileges */
-		if (RunAsGid != 0)
-			(void) setgid(RunAsGid);
-		if (RunAsUid != 0)
-			(void) setuid(RunAsUid);
+		drop_privileges();
 
 		/* at this point we are in a child: reset state */
 		(void) newenvelope(CurEnv, CurEnv);
@@ -1385,7 +1391,7 @@ main(argc, argv, envp)
 	if (warn_f_flag != '\0' && !wordinclass(RealUserName, 't'))
 		auth_warning(CurEnv, "%s set sender to %s using -%c",
 			RealUserName, from, warn_f_flag);
-	setsender(from, CurEnv, NULL, FALSE);
+	setsender(from, CurEnv, NULL, '\0', FALSE);
 	if (macvalue('s', CurEnv) == NULL)
 		define('s', RealHostName, CurEnv);
 
@@ -1450,10 +1456,12 @@ main(argc, argv, envp)
 }
 
 
-void
-intindebug()
+SIGFUNC_DECL
+intindebug(sig)
+	int sig;
 {
 	longjmp(TopFrame, 1);
+	return SIGFUNC_RETURN;
 }
 
 
@@ -1528,8 +1536,9 @@ finis()
 **		Unlocks the current job.
 */
 
-void
-intsig()
+SIGFUNC_DECL
+intsig(sig)
+	int sig;
 {
 #ifdef LOG
 	if (LogLevel > 79)
@@ -1944,15 +1953,18 @@ dumpstate(when)
 }
 
 
-void
-sigusr1()
+SIGFUNC_DECL
+sigusr1(sig)
+	int sig;
 {
 	dumpstate("user signal");
+	return SIGFUNC_RETURN;
 }
 
 
-void
-sighup()
+SIGFUNC_DECL
+sighup(sig)
+	int sig;
 {
 	if (SaveArgv[0][0] != '/')
 	{
@@ -1982,6 +1994,31 @@ sighup()
 		syslog(LOG_ALERT, "could not exec %s: %m", SaveArgv[0]);
 #endif
 	exit(EX_OSFILE);
+}
+/*
+**  DROP_PRIVILEGES -- reduce privileges to those of the RunAsUser option
+**
+**	Parameters:
+**		none.
+**
+**	Returns:
+**		none.
+*/
+
+void
+drop_privileges()
+{
+#ifdef NGROUPS_MAX
+	/* reset group permissions; these can be set later */
+	GIDSET_T emptygidset[NGROUPS_MAX];
+
+	emptygidset[0] = RunAsGid == 0 ? getegid() : RunAsGid;
+	(void) setgroups(1, emptygidset);
+#endif
+	if (RunAsGid != 0)
+		(void) setgid(RunAsGid);
+	if (RunAsUid != 0)
+		(void) setuid(RunAsUid);
 }
 /*
 **  TESTMODELINE -- process a test mode input line
