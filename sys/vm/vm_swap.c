@@ -34,6 +34,7 @@
  * $FreeBSD$
  */
 
+#include "opt_mac.h"
 #include "opt_swap.h"
 
 #include <sys/param.h>
@@ -52,6 +53,7 @@
 #include <sys/conf.h>
 #include <sys/stat.h>
 #include <sys/sysctl.h>
+#include <sys/mac.h>
 #include <sys/mount.h>
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
@@ -287,7 +289,11 @@ swaponvp(td, vp, dev, nblks)
 	return EINVAL;
     found:
 	(void) vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
-	error = VOP_OPEN(vp, FREAD | FWRITE, td->td_ucred, td);
+#ifdef MAC
+	error = mac_check_vnode_swapon(td->td_ucred, vp);
+	if (error == 0)
+#endif
+		error = VOP_OPEN(vp, FREAD | FWRITE, td->td_ucred, td);
 	(void) VOP_UNLOCK(vp, 0, td);
 	if (error)
 		return (error);
