@@ -73,39 +73,38 @@ SRCS+=	getc.c v_at.c v_ch.c v_cmd.c v_delete.c v_ex.c v_increment.c v_init.c \
 # Vi screen source.
 SRCS+=	vs_line.c vs_msg.c vs_refresh.c vs_relative.c vs_smap.c vs_split.c
 
-afterinstall:
-	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
-		${CATALOGS:S;^;${SRCDIR}/catalog/;} \
-		${DESTDIR}/usr/share/vi/catalog
-	for l in ${NLLINKS}; do \
-		ln -fs dutch ${DESTDIR}/usr/share/vi/catalog/$$l.ISO8859-1; \
-		ln -fs dutch ${DESTDIR}/usr/share/vi/catalog/$$l.ISO8859-15; \
-	done
-	for l in ${ENLINKS}; do \
-		ln -fs english ${DESTDIR}/usr/share/vi/catalog/$$l.ISO8859-1; \
-		ln -fs english ${DESTDIR}/usr/share/vi/catalog/$$l.ISO8859-15; \
-		ln -fs english ${DESTDIR}/usr/share/vi/catalog/$$l.US-ASCII; \
-	done
-	ln -fs english ${DESTDIR}/usr/share/vi/catalog/POSIX
-	ln -fs english ${DESTDIR}/usr/share/vi/catalog/C
-	for l in ${FRLINKS}; do \
-		ln -fs french ${DESTDIR}/usr/share/vi/catalog/$$l.ISO8859-1; \
-		ln -fs french ${DESTDIR}/usr/share/vi/catalog/$$l.ISO8859-15; \
-	done
-	for l in ${DELINKS}; do \
-		ln -fs german ${DESTDIR}/usr/share/vi/catalog/$$l.ISO8859-1; \
-		ln -fs german ${DESTDIR}/usr/share/vi/catalog/$$l.ISO8859-15; \
-	done
-	for l in ${ESLINKS}; do \
-		ln -fs spanish ${DESTDIR}/usr/share/vi/catalog/$$l.ISO8859-1; \
-		ln -fs spanish ${DESTDIR}/usr/share/vi/catalog/$$l.ISO8859-15; \
-	done
-	for l in ${SVLINKS}; do \
-		ln -fs swedish ${DESTDIR}/usr/share/vi/catalog/$$l.ISO8859-1; \
-		ln -fs swedish ${DESTDIR}/usr/share/vi/catalog/$$l.ISO8859-15; \
-	done
-	for l in ${PLLINKS}; do \
-		ln -fs polish ${DESTDIR}/usr/share/vi/catalog/$$l.ISO8859-2; \
-	done
+FILES=	${CATALOGS:S;^;${SRCDIR}/catalog/;}
+FILESDIR= /usr/share/vi/catalog
+SYMLINKS=
+.for l in ${NLLINKS}
+SYMLINKS+= dutch ${FILESDIR}/$l.ISO8859-1
+SYMLINKS+= dutch ${FILESDIR}/$l.ISO8859-15
+.endfor
+.for l in ${ENLINKS}
+SYMLINKS+= english ${FILESDIR}/$l.ISO8859-1
+SYMLINKS+= english ${FILESDIR}/$l.ISO8859-15
+SYMLINKS+= english ${FILESDIR}/$l.US-ASCII
+.endfor
+SYMLINKS+= english ${FILESDIR}/POSIX
+SYMLINKS+= english ${FILESDIR}/C
+.for l in ${FRLINKS}
+SYMLINKS+= french ${FILESDIR}/$l.ISO8859-1
+SYMLINKS+= french ${FILESDIR}/$l.ISO8859-15
+.endfor
+.for l in ${DELINKS}
+SYMLINKS+= german ${FILESDIR}/$l.ISO8859-1
+SYMLINKS+= german ${FILESDIR}/$l.ISO8859-15
+.endfor
+.for l in ${ESLINKS}
+SYMLINKS+= spanish ${FILESDIR}/$l.ISO8859-1
+SYMLINKS+= spanish ${FILESDIR}/$l.ISO8859-15
+.endfor
+.for l in ${SVLINKS}
+SYMLINKS+= swedish ${FILESDIR}/$l.ISO8859-1
+SYMLINKS+= swedish ${FILESDIR}/$l.ISO8859-15
+.endfor
+.for l in ${PLLINKS}
+SYMLINKS+= polish ${FILESDIR}/$l.ISO8859-2
+.endfor
 
 .include <bsd.prog.mk>
