@@ -73,9 +73,6 @@ DRIVER_MODULE(acpi_timer, acpi, acpi_timer_driver, acpi_timer_devclass, 0, 0);
 static void
 acpi_timer_identify(driver_t *driver, device_t parent)
 {
-    static FADT_DESCRIPTOR_REV1	fadt;
-    ACPI_BUFFER			buf;
-    ACPI_STATUS			status;
     device_t			dev;
     char			desc[40];
 
@@ -84,17 +81,9 @@ acpi_timer_identify(driver_t *driver, device_t parent)
     if (acpi_disabled("timer"))
 	return_VOID;
 
-    buf.Pointer = &fadt;
-    buf.Length = sizeof(fadt);
-    if ((status = AcpiGetTable(ACPI_TABLE_FADT, 1, &buf)) != AE_OK) {
-	device_printf(parent, "can't locate FADT - %s\n", acpi_strerror(status));
+    if (AcpiGbl_FADT == NULL)
 	return_VOID;
-    }
-    if (buf.Length != sizeof(fadt)) {
-	device_printf(parent, "invalid FADT\n");
-	return_VOID;
-    }
-
+    
     if ((dev = BUS_ADD_CHILD(parent, 0, "acpi_timer", 0)) == NULL) {
 	device_printf(parent, "could not add acpi_timer0\n");
 	return_VOID;
@@ -104,7 +93,7 @@ acpi_timer_identify(driver_t *driver, device_t parent)
 	return_VOID;
     }
 
-    sprintf(desc, "%d-bit timer at 3.579545MHz", fadt.TmrValExt ? 32 : 24);
+    sprintf(desc, "%d-bit timer at 3.579545MHz", AcpiGbl_FADT->TmrValExt ? 32 : 24);
     device_set_desc_copy(dev, desc);
 
     return_VOID;
