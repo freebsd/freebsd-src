@@ -48,28 +48,6 @@
 
 int			boot_cpu_id;
 
-/*
- * XXX: needs to move to machdep.c
- *
- * Initialise a struct globaldata.
- */
-void
-globaldata_init(struct globaldata *globaldata, int cpuno, size_t sz)
-{
-
-	bzero(globaldata, sz);
-	globaldata->gd_idlepcbphys = vtophys((vm_offset_t) &globaldata->gd_idlepcb);
-	globaldata->gd_idlepcb.apcb_ksp = (u_int64_t)
-		((caddr_t) globaldata + sz - sizeof(struct trapframe));
-	globaldata->gd_idlepcb.apcb_ptbr = proc0.p_addr->u_pcb.pcb_hw.apcb_ptbr;
-	globaldata->gd_cpuno = cpuno;
-	globaldata->gd_other_cpus = all_cpus & ~(1 << cpuno);
-	globaldata->gd_next_asn = 0;
-	globaldata->gd_current_asngen = 1;
-	globaldata->gd_cpuid = cpuno;
-	globaldata_register(globaldata);
-}
-
 int
 cpu_mp_probe(void)
 {
