@@ -210,7 +210,7 @@ void fputsock(struct socket *sp);
 #define	fhold(fp)							\
 	do {								\
 		FILE_LOCK(fp);						\
-		fhold_locked(fp);					\
+		(fp)->f_count++;					\
 		FILE_UNLOCK(fp);					\
 	} while (0)
 
