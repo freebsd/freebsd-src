@@ -6,7 +6,7 @@
 * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 * ----------------------------------------------------------------------------
 *
-* $Id: libdisk.h,v 1.28 1998/01/20 11:03:15 bde Exp $
+* $Id: libdisk.h,v 1.29 1998/10/06 11:57:08 dfr Exp $
 *
 */
 
@@ -86,7 +86,6 @@ struct chunk {
 };
 
 extern const char *chunk_n[];
-extern const u_char boot1[], boot2[];
 
 const char *
 slice_type_name( int type, int subtype );

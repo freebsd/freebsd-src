@@ -1,11 +1,11 @@
-#	$Id: Makefile,v 1.23 1998/12/30 12:06:07 bde Exp $
+#	$Id: Makefile,v 1.24 1998/12/30 13:29:11 jkh Exp $
 
 LIB=	disk
 SRCS=	blocks.c disklabel.c dkcksum.c chunk.c disk.c change.c \
-	create_chunk.c rules.c write_disk.c data.c
+	create_chunk.c rules.c write_disk.c
 
 CFLAGS+= 	-Wall
-CLEANFILES+=	tmp.c tst01 tst01.o data.c
+CLEANFILES+=	tmp.c tst01 tst01.o
 VPATH=		${.CURDIR}/../../sbin/disklabel
 NOPROFILE=	yes
 NOSHARED=	yes
@@ -41,22 +41,6 @@ MLINKS+=	libdisk.3 Open_Disk.3 \
 		libdisk.3 slice_type_name.3
 
 .include <bsd.lib.mk>
-
-BOOTS=/boot
-
-.if ${MACHINE_ARCH} == "i386"
-data.c:	${.CURDIR}/libdisk.h ${BOOTS}/boot1 ${BOOTS}/boot2
-	file2c 'const unsigned char boot1[] = {' '};' \
-                < ${BOOTS}/boot1 > tmp.c
-	file2c 'const unsigned char boot2[] = {' '};' \
-                < ${BOOTS}/boot2 >> tmp.c
-	mv -f tmp.c data.c
-.elif ${MACHINE_ARCH} == "alpha"
-data.c:	${.CURDIR}/libdisk.h ${BOOTS}/boot1
-	file2c 'const unsigned char boot1[] = {' '};' \
-                < ${BOOTS}/boot1 > tmp.c
-	mv -f tmp.c data.c
-.endif
 
 beforeinstall:
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/libdisk.h \
