@@ -24,6 +24,7 @@ all:	${PROG}
 
 afterinstall:
 	ln -sf boot1 /usr/mdec/daboot
+	ln -sf boot1 /usr/mdec/fdboot
 
 ${PROG}.nosym: ${PROG}.sym
 	cp ${PROG}.sym ${PROG}.nosym
