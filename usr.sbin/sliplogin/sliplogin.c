@@ -79,6 +79,7 @@ static char rscid[] = "@(#)$FreeBSD$";
 #include <sys/ioctl.h>
 #include <net/slip.h>
 #include <net/if.h>
+#include <netinet/in.h>
 
 #include <stdio.h>
 #include <errno.h>
