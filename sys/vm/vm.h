@@ -111,6 +111,19 @@ typedef struct vm_page *vm_page_t;
 #endif				/* _KERNEL */
 
 /*
+ * Virtual memory MPSAFE temporary workarounds.
+ */
+extern int debug_mpsafevm;		/* defined in vm/vm_meter.c */
+#define	VM_LOCK_GIANT() do {						\
+	if (!debug_mpsafevm)						\
+		mtx_lock(&Giant);					\
+} while (0)
+#define	VM_UNLOCK_GIANT() do {						\
+	if (!debug_mpsafevm)						\
+		mtx_unlock(&Giant);					\
+} while (0)
+
+/*
  * Information passed from the machine-independant VM initialization code
  * for use by machine-dependant code (mainly for MMU support)
  */
