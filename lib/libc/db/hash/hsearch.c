@@ -62,7 +62,7 @@ hcreate(nel)
 	info.hash = NULL;
 	info.lorder = 0;
 	dbp = (DB *)__hash_open(NULL, O_CREAT | O_RDWR, 0600, &info, 0);
-	return ((int)dbp);
+	return (dbp != NULL);
 }
 
 extern ENTRY *
