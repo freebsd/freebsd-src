@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_bio.c	8.5 (Berkeley) 1/4/94
- * $Id: nfs_bio.c,v 1.17 1995/08/24 10:17:32 dfr Exp $
+ * $Id: nfs_bio.c,v 1.18 1995/10/29 15:32:46 phk Exp $
  */
 
 #include <sys/param.h>
@@ -56,7 +56,9 @@
 #include <nfs/nqnfs.h>
 #include <nfs/nfsnode.h>
 
-struct buf *nfs_getcacheblk();
+extern struct buf *nfs_getcacheblk __P((struct vnode *vp, daddr_t bn, int size,
+					struct proc *p));
+
 extern struct proc *nfs_iodwant[NFS_MAXASYNCDAEMON];
 extern int nfs_numasync;
 extern struct nfsstats nfsstats;
