@@ -58,7 +58,7 @@ The options are as follows:
 .Bl -tag -width indent
 .It Fl f Ar changer
 Use the device
-.Pa changer
+.Ar changer
 rather than the default device
 .Pa /dev/ch0 .
 .El
@@ -100,51 +100,51 @@ would be
 .Pp
 .Sh SUPPORTED COMMANDS
 .Bl -tag -width indent
-.It Xo Nm move
+.It Ic move Xo
 .Ar <from ET> <from EU> <to ET> <to EU>
-.Op Ar inv
+.Op inv
 .Xc
 Move the media unit from
-.Pa <from ET/EU>
+.Ar <from ET/EU>
 to
-.Pa <to ET/EU> .
+.Ar <to ET/EU> .
 If the optional modifier
-.Pa inv
+.Dq inv
 is specified, the media unit will be inverted before insertion.
-.It Xo Nm exchange
+.It Ic exchange Xo
 .Ar <src ET> <src EU> <dst1 ET> <dst1 EU>
 .Op Ar <dst2 ET> <dst2 ET>
-.Op Ar inv1
-.Op Ar inv2
+.Op inv1
+.Op inv2
 .Xc
 Perform a media unit exchange operation.  The media unit in
-.Pa <src ET/EU>
+.Ar <src ET/EU>
 is moved to
-.Pa <dst1 ET/EU>
+.Ar <dst1 ET/EU>
 and the media unit previously in
-.Pa <dst1 ET/EU>
+.Ar <dst1 ET/EU>
 is moved to
-.Pa <dst2 ET/EU> .
+.Ar <dst2 ET/EU> .
 In the case of a simple exchange,
-.Pa <dst2 ET/EU>
+.Ar <dst2 ET/EU>
 is omitted and the values
-.Pa <src ET/EU>
+.Ar <src ET/EU>
 are used in their place.
 The optional modifiers
-.Pa inv1
+.Dq inv1
 and
-.Pa inv2
+.Dq inv2
 specify whether the media units are to be inverted before insertion into
-.Pa <dst1 ET/EU>
+.Ar <dst1 ET/EU>
 and
-.Pa <dst2 ET/EU>
+.Ar <dst2 ET/EU>
 respectively.
 .Pp
 Note that not all medium changers support the
 .Ic exchange
 operation; the changer must have multiple free pickers or emulate
 multiple free pickers with transient storage.
-.It Xo Nm return
+.It Ic return Xo
 .Ar <from ET> <from EU>
 .Xc
 Return the media unit to its source element.
@@ -153,38 +153,39 @@ will move it to the element specified in its source attribute.
 This is a convenient way to return media from a drive or portal
 to its previous element in the changer.
 .Pp
-.It Xo Nm position
+.It Ic position Xo
 .Ar <to ET> <to EU>
-.Op Ar inv
+.Op inv
 .Xc
 Position the picker in front of the element described by
-.Pa <to ET/EU> .
+.Ar <to ET/EU> .
 If the optional modifier
-.Pa inv
+.Dq inv
 is specified, the media unit will be inverted before insertion.
 .Pp
 Note that not all changers behave as expected when issued this command.
-.It Nm params
+.It Ic params
 Report the number of slots, drives, pickers, and portals in the changer,
 and which picker unit the changer is currently configured to use.
-.It Nm getpicker
+.It Ic getpicker
 Report which picker unit the changer is currently configured to use.
-.It Xo Nm setpicker
+.It Ic setpicker Xo
 .Ar <unit>
 .Xc
 Configure the changer to use picker
-.Pa <unit> .
+.Ar <unit> .
 .Pp
-.It Xo Nm ielem
-.Op Pa <timeout>
+.It Ic ielem Xo
+.Op Ar <timeout>
 .Xc
-Perform an \fBINITIALIZE ELEMENT STATUS\fR
+Perform an
+.Em INITIALIZE ELEMENT STATUS
 operation on the changer.  The optional
-.Pa <timeout>
+.Ar <timeout>
 parameter may be given to specify a timeout in seconds for the
 operations.  This may be used if the operation takes unusually long
 because of buggy firmware or the like.
-.It Xo Nm voltag
+.It Ic voltag Xo
 .Op Fl fca
 .Ar <ET>
 .Ar <EU>
@@ -211,17 +212,18 @@ volume tag information defined.
 The command works with the primary volume tag or, if the
 .Fl a
 flag is given, with the alternate volume tag.
-.It Xo Nm status
+.It Ic status Xo
 .Op Fl vVsSbIa
 .Op Ar <type>
 .Xc
 Report the status of all elements in the changer.  If
-.Pa <type>
+.Ar <type>
 is specified, report the status of all elements of type
-.Pa <type> .
+.Ar <type> .
 .It Fl v
 Print the primary volume tag for each loaded medium, if any.  The volume
-tag is printed as \fB<LABEL:SERIAL>\fR.
+tag is printed as
+.Dq <LABEL:SERIAL> .
 .It Fl V
 Print the alternate volume tag for each loaded medium, if any.
 .It Fl s
@@ -260,14 +262,14 @@ Element supports receiving media (importing) from an outside human operator.
 .Pp
 .Sh EXAMPLES
 .Bl -tag -width indent
-.It Nm chio move slot 3 drive 0
+.It Li chio move slot 3 drive 0
 Move the media in slot 3 (fourth slot) to drive 0 (first drive).
-.It Nm chio move voltag VOLUME01 drive 0
+.It Li chio move voltag VOLUME01 drive 0
 Move the media with the barcode VOLUME01 to drive 0 (first drive).
-.It Nm chio return drive 0
+.It Li chio return drive 0
 Remove the tape from drive 0 (first drive) and return it to its original
 location in the rack.
-.It Nm chio setpicker 2
+.It Li chio setpicker 2
 Configure the changer to use picker 2 (third picker) for operations.
 .El
 .Sh FILES
