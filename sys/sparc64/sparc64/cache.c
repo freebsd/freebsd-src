@@ -150,9 +150,13 @@
  * avoided.
  */
 
+#include "opt_pmap.h"
+
 #include <sys/param.h>
+#include <sys/linker_set.h>
 #include <sys/proc.h>
 #include <sys/smp.h>
+#include <sys/sysctl.h>
 #include <sys/systm.h>
 
 #include <vm/vm.h>
@@ -170,6 +174,33 @@
 #include <machine/vmparam.h>
 
 struct cacheinfo cache;
+
+#ifdef PMAP_STATS
+static long dcache_npage_inval;
+static long dcache_npage_inval_line;
+static long dcache_npage_inval_match;
+static long icache_npage_inval;
+static long icache_npage_inval_line;
+static long icache_npage_inval_match;
+
+SYSCTL_DECL(_debug_pmap_stats);
+SYSCTL_LONG(_debug_pmap_stats, OID_AUTO, dcache_npage_inval, CTLFLAG_RD,
+    &dcache_npage_inval, 0, "Number of calls to dcache_page_inval");
+SYSCTL_LONG(_debug_pmap_stats, OID_AUTO, dcache_npage_inval_line, CTLFLAG_RD,
+    &dcache_npage_inval_line, 0, "Number of lines checked");
+SYSCTL_LONG(_debug_pmap_stats, OID_AUTO, dcache_npage_inval_match, CTLFLAG_RD,
+    &dcache_npage_inval_match, 0, "Number of matching lines");
+SYSCTL_LONG(_debug_pmap_stats, OID_AUTO, icache_npage_inval, CTLFLAG_RD,
+    &icache_npage_inval, 0, "Number of calls to icache_page_inval");
+SYSCTL_LONG(_debug_pmap_stats, OID_AUTO, icache_npage_inval_line, CTLFLAG_RD,
+    &icache_npage_inval_line, 0, "Number of lines checked");
+SYSCTL_LONG(_debug_pmap_stats, OID_AUTO, icache_npage_inval_match, CTLFLAG_RD,
+    &icache_npage_inval_match, 0, "Number of matching lines");
+
+#define	PMAP_STATS_INC(var)	atomic_add_long(&var, 1)
+#else
+#define	PMAP_STATS_INC(var)
+#endif
 
 /* Read to %g0, needed for E$ access. */
 #define	CDIAG_RDG0(asi, addr)						\
@@ -229,16 +260,20 @@ dcache_page_inval(vm_offset_t pa)
 
 	if (!cache.c_enabled)
 		return;
+	PMAP_STATS_INC(dcache_npage_inval);
 	target = pa >> (PAGE_SHIFT - DC_TAG_SHIFT);
 	critical_enter();
 	cookie = ipi_dcache_page_inval(pa);
 	for (addr = 0; addr < cache.dc_size; addr += cache.dc_linesize) {
+		PMAP_STATS_INC(dcache_npage_inval_line);
 		tag = ldxa(addr, ASI_DCACHE_TAG);
 		if (((tag >> DC_VALID_SHIFT) & DC_VALID_MASK) == 0)
 			continue;
 		tag &= DC_TAG_MASK << DC_TAG_SHIFT;
-		if (tag == target)
+		if (tag == target) {
+			PMAP_STATS_INC(dcache_npage_inval_match);
 			stxa_sync(addr, ASI_DCACHE_TAG, tag);
+		}
 	}
 	ipi_wait(cookie);
 	critical_exit();
@@ -257,17 +292,21 @@ icache_page_inval(vm_offset_t pa)
 
 	if (!cache.c_enabled)
 		return;
+	PMAP_STATS_INC(icache_npage_inval);
 	target = pa >> (PAGE_SHIFT - IC_TAG_SHIFT);
 	critical_enter();
 	cookie = ipi_icache_page_inval(pa);
 	for (addr = 0; addr < cache.ic_size; addr += cache.ic_linesize) {
+		PMAP_STATS_INC(icache_npage_inval_line);
 		__asm __volatile("ldda [%1] %2, %%g0" /*, %g1 */
 		    : "=r" (tag) : "r" (addr), "n" (ASI_ICACHE_TAG));
 		if (((tag >> IC_VALID_SHIFT) & IC_VALID_MASK) == 0)
 			continue;
 		tag &= IC_TAG_MASK << IC_TAG_SHIFT;
-		if (tag == target)
+		if (tag == target) {
+			PMAP_STATS_INC(icache_npage_inval_match);
 			stxa_sync(addr, ASI_ICACHE_TAG, tag);
+		}
 	}
 	ipi_wait(cookie);
 	critical_exit();
