@@ -124,6 +124,12 @@ struct nlist nl[] = {
 	{ "_dc_cnt" },
 #endif
 
+#ifdef __FreeBSD__
+#define PCCONS	(SNPTY+1)
+	{ "_pccons" },
+#define NPCCONS	(SNPTY+2)
+	{ "_npccons" },
+#endif
 	{ "" }
 };
 
@@ -714,10 +720,12 @@ ttymode()
 	if ((tty = malloc(ttyspace * sizeof(*tty))) == NULL)
 		err(1, NULL);
 #ifndef hp300
-	(void)printf("1 console\n");
-	KGET(SCONS, *tty);
-	(void)printf(hdr);
-	ttyprt(&tty[0], 0);
+	if (nl[SCONS].n_type != 0) {
+		(void)printf("1 console\n");
+		KGET(SCONS, *tty);
+		(void)printf(hdr);
+		ttyprt(&tty[0], 0);
+	}
 #endif
 #ifdef vax
 	if (nl[SNQD].n_type != 0) 
@@ -752,6 +760,10 @@ ttymode()
 #ifdef mips
 	if (nl[SNDC].n_type != 0)
 		ttytype(tty, "dc", SDC, SNDC);
+#endif
+#ifdef __FreeBSD__
+	if (nl[NPCCONS].n_type != 0)
+		ttytype(tty, "vty", PCCONS, NPCCONS);
 #endif
 	if (nl[SNPTY].n_type != 0)
 		ttytype(tty, "pty", SPTY, SNPTY);
@@ -819,7 +831,7 @@ ttyprt(tp, line)
 	else
 		(void)printf("%7s ", name);
 	(void)printf("%2d %3d ", tp->t_rawq.c_cc, tp->t_canq.c_cc);
-	(void)printf("%3d %4d %3d %3d ", tp->t_outq.c_cc, 
+	(void)printf("%3d %4d %3d %7d ", tp->t_outq.c_cc, 
 		tp->t_hiwat, tp->t_lowat, tp->t_column);
 	for (i = j = 0; ttystates[i].flag; i++)
 		if (tp->t_state&ttystates[i].flag)

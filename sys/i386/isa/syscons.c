@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: syscons.c,v 1.73 1994/10/26 21:51:22 bde Exp $
+ *	$Id: syscons.c,v 1.74 1994/10/27 05:47:09 phk Exp $
  */
 
 #include "sc.h"
@@ -287,6 +287,7 @@ struct	tty 		*pccons[NCONS+1];
 #define VIRTUAL_TTY(x)	&pccons[x]
 #define	CONSOLE_TTY	&pccons[NCONS]
 struct	tty 		pccons[NCONS+1];
+int			npccons	= NCONS;
 #endif
 #define	timeout_t	timeout_func_t
 #define	MONO_BUF	pa_to_va(0xB0000)
