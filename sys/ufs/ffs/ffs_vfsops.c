@@ -1478,6 +1478,16 @@ ffs_sbupdate(mp, waitfor)
 	 */
 	if (allerror)
 		return (allerror);
+	if (fs->fs_magic == FS_UFS1_MAGIC && fs->fs_sblockloc != SBLOCK_UFS1) {
+		printf("%s: correcting fs_sblockloc from %jd to %d\n",
+		    fs->fs_fsmnt, fs->fs_sblockloc, SBLOCK_UFS1);
+		fs->fs_sblockloc = SBLOCK_UFS1;
+	}
+	if (fs->fs_magic == FS_UFS2_MAGIC && fs->fs_sblockloc != SBLOCK_UFS2) {
+		printf("%s: correcting fs_sblockloc from %jd to %d\n",
+		    fs->fs_fsmnt, fs->fs_sblockloc, SBLOCK_UFS2);
+		fs->fs_sblockloc = SBLOCK_UFS2;
+	}
 	bp = getblk(mp->um_devvp, btodb(fs->fs_sblockloc), (int)fs->fs_sbsize,
 	    0, 0);
 	fs->fs_fmod = 0;
