@@ -51,7 +51,7 @@
 #include <sys/uio.h>
 #include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
-#include <bitstring.h>
+#include <sys/bitstring.h>
 #include "ng_bluetooth.h"
 #include "ng_hci.h"
 #include "ng_l2cap.h"
