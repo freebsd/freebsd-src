@@ -33,6 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
+ * $Id: request.h,v 1.16 1999/10/12 04:33:24 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -234,6 +235,7 @@ union daemoninfo {					    /* and the request information */
 struct daemonq {
     struct daemonq *next;				    /* pointer to next element in queue */
     enum daemonrq type;					    /* type of request */
+    int privateinuse;					    /* private element, being used */
     union daemoninfo info;				    /* and the request information */
 };
 
