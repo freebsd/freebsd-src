@@ -26,7 +26,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id: VOP_IOCTL.9,v 1.1 1997/03/03 18:00:21 dfr Exp $
+.\" $Id: VOP_IOCTL.9,v 1.2 1997/03/04 06:20:42 mpp Exp $
 .\"
 .Dd July 24, 1996
 .Os
@@ -35,9 +35,10 @@
 .Nm VOP_IOCTL
 .Nd device specific control
 .Sh SYNOPSIS
+.Fd #include <sys/param.h>
 .Fd #include <sys/vnode.h>
 .Ft int
-.Fn VOP_IOCTL "struct vnode *vp" "int command" "caddr_t data" "int fflag" "struct ucred *cred" "struct proc *p"
+.Fn VOP_IOCTL "struct vnode *vp" "u_long command" "caddr_t data" "int fflag" "struct ucred *cred" "struct proc *p"
 .Sh DESCRIPTION
 Manipulate a file in device dependent ways.
 .Pp
