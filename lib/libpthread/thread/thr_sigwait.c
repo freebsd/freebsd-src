@@ -55,8 +55,7 @@ lib_sigtimedwait(const sigset_t *set, siginfo_t *info,
 	kse_critical_t  crit;
 	siginfo_t	siginfo;
 
-	if (!_kse_isthreaded() ||
-	    (curthread->attr.flags & PTHREAD_SCOPE_SYSTEM)) {
+	if (curthread->attr.flags & PTHREAD_SCOPE_SYSTEM) {
 		if (info == NULL)
 			info = &siginfo;
 		return (__sys_sigtimedwait((sigset_t *)set, info,
