@@ -17,6 +17,9 @@ minimal number of processes, if possible, for that patch.  For those
 updates that don't have an advisory, or to be safe, you can do a full
 build and install as described in the COMMON ITEMS section.
 
+20030916:	p6	FreeBSD-SA-03:12.openssh
+	Follow-up fixes for OpenSSH oversized packet buffer handling.
+
 20030916:	p5	FreeBSD-SA-03:12.openssh
 	OpenSSH oversized packet buffer handling corrected.
 
