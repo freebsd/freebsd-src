@@ -754,6 +754,21 @@ dqinit()
 }
 
 /*
+ * Shut down the quota system.
+ */
+void
+dquninit()
+{
+	struct dquot *dq;
+
+	hashdestroy(dqhashtbl, M_DQUOT, dqhash);
+	while ((dq = TAILQ_FIRST(&dqfreelist)) != NULL) {
+		TAILQ_REMOVE(&dqfreelist, dq, dq_freelist);
+		free(dq, M_DQUOT);
+	}
+}
+
+/*
  * Obtain a dquot structure for the specified identifier and quota file
  * reading the information from the file if necessary.
  */

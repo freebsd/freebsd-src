@@ -85,7 +85,6 @@ static void ufsdirhash_delslot(struct dirhash *dh, int slot);
 static int ufsdirhash_findslot(struct dirhash *dh, char *name, int namelen,
 	   doff_t offset);
 static doff_t ufsdirhash_getprev(struct direct *dp, doff_t offset);
-static void ufsdirhash_init(void);
 static int ufsdirhash_recycle(int wanted);
 
 static uma_zone_t	ufsdirhash_zone;
@@ -1059,7 +1058,7 @@ ufsdirhash_recycle(int wanted)
 }
 
 
-static void
+void
 ufsdirhash_init()
 {
 	ufsdirhash_zone = uma_zcreate("DIRHASH", DH_NBLKOFF * sizeof(doff_t),
@@ -1067,7 +1066,13 @@ ufsdirhash_init()
 	mtx_init(&ufsdirhash_mtx, "dirhash list", NULL, MTX_DEF);
 	TAILQ_INIT(&ufsdirhash_list);
 }
-SYSINIT(ufsdirhash, SI_SUB_PSEUDO, SI_ORDER_ANY, ufsdirhash_init, NULL)
 
+void
+ufsdirhash_uninit()
+{
+	KASSERT(TAILQ_EMPTY(&ufsdirhash_list), ("ufsdirhash_uninit"));
+	uma_zdestroy(ufsdirhash_zone);
+	mtx_destroy(&ufsdirhash_mtx);
+}
 
 #endif /* UFS_DIRHASH */
