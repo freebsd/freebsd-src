@@ -65,6 +65,12 @@
 #define	CLKF_PC(framep)		((framep)->cf_eip)
 
 /*
+ * astpending bits
+ */
+#define	AST_PENDING	0x00000001
+#define	AST_RESCHED	0x00000002
+
+/*
  * Preempt the current process if in interrupt from user mode,
  * or after the current trap/syscall if in system mode.
  *
