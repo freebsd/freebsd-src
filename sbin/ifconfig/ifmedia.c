@@ -1,5 +1,5 @@
 /*	$NetBSD: ifconfig.c,v 1.34 1997/04/21 01:17:58 lukem Exp $	*/
-/*	$Id: ifmedia.c,v 1.2 1997/05/10 14:47:35 peter Exp $ */
+/*	$Id: ifmedia.c,v 1.3 1997/05/10 17:14:53 peter Exp $ */
 
 /*
  * Copyright (c) 1997 Jason R. Thorpe.
@@ -158,7 +158,7 @@ media_status(s, info)
 
 	putchar('\n');
 
-	if (allmedia) {
+	if (ifmr.ifm_count > 0) {
 		printf("\tsupported media:");
 		for (i = 0; i < ifmr.ifm_count; i++) {
 			putchar(' ');

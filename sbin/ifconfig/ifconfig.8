@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
-.\"	$Id: ifconfig.8,v 1.13 1997/05/03 23:03:56 peter Exp $
+.\"	$Id: ifconfig.8,v 1.14 1997/09/27 02:55:39 peter Exp $
 .\"
 .Dd February 13, 1996
 .Dt IFCONFIG 8
@@ -47,12 +47,7 @@
 .Oc
 .Op Ar parameters
 .Nm ifconfig
-.Op Fl m
-.Ar interface
-.Op Ar protocol_family
-.Nm ifconfig
 .Fl a
-.Op Fl m
 .Op Fl d
 .Op Fl u
 .Op Ar protocol_family
@@ -298,13 +293,8 @@ when no optional parameters are supplied.
 If a protocol family is specified,
 Ifconfig will report only the details specific to that protocol family.
 .Pp
-If the
-.Fl m
-flag is passed before an interface name,
-.Nm
-will display all of the supported media for the specified interface.
-If the driver does not support the media selection system, the list will
-be blank - no media options supported.
+If the driver does supports the media selection system, the supported
+media list will be included in the output.
 .Pp
 Optionally, the
 .Fl a
