@@ -967,6 +967,8 @@ PCI and ISA adapters are all supported.
 Cisco Systems Aironet 340 Series (includes 340, 341, and 342 models)
 11Mbps 802.11 wireless NIC
 
+Webgear Aviator 2.4GHz wireless adapters
+
 Toshiba Mobile HDD MEHDD20A (Type II)
 
 FAX-Modem/PC-Card
