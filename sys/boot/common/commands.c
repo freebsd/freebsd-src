@@ -100,7 +100,7 @@ help_getnext(int fd, char **topic, char **subtopic, char **desc)
     }
 }
 
-static void
+static int
 help_emitsummary(char *topic, char *subtopic, char *desc)
 {
     int		i;
@@ -119,7 +119,7 @@ help_emitsummary(char *topic, char *subtopic, char *desc)
 	} while (i++ < 30);
 	pager_output(desc);
     }
-    pager_output("\n");
+    return (pager_output("\n"));
 }
 
 	    
@@ -162,7 +162,8 @@ command_help(int argc, char *argv[])
     while(help_getnext(hfd, &t, &s, &d)) {
 
 	if (doindex) {		/* dink around formatting */
-	    help_emitsummary(t, s, d);
+	    if (help_emitsummary(t, s, d))
+		break;
 
 	} else if (strcmp(topic, t)) {
 	    /* topic mismatch */
@@ -183,7 +184,8 @@ command_help(int argc, char *argv[])
 		}
 	    } else if ((subtopic == NULL) && (s != NULL)) {
 		/* topic match, list subtopics */
-		help_emitsummary(t, s, d);
+		if (help_emitsummary(t, s, d))
+		    break;
 	    }
 	}
 	free(t);
