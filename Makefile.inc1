@@ -125,6 +125,10 @@ WORLDTMP=	${OBJTREE}${.CURDIR}/${BUILD_ARCH}
 STRICTTMPPATH=	${WORLDTMP}/usr/sbin:${WORLDTMP}/usr/bin:${WORLDTMP}/usr/games
 TMPPATH=	${STRICTTMPPATH}:${PATH}
 
+TMPDIR?=	/tmp
+TMPPID!=	echo $$$$
+INSTALLTMP=	${TMPDIR}/install.${TMPPID}
+
 #
 # Building a world goes through the following stages
 #
@@ -186,7 +190,7 @@ WMAKE=		${WMAKEENV} ${MAKE} -f Makefile.inc1
 
 # install stage
 IMAKEENV=	${CROSSENV} \
-		PATH=${TMPPATH}
+		PATH=${STRICTTMPPATH}:${INSTALLTMP}
 IMAKE=		${IMAKEENV} ${MAKE} -f Makefile.inc1
 
 USRDIRS=	usr/bin usr/lib/compat/aout usr/games usr/libdata/ldscripts \
@@ -300,7 +304,14 @@ everything:
 # Installs everything compiled by a 'buildworld'.
 #
 installworld:
+	mkdir -p ${INSTALLTMP}
+	for prog in [ cat chflags chown date echo egrep find grep install \
+	    install-info ln make makewhatis mv perl rm sed sh sysctl test \
+	    true uname zic; do \
+		cp `which $$prog` ${INSTALLTMP}; \
+	done
 	cd ${.CURDIR}; ${IMAKE} reinstall
+	rm -rf ${INSTALLTMP}
 
 #
 # reinstall
@@ -497,7 +508,7 @@ _strfile=	games/fortune/strfile
 
 bootstrap-tools:
 .for _tool in ${_strfile} usr.bin/yacc usr.bin/colldef usr.sbin/config \
-    gnu/usr.bin/gperf gnu/usr.bin/texinfo usr.sbin/mtree
+    usr.sbin/mtree gnu/usr.bin/gperf gnu/usr.bin/texinfo
 	cd ${.CURDIR}/${_tool}; \
 		${MAKE} obj; \
 		${MAKE} depend; \
