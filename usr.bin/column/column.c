@@ -69,7 +69,7 @@ int entries;			/* number of records */
 int eval;			/* exit value */
 int maxlength;			/* longest record */
 char **list;			/* array of pointers to records */
-char *separator = "\t ";	/* field separator for table option */
+const char *separator = "\t ";	/* field separator for table option */
 
 int
 main(argc, argv)
