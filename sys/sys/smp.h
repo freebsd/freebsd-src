@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: smp.h,v 1.7 1997/07/13 00:26:07 smp Exp smp $
+ * $Id: smp.h,v 1.8 1997/07/20 17:48:00 smp Exp smp $
  *
  */
 
@@ -110,7 +110,7 @@ extern volatile ioapic_t	*ioapic[];
 #endif /* MULTIPLE_IOAPICS */
 
 /* functions in mpapic.c */
-void	apic_dump		__P((void));
+void	apic_dump		__P((char*));
 void	apic_initialize		__P((void));
 int	apic_ipi		__P((int, int, int));
 int	selected_apic_ipi	__P((u_int, int, int));
