@@ -267,13 +267,8 @@ getent(cap, len, db_array, fd, name, depth, nfield)
 				return (retval);
 			} else {
 				fd = open(*db_p, O_RDONLY, 0);
-				if (fd < 0) {
-					/* No error on unfound file. */
-					if (errno == ENOENT)
-						continue;
-					free(record);
-					return (-2);
-				}
+				if (fd < 0)
+					continue;
 				myfd = 1;
 			}
 		}
