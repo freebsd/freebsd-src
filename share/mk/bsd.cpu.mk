@@ -25,7 +25,9 @@ MACHINE_CPU = arm
 # between e.g. i586 and pentium)
 
 . if ${MACHINE_ARCH} == "i386"
-.  if ${CPUTYPE} == "p4"
+.  if ${CPUTYPE} == "nocona"
+CPUTYPE = prescott
+.  elif ${CPUTYPE} == "p4"
 CPUTYPE = pentium4
 .  elif ${CPUTYPE} == "p4m"
 CPUTYPE = pentium4m
@@ -43,12 +45,15 @@ CPUTYPE = pentiumpro
 CPUTYPE = pentium-mmx
 .  elif ${CPUTYPE} == "i586"
 CPUTYPE = pentium
-.  elif ${CPUTYPE} == "opteron"
+.  elif ${CPUTYPE} == "opteron" || ${CPUTYPE} == "athlon64" || \
+     ${CPUTYPE} == "k8"
 CPUTYPE = athlon-mp
-.  elif ${CPUTYPE} == "athlon64"
-CPUTYPE = athlon-xp
 .  elif ${CPUTYPE} == "k7"
 CPUTYPE = athlon
+.  endif
+. elif ${MACHINE_ARCH} == "amd64"
+.  if ${CPUTYPE} == "prescott"
+CPUTYPE = nocona
 .  endif
 . endif
 
@@ -97,6 +102,8 @@ _ICC_CPUCFLAGS =
 .  endif # ICC on 'i386'
 . elif ${MACHINE_ARCH} == "alpha"
 _CPUCFLAGS = -mcpu=${CPUTYPE}
+. elif ${MACHINE_ARCH} == "amd64"
+_CPUCFLAGS = -march=${CPUTYPE}
 . elif ${MACHINE_ARCH} == "arm"
 .  if ${CPUTYPE} == "xscale"
 #XXX: gcc doesn't seem to like -mcpu=xscale, and dies while rebuilding itself
@@ -112,7 +119,9 @@ _CPUCFLAGS = -mcpu=${CPUTYPE}
 # presence of a CPU feature.
 
 . if ${MACHINE_ARCH} == "i386"
-.  if ${CPUTYPE} == "athlon-mp" || ${CPUTYPE} == "athlon-xp" || \
+.  if ${CPUTYPE} == "opteron" || ${CPUTYPE} == "athlon64"
+MACHINE_CPU = athlon-xp athlon k7 3dnow sse2 sse mmx k6 k5 i586 i486 i386
+.  elif ${CPUTYPE} == "athlon-mp" || ${CPUTYPE} == "athlon-xp" || \
     ${CPUTYPE} == "athlon-4"
 MACHINE_CPU = athlon-xp athlon k7 3dnow sse mmx k6 k5 i586 i486 i386
 .  elif ${CPUTYPE} == "athlon" || ${CPUTYPE} == "athlon-tbird"
@@ -123,8 +132,7 @@ MACHINE_CPU = 3dnow mmx k6 k5 i586 i486 i386
 MACHINE_CPU = mmx k6 k5 i586 i486 i386
 .  elif ${CPUTYPE} == "k5"
 MACHINE_CPU = k5 i586 i486 i386
-.  elif ${CPUTYPE} == "pentium4" || ${CPUTYPE} == "pentium4m" || \
-     ${CPUTYPE} == "pentium-m"
+.  elif ${CPUTYPE} == "pentium4" || ${CPUTYPE} == "pentium4m" || ${CPUTYPE} == "pentium-m"
 MACHINE_CPU = sse2 sse i686 mmx i586 i486 i386
 .  elif ${CPUTYPE} == "pentium3" || ${CPUTYPE} == "pentium3m"
 MACHINE_CPU = sse i686 mmx i586 i486 i386
@@ -156,7 +164,11 @@ MACHINE_CPU = ev45 ev4
 MACHINE_CPU = ev4
 .  endif
 . elif ${MACHINE_ARCH} == "amd64"
-MACHINE_CPU = amd64 sse2 sse
+.  if ${CPUTYPE} == "opteron" || ${CPUTYPE} == "athlon64" || ${CPUTYPE} == "k8"
+MACHINE_CPU = amd64 k8 athlon-mp athlon k7 3dnow sse2 sse mmx k6 k5 i586 i486 i386
+.  elif ${CPUTYPE} == "nocona"
+MACHINE_CPU = sse3 sse2 sse mmx
+.  endif
 . elif ${MACHINE_ARCH} == "ia64"
 .  if ${CPUTYPE} == "itanium"
 MACHINE_CPU = itanium
