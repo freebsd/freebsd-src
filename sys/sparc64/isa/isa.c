@@ -25,9 +25,10 @@
  * SUCH DAMAGE.
  *
  *	from: FreeBSD: src/sys/alpha/isa/isa.c,v 1.26 2001/07/11
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -66,11 +67,13 @@ static u_int64_t isa_mem_limit;
 device_t isa_bus_device;
 
 static phandle_t isab_node;
+static struct isa_ranges *isab_ranges;
+static int isab_nrange;
 static ofw_pci_intr_t isa_ino[8];
-struct ofw_bus_iinfo isa_iinfo;
+static struct ofw_bus_iinfo isa_iinfo;
 
 /*
- * XXX: This is really partly partly PCI-specific, but unfortunately is
+ * XXX: This is really partly PCI-specific, but unfortunately is
  * differently enough to have to duplicate it here...
  */
 #define	ISAB_RANGE_PHYS(r)						\
@@ -82,7 +85,7 @@ struct ofw_bus_iinfo isa_iinfo;
 
 #define INRANGE(x, start, end)	((x) >= (start) && (x) <= (end))
 
-static int isa_route_intr_res(device_t, u_long, u_long);
+static void	isa_setup_children(device_t, phandle_t);
 
 intrmask_t
 isa_irq_pending(void)
@@ -105,16 +108,14 @@ void
 isa_init(device_t dev)
 {
 	device_t bridge;
-	phandle_t node;
-	ofw_isa_intr_t ino;
-	struct isa_ranges *br;
-	int nbr, i;
+	int i;
 
 	/* The parent of the bus must be a PCI-ISA bridge. */
 	bridge = device_get_parent(dev);
 	isab_node = ofw_bus_get_node(bridge);
-	nbr = OF_getprop_alloc(isab_node, "ranges", sizeof(*br), (void **)&br);
-	if (nbr <= 0)
+	isab_nrange = OF_getprop_alloc(isab_node, "ranges",
+	    sizeof(*isab_ranges), (void **)&isab_ranges);
+	if (isab_nrange <= 0)
 		panic("isa_init: cannot get bridge range property");
 
 	ofw_bus_setup_iinfo(isab_node, &isa_iinfo, sizeof(ofw_isa_intr_t));
@@ -123,54 +124,175 @@ isa_init(device_t dev)
 	 * This is really a bad kludge; however, it is needed to provide
 	 * isa_irq_pending(), which is unfortunately still used by some
 	 * drivers.
+	 * XXX:	The only driver still using isa_irq_pending() is sio(4)
+	 *	which we don't use on sparc64. Should we just drop support
+	 *	for isa_irq_pending()?
 	 */
 	for (i = 0; i < 8; i++)
 		isa_ino[i] = PCI_INVALID_IRQ;
-	for (node = OF_child(isab_node); node != 0; node = OF_peer(node)) {
-		if (OF_getprop(node, "interrupts", &ino, sizeof(ino)) == -1)
-			continue;
-		if (ino > 7)
-			panic("isa_init: XXX: ino too large");
-		isa_ino[ino] = ofw_isa_route_intr(bridge, node, &isa_iinfo,
-		    ino);
-	}
 
-	for (nbr -= 1; nbr >= 0; nbr--) {
-		switch(ISAB_RANGE_SPACE(br + nbr)) {
+	isa_setup_children(dev, isab_node);
+
+	for (i = isab_nrange - 1; i >= 0; i--) {
+		switch(ISAB_RANGE_SPACE(&isab_ranges[i])) {
 		case ISAR_SPACE_IO:
 			/* This is probably always 0. */
-			isa_io_base = ISAB_RANGE_PHYS(&br[nbr]);
-			isa_io_limit = br[nbr].size;
+			isa_io_base = ISAB_RANGE_PHYS(&isab_ranges[i]);
+			isa_io_limit = isab_ranges[i].size;
 			isa_io_hdl = OFW_PCI_GET_BUS_HANDLE(bridge,
 			    SYS_RES_IOPORT, isa_io_base, &isa_io_bt);
 			break;
 		case ISAR_SPACE_MEM:
 			/* This is probably always 0. */
-			isa_mem_base = ISAB_RANGE_PHYS(&br[nbr]);
-			isa_mem_limit = br[nbr].size;
+			isa_mem_base = ISAB_RANGE_PHYS(&isab_ranges[i]);
+			isa_mem_limit = isab_ranges[i].size;
 			isa_mem_hdl = OFW_PCI_GET_BUS_HANDLE(bridge,
 			    SYS_RES_MEMORY, isa_mem_base, &isa_mem_bt);
 			break;
 		}
 	}
-	free(br, M_OFWPROP);
 }
 
-static int
-isa_route_intr_res(device_t bus, u_long start, u_long end)
-{
-	int res;
+struct ofw_isa_pnp_map {
+	const char	*name;
+	uint32_t	id;
+};
 
-	if (start != end) {
-		panic("isa_route_intr_res: allocation of interrupt range not "
-		    "supported (0x%lx - 0x%lx)", start, end);
+static struct ofw_isa_pnp_map pnp_map[] = {
+	{ "SUNW,lomh",	0x0000ae4e }, /* SUN0000 */
+	{ "dma",	0x0002d041 }, /* PNP0200 */
+	{ "floppy",	0x0007d041 }, /* PNP0700 */
+	{ "rtc",	0x000bd041 }, /* PNP0B00 */
+	{ "flashprom",	0x0100ae4e }, /* SUN0001 */
+	{ "parallel",	0x0104d041 }, /* PNP0401 */
+	{ "serial",	0x0105d041 }, /* PNP0501 */
+	{ "kb_ps2",	0x0303d041 }, /* PNP0303 */
+	{ "kdmouse",	0x030fd041 }, /* PNP0F03 */
+	{ "power",	0x0c0cd041 }, /* PNP0C0C */
+	{ NULL,		0x0 }
+};
+
+static void
+isa_setup_children(device_t dev, phandle_t parent)
+{
+	struct isa_regs *regs;
+	device_t cdev;
+	u_int64_t end, start;
+	ofw_isa_intr_t *intrs, rintr;
+	phandle_t node;
+	uint32_t *drqs, *regidx;
+	int i, ndrq, nintr, nreg, nregidx, rtype;
+	char *name;
+
+	/*
+	 * Loop through children and fake up PnP devices for them.
+	 * Their resources are added as fully mapped and specified because
+	 * adjusting the resources and the resource list entries respectively
+	 * in isa_alloc_resource() causes trouble with drivers which use
+	 * rman_get_start(), pass-through or allocate and release resources
+	 * multiple times, etc. Adjusting the resources might be better off
+	 * in a bus_activate_resource method but the common ISA code doesn't
+	 * allow for an isa_activate_resource().
+	 */
+	for (node = OF_child(parent); node != 0; node = OF_peer(node)) {
+		if ((OF_getprop_alloc(node, "name", 1, (void **)&name)) == -1)
+			continue;
+
+		/*
+		 * Keyboard and mouse controllers hang off of the `8042'
+		 * node but we have no real use for the `8042' itself.
+		 */
+		if (strcmp(name, "8042") == 0) {
+			isa_setup_children(dev, node);
+			free(name, M_OFWPROP);
+			continue;
+		}
+
+		for (i = 0; pnp_map[i].name != NULL; i++)
+			if (strcmp(pnp_map[i].name, name) == 0)
+				break;
+		if (i == (sizeof(pnp_map) / sizeof(*pnp_map)) - 1) {
+			printf("isa_setup_children: no PnP map entry for node "
+			    "0x%lx: %s\n", (unsigned long)node, name);
+			continue;
+		}
+
+		if ((cdev = BUS_ADD_CHILD(dev, ISA_ORDER_PNP, NULL, -1)) ==
+		    NULL)
+			panic("isa_setup_children: BUS_ADD_CHILD failed");
+		isa_set_logicalid(cdev, pnp_map[i].id);
+		isa_set_vendorid(cdev, pnp_map[i].id);
+
+		nreg = OF_getprop_alloc(node, "reg", sizeof(*regs),
+		    (void **)&regs);
+		for (i = 0; i < nreg; i++) {
+			start = ISA_REG_PHYS(&regs[i]);
+			end = start + regs[i].size - 1;
+			rtype = ofw_isa_range_map(isab_ranges, isab_nrange,
+			    &start, &end, NULL);
+			bus_set_resource(cdev, rtype, i, start,
+			    end - start + 1);
+		}
+		if (nreg == -1 && parent != isab_node) {
+			/*
+			 * The "reg" property still might be an index into
+			 * the set of registers of the parent device like
+			 * with the nodes hanging off of the `8042' node.
+			 */
+			nregidx = OF_getprop_alloc(node, "reg", sizeof(*regidx),
+			    (void **)&regidx);
+			if (nregidx > 2)
+				panic("isa_setup_children: impossible number "
+				    "of register indices");
+			if (nregidx != -1 && (nreg = OF_getprop_alloc(parent,
+			    "reg", sizeof(*regs), (void **)&regs)) >= nregidx) {
+				for (i = 0; i < nregidx; i++) {
+					start = ISA_REG_PHYS(&regs[regidx[i]]);
+					end = start + regs[regidx[i]].size - 1;
+					rtype = ofw_isa_range_map(isab_ranges,
+					    isab_nrange, &start, &end, NULL);
+					bus_set_resource(cdev, rtype, i, start,
+					    end - start + 1);
+				}
+			}
+			if (regidx != NULL)
+				free(regidx, M_OFWPROP);
+		}
+		if (regs != NULL)
+			free(regs, M_OFWPROP);
+
+		nintr = OF_getprop_alloc(node, "interrupts", sizeof(*intrs),
+		    (void **)&intrs);
+		for (i = 0; i < nintr; i++) {
+			if (intrs[i] > 7)
+				panic("isa_setup_children: intr too large");
+			rintr = ofw_isa_route_intr(device_get_parent(dev), node,
+			    &isa_iinfo, intrs[i]);
+			if (rintr == PCI_INVALID_IRQ)
+				panic("isa_setup_children: could not map ISA "
+				    "interrupt %d", intrs[i]);
+			isa_ino[intrs[i]] = rintr;
+			bus_set_resource(cdev, SYS_RES_IRQ, i, rintr, 1);
+		}
+		if (intrs != NULL)
+			free(intrs, M_OFWPROP);
+
+		ndrq = OF_getprop_alloc(node, "dma-channel", sizeof(*drqs),
+		    (void **)&drqs);
+		for (i = 0; i < ndrq; i++)
+			bus_set_resource(cdev, SYS_RES_DRQ, i, drqs[i], 1);
+		if (drqs != NULL)
+			free(drqs, M_OFWPROP);
+
+		/*
+		 * Devices using DMA hang off of the `dma' node instead of
+		 * directly from the ISA bridge node.
+		 */
+		if (strcmp(name, "dma") == 0)
+			isa_setup_children(dev, node);
+
+		free(name, M_OFWPROP);
 	}
-	if (start > 7)
-		panic("isa_route_intr_res: start out of isa range");
-	res = isa_ino[start];
-	if (res == PCI_INVALID_IRQ)
-		device_printf(bus, "could not map interrupt %d\n", res);
-	return (res);
 }
 
 struct resource *
@@ -217,93 +339,45 @@ isa_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	}
 
 	/*
-	 * Add the base, change default allocations to be between base and
-	 * limit, and reject allocations if a resource type is not enabled.
+	 * Sanity check if the resource in the respective entry is fully
+	 * mapped and specified and its type allocable. A driver could
+	 * have added an out of range resource on its own.
 	 */
-	base = limit = 0;
-	switch(type) {
-	case SYS_RES_MEMORY:
-		if (isa_mem_bt == NULL)
+	if (!passthrough) {
+		if ((rle = resource_list_find(rl, type, *rid)) == NULL)
 			return (NULL);
-		base = isa_mem_base;
-		limit = base + isa_mem_limit;
-		break;
-	case SYS_RES_IOPORT:
-		if (isa_io_bt == NULL)
-			return (NULL);
-		base = isa_io_base;
-		limit = base + isa_io_limit;
-		break;
-	case SYS_RES_IRQ:
-		if (isdefault && passthrough)
-			panic("isa_alloc_resource: cannot pass through default "
-			    "irq allocation");
-		if (!isdefault) {
-			start = end = isa_route_intr_res(bus, start, end);
-			if (start == PCI_INVALID_IRQ)
-				return (NULL);
-		}
-		break;
-	default:
-		panic("isa_alloc_resource: unsupported resource type %d", type);
-	}
-	if (type == SYS_RES_MEMORY || type == SYS_RES_IOPORT) {
-		start = ulmin(start + base, limit);
-		end = ulmin(end + base, limit);
-	}
-
-	/*
-	 * This inlines a modified resource_list_alloc(); this is needed
-	 * because the resources need to have offsets added to them, which
-	 * cannot be done beforehand without patching the resource list entries
-	 * (which is ugly).
-	 */
-	if (passthrough) {
-		return (BUS_ALLOC_RESOURCE(device_get_parent(bus), child,
-		    type, rid, start, end, count, flags));
-	}
-
-	rle = resource_list_find(rl, type, *rid);
-	if (rle == NULL)
-		return (NULL);		/* no resource of that type/rid */
-
-	if (rle->res != NULL)
-		panic("isa_alloc_resource: resource entry is busy");
-
-	if (isdefault) {
-		start = rle->start;
-		count = ulmax(count, rle->count);
-		end = ulmax(rle->end, start + count - 1);
+		base = limit = 0;
 		switch (type) {
 		case SYS_RES_MEMORY:
-		case SYS_RES_IOPORT:
-			start += base;
-			end += base;
-			if (!INRANGE(start, base, limit) ||
-			    !INRANGE(end, base, limit))
+			if (isa_mem_bt == NULL)
 				return (NULL);
+			base = isa_mem_base;
+			limit = base + isa_mem_limit;
+			break;
+		case SYS_RES_IOPORT:
+			if (isa_io_bt == NULL)
+				return (NULL);
+			base = isa_io_base;
+			limit = base + isa_io_limit;
 			break;
 		case SYS_RES_IRQ:
-			start = end = isa_route_intr_res(bus, start, end);
-			if (start == PCI_INVALID_IRQ)
+			if (rle->start != rle->end || rle->start <= 7)
 				return (NULL);
 			break;
+		case SYS_RES_DRQ:
+			break;
+		default:
+			return (NULL);
+		}
+		if (type == SYS_RES_MEMORY || type == SYS_RES_IOPORT) {
+			if (!INRANGE(rle->start, base, limit) ||
+			    !INRANGE(rle->end, base, limit))
+				return (NULL);
 		}
 	}
 
-	rle->res = BUS_ALLOC_RESOURCE(device_get_parent(bus), child,
-	    type, rid, start, end, count, flags);
-
-	/*
-	 * Record the new range.
-	 */
-	if (rle->res != NULL) {
-		rle->start = rman_get_start(rle->res) - base;
-		rle->end = rman_get_end(rle->res) - base;
-		rle->count = count;
-	}
-
-	return (rle->res);
+	return (resource_list_alloc(rl, bus, child, type, rid, start, end,
+	    count, flags));
 }
 
 int
