@@ -85,7 +85,9 @@ static int do_dup(struct thread *td, enum dup_type type, int old, int new,
 static int	fd_first_free(struct filedesc *, int, int);
 static int	fd_last_used(struct filedesc *, int, int);
 static void	fdgrowtable(struct filedesc *, int);
+static int	fdrop_locked(struct file *fp, struct thread *td);
 static void	fdunused(struct filedesc *fdp, int fd);
+static void	fdused(struct filedesc *fdp, int fd);
 
 /*
  * A process is initially started out with NDFILE descriptors stored within
@@ -198,7 +200,7 @@ fdisused(struct filedesc *fdp, int fd)
 /*
  * Mark a file descriptor as used.
  */
-void
+static void
 fdused(struct filedesc *fdp, int fd)
 {
 	FILEDESC_LOCK_ASSERT(fdp, MA_OWNED);
@@ -2103,7 +2105,7 @@ fdrop(struct file *fp, struct thread *td)
  * reference hits zero.
  * Expects struct file locked, and will unlock it.
  */
-int
+static int
 fdrop_locked(struct file *fp, struct thread *td)
 {
 	int error;
