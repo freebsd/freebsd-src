@@ -84,11 +84,11 @@ void _msgout(char* msg)
 {
 #ifdef RPC_SVC_FG
 	if (_rpcpmstart)
-		syslog(LOG_ERR, msg);
+		syslog(LOG_ERR, "%s", msg);
 	else
 		warnx("%s", msg);
 #else
-	syslog(LOG_ERR, msg);
+	syslog(LOG_ERR, "%s", msg);
 #endif
 }
 
