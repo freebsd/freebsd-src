@@ -2,6 +2,8 @@
 
 PROG=	locate.bigram
 NOMAN=	noman
-BINDIR=	/usr/libexec
+BINDIR=	${LIBEXECDIR}
+CFLAGS+= -I${.CURDIR}/../locate
 
+.include "../Makefile.inc"
 .include <bsd.prog.mk>

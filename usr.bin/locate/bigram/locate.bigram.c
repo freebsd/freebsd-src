@@ -53,32 +53,65 @@ static char sccsid[] = "@(#)locate.bigram.c	8.1 (Berkeley) 6/6/93";
 
 #include <stdio.h>
 #include <sys/param.h>			/* for MAXPATHLEN */
+#include <string.h>			/* memchr */
+#include "locate.h"
 
-char buf1[MAXPATHLEN] = " ";
-char buf2[MAXPATHLEN];
+u_char buf1[MAXPATHLEN] = " ";
+u_char buf2[MAXPATHLEN];
+unsigned int bigram[UCHAR_MAX][UCHAR_MAX];
 
-main ( )
+
+void main ( )
 {
-  	register char *cp;
-	register char *oldpath = buf1, *path = buf2;
+  	register u_char *cp;
+	register u_char *oldpath = buf1, *path = buf2;
+	register int i, j;
+
+	/* init bigram buffer */
+	for (i = 0; i < UCHAR_MAX; i++)
+	    	for (j = 0; j < UCHAR_MAX; j++)
+			bigram[i][j] = 0;
 
      	while ( fgets ( path, sizeof(buf2), stdin ) != NULL ) {
 
+	    	/* skip empty lines */
+		if (*path == '\n')
+			continue;
+
+		/* Squelch characters that would botch the decoding. */
+		for (cp = path; *cp != NULL; cp++) {
+			/* chop newline */
+			if (*cp == '\n')
+				*cp = NULL;
+			/* range */
+			else if (*cp < ASCII_MIN || *cp > ASCII_MAX)
+				*cp = '?';
+		}
+
+
 		/* skip longest common prefix */
-		for ( cp = path; *cp == *oldpath; cp++, oldpath++ )
-			if ( *oldpath == NULL )
-				break;
+		for (cp = path; *cp == *oldpath && *cp; cp++, oldpath++);
+
 		/*
 		 * output post-residue bigrams only
 		 */
+
+		/* check later for boundary */
 		while ( *cp != NULL && *(cp + 1) != NULL ) {
-			putchar ( *cp++ );
-			putchar ( *cp++ );
-			putchar ( '\n' );
+			bigram[*cp][*(cp+1)]++;
+			cp += 2;
 		}
+
 		if ( path == buf1 )		/* swap pointers */
 			path = buf2, oldpath = buf1;
 		else
 			path = buf1, oldpath = buf2;
    	}
+
+	/* output, boundary check */
+	for (i = ASCII_MIN; i <= ASCII_MAX; i++)
+		for (j = ASCII_MIN; j <= ASCII_MAX; j++)
+			if (bigram[i][j] != 0)
+				fprintf(stdout, "%4d %c%c\n",
+					bigram[i][j], i, j);
 }
