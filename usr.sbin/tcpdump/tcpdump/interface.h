@@ -18,11 +18,13 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * @(#) $Header: interface.h,v 1.46 92/06/02 17:57:22 mccanne Exp $ (LBL)
+ * @(#) $Header: /a/cvs/386BSD/src/contrib/tcpdump/tcpdump/interface.h,v 1.1.1.1 1993/06/12 14:42:12 rgrimes Exp $ (LBL)
  */
 
 #ifdef __GNUC__
+#ifndef inline
 #define inline __inline
+#endif
 #else
 #define inline
 #endif
