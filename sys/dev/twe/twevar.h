@@ -84,7 +84,6 @@ struct twe_request
 #define TWE_CMD_SETUP		0	/* being assembled */
 #define TWE_CMD_BUSY		1	/* submitted to controller */
 #define TWE_CMD_COMPLETE	2	/* completed by controller (maybe with error) */
-#define TWE_CMD_FAILED		3	/* failed submission to controller */
     int				tr_flags;
 #define TWE_CMD_DATAIN		(1<<0)
 #define TWE_CMD_DATAOUT		(1<<1)
@@ -122,9 +121,7 @@ struct twe_softc
 #define TWE_STATE_OPEN		(1<<2)	/* control device is open */
 #define TWE_STATE_SUSPEND	(1<<3)	/* controller is suspended */
     int			twe_host_id;
-#ifdef TWE_PERFORMANCE_MONITOR
     struct twe_qstat	twe_qstat[TWEQ_COUNT];	/* queue statistics */
-#endif
 
     TWE_PLATFORM_SOFTC		/* platform-specific softc elements */
 };
@@ -136,8 +133,9 @@ extern int	twe_setup(struct twe_softc *sc);		/* do early driver/controller setup
 extern void	twe_init(struct twe_softc *sc);			/* init controller */
 extern void	twe_deinit(struct twe_softc *sc);		/* stop controller */
 extern void	twe_intr(struct twe_softc *sc);			/* hardware interrupt signalled */
-extern int	twe_submit_bio(struct twe_softc *sc, 
-				       twe_bio *bp);		/* pass bio to core */
+extern void	twe_startio(struct twe_softc *sc);
+extern int	twe_dump_blocks(struct twe_softc *sc, int unit,	/* crashdump block write */
+				u_int32_t lba, void *data, int nblks);
 extern int	twe_ioctl(struct twe_softc *sc, int cmd,
 				  void *addr);			/* handle user request */
 extern void	twe_describe_controller(struct twe_softc *sc);	/* print controller info */
@@ -156,8 +154,7 @@ extern void	twe_unmap_request(struct twe_request *tr);	/* cleanup after transfer
 /********************************************************************************
  * Queue primitives
  */
-#ifdef TWE_PERFORMANCE_MONITOR
-# define TWEQ_ADD(sc, qname)					\
+#define TWEQ_ADD(sc, qname)					\
 	do {							\
 	    struct twe_qstat *qs = &(sc)->twe_qstat[qname];	\
 								\
@@ -166,17 +163,12 @@ extern void	twe_unmap_request(struct twe_request *tr);	/* cleanup after transfer
 		qs->q_max = qs->q_length;			\
 	} while(0)
 
-# define TWEQ_REMOVE(sc, qname)    (sc)->twe_qstat[qname].q_length--
-# define TWEQ_INIT(sc, qname)			\
+#define TWEQ_REMOVE(sc, qname)    (sc)->twe_qstat[qname].q_length--
+#define TWEQ_INIT(sc, qname)			\
 	do {					\
 	    sc->twe_qstat[qname].q_length = 0;	\
 	    sc->twe_qstat[qname].q_max = 0;	\
 	} while(0)
-#else
-# define TWEQ_ADD(sc, qname)
-# define TWEQ_REMOVE(sc, qname)
-# define TWEQ_INIT(sc, qname)
-#endif
 
 
 #define TWEQ_REQUEST_QUEUE(name, index)					\
