@@ -72,6 +72,8 @@ sed	-e 's/ident.*GENERIC/ident		BOOTMFS/g' \
 	-e '/	wb	/d' \
 	-e '/	xl	/d'
 
+	echo "options 	ATA_NOPCI" 
+
 else
 
 sed	-e 's/ident.*GENERIC/ident		BOOTMFS/g' \
