@@ -136,7 +136,18 @@ create_knlist(name, db)
 		if (strcmp((char *)key.data, VRS_SYM) == 0) {
 			long cur_off, voff;
 #ifndef KERNTEXTOFF
+/*
+ * XXX
+ * The FreeBSD bootloader loads the kernel at the a_entry address, meaning
+ * that this is where the kernel starts.  (not at KERNBASE)
+ * 
+ * This may be introducing an i386 dependency.
+ */
+#if defined(__FreeBSD__)
+#define KERNTEXTOFF ebuf.a_entry
+#else
 #define KERNTEXTOFF KERNBASE
+#endif
 #endif
 			/*
 			 * Calculate offset relative to a normal (non-kernel)
