@@ -31,7 +31,7 @@
 .Os
 .Sh NAME
 .Nm vfs_getnewfsid
-.Nd "allocate a new fsid"
+.Nd "allocate a new filesystem identifier"
 .Sh SYNOPSIS
 .In sys/param.h
 .In sys/mount.h
@@ -43,28 +43,32 @@ The
 function allocates a new filesystem identifier for the mount point given.
 Filesystems typically call
 .Fn vfs_getnewfsid
-in their mount routine in order to acquire a unique id within the system
+in their mount routine in order to acquire a unique ID within the system
 which can later be used to uniquely identify the filesystem via calls such as
-.Fn vfs_getvfs .
+.Xr vfs_getvfs 9 .
 .Pp
-The actual fsid is made up of two 32 bit integers, that are stored in the statfs
+The actual
+.Vt fsid
+is made up of two 32 bit integers, that are stored in the
+.Vt statfs
 structure of
 .Fa mp .
-The first integer is unique in the set of mounted filesystems, while the second holds
-the filesystem type.
+The first integer is unique in the set of mounted filesystems,
+while the second holds the filesystem type.
 .Bd -literal
-	typedef	struct fsid {
-		int32_t val[2];
-	} fsid_t;
+typedef	struct fsid {
+	int32_t val[2];
+} fsid_t;
 .Ed
 .Sh PSEUDOCODE
 .Bd -literal
-	xxx_mount(struct mount *mp, char *path, caddr_t data, struct nameidata *ndp, struct thread *td)
-	{
-		...
-		vfs_getnewfsid(mp);
-		...
-	}
+xxx_mount(struct mount *mp, char *path, caddr_t data,
+	struct nameidata *ndp, struct thread *td)
+{
+	...
+	vfs_getnewfsid(mp);
+	...
+}
 .Ed
 .Sh SEE ALSO
 .Xr vfs_getvfs 9

@@ -44,10 +44,10 @@ The
 function returns the page at
 .Fa pindex
 from the given object.
-If the page exists and is busy
+If the page exists and is busy,
 .Fn vm_page_grab
 will sleep while waiting for it.
-If the page does not exists it is allocated.
+If the page does not exist, it is allocated.
 .Pp
 If
 .Dv VM_ALLOC_RETRY
@@ -58,9 +58,9 @@ or while allocating it,
 .Dv NULL
 is returned.
 .Sh RETURN VALUES
-If successful
+If successful,
 .Fn vm_page_grab
-return the page; otherwise,
+returns the page; otherwise,
 .Dv NULL
 is returned.
 .Sh SEE ALSO

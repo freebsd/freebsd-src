@@ -34,13 +34,14 @@
 .Nd "flush vnodes for a mount point"
 .Sh SYNOPSIS
 .In sys/param.h
-.In sys/mount.h
+.In sys/vnode.h
 .Ft int
 .Fn vflush "struct mount *mp" "int rootrefs" "int flags"
 .Sh DESCRIPTION
 The
 .Fn vflush
-function removes any vnodes in the vnode table that belong to the given mount
+function removes any vnodes in the vnode table that belong to the given
+.Vt mount
 structure.
 .Pp
 Its arguments are:
@@ -49,7 +50,7 @@ Its arguments are:
 The mount point whose vnodes should be removed.
 .It Fa rootrefs
 The number of references expected on the root vnode.
-.Fn vrele
+.Xr vrele 9
 will be invoked on the root vnode
 .Fa rootrefs
 times.
@@ -57,20 +58,23 @@ times.
 The flags indicating how vnodes should be handled.
 .Bl -tag -width ".Dv WRITECLOSE"
 .It Dv FORCECLOSE
-If set busy vnodes will be forcibly closed.
+If set, busy vnodes will be forcibly closed.
 .It Dv SKIPSYSTEM
-If set vnodes with the VSYSTEM flag set will be skipped.
+If set, vnodes with the
+.Dv VSYSTEM
+flag set will be skipped.
 .It Dv WRITECLOSE
-If set only regular files currently opened for writing will be removed.
+If set, only regular files currently opened for writing will be removed.
 .El
 .El
 .Sh RETURN VALUES
 A value of 0 is returned if the flush is successful; otherwise,
-.Dv EBUSY
+.Er EBUSY
 will be returned.
 .Sh SEE ALSO
 .Xr vgone 9 ,
-.Xr vgonel 9
+.Xr vgonel 9 ,
+.Xr vrele 9
 .Sh AUTHORS
 This man page was written by
 .An Chad David Aq davidc@acns.ab.ca .

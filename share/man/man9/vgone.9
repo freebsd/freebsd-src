@@ -30,8 +30,7 @@
 .Dt VGONE 9
 .Os
 .Sh NAME
-.Nm vgone
-.Nm vgonel
+.Nm vgone , vgonel
 .Nd "prepare a vnode for reuse"
 .Sh SYNOPSIS
 .In sys/param.h
@@ -39,7 +38,7 @@
 .Ft void
 .Fn vgone "struct vnode *vp"
 .Ft void
-.Fn vgonel "struct vnod *vp" "struct thread *td"
+.Fn vgonel "struct vnode *vp" "struct thread *td"
 .Sh DESCRIPTION
 .Fn vgone
 and
@@ -48,9 +47,12 @@ prepare a vnode for reuse by another filesystem.
 The preparation includes the cleaning of all filesystem specific data and
 the removal from its mount point vnode list.
 .Pp
-If the vnode has a usecount of zero, and its
+If the vnode has a
+.Va v_usecount
+of zero, and its
 .Dv VDOOMED
-flag is not set it is moved to the head of the free list as in most cases the vnode
+flag is not set, it is moved to the head of the free list
+as in most cases the vnode
 is about to be reused, or its filesystem being unmounted.
 .Pp
 The difference between
