@@ -30,7 +30,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <net/if.h>
-#include <net/if_tun.h>		/* For TUNSIFMODE & TUNSLMODE */
+#include <net/if_tun.h>		/* For TUNSIFMODE, TUNSLMODE & TUNSIFPID*/
 #include <arpa/inet.h>
 #include <net/route.h>
 #include <netinet/in_systm.h>
@@ -1738,6 +1738,7 @@ bundle_setsid(struct bundle *bundle, int holdsession)
           read(fds[0], &done, 1);	/* uu_locks are mine ! */
           close(fds[0]);
           setsid();
+          bundle_ChangedPID(bundle);
           log_Printf(LogPHASE, "%d -> %d: %s session control\n",
                      (int)orig, (int)getpid(),
                      holdsession ? "Passed" : "Dropped");
@@ -1939,4 +1940,12 @@ bundle_WantAutoloadTimer(struct bundle *bundle)
   }
 
   return 0;
+}
+
+void
+bundle_ChangedPID(struct bundle *bundle)
+{
+#ifdef TUNSIFPID
+  ioctl(bundle->dev.fd, TUNSIFPID, 0);
+#endif
 }
