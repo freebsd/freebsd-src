@@ -56,7 +56,7 @@
 void
 randinit()
 {
-#if __FreeBSD__ >= 3
+#if defined(__OpenBSD__) || __FreeBSD__ >= 3
   static int initdone;		/* srandomdev() call is only required once */
 
   if (!initdone) {
