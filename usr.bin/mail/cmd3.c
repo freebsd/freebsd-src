@@ -187,9 +187,9 @@ respond(msgvec)
 	int *msgvec;
 {
 	if (value("Replyall") == NOSTR)
-		return (_respond(msgvec));
+		return (dorespond(msgvec));
 	else
-		return (_Respond(msgvec));
+		return (doRespond(msgvec));
 }
 
 /*
@@ -197,7 +197,7 @@ respond(msgvec)
  * message header and send them off to mail1()
  */
 int
-_respond(msgvec)
+dorespond(msgvec)
 	int *msgvec;
 {
 	struct message *mp;
@@ -252,6 +252,9 @@ _respond(msgvec)
 		head.h_cc = NIL;
 	head.h_bcc = NIL;
 	head.h_smopts = NIL;
+	if ((head.h_replyto = getenv("REPLYTO")) == NULL)
+		head.h_replyto = NOSTR;
+	head.h_inreplyto = skin(hfield("message-id", mp));
 	mail1(&head, 1);
 	return(0);
 }
@@ -581,9 +584,9 @@ Respond(msgvec)
 	int *msgvec;
 {
 	if (value("Replyall") == NOSTR)
-		return (_Respond(msgvec));
+		return (doRespond(msgvec));
 	else
-		return (_respond(msgvec));
+		return (dorespond(msgvec));
 }
 
 /*
@@ -592,13 +595,14 @@ Respond(msgvec)
  * reply.
  */
 int
-_Respond(msgvec)
+doRespond(msgvec)
 	int msgvec[];
 {
 	struct header head;
 	struct message *mp;
 	register int *ap;
 	register char *cp;
+	char *mid;
 
 	head.h_to = NIL;
 	for (ap = msgvec; *ap != 0; ap++) {
@@ -608,6 +612,7 @@ _Respond(msgvec)
 		if ((cp = skin(hfield("from", mp))) == NOSTR)
 			cp = skin(nameof(mp, 2));
 		head.h_to = cat(head.h_to, extract(cp, GTO));
+		mid = skin(hfield("message-id", mp));
 	}
 	if (head.h_to == NIL)
 		return 0;
@@ -618,6 +623,9 @@ _Respond(msgvec)
 	head.h_cc = NIL;
 	head.h_bcc = NIL;
 	head.h_smopts = NIL;
+	if ((head.h_replyto = getenv("REPLYTO")) == NULL)
+		head.h_replyto = NOSTR;
+	head.h_inreplyto = mid;
 	mail1(&head, 1);
 	return 0;
 }
