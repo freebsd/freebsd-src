@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.8 1998/03/08 05:29:49 peter Exp $
+# $Id: Makefile,v 1.9 1998/03/12 12:52:24 bde Exp $
 #
 
 #
@@ -19,7 +19,7 @@ bc-$i.h:	bi-$i bytecode.def
 	./bi-$i < ${GCCDIR}/bytecode.def > bc-$i.h
 
 bi-$i:	bi-$i.o bi-parser.o bi-lexer.o bi-reverse.o
-	${CC} ${.ALLSRC} -o ${.TARGET}
+	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
 
 SRCS+= bc-$i.h
 LOCOBJS+= bi-$i.o
@@ -52,7 +52,7 @@ SRCS+= insn-$i.c
 
 .for i in config flags codes emit opinit recog extract peep attr output
 gen$i:	gen$i.o rtl.o obstack.o
-	${CC} ${.ALLSRC} -o ${.TARGET}
+	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
 
 gen$i.o:	gen$i.c ${RTL_H}
 LOCOBJS+= gen$i.o
@@ -61,7 +61,7 @@ CLEANFILES+= gen$i gen$i.o
 
 .for i in attrtab
 gen$i:	gen$i.o rtl.o rtlanal.o print-rtl.o obstack.o
-	${CC} ${.ALLSRC} -o ${.TARGET}
+	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
 
 gen$i.o:	gen$i.c ${RTL_H}
 LOCOBJS+= gen$i.o
