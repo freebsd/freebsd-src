@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)from: main.c	8.1 (Berkeley) 6/20/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: main.c,v 1.22 1997/11/21 07:43:50 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -128,6 +128,8 @@ char partab[] = {
 #define	ERASE	tmode.c_cc[VERASE]
 #define	KILL	tmode.c_cc[VKILL]
 #define	EOT	tmode.c_cc[VEOF]
+
+#define	puts	Gputs
 
 static void	dingdong __P((int));
 static int	getname __P((void));
