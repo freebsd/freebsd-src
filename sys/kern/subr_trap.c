@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.4 1993/10/15 10:34:27 rgrimes Exp $
+ *	$Id: trap.c,v 1.5 1993/11/01 11:51:29 chmr Exp $
  */
 
 /*
@@ -368,6 +368,7 @@ out:
 		psig(i);
 	p->p_pri = p->p_usrpri;
 	if (want_resched) {
+		int s;
 		/*
 		 * Since we are curproc, clock will normally just change
 		 * our priority without moving us from one queue to another
@@ -376,11 +377,11 @@ out:
 		 * swtch()'ed, we might not be on the queue indicated by
 		 * our priority.
 		 */
-		(void) splclock();
+		s = splclock();
 		setrq(p);
 		p->p_stats->p_ru.ru_nivcsw++;
 		swtch();
-		(void) splnone();
+		splx(s);
 		while (i = CURSIG(p))
 			psig(i);
 	}
@@ -535,6 +536,7 @@ done:
 		psig(i);
 	p->p_pri = p->p_usrpri;
 	if (want_resched) {
+		int s;
 		/*
 		 * Since we are curproc, clock will normally just change
 		 * our priority without moving us from one queue to another
@@ -543,11 +545,11 @@ done:
 		 * swtch()'ed, we might not be on the queue indicated by
 		 * our priority.
 		 */
-		(void) splclock();
+		s = splclock();
 		setrq(p);
 		p->p_stats->p_ru.ru_nivcsw++;
 		swtch();
-		(void) splnone();
+		splx(s);
 		while (i = CURSIG(p))
 			psig(i);
 	}
