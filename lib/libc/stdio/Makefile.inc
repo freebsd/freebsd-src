@@ -8,19 +8,21 @@ SRCS+=	_flock_stub.c asprintf.c clrerr.c fclose.c fdopen.c feof.c ferror.c \
 	fflush.c fgetc.c fgetln.c fgetpos.c fgets.c fgetwc.c fgetws.c \
 	fileno.c findfp.c flags.c fopen.c fprintf.c fpurge.c fputc.c fputs.c \
 	fputwc.c fputws.c fread.c freopen.c fscanf.c fseek.c fsetpos.c \
-	ftell.c funopen.c fvwrite.c fwalk.c fwide.c fwrite.c getc.c \
+	ftell.c funopen.c fvwrite.c fwalk.c fwide.c fwprintf.c fwrite.c getc.c \
 	getchar.c gets.c getw.c getwc.c getwchar.c makebuf.c mktemp.c \
 	perror.c printf.c putc.c putchar.c puts.c putw.c putwc.c putwchar.c \
 	refill.c remove.c rewind.c rget.c scanf.c setbuf.c setbuffer.c \
-	setvbuf.c snprintf.c sprintf.c sscanf.c stdio.c tempnam.c tmpfile.c \
+	setvbuf.c snprintf.c sprintf.c sscanf.c stdio.c swprintf.c tempnam.c \
+	tmpfile.c \
 	tmpnam.c ungetc.c ungetwc.c vasprintf.c vfprintf.c vfscanf.c \
-	vprintf.c vscanf.c vsnprintf.c vsprintf.c vsscanf.c wbuf.c wsetup.c
+	vfwprintf.c vprintf.c vscanf.c vsnprintf.c vsprintf.c vsscanf.c \
+	vswprintf.c vwprintf.c wbuf.c wprintf.c wsetup.c
 
 .if ${LIB} == "c"
 MAN+=	fclose.3 ferror.3 fflush.3 fgetln.3 fgets.3 fgetws.3 fopen.3 fputs.3 \
 	fputws.3 fread.3 fseek.3 funopen.3 fwide.3 getc.3 getwc.3 mktemp.3 \
 	printf.3 putc.3 putwc.3 remove.3 scanf.3 setbuf.3 stdio.3 tmpnam.3 \
-	ungetc.3 ungetwc.3
+	ungetc.3 ungetwc.3 wprintf.3
 
 MLINKS+=ferror.3 clearerr.3 ferror.3 feof.3 ferror.3 fileno.3
 MLINKS+=fflush.3 fpurge.3
@@ -45,4 +47,6 @@ MLINKS+=scanf.3 fscanf.3 scanf.3 sscanf.3 scanf.3 vfscanf.3 scanf.3 vscanf.3 \
 	scanf.3 vsscanf.3
 MLINKS+=setbuf.3 setbuffer.3 setbuf.3 setlinebuf.3 setbuf.3 setvbuf.3
 MLINKS+=tmpnam.3 tempnam.3 tmpnam.3 tmpfile.3
+MLINKS+=wprintf.3 fwprintf.3 wprintf.3 swprintf.3 \
+	wprintf.3 vwprintf.3 wprintf.3 vfwprintf.3 wprintf.3 vswprintf.3
 .endif
