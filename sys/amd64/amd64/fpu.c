@@ -898,7 +898,7 @@ timezero(funcname, func)
 
 {
 	void *buf;
-#define	BUFSIZE		1000000
+#define	BUFSIZE		1048576
 	long usec;
 	struct timeval finish, start;
 
@@ -913,8 +913,8 @@ timezero(funcname, func)
 	if (usec <= 0)
 		usec = 1;
 	if (bootverbose)
-		printf("%s bandwidth = %ld bytes/sec\n",
-		    funcname, (long)(BUFSIZE * (int64_t)1000000 / usec));
+		printf("%s bandwidth = %lu kBps\n", funcname,
+		    (u_int32_t)(((BUFSIZE >> 10) * 1000000) / usec));
 	free(buf, M_TEMP);
 	return (usec);
 }
