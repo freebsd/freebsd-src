@@ -930,6 +930,13 @@ SCLASS	pthread_cond_t  _gc_cond
 SCLASS struct  sigaction _thread_sigact[NSIG];
 
 /*
+ * Array of counts of dummy handlers for SIG_DFL signals.  This is used to
+ * assure that there is always a dummy signal handler installed while there is a
+ * thread sigwait()ing on the corresponding signal.
+ */
+SCLASS int	_thread_dfl_count[NSIG];
+
+/*
  * Pending signals for this process.
  */
 SCLASS sigset_t	_process_sigpending;
