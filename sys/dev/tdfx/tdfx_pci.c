@@ -40,7 +40,6 @@
 
 #include <sys/param.h>
 
-#include <sys/bus_private.h>
 #include <sys/bus.h>
 #include <sys/cdefs.h>
 #include <sys/conf.h>
@@ -269,8 +268,8 @@ tdfx_attach(device_t dev) {
 	 * voodoo cards, for the mad. The user must set the link, or use MAKEDEV.
 	 * Why would we want that many voodoo cards anyhow? 
 	 */
-	tdfx_info->devt = make_dev(&tdfx_cdev, dev->unit, 0, 0, 02660, 
-		"3dfx%x", dev->unit);
+	tdfx_info->devt = make_dev(&tdfx_cdev, device_get_unit(dev),
+		0, 0, 02660, "3dfx%x", device_get_unit(dev));
 	
 	return 0;
 }
