@@ -931,9 +931,8 @@ dontblock:
 		}
 		if (controlp) {
 			orig_resid = 0;
-			do
+			while (*controlp != NULL)
 				controlp = &(*controlp)->m_next;
-			while (*controlp != NULL);
 		}
 	}
 	if (m) {
