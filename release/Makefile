@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.92 1995/01/28 05:33:52 jkh Exp $
+#	$Id: Makefile,v 1.94 1995/01/29 02:12:30 phk Exp $
 #
 
 FLOPPY=		fd0
@@ -124,6 +124,7 @@ cpio.flp:
 	for i in ${CPIO1} ; do rm -f ./$$i ; ln cpio_flp_1 ./$$i ; done
 	( cd /${DESTDIR} ; ls ${CPIO2} | cpio -H newc -oa ) | cpio -ivd
 	( cd ${.CURDIR} ; ls ${CPIO3} | cpio -H newc -oa ) | cpio -ivd
+	chmod 755 ${CPIO3}
 	cp ${CPIO4} .
 	ls ${CPIO1} ${CPIO2} ${CPIO3} ${CPIO4B} | \
 		cpio -H newc -oa | gzip -9 -c | \
