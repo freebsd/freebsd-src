@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)id.c	8.2 (Berkeley) 2/16/94";
 #endif
 static const char rcsid[] =
-	"$Id: id.c,v 1.3.2.2 1997/08/29 05:29:22 imp Exp $";
+	"$Id: id.c,v 1.3.2.3 1997/09/15 08:17:27 jkh Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -174,9 +174,9 @@ pretty(pw)
 
 		if ((eid = geteuid()) != rid)
 			if ((pw = getpwuid(eid)))
-				(void)printf("euid\t%s", pw->pw_name);
+				(void)printf("euid\t%s\n", pw->pw_name);
 			else
-				(void)printf("euid\t%u", eid);
+				(void)printf("euid\t%u\n", eid);
 		if ((rid = getgid()) != (eid = getegid()))
 			if ((gr = getgrgid(rid)))
 				(void)printf("rgid\t%s\n", gr->gr_name);
