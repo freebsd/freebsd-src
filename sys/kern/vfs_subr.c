@@ -3511,6 +3511,11 @@ vop_lock_pre(void *ap)
 {
 	struct vop_lock_args *a = ap;
 
+	if (a->a_vp->v_iflag & VI_XLOCK &&
+	    a->a_vp->v_vxthread != curthread) {
+		vprint("vop_lock_pre:", a->a_vp);
+		panic("vop_lock_pre: locked while xlock held.\n");
+	}
 	if ((a->a_flags & LK_INTERLOCK) == 0)
 		ASSERT_VI_UNLOCKED(a->a_vp, "VOP_LOCK");
 	else
