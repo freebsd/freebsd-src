@@ -43,9 +43,12 @@
  * $FreeBSD$
  */
 
+#include "opt_mac.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/lock.h>
+#include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/mutex.h>
@@ -879,6 +882,9 @@ bsd_decompress(state, cmp, dmpp)
     dmp->m_data += db->hdrlen;
     wptr = mtod(dmp, u_char *);
     space = M_TRAILINGSPACE(dmp) - PPP_HDRLEN + 1;
+#ifdef MAC
+    mac_create_mbuf_from_mbuf(cmp, dmp);
+#endif
 
     /*
      * Fill in the ppp header, but not the last byte of the protocol
