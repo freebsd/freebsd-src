@@ -1345,8 +1345,8 @@ devfs_write_f(struct file *fp, struct uio *uio, struct ucred *cred, int flags, s
 		return (error);
 	KASSERT(uio->uio_td == td, ("uio_td %p is not td %p", uio->uio_td, td));
 	vp = fp->f_vnode;
-	ioflag = IO_UNIT;
-	if (fp->f_flag & FNONBLOCK)
+	ioflag = 0;
+	if (fp->f_flag & O_NONBLOCK)
 		ioflag |= IO_NDELAY;
 	if (fp->f_flag & O_DIRECT)
 		ioflag |= IO_DIRECT;
