@@ -28,8 +28,14 @@
  */
 
 #ifdef TWE_DEBUG
-#define debug(level, fmt, args...)	do { if (level <= TWE_DEBUG) printf("%s: " fmt "\n", __FUNCTION__ , ##args); } while(0)
-#define debug_called(level)		do { if (level <= TWE_DEBUG) printf(__FUNCTION__ ": called\n"); } while(0)
+#define debug(level, fmt, args...)							\
+	do {										\
+	    if (level <= TWE_DEBUG) printf("%s: " fmt "\n", __FUNCTION__ , ##args);	\
+	} while(0)
+#define debug_called(level)						\
+	do {								\
+	    if (level <= TWE_DEBUG) printf(__FUNCTION__ ": called\n");	\
+	} while(0)
 #else
 #define debug(level, fmt, args...)
 #define debug_called(level)
@@ -47,16 +53,9 @@ struct twe_drive
     int			td_sectors;
     int			td_unit;
 
-    /* unit state */
-    int			td_state;
-#define TWE_DRIVE_READY		0
-#define TWE_DRIVE_DEGRADED	1
-#define TWE_DRIVE_OFFLINE	2
-    int			td_raidlevel;
-#define TWE_DRIVE_RAID0		0
-#define TWE_DRIVE_RAID1		1
-
-#define TWE_DRIVE_UNKNOWN	0xff
+    /* unit state and type */
+    u_int8_t		td_state;
+    u_int8_t		td_type;
 
     /* handle for attached driver */
     device_t		td_disk;
@@ -73,15 +72,11 @@ struct twe_request
 {
     /* controller command */
     TWE_Command			tr_command;	/* command as submitted to controller */
-    bus_dmamap_t		tr_cmdmap;	/* DMA map for command */
-    u_int32_t			tr_cmdphys;	/* address of command in controller space */
 
     /* command payload */
     void			*tr_data;	/* data buffer */
     void			*tr_realdata;	/* copy of real data buffer pointer for alignment fixup */
     size_t			tr_length;
-    bus_dmamap_t		tr_dmamap;	/* DMA map for data */
-    u_int32_t			tr_dataphys;	/* data buffer base address in controller space */
 
     TAILQ_ENTRY(twe_request)	tr_link;	/* list linkage */
     struct twe_softc		*tr_sc;		/* controller that owns us */
@@ -94,8 +89,11 @@ struct twe_request
 #define TWE_CMD_DATAIN		(1<<0)
 #define TWE_CMD_DATAOUT		(1<<1)
 #define TWE_CMD_ALIGNBUF	(1<<2)	/* data in bio is misaligned, have to copy to/from private buffer */
+#define TWE_CMD_SLEEPER		(1<<3)	/* owner is sleeping on this command */
     void			(* tr_complete)(struct twe_request *tr);	/* completion handler */
     void			*tr_private;	/* submitter-private data or wait channel */
+
+    TWE_PLATFORM_REQUEST	/* platform-specific request elements */
 };
 
 /*
@@ -103,28 +101,19 @@ struct twe_request
  */
 struct twe_softc 
 {
-    /* bus connections */
-    device_t		twe_dev;
-    dev_t		twe_dev_t;
-    struct resource	*twe_io;		/* register interface window */
-    bus_space_handle_t	twe_bhandle;		/* bus space handle */
-    bus_space_tag_t	twe_btag;		/* bus space tag */
-    bus_dma_tag_t	twe_parent_dmat;	/* parent DMA tag */
-    bus_dma_tag_t	twe_buffer_dmat;	/* data buffer DMA tag */
-    struct resource	*twe_irq;		/* interrupt */
-    void		*twe_intr;		/* interrupt handle */
-
     /* controller queues and arrays */
-    TAILQ_HEAD(, twe_request)	twe_freecmds;		/* command structures available for reuse */
-    TAILQ_HEAD(, twe_request)	twe_work;		/* active commands (busy or waiting for completion) */
-    struct twe_request	*twe_cmdlookup[TWE_Q_LENGTH];	/* busy commands indexed by request ID */
-    int			twe_busycmds;			/* count of busy commands */
+    TAILQ_HEAD(, twe_request)	twe_free;			/* command structures available for reuse */
+    twe_bioq 			twe_bioq;			/* outstanding I/O operations */
+    TAILQ_HEAD(, twe_request)	twe_ready;			/* requests ready for the controller */
+    TAILQ_HEAD(, twe_request)	twe_busy;			/* requests busy in the controller */
+    TAILQ_HEAD(, twe_request)	twe_complete;			/* active commands (busy or waiting for completion) */
+    struct twe_request		*twe_lookup[TWE_Q_LENGTH];	/* commands indexed by request ID */
     struct twe_drive	twe_drive[TWE_MAX_UNITS];		/* attached drives */
-    struct bio_queue_head twe_bioq;			/* outstanding I/O operations */
-    struct twe_request	*twe_deferred;			/* request that the controller wouldn't take */
 
+    /* asynchronous event handling */
     u_int16_t		twe_aen_queue[TWE_Q_LENGTH];	/* AENs queued for userland tool(s) */
     int			twe_aen_head, twe_aen_tail;	/* ringbuffer pointers for AEN queue */
+    int			twe_wait_aen;    		/* wait-for-aen notification */
 
     /* controller status */
     int			twe_state;
@@ -132,32 +121,154 @@ struct twe_softc
 #define TWE_STATE_SHUTDOWN	(1<<1)	/* controller is shut down */
 #define TWE_STATE_OPEN		(1<<2)	/* control device is open */
 #define TWE_STATE_SUSPEND	(1<<3)	/* controller is suspended */
+    int			twe_host_id;
+#ifdef TWE_PERFORMANCE_MONITOR
+    struct twe_qstat	twe_qstat[TWEQ_COUNT];	/* queue statistics */
+#endif
 
-    /* delayed configuration hook */
-    struct intr_config_hook	twe_ich;
-
-    /* wait-for-aen notification */
-    int			twe_wait_aen;
+    TWE_PLATFORM_SOFTC		/* platform-specific softc elements */
 };
 
 /*
- * Virtual disk driver.
+ * Interface betwen driver core and platform-dependant code.
  */
-struct twed_softc 
+extern int	twe_setup(struct twe_softc *sc);		/* do early driver/controller setup */
+extern void	twe_init(struct twe_softc *sc);			/* init controller */
+extern void	twe_deinit(struct twe_softc *sc);		/* stop controller */
+extern void	twe_intr(struct twe_softc *sc);			/* hardware interrupt signalled */
+extern int	twe_submit_bio(struct twe_softc *sc, 
+				       twe_bio *bp);		/* pass bio to core */
+extern int	twe_ioctl(struct twe_softc *sc, int cmd,
+				  void *addr);			/* handle user request */
+extern void	twe_describe_controller(struct twe_softc *sc);	/* print controller info */
+extern void	twe_print_controller(struct twe_softc *sc);
+extern void	twe_enable_interrupts(struct twe_softc *sc);	/* enable controller interrupts */
+extern void	twe_disable_interrupts(struct twe_softc *sc);	/* disable controller interrupts */
+
+extern void	twe_attach_drive(struct twe_softc *sc,
+					 struct twe_drive *dr); /* attach drive when found in twe_init */
+extern void	twed_intr(twe_bio *bp);				/* return bio from core */
+extern struct twe_request *twe_allocate_request(struct twe_softc *sc);	/* allocate request structure */
+extern void	twe_free_request(struct twe_request *tr);	/* free request structure */
+extern void	twe_map_request(struct twe_request *tr);	/* make request visible to controller, do s/g */
+extern void	twe_unmap_request(struct twe_request *tr);	/* cleanup after transfer, unmap */
+
+/********************************************************************************
+ * Queue primitives
+ */
+#ifdef TWE_PERFORMANCE_MONITOR
+# define TWEQ_ADD(sc, qname)					\
+	do {							\
+	    struct twe_qstat *qs = &(sc)->twe_qstat[qname];	\
+								\
+	    qs->q_length++;					\
+	    if (qs->q_length > qs->q_max)			\
+		qs->q_max = qs->q_length;			\
+	} while(0)
+
+# define TWEQ_REMOVE(sc, qname)    (sc)->twe_qstat[qname].q_length--
+# define TWEQ_INIT(sc, qname)			\
+	do {					\
+	    sc->twe_qstat[qname].q_length = 0;	\
+	    sc->twe_qstat[qname].q_max = 0;	\
+	} while(0)
+#else
+# define TWEQ_ADD(sc, qname)
+# define TWEQ_REMOVE(sc, qname)
+# define TWEQ_INIT(sc, qname)
+#endif
+
+
+#define TWEQ_REQUEST_QUEUE(name, index)					\
+static __inline void							\
+twe_initq_ ## name (struct twe_softc *sc)				\
+{									\
+    TAILQ_INIT(&sc->twe_ ## name);					\
+    TWEQ_INIT(sc, index);						\
+}									\
+static __inline void							\
+twe_enqueue_ ## name (struct twe_request *tr)				\
+{									\
+    int		s;							\
+									\
+    s = splbio();							\
+    TAILQ_INSERT_TAIL(&tr->tr_sc->twe_ ## name, tr, tr_link);		\
+    TWEQ_ADD(tr->tr_sc, index);						\
+    splx(s);								\
+}									\
+static __inline void							\
+twe_requeue_ ## name (struct twe_request *tr)				\
+{									\
+    int		s;							\
+									\
+    s = splbio();							\
+    TAILQ_INSERT_HEAD(&tr->tr_sc->twe_ ## name, tr, tr_link);		\
+    TWEQ_ADD(tr->tr_sc, index);						\
+    splx(s);								\
+}									\
+static __inline struct twe_request *					\
+twe_dequeue_ ## name (struct twe_softc *sc)				\
+{									\
+    struct twe_request	*tr;						\
+    int			s;						\
+									\
+    s = splbio();							\
+    if ((tr = TAILQ_FIRST(&sc->twe_ ## name)) != NULL) {		\
+	TAILQ_REMOVE(&sc->twe_ ## name, tr, tr_link);			\
+	TWEQ_REMOVE(sc, index);						\
+    }									\
+    splx(s);								\
+    return(tr);								\
+}									\
+static __inline void							\
+twe_remove_ ## name (struct twe_request *tr)				\
+{									\
+    int			s;						\
+									\
+    s = splbio();							\
+    TAILQ_REMOVE(&tr->tr_sc->twe_ ## name, tr, tr_link);		\
+    TWEQ_REMOVE(tr->tr_sc, index);					\
+    splx(s);								\
+}
+
+TWEQ_REQUEST_QUEUE(free, TWEQ_FREE)
+TWEQ_REQUEST_QUEUE(ready, TWEQ_READY)
+TWEQ_REQUEST_QUEUE(busy, TWEQ_BUSY)
+TWEQ_REQUEST_QUEUE(complete, TWEQ_COMPLETE)
+
+
+/*
+ * outstanding bio queue
+ */
+static __inline void
+twe_initq_bio(struct twe_softc *sc)
 {
-    device_t		twed_dev;
-    dev_t		twed_dev_t;
-    struct twe_softc	*twed_controller;	/* parent device softc */
-    struct twe_drive	*twed_drive;		/* drive data in parent softc */
-    struct disk		twed_disk;		/* generic disk handle */
-    struct devstat	twed_stats;		/* accounting */
-    struct disklabel	twed_label;		/* synthetic label */
-    int			twed_flags;
-#define TWED_OPEN	(1<<0)			/* drive is open (can't shut down) */
-};
+    TWE_BIO_QINIT(sc->twe_bioq);
+    TWEQ_INIT(sc, TWEQ_BIO);
+}
 
-/*
- * Interface betwen driver core and disk driver (should be using a bus?)
- */
-extern int	twe_submit_buf(struct twe_softc *sc, struct bio *bp);
-extern void	twed_intr(void *data);
+static __inline void
+twe_enqueue_bio(struct twe_softc *sc, struct bio *bp)
+{
+    int		s;
+
+    s = splbio();
+    TWE_BIO_QINSERT(sc->twe_bioq, bp);
+    TWEQ_ADD(sc, TWEQ_BIO);
+    splx(s);
+}
+
+static __inline struct bio *
+twe_dequeue_bio(struct twe_softc *sc)
+{
+    int		s;
+    struct bio	*bp;
+
+    s = splbio();
+    if ((bp = TWE_BIO_QFIRST(sc->twe_bioq)) != NULL) {
+	TWE_BIO_QREMOVE(sc->twe_bioq, bp);
+	TWEQ_REMOVE(sc, TWEQ_BIO);
+    }
+    splx(s);
+    return(bp);
+}
