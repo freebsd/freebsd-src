@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.62 1997/03/31 12:02:42 peter Exp $
+ * $Id: vfs_syscalls.c,v 1.63 1997/03/31 12:21:37 peter Exp $
  */
 
 /*
@@ -1028,6 +1028,8 @@ mknod(p, uap, retval)
 		if (vp)
 			vrele(vp);
 	}
+	ASSERT_VOP_UNLOCKED(nd.ni_dvp, "mknod");
+	ASSERT_VOP_UNLOCKED(nd.ni_vp, "mknod");
 	return (error);
 }
 
@@ -1124,6 +1126,8 @@ link(p, uap, retval)
 		}
 	}
 	vrele(vp);
+	ASSERT_VOP_UNLOCKED(nd.ni_dvp, "link");
+	ASSERT_VOP_UNLOCKED(nd.ni_vp, "link");
 	return (error);
 }
 
@@ -1171,6 +1175,8 @@ symlink(p, uap, retval)
 	vattr.va_mode = ACCESSPERMS &~ p->p_fd->fd_cmask;
 	VOP_LEASE(nd.ni_dvp, p, p->p_ucred, LEASE_WRITE);
 	error = VOP_SYMLINK(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, &vattr, path);
+	ASSERT_VOP_UNLOCKED(nd.ni_dvp, "symlink");
+	ASSERT_VOP_UNLOCKED(nd.ni_vp, "symlink");
 out:
 	FREE(path, M_NAMEI);
 	return (error);
@@ -1212,6 +1218,8 @@ undelete(p, uap, retval)
 	if (error = VOP_WHITEOUT(nd.ni_dvp, &nd.ni_cnd, DELETE))
 		VOP_ABORTOP(nd.ni_dvp, &nd.ni_cnd);
 	vput(nd.ni_dvp);
+	ASSERT_VOP_UNLOCKED(nd.ni_dvp, "undelete");
+	ASSERT_VOP_UNLOCKED(nd.ni_vp, "undelete");
 	return (error);
 }
 
@@ -1269,6 +1277,8 @@ unlink(p, uap, retval)
 		if (vp != NULLVP)
 			vput(vp);
 	}
+	ASSERT_VOP_UNLOCKED(nd.ni_dvp, "unlink");
+	ASSERT_VOP_UNLOCKED(nd.ni_vp, "unlink");
 	return (error);
 }
 
@@ -2272,6 +2282,10 @@ out:
 		vrele(fvp);
 	}
 	vrele(tond.ni_startdir);
+	ASSERT_VOP_UNLOCKED(fromnd.ni_dvp, "rename");
+	ASSERT_VOP_UNLOCKED(fromnd.ni_vp, "rename");
+	ASSERT_VOP_UNLOCKED(tond.ni_dvp, "rename");
+	ASSERT_VOP_UNLOCKED(tond.ni_vp, "rename");
 	FREE(tond.ni_cnd.cn_pnbuf, M_NAMEI);
 out1:
 	if (fromnd.ni_startdir)
@@ -2327,6 +2341,8 @@ mkdir(p, uap, retval)
 	error = VOP_MKDIR(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, &vattr);
 	if (!error)
 		vput(nd.ni_vp);
+	ASSERT_VOP_UNLOCKED(nd.ni_dvp, "mkdir");
+	ASSERT_VOP_UNLOCKED(nd.ni_vp, "mkdir");
 	return (error);
 }
 
@@ -2385,6 +2401,8 @@ out:
 			vput(nd.ni_dvp);
 		vput(vp);
 	}
+	ASSERT_VOP_UNLOCKED(nd.ni_dvp, "rmdir");
+	ASSERT_VOP_UNLOCKED(nd.ni_vp, "rmdir");
 	return (error);
 }
 

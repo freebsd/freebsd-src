@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.80 1997/03/05 04:54:54 davidg Exp $
+ * $Id: vfs_subr.c,v 1.81 1997/04/01 13:05:34 bde Exp $
  */
 
 /*
@@ -871,6 +871,73 @@ vget(vp, flags, p)
  * count is maintained in an auxillary vnode lock structure.
  */
 int
+vop_sharedlock(ap)
+	struct vop_lock_args /* {
+		struct vnode *a_vp;
+		int a_flags;
+		struct proc *a_p;
+	} */ *ap;
+{
+	/*
+	 * This code cannot be used until all the non-locking filesystems
+	 * (notably NFS) are converted to properly lock and release nodes.
+	 * Also, certain vnode operations change the locking state within
+	 * the operation (create, mknod, remove, link, rename, mkdir, rmdir,
+	 * and symlink). Ideally these operations should not change the
+	 * lock state, but should be changed to let the caller of the
+	 * function unlock them. Otherwise all intermediate vnode layers
+	 * (such as union, umapfs, etc) must catch these functions to do
+	 * the necessary locking at their layer. Note that the inactive
+	 * and lookup operations also change their lock state, but this 
+	 * cannot be avoided, so these two operations will always need
+	 * to be handled in intermediate layers.
+	 */
+	struct vnode *vp = ap->a_vp;
+	int vnflags, flags = ap->a_flags;
+
+	if (vp->v_vnlock == NULL) {
+		if ((flags & LK_TYPE_MASK) == LK_DRAIN)
+			return (0);
+		MALLOC(vp->v_vnlock, struct lock *, sizeof(struct lock),
+		    M_VNODE, M_WAITOK);
+		lockinit(vp->v_vnlock, PVFS, "vnlock", 0, 0);
+	}
+	switch (flags & LK_TYPE_MASK) {
+	case LK_DRAIN:
+		vnflags = LK_DRAIN;
+		break;
+	case LK_EXCLUSIVE:
+#ifdef DEBUG_VFS_LOCKS
+		/*
+		 * Normally, we use shared locks here, but that confuses
+		 * the locking assertions.
+		 */
+		vnflags = LK_EXCLUSIVE;
+		break;
+#endif
+	case LK_SHARED:
+		vnflags = LK_SHARED;
+		break;
+	case LK_UPGRADE:
+	case LK_EXCLUPGRADE:
+	case LK_DOWNGRADE:
+		return (0);
+	case LK_RELEASE:
+	default:
+		panic("vop_nolock: bad operation %d", flags & LK_TYPE_MASK);
+	}
+	if (flags & LK_INTERLOCK)
+		vnflags |= LK_INTERLOCK;
+	return(lockmgr(vp->v_vnlock, vnflags, &vp->v_interlock, ap->a_p));
+}
+
+/*
+ * Stubs to use when there is no locking to be done on the underlying object.
+ * A minimal shared lock is necessary to ensure that the underlying object
+ * is not revoked while an operation is in progress. So, an active shared
+ * count is maintained in an auxillary vnode lock structure.
+ */
+int
 vop_nolock(ap)
 	struct vop_lock_args /* {
 		struct vnode *a_vp;
@@ -1291,8 +1358,10 @@ vclean(struct vnode *vp, int flags, struct proc *p)
 		vrele(vp);
 	cache_purge(vp);
 	if (vp->v_vnlock) {
+#ifdef DIAGNOSTIC
 		if ((vp->v_vnlock->lk_flags & LK_DRAINED) == 0)
 			vprint("vclean: lock not drained", vp);
+#endif
 		FREE(vp->v_vnlock, M_VNODE);
 		vp->v_vnlock = NULL;
 	}
@@ -1581,7 +1650,9 @@ vprint(label, vp)
 	char buf[64];
 
 	if (label != NULL)
-		printf("%s: ", label);
+		printf("%s: %x: ", label, vp);
+	else
+		printf("%x: ", vp);
 	printf("type %s, usecount %d, writecount %d, refcount %ld,",
 	    typename[vp->v_type], vp->v_usecount, vp->v_writecount,
 	    vp->v_holdcnt);

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_lookup.c	8.4 (Berkeley) 2/16/94
- * $Id$
+ * $Id: vfs_lookup.c,v 1.16 1997/02/22 09:39:33 peter Exp $
  */
 
 #include "opt_ktrace.h"
@@ -409,6 +409,7 @@ dirloop:
 unionlookup:
 	ndp->ni_dvp = dp;
 	ndp->ni_vp = NULL;
+	ASSERT_VOP_LOCKED(dp, "lookup");
 	if (error = VOP_LOOKUP(dp, &ndp->ni_vp, cnp)) {
 #ifdef DIAGNOSTIC
 		if (ndp->ni_vp != NULL)
@@ -457,6 +458,8 @@ unionlookup:
 #ifdef NAMEI_DIAGNOSTIC
 	printf("found\n");
 #endif
+
+	ASSERT_VOP_LOCKED(ndp->ni_vp, "lookup");
 
 	/*
 	 * Take into account any additional components consumed by
@@ -515,6 +518,9 @@ nextname:
 		while (*cnp->cn_nameptr == '/') {
 			cnp->cn_nameptr++;
 			ndp->ni_pathlen--;
+		}
+		if (ndp->ni_dvp != ndp->ni_vp) {
+		    ASSERT_VOP_UNLOCKED(ndp->ni_dvp, "lookup");
 		}
 		vrele(ndp->ni_dvp);
 		goto dirloop;
