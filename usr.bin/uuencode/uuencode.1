@@ -53,16 +53,18 @@
 .Fl o Ar output_file
 .Op Ar file
 .Sh DESCRIPTION
-.Nm Uuencode
+The
+.Nm
 and
 .Nm uudecode
-are used to transmit binary files over transmission mediums
+utilities are used to transmit binary files over transmission mediums
 that do not support other than simple
 .Tn ASCII
 data.
 .Pp
-.Nm Uuencode
-reads
+The
+.Nm
+utility reads
 .Ar file
 (or by default the standard input) and writes an encoded version
 to the standard output, or
@@ -76,8 +78,9 @@ mode of the file and the operand
 for use by
 .Nm uudecode .
 .Pp
-.Nm Uudecode
-transforms
+The
+.Nm uudecode
+utility transforms
 .Em uuencoded
 files (or by default, the standard input) into the original form.
 The resulting file is named either
@@ -87,8 +90,9 @@ or (depending on options passed to
 .Ar output_file
 and will have the mode of the original file except that setuid
 and execute bits are not retained.
-.Nm Uudecode
-ignores any leading and trailing lines.
+The
+.Nm uudecode
+utility ignores any leading and trailing lines.
 .Pp
 The following options are available for
 .Nm :

@@ -45,8 +45,9 @@
 .Ar command
 .Op Ar count
 .Sh DESCRIPTION
-.Nm \&Mt
-is used to give commands to a magnetic tape drive.
+The
+.Nm
+utility is used to give commands to a magnetic tape drive.
 By default
 .Nm
 performs the requested operation once.  Operations
@@ -226,8 +227,9 @@ does not exist;
 uses the device
 .Pa /dev/nsa0 .
 .Pp
-.Nm \&Mt
-returns a 0 exit status when the operation(s) were successful,
+The
+.Nm
+utility returns a 0 exit status when the operation(s) were successful,
 1 if the command was unrecognized, and 2 if an operation failed.
 .Pp
 The following density table was taken from the
@@ -306,8 +308,9 @@ If the following environment variable exists, it is utilized by
 .Nm Ns .
 .Bl -tag -width Fl
 .It Ev TAPE
-.Nm \&Mt
-checks the
+The
+.Nm
+utility checks the
 .Ev TAPE
 environment variable if the
 argument

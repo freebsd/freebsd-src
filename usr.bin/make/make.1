@@ -54,8 +54,9 @@
 .Op Ar variable Ns No = Ns Ar value
 .Op Ar target ...
 .Sh DESCRIPTION
-.Nm Make
-is a program designed to simplify the maintenance of other programs.
+The
+.Nm
+utility is a program designed to simplify the maintenance of other programs.
 Its input is a list of specifications
 describing dependency relationships between the generation of
 files and programs.
@@ -467,8 +468,9 @@ was executed with
 A path to the directory where
 .Nm
 was executed.
-.Nm Make
-sets
+The
+.Nm
+utility sets
 .Va .CURDIR
 to the canonical path given by
 .Xr getcwd 3 .
@@ -512,8 +514,9 @@ If they are undefined and
 is unable to change into any of the remaining three directories,
 then the current directory is used.
 .Pp
-.Nm Make
-sets
+The
+.Nm
+utility sets
 .Va .OBJDIR
 to the canonical path given by
 .Xr getcwd 3 .
@@ -1120,7 +1123,9 @@ variable.
 .It Ic .PATH\fIsuffix\fR
 The sources are directories which are to be searched for suffixed files
 not found in the current directory.
-.Nm Make
+The
+.Nm
+utility
 first searches the suffixed search path, before reverting to the default
 path if the file is not found there.
 This form is required for
@@ -1173,8 +1178,9 @@ Most of the more esoteric features of
 .Nm
 should probably be avoided for greater compatibility.
 .Sh ENVIRONMENT
-.Nm Make
-uses the following environment variables, if they exist:
+The
+.Nm
+utility uses the following environment variables, if they exist:
 .Ev MACHINE ,
 .Ev MAKE ,
 .Ev MAKEFLAGS ,

@@ -37,8 +37,9 @@
 .Op Fl o Ar out_file
 .Op Ar filename
 .Sh DESCRIPTION
-.Nm Colldef
-converts a collation sequence source definition
+The
+.Nm
+utility converts a collation sequence source definition
 into a format usable by the
 .Fn strxfrm
 and
@@ -60,8 +61,9 @@ or
 transforms its arguments and does a
 comparison.
 .Pp
-.Nm Colldef
-reads the collation sequence source definition
+The
+.Nm
+utility reads the collation sequence source definition
 from the standard input and stores the converted definition in filename.
 The output file produced contains the
 database with collating sequence information in a form
@@ -240,8 +242,9 @@ is used for continuation.
 In this case, no characters are permitted
 after the backslash character.
 .Sh DIAGNOSTICS
-.Nm Colldef
-exits with the following values:
+The
+.Nm
+utility exits with the following values:
 .Bl -tag -width indent
 .It Li 0
 No errors were found and the output was successfully created.

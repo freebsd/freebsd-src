@@ -43,8 +43,9 @@
 .Op options
 .Op Ar a.out Op Ar a.out.gmon ...
 .Sh DESCRIPTION
-.Nm Gprof
-produces an execution profile of C, Pascal, or Fortran77 programs.
+The
+.Nm
+utility produces an execution profile of C, Pascal, or Fortran77 programs.
 The effect of called routines is incorporated in the profile of each caller.
 The profile data is taken from the call graph profile file
 which is created by programs that are compiled with the
@@ -69,8 +70,7 @@ compiler or linker you can use
 .Fl l Ns Ar c_p
 instead of
 .Fl l Ns Ar c .
-.Nm Gprof
-reads the given object file (the default is
+Read the given object file (the default is
 .Pa a.out)
 and establishes the relation between its symbol table
 and the call graph profile.
@@ -83,8 +83,9 @@ the
 .Nm
 output shows the sum of the profile information in the given profile files.
 .Pp
-.Nm Gprof
-calculates the amount of time spent in each routine.
+The
+.Nm
+utility calculates the amount of time spent in each routine.
 Next, these times are propagated along the edges of the call graph.
 Cycles are discovered, and calls into a cycle are made to share the time
 of the cycle.

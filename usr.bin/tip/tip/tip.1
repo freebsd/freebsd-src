@@ -80,12 +80,14 @@ Escape to a shell (exiting the shell will
 return you to tip).
 .It Ic \&~>
 Copy file from local to remote.
-.Nm Tip
-prompts for the name of a local file to transmit.
+The
+.Nm
+utility prompts for the name of a local file to transmit.
 .It Ic \&~<
 Copy file from remote to local.
-.Nm Tip
-prompts first for the name of the file to be sent, then for
+The
+.Nm
+utility prompts first for the name of the file to be sent, then for
 a command to be executed on the remote machine.
 .It Ic \&~p Ar from Op Ar to
 Send a file to a remote
@@ -161,8 +163,9 @@ the side that displays output from the remote host, is left running.
 Get a summary of the tilde escapes
 .El
 .Pp
-.Nm Tip
-uses the file
+The
+.Nm
+utility uses the file
 .Pa /etc/remote
 to find how to reach a particular
 system and to find out how it should operate while talking
@@ -192,8 +195,9 @@ erase and kill characters.  A null line in response to a prompt,
 or an interrupt, will abort the dialogue and return you to the
 remote machine.
 .Pp
-.Nm Tip
-guards against multiple users connecting to a remote system
+The
+.Nm
+utility guards against multiple users connecting to a remote system
 by opening modems and terminal lines with exclusive access,
 and by honoring the locking protocol used by
 .Xr uucico 8 .
@@ -215,18 +219,21 @@ When
 .Nm
 must dial a phone number to connect to a system it will print
 various messages indicating its actions.
-.Nm Tip
-supports modems that use the AT command set.
-.Nm Tip
-uses the file
+The
+.Nm
+utility supports modems that use the AT command set.
+The
+.Nm
+utility uses the file
 .Pa /etc/modems
 to find out how to operate with a particular
 modem; refer to
 .Xr modems  5
 for a full description.
 .Ss VARIABLES
-.Nm Tip
-maintains a set of
+The
+.Nm
+utility maintains a set of
 .Ar variables
 which control its operation.
 Some of these variables are read-only to normal users (root is allowed
@@ -291,8 +298,9 @@ a ~> file transfer command; abbreviated
 .Ar eofw  .
 .It Ar eol
 (str) The set of characters which indicate an end-of-line.
-.Nm Tip
-will recognize escape characters only after an end-of-line.
+The
+.Nm
+utility will recognize escape characters only after an end-of-line.
 .It Ar escape
 (char) The command prefix (escape) character; abbreviated
 .Ar es  ;
@@ -398,8 +406,9 @@ of lines transferred during a file transfer operations,
 and more.
 .El
 .Sh ENVIRONMENT
-.Nm Tip
-uses the following environment variables:
+The
+.Nm
+utility uses the following environment variables:
 .Bl -tag -width Fl
 .It Ev SHELL
 (str) The name of the shell to use for the ~! command; default

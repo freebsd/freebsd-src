@@ -47,11 +47,14 @@
 .Op Fl l Ar username
 .Ar host
 .Sh DESCRIPTION
-.Nm Rlogin
-starts a terminal session on a remote host
+The
+.Nm
+utility starts a terminal session on a remote host
 .Ar host  .
 .Pp
-.Nm Rlogin
+The
+.Nm
+utility
 first attempts to use the Kerberos authorization mechanism, described below.
 If the remote host does not support Kerberos the standard Berkeley
 .Pa rhosts
@@ -231,8 +234,9 @@ command appeared in
 .Pp
 IPv6 support was added by WIDE/KAME project.
 .Sh BUGS
-.Nm Rlogin
-will be replaced by
+The
+.Nm
+utility will be replaced by
 .Xr telnet  1
 in the near future.
 .Pp
