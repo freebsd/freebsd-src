@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.120 1995/03/21 01:51:12 jkh Exp $
+# $Id: bsd.port.mk,v 1.121 1995/03/21 03:59:11 jkh Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -576,8 +576,8 @@ fetch: pre-fetch
 	 for file in ${DISTFILES}; do \
 		if [ ! -f $$file -a ! -f `basename $$file` ]; then \
 			${ECHO_MSG} ">> $$file doesn't seem to exist on this system."; \
-			${ECHO_MSG} ">> Attempting to fetch it from a master site."; \
 			for site in ${MASTER_SITES}; do \
+			    ${ECHO_MSG} ">> Attempting to fetch from $${site}."; \
 				if ${NCFTP} ${NCFTPFLAGS} $${site}$${file}; then \
 					break; \
 				fi \
