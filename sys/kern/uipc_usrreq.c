@@ -1629,11 +1629,11 @@ unp_gc(void)
 	 * 91/09/19, bsy@cs.cmu.edu
 	 */
 again:
-	nfiles_snap = openfiles + nfiles_slack;	/* some slack */
+	nfiles_snap = nfiles + nfiles_slack;	/* some slack */
 	extra_ref = malloc(nfiles_snap * sizeof(struct file *), M_TEMP,
 	    M_WAITOK);
 	sx_slock(&filelist_lock);
-	if (nfiles_snap < openfiles) {
+	if (nfiles_snap < nfiles) {
 		sx_sunlock(&filelist_lock);
 		free(extra_ref, M_TEMP);
 		nfiles_slack += 20;

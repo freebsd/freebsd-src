@@ -128,7 +128,7 @@ struct filedesc0 {
  * Descriptor management.
  */
 struct filelist filehead;	/* head of list of open files */
-int openfiles;			/* actual number of open files */
+int nfiles;			/* actual number of open files */
 struct sx filelist_lock;	/* sx to protect filelist */
 struct mtx sigio_lock;		/* mtx to protect pointers to sigio */
 
@@ -1321,8 +1321,8 @@ falloc(struct thread *td, struct file **resultfp, int *resultfd)
 
 	fp = uma_zalloc(file_zone, M_WAITOK | M_ZERO);
 	sx_xlock(&filelist_lock);
-	if ((openfiles >= maxuserfiles && (td->td_ucred->cr_ruid != 0 ||
-	   jailed(td->td_ucred))) || openfiles >= maxfiles) {
+	if ((nfiles >= maxuserfiles && (td->td_ucred->cr_ruid != 0 ||
+	   jailed(td->td_ucred))) || nfiles >= maxfiles) {
 		if (ppsratecheck(&lastfail, &curfail, 1)) {
 			printf("kern.maxfiles limit exceeded by uid %i, please see tuning(7).\n",
 				td->td_ucred->cr_ruid);
@@ -1331,7 +1331,7 @@ falloc(struct thread *td, struct file **resultfp, int *resultfd)
 		uma_zfree(file_zone, fp);
 		return (ENFILE);
 	}
-	openfiles++;
+	nfiles++;
 
 	/*
 	 * If the process has file descriptor zero open, add the new file
@@ -2130,7 +2130,7 @@ fdrop_locked(struct file *fp, struct thread *td)
 
 	sx_xlock(&filelist_lock);
 	LIST_REMOVE(fp, f_list);
-	openfiles--;
+	nfiles--;
 	sx_xunlock(&filelist_lock);
 	crfree(fp->f_cred);
 	uma_zfree(file_zone, fp);
@@ -2455,7 +2455,7 @@ SYSCTL_INT(_kern, KERN_MAXFILES, maxfiles, CTLFLAG_RW,
     &maxfiles, 0, "Maximum number of files");
 
 SYSCTL_INT(_kern, OID_AUTO, openfiles, CTLFLAG_RD,
-    &openfiles, 0, "System-wide number of open files");
+    &nfiles, 0, "System-wide number of open files");
 
 /* ARGSUSED*/
 static void

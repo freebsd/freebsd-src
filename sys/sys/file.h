@@ -166,8 +166,8 @@ extern struct fileops badfileops;
 extern struct fileops socketops;
 extern int maxfiles;		/* kernel limit on number of open files */
 extern int maxfilesperproc;	/* per process limit on number of open files */
-extern int openfiles;		/* (fl) actual number of open files */
-extern struct sx filelist_lock; /* sx to protect filelist and openfiles */
+extern int nfiles;		/* (fl) actual number of open files */
+extern struct sx filelist_lock; /* sx to protect filelist and nfiles */
 
 int fget(struct thread *td, int fd, struct file **fpp);
 int fget_read(struct thread *td, int fd, struct file **fpp);
