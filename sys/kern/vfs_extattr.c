@@ -446,29 +446,34 @@ checkdirs(olddp, newdp)
 {
 	struct filedesc *fdp;
 	struct proc *p;
+	int nrele;
 
 	if (olddp->v_usecount == 1)
 		return;
 	sx_slock(&allproc_lock);
 	LIST_FOREACH(p, &allproc, p_list) {
+		PROC_LOCK(p);
 		fdp = p->p_fd;
-		if (fdp == NULL)
+		if (fdp == NULL) {
+			PROC_UNLOCK(p);
 			continue;
+		}
+		nrele = 0;
 		FILEDESC_LOCK(fdp);
 		if (fdp->fd_cdir == olddp) {
 			VREF(newdp);
 			fdp->fd_cdir = newdp;
-			FILEDESC_UNLOCK(fdp);
-			vrele(olddp);
-			FILEDESC_LOCK(fdp);
+			nrele++;
 		}
 		if (fdp->fd_rdir == olddp) {
 			VREF(newdp);
 			fdp->fd_rdir = newdp;
-			FILEDESC_UNLOCK(fdp);
+			nrele++;
+		}
+		FILEDESC_UNLOCK(fdp);
+		PROC_UNLOCK(p);
+		while (nrele--)
 			vrele(olddp);
-		} else
-			FILEDESC_UNLOCK(fdp);
 	}
 	sx_sunlock(&allproc_lock);
 	if (rootvnode == olddp) {
