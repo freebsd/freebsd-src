@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.162 1998/03/12 13:19:59 bde Exp $
+#	$Id: Makefile,v 1.163 1998/03/13 09:41:58 bde Exp $
 #
 # While porting to the another architecture include the bootstrap instead
 # of the normal build.
@@ -138,9 +138,15 @@ SUPFLAGS?=	-v
 
 #
 # While building tools for bootstrapping, we don't need to waste time on
-# shared or profiled libraries, shared linkage, or documentation.
+# shared or profiled libraries, shared linkage, or documentation, except
+# when the tools won't get cleaned we must use the defaults for shared
+# libraries and shared linkage (and this doesn't waste time).
 #
+.if defined(NOCLEAN)
+MK_FLAGS=	-DNOINFO -DNOMAN         -DNOPROFILE
+.else
 MK_FLAGS=	-DNOINFO -DNOMAN -DNOPIC -DNOPROFILE -DNOSHARED
+.endif
 
 #
 # world
@@ -445,7 +451,7 @@ bootstrap:
 	rm -f ${DESTDIR}/usr/src/sys
 	ln -s ${.CURDIR}/sys ${DESTDIR}/usr/src
 	cd ${.CURDIR}/include && find -dx . | cpio -dump ${DESTDIR}/usr/include
-	cd ${.CURDIR}/include && make symlinks
+	cd ${.CURDIR}/include && ${MAKE} symlinks
 .endif
 	cd ${.CURDIR}/usr.bin/make && ${MAKE} ${MK_FLAGS} depend && \
 		${MAKE} ${MK_FLAGS} all && \
@@ -563,7 +569,8 @@ lib-tools:
 		usr.bin/uudecode
 	cd ${.CURDIR}/$d && ${MAKE} ${MK_FLAGS} depend && \
 		${MAKE} ${MK_FLAGS} all && \
-		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
+		${MAKE} ${MK_FLAGS} install && \
+		${MAKE} ${MK_FLAGS:S/-DNOPIC//} -B ${CLEANDIR} ${OBJDIR}
 .endfor
 
 #
