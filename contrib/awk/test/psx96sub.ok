@@ -1,2 +1,0 @@
-orig = "here is some text", repl = "<FOO&BAR \q \ \\ \& \\& \\\&>"
-result is "here is <FOOsomeBAR \q \ \\ & \some \&> text"
