@@ -77,6 +77,7 @@ SUBDIR=	3dfx \
 	${_random} \
 	rl \
 	rp \
+	sem \
 	sf \
 	sis \
 	sk \

@@ -569,3 +569,18 @@
 				struct sf_hdtr *hdtr, off_t *sbytes, int flags); }
 394	MSTD	BSD	{ int mac_syscall(const char *policy, int call, \
 				void *arg); }
+395	UNIMPL	NOHIDE	nosys
+396	UNIMPL	NOHIDE	nosys
+397	UNIMPL	NOHIDE	nosys
+398	UNIMPL	NOHIDE	nosys
+399	UNIMPL	NOHIDE	nosys
+400	MNOSTD	BSD	{ int ksem_close(semid_t id); }
+401	MNOSTD	BSD	{ int ksem_post(semid_t id); }
+402	MNOSTD	BSD	{ int ksem_wait(semid_t id); }
+403	MNOSTD	BSD	{ int ksem_trywait(semid_t id); }
+404	MNOSTD	BSD	{ int ksem_init(semid_t *idp, unsigned int value); }
+405	MNOSTD	BSD	{ int ksem_open(semid_t *idp, const char *name, \
+				int oflag, mode_t mode, unsigned int value); }
+406	MNOSTD	BSD	{ int ksem_unlink(const char *name); }
+407	MNOSTD	BSD	{ int ksem_getvalue(semid_t id, int *val); }
+408	MNOSTD	BSD	{ int ksem_destroy(semid_t id); }
