@@ -35,7 +35,7 @@
  * Center for Telecommunications Research
  * Columbia University, New York City
  *
- *	$Id: pw_yp.c,v 1.4 1996/03/04 15:34:43 wpaul Exp $
+ *	$Id: pw_yp.c,v 1.5 1996/05/07 21:05:12 wpaul Exp $
  */
 
 #ifdef YP
@@ -196,7 +196,8 @@ static int my_yp_match(server, domain, map, key, keylen, result, resultlen)
 	bzero((char *)buf, sizeof(buf));
 
 	if ((clnt = clnt_create(server, YPPROG,YPVERS,"udp")) == NULL) {
-		warnx("%s", clnt_spcreateerror("failed to create handle"));
+		warnx("failed to create UDP handle: %s",
+					clnt_spcreateerror(server));
 		pw_error(tempname, 0, 1);
 	}
 
@@ -480,8 +481,8 @@ void yp_submit(pw)
 
 		if ((clnt = clnt_create(master, YPPASSWDPROG,
 					YPPASSWDVERS, "udp")) == NULL) {
-			warnx("failed to contact rpc.yppasswdd on %s: %s",
-				master, clnt_spcreateerror(""));
+			warnx("failed to contact rpc.yppasswdd: %s",
+				master, clnt_spcreateerror(master));
 			pw_error(tempname, 0, 1);
 		}
 
