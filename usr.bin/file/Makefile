@@ -24,13 +24,13 @@
 #
 # Hacked and dismembered for bmake (Geoff Rehmet).
 
-MAGICDIR=	/usr/share/misc/magic
+MAGICFILE=	/usr/share/misc/magic
 MAGICMODE=	444
 
 SRCDIR=		${.CURDIR}/../../contrib/file
 .PATH:		${SRCDIR}
 
-CFLAGS+=	-DMAGIC='"$(MAGICDIR)"' -DBUILTIN_ELF -DELFCORE -DHAVE_CONFIG_H
+CFLAGS+=	-DMAGIC='"$(MAGICFILE)"' -DBUILTIN_ELF -DELFCORE -DHAVE_CONFIG_H
 CFLAGS+=	-I${.CURDIR}
 
 PROG=		file
@@ -41,7 +41,7 @@ SRCS=		file.c apprentice.c fsmagic.c softmagic.c ascmagic.c \
 MAN1=		file.1
 MAN5=		magic.5
 
-CLEANFILES+=	magic
+CLEANFILES+=	magic file.1 magic.5 version
 
 MAGFILES=	${SRCDIR}/Header\
 		${SRCDIR}/Localstuff\
@@ -52,8 +52,20 @@ all:	file magic
 magic:	$(MAGFILES)
 	cat $(MAGFILES) > $(.TARGET)
 
+version: Makefile.std
+	@sed '/.*VERSION.*=[ 	]*/s///w ${.TARGET}' ${.ALLSRC} > /dev/null
+
+.for MP in file.1 magic.5
+${MP}: ${SRCDIR}/${MP:C/[0-9]$/man/} version
+	sed -e 's|__CSECTION__|1|g'\
+	    -e 's|__FSECTION__|5|g'\
+	    -e 's|__MAGIC__|${MAGICFILE}|g'\
+	    -e "s|__VERSION__|`cat version`|g"\
+	    ${SRCDIR}/${MP:C/[0-9]$/man/} > ${.TARGET}
+.endfor
+
 beforeinstall:
 	$(INSTALL) $(COPY) -o $(BINOWN) -g $(BINGRP) -m $(MAGICMODE) \
-	    magic $(DESTDIR)$(MAGICDIR)
+	    magic $(DESTDIR)$(MAGICFILE)
 
 .include <bsd.prog.mk>
