@@ -79,15 +79,15 @@ The default
 shipped with
 .Fx
 is an out of the box configuration.
-Whenever changes to this file, or
-the users local
-.Pa ~/.login_conf
+Whenever changes to this, or
+the user's
+.Pa ~/.login_conf ,
 file are made, the modifications will not be picked up until
 .Xr cap_mkdb 1
 is used to compile the file into a database.
 This database file will have a
 .Pa .db
-extention and is accessed through
+extension and is accessed through
 .Xr cgetent 3 .
 See
 .Xr getcap 3
