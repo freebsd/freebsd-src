@@ -42,7 +42,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)login.c	8.4 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-	"$Id: login.c,v 1.45 1999/01/19 22:59:37 abial Exp $";
+	"$Id: login.c,v 1.46 1999/04/07 14:05:03 brian Exp $";
 #endif /* not lint */
 
 /*
@@ -138,6 +138,7 @@ main(argc, argv)
 	int changepass;
 	time_t warntime;
 	uid_t uid, euid;
+	gid_t egid;
 	char *p, *ttyn;
 	char tbuf[MAXPATHLEN + 2];
 	char tname[sizeof(_PATH_TTY) + 10];
@@ -171,6 +172,7 @@ main(argc, argv)
 	fflag = hflag = pflag = 0;
 	uid = getuid();
 	euid = geteuid();
+	egid = getegid();
 	while ((ch = getopt(argc, argv, "fh:p")) != -1)
 		switch (ch) {
 		case 'f':
@@ -347,15 +349,15 @@ main(argc, argv)
 	/*
 	 * Establish the login class.
 	 */
-	(void)seteuid(rootlogin ? 0 : pwd->pw_uid);
 	lc = login_getpwclass(pwd);
-	seteuid(euid);
 
 	/* if user not super-user, check for disabled logins */
 	if (!rootlogin)
 		auth_checknologin(lc);
 
 	quietlog = login_getcapbool(lc, "hushlogin", 0);
+	/* Switching needed for NFS with root access disabled */
+	(void)setegid(pwd->pw_gid);
 	(void)seteuid(rootlogin ? 0 : pwd->pw_uid);
 	if (!*pwd->pw_dir || chdir(pwd->pw_dir) < 0) {
 		if (login_getcapbool(lc, "requirehome", 0))
@@ -367,6 +369,7 @@ main(argc, argv)
 			printf("No home directory.\nLogging in with home = \"/\".\n");
 	}
 	(void)seteuid(euid);
+	(void)setegid(egid);
 	if (!quietlog)
 		quietlog = access(_PATH_HUSHLOGIN, F_OK) == 0;
 
