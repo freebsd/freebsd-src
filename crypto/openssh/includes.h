@@ -58,7 +58,9 @@ static /**/const char *const rcsid[] = { (char *)rcsid, "\100(#)" msg }
 #include "version.h"
 
 /* Define this to be the path of the xauth program. */
+#ifndef XAUTH_PATH
 #define XAUTH_PATH "/usr/X11R6/bin/xauth"
+#endif
 
 /*
  * Define this to use pipes instead of socketpairs for communicating with the
