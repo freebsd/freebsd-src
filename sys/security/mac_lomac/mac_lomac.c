@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 1999-2002 Robert N. M. Watson
- * Copyright (c) 2001-2003 Networks Associates Technology, Inc.
+ * Copyright (c) 2001-2005 Networks Associates Technology, Inc.
  * All rights reserved.
  *
  * This software was developed by Robert Watson for the TrustedBSD Project.
@@ -2207,34 +2207,6 @@ mac_lomac_check_vnode_mmap(struct ucred *cred, struct vnode *vp,
 	return (0);
 }
 
-static int
-mac_lomac_check_vnode_mprotect(struct ucred *cred, struct vnode *vp,
-    struct label *label, int prot)
-{
-	struct mac_lomac *subj, *obj;
-
-	/*
-	 * Rely on the use of open()-time protections to handle
-	 * non-revocation cases.
-	 */
-	if (!mac_lomac_enabled || !revocation_enabled)
-		return (0);
-
-	subj = SLOT(cred->cr_label);
-	obj = SLOT(label);
-
-	if (prot & VM_PROT_WRITE) {
-		if (!mac_lomac_subject_dominate(subj, obj))
-			return (EACCES);
-	}
-	if (prot & (VM_PROT_READ | VM_PROT_EXECUTE)) {
-		if (!mac_lomac_dominate_single(obj, subj))
-			return (EACCES);
-	}
-
-	return (0);
-}
-
 static void
 mac_lomac_check_vnode_mmap_downgrade(struct ucred *cred, struct vnode *vp,
     struct label *label, /* XXX vm_prot_t */ int *prot)
@@ -2733,7 +2705,6 @@ static struct mac_policy_ops mac_lomac_ops =
 	.mpo_check_vnode_link = mac_lomac_check_vnode_link,
 	.mpo_check_vnode_mmap = mac_lomac_check_vnode_mmap,
 	.mpo_check_vnode_mmap_downgrade = mac_lomac_check_vnode_mmap_downgrade,
-	.mpo_check_vnode_mprotect = mac_lomac_check_vnode_mprotect,
 	.mpo_check_vnode_open = mac_lomac_check_vnode_open,
 	.mpo_check_vnode_read = mac_lomac_check_vnode_read,
 	.mpo_check_vnode_relabel = mac_lomac_check_vnode_relabel,
