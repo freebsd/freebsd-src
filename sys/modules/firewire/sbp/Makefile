@@ -7,7 +7,7 @@
 KMOD	= sbp
 SRCS	= bus_if.h device_if.h \
 	  opt_cam.h opt_scsi.h \
-	  sbp.c \
+	  sbp.c sbp.h \
 	  firewire.h firewirereg.h \
 	  iec13213.h
 KMODDEPS = firewire

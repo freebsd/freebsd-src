@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2002-2003
  * 	Hidetoshi Shimokawa. All rights reserved.
  * 
@@ -30,9 +30,10 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- * 
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #if defined(_KERNEL) || defined(TEST)
@@ -423,6 +424,7 @@ crom_add_chunk(struct crom_src *src, struct crom_chunk *parent,
 	return(index);
 }
 
+#define MAX_TEXT ((CROM_MAX_CHUNK_LEN + 1) * 4 - sizeof(struct csrtext))
 int
 crom_add_simple_text(struct crom_src *src, struct crom_chunk *parent,
 				struct crom_chunk *chunk, char *buf)
@@ -430,9 +432,9 @@ crom_add_simple_text(struct crom_src *src, struct crom_chunk *parent,
 	struct csrtext *tl;
 	u_int32_t *p;
 	int len, i;
+	char t[MAX_TEXT];
 
 	len = strlen(buf);
-#define MAX_TEXT ((CROM_MAX_CHUNK_LEN + 1) * 4 - sizeof(struct csrtext))
 	if (len > MAX_TEXT) {
 #if __FreeBSD_version < 500000
 		printf("text(%d) trancated to %d.\n", len, MAX_TEXT);
@@ -447,7 +449,9 @@ crom_add_simple_text(struct crom_src *src, struct crom_chunk *parent,
 	tl->spec_id = 0;
 	tl->spec_type = 0;
 	tl->lang_id = 0;
-	p = (u_int32_t *) buf;
+	bzero(&t[0], roundup2(len, sizeof(u_int32_t)));
+	bcopy(buf, &t[0], len);
+	p = (u_int32_t *)&t[0];
 	for (i = 0; i < howmany(len, sizeof(u_int32_t)); i ++)
 		tl->text[i] = ntohl(*p++);
 	return (crom_add_chunk(src, parent, chunk, CROM_TEXTLEAF));

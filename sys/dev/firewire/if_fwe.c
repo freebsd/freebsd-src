@@ -58,9 +58,8 @@
 #include <dev/firewire/firewirereg.h>
 #include <dev/firewire/if_fwevar.h>
 
-#define FWEDEBUG	if (fwedebug) printf
+#define FWEDEBUG	if (fwedebug) if_printf
 #define TX_MAX_QUEUE	(FWMAXQUEUE - 1)
-#define RX_MAX_QUEUE	FWMAXQUEUE
 
 /* network interface */
 static void fwe_start __P((struct ifnet *));
@@ -74,16 +73,23 @@ static void fwe_as_input __P((struct fw_xferq *));
 static int fwedebug = 0;
 static int stream_ch = 1;
 static int tx_speed = 2;
+static int rx_queue_len = FWMAXQUEUE;
 
 MALLOC_DEFINE(M_FWE, "if_fwe", "Ethernet over FireWire interface");
 SYSCTL_INT(_debug, OID_AUTO, if_fwe_debug, CTLFLAG_RW, &fwedebug, 0, "");
 SYSCTL_DECL(_hw_firewire);
 SYSCTL_NODE(_hw_firewire, OID_AUTO, fwe, CTLFLAG_RD, 0,
-	"Ethernet Emulation Subsystem");
+	"Ethernet emulation subsystem");
 SYSCTL_INT(_hw_firewire_fwe, OID_AUTO, stream_ch, CTLFLAG_RW, &stream_ch, 0,
 	"Stream channel to use");
 SYSCTL_INT(_hw_firewire_fwe, OID_AUTO, tx_speed, CTLFLAG_RW, &tx_speed, 0,
-	"Transmission Speed");
+	"Transmission speed");
+SYSCTL_INT(_hw_firewire_fwe, OID_AUTO, rx_queue_len, CTLFLAG_RW, &rx_queue_len,
+	0, "Length of the receive queue");
+
+TUNABLE_INT("hw.firewire.fwe.stream_ch", &stream_ch);
+TUNABLE_INT("hw.firewire.fwe.tx_speed", &tx_speed);
+TUNABLE_INT("hw.firewire.fwe.rx_queue_len", &rx_queue_len);
 
 #ifdef DEVICE_POLLING
 #define FWE_POLL_REGISTER(func, fwe, ifp)			\
@@ -123,7 +129,7 @@ fwe_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 static void
 fwe_identify(driver_t *driver, device_t parent)
 {
-	BUS_ADD_CHILD(parent, 0, "if_fwe", device_get_unit(parent));
+	BUS_ADD_CHILD(parent, 0, "fwe", device_get_unit(parent));
 }
 
 static int
@@ -186,8 +192,12 @@ fwe_attach(device_t dev)
 	ifp = &fwe->fwe_if;
 	ifp->if_softc = &fwe->eth_softc;
 
+#if __FreeBSD_version >= 501113
+	if_initname(ifp, device_get_name(dev), unit);
+#else
 	ifp->if_unit = unit;
 	ifp->if_name = "fwe";
+#endif
 	ifp->if_init = fwe_init;
 	ifp->if_output = ether_output;
 	ifp->if_start = fwe_start;
@@ -211,7 +221,7 @@ fwe_attach(device_t dev)
 #endif
 
 
-	FWEDEBUG("interface %s%d created.\n", ifp->if_name, ifp->if_unit);
+	FWEDEBUG(ifp, "interface created\n");
 	return 0;
 }
 
@@ -287,7 +297,7 @@ fwe_init(void *arg)
 	struct mbuf *m;
 	int i;
 
-	FWEDEBUG("initializing %s%d\n", ifp->if_name, ifp->if_unit);
+	FWEDEBUG(ifp, "initializing\n");
 
 	/* XXX keep promiscoud mode */
 	ifp->if_flags |= IFF_PROMISC;
@@ -314,7 +324,7 @@ found:
 		/* register fwe_input handler */
 		xferq->sc = (caddr_t) fwe;
 		xferq->hand = fwe_as_input;
-		xferq->bnchunk = RX_MAX_QUEUE;
+		xferq->bnchunk = rx_queue_len;
 		xferq->bnpacket = 1;
 		xferq->psize = MCLBYTES;
 		xferq->queued = 0;
@@ -350,7 +360,7 @@ found:
 			xfer = fw_xfer_alloc(M_FWE);
 			if (xfer == NULL)
 				break;
-			xfer->spd = tx_speed;
+			xfer->send.spd = tx_speed;
 			xfer->fc = fwe->fd.fc;
 			xfer->retry_req = fw_asybusy;
 			xfer->sc = (caddr_t)fwe;
@@ -442,12 +452,11 @@ fwe_output_callback(struct fw_xfer *xfer)
 	fwe = (struct fwe_softc *)xfer->sc;
 	ifp = &fwe->fwe_if;
 	/* XXX error check */
-	FWEDEBUG("resp = %d\n", xfer->resp);
+	FWEDEBUG(ifp, "resp = %d\n", xfer->resp);
 	if (xfer->resp != 0)
 		ifp->if_oerrors ++;
 		
 	m_freem(xfer->mbuf);
-	xfer->send.buf = NULL;
 	fw_xfer_unload(xfer);
 
 	s = splimp();
@@ -465,12 +474,12 @@ fwe_start(struct ifnet *ifp)
 	struct fwe_softc *fwe = ((struct fwe_eth_softc *)ifp->if_softc)->fwe;
 	int s;
 
-	FWEDEBUG("%s%d starting\n", ifp->if_name, ifp->if_unit);
+	FWEDEBUG(ifp, "starting\n");
 
 	if (fwe->dma_ch < 0) {
 		struct mbuf	*m = NULL;
 
-		FWEDEBUG("%s%d not ready.\n", ifp->if_name, ifp->if_unit);
+		FWEDEBUG(ifp, "not ready\n");
 
 		s = splimp();
 		do {
@@ -529,12 +538,11 @@ fwe_as_output(struct fwe_softc *fwe, struct ifnet *ifp)
 
 		/* keep ip packet alignment for alpha */
 		M_PREPEND(m, ETHER_ALIGN, M_DONTWAIT);
-		fp = (struct fw_pkt *)&xfer->dst; /* XXX */
-		xfer->dst = *((int32_t *)&fwe->pkt_hdr);
+		fp = &xfer->send.hdr;
+		*(u_int32_t *)&xfer->send.hdr = *(int32_t *)&fwe->pkt_hdr;
 		fp->mode.stream.len = m->m_pkthdr.len;
-		xfer->send.buf = (caddr_t) fp;
 		xfer->mbuf = m;
-		xfer->send.len = m->m_pkthdr.len + HDR_LEN;
+		xfer->send.pay_len = m->m_pkthdr.len;
 
 		if (fw_asyreq(fwe->fd.fc, -1, xfer) != 0) {
 			/* error */
@@ -605,7 +613,7 @@ fwe_as_input(struct fw_xferq *xferq)
 				fp->mode.stream.len - ETHER_ALIGN;
 		m->m_pkthdr.rcvif = ifp;
 #if 0
-		FWEDEBUG("%02x %02x %02x %02x %02x %02x\n"
+		FWEDEBUG(ifp, "%02x %02x %02x %02x %02x %02x\n"
 			 "%02x %02x %02x %02x %02x %02x\n"
 			 "%02x %02x %02x %02x\n"
 			 "%02x %02x %02x %02x\n"
@@ -643,7 +651,7 @@ static device_method_t fwe_methods[] = {
 };
 
 static driver_t fwe_driver = {
-        "if_fwe",
+        "fwe",
 	fwe_methods,
 	sizeof(struct fwe_softc),
 };

@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2003 Hidetosh Shimokawa
- * Copyright (c) 1998-2002 Katsushi Kobayashi and Hidetosh Shimokawa
+ * Copyright (c) 2003 Hidetoshi Shimokawa
+ * Copyright (c) 1998-2002 Katsushi Kobayashi and Hidetoshi Shimokawa
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -66,20 +66,21 @@
 #include <dev/firewire/firewirereg.h>
 #include <dev/firewire/fwdma.h>
 #include <dev/firewire/iec13213.h>
+#include <dev/firewire/sbp.h>
 
 #define ccb_sdev_ptr	spriv_ptr0
 #define ccb_sbp_ptr	spriv_ptr1
 
 #define SBP_NUM_TARGETS 8 /* MAX 64 */
-#define SBP_NUM_LUNS 8	/* limited by CAM_SCSI2_MAXLUN in cam_xpt.c */
+/*
+ * Scan_bus doesn't work for more than 8 LUNs
+ * because of CAM_SCSI2_MAXLUN in cam_xpt.c
+ */
+#define SBP_NUM_LUNS 64
 #define SBP_DMA_SIZE PAGE_SIZE
 #define SBP_LOGIN_SIZE sizeof(struct sbp_login_res)
 #define SBP_QUEUE_LEN ((SBP_DMA_SIZE - SBP_LOGIN_SIZE) / sizeof(struct sbp_ocb))
 #define SBP_NUM_OCB (SBP_QUEUE_LEN * SBP_NUM_TARGETS)
-
-#define SBP_INITIATOR 7
-
-#define LOGIN_DELAY 2
 
 /* 
  * STATUS FIFO addressing
@@ -88,71 +89,30 @@
  *  0- 1( 2): 0 (alingment)
  *  2- 7( 6): target
  *  8-15( 8): lun
- * 16-23( 8): unit
- * 24-31( 8): reserved
+ * 16-31( 8): reserved
  * 32-47(16): SBP_BIND_HI 
  * 48-64(16): bus_id, node_id 
  */
 #define SBP_BIND_HI 0x1
-#define SBP_DEV2ADDR(u, t, l) \
-	((((u) & 0xff) << 16) | (((l) & 0xff) << 8) | (((t) & 0x3f) << 2))
+#define SBP_DEV2ADDR(t, l) \
+	(((u_int64_t)SBP_BIND_HI << 32) \
+	| (((l) & 0xff) << 8) \
+	| (((t) & 0x3f) << 2))
 #define SBP_ADDR2TRG(a)	(((a) >> 2) & 0x3f)
 #define SBP_ADDR2LUN(a)	(((a) >> 8) & 0xff)
-
-#define ORB_NOTIFY	(1 << 31)
-#define	ORB_FMT_STD	(0 << 29)
-#define	ORB_FMT_VED	(2 << 29)
-#define	ORB_FMT_NOP	(3 << 29)
-#define	ORB_FMT_MSK	(3 << 29)
-#define	ORB_EXV		(1 << 28)
-/* */
-#define	ORB_CMD_IN	(1 << 27)
-/* */
-#define	ORB_CMD_SPD(x)	((x) << 24)
-#define	ORB_CMD_MAXP(x)	((x) << 20)
-#define	ORB_RCN_TMO(x)	((x) << 20)
-#define	ORB_CMD_PTBL	(1 << 19)
-#define	ORB_CMD_PSZ(x)	((x) << 16)
-
-#define	ORB_FUN_LGI	(0 << 16)
-#define	ORB_FUN_QLG	(1 << 16)
-#define	ORB_FUN_RCN	(3 << 16)
-#define	ORB_FUN_LGO	(7 << 16)
-#define	ORB_FUN_ATA	(0xb << 16)
-#define	ORB_FUN_ATS	(0xc << 16)
-#define	ORB_FUN_LUR	(0xe << 16)
-#define	ORB_FUN_RST	(0xf << 16)
-#define	ORB_FUN_MSK	(0xf << 16)
-#define	ORB_FUN_RUNQUEUE 0xffff
+#define SBP_INITIATOR 7
 
 static char *orb_fun_name[] = {
-	/* 0 */ "LOGIN",
-	/* 1 */ "QUERY LOGINS",
-	/* 2 */ "Reserved",
-	/* 3 */ "RECONNECT",
-	/* 4 */ "SET PASSWORD",
-	/* 5 */ "Reserved",
-	/* 6 */ "Reserved",
-	/* 7 */ "LOGOUT",
-	/* 8 */ "Reserved",
-	/* 9 */ "Reserved",
-	/* A */ "Reserved",
-	/* B */ "ABORT TASK",
-	/* C */ "ABORT TASK SET",
-	/* D */ "Reserved",
-	/* E */ "LOGICAL UNIT RESET",
-	/* F */ "TARGET RESET"
+	ORB_FUN_NAMES
 };
-
-#define ORB_RES_CMPL 0
-#define ORB_RES_FAIL 1
-#define ORB_RES_ILLE 2
-#define ORB_RES_VEND 3
 
 static int debug = 0;
 static int auto_login = 1;
 static int max_speed = 2;
 static int sbp_cold = 1;
+static int ex_login = 1;
+static int login_delay = 1000;	/* msec */
+static int scan_delay = 500;	/* msec */
 
 SYSCTL_DECL(_hw_firewire);
 SYSCTL_NODE(_hw_firewire, OID_AUTO, sbp, CTLFLAG_RD, 0, "SBP-II Subsystem");
@@ -162,15 +122,21 @@ SYSCTL_INT(_hw_firewire_sbp, OID_AUTO, auto_login, CTLFLAG_RW, &auto_login, 0,
 	"SBP perform login automatically");
 SYSCTL_INT(_hw_firewire_sbp, OID_AUTO, max_speed, CTLFLAG_RW, &max_speed, 0,
 	"SBP transfer max speed");
+SYSCTL_INT(_hw_firewire_sbp, OID_AUTO, exclusive_login, CTLFLAG_RW,
+	&ex_login, 0, "SBP transfer max speed");
+SYSCTL_INT(_hw_firewire_sbp, OID_AUTO, login_delay, CTLFLAG_RW,
+	&login_delay, 0, "SBP login delay in msec");
+SYSCTL_INT(_hw_firewire_sbp, OID_AUTO, scan_delay, CTLFLAG_RW,
+	&scan_delay, 0, "SBP scan delay in msec");
 
-#define SBP_DEBUG(x)	if (debug > x) {
-#define END_DEBUG	}
+TUNABLE_INT("hw.firewire.sbp.auto_login", &auto_login);
+TUNABLE_INT("hw.firewire.sbp.max_speed", &max_speed);
+TUNABLE_INT("hw.firewire.sbp.exclusive_login", &ex_login);
+TUNABLE_INT("hw.firewire.sbp.login_delay", &login_delay);
+TUNABLE_INT("hw.firewire.sbp.scan_delay", &scan_delay);
 
 #define NEED_RESPONSE 0
 
-struct ind_ptr {
-	u_int32_t hi,lo;
-};
 #define SBP_SEG_MAX rounddown(0xffff, PAGE_SIZE)
 #ifdef __sparc64__ /* iommu */
 #define SBP_IND_MAX howmany(MAXPHYS, SBP_SEG_MAX)
@@ -181,9 +147,9 @@ struct sbp_ocb {
 	STAILQ_ENTRY(sbp_ocb)	ocb;
 	union ccb	*ccb;
 	bus_addr_t	bus_addr;
-	volatile u_int32_t	orb[8];
+	u_int32_t	orb[8];
 #define IND_PTR_OFFSET	(8*sizeof(u_int32_t))
-	volatile struct ind_ptr  ind_ptr[SBP_IND_MAX];
+	struct ind_ptr  ind_ptr[SBP_IND_MAX];
 	struct sbp_dev	*sdev;
 	int		flags; /* XXX should be removed */
 	bus_dmamap_t	dmamap;
@@ -192,70 +158,6 @@ struct sbp_ocb {
 #define OCB_ACT_MGM 0
 #define OCB_ACT_CMD 1
 #define OCB_MATCH(o,s)	((o)->bus_addr == ntohl((s)->orb_lo))
-
-#define SBP_RECV_LEN (16 + 32) /* header + payload */
-
-struct sbp_login_res{
-	u_int16_t	len;
-	u_int16_t	id;
-	u_int16_t	res0;
-	u_int16_t	cmd_hi;
-	u_int32_t	cmd_lo;
-	u_int16_t	res1;
-	u_int16_t	recon_hold;
-};
-struct sbp_status{
-#if BYTE_ORDER == BIG_ENDIAN
-	u_int8_t	src:2,
-			resp:2,
-			dead:1,
-			len:3;
-#else
-	u_int8_t	len:3,
-			dead:1,
-			resp:2,
-			src:2;
-#endif
-	u_int8_t	status;
-	u_int16_t	orb_hi;
-	u_int32_t	orb_lo;
-	u_int32_t	data[6];
-};
-struct sbp_cmd_status{
-#define SBP_SFMT_CURR 0
-#define SBP_SFMT_DEFER 1
-#if BYTE_ORDER == BIG_ENDIAN
-	u_int8_t	sfmt:2,
-			status:6;
-	u_int8_t	valid:1,
-			mark:1,
-			eom:1,
-			ill_len:1,
-			s_key:4;
-#else
-	u_int8_t	status:6,
-			sfmt:2;
-	u_int8_t	s_key:4,
-			ill_len:1,
-			eom:1,
-			mark:1,
-			valid:1;
-#endif
-	u_int8_t	s_code;
-	u_int8_t	s_qlfr;
-	u_int32_t	info;
-	u_int32_t	cdb;
-
-#if BYTE_ORDER == BIG_ENDIAN
-	u_int32_t	s_keydep:24,
-			fru:8;
-#else
-	u_int32_t	fru:8,
-			s_keydep:24;
-#endif
-	u_int32_t	vend[2];
-
-};
 
 struct sbp_dev{
 #define SBP_DEV_RESET		0	/* accept login */
@@ -272,7 +174,12 @@ struct sbp_dev{
 		 timeout:4;
 	u_int8_t type;
 	u_int16_t lun_id;
-	int freeze;
+	u_int16_t freeze;
+#define	ORB_LINK_DEAD		(1 << 0)
+#define	VALID_LUN		(1 << 1)
+#define	ORB_POINTER_ACTIVE	(1 << 2)
+#define	ORB_POINTER_NEED	(1 << 3)
+	u_int16_t flags;
 	struct cam_path *path;
 	struct sbp_target *target;
 	struct fwdma_alloc dma;
@@ -289,14 +196,13 @@ struct sbp_dev{
 struct sbp_target {
 	int target_id;
 	int num_lun;
-	struct sbp_dev	*luns;
+	struct sbp_dev	**luns;
 	struct sbp_softc *sbp;
 	struct fw_device *fwdev;
 	u_int32_t mgm_hi, mgm_lo;
 	struct sbp_ocb *mgm_ocb_cur;
 	STAILQ_HEAD(, sbp_ocb) mgm_ocb_queue;
 	struct callout mgm_ocb_timeout;
-#define SCAN_DELAY 2
 	struct callout scan_callout;
 	STAILQ_HEAD(, fw_xfer) xferlist;
 	int n_xfer;
@@ -309,13 +215,15 @@ struct sbp_softc {
 	struct sbp_target targets[SBP_NUM_TARGETS];
 	struct fw_bind fwb;
 	bus_dma_tag_t	dmat;
-#define SBP_RESOURCE_SHORTAGE 0x10
-	unsigned char flags;
+	struct timeval last_busreset;
 };
+
 static void sbp_post_explore __P((void *));
 static void sbp_recv __P((struct fw_xfer *));
 static void sbp_mgm_callback __P((struct fw_xfer *));
+#if 0
 static void sbp_cmd_callback __P((struct fw_xfer *));
+#endif
 static void sbp_orb_pointer __P((struct sbp_dev *, struct sbp_ocb *));
 static void sbp_execute_ocb __P((void *,  bus_dma_segment_t *, int, int));
 static void sbp_free_ocb __P((struct sbp_dev *, struct sbp_ocb *));
@@ -325,13 +233,13 @@ static struct fw_xfer * sbp_write_cmd __P((struct sbp_dev *, int, int));
 static struct sbp_ocb * sbp_get_ocb __P((struct sbp_dev *));
 static struct sbp_ocb * sbp_enqueue_ocb __P((struct sbp_dev *, struct sbp_ocb *));
 static struct sbp_ocb * sbp_dequeue_ocb __P((struct sbp_dev *, struct sbp_status *));
+static void sbp_cam_detach_sdev(struct sbp_dev *);
+static void sbp_free_sdev(struct sbp_dev *);
 static void sbp_cam_detach_target __P((struct sbp_target *));
+static void sbp_free_target __P((struct sbp_target *));
 static void sbp_mgm_timeout __P((void *arg));
 static void sbp_timeout __P((void *arg));
 static void sbp_mgm_orb __P((struct sbp_dev *, int, struct sbp_ocb *));
-#define sbp_login(sdev) \
-	callout_reset(&(sdev)->login_callout, LOGIN_DELAY * hz, \
-			sbp_login_callout, (void *)(sdev));
 
 MALLOC_DEFINE(M_SBP, "sbp", "SBP-II/FireWire");
 
@@ -413,7 +321,7 @@ END_DEBUG
 		return(ENXIO);
 	}
 
-	device_set_desc(dev, "SBP2/SCSI over firewire");
+	device_set_desc(dev, "SBP-2/SCSI over FireWire");
 
 	if (bootverbose)
 		debug = bootverbose;
@@ -504,12 +412,163 @@ sbp_new_target(struct sbp_softc *sbp, struct fw_device *fwdev)
 	return target;
 }
 
+static void
+sbp_alloc_lun(struct sbp_target *target)
+{
+	struct crom_context cc;
+	struct csrreg *reg;
+	struct sbp_dev *sdev, **newluns;
+	struct sbp_softc *sbp;
+	int maxlun, lun, i;
+
+	sbp = target->sbp;
+	crom_init_context(&cc, target->fwdev->csrrom);
+	/* XXX shoud parse appropriate unit directories only */
+	maxlun = -1;
+	while (cc.depth >= 0) {
+		reg = crom_search_key(&cc, CROM_LUN);
+		if (reg == NULL)
+			break;
+		lun = reg->val & 0xffff;
+SBP_DEBUG(0)
+		printf("target %d lun %d found\n", target->target_id, lun);
+END_DEBUG
+		if (maxlun < lun)
+			maxlun = lun;
+		crom_next(&cc);
+	}
+	if (maxlun < 0)
+		printf("%s:%d no LUN found\n",
+		    device_get_nameunit(target->sbp->fd.dev),
+		    target->target_id);
+
+	maxlun ++;
+	if (maxlun >= SBP_NUM_LUNS)
+		maxlun = SBP_NUM_LUNS;
+
+	/* Invalidiate stale devices */
+	for (lun = 0; lun < target->num_lun; lun ++) {
+		sdev = target->luns[lun];
+		if (sdev == NULL)
+			continue;
+		sdev->flags &= ~VALID_LUN;
+		if (lun >= maxlun) {
+			/* lost device */
+			sbp_cam_detach_sdev(sdev);
+			sbp_free_sdev(sdev);
+		}
+	}
+
+	/* Reallocate */
+	if (maxlun != target->num_lun) {
+		newluns = (struct sbp_dev **) realloc(target->luns,
+		    sizeof(struct sbp_dev *) * maxlun,
+		    M_SBP, M_NOWAIT | M_ZERO);
+		
+		if (newluns == NULL) {
+			printf("%s: realloc failed\n", __FUNCTION__);
+			newluns = target->luns;
+			maxlun = target->num_lun;
+		}
+
+		/*
+		 * We must zero the extended region for the case
+		 * realloc() doesn't allocate new buffer.
+		 */
+		if (maxlun > target->num_lun)
+			bzero(&newluns[target->num_lun],
+			    sizeof(struct sbp_dev *) *
+			    (maxlun - target->num_lun));
+
+		target->luns = newluns;
+		target->num_lun = maxlun;
+	}
+
+	crom_init_context(&cc, target->fwdev->csrrom);
+	while (cc.depth >= 0) {
+		int new = 0;
+
+		reg = crom_search_key(&cc, CROM_LUN);
+		if (reg == NULL)
+			break;
+		lun = reg->val & 0xffff;
+		if (lun >= SBP_NUM_LUNS) {
+			printf("too large lun %d\n", lun);
+			goto next;
+		}
+
+		sdev = target->luns[lun];
+		if (sdev == NULL) {
+			sdev = malloc(sizeof(struct sbp_dev),
+			    M_SBP, M_NOWAIT | M_ZERO);
+			if (sdev == NULL) {
+				printf("%s: malloc failed\n", __FUNCTION__);
+				goto next;
+			}
+			target->luns[lun] = sdev;
+			sdev->lun_id = lun;
+			sdev->target = target;
+			STAILQ_INIT(&sdev->ocbs);
+			CALLOUT_INIT(&sdev->login_callout);
+			sdev->status = SBP_DEV_RESET;
+			new = 1;
+		}
+		sdev->flags |= VALID_LUN;
+		sdev->type = (reg->val & 0xff0000) >> 16;
+
+		if (new == 0)
+			goto next;
+
+		fwdma_malloc(sbp->fd.fc, 
+			/* alignment */ sizeof(u_int32_t),
+			SBP_DMA_SIZE, &sdev->dma, BUS_DMA_NOWAIT);
+		if (sdev->dma.v_addr == NULL) {
+			printf("%s: dma space allocation failed\n",
+							__FUNCTION__);
+			free(sdev, M_SBP);
+			target->luns[lun] = NULL;
+			goto next;
+		}
+		sdev->login = (struct sbp_login_res *) sdev->dma.v_addr;
+		sdev->ocb = (struct sbp_ocb *)
+				((char *)sdev->dma.v_addr + SBP_LOGIN_SIZE);
+		bzero((char *)sdev->ocb,
+			sizeof (struct sbp_ocb) * SBP_QUEUE_LEN);
+
+		STAILQ_INIT(&sdev->free_ocbs);
+		for (i = 0; i < SBP_QUEUE_LEN; i++) {
+			struct sbp_ocb *ocb;
+			ocb = &sdev->ocb[i];
+			ocb->bus_addr = sdev->dma.bus_addr
+				+ SBP_LOGIN_SIZE
+				+ sizeof(struct sbp_ocb) * i
+				+ offsetof(struct sbp_ocb, orb[0]);
+			if (bus_dmamap_create(sbp->dmat, 0, &ocb->dmamap)) {
+				printf("sbp_attach: cannot create dmamap\n");
+				/* XXX */
+				goto next;
+			}
+			sbp_free_ocb(sdev, ocb);
+		}
+next:
+		crom_next(&cc);
+	}
+
+	for (lun = 0; lun < target->num_lun; lun ++) {
+		sdev = target->luns[lun];
+		if (sdev != NULL && (sdev->flags & VALID_LUN) == 0) {
+			sbp_cam_detach_sdev(sdev);
+			sbp_free_sdev(sdev);
+			target->luns[lun] = NULL;
+		}
+	}
+}
+
 static struct sbp_target *
 sbp_alloc_target(struct sbp_softc *sbp, struct fw_device *fwdev)
 {
-	int i, maxlun, lun;
+	int i;
 	struct sbp_target *target;
-	struct sbp_dev *sdev;
 	struct crom_context cc;
 	struct csrreg *reg;
 
@@ -547,82 +606,8 @@ END_DEBUG
 	CALLOUT_INIT(&target->mgm_ocb_timeout);
 	CALLOUT_INIT(&target->scan_callout);
 
-	/* XXX num_lun may be changed. realloc luns? */
-	crom_init_context(&cc, target->fwdev->csrrom);
-	/* XXX shoud parse appropriate unit directories only */
-	maxlun = -1;
-	while (cc.depth >= 0) {
-		reg = crom_search_key(&cc, CROM_LUN);
-		if (reg == NULL)
-			break;
-		lun = reg->val & 0xffff;
-SBP_DEBUG(0)
-		printf("target %d lun %d found\n", target->target_id, lun);
-END_DEBUG
-		if (maxlun < lun)
-			maxlun = lun;
-		crom_next(&cc);
-	}
-	if (maxlun < 0)
-		printf("no lun found!\n");
-	if (maxlun >= SBP_NUM_LUNS)
-		maxlun = SBP_NUM_LUNS;
-	target->num_lun = maxlun + 1;
-	target->luns = (struct sbp_dev *) malloc(
-				sizeof(struct sbp_dev) * target->num_lun, 
-				M_SBP, M_NOWAIT | M_ZERO);
-	for (i = 0; i < target->num_lun; i++) {
-		sdev = &target->luns[i];
-		sdev->lun_id = i;
-		sdev->target = target;
-		STAILQ_INIT(&sdev->ocbs);
-		CALLOUT_INIT(&sdev->login_callout);
-		sdev->status = SBP_DEV_DEAD;
-	}
-	crom_init_context(&cc, target->fwdev->csrrom);
-	while (cc.depth >= 0) {
-		reg = crom_search_key(&cc, CROM_LUN);
-		if (reg == NULL)
-			break;
-		lun = reg->val & 0xffff;
-		if (lun >= SBP_NUM_LUNS) {
-			printf("too large lun %d\n", lun);
-			continue;
-		}
-		sdev = &target->luns[lun];
-		sdev->status = SBP_DEV_RESET;
-		sdev->type = (reg->val & 0xff0000) >> 16;
-
-		fwdma_malloc(sbp->fd.fc, 
-			/* alignment */ sizeof(u_int32_t),
-			SBP_DMA_SIZE, &sdev->dma, BUS_DMA_NOWAIT);
-		if (sdev->dma.v_addr == NULL) {
-			printf("%s: dma space allocation failed\n",
-							__FUNCTION__);
-			return (NULL);
-		}
-		sdev->login = (struct sbp_login_res *) sdev->dma.v_addr;
-		sdev->ocb = (struct sbp_ocb *)
-				((char *)sdev->dma.v_addr + SBP_LOGIN_SIZE);
-		bzero((char *)sdev->ocb,
-			sizeof (struct sbp_ocb) * SBP_QUEUE_LEN);
-
-		STAILQ_INIT(&sdev->free_ocbs);
-		for (i = 0; i < SBP_QUEUE_LEN; i++) {
-			struct sbp_ocb *ocb;
-			ocb = &sdev->ocb[i];
-			ocb->bus_addr = sdev->dma.bus_addr
-				+ SBP_LOGIN_SIZE
-				+ sizeof(struct sbp_ocb) * i
-				+ offsetof(struct sbp_ocb, orb[0]);
-			if (bus_dmamap_create(sbp->dmat, 0, &ocb->dmamap)) {
-				printf("sbp_attach: cannot create dmamap\n");
-				return (NULL);
-			}
-			sbp_free_ocb(sdev, ocb);
-		}
-		crom_next(&cc);
-	}
+	target->luns = NULL;
+	target->num_lun = 0;
 	return target;
 }
 
@@ -666,6 +651,28 @@ sbp_login_callout(void *arg)
 	sbp_mgm_orb(sdev, ORB_FUN_LGI, NULL);
 }
 
+static void
+sbp_login(struct sbp_dev *sdev)
+{
+	struct timeval delta;
+	struct timeval t;
+	int ticks = 0;
+
+	microtime(&delta);
+	timevalsub(&delta, &sdev->target->sbp->last_busreset);
+	t.tv_sec = login_delay / 1000;
+	t.tv_usec = (login_delay % 1000) * 1000;
+	timevalsub(&t, &delta);
+	if (t.tv_sec >= 0 && t.tv_usec > 0)
+		ticks = (t.tv_sec * 1000 + t.tv_usec / 1000) * hz / 1000;
+SBP_DEBUG(0)
+	printf("%s: sec = %ld usec = %ld ticks = %d\n", __FUNCTION__,
+	    t.tv_sec, t.tv_usec, ticks);
+END_DEBUG
+	callout_reset(&sdev->login_callout, ticks,
+			sbp_login_callout, (void *)(sdev));
+}
+
 #define SBP_FWDEV_ALIVE(fwdev) (((fwdev)->status == FWDEVATTACHED) \
 	&& crom_has_specver((fwdev)->csrrom, CSRVAL_ANSIT10, CSRVAL_T10SBP2))
 
@@ -687,9 +694,13 @@ END_DEBUG
 
 	sbp = target->sbp;
 	fc = target->sbp->fd.fc;
+	sbp_alloc_lun(target);
+
 	/* XXX untimeout mgm_ocb and dequeue */
 	for (i=0; i < target->num_lun; i++) {
-		sdev = &target->luns[i];
+		sdev = target->luns[i];
+		if (sdev == NULL)
+			continue;
 		if (alive && (sdev->status != SBP_DEV_DEAD)) {
 			if (sdev->path != NULL) {
 				xpt_freeze_devq(sdev->path, 1);
@@ -753,6 +764,7 @@ sbp_post_busreset(void *arg)
 SBP_DEBUG(0)
 	printf("sbp_post_busreset\n");
 END_DEBUG
+	microtime(&sbp->last_busreset);
 }
 
 static void
@@ -766,14 +778,16 @@ sbp_post_explore(void *arg)
 SBP_DEBUG(0)
 	printf("sbp_post_explore (sbp_cold=%d)\n", sbp_cold);
 END_DEBUG
-#if 0	/*
-	 * XXX don't let CAM the bus rest. CAM tries to do something with
-	 * freezed (DEV_RETRY) devices 
+	if (sbp_cold > 0)
+		sbp_cold --;
+
+#if 0
+	/*
+	 * XXX don't let CAM the bus rest.
+	 * CAM tries to do something with freezed (DEV_RETRY) devices.
 	 */
 	xpt_async(AC_BUS_RESET, sbp->path, /*arg*/ NULL);
 #endif
-	if (sbp_cold > 0)
-		sbp_cold --;
 
 	/* Gabage Collection */
 	for(i = 0 ; i < SBP_NUM_TARGETS ; i ++){
@@ -781,14 +795,10 @@ END_DEBUG
 		STAILQ_FOREACH(fwdev, &sbp->fd.fc->devices, link)
 			if (target->fwdev == NULL || target->fwdev == fwdev)
 				break;
-		if(fwdev == NULL){
+		if (fwdev == NULL) {
 			/* device has removed in lower driver */
 			sbp_cam_detach_target(target);
-			if (target->luns != NULL)
-				free(target->luns, M_SBP);
-			target->num_lun = 0;;
-			target->luns = NULL;
-			target->fwdev = NULL;
+			sbp_free_target(target);
 		}
 	}
 	/* traverse device list */
@@ -820,6 +830,8 @@ END_DEBUG
 			}
 		}
 		sbp_probe_target((void *)target);
+		if (target->num_lun == 0)
+			sbp_free_target(target);
 	}
 }
 
@@ -867,9 +879,9 @@ sbp_reset_start_callback(struct fw_xfer *xfer)
 	}
 
 	for (i = 0; i < target->num_lun; i++) {
-		tsdev = &target->luns[i];
-		if (tsdev->status == SBP_DEV_LOGIN)
-			sbp_login(sdev);
+		tsdev = target->luns[i];
+		if (tsdev != NULL && tsdev->status == SBP_DEV_LOGIN)
+			sbp_login(tsdev);
 	}
 }
 
@@ -886,7 +898,7 @@ END_DEBUG
 
 	xfer = sbp_write_cmd(sdev, FWTCODE_WREQQ, 0);
 	xfer->act.hand = sbp_reset_start_callback;
-	fp = (struct fw_pkt *)xfer->send.buf;
+	fp = &xfer->send.hdr;
 	fp->mode.wreqq.dest_hi = 0xffff;
 	fp->mode.wreqq.dest_lo = 0xf0000000 | RESET_START;
 	fp->mode.wreqq.data = htonl(0xf);
@@ -917,33 +929,17 @@ END_DEBUG
 	return;
 }
 
-static void
-sbp_cmd_callback(struct fw_xfer *xfer)
-{
-SBP_DEBUG(2)
-	struct sbp_dev *sdev;
-	sdev = (struct sbp_dev *)xfer->sc;
-	sbp_show_sdev_info(sdev, 2);
-	printf("sbp_cmd_callback\n");
-END_DEBUG
-	sbp_xfer_free(xfer);
-	return;
-}
-
 static struct sbp_dev *
 sbp_next_dev(struct sbp_target *target, int lun)
 {
-	struct sbp_dev *sdev;
+	struct sbp_dev **sdevp;
 	int i;
 
-	for (i = lun, sdev = &target->luns[lun];
-			i < target->num_lun; i++, sdev++) {
-		if (sdev->status == SBP_DEV_PROBE)
-			break;
-	}
-	if (i >= target->num_lun)
-		return(NULL);
-	return(sdev);
+	for (i = lun, sdevp = &target->luns[lun]; i < target->num_lun;
+	    i++, sdevp++)
+		if (*sdevp != NULL && (*sdevp)->status == SBP_DEV_PROBE)
+			return(*sdevp);
+	return(NULL);
 }
 
 #define SCAN_PRI 1
@@ -1017,7 +1013,7 @@ static __inline void
 sbp_scan_dev(struct sbp_dev *sdev)
 {
 	sdev->status = SBP_DEV_PROBE;
-	callout_reset(&sdev->target->scan_callout, SCAN_DELAY * hz,
+	callout_reset(&sdev->target->scan_callout, scan_delay * hz / 1000,
 			sbp_cam_scan_target, (void *)sdev->target);
 }
 
@@ -1064,11 +1060,11 @@ sbp_agent_reset_callback(struct fw_xfer *xfer)
 	sdev = (struct sbp_dev *)xfer->sc;
 SBP_DEBUG(1)
 	sbp_show_sdev_info(sdev, 2);
-	printf("sbp_cmd_callback\n");
+	printf("%s\n", __FUNCTION__);
 END_DEBUG
 	if (xfer->resp != 0) {
 		sbp_show_sdev_info(sdev, 2);
-		printf("sbp_cmd_callback resp=%d\n", xfer->resp);
+		printf("%s: resp=%d\n", __FUNCTION__, xfer->resp);
 	}
 
 	sbp_xfer_free(xfer);
@@ -1095,7 +1091,7 @@ END_DEBUG
 		xfer->act.hand = sbp_agent_reset_callback;
 	else
 		xfer->act.hand = sbp_do_attach;
-	fp = (struct fw_pkt *)xfer->send.buf;
+	fp = &xfer->send.hdr;
 	fp->mode.wreqq.data = htonl(0xf);
 	fw_asyreq(xfer->fc, -1, xfer);
 	sbp_abort_all_ocbs(sdev, CAM_BDR_SENT);
@@ -1127,7 +1123,7 @@ END_DEBUG
 	xfer = sbp_write_cmd(sdev, FWTCODE_WREQQ, 0);
 
 	xfer->act.hand = sbp_busy_timeout_callback;
-	fp = (struct fw_pkt *)xfer->send.buf;
+	fp = &xfer->send.hdr;
 	fp->mode.wreqq.dest_hi = 0xffff;
 	fp->mode.wreqq.dest_lo = 0xf0000000 | BUSY_TIMEOUT;
 	fp->mode.wreqq.data = htonl((1 << (13+12)) | 0xf);
@@ -1135,26 +1131,63 @@ END_DEBUG
 }
 
 static void
+sbp_orb_pointer_callback(struct fw_xfer *xfer)
+{
+	struct sbp_dev *sdev;
+	sdev = (struct sbp_dev *)xfer->sc;
+
+SBP_DEBUG(1)
+	sbp_show_sdev_info(sdev, 2);
+	printf("%s\n", __FUNCTION__);
+END_DEBUG
+	if (xfer->resp != 0) {
+		/* XXX */
+		printf("%s: xfer->resp = %d\n", __FUNCTION__, xfer->resp);
+	}
+	sbp_xfer_free(xfer);
+	sdev->flags &= ~ORB_POINTER_ACTIVE;
+
+	if ((sdev->flags & ORB_POINTER_NEED) != 0) {
+		struct sbp_ocb *ocb;
+
+		sdev->flags &= ~ORB_POINTER_NEED;
+		ocb = STAILQ_FIRST(&sdev->ocbs);
+		if (ocb != NULL)
+			sbp_orb_pointer(sdev, ocb);
+	}
+	return;
+}
+
+static void
 sbp_orb_pointer(struct sbp_dev *sdev, struct sbp_ocb *ocb)
 {
 	struct fw_xfer *xfer;
 	struct fw_pkt *fp;
-SBP_DEBUG(2)
+SBP_DEBUG(1)
 	sbp_show_sdev_info(sdev, 2);
-	printf("sbp_orb_pointer\n");
+	printf("%s: 0x%08x\n", __FUNCTION__, (u_int32_t)ocb->bus_addr);
 END_DEBUG
 
+	if ((sdev->flags & ORB_POINTER_ACTIVE) != 0) {
+SBP_DEBUG(0)
+		printf("%s: orb pointer active\n", __FUNCTION__);
+END_DEBUG
+		sdev->flags |= ORB_POINTER_NEED;
+		return;
+	}
+
+	sdev->flags |= ORB_POINTER_ACTIVE;
 	xfer = sbp_write_cmd(sdev, FWTCODE_WREQB, 0x08);
 	if (xfer == NULL)
 		return;
-	xfer->act.hand = sbp_cmd_callback;
+	xfer->act.hand = sbp_orb_pointer_callback;
 
-	fp = (struct fw_pkt *)xfer->send.buf;
+	fp = &xfer->send.hdr;
 	fp->mode.wreqb.len = 8;
 	fp->mode.wreqb.extcode = 0;
-	fp->mode.wreqb.payload[0] = 
+	xfer->send.payload[0] = 
 		htonl(((sdev->target->sbp->fd.fc->nodeid | FWLOCALBUS )<< 16));
-	fp->mode.wreqb.payload[1] = htonl(ocb->bus_addr);
+	xfer->send.payload[1] = htonl((u_int32_t)ocb->bus_addr);
 
 	if(fw_asyreq(xfer->fc, -1, xfer) != 0){
 			sbp_xfer_free(xfer);
@@ -1164,6 +1197,23 @@ END_DEBUG
 }
 
 #if 0
+static void
+sbp_cmd_callback(struct fw_xfer *xfer)
+{
+SBP_DEBUG(1)
+	struct sbp_dev *sdev;
+	sdev = (struct sbp_dev *)xfer->sc;
+	sbp_show_sdev_info(sdev, 2);
+	printf("sbp_cmd_callback\n");
+END_DEBUG
+	if (xfer->resp != 0) {
+		/* XXX */
+		printf("%s: xfer->resp = %d\n", __FUNCTION__, xfer->resp);
+	}
+	sbp_xfer_free(xfer);
+	return;
+}
+
 static void
 sbp_doorbell(struct sbp_dev *sdev)
 {
@@ -1201,7 +1251,7 @@ sbp_write_cmd(struct sbp_dev *sdev, int tcode, int offset)
 			splx(s);
 			return(NULL);
 		}
-		xfer = fw_xfer_alloc_buf(M_SBP, 24, 12);
+		xfer = fw_xfer_alloc_buf(M_SBP, 8, 0);
 		if(xfer == NULL){
 			printf("sbp: fw_xfer_alloc_buf failed\n");
 			splx(s);
@@ -1218,26 +1268,26 @@ sbp_write_cmd(struct sbp_dev *sdev, int tcode, int offset)
 
 	microtime(&xfer->tv);
 
-	if (tcode == FWTCODE_WREQQ)
-		xfer->send.len = 16;
-	else
-		xfer->send.len = 24;
-	xfer->recv.len = 12;
-
 	if (new) {
-		xfer->spd = min(sdev->target->fwdev->speed, max_speed);
+		xfer->recv.pay_len = 0;
+		xfer->send.spd = min(sdev->target->fwdev->speed, max_speed);
 		xfer->fc = sdev->target->sbp->fd.fc;
 		xfer->retry_req = fw_asybusy;
 	}
+
+	if (tcode == FWTCODE_WREQB)
+		xfer->send.pay_len = 8;
+	else
+		xfer->send.pay_len = 0;
+
 	xfer->sc = (caddr_t)sdev;
-	fp = (struct fw_pkt *)xfer->send.buf;
+	fp = &xfer->send.hdr;
 	fp->mode.wreqq.dest_hi = sdev->login->cmd_hi;
 	fp->mode.wreqq.dest_lo = sdev->login->cmd_lo + offset;
 	fp->mode.wreqq.tlrt = 0;
 	fp->mode.wreqq.tcode = tcode;
 	fp->mode.wreqq.pri = 0;
-	xfer->dst = FWLOCALBUS | sdev->target->fwdev->dst;
-	fp->mode.wreqq.dst = xfer->dst;
+	fp->mode.wreqq.dst = FWLOCALBUS | sdev->target->fwdev->dst;
 
 	return xfer;
 
@@ -1267,17 +1317,15 @@ sbp_mgm_orb(struct sbp_dev *sdev, int func, struct sbp_ocb *aocb)
 	}
 	if ((ocb = sbp_get_ocb(sdev)) == NULL) {
 		splx(s);
+		/* XXX */
 		return;
 	}
 	ocb->flags = OCB_ACT_MGM;
 	ocb->sdev = sdev;
 
-	bzero((void *)(uintptr_t)(volatile void *)ocb->orb, sizeof(ocb->orb));
+	bzero((void *)ocb->orb, sizeof(ocb->orb));
 	ocb->orb[6] = htonl((nid << 16) | SBP_BIND_HI);
-	ocb->orb[7] = htonl(SBP_DEV2ADDR(
-		device_get_unit(target->sbp->fd.dev),
-		target->target_id,
-		sdev->lun_id));
+	ocb->orb[7] = htonl(SBP_DEV2ADDR(target->target_id, sdev->lun_id));
 
 SBP_DEBUG(0)
 	sbp_show_sdev_info(sdev, 2);
@@ -1285,9 +1333,12 @@ SBP_DEBUG(0)
 END_DEBUG
 	switch (func) {
 	case ORB_FUN_LGI:
+		ocb->orb[0] = ocb->orb[1] = 0; /* password */
 		ocb->orb[2] = htonl(nid << 16);
 		ocb->orb[3] = htonl(sdev->dma.bus_addr);
-		ocb->orb[4] = htonl(ORB_NOTIFY | ORB_EXV | sdev->lun_id);
+		ocb->orb[4] = htonl(ORB_NOTIFY | sdev->lun_id);
+		if (ex_login)
+			ocb->orb[4] |= htonl(ORB_EXV);
 		ocb->orb[5] = htonl(SBP_LOGIN_SIZE);
 		fwdma_sync(&sdev->dma, BUS_DMASYNC_PREREAD);
 		break;
@@ -1322,13 +1373,17 @@ start:
 	}
 	xfer->act.hand = sbp_mgm_callback;
 
-	fp = (struct fw_pkt *)xfer->send.buf;
+	fp = &xfer->send.hdr;
 	fp->mode.wreqb.dest_hi = sdev->target->mgm_hi;
 	fp->mode.wreqb.dest_lo = sdev->target->mgm_lo;
 	fp->mode.wreqb.len = 8;
 	fp->mode.wreqb.extcode = 0;
-	fp->mode.wreqb.payload[0] = htonl(nid << 16);
-	fp->mode.wreqb.payload[1] = htonl(ocb->bus_addr);
+	xfer->send.payload[0] = htonl(nid << 16);
+	xfer->send.payload[1] = htonl(ocb->bus_addr & 0xffffffff);
+SBP_DEBUG(0)
+	sbp_show_sdev_info(sdev, 2);
+	printf("mgm orb: %08x\n", (u_int32_t)ocb->bus_addr);
+END_DEBUG
 
 	fw_asyreq(xfer->fc, -1, xfer);
 }
@@ -1402,10 +1457,9 @@ END_DEBUG
 			sense->flags |= SSD_EOM;
 		if(sbp_cmd_status->ill_len)
 			sense->flags |= SSD_ILI;
-		sense->info[0] = ntohl(sbp_cmd_status->info) & 0xff;
-		sense->info[1] =(ntohl(sbp_cmd_status->info) >> 8) & 0xff;
-		sense->info[2] =(ntohl(sbp_cmd_status->info) >> 16) & 0xff;
-		sense->info[3] =(ntohl(sbp_cmd_status->info) >> 24) & 0xff;
+
+		bcopy(&sbp_cmd_status->info, &sense->info[0], 4);
+
 		if (sbp_status->len <= 1)
 			/* XXX not scsi status. shouldn't be happened */ 
 			sense->extra_len = 0;
@@ -1415,16 +1469,15 @@ END_DEBUG
 		else
 			/* fru, sense_key_spec */
 			sense->extra_len = 10;
-		sense->cmd_spec_info[0] = ntohl(sbp_cmd_status->cdb) & 0xff;
-		sense->cmd_spec_info[1] = (ntohl(sbp_cmd_status->cdb) >> 8) & 0xff;
-		sense->cmd_spec_info[2] = (ntohl(sbp_cmd_status->cdb) >> 16) & 0xff;
-		sense->cmd_spec_info[3] = (ntohl(sbp_cmd_status->cdb) >> 24) & 0xff;
+
+		bcopy(&sbp_cmd_status->cdb, &sense->cmd_spec_info[0], 4);
+
 		sense->add_sense_code = sbp_cmd_status->s_code;
 		sense->add_sense_code_qual = sbp_cmd_status->s_qlfr;
 		sense->fru = sbp_cmd_status->fru;
-		sense->sense_key_spec[0] = ntohl(sbp_cmd_status->s_keydep) & 0xff;
-		sense->sense_key_spec[1] = (ntohl(sbp_cmd_status->s_keydep) >>8) & 0xff;
-		sense->sense_key_spec[2] = (ntohl(sbp_cmd_status->s_keydep) >>16) & 0xff;
+
+		bcopy(&sbp_cmd_status->s_keydep[0],
+		    &sense->sense_key_spec[0], 3);
 
 		ocb->ccb->csio.scsi_status = sbp_cmd_status->status;;
 		ocb->ccb->ccb_h.status = CAM_SCSI_STATUS_ERROR
@@ -1518,23 +1571,21 @@ printf("sbp %x %d %d %08x %08x %08x %08x\n",
 printf("sbp %08x %08x %08x %08x\n", ntohl(ld[4]), ntohl(ld[5]), ntohl(ld[6]), ntohl(ld[7]));
 printf("sbp %08x %08x %08x %08x\n", ntohl(ld[8]), ntohl(ld[9]), ntohl(ld[10]), ntohl(ld[11]));
 */
-
 	sbp = (struct sbp_softc *)xfer->sc;
-	if(xfer->resp != 0){
-		printf("sbp_recv: xfer->resp != 0\n");
+	if (xfer->resp != 0){
+		printf("sbp_recv: xfer->resp = %d\n", xfer->resp);
 		goto done0;
 	}
-	if(xfer->recv.buf == NULL){
-		printf("sbp_recv: xfer->recv.buf == NULL\n");
+	if (xfer->recv.payload == NULL){
+		printf("sbp_recv: xfer->recv.payload == NULL\n");
 		goto done0;
 	}
-	sbp = (struct sbp_softc *)xfer->sc;
-	rfp = (struct fw_pkt *)xfer->recv.buf;
+	rfp = &xfer->recv.hdr;
 	if(rfp->mode.wreqb.tcode != FWTCODE_WREQB){
 		printf("sbp_recv: tcode = %d\n", rfp->mode.wreqb.tcode);
 		goto done0;
 	}
-	sbp_status = (struct sbp_status *)rfp->mode.wreqb.payload;
+	sbp_status = (struct sbp_status *)xfer->recv.payload;
 	addr = rfp->mode.wreqb.dest_lo;
 SBP_DEBUG(2)
 	printf("received address 0x%x\n", addr);
@@ -1547,12 +1598,12 @@ END_DEBUG
 	}
 	target = &sbp->targets[t];
 	l = SBP_ADDR2LUN(addr);
-	if (l >= target->num_lun) {
+	if (l >= target->num_lun || target->luns[l] == NULL) {
 		device_printf(sbp->fd.dev,
 			"sbp_recv1: invalid lun %d (target=%d)\n", l, t);
 		goto done0;
 	}
-	sdev = &target->luns[l];
+	sdev = target->luns[l];
 
 	ocb = NULL;
 	switch (sbp_status->src) {
@@ -1593,7 +1644,7 @@ END_DEBUG
 			&& sbp_status->dead == 0);
 	status_valid = (status_valid0 && sbp_status->status == 0);
 
-	if (!status_valid0 || debug > 1){
+	if (!status_valid0 || debug > 2){
 		int status;
 SBP_DEBUG(0)
 		sbp_show_sdev_info(sdev, 2);
@@ -1653,6 +1704,7 @@ END_DEBUG
 		switch(ocb->flags) {
 		case OCB_ACT_MGM:
 			orb_fun = ntohl(ocb->orb[4]) & ORB_FUN_MSK;
+			reset_agent = 0;
 			switch(orb_fun) {
 			case ORB_FUN_LGI:
 				fwdma_sync(&sdev->dma, BUS_DMASYNC_POSTREAD);
@@ -1757,6 +1809,7 @@ done:
 		sbp_agent_reset(sdev);
 
 done0:
+	xfer->recv.pay_len = SBP_RECV_LEN;
 /* The received packet is usually small enough to be stored within
  * the buffer. In that case, the controller return ack_complete and
  * no respose is necessary.
@@ -1781,7 +1834,6 @@ done0:
 	fw_asyreq(xfer->fc, -1, xfer);
 #else
 	/* recycle */
-	xfer->recv.len = SBP_RECV_LEN;
 	STAILQ_INSERT_TAIL(&sbp->fwb.xferlist, xfer, link);
 #endif
 
@@ -1852,7 +1904,7 @@ END_DEBUG
 	sbp->sim = cam_sim_alloc(sbp_action, sbp_poll, "sbp", sbp,
 				 device_get_unit(dev),
 				 /*untagged*/ 1,
-				 /*tagged*/ SBP_QUEUE_LEN,
+				 /*tagged*/ SBP_QUEUE_LEN - 1,
 				 devq);
 
 	if (sbp->sim == NULL) {
@@ -1865,23 +1917,20 @@ END_DEBUG
 		goto fail;
 
 	if (xpt_create_path(&sbp->path, xpt_periph, cam_sim_path(sbp->sim),
-			CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD) != CAM_REQ_CMP)
+	    CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
+		xpt_bus_deregister(cam_sim_path(sbp->sim));
 		goto fail;
+	}
 
-	sbp->fwb.start_hi = SBP_BIND_HI;
-	sbp->fwb.start_lo = SBP_DEV2ADDR(device_get_unit(sbp->fd.dev), 0, 0);
 	/* We reserve 16 bit space (4 bytes X 64 targets X 256 luns) */
-	sbp->fwb.addrlen = 0xffff;
+	sbp->fwb.start = ((u_int64_t)SBP_BIND_HI << 32) | SBP_DEV2ADDR(0, 0);
+	sbp->fwb.end = sbp->fwb.start + 0xffff;
 	sbp->fwb.act_type = FWACT_XFER;
 	/* pre-allocate xfer */
 	STAILQ_INIT(&sbp->fwb.xferlist);
 	for (i = 0; i < SBP_NUM_OCB/2; i ++) {
 		xfer = fw_xfer_alloc_buf(M_SBP,
-#if NEED_RESPONSE
-			/* send */12,
-#else
 			/* send */0,
-#endif
 			/* recv */SBP_RECV_LEN);
 		xfer->act.hand = sbp_recv;
 #if NEED_RESPONSE
@@ -1897,9 +1946,11 @@ END_DEBUG
 
 	if (sbp->fd.fc->status != -1) {
 		s = splfw();
+		sbp_post_busreset((void *)sbp);
 		sbp_post_explore((void *)sbp);
 		splx(s);
 	}
+	xpt_async(AC_BUS_RESET, sbp->path, /*arg*/ NULL);
 
 	return (0);
 fail:
@@ -1922,7 +1973,9 @@ END_DEBUG
 		if (target->luns == NULL)
 			continue;
 		for (j = 0; j < target->num_lun; j++) {
-			sdev = &target->luns[j];
+			sdev = target->luns[j];
+			if (sdev == NULL)
+				continue;
 			callout_stop(&sdev->login_callout);
 			if (sdev->status >= SBP_DEV_TOATTACH &&
 					sdev->status <= SBP_DEV_ATTACHED)
@@ -1942,15 +1995,53 @@ sbp_shutdown(device_t dev)
 	return (0);
 }
 
+static void
+sbp_free_sdev(struct sbp_dev *sdev)
+{
+	int i;
+
+	if (sdev == NULL)
+		return;
+	for (i = 0; i < SBP_QUEUE_LEN; i++)
+		bus_dmamap_destroy(sdev->target->sbp->dmat,
+		    sdev->ocb[i].dmamap);
+	fwdma_free(sdev->target->sbp->fd.fc, &sdev->dma);
+	free(sdev, M_SBP);
+}
+
+static void
+sbp_free_target(struct sbp_target *target)
+{
+	struct sbp_softc *sbp;
+	struct fw_xfer *xfer, *next;
+	int i;
+
+	if (target->luns == NULL)
+		return;
+	callout_stop(&target->mgm_ocb_timeout);
+	sbp = target->sbp;
+	for (i = 0; i < target->num_lun; i++)
+		sbp_free_sdev(target->luns[i]);
+
+	for (xfer = STAILQ_FIRST(&target->xferlist);
+			xfer != NULL; xfer = next) {
+		next = STAILQ_NEXT(xfer, link);
+		fw_xfer_free_buf(xfer);
+	}
+	STAILQ_INIT(&target->xferlist);
+	free(target->luns, M_SBP);
+	target->num_lun = 0;;
+	target->luns = NULL;
+	target->fwdev = NULL;
+}
+
 static int
 sbp_detach(device_t dev)
 {
 	struct sbp_softc *sbp = ((struct sbp_softc *)device_get_softc(dev));
 	struct firewire_comm *fc = sbp->fd.fc;
-	struct sbp_target *target;
-	struct sbp_dev *sdev;
 	struct fw_xfer *xfer, *next;
-	int i, j;
+	int i;
 
 SBP_DEBUG(0)
 	printf("sbp_detach\n");
@@ -1958,40 +2049,23 @@ END_DEBUG
 
 	for (i = 0; i < SBP_NUM_TARGETS; i ++) 
 		sbp_cam_detach_target(&sbp->targets[i]);
+	xpt_async(AC_LOST_DEVICE, sbp->path, NULL);
 	xpt_free_path(sbp->path);
 	xpt_bus_deregister(cam_sim_path(sbp->sim));
+	cam_sim_free(sbp->sim, /*free_devq*/ TRUE),
 
 	sbp_logout_all(sbp);
 
 	/* XXX wait for logout completion */
 	tsleep(&i, FWPRI, "sbpdtc", hz/2);
 
-	for (i = 0 ; i < SBP_NUM_TARGETS ; i ++) {
-		target = &sbp->targets[i];
-		if (target->luns == NULL)
-			continue;
-		callout_stop(&target->mgm_ocb_timeout);
-		for (j = 0; j < target->num_lun; j++) {
-			sdev = &target->luns[j];
-			if (sdev->status != SBP_DEV_DEAD) {
-				for (i = 0; i < SBP_QUEUE_LEN; i++)
-					bus_dmamap_destroy(sbp->dmat,
-						sdev->ocb[i].dmamap);
-				fwdma_free(sbp->fd.fc, &sdev->dma);
-			}
-		}
-		for (xfer = STAILQ_FIRST(&target->xferlist);
-				xfer != NULL; xfer = next) {
-			next = STAILQ_NEXT(xfer, link);
-			fw_xfer_free(xfer);
-		}
-		free(target->luns, M_SBP);
-	}
+	for (i = 0 ; i < SBP_NUM_TARGETS ; i ++)
+		sbp_free_target(&sbp->targets[i]);
 
 	for (xfer = STAILQ_FIRST(&sbp->fwb.xferlist);
 				xfer != NULL; xfer = next) {
 		next = STAILQ_NEXT(xfer, link);
-		fw_xfer_free(xfer);
+		fw_xfer_free_buf(xfer);
 	}
 	STAILQ_INIT(&sbp->fwb.xferlist);
 	fw_bindremove(fc, &sbp->fwb);
@@ -2002,9 +2076,28 @@ END_DEBUG
 }
 
 static void
+sbp_cam_detach_sdev(struct sbp_dev *sdev)
+{
+	if (sdev == NULL)
+		return;
+	if (sdev->status == SBP_DEV_DEAD)
+		return;
+	if (sdev->status == SBP_DEV_RESET)
+		return;
+	if (sdev->path) {
+		xpt_release_devq(sdev->path,
+				 sdev->freeze, TRUE);
+		sdev->freeze = 0;
+		xpt_async(AC_LOST_DEVICE, sdev->path, NULL);
+		xpt_free_path(sdev->path);
+		sdev->path = NULL;
+	}
+	sbp_abort_all_ocbs(sdev, CAM_DEV_NOT_THERE);
+}
+
+static void
 sbp_cam_detach_target(struct sbp_target *target)
 {
-	struct sbp_dev *sdev;
 	int i;
 
 	if (target->luns != NULL) {
@@ -2012,22 +2105,8 @@ SBP_DEBUG(0)
 		printf("sbp_detach_target %d\n", target->target_id);
 END_DEBUG
 		callout_stop(&target->scan_callout);
-		for (i = 0; i < target->num_lun; i++) {
-			sdev = &target->luns[i];
-			if (sdev->status == SBP_DEV_DEAD)
-				continue;
-			if (sdev->status == SBP_DEV_RESET)
-				continue;
-			if (sdev->path) {
-				xpt_release_devq(sdev->path,
-						 sdev->freeze, TRUE);
-				sdev->freeze = 0;
-				xpt_async(AC_LOST_DEVICE, sdev->path, NULL);
-				xpt_free_path(sdev->path);
-				sdev->path = NULL;
-			}
-			sbp_abort_all_ocbs(sdev, CAM_DEV_NOT_THERE);
-		}
+		for (i = 0; i < target->num_lun; i++)
+			sbp_cam_detach_sdev(target->luns[i]);
 	}
 }
 
@@ -2039,7 +2118,9 @@ sbp_target_reset(struct sbp_dev *sdev, int method)
 	struct sbp_dev *tsdev;
 
 	for (i = 0; i < target->num_lun; i++) {
-		tsdev = &target->luns[i];
+		tsdev = target->luns[i];
+		if (tsdev == NULL)
+			continue;
 		if (tsdev->status == SBP_DEV_DEAD)
 			continue;
 		if (tsdev->status == SBP_DEV_RESET)
@@ -2071,14 +2152,17 @@ sbp_mgm_timeout(void *arg)
 	struct sbp_target *target = sdev->target;
 
 	sbp_show_sdev_info(sdev, 2);
-	printf("management ORB timeout\n");
+	printf("request timeout(mgm orb:0x%08x) ... ",
+	    (u_int32_t)ocb->bus_addr);
 	target->mgm_ocb_cur = NULL;
 	sbp_free_ocb(sdev, ocb);
 #if 0
 	/* XXX */
+	printf("run next request\n");
 	sbp_mgm_orb(sdev, ORB_FUN_RUNQUEUE, NULL);
 #endif
-#if 0
+#if 1
+	printf("reset start\n");
 	sbp_reset_start(sdev);
 #endif
 }
@@ -2090,7 +2174,8 @@ sbp_timeout(void *arg)
 	struct sbp_dev *sdev = ocb->sdev;
 
 	sbp_show_sdev_info(sdev, 2);
-	printf("request timeout ... ");
+	printf("request timeout(cmd orb:0x%08x) ... ",
+	    (u_int32_t)ocb->bus_addr);
 
 	sdev->timeout ++;
 	switch(sdev->timeout) {
@@ -2134,8 +2219,8 @@ sbp_action1(struct cam_sim *sim, union ccb *ccb)
 		if (target->fwdev != NULL
 				&& ccb->ccb_h.target_lun != CAM_LUN_WILDCARD
 				&& ccb->ccb_h.target_lun < target->num_lun) {
-			sdev = &target->luns[ccb->ccb_h.target_lun];
-			if (sdev->status != SBP_DEV_ATTACHED &&
+			sdev = target->luns[ccb->ccb_h.target_lun];
+			if (sdev != NULL && sdev->status != SBP_DEV_ATTACHED &&
 				sdev->status != SBP_DEV_PROBE)
 				sdev = NULL;
 		}
@@ -2202,7 +2287,7 @@ END_DEBUG
 
 		csio = &ccb->csio;
 
-SBP_DEBUG(1)
+SBP_DEBUG(2)
 		printf("%s:%d:%d XPT_SCSI_IO: "
 			"cmd: %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x"
 			", flags: 0x%02x, "
@@ -2241,8 +2326,11 @@ END_DEBUG
 			}
 		}
 #endif
-		if ((ocb = sbp_get_ocb(sdev)) == NULL)
+		if ((ocb = sbp_get_ocb(sdev)) == NULL) {
+			ccb->ccb_h.status = CAM_REQUEUE_REQ;
+			xpt_done(ccb);
 			return;
+		}
 
 		ocb->flags = OCB_ACT_CMD;
 		ocb->sdev = sdev;
@@ -2268,9 +2356,7 @@ END_DEBUG
 			cdb = (void *)csio->cdb_io.cdb_ptr;
 		else
 			cdb = (void *)&csio->cdb_io.cdb_bytes;
-		bcopy(cdb,
-			(void *)(uintptr_t)(volatile void *)&ocb->orb[5],
-				csio->cdb_len);
+		bcopy(cdb, (void *)&ocb->orb[5], csio->cdb_len);
 /*
 printf("ORB %08x %08x %08x %08x\n", ntohl(ocb->orb[0]), ntohl(ocb->orb[1]), ntohl(ocb->orb[2]), ntohl(ocb->orb[3]));
 printf("ORB %08x %08x %08x %08x\n", ntohl(ocb->orb[4]), ntohl(ocb->orb[5]), ntohl(ocb->orb[6]), ntohl(ocb->orb[7]));
@@ -2438,7 +2524,7 @@ sbp_execute_ocb(void *arg,  bus_dma_segment_t *segments, int seg, int error)
 
 	ocb = (struct sbp_ocb *)arg;
 
-SBP_DEBUG(1)
+SBP_DEBUG(2)
 	printf("sbp_execute_ocb: seg %d", seg);
 	for (i = 0; i < seg; i++)
 #if __FreeBSD_version >= 500000
@@ -2486,16 +2572,26 @@ END_DEBUG
 			BUS_DMASYNC_PREREAD : BUS_DMASYNC_PREWRITE);
 	prev = sbp_enqueue_ocb(ocb->sdev, ocb);
 	fwdma_sync(&ocb->sdev->dma, BUS_DMASYNC_PREWRITE);
-	if (prev == NULL)
+	if (prev == NULL || (ocb->sdev->flags & ORB_LINK_DEAD) != 0) {
+		ocb->sdev->flags &= ~ORB_LINK_DEAD;
 		sbp_orb_pointer(ocb->sdev, ocb); 
+	}
 }
 
 static void
 sbp_poll(struct cam_sim *sim)
 {       
-	/* should call fwohci_intr? */
+	struct sbp_softc *sbp;
+	struct firewire_comm *fc;
+
+	sbp = (struct sbp_softc *)sim->softc;
+	fc = sbp->fd.fc;
+
+	fc->poll(fc, 0, -1);
+
 	return;
 }
+
 static struct sbp_ocb *
 sbp_dequeue_ocb(struct sbp_dev *sdev, struct sbp_status *sbp_status)
 {
@@ -2504,20 +2600,18 @@ sbp_dequeue_ocb(struct sbp_dev *sdev, struct sbp_status *sbp_status)
 	int s = splfw(), order = 0;
 	int flags;
 
+SBP_DEBUG(1)
+	sbp_show_sdev_info(sdev, 2);
+#if __FreeBSD_version >= 500000
+	printf("%s: 0x%08x src %d\n",
+#else
+	printf("%s: 0x%08lx src %d\n",
+#endif
+	    __FUNCTION__, ntohl(sbp_status->orb_lo), sbp_status->src);
+END_DEBUG
 	for (ocb = STAILQ_FIRST(&sdev->ocbs); ocb != NULL; ocb = next) {
 		next = STAILQ_NEXT(ocb, ocb);
 		flags = ocb->flags;
-SBP_DEBUG(1)
-		sbp_show_sdev_info(sdev, 2);
-#if __FreeBSD_version >= 500000
-		printf("orb: 0x%jx next: 0x%x, flags %x\n",
-			(uintmax_t)ocb->bus_addr,
-#else
-		printf("orb: 0x%x next: 0x%lx, flags %x\n",
-			ocb->bus_addr,
-#endif
-			ntohl(ocb->orb[1]), flags);
-END_DEBUG
 		if (OCB_MATCH(ocb, sbp_status)) {
 			/* found */
 			STAILQ_REMOVE(&sdev->ocbs, ocb, sbp_ocb, ocb);
@@ -2533,8 +2627,18 @@ END_DEBUG
 				bus_dmamap_unload(sdev->target->sbp->dmat,
 					ocb->dmamap);
 			}
-			if (next != NULL && sbp_status->src == 1)
-				sbp_orb_pointer(sdev, next); 
+			if (sbp_status->src == SRC_NO_NEXT) {
+				if (next != NULL)
+					sbp_orb_pointer(sdev, next); 
+				else if (order > 0) {
+					/*
+					 * Unordered execution
+					 * We need to send pointer for
+					 * next ORB
+					 */
+					sdev->flags |= ORB_LINK_DEAD;
+				}
+			}
 			break;
 		} else
 			order ++;
@@ -2555,13 +2659,12 @@ sbp_enqueue_ocb(struct sbp_dev *sdev, struct sbp_ocb *ocb)
 	int s = splfw();
 	struct sbp_ocb *prev;
 
-SBP_DEBUG(2)
+SBP_DEBUG(1)
 	sbp_show_sdev_info(sdev, 2);
 #if __FreeBSD_version >= 500000
-	printf("sbp_enqueue_ocb orb=0x%jx in physical memory\n", 
-		(uintmax_t)ocb->bus_addr);
+	printf("%s: 0x%08jx\n", __FUNCTION__, (uintmax_t)ocb->bus_addr);
 #else
-	printf("sbp_enqueue_ocb orb=0x%x in physical memory\n", ocb->bus_addr);
+	printf("%s: 0x%08x\n", __FUNCTION__, ocb->bus_addr);
 #endif
 END_DEBUG
 	prev = STAILQ_LAST(&sdev->ocbs, sbp_ocb, ocb);
@@ -2571,13 +2674,14 @@ END_DEBUG
 		ocb->ccb->ccb_h.timeout_ch = timeout(sbp_timeout, (caddr_t)ocb,
 					(ocb->ccb->ccb_h.timeout * hz) / 1000);
 
-	if (prev != NULL ) {
-SBP_DEBUG(1)
+	if (prev != NULL) {
+SBP_DEBUG(2)
 #if __FreeBSD_version >= 500000
-	printf("linking chain 0x%jx -> 0x%jx\n",
-		(uintmax_t)prev->bus_addr, (uintmax_t)ocb->bus_addr);
+		printf("linking chain 0x%jx -> 0x%jx\n",
+		    (uintmax_t)prev->bus_addr, (uintmax_t)ocb->bus_addr);
 #else
-	printf("linking chain 0x%x -> 0x%x\n", prev->bus_addr, ocb->bus_addr);
+		printf("linking chain 0x%x -> 0x%x\n",
+		    prev->bus_addr, ocb->bus_addr);
 #endif
 END_DEBUG
 		prev->orb[1] = htonl(ocb->bus_addr);
