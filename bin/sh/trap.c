@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: trap.c,v 1.4 1996/09/01 10:21:47 peter Exp $
+ *	$Id: trap.c,v 1.5 1996/12/14 06:19:32 steve Exp $
  */
 
 #ifndef lint
@@ -72,43 +72,99 @@ static char const sccsid[] = "@(#)trap.c	8.5 (Berkeley) 6/5/95";
 #define S_RESET 5		/* temporary - to reset a hard ignored sig */
 
 
-extern char nullstr[1];		/* null string */
-
-char *trap[NSIG+1];		/* trap handler commands */
 MKINIT char sigmode[NSIG];	/* current value of signal */
-char gotsig[NSIG];		/* indicates specified signal received */
 int pendingsigs;			/* indicates some signal received */
+static char *trap[NSIG];	/* trap handler commands */
+static char gotsig[NSIG];	/* indicates specified signal received */
+static int ignore_sigchld;	/* Used while handling SIGCHLD traps. */
 
 static int getsigaction __P((int, sig_t *));
+
+
+/*
+ * Map a string to a signal number.
+ */
+static int
+sigstring_to_signum(sig)
+	char *sig;
+{
+
+	if (is_number(sig)) {
+		int signo;
+
+		signo = atoi(sig);
+		return ((signo >= 0 && signo < NSIG) ? signo : (-1));
+	} else if (strcasecmp(sig, "exit") == 0) {
+		return (0);
+	} else {
+		int n;
+
+		if (strncasecmp(sig, "sig", 3) == 0)
+			sig += 3;
+		for (n = 1; n < NSIG; n++)
+			if (strcasecmp(sys_signame[n], sig) == 0)
+				return (n);
+	}
+	return (-1);
+}
+
+
+/*
+ * Print a list of valid signal names.
+ */
+static void
+printsignals()
+{
+	int n;
+
+	for (n = 1; n < NSIG; n++) {
+		out1fmt("%s", sys_signame[n]);
+		if (n == (NSIG / 2) || n == (NSIG - 1))
+			out1str("\n");
+		else
+			out1c(' ');
+	}
+}
+
 
 /*
  * The trap builtin.
  */
-
 int
 trapcmd(argc, argv)
 	int argc;
 	char **argv;
 {
 	char *action;
-	char **ap;
 	int signo;
 
 	if (argc <= 1) {
-		for (signo = 0 ; signo <= NSIG ; signo++) {
+		for (signo = 0 ; signo < NSIG ; signo++) {
 			if (trap[signo] != NULL)
-				out1fmt("%d: %s\n", signo, trap[signo]);
+				out1fmt("trap -- '%s' %s\n", trap[signo],
+					(signo) ? sys_signame[signo] : "exit");
 		}
 		return 0;
 	}
-	ap = argv + 1;
-	if (is_number(*ap))
-		action = NULL;
-	else
-		action = *ap++;
-	while (*ap) {
-		if ((signo = number(*ap)) < 0 || signo > NSIG)
-			error("%s: bad trap", *ap);
+	action = NULL;
+	if (*++argv && strcmp(*argv, "--") == 0)
+		argv++;
+	if (*argv && sigstring_to_signum(*argv) == -1) {
+		if ((*argv)[0] != '-') {
+			action = *argv;
+			argv++;
+		} else if ((*argv)[1] == '\0') {
+			argv++;
+		} else if ((*argv)[1] == 'l' && (*argv)[2] == '\0') {
+			printsignals();
+			return 0;
+		} else {
+			error("bad option %s", *argv);
+		}
+	}
+	while (*argv) {
+		if ((signo = sigstring_to_signum(*argv)) == -1)
+			error("bad signal %s", *argv);
 		INTOFF;
 		if (action)
 			action = savestr(action);
@@ -118,22 +174,21 @@ trapcmd(argc, argv)
 		if (signo != 0)
 			setsignal(signo);
 		INTON;
-		ap++;
+		argv++;
 	}
 	return 0;
 }
 
 
-
 /*
  * Clear traps on a fork.
  */
-
 void
-clear_traps() {
+clear_traps()
+{
 	char **tp;
 
-	for (tp = trap ; tp <= &trap[NSIG] ; tp++) {
+	for (tp = trap ; tp <= &trap[NSIG - 1] ; tp++) {
 		if (*tp && **tp) {	/* trap not NULL or SIG_IGN */
 			INTOFF;
 			ckfree(*tp);
@@ -146,12 +201,10 @@ clear_traps() {
 }
 
 
-
 /*
  * Set the signal handler for the specified signal.  The routine figures
  * out what it should be set to.
  */
-
 long
 setsignal(signo)
 	int signo;
@@ -159,7 +212,6 @@ setsignal(signo)
 	int action;
 	sig_t sigact = SIG_DFL;
 	char *t;
-	extern void onsig();
 
 	if ((t = trap[signo]) == NULL)
 		action = S_DFL;
@@ -197,7 +249,7 @@ setsignal(signo)
 		}
 	}
 
-	t = &sigmode[signo - 1];
+	t = &sigmode[signo];
 	if (*t == 0) {
 		/*
 		 * current setting unknown
@@ -231,6 +283,7 @@ setsignal(signo)
 	return (long)signal(signo, sigact);
 }
 
+
 /*
  * Return the current setting for sig w/o changing it.
  */
@@ -247,18 +300,19 @@ getsigaction(signo, sigact)
 	return 1;
 }
 
+
 /*
  * Ignore a signal.
  */
-
 void
 ignoresig(signo)
 	int signo;
 {
-	if (sigmode[signo - 1] != S_IGN && sigmode[signo - 1] != S_HARD_IGN) {
+
+	if (sigmode[signo] != S_IGN && sigmode[signo] != S_HARD_IGN) {
 		signal(signo, SIG_IGN);
 	}
-	sigmode[signo - 1] = S_HARD_IGN;
+	sigmode[signo] = S_HARD_IGN;
 }
 
 
@@ -278,59 +332,65 @@ SHELLPROC {
 #endif
 
 
-
 /*
  * Signal handler.
  */
-
 void
 onsig(signo)
 	int signo;
 {
+
 	signal(signo, onsig);
 	if (signo == SIGINT && trap[SIGINT] == NULL) {
 		onint();
 		return;
 	}
-	gotsig[signo - 1] = 1;
+	if (signo != SIGCHLD || !ignore_sigchld)
+		gotsig[signo] = 1;
 	pendingsigs++;
 }
-
 
 
 /*
  * Called to execute a trap.  Perhaps we should avoid entering new trap
  * handlers while we are executing a trap handler.
  */
-
 void
-dotrap() {
+dotrap()
+{
 	int i;
 	int savestatus;
 
 	for (;;) {
-		for (i = 1 ; ; i++) {
-			if (gotsig[i - 1])
+		for (i = 1; i < NSIG; i++) {
+			if (gotsig[i]) {
+				gotsig[i] = 0;
+				if (trap[i]) {
+					/*
+					 * Ignore SIGCHLD to avoid infinite recursion
+					 * if the trap action does a fork.
+					 */
+					if (i == SIGCHLD)
+						ignore_sigchld++;
+					savestatus = exitstatus;
+					evalstring(trap[i]);
+					exitstatus = savestatus;
+					if (i == SIGCHLD)
+						ignore_sigchld--;
+				}
 				break;
-			if (i >= NSIG)
-				goto done;
+			}
 		}
-		gotsig[i - 1] = 0;
-		savestatus=exitstatus;
-		evalstring(trap[i]);
-		exitstatus=savestatus;
+		if (i >= NSIG)
+			break;
 	}
-done:
 	pendingsigs = 0;
 }
-
 
 
 /*
  * Controls whether the shell is interactive or not.
  */
-
-
 void
 setinteractive(on)
 	int on;
@@ -346,11 +406,9 @@ setinteractive(on)
 }
 
 
-
 /*
  * Called to exit the shell.
  */
-
 void
 exitshell(status)
 	int status;
