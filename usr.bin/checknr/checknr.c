@@ -216,6 +216,7 @@ char **argv;
 				if (cp[2] && cp[2] != '.')
 					usage();
 				strncpy(b1, cp, 2);
+				b1[2] = '\0';
 				addmac(b1);
 			}
 			break;
