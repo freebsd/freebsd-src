@@ -5,6 +5,14 @@ directly to him.  See end of file for further details.  For commonly
 done items, please see the end of the file.  Search for 'COMMON
 ITEMS:'
 
+20000319:
+	The ISA and PCI compatability shims have been connected to the
+	options COMPAT_OLDISA and COMPAT_OLDPCI.  If you are using old
+	style PCI or ISA drivers (i.e. tx, voxware, etc.) you must
+	include the appropriate option in your kernel config.  Drivers
+	using the shims should be updated or they won't ship with
+	5.0-RELEASE, targeted for 2001.
+
 20000318:
 	We've entered the tradtional post release dumping party.
 	Large kernel changes are being committed and are in the
@@ -31,14 +39,12 @@ COMMON ITEMS:
 	---------------------
 	make world
 
-	Except when it doesn't work.
-
 FORMAT:
 
 This file contains a list, in reverse chronologocal order, of major
 breakages in tracking -current.  Not all things will be listed here,
-and it only starts on November 18, 1998.  If you have an earlier
-version of FreeBSD, you are on your own to get to November 18, 1998.
+and it only starts on March 15, 2000.  Updating files can found in
+previous releases if your system is older than this.
 
 Please filter your entries through Warner Losh (imp@village.org) so
 that the style, formatting, etc of this file can be maintained.
