@@ -385,7 +385,12 @@ vn_rdwr(rw, vp, base, len, offset, segflg, ioflg, active_cred, file_cred,
 				return (error);
 			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 		} else {
-			vn_lock(vp, LK_SHARED | LK_RETRY, td);
+			/*
+			 * XXX This should be LK_SHARED but I don't trust VFS
+			 * enough to leave it like that until it has been
+			 * reviewed further.
+			 */
+			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 		}
 
 	}
@@ -500,7 +505,11 @@ vn_read(fp, uio, active_cred, flags, td)
 	if (fp->f_flag & O_DIRECT)
 		ioflag |= IO_DIRECT;
 	VOP_LEASE(vp, td, fp->f_cred, LEASE_READ);
-	vn_lock(vp, LK_SHARED | LK_NOPAUSE | LK_RETRY, td);
+	/*
+	 * According to McKusick the vn lock is protecting f_offset here.
+	 * Once this field has it's own lock we can acquire this shared.
+	 */
+	vn_lock(vp, LK_EXCLUSIVE | LK_NOPAUSE | LK_RETRY, td);
 	if ((flags & FOF_OFFSET) == 0)
 		uio->uio_offset = fp->f_offset;
 
