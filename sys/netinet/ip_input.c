@@ -451,7 +451,7 @@ tooshort:
 
 #endif /* PFIL_HOOKS */
 
-#if defined(FAST_IPSEC) && !defined(IPSEC_FILTERGIF)
+#if (defined(FAST_IPSEC) || defined(IPSEC)) && !defined(IPSEC_FILTERGIF)
 pass:
 #endif
 
