@@ -517,6 +517,9 @@ fxp_probe(config_id, device_id)
 	if (((device_id & 0xffff) == FXP_VENDORID_INTEL) &&
 	    ((device_id >> 16) & 0xffff) == FXP_DEVICEID_i82557)
 		return ("Intel EtherExpress Pro 10/100B Ethernet");
+	if (((device_id & 0xffff) == FXP_VENDORID_INTEL) &&
+	    ((device_id >> 16) & 0xffff) == FXP_DEVICEID_i82559)
+		return ("Intel InBusiness 10/100 Ethernet");
 
 	return NULL;
 }
