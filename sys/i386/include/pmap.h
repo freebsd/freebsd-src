@@ -42,7 +42,7 @@
  *
  *	from: hp300: @(#)pmap.h	7.2 (Berkeley) 12/16/90
  *	from: @(#)pmap.h	7.4 (Berkeley) 5/12/91
- * 	$Id: pmap.h,v 1.54 1997/11/20 19:30:35 bde Exp $
+ * 	$Id: pmap.h,v 1.55 1998/05/11 01:05:59 dyson Exp $
  */
 
 #ifndef _MACHINE_PMAP_H_
@@ -240,8 +240,6 @@ typedef struct pv_entry {
 struct {
 	u_int64_t base, mask;
 } PPro_vmtrr[NPPROVMTRR];
-
-/* Bitmap of all available CPUs */
 
 extern caddr_t	CADDR1;
 extern pt_entry_t *CMAP1;
