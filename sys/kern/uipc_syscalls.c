@@ -112,14 +112,15 @@ socket(td, uap)
 	struct file *fp;
 	int fd, error;
 
-	mtx_lock(&Giant);
 	fdp = td->td_proc->p_fd;
 	error = falloc(td, &fp, &fd);
 	if (error)
 		goto done2;
 	/* An extra reference on `fp' has been held for us by falloc(). */
+	mtx_lock(&Giant);
 	error = socreate(uap->domain, &so, uap->type, uap->protocol,
 	    td->td_ucred, td);
+	mtx_unlock(&Giant);
 	FILEDESC_LOCK(fdp);
 	if (error) {
 		if (fdp->fd_ofiles[fd] == fp) {
@@ -138,7 +139,6 @@ socket(td, uap)
 	}
 	fdrop(fp, td);
 done2:
-	mtx_unlock(&Giant);
 	return (error);
 }
 
