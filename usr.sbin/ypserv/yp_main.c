@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yp_main.c,v 1.2 1996/04/21 21:33:40 wpaul Exp $
+ *	$Id: yp_main.c,v 1.3 1996/05/01 02:39:34 wpaul Exp wpaul $
  */
 
 /*
@@ -58,6 +58,7 @@
 #include <unistd.h>
 #include <rpc/rpc.h>
 #include <errno.h>
+#include <err.h>
 
 #ifndef SIG_PF
 #define	SIG_PF void(*)(int)
@@ -65,7 +66,7 @@
 
 #define	_RPCSVC_CLOSEDOWN 120
 #ifndef lint
-static char rcsid[] = "$Id: yp_main.c,v 1.2 1996/04/21 21:33:40 wpaul Exp $";
+static const char rcsid[] = "$Id: yp_main.c,v 1.3 1996/05/01 02:39:34 wpaul Exp wpaul $";
 #endif /* not lint */
 int _rpcpmstart;		/* Started by a port monitor ? */
 static int _rpcfdtype;
@@ -107,6 +108,7 @@ yp_svc_run()
 #endif /* def FD_SETSIZE */
 	extern int forked;
 	int pid;
+	int fd_setsize = _rpc_dtablesize();
 
 	/* Establish the identity of the parent ypserv process. */
 	pid = getpid();
@@ -117,7 +119,7 @@ yp_svc_run()
 #else
 		readfds = svc_fds;
 #endif /* def FD_SETSIZE */
-		switch (select(_rpc_dtablesize(), &readfds, NULL, NULL,
+		switch (select(fd_setsize, &readfds, NULL, NULL,
 			       (struct timeval *)0)) {
 		case -1:
 			if (errno == EINTR) {
@@ -246,8 +248,7 @@ main(argc, argv)
 	} else {
 		if (!debug) {
 			if (daemon(0,0)) {
-				perror("cannot fork");
-				exit(1);
+				err(1,"cannot fork");
 			}
 			openlog(progname, LOG_PID, LOG_DAEMON);
 		}
