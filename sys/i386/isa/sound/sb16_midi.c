@@ -35,9 +35,15 @@
 
 #include <i386/isa/sound/sb.h>
 
+#ifdef PC98
+#define	DATAPORT   (sb16midi_base)
+#define	COMDPORT   (sb16midi_base+0x100)
+#define	STATPORT   (sb16midi_base+0x100)
+#else
 #define	DATAPORT   (sb16midi_base)
 #define	COMDPORT   (sb16midi_base+1)
 #define	STATPORT   (sb16midi_base+1)
+#endif
 
 #define sb16midi_status()		INB(STATPORT)
 #define input_avail()		(!(sb16midi_status()&INPUT_AVAIL))

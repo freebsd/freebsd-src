@@ -4,12 +4,11 @@
  * v1.4 by Eric S. Raymond (esr@snark.thyrsus.com) Aug 1993
  * modified for FreeBSD by Andrew A. Chernov <ache@astral.msk.su>
  *
- *    $Id: spkr.c,v 1.4 1996/09/04 09:52:27 asami Exp $
+ *    $Id: spkr.c,v 1.5 1996/10/30 22:40:14 asami Exp $
  */
 
 /*
- * modified for PC98
- *    $Id: spkr.c,v 1.4 1996/09/04 09:52:27 asami Exp $
+ * modified for PC98 by Kakefuda
  */
 
 #include "speaker.h"
@@ -92,14 +91,7 @@ tone(thz, ticks)
     if (thz <= 0)
 	return;
 
-#if defined(PC98) && defined(AUTO_CLOCK)
-    if (pc98_machine_type & M_8M)
-	divisor = 1996800L / thz;
-    else
-	divisor = 2457600L / thz;
-#else
     divisor = timer_freq / thz;
-#endif /* PC98 */
 
 #ifdef DEBUG
     (void) printf("tone: thz=%d ticks=%d\n", thz, ticks);
