@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)queue.h	8.5 (Berkeley) 8/20/94
- * $Id: queue.h,v 1.9 1996/04/08 07:51:57 phk Exp $
+ * $Id: queue.h,v 1.10 1996/05/18 03:37:21 dyson Exp $
  */
 
 #ifndef _SYS_QUEUE_H_
@@ -103,6 +103,10 @@ struct {								\
 /*
  * Singly-linked List functions.
  */
+#define	SLIST_EMPTY(head)	((head)->slh_first == NULL)
+
+#define	SLIST_FIRST(head)	((head)->slh_first)
+
 #define SLIST_INIT(head) {						\
 	(head)->slh_first = NULL;					\
 }
@@ -116,6 +120,8 @@ struct {								\
 	(elm)->field.sle_next = (head)->slh_first;			\
 	(head)->slh_first = (elm);					\
 }
+
+#define SLIST_NEXT(elm, field)	((elm)->field.sle_next)
 
 #define SLIST_REMOVE_HEAD(head, field) {				\
 	(head)->slh_first = (head)->slh_first->field.sle_next;		\
