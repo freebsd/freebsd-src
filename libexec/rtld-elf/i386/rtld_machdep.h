@@ -55,21 +55,21 @@ reloc_jmpslot(Elf_Addr *where, Elf_Addr target,
 static inline void
 atomic_decr_int(volatile int *p)
 {
-    __asm __volatile ("lock; decl %0" : "=m"(*p) : "0"(*p) : "cc");
+    __asm __volatile ("lock; decl %0" : "+m"(*p) : : "cc");
 }
 
 static inline void
 atomic_incr_int(volatile int *p)
 {
-    __asm __volatile ("lock; incl %0" : "=m"(*p) : "0"(*p) : "cc");
+    __asm __volatile ("lock; incl %0" : "+m"(*p) : : "cc");
 }
 
 static inline void
 atomic_add_int(volatile int *p, int val)
 {
     __asm __volatile ("lock; addl %1, %0"
-	: "=m"(*p)
-	: "ri"(val), "0"(*p)
+	: "+m"(*p)
+	: "ri"(val)
 	: "cc");
 }
 
