@@ -72,48 +72,18 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 
+enum {
+	NL_CONSTTY,
+	NL_MAXFILES,
+	NL_NFILES,
+	NL_TTY_LIST
+};
+
 static struct nlist nl[] = {
-#define NLMANDATORYBEG	0
-#define	V_MOUNTLIST	0
-	{ "_mountlist" },	/* address of head of mount list. */
-#define V_NUMV		1
-	{ "_numvnodes" },
-#define	FNL_NFILES	2
-	{"_nfiles"},
-#define FNL_MAXFILES	3
-	{"_maxfiles"},
-#define NLMANDATORYEND FNL_MAXFILES	/* names up to here are mandatory */
-#define	SCONS		NLMANDATORYEND + 1
-	{ "_constty" },
-#define	SPTY		NLMANDATORYEND + 2
-	{ "_pt_tty" },
-#define	SNPTY		NLMANDATORYEND + 3
-	{ "_npty" },
-
-
-
-#ifdef __FreeBSD__
-#define SCCONS	(SNPTY+1)
-	{ "_sccons" },
-#define NSCCONS	(SNPTY+2)
-	{ "_nsccons" },
-#define SIO  (SNPTY+3)
-	{ "_sio_tty" },
-#define NSIO (SNPTY+4)
-	{ "_nsio_tty" },
-#define RC  (SNPTY+5)
-	{ "_rc_tty" },
-#define NRC (SNPTY+6)
-	{ "_nrc_tty" },
-#define CY  (SNPTY+7)
-	{ "_cy_tty" },
-#define NCY (SNPTY+8)
-	{ "_ncy_tty" },
-#define SI  (SNPTY+9)
-	{ "_si_tty" },
-#define NSI (SNPTY+10)
-	{ "_si_Nports" },
-#endif
+	{ "_constty", 0 },
+	{ "_maxfiles", 0 },
+	{ "_nfiles", 0 },
+	{ "_tty_list", 0 },
 	{ "" }
 };
 
@@ -151,10 +121,6 @@ static int	getfiles(char **, size_t *);
 static void	swapmode(void);
 static void	ttymode(void);
 static void	ttyprt(struct xtty *);
-#if 0
-/* XXX */
-static void	ttytype(struct tty *, char *, int, int, int);
-#endif
 static void	usage(void);
 
 int
@@ -221,8 +187,8 @@ main(int argc, char *argv[])
 			if (ret == -1)
 				errx(1, "kvm_nlist: %s", kvm_geterr(kd));
 			quit = 0;
-			for (i = NLMANDATORYBEG; i <= NLMANDATORYEND; i++)
-				if (!nl[i].n_value) {
+			for (i = 0; nl[i].n_name[0] != '\0'; ++i)
+				if (nl[i].n_value == 0) {
 					quit = 1;
 					warnx("undefined symbol: %s",
 					    nl[i].n_name);
@@ -251,13 +217,42 @@ usage(void)
 
 static const char hdr[] =
 "  LINE RAW CAN OUT IHIWT ILOWT OHWT LWT     COL STATE  SESS      PGID DISC\n";
-#if 0
-/* XXX */
-static int ttyspace = 128;
-#endif
 
 static void
-ttymode(void)
+ttymode_kvm(void)
+{
+	SLIST_HEAD(, tty) tl;
+	struct tty *tp, tty;
+	struct xtty xt;
+
+	(void)printf("%s", hdr);
+	bzero(&xt, sizeof xt);
+	xt.xt_size = sizeof xt;
+	if (kvm_read(kd, nl[NL_TTY_LIST].n_value, &tl, sizeof tl) != sizeof tl)
+		errx(1, "kvm_read(): %s", kvm_geterr(kd));
+	tp = SLIST_FIRST(&tl);
+	while (tp != NULL) {
+		if (kvm_read(kd, (u_long)tp, &tty, sizeof tty) != sizeof tty)
+			errx(1, "kvm_read(): %s", kvm_geterr(kd));
+		xt.xt_rawcc = tty.t_rawq.c_cc;
+		xt.xt_cancc = tty.t_canq.c_cc;
+		xt.xt_outcc = tty.t_outq.c_cc;
+#define XT_COPY(field) xt.xt_##field = tty.t_##field
+		XT_COPY(line);
+		XT_COPY(state);
+		XT_COPY(column);
+		XT_COPY(ihiwat);
+		XT_COPY(ilowat);
+		XT_COPY(ohiwat);
+		XT_COPY(olowat);
+#undef XT_COPY
+		ttyprt(&xt);
+		tp = tty.t_list.sle_next;
+	}
+}
+
+static void
+ttymode_sysctl(void)
 {
 	struct xtty *xt, *end;
 	void *xttys;
@@ -278,57 +273,16 @@ ttymode(void)
 		for (xt = xttys; xt < end; xt++)
 			ttyprt(xt);
 	}
-#if 0
-	/* XXX */
-	if ((tty = malloc(ttyspace * sizeof(*tty))) == NULL)
-		errx(1, "malloc");
-	if (nl[SCONS].n_type != 0) {
-		(void)printf("1 console\n");
-		KGET(SCONS, *tty);
-		ttyprt(&tty[0], 0);
-	}
-#ifdef __FreeBSD__
-	if (nl[NSCCONS].n_type != 0)
-		ttytype(tty, "vty", SCCONS, NSCCONS, 0);
-	if (nl[NSIO].n_type != 0)
-		ttytype(tty, "sio", SIO, NSIO, 0);
-	if (nl[NRC].n_type != 0)
-		ttytype(tty, "rc", RC, NRC, 0);
-	if (nl[NCY].n_type != 0)
-		ttytype(tty, "cy", CY, NCY, 0);
-	if (nl[NSI].n_type != 0)
-		ttytype(tty, "si", SI, NSI, 1);
-#endif
-	if (nl[SNPTY].n_type != 0)
-		ttytype(tty, "pty", SPTY, SNPTY, 0);
 }
 
 static void
-ttytype(struct tty *tty, char *name, int type, int number, int indir)
+ttymode(void)
 {
-	struct tty *tp;
-	int ntty;
-	struct tty **ttyaddr;
 
-	if (tty == NULL)
-		return;
-	KGET(number, ntty);
-	(void)printf("%d %s %s\n", ntty, name, (ntty == 1) ? "line" : "lines");
-	if (ntty > ttyspace) {
-		ttyspace = ntty;
-		if ((tty = realloc(tty, ttyspace * sizeof(*tty))) == 0)
-			errx(1, "realloc");
-	}
-	if (indir) {
-		KGET(type, ttyaddr);
-		KGET2(ttyaddr, tty, ntty * sizeof(struct tty), "tty structs");
-	} else {
-		KGET1(type, tty, ntty * sizeof(struct tty), "tty structs");
-	}
-	(void)printf("%s", hdr);
-	for (tp = tty; tp < &tty[ntty]; tp++)
-		ttyprt(tp, tp - tty);
-#endif
+	if (kd != NULL)
+		ttymode_kvm();
+	else
+		ttymode_sysctl();
 }
 
 static struct {
@@ -442,8 +396,8 @@ filemode(void)
 	static char *dtypes[] = { "???", "inode", "socket" };
 
 	if (kd != NULL) {
-		KGET(FNL_MAXFILES, maxfile);
-		KGET(FNL_NFILES, nfiles);
+		KGET(NL_MAXFILES, maxfile);
+		KGET(NL_NFILES, nfiles);
 	} else {
 		len = sizeof maxfile;
 		if (sysctlbyname("kern.maxfiles", &maxfile, &len, 0, 0) == -1)
@@ -559,7 +513,7 @@ print_swap(struct kvm_swap *ksw)
 	swtot.ksw_used += ksw->ksw_used;
 	++nswdev;
 	if (totalflag == 0) {
-		(void)printf("%-10s %*d ",
+		(void)printf("%-15s %*d ",
 		    ksw->ksw_devname, hlen,
 		    CONVERT(ksw->ksw_total));
 		(void)printf("%8d %8d %5.0f%%    %s\n",
