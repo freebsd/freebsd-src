@@ -68,7 +68,7 @@
 
 #include <fs/devfs/devfs.h>
 
-static int devfs_fops = 0;
+static int devfs_fops = 1;
 
 static fo_rdwr_t	devfs_read_f;
 static fo_rdwr_t	devfs_write_f;
