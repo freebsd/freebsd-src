@@ -1075,7 +1075,7 @@
 
 /* Telex Communications products */
 #define	USB_PRODUCT_TELEX_MIC1	0x0001		/* Enhanced USB Microphone */
-
+#define USB_PRODUCT_TREK_THUMBDRIVE_8MB	0x9988		/* ThumbDrive 8MB */
 /* Texas Intel products */
 #define	USB_PRODUCT_TI_UTUSB41	0x1446		/* UT-USB41 hub */
 #define	USB_PRODUCT_TI_TUSB2046	0x2046		/* TUSB2046 hub */
@@ -1085,6 +1085,8 @@
 
 /* Trek Technology products */
 #define	USB_PRODUCT_TREK_THUMBDRIVE	0x1111		/* ThumbDrive */
+
+#define USB_PRODUCT_TREK_THUMBDRIVE_8MB	0x9988		/* ThumbDrive */
 
 /* Ultima products */
 #define	USB_PRODUCT_ULTIMA_1200UBPLUS	0x4002		/* 1200 UB Plus scanner */
