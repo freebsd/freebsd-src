@@ -1231,4 +1231,4 @@ mac_syscall(struct thread *td, struct mac_syscall_args *uap)
 	return (ENOSYS);
 }
 
-#endif
+#endif /* !MAC */
