@@ -723,18 +723,9 @@ sigreturn(td, uap)
 	} */ *uap;
 {
 	struct proc *p = td->td_proc;
-	struct osigcontext *oscp;
-	struct osigreturn_args *ouap;
 	struct trapframe *regs;
 	ucontext_t *ucp;
 	int cs, eflags;
-
-#ifdef COMPAT_43
-	ouap = (struct osigreturn_args *)uap;
-	oscp = ouap->sigcntxp;
-	if (fuword(&oscp->sc_trapno) == 0x01d516)
-		return (osigreturn(td, ouap));
-#endif
 
 	ucp = uap->sigcntxp;
 	if (!useracc((caddr_t)ucp, sizeof(*ucp), VM_PROT_READ))
