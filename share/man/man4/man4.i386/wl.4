@@ -1,0 +1,144 @@
+.\"
+.\" Copyright (c) 1996 Michael Smith
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	$Id$
+.\"
+.Dd March 4, 1997
+.Dt ED 4 i386
+.Os FreeBSD
+.Sh NAME
+.Nm wl
+.Nd
+NCR Wavelan device driver
+.Sh SYNOPSIS
+.Cd "device wl0 at isa? port 0x300 net irq ? vector wlintr"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the ISA bus AT&T/NCR/Lucent Wavelan
+ethernet-like wireless network cards. 
+.Pp
+All card configuration values except for the base address are read from the PSA
+(Parameter Storage Area) on the card, which can be configured with the
+.Xr wlconfig 8
+program.  The base address for the card is set by dipswitches; see the manual
+supplied with the card for details.
+.Pp
+The
+.Nm
+driver does not accept any flags, however its behaviour can be controlled with
+a number of sysctl values:
+.Bl -hang -offset indent
+.It Em machdep.wl_xmit_delay
+On some systems, the driver is too fast for the Wavelan card.  This value can be
+tweaked to slow the output rate of the driver at the expense of CPU performance.
+A value of 200 is believed to be acceptable for 486 systems, while 1000 is 
+considered adequate for a 166MHz Pentium.
+.It Em machdep.wl_xmit_watch
+Causes extra debugging messages concerning the state of transmitted packets to
+be printed.
+.It Em machdep.wl_gather_snr
+SNR statistics are gathered.  This is not completely implemented yet.
+.El
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "wl%d: PSA corrupt (invalid IRQ value)" 
+The IRQ value in the PSA is illegal.  The card will be configured not to generate
+any interrupts, ie. it will not work as a network device, however it will be possible
+to use
+.Xr wlconfig 8
+to reconfigure the IRQ to a sensible value.
+.It "wl%d init(): trouble resetting board."
+.It "wl%d bldcu(): iscp_busy timeout."
+.It "wl%d bldcu(): not ready after reset."
+The board failed to respond correctly during reset and configuration.
+.It "wl%d: busy?!"
+While attempting to queue a packet for transmission, the card claims to
+be busy although we were sure it wasn't.
+.It "wl%d read(): board is not running."
+An attempt was made to read a packet from the card, but we don't think that
+it's running.  Should never happen.
+.It "wl%d read(): Invalid buffer"
+The i82586 on the card has corrupted its buffers.
+.It "wl%d read(): hwrst trouble."
+Having failed to meet expectations, the i82586 on the card is refusing to reset.
+.It "wl%d read(): No mbuf nth"
+An error occurred allocating mbufs to copy a received packet to.
+.It "wl%d ioctl(): board is not running"
+The interface was marked as DOWN but still RUNNING.  Harmless.
+.It "wlack() int bits disappeared : %04x != int_type %04x"
+While acknowledging an interrupt, some of the interrupt sources on the i83586
+went away.
+.It "wl%d: xmt intr but not busy, CU %04x"
+A transmit interrupt occurred but we are not expecting one.
+.It "wl%d: xmt intr but ac_status == 0"
+A transmit interrupt occurred but there is no status to indicate that one should
+have been generated.
+.It "wl%d: xmt aborted"
+The transmission of a packet was aborted.
+.It "wl%d: no CTS"
+A packet was not transmitted because the CTS input to the i82586 went away.
+.It "wl%d: DMA underrun"
+The DMA hardware on the Wavelan card failed, causing an outgoing packet to be
+lost.
+.It "wl%d: xmt deferred"
+Transmission of a packet was deferred to avoid other traffic.
+.It "wl%d: heart beat"
+The i82586 thought it heard a heartbeat signal.  This usually means that there's
+someone else transmitting at the same time.
+.It "wl%d: too many collisions"
+A packet was aborted because too many collisions occurred trying to send it.
+.It "wl%d RCV: !OK %x"
+A receive operation did not complete OK.
+.It "wl%d: slow accepting xmit"
+The i82586 on the card is taking a long time to accept a transmit command.
+.It "wl%d: i82586 Self Test failed!"
+Diagnostics on the i82586 failed.
+.It "wl%d: %s failed; status = %d, inw = %x, outw = %x"
+A command to the i82586 failed.
+.It "wl%d wlack(): board not accepting command."
+The card is not responding to an interrupt acknowledge.
+.El
+.Sh CAVEATS
+The cards are known to lose transmit interrupts under heavy load.  Ajust the
+machdep.wl_xmit_delay parameter to avoid this.
+.Pp
+On one test link, packet loss was significant enough to causes major lagging.
+.Sh BUGS
+The
+.Nm
+driver is very old and has been hacked on by many people.  The i82586 is an
+odd and funky device.  The two are not necessarily a good mix.
+.Sh SEE ALSO
+.Xr wlconfig 8 ,
+.Xr netintro 4 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+device driver was written/ported for Mach by Anders Klemets, ported to BSD/OS
+by Richard Morris, to FreeBSD 2.1 by Jim Binkley and to FreeBSD 2.2 by Michael
+Smith.  It has not appeared in any FreeBSD releases yet.
+
