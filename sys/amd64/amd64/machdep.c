@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.271 1997/11/07 09:20:15 phk Exp $
+ *	$Id: machdep.c,v 1.272 1997/11/20 19:30:29 bde Exp $
  */
 
 #include "apm.h"
@@ -105,6 +105,7 @@
 #include <machine/specialreg.h>
 #include <machine/cons.h>
 #include <machine/bootinfo.h>
+#include <machine/ipl.h>
 #include <machine/md_var.h>
 #include <machine/pcb_ext.h>		/* pcb.h included via sys/user.h */
 #ifdef SMP
@@ -1088,6 +1089,11 @@ init386(first)
 	int target_page, pa_indx;
 	int off;
 	int speculative_mprobe;
+
+	/*
+	 * Prevent lowering of the ipl if we call tsleep() early.
+	 */
+	safepri = cpl;
 
 	proc0.p_addr = proc0paddr;
 
