@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: expand.c,v 1.17 1997/04/28 03:28:43 steve Exp $
+ *	$Id: expand.c,v 1.18 1997/05/19 00:18:40 steve Exp $
  */
 
 #ifndef lint
@@ -1032,7 +1032,7 @@ expmeta(enddir, name)
 			metaflag = 1;
 		else if (*p == '[') {
 			q = p + 1;
-			if (*q == '!')
+			if (*q == '!' || *q == '^')
 				q++;
 			for (;;) {
 				if (*q == CTLESC)
@@ -1267,7 +1267,7 @@ pmatch(pattern, string)
 			char chr;
 
 			endp = p;
-			if (*endp == '!')
+			if (*endp == '!' || *endp == '^')
 				endp++;
 			for (;;) {
 				if (*endp == '\0')
@@ -1278,7 +1278,7 @@ pmatch(pattern, string)
 					break;
 			}
 			invert = 0;
-			if (*p == '!') {
+			if (*p == '!' || *p == '^') {
 				invert++;
 				p++;
 			}
