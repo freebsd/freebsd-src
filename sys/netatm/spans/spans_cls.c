@@ -65,6 +65,8 @@
 #include <netatm/spans/spans_var.h>
 #include <netatm/spans/spans_cls.h>
 
+#include <vm/uma.h>
+
 #ifndef lint
 __RCSID("@(#) $FreeBSD$");
 #endif
@@ -106,12 +108,7 @@ static void	spanscls_pdu_print(struct spanscls *, KBuffer *, char *);
 /*
  * Local variables
  */
-static struct sp_info  spanscls_pool = {
-	"spans cls pool",		/* si_name */
-	sizeof(struct spanscls),	/* si_blksiz */
-	2,				/* si_blkcnt */
-	100				/* si_maxallow */
-};
+static uma_zone_t	spanscls_zone;
 
 static struct ip_serv	spanscls_ipserv = {
 	spanscls_ipact,
@@ -258,6 +255,10 @@ spanscls_start()
 {
 	int	err;
 
+	spanscls_zone = uma_zcreate("spanscls", sizeof(struct spanscls),
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
+	uma_zone_set_max(spanscls_zone, 100);
+
 	/*
 	 * Fill in union fields
 	 */
@@ -316,7 +317,7 @@ spanscls_stop()
 	/*
 	 * Free our storage pools
 	 */
-	atm_release_pool(&spanscls_pool);
+	uma_zdestroy(spanscls_zone);
 }
 
 
@@ -347,7 +348,7 @@ spanscls_attach(spp)
 	/*
 	 * Get a new cls control block
 	 */
-	clp = (struct spanscls *)atm_allocate(&spanscls_pool);
+	clp = uma_zalloc(spanscls_zone, M_WAITOK);
 	if (clp == NULL)
 		return (ENOMEM);
 
@@ -378,7 +379,7 @@ spanscls_attach(spp)
 	err = atm_cm_connect(&spanscls_endpt, clp, &spanscls_attr,
 			&clp->cls_conn);
 	if (err) {
-		atm_free((caddr_t)clp);
+		uma_zfree(spanscls_zone, clp);
 		return (err);
 	}
 
@@ -439,7 +440,7 @@ spanscls_detach(spp)
 	spp->sp_cls = NULL;
 	if (clp->cls_state == CLS_CLOSED) {
 		UNLINK(clp, struct spanscls, spanscls_head, cls_next);
-		atm_free((caddr_t)clp);
+		uma_zfree(spanscls_zone, clp);
 	}
 }
 

@@ -39,6 +39,9 @@
 #define _SPANS_SPANS_VAR_H
 
 #ifdef _KERNEL
+
+#include <vm/uma.h>	/* XXX arr: will remove rsn */
+
 /*
  * Constants to indicate the state of the signalling interface
  */
@@ -244,8 +247,8 @@ void		spans_dump_buffer(KBuffer *);
  * External variables
  */
 extern struct spans_addr	spans_bcastaddr;
-extern struct sp_info		spans_vcpool;
-extern struct sp_info		spans_msgpool;
+extern uma_zone_t		spans_vc_zone;
+extern uma_zone_t		spans_msg_zone;
 extern struct t_atm_cause	spans_cause;
 
 #endif	/* _KERNEL */
