@@ -690,9 +690,7 @@ loop:
 			 * to free anything that cpu_exit couldn't
 			 * release while still running in process context.
 			 */
-			mtx_lock(&Giant);
 			vm_waitproc(p);
-			mtx_unlock(&Giant);
 #ifdef MAC
 			mac_destroy_proc(p);
 #endif
