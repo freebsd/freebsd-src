@@ -243,7 +243,8 @@ NWRequest(NWCONN_HANDLE cH, nuint16 fn,
 int
 ncp_initlib(void){
 	int error;
-	int kv, kvlen = sizeof(kv);
+	int kv;
+	size_t kvlen = sizeof(kv);
 	static int ncp_initialized;
 
 	if (ncp_initialized)
