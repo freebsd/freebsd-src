@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cache.c	8.5 (Berkeley) 3/22/95
- * $Id: vfs_cache.c,v 1.36 1997/11/07 08:53:05 phk Exp $
+ * $Id: vfs_cache.c,v 1.37 1997/12/19 23:18:37 bde Exp $
  */
 
 #include <sys/param.h>
@@ -89,8 +89,7 @@ SYSCTL_INT(_debug, OID_AUTO, ncsize, CTLFLAG_RD, 0, sizeof(struct namecache), ""
 /*
  * The new name cache statistics
  */
-SYSCTL_NODE(_vfs, CTL_VFS,	  cache,     CTLFLAG_RW, 0,
-	"Name cache statistics");
+SYSCTL_NODE(_vfs, OID_AUTO, cache, CTLFLAG_RW, 0, "Name cache statistics");
 #define STATNODE(mode, name, var) \
 	SYSCTL_INT(_vfs_cache, OID_AUTO, name, mode, var, 0, "");
 STATNODE(CTLFLAG_RD, numneg, &numneg);
