@@ -16,5 +16,5 @@ echo Checking for missing files
 sed 's,^\([^|]*\)|.*,All/\1.tgz,' INDEX | xargs ls -l >/dev/null
 
 echo Checking for missing dependents
-awk -F'|' '{print $8}' INDEX | sed 's/ /\
+awk -F'|' '{print $9}' INDEX | sed 's/ /\
 /g' | sort -u | sed -e /^$/d -e 's/\(.*\)/All\/\1.tgz/' | xargs ls -l >/dev/null
