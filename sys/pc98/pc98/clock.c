@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.39 1997/12/29 16:15:57 kato Exp $
+ *	$Id: clock.c,v 1.40 1998/01/28 12:25:06 kato Exp $
  */
 
 /*
@@ -154,7 +154,7 @@ u_int	tsc_bias;
 u_int	tsc_comultiplier;
 u_int	tsc_freq;
 u_int	tsc_multiplier;
-u_int	tsc_present;
+static u_int	tsc_present;
 int	wall_cmos_clock;	/* wall	CMOS clock assumed if != 0 */
 
 static	int	beeping = 0;
