@@ -1,6 +1,7 @@
 // String based streams -*- C++ -*-
 
-// Copyright (C) 1997, 1998, 1999, 2002, 2003 Free Software Foundation, Inc.
+// Copyright (C) 1997, 1998, 1999, 2002, 2003, 2004
+// Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -36,8 +37,8 @@
  *  in your programs, rather than any of the "st[dl]_*.h" implementation files.
  */
 
-#ifndef _CPP_SSTREAM
-#define _CPP_SSTREAM	1
+#ifndef _GLIBCXX_SSTREAM
+#define _GLIBCXX_SSTREAM 1
 
 #pragma GCC system_header
 
@@ -65,10 +66,9 @@ namespace std
       // Types:
       typedef _CharT 					char_type;
       typedef _Traits 					traits_type;
-#ifdef _GLIBCPP_RESOLVE_LIB_DEFECTS
-// 251. basic_stringbuf missing allocator_type
+      // _GLIBCXX_RESOLVE_LIB_DEFECTS
+      // 251. basic_stringbuf missing allocator_type
       typedef _Alloc				       	allocator_type;
-#endif
       typedef typename traits_type::int_type 		int_type;
       typedef typename traits_type::pos_type 		pos_type;
       typedef typename traits_type::off_type 		off_type;
@@ -85,6 +85,13 @@ namespace std
       //@}
 
     protected:
+      /**
+       *  @if maint
+       *  Place to stash in || out || in | out settings for current stringbuf.
+       *  @endif
+      */
+      ios_base::openmode 	_M_mode;
+
       // Data Members:
       /**
        *  @if maint
@@ -104,7 +111,7 @@ namespace std
       */
       explicit
       basic_stringbuf(ios_base::openmode __mode = ios_base::in | ios_base::out)
-      : __streambuf_type(), _M_string()
+      : __streambuf_type(), _M_mode(), _M_string()
       { _M_stringbuf_init(__mode); }
 
       /**
@@ -118,7 +125,7 @@ namespace std
       explicit
       basic_stringbuf(const __string_type& __str,
 		      ios_base::openmode __mode = ios_base::in | ios_base::out)
-      : __streambuf_type(), _M_string(__str.data(), __str.size())
+      : __streambuf_type(), _M_mode(), _M_string(__str.data(), __str.size())
       { _M_stringbuf_init(__mode); }
 
       // Get and set:
@@ -133,16 +140,14 @@ namespace std
       __string_type
       str() const
       {
-	if (_M_mode & ios_base::out)
+	const bool __testout = this->_M_mode & ios_base::out;
+	if (__testout)
 	  {
-	    // This is the deal: _M_string.size() is a value that
-	    // represents the size of the initial string that makes
-	    // _M_string, and may not be the correct size of the
-	    // current stringbuf internal buffer.
-	    __size_type __len = _M_string.size();
-	    if (_M_out_end > _M_out_beg)
-	      __len = max(__size_type(_M_out_end - _M_out_beg), __len);
-	    return __string_type(_M_out_beg, _M_out_beg + __len);
+	    // The current egptr() may not be the actual string end.
+	    if (this->pptr() > this->egptr())
+	      return __string_type(this->pbase(), this->pptr());
+	    else
+ 	      return __string_type(this->pbase(), this->egptr());
 	  }
 	else
 	  return _M_string;
@@ -160,7 +165,7 @@ namespace std
       {
 	// Cannot use _M_string = __s, since v3 strings are COW.
 	_M_string.assign(__s.data(), __s.size());
-	_M_stringbuf_init(_M_mode);
+	_M_stringbuf_init(this->_M_mode);
       }
 
     protected:
@@ -173,35 +178,17 @@ namespace std
       void
       _M_stringbuf_init(ios_base::openmode __mode)
       {
-	// _M_buf_size is a convenient alias for "what the streambuf
-	// thinks the allocated size of the string really is." This is
-	// necessary as ostringstreams are implemented with the
-	// streambufs having control of the allocation and
-	// re-allocation of the internal string object, _M_string.
-	_M_buf_size = _M_string.size();
+	this->_M_mode = __mode;
 
-	// NB: Start ostringstream buffers at 512 bytes. This is an
-	// experimental value (pronounced "arbitrary" in some of the
-	// hipper english-speaking countries), and can be changed to
-	// suit particular needs.
-	_M_buf_size_opt = 512;
-	_M_mode = __mode;
-	if (_M_mode & (ios_base::ate | ios_base::app))
-	  _M_really_sync(0, _M_buf_size);
-	else
-	  _M_really_sync(0, 0);
+	__size_type __len = 0;
+	if (this->_M_mode & (ios_base::ate | ios_base::app))
+	  __len = _M_string.size();
+	_M_sync(const_cast<char_type*>(_M_string.data()), 0, __len);
       }
 
-      // Overridden virtual functions:
       // [documentation is inherited]
       virtual int_type
-      underflow()
-      {
-	if (_M_in_cur && _M_in_cur < _M_in_end)
-	  return traits_type::to_int_type(*gptr());
-	else
-	  return traits_type::eof();
-      }
+      underflow();
 
       // [documentation is inherited]
       virtual int_type
@@ -225,10 +212,18 @@ namespace std
       virtual __streambuf_type*
       setbuf(char_type* __s, streamsize __n)
       {
-	if (__s && __n)
+	if (__s && __n >= 0)
 	  {
+	    // This is implementation-defined behavior, and assumes
+	    // that an external char_type array of length __n exists
+	    // and has been pre-allocated. If this is not the case,
+	    // things will quickly blow up.
+	    
+	    // Step 1: Destroy the current internal array.
 	    _M_string = __string_type(__s, __n);
-	    _M_really_sync(0, 0);
+	    
+	    // Step 2: Use the external array.
+	    _M_sync(__s, 0, 0);
 	  }
 	return this;
       }
@@ -254,23 +249,41 @@ namespace std
        *  @doctodo
        *  @endif
       */
-      virtual int
-      _M_really_sync(__size_type __i, __size_type __o)
+      void
+      _M_sync(char_type* __base, __size_type __i, __size_type __o)
       {
-	char_type* __base = const_cast<char_type*>(_M_string.data());
-	bool __testin = _M_mode & ios_base::in;
-	bool __testout = _M_mode & ios_base::out;
-	__size_type __len = _M_string.size();
+	const bool __testin = this->_M_mode & ios_base::in;
+	const bool __testout = this->_M_mode & ios_base::out;
+	const __size_type __len = _M_string.size();
 
-	_M_buf = __base;
 	if (__testin)
-	    this->setg(__base, __base + __i, __base + __len);
+	  this->setg(__base, __base + __i, __base + __len);
 	if (__testout)
 	  {
-	    this->setp(__base, __base + __len);
-	    _M_out_cur += __o;
+	    this->setp(__base, __base + _M_string.capacity());
+	    this->pbump(__o);
+	    // We need a pointer to the string end anyway, even when
+	    // !__testin: in that case, however, for the correct
+	    // functioning of the streambuf inlines all the get area
+	    // pointers must be identical.
+	    if (!__testin)
+	      this->setg(__base + __len, __base + __len, __base + __len);
 	  }
-	return 0;
+      }
+
+      // Internal function for correctly updating egptr() to the actual
+      // string end.
+      void
+      _M_update_egptr()
+      {
+	const bool __testin = this->_M_mode & ios_base::in;
+	const bool __testout = this->_M_mode & ios_base::out;
+
+	if (__testout && this->pptr() > this->egptr())
+	  if (__testin)
+	    this->setg(this->eback(), this->gptr(), this->pptr());
+	  else
+	    this->setg(this->pptr(), this->pptr(), this->pptr());
       }
     };
 
@@ -291,10 +304,9 @@ namespace std
       // Types:
       typedef _CharT 					char_type;
       typedef _Traits 					traits_type;
-#ifdef _GLIBCPP_RESOLVE_LIB_DEFECTS
-// 251. basic_stringbuf missing allocator_type
+      // _GLIBCXX_RESOLVE_LIB_DEFECTS
+      // 251. basic_stringbuf missing allocator_type
       typedef _Alloc				       	allocator_type;
-#endif
       typedef typename traits_type::int_type 		int_type;
       typedef typename traits_type::pos_type 		pos_type;
       typedef typename traits_type::off_type 		off_type;
@@ -330,7 +342,7 @@ namespace std
       */
       explicit
       basic_istringstream(ios_base::openmode __mode = ios_base::in)
-      : __istream_type(NULL), _M_stringbuf(__mode | ios_base::in)
+      : __istream_type(), _M_stringbuf(__mode | ios_base::in)
       { this->init(&_M_stringbuf); }
 
       /**
@@ -351,7 +363,7 @@ namespace std
       explicit
       basic_istringstream(const __string_type& __str,
 			  ios_base::openmode __mode = ios_base::in)
-      : __istream_type(NULL), _M_stringbuf(__str, __mode | ios_base::in)
+      : __istream_type(), _M_stringbuf(__str, __mode | ios_base::in)
       { this->init(&_M_stringbuf); }
 
       /**
@@ -410,10 +422,9 @@ namespace std
       // Types:
       typedef _CharT 					char_type;
       typedef _Traits 					traits_type;
-#ifdef _GLIBCPP_RESOLVE_LIB_DEFECTS
-// 251. basic_stringbuf missing allocator_type
+      // _GLIBCXX_RESOLVE_LIB_DEFECTS
+      // 251. basic_stringbuf missing allocator_type
       typedef _Alloc				       	allocator_type;
-#endif
       typedef typename traits_type::int_type 		int_type;
       typedef typename traits_type::pos_type 		pos_type;
       typedef typename traits_type::off_type 		off_type;
@@ -449,7 +460,7 @@ namespace std
       */
       explicit
       basic_ostringstream(ios_base::openmode __mode = ios_base::out)
-      : __ostream_type(NULL), _M_stringbuf(__mode | ios_base::out)
+      : __ostream_type(), _M_stringbuf(__mode | ios_base::out)
       { this->init(&_M_stringbuf); }
 
       /**
@@ -470,7 +481,7 @@ namespace std
       explicit
       basic_ostringstream(const __string_type& __str,
 			  ios_base::openmode __mode = ios_base::out)
-      : __ostream_type(NULL), _M_stringbuf(__str, __mode | ios_base::out)
+      : __ostream_type(), _M_stringbuf(__str, __mode | ios_base::out)
       { this->init(&_M_stringbuf); }
 
       /**
@@ -529,10 +540,9 @@ namespace std
       // Types:
       typedef _CharT 					char_type;
       typedef _Traits 					traits_type;
-#ifdef _GLIBCPP_RESOLVE_LIB_DEFECTS
-// 251. basic_stringbuf missing allocator_type
+      // _GLIBCXX_RESOLVE_LIB_DEFECTS
+      // 251. basic_stringbuf missing allocator_type
       typedef _Alloc				       	allocator_type;
-#endif
       typedef typename traits_type::int_type 		int_type;
       typedef typename traits_type::pos_type 		pos_type;
       typedef typename traits_type::off_type 		off_type;
@@ -566,7 +576,7 @@ namespace std
       */
       explicit
       basic_stringstream(ios_base::openmode __m = ios_base::out | ios_base::in)
-      : __iostream_type(NULL), _M_stringbuf(__m)
+      : __iostream_type(), _M_stringbuf(__m)
       { this->init(&_M_stringbuf); }
 
       /**
@@ -585,7 +595,7 @@ namespace std
       explicit
       basic_stringstream(const __string_type& __str,
 			 ios_base::openmode __m = ios_base::out | ios_base::in)
-      : __iostream_type(NULL), _M_stringbuf(__str, __m)
+      : __iostream_type(), _M_stringbuf(__str, __m)
       { this->init(&_M_stringbuf); }
 
       /**
@@ -628,11 +638,8 @@ namespace std
     };
 } // namespace std
 
-#ifdef _GLIBCPP_NO_TEMPLATE_EXPORT
-# define export
-#endif
-#ifdef  _GLIBCPP_FULLY_COMPLIANT_HEADERS
+#ifndef _GLIBCXX_EXPORT_TEMPLATE
 # include <bits/sstream.tcc>
 #endif
 
-#endif
+#endif /* _GLIBCXX_SSTREAM */

@@ -1,6 +1,6 @@
 // The template and inlines for the -*- C++ -*- valarray class.
 
-// Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002
+// Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002, 2004
 // Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
@@ -35,8 +35,8 @@
  *  in your programs, rather than any of the "st[dl]_*.h" implementation files.
  */
 
-#ifndef _CPP_VALARRAY
-#define _CPP_VALARRAY 1
+#ifndef _GLIBCXX_VALARRAY
+#define _GLIBCXX_VALARRAY 1
 
 #pragma GCC system_header
 
@@ -46,6 +46,7 @@
 #include <cstdlib>
 #include <numeric>
 #include <algorithm>
+#include <debug/debug.h>
 
 namespace std
 {
@@ -90,10 +91,21 @@ namespace std
 } // namespace std
 
 #include <bits/valarray_array.h>
-#include <bits/valarray_meta.h>
+#include <bits/valarray_before.h>
   
 namespace std
 {
+  /**
+   *  @brief  Smart array designed to support numeric processing.
+   *
+   *  A valarray is an array that provides constraints intended to allow for
+   *  effective optimization of numeric array processing by reducing the
+   *  aliasing that can result from pointer representations.  It represents a
+   *  one-dimensional array from which different multidimensional subsets can
+   *  be accessed and modified.
+   *  
+   *  @param  Tp  Type of object in the array.
+   */
   template<class _Tp> 
     class valarray
     {
@@ -107,71 +119,289 @@ namespace std
       typedef _Tp value_type;
       
 	// _lib.valarray.cons_ construct/destroy:
+      ///  Construct an empty array.
       valarray();
+
+      ///  Construct an array with @a n elements.
       explicit valarray(size_t);
+
+      ///  Construct an array with @a n elements initialized to @a t.
       valarray(const _Tp&, size_t);
+
+      ///  Construct an array initialized to the first @a n elements of @a t.
       valarray(const _Tp* __restrict__, size_t);
+
+      ///  Copy constructor.
       valarray(const valarray&);
+
+      ///  Construct an array with the same size and values in @a sa.
       valarray(const slice_array<_Tp>&);
+
+      ///  Construct an array with the same size and values in @a ga.
       valarray(const gslice_array<_Tp>&);
+
+      ///  Construct an array with the same size and values in @a ma.
       valarray(const mask_array<_Tp>&);
+
+      ///  Construct an array with the same size and values in @a ia.
       valarray(const indirect_array<_Tp>&);
+
       template<class _Dom>
 	valarray(const _Expr<_Dom,_Tp>& __e);
       ~valarray();
 
       // _lib.valarray.assign_ assignment:
+      /**
+       *  @brief  Assign elements to an array.
+       *
+       *  Assign elements of array to values in @a v.  Results are undefined
+       *  if @a v is not the same size as this array.
+       *
+       *  @param  v  Valarray to get values from.
+       */
       valarray<_Tp>& operator=(const valarray<_Tp>&);
+
+      /**
+       *  @brief  Assign elements to a value.
+       *
+       *  Assign all elements of array to @a t.
+       *
+       *  @param  t  Value for elements.
+       */
       valarray<_Tp>& operator=(const _Tp&);
+
+      /**
+       *  @brief  Assign elements to an array subset.
+       *
+       *  Assign elements of array to values in @a sa.  Results are undefined
+       *  if @a sa is not the same size as this array.
+       *
+       *  @param  sa  Array slice to get values from.
+       */
       valarray<_Tp>& operator=(const slice_array<_Tp>&);
+
+      /**
+       *  @brief  Assign elements to an array subset.
+       *
+       *  Assign elements of array to values in @a ga.  Results are undefined
+       *  if @a ga is not the same size as this array.
+       *
+       *  @param  ga  Array slice to get values from.
+       */
       valarray<_Tp>& operator=(const gslice_array<_Tp>&);
+
+      /**
+       *  @brief  Assign elements to an array subset.
+       *
+       *  Assign elements of array to values in @a ma.  Results are undefined
+       *  if @a ma is not the same size as this array.
+       *
+       *  @param  ma  Array slice to get values from.
+       */
       valarray<_Tp>& operator=(const mask_array<_Tp>&);
+
+      /**
+       *  @brief  Assign elements to an array subset.
+       *
+       *  Assign elements of array to values in @a ia.  Results are undefined
+       *  if @a ia is not the same size as this array.
+       *
+       *  @param  ia  Array slice to get values from.
+       */
       valarray<_Tp>& operator=(const indirect_array<_Tp>&);
 
       template<class _Dom> valarray<_Tp>&
 	operator= (const _Expr<_Dom,_Tp>&);
 
       // _lib.valarray.access_ element access:
-      // XXX: LWG to be resolved.
-      const _Tp&                 operator[](size_t) const;
-      _Tp&                operator[](size_t);		
+      /**
+       *  Return a reference to the i'th array element.  
+       *
+       *  @param  i  Index of element to return.
+       *  @return  Reference to the i'th element.
+       */
+      _Tp&                operator[](size_t);
+
+      // _GLIBCXX_RESOLVE_LIB_DEFECTS
+      // 389. Const overload of valarray::operator[] returns by value.
+      const _Tp&          operator[](size_t) const;
+
       // _lib.valarray.sub_ subset operations:
+      /**
+       *  @brief  Return an array subset.
+       *
+       *  Returns a new valarray containing the elements of the array
+       *  indicated by the slice argument.  The new valarray is the size of
+       *  the input slice.  @see slice.
+       *
+       *  @param  s  The source slice.
+       *  @return  New valarray containing elements in @a s.
+       */
       _Expr<_SClos<_ValArray,_Tp>, _Tp> operator[](slice) const;
+
+      /**
+       *  @brief  Return a reference to an array subset.
+       *
+       *  Returns a new valarray containing the elements of the array
+       *  indicated by the slice argument.  The new valarray is the size of
+       *  the input slice.  @see slice.
+       *
+       *  @param  s  The source slice.
+       *  @return  New valarray containing elements in @a s.
+       */
       slice_array<_Tp>    operator[](slice);
+
+      /**
+       *  @brief  Return an array subset.
+       *
+       *  Returns a slice_array referencing the elements of the array
+       *  indicated by the slice argument.  @see gslice.
+       *
+       *  @param  s  The source slice.
+       *  @return  Slice_array referencing elements indicated by @a s.
+       */
       _Expr<_GClos<_ValArray,_Tp>, _Tp> operator[](const gslice&) const;
+
+      /**
+       *  @brief  Return a reference to an array subset.
+       *
+       *  Returns a new valarray containing the elements of the array
+       *  indicated by the gslice argument.  The new valarray is
+       *  the size of the input gslice.  @see gslice.
+       *
+       *  @param  s  The source gslice.
+       *  @return  New valarray containing elements in @a s.
+       */
       gslice_array<_Tp>   operator[](const gslice&);
+
+      /**
+       *  @brief  Return an array subset.
+       *
+       *  Returns a new valarray containing the elements of the array
+       *  indicated by the argument.  The input is a valarray of bool which
+       *  represents a bitmask indicating which elements should be copied into
+       *  the new valarray.  Each element of the array is added to the return
+       *  valarray if the corresponding element of the argument is true.
+       *
+       *  @param  m  The valarray bitmask.
+       *  @return  New valarray containing elements indicated by @a m.
+       */
       valarray<_Tp>     	 operator[](const valarray<bool>&) const;
+
+      /**
+       *  @brief  Return a reference to an array subset.
+       *
+       *  Returns a new mask_array referencing the elements of the array
+       *  indicated by the argument.  The input is a valarray of bool which
+       *  represents a bitmask indicating which elements are part of the
+       *  subset.  Elements of the array are part of the subset if the
+       *  corresponding element of the argument is true.
+       *
+       *  @param  m  The valarray bitmask.
+       *  @return  New valarray containing elements indicated by @a m.
+       */
       mask_array<_Tp>     operator[](const valarray<bool>&);
+
+      /**
+       *  @brief  Return an array subset.
+       *
+       *  Returns a new valarray containing the elements of the array
+       *  indicated by the argument.  The elements in the argument are
+       *  interpreted as the indices of elements of this valarray to copy to
+       *  the return valarray.
+       *
+       *  @param  i  The valarray element index list.
+       *  @return  New valarray containing elements in @a s.
+       */
       _Expr<_IClos<_ValArray, _Tp>, _Tp>
         operator[](const valarray<size_t>&) const;
+
+      /**
+       *  @brief  Return a reference to an array subset.
+       *
+       *  Returns an indirect_array referencing the elements of the array
+       *  indicated by the argument.  The elements in the argument are
+       *  interpreted as the indices of elements of this valarray to include
+       *  in the subset.  The returned indirect_array refers to these
+       *  elements.
+       *
+       *  @param  i  The valarray element index list.
+       *  @return  Indirect_array referencing elements in @a i.
+       */
       indirect_array<_Tp> operator[](const valarray<size_t>&);
 
       // _lib.valarray.unary_ unary operators:
+      ///  Return a new valarray by applying unary + to each element.
       typename _UnaryOp<__unary_plus>::_Rt  operator+() const;
+
+      ///  Return a new valarray by applying unary - to each element.
       typename _UnaryOp<__negate>::_Rt      operator-() const;
+
+      ///  Return a new valarray by applying unary ~ to each element.
       typename _UnaryOp<__bitwise_not>::_Rt operator~() const;
+
+      ///  Return a new valarray by applying unary ! to each element.
       typename _UnaryOp<__logical_not>::_Rt operator!() const;
 
       // _lib.valarray.cassign_ computed assignment:
+      ///  Multiply each element of array by @a t.
       valarray<_Tp>& operator*=(const _Tp&);
+
+      ///  Divide each element of array by @a t.
       valarray<_Tp>& operator/=(const _Tp&);
+
+      ///  Set each element e of array to e % @a t.
       valarray<_Tp>& operator%=(const _Tp&);
+
+      ///  Add @a t to each element of array.
       valarray<_Tp>& operator+=(const _Tp&);
+
+      ///  Subtract @a t to each element of array.
       valarray<_Tp>& operator-=(const _Tp&);
+
+      ///  Set each element e of array to e ^ @a t.
       valarray<_Tp>& operator^=(const _Tp&);
+
+      ///  Set each element e of array to e & @a t.
       valarray<_Tp>& operator&=(const _Tp&);
+
+      ///  Set each element e of array to e | @a t.
       valarray<_Tp>& operator|=(const _Tp&);
+
+      ///  Left shift each element e of array by @a t bits.
       valarray<_Tp>& operator<<=(const _Tp&);
+
+      ///  Right shift each element e of array by @a t bits.
       valarray<_Tp>& operator>>=(const _Tp&);
+
+      ///  Multiply elements of array by corresponding elements of @a v.
       valarray<_Tp>& operator*=(const valarray<_Tp>&);
+
+      ///  Divide elements of array by corresponding elements of @a v.
       valarray<_Tp>& operator/=(const valarray<_Tp>&);
+
+      ///  Modulo elements of array by corresponding elements of @a v.
       valarray<_Tp>& operator%=(const valarray<_Tp>&);
+
+      ///  Add corresponding elements of @a v to elements of array.
       valarray<_Tp>& operator+=(const valarray<_Tp>&);
+
+      ///  Subtract corresponding elements of @a v from elements of array.
       valarray<_Tp>& operator-=(const valarray<_Tp>&);
+
+      ///  Logical xor corresponding elements of @a v with elements of array.
       valarray<_Tp>& operator^=(const valarray<_Tp>&);
+
+      ///  Logical or corresponding elements of @a v with elements of array.
       valarray<_Tp>& operator|=(const valarray<_Tp>&);
+
+      ///  Logical and corresponding elements of @a v with elements of array.
       valarray<_Tp>& operator&=(const valarray<_Tp>&);
+
+      ///  Left shift elements of array by corresponding elements of @a v.
       valarray<_Tp>& operator<<=(const valarray<_Tp>&);
+
+      ///  Right shift elements of array by corresponding elements of @a v.
       valarray<_Tp>& operator>>=(const valarray<_Tp>&);
 
       template<class _Dom>
@@ -197,18 +427,93 @@ namespace std
 
 
       // _lib.valarray.members_ member functions:
+      ///  Return the number of elements in array.
       size_t size() const;
-      _Tp    sum() const;	
+
+      /**
+       *  @brief  Return the sum of all elements in the array.
+       *
+       *  Accumulates the sum of all elements into a Tp using +=.  The order
+       *  of adding the elements is unspecified.
+       */
+      _Tp    sum() const;
+
+      ///  Return the minimum element using operator<().
       _Tp    min() const;	
+
+      ///  Return the maximum element using operator<().
       _Tp    max() const;	
 
   //           // FIXME: Extension
   //       _Tp    product () const;
 
+      /**
+       *  @brief  Return a shifted array.
+       *
+       *  A new valarray is constructed as a copy of this array with elements
+       *  in shifted positions.  For an element with index i, the new position
+       *  is i - n.  The new valarray is the same size as the current one.
+       *  New elements without a value are set to 0.  Elements whos new
+       *  position is outside the bounds of the array are discarded.
+       *
+       *  Positive arguments shift toward index 0, discarding elements [0, n).
+       *  Negative arguments discard elements from the top of the array.
+       *
+       *  @param  n  Number of element positions to shift.
+       *  @return  New valarray with elements in shifted positions.
+       */
       valarray<_Tp> shift (int) const;
+
+      /**
+       *  @brief  Return a rotated array.
+       *
+       *  A new valarray is constructed as a copy of this array with elements
+       *  in shifted positions.  For an element with index i, the new position
+       *  is (i - n) % size().  The new valarray is the same size as the
+       *  current one.  Elements that are shifted beyond the array bounds are
+       *  shifted into the other end of the array.  No elements are lost.
+       *
+       *  Positive arguments shift toward index 0, wrapping around the top.
+       *  Negative arguments shift towards the top, wrapping around to 0.
+       *
+       *  @param  n  Number of element positions to rotate.
+       *  @return  New valarray with elements in shifted positions.
+       */
       valarray<_Tp> cshift(int) const;
+
+      /**
+       *  @brief  Apply a function to the array.
+       *
+       *  Returns a new valarray with elements assigned to the result of
+       *  applying func to the corresponding element of this array.  The new
+       *  array is the same size as this one.
+       *
+       *  @param  func  Function of Tp returning Tp to apply.
+       *  @return  New valarray with transformed elements.
+       */
       _Expr<_ValFunClos<_ValArray,_Tp>,_Tp> apply(_Tp func(_Tp)) const;
+
+      /**
+       *  @brief  Apply a function to the array.
+       *
+       *  Returns a new valarray with elements assigned to the result of
+       *  applying func to the corresponding element of this array.  The new
+       *  array is the same size as this one.
+       *
+       *  @param  func  Function of const Tp& returning Tp to apply.
+       *  @return  New valarray with transformed elements.
+       */
       _Expr<_RefFunClos<_ValArray,_Tp>,_Tp> apply(_Tp func(const _Tp&)) const;
+
+      /**
+       *  @brief  Resize array.
+       *
+       *  Resize this array to be @a size and set all elements to @a c.  All
+       *  references and iterators are invalidated.
+       *
+       *  @param  size  New array size.
+       *  @param  c  New value for all elements.
+       */
       void resize(size_t __size, _Tp __c = _Tp());
 
     private:
@@ -221,15 +526,23 @@ namespace std
   template<typename _Tp>
     inline const _Tp&
     valarray<_Tp>::operator[](size_t __i) const
-    { return _M_data[__i]; }
+    { 
+      __glibcxx_requires_subscript(__i);
+      return _M_data[__i]; 
+    }
 
   template<typename _Tp>
     inline _Tp&
     valarray<_Tp>::operator[](size_t __i)
-    { return _M_data[__i]; }
+    { 
+      __glibcxx_requires_subscript(__i);
+      return _M_data[__i]; 
+    }
 
 } // std::
-      
+
+#include <bits/valarray_after.h>
+
 #include <bits/slice_array.h>
 #include <bits/gslice.h>
 #include <bits/gslice_array.h>
@@ -246,32 +559,35 @@ namespace std
     inline 
     valarray<_Tp>::valarray(size_t __n) 
 	: _M_size(__n), _M_data(__valarray_get_storage<_Tp>(__n))
-    { __valarray_default_construct(_M_data, _M_data + __n); }
+    { std::__valarray_default_construct(_M_data, _M_data + __n); }
 
   template<typename _Tp>
     inline
     valarray<_Tp>::valarray(const _Tp& __t, size_t __n)
       : _M_size(__n), _M_data(__valarray_get_storage<_Tp>(__n))
-    { __valarray_fill_construct(_M_data, _M_data + __n, __t); }
+    { std::__valarray_fill_construct(_M_data, _M_data + __n, __t); }
 
   template<typename _Tp>
     inline
     valarray<_Tp>::valarray(const _Tp* __restrict__ __p, size_t __n)
       : _M_size(__n), _M_data(__valarray_get_storage<_Tp>(__n))
-    { __valarray_copy_construct(__p, __p + __n, _M_data); }
+    { 
+      _GLIBCXX_DEBUG_ASSERT(__p != 0 || __n == 0);
+      std::__valarray_copy_construct(__p, __p + __n, _M_data); 
+    }
 
   template<typename _Tp>
     inline
     valarray<_Tp>::valarray(const valarray<_Tp>& __v)
       : _M_size(__v._M_size), _M_data(__valarray_get_storage<_Tp>(__v._M_size))
-    { __valarray_copy_construct(__v._M_data, __v._M_data + _M_size, _M_data); }
+    { std::__valarray_copy_construct(__v._M_data, __v._M_data + _M_size, _M_data); }
 
   template<typename _Tp>
     inline
     valarray<_Tp>::valarray(const slice_array<_Tp>& __sa)
       : _M_size(__sa._M_sz), _M_data(__valarray_get_storage<_Tp>(__sa._M_sz))
     {
-      __valarray_copy
+      std::__valarray_copy
 	(__sa._M_array, __sa._M_sz, __sa._M_stride, _Array<_Tp>(_M_data));
     }
 
@@ -281,7 +597,7 @@ namespace std
       : _M_size(__ga._M_index.size()),
 	_M_data(__valarray_get_storage<_Tp>(_M_size))
     {
-      __valarray_copy
+      std::__valarray_copy
 	(__ga._M_array, _Array<size_t>(__ga._M_index),
 	 _Array<_Tp>(_M_data), _M_size);
     }
@@ -291,7 +607,7 @@ namespace std
     valarray<_Tp>::valarray(const mask_array<_Tp>& __ma)
       : _M_size(__ma._M_sz), _M_data(__valarray_get_storage<_Tp>(__ma._M_sz))
     {
-      __valarray_copy
+      std::__valarray_copy
 	(__ma._M_array, __ma._M_mask, _Array<_Tp>(_M_data), _M_size);
     }
 
@@ -300,7 +616,7 @@ namespace std
     valarray<_Tp>::valarray(const indirect_array<_Tp>& __ia)
       : _M_size(__ia._M_sz), _M_data(__valarray_get_storage<_Tp>(__ia._M_sz))
     {
-      __valarray_copy
+      std::__valarray_copy
 	(__ia._M_array, __ia._M_index, _Array<_Tp>(_M_data), _M_size);
     }
 
@@ -308,21 +624,22 @@ namespace std
     inline
     valarray<_Tp>::valarray(const _Expr<_Dom, _Tp>& __e)
       : _M_size(__e.size()), _M_data(__valarray_get_storage<_Tp>(_M_size))
-    { __valarray_copy(__e, _M_size, _Array<_Tp>(_M_data)); }
+    { std::__valarray_copy(__e, _M_size, _Array<_Tp>(_M_data)); }
 
   template<typename _Tp>
     inline
     valarray<_Tp>::~valarray()
     {
-      __valarray_destroy_elements(_M_data, _M_data + _M_size);
-      __valarray_release_memory(_M_data);
+      std::__valarray_destroy_elements(_M_data, _M_data + _M_size);
+      std::__valarray_release_memory(_M_data);
     }
 
   template<typename _Tp>
     inline valarray<_Tp>&
     valarray<_Tp>::operator=(const valarray<_Tp>& __v)
     {
-      __valarray_copy(__v._M_data, _M_size, _M_data);
+      _GLIBCXX_DEBUG_ASSERT(_M_size == __v._M_size);
+      std::__valarray_copy(__v._M_data, _M_size, _M_data);
       return *this;
     }
 
@@ -330,7 +647,7 @@ namespace std
     inline valarray<_Tp>&
     valarray<_Tp>::operator=(const _Tp& __t)
     {
-      __valarray_fill(_M_data, _M_size, __t);
+      std::__valarray_fill(_M_data, _M_size, __t);
       return *this;
     }
 
@@ -338,8 +655,9 @@ namespace std
     inline valarray<_Tp>&
     valarray<_Tp>::operator=(const slice_array<_Tp>& __sa)
     {
-      __valarray_copy(__sa._M_array, __sa._M_sz,
-		      __sa._M_stride, _Array<_Tp>(_M_data));
+      _GLIBCXX_DEBUG_ASSERT(_M_size == __sa._M_sz);
+      std::__valarray_copy(__sa._M_array, __sa._M_sz,
+			   __sa._M_stride, _Array<_Tp>(_M_data));
       return *this;
     }
 
@@ -347,8 +665,9 @@ namespace std
     inline valarray<_Tp>&
     valarray<_Tp>::operator=(const gslice_array<_Tp>& __ga)
     {
-      __valarray_copy(__ga._M_array, _Array<size_t>(__ga._M_index),
-		      _Array<_Tp>(_M_data), _M_size);
+      _GLIBCXX_DEBUG_ASSERT(_M_size == __ga._M_index.size());
+      std::__valarray_copy(__ga._M_array, _Array<size_t>(__ga._M_index),
+			   _Array<_Tp>(_M_data), _M_size);
       return *this;
     }
 
@@ -356,8 +675,9 @@ namespace std
     inline valarray<_Tp>&
     valarray<_Tp>::operator=(const mask_array<_Tp>& __ma)
     {
-      __valarray_copy(__ma._M_array, __ma._M_mask,
-		      _Array<_Tp>(_M_data), _M_size);
+      _GLIBCXX_DEBUG_ASSERT(_M_size == __ma._M_sz);
+      std::__valarray_copy(__ma._M_array, __ma._M_mask,
+			   _Array<_Tp>(_M_data), _M_size);
       return *this;
     }
 
@@ -365,8 +685,9 @@ namespace std
     inline valarray<_Tp>&
     valarray<_Tp>::operator=(const indirect_array<_Tp>& __ia)
     {
-      __valarray_copy(__ia._M_array, __ia._M_index,
-		       _Array<_Tp>(_M_data), _M_size);
+      _GLIBCXX_DEBUG_ASSERT(_M_size == __ia._M_sz);
+      std::__valarray_copy(__ia._M_array, __ia._M_index,
+			   _Array<_Tp>(_M_data), _M_size);
       return *this;
     }
 
@@ -374,8 +695,9 @@ namespace std
     inline valarray<_Tp>&
     valarray<_Tp>::operator=(const _Expr<_Dom, _Tp>& __e)
     {
-      __valarray_copy(__e, _M_size, _Array<_Tp>(_M_data));
-	return *this;
+      _GLIBCXX_DEBUG_ASSERT(_M_size == __e.size());
+      std::__valarray_copy(__e, _M_size, _Array<_Tp>(_M_data));
+      return *this;
     }
 
   template<typename _Tp>
@@ -458,7 +780,8 @@ namespace std
     inline _Tp
     valarray<_Tp>::sum() const
     {
-      return __valarray_sum(_M_data, _M_data + _M_size);
+      _GLIBCXX_DEBUG_ASSERT(_M_size > 0);
+      return std::__valarray_sum(_M_data, _M_data + _M_size);
     }
 
 //   template<typename _Tp>
@@ -475,21 +798,21 @@ namespace std
        _Tp* const __a = static_cast<_Tp*>
          (__builtin_alloca(sizeof(_Tp) * _M_size));
        if (__n == 0)                          // no shift
-         __valarray_copy_construct(_M_data, _M_data + _M_size, __a);
+         std::__valarray_copy_construct(_M_data, _M_data + _M_size, __a);
        else if (__n > 0)         // __n > 0: shift left
          {                 
            if (size_t(__n) > _M_size)
-             __valarray_default_construct(__a, __a + __n);
+             std::__valarray_default_construct(__a, __a + __n);
            else
              {
-               __valarray_copy_construct(_M_data+__n, _M_data + _M_size, __a);
-               __valarray_default_construct(__a+_M_size-__n, __a + _M_size);
+               std::__valarray_copy_construct(_M_data+__n, _M_data + _M_size, __a);
+               std::__valarray_default_construct(__a+_M_size-__n, __a + _M_size);
              }
          }
        else                        // __n < 0: shift right
          {                          
-           __valarray_copy_construct (_M_data, _M_data+_M_size+__n, __a-__n);
-           __valarray_default_construct(__a, __a - __n);
+           std::__valarray_copy_construct (_M_data, _M_data+_M_size+__n, __a-__n);
+           std::__valarray_default_construct(__a, __a - __n);
          }
        return valarray<_Tp> (__a, _M_size);
      }
@@ -501,17 +824,17 @@ namespace std
        _Tp* const __a = static_cast<_Tp*>
          (__builtin_alloca (sizeof(_Tp) * _M_size));
        if (__n == 0)               // no cshift
-         __valarray_copy_construct(_M_data, _M_data + _M_size, __a);
+         std::__valarray_copy_construct(_M_data, _M_data + _M_size, __a);
        else if (__n > 0)           // cshift left
          {               
-           __valarray_copy_construct(_M_data, _M_data+__n, __a+_M_size-__n);
-           __valarray_copy_construct(_M_data+__n, _M_data + _M_size, __a);
+           std::__valarray_copy_construct(_M_data, _M_data+__n, __a+_M_size-__n);
+           std::__valarray_copy_construct(_M_data+__n, _M_data + _M_size, __a);
          }
        else                        // cshift right
          {                       
-           __valarray_copy_construct
+           std::__valarray_copy_construct
              (_M_data + _M_size+__n, _M_data + _M_size, __a);
-           __valarray_copy_construct
+           std::__valarray_copy_construct
              (_M_data, _M_data + _M_size+__n, __a - __n);
          }
        return valarray<_Tp>(__a, _M_size);
@@ -524,28 +847,30 @@ namespace std
       // This complication is so to make valarray<valarray<T> > work
       // even though it is not required by the standard.  Nobody should
       // be saying valarray<valarray<T> > anyway.  See the specs.
-      __valarray_destroy_elements(_M_data, _M_data + _M_size);
+      std::__valarray_destroy_elements(_M_data, _M_data + _M_size);
       if (_M_size != __n)
 	{
-	  __valarray_release_memory(_M_data);
+	  std::__valarray_release_memory(_M_data);
 	  _M_size = __n;
 	  _M_data = __valarray_get_storage<_Tp>(__n);
 	}
-      __valarray_fill_construct(_M_data, _M_data + __n, __c);
+      std::__valarray_fill_construct(_M_data, _M_data + __n, __c);
     }
     
   template<typename _Tp>
     inline _Tp
     valarray<_Tp>::min() const
     {
-      return *min_element (_M_data, _M_data+_M_size);
+      _GLIBCXX_DEBUG_ASSERT(_M_size > 0);
+      return *std::min_element (_M_data, _M_data+_M_size);
     }
 
   template<typename _Tp>
     inline _Tp
     valarray<_Tp>::max() const
     {
-      return *max_element (_M_data, _M_data+_M_size);
+      _GLIBCXX_DEBUG_ASSERT(_M_size > 0);
+      return *std::max_element (_M_data, _M_data+_M_size);
     }
   
   template<class _Tp>
@@ -594,6 +919,7 @@ namespace std
     inline valarray<_Tp>&						\
     valarray<_Tp>::operator _Op##=(const valarray<_Tp> &__v)		\
     {									\
+      _GLIBCXX_DEBUG_ASSERT(_M_size == __v._M_size);                    \
       _Array_augmented_##_Name(_Array<_Tp>(_M_data), _M_size, 		\
 			       _Array<_Tp>(__v._M_data));		\
       return *this;							\
@@ -641,6 +967,7 @@ _DEFINE_VALARRAY_EXPR_AUGMENTED_ASSIGNMENT(>>, __shift_right)
                  typename __fun<_Name, _Tp>::result_type>               \
     operator _Op(const valarray<_Tp>& __v, const valarray<_Tp>& __w)	\
     {									\
+      _GLIBCXX_DEBUG_ASSERT(__v.size() == __w.size());                  \
       typedef _BinClos<_Name,_ValArray,_ValArray,_Tp,_Tp> _Closure;     \
       typedef typename __fun<_Name, _Tp>::result_type _Rt;              \
       return _Expr<_Closure, _Rt>(_Closure(__v, __w));                  \
@@ -687,8 +1014,4 @@ _DEFINE_BINARY_OPERATOR(>=, __greater_equal)
 
 } // namespace std
 
-#endif // _CPP_VALARRAY
-
-// Local Variables:
-// mode:c++
-// End:
+#endif /* _GLIBCXX_VALARRAY */

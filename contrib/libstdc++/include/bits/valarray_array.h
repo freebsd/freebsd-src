@@ -1,6 +1,7 @@
 // The template and inlines for the -*- C++ -*- internal _Array helper class.
 
-// Copyright (C) 1997, 1998, 1999, 2000 Free Software Foundation, Inc.
+// Copyright (C) 1997, 1998, 1999, 2000, 2003
+//  Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -34,8 +35,8 @@
  *  You should not attempt to use it directly.
  */
 
-#ifndef _CPP_BITS_ARRAY_H
-#define _CPP_BITS_ARRAY_H 1
+#ifndef _VALARRAY_ARRAY_H
+#define _VALARRAY_ARRAY_H 1
 
 #pragma GCC system_header
 
@@ -50,18 +51,18 @@ namespace std
   //
   // Helper functions on raw pointers
   //
-  
+
   // We get memory by the old fashion way
   inline void*
   __valarray_get_memory(size_t __n)
   { return operator new(__n); }
-  
+
   template<typename _Tp>
      inline _Tp*__restrict__
      __valarray_get_storage(size_t __n)
      {
        return static_cast<_Tp*__restrict__>
-         (__valarray_get_memory(__n * sizeof(_Tp)));
+         (std::__valarray_get_memory(__n * sizeof(_Tp)));
      }
 
   // Return memory to the system
@@ -87,7 +88,7 @@ namespace std
        // For fundamental types, it suffices to say 'memset()'
        inline static void
        _S_do_it(_Tp* __restrict__ __b, _Tp* __restrict__ __e)
-       { memset(__b, 0, (__e - __b)*sizeof(_Tp)); }
+       { std::memset(__b, 0, (__e - __b)*sizeof(_Tp)); }
      };
 
   template<typename _Tp>
@@ -97,7 +98,7 @@ namespace std
        _Array_default_ctor<_Tp, __is_fundamental<_Tp>::_M_type>::
          _S_do_it(__b, __e);
      }
-    
+
   // Turn a raw-memory into an array of _Tp filled with __t
   // This is the required in valarray<T> v(n, t).  Also
   // used in valarray<>::resize().
@@ -149,7 +150,7 @@ namespace std
        inline static void
        _S_do_it(const _Tp* __restrict__ __b, const _Tp* __restrict__ __e,
                 _Tp* __restrict__ __o)
-       { memcpy(__o, __b, (__e - __b)*sizeof(_Tp)); }
+       { std::memcpy(__o, __b, (__e - __b)*sizeof(_Tp)); }
      };
 
   template<typename _Tp>
@@ -195,13 +196,13 @@ namespace std
        if (!__is_fundamental<_Tp>::_M_type)
          while (__b != __e) { __b->~_Tp(); ++__b; }
      }
-    
+
   // Fill a plain array __a[<__n>] with __t
   template<typename _Tp>
      inline void
      __valarray_fill (_Tp* __restrict__ __a, size_t __n, const _Tp& __t)
      { while (__n--) *__a++ = __t; }
-  
+
   // fill strided array __a[<__n-1 : __s>] with __t
   template<typename _Tp>
      inline void
@@ -215,7 +216,7 @@ namespace std
      __valarray_fill(_Tp* __restrict__ __a, const size_t* __restrict__ __i,
                      size_t __n, const _Tp& __t)
      { for (size_t __j=0; __j<__n; ++__j, ++__i) __a[*__i] = __t; }
-    
+
   // copy plain array __a[<__n>] in __b[<__n>]
   // For non-fundamental types, it is wrong to say 'memcpy()'
   template<typename _Tp, bool>
@@ -223,7 +224,7 @@ namespace std
      {
        inline static void
        _S_do_it(const _Tp* __restrict__ __a, size_t __n, _Tp* __restrict__ __b)
-       { while (__n--) *__b++ = *__a++; }      
+       { while (__n--) *__b++ = *__a++; }
      };
 
   template<typename _Tp>
@@ -231,7 +232,7 @@ namespace std
      {
        inline static void
        _S_do_it(const _Tp* __restrict__ __a, size_t __n, _Tp* __restrict__ __b)
-       { memcpy (__b, __a, __n * sizeof (_Tp)); }
+       { std::memcpy (__b, __a, __n * sizeof (_Tp)); }
      };
 
   // Copy a plain array __a[<__n>] into a play array __b[<>]
@@ -269,7 +270,7 @@ namespace std
          __dst[__i * __s2] = __src [ __i * __s1];
      }
 
-  
+
   // Copy an indexed array __a[__i[<__n>]] in plain array __b[<__n>]
   template<typename _Tp>
      inline void
@@ -340,7 +341,7 @@ namespace std
          }
        return __r;
      }
-  
+
   template<typename _Ta>
      inline typename _Ta::value_type
      __valarray_max(const _Ta& __a)
@@ -356,13 +357,13 @@ namespace std
          }
        return __r;
      }
-  
+
   //
   // Helper class _Array, first layer of valarray abstraction.
   // All operations on valarray should be forwarded to this class
   // whenever possible. -- gdr
   //
-    
+
   template<typename _Tp>
      struct _Array
      {
@@ -375,34 +376,34 @@ namespace std
 
        _Tp* const __restrict__ _M_data;
      };
-  
+
   template<typename _Tp>
      inline void
      __valarray_fill (_Array<_Tp> __a, size_t __n, const _Tp& __t)
-     { __valarray_fill (__a._M_data, __n, __t); }
-  
+     { std::__valarray_fill (__a._M_data, __n, __t); }
+
   template<typename _Tp>
      inline void
      __valarray_fill (_Array<_Tp> __a, size_t __n, size_t __s, const _Tp& __t)
-     { __valarray_fill (__a._M_data, __n, __s, __t); }
-  
+     { std::__valarray_fill (__a._M_data, __n, __s, __t); }
+
   template<typename _Tp>
      inline void
-     __valarray_fill (_Array<_Tp> __a, _Array<size_t> __i, 
+     __valarray_fill (_Array<_Tp> __a, _Array<size_t> __i,
                       size_t __n, const _Tp& __t)
-     { __valarray_fill (__a._M_data, __i._M_data, __n, __t); }
+     { std::__valarray_fill (__a._M_data, __i._M_data, __n, __t); }
 
   // Copy a plain array __a[<__n>] into a play array __b[<>]
   template<typename _Tp>
      inline void
      __valarray_copy(_Array<_Tp> __a, size_t __n, _Array<_Tp> __b)
-     { __valarray_copy(__a._M_data, __n, __b._M_data); }
-  
+     { std::__valarray_copy(__a._M_data, __n, __b._M_data); }
+
   // Copy strided array __a[<__n : __s>] in plain __b[<__n>]
   template<typename _Tp>
      inline void
      __valarray_copy(_Array<_Tp> __a, size_t __n, size_t __s, _Array<_Tp> __b)
-     { __valarray_copy(__a._M_data, __n, __s, __b._M_data); }
+     { std::__valarray_copy(__a._M_data, __n, __s, __b._M_data); }
 
   // Copy a plain array  __a[<__n>] into a strided array __b[<__n : __s>]
   template<typename _Tp>
@@ -416,22 +417,22 @@ namespace std
      inline void
      __valarray_copy(_Array<_Tp> __a, size_t __n, size_t __s1,
                      _Array<_Tp> __b, size_t __s2)
-     { __valarray_copy(__a._M_data, __n, __s1, __b._M_data, __s2); }
+     { std::__valarray_copy(__a._M_data, __n, __s1, __b._M_data, __s2); }
 
-  
+
   // Copy an indexed array __a[__i[<__n>]] in plain array __b[<__n>]
   template<typename _Tp>
      inline void
-     __valarray_copy(_Array<_Tp> __a, _Array<size_t> __i, 
+     __valarray_copy(_Array<_Tp> __a, _Array<size_t> __i,
                       _Array<_Tp> __b, size_t __n)
-     { __valarray_copy(__a._M_data, __i._M_data, __b._M_data, __n); }
-  
+     { std::__valarray_copy(__a._M_data, __i._M_data, __b._M_data, __n); }
+
   // Copy a plain array __a[<__n>] in an indexed array __b[__i[<__n>]]
   template<typename _Tp>
      inline void
-     __valarray_copy(_Array<_Tp> __a, size_t __n, _Array<_Tp> __b, 
+     __valarray_copy(_Array<_Tp> __a, size_t __n, _Array<_Tp> __b,
                       _Array<size_t> __i)
-     { __valarray_copy(__a._M_data, __n, __b._M_data, __i._M_data); }
+     { std::__valarray_copy(__a._M_data, __n, __b._M_data, __i._M_data); }
 
   // Copy the __n first elements of an indexed array __src[<__i>] into
   // another indexed array __dst[<__j>].
@@ -440,29 +441,29 @@ namespace std
      __valarray_copy(_Array<_Tp> __src, size_t __n, _Array<size_t> __i,
                      _Array<_Tp> __dst, _Array<size_t> __j)
      {
-       __valarray_copy(__src._M_data, __n, __i._M_data,
-                       __dst._M_data, __j._M_data);
+       std::__valarray_copy(__src._M_data, __n, __i._M_data,
+			    __dst._M_data, __j._M_data);
      }
 
   template<typename _Tp>
      inline
      _Array<_Tp>::_Array (size_t __n)
        : _M_data(__valarray_get_storage<_Tp>(__n))
-     { __valarray_default_construct(_M_data, _M_data + __n); }
+     { std::__valarray_default_construct(_M_data, _M_data + __n); }
 
   template<typename _Tp>
      inline
      _Array<_Tp>::_Array (_Tp* const __restrict__ __p) : _M_data (__p) {}
-  
+
   template<typename _Tp>
-     inline _Array<_Tp>::_Array (const valarray<_Tp>& __v) 
+     inline _Array<_Tp>::_Array (const valarray<_Tp>& __v)
          : _M_data (__v._M_data) {}
-  
+
   template<typename _Tp>
      inline
-     _Array<_Tp>::_Array (const _Tp* __restrict__ __b, size_t __s) 
+     _Array<_Tp>::_Array (const _Tp* __restrict__ __b, size_t __s)
        : _M_data(__valarray_get_storage<_Tp>(__s))
-     { __valarray_copy_construct(__b, __s, _M_data); }
+     { std::__valarray_copy_construct(__b, __s, _M_data); }
 
   template<typename _Tp>
      inline _Tp*
@@ -489,7 +490,7 @@ _Array_augmented_##_Name (_Array<_Tp> __a, size_t __n, _Array<_Tp> __b)	\
 									\
 template<typename _Tp, class _Dom>					\
 void									\
-_Array_augmented_##_Name (_Array<_Tp> __a, 				\
+_Array_augmented_##_Name (_Array<_Tp> __a,				\
                          const _Expr<_Dom,_Tp>& __e, size_t __n)	\
 {									\
     _Tp* __p (__a._M_data);						\
@@ -498,9 +499,9 @@ _Array_augmented_##_Name (_Array<_Tp> __a, 				\
 									\
 template<typename _Tp>							\
 inline void								\
-_Array_augmented_##_Name (_Array<_Tp> __a, size_t __n, size_t __s, 	\
+_Array_augmented_##_Name (_Array<_Tp> __a, size_t __n, size_t __s,	\
 			 _Array<_Tp> __b)				\
-{					       				\
+{									\
     _Tp* __q (__b._M_data);						\
     for (_Tp* __p=__a._M_data; __p<__a._M_data+__s*__n; __p+=__s, ++__q) \
       *__p _Op##= *__q;							\
@@ -508,7 +509,7 @@ _Array_augmented_##_Name (_Array<_Tp> __a, size_t __n, size_t __s, 	\
 									\
 template<typename _Tp>							\
 inline void								\
-_Array_augmented_##_Name (_Array<_Tp> __a, _Array<_Tp> __b, 		\
+_Array_augmented_##_Name (_Array<_Tp> __a, _Array<_Tp> __b,		\
 			 size_t __n, size_t __s)			\
 {									\
     _Tp* __q (__b._M_data);						\
@@ -551,7 +552,7 @@ _Array_augmented_##_Name (_Array<_Tp> __a, _Array<size_t> __i,		\
                           const _Expr<_Dom, _Tp>& __e, size_t __n)	\
 {									\
     size_t* __j (__i._M_data);						\
-    for (size_t __k=0; __k<__n; ++__k, ++__j) 				\
+    for (size_t __k=0; __k<__n; ++__k, ++__j)				\
       __a._M_data[*__j] _Op##= __e[__k];				\
 }									\
 									\
@@ -610,21 +611,15 @@ _Array_augmented_##_Name (_Array<_Tp> __a, _Array<bool> __m,		\
    _DEFINE_ARRAY_FUNCTION(%, __modulus)
    _DEFINE_ARRAY_FUNCTION(^, __bitwise_xor)
    _DEFINE_ARRAY_FUNCTION(|, __bitwise_or)
-   _DEFINE_ARRAY_FUNCTION(&, __bitwise_and)    
+   _DEFINE_ARRAY_FUNCTION(&, __bitwise_and)
    _DEFINE_ARRAY_FUNCTION(<<, __shift_left)
    _DEFINE_ARRAY_FUNCTION(>>, __shift_right)
 
-#undef _DEFINE_VALARRAY_FUNCTION    
+#undef _DEFINE_VALARRAY_FUNCTION
+} // namespace std
 
-} // std::
-
-#ifdef _GLIBCPP_NO_TEMPLATE_EXPORT
-# define export 
-# include <bits/valarray_array.tcc>    
+#ifndef _GLIBCXX_EXPORT_TEMPLATE
+# include <bits/valarray_array.tcc>
 #endif
-           
-#endif /* _CPP_BITS_ARRAY_H */
 
-// Local Variables:
-// mode:c++
-// End:
+#endif /* _ARRAY_H */

@@ -1,6 +1,6 @@
 // Iostreams base classes -*- C++ -*-
 
-// Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002
+// Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004
 // Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
@@ -33,45 +33,11 @@
 //
 
 #include <ios>
-#include <ostream>
-#include <istream>
-#include <fstream>
+#include <limits>
 #include <bits/atomicity.h>
-#include <ext/stdio_filebuf.h>
-#ifdef _GLIBCPP_HAVE_UNISTD_H
-#include <unistd.h>
-#endif
-
-namespace __gnu_cxx
-{
-  // Extern declarations for global objects in src/globals.cc.
-  extern stdio_filebuf<char> buf_cout;
-  extern stdio_filebuf<char> buf_cin;
-  extern stdio_filebuf<char> buf_cerr;
-
-#ifdef _GLIBCPP_USE_WCHAR_T
-  extern stdio_filebuf<wchar_t> buf_wcout;
-  extern stdio_filebuf<wchar_t> buf_wcin;
-  extern stdio_filebuf<wchar_t> buf_wcerr;
-#endif
-} // namespace __gnu_cxx
 
 namespace std 
 {
-  using namespace __gnu_cxx;
-  
-  extern istream cin;
-  extern ostream cout;
-  extern ostream cerr;
-  extern ostream clog;
-
-#ifdef _GLIBCPP_USE_WCHAR_T
-  extern wistream wcin;
-  extern wostream wcout;
-  extern wostream wcerr;
-  extern wostream wclog;
-#endif
-
   // Definitions for static const data members of __ios_flags.
   const __ios_flags::__int_type __ios_flags::_S_boolalpha;
   const __ios_flags::__int_type __ios_flags::_S_dec;
@@ -140,177 +106,15 @@ namespace std
   const ios_base::seekdir ios_base::end;
 
   const int ios_base::_S_local_word_size;
-  int ios_base::Init::_S_ios_base_init = 0;
+
+  _Atomic_word ios_base::Init::_S_refcount;
+
   bool ios_base::Init::_S_synced_with_stdio = true;
 
-  ios_base::failure::failure(const string& __str) throw()
-  {
-    strncpy(_M_name, __str.c_str(), _M_bufsize);
-    _M_name[_M_bufsize - 1] = '\0';
-  }
-
-  ios_base::failure::~failure() throw()
-  { }
-
-  const char*
-  ios_base::failure::what() const throw()
-  { return _M_name; }
-
-  void
-  ios_base::Init::_S_ios_create(bool __sync)
-  {
-    size_t __out_size = __sync ? 0 : static_cast<size_t>(BUFSIZ);
-#ifdef _GLIBCPP_HAVE_ISATTY
-    size_t __in_size =
-      (__sync || isatty (0)) ? 1 : static_cast<size_t>(BUFSIZ);
-#else
-    size_t __in_size = 1;
-#endif
-
-    // NB: The file globals.cc creates the four standard files
-    // with NULL buffers. At this point, we swap out the dummy NULL
-    // [io]stream objects and buffers with the real deal.
-    new (&buf_cout) stdio_filebuf<char>(stdout, ios_base::out, __out_size);
-    new (&buf_cin) stdio_filebuf<char>(stdin, ios_base::in, __in_size);
-    new (&buf_cerr) stdio_filebuf<char>(stderr, ios_base::out, __out_size);
-
-    new (&cout) ostream(&buf_cout);
-    new (&cin) istream(&buf_cin);
-    new (&cerr) ostream(&buf_cerr);
-    new (&clog) ostream(&buf_cerr);
-    cout.init(&buf_cout);
-    cin.init(&buf_cin);
-    cerr.init(&buf_cerr);
-    clog.init(&buf_cerr);
-    cin.tie(&cout);
-    cerr.flags(ios_base::unitbuf);
-    
-#ifdef _GLIBCPP_USE_WCHAR_T
-    new (&buf_wcout) stdio_filebuf<wchar_t>(stdout, ios_base::out, __out_size);
-    new (&buf_wcin) stdio_filebuf<wchar_t>(stdin, ios_base::in, __in_size);
-    new (&buf_wcerr) stdio_filebuf<wchar_t>(stderr, ios_base::out, __out_size);
-    new (&wcout) wostream(&buf_wcout);
-    new (&wcin) wistream(&buf_wcin);
-    new (&wcerr) wostream(&buf_wcerr);
-    new (&wclog) wostream(&buf_wcerr);
-    wcout.init(&buf_wcout);
-    wcin.init(&buf_wcin);
-    wcerr.init(&buf_wcerr);
-    wclog.init(&buf_wcerr);
-    wcin.tie(&wcout);
-    wcerr.flags(ios_base::unitbuf);
-#endif
-  }
-
-  void
-  ios_base::Init::_S_ios_destroy()
-  {
-    // Explicitly call dtors to free any memory that is dynamically
-    // allocated by filebuf ctor or member functions, but don't
-    // deallocate all memory by calling operator delete.
-    buf_cout.~stdio_filebuf();
-    buf_cin.~stdio_filebuf();
-    buf_cerr.~stdio_filebuf();
-
-#ifdef _GLIBCPP_USE_WCHAR_T
-    buf_wcout.~stdio_filebuf();
-    buf_wcin.~stdio_filebuf();
-    buf_wcerr.~stdio_filebuf();
-#endif
-  }
-
-  ios_base::Init::Init()
-  {
-    if (_S_ios_base_init == 0)
-      {
-	// Standard streams default to synced with "C" operations.
-	ios_base::Init::_S_synced_with_stdio = true;
-	_S_ios_create(ios_base::Init::_S_synced_with_stdio);
-      }
-    ++_S_ios_base_init;
-  }
-
-  ios_base::Init::~Init()
-  {
-    if (--_S_ios_base_init == 0)
-      _S_ios_destroy();
-  } 
-
-  // 27.4.2.5  ios_base storage functions
-  int 
-  ios_base::xalloc() throw()
-  {
-    // Implementation note: Initialize top to zero to ensure that
-    // initialization occurs before main() is started.
-    static _Atomic_word _S_top = 0; 
-    return __exchange_and_add(&_S_top, 1) + 4;
-  }
-
-  // 27.4.2.5  iword/pword storage
-  ios_base::_Words&
-  ios_base::_M_grow_words(int ix)
-  {
-    // Precondition: _M_word_size <= ix
-    int newsize = _S_local_word_size;
-    _Words* words = _M_local_word;
-    if (ix > _S_local_word_size - 1)
-      {
-	if (ix < numeric_limits<int>::max())
-	  {
-	    newsize = ix + 1;
-	    try
-	      { words = new _Words[newsize]; }
-	    catch (...)
-	      {
-		_M_streambuf_state |= badbit;
-		if (_M_streambuf_state & _M_exception)
-		  __throw_ios_failure("ios_base::_M_grow_words failure");
-		return _M_word_zero;
-	      }
-	    for (int i = 0; i < _M_word_size; i++) 
-	      words[i] = _M_word[i];
-	    if (_M_word && _M_word != _M_local_word) 
-	      {
-		delete [] _M_word;
-		_M_word = 0;
-	      }
-	  }
-	else
-	  {
-	    _M_streambuf_state |= badbit;
-	    if (_M_streambuf_state & _M_exception)
-	      __throw_ios_failure("ios_base::_M_grow_words failure");
-	    return _M_word_zero;
-	  }
-      }
-    _M_word = words;
-    _M_word_size = newsize;
-    return _M_word[ix];
-  }
-  
-  // Called only by basic_ios<>::init.
-  void 
-  ios_base::_M_init()   
-  {
-    // NB: May be called more than once
-    _M_precision = 6;
-    _M_width = 0;
-    _M_flags = skipws | dec;
-    _M_ios_locale = locale();
-  }  
-  
-  // 27.4.2.3  ios_base locale functions
-  locale
-  ios_base::imbue(const locale& __loc)
-  {
-    locale __old = _M_ios_locale;
-    _M_ios_locale = __loc;
-    _M_call_callbacks(imbue_event);
-    return __old;
-  }
-
-  ios_base::ios_base() : _M_callbacks(0), _M_word_size(_S_local_word_size),
-			 _M_word(_M_local_word)
+  ios_base::ios_base() 
+  : _M_precision(), _M_width(), _M_flags(), _M_exception(), 
+  _M_streambuf_state(), _M_callbacks(0), _M_word_zero(), 
+  _M_word_size(_S_local_word_size), _M_word(_M_local_word), _M_ios_locale()
   {
     // Do nothing: basic_ios::init() does it.  
     // NB: _M_callbacks and _M_word must be zero for non-initialized
@@ -329,9 +133,70 @@ namespace std
       }
   }
 
+  // 27.4.2.5  ios_base storage functions
+  int 
+  ios_base::xalloc() throw()
+  {
+    // Implementation note: Initialize top to zero to ensure that
+    // initialization occurs before main() is started.
+    static _Atomic_word _S_top = 0; 
+    return __gnu_cxx::__exchange_and_add(&_S_top, 1) + 4;
+  }
+
   void 
   ios_base::register_callback(event_callback __fn, int __index)
   { _M_callbacks = new _Callback_list(__fn, __index, _M_callbacks); }
+
+  // 27.4.2.5  iword/pword storage
+  ios_base::_Words&
+  ios_base::_M_grow_words(int ix, bool iword)
+  {
+    // Precondition: _M_word_size <= ix
+    int newsize = _S_local_word_size;
+    _Words* words = _M_local_word;
+    if (ix > _S_local_word_size - 1)
+      {
+	if (ix < numeric_limits<int>::max())
+	  {
+	    newsize = ix + 1;
+	    try
+	      { words = new _Words[newsize]; }
+	    catch (...)
+	      {
+		_M_streambuf_state |= badbit;
+		if (_M_streambuf_state & _M_exception)
+		  __throw_ios_failure(__N("ios_base::_M_grow_words "
+				      "allocation failed"));
+		if (iword)
+		  _M_word_zero._M_iword = 0;
+		else
+		  _M_word_zero._M_pword = 0;
+		return _M_word_zero;
+	      }
+	    for (int i = 0; i < _M_word_size; i++) 
+	      words[i] = _M_word[i];
+	    if (_M_word && _M_word != _M_local_word) 
+	      {
+		delete [] _M_word;
+		_M_word = 0;
+	      }
+	  }
+	else
+	  {
+	    _M_streambuf_state |= badbit;
+	    if (_M_streambuf_state & _M_exception)
+	      __throw_ios_failure(__N("ios_base::_M_grow_words is not valid"));
+	    if (iword)
+	      _M_word_zero._M_iword = 0;
+	    else
+	      _M_word_zero._M_pword = 0;
+	    return _M_word_zero;
+	  }
+      }
+    _M_word = words;
+    _M_word_size = newsize;
+    return _M_word[ix];
+  }
 
   void 
   ios_base::_M_call_callbacks(event __e) throw()
@@ -359,23 +224,4 @@ namespace std
       }
     _M_callbacks = 0;
   }
-
-  bool 
-  ios_base::sync_with_stdio(bool __sync)
-  { 
-#ifdef _GLIBCPP_RESOLVE_LIB_DEFECTS
-    // 49.  Underspecification of ios_base::sync_with_stdio
-    bool __ret = ios_base::Init::_S_synced_with_stdio;
-#endif
-
-    // Turn off sync with C FILE* for cin, cout, cerr, clog iff
-    // currently synchronized.
-    if (!__sync && __ret)
-      {
-	ios_base::Init::_S_synced_with_stdio = false;
-	ios_base::Init::_S_ios_destroy();
-	ios_base::Init::_S_ios_create(ios_base::Init::_S_synced_with_stdio);
-      }
-    return __ret; 
-  }
-}  // namespace std
+} // namespace std

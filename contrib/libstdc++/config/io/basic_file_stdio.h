@@ -1,6 +1,6 @@
 // Wrapper of C-language FILE struct -*- C++ -*-
 
-// Copyright (C) 2000, 2001, 2002 Free Software Foundation, Inc.
+// Copyright (C) 2000, 2001, 2002, 2003, 2004 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -36,8 +36,8 @@
  *  You should not attempt to use it directly.
  */
 
-#ifndef _CPP_BASIC_FILE
-#define _CPP_BASIC_FILE 1
+#ifndef _BASIC_FILE_STDIO_H
+#define _BASIC_FILE_STDIO_H 1
 
 #pragma GCC system_header
 
@@ -56,16 +56,13 @@ namespace std
     {
       // Underlying data source/sink.
       __c_file* 	_M_cfile;
+
       // True iff we opened _M_cfile, and thus must close it ourselves.
       bool 		_M_cfile_created;
 
     public:
       __basic_file(__c_lock* __lock = 0);
-      
-      void 
-      _M_open_mode(ios_base::openmode __mode, int& __p_mode, int& __rw_mode, 
-		   char* __c_mode);
-      
+
       __basic_file* 
       open(const char* __name, ios_base::openmode __mode, int __prot = 0664);
 
@@ -73,13 +70,7 @@ namespace std
       sys_open(__c_file* __file, ios_base::openmode);
 
       __basic_file*
-      sys_open(int __fd, ios_base::openmode __mode, bool __del);
-
-      int
-      sys_getc();
-
-      int
-      sys_ungetc(int);
+      sys_open(int __fd, ios_base::openmode __mode);
 
       __basic_file* 
       close(); 
@@ -90,28 +81,30 @@ namespace std
       int 
       fd();
 
+      __c_file*
+      file();
+
       ~__basic_file();
 
       streamsize 
       xsputn(const char* __s, streamsize __n);
 
       streamsize 
+      xsputn_2(const char* __s1, streamsize __n1,
+	       const char* __s2, streamsize __n2);
+
+      streamsize 
       xsgetn(char* __s, streamsize __n);
 
       streamoff
-      seekoff(streamoff __off, ios_base::seekdir __way,
-	      ios_base::openmode __mode = ios_base::in | ios_base::out);
-
-      streamoff
-      seekpos(streamoff __pos, 
-	      ios_base::openmode __mode = ios_base::in | ios_base::out);
+      seekoff(streamoff __off, ios_base::seekdir __way);
 
       int 
       sync();
 
       streamsize
-      showmanyc_helper();
+      showmanyc();
     };
 }  // namespace std
 
-#endif	// _CPP_BASIC_FILE
+#endif	

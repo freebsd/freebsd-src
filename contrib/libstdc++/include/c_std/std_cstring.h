@@ -41,8 +41,8 @@
  *  contained in the namespace @c std.
  */
 
-#ifndef _CPP_CSTRING
-#define _CPP_CSTRING 1
+#ifndef _GLIBCXX_CSTRING
+#define _GLIBCXX_CSTRING 1
 
 #pragma GCC system_header
 
@@ -74,7 +74,7 @@
 #undef strerror
 #undef strlen
 
-namespace std 
+namespace std
 {
   using ::memcpy;
   using ::memmove;

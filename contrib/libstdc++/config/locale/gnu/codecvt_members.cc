@@ -39,7 +39,7 @@
 namespace std
 {
   // Specializations.
-#ifdef _GLIBCPP_USE_WCHAR_T
+#ifdef _GLIBCXX_USE_WCHAR_T
   codecvt_base::result
   codecvt<wchar_t, char, mbstate_t>::
   do_out(state_type& __state, const intern_type* __from, 
@@ -47,31 +47,71 @@ namespace std
 	 extern_type* __to, extern_type* __to_end,
 	 extern_type*& __to_next) const
   {
-    result __ret = error;
-    size_t __len = min(__from_end - __from, __to_end - __to);
+    result __ret = ok;
+    state_type __tmp_state(__state);
+
 #if __GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ > 2)
-    __c_locale __old = __uselocale(_S_c_locale);
+    __c_locale __old = __uselocale(_M_c_locale_codecvt);
 #endif
-    size_t __conv = wcsrtombs(__to, &__from, __len, &__state);
+
+    // wcsnrtombs is *very* fast but stops if encounters NUL characters:
+    // in case we fall back to wcrtomb and then continue, in a loop.
+    // NB: wcsnrtombs is a GNU extension
+    for (__from_next = __from, __to_next = __to;
+	 __from_next < __from_end && __to_next < __to_end
+	 && __ret == ok;)
+      {
+	const intern_type* __from_chunk_end = wmemchr(__from_next, L'\0',
+						      __from_end - __from_next);
+	if (!__from_chunk_end)
+	  __from_chunk_end = __from_end;
+
+	__from = __from_next;
+	const size_t __conv = wcsnrtombs(__to_next, &__from_next,
+					 __from_chunk_end - __from_next,
+					 __to_end - __to_next, &__state);
+	if (__conv == static_cast<size_t>(-1))
+	  {
+	    // In case of error, in order to stop at the exact place we
+	    // have to start again from the beginning with a series of
+	    // wcrtomb.
+	    for (; __from < __from_next; ++__from)
+	      __to_next += wcrtomb(__to_next, *__from, &__tmp_state);
+	    __state = __tmp_state;
+	    __ret = error;
+	  }
+	else if (__from_next && __from_next < __from_chunk_end)
+	  {
+	    __to_next += __conv;
+	    __ret = partial;
+	  }
+	else
+	  {
+	    __from_next = __from_chunk_end;
+	    __to_next += __conv;
+	  }
+
+	if (__from_next < __from_end && __ret == ok)
+	  {
+	    extern_type __buf[MB_LEN_MAX];
+	    __tmp_state = __state;
+	    const size_t __conv = wcrtomb(__buf, *__from_next, &__tmp_state);
+	    if (__conv > static_cast<size_t>(__to_end - __to_next))
+	      __ret = partial;
+	    else
+	      {
+		memcpy(__to_next, __buf, __conv);
+		__state = __tmp_state;
+		__to_next += __conv;
+		++__from_next;
+	      }
+	  }
+      }
+
 #if __GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ > 2)
     __uselocale(__old);
 #endif
 
-    if (__conv == __len)
-      {
-	__from_next = __from;
-	__to_next = __to + __conv;
-	__ret = ok;
-      }
-    else if (__conv > 0 && __conv < __len)
-      {
-	__from_next = __from;
-	__to_next = __to + __conv;
-	__ret = partial;
-      }
-    else
-      __ret = error;
-	
     return __ret; 
   }
   
@@ -82,31 +122,184 @@ namespace std
 	intern_type* __to, intern_type* __to_end,
 	intern_type*& __to_next) const
   {
-    result __ret = error;
-    size_t __len = min(__from_end - __from, __to_end - __to);
+    result __ret = ok;
+    state_type __tmp_state(__state);
+
 #if __GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ > 2)
-    __c_locale __old = __uselocale(_S_c_locale);
+    __c_locale __old = __uselocale(_M_c_locale_codecvt);
 #endif
-    size_t __conv = mbsrtowcs(__to, &__from, __len, &__state);
+
+    // mbsnrtowcs is *very* fast but stops if encounters NUL characters:
+    // in case we store a L'\0' and then continue, in a loop.
+    // NB: mbsnrtowcs is a GNU extension
+    for (__from_next = __from, __to_next = __to;
+	 __from_next < __from_end && __to_next < __to_end
+	 && __ret == ok;)
+      {
+	const extern_type* __from_chunk_end;
+	__from_chunk_end = static_cast<const extern_type*>(memchr(__from_next, '\0',
+								  __from_end
+								  - __from_next));
+	if (!__from_chunk_end)
+	  __from_chunk_end = __from_end;
+
+	__from = __from_next;
+	size_t __conv = mbsnrtowcs(__to_next, &__from_next,
+				   __from_chunk_end - __from_next,
+				   __to_end - __to_next, &__state);
+	if (__conv == static_cast<size_t>(-1))
+	  {
+	    // In case of error, in order to stop at the exact place we
+	    // have to start again from the beginning with a series of
+	    // mbrtowc.
+	    for (;; ++__to_next, __from += __conv)
+	      {
+		__conv = mbrtowc(__to_next, __from, __from_end - __from,
+				 &__tmp_state);
+		if (__conv == static_cast<size_t>(-1)
+		    || __conv == static_cast<size_t>(-2))
+		  break;
+	      }
+	    __from_next = __from;
+	    __state = __tmp_state;	    
+	    __ret = error;
+	  }
+	else if (__from_next && __from_next < __from_chunk_end)
+	  {
+	    // It is unclear what to return in this case (see DR 382). 
+	    __to_next += __conv;
+	    __ret = partial;
+	  }
+	else
+	  {
+	    __from_next = __from_chunk_end;
+	    __to_next += __conv;
+	  }
+
+	if (__from_next < __from_end && __ret == ok)
+	  {
+	    if (__to_next < __to_end)
+	      {
+		// XXX Probably wrong for stateful encodings
+		__tmp_state = __state;		
+		++__from_next;
+		*__to_next++ = L'\0';
+	      }
+	    else
+	      __ret = partial;
+	  }
+      }
+
 #if __GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ > 2)
     __uselocale(__old);
 #endif
 
-    if (__conv == __len)
+    return __ret; 
+  }
+
+  int 
+  codecvt<wchar_t, char, mbstate_t>::
+  do_encoding() const throw()
+  {
+    // XXX This implementation assumes that the encoding is
+    // stateless and is either single-byte or variable-width.
+    int __ret = 0;
+#if __GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ > 2)
+    __c_locale __old = __uselocale(_M_c_locale_codecvt);
+#endif
+    if (MB_CUR_MAX == 1)
+      __ret = 1;
+#if __GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ > 2)
+    __uselocale(__old);
+#endif
+    return __ret;
+  }  
+
+  int 
+  codecvt<wchar_t, char, mbstate_t>::
+  do_max_length() const throw()
+  {
+#if __GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ > 2)
+    __c_locale __old = __uselocale(_M_c_locale_codecvt);
+#endif
+    // XXX Probably wrong for stateful encodings.
+    int __ret = MB_CUR_MAX;
+#if __GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ > 2)
+    __uselocale(__old);
+#endif
+    return __ret;
+  }
+  
+  int 
+  codecvt<wchar_t, char, mbstate_t>::
+  do_length(state_type& __state, const extern_type* __from,
+	    const extern_type* __end, size_t __max) const
+  {
+    int __ret = 0;
+    state_type __tmp_state(__state);
+
+#if __GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ > 2)
+    __c_locale __old = __uselocale(_M_c_locale_codecvt);
+#endif
+
+    // mbsnrtowcs is *very* fast but stops if encounters NUL characters:
+    // in case we advance past it and then continue, in a loop.
+    // NB: mbsnrtowcs is a GNU extension
+  
+    // A dummy internal buffer is needed in order for mbsnrtocws to consider
+    // its fourth parameter (it wouldn't with NULL as first parameter).
+    wchar_t* __to = static_cast<wchar_t*>(__builtin_alloca(sizeof(wchar_t) 
+							   * __max));
+    while (__from < __end && __max)
       {
-	__from_next = __from;
-	__to_next = __to + __conv;
-	__ret = ok;
-      }
-    else if (__conv > 0 && __conv < __len)
-      {
-	__from_next = __from;
-	__to_next = __to + __conv;
-	__ret = partial;
-      }
-    else
-      __ret = error;
+	const extern_type* __from_chunk_end;
+	__from_chunk_end = static_cast<const extern_type*>(memchr(__from, '\0',
+								  __end
+								  - __from));
+	if (!__from_chunk_end)
+	  __from_chunk_end = __end;
+
+	const extern_type* __tmp_from = __from;
+	size_t __conv = mbsnrtowcs(__to, &__from,
+				   __from_chunk_end - __from,
+				   __max, &__state);
+	if (__conv == static_cast<size_t>(-1))
+	  {
+	    // In case of error, in order to stop at the exact place we
+	    // have to start again from the beginning with a series of
+	    // mbrtowc.
+	    for (__from = __tmp_from;; __from += __conv)
+	      {
+		__conv = mbrtowc(NULL, __from, __end - __from,
+				 &__tmp_state);
+		if (__conv == static_cast<size_t>(-1)
+		    || __conv == static_cast<size_t>(-2))
+		  break;
+	      }
+	    __state = __tmp_state;
+	    __ret += __from - __tmp_from;
+	    break;
+	  }
+	if (!__from)
+	  __from = __from_chunk_end;
 	
+	__ret += __from - __tmp_from;
+	__max -= __conv;
+
+	if (__from < __end && __max)
+	  {
+	    // XXX Probably wrong for stateful encodings
+	    __tmp_state = __state;
+	    ++__from;
+	    ++__ret;
+	    --__max;
+	  }
+      }
+
+#if __GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ > 2)
+    __uselocale(__old);
+#endif
+
     return __ret; 
   }
 #endif

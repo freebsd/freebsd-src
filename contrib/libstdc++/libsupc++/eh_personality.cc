@@ -1,20 +1,20 @@
 // -*- C++ -*- The GNU C++ exception personality routine.
 // Copyright (C) 2001, 2002, 2003 Free Software Foundation, Inc.
 //
-// This file is part of GNU CC.
+// This file is part of GCC.
 //
-// GNU CC is free software; you can redistribute it and/or modify
+// GCC is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation; either version 2, or (at your option)
 // any later version.
 //
-// GNU CC is distributed in the hope that it will be useful,
+// GCC is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with GNU CC; see the file COPYING.  If not, write to
+// along with GCC; see the file COPYING.  If not, write to
 // the Free Software Foundation, 59 Temple Place - Suite 330,
 // Boston, MA 02111-1307, USA.
 
@@ -170,7 +170,7 @@ empty_exception_spec (lsda_header_info *info, _Unwind_Sword filter_value)
 
 // Using a different personality function name causes link failures
 // when trying to mix code using different exception handling models.
-#ifdef _GLIBCPP_SJLJ_EXCEPTIONS
+#ifdef _GLIBCXX_SJLJ_EXCEPTIONS
 #define PERSONALITY_FUNCTION	__gxx_personality_sj0
 #define __builtin_eh_return_data_regno(x) x
 #else
@@ -232,7 +232,7 @@ PERSONALITY_FUNCTION (int version,
   action_record = 0;
   handler_switch_value = 0;
 
-#ifdef _GLIBCPP_SJLJ_EXCEPTIONS
+#ifdef _GLIBCXX_SJLJ_EXCEPTIONS
   // The given "IP" is an index into the call-site table, with two
   // exceptions -- -1 means no-action, and 0 means terminate.  But
   // since we're using uleb128 values, we've not got random access
@@ -285,7 +285,7 @@ PERSONALITY_FUNCTION (int version,
 	  goto found_something;
 	}
     }
-#endif // _GLIBCPP_SJLJ_EXCEPTIONS
+#endif // _GLIBCXX_SJLJ_EXCEPTIONS
 
   // If ip is not present in the table, call terminate.  This is for
   // a destructor inside a cleanup, or a library routine the compiler
@@ -443,8 +443,10 @@ PERSONALITY_FUNCTION (int version,
 	}
     }
 
+  /* For targets with pointers smaller than the word size, we must extend the
+     pointer, and this extension is target dependent.  */
   _Unwind_SetGR (context, __builtin_eh_return_data_regno (0),
-		 (_Unwind_Ptr) &xh->unwindHeader);
+		 __builtin_extend_pointer (&xh->unwindHeader));
   _Unwind_SetGR (context, __builtin_eh_return_data_regno (1),
 		 handler_switch_value);
   _Unwind_SetIP (context, landing_pad);

@@ -1,20 +1,20 @@
 // -*- C++ -*- Manage the thread-local exception globals.
-// Copyright (C) 2001 Free Software Foundation, Inc.
+// Copyright (C) 2001, 2004 Free Software Foundation, Inc.
 //
-// This file is part of GNU CC.
+// This file is part of GCC.
 //
-// GNU CC is free software; you can redistribute it and/or modify
+// GCC is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation; either version 2, or (at your option)
 // any later version.
 //
-// GNU CC is distributed in the hope that it will be useful,
+// GCC is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with GNU CC; see the file COPYING.  If not, write to
+// along with GCC; see the file COPYING.  If not, write to
 // the Free Software Foundation, 59 Temple Place - Suite 330,
 // Boston, MA 02111-1307, USA.
 
@@ -47,7 +47,6 @@ static int use_thread_key = -1;
 static void
 get_globals_dtor (void *ptr)
 {
-  __gthread_key_dtor (globals_key, ptr);
   if (ptr)
     std::free (ptr);
 }
@@ -70,7 +69,7 @@ get_globals_init_once ()
 #endif
 
 extern "C" __cxa_eh_globals *
-__cxa_get_globals_fast ()
+__cxa_get_globals_fast () throw()
 {
 #if __GTHREADS
   if (use_thread_key)
@@ -83,7 +82,7 @@ __cxa_get_globals_fast ()
 }
 
 extern "C" __cxa_eh_globals *
-__cxa_get_globals ()
+__cxa_get_globals () throw()
 {
 #if __GTHREADS
   __cxa_eh_globals *g;
