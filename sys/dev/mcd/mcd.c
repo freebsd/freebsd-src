@@ -40,7 +40,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.56 1995/12/22 13:09:39 phk Exp $
+ *	$Id: mcd.c,v 1.57 1995/12/22 15:52:07 phk Exp $
  */
 static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
@@ -184,8 +184,6 @@ static	int	mcd_get(int unit, char *buf, int nmax);
 static  int     mcd_setflags(int unit,struct mcd_data *cd);
 static	int	mcd_getstat(int unit,int sflg);
 static	int	mcd_send(int unit, int cmd,int nretrys);
-static	int	bcd2bin(bcd_t b);
-static	bcd_t	bin2bcd(int b);
 static	void	hsg2msf(int hsg, bcd_t *msf);
 static	int	msf2hsg(bcd_t *msf);
 static	int	mcd_volinfo(int unit);
@@ -936,18 +934,6 @@ mcd_send(int unit, int cmd,int nretrys)
 	}
 /*MCD_TRACE("mcd_send: done\n",0,0,0,0);*/
 	return 0;
-}
-
-static int
-bcd2bin(bcd_t b)
-{
-	return (b >> 4) * 10 + (b & 15);
-}
-
-static bcd_t
-bin2bcd(int b)
-{
-	return ((b / 10) << 4) | (b % 10);
 }
 
 static void
