@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)newfs.c	8.8 (Berkeley) 4/18/94";
+static char sccsid[] = "@(#)newfs.c	8.13 (Berkeley) 5/1/95";
 #endif /* not lint */
 
 #ifndef lint
@@ -52,7 +52,9 @@ static char copyright[] =
 #include <sys/mount.h>
 
 #include <ufs/ufs/dir.h>
+#include <ufs/ufs/dinode.h>
 #include <ufs/ffs/fs.h>
+#include <ufs/ufs/ufsmount.h>
 
 #include <ctype.h>
 #include <errno.h>
@@ -216,10 +218,11 @@ main(argc, argv)
 	int fsi, fso, len, n;
 	char *cp, *s1, *s2, *special, *opstring, buf[BUFSIZ];
 #ifdef MFS
-	struct vfsconf *vfc;
+	struct vfsconf vfc;
+	int error;
 #endif
 
-	if (progname = rindex(*argv, '/'))
+	if (progname = strrchr(*argv, '/'))
 		++progname;
 	else
 		progname = *argv;
@@ -353,7 +356,7 @@ main(argc, argv)
 		usage();
 
 	special = argv[0];
-	cp = rindex(special, '/');
+	cp = strrchr(special, '/');
 	if (cp == 0) {
 		/*
 		 * No path prefix; try /dev/r%s then /dev/%s.
@@ -406,8 +409,9 @@ main(argc, argv)
 		if ((st.st_mode & S_IFMT) != S_IFCHR && !mfs)
 			printf("%s: %s: not a character-special device\n",
 			    progname, special);
-		cp = index(argv[0], '\0') - 1;
-		if (cp == 0 || (*cp < 'a' || *cp > 'h') && !isdigit(*cp))
+		cp = strchr(argv[0], '\0') - 1;
+		if (cp == (char *)-1 ||
+		    (*cp < 'a' || *cp > 'h') && !isdigit(*cp))
 			fatal("%s: can't figure out file system partition",
 			    argv[0]);
 #ifdef COMPAT
@@ -566,17 +570,17 @@ main(argc, argv)
 		args.base = membase;
 		args.size = fssize * sectorsize;
 
-		vfc = getvfsbyname("mfs");
-		if(!vfc && vfsisloadable("mfs")) {
-			if(vfsload("mfs")) {
-				err(1, "vfsload(mfs)");
-			}
+		error = getvfsbyname("mfs", &vfc);
+		if (error && vfsisloadable("mfs")) {
+			if (vfsload("mfs"))
+				fatal("vfsload(mfs)");
 			endvfsent();	/* flush cache */
-			vfc = getvfsbyname("mfs");
+			error = getvfsbyname("mfs", &vfc);
 		}
+		if (error)
+			fatal("mfs filesystem not available");
 
-		if (mount(vfc ? vfc->vfc_index : MOUNT_MFS, argv[1], mntflags,
-				&args) < 0)
+		if (mount(vfc.vfc_name, argv[1], mntflags, &args) < 0)
 			fatal("%s: %s", argv[1], strerror(errno));
 		if(filename) {
 			munmap(membase,fssize * sectorsize);
