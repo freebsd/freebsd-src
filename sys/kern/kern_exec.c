@@ -437,8 +437,15 @@ interpret:
 #endif
 		/* Close any file descriptors 0..2 that reference procfs */
 		setugidsafety(td);
-		/* Make sure file descriptors 0..2 are in use.  */
+		/*
+		 * Make sure file descriptors 0..2 are in use.
+		 *
+		 * fdcheckstd() may call falloc() which may block to
+		 * allocate memory, so temporarily drop the process lock.
+		 */
+		PROC_UNLOCK(p);
 		error = fdcheckstd(td);
+		PROC_LOCK(p);
 		if (error != 0)
 			goto done1;
 		/*
