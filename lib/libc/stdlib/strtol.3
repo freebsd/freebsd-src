@@ -40,8 +40,8 @@
 .Dt STRTOL 3
 .Os
 .Sh NAME
-.Nm strtol , strtoll , strtoq
-.Nd "convert a string value to a long, long long, or quad_t integer"
+.Nm strtol , strtoll , strtoimax , strtoq
+.Nd "convert a string value to a long, long long, intmax_t or quad_t integer"
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
@@ -51,6 +51,9 @@
 .Fn strtol "const char *nptr" "char **endptr" "int base"
 .Ft long long
 .Fn strtoll "const char *nptr" "char **endptr" "int base"
+.In inttypes.h
+.Ft intmax_t
+.Fn strtoimax "const char *nptr" "char **endptr" "int base"
 .In sys/types.h
 .In stdlib.h
 .In limits.h
@@ -72,6 +75,14 @@ converts the string in
 .Fa nptr
 to a
 .Em long long
+value.
+The
+.Fn strtoimax
+function
+converts the string in
+.Fa nptr
+to an
+.Em intmax_t
 value.
 The
 .Fn strtoq
@@ -107,7 +118,11 @@ is taken as 10 (decimal) unless the next character is
 in which case it is taken as 8 (octal).
 .Pp
 The remainder of the string is converted to a
-.Em long
+.Em long ,
+.Em long long ,
+.Em intmax_t
+or
+.Em quad_t
 value in the obvious manner,
 stopping at the first character which is not a valid digit
 in the given base.
@@ -143,9 +158,11 @@ is
 on return, the entire string was valid.)
 .Sh RETURN VALUES
 The
-.Fn strtol
+.Fn strtol ,
+.Fn strtoll ,
+.Fn strtoimax
 or
-.Fn strtoll
+.Fn strtoq
 function
 returns the result of the conversion,
 unless the value would underflow or overflow.
@@ -154,26 +171,19 @@ the global variable
 .Va errno
 is set to
 .Er EINVAL .
-If an underflow occurs,
-.Fn strtol
-returns
-.Dv LONG_MIN .
-If an overflow occurs,
-.Fn strtol
-returns
-.Dv LONG_MAX .
-If an underflow occurs,
-.Fn strtoll
-returns
-.Dv LLONG_MIN .
-If an overflow occurs,
-.Fn strtoll
-returns
-.Dv LLONG_MAX .
-In all cases,
+If an overflow or underflow occurs,
 .Va errno
 is set to
-.Er ERANGE .
+.Er ERANGE
+and the function return value is clamped according
+to the following table.
+.Bl -column -offset indent ".Fn strtoimax" ".Sy overflow" ".Sy underflow"
+.It Sy Function Ta Sy overflow Ta Sy underflow
+.It Fn strtol Ta Dv LONG_MIN Ta Dv LONG_MAX
+.It Fn strtoll Ta Dv LLONG_MIN Ta Dv LLONG_MAX
+.It Fn strtoimax Ta Dv INTMAX_MIN Ta Dv INTMAX_MAX
+.It Fn strtoq Ta Dv LLONG_MIN Ta Dv LLONG_MAX
+.El
 .Sh ERRORS
 .Bl -tag -width Er
 .It Bq Er EINVAL
@@ -198,8 +208,10 @@ conforms to
 .St -isoC .
 The
 .Fn strtoll
-function
-conforms to
+and
+.Fn strtoimax
+functions
+conform to
 .St -isoC-99 .
 The
 .Bx
