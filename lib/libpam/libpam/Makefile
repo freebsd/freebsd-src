@@ -108,7 +108,7 @@ beforeinstall:
 	cd ${PAMDIR}/libpam/include/security; \
 		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
 		${HDRS1} ${DESTDIR}/usr/include/security
-	cd ${PAMDIR}/libpam_misc; \
+	cd ${PAMDIR}/libpam_misc/include/security; \
 		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
 		${HDRS2} ${DESTDIR}/usr/include/security
 	cd ${.CURDIR}; \
