@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mman.h	8.1 (Berkeley) 6/2/93
- * $Id: mman.h,v 1.7 1995/05/14 19:19:07 nate Exp $
+ * $Id: mman.h,v 1.8 1995/07/13 08:48:02 davidg Exp $
  */
 
 #ifndef _SYS_MMAN_H_
@@ -40,6 +40,7 @@
 /*
  * Protections are chosen from these bits, or-ed together
  */
+#define	PROT_NONE	0x00	/* no access to pages */
 #define	PROT_READ	0x01	/* pages can be read */
 #define	PROT_WRITE	0x02	/* pages can be written */
 #define	PROT_EXEC	0x04	/* pages can be executed */
