@@ -36,11 +36,11 @@ ioctl.
 The argument passed to the
 .Xr ioctl 2
 is the address of a variable of type
-.Vt dev_t .
+.Vt udev_t .
 To detach the
 .Nm
 device from a tty use a pointer to a value of
-.Po Vt dev_t Pc Ns \-1 .
+.Dv NODEV .
 .Pp
 The
 .Dv SNPGTTY
