@@ -27,13 +27,13 @@
  *
  */
 
-#include "sound_config.h"
+#include <i386/isa/sound/sound_config.h>
 
 #ifdef CONFIGURE_SOUNDCARD
 
 #if !defined(EXCLUDE_SB) && !defined(EXCLUDE_SB16) && !defined(EXCLUDE_MIDI)
 
-#include "sb.h"
+#include <i386/isa/sound/sb.h>
 
 #ifdef PC98
 #define	DATAPORT   (sb16midi_base)
@@ -182,7 +182,7 @@ sb16midi_buffer_status (int dev)
 
 #define MIDI_SYNTH_NAME	"SoundBlaster 16 Midi"
 #define MIDI_SYNTH_CAPS	SYNTH_CAP_INPUT
-#include "midi_synth.h"
+#include <i386/isa/sound/midi_synth.h>
 
 static struct midi_operations sb16midi_operations =
 {

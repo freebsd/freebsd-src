@@ -31,7 +31,7 @@
 #include <machine/cpufunc.h>
 #include <sys/reboot.h>
 #ifdef PC98
-#include "../../pc98/pc98_bios.h"
+#include "../../pc98/pc98.h"
 #endif
 
 

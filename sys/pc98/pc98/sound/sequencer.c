@@ -28,8 +28,8 @@
  */
 
 #define SEQUENCER_C
-#include "sound_config.h"
-#include "midi_ctrl.h"
+#include <i386/isa/sound/sound_config.h>
+#include <i386/isa/sound/midi_ctrl.h>
 
 extern void seq_drain_midi_queues __P((void));
 
@@ -71,7 +71,7 @@ static unsigned long   prev_input_time = 0;
 static int             prev_event_time;
 static unsigned long   seq_time = 0;
 
-#include "tuning.h"
+#include <i386/isa/sound/tuning.h>
 
 #define EV_SZ	8
 #define IEV_SZ	8

@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.6 1996/09/07 02:13:32 asami Exp $
+ *	$Id: machdep.c,v 1.7 1996/09/10 09:37:35 asami Exp $
  */
 
 #include "npx.h"
@@ -44,6 +44,7 @@
 #include "opt_bounce.h"
 #include "opt_machdep.h"
 #include "opt_perfmon.h"
+#include "opt_userconfig.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -387,8 +388,12 @@ again:
 		callout[i-1].c_next = &callout[i];
 
         if (boothowto & RB_CONFIG) {
+#ifdef USERCONFIG
 		userconfig();
 		cninit();	/* the preferred console may have changed */
+#else
+		printf("Sorry! no userconfig in this kernel\n");
+#endif 
 	}
 
 #ifdef BOUNCE_BUFFERS
@@ -1167,19 +1172,6 @@ init386(first)
 			printf("BIOS extmem (%ldK) != RTC extmem (%dK)\n",
 			       bootinfo.bi_extmem, biosextmem);
 	}
-#endif
-
-	/*
-	 * Some 386 machines might give us a bogus number for extended
-	 *	mem. If this happens, stop now.
-	 */
-#ifndef PC98
-#ifndef LARGEMEM
-	if (biosextmem > 65536) {
-		panic("extended memory beyond limit of 64MB");
-		/* NOTREACHED */
-	}
-#endif
 #endif
 
 	pagesinbase = biosbasemem * 1024 / PAGE_SIZE;

@@ -29,11 +29,11 @@
  *
  */
 
-#include "sound_config.h"
+#include <i386/isa/sound/sound_config.h>
 
 #if defined(CONFIGURE_SOUNDCARD) && !defined(EXCLUDE_PAS)
 
-#include "pas.h"
+#include <i386/isa/sound/pas.h>
 
 extern void mix_write __P((unsigned char data, int ioaddr));
 static int pas_mixer_ioctl __P((int dev, unsigned int cmd, unsigned int arg));
