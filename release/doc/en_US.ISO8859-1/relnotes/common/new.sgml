@@ -200,6 +200,14 @@
       via an upgrade to <application>CVS</application> 1.11.17.
       For more information, see security advisory <ulink
       url="ftp://ftp.freebsd.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:14.cvs.asc">FreeBSD-SA-04:14</ulink>.</para>
+
+    <para>A bug in <literal>CONS_SCRSHOT</literal> &man.ioctl.2;
+      has been fixed; it may allow to gain unauthorized access to
+      parts of kernel memory, possibly resulting in disclosure
+      of sensitive information, bypass of access control
+      mechanisms, or privilege escalation.
+      For more information, see security advisory <ulink
+      url="ftp://ftp.freebsd.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:15.syscons.asc">FreeBSD-SA-04:15</ulink>.</para>
   </sect2>
 
   <sect2 id="kernel">
@@ -761,11 +769,12 @@
 	  the transmission rate.  &merged;</para>
 
 	<para>Interface &man.polling.4; support
-	  can now be enabled on a per-interface basis.  All of the network drivers that support &man.polling.4;
-	  (&man.dc.4;, &man.fxp.4;, &man.em.4;, &man.nge.4;, &man.re.4;,
-	  &man.rl.4;, &man.sis.4;, &man.ste.4;, and &man.vr.4;)
-	  now also support this capability and it can be controlled
-	  via &man.ifconfig.8;.  &merged;</para>
+	  can now be enabled on a per-interface basis.  The following network drivers
+          support &man.polling.4;: &man.dc.4;, &man.fxp.4;, &man.em.4;, &man.ixgb.4;,
+          &man.nge.4;, &man.re.4;, &man.rl.4;, &man.sis.4;, &man.ste.4;, &man.vge.4;,
+          and &man.vr.4;.  And they now also support this capability and it can
+          be controlled
+	  via &man.ifconfig.8; except for &man.ixgb.4;.  &merged;</para>
       </sect4>
     </sect3>
 
@@ -1590,6 +1599,42 @@
 	It saves the current settings of all audio mixers present
 	in the system on shutdown and restores the settings on boot.</para>
 
+      <para>The <filename>named</filename> script has been updated to
+	support <application>BIND 9</application> in the base system.
+	The changes include:</para>
+
+      <itemizedlist>
+	<listitem>
+	  <para>&man.named.8; runs in a &man.chroot.2; directory
+	    <filename>/var/named</filename> by default.
+	    This behavior can be disabled by using the
+	    <varname>named_chrootdir</varname> variable,
+	    and the &man.chroot.2; directory can be changed by using the
+	    <varname>named_chrootdir</varname> variable in
+	    <filename>rc.conf</filename>, respectively.</para>
+	</listitem>
+
+	<listitem>
+	  <para>When the <varname>named_chroot_autoupdate</varname>
+	    variable is set to <literal>YES</literal> (this is default),
+	    the chroot directory is automatically configured at the boot time.
+	    A symbolic link which points to
+	    <filename>/var/named/etc/namedb</filename> is
+	    created as <filename>/etc/namedb</filename>,
+	    and a symbolic link which points to
+	    <filename>/var/named/var/run/named/pid</filename> is
+	    created as <filename>/var/run/named/pid</filename>.
+	    The latter can be disabled by using the
+	    <varname>named_symlink_enable</varname> variable in
+	    <filename>rc.conf</filename>.</para>
+	</listitem>
+
+	<listitem>
+	  <para>The <filename>rndc.key</filename> file is
+	    automatically created if it does not exist.</para>
+	</listitem>
+      </itemizedlist>
+
       <para>The <filename>pf</filename> and <filename>pflog</filename>
         scripts for &man.pf.4; has been added.</para>
     </sect3>
@@ -1607,6 +1652,9 @@
     <para><application>awk</application> from Bell Labs has been
       updated from the 29 July 2003 release to the 7 February 2004
       release.</para>
+
+    <para><application>BIND</application> has been updated to
+      from version 8.3.1-REL to version 9.3.0.</para>
 
     <para><application>Binutils</application> have been updated to
       a 23 May 2004 snapshot from the FSF 2.15 branch.</para>
@@ -1655,7 +1703,7 @@
     <para><application>libpcap</application> has been updated from
       version 0.7.1 to version 0.8.3.</para>
 
-    <para><application>lukemftp</application>
+    <para><application>lukemftpd</application>
       has been updated from a snapshot as of
       3 November, 2003 to one as of 9 August, 2004.</para>
 
