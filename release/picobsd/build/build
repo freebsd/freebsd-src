@@ -102,8 +102,9 @@ main() {
 	echo ""
 	echo "-> ERROR in \"${i}\" script. Aborting the build process."
 	echo -n "-> Cleaning temporary files... "
-	umount -f /mnt
-	vnconfig -u /dev/rvn0
+	umount -f ${MFS_MOUNTPOINT}
+	rm -rf ${MFS_MOUNTPOINT}
+	vnconfig -u /dev/rvn${VNUM}
 	./clean ${TYPE}
 	echo "Done."
 	exit 10
