@@ -46,6 +46,27 @@
 /*
  * Machine dependent constants for the IA64.
  */
+/*
+ * Round p (pointer or byte index) up to a correctly-aligned value for all
+ * data types (int, long, ...).   The result is u_long and must be cast to
+ * any desired pointer type.
+ *
+ * ALIGNED_POINTER is a boolean macro that checks whether an address
+ * is valid to fetch data elements of type t from on this architecture.
+ * This does not reflect the optimal alignment, just the possibility
+ * (within reasonable limits). 
+ *
+ */
+#ifndef _ALIGNBYTES
+#define	_ALIGNBYTES		7
+#endif
+#ifndef _ALIGN
+#define	_ALIGN(p)		(((u_long)(p) + _ALIGNBYTES) &~ _ALIGNBYTES)
+#endif
+#ifndef _ALIGNED_POINTER
+#define _ALIGNED_POINTER(p,t)	((((u_long)(p)) & (sizeof(t)-1)) == 0)
+#endif
+
 #ifndef _MACHINE
 #define	_MACHINE	ia64
 #endif
@@ -83,9 +104,9 @@
  * (within reasonable limits). 
  *
  */
-#define	ALIGNBYTES		7
-#define	ALIGN(p)		(((u_long)(p) + ALIGNBYTES) &~ ALIGNBYTES)
-#define ALIGNED_POINTER(p,t)	((((u_long)(p)) & (sizeof(t)-1)) == 0)
+#define	ALIGNBYTES		_ALIGNBYTES
+#define	ALIGN(p)		_ALIGN(p)
+#define ALIGNED_POINTER(p,t)	_ALIGNED_POINTER(p,t)
 
 #define	PAGE_SIZE	4096			/* bytes/page */
 #define PAGE_SHIFT	12
