@@ -58,6 +58,11 @@ static const struct {
 	},
 #endif
 	{
+		"nth",
+		crypt_nthash,
+		"$3$"
+	},
+	{
 		NULL,
 		NULL,
 		NULL
