@@ -1,6 +1,6 @@
-#	$Id: Makefile,v 1.1 1995/04/15 08:18:16 phk Exp $
+#	$Id: Makefile,v 1.2 1995/10/06 02:42:11 peter Exp $
 
 PROG=	kzip
-NOMAN=	toobad
+MAN8=	kzip.8
 
 .include <bsd.prog.mk>
