@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bootinfo.h,v 1.10 1998/09/14 18:32:46 msmith Exp $
+ *	$Id: bootinfo.h,v 1.11 1998/10/01 18:22:52 msmith Exp $
  */
 
 #ifndef	_MACHINE_BOOTINFO_H_
@@ -56,7 +56,7 @@ struct bootinfo {
 	u_int32_t	bi_size;
 	u_int8_t	bi_memsizes_valid;
 	u_int8_t	bi_bios_dev;		/* bootdev BIOS unit number */
-	u_int16_t	bi_vesa;
+	u_int8_t	bi_pad[2];
 	u_int32_t	bi_basemem;
 	u_int32_t	bi_extmem;
 	u_int32_t	bi_symtab;		/* struct symtab * */
