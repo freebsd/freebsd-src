@@ -911,14 +911,7 @@ mutex_self_trylock(struct pthread *curthread, pthread_mutex_t m)
 	/* case PTHREAD_MUTEX_DEFAULT: */
 	case PTHREAD_MUTEX_ERRORCHECK:
 	case PTHREAD_MUTEX_NORMAL:
-		/*
-		 * POSIX specifies that mutexes should return EDEADLK if a
-		 * recursive lock is detected.
-		 */
-		if (m->m_owner == curthread)
-			ret = EDEADLK;
-		else
-			ret = EBUSY; 
+		ret = EBUSY; 
 		break;
 
 	case PTHREAD_MUTEX_RECURSIVE:
