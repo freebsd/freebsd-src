@@ -529,13 +529,6 @@ BKTR_SIS_VIA_MODE		opt_bktr.h
 BKTR_USE_FREEBSD_SMBUS		opt_bktr.h
 BKTR_NEW_MSP34XX_DRIVER		opt_bktr.h
 
-# meteor opt_meteor.h
-METEOR_ALLOC_PAGES	opt_meteor.h
-METEOR_TEST_VIDEO	opt_meteor.h
-METEOR_SYSTEM_DEFAULT	opt_meteor.h
-METEOR_DEALLOC_PAGES	opt_meteor.h
-METEOR_DEALLOC_ABOVE	opt_meteor.h
-
 # options for serial support
 COM_ESP			opt_sio.h
 COM_MULTIPORT		opt_sio.h

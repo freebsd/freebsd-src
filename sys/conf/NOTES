@@ -1832,7 +1832,6 @@ hint.gusc.0.flags="0x13"
 #
 # scd: Sony CD-ROM using proprietary (non-ATAPI) interface
 # mcd: Mitsumi CD-ROM using proprietary (non-ATAPI) interface
-# meteor: Matrox Meteor video capture board
 # bktr: Brooktree bt848/848a/849a/878/879 video capture and TV Tuner board
 # cy: Cyclades serial driver
 # joy: joystick (including IO DATA PCJOY PC Card joystick)
@@ -1898,17 +1897,6 @@ hint.si.0.irq="12"
 device		nmdm
 
 #
-# The `meteor' device is a PCI video capture board. It can also have the
-# following options:
-#   options METEOR_ALLOC_PAGES=xxx	preallocate kernel pages for data entry
-#	figure (ROWS*COLUMN*BYTES_PER_PIXEL*FRAME+PAGE_SIZE-1)/PAGE_SIZE
-#   options METEOR_DEALLOC_PAGES	remove all allocated pages on close(2)
-#   options METEOR_DEALLOC_ABOVE=xxx	remove all allocated pages above the
-#	specified amount. If this value is below the allocated amount no action
-#	taken
-#   options METEOR_SYSTEM_DEFAULT={METEOR_PAL|METEOR_NTSC|METEOR_SECAM}, used
-#	for initialization of fps routine when a signal is not present.
-#
 # The 'bktr' device is a PCI video capture device using the Brooktree
 # bt848/bt848a/bt849a/bt878/bt879 chipset. When used with a TV Tuner it forms a
 # TV card, eg Miro PC/TV, Hauppauge WinCast/TV WinTV, VideoLogic Captivator,
@@ -1953,8 +1941,6 @@ device		nmdm
 # Use new, more complete initialization scheme for the msp34* soundchip.
 # Should fix stereo autodetection if the old driver does only output
 # mono sound.
-
-device		meteor	1
 
 #
 # options	BKTR_USE_FREEBSD_SMBUS
@@ -2409,8 +2395,6 @@ options 	AAC_DEBUG
 ##options 	BKTR_ALLOC_PAGES=(217*4+1)
 options 	BROOKTREE_ALLOC_PAGES=(217*4+1)
 options 	MAXFILES=999
-# METEOR_TEST_VIDEO has no effect since meteor is broken.
-options 	METEOR_TEST_VIDEO
 options 	NDEVFSINO=1025
 options 	NDEVFSOVERFLOW=32769
 
