@@ -37,7 +37,6 @@
 #define _MACHINE_ASMACROS_H_
 
 #include <sys/cdefs.h>
-#include <machine/asnames.h>
 
 /* XXX too much duplication in various asm*.h's. */
 

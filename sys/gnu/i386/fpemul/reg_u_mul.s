@@ -105,7 +105,7 @@ ENTRY(reg_u_mul)
 	cmpl	EXP_UNDER,%eax
 	jg	xOp1_not_denorm
 
-	call	_denormal_operand
+	call	denormal_operand
 	orl	%eax,%eax
 	jnz	FPU_Arith_exit
 
@@ -114,7 +114,7 @@ xOp1_not_denorm:
 	cmpl	EXP_UNDER,%eax
 	jg	xOp2_not_denorm
 
-	call	_denormal_operand
+	call	denormal_operand
 	orl	%eax,%eax
 	jnz	FPU_Arith_exit
 

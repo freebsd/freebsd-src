@@ -81,18 +81,18 @@
  * On entry to a trap or interrupt WE DO NOT OWN THE MP LOCK.  This means
  * that we must be careful in regards to accessing global variables.  We
  * save (push) the current cpl (our software interrupt disable mask), call
- * the trap function, then call _doreti to restore the cpl and deal with
- * ASTs (software interrupts).  _doreti will determine if the restoration
+ * the trap function, then call doreti to restore the cpl and deal with
+ * ASTs (software interrupts).  doreti will determine if the restoration
  * of the cpl unmasked any pending interrupts and will issue those interrupts
  * synchronously prior to doing the iret.
  *
  * At the moment we must own the MP lock to do any cpl manipulation, which
- * means we must own it prior to  calling _doreti.  The syscall case attempts
+ * means we must own it prior to  calling doreti.  The syscall case attempts
  * to avoid this by handling a reduced set of cases itself and iret'ing.
  */
-#define	IDTVEC(name)	ALIGN_TEXT; .globl __CONCAT(_X,name); \
-			.type __CONCAT(_X,name),@function; __CONCAT(_X,name):
-#define	TRAP(a)		pushl $(a) ; jmp _alltraps
+#define	IDTVEC(name)	ALIGN_TEXT; .globl __CONCAT(X,name); \
+			.type __CONCAT(X,name),@function; __CONCAT(X,name):
+#define	TRAP(a)		pushl $(a) ; jmp alltraps
 
 #ifdef BDE_DEBUGGER
 #define	BDBTRAP(name) \
@@ -171,14 +171,14 @@ IDTVEC(fpu)
 	mov	%ax,%fs
 	FAKE_MCOUNT(13*4(%esp))
 
-	MPLOCKED incl _cnt+V_TRAP
+	MPLOCKED incl cnt+V_TRAP
 	pushl	$0			/* dummy unit to finish intr frame */
 
-	call	_npx_intr
+	call	npx_intr
 
 	addl	$4,%esp
 	MEXITCOUNT
-	jmp	_doreti
+	jmp	doreti
 #else	/* DEV_NPX */
 	pushl $0; TRAP(T_ARITHTRAP)
 #endif	/* DEV_NPX */
@@ -187,16 +187,16 @@ IDTVEC(align)
 	TRAP(T_ALIGNFLT)
 
 	/*
-	 * _alltraps entry point.  Interrupts are enabled if this was a trap
+	 * alltraps entry point.  Interrupts are enabled if this was a trap
 	 * gate (TGT), else disabled if this was an interrupt gate (IGT).
 	 * Note that int0x80_syscall is a trap gate.  Only page faults
 	 * use an interrupt gate.
 	 */
 
 	SUPERALIGN_TEXT
-	.globl	_alltraps
-	.type	_alltraps,@function
-_alltraps:
+	.globl	alltraps
+	.type	alltraps,@function
+alltraps:
 	pushal
 	pushl	%ds
 	pushl	%es
@@ -209,14 +209,14 @@ alltraps_with_regs_pushed:
 	mov	%ax,%fs
 	FAKE_MCOUNT(13*4(%esp))
 calltrap:
-	FAKE_MCOUNT(_btrap)		/* init "from" _btrap -> calltrap */
-	call	_trap
+	FAKE_MCOUNT(btrap)		/* init "from" btrap -> calltrap */
+	call	trap
 
 	/*
-	 * Return via _doreti to handle ASTs.
+	 * Return via doreti to handle ASTs.
 	 */
 	MEXITCOUNT
-	jmp	_doreti
+	jmp	doreti
 
 /*
  * SYSCALL CALL GATE (old entry point for a.out binaries)
@@ -265,27 +265,27 @@ syscall_with_err_pushed:
 	mov	$KPSEL,%ax
 	mov	%ax,%fs
 	FAKE_MCOUNT(13*4(%esp))
-	call	_syscall
+	call	syscall
 	MEXITCOUNT
-	jmp	_doreti
+	jmp	doreti
 
 ENTRY(fork_trampoline)
 	pushl	%esp			/* trapframe pointer */
 	pushl	%ebx			/* arg1 */
 	pushl	%esi			/* function */
-	call	_fork_exit
+	call	fork_exit
 	addl	$12,%esp
 	/* cut from syscall */
 
 	/*
-	 * Return via _doreti to handle ASTs.
+	 * Return via doreti to handle ASTs.
 	 */
 	MEXITCOUNT
-	jmp	_doreti
+	jmp	doreti
 
 
 /*
- * Include vm86 call routines, which want to call _doreti.
+ * Include vm86 call routines, which want to call doreti.
  */
 #include "i386/i386/vm86bios.s"
 

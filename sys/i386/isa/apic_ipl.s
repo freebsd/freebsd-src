@@ -39,8 +39,8 @@
  *		imen_dump()
  */
 	.p2align 2				/* MUST be 32bit aligned */
-	.globl _apic_imen
-_apic_imen:
+	.globl apic_imen
+apic_imen:
 	.long	HWI_MASK
 
 	.text
@@ -59,7 +59,7 @@ _apic_imen:
 	andl	%eax, %eax ;	\
 	jz	1f ;		\
 	pushl	$bad_mask ;	\
-	call	_panic ;	\
+	call	panic ;		\
 1:
 
 bad_mask:	.asciz	"bad mask"
@@ -80,7 +80,7 @@ ENTRY(INTREN)
 
 	movl	8(%esp), %eax		/* mask into %eax */
 	bsfl	%eax, %ecx		/* get pin index */
-	btrl	%ecx, _apic_imen	/* update _apic_imen */
+	btrl	%ecx, apic_imen		/* update apic_imen */
 
 	QUALIFY_MASK
 
@@ -112,7 +112,7 @@ ENTRY(INTRDIS)
 
 	movl	8(%esp), %eax		/* mask into %eax */
 	bsfl	%eax, %ecx		/* get pin index */
-	btsl	%ecx, _apic_imen	/* update _apic_imen */
+	btsl	%ecx, apic_imen		/* update apic_imen */
 
 	QUALIFY_MASK
 

@@ -45,15 +45,15 @@
  */
 #define	NR_INTRNAMES	(1 + ICU_LEN + 2 * ICU_LEN)
 
-	.globl	_intrcnt, _eintrcnt
-_intrcnt:
+	.globl	intrcnt, eintrcnt
+intrcnt:
 	.space	NR_INTRNAMES * 4
-_eintrcnt:
+eintrcnt:
 
-	.globl	_intrnames, _eintrnames
-_intrnames:
+	.globl	intrnames, eintrnames
+intrnames:
 	.space	NR_INTRNAMES * 16
-_eintrnames:
+eintrnames:
 	.text
 
 /*

@@ -102,7 +102,7 @@ ovfl_flag:
 
 .text
 
-.globl _divide_kernel
+.globl divide_kernel
 
 ENTRY(reg_u_div)
 	pushl	%ebp
@@ -121,7 +121,7 @@ ENTRY(reg_u_div)
 	cmpl	EXP_UNDER,%eax
 	jg	xOp1_not_denorm
 
-	call	_denormal_operand
+	call	denormal_operand
 	orl	%eax,%eax
 	jnz	FPU_Arith_exit
 
@@ -130,14 +130,14 @@ xOp1_not_denorm:
 	cmpl	EXP_UNDER,%eax
 	jg	xOp2_not_denorm
 
-	call	_denormal_operand
+	call	denormal_operand
 	orl	%eax,%eax
 	jnz	FPU_Arith_exit
 
 xOp2_not_denorm:
 #endif DENORM_OPERAND
 
-_divide_kernel:
+divide_kernel:
 #ifdef PARANOID
 /*	testl	$0x80000000, SIGH(%esi)	*//* Dividend */
 /*	je	L_bugged */

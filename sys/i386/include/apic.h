@@ -470,8 +470,8 @@ typedef struct IOAPIC ioapic_t;
 /*
  * Protects the IO APIC and apic_imen as a critical region.
  */
-#define IMASK_LOCK	MTX_LOCK_SPIN(_imen_mtx, 0)
-#define IMASK_UNLOCK	MTX_UNLOCK_SPIN(_imen_mtx)
+#define IMASK_LOCK	MTX_LOCK_SPIN(imen_mtx, 0)
+#define IMASK_UNLOCK	MTX_UNLOCK_SPIN(imen_mtx)
 
 #else  /* SMP */
 

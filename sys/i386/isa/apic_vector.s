@@ -50,27 +50,27 @@ IDTVEC(vec_name) ;							\
 	FAKE_MCOUNT(13*4(%esp)) ;					\
 	movl	PCPU(CURPROC),%ebx ;					\
 	incl	P_INTR_NESTING_LEVEL(%ebx) ;				\
-	pushl	_intr_unit + (irq_num) * 4 ;				\
-	call	*_intr_handler + (irq_num) * 4 ; /* do the work ASAP */ \
+	pushl	intr_unit + (irq_num) * 4 ;				\
+	call	*intr_handler + (irq_num) * 4 ; /* do the work ASAP */ \
 	addl	$4, %esp ;						\
-	movl	$0, _lapic+LA_EOI ;					\
+	movl	$0, lapic+LA_EOI ;					\
 	lock ; 								\
-	incl	_cnt+V_INTR ;	/* book-keeping can wait */		\
-	movl	_intr_countp + (irq_num) * 4, %eax ;			\
+	incl	cnt+V_INTR ;	/* book-keeping can wait */		\
+	movl	intr_countp + (irq_num) * 4, %eax ;			\
 	lock ; 								\
 	incl	(%eax) ;						\
 	decl	P_INTR_NESTING_LEVEL(%ebx) ;				\
 	MEXITCOUNT ;							\
-	jmp	_doreti
+	jmp	doreti
 
 #define IOAPICADDR(irq_num) CNAME(int_to_apicintpin) + 16 * (irq_num) + 8
 #define REDIRIDX(irq_num) CNAME(int_to_apicintpin) + 16 * (irq_num) + 12
 	
 #define MASK_IRQ(irq_num)						\
 	IMASK_LOCK ;				/* into critical reg */	\
-	testl	$IRQ_BIT(irq_num), _apic_imen ;				\
+	testl	$IRQ_BIT(irq_num), apic_imen ;				\
 	jne	7f ;			/* masked, don't mask */	\
-	orl	$IRQ_BIT(irq_num), _apic_imen ;	/* set the mask bit */	\
+	orl	$IRQ_BIT(irq_num), apic_imen ;	/* set the mask bit */	\
 	movl	IOAPICADDR(irq_num), %ecx ;	/* ioapic addr */	\
 	movl	REDIRIDX(irq_num), %eax ;	/* get the index */	\
 	movl	%eax, (%ecx) ;			/* write the index */	\
@@ -85,7 +85,7 @@ IDTVEC(vec_name) ;							\
  *  and the EOI cycle would cause redundant INTs to occur.
  */
 #define MASK_LEVEL_IRQ(irq_num)						\
-	testl	$IRQ_BIT(irq_num), _apic_pin_trigger ;			\
+	testl	$IRQ_BIT(irq_num), apic_pin_trigger ;			\
 	jz	9f ;				/* edge, don't mask */	\
 	MASK_IRQ(irq_num) ;						\
 9:
@@ -93,18 +93,18 @@ IDTVEC(vec_name) ;							\
 
 #ifdef APIC_INTR_REORDER
 #define EOI_IRQ(irq_num)						\
-	movl	_apic_isrbit_location + 8 * (irq_num), %eax ;		\
+	movl	apic_isrbit_location + 8 * (irq_num), %eax ;		\
 	movl	(%eax), %eax ;						\
-	testl	_apic_isrbit_location + 4 + 8 * (irq_num), %eax ;	\
+	testl	apic_isrbit_location + 4 + 8 * (irq_num), %eax ;	\
 	jz	9f ;				/* not active */	\
-	movl	$0, _lapic+LA_EOI ;					\
+	movl	$0, lapic+LA_EOI ;					\
 9:
 
 #else
 #define EOI_IRQ(irq_num)						\
-	testl	$IRQ_BIT(irq_num), _lapic+LA_ISR1;			\
+	testl	$IRQ_BIT(irq_num), lapic+LA_ISR1;			\
 	jz	9f	;			/* not active */	\
-	movl	$0, _lapic+LA_EOI;					\
+	movl	$0, lapic+LA_EOI;					\
 9:
 #endif
 	
@@ -160,12 +160,12 @@ __CONCAT(Xresume,irq_num): ;						\
 	FAKE_MCOUNT(13*4(%esp)) ;		/* XXX avoid dbl cnt */ \
 	pushl	$irq_num;			/* pass the IRQ */	\
 	sti ;								\
-	call	_sched_ithd ;						\
+	call	sched_ithd ;						\
 	addl	$4, %esp ;		/* discard the parameter */	\
 ;									\
 	decl	P_INTR_NESTING_LEVEL(%ebx) ;				\
 	MEXITCOUNT ;							\
-	jmp	_doreti
+	jmp	doreti
 
 /*
  * Handle "spurious INTerrupts".
@@ -176,8 +176,8 @@ __CONCAT(Xresume,irq_num): ;						\
  */
 	.text
 	SUPERALIGN_TEXT
-	.globl _Xspuriousint
-_Xspuriousint:
+	.globl Xspuriousint
+Xspuriousint:
 
 	/* No EOI cycle used here */
 
@@ -189,8 +189,8 @@ _Xspuriousint:
  */
 	.text
 	SUPERALIGN_TEXT
-	.globl	_Xinvltlb
-_Xinvltlb:
+	.globl	Xinvltlb
+Xinvltlb:
 	pushl	%eax
 
 #ifdef COUNT_XINVLTLB_HITS
@@ -207,7 +207,7 @@ _Xinvltlb:
 	movl	%eax, %cr3
 
 	ss				/* stack segment, avoid %ds load */
-	movl	$0, _lapic+LA_EOI	/* End Of Interrupt to APIC */
+	movl	$0, lapic+LA_EOI	/* End Of Interrupt to APIC */
 
 	popl	%eax
 	iret
@@ -229,11 +229,11 @@ _Xinvltlb:
 
 	.text
 	SUPERALIGN_TEXT
-	.globl _Xcpucheckstate
-	.globl _checkstate_cpustate
-	.globl _checkstate_curproc
-	.globl _checkstate_pc
-_Xcpucheckstate:
+	.globl Xcpucheckstate
+	.globl checkstate_cpustate
+	.globl checkstate_curproc
+	.globl checkstate_pc
+Xcpucheckstate:
 	pushl	%eax
 	pushl	%ebx		
 	pushl	%ds			/* save current data segment */
@@ -244,7 +244,7 @@ _Xcpucheckstate:
 	movl	$KPSEL, %eax
 	mov	%ax, %fs
 
-	movl	$0, _lapic+LA_EOI	/* End Of Interrupt to APIC */
+	movl	$0, lapic+LA_EOI	/* End Of Interrupt to APIC */
 
 	movl	$0, %ebx		
 	movl	20(%esp), %eax	
@@ -256,15 +256,15 @@ _Xcpucheckstate:
 	incl	%ebx			/* system or interrupt */
 1:	
 	movl	PCPU(CPUID), %eax
-	movl	%ebx, _checkstate_cpustate(,%eax,4)
+	movl	%ebx, checkstate_cpustate(,%eax,4)
 	movl	PCPU(CURPROC), %ebx
-	movl	%ebx, _checkstate_curproc(,%eax,4)
+	movl	%ebx, checkstate_curproc(,%eax,4)
 
 	movl	16(%esp), %ebx
-	movl	%ebx, _checkstate_pc(,%eax,4)
+	movl	%ebx, checkstate_pc(,%eax,4)
 
 	lock				/* checkstate_probed_cpus |= (1<<id) */
-	btsl	%eax, _checkstate_probed_cpus
+	btsl	%eax, checkstate_probed_cpus
 
 	popl	%fs
 	popl	%ds			/* restore previous data segment */
@@ -284,8 +284,8 @@ _Xcpucheckstate:
 
 	.text
 	SUPERALIGN_TEXT
-	.globl _Xcpuast
-_Xcpuast:
+	.globl Xcpuast
+Xcpuast:
 	PUSH_FRAME
 	movl	$KDSEL, %eax
 	mov	%ax, %ds		/* use KERNEL data segment */
@@ -295,11 +295,11 @@ _Xcpuast:
 
 	movl	PCPU(CPUID), %eax
 	lock				/* checkstate_need_ast &= ~(1<<id) */
-	btrl	%eax, _checkstate_need_ast
-	movl	$0, _lapic+LA_EOI	/* End Of Interrupt to APIC */
+	btrl	%eax, checkstate_need_ast
+	movl	$0, lapic+LA_EOI	/* End Of Interrupt to APIC */
 
 	lock
-	btsl	%eax, _checkstate_pending_ast
+	btsl	%eax, checkstate_pending_ast
 	jc	1f
 
 	FAKE_MCOUNT(13*4(%esp))
@@ -310,7 +310,7 @@ _Xcpuast:
 	
 	movl	PCPU(CPUID), %eax
 	lock	
-	btrl	%eax, _checkstate_pending_ast
+	btrl	%eax, checkstate_pending_ast
 	lock	
 	btrl	%eax, CNAME(resched_cpus)
 	jnc	2f
@@ -322,7 +322,7 @@ _Xcpuast:
 	lock
 	incl	CNAME(cpuast_cnt)
 	MEXITCOUNT
-	jmp	_doreti
+	jmp	doreti
 1:
 	/* We are already in the process of delivering an ast for this CPU */
 	POP_FRAME
@@ -338,8 +338,8 @@ _Xcpuast:
 
 	.text
 	SUPERALIGN_TEXT
-	.globl _Xcpustop
-_Xcpustop:
+	.globl Xcpustop
+Xcpustop:
 	pushl	%ebp
 	movl	%esp, %ebp
 	pushl	%eax
@@ -353,7 +353,7 @@ _Xcpustop:
 	movl	$KPSEL, %eax
 	mov	%ax, %fs
 
-	movl	$0, _lapic+LA_EOI	/* End Of Interrupt to APIC */
+	movl	$0, lapic+LA_EOI	/* End Of Interrupt to APIC */
 
 	movl	PCPU(CPUID), %eax
 	imull	$PCB_SIZE, %eax
@@ -366,15 +366,15 @@ _Xcpustop:
 	movl	PCPU(CPUID), %eax
 
 	lock
-	btsl	%eax, _stopped_cpus	/* stopped_cpus |= (1<<id) */
+	btsl	%eax, stopped_cpus	/* stopped_cpus |= (1<<id) */
 1:
-	btl	%eax, _started_cpus	/* while (!(started_cpus & (1<<id))) */
+	btl	%eax, started_cpus	/* while (!(started_cpus & (1<<id))) */
 	jnc	1b
 
 	lock
-	btrl	%eax, _started_cpus	/* started_cpus &= ~(1<<id) */
+	btrl	%eax, started_cpus	/* started_cpus &= ~(1<<id) */
 	lock
-	btrl	%eax, _stopped_cpus	/* stopped_cpus &= ~(1<<id) */
+	btrl	%eax, stopped_cpus	/* stopped_cpus &= ~(1<<id) */
 
 	test	%eax, %eax
 	jnz	2f
@@ -472,8 +472,8 @@ MCOUNT_LABEL(eintr)
  */
 	.text
 	SUPERALIGN_TEXT
-	.globl	_Xrendezvous
-_Xrendezvous:
+	.globl	Xrendezvous
+Xrendezvous:
 	PUSH_FRAME
 	movl	$KDSEL, %eax
 	mov	%ax, %ds		/* use KERNEL data segment */
@@ -481,9 +481,9 @@ _Xrendezvous:
 	movl	$KPSEL, %eax
 	mov	%ax, %fs
 
-	call	_smp_rendezvous_action
+	call	smp_rendezvous_action
 
-	movl	$0, _lapic+LA_EOI	/* End Of Interrupt to APIC */
+	movl	$0, lapic+LA_EOI	/* End Of Interrupt to APIC */
 	POP_FRAME
 	iret
 	
@@ -497,21 +497,21 @@ _xhits:
 #endif /* COUNT_XINVLTLB_HITS */
 
 /* variables used by stop_cpus()/restart_cpus()/Xcpustop */
-	.globl _stopped_cpus, _started_cpus
-_stopped_cpus:
+	.globl stopped_cpus, started_cpus
+stopped_cpus:
 	.long	0
-_started_cpus:
+started_cpus:
 	.long	0
 
 #ifdef BETTER_CLOCK
-	.globl _checkstate_probed_cpus
-_checkstate_probed_cpus:
+	.globl checkstate_probed_cpus
+checkstate_probed_cpus:
 	.long	0	
 #endif /* BETTER_CLOCK */
-	.globl _checkstate_need_ast
-_checkstate_need_ast:
+	.globl checkstate_need_ast
+checkstate_need_ast:
 	.long	0
-_checkstate_pending_ast:
+checkstate_pending_ast:
 	.long	0
 	.globl CNAME(resched_cpus)
 	.globl CNAME(want_resched_cnt)
@@ -526,8 +526,8 @@ CNAME(cpuast_cnt):
 CNAME(cpustop_restartfunc):
 	.long 0
 
-	.globl	_apic_pin_trigger
-_apic_pin_trigger:
+	.globl	apic_pin_trigger
+apic_pin_trigger:
 	.long	0
 
 	.text

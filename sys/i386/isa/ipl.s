@@ -53,22 +53,22 @@
  * Handle return from interrupts, traps and syscalls.
  */
 	SUPERALIGN_TEXT
-	.type	_doreti,@function
-_doreti:
+	.type	doreti,@function
+doreti:
 
-	FAKE_MCOUNT(_bintr)		/* init "from" _bintr -> _doreti */
+	FAKE_MCOUNT(bintr)		/* init "from" bintr -> doreti */
 doreti_next:
 	/* Check for ASTs that can be handled now. */
 	testb	$SEL_RPL_MASK,TF_CS(%esp)  /* are we in user mode? */
 	jne	doreti_ast		/* yes, do it now. */
 	testl	$PSL_VM,TF_EFLAGS(%esp) /* kernel mode */
 	je	doreti_exit		/* and not VM86 mode, defer */
-	cmpl	$1,_in_vm86call		/* are we in a VM86 call? */
+	cmpl	$1,in_vm86call		/* are we in a VM86 call? */
 	je	doreti_exit		/* no, defer */
 
 doreti_ast:
 	pushl	%esp			/* pass a pointer to the trapframe */
-	call	_ast
+	call	ast
 	add	$4, %esp
 
 	/*

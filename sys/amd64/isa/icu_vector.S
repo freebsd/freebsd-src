@@ -63,16 +63,16 @@ IDTVEC(vec_name) ; \
 	FAKE_MCOUNT((12+ACTUALLY_PUSHED)*4(%esp)) ; \
 	movl	PCPU(CURPROC),%ebx ; \
 	incl	P_INTR_NESTING_LEVEL(%ebx) ; \
-	pushl	_intr_unit + (irq_num) * 4 ; \
-	call	*_intr_handler + (irq_num) * 4 ; /* do the work ASAP */ \
+	pushl	intr_unit + (irq_num) * 4 ; \
+	call	*intr_handler + (irq_num) * 4 ; /* do the work ASAP */ \
 	enable_icus ;		/* (re)enable ASAP (helps edge trigger?) */ \
 	addl	$4,%esp ; \
-	incl	_cnt+V_INTR ;	/* book-keeping can wait */ \
-	movl	_intr_countp + (irq_num) * 4,%eax ; \
+	incl	cnt+V_INTR ;	/* book-keeping can wait */ \
+	movl	intr_countp + (irq_num) * 4,%eax ; \
 	incl	(%eax) ; \
 	decl	P_INTR_NESTING_LEVEL(%ebx) ; \
 	MEXITCOUNT ; \
-	jmp	_doreti
+	jmp	doreti
 
 /* 
  * Slow, threaded interrupts.
@@ -99,9 +99,9 @@ IDTVEC(vec_name) ; \
 	mov	$KPSEL,%ax ; \
 	mov	%ax,%fs ; \
 	maybe_extra_ipending ; \
-	movb	_imen + IRQ_BYTE(irq_num),%al ; \
+	movb	imen + IRQ_BYTE(irq_num),%al ; \
 	orb	$IRQ_BIT(irq_num),%al ; \
-	movb	%al,_imen + IRQ_BYTE(irq_num) ; \
+	movb	%al,imen + IRQ_BYTE(irq_num) ; \
 	outb	%al,$icu+ICU_IMR_OFFSET ; \
 	enable_icus ; \
 	movl	PCPU(CURPROC),%ebx ; \
@@ -110,13 +110,13 @@ __CONCAT(Xresume,irq_num): ; \
 	FAKE_MCOUNT(13*4(%esp)) ;	/* XXX late to avoid double count */ \
 	pushl	$irq_num; 	/* pass the IRQ */ \
 	sti ; \
-	call	_sched_ithd ; \
+	call	sched_ithd ; \
 	addl	$4, %esp ;	/* discard the parameter */ \
 	decl	P_INTR_NESTING_LEVEL(%ebx) ; \
 	MEXITCOUNT ; \
 	/* We could usually avoid the following jmp by inlining some of */ \
-	/* _doreti, but it's probably better to use less cache. */ \
-	jmp	_doreti		/* and catch up inside doreti */
+	/* doreti, but it's probably better to use less cache. */ \
+	jmp	doreti		/* and catch up inside doreti */
 
 MCOUNT_LABEL(bintr)
 	FAST_INTR(0,fastintr0, ENABLE_ICU1)
