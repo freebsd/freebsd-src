@@ -53,8 +53,9 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 
-static void usage(void);
-int	add(char *name, int ignoreebusy);
+static void usage(const char *);
+static int is_swapoff(const char *);
+int	swap_on_off(char *name, int ignoreebusy, int do_swapoff);
 
 int
 main(int argc, char **argv)
@@ -62,6 +63,10 @@ main(int argc, char **argv)
 	struct fstab *fsp;
 	int stat;
 	int ch, doall;
+	int do_swapoff;
+	char *pname = argv[0];
+
+	do_swapoff = is_swapoff(pname);
 
 	doall = 0;
 	while ((ch = getopt(argc, argv, "a")) != -1)
@@ -71,7 +76,7 @@ main(int argc, char **argv)
 			break;
 		case '?':
 		default:
-			usage();
+			usage(pname);
 		}
 	argv += optind;
 
@@ -82,23 +87,24 @@ main(int argc, char **argv)
 				continue;
 			if (strstr(fsp->fs_mntops, "noauto"))
 				continue;
-			if (add(fsp->fs_spec, 1))
+			if (swap_on_off(fsp->fs_spec, 1, do_swapoff))
 				stat = 1;
 			else
-				printf("swapon: adding %s as swap device\n",
+				printf("%s: %sing %s as swap device\n",
+				    pname, do_swapoff ? "remov" : "add",
 				    fsp->fs_spec);
 		}
 	else if (!*argv)
-		usage();
+		usage(pname);
 	for (; *argv; ++argv)
-		stat |= add(*argv, 0);
+		stat |= swap_on_off(*argv, 0, do_swapoff);
 	exit(stat);
 }
 
 int
-add(char *name, int ignoreebusy)
+swap_on_off(char *name, int ignoreebusy, int do_swapoff)
 {
-	if (swapon(name) == -1) {
+	if ((do_swapoff ? swapoff(name) : swapon(name)) == -1) {
 		switch (errno) {
 		case EBUSY:
 			if (!ignoreebusy)
@@ -114,8 +120,23 @@ add(char *name, int ignoreebusy)
 }
 
 static void
-usage()
+usage(const char *pname)
 {
-	fprintf(stderr, "usage: swapon [-a] [special_file ...]\n");
+	fprintf(stderr, "usage: %s [-a] [special_file ...]\n", pname);
 	exit(1);
+}
+
+static int
+is_swapoff(const char *s)
+{
+	const char *u;
+
+	if ((u = strrchr(s, '/')) != NULL)
+		++u;
+	else
+		u = s;
+	if (strcmp(u, "swapoff") == 0)
+		return 1;
+	else
+		return 0;
 }

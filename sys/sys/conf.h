@@ -274,6 +274,7 @@ struct swdevt {
 };
 #define	SW_FREED	0x01
 #define	SW_SEQUENTIAL	0x02
+#define SW_CLOSING	0x04
 #define	sw_freed	sw_flags	/* XXX compat */
 
 #ifdef _KERNEL

@@ -104,6 +104,12 @@ extern void pagedaemon_wakeup(void);
 extern void vm_wait(void);
 extern void vm_waitpfault(void);
 
+/* XXX This is probably misplaced. */
+#ifndef NO_SWAPPING
+void vm_proc_swapin_all(int);
+int swap_pager_isswapped(vm_object_t, int);
+#endif	/* !NO_SWAPPING */
+
 #ifdef _KERNEL
 void vm_pageout_page(vm_page_t, vm_object_t);
 void vm_pageout_cluster(vm_page_t, vm_object_t);
