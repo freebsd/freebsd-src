@@ -684,7 +684,6 @@ do_dup(td, type, old, new, retval)
 	fdp->fd_ofileflags[new] = fdp->fd_ofileflags[old] &~ UF_EXCLOSE;
 	if (new > fdp->fd_lastfile)
 		fdp->fd_lastfile = new;
-	FILEDESC_UNLOCK(fdp);
 	*retval = new;
 
 	/*
@@ -695,7 +694,8 @@ do_dup(td, type, old, new, retval)
 	 * XXX this duplicates parts of close().
 	 */
 	if (delfp != NULL) {
-		/* XXX need to call knote_fdclose() */
+		knote_fdclose(td, new);
+		FILEDESC_UNLOCK(fdp);
 		mtx_lock(&Giant);
 		(void) closef(delfp, td);
 		mtx_unlock(&Giant);
@@ -709,6 +709,8 @@ do_dup(td, type, old, new, retval)
 			}
 			FILEDESC_UNLOCK(fdp);
 		}
+	} else {
+		FILEDESC_UNLOCK(fdp);
 	}
 	return (0);
 }
