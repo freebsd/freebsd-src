@@ -58,7 +58,7 @@ struct ad_softc {
     struct ata_softc		*controller;	/* ptr to parent ctrl */
     int				unit;		/* ATA_MASTER or ATA_SLAVE */
     int				lun;		/* logical unit number */
-    u_int32_t			total_secs;	/* total # of sectors (LBA) */
+    u_int64_t			total_secs;	/* total # of sectors (LBA) */
     u_int8_t			heads;
     u_int8_t			sectors;
     u_int32_t			transfersize;	/* size of each transfer */
@@ -66,7 +66,7 @@ struct ad_softc {
     int				flags;		/* drive flags */
 #define		AD_F_LABELLING		0x0001		
 #define		AD_F_DETACHING		0x0002
-#define		AD_F_LBA_ENABLED	0x0004
+#define		AD_F_CHS_USED		0x0004
 #define		AD_F_32B_ENABLED	0x0008
 #define		AD_F_TAG_ENABLED	0x0010
 #define		AD_F_RAID_SUBDISK	0x0020

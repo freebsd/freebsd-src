@@ -76,7 +76,6 @@ static void ata_boot_attach(void);
 static void ata_intr(void *);
 static int ata_getparam(struct ata_softc *, int, u_int8_t);
 static int ata_service(struct ata_softc *);
-static char *active2str(int);
 static void bswap(int8_t *, int);
 static void btrim(int8_t *, int);
 static void bpack(int8_t *, int8_t *, int);
@@ -459,7 +458,7 @@ ata_getparam(struct ata_softc *scp, int device, u_int8_t command)
 
     /* apparently some devices needs this repeated */
     do {
-	if (ata_command(scp, device, command, 0, 0, 0, 0, 0, ATA_WAIT_INTR)) {
+	if (ata_command(scp, device, command, 0, 0, 0, ATA_WAIT_INTR)) {
 	    ata_printf(scp, device, "%s identify failed\n",
 		       command == ATA_C_ATAPI_IDENTIFY ? "ATAPI" : "ATA");
 	    return -1;
@@ -619,8 +618,9 @@ ata_intr(void *data)
 	static int intr_count = 0;
 
 	if (intr_count++ < 10)
-	    ata_printf(scp, -1, "unwanted interrupt %d %sstatus = %02x\n", 
-		       intr_count, active2str(scp->active), scp->status);
+	    ata_printf(scp, -1,
+		       "unwanted interrupt #%d active=0x%x status=0x%02x\n", 
+		       intr_count, scp->active, scp->status);
     }
 #endif
     }
@@ -960,45 +960,21 @@ ata_wait(struct ata_softc *scp, int device, u_int8_t mask)
 
 int
 ata_command(struct ata_softc *scp, int device, u_int8_t command,
-	   u_int16_t cylinder, u_int8_t head, u_int8_t sector, 
-	   u_int8_t count, u_int8_t feature, int flags)
+	   u_int64_t lba, u_int16_t count, u_int8_t feature, int flags)
 {
     int error = 0;
 #ifdef ATA_DEBUG
-    ata_printf(scp, device, "ata_command: addr=%04x, cmd=%02x, "
-	       "c=%d, h=%d, s=%d, count=%d, feature=%d, flags=%02x\n",
-	       rman_get_start(scp->r_io), command, cylinder, head, sector,
-	       count, feature, flags);
-
-    /* sanity checks */
-    switch(scp->active) {
-    case ATA_IDLE:
-	break;
-
-    case ATA_CONTROL:
-	if (flags == ATA_WAIT_INTR || flags == ATA_WAIT_READY)
-	    break;
-	goto out;
-
-    case ATA_ACTIVE_ATA:
-    case ATA_ACTIVE_ATAPI:
-	if (flags == ATA_IMMEDIATE)
-	    break;
-
-    default:
-out:
-	printf("ata_command called %s flags=%s cmd=%02x\n",
-	       active2str(scp->active), active2str(flags), command);
-	break;
-    }
+    ata_printf(scp, device, "ata_command: addr=%04lx, cmd=%02x, "
+	       "lba=%lld, count=%d, feature=%d, flags=%02x\n",
+	       rman_get_start(scp->r_io), command, lba, count, feature, flags);
 #endif
+
+    /* select device */
+    ATA_OUTB(scp->r_io, ATA_DRIVE, ATA_D_IBM | device);
 
     /* disable interrupt from device */
     if (scp->flags & ATA_QUEUED)
 	ATA_OUTB(scp->r_altio, ATA_ALTSTAT, ATA_A_IDS | ATA_A_4BIT);
-
-    /* select device */
-    ATA_OUTB(scp->r_io, ATA_DRIVE, ATA_D_IBM | device);
 
     /* ready to issue command ? */
     if (ata_wait(scp, device, 0) < 0) { 
@@ -1008,14 +984,69 @@ out:
 	return -1;
     }
 
-    ATA_OUTB(scp->r_io, ATA_FEATURE, feature);
-    ATA_OUTB(scp->r_io, ATA_COUNT, count);
-    ATA_OUTB(scp->r_io, ATA_SECTOR, sector);
-    ATA_OUTB(scp->r_io, ATA_CYL_MSB, cylinder >> 8);
-    ATA_OUTB(scp->r_io, ATA_CYL_LSB, cylinder);
-    ATA_OUTB(scp->r_io, ATA_DRIVE, ATA_D_IBM | device | head);
+    /* only use 48bit addressing if needed because of the overhead */
+    if ((lba > 268435455 || count > 256) &&
+	scp->dev_param[ATA_DEV(device)]->support.address48) {
+	ATA_OUTB(scp->r_io, ATA_FEATURE, (feature>>8) & 0xff);
+	ATA_OUTB(scp->r_io, ATA_FEATURE, feature);
+	ATA_OUTB(scp->r_io, ATA_COUNT, (count>>8) & 0xff);
+	ATA_OUTB(scp->r_io, ATA_COUNT, count & 0xff);
+	ATA_OUTB(scp->r_io, ATA_SECTOR, (lba>>24) & 0xff);
+	ATA_OUTB(scp->r_io, ATA_SECTOR, lba & 0xff);
+	ATA_OUTB(scp->r_io, ATA_CYL_LSB, (lba<<32) & 0xff);
+	ATA_OUTB(scp->r_io, ATA_CYL_LSB, (lba>>8) & 0xff);
+	ATA_OUTB(scp->r_io, ATA_CYL_MSB, (lba>>40) & 0xff);
+	ATA_OUTB(scp->r_io, ATA_CYL_MSB, (lba>>16) & 0xff);
+	ATA_OUTB(scp->r_io, ATA_DRIVE, ATA_D_LBA | device);
 
-    switch (flags) {
+	/* translate command into 48bit version */
+	switch (command) {
+	case ATA_C_READ:
+	    command = ATA_C_READ48; break;
+	case ATA_C_READ_MUL:
+	    command = ATA_C_READ_MUL48; break;
+	case ATA_C_READ_DMA:
+	    command = ATA_C_READ_DMA48; break;
+	case ATA_C_READ_DMA_QUEUED:
+	    command = ATA_C_READ_DMA_QUEUED48; break;
+	case ATA_C_WRITE:
+	    command = ATA_C_WRITE48; break;
+	case ATA_C_WRITE_MUL:
+	    command = ATA_C_WRITE_MUL48; break;
+	case ATA_C_WRITE_DMA:
+	    command = ATA_C_WRITE_DMA48; break;
+	case ATA_C_WRITE_DMA_QUEUED:
+	    command = ATA_C_WRITE_DMA_QUEUED48; break;
+	case ATA_C_FLUSHCACHE:
+	    command = ATA_C_FLUSHCACHE48; break;
+	default:
+	    ata_printf(scp, device, "can't translate cmd to 48bit version\n");
+	    return -1;
+	}
+    }
+    else {
+	ATA_OUTB(scp->r_io, ATA_FEATURE, feature);
+	ATA_OUTB(scp->r_io, ATA_COUNT, count);
+	ATA_OUTB(scp->r_io, ATA_SECTOR, lba & 0xff);
+	ATA_OUTB(scp->r_io, ATA_CYL_LSB, (lba>>8) & 0xff);
+	ATA_OUTB(scp->r_io, ATA_CYL_MSB, (lba>>16) & 0xff);
+	if (flags & ATA_USE_CHS)
+		ATA_OUTB(scp->r_io, ATA_DRIVE,
+			 ATA_D_IBM | device | ((lba>>24) & 0xf));
+	else
+		ATA_OUTB(scp->r_io, ATA_DRIVE,
+			 ATA_D_IBM | ATA_D_LBA | device | ((lba>>24) & 0xf));
+    }
+
+    switch (flags & ATA_WAIT_MASK) {
+    case ATA_IMMEDIATE:
+	ATA_OUTB(scp->r_io, ATA_CMD, command);
+
+	/* enable interrupt */
+	if (scp->flags & ATA_QUEUED)
+	    ATA_OUTB(scp->r_altio, ATA_ALTSTAT, ATA_A_4BIT);
+	break;
+
     case ATA_WAIT_INTR:
 	scp->active |= ATA_WAIT_INTR;
 	ATA_OUTB(scp->r_io, ATA_CMD, command);
@@ -1042,18 +1073,7 @@ out:
 	}
 	scp->active &= ~ATA_WAIT_READY;
 	break;
-
-    case ATA_IMMEDIATE:
-	ATA_OUTB(scp->r_io, ATA_CMD, command);
-	break;
-
-    default:
-	ata_printf(scp, device, "DANGER: illegal interrupt flag=%s\n",
-		   active2str(flags));
     }
-    /* enable interrupt */
-    if (scp->flags & ATA_QUEUED)
-	ATA_OUTB(scp->r_altio, ATA_ALTSTAT, ATA_A_4BIT);
     return error;
 }
 
@@ -1129,21 +1149,9 @@ ata_mode2str(int mode)
     case ATA_UDMA2: return "UDMA33";
     case ATA_UDMA4: return "UDMA66";
     case ATA_UDMA5: return "UDMA100";
+    case ATA_UDMA6: return "UDMA133";
     case ATA_DMA: return "BIOSDMA";
     default: return "???";
-    }
-}
-
-int
-ata_pio2mode(int pio)
-{
-    switch (pio) {
-    default:
-    case 0: return ATA_PIO0;
-    case 1: return ATA_PIO1;
-    case 2: return ATA_PIO2;
-    case 3: return ATA_PIO3;
-    case 4: return ATA_PIO4;
     }
 }
 
@@ -1156,11 +1164,11 @@ ata_pmode(struct ata_params *ap)
 	if (ap->apiomodes & 1) 
 	    return 3;
     }	
-    if (ap->opiomode == 2)
+    if (ap->retired_piomode == 2)
 	return 2;
-    if (ap->opiomode == 1)
+    if (ap->retired_piomode == 1)
 	return 1;
-    if (ap->opiomode == 0)
+    if (ap->retired_piomode == 0)
 	return 0;
     return -1; 
 } 
@@ -1168,11 +1176,11 @@ ata_pmode(struct ata_params *ap)
 int
 ata_wmode(struct ata_params *ap)
 {
-    if (ap->wdmamodes & 4)
+    if (ap->mwdmamodes & 0x04)
 	return 2;
-    if (ap->wdmamodes & 2)
+    if (ap->mwdmamodes & 0x02)
 	return 1;
-    if (ap->wdmamodes & 1)
+    if (ap->mwdmamodes & 0x01)
 	return 0;
     return -1;
 }
@@ -1181,6 +1189,8 @@ int
 ata_umode(struct ata_params *ap)
 {
     if (ap->atavalid & ATA_FLAG_88) {
+	if (ap->udmamodes & 0x40)
+	    return 6;
 	if (ap->udmamodes & 0x20)
 	    return 5;
 	if (ap->udmamodes & 0x10)
@@ -1195,31 +1205,6 @@ ata_umode(struct ata_params *ap)
 	    return 0;
     }
     return -1;
-}
-
-static char *
-active2str(int active)
-{
-    static char buf[64];
-
-    bzero(buf, sizeof(buf));
-    if (active & ATA_IDLE)
-	strcat(buf, "ATA_IDLE ");
-    if (active & ATA_IMMEDIATE)
-	strcat(buf, "ATA_IMMEDIATE ");
-    if (active & ATA_WAIT_INTR)
-	strcat(buf, "ATA_WAIT_INTR ");
-    if (active & ATA_WAIT_READY)
-	strcat(buf, "ATA_WAIT_READY ");
-    if (active & ATA_ACTIVE)
-	strcat(buf, "ATA_ACTIVE ");
-    if (active & ATA_ACTIVE_ATA)
-	strcat(buf, "ATA_ACTIVE_ATA ");
-    if (active & ATA_ACTIVE_ATAPI)
-	strcat(buf, "ATA_ACTIVE_ATAPI ");
-    if (active & ATA_CONTROL)
-	strcat(buf, "ATA_CONTROL ");
-    return buf;
 }
 
 static void
