@@ -112,27 +112,6 @@ forks and the child explicitly unlocks the file, the parent will
 lose its lock.
 .Pp
 Processes blocked awaiting a lock may be awakened by signals.
-.Sh IMPLEMENTATION NOTES
-In the non-threaded library
-.Fn flock
-is implemented as the
-.Va flock
-syscall.
-.Pp
-In the threaded library, the
-.Va flock
-syscall is assembled to
-.Fn _thread_sys_flock
-and
-.Fn flock
-is implemented as a function which locks
-.Fa fd
-for read and write, then calls
-.Fn _thread_sys_flock .
-Before returning,
-.Fn flock
-unlocks
-.Fa fd .
 .Sh RETURN VALUES
 .Rv -std flock
 .Sh ERRORS

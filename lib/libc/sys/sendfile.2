@@ -104,33 +104,6 @@ The
 implementation of
 .Fn sendfile
 is "zero-copy", meaning that it has been optimized so that copying of the file data is avoided.
-.Pp
-In the non-threaded library
-.Fn sendfile
-is implemented as the
-.Va sendfile
-syscall.
-.Pp
-In the threaded library, the
-.Va sendfile
-syscall is assembled to
-.Fn _thread_sys_sendfile
-and
-.Fn sendfile
-is implemented as a function which locks
-.Fa fd
-for reading and
-.Fa s
-for writing, then calls
-.Fn _thread_sys_sendfile .
-If the call to
-.Fn _thread_sys_sendfile
-would block, a context switch is performed.  Before returning,
-.Fn sendfile
-unlocks
-.Fa fd
-and
-.Fa s .
 .Sh RETURN VALUES
 .Rv -std sendfile
 .Sh ERRORS
