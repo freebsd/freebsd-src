@@ -39,7 +39,7 @@ LATIN1LINKS=	af_ZA da_DK en_AU en_CA en_GB en_NZ en_US fi_FI \
 		fr_BE fr_CA fr_CH fr_FR it_CH it_IT nl_BE nl_NL no_NO \
 		pt_PT
 
-LATIN2LINKS=	hr_HR hu_HU pl_PL sl_SI
+LATIN2LINKS=	hr_HR hu_HU pl_PL ro_RO sl_SI
 
 .SUFFIXES: .src .out
 
