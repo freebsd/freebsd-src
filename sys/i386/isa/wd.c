@@ -37,7 +37,7 @@ static int wdtest = 0;
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.43 1994/08/23 07:52:26 paul Exp $
+ *	$Id: wd.c,v 1.44 1994/08/29 21:35:16 ache Exp $
  */
 
 /* TODO:
@@ -98,7 +98,7 @@ static int wdtest = 0;
 #define wdunit(dev)	((minor(dev) & 0x38) >> 3)
 #define wdpart(dev)	(minor(dev) & 0x7)
 #define makewddev(maj, unit, part)	(makedev(maj,((unit<<3)+part)))
-#define WDRAW   2               /* 'c' partition isn't a partition! */
+#define WDRAW   3       /* XXX must be 2 */
 
 /* Cylinder number for doing IO to.  Shares an entry in the buf struct. */
 #define b_cylin	b_resid
@@ -905,16 +905,16 @@ wdopen(dev_t dev, int flags, int fmt, struct proc *p)
 			offset = du->dk_dd.d_partitions[WDRAW].p_offset;
 			if (offset != 0) {
 				printf(
-		"wd%d: changing offset of 'd' partition from %lu to 0\n",
-				       du->dk_lunit, offset);
+		"wd%d: changing offset of '%c' partition from %lu to 0\n",
+				       du->dk_lunit, 'a' + WDRAW, offset);
 				du->dk_dd.d_partitions[WDRAW].p_offset = 0;
 			}
 			size = du->dk_dd.d_partitions[WDRAW].p_size;
 			newsize = du->dk_dd.d_secperunit;	/* XXX */
 			if (size != newsize) {
 				printf(
-		"wd%d: changing size of 'd' partition from %lu to %lu\n",
-				       du->dk_lunit, size, newsize);
+		"wd%d: changing size of '%c' partition from %lu to %lu\n",
+				       du->dk_lunit, 'a' + WDRAW, size, newsize);
 				du->dk_dd.d_partitions[WDRAW].p_size = newsize;
 			}
 
