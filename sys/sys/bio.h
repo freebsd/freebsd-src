@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)buf.h	8.9 (Berkeley) 3/30/95
- * $Id: buf.h,v 1.30 1996/04/07 22:12:25 phk Exp $
+ * $Id: buf.h,v 1.31 1996/05/01 02:15:29 bde Exp $
  */
 
 #ifndef _SYS_BUF_H_
@@ -67,7 +67,6 @@ struct buf {
 	LIST_ENTRY(buf) b_hash;		/* Hash chain. */
 	LIST_ENTRY(buf) b_vnbufs;	/* Buffer's associated vnode. */
 	TAILQ_ENTRY(buf) b_freelist;	/* Free list position if not active. */
-	struct	buf *b_actf;		/* Device driver queue when active. *deprecated* XXX */
 	TAILQ_ENTRY(buf) b_act;		/* Device driver queue when active. *new* */
 	struct  proc *b_proc;		/* Associated proc; NULL if kernel. */
 	long	b_flags;	/* B_* flags. */
@@ -104,7 +103,7 @@ struct buf {
 		TAILQ_HEAD(cluster_list_head, buf) cluster_head;
 		TAILQ_ENTRY(buf) cluster_entry;
 	} b_cluster;
-	struct	vm_page *b_pages[(MAXPHYS + PAGE_SIZE - 1)/PAGE_SIZE];
+	struct	vm_page *b_pages[btoc(MAXPHYS)];
 	int		b_npages;
 };
 
