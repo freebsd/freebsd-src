@@ -212,7 +212,10 @@ struct ipfw_dyn_rule {
 #define IP_FW_F_KEEP_S	0x08000000	/* keep state	 			*/
 #define IP_FW_F_CHECK_S	0x10000000	/* check state	 			*/
 
-#define IP_FW_F_MASK	0x1FFFFFFF	/* All possible flag bits mask		*/
+#define IP_FW_F_SME	0x20000000	/* source = me				*/
+#define IP_FW_F_DME	0x40000000	/* destination = me			*/
+
+#define IP_FW_F_MASK	0x7FFFFFFF	/* All possible flag bits mask		*/
 
 /* 
  * Flags for the 'fw_ipflg' field, for comparing values of ip and its protocols.
