@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vars.c,v 1.45.2.22 1998/04/03 19:24:48 brian Exp $
+ * $Id: vars.c,v 1.45.2.23 1998/04/03 19:26:02 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -48,7 +48,7 @@
 #include "prompt.h"
 
 char VarVersion[] = "PPP Version 2.0-beta";
-char VarLocalVersion[] = "$Date: 1998/04/03 19:24:48 $";
+char VarLocalVersion[] = "$Date: 1998/04/03 19:26:02 $";
 
 /*
  * Order of conf option is important. See vars.h.
@@ -63,13 +63,14 @@ struct confdesc pppConfs[NCONFS] = {
   {"pred1", CONF_ENABLE, CONF_ACCEPT},
   {"protocomp", CONF_ENABLE, CONF_ACCEPT},
   {"vjcomp", CONF_ENABLE, CONF_ACCEPT},
+
+  {"idcheck", CONF_ENABLE, CONF_NONE},
+  {"loopback", CONF_ENABLE, CONF_NONE},
   {"msext", CONF_DISABLE, CONF_NONE},
   {"passwdauth", CONF_DISABLE, CONF_NONE},
   {"proxy", CONF_DISABLE, CONF_NONE},
   {"throughput", CONF_DISABLE, CONF_NONE},
-  {"utmp", CONF_ENABLE, CONF_NONE},
-  {"idcheck", CONF_ENABLE, CONF_NONE},
-  {"loopback", CONF_ENABLE, CONF_NONE}
+  {"utmp", CONF_ENABLE, CONF_NONE}
 };
 
 struct pppvars pppVars;

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.1.2.30 1998/04/03 19:23:56 brian Exp $
+ *	$Id: datalink.c,v 1.1.2.31 1998/04/03 19:25:27 brian Exp $
  */
 
 #include <sys/param.h>
@@ -648,6 +648,10 @@ void
 datalink_Show(struct datalink *dl, struct prompt *prompt)
 {
   prompt_Printf(prompt, "Link %s: State %s\n", dl->name, datalink_State(dl));
+#ifdef HAVE_DES
+  prompt_Printf(arg->prompt, "  Encryption = %s\n",
+                dl->chap.using_MSChap ? "MSChap" : "MD5" );
+#endif
 }
 
 static char *states[] = {

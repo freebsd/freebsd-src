@@ -18,7 +18,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: pap.c,v 1.20.2.20 1998/04/03 19:21:47 brian Exp $
+ * $Id: pap.c,v 1.20.2.21 1998/04/03 19:24:46 brian Exp $
  *
  *	TODO:
  */
@@ -145,7 +145,6 @@ PapValidate(struct bundle *bundle, u_char *name, u_char *key,
 void
 PapInput(struct bundle *bundle, struct mbuf *bp, struct physical *physical)
 {
-  struct datalink *dl = bundle2datalink(bundle, physical->link.name);
   int len = plength(bp);
   struct fsmheader *php;
   u_char *cp;
@@ -162,45 +161,45 @@ PapInput(struct bundle *bundle, struct mbuf *bp, struct physical *physical)
 	cp = (u_char *) (php + 1);
 	if (PapValidate(bundle, cp, cp + *cp + 1, physical)) {
 	  SendPapCode(php->id, PAP_ACK, "Greetings!!", physical);
-	  dl->physical->link.lcp.auth_ineed = 0;
+	  physical->link.lcp.auth_ineed = 0;
           Physical_Login(physical, cp + 1);
 
-          if (dl->physical->link.lcp.auth_iwait == 0)
+          if (physical->link.lcp.auth_iwait == 0)
             /*
              * Either I didn't need to authenticate, or I've already been
              * told that I got the answer right.
              */
-            datalink_AuthOk(dl);
+            datalink_AuthOk(physical->dl);
 
 	} else {
 	  SendPapCode(php->id, PAP_NAK, "Login incorrect", physical);
-          datalink_AuthNotOk(dl);
+          datalink_AuthNotOk(physical->dl);
 	}
 	break;
       case PAP_ACK:
-	StopAuthTimer(&dl->pap);
+	StopAuthTimer(&physical->dl->pap);
 	cp = (u_char *) (php + 1);
 	len = *cp++;
 	cp[len] = 0;
 	LogPrintf(LogPHASE, "Received PAP_ACK (%s)\n", cp);
-	if (dl->physical->link.lcp.auth_iwait == PROTO_PAP) {
-	  dl->physical->link.lcp.auth_iwait = 0;
-	  if (dl->physical->link.lcp.auth_ineed == 0)
+	if (physical->link.lcp.auth_iwait == PROTO_PAP) {
+	  physical->link.lcp.auth_iwait = 0;
+	  if (physical->link.lcp.auth_ineed == 0)
             /*
              * We've succeeded in our ``login''
              * If we're not expecting  the peer to authenticate (or he already
              * has), proceed to network phase.
              */
-            datalink_AuthOk(dl);
+            datalink_AuthOk(physical->dl);
 	}
 	break;
       case PAP_NAK:
-	StopAuthTimer(&dl->pap);
+	StopAuthTimer(&physical->dl->pap);
 	cp = (u_char *) (php + 1);
 	len = *cp++;
 	cp[len] = 0;
 	LogPrintf(LogPHASE, "Received PAP_NAK (%s)\n", cp);
-        datalink_AuthNotOk(dl);
+        datalink_AuthNotOk(physical->dl);
 	break;
       }
     }

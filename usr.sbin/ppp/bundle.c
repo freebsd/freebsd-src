@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.35 1998/04/03 19:24:56 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.36 1998/04/03 19:25:23 brian Exp $
  */
 
 #include <sys/param.h>
@@ -830,31 +830,6 @@ bundle2datalink(struct bundle *bundle, const char *name)
   return NULL;
 }
 
-struct physical *
-bundle2physical(struct bundle *bundle, const char *name)
-{
-  struct datalink *dl = bundle2datalink(bundle, name);
-  return dl ? dl->physical : NULL;
-}
-
-struct authinfo *
-bundle2pap(struct bundle *bundle, const char *name)
-{
-  struct datalink *dl = bundle2datalink(bundle, name);
-  if (dl)
-    return &dl->pap;
-  return NULL;
-}
-
-struct chap *
-bundle2chap(struct bundle *bundle, const char *name)
-{
-  struct datalink *dl = bundle2datalink(bundle, name);
-  if (dl)
-    return &dl->chap;
-  return NULL;
-}
-
 int
 bundle_FillQueues(struct bundle *bundle)
 {
@@ -863,12 +838,9 @@ bundle_FillQueues(struct bundle *bundle)
   if (bundle->ncp.mp.active) {
     total = mp_FillQueues(bundle);
   } else {
-    struct datalink *dl;
-
-    dl = bundle2datalink(bundle, NULL);
-    total = link_QueueLen(&dl->physical->link);
-    if (total == 0 && dl->physical->out == NULL)
-      total = IpFlushPacket(&dl->physical->link, bundle);
+    total = link_QueueLen(&bundle->links->physical->link);
+    if (total == 0 && bundle->links->physical->out == NULL)
+      total = IpFlushPacket(&bundle->links->physical->link, bundle);
   }
 
   return total + ip_QueueLen();

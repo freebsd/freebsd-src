@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vars.h,v 1.42.2.19 1998/04/03 19:24:49 brian Exp $
+ * $Id: vars.h,v 1.42.2.20 1998/04/03 19:26:02 brian Exp $
  *
  *	TODO:
  */
@@ -42,13 +42,13 @@ struct confdesc {
 #define	ConfProtocomp	7
 #define	ConfVjcomp	8
 
-#define ConfMSExt	9
-#define ConfPasswdAuth	10
-#define	ConfProxy	11
-#define ConfThroughput	12
-#define ConfUtmp	13
-#define ConfIdCheck	14
-#define ConfLoopback	15
+#define ConfIdCheck	9
+#define ConfLoopback	10
+#define ConfMSExt	11
+#define ConfPasswdAuth	12
+#define	ConfProxy	13
+#define ConfThroughput	14
+#define ConfUtmp	15
 #define	NCONFS		16
 
 #define	Enabled(x)	(pppConfs[x].myside & CONF_ENABLE)
@@ -58,11 +58,8 @@ extern struct confdesc pppConfs[NCONFS];
 
 struct pppvars {
   /* The rest are just default initialized in vars.c */
-  int use_MSChap;		/* Use MSCHAP encryption */
   struct aliasHandlers handler;	/* Alias function pointers */
 };
-
-#define	VarMSChap		pppVars.use_MSChap
 
 #define VarAliasHandlers	   pppVars.handler
 #define VarPacketAliasGetFragment  (*pppVars.handler.PacketAliasGetFragment)

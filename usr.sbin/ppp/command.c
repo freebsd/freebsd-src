@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.49 1998/04/03 19:24:58 brian Exp $
+ * $Id: command.c,v 1.131.2.50 1998/04/03 19:25:25 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -443,9 +443,6 @@ ShowAuthKey(struct cmdargs const *arg)
 {
   prompt_Printf(arg->prompt, "AuthName = %s\n", arg->bundle->cfg.auth.name);
   prompt_Printf(arg->prompt, "AuthKey  = %s\n", HIDDEN);
-#ifdef HAVE_DES
-  prompt_Printf(arg->prompt, "Encrypt  = %s\n", VarMSChap ? "MSChap" : "MD5" );
-#endif
   return 0;
 }
 
@@ -1078,6 +1075,11 @@ SetMSEXT(struct ipcp *ipcp, struct in_addr * pri_addr,
   int dummyint;
   struct in_addr dummyaddr;
 
+  if (!(mode & MODE_DIRECT)) {
+    LogPrintf(LogWARN, "set nbns|ns: Only available in direct mode\n");
+    return;
+  }
+
   pri_addr->s_addr = sec_addr->s_addr = 0L;
 
   if (argc > 0) {
@@ -1254,19 +1256,6 @@ SetVariable(struct cmdargs const *arg)
       cx->cfg.script.hangup[sizeof cx->cfg.script.hangup - 1] = '\0';
     }
     break;
-  case VAR_ENC:
-#ifdef HAVE_DES
-    if (!strcasecmp(argp, "mschap"))
-      VarMSChap = 1;
-    else
-#endif
-      if (!strcasecmp(argp, "md5"))
-        VarMSChap = 0;
-      else {
-        err = "%s: Invalid CHAP encryption method\n";
-        LogPrintf(LogWARN, err, argp);
-      }
-    break;
   case VAR_IDLETIMEOUT:
     if (arg->argc > 1)
       err = "Too many idle timeout values\n";
@@ -1331,16 +1320,11 @@ SetVariable(struct cmdargs const *arg)
 static int 
 SetCtsRts(struct cmdargs const *arg)
 {
-  if (arg->argc > 0) {
-	if (arg->argc > 1) {
-	  LogPrintf(LogWARN, "SetCtsRts: Too many arguments\n");
-	  return -1;
-	}
-
+  if (arg->argc == 1) {
     if (strcmp(*arg->argv, "on") == 0)
-      Physical_SetRtsCts(bundle2physical(arg->bundle, NULL), 1);
+      Physical_SetRtsCts(arg->cx->physical, 1);
     else if (strcmp(*arg->argv, "off") == 0)
-      Physical_SetRtsCts(bundle2physical(arg->bundle, NULL), 0);
+      Physical_SetRtsCts(arg->cx->physical, 0);
     else
       return -1;
     return 0;
@@ -1369,8 +1353,9 @@ static struct cmdtab const SetCommands[] = {
   (const void *) VAR_DEVICE},
   {"dial", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX,
   "Set dialing script", "set dial chat-script", (const void *) VAR_DIAL},
-  {"encrypt", NULL, SetVariable, LOCAL_AUTH, "Select CHAP encryption type",
-  "set encrypt MSChap|MD5", (const void *) VAR_ENC},
+  {"encrypt", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX,
+  "Select CHAP encryption type", "set encrypt MSChap|MD5",
+  (const void *)VAR_ENC},
   {"escape", NULL, SetEscape, LOCAL_AUTH | LOCAL_CX,
   "Set escape characters", "set escape hex-digit ..."},
   {"filter", NULL, SetFilter, LOCAL_AUTH,
@@ -1420,7 +1405,7 @@ static struct cmdtab const SetCommands[] = {
   {"timeout", NULL, SetVariable, LOCAL_AUTH, "Set Idle timeout",
   "set timeout idletime", (const void *)VAR_IDLETIMEOUT},
   {"vj", NULL, SetInitVJ, LOCAL_AUTH,
-  "Set vj values", "set vj slots|slotcomp"},
+  "Set vj values", "set vj slots|slotcomp [value]"},
   {"weight", NULL, mp_SetDatalinkWeight, LOCAL_AUTH | LOCAL_CX,
   "Set datalink weighting", "set weight n"},
   {"help", "?", HelpCommand, LOCAL_AUTH | LOCAL_NO_AUTH,
@@ -1653,7 +1638,7 @@ ChooseLink(struct cmdargs const *arg)
   else if (arg->bundle->ncp.mp.active)
     return &arg->bundle->ncp.mp.link;
   else {
-    struct physical *p = bundle2physical(arg->bundle, NULL);
-    return p ? &p->link : NULL;
+    struct datalink *dl = bundle2datalink(arg->bundle, NULL);
+    return dl ? &dl->physical->link : NULL;
   }
 }

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: prompt.c,v 1.1.2.17 1998/04/03 19:21:50 brian Exp $
+ *	$Id: prompt.c,v 1.1.2.18 1998/04/03 19:25:50 brian Exp $
  */
 
 #include <sys/param.h>
@@ -31,6 +31,7 @@
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 
+#include <errno.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -226,8 +227,10 @@ prompt_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
       if (ch == '~')
 	ttystate++;
       else
-	/* XXX missing return value check */
-	Physical_Write(bundle2physical(bundle, NULL), &ch, n);
+	if (Physical_Write(p->TermMode->physical, &ch, n) < 0) {
+	  LogPrintf(LogERROR, "error writing to modem: %s\n", strerror(errno));
+          prompt_TtyCommandMode(p);
+        }
       break;
     case 1:
       switch (ch) {
@@ -251,8 +254,10 @@ prompt_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
 	ShowMemMap(NULL);
 	break;
       default:
-	if (Physical_Write(bundle2physical(bundle, NULL), &ch, n) < 0)
-	  LogPrintf(LogERROR, "error writing to modem.\n");
+	if (Physical_Write(p->TermMode->physical, &ch, n) < 0) {
+	  LogPrintf(LogERROR, "error writing to modem: %s\n", strerror(errno));
+          prompt_TtyCommandMode(p);
+        }
 	break;
       }
       ttystate = 0;

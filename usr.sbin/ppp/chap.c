@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: chap.c,v 1.28.2.19 1998/04/03 19:21:10 brian Exp $
+ * $Id: chap.c,v 1.28.2.20 1998/04/03 19:24:42 brian Exp $
  *
  *	TODO:
  */
@@ -121,7 +121,6 @@ static void
 RecvChapTalk(struct bundle *bundle, struct fsmheader *chp, struct mbuf *bp,
              struct physical *physical)
 {
-  struct datalink *dl = bundle2datalink(bundle, physical->link.name);
   int valsize, len;
   int arglen, keylen, namelen;
   char *cp, *argp, *ap, *name, *digest;
@@ -152,7 +151,7 @@ RecvChapTalk(struct bundle *bundle, struct fsmheader *chp, struct mbuf *bp,
     namelen = strlen(bundle->cfg.auth.name);
 
 #ifdef HAVE_DES
-    if (VarMSChap)
+    if (physical->dl->chap.using_MSChap)
       argp = malloc(1 + namelen + MS_CHAP_RESPONSE_LEN);
     else
 #endif
@@ -163,7 +162,7 @@ RecvChapTalk(struct bundle *bundle, struct fsmheader *chp, struct mbuf *bp,
       return;
     }
 #ifdef HAVE_DES
-    if (VarMSChap) {
+    if (physical->dl->chap.using_MSChap) {
       digest = argp;     /* this is the response */
       *digest++ = MS_CHAP_RESPONSE_LEN;   /* 49 */
       memset(digest, '\0', 24);
@@ -230,8 +229,8 @@ RecvChapTalk(struct bundle *bundle, struct fsmheader *chp, struct mbuf *bp,
       ap += keylen;
       MD5Init(&MD5context);
       MD5Update(&MD5context, answer, ap - answer);
-      MD5Update(&MD5context, dl->chap.challenge_data + 1,
-                dl->chap.challenge_len);
+      MD5Update(&MD5context, physical->dl->chap.challenge_data + 1,
+                physical->dl->chap.challenge_len);
       MD5Final(cdigest, &MD5context);
       LogDumpBuff(LogDEBUG, "got", cp, 16);
       LogDumpBuff(LogDEBUG, "expect", cdigest, 16);
@@ -243,12 +242,12 @@ RecvChapTalk(struct bundle *bundle, struct fsmheader *chp, struct mbuf *bp,
 	ChapOutput(physical, CHAP_SUCCESS, chp->id, "Welcome!!", 10);
         Physical_Login(physical, name);
 
-        if (dl->physical->link.lcp.auth_iwait == 0)
+        if (physical->link.lcp.auth_iwait == 0)
           /*
            * Either I didn't need to authenticate, or I've already been
            * told that I got the answer right.
            */
-          datalink_AuthOk(dl);
+          datalink_AuthOk(physical->dl);
 
 	break;
       }
@@ -258,7 +257,7 @@ RecvChapTalk(struct bundle *bundle, struct fsmheader *chp, struct mbuf *bp,
      * Peer is not registerd, or response digest is wrong.
      */
     ChapOutput(physical, CHAP_FAILURE, chp->id, "Invalid!!", 9);
-    datalink_AuthNotOk(dl);
+    datalink_AuthNotOk(physical->dl);
     break;
   }
 }
@@ -267,26 +266,25 @@ static void
 RecvChapResult(struct bundle *bundle, struct fsmheader *chp, struct mbuf *bp,
 	       struct physical *physical)
 {
-  struct datalink *dl = bundle2datalink(bundle, physical->link.name);
   int len;
 
   len = ntohs(chp->length);
   LogPrintf(LogDEBUG, "RecvChapResult: length: %d\n", len);
   if (chp->code == CHAP_SUCCESS) {
-    if (dl->physical->link.lcp.auth_iwait == PROTO_CHAP) {
-      dl->physical->link.lcp.auth_iwait = 0;
-      if (dl->physical->link.lcp.auth_ineed == 0)
+    if (physical->link.lcp.auth_iwait == PROTO_CHAP) {
+      physical->link.lcp.auth_iwait = 0;
+      if (physical->link.lcp.auth_ineed == 0)
         /*
          * We've succeeded in our ``login''
          * If we're not expecting  the peer to authenticate (or he already
          * has), proceed to network phase.
          */
-        datalink_AuthOk(dl);
+        datalink_AuthOk(physical->dl);
     }
   } else {
     /* CHAP failed - it's not going to get any better */
     LogPrintf(LogPHASE, "Received CHAP_FAILURE\n");
-    datalink_AuthNotOk(dl);
+    datalink_AuthNotOk(physical->dl);
   }
 }
 
@@ -308,7 +306,7 @@ ChapInput(struct bundle *bundle, struct mbuf *bp, struct physical *physical)
 
       switch (chp->code) {
       case CHAP_RESPONSE:
-	StopAuthTimer(&bundle2datalink(bundle, physical->link.name)->chap.auth);
+	StopAuthTimer(&physical->dl->chap.auth);
 	/* Fall into.. */
       case CHAP_CHALLENGE:
 	RecvChapTalk(bundle, chp, bp, physical);

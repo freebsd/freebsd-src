@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.55.2.36 1998/04/03 19:25:35 brian Exp $
+ * $Id: lcp.c,v 1.55.2.37 1998/04/03 19:26:12 brian Exp $
  *
  * TODO:
  *	o Limit data field length by MRU
@@ -305,12 +305,7 @@ LcpSendConfigReq(struct fsm *fp)
 
   case PROTO_CHAP:
     *(u_short *)o->data = htons(PROTO_CHAP);
-#ifdef HAVE_DES
-    if (VarMSChap)
-      o->data[2] = 0x80;
-    else
-#endif
-      o->data[2] = 0x05;
+    o->data[2] = 0x05;
     INC_LCP_OPT(TY_AUTHPROTO, 5, o);
     break;
   }
@@ -486,12 +481,7 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
 	    *dec->nakend++ = 5;
 	    *dec->nakend++ = (unsigned char) (PROTO_CHAP >> 8);
 	    *dec->nakend++ = (unsigned char) PROTO_CHAP;
-#ifdef HAVE_DES
-            if (VarMSChap)
-              *dec->nakend++ = 0x80;
-            else
-#endif
-	      *dec->nakend++ = 5;
+	    *dec->nakend++ = 0x05;
 	  } else
 	    goto reqreject;
 	  break;
@@ -511,7 +501,7 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
 	    memcpy(dec->ackend, cp, length);
 	    dec->ackend += length;
 #ifdef HAVE_DES
-            VarMSChap = cp[4] == 0x80;
+            link2physical(fp->link)->dl->chap.using_MSChap = cp[4] == 0x80;
 #endif
 	  } else if (Acceptable(ConfPap)) {
 	    *dec->nakend++ = *cp;

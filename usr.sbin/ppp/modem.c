@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.77.2.42 1998/04/03 19:21:40 brian Exp $
+ * $Id: modem.c,v 1.77.2.43 1998/04/03 19:25:45 brian Exp $
  *
  *  TODO:
  */
@@ -997,7 +997,7 @@ modem_DescriptorRead(struct descriptor *d, struct bundle *bundle,
           Physical_Write(p, rbuff, cp - rbuff);
           Physical_Write(p, "\r\n", 2);
         }
-        datalink_Up(bundle2datalink(bundle, p->link.name), 0, 1);
+        datalink_Up(p->dl, 0, 1);
       } else
         bundle_WriteTermPrompt(p->dl->bundle, p->dl, rbuff, n);
     }
