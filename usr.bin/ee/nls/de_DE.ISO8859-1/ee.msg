@@ -3,7 +3,7 @@ $ ee.i18n.guide for more information
 $ 
 $ For ee patchlevel 3
 $ 
-$ $Header: /home/ncvs/src/usr.bin/ee/nls/de_DE.ISO_8859-1/ee.msg,v 1.2 1996/05/27 20:59:53 joerg Exp $
+$ $Header: /home/ncvs/src/usr.bin/ee/nls/de_DE.ISO_8859-1/ee.msg,v 1.3 1996/12/29 10:54:30 joerg Exp $
 $ 
 $set 1
 $quote "
@@ -88,7 +88,7 @@ $quote "
 79 "Aktuelle Datei ist \"%s\" "
 80 "Benutzung: %s [-i] [-e] [-h] [+zeilennummer] [dateien]\n"
 81 "       -i   Hilfefenster ausschalten\n"
-82 "       -e   Tabulatoren nicht in Leerzeichen wandeln\"
+82 "       -e   Tabulatoren nicht in Leerzeichen wandeln\n"
 83 "       -h   keine Hervorhebungen\n"
 84 "Datei \"%s\" ist ein Verzeichnis"
 85 "Neue Datei \"%s\""
