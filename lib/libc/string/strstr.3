@@ -37,7 +37,7 @@
 .\"     @(#)strstr.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd October 11, 2001
 .Dt STRSTR 3
 .Os
 .Sh NAME
@@ -65,7 +65,7 @@ in the null-terminated string
 The
 .Fn strcasestr
 function is similar to
-.Fn strstr
+.Fn strstr ,
 but ignores the case of both strings.
 .Pp
 The
@@ -75,9 +75,12 @@ locates the first occurrence of the null-terminated string
 .Fa little
 in the string
 .Fa big ,
-where only the first number of characters, identified by
-.Fa len ,
-are searched.
+where not more than
+.Fa len
+characters are searched.
+Characters that appear after a
+.Ql \e0
+character are not searched.
 Since the
 .Fn strnstr
 function is a
