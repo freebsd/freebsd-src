@@ -103,11 +103,20 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 	if (_thr_initial == NULL)
 		_libpthread_init(NULL);
 
-	crit = _kse_critical_enter();
+	/*
+	 * Turn on threaded mode, if failed, it is unnecessary to
+	 * do further work.
+	 */
+	if (_kse_isthreaded() == 0 && _kse_setthreaded(1)) {
+		return (EAGAIN);
+	}
 	curthread = _get_curthread();
-	curkse = curthread->kse;
 
-	/* Allocate memory for the thread structure: */
+	/*
+	 * Allocate memory for the thread structure.
+	 * Some functions use malloc, so don't put it
+	 * in a critical region.
+	 */
 	if ((new_thread = _thr_alloc(curthread)) == NULL) {
 		/* Insufficient memory to create a thread: */
 		ret = EAGAIN;
@@ -135,9 +144,13 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 			if (kse != NULL)
 				_kse_free(curthread, kse);
 			if ((new_thread->attr.flags & THR_STACK_USER) == 0) {
+				crit = _kse_critical_enter();
+				curkse = _get_curkse();
 				KSE_LOCK_ACQUIRE(curkse, &_thread_list_lock);
+				/* Stack routines don't use malloc/free. */
 				_thr_stack_free(&new_thread->attr);
 				KSE_LOCK_RELEASE(curkse, &_thread_list_lock);
+				_kse_critical_leave(crit);
 			}
 			_thr_free(curthread, new_thread);
 		}
@@ -169,8 +182,13 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 			/* Initialize the signal frame: */
 			new_thread->curframe = NULL;
 
-			/* Initialize the machine context: */
+			/*
+			 * Initialize the machine context.
+			 * Enter a critical region to get consistent context.
+			 */
+			crit = _kse_critical_enter();
 			THR_GETCONTEXT(&new_thread->tmbx.tm_context);
+			_kse_critical_leave(crit);
 			new_thread->tmbx.tm_udata = new_thread;
 			new_thread->tmbx.tm_context.uc_sigmask =
 			    new_thread->sigmask;
@@ -178,17 +196,20 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 			    new_thread->attr.stacksize_attr;
 			new_thread->tmbx.tm_context.uc_stack.ss_sp =
 			    new_thread->attr.stackaddr_attr;
-
 			makecontext(&new_thread->tmbx.tm_context,
 			    (void (*)(void))thread_start, 4, new_thread,
 			    start_routine, arg);
-
 			/*
 			 * Check if this thread is to inherit the scheduling
 			 * attributes from its parent:
 			 */
 			if ((new_thread->attr.flags & PTHREAD_INHERIT_SCHED) != 0) {
-				/* Copy the scheduling attributes: */
+				/*
+				 * Copy the scheduling attributes.
+				 * Lock the scheduling lock to get consistent
+				 * scheduling parameters.
+				 */
+				THR_SCHED_LOCK(curthread, curthread);
 				new_thread->base_priority =
 				    curthread->base_priority &
 				    ~THR_SIGNAL_PRIORITY;
@@ -197,6 +218,7 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 				    ~THR_SIGNAL_PRIORITY;
 				new_thread->attr.sched_policy =
 				    curthread->attr.sched_policy;
+				THR_SCHED_UNLOCK(curthread, curthread);
 			} else {
 				/*
 				 * Use just the thread priority, leaving the
@@ -212,7 +234,11 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 			/* Initialize the mutex queue: */
 			TAILQ_INIT(&new_thread->mutexq);
 
-			/* Initialize thread locking. */
+			/*
+			 * Initialize thread locking.
+			 * Lock initializing needs malloc, so don't
+			 * enter critical region before doing this!
+			 */
 			if (_lock_init(&new_thread->lock, LCK_ADAPTIVE,
 			    _thr_lock_wait, _thr_lock_wakeup) != 0)
 				PANIC("Cannot initialize thread lock");
@@ -245,23 +271,24 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 			}
 			else {
 				kse->k_curthread = NULL;
+#ifdef NOT_YET
 				kse->k_kseg->kg_flags |= KGF_SINGLE_THREAD;
+#endif
 				new_thread->kse = kse;
 				new_thread->kseg = kse->k_kseg;
 				kse->k_mbx.km_udata = kse;
 				kse->k_mbx.km_curthread = NULL;
 			}
-			KSE_LOCK_ACQUIRE(curthread->kse, &_thread_list_lock);
 
+			crit = _kse_critical_enter();
+			KSE_LOCK_ACQUIRE(curthread->kse, &_thread_list_lock);
 			/*
 			 * Initialise the unique id which GDB uses to
 			 * track threads.
 			 */
 			new_thread->uniqueid = next_uniqueid++;
-
 			/* Add the thread to the linked list of all threads: */
 			THR_LIST_ADD(new_thread);
-
 			KSE_LOCK_RELEASE(curthread->kse, &_thread_list_lock);
 
 			/*
@@ -269,15 +296,12 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 			 * pair if necessary.
 			 */
 			_thr_schedule_add(curthread, new_thread);
+			_kse_critical_leave(crit);
 
 			/* Return a pointer to the thread structure: */
 			(*thread) = new_thread;
 		}
 	}
-	_kse_critical_leave(crit);
-
-	if ((ret == 0) && (_kse_isthreaded() == 0))
-		_kse_setthreaded(1);
 
 	/* Return the status: */
 	return (ret);
