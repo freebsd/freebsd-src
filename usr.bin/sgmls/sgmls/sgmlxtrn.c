@@ -29,6 +29,7 @@ int contersw = 0;             /* 1=element or #CHARS out of context; 0=valid. */
 int datarc = 0;               /* Return code for data: DAF_ or REF_. */
 int delmscsw = 0;             /* 1=DELMSC must be read on return to es==0. */
 int didreq = 0;               /* 1=required implied tag processed; 0=no. */
+int docelsw = 0;	      /* 1=had document element; 0=no */
 int dostag = 0;               /* 1=retry newetd instead of parsing; 0=parse. */
 int dtdsw = 0;                /* DOCTYPE declaration found: 1=yes; 0=no. */
 int entdatsw = 0;             /* 2=CDATA entity; 4=SDATA; 8=NDATA; 0=none. */
@@ -49,6 +50,7 @@ int pss = 0;                  /* SGMLACT: scbsgml stack level. */
 int sgmlsw = 0;               /* SGML declaration found: 1=yes; 0=no. */
 int stagmin = MINNONE;        /* Minimization: NONE, NULL tag, implied by STAG*/
 int tagctr = 0;               /* Tag source chars read. */
+int tages = -1;		      /* ES level at start of tag. */
 int ts = -1;                  /* Index of current tag in stack. */
 struct parse *propcb = &pcbpro; /* Current PCB for prolog parse. */
 int aentctr = 0;              /* Number of ENTITY tokens in this att list. */
@@ -70,6 +72,7 @@ struct etd *docetd = 0;       /* The etd for the document as a whole. */
 struct etd *etagreal = 0;     /* Actual or dummy etd that implied this tag. */
 struct etd *newetd = 0;       /* The etd for a start- or end-tag recognized. */
 struct etd *nextetd = 0;      /* ETD that must come next (only one choice). */
+struct etd *lastetd = 0;      /* most recently ended ETD. */
 struct etd *stagreal = 0;     /* Actual or dummy etd that implied this tag. */
 struct parse *conpcb = 0;     /* Current PCB for content parse. */
 UNCH *data = 0;               /* Pointer to returned data in buffer. */
@@ -78,7 +81,6 @@ UNCH *ptcon = 0;              /* Current pointer into tbuf. */
 UNCH *ptpro = 0;              /* Current pointer into tbuf. */
 UNCH *rbufs = 0;              /* DOS file read area: start position for read. */
 UNCH *subdcl = 0;             /* Subject of markup declaration (e.g., GI). */
-int Tstart = 0;               /* Save starting token for AND group testing. */
 UNS conradn = 0;              /* 1=CONREF attribute in list (0=no). */
 UNS datalen = 0;              /* Length of returned data in buffer. */
 UNS entlen = 0;               /* Length of TAG or EXTERNAL entity text. */

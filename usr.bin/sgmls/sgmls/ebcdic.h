@@ -23,18 +23,3 @@
 
 /* See comment in latin1.h. */
 #define CANON_DATACHAR 254
-
-/* Components for a formal public identifier for the whole of the
-system character set.  Protect with ifndef so that it can be overriden
-in config.h. */
-
-/* Use a private escape sequence. */
-#ifndef SYSTEM_CHARSET_DESIGNATING_SEQUENCE
-#define SYSTEM_CHARSET_DESIGNATING_SEQUENCE "ESC 2/5 2/15 3/0"
-#endif
-#ifndef SYSTEM_CHARSET_OWNER
-#define SYSTEM_CHARSET_OWNER "-//IBM"
-#endif
-#ifndef SYSTEM_CHARSET_DESCRIPTION
-#define SYSTEM_CHARSET_DESCRIPTION "Code Page 1047"
-#endif

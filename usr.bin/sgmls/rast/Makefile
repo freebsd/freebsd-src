@@ -1,7 +1,7 @@
 #
 # Bmakefile for rast
 #
-# $id$
+# $Id$
 #
 
 PROG= rast

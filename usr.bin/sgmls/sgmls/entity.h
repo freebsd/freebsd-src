@@ -5,6 +5,7 @@
 */
 #include "tools.h"            /* Definitions for type declarations, etc. */
 #include "msgcat.h"
+#include "catalog.h"
 
 #define STDINNAME "-"	      /* File name that refers to standard input. */
 
@@ -151,7 +152,8 @@ struct switches {             /* Parser control switches (1=non-standard). */
      int swenttr;             /* 1=trace entity stack in error messages; 0=no.*/
      int sweltr;	      /* 1=trace element stack in error messages; 0=no. */
      int swambig;	      /* 1=check content model ambiguity */
-     int swundef;	      /* 1=warn about undefined elements and notations. */
+     int swundef;	      /* 1=warn about undefined elements. */
+     int swcap;		      /* 1=report capcity errors */
      char *prog;              /* Program name for error messages. */
 #ifdef TRACE
      char *trace;	      /* What to trace in the body. */
@@ -163,6 +165,7 @@ struct switches {             /* Parser control switches (1=non-standard). */
      char **includes;	      /* List of parameter entities to be defined
 			         as "INCLUDE"; NULL terminated.*/
      VOID (*die) P((void));   /* Function to call on fatal error. */
+     CATALOG catalog;	      /* Catalog for generating system identifiers. */
 };
 struct markup {               /* Delimiter strings for text processor. */
      UNCH *cro;               /* LEXCON markup string: CRO        */

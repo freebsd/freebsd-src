@@ -7,6 +7,8 @@
 #define P      pos[0].t       /* Index of current group in pos. */
 #define G      pos[P].g       /* Index of current group in model. */
 #define T      pos[P].t       /* Index of current token in its group. */
+#define Tstart pos[P].tstart  /* Index of starting token in its group
+				 for AND group testing. */
 #define H      pos[P].h       /* Pointer to hit bits for current group. */
 #define GHDR   mod[G]         /* Current group header. */
 #define TOKEN  mod[M]         /* Current token. */

@@ -1,7 +1,7 @@
 /* entgen.c -
 
    Implement entgen() which generates a list of filenames from a struct fpi.
-
+   
    Written by James Clark (jjc@jclark.com).
 */
 
@@ -51,6 +51,8 @@ static int field P((struct fpi *, int, char *));
 static int mindatcpy P((char *, char *, int, int));
 static int testopen P((char *));
 static UNIV sysidgen P((char *));
+static UNIV catsysidgen P((const char *, const char *));
+static const char *basename P((const char *));
 
 static char *path = 0;
 
@@ -104,6 +106,14 @@ static char *ext[] = {
      "dtd",			/* Document type definition */
      "lpd",			/* Link process definition */
 };
+
+static CATALOG catalog;
+
+VOID entginit(swp)
+struct switches *swp;
+{
+     catalog = swp->catalog;
+}
 
 /* Like memcpy, but substitute, fold to lower case (if fold is
 non-zero) and null terminate.  This is used both for minimum data and
@@ -207,7 +217,7 @@ char *buf;
      /* return -1 if the formal public identifier was invalid or missing. */
      if (f->fpiversw < 0 || !f->fpipubis)
 	  return -1;
-
+     
      switch (c) {
      case 'A':			/* Is it available? */
 	  return f->fpitt == '+' ? 0 : -1;
@@ -278,7 +288,12 @@ char *pathname;
 UNIV entgen(f)
 struct fpi *f;
 {
+     char *qname;
      char *file;
+     enum catalog_decl_type dtype;
+     char *subst = 0;
+     const char *sysid;
+     const char *catfile;
 
      assert(f->fpistore != 6);	/* Musn't call entgen for a notation. */
      if (!path) {
@@ -300,14 +315,46 @@ struct fpi *f;
 			 p++;
 	       }
      }
+
+     if (f->fpisysis && !sysidsrch)
+	  return sysidgen((char *)f->fpisysis);
+
+     qname = (char *)f->fpinm;
+     
+     switch (f->fpistore) {
+     case 3:
+	  /* fall through */
+	  qname--;		/* hack */
+     case 1:
+     case 2:
+	  dtype = CATALOG_ENTITY_DECL;
+	  if (ENTCASE)
+	       subst = getsubst();
+	  break;
+     case 4:
+	  dtype = CATALOG_DOCTYPE_DECL;
+	  if (NAMECASE)
+	       subst = getsubst();
+	  break;
+     default:
+	  dtype = CATALOG_NO_DECL;
+     }
+
+     if (catalog_lookup_entity(catalog,
+			       (char *)f->fpipubis,
+			       qname,
+			       dtype,
+			       (char *)subst,
+			       &sysid,
+			       &catfile))
+	  return catsysidgen(sysid, catfile);
      if (f->fpisysis
-	 && (!sysidsrch
-	     || strchr((char *)f->fpisysis, SYSID_FILE_SEP)
+	 && (strchr((char *)f->fpisysis, SYSID_FILE_SEP)
 	     || strcmp((char *)f->fpisysis, STDINNAME) == 0))
 	  return sysidgen((char *)f->fpisysis);
 
      file = path;
-
+     
      for (;;) {
 	  char *p;
 	  int len = 0;
@@ -334,7 +381,7 @@ struct fpi *f;
 	       }
 	       else
 		    len++;
-
+	  
 	  if (len > 0) {
 	       /* We've got a valid non-empty filename. */
 	       char *s;
@@ -368,7 +415,7 @@ UNIV sysidgen(s)
 char *s;
 {
      char *buf, *p;
-
+     
      buf = (char *)rmalloc(strlen(s) + 2);
 
      for (p = buf; *s; s++) {
@@ -392,6 +439,71 @@ char *s;
      /* Terminate the list. */
      *p++ = '\0';
      return buf;
+}
+
+/* Handle a system id in a catalog entry file. */
+static
+UNIV catsysidgen(s, catfile)
+const char *s;
+const char *catfile;
+{
+     const char *p;
+     char *bufp;
+     char *buf;
+     int nrelative = 0;
+     int catdirlen = 0;
+     if (FILE_IS_RELATIVE(s))
+	  nrelative++;
+     for (p = s; *p; p++)
+	  if (*p == SYSID_FILE_SEP
+	      && FILE_IS_RELATIVE(p + 1))
+	       nrelative++;
+     if (nrelative) {
+	  const char *base = basename(catfile);
+	  catdirlen = base - catfile;
+     }
+     buf = (char *)rmalloc(p - s + 2 + nrelative*catdirlen);
+     bufp = buf;
+     for (;;) {
+	  if (!*s)
+	       break;
+	  if (*s != SYSID_FILE_SEP && FILE_IS_RELATIVE(s)) {
+	       memcpy(bufp, catfile, catdirlen);
+	       bufp += catdirlen;
+	  }
+	  for (;;) {
+	       if (*s == SYSID_FILE_SEP) {
+		    s++;
+		    break;
+	       }
+	       *bufp++ = *s++;
+	       if (*s == '\0')
+		    break;
+	  }
+	  if (bufp > buf && bufp[-1] != '\0')
+	       *bufp++ = '\0';
+     }
+     if (bufp == buf) {
+	  frem((UNIV)buf);
+	  return 0;
+     }
+     *bufp++ = '\0';
+     return buf;
+}
+
+static
+const char *basename(s)
+const char *s;
+{
+     const char *p = s;
+     while (*p)
+	  p++;
+     if (p > s) {
+	  while (--p > s)
+	       if (strchr(DIR_BASE_SEP, *p))
+		    return p + 1;
+     }
+     return s;
 }
 
 /*

@@ -35,17 +35,3 @@ shunned in the reference concrete syntax and is not the number of a
 significant (in the reference concrete syntax) SGML character nor one
 of the above characters. */
 #define CANON_DATACHAR 254
-
-/* Components for a formal public identifier for the whole of the
-system character set.  Protect with ifndef so that it can be overriden
-in config.h. */
-
-#ifndef SYSTEM_CHARSET_DESIGNATING_SEQUENCE
-#define SYSTEM_CHARSET_DESIGNATING_SEQUENCE "ESC 2/13 4/1"
-#endif
-#ifndef SYSTEM_CHARSET_OWNER
-#define SYSTEM_CHARSET_OWNER "ISO Registration Number 100"
-#endif
-#ifndef SYSTEM_CHARSET_DESCRIPTION
-#define SYSTEM_CHARSET_DESCRIPTION "ECMA-94 Right Part of Latin Alphabet Nr. 1"
-#endif

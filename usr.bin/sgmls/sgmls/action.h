@@ -48,6 +48,7 @@
 #define MSP_   75   /* Marked section start in prolog outside DTD */
 #define APP_   76   /* APPINFO (other than NONE) */
 #define STE_   77   /* Start tag ended prolog */
+#define ETE_   78   /* End tag ended prolog */
 
 /* GRPACT.H: Symbols for group tokenization action names (all alpha).
              There must be no conflict with PARSEACT.H, which

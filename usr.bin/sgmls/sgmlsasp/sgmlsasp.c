@@ -154,7 +154,7 @@ struct sgmls_attribute *attributes;
     return;
   if (repl->flags & NEWLINE_BEGIN)
     output_begin_line();
-
+  
   for (p = repl->items; p; p = p->next)
     switch (p->type) {
     case DATA_REPL:
@@ -190,7 +190,7 @@ struct sgmls_attribute *p;
     {
       char **token = p->value.token.v;
       int n = p->value.token.n;
-
+      
       if (n > 0) {
 	int i;
 	output_token(token[0]);
@@ -262,7 +262,7 @@ void error(char *message,...)
      char *message;
 #endif
      va_list ap;
-
+     
      fprintf(stderr, "%s: ", program_name);
 #ifdef VARARGS
      va_start(ap);

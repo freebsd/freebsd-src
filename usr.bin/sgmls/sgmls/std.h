@@ -42,13 +42,7 @@
 #include <string.h>
 #endif /* not BSD_STRINGS */
 
-#ifdef STRERROR_MISSING
-#ifdef USE_PROTOTYPES
-extern char *strerror(int);
-#else
 extern char *strerror();
-#endif
-#endif /* STRERROR_MISSING */
 
 #ifdef STDLIB_H_MISSING
 UNIV malloc();

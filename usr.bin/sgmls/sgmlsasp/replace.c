@@ -90,7 +90,7 @@ void load_replacement_file(tablep, file)
     else
       error("can't open `%s'", file);
   }
-
+      
   current_lineno = 1;
   current_file = file;
   tok = get_token();
@@ -131,7 +131,7 @@ struct replacement_item **parse_string(tail, recog_attr)
 {
   struct buffer buf;
   unsigned len;
-
+  
   buffer_init(&buf);
   for (;;) {
     int c = get();
@@ -274,7 +274,6 @@ int get_token()
   default:
     parse_error("bad input character `%c'", c);
   }
-  return EOF;
 }
 
 static
@@ -325,7 +324,7 @@ struct replacement *lookup_replacement(tablep, type, name)
 {
   int h = hash(type, name);
   struct table_entry *p;
-
+  
   for (p = tablep->table[h]; p; p = p->next)
     if (strcmp(name, p->gi) == 0 && type == p->type)
       return &p->replacement;
@@ -342,7 +341,7 @@ struct replacement *define_replacement(tablep, type, name)
 {
   int h = hash(type, name);
   struct table_entry *p;
-
+  
   for (p = tablep->table[h]; p; p = p->next)
     if (strcmp(name, p->gi) == 0 && type == p->type)
       return 0;
@@ -409,7 +408,7 @@ int hash(type, s)
      char *s;
 {
   unsigned long h = 0, g;
-
+  
   while (*s != 0) {
     h <<= 4;
     h += *s++;
@@ -442,7 +441,7 @@ UNIV xrealloc(p, size)
     parse_error("out of memory");
   return p;
 }
-
+     
 static NO_RETURN
 #ifdef VARARGS
 void parse_error(va_alist) va_dcl
@@ -455,7 +454,7 @@ void parse_error(char *message,...)
   char *message;
 #endif
   va_list ap;
-
+  
 #ifdef VARARGS
   va_start(ap);
   message = va_arg(ap, char *);
