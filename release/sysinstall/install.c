@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.70.2.30 1995/06/05 10:19:03 jkh Exp $
+ * $Id: install.c,v 1.70.2.31 1995/06/05 12:04:01 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -285,6 +285,8 @@ installCommit(char *str)
     msgNotify("Making all devices.. Please wait!");
     if (!SystemWasInstalled && vsystem("cd /dev; sh MAKEDEV all"))
 	msgConfirm("MAKEDEV returned non-zero status");
+
+    msgNotify("Resurrecting /dev entries for slices..");
     /* This gives us our slice entries back, which we saved for this */
     if (!SystemWasInstalled && vsystem("mv -f /tmp/dev/* /dev; rmdir /tmp/dev"))
 	msgConfirm("Unable to move all the old devs back.  Hmmm!");

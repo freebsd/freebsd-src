@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: main.c,v 1.12.2.2 1995/06/02 15:31:25 jkh Exp $
+ * $Id: main.c,v 1.12.2.3 1995/06/03 02:14:38 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -79,7 +79,8 @@ main(int argc, char **argv)
     }
 
     /* Write out any changes to /etc/sysconfig */
-    configSysconfig();
+    if (SystemWasInstalled)
+	configSysconfig();
 
     /* Say goodnight, Gracie */
     systemShutdown();
