@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: rc.i386,v 1.7 1995/04/10 01:39:13 rgrimes Exp $
+#	$Id: rc.i386,v 1.8 1995/04/13 21:23:17 rgrimes Exp $
 #	Do i386 specific processing
 #
 
@@ -19,6 +19,10 @@ fi
 ####### Syscons section						  ########
 ##########################################################################
 
+# stdin must be redirected because it might be for a serial console
+kbddev=/dev/ttyv0
+viddev=/dev/ttyv0
+
 # don't change these, they're modified below
 kbdadjust=NO
 vidadjust=NO
@@ -36,12 +40,12 @@ vidadjust=NO
 
 # keymap
 if [ "X${keymap}" != X"NO" ]; then
-	echo -n ' keymap';	kbdcontrol -l ${keymap}
+	echo -n ' keymap';	kbdcontrol <${kbddev} -l ${keymap}
 fi
 
 # keyrate
 if [ "X${keyrate}" != X"NO" ]; then
-	echo -n ' keyrate';	kbdcontrol -r ${keyrate}
+	echo -n ' keyrate';	kbdcontrol <${kbddev} -r ${keyrate}
 fi
 
 # change function keys
@@ -50,7 +54,7 @@ if [ "X${keychange}" != X"NO" ]; then
 	set - ${keychange}
 	while [ $# -gt 0 ]
 	do
-		kbdcontrol -f "$1" "$2"
+		kbdcontrol <${kbddev} -f "$1" "$2"
 		shift; shift
 	done
 fi
@@ -62,32 +66,32 @@ fi
 
 # cursor type
 if [ "X${cursor}" != X"NO" ]; then
-	echo -n ' cursor';	vidcontrol -c ${cursor}
+	echo -n ' cursor';	vidcontrol <${viddev} -c ${cursor}
 fi
 
 # screen mapping
 if [ "X${scrnmap}" != X"NO" ]; then
-	echo -n ' screen_map';	vidcontrol -l ${scrnmap}
+	echo -n ' screen_map';	vidcontrol <${viddev} -l ${scrnmap}
 fi
 
 # font 8x16
 if [ "X${font8x16}" != X"NO" ]; then
-	echo -n ' font8x16';	vidcontrol -f 8x16 ${font8x16}
+	echo -n ' font8x16';	vidcontrol <${viddev} -f 8x16 ${font8x16}
 fi
 
 # font 8x14
 if [ "X${font8x14}" != X"NO" ]; then
-	echo -n ' font8x14';	vidcontrol -f 8x14 ${font8x14}
+	echo -n ' font8x14';	vidcontrol <${viddev} -f 8x14 ${font8x14}
 fi
 
 # font 8x8
 if [ "X${font8x8}" != X"NO" ]; then
-	echo -n ' font8x8';	vidcontrol -f 8x8 ${font8x8}
+	echo -n ' font8x8';	vidcontrol <${viddev} -f 8x8 ${font8x8}
 fi
 
 # blank time
 if [ "X${blanktime}" != X"NO" ]; then
-	echo -n ' blank_time';	vidcontrol -t ${blanktime}
+	echo -n ' blank_time';	vidcontrol <${viddev} -t ${blanktime}
 fi
 
 [ "X${vidadjust}" != X"NO" ] && echo ']'
