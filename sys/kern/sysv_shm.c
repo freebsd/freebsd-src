@@ -205,7 +205,7 @@ shm_deallocate_segment(shmseg)
 
 	shm_handle = shmseg->shm_internal;
 	vm_object_deallocate(shm_handle->shm_object);
-	free((caddr_t)shm_handle, M_SHM);
+	free(shm_handle, M_SHM);
 	shmseg->shm_internal = NULL;
 	size = round_page(shmseg->shm_segsz);
 	shm_committed -= btoc(size);
@@ -320,7 +320,7 @@ shmat(td, uap)
 		shmmap_s = malloc(size, M_SHM, M_WAITOK);
 		for (i = 0; i < shminfo.shmseg; i++)
 			shmmap_s[i].shmid = -1;
-		p->p_vmspace->vm_shm = (caddr_t)shmmap_s;
+		p->p_vmspace->vm_shm = shmmap_s;
 	}
 	shmseg = shm_find_segment_by_shmid(uap->shmid);
 	if (shmseg == NULL) {
@@ -443,7 +443,7 @@ oshmctl(td, uap)
 		outbuf.shm_dtime = shmseg->shm_dtime;
 		outbuf.shm_ctime = shmseg->shm_ctime;
 		outbuf.shm_handle = shmseg->shm_internal;
-		error = copyout((caddr_t)&outbuf, uap->ubuf, sizeof(outbuf));
+		error = copyout(&outbuf, uap->ubuf, sizeof(outbuf));
 		if (error)
 			goto done2;
 		break;
@@ -485,7 +485,7 @@ shmctl(td, uap)
 	mtx_lock(&Giant);
 	switch (uap->cmd) {
 	case IPC_INFO:
-		error = copyout( (caddr_t)&shminfo, uap->buf, sizeof( shminfo ) );
+		error = copyout(&shminfo, uap->buf, sizeof(shminfo));
 		if (error)
 			goto done2;
 		td->td_retval[0] = shmalloced;
@@ -498,7 +498,7 @@ shmctl(td, uap)
 		shm_info.shm_swp = 0;	/*XXX where to get from ? */
 		shm_info.swap_attempts = 0;	/*XXX where to get from ? */
 		shm_info.swap_successes = 0;	/*XXX where to get from ? */
-		error = copyout( (caddr_t)&shm_info, uap->buf, sizeof( shm_info ) );
+		error = copyout(&shm_info, uap->buf, sizeof(shm_info));
 		if (error)
 			goto done2;
 		td->td_retval[0] = shmalloced;
@@ -519,7 +519,7 @@ shmctl(td, uap)
 		error = ipcperm(td, &shmseg->shm_perm, IPC_R);
 		if (error)
 			goto done2;
-		error = copyout((caddr_t)shmseg, uap->buf, sizeof(inbuf));
+		error = copyout(shmseg, uap->buf, sizeof(inbuf));
 		if (error)
 			goto done2;
 		else if( (uap->cmd) == SHM_STAT )
@@ -529,7 +529,7 @@ shmctl(td, uap)
 		error = ipcperm(td, &shmseg->shm_perm, IPC_M);
 		if (error)
 			goto done2;
-		error = copyin(uap->buf, (caddr_t)&inbuf, sizeof(inbuf));
+		error = copyin(uap->buf, &inbuf, sizeof(inbuf));
 		if (error)
 			goto done2;
 		shmseg->shm_perm.uid = inbuf.shm_perm.uid;
@@ -589,7 +589,7 @@ shmget_existing(td, uap, mode, segnum)
 		 * allocation failed or it was freed).
 		 */
 		shmseg->shm_perm.mode |= SHMSEG_WANTED;
-		error = tsleep((caddr_t)shmseg, PLOCK | PCATCH, "shmget", 0);
+		error = tsleep(shmseg, PLOCK | PCATCH, "shmget", 0);
 		if (error)
 			return error;
 		return EAGAIN;
@@ -681,7 +681,7 @@ shmget_allocate_segment(td, uap, mode)
 		 * them up now.
 		 */
 		shmseg->shm_perm.mode &= ~SHMSEG_WANTED;
-		wakeup((caddr_t)shmseg);
+		wakeup(shmseg);
 	}
 	td->td_retval[0] = shmid;
 	return 0;
@@ -758,8 +758,8 @@ shmfork_myhook(p1, p2)
 
 	size = shminfo.shmseg * sizeof(struct shmmap_state);
 	shmmap_s = malloc(size, M_SHM, M_WAITOK);
-	bcopy((caddr_t)p1->p_vmspace->vm_shm, (caddr_t)shmmap_s, size);
-	p2->p_vmspace->vm_shm = (caddr_t)shmmap_s;
+	bcopy(p1->p_vmspace->vm_shm, shmmap_s, size);
+	p2->p_vmspace->vm_shm = shmmap_s;
 	for (i = 0; i < shminfo.shmseg; i++, shmmap_s++)
 		if (shmmap_s->shmid != -1)
 			shmsegs[IPCID_TO_IX(shmmap_s->shmid)].shm_nattch++;
@@ -778,7 +778,7 @@ shmexit_myhook(p)
 	for (i = 0; i < shminfo.shmseg; i++, shmmap_s++)
 		if (shmmap_s->shmid != -1)
 			shm_delete_mapping(p, shmmap_s);
-	free((caddr_t)p->p_vmspace->vm_shm, M_SHM);
+	free(p->p_vmspace->vm_shm, M_SHM);
 	p->p_vmspace->vm_shm = NULL;
 }
 
