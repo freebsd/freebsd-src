@@ -55,9 +55,8 @@ void undoex(void);
  * the end-of-games points to the user who deserves it (if any).
  */
 void
-finalscore(pp)
-	PLAY	*pp; {
-
+finalscore(PLAY *pp)
+{
 	int		temp, tot, num;
 
 	if (pp->was_finished == Finished)
@@ -100,9 +99,8 @@ static int	Last_tot[2];	/* last tot used for extrapolate	*/
  * the end-of-games points to the user who deserves it (if any).
  */
 void
-extrapolate(pp)
-	PLAY	*pp; {
-
+extrapolate(PLAY *pp)
+{
 	int		x, num, tot, count;
 
 	num = pp - Player;
@@ -145,8 +143,8 @@ extrapolate(pp)
 }
 
 void
-undoex() {
-
+undoex(void)
+{
 	reg PLAY	*pp;
 	reg int		i;
 

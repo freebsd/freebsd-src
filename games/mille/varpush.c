@@ -51,10 +51,8 @@ static const char rcsid[] =
  * channel file.  func() is either read or write.
  */
 void
-varpush(file, func)
-int	file;
-int	(*func)(); {
-
+varpush(int file, int (*func)())
+{
 	int	temp;
 
 	(*func)(file, (char *) &Debug, sizeof Debug);
