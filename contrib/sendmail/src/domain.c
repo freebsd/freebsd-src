@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2002 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1986, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -14,9 +14,9 @@
 #include <sendmail.h>
 
 #if NAMED_BIND
-SM_RCSID("@(#)$Id: domain.c,v 1.1.1.8 2002/04/10 03:04:49 gshapiro Exp $ (with name server)")
+SM_RCSID("@(#)$Id: domain.c,v 8.181 2002/05/24 23:48:42 gshapiro Exp $ (with name server)")
 #else /* NAMED_BIND */
-SM_RCSID("@(#)$Id: domain.c,v 1.1.1.8 2002/04/10 03:04:49 gshapiro Exp $ (without name server)")
+SM_RCSID("@(#)$Id: domain.c,v 8.181 2002/05/24 23:48:42 gshapiro Exp $ (without name server)")
 #endif /* NAMED_BIND */
 
 #if NAMED_BIND
@@ -810,7 +810,7 @@ dns_getcanonname(host, hbsize, trymx, statp, pttl)
 	int loopcnt;
 	char *xp;
 	char nbuf[SM_MAX(MAXPACKET, MAXDNAME*2+2)];
-	char *searchlist[MAXDNSRCH+2];
+	char *searchlist[MAXDNSRCH + 2];
 
 	if (tTd(8, 2))
 		sm_dprintf("dns_getcanonname(%s, trymx=%d)\n", host, trymx);

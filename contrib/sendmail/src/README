@@ -9,7 +9,7 @@
 # the sendmail distribution.
 #
 #
-#	$Id: README,v 1.1.1.12 2002/04/10 03:04:47 gshapiro Exp $
+#	$Id: README,v 8.355 2002/05/22 19:46:26 gshapiro Exp $
 #
 
 This directory contains the source files for sendmail(TM).
@@ -601,6 +601,8 @@ REQUIRES_DIR_FSYNC	Turn on support for file systems that require to
 		ReiserFS; it is enabled by default for Linux.  An alternative
 		to this compile time flag is to mount the queue directory
 		without the -async option, or using chattr +S on Linux.
+DBMMODE		The default file permissions to use when creating new
+		database files for maps and aliases.  Defaults to 0640.
 
 Generic notice: If you enable a compile time option that needs
 libraries or include files that don't come with sendmail or are
@@ -1738,4 +1740,4 @@ util.c		Some general purpose routines used by sendmail.
 version.c	The version number and information about this
 		version of sendmail.
 
-(Version $Revision: 1.1.1.12 $, last update $Date: 2002/04/10 03:04:47 $ )
+(Version $Revision: 8.355 $, last update $Date: 2002/05/22 19:46:26 $ )

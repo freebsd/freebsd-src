@@ -8,7 +8,7 @@
 */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: smndbm.c,v 1.1.1.5 2002/04/10 03:04:59 gshapiro Exp $")
+SM_RCSID("@(#)$Id: smndbm.c,v 8.52 2002/05/21 22:30:30 gshapiro Exp $")
 
 #include <fcntl.h>
 #include <stdlib.h>
@@ -560,7 +560,7 @@ smdb_ndbm_open(database, db_name, mode, mode_mask, sff, type, user_info,
 		db->smndbm_lock_fd = lock_fd;
 
 		errno = 0;
-		dbm = dbm_open(db_name, mode, 0644);
+		dbm = dbm_open(db_name, mode, DBMMODE);
 		if (dbm == NULL)
 		{
 			if (errno == 0)

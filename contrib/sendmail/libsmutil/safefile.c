@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2002 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -15,7 +15,7 @@
 #include <sm/io.h>
 #include <sm/errstring.h>
 
-SM_RCSID("@(#)$Id: safefile.c,v 1.1.1.4 2002/02/17 21:56:42 gshapiro Exp $")
+SM_RCSID("@(#)$Id: safefile.c,v 8.124 2002/05/24 20:50:15 gshapiro Exp $")
 
 
 /*
@@ -58,7 +58,7 @@ safefile(fn, uid, gid, user, flags, mode, st)
 	bool checkpath;
 	struct stat stbuf;
 	struct stat fstbuf;
-	char fbuf[MAXPATHLEN + 1];
+	char fbuf[MAXPATHLEN];
 
 	if (tTd(44, 4))
 		sm_dprintf("safefile(%s, uid=%d, gid=%d, flags=%lx, mode=%o):\n",
@@ -406,7 +406,7 @@ safedirpath(fn, uid, gid, user, flags, level, offset)
 	char *saveptr = NULL;
 	char *p, *enddir;
 	register struct group *gr = NULL;
-	char s[MAXLINKPATHLEN + 1];
+	char s[MAXLINKPATHLEN];
 	struct stat stbuf;
 
 	/* make sure we aren't in a symlink loop */
@@ -486,13 +486,21 @@ safedirpath(fn, uid, gid, user, flags, level, offset)
 		/* Follow symlinks */
 		if (S_ISLNK(stbuf.st_mode))
 		{
+			int linklen;
 			char *target;
-			char buf[MAXPATHLEN + 1];
+			char buf[MAXPATHLEN];
 
 			memset(buf, '\0', sizeof buf);
-			if (readlink(s, buf, sizeof buf) < 0)
+			linklen = readlink(s, buf, sizeof buf);
+			if (linklen < 0)
 			{
 				ret = errno;
+				break;
+			}
+			if (linklen >= sizeof buf)
+			{
+				/* file name too long for buffer */
+				ret = errno = EINVAL;
 				break;
 			}
 
@@ -536,7 +544,7 @@ safedirpath(fn, uid, gid, user, flags, level, offset)
 			else
 			{
 				char *sptr;
-				char fullbuf[MAXLINKPATHLEN + 1];
+				char fullbuf[MAXLINKPATHLEN];
 
 				sptr = strrchr(s, '/');
 				if (sptr != NULL)

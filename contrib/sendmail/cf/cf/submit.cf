@@ -24,15 +24,15 @@
 ######################################################################
 ######################################################################
 
-#####  $Id: submit.cf,v 1.1.1.2 2002/04/10 03:04:57 gshapiro Exp $  #####
-#####  $Id: submit.cf,v 1.1.1.2 2002/04/10 03:04:57 gshapiro Exp $  #####
-#####  $Id: submit.cf,v 1.1.1.2 2002/04/10 03:04:57 gshapiro Exp $  #####
-#####  $Id: submit.cf,v 1.1.1.2 2002/04/10 03:04:57 gshapiro Exp $  #####
+#####  $Id: cfhead.m4,v 8.107 2001/07/22 03:25:37 ca Exp $  #####
+#####  $Id: cf.m4,v 8.32 1999/02/07 07:26:14 gshapiro Exp $  #####
+#####  $Id: submit.mc,v 8.6 2002/03/26 03:30:58 ca Exp $  #####
+#####  $Id: msp.m4,v 1.32 2002/03/26 22:02:03 ca Exp $  #####
 
-#####  $Id: submit.cf,v 1.1.1.2 2002/04/10 03:04:57 gshapiro Exp $  #####
+#####  $Id: no_default_msa.m4,v 8.2 2001/02/14 05:03:22 gshapiro Exp $  #####
 
 
-#####  $Id: submit.cf,v 1.1.1.2 2002/04/10 03:04:57 gshapiro Exp $  #####
+#####  $Id: proto.m4,v 8.646 2002/05/19 21:22:40 gshapiro Exp $  #####
 
 # level 10 config file format
 V10/Berkeley
@@ -110,7 +110,7 @@ D{MTAHost}[localhost]
 
 
 # Configuration version number
-DZ8.12.3/Submit
+DZ8.12.4/Submit
 
 
 ###############
@@ -949,7 +949,7 @@ R$* $| $* $| $*		$@ $>"Basic_check_relay" $1 $| $2
 
 SBasic_check_relay
 # check for deferred delivery mode
-R$*			$: < ${deliveryMode} > $1
+R$*			$: < $&{deliveryMode} > $1
 R< d > $*		$@ deferred
 R< $* > $*		$: $2
 
@@ -968,7 +968,7 @@ R$* $| $*		$@ $>"Basic_check_mail" $1
 
 SBasic_check_mail
 # check for deferred delivery mode
-R$*			$: < ${deliveryMode} > $1
+R$*			$: < $&{deliveryMode} > $1
 R< d > $*		$@ deferred
 R< $* > $*		$: $2
 
@@ -1001,6 +1001,7 @@ R$*			$: <?> $>CanonAddr $1		canonify sender address and mark it
 R<?> $* < @ $+ . >	<?> $1 < @ $2 >			strip trailing dots
 # handle non-DNS hostnames (*.bitnet, *.decnet, *.uucp, etc)
 R<?> $* < @ $* $=P >	$: <OK> $1 < @ $2 $3 >
+R<?> $* < @ $j >	$: <OK> $1 < @ $j >
 R<?> $* < @ $+ >	$: <? $(resolve $2 $: $2 <PERM> $) > $1 < @ $2 >
 R<? $* <$->> $* < @ $+ >
 			$: <$2> $3 < @ $4 >
@@ -1035,7 +1036,7 @@ SBasic_check_rcpt
 R<>			$#error $@ nouser $: "553 User address required"
 R$@			$#error $@ nouser $: "553 User address required"
 # check for deferred delivery mode
-R$*			$: < ${deliveryMode} > $1
+R$*			$: < $&{deliveryMode} > $1
 R< d > $*		$@ deferred
 R< $* > $*		$: $2
 
@@ -1229,7 +1230,7 @@ R$*			$#relay $@ ${MTAHost} $: $1 < @ $j >
 ###   Local and Program Mailer specification   ###
 ##################################################
 
-#####  $Id: submit.cf,v 1.1.1.2 2002/04/10 03:04:57 gshapiro Exp $  #####
+#####  $Id: local.m4,v 8.58 2000/10/26 01:58:29 ca Exp $  #####
 
 #
 #  Envelope sender rewriting
@@ -1281,7 +1282,7 @@ Mprog,		P=[IPC], F=lmDFMuXk5, S=EnvFromL/HdrFromL, R=EnvToL/HdrToL, D=$z:/,
 ###   SMTP Mailer specification   ###
 #####################################
 
-#####  $Id: submit.cf,v 1.1.1.2 2002/04/10 03:04:57 gshapiro Exp $  #####
+#####  $Id: smtp.m4,v 8.64 2001/04/03 01:52:54 gshapiro Exp $  #####
 
 #
 #  common sender and masquerading recipient rewriting
