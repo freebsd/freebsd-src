@@ -161,7 +161,7 @@ main(int argc, char **argv)
 	for (arg = 0; arg < argc; arg++) {
 		if (!strcasecmp(argv[arg], "fixate")) {
 			fixate = 1;
-			break;
+			continue;
 		}
 		if (!strcasecmp(argv[arg], "eject")) {
 			eject = 1;
