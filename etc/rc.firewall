@@ -1,6 +1,6 @@
 ############
 # Setup system for firewall service.
-# $Id: rc.firewall,v 1.6.2.5 1997/10/21 00:20:35 jkh Exp $
+# $Id: rc.firewall,v 1.6.2.6 1998/02/10 01:45:57 adam Exp $
 
 if [ -f /etc/rc.conf ]; then
 	. /etc/rc.conf
@@ -67,8 +67,8 @@ $fwcmd -f flush
 
 ############
 # Only in rare cases do you want to change these rules
-$fwcmd add 1000 pass all from any to any via lo0
-$fwcmd add 1010 deny all from 127.0.0.0/8 to 127.0.0.0/8
+$fwcmd add 100 pass all from any to any via lo0
+$fwcmd add 200 deny all from any to 127.0.0.0/8
 
 
 # Prototype setups.
