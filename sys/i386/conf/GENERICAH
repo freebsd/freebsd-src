@@ -1,12 +1,13 @@
 #
-# GENERICAH -- Generic machine with WD/AHx family disks
+# GENERICAH -- Generic machine with WD/AHx/NCR family disks
 #
-#	$Id: GENERICAH,v 1.37 1994/08/19 00:00:38 phk Exp $
+#	$Id: GENERICAH,v 1.38 1994/08/31 06:17:19 davidg Exp $
 #
 
 machine		"i386"
 cpu		"I386_CPU"
 cpu		"I486_CPU"
+cpu		"I586_CPU"
 ident		GENERICAH
 maxusers	10
 
@@ -57,6 +58,10 @@ disk		wd3	at wdc1 drive 1
 controller	ahb0	at isa? bio irq 11 vector ahbintr
 controller	aha0	at isa? port "IO_AHA0" bio irq 11 drq 5 vector ahaintr
 controller	scbus0
+
+#device		pci0	at isa? bio irq 9 vector pciintr
+device		pci0
+device		ncr0
 
 device		sd0
 device		sd1
