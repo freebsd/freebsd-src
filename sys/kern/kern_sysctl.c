@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_sysctl.c,v 1.65 1996/08/31 14:47:55 bde Exp $
+ * $Id: kern_sysctl.c,v 1.66 1996/09/03 22:26:31 bde Exp $
  */
 
 #include <sys/param.h>
@@ -496,7 +496,7 @@ sysctl_handle_int SYSCTL_HANDLER_ARGS
 
 	if (arg1)
 		error = SYSCTL_OUT(req, arg1, sizeof(int));
-	else if (arg2)
+	else
 		error = SYSCTL_OUT(req, &arg2, sizeof(int));
 
 	if (error || !req->newptr)
