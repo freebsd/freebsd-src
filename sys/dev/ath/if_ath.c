@@ -2763,7 +2763,7 @@ ath_txq_setup(struct ath_softc *sc, int qtype, int subtype)
 	if (qnum == -1) {
 		/*
 		 * NB: don't print a message, this happens 
-		 * ormally on parts with too few tx queues
+		 * normally on parts with too few tx queues
 		 */
 		return NULL;
 	}
@@ -2916,8 +2916,8 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 	ismcast = IEEE80211_IS_MULTICAST(wh->i_addr1);
 	hdrlen = ieee80211_anyhdrsize(wh);
 	/*
-	 * Packet length must not include by any
-	 * pad bytes; deduct it here.
+	 * Packet length must not include any
+	 * pad bytes; deduct them here.
 	 */
 	pktlen = m0->m_pkthdr.len - (hdrlen & 3);
 
@@ -4316,7 +4316,7 @@ ath_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	}
 	ATH_UNLOCK(sc);
 	return error;
-#undef IS_UP
+#undef IS_RUNNING
 }
 
 static int
