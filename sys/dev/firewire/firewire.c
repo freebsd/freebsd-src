@@ -118,7 +118,17 @@ static device_method_t firewire_methods[] = {
 
 	{ 0, 0 }
 };
-char linkspeed[7][0x10]={"S100","S200","S400","S800","S1600","S3200","Unknown"};
+char *linkspeed[] = {
+	"S100", "S200", "S400", "S800",
+	"S1600", "S3200", "undef", "undef"
+};
+
+static char *tcode_str[] = {
+	"WREQQ", "WREQB", "WRES",   "undef",
+	"RREQQ", "RREQB", "RRESQ",  "RRESB",
+	"CYCS",  "LREQ",  "STREAM", "LRES",
+	"undef", "undef", "PHY",    "undef"
+};
 
 /* IEEE-1394a Table C-2 Gap count as a function of hops*/
 #define MAX_GAPHOP 15
@@ -192,7 +202,7 @@ fw_asyreq(struct firewire_comm *fc, int sub, struct fw_xfer *xfer)
 	tcode = fp->mode.common.tcode & 0xf;
 	info = &fc->tcode[tcode];
 	if (info->flag == 0) {
-		printf("invalid tcode=%d\n", tcode);
+		printf("invalid tcode=%x\n", tcode);
 		return EINVAL;
 	}
 	if (info->flag & FWTI_REQ)
@@ -211,8 +221,8 @@ fw_asyreq(struct firewire_comm *fc, int sub, struct fw_xfer *xfer)
 	else
 		len = 0;
 	if (len != xfer->send.pay_len){
-		printf("len(%d) != send.pay_len(%d) (tcode=%d)\n",
-				len, xfer->send.pay_len, tcode);
+		printf("len(%d) != send.pay_len(%d) %s(%x)\n",
+		    len, xfer->send.pay_len, tcode_str[tcode], tcode);
 		return EINVAL; 
 	}
 
@@ -1770,12 +1780,12 @@ fw_rcv(struct fw_rcv_buf *rb)
 					fp->mode.hdr.tlrt >> 2);
 		if(rb->xfer == NULL) {
 			printf("fw_rcv: unknown response "
-					"tcode=%d src=0x%x tl=0x%x rt=%d data=0x%x\n",
-					tcode,
-					fp->mode.hdr.src,
-					fp->mode.hdr.tlrt >> 2,
-					fp->mode.hdr.tlrt & 3,
-					fp->mode.rresq.data);
+			    "%s(%x) src=0x%x tl=0x%x rt=%d data=0x%x\n",
+			    tcode_str[tcode], tcode,
+			    fp->mode.hdr.src,
+			    fp->mode.hdr.tlrt >> 2,
+			    fp->mode.hdr.tlrt & 3,
+			    fp->mode.rresq.data);
 #if 1
 			printf("try ad-hoc work around!!\n");
 			rb->xfer = fw_tl2xfer(rb->fc, fp->mode.hdr.src,
@@ -1818,16 +1828,15 @@ fw_rcv(struct fw_rcv_buf *rb)
 		bind = fw_bindlookup(rb->fc, fp->mode.rreqq.dest_hi,
 			fp->mode.rreqq.dest_lo);
 		if(bind == NULL){
+			printf("Unknown service addr 0x%04x:0x%08x %s(%x)"
 #if __FreeBSD_version >= 500000
-			printf("Unknown service addr 0x%04x:0x%08x tcode=%x src=0x%x data=%x\n",
+			    " src=0x%x data=%x\n",
 #else
-			printf("Unknown service addr 0x%04x:0x%08x tcode=%x src=0x%x data=%lx\n",
+			    " src=0x%x data=%lx\n",
 #endif
-				fp->mode.wreqq.dest_hi,
-				fp->mode.wreqq.dest_lo,
-				tcode,
-				fp->mode.hdr.src,
-				ntohl(fp->mode.wreqq.data));
+			    fp->mode.wreqq.dest_hi, fp->mode.wreqq.dest_lo,
+			    tcode_str[tcode], tcode,
+			    fp->mode.hdr.src, ntohl(fp->mode.wreqq.data));
 			if (rb->fc->status == FWBUSRESET) {
 				printf("fw_rcv: cannot respond(bus reset)!\n");
 				goto err;
