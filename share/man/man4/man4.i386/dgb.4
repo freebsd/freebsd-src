@@ -35,7 +35,7 @@
 .\"     from: @(#)dca.4	5.2 (Berkeley) 3/27/91
 .\"	from: com.4,v 1.1 1993/08/06 11:19:07 cgd Exp
 .\"	from: sio.4,v 1.15 1994/12/06 20:14:30 bde Exp
-.\"	$Id: dgb.4,v 1.6 1997/02/22 13:25:17 peter Exp $
+.\"	$Id: dgb.4,v 1.1.4.2 1997/02/28 03:26:48 mpp Exp $
 .\"
 .Dd Oct 13, 1995
 .Dt DGB 4 i386
@@ -238,10 +238,11 @@ corresponding callout initial-state and lock-state devices
 examples of setting the initial-state and lock-state devices
 .El
 .Pp
-The first question mark in these device names
-means the number of the card from the set [0-9] and the
-second question mark means the number of the port on the card from the set
-[0-9a-v].
+The first question mark in these device names is short for the
+card number
+(a decimal number between 0 and 65535 inclusive).
+The second question mark is short for the port number
+(a letter in the range [0-9a-v]).
 .Sh DIAGNOSTICS
 You may enable extended diagnostics by defining DEBUG at the
 start of the source file dgb.c.
