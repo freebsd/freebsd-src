@@ -777,7 +777,10 @@ _http_request(struct url *URL, const char *op, struct url_stat *us,
 	}
 
 	/* other headers */
-	_http_cmd(fd, "User-Agent: %s " _LIBFETCH_VER, __progname);
+	if ((p = getenv("HTTP_USER_AGENT")) != NULL && *p != '\0')
+	    _http_cmd(fd, "User-Agent: %s", p);
+	else
+	    _http_cmd(fd, "User-Agent: %s " _LIBFETCH_VER, __progname);
 	if (url->offset)
 	    _http_cmd(fd, "Range: bytes=%lld-", url->offset);
 	_http_cmd(fd, "Connection: close");
