@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.158 1996/06/27 21:36:11 joerg Exp $
+ *  $Id: syscons.c,v 1.159 1996/07/01 20:28:38 bde Exp $
  */
 
 #include "sc.h"
@@ -659,7 +659,7 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
     switch (cmd) {  		/* process console hardware related ioctl's */
 
     case GIO_ATTR:      	/* get current attributes */
-	*(int*)data = scp->term.cur_attr;
+	*(int*)data = (scp->term.cur_attr >> 8) & 0xFF;
 	return 0;
 
     case GIO_COLOR:     	/* is this a color console ? */
