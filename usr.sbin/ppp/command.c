@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.100 1997/11/12 16:34:50 brian Exp $
+ * $Id: command.c,v 1.101 1997/11/12 18:47:28 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -707,23 +707,39 @@ InterpretCommand(char *buff, int nb, int *argc, char ***argv)
 }
 
 void
-RunCommand(int argc, char **argv, int prompt)
+RunCommand(int argc, char **argv, const char *label)
 {
-  if (argc > 0)
-    FindExec(Commands, argc, argv);
+  if (argc > 0) {
+    if (LogIsKept(LogCOMMAND)) {
+      static char buf[LINE_LEN];
+      int f, n;
 
-  if (prompt)
-    Prompt();
+      *buf = '\0';
+      if (label) {
+        strcpy(buf, label);
+        strcat(buf, ": ");
+      }
+      n = strlen(buf);
+      for (f = 0; f < argc; f++) {
+        if (n < sizeof(buf)-1 && f)
+          buf[n++] = ' ';
+        strncpy(buf+n, argv[f], sizeof(buf)-n-1);
+        n += strlen(buf+n);
+      }
+      LogPrintf(LogCOMMAND, "%s\n", buf);
+    }
+    FindExec(Commands, argc, argv);
+  }
 }
 
 void
-DecodeCommand(char *buff, int nb, int prompt)
+DecodeCommand(char *buff, int nb, const char *label)
 {
   int argc;
   char **argv;
 
   InterpretCommand(buff, nb, &argc, &argv);
-  RunCommand(argc, argv, prompt);
+  RunCommand(argc, argv, label);
 }
 
 static int

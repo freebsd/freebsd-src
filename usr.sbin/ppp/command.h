@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.h,v 1.9 1997/11/04 01:17:00 brian Exp $
+ * $Id: command.h,v 1.10 1997/11/11 22:58:10 brian Exp $
  *
  *	TODO:
  */
@@ -49,5 +49,5 @@ extern int SetVariable(struct cmdtab const *, int, char **, int);
 extern void Prompt(void);
 extern int IsInteractive(int);
 extern void InterpretCommand(char *, int, int *, char ***);
-extern void RunCommand(int, char **, int);
-extern void DecodeCommand(char *, int, int);
+extern void RunCommand(int, char **, const char *label);
+extern void DecodeCommand(char *, int, const char *label);
