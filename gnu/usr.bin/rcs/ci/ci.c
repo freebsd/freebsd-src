@@ -28,7 +28,6 @@ Report problems and direct all questions to:
 */
 
 /*
- * $Log: ci.c,v $
  * Revision 5.30  1995/06/16 06:19:24  eggert
  * Update FSF address.
  *
@@ -275,7 +274,7 @@ static struct hshentry newdelta;	/* new delta to be inserted	*/
 static struct stat workstat;
 static struct Symrev *assoclst, **nextassoc;
 
-mainProg(ciId, "ci", "$Id: ci.c,v 5.30 1995/06/16 06:19:24 eggert Exp $")
+mainProg(ciId, "ci", "$Id: ci.c,v 1.3 1995/10/28 21:49:08 peter Exp $")
 {
 	static char const cmdusage[] =
 		"\nci usage: ci -{fIklMqru}[rev] -d[date] -mmsg -{nN}name -sstate -ttext -T -Vn -wwho -xsuff -zzone file ...";

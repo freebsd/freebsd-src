@@ -28,7 +28,6 @@ Report problems and direct all questions to:
 */
 
 /*
- * $Log: rcsgen.c,v $
  * Revision 5.16  1995/06/16 06:19:24  eggert
  * Update FSF address.
  *
@@ -141,7 +140,7 @@ Report problems and direct all questions to:
 
 #include "rcsbase.h"
 
-libId(genId, "$Id: rcsgen.c,v 5.16 1995/06/16 06:19:24 eggert Exp $")
+libId(genId, "$Id: rcsgen.c,v 1.3 1995/10/28 21:49:41 peter Exp $")
 
 int interactiveflag;  /* Should we act as if stdin is a tty?  */
 struct buf curlogbuf;  /* buffer for current log message */

@@ -38,7 +38,6 @@ Report problems and direct all questions to:
 
 
 /*
- * $Log: rcsfnms.c,v $
  * Revision 5.16  1995/06/16 06:19:24  eggert
  * Update FSF address.
  *
@@ -178,7 +177,7 @@ Report problems and direct all questions to:
 
 #include "rcsbase.h"
 
-libId(fnmsId, "$Id: rcsfnms.c,v 5.16 1995/06/16 06:19:24 eggert Exp $")
+libId(fnmsId, "$Id: rcsfnms.c,v 1.3 1995/10/28 21:49:39 peter Exp $")
 
 static char const *bindex P((char const*,int));
 static int fin2open P((char const*, size_t, char const*, size_t, char const*, size_t, RILE*(*)P((struct buf*,struct stat*,int)), int));
