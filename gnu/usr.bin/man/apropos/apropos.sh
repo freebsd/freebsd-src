@@ -53,13 +53,7 @@ case X"$PAGER" in X)
 	;; 
 esac
 
-# If possible check global system configuration file for additional
-# man locales installed
-if [ -r /etc/defaults/rc.conf ] ; then
-	. /etc/defaults/rc.conf
-elif [ -r /etc/rc.conf ] ; then
-	. /etc/rc.conf
-fi
+man_locales=`%bindir%/manpath -qL`
 
 # search for existing */whatis databases
 mandir=''
@@ -71,7 +65,7 @@ do
 	fi
 
 	# Check for locailzed manpage subdirectories
-	if [ "$man_locales" != "NO" ]; then
+	if [ X"$man_locales" != X ]; then
 		for l in $man_locales
 		do
 			if [ -f "$d/$l/$db" -a -r "$d/$l/$db" ];
