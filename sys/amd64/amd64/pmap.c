@@ -127,7 +127,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_pageout.h>
 #include <vm/vm_pager.h>
 #include <vm/uma.h>
-#include <vm/uma_int.h>
 
 #include <machine/cpu.h>
 #include <machine/cputypes.h>
@@ -527,52 +526,6 @@ pmap_pv_allocf(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 {
 	*flags = UMA_SLAB_PRIV;
 	return (void *)kmem_alloc(kernel_map, bytes);
-}
-
-void *
-uma_small_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
-{
-	static vm_pindex_t colour;
-	vm_page_t m;
-	int pflags;
-	void *va;
-
-	*flags = UMA_SLAB_PRIV;
-
-	if ((wait & (M_NOWAIT|M_USE_RESERVE)) == M_NOWAIT)
-		pflags = VM_ALLOC_INTERRUPT;
-	else
-		pflags = VM_ALLOC_SYSTEM;
-
-	if (wait & M_ZERO)
-		pflags |= VM_ALLOC_ZERO;
-
-	for (;;) {
-		m = vm_page_alloc(NULL, colour++, pflags | VM_ALLOC_NOOBJ);
-		if (m == NULL) {
-			if (wait & M_NOWAIT)
-				return (NULL);
-			else
-				VM_WAIT;
-		} else
-			break;
-	}
-
-	va = (void *)PHYS_TO_DMAP(m->phys_addr);
-	if ((wait & M_ZERO) && (m->flags & PG_ZERO) == 0)
-		pagezero(va);
-	return (va);
-}
-
-void
-uma_small_free(void *mem, int size, u_int8_t flags)
-{
-	vm_page_t m;
-
-	m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t)mem));
-	vm_page_lock_queues();
-	vm_page_free(m);
-	vm_page_unlock_queues();
 }
 
 /*
