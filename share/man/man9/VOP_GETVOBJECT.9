@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd Sep 10, 2000
+.Dd September 10, 2000
 .Os
 .Dt VOP_CREATEVOBJECT 9
 .Sh NAME
@@ -47,9 +47,9 @@ with a particular vnode.
 .Pp
 The arguments specific to these functions are:
 .Bl -tag -width objpp
-.It Ar vp
+.It Fa vp
 the vnode of the file
-.It Ar objpp
+.It Fa objpp
 the VM object being returned, or
 .Dv NULL
 if the caller wants to test for the existence
@@ -86,7 +86,7 @@ These functions are:
 and
 .Fn vop_stdgetvobject .
 .Pp
-.Em Note:
+.Em Note :
 a
 .Xr vnode 9
 should be locked on entry and must be left locked on exit.
@@ -101,7 +101,9 @@ Zero is returned on success, otherwise an error is returned.
 .Sh EXAMPLES
 .\" XXX Why is this code here when it does not use the functions
 .\" described in this manual page?
-By default, filesystems leave VM object handling to the vop_std* functions.
+By default, filesystems leave VM object handling to the
+.Fn vop_std*
+functions.
 .Sh SEE ALSO
 .Xr VOP_GETPAGES 9 ,
 .Xr VOP_PUTPAGES 9 ,
