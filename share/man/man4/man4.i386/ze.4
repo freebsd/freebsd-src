@@ -1,0 +1,85 @@
+.\"
+.\" Copyright (c) 1997 David E. O'Brien
+.\"
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 19, 1997
+.Dt ZE 4 i386
+.Os FreeBSD
+.Sh NAME
+.Nm ze
+.Nd
+PCMCIA Ethernet device driver
+.Sh SYNOPSIS
+.Cd "device ze0 at isa? port 0x300 net irq 5 iomem 0xd8000 vector zeintr"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the IBM/National Semiconductor based PCMCIA
+Ethernet controller.  This includes the IBM Credit Card Adapter I and II 
+for the IBM Thinkpad, and the National `InfoMover' NE4100 PCMCIA card.
+.Pp
+The
+.Nm
+driver is based on the device driver for National Semiconductor DS8390
+Ethernet adapter.
+.Pp
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "ze%d: device timeout, isr=%02x, imr=%02x, imask=%04x"
+The device has stopped responding to the network, or there is a problem with
+the network connection (cable).
+.It "ze%d: shared memory corrupt - invalid packet length %d"
+This error is sometimes seen on early revisions of the Ethernet driver chip
+under high load -- the byte order of the length gets switched.
+.El
+.Pp
+.Sh CAVEATS
+This driver is only known to work with IBM Credit Card Adapter for Ethernet,
+but could probably work with other PCMCIA cards also, if it were modified
+to get the locations of the PCMCIA configuration option register (COR)
+by parsing the configuration tuples, rather than by hard-coding in
+the value expected by IBM's card.
+.Pp
+.Sh BUGS
+Currently the driver does not support multicast.
+.Pp
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr netintro 4 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in 
+.Fx 1.1.5 .
+.Sh AUTHORS
+The
+.Nm
+device driver was written by Keith Moore.
+It is based on work originally by David Greenman, where
+Keith made PCMCIA modifications and additions.
+It was adapted for FreeBSD 1.1.5 by Jordan Hubbard.
+This manual page was written by David E. O'Brien.
