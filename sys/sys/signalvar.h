@@ -229,7 +229,7 @@ void	sendsig __P((sig_t action, int sig, sigset_t *retmask, u_long code));
  *
  * MP SAFE
  */
-extern __inline int __cursig(struct proc *p)
+static __inline int __cursig(struct proc *p)
 {
 	sigset_t tmpset;
 	int r;
