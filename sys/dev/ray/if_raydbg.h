@@ -39,7 +39,7 @@
 /*
  * RAY_DEBUG settings
  *
- *	RECERR		Recoverable error's, deprecated use RAY_RECERR macro
+ *	AUTH		Authentication
  *	SUBR		Subroutine entry
  *	BOOTPARAM	Startup CM dump
  *	STARTJOIN	State transitions for start/join
@@ -55,7 +55,7 @@
  *	TX		TX routine info
  *	DCOM		dump comq entries
  */
-#define RAY_DBG_RECERR		0x0001
+#define RAY_DBG_AUTH		0x0001
 #define RAY_DBG_SUBR		0x0002
 #define RAY_DBG_BOOTPARAM	0x0004
 #define RAY_DBG_STARTJOIN	0x0008
@@ -131,12 +131,17 @@
  * These override macros defined in if_ray.c to turn them into
  * debugging ones.
  */
-#if RAY_DEBUG & RAY_DBG_COM
+#if RAY_DEBUG
+#define RAY_RECERR(sc, fmt, args...) do {				\
+    device_printf((sc)->dev, "%s(%d) " fmt "\n",			\
+	__FUNCTION__ , __LINE__ , ##args);				\
+} while (0)
+#endif /* RAY_DEBUG */
 
+#if RAY_DEBUG & RAY_DBG_COM
 #define RAY_COM_CHECK(sc, com) do { if (RAY_DEBUG & RAY_DBG_COM) {	\
     ray_com_ecf_check((sc), (com), __FUNCTION__ );			\
 } } while (0)
-
 #endif /* RAY_DEBUG & RAY_DBG_COM */
 
 #if RAY_DEBUG & RAY_DBG_MBUF
