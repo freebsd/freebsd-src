@@ -179,8 +179,8 @@ ndis_probe(dev)
 	while(t->ndis_name != NULL) {
 		if ((pci_get_vendor(dev) == t->ndis_vid) &&
 		    (pci_get_device(dev) == t->ndis_did) &&
-		    (pci_read_config(dev, PCIR_SUBVEND_0, 4) ==
-		    t->ndis_subsys)) {
+		    ((pci_read_config(dev, PCIR_SUBVEND_0, 4) ==
+		    t->ndis_subsys) || t->ndis_subsys == 0)) {
 			device_set_desc(dev, t->ndis_name);
 			return(0);
 		}
