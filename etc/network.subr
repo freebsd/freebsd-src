@@ -113,10 +113,14 @@ network_start()
 
 	# Set the domainname if we're using NIS
 	#
-	if checkyesno nisdomainname ; then
+	case ${nisdomainname} in
+	[Nn][Oo]|'')
+		;;
+	*)
 		domainname ${nisdomainname}
 		echo -n ' domain'
-	fi
+		;;
+	esac
 
 	echo '.'
 
