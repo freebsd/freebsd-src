@@ -38,7 +38,7 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)pig.c	8.1 (Berkeley) 5/31/93";
+static char sccsid[] = "@(#)pig.c	8.2 (Berkeley) 5/4/95";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -47,6 +47,7 @@ static char sccsid[] = "@(#)pig.c	8.1 (Berkeley) 5/31/93";
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 void pigout __P((char *, int));
 void usage __P((void));
