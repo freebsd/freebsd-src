@@ -335,7 +335,7 @@ pccard_function_init(struct pccard_function *pf)
 		}
 		if (cfe->irqmask) {
 			cfe->irqrid = 0;
-			cfe->irqres = bus_alloc_resource(bus, SYS_RES_IRQ,
+			r = cfe->irqres = bus_alloc_resource(bus, SYS_RES_IRQ,
 			    &cfe->irqrid, 10, 12, 1, 0);
 			if (cfe->irqres == 0)
 				goto not_this_one;
