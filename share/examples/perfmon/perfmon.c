@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: perfmon.c,v 1.3 1997/02/22 13:55:58 peter Exp $
  */
 
 #include <sys/types.h>
@@ -45,13 +45,14 @@
 #include <errno.h>
 
 static int getnum(const char *, int, int);
-static void __dead usage(const char *) __dead2;
+static void usage(const char *) __dead2;
 
 int
 main(int argc, char **argv)
 {
 	int c, fd, num;
 	int loops, i, sleeptime;
+	char *cmd;
 	struct pmc pmc;
 	struct pmc_tstamp then, now;
 	struct pmc_data value;
@@ -63,10 +64,11 @@ main(int argc, char **argv)
 	pmc.pmc_unit = 0;
 	pmc.pmc_flags = 0;
 	pmc.pmc_mask = 0;
+	cmd = NULL;
 	loops = 50;
 	sleeptime = 0;
 
-	while ((c = getopt(argc, argv, "s:l:uoeiU:m:")) != EOF) {
+	while ((c = getopt(argc, argv, "s:l:uoeiU:m:c:")) != -1) {
 		switch(c) {
 		case 'u':
 			pmc.pmc_flags |= PMCF_USR;
@@ -91,6 +93,9 @@ main(int argc, char **argv)
 			break;
 		case 's':
 			sleeptime = getnum(optarg, 0, INT_MAX - 1);
+			break;
+		case 'c':
+			cmd = optarg;
 			break;
 		default:
 			usage(argv[0]);
@@ -122,8 +127,6 @@ main(int argc, char **argv)
 
 	value.pmcd_num = 0;
 	for (i = 0; i < loops; i++) {
-		if (sleeptime)
-			sleep(sleeptime);
 		if (ioctl(fd, PMIOSTOP, &num) < 0)
 			err(1, "ioctl(PMIOSTOP)");
 		if (ioctl(fd, PMIOREAD, &value) < 0)
@@ -133,6 +136,10 @@ main(int argc, char **argv)
 			err(1, "ioctl(PMIORESET)");
 		if (ioctl(fd, PMIOSTART, &num) < 0)
 			err(1, "ioctl(PMIOSTART)");
+		if (sleeptime)
+			sleep(sleeptime);
+		if (cmd)
+			system(cmd);
 	}
 
 	if (ioctl(fd, PMIOSTOP, &num) < 0)
@@ -181,7 +188,8 @@ static void
 usage(const char *pname)
 {
 	fprintf(stderr, 
-		"%s: usage:\n\t%s [-eiou] [-l nloops] [-U unit] [-m mask] "
-		"counter\n", pname, pname);
+	"usage: %s [-eiou] [-c command] [-l nloops] [-m mask] [-s sleeptime]\n"
+	"       [-U unit] counter\n",
+		pname);
 	exit(1);
 }
