@@ -76,7 +76,7 @@ static int elf_freebsd_fixup(register_t **stack_base,
 static int elf_load_file(struct proc *p, const char *file, u_long *addr,
     u_long *entry);
 static int elf_load_section(struct proc *p,
-    struct vmspace *vmspace, struct vnode *vp,
+    struct vmspace *vmspace, struct vnode *vp, vm_object_t object,
     vm_offset_t offset, caddr_t vmaddr, size_t memsz, size_t filsz,
     vm_prot_t prot);
 static int exec_elf_imgact(struct image_params *imgp);
@@ -186,19 +186,17 @@ elf_check_header(const Elf_Ehdr *hdr)
 }
 
 static int
-elf_load_section(struct proc *p, struct vmspace *vmspace, struct vnode *vp, vm_offset_t offset, caddr_t vmaddr, size_t memsz, size_t filsz, vm_prot_t prot)
+elf_load_section(struct proc *p, struct vmspace *vmspace, struct vnode *vp, vm_object_t object, vm_offset_t offset, caddr_t vmaddr, size_t memsz, size_t filsz, vm_prot_t prot)
 {
 	size_t map_len;
 	vm_offset_t map_addr;
 	int error, rv;
 	size_t copy_len;
-	vm_object_t object;
 	vm_offset_t file_addr;
 	vm_offset_t data_buf = 0;
 
 	GIANT_REQUIRED;
 
-	VOP_GETVOBJECT(vp, &object);
 	error = 0;
 
 	/*
@@ -356,6 +354,7 @@ elf_load_file(struct proc *p, const char *file, u_long *addr, u_long *entry)
 	imgp->attr = attr;
 	imgp->firstpage = NULL;
 	imgp->image_header = (char *)kmem_alloc_wait(exec_map, PAGE_SIZE);
+	imgp->object = NULL;
 
 	if (imgp->image_header == NULL) {
 		nd->ni_vp = NULL;
@@ -389,6 +388,9 @@ elf_load_file(struct proc *p, const char *file, u_long *addr, u_long *entry)
 	 */
 	if (error == 0)
 		nd->ni_vp->v_flag |= VTEXT;
+	VOP_GETVOBJECT(nd->ni_vp, &imgp->object);
+	vm_object_reference(imgp->object);
+
 	VOP_UNLOCK(nd->ni_vp, 0, curthread); /* XXXKSE */
 	if (error)
                 goto fail;
@@ -425,6 +427,7 @@ elf_load_file(struct proc *p, const char *file, u_long *addr, u_long *entry)
   				prot |= VM_PROT_READ;
 
 			if ((error = elf_load_section(p, vmspace, nd->ni_vp,
+						     imgp->object,
   						     phdr[i].p_offset,
   						     (caddr_t)phdr[i].p_vaddr +
 							rbase,
@@ -449,6 +452,9 @@ fail:
 	if (imgp->image_header)
 		kmem_free_wakeup(exec_map, (vm_offset_t)imgp->image_header,
 			PAGE_SIZE);
+	if (imgp->object)
+		vm_object_deallocate(imgp->object);
+
 	if (nd->ni_vp)
 		vrele(nd->ni_vp);
 
@@ -540,6 +546,7 @@ exec_elf_imgact(struct image_params *imgp)
 
 			if ((error = elf_load_section(imgp->proc,
 						     vmspace, imgp->vp,
+						     imgp->object,
   						     phdr[i].p_offset,
   						     (caddr_t)phdr[i].p_vaddr,
   						     phdr[i].p_memsz,
