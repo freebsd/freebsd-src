@@ -23,11 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
-<<<<<<< radlib.h
  *	$FreeBSD$
-=======
- *	$FreeBSD$
->>>>>>> 1.7
  */
 
 #ifndef _RADLIB_H_
