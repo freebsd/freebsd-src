@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pw_user.c,v 1.8 1996/12/21 15:35:43 davidn Exp $
+ *	$Id: pw_user.c,v 1.9 1996/12/23 02:27:29 davidn Exp $
  */
 
 #include <unistd.h>
@@ -130,9 +130,47 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 
 	if ((arg = getarg(args, 'b')) != NULL) {
 		cnf->home = arg->val;
-		if (stat(cnf->home, &st) == -1 || !S_ISDIR(st.st_mode))
-			cmderr(EX_OSFILE, "root home `%s' is not a directory or does not exist\n", cnf->home);
 	}
+
+	/*
+	 * If we'll need to use it or we're updating it,
+	 * then create the base home directory if necessary
+	 */
+	if (arg != NULL || getarg(args, 'm') != NULL) {
+		int	l = strlen(cnf->home);
+
+		if (l > 1 && cnf->home[l-1] == '/')	/* Shave off any trailing path delimiter */
+			cnf->home[--l] = '\0';
+
+		if (l < 2 || *cnf->home != '/')		/* Check for absolute path name */
+			cmderr(EX_DATAERR, "invalid base directory for home '%s'\n", cnf->home);
+
+		if (stat(cnf->home, &st) == -1) {
+			char	dbuf[MAXPATHLEN];
+
+			p = strncpy(dbuf, cnf->home, sizeof dbuf);
+			dbuf[MAXPATHLEN-1] = '\0';
+			while ((p = strchr(++p, '/')) != NULL) {
+				*p = '\0';
+				if (stat(dbuf, &st) == -1) {
+					if (mkdir(dbuf, 0755) == -1)
+						goto direrr;
+					chown(dbuf, 0, 0);
+				} else if (!S_ISDIR(st.st_mode))
+					cmderr(EX_OSFILE, "'%s' (root home parent) is not a directory\n", dbuf);
+				*p = '/';
+			}
+			if (stat(dbuf, &st) == -1) {	/* Should not be strictly necessary */
+				if (mkdir(dbuf, 0755) == -1) {
+				direrr:	cmderr(EX_OSFILE, "mkdir '%s': %s\n", dbuf, strerror(errno));
+				}
+				chown(dbuf, 0, 0);
+			}
+		} else if (!S_ISDIR(st.st_mode))
+			cmderr(EX_OSFILE, "root home `%s' is not a directory\n", cnf->home);
+	}
+
+
 	if ((arg = getarg(args, 'e')) != NULL)
 		cnf->expire_days = atoi(arg->val);
 
@@ -952,14 +990,15 @@ char    *
 pw_checkname(u_char *name, int gecos)
 {
 	int             l = 0;
-	char const     *notch = gecos ? ":" : " ,\t:+-&#%$^()!@~*?<>=|\\/\"";
+	char const     *notch = gecos ? ":!@" : " ,\t:+&#%$^()!@~*?<>=|\\/\"";
 
 	while (name[l]) {
-		if (strchr(notch, name[l]) != NULL || name[l] < ' ' ||
-			name[l] == 127 || (!gecos && name[l] & 0x80))	/* 8-bit */
-			cmderr(EX_DATAERR, (name[l]<' ' || name[l] > 126)
+		if (strchr(notch, name[l]) != NULL || name[l] < ' ' || name[l] == 127 ||
+			(!gecos && l==0 && name[l] == '-') ||	/* leading '-' */
+			(!gecos && name[l] & 0x80))	/* 8-bit */
+			cmderr(EX_DATAERR, (name[l] >= ' ' && name[l] < 127)
 					    ? "invalid character `%c' in field\n"
-					    : "invalid character 0x$02x in field\n",
+					    : "invalid character 0x%02x in field\n",
 					    name[l]);
 		++l;
 	}
@@ -998,35 +1037,26 @@ static void
 rmskey(char const * name)
 {
 	static const char etcskey[] = "/etc/skeykeys";
-	static const char newskey[] = "/etc/skeykeys.new";
-	int	done = 0;
-	FILE   *infp = fopen(etcskey, "r");
+	FILE   *fp = fopen(etcskey, "r+");
 
-	if (infp != NULL) {
-		int	fd = open(newskey, O_RDWR|O_CREAT|O_TRUNC, S_IWUSR|S_IRUSR);
+	if (fp != NULL) {
+		char	tmp[1024];
+		off_t	atofs = 0;
+		int	length = strlen(name);
 
-		if (fd != -1) {
-			FILE * outfp = fdopen(fd, "w");
-			int	length = strlen(name);
-			char	tmp[1024];
-
-			while (fgets(tmp, sizeof tmp, infp) != NULL) {
-				if (strncmp(name, tmp, length) == 0 && isspace(tmp[length]))
-					++done;   /* Found a key */
-				else
-					fputs(tmp, outfp);
+		while (fgets(tmp, sizeof tmp, fp) != NULL) {
+			if (strncmp(name, tmp, length) == 0 && tmp[length]==' ') {
+				if (fseek(fp, atofs, SEEK_SET) == 0) {
+					fwrite("#", 1, 1, fp);	/* Comment username out */
+				}
+				break;
 			}
-			/*
-			 * If we got an error of any sort, don't update!
-			 */
-			if (fclose(outfp) == EOF || ferror(infp))
-				done = 0;
+			atofs = ftell(fp);
 		}
-		fclose(infp);
-		if (!done)
-			remove(newskey);
-		else
-			rename(newskey, etcskey);
+		/*
+		 * If we got an error of any sort, don't update!
+		 */
+		fclose(fp);
 	}
 }
 
