@@ -1546,16 +1546,16 @@ static int nge_encap(sc, m_head, txidx)
 	if (m != NULL)
 		return(ENOBUFS);
 
-	sc->nge_ldata->nge_tx_list[cur].nge_extsts = 0;
+	sc->nge_ldata->nge_tx_list[*txidx].nge_extsts = 0;
 	if (m_head->m_pkthdr.csum_flags) {
 		if (m_head->m_pkthdr.csum_flags & CSUM_IP)
-			sc->nge_ldata->nge_tx_list[cur].nge_extsts |=
+			sc->nge_ldata->nge_tx_list[*txidx].nge_extsts |=
 			    NGE_TXEXTSTS_IPCSUM;
 		if (m_head->m_pkthdr.csum_flags & CSUM_TCP)
-			sc->nge_ldata->nge_tx_list[cur].nge_extsts |=
+			sc->nge_ldata->nge_tx_list[*txidx].nge_extsts |=
 			    NGE_TXEXTSTS_TCPCSUM;
 		if (m_head->m_pkthdr.csum_flags & CSUM_UDP)
-			sc->nge_ldata->nge_tx_list[cur].nge_extsts |=
+			sc->nge_ldata->nge_tx_list[*txidx].nge_extsts |=
 			    NGE_TXEXTSTS_UDPCSUM;
 	}
 
