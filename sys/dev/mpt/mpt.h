@@ -150,7 +150,6 @@ int mpt_soft_reset(mpt_softc_t *mpt);
 void mpt_hard_reset(mpt_softc_t *mpt);
 int mpt_recv_handshake_reply(mpt_softc_t *mpt, size_t reply_len, void *reply);
 
-
 void mpt_send_cmd(mpt_softc_t *mpt, request_t *req);
 void mpt_free_reply(mpt_softc_t *mpt, u_int32_t ptr);
 void mpt_enable_ints(mpt_softc_t *mpt);
@@ -163,6 +162,9 @@ request_t * mpt_get_request(mpt_softc_t *mpt);
 void mpt_free_request(mpt_softc_t *mpt, request_t *req);
 int mpt_intr(void *dummy);
 void mpt_check_doorbell(mpt_softc_t * mpt);
+
+int mpt_read_cfg_page(mpt_softc_t *, int, fCONFIG_PAGE_HEADER *);
+int mpt_write_cfg_page(mpt_softc_t *, int, fCONFIG_PAGE_HEADER *);
 
 /* mpt_debug.c functions */
 void mpt_print_reply(void *vmsg);
