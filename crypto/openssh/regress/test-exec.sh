@@ -1,4 +1,4 @@
-#	$OpenBSD: test-exec.sh,v 1.14 2002/04/15 15:19:48 markus Exp $
+#	$OpenBSD: test-exec.sh,v 1.15 2004/02/24 16:56:30 markus Exp $
 #	Placed in the Public Domain.
 
 PORT=4242
@@ -49,28 +49,28 @@ SFTP=sftp
 SFTPSERVER=/usr/libexec/openssh/sftp-server
 
 if [ "x$TEST_SSH_SSH" != "x" ]; then
-	SSH=${TEST_SSH_SSH}
+	SSH="${TEST_SSH_SSH}"
 fi
 if [ "x$TEST_SSH_SSHD" != "x" ]; then
-	SSHD=${TEST_SSH_SSHD}
+	SSHD="${TEST_SSH_SSHD}"
 fi
 if [ "x$TEST_SSH_SSHAGENT" != "x" ]; then
-	SSHAGENT=${TEST_SSH_SSHAGENT}
+	SSHAGENT="${TEST_SSH_SSHAGENT}"
 fi
 if [ "x$TEST_SSH_SSHADD" != "x" ]; then
-	SSHADD=${TEST_SSH_SSHADD}
+	SSHADD="${TEST_SSH_SSHADD}"
 fi
 if [ "x$TEST_SSH_SSHKEYGEN" != "x" ]; then
-	SSHKEYGEN=${TEST_SSH_SSHKEYGEN}
+	SSHKEYGEN="${TEST_SSH_SSHKEYGEN}"
 fi
 if [ "x$TEST_SSH_SSHKEYSCAN" != "x" ]; then
-	SSHKEYSCAN=${TEST_SSH_SSHKEYSCAN}
+	SSHKEYSCAN="${TEST_SSH_SSHKEYSCAN}"
 fi
 if [ "x$TEST_SSH_SFTP" != "x" ]; then
-	SFTP=${TEST_SSH_SFTP}
+	SFTP="${TEST_SSH_SFTP}"
 fi
 if [ "x$TEST_SSH_SFTPSERVER" != "x" ]; then
-	SFTPSERVER=${TEST_SSH_SFTPSERVER}
+	SFTPSERVER="${TEST_SSH_SFTPSERVER}"
 fi
 
 # these should be used in tests

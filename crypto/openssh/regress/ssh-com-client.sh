@@ -1,4 +1,4 @@
-#	$OpenBSD: ssh-com-client.sh,v 1.5 2003/05/14 22:08:27 markus Exp $
+#	$OpenBSD: ssh-com-client.sh,v 1.6 2004/02/24 17:06:52 markus Exp $
 #	Placed in the Public Domain.
 
 tid="connect with ssh.com client"
@@ -19,6 +19,9 @@ VERSIONS="
 	3.2.0
 	3.2.2
 	3.2.3
+	3.2.5
+	3.2.9
+	3.2.9.1
 	3.3.0"
 
 # 2.0.10 2.0.12 2.0.13 don't like the test setup
