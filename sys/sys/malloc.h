@@ -81,17 +81,9 @@ void	malloc_uninit __P((void *));
 #define	MALLOC_DECLARE(type) \
 	extern struct malloc_type type[1]
 
-#ifdef MALLOC_INSTANTIATE
-#define	MALLOC_MAKE_TYPE(type, shortdesc, longdesc) \
-	MALLOC_DEFINE(type, shortdesc, longdesc)
-#else
-#define	MALLOC_MAKE_TYPE(type, shortdesc, longdesc) \
-	MALLOC_DECLARE(type)
-#endif
-
-MALLOC_MAKE_TYPE(M_CACHE, "namecache", "Dynamically allocated cache entries");
-MALLOC_MAKE_TYPE(M_DEVBUF, "devbuf", "device driver memory");
-MALLOC_MAKE_TYPE(M_TEMP, "temp", "misc temporary data buffers");
+MALLOC_DECLARE(M_CACHE);
+MALLOC_DECLARE(M_DEVBUF);
+MALLOC_DECLARE(M_TEMP);
 #endif	/* KERNEL */
 
 /*
