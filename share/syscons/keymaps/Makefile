@@ -2,6 +2,7 @@
 
 KEYMAPS=  INDEX.keymaps
 KEYMAPS+= be.iso.kbd be.iso.acc.kbd
+KEYMAPS+= bg.bds.ctrlcaps.kbd bg.phonetic.ctrlcaps.kbd
 KEYMAPS+= br275.iso.kbd br275.iso.acc.kbd br275.cp850.kbd
 KEYMAPS+= ce.iso2.kbd
 KEYMAPS+= cs.latin2.qwertz.kbd
@@ -30,8 +31,9 @@ KEYMAPS+= swedish.iso.kbd swedish.cp850.kbd
 KEYMAPS+= swissfrench.iso.kbd swissfrench.iso.acc.kbd swissfrench.cp850.kbd
 KEYMAPS+= swissgerman.iso.kbd swissgerman.iso.acc.kbd swissgerman.cp850.kbd
 KEYMAPS+= ua.koi8-u.kbd
-KEYMAPS+= uk.iso.kbd uk.cp850.kbd
-KEYMAPS+= us.iso.kbd us.dvorak.kbd us.dvorakx.kbd us.emacs.kbd us.unix.kbd
+KEYMAPS+= uk.iso.kbd uk.iso-ctrl.kbd uk.cp850.kbd uk.cp850-ctrl.kbd
+KEYMAPS+= us.iso.kbd us.dvorak.kbd us.dvorakx.kbd us.emacs.kbd us.pc-ctrl.kbd
+KEYMAPS+= us.unix.kbd
 
 MAPSDIR = ${SHAREDIR}/syscons/keymaps
 NOMAN = noman
