@@ -1,4 +1,4 @@
-/* $Id: info.h,v 1.5 1993/09/08 01:46:56 jkh Exp $ */
+/* $Id: info.h,v 1.6 1994/12/06 00:51:42 jkh Exp $ */
 
 /*
  * FreeBSD install - a package for the installation and maintainance
@@ -23,6 +23,14 @@
 #ifndef _INST_INFO_H_INCLUDE
 #define _INST_INFO_H_INCLUDE
 
+#ifndef MAXINDEXSIZE
+#define MAXINDEXSIZE 60
+#endif
+
+#ifndef MAXNAMESIZE
+#define MAXNAMESIZE  20
+#endif
+
 #define	SHOW_COMMENT	0x0001
 #define SHOW_DESC	0x0002
 #define SHOW_PLIST	0x0004
@@ -46,5 +54,6 @@ extern char *CheckPkg;
 extern void	show_file(char *, char *);
 extern void	show_plist(char *, Package *, plist_t);
 extern void	show_files(char *, Package *);
+extern void	show_index(char *, char *);
 
 #endif	/* _INST_INFO_H_INCLUDE */
