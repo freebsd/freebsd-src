@@ -44,7 +44,7 @@
 .Ar interface
 .Op Ar address_family
 .Oo
-.Ar address
+.Ar address Ns Op Cm / Ns Ar prefixlength
 .Op Ar dest_address
 .Oc
 .Op Ar parameters
@@ -87,6 +87,11 @@ or a
 .Tn DARPA
 Internet address expressed in the Internet standard
 .Dq dot notation .
+.Pp
+It is also possible to use the CIDR notation (also known as the
+slash notation) to include the netmask.
+That is, one can specify an address like
+.Dl 192.168.0.1/16
 .\" For the Xerox Network Systems(tm) family,
 .\" addresses are 
 .\" .Ar net:a.b.c.d.e.f ,
@@ -325,6 +330,11 @@ and 0's for the host part.
 The mask should contain at least the standard network portion,
 and the subnet field should be contiguous with the network
 portion.
+.Pp
+The netmask can also be specified in CIDR notation after the address.
+See the
+.Ar address
+option above for more information.
 .It Cm prefixlen Ar len
 (Inet6 only)
 Specify that
