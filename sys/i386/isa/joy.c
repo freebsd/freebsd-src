@@ -259,7 +259,7 @@ MOD_DEV (joy, LM_DT_CHAR, CDEV_MAJOR, &joy_cdevsw);
 
 static struct isa_device dev = {0, &joydriver, IO_GAME, 0, -1, (caddr_t) 0, 0, 0, 0, 0, 0, 0, 0,  0, 1, 0, 0};
 
-int 
+static int 
 joy_load (struct lkm_table *lkmtp, int cmd)
 {
     if (joyprobe (&dev)) {
@@ -273,22 +273,24 @@ joy_load (struct lkm_table *lkmtp, int cmd)
     }
 }
 
-int
+static int
 joy_unload (struct lkm_table *lkmtp, int cmd)
 {
     uprintf ("Joystick driver unloaded\n");
     return 0;
 }
-int
+
+static int
 joy_stat (struct lkm_table *lkmtp, int cmd)
 {
     return 0;
 }
+
 int
 joy_mod (struct lkm_table *lkmtp, int cmd, int ver)
 {
-#define _module joy_module
-    DISPATCH(lkmtp, cmd, ver, joy_load, joy_unload, joy_stat);
+    MOD_DISPATCH(joy, lkmtp, cmd, ver,
+	joy_load, joy_unload, joy_stat);
 }
 
 #endif /* JOY_MODULE */

@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: lkm.h,v 1.15 1997/02/22 09:45:30 peter Exp $
  */
 
 #ifndef _SYS_LKM_H_
@@ -67,7 +67,7 @@ typedef enum loadmod {
 struct lkm_syscall {
 	MODTYPE	lkm_type;
 	int	lkm_ver;
-	char	*lkm_name;
+	const char	*lkm_name;
 	u_long	lkm_offset;		/* save/assign area */
 	struct sysent	*lkm_sysent;
 	struct sysent	lkm_oldent;	/* save area for unload */
@@ -79,7 +79,7 @@ struct lkm_syscall {
 struct lkm_vfs {
 	MODTYPE	lkm_type;
 	int	lkm_ver;
-	char	*lkm_name;
+	const char	*lkm_name;
 	u_long	lkm_offset;
 	struct  linker_set *lkm_vnodeops;
 	struct	vfsconf *lkm_vfsconf;
@@ -99,7 +99,7 @@ typedef enum devtype {
 struct lkm_dev {
 	MODTYPE	lkm_type;
 	int	lkm_ver;
-	char	*lkm_name;
+	const char	*lkm_name;
 	u_long	lkm_offset;
 	DEVTYPE	lkm_devtype;
 	union {
@@ -119,7 +119,7 @@ struct lkm_dev {
 struct lkm_strmod {
 	MODTYPE	lkm_type;
 	int	lkm_ver;
-	char	*lkm_name;
+	const char	*lkm_name;
 	u_long	lkm_offset;
 	/*
 	 * Removed: future release
@@ -132,7 +132,7 @@ struct lkm_strmod {
 struct lkm_exec {
 	MODTYPE	lkm_type;
 	int	lkm_ver;
-	char	*lkm_name;
+	const char	*lkm_name;
 	u_long	lkm_offset;
 	const struct execsw	*lkm_exec;
 	struct execsw	lkm_oldexec;
@@ -144,7 +144,7 @@ struct lkm_exec {
 struct lkm_misc {
 	MODTYPE	lkm_type;
 	int	lkm_ver;
-	char	*lkm_name;
+	const char	*lkm_name;
 	u_long	lkm_offset;
 };
 
@@ -154,7 +154,7 @@ struct lkm_misc {
 struct lkm_any {
 	MODTYPE	lkm_type;
 	int	lkm_ver;
-	char	*lkm_name;
+	const char	*lkm_name;
 	u_long	lkm_offset;
 };
 
@@ -208,25 +208,35 @@ struct lkm_table {
 #define	LKM_E_UNLOAD	2
 #define	LKM_E_STAT	3
 
+/* Flag to indicate that LKM should select the slot, etc. Supported by:
+ *  devslot in MOD_DEV
+ */
+#define LKM_ANON ((u_long)-1)
+
+/* XXX wcd.c pokes around in the lkm private structure, so until that
+ * is fixed here is a way to export the structure name.
+ */
+#define MOD_PRIVATE(name) name ## _mod_struct
+
 #define	MOD_DECL(name)							    \
 	static int name ## _load __P((struct lkm_table *lkmtp, int cmd));   \
 	static int name ## _unload __P((struct lkm_table *lkmtp, int cmd)); \
 	int name ## _mod __P((struct lkm_table *lkmtp, int cmd,	int ver))   \
 
 #define	MOD_SYSCALL(name,callslot,sysentp)	\
-	static struct lkm_syscall _module = {	\
+	static struct lkm_syscall MOD_PRIVATE(name) = {	\
 		LM_SYSCALL,			\
 		LKM_VERSION,			\
-		name,				\
+		#name,				\
 		callslot,			\
 		sysentp				\
 	}
 
 #define	MOD_VFS(name,vnodeops,vfsconf)	\
-	static struct lkm_vfs _module = {	\
+	static struct lkm_vfs MOD_PRIVATE(name) = {	\
 		LM_VFS,				\
 		LKM_VERSION,			\
-		name,				\
+		#name,				\
 		0,				\
 		vnodeops,			\
 		vfsconf				\
@@ -234,18 +244,18 @@ struct lkm_table {
 
 #define	MOD_DEV(name,devtype,devslot,devp)	\
 	MOD_DECL(name);				\
-	static struct lkm_dev name ## _module = {	\
+	static struct lkm_dev MOD_PRIVATE(name) = {	\
 		LM_DEV,				\
 		LKM_VERSION,			\
 		#name ## "_mod",		\
 		devslot,			\
 		devtype,			\
-		(void *)devp			\
+		{ (void *)devp }		\
 	}
 
 #define	MOD_EXEC(name,execslot,execsw)		\
 	MOD_DECL(name);				\
-	static struct lkm_exec _module = {	\
+	static struct lkm_exec MOD_PRIVATE(name) = {	\
 		LM_EXEC,			\
 		LKM_VERSION,			\
 		#name ## "_mod",		\
@@ -255,28 +265,29 @@ struct lkm_table {
 
 #define	MOD_MISC(name)				\
 	MOD_DECL(name);				\
-	static struct lkm_misc _module = {	\
+	static struct lkm_misc MOD_PRIVATE(name) = {	\
 		LM_MISC,			\
 		LKM_VERSION,			\
 		#name ## "_mod"			\
 	}
 
-
 /*
- * DISPATCH -- body function for use in module entry point function;
+ * MOD_DISPATCH -- body function for use in module entry point function;
  * generally, the function body will consist entirely of a single
- * DISPATCH line.
+ * MOD_DISPATCH line.
  *
  * Call load/unload/stat on each corresponding entry instance.  "cmd" is
  * passed to each function so that a single function can be used if desired.
+ *
  */
-#define	DISPATCH(lkmtp,cmd,ver,load,unload,stat)			\
+#define	MOD_DISPATCH(name,lkmtp,cmd,ver,load,unload,stat)		\
 	if (ver != LKM_VERSION)						\
 		return EINVAL;	/* version mismatch */			\
 	switch (cmd) {							\
 	int	error;							\
 	case LKM_E_LOAD:						\
-		lkmtp->private.lkm_any = (struct lkm_any *)&_module;	\
+		lkmtp->private.lkm_any =				\
+			(struct lkm_any *)& MOD_PRIVATE(name) ;		\
 		if (lkmexists(lkmtp)) /* !!! */				\
 			return EEXIST;					\
 		if ((error = load(lkmtp, cmd)))				\
@@ -292,6 +303,12 @@ struct lkm_table {
 		break;							\
 	}								\
 	return lkmdispatch(lkmtp, cmd);
+
+/* Provide a backward compatible stub that will generate compile time errors.
+ * When fixing, prefer MOD_DISPATCH to be consistent with the others.
+ */
+#define	DISPATCH(name,lkmtp,cmd,ver,load,unload,stat)			\
+	MOD_DISPATCH(name,lkmtp,cmd,ver,load,unload,stat)
 
 int lkmdispatch __P((struct lkm_table *lkmtp, int cmd));
 int lkmexists	__P((struct lkm_table *lkmtp));
@@ -325,7 +342,7 @@ int lkm_nullcmd __P((struct lkm_table *lkmtp, int cmd));
  */
 struct lmc_resrv {
 	u_long	size;		/* IN: size of module to reserve */
-	char	*name;		/* IN: name (must be provided */
+	const char	*name;		/* IN: name (must be provided */
 	int	slot;		/* OUT: allocated slot (module ID) */
 	u_long	addr;		/* OUT: Link-to address */
 };
@@ -355,7 +372,7 @@ struct lmc_load {
  */
 struct lmc_unload {
 	int	id;		/* IN: module ID to unload */
-	char	*name;		/* IN: module name to unload if id -1 */
+	const char	*name;	/* IN: module name to unload if id -1 */
 	int	status;		/* OUT: status of operation */
 };
 

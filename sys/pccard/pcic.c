@@ -213,7 +213,8 @@ pcic_handle(struct lkm_table *lkmtp, int cmd)
 int
 pcic_mod(struct lkm_table *lkmtp, int cmd, int ver)
 {
-	DISPATCH(lkmtp,cmd,ver,pcic_handle,pcic_handle,lkm_nullcmd);
+	MOD_DISPATCH(pcic, lkmtp, cmd, ver,
+		pcic_handle, pcic_handle, lkm_nullcmd);
 }
 
 /*
