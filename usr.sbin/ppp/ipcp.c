@@ -659,7 +659,7 @@ ipcp_Setup(struct ipcp *ipcp, u_int32_t mask)
   }
 
   ipcp->heis1172 = 0;
-
+  ipcp->peer_req = 0;
   ipcp->peer_ip = ipcp->cfg.peer_range.ipaddr;
   ipcp->peer_compproto = 0;
 
@@ -915,6 +915,7 @@ IpcpLayerStart(struct fsm *fp)
   throughput_start(&ipcp->throughput, "IPCP throughput",
                    Enabled(fp->bundle, OPT_THROUGHPUT));
   fp->more.reqs = fp->more.naks = fp->more.rejs = ipcp->cfg.fsm.maxreq * 3;
+  ipcp->peer_req = 0;
 }
 
 static void
@@ -1139,14 +1140,13 @@ IpcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
 {
   /* Deal with incoming PROTO_IPCP */
   struct ipcp *ipcp = fsm2ipcp(fp);
-  int type, length, gotdnsnak, ipaddr_req;
+  int type, length, gotdnsnak;
   u_int32_t compproto;
   struct compreq *pcomp;
   struct in_addr ipaddr, dstipaddr, have_ip;
   char tbuff[100], tbuff2[100];
 
   gotdnsnak = 0;
-  ipaddr_req = 0;
 
   while (plen >= sizeof(struct fsmconfig)) {
     type = *cp;
@@ -1166,7 +1166,7 @@ IpcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
 
       switch (mode_type) {
       case MODE_REQ:
-        ipaddr_req = 1;
+        ipcp->peer_req = 1;
         ipcp_ValidateReq(ipcp, ipaddr, dec);
 	break;
 
@@ -1414,8 +1414,17 @@ IpcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
   }
 
   if (mode_type != MODE_NOP) {
-    if (mode_type == MODE_REQ && !ipaddr_req) {
-      /* We *REQUIRE* that the peer requests an IP address */
+    if (mode_type == MODE_REQ && !ipcp->peer_req) {
+      if (dec->rejend == dec->rej && dec->nakend == dec->nak) {
+        /*
+         * Pretend the peer has requested an IP.
+         * We do this to ensure that we only send one NAK if the only
+         * reason for the NAK is because the peer isn't sending a
+         * TY_IPADDR REQ.  This stops us from repeatedly trying to tell
+         * the peer that we have to have an IP address on their end.
+         */
+        ipcp->peer_req = 1;
+      }
       ipaddr.s_addr = INADDR_ANY;
       ipcp_ValidateReq(ipcp, ipaddr, dec);
     }
