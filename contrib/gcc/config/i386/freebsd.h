@@ -1,9 +1,8 @@
-/* Definitions for Intel 386 running FreeBSD with either a.out or ELF format
+/* Definitions for Intel 386 running FreeBSD with ELF format
    Copyright (C) 1996, 2000, 2002 Free Software Foundation, Inc.
    Contributed by Eric Youngdale.
    Modified for stabs-in-ELF by H.J. Lu.
    Adapted from GNU/Linux version by John Polstra.
-   Added support for generating "old a.out gas" on the fly by Peter Wemm.
    Continued development by David O'Brien <obrien@freebsd.org>
 
 This file is part of GNU CC.
@@ -28,10 +27,10 @@ Boston, MA 02111-1307, USA.  */
 #undef  CC1_SPEC
 #define CC1_SPEC "%(cc1_cpu) %{profile:-p} \
   %{gline:%{!g:%{!g0:%{!g1:%{!g2: -g1}}}}} \
-  %{maout: %{!mno-underscores: %{!munderscores: -munderscores }}}"
+  "
 
 #undef  ASM_SPEC
-#define ASM_SPEC	"%{v*: -v} %{maout: %{fpic:-k} %{fPIC:-k}}"
+#define ASM_SPEC	"%{v*: -v}"
 
 #undef  ASM_FINAL_SPEC
 #define ASM_FINAL_SPEC	"%|"
@@ -50,11 +49,6 @@ Boston, MA 02111-1307, USA.  */
 #undef	LINK_SPEC
 #define LINK_SPEC "\
  %{p:%e`-p' not supported; use `-pg' and gprof(1)} \
-  %{maout: %{shared:-Bshareable} \
-    %{!shared:%{!nostdlib:%{!r:%{!e*:-e start}}} -dc -dp %{static:-Bstatic} \
-      %{pg:-Bstatic} %{Z}} \
-    %{assert*} %{R*}} \
-  %{!maout: \
     %{Wl,*:%*} \
     %{v:-V} \
     %{assert*} %{R*} %{rpath*} %{defsym*} \
@@ -64,7 +58,7 @@ Boston, MA 02111-1307, USA.  */
 	%{rdynamic: -export-dynamic} \
 	%{!dynamic-linker: -dynamic-linker /usr/libexec/ld-elf.so.1}} \
       %{static:-Bstatic}} \
-    %{symbolic:-Bsymbolic}}"
+    %{symbolic:-Bsymbolic}"
 
 /* Provide a STARTFILE_SPEC appropriate for FreeBSD.  Here we add the magical
    crtbegin.o file (see crtstuff.c) which provides part of the support for
@@ -72,12 +66,6 @@ Boston, MA 02111-1307, USA.  */
 
 #undef STARTFILE_SPEC
 #define STARTFILE_SPEC "\
-  %{maout: %{shared:c++rt0.o%s} \
-    %{!shared: \
-      %{pg:gcrt0.o%s}%{!pg: \
-	%{static:scrt0.o%s} \
-	%{!static:crt0.o%s}}}} \
-  %{!maout: \
     %{!shared: \
       %{pg:gcrt1.o%s} \
       %{!pg: \
@@ -85,7 +73,7 @@ Boston, MA 02111-1307, USA.  */
 	%{!p:crt1.o%s}}} \
     crti.o%s \
     %{!shared:crtbegin.o%s} \
-    %{shared:crtbeginS.o%s}}"
+    %{shared:crtbeginS.o%s}"
 
 /* Provide an ENDFILE_SPEC appropriate for FreeBSD/i386.  Here we tack on our
    own magical crtend.o file (see crtstuff.c) which provides part of the
@@ -94,9 +82,8 @@ Boston, MA 02111-1307, USA.  */
 
 #undef  ENDFILE_SPEC
 #define ENDFILE_SPEC "\
-  %{!maout: \
     %{!shared:crtend.o%s} \
-    %{shared:crtendS.o%s} crtn.o%s}"
+    %{shared:crtendS.o%s} crtn.o%s"
 
 
 /************************[  Target stuff  ]***********************************/
@@ -118,22 +105,14 @@ Boston, MA 02111-1307, USA.  */
 #define TARGET_VERSION	fprintf (stderr, " (i386 FreeBSD/ELF)");
 
 #define MASK_PROFILER_EPILOGUE	010000000000
-#define MASK_AOUT		004000000000	/* a.out not elf */
-#define MASK_UNDERSCORES	002000000000	/* use leading _ */
 
 #define TARGET_PROFILER_EPILOGUE	(target_flags & MASK_PROFILER_EPILOGUE)
-#define TARGET_AOUT			(target_flags & MASK_AOUT)
-#define TARGET_ELF			((target_flags & MASK_AOUT) == 0)
-#define TARGET_UNDERSCORES		((target_flags & MASK_UNDERSCORES) != 0)
+#define TARGET_ELF			1
 
 #undef	SUBTARGET_SWITCHES
 #define SUBTARGET_SWITCHES						\
   { "profiler-epilogue",	 MASK_PROFILER_EPILOGUE, "Function profiler epilogue"}, \
-  { "no-profiler-epilogue",	-MASK_PROFILER_EPILOGUE, "No function profiler epilogue"}, \
-  { "aout",			 MASK_AOUT, "Generate an a.out (vs. ELF) binary"}, \
-  { "no-aout",			-MASK_AOUT, "Do not generate an a.out binary"}, \
-  { "underscores",		 MASK_UNDERSCORES, "Add leading underscores to symbols"}, \
-  { "no-underscores",		-MASK_UNDERSCORES, "Do not add leading underscores to symbols"},
+  { "no-profiler-epilogue",	-MASK_PROFILER_EPILOGUE, "No function profiler epilogue"},
 
 /* This goes away when the math emulator is fixed.  */
 #undef  TARGET_SUBTARGET_DEFAULT
@@ -148,27 +127,6 @@ Boston, MA 02111-1307, USA.  */
 #undef  DEFAULT_PCC_STRUCT_RETURN
 #define DEFAULT_PCC_STRUCT_RETURN 0
 
-/* The a.out tools do not support "linkonce" sections. */
-#undef  SUPPORTS_ONE_ONLY
-#define SUPPORTS_ONE_ONLY	TARGET_ELF
-
-/* Prefix for internally generated assembler labels.  If we aren't using
-   underscores, we are using prefix `.'s to identify labels that should
-   be ignored, as in `i386/gas.h' --karl@cs.umb.edu  */
-#undef  LPREFIX
-#define LPREFIX ((TARGET_UNDERSCORES) ? "L" : ".L")
-
-/* supply our own hook for calling __main() from main() */
-#undef  INVOKE__main
-#define INVOKE__main
-#undef  GEN_CALL__MAIN
-#define GEN_CALL__MAIN							\
-  do {									\
-    if (!(TARGET_ELF))							\
-      emit_library_call (gen_rtx (SYMBOL_REF, Pmode, NAME__MAIN), 0,	\
-			 VOIDmode, 0);					\
-  } while (0)
-
 /* Tell final.c that we don't need a label passed to mcount.  */
 #define NO_PROFILE_COUNTERS	1
 
@@ -178,11 +136,10 @@ Boston, MA 02111-1307, USA.  */
 #undef  FUNCTION_PROFILER
 #define FUNCTION_PROFILER(FILE, LABELNO)  \
   do {									\
-    char *_name = TARGET_AOUT ? "mcount" : ".mcount";			\
     if (flag_pic)							\
-      fprintf ((FILE), "\tcall *%s@GOT(%%ebx)\n", _name);		\
+      fprintf ((FILE), "\tcall *.mcount%s@GOT(%%ebx)\n");		\
     else								\
-      fprintf ((FILE), "\tcall %s\n", _name);				\
+      fprintf ((FILE), "\tcall .mcount\n");				\
   } while (0)
 
 /* Output assembler code to FILE to end profiling of the current function.  */
@@ -202,35 +159,7 @@ Boston, MA 02111-1307, USA.  */
 #undef  ASM_APP_OFF
 #define ASM_APP_OFF	"#NO_APP\n"
 
-/* Override the default string pseudo-op of "\t.string\t" from ../elfos.h.
-   ".string" doesn't work for the aout case.  */
-#undef  STRING_ASM_OP
-#define STRING_ASM_OP	(TARGET_AOUT ? "\t.asciz\t" : "\t.string\t")
-
-/* Override the use of "\t.section\t.rodata" from ../elfos.h.  Neither
-   ".section" nor "rodata" works for the aout case.  This forces a fallback
-   to ".text".  */
-#undef  USE_CONST_SECTION
-#define USE_CONST_SECTION	TARGET_ELF
-
-/* This is how to store into the string BUF
-   the symbol_ref name of an internal numbered label where
-   PREFIX is the class of label and NUM is the number within the class.
-   This is suitable for output with `assemble_name'.  */
-#undef	ASM_GENERATE_INTERNAL_LABEL
-#define ASM_GENERATE_INTERNAL_LABEL(LABEL, PREFIX, NUM)			\
-  sprintf ((LABEL), "*%s%s%u", (TARGET_UNDERSCORES) ? "" : ".",		\
-	   (PREFIX), (unsigned) (NUM))
-
-/* This is how to output an internal numbered label where
-   PREFIX is the class of label and NUM is the number within the class.
-   For most svr4/ELF systems, the convention is that any symbol which begins
-   with a period is not put into the linker symbol table by the assembler.  */
-#undef	ASM_OUTPUT_INTERNAL_LABEL
-#define	ASM_OUTPUT_INTERNAL_LABEL(FILE, PREFIX, NUM)			\
-  fprintf ((FILE), "%s%s%u:\n", (TARGET_UNDERSCORES) ? "" : ".",	\
-	   (PREFIX), (unsigned) (NUM))
-
+/* XXX:DEO do we still need this override to defaults.h ?? */
 /* This is how to output a reference to a user-level label named NAME.  */
 #undef  ASM_OUTPUT_LABELREF
 #define ASM_OUTPUT_LABELREF(FILE, NAME)					\
@@ -240,15 +169,13 @@ Boston, MA 02111-1307, USA.  */
        FUNCTION_PROFILER_EPILOGUE ().  */				\
     if (*_name == '.' && strcmp(_name + 1, "mexitcount") == 0)		\
       {									\
-	if (TARGET_AOUT)						\
-	  _name++;							\
 	if (flag_pic)							\
 	  fprintf ((FILE), "*%s@GOT(%%ebx)", _name);			\
 	else								\
 	  fprintf ((FILE), "%s", _name);				\
       }									\
     else								\
-      fprintf (FILE, "%s%s", TARGET_UNDERSCORES ? "_" : "", _name);	\
+      fprintf (FILE, "%s", _name);					\
 } while (0)
 
 /* This is how to hack on the symbol code of certain relcalcitrant
@@ -267,89 +194,6 @@ Boston, MA 02111-1307, USA.  */
     }									\
   } while (0)
 
-#undef  ASM_OUTPUT_ALIGNED_COMMON
-#define ASM_OUTPUT_ALIGNED_COMMON(FILE, NAME, SIZE, ALIGN)		\
-  do {									\
-    if (TARGET_ELF)							\
-      {									\
-	fprintf ((FILE), "%s", COMMON_ASM_OP);				\
-	assemble_name ((FILE), (NAME));					\
-	fprintf ((FILE), ",%u,%u\n", (SIZE), (ALIGN) / BITS_PER_UNIT);	\
-      }									\
-    else								\
-      {									\
-	int alignbytes = ((ALIGN) + BITS_PER_UNIT - 1) / BITS_PER_UNIT;	\
-	int rounded = (SIZE);						\
-	rounded += alignbytes - 1;					\
-	rounded = (rounded / alignbytes) * alignbytes;			\
-	fprintf ((FILE), "%s ", COMMON_ASM_OP);				\
-	assemble_name ((FILE), (NAME));					\
-	fprintf ((FILE), ",%u\n", (rounded));				\
-      }									\
-  } while (0)
-
-/* This says how to output assembler code to declare an
-   uninitialized internal linkage data object.  Under SVR4,
-   the linker seems to want the alignment of data objects
-   to depend on their types.  We do exactly that here.  */
-
-#undef  ASM_OUTPUT_ALIGNED_LOCAL
-#define ASM_OUTPUT_ALIGNED_LOCAL(FILE, NAME, SIZE, ALIGN)		\
-  do {									\
-    if (TARGET_ELF)							\
-      {									\
-	fprintf ((FILE), "%s", LOCAL_ASM_OP);				\
-	assemble_name ((FILE), (NAME));					\
-	fprintf ((FILE), "\n");						\
-	ASM_OUTPUT_ALIGNED_COMMON ((FILE), (NAME), (SIZE), (ALIGN));	\
-      }									\
-    else								\
-      {									\
-	int rounded = (SIZE);						\
-	if (rounded == 0) rounded = 1;					\
-	rounded += (BIGGEST_ALIGNMENT / BITS_PER_UNIT) - 1;		\
-	rounded = (rounded / (BIGGEST_ALIGNMENT / BITS_PER_UNIT)	\
-		   * (BIGGEST_ALIGNMENT / BITS_PER_UNIT));		\
-	fputs ("\t.lcomm\t", (FILE));					\
-	assemble_name ((FILE), (NAME));					\
-	fprintf ((FILE), ",%u\n", (rounded));				\
-      }									\
-  } while (0)
-
-/* How to output some space.  The rules are different depending on the
-   object format.  */
-#undef  ASM_OUTPUT_SKIP
-#define ASM_OUTPUT_SKIP(FILE, SIZE) 					\
-  do {									\
-    if (TARGET_ELF)							\
-      {									\
-        fprintf ((FILE), "%s%u\n", SKIP_ASM_OP, (SIZE));		\
-      }									\
-    else								\
-      {									\
-        fprintf ((FILE), "\t.space\t%u\n", (SIZE));			\
-      }									\
-  } while (0)
-
-#undef  ASM_OUTPUT_SOURCE_LINE
-#define ASM_OUTPUT_SOURCE_LINE(FILE, LINE)				\
-  do {									\
-    static int sym_lineno = 1;						\
-    if (TARGET_ELF)							\
-      {									\
-	fprintf ((FILE), ".stabn 68,0,%d,.LM%d-", (LINE), sym_lineno);	\
-	assemble_name ((FILE), 						\
-		XSTR (XEXP (DECL_RTL (current_function_decl), 0), 0));	\
-	fprintf ((FILE), "\n.LM%d:\n", sym_lineno);			\
-	sym_lineno += 1;						\
-      }									\
-    else								\
-      {									\
-	fprintf ((FILE), "\t%s %d,0,%d\n", ASM_STABD_OP, N_SLINE,	\
-		lineno);						\
-      }									\
-  } while (0)
-
 /* A C statement to output to the stdio stream FILE an assembler
    command to advance the location counter to a multiple of 1<<LOG
    bytes if it is within MAX_SKIP bytes.
@@ -363,9 +207,7 @@ Boston, MA 02111-1307, USA.  */
 #define ASM_OUTPUT_MAX_SKIP_ALIGN(FILE, LOG, MAX_SKIP)			\
   do {									\
     if ((LOG) != 0) {							\
-      if (TARGET_AOUT)							\
-	ASM_OUTPUT_ALIGN ((FILE), (LOG));				\
-      else if ((MAX_SKIP) == 0)						\
+      if ((MAX_SKIP) == 0)						\
 	fprintf ((FILE), "\t.p2align %d\n", (LOG));			\
       else								\
 	fprintf ((FILE), "\t.p2align %d,,%d\n", (LOG), (MAX_SKIP));	\
@@ -375,10 +217,6 @@ Boston, MA 02111-1307, USA.  */
 
 
 /************************[  Debugger stuff  ]*********************************/
-
-/* The a.out tools do not support "Lscope" .stabs symbols. */
-#undef  NO_DBX_FUNCTION_END
-#define NO_DBX_FUNCTION_END	TARGET_AOUT
 
 #undef  DBX_REGISTER_NUMBER
 #define DBX_REGISTER_NUMBER(n)	(TARGET_64BIT ? dbx64_register_map[n]	\
@@ -395,29 +233,15 @@ Boston, MA 02111-1307, USA.  */
 #define DWARF_FRAME_REGNUM(n)	(TARGET_64BIT ? dbx64_register_map[n]	\
 				: svr4_dbx_register_map[(n)])
 
-/* tag end of file in elf mode */
-#undef  DBX_OUTPUT_MAIN_SOURCE_FILE_END
-#define DBX_OUTPUT_MAIN_SOURCE_FILE_END(FILE, FILENAME)			\
-  do {									\
-    if (TARGET_ELF) {							\
-      asm_fprintf ((FILE),						\
-		   "\t.text\n\t.stabs \"\",%d,0,0,%LLetext\n%LLetext:\n",\
-		   N_SO);						\
-    }									\
-  } while (0)
-
 /* stabs-in-elf has offsets relative to function beginning */
 #undef  DBX_OUTPUT_LBRAC
 #define DBX_OUTPUT_LBRAC(FILE, NAME)					\
   do {									\
     fprintf (asmfile, "%s %d,0,0,", ASM_STABN_OP, N_LBRAC);		\
     assemble_name (asmfile, buf);					\
-    if (TARGET_ELF)							\
-      {									\
         fputc ('-', asmfile);						\
         assemble_name (asmfile,						\
 	      	 XSTR (XEXP (DECL_RTL (current_function_decl), 0), 0));	\
-      }									\
     fprintf (asmfile, "\n");						\
   } while (0)
 
@@ -426,11 +250,8 @@ Boston, MA 02111-1307, USA.  */
   do {									\
     fprintf (asmfile, "%s %d,0,0,", ASM_STABN_OP, N_RBRAC);		\
     assemble_name (asmfile, buf);					\
-    if (TARGET_ELF)							\
-      {									\
         fputc ('-', asmfile);						\
         assemble_name (asmfile,						\
 		 XSTR (XEXP (DECL_RTL (current_function_decl), 0), 0));	\
-      }									\
     fprintf (asmfile, "\n");						\
   } while (0)

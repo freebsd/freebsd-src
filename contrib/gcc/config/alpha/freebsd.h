@@ -91,8 +91,6 @@ Boston, MA 02111-1307, USA.  */
 #define TARGET_VERSION	fprintf (stderr, " (FreeBSD/Alpha ELF)");
 
 #define TARGET_ELF		1
-#define TARGET_AOUT		(0)
-#define TARGET_UNDERSCORES	(0)
 
 #undef OBJECT_FORMAT_COFF
 #undef EXTENDED_COFF
