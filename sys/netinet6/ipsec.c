@@ -3687,15 +3687,6 @@ ipsec_getnhist(m)
 	return aux->hdrs;
 }
 
-struct ipsec_history *
-ipsec_gethist(m, lenp)
-	struct mbuf *m;
-	int *lenp;
-{
-
-	panic("ipsec_gethist: obsolete API");
-}
-
 void
 ipsec_clearhist(m)
 	struct mbuf *m;
