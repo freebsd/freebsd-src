@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.19 1995/01/10 09:20:34 davidg Exp $
+ * $Id: vfs_bio.c,v 1.20 1995/01/11 01:53:18 davidg Exp $
  */
 
 /*
@@ -1108,8 +1108,10 @@ allocbuf(struct buf * bp, int size, int vmio)
 							vm_page_activate(m);
 						continue;
 					}
+					s = splhigh();
 					m = vm_page_lookup(obj, objoff);
 					if (!m) {
+						splx(s);
 						m = vm_page_alloc(obj, objoff, 0);
 						if (!m) {
 							int j;
@@ -1139,6 +1141,7 @@ allocbuf(struct buf * bp, int size, int vmio)
 						int j;
 						int bufferdestroyed = 0;
 
+						splx(s);
 						for (j = bp->b_npages; j < pageindex; j++) {
 							vm_page_t mt = bp->b_pages[j];
 
@@ -1172,6 +1175,7 @@ allocbuf(struct buf * bp, int size, int vmio)
 						    (cnt.v_free_count + cnt.v_cache_count) < cnt.v_free_reserved) {
 							int j;
 
+							splx(s);
 							for (j = bp->b_npages; j < pageindex; j++) {
 								vm_page_t mt = bp->b_pages[j];
 
@@ -1200,6 +1204,7 @@ allocbuf(struct buf * bp, int size, int vmio)
 						if ((m->flags & PG_ACTIVE) == 0)
 							vm_page_activate(m);
 						m->flags |= PG_BUSY;
+						splx(s);
 					}
 					bp->b_pages[pageindex] = m;
 					curbpnpages = pageindex + 1;
