@@ -26,7 +26,7 @@
  *
  * Author: Hartmut Brandt <harti@freebsd.org>
  *
- * $Begemot: libunimsg/atm/msg/privmsg.c,v 1.3 2003/09/19 11:58:15 hbb Exp $
+ * $Begemot: libunimsg/netnatm/msg/privmsg.c,v 1.8 2003/10/10 14:50:05 hbb Exp $
  *
  * Private definitions for the MSG code file.
  *
