@@ -1445,14 +1445,14 @@ ogetkerninfo(struct thread *td, struct getkerninfo_args *uap)
 		name[4] = uap->op & 0xff;
 		name[5] = uap->arg;
 		error = userland_sysctl(td, name, 6, uap->where, uap->size,
-			0, 0, 0, &size);
+			0, 0, 0, &size, 0);
 		break;
 
 	case KINFO_VNODE:
 		name[0] = CTL_KERN;
 		name[1] = KERN_VNODE;
 		error = userland_sysctl(td, name, 2, uap->where, uap->size,
-			0, 0, 0, &size);
+			0, 0, 0, &size, 0);
 		break;
 
 	case KINFO_PROC:
@@ -1461,35 +1461,35 @@ ogetkerninfo(struct thread *td, struct getkerninfo_args *uap)
 		name[2] = uap->op & 0xff;
 		name[3] = uap->arg;
 		error = userland_sysctl(td, name, 4, uap->where, uap->size,
-			0, 0, 0, &size);
+			0, 0, 0, &size, 0);
 		break;
 
 	case KINFO_FILE:
 		name[0] = CTL_KERN;
 		name[1] = KERN_FILE;
 		error = userland_sysctl(td, name, 2, uap->where, uap->size,
-			0, 0, 0, &size);
+			0, 0, 0, &size, 0);
 		break;
 
 	case KINFO_METER:
 		name[0] = CTL_VM;
 		name[1] = VM_TOTAL;
 		error = userland_sysctl(td, name, 2, uap->where, uap->size,
-			0, 0, 0, &size);
+			0, 0, 0, &size, 0);
 		break;
 
 	case KINFO_LOADAVG:
 		name[0] = CTL_VM;
 		name[1] = VM_LOADAVG;
 		error = userland_sysctl(td, name, 2, uap->where, uap->size,
-			0, 0, 0, &size);
+			0, 0, 0, &size, 0);
 		break;
 
 	case KINFO_CLOCKRATE:
 		name[0] = CTL_KERN;
 		name[1] = KERN_CLOCKRATE;
 		error = userland_sysctl(td, name, 2, uap->where, uap->size,
-			0, 0, 0, &size);
+			0, 0, 0, &size, 0);
 		break;
 
 	case KINFO_BSDI_SYSINFO: {
