@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.137 1996/09/22 15:40:02 wosch Exp $ -->
+<!-- $Id: contrib.sgml,v 1.138 1996/09/29 17:17:42 joerg Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!-- Please try to keep the file 'avail' (from CVSROOT) 
@@ -173,7 +173,6 @@
 	  <item>Akito Fujita &lt;fujita@zoo.ncl.omron.co.jp&gt;
 	  <item>Alain Kalker &lt;A.C.P.M.Kalker@student.utwente.nl&gt;
 	  <item>Andy Whitcroft &lt;andy@sarc.city.ac.uk&gt;
-	  <item>&a.andreas;
 	  <item>Andrew Gordon &lt;andrew.gordon@net-tel.co.uk&gt;
 	  <item>Andrew Herbert &lt;andrew@werple.apana.org.au&gt;
 	  <item>Andreas Kohout &lt;shanee@rabbit.augusta.de&gt;
@@ -186,7 +185,7 @@
 	  <item>Bill Kish &lt;kish@osf.org&gt;
 	  <item>Bob Wilcox &lt;bob@obiwan.uucp&gt;
 	  <item>Brent J. Nordquist &lt;nordquist@platinum.com&gt;
-	  <item>Brian Clapper &lt;bmc@telebase.com&gt;
+	  <item>Brian Clapper &lt;bmc@willscreek.com&gt;
 	  <item>Brian Tao &lt;taob@io.org&gt;
 	  <item>Charles Hannum &lt;mycroft@ai.mit.edu&gt;
 	  <item>Chet Ramey &lt;chet@odin.INS.CWRU.Edu&gt;
@@ -215,6 +214,7 @@
 	  <item>David O'Brien &lt;obrien@cs.ucdavis.edu&gt;
 	  <item>Dean Huxley &lt;dean@fsa.ca&gt;
 	  <item>Dirk Froemberg &lt;dirk@hal.in-berlin.de&gt;
+	  <item>Dmitry Kohmanyuk &lt;dk@farm.org&gt;
 	  <item>&a.whiteside;
 	  <item>Don Yuniskis &lt;dgy@rtd.com&gt;
 	  <item>Donald Burr &lt;d_burr@ix.netcom.com&gt;
@@ -228,7 +228,7 @@
 	  <item>Greg Ungerer &lt;gerg@stallion.oz.au&gt;
 	  <item>Harlan Stenn &lt;Harlan.Stenn@pfcs.com&gt;
 	  <item>Havard Eidnes &lt;Havard.Eidnes@runit.sintef.no&gt;
-	  <item>Hideaki Ohmon &lt;ohmon@sfc.keio.ac.jp&gt;
+	  <item>Hideaki Ohmon &lt;ohmon@tom.sfc.keio.ac.jp&gt;
 	  <item>Hidekazu Kuroki &lt;hidekazu@cs.titech.ac.jp&gt;
 	  <item>Hidetoshi Shimokawa &lt;simokawa@sat.t.u-tokyo.ac.jp&gt;
 	  <item>Holger Veit &lt;Holger.Veit@gmd.de&gt;
@@ -240,8 +240,8 @@
 	  <item>Janusz Kokot &lt;janek@gaja.ipan.lublin.pl&gt;
 	  <item>Jason Thorpe &lt;thorpej@nas.nasa.gov&gt;
 	  <item>Javier Martin Rueda &lt;jmrueda@diatel.upm.es&gt;
-	  <item>Jian-Da Li &lt;jdli@FreeBSD.csie.NCTU.edu.tw&gt;
-	  <item>Jim Lowe &lt;james@miller.cs.uwm.edu&gt;
+	  <item>Jian-Da Li &lt;jdli@csie.NCTU.edu.tw&gt;
+	  <item>Jim Lowe &lt;james@cs.uwm.edu&gt;
 	  <item>Jim Wilson &lt;wilson@moria.cygnus.com&gt;
           <item>Johann Tonsing &lt;jtonsing@mikom.csir.co.za&gt;
 	  <item>John Capo &lt;jc@irbs.com&gt;
@@ -255,6 +255,7 @@
 	  <item>Kirk McKusick &lt;mckusick@mckusick.com&gt;
 	  <item>Kostya Lukin &lt;lukin@okbmei.msk.su&gt;
 	  <item>Kurt Olsen &lt;kurto@tiny.mcs.usu.edu&gt;
+	  <item>Lars Koeller &lt;Lars_Koeller@odie.physik2.uni-rostock.de&gt;
 	  <item>Lucas James &lt;Lucas.James@ldjpc.apana.org.au&gt;
 	  <item>Manu Iyengar &lt;iyengar@grunthos.pscwa.psca.com&gt;
 	  <item>Marc Frajola &lt;marc@dev.com&gt;
@@ -271,10 +272,12 @@
 	  <item>Matthew N. Dodd &lt;winter@jurai.net&gt;
 	  <item>Matthew Stein &lt;matt@bdd.net&gt;
 	  <item>Michael Elbel &lt;me@FreeBSD.ORG&gt;
+	  <item>Michael Searle &lt;searle@longacre.demon.co.uk&gt;
 	  <item>Michael Smith &lt;msmith@atrad.adelaide.edu.au&gt;
 	  <item>Mikael Hybsch &lt;micke@dynas.se&gt;
 	  <item>Mike Peck &lt;mike@binghamton.edu&gt;
 	  <item>MITA Yoshio &lt;mita@jp.FreeBSD.ORG&gt;
+	  <item>MOROHOSHI Akihiko &lt;moro@race.u-tokyo.ac.jp&gt;
 	  <item>NIIMI Satoshi &lt;sa2c@and.or.jp&gt;
 	  <item>Nisha Talagala &lt;nisha@cs.berkeley.edu&gt;
 	  <item>Nobuhiro Yasutomi &lt;nobu@psrc.isac.co.jp&gt;
@@ -292,6 +295,7 @@
 	  <item>Rob Snow &lt;rsnow@txdirect.net&gt;
 	  <item>Robert Sanders &lt;rsanders@mindspring.com&gt;
 	  <item>Robert Withrow &lt;witr@rwwa.com&gt;
+	  <item>Ronald Kuehn &lt;kuehn@rz.tu-clausthal.de&gt;
 	  <item>Sascha Wildner &lt;swildner@channelz.GUN.de&gt;
 	  <item>Scott Blachowicz &lt;scott@sabami.seaslug.org&gt;
 	  <item>Serge V. Vakulenko &lt;vak@zebub.msk.su&gt;
@@ -307,10 +311,12 @@
 	  <item>Tim Vanderhoek &lt;ac199@freenet.hamilton.on.ca&gt;
 	  <item>Tom Samplonius &lt;tom@misery.sdf.com&gt;
 	  <item>Torbjorn Granlund &lt;tege@matematik.su.se&gt;
+	  <item>Ville Eerola &lt;ve@sci.fi&gt;
 	  <item>Werner Griessl &lt;werner@btp1da.phy.uni-bayreuth.de&gt;
 	  <item>Wes Santee &lt;wsantee@wsantee.oz.net&gt;
 	  <item>Wolfgang Stanglmeier &lt;wolf@kintaro.cologne.de&gt;
 	  <item>Yoshiro Mihira &lt;sanpei@yy.cs.keio.ac.jp&gt;
+	  <item>Yukihiro Nakai &lt;nakai@mlab.t.u-tokyo.ac.jp&gt;
 	  <item>Yuval Yarom &lt;yval@cs.huji.ac.il&gt;
 	  <item>Yves Fonk &lt;yves@cpcoup5.tn.tudelft.nl&gt;
 	</itemize>
