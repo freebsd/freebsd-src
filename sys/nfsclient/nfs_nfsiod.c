@@ -136,6 +136,9 @@ struct nfssvc_args {
 	caddr_t argp;
 };
 #endif
+/*
+ * MPSAFE
+ */
 int
 nfssvc(p, uap)
 	struct proc *p;
@@ -155,18 +158,22 @@ nfssvc(p, uap)
 #endif /* NFS_NOSERVER */
 	int error;
 
+	mtx_lock(&Giant);
+
 	if ((uap->flag & NFSSVC_LOCKDANS) != 0) {
 		struct lockd_ans la;
 		
 		error = copyin(uap->argp, &la, sizeof(la));
-		return (error != 0 ? error : nfslockdans(p, &la));
+		if (error == 0)
+			error = nfslockdans(p, &la);
+		goto done2;
 	}
 	/*
 	 * Must be super user
 	 */
 	error = suser(p);
-	if(error)
-		return (error);
+	if (error)
+		goto done2;
 	while (nfssvc_sockhead_flag & SLP_INIT) {
 		 nfssvc_sockhead_flag |= SLP_WANTINIT;
 		(void) tsleep((caddr_t)&nfssvc_sockhead, PSOCK, "nfsd init", 0);
@@ -180,32 +187,34 @@ nfssvc(p, uap)
 	else if (uap->flag & NFSSVC_MNTD) {
 		error = copyin(uap->argp, (caddr_t)&ncd, sizeof (ncd));
 		if (error)
-			return (error);
+			goto done2;
 		NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_USERSPACE,
 			ncd.ncd_dirp, p);
 		error = namei(&nd);
 		if (error)
-			return (error);
+			goto done2;
 		NDFREE(&nd, NDF_ONLY_PNBUF);
 		if ((nd.ni_vp->v_flag & VROOT) == 0)
 			error = EINVAL;
 		nmp = VFSTONFS(nd.ni_vp->v_mount);
 		vput(nd.ni_vp);
 		if (error)
-			return (error);
+			goto done2;
 		if ((nmp->nm_state & NFSSTA_MNTD) &&
-			(uap->flag & NFSSVC_GOTAUTH) == 0)
-			return (0);
+		    (uap->flag & NFSSVC_GOTAUTH) == 0) {
+			error = 0;
+			goto done2;
+		}
 		nmp->nm_state |= NFSSTA_MNTD;
 		error = nqnfs_clientd(nmp, p->p_ucred, &ncd, uap->flag,
 			uap->argp, p);
 	} else if (uap->flag & NFSSVC_ADDSOCK) {
 		error = copyin(uap->argp, (caddr_t)&nfsdarg, sizeof(nfsdarg));
 		if (error)
-			return (error);
+			goto done2;
 		error = holdsock(p->p_fd, nfsdarg.sock, &fp);
 		if (error)
-			return (error);
+			goto done2;
 		/*
 		 * Get the client address for connected sockets.
 		 */
@@ -216,7 +225,7 @@ nfssvc(p, uap)
 					    nfsdarg.namelen);
 			if (error) {
 				fdrop(fp, p);
-				return (error);
+				goto done2;
 			}
 		}
 		error = nfssvc_addsock(fp, nam, p);
@@ -224,7 +233,7 @@ nfssvc(p, uap)
 	} else {
 		error = copyin(uap->argp, (caddr_t)nsd, sizeof (*nsd));
 		if (error)
-			return (error);
+			goto done2;
 		if ((uap->flag & NFSSVC_AUTHIN) &&
 		    ((nfsd = nsd->nsd_nfsd)) != NULL &&
 		    (nfsd->nfsd_slp->ns_flag & SLP_VALID)) {
@@ -323,6 +332,8 @@ nfssvc(p, uap)
 #endif /* NFS_NOSERVER */
 	if (error == EINTR || error == ERESTART)
 		error = 0;
+done2:
+	mtx_unlock(&Giant);
 	return (error);
 }
 
