@@ -150,14 +150,14 @@ fw_noderesolve_nodeid(struct firewire_comm *fc, int dst)
  * Lookup fwdev by EUI64.
  */
 struct fw_device *
-fw_noderesolve_eui64(struct firewire_comm *fc, struct fw_eui64 eui)
+fw_noderesolve_eui64(struct firewire_comm *fc, struct fw_eui64 *eui)
 {
 	struct fw_device *fwdev;
 	int s;
 
 	s = splfw();
 	STAILQ_FOREACH(fwdev, &fc->devices, link)
-		if (FW_EUI64_EQUAL(fwdev->eui, eui))
+		if (FW_EUI64_EQUAL(fwdev->eui, *eui))
 			break;
 	splx(s);
 
@@ -328,6 +328,57 @@ firewire_match( device_t dev )
 	return -140;
 }
 
+static void
+firewire_xfer_timeout(struct firewire_comm *fc)
+{
+	struct fw_xfer *xfer;
+	struct tlabel *tl;
+	struct timeval tv;
+	struct timeval split_timeout;
+	int i;
+
+	split_timeout.tv_sec = 2;
+	split_timeout.tv_usec = 0;
+
+	microtime(&tv);
+	timevalsub(&tv, &split_timeout);
+
+	for (i = 0; i < 0x40; i ++) {
+		while ((tl = STAILQ_FIRST(&fc->tlabels[i])) != NULL) {
+			xfer = tl->xfer;
+			if (timevalcmp(&xfer->tv, &tv, >))
+				/* the rests are newer than this */
+				break;
+			device_printf(fc->bdev,
+				"split transaction timeout dst=%d tl=%d\n",
+				xfer->dst, i);
+			xfer->resp = ETIMEDOUT;
+			STAILQ_REMOVE_HEAD(&fc->tlabels[i], link);
+			switch (xfer->act_type) {
+			case FWACT_XFER:
+				fw_xfer_done(xfer);
+				break;
+			default:
+				/* ??? */
+				fw_xfer_free(xfer);
+				break;
+			}
+		}
+	}
+}
+
+static void
+firewire_watchdog(void *arg)
+{
+	struct firewire_comm *fc;
+
+	fc = (struct firewire_comm *)arg;
+	firewire_xfer_timeout(fc);
+	fc->timeout(fc);
+	callout_reset(&fc->timeout_callout, hz,
+			(void *)firewire_watchdog, (void *)fc);
+}
+
 /*
  * The attach routine.
  */
@@ -379,8 +430,8 @@ firewire_attach( device_t dev )
 	CALLOUT_INIT(&sc->fc->retry_probe_callout);
 	CALLOUT_INIT(&sc->fc->busprobe_callout);
 
-	callout_reset(&sc->fc->timeout_callout, hz * 10,
-			(void *)sc->fc->timeout, (void *)sc->fc);
+	callout_reset(&sc->fc->timeout_callout, hz,
+			(void *)firewire_watchdog, (void *)sc->fc);
 
 	/* Locate our children */
 	bus_generic_probe(dev);
@@ -388,8 +439,10 @@ firewire_attach( device_t dev )
 	/* launch attachement of the added children */
 	bus_generic_attach(dev);
 
+#if 1
 	/* bus_reset */
 	fc->ibr(fc);
+#endif
 
 	return 0;
 }
@@ -450,6 +503,27 @@ firewire_shutdown( device_t dev )
 }
 #endif
 
+
+static void
+firewire_xferq_drain(struct fw_xferq *xferq)
+{
+	struct fw_xfer *xfer;
+
+	while ((xfer = STAILQ_FIRST(&xferq->q)) != NULL) {
+		STAILQ_REMOVE_HEAD(&xferq->q, link);
+		xfer->resp = EAGAIN;
+		switch (xfer->act_type) {
+		case FWACT_XFER:
+			fw_xfer_done(xfer);
+			break;
+		default:
+			/* ??? */
+			fw_xfer_free(xfer);
+			break;
+		}
+	}
+}
+
 /*
  * Called after bus reset.
  */
@@ -457,7 +531,6 @@ void
 fw_busreset(struct firewire_comm *fc)
 {
 	int i;
-	struct fw_xfer *xfer;
 
 	switch(fc->status){
 	case FWBUSMGRELECT:
@@ -468,42 +541,10 @@ fw_busreset(struct firewire_comm *fc)
 	}
 	fc->status = FWBUSRESET;
 /* XXX: discard all queued packet */
-	while((xfer = STAILQ_FIRST(&fc->atq->q)) != NULL){
-		STAILQ_REMOVE_HEAD(&fc->atq->q, link);
-		xfer->resp = EAGAIN;
-		switch(xfer->act_type){
-		case FWACT_XFER:
-			fw_xfer_done(xfer);
-			break;
-		default:
-			break;
-		}
-		fw_xfer_free( xfer);
-	}
-	while((xfer = STAILQ_FIRST(&fc->ats->q)) != NULL){
-		STAILQ_REMOVE_HEAD(&fc->ats->q, link);
-		xfer->resp = EAGAIN;
-		switch(xfer->act_type){
-		case FWACT_XFER:
-			fw_xfer_done(xfer);
-		default:
-			break;
-		}
-		fw_xfer_free( xfer);
-	}
+	firewire_xferq_drain(fc->atq);
+	firewire_xferq_drain(fc->ats);
 	for(i = 0; i < fc->nisodma; i++)
-		while((xfer = STAILQ_FIRST(&fc->it[i]->q)) != NULL){
-			STAILQ_REMOVE_HEAD(&fc->it[i]->q, link);
-			xfer->resp = 0;
-			switch(xfer->act_type){
-			case FWACT_XFER:
-				fw_xfer_done(xfer);
-				break;
-			default:
-				break;
-			}
-			fw_xfer_free( xfer);
-		}
+		firewire_xferq_drain(fc->it[i]);
 
 	CSRARC(fc, STATE_CLEAR)
 			= 1 << 23 | 0 << 17 | 1 << 16 | 1 << 15 | 1 << 14 ;
@@ -799,9 +840,13 @@ fw_tl2xfer(struct firewire_comm *fc, int node, int tlabel)
 		if(tl->xfer->dst == node){
 			xfer = tl->xfer;
 			splx(s);
+			if (firewire_debug > 2)
+				printf("fw_tl2xfer: found tl=%d\n", tlabel);
 			return(xfer);
 		}
 	}
+	if (firewire_debug > 1)
+		printf("fw_tl2xfer: not found tl=%d\n", tlabel);
 	splx(s);
 	return(NULL);
 }
@@ -818,7 +863,7 @@ fw_xfer_alloc(struct malloc_type *type)
 	if (xfer == NULL)
 		return xfer;
 
-	xfer->time = time_second;
+	microtime(&xfer->tv);
 	xfer->sub = -1;
 	xfer->malloc = type;
 
@@ -1140,7 +1185,8 @@ loop:
 	/* check link */
 	/* XXX we need to check phy_id first */
 	if (!fc->topology_map->self_id[fc->ongonode].p0.link_active) {
-		printf("fw_bus_explore: node %d link down\n", fc->ongonode);
+		if (firewire_debug)
+			printf("node%d: link down\n", fc->ongonode);
 		fc->ongonode++;
 		goto loop;
 	}
@@ -1237,6 +1283,9 @@ loop:
 	fp->mode.rreqq.dest_lo = htonl(addr);
 	xfer->act.hand = fw_bus_explore_callback;
 
+	if (firewire_debug)
+		printf("node%d: explore addr=0x%x\n",
+				fc->ongonode, fc->ongoaddr);
 	err = fw_asyreq(fc, -1, xfer);
 	if(err){
 		fw_xfer_free( xfer);
@@ -1315,26 +1364,33 @@ fw_bus_explore_callback(struct fw_xfer *xfer)
 	u_int32_t offset;
 
 	
-	if(xfer == NULL) return;
+	if(xfer == NULL) {
+		printf("xfer == NULL\n");
+		return;
+	}
 	fc = xfer->fc;
-	if(xfer->resp != 0){
-		printf("resp != 0: node=%d addr=0x%x\n",
+
+	if (firewire_debug)
+		printf("node%d: callback addr=0x%x\n",
 			fc->ongonode, fc->ongoaddr);
+
+	if(xfer->resp != 0){
+		printf("node%d: resp=%d addr=0x%x\n",
+			fc->ongonode, xfer->resp, fc->ongoaddr);
 		fc->retry_count++;
 		goto nextnode;
 	}
 
 	if(xfer->send.buf == NULL){
-		printf("send.buf == NULL: node=%d addr=0x%x\n",
+		printf("node%d: send.buf=NULL addr=0x%x\n",
 			fc->ongonode, fc->ongoaddr);
-		printf("send.buf == NULL\n");
 		fc->retry_count++;
 		goto nextnode;
 	}
 	sfp = (struct fw_pkt *)xfer->send.buf;
 
 	if(xfer->recv.buf == NULL){
-		printf("recv.buf == NULL: node=%d addr=0x%x\n",
+		printf("node%d: recv.buf=NULL addr=0x%x\n",
 			fc->ongonode, fc->ongoaddr);
 		fc->retry_count++;
 		goto nextnode;
@@ -1357,8 +1413,11 @@ fw_bus_explore_callback(struct fw_xfer *xfer)
 		if(sfp->mode.rreqq.dest_lo == htonl((0xf0000000 | CSRROMOFF))){
 			rfp->mode.rresq.data = ntohl(rfp->mode.rresq.data);
 			chdr = (struct csrhdr *)(&rfp->mode.rresq.data);
-/* If CSR is minimul confinguration, more investgation is not needed. */
+/* If CSR is minimal confinguration, more investgation is not needed. */
 			if(chdr->info_len == 1){
+				if (firewire_debug)
+					printf("node%d: minimal config\n",
+								fc->ongonode);
 				goto nextnode;
 			}else{
 				fc->ongoaddr = CSRROMOFF + 0xc;
@@ -1368,8 +1427,12 @@ fw_bus_explore_callback(struct fw_xfer *xfer)
 			fc->ongoaddr = CSRROMOFF + 0x10;
 		}else if(sfp->mode.rreqq.dest_lo == htonl((0xf0000000 |(CSRROMOFF + 0x10)))){
 			fc->ongoeui.lo = ntohl(rfp->mode.rresq.data);
-			if (fc->ongoeui.hi == 0 && fc->ongoeui.lo == 0)
+			if (fc->ongoeui.hi == 0 && fc->ongoeui.lo == 0) {
+				if (firewire_debug)
+					printf("node%d: eui64 is zero.\n",
+							fc->ongonode);
 				goto nextnode;
+			}
 			fc->ongoaddr = CSRROMOFF;
 		}
 	}else{
@@ -1607,6 +1670,9 @@ fw_get_tlabel(struct firewire_comm *fc, struct fw_xfer *xfer)
 			tl->xfer = xfer;
 			STAILQ_INSERT_TAIL(&fc->tlabels[label], tl, link);
 			splx(s);
+			if (firewire_debug > 1)
+				printf("fw_get_tlabel: dst=%d tl=%d\n",
+						xfer->dst, label);
 			return(label);
 		}
 	}

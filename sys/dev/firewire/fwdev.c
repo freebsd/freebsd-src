@@ -631,12 +631,12 @@ fw_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, fw_proc *td)
 			return(EINVAL);
 		}
 		ir->bulkxfer
-			= (struct fw_bulkxfer *)malloc(sizeof(struct fw_bulkxfer) * ibufreq->rx.nchunk, M_FW, M_NOWAIT);
+			= (struct fw_bulkxfer *)malloc(sizeof(struct fw_bulkxfer) * ibufreq->rx.nchunk, M_FW, 0);
 		if(ir->bulkxfer == NULL){
 			return(ENOMEM);
 		}
 		it->bulkxfer
-			= (struct fw_bulkxfer *)malloc(sizeof(struct fw_bulkxfer) * ibufreq->tx.nchunk, M_FW, M_NOWAIT);
+			= (struct fw_bulkxfer *)malloc(sizeof(struct fw_bulkxfer) * ibufreq->tx.nchunk, M_FW, 0);
 		if(it->bulkxfer == NULL){
 			return(ENOMEM);
 		}
@@ -645,7 +645,7 @@ fw_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, fw_proc *td)
 			/* XXX psize must be 2^n and less or
 						equal to PAGE_SIZE */
 			* ((ibufreq->rx.psize + 3) &~3),
-			M_FW, M_NOWAIT);
+			M_FW, 0);
 		if(ir->buf == NULL){
 			free(ir->bulkxfer, M_FW);
 			free(it->bulkxfer, M_FW);
@@ -659,7 +659,7 @@ fw_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, fw_proc *td)
 			/* XXX psize must be 2^n and less or
 						equal to PAGE_SIZE */
 			* ((ibufreq->tx.psize + 3) &~3),
-			M_FW, M_NOWAIT);
+			M_FW, 0);
 		if(it->buf == NULL){
 			free(ir->bulkxfer, M_FW);
 			free(it->bulkxfer, M_FW);
@@ -746,7 +746,7 @@ fw_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, fw_proc *td)
 			break;
 		case FWASREQEUI:
 			fwdev = fw_noderesolve_eui64(sc->fc,
-						asyreq->req.dst.eui);
+						&asyreq->req.dst.eui);
 			if (fwdev == NULL) {
 				device_printf(sc->fc->bdev,
 					"cannot find node\n");

@@ -615,8 +615,8 @@ fwohci_init(struct fwohci_softc *sc, device_t dev)
 
 	sc->arrq.ndesc = 1;
 	sc->arrs.ndesc = 1;
-	sc->atrq.ndesc = 6;	/* equal to maximum of mbuf chains */
-	sc->atrs.ndesc = 6 / 2;
+	sc->atrq.ndesc = 8;	/* equal to maximum of mbuf chains */
+	sc->atrs.ndesc = 2;
 
 	sc->arrq.ndb = NDB;
 	sc->arrs.ndb = NDB / 2;
@@ -718,8 +718,6 @@ fwohci_timeout(void *arg)
 	struct fwohci_softc *sc;
 
 	sc = (struct fwohci_softc *)arg;
-	callout_reset(&sc->fc.timeout_callout, FW_XFERTIMEOUT * hz * 10,
-			(void *)fwohci_timeout, (void *)sc);
 }
 
 u_int32_t
@@ -900,7 +898,6 @@ txloop:
 		dbch->flags |= FWOHCI_DBCH_FULL;
 	}
 kick:
-	if (firewire_debug) printf("kick\n");
 	/* kick asy q */
 
 	if(dbch->xferq.flag & FWXFERQ_RUNNING) {
@@ -993,14 +990,14 @@ fwohci_txd(struct fwohci_softc *sc, struct fwohci_dbch *dbch)
 		}
 		stat = db->db.desc.status & FWOHCIEV_MASK;
 		switch(stat){
-		case FWOHCIEV_ACKCOMPL:
 		case FWOHCIEV_ACKPEND:
+		case FWOHCIEV_ACKCOMPL:
 			err = 0;
 			break;
 		case FWOHCIEV_ACKBSA:
 		case FWOHCIEV_ACKBSB:
-			device_printf(sc->fc.dev, "txd err=%2x %s\n", stat, fwohcicode[stat]);
 		case FWOHCIEV_ACKBSX:
+			device_printf(sc->fc.dev, "txd err=%2x %s\n", stat, fwohcicode[stat]);
 			err = EBUSY;
 			break;
 		case FWOHCIEV_FLUSHED:
@@ -1024,26 +1021,27 @@ fwohci_txd(struct fwohci_softc *sc, struct fwohci_dbch *dbch)
 			err = EINVAL;
 			break;
 		}
-		if(tr->xfer != NULL){
+		if (tr->xfer != NULL) {
 			xfer = tr->xfer;
 			xfer->state = FWXF_SENT;
-			if(err == EBUSY && fc->status != FWBUSRESET){
+			if (err == EBUSY && fc->status != FWBUSRESET) {
 				xfer->state = FWXF_BUSY;
-				switch(xfer->act_type){
+				switch (xfer->act_type) {
 				case FWACT_XFER:
 					xfer->resp = err;
-					if(xfer->retry_req != NULL){
+					if (xfer->retry_req != NULL)
 						xfer->retry_req(xfer);
-					}
+					else
+						fw_xfer_done(xfer);
 					break;
 				default:
 					break;
 				}
-			} else if( stat != FWOHCIEV_ACKPEND){
+			} else if (stat != FWOHCIEV_ACKPEND) {
 				if (stat != FWOHCIEV_ACKCOMPL)
 					xfer->state = FWXF_SENTERR;
 				xfer->resp = err;
-				switch(xfer->act_type){
+				switch (xfer->act_type) {
 				case FWACT_XFER:
 					fw_xfer_done(xfer);
 					break;
@@ -1051,6 +1049,10 @@ fwohci_txd(struct fwohci_softc *sc, struct fwohci_dbch *dbch)
 					break;
 				}
 			}
+			/*
+			 * The watchdog timer takes care of split
+			 * transcation timeout for ACKPEND case.
+			 */
 		}
 		dbch->xferq.queued --;
 		tr->xfer = NULL;
@@ -1146,7 +1148,7 @@ fwohci_db_init(struct fwohci_dbch *dbch)
 	STAILQ_INIT(&dbch->db_trq);
 	db_tr = (struct fwohcidb_tr *)
 		malloc(sizeof(struct fwohcidb_tr) * dbch->ndb,
-		M_FW, M_NOWAIT | M_ZERO);
+		M_FW, M_ZERO);
 	if(db_tr == NULL){
 		printf("fwohci_db_init: malloc(1) failed\n");
 		return;
@@ -1163,8 +1165,7 @@ fwohci_db_init(struct fwohci_dbch *dbch)
 		return;
 	}
 	for (i = 0; i < dbch->npages; i++) {
-		dbch->pages[i] = malloc(PAGE_SIZE, M_FW,
-						M_NOWAIT | M_ZERO);
+		dbch->pages[i] = malloc(PAGE_SIZE, M_FW, M_ZERO);
 		if (dbch->pages[i] == NULL) {
 			printf("fwohci_db_init: malloc(2) failed\n");
 			for (j = 0; j < i; j ++)
@@ -1594,7 +1595,7 @@ fwohci_irxbuf_enable(struct firewire_comm *fc, int dmach)
 		ir->queued = 0;
 		dbch->ndb = ir->bnpacket * ir->bnchunk;
 		dbch->dummy = malloc(sizeof(u_int32_t) * dbch->ndb, 
-			   	M_FW, M_NOWAIT);
+			   	M_FW, 0);
 		if (dbch->dummy == NULL) {
 			err = ENOMEM;
 			return err;
@@ -2297,6 +2298,7 @@ fwohci_ibr(struct firewire_comm *fc)
 	struct fwohci_softc *sc;
 	u_int32_t fun;
 
+	device_printf(fc->dev, "Initiate bus reset\n");
 	sc = (struct fwohci_softc *)fc;
 
 	/*
@@ -2747,7 +2749,7 @@ fwohci_arcv(struct fwohci_softc *sc, struct fwohci_dbch *dbch, int count)
 				stat &= 0x1f;
 				switch(stat){
 				case FWOHCIEV_ACKPEND:
-#if 1
+#if 0
 					printf("fwohci_arcv: ack pending..\n");
 #endif
 					/* fall through */
