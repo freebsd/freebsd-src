@@ -640,8 +640,6 @@
                 i386
                 ..
             ..
-            catn
-            ..
             en.ISO8859-1    uname=root
                 cat1
                 ..
@@ -673,8 +671,6 @@
                     i386
                     ..
                 ..
-                catn
-                ..
             ..
             ja              uname=root
                 cat1
@@ -695,8 +691,6 @@
                 ..
                 cat9
                 ..
-                catn
-                ..
 /set uname=root
                 man1
                 ..
@@ -715,8 +709,6 @@
                 man8
                 ..
                 man9
-                ..
-                mann
                 ..
             ..
             man1
@@ -748,8 +740,6 @@
             man9
                 i386
                 ..
-            ..
-            mann
             ..
         ..
         me
