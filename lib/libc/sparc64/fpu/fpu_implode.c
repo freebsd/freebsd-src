@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include "fpu_arith.h"
 #include "fpu_emu.h"
 #include "fpu_extern.h"
+#include "__sparc_utrap_private.h"
 
 static int round(struct fpemu *, struct fpn *);
 static int toinf(struct fpemu *, int);
@@ -354,7 +355,7 @@ __fpu_ftos(fe, fp)
 	(void) __fpu_shr(fp, FP_NMANT - FP_NG - 1 - SNG_FRACBITS);
 #ifdef DIAGNOSTIC
 	if ((fp->fp_mant[3] & SNG_EXP(1 << FP_NG)) == 0)
-		__fpu_panic("fpu_ftos");
+		__utrap_panic("fpu_ftos");
 #endif
 	if (round(fe, fp) && fp->fp_mant[3] == SNG_EXP(2))
 		exp++;
@@ -529,7 +530,7 @@ __fpu_implode(fe, fp, type, space)
 		break;
 
 	default:
-		__fpu_panic("fpu_implode");
+		__utrap_panic("fpu_implode");
 	}
 	DPRINTF(FPE_REG, ("fpu_implode: %x %x %x %x\n",
 		space[0], space[1], space[2], space[3]));

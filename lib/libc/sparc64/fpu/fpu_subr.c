@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include "fpu_arith.h"
 #include "fpu_emu.h"
 #include "fpu_extern.h"
+#include "__sparc_utrap_private.h"
 
 /*
  * Shift the given number right rsh bits.  Any bits that `fall off' will get
@@ -75,7 +76,7 @@ __fpu_shr(struct fpn *fp, int rsh)
 
 #ifdef DIAGNOSTIC
 	if (rsh <= 0 || (fp->fp_class != FPC_NUM && !ISNAN(fp)))
-		__fpu_panic("fpu_rightshift 1");
+		__utrap_panic("fpu_rightshift 1");
 #endif
 
 	m0 = fp->fp_mant[0];
@@ -87,7 +88,7 @@ __fpu_shr(struct fpn *fp, int rsh)
 	if (rsh >= FP_NMANT) {
 #ifdef DIAGNOSTIC
 		if ((m0 | m1 | m2 | m3) == 0)
-			__fpu_panic("fpu_rightshift 2");
+			__utrap_panic("fpu_rightshift 2");
 #endif
 		fp->fp_mant[0] = 0;
 		fp->fp_mant[1] = 0;

@@ -87,7 +87,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/pcb.h>
 #include <machine/tstate.h>
 
-#include "../sys/__sparc_utrap_private.h"
+#include "__sparc_utrap_private.h"
 #include "fpu_emu.h"
 #include "fpu_extern.h"
 
@@ -119,89 +119,52 @@ int __fpe_debug = 0;
 #endif	/* FPU_DEBUG */
 
 static int __fpu_execute(struct utrapframe *, struct fpemu *, u_int32_t, u_long);
-static void utrap_write(char *);
-static void utrap_kill_self(int);
-
-/*
- * System call wrappers usable in an utrap environment.
- */
-static void
-utrap_write(char *str)
-{
-	int berrno;
-
-	berrno = errno;
-	__sys_write(STDERR_FILENO, str, strlen(str));
-	errno = berrno;
-}
-
-static void
-utrap_kill_self(sig)
-{
-	int berrno;
-
-	berrno = errno;
-	__sys_kill(__sys_getpid(), sig);
-	errno = berrno;
-}
-
-void
-__fpu_panic(char *msg)
-{
-
-	utrap_write(msg);
-	utrap_write("\n");
-	utrap_kill_self(SIGKILL);
-}
 
 /*
  * Need to use an fpstate on the stack; we could switch, so we cannot safely
  * modify the pcb one, it might get overwritten.
  */
-void
+int
 __fpu_exception(struct utrapframe *uf)
 {
 	struct fpemu fe;
 	u_long fsr, tstate;
 	u_int insn;
-	int rv;
+	int sig;
 
 	fsr = uf->uf_fsr;
 
 	switch (FSR_GET_FTT(fsr)) {
 	case FSR_FTT_NONE:
-		utrap_write("lost FPU trap type\n");
-		return;
+		__utrap_write("lost FPU trap type\n");
+		return (0);
 	case FSR_FTT_IEEE:
-		goto fatal;
+		return (SIGFPE);
 	case FSR_FTT_SEQERR:
-		utrap_write("FPU sequence error\n");
-		goto fatal;
+		__utrap_write("FPU sequence error\n");
+		return (SIGFPE);
 	case FSR_FTT_HWERR:
-		utrap_write("FPU hardware error\n");
-		goto fatal;
+		__utrap_write("FPU hardware error\n");
+		return (SIGFPE);
 	case FSR_FTT_UNFIN:
 	case FSR_FTT_UNIMP:
 		break;
 	default:
-		utrap_write("unknown FPU error\n");
-		goto fatal;
+		__utrap_write("unknown FPU error\n");
+		return (SIGFPE);
 	}
 
 	fe.fe_fsr = fsr & ~FSR_FTT_MASK;
 	insn = *(u_int32_t *)uf->uf_pc;
 	if (IF_OP(insn) != IOP_MISC || (IF_F3_OP3(insn) != INS2_FPop1 &&
 	    IF_F3_OP3(insn) != INS2_FPop2))
-		__fpu_panic("bogus FP fault");
+		__utrap_panic("bogus FP fault");
 	tstate = uf->uf_state;
-	rv = __fpu_execute(uf, &fe, insn, tstate);
-	if (rv != 0)
-		utrap_kill_self(rv);
+	sig = __fpu_execute(uf, &fe, insn, tstate);
+	if (sig != 0)
+		return (sig);
 	__asm __volatile("ldx %0, %%fsr" : : "m" (fe.fe_fsr));
-	return;
-fatal:
-	utrap_kill_self(SIGFPE);
-	return;
+	return (0);
 }
 
 #ifdef FPU_DEBUG
@@ -222,29 +185,6 @@ __fpu_dumpfpn(struct fpn *fp)
 		fp->fp_exp);
 }
 #endif
-
-static u_long
-fetch_reg(struct utrapframe *uf, int reg)
-{
-	u_long offs;
-	struct frame *frm;
-
-	if (reg == IREG_G0)
-		return (0);
-	else if (reg < IREG_O0)	/* global */
-		return (uf->uf_global[reg]);
-	else if (reg < IREG_L0)	/* out */
-		return (uf->uf_out[reg - IREG_O0]);
-	else {			/* local, in */
-		/*
-		 * The in registers are immediately after the locals in
-		 * the frame.
-		 */
-		frm = (struct frame *)(uf->uf_out[6] + SPOFF);
-		return (frm->fr_local[reg - IREG_L0]);
-	}
-	__fpu_panic("fetch_reg: bogus register");
-}
 
 static void
 __fpu_mov(struct fpemu *fe, int type, int rd, int rs1, int rs2)
@@ -361,32 +301,32 @@ __fpu_execute(struct utrapframe *uf, struct fpemu *fe, u_int32_t insn, u_long ts
 		    (tstate & TSTATE_XCC_MASK) >> (TSTATE_XCC_SHIFT));
 		return (0);
 	case FOP(INS2_FPop2, INSFP2_FMOV_RC(IRCOND_Z)):
-		reg = fetch_reg(uf, IF_F4_RS1(insn));
+		reg = __emul_fetch_reg(uf, IF_F4_RS1(insn));
 		if (reg == 0)
 			__fpu_mov(fe, type, rd, __fpu_getreg(rs2), rs2);
 		return (0);
 	case FOP(INS2_FPop2, INSFP2_FMOV_RC(IRCOND_LEZ)):
-		reg = fetch_reg(uf, IF_F4_RS1(insn));
+		reg = __emul_fetch_reg(uf, IF_F4_RS1(insn));
 		if (reg <= 0)
 			__fpu_mov(fe, type, rd, __fpu_getreg(rs2), rs2);
 		return (0);
 	case FOP(INS2_FPop2, INSFP2_FMOV_RC(IRCOND_LZ)):
-		reg = fetch_reg(uf, IF_F4_RS1(insn));
+		reg = __emul_fetch_reg(uf, IF_F4_RS1(insn));
 		if (reg < 0)
 			__fpu_mov(fe, type, rd, __fpu_getreg(rs2), rs2);
 		return (0);
 	case FOP(INS2_FPop2, INSFP2_FMOV_RC(IRCOND_NZ)):
-		reg = fetch_reg(uf, IF_F4_RS1(insn));
+		reg = __emul_fetch_reg(uf, IF_F4_RS1(insn));
 		if (reg != 0)
 			__fpu_mov(fe, type, rd, __fpu_getreg(rs2), rs2);
 		return (0);
 	case FOP(INS2_FPop2, INSFP2_FMOV_RC(IRCOND_GZ)):
-		reg = fetch_reg(uf, IF_F4_RS1(insn));
+		reg = __emul_fetch_reg(uf, IF_F4_RS1(insn));
 		if (reg > 0)
 			__fpu_mov(fe, type, rd, __fpu_getreg(rs2), rs2);
 		return (0);
 	case FOP(INS2_FPop2, INSFP2_FMOV_RC(IRCOND_GEZ)):
-		reg = fetch_reg(uf, IF_F4_RS1(insn));
+		reg = __emul_fetch_reg(uf, IF_F4_RS1(insn));
 		if (reg >= 0)
 			__fpu_mov(fe, type, rd, __fpu_getreg(rs2), rs2);
 		return (0);
