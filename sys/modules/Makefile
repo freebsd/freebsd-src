@@ -9,6 +9,7 @@ SUBDIR=	accf_data \
 	amr \
 	an \
 	aue \
+	bge \
 	ccd \
 	cd9660 \
 	coda \

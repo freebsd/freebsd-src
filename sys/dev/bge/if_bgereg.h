@@ -2029,12 +2029,17 @@ struct vpd_key {
 #define BGE_MSLOTS	256
 #define BGE_JSLOTS	384
 
-#define BGE_JRAWLEN (BGE_JUMBO_FRAMELEN + ETHER_ALIGN)
+#define BGE_JRAWLEN (BGE_JUMBO_FRAMELEN + ETHER_ALIGN + sizeof(u_int64_t))
 #define BGE_JLEN (BGE_JRAWLEN + (sizeof(u_int64_t) - \
 	(BGE_JRAWLEN % sizeof(u_int64_t))))
 #define BGE_JPAGESZ PAGE_SIZE
 #define BGE_RESID (BGE_JPAGESZ - (BGE_JLEN * BGE_JSLOTS) % BGE_JPAGESZ)
 #define BGE_JMEM ((BGE_JLEN * BGE_JSLOTS) + BGE_RESID)
+
+struct bge_jslot {
+	caddr_t			bge_buf;
+        int			bge_inuse;
+};
 
 /*
  * Ring structures. Most of these reside in host memory and we tell
@@ -2064,7 +2069,7 @@ struct bge_chain_data {
 	struct mbuf		*bge_rx_jumbo_chain[BGE_JUMBO_RX_RING_CNT];
 	struct mbuf		*bge_rx_mini_chain[BGE_MINI_RX_RING_CNT];
 	/* Stick the jumbo mem management stuff here too. */
-	caddr_t			bge_jslots[BGE_JSLOTS];
+	struct bge_jslot	bge_jslots[BGE_JSLOTS];
 	void			*bge_jumbo_buf;
 };
 

@@ -143,6 +143,7 @@ dev/aic7xxx/aic7xxx.c	optional ahc
 dev/aic7xxx/aic7xxx_93cx6.c	optional ahc
 dev/aic7xxx/aic7xxx_freebsd.c	optional ahc
 dev/aic7xxx/aic7xxx_pci.c	optional ahc pci
+dev/bge/if_bge.c	optional bge
 dev/buslogic/bt.c	optional bt
 dev/buslogic/bt_isa.c	optional bt isa
 dev/buslogic/bt_mca.c	optional bt mca
