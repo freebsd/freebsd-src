@@ -74,12 +74,12 @@ device		random		# Entropy device
 device		loop		# Network loopback
 device		ether		# Ethernet support
 device		sl		# Kernel SLIP
-device		ppp	1	# Kernel PPP
+device		ppp		# Kernel PPP
 device		tun		# Packet tunnel.
 device		pty		# Pseudo-ttys (telnet etc)
 device		md		# Memory "disks"
 device		gif		# IPv6 and IPv4 tunneling
-device		faith	1	# IPv6-to-IPv4 relaying/(translation)
+device		faith		# IPv6-to-IPv4 relaying/(translation)
 
 # The `bpf' device enables the Berkeley Packet Filter.
 # Be aware of the administrative consequences of enabling this!
