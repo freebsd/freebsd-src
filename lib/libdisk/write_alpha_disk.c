@@ -60,7 +60,7 @@ Write_Disk(const struct disk *d1)
 		memcpy(buf + 512, d1->boot1, BBSIZE - 512);
 
 	dl = (struct disklabel *)(buf + 512 * LABELSECTOR + LABELOFFSET);
-	Fill_Disklabel(dl, d1, NULL, c1);
+	Fill_Disklabel(dl, d1, c1);
 
 	/*
 	 * Tell SRM where the bootstrap is.

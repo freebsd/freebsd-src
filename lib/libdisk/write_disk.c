@@ -25,7 +25,7 @@ __FBSDID("$FreeBSD$");
 
 void
 Fill_Disklabel(struct disklabel *dl, const struct disk *new,
-	       const struct disk *old, const struct chunk *c1)
+    const struct chunk *c1)
 {
 	struct chunk *c2;
 	int j;
