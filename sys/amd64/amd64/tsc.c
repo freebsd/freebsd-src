@@ -77,7 +77,7 @@ init_TSC(void)
 	if (bootverbose)
 		printf("TSC clock: %ju Hz\n", (intmax_t)tsc_freq);
 
-#if defined(SMP)
+#if defined(SMP) && !defined(SMP_TSC)
 	/*
 	 * We can not use the TSC in SMP mode, until we figure out a
 	 * cheap (impossible), reliable and precise (yeah right!)  way
