@@ -350,6 +350,8 @@ struct mbuf;
 struct rtentry;
 struct sockaddr;
 
+extern	uint32_t ether_crc32_le(const uint8_t *, size_t);
+extern	uint32_t ether_crc32_be(const uint8_t *, size_t);
 extern	void ether_demux(struct ifnet *, struct mbuf *);
 extern	void ether_ifattach(struct ifnet *, const u_int8_t *);
 extern	void ether_ifdetach(struct ifnet *);
