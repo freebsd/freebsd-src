@@ -259,6 +259,9 @@ STATIC Lst	stoppedJobs;	/* Lst of Job structures describing
 				 * limits or externally */
 
 
+static sig_atomic_t interrupted;
+
+
 #if defined(USE_PGRP) && defined(SYSV)
 # define KILL(pid, sig)		killpg(-(pid), (sig))
 #else
@@ -306,6 +309,19 @@ static Shell *JobMatchShell(char *);
 static void JobInterrupt(int, int);
 static void JobRestartJobs(void);
 
+/*
+ * JobCatchSignal
+ *
+ * Got a signal. Set global variables and hope that someone will
+ * handle it.
+ */
+static void
+JobCatchSig(int signo)
+{
+
+	interrupted = signo;
+}
+
 /*-
  *-----------------------------------------------------------------------
  * JobCondPassSig --
@@ -351,6 +367,10 @@ JobPassSig(int signo)
     sigset_t nmask, omask;
     struct sigaction act;
 
+    sigemptyset(&nmask);
+    sigaddset(&nmask, signo);
+    sigprocmask(SIG_SETMASK, &nmask, &omask);
+
     DEBUGF(JOB, ("JobPassSig(%d) called.\n", signo));
     Lst_ForEach(jobs, JobCondPassSig, (void *) &signo);
 
@@ -377,10 +397,8 @@ JobPassSig(int signo)
      * Note we block everything else possible while we're getting the signal.
      * This ensures that all our jobs get continued when we wake up before
      * we take any other signal.
+     * XXX this comment seems wrong.
      */
-    sigemptyset(&nmask);
-    sigaddset(&nmask, signo);
-    sigprocmask(SIG_SETMASK, &nmask, &omask);
     act.sa_handler = SIG_DFL;
     sigemptyset(&act.sa_mask);
     act.sa_flags = 0;
@@ -1366,6 +1384,10 @@ JobStart(GNode *gn, int flags, Job *previous)
     Boolean 	  noExec;     /* Set true if we decide not to run the job */
     int		  tfd;	      /* File descriptor for temp file */
 
+    if (interrupted) {
+        JobPassSig(interrupted);
+        return (JOB_ERROR);
+    }
     if (previous != NULL) {
 	previous->flags &= ~(JOB_FIRST|JOB_IGNERR|JOB_SILENT);
 	job = previous;
@@ -1709,6 +1731,14 @@ end_loop:
 
 	nRead = read(job->inPipe, &job->outBuf[job->curPos],
 			 JOB_BUFSIZE - job->curPos);
+	/*
+	 * Check for interrupt here too, because the above read may block
+	 * when the child process is stopped. In this case the interrupt
+	 * will unblock it (we don't use SA_RESTART).
+	 */
+	if (interrupted)
+	    JobPassSig(interrupted);
+
 	if (nRead < 0) {
 	    DEBUGF(JOB, ("JobDoOutput(piperead)"));
 	    nr = 0;
@@ -1921,6 +1951,8 @@ Job_CatchChildren(Boolean block)
 
 	JobFinish(job, &status);
     }
+    if (interrupted)
+        JobPassSig(interrupted);
 }
 
 /*-
@@ -1961,6 +1993,8 @@ Job_CatchOutput(void)
 	if ((nfds = kevent(kqfd, NULL, 0, kev, KEV_SIZE, NULL)) == -1) {
 	    if (errno != EINTR)
 		Punt("kevent: %s", strerror(errno));
+	    if (interrupted)
+		JobPassSig(interrupted);
 	} else {
 	    for (i = 0; i < nfds; i++) {
 		if (kev[i].flags & EV_ERROR) {
@@ -1984,9 +2018,11 @@ Job_CatchOutput(void)
 	timeout.tv_usec = SEL_USEC;
 
 	if ((nfds = select(FD_SETSIZE, &readfds, (fd_set *) 0,
-			   (fd_set *) 0, &timeout)) <= 0)
+			   (fd_set *) 0, &timeout)) <= 0) {
+	    if (interrupted)
+		JobPassSig(interrupted);
 	    return;
-	else {
+	} else {
 	    if (Lst_Open(jobs) == FAILURE) {
 		Punt("Cannot open job table");
 	    }
@@ -2055,6 +2091,7 @@ void
 Job_Init(int maxproc)
 {
     GNode         *begin;     /* node for commands to do at the very start */
+    struct sigaction sa;
 
     jobs =  	  Lst_Init(FALSE);
     stoppedJobs = Lst_Init(FALSE);
@@ -2087,19 +2124,24 @@ Job_Init(int maxproc)
 
     /*
      * Catch the four signals that POSIX specifies if they aren't ignored.
-     * JobPassSig will take care of calling JobInterrupt if appropriate.
+     * JobCatchSignal will just set global variables and hope someone
+     * else is going to handle the interrupt.
      */
+    sa.sa_handler = JobCatchSig;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = 0;
+
     if (signal(SIGINT, SIG_IGN) != SIG_IGN) {
-	(void) signal(SIGINT, JobPassSig);
+	(void) sigaction(SIGINT, &sa, NULL);
     }
     if (signal(SIGHUP, SIG_IGN) != SIG_IGN) {
-	(void) signal(SIGHUP, JobPassSig);
+	(void) sigaction(SIGHUP, &sa, NULL);
     }
     if (signal(SIGQUIT, SIG_IGN) != SIG_IGN) {
-	(void) signal(SIGQUIT, JobPassSig);
+	(void) sigaction(SIGQUIT, &sa, NULL);
     }
     if (signal(SIGTERM, SIG_IGN) != SIG_IGN) {
-	(void) signal(SIGTERM, JobPassSig);
+	(void) sigaction(SIGTERM, &sa, NULL);
     }
     /*
      * There are additional signals that need to be caught and passed if
@@ -2109,16 +2151,16 @@ Job_Init(int maxproc)
      */
 #if defined(USE_PGRP)
     if (signal(SIGTSTP, SIG_IGN) != SIG_IGN) {
-	(void) signal(SIGTSTP, JobPassSig);
+	(void) sigaction(SIGTSTP, &sa, NULL);
     }
     if (signal(SIGTTOU, SIG_IGN) != SIG_IGN) {
-	(void) signal(SIGTTOU, JobPassSig);
+	(void) sigaction(SIGTTOU, &sa, NULL);
     }
     if (signal(SIGTTIN, SIG_IGN) != SIG_IGN) {
-	(void) signal(SIGTTIN, JobPassSig);
+	(void) sigaction(SIGTTIN, &sa, NULL);
     }
     if (signal(SIGWINCH, SIG_IGN) != SIG_IGN) {
-	(void) signal(SIGWINCH, JobPassSig);
+	(void) sigaction(SIGWINCH, &sa, NULL);
     }
 #endif
 
@@ -2447,6 +2489,10 @@ JobInterrupt(int runINTERRUPT, int signo)
     }
 
     if (runINTERRUPT && !touchFlag) {
+	/* clear the interrupted flag because we would get an
+	 * infinite loop otherwise */
+	interrupted = 0;
+
 	interrupt = Targ_FindNode(".INTERRUPT", TARG_NOCREATE);
 	if (interrupt != NULL) {
 	    ignoreErrors = FALSE;
