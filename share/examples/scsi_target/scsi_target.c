@@ -45,6 +45,7 @@
 #include <sys/queue.h>
 #include <sys/event.h>
 #include <sys/param.h>
+#include <sys/disk.h>
 #include <cam/cam_queue.h>
 #include <cam/scsi/scsi_all.h>
 #include <cam/scsi/scsi_targetio.h>
@@ -199,7 +200,18 @@ main(int argc, char *argv[])
 
 		if (fstat(file_fd, &st) < 0)
 			err(1, "fstat file");
-		volume_size = st.st_size / sector_size;
+#if __FreeBSD_version >= 500000
+		if ((st.st_mode & S_IFCHR) != 0) {
+			/* raw device */
+			off_t mediasize;
+			if (ioctl(file_fd, DIOCGMEDIASIZE, &mediasize) < 0)
+				err(1, "DIOCGMEDIASIZE"); 
+
+			/* XXX get sector size by ioctl()?? */
+			volume_size = mediasize / sector_size;
+		} else
+#endif
+			volume_size = st.st_size / sector_size;
 	} else {
 		volume_size = user_size / sector_size;
 	}
@@ -582,6 +594,8 @@ work_atio(struct ccb_accept_tio *atio)
 		c_descr->offset = a_descr->base_off + a_descr->targ_req;
 	else if ((a_descr->flags & CAM_DIR_MASK) == CAM_DIR_OUT)
 		c_descr->offset = a_descr->base_off + a_descr->init_req;
+	else
+		c_descr->offset = a_descr->base_off;
 
 	/* 
 	 * Return a check condition if there was an error while
@@ -683,6 +697,14 @@ run_queue(struct ccb_accept_tio *atio)
 
 		ctio = (struct ccb_scsiio *)ccb_h;
 		c_descr = (struct ctio_descr *)ctio->ccb_h.targ_descr;
+
+		if (ctio->ccb_h.status == CAM_REQ_ABORTED) {
+			TAILQ_REMOVE(&a_descr->cmplt_io, ccb_h,
+				     periph_links.tqe);
+			free_ccb((union ccb *)ctio);
+			send_ccb((union ccb *)atio, /*priority*/1);
+			continue;
+		}
 
 		/* If completed item is in range, call handler */
 		if ((c_descr->event == AIO_DONE &&
