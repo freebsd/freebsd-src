@@ -893,6 +893,8 @@ mptable_pci_probe_table(int bus)
 		return (EINVAL);
 	if (pci0 == -1 || pci0 + bus > mptable_maxbusid)
 		return (ENXIO);
+	if (busses[pci0 + bus].bus_type != PCI)
+		return (ENXIO);
 	args.bus = pci0 + bus;
 	args.found = 0;
 	mptable_walk_table(mptable_pci_probe_table_handler, &args);
