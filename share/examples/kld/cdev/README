@@ -58,6 +58,8 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
+# $FreeBSD$
+#
 
 1.0	Overview
 
@@ -83,6 +85,19 @@
 	try out changes to kernel code without rebuilding and
 	booting from the new kernel.
 
+	The idea behind this example is to show some interaction
+	with the device driver. Therefore the flow of the code that
+	this driver is aimed at is as follows:
+
+	    open(2) -> ioctl(2) -> write(2) -> read(2) -> close(2).
+
+	We will first open the device in the /dev/ directory; then
+	we will send an ioctl message to it using ioctl(2) call;
+	then write a small string via the write(2) call. This string
+	we write to the device will be stored in a static buffer,
+	and later will be accessible via the read(2) call. Finally,
+	we will close(2) our open()'d device so that we may no
+	longer make read or write calls on it.
 
 2.0	Directions
 

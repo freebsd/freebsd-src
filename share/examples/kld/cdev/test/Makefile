@@ -87,6 +87,6 @@ unload:
 	@echo "has been successfully unloaded by building 'unload' in"
 	@echo "the 'module' subdirectory."
 	@echo
-	${MODSTAT} -n misc_mod
+	${MODSTAT} -n cdev
 
 .include <bsd.prog.mk>
