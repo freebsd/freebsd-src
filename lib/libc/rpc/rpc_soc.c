@@ -450,4 +450,133 @@ fallback:
 	return (dummy);
 }
 
+/*
+ * Create a client handle for a unix connection. Obsoleted by clnt_vc_create()
+ */
+CLIENT *
+clntunix_create(raddr, prog, vers, sockp, sendsz, recvsz)
+	struct sockaddr_un *raddr;
+	u_long prog;
+	u_long vers;
+	register int *sockp;
+	u_int sendsz;
+	u_int recvsz;
+{
+	struct netbuf *svcaddr;
+	void *localhandle;
+	struct netconfig *nconf;
+	CLIENT *cl;
+	int len;
+
+	nconf = NULL;
+	cl = NULL;
+	if ((raddr->sun_len == 0) ||
+	   ((svcaddr = malloc(sizeof(struct netbuf))) == NULL ) ||
+	   ((svcaddr->buf = malloc(sizeof(struct sockaddr_un))) == NULL)) {
+		if (svcaddr != NULL)
+			free(svcaddr);
+		rpc_createerr.cf_stat = RPC_SYSTEMERROR;
+		rpc_createerr.cf_error.re_errno = errno;
+		return(cl);
+	}
+	if (*sockp < 0) {
+		*sockp = _socket(AF_LOCAL, SOCK_STREAM, 0);
+		len = raddr->sun_len = SUN_LEN(raddr);
+		if ((*sockp < 0) || (_connect(*sockp,
+		    (struct sockaddr *)raddr, len) < 0)) {
+			rpc_createerr.cf_stat = RPC_SYSTEMERROR;
+			rpc_createerr.cf_error.re_errno = errno;
+			if (*sockp != -1)
+				(void)_close(*sockp);
+			goto done;
+		}
+	}
+	svcaddr->buf = raddr;
+	svcaddr->len = raddr->sun_len;
+	svcaddr->maxlen = sizeof (struct sockaddr_un);
+	cl = clnt_vc_create(*sockp, svcaddr, prog,
+	    vers, sendsz, recvsz);
+done:
+	free(svcaddr->buf);
+	free(svcaddr);
+	return(cl);
+}
+
+/*
+ * Creates, registers, and returns a (rpc) unix based transporter.
+ * Obsoleted by svc_vc_create().
+ */
+SVCXPRT *
+svcunix_create(sock, sendsize, recvsize, path)
+	register int sock;
+	u_int sendsize;
+	u_int recvsize;
+	char *path;
+{
+	struct netconfig *nconf;
+	void *localhandle;
+	struct sockaddr_un sun;
+	struct sockaddr *sa;
+	struct t_bind taddr;
+	SVCXPRT *xprt;
+	int addrlen;
+
+	xprt = (SVCXPRT *)NULL;
+	localhandle = setnetconfig();
+	while ((nconf = getnetconfig(localhandle)) != NULL) {
+		if (nconf->nc_protofmly != NULL &&
+		    strcmp(nconf->nc_protofmly, NC_LOOPBACK) == 0)
+			break;
+	}
+	if (nconf == NULL)
+		return(xprt);
+
+	if ((sock = __rpc_nconf2fd(nconf)) < 0)
+		goto done;
+
+	memset(&sun, 0, sizeof sun);
+	sun.sun_family = AF_LOCAL;
+	if (strlcpy(sun.sun_path, path, sizeof(sun.sun_path)) >=
+	    sizeof(sun.sun_path))
+		goto done;
+	sun.sun_len = SUN_LEN(&sun);
+	addrlen = sizeof (struct sockaddr_un);
+	sa = (struct sockaddr *)&sun;
+
+	if (_bind(sock, sa, addrlen) < 0)
+		goto done;
+
+	taddr.addr.len = taddr.addr.maxlen = addrlen;
+	taddr.addr.buf = malloc(addrlen);
+	if (taddr.addr.buf == NULL)
+		goto done;
+	memcpy(taddr.addr.buf, sa, addrlen);
+
+	if (nconf->nc_semantics != NC_TPI_CLTS) {
+		if (_listen(sock, SOMAXCONN) < 0) {
+			free(taddr.addr.buf);
+			goto done;
+		}
+	}
+
+	xprt = (SVCXPRT *)svc_tli_create(sock, nconf, &taddr, sendsize, recvsize);
+
+done:
+	endnetconfig(localhandle);
+	return(xprt);
+}
+
+/*
+ * Like svunix_create(), except the routine takes any *open* UNIX file
+ * descriptor as its first input. Obsoleted by svc_fd_create();
+ */
+SVCXPRT *
+svcunixfd_create(fd, sendsize, recvsize)
+	int fd;
+	u_int sendsize;
+	u_int recvsize;
+{
+ 	return (svc_fd_create(fd, sendsize, recvsize));
+}
+
 #endif /* PORTMAP */
