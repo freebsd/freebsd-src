@@ -1919,7 +1919,7 @@
 	    the following line to
 	    <filename>/boot/loader.conf</filename>:</para>
 
-            <screen><userinput>maestro3_load="YES"</userinput></screen>
+            <screen><userinput>snd_maestro3_load="YES"</userinput></screen>
 	  </note>
 	</listitem>
       </itemizedlist>
