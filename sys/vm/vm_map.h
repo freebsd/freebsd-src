@@ -188,7 +188,7 @@ struct vmspace {
 	struct pmap vm_pmap;	/* private physical map */
 	int vm_refcnt;		/* number of references */
 	caddr_t vm_shm;		/* SYS5 shared memory private data XXX */
-/* we copy from vm_startcopy to the end of the structure on fork */
+/* we copy between vm_startcopy and vm_endcopy on fork */
 #define vm_startcopy vm_rssize
 	segsz_t vm_rssize;	/* current resident set size in pages */
 	segsz_t vm_swrss;	/* resident set size before last swap */
@@ -199,6 +199,7 @@ struct vmspace {
 	caddr_t vm_daddr;	/* user virtual address of data XXX */
 	caddr_t vm_maxsaddr;	/* user VA at max stack growth */
 	caddr_t vm_minsaddr;	/* user VA at max stack growth */
+#define	vm_endcopy vm_exitingcnt
 	int	vm_exitingcnt;	/* several procsses zombied in exit1 */
 };
 

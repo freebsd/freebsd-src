@@ -2440,7 +2440,7 @@ vmspace_fork(vm1)
 
 	vm2 = vmspace_alloc(old_map->min_offset, old_map->max_offset);
 	bcopy(&vm1->vm_startcopy, &vm2->vm_startcopy,
-	    (caddr_t) (vm1 + 1) - (caddr_t) &vm1->vm_startcopy);
+	    (caddr_t) &vm1->vm_endcopy - (caddr_t) &vm1->vm_startcopy);
 	new_map = &vm2->vm_map;	/* XXX */
 	new_map->timestamp = 1;
 
