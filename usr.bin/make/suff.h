@@ -46,7 +46,7 @@ struct GNode;
 void Suff_ClearSuffixes(void);
 Boolean Suff_IsTransform(char *);
 struct GNode *Suff_AddTransform(char *);
-int Suff_EndTransform(void *, void *);
+void Suff_EndTransform(const struct GNode *);
 void Suff_AddSuffix(char *);
 Lst *Suff_GetPath(char *);
 void Suff_DoPaths(void);
