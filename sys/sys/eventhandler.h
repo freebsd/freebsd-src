@@ -27,7 +27,6 @@
  */
 
 #include <sys/queue.h>
-#include <sys/proc.h>		/* XXX should these be prerequisites? */
 #include <machine/mutex.h>
 
 #ifndef SYS_EVENTHANDLER_H
