@@ -102,7 +102,7 @@ args:	argc -= optind;
 	if (ioctl(i.fd, TIOCGETD, &i.ldisc) < 0)
 		err(1, "TIOCGETD");
 	if (ioctl(i.fd, TIOCGWINSZ, &i.win) < 0)
-		warn("TIOCGWINSZ: %s\n", strerror(errno));
+		warn("TIOCGWINSZ");
 
 	checkredirect();			/* conversion aid */
 
