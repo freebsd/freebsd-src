@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ip_divert.c,v 1.22 1998/03/28 10:18:23 bde Exp $
+ *	$Id: ip_divert.c,v 1.23 1998/05/15 20:11:33 wollman Exp $
  */
 
 #include "opt_inet.h"
@@ -221,16 +221,18 @@ div_output(so, m, addr, control)
 {
 	register struct inpcb *const inp = sotoinpcb(so);
 	register struct ip *const ip = mtod(m, struct ip *);
-	struct sockaddr_in *sin = NULL;
+	struct sockaddr_in *sin = (struct sockaddr_in *)addr;
 	int error = 0;
 
 	if (control)
 		m_freem(control);		/* XXX */
-	if (addr)
-		sin = (struct sockaddr_in *)addr;
 
 	/* Loopback avoidance option */
-	ip_divert_ignore = ntohs(inp->inp_lport);
+	if (sin) {
+		ip_divert_ignore = ntohs(sin->sin_port);
+	} else {
+		ip_divert_ignore = 0;
+	}
 
 	/* Reinject packet into the system as incoming or outgoing */
 	if (!sin || sin->sin_addr.s_addr == 0) {
