@@ -74,6 +74,7 @@
 #define	MTX_FIRST	0x40		/* First spin lock holder */
 #define MTX_TOPHALF	0x80		/* Interrupts not disabled on spin */
 #define MTX_COLD	0x100		/* Mutex init'd before malloc works */
+#define	MTX_QUIET	0x200		/* Don't log a mutex event */
 
 /* options that should be passed on to mtx_enter_hard, mtx_exit_hard */
 #define	MTX_HARDOPTS	(MTX_SPIN | MTX_FIRST | MTX_TOPHALF | MTX_NOSWITCH)
@@ -525,8 +526,9 @@ _mtx_enter(struct mtx *mtxp, int type, const char *file, int line)
 	}
 done:
 	WITNESS_ENTER(mpp, type, file, line);
-	CTR5(KTR_LOCK, STR_mtx_enter_fmt,
-	    mpp->mtx_description, mpp, mpp->mtx_recurse, file, line);
+	if (((type) & MTX_QUIET) == 0)
+		CTR5(KTR_LOCK, STR_mtx_enter_fmt,
+		    mpp->mtx_description, mpp, mpp->mtx_recurse, file, line);
 
 }
 
@@ -548,8 +550,9 @@ _mtx_try_enter(struct mtx *mtxp, int type, const char *file, int line)
 		witness_try_enter(mpp, type, file, line);
 	}
 #endif	/* WITNESS */
-	CTR5(KTR_LOCK, STR_mtx_try_enter_fmt,
-	    mpp->mtx_description, mpp, rval, file, line);
+	if (((type) & MTX_QUIET) == 0)
+		CTR5(KTR_LOCK, STR_mtx_try_enter_fmt,
+		    mpp->mtx_description, mpp, rval, file, line);
 
 	return rval;
 }
@@ -564,8 +567,9 @@ _mtx_exit(struct mtx *mtxp, int type, const char *file, int line)
 
 	MPASS4(mtx_owned(mpp), STR_mtx_owned, file, line);
 	WITNESS_EXIT(mpp, type, file, line);
-	CTR5(KTR_LOCK, STR_mtx_exit_fmt,
-	    mpp->mtx_description, mpp, mpp->mtx_recurse, file, line);
+	if (((type) & MTX_QUIET) == 0)
+		CTR5(KTR_LOCK, STR_mtx_exit_fmt,
+		    mpp->mtx_description, mpp, mpp->mtx_recurse, file, line);
 	if ((type) & MTX_SPIN) {
 		if ((type) & MTX_NORECURSE) {
 			int mtx_intr = mpp->mtx_saveintr;

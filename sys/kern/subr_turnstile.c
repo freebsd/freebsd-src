@@ -260,11 +260,14 @@ mtx_enter_hard(struct mtx *m, int type, int saveintr)
 		if ((m->mtx_lock & MTX_FLAGMASK) == (uintptr_t)p) {
 			m->mtx_recurse++;
 			atomic_set_ptr(&m->mtx_lock, MTX_RECURSE);
-			CTR1(KTR_LOCK, "mtx_enter: 0x%p recurse", m);
+			if ((type & MTX_QUIET) == 0)
+				CTR1(KTR_LOCK, "mtx_enter: 0x%p recurse", m);
 			return;
 		}
-		CTR3(KTR_LOCK, "mtx_enter: 0x%p contested (lock=%p) [0x%p]",
-		    m, (void *)m->mtx_lock, (void *)RETIP(m));
+		if ((type & MTX_QUIET) == 0)
+			CTR3(KTR_LOCK,
+			    "mtx_enter: 0x%p contested (lock=%p) [0x%p]",
+			    m, (void *)m->mtx_lock, (void *)RETIP(m));
 
 		/*
 		 * Save our priority.  Even though p_nativepri is protected
@@ -330,9 +333,10 @@ mtx_enter_hard(struct mtx *m, int type, int saveintr)
 				ithd_t *it = (ithd_t *)p;
 
 				if (it->it_interrupted) {
-					CTR2(KTR_LOCK,
+					if ((type & MTX_QUIET) == 0)
+						CTR2(KTR_LOCK,
 					    "mtx_enter: 0x%x interrupted 0x%x",
-					    it, it->it_interrupted);
+						    it, it->it_interrupted);
 					intr_thd_fixup(it);
 				}
 			}
@@ -362,12 +366,15 @@ mtx_enter_hard(struct mtx *m, int type, int saveintr)
 #if 0
 			propagate_priority(p);
 #endif
-			CTR3(KTR_LOCK, "mtx_enter: p 0x%p blocked on [0x%p] %s",
-			    p, m, m->mtx_description);
+			if ((type & MTX_QUIET) == 0)
+				CTR3(KTR_LOCK,
+				    "mtx_enter: p 0x%p blocked on [0x%p] %s",
+				    p, m, m->mtx_description);
 			mi_switch();
-			CTR3(KTR_LOCK,
+			if ((type & MTX_QUIET) == 0)
+				CTR3(KTR_LOCK,
 			    "mtx_enter: p 0x%p free from blocked on [0x%p] %s",
-			    p, m, m->mtx_description);
+				    p, m, m->mtx_description);
 			mtx_exit(&sched_lock, MTX_SPIN);
 		}
 		return;
@@ -381,7 +388,8 @@ mtx_enter_hard(struct mtx *m, int type, int saveintr)
 			m->mtx_recurse++;
 			return;
 		}
-		CTR1(KTR_LOCK, "mtx_enter: %p spinning", m);
+		if ((type & MTX_QUIET) == 0)
+			CTR1(KTR_LOCK, "mtx_enter: %p spinning", m);
 		for (;;) {
 			if (_obtain_lock(m, p))
 				break;
@@ -408,7 +416,8 @@ mtx_enter_hard(struct mtx *m, int type, int saveintr)
 		else
 #endif
 			m->mtx_saveintr = saveintr;
-		CTR1(KTR_LOCK, "mtx_enter: 0x%p spin done", m);
+		if ((type & MTX_QUIET) == 0)
+			CTR1(KTR_LOCK, "mtx_enter: 0x%p spin done", m);
 		return;
 	    }
 	}
@@ -428,11 +437,13 @@ mtx_exit_hard(struct mtx *m, int type)
 		if (m->mtx_recurse != 0) {
 			if (--(m->mtx_recurse) == 0)
 				atomic_clear_ptr(&m->mtx_lock, MTX_RECURSE);
-			CTR1(KTR_LOCK, "mtx_exit: 0x%p unrecurse", m);
+			if ((type & MTX_QUIET) == 0)
+				CTR1(KTR_LOCK, "mtx_exit: 0x%p unrecurse", m);
 			return;
 		}
 		mtx_enter(&sched_lock, MTX_SPIN);
-		CTR1(KTR_LOCK, "mtx_exit: 0x%p contested", m);
+		if ((type & MTX_QUIET) == 0)
+			CTR1(KTR_LOCK, "mtx_exit: 0x%p contested", m);
 		p1 = TAILQ_FIRST(&m->mtx_blocked);
 		MPASS(p->p_magic == P_MAGIC);
 		MPASS(p1->p_magic == P_MAGIC);
@@ -440,7 +451,8 @@ mtx_exit_hard(struct mtx *m, int type)
 		if (TAILQ_EMPTY(&m->mtx_blocked)) {
 			LIST_REMOVE(m, mtx_contested);
 			_release_lock_quick(m);
-			CTR1(KTR_LOCK, "mtx_exit: 0x%p not held", m);
+			if ((type & MTX_QUIET) == 0)
+				CTR1(KTR_LOCK, "mtx_exit: 0x%p not held", m);
 		} else
 			atomic_store_rel_ptr(&m->mtx_lock,
 			    (void *)MTX_CONTESTED);
@@ -453,8 +465,9 @@ mtx_exit_hard(struct mtx *m, int type)
 		if (pri > p->p_nativepri)
 			pri = p->p_nativepri;
 		SET_PRIO(p, pri);
-		CTR2(KTR_LOCK, "mtx_exit: 0x%p contested setrunqueue 0x%p",
-		    m, p1);
+		if ((type & MTX_QUIET) == 0)
+			CTR2(KTR_LOCK,
+			    "mtx_exit: 0x%p contested setrunqueue 0x%p", m, p1);
 		p1->p_blocked = NULL;
 		p1->p_mtxname = NULL;
 		p1->p_stat = SRUN;
@@ -465,19 +478,24 @@ mtx_exit_hard(struct mtx *m, int type)
 				ithd_t *it = (ithd_t *)p;
 
 				if (it->it_interrupted) {
-					CTR2(KTR_LOCK,
+					if ((type & MTX_QUIET) == 0)
+						CTR2(KTR_LOCK,
 					    "mtx_exit: 0x%x interruped 0x%x",
-					    it, it->it_interrupted);
+						    it, it->it_interrupted);
 					intr_thd_fixup(it);
 				}
 			}
 #endif
 			setrunqueue(p);
-			CTR2(KTR_LOCK, "mtx_exit: 0x%p switching out lock=0x%p",
-			    m, (void *)m->mtx_lock);
+			if ((type & MTX_QUIET) == 0)
+				CTR2(KTR_LOCK,
+				    "mtx_exit: 0x%p switching out lock=0x%p",
+				    m, (void *)m->mtx_lock);
 			mi_switch();
-			CTR2(KTR_LOCK, "mtx_exit: 0x%p resuming lock=0x%p",
-			    m, (void *)m->mtx_lock);
+			if ((type & MTX_QUIET) == 0)
+				CTR2(KTR_LOCK,
+				    "mtx_exit: 0x%p resuming lock=0x%p",
+				    m, (void *)m->mtx_lock);
 		}
 		mtx_exit(&sched_lock, MTX_SPIN);
 		break;
@@ -582,7 +600,8 @@ mtx_init(struct mtx *m, const char *t, int flag)
 	struct mtx_debug *debug;
 #endif
 
-	CTR2(KTR_LOCK, "mtx_init 0x%p (%s)", m, t);
+	if ((flag & MTX_QUIET) == 0)
+		CTR2(KTR_LOCK, "mtx_init 0x%p (%s)", m, t);
 #ifdef MUTEX_DEBUG
 	if (mtx_validate(m, MV_INIT))	/* diagnostic and error correction */
 		return;
@@ -813,6 +832,8 @@ witness_enter(struct mtx *m, int flags, const char *file, int line)
 	int go_into_ddb = 0;
 #endif /* DDB */
 
+	if (panicstr)
+		return;
 	w = m->mtx_witness;
 	p = CURPROC;
 
@@ -822,17 +843,17 @@ witness_enter(struct mtx *m, int flags, const char *file, int line)
 			    " %s:%d", m->mtx_description, file, line);
 		if (m->mtx_recurse != 0)
 			return;
-		mtx_enter(&w_mtx, MTX_SPIN);
+		mtx_enter(&w_mtx, MTX_SPIN | MTX_QUIET);
 		i = witness_spin_check;
 		if (i != 0 && w->w_level < i) {
-			mtx_exit(&w_mtx, MTX_SPIN);
+			mtx_exit(&w_mtx, MTX_SPIN | MTX_QUIET);
 			panic("mutex_enter(%s:%x, MTX_SPIN) out of order @"
 			    " %s:%d already holding %s:%x",
 			    m->mtx_description, w->w_level, file, line,
 			    spin_order_list[ffs(i)-1], i);
 		}
 		PCPU_SET(witness_spin_check, i | w->w_level);
-		mtx_exit(&w_mtx, MTX_SPIN);
+		mtx_exit(&w_mtx, MTX_SPIN | MTX_QUIET);
 		w->w_file = file;
 		w->w_line = line;
 		m->mtx_line = line;
@@ -847,7 +868,7 @@ witness_enter(struct mtx *m, int flags, const char *file, int line)
 		return;
 	if (witness_dead)
 		goto out;
-	if (cold || panicstr)
+	if (cold)
 		goto out;
 
 	if (!mtx_legal2block())
@@ -873,16 +894,16 @@ witness_enter(struct mtx *m, int flags, const char *file, int line)
 		goto out;
 	}
 	MPASS(!mtx_owned(&w_mtx));
-	mtx_enter(&w_mtx, MTX_SPIN);
+	mtx_enter(&w_mtx, MTX_SPIN | MTX_QUIET);
 	/*
 	 * If we have a known higher number just say ok
 	 */
 	if (witness_watch > 1 && w->w_level > w1->w_level) {
-		mtx_exit(&w_mtx, MTX_SPIN);
+		mtx_exit(&w_mtx, MTX_SPIN | MTX_QUIET);
 		goto out;
 	}
 	if (isitmydescendant(m1->mtx_witness, w)) {
-		mtx_exit(&w_mtx, MTX_SPIN);
+		mtx_exit(&w_mtx, MTX_SPIN | MTX_QUIET);
 		goto out;
 	}
 	for (i = 0; m1 != NULL; m1 = LIST_NEXT(m1, mtx_held), i++) {
@@ -890,7 +911,7 @@ witness_enter(struct mtx *m, int flags, const char *file, int line)
 		MPASS(i < 200);
 		w1 = m1->mtx_witness;
 		if (isitmydescendant(w, w1)) {
-			mtx_exit(&w_mtx, MTX_SPIN);
+			mtx_exit(&w_mtx, MTX_SPIN | MTX_QUIET);
 			if (blessed(w, w1))
 				goto out;
 			if (m1 == &Giant) {
@@ -919,7 +940,7 @@ witness_enter(struct mtx *m, int flags, const char *file, int line)
 	}
 	m1 = LIST_FIRST(&p->p_heldmtx);
 	if (!itismychild(m1->mtx_witness, w))
-		mtx_exit(&w_mtx, MTX_SPIN);
+		mtx_exit(&w_mtx, MTX_SPIN | MTX_QUIET);
 
 out:
 #ifdef DDB
@@ -945,6 +966,8 @@ witness_exit(struct mtx *m, int flags, const char *file, int line)
 {
 	struct witness *w;
 
+	if (panicstr)
+		return;
 	w = m->mtx_witness;
 
 	if (flags & MTX_SPIN) {
@@ -953,9 +976,9 @@ witness_exit(struct mtx *m, int flags, const char *file, int line)
 			    " %s:%d", m->mtx_description, file, line);
 		if (m->mtx_recurse != 0)
 			return;
-		mtx_enter(&w_mtx, MTX_SPIN);
+		mtx_enter(&w_mtx, MTX_SPIN | MTX_QUIET);
 		PCPU_SET(witness_spin_check, witness_spin_check & ~w->w_level);
-		mtx_exit(&w_mtx, MTX_SPIN);
+		mtx_exit(&w_mtx, MTX_SPIN | MTX_QUIET);
 		return;
 	}
 	if (w->w_spin)
@@ -978,6 +1001,8 @@ witness_try_enter(struct mtx *m, int flags, const char *file, int line)
 	struct proc *p;
 	struct witness *w = m->mtx_witness;
 
+	if (panicstr)
+		return;
 	if (flags & MTX_SPIN) {
 		if (!w->w_spin)
 			panic("mutex_try_enter: "
@@ -985,9 +1010,9 @@ witness_try_enter(struct mtx *m, int flags, const char *file, int line)
 			    m->mtx_description, file, line);
 		if (m->mtx_recurse != 0)
 			return;
-		mtx_enter(&w_mtx, MTX_SPIN);
+		mtx_enter(&w_mtx, MTX_SPIN | MTX_QUIET);
 		PCPU_SET(witness_spin_check, witness_spin_check | w->w_level);
-		mtx_exit(&w_mtx, MTX_SPIN);
+		mtx_exit(&w_mtx, MTX_SPIN | MTX_QUIET);
 		w->w_file = file;
 		w->w_line = line;
 		m->mtx_line = line;
@@ -1104,10 +1129,10 @@ enroll(const char *description, int flag)
 	}
 	if ((flag & MTX_SPIN) && witness_skipspin)
 		return (NULL);
-	mtx_enter(&w_mtx, MTX_SPIN);
+	mtx_enter(&w_mtx, MTX_SPIN | MTX_QUIET);
 	for (w = w_all; w; w = w->w_next) {
 		if (strcmp(description, w->w_description) == 0) {
-			mtx_exit(&w_mtx, MTX_SPIN);
+			mtx_exit(&w_mtx, MTX_SPIN | MTX_QUIET);
 			return (w);
 		}
 	}
@@ -1116,7 +1141,7 @@ enroll(const char *description, int flag)
 	w->w_next = w_all;
 	w_all = w;
 	w->w_description = description;
-	mtx_exit(&w_mtx, MTX_SPIN);
+	mtx_exit(&w_mtx, MTX_SPIN | MTX_QUIET);
 	if (flag & MTX_SPIN) {
 		w->w_spin = 1;
 	
@@ -1337,7 +1362,7 @@ witness_get()
 
 	if ((w = w_free) == NULL) {
 		witness_dead = 1;
-		mtx_exit(&w_mtx, MTX_SPIN);
+		mtx_exit(&w_mtx, MTX_SPIN | MTX_QUIET);
 		printf("witness exhausted\n");
 		return (NULL);
 	}
