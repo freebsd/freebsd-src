@@ -188,8 +188,8 @@ rman_reserve_resource(struct rman *rm, u_long start, u_long end, u_long count,
 	rv = 0;
 
 	DPRINTF(("rman_reserve_resource: <%s> request: [%#lx, %#lx], length "
-	       "%#lx, flags %u, device %s%d\n", rm->rm_descr, start, end,
-	       count, flags, device_get_name(dev), device_get_unit(dev)));
+	       "%#lx, flags %u, device %s\n", rm->rm_descr, start, end, count,
+	       flags, dev == NULL ? "<null>" : device_get_nameunit(dev)));
 	want_activate = (flags & RF_ACTIVE);
 	flags &= ~RF_ACTIVE;
 
