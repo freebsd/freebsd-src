@@ -14,7 +14,7 @@
 #include <sendmail.h>
 #include <sys/time.h>
 
-SM_RCSID("@(#)$Id: deliver.c,v 8.940 2002/06/06 00:03:16 gshapiro Exp $")
+SM_RCSID("@(#)$Id: deliver.c,v 8.940.2.3 2002/08/16 14:56:01 ca Exp $")
 
 #if HASSETUSERCONTEXT
 # include <login_cap.h>
@@ -1013,6 +1013,16 @@ dup_queue_file(e, ee, type)
 
 	(void) sm_strlcpy(f1buf, queuename(e, type), sizeof f1buf);
 	(void) sm_strlcpy(f2buf, queuename(ee, type), sizeof f2buf);
+
+	/* Force the df to disk if it's not there yet */
+	if (type == DATAFL_LETTER && e->e_dfp != NULL &&
+	    sm_io_setinfo(e->e_dfp, SM_BF_COMMIT, NULL) < 0 &&
+	    errno != EINVAL)
+	{
+		syserr("!dup_queue_file: can't commit %s", f1buf);
+		/* NOTREACHED */
+	}
+
 	if (link(f1buf, f2buf) < 0)
 	{
 		int save_errno = errno;
@@ -1545,7 +1555,8 @@ deliver(e, firstto)
 		quarantine = (e->e_quarmsg != NULL);
 #endif /* _FFR_QUARANTINE */
 		rcode = rscheck("check_compat", e->e_from.q_paddr, to->q_paddr,
-				e, true, true, 3, NULL, e->e_id);
+				e, RSF_RMCOMM|RSF_COUNT, 3, NULL,
+				e->e_id);
 		if (rcode == EX_OK)
 		{
 			/* do in-code checking if not discarding */
@@ -2347,10 +2358,14 @@ tryhost:
 					pwd = sm_getpwnam(contextaddr->q_ruser);
 				else
 					pwd = sm_getpwnam(contextaddr->q_user);
-				if (pwd != NULL)
-					(void) setusercontext(NULL,
-							      pwd, pwd->pw_uid,
-							      LOGIN_SETRESOURCES|LOGIN_SETPRIORITY);
+				if (pwd != NULL &&
+				    setusercontext(NULL, pwd, pwd->pw_uid,
+						   LOGIN_SETRESOURCES|LOGIN_SETPRIORITY) == -1 &&
+				    suidwarn)
+				{
+					syserr("openmailer: setusercontext() failed");
+					exit(EX_TEMPFAIL);
+				}
 			}
 # endif /* HASSETUSERCONTEXT */
 
@@ -2879,8 +2894,8 @@ reconnect:	/* after switching to an encrypted connection */
 				olderrors = Errors;
 				QuickAbort = false;
 				SuprErrs = true;
-				if (rscheck("try_tls", host, NULL, e, true,
-					    false, 7, host, NOQID) != EX_OK
+				if (rscheck("try_tls", host, NULL, e,
+					    RSF_RMCOMM, 7, host, NOQID) != EX_OK
 				    || Errors > olderrors)
 					usetls = false;
 				SuprErrs = saveSuprErrs;
@@ -2948,8 +2963,8 @@ reconnect:	/* after switching to an encrypted connection */
 
 			if (rscheck("tls_server",
 				    macvalue(macid("{verify}"), e),
-				    NULL, e, true, true, 5, host,
-				    NOQID) != EX_OK ||
+				    NULL, e, RSF_RMCOMM|RSF_COUNT, 5,
+				    host, NOQID) != EX_OK ||
 			    Errors > olderrors ||
 			    rcode == EX_SOFTWARE)
 			{
@@ -3241,8 +3256,8 @@ do_transfer:
 				e->e_to = to->q_paddr;
 # if STARTTLS
 				i = rscheck("tls_rcpt", to->q_user, NULL, e,
-					    true, true, 3, mci->mci_host,
-					    e->e_id);
+					    RSF_RMCOMM|RSF_COUNT, 3,
+					    mci->mci_host, e->e_id);
 				if (i != EX_OK)
 				{
 					markfailure(e, to, mci, i, false);

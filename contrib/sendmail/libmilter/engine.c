@@ -9,7 +9,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: engine.c,v 8.109 2002/03/13 17:18:44 gshapiro Exp $")
+SM_RCSID("@(#)$Id: engine.c,v 8.109.2.1 2002/07/29 16:40:47 ca Exp $")
 
 #include "libmilter.h"
 
@@ -308,8 +308,11 @@ mi_engine(ctx)
 			curstate = ST_HELO;
 			if (!trans_ok(curstate, newstate))
 			{
-				free(buf);
-				buf = NULL;
+				if (buf != NULL)
+				{
+					free(buf);
+					buf = NULL;
+				}
 				continue;
 			}
 		}

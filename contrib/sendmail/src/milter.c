@@ -10,7 +10,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: milter.c,v 8.197 2002/06/12 22:33:48 gshapiro Exp $")
+SM_RCSID("@(#)$Id: milter.c,v 8.197.2.2 2002/08/06 22:58:38 gshapiro Exp $")
 
 #if MILTER
 # include <libmilter/mfapi.h>
@@ -45,13 +45,33 @@ static char *MilterEnvRcptMacros[MAXFILTERMACROS + 1];
 		milter_abort(e); \
 	}
 
-# define MILTER_CHECK_ERROR(action) \
+# if _FFR_QUARANTINE
+#  define MILTER_CHECK_ERROR(action) \
+	if (tTd(71, 101)) \
+	{ \
+		if (e->e_quarmsg == NULL) \
+		{ \
+			e->e_quarmsg = sm_rpool_strdup_x(e->e_rpool, \
+							 "filter failure"); \
+			macdefine(&e->e_macro, A_PERM, macid("{quarantine}"), \
+				  e->e_quarmsg); \
+		} \
+	} \
+	else if (bitnset(SMF_TEMPFAIL, m->mf_flags)) \
+		*state = SMFIR_TEMPFAIL; \
+	else if (bitnset(SMF_REJECT, m->mf_flags)) \
+		*state = SMFIR_REJECT; \
+	else \
+		action;
+# else /* _FFR_QUARANTINE */
+#  define MILTER_CHECK_ERROR(action) \
 	if (bitnset(SMF_TEMPFAIL, m->mf_flags)) \
 		*state = SMFIR_TEMPFAIL; \
 	else if (bitnset(SMF_REJECT, m->mf_flags)) \
 		*state = SMFIR_REJECT; \
 	else \
 		action;
+# endif /* _FFR_QUARANTINE */
 
 # define MILTER_CHECK_REPLYCODE(default) \
 	if (response == NULL || \

@@ -13,7 +13,7 @@ divert(-1)
 #
 divert(0)
 
-VERSIONID(`$Id: proto.m4,v 8.649 2002/06/13 18:53:24 ca Exp $')
+VERSIONID(`$Id: proto.m4,v 8.649.2.5 2002/08/15 02:39:01 ca Exp $')
 
 # level CF_LEVEL config file format
 V`'CF_LEVEL/ifdef(`VENDOR_NAME', `VENDOR_NAME', `Berkeley')
@@ -1424,8 +1424,8 @@ SLDAPExpand
 R<$+><$+><$*>	$: <$(ldapmra $2 $: $)> <$(ldapmh $2 $: $)> <$1> <$2> <$3>
 
 # look for temporary failures (return original address, MTA will queue up)
-R<$* <TMPF>> <$*> <$+> <$+> <$*>	$@ $2
-R<$*> <$* <TMPF>> <$+> <$+> <$*>	$@ $2
+R<$* <TMPF>> <$*> <$+> <$+> <$*>	$@ $3
+R<$*> <$* <TMPF>> <$+> <$+> <$*>	$@ $3
 
 # if mailRoutingAddress and local or non-existant mailHost,
 # return the new mailRoutingAddress
@@ -1800,10 +1800,10 @@ dnl workspace: <?> CanonicalAddress (i.e. address in canonical form localpart<@h
 dnl there is nothing behind the <@host> so no trailing $* needed
 R<?> $* < @ $+ . >	<?> $1 < @ $2 >			strip trailing dots
 # handle non-DNS hostnames (*.bitnet, *.decnet, *.uucp, etc)
-R<?> $* < @ $* $=P >	$: <OK> $1 < @ $2 $3 >
+R<?> $* < @ $* $=P >	$: <_RES_OK_> $1 < @ $2 $3 >
 dnl workspace <mark> CanonicalAddress	where mark is ? or OK
 dnl A sender address with my local host name ($j) is safe
-R<?> $* < @ $j >	$: <OK> $1 < @ $j >
+R<?> $* < @ $j >	$: <_RES_OK_> $1 < @ $j >
 ifdef(`_ACCEPT_UNRESOLVABLE_DOMAINS_',
 `R<?> $* < @ $+ >	$: <_RES_OK_> $1 < @ $2 >		... unresolvable OK',
 `R<?> $* < @ $+ >	$: <? $(resolve $2 $: $2 <PERM> $) > $1 < @ $2 >
@@ -1842,7 +1842,7 @@ R$* u $* $| <?> $*	$: <_RES_OK_> $3
 dnl remove daemon_flags
 R$* $| $*		$: $2
 R<?> $*			$: < ? $&{client_name} > $1
-R<?> $*			$@ <OK>				...local unqualed ok
+R<?> $*			$@ <_RES_OK_>			...local unqualed ok
 R<? $+> $*		$#error $@ 5.5.4 $: "_CODE553 Domain name required for sender address " $&f
 							...remote is not')
 # check results
@@ -2102,7 +2102,12 @@ R$=R $*			$@ RELAY		relayable IP address
 ifdef(`_ACCESS_TABLE_', `dnl
 R$*			$: $>A <$1> <?> <+ Connect> <$1>
 R<RELAY> $* 		$@ RELAY		relayable IP address
-R<REJECT> $* 		$@ REJECT		rejected IP address
+ifdef(`_FFR_REJECT_IP_IN_CHECK_RCPT_',`dnl
+dnl this will cause rejections in cases like:
+dnl Connect:My.Host.Domain	RELAY
+dnl Connect:My.Net		REJECT
+dnl since in check_relay client_name is checked before client_addr
+R<REJECT> $* 		$@ REJECT		rejected IP address')
 ifdef(`_ATMPF_', `R<_ATMPF_> $*		$#TEMP $@ 4.3.0 $: "451 Temporary system failure. Please try again later."', `dnl')
 R<$*> <$*>		$: $2', `dnl')
 R$*			$: [ $1 ]		put brackets around it...
@@ -2471,7 +2476,7 @@ R<?>$*		$@ OK
 ifdef(`_ATMPF_', `dnl tempfail?
 R<$* _ATMPF_>$*	$#error $@ 4.3.0 $: "451 Temporary system failure. Please try again later."', `dnl')
 R<NO>$*		$#error $@ 5.7.1 $: "550 do not try TLS with " $&{server_name} " ["$&{server_addr}"]"
-  
+ 
 ######################################################################
 ###  tls_rcpt: is connection with server "good" enough?
 ###	(done in client, per recipient)

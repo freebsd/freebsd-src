@@ -14,9 +14,9 @@
 #include <sendmail.h>
 
 #if NAMED_BIND
-SM_RCSID("@(#)$Id: domain.c,v 8.181 2002/05/24 23:48:42 gshapiro Exp $ (with name server)")
+SM_RCSID("@(#)$Id: domain.c,v 8.181.2.1 2002/06/27 16:55:04 ca Exp $ (with name server)")
 #else /* NAMED_BIND */
-SM_RCSID("@(#)$Id: domain.c,v 8.181 2002/05/24 23:48:42 gshapiro Exp $ (without name server)")
+SM_RCSID("@(#)$Id: domain.c,v 8.181.2.1 2002/06/27 16:55:04 ca Exp $ (without name server)")
 #endif /* NAMED_BIND */
 
 #if NAMED_BIND
@@ -664,7 +664,7 @@ bestmx_map_lookup(map, name, av, statp)
 #endif /* _FFR_BESTMX_BETTER_TRUNCATION */
 
 	_res.options &= ~(RES_DNSRCH|RES_DEFNAMES);
-	nmx = getmxrr(name, mxhosts, NULL, false, statp, true, NULL);
+	nmx = getmxrr(name, mxhosts, NULL, false, statp, false, NULL);
 	_res.options = saveopts;
 	if (nmx <= 0)
 		return NULL;

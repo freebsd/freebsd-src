@@ -8,7 +8,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: ldap.c,v 1.44 2002/02/22 21:54:02 gshapiro Exp $")
+SM_RCSID("@(#)$Id: ldap.c,v 1.44.2.2 2002/08/09 22:23:12 gshapiro Exp $")
 
 #if LDAPMAP
 # include <sys/types.h>
@@ -888,7 +888,8 @@ sm_ldap_results(lmap, msgid, flags, delim, rpool, result,
 
 					for (i = 0; vals[i] != NULL; i++)
 					{
-						if (*resultln > 0)
+						if (*resultln > 0 &&
+						    p < pe)
 							*p++ = (char) delim;
 
 						if (lmap->ldap_attrsep != '\0')
@@ -1162,6 +1163,9 @@ sm_ldap_setopts(ld, lmap)
 		ldap_set_option(ld, LDAP_OPT_REFERRALS, LDAP_OPT_OFF);
 	ldap_set_option(ld, LDAP_OPT_SIZELIMIT, &lmap->ldap_sizelimit);
 	ldap_set_option(ld, LDAP_OPT_TIMELIMIT, &lmap->ldap_timelimit);
+#  ifdef LDAP_OPT_RESTART
+	ldap_set_option(ld, LDAP_OPT_RESTART, LDAP_OPT_ON);
+#  endif /* LDAP_OPT_RESTART */
 # else /* USE_LDAP_SET_OPTION */
 	/* From here on in we can use ldap internal timelimits */
 	ld->ld_deref = lmap->ldap_deref;

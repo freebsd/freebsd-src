@@ -6,7 +6,7 @@
  * forth in the LICENSE file which can be found at the top level of
  * the sendmail distribution.
  *
- *	$Id: varargs.h,v 1.7 2001/09/13 16:45:40 ca Exp $
+ *	$Id: varargs.h,v 1.7.2.1 2002/07/29 21:43:20 gshapiro Exp $
  */
 
 /*
@@ -31,7 +31,7 @@
 # elif defined(__va_copy)
 #  define SM_VA_COPY(dst, src)	__va_copy((dst), (src))
 # else
-#  define SM_VA_COPY(dst, src)	(dst) = (src)
+#  define SM_VA_COPY(dst, src)	memcpy(&(dst), &(src), sizeof((dst)))
 # endif
 
 /*

@@ -9,7 +9,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: sfsasl.c,v 8.91 2002/06/07 00:06:27 geir Exp $")
+SM_RCSID("@(#)$Id: sfsasl.c,v 8.91.2.1 2002/08/27 01:35:17 ca Exp $")
 #include <stdlib.h>
 #include <sendmail.h>
 #include <errno.h>
@@ -557,9 +557,19 @@ tls_read(fp, buf, size)
 */
 		break;
 	  case SSL_ERROR_SSL:
+#if _FFR_DEAL_WITH_ERROR_SSL
+		if (r == 0 && errno == 0) /* out of protocol EOF found */
+			break;
+#endif /* _FFR_DEAL_WITH_ERROR_SSL */
 		err = "generic SSL error";
 		if (LogLevel > 9)
 			tlslogerr("read");
+
+#if _FFR_DEAL_WITH_ERROR_SSL
+		/* avoid repeated calls? */
+		if (r == 0)
+			r = -1;
+#endif /* _FFR_DEAL_WITH_ERROR_SSL */
 		break;
 	}
 	if (err != NULL)
@@ -646,6 +656,12 @@ tls_write(fp, buf, size)
 */
 		if (LogLevel > 9)
 			tlslogerr("write");
+
+#if _FFR_DEAL_WITH_ERROR_SSL
+		/* avoid repeated calls? */
+		if (r == 0)
+			r = -1;
+#endif /* _FFR_DEAL_WITH_ERROR_SSL */
 		break;
 	}
 	if (err != NULL)
