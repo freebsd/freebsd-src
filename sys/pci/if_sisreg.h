@@ -129,6 +129,14 @@
 #define SIS_EECMD_READ		0x180
 #define SIS_EECMD_ERASE		0x1c0
 
+/*
+ * EEPROM Commands for SiS96x
+ * chipsets.
+ */
+#define SIS_EECMD_REQ		0x00000400
+#define SIS_EECMD_DONE		0x00000200
+#define SIS_EECMD_GNT		0x00000100
+
 #define SIS_EE_NODEADDR		0x8
 #define NS_EE_NODEADDR		0x6
 
@@ -392,6 +400,7 @@ struct sis_ring_data {
 #define SIS_REV_630EA1		0x0083
 #define SIS_REV_630ET		0x0084
 #define SIS_REV_635		0x0090
+#define SIS_REV_96x		0x0091
 
 /*
  * NatSemi vendor ID
