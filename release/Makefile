@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.5 1994/10/28 06:41:47 jkh Exp $
+#	$Id: Makefile,v 1.6 1994/10/28 06:42:38 jkh Exp $
 #
 
 FLOPPY=		fd0
@@ -14,8 +14,10 @@ CPIO1+= mknod mount newfs ping reboot restore swapon umount route
 CPIO1+= rdump rrestore halt
 CPIO1+= ftp rsh sed telnet rlogin 
 
+CPIO2=  etc/services
+
 # Somewhat on the rough side...
-CLEANFILES=	*.o *.c *.cache *.mk
+CLEANFILES=	*.o *.c *.cache *.mk *.lo ${CPIO1} *.flp *.gz
 
 MTREE_DIR=	${.CURDIR}/../etc/mtree
 
@@ -32,18 +34,11 @@ hierarchy:
 kernel:	${.CURDIR}/../sys/i386/conf/GENERIC
 	(cd ${.CURDIR}/../sys/i386/conf; config GENERIC)
 	(cd ${.CURDIR}/../sys/compile/GENERIC; ${MAKE} depend; ${MAKE} all; )
-	(cp ${.CURDIR}/../sys/compile/GENERIC/kernel .)
-.if defined(DESTDIR) && !empty(DESTDIR)
-	(cd ${.CURDIR}/../sys/compile/GENERIC; \
-    	install -c -o ${BINOWN} -g ${BINGRP} -m 755 kernel {DESTDIR}/kernel )
-.else
-	echo "WARNING: GENERIC kernel not installed to /kernel"
-.endif
 
 boot.flp:
 	-umount ${MNT}
 	-umount /dev/${FLOPPY}
-	# echo y | fdformat ${FLOPPY}
+	echo y | fdformat ${FLOPPY}
 	disklabel -w -B \
 		-b ${DESTDIR}/usr/mdec/fdboot -s ${DESTDIR}/usr/mdec/bootfd \
 		/dev/r${FLOPPY} ${FDLABEL}
@@ -53,7 +48,7 @@ boot.flp:
 	cp ${.CURDIR}/../sys/compile/GENERIC/kernel ${MNT}/kernel
 	cp ${DESTDIR}/usr/mdec/sdboot ${DESTDIR}/usr/mdec/bootsd ${MNT}/stand
 	( cd ${DESTDIR}/dev ; \
-		ls console tty null zero \
+		ls console tty ttyv1 null zero \
 		sd[0123][a-h] wd[0123][a-h] fd[01] \
 		rsd[0123][a-h] rwd[0123][a-h] rfd[01] \
 	| cpio -dumpv ${MNT}/dev \
@@ -71,8 +66,9 @@ boot.flp:
 	ls -l boot.flp*
 
 cpio.flp:
+	( cd /${DESTDIR} ; ls ${CPIO2} | cpio -H newc -oa ) | cpio -ivd
 	for i in ${CPIO1} ; do rm -f ./$$i ; ln cpio_flp_1 ./$$i ; done
-	ls ${CPIO1} | cpio -H newc -oa | gzip -9 > cpio.flp
+	ls ${CPIO1} ${CPIO2} | cpio -H newc -oa | gzip -9 > cpio.flp
 	gzip -9 -v < cpio.flp > cpio.flp.gz
 	ls -l cpio.flp*
 
@@ -82,6 +78,28 @@ crunch:
 	crunchgen ${.CURDIR}/cpio_flp_1.conf
 	${MAKE} -f cpio_flp_1.mk objs exe
 
-floppies: kernel crunch boot.flp cpio.flp
+floppies: crunch boot.flp cpio.flp
+
+release20: 
+	-mkdir ${RELEASEDIR}
+	chflags -R noschg ${RELEASEDIR}/.
+	rm -rf ${RELEASEDIR}/*
+	( cd ${.CURDIR}/.. ;  \
+		${MAKE} world NOCRYPT=yes)
+	( cd ${.CURDIR}/../etc ;  \
+		${MAKE} release-dirs )
+	( cd ${.CURDIR} ;  \
+		${MAKE} kernel DESTDIR=${RELEASEDIR}/filesys )
+	install ${COPY} -m 644 ${.CURDIR}/../sys/compile/GENERIC/kernel \
+		${RELEASEDIR}/filesys/kernel
+	( cd ${.CURDIR} ;  \
+		${MAKE} hierarchy DESTDIR=${RELEASEDIR}/filesys )
+	( cd ${.CURDIR}/../etc ; \
+		${MAKE} distribution DESTDIR=${RELEASEDIR}/filesys \
+			NOCRYPT=yes SHARED=copies)
+	( cd ${.CURDIR}/../etc ; \
+		${MAKE} bin-tarball DESTDIR=${RELEASEDIR}/filesys )
+	( cd ${.CURDIR} ;  \
+		${MAKE} floppies )
 
 .include <bsd.prog.mk>
