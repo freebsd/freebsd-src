@@ -17,7 +17,7 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
-	$Id: freebsd-nat.c,v 1.9 1996/05/02 13:08:51 phk Exp $
+	$Id: freebsd-nat.c,v 1.10 1996/06/08 11:03:19 bde Exp $
 */
 
 #include <sys/types.h>
@@ -29,6 +29,7 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 #include <sys/ptrace.h>
 
 #include "defs.h"
+#include "symtab.h"
 
 /* this table must line up with REGISTER_NAMES in tm-i386v.h */
 /* symbols like 'tEAX' come from <machine/reg.h> */
@@ -313,6 +314,7 @@ unsigned int *args;
 #include <sys/proc.h>
 #include <sys/stat.h>
 #include <sys/fcntl.h>
+#include <sys/sysctl.h>
 #include <unistd.h>
 
 #include <vm/vm.h>
@@ -320,6 +322,7 @@ unsigned int *args;
 
 #include <machine/vmparam.h>
 #include <machine/pcb.h>
+#include <machine/frame.h>
 
 #define	KERNOFF		((unsigned)KERNBASE)
 #define	INKERNEL(x)	((x) >= KERNOFF)
@@ -465,6 +468,86 @@ char *myaddr;
 	}
 }
 
+static struct kinfo_proc kp;
+
+/*
+ * try to do what kvm_proclist in libkvm would do
+ */
+int
+kvm_proclist (cfd, pid, p, cnt)
+int cfd, pid, *cnt;
+struct proc *p;
+{
+	struct proc lp;
+
+	for (; p != NULL; p = lp.p_list.le_next) {
+		if (!kvm_read(cfd, (CORE_ADDR)p, (char *)&lp, sizeof (lp)))
+			return (0);
+		if (lp.p_pid != pid)
+			continue;
+		kp.kp_eproc.e_paddr = p;
+		*cnt = 1;
+		return (1);
+	}
+	*cnt = 0;
+	return (0);
+}
+
+/*
+ * try to do what kvm_deadprocs in libkvm would do
+ */
+struct kinfo_proc *
+kvm_deadprocs (cfd, pid, cnt)
+int cfd, pid, *cnt;
+{
+	CORE_ADDR allproc, zombproc;
+	struct proc *p;
+
+	allproc = ksym_lookup("allproc");
+	if (kvm_read(cfd, allproc, (char *)&p, sizeof (p)) == 0)
+		return (NULL);
+	kvm_proclist (cfd, pid, p, cnt);
+	if (!*cnt) {
+		zombproc = ksym_lookup("zombproc");
+		if (kvm_read(cfd, zombproc, (char *)&p, sizeof (p)) == 0)
+			return (NULL);
+		kvm_proclist (cfd, pid, p, cnt);
+	}
+	return (&kp);
+}
+
+/*
+ * try to do what kvm_getprocs in libkvm would do
+ */
+struct kinfo_proc *
+kvm_getprocs (cfd, op, proc, cnt)
+int cfd, op, *cnt;
+CORE_ADDR proc;
+{
+	int mib[4], size;
+
+	*cnt = 0;
+	/* assume it's a pid */
+	if (devmem) { /* "live" kernel, use sysctl */
+		mib[0] = CTL_KERN;
+		mib[1] = KERN_PROC;
+		mib[2] = KERN_PROC_PID;
+		mib[3] = (int)proc;
+		size = sizeof (kp);
+		if (sysctl (mib, 4, &kp, &size, NULL, 0) < 0) {
+			perror("sysctl");
+			*cnt = 0;
+			return (NULL);
+		}
+		if (!size)
+			*cnt = 0;
+		else
+			*cnt = 1;
+		return (&kp);
+	} else
+		return (kvm_deadprocs (cfd, (int)proc, cnt));
+}
+
 static
 physrd(cfd, addr, dat, len)
 u_int addr;
@@ -483,13 +566,20 @@ CORE_ADDR addr;
 	unsigned int pte;
 	static CORE_ADDR PTD = -1;
 	CORE_ADDR current_ptd;
+#ifdef DEBUG_KVTOPHYS
+	CORE_ADDR oldaddr = addr;
+#endif
 
 	/*
 	 * If we're looking at the kernel stack,
 	 * munge the address to refer to the user space mapping instead;
 	 * that way we get the requested process's kstack, not the running one.
 	 */
-	if (addr >= kstack && addr < kstack + ctob(UPAGES))
+	/*
+	 * this breaks xlating user addresses from a crash dump so only
+	 * do it for a "live" kernel.
+	 */
+	if (devmem && addr >= kstack && addr < kstack + ctob(UPAGES))
 		addr = (addr - kstack) + curpcb;
 
 	/*
@@ -538,7 +628,7 @@ CORE_ADDR addr;
 		return (~0);
 
 	addr = (pte & PG_FRAME) + (addr & PAGE_MASK);
-#if 0
+#ifdef DEBUG_KVTOPHYS
 	printf("vtophys(%x) -> %x\n", oldaddr, addr);
 #endif
 	return (addr);
@@ -550,12 +640,16 @@ CORE_ADDR uaddr;
 	int i;
 	int *pcb_regs = (int *)&pcb;
 	int	eip;
+	CORE_ADDR nuaddr = uaddr;
 
-	if (physrd(fd, uaddr, (char *)&pcb, sizeof pcb) < 0) {
-		error("cannot read pcb at %x\n", uaddr);
+	/* need this for the `proc' command to work */
+	if (INKERNEL(uaddr))
+		nuaddr = kvtophys(fd, uaddr);
+	if (physrd(fd, nuaddr, (char *)&pcb, sizeof pcb) < 0) {
+		error("cannot read pcb at %#x\n", uaddr);
 		return (-1);
 	}
-	printf("current pcb at %x\n", uaddr);
+	printf("current pcb at %#x\n", uaddr);
 
 	/*
 	 * get the register values out of the sys pcb and
@@ -600,6 +694,10 @@ kernel_core_file_hook(fd, addr, buf, len)
 
 	while (len > 0) {
 		paddr = kvtophys(fd, addr);
+#ifdef DEBUG_KCFH
+if(!INKERNEL(addr))
+fprintf(stderr,"addr 0x%x, paddr 0x%x\n", addr, paddr);
+#endif
 		if (paddr == ~0) {
 			bzero(buf, len);
 			break;
@@ -616,4 +714,89 @@ kernel_core_file_hook(fd, addr, buf, len)
 	}
 	return (cp - buf);
 }
+
+/*
+ * The following is FreeBSD-specific hackery to decode special frames
+ * and elide the assembly-language stub.  This could be made faster by
+ * defining a frame_type field in the machine-dependent frame information,
+ * but we don't think that's too important right now.
+ */
+enum frametype { tf_normal, tf_trap, tf_interrupt, tf_syscall };
+
+CORE_ADDR
+fbsd_kern_frame_saved_pc (fr)
+struct frame_info *fr;
+{
+       struct minimal_symbol *sym;
+       CORE_ADDR this_saved_pc;
+       enum frametype frametype;
+
+       this_saved_pc = read_memory_integer (fr->frame + 4, 4);
+       sym = lookup_minimal_symbol_by_pc (this_saved_pc);
+       frametype = tf_normal;
+       if (sym != NULL) {
+               if (strcmp (SYMBOL_NAME(sym), "calltrap") == 0)
+                       frametype = tf_trap;
+               else if (strncmp (SYMBOL_NAME(sym), "Xresume", 7) == 0)
+                       frametype = tf_interrupt;
+               else if (strcmp (SYMBOL_NAME(sym), "Xsyscall") == 0)
+                       frametype = tf_syscall;
+       }
+
+       switch (frametype) {
+       case tf_normal:
+               return (this_saved_pc);
+
+#define oEIP   offsetof(struct trapframe, tf_eip)
+
+       case tf_trap:
+               return (read_memory_integer (fr->frame + 8 + oEIP, 4));
+
+       case tf_interrupt:
+               return (read_memory_integer (fr->frame + 16 + oEIP, 4));
+
+       case tf_syscall:
+               return (read_memory_integer (fr->frame + 8 + oEIP, 4));
+#undef oEIP
+       }
+}
+
+CORE_ADDR
+fbsd_kern_frame_chain (fr)
+struct frame_info *fr;
+{
+       struct minimal_symbol *sym;
+       CORE_ADDR this_saved_pc;
+       enum frametype frametype;
+
+       this_saved_pc = read_memory_integer (fr->frame + 4, 4);
+       sym = lookup_minimal_symbol_by_pc (this_saved_pc);
+       frametype = tf_normal;
+       if (sym != NULL) {
+               if (strcmp (SYMBOL_NAME(sym), "calltrap") == 0)
+                       frametype = tf_trap;
+               else if (strncmp (SYMBOL_NAME(sym), "Xresume", 7) == 0)
+                       frametype = tf_interrupt;
+               else if (strcmp (SYMBOL_NAME(sym), "_Xsyscall") == 0)
+                       frametype = tf_syscall;
+       }
+
+       switch (frametype) {
+       case tf_normal:
+               return (read_memory_integer (fr->frame, 4));
+
+#define oEBP   offsetof(struct trapframe, tf_ebp)
+
+       case tf_trap:
+               return (read_memory_integer (fr->frame + 8 + oEBP, 4));
+
+       case tf_interrupt:
+               return (read_memory_integer (fr->frame + 16 + oEBP, 4));
+
+       case tf_syscall:
+               return (read_memory_integer (fr->frame + 8 + oEBP, 4));
+#undef oEBP
+       }
+}
+
 #endif /* KERNEL_DEBUG */
