@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.97.2.20 1998/04/23 03:23:03 brian Exp $
+.\" $Id: ppp.8,v 1.97.2.21 1998/04/23 18:56:00 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -2435,22 +2435,34 @@ This, of course means that it is possible to execute an entirely external
 command rather than using the internal one.  See
 .Xr chat 8
 for a good alternative.
-.It set enddisc Op IP|magic|label|psn value
+.It set enddisc Op label|IP|MAC|magic|psn value
 This command sets our local endpoint discriminator.  If set prior to
 LCP negotiation,
 .Nm
 will send the information to the peer using the LCP endpoint discriminator
 option.  The following discriminators may be set:
 .Bd -literal -offset indent
+.It label
+The current label is used.
 .It IP
 Our local IP number is used.  As LCP is negotiated prior to IPCP, it is
 possible that the IPCP layer will subsequently change this value.  If
 it does, the endpoint descriminator stays at the old value unless manually
 reset.
+.It MAC
+This is similar to the
+.Ar IP
+option above, except that the MAC address associated with the local IP
+number is used.  If the local IP number is not resident on any ethernet
+interface, the command will fail.
+.Pp
+As the local IP number defaults to whatever the machine host name is,
+.Dq set enddisc mac
+is usually done prior to any
+.Dq set ifaddr
+commands.
 .It magic
 A 20 digit random number is used.
-.It label
-The current label is used.
 .It psn Ar value
 The given
 .Ar value

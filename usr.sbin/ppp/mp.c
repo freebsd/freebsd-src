@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp.c,v 1.1.2.9 1998/04/23 18:58:04 brian Exp $
+ *	$Id: mp.c,v 1.1.2.10 1998/04/23 21:50:11 brian Exp $
  */
 
 #include <sys/types.h>
@@ -31,11 +31,15 @@
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <arpa/inet.h>
+#include <net/if_dl.h>
+#include <sys/socket.h>
 
+#include <errno.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <termios.h>
+#include <unistd.h>
 
 #include "command.h"
 #include "mbuf.h"
@@ -65,6 +69,8 @@
 #include "bundle.h"
 #include "ip.h"
 #include "prompt.h"
+#include "id.h"
+#include "arp.h"
 
 static u_int32_t
 inc_seq(struct mp *mp, u_int32_t seq)
@@ -580,15 +586,15 @@ mp_Enddisc(u_char c, const char *address, int len)
   int f, header;
 
   switch (c) {
-    case 0:
+    case ENDDISC_NULL:
       sprintf(result, "Null Class");
       break;
 
-    case 1:
+    case ENDDISC_LOCAL:
       snprintf(result, sizeof result, "Local Addr: %.*s", len, address);
       break;
 
-    case 2:
+    case ENDDISC_IP:
       if (len == 4)
         snprintf(result, sizeof result, "IP %s",
                  inet_ntoa(*(const struct in_addr *)address));
@@ -596,7 +602,7 @@ mp_Enddisc(u_char c, const char *address, int len)
         sprintf(result, "IP[%d] ???", len);
       break;
 
-    case 3:
+    case ENDDISC_MAC:
       if (len == 6) {
         const u_char *m = (const u_char *)address;
         snprintf(result, sizeof result, "MAC %02x:%02x:%02x:%02x:%02x:%02x",
@@ -605,7 +611,7 @@ mp_Enddisc(u_char c, const char *address, int len)
         sprintf(result, "MAC[%d] ???", len);
       break;
 
-    case 4:
+    case ENDDISC_MAGIC:
       sprintf(result, "Magic: 0x");
       header = strlen(result);
       if (len > sizeof result - header - 1)
@@ -614,7 +620,7 @@ mp_Enddisc(u_char c, const char *address, int len)
         sprintf(result + header + 2 * f, "%02x", address[f]);
       break;
 
-     case 5:
+    case ENDDISC_PSN:
       snprintf(result, sizeof result, "PSN: %.*s", len, address);
       break;
 
@@ -645,37 +651,59 @@ mp_SetEnddisc(struct cmdargs const *arg)
     *mp->cfg.enddisc.address = '\0';
     mp->cfg.enddisc.len = 0;
   } else if (arg->argc > arg->argn)
-    if (!strcasecmp(arg->argv[arg->argn], "ip")) {
+    if (!strcasecmp(arg->argv[arg->argn], "label")) {
+      mp->cfg.enddisc.class = ENDDISC_LOCAL;
+      strcpy(mp->cfg.enddisc.address, arg->bundle->cfg.label);
+      mp->cfg.enddisc.len = strlen(mp->cfg.enddisc.address);
+    } else if (!strcasecmp(arg->argv[arg->argn], "ip")) {
       memcpy(mp->cfg.enddisc.address,
-             &arg->bundle->ncp.ipcp.my_ip.s_addr,
+             &arg->bundle->ncp.ipcp.cfg.my_range.ipaddr.s_addr,
              sizeof arg->bundle->ncp.ipcp.my_ip.s_addr);
-      mp->cfg.enddisc.class = 2;
+      mp->cfg.enddisc.class = ENDDISC_IP;
       mp->cfg.enddisc.len = sizeof arg->bundle->ncp.ipcp.my_ip.s_addr;
+    } else if (!strcasecmp(arg->argv[arg->argn], "mac")) {
+      struct sockaddr_dl hwaddr;
+      int s;
+
+      s = ID0socket(AF_INET, SOCK_DGRAM, 0);
+      if (s < 0) {
+        LogPrintf(LogERROR, "set enddisc: socket(): %s\n", strerror(errno));
+        return 2;
+      }
+      if (get_ether_addr(s, arg->bundle->ncp.ipcp.cfg.my_range.ipaddr,
+                         &hwaddr)) {
+        mp->cfg.enddisc.class = ENDDISC_MAC;
+        memcpy(mp->cfg.enddisc.address, hwaddr.sdl_data + hwaddr.sdl_nlen,
+               hwaddr.sdl_alen);
+        mp->cfg.enddisc.len = hwaddr.sdl_alen;
+      } else {
+        LogPrintf(LogWARN, "set enddisc: Can't locate MAC address for %s\n",
+                  inet_ntoa(arg->bundle->ncp.ipcp.cfg.my_range.ipaddr));
+        close(s);
+        return 4;
+      }
+      close(s);
     } else if (!strcasecmp(arg->argv[arg->argn], "magic")) {
       int f;
 
       randinit();
       for (f = 0; f < 20; f += sizeof(long))
         *(long *)(mp->cfg.enddisc.address + f) = random();
-      mp->cfg.enddisc.class = 4;
+      mp->cfg.enddisc.class = ENDDISC_MAGIC;
       mp->cfg.enddisc.len = 20;
-    } else if (!strcasecmp(arg->argv[arg->argn], "label")) {
-      mp->cfg.enddisc.class = 1;
-      strcpy(mp->cfg.enddisc.address, arg->bundle->cfg.label);
-      mp->cfg.enddisc.len = strlen(mp->cfg.enddisc.address);
     } else if (!strcasecmp(arg->argv[arg->argn], "psn")) {
       if (arg->argc > arg->argn+1) {
-        mp->cfg.enddisc.class = 5;
+        mp->cfg.enddisc.class = ENDDISC_PSN;
         strcpy(mp->cfg.enddisc.address, arg->argv[arg->argn+1]);
         mp->cfg.enddisc.len = strlen(mp->cfg.enddisc.address);
       } else {
         LogPrintf(LogWARN, "PSN endpoint requires additional data\n");
-        return 2;
+        return 5;
       }
     } else {
       LogPrintf(LogWARN, "%s: Unrecognised endpoint type\n",
                 arg->argv[arg->argn]);
-      return 3;
+      return 6;
     }
 
   return 0;

@@ -23,13 +23,20 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp.h,v 1.1.2.3 1998/04/23 03:23:00 brian Exp $
+ *	$Id: mp.h,v 1.1.2.4 1998/04/23 21:50:13 brian Exp $
  */
 
 struct mbuf;
 struct physical;
 struct bundle;
 struct cmdargs;
+
+#define ENDDISC_NULL	0
+#define ENDDISC_LOCAL	1
+#define ENDDISC_IP	2
+#define ENDDISC_MAC	3
+#define ENDDISC_MAGIC	4
+#define ENDDISC_PSN	5
 
 struct mp {
   struct link link;

@@ -17,11 +17,13 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: arp.h,v 1.7.2.4 1998/02/21 01:44:56 brian Exp $
+ * $Id: arp.h,v 1.7.2.5 1998/04/07 00:53:16 brian Exp $
  *
  */
 
+struct sockaddr_dl;
 struct bundle;
 
 extern int cifproxyarp(struct bundle *, struct in_addr, int);
 extern int sifproxyarp(struct bundle *, struct in_addr, int);
+extern int get_ether_addr(int, struct in_addr, struct sockaddr_dl *);

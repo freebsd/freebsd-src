@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: arp.c,v 1.27.2.11 1998/04/06 09:12:22 brian Exp $
+ * $Id: arp.c,v 1.27.2.12 1998/04/07 00:53:14 brian Exp $
  *
  */
 
@@ -63,8 +63,6 @@
 #include "mp.h"
 #include "bundle.h"
 #include "arp.h"
-
-static int get_ether_addr(int, struct in_addr, struct sockaddr_dl *);
 
 /*
  * SET_SA_FAMILY - set the sa_family field of a struct sockaddr,
@@ -226,7 +224,7 @@ cifproxyarp(struct bundle *bundle, struct in_addr addr, int s)
  * the same subnet as ipaddr.
  */
 
-static int
+int
 get_ether_addr(int s, struct in_addr ipaddr, struct sockaddr_dl *hwaddr)
 {
   int mib[6], sa_len, skip, b;
@@ -315,8 +313,8 @@ get_ether_addr(int s, struct in_addr ipaddr, struct sockaddr_dl *hwaddr)
       if (ifa->sin_family == AF_INET &&
           (ifa->sin_addr.s_addr & mask->sin_addr.s_addr) ==
           (ipaddr.s_addr & mask->sin_addr.s_addr)) {
-        LogPrintf(LogPHASE, "Found interface %.*s for proxy arp\n",
-                  dl->sdl_alen, dl->sdl_data);
+        LogPrintf(LogPHASE, "Found interface %.*s for %s\n",
+                  dl->sdl_alen, dl->sdl_data, inet_ntoa(ipaddr));
         memcpy(hwaddr, dl, dl->sdl_len);
         free(buf);
         return 1;
