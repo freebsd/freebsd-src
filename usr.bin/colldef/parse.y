@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: parse.y,v 1.3 1996/10/16 03:12:21 ache Exp $
+ * $Id: parse.y,v 1.4 1996/10/23 14:59:56 ache Exp $
  */
 
 #include <err.h>
@@ -89,7 +89,7 @@ order : ORDER order_list {
 
 	for (ch = 0; ch < UCHAR_MAX + 1; ch++)
 		if (!__collate_char_pri_table[ch].prim)
-			yyerror("Char 0x%02x not defined", ch);
+			yyerror("Char 0x%02x not present", ch);
 
 	fp = fopen(out_file, "w");
 	if(!fp)
@@ -117,7 +117,7 @@ order_list : item
 ;
 item :  CHAR {
 	if (__collate_char_pri_table[$1].prim)
-		yyerror("Char 0x%02x redefined", $1);
+		yyerror("Char 0x%02x duplicated", $1);
 	__collate_char_pri_table[$1].prim = prim_pri++;
 }
 	| CHAIN {
@@ -134,7 +134,7 @@ item :  CHAR {
 
 	for (i = $1; i <= $3; i++) {
 		if (__collate_char_pri_table[(u_char)i].prim)
-			yyerror("Char 0x%02x redefined", (u_char)i);
+			yyerror("Char 0x%02x duplicated", (u_char)i);
 		__collate_char_pri_table[(u_char)i].prim = prim_pri++;
 	}
 }
@@ -154,7 +154,7 @@ sec_order_list : sec_sub_item
 ;
 prim_sub_item : CHAR {
 	if (__collate_char_pri_table[$1].prim)
-		yyerror("Char 0x%02x redefined", $1);
+		yyerror("Char 0x%02x duplicated", $1);
 	__collate_char_pri_table[$1].prim = prim_pri;
 }
 	| CHAR RANGE CHAR {
@@ -166,7 +166,7 @@ prim_sub_item : CHAR {
 
 	for (i = $1; i <= $3; i++) {
 		if (__collate_char_pri_table[(u_char)i].prim)
-			yyerror("Char 0x%02x redefined", (u_char)i);
+			yyerror("Char 0x%02x duplicated", (u_char)i);
 		__collate_char_pri_table[(u_char)i].prim = prim_pri;
 	}
 }
@@ -179,7 +179,7 @@ prim_sub_item : CHAR {
 ;
 sec_sub_item : CHAR {
 	if (__collate_char_pri_table[$1].prim)
-		yyerror("Char 0x%02x redefined", $1);
+		yyerror("Char 0x%02x duplicated", $1);
 	__collate_char_pri_table[$1].prim = prim_pri;
 	__collate_char_pri_table[$1].sec = sec_pri++;
 }
@@ -192,7 +192,7 @@ sec_sub_item : CHAR {
 
 	for (i = $1; i <= $3; i++) {
 		if (__collate_char_pri_table[(u_char)i].prim)
-			yyerror("Char 0x%02x redefined", (u_char)i);
+			yyerror("Char 0x%02x duplicated", (u_char)i);
 		__collate_char_pri_table[(u_char)i].prim = prim_pri;
 		__collate_char_pri_table[(u_char)i].sec = sec_pri++;
 	}
