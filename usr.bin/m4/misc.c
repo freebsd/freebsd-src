@@ -237,6 +237,19 @@ register char *s;
 }
 
 void
+cleanup(n)
+int n;
+{
+	if (outfile[0] != NULL) {
+		(void) fclose(outfile[0]);
+		outfile[0] = NULL;
+		m4temp[UNIQUE] = '0';
+		(void) remove(m4temp);
+	}
+	(void) remove(m4dir);
+}
+
+void
 usage()
 {
 	fprintf(stderr, "usage: m4 [-Dname[=val]] [-Uname]\n");
