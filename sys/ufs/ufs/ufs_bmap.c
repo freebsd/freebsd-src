@@ -80,7 +80,7 @@ ufs_bmap(ap)
 	if (ap->a_bnp == NULL)
 		return (0);
 
-	return (ufs_bmaparray(ap->a_vp, ap->a_bn, ap->a_bnp, NULL, NULL,
+	return (ufs_bmaparray(ap->a_vp, ap->a_bn, ap->a_bnp, 
 	    ap->a_runp, ap->a_runb));
 }
 
@@ -99,12 +99,10 @@ ufs_bmap(ap)
  */
 
 int
-ufs_bmaparray(vp, bn, bnp, ap, nump, runp, runb)
+ufs_bmaparray(vp, bn, bnp, runp, runb)
 	struct vnode *vp;
 	ufs_daddr_t bn;
 	ufs_daddr_t *bnp;
-	struct indir *ap;
-	int *nump;
 	int *runp;
 	int *runb;
 {
@@ -113,19 +111,17 @@ ufs_bmaparray(vp, bn, bnp, ap, nump, runp, runb)
 	struct ufsmount *ump;
 	struct mount *mp;
 	struct vnode *devvp;
-	struct indir a[NIADDR+1], *xap;
+	struct indir a[NIADDR+1], *ap;
 	ufs_daddr_t daddr;
 	long metalbn;
 	int error, num, maxrun = 0;
+	int *nump;
 
+	ap = NULL;
 	ip = VTOI(vp);
 	mp = vp->v_mount;
 	ump = VFSTOUFS(mp);
 	devvp = ump->um_devvp;
-#ifdef DIAGNOSTIC
-	if ((ap != NULL && nump == NULL) || (ap == NULL && nump != NULL))
-		panic("ufs_bmaparray: invalid arguments");
-#endif
 
 	if (runp) {
 		maxrun = mp->mnt_iosize_max / mp->mnt_stat.f_iosize - 1;
@@ -137,10 +133,9 @@ ufs_bmaparray(vp, bn, bnp, ap, nump, runp, runb)
 	}
 
 
-	xap = ap == NULL ? a : ap;
-	if (!nump)
-		nump = &num;
-	error = ufs_getlbns(vp, bn, xap, nump);
+	ap = a;
+	nump = &num;
+	error = ufs_getlbns(vp, bn, ap, nump);
 	if (error)
 		return (error);
 
@@ -181,16 +176,16 @@ ufs_bmaparray(vp, bn, bnp, ap, nump, runp, runb)
 
 
 	/* Get disk address out of indirect block array */
-	daddr = ip->i_ib[xap->in_off];
+	daddr = ip->i_ib[ap->in_off];
 
-	for (bp = NULL, ++xap; --num; ++xap) {
+	for (bp = NULL, ++ap; --num; ++ap) {
 		/*
 		 * Exit the loop if there is no disk address assigned yet and
 		 * the indirect block isn't in the cache, or if we were
 		 * looking for an indirect block and we've found it.
 		 */
 
-		metalbn = xap->in_lbn;
+		metalbn = ap->in_lbn;
 		if ((daddr == 0 && !incore(vp, metalbn)) || metalbn == bn)
 			break;
 		/*
@@ -200,7 +195,7 @@ ufs_bmaparray(vp, bn, bnp, ap, nump, runp, runb)
 		if (bp)
 			bqrelse(bp);
 
-		xap->in_exists = 1;
+		ap->in_exists = 1;
 		bp = getblk(vp, metalbn, mp->mnt_stat.f_iosize, 0, 0);
 		if ((bp->b_flags & B_CACHE) == 0) {
 #ifdef DIAGNOSTIC
@@ -221,15 +216,15 @@ ufs_bmaparray(vp, bn, bnp, ap, nump, runp, runb)
 			}
 		}
 
-		daddr = ((ufs_daddr_t *)bp->b_data)[xap->in_off];
+		daddr = ((ufs_daddr_t *)bp->b_data)[ap->in_off];
 		if (num == 1 && daddr && runp) {
-			for (bn = xap->in_off + 1;
+			for (bn = ap->in_off + 1;
 			    bn < MNINDIR(ump) && *runp < maxrun &&
 			    is_sequential(ump,
 			    ((ufs_daddr_t *)bp->b_data)[bn - 1],
 			    ((ufs_daddr_t *)bp->b_data)[bn]);
 			    ++bn, ++*runp);
-			bn = xap->in_off;
+			bn = ap->in_off;
 			if (runb && bn) {
 				for(--bn; bn >= 0 && *runb < maxrun &&
 			    		is_sequential(ump, ((daddr_t *)bp->b_data)[bn],
