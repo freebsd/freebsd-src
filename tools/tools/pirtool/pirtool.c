@@ -226,8 +226,9 @@ dump_pir_table(pir_table_t *pir, char *map_addr)
 	p = pend = &pir->entry[0];
 	pend += num_slots;
 	for (i = 0; p < pend; i++, p++) {
-		printf("Entry %u: Device %u:%u:%u Slot %u\r\n", i, p->bus,
-		    PIR_DEV(p->devfunc), PIR_FUNC(p->devfunc), p->slot);
+		printf("Entry %u: Device %u:%u:%u Slot %u%s\r\n", i, p->bus,
+		    PIR_DEV(p->devfunc), PIR_FUNC(p->devfunc),
+		    p->slot, p->slot == 0 ? " (on-board)" : "");
 		print_irq_line('A', p->inta_link, p->inta_irqs);
 		print_irq_line('B', p->intb_link, p->intb_irqs);
 		print_irq_line('C', p->intc_link, p->intc_irqs);
@@ -276,6 +277,8 @@ lookup_southbridge(u_int32_t id)
 {
 
 	switch (id) {
+	case 0x06861106:
+		return ("VIA VT82C686/686A/686B");
 	case 0x122E8086:
 		return ("Intel 82371FB (Triton I)");
 	case 0x70008086:
