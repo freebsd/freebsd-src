@@ -270,7 +270,8 @@ changequote([,])dnl
 			    AC_DEFINE(STRICTCOFF, 1, [Using strict COFF?])
 			    ;;
       i386-*-rtemself*)     fmt=elf ;;
-      i386-*-rtems*)        fmt=coff ;;
+      i386-*-rtemscoff*)    fmt=coff ;;
+      i386-*-rtems*)        fmt=elf ;;
       i386-*-gnu*)          fmt=elf ;;
       i386-*-mach*)
 			    fmt=aout em=mach bfd_gas=yes ;;
@@ -312,8 +313,9 @@ changequote([,])dnl
       m68k-*-sysv4*) # must be before -sysv*
 			    fmt=elf em=svr4 ;;
       m68k-*-elf*)	    fmt=elf ;;
-      m68k-*-coff | m68k-*-sysv* | m68k-*-rtems*)
+      m68k-*-coff | m68k-*-sysv* | m68k-*-rtemscoff*)
 			    fmt=coff ;;
+      m68k-*-rtems*)	    fmt=elf ;;
       m68k-*-hpux*)         fmt=hp300 em=hp300 ;;
       m68k-*-linux*aout*)   fmt=aout em=linux ;;
       m68k-*-linux-gnu*)    fmt=elf em=linux ;;
@@ -391,10 +393,10 @@ changequote([,])dnl
 
       sh-*-linux*)	    fmt=elf em=linux ;;
       sh-*-elf*)	    fmt=elf ;;
-      sh-*-coff*)           fmt=coff ;;
+      sh-*-coff*)           fmt=coff bfd_gas=yes;;
       sh-*-pe*)             fmt=coff em=pe bfd_gas=yes;;
       sh-*-rtemself*)       fmt=elf ;;
-      sh-*-rtems*)	    fmt=coff ;;
+      sh-*-rtems*)	    fmt=coff bfd_gas=yes;;
 
       ns32k-pc532-mach* | ns32k-pc532-ux*)    fmt=aout em=pc532mach ;;
       ns32k-pc532-netbsd* | ns32k-pc532-lites*)  fmt=aout em=nbsd532 ;;
