@@ -1,341 +1,454 @@
+/*
+ * Copyright (c) 1995 Paul Richards. 
+ *
+ * All rights reserved.
+ *
+ * This software may be used, modified, copied, distributed, and
+ * sold, in both source and binary form provided that the above
+ * copyright and these terms are retained, verbatim, as the first
+ * lines of this file.  Under no circumstances is the author
+ * responsible for the proper functioning of this software, nor does
+ * the author assume any responsibility for damages incurred with
+ * its use.
+ */
+
 #include <string.h>
-#include <ncurses.h>
+#include <stdlib.h>
+#include <ctype.h>
 #include <forms.h>
+#include "internal.h"
 
-extern FILE *yyin;
-
-struct form *form;
-unsigned int keymap[FORM_NO_KEYS] = {
-	KEY_BTAB,
-	9,
-	KEY_UP,
-	KEY_DOWN,
-	'\r',
-	'\033',
-	KEY_HOME,
-	KEY_END,
-	KEY_LEFT,
-	KEY_RIGHT,
-	KEY_BACKSPACE,
-	KEY_DC
+unsigned int keymap[] = {
+	KEY_UP,			/* F_UP */
+	KEY_DOWN,		/* F_DOWN */
+	9,			/* F_RIGHT */
+	8,			/* F_LEFT */
+	10,			/* F_NEXT */
+	KEY_LEFT,		/* F_CLEFT */
+	KEY_RIGHT,		/* F_CRIGHT */
+	KEY_HOME,		/* F_CHOME */
+	KEY_END,		/* F_CEND */
+	263,		/* F_CBS */
+	330		/* F_CDEL */
 };
 
+int done=0;
+	
 int
-edit_field(WINDOW *window, struct field *field)
+initfrm(struct form *form)
 {
-	int len;
-	int key = 0;
-	int fpos, dispos, curpos;
-	int i;
-	int done = 0;
 
-	len = strlen(field->entry.input.field);
-	if (len < field->entry.input.field_width) {
-		fpos = len;
-		curpos = len;
-		dispos = 0;
-	} else {
-		fpos = field->entry.input.field_width;
-		curpos = field->entry.input.field_width;
-		dispos = len - field->entry.input.field_width;
-	};
-
-	field->entry.input.field_attr = FORM_SELECTED_ATTR;
-	do {
-		wattrset(window, field->entry.input.field_attr);
-		wmove(window, field->entry.input.y_field, field->entry.input.x_field);
-		for (i=0; i < field->entry.input.field_width; i++)
-			if (i < (len - dispos))
-				waddch(window, field->entry.input.field[dispos+i]);
-			else
-				waddch(window, ' ');
-		wmove(window, field->entry.input.y_field, field->entry.input.x_field + curpos);
-		wrefresh(window);
-
-		key = wgetch(window);
-		if (key == keymap[FORM_LEFT] ||
-			 key == keymap[FORM_RIGHT] ||
-			 key == keymap[FORM_UP] ||
-			 key == keymap[FORM_DOWN] ||
-			 key == keymap[FORM_EXIT] ||
-			 key == '\n' ||
-			 key == '\r') {
-				done = 1;
-		} else if (key == keymap[FORM_FIELD_HOME]) {
-			if (len < field->entry.input.field_width) {
-				fpos = len;
-				curpos = len;
-				dispos = 0;
-			} else {
-				fpos = field->entry.input.field_width;
-				curpos = field->entry.input.field_width;
-				dispos = len - field->entry.input.field_width;
-			};
-		} else if (key == keymap[FORM_FIELD_END]) {
-			if (len < field->entry.input.field_width) {
-				dispos = 0;
-				curpos = len - 1;
-			} else {
-				dispos = len - field->entry.input.field_width - 1;
-				curpos = field->entry.input.field_width - 1;
-			}
-			fpos = len - 1;
-		} else if (key == keymap[FORM_FIELD_LEFT]) {
-			if ((!curpos) && (!dispos)) {
-				beep();
-			} else {
-				if (--curpos < 0) {
-					curpos = 0;
-					if (--dispos < 0)
-						dispos = 0;
-				}
-				if (--fpos < 0)
-					fpos = 0;
-			}
-		} else if (key == keymap[FORM_FIELD_RIGHT]) {
-			if ((curpos + dispos) == len) {
-				beep();
-			} else if ((curpos == (field->entry.input.field_width-1)) &&
-				(dispos == (field->entry.input.max_field_width - field->entry.input.field_width -1))) {
-					beep();
-			} else {
-				if (++curpos >= field->entry.input.field_width) {
-					curpos = field->entry.input.field_width - 1;
-					dispos++;
-				}
-				if (dispos >= len)
-					dispos = len - 1;
-				if (++fpos >= len) {
-					fpos = len;
-				}
-			}
-		} else if (key == keymap[FORM_FIELD_BACKSPACE]) {
-			if ((!curpos) && (!dispos)) {
-				beep();
-			} else if (fpos > 0) {
-				memmove(&field->entry.input.field[fpos-1], &field->entry.input.field[fpos], len - fpos);
-				len--;
-				fpos--;
-				if (curpos > 0)
-					--curpos;
-				if (!curpos)
-					--dispos;
-				if (dispos < 0)
-					dispos = 0;
-			} else
-				beep();
-		} else {
-			if (len < field->entry.input.max_field_width - 1) {
-				memmove(&field->entry.input.field[fpos+1], &field->entry.input.field[fpos], len - fpos);
-				field->entry.input.field[fpos] = key;
-				len++;
-				fpos++;
-				if (++curpos == field->entry.input.field_width) {
-					--curpos;
-					dispos++;
-				}
-				if (len == (field->entry.input.max_field_width - 1)) {
-					dispos = (field->entry.input.max_field_width - field->entry.input.field_width - 1);
-				}
-			} else
-				beep();
-		}
-	} while (!done);
-
-	field->entry.input.field_attr = FORM_DEFAULT_ATTR;
-	wattrset(window, field->entry.input.field_attr);
-	wmove(window, field->entry.input.y_field, field->entry.input.x_field);
-	for (i=0; i < field->entry.input.field_width; i++)
-		if (i < (len - dispos))
-			waddch(window, field->entry.input.field[dispos+i]);
-		else
-			waddch(window, ' ');
-	wmove(window, field->entry.input.y_field, field->entry.input.x_field + curpos);
-	wrefresh(window);
-
-	field->entry.input.field[len] = 0;
-	delwin(window);
-	refresh();
-	return (key);
-}
-
-int
-init_forms(char *template)
-{
-	FILE *fd;
-	struct field *link, *next;
-
-	/* Intialise lex input */
-	if (!(fd = fopen(template, "r"))) {
-		fprintf(stderr, "Couldn't open template file %s\n", template);
-		return(-1);
-	}
-
-	if (!initscr()) {
-		fprintf(stderr, "Failed to initialise curses\n");
-		return(-1);
-	}
+	struct field *field = &form->field[0];
 
 	cbreak();
 	noecho();
-	nonl();
 
-	yyin = fd;
-	yyparse();
-
-	/* Setup up links to/from fields */
-
-	for (next = form->fields; next; next = next->link) {
-		/* Ignore the link values of text fields */
-		if (next->type == FORM_FTYPE_TEXT)
-			continue;
-		link = find_link((int)next->next); 
-		if (!link) {
-			fprintf(stderr, "Bad link (next) from %d to %d\n",
-					 next->field_id, (int)next->next);
-			next->next = 0;
-		} else
-			next->next = link;
-		link = find_link((int)next->up); 
-		if (!link) {
-			fprintf(stderr, "Bad link (up) from %d to %d\n",
-					 next->field_id, (int)next->up);
-			next->up = 0;
-		} else
-			next->up = link;
-		link = find_link((int)next->down); 
-		if (!link) {
-			fprintf(stderr, "Bad link (down) from %d to %d\n",
-					  next->field_id, (int)next->down);
-			next->down = 0;
-		} else
-			next->down = link;
-		link = find_link((int)next->left); 
-		if (!link) {
-			fprintf(stderr, "Bad link (left) from %d to %d\n",
-					 next->field_id, (int)next->left);
-			next->left = 0;
-		} else
-			next->left = link;
-		link = find_link((int)next->right); 
-		if (!link) {
-			fprintf(stderr, "Bad link (right) from %d to %d\n",
-					 next->field_id, (int)next->right);
-			next->right = 0;
-		} else
-			next->right = link;
+	form->window = newwin(form->nlines, form->ncols, form->y, form->x);
+	if (!form->window) {
+		print_status("Couldn't open window, closing form");
+		return (ERR);
 	}
-}
+	form->no_fields = 0;
 
-struct field *
-find_link(int id)
-{
-	struct field *next;
+	keypad(form->window, TRUE);
 
-	for (next=form->fields; next; next=next->link)
-		/* You can't move into a text field */
-		if ((id == next->field_id) && (next->type != FORM_FTYPE_TEXT))
-			return (next);
-	return(0);
-}
-
-int
-edit_form(struct form *form)
-{
-	WINDOW *window;
-	struct field *cur_field;
-	int key;
-
-	window = newwin(form->height, form->width, form->y, form->x);
-	if (!window) {
-		fprintf(stderr, "Failed to open window\n");
-		return(-1);
+	while (field->type != F_END) {
+		if (field->type == F_INPUT) {
+			field->field.input->input = malloc(field->width);
+			if (!field->field.input->input){
+				print_status("Couldn't allocate memory, closing form");
+				endfrm(form);
+				return (ERR);
+			}
+			/*
+			 * If it's a label then clear the input string
+			 * otherwise copy the default string to the input string.
+			 */
+			if (field->field.input->lbl_flag)
+				field->field.input->input[0] = '\0';
+			else if (field->field.input->label)
+				strcpy(field->field.input->input, field->field.input->label);
+		} else if ((field->type != F_TEXT) && (field->type != F_MENU) &&
+		   (field->type != F_ACTION)) {
+			print_status("Unknown field type, closing form");
+			endfrm(form);
+			return (ERR);
+		}
+		form->no_fields++;
+		field = &form->field[form->no_fields];
 	}
-	keypad(window, TRUE);
-
-	refresh_form(window, form);
-
-	cur_field = form->fields;
-
-	do {
-		/* Skip over any preceeding text fields */
-		if (cur_field->type == FORM_FTYPE_TEXT) {
-			if (!cur_field->link)
-				/* No editable fields, reached end of text fields */
-				return(0);
-			cur_field = cur_field->link;
-			continue;
-		}
-		switch (cur_field->type) {
-			case FORM_FTYPE_INPUT:
-				key = edit_field(window, cur_field);
-				break;
-			case FORM_FTYPE_MENU:
-			case FORM_FTYPE_BUTTON:
-			case FORM_FTYPE_TEXT: /* Should never happen */
-			default:
-				break;
-		}
-		if (key == keymap[FORM_UP]) {
-			if (cur_field->up)
-				cur_field = cur_field->up;
-			else
-				beep();
-		} else if (key == keymap[FORM_DOWN]) {
-			if (cur_field->down)
-				cur_field = cur_field->down;
-			else
-				beep();
-		} else if (key == keymap[FORM_LEFT]) {
-			if (cur_field->left)
-				cur_field = cur_field->left;
-			else
-				beep();
-		} else if (key == keymap[FORM_RIGHT]) {
-			if (cur_field->right)
-				cur_field = cur_field->right;
-			else
-				beep();
-		} else if (key == keymap[FORM_NEXT]) {
-			if (cur_field->next)
-				cur_field = cur_field->next;
-			else
-				cur_field = form->fields;
-		} else
-			beep();
-	} while (key != keymap[FORM_EXIT]);
-	return (0);
+	show_form(form);
+	return (OK);
 }
 
 void
-refresh_form(WINDOW *window, struct form *form)
+endfrm(struct form *form)
 {
-	struct field *cur_field;
 
-	cur_field = form->fields;
+	struct field *field = &form->field[0];
+	int i;
 
-	while (cur_field) {
-		switch (cur_field->type) {
-			case FORM_FTYPE_INPUT:
-				wattrset(window, cur_field->entry.input.prompt_attr);
-				mvwprintw(window, cur_field->entry.input.y_prompt,
-				          cur_field->entry.input.x_prompt,
-					       "%s", cur_field->entry.input.prompt);
-				wattrset(window, cur_field->entry.input.field_attr);
-				mvwprintw(window, cur_field->entry.input.y_field,
-							 cur_field->entry.input.x_field,
-					       "%s", cur_field->entry.input.field);
+	delwin(form->window);
+
+	for (i=0; i < form->no_fields; i++) {
+		if (field->type == F_INPUT)
+			free(field->field.input->input);
+		field = &form->field[i];
+	}
+}
+
+int
+update_form(struct form *form)
+{
+
+	switch (form->field[form->current_field].type) {
+		case F_MENU:
+			field_menu(form);
+			break;
+		case F_INPUT:
+			field_input(form);
+			break;
+		case F_ACTION:
+			field_action(form);
+			break;
+		case F_TEXT:
+		default:
+	}
+
+	show_form(form);
+
+	return (done);
+}
+
+static void
+show_form(struct form *form)
+{
+	int i;
+
+	for (i=0; i < form->no_fields; i++) {
+		wattrset(form->window, 0);
+		wmove(form->window, form->field[i].y, form->field[i].x);
+		switch (form->field[i].type) {
+			case F_TEXT:
+				disp_text(form, i);
 				break;
-			case FORM_FTYPE_TEXT:
-				wattrset(window, cur_field->entry.text.attr);
-				mvwprintw(window, cur_field->entry.text.y,
-							cur_field->entry.text.x,
-							"%s", cur_field->entry.text.text);
+			case F_MENU:
+				disp_menu(form, i);
 				break;
+			case F_INPUT:
+				disp_input(form,i);
+				break;
+			case F_ACTION:
+				disp_action(form,i);
+				break;
+			case F_END:
 			default:
 				break;
 		}
-		cur_field = cur_field->link;
 	}
-	wrefresh(window);
+	wrefresh(form->window);
+}
+
+static void
+disp_text(struct form *form, int index)
+{
+
+	struct field *field = &form->field[index];
+
+	wattron(form->window, field->attr);
+
+	if (print_string(form->window, field->y, field->x,
+	             field->disp_width, field->field.text->text) == ERR)
+		print_status("Illegal scroll in print_string");
+}
+
+static void
+disp_input(struct form *form, int index)
+{
+
+	struct field *field = &form->field[index];
+
+	wattron(form->window, field->attr);
+
+	if (field->field.input->lbl_flag) {
+		if (print_string(form->window, field->y, field->x,
+						 field->disp_width, field->field.input->label) == ERR)
+			print_status("Illegal scroll in print_string");
+	} else 
+		if (print_string(form->window, field->y, field->x,
+						 field->disp_width, field->field.input->input) == ERR)
+			print_status("Illegal scroll in print_string");
+		
+}
+
+static void
+disp_menu(struct form *form, int index)
+{
+	struct field *field = &form->field[index];
+
+	wattron(form->window, field->attr);
+
+	if (print_string(form->window, field->y, field->x,
+			field->disp_width,
+			field->field.menu->options[field->field.menu->selected]) == ERR)
+		print_status("Illegal scroll in print_string");
+}
+
+static void
+disp_action(struct form *form, int index)
+{
+	struct field *field = &form->field[index];
+
+
+	wattron(form->window, field->attr);
+
+	if (print_string(form->window, field->y, field->x,
+				field->disp_width,
+				field->field.action->text) == ERR)
+		print_status("Illegal scroll in print_string");
+
+}
+
+static void
+field_action(struct form *form)
+{
+
+	struct field *field = &form->field[form->current_field];
+	int ch;
+
+	for (;;) {
+		wattron(form->window, F_SELATTR);
+		disp_action(form, form->current_field);
+		ch = wgetch(form->window);
+		if (ch == F_ACCEPT) {
+			(*field->field.action->fn)();
+			return;
+		} else if (!next_field(form, ch))
+			beep();
+		else
+			return;
+	}
+}
+
+static void
+field_menu(struct form *form)
+{
+	struct field *field = &form->field[form->current_field];
+	int ch;
+
+	for (;;) {
+		wattron(form->window, F_SELATTR);
+		disp_menu(form, form->current_field);
+		wmove(form->window, field->y, field->x);
+		switch (ch = wgetch(form->window)) {
+			case ' ':
+				print_status("");
+				field->field.menu->selected++;
+				if (field->field.menu->selected >= field->field.menu->no_options)
+					field->field.menu->selected = 0;
+				break;
+			default:
+				if (!next_field(form, ch)) {
+					print_status("Hit the space bar to toggle through options");
+					beep();
+				} else
+					return;
+		}
+	}
+}
+
+static int
+next_field(struct form *form, int ch)
+{
+
+	struct field *field = &form->field[form->current_field];
+
+	if (ch == F_UP) {
+		if (field->up == -1) {
+			print_status("Can't go up from here");
+			return (0);
+		} else
+			form->current_field = field->up;
+	} else if (ch == F_DOWN) {
+		if (field->down == -1) {
+			print_status("Can't go down from here");
+			return (0);
+		} else
+			form->current_field = field->down;
+	} else if (ch == F_NEXT) {
+		if (field->next == -1) {
+			print_status("Can't go to next from here");
+			return (0);
+		} else
+			form->current_field = field->next;
+	} else if (ch == F_RIGHT) {
+		if (field->right == -1) {
+			print_status("Can't go right from here");
+			return (0);
+		} else
+			form->current_field = field->right;
+	} else if (ch == F_LEFT) {
+		if (field->left == -1) {
+			print_status("Can't go left from here");
+			return (0);
+		} else
+			form->current_field = field->left;
+	} else
+		return (0);
+
+	print_status("");
+	field->attr = F_DEFATTR;
+	return (1);
+}
+
+static int
+print_string(WINDOW *window, int y, int x,
+             int disp_width, char *string)
+{
+	int len;
+
+	if (!string)
+		len = -1;
+
+	len = strlen(string);
+
+	if (wmove(window, y, x) == ERR)
+		return (ERR);
+	while (disp_width--) {
+		if (len-- > 0) {
+			if (waddch(window, *string++) == ERR)
+				return (ERR);
+		} else
+			if (waddch(window, ' ') == ERR)
+				return (ERR);
+	}
+	return (OK);
+}	
+
+static void
+print_status(char *msg)
+{
+	if (wmove(stdscr, LINES-1, 0) == ERR) {
+		endwin();
+		exit(1);
+	}
+
+	wclrtoeol(stdscr);
+
+	wstandout(stdscr);
+	if (wprintw(stdscr, "%s",
+				msg) == ERR) {
+		endwin();
+		exit(1);
+	}
+	wstandend(stdscr);
+	wrefresh(stdscr);
+}
+
+
+void
+field_input(struct form *form)
+{
+	struct field *field = &form->field[form->current_field];
+	int len;
+	int ch;
+	int disp_off=0, abspos=0, cursor = 0;
+
+#define DISPOFF ((len < field->disp_width) ? 0 : len - field->disp_width)
+#define CURSPOS ((len < field->disp_width) ? len : field->disp_width)
+
+	len = strlen(field->field.input->input);
+	wattron(form->window, F_SELATTR);
+	disp_input(form, form->current_field);
+
+	cursor = CURSPOS;
+	abspos = cursor;
+
+	for(;;) {
+
+		wmove(form->window, field->y, field->x+cursor);
+		wrefresh(form->window);
+
+		ch = wgetch(form->window);
+		if (next_field(form, ch)) {
+			print_string(form->window, field->y, field->x,
+						field->disp_width,
+						field->field.input->input+DISPOFF);
+			return;
+		}
+		if (field->field.input->lbl_flag) {
+			field->field.input->lbl_flag = 0;
+		}
+		if (ch == F_CHOME) {
+				disp_off = 0;
+				cursor = 0;
+				abspos = 0;
+		} else if (ch == F_CEND) {
+				disp_off = DISPOFF;
+				abspos = len;
+				cursor = CURSPOS;
+		} else if (ch == F_CDEL) {
+			if (!(len-abspos))
+				beep();
+			else {
+				bcopy(field->field.input->input+abspos+1,
+						field->field.input->input+abspos,
+						len - abspos);
+				--len;
+			}
+		} else if ((ch == F_CLEFT) || (ch == F_CBS)) {
+			if (!abspos)
+				beep();
+			else {
+				if (ch == F_CBS) {
+					bcopy(field->field.input->input+abspos,
+							field->field.input->input+abspos-1,
+							len-abspos+1);
+					--len;
+				}
+				--abspos;
+				--cursor;
+				if ((disp_off) && (cursor < 0)) {
+					--disp_off;
+					++cursor;
+				}
+			}
+		} else if (ch == F_CRIGHT) {
+			if (abspos == len)
+				beep();
+			else {
+				++abspos;
+				if (cursor++ == field->disp_width) {
+					++disp_off;
+					--cursor;
+				}
+			}
+		} else if ((isprint(ch)) && (len < field->width)){ 
+			bcopy(field->field.input->input+abspos,
+					 field->field.input->input+abspos+1, len-abspos+1);
+			field->field.input->input[abspos++] = ch;
+			len++;
+			if (++cursor > field->disp_width) {
+				++disp_off;
+				--cursor;
+			}
+		} else {
+				beep();
+		}
+		print_string(form->window, field->y, field->x,
+					 field->disp_width, field->field.input->input+disp_off);
+	}
+	/* Not Reached */
+}
+
+void
+exit_form(void)
+{
+	done = F_DONE;
+}
+
+void
+cancel_form(void)
+{
+	done = F_CANCEL;
 }

@@ -1,7 +1,9 @@
-PROG = tform
+PROG = test
+NOMAN = yet
 
-CFLAGS = -Wall -I. -I${.CURDIR}
-LDADD =  -lforms -lncurses -ll
-DPADD = ${LIBFORMS} ${LIBNCURSES} ${LIBL}
+SRCS = test.c
+
+CFLAGS = 
+LDADD = -lforms -lncurses -lmytinfo
 
 .include <bsd.prog.mk>
