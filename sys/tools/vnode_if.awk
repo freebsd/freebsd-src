@@ -315,7 +315,7 @@ while ((getline < srcfile) > 0) {
 		printh("{");
 		printh("\tstruct " name "_args a;");
 		printh("");
-		printh("\ta.a_gen.a_desc = VDESC(" name ");");
+		printh("\ta.a_gen.a_desc = &" name "_desc;");
 		for (i = 0; i < numargs; ++i)
 			printh("\ta.a_" args[i] " = " args[i] ";");
 		printh("\treturn (" uname "_AP(&a));");
@@ -354,7 +354,7 @@ while ((getline < srcfile) > 0) {
 		printc("\tstruct vnode *vp = a->a_" args[0]";");
 		printc("\tstruct vop_vector *vop = vp->v_op;");
 		printc("");
-		printc("\tKASSERT(a->a_gen.a_desc == VDESC(" name "),");
+		printc("\tKASSERT(a->a_gen.a_desc == &" name "_desc,");
 		printc("\t    (\"Wrong a_desc in " name "(%p, %p)\", vp, a));");
 		printc("\twhile(vop != NULL && \\");
 		printc("\t    vop->"name" == NULL && vop->vop_bypass == NULL)")
