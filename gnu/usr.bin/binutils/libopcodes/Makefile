@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.2 1998/03/12 02:55:32 jdp Exp $
+# $Id: Makefile,v 1.3 1998/03/12 05:14:19 jdp Exp $
 #
 
 .include "../Makefile.inc0"
@@ -8,7 +8,7 @@
 
 LIB=		opcodes
 SRCS+=		dis-buf.c disassemble.c
-CFLAGS+=	-I${SRCDIR}/opcodes
+CFLAGS+=	-I${SRCDIR}/opcodes -I${SRCDIR}/bfd
 NOPROFILE=	true
 NOPIC=		true
 INTERNALLIB=	true

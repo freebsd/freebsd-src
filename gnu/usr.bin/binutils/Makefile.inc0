@@ -1,5 +1,5 @@
 #
-# $Id: Makefile.inc0,v 1.4 1998/05/04 21:10:56 jb Exp $
+# $Id: Makefile.inc0,v 1.5 1998/09/06 23:01:49 jdp Exp $
 #
 
 #
@@ -9,6 +9,12 @@
 #
 
 VERSION=	2.9.1
+
+.if ${MACHINE_ARCH} == "mipsel" || ${MACHINE_ARCH} == "mipseb"
+BINUTIL_ARCH=mips
+.else
+BINUTIL_ARCH=${MACHINE_ARCH}
+.endif
 
 # RELTOP is the relative path to this point in the source or object
 # tree, from any subdirectory of same.  It gets extra "../" prefixes
@@ -23,18 +29,18 @@ CFLAGS+=	-D_GNU_SOURCE
 # We use "-I-" because without it our yacc-generated parser tries to
 # use GNU's bison-generated header files.
 CFLAGS+=	-I- -I.
-.if exists(${.CURDIR}/${MACHINE_ARCH})
-CFLAGS+=	-I${.CURDIR}/${MACHINE_ARCH}
+.if exists(${.CURDIR}/${BINUTIL_ARCH})
+CFLAGS+=	-I${.CURDIR}/${BINUTIL_ARCH}
 .endif
 CFLAGS+=	-I${.CURDIR}
-CFLAGS+=	-I${.CURDIR}/${RELTOP}/libbfd/${MACHINE_ARCH}
+CFLAGS+=	-I${.CURDIR}/${RELTOP}/libbfd/${BINUTIL_ARCH}
 CFLAGS+=	-I${SRCDIR}/include
 
-.if exists(${.CURDIR}/${MACHINE_ARCH})
-.PATH: ${.CURDIR}/${MACHINE_ARCH}
+.if exists(${.CURDIR}/${BINUTIL_ARCH})
+.PATH: ${.CURDIR}/${BINUTIL_ARCH}
 .endif
 
-ARCHS=		${MACHINE_ARCH} ${CROSS_TOOLS}
+ARCHS=		${BINUTIL_ARCH} ${CROSS_TOOLS}
 
 .for _arch in ${ARCHS}
 .if exists(${.CURDIR}/Makefile.${_arch})
