@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.115 1996/08/04 19:30:34 wosch Exp $ -->
+<!-- $Id: contrib.sgml,v 1.116 1996/08/07 02:49:25 asami Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!-- Please try to keep the file 'avail' (from CVSROOT) 
@@ -281,6 +281,7 @@
 	  <item>Stephen McKay &lt;syssgm@devetir.qld.gov.au&gt;
 	  <item>Steve Gerakines &lt;steve2@genesis.tiac.net&gt;
 	  <item>Steve Passe &lt;smp@csn.net&gt;
+	  <item>Taguchi Takeshi &lt;taguchi@tohoku.iij.ad.jp&gt;
 	  <item>Tatsumi Hosokawa &lt;hosokawa@mt.cs.keio.ac.jp&gt;
           <item>Terry Lambert &lt;terry@lambert.org&gt;
 	  <item>Terry Lee &lt;terry@uivlsi.csl.uiuc.edu&gt;
