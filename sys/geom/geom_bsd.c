@@ -267,98 +267,6 @@ g_bsd_writelabel(struct g_geom *gp, u_char *bootcode)
 	return(error);
 }
 
-
-/*
- * Implement certain ioctls to modify disklabels with.  This function
- * is called by the event handler thread with topology locked as result
- * of the g_post_event() in g_bsd_start().  It is not necessary to keep
- * topology locked all the time but make sure to return with topology
- * locked as well.
- */
-
-static void
-g_bsd_ioctl(void *arg, int flag)
-{
-	struct bio *bp;
-	struct g_geom *gp;
-	struct g_ioctl *gio;
-	u_char *label;
-	int error;
-
-	g_topology_assert();
-	bp = arg;
-	if (flag == EV_CANCEL) {
-		g_io_deliver(bp, ENXIO);
-		return;
-	}
-
-	gp = bp->bio_to->geom;
-	gio = (struct g_ioctl *)bp->bio_data;
-
-	label = g_malloc(LABELSIZE, M_WAITOK);
-
-	/* The disklabel to set is the ioctl argument. */
-	bsd_disklabel_le_enc(label, gio->data);
-
-	/* Validate and modify our slice instance to match. */
-	error = g_bsd_modify(gp, label);	/* Picks up topology lock on success. */
-	g_free(label);
-	if (error || gio->cmd == DIOCSDINFO) {
-		g_io_deliver(bp, error);
-		return;
-	}
-	
-	KASSERT(gio->cmd == DIOCWDINFO, ("Unknown ioctl in g_bsd_ioctl"));
-	g_io_deliver(bp, g_bsd_writelabel(gp, NULL));
-}
-
-/*
- * Rewrite the bootblock, which is BBSIZE bytes from the start of the disk.
- * We punch down the disklabel where we expect it to be before writing.
- */
-static int
-g_bsd_diocbsdbb(dev_t dev, u_long cmd __unused, caddr_t data, int fflag __unused, struct thread *td __unused)
-{
-	struct g_geom *gp;
-	struct g_slicer *gsp;
-	struct g_bsd_softc *ms;
-	struct g_consumer *cp;
-	u_char *buf;
-	void *p;
-	int error, i;
-	uint64_t sum;
-
-	/* Get hold of the interesting bits from the bio. */
-	gp = (void *)dev;
-	gsp = gp->softc;
-	ms = gsp->softc;
-
-	/* The disklabel to set is the ioctl argument. */
-	buf = g_malloc(BBSIZE, M_WAITOK);
-	p = *(void **)data;
-	error = copyin(p, buf, BBSIZE);
-	if (!error) {
-		DROP_GIANT();
-		g_topology_lock();
-		/* Validate and modify our slice instance to match. */
-		error = g_bsd_modify(gp, buf + ms->labeloffset);
-		if (!error) {
-			cp = LIST_FIRST(&gp->consumer);
-			if (ms->labeloffset == ALPHA_LABEL_OFFSET) {
-				sum = 0;
-				for (i = 0; i < 63; i++)
-					sum += le64dec(buf + i * 8);
-				le64enc(buf + 504, sum);
-			}
-			error = g_write_data(cp, 0, buf, BBSIZE);
-		}
-		g_topology_unlock();
-		PICKUP_GIANT();
-	}
-	g_free(buf);
-	return (error);
-}
-
 /*
  * If the user tries to overwrite our disklabel through an open partition
  * or via a magicwrite config call, we end up here and try to prevent
@@ -406,6 +314,79 @@ g_bsd_hotwrite(void *arg, int flag)
  *    * Don't grab the topology lock.
  *    * Don't call biowait, g_getattr(), g_setattr() or g_read_data()
  */
+static int
+g_bsd_ioctl(struct g_provider *pp, u_long cmd, void * data, struct thread *td)
+{
+	struct g_geom *gp;
+	struct g_bsd_softc *ms;
+	struct g_slicer *gsp;
+	u_char *label;
+	int error;
+
+	gp = pp->geom;
+	gsp = gp->softc;
+	ms = gsp->softc;
+
+	switch(cmd) {
+	case DIOCGDINFO:
+		/* Return a copy of the disklabel to userland. */
+		bsd_disklabel_le_dec(ms->label, data, MAXPARTITIONS);
+		return(0);
+	case DIOCBSDBB: {
+		struct g_consumer *cp;
+		u_char *buf;
+		void *p;
+		int error, i;
+		uint64_t sum;
+
+		/* The disklabel to set is the ioctl argument. */
+		buf = g_malloc(BBSIZE, M_WAITOK);
+		p = *(void **)data;
+		error = copyin(p, buf, BBSIZE);
+		if (!error) {
+			/* XXX: Rude, but supposedly safe */
+			DROP_GIANT();
+			g_topology_lock();
+			/* Validate and modify our slice instance to match. */
+			error = g_bsd_modify(gp, buf + ms->labeloffset);
+			if (!error) {
+				cp = LIST_FIRST(&gp->consumer);
+				if (ms->labeloffset == ALPHA_LABEL_OFFSET) {
+					sum = 0;
+					for (i = 0; i < 63; i++)
+						sum += le64dec(buf + i * 8);
+					le64enc(buf + 504, sum);
+				}
+				error = g_write_data(cp, 0, buf, BBSIZE);
+			}
+			g_topology_unlock();
+			PICKUP_GIANT();
+		}
+		g_free(buf);
+		return (error);
+	}
+	case DIOCSDINFO:
+	case DIOCWDINFO: {
+		label = g_malloc(LABELSIZE, M_WAITOK);
+
+		/* The disklabel to set is the ioctl argument. */
+		bsd_disklabel_le_enc(label, data);
+
+		DROP_GIANT();
+		g_topology_lock();
+		/* Validate and modify our slice instance to match. */
+		error = g_bsd_modify(gp, label);
+		if (error == 0 && cmd == DIOCWDINFO)
+			error = g_bsd_writelabel(gp, NULL);
+		g_topology_unlock();
+		PICKUP_GIANT();
+		g_free(label);
+		return(error);
+	}
+	default:
+		return (ENOIOCTL);
+	}
+}
 
 static int
 g_bsd_start(struct bio *bp)
@@ -413,61 +394,16 @@ g_bsd_start(struct bio *bp)
 	struct g_geom *gp;
 	struct g_bsd_softc *ms;
 	struct g_slicer *gsp;
-	struct g_ioctl *gio;
-	int error;
 
 	gp = bp->bio_to->geom;
 	gsp = gp->softc;
 	ms = gsp->softc;
-	switch(bp->bio_cmd) {
-	case BIO_GETATTR:
+	if (bp->bio_cmd == BIO_GETATTR) {
 		if (g_handleattr(bp, "BSD::labelsum", ms->labelsum,
 		    sizeof(ms->labelsum)))
 			return (1);
-		break;
-	default:
-		KASSERT(0 == 1, ("Unknown bio_cmd in g_bsd_start (%d)",
-		    bp->bio_cmd));
 	}
-
-	/* We only handle ioctl(2) requests of the right format. */
-	if (strcmp(bp->bio_attribute, "GEOM::ioctl"))
-		return (0);
-	else if (bp->bio_length != sizeof(*gio))
-		return (0);
-
-	/* Get hold of the ioctl parameters. */
-	gio = (struct g_ioctl *)bp->bio_data;
-
-	switch (gio->cmd) {
-	case DIOCGDINFO:
-		/* Return a copy of the disklabel to userland. */
-		bsd_disklabel_le_dec(ms->label, gio->data, MAXPARTITIONS);
-		g_io_deliver(bp, 0);
-		return (1);
-	case DIOCBSDBB:
-		gio->func = g_bsd_diocbsdbb;
-		gio->dev = (void *)gp;
-		g_io_deliver(bp, EDIRIOCTL);
-		return (1);
-	case DIOCSDINFO:
-	case DIOCWDINFO:
-		/*
-		 * These we cannot do without the topology lock and some
-		 * some I/O requests.  Ask the event-handler to schedule
-		 * us in a less restricted environment.
-		 */
-		error = g_post_event(g_bsd_ioctl, bp, M_NOWAIT, gp, NULL);
-		if (error)
-			g_io_deliver(bp, error);
-		/*
-		 * We must return non-zero to indicate that we will deal
-		 * with this bio, even though we have not done so yet.
-		 */
-		return (1);
-	default:
-		return (0);
-	}
+	return (0);
 }
 
 /*
@@ -559,6 +495,7 @@ g_bsd_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	 * routine which the "slice" code should call at the right time
 	 */
 	gp->dumpconf = g_bsd_dumpconf;
+	gp->ioctl = g_bsd_ioctl;
 
 	/* Get the geom_slicer softc from the geom. */
 	gsp = gp->softc;
