@@ -38,10 +38,4 @@ opt_svr4.h:
 	echo "#define DEBUG_SVR4 1" >> opt_svr4.h
 .endif
 
-.if exists(${DESTDIR}/usr/bin)
-afterinstall:
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
-		${.CURDIR}/svr4.sh ${DESTDIR}/usr/sbin/svr4
-.endif
-
 .include <bsd.kmod.mk>
