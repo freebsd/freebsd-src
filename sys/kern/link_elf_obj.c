@@ -1051,7 +1051,7 @@ link_elf_symbol_values(linker_file_t lf, c_linker_sym_t sym, linker_symval_t* sy
 	elf_file_t ef = (elf_file_t) lf;
 	const Elf_Sym* es = (const Elf_Sym*) sym;
 
-	if (es >= ef->symtab && ((es - ef->symtab) < ef->nchains)) {
+	if (es >= ef->symtab && es < (ef->symtab + ef->nchains)) {
 	    symval->name = ef->strtab + es->st_name;
 	    symval->value = (caddr_t) ef->address + es->st_value;
 	    symval->size = es->st_size;
@@ -1059,7 +1059,7 @@ link_elf_symbol_values(linker_file_t lf, c_linker_sym_t sym, linker_symval_t* sy
 	}
 	if (ef->symtab == ef->ddbsymtab)
 	    return ENOENT;
-	if (es >= ef->ddbsymtab && ((es - ef->ddbsymtab) < ef->ddbsymcnt)) {
+	if (es >= ef->ddbsymtab && es < (ef->ddbsymtab + ef->ddbsymcnt)) {
 	    symval->name = ef->ddbstrtab + es->st_name;
 	    symval->value = (caddr_t) ef->address + es->st_value;
 	    symval->size = es->st_size;
