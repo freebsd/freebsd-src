@@ -1,5 +1,5 @@
 <!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN">
-<!-- $Id: FAQ.sgml,v 1.39 1997/03/19 18:31:59 obrien Exp $ -->
+<!-- $Id: FAQ.sgml,v 1.40 1997/03/20 13:15:41 jkh Exp $ -->
 
   <article>
 
@@ -7,7 +7,7 @@
 <author>Maintainer: Peter da Silva <tt><htmlurl url='mailto:pds@FreeBSD.ORG'
   name='&lt;pds@FreeBSD.ORG&gt;'></tt>
 
-<date>$Date: 1997/03/19 18:31:59 $
+<date>$Date: 1997/03/20 13:15:41 $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -1556,7 +1556,7 @@ options		"CMD640"
 
       <sect1>
 	<heading>Where can I get Motif for FreeBSD?</heading>
-        <p>Contact <url url="http://www.xinside.com" name="X Inside, Inc.">
+        <p>Contact <url url="http://www.xig.com" name="Xi Graphics">
           for a Motif v2.0 distribution for FreeBSD 2.1 (tested also with
 	  2.2-current as of May 10, 1996).
 
