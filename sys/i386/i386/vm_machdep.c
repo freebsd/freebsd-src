@@ -413,12 +413,6 @@ cpu_set_upcall_kse(struct thread *td, struct kse_upcall *ku)
 	    (int)ku->ku_mailbox);
 }
 
-void
-cpu_wait(p)
-	struct proc *p;
-{
-}
-
 /*
  * Convert kernel VA to physical address
  */

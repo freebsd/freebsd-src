@@ -474,7 +474,6 @@ vm_waitproc(p)
 {
 
 	GIANT_REQUIRED;
-	cpu_wait(p);
 	vmspace_exitfree(p);		/* and clean-out the vmspace */
 }
 
