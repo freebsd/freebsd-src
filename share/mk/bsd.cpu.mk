@@ -32,12 +32,22 @@ CPUTYPE = k7
 . if ${MACHINE_ARCH} == "i386"
 .  if ${CPUTYPE} == "k7"
 CFLAGS += -march=k6	# gcc doesn't support athlon yet, but it will
+.  elif ${CPUTYPE} == "k6-2"
+CFLAGS += -march=k6
 .  elif ${CPUTYPE} == "k6"
 CFLAGS += -march=k6
 .  elif ${CPUTYPE} == "k5"
 CFLAGS += -march=pentium
+.  elif ${CPUTYPE} == "p4"
+CFLAGS += -march=pentiumpro
+.  elif ${CPUTYPE} == "p3"
+CFLAGS += -march=pentiumpro
+.  elif ${CPUTYPE} == "p2"
+CFLAGS += -march=pentiumpro
 .  elif ${CPUTYPE} == "i686"
 CFLAGS += -march=pentiumpro
+.  elif ${CPUTYPE} == "i586/mmx"
+CFLAGS += -march=pentium
 .  elif ${CPUTYPE} == "i586"
 CFLAGS += -march=pentium
 .  elif ${CPUTYPE} == "i486"
@@ -66,13 +76,23 @@ CFLAGS += -mcpu=ev4
 
 .if ${MACHINE_ARCH} == "i386"
 . if ${CPUTYPE} == "k7"
-MACHINE_CPU = k7 k6 k5 i586 i486 i386
+MACHINE_CPU = k7 3dnow k6 k5 i586 i486 i386
+. elif ${CPUTYPE} == "k6-2"
+MACHINE_CPU = 3dnow k6 k5 i586 i486 i386
 . elif ${CPUTYPE} == "k6"
 MACHINE_CPU = k6 k5 i586 i486 i386
 . elif ${CPUTYPE} == "k5"
 MACHINE_CPU = k5 i586 i486 i386
+. elif ${CPUTYPE} == "p4"
+MACHINE_CPU = sse i686 mmx i586 i486 i386
+. elif ${CPUTYPE} == "p3"
+MACHINE_CPU = sse i686 mmx i586 i486 i386
+. elif ${CPUTYPE} == "p2"
+MACHINE_CPU = sse i686 mmx i586 i486 i386
 . elif ${CPUTYPE} == "i686"
 MACHINE_CPU = i686 i586 i486 i386
+. elif ${CPUTYPE} == "i586/mmx"
+MACHINE_CPU = mmx i586 i486 i386
 . elif ${CPUTYPE} == "i586"
 MACHINE_CPU = i586 i486 i386
 . elif ${CPUTYPE} == "i486"
