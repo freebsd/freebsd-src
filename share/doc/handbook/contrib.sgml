@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.186 1997/01/07 20:22:17 pst Exp $ -->
+<!-- $Id: contrib.sgml,v 1.187 1997/01/11 20:06:03 mpp Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!-- Please try to keep the file 'avail' (from CVSROOT) 
@@ -178,7 +178,7 @@
         <tag/Build Engineers/ &a.paul; and &a.dave
         <tag/Mirror Managers/ &a.ulf; and &a.john
         <tag/News Editors/ &a.john; and &a.nsj;
-        <tag/Gallery and Commercial Editors/ &a.cawimm; and &a.richardag
+        <tag/Gallery and Commercial Editors/ &a.ricardag; and &a.cawimm
         <tag/Style Police & Art Directors/ &a.dave; and &a.opsys
         <tag/Database Engineers/ &a.mayo; and &a.cracauer
         <tag/CGI Engineer/ &a.cracauer
