@@ -1427,6 +1427,9 @@ ste_ioctl(ifp, command, data)
 				STE_CLRBIT1(sc, STE_RX_MODE,
 				    STE_RXMODE_PROMISC);
 			} 
+			if (ifp->if_flags & IFF_RUNNING &&
+			    (ifp->if_flags ^ sc->ste_if_flags) & IFF_ALLMULTI)
+				ste_setmulti(sc);
 			if (!(ifp->if_flags & IFF_RUNNING)) {
 				sc->ste_tx_thresh = STE_TXSTART_THRESH;
 				ste_init(sc);
