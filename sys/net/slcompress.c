@@ -148,8 +148,15 @@ sl_compress_init(comp, max_state)
 }
 
 /*
- * Attempt to compress a TCP packet.  This function assumes that the
- * complete IP+TCP headers have been pulled up into the first mbuf.
+ * Attempt to compress an outgoing TCP packet and return the type of
+ * the result.  The caller must have already verified that the protocol
+ * is TCP.  The first mbuf must contain the complete IP and TCP headers,
+ * and "ip" must be == mtod(m, struct ip *).  "comp" supplies the
+ * compression state, and "compress_cid" tells us whether it is OK
+ * to leave out the CID field when feasible.
+ *
+ * The caller is responsible for adjusting m->m_pkthdr.len upon return,
+ * if m is an M_PKTHDR mbuf.
  */
 u_int
 sl_compress_tcp(m, ip, comp, compress_cid)
