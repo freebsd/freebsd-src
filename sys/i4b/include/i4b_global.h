@@ -94,6 +94,9 @@
 #define TIMER_IDLE	1		/* a timer is running	*/
 #define TIMER_ACTIVE	2		/* a timer is idle	*/
 
+/* priority */
+#define I4BPRI		(PSOCK + 1)
+
 /* i4b's spl */
 
 #define	SPLI4B()	splimp()	/* spl for i4b		*/

@@ -90,13 +90,6 @@ PSEUDO_SET(i4btrcattach, i4b_trace);
 
 int get_trace_data_from_l1(i4b_trace_hdr_t *hdr, int len, char *buf);
 
-#if __FreeBSD_version >= 501113
-#ifndef TTIPRI
-/* don't want to include tty.h just to get this */
-#define TTIPRI (PSOCK + 1)
-#endif
-#endif
-
 /*---------------------------------------------------------------------------*
  *	interface attach routine
  *---------------------------------------------------------------------------*/
@@ -323,7 +316,7 @@ i4btrcread(dev_t dev, struct uio * uio, int ioflag)
 		
 		if((error = msleep( &trace_queue[unit],
 					&trace_queue[unit].ifq_mtx,
-					TTIPRI | PCATCH,
+					I4BPRI | PCATCH,
 					"bitrc", 0 )) != 0)
 		{
 			device_state[unit] &= ~ST_WAITDATA;
