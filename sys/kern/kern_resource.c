@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_resource.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_resource.c,v 1.31 1998/02/04 18:43:10 dg Exp $
+ * $Id: kern_resource.c,v 1.32 1998/02/09 06:09:24 eivind Exp $
  */
 
 #include "opt_compat.h"
@@ -266,12 +266,15 @@ rtprio(curp, uap)
  * due to a CPU-bound normal process). Fix me! XXX
  */
 #if 0
-			if (rtp.type == RTP_PRIO_REALTIME)
+ 			if (RTP_PRIO_IS_REALTIME(rtp.type))
 #endif
 			if (rtp.type != RTP_PRIO_NORMAL)
 				return (EPERM);
 		}
 		switch (rtp.type) {
+#ifdef RTP_PRIO_FIFO
+		case RTP_PRIO_FIFO:
+#endif
 		case RTP_PRIO_REALTIME:
 		case RTP_PRIO_NORMAL:
 		case RTP_PRIO_IDLE:
