@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/mbuf.h>
 #include <sys/uio.h>
+#include <sys/sysctl.h>
 
 #include <vm/vm.h>
 #include <vm/vm_page.h>
@@ -84,7 +85,23 @@ static int free_bpages;
 static int reserved_bpages;
 static int active_bpages;
 static int total_bpages;
+static int total_bounced;
+static int total_deferred;
 static bus_addr_t bounce_lowaddr = BUS_SPACE_MAXADDR;
+
+SYSCTL_NODE(_hw, OID_AUTO, busdma, CTLFLAG_RD, 0, "Busdma parameters");
+SYSCTL_INT(_hw_busdma, OID_AUTO, free_bpages, CTLFLAG_RD, &free_bpages, 0,
+	   "Free bounce pages");
+SYSCTL_INT(_hw_busdma, OID_AUTO, reserved_bpages, CTLFLAG_RD, &reserved_bpages,
+	   0, "Reserved bounce pages");
+SYSCTL_INT(_hw_busdma, OID_AUTO, active_bpages, CTLFLAG_RD, &active_bpages, 0,
+	   "Active bounce pages");
+SYSCTL_INT(_hw_busdma, OID_AUTO, total_bpages, CTLFLAG_RD, &total_bpages, 0,
+	   "Total bounce pages");
+SYSCTL_INT(_hw_busdma, OID_AUTO, total_bounced, CTLFLAG_RD, &total_bounced, 0,
+	   "Total bounce requests");
+SYSCTL_INT(_hw_busdma, OID_AUTO, total_deferred, CTLFLAG_RD, &total_deferred, 0,
+	   "Total bounce requests that were deferred");
 
 struct bus_dmamap {
 	struct bp_list	       bpages;
@@ -109,7 +126,8 @@ static int reserve_bounce_pages(bus_dma_tag_t dmat, bus_dmamap_t map,
 static bus_addr_t add_bounce_page(bus_dma_tag_t dmat, bus_dmamap_t map,
 				   vm_offset_t vaddr, bus_size_t size);
 static void free_bounce_page(bus_dma_tag_t dmat, struct bounce_page *bpage);
-static __inline int run_filter(bus_dma_tag_t dmat, bus_addr_t paddr);
+static __inline int run_filter(bus_dma_tag_t dmat, bus_addr_t paddr,
+			       bus_size_t len);
 
 /*
  * Return true if a match is made.
@@ -120,14 +138,18 @@ static __inline int run_filter(bus_dma_tag_t dmat, bus_addr_t paddr);
  * to check for a match, if there is no filter callback then assume a match.
  */
 static __inline int
-run_filter(bus_dma_tag_t dmat, bus_addr_t paddr)
+run_filter(bus_dma_tag_t dmat, bus_addr_t paddr, bus_size_t len)
 {
+	bus_size_t bndy;
 	int retval;
 
 	retval = 0;
+	bndy = dmat->boundary;
+
 	do {
-		if (paddr > dmat->lowaddr
-		 && paddr <= dmat->highaddr
+		if (((paddr > dmat->lowaddr && paddr <= dmat->highaddr)
+		 || ((paddr & (dmat->alignment - 1)) != 0)
+		 || ((paddr & bndy) != ((paddr + len) & bndy)))
 		 && (dmat->filter == NULL
 		  || (*dmat->filter)(dmat->filterarg, paddr) != 0))
 			retval = 1;
@@ -187,6 +209,10 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 {
 	bus_dma_tag_t newtag;
 	int error = 0;
+
+	/* Basic sanity checking */
+	if (boundary != 0 && boundary < maxsegsz)
+		maxsegsz = boundary;
 
 	/* Return a NULL tag on failure */
 	*dmat = NULL;
@@ -322,7 +348,13 @@ bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 			return (ENOMEM);
 	}
 
-	if (dmat->lowaddr < ptoa((vm_paddr_t)Maxmem)) {
+	/*
+	 * Bouncing might be required if the driver asks for an active
+	 * exclusion region, a data alignment that is stricter than 1, and/or
+	 * an active address boundary.
+	 */
+	if (dmat->lowaddr < ptoa((vm_paddr_t)Maxmem)
+	 || dmat->alignment > 1 || dmat->boundary > 0) {
 		/* Must bounce */
 		int maxpages;
 
@@ -340,8 +372,7 @@ bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 		 */
 		maxpages = MIN(MAX_BPAGES, Maxmem - atop(dmat->lowaddr));
 		if ((dmat->flags & BUS_DMA_MIN_ALLOC_COMP) == 0
-		 || (dmat->map_count > 0
-		  && total_bpages < maxpages)) {
+		 || (dmat->map_count > 0 && total_bpages < maxpages)) {
 			int pages;
 
 			if (dmat->lowaddr > bounce_lowaddr) {
@@ -426,6 +457,7 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 		 * XXX Use Contigmalloc until it is merged into this facility
 		 *     and handles multi-seg allocations.  Nobody is doing
 		 *     multi-seg allocations yet though.
+		 * XXX Certain AGP hardware does.
 		 */
 		*vaddr = contigmalloc(dmat->maxsize, M_DEVBUF, mflags,
 		    0ul, dmat->lowaddr, dmat->alignment? dmat->alignment : 1ul,
@@ -492,8 +524,9 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 	else
 		pmap = NULL;
 
-	if (dmat->lowaddr < ptoa((vm_paddr_t)Maxmem) &&
-	    map->pagesneeded == 0) {
+	if ((dmat->lowaddr < ptoa((vm_paddr_t)Maxmem)
+	 || dmat->boundary > 0 || dmat->alignment > 1)
+	 && map->pagesneeded == 0) {
 		vm_offset_t	vendaddr;
 
 		/*
@@ -505,7 +538,7 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 
 		while (vaddr < vendaddr) {
 			paddr = pmap_kextract(vaddr);
-			if (run_filter(dmat, paddr) != 0) {
+			if (run_filter(dmat, paddr, 0) != 0) {
 				needbounce = 1;
 				map->pagesneeded++;
 			}
@@ -566,7 +599,7 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 				sgsize = (baddr - curaddr);
 		}
 
-		if (map->pagesneeded != 0 && run_filter(dmat, curaddr))
+		if (map->pagesneeded != 0 && run_filter(dmat, curaddr, sgsize))
 			curaddr = add_bounce_page(dmat, map, vaddr, sgsize);
 
 		/*
@@ -763,6 +796,8 @@ _bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 		 * want to add support for invalidating
 		 * the caches on broken hardware
 		 */
+		total_bounced++;
+
 		if (op & BUS_DMASYNC_PREWRITE) {
 			while (bpage != NULL) {
 				bcopy((void *)bpage->datavaddr,
@@ -901,6 +936,7 @@ free_bounce_page(bus_dma_tag_t dmat, struct bounce_page *bpage)
 			STAILQ_INSERT_TAIL(&bounce_map_callbacklist,
 					   map, links);
 			busdma_swi_pending = 1;
+			total_deferred++;
 			swi_sched(vm_ih, 0);
 		}
 	}
