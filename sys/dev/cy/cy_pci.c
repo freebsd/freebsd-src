@@ -144,6 +144,8 @@ cy_pci_attach(dev)
 #ifdef CY_PCI_FASTINTR
 	irq_setup = bus_setup_intr(dev, irq_res, INTR_TYPE_TTY | INTR_FAST,
 	    (driver_intr_t *)cyintr, (void *)adapter, &irq_cookie);
+#else
+	irq_setup = ENXIO;
 #endif
 	if (irq_setup != 0)
 		irq_setup = bus_setup_intr(dev, irq_res, INTR_TYPE_TTY,
