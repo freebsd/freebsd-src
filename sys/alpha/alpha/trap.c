@@ -129,6 +129,7 @@ userret(p, pc, oticks)
 	}
 
 	curpriority = p->p_priority;
+	currtpriority = p->p_rtprio.prio;
 }
 
 static void

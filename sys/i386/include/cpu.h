@@ -83,7 +83,7 @@
  * Preempt the current process if in interrupt from user mode,
  * or after the current trap/syscall if in system mode.
  */
-#define	need_resched()	{ want_resched = 1; aston(); }
+#define	need_resched()		do { want_resched = 1; aston(); } while (0)
 
 #define	resched_wanted()	want_resched
 
@@ -94,7 +94,8 @@
  * single tick and the P_OWEUPC flag served as a counter.  Now there is a
  * counter in the proc table and flag isn't really necessary.
  */
-#define	need_proftick(p)	{ (p)->p_flag |= P_OWEUPC; aston(); }
+#define	need_proftick(p) \
+	do { (p)->p_flag |= P_OWEUPC; aston(); } while (0)
 
 /*
  * Notify the current process (p) that it has a signal pending,
