@@ -528,7 +528,7 @@ get_process_info(struct system_info *si, struct process_select *sel,
 
 	/* set up flags which define what we are going to select */
 	show_idle = sel->idle;
-	show_self = sel->self;
+	show_self = sel->self == -1;
 	show_system = sel->system;
 	show_uid = sel->uid != -1;
 	show_command = sel->command != NULL;
@@ -544,8 +544,8 @@ get_process_info(struct system_info *si, struct process_select *sel,
 	for (pp = pbase, i = 0; i < nproc; pp++, i++) {
 
 		if (pp->ki_stat == 0)
-		/* not in use */
-		continue;
+			/* not in use */
+			continue;
 
 		if (!show_self && pp->ki_pid == sel->self)
 			/* skip self */
