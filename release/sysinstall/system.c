@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.43.2.11 1995/06/06 09:27:10 jkh Exp $
+ * $Id: system.c,v 1.43.2.12 1995/06/08 09:40:43 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -163,11 +163,17 @@ systemHelpFile(char *file, char *buf)
 	if (file_readable(buf)) 
 	    return buf;
 	if (*oldfile) {
-	    unlink(oldfile);
-	    rmdir(oldlang);
+	    int i;
+
+	    i = unlink(oldfile);
+	    if (isDebug())
+		msgDebug("Unlink(%s) = %d\n", oldfile, i);
+	    i = rmdir(oldlang);
+	    if (isDebug())
+		msgDebug("rmdir(%s) = %d\n", oldlang, i);
 	}
 	strcpy(oldfile, buf);
-	strcpy(oldlang, cp);
+	sprintf(oldlang, "/stand/%s", cp);
 	snprintf(extract, 64, "%s/%s", cp, file);
 	vsystem("cd /stand && zcat help.tgz | cpio --format=tar -idv %s > /dev/null 2>&1", extract);
 	if (file_readable(buf))
