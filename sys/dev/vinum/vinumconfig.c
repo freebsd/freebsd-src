@@ -1281,7 +1281,9 @@ config_plex(int update)
     int namedplexno;
     enum plexstate state = plex_init;			    /* state to set at end */
     int preferme;					    /* set if we want to be preferred access */
+    int stripesize;
 
+    stripesize = 0;
     current_plex = -1;					    /* forget the previous plex */
     preferme = 0;					    /* nothing special yet */
     plexno = get_empty_plex();				    /* allocate a plex */
@@ -1339,52 +1341,53 @@ config_plex(int update)
 
 	    case kw_striped:
 		{
-		    int stripesize = sizespec(token[++parameter]);
-
 		    plex->organization = plex_striped;
-		    if (stripesize % DEV_BSIZE != 0)	    /* not a multiple of block size, */
-			throw_rude_remark(EINVAL, "plex %s: stripe size %d not a multiple of sector size",
-			    plex->name,
-			    stripesize);
+
+		    if (++parameter >= tokens)	/* No stripe size specified. */
+			stripesize = 0;
 		    else
-			plex->stripesize = stripesize / DEV_BSIZE;
+			stripesize = sizespec(token[parameter]);
+
 		    break;
 		}
 
 	    case kw_raid4:
 		{
-		    int stripesize = sizespec(token[++parameter]);
-
 		    plex->organization = plex_raid4;
-		    if (stripesize % DEV_BSIZE != 0)	    /* not a multiple of block size, */
-			throw_rude_remark(EINVAL, "plex %s: stripe size %d not a multiple of sector size",
-			    plex->name,
-			    stripesize);
+
+		    if (++parameter >= tokens)	/* No stripe size specified. */
+			stripesize = 0;
 		    else
-			plex->stripesize = stripesize / DEV_BSIZE;
+			stripesize = sizespec(token[parameter]);
+
 		    break;
 		}
 
 	    case kw_raid5:
 		{
-		    int stripesize = sizespec(token[++parameter]);
-
 		    plex->organization = plex_raid5;
-		    if (stripesize % DEV_BSIZE != 0)	    /* not a multiple of block size, */
-			throw_rude_remark(EINVAL, "plex %s: stripe size %d not a multiple of sector size",
-			    plex->name,
-			    stripesize);
+
+		    if (++parameter >= tokens)	/* No stripe size specified. */
+			stripesize = 0;
 		    else
-			plex->stripesize = stripesize / DEV_BSIZE;
+			stripesize = sizespec(token[parameter]);
+
 		    break;
 		}
 
 	    default:
 		throw_rude_remark(EINVAL, "Invalid plex organization");
 	    }
-	    if (isstriped(plex)
-		&& (plex->stripesize == 0))		    /* didn't specify a valid stripe size */
-		throw_rude_remark(EINVAL, "Need a stripe size parameter");
+	    if (isstriped(plex)) {
+		if (stripesize == 0)		    /* didn't specify a valid stripe size */
+		    throw_rude_remark(EINVAL, "Need a stripe size parameter");
+		else if (stripesize % DEV_BSIZE != 0)
+		    throw_rude_remark(EINVAL, "plex %s: stripe size %d not a multiple of sector size",
+			plex->name,
+			stripesize);
+		else
+		    plex->stripesize = stripesize / DEV_BSIZE;
+	    }
 	    break;
 
 	    /*
