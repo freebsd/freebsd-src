@@ -67,7 +67,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-/* $Id$ */
+/* $Id: bus.h,v 1.1 1998/01/15 07:32:54 gibbs Exp $ */
 
 #ifndef _I386_BUS_H_
 #define _I386_BUS_H_
@@ -242,10 +242,10 @@ bus_space_read_multi_1(bus_space_tag_t tag, bus_space_handle_t bsh,
 #endif
 	{
 		int __x __asm__("%eax");
-		__asm __volatile("
-			cld					;
-		1:	movb (%1),%%al				;
-			stosb					;
+		__asm __volatile("				\n\
+			cld					\n\
+		1:	movb (%1),%%al				\n\
+			stosb					\n\
 			loop 1b"				:
 		    "=&a" (__x)					:
 		    "r" (bsh + offset), "D" (addr), "c" (count)	:
@@ -270,10 +270,10 @@ bus_space_read_multi_2(bus_space_tag_t tag, bus_space_handle_t bsh,
 #endif
 	{
 		int __x __asm__("%eax");
-		__asm __volatile("
-			cld					;
-		1:	movw (%1),%%ax				;
-			stosw					;
+		__asm __volatile("				\n\
+			cld					\n\
+		1:	movw (%1),%%ax				\n\
+			stosw					\n\
 			loop 1b"				:
 		    "=&a" (__x)					:
 		    "r" (bsh + offset), "D" (addr), "c" (count)	:
@@ -298,10 +298,10 @@ bus_space_read_multi_4(bus_space_tag_t tag, bus_space_handle_t bsh,
 #endif
 	{
 		int __x __asm__("%eax");
-		__asm __volatile("
-			cld					;
-		1:	movl (%1),%%eax				;
-			stosl					;
+		__asm __volatile("				\n\
+			cld					\n\
+		1:	movl (%1),%%eax				\n\
+			stosl					\n\
 			loop 1b"				:
 		    "=&a" (__x)					:
 		    "r" (bsh + offset), "D" (addr), "c" (count)	:
@@ -345,11 +345,11 @@ bus_space_read_region_1(bus_space_tag_t tag, bus_space_handle_t bsh,
 #endif
 	{
 		int __x __asm__("%eax");
-		__asm __volatile("
-			cld					;
-		1:	inb %w1,%%al				;
-			stosb					;
-			incl %1					;
+		__asm __volatile("				\n\
+			cld					\n\
+		1:	inb %w1,%%al				\n\
+			stosb					\n\
+			incl %1					\n\
 			loop 1b"				:
 		    "=&a" (__x)					:
 		    "d" (bsh + offset), "D" (addr), "c" (count)	:
@@ -361,9 +361,9 @@ bus_space_read_region_1(bus_space_tag_t tag, bus_space_handle_t bsh,
 	else
 #endif
 	{
-		__asm __volatile("
-			cld					;
-			repne					;
+		__asm __volatile("				\n\
+			cld					\n\
+			repne					\n\
 			movsb"					:
 								:
 		    "S" (bsh + offset), "D" (addr), "c" (count)	:
@@ -382,11 +382,11 @@ bus_space_read_region_2(bus_space_tag_t tag, bus_space_handle_t bsh,
 #endif
 	{
 		int __x __asm__("%eax");
-		__asm __volatile("
-			cld					;
-		1:	inw %w1,%%ax				;
-			stosw					;
-			addl $2,%1				;
+		__asm __volatile("				\n\
+			cld					\n\
+		1:	inw %w1,%%ax				\n\
+			stosw					\n\
+			addl $2,%1				\n\
 			loop 1b"				:
 		    "=&a" (__x)					:
 		    "d" (bsh + offset), "D" (addr), "c" (count)	:
@@ -398,9 +398,9 @@ bus_space_read_region_2(bus_space_tag_t tag, bus_space_handle_t bsh,
 	else
 #endif
 	{
-		__asm __volatile("
-			cld					;
-			repne					;
+		__asm __volatile("				\n\
+			cld					\n\
+			repne					\n\
 			movsw"					:
 								:
 		    "S" (bsh + offset), "D" (addr), "c" (count)	:
@@ -419,11 +419,11 @@ bus_space_read_region_4(bus_space_tag_t tag, bus_space_handle_t bsh,
 #endif
 	{
 		int __x __asm__("%eax");
-		__asm __volatile("
-			cld					;
-		1:	inl %w1,%%eax				;
-			stosl					;
-			addl $4,%1				;
+		__asm __volatile("				\n\
+			cld					\n\
+		1:	inl %w1,%%eax				\n\
+			stosl					\n\
+			addl $4,%1				\n\
 			loop 1b"				:
 		    "=&a" (__x)					:
 		    "d" (bsh + offset), "D" (addr), "c" (count)	:
@@ -435,9 +435,9 @@ bus_space_read_region_4(bus_space_tag_t tag, bus_space_handle_t bsh,
 	else
 #endif
 	{
-		__asm __volatile("
-			cld					;
-			repne					;
+		__asm __volatile("				\n\
+			cld					\n\
+			repne					\n\
 			movsl"					:
 								:
 		    "S" (bsh + offset), "D" (addr), "c" (count)	:
@@ -563,10 +563,10 @@ bus_space_write_multi_1(bus_space_tag_t tag, bus_space_handle_t bsh,
 #endif
 	{
 		int __x __asm__("%eax");
-		__asm __volatile("
-			cld					;
-		1:	lodsb					;
-			movb %%al,(%1)				;
+		__asm __volatile("				\n\
+			cld					\n\
+		1:	lodsb					\n\
+			movb %%al,(%1)				\n\
 			loop 1b"				:
 		    "=&a" (__x)					:
 		    "r" (bsh + offset), "S" (addr), "c" (count)	:
@@ -591,10 +591,10 @@ bus_space_write_multi_2(bus_space_tag_t tag, bus_space_handle_t bsh,
 #endif
 	{
 		int __x __asm__("%eax");
-		__asm __volatile("
-			cld					;
-		1:	lodsw					;
-			movw %%ax,(%1)				;
+		__asm __volatile("				\n\
+			cld					\n\
+		1:	lodsw					\n\
+			movw %%ax,(%1)				\n\
 			loop 1b"				:
 		    "=&a" (__x)					:
 		    "r" (bsh + offset), "S" (addr), "c" (count)	:
@@ -619,10 +619,10 @@ bus_space_write_multi_4(bus_space_tag_t tag, bus_space_handle_t bsh,
 #endif
 	{
 		int __x __asm__("%eax");
-		__asm __volatile("
-			cld					;
-		1:	lodsl					;
-			movl %%eax,(%1)				;
+		__asm __volatile("				\n\
+			cld					\n\
+		1:	lodsl					\n\
+			movl %%eax,(%1)				\n\
 			loop 1b"				:
 		    "=&a" (__x)					:
 		    "r" (bsh + offset), "S" (addr), "c" (count)	:
@@ -667,11 +667,11 @@ bus_space_write_region_1(bus_space_tag_t tag, bus_space_handle_t bsh,
 #endif
 	{
 		int __x __asm__("%eax");
-		__asm __volatile("
-			cld					;
-		1:	lodsb					;
-			outb %%al,%w1				;
-			incl %1					;
+		__asm __volatile("				\n\
+			cld					\n\
+		1:	lodsb					\n\
+			outb %%al,%w1				\n\
+			incl %1					\n\
 			loop 1b"				:
 		    "=&a" (__x)					:
 		    "d" (bsh + offset), "S" (addr), "c" (count)	:
@@ -683,9 +683,9 @@ bus_space_write_region_1(bus_space_tag_t tag, bus_space_handle_t bsh,
 	else
 #endif
 	{
-		__asm __volatile("
-			cld					;
-			repne					;
+		__asm __volatile("				\n\
+			cld					\n\
+			repne					\n\
 			movsb"					:
 								:
 		    "D" (bsh + offset), "S" (addr), "c" (count)	:
@@ -704,11 +704,11 @@ bus_space_write_region_2(bus_space_tag_t tag, bus_space_handle_t bsh,
 #endif
 	{
 		int __x __asm__("%eax");
-		__asm __volatile("
-			cld					;
-		1:	lodsw					;
-			outw %%ax,%w1				;
-			addl $2,%1				;
+		__asm __volatile("				\n\
+			cld					\n\
+		1:	lodsw					\n\
+			outw %%ax,%w1				\n\
+			addl $2,%1				\n\
 			loop 1b"				:
 		    "=&a" (__x)					:
 		    "d" (bsh + offset), "S" (addr), "c" (count)	:
@@ -720,9 +720,9 @@ bus_space_write_region_2(bus_space_tag_t tag, bus_space_handle_t bsh,
 	else
 #endif
 	{
-		__asm __volatile("
-			cld					;
-			repne					;
+		__asm __volatile("				\n\
+			cld					\n\
+			repne					\n\
 			movsw"					:
 								:
 		    "D" (bsh + offset), "S" (addr), "c" (count)	:
@@ -741,11 +741,11 @@ bus_space_write_region_4(bus_space_tag_t tag, bus_space_handle_t bsh,
 #endif
 	{
 		int __x __asm__("%eax");
-		__asm __volatile("
-			cld					;
-		1:	lodsl					;
-			outl %%eax,%w1				;
-			addl $4,%1				;
+		__asm __volatile("				\n\
+			cld					\n\
+		1:	lodsl					\n\
+			outl %%eax,%w1				\n\
+			addl $4,%1				\n\
 			loop 1b"				:
 		    "=&a" (__x)					:
 		    "d" (bsh + offset), "S" (addr), "c" (count)	:
@@ -757,9 +757,9 @@ bus_space_write_region_4(bus_space_tag_t tag, bus_space_handle_t bsh,
 	else
 #endif
 	{
-		__asm __volatile("
-			cld					;
-			repne					;
+		__asm __volatile("				\n\
+			cld					\n\
+			repne					\n\
 			movsl"					:
 								:
 		    "D" (bsh + offset), "S" (addr), "c" (count)	:
@@ -1155,7 +1155,7 @@ typedef enum {
 	BUS_DMASYNC_PREREAD,
 	BUS_DMASYNC_POSTREAD,
 	BUS_DMASYNC_PREWRITE,
-	BUS_DMASYNC_POSTWRITE,
+	BUS_DMASYNC_POSTWRITE
 } bus_dmasync_op_t;
 
 /*
