@@ -9,6 +9,7 @@
  * authorized by a written license agreement from QSSL. For more information,
  * please email licensing@qnx.com.
  *
+ * For more details, see QNX_OCL.txt provided with this distribution.
  */
 
 /*
