@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 2.11 94/10/11 19:03:07 wolf Oct11 $
+**  $Id: ncr.c,v 1.7 1994/10/12 02:33:19 se Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -1286,15 +1286,31 @@ static	u_long	getirr (void)
 
 	disable_intr();
 
+#ifndef __FreeBSD__
+/*
+**	XXX FreeBSD defaults to having the irr selected at all times,
+**	so this is unnecessary.
+*/
 	outb (IO_ICU2, 0x0a);
+#endif
 	mask = inb (IO_ICU2);
+#ifndef __FreeBSD__
+/*
+**	XXX FreeBSD defaults to having the irr selected at all times,
+**	so this breaks things.
+*/
 	outb (IO_ICU2, 0x0b);
+#endif
 
 	mask <<= 8;
 
+#ifndef __FreeBSD__
 	outb (IO_ICU1, 0x0a);
+#endif
 	mask|= inb (IO_ICU1);
+#ifndef __FreeBSD__
 	outb (IO_ICU1, 0x0b);
+#endif
 
 	enable_intr();
 
@@ -1318,7 +1334,7 @@ static	u_long	getirr (void)
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 2.11 94/10/11 19:03:07 wolf Oct11 $\n";
+	"\n$Id: ncr.c,v 1.7 1994/10/12 02:33:19 se Exp $\n";
 
 u_long	ncr_version = NCR_VERSION
 	+ (u_long) sizeof (struct ncb)
@@ -3423,7 +3439,7 @@ static	void ncr_attach (pcici_t config_id, int unit)
 		ncr_name (np));
 	DELAY (1000000);
 #endif
-	printf ("%s scanning for targets 0..%d ($Revision: 2.11 $)\n",
+	printf ("%s scanning for targets 0..%d ($Revision: 1.7 $)\n",
 		ncr_name (np), MAX_TARGET-1);
 
 	/*
