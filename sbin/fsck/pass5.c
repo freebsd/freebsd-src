@@ -53,12 +53,12 @@ void
 pass5()
 {
 	int c, blk, frags, basesize, sumsize, mapsize, savednrpos = 0;
-	int inomapsize, blkmapsize;
+	int inomapsize, blkmapsize, astart, aend, ustart, uend;
 	struct fs *fs = &sblock;
 	struct cg *cg = &cgrp;
 	ufs_daddr_t dbase, dmax;
 	ufs_daddr_t d;
-	long i, j, k;
+	long i, j, k, l, m, n;
 	struct csum *cs;
 	struct csum cstotal;
 	struct inodesc idesc[3];
@@ -313,6 +313,72 @@ pass5()
 			memmove(&cg_blktot(cg)[0],
 			       &cg_blktot(newcg)[0], (size_t)sumsize);
 			cgdirty();
+		}
+		if (debug) {
+			for (i = 0; i < inomapsize; i++) {
+				j = cg_inosused(newcg)[i];
+				k = cg_inosused(cg)[i];
+				if (j == k)
+					continue;
+				for (m = 0, l = 1; m < NBBY; m++, l <<= 1) {
+					if ((j & l) == (k & l))
+						continue;
+					n = c * fs->fs_ipg + i * NBBY + m;
+					if ((j & l) != 0)
+						pwarn("%s INODE %d MARKED %s\n",
+						    "ALLOCATED", n, "FREE");
+					else
+						pwarn("%s INODE %d MARKED %s\n",
+						    "UNALLOCATED", n, "USED");
+				}
+			}
+			astart = ustart = -1;
+			for (i = 0; i < blkmapsize; i++) {
+				j = cg_blksfree(cg)[i];
+				k = cg_blksfree(newcg)[i];
+				if (j == k)
+					continue;
+				for (m = 0, l = 1; m < NBBY; m++, l <<= 1) {
+					if ((j & l) == (k & l))
+						continue;
+					n = c * fs->fs_fpg + i * NBBY + m;
+					if ((j & l) != 0) {
+						if (astart == -1) {
+							astart = aend = n;
+							continue;
+						}
+						if (aend + 1 == n) {
+							aend = n;
+							continue;
+						}
+						pwarn("%s FRAGS %d-%d %s\n",
+						    "ALLOCATED", astart, aend,
+						    "MARKED FREE");
+						astart = aend = n;
+					} else {
+						if (ustart == -1) {
+							ustart = uend = n;
+							continue;
+						}
+						if (uend + 1 == n) {
+							uend = n;
+							continue;
+						}
+						pwarn("%s FRAGS %d-%d %s\n",
+						    "UNALLOCATED", ustart, uend,
+						    "MARKED USED");
+						ustart = uend = n;
+					}
+				}
+			}
+			if (astart != -1)
+				pwarn("%s FRAGS %d-%d %s\n",
+				    "ALLOCATED", astart, aend,
+				    "MARKED FREE");
+			if (ustart != -1)
+				pwarn("%s FRAGS %d-%d %s\n",
+				    "UNALLOCATED", ustart, uend,
+				    "MARKED USED");
 		}
 		if (usedsoftdep) {
 			for (i = 0; i < inomapsize; i++) {

@@ -71,6 +71,7 @@ ckinode(dp, idesc)
 
 	if (idesc->id_fix != IGNORE)
 		idesc->id_fix = DONTKNOW;
+	idesc->id_lbn = -1;
 	idesc->id_entryno = 0;
 	idesc->id_filesize = dp->di_size;
 	mode = dp->di_mode & IFMT;
@@ -80,6 +81,7 @@ ckinode(dp, idesc)
 	dino = *dp;
 	ndb = howmany(dino.di_size, sblock.fs_bsize);
 	for (ap = &dino.di_db[0]; ap < &dino.di_db[NDADDR]; ap++) {
+		idesc->id_lbn++;
 		if (--ndb == 0 && (offset = blkoff(&sblock, dino.di_size)) != 0)
 			idesc->id_numfrags =
 				numfrags(&sblock, fragroundup(&sblock, offset));
@@ -106,7 +108,7 @@ ckinode(dp, idesc)
 			continue;
 		}
 		idesc->id_blkno = *ap;
-		if (idesc->id_type == ADDR)
+		if (idesc->id_type != DATA)
 			ret = (*idesc->id_func)(idesc);
 		else
 			ret = dirscan(idesc);
@@ -117,12 +119,14 @@ ckinode(dp, idesc)
 	remsize = dino.di_size - sblock.fs_bsize * NDADDR;
 	sizepb = sblock.fs_bsize;
 	for (ap = &dino.di_ib[0], n = 1; n <= NIADDR; ap++, n++) {
+		sizepb *= NINDIR(&sblock);
 		if (*ap) {
 			idesc->id_blkno = *ap;
 			ret = iblock(idesc, n, remsize);
 			if (ret & STOP)
 				return (ret);
 		} else {
+			idesc->id_lbn += sizepb / sblock.fs_bsize;
 			if (idesc->id_type == DATA && remsize > 0) {
 				/* An empty block in a directory XXX */
 				getpathname(pathbuf, idesc->id_number,
@@ -141,7 +145,6 @@ ckinode(dp, idesc)
                         	}
 			}
 		}
-		sizepb *= NINDIR(&sblock);
 		remsize -= sizepb;
 	}
 	return (KEEPON);
@@ -162,7 +165,7 @@ iblock(idesc, ilevel, isize)
 	char pathbuf[MAXPATHLEN + 1];
 	struct dinode *dp;
 
-	if (idesc->id_type == ADDR) {
+	if (idesc->id_type != DATA) {
 		func = idesc->id_func;
 		if (((n = (*func)(idesc)) & KEEPON) == 0)
 			return (n);
@@ -193,6 +196,8 @@ iblock(idesc, ilevel, isize)
 	}
 	aplim = &bp->b_un.b_indir[nif];
 	for (ap = bp->b_un.b_indir; ap < aplim; ap++) {
+		if (ilevel == 0)
+			idesc->id_lbn++;
 		if (*ap) {
 			idesc->id_blkno = *ap;
 			if (ilevel == 0)
