@@ -122,7 +122,7 @@ usbd_status usbd_clear_endpoint_stall_async(usbd_pipe_handle pipe);
 void usbd_clear_endpoint_toggle(usbd_pipe_handle pipe);
 usbd_status usbd_endpoint_count(usbd_interface_handle dev, u_int8_t *count);
 usbd_status usbd_interface_count(usbd_device_handle dev, u_int8_t *count);
-usbd_status usbd_interface2device_handle(usbd_interface_handle iface,
+void usbd_interface2device_handle(usbd_interface_handle iface,
 					 usbd_device_handle *dev);
 usbd_status usbd_device2interface_handle(usbd_device_handle dev,
 			      u_int8_t ifaceno, usbd_interface_handle *iface);
