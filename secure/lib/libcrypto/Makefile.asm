@@ -14,7 +14,7 @@
        ${LCRYPTO_SRC}/crypto/bf/asm ${LCRYPTO_SRC}/crypto/md5/asm \
        ${LCRYPTO_SRC}/crypto/ripemd/asm
 
-PERLPATH=	${LCRYPTO_SRC}/crypto/des/asm:${LCRYPTO_SRC}/crypto/perlasm
+PERLPATH=	-I${LCRYPTO_SRC}/crypto/des/asm -I${LCRYPTO_SRC}/crypto/perlasm
 
 # blowfish
 SRCS=	bf-686.pl bf-586.pl
@@ -52,7 +52,7 @@ CLEANFILES+=	${SRCS:M*.pl:S/.pl$/.cmt/} ${SRCS:M*.pl:S/.pl$/.s/}
 
 .pl.cmt:
 	( echo '	# $$'FreeBSD'$$' ;\
-	perl -I${PERLPATH} ${.IMPSRC} elf ${CPUTYPE:Mi386:S/i//} ) > ${.TARGET}
+	perl ${PERLPATH} ${.IMPSRC} elf ${CPUTYPE:Mi386:S/i//} ) > ${.TARGET}
 
 .cmt.s:
 	tr -d "'" < ${.IMPSRC} > ${.TARGET}

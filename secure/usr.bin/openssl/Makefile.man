@@ -26,6 +26,7 @@ MAN+= rsa.1
 MAN+= rsautl.1
 MAN+= s_client.1
 MAN+= s_server.1
+MAN+= s_time.1
 MAN+= sess_id.1
 MAN+= smime.1
 MAN+= speed.1
