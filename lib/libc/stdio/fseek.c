@@ -259,6 +259,7 @@ _fseeko(fp, offset, whence, ltest)
 		if (HASUB(fp))
 			FREEUB(fp);
 		fp->_flags &= ~__SEOF;
+		memset(&fp->_extra->mbstate, 0, sizeof(mbstate_t));
 		return (0);
 	}
 
@@ -303,6 +304,7 @@ dumb:
 	fp->_r = 0;
 	/* fp->_w = 0; */	/* unnecessary (I think...) */
 	fp->_flags &= ~__SEOF;
+	memset(&fp->_extra->mbstate, 0, sizeof(mbstate_t));
 	if (ltest && ret > LONG_MAX) {
 		fp->_flags |= __SERR;
 		errno = EOVERFLOW;
