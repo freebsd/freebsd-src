@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id$
+ * $Id: ftp.c,v 1.32 1997/02/22 14:11:42 peter Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -41,6 +41,7 @@
 #include <sys/param.h>
 #include <sys/wait.h>
 #include <netdb.h>
+#include <pwd.h>
 #include <ftpio.h>
 
 Boolean ftpInitted = FALSE;
@@ -113,8 +114,16 @@ try:
 
     if (variable_get(VAR_FTP_PASS))
 	SAFE_STRCPY(password, variable_get(VAR_FTP_PASS));
-    else
+    else if (RunningAsInit)
 	sprintf(password, "installer@%s", variable_get(VAR_HOSTNAME));
+    else {
+	struct passwd *pw;
+	char *user;
+
+	pw = getpwuid(getuid());
+	user = pw ? pw->pw_name : "ftp";
+	sprintf(password, "%s@%s", user, variable_get(VAR_HOSTNAME));
+    }
     msgNotify("Logging in to %s@%s..", login_name, hostname);
     if ((OpenConn = ftpLogin(hostname, login_name, password, FtpPort, isDebug(), &code)) == NULL) {
 	msgConfirm("Couldn't open FTP connection to %s:\n  %s.", hostname, ftpErrString(code));
