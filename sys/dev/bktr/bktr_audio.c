@@ -8,6 +8,7 @@
  * bktr_audio : This deals with controlling the audio on TV cards,
  *                controlling the Audio Multiplexer (audio source selector).
  *                controlling any MSP34xx stereo audio decoders.
+ *                controlling any DPL35xx dolby surroud sound audio decoders.    
  *                initialising TDA98xx audio devices.
  *
  */
@@ -84,7 +85,11 @@ void init_audio_devices( bktr_ptr_t bktr ) {
  
         /* reset the MSP34xx stereo audio chip */
         if ( bktr->card.msp3400c )
-                msp_reset( bktr );
+                msp_dpl_reset( bktr, bktr->msp_addr );
+
+        /* reset the DPL35xx dolby audio chip */
+        if ( bktr->card.dpl3518a )
+                msp_dpl_reset( bktr, bktr->dpl_addr );
 
 }
 
@@ -395,8 +400,8 @@ bctv_gpio_read( bktr_ptr_t bktr, int port )
 /* Read the MSP version string */
 void msp_read_id( bktr_ptr_t bktr ){
     int rev1=0, rev2=0;
-    rev1 = msp_read(bktr, 0x12, 0x001e);
-    rev2 = msp_read(bktr, 0x12, 0x001f);
+    rev1 = msp_dpl_read(bktr, bktr->msp_addr, 0x12, 0x001e);
+    rev2 = msp_dpl_read(bktr, bktr->msp_addr, 0x12, 0x001f);
 
     sprintf(bktr->msp_version_string, "34%02d%c-%c%d",
       (rev2>>8)&0xff, (rev1&0xff)+'@', ((rev1>>8)&0xff)+'@', rev2&0x1f);
@@ -410,23 +415,55 @@ void msp_autodetect( bktr_ptr_t bktr ) {
   if (strncmp("3430G", bktr->msp_version_string, 5) == 0){
 
     /* For MSP3430G - countries with mono and DBX stereo */
-    msp_write(bktr, 0x10, 0x0030,0x2003);/* Enable Auto format detection */
-    msp_write(bktr, 0x10, 0x0020,0x0020);/* Standard Select Reg. = BTSC-Stereo*/
-    msp_write(bktr, 0x12, 0x000E,0x2403);/* darned if I know */
-    msp_write(bktr, 0x12, 0x0008,0x0320);/* Source select = (St or A) */
+    msp_dpl_write(bktr, bktr->msp_addr, 0x10, 0x0030,0x2003);/* Enable Auto format detection */
+    msp_dpl_write(bktr, bktr->msp_addr, 0x10, 0x0020,0x0020);/* Standard Select Reg. = BTSC-Stereo*/
+    msp_dpl_write(bktr, bktr->msp_addr, 0x12, 0x000E,0x2403);/* darned if I know */
+    msp_dpl_write(bktr, bktr->msp_addr, 0x12, 0x0008,0x0320);/* Source select = (St or A) */
 					 /*   & Ch. Matrix = St */
-    msp_write(bktr, 0x12, 0x0000,0x7300);/* Set volume to 0db gain */
+    msp_dpl_write(bktr, bktr->msp_addr, 0x12, 0x0000,0x7300);/* Set volume to 0db gain */
 
   } else {
 
     /* For MSP3410 / 3415 - countries with mono, stereo using 2 FM channels
        and NICAM */
-    msp_write(bktr, 0x12, 0x0000,0x7300);/* Set volume to 0db gain */
-    msp_write(bktr, 0x10, 0x0020,0x0001);/* Enable Auto format detection */
-    msp_write(bktr, 0x10, 0x0021,0x0001);/* Auto selection of NICAM/MONO mode */
+    msp_dpl_write(bktr, bktr->msp_addr, 0x12, 0x0000,0x7300);/* Set volume to 0db gain */
+    msp_dpl_write(bktr, bktr->msp_addr, 0x10, 0x0020,0x0001);/* Enable Auto format detection */
+    msp_dpl_write(bktr, bktr->msp_addr, 0x10, 0x0021,0x0001);/* Auto selection of NICAM/MONO mode */
   }
 
   /* uncomment the following line to enable the MSP34xx 1Khz Tone Generator */
   /* turn your speaker volume down low before trying this */
-  /* msp_write(bktr, 0x12, 0x0014, 0x7f40); */
+  /* msp_dpl_write(bktr, bktr->msp_addr, 0x12, 0x0014, 0x7f40); */
 }
+
+/* Read the DPL version string */
+void dpl_read_id( bktr_ptr_t bktr ){
+    int rev1=0, rev2=0;
+    rev1 = msp_dpl_read(bktr, bktr->dpl_addr, 0x12, 0x001e);
+    rev2 = msp_dpl_read(bktr, bktr->dpl_addr, 0x12, 0x001f);
+
+    sprintf(bktr->dpl_version_string, "34%02d%c-%c%d",
+      ((rev2>>8)&0xff)-1, (rev1&0xff)+'@', ((rev1>>8)&0xff)+'@', rev2&0x1f);
+}
+
+/* Configure the DPL chip to Auto-detect the audio format */
+void dpl_autodetect( bktr_ptr_t bktr ) {
+
+    /* The following are empiric values tried from the DPL35xx data sheet */
+    msp_dpl_write(bktr, bktr->dpl_addr, 0x12, 0x000c,0x0320);	/* quasi peak detector source dolby
+								lr 0x03xx; quasi peak detector matrix
+								stereo 0xXX20 */
+    msp_dpl_write(bktr, bktr->dpl_addr, 0x12, 0x0040,0x0060);	/* Surround decoder mode;
+								ADAPTIVE/3D-PANORAMA, that means two
+								speakers and no center speaker, all
+								channels L/R/C/S mixed to L and R */
+    msp_dpl_write(bktr, bktr->dpl_addr, 0x12, 0x0041,0x0620);	/* surround source matrix;I2S2/STEREO*/
+    msp_dpl_write(bktr, bktr->dpl_addr, 0x12, 0x0042,0x1F00);	/* surround delay 31ms max */
+    msp_dpl_write(bktr, bktr->dpl_addr, 0x12, 0x0043,0x0000);	/* automatic surround input balance */
+    msp_dpl_write(bktr, bktr->dpl_addr, 0x12, 0x0044,0x4000);	/* surround spatial effect 50%
+								recommended*/
+    msp_dpl_write(bktr, bktr->dpl_addr, 0x12, 0x0045,0x5400);	/* surround panorama effect 66%
+								recommended with PANORAMA mode
+								in 0x0040 set to panorama */
+}
+
