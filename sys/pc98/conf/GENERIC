@@ -113,14 +113,14 @@ device		pass		# Passthrough device (direct SCSI access)
 device		ses		# SCSI Environmental Services (and SAF-TE)
 
 # keyboard driver
-device		pckbd	1	# PC98 keyboard
+device		pckbd		# PC98 keyboard
 
 device		gdc		# GDC screen
 
 device		splash		# Splash screen and screen saver support
 
 # syscons is the default console driver, resembling an SCO console
-device		sc	1
+device		sc
 
 # Floating point support - do not disable.
 device		npx

@@ -965,7 +965,7 @@ options 	MSGBUF_SIZE=40960
 #
 
 # The keyboard controller; it controls the keyboard and the PS/2 mouse.
-device		atkbdc	1
+device		atkbdc
 hint.atkbdc.0.at="isa"
 hint.atkbdc.0.port="0x060"
 
@@ -1038,7 +1038,7 @@ device		star_saver
 device		warp_saver
 
 # The syscons console driver (sco color console compatible).
-device		sc	1
+device		sc
 hint.sc.0.at="isa"
 options 	MAXCONS=16		# number of virtual consoles
 options 	SC_ALT_MOUSE_IMAGE	# simplified mouse cursor in text mode
