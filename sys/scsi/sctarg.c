@@ -37,7 +37,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: sctarg.c,v 1.20 1997/03/23 06:33:51 bde Exp $
+ *      $Id: sctarg.c,v 1.21 1997/09/02 20:06:36 bde Exp $
  */
 
 #include "opt_bounce.h"
@@ -187,10 +187,10 @@ sctargstart(unit, unused_flags)
 			return;
 		}
 
-		bp = sctarg->buf_queue.tqh_first;
+		bp = bufq_first(&sctarg->buf_queue);
 		if (bp == NULL)
 			return;
-		TAILQ_REMOVE(&sctarg->buf_queue, bp, b_act);
+		bufq_remove(&sctarg->buf_queue, bp);
 
 		/*
 		 *  Fill out the scsi command
@@ -250,7 +250,7 @@ sctarg_strategy(struct buf *bp, struct scsi_link *sc_link)
 	/*
 	 * Place it at the end of the queue of activities for this device.
 	 */
-	TAILQ_INSERT_TAIL( &sctarg->buf_queue, bp, b_act);
+	bufq_insert_tail(&sctarg->buf_queue, bp);
 
 	/*
 	 * Tell the device to get going on the transfer if it's

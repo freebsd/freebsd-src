@@ -15,7 +15,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.109 1997/09/10 12:31:40 joerg Exp $
+ *      $Id: sd.c,v 1.110 1997/09/13 16:12:15 joerg Exp $
  */
 
 #include "opt_bounce.h"
@@ -185,7 +185,7 @@ sdattach(struct scsi_link *sc_link)
 	if (sc_link->opennings > SDOUTSTANDING)
 		sc_link->opennings = SDOUTSTANDING;
 
-	TAILQ_INIT(&sd->buf_queue);
+	bufq_init(&sd->buf_queue);
 	/*
 	 * Use the subdriver to request information regarding
 	 * the drive. We cannot use interrupts yet, so the
@@ -490,9 +490,9 @@ sd_strategy(struct buf *bp, struct scsi_link *sc_link)
 	 * Place it in the queue of disk activities for this disk
 	 */
 #ifdef SDDISKSORT
-	tqdisksort(&sd->buf_queue, bp);
+	bufq_disksort(&sd->buf_queue, bp);
 #else
-	TAILQ_INSERT_TAIL(&sd->buf_queue, bp, b_act);
+	bufq_insert_tail(&sd->buf_queue, bp);
 #endif
 
 	/*
@@ -567,11 +567,11 @@ sdstart(u_int32_t unit, u_int32_t flags)
 		/*
 		 * See if there is a buf with work for us to do..
 		 */
-		bp = sd->buf_queue.tqh_first;
+		bp = bufq_first(&sd->buf_queue);
 		if (bp == NULL) {	/* yes, an assign */
 			return;
 		}
-		TAILQ_REMOVE(&sd->buf_queue, bp, b_act);
+		bufq_remove(&sd->buf_queue, bp);
 
 		/*
 		 *  If the device has become invalid, abort all the

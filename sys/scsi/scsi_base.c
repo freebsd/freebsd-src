@@ -8,7 +8,7 @@
  * file.
  *
  * Written by Julian Elischer (julian@dialix.oz.au)
- *      $Id: scsi_base.c,v 1.49 1997/07/25 23:25:20 jdp Exp $
+ *      $Id: scsi_base.c,v 1.50 1997/09/02 20:06:33 bde Exp $
  */
 
 #include "opt_bounce.h"
@@ -90,6 +90,7 @@ get_xs(sc_link, flags)
 			printf("cannot allocate scsi xs\n");
 			return (NULL);
 		}
+		callout_handle_init(&xs->timeout_ch);
 	}
 	SC_DEBUG(sc_link, SDEV_DB3, ("returning\n"));
 	xs->sc_link = sc_link;
