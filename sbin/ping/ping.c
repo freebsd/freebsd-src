@@ -67,22 +67,8 @@ static const char rcsid[] =
  */
 
 #include <sys/param.h>		/* NB: we rely on this for <sys/types.h> */
-#include <sys/sysctl.h>
-
-#include <ctype.h>
-#include <err.h>
-#include <errno.h>
-#include <math.h>
-#include <netdb.h>
-#include <signal.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sysexits.h>
-#include <termios.h>
-#include <unistd.h>
-
 #include <sys/socket.h>
+#include <sys/sysctl.h>
 #include <sys/time.h>
 #include <sys/uio.h>
 
@@ -96,6 +82,19 @@ static const char rcsid[] =
 #ifdef IPSEC
 #include <netinet6/ipsec.h>
 #endif /*IPSEC*/
+
+#include <ctype.h>
+#include <err.h>
+#include <errno.h>
+#include <math.h>
+#include <netdb.h>
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sysexits.h>
+#include <termios.h>
+#include <unistd.h>
 
 #define	INADDR_LEN	((int)sizeof(in_addr_t))
 #define	PHDR_LEN	((int)sizeof(struct timeval))
@@ -155,8 +154,8 @@ struct sockaddr_in whereto;	/* who to ping */
 int datalen = DEFDATALEN;
 int s;				/* socket file descriptor */
 u_char outpackhdr[IP_MAXPACKET], *outpack;
-char BSPACE = '\b';		/* characters written for flood */
 char BBELL = '\a';		/* characters written for MISSED and AUDIBLE */
+char BSPACE = '\b';		/* characters written for flood */
 char DOT = '.';
 char *hostname;
 char *shostname;
@@ -164,11 +163,11 @@ int ident;			/* process id to identify our packets */
 int uid;			/* cached uid for micro-optimization */
 
 /* counters */
+long nmissedmax;		/* max value of ntransmitted - nreceived - 1 */
 long npackets;			/* max packets to transmit */
 long nreceived;			/* # of packets we got back */
 long nrepeats;			/* number of duplicates */
 long ntransmitted;		/* sequence # for outbound packets = #sent */
-long nmissedmax;		/* max value of ntransmitted - nreceived - 1 */
 int interval = 1000;		/* interval between packets, ms */
 
 /* timing */
@@ -202,32 +201,32 @@ main(argc, argv)
 	int argc;
 	char *const *argv;
 {
+	struct sockaddr_in from, sin;
 	struct in_addr ifaddr;
+	struct timeval last, intvl;
 	struct iovec iov;
 	struct ip *ip;
 	struct msghdr msg;
 	struct sigaction si_sa;
-	struct sockaddr_in from, sin;
 	struct termios ts;
-	struct timeval last, intvl;
-	struct hostent *hp;
-	struct sockaddr_in *to;
-	double t;
 	size_t sz;
 	u_char *datap, packet[IP_MAXPACKET];
 	char *ep, *source, *target;
+	struct hostent *hp;
 #ifdef IPSEC_POLICY_IPSEC
 	char *policy_in, *policy_out;
 #endif
+	struct sockaddr_in *to;
+	double t;
 	u_long alarmtimeout, ultmp;
-	int ch, df, hold, i, mib[4], packlen, preload, sockerrno,
-	    almost_done = 0, tos, ttl;
+	int almost_done, ch, df, hold, i, mib[4], packlen, preload, sockerrno,
+	    tos, ttl;
 	char ctrl[CMSG_SPACE(sizeof(struct timeval))];
 	char hnamebuf[MAXHOSTNAMELEN], snamebuf[MAXHOSTNAMELEN];
 #ifdef IP_OPTIONS
 	char rspace[MAX_IPOPTLEN];	/* record route space */
 #endif
-	unsigned char mttl, loop;
+	unsigned char loop, mttl;
 
 	source = NULL;
 #ifdef IPSEC_POLICY_IPSEC
@@ -338,7 +337,7 @@ main(argc, argv)
 		case 'p':		/* fill buffer with user pattern */
 			options |= F_PINGFILLED;
 			fill((char *)datap, optarg);
-				break;
+			break;
 		case 'Q':
 			options |= F_QUIET2;
 			break;
@@ -612,11 +611,9 @@ main(argc, argv)
 	hold = IP_MAXPACKET + 128;
 	(void)setsockopt(s, SOL_SOCKET, SO_RCVBUF, (char *)&hold,
 	    sizeof(hold));
-
-	if (!uid) {
+	if (uid == 0)
 		(void)setsockopt(s, SOL_SOCKET, SO_SNDBUF, (char *)&hold,
 		    sizeof(hold));
-	}
 
 	if (to->sin_family == AF_INET) {
 		(void)printf("PING %s (%s)", hostname,
@@ -685,11 +682,11 @@ main(argc, argv)
 		intvl.tv_usec = interval % 1000 * 1000;
 	}
 
+	almost_done = 0;
 	while (!finish_up) {
-		int cc;
-		int n;
-		struct timeval timeout, now;
+		struct timeval now, timeout;
 		fd_set rfds;
+		int cc, n;
 
 		check_status();
 		if (s >= FD_SETSIZE)
@@ -760,7 +757,6 @@ main(argc, argv)
 					intvl.tv_sec = MAXWAIT;
 			}
 			(void)gettimeofday(&last, NULL);
-
 			if (ntransmitted - nreceived - 1 > nmissedmax) {
 				nmissedmax = ntransmitted - nreceived - 1;
 				if (options & F_MISSED)
@@ -815,7 +811,7 @@ pinger(void)
 
 	if (timing)
 		(void)gettimeofday((struct timeval *)&outpack[MINICMPLEN],
-		    (struct timezone *)NULL);
+		    NULL);
 
 	cc = MINICMPLEN + datalen;
 
@@ -1050,9 +1046,7 @@ pr_pack(buf, cc, from, tv)
 			}
 			old_rrlen = i;
 			bcopy((char *)cp, old_rr, i);
-
 			(void)printf("\nRR: ");
-
 			if (i >= INADDR_LEN &&
 			    i <= hlen - (int)sizeof(struct ip)) {
 				for (;;) {
@@ -1183,7 +1177,6 @@ check_status()
 static void
 finish()
 {
-
 	struct termios ts;
 
 	(void)signal(SIGINT, SIG_IGN);
