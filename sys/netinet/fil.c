@@ -87,6 +87,8 @@ static const char rcsid[] = "@(#)$FreeBSD$";
 #endif
 #include "netinet/ipl.h"
 
+#include <machine/in_cksum.h>
+
 #ifndef	_KERNEL
 # include "ipf.h"
 # include "ipt.h"
