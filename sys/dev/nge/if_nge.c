@@ -1499,9 +1499,9 @@ static void nge_tick(xsc)
 				    sc->nge_unit);
 			if (ifp->if_snd.ifq_head != NULL)
 				nge_start(ifp);
-		} else
-			sc->nge_stat_ch = timeout(nge_tick, sc, hz);
+		}
 	}
+	sc->nge_stat_ch = timeout(nge_tick, sc, hz);
 
 
 	splx(s);
@@ -1558,10 +1558,13 @@ static void nge_intr(arg)
 			nge_init(sc);
 		}
 
+#ifdef notyet
+		/* mii_tick should only be called once per second */
 		if (status & NGE_ISR_PHY_INTR) {
 			sc->nge_link = 0;
 			nge_tick(sc);
 		}
+#endif
 	}
 
 	/* Re-enable interrupts. */
@@ -1719,6 +1722,7 @@ static void nge_init(xsc)
 	 * Cancel pending I/O and free all RX/TX buffers.
 	 */
 	nge_stop(sc);
+	sc->nge_stat_ch = timeout(nge_tick, sc, hz);
 
 	mii = device_get_softc(sc->nge_miibus);
 
