@@ -20,6 +20,8 @@ CFLAGS+=-D_PTHREADS_INVARIANTS
 AINC=	-I${.CURDIR}/../libc/${MACHINE_ARCH} -I${.CURDIR}/thread
 PRECIOUSLIB=	yes
 
+WARNS?=	2
+
 .include "${.CURDIR}/thread/Makefile.inc"
 .include "${.CURDIR}/sys/Makefile.inc"
 .include "${.CURDIR}/arch/${MACHINE_ARCH}/Makefile.inc"

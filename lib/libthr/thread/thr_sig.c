@@ -113,7 +113,7 @@ _pthread_kill(pthread_t pthread, int sig)
  * User thread signal handler wrapper.
  */
 void
-_thread_sig_wrapper(int sig, siginfo_t *info, ucontext_t *context)
+_thread_sig_wrapper(int sig, siginfo_t *info, void *context)
 {
 	struct pthread_state_data psd;
 	__siginfohandler_t *handler;
@@ -149,7 +149,7 @@ _thread_sig_wrapper(int sig, siginfo_t *info, ucontext_t *context)
 		GIANT_UNLOCK(curthread);
 		handler = (__siginfohandler_t *)
 			_thread_sigact[sig - 1].sa_handler;
-		handler(sig, info, context);
+		handler(sig, info, (ucontext_t *)context);
 		GIANT_LOCK(curthread);
 	}
 

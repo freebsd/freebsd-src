@@ -90,6 +90,16 @@
 
 #include "thr_private.h"
 
+extern int __creat(const char *, mode_t);
+extern int __sleep(unsigned int);
+extern int __sys_nanosleep(const struct timespec *, struct timespec *);
+extern int __sys_select(int, fd_set *, fd_set *, fd_set *, struct timeval *);
+extern int __system(const char *);
+extern int __tcdrain(int);
+extern pid_t __wait(int *);
+extern pid_t _wait4(pid_t, int *, int, struct rusage *);
+extern pid_t __waitpid(pid_t, int *, int);
+
 __weak_reference(_aio_suspend, aio_suspend);
 
 int
