@@ -393,6 +393,7 @@ product ZONET ZEN		0x0100	Zonet Zen 10/10
 vendor AMBICOM			-1	AmbiCom Inc
 vendor ACCTON			-1 	ACCTON
 vendor ADDTRON			-1	Addtron
+vendor ARGOSY			-1	ARGOSY
 vendor AMD			-1	AMD
 vendor BILLIONTON		-1	Billionton Systems Inc.
 vendor CNET			-1	CNet
@@ -420,6 +421,7 @@ vendor ZOOM			-1 	ZOOM
 product ACCTON EN2212		{ "ACCTON", "EN2212", NULL, NULL } Accton EN2212
 product ADDTRON AWP100		{ "Addtron", "AWP-100&spWireless&spPCMCIA", "Version&sp01.02", NULL }
 product AMBICOM AMB8002T	{ "AmbiCom&spInc", "AMB8002T", NULL, NULL } AmbiCom AMB8002T
+product ARGOSY SP320		{ "PCMCIA", "RS-COM 2P", NULL, NULL } ARGOSY SP320 Dual port serial PCMCIA
 product AMD AM79C930		{ "AMD", "Am79C930", NULL, NULL } AMD Am79C930
 product BILLIONTON LNT10TN	{ "PCMCIA", "LNT-10TN", NULL, NULL } Billionton Systems Inc. LNT-10TN NE2000 Compatible Card
 product CNET NE2000		{ "CNet", "CN40BC&spEthernet", "D", "NE2000" } CNet CN40BC NE2000 Compatible
