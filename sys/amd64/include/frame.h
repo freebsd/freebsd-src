@@ -136,6 +136,4 @@ struct clockframe {
 	register_t	cf_ss;
 };
 
-int	kdb_trap(int, int, struct trapframe *);
-
 #endif /* _MACHINE_FRAME_H_ */
