@@ -149,24 +149,24 @@ typedef struct udbp_softc *udbp_p;
 
 
 
-static ng_constructor_t	ng_udbp_constructor;
-static ng_rcvmsg_t	ng_udbp_rcvmsg;
-static ng_shutdown_t	ng_udbp_rmnode;
-static ng_newhook_t	ng_udbp_newhook;
-static ng_connect_t	ng_udbp_connect;
-static ng_rcvdata_t	ng_udbp_rcvdata;
-static ng_disconnect_t	ng_udbp_disconnect;
+Static ng_constructor_t	ng_udbp_constructor;
+Static ng_rcvmsg_t	ng_udbp_rcvmsg;
+Static ng_shutdown_t	ng_udbp_rmnode;
+Static ng_newhook_t	ng_udbp_newhook;
+Static ng_connect_t	ng_udbp_connect;
+Static ng_rcvdata_t	ng_udbp_rcvdata;
+Static ng_disconnect_t	ng_udbp_disconnect;
 
 /* Parse type for struct ngudbpstat */
-static const struct ng_parse_struct_info
+Static const struct ng_parse_struct_info
 	ng_udbp_stat_type_info = NG_UDBP_STATS_TYPE_INFO;
-static const struct ng_parse_type ng_udbp_stat_type = {
+Static const struct ng_parse_type ng_udbp_stat_type = {
 	&ng_parse_struct_type,
 	&ng_udbp_stat_type_info
 };
 
 /* List of commands and how to convert arguments to/from ASCII */
-static const struct ng_cmdlist ng_udbp_cmdlist[] = {
+Static const struct ng_cmdlist ng_udbp_cmdlist[] = {
 	{
 	  NGM_UDBP_COOKIE,
 	  NGM_UDBP_GET_STATUS,
@@ -185,7 +185,7 @@ static const struct ng_cmdlist ng_udbp_cmdlist[] = {
 };
 
 /* Netgraph node type descriptor */
-static struct ng_type ng_udbp_typestruct = {
+Static struct ng_type ng_udbp_typestruct = {
 	NG_VERSION,
 	NG_UDBP_NODE_TYPE,
 	NULL,
@@ -201,13 +201,13 @@ static struct ng_type ng_udbp_typestruct = {
 	ng_udbp_cmdlist
 };
 
-static int udbp_setup_in_transfer	__P((udbp_p sc));
-static void udbp_in_transfer_cb		__P((usbd_xfer_handle xfer,
+Static int udbp_setup_in_transfer	__P((udbp_p sc));
+Static void udbp_in_transfer_cb		__P((usbd_xfer_handle xfer,
 					usbd_private_handle priv,
 					usbd_status err));
 
-static int udbp_setup_out_transfer	__P((udbp_p sc));
-static void udbp_out_transfer_cb	__P((usbd_xfer_handle xfer,
+Static int udbp_setup_out_transfer	__P((udbp_p sc));
+Static void udbp_out_transfer_cb	__P((usbd_xfer_handle xfer,
 					usbd_private_handle priv,
 					usbd_status err));
 
@@ -437,7 +437,7 @@ USB_DETACH(udbp)
 }
 
 
-static int
+Static int
 udbp_setup_in_transfer(udbp_p sc)
 {
 	void *priv = sc;	/* XXX this should probably be some pointer to
@@ -472,7 +472,7 @@ udbp_setup_in_transfer(udbp_p sc)
 	return (USBD_NORMAL_COMPLETION);
 }
 
-static void
+Static void
 udbp_in_transfer_cb(usbd_xfer_handle xfer, usbd_private_handle priv,
 			usbd_status err)
 {
@@ -510,7 +510,7 @@ udbp_in_transfer_cb(usbd_xfer_handle xfer, usbd_private_handle priv,
 }
 
 
-static int
+Static int
 udbp_setup_out_transfer(udbp_p sc)
 {
 	void *priv = sc;	/* XXX this should probably be some pointer to
@@ -572,7 +572,7 @@ udbp_setup_out_transfer(udbp_p sc)
 	return (USBD_NORMAL_COMPLETION);
 }
 
-static void
+Static void
 udbp_out_transfer_cb(usbd_xfer_handle xfer, usbd_private_handle priv,
 			usbd_status err)
 {
@@ -607,7 +607,7 @@ DRIVER_MODULE(udbp, uhub, udbp_driver, udbp_devclass, usbd_driver_load, 0);
  * routine and the constructor will return EINVAL as you should not be able
  * to create nodes that depend on hardware (unless you can add the hardware :)
  */
-static int
+Static int
 ng_udbp_constructor(node_p *nodep)
 {
 	return (EINVAL);
@@ -624,7 +624,7 @@ ng_udbp_constructor(node_p *nodep)
  * pointer of each hook points to the appropriate UDBP_hookinfo struct
  * so that the source of an input packet is easily identified.
  */
-static int
+Static int
 ng_udbp_newhook(node_p node, hook_p hook, const char *name)
 {
 	const udbp_p sc = node->private;
@@ -657,7 +657,7 @@ ng_udbp_newhook(node_p node, hook_p hook, const char *name)
  * the cookie in the header didn't match what we consider to be current
  * (so that old userland programs could continue to work).
  */
-static int
+Static int
 ng_udbp_rcvmsg(node_p node,
 	   struct ng_mesg *msg, const char *retaddr, struct ng_mesg **rptr,
 	   hook_p lasthook)
@@ -715,7 +715,7 @@ ng_udbp_rcvmsg(node_p node,
 /*
  * Accept data from the hook and queue it for output.
  */
-static int
+Static int
 ng_udbp_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
 		struct mbuf **ret_m, meta_p *ret_meta)
 {
@@ -758,7 +758,7 @@ bad:	/*
  * We are a persistant device, we refuse to go away, and
  * only remove our links and reset ourself.
  */
-static int
+Static int
 ng_udbp_rmnode(node_p node)
 {
 	const udbp_p sc = node->private;
@@ -789,7 +789,7 @@ ng_udbp_rmnode(node_p node)
  * This is called once we've already connected a new hook to the other node.
  * It gives us a chance to balk at the last minute.
  */
-static int
+Static int
 ng_udbp_connect(hook_p hook)
 {
 	/* be really amiable and just say "YUP that's OK by me! " */
@@ -801,7 +801,7 @@ ng_udbp_connect(hook_p hook)
  *
  * For this type, removal of the last link destroys the node
  */
-static int
+Static int
 ng_udbp_disconnect(hook_p hook)
 {
 	const udbp_p sc = hook->node->private;
