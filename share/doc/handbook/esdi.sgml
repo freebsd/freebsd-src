@@ -1,4 +1,4 @@
-<!-- $Id: esdi.sgml,v 1.4 1995/12/04 17:58:38 jfieber Exp $ -->
+<!-- $Id: esdi.sgml,v 1.5 1996/01/31 14:26:05 mpp Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -59,7 +59,7 @@
 
 	The second cable is a a 20 pin flat cable edge connector that
 	carries the data to and from the drive. This cable is radially
-	connected, so each drive has it's own direct connection to the
+	connected, so each drive has its own direct connection to the
 	controller.
 
 	To the best of my knowledge PC ESDI controllers are limited
@@ -76,7 +76,7 @@
 
 	On PC type controllers the first drive is set to address 0, 
 	the second disk to address 1. <it>Always make sure</it> you
-	set each disk to an unique address! So, on a PC with it's
+	set each disk to an unique address! So, on a PC with its
 	two drives/controller maximum the first drive is drive 0, the
 	second is drive 1.
 
@@ -90,7 +90,7 @@
 
 	So, one and <it>only</it> one drive, the one at 
 	the farthest end of the command
-	cable has it's terminator installed/enabled. The controller
+	cable has its terminator installed/enabled. The controller
 	automatically terminates the other end of the cable. 
 	Please note that this implies that the controller must be 
 	at one end of the cable and <it>not</it> in the middle.
@@ -219,8 +219,8 @@
 	The result is that the number of cylinders is reduced to
 	something below 1024 and is therefore usable by the system
 	without problems.
-	It is noteworthy to know that FreeBSD after it's kernel has
-	started no longer uses the BIOS. More on this later.
+	It is noteworthy to know that FreeBSD does not use the
+	BIOS after its kernel has started.  More on this later.
 
 	A second reason for translations is the fact that most
 	older system BIOSes could only handle drives with 17 sectors

@@ -1,4 +1,4 @@
-<!-- $Id: scsi.sgml,v 1.10 1995/12/04 17:58:50 jfieber Exp $ -->
+<!-- $Id: scsi.sgml,v 1.11 1996/01/31 14:26:17 mpp Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -196,7 +196,7 @@
             A differential SCSI bus has a maximum length of 25
             meters. Quite a difference from the 3 meters for a single-ended
             fast-SCSI bus. The idea behind differential signals is that
-            each bus signal has it's own return wire. So, each signal is
+            each bus signal has its own return wire. So, each signal is
             carried on a (preferably twisted) pair of wires. The voltage
             difference between these two wires determines whether the
             signal is asserted or de-asserted. To a certain extent the
@@ -284,7 +284,7 @@
             operate properly.  On the SCSI bus, a line is dedicated to this
             purpose.  So, simple huh?
 
-            Not so. Each device can provide it's own terminator power to
+            Not so. Each device can provide its own terminator power to
             the terminator sockets it has on-device. But if you have
             external terminators, or when the device supplying the
             terminator power to the SCSI bus line is switched off you are
@@ -359,7 +359,7 @@
             You might notice that the terminator issue discussed earlier
             becomes rather hairy if your bus is not linear..
 
-            The electrical characteristics, it's noise margins and
+            The electrical characteristics, its noise margins and
             ultimately the reliability of it all are tightly related to
             linear bus rule.
 
@@ -374,7 +374,7 @@
 
           When you want to use a SCSI disk on your PC as boot disk, you
           must aware of some quirks related to PC BIOSes. The PC BIOS in
-          it's first incarnation used a low level physical interface to the
+          its first incarnation used a low level physical interface to the
           hard disk. So, you had to tell the BIOS (using a setup tool or a
           BIOS built-in setup) how your disk physically looked like. This
           involved stating number of heads, number of cylinders, number of
@@ -388,7 +388,7 @@
 	  FreeBSD kernel during boot.
 
           The SCSI host adapter or SCSI controller you have put in your
-          AT/EISA/PCI/whatever bus to connect your disk therefore has it's
+          AT/EISA/PCI/whatever bus to connect your disk therefore has its
           own on-board BIOS. During system startup, the SCSI BIOS takes over
           the hard disk interface routines from the system BIOS. To fool the
           system BIOS, the system setup is normally set to No hard disk
@@ -464,7 +464,7 @@
           controller card a device driver is written. This driver
           knows all the intimate details about the hardware it
           controls. The driver has a interface to the upper layers of the
-          SCSI subsystem through which it receives it's commands and
+          SCSI subsystem through which it receives its commands and
           reports back any status.
 
           On top of the card drivers there are a number of more generic
@@ -557,7 +557,7 @@ device cd0 at scbus?			[the first ever CDROM found, no wiring]
 	  is reserved for that device, even if it is turned off at boot
 	  time. This allows the device to be turned on and brought
 	  on-line at a later time, without rebooting. Notice that a device's
-	  unit number has <em>no</em> relationship with it's target ID on 
+	  unit number has <em>no</em> relationship with its target ID on 
 	  the SCSI bus.
 
 	  Below is another example of a kernel config file as used by
