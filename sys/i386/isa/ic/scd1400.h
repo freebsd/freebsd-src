@@ -35,7 +35,6 @@
  */
 
 /*****************************************************************************/
-
 #ifndef	_CD1400_H
 #define	_CD1400_H
 /*****************************************************************************/
@@ -44,8 +43,6 @@
  *	Define the number of async ports per cd1400 uart chip.
  */
 #define	CD1400_PORTS		4
-
-#define	CD1400_CLKHZ		25000000
 
 /*
  *	Define the cd1400 uarts internal FIFO sizes.
@@ -179,10 +176,15 @@
 #define	COR3_SCD12	0x10
 
 /*
- *	Define values used by COR4.
+ *	Define the bit values of COR4.
  */
 #define	COR4_BRKINT	0x08
 #define	COR4_IGNBRK	0x18
+
+/*
+ *	Define the bit values of COR5.
+ */
+#define	COR5_ISTRIP	0x80
 
 /*****************************************************************************/
 
