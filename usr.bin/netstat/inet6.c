@@ -139,7 +139,7 @@ static	const char *ip6nh[] = {
 	"no next header",	
 	"destination option",
 	"#61",
-	"#62",
+	"mobility",
 	"#63",
 	"#64",
 	"#65",
@@ -970,7 +970,8 @@ pim6_stats(u_long off __unused, const char *name, int af1 __unused)
 
 	if (off == 0)
 		return;
-	kread(off, (char *)&pim6stat, sizeof(pim6stat));
+	if (kread(off, (char *)&pim6stat, sizeof(pim6stat)))
+		return;
 	printf("%s:\n", name);
 
 #define	p(f, m) if (pim6stat.f || sflag <= 1) \
