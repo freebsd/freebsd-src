@@ -340,7 +340,7 @@ trap(a0, a1, a2, entry, framep)
 		mtx_lock_spin(&sched_lock);
 		sticks = p->p_sticks;
 		mtx_unlock_spin(&sched_lock);
-		p->p_md.md_tf = framep;
+		p->p_frame = framep;
 	} else {
 		sticks = 0;		/* XXX bogus -Wuninitialized warning */
 	}
@@ -445,7 +445,7 @@ trap(a0, a1, a2, entry, framep)
 			if (p->p_md.md_flags & (MDP_STEP1|MDP_STEP2)) {
 				mtx_lock(&Giant);
 				ptrace_clear_single_step(p);
-				p->p_md.md_tf->tf_regs[FRAME_PC] -= 4;
+				p->p_frame->tf_regs[FRAME_PC] -= 4;
 				mtx_unlock(&Giant);
 			}
 			ucode = a0;		/* trap type */
@@ -743,7 +743,7 @@ syscall(code, framep)
 #endif
 
 	cnt.v_syscall++;
-	p->p_md.md_tf = framep;
+	p->p_frame = framep;
 	opc = framep->tf_regs[FRAME_PC] - 4;
 	mtx_lock_spin(&sched_lock);
 	sticks = p->p_sticks;
@@ -904,7 +904,7 @@ ast(framep)
 	}
 
 	sticks = p->p_sticks;
-	p->p_md.md_tf = framep;
+	p->p_frame = framep;
 
 	astoff(p);
 	cnt.v_soft++;
@@ -957,7 +957,7 @@ const static int reg_to_framereg[32] = {
 
 #define	irp(p, reg)							\
 	((reg_to_framereg[(reg)] == -1) ? NULL :			\
-	    &(p)->p_md.md_tf->tf_regs[reg_to_framereg[(reg)]])
+	    &(p)->p_frame->tf_regs[reg_to_framereg[(reg)]])
 
 #define	frp(p, reg)							\
 	(&(p)->p_addr->u_pcb.pcb_fp.fpr_regs[(reg)])
@@ -1187,8 +1187,8 @@ unaligned_fixup(va, opcode, reg, p)
 	if (doprint) {
 		uprintf(
 		"pid %d (%s): unaligned access: va=0x%lx pc=0x%lx ra=0x%lx op=",
-		    p->p_pid, p->p_comm, va, p->p_md.md_tf->tf_regs[FRAME_PC],
-		    p->p_md.md_tf->tf_regs[FRAME_RA]);
+		    p->p_pid, p->p_comm, va, p->p_frame->tf_regs[FRAME_PC],
+		    p->p_frame->tf_regs[FRAME_RA]);
 		uprintf(type,opcode);
 		uprintf("\n");
 	}
@@ -1305,9 +1305,9 @@ handle_opdec(p, ucodep)
 	 * This keeps us from having to check for it in lots of places
 	 * later.
 	 */
-	p->p_md.md_tf->tf_regs[FRAME_SP] = alpha_pal_rdusp();
+	p->p_frame->tf_regs[FRAME_SP] = alpha_pal_rdusp();
 
-	inst_pc = memaddr = p->p_md.md_tf->tf_regs[FRAME_PC] - 4;
+	inst_pc = memaddr = p->p_frame->tf_regs[FRAME_PC] - 4;
 	if (copyin((caddr_t)inst_pc, &inst, sizeof (inst)) != 0) {
 		/*
 		 * really, this should never happen, but in case it
@@ -1424,7 +1424,7 @@ handle_opdec(p, ucodep)
 	 * nothing will have been successfully modified so we don't
 	 * have to write it out.
 	 */
-	alpha_pal_wrusp(p->p_md.md_tf->tf_regs[FRAME_SP]);
+	alpha_pal_wrusp(p->p_frame->tf_regs[FRAME_SP]);
 
 	return (0);
 
@@ -1434,7 +1434,7 @@ sigill:
 
 sigsegv:
 	sig = SIGSEGV;
-	p->p_md.md_tf->tf_regs[FRAME_PC] = inst_pc;	/* re-run instr. */
+	p->p_frame->tf_regs[FRAME_PC] = inst_pc;	/* re-run instr. */
 unaligned_fixup_sig:
 	*ucodep = memaddr;				/* faulting address */
 	return (sig);

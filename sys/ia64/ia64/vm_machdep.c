@@ -131,7 +131,7 @@ cpu_fork(p1, p2, flags)
 	if ((flags & RFPROC) == 0)
 		return;
 
-	p2->p_md.md_tf = p1->p_md.md_tf;
+	p2->p_frame = p1->p_frame;
 	p2->p_md.md_flags = p1->p_md.md_flags & (MDP_FPUSED | MDP_UAC_MASK);
 
 	/*
@@ -184,10 +184,9 @@ cpu_fork(p1, p2, flags)
 		 * copy trapframe from parent so return to user mode
 		 * will be to right address, with correct registers.
 		 */
-		p2tf = p2->p_md.md_tf = (struct trapframe *)
+		p2tf = p2->p_frame = (struct trapframe *)
 		    ((char *)p2->p_addr + USPACE - sizeof(struct trapframe));
-		bcopy(p1->p_md.md_tf, p2->p_md.md_tf,
-		    sizeof(struct trapframe));
+		bcopy(p1->p_frame, p2->p_frame, sizeof(struct trapframe));
 
 		/*
 		 * Set up return-value registers as fork() libc stub expects.
@@ -217,8 +216,7 @@ cpu_fork(p1, p2, flags)
 		 * Copy enough of p1's backing store to include all
 		 * the user's stacked regs.
 		 */
-		bcopy(p1bs, p2bs, p1->p_md.md_tf->tf_ndirty);
-
+		bcopy(p1bs, p2bs, p1->p_frame->tf_ndirty);
 		/*
 		 * To calculate the ar.rnat for p2, we need to decide
 		 * if p1's ar.bspstore has advanced past the place
@@ -227,7 +225,7 @@ cpu_fork(p1, p2, flags)
 		 * that one from memory, otherwise we take p1's
 		 * current ar.rnat.
 		 */
-		rnatloc = (u_int64_t)p1bs + p1->p_md.md_tf->tf_ndirty;
+		rnatloc = (u_int64_t)p1bs + p1->p_frame->tf_ndirty;
 		rnatloc |= 0x1f8;
 		if (bspstore > rnatloc)
 			rnat = *(u_int64_t *) rnatloc;
@@ -246,7 +244,7 @@ cpu_fork(p1, p2, flags)
 		 * straight into exception_restore.
 		 */
 		up->u_pcb.pcb_bspstore =
-			(u_int64_t)p2bs + p1->p_md.md_tf->tf_ndirty;
+			(u_int64_t)p2bs + p1->p_frame->tf_ndirty;
 		up->u_pcb.pcb_rnat = rnat;
 		up->u_pcb.pcb_pfs = 0;
 

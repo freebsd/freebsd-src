@@ -325,7 +325,7 @@ static int fp_emulate(union alpha_instruction ins, struct proc *p)
  */
 int fp_software_completion(u_int64_t regmask, struct proc *p)
 {
-	struct trapframe *frame = p->p_md.md_tf;
+	struct trapframe *frame = p->p_frame;
 	u_int64_t pc = frame->tf_regs[FRAME_PC];
 	int error;
 

@@ -143,7 +143,7 @@ ibcs2_wait(p, uap)
 {
 	int error, status;
 	struct wait_args w4;
-        struct trapframe *tf = p->p_md.md_regs;
+        struct trapframe *tf = p->p_frame;
 	
 	SCARG(&w4, rusage) = NULL;
         if ((tf->tf_eflags & (PSL_Z|PSL_PF|PSL_N|PSL_V))

@@ -588,7 +588,7 @@ osf1_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	PROC_LOCK(p);
 	psp = p->p_sigacts;
 
-	frame = p->p_md.md_tf;
+	frame = p->p_frame;
 	oonstack = sigonstack(alpha_pal_rdusp());
 	fsize = sizeof ksi;
 	rndfsize = ((fsize + 15) / 16) * 16;
@@ -724,10 +724,10 @@ osf1_sigreturn(struct proc *p,
 	PROC_UNLOCK(p);
 
 	set_regs(p, (struct reg *)ksc.sc_regs);
-	p->p_md.md_tf->tf_regs[FRAME_PC] = ksc.sc_pc;
-	p->p_md.md_tf->tf_regs[FRAME_PS] =
+	p->p_frame->tf_regs[FRAME_PC] = ksc.sc_pc;
+	p->p_frame->tf_regs[FRAME_PS] =
 	    (ksc.sc_ps | ALPHA_PSL_USERSET) & ~ALPHA_PSL_USERCLR;
-	p->p_md.md_tf->tf_regs[FRAME_FLAGS] = 0; /* full restore */
+	p->p_frame->tf_regs[FRAME_FLAGS] = 0; /* full restore */
 
 	alpha_pal_wrusp(ksc.sc_regs[R_SP]);
 

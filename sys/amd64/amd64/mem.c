@@ -102,7 +102,7 @@ mmclose(dev_t dev, int flags, int fmt, struct proc *p)
 {
 	switch (minor(dev)) {
 	case 14:
-		p->p_md.md_regs->tf_eflags &= ~PSL_IOPL;
+		p->p_frame->tf_eflags &= ~PSL_IOPL;
 	}
 	return (0);
 }
@@ -124,7 +124,7 @@ mmopen(dev_t dev, int flags, int fmt, struct proc *p)
 			return (error);
 		if (securelevel > 0)
 			return (EPERM);
-		p->p_md.md_regs->tf_eflags |= PSL_IOPL;
+		p->p_frame->tf_eflags |= PSL_IOPL;
 		break;
 	}
 	return (0);

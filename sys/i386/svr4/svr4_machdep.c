@@ -96,7 +96,7 @@ svr4_getcontext(p, uc, mask, oonstack)
 	sigset_t *mask;
 	int oonstack;
 {
-	struct trapframe *tf = p->p_md.md_regs;
+	struct trapframe *tf = p->p_frame;
 	svr4_greg_t *r = uc->uc_mcontext.greg;
 	struct svr4_sigaltstack *s = &uc->uc_stack;
 #if defined(DONE_MORE_SIGALTSTACK_WORK)
@@ -219,7 +219,7 @@ svr4_setcontext(p, uc)
 
 	DPRINTF(("svr4_setcontext(%d)\n", p->p_pid));
 
-	tf = p->p_md.md_regs;
+	tf = p->p_frame;
 
 	/*
 	 * Restore register context.
@@ -421,7 +421,7 @@ svr4_sendsig(catcher, sig, mask, code)
 	PROC_LOCK(p);
 	psp = p->p_sigacts;
 
-	tf = p->p_md.md_regs;
+	tf = p->p_frame;
 	oonstack = sigonstack(tf->tf_esp);
 
 	/*

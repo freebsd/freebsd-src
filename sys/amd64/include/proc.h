@@ -43,7 +43,6 @@
  * Machine-dependent part of the proc structure for i386.
  */
 struct mdproc {
-	struct trapframe *md_regs;	/* registers on current frame */
 };
 
 #endif /* !_MACHINE_PROC_H_ */
