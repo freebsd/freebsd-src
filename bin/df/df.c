@@ -51,24 +51,20 @@ static const char rcsid[] =
 #endif
 #endif /* not lint */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <sys/mount.h>
 #include <sys/sysctl.h>
 #include <ufs/ufs/ufsmount.h>
-#include <ufs/ffs/fs.h>
-
 #include <err.h>
-#include <errno.h>
-#include <fcntl.h>
-#include <fstab.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sysexits.h>
 #include <unistd.h>
+
+#include "extern.h"
 
 #define UNITS_SI 1
 #define UNITS_2 2
@@ -109,28 +105,25 @@ typedef enum { NONE, KILO, MEGA, GIGA, TERA, PETA, UNIT_MAX } unit_t;
 
 unit_t unitp [] = { NONE, KILO, MEGA, GIGA, TERA, PETA };
 
-int	  bread(off_t, void *, int);
-int	  checkvfsname(const char *, char **);
-char	 *getmntpt(char *);
-int	  longwidth(long);
-char	 *makenetvfslist(void);
-char	**makevfslist(char *);
-void	  prthuman(struct statfs *, long);
-void	  prthumanval(double);
-void	  prtstat(struct statfs *, struct maxwidths *);
-long	  regetmntinfo(struct statfs **, long, char **);
-int	  ufs_df(char *, struct maxwidths *);
-unit_t	  unit_adjust(double *);
-void	  update_maxwidths(struct maxwidths *, struct statfs *);
-void	  usage(void);
+static char	 *getmntpt(char *);
+static int	  longwidth(long);
+static char	 *makenetvfslist(void);
+static void	  prthuman(struct statfs *, long);
+static void	  prthumanval(double);
+static void	  prtstat(struct statfs *, struct maxwidths *);
+static long	  regetmntinfo(struct statfs **, long, const char **);
+static unit_t	  unit_adjust(double *);
+static void	  update_maxwidths(struct maxwidths *, struct statfs *);
+static void	  usage(void);
 
-int	aflag = 0, hflag, iflag, nflag;
-struct	ufs_args mdev;
-
-static __inline int imax(int a, int b)
+static __inline int
+imax(int a, int b)
 {
-	return (a > b ? a : b);
+	return (MAX(a, b));
 }
+
+static int	aflag = 0, hflag, iflag, nflag;
+static struct	ufs_args mdev;
 
 int
 main(int argc, char *argv[])
@@ -139,7 +132,8 @@ main(int argc, char *argv[])
 	struct statfs statfsbuf, *mntbuf;
 	struct maxwidths maxwidths;
 	const char *fstype;
-	char *mntpath, *mntpt, **vfslist;
+	char *mntpath, *mntpt;
+	const char **vfslist;
 	long mntsize;
 	int ch, i, rv;
 
@@ -246,7 +240,8 @@ main(int argc, char *argv[])
 				}
 				if (mount(fstype, mntpt, MNT_RDONLY,
 				    &mdev) != 0) {
-					rv = ufs_df(*argv, &maxwidths) || rv;
+					warn("%s", *argv);
+					rv = 1;
 					(void)rmdir(mntpt);
 					free(mntpath);
 					continue;
@@ -282,7 +277,7 @@ main(int argc, char *argv[])
 	return (rv);
 }
 
-char *
+static char *
 getmntpt(char *name)
 {
 	long mntsize, i;
@@ -301,8 +296,8 @@ getmntpt(char *name)
  * filesystem types not in vfslist and possibly re-stating to get
  * current (not cached) info.  Returns the new count of valid statfs bufs.
  */
-long
-regetmntinfo(struct statfs **mntbufp, long mntsize, char **vfslist)
+static long
+regetmntinfo(struct statfs **mntbufp, long mntsize, const char **vfslist)
 {
 	int i, j;
 	struct statfs *mntbuf;
@@ -329,7 +324,7 @@ regetmntinfo(struct statfs **mntbufp, long mntsize, char **vfslist)
  * especially on huge disks.
  *
  */
-unit_t
+static unit_t
 unit_adjust(double *val)
 {
 	double abval;
@@ -350,7 +345,7 @@ unit_adjust(double *val)
 	return (unit);
 }
 
-void
+static void
 prthuman(struct statfs *sfsp, long used)
 {
 
@@ -359,7 +354,7 @@ prthuman(struct statfs *sfsp, long used)
 	prthumanval((double)sfsp->f_bavail * (double)sfsp->f_bsize);
 }
 
-void
+static void
 prthumanval(double bytes)
 {
 
@@ -385,7 +380,7 @@ prthumanval(double bytes)
 /*
  * Print out status about a filesystem.
  */
-void
+static void
 prtstat(struct statfs *sfsp, struct maxwidths *mwp)
 {
 	static long blocksize;
@@ -445,7 +440,7 @@ prtstat(struct statfs *sfsp, struct maxwidths *mwp)
  * Update the maximum field-width information in `mwp' based on
  * the filesystem specified by `sfsp'.
  */
-void
+static void
 update_maxwidths(struct maxwidths *mwp, struct statfs *sfsp)
 {
 	static long blocksize;
@@ -467,7 +462,7 @@ update_maxwidths(struct maxwidths *mwp, struct statfs *sfsp)
 }
 
 /* Return the width in characters of the specified long. */
-int
+static int
 longwidth(long val)
 {
 	int len;
@@ -486,78 +481,7 @@ longwidth(long val)
 	return (len);
 }
 
-/*
- * This code constitutes the pre-system call Berkeley df code for extracting
- * information from filesystem superblocks.
- */
-
-union {
-	struct fs iu_fs;
-	char dummy[SBSIZE];
-} sb;
-#define sblock sb.iu_fs
-
-int	rfd;
-
-int
-ufs_df(char *file, struct maxwidths *mwp)
-{
-	struct statfs statfsbuf;
-	struct statfs *sfsp;
-	const char *mntpt;
-	static int synced;
-
-	if (synced++ == 0)
-		sync();
-
-	if ((rfd = open(file, O_RDONLY)) < 0) {
-		warn("%s", file);
-		return (1);
-	}
-	if (bread((off_t)SBOFF, &sblock, SBSIZE) == 0) {
-		(void)close(rfd);
-		return (1);
-	}
-	sfsp = &statfsbuf;
-	sfsp->f_type = 1;
-	strcpy(sfsp->f_fstypename, "ufs");
-	sfsp->f_flags = 0;
-	sfsp->f_bsize = sblock.fs_fsize;
-	sfsp->f_iosize = sblock.fs_bsize;
-	sfsp->f_blocks = sblock.fs_dsize;
-	sfsp->f_bfree = sblock.fs_cstotal.cs_nbfree * sblock.fs_frag +
-		sblock.fs_cstotal.cs_nffree;
-	sfsp->f_bavail = freespace(&sblock, sblock.fs_minfree);
-	sfsp->f_files =  sblock.fs_ncg * sblock.fs_ipg;
-	sfsp->f_ffree = sblock.fs_cstotal.cs_nifree;
-	sfsp->f_fsid.val[0] = 0;
-	sfsp->f_fsid.val[1] = 0;
-	if ((mntpt = getmntpt(file)) == 0)
-		mntpt = "";
-	memmove(&sfsp->f_mntonname[0], mntpt, (size_t)MNAMELEN);
-	memmove(&sfsp->f_mntfromname[0], file, (size_t)MNAMELEN);
-	prtstat(sfsp, mwp);
-	(void)close(rfd);
-	return (0);
-}
-
-int
-bread(off_t off, void *buf, int cnt)
-{
-	ssize_t nr;
-
-	(void)lseek(rfd, off, SEEK_SET);
-	if ((nr = read(rfd, buf, (size_t)cnt)) != (ssize_t)cnt) {
-		/* Probably a dismounted disk if errno == EIO. */
-		if (errno != EIO)
-			(void)fprintf(stderr, "\ndf: %lld: %s\n",
-			    (long long)off, strerror(nr > 0 ? EIO : errno));
-		return (0);
-	}
-	return (1);
-}
-
-void
+static void
 usage(void)
 {
 
@@ -566,7 +490,7 @@ usage(void)
 	exit(EX_USAGE);
 }
 
-char *
+static char *
 makenetvfslist(void)
 {
 	char *str, *strptr, **listptr;
