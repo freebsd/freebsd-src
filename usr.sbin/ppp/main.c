@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.22.2.22 1997/06/10 09:43:56 brian Exp $
+ * $Id: main.c,v 1.22.2.23 1997/06/11 03:59:32 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -510,17 +510,20 @@ char **argv;
     if (server >= 0)
 	LogPrintf(LogPHASE, "Listening at %d.\n", port);
 
-    VarTerm = 0;   /* We know it's currently stdin */
+    VarTerm = 0;   /* We know it's currently stdout */
+    close(0);
+    close(2);
 
 #ifdef DOTTYINIT
-    if (mode & (MODE_DIRECT|MODE_DEDICATED)) { /* } */
+    if (mode & (MODE_DIRECT|MODE_DEDICATED))
 #else
-    if (mode & MODE_DIRECT) {
+    if (mode & MODE_DIRECT)
 #endif
-      chdir("/");  /* Be consistent with daemon() */
       TtyInit();
-    } else
-      daemon(0,0);
+    else {
+      setsid();
+      close(1);
+    }
   } else {
     TtyInit();
     TtyCommandMode(1);
