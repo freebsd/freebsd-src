@@ -312,11 +312,12 @@ coda_checkunmounting(mp)
 	register struct vnode *vp, *nvp;
 	struct cnode *cp;
 	int count = 0, bad = 0;
-loop:
+
+	mtx_lock(&mntvnode_mtx);
 	for (vp = TAILQ_FIRST(&mp->mnt_nvnodelist); vp; vp = nvp) {
-		if (vp->v_mount != mp)
-			goto loop;
 		nvp = TAILQ_NEXT(vp, v_nmntvnodes);
+		if (vp->v_mount != mp)
+			continue;
 		cp = VTOC(vp);
 		count++;
 		if (!(cp->c_flags & C_UNMOUNTING)) {
@@ -325,6 +326,7 @@ loop:
 			cp->c_flags |= C_UNMOUNTING;
 		}
 	}
+	mtx_unlock(&mntvnode_mtx);
 }
 
 void
