@@ -440,6 +440,16 @@ struct rl_softc {
 #define ADDTRON_DEVICEID_8139			0x1360
 
 /*
+ * D-Link vendor ID.
+ */
+#define DLINK_VENDORID				0x1186
+
+/*
+ * D-Link DFE-530TX+ device ID
+ */
+#define DLINK_DEVICEID_530TXPLUS		0x1300
+
+/*
  * PCI low memory base and low I/O base register, and
  * other PCI registers.
  */

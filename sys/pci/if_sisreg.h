@@ -75,6 +75,7 @@
 #define SIS_GPIO		0xB8
 
 /* NS DP83815 registers */
+#define NS_CLKRUN		0x3C
 #define NS_BMCR			0x80
 #define NS_BMSR			0x84
 #define NS_PHYIDR1		0x88
@@ -91,6 +92,10 @@
 #define NS_PHY_DSPCFG		0xF4
 #define NS_PHY_SDCFG		0xF8
 #define NS_PHY_TDATA		0xFC
+
+#define NS_CLKRUN_PMESTS	0x00008000
+#define NS_CLKRUN_PMEENB	0x00000100
+#define NS_CLNRUN_CLKRUN_ENB	0x00000001
 
 #define SIS_CSR_TX_ENABLE	0x00000001
 #define SIS_CSR_TX_DISABLE	0x00000002
