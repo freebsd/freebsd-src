@@ -39,6 +39,7 @@
 
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
+#include <sys/limits.h> /* XXX for CHAR_BIT */
 #include <sys/queue.h>
 
 /*
@@ -50,13 +51,15 @@
  * the historical limit of 20 open files (and the usage of descriptors by
  * shells).  If these descriptors are exhausted, a larger descriptor table
  * may be allocated, up to a process' resource limit; the internal arrays
- * are then unused.  The initial expansion is set to NDEXTENT; each time
- * it runs out, it is doubled until the resource limit is reached. NDEXTENT
- * should be selected to be the biggest multiple of OFILESIZE (see below)
- * that will fit in a power-of-two sized piece of memory.
+ * are then unused.
  */
 #define NDFILE		20
-#define NDEXTENT	50		/* 250 bytes in 256-byte alloc. */
+#define NDSLOTTYPE	unsigned long
+#define NDSLOTSIZE	sizeof(NDSLOTTYPE)
+#define	NDENTRIES	(NDSLOTSIZE * CHAR_BIT)
+#define NDSLOT(x)	((x) / NDENTRIES)
+#define NDBIT(x)	((NDSLOTTYPE)1 << ((x) % NDENTRIES))
+#define	NDSLOTS(x)	(((x) + NDENTRIES - 1) / NDENTRIES)
 
 struct filedesc {
 	struct	file **fd_ofiles;	/* file structures for open files */
@@ -65,6 +68,7 @@ struct filedesc {
 	struct	vnode *fd_rdir;		/* root directory */
 	struct	vnode *fd_jdir;		/* jail root directory */
 	int	fd_nfiles;		/* number of open files allocated */
+	NDSLOTTYPE	*fd_map;	/* bitmap of free fds */
 	int	fd_lastfile;		/* high-water mark of fd_ofiles */
 	int	fd_freefile;		/* approx. next free file */
 	u_short	fd_cmask;		/* mask for file creation */
@@ -91,6 +95,7 @@ struct filedesc0 {
 	 */
 	struct	file *fd_dfiles[NDFILE];
 	char	fd_dfileflags[NDFILE];
+	NDSLOTTYPE	fd_dmap[NDSLOTS(NDFILE)];
 };
 
 
@@ -140,7 +145,9 @@ int	closef(struct file *fp, struct thread *p);
 int	dupfdopen(struct thread *td, struct filedesc *fdp, int indx, int dfd,
 	    int mode, int error);
 int	falloc(struct thread *p, struct file **resultfp, int *resultfd);
-int	fdalloc(struct thread *p, int want, int *result);
+void	fdused(struct filedesc *fdp, int fd);
+void	fdunused(struct filedesc *fdp, int fd);
+int	fdalloc(struct thread *p, int *result);
 int	fdavail(struct thread *td, int n);
 void	fdcloseexec(struct thread *td);
 int	fdcheckstd(struct thread *td);
