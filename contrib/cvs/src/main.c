@@ -568,7 +568,7 @@ main (argc, argv)
 		version (0, (char **) NULL);    
 		(void) fputs ("\n", stdout);
 		(void) fputs ("\
-Copyright (c) 1989-2001 Brian Berliner, david d `zoo' zuhn, \n\
+Copyright (c) 1989-2002 Brian Berliner, david d `zoo' zuhn, \n\
                         Jeff Polk, and other authors\n", stdout);
 		(void) fputs ("\n", stdout);
 		(void) fputs ("CVS may be copied only under the terms of the GNU General Public License,\n", stdout);
@@ -706,7 +706,9 @@ Copyright (c) 1989-2001 Brian Berliner, david d `zoo' zuhn, \n\
 		       CVSUMASK_ENV, cp);
 	}
 
-#if defined (HAVE_KERBEROS) && defined (SERVER_SUPPORT)
+#ifdef SERVER_SUPPORT
+
+# ifdef HAVE_KERBEROS
 	/* If we are invoked with a single argument "kserver", then we are
 	   running as Kerberos server as root.  Do the authentication as
 	   the very first thing, to minimize the amount of time we are
@@ -718,10 +720,10 @@ Copyright (c) 1989-2001 Brian Berliner, david d `zoo' zuhn, \n\
 	    /* Pretend we were invoked as a plain server.  */
 	    command_name = "server";
 	}
-#endif /* HAVE_KERBEROS */
+# endif /* HAVE_KERBEROS */
 
 
-#if (defined(AUTH_SERVER_SUPPORT) || defined (HAVE_GSSAPI)) && defined(SERVER_SUPPORT)
+# if defined (AUTH_SERVER_SUPPORT) || defined (HAVE_GSSAPI)
 	if (strcmp (command_name, "pserver") == 0)
 	{
 	    /* The reason that --allow-root is not a command option
@@ -738,11 +740,11 @@ Copyright (c) 1989-2001 Brian Berliner, david d `zoo' zuhn, \n\
 	    /* Pretend we were invoked as a plain server.  */
 	    command_name = "server";
 	}
-#endif /* (AUTH_SERVER_SUPPORT || HAVE_GSSAPI) && SERVER_SUPPORT */
+# endif /* AUTH_SERVER_SUPPORT || HAVE_GSSAPI */
 
-#ifdef SERVER_SUPPORT
 	server_active = strcmp (command_name, "server") == 0;
-#endif
+
+#endif /* SERVER_SUPPORT */
 
 	/* This is only used for writing into the history file.  For
 	   remote connections, it might be nice to have hostname
@@ -1044,7 +1046,10 @@ Copyright (c) 1989-2001 Brian Berliner, david d `zoo' zuhn, \n\
 
 #ifdef SERVER_SUPPORT
 	    if (server_active)
-	      break;
+	    {
+		server_active = 0;
+		break;
+	    }
 #endif
 	} /* end of loop for cvsroot values */
 
