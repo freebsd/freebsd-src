@@ -474,9 +474,12 @@ ac97_reinitmixer(struct ac97_info *codec)
 
 	if (!codec->noext) {
 		wrcd(codec, AC97_REGEXT_STAT, codec->extstat);
-		if (rdcd(codec, AC97_REGEXT_STAT) != codec->extstat)
+		if ((rdcd(codec, AC97_REGEXT_STAT) & AC97_EXTCAPS)
+		    != codec->extstat)
 			device_printf(codec->dev, "ac97 codec failed to reset extended mode (%x, got %x)\n",
-				      codec->extstat, rdcd(codec, AC97_REGEXT_STAT));
+				      codec->extstat,
+				      rdcd(codec, AC97_REGEXT_STAT) &
+					AC97_EXTCAPS);
 	}
 
 	if ((rdcd(codec, AC97_REG_POWER) & 2) == 0)
