@@ -6,22 +6,60 @@
  * to the original author and the contributors.
  *
  * @(#)ip_compat.h	1.8 1/14/96
- * $Id: ip_compat.h,v 2.0.1.4 1997/02/04 14:24:25 darrenr Exp $
+ * $Id: ip_compat.h,v 1.1.1.2 1997/04/03 10:10:48 darrenr Exp $
  */
 
 #ifndef	__IP_COMPAT_H_
 #define	__IP_COMPAT_H__
 
+#ifndef	__P
+# ifdef	__STDC__
+#  define	__P(x)  x
+# else
+#  define	__P(x)  ()
+# endif
+#endif
+
 #ifndef	SOLARIS
 #define	SOLARIS	(defined(sun) && (defined(__svr4__) || defined(__SVR4)))
 #endif
+
 #if	SOLARIS
-#define	MTYPE(m)	((m)->b_datap->db_type)
+# define	MTYPE(m)	((m)->b_datap->db_type)
+# include	<sys/ioccom.h>
+# include	<sys/sysmacros.h>
+/*
+ * because Solaris 2 defines these in two places :-/
+ */
+# undef	IPOPT_EOL
+# undef	IPOPT_NOP
+# undef	IPOPT_LSRR
+# undef	IPOPT_RR
+# undef	IPOPT_SSRR
+# ifndef	_KERNEL
+#  define	_KERNEL
+#  undef	RES_INIT
+#  include <inet/common.h>
+#  include <inet/ip.h>
+#  include <inet/ip_ire.h>
+#  undef	_KERNEL
+# else
+#  include <inet/common.h>
+#  include <inet/ip.h>
+#  include <inet/ip_ire.h>
+# endif
 #endif
 #define	IPMINLEN(i, h)	((i)->ip_len >= ((i)->ip_hl * 4 + sizeof(struct h)))
 
 #ifndef	IP_OFFMASK
 #define	IP_OFFMASK	0x1fff
+#endif
+
+#if	BSD > 199306
+# define	USE_QUAD_T
+# define	U_QUAD_T	u_quad_t
+#else
+# define	U_QUAD_T	u_long
 #endif
 
 #ifndef	MAX
@@ -85,11 +123,18 @@
 #define	IPOPT_FINN	205	/* FINN */
 
 
+#ifdef	__FreeBSD__
+# include <machine/spl.h>
+# if defined(IPFILTER_LKM) && !defined(ACTUALLY_LKM_NOT_KERNEL)
+#  define	ACTUALLY_LKM_NOT_KERNEL
+# endif
+#endif
+
 /*
  * Build some macros and #defines to enable the same code to compile anywhere
  * Well, that's the idea, anyway :-)
  */
-#ifdef _KERNEL
+#if defined(_KERNEL) || defined(KERNEL)
 # if SOLARIS
 #  define	MUTEX_ENTER(x)	mutex_enter(x)
 #  define	MUTEX_EXIT(x)	mutex_exit(x)
@@ -108,6 +153,7 @@
 
 # ifdef sun
 #  if defined(__svr4__) || defined(__SVR4)
+extern	ill_t	*get_unit __P((char *));
 #   define	GETUNIT(n)	get_unit((n))
 #  else
 #   include	<sys/kmem_alloc.h>
@@ -132,8 +178,8 @@ typedef	struct	qif	{
 	queue_t	*qf_out;
 	void	*qf_wqinfo;
 	void	*qf_rqinfo;
-	int	(*qf_inp)();
-	int	(*qf_outp)();
+	int	(*qf_inp) __P((queue_t *, mblk_t *));
+	int	(*qf_outp) __P((queue_t *, mblk_t *));
 	mblk_t	*qf_m;
 	int	qf_len;
 	char	qf_name[8];
@@ -151,10 +197,10 @@ typedef	struct	qif	{
 #    define	htons(x)	(x)
 #    define	htonl(x)	(x)
 #   endif
-#   define	KMALLOC(x)	kmem_alloc((x), KM_NOSLEEP)
+#   define	KMALLOC(a,b,c)	(a) = (b)kmem_alloc((c), KM_NOSLEEP)
 #   define	GET_MINOR(x)	getminor(x)
 #  else
-#   define	KMALLOC(x)	new_kmem_alloc((x), KMEM_NOSLEEP)
+#   define	KMALLOC(a,b,c)	(a) = (b)new_kmem_alloc((c), KMEM_NOSLEEP)
 #  endif /* __svr4__ */
 # endif /* sun && !linux */
 # ifndef	GET_MINOR
@@ -162,7 +208,7 @@ typedef	struct	qif	{
 # endif
 # if BSD >= 199306 || defined(__FreeBSD__)
 #  include <vm/vm.h>
-#  if !defined(__FreeBSD__)
+#  if !defined(__FreeBSD__) || (defined (__FreeBSD__) && __FreeBSD__>=3)
 #   include <vm/vm_extern.h>
 #   include <sys/proc.h>
 extern	vm_map_t	kmem_map;
@@ -170,15 +216,15 @@ extern	vm_map_t	kmem_map;
 #   include <vm/vm_kern.h>
 #  endif /* __FreeBSD__ */
 /*
-** #  define	KMALLOC(x)	kmem_alloc(kmem_map, (x))
-** #  define	KFREE(x)	kmem_free(kmem_map, (vm_offset_t)(x), \
+#  define	KMALLOC(a,b,c)	(a) = (b)kmem_alloc(kmem_map, (c))
+#  define	KFREE(x)	kmem_free(kmem_map, (vm_offset_t)(x), \
 					  sizeof(*(x)))
 */
 #  ifdef	M_PFIL
-#   define	KMALLOC(x)	malloc((x), M_PFIL, M_NOWAIT)
+#   define	KMALLOC(a, b, c)	MALLOC((a), b, (c), M_PFIL, M_NOWAIT)
 #   define	KFREE(x)	FREE((x), M_PFIL)
 #  else
-#   define	KMALLOC(x)	malloc((x), M_TEMP, M_NOWAIT)
+#   define	KMALLOC(a, b, c)	MALLOC((a), b, (c), M_TEMP, M_NOWAIT)
 #   define	KFREE(x)	FREE((x), M_TEMP)
 #  endif
 #  define	UIOMOVE(a,b,c,d)	uiomove(a,b,d)
@@ -193,17 +239,16 @@ extern	vm_map_t	kmem_map;
 #  endif
 # endif
 #else
-# ifndef	linux
-#  define	MUTEX_ENTER(x)	;
-#  define	MUTEX_EXIT(x)	;
-#  define	SPLNET(x)	;
-#  define	SPLX(x)		;
-#  define	KMALLOC(x)	malloc(x)
-#  define	KFREE(x)	free(x)
-#  define	GETUNIT(x)	(x)
-#  define	IRCOPY(a,b,c)	bcopy((a), (b), (c))
-#  define	IWCOPY(a,b,c)	bcopy((a), (b), (c))
-# endif
+# define	MUTEX_ENTER(x)	;
+# define	MUTEX_EXIT(x)	;
+# define	SPLNET(x)	;
+# undef		SPLX
+# define	SPLX(x)		;
+# define	KMALLOC(a,b,c)	(a) = (b)malloc(c)
+# define	KFREE(x)	free(x)
+# define	GETUNIT(x)	get_unit(x)
+# define	IRCOPY(a,b,c)	bcopy((a), (b), (c))
+# define	IWCOPY(a,b,c)	bcopy((a), (b), (c))
 #endif /* KERNEL */
 
 #ifdef linux
@@ -318,7 +363,7 @@ struct ipovly {
 # define	UNITNAME(n)	dev_get((n))
 # define	ifnet	device
 
-# define	KMALLOC(x)	kmalloc((x), GFP_ATOMIC)
+# define	KMALLOC(a,b,c)	(a) = (b)kmalloc((c), GFP_ATOMIC)
 # define	KFREE(x)	kfree_s((x), sizeof(*(x)))
 # define	IRCOPY(a,b,c)	{ \
 				 error = verify_area(VERIFY_READ, \
