@@ -65,7 +65,9 @@ for the implementation of kernel objects which perform various networking
 functions.  To enable it, ``options NETGRAPH'' must be added to the kernel.
 
 i4b(4) has been upgraded to version 00.83.00, providing increased robustness
-and stability, and supporting many new cards.
+and stability, and supporting many new cards (Asuscom ISDNlink 128K,
+AVM Fritz!Card PCI, AVM Fritz!Card PnP, ELSA PCC-16, ITK ix1 micro V.3,
+Siemens I-Surf 2.0).
 
 1.2. SECURITY FIXES
 -------------------
