@@ -85,10 +85,11 @@ struct wi_key {
 	u_int8_t		wi_keydat[14];
 };
 
+#define WI_NLTV_KEYS 4
 struct wi_ltv_keys {
 	u_int16_t		wi_len;
 	u_int16_t		wi_type;
-	struct wi_key		wi_keys[4];
+	struct wi_key		wi_keys[WI_NLTV_KEYS];
 };
 
 struct wi_softc	{
