@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppb_base.c,v 1.3 1997/09/01 00:51:45 bde Exp $
+ *	$Id: ppb_base.c,v 1.4 1998/08/03 19:14:31 msmith Exp $
  *
  */
 #include <sys/param.h>
@@ -172,7 +172,7 @@ ppb_get_status(struct ppb_device *dev, struct ppb_status *status)
 	status->timeout	= r & TIMEOUT;
 	status->error	= !(r & nFAULT);
 	status->select	= r & SELECT;
-	status->paper_end = r & ERROR;
+	status->paper_end = r & PERROR;
 	status->ack	= !(r & nACK);
 	status->busy	= !(r & nBUSY);
 

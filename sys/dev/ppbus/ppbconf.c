@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppbconf.c,v 1.4 1997/09/01 00:51:46 bde Exp $
+ *	$Id: ppbconf.c,v 1.6 1998/08/03 19:14:31 msmith Exp $
  *
  */
 #include <sys/param.h>
@@ -94,6 +94,8 @@ static char *pnp_classes[] = {
  * search_token()
  *
  * Search the first occurence of a token within a string
+ *
+ * XXX should use strxxx() calls
  */
 static char *
 search_token(char *str, int slen, char *token)
@@ -155,23 +157,25 @@ ppb_pnp_detect(struct ppb_data *ppb)
 		return (-1);
 	}
 
-	ppb_wctr(&pnpdev, nINIT | SELECTIN);
-
-	/* select NIBBLE_1284_REQUEST_ID mode */
-	if ((error = nibble_1284_mode(&pnpdev, NIBBLE_1284_REQUEST_ID))) {
+	if ((error = ppb_1284_negociate(&pnpdev, NIBBLE_1284_REQUEST_ID))) {
 		if (bootverbose)
-			printf("ppb: <PnP> nibble_1284_mode()=%d\n", error);
+			printf("ppb: <PnP> ppb_1284_negociate()=%d\n", error);
+
 		goto end_detect;
 	}
-
+	
 	len = 0;
-	for (q = str; !(ppb_rstr(&pnpdev) & ERROR); q++) {
+	for (q=str; !(ppb_rstr(&pnpdev) & PERROR); q++) {
 		if ((error = nibble_1284_inbyte(&pnpdev, q))) {
-			if (bootverbose)
+			if (bootverbose) {
+				*q = '\0';
+				printf("ppb: <PnP> len=%d, %s\n", len, str);
 				printf("ppb: <PnP> nibble_1284_inbyte()=%d\n",
 					error);
+			}
 			goto end_detect;
 		}
+
 		if (len++ >= PPB_PnP_STRING_SIZE) {
 			printf("ppb: <PnP> not space left!\n");
 			goto end_detect;
@@ -237,6 +241,9 @@ ppb_pnp_detect(struct ppb_data *ppb)
 	class_id = PPB_PnP_UNKNOWN;
 
 end_detect:
+	if ((error = ppb_1284_terminate(&pnpdev, VALID_STATE)) && bootverbose)
+		printf("ppb: ppb_1284_terminate()=%d\n", error);
+
 	ppb_release_bus(&pnpdev);
 	return (class_id);
 }
