@@ -303,7 +303,7 @@ acpi_pcib_acpi_route_interrupt(device_t pcib, device_t dev, int pin)
     return (acpi_pcib_route_interrupt(pcib, dev, pin));
 }
 
-static unsigned long acpi_host_mem_start = 0x80000000;
+static u_long acpi_host_mem_start = 0x80000000;
 TUNABLE_ULONG("hw.acpi.host_mem_start", &acpi_host_mem_start);
 
 struct resource *
