@@ -1282,12 +1282,14 @@ swap_pager_putpages(object, m, count, sync, rtvals)
 		 * at this time.
 		 */
 		s = splvm();
+		mtx_lock(&pbuf_mtx);
 		n -= nsw_wcount_async_max;
 		if (nsw_wcount_async + n >= 0) {
 			nsw_wcount_async += n;
 			nsw_wcount_async_max += n;
 			wakeup(&nsw_wcount_async);
 		}
+		mtx_unlock(&pbuf_mtx);
 		splx(s);
 	}
 
