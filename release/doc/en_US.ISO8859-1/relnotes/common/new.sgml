@@ -209,7 +209,8 @@
     <sect3>
       <title>Contributed Software</title>
 
-      <para></para>
+      <para><application>BIND</application> has been updated to
+        version 8.3.4.</para>
 
     </sect3>
   </sect2>
