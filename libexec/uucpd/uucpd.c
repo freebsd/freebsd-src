@@ -83,9 +83,9 @@ static const char rcsid[] =
 
 #define	SCPYN(a, b)	strncpy(a, b, sizeof (a))
 
-struct	sockaddr_in hisctladdr;
+struct sockaddr_storage hisctladdr;
 int hisaddrlen = sizeof hisctladdr;
-struct	sockaddr_in myctladdr;
+struct sockaddr_storage myctladdr;
 int mypid;
 
 char Username[64], Logname[64];
@@ -97,10 +97,10 @@ char *nenv[] = {
 extern char **environ;
 extern void logwtmp(char *line, char *name, char *host);
 
-void doit(struct sockaddr_in *sinp);
+void doit(struct sockaddr *sinp);
 void dologout(void);
 int readline(char start[], int num, int passw);
-void dologin(struct passwd *pw, struct sockaddr_in *sin);
+void dologin(struct passwd *pw, struct sockaddr *sin);
 
 int main(int argc, char **argv)
 {
@@ -113,16 +113,16 @@ int main(int argc, char **argv)
 		syslog(LOG_ERR, "getpeername: %m");
 		_exit(1);
 	}
-	doit(&hisctladdr);
+	doit((struct sockaddr *)&hisctladdr);
 	dologout();
 	exit(0);
 }
 
-void badlogin(char *name, struct sockaddr_in *sin)
+void badlogin(char *name, struct sockaddr *sin)
 {
 	char remotehost[MAXHOSTNAMELEN];
 
-	realhostname(remotehost, sizeof(remotehost) - 1, &sin->sin_addr);
+	realhostname_sa(remotehost, sizeof(remotehost) - 1, sin, sin->sa_len);
 	remotehost[sizeof(remotehost) - 1] = '\0';
 
 	syslog(LOG_NOTICE, "LOGIN FAILURE FROM %s", remotehost);
@@ -133,7 +133,7 @@ void badlogin(char *name, struct sockaddr_in *sin)
 	exit(1);
 }
 
-void doit(struct sockaddr_in *sinp)
+void doit(struct sockaddr *sinp)
 {
 	char user[64], passwd[64];
 	char *xpasswd, *crypt();
@@ -240,14 +240,14 @@ void dologout(void)
 /*
  * Record login in wtmp file.
  */
-void dologin(struct passwd *pw, struct sockaddr_in *sin)
+void dologin(struct passwd *pw, struct sockaddr *sin)
 {
 	char line[32];
 	char remotehost[UT_HOSTSIZE + 1];
 	int f;
 	time_t cur_time;
 
-	realhostname(remotehost, sizeof remotehost - 1, &sin->sin_addr);
+	realhostname_sa(remotehost, sizeof(remotehost) - 1, sin, sin->sa_len);
 	remotehost[sizeof remotehost - 1] = '\0';
 
 	/* hack, but must be unique and no tty line */
