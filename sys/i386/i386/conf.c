@@ -56,7 +56,7 @@
  * 28 Jul 93	Jordan K. Hubbard	Free codrv's slot again
  *
  */
-static char rcsid[] = "$Header: /a/cvs/386BSD/src/sys/i386/i386/conf.c,v 1.6 1993/08/28 03:06:59 rgrimes Exp $";
+static char rcsid[] = "$Header: /a/cvs/386BSD/src/sys/i386/i386/conf.c,v 1.7 1993/09/15 23:29:11 rgrimes Exp $";
 
 #include "param.h"
 #include "systm.h"
@@ -271,6 +271,19 @@ int	twopen(),twclose(),twread(),twwrite(),twselect();
 #define twselect	enxio
 #endif
 
+#include "sb.h"                 /* Sound Blaster */
+#if     NSB > 0
+int     sbopen(), sbclose(), sbioctl(), sbread(), sbwrite();
+int     sbselect();
+#else
+#define sbopen         enxio
+#define sbclose        enxio
+#define sbioctl        enxio
+#define sbread         enxio
+#define sbwrite        enxio
+#define sbselect       seltrue
+#endif
+
 int	fdopen();
 
 #include "bpfilter.h"
@@ -406,9 +419,9 @@ struct cdevsw	cdevsw[] =
 	{ twopen,	twclose,	twread,		twwrite,	/*19*/
 	  enodev,	nullop,		nullop,		NULL,	/* tw */
 	  twselect,	enodev,		enodev },
-	{ enxio,	enxio,		enxio,		enxio,		/*20*/
-	  enxio,	enxio,		enxio,		NULL,	/* soundblaster?*/
-	  enxio,	enxio,		enxio },
+	{ sbopen,	sbclose,	sbread,		sbwrite,		/*20*/
+	  sbioctl,	enodev,		enodev,		NULL,	/* soundblaster*/
+	  sbselect,	enodev,		NULL },
 	{ enxio,	enxio,		enxio,		enxio,		/*21*/
 	  enxio,	enxio,		enxio,		NULL,	/* free */
 	  enxio,	enxio,		NULL },
