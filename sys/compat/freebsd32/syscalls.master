@@ -603,3 +603,4 @@
 438	UNIMPL	extattr_list_file
 439	UNIMPL	extattr_list_link
 440	UNIMPL	kse_switchin
+441	UNIMPL	ksem_timedwait
