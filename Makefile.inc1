@@ -455,7 +455,7 @@ WMAKE_TGTS+=	_cleanobj _obj _build-tools
 WMAKE_TGTS+=	_cross-tools
 .endif
 WMAKE_TGTS+=	_includes _libraries _depend everything
-.if ${TARGET_ARCH} == "amd64" && defined(WITH_LIB32)
+.if ${TARGET_ARCH} == "amd64" && !defined(NO_LIB32)
 WMAKE_TGTS+=	build32
 .endif
 
@@ -541,7 +541,7 @@ reinstall: ${SPECIAL_INSTALLCHECKS}
 	@echo ">>> Installing everything"
 	@echo "--------------------------------------------------------------"
 	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 install
-.if ${TARGET_ARCH} == "amd64" && defined(WITH_LIB32)
+.if ${TARGET_ARCH} == "amd64" && !defined(NO_LIB32)
 	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 install32
 .endif
 
