@@ -35,7 +35,7 @@
  *
  *	@(#)fdesc_vnops.c	8.9 (Berkeley) 1/21/94
  *
- * $Id: fdesc_vnops.c,v 1.8 1995/03/28 07:56:44 bde Exp $
+ * $Id: fdesc_vnops.c,v 1.10 1995/09/02 20:19:12 mpp Exp $
  */
 
 /*
@@ -191,6 +191,12 @@ fdesc_lookup(ap)
 	int error;
 	struct vnode *fvp;
 	char *ln;
+
+	if (ap->a_cnp->cn_nameiop == DELETE || 
+	    ap->a_cnp->cn_nameiop == RENAME) {
+		error = EROFS;
+		goto bad;
+	}
 
 	pname = ap->a_cnp->cn_nameptr;
 	if (ap->a_cnp->cn_namelen == 1 && *pname == '.') {
