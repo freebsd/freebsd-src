@@ -404,6 +404,13 @@
     <para>&man.fmt.1; has been rewritten; the rewrite fixes a number
     of bugs compared to its prior behavior.</para>
 
+    <para>&man.ftpd.8; now supports <option>-o</option> and
+    <option>-O</option> options to disable the <literal>RETR</literal>
+    command; the former for everybody, and the latter only for guest users.
+    Coupled with <option>-A</option> and appropriate file permissions,
+    these can be used to create a relatively safe anonymous FTP drop box
+    for others to upload to.</para>
+
     <para>&man.ipfw.8; will now avoid the display of dynamic
     firewall rules unless the <option>-d</option> flag is passed to
     it.  The <option>-e</option> option lists expired dynamic
