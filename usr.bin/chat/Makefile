@@ -5,6 +5,6 @@
 
 PROG=	chat
 MAN=	chat.8
-CFLAGS+=-fno-builtin-logf
+CFLAGS+=-Dlogf=logit
 
 .include <bsd.prog.mk>
