@@ -72,7 +72,7 @@ typedef struct __lock_msg {
 	struct sockaddr_storage lm_addr;		/* The address. */
 	int			lm_nfsv3;		/* If NFS version 3. */
 	size_t			lm_fh_len;		/* The file handle length. */
-	struct ucred		lm_cred;		/* user cred for lock req */
+	struct xucred		lm_cred;		/* user cred for lock req */
 	u_int8_t		lm_fh[NFS_SMALLFH];/* The file handle. */
 } LOCKD_MSG;
 
