@@ -608,7 +608,7 @@ VarModify(char *str, Boolean (*modProc)(const char *, Boolean, Buffer *, void *)
     for (i = 1; i < ac; i++)
 	addSpace = (*modProc)(av[i], addSpace, buf, datum);
 
-    Buf_AddByte (buf, '\0');
+    Buf_AddByte(buf, '\0');
     str = (char *)Buf_GetAll(buf, (size_t *)NULL);
     Buf_Destroy(buf, FALSE);
     return (str);
@@ -1848,7 +1848,7 @@ Var_Subst(const char *var, char *str, GNode *ctxt, Boolean undefErr)
 		    str += length;
 		    errorReported = TRUE;
 		} else {
-		    Buf_AddByte (buf, (Byte)*str);
+		    Buf_AddByte(buf, (Byte)*str);
 		    str += 1;
 		}
 	    } else {
