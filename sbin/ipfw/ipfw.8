@@ -13,7 +13,7 @@
 .Cm add
 .Ar rule
 .Nm
-.Op Fl acdeftnNS
+.Op Fl acdefnNStT
 .Brq Cm list | show
 .Op Ar rule | first-last ...
 .Nm
@@ -54,7 +54,7 @@
 .Op Ar number ...
 .Pp
 .Nm
-.Op Fl cNnqS
+.Op Fl cnNqS
 .Oo
 .Fl p Ar preproc
 .Oo
@@ -261,7 +261,10 @@ listed.
 While listing pipes, sort according to one of the four
 counters (total or current packets or bytes).
 .It Fl t
-While listing, show last match timestamp.
+While listing, show last match timestamp (converted with ctime()).
+.It Fl T
+While listing, show last match timestamp (as seconds from the epoch).
+This form can be more convenient for postprocessing by scripts.
 .El
 .Pp
 To ease configuration, rules can be put into a file which is
