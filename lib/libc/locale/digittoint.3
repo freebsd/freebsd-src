@@ -41,21 +41,22 @@
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
-.Fd #include <ctype.h>
+.In ctype.h
 .Ft int
 .Fn digittoint "int c"
 .Sh DESCRIPTION
 The
 .Fn digittoint
-function converts a numeric character to its corresponding integer value.  The
-character can be any decimal digit or hexadecimal digit.  With hexadecimal
-characters, the case of the values does not matter.
+function converts a numeric character to its corresponding integer value.
+The character can be any decimal digit or hexadecimal digit.
+With hexadecimal characters, the case of the values does not matter.
 .Sh RETURN VALUES
 The
 .Fn digittoint
-function always returns an integer from the range of 0 to 15.  If the
-given character was not a digit as defined by
-.Xr isxdigit 3 , the function will return 0.
+function always returns an integer from the range of 0 to 15.
+If the given character was not a digit as defined by
+.Xr isxdigit 3 ,
+the function will return 0.
 .Sh SEE ALSO
 .Xr isalnum 3 ,
 .Xr isalpha 3 ,
@@ -70,7 +71,6 @@ given character was not a digit as defined by
 .Xr isupper 3 ,
 .Xr isxdigit 3 ,
 .Xr stdio 3 ,
-.Xr digittoint 3 ,
 .Xr tolower 3 ,
 .Xr toupper 3 ,
 .Xr ascii 7
