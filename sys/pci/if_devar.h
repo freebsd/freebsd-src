@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_devar.h,v 1.28 1997/07/03 16:55:07 thomas Exp $
+ * $Id: if_devar.h,v 1.1.1.2 1997/08/03 12:17:38 peter Exp $
  */
 
 #if !defined(_DEVAR_H)
@@ -655,8 +655,13 @@ struct _tulip_softc_t {
     u_int8_t tulip_pci_devno;		/* needed for multiport boards */
     u_int8_t tulip_connidx;
     tulip_srom_connection_t tulip_conntype;
+#if defined(__FreeBSD__)
+    tulip_desc_t *tulip_rxdescs;
+    tulip_desc_t *tulip_txdescs;
+#else
     tulip_desc_t tulip_rxdescs[TULIP_RXDESCS];
     tulip_desc_t tulip_txdescs[TULIP_TXDESCS];
+#endif
 };
 
 #if defined(IFM_ETHER)
