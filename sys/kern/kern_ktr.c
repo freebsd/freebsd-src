@@ -195,7 +195,7 @@ ktr_tracepoint(u_int mask, const char *file, int line, const char *format,
 #ifdef KTR_ALQ
 	if (ktr_alq_enabled &&
 	    td->td_critnest == 0 &&
-	    (td->td_kse->ke_flags & KEF_IDLEKSE) == 0 &&
+	    (td->td_flags & TDF_IDLETD) == 0 &&
 	    td != ald_thread) {
 		if (ktr_alq_max && ktr_alq_cnt > ktr_alq_max)
 			goto done;
