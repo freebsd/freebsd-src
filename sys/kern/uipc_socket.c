@@ -49,7 +49,6 @@
 #include <sys/domain.h>
 #include <sys/file.h>			/* for struct knote */
 #include <sys/kernel.h>
-#include <sys/malloc.h>
 #include <sys/event.h>
 #include <sys/poll.h>
 #include <sys/proc.h>

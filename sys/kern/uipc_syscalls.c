@@ -54,7 +54,6 @@
 #include <sys/proc.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
-#include <sys/lock.h>
 #include <sys/mount.h>
 #include <sys/mbuf.h>
 #include <sys/protosw.h>
