@@ -86,8 +86,8 @@ static struct m3_card_type {
 	{ 0, 0, 0, 0, NULL }
 };
 
-#define M3_BUFSIZE 4096
-#define M3_PCHANS 1 /* create /dev/dsp0.[0-N] to use more than one */
+#define M3_BUFSIZE_DEFAULT 4096
+#define M3_PCHANS 2 /* create /dev/dsp0.[0-N] to use more than one */
 #define M3_RCHANS 1
 #define M3_MAXADDR ((1 << 27) - 1)
 
@@ -140,6 +140,7 @@ struct sc_info {
 	int			pch_cnt;
 	int			rch_cnt;
 	int			pch_active_cnt;
+	unsigned int		bufsz;
 	u_int16_t		*savemem;
 };
 
@@ -382,7 +383,7 @@ m3_pchan_init(kobj_t kobj, void *devinfo, struct snd_dbuf *b, struct pcm_channel
 	ch->channel = c;
 	ch->fmt = AFMT_U8;
 	ch->spd = DSP_DEFAULT_SPEED;
-	if (sndbuf_alloc(ch->buffer, sc->parent_dmat, M3_BUFSIZE) == -1) {
+	if (sndbuf_alloc(ch->buffer, sc->parent_dmat, sc->bufsz) == -1) {
 		device_printf(sc->dev, "m3_pchan_init chn_allocbuf failed\n");
 		return NULL;
 	}
@@ -662,7 +663,7 @@ m3_rchan_init(kobj_t kobj, void *devinfo, struct snd_dbuf *b, struct pcm_channel
 	ch->channel = c;
 	ch->fmt = AFMT_U8;
 	ch->spd = DSP_DEFAULT_SPEED;
-	if (sndbuf_alloc(ch->buffer, sc->parent_dmat, M3_BUFSIZE) == -1) {
+	if (sndbuf_alloc(ch->buffer, sc->parent_dmat, sc->bufsz) == -1) {
 		device_printf(sc->dev, "m3_rchan_init chn_allocbuf failed\n");
 		return NULL;
 	}
@@ -1140,11 +1141,13 @@ m3_pci_attach(device_t dev)
 		goto bad;
 	}
 
+	sc->bufsz = pcm_getbuffersize(dev, 1024, M3_BUFSIZE_DEFAULT, 65536);
+
 	if (bus_dma_tag_create(/*parent*/NULL, /*alignment*/2, /*boundary*/0,
 			       /*lowaddr*/M3_MAXADDR,
 			       /*highaddr*/BUS_SPACE_MAXADDR,
 			       /*filter*/NULL, /*filterarg*/NULL,
-			       /*maxsize*/M3_BUFSIZE, /*nsegments*/1,
+			       /*maxsize*/sc->bufsz, /*nsegments*/1,
 			       /*maxsegz*/0x3ffff,
 			       /*flags*/0, &sc->parent_dmat) != 0) {
 		device_printf(dev, "unable to create dma tag\n");
@@ -1278,9 +1281,9 @@ m3_pci_suspend(device_t dev)
 
 	/* Save the state of the ASSP */
 	for (i = REV_B_CODE_MEMORY_BEGIN; i <= REV_B_CODE_MEMORY_END; i++)
-		sc->savemem[index++] = m3_rd_assp_code(sc, i);
+		sc->savemem[++index] = m3_rd_assp_code(sc, i);
 	for (i = REV_B_DATA_MEMORY_BEGIN; i <= REV_B_DATA_MEMORY_END; i++)
-		sc->savemem[index++] = m3_rd_assp_data(sc, i);
+		sc->savemem[++index] = m3_rd_assp_data(sc, i);
 
 	/* Power down the card to D3 state */
 	m3_power(sc, 3);
@@ -1306,9 +1309,9 @@ m3_pci_resume(device_t dev)
 
 	/* Restore the ASSP state */
 	for (i = REV_B_CODE_MEMORY_BEGIN; i <= REV_B_CODE_MEMORY_END; i++)
-		m3_wr_assp_code(sc, i, sc->savemem[index++]);
+		m3_wr_assp_code(sc, i, sc->savemem[++index]);
 	for (i = REV_B_DATA_MEMORY_BEGIN; i <= REV_B_DATA_MEMORY_END; i++)
-		m3_wr_assp_data(sc, i, sc->savemem[index++]);
+		m3_wr_assp_data(sc, i, sc->savemem[++index]);
 
 	/* Restart the DMA engine */
 	m3_wr_assp_data(sc, KDATA_DMA_ACTIVE, 0);
