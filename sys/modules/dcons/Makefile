@@ -8,7 +8,7 @@ SRCS	= dcons.c dcons.h \
 		opt_dcons.h opt_ddb.h opt_comconsole.h
 
 opt_ddb.h:
-	echo "#define DDB 1" > $@
+	echo "#define KDB 1" > $@
 
 opt_comconsole.h:
 	echo "#define ALT_BREAK_TO_DEBUGGER 1" > $@
