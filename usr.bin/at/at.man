@@ -148,7 +148,9 @@ is executed from a
 shell, the owner of the login shell will receive the mail.
 .Pp
 The superuser may use these commands in any case.
-For other users, permission to use at is determined by the files
+For other users, permission to use
+.Nm
+is determined by the files
 .Pa _PERM_PATH/at.allow
 and
 .Pa _PERM_PATH/at.deny .
