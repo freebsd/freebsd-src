@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: alpha_copy.c,v 1.1 1998/08/31 21:10:40 msmith Exp $
  */
 /*
  * MD primitives supporting placement of module data 
@@ -36,6 +36,13 @@
 
 int
 alpha_copyin(void *src, vm_offset_t dest, size_t len)
+{
+    bcopy(src, dest, len);
+    return(len);
+}
+
+int
+alpha_copyout(void *src, vm_offset_t dest, size_t len)
 {
     bcopy(src, dest, len);
     return(len);

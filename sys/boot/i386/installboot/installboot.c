@@ -59,7 +59,7 @@
 
 #include "bbinfo.h"
 
-#define DEFBBLKNAME "boot"
+#define DEFBBLKNAME "loader"
 
 struct fraglist *fraglist;
 
