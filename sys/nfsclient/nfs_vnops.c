@@ -2838,8 +2838,8 @@ loop:
 			error = msleep((caddr_t)&vp->v_numoutput, VI_MTX(vp),
 				slpflag | (PRIBIO + 1), "nfsfsync", slptimeo);
 			if (error) {
+			    VI_UNLOCK(vp);
 			    if (nfs_sigintr(nmp, NULL, td)) {
-				VI_UNLOCK(vp);
 				error = EINTR;
 				goto done;
 			    }
@@ -2847,6 +2847,7 @@ loop:
 				slpflag = 0;
 				slptimeo = 2 * hz;
 			    }
+			    VI_LOCK(vp);
 			}
 		}
 		if (!TAILQ_EMPTY(&vp->v_dirtyblkhd) && commit) {
