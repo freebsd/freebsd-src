@@ -1,4 +1,4 @@
-<!-- $Id: install.sgml,v 1.30 1996/05/23 11:53:56 jkh Exp $ -->
+<!-- $Id: install.sgml,v 1.31 1996/07/01 16:32:09 bde Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -41,7 +41,7 @@
 	  (IRQ) and IO port addresses. </item>
 
       <item>Download the <url
-	  url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/2.1.0-RELEASE/floppies/boot.flp"
+	  url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/2.1.5-RELEASE/floppies/boot.flp"
 	  name="installation boot disk image"> file to your hard
 	  drive, and be sure to tell your browser to
 	  <em>save</em> rather than <em>display</em>.
@@ -645,7 +645,7 @@ tar cvf /dev/rwt0 (or /dev/rst0) dist1 .. dist2
 	    of a name server:
 
 <tscreen><verb>
-ftp://192.216.222.4/pub/FreeBSD/2.1.0-RELEASE
+ftp://192.216.222.4/pub/FreeBSD/2.1.5-RELEASE
 </verb></tscreen>
         
 	    There are two FTP installation modes you can use:
