@@ -319,6 +319,7 @@ struct	ether_addr {
 #define	ETHERTYPE_PPPOEDISC	0x8863	/* PPP Over Ethernet Discovery Stage */
 #define	ETHERTYPE_PPPOE		0x8864	/* PPP Over Ethernet Session Stage */
 #define	ETHERTYPE_LANPROBE	0x8888	/* HP LanProbe test? */
+#define	ETHERTYPE_PAE		0x888e	/* EAPOL PAE/802.1x */
 #define	ETHERTYPE_LOOPBACK	0x9000	/* Loopback: used to test interfaces */
 #define	ETHERTYPE_LBACK		ETHERTYPE_LOOPBACK	/* DEC MOP loopback */
 #define	ETHERTYPE_XNSSM		0x9001	/* 3Com (Formerly Bridge Communications), XNS Systems Management */
