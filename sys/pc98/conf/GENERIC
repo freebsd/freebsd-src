@@ -128,6 +128,8 @@ device		splash		# Splash screen and screen saver support
 # syscons is the default console driver, resembling an SCO console
 device		sc
 
+#device		agp		# support several AGP chipsets
+
 # Floating point support - do not disable.
 device		npx
 
@@ -175,15 +177,18 @@ device		vx		# 3Com 3c590, 3c595 (``Vortex'')
 # PCI Ethernet NICs that use the common MII bus controller code.
 # NOTE: Be sure to keep the 'device miibus' line in order to use these NICs!
 device		miibus		# MII bus support
+device		bfe		# Broadcom BCM440x 10/100 ethernet
 device		bge		# Broadcom BCM570xx Gigabit Ethernet
 device		dc		# DEC/Intel 21143 and various workalikes
 device		fxp		# Intel EtherExpress PRO/100B (82557, 82558)
-device		pcn		# AMD Am79C97x PCI 10/100 NICs
+device		pcn		# AMD Am79C97x PCI 10/100 (precedence over 'lnc')
 device		re		# RealTek 8139C+/8169/8169S/8110S
 device		rl		# RealTek 8129/8139
 device		sf		# Adaptec AIC-6915 (``Starfire'')
 device		sis		# Silicon Integrated Systems SiS 900/SiS 7016
+device		sk		# SysKonnect SK-984x and SK-982x gigabit ethernet
 device		ste		# Sundance ST201 (D-Link DFE-550TX)
+device		ti		# Alteon Networks Tigon I/II gigabit ethernet
 device		tl		# Texas Instruments ThunderLAN
 device		tx		# SMC EtherPower II (83c170 ``EPIC'')
 device		vr		# VIA Rhine, Rhine II
@@ -222,8 +227,6 @@ device		faith		# IPv6-to-IPv4 relaying (translation)
 # The `bpf' device enables the Berkeley Packet Filter.
 # Be aware of the administrative consequences of enabling this!
 device		bpf		# Berkeley packet filter
-
-#device		compat_atdisk	# IBM-PC HDD support
 
 # USB support
 #device		uhci		# UHCI PCI->USB interface
