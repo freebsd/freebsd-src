@@ -97,7 +97,7 @@ execve(const char *name, char *const * argv, char *const * envp)
 		}
 	}
 
-	/* Execute the process: */
+	/* Set the signal mask: */
 	_thread_sys_sigprocmask(SIG_SETMASK, &_thread_run->sigmask, NULL);
 
 	/* Execute the process: */
