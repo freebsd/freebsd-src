@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sched.h>
 #include <sys/sysctl.h>
 #include <sys/kthread.h>
+#include <sys/unistd.h>
 
 #include <vm/vm.h>
 #include <vm/vm_page.h>
@@ -130,7 +131,7 @@ vm_page_zero_idle_wakeup(void)
 }
 
 static void
-vm_pagezero(void)
+vm_pagezero(void __unused *arg)
 {
 	struct thread *td;
 	struct proc *p;
@@ -146,9 +147,6 @@ vm_pagezero(void)
 	rtp_to_pri(&rtp, td->td_ksegrp);
 	pri = td->td_priority;
 	mtx_unlock_spin(&sched_lock);
-	PROC_LOCK(p);
-	p->p_flag |= P_NOLOAD;
-	PROC_UNLOCK(p);
 
 	for (;;) {
 		if (vm_page_zero_check()) {
@@ -167,9 +165,24 @@ vm_pagezero(void)
 }
 
 static struct proc *pagezero_proc;
-static struct kproc_desc pagezero_kp = {
-	 "pagezero",
-	 vm_pagezero,
-	 &pagezero_proc
-};
-SYSINIT(pagezero, SI_SUB_KTHREAD_VM, SI_ORDER_ANY, kproc_start, &pagezero_kp)
+
+static void
+pagezero_start(void __unused *arg)
+{
+	int error;
+
+	error = kthread_create(vm_pagezero, NULL, &pagezero_proc, RFSTOPPED, 0,
+	    "pagezero");
+	if (error)
+		panic("pagezero_start: error %d\n", error);
+	/*
+	 * We're an idle task, don't count us in the load.
+	 */
+	PROC_LOCK(pagezero_proc);
+	pagezero_proc->p_flag |= P_NOLOAD;
+	PROC_UNLOCK(pagezero_proc);
+	mtx_lock_spin(&sched_lock);
+	setrunqueue(FIRST_THREAD_IN_PROC(pagezero_proc));
+	mtx_unlock_spin(&sched_lock);
+}
+SYSINIT(pagezero, SI_SUB_KTHREAD_VM, SI_ORDER_ANY, pagezero_start, NULL)
