@@ -793,7 +793,7 @@ out:
 	if (cp != NULL) {
 		DROP_GIANT();
 		g_topology_lock();
-		g_wither_geom_close(cp->geom, ENXIO);
+		g_vfs_close(cp, td);
 		g_topology_unlock();
 		PICKUP_GIANT();
 	}
@@ -954,7 +954,7 @@ ffs_unmount(mp, mntflags, td)
 	vinvalbuf(ump->um_devvp, V_SAVE, td, 0, 0);
 	DROP_GIANT();
 	g_topology_lock();
-	g_wither_geom_close(ump->um_cp->geom, ENXIO);
+	g_vfs_close(ump->um_cp, td);
 	g_topology_unlock();
 	PICKUP_GIANT();
 	vrele(ump->um_devvp);

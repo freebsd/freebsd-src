@@ -722,7 +722,7 @@ error_exit:
 	if (cp != NULL) {
 		DROP_GIANT();
 		g_topology_lock();
-		g_wither_geom_close(cp->geom, ENXIO);
+		g_vfs_close(cp, td);
 		g_topology_unlock();
 		PICKUP_GIANT();
 	}
@@ -798,7 +798,7 @@ msdosfs_unmount(mp, mntflags, td)
 #endif
 	DROP_GIANT();
 	g_topology_lock();
-	g_wither_geom_close(pmp->pm_cp->geom, ENXIO);
+	g_vfs_close(pmp->pm_cp, td);
 	g_topology_unlock();
 	PICKUP_GIANT();
 	vrele(pmp->pm_devvp);
