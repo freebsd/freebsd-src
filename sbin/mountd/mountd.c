@@ -61,6 +61,7 @@ static const char rcsid[] =
 #include <nfs/nfs.h>
 #include <ufs/ufs/ufsmount.h>
 #include <msdosfs/msdosfsmount.h>
+#include <ntfs/ntfsmount.h>
 #include <isofs/cd9660/cd9660_mount.h>	/* XXX need isofs in include */
 
 #include <arpa/inet.h>
@@ -770,11 +771,13 @@ get_exportlist()
 			struct iso_args ia;
 			struct mfs_args ma;
 			struct msdosfs_args da;
+			struct ntfs_args na;
 		} targs;
 
 		if (!strcmp(fsp->f_fstypename, "mfs") ||
 		    !strcmp(fsp->f_fstypename, "ufs") ||
 		    !strcmp(fsp->f_fstypename, "msdos") ||
+		    !strcmp(fsp->f_fstypename, "ntfs") ||
 		    !strcmp(fsp->f_fstypename, "cd9660")) {
 			targs.ua.fspec = NULL;
 			targs.ua.export.ex_flags = MNT_DELEXPORT;
@@ -1605,6 +1608,7 @@ do_mount(ep, grp, exflags, anoncrp, dirp, dirplen, fsb)
 #ifdef __NetBSD__
 		struct msdosfs_args da;
 #endif
+		struct ntfs_args na;
 	} args;
 	u_int32_t net;
 
