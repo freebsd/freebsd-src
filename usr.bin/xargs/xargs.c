@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 
 #include "pathnames.h"
 
+static void	prerun(int, char **, int, const char *, char **, char **);
 static void	run(char **);
 static void	usage(void);
 void		strnsubst(char **, const char *, const char *, size_t);
@@ -301,89 +302,7 @@ arg2:
 					for (avj = argv; *avj; avj++)
 						*xp++ = *avj;
 				}
-				if (Iflag) {
-					char **tmp, **tmp2;
-					size_t repls;
-					int iter;
-
-					/*
-					 * Set up some locals, the number of
-					 * times we may replace replstr with a
-					 * line of input, a modifiable pointer
-					 * to the head of the original argument
-					 * list, and the number of iterations to
-					 * perform -- the number of arguments.
-					 */
-					repls = Rflag;
-					avj = av;
-					iter = argc;
-
-					/*
-					 * Allocate memory to hold the argument
-					 * list.
-					 */
-					tmp = malloc(linelen * sizeof(char **));
-					if (tmp == NULL)
-						err(1, "malloc");
-					tmp2 = tmp;
-					/*
-					 * Just save the first argument, as it
-					 * is the utility name, and we cannot
-					 * be trusted to do strnsubst() to it.
-					 */
-					*tmp++ = strdup(*avj++);
-					/*
-					 * Now for every argument to utility,
-					 * if we have not used up the number of
-					 * replacements we are allowed to do, and
-					 * if the argument contains at least one
-					 * occurance of replstr, call strnsubst(),
-					 * or else just save the string.
-					 * Iterations over elements of avj and tmp
-					 * are done where appropriate.
-					 */
-					while (--iter) {
-						*tmp = *avj++;
-						if (repls && strstr(*tmp, replstr) != NULL) {
-							strnsubst(tmp++, replstr, inpline,
-							    (size_t)255);
-							repls--;
-						} else {
-							if ((*tmp = strdup(*tmp)) == NULL)
-								err(1, "strdup");
-							tmp++;
-						}
-					}
-					/*
-					 * NULL terminate the list of arguments,
-					 * for run().
-					 */
-					*tmp = *xp = NULL;
-					run(tmp2);
-					/*
-					 * From the tail to the head, free along
-					 * the way.
-					 */
-					for (; tmp2 != tmp; tmp--)
-						free(*tmp);
-					/*
-					 * Free the list.
-					 */
-					free(tmp2);
-					/*
-					 * Free the input line buffer, and create
-					 * a new dummy.
-					 */
-					free(inpline);
-					inpline = strdup("");
-				} else {
-					/*
-					 * Mark the tail of the argument list with
-					 * a NULL, and run() with it.
-					 */
-					*xp = NULL;
-					run(av);
-				}
+				prerun(argc, av, Rflag, replstr, xp, &inpline);
 				if (ch == EOF || foundeof)
 					exit(rval);
 				p = bbp;
@@ -429,8 +348,7 @@ addch:			if (p < ebp) {
 				for (avj = argv; *avj; avj++)
 					*xp++ = *avj;
 			}
-			*xp = NULL;
-			run(av);
+			prerun(argc, av, Rflag, replstr, xp, &inpline);
 			xp = bxp;
 			cnt = ebp - argp;
 			memcpy(bbp, argp, (size_t)cnt);
@@ -439,6 +357,81 @@ addch:			if (p < ebp) {
 			break;
 		}
 	/* NOTREACHED */
+}
+
+/*
+ * Do things necessary before run()'ing, such as -I substitution,
+ * and then call run().
+ */
+static void
+prerun(int argc, char **argv, int repls, const char *replstr, char **xp, char **inpline)
+{
+	char **tmp, **tmp2, **avj;
+
+	if (repls == 0) {
+		*xp = NULL;
+		run(argv);
+		return;
+	}
+
+	avj = argv;
+
+	/*
+	 * Allocate memory to hold the argument list, and
+	 * a NULL at the tail.
+	 */
+	tmp = calloc(argc + 1, sizeof(char**));
+	if (tmp == NULL)
+		err(1, "calloc");
+	tmp2 = tmp;
+
+	/*
+	 * Save the first argument and iterate over it, we
+	 * cannot do strnsubst() to it.
+	 */
+	if ((*tmp++ = strdup(*avj++)) == NULL)
+		err(1, "strdup");
+
+	/*
+	 * For each argument to utility, if we have not used up
+	 * the number of replacements we are allowed to do, and
+	 * if the argument contains at least one occurance of
+	 * replstr, call strnsubst(), else just save the string.
+	 * Iterations over elements of avj and tmp are done
+	 * where appropriate.
+	 */
+	while (--argc) {
+		*tmp = *avj++;
+		if (repls && strstr(*tmp, replstr) != NULL) {
+			strnsubst(tmp++, replstr, *inpline, (size_t)255);
+			repls--;
+		} else {
+			if ((*tmp = strdup(*tmp)) == NULL)
+				err(1, "strdup");
+			tmp++;
+		}
+	}
+
+	/*
+	 * Run it.
+	 */
+	run(tmp2);
+
+	/*
+	 * Walk from the tail to the head, free along the way.
+	 */
+	for (; tmp2 != tmp; tmp--)
+		free(*tmp);
+	/*
+	 * Now free the list itself.
+	 */
+	free(tmp2);
+
+	/*
+	 * Free the input line buffer, and create a new dummy.
+	 */
+	free(*inpline);
+	*inpline = strdup("");
 }
 
 static void
