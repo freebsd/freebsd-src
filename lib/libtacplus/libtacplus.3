@@ -114,7 +114,7 @@ in which case the standard configuration file
 .Pa /etc/tacplus.conf
 is used.
 .Fn tac_config
-returns 0 on success, or -1 if an error occurs.
+returns 0 on success, or \-1 if an error occurs.
 .Pp
 The library can also be configured programmatically by calls to
 .Fn tac_add_server .
@@ -148,7 +148,7 @@ confused if the client attempts to negotiate it.
 .El
 .Pp
 .Fn tac_add_server
-returns 0 on success, or -1 if an error occurs.
+returns 0 on success, or \-1 if an error occurs.
 .Pp
 .Fn tac_add_server
 may be called multiple times, and it may be used together with
@@ -168,7 +168,7 @@ and
 .Va service
 arguments must be set to appropriate values as defined in the
 TACACS+ protocol specification.  The
-.Aq taclib.h
+.Aq Pa taclib.h
 header file contains symbolic constants for these values.
 .Sh CREATING A TACACS+ AUTHORIZATION REQUEST
 To begin constructing a new authorization request, call
@@ -180,7 +180,7 @@ and
 .Va service
 arguments must be set to appropriate values as defined in the
 TACACS+ protocol specification.  The
-.Aq taclib.h
+.Aq Pa taclib.h
 header file contains symbolic constants for these values.
 .Sh SETTING OPTIONAL PARAMETERS ON A REQUEST
 After creating a request,
@@ -199,13 +199,13 @@ privilege level, which defaults to
 .Ql USER
 privilege.
 .Pp
-.Fn tac_set_av 
+.Fn tac_set_av
 only applies to the context of an authorization request.  The format
 for an attribute value pair is defined in the TACACS+ protocol
 specification.  The index specified can be any value between 0 and
 255 inclusive and indicates the position in the list to place the
-attribute value pair.  Calling 
-.Fn tac_set_av 
+attribute value pair.  Calling
+.Fn tac_set_av
 with same index twice effectively replaces the value at that position.
 Use
 .Fn tac_clear_avs
@@ -217,12 +217,12 @@ sent by means of
 This function connects to a server if not already connected, sends
 the request, and waits for a reply.  On failure,
 .Fn tac_send_authen
-returns -1.  Otherwise, it returns the TACACS+ status code and flags,
+returns \-1.  Otherwise, it returns the TACACS+ status code and flags,
 packed into an integer value.  The status can be extracted using the
 macro
 .Fn TAC_AUTHEN_STATUS .
 Possible status codes, defined in
-.Aq taclib.h ,
+.Aq Pa taclib.h ,
 include:
 .Pp
 .Bl -item -compact -offset indent
@@ -294,7 +294,7 @@ initial authentication request.
 .Pp
 When it receives the CONTINUE packet, the server may again request
 more information by returning
-.Dv TAC_AUTHEN_STATUS_GETDATA , 
+.Dv TAC_AUTHEN_STATUS_GETDATA ,
 .Dv TAC_AUTHEN_STATUS_GETUSER ,
 or
 .Dv TAC_AUTHEN_STATUS_GETPASS .
@@ -307,12 +307,12 @@ is sent by means of
 This function connects to a server if not already connected, sends
 the request, and waits for a reply.  On failure,
 .Fn tac_send_author
-returns -1.  Otherwise, it returns the TACACS+ status code and 
-number of attribute value (AV) pairs received packed into an 
+returns \-1.  Otherwise, it returns the TACACS+ status code and
+number of attribute value (AV) pairs received packed into an
 integer value.  The status can be extracted using the macro
 .Fn TAC_AUTHOR_STATUS .
 Possible status codes, defined in
-.Aq taclib.h ,
+.Aq Pa taclib.h ,
 include:
 .Pp
 .Bl -item -compact -offset indent
@@ -326,10 +326,10 @@ include:
 .Dv TAC_AUTHOR_STATUS_ERROR
 .El
 .Pp
-The number of AV pairs received is obtained using 
+The number of AV pairs received is obtained using
 .Fn TAC_AUTHEN_AV_COUNT .
 .Sh EXTRACTING INFORMATION FROM THE SERVER'S AUTHORIZATION RESPONSE
-Like an authentication response packet, an authorization 
+Like an authentication response packet, an authorization
 response packet from the
 server may contain a server message, a data string, or both.  Refer
 to EXTRACTING INFORMATION FROM THE SERVER'S AUTHENTICATION RESPONSE
@@ -341,16 +341,16 @@ attribute value (AV) pairs.  To extract these, use
 or
 .Fn tac_get_av_value .
 .Fn tac_get_av
-takes the index of the AV pair as it is positioned in the list.  
-The indexes start at 0 (use 
+takes the index of the AV pair as it is positioned in the list.
+The indexes start at 0 (use
 .Fn TAC_AUTHEN_AV_COUNT
-on the return value of 
-.Fn tac_send_author 
+on the return value of
+.Fn tac_send_author
 to get the total number of items in this list).
-Alternatively, 
-.Fn tac_get_av_value 
-can be used.  
-.Fn tac_get_av_value 
+Alternatively,
+.Fn tac_get_av_value
+can be used.
+.Fn tac_get_av_value
 takes the attribute name and returns the
 corresponding value only, not the AV pair.  These functions return
 dynamically-allocated copies of the information from the packet.
@@ -365,18 +365,18 @@ can be retrieved by calling
 .Fn tac_strerror .
 The message text is overwritten on each new error for the given
 .Va struct tac_handle * .
-Thus the message must be copied if it is to be preserved through 
+Thus the message must be copied if it is to be preserved through
 subsequent library calls using the same handle.
 .Sh CLEANUP
 To free the resources used by the TACACS+ library, call
 .Fn tac_close .
 .Sh RETURN VALUES
 The following functions return a non-negative value on success.  If
-they detect an error, they return -1 and record an error message
+they detect an error, they return \-1 and record an error message
 which can be retrieved using
 .Fn tac_strerror .
 .Pp
-.Bl -item -offset indent -compact 
+.Bl -item -offset indent -compact
 .It
 .Fn tac_add_server
 .It
@@ -446,8 +446,9 @@ without recording an error message.
 .%O draft-grant-tacacs-02.txt (Internet Draft)
 .Re
 .Sh AUTHORS
+.An -nosplit
 This software was written by
-.An John Polstra ,
+.An John Polstra
 and
 .An Paul Fraley ,
 and donated to the
