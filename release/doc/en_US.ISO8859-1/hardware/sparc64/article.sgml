@@ -15,23 +15,11 @@
 
 <!ENTITY arch "sparc64">
 <!ENTITY arch.print "UltraSPARC">
-<!ENTITY unsupported "<emphasis>(unsupported)</emphasis>">
-<!ENTITY perforce "<emphasis>(not yet committed - in Perforce tree)</emphasis>">
-<!ENTITY sect.dev.sparc64 SYSTEM "./dev-sparc64.sgml">
 ]>
 
 <article>
   &artheader;
   &sect.intro;
   &sect.proc.sparc64;
-  &sect.dev.sparc64;
-  <sect1>
-    <title>Acknowledgments</title>
-
-    <para>This document is based in part on the &os;/Alpha and
-      NetBSD/sparc64 release documentation.  Information about
-      specific system models was obtained from <ulink
-      url="http://www.sun.com">Sun</ulink>.</para>
-
-  </sect1>
+  &sect.dev;
 </article>
