@@ -13,6 +13,7 @@ account		required	pam_login_access.so
 account		required	pam_unix.so
 
 # session
+session		required	pam_lastlog.so
 session		required	pam_permit.so
 
 # password
