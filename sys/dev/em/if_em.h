@@ -117,7 +117,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #define EM_TIDV                         64
 
 /*
- * TxAbsIntDelay (Not valid for 82542 and 82543)
+ * TxAbsIntDelay (Not valid for 82542/82543/82544)
  * Valid Range: 0-65535 (0=off)
  * Default Value: 64
  *   This value, in units of 1.024 microseconds, limits the delay in which a
@@ -151,7 +151,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #define EM_RDTR                         0
 
 /*
- * RxAbsIntDelay (Not valid for 82542 and 82543)
+ * RxAbsIntDelay (Not valid for 82542/82543/82544)
  * Valid Range: 0-65535 (0=off)
  * Default Value: 64
  *   This value, in units of 1.024 microseconds, limits the delay in which a
