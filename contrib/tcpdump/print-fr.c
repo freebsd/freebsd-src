@@ -21,7 +21,7 @@
 
 #ifndef lint
 static  char rcsid[] =
-	"@(#)$Header: /cvs/juniper/src/freebsd/contrib/tcpdump/print-fr.c,v 1.2 1997/07/18 20:24:15 boonmark Exp $ (LBL)";
+	"@(#)$Header: /home/ncvs/src/contrib/tcpdump/print-fr.c,v 1.1 1997/12/31 21:50:31 pst Exp $ (LBL)";
 #endif
 
 #ifdef PPP
@@ -36,6 +36,7 @@ struct mbuf;
 struct rtentry;
 #endif
 #include <net/if.h>
+#include <net/if_var.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
