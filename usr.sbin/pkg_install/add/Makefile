@@ -10,9 +10,4 @@ WARNS?=	2
 DPADD=	${LIBINSTALL} ${LIBFETCH} ${LIBMD}
 LDADD=	${LIBINSTALL} -lfetch -lmd
 
-.if !defined(NOCRYPT) && !defined(NO_OPENSSL)
-DPADD+=	${LIBSSL} ${LIBCRYPTO}
-LDADD+=	-lssl -lcrypto
-.endif
-
 .include <bsd.prog.mk>
