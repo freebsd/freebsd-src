@@ -70,9 +70,9 @@
 
 #define MASTER_KEY_LENGTH	(1024/8)
 
-static u_char *aes_magic = "<<FreeBSD-GEOM-AES>>";
-static u_char *aes_magic_random = "<<FreeBSD-GEOM-AES-RANDOM>>";
-static u_char *aes_magic_test = "<<FreeBSD-GEOM-AES-TEST>>";
+static const u_char *aes_magic = "<<FreeBSD-GEOM-AES>>";
+static const u_char *aes_magic_random = "<<FreeBSD-GEOM-AES-RANDOM>>";
+static const u_char *aes_magic_test = "<<FreeBSD-GEOM-AES-TEST>>";
 
 
 struct g_aes_softc {

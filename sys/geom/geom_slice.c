@@ -82,7 +82,8 @@ g_slice_init(unsigned nslice, unsigned scsize)
 static int
 g_slice_access(struct g_provider *pp, int dr, int dw, int de)
 {
-	int error, i;
+	int error;
+	u_int u;
 	struct g_geom *gp;
 	struct g_consumer *cp;
 	struct g_provider *pp2;
@@ -94,11 +95,11 @@ g_slice_access(struct g_provider *pp, int dr, int dw, int de)
 	KASSERT (cp != NULL, ("g_slice_access but no consumer"));
 	gsp = gp->softc;
 	gsl = &gsp->slices[pp->index];
-	for (i = 0; i < gsp->nslice; i++) {
-		gsl2 = &gsp->slices[i];
+	for (u = 0; u < gsp->nslice; u++) {
+		gsl2 = &gsp->slices[u];
 		if (gsl2->length == 0)
 			continue;
-		if (i == pp->index)
+		if (u == pp->index)
 			continue;
 		if (gsl->offset + gsl->length <= gsl2->offset)
 			continue;
@@ -129,7 +130,7 @@ g_slice_finish_hot(struct bio *bp)
 	struct g_consumer *cp;
 	struct g_slicer *gsp;
 	struct g_slice *gsl;
-	int index;
+	int idx;
 
 	KASSERT(bp->bio_to != NULL, ("NULL bio_to in g_slice_finish_hot(%p)", bp));
 	KASSERT(bp->bio_from != NULL, ("NULL bio_from in g_slice_finish_hot(%p)", bp));
@@ -137,8 +138,8 @@ g_slice_finish_hot(struct bio *bp)
 	gsp = gp->softc;
 	cp = LIST_FIRST(&gp->consumer);
 	KASSERT(cp != NULL, ("NULL consumer in g_slice_finish_hot(%p)", bp));
-	index = bp->bio_to->index;
-	gsl = &gsp->slices[index];
+	idx = bp->bio_to->index;
+	gsl = &gsp->slices[idx];
 
 	bp2 = g_clone_bio(bp);
 	if (bp2 == NULL) {
@@ -162,7 +163,7 @@ g_slice_start(struct bio *bp)
 	struct g_consumer *cp;
 	struct g_slicer *gsp;
 	struct g_slice *gsl, *gmp;
-	int index, error;
+	int idx, error;
 	u_int m_index;
 	off_t t;
 
@@ -170,8 +171,8 @@ g_slice_start(struct bio *bp)
 	gp = pp->geom;
 	gsp = gp->softc;
 	cp = LIST_FIRST(&gp->consumer);
-	index = pp->index;
-	gsl = &gsp->slices[index];
+	idx = pp->index;
+	gsl = &gsp->slices[idx];
 	switch(bp->bio_cmd) {
 	case BIO_READ:
 	case BIO_WRITE:
@@ -233,9 +234,9 @@ g_slice_start(struct bio *bp)
 			struct g_kerneldump *gkd;
 
 			gkd = (struct g_kerneldump *)bp->bio_data;
-			gkd->offset += gsp->slices[index].offset;
-			if (gkd->length > gsp->slices[index].length)
-				gkd->length = gsp->slices[index].length;
+			gkd->offset += gsp->slices[idx].offset;
+			if (gkd->length > gsp->slices[idx].length)
+				gkd->length = gsp->slices[idx].length;
 			/* now, pass it on downwards... */
 		}
 #endif
@@ -254,7 +255,7 @@ g_slice_start(struct bio *bp)
 }
 
 void
-g_slice_dumpconf(struct sbuf *sb, char *indent, struct g_geom *gp, struct g_consumer *cp, struct g_provider *pp)
+g_slice_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp, struct g_consumer *cp, struct g_provider *pp)
 {
 	struct g_slicer *gsp;
 
@@ -283,7 +284,7 @@ g_slice_dumpconf(struct sbuf *sb, char *indent, struct g_geom *gp, struct g_cons
 }
 
 int
-g_slice_config(struct g_geom *gp, u_int index, int how, off_t offset, off_t length, u_int sectorsize, char *fmt, ...)
+g_slice_config(struct g_geom *gp, u_int idx, int how, off_t offset, off_t length, u_int sectorsize, const char *fmt, ...)
 {
 	struct g_provider *pp;
 	struct g_slicer *gsp;
@@ -293,13 +294,13 @@ g_slice_config(struct g_geom *gp, u_int index, int how, off_t offset, off_t leng
 	int error, acc;
 
 	g_trace(G_T_TOPOLOGY, "g_slice_config(%s, %d, %d)",
-	     gp->name, index, how);
+	     gp->name, idx, how);
 	g_topology_assert();
 	gsp = gp->softc;
 	error = 0;
-	if (index >= gsp->nslice)
+	if (idx >= gsp->nslice)
 		return(EINVAL);
-	gsl = &gsp->slices[index];
+	gsl = &gsp->slices[idx];
 	pp = gsl->provider;
 	if (pp != NULL)
 		acc = pp->acr + pp->acw + pp->ace;
@@ -344,7 +345,7 @@ g_slice_config(struct g_geom *gp, u_int index, int how, off_t offset, off_t leng
 		printf("GEOM: Configure %s, start %jd length %jd end %jd\n",
 		    pp->name, (intmax_t)offset, (intmax_t)length,
 		    (intmax_t)(offset + length - 1));
-	pp->index = index;
+	pp->index = idx;
 	pp->mediasize = gsl->length;
 	pp->sectorsize = gsl->sectorsize;
 	gsl->provider = pp;
@@ -355,7 +356,7 @@ g_slice_config(struct g_geom *gp, u_int index, int how, off_t offset, off_t leng
 }
 
 int
-g_slice_conf_hot(struct g_geom *gp, u_int index, off_t offset, off_t length)
+g_slice_conf_hot(struct g_geom *gp, u_int idx, off_t offset, off_t length)
 {
 	struct g_slicer *gsp;
 	struct g_slice *gsl, *gsl2;
@@ -364,27 +365,27 @@ g_slice_conf_hot(struct g_geom *gp, u_int index, off_t offset, off_t length)
 	g_topology_assert();
 	gsp = gp->softc;
 	gsl = gsp->hot;
-	if(index >= gsp->nhot) {
-		gsl2 = g_malloc((index + 1) * sizeof *gsl2, M_WAITOK | M_ZERO);
+	if(idx >= gsp->nhot) {
+		gsl2 = g_malloc((idx + 1) * sizeof *gsl2, M_WAITOK | M_ZERO);
 		if (gsp->hot != NULL)
 			bcopy(gsp->hot, gsl2, gsp->nhot * sizeof *gsl2);
 		gsp->hot = gsl2;
 		if (gsp->hot != NULL)
 			g_free(gsl);
 		gsl = gsl2;
-		gsp->nhot = index + 1;
+		gsp->nhot = idx + 1;
 	}
 	if (bootverbose)
 		printf("GEOM: Add %s hot[%d] start %jd length %jd end %jd\n",
-		    gp->name, index, (intmax_t)offset, (intmax_t)length,
+		    gp->name, idx, (intmax_t)offset, (intmax_t)length,
 		    (intmax_t)(offset + length - 1));
-	gsl[index].offset = offset;
-	gsl[index].length = length;
+	gsl[idx].offset = offset;
+	gsl[idx].length = length;
 	return (0);
 }
 
 struct g_provider *
-g_slice_addslice(struct g_geom *gp, int index, off_t offset, off_t length, u_int sectorsize, char *fmt, ...)
+g_slice_addslice(struct g_geom *gp, int idx, off_t offset, off_t length, u_int sectorsize, const char *fmt, ...)
 {
 	struct g_provider *pp;
 	struct g_slicer *gsp;
@@ -400,13 +401,13 @@ g_slice_addslice(struct g_geom *gp, int index, off_t offset, off_t length, u_int
 	sbuf_finish(sb);
 	pp = g_new_providerf(gp, sbuf_data(sb));
 
-	pp->index = index;
-	gsp->slices[index].length = length;
-	gsp->slices[index].offset = offset;
-	gsp->slices[index].provider = pp;
-	gsp->slices[index].sectorsize = sectorsize;
-	pp->mediasize = gsp->slices[index].length;
-	pp->sectorsize = gsp->slices[index].sectorsize;
+	pp->index = idx;
+	gsp->slices[idx].length = length;
+	gsp->slices[idx].offset = offset;
+	gsp->slices[idx].provider = pp;
+	gsp->slices[idx].sectorsize = sectorsize;
+	pp->mediasize = gsp->slices[idx].length;
+	pp->sectorsize = gsp->slices[idx].sectorsize;
 	sbuf_delete(sb);
 	if (bootverbose)
 		printf("GEOM: Add %s, start %jd length %jd end %jd\n",

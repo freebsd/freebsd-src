@@ -103,25 +103,25 @@ g_mbr_start(struct bio *bp)
 	struct g_geom *gp;
 	struct g_mbr_softc *mp;
 	struct g_slicer *gsp;
-	int index;
+	int idx;
 
 	pp = bp->bio_to;
-	index = pp->index;
+	idx = pp->index;
 	gp = pp->geom;
 	gsp = gp->softc;
 	mp = gsp->softc;
 	if (bp->bio_cmd == BIO_GETATTR) {
-		if (g_handleattr_int(bp, "MBR::type", mp->type[index]))
+		if (g_handleattr_int(bp, "MBR::type", mp->type[idx]))
 			return (1);
 		if (g_handleattr_off_t(bp, "MBR::offset",
-		    gsp->slices[index].offset))
+		    gsp->slices[idx].offset))
 			return (1);
 	}
 	return (0);
 }
 
 static void
-g_mbr_dumpconf(struct sbuf *sb, char *indent, struct g_geom *gp, struct g_consumer *cp __unused, struct g_provider *pp)
+g_mbr_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp, struct g_consumer *cp __unused, struct g_provider *pp)
 {
 	struct g_mbr_softc *mp;
 	struct g_slicer *gsp;
@@ -289,22 +289,22 @@ g_mbrext_start(struct bio *bp)
 	struct g_geom *gp;
 	struct g_mbrext_softc *mp;
 	struct g_slicer *gsp;
-	int index;
+	int idx;
 
 	pp = bp->bio_to;
-	index = pp->index;
+	idx = pp->index;
 	gp = pp->geom;
 	gsp = gp->softc;
 	mp = gsp->softc;
 	if (bp->bio_cmd == BIO_GETATTR) {
-		if (g_handleattr_int(bp, "MBR::type", mp->type[index]))
+		if (g_handleattr_int(bp, "MBR::type", mp->type[idx]))
 			return (1);
 	}
 	return (0);
 }
 
 static void
-g_mbrext_dumpconf(struct sbuf *sb, char *indent, struct g_geom *gp, struct g_consumer *cp __unused, struct g_provider *pp)
+g_mbrext_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp, struct g_consumer *cp __unused, struct g_provider *pp)
 {
 	struct g_mbrext_softc *mp;
 	struct g_slicer *gsp;
