@@ -126,7 +126,8 @@ MAN=	openpam.3 \
 	pam_vinfo.3 \
 	pam_vprompt.3
 
-WARNS?=	4
+CSTD?= c99
+WARNS?=	5
 CFLAGS+= -I${.CURDIR} -I${OPENPAM}/include
 CFLAGS+= -DLIB_MAJ=${SHLIB_MAJOR}
 
