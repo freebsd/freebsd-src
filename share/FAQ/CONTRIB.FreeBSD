@@ -78,6 +78,7 @@ Additional FreeBSD Contributors
 (in alphabetical order):
 
 Adam Glass <glass@postgres.berkeley.edu>
+Andreas Klemm <andreas@knobel.GUN.de>
 Andrew Herbert <andrew@werple.apana.org.au>
 Andrew Moore <alm@FreeBSD.org>
 Atsushi Murai <amurai@spec.co.jp>
@@ -85,6 +86,7 @@ Bob Wilcox <bob@obiwan.uucp>
 Bruce Evans <bde@kralizec.zeta.org.au>
 Charles Hannum <mycroft@ai.mit.edu>
 Chris G. Demetriou <cgd@postgres.berkeley.edu>
+Christian Gusenbauer <??>
 Chris Torek <torek@ee.lbl.gov>
 Christoph Robitschko <chmr@edvz.tu-graz.ac.at>
 Curt Mayer <curt@toad.com>
@@ -222,4 +224,4 @@ Last, but not least, the release engineer would like to thank:
 	His Wife, for chocolate chip cookies, and some other things.
 	The DGB project @ TFS, for patience and tolerance.
 
-$Id: CONTRIB.FreeBSD,v 1.4 1994/11/27 13:06:18 ats Exp $
+$Id: CONTRIB.FreeBSD,v 1.5 1995/01/27 23:15:30 jkh Exp $
