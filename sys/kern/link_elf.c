@@ -91,9 +91,10 @@ typedef struct elf_file {
 #endif
 } *elf_file_t;
 
-static int	link_elf_load_module(linker_class_t cls,
-				     const char*, linker_file_t*);
-static int	link_elf_load_file(const char*, linker_file_t*);
+static int	link_elf_link_preload(linker_class_t cls,
+				      const char*, linker_file_t*);
+static int	link_elf_link_preload_finish(linker_file_t);
+static int	link_elf_load_file(linker_class_t, const char*, linker_file_t*);
 static int	link_elf_lookup_symbol(linker_file_t, const char*,
 				       c_linker_sym_t*);
 static int	link_elf_symbol_values(linker_file_t, c_linker_sym_t, linker_symval_t*);
@@ -101,14 +102,16 @@ static int	link_elf_search_symbol(linker_file_t, caddr_t value,
 				       c_linker_sym_t* sym, long* diffp);
 
 static void	link_elf_unload_file(linker_file_t);
-static void	link_elf_unload_module(linker_file_t);
+static void	link_elf_unload_preload(linker_file_t);
 
 static kobj_method_t link_elf_methods[] = {
     KOBJMETHOD(linker_lookup_symbol,	link_elf_lookup_symbol),
     KOBJMETHOD(linker_symbol_values,	link_elf_symbol_values),
     KOBJMETHOD(linker_search_symbol,	link_elf_search_symbol),
     KOBJMETHOD(linker_unload,		link_elf_unload_file),
-    KOBJMETHOD(linker_load_file,	link_elf_load_module),
+    KOBJMETHOD(linker_load_file,	link_elf_load_file),
+    KOBJMETHOD(linker_link_preload,	link_elf_link_preload),
+    KOBJMETHOD(linker_link_preload_finish, link_elf_link_preload_finish),
     { 0, 0 }
 };
 
@@ -122,9 +125,8 @@ static struct linker_class link_elf_class = {
 };
 
 static int		parse_dynamic(elf_file_t ef);
-static int		load_dependancies(elf_file_t ef);
 static int		relocate_file(elf_file_t ef);
-static int		parse_module_symbols(elf_file_t ef);
+static int		link_elf_preload_parse_symbols(elf_file_t ef);
 
 #ifdef DDB
 
@@ -176,6 +178,7 @@ link_elf_init(void* arg)
 	    panic("link_elf_init: Can't create linker structures for kernel");
 	
 	ef = (elf_file_t) linker_kernel_file;
+	ef->preloaded = 1;
 	ef->address = 0;
 #ifdef SPARSE_MAPPING
 	ef->object = 0;
@@ -195,9 +198,7 @@ link_elf_init(void* arg)
 	    if (sizeptr)
 		linker_kernel_file->size = *(size_t *)sizeptr;
 	}
-	(void)parse_module_symbols(ef);
-	linker_current_file = linker_kernel_file;
-	linker_kernel_file->flags |= LINKER_FILE_LINKED;
+	(void)link_elf_preload_parse_symbols(ef);
 
 #ifdef DDB
 	ef->gdb.l_addr = linker_kernel_file->address;
@@ -220,7 +221,7 @@ link_elf_init(void* arg)
 SYSINIT(link_elf, SI_SUB_KLD, SI_ORDER_SECOND, link_elf_init, 0);
 
 static int
-parse_module_symbols(elf_file_t ef)
+link_elf_preload_parse_symbols(elf_file_t ef)
 {
     caddr_t	pointer;
     caddr_t	ssym, esym, base;
@@ -400,8 +401,8 @@ link_elf_delete_gdb(struct link_map *l)
 #endif /* DDB */
 
 static int
-link_elf_load_module(linker_class_t cls,
-		     const char *filename, linker_file_t *result)
+link_elf_link_preload(linker_class_t cls,
+		      const char* filename, linker_file_t *result)
 {
     caddr_t		modptr, baseptr, sizeptr, dynptr;
     char		*type;
@@ -410,12 +411,11 @@ link_elf_load_module(linker_class_t cls,
     int			error;
     vm_offset_t		dp;
 
-    /* Look to see if we have the module preloaded */
+    /* Look to see if we have the file preloaded */
     modptr = preload_search_by_name(filename);
     if (modptr == NULL)
-	return (link_elf_load_file(filename, result));
+	return ENOENT;
 
-    /* It's preloaded, check we can handle it and collect information */
     type = (char *)preload_search_info(modptr, MODINFO_TYPE);
     baseptr = preload_search_info(modptr, MODINFO_ADDR);
     sizeptr = preload_search_info(modptr, MODINFO_SIZE);
@@ -439,7 +439,6 @@ link_elf_load_module(linker_class_t cls,
 #endif
     dp = (vm_offset_t)ef->address + *(vm_offset_t *)dynptr;
     ef->dynamic = (Elf_Dyn *)dp;
-
     lf->address = ef->address;
     lf->size = *(size_t *)sizeptr;
 
@@ -448,34 +447,46 @@ link_elf_load_module(linker_class_t cls,
 	linker_file_unload(lf);
 	return error;
     }
-    error = load_dependancies(ef);
-    if (error) {
-	linker_file_unload(lf);
-	return error;
-    }
-    error = relocate_file(ef);
-    if (error) {
-	linker_file_unload(lf);
-	return error;
-    }
-    (void)parse_module_symbols(ef);
-    lf->flags |= LINKER_FILE_LINKED;
-
-#ifdef DDB
-    GDB_STATE(RT_ADD);
-    ef->gdb.l_addr = lf->address;
-    ef->gdb.l_name = filename;
-    ef->gdb.l_ld = ef->dynamic;
-    link_elf_add_gdb(&ef->gdb);
-    GDB_STATE(RT_CONSISTENT);
-#endif
-
     *result = lf;
     return (0);
 }
 
 static int
-link_elf_load_file(const char* filename, linker_file_t* result)
+link_elf_link_preload_finish(linker_file_t lf)
+{
+    elf_file_t		ef;
+    int error;
+
+    ef = (elf_file_t) lf;
+#if 0	/* this will be more trouble than it's worth for now */
+    for (dp = ef->dynamic; dp->d_tag != DT_NULL; dp++) {
+	if (dp->d_tag != DT_NEEDED)
+	    continue;
+	modname = ef->strtab + dp->d_un.d_val;
+	error = linker_load_module(modname, lf);
+	if (error)
+	    goto out;
+    }
+#endif
+    error = relocate_file(ef);
+    if (error)
+	return error;
+    (void)link_elf_preload_parse_symbols(ef);
+
+#ifdef DDB
+    GDB_STATE(RT_ADD);
+    ef->gdb.l_addr = lf->address;
+    ef->gdb.l_name = lf->filename;
+    ef->gdb.l_ld = ef->dynamic;
+    link_elf_add_gdb(&ef->gdb);
+    GDB_STATE(RT_CONSISTENT);
+#endif
+
+    return (0);
+}
+
+static int
+link_elf_load_file(linker_class_t cls, const char* filename, linker_file_t* result)
 {
     struct nameidata nd;
     struct proc* p = curproc;	/* XXX */
@@ -497,7 +508,6 @@ link_elf_load_file(const char* filename, linker_file_t* result)
     int resid;
     elf_file_t ef;
     linker_file_t lf;
-    char *pathname;
     Elf_Shdr *shdr;
     int symtabindex;
     int symstrindex;
@@ -507,13 +517,8 @@ link_elf_load_file(const char* filename, linker_file_t* result)
     shdr = NULL;
     lf = NULL;
 
-    pathname = linker_search_path(filename);
-    if (pathname == NULL)
-	return ENOENT;
-
-    NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, pathname, p);
+    NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, filename, p);
     error = vn_open(&nd, FREAD, 0);
-    free(pathname, M_LINKER);
     if (error)
 	return error;
     NDFREE(&nd, NDF_ONLY_PNBUF);
@@ -688,9 +693,19 @@ link_elf_load_file(const char* filename, linker_file_t* result)
     error = parse_dynamic(ef);
     if (error)
 	goto out;
-    error = load_dependancies(ef);
+    error = linker_load_dependancies(lf);
     if (error)
 	goto out;
+#if 0	/* this will be more trouble than it's worth for now */
+    for (dp = ef->dynamic; dp->d_tag != DT_NULL; dp++) {
+	if (dp->d_tag != DT_NEEDED)
+	    continue;
+	modname = ef->strtab + dp->d_un.d_val;
+	error = linker_load_module(modname, lf);
+	if (error)
+	    goto out;
+    }
+#endif
     error = relocate_file(ef);
     if (error)
 	goto out;
@@ -746,12 +761,10 @@ link_elf_load_file(const char* filename, linker_file_t* result)
     ef->ddbstrcnt = strcnt;
     ef->ddbstrtab = ef->strbase;
 
-    lf->flags |= LINKER_FILE_LINKED;
-
 #ifdef DDB
     GDB_STATE(RT_ADD);
     ef->gdb.l_addr = lf->address;
-    ef->gdb.l_name = linker_search_path(filename);
+    ef->gdb.l_name = filename;
     ef->gdb.l_ld = ef->dynamic;
     link_elf_add_gdb(&ef->gdb);
     GDB_STATE(RT_CONSISTENT);
@@ -784,13 +797,11 @@ link_elf_unload_file(linker_file_t file)
 	GDB_STATE(RT_DELETE);
 	link_elf_delete_gdb(&ef->gdb);
 	GDB_STATE(RT_CONSISTENT);
-	/* The strange cast is to quieten a 'discarding const' warning. */
-	free((caddr_t) (uintptr_t) ef->gdb.l_name, M_LINKER);
     }
 #endif
 
     if (ef->preloaded) {
-	link_elf_unload_module(file);
+	link_elf_unload_preload(file);
 	return;
     }
 #ifdef SPARSE_MAPPING
@@ -811,43 +822,10 @@ link_elf_unload_file(linker_file_t file)
 }
 
 static void
-link_elf_unload_module(linker_file_t file)
+link_elf_unload_preload(linker_file_t file)
 {
     if (file->filename)
 	preload_delete_name(file->filename);
-}
-
-static int
-load_dependancies(elf_file_t ef)
-{
-    linker_file_t lfdep;
-    char* name;
-    const Elf_Dyn *dp;
-    int error = 0;
-
-    /*
-     * All files are dependant on /kernel.
-     */
-    if (linker_kernel_file) {
-	linker_kernel_file->refs++;
-	linker_file_add_dependancy(&ef->lf, linker_kernel_file);
-    }
-
-    for (dp = ef->dynamic; dp->d_tag != DT_NULL; dp++) {
-	if (dp->d_tag == DT_NEEDED) {
-	    name = ef->strtab + dp->d_un.d_val;
-
-	    error = linker_load_file(name, &lfdep);
-	    if (error)
-		goto out;
-	    error = linker_file_add_dependancy(&ef->lf, lfdep);
-	    if (error)
-		goto out;
-	}
-    }
-
-out:
-    return error;
 }
 
 static const char *
