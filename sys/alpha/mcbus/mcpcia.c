@@ -266,7 +266,7 @@ mcpcia_disable_intr_vec(int vector)
 	struct mcpcia_softc *sc = mcpcia_root;
 
 	if (vector < MCPCIA_VEC_PCI) {
-		printf("EISA isable (0x%x)\n", vector);
+		printf("EISA disable (0x%x)\n", vector);
 		return;
 	}
 
