@@ -397,6 +397,7 @@ gethostanswer(answer, anslen, qname, qtype)
 			}
 
 			bp += sizeof(align) - ((u_long)bp % sizeof(align));
+			buflen -= sizeof(align) - ((u_long)bp % sizeof(align));
 
 			if (bp + n >= &hostbuf[sizeof hostbuf]) {
 				dprintf("size (%d) too big\n", n);
