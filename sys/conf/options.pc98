@@ -1,4 +1,4 @@
-#	$Id: options.pc98,v 1.54 1998/02/21 15:50:26 kato Exp $
+#	$Id: options.pc98,v 1.55 1998/02/21 16:17:42 kato Exp $
 BOUNCEPAGES		opt_bounce.h
 DISABLE_PSE
 USER_LDT
@@ -121,6 +121,9 @@ PCVT_VT220KEYB		opt_pcvt.h
 
 # bs driver options
 SCSI_BOUNCE_SIZE	opt_bs.h
+
+# npx options
+FPU_ERROR_BROKEN	opt_npx.h
 
 # PC98 options
 PC98			opt_global.h
