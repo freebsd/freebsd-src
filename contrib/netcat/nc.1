@@ -1,5 +1,3 @@
-.\"     $OpenBSD: nc.1,v 1.36 2005/01/07 10:11:31 jmc Exp $
-.\"
 .\" Copyright (c) 1996 David Sacerdote
 .\" All rights reserved.
 .\"
@@ -25,7 +23,10 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd June 25, 2001
+.\"     $OpenBSD: nc.1,v 1.36 2005/01/07 10:11:31 jmc Exp $
+.\" $FreeBSD$
+.\"
+.Dd January 30, 2005
 .Dt NC 1
 .Os
 .Sh NAME
@@ -34,7 +35,8 @@
 .Sh SYNOPSIS
 .Nm nc
 .Bk -words
-.Op Fl 46DdhklnrStUuvz
+.Op Fl 46DEdhklnorStUuvz
+.Op Fl e Ar IPsec policy
 .Op Fl i Ar interval
 .Op Fl p Ar source_port
 .Op Fl s Ar source_ip_address
@@ -99,6 +101,16 @@ Do not attempt to read from stdin.
 Prints out
 .Nm
 help.
+.It Fl E
+Shortcut for "-e 'in ipsec esp/transport//require' -e 'out ipsec
+esp/transport//require'", which enables IPsec ESP transport mode in both
+directions.
+.It Fl e
+If IPsec support is available, then one can specify the IPsec policies
+to be used using the syntax described in
+.Xr ipsec_set_policy 3 .
+This flag can be specified up to two times, as typically one policy for
+each direction is needed.
 .It Fl i Ar interval
 Specifies a delay time interval between lines of text sent and received.
 Also causes a delay time between connections to multiple ports.
@@ -127,6 +139,15 @@ option are ignored.
 .It Fl n
 Do not do any DNS or service lookups on any specified addresses,
 hostnames or ports.
+.It Fl o
+.Dq Once-only mode .
+By default,
+.Nm
+does not terminate on EOF condition on input,
+but continues until the network side has been closed down.
+Specifying
+.Fl o
+will make it terminate on EOF as well.
 .It Fl p Ar source_port
 Specifies the source port
 .Nm
@@ -362,6 +383,12 @@ Open a UDP connection to port 53 of hostname:
 .Pp
 Open a TCP connection to port 42 of example.host using 10.1.2.3 as the
 IP for the local end of the connection:
+.It Li "nc -E example.host 42"
+Open a TCP connection to port 42 of example.host using IPsec ESP for
+incoming and outgoing traffic.
+.It Li "nc -e 'out ipsec esp/transport//require' example.host 42"
+Open a TCP connection to port 42 of example.host using IPsec ESP for
+outgoing traffic only.
 .Pp
 .Dl $ nc -s 10.1.2.3 example.host 42
 .Pp
