@@ -1,5 +1,3 @@
-/* $FreeBSD$ */
-
 /*
  * Copyright (c) 2000 by Matthew Jacob
  * All rights reserved.
@@ -31,6 +29,9 @@
  * Dummy Node for MCBUS Memory Modules
  * found on AlphaServer 4100 systems.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
