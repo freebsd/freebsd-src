@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.48 1996/07/13 05:09:29 jkh Exp $
+ * $Id: devices.c,v 1.49 1996/10/05 11:56:47 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -88,6 +88,7 @@ static struct {
     { DEVICE_TYPE_NETWORK,	"ix",		"Intel Etherexpress ethernet card"			},
     { DEVICE_TYPE_NETWORK,	"le",		"DEC EtherWorks 2 or 3 ethernet card"			},
     { DEVICE_TYPE_NETWORK,	"lnc",		"Lance/PCnet (Isolan/Novell NE2100/NE32-VL) ethernet"	},
+    { DEVICE_TYPE_NETWORK,	"vx",		"3COM 3c590 / 3c595 / 3c9xx ethernet card"	},
     { DEVICE_TYPE_NETWORK,	"ze",		"IBM/National Semiconductor PCMCIA ethernet card"	},
     { DEVICE_TYPE_NETWORK,	"zp",		"3Com Etherlink III PCMCIA ethernet card"		},
     { NULL },
