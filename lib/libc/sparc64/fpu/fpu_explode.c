@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include "fpu_arith.h"
 #include "fpu_emu.h"
 #include "fpu_extern.h"
+#include "__sparc_utrap_private.h"
 
 /*
  * N.B.: in all of the following, we assume the FP format is
@@ -278,7 +279,7 @@ __fpu_explode(fe, fp, type, reg)
 		break;
 
 	default:
-		__fpu_panic("fpu_explode");
+		__utrap_panic("fpu_explode");
 	}
 
 	if (s == FPC_QNAN && (fp->fp_mant[0] & FP_QUIETBIT) == 0) {
