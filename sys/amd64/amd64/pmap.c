@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.90 1996/05/18 03:36:14 dyson Exp $
+ *	$Id: pmap.c,v 1.91 1996/05/19 07:36:37 dyson Exp $
  */
 
 /*
@@ -1943,7 +1943,7 @@ pmap_copy(dst_pmap, src_pmap, dst_addr, len, src_addr)
 
 		pdnxt = ((addr + PAGE_SIZE*NPTEPG) & ~(PAGE_SIZE*NPTEPG - 1));
 		srcptepaddr = (vm_offset_t) src_pmap->pm_pdir[addr >> PDRSHIFT];
-		if (srcptepaddr) {
+		if (srcptepaddr == 0) {
 			continue;
 		}
 
