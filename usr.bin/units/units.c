@@ -36,13 +36,13 @@ static const char rcsid[] =
 #endif
 
 #define MAXUNITS 1000
-#define MAXPREFIXES 50
+#define MAXPREFIXES 100
 
 #define MAXSUBUNITS 500
 
 #define PRIMITIVECHAR '!'
 
-char *powerstring = "^";
+const char *powerstring = "^";
 
 struct {
 	char *uname;
@@ -61,10 +61,10 @@ struct {
 }      prefixtable[MAXPREFIXES];
 
 
-char *NULLUNIT = "";
+char NULLUNIT[] = "";
 
 #ifdef MSDOS
-#define SEPERATOR      ";"
+#define SEPARATOR      ";"
 #else
 #define SEPARATOR      ":"
 #endif
@@ -74,7 +74,7 @@ int prefixcount;
 
 
 char *
-dupstr(char *str)
+dupstr(const char *str)
 {
 	char *ret;
 
@@ -87,17 +87,10 @@ dupstr(char *str)
 
 
 void 
-readerror(int linenum)
-{
-	warnx("error in units file '%s' line %d", UNITSFILE, linenum);
-}
-
-
-void 
-readunits(char *userfile)
+readunits(const char *userfile)
 {
 	FILE *unitfile;
-	char line[80], *lineptr;
+	char line[512], *lineptr;
 	int len, linenum, i;
 
 	unitcount = 0;
@@ -131,7 +124,7 @@ readunits(char *userfile)
 		}
 	}
 	while (!feof(unitfile)) {
-		if (!fgets(line, 79, unitfile))
+		if (!fgets(line, sizeof(line), unitfile))
 			break;
 		linenum++;
 		lineptr = line;
@@ -156,12 +149,13 @@ readunits(char *userfile)
 					continue;
 				}
 			lineptr += len + 1;
-			if (!strlen(lineptr)) {
-				readerror(linenum);
-				continue;
-			}
 			lineptr += strspn(lineptr, " \n\t");
 			len = strcspn(lineptr, "\n\t");
+			if (len == 0) {
+				warnx("unexpected end of prefix on line %d",
+				    linenum);
+				continue;
+			}
 			lineptr[len] = 0;
 			prefixtable[prefixcount++].prefixval = dupstr(lineptr);
 		}
@@ -180,7 +174,8 @@ readunits(char *userfile)
 			lineptr += len + 1;
 			lineptr += strspn(lineptr, " \n\t");
 			if (!strlen(lineptr)) {
-				readerror(linenum);
+				warnx("unexpected end of unit on line %d",
+				    linenum);
 				continue;
 			}
 			len = strcspn(lineptr, "\n\t");
@@ -263,7 +258,7 @@ showunit(struct unittype * theunit)
 
 
 void 
-zeroerror()
+zeroerror(void)
 {
 	warnx("unit reduces to zero");
 }
@@ -366,7 +361,7 @@ addunit(struct unittype * theunit, char *toadd, int flip)
 int 
 compare(const void *item1, const void *item2)
 {
-	return strcmp(*(char **) item1, *(char **) item2);
+	return strcmp(*(const char **) item1, *(const char **) item2);
 }
 
 
@@ -374,7 +369,7 @@ void
 sortunit(struct unittype * theunit)
 {
 	char **ptr;
-	int count;
+	unsigned int count;
 
 	for (count = 0, ptr = theunit->numerator; *ptr; ptr++, count++);
 	qsort(theunit->numerator, count, sizeof(char *), compare);
@@ -420,7 +415,7 @@ static char buffer[100];	/* buffer for lookupunit answers with
 				   prefixes */
 
 char *
-lookupunit(char *unit)
+lookupunit(const char *unit)
 {
 	int i;
 	char *copy;
@@ -465,12 +460,11 @@ lookupunit(char *unit)
 		free(copy);
 	}
 	for (i = 0; i < prefixcount; i++) {
-		if (!strncmp(prefixtable[i].prefixname, unit,
-			strlen(prefixtable[i].prefixname))) {
-			unit += strlen(prefixtable[i].prefixname);
-			if (!strlen(unit) || lookupunit(unit)) {
+		size_t len = strlen(prefixtable[i].prefixname);
+		if (!strncmp(prefixtable[i].prefixname, unit, len)) {
+			if (!strlen(unit + len) || lookupunit(unit + len)) {
 				snprintf(buffer, sizeof(buffer), "%s %s",
-				    prefixtable[i].prefixval, unit);
+				    prefixtable[i].prefixval, unit + len);
 				return buffer;
 			}
 		}
@@ -608,7 +602,7 @@ showanswer(struct unittype * have, struct unittype * want)
 
 
 void 
-usage()
+usage(void)
 {
 	fprintf(stderr,
 		"usage: units [-f unitsfile] [-q] [-v] [from-unit to-unit]\n");
@@ -670,7 +664,7 @@ main(int argc, char **argv)
 				initializeunit(&have);
 				if (!quiet)
 					printf("You have: ");
-				if (!fgets(havestr, 80, stdin)) {
+				if (!fgets(havestr, sizeof(havestr), stdin)) {
 					if (!quiet)
 						putchar('\n');
 					exit(0);
@@ -681,7 +675,7 @@ main(int argc, char **argv)
 				initializeunit(&want);
 				if (!quiet)
 					printf("You want: ");
-				if (!fgets(wantstr, 80, stdin)) {
+				if (!fgets(wantstr, sizeof(wantstr), stdin)) {
 					if (!quiet)
 						putchar('\n');
 					exit(0);
