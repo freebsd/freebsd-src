@@ -49,7 +49,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/condvar.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
-#include <sys/kthread.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
@@ -77,6 +76,7 @@ SYSINIT(synch_setup, SI_SUB_KICK_SCHEDULER, SI_ORDER_FIRST, synch_setup, NULL)
 int	hogticks;
 int	lbolt;
 
+static struct callout loadav_callout;
 static struct callout lbolt_callout;
 
 struct loadavg averunnable =
@@ -96,8 +96,7 @@ static int      fscale __unused = FSCALE;
 SYSCTL_INT(_kern, OID_AUTO, fscale, CTLFLAG_RD, 0, FSCALE, "");
 
 static void	endtsleep(void *);
-static void	loadav(void);
-static void	loadav_thread(void *dummy);
+static void	loadav(void *arg);
 static void	lboltcb(void *arg);
 
 /*
@@ -582,7 +581,7 @@ setrunnable(struct thread *td)
  * Completely Bogus.. only works with 1:1 (but compiles ok now :-)
  */
 static void
-loadav(void)
+loadav(void *arg)
 {
 	int i, nrun;
 	struct loadavg *avg;
@@ -593,31 +592,14 @@ loadav(void)
 	for (i = 0; i < 3; i++)
 		avg->ldavg[i] = (cexp[i] * avg->ldavg[i] +
 		    nrun * FSCALE * (FSCALE - cexp[i])) >> FSHIFT;
-}
 
-/*
- * Main loop for a kthread that executes loadav() periodically.
- */
-static void
-loadav_thread(void *dummy)
-{
-	struct proc *p;
-	int nowake;
-
-	p = curthread->td_proc;
-	PROC_LOCK(p);
-	p->p_flag |= P_NOLOAD;
-	PROC_UNLOCK(p);
-	for (;;) {
-		loadav();
-		/*
-		 * Schedule the next update to occur after 5 seconds, but
-		 * add a random variation to avoid synchronisation with
-		 * processes that run at regular intervals.
-		 */
-		tsleep(&nowake, curthread->td_priority, "-", hz * 4 +
-		    (int)(random() % (hz * 2 + 1)));
-	}
+	/*
+	 * Schedule the next update to occur after 5 seconds, but add a
+	 * random variation to avoid synchronisation with processes that
+	 * run at regular intervals.
+	 */
+	callout_reset(&loadav_callout, hz * 4 + (int)(random() % (hz * 2 + 1)),
+	    loadav, NULL);
 }
 
 static void
@@ -632,13 +614,12 @@ static void
 synch_setup(dummy)
 	void *dummy;
 {
+	callout_init(&loadav_callout, 0);
 	callout_init(&lbolt_callout, CALLOUT_MPSAFE);
 
 	/* Kick off timeout driven events by calling first time. */
+	loadav(NULL);
 	lboltcb(NULL);
-
-	/* Kick off loadav kernel process. */
-	kthread_create(loadav_thread, NULL, NULL, 0, 0, "loadav");
 }
 
 /*
