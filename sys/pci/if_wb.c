@@ -981,7 +981,7 @@ wb_detach(dev)
 	 * Delete any miibus and phy devices attached to this interface.
 	 * This should only be done if attach succeeded.
 	 */
-	if (device_is_alive(dev)) {
+	if (device_is_attached(dev)) {
 		wb_stop(sc);
 		ether_ifdetach(ifp);
 	}

@@ -2377,7 +2377,7 @@ ti_detach(dev)
 	ifp = &sc->arpcom.ac_if;
 
 	/* These should only be active if attach succeeded */
-	if (device_is_alive(dev)) {
+	if (device_is_attached(dev)) {
 		ti_stop(sc);
 		ether_ifdetach(ifp);
 		bus_generic_detach(dev);

@@ -829,7 +829,7 @@ sf_detach(dev)
 	ifp = &sc->arpcom.ac_if;
 
 	/* These should only be active if attach succeeded */
-	if (device_is_alive(dev)) {
+	if (device_is_attached(dev)) {
 		sf_stop(sc);
 		ether_ifdetach(ifp);
 	}

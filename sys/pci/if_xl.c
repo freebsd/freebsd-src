@@ -1769,7 +1769,7 @@ xl_detach(dev)
 	}
 
 	/* These should only be active if attach succeeded */
-	if (device_is_alive(dev)) {
+	if (device_is_attached(dev)) {
 		xl_reset(sc);
 		xl_stop(sc);
 		ether_ifdetach(ifp);
