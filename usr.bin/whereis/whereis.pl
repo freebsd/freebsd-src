@@ -28,7 +28,7 @@
 #
 # Rewritten from scratch for FreeBSD after the 4.3BSD manual page.
 #
-# $Id$
+# $Id: whereis.pl,v 1.1 1996/06/15 12:29:48 joerg Exp $
 #
 
 sub usage
@@ -117,13 +117,15 @@ if (!defined(@manuals)) {
     #
     # first, use default manpath, then append user's $MANPATH
     #
+    local($usermanpath) = $ENV{'MANPATH'};
+    delete $ENV{'MANPATH'};
     local($manpath) = `/usr/bin/manpath`;
     local(@list, %path, $i);
 
     chop($manpath);
 
     @list = &decolonify($manpath);
-    push(@list, &decolonify($ENV{'MANPATH'}));
+    push(@list, &decolonify($usermanpath));
 
     # remove duplicates
     foreach (@list) {
@@ -220,7 +222,7 @@ foreach $name (@names) {
 	# source directories, and at least one further level of
 	# subdirectories.
 	#
-	if (!$found && open(LOCATE, "locate */$name|")) {
+	if (!$found && open(LOCATE, "locate */$name 2>/dev/null |")) {
 	  locate_item:
 	    while (chop($loc = <LOCATE>)) {
 		foreach (@sources) {
