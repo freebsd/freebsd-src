@@ -114,6 +114,11 @@ uid_t *getuidbyname ();
 gid_t *getgidbyname ();
 #endif
 
+/* lchown.c */
+#ifdef HAVE_LCHOWN
+int lchown P_((const char *path, uid_t owner, gid_t group));
+#endif
+
 /* main.c */
 void process_args P_((int argc, char *argv[]));
 void initialize_buffers P_((void));
