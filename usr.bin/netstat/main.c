@@ -287,7 +287,7 @@ main(int argc, char *argv[])
 
 	af = AF_UNSPEC;
 
-	while ((ch = getopt(argc, argv, "Aabcdf:gI:iLlM:mN:np:rSstuWw:z")) != -1)
+	while ((ch = getopt(argc, argv, "Aabdf:gI:iLlM:mN:np:rSstuWw:z")) != -1)
 		switch(ch) {
 		case 'A':
 			Aflag = 1;
@@ -689,7 +689,7 @@ usage(void)
 "       netstat -s [-s] [-z] [-f protocol_family | -p protocol] [-M core]",
 "       netstat -i | -I interface -s [-f protocol_family | -p protocol]\n"
 "               [-M core] [-N system]",
-"       netstat -m [-c] [-M core] [-N system]",
+"       netstat -m [-M core] [-N system]",
 "       netstat -r [-AenW] [-f address_family] [-M core] [-N system]",
 "       netstat -rs [-s] [-M core] [-N system]",
 "       netstat -g [-W] [-f address_family] [-M core] [-N system]",
