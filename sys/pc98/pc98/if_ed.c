@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.63 1999/05/10 09:06:12 kato Exp $
+ *	$Id: if_ed.c,v 1.64 1999/07/06 19:23:18 des Exp $
  */
 
 /*
@@ -1303,7 +1303,7 @@ ed_probe_Novell_generic(sc, port, unit, flags)
 	 */
 #ifdef PC98
 	if (sc->type == ED_TYPE98_BDN) {
-		outb(sc->asic_addr + ED_NOVELL_RESET, tmp & 0xf0 | 0x08);
+		outb(sc->asic_addr + ED_NOVELL_RESET, (tmp & 0xf0) | 0x08);
 		outb(sc->nic_addr + 0x4000, tmp);
 		(void) inb(sc->asic_addr + 0x8000);
 		outb(sc->asic_addr + 0x8000, tmp);
@@ -1900,7 +1900,6 @@ static int ed_probe_SIC98(struct isa_device* pc98_dev)
 	struct ed_softc *sc = &ed_softc[pc98_dev->id_unit];
 	u_char sum;
 	u_int memsize;
-	int unit = pc98_dev->id_unit;
 
 	if ((pc98_dev->id_maddr == 0) || (pc98_dev->id_msize == 0))
 		return 0;
@@ -2027,7 +2026,7 @@ ed_probe_CNET98(isa_dev)
 	 */
 	tmp_s = kvtop(sc->mem_start) >> 12;
 	if ( tmp_s < 0x80 ) {
-		printf("ed%d: Please change window address(0x%x) \n",
+		printf("ed%d: Please change window address(0x%x)\n",
 			   isa_dev->id_unit,sc->mem_start);
 	  return (0);
 	}
@@ -2036,7 +2035,7 @@ ed_probe_CNET98(isa_dev)
 	tmp_s = (tmp_s & (u_char) 0x0f);
 	tmp_e = tmp_s + 4;
 	if ( (tmp_s <= tmp) && (tmp < tmp_e ) ){
-printf("ed%d: Please change iobase address(0x%x) or window address(0x%x) \n",
+printf("ed%d: Please change iobase address(0x%x) or window address(0x%lx) \n",
 	   isa_dev->id_unit,isa_dev->id_iobase,kvtop(sc->mem_start));
 	  return (0);
 	}
@@ -2184,7 +2183,7 @@ printf("ed%d: Please change iobase address(0x%x) or window address(0x%x) \n",
 		break;
 	default:
 printf("ed%d: Change Interrupt level default value from %d to %d.\n",
-			isa_dev->id_irq,IRQ5);
+	    isa_dev->id_unit, isa_dev->id_irq,IRQ5);
 		isa_dev->id_irq = IRQ5;
 		outb((sc->asic_addr + ED_CNET98_INT_LEV),ED_CNET98_INT_IRQ5);
 		break;
@@ -2211,7 +2210,6 @@ static int ed_probe_CNET98EL(struct isa_device* isa_dev)
 	static char test_pattern[32] = "THIS is A memory TEST pattern";
 	char    test_buffer[32];
 	u_short	init_addr = ED_CNET98EL_INIT;
-	int unit = isa_dev->id_unit;
 
 	sc->asic_addr = isa_dev->id_iobase + ED_NOVELL_ASIC_OFFSET;
 	sc->nic_addr  = isa_dev->id_iobase + ED_NOVELL_NIC_OFFSET;
