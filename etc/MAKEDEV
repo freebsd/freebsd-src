@@ -74,8 +74,13 @@
 #	pty*	set of 32 master and slave pseudo terminals
 #	vty*	virtual terminals using syscons/pcvt/codrv console
 #
-# Printers:
-#	lpt*	stock lp
+# Parallel port:
+#	lpt*	Printer
+#	ppi*	Parallel port i/o
+#
+# I2C and SMBus:
+#	iic*	I2C devices
+#	smb*	SMBUS devices
 #
 # SCSI devices (other than CD-ROM, tape and disk):
 #	ssc	The ``super scsi'' device
@@ -108,7 +113,7 @@
 #	pci	PCI configuration-space access from user mode
 #	ipl	ipfilter control devices (ipl, ipnat, ipstate, ipauth)
 #
-#	$Id: MAKEDEV,v 1.174 1998/10/29 22:16:29 obrien Exp $
+#	$Id: MAKEDEV,v 1.176 1998/10/31 05:27:02 obrien Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:$PATH
@@ -202,6 +207,9 @@ all)
 	sh MAKEDEV mse0 psm0 sysmouse			# cdev, mouse
 	sh MAKEDEV pcaudio speaker			# cdev, noise
 	sh MAKEDEV lpt0 lpt1 lpt2			# cdev, printer
+	sh MAKEDEV ppi0 ppi1 ppi2			# cdev, parallel port
+	sh MAKEDEV iic0 iic1				# cdev, I2C device
+	sh MAKEDEV smb0 smb1				# cdev, SMBus device
 	sh MAKEDEV bpf0 ipl tun0			# cdev, network
 	sh MAKEDEV ch0 perfmon tw0			# cdev, miscellaneous
 	sh MAKEDEV apm card0 card1			# cdev, laptop
@@ -728,6 +736,21 @@ wst*)
 		;;
 	esac
 	umask 77
+	;;
+
+iic*)
+	unit=`expr $i : 'iic\(.*\)'`
+	mknod iic$unit c 105 $unit
+	;;
+
+smb*)
+	unit=`expr $i : 'smb\(.*\)'`
+	mknod smb$unit c 106 $unit
+	;;
+
+ppi*)
+	unit=`expr $i : 'ppi\(.*\)'`
+	mknod smb$unit c 82 $unit
 	;;
 
 lpt*)
