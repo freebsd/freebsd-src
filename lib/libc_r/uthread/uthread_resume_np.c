@@ -49,21 +49,21 @@ pthread_resume_np(pthread_t thread)
 			/* Found the thread. Is it suspended? */
 			if (pthread->state == PS_SUSPENDED) {
 				/* Allow the thread to run. */
-				pthread->state = PS_RUNNING;
+				PTHREAD_NEW_STATE(pthread,PS_RUNNING);
 				ret = 0;
 			} else if (pthread->state == PS_RUNNING) {
 				/* Thread is already running. */
 				ret = 0;
 			} else {
 				/* Thread is in some other state. */
-				_thread_seterrno(_thread_run,EINVAL);
+				errno = EINVAL;
 			}
 		}
 	}
 	/* Check if thread was not found. */
 	if (ret == -1) {
 		/* No such thread */
-		_thread_seterrno(_thread_run,ESRCH);
+		errno = ESRCH;
 	}
 	return(ret);
 }

@@ -67,6 +67,19 @@
 #define _POSIX_THREAD_SAFE_FUNCTIONS
 
 /*
+ * Flags for threads and thread attributes.
+ */
+#define PTHREAD_DETACHED            0x1
+#define PTHREAD_SCOPE_SYSTEM        0x2
+#define PTHREAD_INHERIT_SCHED       0x4
+#define PTHREAD_NOFLOAT             0x8
+
+#define PTHREAD_CREATE_DETACHED     PTHREAD_DETACHED
+#define PTHREAD_CREATE_JOINABLE     0
+#define PTHREAD_SCOPE_PROCESS       0
+#define PTHREAD_EXPLICIT_SCHED      0
+
+/*
  * Forward structure definitions.
  *
  * These are mostly opaque to the user.
@@ -127,8 +140,8 @@ struct pthread_once {
 /*
  * Default attribute arguments.
  */
-#define pthread_condattr_default    NULL
 #ifndef PTHREAD_KERNEL
+#define pthread_condattr_default    NULL
 #define pthread_mutexattr_default   NULL
 #define pthread_attr_default        NULL
 #endif
@@ -162,7 +175,7 @@ int		pthread_attr_setstacksize __P((pthread_attr_t *, size_t));
 int		pthread_attr_setstackaddr __P((pthread_attr_t *, void *));
 int		pthread_attr_setdetachstate __P((pthread_attr_t *, int));
 void		pthread_cleanup_pop __P((int execute));
-int		pthread_cleanup_push __P((void (*routine) (void *),
+void		pthread_cleanup_push __P((void (*routine) (void *),
 			void *routine_arg));
 int		pthread_condattr_destroy __P((pthread_condattr_t *attr));
 int		pthread_condattr_init __P((pthread_condattr_t *attr));

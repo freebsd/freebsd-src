@@ -37,11 +37,10 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-int
-_thread_cleanup_push(void (*routine) (void *), void *routine_arg)
+void
+pthread_cleanup_push(void (*routine) (void *), void *routine_arg)
 {
 	struct pthread_cleanup *new;
-	int             ret;
 
 	if ((new = (struct pthread_cleanup *) malloc(sizeof(struct pthread_cleanup))) != NULL) {
 		new->routine = routine;
@@ -49,15 +48,11 @@ _thread_cleanup_push(void (*routine) (void *), void *routine_arg)
 		new->next = _thread_run->cleanup;
 
 		_thread_run->cleanup = new;
-		ret = 0;
-	} else {
-		ret = ENOMEM;
 	}
-	return (ret);
 }
 
 void
-_thread_cleanup_pop(int execute)
+pthread_cleanup_pop(int execute)
 {
 	struct pthread_cleanup *old;
 
