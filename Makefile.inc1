@@ -50,10 +50,6 @@ SUBDIR+= include
 SUBDIR+= lib
 .endif
 
-.if exists(${.CURDIR}/rescue) && !defined(NO_RESCUE)
-SUBDIR+= rescue
-.endif
-
 .if exists(${.CURDIR}/bin)
 SUBDIR+= bin
 .endif
@@ -69,6 +65,9 @@ SUBDIR+= kerberos5
 .endif
 .if exists(${.CURDIR}/libexec)
 SUBDIR+= libexec
+.endif
+.if exists(${.CURDIR}/rescue) && !defined(NO_RESCUE)
+SUBDIR+= rescue
 .endif
 .if exists(${.CURDIR}/sbin)
 SUBDIR+= sbin
@@ -678,11 +677,21 @@ _kbdcontrol=	usr.sbin/kbdcontrol
 .endif
 
 bootstrap-tools:
-.for _tool in ${_strfile} usr.bin/colldef \
-    usr.bin/makewhatis usr.bin/rpcgen ${_uudecode} \
-    ${_xargs} usr.bin/xinstall ${_yacc} \
-    usr.sbin/config ${_crunchgen} ${_kbdcontrol} \
-    ${_gperf} ${_groff} gnu/usr.bin/texinfo
+.for _tool in \
+    ${_strfile} \
+    ${_gperf} \
+    ${_groff} \
+    gnu/usr.bin/texinfo \
+    usr.bin/colldef \
+    usr.bin/makewhatis \
+    usr.bin/rpcgen \
+    ${_uudecode} \
+    ${_xargs} \
+    usr.bin/xinstall \
+    ${_yacc} \
+    usr.sbin/config \
+    ${_crunchgen} \
+    ${_kbdcontrol}
 	@${ECHODIR} "===> ${_tool}"; \
 		cd ${.CURDIR}/${_tool}; \
 		${MAKE} DIRPRFX=${_tool}/ obj; \
@@ -713,9 +722,18 @@ _libkrb5= kerberos5/lib/libroken kerberos5/lib/libvers \
 .endif
 
 build-tools:
-.for _tool in bin/csh bin/sh gnu/usr.bin/cc/cc_tools ${_fortran} \
-    ${_libkrb5} lib/libncurses ${_share} \
-    ${_aicasm} usr.bin/awk usr.bin/file usr.sbin/sysinstall
+.for _tool in \
+    bin/csh \
+    bin/sh \
+    gnu/usr.bin/cc/cc_tools \
+    ${_fortran} \
+    ${_libkrb5} \
+    lib/libncurses \
+    ${_share} \
+    ${_aicasm} \
+    usr.bin/awk \
+    usr.bin/file \
+    usr.sbin/sysinstall
 	@${ECHODIR} "===> ${_tool}"; \
 		cd ${.CURDIR}/${_tool}; \
 		${MAKE} DIRPRFX=${_tool}/ obj; \
@@ -725,20 +743,13 @@ build-tools:
 #
 # cross-tools: Build cross-building tools
 #
-.if ${TARGET_ARCH} == "alpha" && ${TARGET_ARCH} != ${MACHINE_ARCH}
-_elf2exe=	usr.sbin/elf2exe
-.endif
-
-.if ${TARGET_ARCH} == "i386" && ${TARGET_ARCH} != ${MACHINE_ARCH}
-_btxld=	usr.sbin/btxld
-.if defined(RELEASEDIR)
-_kgzip=	usr.sbin/kgzip
-.endif
-.endif
-
 .if ${TARGET_ARCH} == "sparc64" && ${TARGET_ARCH} != ${MACHINE_ARCH} && \
     ${BOOTSTRAPPING} < 500037
 _elf2aout=	usr.bin/elf2aout
+.endif
+
+.if ${TARGET_ARCH} == "i386" && ${TARGET_ARCH} != ${MACHINE_ARCH}
+_btxld=		usr.sbin/btxld
 .endif
 
 .if (exists(${.CURDIR}/rescue) && !defined(NO_RESCUE) || \
@@ -747,12 +758,25 @@ _elf2aout=	usr.bin/elf2aout
 _crunchide=	usr.sbin/crunch/crunchide
 .endif
 
-_xlint=	usr.bin/xlint/lint1 usr.bin/xlint/lint2 usr.bin/xlint/xlint
+.if ${TARGET_ARCH} == "alpha" && ${TARGET_ARCH} != ${MACHINE_ARCH}
+_elf2exe=	usr.sbin/elf2exe
+.endif
+
+.if ${TARGET_ARCH} == "i386" && ${TARGET_ARCH} != ${MACHINE_ARCH} && \
+    defined(RELEASEDIR)
+_kgzip=		usr.sbin/kgzip
+.endif
 
 cross-tools:
-.for _tool in ${_btxld} ${_elf2aout} ${_elf2exe} \
-    gnu/usr.bin/binutils ${_crunchide} \
-    gnu/usr.bin/cc ${_xlint} ${_kgzip}
+.for _tool in \
+    gnu/usr.bin/binutils \
+    gnu/usr.bin/cc \
+    ${_elf2aout} \
+    usr.bin/xlint/lint1 usr.bin/xlint/lint2 usr.bin/xlint/xlint \
+    ${_btxld} \
+    ${_crunchide} \
+    ${_elf2exe} \
+    ${_kgzip}
 	@${ECHODIR} "===> ${_tool}"; \
 		cd ${.CURDIR}/${_tool}; \
 		${MAKE} DIRPRFX=${_tool}/ obj; \
