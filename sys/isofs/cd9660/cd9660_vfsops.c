@@ -36,8 +36,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vfsops.c	8.3 (Berkeley) 1/31/94
- * $Id: cd9660_vfsops.c,v 1.14 1995/08/11 11:31:01 davidg Exp $
+ * $Id: cd9660_vfsops.c,v 1.15 1995/10/31 12:13:46 phk Exp $
  */
+
+#define CD9660 1  /* bogus dependency in sys/mount.h */
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -48,6 +50,8 @@
 #include <miscfs/specfs/specdev.h>
 #include <sys/mount.h>
 #include <sys/buf.h>
+#include <sys/cdio.h>
+#include <sys/conf.h>
 #include <sys/file.h>
 #include <sys/ioctl.h>
 #include <sys/errno.h>
@@ -96,11 +100,53 @@ VFS_SET(cd9660_vfsops, cd9660, MOUNT_CD9660, VFCF_READONLY);
  */
 #define ROOTNAME	"root_device"
 
+static int iso_get_ssector __P((dev_t dev, struct proc *p));
 static int iso_mountfs __P((struct vnode *devvp, struct mount *mp,
 			    struct proc *p, struct iso_args *argp));
 
+/*
+ * Try to find the start of the last data track on this CD-ROM.  This
+ * is used to mount the last session of a multi-session CD.  Bail out
+ * and return 0 if we fail, this is always a safe bet.
+ */
+static int
+iso_get_ssector(dev, p)
+	dev_t dev;
+	struct proc *p;
+{
+	struct ioc_toc_header h;
+	struct ioc_read_toc_single_entry t;
+	int i;
+	struct bdevsw *bd;
+	d_ioctl_t *ioctlp;
+
+	bd = bdevsw[major(dev)];
+	ioctlp = bd->d_ioctl;
+	if (ioctlp == NULL)
+		return 0;
+
+	if (ioctlp(dev, CDIOREADTOCHEADER, (caddr_t)&h, FREAD, p) == -1)
+		return 0;
+
+	for (i = h.ending_track; i >= 0; i--) {
+		t.address_format = CD_LBA_FORMAT;
+		t.track = i;
+		if (ioctlp(dev, CDIOREADTOCENTRY, (caddr_t)&t, FREAD, p) == -1)
+			return 0;
+		if ((t.entry.control & 4) != 0)
+			/* found a data track */
+			break;
+	}
+
+	if (i < 0)
+		return 0;
+
+	return ntohl(t.entry.addr.lba);
+}
+
 int
-cd9660_mountroot()
+cd9660_mountroot(dummy)
+	void *dummy;
 {
 	register struct mount *mp;
 	struct proc *p = curproc;	/* XXX */
@@ -120,6 +166,10 @@ cd9660_mountroot()
 	mp->mnt_op = &cd9660_vfsops;
 	mp->mnt_flag = MNT_RDONLY;
 	args.flags = ISOFSMNT_ROOT;
+	args.ssector = iso_get_ssector(rootdev, p);
+	if (bootverbose)
+		printf("cd9660_mountroot(): using session at block %d\n",
+		       args.ssector);
 	if ((error = iso_mountfs(rootvp, mp, p, &args))) {
 		free(mp, M_MOUNT);
 		return (error);
@@ -276,7 +326,9 @@ iso_mountfs(devvp, mp, p, argp)
 	 */
 	iso_bsize = ISO_DEFAULT_BLOCK_SIZE;
 
-	for (iso_blknum = 16; iso_blknum < 100; iso_blknum++) {
+	for (iso_blknum = 16 + argp->ssector;
+	     iso_blknum < 100 + argp->ssector;
+	     iso_blknum++) {
 		if ((error = bread (devvp, btodb(iso_blknum * iso_bsize),
 				    iso_bsize, NOCRED, &bp)))
 			goto out;
@@ -332,6 +384,15 @@ iso_mountfs(devvp, mp, p, argp)
 		isonum_733 (high_sierra?
 			    pri_sierra->volume_space_size:
 			    pri->volume_space_size);
+	/*
+	 * Since an ISO9660 multi-session CD can also access previous
+	 * sessions, we have to include them into the space consider-
+	 * ations.  This doesn't yield a very accurate number since
+	 * parts of the old sessions might be inaccessible now, but we
+	 * can't do much better.  This is also important for the NFS
+	 * filehandle validation.
+	 */
+	isomp->volume_space_size += argp->ssector;
 	bcopy (rootp, isomp->root, sizeof isomp->root);
 	isomp->root_extent = isonum_733 (rootp->extent);
 	isomp->root_size = isonum_733 (rootp->size);

@@ -38,8 +38,10 @@
  *	from: @(#)ufs_lookup.c	7.33 (Berkeley) 5/19/91
  *
  *	@(#)cd9660_lookup.c	8.2 (Berkeley) 1/23/94
- * $Id: cd9660_lookup.c,v 1.9 1995/11/12 10:16:50 davidg Exp $
+ * $Id: cd9660_lookup.c,v 1.10 1996/10/20 21:01:42 alex Exp $
  */
+
+#define CD9660 1  /* bogus dependency in sys/mount.h */
 
 #include <sys/param.h>
 #include <sys/systm.h>
