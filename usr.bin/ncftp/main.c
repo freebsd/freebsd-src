@@ -460,10 +460,15 @@ int getuserinfo(void)
 		else
 			(void) Strncpy(uinfo.homedir, pw->pw_dir);
 		cp = getenv("MAIL");
+#ifndef __FreeBSD__
 		if (cp == NULL)
 			cp = getenv("mail");
 		if (cp == NULL)
 			(void) sprintf(str, "/usr/spool/mail/%s", uinfo.username);
+#else
+		if (cp == NULL)
+			(void) sprintf(str, "/var/mail/%s", uinfo.username);
+#endif
 		else
 			(void) Strncpy(str, cp);
 		cp = str;
