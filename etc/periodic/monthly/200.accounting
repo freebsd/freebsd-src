@@ -1,11 +1,23 @@
 #!/bin/sh -
 #
-# $Id: 200.accounting,v 1.1.1.1 1997/08/12 17:51:16 pst Exp $
+# $Id: 200.accounting,v 1.1.1.1 1997/08/16 17:04:01 pst Exp $
 #
 
-if [ -x /usr/sbin/ac ] ; then
-    echo ""
-    echo "Doing login accounting:"
+W=/var/log/wtmp
+if [ -f $W ] ; then
+	# Work out last month's name
+	M=`date -v-1m +%h`
 
-    ac -p | sort -nr +1
+	mv -f $W $W.$M
+	touch $W
+
+	if [ -x /usr/sbin/ac ] ; then
+		echo ""
+		echo "Doing login accounting:"
+
+		ac -p -w $W.$M | sort -nr +1
+	fi
+
+	rm -f $W.$M.gz
+	gzip $W.$M
 fi
