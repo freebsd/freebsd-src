@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.121.2.10 1998/02/06 02:24:25 brian Exp $
+ * $Id: main.c,v 1.121.2.11 1998/02/07 20:49:53 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -1047,7 +1047,7 @@ DoLoop(struct bundle *bundle)
 	      Physical_Write(bundle->physical, "\r\n", 2);
 	    }
 	    PacketMode(bundle, 0);
-	  } else
+	  } else if (VarTerm)
 	    write(fileno(VarTerm), rbuff, n);
 	}
       } else {

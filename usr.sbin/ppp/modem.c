@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.77.2.8 1998/02/06 02:24:27 brian Exp $
+ * $Id: modem.c,v 1.77.2.9 1998/02/07 20:49:58 brian Exp $
  *
  *  TODO:
  */
@@ -489,7 +489,7 @@ modem_Open(struct physical *modem, struct bundle *bundle)
         close(STDIN_FILENO);
         return -1;
       }
-      modem = STDIN_FILENO;
+      modem->fd = STDIN_FILENO;
       modem_Found(modem);
     } else {
       LogPrintf(LogDEBUG, "modem_Open(direct): Modem is not a tty\n");
