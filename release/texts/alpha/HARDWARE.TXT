@@ -126,15 +126,25 @@ confusing.
 Most PCI based Alphas can use ordinary PC-type VGA cards. The SRM contains
 enough smarts to make that work. It does not, however, mean that each and
 every PCI VGA card out on the street will work in an Alpha machine. Things
-like S3 Trio64, Mach64, and Matrox Millenium generally work. Old ET4000 
-based ISA cards have also worked for me. But ask around first before buying. 
-Please note that TGA cards are not supported as FreeBSD console display cards. 
+like S3 Trio64, Mach64, and Matrox Millenium generally work. Old ET4000
+based ISA cards have also worked for me. But ask around first before buying.
+Please note that TGA cards are not supported as FreeBSD console display cards.
 
 Most PCI devices from the PC-world will also work in FreeBSD/alpha PCI-based
 machines. Check the /sys/alpha/conf/GENERIC file for the latest word on
-this.
+this. Be careful to check the appropriate machine type's discussion
+in case you want to use PCI cards that have PCI bridge chips on them.
+In some cases you might encounter problems with PCI cards not handling
+PCI parity correctly. This can lead to panics. PCI parity checking can be
+disabled using the following SRM command: SET PCI_PARITY OFF. This is not
+a FreeBSD problem, all operating systems running on Alpha hardware will
+need this workaround.
 
-Parallel printer ports also work on FreeBSD/alpha.
+If your system (also) contains EISA expansion slots you will need to run
+the EISA Configuration Utility (ECU) after you have installed EISA cards
+or have upgraded your console firmware. 
+
+Parallel ports that can be found on most Alpha machines are supported.
 
 For Alpha CPUs you will find multiple versions. The original Alpha
 design is the 21064. It was produced in a chip process called MOS4,
@@ -229,7 +239,7 @@ Given the choice, get the PS/2-variant mainboard. Apart from giving you a
 mouse port as bonus it is directly supported by Tru64 Unix in case you ever
 want/need to run it. The "DIN-plug"-variant should work OK for FreeBSD.
 
-The OEM manual is recommended reading. 
+The OEM manual is recommended reading.
 See ftp://ftp.digital.com/pub/DEC/axppci/design_guide.ps
 
 The kernel configuration file for a NoName kernel must contain:
@@ -1311,6 +1321,11 @@ PCI0 has 1 dedicated PCI slot and (shared) 3 PCI/EISA slots. PCI0 also has a
 PCI/EISA bridge that drives things like the serial and parallel ports,
 keyboard/mouse etc. PCI1 has 4 PCI slots and an NCR810 SCSI chip.
 
+The current implementation has problems in handling PCI bridges. There is
+currently a limited fix in place which allows for single level, single device
+PCI bridges. The fix allows for the Digital supplied Qlogic SCSI card which
+sits behind a 21054 PCI bridge chip.
+
 	NOTE: EISA slots are currently unsupported, but the Compaq Qvision
 	      EISA VGA adapter is treated as an ISA device. It therefore
 	      works OK as a console.
@@ -1383,7 +1398,8 @@ connector module.
 For best performance distribute high bandwidth (FibreChannel, Gigabit Ethernet)
 over multiple hoses and/or multiple KFTHA/KFTIA.
 
-Currently PCI expansion cards containing PCI bridges have not been tested.
+Currently PCI expansion cards containing PCI bridges are not usable. Don't
+use them at this time.
 
 Embedded SCSI:
 The single ended SCSI bus on the KFTIA will turn up as the fourth (!) 
@@ -1503,7 +1519,7 @@ information.
 chip-based), Qlogic family and NCR/Symbios. Be aware of the machine-specific
 bootability issues for the various adapter types.
 
-- Ethernet: if you want to boot your Alpha over the Ethernet you will
+- Ethernet: if you want to boot your Alpha over the Ethernet you will 
 obviously need an Ethernet card that the SRM console recognises. This
 generally means you need a board with an 21x4x Ethernet chip as that is
 what Digital used. These chips are driven by the FreeBSD 'de' (older driver)
