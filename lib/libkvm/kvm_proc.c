@@ -364,6 +364,7 @@ nopgrp:
 			kp->ki_pri.pri_native = mtd.td_base_pri;
 			kp->ki_lastcpu = mtd.td_lastcpu;
 			kp->ki_wchan = mtd.td_wchan;
+			kp->ki_oncpu = mtd.td_oncpu;
 
 			if (!(proc.p_flag & P_THREADED)) {
 				/* stuff from the ksegrp */
@@ -376,10 +377,7 @@ nopgrp:
 				/* Stuff from the kse */
 				kp->ki_pctcpu = mke.ke_pctcpu;
 				kp->ki_rqindex = mke.ke_rqindex;
-				kp->ki_oncpu = mke.ke_oncpu;
 			} else {
-				kp->ki_oncpu = -1;
-				kp->ki_lastcpu = -1;
 				kp->ki_tdflags = -1;
 				/* All the rest are 0 for now */
 			}
