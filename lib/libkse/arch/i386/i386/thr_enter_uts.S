@@ -40,6 +40,5 @@ ENTRY(_i386_enter_uts)
 	addl	16(%edx), %eax		/* add length */
 	movl	%eax, %esp		/* switch to uts stack */
 	pushl	4(%edx)			/* push the address of the mailbox */
-	pushl	8(%edx)			/* .. the uts can return to itself */
-	pushl	8(%edx)			/* .. the uts can return to itself */
+	call	*8(%edx)
 	ret
