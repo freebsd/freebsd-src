@@ -228,7 +228,7 @@ static driver_t rl_driver = {
 
 static devclass_t rl_devclass;
 
-DRIVER_MODULE(rl, pci, rl_driver, rl_devclass, 0, 0);
+DRIVER_MODULE(if_rl, pci, rl_driver, rl_devclass, 0, 0);
 DRIVER_MODULE(miibus, rl, miibus_driver, miibus_devclass, 0, 0);
 
 #define EE_SET(x)					\

@@ -197,7 +197,7 @@ static driver_t ax_driver = {
 
 static devclass_t ax_devclass;
 
-DRIVER_MODULE(ax, pci, ax_driver, ax_devclass, 0, 0);
+DRIVER_MODULE(if_ax, pci, ax_driver, ax_devclass, 0, 0);
 
 #define AX_SETBIT(sc, reg, x)				\
 	CSR_WRITE_4(sc, reg,				\
