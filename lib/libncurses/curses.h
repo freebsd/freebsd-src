@@ -166,6 +166,8 @@ extern int	LINES, COLS;
 extern "C" {
 #endif
 
+extern int resizeterm (int, int);
+
 #if 0 /* MYTINFO not have it */
 extern char ttytype[];		/* needed for backward compatibility */
 #endif
@@ -278,6 +280,7 @@ extern int werase(WINDOW *);
 extern int wgetch(WINDOW *);
 extern int wgetnstr(WINDOW *,char *,int maxlen);
 extern int whline(WINDOW *,chtype,int);
+extern int winnstr(WINDOW *, char *, int);
 extern int winsch(WINDOW *,chtype);
 extern int winsdelln(WINDOW *,int);
 extern int winsnstr(WINDOW *,char *,int);
@@ -361,6 +364,7 @@ extern int slk_touch(void);
 #define vline(ch, n)		wvline(stdscr, ch, n)
 
 #define winsstr(w, s)		winsnstr(w, s, 0)
+#define winstr(w, s)		winnstr(w, s, -1)
 
 #define redrawwin(w)		wredrawln(w, 0, w->_maxy+1)
 #define waddstr(win,str)	waddnstr(win,str,-1)
@@ -393,6 +397,7 @@ extern int slk_touch(void);
 #define deleteln()     		winsdelln(stdscr, -1)
 #define wdeleteln(w)     	winsdelln(w, -1)
 #define refresh()      		wrefresh(stdscr)
+#define innstr(s,n)		winnstr(stdscr,s,n)
 #define insch(c)       		winsch(stdscr,c)
 #define delch()        		wdelch(stdscr)
 #define setscrreg(t,b) 		wsetscrreg(stdscr,t,b)
@@ -418,6 +423,7 @@ extern int slk_touch(void);
 #define mvwgetstr(win,y,x,str)      	(wmove(win,y,x) == ERR ? ERR : wgetstr(win,str))
 #define mvwinch(win,y,x)        	(wmove(win,y,x) == ERR ? ERR : winch(win))
 #define mvwdelch(win,y,x)       	(wmove(win,y,x) == ERR ? ERR : wdelch(win))
+#define mvwinnstr(win,y,x,s,n)		(wmove(win,y,x) == ERR ? ERR : winnstr(win,s,n))
 #define mvwinsch(win,y,x,c)     	(wmove(win,y,x) == ERR ? ERR : winsch(win,c))
 #define mvaddch(y,x,ch)         	mvwaddch(stdscr,y,x,ch)
 #define mvgetch(y,x)            	mvwgetch(stdscr,y,x)
@@ -426,6 +432,7 @@ extern int slk_touch(void);
 #define mvgetstr(y,x,str)           	mvwgetstr(stdscr,y,x,str)
 #define mvinch(y,x)             	mvwinch(stdscr,y,x)
 #define mvdelch(y,x)            	mvwdelch(stdscr,y,x)
+#define mvinnstr(y,x,s,n)		mvwinnstr(stdscr,y,x,s,n)
 #define mvinsch(y,x,c)          	mvwinsch(stdscr,y,x,c)
 #define mvwinsstr(w, y, x, s)		(wmove(w,y,x) == ERR ? ERR : winsstr(w,s))
 #define mvwinsnstr(w, y, x, s, n)	(wmove(w,y,x) == ERR ? ERR : winsnstr(w,s,n))
