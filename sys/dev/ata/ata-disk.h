@@ -133,10 +133,9 @@ struct ad_softc {
     struct ata_params		*ata_parm;	/* ata device params */
     int32_t			unit;		/* ATA_MASTER or ATA_SLAVE */
     int32_t			lun;		/* logical unit number */
-    u_int16_t			cylinders;	/* disk geometry (probed) */
+    u_int32_t			total_secs;	/* total # of sectors (LBA) */
     u_int8_t			heads;
     u_int8_t			sectors;
-    u_int32_t			total_secs;	/* total # of sectors (LBA) */
     u_int32_t			transfersize;	/* size of each transfer */
     u_int32_t			num_tags;	/* number of tags supported */
     u_int32_t			flags;		/* drive flags */
