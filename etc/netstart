@@ -1,11 +1,12 @@
 #!/bin/sh -
 #
-#	$Id: netstart,v 1.30 1995/05/11 19:08:36 rgrimes Exp $
+#	$Id: netstart,v 1.31 1995/05/11 21:11:14 jkh Exp $
 #	From: @(#)netstart	5.9 (Berkeley) 3/30/91
 
 # Note that almost all the user-configurable behavior is no longer in
 # this file, but rather in /etc/sysconfig.  Please check this file
-# first before contemplating any changes here.
+# first before contemplating any changes here.  If you do need to change
+# this file for some reason, we would like to know about it.
 
 # If there is a global system configuration file, suck it in.
 if [ -f /etc/sysconfig ]; then
@@ -42,19 +43,16 @@ for ifn in ${network_interfaces}; do
 	ifconfig ${ifn}
 done
 
-# set the address for the loopback interface
-ifconfig lo0 inet localhost
-
-# set interface for multicasts to default interface
-# this needs to happen before router discovery
-route add 224.0.0.0 -netmask 0xf0000000 -interface $hostname
-
 if [ -n "$defaultrouter" -a "x$defaultrouter" != "xNO" ] ; then
-	route add default $defaultrouter
+	static_routes="default ${static_routes}"
+	route_default="default ${defaultrouter}"
 fi
 
-# use loopback, not the wire
-# route add $hostname localhost
+# Set up any static routes.  This should be done before router discovery.
+for i in ${static_routes}; do
+	eval route_args=\$route_${i}
+	route add ${route_args}
+done
 
 if [ "x$gated" != "xNO" -o "x$routedflags" != "xNO" ] ; then
 	echo -n starting routing daemons:

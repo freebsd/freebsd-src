@@ -4,7 +4,7 @@
 # This is sysconfig - a file full of useful variables that you can set 
 # to change the default startup behavior of your system.
 #
-#	$Id: sysconfig,v 1.12 1995/05/11 19:08:37 rgrimes Exp $
+#	$Id: sysconfig,v 1.13 1995/05/13 20:16:11 rgrimes Exp $
 
 ######################### Start Of Syscons Section #######################
 
@@ -70,17 +70,27 @@ defaultdomainname=NO
 #
 tcp_extensions=YES
 
+#
 # Set to the list of network devices on this host.  You must have an
 # ifconfig_${network_interface} line for each interface listed here.
 # for example:
-#network_interfaces="ed0 sl0"
+#
+#	network_interfaces="ed0 sl0 lo0"
+#	ifconfig_ed0="inet 10.0.0.1 netmask 0xffffff00"
+#	ifconfig_sl0="inet 10.0.1.0 netmask 0xffffff00"
+#
+network_interfaces="lo0"
+ifconfig_lo0="inet localhost"
 
-# Set one for each network device listed in network_interfaces above.
-# for example:
-#ifconfig_ed0="inet 10.0.0.1 netmask 0xffffff00"
-#ifconfig_sl0="inet 10.0.1.0 netmask 0xffffff00"
+#
+# Set to the list of route add lines for this host.  You must have a
+# route_${static_routes} line for each static route listed here.
+#
+static_routes="multicast loopback"
+route_multicast="224.0.0.0 -netmask 0xf0000000 -interface ${hostname}"
+route_loopback="${hostname} localhost"
 
-# Set to the host you'd like set as your default router, or NO of none.
+# Set to the host you'd like set as your default router, or NO for none.
 defaultrouter=NO
 
 # These are the flags you'd like to start the routing daemon with
