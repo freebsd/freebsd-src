@@ -34,6 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)pathnames.h	8.1 (Berkeley) 6/6/93
+ * $FreeBSD$
  */
 
 /*
@@ -47,8 +48,9 @@
 #endif
 
 #ifdef unix
-#define _PATH_DIVNAME	"/tmp/m4.0XXXXXX"	/* unix diversion files */
-#define UNIQUE		8			/* unique char location */
+#define _PATH_DIVDIRNAME "/tmp/m4XXXXXX"	/* directory for files  */
+#define _PATH_DIVNAME	"m4.0"			/* unix diversion files */
+#define UNIQUE		17			/* unique char location */
 #endif
 
 #ifdef vms
