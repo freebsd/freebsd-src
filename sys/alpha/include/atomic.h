@@ -34,25 +34,25 @@
  * of interrupts and SMP safe.
  */
 
-void atomic_set_8(u_int8_t *, u_int8_t);
-void atomic_clear_8(u_int8_t *, u_int8_t);
-void atomic_add_8(u_int8_t *, u_int8_t);
-void atomic_subtract_8(u_int8_t *, u_int8_t);
+void atomic_set_8(volatile u_int8_t *, u_int8_t);
+void atomic_clear_8(volatile u_int8_t *, u_int8_t);
+void atomic_add_8(volatile u_int8_t *, u_int8_t);
+void atomic_subtract_8(volatile u_int8_t *, u_int8_t);
 
-void atomic_set_16(u_int16_t *, u_int16_t);
-void atomic_clear_16(u_int16_t *, u_int16_t);
-void atomic_add_16(u_int16_t *, u_int16_t);
-void atomic_subtract_16(u_int16_t *, u_int16_t);
+void atomic_set_16(volatile u_int16_t *, u_int16_t);
+void atomic_clear_16(volatile u_int16_t *, u_int16_t);
+void atomic_add_16(volatile u_int16_t *, u_int16_t);
+void atomic_subtract_16(volatile u_int16_t *, u_int16_t);
 
-void atomic_set_32(u_int32_t *, u_int32_t);
-void atomic_clear_32(u_int32_t *, u_int32_t);
-void atomic_add_32(u_int32_t *, u_int32_t);
-void atomic_subtract_32(u_int32_t *, u_int32_t);
+void atomic_set_32(volatile u_int32_t *, u_int32_t);
+void atomic_clear_32(volatile u_int32_t *, u_int32_t);
+void atomic_add_32(volatile u_int32_t *, u_int32_t);
+void atomic_subtract_32(volatile u_int32_t *, u_int32_t);
 
-void atomic_set_64(u_int64_t *, u_int64_t);
-void atomic_clear_64(u_int64_t *, u_int64_t);
-void atomic_add_64(u_int64_t *, u_int64_t);
-void atomic_subtract_64(u_int64_t *, u_int64_t);
+void atomic_set_64(volatile u_int64_t *, u_int64_t);
+void atomic_clear_64(volatile u_int64_t *, u_int64_t);
+void atomic_add_64(volatile u_int64_t *, u_int64_t);
+void atomic_subtract_64(volatile u_int64_t *, u_int64_t);
 
 #define atomic_set_char		atomic_set_8
 #define atomic_clear_char	atomic_clear_8
@@ -73,5 +73,72 @@ void atomic_subtract_64(u_int64_t *, u_int64_t);
 #define atomic_clear_long	atomic_clear_64
 #define atomic_add_long		atomic_add_64
 #define atomic_subtract_long	atomic_subtract_64
+
+/*
+ * Atomically compare the value stored at *p with cmpval and if the
+ * two values are equal, update the value of *p with newval. Returns
+ * zero if the compare failed, nonzero otherwise.
+ */
+static __inline u_int32_t
+atomic_cmpset_32(volatile u_int32_t* p, u_int32_t cmpval, u_int32_t newval)
+{
+	u_int32_t ret, temp;
+
+	__asm __volatile (
+		"1:\tldl_l %1, %5\n\t"		/* load old value */
+		"cmpeq %1, %3, %0\n\t"		/* compare */
+		"beq %0, 2f\n\t"		/* exit if not equal */
+		"mov %4, %1\n\t"		/* value to store */
+		"stl_c %1, %2\n\t"		/* attempt to store */
+		"beq %1, 3f\n\t"		/* if it failed, spin */
+		"2:\n"				/* done */
+		".section .text3,\"ax\"\n"	/* improve branch prediction */
+		"3:\tbr 1b\n"			/* try again */
+		".previous\n"
+		: "=&r" (ret), "=r" (temp), "=m" (*p)
+		: "r" (cmpval), "r" (newval), "m" (*p)
+		: "memory");
+
+	return ret;
+}
+
+/*
+ * Atomically compare the value stored at *p with cmpval and if the
+ * two values are equal, update the value of *p with newval. Returns
+ * zero if the compare failed, nonzero otherwise.
+ */
+static __inline u_int64_t
+atomic_cmpset_64(volatile u_int64_t* p, u_int64_t cmpval, u_int64_t newval)
+{
+	u_int64_t ret, temp;
+
+	__asm __volatile (
+		"1:\tldq_l %1, %5\n\t"		/* load old value */
+		"cmpeq %1, %3, %0\n\t"		/* compare */
+		"beq %0, 2f\n\t"		/* exit if not equal */
+		"mov %4, %1\n\t"		/* value to store */
+		"stq_c %1, %2\n\t"		/* attempt to store */
+		"beq %1, 3f\n\t"		/* if it failed, spin */
+		"2:\n"				/* done */
+		".section .text3,\"ax\"\n"	/* improve branch prediction */
+		"3:\tbr 1b\n"			/* try again */
+		".previous\n"
+		: "=&r" (ret), "=r" (temp), "=m" (*p)
+		: "r" (cmpval), "r" (newval), "m" (*p)
+		: "memory");
+
+	return ret;
+}
+
+#define	atomic_cmpset_int	atomic_cmpset_32
+#define	atomic_cmpset_long	atomic_cmpset_64
+
+static __inline int
+atomic_cmpset_ptr(volatile void *dst, void *exp, void *src)
+{
+
+        return (
+            atomic_cmpset_long((volatile u_long *)dst, (u_long)exp, (u_long)src));
+}
 
 #endif /* ! _MACHINE_ATOMIC_H_ */
