@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ftpd.c,v 1.40 1997/05/21 23:24:41 danny Exp $
+ *	$Id: ftpd.c,v 1.41 1997/07/24 09:26:12 davidn Exp $
  */
 
 #if 0
@@ -889,7 +889,7 @@ end_login()
 
 	(void) seteuid((uid_t)0);
 	if (logged_in)
-		logwtmp(ttyline, "", "");
+		ftpd_logwtmp(ttyline, "", "");
 	pw = NULL;
 #ifdef	LOGIN_CAP
 	setusercontext(NULL, getpwuid(0), (uid_t)0,
@@ -994,7 +994,7 @@ skip:
 #endif
 
 	/* open wtmp before chroot */
-	logwtmp(ttyline, pw->pw_name, remotehost);
+	ftpd_logwtmp(ttyline, pw->pw_name, remotehost);
 	logged_in = 1;
 
 	if (guest && stats && statfd < 0)
@@ -1932,7 +1932,7 @@ dologout(status)
 
 	if (logged_in) {
 		(void) seteuid((uid_t)0);
-		logwtmp(ttyline, "", "");
+		ftpd_logwtmp(ttyline, "", "");
 #if defined(KERBEROS)
 		if (!notickets && krbtkfile_env)
 			unlink(krbtkfile_env);
