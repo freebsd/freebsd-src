@@ -285,7 +285,6 @@ dcphy_service(sc, mii, cmd)
 			break;
 		default:
 			return(EINVAL);
-			break;
 		}
 		break;
 

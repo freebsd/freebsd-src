@@ -170,10 +170,7 @@ pnphy_service(sc, mii, cmd)
 	struct mii_data *mii;
 	int cmd;
 {
-	struct dc_softc		*dc_sc;
 	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
-
-	dc_sc = mii->mii_ifp->if_softc;
 
 	switch (cmd) {
 	case MII_POLLSTAT:
@@ -215,17 +212,14 @@ pnphy_service(sc, mii, cmd)
 				mii->mii_media_active |= IFM_FDX;
 			MIIBUS_STATCHG(sc->mii_dev);
 			return(0);
-			break;
 		case IFM_10_T:
 			mii->mii_media_active = IFM_ETHER|IFM_10_T;
 			if ((ife->ifm_media & IFM_GMASK) == IFM_FDX)
 				mii->mii_media_active |= IFM_FDX;
 			MIIBUS_STATCHG(sc->mii_dev);
 			return(0);
-			break;
 		default:
 			return(EINVAL);
-			break;
 		}
 		break;
 
