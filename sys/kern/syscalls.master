@@ -561,3 +561,4 @@
 389	UNIMPL	BSD	__mac_set_file
 390	STD	BSD	{ int kenv(int what, const char *name, char *value, \
 			    int len); }
+391	STD	BSD	{ int lchflags(const char *path, int flags); }
