@@ -2144,6 +2144,18 @@ setpassive()
 }
 
 /*
+ * Restrict FTP data port range to a high group of "safe" ports
+ */
+void
+setrestrict()
+{
+	restricted_data_ports = !restricted_data_ports;
+	printf("Data port range restrictions %s.\n",
+		onoff(restricted_data_ports));
+	code = restricted_data_ports;
+}
+
+/*
  * get size of file on remote machine
  */
 /*VARARGS*/

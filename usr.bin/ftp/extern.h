@@ -124,6 +124,7 @@ void	setpassive __P(());
 void	setpeer __P((int, char **));
 void	setport __P((int, char **));
 void	setprompt __P((int, char **));
+void	setrestrict __P(());
 void	setrunique __P((int, char **));
 void	setstruct __P((int, char **));
 void	setsunique __P((int, char **));
