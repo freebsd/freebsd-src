@@ -303,6 +303,7 @@ db_get_pc_reg(struct db_variable *vp, db_expr_t *valuep, int op)
 	/* Read only */
 	if (op == DB_VAR_GET)
 		*valuep = PC_REGS(DDB_REGS);
+	return 0;
 }
 
 /*
@@ -502,6 +503,8 @@ db_write_bundle(db_addr_t addr, struct ia64_bundle *bp)
 
 	db_write_bytes(addr, 8, (caddr_t) &low);
 	db_write_bytes(addr+8, 8, (caddr_t) &high);
+
+	ia64_fc(addr);
 }
 
 void
