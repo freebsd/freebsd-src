@@ -23,9 +23,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: cd.4,v 1.10 1997/02/22 13:24:23 peter Exp $
+.\"	$Id: cd.4,v 1.11 1997/03/21 20:13:23 mpp Exp $
 .\"
-.Dd January 16, 1996
+.Dd October 10, 1998
 .Dt CD 4
 .Os FreeBSD
 .Sh NAME
@@ -34,6 +34,8 @@
 .Sh SYNOPSIS
 .Cd device cd
 .Cd device cd1 at scbus0 target 4 lun 0
+.Cd options	"CHANGER_MIN_BUSY_SECONDS=3"
+.Cd options	"CHANGER_MAX_BUSY_SECONDS=11"
 .Sh DESCRIPTION
 The
 .Nm cd
@@ -53,14 +55,14 @@ is unmounted.
 In general the interfaces are similar to those described by 
 .Xr wd 4 
 and
-.Xr sd 4 .
+.Xr da 4 .
 .Pp
 As the
 .Tn SCSI
 adapter is probed during boot, the 
 .Tn SCSI
-bus is scanned for devices. Any devices found which answer as `Read-only'
-type devices will be `attached' to the 
+bus is scanned for devices. Any devices found which answer as CDROM
+(type 5) or WORM (type 4) type devices will be `attached' to the 
 .Nm
 driver.
 Prior to
@@ -351,13 +353,6 @@ struct	ioc_pitch
 };
 .Ed
 .El
-.Pp
-In addition the general 
-.Xr scsi 4
-ioctls may be used with the 
-.Nm
-driver, if used against the `whole disk' partition (i.e. 
-.Pa /dev/rcd0c ) .
 .Sh NOTES
 When a 
 .Tn CD-ROM
@@ -383,6 +378,51 @@ drives for which audio will not work. Some work is planned to support
 some of the more common `broken' 
 .Tn CD-ROM
 drives; however, this is not yet under way.
+.Sh CHANGER OPERATION
+This driver has built-in support for LUN-based CD changers.  A LUN-based CD
+changer is a drive that can hold two or more CDs, but only has one CD
+player mechanism.  Each CD in the drive shows up as a seperate logical unit
+on the
+.Tn SCSI
+bus.  The
+.Nm cd
+driver automatically recognizes LUN-based changers, and routes commands for
+changers through an internal scheduler.  The scheduler prevents changer
+"thrashing", which is caused by sending commands to different LUNs in the
+changer at the same time.
+.Pp
+The scheduler honors minimum and maximum time
+quanta that the driver will spend on a particular LUN.  The minimum time
+is the guaranteed minimum amount of time that the driver will spend on a
+given LUN, even if there is no oustanding I/O for that LUN.  The maximum
+time is the maximum amount of time the changer will spend on a LUN if there
+is oustdanding I/O for another LUN.  If there is no outstanding I/O for
+another LUN, the driver will allow indefinite access to a given LUN.
+.Pp
+The minimum and maximum time quanta are configurable via kernel options and
+also via sysctl variables.  The kernel options are:
+
+.Bl -tag -width 1234 -compact
+.It Cd options     "CHANGER_MIN_BUSY_SECONDS=3"
+.It Cd options     "CHANGER_MAX_BUSY_SECONDS=11"
+.El
+.Pp
+The sysctl variables are:
+.Pp
+.Bl -tag -width 1234 -compact
+.It Cd kern.cam.cd.changer.min_busy_seconds
+.It Cd kern.cam.cd.changer.max_busy_seconds
+.El
+.Pp
+It is suggested that the user try experimenting with the minimum and
+maximum timeouts via the sysctl variables to arrive at the proper values
+for your changer.  Once you have settled on the proper timeouts for your
+changer, you can then put them in your kernel config file.
+.Pp
+If your system does have a LUN-based changer, you may notice that the
+probe messages for the various LUNs of the changer will continue to appear
+while the boot process is going on.  This is normal, and is caused by the
+changer scheduling code.
 .Sh FILES
 .Bl -tag -width /dev/rcd[0-9][a-h] -compact
 .It Pa /dev/cd[0-9][a-h]
@@ -398,7 +438,7 @@ devices
 None.
 .Sh SEE ALSO
 .Xr scsi 4 ,
-.Xr sd 4 ,
+.Xr da 4 ,
 .Xr disklabel 5 ,
 .Xr disklabel 8 ,
 .Xr cd 9
@@ -409,7 +449,28 @@ were poorly chosen, and a number of spelling errors have survived in
 the names of the
 .Fn ioctl
 commands.
+.Pp
+There is no mechanism currently to set different minimum and maximum
+timeouts for different CD changers; the timeout values set by the kernel
+options or the sysctl variables apply to all LUN-based CD changers in the
+system.  It is possible to implement such support, but the sysctl
+impelmentation at least would be rather inelegant, because of the current
+inability of the sysctl code to handle the addition of nodes after compile
+time.  Thus, it would take one dynamically sized sysctl variable and a
+userland utility to get/set the timeout values.  Implementation of separate
+timeouts for different CD devices in the kernel config file would likely
+require modification of
+.Xr config 8
+to support the two timeouts when hardwiring
+.Nm cd
+devices.
 .Sh HISTORY
 This
-.Nm
-driver appeared in 386BSD 0.1.
+.Nm cd
+driver is based upon the
+.Nm cd
+driver written by Julian Ellischer, which appeared in 386BSD 0.1.  The
+CAM version of the
+.Nm cd
+driver was written by Kenneth Merry and first appeared in
+.Fx 3.0 .
