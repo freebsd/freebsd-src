@@ -109,9 +109,9 @@ powerpc_interrupt(struct trapframe *framep)
 		 */
 #if 0
 		printf("powerpc_interrupt: got trap\n");
-#endif
 		mtmsr(mfmsr() | PSL_EE);
 		isync();
+#endif
 		trap(framep);
 	}	        
 }
