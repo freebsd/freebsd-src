@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
  *
- * $Id: vfs_bio.c,v 1.195 1999/01/21 09:19:33 dillon Exp $
+ * $Id: vfs_bio.c,v 1.196 1999/01/22 08:59:05 dg Exp $
  */
 
 /*
@@ -1473,8 +1473,16 @@ loop:
 		 * contain fully valid pages.  Normal (old-style) buffers
 		 * should be fully valid.  This might also lead to B_CACHE
 		 * getting clear.
+		 *
+		 * If B_CACHE is already clear, don't bother checking to see 
+		 * if we have to clear it again.
+		 *
+		 * XXX this code should not be necessary unless the B_CACHE
+		 * handling is broken elsewhere in the kernel.  We need to
+		 * check the cases and then turn the clearing part of this
+		 * code into a panic.
 		 */
-		if ((bp->b_flags & B_VMIO|B_CACHE) == (B_VMIO|B_CACHE)) {
+		if ((bp->b_flags & (B_VMIO|B_CACHE)) == (B_VMIO|B_CACHE)) {
 			int checksize = bp->b_bufsize;
 			int poffset = bp->b_offset & PAGE_MASK;
 			int resid;
