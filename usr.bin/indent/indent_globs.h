@@ -193,12 +193,16 @@ int         blanklines_after_declarations_at_proctop;	/* This is vaguely
 							 * if there are no
 							 * declarations */
 int         block_comment_max_col;
-int         extra_expression_indent;	/* True if continuation lines from the
+int         extra_expression_indent;	/* true if continuation lines from the
 					 * expression part of "if(e)",
 					 * "while(e)", "for(e;e;e)" should be
 					 * indented an extra tab stop so that
 					 * they don't conflict with the code
 					 * that follows */
+int	    function_brace_split;	/* split function declaration and
+					 * brace onto separate lines */
+int	    use_tabs;			/* set true to use tabs for spacing,
+					 * false uses all spaces */
 
 /* -troff font state information */
 
