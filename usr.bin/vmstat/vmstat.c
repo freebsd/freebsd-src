@@ -143,11 +143,11 @@ kvm_t *kd;
 
 static void	cpustats(void);
 static void	devstats(void);
-static void	dosysctl(char *);
+static void	doforkst(void);
 static void	domem(void);
 static void	dointr(void);
 static void	dosum(void);
-static void	doforkst(void);
+static void	dosysctl(char *);
 static void	dovmstat(u_int, int);
 static void	dozmem(void);
 static void	kread(int, void *, size_t);
@@ -743,8 +743,9 @@ dointr()
 		errx(1, "malloc");
 	kread(X_INTRCNT, intrcnt, (size_t)nintr);
 	kread(X_INTRNAMES, intrname, (size_t)inamlen);
+	nintr /= sizeof(u_long);
 	tintrname = intrname;
-	istrnamlen = 14;
+	istrnamlen = 12;
 	for (i = 0; i < nintr; i++) {
 		clen = strlen(tintrname);
 		if (clen > istrnamlen)
@@ -754,7 +755,6 @@ dointr()
 	(void)printf("%-*s %20s %10s\n", istrnamlen, "interrupt", "total",
 	    "rate");
 	inttotal = 0;
-	nintr /= sizeof(long);
 	while (--nintr >= 0) {
 		if (*intrcnt)
 			(void)printf("%-*s %20lu %10lu\n", istrnamlen, intrname,
@@ -792,7 +792,7 @@ dosysctl(char *name)
 		if (sysctlbyname(name, buf, &bufsize, 0, NULL) == 0)
 			break;
 		if (errno != ENOMEM)
-			err(1, "sysctl()");
+			err(1, "sysctlbyname()");
 		bufsize *= 2;
 	}
 	buf[bufsize] = '\0'; /* play it safe */
@@ -817,7 +817,7 @@ kread(nlx, addr, size)
 			++sym;
 		errx(1, "symbol %s not defined", sym);
 	}
-	if (kvm_read(kd, namelist[nlx].n_value, addr, size) != (int)size) {
+	if ((size_t)kvm_read(kd, namelist[nlx].n_value, addr, size) != size) {
 		sym = namelist[nlx].n_name;
 		if (*sym == '_')
 			++sym;
