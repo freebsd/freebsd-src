@@ -87,7 +87,7 @@ controller	amd0		# AMD 53C974 (Teckram DC-390(T))
 controller	dpt0		# DPT Smartcache - See LINT for options!
 controller	isp0		# Qlogic family
 controller	ncr0		# NCR/Symbios Logic
-#controller	sym0		# NCR/Symbios Logic (do not mix with ncr, it conflicts)
+controller	sym0		# NCR/Symbios Logic (newer chipsets)
 
 controller	adv0	at isa? port ? irq ?
 controller	adw0
