@@ -416,7 +416,10 @@ udf_read(struct vop_read_args *a)
 
 	while (uio->uio_offset < fsize && uio->uio_resid > 0) {
 		offset = uio->uio_offset;
-		size = min(uio->uio_resid, fsize - uio->uio_offset);
+		if (uio->uio_resid + offset <= fsize)
+			size = uio->uio_resid;
+		else
+			size = fsize - offset;
 		error = udf_readatoffset(node, &size, offset, &bp, &data);
 		if (error == 0)
 			error = uiomove(data, size, uio);
