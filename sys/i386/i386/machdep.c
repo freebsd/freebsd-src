@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.292 1998/03/07 20:16:47 tegge Exp $
+ *	$Id: machdep.c,v 1.293 1998/03/23 19:52:32 jlemon Exp $
  */
 
 #include "apm.h"
@@ -862,21 +862,12 @@ union descriptor ldt[NLDT];		/* local descriptor table */
 struct region_descriptor r_gdt, r_idt;
 #endif
 
-#ifdef SMP
 extern struct i386tss common_tss;	/* One tss per cpu */
 #ifdef VM86
 extern struct segment_descriptor common_tssd;
-extern int private_tss;
-extern u_int my_tr;
+extern int private_tss;			/* flag indicating private tss */
+extern u_int my_tr;			/* which task register setting */
 #endif /* VM86 */
-#else
-struct i386tss common_tss;
-#ifdef VM86
-struct segment_descriptor common_tssd;
-u_int private_tss;			/* flag indicating private tss */
-u_int my_tr;				/* which task register setting */
-#endif /* VM86 */
-#endif
 
 #if defined(I586_CPU) && !defined(NO_F00F_HACK)
 struct gate_descriptor *t_idt;
