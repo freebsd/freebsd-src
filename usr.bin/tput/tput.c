@@ -86,7 +86,7 @@ main(argc, argv)
 	if (!term && !(term = getenv("TERM")))
 errx(2, "no terminal type specified and no TERM environmental variable.");
 	if (tgetent(tbuf, term) != 1)
-		err(2, "tgetent failure");
+		err(3, "tgetent failure");
 	for (exitval = 0; (p = *argv) != NULL; ++argv) {
 		switch (*p) {
 		case 'c':
@@ -214,5 +214,5 @@ static void
 usage()
 {
 	(void)fprintf(stderr, "usage: tput [-T term] attribute ...\n");
-	exit(1);
+	exit(2);
 }

@@ -32,7 +32,7 @@
 .\"     @(#)tput.1	8.2 (Berkeley) 3/19/94
 .\" $FreeBSD$
 .\"
-.Dd March 19, 1994
+.Dd June 15, 2002
 .Dt TPUT 1
 .Os
 .Sh NAME
@@ -42,7 +42,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl T Ar term
-.Ar attribute
+.Ar attribute ...
 .Nm clear
 .Sh DESCRIPTION
 The
@@ -73,15 +73,15 @@ variable from the environment.
 .Pp
 The
 .Nm
-command outputs a string if the
+command outputs a string for each
 .Ar attribute
-is of type string; a number if it is of type integer.
+that is of type string; a number for each of type integer.
 Otherwise,
 .Nm
 exits 0 if the terminal has the capability and 1 if it does not,
 without further action.
 .Pp
-If the
+If an
 .Ar attribute
 is of type string, and takes arguments (e.g. cursor movement,
 the termcap
@@ -110,19 +110,24 @@ Reset the terminal (the
 sequence).
 .El
 .Sh DIAGNOSTICS
-The exit value of
+The exit status of
 .Nm
-is based on the last attribute specified.
-If the attribute is of type string or of type integer,
-.Nm
-exits 0 if the attribute is defined for this terminal type and 1
-if it is not.
-If the attribute is of type boolean,
-.Nm
-exits 0 if the terminal has this attribute, and 1 if it does not.
-The
-.Nm
-command exits 2 if any error occurred.
+is as follows:
+.Bl -tag -width indent
+.It 0
+If the last attribute
+.Ar attribute
+argument is of type string or integer, its value was successfully written
+to standard output.
+If the argument is of type boolean, the terminal has this attribute.
+.It 1
+This terminal does not have the specified boolean
+.Ar attribute .
+.It 2
+Usage error.
+.It 3
+No information is available about the specified terminal type.
+.El
 .Sh SEE ALSO
 .Xr termcap 5 ,
 .Xr terminfo 5
@@ -138,6 +143,11 @@ in them that is just a
 and nothing more.  Right now we just warn about them if they don't
 have a valid type declaration.  These warnings are sent to
 stderr.
+.Sh STANDARDS
+The
+.Nm
+utility conforms to
+.St -p1003.1-2001 .
 .Sh HISTORY
 The
 .Nm
