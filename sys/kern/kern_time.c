@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_time.c	8.1 (Berkeley) 6/10/93
- * $Id: kern_time.c,v 1.28 1997/06/01 09:05:19 peter Exp $
+ * $Id: kern_time.c,v 1.29 1997/06/24 18:20:50 jhay Exp $
  */
 
 #include <sys/param.h>
@@ -168,7 +168,7 @@ clock_settime(p, uap, retval)
 		return (EINVAL);
 	if ((error = copyin(SCARG(uap, tp), &ats, sizeof(ats))) != 0)
 		return (error);
-	if (atv.tv_usec < 0 || ats.tv_nsec >= 1000000000)
+	if (ats.tv_nsec < 0 || ats.tv_nsec >= 1000000000)
 		return (EINVAL);
 	TIMESPEC_TO_TIMEVAL(&atv, &ats);
 	if ((error = settime(&atv)))
