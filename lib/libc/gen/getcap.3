@@ -84,13 +84,13 @@ from the database specified by the
 terminated file array
 .Fa db_array
 and returns a pointer to a
-.Xr malloc Ns \&'d
+.Xr malloc 3 Ns \&'d
 copy of it in
 .Fa buf .
 The
 .Fn cgetent
 function will first look for files ending in
-.Nm .db
+.Pa .db
 (see
 .Xr cap_mkdb 1 )
 before accessing the ASCII file.
@@ -103,7 +103,7 @@ must be retained through all subsequent calls to
 and
 .Fn cgetustr ,
 but may then be
-.Xr free 3 Ns \&'d.
+.Xr free 3 Ns \&'d .
 On success 0 is returned, 1 if the returned
 record contains an unresolved
 .Nm tc
@@ -200,7 +200,7 @@ from the capability record pointed to by
 A pointer to a decoded,
 .Dv NUL
 terminated,
-.Xr malloc Ns \&'d
+.Xr malloc 3 Ns \&'d
 copy of the string is returned in the
 .Ft char *
 pointed to by
@@ -241,7 +241,7 @@ or
 call.  If there is no such previous call, the first record in the database is
 returned.
 Each record is returned in a
-.Xr malloc Ns \&'d
+.Xr malloc 3 Ns \&'d
 copy pointed to by
 .Fa buf .
 .Ic Tc
@@ -416,21 +416,27 @@ and
 .Bl -column "nameXnumber"
 .Sm off
 .It Em name No \&# Em number Ta numeric
+.Sm on
 capability
 .Em name
 has value
 .Em number
+.Sm off
 .It Em name No = Em string Ta "string capability"
+.Sm on
 .Em name
 has value
 .Em string
+.Sm off
 .It Em name No \&#@ Ta "the numeric capability"
-.Em name
-does not exist
-.It Em name No \&=@ Ta "the string capability"
-.Em name
-does not exist
 .Sm on
+.Em name
+does not exist
+.Sm off
+.It Em name No \&=@ Ta "the string capability"
+.Sm on
+.Em name
+does not exist
 .El
 .Pp
 Numeric capability values may be given in one of three numeric bases.

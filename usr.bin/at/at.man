@@ -108,11 +108,11 @@ and to run the job tomorrow by suffixing the time with
 .Em tomorrow .
 .Pp
 For example, to run a job at 4pm three days from now, you would do
-.Nm at 4pm + 3 days ,
+.Nm at Ar 4pm + 3 days ,
 to run a job at 10:00am on July 31, you would do
-.Nm at 10am Jul 31
+.Nm at Ar 10am Jul 31
 and to run a job at 1am tomorrow, you would do
-.Nm at 1am tomorrow.
+.Nm at Ar 1am tomorrow .
 .Pp
 For both
 .Nm
@@ -156,7 +156,7 @@ and
 If the file
 .Pa _PERM_PATH/at.allow
 exists, only usernames mentioned in it are allowed to use
-.Nm Ns .
+.Nm .
 .Pp
 If
 .Pa _PERM_PATH/at.allow

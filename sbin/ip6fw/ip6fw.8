@@ -161,7 +161,7 @@ TCP packets only.
 Discard packets that match this rule,
 and try to send a TCP reset (RST) notice.
 The search terminates
-.Em (not working yet) .
+.Em ( "not working yet" ) .
 .It Ar count
 Update counters for all packets that match rule.
 The search continues with the next rule.
@@ -223,10 +223,10 @@ may be specified as:
 .Bl -hang -offset flag -width 16n
 .It Ar ipv6no
 An ipv6number of the form
-.Li fec0::1:2:3:4.
+.Li fec0::1:2:3:4 .
 .It Ar ipv6no/prefixlen
 An ipv6number with a prefix length of the form
-.Li fec0::1:2:3:4/112.
+.Li fec0::1:2:3:4/112 .
 .El
 .Pp
 The sense of the match can be inverted by preceding an address with the
@@ -273,7 +273,7 @@ the interface using
 .Bl -hang -offset flag -width 16n
 .It Ar via ifX
 Packet must be going through interface
-.Ar ifX.
+.Ar ifX .
 .It Ar via if*
 Packet must be going through interface
 .Ar ifX ,
@@ -362,7 +362,7 @@ The supported IPv6 options are:
 The absence of a particular option may be denoted
 with a
 .Dq \&!
-.Em (not working yet).
+.Em ( "not working yet" ) .
 .It established
 Matches packets that have the RST or ACK bits set.
 TCP packets only.
@@ -418,7 +418,7 @@ firewalls.
 If you are logged in over a network, loading the KLD version of
 .Nm
 is probably not as straightforward as you would think
-.Em (not supported).
+.Em ( "not supported" ) .
 I recommend this command line:
 .Bd -literal -offset center
 kldload /modules/ip6fw_mod.o && \e

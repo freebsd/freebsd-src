@@ -40,10 +40,8 @@
 is a self-contained, position independent program image providing run-time
 support for loading and link-editing shared objects into a process'
 address space. It uses the data structures
-.Po
-see
-.Xr link 5
-.Pc
+(see
+.Xr link 5 )
 contained within dynamically linked programs to determine which shared
 libraries are needed and loads them at a convenient virtual address
 using the
@@ -76,15 +74,13 @@ has relocated this symbol to a location other than 0,
 assumes the services of
 .Nm
 are needed
-.Po
-see
+(see
 .Xr link 5
-for details
-.Pc \&.
+for details).
 .Em crt0
 passes control to
-.Nm
-\&'s entry point before the program's
+.Nm Ns 's
+entry point before the program's
 .Fn main
 routine is called. Thus,
 .Nm
@@ -178,9 +174,8 @@ The following conversions can be used:
 .Bl -tag -width "xxxx"
 .It \&%a
 The main program's name
-.Po also known as
-.Dq __progname
-.Pc .
+(also known as
+.Dq __progname ) .
 .It \&%A
 The value of the environment variable
 .Ev LD_TRACE_LOADED_OBJECTS_PROGNAME

@@ -40,7 +40,7 @@
 .Dt MALLOC 3
 .Os FreeBSD
 .Sh NAME
-.Nm malloc, calloc, realloc, free, reallocf
+.Nm malloc , calloc , realloc , free , reallocf
 .Nd general purpose memory allocation functions
 .Sh LIBRARY
 .Lb libc
@@ -59,7 +59,7 @@
 .Ft char *
 .Va _malloc_options
 .Ft void
-.Va (*_malloc_message)(char *p1, char *p2, char *p3, char *p4)
+.Fn \*(lp*_malloc_message\*(rp "char *p1" "char *p2" "char *p3" "char *p4"
 .Sh DESCRIPTION
 The
 .Fn malloc

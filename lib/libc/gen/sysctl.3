@@ -186,7 +186,7 @@ The next and subsequent levels down are found in the include files
 listed here, and described in separate sections below.
 .Pp
 .Bl -column CTLXMACHDEPXXX "Next level namesXXXXXX" -offset indent
-.It Sy Pa "Name	Next level names	Description"
+.It Sy "Name	Next level names	Description"
 .It "CTL\_DEBUG	sys/sysctl.h	Debugging"
 .It "CTL\_VFS	sys/mount.h	Filesystem"
 .It "CTL\_HW	sys/sysctl.h	Generic CPU, I/O"
@@ -272,7 +272,7 @@ is detailed below.
 The changeable column shows whether a process with appropriate
 privilege may change the value.
 .Bl -column "Second level nameXXXXXX" integerXXX -offset indent
-.It Sy Pa "Second level name	Type	Changeable"
+.It Sy "Second level name	Type	Changeable"
 .It "HW\_MACHINE	string	no"
 .It "HW\_MODEL	string	no"
 .It "HW\_NCPU	integer	no"
@@ -318,7 +318,7 @@ system vnodes, the open file entries, routing table entries,
 virtual memory statistics, load average history, and clock rate
 information.
 .Bl -column "KERNXMAXFILESPERPROCXXX" "struct clockrateXXX" -offset indent
-.It Sy Pa "Second level name	Type	Changeable"
+.It Sy "Second level name	Type	Changeable"
 .It "KERN\_ARGMAX	integer	no"
 .It "KERN\_BOOTFILE	string	yes"
 .It "KERN\_BOOTTIME	struct timeval	no"
@@ -424,7 +424,7 @@ structures is returned,
 whose size depends on the current number of such objects in the system.
 The third and fourth level names are as follows:
 .Bl -column "Third level nameXXXXXX" "Fourth level is:XXXXXX" -offset indent
-.It Pa "Third level name	Fourth level is:"
+.It "Third level name	Fourth level is:"
 .It "KERN\_PROC\_ALL	None"
 .It "KERN\_PROC\_PID	A process ID"
 .It "KERN\_PROC\_PGRP	A process group"
@@ -439,7 +439,7 @@ follow each other.
 The total size of array is returned.
 It is also possible for a process to set its own process title this way.
 .Bl -column "Third level nameXXXXXX" "Fourth level is:XXXXXX" -offset indent
-.It Pa "Third level name	Fourth level is:"
+.It Sy "Third level name	Fourth level is:"
 .It "KERN\_PROC\_ARGS	A process ID"
 .El
 .It Li KERN_PROF
@@ -453,7 +453,7 @@ is detailed below.
 The changeable column shows whether a process with appropriate
 privilege may change the value.
 .Bl -column "GPROFXGMONPARAMXXX" "struct gmonparamXXX" -offset indent
-.It Sy Pa "Third level name	Type	Changeable"
+.It Sy "Third level name	Type	Changeable"
 .It "GPROF\_STATE	integer	yes"
 .It "GPROF\_COUNT	u_short[\|]	yes"
 .It "GPROF\_FROMS	u_short[\|]	yes"
@@ -503,7 +503,7 @@ followed by the vnode itself
 The set of variables defined is architecture dependent.
 The following variables are defined for the i386 architecture.
 .Bl -column "CONSOLE_DEVICEXXX" "struct bootinfoXXX" -offset indent
-.It Sy Pa "Second level name	Type	Changeable"
+.It Sy "Second level name	Type	Changeable"
 .It Li "CPU_CONSDEV	dev_t	no"
 .It Li "CPU_ADJKERNTZ	int	yes"
 .It Li "CPU_DISRTCSET	int	yes"
@@ -516,7 +516,7 @@ is detailed below.
 The changeable column shows whether a process with appropriate
 privilege may change the value.
 .Bl -column "Second level nameXXXXXX" "routing messagesXXX" -offset indent
-.It Sy Pa "Second level name	Type	Changeable"
+.It Sy "Second level name	Type	Changeable"
 .It "PF\_ROUTE	routing messages	no"
 .It "PF\_INET	IPv4 values	yes"
 .It "PF\_INET6	IPv6 values	yes"
@@ -535,7 +535,7 @@ The fourth level name is an address family, which may be set to 0 to
 select all address families.
 The fifth and sixth level names are as follows:
 .Bl -column "Fifth level nameXXXXXX" "Sixth level is:XXX" -offset indent
-.It Pa "Fifth level name	Sixth level is:"
+.It Sy "Fifth level name	Sixth level is:"
 .It "NET\_RT\_FLAGS	rtflags"
 .It "NET\_RT\_DUMP	None"
 .It "NET\_RT\_IFLIST	None"
@@ -547,7 +547,7 @@ The third level name is the protocol.
 The fourth level name is the variable name.
 The currently defined protocols and names are:
 .Bl -column ProtocolXX VariableXX TypeXX ChangeableXX
-.It Pa "Protocol	Variable	Type	Changeable"
+.It Sy "Protocol	Variable	Type	Changeable"
 .It "icmp	bmcastecho	integer	yes"
 .It "icmp	maskrepl	integer	yes"
 .It "ip	forwarding	integer	yes"
@@ -598,7 +598,7 @@ is detailed below.
 The changeable column shows whether a process with appropriate
 privilege may change the value.
 .Bl -column "USER_COLL_WEIGHTS_MAXXXX" "integerXXX" -offset indent
-.It Sy Pa "Second level name	Type	Changeable"
+.It Sy "Second level name	Type	Changeable"
 .It "USER\_BC\_BASE\_MAX	integer	no"
 .It "USER\_BC\_DIM\_MAX	integer	no"
 .It "USER\_BC\_SCALE\_MAX	integer	no"
@@ -694,7 +694,7 @@ is detailed below.
 The changeable column shows whether a process with appropriate
 privilege may change the value.
 .Bl -column "Second level nameXXXXXX" "struct loadavgXXX" -offset indent
-.It Sy Pa "Second level name	Type	Changeable"
+.It Sy "Second level name	Type	Changeable"
 .It "VM\_LOADAVG	struct loadavg	no"
 .It "VM\_METER	struct vmtotal	no"
 .It "VM\_PAGEOUT\_ALGORITHM	integer	yes"

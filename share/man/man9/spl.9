@@ -68,11 +68,13 @@
 .Ft void
 .Fn splx "intrmask_t ipl"
 .Sh DESCRIPTION
-.Sy This API is deprecated.
-.Sy Use mutexes to protect data structures instead.
-.Sy See
+.Bf -symbolic
+This API is deprecated.
+Use mutexes to protect data structures instead.
+See
 .Xr mutex 9
-.Sy for more information.
+for more information.
+.Ef
 .Pp
 The
 .Fn spl

@@ -57,11 +57,9 @@
 .Fn if_freenameindex "struct if_nameindex *ptr"
 .Sh DESCRIPTION
 The functions map interface index to readable interface name
-.Po
-such as
-.Li ``lo0''
-.Pc
-, and vice versa.
+(such as
+.Dq Li lo0 ) ,
+and vice versa.
 .Pp
 .Fn if_nametoindex
 converts readable interface name to interface index
@@ -76,13 +74,11 @@ argument must point to a buffer of at least
 .Dv IF_NAMESIZE
 bytes into which the interface name corresponding to the specified index is
 returned.
-.Po
-.Dv IF_NAMESIZE
+.Dv ( IF_NAMESIZE
 is also defined in
-.Li <net/if.h>
+.Aq Pa net/if.h
 and its value includes a terminating null byte at the end of the
-interface name.
-.Pc
+interface name.)
 This pointer is also the return value of the function.
 If there is no interface corresponding to the specified index,
 .Dv NULL
@@ -94,7 +90,7 @@ returns an array of
 structures.
 .Fa if_nametoindex
 is also defined in
-.Li <net/if.h> ,
+.Aq Pa net/if.h ,
 and is as follows:
 .Bd -literal -offset
 struct if_nameindex {

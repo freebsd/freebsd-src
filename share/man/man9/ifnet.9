@@ -89,35 +89,35 @@
 .\"
 .Ss "struct ifnet member functions"
 .Ft int
-.Fn (*if_output) "struct ifnet *ifp" "struct mbuf *m" "struct sockaddr *dst" "struct rtentry *rt"
+.Fn \*(lp*if_output\*(rp "struct ifnet *ifp" "struct mbuf *m" "struct sockaddr *dst" "struct rtentry *rt"
 .Ft void
-.Fn (*if_start) "struct ifnet *ifp"
+.Fn \*(lp*if_start\*(rp "struct ifnet *ifp"
 .Ft int
-.Fn (*if_dont) "struct ifnet *ifp"
+.Fn \*(lp*if_dont\*(rp "struct ifnet *ifp"
 .Ft int
-.Fn (*if_ioctl) "struct ifnet *ifp" "int cmd" "caddr_t data"
+.Fn \*(lp*if_ioctl\*(rp "struct ifnet *ifp" "int cmd" "caddr_t data"
 .Ft void
-.Fn (*if_watchdog) "struct ifnet *ifp"
+.Fn \*(lp*if_watchdog\*(rp "struct ifnet *ifp"
 .Ft int
-.Fn (*if_poll_recv) "struct ifnet *ifp" "int *quotap"
+.Fn \*(lp*if_poll_recv\*(rp "struct ifnet *ifp" "int *quotap"
 .Ft int
-.Fn (*if_poll_xmit) "struct ifnet *ifp" "int *quotap"
+.Fn \*(lp*if_poll_xmit\*(rp "struct ifnet *ifp" "int *quotap"
 .Ft void
-.Fn (*if_poll_inttrn) "struct ifnet *ifp"
+.Fn \*(lp*if_poll_inttrn\*(rp "struct ifnet *ifp"
 .Ft void
-.Fn (*if_poll_slowinput) "struct ifnet *ifp" "struct mbuf *m"
+.Fn \*(lp*if_poll_slowinput\*(rp "struct ifnet *ifp" "struct mbuf *m"
 .Ft void
-.Fn (*if_init) "void *if_softc"
+.Fn \*(lp*if_init\*(rp "void *if_softc"
 .Ft int
-.Fn (*if_resolvemulti) "struct ifnet *ifp" "struct sockaddr **retsa" "struct sockaddr *addr"
+.Fn \*(lp*if_resolvemulti\*(rp "struct ifnet *ifp" "struct sockaddr **retsa" "struct sockaddr *addr"
 .Ss "struct ifaddr member function"
 .Ft void
-.Fn (*ifa_rtrequest) "int cmd" "struct rtentry *rt" "struct sockaddr *dst"
+.Fn \*(lp*ifa_rtrequest\*(rp "int cmd" "struct rtentry *rt" "struct sockaddr *dst"
 .Ss "Global variables"
-.Fd extern struct ifnethead ifnet;
-.Fd extern struct ifaddr \&**ifnet_addrs;
-.Fd extern int if_index;
-.Fd extern int ifqmaxlen;
+.Vt extern struct ifnethead ifnet ;
+.Vt extern struct ifaddr \&**ifnet_addrs ;
+.Vt extern int if_index ;
+.Vt extern int ifqmaxlen ;
 .Sh DATA STRUCTURES
 The kernel mechanisms for handling network interfaces reside primarily
 in the
