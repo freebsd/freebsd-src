@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)rm.1	8.5 (Berkeley) 12/5/94
-.\"	$Id: rm.1,v 1.10 1997/04/29 10:03:09 dfr Exp $
+.\"	$Id: rm.1,v 1.11 1997/08/07 21:37:38 steve Exp $
 .\"
 .Dd December 5, 1994
 .Dt RM 1
@@ -48,7 +48,7 @@
 .Ar file ...
 .Sh DESCRIPTION
 The
-.Nm rm
+.Nm
 utility attempts to remove the non-directory type files specified on the
 command line.
 If the permissions of the file do not permit writing, and the standard
@@ -101,26 +101,26 @@ that directory is skipped.
 Equivalent to
 .Fl R .
 .It Fl W
-Attempts to undelete the named files.
+Attempt to undelete the named files.
 Currently, this option can only be used to recover
 files covered by whiteouts.
 .El
 .Pp
 The
-.Nm rm
+.Nm
 utility removes symbolic links, not the files referenced by the links.
 .Pp
 It is an error to attempt to remove the files ``.'' and ``..''.
 .Pp
 The
-.Nm rm
+.Nm
 utility exits 0 if all of the named files or file hierarchies were removed,
 or if the
 .Fl f
 option was specified and all of the existing files or file hierarchies were
 removed.
 If an error occurs,
-.Nm rm
+.Nm
 exits with a value >0.
 .Sh NOTE
 The
@@ -160,7 +160,7 @@ In addition, only regular files are overwritten, other types of files
 are not.
 .Sh COMPATIBILITY
 The
-.Nm rm
+.Nm
 utility differs from historical implementations in that the
 .Fl f
 option only masks attempts to remove non-existent files instead of
@@ -172,7 +172,7 @@ implementations prompted on the standard output,
 not the standard error output.
 .Sh STANDARDS
 The
-.Nm rm
+.Nm
 command is expected to be
 .St -p1003.2
 compatible.
