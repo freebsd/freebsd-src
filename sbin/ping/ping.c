@@ -957,7 +957,8 @@ pr_pack(buf, cc, from, tv)
 			j = cp[IPOPT_OLEN] - IPOPT_MINOFF + 1;
 			hlen -= 2;
 			cp += 2;
-			if (j >= INADDR_LEN && j <= hlen - INADDR_LEN) {
+			if (j >= INADDR_LEN &&
+			    j <= hlen - (int)sizeof(struct ip)) {
 				for (;;) {
 					bcopy(++cp, &ina.s_addr, INADDR_LEN);
 					if (ina.s_addr == 0)
