@@ -31,7 +31,7 @@
 .\"	@(#)cp.1	8.3 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd July 23, 2002
+.Dd February 23, 2005
 .Dt CP 1
 .Os
 .Sh NAME
@@ -93,6 +93,12 @@ If
 designates a directory,
 .Nm
 copies the directory and the entire subtree connected at that point.
+If the
+.Ar source_file
+ends in a
+.Pa / ,
+the contents of the directory are copied rather than the
+directory itself.
 This option also causes symbolic links to be copied, rather than
 indirected through, and for
 .Nm
