@@ -530,8 +530,8 @@ static int lge_attach(dev)
 	 * Map control/status registers.
 	 */
 	pci_enable_busmaster(dev);
-	pci_enable_io(dev, PCIM_CMD_PORTEN);
-	pci_enable_io(dev, PCIM_CMD_MEMEN);
+	pci_enable_io(dev, SYS_RES_IOPORT);
+	pci_enable_io(dev, SYS_RES_MEMORY);
 	command = pci_read_config(dev, PCIR_COMMAND, 4);
 
 #ifdef LGE_USEIOSPACE
