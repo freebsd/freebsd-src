@@ -33,6 +33,7 @@
 
 #include <sys/param.h>
 #include <sys/mman.h>
+#include <machine/ia64_cpu.h>
 
 #include <dlfcn.h>
 #include <err.h>
