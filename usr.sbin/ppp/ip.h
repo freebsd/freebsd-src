@@ -24,6 +24,7 @@
 #ifndef _IP_H_
 #define	_IP_H_
 extern void IpStartOutput(void);
-extern int PacketCheck(char *, int , int);
+extern int PacketCheck(char *, int, int);
 extern void IpEnqueue(int, char *, int);
+
 #endif

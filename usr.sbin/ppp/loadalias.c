@@ -18,67 +18,67 @@
 #define entry(a) { off(a), "_" #a }
 
 static struct {
-    int offset;
-    char *name;
+  int offset;
+  char *name;
 } map[] = {
-    entry(GetNextFragmentPtr),
-    entry(GetNextFragmentPtr),
-    entry(InitPacketAlias),
-    entry(PacketAliasIn),
-    entry(PacketAliasOut),
-    entry(PacketAliasRedirectAddr),
-    entry(PacketAliasRedirectPort),
-    entry(SaveFragmentPtr),
-    entry(SetPacketAliasAddress),
-    entry(SetPacketAliasMode),
-    entry(FragmentAliasIn),
-    { 0, 0 }
+  entry(PacketAliasGetFragment),
+  entry(PacketAliasInit),
+  entry(PacketAliasIn),
+  entry(PacketAliasOut),
+  entry(PacketAliasRedirectAddr),
+  entry(PacketAliasRedirectPort),
+  entry(PacketAliasSaveFragment),
+  entry(PacketAliasSetAddress),
+  entry(PacketAliasSetMode),
+  entry(PacketAliasFragmentIn),
+  { 0, 0 }
 };
 
 static void *dl;
 
-int loadAliasHandlers(struct aliasHandlers *h)
+int 
+loadAliasHandlers(struct aliasHandlers * h)
 {
-    char *path;
-    char *env;
-    int i;
+  char *path;
+  char *env;
+  int i;
 
-    path = _PATH_ALIAS;
-    env = getenv("_PATH_ALIAS");
-    if (env)
-        if (OrigUid() == 0)
-            path = env;
-        else
-            LogPrintf(LogALERT, "Ignoring environment _PATH_ALIAS value (%s)",
-                      env);
+  path = _PATH_ALIAS;
+  env = getenv("_PATH_ALIAS");
+  if (env)
+    if (OrigUid() == 0)
+      path = env;
+    else
+      LogPrintf(LogALERT, "Ignoring environment _PATH_ALIAS value (%s)",
+		env);
 
-    dl = dlopen(path, RTLD_LAZY);
-    if (dl == (void *)0) {
-        LogPrintf(LogWARN, "_PATH_ALIAS (%s): Invalid lib: %s\n",
-                  path, dlerror());
-        return -1;
+  dl = dlopen(path, RTLD_LAZY);
+  if (dl == (void *) 0) {
+    LogPrintf(LogWARN, "_PATH_ALIAS (%s): Invalid lib: %s\n",
+	      path, dlerror());
+    return -1;
+  }
+  for (i = 0; map[i].name; i++) {
+    *(void **) ((char *) h + map[i].offset) = dlsym(dl, map[i].name);
+    if (*(void **) ((char *) h + map[i].offset) == (void *) 0) {
+      LogPrintf(LogWARN, "_PATH_ALIAS (%s): %s: %s\n", path,
+		map[i].name, dlerror());
+      (void) dlclose(dl);
+      dl = (void *) 0;
+      return -1;
     }
+  }
 
-    for (i = 0; map[i].name; i++) {
-        *(void **)((char *)h + map[i].offset) = dlsym(dl, map[i].name);
-        if (*(void **)((char *)h + map[i].offset) == (void *)0) {
-            LogPrintf(LogWARN, "_PATH_ALIAS (%s): %s: %s\n", path,
-                      map[i].name, dlerror());
-            (void)dlclose(dl);
-            dl = (void *)0;
-            return -1;
-        }
-    }
+  VarPacketAliasInit();
 
-    VarInitPacketAlias();
-
-    return 0;
+  return 0;
 }
 
-void unloadAliasHandlers()
+void 
+unloadAliasHandlers()
 {
-    if (dl) {
-        dlclose(dl);
-        dl = (void *)0;
-    }
+  if (dl) {
+    dlclose(dl);
+    dl = (void *) 0;
+  }
 }

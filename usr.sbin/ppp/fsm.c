@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.c,v 1.7.2.4 1997/06/10 09:43:24 brian Exp $
+ * $Id: fsm.c,v 1.15 1997/08/20 23:47:42 brian Exp $
  *
  *  TODO:
  *		o Refer loglevel for log output
@@ -33,10 +33,10 @@
 #include "loadalias.h"
 #include "vars.h"
 
-void FsmSendConfigReq(struct fsm *fp);
-void FsmSendTerminateReq(struct fsm *fp);
-void FsmInitRestartCounter(struct fsm *fp);
-void FsmTimeout(struct fsm *fp);
+void FsmSendConfigReq(struct fsm * fp);
+void FsmSendTerminateReq(struct fsm * fp);
+void FsmInitRestartCounter(struct fsm * fp);
+void FsmTimeout(struct fsm * fp);
 
 char const *StateNames[] = {
   "Initial", "Starting", "Closed", "Stopped", "Closing", "Stopping",
@@ -44,8 +44,7 @@ char const *StateNames[] = {
 };
 
 static void
-StoppedTimeout(fp)
-struct fsm *fp;
+StoppedTimeout(struct fsm * fp)
 {
   LogPrintf(fp->LogLevel, "Stopped timer expired\n");
   if (modem != -1)
@@ -55,8 +54,7 @@ struct fsm *fp;
 }
 
 void
-FsmInit(fp)
-struct fsm *fp;
+FsmInit(struct fsm * fp)
 {
   LogPrintf(LogDEBUG, "FsmInit\n");
   fp->state = ST_INITIAL;
@@ -66,38 +64,32 @@ struct fsm *fp;
 }
 
 void
-NewState(fp, new)
-struct fsm *fp;
-int new;
+NewState(struct fsm * fp, int new)
 {
   LogPrintf(fp->LogLevel, "State change %s --> %s\n",
-	  StateNames[fp->state], StateNames[new]);
+	    StateNames[fp->state], StateNames[new]);
   if (fp->state == ST_STOPPED && fp->StoppedTimer.state == TIMER_RUNNING)
-      StopTimer(&fp->StoppedTimer);
+    StopTimer(&fp->StoppedTimer);
   fp->state = new;
   if ((new >= ST_INITIAL && new <= ST_STOPPED) || (new == ST_OPENED)) {
     StopTimer(&fp->FsmTimer);
     if (new == ST_STOPPED && fp->StoppedTimer.load) {
       fp->StoppedTimer.state = TIMER_STOPPED;
       fp->StoppedTimer.func = StoppedTimeout;
-      fp->StoppedTimer.arg = (void *)fp;
+      fp->StoppedTimer.arg = (void *) fp;
       StartTimer(&fp->StoppedTimer);
     }
   }
 }
 
 void
-FsmOutput(fp, code, id, ptr, count)
-struct fsm *fp;
-u_int code, id;
-u_char *ptr;
-int count;
+FsmOutput(struct fsm * fp, u_int code, u_int id, u_char * ptr, int count)
 {
   int plen;
   struct fsmheader lh;
   struct mbuf *bp;
 
-  plen =  sizeof(struct fsmheader) + count;
+  plen = sizeof(struct fsmheader) + count;
   lh.code = code;
   lh.id = id;
   lh.length = htons(plen);
@@ -110,12 +102,11 @@ int count;
 }
 
 void
-FsmOpen(fp)
-struct fsm *fp;
+FsmOpen(struct fsm * fp)
 {
   switch (fp->state) {
-  case ST_INITIAL:
-    (fp->LayerStart)(fp);
+    case ST_INITIAL:
+    (fp->LayerStart) (fp);
     NewState(fp, ST_STARTING);
     break;
   case ST_STARTING:
@@ -129,25 +120,24 @@ struct fsm *fp;
       NewState(fp, ST_REQSENT);
     }
     break;
-  case ST_STOPPED:	/* XXX: restart option */
+  case ST_STOPPED:		/* XXX: restart option */
   case ST_REQSENT:
   case ST_ACKRCVD:
   case ST_ACKSENT:
-  case ST_OPENED:	/* XXX: restart option */
+  case ST_OPENED:		/* XXX: restart option */
     break;
-  case ST_CLOSING:	/* XXX: restart option */
-  case ST_STOPPING:	/* XXX: restart option */
+  case ST_CLOSING:		/* XXX: restart option */
+  case ST_STOPPING:		/* XXX: restart option */
     NewState(fp, ST_STOPPING);
     break;
   }
 }
 
 void
-FsmUp(fp)
-struct fsm *fp;
+FsmUp(struct fsm * fp)
 {
   switch (fp->state) {
-  case ST_INITIAL:
+    case ST_INITIAL:
     NewState(fp, ST_CLOSED);
     break;
   case ST_STARTING:
@@ -162,16 +152,15 @@ struct fsm *fp;
 }
 
 void
-FsmDown(fp)
-struct fsm *fp;
+FsmDown(struct fsm * fp)
 {
   switch (fp->state) {
-  case ST_CLOSED:
-  case ST_CLOSING:
+    case ST_CLOSED:
+    case ST_CLOSING:
     NewState(fp, ST_INITIAL);
     break;
   case ST_STOPPED:
-    (fp->LayerStart)(fp);
+    (fp->LayerStart) (fp);
     /* Fall into.. */
   case ST_STOPPING:
   case ST_REQSENT:
@@ -180,18 +169,17 @@ struct fsm *fp;
     NewState(fp, ST_STARTING);
     break;
   case ST_OPENED:
-    (fp->LayerDown)(fp);
+    (fp->LayerDown) (fp);
     NewState(fp, ST_STARTING);
     break;
   }
 }
 
 void
-FsmClose(fp)
-struct fsm *fp;
+FsmClose(struct fsm * fp)
 {
   switch (fp->state) {
-  case ST_STARTING:
+    case ST_STARTING:
     NewState(fp, ST_INITIAL);
     break;
   case ST_STOPPED:
@@ -201,7 +189,7 @@ struct fsm *fp;
     NewState(fp, ST_CLOSING);
     break;
   case ST_OPENED:
-    (fp->LayerDown)(fp);
+    (fp->LayerDown) (fp);
     /* Fall down */
   case ST_REQSENT:
   case ST_ACKRCVD:
@@ -217,11 +205,10 @@ struct fsm *fp;
  *	Send functions
  */
 void
-FsmSendConfigReq(fp)
-struct fsm *fp;
+FsmSendConfigReq(struct fsm * fp)
 {
   if (--fp->maxconfig > 0) {
-    (fp->SendConfigReq)(fp);
+    (fp->SendConfigReq) (fp);
     StartTimer(&fp->FsmTimer);	/* Start restart timer */
     fp->restart--;		/* Decrement restart counter */
   } else {
@@ -230,49 +217,45 @@ struct fsm *fp;
 }
 
 void
-FsmSendTerminateReq(fp)
-struct fsm *fp;
+FsmSendTerminateReq(struct fsm * fp)
 {
   LogPrintf(fp->LogLevel, "SendTerminateReq.\n");
   FsmOutput(fp, CODE_TERMREQ, fp->reqid++, NULL, 0);
-  (fp->SendTerminateReq)(fp);
+  (fp->SendTerminateReq) (fp);
   StartTimer(&fp->FsmTimer);	/* Start restart timer */
   fp->restart--;		/* Decrement restart counter */
 }
 
 static void
-FsmSendConfigAck(fp, lhp, option, count)
-struct fsm *fp;
-struct fsmheader *lhp;
-u_char *option;
-int count;
+FsmSendConfigAck(struct fsm * fp,
+		 struct fsmheader * lhp,
+		 u_char * option,
+		 int count)
 {
   LogPrintf(fp->LogLevel, "SendConfigAck(%s)\n", StateNames[fp->state]);
-  (fp->DecodeConfig)(option, count, MODE_NOP);
+  (fp->DecodeConfig) (option, count, MODE_NOP);
   FsmOutput(fp, CODE_CONFIGACK, lhp->id, option, count);
 }
 
 static void
-FsmSendConfigRej(fp, lhp, option, count)
-struct fsm *fp;
-struct fsmheader *lhp;
-u_char *option;
-int count;
+FsmSendConfigRej(struct fsm * fp,
+		 struct fsmheader * lhp,
+		 u_char * option,
+		 int count)
 {
   LogPrintf(fp->LogLevel, "SendConfigRej(%s)\n", StateNames[fp->state]);
-  (fp->DecodeConfig)(option, count, MODE_NOP);
+  (fp->DecodeConfig) (option, count, MODE_NOP);
   FsmOutput(fp, CODE_CONFIGREJ, lhp->id, option, count);
 }
 
 static void
-FsmSendConfigNak(fp, lhp, option, count)
-struct fsm *fp;
-struct fsmheader *lhp;
-u_char *option;
-int count;
+FsmSendConfigNak(struct fsm * fp,
+		 struct fsmheader * lhp,
+		 u_char * option,
+		 int count)
 {
   LogPrintf(fp->LogLevel, "SendConfigNak(%s)\n", StateNames[fp->state]);
-  (fp->DecodeConfig)(option, count, MODE_NOP);
+  (fp->DecodeConfig) (option, count, MODE_NOP);
   FsmOutput(fp, CODE_CONFIGNAK, lhp->id, option, count);
 }
 
@@ -280,13 +263,12 @@ int count;
  *	Timeout actions
  */
 void
-FsmTimeout(fp)
-struct fsm *fp;
+FsmTimeout(struct fsm * fp)
 {
   if (fp->restart) {
     switch (fp->state) {
-    case ST_CLOSING:
-    case ST_STOPPING:
+      case ST_CLOSING:
+      case ST_STOPPING:
       FsmSendTerminateReq(fp);
       break;
     case ST_REQSENT:
@@ -303,41 +285,38 @@ struct fsm *fp;
     switch (fp->state) {
     case ST_CLOSING:
       NewState(fp, ST_CLOSED);
-      (fp->LayerFinish)(fp);
+      (fp->LayerFinish) (fp);
       break;
     case ST_STOPPING:
       NewState(fp, ST_STOPPED);
-      (fp->LayerFinish)(fp);
+      (fp->LayerFinish) (fp);
       break;
     case ST_REQSENT:		/* XXX: 3p */
     case ST_ACKSENT:
     case ST_ACKRCVD:
       NewState(fp, ST_STOPPED);
-      (fp->LayerFinish)(fp);
+      (fp->LayerFinish) (fp);
       break;
     }
   }
 }
 
 void
-FsmInitRestartCounter(fp)
-struct fsm *fp;
+FsmInitRestartCounter(struct fsm * fp)
 {
   StopTimer(&fp->FsmTimer);
   fp->FsmTimer.state = TIMER_STOPPED;
   fp->FsmTimer.func = FsmTimeout;
-  fp->FsmTimer.arg = (void *)fp;
-  (fp->InitRestartCounter)(fp);
+  fp->FsmTimer.arg = (void *) fp;
+  (fp->InitRestartCounter) (fp);
 }
 
 /*
  *   Actions when receive packets
  */
 void
-FsmRecvConfigReq(fp, lhp, bp)			/* RCR */
-struct fsm *fp;
-struct fsmheader *lhp;
-struct mbuf *bp;
+FsmRecvConfigReq(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
+/* RCR */
 {
   int plen, flen;
   int ackaction = 0;
@@ -350,9 +329,8 @@ struct mbuf *bp;
     return;
   }
 
-
   /*
-   *  Check and process easy case
+   * Check and process easy case
    */
   switch (fp->state) {
   case ST_INITIAL:
@@ -361,7 +339,7 @@ struct mbuf *bp;
     pfree(bp);
     return;
   case ST_CLOSED:
-    (fp->SendTerminateAck)(fp);
+    (fp->SendTerminateAck) (fp);
     pfree(bp);
     return;
   case ST_CLOSING:
@@ -371,14 +349,14 @@ struct mbuf *bp;
     return;
   }
 
-  (fp->DecodeConfig)(MBUF_CTOP(bp), flen, MODE_REQ);
+  (fp->DecodeConfig) (MBUF_CTOP(bp), flen, MODE_REQ);
 
   if (nakp == NakBuff && rejp == RejBuff)
     ackaction = 1;
 
   switch (fp->state) {
   case ST_OPENED:
-    (fp->LayerDown)(fp);
+    (fp->LayerDown) (fp);
     FsmSendConfigReq(fp);
     break;
   case ST_STOPPED:
@@ -409,7 +387,7 @@ struct mbuf *bp;
   case ST_ACKRCVD:
     if (ackaction) {
       NewState(fp, ST_OPENED);
-      (fp->LayerUp)(fp);
+      (fp->LayerUp) (fp);
     }
     break;
   case ST_ACKSENT:
@@ -421,15 +399,13 @@ struct mbuf *bp;
 }
 
 void
-FsmRecvConfigAck(fp, lhp, bp)			/* RCA */
-struct fsm *fp;
-struct fsmheader *lhp;
-struct mbuf *bp;
+FsmRecvConfigAck(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
+/* RCA */
 {
   switch (fp->state) {
-  case ST_CLOSED:
-  case ST_STOPPED:
-    (fp->SendTerminateAck)(fp);
+    case ST_CLOSED:
+    case ST_STOPPED:
+    (fp->SendTerminateAck) (fp);
     break;
   case ST_CLOSING:
   case ST_STOPPING:
@@ -445,10 +421,10 @@ struct mbuf *bp;
   case ST_ACKSENT:
     FsmInitRestartCounter(fp);
     NewState(fp, ST_OPENED);
-    (fp->LayerUp)(fp);
+    (fp->LayerUp) (fp);
     break;
   case ST_OPENED:
-    (fp->LayerDown)(fp);
+    (fp->LayerDown) (fp);
     FsmSendConfigReq(fp);
     NewState(fp, ST_REQSENT);
     break;
@@ -457,10 +433,8 @@ struct mbuf *bp;
 }
 
 void
-FsmRecvConfigNak(fp, lhp, bp)			/* RCN */
-struct fsm *fp;
-struct fsmheader *lhp;
-struct mbuf *bp;
+FsmRecvConfigNak(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
+/* RCN */
 {
   int plen, flen;
 
@@ -472,7 +446,7 @@ struct mbuf *bp;
   }
 
   /*
-   *  Check and process easy case
+   * Check and process easy case
    */
   switch (fp->state) {
   case ST_INITIAL:
@@ -482,7 +456,7 @@ struct mbuf *bp;
     return;
   case ST_CLOSED:
   case ST_STOPPED:
-    (fp->SendTerminateAck)(fp);
+    (fp->SendTerminateAck) (fp);
     pfree(bp);
     return;
   case ST_CLOSING:
@@ -491,7 +465,7 @@ struct mbuf *bp;
     return;
   }
 
-  (fp->DecodeConfig)(MBUF_CTOP(bp), flen, MODE_NAK);
+  (fp->DecodeConfig) (MBUF_CTOP(bp), flen, MODE_NAK);
 
   switch (fp->state) {
   case ST_REQSENT:
@@ -500,7 +474,7 @@ struct mbuf *bp;
     FsmSendConfigReq(fp);
     break;
   case ST_OPENED:
-    (fp->LayerDown)(fp);
+    (fp->LayerDown) (fp);
     /* Fall down */
   case ST_ACKRCVD:
     FsmSendConfigReq(fp);
@@ -512,14 +486,12 @@ struct mbuf *bp;
 }
 
 void
-FsmRecvTermReq(fp, lhp, bp)				/* RTR */
-struct fsm *fp;
-struct fsmheader *lhp;
-struct mbuf *bp;
+FsmRecvTermReq(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
+/* RTR */
 {
   switch (fp->state) {
-  case ST_INITIAL:
-  case ST_STARTING:
+    case ST_INITIAL:
+    case ST_STARTING:
     LogPrintf(fp->LogLevel, "Oops, RTR in %s\n", StateNames[fp->state]);
     break;
   case ST_CLOSED:
@@ -527,16 +499,16 @@ struct mbuf *bp;
   case ST_CLOSING:
   case ST_STOPPING:
   case ST_REQSENT:
-    (fp->SendTerminateAck)(fp);
+    (fp->SendTerminateAck) (fp);
     break;
   case ST_ACKRCVD:
   case ST_ACKSENT:
-    (fp->SendTerminateAck)(fp);
+    (fp->SendTerminateAck) (fp);
     NewState(fp, ST_REQSENT);
     break;
   case ST_OPENED:
-    (fp->LayerDown)(fp);
-    (fp->SendTerminateAck)(fp);
+    (fp->LayerDown) (fp);
+    (fp->SendTerminateAck) (fp);
     StartTimer(&fp->FsmTimer);	/* Start restart timer */
     fp->restart = 0;
     NewState(fp, ST_STOPPING);
@@ -546,25 +518,23 @@ struct mbuf *bp;
 }
 
 void
-FsmRecvTermAck(fp, lhp, bp)			/* RTA */
-struct fsm *fp;
-struct fsmheader *lhp;
-struct mbuf *bp;
+FsmRecvTermAck(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
+/* RTA */
 {
   switch (fp->state) {
-  case ST_CLOSING:
+    case ST_CLOSING:
     NewState(fp, ST_CLOSED);
-    (fp->LayerFinish)(fp);
+    (fp->LayerFinish) (fp);
     break;
   case ST_STOPPING:
     NewState(fp, ST_STOPPED);
-    (fp->LayerFinish)(fp);
+    (fp->LayerFinish) (fp);
     break;
   case ST_ACKRCVD:
     NewState(fp, ST_REQSENT);
     break;
   case ST_OPENED:
-    (fp->LayerDown)(fp);
+    (fp->LayerDown) (fp);
     FsmSendConfigReq(fp);
     NewState(fp, ST_REQSENT);
     break;
@@ -573,10 +543,8 @@ struct mbuf *bp;
 }
 
 void
-FsmRecvConfigRej(fp, lhp, bp)			/* RCJ */
-struct fsm *fp;
-struct fsmheader *lhp;
-struct mbuf *bp;
+FsmRecvConfigRej(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
+/* RCJ */
 {
   int plen, flen;
 
@@ -589,7 +557,7 @@ struct mbuf *bp;
   LogPrintf(fp->LogLevel, "RecvConfigRej.\n");
 
   /*
-   *  Check and process easy case
+   * Check and process easy case
    */
   switch (fp->state) {
   case ST_INITIAL:
@@ -599,7 +567,7 @@ struct mbuf *bp;
     return;
   case ST_CLOSED:
   case ST_STOPPED:
-    (fp->SendTerminateAck)(fp);
+    (fp->SendTerminateAck) (fp);
     pfree(bp);
     return;
   case ST_CLOSING:
@@ -608,7 +576,7 @@ struct mbuf *bp;
     return;
   }
 
-  (fp->DecodeConfig)(MBUF_CTOP(bp), flen, MODE_REJ);
+  (fp->DecodeConfig) (MBUF_CTOP(bp), flen, MODE_REJ);
 
   switch (fp->state) {
   case ST_REQSENT:
@@ -617,7 +585,7 @@ struct mbuf *bp;
     FsmSendConfigReq(fp);
     break;
   case ST_OPENED:
-    (fp->LayerDown)(fp);
+    (fp->LayerDown) (fp);
     /* Fall down */
   case ST_ACKRCVD:
     FsmSendConfigReq(fp);
@@ -628,24 +596,18 @@ struct mbuf *bp;
 }
 
 void
-FsmRecvCodeRej(fp, lhp, bp)
-struct fsm *fp;
-struct fsmheader *lhp;
-struct mbuf *bp;
+FsmRecvCodeRej(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
 {
   LogPrintf(fp->LogLevel, "RecvCodeRej\n");
   pfree(bp);
 }
 
 void
-FsmRecvProtoRej(fp, lhp, bp)
-struct fsm *fp;
-struct fsmheader *lhp;
-struct mbuf *bp;
+FsmRecvProtoRej(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
 {
   u_short *sp, proto;
 
-  sp = (u_short *)MBUF_CTOP(bp);
+  sp = (u_short *) MBUF_CTOP(bp);
   proto = ntohs(*sp);
   LogPrintf(fp->LogLevel, "-- Protocol (%04x) was rejected.\n", proto);
 
@@ -655,7 +617,7 @@ struct mbuf *bp;
     break;
   case PROTO_CCP:
     fp = &CcpFsm;
-    (fp->LayerFinish)(fp);
+    (fp->LayerFinish) (fp);
     switch (fp->state) {
     case ST_CLOSED:
     case ST_CLOSING:
@@ -670,22 +632,18 @@ struct mbuf *bp;
 }
 
 void
-FsmRecvEchoReq(fp, lhp, bp)
-struct fsm *fp;
-struct fsmheader *lhp;
-struct mbuf *bp;
+FsmRecvEchoReq(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
 {
   u_char *cp;
   u_long *lp, magic;
 
   cp = MBUF_CTOP(bp);
-  lp = (u_long *)cp;
+  lp = (u_long *) cp;
   magic = ntohl(*lp);
   if (magic != LcpInfo.his_magic) {
     LogPrintf(LogERROR, "RecvEchoReq: his magic is bad!!\n");
     /* XXX: We should send terminate request */
   }
-
   if (fp->state == ST_OPENED) {
     *lp = htonl(LcpInfo.want_magic);	/* Insert local magic number */
     LogPrintf(fp->LogLevel, "SendEchoRep(%s)\n", StateNames[fp->state]);
@@ -695,24 +653,22 @@ struct mbuf *bp;
 }
 
 void
-FsmRecvEchoRep(fp, lhp, bp)
-struct fsm *fp;
-struct fsmheader *lhp;
-struct mbuf *bp;
+FsmRecvEchoRep(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
 {
   u_long *lp, magic;
 
-  lp = (u_long *)MBUF_CTOP(bp);
+  lp = (u_long *) MBUF_CTOP(bp);
   magic = ntohl(*lp);
 /*
  * Tolerate echo replies with either magic number
  */
   if (magic != 0 && magic != LcpInfo.his_magic && magic != LcpInfo.want_magic) {
     LogPrintf(LogERROR, "RecvEchoRep: his magic is wrong! expect: %x got: %x\n",
-	LcpInfo.his_magic, magic);
+	      LcpInfo.his_magic, magic);
+
     /*
-     *  XXX: We should send terminate request. But poor implementation
-     *       may die as a result.
+     * XXX: We should send terminate request. But poor implementation may die
+     * as a result.
      */
   }
   RecvEchoLqr(bp);
@@ -720,40 +676,28 @@ struct mbuf *bp;
 }
 
 void
-FsmRecvDiscReq(fp, lhp, bp)
-struct fsm *fp;
-struct fsmheader *lhp;
-struct mbuf *bp;
+FsmRecvDiscReq(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
 {
   LogPrintf(fp->LogLevel, "RecvDiscReq\n");
   pfree(bp);
 }
 
 void
-FsmRecvIdent(fp, lhp, bp)
-struct fsm *fp;
-struct fsmheader *lhp;
-struct mbuf *bp;
+FsmRecvIdent(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
 {
   LogPrintf(fp->LogLevel, "RecvIdent\n");
   pfree(bp);
 }
 
 void
-FsmRecvTimeRemain(fp, lhp, bp)
-struct fsm *fp;
-struct fsmheader *lhp;
-struct mbuf *bp;
+FsmRecvTimeRemain(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
 {
   LogPrintf(fp->LogLevel, "RecvTimeRemain\n");
   pfree(bp);
 }
 
 void
-FsmRecvResetReq(fp, lhp, bp)
-struct fsm *fp;
-struct fsmheader *lhp;
-struct mbuf *bp;
+FsmRecvResetReq(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
 {
   LogPrintf(fp->LogLevel, "RecvResetReq\n");
   CcpRecvResetReq(fp);
@@ -763,10 +707,7 @@ struct mbuf *bp;
 }
 
 void
-FsmRecvResetAck(fp, lhp, bp)
-struct fsm *fp;
-struct fsmheader *lhp;
-struct mbuf *bp;
+FsmRecvResetAck(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
 {
   LogPrintf(fp->LogLevel, "RecvResetAck\n");
   fp->reqid++;
@@ -774,27 +715,25 @@ struct mbuf *bp;
 }
 
 struct fsmcodedesc FsmCodes[] = {
- { FsmRecvConfigReq,  "Configure Request", },
- { FsmRecvConfigAck,  "Configure Ack", },
- { FsmRecvConfigNak,  "Configure Nak", },
- { FsmRecvConfigRej,  "Configure Reject", },
- { FsmRecvTermReq,    "Terminate Request", },
- { FsmRecvTermAck,    "Terminate Ack", },
- { FsmRecvCodeRej,    "Code Reject", },
- { FsmRecvProtoRej,   "Protocol Reject", },
- { FsmRecvEchoReq,    "Echo Request", },
- { FsmRecvEchoRep,    "Echo Reply", },
- { FsmRecvDiscReq,    "Discard Request", },
- { FsmRecvIdent,      "Ident", },
- { FsmRecvTimeRemain, "Time Remain", },
- { FsmRecvResetReq,   "Reset Request", },
- { FsmRecvResetAck,   "Reset Ack", },
+  {FsmRecvConfigReq, "Configure Request",},
+  {FsmRecvConfigAck, "Configure Ack",},
+  {FsmRecvConfigNak, "Configure Nak",},
+  {FsmRecvConfigRej, "Configure Reject",},
+  {FsmRecvTermReq, "Terminate Request",},
+  {FsmRecvTermAck, "Terminate Ack",},
+  {FsmRecvCodeRej, "Code Reject",},
+  {FsmRecvProtoRej, "Protocol Reject",},
+  {FsmRecvEchoReq, "Echo Request",},
+  {FsmRecvEchoRep, "Echo Reply",},
+  {FsmRecvDiscReq, "Discard Request",},
+  {FsmRecvIdent, "Ident",},
+  {FsmRecvTimeRemain, "Time Remain",},
+  {FsmRecvResetReq, "Reset Request",},
+  {FsmRecvResetAck, "Reset Ack",},
 };
 
 void
-FsmInput(fp, bp)
-struct fsm *fp;
-struct mbuf *bp;
+FsmInput(struct fsm * fp, struct mbuf * bp)
 {
   int len;
   struct fsmheader *lhp;
@@ -805,21 +744,20 @@ struct mbuf *bp;
     pfree(bp);
     return;
   }
-  lhp = (struct fsmheader *)MBUF_CTOP(bp);
+  lhp = (struct fsmheader *) MBUF_CTOP(bp);
   if (lhp->code == 0 || lhp->code > fp->max_code) {
-    pfree(bp);		/* XXX: Should send code reject */
+    pfree(bp);			/* XXX: Should send code reject */
     return;
   }
-
   bp->offset += sizeof(struct fsmheader);
   bp->cnt -= sizeof(struct fsmheader);
 
   codep = FsmCodes + lhp->code - 1;
   LogPrintf(fp->LogLevel, "Received %s (%d) state = %s (%d)\n",
-    codep->name, lhp->id, StateNames[fp->state], fp->state);
+	    codep->name, lhp->id, StateNames[fp->state], fp->state);
   if (LogIsKept(LogDEBUG))
     LogMemory();
-  (codep->action)(fp, lhp, bp);
+  (codep->action) (fp, lhp, bp);
   if (LogIsKept(LogDEBUG))
     LogMemory();
 }

@@ -33,20 +33,19 @@
 #include "auth.h"
 
 #ifndef NOPASSWDAUTH
-# include "passwdauth.h"
+#include "passwdauth.h"
 #endif
 
 static char *papcodes[] = {
   "???", "REQUEST", "ACK", "NAK"
 };
 
-struct authinfo AuthPapInfo  = {
+struct authinfo AuthPapInfo = {
   SendPapChallenge,
 };
 
 void
-SendPapChallenge(papid)
-int papid;
+SendPapChallenge(int papid)
 {
   struct fsmheader lh;
   struct mbuf *bp;
@@ -75,10 +74,7 @@ int papid;
 }
 
 static void
-SendPapCode(id, code, message)
-int id;
-char *message;
-int code;
+SendPapCode(int id, int code, char *message)
 {
   struct fsmheader lh;
   struct mbuf *bp;
@@ -103,8 +99,7 @@ int code;
  * Validate given username and passwrd against with secret table
  */
 static int
-PapValidate(name, key)
-u_char *name, *key;
+PapValidate(u_char * name, u_char * key)
 {
   int nlen, klen;
 
@@ -116,19 +111,17 @@ u_char *name, *key;
 	    name, nlen, key, klen);
 
 #ifndef NOPASSWDAUTH
-  if( Enabled( ConfPasswdAuth ) )
-  {
-    LogPrintf( LogLCP, "PasswdAuth enabled - calling\n" );
-    return PasswdAuth( name, key );
+  if (Enabled(ConfPasswdAuth)) {
+    LogPrintf(LogLCP, "PasswdAuth enabled - calling\n");
+    return PasswdAuth(name, key);
   }
 #endif
 
-  return(AuthValidate(SECRETFILE, name, key));
+  return (AuthValidate(SECRETFILE, name, key));
 }
 
 void
-PapInput(bp)
-struct mbuf *bp;
+PapInput(struct mbuf * bp)
 {
   int len = plength(bp);
   struct fsmheader *php;
@@ -136,7 +129,7 @@ struct mbuf *bp;
   u_char *cp;
 
   if (len >= sizeof(struct fsmheader)) {
-    php = (struct fsmheader *)MBUF_CTOP(bp);
+    php = (struct fsmheader *) MBUF_CTOP(bp);
     if (len >= ntohs(php->length)) {
       if (php->code < PAP_REQUEST || php->code > PAP_NAK)
 	php->code = 0;
@@ -152,13 +145,13 @@ struct mbuf *bp;
 	    NewPhase(PHASE_NETWORK);
 	} else {
 	  SendPapCode(php->id, PAP_NAK, "Login incorrect");
-          reconnect(RECON_FALSE);
+	  reconnect(RECON_FALSE);
 	  LcpClose();
 	}
 	break;
       case PAP_ACK:
 	StopAuthTimer(&AuthPapInfo);
-	cp = (u_char *)(php + 1);
+	cp = (u_char *) (php + 1);
 	len = *cp++;
 	cp[len] = 0;
 	LogPrintf(LogPHASE, "Received PAP_ACK (%s)\n", cp);
@@ -170,11 +163,11 @@ struct mbuf *bp;
 	break;
       case PAP_NAK:
 	StopAuthTimer(&AuthPapInfo);
-	cp = (u_char *)(php + 1);
+	cp = (u_char *) (php + 1);
 	len = *cp++;
 	cp[len] = 0;
 	LogPrintf(LogPHASE, "Received PAP_NAK (%s)\n", cp);
-        reconnect(RECON_FALSE);
+	reconnect(RECON_FALSE);
 	LcpClose();
 	break;
       }

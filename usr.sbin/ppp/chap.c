@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: chap.c,v 1.18 1997/06/09 03:27:15 brian Exp $
+ * $Id: chap.c,v 1.19 1997/06/14 00:21:23 ache Exp $
  *
  *	TODO:
  */
@@ -37,23 +37,20 @@ static char *chapcodes[] = {
   "???", "CHALLENGE", "RESPONSE", "SUCCESS", "FAILURE"
 };
 
-struct authinfo AuthChapInfo  = {
+struct authinfo AuthChapInfo = {
   SendChapChallenge,
 };
 
 extern char *AuthGetSecret();
 
 void
-ChapOutput(code, id, ptr, count)
-u_int code, id;
-u_char *ptr;
-int count;
+ChapOutput(u_int code, u_int id, u_char * ptr, int count)
 {
   int plen;
   struct fsmheader lh;
   struct mbuf *bp;
 
-  plen =  sizeof(struct fsmheader) + count;
+  plen = sizeof(struct fsmheader) + count;
   lh.code = code;
   lh.id = id;
   lh.length = htons(plen);
@@ -68,17 +65,15 @@ int count;
 
 
 static char challenge_data[80];
-static int  challenge_len;
+static int challenge_len;
 
 void
-SendChapChallenge(chapid)
-int chapid;
+SendChapChallenge(int chapid)
 {
   int len, i;
   char *cp;
 
   srandom(time(NULL));
-
   cp = challenge_data;
   *cp++ = challenge_len = random() % 32 + 16;
   for (i = 0; i < challenge_len; i++)
@@ -90,22 +85,20 @@ int chapid;
 }
 
 void
-RecvChapTalk(chp, bp)
-struct fsmheader *chp;
-struct mbuf *bp;
+RecvChapTalk(struct fsmheader * chp, struct mbuf * bp)
 {
   int valsize, len;
   int arglen, keylen, namelen;
   char *cp, *argp, *ap, *name, *digest;
   char *keyp;
-  MD5_CTX context;                            /* context */
+  MD5_CTX context;		/* context */
   char answer[100];
   char cdigest[16];
 
   len = ntohs(chp->length);
   LogPrintf(LogDEBUG, "RecvChapTalk: length: %d\n", len);
   arglen = len - sizeof(struct fsmheader);
-  cp = (char *)MBUF_CTOP(bp);
+  cp = (char *) MBUF_CTOP(bp);
   valsize = *cp++ & 255;
   name = cp + valsize;
   namelen = arglen - valsize - 1;
@@ -153,6 +146,7 @@ struct mbuf *bp;
     break;
   case CHAP_RESPONSE:
     if (keyp) {
+
       /*
        * Compute correct digest value
        */
@@ -163,10 +157,11 @@ struct mbuf *bp;
       ap += keylen;
       MD5Init(&context);
       MD5Update(&context, answer, ap - answer);
-      MD5Update(&context, challenge_data+1, challenge_len);
+      MD5Update(&context, challenge_data + 1, challenge_len);
       MD5Final(cdigest, &context);
       LogDumpBuff(LogDEBUG, "got", cp, 16);
       LogDumpBuff(LogDEBUG, "expect", cdigest, 16);
+
       /*
        * Compare with the response
        */
@@ -176,6 +171,7 @@ struct mbuf *bp;
 	break;
       }
     }
+
     /*
      * Peer is not registerd, or response digest is wrong.
      */
@@ -187,9 +183,7 @@ struct mbuf *bp;
 }
 
 void
-RecvChapResult(chp, bp)
-struct fsmheader *chp;
-struct mbuf *bp;
+RecvChapResult(struct fsmheader * chp, struct mbuf * bp)
 {
   int len;
   struct lcpstate *lcp = &LcpInfo;
@@ -203,6 +197,7 @@ struct mbuf *bp;
 	NewPhase(PHASE_NETWORK);
     }
   } else {
+
     /*
      * Maybe, we shoud close LCP. Of cause, peer may take close action, too.
      */
@@ -211,13 +206,13 @@ struct mbuf *bp;
 }
 
 void
-ChapInput(struct mbuf *bp)
+ChapInput(struct mbuf * bp)
 {
   int len = plength(bp);
   struct fsmheader *chp;
 
   if (len >= sizeof(struct fsmheader)) {
-    chp = (struct fsmheader *)MBUF_CTOP(bp);
+    chp = (struct fsmheader *) MBUF_CTOP(bp);
     if (len >= ntohs(chp->length)) {
       if (chp->code < 1 || chp->code > 4)
 	chp->code = 0;

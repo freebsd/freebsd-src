@@ -29,7 +29,7 @@
 #include "hdlc.h"
 #include "ipcp.h"
 
-#define MAX_VJHEADER 16	/* Maximum size of compressed header */
+#define MAX_VJHEADER 16		/* Maximum size of compressed header */
 
 struct slcompress cslc;
 
@@ -40,17 +40,16 @@ VjInit()
 }
 
 void
-SendPppFrame(bp)
-struct mbuf *bp;
+SendPppFrame(struct mbuf * bp)
 {
   int type;
   int proto;
   int cproto = IpcpInfo.his_compproto >> 16;
 
   LogPrintf(LogDEBUG, "SendPppFrame: proto = %x\n", IpcpInfo.his_compproto);
-  if (((struct ip *)MBUF_CTOP(bp))->ip_p == IPPROTO_TCP
-      && cproto== PROTO_VJCOMP) {
-    type = sl_compress_tcp(bp, (struct ip *)MBUF_CTOP(bp), &cslc, IpcpInfo.his_compproto & 0xff);
+  if (((struct ip *) MBUF_CTOP(bp))->ip_p == IPPROTO_TCP
+      && cproto == PROTO_VJCOMP) {
+    type = sl_compress_tcp(bp, (struct ip *) MBUF_CTOP(bp), &cslc, IpcpInfo.his_compproto & 0xff);
 
     LogPrintf(LogDEBUG, "SendPppFrame: type = %x\n", type);
     switch (type) {
@@ -74,20 +73,19 @@ struct mbuf *bp;
 }
 
 static struct mbuf *
-VjUncompressTcp(bp, type)
-struct mbuf *bp;
-u_char type;
+VjUncompressTcp(struct mbuf * bp, u_char type)
 {
   u_char *bufp;
   int len, olen, rlen;
   struct mbuf *nbp;
-  u_char work[MAX_HDR+MAX_VJHEADER];   /* enough to hold TCP/IP header */
+  u_char work[MAX_HDR + MAX_VJHEADER];	/* enough to hold TCP/IP header */
 
   olen = len = plength(bp);
   if (type == TYPE_UNCOMPRESSED_TCP) {
+
     /*
-     * Uncompressed packet does NOT change its size, so that we can
-     * use mbuf space for uncompression job.
+     * Uncompressed packet does NOT change its size, so that we can use mbuf
+     * space for uncompression job.
      */
     bufp = MBUF_CTOP(bp);
     len = sl_uncompress_tcp(&bufp, len, type, &cslc);
@@ -95,16 +93,16 @@ u_char type;
       pfree(bp);
       bp = NULLBUFF;
     }
-    return(bp);
+    return (bp);
   }
+
   /*
-   *  Handle compressed packet.
-   *    1) Read upto MAX_VJHEADER bytes into work space.
-   *	2) Try to uncompress it.
-   *    3) Compute amount of necesary space.
-   *    4) Copy unread data info there.
+   * Handle compressed packet. 1) Read upto MAX_VJHEADER bytes into work
+   * space. 2) Try to uncompress it. 3) Compute amount of necesary space. 4)
+   * Copy unread data info there.
    */
-  if (len > MAX_VJHEADER) len = MAX_VJHEADER;
+  if (len > MAX_VJHEADER)
+    len = MAX_VJHEADER;
   rlen = len;
   bufp = work + MAX_HDR;
   bp = mbread(bp, bufp, rlen);
@@ -118,13 +116,11 @@ u_char type;
   nbp = mballoc(len, MB_VJCOMP);
   bcopy(bufp, MBUF_CTOP(nbp), len);
   nbp->next = bp;
-  return(nbp);
+  return (nbp);
 }
 
 struct mbuf *
-VjCompInput(bp, proto)
-struct mbuf *bp;
-int proto;
+VjCompInput(struct mbuf * bp, int proto)
 {
   u_char type;
 
@@ -140,8 +136,8 @@ int proto;
     break;
   default:
     LogPrintf(LogERROR, "VjCompInput...???\n");
-    return(bp);
+    return (bp);
   }
   bp = VjUncompressTcp(bp, type);
-  return(bp);
+  return (bp);
 }

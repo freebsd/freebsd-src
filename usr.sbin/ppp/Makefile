@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.9.2.7 1997/06/10 09:42:54 brian Exp $
+#	$Id: Makefile,v 1.22 1997/06/25 19:29:58 brian Exp $
 
 PROG=	ppp
 SRCS=	alias_cmd.c arp.c async.c auth.c ccp.c chap.c chat.c command.c \

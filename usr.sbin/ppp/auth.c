@@ -35,45 +35,46 @@ extern FILE *OpenSecret();
 extern void CloseSecret();
 
 LOCAL_AUTH_VALID
-LocalAuthInit(void)
+LocalAuthInit()
 {
 
   char *p;
 
-  if ( gethostname( VarShortHost, sizeof(VarShortHost))) {
-  	return(NOT_FOUND);
+  if (gethostname(VarShortHost, sizeof(VarShortHost))) {
+    return (NOT_FOUND);
   }
-  p = strchr( VarShortHost, '.' );
-  if (p) 
-	*p = '\0';
+  p = strchr(VarShortHost, '.');
+  if (p)
+    *p = '\0';
 
   VarLocalAuth = LOCAL_NO_AUTH;
-  return LocalAuthValidate( SECRETFILE, VarShortHost, "" );
+  return LocalAuthValidate(SECRETFILE, VarShortHost, "");
 
 }
 
 LOCAL_AUTH_VALID
-LocalAuthValidate( char *fname, char *system, char *key) {
+LocalAuthValidate(char *fname, char *system, char *key)
+{
   FILE *fp;
   int n;
-  char *vector[20];	/* XXX */
-  char buff[200];	/* XXX */
+  char *vector[20];		/* XXX */
+  char buff[200];		/* XXX */
   LOCAL_AUTH_VALID rc;
 
   rc = NOT_FOUND;		/* No system entry */
   fp = OpenSecret(fname);
   if (fp == NULL)
-    return( rc );
+    return (rc);
   while (fgets(buff, sizeof(buff), fp)) {
     if (buff[0] == '#')
       continue;
-    buff[strlen(buff)-1] = 0;
+    buff[strlen(buff) - 1] = 0;
     bzero(vector, sizeof(vector));
     n = MakeArgs(buff, vector, VECSIZE(vector));
     if (n < 1)
       continue;
     if (strcmp(vector[0], system) == 0) {
-      if ( vector[1] != (char *) NULL && strcmp(vector[1], key) == 0) {
+      if (vector[1] != (char *) NULL && strcmp(vector[1], key) == 0) {
 	rc = VALID;		/* Valid   */
       } else {
 	rc = INVALID;		/* Invalid */
@@ -82,12 +83,11 @@ LocalAuthValidate( char *fname, char *system, char *key) {
     }
   }
   CloseSecret(fp);
-  return( rc );
+  return (rc);
 }
 
 int
-AuthValidate(fname, system, key)
-char *fname, *system, *key;
+AuthValidate(char *fname, char *system, char *key)
 {
   FILE *fp;
   int n;
@@ -97,11 +97,11 @@ char *fname, *system, *key;
 
   fp = OpenSecret(fname);
   if (fp == NULL)
-    return(0);
+    return (0);
   while (fgets(buff, sizeof(buff), fp)) {
     if (buff[0] == '#')
       continue;
-    buff[strlen(buff)-1] = 0;
+    buff[strlen(buff) - 1] = 0;
     bzero(vector, sizeof(vector));
     n = MakeArgs(buff, vector, VECSIZE(vector));
     if (n < 2)
@@ -110,29 +110,27 @@ char *fname, *system, *key;
       ExpandString(vector[1], passwd, sizeof(passwd), 0);
       if (strcmp(passwd, key) == 0) {
 	CloseSecret(fp);
-        bzero(&DefHisAddress, sizeof(DefHisAddress));
-        n -= 2;
-        if (n > 0) {
+	bzero(&DefHisAddress, sizeof(DefHisAddress));
+	n -= 2;
+	if (n > 0) {
 	  if (ParseAddr(n--, &vector[2],
-		  &DefHisAddress.ipaddr,
-		  &DefHisAddress.mask,
-                  &DefHisAddress.width) == 0) {
-	     return(0); /* Invalid */
+			&DefHisAddress.ipaddr,
+			&DefHisAddress.mask,
+			&DefHisAddress.width) == 0) {
+	    return (0);		/* Invalid */
 	  }
 	}
 	IpcpInit();
-	return(1);	/* Valid */
+	return (1);		/* Valid */
       }
     }
   }
   CloseSecret(fp);
-  return(0);		/* Invalid */
+  return (0);			/* Invalid */
 }
 
 char *
-AuthGetSecret(fname, system, len, setaddr)
-char *fname, *system;
-int len, setaddr;
+AuthGetSecret(char *fname, char *system, int len, int setaddr)
 {
   FILE *fp;
   int n;
@@ -142,11 +140,11 @@ int len, setaddr;
 
   fp = OpenSecret(fname);
   if (fp == NULL)
-    return(NULL);
+    return (NULL);
   while (fgets(buff, sizeof(buff), fp)) {
     if (buff[0] == '#')
       continue;
-    buff[strlen(buff)-1] = 0;
+    buff[strlen(buff) - 1] = 0;
     bzero(vector, sizeof(vector));
     n = MakeArgs(buff, vector, VECSIZE(vector));
     if (n < 2)
@@ -154,7 +152,7 @@ int len, setaddr;
     if (strlen(vector[0]) == len && strncmp(vector[0], system, len) == 0) {
       ExpandString(vector[1], passwd, sizeof(passwd), 0);
       if (setaddr) {
-        bzero(&DefHisAddress, sizeof(DefHisAddress));
+	bzero(&DefHisAddress, sizeof(DefHisAddress));
       }
       n -= 2;
       if (n > 0 && setaddr) {
@@ -163,18 +161,17 @@ int len, setaddr;
 		      &DefHisAddress.ipaddr,
 		      &DefHisAddress.mask,
 		      &DefHisAddress.width) != 0)
-	   IpcpInit();
+	  IpcpInit();
       }
-      return(passwd);
+      return (passwd);
     }
   }
   CloseSecret(fp);
-  return(NULL);		/* Invalid */
+  return (NULL);		/* Invalid */
 }
 
 static void
-AuthTimeout(authp)
-struct authinfo *authp;
+AuthTimeout(struct authinfo * authp)
 {
   struct pppTimer *tp;
 
@@ -182,13 +179,12 @@ struct authinfo *authp;
   StopTimer(tp);
   if (--authp->retry > 0) {
     StartTimer(tp);
-    (authp->ChallengeFunc)(++authp->id);
+    (authp->ChallengeFunc) (++authp->id);
   }
 }
 
 void
-StartAuthChallenge(authp)
-struct authinfo *authp;
+StartAuthChallenge(struct authinfo * authp)
 {
   struct pppTimer *tp;
 
@@ -197,16 +193,15 @@ struct authinfo *authp;
   tp->func = AuthTimeout;
   tp->load = VarRetryTimeout * SECTICKS;
   tp->state = TIMER_STOPPED;
-  tp->arg = (void *)authp;
+  tp->arg = (void *) authp;
   StartTimer(tp);
   authp->retry = 3;
   authp->id = 1;
-  (authp->ChallengeFunc)(authp->id);
+  (authp->ChallengeFunc) (authp->id);
 }
 
 void
-StopAuthTimer(authp)
-struct authinfo *authp;
+StopAuthTimer(struct authinfo * authp)
 {
   StopTimer(&authp->authtimer);
 }

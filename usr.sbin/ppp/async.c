@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: async.c,v 1.5.2.2 1997/06/10 09:43:00 brian Exp $
+ * $Id: async.c,v 1.10 1997/06/23 23:08:23 brian Exp $
  *
  */
 #include "fsm.h"
@@ -38,7 +38,7 @@ struct async_state {
   u_char xbuff[HDLCSIZE];	/* xmit buffer */
   u_long my_accmap;
   u_long his_accmap;
-} AsyncState;
+}           AsyncState;
 
 #define MODE_HUNT 0x01
 #define MODE_ESC  0x02
@@ -54,8 +54,7 @@ AsyncInit()
 }
 
 void
-SetLinkParams(lcp)
-struct lcpstate *lcp;
+SetLinkParams(struct lcpstate * lcp)
 {
   struct async_state *stp = &AsyncState;
 
@@ -67,20 +66,17 @@ struct lcpstate *lcp;
  * Encode into async HDLC byte code if necessary
  */
 static void
-HdlcPutByte(cp, c, proto)
-u_char **cp;
-u_char c;
-int proto;
+HdlcPutByte(u_char ** cp, u_char c, int proto)
 {
   u_char *wp;
 
   wp = *cp;
-  if ((c < 0x20 && (proto == PROTO_LCP || (AsyncState.his_accmap & (1<<c))))
-	|| (c == HDLC_ESC) || (c == HDLC_SYN)) {
+  if ((c < 0x20 && (proto == PROTO_LCP || (AsyncState.his_accmap & (1 << c))))
+      || (c == HDLC_ESC) || (c == HDLC_SYN)) {
     *wp++ = HDLC_ESC;
     c ^= HDLC_XOR;
   }
-  if (EscMap[32] && EscMap[c >> 3] &  (1 << (c&7))) {
+  if (EscMap[32] && EscMap[c >> 3] & (1 << (c & 7))) {
     *wp++ = HDLC_ESC;
     c ^= HDLC_XOR;
   }
@@ -89,10 +85,7 @@ int proto;
 }
 
 void
-AsyncOutput(pri, bp, proto)
-int pri;
-struct mbuf *bp;
-int proto;
+AsyncOutput(int pri, struct mbuf * bp, int proto)
 {
   struct async_state *hs = &AsyncState;
   u_char *cp, *sp, *ep;
@@ -106,7 +99,7 @@ int proto;
   cp = hs->xbuff;
   ep = cp + HDLCSIZE - 10;
   wp = bp;
-  *cp ++ = HDLC_SYN;
+  *cp++ = HDLC_SYN;
   while (wp) {
     sp = MBUF_CTOP(wp);
     for (cnt = wp->cnt; cnt > 0; cnt--) {
@@ -118,33 +111,32 @@ int proto;
     }
     wp = wp->next;
   }
-  *cp ++ = HDLC_SYN;
+  *cp++ = HDLC_SYN;
 
   cnt = cp - hs->xbuff;
   LogDumpBuff(LogASYNC, "WriteModem", hs->xbuff, cnt);
-  WriteModem(pri, (char *)hs->xbuff, cnt);
+  WriteModem(pri, (char *) hs->xbuff, cnt);
   OsAddOutOctets(cnt);
   pfree(bp);
 }
 
 struct mbuf *
-AsyncDecode(c)
-u_char c;
+AsyncDecode(u_char c)
 {
   struct async_state *hs = &AsyncState;
   struct mbuf *bp;
 
   if ((hs->mode & MODE_HUNT) && c != HDLC_SYN)
-    return(NULLBUFF);
+    return (NULLBUFF);
 
   switch (c) {
   case HDLC_SYN:
     hs->mode &= ~MODE_HUNT;
-    if (hs->length) {	/* packet is ready. */
+    if (hs->length) {		/* packet is ready. */
       bp = mballoc(hs->length, MB_ASYNC);
       mbwrite(bp, hs->hbuff, hs->length);
       hs->length = 0;
-      return(bp);
+      return (bp);
     }
     break;
   case HDLC_ESC:
@@ -172,9 +164,7 @@ u_char c;
 }
 
 void
-AsyncInput(buff, cnt)
-u_char *buff;
-int cnt;
+AsyncInput(u_char * buff, int cnt)
 {
   struct mbuf *bp;
 
@@ -188,7 +178,7 @@ int cnt;
     while (cnt > 0) {
       bp = AsyncDecode(*buff++);
       if (bp)
-        HdlcInput(bp);
+	HdlcInput(bp);
       cnt--;
     }
   }

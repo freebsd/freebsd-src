@@ -41,4 +41,5 @@ extern speed_t IntToSpeed(int);
 extern void ModemTimeout(void);
 extern void DownConnection(void);
 extern void ModemOutput(int, struct mbuf *);
+
 #endif

@@ -27,26 +27,26 @@
  *  Structure of LQR packet defined in RFC1333
  */
 struct lqrdata {
-  u_long  MagicNumber;
-  u_long  LastOutLQRs;
-  u_long  LastOutPackets;
-  u_long  LastOutOctets;
-  u_long  PeerInLQRs;
-  u_long  PeerInPackets;
-  u_long  PeerInDiscards;
-  u_long  PeerInErrors;
-  u_long  PeerInOctets;
-  u_long  PeerOutLQRs;
-  u_long  PeerOutPackets;
-  u_long  PeerOutOctets;
+  u_long MagicNumber;
+  u_long LastOutLQRs;
+  u_long LastOutPackets;
+  u_long LastOutOctets;
+  u_long PeerInLQRs;
+  u_long PeerInPackets;
+  u_long PeerInDiscards;
+  u_long PeerInErrors;
+  u_long PeerInOctets;
+  u_long PeerOutLQRs;
+  u_long PeerOutPackets;
+  u_long PeerOutOctets;
 };
 
 struct lqrsave {
-  u_long  SaveInLQRs;
-  u_long  SaveInPackets;
-  u_long  SaveInDiscards;
-  u_long  SaveInErrors;
-  u_long  SaveInOctets;
+  u_long SaveInLQRs;
+  u_long SaveInPackets;
+  u_long SaveInDiscards;
+  u_long SaveInErrors;
+  u_long SaveInOctets;
 };
 
 struct lqrdata MyLqrData, HisLqrData;
@@ -64,4 +64,5 @@ extern void StartLqm(void);
 extern void StopLqr(int);
 extern void StopLqrTimer(void);
 extern void RecvEchoLqr(struct mbuf *);
+
 #endif
