@@ -2,12 +2,17 @@
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
- * Created: Sat Sep  9 01:56:14 1995 ylo
  * Code for uid-swapping.
+ *
+ * As far as I am concerned, the code I have written for this software
+ * can be used freely for any purpose.  Any derived versions of this
+ * software must be clearly marked as such, and if the derived work is
+ * incompatible with the protocol description in the RFC file, it must be
+ * called by a name other than "ssh" or "Secure Shell".
  */
 
 #include "includes.h"
-RCSID("$Id: uidswap.c,v 1.6 2000/04/14 10:30:34 markus Exp $");
+RCSID("$OpenBSD: uidswap.c,v 1.9 2000/09/07 20:27:55 deraadt Exp $");
 
 #include "ssh.h"
 #include "uidswap.h"
@@ -43,15 +48,15 @@ temporarily_use_uid(uid_t uid)
 
 	/* Set the effective uid to the given (unprivileged) uid. */
 	if (seteuid(uid) == -1)
-		debug("seteuid %d: %.100s", (int) uid, strerror(errno));
+		debug("seteuid %u: %.100s", (u_int) uid, strerror(errno));
 #else /* SAVED_IDS_WORK_WITH_SETUID */
 	/* Propagate the privileged uid to all of our uids. */
 	if (setuid(geteuid()) < 0)
-		debug("setuid %d: %.100s", (int) geteuid(), strerror(errno));
+		debug("setuid %u: %.100s", (u_int) geteuid(), strerror(errno));
 
 	/* Set the effective uid to the given (unprivileged) uid. */
 	if (seteuid(uid) == -1)
-		debug("seteuid %d: %.100s", (int) uid, strerror(errno));
+		debug("seteuid %u: %.100s", (u_int) uid, strerror(errno));
 #endif /* SAVED_IDS_WORK_WITH_SETEUID */
 }
 
@@ -64,7 +69,7 @@ restore_uid()
 #ifdef SAVED_IDS_WORK_WITH_SETEUID
 	/* Set the effective uid back to the saved uid. */
 	if (seteuid(saved_euid) < 0)
-		debug("seteuid %d: %.100s", (int) saved_euid, strerror(errno));
+		debug("seteuid %u: %.100s", (u_int) saved_euid, strerror(errno));
 #else /* SAVED_IDS_WORK_WITH_SETEUID */
 	/*
 	 * We are unable to restore the real uid to its unprivileged value.
@@ -83,5 +88,5 @@ void
 permanently_set_uid(uid_t uid)
 {
 	if (setuid(uid) < 0)
-		debug("setuid %d: %.100s", (int) uid, strerror(errno));
+		debug("setuid %u: %.100s", (u_int) uid, strerror(errno));
 }

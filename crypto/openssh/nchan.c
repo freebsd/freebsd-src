@@ -9,11 +9,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by Markus Friedl.
- * 4. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -28,7 +23,7 @@
  */
 
 #include "includes.h"
-RCSID("$Id: nchan.c,v 1.17 2000/05/08 17:44:54 markus Exp $");
+RCSID("$OpenBSD: nchan.c,v 1.19 2000/09/07 20:27:52 deraadt Exp $");
 
 #include "ssh.h"
 
