@@ -31,11 +31,12 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_mbuf.c	8.2 (Berkeley) 1/4/94
- *	$Id: uipc_mbuf.c,v 1.31 1997/10/12 20:24:10 phk Exp $
+ *	$Id: uipc_mbuf.c,v 1.32 1997/10/28 15:58:22 bde Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
@@ -97,7 +98,7 @@ mbinit(dummy)
 		goto bad;
 #else
 	/* It's OK to call contigmalloc in this context. */
-	if (m_clalloc(16, 0) == 0)
+	if (m_clalloc(16, M_WAIT) == 0)
 		goto bad;
 #endif
 	splx(s);
@@ -112,9 +113,9 @@ bad:
  */
 /* ARGSUSED */
 int
-m_mballoc(nmb, nowait)
+m_mballoc(nmb, how)
 	register int nmb;
-	int nowait;
+	int how;
 {
 	register caddr_t p;
 	register int i;
@@ -130,13 +131,13 @@ m_mballoc(nmb, nowait)
 
 	nbytes = round_page(nmb * MSIZE);
 	p = (caddr_t)kmem_malloc(mb_map, nbytes, M_NOWAIT);
-	if (p == 0 && !nowait) {
+	if (p == 0 && how == M_WAIT) {
 		mbstat.m_wait++;
 		p = (caddr_t)kmem_malloc(mb_map, nbytes, M_WAITOK);
 	}
 
 	/*
-	 * Either the map is now full, or this is nowait and there
+	 * Either the map is now full, or `how' is M_NOWAIT and there
 	 * are no pages left.
 	 */
 	if (p == NULL)
@@ -164,7 +165,7 @@ kproc_mclalloc(void)
 		tsleep(&i_want_my_mcl, PVM, "mclalloc", 0);
 
 		for (; i_want_my_mcl; i_want_my_mcl--) {
-			if (m_clalloc(1, 0) == 0)
+			if (m_clalloc(1, M_WAIT) == 0)
 				printf("m_clalloc failed even in process context!\n");
 		}
 	}
@@ -187,9 +188,9 @@ SYSINIT_KT(mclallocproc, SI_SUB_KTHREAD_UPDATE, SI_ORDER_ANY, kproc_start,
  */
 /* ARGSUSED */
 int
-m_clalloc(ncl, nowait)
+m_clalloc(ncl, how)
 	register int ncl;
-	int nowait;
+	int how;
 {
 	register caddr_t p;
 	register int i;
@@ -206,7 +207,7 @@ m_clalloc(ncl, nowait)
 	}
 
 #if MCLBYTES > PAGE_SIZE
-	if (nowait) {
+	if (how != M_WAIT) {
 		i_want_my_mcl += ncl;
 		wakeup(&i_want_my_mcl);
 		mbstat.m_wait++;
@@ -218,11 +219,11 @@ m_clalloc(ncl, nowait)
 #else
 	npg = ncl;
 	p = (caddr_t)kmem_malloc(mb_map, ctob(npg),
-				 nowait ? M_NOWAIT : M_WAITOK);
+				 how != M_WAIT ? M_NOWAIT : M_WAITOK);
 	ncl = ncl * PAGE_SIZE / MCLBYTES;
 #endif
 	/*
-	 * Either the map is now full, or this is nowait and there
+	 * Either the map is now full, or `how' is M_NOWAIT and there
 	 * are no pages left.
 	 */
 	if (p == NULL) {
@@ -302,32 +303,32 @@ m_reclaim()
  * for critical paths.
  */
 struct mbuf *
-m_get(nowait, type)
-	int nowait, type;
+m_get(how, type)
+	int how, type;
 {
 	register struct mbuf *m;
 
-	MGET(m, nowait, type);
+	MGET(m, how, type);
 	return (m);
 }
 
 struct mbuf *
-m_gethdr(nowait, type)
-	int nowait, type;
+m_gethdr(how, type)
+	int how, type;
 {
 	register struct mbuf *m;
 
-	MGETHDR(m, nowait, type);
+	MGETHDR(m, how, type);
 	return (m);
 }
 
 struct mbuf *
-m_getclr(nowait, type)
-	int nowait, type;
+m_getclr(how, type)
+	int how, type;
 {
 	register struct mbuf *m;
 
-	MGET(m, nowait, type);
+	MGET(m, how, type);
 	if (m == 0)
 		return (0);
 	bzero(mtod(m, caddr_t), MLEN);
