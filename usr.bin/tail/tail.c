@@ -107,7 +107,7 @@ main(argc, argv)
 
 	obsolete(argv);
 	style = NOTSET;
-	while ((ch = getopt(argc, argv, "b:c:fn:r")) !=  -1)
+	while ((ch = getopt(argc, argv, "b:c:fn:r")) != -1)
 		switch(ch) {
 		case 'b':
 			ARG(512, FBYTES, RBYTES);

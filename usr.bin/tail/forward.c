@@ -85,7 +85,7 @@ forward(fp, style, off, sbp)
 	struct stat *sbp;
 {
 	register int ch;
-	struct timeval second;
+	struct timeval interval;
 
 	switch(style) {
 	case FBYTES:
@@ -161,7 +161,7 @@ forward(fp, style, off, sbp)
 	}
 
 	/*
-	 * We pause for one second after displaying any data that has
+	 * We pause for 1/4 second after displaying any data that has
 	 * accumulated since we read the file.
 	 */
 
@@ -177,11 +177,7 @@ forward(fp, style, off, sbp)
 		if (!fflag)
 			break;
 
-		second.tv_sec = 1;
-		second.tv_usec = 0;
-		if (select(0, NULL, NULL, NULL, &second) == -1)
-			if (errno != EINTR)
-				err(1, "select");
+		(void) usleep(250000);
 		clearerr(fp);
 	}
 }
@@ -209,7 +205,7 @@ rlines(fp, off, sbp)
 	}
 
 	if ((start = mmap(NULL, (size_t)size,
-	    PROT_READ, 0, fileno(fp), (off_t)0)) == (caddr_t)-1) {
+	    PROT_READ, MAP_SHARED, fileno(fp), (off_t)0)) == MAP_FAILED) {
 		ierr();
 		return;
 	}

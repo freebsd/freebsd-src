@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)reverse.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: reverse.c,v 1.5.2.1 1997/08/14 06:34:42 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -129,7 +129,7 @@ r_reg(fp, style, off, sbp)
 	}
 
 	if ((start = mmap(NULL, (size_t)size,
-	    PROT_READ, 0, fileno(fp), (off_t)0)) == (caddr_t)-1) {
+	    PROT_READ, MAP_SHARED, fileno(fp), (off_t)0)) == MAP_FAILED) {
 		ierr();
 		return;
 	}
