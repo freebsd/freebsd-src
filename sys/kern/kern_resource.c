@@ -471,6 +471,10 @@ dosetrlimit(p, which, limp)
 			limp->rlim_cur = maxprocperuid;
 		if (limp->rlim_max > maxprocperuid)
 			limp->rlim_max = maxprocperuid;
+		if (limp->rlim_cur < 1)
+			limp->rlim_cur = 1;
+		if (limp->rlim_max < 1)
+			limp->rlim_max = 1;
 		break;
 	}
 	*alimp = *limp;
