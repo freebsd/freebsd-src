@@ -35,7 +35,7 @@
 #define	_ISP_FREEBSD_H
 
 #define	ISP_PLATFORM_VERSION_MAJOR	5
-#define	ISP_PLATFORM_VERSION_MINOR	1
+#define	ISP_PLATFORM_VERSION_MINOR	2
 
 
 #include <sys/param.h>
@@ -62,15 +62,11 @@
 
 #include "opt_ddb.h"
 #include "opt_isp.h"
-#ifdef	SCSI_ISP_FABRIC
+/*
+ * We are now always supporting fabric mode.
+ */
 #define	ISP2100_FABRIC		1
 #define	ISP2100_SCRLEN		0x400
-#else
-#define	ISP2100_SCRLEN		0x100
-#endif
-#ifdef	SCSI_ISP_SCCLUN
-#define	ISP2100_SCCLUN	1
-#endif
 
 #ifndef	SCSI_CHECK
 #define	SCSI_CHECK	SCSI_STATUS_CHECK_COND
@@ -83,6 +79,7 @@
 #endif
 
 #define	ISP_SCSI_XFER_T		struct ccb_scsiio
+typedef void ispfwfunc __P((int, int, int, const u_int16_t **));
 
 #ifdef	ISP_TARGET_MODE
 typedef struct tstate {
@@ -258,3 +255,4 @@ extern void isp_uninit(struct ispsoftc *);
 #define	INLINE	__inline
 #include <dev/isp/isp_inline.h>
 #endif	/* _ISP_FREEBSD_H */
+
