@@ -71,6 +71,7 @@ struct kinfo_proc {
 		struct	ucred e_ucred;		/* current credentials */
 		struct  procsig e_procsig;	/* shared signal structure */
 		struct	vmspace e_vm;		/* address space */
+		struct	pstats e_stats;		/* process stats */
 		pid_t	e_ppid;			/* parent process id */
 		pid_t	e_pgid;			/* process group id */
 		short	e_jobc;			/* job control counter */
