@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 /*	$NetBSD: close.c,v 1.7 1997/01/22 00:38:09 cgd Exp $	*/
 
 /*-
@@ -67,30 +68,31 @@
 #include "stand.h"
 
 int
-close(fd)
-	int fd;
+close(int fd)
 {
-	register struct open_file *f = &files[fd];
-	int err1 = 0, err2 = 0;
+    struct open_file	*f = &files[fd];
+    int			err1 = 0, err2 = 0;
 
-	if ((unsigned)fd >= SOPEN_MAX || f->f_flags == 0) {
-		errno = EBADF;
-		return (-1);
-	}
-	if (!(f->f_flags & F_RAW) && f->f_ops)
-		err1 = (f->f_ops->fo_close)(f);
-	if (!(f->f_flags & F_NODEV) && f->f_dev)
-		err2 = (f->f_dev->dv_close)(f);
-	if (f->f_devdata != NULL)
-		devclose(f);
-	f->f_flags = 0;
-	if (err1) {
-		errno = err1;
-		return (-1);
-	}
-	if (err2) {
-		errno = err2;
-		return (-1);
-	}
-	return (0);
+    if ((unsigned)fd >= SOPEN_MAX || f->f_flags == 0) {
+	errno = EBADF;
+	return (-1);
+    }
+    if (f->f_rabuf != NULL)
+	free(f->f_rabuf);
+    if (!(f->f_flags & F_RAW) && f->f_ops)
+	err1 = (f->f_ops->fo_close)(f);
+    if (!(f->f_flags & F_NODEV) && f->f_dev)
+	err2 = (f->f_dev->dv_close)(f);
+    if (f->f_devdata != NULL)
+	devclose(f);
+    f->f_flags = 0;
+    if (err1) {
+	errno = err1;
+	return (-1);
+    }
+    if (err2) {
+	errno = err2;
+	return (-1);
+    }
+    return (0);
 }
