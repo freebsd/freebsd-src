@@ -61,7 +61,7 @@ controller	pci0
 
 # Floppy drives
 controller	fdc0	at isa? port IO_FD1 irq 6 drq 2
-disk		fd0	at fdc0 drive 0
+device		fd0	at fdc0 drive 0
 
 # ATA and ATAPI devices
 # This is work in progress, use at your own risk.
