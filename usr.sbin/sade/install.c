@@ -269,7 +269,7 @@ installFixitCDROM(dialogMenuItem *self)
     (void)rmdir("/mnt2");
 
     while (1) {
-	msgConfirm("Please insert a FreeBSD live filesystem CDROM and press return");
+	msgConfirm("Please insert a FreeBSD live filesystem CD/DVD and press return");
 	if (DITEM_STATUS(mediaSetCDROM(NULL)) != DITEM_SUCCESS
 	    || !DEVICE_INIT(mediaDevice)) {
 	    /* If we can't initialize it, it's probably not a FreeBSD CDROM so punt on it */
