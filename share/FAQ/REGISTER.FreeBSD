@@ -1,21 +1,20 @@
 In the absence of any other mechanism for counting the number of users
-of FreeBSD, we like to as kindly suggest that you take a few minutes
-to please register with the counter set up by
-<Harald.T.Alvestrand@uninett.no>.  
+of FreeBSD, we like to kindly suggest that you take a few minutes to please
+register with the counter set up by <Harald.T.Alvestrand@uninett.no>.  
 
-The justification for such "registration" is twofold:  First, we sincerely do
-wish to know just what the size and demographics of our user-base are 
-in order to better support its needs.  Second, it's a sad fact that many
+The justification for such "registration" is twofold:  First, we really would
+like to know more about the size and demographics of our user-base in order
+to better support its needs.  Second, it's a sad fact of life that many
 people rely on counters and statistics (even when highly dubious) rather
-than actual experience when chosing an operating system, and the best we
+than on actual experience when chosing an operating system, and the best we
 can hope to do in such circumstances is to at least try to provide some
 indication of how popular we are (or are not).  This is not how we recommend
 that people go about chosing an operating system, but the necessity of
-"marketing" remains an undeniable fact of life.
+such "marketing" remains an undeniable fact.
 
 The FreeBSD team does not necessarily feel that Harald's counter represents
-the best approach to such statistics gathering, and its accuracy will only
-be as good as people's willingness to register with it (which may not reflect
+the best approach to such statistics gathering, and its accuracy can only
+be as good as people's willingness to register with it (and may not reflect
 the actual OS population at any single point in time), but in the total absence
 of any other mechanism for providing such useful statistics, it's certainly a
 start and we thank Harald for his efforts in providing this service.
@@ -83,4 +82,4 @@ directory pub/misc/386bsd-counter, file "short", is given below.
 
 For all questions, contact Harald.T.Alvestrand@uninett.no!
 
-$Id: REGISTER.FreeBSD,v 1.2 1994/06/04 10:39:57 jkh Exp $
+$Id: REGISTER.FreeBSD,v 1.1 1994/11/18 12:03:29 jkh Exp $
