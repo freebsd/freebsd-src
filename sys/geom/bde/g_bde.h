@@ -108,7 +108,7 @@ struct g_bde_key {
 	uint32_t		sectorsize;
 				/* Our "logical" sector size */
 	uint32_t		flags;
-				/* 1 = lockfile in sector 0 */
+#define	GBDE_F_SECT0		1
 	uint8_t			salt[16];
 				/* Used to frustate the kkey generation */
 	uint8_t			spare[32];
@@ -152,10 +152,10 @@ int g_bde_get_key(struct g_bde_softc *sc, void *ptr, int len);
 int g_bde_init_keybytes(struct g_bde_softc *sc, char *passp, int len);
 
 /* g_bde_lock .c */
-int g_bde_encode_lock(struct g_bde_softc *sc, struct g_bde_key *gl, u_char *ptr);
+int g_bde_encode_lock(u_char *sha2, struct g_bde_key *gl, u_char *ptr);
 int g_bde_decode_lock(struct g_bde_softc *sc, struct g_bde_key *gl, u_char *ptr);
-int g_bde_keyloc_encrypt(struct g_bde_softc *sc, uint64_t *input, void *output);
-int g_bde_keyloc_decrypt(struct g_bde_softc *sc, void *input, uint64_t *output);
+int g_bde_keyloc_encrypt(u_char *sha2, uint64_t v0, uint64_t v1, void *output);
+int g_bde_keyloc_decrypt(u_char *sha2, void *input, uint64_t *output);
 int g_bde_decrypt_lock(struct g_bde_softc *sc, u_char *keymat, u_char *meta, off_t mediasize, u_int sectorsize, u_int *nkey);
 void g_bde_hash_pass(struct g_bde_softc *sc, const void *input, u_int len);
 

@@ -359,7 +359,7 @@ cmd_write(struct g_bde_key *gl, struct g_bde_softc *sc, int dfd , int key, const
 	off[0] += (gl->lsector[key] & ~(gl->sectorsize - 1));
 	gl->lsector[key] = off[0];
 
-	i = g_bde_keyloc_encrypt(sc, off, keyloc);
+	i = g_bde_keyloc_encrypt(sc->sha2, off[0], off[1], keyloc);
 	if (i)
 		errx(1, "g_bde_keyloc_encrypt()");
 	if (l_opt != NULL) {
@@ -368,7 +368,7 @@ cmd_write(struct g_bde_key *gl, struct g_bde_softc *sc, int dfd , int key, const
 			err(1, "%s", l_opt);
 		write(ffd, keyloc, sizeof keyloc);
 		close(ffd);
-	} else if (gl->flags & 1) {
+	} else if (gl->flags & GBDE_F_SECT0) {
 		offset2 = lseek(dfd, 0, SEEK_SET);
 		if (offset2 != 0)
 			err(1, "lseek");
@@ -396,7 +396,7 @@ cmd_write(struct g_bde_key *gl, struct g_bde_softc *sc, int dfd , int key, const
 
 	/* Encode the structure where we want it */
 	q = sbuf + (off[0] % gl->sectorsize);
-	i = g_bde_encode_lock(sc, gl, q);
+	i = g_bde_encode_lock(sc->sha2, gl, q);
 	if (i < 0)
 		errx(1, "programming error encoding lock");
 
@@ -561,7 +561,7 @@ cmd_init(struct g_bde_key *gl, int dfd, const char *f_opt, int i_opt, const char
 	else if (l_opt == NULL) {
 		first_sector++;
 		total_sectors--;
-		gl->flags |= 1;
+		gl->flags |= GBDE_F_SECT0;
 	}
 	gl->sector0 = first_sector * gl->sectorsize;
 
@@ -612,7 +612,7 @@ cmd_init(struct g_bde_key *gl, int dfd, const char *f_opt, int i_opt, const char
 	qsort(gl->lsector, G_BDE_MAXKEYS, sizeof gl->lsector[0], sorthelp);
 
 	/* Flush sector zero if we use it for lockfile data */
-	if (gl->flags & 1) {
+	if (gl->flags & GBDE_F_SECT0) {
 		off2 = lseek(dfd, 0, SEEK_SET);
 		if (off2 != 0)
 			err(1, "lseek(2) to sector 0");
