@@ -1,7 +1,7 @@
 /*
  * PC-card support for sysinstall
  *
- * $Id:$
+ * $Id: pccard.c,v 1.1 1999/06/17 19:04:56 markm Exp $
  *
  * Copyright (c) 1997-1999
  *	Tatsumi Hosokawa <hosokawa@jp.FreeBSD.org>.  All rights reserved.
@@ -33,13 +33,13 @@ DMenu MenuPCICMem = {
     "Press F1 for more HELP",
     "pccard",
     {	{ "Default",  "I/O address 0xd0000 - 0xd3fff",
-	    NULL, dmenuSetVariable, NULL, "pcicmem=0"},
+	    NULL, dmenuSetVariable, NULL, "_pcicmem=0"},
 	{ "D4", "I/O address 0xd4000 - 0xd7fff",
-	    NULL, dmenuSetVariable, NULL, "pcicmem=1"},
+	    NULL, dmenuSetVariable, NULL, "_pcicmem=1"},
 	{ "D8", "I/O address 0xd8000 - 0xdbfff",
-	    NULL,  dmenuSetVariable, NULL, "pcicmem=2"},
+	    NULL,  dmenuSetVariable, NULL, "_pcicmem=2"},
 	{ "DC", "I/O address 0xdc000 - 0xdffff",
-	    NULL,  dmenuSetVariable, NULL, "pcicmem=3"},
+	    NULL,  dmenuSetVariable, NULL, "_pcicmem=3"},
 	{ NULL } },
 };
 
@@ -53,11 +53,11 @@ DMenu MenuCardIRQ = {
     "Press F1 for more HELP",
     "pccard",
     {	{ "Default",  "IRQ 10, 11",
-	    NULL, dmenuSetVariable, NULL, "cardirq=0"},
+	    NULL, dmenuSetVariable, NULL, "_cardirq=0"},
 	{ "Option 1", "IRQ 5, 11 (ex. soundcard on IRQ 10)",
-	    NULL, dmenuSetVariable, NULL, "cardirq=1"},
+	    NULL, dmenuSetVariable, NULL, "_cardirq=1"},
 	{ "Option 2", "IRQ 11 (ex. something on IRQ 5 and 10)",
-	    NULL, dmenuSetVariable, NULL, "cardirq=2"},
+	    NULL, dmenuSetVariable, NULL, "_cardirq=2"},
 	{ NULL } },
 };
 
@@ -81,9 +81,9 @@ pccardInitialize(void)
     }
 
     dmenuOpenSimple(&MenuPCICMem, FALSE);
-    spcic_mem = variable_get("pcicmem");
+    spcic_mem = variable_get("_pcicmem");
     dmenuOpenSimple(&MenuCardIRQ, FALSE);
-    scard_irq = variable_get("cardirq");
+    scard_irq = variable_get("_cardirq");
 
     sscanf(spcic_mem, "%d", &t);
     switch (t) {
