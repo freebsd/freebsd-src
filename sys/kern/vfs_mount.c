@@ -1262,11 +1262,25 @@ vfs_mountroot_try(const char *mountfrom)
 	    "from", path,
 	    NULL);
 	if (error == 0) {
+		/*
+		 * We mount devfs prior to mounting the / FS, so the first
+		 * entry will typically be devfs.
+		 */
 		mp = TAILQ_FIRST(&mountlist);
-
-		/* sanity check system clock against root fs timestamp */
-		inittodr(mp->mnt_time);
+		KASSERT(mp != NULL, ("%s: mountlist is empty", __func__));
 		vfs_unbusy(mp, curthread);
+
+		/*
+		 * Iterate over all currently mounted file systems and use
+		 * the time stamp found to check and/or initialize the RTC.
+		 * Typically devfs has no time stamp and the only other FS
+		 * is the actual / FS.
+		 */
+		do {
+			if (mp->mnt_time != 0)
+				inittodr(mp->mnt_time);
+			mp = TAILQ_NEXT(mp, mnt_list);
+		} while (mp != NULL);
 
 		devfs_fixup(curthread);
 	}
