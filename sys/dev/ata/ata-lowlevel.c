@@ -320,7 +320,9 @@ ata_interrupt(void *data)
     /* clear interrupt and get status */
     request->status = ATA_IDX_INB(ch, ATA_STATUS);
 
-    request->flags |= ATA_R_INTR_SEEN;
+    
+    if (!(request->flags & ATA_R_TIMEOUT))
+	request->flags |= ATA_R_INTR_SEEN;
 
     switch (request->flags & (ATA_R_ATAPI | ATA_R_DMA | ATA_R_CONTROL)) {
 
