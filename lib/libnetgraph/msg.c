@@ -90,13 +90,10 @@ NgSendMsg(int cs, const char *path,
 int
 NgSendAsciiMsg(int cs, const char *path, const char *fmt, ...)
 {
-	const int bufSize = 1024;
-	char replybuf[2 * sizeof(struct ng_mesg) + bufSize];
-	struct ng_mesg *const reply = (struct ng_mesg *)replybuf;
-	struct ng_mesg *const binary = (struct ng_mesg *)reply->data;
-	struct ng_mesg *ascii;
+	struct ng_mesg *reply, *binary, *ascii;
 	char *buf, *cmd, *args;
 	va_list fmtargs;
+	int token;
 
 	/* Parse out command and arguments */
 	va_start(fmtargs, fmt);
@@ -131,21 +128,29 @@ NgSendAsciiMsg(int cs, const char *path, const char *fmt, ...)
 
 	/* Send node a request to convert ASCII to binary */
 	if (NgSendMsg(cs, path, NGM_GENERIC_COOKIE, NGM_ASCII2BINARY,
-	    (u_char *)ascii, sizeof(*ascii) + ascii->header.arglen) < 0)
+	    (u_char *)ascii, sizeof(*ascii) + ascii->header.arglen) < 0) {
+		free(ascii);
 		return (-1);
+	}
+	free(ascii);
 
 	/* Get reply */
-	if (NgRecvMsg(cs, reply, sizeof(replybuf), NULL) < 0)
+	if (NgAllocRecvMsg(cs, &reply, NULL) < 0)
 		return (-1);
 
 	/* Now send binary version */
+	binary = (struct ng_mesg *)reply->data;
 	if (++gMsgId < 0)
 		gMsgId = 1;
 	binary->header.token = gMsgId;
 	if (NgDeliverMsg(cs,
-	    path, binary, binary->data, binary->header.arglen) < 0)
+	    path, binary, binary->data, binary->header.arglen) < 0) {
+		free(reply);
 		return (-1);
-	return (binary->header.token);
+	}
+	token = binary->header.token;
+	free(reply);
+	return (token);
 }
 
 /*
@@ -272,6 +277,24 @@ errout:
 }
 
 /*
+ * Identical to NgRecvMsg() except buffer is dynamically allocated.
+ */
+int
+NgAllocRecvMsg(int cs, struct ng_mesg **rep, char *path)
+{
+	int len;
+	socklen_t optlen;
+
+	optlen = sizeof(len);
+	if (getsockopt(cs, SOL_SOCKET, SO_RCVBUF, &len, &optlen) == -1 ||
+	    (*rep = malloc(len)) == NULL)
+		return (-1);
+	if ((len = NgRecvMsg(cs, *rep, len, path)) < 0)
+		free(*rep);
+	return (len);
+}
+
+/*
  * Receive a control message and convert the arguments to ASCII
  */
 int
@@ -316,3 +339,20 @@ fail:
 	return (0);
 }
 
+/*
+ * Identical to NgRecvAsciiMsg() except buffer is dynamically allocated.
+ */
+int
+NgAllocRecvAsciiMsg(int cs, struct ng_mesg **reply, char *path)
+{
+	int len;
+	socklen_t optlen;
+
+	optlen = sizeof(len);
+	if (getsockopt(cs, SOL_SOCKET, SO_RCVBUF, &len, &optlen) == -1 ||
+	    (*reply = malloc(len)) == NULL)
+		return (-1);
+	if ((len = NgRecvAsciiMsg(cs, *reply, len, path)) < 0)
+		free(*reply);
+	return (len);
+}

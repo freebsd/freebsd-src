@@ -57,10 +57,9 @@ static int
 ShowCmd(int ac, char **av)
 {
 	char *path;
-	u_char rbuf[16 * 1024];
-	struct ng_mesg *const resp = (struct ng_mesg *) rbuf;
-	struct hooklist *const hlist = (struct hooklist *) resp->data;
-	struct nodeinfo *const ninfo = &hlist->nodeinfo;
+	struct ng_mesg *resp;
+	struct hooklist *hlist;
+	struct nodeinfo *ninfo;
 	int ch, no_hooks = 0;
 
 	/* Get options */
@@ -94,18 +93,20 @@ ShowCmd(int ac, char **av)
 		warn("send msg");
 		return(CMDRTN_ERROR);
 	}
-	if (NgRecvMsg(csock, resp, sizeof(rbuf), NULL) < 0) {
+	if (NgAllocRecvMsg(csock, &resp, NULL) < 0) {
 		warn("recv msg");
 		return(CMDRTN_ERROR);
 	}
 
 	/* Show node information */
+	hlist = (struct hooklist *) resp->data;
+	ninfo = &hlist->nodeinfo;
 	if (!*ninfo->name)
 		snprintf(ninfo->name, sizeof(ninfo->name), "%s", UNNAMED);
 	printf("  Name: %-15s Type: %-15s ID: %08x   Num hooks: %d\n",
 	    ninfo->name, ninfo->type, ninfo->id, ninfo->hooks);
 	if (!no_hooks && ninfo->hooks > 0) {
-		int k;
+		u_int k;
 
 		printf(FMT, "Local hook", "Peer name",
 		    "Peer type", "Peer ID", "Peer hook");
@@ -125,6 +126,7 @@ ShowCmd(int ac, char **av)
 			    peer->type, idbuf, link->peerhook);
 		}
 	}
+	free(resp);
 	return(CMDRTN_OK);
 }
 

@@ -54,9 +54,12 @@ int	NgSendAsciiMsg(int, const char *, const char *, ...);
 int	NgSendReplyMsg(int, const char *,
 		const struct ng_mesg *, const void *, size_t);
 int	NgRecvMsg(int, struct ng_mesg *, size_t, char *);
+int	NgAllocRecvMsg(int, struct ng_mesg **, char *);
 int	NgRecvAsciiMsg(int, struct ng_mesg *, size_t, char *);
+int	NgAllocRecvAsciiMsg(int, struct ng_mesg **, char *);
 int	NgSendData(int, const char *, const u_char *, size_t);
 int	NgRecvData(int, u_char *, size_t, char *);
+int	NgAllocRecvData(int, u_char **, char *);
 int	NgSetDebug(int);
 void	NgSetErrLog(void (*)(const char *fmt, ...),
 	    void (*)(const char *fmt, ...));

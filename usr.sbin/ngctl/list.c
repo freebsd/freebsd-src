@@ -54,11 +54,11 @@ const struct ngcmd list_cmd = {
 static int
 ListCmd(int ac, char **av)
 {
-	u_char rbuf[16 * 1024];
-	struct ng_mesg *const resp = (struct ng_mesg *) rbuf;
-	struct namelist *const nlist = (struct namelist *) resp->data;
+	struct ng_mesg *resp;
+	struct namelist *nlist;
 	int named_only = 0;
-	int k, ch, rtn = CMDRTN_OK;
+	int ch, rtn = CMDRTN_OK;
+	u_int k;
 
 	/* Get options */
 	optind = 1;
@@ -90,25 +90,27 @@ ListCmd(int ac, char **av)
 		warn("send msg");
 		return(CMDRTN_ERROR);
 	}
-	if (NgRecvMsg(csock, resp, sizeof(rbuf), NULL) < 0) {
+	if (NgAllocRecvMsg(csock, &resp, NULL) < 0) {
 		warn("recv msg");
 		return(CMDRTN_ERROR);
 	}
 
 	/* Show each node */
+	nlist = (struct namelist *) resp->data;
 	printf("There are %d total %snodes:\n",
 	    nlist->numnames, named_only ? "named " : "");
 	for (k = 0; k < nlist->numnames; k++) {
 		char	path[NG_PATHLEN+1];
-		char	*av[3] = { "list", "-n", path };
+		char	*argv[3] = { "list", "-n", path };
 
 		snprintf(path, sizeof(path),
 		    "[%lx]:", (u_long) nlist->nodeinfo[k].id);
-		if ((rtn = (*show_cmd.func)(3, av)) != CMDRTN_OK)
+		if ((rtn = (*show_cmd.func)(3, argv)) != CMDRTN_OK)
 			break;
 	}
 
 	/* Done */
+	free(resp);
 	return (rtn);
 }
 

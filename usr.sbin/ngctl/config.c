@@ -46,7 +46,8 @@ const struct ngcmd config_cmd = {
 	ConfigCmd,
 	"config <path> [arguments]",
 	"get or set configuration of node at <path>",
-	NULL
+	NULL,
+	{}
 };
 
 static int

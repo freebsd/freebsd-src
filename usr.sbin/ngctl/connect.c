@@ -57,7 +57,7 @@ static int
 ConnectCmd(int ac, char **av)
 {
 	struct ngm_connect con;
-	char *path = ".";
+	const char *path = ".";
 
 	/* Get arguments */
 	switch (ac) {

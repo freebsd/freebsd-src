@@ -45,16 +45,17 @@ const struct ngcmd types_cmd = {
 	TypesCmd,
 	"types",
 	"Show information about all installed node types",
-	NULL
+	NULL,
+	{}
 };
 
 static int
-TypesCmd(int ac, char **av)
+TypesCmd(int ac, char **av __unused)
 {
-	u_char rbuf[16 * 1024];
-	struct ng_mesg *const resp = (struct ng_mesg *) rbuf;
-	struct typelist *const tlist = (struct typelist *) resp->data;
-	int k, rtn = CMDRTN_OK;
+	struct ng_mesg *resp;
+	struct typelist *tlist;
+	int rtn = CMDRTN_OK;
+	u_int k;
 
 	/* Get arguments */
 	switch (ac) {
@@ -70,12 +71,13 @@ TypesCmd(int ac, char **av)
 		warn("send msg");
 		return(CMDRTN_ERROR);
 	}
-	if (NgRecvMsg(csock, resp, sizeof(rbuf), NULL) < 0) {
+	if (NgAllocRecvMsg(csock, &resp, NULL) < 0) {
 		warn("recv msg");
 		return(CMDRTN_ERROR);
 	}
 
 	/* Show each type */
+	tlist = (struct typelist *) resp->data;
 	printf("There are %d total types:\n", tlist->numtypes);
 	if (tlist->numtypes > 0) {
 		printf("%15s   Number of living nodes\n", "Type name");
@@ -87,6 +89,7 @@ TypesCmd(int ac, char **av)
 	}
 
 	/* Done */
+	free(resp);
 	return (rtn);
 }
 
