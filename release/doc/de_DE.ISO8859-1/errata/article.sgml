@@ -9,7 +9,7 @@
 	not be the one that received the last change in the document.)
 
 	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/errata/article.sgml,v 1.9 2002/10/12 18:02:21 ue Exp $
-	basiert auf: 1.9
+	basiert auf: 1.9.2.2
 -->
 
 <!DOCTYPE ARTICLE PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
@@ -28,9 +28,6 @@
 <article lang="de">
   <articleinfo>
 
-<!-- XXX Change release.current to release.prev when there's -->
-<!-- XXX a release on this branch. -->
-
     <title>&os; &release.current; Errata</title>
 
     <authorgroup>
@@ -47,12 +44,14 @@
       <year>2000</year>
       <year>2001</year>
       <year>2002</year>
+      <year>2003</year>
       <holder role="mailto:freebsd-doc@FreeBSD.org">The FreeBSD Documentation Project</holder>
     </copyright>
 
     <copyright>
       <year>2001</year>
       <year>2002</year>
+      <year>2003</year>
       <holder role="mailto:de-bsd-translators@de.FreeBSD.org">The FreeBSD German Documentation Project</holder>
     </copyright>
   </articleinfo>
@@ -71,27 +70,9 @@
       die aktuelle Version dieses Dokumentes lesen, bevor sie diese
       Version von &os; installieren.</para>
 
-<![ %release.type.snapshot [
-    <para>Diese Errata f&uuml;r &os; &release.prev; werden bis zum
+    <para>Diese Errata f&uuml;r &os; &release.current; werden bis zum
       Erscheinen von &os; &release.next; weiter aktualisiert
       werden.</para>
-]]>
-
-<![ %release.type.release [
-    <para>Dies ist die letzte Version der Errata f&uuml;r &os;
-      &release.prev;.  Zuk&uuml;nftige Errata auf dem CVS-Zweig
-      &release.branch; werden &os; &release.current;  und die
-      nachfolgenden Ausgaben behandeln.</para>
-]]> 
-
-    <para>Zur Zeit gibt es keine Errata f&uuml;r &release.current;,
-      weil seit der Entstehung des Entwicklungszweiges
-      &release.branch; noch keine Version aus diesem Zweig
-      ver&ouml;ffentlicht wurde.  (Die erste derartige Version wird
-      &release.next; sein.) Diese Datei existiert, nur um eine saubere
-      Vorlage f&uuml;r neue Entwicklungszweige zu haben.  (Und dieser
-      Hinweis sollte nat&uuml;rlich nicht in einem Entwicklungszweig
-      auftauchen.)</para>
   </abstract>
 
   <sect1>
@@ -127,11 +108,13 @@
 
   <sect1>
     <title>Sicherheitshinweise</title>
-    <para></para>
+
+    <para>Keine aktuellen Sicherheitshinweise.</para>
   </sect1>
 
   <sect1>
-    <title>Informationen &uuml;ber Updates</title>
-    <para></para>
+    <title>Aktuelle Informationen</title>
+
+    <para>Es gibt keine weitergehenden Informationen.</para>
   </sect1>
 </article>
