@@ -29,9 +29,10 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)exports.5	8.2 (Berkeley) 1/28/94
+.\"     @(#)exports.5	8.3 (Berkeley) 3/29/95
+.\"	$Id$
 .\"
-.Dd January 28, 1994
+.Dd March 29, 1995
 .Dt EXPORTS 5
 .Os
 .Sh NAME
@@ -74,7 +75,9 @@ followed by the
 .Fl alldirs
 flag;
 this form allows the host(s) to mount at any point within the filesystem,
-including regular files if the ``-r'' option is used on mountd.
+including regular files if the
+.Fl r
+option is used on mountd.
 The pathnames must not have any symbolic links in them and should not have
 any "." or ".." components.
 Mount points for a filesystem may appear on multiple lines each with
@@ -143,7 +146,7 @@ The
 .Fl kerb
 option specifies that the Kerberos authentication server should be
 used to authenticate and map client credentials.
-This requires that the kernel be built with the NFSKERB option.
+This option requires that the kernel be built with the NFSKERB option.
 .Pp
 The
 .Fl ro

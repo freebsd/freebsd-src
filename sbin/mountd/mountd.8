@@ -29,10 +29,10 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     From: @(#)mountd.8	8.1 (Berkeley) 6/9/93
-.\"	$Id: mountd.8,v 1.4 1995/06/27 11:06:18 dfr Exp $
+.\"     @(#)mountd.8	8.4 (Berkeley) 4/28/95
+.\"	$Id: mountd.8,v 1.8 1997/03/11 12:43:44 peter Exp $
 .\"
-.Dd September 22, 1994
+.Dd April 28, 1995
 .Dt MOUNTD 8
 .Os
 .Sh NAME
@@ -71,11 +71,15 @@ that require it.
 The
 .Fl r
 option allows mount RPCs requests for regular files to be served.
-Although this seems to violate the mount protocol specification, some diskless
-workstations do mount requests for their swapfiles and expect them to be
-regular files. Since a regular file cannot be specified in /etc/exports, the
-entire file system that the swapfiles reside in will have to be exported with
-the ``-alldirs'' flag.
+Although this seems to violate the mount protocol specification,
+some diskless workstations do mount requests for
+their swapfiles and expect them to be regular files.
+Since a regular file cannot be specified in
+.Pa /etc/exports ,
+the entire file system in which the swapfiles resides
+will have to be exported with the
+.Fl alldirs
+flag.
 .It Ar exportsfile
 The
 .Ar exportsfile
