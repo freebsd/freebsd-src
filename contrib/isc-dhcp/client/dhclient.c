@@ -1735,9 +1735,20 @@ void send_request (cpp)
 	   broadcast the DHCPREQUEST rather than unicasting. */
 	if (client -> state == S_REQUESTING ||
 	    client -> state == S_REBOOTING ||
-	    cur_time > client -> active -> rebind)
+	    cur_time > client -> active -> rebind) {
+#ifdef ENABLE_POLLING_MODE
+		/*
+		 * If our state is S_RENEWING we definitly
+		 * have to go through S_INIT first. This can
+		 * happen only if ENABLE_POLLING_MODE is defined.
+		 */
+		if (client -> state == S_RENEWING) {
+			state_init (client);
+			return;
+		}
+#endif
 		destination.sin_addr = sockaddr_broadcast.sin_addr;
-	else
+	} else
 		memcpy (&destination.sin_addr.s_addr,
 			client -> destination.iabuf,
 			sizeof destination.sin_addr.s_addr);
