@@ -276,7 +276,7 @@ devfs_lookupx(ap)
 	
 	*vpp = NULLVP;
 
-	if (nameiop == RENAME)
+	if ((flags & ISLASTCN) && nameiop == RENAME)
 		return (EOPNOTSUPP);
 
 	if (dvp->v_type != VDIR)
@@ -290,7 +290,7 @@ devfs_lookupx(ap)
 		return (error);
 
 	if (cnp->cn_namelen == 1 && *pname == '.') {
-		if (nameiop != LOOKUP)
+		if ((flags & ISLASTCN) && nameiop != LOOKUP)
 			return (EINVAL);
 		*vpp = dvp;
 		VREF(dvp);
@@ -298,7 +298,7 @@ devfs_lookupx(ap)
 	}
 
 	if (flags & ISDOTDOT) {
-		if (nameiop != LOOKUP)
+		if ((flags & ISLASTCN) && nameiop != LOOKUP)
 			return (EINVAL);
 		VOP_UNLOCK(dvp, 0, td);
 		de = TAILQ_FIRST(&dd->de_dlist);	/* "." */
