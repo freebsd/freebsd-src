@@ -296,9 +296,11 @@ acpi_cmbat_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context)
 	return;
 
     switch (notify) {
+    case ACPI_NOTIFY_DEVICE_CHECK:
     case ACPI_BATTERY_BST_CHANGE:
 	timespecclear(&sc->bst_lastupdated);
 	break;
+    case ACPI_NOTIFY_BUS_CHECK:
     case ACPI_BATTERY_BIF_CHANGE:
 	timespecclear(&sc->bif_lastupdated);
 	AcpiOsQueueForExecution(OSD_PRIORITY_LO, acpi_cmbat_get_bif, dev);
@@ -331,6 +333,13 @@ acpi_cmbat_attach(device_t dev)
 	return (ENXIO);
 
     handle = acpi_get_handle(dev);
+
+    /*
+     * Install a system notify handler in addition to the device notify.
+     * Toshiba notebook uses this alternate notify for its battery.
+     */
+    AcpiInstallNotifyHandler(handle, ACPI_SYSTEM_NOTIFY,
+			     acpi_cmbat_notify_handler, dev);
     AcpiInstallNotifyHandler(handle, ACPI_DEVICE_NOTIFY,
 			     acpi_cmbat_notify_handler, dev);
 
