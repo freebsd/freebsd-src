@@ -124,7 +124,7 @@ struct camcontrol_opts option_table[] = {
 	{"defectlist", CAM_ARG_READ_DEFECTS, readdefect_opts},
 	{"devlist", CAM_ARG_DEVTREE, NULL},
 	{"periphlist", CAM_ARG_DEVLIST, NULL},
-	{"modepage", CAM_ARG_MODE_PAGE, "dem:P:"},
+	{"modepage", CAM_ARG_MODE_PAGE, "bdelm:P:"},
 	{"tags", CAM_ARG_TAG, "N:q"},
 	{"negotiate", CAM_ARG_RATE, negotiate_opts},
 	{"rate", CAM_ARG_RATE, negotiate_opts},
@@ -1554,14 +1554,21 @@ modepage(struct cam_device *device, int argc, char **argv, char *combinedopt,
 	 int retry_count, int timeout)
 {
 	int c, mode_page = -1, page_control = 0;
+	int binary = 0, list = 0;
 
 	while ((c = getopt(argc, argv, combinedopt)) != -1) {
 		switch(c) {
+		case 'b':
+			binary = 1;
+			break;
 		case 'd':
 			arglist |= CAM_ARG_DBD;
 			break;
 		case 'e':
 			arglist |= CAM_ARG_MODE_EDIT;
+			break;
+		case 'l':
+			list = 1;
 			break;
 		case 'm':
 			mode_page = strtol(optarg, NULL, 0);
@@ -1580,11 +1587,17 @@ modepage(struct cam_device *device, int argc, char **argv, char *combinedopt,
 		}
 	}
 
-	if (mode_page == -1)
+	if (mode_page == -1 && list == 0)
 		errx(1, "you must specify a mode page!");
 
-	mode_edit(device, mode_page, page_control, arglist & CAM_ARG_DBD,
-		  arglist & CAM_ARG_MODE_EDIT, retry_count, timeout);
+	if (list) {
+		mode_list(device, page_control, arglist & CAM_ARG_DBD,
+		    retry_count, timeout);
+	} else {
+		mode_edit(device, mode_page, page_control,
+		    arglist & CAM_ARG_DBD, arglist & CAM_ARG_MODE_EDIT, binary,
+		    retry_count, timeout);
+	}
 }
 
 static int
@@ -2975,8 +2988,8 @@ usage(int verbose)
 "        camcontrol rescan     <bus[:target:lun]>\n"
 "        camcontrol reset      <bus[:target:lun]>\n"
 "        camcontrol defects    [dev_id][generic args] <-f format> [-P][-G]\n"
-"        camcontrol modepage   [dev_id][generic args] <-m page> [-P pagectl]\n"
-"                              [-e][-d]\n"
+"        camcontrol modepage   [dev_id][generic args] <-m page | -l>\n"
+"                              [-P pagectl][-e | -b][-d]\n"
 "        camcontrol cmd        [dev_id][generic args] <-c cmd [args]>\n"
 "                              [-i len fmt|-o len fmt [args]]\n"
 "        camcontrol debug      [-I][-T][-S][-c] <all|bus[:target[:lun]]|off>\n"
@@ -3020,8 +3033,10 @@ usage(int verbose)
 "-E                have the kernel attempt to perform SCSI error recovery\n"
 "-C count          specify the SCSI command retry count (needs -E to work)\n"
 "modepage arguments:\n"
+"-l                list all available mode pages\n"
 "-m page           specify the mode page to view or edit\n"
 "-e                edit the specified mode page\n"
+"-b                force view to binary mode\n"
 "-d                disable block descriptors for mode sense\n"
 "-P pgctl          page control field 0-3\n"
 "defects arguments:\n"
