@@ -122,7 +122,7 @@ struct nglmi_softc {
 	u_char  local_seq;	/* last sequence number we sent */
 	u_char  protoID;	/* 9 for group of 4, 8 otherwise */
 	u_long  seq_retries;	/* sent this how many time so far */
-	struct callout_handle handle;	/* see timeout(9) */
+	struct	callout	handle;	/* see timeout(9) */
 	int     liv_per_full;
 	int     liv_rate;
 	int     livs;
@@ -142,7 +142,7 @@ typedef struct nglmi_softc *sc_p;
 /*
  * Other internal functions
  */
-static void	LMI_ticker(void *arg);
+static void	LMI_ticker(node_p node, hook_p hook, void *arg1, int arg2);
 static void	nglmi_startup_fixed(sc_p sc, hook_p hook);
 static void	nglmi_startup_auto(sc_p sc);
 static void	nglmi_startup(sc_p sc);
@@ -188,10 +188,12 @@ nglmi_constructor(node_p node)
 	MALLOC(sc, sc_p, sizeof(*sc), M_NETGRAPH, M_NOWAIT | M_ZERO);
 	if (sc == NULL)
 		return (ENOMEM);
-	callout_handle_init(&sc->handle);
+
 	NG_NODE_SET_PRIVATE(node, sc);
-	sc->protoname = NAME_NONE;
 	sc->node = node;
+
+	ng_callout_init(&sc->handle);
+	sc->protoname = NAME_NONE;
 	sc->liv_per_full = NG_LMI_SEQ_PER_FULL;	/* make this dynamic */
 	sc->liv_rate = NG_LMI_KEEPALIVE_RATE;
 	return (0);
@@ -259,14 +261,14 @@ nglmi_newhook(node_p node, hook_p hook, const char *name)
  * Fire out a LMI inquiry, and then start up the timers.
  */
 static void
-LMI_ticker(void *arg)
+LMI_ticker(node_p node, hook_p hook, void *arg1, int arg2)
 {
-	sc_p sc = arg;
-	int s = splnet();
+	sc_p sc = NG_NODE_PRIVATE(node);
 
 	if (sc->flags & SCF_AUTO) {
 		ngauto_state_machine(sc);
-		sc->handle = timeout(LMI_ticker, sc, NG_LMI_POLL_RATE * hz);
+		ng_callout(&sc->handle, node, NULL, NG_LMI_POLL_RATE * hz,
+		    LMI_ticker, NULL, 0);
 	} else {
 		if (sc->livs++ >= sc->liv_per_full) {
 			nglmi_inquire(sc, 1);
@@ -274,9 +276,9 @@ LMI_ticker(void *arg)
 		} else {
 			nglmi_inquire(sc, 0);
 		}
-		sc->handle = timeout(LMI_ticker, sc, sc->liv_rate * hz);
+		ng_callout(&sc->handle, node, NULL, sc->liv_rate * hz,
+		    LMI_ticker, NULL, 0);
 	}
-	splx(s);
 }
 
 static void
@@ -304,7 +306,7 @@ nglmi_startup(sc_p sc)
 	sc->seq_retries = 0;
 	sc->livs = sc->liv_per_full - 1;
 	/* start off the ticker in 1 sec */
-	sc->handle = timeout(LMI_ticker, sc, hz);
+	ng_callout(&sc->handle, sc->node, NULL, hz, LMI_ticker, NULL, 0);
 }
 
 static void
@@ -1073,7 +1075,7 @@ nglmi_disconnect(hook_p hook)
 
 	/* Stop timer if it's currently active */
 	if (sc->flags & SCF_CONNECTED)
-		untimeout(LMI_ticker, sc, sc->handle);
+		ng_uncallout(&sc->handle, sc->node);
 
 	/* Self-destruct */
 	if (NG_NODE_IS_VALID(NG_HOOK_NODE(hook)))
