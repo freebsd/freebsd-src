@@ -480,6 +480,17 @@ configLinux(dialogMenuItem *self)
 }
 
 int
+configSecurity(dialogMenuItem *self)
+{
+    WINDOW *w = savescr();
+
+    dialog_clear_norefresh();
+    dmenuOpenSimple(&MenuSecurity, FALSE);
+    restorescr(w);
+    return DITEM_SUCCESS;
+}
+
+int
 configSecurityProfile(dialogMenuItem *self)
 {
     WINDOW *w = savescr();
