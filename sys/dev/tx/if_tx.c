@@ -508,13 +508,6 @@ epic_freebsd_attach(dev)
 		goto fail;
 	}
 
-	/* Bring the chip out of low-power mode and reset it. */
-	CSR_WRITE_4( sc, GENCTL, GENCTL_SOFT_RESET );
-	DELAY(500);
-
-	/* Workaround for Application Note 7-15 */
-	for (i=0; i<16; i++) CSR_WRITE_4(sc, TEST1, TEST1_CLOCK_TEST);
-
 	/* Do OS independent part, including chip wakeup and reset */
 	if (epic_common_attach(sc)) {
 		device_printf(dev, "memory distribution error\n");
