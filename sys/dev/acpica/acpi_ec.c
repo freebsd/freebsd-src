@@ -336,12 +336,20 @@ static ACPI_STATUS	EcWrite(struct acpi_ec_softc *sc, UINT8 Address,
 static int		acpi_ec_probe(device_t dev);
 static int		acpi_ec_attach(device_t dev);
 static int		acpi_ec_shutdown(device_t dev);
+static int		acpi_ec_read_method(device_t dev, u_int addr,
+				ACPI_INTEGER *val, int width);
+static int		acpi_ec_write_method(device_t dev, u_int addr,
+				ACPI_INTEGER val, int width);
 
 static device_method_t acpi_ec_methods[] = {
     /* Device interface */
     DEVMETHOD(device_probe,	acpi_ec_probe),
     DEVMETHOD(device_attach,	acpi_ec_attach),
     DEVMETHOD(device_shutdown,	acpi_ec_shutdown),
+
+    /* Embedded controller interface */
+    DEVMETHOD(acpi_ec_read,	acpi_ec_read_method),
+    DEVMETHOD(acpi_ec_write,	acpi_ec_write_method),
 
     {0, 0}
 };
@@ -643,6 +651,33 @@ acpi_ec_shutdown(device_t dev)
     /* Disable the GPE so we don't get EC events during shutdown. */
     sc = device_get_softc(dev);
     AcpiDisableGpe(sc->ec_gpehandle, sc->ec_gpebit, ACPI_NOT_ISR);
+    return (0);
+}
+
+/* Methods to allow other devices (e.g., smbat) to read/write EC space. */
+static int
+acpi_ec_read_method(device_t dev, u_int addr, ACPI_INTEGER *val, int width)
+{
+    struct acpi_ec_softc *sc;
+    ACPI_STATUS status;
+
+    sc = device_get_softc(dev);
+    status = EcSpaceHandler(ACPI_READ, addr, width * 8, val, sc, NULL);
+    if (ACPI_FAILURE(status))
+	return (ENXIO);
+    return (0);
+}
+
+static int
+acpi_ec_write_method(device_t dev, u_int addr, ACPI_INTEGER val, int width)
+{
+    struct acpi_ec_softc *sc;
+    ACPI_STATUS status;
+
+    sc = device_get_softc(dev);
+    status = EcSpaceHandler(ACPI_WRITE, addr, width * 8, &val, sc, NULL);
+    if (ACPI_FAILURE(status))
+	return (ENXIO);
     return (0);
 }
 
