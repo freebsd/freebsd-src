@@ -4,7 +4,7 @@
  * v1.4 by Eric S. Raymond (esr@snark.thyrsus.com) Aug 1993
  * modified for FreeBSD by Andrew A. Chernov <ache@astral.msk.su>
  *
- *    $Id: spkr.c,v 1.37 1999/05/31 11:26:32 phk Exp $
+ *    $Id: spkr.c,v 1.38 1999/08/17 20:25:49 billf Exp $
  */
 
 #include "speaker.h"
@@ -563,8 +563,8 @@ spkrioctl(dev, cmd, cmdarg, flags, p)
 	struct proc	*p;
 {
 #ifdef DEBUG
-    (void) printf("spkrioctl: entering with dev = %lx, cmd = %lx\n",
-    	(unsigned long)dev, cmd);
+    (void) printf("spkrioctl: entering with dev = %s, cmd = %lx\n",
+    	devtoname(dev), cmd);
 #endif /* DEBUG */
 
     if (minor(dev) != 0)
