@@ -70,7 +70,7 @@ as follows.
 When
 .Nm tip
 is invoked with only a phone number, it looks for an entry
-of the form ``tip300'', where 300 is the baud rate with
+of the form ``tip300'', where 300 is the data rate with
 which the connection is to be made.
 When the
 .Nm cu
@@ -90,9 +90,12 @@ A boolean capability is specified by simply listing the capability.
 Auto call unit type.
 .It Cm \&br
 (num)
-The baud rate used in establishing a connection to the remote host.
+The data rate (bits per second) used for communications on the
+serial port.
+When a modem is used, the data rate used to communicate
+with the remote modem may be different than this rate.
 This is a decimal number.
-The default baud rate is 300 baud.
+The default rate is 9600 bits per second.
 .It Cm \&cm
 (str)
 An initial connection message to be sent to the remote host.
@@ -175,8 +178,8 @@ This is used primarily to share common capability information.
 Here is a short example showing the use of the capability continuation
 feature.
 It defines a 56k modem connection on the first serial port at 115200
-baud, no parity using the Hayes command set with standard line editing
-and end of file characters.
+bits per second, no parity using the Hayes command set with standard
+line editing and end of file characters.
 The arpavax entry includes everything in the UNIX-57600 entry plus
 the phone number for arpavax (in this case an @ character so that it
 is retrieved from the environment).
@@ -195,6 +198,7 @@ host description file resides in
 .Pa /etc .
 .El
 .Sh SEE ALSO
+.Xr cu 1 ,
 .Xr tip 1 ,
 .Xr phones 5
 .Sh HISTORY
@@ -202,3 +206,6 @@ The
 .Nm
 file format appeared in
 .Bx 4.2 .
+.Sh BUGS
+Tip uses its own notion of the serial ports data rate rather than the
+system default for a serial port.
