@@ -114,11 +114,11 @@ static void bzcompress_log(char *log);
 static int sizefile(char *file);
 static int age_old_log(char *file);
 static pid_t get_pid(const char *pid_file);
-static time_t parse8601(char *s);
+static time_t parse8601(char *s, char *errline);
 static void movefile(char *from, char *to, int perm, int owner_uid,
 		int group_gid);
 static void createdir(char *dirpart);
-static time_t parseDWM(char *s);
+static time_t parseDWM(char *s, char *errline);
 
 int
 main(int argc, char **argv)
@@ -411,12 +411,12 @@ parse_file(char **files)
 			    *ep != '$')
 				errx(1, "malformed interval/at:\n%s", errline);
 			if (*ep == '@') {
-				if ((working->trim_at = parse8601(ep + 1))
+				if ((working->trim_at = parse8601(ep + 1, errline))
 				    == (time_t) - 1)
 					errx(1, "malformed at:\n%s", errline);
 				working->flags |= CE_TRIMAT;
 			} else if (*ep == '$') {
-				if ((working->trim_at = parseDWM(ep + 1))
+				if ((working->trim_at = parseDWM(ep + 1, errline))
 				    == (time_t) - 1)
 					errx(1, "malformed at:\n%s", errline);
 				working->flags |= CE_TRIMAT;
@@ -860,9 +860,10 @@ son(char *p)
  * are defaulted to the current date but time zero.
  */
 static time_t
-parse8601(char *s)
+parse8601(char *s, char *errline)
 {
 	char *t;
+	time_t tsecs;
 	struct tm tm, *tmp;
 	u_long ul;
 
@@ -930,7 +931,9 @@ parse8601(char *s)
 		    || tm.tm_min > 59 || tm.tm_hour < 0 || tm.tm_hour > 23)
 			return -1;
 	}
-	return mktime(&tm);
+	if ((tsecs = mktime(&tm)) == -1)
+		errx(1, "nonexistent time:\n%s", errline);  
+	return tsecs;
 }
 
 /* physically move file */
@@ -1002,9 +1005,10 @@ createdir(char *dirpart)
  * are defaulted to the current date but time zero.
  */
 static time_t
-parseDWM(char *s)
+parseDWM(char *s, char *errline)
 {
 	char *t;
+	time_t tsecs;
 	struct tm tm, *tmp;
 	long l;
 	int nd;
@@ -1098,5 +1102,7 @@ parseDWM(char *s)
 		else
 			s = t;
 	}
-	return mktime(&tm);
+	if ((tsecs = mktime(&tm)) == -1)
+		errx(1, "nonexistent time:\n%s", errline);  
+	return tsecs;
 }
