@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_resource.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_resource.c,v 1.41 1999/02/25 11:03:08 bde Exp $
+ * $Id: kern_resource.c,v 1.42 1999/02/28 10:53:29 bde Exp $
  */
 
 #include "opt_compat.h"
@@ -513,7 +513,7 @@ calcru(p, up, sp, ip)
 
 	totusec = p->p_runtime;
 #ifdef SMP
-	if (p->p_oncpu != (char)0xff) {
+	if (p->p_oncpu != 0xff) {
 #else
 	if (p == curproc) {
 #endif

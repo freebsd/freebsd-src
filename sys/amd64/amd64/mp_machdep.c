@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.91 1999/02/19 19:34:47 luoqi Exp $
+ *	$Id: mp_machdep.c,v 1.92 1999/02/26 03:42:50 tegge Exp $
  */
 
 #include "opt_smp.h"
@@ -2590,7 +2590,7 @@ forward_signal(struct proc *p)
 	while (1) {
 		if (p->p_stat != SRUN)
 			return;
-		id = (u_char) p->p_oncpu;
+		id = p->p_oncpu;
 		if (id == 0xff)
 			return;
 		map = (1<<id);
@@ -2608,7 +2608,7 @@ forward_signal(struct proc *p)
 				break;
 			}
 		}
-		if (id == (u_char) p->p_oncpu)
+		if (id == p->p_oncpu)
 			return;
 	}
 }
