@@ -138,22 +138,15 @@ extern char *optarg;			/* getopt(3) external variables */
 extern int optind, opterr, optopt;
 int	 getopt(int, char * const [], const char *);
 
-/* 1003.1b-1993 */
-#if __POSIX_VISIBLE >= 199309
-/*
- * Need to check old copies of POSIX to determine when each of these
- * interfaces was added.
- */
+/* 1003.2-1992 */
+#if __POSIX_VISIBLE >= 199209
 size_t	 confstr(int, char *, size_t);
-int	 fchown(int, uid_t, gid_t);
-int	 fsync(int);
-
-/* symlink is from .1a and XPG4.2 -- need to check version for the former */
-int	 symlink(const char *, const char *);
 #endif
 
 /* ISO/IEC 9945-1: 1996 */
 #if __POSIX_VISIBLE >= 199506
+int	 fsync(int);
+
 /*
  * ftruncate() was in the POSIX Realtime Extension (it's used for shared
  * memory), but truncate() was not.
@@ -168,9 +161,19 @@ int	 getlogin_r(char *, int);
 
 /* 1003.1-2001 */
 #if __POSIX_VISIBLE >= 200112
+int	 fchown(int, uid_t, gid_t);
 int	 gethostname(char *, int /* socklen_t */);
 int	 setegid(gid_t);
 int	 seteuid(uid_t);
+#endif
+
+/*
+ * symlink() was originally in POSIX.1a, which was withdrawn after
+ * being overtaken by events (1003.1-2001).  It was in XPG4.2, and of
+ * course has been in BSD practically forever.
+ */
+#if __POSIX_VISIBLE >= 200112 || __XSI_VISIBLE >= 402 || __BSD_VISIBLE
+int	 symlink(const char *__restrict, const char *__restrict);
 #endif
 
 /* X/Open System Interfaces */
