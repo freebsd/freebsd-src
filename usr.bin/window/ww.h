@@ -258,7 +258,7 @@ char *wwib;		/* input (keyboard) buffer */
 char *wwibe;		/* wwib + sizeof buffer */
 char *wwibp;		/* current read position in buffer */
 char *wwibq;		/* current write position in buffer */
-#define wwmaskc(c)	((c) & 0x7f)
+#define wwmaskc(c)      ((c) & 0xff)
 #define wwgetc()	(wwibp < wwibq ? wwmaskc(*wwibp++) : -1)
 #define wwpeekc()	(wwibp < wwibq ? wwmaskc(*wwibp) : -1)
 #define wwungetc(c)	(wwibp > wwib ? *--wwibp = (c) : -1)

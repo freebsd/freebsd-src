@@ -38,6 +38,7 @@
 static char sccsid[] = "@(#)scanner.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 
+#include <ctype.h>
 #include "value.h"
 #include "token.h"
 #include "context.h"
@@ -109,22 +110,6 @@ loop:
 		case EOF:
 			cx.x_token = T_EOF;
 			state = -1;
-			break;
-		case 'a': case 'b': case 'c': case 'd': case 'e':
-		case 'f': case 'g': case 'h': case 'i': case 'j':
-		case 'k': case 'l': case 'm': case 'n': case 'o':
-		case 'p': case 'q': case 'r': case 's': case 't':
-		case 'u': case 'v': case 'w': case 'x': case 'y':
-		case 'z':
-		case 'A': case 'B': case 'C': case 'D': case 'E':
-		case 'F': case 'G': case 'H': case 'I': case 'J':
-		case 'K': case 'L': case 'M': case 'N': case 'O':
-		case 'P': case 'Q': case 'R': case 'S': case 'T':
-		case 'U': case 'V': case 'W': case 'X': case 'Y':
-		case 'Z':
-		case '_': case '.':
-			*p++ = c;
-			state = 2;
 			break;
 		case '"':
 			state = 3;
@@ -231,6 +216,11 @@ loop:
 			state = -1;
 			break;
 		default:
+			if (isalpha(c) || c == '_' || c == '.') {
+				*p++ = c;
+				state = 2;
+				break;
+			}
 			cx.x_val.v_num = c;
 			cx.x_token = T_CHAR;
 			state = -1;
@@ -245,24 +235,6 @@ loop:
 		break;
 	case 2:				/* unquoted string */
 		switch (c) {
-		case 'a': case 'b': case 'c': case 'd': case 'e':
-		case 'f': case 'g': case 'h': case 'i': case 'j':
-		case 'k': case 'l': case 'm': case 'n': case 'o':
-		case 'p': case 'q': case 'r': case 's': case 't':
-		case 'u': case 'v': case 'w': case 'x': case 'y':
-		case 'z':
-		case 'A': case 'B': case 'C': case 'D': case 'E':
-		case 'F': case 'G': case 'H': case 'I': case 'J':
-		case 'K': case 'L': case 'M': case 'N': case 'O':
-		case 'P': case 'Q': case 'R': case 'S': case 'T':
-		case 'U': case 'V': case 'W': case 'X': case 'Y':
-		case 'Z':
-		case '_': case '.':
-		case '0': case '1': case '2': case '3': case '4':
-		case '5': case '6': case '7': case '8': case '9':
-			if (p < buf + sizeof buf - 1)
-				*p++ = c;
-			break;
 		case '"':
 			state = 3;
 			break;
@@ -281,6 +253,11 @@ loop:
 			}
 			break;
 		default:
+			if (isalnum(c) || c == '_' || c == '.') {
+				if (p < buf + sizeof buf - 1)
+					*p++ = c;
+				break;
+			}
 			(void) s_ungetc(c);
 		case EOF:
 			*p = 0;
