@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.539.2.19 1999/05/14 17:41:10 roger Exp $
+#	$Id: LINT,v 1.539.2.20 1999/05/15 18:13:58 obrien Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1617,10 +1617,10 @@ controller	isp0
 #	ISP_DISABLE_2100_SUPPORT	Disable support for 2100 cards
 #	(these really just to save code space)
 #	(use of all three will cause the driver to not compile)
-options	SCSI_ISP_NO_FWLOAD_MASK="0x12"	# disable FW load for isp1 and isp4
-options SCSI_ISP_NO_NVRAM_MASK="0x1"	# disable NVRAM for isp0
-options SCSI_ISP_PREFER_MEM_MAP="0"	# prefer I/O mapping
-options	ISP_DISABLE_1080_SUPPORT="1"	# Disable support for Qlogic 1080
+options	"SCSI_ISP_NO_FWLOAD_MASK=0x12"	# disable FW load for isp1 and isp4
+options "SCSI_ISP_NO_NVRAM_MASK=0x1"	# disable NVRAM for isp0
+options "SCSI_ISP_PREFER_MEM_MAP=0"	# prefer I/O mapping
+options	"ISP_DISABLE_1080_SUPPORT=1"	# Disable support for Qlogic 1080
 
 device		ax0
 device		de0
