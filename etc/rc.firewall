@@ -1,6 +1,6 @@
 ############
 # Setup system for firewall service.
-# $Id: rc.firewall,v 1.6 1996/09/05 11:22:09 adam Exp $
+# $Id: rc.firewall,v 1.6.2.1 1997/04/26 22:39:34 jkh Exp $
 
 ############
 #
@@ -23,6 +23,7 @@
 #
 #	O'Reilly & Associates, Inc
 #	ISBN 1-56592-124-0
+#	http://www.ora.com/
 #
 # For a more advanced treatment of Internet Security read:
 #
@@ -32,6 +33,7 @@
 #
 #	Addison-Wesley
 #	ISBN 0-201-6337-4
+#	http://www.awl.com/
 #
 
 ############
@@ -92,7 +94,7 @@ elif [ "${firewall}" = "client" ]; then
     /sbin/ipfw add pass udp from any 123 to ${ip}
     /sbin/ipfw add pass udp from ${ip} to any 123
 
-    # Everyting else is denied as default.
+    # Everything else is denied as default.
 
 elif [ "${firewall}" = "simple" ]; then
 
@@ -149,6 +151,9 @@ elif [ "${firewall}" = "simple" ]; then
     /sbin/ipfw add pass udp from any 123 to ${oip}
     /sbin/ipfw add pass udp from ${oip} to any 123
 
-    # Everyting else is denied as default.
-fi
+    # Everything else is denied as default.
 
+elif [ "${firewall}" != "NONE" -a -r "${firewall}" ]; then
+
+	/sbin/ipfw ${firewall}
+fi
