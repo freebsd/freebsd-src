@@ -74,6 +74,10 @@ server
 relay
 ]
 [
+.B -i
+interval
+]
+[
 .B -n
 ]
 [
@@ -189,6 +193,12 @@ sends can be set using the
 .B -g
 flag, followed by the IP address to send.   This is only useful for testing,
 and should not be expected to work in any consistent or useful way.
+.PP
+On FreeBSD, dhclient can be enabled to automatically handle the
+link status of the network card. Normally polling is done every
+five seconds. The polling interval can be set using the
+.B -i
+flag, followed by the numbers of seconds. Minimum is one second.
 .PP
 The DHCP client will normally run in the foreground until it has
 configured an interface, and then will revert to running in the
