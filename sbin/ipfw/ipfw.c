@@ -992,7 +992,7 @@ add_port(cnt, ptr, off, port)
 }
 
 static int
-lookup_port(const char *arg, int test, int nodash)
+lookup_port(const char *arg, int proto, int test, int nodash)
 {
 	int		val;
 	char		*earg, buf[32];
@@ -1014,8 +1014,17 @@ lookup_port(const char *arg, int test, int nodash)
 
 	val = (int) strtoul(buf, &earg, 0);
 	if (!*buf || *earg) {
+		char *protocol = NULL;
+
+		if (proto != 0) {
+			struct protoent *pe = getprotobynumber(proto);
+
+			if (pe)
+				protocol = pe->p_name;
+		}
+
 		setservent(1);
-		if ((s = getservbyname(buf, NULL))) {
+		if ((s = getservbyname(buf, protocol))) {
 			val = htons(s->s_port);
 		} else {
 			if (!test) {
@@ -1039,9 +1048,7 @@ lookup_port(const char *arg, int test, int nodash)
  * 2 if first pair is a port+mask
  */
 static int
-fill_port(cnt, ptr, off, arg)
-	u_short *cnt, *ptr, off;
-	char *arg;
+fill_port(u_short *cnt, u_short *ptr, u_short off, char *arg, int proto)
 {
 	char *s;
 	int initial_range = 0;
@@ -1054,12 +1061,12 @@ fill_port(cnt, ptr, off, arg)
 		*s++ = '\0';
 		if (strchr(arg, ','))
 			errx(EX_USAGE, "port/mask must be first in list");
-		add_port(cnt, ptr, off, *arg ? lookup_port(arg, 0, 0) : 0x0000);
+		add_port(cnt, ptr, off, *arg ? lookup_port(arg, proto, 0, 0) : 0x0000);
 		arg = s;
 		s = strchr(arg,',');
 		if (s)
 			*s++ = '\0';
-		add_port(cnt, ptr, off, *arg ? lookup_port(arg, 0, 0) : 0xffff);
+		add_port(cnt, ptr, off, *arg ? lookup_port(arg, proto, 0, 0) : 0xffff);
 		arg = s;
 		initial_range = 2;
 	} else
@@ -1067,12 +1074,12 @@ fill_port(cnt, ptr, off, arg)
 		*s++ = '\0';
 		if (strchr(arg, ','))
 			errx(EX_USAGE, "port range must be first in list");
-		add_port(cnt, ptr, off, *arg ? lookup_port(arg, 0, 0) : 0x0000);
+		add_port(cnt, ptr, off, *arg ? lookup_port(arg, proto, 0, 0) : 0x0000);
 		arg = s;
 		s = strchr(arg,',');
 		if (s)
 			*s++ = '\0';
-		add_port(cnt, ptr, off, *arg ? lookup_port(arg, 0, 0) : 0xffff);
+		add_port(cnt, ptr, off, *arg ? lookup_port(arg, proto, 0, 0) : 0xffff);
 		arg = s;
 		initial_range = 1;
 	}
@@ -1080,7 +1087,7 @@ fill_port(cnt, ptr, off, arg)
 		s = strchr(arg,',');
 		if (s)
 			*s++ = '\0';
-		add_port(cnt, ptr, off, lookup_port(arg, 0, 0));
+		add_port(cnt, ptr, off, lookup_port(arg, proto, 0, 0));
 		arg = s;
 	}
 	return initial_range;
@@ -1705,7 +1712,7 @@ add(ac,av)
 		if(pp != NULL)
 		{
 			*(pp++) = '\0';
-			i = lookup_port(pp, 1, 0);
+			i = lookup_port(pp, 0, 1, 0);
 			if (i == -1)
 				show_usage("illegal forwarding port ``%s''", pp);
 			else
@@ -1789,11 +1796,11 @@ add(ac,av)
 
 	fill_ip(&rule.fw_src, &rule.fw_smsk, &ac, &av);
 
-	if (ac && (isdigit(**av) || lookup_port(*av, 1, 1) >= 0)) {
+	if (ac && (isdigit(**av) || lookup_port(*av, rule.fw_prot, 1, 1) >= 0)) {
 		u_short nports = 0;
 		int retval ;
 
-		retval = fill_port(&nports, rule.fw_uar.fw_pts, 0, *av) ;
+		retval = fill_port(&nports, rule.fw_uar.fw_pts, 0, *av, rule.fw_prot);
 		if (retval == 1)
 			rule.fw_flg |= IP_FW_F_SRNG;
 		else if (retval == 2)
@@ -1816,12 +1823,12 @@ add(ac,av)
 
 	fill_ip(&rule.fw_dst, &rule.fw_dmsk, &ac, &av);
 
-	if (ac && (isdigit(**av) || lookup_port(*av, 1, 1) >= 0)) {
+	if (ac && (isdigit(**av) || lookup_port(*av, rule.fw_prot, 1, 1) >= 0)) {
 		u_short	nports = 0;
 		int retval ;
 
 		retval = fill_port(&nports,
-		    rule.fw_uar.fw_pts, IP_FW_GETNSRCP(&rule), *av) ;
+		    rule.fw_uar.fw_pts, IP_FW_GETNSRCP(&rule), *av, rule.fw_prot);
 		if (retval == 1)
 			rule.fw_flg |= IP_FW_F_DRNG;
 		else if (retval == 2)
