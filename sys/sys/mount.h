@@ -72,7 +72,7 @@ struct fid {
  */
 
 #define MFSNAMELEN	16	/* length of fs type name, including null */
-#ifdef __i386__
+#if defined(__i386__) || defined(__powerpc__)
 #define	MNAMELEN	80	/* length of buffer for returned name */
 #endif
 #if defined(__alpha__) || defined(__ia64__)
