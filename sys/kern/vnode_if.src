@@ -270,10 +270,11 @@ vop_link {
 };
 
 #
-#% rename	fdvp	U U U
-#% rename	fvp	U U U
-#% rename	tdvp	L U U
-#% rename	tvp	X U U
+# rename	fdvp	U U U
+# rename	fvp	U U U
+# rename	tdvp	L U U
+# rename	tvp	X U U
+#! rename	pre	vop_rename_pre
 #
 vop_rename {
 	IN WILLRELE struct vnode *fdvp;
