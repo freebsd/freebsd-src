@@ -58,9 +58,9 @@ This allows existing files and directories to be accessed
 using a different pathname.
 .Pp
 The primary differences between a virtual copy of the filesystem
-and a symbolic link are that
+and a symbolic link are that the
 .Xr getcwd 3
-functions correctly in the virtual copy, and that other filesystems
+functions work correctly in the virtual copy, and that other filesystems
 may be mounted on the virtual copy without affecting the original.
 A different device number for the virtual copy is returned by
 .Xr stat 2 ,
