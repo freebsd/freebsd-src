@@ -189,6 +189,7 @@ static int runningbufreq;
  */
 static int needsbuffer;
 
+#ifdef USE_BUFHASH
 /*
  * Mask for index into the buffer hash table, which needs to be power of 2 in
  * size.  Set in kern_vfs_bio_buffer_alloc.
@@ -207,6 +208,8 @@ static LIST_HEAD(bufhashhdr, buf) *bufhashtbl;
  * on them.)
  */
 static struct bufhashhdr invalhash;
+
+#endif
 
 /*
  * Definitions for the buffer free lists.
@@ -233,6 +236,7 @@ const char *buf_wmesg = BUF_WMESG;
 #define VFS_BIO_NEED_FREE	0x04	/* wait for free bufs, hi hysteresis */
 #define VFS_BIO_NEED_BUFSPACE	0x08	/* wait for buf space, lo hysteresis */
 
+#ifdef USE_BUFHASH
 /*
  * Buffer hash table code.  Note that the logical block scans linearly, which
  * gives us some L1 cache locality.
@@ -244,6 +248,8 @@ bufhash(struct vnode *vnp, daddr_t bn)
 {
 	return(&bufhashtbl[(((uintptr_t)(vnp) >> 7) + (int)bn) & bufhashmask]);
 }
+
+#endif
 
 /*
  *	numdirtywakeup:
@@ -463,6 +469,7 @@ kern_vfs_bio_buffer_alloc(caddr_t v, int physmem_est)
 	buf = (void *)v;
 	v = (caddr_t)(buf + nbuf);
 
+#ifdef USE_BUFHASH
 	/*
 	 * Calculate the hash table size and reserve space
 	 */
@@ -471,7 +478,7 @@ kern_vfs_bio_buffer_alloc(caddr_t v, int physmem_est)
 	bufhashtbl = (void *)v;
 	v = (caddr_t)(bufhashtbl + bufhashmask);
 	--bufhashmask;
-
+#endif
 	return(v);
 }
 
@@ -484,11 +491,15 @@ bufinit(void)
 
 	GIANT_REQUIRED;
 
+#ifdef USE_BUFHASH
 	LIST_INIT(&invalhash);
+#endif
 	mtx_init(&buftimelock, "buftime lock", NULL, MTX_DEF);
 
+#ifdef USE_BUFHASH
 	for (i = 0; i <= bufhashmask; i++)
 		LIST_INIT(&bufhashtbl[i]);
+#endif
 
 	/* next, make a null set of free lists */
 	for (i = 0; i < BUFFER_QUEUES; i++)
@@ -507,7 +518,9 @@ bufinit(void)
 		LIST_INIT(&bp->b_dep);
 		BUF_LOCKINIT(bp);
 		TAILQ_INSERT_TAIL(&bufqueues[QUEUE_EMPTY], bp, b_freelist);
+#ifdef USE_BUFHASH
 		LIST_INSERT_HEAD(&invalhash, bp, b_hash);
+#endif
 	}
 
 	/*
@@ -787,10 +800,15 @@ bwrite(struct buf * bp)
 		/* get a new block */
 		newbp = geteblk(bp->b_bufsize);
 
-		/* set it to be identical to the old block */
+		/*
+		 * set it to be identical to the old block.  We have to
+		 * set b_lblkno and BKGRDMARKER before calling bgetvp()
+		 * to avoid confusing the splay tree and gbincore().
+		 */
 		memcpy(newbp->b_data, bp->b_data, bp->b_bufsize);
-		bgetvp(bp->b_vp, newbp);
 		newbp->b_lblkno = bp->b_lblkno;
+		newbp->b_xflags |= BX_BKGRDMARKER;
+		bgetvp(bp->b_vp, newbp);
 		newbp->b_blkno = bp->b_blkno;
 		newbp->b_offset = bp->b_offset;
 		newbp->b_iodone = vfs_backgroundwritedone;
@@ -1302,8 +1320,10 @@ brelse(struct buf * bp)
 			bp->b_qindex = QUEUE_EMPTY;
 		}
 		TAILQ_INSERT_HEAD(&bufqueues[bp->b_qindex], bp, b_freelist);
+#ifdef USE_BUFHASH
 		LIST_REMOVE(bp, b_hash);
 		LIST_INSERT_HEAD(&invalhash, bp, b_hash);
+#endif
 		bp->b_dev = NODEV;
 	/* buffers with junk contents */
 	} else if (bp->b_flags & (B_INVAL | B_NOCACHE | B_RELBUF) ||
@@ -1314,8 +1334,10 @@ brelse(struct buf * bp)
 			panic("losing buffer 2");
 		bp->b_qindex = QUEUE_CLEAN;
 		TAILQ_INSERT_HEAD(&bufqueues[QUEUE_CLEAN], bp, b_freelist);
+#ifdef USE_BUFHASH
 		LIST_REMOVE(bp, b_hash);
 		LIST_INSERT_HEAD(&invalhash, bp, b_hash);
+#endif
 		bp->b_dev = NODEV;
 
 	/* buffers that are locked */
@@ -1336,11 +1358,17 @@ brelse(struct buf * bp)
 	}
 
 	/*
-	 * If B_INVAL, clear B_DELWRI.  We've already placed the buffer
-	 * on the correct queue.
+	 * If B_INVAL and B_DELWRI is set, clear B_DELWRI.  We have already
+	 * placed the buffer on the correct queue.  We must also disassociate
+	 * the device and vnode for a B_INVAL buffer so gbincore() doesn't
+	 * find it.
 	 */
-	if ((bp->b_flags & (B_INVAL|B_DELWRI)) == (B_INVAL|B_DELWRI))
-		bundirty(bp);
+	if (bp->b_flags & B_INVAL) {
+		if (bp->b_flags & B_DELWRI)
+			bundirty(bp);
+		if (bp->b_vp)
+			brelvp(bp);
+	}
 
 	/*
 	 * Fixup numfreebuffers count.  The bp is on an appropriate queue
@@ -1493,7 +1521,10 @@ vfs_vmio_release(bp)
 		brelvp(bp);
 }
 
+#ifdef USE_BUFHASH
 /*
+ * XXX MOVED TO VFS_SUBR.C
+ *
  * Check to see if a block is currently memory resident.
  */
 struct buf *
@@ -1514,6 +1545,7 @@ gbincore(struct vnode * vp, daddr_t blkno)
 	}
 	return (bp);
 }
+#endif
 
 /*
  *	vfs_bio_awrite:
@@ -1782,8 +1814,10 @@ restart:
 			buf_deallocate(bp);
 		if (bp->b_xflags & BX_BKGRDINPROG)
 			panic("losing buffer 3");
+#ifdef USE_BUFHASH
 		LIST_REMOVE(bp, b_hash);
 		LIST_INSERT_HEAD(&invalhash, bp, b_hash);
+#endif
 
 		if (bp->b_bufsize)
 			allocbuf(bp, 0);
@@ -2231,7 +2265,9 @@ getblk(struct vnode * vp, daddr_t blkno, int size, int slpflag, int slptimeo)
 {
 	struct buf *bp;
 	int s;
+#ifdef USE_BUFHASH
 	struct bufhashhdr *bh;
+#endif
 
 	if (size > MAXBSIZE)
 		panic("getblk: size(%d) > MAXBSIZE(%d)\n", size, MAXBSIZE);
@@ -2392,6 +2428,11 @@ loop:
 		 * race because we are safely running at splbio() from the
 		 * point of the duplicate buffer creation through to here,
 		 * and we've locked the buffer.
+		 *
+		 * Note: this must occur before we associate the buffer
+		 * with the vp especially considering limitations in
+		 * the splay tree implementation when dealing with duplicate
+		 * lblkno's.
 		 */
 		if (gbincore(vp, blkno)) {
 			bp->b_flags |= B_INVAL;
@@ -2407,9 +2448,11 @@ loop:
 		bp->b_offset = offset;
 
 		bgetvp(vp, bp);
+#ifdef USE_BUFHASH
 		LIST_REMOVE(bp, b_hash);
 		bh = bufhash(vp, blkno);
 		LIST_INSERT_HEAD(bh, bp, b_hash);
+#endif
 
 		/*
 		 * set B_VMIO bit.  allocbuf() the buffer bigger.  Since the

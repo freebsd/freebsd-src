@@ -108,8 +108,10 @@ struct vnode {
 	vop_t	**v_op;				/* vnode operations vector */
 	TAILQ_ENTRY(vnode) v_freelist;		/* vnode freelist */
 	TAILQ_ENTRY(vnode) v_nmntvnodes;	/* vnodes for mount point */
-	struct	buflists v_cleanblkhd;		/* clean blocklist head */
-	struct	buflists v_dirtyblkhd;		/* dirty blocklist head */
+	struct	buflists v_cleanblkhd;		/* SORTED clean blocklist */
+	struct buf	*v_cleanblkroot;	/* clean buf splay tree root */
+	struct	buflists v_dirtyblkhd;		/* SORTED dirty blocklist */
+	struct buf	*v_dirtyblkroot;	/* dirty buf splay tree root */
 	LIST_ENTRY(vnode) v_synclist;		/* vnodes with dirty buffers */
 	long	v_numoutput;			/* num of writes in progress */
 	enum	vtype v_type;			/* vnode type */
