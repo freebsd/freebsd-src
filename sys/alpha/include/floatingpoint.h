@@ -30,3 +30,5 @@
  * SUCH DAMAGE.
  *
  */
+
+#include <machine/ieeefp.h>
