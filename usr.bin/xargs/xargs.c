@@ -32,6 +32,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $xMach: xargs.c,v 1.6 2002/02/23 05:27:47 tim Exp $
  */
 
 #ifndef lint
@@ -61,29 +63,31 @@ __FBSDID("$FreeBSD$");
 
 #include "pathnames.h"
 
-int tflag, rval;
-int zflag;
-
-void		run(char **);
+static void	run(char **);
 static void	usage(void);
+void		strnsubst(char **, const char *, const char *, size_t);
 
 static char echo[] = _PATH_ECHO;
+static int pflag, tflag, rval, zflag;
 
 extern char *environ[];
 
 int
 main(int argc, char **argv)
 {
-	int ch;
-	char *p, *bbp, **bxp, *ebp, **exp, **xp;
-	int cnt, jfound, indouble, insingle;
-	int nargs, nflag, nline, xflag, wasquoted;
-	char **av, **avj, *argp, **ep, *replstr;
 	long arg_max;
+	int argumentc, ch, cnt, count, Iflag, indouble, insingle, jfound, lflag;
+	int nargs, nflag, nline, wasquoted, foundeof, xflag;
+	size_t linelen;
+	const char *eofstr;
+	char **av, **avj, **bxp, **ep, **exp, **xp;
+	char *argp, *bbp, *ebp, *inpline, *p, *replstr;
 
 	ep = environ;
-	jfound = 0;
-	replstr = NULL;			/* set if user requests -J */
+	inpline = replstr = NULL;
+	eofstr = "";
+	argumentc = cnt = count = Iflag = jfound = lflag = nflag = xflag =
+	    wasquoted = 0;
 
 	/*
 	 * POSIX.2 limits the exec line length to ARG_MAX - 2K.  Running that
@@ -106,16 +110,29 @@ main(int argc, char **argv)
 		/* 1 byte for each '\0' */
 		nline -= strlen(*ep++) + 1 + sizeof(*ep);
 	}
-	nflag = xflag = wasquoted = 0;
-	while ((ch = getopt(argc, argv, "0J:n:s:tx")) != -1)
+	while ((ch = getopt(argc, argv, "0E:I:J:L:n:ps:tx")) != -1)
 		switch(ch) {
+		case 'E':
+			eofstr = optarg;
+			break;
+		case 'I':
+			Iflag = 1;
+			lflag = 1;
+			replstr = optarg;
+			break;
 		case 'J':
 			replstr = optarg;
+			break;
+		case 'L':
+			lflag = atoi(optarg);
 			break;
 		case 'n':
 			nflag = 1;
 			if ((nargs = atoi(optarg)) <= 0)
 				errx(1, "illegal argument count");
+			break;
+		case 'p':
+			pflag = 1;
 			break;
 		case 's':
 			nline = atoi(optarg);
@@ -138,15 +155,19 @@ main(int argc, char **argv)
 
 	if (xflag && !nflag)
 		usage();
+	if (Iflag || lflag)
+		xflag = 1;
+	if (replstr != NULL && *replstr == '\0')
+		errx(1, "replstr may not be empty");
 
 	/*
 	 * Allocate pointers for the utility name, the utility arguments,
 	 * the maximum arguments to be read from stdin and the trailing
 	 * NULL.
 	 */
-	if (!(av = bxp =
-	    malloc((u_int)(1 + argc + nargs + 1) * sizeof(char **))))
-		errx(1, "malloc");
+	linelen = 1 + argc + nargs + 1;
+	if ((av = bxp = calloc(linelen * sizeof(char **), 1)) == NULL)
+		err(1, "calloc");
 
 	/*
 	 * Use the user's name for the utility as argv[0], just like the
@@ -156,9 +177,8 @@ main(int argc, char **argv)
 	if (!*argv)
 		cnt = strlen((*bxp++ = echo));
 	else {
-		cnt = 0;
 		do {
-			if (replstr && strcmp(*argv, replstr) == 0) {
+			if (!Iflag && replstr && strcmp(*argv, replstr) == 0) {
 				jfound = 1;
 				argv++;
 				for (avj = argv; *avj; avj++)
@@ -188,8 +208,8 @@ main(int argc, char **argv)
 	if (nline <= 0)
 		errx(1, "insufficient space for command");
 
-	if (!(bbp = malloc((u_int)nline + 1)))
-		errx(1, "malloc");
+	if ((bbp = malloc((u_int)nline + 1)) == NULL)
+		err(1, "malloc");
 	ebp = (argp = p = bbp) + nline - 1;
 
 	for (insingle = indouble = 0;;)
@@ -210,6 +230,7 @@ main(int argc, char **argv)
 				goto arg2;
 			goto addch;
 		case '\n':
+			count++;
 			if (zflag)
 				goto addch;
 
@@ -218,10 +239,35 @@ arg1:			if (insingle || indouble)
 				 errx(1, "unterminated quote");
 
 arg2:
+			foundeof = *eofstr != '\0' &&
+			    strcmp(argp, eofstr) == 0;
+
 			/* Do not make empty args unless they are quoted */
-			if (argp != p || wasquoted) {
+			if ((argp != p || wasquoted) && !foundeof) {
 				*p++ = '\0';
 				*xp++ = argp;
+				if (Iflag) {
+					char *realloc_holder;
+					size_t curlen;
+					realloc_holder = inpline;
+					if (realloc_holder == NULL)
+						curlen = 0;
+					else {
+						curlen = strlen(realloc_holder);
+						if (curlen)
+							strcat(inpline, " ");
+					}
+					curlen++;
+					argumentc++;
+					inpline = realloc(realloc_holder, strlen(argp) +
+					    curlen);
+					if (inpline == NULL)
+						err(1, "realloc");
+					if (curlen == 1)
+						strcpy(inpline, argp);
+					else
+						strcat(inpline, argp);
+				}
 			}
 
 			/*
@@ -229,19 +275,58 @@ arg2:
 			 * run the command.  If xflag and max'd out on buffer
 			 * but not on args, object.
 			 */
-			if (xp == exp || p > ebp || ch == EOF) {
+			if (xp == exp || p > ebp || ch == EOF || (lflag <= count && xflag) || foundeof) {
 				if (xflag && xp != exp && p > ebp)
 					errx(1, "insufficient space for arguments");
 				if (jfound) {
 					for (avj = argv; *avj; avj++)
 						*xp++ = *avj;
 				}
-				*xp = NULL;
-				run(av);
-				if (ch == EOF)
+				if (Iflag) {
+					char **tmp, **tmp2;
+					size_t repls;
+
+					tmp = calloc(linelen * sizeof(char **), 1);
+					if (tmp == NULL)
+						err(1, "malloc");
+					tmp2 = tmp;
+					for (repls = 5, avj = av; *avj != NULL; avj++) {
+						*tmp = *avj;
+						if (avj != av && repls > 0 &&
+						    strstr(*tmp, replstr) != NULL) {
+							strnsubst(tmp, replstr,
+							    inpline, 255);
+							repls--;
+						} else {
+							*tmp = strdup(*avj);
+							if (*tmp == NULL)
+								err(1,
+								    "strdup");
+						}
+						tmp++;
+					}
+					do {
+						if (*tmp != NULL)
+							free(*tmp);
+						tmp--;
+					} while (--argumentc);
+					*tmp = *xp = NULL;
+					run(tmp2);
+					for (; tmp2 != tmp; tmp--)
+						free(*tmp);
+					free(tmp2);
+					free(inpline);
+					inpline = strdup("");
+					argumentc = 0;
+				} else {
+					*xp = NULL;
+					run(av);
+				}
+				if (ch == EOF || foundeof)
 					exit(rval);
 				p = bbp;
 				xp = bxp;
+				count = 0;
 			}
 			argp = p;
 			wasquoted = 0;
@@ -286,7 +371,7 @@ addch:			if (p < ebp) {
 			run(av);
 			xp = bxp;
 			cnt = ebp - argp;
-			bcopy(argp, bbp, cnt);
+			memcpy(bbp, argp, (size_t)cnt);
 			p = (argp = bbp) + cnt;
 			*p++ = ch;
 			break;
@@ -294,20 +379,32 @@ addch:			if (p < ebp) {
 	/* NOTREACHED */
 }
 
-void
+static void
 run(char **argv)
 {
 	volatile int childerr;
 	char **p;
+	FILE *ttyfp;
 	pid_t pid;
-	int status;
+	int ch, status;
 
-	if (tflag) {
+	if (tflag || pflag) {
 		(void)fprintf(stderr, "%s", *argv);
 		for (p = argv + 1; *p; ++p)
 			(void)fprintf(stderr, " %s", *p);
-		(void)fprintf(stderr, "\n");
-		(void)fflush(stderr);
+		if (pflag) {
+			if ((ttyfp = fopen("/dev/tty", "r")) != NULL) {
+				(void)fprintf(stderr, "?");
+				(void)fflush(stderr);
+				ch = getc(ttyfp);
+				fclose(ttyfp);
+				if (ch != 'y')
+					return;
+			}
+		} else {
+			(void)fprintf(stderr, "\n");
+			(void)fflush(stderr);
+		}
 	}
 	childerr = 0;
 	switch(pid = vfork()) {
@@ -321,12 +418,9 @@ run(char **argv)
 	pid = waitpid(pid, &status, 0);
 	if (pid == -1)
 		err(1, "waitpid");
-	/* If we couldn't invoke the utility, exit 127. */
-	if (childerr != 0) {
-		errno = childerr;
-		warn("%s", argv[0]);
-		exit(127);
-	}
+	/* If we couldn't invoke the utility, exit. */
+	if (childerr != 0)
+		err(childerr == ENOENT ? 127 : 126, "%s", *argv);
 	/* If utility signaled or exited with a value of 255, exit 1-125. */
 	if (WIFSIGNALED(status) || WEXITSTATUS(status) == 255)
 		exit(1);
@@ -338,7 +432,8 @@ static void
 usage(void)
 {
 	fprintf(stderr,
-	    "usage: xargs [-0t] [-J replstr] [-n number [-x]] [-s size]\n"
-	    "           [utility [argument ...]]\n");
+"usage: xargs [-0pt] [-E eofstr] [-I replstr] [-J replstr] [-L number]\n");
+	fprintf(stderr,
+"             [-n number [-x] [-s size] [utility [argument ...]]\n");
 	exit(1);
 }
