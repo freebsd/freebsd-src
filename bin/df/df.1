@@ -29,10 +29,10 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)df.1	8.2 (Berkeley) 1/13/94
-.\"	$Id: df.1,v 1.4 1996/08/29 18:05:48 wosch Exp $
+.\"     @(#)df.1	8.3 (Berkeley) 5/8/95
+.\"	$Id: df.1,v 1.5 1996/12/11 10:01:49 jkh Exp $
 .\"
-.Dd January 13, 1994
+.Dd May 8, 1995
 .Dt DF 1
 .Os BSD 4
 .Sh NAME
@@ -44,7 +44,7 @@
 .Op Fl t Ar type
 .Op Ar file | Ar filesystem ...
 .Sh DESCRIPTION
-.Nm Df
+.Nm
 displays statistics about the amount of free disk space on the specified
 .Ar filesystem
 or on the filesystem of which
@@ -86,7 +86,7 @@ local (ufs, mfs, lfs, msdos, cd9660),
 and misc (fdesc, portal, kernfs, procfs).
 The names isofs, iso9660fs, cdfs, and cd9660 are aliases to each other
 all of them refering to the same type of file system.
-The string ``no'' may be prepending to a type to get its complement
+The string ``no'' may be prepended to a type to get its complement
 (e.g. ``nonfs'' to get non-NFS filesystems).  The first
 .Fl t
 option overrides the default, additional such options will add to
@@ -96,7 +96,7 @@ or
 ``df -t local -t nomfs''
 will display statistics for UFS and LFS filesystems.
 .El
-.Sh ENVIRONMENTAL VARIABLES
+.Sh ENVIRONMENT VARIABLES
 .Bl -tag -width BLOCKSIZE
 .It Ev BLOCKSIZE
 If the environmental variable
