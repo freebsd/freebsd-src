@@ -1,5 +1,5 @@
 /*
- * $Id: ip_rcmd_pxy.c,v 1.4.2.6 2002/10/01 15:24:59 darrenr Exp $
+ * $Id: ip_rcmd_pxy.c,v 1.4.2.7 2003/04/26 05:59:39 darrenr Exp $
  */
 /*
  * Simple RCMD transparent proxy for in-kernel use.  For use with the NAT
@@ -88,9 +88,6 @@ nat_t *nat;
 	u_short sp;
 	nat_t *ipn;
 	mb_t *m;
-#if	SOLARIS
-	mb_t *m1;
-#endif
 
 	tcp = (tcphdr_t *)fin->fin_dp;
 

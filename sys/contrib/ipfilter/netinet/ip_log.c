@@ -3,7 +3,7 @@
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * $Id: ip_log.c,v 2.5.2.21 2002/10/26 06:21:30 darrenr Exp $
+ * $Id: ip_log.c,v 2.5.2.26 2004/06/20 01:59:01 darrenr Exp $
  */
 #include <sys/param.h>
 #if defined(KERNEL) && !defined(_KERNEL)
@@ -241,16 +241,17 @@ mb_t *m;
 	 */
 	bzero((char *)ipfl.fl_ifname, sizeof(ipfl.fl_ifname));
 # if SOLARIS && defined(_KERNEL)
-	ipfl.fl_unit = (u_char)ifp->ill_ppa;
+	ipfl.fl_unit = (u_int)ifp->ill_ppa;
 	bcopy(ifp->ill_name, ipfl.fl_ifname,
 	      MIN(ifp->ill_name_length, sizeof(ipfl.fl_ifname)));
 	mlen = (flags & FR_LOGBODY) ? MIN(msgdsize(m) - hlen, 128) : 0;
 # else
 #  if (defined(NetBSD) && (NetBSD <= 1991011) && (NetBSD >= 199603)) || \
-	(defined(OpenBSD) && (OpenBSD >= 199603))
+      (defined(OpenBSD) && (OpenBSD >= 199603)) || \
+      (defined(__FreeBSD__) && (__FreeBSD_version >= 501113))
 	strncpy(ipfl.fl_ifname, ifp->if_xname, IFNAMSIZ);
 #  else
-	ipfl.fl_unit = (u_char)ifp->if_unit;
+	ipfl.fl_unit = (u_int)ifp->if_unit;
 	strncpy(ipfl.fl_ifname, ifp->if_name, MIN(sizeof(ipfl.fl_ifname),
 						  sizeof(ifp->if_name)));
 #  endif
@@ -312,7 +313,7 @@ int *types, cnt;
 	 * rather than create a new one.
 	 */
 	MUTEX_ENTER(&ipl_mutex);
-	if (fin != NULL) {
+	if ((fin != NULL) && (fin->fin_off == 0)) {
 		if ((ipll[dev] != NULL) &&
 		    bcmp((char *)fin, (char *)&iplcrc[dev], FI_LCSIZE) == 0) {
 			ipll[dev]->ipl_count++;
@@ -428,7 +429,7 @@ struct uio *uio;
 	SPL_NET(s);
 	MUTEX_ENTER(&ipl_mutex);
 
-	while (!iplused[unit] || !iplt[unit]) {
+	while (iplt[unit] == NULL) {
 # if SOLARIS && defined(_KERNEL)
 		if (!cv_wait_sig(&iplwait, &ipl_mutex)) {
 			MUTEX_EXIT(&ipl_mutex);
