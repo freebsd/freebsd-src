@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_var.h	8.2 (Berkeley) 1/9/95
- *	$Id: ip_var.h,v 1.24 1996/10/25 17:57:46 fenner Exp $
+ *	$Id: ip_var.h,v 1.25 1996/11/11 04:56:21 fenner Exp $
  */
 
 #ifndef _NETINET_IP_VAR_H_
@@ -156,6 +156,7 @@ struct	ipstat {
 #define	IP_ROUTETOIF		SO_DONTROUTE	/* bypass routing tables */
 #define	IP_ALLOWBROADCAST	SO_BROADCAST	/* can send broadcast packets */
 
+struct inpcb;
 struct route;
 
 extern struct	ipstat	ipstat;
