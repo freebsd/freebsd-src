@@ -497,6 +497,7 @@ MLINKS+=ieee80211_proto.9 ieee80211_dump_pkt.9 \
 	ieee80211_proto.9 ieee80211_print_essid.9 \
 	ieee80211_proto.9 ieee80211_proto_attach.9 \
 	ieee80211_proto.9 ieee80211_proto_detach.9
+MLINKS+=ieee80211_radiotap.9 radiotap.9
 MLINKS+=ifnet.9 ifaddr.9 \
 	ifnet.9 if_data.9 \
 	ifnet.9 ifqueue.9
