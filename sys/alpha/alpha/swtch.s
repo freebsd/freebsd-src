@@ -1,4 +1,4 @@
-/* $Id: swtch.s,v 1.1 1998/06/10 10:53:23 dfr Exp $ */
+/* $Id: swtch.s,v 1.2 1998/06/11 11:51:26 dfr Exp $ */
 /* $NetBSD: locore.s,v 1.47 1998/03/22 07:26:32 thorpej Exp $ */
 
 /*
@@ -356,6 +356,10 @@ LEAF(exception_save_regs, 0)
 	stq	t10,(FRAME_T10*8)(sp)
 	stq	t11,(FRAME_T11*8)(sp)
 	stq	t12,(FRAME_T12*8)(sp)
+	.set noat
+	lda	at_reg,(FRAME_SIZE*8)(sp)
+	stq	at_reg,(FRAME_SP*8)(sp)
+	.set at
 	RET
 	END(exception_save_regs)
 

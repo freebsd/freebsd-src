@@ -97,6 +97,13 @@ typedef union {
 	} jump_format;
 
 
+	struct {
+		signed int offset	: 16;
+		unsigned rb		: 5;
+		unsigned ra		: 5;
+		unsigned opcode		: 6;
+	} memory_format;
+
 	/*
 	 *	Operate instructions are of two types, with
 	 *	a second source register or with a literal
