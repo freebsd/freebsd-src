@@ -35,6 +35,7 @@
 #define	IQ_SIZE		(NPIL * 2)
 #define	IQ_MASK		(IQ_SIZE - 1)
 
+#define	IH_SHIFT	3
 #define	IQE_SHIFT	5
 #define	IV_SHIFT	5
 

@@ -34,6 +34,7 @@
 #include <sys/proc.h>
 #include <sys/queue.h>
 #include <sys/user.h>
+#include <sys/vmmeter.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -60,17 +61,11 @@
 
 ASSYM(KERNBASE, KERNBASE);
 
-/*
- * XXX: gas, as of version 2.11.2, does not know this ASI (and some other
- * UltraSparc specific ones). This definition will probably get us into trouble
- * as soon as they are added.
- */
-ASSYM(ASI_BLK_S, ASI_BLK_S);
-
 ASSYM(EFAULT, EFAULT);
 ASSYM(ENAMETOOLONG, ENAMETOOLONG);
 
 ASSYM(KSTACK_PAGES, KSTACK_PAGES);
+ASSYM(KSTACK_GUARD_PAGES, KSTACK_GUARD_PAGES);
 ASSYM(UAREA_PAGES, UAREA_PAGES);
 ASSYM(PAGE_SIZE, PAGE_SIZE);
 
@@ -89,15 +84,16 @@ ASSYM(TSB_KERNEL_MIN_ADDRESS, TSB_KERNEL_MIN_ADDRESS);
 ASSYM(TSB_PRIMARY_MASK_WIDTH, TSB_MASK_WIDTH);
 ASSYM(TSB_PRIMARY_STTE_MASK, TSB_PRIMARY_STTE_MASK);
 ASSYM(TSB_PRIMARY_STTE_SHIFT, TSB_PRIMARY_STTE_SHIFT);
-ASSYM(TSB_1M_STTE_SHIFT, TSB_1M_STTE_SHIFT);
 ASSYM(TSB_KERNEL_MASK, TSB_KERNEL_MASK);
 
 ASSYM(PAGE_SHIFT, PAGE_SHIFT);
 ASSYM(PAGE_MASK, PAGE_MASK);
 
 ASSYM(KTR_COMPILE, KTR_COMPILE);
+ASSYM(KTR_TRAP, KTR_TRAP);
+ASSYM(KTR_SYSC, KTR_SYSC);
+ASSYM(KTR_INTR, KTR_INTR);
 ASSYM(KTR_CT1, KTR_CT1);
-ASSYM(KTR_CT2, KTR_CT2);
 
 ASSYM(KTR_SIZEOF, sizeof(struct ktr_entry));
 ASSYM(KTR_DESC, offsetof(struct ktr_entry, ktr_desc));
@@ -125,12 +121,17 @@ ASSYM(TT_VA_MASK, TT_VA_MASK);
 ASSYM(TT_VA_SHIFT, TT_VA_SHIFT);
 ASSYM(TT_CTX_SHIFT, TT_CTX_SHIFT);
 
+ASSYM(V_INTR, offsetof(struct vmmeter, v_intr));
+
 ASSYM(GD_CURTHREAD, offsetof(struct globaldata, gd_curthread));
 ASSYM(GD_CURPCB, offsetof(struct globaldata, gd_curpcb));
 ASSYM(GD_CPUID, offsetof(struct globaldata, gd_cpuid));
 
 ASSYM(GD_IQ, offsetof(struct globaldata, gd_iq));
 ASSYM(GD_IVT, offsetof(struct globaldata, gd_ivt));
+
+ASSYM(IH_SHIFT, IH_SHIFT);
+ASSYM(IH_FUNC, offsetof(struct intr_handler, ih_func));
 
 ASSYM(IQ_MASK, IQ_MASK);
 ASSYM(IQ_HEAD, offsetof(struct intr_queue, iq_head));
@@ -167,6 +168,7 @@ ASSYM(TD_KSTACK, offsetof(struct thread, td_kstack));
 ASSYM(TD_PCB, offsetof(struct thread, td_pcb));
 ASSYM(TD_PROC, offsetof(struct thread, td_proc));
 
+ASSYM(PCB_SIZEOF, sizeof(struct pcb));
 ASSYM(PCB_FPSTATE, offsetof(struct pcb, pcb_fpstate));
 ASSYM(PCB_FP, offsetof(struct pcb, pcb_fp));
 ASSYM(PCB_PC, offsetof(struct pcb, pcb_pc));
@@ -176,8 +178,6 @@ ASSYM(PCB_CWP, offsetof(struct pcb, pcb_cwp));
 ASSYM(PCB_NSAVED, offsetof(struct pcb, pcb_nsaved));
 ASSYM(PCB_RWSP, offsetof(struct pcb, pcb_rwsp));
 ASSYM(PCB_RW, offsetof(struct pcb, pcb_rw));
-
-ASSYM(PCB_CWP_EMPTY, PCB_CWP_EMPTY);
 
 ASSYM(VM_PMAP, offsetof(struct vmspace, vm_pmap));
 ASSYM(PM_CONTEXT, offsetof(struct pmap, pm_context));
