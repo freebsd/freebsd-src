@@ -32,7 +32,7 @@
  *
  *	@(#)routed.h	8.1 (Berkeley) 6/2/93
  *
- *	$Id$
+ *	$Id: routed.h,v 1.12 1999/05/02 13:20:38 markm Exp $
  */
 
 #ifndef _ROUTED_H_
@@ -40,7 +40,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#ident "$Revision: 2.16 $"
+/* #ident "$Revision: 1.12 $" */
 
 /*
  * Routing Information Protocol
