@@ -82,7 +82,7 @@ xalloc(sz)
 		prot = PROT_READ | PROT_WRITE;
 		flags = MAP_ANON | MAP_PRIVATE;
 		mbuf = mmap(NULL, mblklen, prot, flags, -1, (off_t)0);
-		if (mbuf == (void *)-1)
+		if (mbuf == (void *)MAP_FAILED)
 			err(1, "can't map memory");
 		if (ALIGN((u_long)mbuf) != (u_long)mbuf)
 			errx(1, "mapped address is not aligned");
