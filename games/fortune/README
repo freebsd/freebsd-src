@@ -1,9 +1,11 @@
 #	@(#)README	8.1 (Berkeley) 5/31/93
+# $FreeBSD$
 
-The potentially offensive fortunes are not installed by default on BSD
+The potentially offensive fortunes are installed by default on FreeBSD
 systems.  If you're absolutely, *positively*, without-a-shadow-of-a-doubt
-sure that your user community wants them installed, whack the Makefile
-in the subdirectory datfiles, and do "make all install".
+sure that your user community goes berzerk/sues your pants off/drops dead
+upon reading one of them, edit the Makefile in the subdirectory datfiles,
+and do "make all install".
 
 =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 	Some years ago, my neighbor Avery said to me: "There has not been an
