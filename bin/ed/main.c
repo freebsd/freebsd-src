@@ -37,7 +37,7 @@ static char * const copyright =
 static char * const rcsid = "@(#)main.c,v 1.1 1994/02/01 00:34:42 alm Exp";
 #else
 static char * const rcsid =
-	"$Id: main.c,v 1.10 1997/03/28 15:24:19 imp Exp $";
+	"$Id: main.c,v 1.11 1997/08/07 21:33:43 steve Exp $";
 #endif
 #endif /* not lint */
 
@@ -1358,7 +1358,8 @@ signal_hup(signo)
 {
 	if (mutex)
 		sigflags |= (1 << (signo - 1));
-	else	handle_hup(signo);
+	else
+		handle_hup(signo);
 }
 
 
@@ -1368,7 +1369,8 @@ signal_int(signo)
 {
 	if (mutex)
 		sigflags |= (1 << (signo - 1));
-	else	handle_int(signo);
+	else
+		handle_int(signo);
 }
 
 
@@ -1418,6 +1420,8 @@ void
 handle_winch(signo)
 	int signo;
 {
+	int save_errno = errno;
+
 	struct winsize ws;		/* window size structure */
 
 	sigflags &= ~(1 << (signo - 1));
@@ -1425,6 +1429,7 @@ handle_winch(signo)
 		if (ws.ws_row > 2) rows = ws.ws_row - 2;
 		if (ws.ws_col > 8) cols = ws.ws_col - 8;
 	}
+	errno = save_errno;
 }
 
 
