@@ -50,7 +50,6 @@
 #include <netinet/ip.h>
 #include <netinet/ip_icmp.h>
 #include <netinet/ip_fw.h>
-#include <net/route.h> /* def. of struct route */
 #include <netinet/ip_dummynet.h>
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
