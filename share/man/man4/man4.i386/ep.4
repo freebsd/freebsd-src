@@ -36,17 +36,18 @@
 .Nm ep
 .Nd Ethernet driver for 3Com Etherlink III (3c5x9)
 .Sh SYNOPSIS
-.Cd "device ep0 at isa? port 0x300 irq 10"
+.Cd "device ep0
 .Sh DESCRIPTION
 The
 .Nm ep
-device driver supports the 3c509 (ISA) and 3c579 (EISA) cards.
+device driver supports the 3c509 (ISA), 3c529 (MCA), 3c579 (EISA),
+and various PCMCIA cards including the 3c589.
 Various models of these cards come with a different assortment of
 connectors:
 .Pp
 .Bl -tag -width xxxxxxxxxxxxxxxxxxxx
 .It AUI/DIX
-Standard 15 pin connector
+Standard 15 pin connector, also known as 10base5 (thick-net)
 .It 10Base2
 BNC, also known as thin-net
 .It 10BaseT
@@ -54,36 +55,23 @@ UTP, also known as twisted pair
 .El
 .Pp
 The default port to use is the port that has been selected with the
-setup utility. To override this, use the following flags with
+setup utility. To override this, use the following media options with
 .Xr ifconfig 8
 or in your
 .Pa /etc/rc.conf
 file.
 .Pp
 .Bl -tag -width xxxxxxxxxxxxxxxxxxxx
-.It link0
+.It 10base5/AUI
 Use the AUI port.
-.It link1
+.It 10base2/BNC
 Use the BNC port.
-.It link2
+.It 10baseT/UTP
 Use the UTP port.
 .El
 .Pp
 If there are multiple cards in the computer, they are searched for
-in the following order:
-The 3c579 EISA cards are searched for first -- they will be found
-in EISA slot# order.
-Next, the 3c509 ISA cards are searched -- they are found in increasing
-ethernet address order.
-This is an example of how they will probe:
-.Pp
-ep0 at isa0 port 0x6000-0x600f irq 10: aui/bnc address 00:60:8c:70:e5:c5
-ep1 at isa0 port 0x300-0x30f irq 3: aui/bnc/utp address 00:20:af:10:62:ab
-.Pp
-You may specify the port and irq numbers that the cards are expected
-to be found at, but it is not necessary.
-The cards are sufficiently intelligent to tell us where they
-actually live on the ISA bus.
+in the following order: bus, slot, then ethernet address.
 .Pp
 .Sh NOTES
 The 3c509 card has no jumpers to set the address.
