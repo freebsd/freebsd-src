@@ -37,6 +37,7 @@ SUBDIR=	3dfx \
 	dummynet \
 	fdc \
 	fdescfs \
+	firewire \
 	fxp \
 	gx \
 	hifn \
@@ -161,7 +162,6 @@ SUBDIR+=aic \
 	em \
 	ep \
 	fe \
-	firewire \
 	fpu \
 	gnufpu \
 	hea \
