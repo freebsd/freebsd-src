@@ -19,6 +19,9 @@
 
 #include <errno.h>
 #include <stdio.h>
+#ifdef __FreeBSD__
+#include <locale.h>
+#endif
 
 #ifndef errno
 extern int errno;
@@ -606,6 +609,9 @@ main(argc, argv)
   extern char *optarg;
   extern int optind;
 
+#ifdef __FreeBSD__
+  (void) setlocale(LC_CTYPE, "");
+#endif
   prog = argv[0];
   if (prog && strrchr(prog, '/'))
     prog = strrchr(prog, '/') + 1;
