@@ -81,8 +81,6 @@ int	debug = 1;
 int	debug = 0;
 #endif
 
-struct	nfsd_srvargs nsd;
-
 #define	MAXNFSDCNT	20
 #define	DEFNFSDCNT	 4
 pid_t	children[MAXNFSDCNT];	/* PIDs of children */
@@ -833,8 +831,7 @@ start_server(int master)
 	int status;
 
 	status = 0;
-	nsd.nsd_nfsd = NULL;
-	if (nfssvc(NFSSVC_NFSD, &nsd) < 0) {
+	if (nfssvc(NFSSVC_NFSD, NULL) < 0) {
 		syslog(LOG_ERR, "nfssvc: %m");
 		status = 1;
 	}
