@@ -12,7 +12,7 @@ FILESDIR=	${BINDIR}/misc
 CLEANFILES+=	termcap termcap.db
 
 termcap: reorder termcap.src
-	TERM=dumb ex - ${.CURDIR}/termcap.src < ${.CURDIR}/reorder
+	TERM=dumb TERMCAP=dumb: ex - ${.CURDIR}/termcap.src < ${.CURDIR}/reorder
 
 termcap.db: termcap
 	cap_mkdb termcap
