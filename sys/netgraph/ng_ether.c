@@ -80,20 +80,22 @@ struct private {
 };
 typedef struct private *priv_p;
 
+/* Hook pointers used by if_ethersubr.c to callback to netgraph */
+extern	void	(*ng_ether_input_p)(struct ifnet *ifp, struct mbuf **mp);
+extern	void	(*ng_ether_input_orphan_p)(struct ifnet *ifp, struct mbuf *m);
+extern	int	(*ng_ether_output_p)(struct ifnet *ifp, struct mbuf **mp);
+extern	void	(*ng_ether_attach_p)(struct ifnet *ifp);
+extern	void	(*ng_ether_detach_p)(struct ifnet *ifp);
+
 /* Functional hooks called from if_ethersubr.c */
-static void	ng_ether_input(struct ifnet *ifp,
-		    struct mbuf **mp, struct ether_header *eh);
-static void	ng_ether_input_orphan(struct ifnet *ifp,
-		    struct mbuf *m, struct ether_header *eh);
+static void	ng_ether_input(struct ifnet *ifp, struct mbuf **mp);
+static void	ng_ether_input_orphan(struct ifnet *ifp, struct mbuf *m);
 static int	ng_ether_output(struct ifnet *ifp, struct mbuf **mp);
 static void	ng_ether_attach(struct ifnet *ifp);
 static void	ng_ether_detach(struct ifnet *ifp); 
 
 /* Other functions */
-static void	ng_ether_input2(node_p node,
-		    struct mbuf **mp, struct ether_header *eh);
-static int	ng_ether_glueback_header(struct mbuf **mp,
-			struct ether_header *eh);
+static void	ng_ether_input2(node_p node, struct mbuf **mp);
 static int	ng_ether_rcv_lower(node_p node, struct mbuf *m, meta_p meta);
 static int	ng_ether_rcv_upper(node_p node, struct mbuf *m, meta_p meta);
 
@@ -209,8 +211,7 @@ NETGRAPH_INIT(ether, &ng_ether_typestruct);
  * NOTE: this function will get called at splimp()
  */
 static void
-ng_ether_input(struct ifnet *ifp,
-	struct mbuf **mp, struct ether_header *eh)
+ng_ether_input(struct ifnet *ifp, struct mbuf **mp)
 {
 	const node_p node = IFP2NG(ifp);
 	const priv_p priv = NG_NODE_PRIVATE(node);
@@ -218,7 +219,7 @@ ng_ether_input(struct ifnet *ifp,
 	/* If "lower" hook not connected, let packet continue */
 	if (priv->lower == NULL || priv->lowerOrphan)
 		return;
-	ng_ether_input2(node, mp, eh);
+	ng_ether_input2(node, mp);
 }
 
 /*
@@ -228,8 +229,7 @@ ng_ether_input(struct ifnet *ifp,
  * NOTE: this function will get called at splimp()
  */
 static void
-ng_ether_input_orphan(struct ifnet *ifp,
-	struct mbuf *m, struct ether_header *eh)
+ng_ether_input_orphan(struct ifnet *ifp, struct mbuf *m)
 {
 	const node_p node = IFP2NG(ifp);
 	const priv_p priv = NG_NODE_PRIVATE(node);
@@ -239,7 +239,7 @@ ng_ether_input_orphan(struct ifnet *ifp,
 		m_freem(m);
 		return;
 	}
-	ng_ether_input2(node, &m, eh);
+	ng_ether_input2(node, &m);
 	if (m != NULL)
 		m_freem(m);
 }
@@ -252,14 +252,10 @@ ng_ether_input_orphan(struct ifnet *ifp,
  * NOTE: this function will get called at splimp()
  */
 static void
-ng_ether_input2(node_p node, struct mbuf **mp, struct ether_header *eh)
+ng_ether_input2(node_p node, struct mbuf **mp)
 {
 	const priv_p priv = NG_NODE_PRIVATE(node);
 	int error;
-
-	/* Glue Ethernet header back on */
-	if ((error = ng_ether_glueback_header(mp, eh)) != 0)
-		return;
 
 	/* Send out lower/orphan hook */
 	NG_SEND_DATA_ONLY(error, priv->lower, *mp);
@@ -348,44 +344,6 @@ ng_ether_detach(struct ifnet *ifp)
 	IFP2NG(ifp) = NULL;
 	priv->ifp = NULL;	/* XXX race if interrupted an output packet */
 	ng_rmnode_self(node);		/* remove all netgraph parts */
-}
-
-/*
- * Optimization for gluing the Ethernet header back onto
- * the front of an incoming packet.
- */
-static int
-ng_ether_glueback_header(struct mbuf **mp, struct ether_header *eh)
-{
-	struct mbuf *m = *mp;
-	int error = 0;
-
-	/*
-	 * Optimize for the case where the header is already in place
-	 * at the front of the mbuf. This is actually quite likely
-	 * because many Ethernet drivers generate packets this way.
-	 */
-	if (eh == mtod(m, struct ether_header *) - 1) {
-		m->m_len += sizeof(*eh);
-		m->m_data -= sizeof(*eh);
-		m->m_pkthdr.len += sizeof(*eh);
-		goto done;
-	}
-
-	/* Prepend the header back onto the front of the mbuf */
-	M_PREPEND(m, sizeof(*eh), M_DONTWAIT);
-	if (m == NULL) {
-		error = ENOBUFS;
-		goto done;
-	}
-
-	/* Copy header into front of mbuf */
-	bcopy(eh, mtod(m, void *), sizeof(*eh));
-
-done:
-	/* Done */
-	*mp = m;
-	return error;
 }
 
 /******************************************************************
@@ -635,26 +593,14 @@ static int
 ng_ether_rcv_upper(node_p node, struct mbuf *m, meta_p meta)
 {
 	const priv_p priv = NG_NODE_PRIVATE(node);
-	struct ether_header *eh;
 
 	/* Discard meta info */
 	NG_FREE_META(meta);
 
-	/* Check length and pull off header */
-	if (m->m_pkthdr.len < sizeof(*eh)) {
-		NG_FREE_M(m);
-		return (EINVAL);
-	}
-	if (m->m_len < sizeof(*eh) && (m = m_pullup(m, sizeof(*eh))) == NULL)
-		return (ENOBUFS);
-	eh = mtod(m, struct ether_header *);
-	m->m_data += sizeof(*eh);
-	m->m_len -= sizeof(*eh);
-	m->m_pkthdr.len -= sizeof(*eh);
 	m->m_pkthdr.rcvif = priv->ifp;
 
 	/* Route packet back in */
-	ether_demux(priv->ifp, eh, m);
+	ether_demux(priv->ifp, m);
 	return (0);
 }
 
