@@ -78,6 +78,8 @@ struct unwind_fpreg {
 };
 
 struct ia64_unwind_state {
+	LIST_ENTRY(ia64_unwind_state) us_link; /* free list */
+
 	/*
 	 * Current register state and location of saved register state
 	 */
@@ -115,6 +117,9 @@ struct ia64_unwind_state {
 
 static int ia64_unwind_initialised;
 static struct ia64_unwind_table_list ia64_unwind_tables;
+#define MAX_UNWIND_STATES 4
+static struct ia64_unwind_state ia64_unwind_state_static[MAX_UNWIND_STATES];
+static LIST_HEAD(ia64_unwind_state_list, ia64_unwind_state) ia64_unwind_states;
 
 struct ia64_unwind_table *
 ia64_add_unwind_table(u_int64_t *base, u_int64_t *start, u_int64_t *end)
@@ -122,7 +127,14 @@ ia64_add_unwind_table(u_int64_t *base, u_int64_t *start, u_int64_t *end)
 	struct ia64_unwind_table *ut;
 
 	if (!ia64_unwind_initialised) {
+		int i;
 		LIST_INIT(&ia64_unwind_tables);
+		LIST_INIT(&ia64_unwind_states);
+		for (i = 0; i < MAX_UNWIND_STATES; i++) {
+			LIST_INSERT_HEAD(&ia64_unwind_states,
+					 &ia64_unwind_state_static[i],
+					 us_link);
+		}
 		ia64_unwind_initialised = 1;
 	}
 
@@ -194,9 +206,15 @@ ia64_create_unwind_state(struct trapframe *framep)
 	if (!ia64_unwind_initialised)
 		return 0;
 
-	us = malloc(sizeof(struct ia64_unwind_state), M_UNWIND, M_NOWAIT);
-	if (!us)
-		return 0;
+	us = LIST_FIRST(&ia64_unwind_states);
+	if (us) {
+		LIST_REMOVE(us, us_link);
+	} else {
+		us = malloc(sizeof(struct ia64_unwind_state),
+			    M_UNWIND, M_NOWAIT);
+		if (!us)
+			return 0;
+	}
 
 	bzero(us, sizeof(*us));
 	us->us_regs.rs_psp.ur_value = framep->tf_r[FRAME_SP];
@@ -232,7 +250,7 @@ ia64_create_unwind_state(struct trapframe *framep)
 void
 ia64_free_unwind_state(struct ia64_unwind_state *us)
 {
-	free(us, M_UNWIND);
+	LIST_INSERT_HEAD(&ia64_unwind_states, us, us_link);
 }
 
 u_int64_t
