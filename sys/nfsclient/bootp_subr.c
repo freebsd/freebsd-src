@@ -155,17 +155,14 @@ struct bootpc_globalcontext {
 	struct bootpc_ifcontext *lastinterface;
 	u_int32_t xid;
 	int gotrootpath;
-	int gotswappath;
 	int gotgw;
 	int ifnum;
 	int secs;
 	int starttime;
 	struct bootp_packet reply;
 	int replylen;
-	struct bootpc_ifcontext *setswapfs;
 	struct bootpc_ifcontext *setrootfs;
 	struct bootpc_ifcontext *sethostname;
-	char lookup_path[24];
 	struct bootpc_tagcontext tmptag;
 	struct bootpc_tagcontext tag;
 };
@@ -220,9 +217,6 @@ SYSCTL_STRING(_kern, OID_AUTO, bootp_cookie, CTLFLAG_RD,
 /* mountd RPC */
 static int	md_mount(struct sockaddr_in *mdsin, char *path, u_char *fhp,
 		    int *fhsizep, struct nfs_args *args, struct thread *td);
-static int	md_lookup_swap(struct sockaddr_in *mdsin, char *path,
-		    u_char *fhp, int *fhsizep, struct nfs_args *args,
-		    struct thread *td);
 static int	setfs(struct sockaddr_in *addr, char *path, char *p);
 static int	getdec(char **ptr);
 static char	*substr(char *a, char *b);
@@ -1495,9 +1489,6 @@ bootpc_decode_reply(struct nfsv3_diskless *nd, struct bootpc_ifcontext *ifctx,
 	ifctx->myaddr.sin_addr = ifctx->reply.yiaddr;
 
 	ip = ntohl(ifctx->myaddr.sin_addr.s_addr);
-	snprintf(gctx->lookup_path, sizeof(gctx->lookup_path),
-		 "swap.%d.%d.%d.%d",
-		 ip >> 24, (ip >> 16) & 255, (ip >> 8) & 255, ip & 255);
 
 	printf("%s at ", ifctx->ireq.ifr_name);
 	print_sin_addr(&ifctx->myaddr);
@@ -1573,45 +1564,6 @@ bootpc_decode_reply(struct nfsv3_diskless *nd, struct bootpc_ifcontext *ifctx,
 			}
 		} else
 			panic("Failed to set rootfs to %s", p);
-	}
-
-	p = bootpc_tag(&gctx->tag, &ifctx->reply, ifctx->replylen,
-		       TAG_SWAP);
-	if (p != NULL) {
-		if (gctx->setswapfs != NULL) {
-			printf("swapfs %s (ignored) ", p);
-		} else 	if (setfs(&nd->swap_saddr,
-				  nd->swap_hostnam, p)) {
-			gctx->gotswappath = 1;
-			gctx->setswapfs = ifctx;
-			printf("swapfs %s ", p);
-
-			p = bootpc_tag(&gctx->tag, &ifctx->reply,
-				       ifctx->replylen,
-				       TAG_SWAPOPTS);
-			if (p != NULL) {
-				/* swap mount options */
-				mountopts(&nd->swap_args, p);
-				printf("swapopts %s ", p);
-			}
-
-			p = bootpc_tag(&gctx->tag, &ifctx->reply,
-				       ifctx->replylen,
-				       TAG_SWAPSIZE);
-			if (p != NULL) {
-				int swaplen;
-				if (gctx->tag.taglen != 4)
-					panic("bootpc: "
-					      "Expected 4 bytes for swaplen, "
-					      "not %d bytes",
-					      gctx->tag.taglen);
-				bcopy(p, &swaplen, 4);
-				nd->swap_nblks = ntohl(swaplen);
-				printf("swapsize %d KB ",
-				       nd->swap_nblks);
-			}
-		} else
-			panic("Failed to set swapfs to %s", p);
 	}
 
 	p = bootpc_tag(&gctx->tag, &ifctx->reply, ifctx->replylen,
@@ -1762,14 +1714,10 @@ bootpc_init(void)
 
 	mountopts(&nd->root_args, NULL);
 
-	mountopts(&nd->swap_args, NULL);
-
 	for (ifctx = gctx->interfaces; ifctx != NULL; ifctx = ifctx->next)
 		if (bootpc_ifctx_isresolved(ifctx) != 0)
 			bootpc_decode_reply(nd, ifctx, gctx);
 
-	if (gctx->gotswappath == 0)
-		nd->swap_nblks = 0;
 #ifdef BOOTP_NFSROOT
 	if (gctx->gotrootpath == 0)
 		panic("bootpc: No root path offered");
@@ -1802,24 +1750,6 @@ bootpc_init(void)
 		if (error != 0)
 			panic("nfs_boot: mountd root, error=%d", error);
 
-		if (gctx->gotswappath != 0) {
-
-			error = md_mount(&nd->swap_saddr,
-					 nd->swap_hostnam,
-					 nd->swap_fh, &nd->swap_fhsize,
-					 &nd->swap_args, td);
-			if (error != 0)
-				panic("nfs_boot: mountd swap, error=%d",
-				      error);
-
-			error = md_lookup_swap(&nd->swap_saddr,
-					       gctx->lookup_path,
-					       nd->swap_fh, &nd->swap_fhsize,
-					       &nd->swap_args, td);
-			if (error != 0)
-				panic("nfs_boot: lookup swap, error=%d",
-				      error);
-		}
 		nfs_diskless_valid = 3;
 	}
 
@@ -1926,99 +1856,6 @@ md_mount(struct sockaddr_in *mdsin, char *path, u_char *fhp, int *fhsizep,
 			     (args->flags &
 			      NFSMNT_NFSV3) ? NFS_VER3 : NFS_VER2,
 			     &mdsin->sin_port, td);
-
-	goto out;
-
-bad:
-	error = EBADRPC;
-
-out:
-	m_freem(m);
-	return error;
-}
-
-static int
-md_lookup_swap(struct sockaddr_in *mdsin, char *path, u_char *fhp, int *fhsizep,
-    struct nfs_args *args, struct thread *td)
-{
-	struct mbuf *m;
-	int error;
-	int size = -1;
-	int attribs_present;
-	int status;
-	union {
-		u_int32_t v2[17];
-		u_int32_t v3[21];
-	} fattribs;
-
-	m = m_get(M_TRYWAIT, MT_DATA);
-	if (m == NULL)
-	  	return ENOBUFS;
-
-	if ((args->flags & NFSMNT_NFSV3) != 0) {
-		*mtod(m, u_int32_t *) = txdr_unsigned(*fhsizep);
-		bcopy(fhp, mtod(m, u_char *) + sizeof(u_int32_t), *fhsizep);
-		m->m_len = *fhsizep + sizeof(u_int32_t);
-	} else {
-		bcopy(fhp, mtod(m, u_char *), NFSX_V2FH);
-		m->m_len = NFSX_V2FH;
-	}
-
-	m->m_next = xdr_string_encode(path, strlen(path));
-	if (m->m_next == NULL) {
-		error = ENOBUFS;
-		goto out;
-	}
-
-	/* Do RPC to nfsd. */
-	if ((args->flags & NFSMNT_NFSV3) != 0)
-		error = krpc_call(mdsin, NFS_PROG, NFS_VER3,
-				  NFSPROC_LOOKUP, &m, NULL, td);
-	else
-		error = krpc_call(mdsin, NFS_PROG, NFS_VER2,
-				  NFSV2PROC_LOOKUP, &m, NULL, td);
-	if (error != 0)
-		return error;	/* message already freed */
-
-	if (xdr_int_decode(&m, &status) != 0)
-		goto bad;
-	if (status != 0) {
-		error = ENOENT;
-		goto out;
-	}
-
-	if ((args->flags & NFSMNT_NFSV3) != 0) {
-		if (xdr_int_decode(&m, fhsizep) != 0 ||
-		    *fhsizep > NFSX_V3FHMAX ||
-		    *fhsizep <= 0)
-			goto bad;
-	} else
-		*fhsizep = NFSX_V2FH;
-
-	if (xdr_opaque_decode(&m, fhp, *fhsizep) != 0)
-		goto bad;
-
-	if ((args->flags & NFSMNT_NFSV3) != 0) {
-		if (xdr_int_decode(&m, &attribs_present) != 0)
-			goto bad;
-		if (attribs_present != 0) {
-			if (xdr_opaque_decode(&m, (u_char *) &fattribs.v3,
-					      sizeof(u_int32_t) * 21) != 0)
-				goto bad;
-			size = fxdr_unsigned(u_int32_t, fattribs.v3[6]);
-		}
-	} else {
-		if (xdr_opaque_decode(&m,(u_char *) &fattribs.v2,
-				      sizeof(u_int32_t) * 17) != 0)
-			goto bad;
-		size = fxdr_unsigned(u_int32_t, fattribs.v2[5]);
-	}
-
-	if (nfsv3_diskless.swap_nblks == 0 && size != -1) {
-		nfsv3_diskless.swap_nblks = size / 1024;
-		printf("md_lookup_swap: Swap size is %d KB\n",
-		       nfsv3_diskless.swap_nblks);
-	}
 
 	goto out;
 
