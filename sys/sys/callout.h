@@ -47,7 +47,7 @@
 SLIST_HEAD(callout_list, callout);
 TAILQ_HEAD(callout_tailq, callout);
 
-struct callout {
+struct	callout {
 	union {
 		SLIST_ENTRY(callout) sle;
 		TAILQ_ENTRY(callout) tqe;
@@ -63,16 +63,16 @@ struct callout {
 #define	CALLOUT_PENDING		0x0004 /* callout is waiting for timeout */
 #define	CALLOUT_MPSAFE		0x0008 /* callout handler is mp safe */
 
-struct callout_handle {
+struct	callout_handle {
 	struct callout *callout;
 };
 
 #ifdef _KERNEL
 extern struct callout_list callfree;
 extern struct callout *callout;
-extern int	ncallout;
+extern int ncallout;
 extern struct callout_tailq *callwheel;
-extern int	callwheelsize, callwheelbits, callwheelmask, softticks;
+extern int callwheelsize, callwheelbits, callwheelmask, softticks;
 extern struct mtx callout_lock;
 
 #define	callout_active(c)	((c)->c_flags & CALLOUT_ACTIVE)
