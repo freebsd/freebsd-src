@@ -37,7 +37,7 @@
  * $FreeBSD$
  */
 
-#include "quad.h"
+#include <libkern/quad.h>
 
 /*
  * Subtract two quad values.  This is trivial since a one-bit carry

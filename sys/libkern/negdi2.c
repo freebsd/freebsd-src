@@ -37,7 +37,7 @@
  * $FreeBSD$
  */
 
-#include "quad.h"
+#include <libkern/quad.h>
 
 /*
  * Return -a (or, equivalently, 0 - a), in quad.  See subdi3.c.
