@@ -396,19 +396,19 @@ nfs_bioread(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
 		error = VOP_GETATTR(vp, &vattr, cred, td);
 		if (error)
 			return (error);
-		np->n_mtime = vattr.va_mtime.tv_sec;
+		np->n_mtime = vattr.va_mtime;
 	} else {
 		error = VOP_GETATTR(vp, &vattr, cred, td);
 		if (error)
 			return (error);
 		if ((np->n_flag & NSIZECHANGED)
-		    || (np->n_mtime != vattr.va_mtime.tv_sec)) {
+		    || (NFS_TIMESPEC_COMPARE(&np->n_mtime, &vattr.va_mtime))) {
 			if (vp->v_type == VDIR)
 				(nmp->nm_rpcops->nr_invaldir)(vp);
 			error = nfs_vinvalbuf(vp, V_SAVE, cred, td, 1);
 			if (error)
 				return (error);
-			np->n_mtime = vattr.va_mtime.tv_sec;
+			np->n_mtime = vattr.va_mtime;
 			np->n_flag &= ~NSIZECHANGED;
 		}
 	}
@@ -1318,7 +1318,7 @@ nfs_doio(struct vnode *vp, struct buf *bp, struct ucred *cr, struct thread *td)
 		}
 		/* ASSERT_VOP_LOCKED(vp, "nfs_doio"); */
 		if (p && (vp->v_vflag & VV_TEXT) &&
-			(np->n_mtime != np->n_vattr.va_mtime.tv_sec)) {
+		    (NFS_TIMESPEC_COMPARE(&np->n_mtime, &np->n_vattr.va_mtime))) {
 			PROC_LOCK(p);
 			killproc(p, "text file modification");
 			PROC_UNLOCK(p);

@@ -1412,7 +1412,7 @@ nfs4_writerpc(struct vnode *vp, struct uio *uiop, struct ucred *cred,
 
 		/* XXX wccflag */
 		if (wccflag)
-			VTONFS(vp)->n_mtime = VTONFS(vp)->n_vattr.va_mtime.tv_sec;
+			VTONFS(vp)->n_mtime = VTONFS(vp)->n_vattr.va_mtime;
 
 		error = nfs_v4postop(&cp, error);
 
@@ -1994,7 +1994,7 @@ nfs4_readdir(struct vop_readdir_args *ap)
 	if (np->n_direofoffset > 0 && uio->uio_offset >= np->n_direofoffset &&
 	    (np->n_flag & NMODIFIED) == 0) {
 		if (VOP_GETATTR(vp, &vattr, ap->a_cred, uio->uio_td) == 0 &&
-			np->n_mtime == vattr.va_mtime.tv_sec) {
+			np->n_mtime.tv_sec == vattr.va_mtime.tv_sec) {
 			nfsstats.direofcache_hits++;
 			return (0);
 		}

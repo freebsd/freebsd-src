@@ -417,22 +417,22 @@ nfs_open(struct vop_open_args *ap)
 		error = VOP_GETATTR(vp, &vattr, ap->a_cred, ap->a_td);
 		if (error)
 			return (error);
-		np->n_mtime = vattr.va_mtime.tv_sec;
+		np->n_mtime = vattr.va_mtime;
 	} else {
+		np->n_attrstamp = 0;
 		error = VOP_GETATTR(vp, &vattr, ap->a_cred, ap->a_td);
 		if (error)
 			return (error);
-		if (np->n_mtime != vattr.va_mtime.tv_sec) {
+		if (NFS_TIMESPEC_COMPARE(&np->n_mtime, &vattr.va_mtime)) {
 			if (vp->v_type == VDIR)
 				np->n_direofoffset = 0;
 			error = nfs_vinvalbuf(vp, V_SAVE,
 				ap->a_cred, ap->a_td, 1);
 			if (error == EINTR || error == EIO)
 				return (error);
-			np->n_mtime = vattr.va_mtime.tv_sec;
+			np->n_mtime = vattr.va_mtime;
 		}
 	}
-	np->n_attrstamp = 0; /* For Open/Close consistency */
 	return (0);
 }
 
@@ -484,7 +484,6 @@ nfs_close(struct vop_close_args *ap)
 		vm_object_page_clean(vp->v_object, 0, 0, 0);
 		VM_OBJECT_UNLOCK(vp->v_object);
 	    }
-
 	    if (np->n_flag & NMODIFIED) {
 		if (NFS_ISV3(vp)) {
 		    /*
@@ -506,8 +505,14 @@ nfs_close(struct vop_close_args *ap)
 		} else {
 		    error = nfs_vinvalbuf(vp, V_SAVE, ap->a_cred, ap->a_td, 1);
 		}
-		np->n_attrstamp = 0;
 	    }
+ 	    /* 
+ 	     * Invalidate the attribute cache in all cases.
+ 	     * An open is going to fetch fresh attrs any way, other procs
+ 	     * on this node that have file open will be forced to do an 
+ 	     * otw attr fetch, but this is safe.
+ 	     */
+	    np->n_attrstamp = 0;
 	    if (np->n_flag & NWRITEERR) {
 		np->n_flag &= ~NWRITEERR;
 		error = np->n_error;
@@ -1153,7 +1158,7 @@ nfs_writerpc(struct vnode *vp, struct uio *uiop, struct ucred *cred,
 		} else
 		    nfsm_loadattr(vp, NULL);
 		if (wccflag)
-		    VTONFS(vp)->n_mtime = VTONFS(vp)->n_vattr.va_mtime.tv_sec;
+		    VTONFS(vp)->n_mtime = VTONFS(vp)->n_vattr.va_mtime;
 		m_freem(mrep);
 		if (error)
 			break;
@@ -1912,7 +1917,7 @@ nfs_readdir(struct vop_readdir_args *ap)
 	if (np->n_direofoffset > 0 && uio->uio_offset >= np->n_direofoffset &&
 	    (np->n_flag & NMODIFIED) == 0) {
 		if (VOP_GETATTR(vp, &vattr, ap->a_cred, uio->uio_td) == 0 &&
-			np->n_mtime == vattr.va_mtime.tv_sec) {
+		    !NFS_TIMESPEC_COMPARE(&np->n_mtime, &vattr.va_mtime)) {
 			nfsstats.direofcache_hits++;
 			return (0);
 		}

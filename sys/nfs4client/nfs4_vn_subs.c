@@ -98,10 +98,10 @@ nfs4_vnop_loadattrcache(struct vnode *vp, struct nfsv4_fattr *fap,
          */
         np = VTONFS(vp);
         vap = &np->n_vattr;
-        if (vp->v_type != vtyp || np->n_mtime == 0) {
+        if (vp->v_type != vtyp || np->n_mtime.tv_sec == 0) {
                 bzero(vap, sizeof *vap);
                 vp->v_type = vtyp;
-                np->n_mtime = mtime.tv_sec;
+                np->n_mtime.tv_sec = mtime.tv_sec;
         }
         vap->va_type = vtyp;
         vap->va_mode = (vmode & 07777);
