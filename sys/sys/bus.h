@@ -323,6 +323,7 @@ device_t	device_add_child_ordered(device_t dev, int order,
 					 const char *name, int unit);
 void	device_busy(device_t dev);
 int	device_delete_child(device_t dev, device_t child);
+int	device_attach(device_t dev);
 int	device_detach(device_t dev);
 void	device_disable(device_t dev);
 void	device_enable(device_t dev);
@@ -341,6 +342,8 @@ const	char *device_get_nameunit(device_t dev);
 void	*device_get_softc(device_t dev);
 device_state_t	device_get_state(device_t dev);
 int	device_get_unit(device_t dev);
+struct sysctl_ctx_list *device_get_sysctl_ctx(device_t dev);
+struct sysctl_oid *device_get_sysctl_tree(device_t dev);
 int	device_is_alive(device_t dev);	/* did probe succeed? */
 int	device_is_attached(device_t dev);	/* did attach succeed? */
 int	device_is_enabled(device_t dev);
