@@ -13,7 +13,7 @@
 # purpose.
 #
 
-#	$Id: btx.s,v 1.3 1998/09/15 13:26:23 rnordier Exp $
+#	$Id: btx.s,v 1.4 1998/10/03 14:33:06 rnordier Exp $
 
 #
 # Memory layout.
@@ -100,7 +100,7 @@ btx_hdr:	.byte 0xeb			# Machine ID
 		.byte 0xe			# Header size
 		.ascii "BTX"			# Magic
 		.byte 0x0			# Major version
-		.byte 0x55			# Minor version
+		.byte 0x56			# Minor version
 		.byte 0x0			# Flags
 		.word PAG_CNT-MEM_ORG>>0xc	# Paging control
 		.word break-start		# Text size
@@ -237,7 +237,7 @@ init.9:		pushb $0x0			#  general
 #
 # Exit routine.
 #
-exit:		cld				# String ops inc
+exit:		cli				# Disable interrupts
 		movl $MEM_ESP0,%esp		# Clear stack
 #
 # Turn off paging.
@@ -271,13 +271,11 @@ exit.2: 	xorl %eax,%eax			# Real mode segment
 		callwi(setpic)			#  IRQ offsets
 		lidtwm(ivtdesc) 		# Set IVT
 #
-# Prompt for reboot.
+# Reboot or await reset.
 #
 		sti				# Enable interrupts
-		movwir(prompt,_si)		# Display
-		callwi(puts16)			#  prompt
-		xorb %ah,%ah			# BIOS: Get
-		int $0x16			#  keypress
+		tstbim(0x1,btx_hdr+0x7)		# Reboot?
+exit.3:		jz exit.3			# No
 		int $0x19			# BIOS: Reboot
 #
 # Set IRQ offsets by reprogramming 8259A PICs.
@@ -304,16 +302,6 @@ setpic: 	inb $0x21,%al			# Save master
 		outb %al,$0xa1			#  IMR
 		popl %eax			# Restore master
 		outb %al,$0x21			#  IMR
-		ret				# To caller
-#
-# Display zero-terminated string [ESI] using BIOS.
-#
-puts16.0:	movwir(0x7,_bx) 		# Page:attribute
-		movb $0xe,%ah			# BIOS: Display
-		int $0x10			#  char
-puts16: 	lodsb				# Load char
-		testb %al,%al			# End of string?
-		jnz puts16.0			# No
 		ret				# To caller
 #
 # Initiate return from V86 mode to user mode.
@@ -737,7 +725,8 @@ intx30: 	cmpl $SYS_EXEC,%eax		# Exec system call?
 		movl %eax,%cr3			#  TLB
 		popl %eax			# Call
 		call *%eax			#  program
-intx30.1:	jmp exit			# Just exit
+intx30.1:	incb %ss:btx_hdr+0x7		# Flag reboot
+		jmp exit			# Exit
 #
 # Dump structure [EBX] to [EDI], using format string [ESI].
 #
@@ -904,7 +893,8 @@ idtctl: 	.byte 0x10,  0x8e		# Int 0x0-0xf
 #
 # Dump format string.
 #
-dmpfmt: 	.ascii "int"			# "int="
+dmpfmt: 	.byte '\n'			# "\n"
+		.ascii "int"			# "int="
 		.byte 0x80|DMP_X32,	   0x40 # "00000000  "
 		.ascii "err"			# "err="
 		.byte 0x80|DMP_X32,	   0x44 # "00000000  "
@@ -945,13 +935,9 @@ dmpfmt: 	.ascii "int"			# "int="
 		.byte 0x80|DMP_MEM|DMP_EOL,0x48 # "00 00 ... 00 00\n"
 		.ascii "ss:esp" 		# "ss:esp="
 		.byte 0x80|DMP_MEM|DMP_EOL,0x0	# "00 00 ... 00 00\n"
-		.byte 0x0			# End of string
+		.asciz "System halted"		# End
 #
-# Messages.
-#
-prompt: 	.asciz "Press ENTER to reboot"
-#
-# Start of user memory.
+# End of BTX memory.
 #
 		.p2align 4
 break:
