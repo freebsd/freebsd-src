@@ -39,6 +39,10 @@ export LOCALBASE=/nonexistentlocal
 export X11BASE=/nonexistentx
 export PKG_DBDIR=/nonexistentdb
 
+if [ "X${PKG_ARCH}" = "X" ]; then
+export PKG_ARCH=`uname -m`
+fi
+
 # usage: extract-names cd# [portsdir]
 extract-names()
 {
@@ -63,9 +67,9 @@ extract-names()
 ## Start of set for CDROM #1
 # This is the set required by sysinstall.
 CDROM_SET_1=""
-if [ "X`uname -m`" = "Xalpha" ]; then
+if [ "X${PKG_ARCH}" = "Xalpha" ]; then
 CDROM_SET_1="${CDROM_SET_1} emulators/osf1_base"
-else
+elif [ "X${PKG_ARCH}" = "Xi386" ]; then
 CDROM_SET_1="${CDROM_SET_1} emulators/linux_base"
 fi
 CDROM_SET_1="${CDROM_SET_1} lang/perl5"
@@ -120,10 +124,10 @@ CDROM_SET_1="${CDROM_SET_1} net/samba"
 CDROM_SET_1="${CDROM_SET_1} news/slrn"
 CDROM_SET_1="${CDROM_SET_1} news/tin"
 CDROM_SET_1="${CDROM_SET_1} print/a2ps-letter"
-if [ "X`uname -m`" = "Xalpha" ]; then
+if [ "X${PKG_ARCH}" = "Xalpha" ]; then
 CDROM_SET_1="${CDROM_SET_1} print/acroread4"
 fi
-if [ "X`uname -m`" = "Xi386" ]; then
+if [ "X${PKG_ARCH}" = "Xi386" ]; then
 CDROM_SET_1="${CDROM_SET_1} print/acroread5"
 fi
 CDROM_SET_1="${CDROM_SET_1} print/apsfilter"
@@ -137,6 +141,7 @@ CDROM_SET_1="${CDROM_SET_1} shells/pdksh"
 CDROM_SET_1="${CDROM_SET_1} shells/zsh"
 CDROM_SET_1="${CDROM_SET_1} sysutils/portupgrade"
 CDROM_SET_1="${CDROM_SET_1} www/lynx"
+CDROM_SET_1="${CDROM_SET_1} www/mozilla"
 CDROM_SET_1="${CDROM_SET_1} www/netscape-remote"
 CDROM_SET_1="${CDROM_SET_1} www/netscape-wrapper"
 CDROM_SET_1="${CDROM_SET_1} www/netscape48-communicator"
@@ -148,9 +153,13 @@ CDROM_SET_1="${CDROM_SET_1} x11/rxvt"
 CDROM_SET_1="${CDROM_SET_1} archivers/unzip"
 CDROM_SET_1="${CDROM_SET_1} devel/gmake"
 CDROM_SET_1="${CDROM_SET_1} graphics/png"
+if [ "X${PKG_ARCH}" = "Xi386" ]; then
 CDROM_SET_1="${CDROM_SET_1} misc/compat22"
+fi
+if [ "X${PKG_ARCH}" = "Xi386" -o "X${PKG_ARCH}" = "Xalpha" ]; then
 CDROM_SET_1="${CDROM_SET_1} misc/compat3x"
 CDROM_SET_1="${CDROM_SET_1} misc/compat4x"
+fi
 
 ## End of set for CDROM #1
 
