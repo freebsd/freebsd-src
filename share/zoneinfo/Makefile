@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile,v 1.6 1994/09/13 21:54:06 wollman Exp $
 
 NOBIN=
 CLEANFILES+=	yearistype
@@ -10,7 +10,7 @@ LEAPFILE=	/dev/null
 .endif
 
 TZFILES=	africa antarctica asia australasia etcetera europe \
-		factory northamerica pacificnew southamerica systemv
+		factory northamerica southamerica systemv
 POSIXRULES=	America/New_York
 
 .if defined(OLDTIMEZONES)
