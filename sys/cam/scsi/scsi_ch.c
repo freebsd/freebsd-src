@@ -225,7 +225,6 @@ static struct cdevsw ch_cdevsw = {
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* bmaj */	-1
 };
 
 static struct extend_array *chperiphs;

@@ -143,7 +143,6 @@ static struct cdevsw i4btrc_cdevsw = {
         /* dump */      nodump,
         /* psize */     nopsize,
         /* flags */     0,
-        /* bmaj */      -1
 };
 
 /*---------------------------------------------------------------------------*

@@ -252,7 +252,6 @@ static	d_open_t	wdopen;
 static	d_strategy_t	wdstrategy;
 
 #define CDEV_MAJOR 3
-#define BDEV_MAJOR 0
 
 static struct cdevsw wd_cdevsw = {
 	/* open */	wdopen,
@@ -268,7 +267,6 @@ static struct cdevsw wd_cdevsw = {
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	D_DISK,
-	/* bmaj */	BDEV_MAJOR
 };
 
 static struct cdevsw wddisk_cdevsw;

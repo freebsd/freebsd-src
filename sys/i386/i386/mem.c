@@ -89,7 +89,6 @@ static struct cdevsw mem_cdevsw = {
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	D_MEM,
-	/* bmaj */	-1
 };
 
 MALLOC_DEFINE(M_MEMDESC, "memdesc", "memory range descriptors");

@@ -87,7 +87,6 @@ static struct cdevsw pts_cdevsw = {
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	D_TTY | D_KQFILTER,
-	/* bmaj */	-1,
 	/* kqfilter */	ttykqfilter,
 };
 
@@ -106,7 +105,6 @@ static struct cdevsw ptc_cdevsw = {
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	D_TTY | D_KQFILTER,
-	/* bmaj */	-1,
 	/* kqfilter */	ttykqfilter,
 };
 

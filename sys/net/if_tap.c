@@ -109,7 +109,6 @@ static struct cdevsw	tap_cdevsw = {
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* bmaj */	-1
 };
 
 static int		taprefcnt = 0;		/* module ref. counter   */

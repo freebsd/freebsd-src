@@ -190,7 +190,6 @@ static struct cdevsw ses_cdevsw =
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* bmaj */	-1
 };
 static struct extend_array *sesperiphs;
 

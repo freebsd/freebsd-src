@@ -64,7 +64,6 @@ static struct cdevsw ar_cdevsw = {
 	/* dump */      nodump,
 	/* psize */     nopsize,
 	/* flags */     D_DISK,
-	/* bmaj */      -1
 };  
 static struct cdevsw ardisk_cdevsw;
 

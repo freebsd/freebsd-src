@@ -66,7 +66,6 @@ static struct cdevsw acd_cdevsw = {
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	D_DISK | D_TRACKCLOSE,
-	/* bmaj */	31
 };
 
 /* prototypes */

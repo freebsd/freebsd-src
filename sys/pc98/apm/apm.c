@@ -115,7 +115,6 @@ static struct cdevsw apm_cdevsw = {
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* bmaj */	-1
 };
 
 static int apm_suspend_delay = 1;

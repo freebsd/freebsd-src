@@ -57,7 +57,6 @@ static struct cdevsw xrpu_cdevsw = {
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* bmaj */	-1
 };
 
 static MALLOC_DEFINE(M_XRPU, "xrpu", "XRPU related");

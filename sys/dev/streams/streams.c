@@ -118,7 +118,6 @@ static struct cdevsw streams_cdevsw = {
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* bmaj */	-1
 };
  
 struct streams_softc {

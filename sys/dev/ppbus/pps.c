@@ -72,7 +72,6 @@ static struct cdevsw pps_cdevsw = {
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* bmaj */	-1
 };
 
 static void

@@ -117,7 +117,6 @@ static struct cdevsw tdfx_cdev = {
 	nodump,			/* dump */
 	nopsize,			/* size */
 	0,					/* flags (no set flags) */
-	-1 				/* bmaj (no block dev) */
 };
 
 static int

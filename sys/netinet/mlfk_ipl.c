@@ -114,7 +114,6 @@ static struct cdevsw ipl_cdevsw = {
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* bmaj */	-1
 };
 
 static int

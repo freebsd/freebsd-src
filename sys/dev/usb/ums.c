@@ -158,7 +158,6 @@ Static struct cdevsw ums_cdevsw = {
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* bmaj */	-1
 };
 
 USB_DECLARE_DRIVER(ums);

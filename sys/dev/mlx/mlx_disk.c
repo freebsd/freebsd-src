@@ -58,7 +58,6 @@ static	d_close_t	mlxd_close;
 static	d_strategy_t	mlxd_strategy;
 static	d_ioctl_t	mlxd_ioctl;
 
-#define MLXD_BDEV_MAJOR	27
 #define MLXD_CDEV_MAJOR	131
 
 static struct cdevsw mlxd_cdevsw = {
@@ -75,7 +74,6 @@ static struct cdevsw mlxd_cdevsw = {
 		/* dump */	nodump,
 		/* psize */ 	nopsize,
 		/* flags */	D_DISK,
-		/* bmaj */	MLXD_BDEV_MAJOR
 };
 
 devclass_t		mlxd_devclass;

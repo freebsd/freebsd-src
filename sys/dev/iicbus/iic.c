@@ -103,7 +103,6 @@ static struct cdevsw iic_cdevsw = {
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* bmaj */	-1
 };
 
 /*
