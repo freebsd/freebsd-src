@@ -106,7 +106,7 @@ display()
 				(void)printf(pr->fmt, (quad_t)eaddress);
 				break;
 			case F_TEXT:
-				(void)printf(pr->fmt);
+				(void)printf("%s", pr->fmt);
 				break;
 			}
 	}
