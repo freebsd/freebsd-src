@@ -91,7 +91,7 @@ an interrupt.
 These signals are defined in the file
 .Aq Pa signal.h :
 .Bl -column SIGVTALARMXX "create core imagexxx"
-.It Sy Name	Default Action	Description
+.It Sy "Name	Default Action	Description"
 .It Dv SIGHUP Ta "terminate process" Ta "terminal line hangup"
 .It Dv SIGINT Ta "terminate process" Ta "interrupt program"
 .It Dv SIGQUIT Ta "create core image" Ta "quit program"
@@ -218,6 +218,7 @@ An attempt is made to ignore or supply a handler for
 .Dv SIGKILL
 or
 .Ev SIGSTOP .
+.El
 .Sh SEE ALSO
 .Xr kill 1 ,
 .Xr kill 2 ,

@@ -51,7 +51,7 @@ The
 system call performs some control operations on the message queue specified
 by
 .Fa msqid .
-
+.Pp
 Each message queue has a data structure associated with it, parts of which
 may be altered by
 .Fn msgctl
@@ -139,7 +139,6 @@ Values for
 that exceed the system limit (MSGMNB from
 .Aq Pa sys/msg.h )
 are silently truncated to that limit.
-
 .It Dv IPC_RMID
 Remove the message queue specified by
 .Fa msqid
@@ -151,7 +150,7 @@ or
 .Va msg_perm.uid
 values in the data structure associated with the queue can do this.
 .El
-
+.Pp
 The permission to read from or write to a message queue (see
 .Xr msgsnd 3
 and
@@ -188,7 +187,7 @@ the effective uid match either the
 or
 .Va msg_perm.cuid
 fields of the data structure associated with the message queue.
-
+.Pp
 An attempt is made to increase the value of
 .Va msg_qbytes
 through IPC_SET
@@ -199,7 +198,7 @@ and the caller has no read permission for this message queue.
 .It Bq Er EINVAL
 .Fa msqid
 is not a valid message queue identifier.
-
+.Pp
 .Va cmd
 is not a valid command.
 .It Bq Er EFAULT

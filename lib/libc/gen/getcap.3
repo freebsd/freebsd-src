@@ -429,6 +429,7 @@ does not exist
 .It Em name No \&=@ Ta "the string capability"
 .Em name
 does not exist
+.Sm on
 .El
 .Pp
 Numeric capability values may be given in one of three numeric bases.
@@ -522,7 +523,7 @@ No memory to allocate.
 Colons (`:') can't be used in names, types, or values.
 .Pp
 There are no checks for
-.Ic tc= name
+.Ic tc Ns = Ns Ic name
 loops in
 .Fn cgetent .
 .Pp

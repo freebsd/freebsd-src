@@ -80,7 +80,6 @@
 .Fn ftpGetURLAf "char *url" "int af" "char *user" "char *passwd" "int *retcode"
 .Ft FILE *
 .Fn ftpPutURLAf "char *url" "int af" "char *user" "char *passwd" "int *retcode"
-
 .Sh DESCRIPTION
 These functions implement a high-level library for managing FTP connections.
 .Pp
@@ -206,7 +205,7 @@ are same as
 except that they are able to specify address family
 .Fa af .
 .Sh ENVIRONMENT
-.Bl -tag -width FTP_PASSIVE_MODE -offset 123
+.Bl -tag -width FTP_PASSIVE_MODE -offset 3n
 .It Ev FTP_TIMEOUT
 Maximum time, in seconds, to wait for a response
 from the peer before aborting an 

@@ -109,7 +109,7 @@ has several return codes that must be handled properly.  They are:
 .Bl -tag -width UNVIS_VALIDPUSH
 .It Li \&0 (zero)
 Another character is necessary; nothing has been recognized yet.
-.It Dv  UNVIS_VALID	
+.It Dv  UNVIS_VALID
 A valid character has been recognized and is available at the location
 pointed to by cp.
 .It Dv  UNVIS_VALIDPUSH
@@ -149,7 +149,7 @@ again:
 		(void) putchar(out);
 		goto again;
 	case UNVIS_SYNBAD:
-		(void)fprintf(stderr, "bad sequence!\n");
+		(void)fprintf(stderr, "bad sequence!\en");
 	exit(1);
 	}
 }
