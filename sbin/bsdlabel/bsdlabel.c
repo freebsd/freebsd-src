@@ -1625,8 +1625,6 @@ getvirginlabel(void)
 	return (NULL);
     out:
 	close(f);
-	lab.d_boot0 = NULL;
-	lab.d_boot1 = NULL;
 	return (&lab);
 }
 
