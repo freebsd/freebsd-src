@@ -75,6 +75,10 @@
 # endif
 #endif
 
+#ifdef aix
+#  include "cf/aix.h"
+#endif
+
 #ifdef bsdi
 #  include "cf/bsdos.h"
 #endif
@@ -115,12 +119,16 @@
 #  include "cf/cygwin32.h"
 #endif
 
-#ifdef NeXT
-# ifdef __APPLE__
-#  include "cf/rhapsody.h"
-# else
+#ifdef __APPLE__
+# include "cf/rhapsody.h"
+#else
+# if defined (NeXT)
 #  include "cf/nextstep.h"
 # endif
+#endif
+
+#if defined(IRIX) || defined(__sgi)
+# include "cf/irix.h"
 #endif
 
 #if !defined (TIME_MAX)
@@ -247,6 +255,26 @@
 # define HAVE_ARPHRD_LOOPBACK
 #endif
 
+#if defined (ARPHRD_ROSE) && !defined (HAVE_ARPHRD_ROSE)
+# define HAVE_ARPHRD_ROSE
+#endif
+
+#if defined (ARPHRD_IEEE802) && !defined (HAVE_ARPHRD_IEEE802)
+# define HAVE_ARPHRD_IEEE802
+#endif
+
+#if defined (ARPHRD_FDDI) && !defined (HAVE_ARPHRD_FDDI)
+# define HAVE_ARPHRD_FDDI
+#endif
+
+#if defined (ARPHRD_AX25) && !defined (HAVE_ARPHRD_AX25)
+# define HAVE_ARPHRD_AX25
+#endif
+
+#if defined (ARPHRD_NETROM) && !defined (HAVE_ARPHRD_NETROM)
+# define HAVE_ARPHRD_NETROM
+#endif
+
 #if defined (ARPHRD_METRICOM) && !defined (HAVE_ARPHRD_METRICOM)
 # define HAVE_ARPHRD_METRICOM
 #endif
@@ -262,4 +290,3 @@
 #if defined (AF_LINK) && !defined (HAVE_AF_LINK)
 # define HAVE_AF_LINK
 #endif
-

@@ -103,9 +103,9 @@ enclosed in double quotes, or a series of octets specified in
 hexadecimal, seperated by colons.   For example:
 .nf
 .sp 1
-	option client-identifier "CLIENT-FOO";
+	option dhcp-client-identifier "CLIENT-FOO";
 or
-	option client-identifier 43:4c:49:45:54:2d:46:4f:4f;
+	option dhcp-client-identifier 43:4c:49:45:54:2d:46:4f:4f;
 .fi
 .PP
 The documentation for the various options mentioned below is taken
@@ -568,6 +568,115 @@ should be listed in order of preference.
 This option can be used to specify the a DHCP client identifier in a
 host declaration, so that dhcpd can find the host record by matching
 against the client identifier.
+.RE
+.B option \fBnisplus-domain\fR \fIstring\fR\fB;\fR
+.RS 0.25i
+.PP
+This option specifies the name of the client's NIS+ domain.  The
+domain is formatted as a character string consisting of characters
+from the NVT ASCII character set.
+.RE
+.B option \fBnisplus-servers\fR \fIip-address\fR [\fB,\fR \fIip-address\fR...
+]\fB;\fR
+.RS 0.25i
+.PP
+This option specifies a list of IP addresses indicating NIS+ servers
+available to the client.  Servers should be listed in order of
+preference.
+.RE
+.PP
+.B option \fBtftp-server-name\fR \fIstring\fR\fB;\fR
+.RS 0.25i
+.PP
+This option is used to identify a TFTP server and, if supported by the
+client, should have the same effect as the \fBserver-name\fR
+declaration.   BOOTP clients are unlikely to support this option.
+Some DHCP clients will support it, and others actually require it.
+.RE
+.PP
+.B option \fBbootfile-name\fR \fIstring\fR\fB;\fR
+.RS 0.25i
+.PP
+This option is used to identify a bootstrap file.  If supported by the
+client, it should have the same effect as the \fBfilename\fR
+declaration.  BOOTP clients are unlikely to support this option.  Some
+DHCP clients will support it, and others actually require it.
+.RE
+.PP
+.B option \fBmobile-ip-home-agent\fR \fIip-address\fR [\fB,\fR
+\fIip-address\fR... ]\fB;\fR
+.RS 0.25i
+.PP
+This option specifies a list of IP addresses indicating mobile IP
+home agents available to the client.  Agents should be listed in
+order of preference, although normally there will be only one such
+agent.
+.RE
+.PP
+.B option \fBsmtp-server\fR \fIip-address\fR [\fB,\fR
+\fIip-address\fR... ]\fB;\fR
+.RS 0.25i
+.PP
+The SMTP server option specifies a list of SMTP servers available to
+the client.  Servers should be listed in order of preference.
+.RE
+.PP
+.B option \fBpop-server\fR \fIip-address\fR [\fB,\fR
+\fIip-address\fR... ]\fB;\fR
+.RS 0.25i
+.PP
+The POP3 server option specifies a list of POP3 available to the
+client.  Servers should be listed in order of preference.
+.RE
+.PP
+.B option \fBnntp-server\fR \fIip-address\fR [\fB,\fR
+\fIip-address\fR... ]\fB;\fR
+.RS 0.25i
+.PP
+The NNTP server option specifies a list of NNTP available to the
+client.  Servers should be listed in order of preference.
+.RE
+.PP
+.B option \fBwww-server\fR \fIip-address\fR [\fB,\fR
+\fIip-address\fR... ]\fB;\fR
+.RS 0.25i
+.PP
+The WWW server option specifies a list of WWW available to the
+client.  Servers should be listed in order of preference.
+.RE
+.PP
+.B option \fBfinger-server\fR \fIip-address\fR [\fB,\fR
+\fIip-address\fR... ]\fB;\fR
+.RS 0.25i
+.PP
+The Finger server option specifies a list of Finger available to the
+client.  Servers should be listed in order of preference.
+.RE
+.PP
+.B option \fBirc-server\fR \fIip-address\fR [\fB,\fR
+\fIip-address\fR... ]\fB;\fR
+.RS 0.25i
+.PP
+The IRC server option specifies a list of IRC available to the
+client.  Servers should be listed in order of preference.
+.RE
+.PP
+.B option \fBstreettalk-server\fR \fIip-address\fR [\fB,\fR
+\fIip-address\fR... ]\fB;\fR
+.RS 0.25i
+.PP
+The StreetTalk server option specifies a list of StreetTalk servers
+available to the client.  Servers should be listed in order of
+preference.
+.RE
+.PP
+.B option \fBstreetalk-directory-assistance-server\fR \fIip-address\fR [\fB,\fR
+\fIip-address\fR... ]\fB;\fR
+.RS 0.25i
+.PP
+The StreetTalk Directory Assistance (STDA) server option specifies a
+list of STDA servers available to the client.  Servers should be
+listed in order of preference.
 .RE
 .SH SEE ALSO
 dhcpd.conf(5), dhcpd.leases(5), dhclient.conf(5), dhcpd(8),
