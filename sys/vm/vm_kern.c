@@ -424,6 +424,11 @@ retry:
 		panic("kmem_malloc: entry not found or misaligned");
 	entry->wired_count = 1;
 
+	/*
+	 * At this point, the kmem_object must be unlocked because
+	 * vm_map_simplify_entry() calls vm_object_deallocate(), which
+	 * locks the kmem_object.
+	 */
 	vm_map_simplify_entry(map, entry);
 
 	/*
@@ -431,10 +436,9 @@ retry:
 	 * the wired count without wrapping the vm_page_queue_lock in
 	 * splimp...)
 	 */
+	VM_OBJECT_LOCK(kmem_object);
 	for (i = 0; i < size; i += PAGE_SIZE) {
-		VM_OBJECT_LOCK(kmem_object);
 		m = vm_page_lookup(kmem_object, OFF_TO_IDX(offset + i));
-		VM_OBJECT_UNLOCK(kmem_object);
 		/*
 		 * Because this is kernel_pmap, this call will not block.
 		 */
@@ -444,6 +448,7 @@ retry:
 		vm_page_wakeup(m);
 		vm_page_unlock_queues();
 	}
+	VM_OBJECT_UNLOCK(kmem_object);
 	vm_map_unlock(map);
 
 	return (addr);
