@@ -306,12 +306,6 @@ acpi_machdep_init(device_t dev)
 	acpi_dev = dev;
 	sc = device_get_softc(acpi_dev);
 
-	/*
-	 * XXX: Prevent the PnP BIOS code from interfering with
-	 * our own scan of ISA devices.
-	 */
-	PnPBIOStable = NULL;
-
 	acpi_capm_init(sc);
 
 	acpi_install_wakeup_handler(sc);
