@@ -32,6 +32,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ *		$Id$
  */
 
 #ifndef lint
@@ -61,6 +63,7 @@ static char sccsid[] = "@(#)init.c	8.1 (Berkeley) 7/15/93";
 #include <ttyent.h>
 #include <unistd.h>
 #include <sys/reboot.h>
+#include <err.h>
 
 #ifdef __STDC__
 #include <stdarg.h>
@@ -195,16 +198,12 @@ main(argc, argv)
 
 
 	/* Dispose of random users. */
-	if (getuid() != 0) {
-		(void)fprintf(stderr, "init: %s\n", strerror(EPERM));
-		exit (1);
-	}
+	if (getuid() != 0)
+		errx(1, "%s", strerror(EPERM));
 
 	/* System V users like to reexec init. */
-	if (getpid() != 1) {
-		(void)fprintf(stderr, "init: already running\n");
-		exit (1);
-	}
+	if (getpid() != 1)
+		errx(1, "already running");
 
 	/*
 	 * Note that this does NOT open a file...
