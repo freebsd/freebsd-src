@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: parseaddr.c,v 8.359.2.2 2002/08/16 14:56:01 ca Exp $")
+SM_RCSID("@(#)$Id: parseaddr.c,v 8.359.2.3 2002/09/26 23:03:39 gshapiro Exp $")
 
 static void	allocaddr __P((ADDRESS *, int, char *, ENVELOPE *));
 static int	callsubr __P((char**, int, ENVELOPE *));
@@ -2086,6 +2086,7 @@ badaddr:
 	}
 	return a;
 }
+
 /*
 **  CATADDR -- concatenate pieces of addresses (putting in <LWSP> subs)
 **

@@ -6,7 +6,7 @@
  * forth in the LICENSE file which can be found at the top level of
  * the sendmail distribution.
  *
- *	$Id: smdb.h,v 8.40 2002/05/24 23:20:14 gshapiro Exp $
+ *	$Id: smdb.h,v 8.40.2.1 2002/10/05 17:04:51 ca Exp $
  *
  */
 
@@ -23,10 +23,7 @@
 # endif /* NDBM */
 
 # ifdef NEWDB
-#  include <db.h>
-#  ifndef DB_VERSION_MAJOR
-#   define DB_VERSION_MAJOR 1
-#  endif /* ! DB_VERSION_MAJOR */
+#  include "sm/bdb.h"
 # endif /* NEWDB */
 
 /*
