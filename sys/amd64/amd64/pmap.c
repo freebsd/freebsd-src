@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.36 1994/09/16 13:33:26 davidg Exp $
+ *	$Id: pmap.c,v 1.37 1994/10/08 22:19:49 phk Exp $
  */
 
 /*
@@ -1475,7 +1475,7 @@ pmap_object_init_pt(pmap, addr, object, offset, size)
 				continue;
 			}
 			
-			if ((p->flags & (PG_BUSY|PG_FICTITIOUS)) == 0 ) {
+			if ((p->flags & (PG_BUSY|PG_FICTITIOUS|PG_FAKE)) == 0 ) {
 				vm_page_hold(p);
 				v = i386_trunc_page(((vm_offset_t)vtopte( addr+tmpoff)));
 				/* a fault might occur here */
@@ -1493,7 +1493,7 @@ pmap_object_init_pt(pmap, addr, object, offset, size)
 		for(tmpoff = 0; tmpoff < size; tmpoff += NBPG) {
 			p = vm_page_lookup(object, tmpoff + offset);
 			if (p) {
-				if( (p->flags & (PG_BUSY|PG_FICTITIOUS)) == 0) {
+				if( (p->flags & (PG_BUSY|PG_FICTITIOUS|PG_FAKE)) == 0) {
 					vm_page_hold(p);
 					v = i386_trunc_page(((vm_offset_t)vtopte( addr+tmpoff)));
 					/* a fault might occur here */
