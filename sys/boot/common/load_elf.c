@@ -212,10 +212,7 @@ elf_loadimage(struct loaded_module *mp, int fd, vm_offset_t off,
     vm_offset_t	ssym, esym;
     Elf_Dyn	*dp;
     int		ndp;
-    int		deplen;
-    char	*depdata;
     char	*s;
-    int		len;
     char	*strtab;
     size_t	strsz;
     int		symstrindex;
@@ -450,7 +447,6 @@ nosyms:
 	goto out;
     strtab = NULL;
     strsz = 0;
-    deplen = 0;
     for (i = 0; i < ndp; i++) {
 	if (dp[i].d_tag == NULL)
 	    break;
@@ -468,44 +464,17 @@ nosyms:
     if (strtab == NULL || strsz == 0)
 	goto out;
 
-    deplen = 0;
     for (i = 0; i < ndp; i++) {
 	if (dp[i].d_tag == NULL)
 	    break;
-	switch (dp[i].d_tag) {
-	case DT_NEEDED:		/* count size for dependency list */
-	    j = dp[i].d_un.d_ptr;
-	    if (j < 1 || j > (strsz - 2))
-		continue;	/* bad symbol name index */
-	    deplen += strlenout((vm_offset_t)&strtab[j]) + 1;
-	    break;
-	default:
-	    break;
-	}
-    }
-
-    if (deplen > 0) {
-	depdata = malloc(deplen);
-	if (depdata == NULL)
-	    goto out;
-	s = depdata;
-	for (i = 0; i < ndp; i++) {
-	    if (dp[i].d_tag == NULL)
-		break;
-	    switch (dp[i].d_tag) {
-	    case DT_NEEDED:	/* dependency list */
-		j = dp[i].d_un.d_ptr;
-	    	len = strlenout((vm_offset_t)&strtab[j]) + 1;
-		archsw.arch_copyout((vm_offset_t)&strtab[j], s, len);
-		s += len;
-		break;
-	    default:
-		break;
-	    }
-	}
-	if ((s - depdata) > 0)
-	    mod_addmetadata(mp, MODINFOMD_DEPLIST, s - depdata, depdata);
-	free(depdata);
+	if (dp[i].d_tag != DT_NEEDED)
+	    continue;
+	j = dp[i].d_un.d_ptr;
+	if (j < 1 || j > (strsz - 2))
+	    continue;	/* bad symbol name index */
+	s = strdupout((vm_offset_t)&strtab[j]);
+	mod_addmetadata(mp, MODINFOMD_DEPLIST, strlen(s) + 1, s);
+	free(s);
     }
 
 out:
