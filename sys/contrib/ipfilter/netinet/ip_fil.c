@@ -491,7 +491,7 @@ int mode;
 	int error = 0, unit = 0, tmp;
 
 #if (BSD >= 199306) && defined(_KERNEL)
-	if ((securelevel >= 2) && (mode & FWRITE))
+	if ((securelevel >= 3) && (mode & FWRITE))
 		return EPERM;
 #endif
 #ifdef	_KERNEL
