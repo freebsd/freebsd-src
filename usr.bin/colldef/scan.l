@@ -35,13 +35,12 @@
 #include <string.h>
 #include <sysexits.h>
 #include "collate.h"
+#include "common.h"
 #include "y.tab.h"
 
 int line_no = 1, save_no, fromsubs;
 u_char buf[STR_LEN], *ptr;
 FILE *map_fp;
-extern char map_name[];
-extern u_char charmap_table[UCHAR_MAX + 1][STR_LEN];
 YY_BUFFER_STATE main_buf, map_buf;
 #ifdef FLEX_DEBUG
 YYSTYPE yylval;
