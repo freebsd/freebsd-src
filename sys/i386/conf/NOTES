@@ -4,7 +4,7 @@
 #
 #	This kernel is NOT MEANT to be runnable!
 #
-#	$Id: LINT,v 1.38 1994/01/09 13:30:49 ats Exp $
+#	$Id: LINT,v 1.39 1994/01/10 18:53:52 ats Exp $
 #
 
 machine		"i386"
@@ -98,9 +98,14 @@ pseudo-device	vnodepager
 #This is needed here so the isa? below will work
 controller	isa0
 
+# driver for the Adaptec 154x SCSI cards.
 controller	aha0	at isa? port "IO_AHA0" bio irq 11 drq 5 vector ahaintr
+# driver for the Adaptec 174x SCSI cards.
 controller	ahb0	at isa? bio irq 11 vector ahbintr
+# driver for the Bustek 742.
 controller	bt0	at isa? port "IO_BT0" bio irq 12  vector btintr
+# driver for the Seagate ST01/ST02 card, not yet finished.
+controller	sg0	at isa? bio irq 5 iomem 0xc8000 iosiz 0x2000 vector sgintr
 device		com0	at isa? port "IO_COM1" tty irq 4 vector comintr
 device		com1	at isa? port "IO_COM2" tty irq 3 vector comintr
 device		com2	at isa? port "IO_COM3" tty irq 5 vector comintr
@@ -109,8 +114,12 @@ device		com3	at isa? port "IO_COM4" tty irq 9 vector comintr
 controller	fd0	at isa? port "IO_FD1" bio irq 6 drq 2 vector fdintr
 disk		fd0	at fd0 drive 0
 disk		fd1	at fd0 drive 1
+# driver for the Western Digital and SMCC WD80xx cards, for the Novell
+# NE1000/200 card and the 3COM 3C503 card.
 device ed0 at isa? port 0x280 net irq 5 iomem 0xd8000 vector edintr
+# driver for the AT&T Starlan card.
 device ie0 at isa? port 0x360 net irq 7 iomem 0xd0000 vector ieintr
+#driver for the Isolan AT 4114-0 and the Isolink 4110 ethernet card.
 device is0 at isa? port 0x280 net irq 10 drq 7 vector isintr
 #device ix0 at isa? port 0x320 net irq 10 iomem 0xd0000 iosiz 32768 vector ixintr
 # driver for the Etherlink III ( 3C509 ) card, beta version.
