@@ -4,7 +4,6 @@ SUN4U			opt_global.h
 
 EBUS_DEBUG		opt_ebus.h
 PSYCHO_DEBUG		opt_psycho.h
-PSYCHO_STRAY		opt_psycho.h
 DEBUGGER_ON_POWERFAIL	opt_psycho.h
 OFW_PCI_DEBUG		opt_ofw_pci.h
 # Normal IOMMU debugging
