@@ -67,7 +67,7 @@ static char sccsid[] = "@(#)ftpcmd.y	8.3 (Berkeley) 4/6/94";
 
 #include "extern.h"
 
-extern	struct sockaddr_in data_dest;
+extern	struct sockaddr_in data_dest, his_addr;
 extern	int logged_in;
 extern	struct passwd *pw;
 extern	int guest;
@@ -149,18 +149,35 @@ cmd
 			pass($3);
 			free($3);
 		}
-	| PORT SP host_port CRLF
+	| PORT check_login SP host_port CRLF
 		{
-			usedefault = 0;
-			if (pdata >= 0) {
-				(void) close(pdata);
-				pdata = -1;
+			if ($2) {
+#ifdef PARANOID
+				if ((ntohs(data_dest.sin_port) <
+				     IPPORT_RESERVED) ||
+				    memcmp(&data_dest.sin_addr,
+					   &his_addr.sin_addr,
+					   sizeof(data_dest.sin_addr)))
+				{
+					usedefault = 1;
+					reply(500,
+					      "Illegal PORT range rejected.");
+				} else
+#endif
+				{
+					usedefault = 0;
+					if (pdata >= 0) {
+						(void) close(pdata);
+						pdata = -1;
+					}
+					reply(200, "PORT command successful.");
+				}
 			}
-			reply(200, "PORT command successful.");
 		}
-	| PASV CRLF
+	| PASV check_login CRLF
 		{
-			passive();
+			if ($2)
+				passive();
 		}
 	| TYPE SP type_code CRLF
 		{
@@ -292,16 +309,18 @@ cmd
 			if ($4 != NULL)
 				free($4);
 		}
-	| RNTO SP pathname CRLF
+	| RNTO check_login SP pathname CRLF
 		{
-			if (fromname) {
-				renamecmd(fromname, $3);
-				free(fromname);
-				fromname = (char *) 0;
-			} else {
-				reply(503, "Bad sequence of commands.");
+			if ($2) {
+				if (fromname) {
+					renamecmd(fromname, $4);
+					free(fromname);
+					fromname = (char *) 0;
+				} else {
+					reply(503, "Bad sequence of commands.");
+				}
 			}
-			free($3);
+			free($4);
 		}
 	| ABOR CRLF
 		{

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ftpd.c,v 1.16 1996/04/11 10:22:16 davidg Exp $
+ *	$Id: ftpd.c,v 1.17 1996/05/31 03:10:25 peter Exp $
  */
 
 #ifndef lint
@@ -202,6 +202,9 @@ static struct passwd *
 		 sgetpwnam __P((char *));
 static char	*sgetsave __P((char *));
 static void	 reapchild __P((int));
+#ifdef  STATS
+static void      logxfer __P((char *, long, long));
+#endif
 
 static char *
 curdir()
@@ -380,7 +383,7 @@ main(argc, argv, envp)
 		syslog(LOG_ERR, "signal: %m");
 
 #ifdef SKEY
-	strcpy(addr_string, inet_ntoa(his_addr.sin_addr));
+	strncpy(addr_string, inet_ntoa(his_addr.sin_addr), sizeof(addr_string));
 #endif
 	addrlen = sizeof(ctrl_addr);
 	if (getsockname(0, (struct sockaddr *)&ctrl_addr, &addrlen) < 0) {
@@ -739,7 +742,10 @@ pass(passwd)
 
 		if (ident != NULL)
 			free(ident);
-		ident = (char *) copy(passwd);
+		ident = strdup(passwd);
+		if (ident == NULL)
+			fatal("Ran out of memory.");
+
 #endif
 		reply(230, "Guest login ok, access restrictions apply.");
 #ifdef SETPROCTITLE
@@ -836,7 +842,7 @@ retrieve(cmd, name)
 		  restart_point == 0 && cmd == 0 && S_ISREG(st.st_mode));
 #ifdef STATS
 	if (cmd == 0 && guest && stats)
-		logxfer( name, st.st_size, start);
+		logxfer(name, st.st_size, start);
 #endif
 	(void) fclose(dout);
 	data = -1;
@@ -856,7 +862,7 @@ store(name, mode, unique)
 	struct stat st;
 	int (*closefunc) __P((FILE *));
 
-	if (unique && stat(name, &st) == 0 &&
+	if ((unique || guest) && stat(name, &st) == 0 &&
 	    (name = gunique(name)) == NULL) {
 		LOGCMD(*mode == 'w' ? "put" : "append", name);
 		return;
@@ -1181,7 +1187,7 @@ receive_data(instr, outstr)
 	FILE *instr, *outstr;
 {
 	int c;
-	int cnt, bare_lfs = 0;
+	int cnt, bare_lfs;
 	char buf[BUFSIZ];
 
 	transflag++;
@@ -1189,6 +1195,9 @@ receive_data(instr, outstr)
 		transflag = 0;
 		return (-1);
 	}
+
+	bare_lfs = 0;
+
 	switch (type) {
 
 	case TYPE_I:
@@ -1521,8 +1530,15 @@ void
 renamecmd(from, to)
 	char *from, *to;
 {
+	struct stat st;
 
 	LOGCMD2("rename", from, to);
+
+	if (guest && (stat(to, &st) == 0)) {
+		reply(550, "%s: permission denied", to);
+		return;
+	}
+
 	if (rename(from, to) < 0)
 		perror_reply(550, "rename");
 	else
@@ -1607,35 +1623,31 @@ void
 passive()
 {
 	int len, on;
-	u_short port;
 	char *p, *a;
 
-	if (pw == NULL) {
-		reply(530, "Please login with USER and PASS");
-		return;
-	}
+	if (pdata >= 0)		/* close old port if one set */
+		close(pdata);
+
 	pdata = socket(AF_INET, SOCK_STREAM, 0);
 	if (pdata < 0) {
 		perror_reply(425, "Can't open passive connection");
 		return;
 	}
 
-	on = restricted_data_ports ? IP_PORTRANGE_HIGH : IP_PORTRANGE_DEFAULT;
 	(void) seteuid((uid_t)0);
+
+	on = restricted_data_ports ? IP_PORTRANGE_HIGH : IP_PORTRANGE_DEFAULT;
 	if (setsockopt(pdata, IPPROTO_IP, IP_PORTRANGE,
 			(char *)&on, sizeof(on)) < 0) {
-		(void) seteuid((uid_t)pw->pw_uid);
 		goto pasv_error;
 	}
 
 	pasv_addr = ctrl_addr;
 	pasv_addr.sin_port = 0;
-	(void) seteuid((uid_t)0);
 	if (bind(pdata, (struct sockaddr *)&pasv_addr,
-		 sizeof(pasv_addr)) < 0) {
-		(void) seteuid((uid_t)pw->pw_uid);
+		 sizeof(pasv_addr)) < 0)
 		goto pasv_error;
-	}
+
 	(void) seteuid((uid_t)pw->pw_uid);
 
 	len = sizeof(pasv_addr);
@@ -1653,6 +1665,7 @@ passive()
 	return;
 
 pasv_error:
+	(void) seteuid((uid_t)pw->pw_uid);
 	(void) close(pdata);
 	pdata = -1;
 	perror_reply(425, "Can't open passive connection");
@@ -1682,7 +1695,7 @@ gunique(local)
 	}
 	if (cp)
 		*cp = '/';
-	(void) strcpy(new, local);
+	(void) snprintf(new, sizeof(new), "%s", local);
 	cp = new + strlen(new);
 	*cp++ = '.';
 	for (count = 1; count < 100; count++) {
@@ -1894,6 +1907,7 @@ setproctitle(fmt, va_alist)
 #endif /* OLD_SETPROCTITLE */
 
 #ifdef STATS
+static void
 logxfer(name, size, start)
 	char *name;
 	long size;
@@ -1905,23 +1919,10 @@ logxfer(name, size, start)
 
 	if (statfd >= 0 && getwd(path) != NULL) {
 		time(&now);
-		sprintf(buf, "%.20s!%s!%s!%s/%s!%ld!%ld\n",
+		snprintf(buf, sizeof(buf), "%.20s!%s!%s!%s/%s!%ld!%ld\n",
 			ctime(&now)+4, ident, remotehost,
 			path, name, size, now - start + (now == start));
 		write(statfd, buf, strlen(buf));
 	}
-}
-
-char *
-copy(s)
-	char *s;
-{
-	char *p;
-
-	p = malloc((unsigned) strlen(s) + 1);
-	if (p == NULL)
-		fatal("Ran out of memory.");
-	(void) strcpy(p, s);
-	return (p);
 }
 #endif
