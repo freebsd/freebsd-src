@@ -419,6 +419,10 @@ mountfs(vfstype, spec, name, flags, options, mntopts)
 	if (flags & MNT_UPDATE)
 		optbuf = catopt(optbuf, "update");
 
+	/* Compatibility glue. */
+	if (strcmp(vfstype, "msdos") == 0)
+		vfstype = "msdosfs";
+
 	argc = 0;
 	argv[argc++] = vfstype;
 	mangle(optbuf, &argc, argv);

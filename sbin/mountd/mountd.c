@@ -942,7 +942,7 @@ get_exportlist()
 		} targs;
 
 		if (!strcmp(fsp->f_fstypename, "ufs") ||
-		    !strcmp(fsp->f_fstypename, "msdos") ||
+		    !strcmp(fsp->f_fstypename, "msdosfs") ||
 		    !strcmp(fsp->f_fstypename, "ntfs") ||
 		    !strcmp(fsp->f_fstypename, "cd9660")) {
 			targs.ua.fspec = NULL;

@@ -173,12 +173,12 @@ main(argc, argv)
 			args.mask = sb.st_mode & (S_IRWXU | S_IRWXG | S_IRWXO);
 	}
 
-	error = getvfsbyname("msdos", &vfc);
-	if (error && vfsisloadable("msdos")) {
-		if (vfsload("msdos"))
-			err(EX_OSERR, "vfsload(msdos)");
+	error = getvfsbyname("msdosfs", &vfc);
+	if (error && vfsisloadable("msdosfs")) {
+		if (vfsload("msdosfs"))
+			err(EX_OSERR, "vfsload(msdosfs)");
 		endvfsent();	/* clear cache */
-		error = getvfsbyname("msdos", &vfc);
+		error = getvfsbyname("msdosfs", &vfc);
 	}
 	if (error)
 		errx(EX_OSERR, "msdos filesystem is not available");
@@ -251,8 +251,8 @@ void
 usage()
 {
 	fprintf(stderr, "%s\n%s\n", 
-	"usage: mount_msdos [-o options] [-u user] [-g group] [-m mask]",
-	"                   [-s] [-l] [-9] [-L locale] [-W table] bdev dir");
+	"usage: mount_msdosfs [-o options] [-u user] [-g group] [-m mask]",
+	"                     [-s] [-l] [-9] [-L locale] [-W table] bdev dir");
 	exit(EX_USAGE);
 }
 

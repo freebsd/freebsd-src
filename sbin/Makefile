@@ -43,7 +43,7 @@ SUBDIR=	adjkerntz \
 	mount_cd9660 \
 	mount_ext2fs \
 	mount_ifs \
-	mount_msdos \
+	mount_msdosfs \
 	mount_nfs \
 	mount_ntfs \
 	mount_nullfs \

@@ -2,9 +2,9 @@
 # $FreeBSD$
 #
 
-PROG=	mount_msdos
-SRCS=	mount_msdos.c getmntopts.c
-MAN=	mount_msdos.8
+PROG=	mount_msdosfs
+SRCS=	mount_msdosfs.c getmntopts.c
+MAN=	mount_msdosfs.8
 DPADD=	${LIBUTIL}
 LDADD=	-lutil
 
