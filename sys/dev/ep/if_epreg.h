@@ -31,7 +31,7 @@
 
  */
 /*
- *  $Id: if_epreg.h,v 1.13 1996/02/28 17:19:04 gibbs Exp $
+ *  $Id: if_epreg.h,v 1.14 1996/06/14 22:11:38 nate Exp $
  *
  *  Promiscuous mode added and interrupt logic slightly changed
  *  to reduce the number of adapter failures. Transceiver select
@@ -370,7 +370,9 @@ struct ep_board {
  *
  */
 
-#define SET_IRQ(i)	(((i)<<12) | 0xF00) /* set IRQ i */
+#define SET_IRQ(base,irq)     outw((base) + EP_W0_RESOURCE_CFG, \
+                              ((inw((base) + EP_W0_RESOURCE_CFG) & 0x0fff) | \
+                              ((u_short)(irq)<<12))  ) /* set IRQ i */
 
 /*
  * FIFO Registers.
