@@ -307,9 +307,10 @@ exit1(p, rv)
 	switchticks = ticks;
 
 	/*
-	 * notify interested parties of our demise.
+	 * Notify interested parties of our demise.  Pass the lower (only)
+	 * 16 bits of our exit code along with it.
 	 */
-	KNOTE(&p->p_klist, NOTE_EXIT);
+	KNOTE(&p->p_klist, NOTE_EXIT | (rv & 0xffff));
 
 	/*
 	 * Notify parent that we're gone.  If parent has the PS_NOCLDWAIT
