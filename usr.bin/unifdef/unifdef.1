@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)unifdef.1	8.2 (Berkeley) 4/1/94
-.\"	$dotat: things/unifdef.1,v 1.40 2002/12/13 11:33:34 fanf2 Exp $
+.\"	$dotat: things/unifdef.1,v 1.43 2003/01/20 11:36:12 fanf2 Exp $
 .\" $FreeBSD$
 .\"
 .Dd September 24, 2002
@@ -44,7 +44,7 @@
 .Nd remove preprocessor conditionals from code
 .Sh SYNOPSIS
 .Nm
-.Op Fl cklst
+.Op Fl ceklst
 .Oo
 .Fl I Ns Ar path
 .Fl D Ns Ar sym Ns Op = Ns Ar val
@@ -156,6 +156,24 @@ then the operation of
 is complemented,
 i.e., the lines that would have been removed or blanked
 are retained and vice versa.
+.Pp
+.It Fl e
+Because
+.Nm
+processes its input one line at a time,
+it cannot remove preprocessor directives that span more than one line.
+The most common example of this is a directive with a multi-line
+comment hanging off its right hand end.
+By default,
+if
+.Nm
+has to process such a directive,
+it will complain that the line is too obfuscated.
+The
+.Fl e
+option changes the behaviour so that,
+where possible,
+such lines are left unprocessed instead of reporting an error.
 .Pp
 .It Fl k
 Process
@@ -285,7 +303,7 @@ Expression evaluation is very limited.
 .Pp
 Preprocessor control lines split across more than one physical line
 (because of comments or backslash-newline)
-cannot be handled.
+cannot be handled in every situation.
 .Pp
 Trigraphs are not recognized.
 .Pp
