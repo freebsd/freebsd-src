@@ -45,7 +45,7 @@
  *
  *	@(#)sun_misc.c	8.1 (Berkeley) 6/18/93
  *
- * $Id: ibcs2_misc.c,v 1.21 1997/06/25 01:01:21 sef Exp $
+ * $Id: ibcs2_misc.c,v 1.22 1997/07/20 09:39:44 bde Exp $
  */
 
 /*
@@ -1098,6 +1098,7 @@ ibcs2_sysfs(p, uap, retval)
 	case IBCS2_GETFSIND:
 	case IBCS2_GETFSTYP:
 	case IBCS2_GETNFSTYP:
+		break;
 	}
 	return EINVAL;		/* XXX - TODO */
 }
