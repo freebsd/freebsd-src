@@ -1495,7 +1495,7 @@ getmemsize(int first)
 	/*
 	 * Certain 'CPU accelerator' supports over 16MB memory on the machines
 	 * whose BIOS doesn't store true size.  
-	 * To support this, we don't trust BIOS values if Maxmem < 16MB (0x1000
+	 * To support this, we don't trust BIOS values if Maxmem <= 16MB (0x1000
 	 * pages) - which is the largest amount that the OLD PC-98 can report.
 	 *
 	 * OK: PC-9801NS/R(9.6M)
@@ -1503,7 +1503,7 @@ getmemsize(int first)
 	 * OK: PC-9821Ap(14.6M)+EUA-T(8M)+Cyrix 5x86-100
 	 * NG: PC-9821Ap(14.6M)+EUA-T(8M)+AMD DX4-100 -> freeze
 	 */
-	if (Maxmem < 0x1000) {
+	if (Maxmem <= 0x1000) {
 		int tmp, page_bad;
 
 		page_bad = FALSE;
