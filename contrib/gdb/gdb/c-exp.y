@@ -1,5 +1,6 @@
 /* YACC parser for C expressions, for GDB.
-   Copyright (C) 1986, 1989, 1990, 1991, 1993, 1994, 1996, 1997
+   Copyright 1986, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997,
+   1998, 1999, 2000
    Free Software Foundation, Inc.
 
 This file is part of GDB.
@@ -102,14 +103,11 @@ extern int hp_som_som_object_present;
 #define	YYDEBUG	0		/* Default to no yydebug support */
 #endif
 
-int
-yyparse PARAMS ((void));
+int yyparse (void);
 
-static int
-yylex PARAMS ((void));
+static int yylex (void);
 
-void
-yyerror PARAMS ((char *));
+void yyerror (char *);
 
 %}
 
@@ -144,8 +142,7 @@ yyerror PARAMS ((char *));
 
 %{
 /* YYSTYPE gets defined by %union */
-static int
-parse_number PARAMS ((char *, int, int, YYSTYPE *));
+static int parse_number (char *, int, int, YYSTYPE *);
 %}
 
 %type <voidval> exp exp1 type_exp start variable qualified_name lcurly
@@ -721,21 +718,26 @@ variable:	name_not_typename
 			}
 	;
 
+space_identifier : '@' NAME
+		{ push_type_address_space (copy_name ($2.stoken));
+		  push_type (tp_space_identifier);
+		}
+	;
 
-ptype	:	typebase
-	/* "const" and "volatile" are curently ignored.  A type qualifier
-	   before the type is currently handled in the typebase rule.
-	   The reason for recognizing these here (shift/reduce conflicts)
-	   might be obsolete now that some pointer to member rules have
-	   been deleted.  */
-	|	typebase CONST_KEYWORD
-	|	typebase VOLATILE_KEYWORD
-	|	typebase abs_decl
-		{ $$ = follow_types ($1); }
-	|	typebase CONST_KEYWORD abs_decl
-		{ $$ = follow_types ($1); }
-	|	typebase VOLATILE_KEYWORD abs_decl
-		{ $$ = follow_types ($1); }
+const_or_volatile: const_or_volatile_noopt
+	|
+	;
+
+cv_with_space_id : const_or_volatile space_identifier const_or_volatile
+	;
+
+const_or_volatile_or_space_identifier_noopt: cv_with_space_id
+	| const_or_volatile_noopt 
+	;
+
+const_or_volatile_or_space_identifier: 
+		const_or_volatile_or_space_identifier_noopt
+	|
 	;
 
 abs_decl:	'*'
@@ -815,6 +817,10 @@ typebase  /* Implements (approximately): (type-qualifier)* type-specifier */
 			{ $$ = builtin_type_unsigned_long_long; }
 	|	UNSIGNED LONG LONG INT_KEYWORD
 			{ $$ = builtin_type_unsigned_long_long; }
+	|	SIGNED_KEYWORD LONG LONG
+			{ $$ = lookup_signed_typename ("long long"); }
+	|	SIGNED_KEYWORD LONG LONG INT_KEYWORD
+			{ $$ = lookup_signed_typename ("long long"); }
 	|	SHORT INT_KEYWORD
 			{ $$ = builtin_type_short; }
 	|	UNSIGNED SHORT INT_KEYWORD
@@ -850,11 +856,10 @@ typebase  /* Implements (approximately): (type-qualifier)* type-specifier */
 			{ $$ = lookup_template_type(copy_name($2), $4,
 						    expression_context_block);
 			}
-	/* "const" and "volatile" are curently ignored.  A type qualifier
-	   after the type is handled in the ptype rule.  I think these could
-	   be too.  */
-	|	CONST_KEYWORD typebase { $$ = $2; }
-	|	VOLATILE_KEYWORD typebase { $$ = $2; }
+	| const_or_volatile_or_space_identifier_noopt typebase 
+			{ $$ = follow_types ($2); }
+	| typebase const_or_volatile_or_space_identifier_noopt 
+			{ $$ = follow_types ($1); }
 	;
 
 typename:	TYPENAME
@@ -889,6 +894,25 @@ nonempty_typelist
 		  $$ = (struct type **) realloc ((char *) $1, len);
 		  $$[$<ivec>$[0]] = $3;
 		}
+	;
+
+ptype	:	typebase
+	|	ptype const_or_volatile_or_space_identifier abs_decl const_or_volatile_or_space_identifier
+		{ $$ = follow_types ($1); }
+	;
+
+const_and_volatile: 	CONST_KEYWORD VOLATILE_KEYWORD
+	| 		VOLATILE_KEYWORD CONST_KEYWORD
+	;
+
+const_or_volatile_noopt:  	const_and_volatile 
+			{ push_type (tp_const);
+			  push_type (tp_volatile); 
+			}
+	| 		CONST_KEYWORD
+			{ push_type (tp_const); }
+	| 		VOLATILE_KEYWORD
+			{ push_type (tp_volatile); }
 	;
 
 name	:	NAME { $$ = $1.stoken; }
@@ -1437,8 +1461,6 @@ yylex ()
 
       if (c == '<')
 	{ 
-           if (hp_som_som_object_present)
-             {
                /* Scan ahead to get rest of the template specification.  Note
                   that we look ahead only when the '<' adjoins non-whitespace
                   characters; for comparison expressions, e.g. "a < b > c",
@@ -1448,26 +1470,6 @@ yylex ()
                if (p)
                  namelen = p - tokstart;
                break;
-             }
-           else
-             { 
-	       int i = namelen;
-	       int nesting_level = 1;
-	       while (tokstart[++i])
-		 {
-		   if (tokstart[i] == '<')
-		     nesting_level++;
-		   else if (tokstart[i] == '>')
-		     {
-		       if (--nesting_level == 0)
-			 break;
-		     }
-		 }
-	       if (tokstart[i] == '>')
-		 namelen = i;
-	       else
-		 break;
-	     }
 	}
       c = tokstart[++namelen];
     }
@@ -1706,7 +1708,7 @@ yylex ()
 	  return TYPENAME;
         }
     if ((yylval.tsym.type = lookup_primitive_typename (tmp)) != 0)
-	return TYPENAME;
+      return TYPENAME;
 
     /* Input names that aren't symbols but ARE valid hex numbers,
        when the input radix permits them, can be names or numbers

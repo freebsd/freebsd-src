@@ -1,7 +1,6 @@
 # Host: Intel 386 running SCO Unix 3.2v4
 
 XM_FILE= xm-i386sco.h
-XDEPFILES= 
 XM_CLIBS= -lPW
 
 NAT_FILE= nm-i386sco4.h

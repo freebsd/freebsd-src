@@ -166,7 +166,7 @@ static int __main() {};
    that's OK because we will be the only thread running anyhow.  */
 
 static int
-getDebugChar ()
+getDebugChar (void)
 {
   int err;
   LONG got;
@@ -191,8 +191,7 @@ getDebugChar ()
    non-zero on success.  */
 
 static int
-putDebugChar (c)
-     unsigned char c;
+putDebugChar (unsigned char c)
 {
   int err;
   LONG put;
@@ -210,8 +209,7 @@ putDebugChar (c)
 /* Turn a hex character into a number.  */
 
 static int
-hex (ch)
-     char ch;
+hex (char ch)
 {
   if ((ch >= 'a') && (ch <= 'f'))
     return (ch-'a'+10);
@@ -226,8 +224,7 @@ hex (ch)
    non-zero on success.  */
 
 static int
-getpacket (buffer)
-     char * buffer;
+getpacket (char *buffer)
 {
   unsigned char checksum;
   unsigned char xmitcsum;
@@ -312,8 +309,7 @@ getpacket (buffer)
    success.  */
 
 static int
-putpacket (buffer)
-     char * buffer;
+putpacket (char *buffer)
 {
   unsigned char checksum;
   int count;
@@ -357,9 +353,7 @@ static char remcomOutBuffer[BUFMAX];
 static short error;
 
 static void
-debug_error (format, parm)
-     char *format;
-     char *parm;
+debug_error (char *format, char *parm)
 {
   if (remote_debug)
     {
@@ -382,16 +376,13 @@ volatile int mem_err = 0;
    saved).  */
 
 int
-get_char (addr)
-     char *addr;
+get_char (char *addr)
 {
   return *addr;
 }
 
 void
-set_char (addr, val)
-     char *addr;
-     int val;
+set_char (char *addr, int val)
 {
   *addr = val;
 }
@@ -403,11 +394,7 @@ set_char (addr, val)
    a fault; if zero treat a fault like any other fault in the stub.  */
 
 char *
-mem2hex (mem, buf, count, may_fault)
-     void *mem;
-     char *buf;
-     int count;
-     int may_fault;
+mem2hex (void *mem, char *buf, int count, int may_fault)
 {
   int i;
   unsigned char ch;
@@ -431,11 +418,7 @@ mem2hex (mem, buf, count, may_fault)
 /* return a pointer to the character AFTER the last byte written */
 
 char *
-hex2mem (buf, mem, count, may_fault)
-     char *buf;
-     void *mem;
-     int count;
-     int may_fault;
+hex2mem (char *buf, void *mem, int count, int may_fault)
 {
   int i;
   unsigned char ch;
@@ -458,8 +441,7 @@ hex2mem (buf, mem, count, may_fault)
    translate this number into a unix compatible signal value.  */
 
 int
-computeSignal (exceptionVector)
-     int exceptionVector;
+computeSignal (int exceptionVector)
 {
   int sigval;
   switch (exceptionVector)
@@ -490,9 +472,7 @@ computeSignal (exceptionVector)
 /* RETURN NUMBER OF CHARS PROCESSED           */
 /**********************************************/
 static int
-hexToInt(ptr, intValue)
-     char **ptr;
-     int *intValue;
+hexToInt (char **ptr, int *intValue)
 {
   int numChars = 0;
   int hexValue;
@@ -521,8 +501,7 @@ hexToInt(ptr, intValue)
    debugged.  */
 
 static LONG
-handle_exception (frame)
-     struct StackFrame *frame;
+handle_exception (struct StackFrame *frame)
 {
   int addr, length;
   char *ptr;
@@ -810,9 +789,7 @@ char parity[] = "NOEMS";
    to have to figure out how to do that.  */
 
 int
-main (argc, argv)
-     int argc;
-     char **argv;
+main (int argc, char **argv)
 {
   int hardware, board, port;
   BYTE bitRate;

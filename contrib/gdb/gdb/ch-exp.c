@@ -1,21 +1,23 @@
 /* Parser for GNU CHILL (CCITT High-Level Language)  -*- C -*-
-   Copyright (C) 1992, 1993, 1995 Free Software Foundation, Inc.
+   Copyright 1992, 1993, 1995, 1996, 1997, 1999, 2000, 2001
+   Free Software Foundation, Inc.
 
-This file is part of GDB.
+   This file is part of GDB.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place - Suite 330,
+   Boston, MA 02111-1307, USA.  */
 
 /* Parse a Chill expression from text in a string,
    and return the result as a  struct expression  pointer.
@@ -51,9 +53,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "value.h"
 #include "parser-defs.h"
 #include "ch-lang.h"
-#include "bfd.h" /* Required by objfiles.h.  */
-#include "symfile.h" /* Required by objfiles.h.  */
-#include "objfiles.h" /* For have_full_symbols and have_partial_symbols */
+#include "bfd.h"		/* Required by objfiles.h.  */
+#include "symfile.h"		/* Required by objfiles.h.  */
+#include "objfiles.h"		/* For have_full_symbols and have_partial_symbols */
 
 #ifdef __GNUC__
 #define INLINE __inline__
@@ -64,137 +66,137 @@ typedef union
   {
     LONGEST lval;
     ULONGEST ulval;
-    struct {
-      LONGEST val;
-      struct type *type;
-    } typed_val;
+    struct
+      {
+	LONGEST val;
+	struct type *type;
+      }
+    typed_val;
     double dval;
     struct symbol *sym;
     struct type *tval;
     struct stoken sval;
     struct ttype tsym;
     struct symtoken ssym;
-  }YYSTYPE;
+  }
+YYSTYPE;
 
-enum ch_terminal {
-  END_TOKEN = 0,
-  /* '\001' ... '\xff' come first. */
-  OPEN_PAREN = '(',
-  TOKEN_NOT_READ = 999,
-  INTEGER_LITERAL,
-  BOOLEAN_LITERAL,
-  CHARACTER_LITERAL,
-  FLOAT_LITERAL,
-  GENERAL_PROCEDURE_NAME,
-  LOCATION_NAME,
-  EMPTINESS_LITERAL,
-  CHARACTER_STRING_LITERAL,
-  BIT_STRING_LITERAL,
-  TYPENAME,
-  DOT_FIELD_NAME, /* '.' followed by <field name> */
-  CASE,
-  OF,
-  ESAC,
-  LOGIOR,
-  ORIF,
-  LOGXOR,
-  LOGAND,
-  ANDIF,
-  NOTEQUAL,
-  GEQ,
-  LEQ,
-  IN,
-  SLASH_SLASH,
-  MOD,
-  REM,
-  NOT,
-  POINTER,
-  RECEIVE,
-  UP,
-  IF,
-  THEN,
-  ELSE,
-  FI,
-  ELSIF,
-  ILLEGAL_TOKEN,
-  NUM,
-  PRED,
-  SUCC,
-  ABS,
-  CARD,
-  MAX_TOKEN,
-  MIN_TOKEN,
-  ADDR_TOKEN,
-  SIZE,
-  UPPER,
-  LOWER,
-  LENGTH,
-  ARRAY,
-  GDB_VARIABLE,
-  GDB_ASSIGNMENT
-};
+enum ch_terminal
+  {
+    END_TOKEN = 0,
+    /* '\001' ... '\xff' come first. */
+    OPEN_PAREN = '(',
+    TOKEN_NOT_READ = 999,
+    INTEGER_LITERAL,
+    BOOLEAN_LITERAL,
+    CHARACTER_LITERAL,
+    FLOAT_LITERAL,
+    GENERAL_PROCEDURE_NAME,
+    LOCATION_NAME,
+    EMPTINESS_LITERAL,
+    CHARACTER_STRING_LITERAL,
+    BIT_STRING_LITERAL,
+    TYPENAME,
+    DOT_FIELD_NAME,		/* '.' followed by <field name> */
+    CASE,
+    OF,
+    ESAC,
+    LOGIOR,
+    ORIF,
+    LOGXOR,
+    LOGAND,
+    ANDIF,
+    NOTEQUAL,
+    GEQ,
+    LEQ,
+    IN,
+    SLASH_SLASH,
+    MOD,
+    REM,
+    NOT,
+    POINTER,
+    RECEIVE,
+    UP,
+    IF,
+    THEN,
+    ELSE,
+    FI,
+    ELSIF,
+    ILLEGAL_TOKEN,
+    NUM,
+    PRED,
+    SUCC,
+    ABS,
+    CARD,
+    MAX_TOKEN,
+    MIN_TOKEN,
+    ADDR_TOKEN,
+    SIZE,
+    UPPER,
+    LOWER,
+    LENGTH,
+    ARRAY,
+    GDB_VARIABLE,
+    GDB_ASSIGNMENT
+  };
 
 /* Forward declarations. */
 
-static void write_lower_upper_value PARAMS ((enum exp_opcode, struct type *));
-static enum ch_terminal match_bitstring_literal PARAMS ((void));
-static enum ch_terminal match_integer_literal PARAMS ((void));
-static enum ch_terminal match_character_literal PARAMS ((void));
-static enum ch_terminal match_string_literal PARAMS ((void));
-static enum ch_terminal match_float_literal PARAMS ((void));
-static enum ch_terminal match_float_literal PARAMS ((void));
-static int decode_integer_literal PARAMS ((LONGEST *, char **));
-static int decode_integer_value PARAMS ((int, char **, LONGEST *));
-static char *match_simple_name_string PARAMS ((void));
-static void growbuf_by_size PARAMS ((int));
-static void parse_untyped_expr PARAMS ((void));
-static void parse_if_expression PARAMS ((void));
-static void parse_else_alternative PARAMS ((void));
-static void parse_then_alternative PARAMS ((void));
-static void parse_expr PARAMS ((void));
-static void parse_operand0 PARAMS ((void));
-static void parse_operand1 PARAMS ((void));
-static void parse_operand2 PARAMS ((void));
-static void parse_operand3 PARAMS ((void));
-static void parse_operand4 PARAMS ((void));
-static void parse_operand5 PARAMS ((void));
-static void parse_operand6 PARAMS ((void));
-static void parse_primval PARAMS ((void));
-static void parse_tuple PARAMS ((struct type *));
-static void parse_opt_element_list PARAMS ((struct type *));
-static void parse_tuple_element PARAMS ((struct type *));
-static void parse_named_record_element PARAMS ((void));
-static void parse_call PARAMS ((void));
-static struct type *parse_mode_or_normal_call PARAMS ((void));
+static void write_lower_upper_value (enum exp_opcode, struct type *);
+static enum ch_terminal match_bitstring_literal (void);
+static enum ch_terminal match_integer_literal (void);
+static enum ch_terminal match_character_literal (void);
+static enum ch_terminal match_string_literal (void);
+static enum ch_terminal match_float_literal (void);
+static int decode_integer_literal (LONGEST *, char **);
+static int decode_integer_value (int, char **, LONGEST *);
+static char *match_simple_name_string (void);
+static void growbuf_by_size (int);
+static void parse_case_label (void);
+static void parse_untyped_expr (void);
+static void parse_if_expression (void);
+static void parse_if_expression_body (void);
+static void parse_else_alternative (void);
+static void parse_then_alternative (void);
+static void parse_expr (void);
+static void parse_operand0 (void);
+static void parse_operand1 (void);
+static void parse_operand2 (void);
+static void parse_operand3 (void);
+static void parse_operand4 (void);
+static void parse_operand5 (void);
+static void parse_operand6 (void);
+static void parse_primval (void);
+static void parse_tuple (struct type *);
+static void parse_opt_element_list (struct type *);
+static void parse_tuple_element (struct type *);
+static void parse_named_record_element (void);
+static void parse_call (void);
+static struct type *parse_mode_or_normal_call (void);
 #if 0
-static struct type *parse_mode_call PARAMS ((void));
+static struct type *parse_mode_call (void);
 #endif
-static void parse_unary_call PARAMS ((void));
-static int parse_opt_untyped_expr PARAMS ((void));
-static void parse_case_label PARAMS ((void));
-static int expect PARAMS ((enum ch_terminal, char *));
-static void parse_expr PARAMS ((void));
-static void parse_primval PARAMS ((void));
-static void parse_untyped_expr PARAMS ((void));
-static int parse_opt_untyped_expr PARAMS ((void));
-static void parse_if_expression_body PARAMS((void));
-static enum ch_terminal ch_lex PARAMS ((void));
-INLINE static enum ch_terminal PEEK_TOKEN PARAMS ((void));
-static enum ch_terminal peek_token_ PARAMS ((int));
-static void forward_token_ PARAMS ((void));
-static void require PARAMS ((enum ch_terminal));
-static int check_token PARAMS ((enum ch_terminal));
+static void parse_unary_call (void);
+static int parse_opt_untyped_expr (void);
+static int expect (enum ch_terminal, char *);
+static enum ch_terminal ch_lex (void);
+INLINE static enum ch_terminal PEEK_TOKEN (void);
+static enum ch_terminal peek_token_ (int);
+static void forward_token_ (void);
+static void require (enum ch_terminal);
+static int check_token (enum ch_terminal);
 
 #define MAX_LOOK_AHEAD 2
-static enum ch_terminal terminal_buffer[MAX_LOOK_AHEAD+1] = {
+static enum ch_terminal terminal_buffer[MAX_LOOK_AHEAD + 1] =
+{
   TOKEN_NOT_READ, TOKEN_NOT_READ, TOKEN_NOT_READ};
 static YYSTYPE yylval;
-static YYSTYPE val_buffer[MAX_LOOK_AHEAD+1];
+static YYSTYPE val_buffer[MAX_LOOK_AHEAD + 1];
 
-/*int current_token, lookahead_token;*/
+/*int current_token, lookahead_token; */
 
 INLINE static enum ch_terminal
-PEEK_TOKEN()
+PEEK_TOKEN (void)
 {
   if (terminal_buffer[0] == TOKEN_NOT_READ)
     {
@@ -207,11 +209,11 @@ PEEK_TOKEN()
 #define PEEK_TOKEN1() peek_token_(1)
 #define PEEK_TOKEN2() peek_token_(2)
 static enum ch_terminal
-peek_token_ (i)
-     int i;
+peek_token_ (int i)
 {
   if (i > MAX_LOOK_AHEAD)
-    fatal ("internal error - too much lookahead");
+    internal_error (__FILE__, __LINE__,
+		    "too much lookahead");
   if (terminal_buffer[i] == TOKEN_NOT_READ)
     {
       terminal_buffer[i] = ch_lex ();
@@ -223,18 +225,17 @@ peek_token_ (i)
 #if 0
 
 static void
-pushback_token (code, node)
-     enum ch_terminal code;
-     YYSTYPE node;
+pushback_token (enum ch_terminal code, YYSTYPE node)
 {
   int i;
   if (terminal_buffer[MAX_LOOK_AHEAD] != TOKEN_NOT_READ)
-    fatal ("internal error - cannot pushback token");
+    internal_error (__FILE__, __LINE__,
+		    "cannot pushback token");
   for (i = MAX_LOOK_AHEAD; i > 0; i--)
-    { 
-      terminal_buffer[i] = terminal_buffer[i - 1]; 
+    {
+      terminal_buffer[i] = terminal_buffer[i - 1];
       val_buffer[i] = val_buffer[i - 1];
-  }
+    }
   terminal_buffer[0] = code;
   val_buffer[0] = node;
 }
@@ -242,13 +243,13 @@ pushback_token (code, node)
 #endif
 
 static void
-forward_token_()
+forward_token_ (void)
 {
   int i;
   for (i = 0; i < MAX_LOOK_AHEAD; i++)
     {
-      terminal_buffer[i] = terminal_buffer[i+1];
-      val_buffer[i] = val_buffer[i+1];
+      terminal_buffer[i] = terminal_buffer[i + 1];
+      val_buffer[i] = val_buffer[i + 1];
     }
   terminal_buffer[MAX_LOOK_AHEAD] = TOKEN_NOT_READ;
 }
@@ -258,23 +259,20 @@ forward_token_()
    if it isn't TOKEN, the parser is broken. */
 
 static void
-require(token)
-     enum ch_terminal token;
+require (enum ch_terminal token)
 {
-  if (PEEK_TOKEN() != token)
+  if (PEEK_TOKEN () != token)
     {
-      char buf[80];
-      sprintf (buf, "internal parser error - expected token %d", (int)token);
-      fatal(buf);
+      internal_error (__FILE__, __LINE__,
+		      "expected token %d", (int) token);
     }
-  FORWARD_TOKEN();
+  FORWARD_TOKEN ();
 }
 
 static int
-check_token (token)
-     enum ch_terminal token;
+check_token (enum ch_terminal token)
 {
-  if (PEEK_TOKEN() != token)
+  if (PEEK_TOKEN () != token)
     return 0;
   FORWARD_TOKEN ();
   return 1;
@@ -282,13 +280,11 @@ check_token (token)
 
 /* return 0 if expected token was not found,
    else return 1.
-*/
+ */
 static int
-expect (token, message)
-     enum ch_terminal token;
-     char *message;
+expect (enum ch_terminal token, char *message)
 {
-  if (PEEK_TOKEN() != token)
+  if (PEEK_TOKEN () != token)
     {
       if (message)
 	error (message);
@@ -299,16 +295,17 @@ expect (token, message)
       return 0;
     }
   else
-    FORWARD_TOKEN();
+    FORWARD_TOKEN ();
   return 1;
 }
 
 #if 0
+/* Parse a name string.  If ALLOW_ALL is 1, ALL is allowed as a postfix. */
+
 static tree
-parse_opt_name_string (allow_all)
-     int allow_all; /* 1 if ALL is allowed as a postfix */
+parse_opt_name_string (int allow_all)
 {
-  int token = PEEK_TOKEN();
+  int token = PEEK_TOKEN ();
   tree name;
   if (token != NAME)
     {
@@ -319,17 +316,17 @@ parse_opt_name_string (allow_all)
 	}
       return NULL_TREE;
     }
-  name = PEEK_LVAL();
+  name = PEEK_LVAL ();
   for (;;)
     {
       FORWARD_TOKEN ();
-      token = PEEK_TOKEN();
+      token = PEEK_TOKEN ();
       if (token != '!')
 	return name;
-      FORWARD_TOKEN();
-      token = PEEK_TOKEN();
+      FORWARD_TOKEN ();
+      token = PEEK_TOKEN ();
       if (token == ALL && allow_all)
-	return get_identifier3(IDENTIFIER_POINTER (name), "!", "*");
+	return get_identifier3 (IDENTIFIER_POINTER (name), "!", "*");
       if (token != NAME)
 	{
 	  if (pass == 1)
@@ -337,15 +334,15 @@ parse_opt_name_string (allow_all)
 		   IDENTIFIER_POINTER (name));
 	  return name;
 	}
-      name = get_identifier3(IDENTIFIER_POINTER(name),
-			     "!", IDENTIFIER_POINTER(PEEK_LVAL()));
+      name = get_identifier3 (IDENTIFIER_POINTER (name),
+			      "!", IDENTIFIER_POINTER (PEEK_LVAL ()));
     }
 }
 
 static tree
-parse_simple_name_string ()
+parse_simple_name_string (void)
 {
-  int token = PEEK_TOKEN();
+  int token = PEEK_TOKEN ();
   tree name;
   if (token != NAME)
     {
@@ -358,7 +355,7 @@ parse_simple_name_string ()
 }
 
 static tree
-parse_name_string ()
+parse_name_string (void)
 {
   tree name = parse_opt_name_string (0);
   if (name)
@@ -373,7 +370,7 @@ parse_name_string ()
    Returns if pass 2: a decl or value for identifier. */
 
 static tree
-parse_name ()
+parse_name (void)
 {
   tree name = parse_name_string ();
   if (pass == 1 || ignoring)
@@ -394,14 +391,13 @@ parse_name ()
 	return convert_from_reference (decl);
       else
 	return decl;
-    } 
+    }
 }
 #endif
 
 #if 0
 static void
-pushback_paren_expr (expr)
-     tree expr;
+pushback_paren_expr (tree expr)
 {
   if (pass == 1 && !ignoring)
     expr = build1 (PAREN_EXPR, NULL_TREE, expr);
@@ -412,7 +408,7 @@ pushback_paren_expr (expr)
 /* Matches: <case label> */
 
 static void
-parse_case_label ()
+parse_case_label (void)
 {
   if (check_token (ELSE))
     error ("ELSE in tuples labels not implemented");
@@ -426,7 +422,7 @@ parse_case_label ()
 }
 
 static int
-parse_opt_untyped_expr ()
+parse_opt_untyped_expr (void)
 {
   switch (PEEK_TOKEN ())
     {
@@ -441,7 +437,7 @@ parse_opt_untyped_expr ()
 }
 
 static void
-parse_unary_call ()
+parse_unary_call (void)
 {
   FORWARD_TOKEN ();
   expect ('(', NULL);
@@ -454,14 +450,14 @@ parse_unary_call ()
 #if 0
 
 static struct type *
-parse_mode_call ()
+parse_mode_call (void)
 {
   struct type *type;
   FORWARD_TOKEN ();
   expect ('(', NULL);
   if (PEEK_TOKEN () != TYPENAME)
     error ("expect MODENAME here `%s'", lexptr);
-  type = PEEK_LVAL().tsym.type;
+  type = PEEK_LVAL ().tsym.type;
   FORWARD_TOKEN ();
   expect (')', NULL);
   return type;
@@ -470,14 +466,14 @@ parse_mode_call ()
 #endif
 
 static struct type *
-parse_mode_or_normal_call ()
+parse_mode_or_normal_call (void)
 {
   struct type *type;
   FORWARD_TOKEN ();
   expect ('(', NULL);
   if (PEEK_TOKEN () == TYPENAME)
     {
-      type = PEEK_LVAL().tsym.type;
+      type = PEEK_LVAL ().tsym.type;
       FORWARD_TOKEN ();
     }
   else
@@ -493,7 +489,7 @@ parse_mode_or_normal_call ()
    Assume we have parsed the function, and are at the '('. */
 
 static void
-parse_call ()
+parse_call (void)
 {
   int arg_count;
   require ('(');
@@ -530,7 +526,7 @@ parse_call ()
 }
 
 static void
-parse_named_record_element ()
+parse_named_record_element (void)
 {
   struct stoken label;
   char buf[256];
@@ -552,8 +548,7 @@ parse_named_record_element ()
 /* Returns one or more TREE_LIST nodes, in reverse order. */
 
 static void
-parse_tuple_element (type)
-     struct type *type;
+parse_tuple_element (struct type *type)
 {
   if (PEEK_TOKEN () == DOT_FIELD_NAME)
     {
@@ -618,8 +613,7 @@ parse_tuple_element (type)
 /* Matches:  a COMMA-separated list of tuple elements.
    Returns a list (of TREE_LIST nodes). */
 static void
-parse_opt_element_list (type)
-     struct type *type;
+parse_opt_element_list (struct type *type)
 {
   arglist_len = 0;
   if (PEEK_TOKEN () == ']')
@@ -639,8 +633,7 @@ parse_opt_element_list (type)
    If modename is non-NULL it prefixed the tuple.  */
 
 static void
-parse_tuple (mode)
-     struct type *mode;
+parse_tuple (struct type *mode)
 {
   struct type *type;
   if (mode)
@@ -668,14 +661,14 @@ parse_tuple (mode)
 }
 
 static void
-parse_primval ()
+parse_primval (void)
 {
   struct type *type;
   enum exp_opcode op;
   char *op_name;
   switch (PEEK_TOKEN ())
     {
-    case INTEGER_LITERAL: 
+    case INTEGER_LITERAL:
     case CHARACTER_LITERAL:
       write_exp_elt_opcode (OP_LONG);
       write_exp_elt_type (PEEK_LVAL ().typed_val.type);
@@ -718,12 +711,12 @@ parse_primval ()
     case ARRAY:
       FORWARD_TOKEN ();
       /* This is pseudo-Chill, similar to C's '(TYPE[])EXPR'
-	 which casts to an artificial array. */
+         which casts to an artificial array. */
       expect ('(', NULL);
       expect (')', NULL);
       if (PEEK_TOKEN () != TYPENAME)
 	error ("missing MODENAME after ARRAY()");
-      type = PEEK_LVAL().tsym.type;
+      type = PEEK_LVAL ().tsym.type;
       FORWARD_TOKEN ();
       expect ('(', NULL);
       parse_expr ();
@@ -731,7 +724,7 @@ parse_primval ()
       type = create_array_type ((struct type *) NULL, type,
 				create_range_type ((struct type *) NULL,
 						   builtin_type_int, 0, 0));
-      TYPE_ARRAY_UPPER_BOUND_TYPE(type) = BOUND_CANNOT_BE_DETERMINED;
+      TYPE_ARRAY_UPPER_BOUND_TYPE (type) = BOUND_CANNOT_BE_DETERMINED;
       write_exp_elt_opcode (UNOP_CAST);
       write_exp_elt_type (type);
       write_exp_elt_opcode (UNOP_CAST);
@@ -739,7 +732,7 @@ parse_primval ()
 #if 0
     case CONST:
     case EXPR:
-      val = PEEK_LVAL();
+      val = PEEK_LVAL ();
       FORWARD_TOKEN ();
       break;
 #endif
@@ -759,7 +752,7 @@ parse_primval ()
       write_exp_elt_opcode (OP_VAR_VALUE);
       FORWARD_TOKEN ();
       break;
-    case GDB_VARIABLE:	/* gdb specific */
+    case GDB_VARIABLE:		/* gdb specific */
       FORWARD_TOKEN ();
       break;
     case NUM:
@@ -780,9 +773,15 @@ parse_primval ()
       parse_unary_call ();
       write_exp_elt_opcode (UNOP_CHMIN);
       break;
-    case PRED:      op_name = "PRED"; goto unimplemented_unary_builtin;
-    case SUCC:      op_name = "SUCC"; goto unimplemented_unary_builtin;
-    case ABS:       op_name = "ABS";  goto unimplemented_unary_builtin;
+    case PRED:
+      op_name = "PRED";
+      goto unimplemented_unary_builtin;
+    case SUCC:
+      op_name = "SUCC";
+      goto unimplemented_unary_builtin;
+    case ABS:
+      op_name = "ABS";
+      goto unimplemented_unary_builtin;
     unimplemented_unary_builtin:
       parse_unary_call ();
       error ("not implemented:  %s builtin function", op_name);
@@ -794,7 +793,8 @@ parse_primval ()
     case SIZE:
       type = parse_mode_or_normal_call ();
       if (type)
-	{ write_exp_elt_opcode (OP_LONG);
+	{
+	  write_exp_elt_opcode (OP_LONG);
 	  write_exp_elt_type (builtin_type_int);
 	  CHECK_TYPEDEF (type);
 	  write_exp_elt_longcst ((LONGEST) TYPE_LENGTH (type));
@@ -820,7 +820,7 @@ parse_primval ()
     case TYPENAME:
       type = PEEK_LVAL ().tsym.type;
       FORWARD_TOKEN ();
-      switch (PEEK_TOKEN())
+      switch (PEEK_TOKEN ())
 	{
 	case '[':
 	  parse_tuple (type);
@@ -837,8 +837,8 @@ parse_primval ()
 	  error ("typename in invalid context");
 	}
       break;
-      
-    default: 
+
+    default:
       error ("invalid expression syntax at `%s'", lexptr);
     }
   for (;;)
@@ -931,7 +931,7 @@ parse_primval ()
 }
 
 static void
-parse_operand6 ()
+parse_operand6 (void)
 {
   if (check_token (RECEIVE))
     {
@@ -944,11 +944,11 @@ parse_operand6 ()
       write_exp_elt_opcode (UNOP_ADDR);
     }
   else
-    parse_primval();
+    parse_primval ();
 }
 
 static void
-parse_operand5()
+parse_operand5 (void)
 {
   enum exp_opcode op;
   /* We are supposed to be looking for a <string repetition operator>,
@@ -960,65 +960,83 @@ parse_operand5()
      Is that a function call or string repetition?
      Instead, we handle string repetition in parse_primval,
      and build_generalized_call. */
-  switch (PEEK_TOKEN())
+  switch (PEEK_TOKEN ())
     {
-    case NOT:  op = UNOP_LOGICAL_NOT; break;
-    case '-':  op = UNOP_NEG; break;
+    case NOT:
+      op = UNOP_LOGICAL_NOT;
+      break;
+    case '-':
+      op = UNOP_NEG;
+      break;
     default:
       op = OP_NULL;
     }
   if (op != OP_NULL)
-    FORWARD_TOKEN();
-  parse_operand6();
+    FORWARD_TOKEN ();
+  parse_operand6 ();
   if (op != OP_NULL)
     write_exp_elt_opcode (op);
 }
 
 static void
-parse_operand4 ()
+parse_operand4 (void)
 {
   enum exp_opcode op;
-  parse_operand5();
+  parse_operand5 ();
   for (;;)
     {
-      switch (PEEK_TOKEN())
+      switch (PEEK_TOKEN ())
 	{
-	case '*':  op = BINOP_MUL; break;
-	case '/':  op = BINOP_DIV; break;
-	case MOD:  op = BINOP_MOD; break;
-	case REM:  op = BINOP_REM; break;
+	case '*':
+	  op = BINOP_MUL;
+	  break;
+	case '/':
+	  op = BINOP_DIV;
+	  break;
+	case MOD:
+	  op = BINOP_MOD;
+	  break;
+	case REM:
+	  op = BINOP_REM;
+	  break;
 	default:
 	  return;
 	}
-      FORWARD_TOKEN();
-      parse_operand5();
+      FORWARD_TOKEN ();
+      parse_operand5 ();
       write_exp_elt_opcode (op);
     }
 }
 
 static void
-parse_operand3 ()
+parse_operand3 (void)
 {
   enum exp_opcode op;
   parse_operand4 ();
   for (;;)
     {
-      switch (PEEK_TOKEN())
+      switch (PEEK_TOKEN ())
 	{
-	case '+':    op = BINOP_ADD; break;
-	case '-':    op = BINOP_SUB; break;
-	case SLASH_SLASH: op = BINOP_CONCAT; break;
+	case '+':
+	  op = BINOP_ADD;
+	  break;
+	case '-':
+	  op = BINOP_SUB;
+	  break;
+	case SLASH_SLASH:
+	  op = BINOP_CONCAT;
+	  break;
 	default:
 	  return;
 	}
-      FORWARD_TOKEN();
-      parse_operand4();
+      FORWARD_TOKEN ();
+      parse_operand4 ();
       write_exp_elt_opcode (op);
     }
 }
 
 static void
-parse_operand2 ()
+parse_operand2 (void)
 {
   enum exp_opcode op;
   parse_operand3 ();
@@ -1026,72 +1044,94 @@ parse_operand2 ()
     {
       if (check_token (IN))
 	{
-	  parse_operand3();
+	  parse_operand3 ();
 	  write_exp_elt_opcode (BINOP_IN);
 	}
       else
 	{
-	  switch (PEEK_TOKEN())
+	  switch (PEEK_TOKEN ())
 	    {
-	    case '>':      op = BINOP_GTR; break;
-	    case GEQ:      op = BINOP_GEQ; break;
-	    case '<':      op = BINOP_LESS; break;
-	    case LEQ:      op = BINOP_LEQ; break;
-	    case '=':      op = BINOP_EQUAL; break;
-	    case NOTEQUAL: op = BINOP_NOTEQUAL; break;
+	    case '>':
+	      op = BINOP_GTR;
+	      break;
+	    case GEQ:
+	      op = BINOP_GEQ;
+	      break;
+	    case '<':
+	      op = BINOP_LESS;
+	      break;
+	    case LEQ:
+	      op = BINOP_LEQ;
+	      break;
+	    case '=':
+	      op = BINOP_EQUAL;
+	      break;
+	    case NOTEQUAL:
+	      op = BINOP_NOTEQUAL;
+	      break;
 	    default:
 	      return;
 	    }
-	  FORWARD_TOKEN();
-	  parse_operand3();
+	  FORWARD_TOKEN ();
+	  parse_operand3 ();
 	  write_exp_elt_opcode (op);
 	}
     }
 }
 
 static void
-parse_operand1 ()
+parse_operand1 (void)
 {
   enum exp_opcode op;
   parse_operand2 ();
   for (;;)
     {
-      switch (PEEK_TOKEN())
+      switch (PEEK_TOKEN ())
 	{
-	case LOGAND: op = BINOP_BITWISE_AND; break;
-	case ANDIF:  op = BINOP_LOGICAL_AND; break;
+	case LOGAND:
+	  op = BINOP_BITWISE_AND;
+	  break;
+	case ANDIF:
+	  op = BINOP_LOGICAL_AND;
+	  break;
 	default:
 	  return;
 	}
-      FORWARD_TOKEN();
-      parse_operand2();
+      FORWARD_TOKEN ();
+      parse_operand2 ();
       write_exp_elt_opcode (op);
     }
 }
 
 static void
-parse_operand0 ()
-{ 
+parse_operand0 (void)
+{
   enum exp_opcode op;
-  parse_operand1();
+  parse_operand1 ();
   for (;;)
     {
-      switch (PEEK_TOKEN())
+      switch (PEEK_TOKEN ())
 	{
-	case LOGIOR:  op = BINOP_BITWISE_IOR; break;
-	case LOGXOR:  op = BINOP_BITWISE_XOR; break;
-	case ORIF:    op = BINOP_LOGICAL_OR; break;
+	case LOGIOR:
+	  op = BINOP_BITWISE_IOR;
+	  break;
+	case LOGXOR:
+	  op = BINOP_BITWISE_XOR;
+	  break;
+	case ORIF:
+	  op = BINOP_LOGICAL_OR;
+	  break;
 	default:
 	  return;
 	}
-      FORWARD_TOKEN();
-      parse_operand1();
+      FORWARD_TOKEN ();
+      parse_operand1 ();
       write_exp_elt_opcode (op);
     }
 }
 
 static void
-parse_expr ()
+parse_expr (void)
 {
   parse_operand0 ();
   if (check_token (GDB_ASSIGNMENT))
@@ -1102,14 +1142,14 @@ parse_expr ()
 }
 
 static void
-parse_then_alternative ()
+parse_then_alternative (void)
 {
   expect (THEN, "missing 'THEN' in 'IF' expression");
   parse_expr ();
 }
 
 static void
-parse_else_alternative ()
+parse_else_alternative (void)
 {
   if (check_token (ELSIF))
     parse_if_expression_body ();
@@ -1122,7 +1162,7 @@ parse_else_alternative ()
 /* Matches: <boolean expression> <then alternative> <else alternative> */
 
 static void
-parse_if_expression_body ()
+parse_if_expression_body (void)
 {
   parse_expr ();
   parse_then_alternative ();
@@ -1131,7 +1171,7 @@ parse_if_expression_body ()
 }
 
 static void
-parse_if_expression ()
+parse_if_expression (void)
 {
   require (IF);
   parse_if_expression_body ();
@@ -1145,9 +1185,9 @@ parse_if_expression ()
    You should call convert() to fix up the <untyped_expr>. */
 
 static void
-parse_untyped_expr ()
+parse_untyped_expr (void)
 {
-  switch (PEEK_TOKEN())
+  switch (PEEK_TOKEN ())
     {
     case IF:
       parse_if_expression ();
@@ -1155,7 +1195,7 @@ parse_untyped_expr ()
     case CASE:
       error ("not implemented:  CASE expression");
     case '(':
-      switch (PEEK_TOKEN1())
+      switch (PEEK_TOKEN1 ())
 	{
 	case IF:
 	case CASE:
@@ -1166,7 +1206,7 @@ parse_untyped_expr ()
 	  parse_untyped_expr ();
 	  expect (')', "missing ')'");
 	  return;
-	default: ;
+	default:;
 	  /* fall through */
 	}
     default:
@@ -1175,14 +1215,14 @@ parse_untyped_expr ()
 }
 
 int
-chill_parse ()
+chill_parse (void)
 {
   terminal_buffer[0] = TOKEN_NOT_READ;
   if (PEEK_TOKEN () == TYPENAME && PEEK_TOKEN1 () == END_TOKEN)
     {
-      write_exp_elt_opcode(OP_TYPE);
-      write_exp_elt_type(PEEK_LVAL ().tsym.type);
-      write_exp_elt_opcode(OP_TYPE);
+      write_exp_elt_opcode (OP_TYPE);
+      write_exp_elt_type (PEEK_LVAL ().tsym.type);
+      write_exp_elt_opcode (OP_TYPE);
       FORWARD_TOKEN ();
     }
   else
@@ -1190,7 +1230,7 @@ chill_parse ()
   if (terminal_buffer[0] != END_TOKEN)
     {
       if (comma_terminates && terminal_buffer[0] == ',')
-	lexptr--;  /* Put the comma back.  */
+	lexptr--;		/* Put the comma back.  */
       else
 	error ("Junk after end of expression.");
     }
@@ -1220,8 +1260,7 @@ static int tempbufindex;	/* Current index into buffer */
    on demand. */
 
 static void
-growbuf_by_size (count)
-     int count;
+growbuf_by_size (int count)
 {
   int growby;
 
@@ -1242,16 +1281,18 @@ growbuf_by_size (count)
    in symbol table lookups.  If not successful, returns NULL. */
 
 static char *
-match_simple_name_string ()
+match_simple_name_string (void)
 {
   char *tokptr = lexptr;
 
   if (isalpha (*tokptr) || *tokptr == '_')
     {
       char *result;
-      do {
-	tokptr++;
-      } while (isalnum (*tokptr) || (*tokptr == '_'));
+      do
+	{
+	  tokptr++;
+	}
+      while (isalnum (*tokptr) || (*tokptr == '_'));
       yylval.sval.ptr = lexptr;
       yylval.sval.length = tokptr - lexptr;
       lexptr = tokptr;
@@ -1266,12 +1307,9 @@ match_simple_name_string ()
    and are simply ignored.  Since we must find at least one valid digit,
    or reject this token as an integer literal, we keep track of how many
    digits we have encountered. */
-  
+
 static int
-decode_integer_value (base, tokptrptr, ivalptr)
-  int base;
-  char **tokptrptr;
-  LONGEST *ivalptr;
+decode_integer_value (int base, char **tokptrptr, LONGEST *ivalptr)
 {
   char *tokptr = *tokptrptr;
   int temp;
@@ -1281,17 +1319,30 @@ decode_integer_value (base, tokptrptr, ivalptr)
     {
       temp = *tokptr;
       if (isupper (temp))
-        temp = tolower (temp);
+	temp = tolower (temp);
       tokptr++;
       switch (temp)
 	{
 	case '_':
 	  continue;
-	case '0':  case '1':  case '2':  case '3':  case '4':
-	case '5':  case '6':  case '7':  case '8':  case '9':
+	case '0':
+	case '1':
+	case '2':
+	case '3':
+	case '4':
+	case '5':
+	case '6':
+	case '7':
+	case '8':
+	case '9':
 	  temp -= '0';
 	  break;
-	case 'a':  case 'b':  case 'c':  case 'd':  case 'e': case 'f':
+	case 'a':
+	case 'b':
+	case 'c':
+	case 'd':
+	case 'e':
+	case 'f':
 	  temp -= 'a';
 	  temp += 10;
 	  break;
@@ -1308,15 +1359,15 @@ decode_integer_value (base, tokptrptr, ivalptr)
       else
 	{
 	  /* Found something not in domain for current base. */
-	  tokptr--;	/* Unconsume what gave us indigestion. */
+	  tokptr--;		/* Unconsume what gave us indigestion. */
 	  break;
 	}
     }
-  
+
   /* If we didn't find any digits, then we don't have a valid integer
      value, so reject the entire token.  Otherwise, update the lexical
      scan pointer, and return non-zero for success. */
-  
+
   if (digits == 0)
     {
       return (0);
@@ -1329,17 +1380,15 @@ decode_integer_value (base, tokptrptr, ivalptr)
 }
 
 static int
-decode_integer_literal (valptr, tokptrptr)
-  LONGEST *valptr;
-  char **tokptrptr;
+decode_integer_literal (LONGEST *valptr, char **tokptrptr)
 {
   char *tokptr = *tokptrptr;
   int base = 0;
   LONGEST ival = 0;
   int explicit_base = 0;
-  
+
   /* Look for an explicit base specifier, which is optional. */
-  
+
   switch (*tokptr)
     {
     case 'd':
@@ -1370,15 +1419,15 @@ decode_integer_literal (valptr, tokptrptr)
       base = 10;
       break;
     }
-  
+
   /* If we found an explicit base ensure that the character after the
      explicit base is a single quote. */
-  
+
   if (explicit_base && (*tokptr++ != '\''))
     {
       return (0);
     }
-  
+
   /* Attempt to decode whatever follows as an integer value in the
      indicated base, updating the token pointer in the process and
      computing the value into ival.  Also, if we have an explicit
@@ -1404,29 +1453,29 @@ decode_integer_literal (valptr, tokptrptr)
 }
 
 /*  If it wasn't for the fact that floating point values can contain '_'
-    characters, we could just let strtod do all the hard work by letting it
-    try to consume as much of the current token buffer as possible and
-    find a legal conversion.  Unfortunately we need to filter out the '_'
-    characters before calling strtod, which we do by copying the other
-    legal chars to a local buffer to be converted.  However since we also
-    need to keep track of where the last unconsumed character in the input
-    buffer is, we have transfer only as many characters as may compose a
-    legal floating point value. */
-    
+   characters, we could just let strtod do all the hard work by letting it
+   try to consume as much of the current token buffer as possible and
+   find a legal conversion.  Unfortunately we need to filter out the '_'
+   characters before calling strtod, which we do by copying the other
+   legal chars to a local buffer to be converted.  However since we also
+   need to keep track of where the last unconsumed character in the input
+   buffer is, we have transfer only as many characters as may compose a
+   legal floating point value. */
+
 static enum ch_terminal
-match_float_literal ()
+match_float_literal (void)
 {
   char *tokptr = lexptr;
   char *buf;
   char *copy;
   double dval;
   extern double strtod ();
-  
+
   /* Make local buffer in which to build the string to convert.  This is
      required because underscores are valid in chill floating point numbers
      but not in the string passed to strtod to convert.  The string will be
      no longer than our input string. */
-     
+
   copy = buf = (char *) alloca (strlen (tokptr) + 1);
 
   /* Transfer all leading digits to the conversion buffer, discarding any
@@ -1450,26 +1499,26 @@ match_float_literal ()
 
   switch (*tokptr++)
     {
-      case '.':
-        /* Accept and then look for fractional part and/or exponent. */
-	*copy++ = '.';
-	break;
+    case '.':
+      /* Accept and then look for fractional part and/or exponent. */
+      *copy++ = '.';
+      break;
 
-      case 'e':
-      case 'E':
-      case 'd':
-      case 'D':
-	if (copy == buf)
-	  {
-	    return (0);
-	  }
-	*copy++ = 'e';
-	goto collect_exponent;
-	break;
+    case 'e':
+    case 'E':
+    case 'd':
+    case 'D':
+      if (copy == buf)
+	{
+	  return (0);
+	}
+      *copy++ = 'e';
+      goto collect_exponent;
+      break;
 
-      default:
-	return (0);
-        break;
+    default:
+      return (0);
+      break;
     }
 
   /* We found a '.', copy any fractional digits to the conversion buffer, up
@@ -1490,21 +1539,21 @@ match_float_literal ()
 
   switch (*tokptr)
     {
-      case 'e':
-      case 'E':
-      case 'd':
-      case 'D':
-	*copy++ = 'e';
-	tokptr++;
-	break;
-      default:
-	goto convert_float;
-	break;
+    case 'e':
+    case 'E':
+    case 'd':
+    case 'D':
+      *copy++ = 'e';
+      tokptr++;
+      break;
+    default:
+      goto convert_float;
+      break;
     }
 
   /* Accept an optional '-' or '+' following one of [eEdD]. */
 
-  collect_exponent:
+collect_exponent:
   if (*tokptr == '+' || *tokptr == '-')
     {
       *copy++ = *tokptr++;
@@ -1522,18 +1571,18 @@ match_float_literal ()
      contents as a floating point value.  If any characters remain, then we
      must not have a valid floating point string. */
 
-  convert_float:
+convert_float:
   *copy = '\0';
   if (copy != buf)
-      {
-        dval = strtod (buf, &copy);
-        if (*copy == '\0')
-	  {
-	    yylval.dval = dval;
-	    lexptr = tokptr;
-	    return (FLOAT_LITERAL);
-	  }
-      }
+    {
+      dval = strtod (buf, &copy);
+      if (*copy == '\0')
+	{
+	  yylval.dval = dval;
+	  lexptr = tokptr;
+	  return (FLOAT_LITERAL);
+	}
+    }
   return (0);
 }
 
@@ -1544,7 +1593,7 @@ match_float_literal ()
    a string, it is simply doubled (I.E. "this""is""one""string") */
 
 static enum ch_terminal
-match_string_literal ()
+match_string_literal (void)
 {
   char *tokptr = lexptr;
   int in_ctrlseq = 0;
@@ -1553,7 +1602,7 @@ match_string_literal ()
   for (tempbufindex = 0, tokptr++; *tokptr != '\0'; tokptr++)
     {
       CHECKBUF (1);
-    tryagain: ;
+    tryagain:;
       if (in_ctrlseq)
 	{
 	  /* skip possible whitespaces */
@@ -1608,7 +1657,7 @@ match_string_literal ()
   if (in_ctrlseq)
     error ("Invalid control sequence");
 
-  if (*tokptr == '\0'					/* no terminator */
+  if (*tokptr == '\0'		/* no terminator */
       || (tempbufindex == 1 && *tokptr == '\''))	/* char literal */
     {
       return (0);
@@ -1637,19 +1686,19 @@ match_string_literal ()
    a string literal.
 
    Returns CHARACTER_LITERAL if a match is found.
-   */
+ */
 
 static enum ch_terminal
-match_character_literal ()
+match_character_literal (void)
 {
   char *tokptr = lexptr;
   LONGEST ival = 0;
-  
+
   if ((*tokptr == 'c' || *tokptr == 'C') && (*(tokptr + 1) == '\''))
     {
       /* We have a GNU chill extension form, so skip the leading "C'",
-	 decode the hex value, and then ensure that we have a trailing
-	 single quote character. */
+         decode the hex value, and then ensure that we have a trailing
+         single quote character. */
       tokptr += 2;
       if (!decode_integer_value (16, &tokptr, &ival) || (*tokptr != '\''))
 	{
@@ -1662,15 +1711,15 @@ match_character_literal ()
       tokptr++;
 
       /* Determine which form we have, either a control sequence or the
-	 single character form. */
-      
+         single character form. */
+
       if (*tokptr == '^')
 	{
 	  if (*(tokptr + 1) == '(')
 	    {
 	      /* Match and decode a control sequence.  Return zero if we don't
-		 find a valid integer literal, or if the next unconsumed character
-		 after the integer literal is not the trailing ')'. */
+	         find a valid integer literal, or if the next unconsumed character
+	         after the integer literal is not the trailing ')'. */
 	      tokptr += 2;
 	      if (!decode_integer_literal (&ival, &tokptr) || (*tokptr++ != ')'))
 		{
@@ -1698,8 +1747,8 @@ match_character_literal ()
 	}
 
       /* The trailing quote has not yet been consumed.  If we don't find
-	 it, then we have no match. */
-      
+         it, then we have no match. */
+
       if (*tokptr++ != '\'')
 	{
 	  return (0);
@@ -1722,20 +1771,20 @@ match_character_literal ()
    in any integer literal. */
 
 static enum ch_terminal
-match_integer_literal ()
+match_integer_literal (void)
 {
   char *tokptr = lexptr;
   LONGEST ival;
-  
+
   if (!decode_integer_literal (&ival, &tokptr))
     {
       return (0);
     }
-  else 
+  else
     {
       yylval.typed_val.val = ival;
-#if defined(CC_HAS_LONG_LONG) && defined(__STDC__)
-      if (ival > (LONGEST)2147483647U || ival < -(LONGEST)2147483648U)
+#if defined(CC_HAS_LONG_LONG)
+      if (ival > (LONGEST) 2147483647U || ival < -(LONGEST) 2147483648U)
 	yylval.typed_val.type = builtin_type_long_long;
       else
 #endif
@@ -1751,20 +1800,20 @@ match_integer_literal ()
    in any bit-string literal. */
 
 static enum ch_terminal
-match_bitstring_literal ()
+match_bitstring_literal (void)
 {
   register char *tokptr = lexptr;
   int bitoffset = 0;
   int bitcount = 0;
   int bits_per_char;
   int digit;
-  
+
   tempbufindex = 0;
   CHECKBUF (1);
   tempbuf[0] = 0;
 
   /* Look for the required explicit base specifier. */
-  
+
   switch (*tokptr++)
     {
     case 'b':
@@ -1785,33 +1834,46 @@ match_bitstring_literal ()
     }
 
   /* Ensure that the character after the explicit base is a single quote. */
-  
+
   if (*tokptr++ != '\'')
     {
       return (0);
     }
-  
+
   while (*tokptr != '\0' && *tokptr != '\'')
     {
       digit = *tokptr;
       if (isupper (digit))
-        digit = tolower (digit);
+	digit = tolower (digit);
       tokptr++;
       switch (digit)
 	{
-	  case '_':
-	    continue;
-	  case '0':  case '1':  case '2':  case '3':  case '4':
-	  case '5':  case '6':  case '7':  case '8':  case '9':
-	    digit -= '0';
-	    break;
-	  case 'a':  case 'b':  case 'c':  case 'd':  case 'e': case 'f':
-	    digit -= 'a';
-	    digit += 10;
-	    break;
-	  default:
-	    /* this is not a bitstring literal, probably an integer */
-	    return 0;
+	case '_':
+	  continue;
+	case '0':
+	case '1':
+	case '2':
+	case '3':
+	case '4':
+	case '5':
+	case '6':
+	case '7':
+	case '8':
+	case '9':
+	  digit -= '0';
+	  break;
+	case 'a':
+	case 'b':
+	case 'c':
+	case 'd':
+	case 'e':
+	case 'f':
+	  digit -= 'a';
+	  digit += 10;
+	  break;
+	default:
+	  /* this is not a bitstring literal, probably an integer */
+	  return 0;
 	}
       if (digit >= 1 << bits_per_char)
 	{
@@ -1821,30 +1883,30 @@ match_bitstring_literal ()
       else
 	{
 	  /* Extract bits from digit, packing them into the bitstring byte. */
-	  int k = TARGET_BYTE_ORDER == BIG_ENDIAN ? bits_per_char - 1 : 0;
-	  for (; TARGET_BYTE_ORDER == BIG_ENDIAN ? k >= 0 : k < bits_per_char;
-	       TARGET_BYTE_ORDER == BIG_ENDIAN ? k-- : k++)
+	  int k = TARGET_BYTE_ORDER == BFD_ENDIAN_BIG ? bits_per_char - 1 : 0;
+	  for (; TARGET_BYTE_ORDER == BFD_ENDIAN_BIG ? k >= 0 : k < bits_per_char;
+	       TARGET_BYTE_ORDER == BFD_ENDIAN_BIG ? k-- : k++)
 	    {
 	      bitcount++;
 	      if (digit & (1 << k))
 		{
 		  tempbuf[tempbufindex] |=
-		    (TARGET_BYTE_ORDER == BIG_ENDIAN)
-		      ? (1 << (HOST_CHAR_BIT - 1 - bitoffset))
-			: (1 << bitoffset);
+		    (TARGET_BYTE_ORDER == BFD_ENDIAN_BIG)
+		    ? (1 << (HOST_CHAR_BIT - 1 - bitoffset))
+		    : (1 << bitoffset);
 		}
 	      bitoffset++;
 	      if (bitoffset == HOST_CHAR_BIT)
 		{
 		  bitoffset = 0;
 		  tempbufindex++;
-		  CHECKBUF(1);
+		  CHECKBUF (1);
 		  tempbuf[tempbufindex] = 0;
 		}
 	    }
 	}
     }
-  
+
   /* Verify that we consumed everything up to the trailing single quote,
      and that we found some bits (IE not just underbars). */
 
@@ -1852,7 +1914,7 @@ match_bitstring_literal ()
     {
       return (0);
     }
-  else 
+  else
     {
       yylval.sval.ptr = tempbuf;
       yylval.sval.length = bitcount;
@@ -1869,40 +1931,40 @@ struct token
 
 static const struct token idtokentab[] =
 {
-    { "array", ARRAY },
-    { "length", LENGTH },
-    { "lower", LOWER },
-    { "upper", UPPER },
-    { "andif", ANDIF },
-    { "pred", PRED },
-    { "succ", SUCC },
-    { "card", CARD },
-    { "size", SIZE },
-    { "orif", ORIF },
-    { "num", NUM },
-    { "abs", ABS },
-    { "max", MAX_TOKEN },
-    { "min", MIN_TOKEN },
-    { "mod", MOD },
-    { "rem", REM },
-    { "not", NOT },
-    { "xor", LOGXOR },
-    { "and", LOGAND },
-    { "in", IN },
-    { "or", LOGIOR },
-    { "up", UP },
-    { "addr", ADDR_TOKEN },
-    { "null", EMPTINESS_LITERAL }
+  {"array", ARRAY},
+  {"length", LENGTH},
+  {"lower", LOWER},
+  {"upper", UPPER},
+  {"andif", ANDIF},
+  {"pred", PRED},
+  {"succ", SUCC},
+  {"card", CARD},
+  {"size", SIZE},
+  {"orif", ORIF},
+  {"num", NUM},
+  {"abs", ABS},
+  {"max", MAX_TOKEN},
+  {"min", MIN_TOKEN},
+  {"mod", MOD},
+  {"rem", REM},
+  {"not", NOT},
+  {"xor", LOGXOR},
+  {"and", LOGAND},
+  {"in", IN},
+  {"or", LOGIOR},
+  {"up", UP},
+  {"addr", ADDR_TOKEN},
+  {"null", EMPTINESS_LITERAL}
 };
 
 static const struct token tokentab2[] =
 {
-    { ":=", GDB_ASSIGNMENT },
-    { "//", SLASH_SLASH },
-    { "->", POINTER },
-    { "/=", NOTEQUAL },
-    { "<=", LEQ },
-    { ">=", GEQ }
+  {":=", GDB_ASSIGNMENT},
+  {"//", SLASH_SLASH},
+  {"->", POINTER},
+  {"/=", NOTEQUAL},
+  {"<=", LEQ},
+  {">=", GEQ}
 };
 
 /* Read one token, getting characters through lexptr.  */
@@ -1910,243 +1972,246 @@ static const struct token tokentab2[] =
    operators used are compatible.  */
 
 static enum ch_terminal
-ch_lex ()
+ch_lex (void)
 {
-    unsigned int i;
-    enum ch_terminal token;
-    char *inputname;
-    struct symbol *sym;
+  unsigned int i;
+  enum ch_terminal token;
+  char *inputname;
+  struct symbol *sym;
 
-    /* Skip over any leading whitespace. */
-    while (isspace (*lexptr))
+  /* Skip over any leading whitespace. */
+  while (isspace (*lexptr))
+    {
+      lexptr++;
+    }
+  /* Look for special single character cases which can't be the first
+     character of some other multicharacter token. */
+  switch (*lexptr)
+    {
+    case '\0':
+      return END_TOKEN;
+    case ',':
+    case '=':
+    case ';':
+    case '!':
+    case '+':
+    case '*':
+    case '(':
+    case ')':
+    case '[':
+    case ']':
+      return (*lexptr++);
+    }
+  /* Look for characters which start a particular kind of multicharacter
+     token, such as a character literal, register name, convenience
+     variable name, string literal, etc. */
+  switch (*lexptr)
+    {
+    case '\'':
+    case '\"':
+      /* First try to match a string literal, which is any
+         sequence of characters enclosed in matching single or double
+         quotes, except that a single character inside single quotes
+         is a character literal, so we have to catch that case also. */
+      token = match_string_literal ();
+      if (token != 0)
 	{
-	    lexptr++;
+	  return (token);
 	}
-    /* Look for special single character cases which can't be the first
-       character of some other multicharacter token. */
-    switch (*lexptr)
+      if (*lexptr == '\'')
 	{
-	    case '\0':
-	        return END_TOKEN;
-	    case ',':
-	    case '=':
-	    case ';':
-	    case '!':
-	    case '+':
-	    case '*':
-	    case '(':
-	    case ')':
-	    case '[':
-	    case ']':
-		return (*lexptr++);
-	}
-    /* Look for characters which start a particular kind of multicharacter
-       token, such as a character literal, register name, convenience
-       variable name, string literal, etc. */
-    switch (*lexptr)
-      {
-	case '\'':
-	case '\"':
-	  /* First try to match a string literal, which is any
-	     sequence of characters enclosed in matching single or double
-	     quotes, except that a single character inside single quotes
-	     is a character literal, so we have to catch that case also. */
-	  token = match_string_literal ();
-	  if (token != 0)
-	    {
-	      return (token);
-	    }
-	  if (*lexptr == '\'')
-	    {
-	      token = match_character_literal ();
-	      if (token != 0)
-		{
-		  return (token);
-		}
-	    }
-	  break;
-        case 'C':
-        case 'c':
 	  token = match_character_literal ();
 	  if (token != 0)
 	    {
 	      return (token);
 	    }
-	  break;
-	case '$':
-	  yylval.sval.ptr = lexptr;
-	  do {
-	    lexptr++;
-	  } while (isalnum (*lexptr) || *lexptr == '_' || *lexptr == '$');
-	  yylval.sval.length = lexptr - yylval.sval.ptr;
-	  write_dollar_variable (yylval.sval);
-	  return GDB_VARIABLE;
-	  break;
-      }
-    /* See if it is a special token of length 2.  */
-    for (i = 0; i < sizeof (tokentab2) / sizeof (tokentab2[0]); i++)
-	{
-	    if (STREQN (lexptr, tokentab2[i].operator, 2))
-		{
-		    lexptr += 2;
-		    return (tokentab2[i].token);
-		}
 	}
-    /* Look for single character cases which which could be the first
-       character of some other multicharacter token, but aren't, or we
-       would already have found it. */
-    switch (*lexptr)
+      break;
+    case 'C':
+    case 'c':
+      token = match_character_literal ();
+      if (token != 0)
 	{
-	    case '-':
-	    case ':':
-	    case '/':
-	    case '<':
-	    case '>':
-		return (*lexptr++);
+	  return (token);
 	}
-    /* Look for a float literal before looking for an integer literal, so
-       we match as much of the input stream as possible. */
-    token = match_float_literal ();
-    if (token != 0)
+      break;
+    case '$':
+      yylval.sval.ptr = lexptr;
+      do
 	{
-	    return (token);
-	}
-    token = match_bitstring_literal ();
-    if (token != 0)
-	{
-	    return (token);
-	}
-    token = match_integer_literal ();
-    if (token != 0)
-	{
-	    return (token);
-	}
-
-    /* Try to match a simple name string, and if a match is found, then
-       further classify what sort of name it is and return an appropriate
-       token.  Note that attempting to match a simple name string consumes
-       the token from lexptr, so we can't back out if we later find that
-       we can't classify what sort of name it is. */
-
-    inputname = match_simple_name_string ();
-
-    if (inputname != NULL)
-      {
-	char *simplename = (char*) alloca (strlen (inputname) + 1);
-
-	char *dptr = simplename, *sptr = inputname;
-	for (; *sptr; sptr++)
-	  *dptr++ = isupper (*sptr) ? tolower(*sptr) : *sptr;
-	*dptr = '\0';
-
-	/* See if it is a reserved identifier. */
-	for (i = 0; i < sizeof (idtokentab) / sizeof (idtokentab[0]); i++)
-	    {
-		if (STREQ (simplename, idtokentab[i].operator))
-		    {
-			return (idtokentab[i].token);
-		    }
-	    }
-
-	/* Look for other special tokens. */
-	if (STREQ (simplename, "true"))
-	    {
-		yylval.ulval = 1;
-		return (BOOLEAN_LITERAL);
-	    }
-	if (STREQ (simplename, "false"))
-	    {
-		yylval.ulval = 0;
-		return (BOOLEAN_LITERAL);
-	    }
-
-	sym = lookup_symbol (inputname, expression_context_block,
-			     VAR_NAMESPACE, (int *) NULL,
-			     (struct symtab **) NULL);
-	if (sym == NULL && strcmp (inputname, simplename) != 0)
-	  {
-	    sym = lookup_symbol (simplename, expression_context_block,
-				 VAR_NAMESPACE, (int *) NULL,
-				 (struct symtab **) NULL);
-	  }
-	if (sym != NULL)
-	  {
-	    yylval.ssym.stoken.ptr = NULL;
-	    yylval.ssym.stoken.length = 0;
-	    yylval.ssym.sym = sym;
-	    yylval.ssym.is_a_field_of_this = 0;	/* FIXME, C++'ism */
-	    switch (SYMBOL_CLASS (sym))
-	      {
-	      case LOC_BLOCK:
-		/* Found a procedure name. */
-		return (GENERAL_PROCEDURE_NAME);
-	      case LOC_STATIC:
-		/* Found a global or local static variable. */
-		return (LOCATION_NAME);
-	      case LOC_REGISTER:
-	      case LOC_ARG:
-	      case LOC_REF_ARG:
-	      case LOC_REGPARM:
-	      case LOC_REGPARM_ADDR:
-	      case LOC_LOCAL:
-	      case LOC_LOCAL_ARG:
-	      case LOC_BASEREG:
-	      case LOC_BASEREG_ARG:
-		if (innermost_block == NULL
-		    || contained_in (block_found, innermost_block))
-		  {
-		    innermost_block = block_found;
-		  }
-		return (LOCATION_NAME);
-		break;
-	      case LOC_CONST:
-	      case LOC_LABEL:
-		return (LOCATION_NAME);
-		break;
-	      case LOC_TYPEDEF:
-		yylval.tsym.type = SYMBOL_TYPE (sym);
-		return TYPENAME;
-	      case LOC_UNDEF:
-	      case LOC_CONST_BYTES:
-	      case LOC_OPTIMIZED_OUT:
-		error ("Symbol \"%s\" names no location.", inputname);
-		break;
-	      case LOC_UNRESOLVED:
-		error ("unhandled SYMBOL_CLASS in ch_lex()");
-		break;
-	      }
-	  }
-	else if (!have_full_symbols () && !have_partial_symbols ())
-	  {
-	    error ("No symbol table is loaded.  Use the \"file\" command.");
-	  }
-	else
-	  {
-	    error ("No symbol \"%s\" in current context.", inputname);
-	  }
-      }
-
-    /* Catch single character tokens which are not part of some
-       longer token. */
-
-    switch (*lexptr)
-      {
-	case '.':			/* Not float for example. */
 	  lexptr++;
-	  while (isspace (*lexptr)) lexptr++;
-	  inputname = match_simple_name_string ();
-	  if (!inputname)
-	    return '.';
-	  return DOT_FIELD_NAME;
-      }
+	}
+      while (isalnum (*lexptr) || *lexptr == '_' || *lexptr == '$');
+      yylval.sval.length = lexptr - yylval.sval.ptr;
+      write_dollar_variable (yylval.sval);
+      return GDB_VARIABLE;
+      break;
+    }
+  /* See if it is a special token of length 2.  */
+  for (i = 0; i < sizeof (tokentab2) / sizeof (tokentab2[0]); i++)
+    {
+      if (STREQN (lexptr, tokentab2[i].operator, 2))
+	{
+	  lexptr += 2;
+	  return (tokentab2[i].token);
+	}
+    }
+  /* Look for single character cases which which could be the first
+     character of some other multicharacter token, but aren't, or we
+     would already have found it. */
+  switch (*lexptr)
+    {
+    case '-':
+    case ':':
+    case '/':
+    case '<':
+    case '>':
+      return (*lexptr++);
+    }
+  /* Look for a float literal before looking for an integer literal, so
+     we match as much of the input stream as possible. */
+  token = match_float_literal ();
+  if (token != 0)
+    {
+      return (token);
+    }
+  token = match_bitstring_literal ();
+  if (token != 0)
+    {
+      return (token);
+    }
+  token = match_integer_literal ();
+  if (token != 0)
+    {
+      return (token);
+    }
 
-    return (ILLEGAL_TOKEN);
+  /* Try to match a simple name string, and if a match is found, then
+     further classify what sort of name it is and return an appropriate
+     token.  Note that attempting to match a simple name string consumes
+     the token from lexptr, so we can't back out if we later find that
+     we can't classify what sort of name it is. */
+
+  inputname = match_simple_name_string ();
+
+  if (inputname != NULL)
+    {
+      char *simplename = (char *) alloca (strlen (inputname) + 1);
+
+      char *dptr = simplename, *sptr = inputname;
+      for (; *sptr; sptr++)
+	*dptr++ = isupper (*sptr) ? tolower (*sptr) : *sptr;
+      *dptr = '\0';
+
+      /* See if it is a reserved identifier. */
+      for (i = 0; i < sizeof (idtokentab) / sizeof (idtokentab[0]); i++)
+	{
+	  if (STREQ (simplename, idtokentab[i].operator))
+	    {
+	      return (idtokentab[i].token);
+	    }
+	}
+
+      /* Look for other special tokens. */
+      if (STREQ (simplename, "true"))
+	{
+	  yylval.ulval = 1;
+	  return (BOOLEAN_LITERAL);
+	}
+      if (STREQ (simplename, "false"))
+	{
+	  yylval.ulval = 0;
+	  return (BOOLEAN_LITERAL);
+	}
+
+      sym = lookup_symbol (inputname, expression_context_block,
+			   VAR_NAMESPACE, (int *) NULL,
+			   (struct symtab **) NULL);
+      if (sym == NULL && strcmp (inputname, simplename) != 0)
+	{
+	  sym = lookup_symbol (simplename, expression_context_block,
+			       VAR_NAMESPACE, (int *) NULL,
+			       (struct symtab **) NULL);
+	}
+      if (sym != NULL)
+	{
+	  yylval.ssym.stoken.ptr = NULL;
+	  yylval.ssym.stoken.length = 0;
+	  yylval.ssym.sym = sym;
+	  yylval.ssym.is_a_field_of_this = 0;	/* FIXME, C++'ism */
+	  switch (SYMBOL_CLASS (sym))
+	    {
+	    case LOC_BLOCK:
+	      /* Found a procedure name. */
+	      return (GENERAL_PROCEDURE_NAME);
+	    case LOC_STATIC:
+	      /* Found a global or local static variable. */
+	      return (LOCATION_NAME);
+	    case LOC_REGISTER:
+	    case LOC_ARG:
+	    case LOC_REF_ARG:
+	    case LOC_REGPARM:
+	    case LOC_REGPARM_ADDR:
+	    case LOC_LOCAL:
+	    case LOC_LOCAL_ARG:
+	    case LOC_BASEREG:
+	    case LOC_BASEREG_ARG:
+	      if (innermost_block == NULL
+		  || contained_in (block_found, innermost_block))
+		{
+		  innermost_block = block_found;
+		}
+	      return (LOCATION_NAME);
+	      break;
+	    case LOC_CONST:
+	    case LOC_LABEL:
+	      return (LOCATION_NAME);
+	      break;
+	    case LOC_TYPEDEF:
+	      yylval.tsym.type = SYMBOL_TYPE (sym);
+	      return TYPENAME;
+	    case LOC_UNDEF:
+	    case LOC_CONST_BYTES:
+	    case LOC_OPTIMIZED_OUT:
+	      error ("Symbol \"%s\" names no location.", inputname);
+	      break;
+	    default:
+	      internal_error (__FILE__, __LINE__,
+			      "unhandled SYMBOL_CLASS in ch_lex()");
+	      break;
+	    }
+	}
+      else if (!have_full_symbols () && !have_partial_symbols ())
+	{
+	  error ("No symbol table is loaded.  Use the \"file\" command.");
+	}
+      else
+	{
+	  error ("No symbol \"%s\" in current context.", inputname);
+	}
+    }
+
+  /* Catch single character tokens which are not part of some
+     longer token. */
+
+  switch (*lexptr)
+    {
+    case '.':			/* Not float for example. */
+      lexptr++;
+      while (isspace (*lexptr))
+	lexptr++;
+      inputname = match_simple_name_string ();
+      if (!inputname)
+	return '.';
+      return DOT_FIELD_NAME;
+    }
+
+  return (ILLEGAL_TOKEN);
 }
 
 static void
-write_lower_upper_value (opcode, type)
-     enum exp_opcode opcode;  /* Either UNOP_LOWER or UNOP_UPPER */
-     struct type *type;
+write_lower_upper_value (enum exp_opcode opcode,	/* Either UNOP_LOWER or UNOP_UPPER */
+			 struct type *type)
 {
   if (type == NULL)
     write_exp_elt_opcode (opcode);
@@ -2162,8 +2227,7 @@ write_lower_upper_value (opcode, type)
 }
 
 void
-chill_error (msg)
-     char *msg;
+chill_error (char *msg)
 {
   /* Never used. */
 }

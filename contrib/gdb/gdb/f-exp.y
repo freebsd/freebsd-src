@@ -1,6 +1,7 @@
 /* YACC parser for Fortran expressions, for GDB.
-   Copyright 1986, 1989, 1990, 1991, 1993, 1994
-             Free Software Foundation, Inc.
+   Copyright 1986, 1989, 1990, 1991, 1993, 1994, 1995, 1996, 2000, 2001
+   Free Software Foundation, Inc.
+
    Contributed by Motorola.  Adapted from the C parser by Farooq Butt
    (fmbutt@engage.sps.mot.com).
 
@@ -52,6 +53,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "bfd.h" /* Required by objfiles.h.  */
 #include "symfile.h" /* Required by objfiles.h.  */
 #include "objfiles.h" /* For have_full_symbols and have_partial_symbols */
+#include <ctype.h>
 
 /* Remap normal yacc parser interface names (yyparse, yylex, yyerror, etc),
    as well as gratuitiously global symbol names, so we can have multiple
@@ -103,15 +105,15 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #define	YYDEBUG	1		/* Default to no yydebug support */
 #endif
 
-int yyparse PARAMS ((void));
+int yyparse (void);
 
-static int yylex PARAMS ((void));
+static int yylex (void);
 
-void yyerror PARAMS ((char *));
+void yyerror (char *);
 
-static void growbuf_by_size PARAMS ((int));
+static void growbuf_by_size (int);
 
-static int match_string_literal PARAMS ((void));
+static int match_string_literal (void);
 
 %}
 
@@ -143,7 +145,7 @@ static int match_string_literal PARAMS ((void));
 
 %{
 /* YYSTYPE gets defined by %union */
-static int parse_number PARAMS ((char *, int, int, YYSTYPE *));
+static int parse_number (char *, int, int, YYSTYPE *);
 %}
 
 %type <voidval> exp  type_exp start variable 
@@ -638,7 +640,6 @@ parse_number (p, len, parsed_float, putithere)
 {
   register LONGEST n = 0;
   register LONGEST prevn = 0;
-  register int i;
   register int c;
   register int base = input_radix;
   int unsigned_p = 0;
@@ -653,7 +654,7 @@ parse_number (p, len, parsed_float, putithere)
       /* [dD] is not understood as an exponent by atof, change it to 'e'.  */
       char *tmp, *tmp2;
 
-      tmp = strsave (p);
+      tmp = xstrdup (p);
       for (tmp2 = tmp; *tmp2; ++tmp2)
 	if (*tmp2 == 'd' || *tmp2 == 'D')
 	  *tmp2 = 'e';
@@ -696,26 +697,26 @@ parse_number (p, len, parsed_float, putithere)
   while (len-- > 0)
     {
       c = *p++;
-      if (c >= 'A' && c <= 'Z')
-	c += 'a' - 'A';
-      if (c != 'l' && c != 'u')
-	n *= base;
-      if (c >= '0' && c <= '9')
-	n += i = c - '0';
+      if (isupper (c))
+	c = tolower (c);
+      if (len == 0 && c == 'l')
+	long_p = 1;
+      else if (len == 0 && c == 'u')
+	unsigned_p = 1;
       else
 	{
-	  if (base > 10 && c >= 'a' && c <= 'f')
-	    n += i = c - 'a' + 10;
-	  else if (len == 0 && c == 'l') 
-            long_p = 1;
-	  else if (len == 0 && c == 'u')
-	    unsigned_p = 1;
+	  int i;
+	  if (c >= '0' && c <= '9')
+	    i = c - '0';
+	  else if (c >= 'a' && c <= 'f')
+	    i = c - 'a' + 10;
 	  else
 	    return ERROR;	/* Char not a digit */
+	  if (i >= base)
+	    return ERROR;		/* Invalid digit in this base */
+	  n *= base;
+	  n += i;
 	}
-      if (i >= base)
-	return ERROR;		/* Invalid digit in this base */
-      
       /* Portably test for overflow (only works for nonzero values, so make
 	 a second check for zero).  */
       if ((prevn >= n) && n != 0)

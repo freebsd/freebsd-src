@@ -1,0 +1,32 @@
+
+			Known problems in GDB 5.2
+
+		See also: http://www.gnu.org/software/gdb/bugs/
+
+
+hppa2.0-hp-hpux10.20
+--------------------
+
+gdb/487: The top level make files used to build GDB are not compatible
+with HP/UX make.  As a workaround, use GNU make.
+
+gdb/486: The HP/UX C compiler defaults to K&R mode but GDB only builds
+with an ISO C compiler.  The top level configuration incorrectly sets
+CC to `cc' instead of `cc -Ae'.  As a workaround, the correct compiler
+can be specified as part of the configuration vis:
+
+    $  'CC=cc -Ae' ./configure
+
+
+s390*-*-*
+---------
+
+gdb/513: GDB does not build on s390 GNU/Linux.  The problem should be
+fixed in more recent sources.
+
+
+i386-*-freebsd4.4*
+------------------
+
+gdb/455: GDB doesn't build on a FreeBSD 4.4-STABLE system.  The
+problem is still being investigated.

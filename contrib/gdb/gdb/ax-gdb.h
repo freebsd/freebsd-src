@@ -1,28 +1,27 @@
 /* GDB-specific functions for operating on agent expressions
-   Copyright 1998 Free Software Foundation, Inc.
+   Copyright 1998, 1999, 2000 Free Software Foundation, Inc.
 
-This file is part of GDB.
+   This file is part of GDB.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
-
-/* $Id: ax-gdb.h,v 1.3.20.1 1999/04/01 17:33:04 jimb Exp $ */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place - Suite 330,
+   Boston, MA 02111-1307, USA.  */
 
 #ifndef AX_GDB_H
 #define AX_GDB_H
-
 
+
 /* Types and enums */
 
 /* GDB stores expressions in the form of a flattened tree (struct
@@ -50,62 +49,64 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 
 /* Different kinds of agent expression static values.  */
-enum axs_lvalue_kind {
-  /* We generated code to compute the subexpression's value.
-     Constants and arithmetic operators yield this.  */
-  axs_rvalue,
+enum axs_lvalue_kind
+  {
+    /* We generated code to compute the subexpression's value.
+       Constants and arithmetic operators yield this.  */
+    axs_rvalue,
 
-  /* We generated code to yield the subexpression's value's address on
-     the top of the stack.  If the caller needs an rvalue, it should
-     call require_rvalue to produce the rvalue from this address.  */
-  axs_lvalue_memory,
+    /* We generated code to yield the subexpression's value's address on
+       the top of the stack.  If the caller needs an rvalue, it should
+       call require_rvalue to produce the rvalue from this address.  */
+    axs_lvalue_memory,
 
-  /* We didn't generate any code, and the stack is undisturbed,
-     because the subexpression's value lives in a register; u.reg is
-     the register number.  If the caller needs an rvalue, it should
-     call require_rvalue to produce the rvalue from this register
-     number.  */
-  axs_lvalue_register
-};
+    /* We didn't generate any code, and the stack is undisturbed,
+       because the subexpression's value lives in a register; u.reg is
+       the register number.  If the caller needs an rvalue, it should
+       call require_rvalue to produce the rvalue from this register
+       number.  */
+    axs_lvalue_register
+  };
 
 /* Structure describing what we got from a subexpression.  Think of
    this as parallel to value.h's enum lval_type, except that we're
    describing a value which will exist when the expression is
    evaluated in the future, not a value we have in our hand.  */
-struct axs_value {
-  enum axs_lvalue_kind kind;	/* see above */
+struct axs_value
+  {
+    enum axs_lvalue_kind kind;	/* see above */
 
-  /* The type of the subexpression.  Even if lvalue == axs_lvalue_memory,
-     this is the type of the value itself; the value on the stack is a
-     "pointer to" an object of this type. */
-  struct type *type;
+    /* The type of the subexpression.  Even if lvalue == axs_lvalue_memory,
+       this is the type of the value itself; the value on the stack is a
+       "pointer to" an object of this type. */
+    struct type *type;
 
-  union {
-    /* if kind == axs_lvalue_register, this is the register number */
-    int reg;
-  } u;
-};
-
+    union
+      {
+	/* if kind == axs_lvalue_register, this is the register number */
+	int reg;
+      }
+    u;
+  };
 
+
 /* Translating GDB expressions into agent expressions.  */
 
 /* Given a GDB expression EXPR, translate it into the agent bytecode,
    and return it.  FLAGS are from enum expr_to_agent_flags.  */
-extern struct agent_expr *expr_to_agent PARAMS ((struct expression *EXPR,
-						 struct axs_value *VALUE));
+extern struct agent_expr *expr_to_agent (struct expression *EXPR,
+					 struct axs_value *VALUE);
 
 /* Given a GDB expression EXPR denoting an lvalue in memory, produce a
    string of agent bytecode which will leave its address and size on
    the top of stack.  Return the agent expression.  */
-extern struct agent_expr *expr_to_address_and_size
-			  PARAMS ((struct expression *EXPR));
+extern struct agent_expr *expr_to_address_and_size (struct expression *EXPR);
 
 /* Given a GDB expression EXPR, return bytecode to trace its value.
    The result will use the `trace' and `trace_quick' bytecodes to
    record the value of all memory touched by the expression, and leave
    no values on the stack.  The caller can then use the ax_reqs
    function to discover which registers the expression uses.  */
-extern struct agent_expr *gen_trace_for_expr PARAMS ((CORE_ADDR, 
-						      struct expression *));
+extern struct agent_expr *gen_trace_for_expr (CORE_ADDR, struct expression *);
 
 #endif /* AX_GDB_H */

@@ -1,24 +1,26 @@
 /* Multi-process/thread control defs for GDB, the GNU debugger.
-   Copyright 1987, 88, 89, 90, 91, 92, 1993, 1998
-
-   Contributed by Lynx Real-Time Systems, Inc.  Los Gatos, CA.
+   Copyright 1987, 1988, 1989, 1990, 1991, 1992, 1993, 1997, 1998, 1999,
+   2000
    Free Software Foundation, Inc.
+   Contributed by Lynx Real-Time Systems, Inc.  Los Gatos, CA.
+   
 
-This file is part of GDB.
+   This file is part of GDB.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place - Suite 330,
+   Boston, MA 02111-1307, USA.  */
 
 #ifndef GDBTHREAD_H
 #define GDBTHREAD_H
@@ -26,96 +28,128 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 /* For bpstat */
 #include "breakpoint.h"
 
-extern void init_thread_list PARAMS ((void));
+struct thread_info
+{
+  struct thread_info *next;
+  ptid_t ptid;			/* "Actual process id";
+				    In fact, this may be overloaded with 
+				    kernel thread id, etc.  */
+  int num;			/* Convenient handle (GDB thread id) */
+  /* State from wait_for_inferior */
+  CORE_ADDR prev_pc;
+  CORE_ADDR prev_func_start;
+  char *prev_func_name;
+  struct breakpoint *step_resume_breakpoint;
+  struct breakpoint *through_sigtramp_breakpoint;
+  CORE_ADDR step_range_start;
+  CORE_ADDR step_range_end;
+  CORE_ADDR step_frame_address;
+  CORE_ADDR step_sp;
+  int current_line;
+  struct symtab *current_symtab;
+  int trap_expected;
+  int handling_longjmp;
+  int another_trap;
 
-extern void add_thread PARAMS ((int pid));
+  /* This is set TRUE when a catchpoint of a shared library event
+     triggers.  Since we don't wish to leave the inferior in the
+     solib hook when we report the event, we step the inferior
+     back to user code before stopping and reporting the event.  */
+  int stepping_through_solib_after_catch;
 
-extern void delete_thread PARAMS ((int));
-  
-extern int thread_id_to_pid PARAMS ((int));
+  /* When stepping_through_solib_after_catch is TRUE, this is a
+     list of the catchpoints that should be reported as triggering
+     when we finally do stop stepping.  */
+  bpstat stepping_through_solib_catchpoints;
 
-extern int in_thread_list PARAMS ((int pid));
+  /* This is set to TRUE when this thread is in a signal handler
+     trampoline and we're single-stepping through it.  */
+  int stepping_through_sigtramp;
 
-extern int pid_to_thread_id PARAMS ((int pid));
+  /* Private data used by the target vector implementation.  */
+  struct private_thread_info *private;
+};
 
-extern int valid_thread_id PARAMS ((int thread));
+/* Create an empty thread list, or empty the existing one.  */
+extern void init_thread_list (void);
 
-extern void load_infrun_state PARAMS ((int, CORE_ADDR *, CORE_ADDR *, char **,
-				       int *, struct breakpoint **,
-				       struct breakpoint **, CORE_ADDR *,
-				       CORE_ADDR *, CORE_ADDR *, int *, int *,
-                                       int *, bpstat *, int *));
+/* Add a thread to the thread list.
+   Note that add_thread now returns the handle of the new thread,
+   so that the caller may initialize the private thread data.  */
+extern struct thread_info *add_thread (ptid_t ptid);
 
-extern void save_infrun_state PARAMS ((int, CORE_ADDR, CORE_ADDR, char *,
-				       int, struct breakpoint *,
-				       struct breakpoint *, CORE_ADDR,
-				       CORE_ADDR, CORE_ADDR, int, int,
-                                       int, bpstat, int));
+/* Delete an existing thread list entry.  */
+extern void delete_thread (ptid_t);
+
+/* Delete a step_resume_breakpoint from the thread database. */
+extern void delete_step_resume_breakpoint (void *);
+
+/* Translate the integer thread id (GDB's homegrown id, not the system's)
+   into a "pid" (which may be overloaded with extra thread information).  */
+extern ptid_t thread_id_to_pid (int);
+
+/* Translate a 'pid' (which may be overloaded with extra thread information) 
+   into the integer thread id (GDB's homegrown id, not the system's).  */
+extern int pid_to_thread_id (ptid_t ptid);
+
+/* Boolean test for an already-known pid (which may be overloaded with
+   extra thread information).  */
+extern int in_thread_list (ptid_t ptid);
+
+/* Boolean test for an already-known thread id (GDB's homegrown id, 
+   not the system's).  */
+extern int valid_thread_id (int thread);
+
+/* Search function to lookup a thread by 'pid'.  */
+extern struct thread_info *find_thread_pid (ptid_t ptid);
+
+/* Iterator function to call a user-provided callback function
+   once for each known thread.  */
+typedef int (*thread_callback_func) (struct thread_info *, void *);
+extern struct thread_info *iterate_over_threads (thread_callback_func, void *);
+
+/* infrun context switch: save the debugger state for the given thread.  */
+extern void save_infrun_state (ptid_t ptid,
+			       CORE_ADDR prev_pc,
+			       CORE_ADDR prev_func_start,
+			       char     *prev_func_name,
+			       int       trap_expected,
+			       struct breakpoint *step_resume_breakpoint,
+			       struct breakpoint *through_sigtramp_breakpoint,
+			       CORE_ADDR step_range_start,
+			       CORE_ADDR step_range_end,
+			       CORE_ADDR step_frame_address,
+			       int       handling_longjmp,
+			       int       another_trap,
+			       int       stepping_through_solib_after_catch,
+			       bpstat    stepping_through_solib_catchpoints,
+			       int       stepping_through_sigtramp,
+			       int       current_line,
+			       struct symtab *current_symtab,
+			       CORE_ADDR step_sp);
+
+/* infrun context switch: load the debugger state previously saved
+   for the given thread.  */
+extern void load_infrun_state (ptid_t ptid,
+			       CORE_ADDR *prev_pc,
+			       CORE_ADDR *prev_func_start,
+			       char     **prev_func_name,
+			       int       *trap_expected,
+			       struct breakpoint **step_resume_breakpoint,
+			       struct breakpoint **through_sigtramp_breakpoint,
+			       CORE_ADDR *step_range_start,
+			       CORE_ADDR *step_range_end,
+			       CORE_ADDR *step_frame_address,
+			       int       *handling_longjmp,
+			       int       *another_trap,
+			       int       *stepping_through_solib_affter_catch,
+			       bpstat    *stepping_through_solib_catchpoints,
+			       int       *stepping_through_sigtramp,
+			       int       *current_line,
+			       struct symtab **current_symtab,
+			       CORE_ADDR *step_sp);
 
 /* Commands with a prefix of `thread'.  */
 extern struct cmd_list_element *thread_cmd_list;
 
-/* Support for external (remote) systems with threads (processes) */
-/* For example real time operating systems */
- 
-#define OPAQUETHREADBYTES 8
-/* a 64 bit opaque identifier */
-typedef unsigned char threadref[OPAQUETHREADBYTES] ;
-/* WARNING: This threadref data structure comes from the remote O.S., libstub
-   protocol encoding, and remote.c. it is not particularly changable */
-
-/* Right now, the internal structure is int. We want it to be bigger.
-   Plan to fix this.
-   */
-typedef int gdb_threadref ; /* internal GDB thread reference */
-
-/*  gdb_ext_thread_info is an internal GDB data structure which is
-   equivalint to the reply of the remote threadinfo packet */
-
-struct gdb_ext_thread_info
-{
-  threadref threadid ; /* External form of thread reference */
-  int active ;         /* Has state interesting to GDB? , regs, stack */
-  char display[256] ;  /* Brief state display, name, blocked/syspended */
-  char shortname[32] ; /* To be used to name threads */
-  char more_display[256] ; /* Long info, statistics, queue depth, whatever */
-} ;
-
-/* The volume of remote transfers can be limited by submitting
-   a mask containing bits specifying the desired information.
-   Use a union of these values as the 'selection' parameter to
-   get_thread_info. FIXME: Make these TAG names more thread specific.
-   */
-#define TAG_THREADID 1
-#define TAG_EXISTS 2
-#define TAG_DISPLAY 4
-#define TAG_THREADNAME 8
-#define TAG_MOREDISPLAY 16 
-
-/* Always initialize an instance of this structure using run time assignments */
-/* Because we are likely to add entrtries to it. */
-/* Alternatly, WE COULD ADD THESE TO THE TARGET VECTOR */
-  
-struct target_thread_vector
-{
-  int (*find_new_threads)PARAMS((void)) ;
-  int (*get_thread_info) PARAMS((
-			 gdb_threadref * ref,
-			 int selection,
-			 struct gdb_ext_thread_info * info
-			 )) ;
-  /* to_thread_alive - Already in the target vector */
-  /* to_switch_thread - Done via select frame */
-} ;
-
-extern void bind_target_thread_vector PARAMS((struct target_thread_vector * vec)) ;
-
-extern struct target_thread_vector * unbind_target_thread_vector PARAMS ((void)) ;
-
-extern int target_get_thread_info PARAMS((
-				  gdb_threadref * ref,
-				  int selection,
-				  struct gdb_ext_thread_info * info)) ;
-
-
-#endif	/* GDBTHREAD_H */
+#endif /* GDBTHREAD_H */

@@ -1,7 +1,12 @@
-# Host: Intel 386 running GNU/Linux
+# Host: Intel 386 running GNU/Linux.
 
-XM_FILE= xm-linux.h
-XDEPFILES= ser-tcp.o
+XM_FILE= xm-i386.h
 
 NAT_FILE= nm-linux.h
-NATDEPFILES= infptrace.o solib.o inftarg.o fork-child.o corelow.o core-aout.o core-regset.o i386v-nat.o i386v4-nat.o
+NATDEPFILES= infptrace.o inftarg.o fork-child.o corelow.o linux-proc.o \
+	core-aout.o i386-nat.o i386-linux-nat.o i387-nat.o \
+	proc-service.o thread-db.o lin-lwp.o linux-proc.o gcore.o
+
+# The dynamically loaded libthread_db needs access to symbols in the
+# gdb executable.
+LOADLIBES = -ldl -rdynamic

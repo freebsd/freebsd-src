@@ -1,104 +1,106 @@
 /* Annotation routines for GDB.
-   Copyright 1986, 1989, 1990, 1991, 1992 Free Software Foundation, Inc.
+   Copyright 1986, 1989, 1990, 1991, 1992, 1994, 1998, 1999, 2000
+   Free Software Foundation, Inc.
 
-This file is part of GDB.
+   This file is part of GDB.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place - Suite 330,
+   Boston, MA 02111-1307, USA.  */
 
 #include "symtab.h"
 #include "gdbtypes.h"
 
-extern void breakpoints_changed PARAMS ((void));
+extern void breakpoints_changed (void);
 
-extern void annotate_breakpoint PARAMS ((int));
-extern void annotate_catchpoint PARAMS ((int));
-extern void annotate_watchpoint PARAMS ((int));
-extern void annotate_starting PARAMS ((void));
-extern void annotate_stopped PARAMS ((void));
-extern void annotate_exited PARAMS ((int));
-extern void annotate_signalled PARAMS ((void));
-extern void annotate_signal_name PARAMS ((void));
-extern void annotate_signal_name_end PARAMS ((void));
-extern void annotate_signal_string PARAMS ((void));
-extern void annotate_signal_string_end PARAMS ((void));
-extern void annotate_signal PARAMS ((void));
+extern void annotate_ignore_count_change (void);
+extern void annotate_breakpoint (int);
+extern void annotate_catchpoint (int);
+extern void annotate_watchpoint (int);
+extern void annotate_starting (void);
+extern void annotate_stopped (void);
+extern void annotate_exited (int);
+extern void annotate_signalled (void);
+extern void annotate_signal_name (void);
+extern void annotate_signal_name_end (void);
+extern void annotate_signal_string (void);
+extern void annotate_signal_string_end (void);
+extern void annotate_signal (void);
 
-extern void annotate_breakpoints_headers PARAMS ((void));
-extern void annotate_field PARAMS ((int));
-extern void annotate_breakpoints_table PARAMS ((void));
-extern void annotate_record PARAMS ((void));
-extern void annotate_breakpoints_table_end PARAMS ((void));
+extern void annotate_breakpoints_headers (void);
+extern void annotate_field (int);
+extern void annotate_breakpoints_table (void);
+extern void annotate_record (void);
+extern void annotate_breakpoints_table_end (void);
 
-extern void annotate_frames_invalid PARAMS ((void));
+extern void annotate_frames_invalid (void);
 
-#ifdef __STDC__
 struct type;
-#endif
 
-extern void annotate_field_begin PARAMS ((struct type *));
-extern void annotate_field_name_end PARAMS ((void));
-extern void annotate_field_value PARAMS ((void));
-extern void annotate_field_end PARAMS ((void));
+extern void annotate_field_begin (struct type *);
+extern void annotate_field_name_end (void);
+extern void annotate_field_value (void);
+extern void annotate_field_end (void);
 
-extern void annotate_quit PARAMS ((void));
-extern void annotate_error PARAMS ((void));
-extern void annotate_error_begin PARAMS ((void));
+extern void annotate_quit (void);
+extern void annotate_error (void);
+extern void annotate_error_begin (void);
 
-extern void annotate_value_history_begin PARAMS ((int, struct type *));
-extern void annotate_value_begin PARAMS ((struct type *));
-extern void annotate_value_history_value PARAMS ((void));
-extern void annotate_value_history_end PARAMS ((void));
-extern void annotate_value_end PARAMS ((void));
+extern void annotate_value_history_begin (int, struct type *);
+extern void annotate_value_begin (struct type *);
+extern void annotate_value_history_value (void);
+extern void annotate_value_history_end (void);
+extern void annotate_value_end (void);
 
-extern void annotate_display_begin PARAMS ((void));
-extern void annotate_display_number_end PARAMS ((void));
-extern void annotate_display_format PARAMS ((void));
-extern void annotate_display_expression PARAMS ((void));
-extern void annotate_display_expression_end PARAMS ((void));
-extern void annotate_display_value PARAMS ((void));
-extern void annotate_display_end PARAMS ((void));
+extern void annotate_display_begin (void);
+extern void annotate_display_number_end (void);
+extern void annotate_display_format (void);
+extern void annotate_display_expression (void);
+extern void annotate_display_expression_end (void);
+extern void annotate_display_value (void);
+extern void annotate_display_end (void);
 
-extern void annotate_arg_begin PARAMS ((void));
-extern void annotate_arg_name_end PARAMS ((void));
-extern void annotate_arg_value PARAMS ((struct type *));
-extern void annotate_arg_end PARAMS ((void));
+extern void annotate_arg_begin (void);
+extern void annotate_arg_name_end (void);
+extern void annotate_arg_value (struct type *);
+extern void annotate_arg_end (void);
 
-extern void annotate_source PARAMS ((char *, int, int, int, CORE_ADDR));
+extern void annotate_source (char *, int, int, int, CORE_ADDR);
 
-extern void annotate_frame_begin PARAMS ((int, CORE_ADDR));
-extern void annotate_function_call PARAMS ((void));
-extern void annotate_signal_handler_caller PARAMS ((void));
-extern void annotate_frame_address PARAMS ((void));
-extern void annotate_frame_address_end PARAMS ((void));
-extern void annotate_frame_function_name PARAMS ((void));
-extern void annotate_frame_args PARAMS ((void));
-extern void annotate_frame_source_begin PARAMS ((void));
-extern void annotate_frame_source_file PARAMS ((void));
-extern void annotate_frame_source_file_end PARAMS ((void));
-extern void annotate_frame_source_line PARAMS ((void));
-extern void annotate_frame_source_end PARAMS ((void));
-extern void annotate_frame_where PARAMS ((void));
-extern void annotate_frame_end PARAMS ((void));
+extern void annotate_frame_begin (int, CORE_ADDR);
+extern void annotate_function_call (void);
+extern void annotate_signal_handler_caller (void);
+extern void annotate_frame_address (void);
+extern void annotate_frame_address_end (void);
+extern void annotate_frame_function_name (void);
+extern void annotate_frame_args (void);
+extern void annotate_frame_source_begin (void);
+extern void annotate_frame_source_file (void);
+extern void annotate_frame_source_file_end (void);
+extern void annotate_frame_source_line (void);
+extern void annotate_frame_source_end (void);
+extern void annotate_frame_where (void);
+extern void annotate_frame_end (void);
 
-extern void annotate_array_section_begin PARAMS ((int, struct type *));
-extern void annotate_elt_rep PARAMS ((unsigned int));
-extern void annotate_elt_rep_end PARAMS ((void));
-extern void annotate_elt PARAMS ((void));
-extern void annotate_array_section_end PARAMS ((void));
+extern void annotate_array_section_begin (int, struct type *);
+extern void annotate_elt_rep (unsigned int);
+extern void annotate_elt_rep_end (void);
+extern void annotate_elt (void);
+extern void annotate_array_section_end (void);
 
-extern void (*annotate_starting_hook) PARAMS ((void));
-extern void (*annotate_stopped_hook) PARAMS ((void));
-extern void (*annotate_signalled_hook) PARAMS ((void));
-extern void (*annotate_exited_hook) PARAMS ((void));
+extern void (*annotate_starting_hook) (void);
+extern void (*annotate_stopped_hook) (void);
+extern void (*annotate_signalled_hook) (void);
+extern void (*annotate_signal_hook) (void);
+extern void (*annotate_exited_hook) (void);

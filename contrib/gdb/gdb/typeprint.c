@@ -1,21 +1,23 @@
 /* Language independent support for printing types for GDB, the GNU debugger.
-   Copyright 1986, 88, 89, 91, 92, 93, 1998 Free Software Foundation, Inc.
+   Copyright 1986, 1988, 1989, 1991, 1992, 1993, 1994, 1995, 1998, 1999,
+   2000, 2001 Free Software Foundation, Inc.
 
-This file is part of GDB.
+   This file is part of GDB.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place - Suite 330,
+   Boston, MA 02111-1307, USA.  */
 
 #include "defs.h"
 #include "obstack.h"
@@ -29,7 +31,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "gdbcmd.h"
 #include "target.h"
 #include "language.h"
-#include "demangle.h"
+#include "cp-abi.h"
 
 #include "gdb_string.h"
 #include <errno.h>
@@ -38,17 +40,70 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 extern int objectprint;		/* Controls looking up an object's derived type
 				   using what we find in its vtables.  */
 
-static void
-ptype_command PARAMS ((char *, int));
+extern void _initialize_typeprint (void);
 
-static struct type *
-ptype_eval PARAMS ((struct expression *));
+static void ptype_command (char *, int);
 
-static void
-whatis_command PARAMS ((char *, int));
+static struct type *ptype_eval (struct expression *);
 
-static void
-whatis_exp PARAMS ((char *, int));
+static void whatis_command (char *, int);
+
+static void whatis_exp (char *, int);
+
+/* Print a description of a type in the format of a 
+   typedef for the current language.
+   NEW is the new name for a type TYPE. */
+
+void
+typedef_print (struct type *type, struct symbol *new, struct ui_file *stream)
+{
+  CHECK_TYPEDEF (type);
+  switch (current_language->la_language)
+    {
+#ifdef _LANG_c
+    case language_c:
+    case language_cplus:
+      fprintf_filtered (stream, "typedef ");
+      type_print (type, "", stream, 0);
+      if (TYPE_NAME ((SYMBOL_TYPE (new))) == 0
+	  || !STREQ (TYPE_NAME ((SYMBOL_TYPE (new))), SYMBOL_NAME (new)))
+	fprintf_filtered (stream, " %s", SYMBOL_SOURCE_NAME (new));
+      break;
+#endif
+#ifdef _LANG_m2
+    case language_m2:
+      fprintf_filtered (stream, "TYPE ");
+      if (!TYPE_NAME (SYMBOL_TYPE (new)) ||
+	  !STREQ (TYPE_NAME (SYMBOL_TYPE (new)), SYMBOL_NAME (new)))
+	fprintf_filtered (stream, "%s = ", SYMBOL_SOURCE_NAME (new));
+      else
+	fprintf_filtered (stream, "<builtin> = ");
+      type_print (type, "", stream, 0);
+      break;
+#endif
+#ifdef _LANG_pascal
+    case language_pascal:
+      fprintf_filtered (stream, "type ");
+      fprintf_filtered (stream, "%s = ", SYMBOL_SOURCE_NAME (new));
+      type_print (type, "", stream, 0);
+      break;
+#endif
+#ifdef _LANG_chill
+    case language_chill:
+      fprintf_filtered (stream, "SYNMODE ");
+      if (!TYPE_NAME (SYMBOL_TYPE (new)) ||
+	  !STREQ (TYPE_NAME (SYMBOL_TYPE (new)), SYMBOL_NAME (new)))
+	fprintf_filtered (stream, "%s = ", SYMBOL_SOURCE_NAME (new));
+      else
+	fprintf_filtered (stream, "<builtin> = ");
+      type_print (type, "", stream, 0);
+      break;
+#endif
+    default:
+      error ("Language not supported.");
+    }
+  fprintf_filtered (stream, ";\n");
+}
 
 /* Print a description of a type TYPE in the form of a declaration of a
    variable named VARSTRING.  (VARSTRING is demangled if necessary.)
@@ -58,11 +113,8 @@ whatis_exp PARAMS ((char *, int));
    If SHOW is negative, we never show the details of elements' types.  */
 
 void
-type_print (type, varstring, stream, show)
-     struct type *type;
-     char *varstring;
-     GDB_FILE *stream;
-     int show;
+type_print (struct type *type, char *varstring, struct ui_file *stream,
+	    int show)
 {
   LA_PRINT_TYPE (type, varstring, stream, show, 0);
 }
@@ -71,14 +123,13 @@ type_print (type, varstring, stream, show)
    show is passed to type_print.  */
 
 static void
-whatis_exp (exp, show)
-     char *exp;
-     int show;
+whatis_exp (char *exp, int show)
 {
   struct expression *expr;
-  register value_ptr val;
+  struct value *val;
   register struct cleanup *old_chain = NULL;
-  struct type * real_type = NULL;
+  struct type *real_type = NULL;
+  struct type *type;
   int full = 0;
   int top = -1;
   int using_enc = 0;
@@ -86,24 +137,46 @@ whatis_exp (exp, show)
   if (exp)
     {
       expr = parse_expression (exp);
-      old_chain = make_cleanup ((make_cleanup_func) free_current_contents, 
-                                &expr);
+      old_chain = make_cleanup (free_current_contents, &expr);
       val = evaluate_type (expr);
     }
   else
     val = access_value_history (0);
 
+  type = VALUE_TYPE (val);
+
+  if (objectprint)
+    {
+      if (((TYPE_CODE (type) == TYPE_CODE_PTR) ||
+           (TYPE_CODE (type) == TYPE_CODE_REF))
+          &&
+          (TYPE_CODE (TYPE_TARGET_TYPE (type)) == TYPE_CODE_CLASS))
+        {
+          real_type = value_rtti_target_type (val, &full, &top, &using_enc);
+          if (real_type)
+            {
+              if (TYPE_CODE (type) == TYPE_CODE_PTR)
+                real_type = lookup_pointer_type (real_type);
+              else
+                real_type = lookup_reference_type (real_type);
+            }
+        }
+      else if (TYPE_CODE (type) == TYPE_CODE_CLASS)
   real_type = value_rtti_type (val, &full, &top, &using_enc);
+    }
 
   printf_filtered ("type = ");
 
-  if (real_type && objectprint)
-    printf_filtered ("/* real type = %s%s */\n",
-                     TYPE_NAME (real_type),
-                     full ? "" : " (incomplete object)");
-  /* FIXME: maybe better to use type_print (real_type, "", gdb_stdout, -1); */
+  if (real_type)
+    {
+      printf_filtered ("/* real type = ");
+      type_print (real_type, "", gdb_stdout, -1);
+      if (! full)
+        printf_filtered (" (incomplete object)");
+      printf_filtered (" */\n");    
+    }
 
-  type_print (VALUE_TYPE (val), "", gdb_stdout, show);
+  type_print (type, "", gdb_stdout, show);
   printf_filtered ("\n");
 
   if (exp)
@@ -112,9 +185,7 @@ whatis_exp (exp, show)
 
 /* ARGSUSED */
 static void
-whatis_command (exp, from_tty)
-     char *exp;
-     int from_tty;
+whatis_command (char *exp, int from_tty)
 {
   /* Most of the time users do not want to see all the fields
      in a structure.  If they do they can use the "ptype" command.
@@ -125,8 +196,7 @@ whatis_command (exp, from_tty)
 /* Simple subroutine for ptype_command.  */
 
 static struct type *
-ptype_eval (exp)
-     struct expression *exp;
+ptype_eval (struct expression *exp)
 {
   if (exp->elts[0].opcode == OP_TYPE)
     {
@@ -142,9 +212,7 @@ ptype_eval (exp)
 
 /* ARGSUSED */
 static void
-ptype_command (typename, from_tty)
-     char *typename;
-     int from_tty;
+ptype_command (char *typename, int from_tty)
 {
   register struct type *type;
   struct expression *expr;
@@ -158,8 +226,7 @@ ptype_command (typename, from_tty)
   else
     {
       expr = parse_expression (typename);
-      old_chain = make_cleanup ((make_cleanup_func) free_current_contents, 
-                                &expr);
+      old_chain = make_cleanup (free_current_contents, &expr);
       type = ptype_eval (expr);
       if (type != NULL)
 	{
@@ -191,10 +258,7 @@ ptype_command (typename, from_tty)
    that come from the inferior in target byte order and target size. */
 
 void
-print_type_scalar (type, val, stream)
-     struct type *type;
-     LONGEST val;
-     GDB_FILE *stream;
+print_type_scalar (struct type *type, LONGEST val, struct ui_file *stream)
 {
   unsigned int i;
   unsigned len;
@@ -262,51 +326,45 @@ print_type_scalar (type, val, stream)
   gdb_flush (stream);
 }
 
-#if MAINTENANCE_CMDS
-
 /* Dump details of a type specified either directly or indirectly.
    Uses the same sort of type lookup mechanism as ptype_command()
    and whatis_command(). */
 
 void
-maintenance_print_type (typename, from_tty)
-     char *typename;
-     int from_tty;
+maintenance_print_type (char *typename, int from_tty)
 {
-  register value_ptr val;
+  struct value *val;
   register struct type *type;
   register struct cleanup *old_chain;
   struct expression *expr;
 
   if (typename != NULL)
-  {
-    expr = parse_expression (typename);
-    old_chain = make_cleanup ((make_cleanup_func) free_current_contents, &expr);
-    if (expr -> elts[0].opcode == OP_TYPE)
-      {
-	/* The user expression names a type directly, just use that type. */
-	type = expr -> elts[1].type;
-      }
-    else
-      {
-	/* The user expression may name a type indirectly by naming an
-	   object of that type.  Find that indirectly named type. */
-	val = evaluate_type (expr);
-	type = VALUE_TYPE (val);
-      }
-    if (type != NULL)
-      {
-	recursive_dump_type (type, 0);
-      }
-    do_cleanups (old_chain);
-  }
+    {
+      expr = parse_expression (typename);
+      old_chain = make_cleanup (free_current_contents, &expr);
+      if (expr->elts[0].opcode == OP_TYPE)
+	{
+	  /* The user expression names a type directly, just use that type. */
+	  type = expr->elts[1].type;
+	}
+      else
+	{
+	  /* The user expression may name a type indirectly by naming an
+	     object of that type.  Find that indirectly named type. */
+	  val = evaluate_type (expr);
+	  type = VALUE_TYPE (val);
+	}
+      if (type != NULL)
+	{
+	  recursive_dump_type (type, 0);
+	}
+      do_cleanups (old_chain);
+    }
 }
-
-#endif	/* MAINTENANCE_CMDS */
-
 
+
 void
-_initialize_typeprint ()
+_initialize_typeprint (void)
 {
 
   add_com ("ptype", class_vars, ptype_command,

@@ -1,23 +1,25 @@
 /* Low level interface to ptrace, for the remote server for GDB.
-   Copyright (C) 1986, 1987, 1993 Free Software Foundation, Inc.
+   Copyright 1986, 1987, 1993, 1994, 1995, 1997, 1999, 2000, 2001, 2002
+   Free Software Foundation, Inc.
 
-This file is part of GDB.
+   This file is part of GDB.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place - Suite 330,
+   Boston, MA 02111-1307, USA.  */
 
-#include "defs.h"
+#include "server.h"
 #include <sys/wait.h>
 #include "frame.h"
 #include "inferior.h"
@@ -35,14 +37,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include <fcntl.h>
 
 /***************Begin MY defs*********************/
-int quit_flag = 0;
-char registers[REGISTER_BYTES];
-
-/* Index within `registers' of the first byte of the space for
-   register N.  */
-
-
-char buf2[MAX_REGISTER_RAW_SIZE];
+static char my_registers[REGISTER_BYTES];
+char *registers = my_registers;
 /***************End MY defs*********************/
 
 #include <sys/ptrace.h>
@@ -50,20 +46,13 @@ char buf2[MAX_REGISTER_RAW_SIZE];
 
 extern int sys_nerr;
 extern char **sys_errlist;
-extern char **environ;
 extern int errno;
-extern int inferior_pid;
-void quit (), perror_with_name ();
-int query ();
 
 /* Start an inferior process and returns its pid.
-   ALLARGS is a vector of program-name and args.
-   ENV is the environment vector to pass.  */
+   ALLARGS is a vector of program-name and args. */
 
 int
-create_inferior (program, allargs)
-     char *program;
-     char **allargs;
+create_inferior (char *program, char **allargs)
 {
   int pid;
 
@@ -86,22 +75,28 @@ create_inferior (program, allargs)
   return pid;
 }
 
+/* Attaching is not supported.  */
+int
+myattach (int pid)
+{
+  return -1;
+}
+
 /* Kill the inferior process.  Make us have no inferior.  */
 
 void
-kill_inferior ()
+kill_inferior (void)
 {
   if (inferior_pid == 0)
     return;
   ptrace (8, inferior_pid, 0, 0);
   wait (0);
-  /*************inferior_died ();****VK**************/
+/*************inferior_died ();****VK**************/
 }
 
 /* Return nonzero if the given thread is still alive.  */
 int
-mythread_alive (pid)
-     int pid;
+mythread_alive (int pid)
 {
   return 1;
 }
@@ -109,13 +104,14 @@ mythread_alive (pid)
 /* Wait for process, returns status */
 
 unsigned char
-mywait (status)
-     char *status;
+mywait (char *status)
 {
   int pid;
   union wait w;
 
-  pid = wait (&w);
+  enable_async_io ();
+  pid = waitpid (inferior_pid, &w, 0);
+  disable_async_io ();
   if (pid != inferior_pid)
     perror_with_name ("wait");
 
@@ -143,9 +139,7 @@ mywait (status)
    If SIGNAL is nonzero, give it that signal.  */
 
 void
-myresume (step, signal)
-     int step;
-     int signal;
+myresume (int step, int signal)
 {
   errno = 0;
   ptrace (step ? PTRACE_SINGLESTEP : PTRACE_CONT, inferior_pid, 1, signal);
@@ -158,8 +152,7 @@ myresume (step, signal)
    marking them as valid so we won't fetch them again.  */
 
 void
-fetch_inferior_registers (ignored)
-     int ignored;
+fetch_inferior_registers (int ignored)
 {
   struct regs inferior_registers;
   struct fp_status inferior_fp_registers;
@@ -172,32 +165,32 @@ fetch_inferior_registers (ignored)
      to the stack pointer.  */
 
   if (ptrace (PTRACE_GETREGS, inferior_pid,
-	      (PTRACE_ARG3_TYPE) &inferior_registers, 0))
-    perror("ptrace_getregs");
-      
+	      (PTRACE_ARG3_TYPE) & inferior_registers, 0))
+    perror ("ptrace_getregs");
+
   registers[REGISTER_BYTE (0)] = 0;
   memcpy (&registers[REGISTER_BYTE (1)], &inferior_registers.r_g1,
 	  15 * REGISTER_RAW_SIZE (G0_REGNUM));
-  *(int *)&registers[REGISTER_BYTE (PS_REGNUM)] = inferior_registers.r_ps; 
-  *(int *)&registers[REGISTER_BYTE (PC_REGNUM)] = inferior_registers.r_pc;
-  *(int *)&registers[REGISTER_BYTE (NPC_REGNUM)] = inferior_registers.r_npc;
-  *(int *)&registers[REGISTER_BYTE (Y_REGNUM)] = inferior_registers.r_y;
+  *(int *) &registers[REGISTER_BYTE (PS_REGNUM)] = inferior_registers.r_ps;
+  *(int *) &registers[REGISTER_BYTE (PC_REGNUM)] = inferior_registers.r_pc;
+  *(int *) &registers[REGISTER_BYTE (NPC_REGNUM)] = inferior_registers.r_npc;
+  *(int *) &registers[REGISTER_BYTE (Y_REGNUM)] = inferior_registers.r_y;
 
   /* Floating point registers */
 
   if (ptrace (PTRACE_GETFPREGS, inferior_pid,
-	      (PTRACE_ARG3_TYPE) &inferior_fp_registers,
+	      (PTRACE_ARG3_TYPE) & inferior_fp_registers,
 	      0))
-    perror("ptrace_getfpregs");
+    perror ("ptrace_getfpregs");
   memcpy (&registers[REGISTER_BYTE (FP0_REGNUM)], &inferior_fp_registers,
 	  sizeof inferior_fp_registers.fpu_fr);
 
   /* These regs are saved on the stack by the kernel.  Only read them
      all (16 ptrace calls!) if we really need them.  */
 
-  read_inferior_memory (*(CORE_ADDR*)&registers[REGISTER_BYTE (SP_REGNUM)],
+  read_inferior_memory (*(CORE_ADDR *) & registers[REGISTER_BYTE (SP_REGNUM)],
 			&registers[REGISTER_BYTE (L0_REGNUM)],
-			16*REGISTER_RAW_SIZE (L0_REGNUM));
+			16 * REGISTER_RAW_SIZE (L0_REGNUM));
 }
 
 /* Store our register values back into the inferior.
@@ -205,38 +198,37 @@ fetch_inferior_registers (ignored)
    Otherwise, REGNO specifies which register (so we can save time).  */
 
 void
-store_inferior_registers (ignored)
-     int ignored;
+store_inferior_registers (int ignored)
 {
   struct regs inferior_registers;
   struct fp_status inferior_fp_registers;
-  CORE_ADDR sp = *(CORE_ADDR *)&registers[REGISTER_BYTE (SP_REGNUM)];
+  CORE_ADDR sp = *(CORE_ADDR *) & registers[REGISTER_BYTE (SP_REGNUM)];
 
   write_inferior_memory (sp, &registers[REGISTER_BYTE (L0_REGNUM)],
-			 16*REGISTER_RAW_SIZE (L0_REGNUM));
+			 16 * REGISTER_RAW_SIZE (L0_REGNUM));
 
   memcpy (&inferior_registers.r_g1, &registers[REGISTER_BYTE (G1_REGNUM)],
 	  15 * REGISTER_RAW_SIZE (G1_REGNUM));
 
   inferior_registers.r_ps =
-    *(int *)&registers[REGISTER_BYTE (PS_REGNUM)];
+    *(int *) &registers[REGISTER_BYTE (PS_REGNUM)];
   inferior_registers.r_pc =
-    *(int *)&registers[REGISTER_BYTE (PC_REGNUM)];
+    *(int *) &registers[REGISTER_BYTE (PC_REGNUM)];
   inferior_registers.r_npc =
-    *(int *)&registers[REGISTER_BYTE (NPC_REGNUM)];
+    *(int *) &registers[REGISTER_BYTE (NPC_REGNUM)];
   inferior_registers.r_y =
-    *(int *)&registers[REGISTER_BYTE (Y_REGNUM)];
+    *(int *) &registers[REGISTER_BYTE (Y_REGNUM)];
 
   if (ptrace (PTRACE_SETREGS, inferior_pid,
-	      (PTRACE_ARG3_TYPE) &inferior_registers, 0))
-    perror("ptrace_setregs");
+	      (PTRACE_ARG3_TYPE) & inferior_registers, 0))
+    perror ("ptrace_setregs");
 
   memcpy (&inferior_fp_registers, &registers[REGISTER_BYTE (FP0_REGNUM)],
 	  sizeof inferior_fp_registers.fpu_fr);
 
   if (ptrace (PTRACE_SETFPREGS, inferior_pid,
-	      (PTRACE_ARG3_TYPE) &inferior_fp_registers, 0))
-    perror("ptrace_setfpregs");
+	      (PTRACE_ARG3_TYPE) & inferior_fp_registers, 0))
+    perror ("ptrace_setfpregs");
 }
 
 /* NOTE! I tried using PTRACE_READDATA, etc., to read and write memory
@@ -248,14 +240,12 @@ store_inferior_registers (ignored)
 /* Copy LEN bytes from inferior's memory starting at MEMADDR
    to debugger memory starting at MYADDR.  */
 
-read_inferior_memory (memaddr, myaddr, len)
-     CORE_ADDR memaddr;
-     char *myaddr;
-     int len;
+void
+read_inferior_memory (CORE_ADDR memaddr, char *myaddr, int len)
 {
   register int i;
   /* Round starting address down to longword boundary.  */
-  register CORE_ADDR addr = memaddr & -sizeof (int);
+  register CORE_ADDR addr = memaddr & -(CORE_ADDR) sizeof (int);
   /* Round ending address up; get number of longwords that makes.  */
   register int count
   = (((memaddr + len) - addr) + sizeof (int) - 1) / sizeof (int);
@@ -278,14 +268,11 @@ read_inferior_memory (memaddr, myaddr, len)
    returns the value of errno.  */
 
 int
-write_inferior_memory (memaddr, myaddr, len)
-     CORE_ADDR memaddr;
-     char *myaddr;
-     int len;
+write_inferior_memory (CORE_ADDR memaddr, char *myaddr, int len)
 {
   register int i;
   /* Round starting address down to longword boundary.  */
-  register CORE_ADDR addr = memaddr & -sizeof (int);
+  register CORE_ADDR addr = memaddr & -(CORE_ADDR) sizeof (int);
   /* Round ending address up; get number of longwords that makes.  */
   register int count
   = (((memaddr + len) - addr) + sizeof (int) - 1) / sizeof (int);
@@ -322,13 +309,6 @@ write_inferior_memory (memaddr, myaddr, len)
 }
 
 void
-initialize ()
+initialize_low (void)
 {
-  inferior_pid = 0;
-}
-
-int
-have_inferior_p ()
-{
-  return inferior_pid != 0;
 }
