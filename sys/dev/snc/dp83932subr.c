@@ -46,17 +46,12 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/mbuf.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
-#include <sys/syslog.h>
-#include <sys/errno.h>
 
 #include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_arp.h>
-#include <net/if_dl.h>
-#include <net/if_types.h>
 #include <net/if_media.h>
 
 #ifdef INET
@@ -67,12 +62,8 @@
 #include <netinet/if_inarp.h>
 #endif
 
-#include <net/bpf.h>
 
 #include <sys/bus.h>
-#include <machine/cpu.h>
-#include <machine/bus_pio.h>
-#include <machine/bus_memio.h>
 #include <machine/bus.h>
 
 #include <dev/snc/dp83932reg.h>

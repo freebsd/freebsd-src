@@ -42,22 +42,17 @@
 #include <sys/module.h>
 #include <sys/bus.h>
 #include <machine/bus.h>
-#include <sys/rman.h>
 #include <machine/resource.h>
 
-#include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_arp.h>
 #include <net/if_media.h>
-#include <net/if_mib.h>
 
 #include <isa/isavar.h>
-#include <isa/pnpvar.h>
 #include <sys/malloc.h>		/* as dependency for isa/isa_common.h */
 #include <isa/isa_common.h>	/* for snc_isapnp_reconfig() */
 
 #include <dev/snc/dp83932var.h>
-#include <dev/snc/dp83932subr.h>
 #include <dev/snc/if_sncreg.h>
 #include <dev/snc/if_sncvar.h>
 
