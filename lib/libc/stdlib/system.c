@@ -94,4 +94,6 @@ __system(command)
 	return(pid == -1 ? -1 : pstat);
 }
 
+#ifndef _THREAD_SAFE
 __weak_reference(__system, system);
+#endif
