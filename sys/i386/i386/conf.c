@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.20 1994/01/04 20:08:56 nate Exp $
+ *	$Id: conf.c,v 1.21 1994/02/27 21:51:05 phk Exp $
  */
 
 #include "param.h"
@@ -229,7 +229,7 @@ d_close_t pcclose;
 d_rdwr_t pcread, pcwrite;
 d_ioctl_t pcioctl;
 d_mmap_t pcmmap;
-extern	struct tty pccons;
+extern	struct tty *pccons;
 
 /* controlling TTY */
 d_open_t cttyopen;
@@ -255,7 +255,7 @@ d_close_t ptcclose;
 d_rdwr_t ptcread, ptcwrite;
 d_select_t ptcselect;
 d_ioctl_t ptyioctl;
-extern struct	tty pt_tty[];
+extern struct	tty *pt_tty[];
 #else
 #define ptsopen		(d_open_t *)enxio
 #define ptsclose	(d_close_t *)enxio
@@ -280,7 +280,7 @@ d_rdwr_t comwrite;
 d_ioctl_t comioctl;
 d_select_t comselect;
 #define comreset	(d_reset_t *)enxio
-extern	struct tty com_tty[];
+extern	struct tty *com_tty[];
 #else
 #define comopen		(d_open_t *)enxio
 #define comclose	(d_close_t *)enxio
@@ -442,7 +442,7 @@ d_ioctl_t sioioctl;
 d_select_t sioselect;
 d_stop_t siostop;
 #define sioreset	(d_reset_t *)enxio
-extern	struct tty sio_tty[];
+extern	struct tty *sio_tty[];
 #else
 #define sioopen		(d_open_t *)enxio
 #define sioclose	(d_close_t *)enxio

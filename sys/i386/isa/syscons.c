@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from:@(#)syscons.c	1.3 940129
- *	$Id: syscons.c,v 1.34 1994/02/04 10:36:15 chmr Exp $
+ *	$Id: syscons.c,v 1.35 1994/02/07 02:14:27 davidg Exp $
  *
  */
 
@@ -273,33 +273,35 @@ int	ttrstrt();
 #endif
 
 #if defined(__FreeBSD__)
+#define VIRTUAL_TTY(x)	(pccons[x] = ttymalloc(pccons[x]))
+#define	CONSOLE_TTY	(pccons[NCONS] = ttymalloc(pccons[NCONS]))
 #define	frametype	struct trapframe 
 #define eflags		tf_eflags
 #define	timeout_t	timeout_func_t
 #define	MONO_BUF	(KERNBASE+0xB0000)
 #define	CGA_BUF		(KERNBASE+0xB8000)
+struct	tty 		*pccons[NCONS+1];
 #endif
 
 #if defined(__386BSD__) && !defined(__FreeBSD__)
+#define VIRTUAL_TTY(x)	&pccons[x]
+#define	CONSOLE_TTY	&pccons[NCONS]
 #define	frametype	struct syscframe
 #define eflags		sf_eflags
 #define	timeout_t	caddr_t
 #define	MONO_BUF	(0xFE0B0000)
 #define	CGA_BUF		(0xFE0B8000)
+struct	tty 		pccons[NCONS+1];
 #endif
 
 #if defined(__386BSD__) || defined(__FreeBSD__)
-#define VIRTUAL_TTY(x)	&pccons[x]
-#define	CONSOLE_TTY	&pccons[NCONS]
 u_short			*Crtat = (u_short *)MONO_BUF;
-struct	tty 		pccons[NCONS+1];
 void 	consinit(void) 	{scinit();}
 #include "ddb.h"
 #if NDDB > 0
 #define DDB	1
 #endif
 #endif
-
 
 struct	isa_driver scdriver = {
 	pcprobe, pcattach, "sc",
@@ -1060,10 +1062,10 @@ void pcstart(struct tty *tp)
 	s = spltty();
 	if (!(tp->t_state & (TS_TIMEOUT|TS_BUSY|TS_TTSTOP)))
 		for (;;) {
-			if (RB_LEN(&tp->t_out) <= tp->t_lowat) {
+			if (RB_LEN(tp->t_out) <= tp->t_lowat) {
 				if (tp->t_state & TS_ASLEEP) {
 					tp->t_state &= ~TS_ASLEEP;
-					wakeup((caddr_t)&tp->t_out);
+					wakeup((caddr_t)tp->t_out);
 				}
 				if (tp->t_wsel) {
 					selwakeup(tp->t_wsel, 
@@ -1072,11 +1074,11 @@ void pcstart(struct tty *tp)
 					tp->t_state &= ~TS_WCOLL;
 				}
 			}
-			if (RB_LEN(&tp->t_out) == 0)
+			if (RB_LEN(tp->t_out) == 0)
 				break;
 			if (scp->status & SLKED) 
 				break;
-			c = getc(&tp->t_out);
+			c = getc(tp->t_out);
 			tp->t_state |= TS_BUSY;
 			splx(s);
 			ansi_put(scp, c);
@@ -1100,9 +1102,10 @@ void pccnprobe(struct consdev *cp)
 	/* initialize required fields */
 	cp->cn_dev = makedev(maj, NCONS);
 	cp->cn_pri = CN_INTERNAL;
-#if defined(__FreeBSD__) || defined(__386BSD__)
+#warning Crude hack, do it better
+/*#if defined(__FreeBSD__) || defined(__386BSD__)
 	cp->cn_tp = CONSOLE_TTY;
-#endif
+#endif*/
 }
 
 
