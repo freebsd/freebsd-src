@@ -73,7 +73,9 @@ static struct mtx dev_pager_mtx;
 
 
 static vm_zone_t fakepg_zone;
+#if 0
 static struct vm_zone fakepg_zone_store;
+#endif
 
 static vm_page_t dev_pager_getfake __P((vm_offset_t));
 static void dev_pager_putfake __P((vm_page_t));
@@ -94,8 +96,11 @@ dev_pager_init()
 	TAILQ_INIT(&dev_pager_object_list);
 	sx_init(&dev_pager_sx, "dev_pager create");
 	mtx_init(&dev_pager_mtx, "dev_pager list", MTX_DEF);
+#if 0
 	fakepg_zone = &fakepg_zone_store;
 	zinitna(fakepg_zone, NULL, "DP fakepg", sizeof(struct vm_page), 0, 0, 2);
+#endif
+	fakepg_zone = zinit("DP fakepg", sizeof(struct vm_page), 0, 0, 0);
 }
 
 static vm_object_t

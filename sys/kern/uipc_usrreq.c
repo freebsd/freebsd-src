@@ -61,7 +61,7 @@
 
 #include <vm/vm_zone.h>
 
-static	struct vm_zone *unp_zone;
+static vm_zone_t unp_zone;
 static	unp_gen_t unp_gencnt;
 static	u_int unp_count;
 
@@ -1363,7 +1363,7 @@ unp_gc()
 	 *
 	 * 91/09/19, bsy@cs.cmu.edu
 	 */
-	extra_ref = malloc(nfiles * sizeof(struct file *), M_FILE, M_WAITOK);
+	extra_ref = malloc(nfiles * sizeof(struct file *), M_TEMP, M_WAITOK);
 	sx_slock(&filelist_lock);
 	for (nunref = 0, fp = LIST_FIRST(&filehead), fpp = extra_ref; fp != 0;
 	    fp = nextfp) {
@@ -1404,7 +1404,7 @@ unp_gc()
 	}
 	for (i = nunref, fpp = extra_ref; --i >= 0; ++fpp)
 		closef(*fpp, (struct thread *) NULL);
-	free((caddr_t)extra_ref, M_FILE);
+	free((caddr_t)extra_ref, M_TEMP);
 	unp_gcing = 0;
 }
 

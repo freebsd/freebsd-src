@@ -182,8 +182,8 @@ SYSINIT(vfs, SI_SUB_VFS, SI_ORDER_ANY, pipeinit, NULL);
 static void
 pipeinit(void *dummy __unused)
 {
-
-	pipe_zone = zinit("PIPE", sizeof(struct pipe), 0, 0, 4);
+	pipe_zone = uma_zcreate("PIPE", sizeof(struct pipe), NULL,
+	    NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 }
 
 /*
