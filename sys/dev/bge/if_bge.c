@@ -131,6 +131,7 @@ static const char rcsid[] =
  * ID burned into it, though it will always be overriden by the vendor
  * ID in the EEPROM. Just to be safe, we cover all possibilities.
  */
+#define BGE_DEVDESC_MAX		64	/* Maximum device description length */
 
 static struct bge_type bge_devs[] = {
 	{ ALT_VENDORID,	ALT_DEVICEID_BCM5700,
@@ -1417,6 +1418,7 @@ bge_probe(dev)
 {
 	struct bge_type *t;
 	struct bge_softc *sc;
+	char *descbuf;
 
 	t = bge_devs;
 
@@ -1432,7 +1434,14 @@ bge_probe(dev)
 			bge_vpd_read(sc);
 			device_set_desc(dev, sc->bge_vpd_prodname);
 #endif
-			device_set_desc(dev, t->bge_name);
+			descbuf = malloc(BGE_DEVDESC_MAX, M_TEMP, M_NOWAIT);
+			if (descbuf == NULL)
+				return(ENOMEM);
+			snprintf(descbuf, BGE_DEVDESC_MAX,
+			    "%s, ASIC rev. %#04x", t->bge_name,
+			    pci_read_config(dev, BGE_PCI_MISC_CTL, 4) >> 16);
+			device_set_desc_copy(dev, descbuf);
+			free(descbuf, M_TEMP);
 			return(0);
 		}
 		t++;
