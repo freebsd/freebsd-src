@@ -30,6 +30,7 @@ CFLAGS+=	-I${LIBSTANDDIR}
 CFLAGS+=	-I${.CURDIR}/..
 CRT=		start.o
 STRIP=
+BINDIR?=	/boot
 
 all: ${BASE}
 
@@ -47,7 +48,7 @@ ${BASE}.sym: ${OBJS} ${LIBSTAND} ${LIBALPHA} ${CRT} vers.o setdef0.o setdef1.o
 
 # Other fragments still to be brought in from ../Makfile.booters?
 start.o:	${.CURDIR}/../libalpha/start.S
-	${CC} -c $<
+	${CC} -c ${CFLAGS} $<
 
 setdef0.o: setdefs.h
 

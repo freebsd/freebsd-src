@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: boot.c,v 1.7 1998/10/14 00:41:17 peter Exp $
+ *	$Id: boot.c,v 1.8 1998/10/31 02:53:09 msmith Exp $
  */
 
 /*
@@ -247,7 +247,7 @@ getbootfile(int try)
 	try--;
     }
     if (spec != NULL) {
-	if ((ep = strchr(spec, ';')) != NULL) {
+	if ((ep = strchr(spec, ',')) != NULL) {
 	    len = ep - spec;
 	} else {
 	    len = strlen(spec);

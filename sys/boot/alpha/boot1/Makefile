@@ -15,6 +15,7 @@ CFLAGS+=	-I${.CURDIR}/..
 CFLAGS+=	-DSECONDARY_LOAD_ADDRESS=${SECONDARY_LOAD_ADDRESS} -DMINIMAL
 NOMAN=1
 STRIP=
+BINDIR?=	/usr/mdec
 
 BOOT_RELOC = ${PRIMARY_LOAD_ADDRESS}
 
@@ -36,10 +37,9 @@ ${PROG}: ${PROG}.nosym
 .include <bsd.prog.mk>
 
 start.o:	${.CURDIR}/../libalpha/start.S
-	${CC} -c -DPRIMARY_BOOTBLOCK $<
+	${CC} -c ${CFLAGS} $<
 
 ${PROG}.sym: ${OBJS} ${LIBKERN}
 	${LD} -M -Ttext ${BOOT_RELOC} -N -e start -o ${PROG}.sym ${OBJS} \
 		${LIBSTAND} ${LIBALPHA} ${LIBSTAND} > ${.OBJDIR}/${PROG}.list
 	size ${PROG}.sym
-
