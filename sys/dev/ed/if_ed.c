@@ -17,6 +17,13 @@
  * Modification history
  *
  * $Log:	if_ed.c,v $
+ * Revision 1.9  93/06/23  03:48:14  davidg
+ * fixed minor typo introduced when cleaning up probe routine
+ * 
+ * Revision 1.8  93/06/23  03:37:19  davidg
+ * cleaned up/added some comments. Also improved readability of a part of
+ * the probe routine.
+ * 
  * Revision 1.7  93/06/22  04:45:01  davidg
  * (no additional changes) Second beta release
  * 
@@ -286,16 +293,31 @@ type_WD80x3:
 	for (i=0; i<8; i++)
 		printf("%x -> %x\n", i, inb(sc->asic_addr + i));
 #endif
-
+	/*
+	 * Check 83C584 interrupt configuration register if this board has one
+	 *	XXX - we could also check the IO address register. But why
+	 *		bother...if we get past this, it *has* to be correct.
+	 */
 	if (sc->type & ED_WD_SOFTCONFIG) {
-		iptr = inb(isa_dev->id_iobase + 1) & 4 |
-			((inb(isa_dev->id_iobase+4) & 0x60) >> 5);
+		/*
+		 * Assemble together the encoded interrupt number.
+		 */
+		iptr = (inb(isa_dev->id_iobase + ED_WD_ICR) & ED_WD_ICR_IR2) |
+			((inb(isa_dev->id_iobase + ED_WD_IRR) &
+				(ED_WD_IRR_IR0 | ED_WD_IRR_IR1)) >> 5);
+		/*
+		 * Translate it using translation table, and check for correctness.
+		 */
 		if (ed_intr_mask[iptr] != isa_dev->id_irq) {
 			printf("ed%d: kernel configured irq doesn't match board configured irq\n",
 				isa_dev->id_unit);
 			return(0);
 		}
-		outb(isa_dev->id_iobase+4, inb(isa_dev->id_iobase+4) | 0x80);
+		/*
+		 * Enable the interrupt.
+		 */
+		outb(isa_dev->id_iobase + ED_WD_IRR,
+			inb(isa_dev->id_iobase + ED_WD_IRR) | ED_WD_IRR_IEN);
 	}
 
 	sc->memwidth = memwidth;
@@ -659,6 +681,9 @@ ed_attach(isa_dev)
 	else
 		ifp->if_flags = (IFF_BROADCAST | IFF_SIMPLEX | IFF_NOTRAILERS);
 
+	/*
+	 * Attach the interface
+	 */
 	if_attach(ifp);
 
 #if NBPFILTER > 0
@@ -672,9 +697,10 @@ ed_attach(isa_dev)
 	while ((ifa != 0) && (ifa->ifa_addr != 0) &&
 	    (ifa->ifa_addr->sa_family != AF_LINK))
 		ifa = ifa->ifa_next;
-
 	/*
-	 * If we find an AF_LINK type entry we fill in the hardware address
+	 * If we find an AF_LINK type entry we fill in the hardware address.
+	 *	This is useful for netstat(1) to keep track of which interface
+	 *	is which.
 	 */
 	if ((ifa != 0) && (ifa->ifa_addr != 0)) {
 		/*
@@ -742,6 +768,10 @@ ed_stop(unit)
 	}
 }
 
+/*
+ * Device timeout/watchdog routine. Entered if the device neglects to
+ *	generate an interrupt after a transmit has been started on it.
+ */
 int
 ed_watchdog(unit)
 	int unit;
@@ -904,6 +934,9 @@ ed_init(unit)
 	(void) splx(s);
 }
  
+/*
+ * This routine actually starts the transmission on the interface
+ */
 static inline void ed_xmit(ifp)
 	struct ifnet *ifp;
 {
@@ -928,13 +961,16 @@ static inline void ed_xmit(ifp)
 	outb(sc->nic_addr + ED_P0_TBCR1, len >> 8);
 
 	/*
-	 * Set page 0, Remote DMA complete, Transmit Packet, and Start
+	 * Set page 0, Remote DMA complete, Transmit Packet, and *Start*
 	 */
 	outb(sc->nic_addr + ED_P0_CR, ED_CR_RD2|ED_CR_TXP|ED_CR_STA);
 
 	sc->xmit_busy = 1;
 	sc->data_buffered = 0;
 	
+	/*
+	 * Switch buffers if we are doing double-buffered transmits
+	 */
 	if ((sc->txb_next == 0) && (sc->txb_cnt > 1)) 
 		sc->txb_next = 1;
 	else
@@ -966,14 +1002,24 @@ ed_start(ifp)
 	u_char laar_tmp;
 
 outloop:
+	/*
+	 * See if there is room to send more data (i.e. one or both of the
+	 *	buffers is empty).
+	 */
 	if (sc->data_buffered)
 		if (sc->xmit_busy) {
+			/*
+			 * No room. Indicate this to the outside world
+			 *	and exit.
+			 */
 			ifp->if_flags |= IFF_OACTIVE;
 			return;
 		} else {
 			/*
+			 * Data is buffered, but we're not transmitting, so
+			 *	start the xmit on the buffered data.
 			 * Note that ed_xmit() resets the data_buffered flag
-			 *  before returning
+			 *	before returning.
 			 */
 			ed_xmit(ifp);
 		}
@@ -1104,6 +1150,10 @@ outloop:
 
 	m_freem(m0);
 
+	/*
+	 * If we are doing double-buffering, a buffer might be free to
+	 *	fill with another packet, so loop back to the top.
+	 */
 	if (sc->txb_cnt > 1)
 		goto outloop;
 	else {
@@ -1260,7 +1310,7 @@ edintr(unit)
 			sc->arpcom.ac_if.if_flags &= ~IFF_OACTIVE;
 
 			/*
-			 * reset watchdog timer
+			 * clear watchdog timer
 			 */
 			sc->arpcom.ac_if.if_timer = 0;
 		}
@@ -1310,7 +1360,7 @@ edintr(unit)
 			sc->arpcom.ac_if.if_flags &= ~IFF_OACTIVE;
 
 			/*
-			 * reset watchdog timer
+			 * clear watchdog timer
 			 */
 			sc->arpcom.ac_if.if_timer = 0;
 
@@ -1698,9 +1748,15 @@ ed_ring_to_mbuf(sc,src,dst,total_len)
 
 		if (amount == 0) { /* no more data in this mbuf, alloc another */
 			/*
-			 * if there is enough data for an mbuf cluster, attempt
-			 * to allocate one of those, otherwise, a regular mbuf
-			 * will do.
+			 * If there is enough data for an mbuf cluster, attempt
+			 * 	to allocate one of those, otherwise, a regular
+			 *	mbuf will do.
+			 * Note that a regular mbuf is always required, even if
+			 *	we get a cluster - getting a cluster does not
+			 *	allocate any mbufs, and one is needed to assign
+			 *	the cluster to. The mbuf that has a cluster
+			 *	extension can not be used to contain data - only
+			 *	the cluster can contain data.
 			 */ 
 			dst = m;
 			MGET(m, M_DONTWAIT, MT_DATA);
