@@ -43,7 +43,8 @@ fi
 # The format is the usual list of colon-separated directories.
 # To force a logically empty LIB_PATH, do LIBPATH=":".
 
-LIB_SEARCH_DIRS=`echo ${libdir} | tr ':' ' ' | sed -e 's/\([^ ][^ ]*\)/SEARCH_DIR(\1);/g'`
+LIB_SEARCH_DIRS=`echo ${libdir} | sed -e 's/:/ /g' -e 's/\([^ ][^ ]*\)/SEARCH_DIR(\1);/g'`
+#2.13	LIB_SEARCH_DIRS=`echo ${libdir} | sed -e 's/:/ /g' -e 's/\([^ ][^ ]*\)/SEARCH_DIR(\\"\1\\");/g'`
 
 # Generate 5 or 6 script files from a master script template in
 # ${srcdir}/scripttempl/${SCRIPT_NAME}.sh.  Which one of the 5 or 6
@@ -155,8 +156,9 @@ if test -n "$GENERATE_SHLIB_SCRIPT"; then
   fi
 fi
 
-for i in $EMULATION_LIBPATH ; do
-  test "$i" = "$EMULATION_NAME" && COMPILE_IN=true
-done
+case " $EMULATION_LIBPATH " in
+    *" ${EMULATION_NAME} "*) COMPILE_IN=true;;
+esac
+
 # Generate e${EMULATION_NAME}.c.
 . ${srcdir}/emultempl/${TEMPLATE_NAME-generic}.em
