@@ -58,6 +58,7 @@
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/bus.h>
+#include <sys/eventhandler.h>
 #include <sys/interrupt.h>
 #include <sys/ptrace.h>
 #include <sys/signalvar.h>
@@ -86,6 +87,7 @@
 #include <machine/fp.h>
 #include <machine/intr_machdep.h>
 #include <machine/md_var.h>
+#include <machine/ofw_machdep.h>
 #include <machine/pmap.h>
 #include <machine/pstate.h>
 #include <machine/reg.h>
@@ -131,6 +133,7 @@ static struct timecounter tick_tc;
 
 static timecounter_get_t tick_get_timecount;
 void sparc64_init(struct bootinfo *bi, ofw_vec_t *vec);
+void sparc64_shutdown_final(void *dummy, int howto);
 
 static void cpu_startup(void *);
 SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL);
@@ -171,6 +174,9 @@ cpu_startup(void *arg)
 
 	intr_init();
 	tick_start(clock, tick_hardclock);
+
+	EVENTHANDLER_REGISTER(shutdown_final, sparc64_shutdown_final, NULL,
+	    SHUTDOWN_PRI_LAST);
 }
 
 unsigned
@@ -477,11 +483,47 @@ sigreturn(struct thread *td, struct sigreturn_args *uap)
 	return (EJUSTRETURN);
 }
 
+/*
+ * Duplicate OF_exit() with a different firmware call function that restores
+ * the trap table, otherwise a RED state exception is triggered in at least
+ * some firmware versions.
+ */
 void
 cpu_halt(void)
 {
+	static struct {
+		cell_t name;
+		cell_t nargs;
+		cell_t nreturns;
+	} args = {
+		(cell_t)"exit",
+		0,
+		0
+	};
 
-	OF_exit();
+	openfirmware_exit(&args);
+}
+
+void
+sparc64_shutdown_final(void *dummy, int howto)
+{
+	static struct {
+		cell_t name;
+		cell_t nargs;
+		cell_t nreturns;
+	} args = {
+		(cell_t)"SUNW,power-off",
+		0,
+		0
+	};
+
+	/* Turn the power off? */
+	if ((howto & RB_POWEROFF) != 0)
+		openfirmware_exit(&args);
+	/* In case of halt, return to the firmware */
+	if ((howto & RB_HALT) != 0)
+		cpu_halt();
+		
 }
 
 int

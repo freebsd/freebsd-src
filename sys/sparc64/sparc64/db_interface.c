@@ -108,3 +108,8 @@ DB_COMMAND(reboot, db_reboot)
 {
 	cpu_reset();
 }
+
+DB_COMMAND(halt, db_halt)
+{
+	cpu_halt();
+}
