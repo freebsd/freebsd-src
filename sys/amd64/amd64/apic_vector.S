@@ -96,7 +96,6 @@ IDTVEC(vec_name) ;							\
 	testl	_apic_isrbit_location + 4 + 8 * (irq_num), %eax ;	\
 	jz	9f ;				/* not active */	\
 	movl	$0, _lapic+LA_EOI ;					\
-	APIC_ITRACE(apic_itrace_eoi, irq_num, APIC_ITRACE_EOI) ;	\
 9:
 
 #else
@@ -104,7 +103,6 @@ IDTVEC(vec_name) ;							\
 	testl	$IRQ_BIT(irq_num), _lapic+LA_ISR1;			\
 	jz	9f	;			/* not active */	\
 	movl	$0, _lapic+LA_EOI;					\
-	APIC_ITRACE(apic_itrace_eoi, irq_num, APIC_ITRACE_EOI) ;	\
 9:
 #endif
 	
@@ -125,70 +123,6 @@ IDTVEC(vec_name) ;							\
 	movl	%eax, IOAPIC_WINDOW(%ecx) ;	/* new value */		\
 7: ;						/* already unmasked */	\
 	IMASK_UNLOCK
-
-#ifdef APIC_INTR_DIAGNOSTIC
-#ifdef APIC_INTR_DIAGNOSTIC_IRQ
-log_intr_event:
-	pushf
-	cli
-	pushl	$CNAME(apic_itrace_debuglock)
-	call	CNAME(s_lock_np)
-	addl	$4, %esp
-	movl	CNAME(apic_itrace_debugbuffer_idx), %ecx
-	andl	$32767, %ecx
-	movl	PCPU(CPUID), %eax
-	shll	$8,	%eax
-	orl	8(%esp), %eax
-	movw	%ax,	CNAME(apic_itrace_debugbuffer)(,%ecx,2)
-	incl	%ecx
-	andl	$32767, %ecx
-	movl	%ecx,	CNAME(apic_itrace_debugbuffer_idx)
-	pushl	$CNAME(apic_itrace_debuglock)
-	call	CNAME(s_unlock_np)
-	addl	$4, %esp
-	popf
-	ret
-	
-
-#define APIC_ITRACE(name, irq_num, id)					\
-	lock ;					/* MP-safe */		\
-	incl	CNAME(name) + (irq_num) * 4 ;				\
-	pushl	%eax ;							\
-	pushl	%ecx ;							\
-	pushl	%edx ;							\
-	movl	$(irq_num), %eax ;					\
-	cmpl	$APIC_INTR_DIAGNOSTIC_IRQ, %eax ;			\
-	jne	7f ;							\
-	pushl	$id ;							\
-	call	log_intr_event ;					\
-	addl	$4, %esp ;						\
-7: ;									\
-	popl	%edx ;							\
-	popl	%ecx ;							\
-	popl	%eax
-#else
-#define APIC_ITRACE(name, irq_num, id)					\
-	lock ;					/* MP-safe */		\
-	incl	CNAME(name) + (irq_num) * 4
-#endif
-
-#define APIC_ITRACE_ENTER 1
-#define APIC_ITRACE_EOI 2
-#define APIC_ITRACE_TRYISRLOCK 3
-#define APIC_ITRACE_GOTISRLOCK 4
-#define APIC_ITRACE_ENTER2 5
-#define APIC_ITRACE_LEAVE 6
-#define APIC_ITRACE_UNMASK 7
-#define APIC_ITRACE_ACTIVE 8
-#define APIC_ITRACE_MASKED 9
-#define APIC_ITRACE_NOISRLOCK 10
-#define APIC_ITRACE_MASKED2 11
-#define APIC_ITRACE_SPLZ 12
-#define APIC_ITRACE_DORETI 13	
-	
-#else	
-#define APIC_ITRACE(name, irq_num, id)
-#endif
 
 /* 
  * Slow, threaded interrupts.
@@ -213,8 +147,6 @@ IDTVEC(vec_name) ;							\
 ;									\
 	maybe_extra_ipending ;						\
 ;									\
-	APIC_ITRACE(apic_itrace_enter, irq_num, APIC_ITRACE_ENTER) ;	\
-;									\
 	MASK_LEVEL_IRQ(irq_num) ;					\
 	EOI_IRQ(irq_num) ;						\
 0: ;									\
@@ -224,11 +156,9 @@ IDTVEC(vec_name) ;							\
 __CONCAT(Xresume,irq_num): ;						\
 	FAKE_MCOUNT(13*4(%esp)) ;		/* XXX avoid dbl cnt */ \
 	pushl	$irq_num;			/* pass the IRQ */	\
-	APIC_ITRACE(apic_itrace_enter2, irq_num, APIC_ITRACE_ENTER2) ;	\
 	sti ;								\
 	call	_sched_ithd ;						\
 	addl	$4, %esp ;		/* discard the parameter */	\
-	APIC_ITRACE(apic_itrace_leave, irq_num, APIC_ITRACE_LEAVE) ;	\
 ;									\
 	MEXITCOUNT ;							\
 	jmp	_doreti
