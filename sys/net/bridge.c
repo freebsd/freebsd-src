@@ -239,7 +239,7 @@ add_cluster(u_int16_t cluster_id, struct arpcom *ac)
 	    goto found;
 
     /* Not found, need to reallocate */
-    c = malloc((1+n_clusters) * sizeof (*c), M_IFADDR, M_DONTWAIT | M_ZERO);
+    c = malloc((1+n_clusters) * sizeof (*c), M_IFADDR, M_NOWAIT | M_ZERO);
     if (c == NULL) {/* malloc failure */
 	printf("-- bridge: cannot add new cluster\n");
 	return NULL;
@@ -793,7 +793,7 @@ static struct mbuf *
 bdg_forward(struct mbuf *m0, struct ifnet *dst)
 {
 #define	EH_RESTORE(_m) do {						   \
-    M_PREPEND((_m), ETHER_HDR_LEN, M_NOWAIT);			   	   \
+    M_PREPEND((_m), ETHER_HDR_LEN, M_DONTWAIT);			   	   \
     if ((_m) == NULL) {							   \
 	bdg_dropped++;							   \
 	return NULL;							   \

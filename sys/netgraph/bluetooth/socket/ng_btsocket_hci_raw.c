@@ -1271,7 +1271,7 @@ ng_btsocket_hci_raw_send(struct socket *so, int flags, struct mbuf *m,
 		sa = (struct sockaddr *) &pcb->addr;
 	}
 
-	MGET(nam, M_WAITOK, MT_SONAME);
+	MGET(nam, M_TRYWAIT, MT_SONAME);
 	if (nam == NULL) {
 		error = ENOBUFS;
 		goto drop;

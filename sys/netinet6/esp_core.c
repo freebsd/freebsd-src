@@ -219,7 +219,7 @@ esp_schedule(algo, sav)
 	sav->schedlen = (*algo->schedlen)(algo);
 	if (sav->schedlen < 0)
 		return EINVAL;
-	sav->sched = malloc(sav->schedlen, M_SECA, M_DONTWAIT);
+	sav->sched = malloc(sav->schedlen, M_SECA, M_NOWAIT);
 	if (!sav->sched) {
 		sav->schedlen = 0;
 		return ENOBUFS;
