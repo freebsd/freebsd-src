@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.67 1997/09/02 20:06:03 bde Exp $
+ * $Id: vfs_syscalls.c,v 1.68 1997/09/14 16:51:15 phk Exp $
  */
 
 /*
@@ -2783,12 +2783,12 @@ __getcwd(p, uap, retval)
 
 	for (vp = fdp->fd_cdir; vp != fdp->fd_rdir && vp != rootvnode;) {
 		if (vp->v_dd->v_id != vp->v_ddid)
-			return(ENOENT);
+			return(ENOTDIR);
 		ncp = TAILQ_FIRST(&vp->v_cache_dst);
 		if (!ncp)
 			return(ENOENT);
 		if (ncp->nc_dvp != vp->v_dd)
-			return(ENOENT);
+			return(EBADF);
 		for (i=ncp->nc_nlen-1; i >= 0; i--) {
 			if (uap->buflen-- < 2)
 				return(ENOMEM);
@@ -2801,6 +2801,8 @@ __getcwd(p, uap, retval)
 		uap->buf++;
 		j++;
 		vp = vp->v_dd;
+		if (vp->v_flag & VROOT) 
+			vp = vp->v_mount->mnt_vnodecovered;
 	}
 	if (!j) {
 		if (uap->buflen-- < 2)
