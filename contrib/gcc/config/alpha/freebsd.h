@@ -62,7 +62,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #undef	STARTFILE_SPEC
 #define STARTFILE_SPEC							\
   "%{!shared: %{pg:gcrt1.o%s} %{!pg:%{p:gcrt1.o%s} %{!p:crt1.o%s}}}	\
-     %{!shared:crtbegin.o%s} %{shared:crtbeginS.o%s}"
+     crti.o%s %{!shared:crtbegin.o%s} %{shared:crtbeginS.o%s}"
 
 /* Provide a ENDFILE_SPEC appropriate for ELF.  Here we tack on the
    magical crtend.o file which provides part of the support for
@@ -71,7 +71,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #undef	ENDFILE_SPEC
 #define ENDFILE_SPEC \
-  "%{!shared:crtend.o%s} %{shared:crtendS.o%s}"
+  "%{!shared:crtend.o%s} %{shared:crtendS.o%s} crtn.o%s"
 
 
 /************************[  Target stuff  ]***********************************/
