@@ -92,7 +92,7 @@ main(argc, argv)
 	DBT data, key;
 	FILE *fp, *oldfp;
 	sigset_t set;
-	int ch, cnt, pluscnt, minuscnt, len, makeold, tfd, yp_enabled = 0;
+	int ch, cnt, ypcnt, len, makeold, tfd, yp_enabled = 0;
 	char *p, *t;
 	char buf[MAX(MAXPATHLEN, LINE_MAX * 2)], tbuf[1024];
 	char buf2[MAXPATHLEN];
@@ -175,7 +175,7 @@ main(argc, argv)
 	 * original file prepended by the _PW_KEYBYNUM character.  (The special
 	 * characters are prepended to ensure that the keys do not collide.)
 	 */
-	minuscnt = pluscnt = 0;
+	ypcnt = 1;
 	data.data = (u_char *)buf;
 	key.data = (u_char *)tbuf;
 	for (cnt = 1; scan(fp, &pwd); ++cnt) {
@@ -226,14 +226,9 @@ main(argc, argv)
 
 		/* Store insecure special plus and special minus */
 		if (pwd.pw_name[0] == '+' || pwd.pw_name[0] == '-') {
-			tbuf[0] = (pwd.pw_name[0] == '+') ?
-				_PW_KEYPLUSBYNUM : _PW_KEYMINUSBYNUM;
-			memmove(tbuf + 1, (pwd.pw_name[0] == '+') ?
-				&pluscnt : &minuscnt, sizeof(cnt));
-			if (pwd.pw_name[0] == '+')
-				pluscnt++;
-			else
-				minuscnt++;
+			tbuf[0] = _PW_KEYYPBYNUM;
+			memmove(tbuf + 1, &ypcnt, sizeof(cnt));
+			ypcnt++;
 			key.size = sizeof(cnt) + 1;
 			if ((dp->put)(dp, &key, &data, R_NOOVERWRITE) == -1)
 				error("put");
@@ -254,24 +249,6 @@ main(argc, argv)
 		if ((dp->put)(dp, &key, &data, R_NOOVERWRITE) == -1)
 			error("put");
 	}
-	/* If we have +@netgroup entries, store the plus counter */
-	if(pluscnt) {
-		buf[0] = pluscnt;
-		data.size = sizeof(pluscnt);
-		tbuf[0] = _PW_KEYPLUSCNT;
-		key.size = 1;
-		if ((dp->put)(dp, &key, &data, R_NOOVERWRITE) == -1)
-			error("put");
-	}
-	/* If we have -@netgroup entries, store the minus counter */
-	if(minuscnt) {
-		buf[0] = minuscnt;
-		data.size = sizeof(minuscnt);
-		tbuf[0] = _PW_KEYMINUSCNT;
-		key.size = 1;
-		if ((dp->put)(dp, &key, &data, R_NOOVERWRITE) == -1)
-			error("put");
-	}
 
 	(void)(dp->close)(dp);
 	if (makeold) {
@@ -288,7 +265,7 @@ main(argc, argv)
 	clean = FILE_SECURE;
 
 	rewind(fp);
-	minuscnt = pluscnt = 0;
+	ypcnt = 1;
 	for (cnt = 1; scan(fp, &pwd); ++cnt) {
 
 		/* Create secure data. */
@@ -335,15 +312,10 @@ main(argc, argv)
 
 		/* Store secure special plus and special minus */
 		if (pwd.pw_name[0] == '+' || pwd.pw_name[0] == '-') {
-			tbuf[0] = (pwd.pw_name[0] == '+') ?
-				_PW_KEYPLUSBYNUM : _PW_KEYMINUSBYNUM;
-			memmove(tbuf + 1, (pwd.pw_name[0] == '+') ?
-				&pluscnt : &minuscnt, sizeof(cnt));
-			if (pwd.pw_name[0] == '+')
-				pluscnt++;
-			else
-				minuscnt++;
-			key.size = sizeof(cnt) + 1;
+			tbuf[0] = _PW_KEYYPBYNUM;
+			memmove(tbuf + 1, &ypcnt, sizeof(ypcnt));
+			ypcnt++;
+			key.size = sizeof(ypcnt) + 1;
 			if ((dp->put)(edp, &key, &data, R_NOOVERWRITE) == -1)
 				error("put");
 		}
@@ -357,24 +329,7 @@ main(argc, argv)
 		if ((edp->put)(edp, &key, &data, R_NOOVERWRITE) == -1)
 			error("put");
 	}
-	/* If we have +@netgroup entries, store the plus counter */
-	if(pluscnt) {
-		buf[0] = pluscnt;
-		data.size = sizeof(pluscnt);
-		tbuf[0] = _PW_KEYPLUSCNT;
-		key.size = 1;
-		if ((edp->put)(edp, &key, &data, R_NOOVERWRITE) == -1)
-			error("put");
-	}
-	/* If we have -@netgroup entries, store the minus counter */
-	if(minuscnt) {
-		buf[0] = minuscnt;
-		data.size = sizeof(minuscnt);
-		tbuf[0] = _PW_KEYMINUSCNT;
-		key.size = 1;
-		if ((edp->put)(edp, &key, &data, R_NOOVERWRITE) == -1)
-			error("put");
-	}
+
 	(void)(edp->close)(edp);
 
 	/* Set master.passwd permissions, in case caller forgot. */
