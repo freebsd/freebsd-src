@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ldconfig.c,v 1.20 1997/08/22 04:42:12 peter Exp $
+ *	$Id: ldconfig.c,v 1.21 1998/05/26 20:12:50 sos Exp $
  */
 
 #include <sys/param.h>
@@ -507,14 +507,13 @@ readhints()
 
 	hdr = (struct hints_header *)addr;
 	if (HH_BADMAG(*hdr)) {
-		warnx("%s: Bad magic: %o",
-			hints_file, hdr->hh_magic);
+		warnx("%s: Bad magic: %lo", hints_file, hdr->hh_magic);
 		return -1;
 	}
 
 	if (hdr->hh_version != LD_HINTS_VERSION_1 &&
 	    hdr->hh_version != LD_HINTS_VERSION_2) {
-		warnx("Unsupported version: %d", hdr->hh_version);
+		warnx("Unsupported version: %ld", hdr->hh_version);
 		return -1;
 	}
 
