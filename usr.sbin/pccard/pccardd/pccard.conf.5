@@ -120,7 +120,7 @@ defined.
 .Ss "Card Identifiers"
 The syntax for card identifiers is:
 .Pp
-.Dl card Ar manufacturer version class
+.Dl card Ar manufacturer version
 .Dl config Ar index driver interrupt [ flags ]
 .Dl ether Ar offset
 .Dl insert Ar command
@@ -135,9 +135,6 @@ The
 .Em card
 parameters are the Manufacturer name and card version that
 is used to match the values from the card's CIS memory. The
-.Em class
-identifies the card as one of the device classes listed below.
-The
 .Em config
 parameters select the particular card's configuration index
 from the range available in the card's CIS, the driver that
@@ -188,7 +185,7 @@ card "RPTI LTD." "EP400"  # NE2000 clone
        insert ifconfig $device bean
        remove ifconfig $device down
 
-card "XYZZY" "FAX/1.0" tty
+card "XYZZY" "FAX/1.0"
        config 0x30 "sio1" 11
        insert echo start getty
        remove echo stop getty
