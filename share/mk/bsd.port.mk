@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.140 1995/04/17 06:39:05 asami Exp $
+# $Id: bsd.port.mk,v 1.141 1995/04/18 08:18:27 asami Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -372,7 +372,7 @@ patch:
 #
 .if !target(describe)
 describe:
-	@echo -n "${DISTNAME}|${.CURDIR}/${DISTNAME}|"
+	@echo -n "${PKGNAME}|${.CURDIR}/${PKGNAME}|"
 	@echo -n "${PREFIX}|"
 	@if [ -f ${PKGDIR}/COMMENT ]; then \
 		echo -n "`cat ${PKGDIR}/COMMENT`"; \
