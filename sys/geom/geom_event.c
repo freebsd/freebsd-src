@@ -54,6 +54,7 @@
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/eventhandler.h>
 #endif
 #include <sys/errno.h>
 #include <sys/time.h>
@@ -65,6 +66,7 @@ static u_int g_pending_events, g_silence_events;
 static void g_do_event(struct g_event *ep);
 static TAILQ_HEAD(,g_provider) g_doorstep = TAILQ_HEAD_INITIALIZER(g_doorstep);
 static struct mtx g_eventlock;
+static int g_shutdown;
 
 void
 g_silence(void)
@@ -287,9 +289,23 @@ g_post_event(enum g_events ev, struct g_class *mp, struct g_geom *gp, struct g_p
 	wakeup(&g_wait_event);
 }
 
+#ifdef _KERNEL
+static void
+geom_shutdown(void *foo __unused)
+{
+
+	g_shutdown = 1;
+}
+#endif
+
 void
 g_event_init()
 {
 
+#ifdef _KERNEL
+	
+	EVENTHANDLER_REGISTER(shutdown_pre_sync, geom_shutdown, NULL,
+		SHUTDOWN_PRI_FIRST);
+#endif
 	mtx_init(&g_eventlock, "GEOM orphanage", NULL, MTX_DEF);
 }
