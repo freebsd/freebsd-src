@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: error.c,v 1.5.2.1 1997/08/25 09:09:38 jkh Exp $
+ *	$Id: error.c,v 1.5.2.2 1998/08/27 16:24:57 cracauer Exp $
  */
 
 #ifndef lint
@@ -62,7 +62,7 @@ static char const sccsid[] = "@(#)error.c	8.2 (Berkeley) 5/4/95";
 
 struct jmploc *handler;
 volatile sig_atomic_t exception;
-int suppressint;
+volatile sig_atomic_t suppressint;
 volatile sig_atomic_t intpending;
 char *commandname;
 

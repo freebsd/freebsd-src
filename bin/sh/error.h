@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)error.h	8.2 (Berkeley) 5/4/95
- *	$Id: error.h,v 1.4.2.1 1997/08/25 09:09:40 jkh Exp $
+ *	$Id: error.h,v 1.4.2.2 1998/08/27 16:24:57 cracauer Exp $
  */
 
 /*
@@ -64,7 +64,7 @@ struct jmploc {
 };
 
 extern struct jmploc *handler;
-extern int exception;
+extern volatile sig_atomic_t exception;
 
 /* exceptions */
 #define EXINT 0		/* SIGINT received */
