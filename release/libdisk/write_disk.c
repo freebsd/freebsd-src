@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: write_disk.c,v 1.3 1995/04/30 07:30:45 phk Exp $
+ * $Id: write_disk.c,v 1.4 1995/04/30 11:04:16 phk Exp $
  *
  */
 
@@ -63,7 +63,7 @@ Write_FreeBSD(int fd, struct disk *new, struct disk *old, struct chunk *c1)
 			continue;
 		}
 		dl->d_partitions[j].p_size = c2->size;
-		dl->d_partitions[j].p_offset = c2->offset - c1->offset;
+		dl->d_partitions[j].p_offset = c2->offset;
 		dl->d_partitions[j].p_fstype = c2->subtype;
 		
 	}
@@ -83,7 +83,7 @@ Write_FreeBSD(int fd, struct disk *new, struct disk *old, struct chunk *c1)
 
 	dl->d_type = new->name[0] == 's' ? DTYPE_SCSI : DTYPE_ESDI;
 	dl->d_partitions[RAW_PART].p_size = c1->size;
-	dl->d_partitions[RAW_PART].p_offset = 0;
+	dl->d_partitions[RAW_PART].p_offset = c1->offset;
 
 	dl->d_magic = DISKMAGIC;
 	dl->d_magic2 = DISKMAGIC;
@@ -112,7 +112,7 @@ Write_Disk(struct disk *d1)
 	int ret = 0;
 	char device[64];
 	u_char *mbr;
-	struct dos_partition *dp;
+	struct dos_partition *dp,work[NDOSPART];
 	int s[4];
 
 	strcpy(device,"/dev/r");
@@ -127,18 +127,22 @@ Write_Disk(struct disk *d1)
 	memset(s,0,sizeof s);
 	mbr = read_block(fd,0);
 	dp = (struct dos_partition*) (mbr + DOSPARTOFF);
+	memcpy(work,dp,sizeof work);
+	dp = work;
+	free(mbr);
 	for (c1=d1->chunks->part; c1 ; c1 = c1->next) {
 		if (c1->type == unused) continue;
 		if (c1->type == reserved) continue;
 		if (!strcmp(c1->name,"X")) continue;
-		if (c1->type == extended)
-			ret += Write_Extended(fd, d1,old,c1);
-		if (c1->type == freebsd)
-			ret += Write_FreeBSD(fd, d1,old,c1);
 		j = c1->name[4] - '1';
 		if (j < 0 || j > 3)
 			continue;
 		s[j]++;
+		if (c1->type == extended)
+			ret += Write_Extended(fd, d1,old,c1);
+		if (c1->type == freebsd)
+			ret += Write_FreeBSD(fd, d1,old,c1);
+
 		dp[j].dp_start = c1->offset;
 		dp[j].dp_size = c1->size;
 
@@ -150,14 +154,17 @@ Write_Disk(struct disk *d1)
 			
 		} else {
 			dp[j].dp_ssect = i % d1->bios_sect;
-			i -= dp[j].dp_ssect;
+			i -= dp[j].dp_ssect++;
 			i /= d1->bios_sect;	
-			dp[j].dp_ssect++;
 			dp[j].dp_shd =  i % d1->bios_hd;
 			i -= dp[j].dp_shd;
 			i /= d1->bios_hd;
 			dp[j].dp_scyl = i;
+			i -= dp[j].dp_scyl;
+			dp[j].dp_ssect |= i >> 2;
 		}
+		printf("S:%lu = (%x/%x/%x)", 
+			c1->offset,dp[j].dp_scyl,dp[j].dp_shd,dp[j].dp_ssect);
 
 		i = c1->end;
 		if (i >= 1024*d1->bios_sect*d1->bios_hd) {
@@ -166,40 +173,37 @@ Write_Disk(struct disk *d1)
 			dp[j].dp_ecyl = 0xff;
 		} else {
 			dp[j].dp_esect = i % d1->bios_sect;
-			i -= dp[j].dp_esect;
+			i -= dp[j].dp_esect++;
 			i /= d1->bios_sect;	
-			dp[j].dp_esect++;
 			dp[j].dp_ehd =  i % d1->bios_hd;
 			i -= dp[j].dp_ehd;
 			i /= d1->bios_hd;
 			dp[j].dp_ecyl = i;
+			i -= dp[j].dp_ecyl;
+			dp[j].dp_esect |= i >> 2;
+			
 		}
+		printf("  E:%lu = (%x/%x/%x)\n", 
+			c1->end,dp[j].dp_ecyl,dp[j].dp_ehd,dp[j].dp_esect);
 
-		switch (c1->type) {
-			case freebsd:
-				dp[j].dp_typ = 0xa5;
-				break;
-			case fat:
-				dp[j].dp_typ = 1;
-				break;
-			case extended:
-				dp[j].dp_typ = 5;
-				break;
-			case foo:
-				dp[j].dp_typ = - c1->subtype;
-				break;
-			default:
-				break;
-		}	
+		dp[j].dp_typ = c1->subtype;
 	}
 	for(i=0;i<NDOSPART;i++)
 		if (!s[i])
 			memset(dp+i,0,sizeof *dp);
 	
+	mbr = read_block(fd,0);
+	if (d1->bootmgr)
+		memcpy(mbr,d1->bootmgr,DOSPARTOFF);	
+	memcpy(mbr+DOSPARTOFF,dp,sizeof *dp * NDOSPART);
 	mbr[512-2] = 0x55;
 	mbr[512-1] = 0xaa;
 	write_block(fd,WHERE(0,d1),mbr);
 
+	i = 1;
+	i = ioctl(fd,DIOCSYNCSLICEINFO,&i);
+	if (i != 0)
+		warn("ioctl(DIOCSYNCSLICEINFO)");
 	close(fd);
 	return 0;
 }
