@@ -214,6 +214,12 @@ diff_loop () {
   esac
 }
 
+press_to_continue () {
+  local DISCARD
+  echo -n ' *** Press the [Enter] or [Return] key to continue '
+  read DISCARD
+}
+
 # Set the default path for the temporary root environment
 #
 TEMPROOT='/var/tmp/temproot'
@@ -472,9 +478,7 @@ case "${RERUN}" in
   case "${VERBOSE}" in
   '') ;;
   *)
-    echo " *** Press [Enter] or [Return] key to continue"
-    read ANY_KEY
-    unset ANY_KEY
+    press_to_continue
     ;;
   esac
 
@@ -522,14 +526,10 @@ case "${RERUN}" in
     echo '     However because these files are not updated by this process you'
     echo '     might want to verify their status before rebooting your system.'
     echo ''
-    echo ' *** Press [Enter] or [Return] key to continue'
-    read ANY_KEY
-    unset ANY_KEY
+    press_to_continue
     diff -qr ${DESTDIR}/etc ${TEMPROOT}/etc | grep "^Only in /etc" | ${PAGER}
     echo ''
-    echo ' *** Press [Enter] or [Return] key to continue'
-    read ANY_KEY
-    unset ANY_KEY
+    press_to_continue
     ;;
   esac
 
@@ -559,35 +559,36 @@ find ${TEMPROOT}/usr/obj -type f -delete 2>/dev/null
 
 # Get ready to start comparing files
 
-# Check umask if not specified on the command line,
-# and we are not doing an autorun
+# Check umask if we are not doing an autorun
 #
-if [ -z "${NEW_UMASK}" -a -z "${AUTO_RUN}" ]; then
-  USER_UMASK=`umask`
+case "${AUTO_RUN}" in
+'')
+  case "${NEW_UMASK}" in
+  '')
+    USER_UMASK=`umask`
+    ;;
+  *)
+    USER_UMASK="${NEW_UMASK}"
+    ;;
+  esac
+
   case "${USER_UMASK}" in
   0022|022) ;;
   *)
     echo ''
-    echo " *** Your umask is currently set to ${USER_UMASK}.  By default, this script"
-    echo "     installs all files with the same user, group and modes that"
-    echo "     they are created with by ${SOURCEDIR}/Makefile, compared to"
-    echo "     a umask of 022.  This umask allows world read permission when"
-    echo "     the file's default permissions have it."
-    echo "     No world permissions can sometimes cause problems.  A umask of"
-    echo "     022 will restore the default behavior, but is not mandatory."
-    echo "     /etc/master.passwd is a special case.  Its file permissions"
-    echo "     will be 600 (rw-------) if installed."
+    echo " *** Your umask is currently set to ${USER_UMASK}.  This script installs"
+    echo '     all files with the same user, group, and modes that they'
+    echo "     are created with by ${SOURCEDIR}/Makefile."
     echo ''
-    echo -n "What umask should I use? [${USER_UMASK}] "
-    read NEW_UMASK
-
-    NEW_UMASK="${NEW_UMASK:-$USER_UMASK}"
+    echo '     If you would like different permissions for the files or'
+    echo '     directories, you will have to set them after installation.'
+    echo ''
+    press_to_continue
     ;;
   esac
   echo ''
-fi
-
-CONFIRMED_UMASK=${NEW_UMASK:-0022}
+  ;;
+esac
 
 # Warn users who still have ${DESTDIR}/etc/sysconfig
 #
@@ -621,7 +622,7 @@ if [ -e "${DESTDIR}/etc/sysconfig" ]; then
   esac
 fi
 
-# Use the umask/mode information to install the files
+# Use the mode information to install the files
 # Create directories as needed
 #
 do_install_and_rm () {
@@ -641,13 +642,11 @@ mm_install () {
   esac
 
   if [ -n "${DESTDIR}${INSTALL_DIR}" -a ! -d "${DESTDIR}${INSTALL_DIR}" ]; then
-    DIR_MODE=`perl -e 'printf "%04o\n", (((stat("$ARGV[0]"))[2] & 07777) &~ \
-      oct("$ARGV[1]"))' "${TEMPROOT}/${INSTALL_DIR}" "${CONFIRMED_UMASK}"`
+    DIR_MODE=`stat -f "%OMp%OLp" "${TEMPROOT}/${INSTALL_DIR}"`
     install -d -o root -g wheel -m "${DIR_MODE}" "${DESTDIR}${INSTALL_DIR}"
   fi
 
-  FILE_MODE=`perl -e 'printf "%04o\n", (((stat("$ARGV[0]"))[2] & 07777) &~ \
-      oct("$ARGV[1]"))' "${1}" "${CONFIRMED_UMASK}"`
+  FILE_MODE=`stat -f "%OMp%OLp" "${1}"`
 
   if [ ! -x "${1}" ]; then
     case "${1#.}" in
