@@ -102,4 +102,4 @@
  * #endif
  */
 
-#endif /* !ARCHIVE_H_INCLUDED */
+#endif /* !BSDTAR_PLATFORM_H_INCLUDED */
