@@ -542,6 +542,7 @@ release.5:
 	cd ${.CURDIR}/..; ${TMAKE} build-tools
 	cd ${j}_crunch; ${WMAKE} -f ${j}_crunch.mk \
 	    CFLAGS="-Os -pipe" -DNO_CPU_CFLAGS all
+	strip -R .comment ${j}_crunch/${j}_crunch
 	mv ${j}_crunch/${j}_crunch ${RD}/crunch/${j}
 .endfor
 	touch release.5
