@@ -617,7 +617,7 @@ release.9:
 	  for dir in bin sbin ; do \
 		ln -sf /stand $$dir; \
 	  done )
-	cp /sbin/dhclient-script ${RD}/mfsfd/stand
+	cp ${RD}/trees/base/sbin/dhclient-script ${RD}/mfsfd/stand
 .if ${TARGET_ARCH} == "i386"
 	cp ${.CURDIR}/../etc/defaults/pccard.conf ${RD}/mfsfd/etc/defaults/pccard.conf
 .endif
