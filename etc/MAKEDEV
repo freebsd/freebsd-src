@@ -307,9 +307,6 @@ std)
 	mknod io	c 2 14;			chmod 600 io
 	mknod tty	c 1 0;			chmod 666 tty
 	mknod klog	c 7 0;			chmod 600 klog
-	mknod stdin	c 22 0; 		chmod 666 stdin
-	mknod stdout	c 22 1; 		chmod 666 stdout
-	mknod stderr	c 22 2; 		chmod 666 stderr
 	mknod pci	c 78 0; 		chmod 644 pci
 	mkdir -p fd
 	(cd fd && i=0 &&
@@ -320,6 +317,9 @@ std)
 	)
 	chmod 555 fd
 	chmod 666 fd/*
+	ln -sf fd/0 stdin
+	ln -sf fd/1 stdout
+	ln -sf fd/2 stderr
 	;;
 
 jail)
