@@ -12,9 +12,9 @@
 .Os
 .Sh NAME
 .Nm mkuzip
-.Nd compress a
+.Nd compress disk image for use with
 .Xr geom_uzip 4
-image
+class
 .Sh SYNOPSIS
 .Nm
 .Op Fl v
@@ -26,11 +26,11 @@ The
 .Nm
 utility compresses a disk image file in such a way that the
 .Xr geom_uzip 4
-class will be able to decompress resulting image in run-time
-when it loaded into memory. This allows for significant reduction
-of memory footprint of memory-based filesystem at the expense of
-some CPU time required to decompress the data each time it is
-read.  Internally, operation is done in two phases as follows:
+class will be able to decompress resulting image in run-time.
+This allows for significant reduction of size of disk image at
+the expense of some CPU time required to decompress the data each
+time it is read.  Internally, operation is done in two phases as
+follows:
 .Bl -enum
 .It
 An
@@ -38,7 +38,7 @@ An
 image is split into clusters and each cluster compressed using
 .Xr zlib 3 .
 .It
-Resulting set of clusters along with headers allowing to
+Resulting set of compressed clusters along with headers allowing to
 independently locate each individual cluster is written into
 output file.
 .El
@@ -54,30 +54,46 @@ The default is to use the input name with the suffix
 Use
 .Ar cluster_size
 as the size of chunks the file being split up into.  Default value
-is 16K.  The
+is 16384 bytes.  The
 .Ar cluster_size
-should be multiple of block size of the
-.Xr geom_uzip 4
-device (usually 512 bytes).
+should be multiple of 512 bytes.
 .It Fl v
 Display verbose messages.
 .El
 .Sh NOTES
 Compression ratio largely depends on the cluster size used. For
-large cluster sizes of (16K and higher) typical compression ratios
+large cluster sizes (16K and higher) typical compression ratios
 are only 1-2% less than those achieved with the
 .Xr gzip 1
 utlity.  However, it should be kept in mind that larger cluster
 sizes lead to higher overhead in the
 .Xr geom_uzip 4
 class, as the class has to decompress the whole cluster even if
-literally only several bytes from that cluster have to be read.
+only several bytes from that cluster have to be read.
+.Pp
+The
+.Nm
+inserts tiny shell script at the beginning of the generated image,
+which makes it possible to
+.Qq run
+the image just like any other shell script.  This script tries
+to load
+.Xr geom_uzip 4
+class if it is not loaded, configure image as a
+.Xr md 4
+disk device using
+.Xr mdconfig 8
+utility and automatically mount it using
+.Xr mount_cd9660 8
+utility to the mount point provided as a first argument.
 .Sh SEE ALSO
 .Xr gzip 1 ,
 .Xr zlib 3 ,
 .Xr geom_uzip 4 ,
-.Xr boot 8 ,
-.Xr loader 8
+.Xr geom 4 ,
+.Xr md 4 ,
+.Xr mdconfig 8 ,
+.Xr mount_cd9660 8 .
 .Sh DIAGNOSTICS
 Exit status is 0 on success and >0 on error.
 .Sh AUTHORS
