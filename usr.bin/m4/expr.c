@@ -525,10 +525,10 @@ num(void)
 	for(;;) {
 		switch(c) {
 			case '8': case '9':
-				if (base == OCTAL) 
+				if (base == OCTAL)
 					goto bad_digit;
 				/*FALLTHRU*/
-			case '0': case '1': case '2': case '3': 
+			case '0': case '1': case '2': case '3':
 			case '4': case '5': case '6': case '7':
 				rval *= base;
 				rval += c - '0';
@@ -550,10 +550,10 @@ num(void)
 	}
 bad_digit:
 	ungetch();
-	
+
 	if (ndig == 0)
 		experr("bad constant");
-	
+
 	return rval;
 }
 
@@ -615,7 +615,7 @@ skipws(void)
 }
 
 /*
- * resets environment to eval(), prints an error 
+ * resets environment to eval(), prints an error
  * and forces eval to return FALSE.
  */
 static void

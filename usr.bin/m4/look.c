@@ -74,7 +74,7 @@ hash(const char *name)
 /*
  * find name in the hash table
  */
-ndptr 
+ndptr
 lookup(const char *name)
 {
 	ndptr p;
@@ -91,7 +91,7 @@ lookup(const char *name)
  * hash and create an entry in the hash table.
  * The new entry is added in front of a hash bucket.
  */
-ndptr 
+ndptr
 addent(const char *name)
 {
 	unsigned int h;

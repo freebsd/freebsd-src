@@ -109,7 +109,7 @@ mark_traced(const char *name, int on)
 	}
 }
 
-int 
+int
 is_traced(const char *name)
 {
 	struct t *n;
@@ -193,7 +193,7 @@ frame_level(void)
 	int level;
 	int framep;
 
-	for (framep = fp, level = 0; framep != 0; 
+	for (framep = fp, level = 0; framep != 0;
 		level++,framep = mstack[framep-2].sfra)
 		;
 	return level;
@@ -212,7 +212,7 @@ print_header(struct input_file *inp)
 		fprintf(traceout, "id %lu: ", expansion_id);
 }
 
-ssize_t 
+ssize_t
 trace(const char *argv[], int argc, struct input_file *inp)
 {
 	print_header(inp);
@@ -228,9 +228,9 @@ trace(const char *argv[], int argc, struct input_file *inp)
 		delim[0] = LPAREN;
 		delim[1] = EOS;
 		for (i = 2; i < argc; i++) {
-			fprintf(traceout, "%s%s%s%s", delim, 
-			    (flags & TRACE_QUOTE) ? lquote : "", 
-			    argv[i], 
+			fprintf(traceout, "%s%s%s%s", delim,
+			    (flags & TRACE_QUOTE) ? lquote : "",
+			    argv[i],
 			    (flags & TRACE_QUOTE) ? rquote : "");
 			delim[0] = COMMA;
 			delim[1] = ' ';
@@ -251,7 +251,7 @@ trace(const char *argv[], int argc, struct input_file *inp)
 	}
 }
 
-void 
+void
 finish_trace(size_t mark)
 {
 	fprintf(traceout, " -> ");

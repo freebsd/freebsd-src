@@ -119,7 +119,7 @@ eval(const char *argv[], int argc, int td)
 	ssize_t mark = -1;
 
 	expansion_id++;
-	if (td & RECDEF) 
+	if (td & RECDEF)
 		errx(1, "%s at line %lu: expanding recursive definition for %s",
 			CURRENT_NAME, CURRENT_LINE, argv[1]);
 	if (traced_macros && is_traced(argv[1]))
@@ -249,7 +249,7 @@ expand_builtin(const char *argv[], int argc, int td)
 	/*
 	 * dosysval - return value of the last
 	 * system call.
-	 * 
+	 *
 	 */
 		pbnum(sysval);
 		break;
@@ -273,7 +273,7 @@ expand_builtin(const char *argv[], int argc, int td)
 	case PASTTYPE:
 		if (argc > 2)
 			if (!dopaste(argv[2]))
-				err(1, "%s at line %lu: paste(%s)", 
+				err(1, "%s at line %lu: paste(%s)",
 				    CURRENT_NAME, CURRENT_LINE, argv[2]);
 		break;
 
@@ -299,7 +299,7 @@ expand_builtin(const char *argv[], int argc, int td)
 	case SUBSTYPE:
 	/*
 	 * dosub - select substring
-	 * 
+	 *
 	 */
 		if (argc > 3)
 			dosub(argv, argc);
@@ -375,11 +375,11 @@ expand_builtin(const char *argv[], int argc, int td)
 			char *temp;
 
 			temp = xstrdup(argv[2]);
-			
+
 			fd = mkstemp(temp);
 			if (fd == -1)
-				err(1, 
-	    "%s at line %lu: couldn't make temp file %s", 
+				err(1,
+	    "%s at line %lu: couldn't make temp file %s",
 	    CURRENT_NAME, CURRENT_LINE, argv[2]);
 			close(fd);
 			pbstr(temp);
@@ -464,7 +464,7 @@ expand_builtin(const char *argv[], int argc, int td)
 		if (argc > 2)
 			doindir(argv, argc);
 		break;
-	
+
 	case BUILTINTYPE: /* Builtins only */
 		if (argc > 2)
 			dobuiltin(argv, argc);
@@ -876,7 +876,7 @@ dodiv(int n)
 	if (outfile[n] == NULL) {
 		char fname[] = _PATH_DIVNAME;
 
-		if ((fd = mkstemp(fname)) < 0 || 
+		if ((fd = mkstemp(fname)) < 0 ||
 			(outfile[n] = fdopen(fd, "w+")) == NULL)
 				err(1, "%s: cannot divert", fname);
 		if (unlink(fname) == -1)
@@ -1003,7 +1003,7 @@ map(char *dest, const char *src, const char *from, const char *to)
 	 * "to"
 	 */
 		while (*from)
-			mapvec[(unsigned char)(*from++)] = (*to) ? 
+			mapvec[(unsigned char)(*from++)] = (*to) ?
 				(unsigned char)(*to++) : 0;
 
 		while (*src) {
@@ -1037,12 +1037,12 @@ static const char *
 handledash(char *buffer, char *end, const char *src)
 {
 	char *p;
-	
+
 	p = buffer;
 	while(*src) {
 		if (src[1] == '-' && src[2]) {
 			unsigned char i;
-			for (i = (unsigned char)src[0]; 
+			for (i = (unsigned char)src[0];
 			    i <= (unsigned char)src[2]; i++) {
 				*p++ = i;
 				if (p == end) {

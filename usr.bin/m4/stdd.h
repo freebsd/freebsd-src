@@ -49,9 +49,9 @@
 
 #define iswhite(c) ((c) == ' ' || (c) == '\t')
 
-/* 
- * STREQ is an optimised strcmp(a,b)==0 
- * STREQN is an optimised strncmp(a,b,n)==0; assumes n > 0 
+/*
+ * STREQ is an optimised strcmp(a,b)==0
+ * STREQN is an optimised strncmp(a,b,n)==0; assumes n > 0
  */
 #define STREQ(a, b) ((a)[0] == (b)[0] && strcmp(a, b) == 0)
 #define STREQN(a, b, n) ((a)[0] == (b)[0] && strncmp(a, b, n) == 0)
