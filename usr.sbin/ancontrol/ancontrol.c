@@ -183,7 +183,6 @@ static void an_setval(iface, areq)
 		err(1, "SIOCSAIRONET");
 
 	close(s);
-printf("Hello %s %s %d\n",__FILE__,__FUNCTION__,__LINE__);
 
 	return;
 }
