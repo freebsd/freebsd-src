@@ -785,6 +785,7 @@ kse_sched_multi(struct kse *curkse)
 		;  /* Nothing to do here. */
 	else if ((curthread->need_switchout == 0) &&
 	    (curthread->blocked == 0) && (THR_IN_CRITICAL(curthread))) {
+		kse_wakeup_multi(curkse);
 		/*
 		 * Resume the thread and tell it to yield when
 		 * it leaves the critical region.
