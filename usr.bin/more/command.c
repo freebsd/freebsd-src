@@ -512,7 +512,7 @@ again:		if (sigs)
 			    number, wsearch);
 			break;
 		case A_HELP:			/* help */
-			if (!strcmp(_PATH_HELPFILE, av[curr_ac])) {
+			if (ac > 0 && !strcmp(_PATH_HELPFILE, av[curr_ac])) {
 				error("Already viewing help.");
 				break;
 			}
