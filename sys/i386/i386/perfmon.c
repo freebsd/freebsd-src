@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: perfmon.c,v 1.1 1996/03/26 19:57:53 wollman Exp $
+ *	$Id: perfmon.c,v 1.2 1996/03/27 22:02:18 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -135,7 +135,7 @@ perfmon_start(int pmc)
 	if (pmc < 0 || pmc >= NPMC)
 		return EINVAL;
 
-	if (perfmon_inuse) {
+	if (perfmon_inuse & (1 << pmc)) {
 		disable_intr();
 		ctl_shadow[pmc] |= (PMCF_EN << 16);
 		wrmsr(msr_pmc[pmc], pmc_shadow[pmc]);
@@ -220,6 +220,7 @@ int
 writectl5(int pmc)
 {
 	quad_t newval = 0;
+	quad_t oldtsc;
 
 	if (ctl_shadow[1] & (PMCF_EN << 16)) {
 		if (ctl_shadow[1] & (PMCF_USR << 16))
@@ -231,17 +232,27 @@ writectl5(int pmc)
 		newval |= (ctl_shadow[1] & 0x3f) << 16;
 	}
 	if (ctl_shadow[0] & (PMCF_EN << 16)) {
-		if (ctl_shadow[1] & (PMCF_USR << 16))
+		if (ctl_shadow[0] & (PMCF_USR << 16))
 			newval |= P5FLAG_USR;
-		if (ctl_shadow[1] & (PMCF_OS << 16))
+		if (ctl_shadow[0] & (PMCF_OS << 16))
 			newval |= P5FLAG_OS;
-		if (ctl_shadow[1] & (PMCF_E << 16))
+		if (ctl_shadow[0] & (PMCF_E << 16))
 			newval |= P5FLAG_E;
-		newval |= ctl_shadow[1] & 0x3f;
+		newval |= ctl_shadow[0] & 0x3f;
 	}
-	printf("about to wrmsr(%x, %x)\n", msr_ctl[0], (unsigned)newval);
-	printf("old value is %x\n", (unsigned)rdmsr(msr_ctl[0]));
+	/*
+	 * ``...But this is the blackest of sins!''
+	 *
+	 * According to the Harvard code, it is necessary to zero the
+	 * cycle counter before writing to the control MSR.  This must
+	 * be an Intel processor...  Hope we don't lose too many ticks.
+	 */
+	disable_intr();
+	oldtsc = rdtsc();
+	wrmsr(0x10 /* TSC */, 0);
 	wrmsr(msr_ctl[0], newval);
+	wrmsr(0x10, oldtsc);
+	enable_intr();
 	return 0;		/* XXX should check for errors */
 }
 
