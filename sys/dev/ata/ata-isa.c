@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998 - 2003 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 1998 - 2004 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/malloc.h>
+#include <sys/sema.h>
 #include <sys/taskqueue.h>
 #include <machine/stdarg.h>
 #include <machine/resource.h>

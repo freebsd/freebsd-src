@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002, 2003 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 2002 - 2004 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ata.h>
 #include <sys/bus.h>
 #include <sys/malloc.h>
+#include <sys/sema.h>
 #include <sys/taskqueue.h>
 #include <machine/resource.h>
 #include <machine/bus.h>
@@ -144,7 +145,7 @@ ata_cbus_attach(device_t dev)
 	return ENXIO;
     }
 
-    if ((bus_setup_intr(dev, ctlr->irq, INTR_TYPE_BIO | INTR_ENTROPY,
+    if ((bus_setup_intr(dev, ctlr->irq, ATA_INTR_FLAGS,
 			ata_cbus_intr, ctlr, &ctlr->ih))) {
 	device_printf(dev, "unable to setup interrupt\n");
 	bus_release_resource(dev, SYS_RES_IOPORT, ATA_IOADDR_RID, ctlr->io);
