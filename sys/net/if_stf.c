@@ -185,25 +185,27 @@ stf_clone_create(ifc, unit)
 	int unit;
 {
 	struct stf_softc *sc;
+	struct ifnet *ifp;
 
 	sc = malloc(sizeof(struct stf_softc), M_STF, M_WAITOK | M_ZERO);
-	if_initname(&sc->sc_if, ifc->ifc_name, unit);
+	ifp = &sc->sc_if;
+	if_initname(ifp, ifc->ifc_name, unit);
 
 	sc->encap_cookie = encap_attach_func(AF_INET, IPPROTO_IPV6,
 	    stf_encapcheck, &in_stf_protosw, sc);
 	if (sc->encap_cookie == NULL) {
-		printf("%s: attach failed\n", if_name(&sc->sc_if));
+		if_printf(ifp, "attach failed\n");
 		free(sc, M_STF);
 		return (ENOMEM);
 	}
 
-	sc->sc_if.if_mtu    = IPV6_MMTU;
-	sc->sc_if.if_ioctl  = stf_ioctl;
-	sc->sc_if.if_output = stf_output;
-	sc->sc_if.if_type   = IFT_STF;
-	sc->sc_if.if_snd.ifq_maxlen = IFQ_MAXLEN;
-	if_attach(&sc->sc_if);
-	bpfattach(&sc->sc_if, DLT_NULL, sizeof(u_int));
+	ifp->if_mtu    = IPV6_MMTU;
+	ifp->if_ioctl  = stf_ioctl;
+	ifp->if_output = stf_output;
+	ifp->if_type   = IFT_STF;
+	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
+	if_attach(ifp);
+	bpfattach(ifp, DLT_NULL, sizeof(u_int));
 	mtx_lock(&stf_mtx);
 	LIST_INSERT_HEAD(&stf_softc_list, sc, sc_list);
 	mtx_unlock(&stf_mtx);
