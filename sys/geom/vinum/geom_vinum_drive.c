@@ -367,10 +367,10 @@ gv_drive_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 			g_free(vhdr);
 			break;
 		}
+		g_topology_lock();
 		gv_parse_config(sc, buf, 1);
 		g_free(buf);
 
-		g_topology_lock();
 		g_access(cp, -1, 0, 0);
 		g_detach(cp);
 		g_wither_geom(gp, ENXIO);
