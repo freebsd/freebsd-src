@@ -202,7 +202,7 @@ main(argc,argv)
 	drawscreen();	/*	show the initial dungeon					*/
 	predostuff = 2;	/* tell the trap functions that they must do a showplayer()
 						from here on */
-	/* nice(1);	/* games should be run niced */
+	/* nice(1); */	/* games should be run niced */
 	yrepcount = hit2flag = 0;
 	while (1)
 		{

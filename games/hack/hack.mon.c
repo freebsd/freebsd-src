@@ -132,7 +132,7 @@ char *name;
 		u.uhp = -1;
 	}
 	if(u.uhp < 1) done_in_by(mtmp);
-	/* flags.botlx = 1;		/* should we show status line ? */
+	/* flags.botlx = 1; */		/* should we show status line ? */
 }
 
 dochugw(mtmp) register struct monst *mtmp; {

@@ -92,11 +92,11 @@ struct stat buf, hbuf;
 gethdate(name) char *name; {
 /* old version - for people short of space */
 /*
-/* register char *np;
-/*	if(stat(name, &hbuf))
-/*		error("Cannot get status of %s.",
-/*			(np = rindex(name, '/')) ? np+1 : name);
-/*
+ * register char *np;
+ *	if(stat(name, &hbuf))
+ *		error("Cannot get status of %s.",
+ *			(np = rindex(name, '/')) ? np+1 : name);
+ */
 /* version using PATH from: seismo!gregc@ucsf-cgl.ARPA (Greg Couch) */
 
 
@@ -161,8 +161,8 @@ veryold(fd) {
 			/* strange ... */
 			return(0);
 
-		/* From: Rick Adams <seismo!rick>
-		/* This will work on 4.1cbsd, 4.2bsd and system 3? & 5.
+		/* From: Rick Adams <seismo!rick> */
+		/* This will work on 4.1cbsd, 4.2bsd and system 3? & 5. */
 		/* It will do nothing on V7 or 4.1bsd. */
 		if(!(kill(lockedpid, 0) == -1 && errno == ESRCH))
 			return(0);
