@@ -16,7 +16,7 @@
  *
  * NEW command line interface for IP firewall facility
  *
- * $Id: ipfw.c,v 1.40 1997/02/22 14:32:36 peter Exp $
+ * $Id: ipfw.c,v 1.41 1997/03/05 12:08:44 bde Exp $
  *
  */
 
@@ -856,7 +856,7 @@ ipfw_main(ac,av)
 	/* Set the force flag for non-interactive processes */
 	do_force = !isatty(STDIN_FILENO);
 
-	while ((ch = getopt(ac, av ,"afqtN")) != EOF)
+	while ((ch = getopt(ac, av ,"afqtN")) != -1)
 	switch(ch) {
 		case 'a':
 			do_acct=1;

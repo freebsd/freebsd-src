@@ -82,7 +82,7 @@ int main(argc, argv)
 	    init = Unknown;
 	sigset_t mask, emask;
 
-	while ((ch = getopt(argc, argv, "ais")) != EOF)
+	while ((ch = getopt(argc, argv, "ais")) != -1)
 		switch((char)ch) {
 		case 'i':               /* initial call, save offset */
 			if (init != Unknown)

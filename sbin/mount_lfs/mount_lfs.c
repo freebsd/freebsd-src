@@ -42,7 +42,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)mount_lfs.c	8.4 (Berkeley) 4/26/95";
 */
 static const char rcsid[] =
-	"$Id: mount_lfs.c,v 1.7 1997/02/22 14:32:46 peter Exp $";
+	"$Id: mount_lfs.c,v 1.8 1997/03/11 12:30:33 peter Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -83,7 +83,7 @@ main(argc, argv)
 
 	options = NULL;
 	mntflags = noclean = short_rds = cleaner_debug = 0;
-	while ((ch = getopt(argc, argv, "dno:s")) != EOF)
+	while ((ch = getopt(argc, argv, "dno:s")) != -1)
 		switch (ch) {
 		case 'd':
 			cleaner_debug = 1;

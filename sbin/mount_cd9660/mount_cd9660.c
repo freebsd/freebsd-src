@@ -49,7 +49,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)mount_cd9660.c	8.7 (Berkeley) 5/1/95";
 */
 static const char rcsid[] =
-	"$Id: mount_cd9660.c,v 1.9 1997/02/22 14:32:44 peter Exp $";
+	"$Id: mount_cd9660.c,v 1.10 1997/03/11 12:29:02 peter Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -88,7 +88,7 @@ main(argc, argv)
 	int error;
 
 	mntflags = opts = 0;
-	while ((ch = getopt(argc, argv, "ego:r")) != EOF)
+	while ((ch = getopt(argc, argv, "ego:r")) != -1)
 		switch (ch) {
 		case 'e':
 			opts |= ISOFSMNT_EXTATT;
