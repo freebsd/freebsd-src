@@ -1066,7 +1066,9 @@ bridge_modevent(module_t mod, int type, void *unused)
 		bdg_forward_ptr = NULL;
 		bdgtakeifaces_ptr = NULL;
 		untimeout(bdg_timeout, NULL, bdg_timeout_h);
-		free_table();
+		bridge_off();
+		if (clusters)
+		    free(clusters, M_IFADDR);
 		free(ifp2sc, M_IFADDR);
 		ifp2sc = NULL ;
 		splx(s);
