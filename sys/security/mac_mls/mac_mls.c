@@ -1862,9 +1862,23 @@ mac_mls_check_vnode_deleteacl(struct ucred *cred, struct vnode *vp,
 
 static int
 mac_mls_check_vnode_exec(struct ucred *cred, struct vnode *vp,
-    struct label *label, struct image_params *imgp)
+    struct label *label, struct image_params *imgp,
+    struct label *execlabel)
 {
-	struct mac_mls *subj, *obj;
+	struct mac_mls *subj, *obj, *exec;
+	int error;
+
+	if (execlabel != NULL) {
+		/*
+		 * We currently don't permit labels to be changed at
+		 * exec-time as part of MLS, so disallow non-NULL
+		 * MLS label elements in the execlabel.
+		 */
+		exec = SLOT(execlabel);
+		error = mls_atmostflags(exec, 0);
+		if (error)
+			return (error);
+	}
 
 	if (!mac_mls_enabled)
 		return (0);
