@@ -53,8 +53,8 @@ extern "C" {
 #endif
 
 /* #define BFD_VERSION 211930000 */
-#define BFD_VERSION_DATE 20020126
-#define BFD_VERSION_STRING "2.11.93 20020126"
+/* #define BFD_VERSION_DATE 20020126 */
+/* #define BFD_VERSION_STRING "2.11.93 20020126" */
 
 /* The word size used by BFD on the host.  This may be 64 with a 32
    bit target if the host is 64 bit, or if other 64 bit targets have
