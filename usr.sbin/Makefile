@@ -161,7 +161,6 @@ SUBDIR+=apm \
 	lptcontrol \
 	mptable \
 	pcvt \
-	rndcontrol \
 	sgsc \
 	sicontrol \
 	spkrtest \
