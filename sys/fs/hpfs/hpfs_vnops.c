@@ -95,11 +95,15 @@ hpfs_fsync(ap)
 	 * Flush all dirty buffers associated with a vnode.
 	 */
 loop:
+	VI_LOCK(vp);
 	s = splbio();
 	for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp; bp = nbp) {
 		nbp = TAILQ_NEXT(bp, b_vnbufs);
-		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT))
+		VI_UNLOCK(vp);
+		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT)) {
+			VI_LOCK(vp);
 			continue;
+		}
 		if ((bp->b_flags & B_DELWRI) == 0)
 			panic("hpfs_fsync: not dirty");
 		bremfree(bp);
@@ -107,19 +111,18 @@ loop:
 		(void) bwrite(bp);
 		goto loop;
 	}
-	VI_LOCK(vp);
 	while (vp->v_numoutput) {
 		vp->v_iflag |= VI_BWAIT;
 		msleep((caddr_t)&vp->v_numoutput, VI_MTX(vp), PRIBIO + 1,
 		    "hpfsn", 0);
 	}
-	VI_UNLOCK(vp);
 #ifdef DIAGNOSTIC
 	if (!TAILQ_EMPTY(&vp->v_dirtyblkhd)) {
 		vprint("hpfs_fsync: dirty", vp);
 		goto loop;
 	}
 #endif
+	VI_UNLOCK(vp);
 	splx(s);
 
 	/*
@@ -604,7 +607,7 @@ hpfs_inactive(ap)
 			return (error);
 	}
 
-	if (prtactive && vp->v_usecount != 0)
+	if (prtactive && vrefcnt(vp) != 0)
 		vprint("hpfs_inactive: pushing active", vp);
 
 	if (hp->h_flag & H_INVAL) {

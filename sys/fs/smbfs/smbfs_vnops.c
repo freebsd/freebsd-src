@@ -579,7 +579,7 @@ smbfs_remove(ap)
 	struct smb_cred scred;
 	int error;
 
-	if (vp->v_type == VDIR || np->n_opencount || vp->v_usecount != 1)
+	if (vp->v_type == VDIR || np->n_opencount || vrefcnt(vp) != 1)
 		return EPERM;
 	smb_makescred(&scred, cnp->cn_thread, cnp->cn_cred);
 	error = smbfs_smb_delete(np, &scred);
@@ -618,7 +618,7 @@ smbfs_rename(ap)
 		goto out;
 	}
 
-	if (tvp && tvp->v_usecount > 1) {
+	if (tvp && vrefcnt(tvp) > 1) {
 		error = EBUSY;
 		goto out;
 	}
@@ -1183,6 +1183,7 @@ smbfs_lookup(ap)
 		int vpid;
 
 		vp = *vpp;
+		mp_fixme("Unlocked v_id access.");
 		vpid = vp->v_id;
 		if (dvp == vp) {	/* lookup on current */
 			vref(vp);

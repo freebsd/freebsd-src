@@ -135,7 +135,7 @@ pfs_close(struct vop_close_args *va)
 	 * Do nothing unless this is the last close and the node has a
 	 * last-close handler.
 	 */
-	if (vn->v_usecount > 1 || pn->pn_close == NULL)
+	if (vrefcnt(vn) > 1 || pn->pn_close == NULL)
 		PFS_RETURN (0);
 
 	if (pvd->pvd_pid != NO_PID)

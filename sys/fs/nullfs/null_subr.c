@@ -321,7 +321,7 @@ null_checkvp(vp, fil, lno)
 		while (null_checkvp_barrier) /*WAIT*/ ;
 		panic("null_checkvp");
 	}
-	if (a->null_lowervp->v_usecount < 1) {
+	if (vrefcnt(a->null_lowervp) < 1) {
 		int i; u_long *p;
 		printf("vp = %p, unref'ed lowervp\n", (void *)vp);
 		for (p = (u_long *) a, i = 0; i < 8; i++)
@@ -333,8 +333,8 @@ null_checkvp(vp, fil, lno)
 	};
 #ifdef notyet
 	printf("null %x/%d -> %x/%d [%s, %d]\n",
-	        NULLTOV(a), NULLTOV(a)->v_usecount,
-		a->null_lowervp, a->null_lowervp->v_usecount,
+	        NULLTOV(a), vrefcnt(NULLTOV(a)),
+		a->null_lowervp, vrefcnt(a->null_lowervp),
 		fil, lno);
 #endif
 	return a->null_lowervp;

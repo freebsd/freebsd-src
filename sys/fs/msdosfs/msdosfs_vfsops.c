@@ -635,6 +635,7 @@ msdosfs_unmount(mp, mntflags, td)
 	{
 		struct vnode *vp = pmp->pm_devvp;
 
+		VI_LOCK(vp);
 		printf("msdosfs_umount(): just before calling VOP_CLOSE()\n");
 		printf("iflag %08lx, usecount %d, writecount %d, holdcnt %ld\n",
 		    vp->vi_flag, vp->v_usecount, vp->v_writecount,
@@ -652,6 +653,7 @@ msdosfs_unmount(mp, mntflags, td)
 		    vp->v_socket, vp->v_tag,
 		    ((u_int *)vp->v_data)[0],
 		    ((u_int *)vp->v_data)[1]);
+		VI_UNLOCK(vp);
 	}
 #endif
 	error = VOP_CLOSE(pmp->pm_devvp,
@@ -747,13 +749,13 @@ loop:
 		nvp = TAILQ_NEXT(vp, v_nmntvnodes);
 
 		mtx_unlock(&mntvnode_mtx);
-		mtx_lock(&vp->v_interlock);
+		VI_LOCK(vp);
 		dep = VTODE(vp);
 		if (vp->v_type == VNON ||
 		    ((dep->de_flag &
 		    (DE_ACCESS | DE_CREATE | DE_UPDATE | DE_MODIFIED)) == 0 &&
 		    (TAILQ_EMPTY(&vp->v_dirtyblkhd) || waitfor == MNT_LAZY))) {
-			mtx_unlock(&vp->v_interlock);
+			VI_UNLOCK(vp);
 			mtx_lock(&mntvnode_mtx);
 			continue;
 		}

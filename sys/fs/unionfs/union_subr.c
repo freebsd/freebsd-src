@@ -486,16 +486,16 @@ loop:
 		 */
 		UDEBUG(("Modify existing un %p vn %p upper %p(refs %d) -> %p(refs %d)\n",
 			un, un->un_vnode, un->un_uppervp, 
-			(un->un_uppervp ? un->un_uppervp->v_usecount : -99),
+			(un->un_uppervp ? vrefcnt(un->un_uppervp) : -99),
 			uppervp,
-			(uppervp ? uppervp->v_usecount : -99)
+			(uppervp ? vrefcnt(uppervp) : -99)
 		));
 
 		if (uppervp != un->un_uppervp) {
-			KASSERT(uppervp == NULL || uppervp->v_usecount > 0, ("union_allocvp: too few refs %d (at least 1 required) on uppervp", uppervp->v_usecount));
+			KASSERT(uppervp == NULL || vrefcnt(uppervp) > 0, ("union_allocvp: too few refs %d (at least 1 required) on uppervp", vrefcnt(uppervp)));
 			union_newupper(un, uppervp);
 		} else if (uppervp) {
-			KASSERT(uppervp->v_usecount > 1, ("union_allocvp: too few refs %d (at least 2 required) on uppervp", uppervp->v_usecount));
+			KASSERT(vrefcnt(uppervp) > 1, ("union_allocvp: too few refs %d (at least 2 required) on uppervp", vrefcnt(uppervp)));
 			vrele(uppervp);
 		}
 
@@ -776,7 +776,7 @@ union_copyup(un, docopy, cred, td)
 
 	lvp = un->un_lowervp;
 
-	KASSERT(uvp->v_usecount > 0, ("copy: uvp refcount 0: %d", uvp->v_usecount));
+	KASSERT(vrefcnt(uvp) > 0, ("copy: uvp refcount 0: %d", vrefcnt(uvp)));
 	if (docopy) {
 		/*
 		 * XX - should not ignore errors
@@ -798,9 +798,9 @@ union_copyup(un, docopy, cred, td)
 	VOP_UNLOCK(uvp, 0, td);
 	vn_finished_write(mp);
 	union_newupper(un, uvp);
-	KASSERT(uvp->v_usecount > 0, ("copy: uvp refcount 0: %d", uvp->v_usecount));
+	KASSERT(vrefcnt(uvp) > 0, ("copy: uvp refcount 0: %d", vrefcnt(uvp)));
 	union_vn_close(uvp, FWRITE, cred, td);
-	KASSERT(uvp->v_usecount > 0, ("copy: uvp refcount 0: %d", uvp->v_usecount));
+	KASSERT(vrefcnt(uvp) > 0, ("copy: uvp refcount 0: %d", vrefcnt(uvp)));
 	/*
 	 * Subsequent IOs will go to the top layer, so
 	 * call close on the lower vnode and open on the
@@ -1279,10 +1279,10 @@ union_dircache(vp, td)
 		goto out;
 
 	/*vn_lock(*vpp, LK_EXCLUSIVE | LK_RETRY, td);*/
-	UDEBUG(("ALLOCVP-3 %p ref %d\n", *vpp, (*vpp ? (*vpp)->v_usecount : -99)));
+	UDEBUG(("ALLOCVP-3 %p ref %d\n", *vpp, (*vpp ? vrefcnt(*vpp) : -99)));
 	VREF(*vpp);
 	error = union_allocvp(&nvp, vp->v_mount, NULLVP, NULLVP, NULL, *vpp, NULLVP, 0);
-	UDEBUG(("ALLOCVP-3B %p ref %d\n", nvp, (*vpp ? (*vpp)->v_usecount : -99)));
+	UDEBUG(("ALLOCVP-3B %p ref %d\n", nvp, (*vpp ? vrefcnt(*vpp) : -99)));
 	if (error)
 		goto out;
 

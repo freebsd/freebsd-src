@@ -221,7 +221,7 @@ static int nwfs_mount(struct mount *mp, char *path, caddr_t data,
 	 * Lose the lock but keep the ref.
 	 */
 	VOP_UNLOCK(vp, 0, curthread);
-	NCPVODEBUG("rootvp.vrefcnt=%d\n",vp->v_usecount);
+	NCPVODEBUG("rootvp.vrefcnt=%d\n",vrefcnt(vp));
 	return error;
 bad:
         if (nmp)
@@ -490,10 +490,10 @@ loop:
 			goto loop;
 		nvp = TAILQ_NEXT(vp, v_nmntvnodes);
 		mtx_unlock(&mntvnode_mtx);
-		mtx_lock(&vp->v_interlock);
+		VI_LOCK(vp);
 		if (VOP_ISLOCKED(vp, NULL) || TAILQ_EMPTY(&vp->v_dirtyblkhd) ||
 		    waitfor == MNT_LAZY) {
-			mtx_unlock(&vp->v_interlock);
+			VI_UNLOCK(vp);
 			mtx_lock(&mntvnode_mtx);
 			continue;
 		}

@@ -490,7 +490,7 @@ nwfs_remove(ap)
 	struct nwmount *nmp = VTONWFS(vp);
 	int error;
 
-	if (vp->v_type == VDIR || np->opened || vp->v_usecount != 1)
+	if (vp->v_type == VDIR || np->opened || vrefcnt(vp) != 1)
 		return EPERM;
 	cache_purge(vp);
 	error = ncp_DeleteNSEntry(nmp, VTONW(dvp)->n_fid.f_id,
@@ -533,7 +533,7 @@ nwfs_rename(ap)
 		goto out;
 	}
 
-	if (tvp && tvp->v_usecount > 1) {
+	if (tvp && vrefcnt(tvp) > 1) {
 		error = EBUSY;
 		goto out;
 	}
