@@ -29,6 +29,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
+.\"	$FreeBSD$
 .\"	@(#)1.t	8.1 (Berkeley) 6/5/93
 .\"
 .ds RH Introduction
@@ -36,7 +37,7 @@
 Introduction
 .PP
 This document reflects the use of
-.I fsck
+.I fsck_ffs
 with the 4.2BSD and 4.3BSD file system organization.  This
 is a revision of the
 original paper written by
@@ -49,7 +50,7 @@ This precautionary measure helps to insure
 a reliable environment for file storage on disk.
 If an inconsistency is discovered,
 corrective action must be taken.
-.I Fsck
+.I Fsck_ffs
 runs in two modes.
 Normally it is run non-interactively by the system after 
 a normal boot.
@@ -57,11 +58,11 @@ When running in this mode,
 it will only make changes to the file system that are known
 to always be correct.
 If an unexpected inconsistency is found
-.I fsck
+.I fsck_ffs
 will exit with a non-zero exit status, 
 leaving the system running single-user.
 Typically the operator then runs 
-.I fsck
+.I fsck_ffs
 interactively.
 When running in this mode,
 each problem is listed followed by a suggested corrective action.
@@ -77,7 +78,7 @@ then describes file system corruption (the storm).
 Finally,
 the set of deterministic corrective actions
 used by
-.I fsck
+.I fsck_ffs
 (the Coast Guard
 to the rescue) is presented.
 .ds RH Overview of the File System

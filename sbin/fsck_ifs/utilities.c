@@ -40,13 +40,21 @@ static const char rcsid[] =
 #endif /* not lint */
 
 #include <sys/param.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 #include <ufs/ufs/dinode.h>
 #include <ufs/ufs/dir.h>
 #include <ufs/ffs/fs.h>
 
 #include <err.h>
+#include <errno.h>
 #include <string.h>
+#include <ctype.h>
+#include <fstab.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
 
 #include "fsck.h"
 
@@ -561,7 +569,7 @@ dofix(idesc, msg)
 		if (idesc->id_type == DATA)
 			direrror(idesc->id_number, msg);
 		else
-			pwarn("%s", msg);
+			pwarn(msg);
 		if (preen) {
 			printf(" (SALVAGED)\n");
 			idesc->id_fix = FIX;
@@ -680,4 +688,47 @@ panic(fmt, va_alist)
 	(void)vfprintf(stderr, fmt, ap);
 	va_end(ap);
 	exit(EEXIT);
+}
+
+char *
+blockcheck(origname)
+	char *origname;
+{
+	struct stat stslash, stblock, stchar;
+	char *newname, *raw;
+	struct fstab *fsinfo;
+	int retried = 0, len;
+
+	newname = origname;
+retry:
+	if (stat(newname, &stblock) < 0) {
+		printf("Can't stat %s: %s\n", newname, strerror(errno));
+		return (origname);
+	}
+	switch(stblock.st_mode & S_IFMT) {
+	case S_IFCHR:
+	case S_IFBLK:
+		return(newname);
+	case S_IFDIR:
+		if (retried)
+			break;
+		
+		len = strlen(origname) - 1;
+		if (len > 0 && origname[len] == '/')
+			/* remove trailing slash */
+			origname[len] = '\0';
+		if ((fsinfo = getfsfile(origname)) == NULL) {
+			printf("Can't resolve %s to character special device",
+			    origname);
+			return (0);
+		}
+		newname = fsinfo->fs_spec;
+		retried++;
+		goto retry;
+	}
+	/*
+	 * Not a block or character device, just return name and
+	 * let the user decide whether to use it.
+	 */
+	return (origname);
 }
