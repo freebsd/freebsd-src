@@ -367,26 +367,26 @@ g_bde_map_sector(struct g_bde_work *wp)
 	    wp->ko);
 #endif
 	KASSERT(wp->so + wp->length <= kp->sectorN,
-	    ("wp->so (%qd) + wp->length (%qd) > EOM (%qd), offset = %qd",
+	    ("wp->so (%jd) + wp->length (%jd) > EOM (%jd), offset = %jd",
 	    (intmax_t)wp->so,
 	    (intmax_t)wp->length,
 	    (intmax_t)kp->sectorN,
 	    (intmax_t)wp->offset));
 
 	KASSERT(wp->kso + kp->sectorsize <= kp->sectorN,
-	    ("wp->kso (%qd) + kp->sectorsize > EOM (%qd), offset = %qd",
+	    ("wp->kso (%jd) + kp->sectorsize > EOM (%jd), offset = %jd",
 	    (intmax_t)wp->kso,
 	    (intmax_t)kp->sectorN,
 	    (intmax_t)wp->offset));
 
 	KASSERT(wp->so >= kp->sector0,
-	    ("wp->so (%qd) < BOM (%qd), offset = %qd",
+	    ("wp->so (%jd) < BOM (%jd), offset = %jd",
 	    (intmax_t)wp->so,
 	    (intmax_t)kp->sector0,
 	    (intmax_t)wp->offset));
 
 	KASSERT(wp->kso >= kp->sector0,
-	    ("wp->kso (%qd) <BOM (%qd), offset = %qd",
+	    ("wp->kso (%jd) <BOM (%jd), offset = %jd",
 	    (intmax_t)wp->kso,
 	    (intmax_t)kp->sector0,
 	    (intmax_t)wp->offset));
