@@ -1,5 +1,5 @@
 /*	$OpenBSD: if_txvar.h,v 1.3 1998/10/10 04:30:09 jason Exp $	*/
-/*      $Id: if_txvar.h,v 1.3 1998/10/10 04:30:09 jason Exp $ */
+/*      $Id: if_txvar.h,v 1.1 1998/11/01 07:44:33 semenu Exp $ */
 
 /*-
  * Copyright (c) 1997 Semen Ustimenko
@@ -192,6 +192,10 @@
 #define TXCON_FULL_DUPLEX		0x00000006
 #define TXCON_SLOT_TIME			0x00000078
 
+#define	MIICFG_SMI_ENABLE		0x00000010
+
+#define	TEST1_CLOCK_TEST		0x00000008
+
 #define TXCON_DEFAULT		(TXCON_SLOT_TIME | TXCON_EARLY_TRANSMIT_ENABLE)
 #define TRANSMIT_THRESHOLD	0x80
 
@@ -214,10 +218,14 @@
 #define	DP83840_PHYIDR2	0x03
 
 #define BMCR_RESET		0x8000
+#define	BMCR_LOOPBACK		0x4000
 #define BMCR_100MBPS		0x2000	/* 10/100 Mbps */
 #define BMCR_AUTONEGOTIATION	0x1000	/* ON/OFF */
+#define	BMCR_POWERDOWN		0x0800
+#define	BMCR_ISOLATE		0x0400
 #define BMCR_RESTART_AUTONEG	0x0200
 #define	BMCR_FULL_DUPLEX	0x0100
+#define	BMCR_COL_TEST		0x0080
 
 #define	BMSR_100BASE_T4		0x8000
 #define	BMSR_100BASE_TX_FD	0x4000
@@ -246,6 +254,7 @@
 #define	QS6612_MCTL		17
 #define	QS6612_INTSTAT		29
 #define	QS6612_INTMASK		30
+#define	QS6612_BPCR		31
 
 #define	MCTL_T4_PRESENT		0x1000	/* External T4 Enabled, ignored */
 					/* if AutoNeg is enabled */
@@ -370,17 +379,17 @@ typedef struct {
 	inb( (sc)->iobase + (u_int32_t)(reg) )
 #else
 #define CSR_WRITE_1(sc,reg,val) 					\
-	((*(u_int8_t*)((sc)->csr + (u_int32_t)(reg))) = (u_int8_t)(val))
+	((*(volatile u_int8_t*)((sc)->csr + (u_int32_t)(reg))) = (u_int8_t)(val))
 #define CSR_WRITE_2(sc,reg,val) 					\
-	((*(u_int16_t*)((sc)->csr + (u_int32_t)(reg))) = (u_int16_t)(val))
+	((*(volatile u_int16_t*)((sc)->csr + (u_int32_t)(reg))) = (u_int16_t)(val))
 #define CSR_WRITE_4(sc,reg,val) 					\
-	((*(u_int32_t*)((sc)->csr + (u_int32_t)(reg))) = (u_int32_t)(val))
+	((*(volatile u_int32_t*)((sc)->csr + (u_int32_t)(reg))) = (u_int32_t)(val))
 #define CSR_READ_1(sc,reg) 						\
-	(*(u_int8_t*)((sc)->csr + (u_int32_t)(reg)))
+	(*(volatile u_int8_t*)((sc)->csr + (u_int32_t)(reg)))
 #define CSR_READ_2(sc,reg) 						\
-	(*(u_int16_t*)((sc)->csr + (u_int32_t)(reg)))
+	(*(volatile u_int16_t*)((sc)->csr + (u_int32_t)(reg)))
 #define CSR_READ_4(sc,reg) 						\
-	(*(u_int32_t*)((sc)->csr + (u_int32_t)(reg)))
+	(*(volatile u_int32_t*)((sc)->csr + (u_int32_t)(reg)))
 #endif
 #else /* __OpenBSD__ */
 #define EPIC_FORMAT	"%s"
