@@ -299,8 +299,6 @@ union_mount(mp, td)
 	(void) copystr(target, cp, len - 1, &size);
 	bzero(cp + size, len - size);
 
-	(void)union_statfs(mp, &mp->mnt_stat, td);
-
 	UDEBUG(("union_mount: from %s, on %s\n",
 		mp->mnt_stat.f_mntfromname, mp->mnt_stat.f_mntonname));
 	return (0);
