@@ -110,7 +110,6 @@ static u_char end_mfs_root[] __unused = "MFS Filesystem had better STOP here";
 
 static g_init_t md_drvinit;
 
-static int	mdrootready;
 static int	mdunits;
 static dev_t	status_dev = 0;
 
@@ -1180,8 +1179,10 @@ md_preloaded(u_char *image, unsigned length)
 	sc->nsect = length / DEV_BSIZE;
 	sc->pl_ptr = image;
 	sc->pl_len = length;
+#ifdef MD_ROOT
 	if (sc->unit == 0)
-		mdrootready = 1;
+		rootdevnames[0] = "ufs:/dev/md0";
+#endif
 	mdinit(sc);
 }
 
@@ -1253,15 +1254,3 @@ static moduledata_t md_mod = {
 };
 DECLARE_MODULE(md, md_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE);
 MODULE_VERSION(md, MD_MODVER);
-
-
-#ifdef MD_ROOT
-static void
-md_takeroot(void *junk)
-{
-	if (mdrootready)
-		rootdevnames[0] = "ufs:/dev/md0";
-}
-
-SYSINIT(md_root, SI_SUB_MOUNT_ROOT, SI_ORDER_FIRST, md_takeroot, NULL);
-#endif /* MD_ROOT */
