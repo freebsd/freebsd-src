@@ -31,9 +31,8 @@
  * mpboot.s:	FreeBSD machine support for the Intel MP Spec
  *		multiprocessor systems.
  *
- *	$Id: mpboot.s,v 1.2 1997/06/22 16:03:22 peter Exp $
+ *	$Id: mpboot.s,v 1.3 1997/08/25 10:57:36 peter Exp $
  */
-
 
 #include <machine/asmacros.h>		/* miscellaneous asm macros */
 #include <machine/apic.h>
@@ -74,15 +73,13 @@
 
 NON_GPROF_ENTRY(MPentry)
 	CHECKPOINT(0x36, 3)
-	movl	$mp_stk-KERNBASE,%esp		/* mp boot stack end loc. */
 	/* Now enable paging mode */
 	movl	_bootPTD-KERNBASE, %eax
 	movl	%eax,%cr3	
-	movl	%cr0,%eax	
+	movl	%cr0,%eax
 	orl	$CR0_PE|CR0_PG,%eax		/* enable paging */
-	movl	$0x80000011,%eax
 	movl	%eax,%cr0			/* let the games begin! */
-	movl	$mp_stk,%esp			/* mp boot stack end loc. */
+	movl	$_idlestack_top,%esp		/* boot stack end loc. */
 
 	pushl	$mp_begin			/* jump to high mem */
 	ret
@@ -105,30 +102,16 @@ mp_begin:	/* now running relocated at KERNBASE */
 	movl	%eax, _cpu_apic_versions	/* into [ 0 ] */
 	incl	_mp_ncpus			/* signal BSP */
 
-	/* One at a time, we are running on the shared mp_stk */
-	/* This is the Intel reccomended semaphore method */
-#define BL_SET	0xff
-#define BL_CLR	0x00
-	movb	$BL_SET, %al
-1:
-	xchgb	%al, bootlock		/* xchg is implicitly locked */
-	cmpb	$BL_SET, %al		/* was is set? */
-	jz	1b			/* yes, keep trying... */
 	CHECKPOINT(0x39, 6)
 
-	/* Now, let's do some REAL WORK :-) */
-	call	_secondary_main
-/* NOT REACHED */
-2:	hlt
-	jmp 	2b
+	/* wait till we can get into the kernel */
+	call	_boot_get_mplock
 
-/*
- * Let a CPU past the semaphore so it can use mp_stk
- */
-ENTRY(boot_unlock)
-	movb	$BL_CLR, %al
-	xchgb	%al, bootlock		/* xchg is implicitly locked */
-	ret
+	/* Now, let's prepare for some REAL WORK :-) */
+	call	_ap_init
+
+	/* let her rip! (loads new stack) */
+	jmp 	_cpu_switch
 
 /*
  * This is the embedded trampoline or bootstrap that is
@@ -300,17 +283,3 @@ BOOTMP2:
 	.globl	_bootMP_size
 _bootMP_size:
 	.long	BOOTMP2 - BOOTMP1
-
-	/*
-	 * Temporary stack used while booting AP's
-	 * It is protected by:
-	 * 1: only one cpu is started at a time and it ends up waiting
-	 *    for smp_active before continuing.
-	 * 2: Once smp_active != 0; further access is limited by _bootlock.
-	 */
-	.globl	mp_stk
-	.space	0x2000	/* space for mp_stk - 2nd temporary stack */
-mp_stk:
-
-	.globl	bootlock
-bootlock:	.byte BL_SET

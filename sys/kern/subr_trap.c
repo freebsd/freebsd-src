@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.106 1997/08/20 05:25:48 fsmp Exp $
+ *	$Id: trap.c,v 1.107 1997/08/21 06:32:39 charnier Exp $
  */
 
 /*
@@ -725,6 +725,7 @@ trap_fatal(frame)
 			ISPL(frame->tf_cs) == SEL_UPL ? "user" : "kernel");
 #ifdef SMP
 	printf("cpuid = %d\n", cpuid);
+	printf("lapic.id = %d\n", lapic.id);
 #endif
 	if (type == T_PAGEFLT) {
 		printf("fault virtual address	= 0x%x\n", eva);
@@ -769,6 +770,9 @@ trap_fatal(frame)
 	} else {
 		printf("Idle\n");
 	}
+#ifdef SMP
+	printf("mp_lock                 = %08x\n", mp_lock);
+#endif
 	printf("interrupt mask		= ");
 	if ((cpl & net_imask) == net_imask)
 		printf("net ");
@@ -824,6 +828,7 @@ dblfault_handler()
 	printf("ebp = 0x%x\n", common_tss.tss_ebp);
 #ifdef SMP
 	printf("cpuid = %d\n", cpuid);
+	printf("lapic.id = %d\n", lapic.id);
 #endif
 	panic("double fault");
 }
