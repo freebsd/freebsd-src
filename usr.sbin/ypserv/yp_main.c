@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yp_main.c,v 1.4 1996/12/22 15:54:03 wpaul Exp $
+ *	$Id: yp_main.c,v 1.5 1996/12/24 07:52:52 wpaul Exp $
  */
 
 /*
@@ -66,7 +66,7 @@
 
 #define	_RPCSVC_CLOSEDOWN 120
 #ifndef lint
-static const char rcsid[] = "$Id: yp_main.c,v 1.4 1996/12/22 15:54:03 wpaul Exp $";
+static const char rcsid[] = "$Id: yp_main.c,v 1.5 1996/12/24 07:52:52 wpaul Exp $";
 #endif /* not lint */
 int _rpcpmstart;		/* Started by a port monitor ? */
 static int _rpcfdtype;
@@ -122,8 +122,7 @@ yp_svc_run()
 		readfds = svc_fds;
 #endif /* def FD_SETSIZE */
 
-		if (yp_dnsq_pending())
-			FD_SET(resfd, &readfds);
+		FD_SET(resfd, &readfds);
 
 		switch (select(fd_setsize, &readfds, NULL, NULL,
 			       &timeout)) {
