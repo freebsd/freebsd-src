@@ -37,14 +37,20 @@
 
 RCSID("$FreeBSD$")
 
-/* acos = atan (sqrt(1 - x^2) / x) */
+/*
+ * acos(x) = atan2(sqrt(1  - x^2, x).
+ * Actually evaluate (1 - x^2) as (1 - x) * (1 + x) to avoid loss of
+ * precision when |x| is nearly 1.
+ */
 ENTRY(__ieee754_acos)
 	fldl	4(%esp)			/* x */
-	fst	%st(1)
-	fmul	%st(0)			/* x^2 */
-	fld1				
-	fsubp				/* 1 - x^2 */
-	fsqrt				/* sqrt (1 - x^2) */
+	fld1
+	fld	%st(0)
+	fsub	%st(2)			/* 1 - x */
+	fxch	%st(1)
+	fadd	%st(2)			/* 1 + x */
+	fmulp	%st(1)			/* (1 - x) * (1 + x) */
+	fsqrt
 	fxch	%st(1)
 	fpatan
 	ret
