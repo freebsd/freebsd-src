@@ -214,7 +214,7 @@ void
 close_drive(struct drive *drive)
 {
     if (drive->vp) {
-	lockdrive(drive);				    /* keep the daemon out */
+	LOCKDRIVE(drive);				    /* keep the daemon out */
 	vn_close(drive->vp, FREAD | FWRITE, NOCRED, drive->p);
 	if (drive->vp->v_usecount)			    /* XXX shouldn't happen */
 	    log(LOG_WARNING,
@@ -732,7 +732,7 @@ daemon_save_config(void)
     for (driveno = 0; driveno < vinum_conf.drives_allocated; driveno++) {
 	drive = &vinum_conf.drive[driveno];		    /* point to drive */
 	if (drive->state > drive_referenced) {
-	    lockdrive(drive);				    /* don't let it change */
+	    LOCKDRIVE(drive);				    /* don't let it change */
 
 	    /*
 	     * First, do some drive consistency checks.  Some
@@ -754,6 +754,7 @@ daemon_save_config(void)
 	    &&(drive->state > drive_down)) {		    /* and it thinks it's not down */
 		unlockdrive(drive);
 		set_drive_state(driveno, drive_down, setstate_force); /* tell it what's what */
+		continue;
 	    }
 	    if ((drive->state == drive_down)		    /* it's down */
 	    &&(drive->vp != NULL)) {			    /* but open, */
@@ -797,7 +798,8 @@ daemon_save_config(void)
 		    } else
 			written_config = 1;		    /* we've written it on at least one drive */
 		}
-	    }
+	    } else					    /* not worth looking at, */
+		unlockdrive(drive);			    /* just unlock it again */
 	}
     }
     Free(vhdr);
