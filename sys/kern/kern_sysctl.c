@@ -844,7 +844,8 @@ sysctl_new_kernel(struct sysctl_req *req, void *p, size_t l)
 }
 
 int
-kernel_sysctl(struct proc *p, int *name, u_int namelen, void *old, size_t *oldlenp, void *new, size_t newlen, size_t *retval)
+kernel_sysctl(struct proc *p, int *name, u_int namelen, void *old,
+    size_t *oldlenp, void *new, size_t newlen, size_t *retval)
 {
 	int error = 0;
 	struct sysctl_req req;
@@ -899,6 +900,28 @@ kernel_sysctl(struct proc *p, int *name, u_int namelen, void *old, size_t *oldle
 		else
 			*retval = req.oldidx;
 	}
+	return (error);
+}
+
+int
+kernel_sysctlbyname(struct proc *p, char *name, void *old, size_t *oldlenp,
+    void *new, size_t newlen, size_t *retval)
+{
+        int oid[CTL_MAXNAME];
+        size_t oidlen;
+	int error, plen;
+
+	oid[0] = 0;		/* sysctl internal magic */
+	oid[1] = 3;		/* name2oid */
+	oidlen = sizeof(oid);
+
+	error = kernel_sysctl(p, oid, 2, oid, &oidlen,
+	    (void *)name, strlen(name), &plen);
+	if (error)
+		return (error);
+
+	error = kernel_sysctl(p, oid, plen / sizeof(int), old, oldlenp,
+	    new, newlen, retval);
 	return (error);
 }
 
