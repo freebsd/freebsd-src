@@ -157,7 +157,8 @@ datalink_HangupDone(struct datalink *dl)
     dl->dial.incs = 0;
     dl->reconnect_tries = 0;
     bundle_LinkClosed(dl->bundle, dl);
-    if (!dl->bundle->CleaningUp)
+    if (!dl->bundle->CleaningUp &&
+        !(dl->physical->type & (PHYS_DIRECT|PHYS_BACKGROUND|PHYS_FOREGROUND)))
       datalink_StartDialTimer(dl, datalink_GetDialTimeout(dl));
   } else {
     datalink_NewState(dl, DATALINK_OPENING);
