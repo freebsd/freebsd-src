@@ -91,7 +91,7 @@ the user's full name.
 Additionally, it may contain a comma separated
 list of values such as office number and work and home phones.
 If the
-name contains an amperstand it will be replaced by the capitalized
+name contains an ampersand it will be replaced by the capitalized
 login name when displayed by other programs.
 The
 .Ql \&:
@@ -248,7 +248,7 @@ argument may have one of the following values:
 .Bl -tag -width ".Cm random"
 .It Cm no
 Disable the password.
-Instead of an encrypted string, the passowrd field will contain a single
+Instead of an encrypted string, the password field will contain a single
 .Ql *
 character.
 The user may not log in until the super-user
@@ -366,7 +366,7 @@ option is used with a
 or
 .Cm none
 argument.
-Be carefull not to terminate this field with a closing
+Be careful not to terminate this field with a closing
 .Ql \&:
 because it will be treated as part of the password.
 .El
@@ -430,7 +430,7 @@ each line of the message file.
 This means that shell commands can also be embedded in the message file.
 The
 .Nm
-utility attemps to mitigate the possibility of an attacker using this
+utility attempts to mitigate the possibility of an attacker using this
 feature by refusing to evaluate the file if it is not owned and writeable
 only by the root user.
 In addition, shell special characters and operators will have to be
