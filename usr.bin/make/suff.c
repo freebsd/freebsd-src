@@ -38,10 +38,8 @@
  * @(#)suff.c	8.4 (Berkeley) 3/21/94
  */
 
-#ifndef lint
 #include <sys/cdefs.h>
-__RCSID("$FreeBSD$");
-#endif /* not lint */
+__FBSDID("$FreeBSD$");
 
 /*-
  * suff.c --

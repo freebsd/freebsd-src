@@ -38,10 +38,8 @@
  * @(#)parse.c	8.3 (Berkeley) 3/19/94
  */
 
-#ifndef lint
 #include <sys/cdefs.h>
-__RCSID("$FreeBSD$");
-#endif /* not lint */
+__FBSDID("$FreeBSD$");
 
 /*-
  * parse.c --

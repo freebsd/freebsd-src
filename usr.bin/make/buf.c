@@ -38,10 +38,8 @@
  * @(#)buf.c	8.1 (Berkeley) 6/6/93
  */
 
-#ifndef lint
 #include <sys/cdefs.h>
-__RCSID("$FreeBSD$");
-#endif /* not lint */
+__FBSDID("$FreeBSD$");
 
 /*-
  * buf.c --
