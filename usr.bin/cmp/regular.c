@@ -29,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #ifndef lint
@@ -61,15 +63,15 @@ c_regular(fd1, file1, skip1, len1, fd2, file2, skip2, len2)
 	int dfound;
 	off_t pagemask, off1, off2;
 
-	if (sflag && len1 != len2)
-		exit(1);
-
 	if (skip1 > len1)
 		eofmsg(file1);
 	len1 -= skip1;
 	if (skip2 > len2)
 		eofmsg(file2);
 	len2 -= skip2;
+
+	if (sflag && len1 != len2)
+		exit(DIFF_EXIT);
 
 	pagemask = (off_t)getpagesize() - 1;
 	off1 = ROUNDPAGE(skip1);
