@@ -55,6 +55,7 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 
+#include "truss.h"
 #include "extern.h"
 #include "syscall.h"
 
@@ -62,7 +63,6 @@ static int fd = -1;
 static int cpid = -1;
 extern int Procfd;
 
-extern FILE *outfile;
 #include "linux_syscalls.h"
 
 static int nsyscalls =
@@ -91,21 +91,21 @@ clear_lsc() {
 }
 
 void
-i386_linux_syscall_entry(int pid, int nargs) {
+i386_linux_syscall_entry(struct trussinfo *trussinfo, int nargs) {
   char buf[32];
   struct reg regs = { 0 };
   int syscall;
   int i;
   struct syscall *sc;
 
-  if (fd == -1 || pid != cpid) {
-    sprintf(buf, "/proc/%d/regs", pid);
+  if (fd == -1 || trussinfo->pid != cpid) {
+    sprintf(buf, "/proc/%d/regs", trussinfo->pid);
     fd = open(buf, O_RDWR);
     if (fd == -1) {
-      fprintf(outfile, "-- CANNOT READ REGISTERS --\n");
+      fprintf(trussinfo->outfile, "-- CANNOT READ REGISTERS --\n");
       return;
     }
-    cpid = pid;
+    cpid = trussinfo->pid;
   }
 
   clear_lsc();
@@ -117,7 +117,7 @@ i386_linux_syscall_entry(int pid, int nargs) {
   lsc.name =
     (syscall < 0 || syscall > nsyscalls) ? NULL : linux_syscallnames[syscall];
   if (!lsc.name) {
-    fprintf (outfile, "-- UNKNOWN SYSCALL %d\n", syscall);
+    fprintf(trussinfo->outfile, "-- UNKNOWN SYSCALL %d\n", syscall);
   }
 
   if (nargs == 0)
@@ -142,7 +142,7 @@ i386_linux_syscall_entry(int pid, int nargs) {
     lsc.nargs = sc->nargs;
   } else {
 #ifdef DEBUG
-    fprintf(outfile, "unknown syscall %s -- setting args to %d\n",
+    fprintf(trussinfo->outfile, "unknown syscall %s -- setting args to %d\n",
 	    lsc.name, nargs);
 #endif
     lsc.nargs = nargs;
@@ -175,7 +175,7 @@ i386_linux_syscall_entry(int pid, int nargs) {
   }
 
   if (!strcmp(lsc.name, "linux_execve") || !strcmp(lsc.name, "exit")) {
-    print_syscall(outfile, lsc.name, lsc.nargs, lsc.s_args);
+    print_syscall(trussinfo, lsc.name, lsc.nargs, lsc.s_args);
   }
 
   return;
@@ -196,8 +196,8 @@ const int bsd_to_linux_errno[] = {
   	-6, 
 };
 
-void
-i386_linux_syscall_exit(int pid, int syscall) {
+int
+i386_linux_syscall_exit(struct trussinfo *trussinfo, int syscall) {
   char buf[32];
   struct reg regs;
   int retval;
@@ -205,20 +205,21 @@ i386_linux_syscall_exit(int pid, int syscall) {
   int errorp;
   struct syscall *sc;
 
-  if (fd == -1 || pid != cpid) {
-    sprintf(buf, "/proc/%d/regs", pid);
+  if (fd == -1 || trussinfo->pid != cpid) {
+    sprintf(buf, "/proc/%d/regs", trussinfo->pid);
     fd = open(buf, O_RDONLY);
     if (fd == -1) {
-      fprintf(outfile, "-- CANNOT READ REGISTERS --\n");
+      fprintf(trussinfo->outfile, "-- CANNOT READ REGISTERS --\n");
       return;
     }
-    cpid = pid;
+    cpid = trussinfo->pid;
   }
 
   lseek(fd, 0L, 0);
-  if (read(fd, &regs, sizeof(regs)) != sizeof(regs))
+  if (read(fd, &regs, sizeof(regs)) != sizeof(regs)) {
+    fprintf(trussinfo->outfile, "\n");
     return;
-
+  }
   retval = regs.r_eax;
   errorp = !!(regs.r_eflags & PSL_C);
 
@@ -247,8 +248,9 @@ i386_linux_syscall_exit(int pid, int syscall) {
       if (retval == bsd_to_linux_errno[i])
       break;
   }
-  print_syscall_ret(outfile, lsc.name, lsc.nargs, lsc.s_args, errorp,
-    errorp ? i : retval);
+  print_syscall_ret(trussinfo, lsc.name, lsc.nargs, lsc.s_args, errorp,
+                    errorp ? i : retval);
   clear_lsc();
-  return;
+
+  return (retval);
 }
