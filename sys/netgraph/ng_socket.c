@@ -147,7 +147,11 @@ NETGRAPH_INIT(socket, &typestruct);
 
 /* Buffer space */
 static u_long ngpdg_sendspace = 20 * 1024;	/* really max datagram size */
+SYSCTL_INT(_net_graph, OID_AUTO, maxdgram, CTLFLAG_RW,
+    &ngpdg_sendspace , 0, "Maximum outgoing Netgraph datagram size");
 static u_long ngpdg_recvspace = 20 * 1024;
+SYSCTL_INT(_net_graph, OID_AUTO, recvspace, CTLFLAG_RW,
+    &ngpdg_recvspace , 0, "Maximum incoming Netgraph datagram size");
 
 /* List of all sockets */
 static LIST_HEAD(, ngpcb) ngsocklist;
