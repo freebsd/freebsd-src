@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_watch.c,v 1.5 1994/08/18 22:34:28 wollman Exp $
+ *	$Id: db_watch.c,v 1.6 1995/05/30 07:57:20 rgrimes Exp $
  */
 
 /*
@@ -53,6 +53,9 @@ struct db_watchpoint	db_watch_table[NWATCHPOINTS];
 db_watchpoint_t		db_next_free_watchpoint = &db_watch_table[0];
 db_watchpoint_t		db_free_watchpoints = 0;
 db_watchpoint_t		db_watchpoint_list = 0;
+
+extern db_watchpoint_t	db_watchpoint_alloc __P((void));
+extern void		db_watchpoint_free __P((db_watchpoint_t watch));
 
 db_watchpoint_t
 db_watchpoint_alloc()
@@ -171,7 +174,7 @@ db_list_watchpoints()
 void
 db_deletewatch_cmd(addr, have_addr, count, modif)
 	db_expr_t	addr;
-	int		have_addr;
+	boolean_t	have_addr;
 	db_expr_t	count;
 	char *		modif;
 {
@@ -183,7 +186,7 @@ db_deletewatch_cmd(addr, have_addr, count, modif)
 void
 db_watchpoint_cmd(addr, have_addr, count, modif)
 	db_expr_t	addr;
-	int		have_addr;
+	boolean_t	have_addr;
 	db_expr_t	count;
 	char *		modif;
 {
@@ -201,7 +204,11 @@ db_watchpoint_cmd(addr, have_addr, count, modif)
 
 /* list watchpoints */
 void
-db_listwatch_cmd(db_expr_t dummy1, int dummy2, db_expr_t dummy3, char *dummmy4)
+db_listwatch_cmd(dummy1, dummy2, dummy3, dummy4)
+	db_expr_t	dummy1;
+	boolean_t	dummy2;
+	db_expr_t	dummy3;
+	char *		dummy4;
 {
 	db_list_watchpoints();
 }

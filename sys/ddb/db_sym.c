@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_sym.c,v 1.8 1995/05/22 13:07:12 davidg Exp $
+ *	$Id: db_sym.c,v 1.9 1995/05/30 07:57:10 rgrimes Exp $
  */
 
 /*
@@ -37,14 +37,6 @@
 #include <ddb/db_sym.h>
 
 /*
- * We import from the symbol-table dependent routines:
- */
-extern db_sym_t	X_db_lookup();
-extern db_sym_t	X_db_search_symbol();
-extern boolean_t X_db_line_at_pc();
-extern void	X_db_symbol_values();
-
-/*
  * Multiple symbol tables
  */
 #ifndef MAXNOSYMTABS
@@ -56,7 +48,9 @@ int db_nsymtab = 0;
 
 db_symtab_t	*db_last_symtab;
 
-db_sym_t	db_lookup();	/* forward */
+extern db_sym_t		db_lookup __P(( char *symstr));
+static char		*db_qualify __P((db_sym_t sym, char *symtabname));
+extern boolean_t	db_symbol_is_ambiguous __P((db_sym_t sym));
 
 /*
  * Add symbol table, with given name, to list of symbol tables.

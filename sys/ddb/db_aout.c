@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_aout.c,v 1.10 1995/01/25 21:37:04 bde Exp $
+ *	$Id: db_aout.c,v 1.11 1995/05/30 07:56:49 rgrimes Exp $
  */
 
 /*
@@ -116,7 +116,8 @@ X_db_sym_init(symtab, esymtab, name)
 	    }
 	}
 
-	db_add_symbol_table(sym_start, sym_end, name, (char *)symtab);
+	db_add_symbol_table((char *)sym_start, (char *)sym_end, name,
+			    (char *)symtab);
 }
 
 db_sym_t
