@@ -98,6 +98,10 @@ CDROM_SET_1="${CDROM_SET_1} print/acroread"
 CDROM_SET_1="${CDROM_SET_1} print/xpdf"
 CDROM_SET_1="${CDROM_SET_1} print/gv"
 CDROM_SET_1="${CDROM_SET_1} print/ghostview"
+CDROM_SET_1="${CDROM_SET_1} print/a2ps-letter"
+CDROM_SET_1="${CDROM_SET_1} print/apsfilter"
+CDROM_SET_1="${CDROM_SET_1} print/ghostscript6-nox11"
+CDROM_SET_1="${CDROM_SET_1} print/psutils-letter"
 CDROM_SET_1="${CDROM_SET_1} graphics/xv"
 CDROM_SET_1="${CDROM_SET_1} mail/fetchmail"
 CDROM_SET_1="${CDROM_SET_1} mail/mutt"
@@ -116,6 +120,7 @@ CDROM_SET_1="${CDROM_SET_1} astro/xearth"
 CDROM_SET_1="${CDROM_SET_1} devel/gmake"
 CDROM_SET_1="${CDROM_SET_1} archivers/bzip2"
 CDROM_SET_1="${CDROM_SET_1} archivers/unzip"
+CDROM_SET_1="${CDROM_SET_1} graphics/png"
 
 ## End of set for CDROM #1
 
