@@ -37,7 +37,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumobj.h,v 1.2 2001/05/23 23:04:18 grog Exp grog $
+ * $Id: vinumobj.h,v 1.5 2003/04/28 02:54:43 grog Exp $
  * $FreeBSD$
  */
 
@@ -66,7 +66,7 @@ enum objflags {
     VF_WLABEL = 0x20,					    /* label area is writable */
     VF_LABELLING = 0x40,				    /* unit is currently being labelled */
     VF_WANTED = 0x80,					    /* someone is waiting to obtain a lock */
-    VF_RAW = 0x100,					    /* raw volume (no filesystem) */
+    VF_RAW = 0x100,					    /* raw volume (no file system) */
     VF_LOADED = 0x200,					    /* module is loaded */
     VF_CONFIGURING = 0x400,				    /* somebody is changing the config */
     VF_WILL_CONFIGURE = 0x800,				    /* somebody wants to change the config */
@@ -280,7 +280,8 @@ struct _volume
     char name[MAXVOLNAME];				    /* name of volume */
     enum volumestate state;				    /* current state */
     int plexes;						    /* number of plexes */
-    int preferred_plex;					    /* plex to read from, -1 for round-robin */
+    int preferred_plex;					    /* index of plex to read from,
+							    * -1 for round-robin */
     /*
      * index of plex used for last read, for
      * round-robin.
