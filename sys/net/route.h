@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)route.h	8.3 (Berkeley) 4/19/94
- * $Id$
+ * $Id: route.h,v 1.26 1997/02/22 09:41:15 peter Exp $
  */
 
 #ifndef _NET_ROUTE_H_
@@ -261,7 +261,6 @@ struct route_cb {
 		(rt)->rt_refcnt--;
 
 extern struct route_cb route_cb;
-extern struct rtstat rtstat;
 extern struct radix_node_head *rt_tables[AF_MAX+1];
 
 /* forward declaration for rt_newmaddrmsg() */

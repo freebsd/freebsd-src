@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)exec.h	8.3 (Berkeley) 1/21/94
- * $Id$
+ * $Id: exec.h,v 1.15 1997/02/22 09:45:11 peter Exp $
  */
 
 #ifndef _SYS_EXEC_H_
@@ -70,11 +70,6 @@ struct execsw {
 	int (*ex_imgact)(struct image_params *);
 	const char *ex_name;
 };
-
-#ifdef KERNEL
-extern const struct execsw **execsw;
-
-#endif
 
 #include <machine/exec.h>
 
