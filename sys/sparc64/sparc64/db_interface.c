@@ -76,6 +76,7 @@ kdb_trap(struct trapframe *tf)
 	db_active--;
 	db_global_jmpbuf_valid = FALSE;
 	*tf = ddb_regs;
+	TF_DONE(tf);
 	return (1);
 }
 
