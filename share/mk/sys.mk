@@ -190,6 +190,10 @@ HTAGSFLAGS=
 .p.o:
 	${PC} ${PFLAGS} -c ${.IMPSRC}
 
+.e .r .F .f:
+	${FC} ${RFLAGS} ${EFLAGS} ${FFLAGS} ${LDFLAGS} ${.IMPSRC} ${LDLIBS} \
+	    -o ${.TARGET}
+
 .e.o .r.o .F.o .f.o:
 	${FC} ${RFLAGS} ${EFLAGS} ${FFLAGS} -c ${.IMPSRC}
 
