@@ -73,6 +73,8 @@ struct _vinum_conf vinum_conf;				    /* configuration information */
 dev_t vinum_daemon_dev;
 dev_t vinum_super_dev;
 
+static eventhandler_tag dev_clone_tag;
+
 /*
  * Called by main() during pseudo-device attachment.  All we need
  * to do is allocate enough space for devices to be configured later, and
@@ -142,7 +144,7 @@ vinumattach(void *dummy)
     vinum_conf.subdisks_allocated = INITIAL_SUBDISKS;	    /* number of sd slots allocated */
     vinum_conf.subdisks_used = 0;			    /* and number in use */
 
-    EVENTHANDLER_REGISTER(dev_clone, vinum_clone, 0, 1000);
+    dev_clone_tag = EVENTHANDLER_REGISTER(dev_clone, vinum_clone, 0, 1000);
 
     /*
      * See if the loader has passed us any of the
@@ -239,6 +241,8 @@ free_vinum(int cleardrive)
 {
     int i;
     int drives_allocated = vinum_conf.drives_allocated;
+
+    EVENTHANDLER_DEREGISTER(dev_clone, dev_clone_tag);
 
     if (DRIVE != NULL) {
 	if (cleardrive) {				    /* remove the vinum config */
