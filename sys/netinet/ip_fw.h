@@ -11,7 +11,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.h,v 1.39 1999/07/28 22:22:57 green Exp $
+ *	$Id: ip_fw.h,v 1.40 1999/08/01 16:57:16 green Exp $
  */
 
 #ifndef _IP_FW_H
@@ -89,6 +89,22 @@ struct ip_fw {
     u_int64_t fw_loghighest;		/* highest number packet to log */
 };
 
+/*
+ * extended ipfw structure... some fields in the original struct
+ * can be used to pass parameters up/down, namely pointers
+ *     void *pipe_ptr
+ *     void *next_rule_ptr 
+ * some others can be used to pass parameters down, namely counters etc.
+ *     u_int64_t fw_pcnt,fw_bcnt;
+ *     long timestamp;
+ */
+
+struct ip_fw_ext {             /* extended structure */
+    struct ip_fw rule;      /* must be at offset 0 */
+    long    dont_match_prob;        /* 0x7fffffff means 1.0, always fail */
+    u_int   param1;         /* unused at the moment */
+};
+
 #define IP_FW_GETNSRCP(rule)		((rule)->fw_nports & 0x0f)
 #define IP_FW_SETNSRCP(rule, n)		do {				\
 					  (rule)->fw_nports &= ~0x0f;	\
@@ -154,7 +170,9 @@ struct ip_fw_chain {
 
 #define IP_FW_F_GID	0x00400000	/* filter by uid			*/
 
-#define IP_FW_F_MASK	0x007FFFFF	/* All possible flag bits mask		*/
+#define IP_FW_F_RND_MATCH 0x00800000	/* probabilistic rule match		*/
+
+#define IP_FW_F_MASK	0x00FFFFFF	/* All possible flag bits mask		*/
 
 /*
  * For backwards compatibility with rules specifying "via iface" but
