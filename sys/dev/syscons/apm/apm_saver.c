@@ -43,6 +43,7 @@
 #include <machine/apm_bios.h>
 #include <machine/pc/bios.h>
 #ifdef PC98
+#include <machine/bus.h>
 #include <pc98/apm/apm.h>
 #else
 #include <i386/apm/apm.h>
