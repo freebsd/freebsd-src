@@ -1,10 +1,8 @@
 /* Definitions of various defaults for how to do assembler output
    (most of which are designed to be appropriate for GAS or for
    some BSD assembler).
-
-   Written by Ron Guilmette (rfg@netcom.com)
-
-Copyright (C) 1992 Free Software Foundation, Inc.
+   Copyright (C) 1992, 1996 Free Software Foundation, Inc.
+   Contributed by Ron Guilmette (rfg@monkeys.com)
 
 This file is part of GNU CC.
 
@@ -52,19 +50,6 @@ Boston, MA 02111-1307, USA.  */
 #define ASM_OUTPUT_ADDR_VEC_ELT(FILE, VALUE)  \
 do { fprintf (FILE, "\t%s\t", ASM_LONG);				\
      ASM_OUTPUT_INTERNAL_LABEL (FILE, "L", (VALUE));			\
-     fputc ('\n', FILE);						\
-   } while (0)
-#endif
-
-/* This is how to output an element of a case-vector that is relative.
-   Some targets don't use this, but we have to define it anyway.  */
-
-#ifndef ASM_OUTPUT_ADDR_DIFF_ELT
-#define ASM_OUTPUT_ADDR_DIFF_ELT(FILE, VALUE, REL) \
-do { fprintf (FILE, "\t%s\t", ASM_SHORT);				\
-     ASM_OUTPUT_INTERNAL_LABEL (FILE, "L", (VALUE));			\
-     fputc ('-', FILE);							\
-     ASM_OUTPUT_INTERNAL_LABEL (FILE, "L", (REL));			\
      fputc ('\n', FILE);						\
    } while (0)
 #endif
@@ -133,6 +118,13 @@ do { fprintf (FILE, "\t%s\t", ASM_SHORT);				\
 #endif
 #endif
 
+/* This is how to output a reference to a user-level label named NAME.  */
+
+#ifndef ASM_OUTPUT_LABELREF
+#define ASM_OUTPUT_LABELREF(FILE,NAME)  \
+  do { fputs (USER_LABEL_PREFIX, FILE); fputs (NAME, FILE); } while (0)
+#endif
+
 /* This determines whether or not we support weak symbols.  */
 #ifndef SUPPORTS_WEAK
 #ifdef ASM_WEAKEN_LABEL
@@ -140,4 +132,10 @@ do { fprintf (FILE, "\t%s\t", ASM_SHORT);				\
 #else
 #define SUPPORTS_WEAK 0
 #endif
+#endif
+
+/* If we have a definition of INCOMING_RETURN_ADDR_RTX, assume that
+   the rest of the DWARF 2 frame unwind support is also provided.  */
+#if !defined (DWARF2_UNWIND_INFO) && defined (INCOMING_RETURN_ADDR_RTX)
+#define DWARF2_UNWIND_INFO 1
 #endif
