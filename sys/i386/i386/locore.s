@@ -773,15 +773,20 @@ no_kernend:
 	movl	%esi, R(_SMPpt)		/* relocated to KVM space */
 #endif	/* SMP */
 
-/* Map read-only from zero to the end of the kernel text section */
+/* Map page zero read-write so bios32 calls can use it */
 	xorl	%eax, %eax
 #ifdef BDE_DEBUGGER
 /* If the debugger is present, actually map everything read-write. */
 	cmpl	$0,R(_bdb_exists)
 	jne	map_read_write
 #endif
+	movl	$PG_RW,%edx
+	movl	$1,%ecx
+	fillkptphys(%edx)
+	
+/* Map read-only from page 1 to the end of the kernel text section */
+	movl	$PAGE_SIZE, %eax
 	xorl	%edx,%edx
-
 #if !defined(SMP)
 	testl	$CPUID_PGE, R(_cpu_feature)
 	jz	2f
@@ -790,6 +795,7 @@ no_kernend:
 	
 2:	movl	$R(_etext),%ecx
 	addl	$PAGE_MASK,%ecx
+	subl	%eax,%ecx
 	shrl	$PAGE_SHIFT,%ecx
 	fillkptphys(%edx)
 
