@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.41.2.4 1995/05/31 19:46:16 jkh Exp $
+ * $Id: menus.c,v 1.41.2.5 1995/05/31 20:55:27 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -373,7 +373,7 @@ selecting OK at this stage will chose them as defaults.",
 	DMENU_SET_FLAG,	&Dists, DIST_COMPAT20, 0	},
       { "DES", "DES encryption code and sources [.3MB]",
 	DMENU_SET_FLAG,	&Dists, DIST_DES, 0		},
-      { "dict", "Spelling checker disctionary files [4.2MB]",
+      { "dict", "Spelling checker dictionary files [4.2MB]",
 	DMENU_SET_FLAG,	&Dists, DIST_DICT, 0		},
       { "games", "Games and other amusements (non-commercial) [6.4MB]",
 	DMENU_SET_FLAG,	&Dists, DIST_GAMES, 0		},
