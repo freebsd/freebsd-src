@@ -506,6 +506,11 @@ static int compute_sb_data(devvp, es, fs)
     }
     fs->s_loaded_inode_bitmaps = 0;
     fs->s_loaded_block_bitmaps = 0;
+    if (es->s_rev_level == EXT2_GOOD_OLD_REV || (es->s_feature_ro_compat &
+        EXT2_FEATURE_RO_COMPAT_LARGE_FILE) == 0)
+	fs->fs_maxfilesize = 0x7fffffff;
+    else
+	fs->fs_maxfilesize = 0x7fffffffffffffff;
     return 0;
 }
 
