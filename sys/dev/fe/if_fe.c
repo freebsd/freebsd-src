@@ -74,11 +74,9 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <sys/mbuf.h>
-#include <sys/module.h>
 #include <machine/clock.h>
 
 #include <sys/bus.h>
@@ -91,7 +89,6 @@
 #include <net/if_dl.h>
 #include <net/if_mib.h>
 #include <net/if_media.h>
-#include <net/if_types.h>
 
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
