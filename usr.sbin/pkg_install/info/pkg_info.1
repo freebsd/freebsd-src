@@ -118,6 +118,36 @@ Package info is either extracted from package files named on the
 command line, or from already installed package information
 in
 .Pa /var/db/pkg/<pkg-name> .
+.Sh ENVIRONMENT
+.Ev PKG_TMPDIR
+points to the directory where
+.Nm
+creates its temporary files.
+If this variable is not set,
+.Ev TMPDIR
+is used.  If both are unset, the builtin defaults are used.
+.Pp
+.Ev PKG_DBDIR
+names the location of the installed package database.
+.Sh FILES
+.Bl -tag -width /var/db/pkg -compact
+.It Pa /var/tmp
+Used if the environment variables
+.Ev PKG_TMPDIR
+and 
+.Ev TMPDIR
+are not set, or if the directories named have insufficient space.
+.It Pa /tmp
+The next choice if 
+.Pa /var/tmp
+does not exist or has insufficient space.
+.It Pa /usr/tmp
+The last choice if 
+.Pa /tmp 
+is unsuitable.
+.It Pa /var/db/pkg
+Default location of the installed package database.
+.El
 .Sh SEE ALSO
 .Xr pkg_add 1 ,
 .Xr pkg_create 1 ,
