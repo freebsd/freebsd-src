@@ -135,6 +135,7 @@ __ksd_readandclear32(volatile u_long *addr)
 #define	_ksd_curkse		((struct kse *)KSD_GET_PTR(mbx.km_udata))
 #define	_ksd_curthread		KSD_GET_PTR(curthread)
 #define _ksd_set_tmbx(value)	KSD_SET_PTR(mbx.km_curthread, (void *)value)
+#define	_ksd_get_tmbx(value)	KSD_GET_PTR(mbx.km_curthread)
 #define	_ksd_readandclear_tmbx	KSD_READANDCLEAR_PTR(mbx.km_curthread)
 
 int	_ksd_create(struct ksd *ksd, void *base, int size);
