@@ -1,6 +1,6 @@
-<!-- $Id: contrib.sgml,v 1.45 1997/04/02 05:42:39 hanai Exp $ -->
+<!-- $Id: contrib.sgml,v 1.46 1997/04/07 04:09:47 hanai Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.231 -->
+<!-- Original revision: 1.232 -->
 
 <!-- Please try to keep the file 'avail' (from CVSROOT) 
      in sync with the list of FreeBSD Developers -->
@@ -315,9 +315,10 @@
           <item>Justin M. Seger &lt;jseger@scds.ziplink.net&gt;
 	  <item>Kazuhiko Kiriyama &lt;kiri@kiri.toba-cmt.ac.jp&gt;
 	  <item>Kazutaka YOKOTA &lt;yokota@zodiac.mech.utsunomiya-u.ac.jp&gt;
-	  <item>Keith Bostic &lt;bostic@toe.CS.Berkeley.EDU&gt;
+	  <item>Keith Bostic &lt;bostic@bostic.com&gt;
 	  <item>Keith Moore &lt;?&gt;
 	  <item>Kenneth Monville &lt;desmo@bandwidth.org&gt;
+	  <item>Kent Vander Velden &lt;graphix@iastate.edu&gt;
 	  <item>Kirk McKusick &lt;mckusick@mckusick.com&gt;
           <item>Kiroh HARADA &lt;kiroh@kh.rim.or.jp&gt;
 	  <item>Koichi Sato &lt;copan@ppp.fastnet.or.jp&gt;
