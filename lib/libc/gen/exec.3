@@ -155,7 +155,7 @@ errors except
 .Er ENOEXEC
 as being ambiguous here, although only the critical error
 .Er EACCES
-is really ambiguous), 
+is really ambiguous),
 then these functions will act as if they stat the file to determine
 whether the file exists and has suitable execute permissions.
 If it does, they will return immediately with the global variable
@@ -260,7 +260,7 @@ upon which they returned.
 They now return for
 .Er ETXTBSY ,
 and determine existence and executability more carefully.
-In particular, 
+In particular,
 .Er EACCES
 for inaccessible directories in the path prefix is no longer
 confused with
