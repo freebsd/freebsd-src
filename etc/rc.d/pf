@@ -47,13 +47,13 @@ pf_prestart()
 pf_start()
 {
 	echo "Enabling pf."
-	if ! ${pf_program:-/sbin/pfctl} -si | grep -q "Enabled" ; then
-		${pf_program:-/sbin/pfctl} -e
-	fi
 	${pf_program:-/sbin/pfctl} -Fa > /dev/null 2>&1
 	if [ -r "${pf_rules}" ]; then
 		${pf_program:-/sbin/pfctl} \
 		    -f "${pf_rules}" ${pf_flags}
+	fi
+	if ! ${pf_program:-/sbin/pfctl} -si | grep -q "Enabled" ; then
+		${pf_program:-/sbin/pfctl} -e
 	fi
 }
 
