@@ -1,10 +1,10 @@
 #
-#	$Id: Makefile,v 1.176 1998/05/10 16:51:07 bde Exp $
+#	$Id: Makefile,v 1.177 1998/05/15 17:12:00 bde Exp $
 #
 # While porting to the another architecture include the bootstrap instead
 # of the normal build.
 #
-.if exists(${.CURDIR}/Makefile.${MACHINE})
+.if exists(${.CURDIR}/Makefile.${MACHINE}) && defined(BOOTSTRAP_WORLD)
 .include "${.CURDIR}/Makefile.${MACHINE}"
 .else
 #
