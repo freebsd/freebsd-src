@@ -1234,7 +1234,7 @@ g_mirror_register_request(struct bio *bp)
 				else if (bp->bio_offset + bp->bio_length >
 				    sync->ds_offset_done &&
 				    (bp->bio_offset < sync->ds_resync ||
-				     sync->ds_resync != -1)) {
+				     sync->ds_resync == -1)) {
 					sync->ds_resync = bp->bio_offset -
 					    (bp->bio_offset %
 					    G_MIRROR_SYNC_BLOCK_SIZE);
