@@ -94,6 +94,7 @@ static	char			packetBuf[IP_MAXPACKET];
 static 	int			packetLen;
 static	struct sockaddr_in	packetAddr;
 static 	int			packetSock;
+static  int			dropIgnoredIncoming;
 
 int main (int argc, char** argv)
 {
@@ -161,6 +162,11 @@ int main (int argc, char** argv)
 	if (inPort == 0 && outPort == 0 && inOutPort == 0)
 		ParseOption ("port", DEFAULT_SERVICE, 0);
 
+/*
+ * Check if ignored packets should be dropped.
+ */
+	dropIgnoredIncoming = PacketAliasSetMode (0, 0);
+	dropIgnoredIncoming &= PKT_ALIAS_DENY_INCOMING;
 /*
  * Create divert sockets. Use only one socket if -p was specified
  * on command line. Otherwise, create separate sockets for
@@ -254,7 +260,6 @@ int main (int argc, char** argv)
  */
 	if (aliasAddr.s_addr != INADDR_NONE)
 		PacketAliasSetAddress (aliasAddr);
-
 /*
  * We need largest descriptor number for select.
  */
@@ -411,6 +416,7 @@ static void DoAliasing (int fd)
 {
 	int			bytes;
 	int			origBytes;
+	int			status;
 	int			addrSize;
 	struct ip*		ip;
 
@@ -486,7 +492,13 @@ static void DoAliasing (int fd)
 /*
  * Do aliasing.
  */	
-		PacketAliasIn (packetBuf, IP_MAXPACKET);
+		status = PacketAliasIn (packetBuf, IP_MAXPACKET);
+		if (status == PKT_ALIAS_IGNORED &&
+		    dropIgnoredIncoming) {
+
+			printf (" dropped.\n");
+			return;
+		}
 	}
 /*
  * Length might have changed during aliasing.
