@@ -297,12 +297,14 @@ extern int ip4_esp_randpad;
 
 #define ipseclog(x)	do { if (ipsec_debug) log x; } while (0)
 
+struct inpcb;
+extern struct secpolicy *ipsec4_getpolicybypcb
+	__P((struct mbuf *, u_int, struct inpcb *, int *));
 extern struct secpolicy *ipsec4_getpolicybysock
 	__P((struct mbuf *, u_int, struct socket *, int *));
 extern struct secpolicy *ipsec4_getpolicybyaddr
 	__P((struct mbuf *, u_int, int, int *));
 
-struct inpcb;
 extern int ipsec_init_policy __P((struct socket *so, struct inpcbpolicy **));
 extern int ipsec_copy_policy
 	__P((struct inpcbpolicy *, struct inpcbpolicy *));
