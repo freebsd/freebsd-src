@@ -13,7 +13,7 @@
 
 SUBDIR=	 title contents 
 SUBDIR+=  01.cacm 02.implement 03.iosys 04.uprog 05.sysman 06.Clang 12.make 
-SUBDIR+=  13.rcs 14.sccs 15.yacc 16.lex 17.m4 18.gprof 20.ipctut 21.ipc
+SUBDIR+=  13.rcs 15.yacc 16.lex 17.m4 18.gprof 20.ipctut 21.ipc
 
 # The following modules don't appear in the O'Reilly book, but
 # are in the 4.4BSD distribution.
