@@ -1632,6 +1632,28 @@ getsockaddr(namp, uaddr, len)
 }
 
 /*
+ * Detatch mapped page and release resources back to the system.
+ */
+void
+sf_buf_mext(void *addr, void *args)
+{
+	vm_page_t m;
+
+	m = sf_buf_page(args);
+	sf_buf_free(args);
+	vm_page_lock_queues();
+	vm_page_unwire(m, 0);
+	/*
+	 * Check for the object going away on us. This can
+	 * happen since we don't hold a reference to it.
+	 * If so, we're responsible for freeing the page.
+	 */
+	if (m->wire_count == 0 && m->object == NULL)
+		vm_page_free(m);
+	vm_page_unlock_queues();
+}
+
+/*
  * sendfile(2)
  *
  * MPSAFE
@@ -1917,14 +1939,14 @@ retry_lookup:
 			MGETHDR(m, M_TRYWAIT, MT_DATA);
 		if (m == NULL) {
 			error = ENOBUFS;
-			sf_buf_free((void *)sf_buf_kva(sf), sf);
+			sf_buf_mext((void *)sf_buf_kva(sf), sf);
 			sbunlock(&so->so_snd);
 			goto done;
 		}
 		/*
 		 * Setup external storage for mbuf.
 		 */
-		MEXTADD(m, sf_buf_kva(sf), PAGE_SIZE, sf_buf_free, sf, M_RDONLY,
+		MEXTADD(m, sf_buf_kva(sf), PAGE_SIZE, sf_buf_mext, sf, M_RDONLY,
 		    EXT_SFBUF);
 		m->m_data = (char *)sf_buf_kva(sf) + pgoff;
 		m->m_pkthdr.len = m->m_len = xfsize;

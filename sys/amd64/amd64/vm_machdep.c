@@ -490,27 +490,12 @@ sf_buf_alloc(struct vm_page *m)
 }
 
 /*
- * Detatch mapped page and release resources back to the system.
+ * Release resources back to the system.
  */
 void
-sf_buf_free(void *addr, void *args)
+sf_buf_free(struct sf_buf *sf)
 {
-	struct sf_buf *sf;
-	struct vm_page *m;
 
-	sf = args;
-	m = sf->m;
-	vm_page_lock_queues();
-	vm_page_unwire(m, 0);
-	/*
-	 * Check for the object going away on us. This can
-	 * happen since we don't hold a reference to it.
-	 * If so, we're responsible for freeing the page.
-	 */
-	if (m->wire_count == 0 && m->object == NULL)
-		vm_page_free(m);
-	vm_page_unlock_queues();
-	sf->m = NULL;
 	mtx_lock(&sf_freelist.sf_lock);
 	SLIST_INSERT_HEAD(&sf_freelist.sf_head, sf, free_list);
 	nsfbufsused--;
