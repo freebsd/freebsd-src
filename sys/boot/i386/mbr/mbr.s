@@ -22,7 +22,7 @@
 		.set PT_OFF,0x1be		# Partition table
 		.set MAGIC,0xaa55		# Magic: bootable
 
-		.set NDRIVE,0x8 		# Drives to support
+		.set NHRDRV,0x475		# Number of hard drives
 
 		.globl start			# Entry point
 		.code16
@@ -34,10 +34,8 @@ start:		cld				# String ops inc
 		xorw %ax,%ax			# Zero
 		movw %ax,%es			# Address
 		movw %ax,%ds			#  data
-		cli				# Disable interrupts
 		movw %ax,%ss			# Set up
 		movw $LOAD,%sp			#  stack
-		sti				# Enable interrupts
 #
 # Relocate ourself to a lower address so that we are out of the way when
 # we load in the bootstrap from the partition to boot.
@@ -73,23 +71,52 @@ main.2: 	addb $0x10,%bl			# Till
 		int $0x18			# BIOS: Diskless boot
 #
 # Ok, we've found a possible active partition.  Check to see that the drive
-# is a valid hard drive number.  XXX - We assume that there are up to 8 valid
-# hard drives, regardless of how many are actually installed.  Yuck.
+# is a valid hard drive number.
 #
 main.3: 	cmpb $0x80,%dl			# Drive valid?
 		jb main.4			# No
-		cmpb $0x80+NDRIVE,%dl		# Within range?
+		movb NHRDRV,%dh			# Calculate the highest
+		addb $0x80,%dh			#  drive number available
+		cmpb %dh,%dl			# Within range?
 		jb main.5			# Yes
+main.4: 	movb (%si),%dl			# Load drive
 #
 # Ok, now that we have a valid drive and partition entry, load the CHS from
 # the partition entry and read the sector from the disk.
 #
-main.4: 	movb (%si),%dl			# Load drive
-main.5: 	movb 0x1(%si),%dh		# Load head
+main.5:		movw %sp,%di			# Save stack pointer
+		movb 0x1(%si),%dh		# Load head
 		movw 0x2(%si),%cx		# Load cylinder:sector
 		movw $LOAD,%bx			# Transfer buffer
-		movw $0x201,%ax			# BIOS: Read from
-		int $0x13			#  disk
+		cmpb $0xff,%dh			# Might we need to use LBA?
+		jnz main.7			# No.
+		cmpw $0xffff,%cx		# Do we need to use LBA?
+		jnz main.7			# No.
+		pushw %cx			# Save %cx
+		pushw %bx			# Save %bx
+		movw $0x55aa,%bx		# Magic
+		movb $0x41,%ah			# BIOS:	EDD extensions
+		int $0x13			#  present?
+		jc main.6			# No.
+		cmpw $0xaa55,%bx		# Magic ok?
+		jne main.6			# No.
+		testb $0x1,%cl			# Packet mode present?
+		jz main.6			# No.
+		popw %bx			# Restore %bx
+		pushl $0x0			# Set the LBA
+		pushl 0x8(%si)			#  address
+		pushw %es			# Set the address of
+		pushw %bx			#  the transfer buffer
+		pushw $0x1			# Read 1 sector
+		pushw $0x10			# Packet length
+		movw %sp,%si			# Packer pointer
+		movw $0x4200,%ax		# BIOS:	LBA Read from disk
+		jmp main.8			# Skip the CHS setup
+main.6:		popw %bx			# Restore %bx
+		popw %cx			# Restore %cx
+main.7:		movw $0x201,%ax			# BIOS: Read from disk
+main.8:		int $0x13			# Call the BIOS
+		movw %di,%sp			# Restore stack
 		jc err_rd			# If error
 #
 # Now that we've loaded the bootstrap, check for the 0xaa55 signature.  If it
