@@ -67,113 +67,121 @@ with the
 .Em super-block
 that is of size
 .Dv SBSIZE .
-The following structure described the super-block and is
+The following structure describes the super-block and is
 from the file
 .Aq Pa ufs/ffs/fs.h :
 .Bd -literal
+/*
+ * Super block for an FFS file system.
+ */
 struct fs {
-	struct	fs *fs_link;	/* linked list of file systems */
-	struct	fs *fs_rlink;	/*     used for incore super blocks */
-	daddr_t	fs_sblkno;	/* addr of super-block in filesys */
-	daddr_t	fs_cblkno;	/* offset of cyl-block in filesys */
-	daddr_t	fs_iblkno;	/* offset of inode-blocks in filesys */
-	daddr_t	fs_dblkno;	/* offset of first data after cg */
-	long	fs_cgoffset;	/* cylinder group offset in cylinder */
-	long	fs_cgmask;	/* used to calc mod fs_ntrak */
-	time_t 	fs_time;    	/* last time written */
-	long	fs_size;	/* number of blocks in fs */
-	long	fs_dsize;	/* number of data blocks in fs */
-	long	fs_ncg;	/* number of cylinder groups */
-	long	fs_bsize;	/* size of basic blocks in fs */
-	long	fs_fsize;	/* size of frag blocks in fs */
-	long	fs_frag;	/* number of frags in a block in fs */
+	int32_t	 fs_firstfield;	/* historic file system linked list, */
+	int32_t	 fs_unused_1;	/*     used for incore super blocks */
+	ufs_daddr_t fs_sblkno;	/* addr of super-block in filesys */
+	ufs_daddr_t fs_cblkno;	/* offset of cyl-block in filesys */
+	ufs_daddr_t fs_iblkno;	/* offset of inode-blocks in filesys */
+	ufs_daddr_t fs_dblkno;	/* offset of first data after cg */
+	int32_t	 fs_cgoffset;	/* cylinder group offset in cylinder */
+	int32_t	 fs_cgmask;	/* used to calc mod fs_ntrak */
+	time_t 	 fs_time;	/* last time written */
+	int32_t	 fs_size;	/* number of blocks in fs */
+	int32_t	 fs_dsize;	/* number of data blocks in fs */
+	int32_t	 fs_ncg;	/* number of cylinder groups */
+	int32_t	 fs_bsize;	/* size of basic blocks in fs */
+	int32_t	 fs_fsize;	/* size of frag blocks in fs */
+	int32_t	 fs_frag;	/* number of frags in a block in fs */
 /* these are configuration parameters */
-	long	fs_minfree;	/* minimum percentage of free blocks */
-	long	fs_rotdelay;	/* num of ms for optimal next block */
-	long	fs_rps;	/* disk revolutions per second */
+	int32_t	 fs_minfree;	/* minimum percentage of free blocks */
+	int32_t	 fs_rotdelay;	/* num of ms for optimal next block */
+	int32_t	 fs_rps;	/* disk revolutions per second */
 /* these fields can be computed from the others */
-	long	fs_bmask;	/* ``blkoff'' calc of blk offsets */
-	long	fs_fmask;	/* ``fragoff'' calc of frag offsets */
-	long	fs_bshift;	/* ``lblkno'' calc of logical blkno */
-	long	fs_fshift;	/* ``numfrags'' calc number of frags */
+	int32_t	 fs_bmask;	/* ``blkoff'' calc of blk offsets */
+	int32_t	 fs_fmask;	/* ``fragoff'' calc of frag offsets */
+	int32_t	 fs_bshift;	/* ``lblkno'' calc of logical blkno */
+	int32_t	 fs_fshift;	/* ``numfrags'' calc number of frags */
 /* these are configuration parameters */
-	long	fs_maxcontig;	/* max number of contiguous blks */
-	long	fs_maxbpg;	/* max number of blks per cyl group */
+	int32_t	 fs_maxcontig;	/* max number of contiguous blks */
+	int32_t	 fs_maxbpg;	/* max number of blks per cyl group */
 /* these fields can be computed from the others */
-	long	fs_fragshift;	/* block to frag shift */
-	long	fs_fsbtodb;	/* fsbtodb and dbtofsb shift constant */
-	long	fs_sbsize;	/* actual size of super block */
-	long	fs_csmask;	/* csum block offset */
-	long	fs_csshift;	/* csum block number */
-	long	fs_nindir;	/* value of NINDIR */
-	long	fs_inopb;	/* value of INOPB */
-	long	fs_nspf;	/* value of NSPF */
+	int32_t	 fs_fragshift;	/* block to frag shift */
+	int32_t	 fs_fsbtodb;	/* fsbtodb and dbtofsb shift constant */
+	int32_t	 fs_sbsize;	/* actual size of super block */
+	int32_t	 fs_csmask;	/* csum block offset */
+	int32_t	 fs_csshift;	/* csum block number */
+	int32_t	 fs_nindir;	/* value of NINDIR */
+	int32_t	 fs_inopb;	/* value of INOPB */
+	int32_t	 fs_nspf;	/* value of NSPF */
 /* yet another configuration parameter */
-	long	fs_optim;	/* optimization preference, see below */
+	int32_t	 fs_optim;	/* optimization preference, see below */
 /* these fields are derived from the hardware */
-	long	fs_npsect;	/* # sectors/track including spares */
-	long	fs_interleave;	/* hardware sector interleave */
-	long	fs_trackskew;	/* sector 0 skew, per track */
-	long	fs_headswitch;	/* head switch time, usec */
-	long	fs_trkseek;	/* track-to-track seek, usec */
+	int32_t	 fs_npsect;	/* # sectors/track including spares */
+	int32_t	 fs_interleave;	/* hardware sector interleave */
+	int32_t	 fs_trackskew;	/* sector 0 skew, per track */
+	int32_t	 fs_headswitch;	/* head switch time, usec */
+	int32_t	 fs_trkseek;	/* track-to-track seek, usec */
 /* sizes determined by number of cylinder groups and their sizes */
-	daddr_t fs_csaddr;	/* blk addr of cyl grp summary area */
-	long	fs_cssize;	/* size of cyl grp summary area */
-	long	fs_cgsize;	/* cylinder group size */
+	ufs_daddr_t fs_csaddr;	/* blk addr of cyl grp summary area */
+	int32_t	 fs_cssize;	/* size of cyl grp summary area */
+	int32_t	 fs_cgsize;	/* cylinder group size */
 /* these fields are derived from the hardware */
-	long	fs_ntrak;	/* tracks per cylinder */
-	long	fs_nsect;	/* sectors per track */
-	long  	fs_spc;   	/* sectors per cylinder */
+	int32_t	 fs_ntrak;	/* tracks per cylinder */
+	int32_t	 fs_nsect;	/* sectors per track */
+	int32_t  fs_spc;	/* sectors per cylinder */
 /* this comes from the disk driver partitioning */
-	long	fs_ncyl;   	/* cylinders in file system */
+	int32_t	 fs_ncyl;	/* cylinders in file system */
 /* these fields can be computed from the others */
-	long	fs_cpg;	/* cylinders per group */
-	long	fs_ipg;	/* inodes per group */
-	long	fs_fpg;	/* blocks per group * fs_frag */
+	int32_t	 fs_cpg;	/* cylinders per group */
+	int32_t	 fs_ipg;	/* inodes per group */
+	int32_t	 fs_fpg;	/* blocks per group * fs_frag */
 /* this data must be re-computed after crashes */
-	struct	csum fs_cstotal;	/* cylinder summary information */
+	struct	csum fs_cstotal;/* cylinder summary information */
 /* these fields are cleared at mount time */
-	char   	fs_fmod;    	/* super block modified flag */
-	char   	fs_clean;    	/* file system is clean flag */
-	char   	fs_ronly;   	/* mounted read-only flag */
-	char   	fs_flags;   	/* currently unused flag */
-	char	fs_fsmnt[MAXMNTLEN];	/* name mounted on */
+	int8_t   fs_fmod;	/* super block modified flag */
+	int8_t   fs_clean;	/* file system is clean flag */
+	int8_t 	 fs_ronly;	/* mounted read-only flag */
+	int8_t   fs_flags;	/* currently unused flag */
+	u_char	 fs_fsmnt[MAXMNTLEN];	/* name mounted on */
 /* these fields retain the current block allocation info */
-	long	fs_cgrotor;	/* last cg searched */
-	struct	csum *fs_csp[MAXCSBUFS]; /* list of fs_cs info buffers */
-	long	fs_cpc;	/* cyl per cycle in postbl */
-	short	fs_opostbl[16][8];	/* old rotation block list head */
-	long	fs_sparecon[50];	/* reserved for future constants */
-	long	fs_contigsumsize;/* size of cluster summary array */
-	u_quad_t fs_maxfilesize;/* maximum representable file size */	
-	quad	fs_qbmask;	/* ~fs_bmask - for use with quad size */
-	quad	fs_qfmask;	/* ~fs_fmask - for use with quad size */
-	long	fs_postblformat; /* format of positional layout tables */
-	long	fs_nrpos;	/* number of rotational positions */
-	long	fs_postbloff;	/* (short) rotation block list head */
-	long	fs_rotbloff;	/* (u_char) blocks for each rotation */
-	long	fs_magic;	/* magic number */
-	u_char	fs_space[1];	/* list of blocks for each rotation */
+	int32_t	 fs_cgrotor;	/* last cg searched */
+	struct	csum *fs_csp[MAXCSBUFS];/* list of fs_cs info buffers */
+	int32_t	 *fs_maxcluster;/* max cluster in each cyl group */
+	int32_t	 fs_cpc;	/* cyl per cycle in postbl */
+	int16_t	 fs_opostbl[16][8];	/* old rotation block list head */
+	int32_t	 fs_sparecon[50];	/* reserved for future constants */
+	int32_t	 fs_contigsumsize;	/* size of cluster summary array */ 
+	int32_t	 fs_maxsymlinklen;/* max length of an internal symlink */
+	int32_t	 fs_inodefmt;	/* format of on-disk inodes */
+	u_int64_t fs_maxfilesize;/* maximum representable file size */
+	int64_t	 fs_qbmask;	/* ~fs_bmask for use with 64-bit size */
+	int64_t	 fs_qfmask;	/* ~fs_fmask for use with 64-bit size */
+	int32_t	 fs_state;	/* validate fs_clean field */
+	int32_t	 fs_postblformat;/* format of positional layout tables */
+	int32_t	 fs_nrpos;	/* number of rotational positions */
+	int32_t	 fs_postbloff;	/* (u_int16) rotation block list head */
+	int32_t	 fs_rotbloff;	/* (u_int8) blocks for each rotation */
+	int32_t	 fs_magic;	/* magic number */
+	u_int8_t fs_space[1];	/* list of blocks for each rotation */
 /* actually longer */
 };
+
 /*
  * Filesystem identification
  */
-#define FS_MAGIC	0x011954   /* the fast filesystem magic number */
-#define FS_OKAY		0x7c269d38 /* superblock checksum */
+#define	FS_MAGIC	0x011954   /* the fast filesystem magic number */
+#define	FS_OKAY		0x7c269d38 /* superblock checksum */
 #define FS_42INODEFMT	-1	   /* 4.2BSD inode format */
 #define FS_44INODEFMT	2	   /* 4.4BSD inode format */
 /*
  * Preference for optimization.
  */
-#define FS_OPTTIME	0          /* minimize allocation time */
-#define FS_OPTSPACE	1	   /* minimize disk fragmentation */
+#define FS_OPTTIME	0	/* minimize allocation time */
+#define FS_OPTSPACE	1	/* minimize disk fragmentation */
 
 /*
  * Rotational layout table format types
  */
-#define FS_42POSTBLFMT	    -1	   /* 4.2BSD rotational table format */
-#define FS_DYNAMICPOSTBLFMT 1	   /* dynamic rotational table format */
+#define FS_42POSTBLFMT		-1  /* 4.2BSD rotational table format */
+#define FS_DYNAMICPOSTBLFMT	1   /* dynamic rotational table format */
 .Ed
 .Pp
 Each disk drive contains some number of file systems.
