@@ -440,7 +440,7 @@ ncv_world_start(sc, fdone)
 	ncvhw_init(iot, ioh, &sc->sc_hw);
 
 	s = splcam();
-	scsi_low_bus_reset((struct scsi_low_softc *) sc);
+	scsi_low_bus_reset(slp);
 
 	ncvhw_select_register_0(iot, ioh, &sc->sc_hw);
 	bus_space_read_1(sc->sc_iot, sc->sc_ioh, cr0_stat);
