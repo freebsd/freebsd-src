@@ -1,6 +1,6 @@
 \ Example of the file which is automatically loaded by /boot/loader
 \ on startup.
-\ $Id: loader.rc,v 1.1 1999/05/14 18:06:27 dcs Exp $
+\ $Id: loader.rc,v 1.2 1999/05/14 19:00:38 dcs Exp $
 
 cr .( Loading Forth extensions:)
 

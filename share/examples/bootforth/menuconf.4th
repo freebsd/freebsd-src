@@ -1,7 +1,7 @@
 \ Simple greeting screen, presenting basic options.
 \ XXX This is far too trivial - I don't have time now to think
 \ XXX about something more fancy... :-/
-\ $Id$
+\ $Id: menuconf.4th,v 1.2 1999/05/14 19:07:59 dcs Exp $
 
 : title
 	f_single
