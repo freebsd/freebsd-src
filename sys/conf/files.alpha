@@ -159,6 +159,7 @@ alpha/pci/pci_eb64plus_intr.s	optional	dec_eb64plus
 alpha/pci/pcibus.c		optional	pci
 alpha/pci/tsunami.c		optional	dec_st6600
 alpha/pci/tsunami_pci.c		optional	dec_st6600
+dev/aic/aic_isa.c		optional	aic isa
 dev/ata/ata-all.c		optional	ata
 dev/ata/ata-disk.c		optional	atadisk
 dev/ata/ata-dma.c		optional	ata
