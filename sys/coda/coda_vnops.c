@@ -296,7 +296,7 @@ coda_open(v)
     cp->c_inode = inode;
 
     /* Open the cache file. */
-    error = VOP_OPEN(vp, flag, cred, td); 
+    error = VOP_OPEN(vp, flag, cred, td, -1); 
     if (error) {
     	printf("coda_open: VOP_OPEN on container failed %d\n", error);
 	return (error);
@@ -467,7 +467,7 @@ coda_rdwr(vp, uiop, rw, ioflag, cred, td)
 	    opened_internally = 1;
 	    MARK_INT_GEN(CODA_OPEN_STATS);
 	    error = VOP_OPEN(vp, (rw == UIO_READ ? FREAD : FWRITE), 
-			     cred, td);
+			     cred, td, -1);
 printf("coda_rdwr: Internally Opening %p\n", vp);
 	    if (error) {
 		printf("coda_rdwr: VOP_OPEN on container failed %d\n", error);
@@ -1646,7 +1646,7 @@ coda_readdir(v)
 	if (cp->c_ovp == NULL) {
 	    opened_internally = 1;
 	    MARK_INT_GEN(CODA_OPEN_STATS);
-	    error = VOP_OPEN(vp, FREAD, cred, td);
+	    error = VOP_OPEN(vp, FREAD, cred, td, -1);
 printf("coda_readdir: Internally Opening %p\n", vp);
 	    if (error) {
 		printf("coda_readdir: VOP_OPEN on container failed %d\n", error);

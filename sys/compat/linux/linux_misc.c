@@ -310,7 +310,7 @@ linux_uselib(struct thread *td, struct linux_uselib_args *args)
 	if (error)
 		goto cleanup;
 #endif
-	error = VOP_OPEN(vp, FREAD, td->td_ucred, td);
+	error = VOP_OPEN(vp, FREAD, td->td_ucred, td, -1);
 	if (error)
 		goto cleanup;
 

@@ -2333,7 +2333,7 @@ rf_find_raid_components()
 		vref(vp);
 
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
-		error = VOP_OPEN(vp, FREAD, td->td_ucred, td);
+		error = VOP_OPEN(vp, FREAD, td->td_ucred, td, -1);
 		VOP_UNLOCK(vp, 0, td);
 		if (error) {
 			vput(vp);
@@ -2364,7 +2364,7 @@ rf_find_raid_components()
 
 			vref(vp);
 			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
-			error = VOP_OPEN(vp, FREAD, td->td_ucred, td);
+			error = VOP_OPEN(vp, FREAD, td->td_ucred, td, -1);
 			VOP_UNLOCK(vp, 0, td);
 			if (error) {
 				continue;
@@ -2419,7 +2419,7 @@ rf_search_label(dev_t dev, struct disklabel *label, RF_AutoConfig_t **ac_list)
 
 		vref(vp);
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
-		error = VOP_OPEN(vp, FREAD, td->td_ucred, td);
+		error = VOP_OPEN(vp, FREAD, td->td_ucred, td, -1);
 		VOP_UNLOCK(vp, 0, td);
 		if (error) {
 			/* Whatever... */

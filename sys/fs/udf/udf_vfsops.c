@@ -305,7 +305,7 @@ udf_mountfs(struct vnode *devvp, struct mount *mp, struct thread *td) {
 		return (error);
 
 	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
-	error = VOP_OPEN(devvp, FREAD, FSCRED, td);
+	error = VOP_OPEN(devvp, FREAD, FSCRED, td, -1);
 	VOP_UNLOCK(devvp, 0, td);
 	if (error)
 		return error;

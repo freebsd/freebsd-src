@@ -324,9 +324,9 @@ mountmsdosfs(devvp, mp, td, argp)
 	 * we don't VOP_OPEN the device again in that case.
 	 */
 #ifdef notyet
-	error = VOP_OPEN(devvp, ronly ? FREAD : FREAD|FWRITE, FSCRED, td);
+	error = VOP_OPEN(devvp, ronly ? FREAD : FREAD|FWRITE, FSCRED, td, -1);
 #else
-	error = VOP_OPEN(devvp, FREAD|FWRITE, FSCRED, td);
+	error = VOP_OPEN(devvp, FREAD|FWRITE, FSCRED, td, -1);
 #endif
 	VOP_UNLOCK(devvp, 0, td);
 	if (error)

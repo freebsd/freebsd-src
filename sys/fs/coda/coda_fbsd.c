@@ -127,7 +127,7 @@ coda_fbsd_getpages(v)
     if (cfvp == NULL) {
 	opened_internally = 1;
 
-	error = VOP_OPEN(vp, FREAD,  cred, p);
+	error = VOP_OPEN(vp, FREAD,  cred, p, -1);
 printf("coda_getp: Internally Opening %p\n", vp);
 
 	if (error) {
