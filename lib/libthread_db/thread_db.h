@@ -231,6 +231,7 @@ td_err_e td_thr_set_event(const td_thrhandle_t *, td_thr_events_t *);
 td_err_e td_thr_setfpregs(const td_thrhandle_t *, const prfpregset_t *);
 td_err_e td_thr_setgregs(const td_thrhandle_t *, const prgregset_t);
 td_err_e td_thr_validate(const td_thrhandle_t *);
+td_err_e td_thr_tls_get_addr(const td_thrhandle_t *, void *, size_t, void **);
 
 /* FreeBSD specific extensions. */
 td_err_e td_thr_sstep(const td_thrhandle_t *, int);
