@@ -1329,6 +1329,12 @@ number of CPUs is 4. All CPUs must be of the same type/speed.
 
 Currently FreeBSD only uses one CPU in a multiprocessor machine. 
 
+If any of the processors are ever marked as failed, they will
+remain marked as failed even after they have been replaced (or reseated) 
+until you issue the command 'clear_error all' on the SRM console and 
+power-cycle the machine.  This may be true for other modules (IO and memory) 
+as well, but it has not been verified.
+
 Memory:
 The machines use dedicated memory boards. These boards live on a 128 bit 
 C-bus shared with the CPU boards. DemiSable supports up to 1Gb, Sable up 
