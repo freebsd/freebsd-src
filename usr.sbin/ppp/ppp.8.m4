@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.176 1999/06/14 10:12:41 brian Exp $
+.\" $Id: ppp.8,v 1.177 1999/06/23 16:48:24 brian Exp $
 .Dd 20 September 1995
 .nr XX \w'\fC00'
 .Os FreeBSD
@@ -281,7 +281,7 @@ interactive prompt.
 This flag doesn't control
 .Nm ppp Ns No 's
 mode.  It does the equivalent of an
-.Dq enable alias yes .
+.Dq alias enable yes .
 Additionally, if the
 .Fl auto
 flag is also specified, an implicit
