@@ -80,8 +80,10 @@ main(int argc, char **argv)
 	i = jail(&j);
 	if (i == -1)
 		err(1, "jail");
-	if (iflag)
+	if (iflag) {
 		printf("%d\n", i);
+		fflush(stdout);
+	}
 	if (username != NULL) {
 		if (setgroups(ngroups, groups) != 0)
 			err(1, "setgroups");
