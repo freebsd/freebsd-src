@@ -283,10 +283,9 @@ in_control(so, cmd, data, ifp, p)
 			return (EADDRNOTAVAIL);
 		if (ia == (struct in_ifaddr *)0) {
 			ia = (struct in_ifaddr *)
-				malloc(sizeof *ia, M_IFADDR, M_WAITOK);
+				malloc(sizeof *ia, M_IFADDR, M_WAITOK | M_ZERO);
 			if (ia == (struct in_ifaddr *)NULL)
 				return (ENOBUFS);
-			bzero((caddr_t)ia, sizeof *ia);
 			/*
 			 * Protect from ipintr() traversing address list
 			 * while we're modifying it.
@@ -802,13 +801,13 @@ in_addmulti(ap, ifp)
 
 	/* XXX - if_addmulti uses M_WAITOK.  Can this really be called
 	   at interrupt time?  If so, need to fix if_addmulti. XXX */
-	inm = (struct in_multi *)malloc(sizeof(*inm), M_IPMADDR, M_NOWAIT);
+	inm = (struct in_multi *)malloc(sizeof(*inm), M_IPMADDR,
+	    M_NOWAIT | M_ZERO);
 	if (inm == NULL) {
 		splx(s);
 		return (NULL);
 	}
 
-	bzero(inm, sizeof *inm);
 	inm->inm_addr = *ap;
 	inm->inm_ifp = ifp;
 	inm->inm_ifma = ifma;

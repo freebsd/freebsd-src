@@ -82,17 +82,16 @@ vid_realloc_array(void)
 
 	s = spltty();
 	newsize = ((adapters + ARRAY_DELTA)/ARRAY_DELTA)*ARRAY_DELTA;
-	new_adp = malloc(sizeof(*new_adp)*newsize, M_DEVBUF, M_WAITOK);
-	new_vidsw = malloc(sizeof(*new_vidsw)*newsize, M_DEVBUF, M_WAITOK);
+	new_adp = malloc(sizeof(*new_adp)*newsize, M_DEVBUF, M_WAITOK | M_ZERO);
+	new_vidsw = malloc(sizeof(*new_vidsw)*newsize, M_DEVBUF,
+	    M_WAITOK | M_ZERO);
 #ifdef FB_INSTALL_CDEV
-	new_cdevsw = malloc(sizeof(*new_cdevsw)*newsize, M_DEVBUF, M_WAITOK);
+	new_cdevsw = malloc(sizeof(*new_cdevsw)*newsize, M_DEVBUF,
+	    M_WAITOK | M_ZERO);
 #endif
-	bzero(new_adp, sizeof(*new_adp)*newsize);
-	bzero(new_vidsw, sizeof(*new_vidsw)*newsize);
 	bcopy(adapter, new_adp, sizeof(*adapter)*adapters);
 	bcopy(vidsw, new_vidsw, sizeof(*vidsw)*adapters);
 #ifdef FB_INSTALL_CDEV
-	bzero(new_cdevsw, sizeof(*new_cdevsw)*newsize);
 	bcopy(vidcdevsw, new_cdevsw, sizeof(*vidcdevsw)*adapters);
 #endif
 	if (adapters > 1) {

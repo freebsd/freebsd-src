@@ -806,8 +806,7 @@ top:
 		goto top;
 	}
 	MALLOC(pagedep, struct pagedep *, sizeof(struct pagedep), M_PAGEDEP,
-		M_SOFTDEP_FLAGS);
-	bzero(pagedep, sizeof(struct pagedep));
+		M_SOFTDEP_FLAGS|M_ZERO);
 	pagedep->pd_list.wk_type = D_PAGEDEP;
 	pagedep->pd_mnt = mp;
 	pagedep->pd_ino = ip->i_number;
@@ -1191,8 +1190,7 @@ softdep_setup_allocdirect(ip, lbn, newblkno, oldblkno, newsize, oldsize, bp)
 	struct newblk *newblk;
 
 	MALLOC(adp, struct allocdirect *, sizeof(struct allocdirect),
-		M_ALLOCDIRECT, M_SOFTDEP_FLAGS);
-	bzero(adp, sizeof(struct allocdirect));
+		M_ALLOCDIRECT, M_SOFTDEP_FLAGS|M_ZERO);
 	adp->ad_list.wk_type = D_ALLOCDIRECT;
 	adp->ad_lbn = lbn;
 	adp->ad_newblkno = newblkno;
@@ -1412,8 +1410,7 @@ newallocindir(ip, ptrno, newblkno, oldblkno)
 	struct allocindir *aip;
 
 	MALLOC(aip, struct allocindir *, sizeof(struct allocindir),
-		M_ALLOCINDIR, M_SOFTDEP_FLAGS);
-	bzero(aip, sizeof(struct allocindir));
+		M_ALLOCINDIR, M_SOFTDEP_FLAGS|M_ZERO);
 	aip->ai_list.wk_type = D_ALLOCINDIR;
 	aip->ai_state = ATTACHED;
 	aip->ai_offset = ptrno;
@@ -1627,8 +1624,7 @@ softdep_setup_freeblocks(ip, length)
 	if (length != 0)
 		panic("softde_setup_freeblocks: non-zero length");
 	MALLOC(freeblks, struct freeblks *, sizeof(struct freeblks),
-		M_FREEBLKS, M_SOFTDEP_FLAGS);
-	bzero(freeblks, sizeof(struct freeblks));
+		M_FREEBLKS, M_SOFTDEP_FLAGS|M_ZERO);
 	freeblks->fb_list.wk_type = D_FREEBLKS;
 	freeblks->fb_uid = ip->i_uid;
 	freeblks->fb_previousinum = ip->i_number;
@@ -2189,8 +2185,8 @@ softdep_setup_directory_add(bp, dp, diroffset, newinum, newdirbp)
 	fs = dp->i_fs;
 	lbn = lblkno(fs, diroffset);
 	offset = blkoff(fs, diroffset);
-	MALLOC(dap, struct diradd *, sizeof(struct diradd), M_DIRADD, M_SOFTDEP_FLAGS);
-	bzero(dap, sizeof(struct diradd));
+	MALLOC(dap, struct diradd *, sizeof(struct diradd), M_DIRADD,
+		M_SOFTDEP_FLAGS|M_ZERO);
 	dap->da_list.wk_type = D_DIRADD;
 	dap->da_offset = offset;
 	dap->da_newinum = newinum;
@@ -2441,8 +2437,7 @@ newdirrem(bp, dp, ip, isrmdir, prevdirremp)
 		(void) request_cleanup(FLUSH_REMOVE, 0);
 	num_dirrem += 1;
 	MALLOC(dirrem, struct dirrem *, sizeof(struct dirrem),
-		M_DIRREM, M_SOFTDEP_FLAGS);
-	bzero(dirrem, sizeof(struct dirrem));
+		M_DIRREM, M_SOFTDEP_FLAGS|M_ZERO);
 	dirrem->dm_list.wk_type = D_DIRREM;
 	dirrem->dm_state = isrmdir ? RMDIR : 0;
 	dirrem->dm_mnt = ITOV(ip)->v_mount;
@@ -2538,8 +2533,7 @@ softdep_setup_directory_change(bp, dp, ip, newinum, isrmdir)
 	 */
 	if (newinum != WINO) {
 		MALLOC(dap, struct diradd *, sizeof(struct diradd),
-		    M_DIRADD, M_SOFTDEP_FLAGS);
-		bzero(dap, sizeof(struct diradd));
+		    M_DIRADD, M_SOFTDEP_FLAGS|M_ZERO);
 		dap->da_list.wk_type = D_DIRADD;
 		dap->da_state = DIRCHG | ATTACHED | DEPCOMPLETE;
 		dap->da_offset = offset;

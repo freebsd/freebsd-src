@@ -179,9 +179,7 @@ union_mount(mp, path, data, ndp, p)
 	 */
 
 	um = (struct union_mount *) malloc(sizeof(struct union_mount),
-				M_UNIONFSMNT, M_WAITOK);
-
-	bzero(um, sizeof(struct union_mount));
+				M_UNIONFSMNT, M_WAITOK | M_ZERO);
 
 	um->um_op = args.mntflags & UNMNT_OPMASK;
 

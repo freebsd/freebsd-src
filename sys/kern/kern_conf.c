@@ -170,8 +170,7 @@ allocdev(void)
 
 	if (stashed >= DEVT_STASH) {
 		MALLOC(si, struct specinfo *, sizeof(*si), M_DEVT,
-		    M_USE_RESERVE);
-		bzero(si, sizeof(*si));
+		    M_USE_RESERVE | M_ZERO);
 	} else if (LIST_FIRST(&dev_free)) {
 		si = LIST_FIRST(&dev_free);
 		LIST_REMOVE(si, si_hash);

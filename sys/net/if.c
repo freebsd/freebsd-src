@@ -167,8 +167,7 @@ if_attach(ifp)
 	getmicrotime(&ifp->if_lastchange);
 	if (ifnet_addrs == 0 || if_index >= if_indexlim) {
 		unsigned n = (if_indexlim <<= 1) * sizeof(ifa);
-		caddr_t q = malloc(n, M_IFADDR, M_WAITOK);
-		bzero(q, n);
+		caddr_t q = malloc(n, M_IFADDR, M_WAITOK | M_ZERO);
 		if (ifnet_addrs) {
 			bcopy((caddr_t)ifnet_addrs, (caddr_t)q, n/2);
 			free((caddr_t)ifnet_addrs, M_IFADDR);
@@ -177,8 +176,7 @@ if_attach(ifp)
 
 		/* grow ifindex2ifnet */
 		n = if_indexlim * sizeof(struct ifnet *);
-		q = malloc(n, M_IFADDR, M_WAITOK);
-		bzero(q, n);
+		q = malloc(n, M_IFADDR, M_WAITOK | M_ZERO);
 		if (ifindex2ifnet) {
 			bcopy((caddr_t)ifindex2ifnet, q, n/2);
 			free((caddr_t)ifindex2ifnet, M_IFADDR);
@@ -203,9 +201,8 @@ if_attach(ifp)
 		socksize = sizeof(*sdl);
 	socksize = ROUNDUP(socksize);
 	ifasize = sizeof(*ifa) + 2 * socksize;
-	ifa = (struct ifaddr *)malloc(ifasize, M_IFADDR, M_WAITOK);
+	ifa = (struct ifaddr *)malloc(ifasize, M_IFADDR, M_WAITOK | M_ZERO);
 	if (ifa) {
-		bzero((caddr_t)ifa, ifasize);
 		sdl = (struct sockaddr_dl *)(ifa + 1);
 		sdl->sdl_len = socksize;
 		sdl->sdl_family = AF_LINK;

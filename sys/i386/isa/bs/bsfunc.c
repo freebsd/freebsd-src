@@ -682,14 +682,12 @@ bs_init_target_info(bsc, target)
 {
 	struct targ_info *ti;
 
-	ti = malloc(sizeof(struct targ_info), M_DEVBUF, M_NOWAIT);
+	ti = malloc(sizeof(struct targ_info), M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (ti == NULL)
 	{
 		bs_printf(NULL, "bs_init_targ_info", "no target info memory");
 		return ti;
 	}
-
-	bzero(ti, sizeof(*ti));
 
 	ti->ti_bsc = bsc;
 	ti->ti_id = target;

@@ -3257,8 +3257,8 @@ load_devtab(void)
     char *name;
     int unit;
 
-    uc_devtab = malloc(sizeof(struct uc_device)*(count + 1),M_DEVL,M_WAITOK);
-    bzero(uc_devtab, sizeof(struct uc_device) * (count + 1));
+    uc_devtab = malloc(sizeof(struct uc_device) * (count + 1), M_DEVL,
+	M_WAITOK | M_ZERO);
     dt = 0;
     for (i = 0; i < count; i++) {
 	name = resource_query_name(i);

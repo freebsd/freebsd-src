@@ -86,10 +86,10 @@ ppbus_add_child(device_t dev, int order, const char *name, int unit)
 	device_t child;
         
 	/* allocate ivars for the new ppbus child */
-	ppbdev = malloc(sizeof(struct ppb_device), M_PPBUSDEV, M_NOWAIT);
+	ppbdev = malloc(sizeof(struct ppb_device), M_PPBUSDEV,
+		M_NOWAIT | M_ZERO);
 	if (!ppbdev)
 		return NULL;
-	bzero(ppbdev, sizeof *ppbdev);
 
 	/* initialize the ivars */
 	ppbdev->name = name;

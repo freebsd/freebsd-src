@@ -635,13 +635,12 @@ static int stlattach(struct isa_device *idp)
 
 	idp->id_ointr = stlintr;
 
-	brdp = (stlbrd_t *) malloc(sizeof(stlbrd_t), M_TTYS, M_NOWAIT);
+	brdp = (stlbrd_t *) malloc(sizeof(stlbrd_t), M_TTYS, M_NOWAIT | M_ZERO);
 	if (brdp == (stlbrd_t *) NULL) {
 		printf("STALLION: failed to allocate memory (size=%d)\n",
 			sizeof(stlbrd_t));
 		return(0);
 	}
-	bzero(brdp, sizeof(stlbrd_t));
 
 	if ((brdp->brdnr = stl_findfreeunit()) < 0) {
 		printf("STALLION: too many boards found, max=%d\n",
@@ -707,13 +706,12 @@ void stlpciattach(pcici_t tag, int unit)
 	printf("stlpciattach(tag=%x,unit=%x)\n", (int) &tag, unit);
 #endif
 
-	brdp = (stlbrd_t *) malloc(sizeof(stlbrd_t), M_TTYS, M_NOWAIT);
+	brdp = (stlbrd_t *) malloc(sizeof(stlbrd_t), M_TTYS, M_NOWAIT | M_ZERO);
 	if (brdp == (stlbrd_t *) NULL) {
 		printf("STALLION: failed to allocate memory (size=%d)\n",
 			sizeof(stlbrd_t));
 		return;
 	}
-	bzero(brdp, sizeof(stlbrd_t));
 
 	if ((unit < 0) || (unit > STL_MAXBRDS)) {
 		printf("STALLION: bad PCI board unit number=%d\n", unit);
@@ -2596,13 +2594,12 @@ static int stl_initports(stlbrd_t *brdp, stlpanel_t *panelp)
 		if ((chipmask & (0x1 << (i / 4))) == 0)
 			continue;
 		portp = (stlport_t *) malloc(sizeof(stlport_t), M_TTYS,
-			M_NOWAIT);
+			M_NOWAIT | M_ZERO);
 		if (portp == (stlport_t *) NULL) {
 			printf("STALLION: failed to allocate port memory "
 				"(size=%d)\n", sizeof(stlport_t));
 			break;
 		}
-		bzero(portp, sizeof(stlport_t));
 
 		portp->portnr = i;
 		portp->brdnr = panelp->brdnr;
@@ -2701,13 +2698,13 @@ static int stl_initeio(stlbrd_t *brdp)
 	outb(brdp->ioctrl, (stl_vecmap[brdp->irq] |
 		((brdp->irqtype) ? EIO_INTLEVEL : EIO_INTEDGE)));
 
-	panelp = (stlpanel_t *) malloc(sizeof(stlpanel_t), M_TTYS, M_NOWAIT);
+	panelp = (stlpanel_t *) malloc(sizeof(stlpanel_t), M_TTYS,
+		M_NOWAIT | M_ZERO);
 	if (panelp == (stlpanel_t *) NULL) {
 		printf("STALLION: failed to allocate memory (size=%d)\n",
 			sizeof(stlpanel_t));
 		return(ENOMEM);
 	}
-	bzero(panelp, sizeof(stlpanel_t));
 
 	panelp->brdnr = brdp->brdnr;
 	panelp->panelnr = 0;
@@ -2803,13 +2800,12 @@ static int stl_initech(stlbrd_t *brdp)
 		if ((status & ECH_PNLIDMASK) != nxtid)
 			break;
 		panelp = (stlpanel_t *) malloc(sizeof(stlpanel_t), M_TTYS,
-			M_NOWAIT);
+			M_NOWAIT | M_ZERO);
 		if (panelp == (stlpanel_t *) NULL) {
 			printf("STALLION: failed to allocate memory"
 				"(size=%d)\n", sizeof(stlpanel_t));
 			break;
 		}
-		bzero(panelp, sizeof(stlpanel_t));
 		panelp->brdnr = brdp->brdnr;
 		panelp->panelnr = panelnr;
 		panelp->iobase = ioaddr;

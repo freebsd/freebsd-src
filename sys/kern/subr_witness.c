@@ -599,9 +599,9 @@ mtx_init(struct mtx *m, const char *t, int flag)
 #endif
 
 		/* XXX - should not use DEVBUF */
-		debug = malloc(sizeof(struct mtx_debug), M_DEVBUF, M_NOWAIT);
+		debug = malloc(sizeof(struct mtx_debug), M_DEVBUF,
+		    M_NOWAIT | M_ZERO);
 		MPASS(debug != NULL);
-		bzero(debug, sizeof(struct mtx_debug));
 	}
 #endif
 	bzero((void *)m, sizeof *m);

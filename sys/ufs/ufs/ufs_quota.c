@@ -773,8 +773,8 @@ dqget(vp, id, ump, type, dqp)
 	    numdquot < MAXQUOTAS * desiredvnodes)
 		desireddquot += DQUOTINC;
 	if (numdquot < desireddquot) {
-		dq = (struct dquot *)malloc(sizeof *dq, M_DQUOT, M_WAITOK);
-		bzero((char *)dq, sizeof *dq);
+		dq = (struct dquot *)malloc(sizeof *dq, M_DQUOT,
+		    M_WAITOK | M_ZERO);
 		numdquot++;
 	} else {
 		if ((dq = dqfreelist.tqh_first) == NULL) {

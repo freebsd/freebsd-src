@@ -152,9 +152,7 @@ blist_create(daddr_t blocks)
 		skip = (skip + 1) << BLIST_META_RADIX_SHIFT;
 	}
 
-	bl = malloc(sizeof(struct blist), M_SWAP, M_WAITOK);
-
-	bzero(bl, sizeof(*bl));
+	bl = malloc(sizeof(struct blist), M_SWAP, M_WAITOK | M_ZERO);
 
 	bl->bl_blocks = blocks;
 	bl->bl_radix = radix;

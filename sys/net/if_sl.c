@@ -251,8 +251,7 @@ slcreate()
 	int unit;
 	struct mbuf *m;
 
-	MALLOC(sc, struct sl_softc *, sizeof(*sc), M_SL, M_WAITOK);
-	bzero(sc, sizeof *sc);
+	MALLOC(sc, struct sl_softc *, sizeof(*sc), M_SL, M_WAITOK | M_ZERO);
 
 	m = m_gethdr(M_WAIT, MT_DATA);
 	if (m != NULL) {

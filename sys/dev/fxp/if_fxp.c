@@ -587,15 +587,14 @@ fxp_attach_common(sc, enaddr)
 	DELAY(10);
 
 	sc->cbl_base = malloc(sizeof(struct fxp_cb_tx) * FXP_NTXCB,
-	    M_DEVBUF, M_NOWAIT);
+	    M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (sc->cbl_base == NULL)
 		goto fail;
-	bzero(sc->cbl_base, sizeof(struct fxp_cb_tx) * FXP_NTXCB);
 
-	sc->fxp_stats = malloc(sizeof(struct fxp_stats), M_DEVBUF, M_NOWAIT);
+	sc->fxp_stats = malloc(sizeof(struct fxp_stats), M_DEVBUF,
+	    M_NOWAIT | M_ZERO);
 	if (sc->fxp_stats == NULL)
 		goto fail;
-	bzero(sc->fxp_stats, sizeof(struct fxp_stats));
 
 	sc->mcsp = malloc(sizeof(struct fxp_cb_mcs), M_DEVBUF, M_NOWAIT);
 	if (sc->mcsp == NULL)

@@ -60,10 +60,9 @@ ipx_pcballoc(so, head, p)
 {
 	register struct ipxpcb *ipxp;
 
-	MALLOC(ipxp, struct ipxpcb *, sizeof *ipxp, M_PCB, M_NOWAIT);
+	MALLOC(ipxp, struct ipxpcb *, sizeof *ipxp, M_PCB, M_NOWAIT | M_ZERO);
 	if (ipxp == NULL)
 		return (ENOBUFS);
-	bzero(ipxp, sizeof *ipxp);
 	ipxp->ipxp_socket = so;
 	if (ipxcksum)
 		ipxp->ipxp_flags |= IPXP_CHECKSUM;

@@ -598,8 +598,8 @@ ccdinterleave(cs, unit)
 	 * Chances are this is too big, but we don't care.
 	 */
 	size = (cs->sc_nccdisks + 1) * sizeof(struct ccdiinfo);
-	cs->sc_itable = (struct ccdiinfo *)malloc(size, M_DEVBUF, M_WAITOK);
-	bzero((caddr_t)cs->sc_itable, size);
+	cs->sc_itable = (struct ccdiinfo *)malloc(size, M_DEVBUF,
+	    M_WAITOK | M_ZERO);
 
 	/*
 	 * Trivial case: no interleave (actually interleave of disk size).

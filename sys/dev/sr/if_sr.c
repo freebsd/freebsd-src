@@ -659,10 +659,10 @@ srattach_isa(struct isa_device *id)
 	 * Allocate the software interface table(s)
 	 */
 	MALLOC(hc->sc, struct sr_softc *,
-		hc->numports * sizeof(struct sr_softc), M_DEVBUF, M_WAITOK);
+		hc->numports * sizeof(struct sr_softc),
+		M_DEVBUF, M_WAITOK | M_ZERO);
 	if (hc->sc == NULL)
 		return(0);
-	bzero(hc->sc, hc->numports * sizeof(struct sr_softc));
 
 	id->id_ointr = srintr;
 
@@ -768,18 +768,16 @@ srattach_pci(int unit, vm_offset_t plx_vaddr, vm_offset_t sca_vaddr)
 		hc = hc->next;
 	}
 
-	MALLOC(hc, struct sr_hardc *, sizeof(*hc), M_DEVBUF, M_WAITOK);
+	MALLOC(hc, struct sr_hardc *, sizeof(*hc), M_DEVBUF, M_WAITOK | M_ZERO);
 	if (hc == NULL)
 		return NULL;
-	bzero(hc, sizeof(*hc));
 
-	MALLOC(hc->sc, struct sr_softc *,
-		numports * sizeof(struct sr_softc), M_DEVBUF, M_WAITOK);
+	MALLOC(hc->sc, struct sr_softc *, numports * sizeof(struct sr_softc),
+		M_DEVBUF, M_WAITOK | M_ZERO);
 	if (hc->sc == NULL) {
 		FREE(hc, M_DEVBUF);
 		return NULL;
 	}
-	bzero(hc->sc, numports * sizeof(struct sr_softc));
 	*hcp = hc;
 
 	hc->numports = numports;
@@ -3188,12 +3186,11 @@ ngsr_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
 			    int pos = 0;
 			    int resplen = sizeof(struct ng_mesg) + 512;
 			    MALLOC(*resp, struct ng_mesg *, resplen,
-					M_NETGRAPH, M_NOWAIT);
+					M_NETGRAPH, M_NOWAIT | M_ZERO);
 			    if (*resp == NULL) { 
 				error = ENOMEM;
 				break;
 			    }       
-			    bzero(*resp, resplen);
 			    arg = (*resp)->data;
 
 			    /*

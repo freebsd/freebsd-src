@@ -173,12 +173,11 @@ eisa_probe(device_t dev)
 
 		/* Prepare an eisa_device_node for this slot */
 		e_dev = (struct eisa_device *)malloc(sizeof(*e_dev),
-						     M_DEVBUF, M_NOWAIT);
+						     M_DEVBUF, M_NOWAIT|M_ZERO);
 		if (!e_dev) {
 			device_printf(dev, "cannot malloc eisa_device");
 			break; /* Try to attach what we have already */
 		}
-		bzero(e_dev, sizeof(*e_dev));
 
 		e_dev->id = eisa_id;
 

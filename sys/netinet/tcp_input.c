@@ -1050,10 +1050,9 @@ findpcb:
 #ifdef INET6
 		if (isipv6) {
 			MALLOC(sin6, struct sockaddr_in6 *, sizeof *sin6,
-			       M_SONAME, M_NOWAIT);
+			       M_SONAME, M_NOWAIT | M_ZERO);
 			if (sin6 == NULL)
 				goto drop;
-			bzero(sin6, sizeof(*sin6));
 			sin6->sin6_family = AF_INET6;
 			sin6->sin6_len = sizeof(*sin6);
 			sin6->sin6_addr = ip6->ip6_src;

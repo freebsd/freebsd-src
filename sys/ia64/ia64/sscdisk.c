@@ -242,8 +242,7 @@ ssccreate(int unit)
 		if (sc->unit == unit)
 			return (NULL);
 	}
-	MALLOC(sc, struct ssc_s *,sizeof(*sc), M_SSC, M_WAITOK);
-	bzero(sc, sizeof(*sc));
+	MALLOC(sc, struct ssc_s *,sizeof(*sc), M_SSC, M_WAITOK | M_ZERO);
 	LIST_INSERT_HEAD(&ssc_softc_list, sc, list);
 	sc->unit = unit;
 	bioq_init(&sc->bio_queue);
