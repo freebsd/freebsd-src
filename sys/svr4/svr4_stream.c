@@ -163,7 +163,7 @@ svr4_sendit(p, s, mp, flags)
 	struct uio ktruio;
 #endif
 
-	error = getsock(p->p_fd, s, &fp);
+	error = holdsock(p->p_fd, s, &fp);
 	if (error)
 		return (error);
 	auio.uio_iov = mp->msg_iov;
@@ -175,15 +175,20 @@ svr4_sendit(p, s, mp, flags)
 	auio.uio_resid = 0;
 	iov = mp->msg_iov;
 	for (i = 0; i < mp->msg_iovlen; i++, iov++) {
-		if ((auio.uio_resid += iov->iov_len) < 0)
+		if ((auio.uio_resid += iov->iov_len) < 0) {
+			fdrop(fp, p);
 			return (EINVAL);
+		}
 	}
 	if (mp->msg_name) {
 		error = getsockaddr(&to, mp->msg_name, mp->msg_namelen);
-		if (error)
+		if (error) {
+			fdrop(fp, p);
 			return (error);
-	} else
+		}
+	} else {
 		to = 0;
+	}
 	if (mp->msg_control) {
 		if (mp->msg_controllen < sizeof(struct cmsghdr)) {
 			error = EINVAL;
@@ -193,8 +198,9 @@ svr4_sendit(p, s, mp, flags)
 		    mp->msg_controllen, MT_CONTROL);
 		if (error)
 			goto bad;
-	} else
+	} else {
 		control = 0;
+	}
 #ifdef KTRACE
 	if (KTRPOINT(p, KTR_GENIO)) {
 		int iovlen = auio.uio_iovcnt * sizeof (struct iovec);
@@ -228,6 +234,7 @@ svr4_sendit(p, s, mp, flags)
 	}
 #endif
 bad:
+	fdrop(fp, p);
 	if (to)
 		FREE(to, M_SONAME);
 	return (error);
@@ -254,7 +261,7 @@ svr4_recvit(p, s, mp, namelenp)
 	struct uio ktruio;
 #endif
 
-	error = getsock(p->p_fd, s, &fp);
+	error = holdsock(p->p_fd, s, &fp);
 	if (error)
 		return (error);
 	auio.uio_iov = mp->msg_iov;
@@ -266,8 +273,10 @@ svr4_recvit(p, s, mp, namelenp)
 	auio.uio_resid = 0;
 	iov = mp->msg_iov;
 	for (i = 0; i < mp->msg_iovlen; i++, iov++) {
-		if ((auio.uio_resid += iov->iov_len) < 0)
+		if ((auio.uio_resid += iov->iov_len) < 0) {
+			fdrop(fp, p);
 			return (EINVAL);
+		}
 	}
 #ifdef KTRACE
 	if (KTRPOINT(p, KTR_GENIO)) {
@@ -353,6 +362,7 @@ out:
 		FREE(fromsa, M_SONAME);
 	if (control)
 		m_freem(control);
+	fdrop(fp, p);
 	return (error);
 }
 
