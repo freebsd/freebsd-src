@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.500 1999/07/31 19:15:29 jkh Exp $
+#	$Id: Makefile,v 1.501 1999/08/04 17:30:00 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -48,7 +48,7 @@ OBJFORMAT?=		elf
 
 # Uncomment this to disable the doc.1 target.  It is also an ERROR
 # to set NOPORTS and not set NODOC since docs depend on ports.
-NODOC=  YES
+#NODOC=  YES
 #NOPORTS=  YES
 # Comment the following if you want the release documentation to be
 # in English only.
