@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)time.h	8.5 (Berkeley) 5/4/95
- * $Id: time.h,v 1.15 1997/06/24 18:21:09 jhay Exp $
+ * $Id: time.h,v 1.16 1997/12/28 13:36:09 phk Exp $
  */
 
 #ifndef _SYS_TIME_H_
@@ -76,6 +76,70 @@ struct timezone {
 #define	DST_MET		4	/* Middle European dst */
 #define	DST_EET		5	/* Eastern European dst */
 #define	DST_CAN		6	/* Canada */
+
+/*
+ * Structure used to interface to the machine dependent hardware
+ * support for timekeeping.
+ *
+ * A timecounter is a binary counter which has two simple properties:
+ *    * it runs at a fixed frequency.
+ *    * must not roll over in less than (1+epsilon)/HZ
+ *
+ * get_timecount reads the counter.
+ *
+ * get_timedelta returns difference between the counter now and offset_count
+ *
+ * counter_mask removes unimplemented bits from the count value
+ *
+ * frequency should be obvious
+ *
+ * name is a short mnemonic name for this counter.
+ *
+ * cost is a measure of how long time it takes to read the counter.
+ *
+ * adjustment [PPM << 16] which means that the smallest unit of correction
+ *     you can apply amounts to 481.5 usec/year.
+ *
+ * scale_micro [2^32 * usec/tick]
+ *
+ * scale_nano_i [ns/tick]
+ *
+ * scale_nano_f [(ns/2^32)/tick]
+ *
+ * offset_count is the contents of the counter which corresponds to the
+ *     rest of the offset_* values
+ *
+ * offset_sec [s]
+ * offset_micro [usec]
+ * offset_nano [ns/2^32] is misnamed, the real unit is .23283064365...
+ *     attoseconds (10E-18) and before you ask: yes, they are in fact 
+ *     called attoseconds, it comes from "atten" for 18 in Danish/Swedish.
+ */
+
+struct timecounter;
+typedef u_int timecounter_get_t __P((struct timecounter *));
+typedef	u_int64_t timecounter_delta_t __P((void));
+
+struct timecounter {
+	/* These fields must be initialized by the driver */
+	timecounter_get_t	*get_timedelta;
+	timecounter_delta_t	*get_timecount;
+	u_int64_t		counter_mask;
+	u_int32_t		frequency;
+	char			*name;
+	/* These fields will be managed by the generic code */
+	int			cost;
+	int32_t			adjustment;
+	u_int32_t		scale_micro;
+	u_int32_t		scale_nano_i;
+	u_int32_t		scale_nano_f;
+	u_int64_t		offset_count;
+	u_int32_t		offset_sec;
+	u_int32_t		offset_micro;
+	u_int64_t		offset_nano;
+	struct timecounter	*other;
+	struct timecounter	*tweak;
+};
 
 /* Operations on timevals. */
 #define	timerclear(tvp)		(tvp)->tv_sec = (tvp)->tv_usec = 0
@@ -138,13 +202,19 @@ struct clockinfo {
 #define TIMER_ABSTIME	0x1	/* absolute timer */
 
 #ifdef KERNEL
+extern struct timecounter *timecounter;
+
+void	forward_timecounter __P((void));
 void	gettime __P((struct timeval *tv));
+void	init_timecounter __P((struct timecounter *));
 int	itimerfix __P((struct timeval *tv));
 int	itimerdecr __P((struct itimerval *itp, int usec));
-void	timevaladd __P((struct timeval *, struct timeval *));
-void	timevalsub __P((struct timeval *, struct timeval *));
 void	microtime __P((struct timeval *tv));
 void	nanotime __P((struct timespec *ts));
+void	second_overflow __P((u_int32_t *psec));
+void	set_timecounter __P((struct timespec *));
+void	timevaladd __P((struct timeval *, struct timeval *));
+void	timevalsub __P((struct timeval *, struct timeval *));
 #else /* !KERNEL */
 #include <time.h>
 

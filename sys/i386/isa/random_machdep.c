@@ -1,7 +1,7 @@
 /*
  * random_machdep.c -- A strong random number generator
  *
- * $Id: random_machdep.c,v 1.19 1997/10/28 15:58:13 bde Exp $
+ * $Id: random_machdep.c,v 1.20 1997/12/26 20:42:11 phk Exp $
  *
  * Version 0.95, last modified 18-Oct-95
  * 
@@ -190,21 +190,8 @@ add_timer_randomness(struct random_bucket *r, struct timer_rand_state *state,
 	u_int		nbits;
 	u_int32_t	time;
 
-#if defined(I586_CPU) || defined(I686_CPU)
-	if (tsc_freq != 0) {
-		num ^= (u_int32_t) rdtsc() << 16;
-		r->entropy_count += 2;
-	} else {
-#endif
-		disable_intr();
-		outb(TIMER_MODE, TIMER_SEL0 | TIMER_LATCH);
-		num ^= inb(TIMER_CNTR0) << 16;
-		num ^= inb(TIMER_CNTR0) << 24;
-		enable_intr();
-		r->entropy_count += 2;
-#if defined(I586_CPU) || defined(I686_CPU)
-	}
-#endif
+	num ^= timecounter->get_timecount() << 16;
+	r->entropy_count += 2;
 		
 	time = ticks;
 
