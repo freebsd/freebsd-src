@@ -648,6 +648,7 @@ ffs_mountfs(devvp, mp, p, malloctype)
 	ump = malloc(sizeof *ump, M_UFSMNT, M_WAITOK);
 	bzero((caddr_t)ump, sizeof *ump);
 	ump->um_malloctype = malloctype;
+	ump->um_i_effnlink_valid = 1;
 	ump->um_fs = malloc((u_long)fs->fs_sbsize, M_UFSMNT,
 	    M_WAITOK);
 	ump->um_blkatoff = ffs_blkatoff;
