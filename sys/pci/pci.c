@@ -879,7 +879,7 @@ pci_compat_probe(device_t dev)
 		if (name) {
 			device_set_desc_copy(dev, name);
 			/* Allow newbus drivers to match "better" */
-			error = -1000;
+			error = -200;
 		}
 	}
 
