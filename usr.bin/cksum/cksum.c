@@ -32,6 +32,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ *	$Id$
  */
 
 #ifndef lint
@@ -46,15 +48,16 @@ static char sccsid[] = "@(#)cksum.c	8.1 (Berkeley) 6/6/93";
 
 #include <sys/cdefs.h>
 #include <sys/types.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <stdio.h>
+#include <err.h>
 #include <errno.h>
+#include <fcntl.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include "extern.h"
 
-void usage __P((void));
+static void usage __P((void));
 
 int
 main(argc, argv)
@@ -80,8 +83,7 @@ main(argc, argv)
 				cfncn = csum2;
 				pfncn = psum2;
 			} else {
-				(void)fprintf(stderr,
-				    "cksum: illegal argument to -o option\n");
+				warnx("illegal argument to -o option");
 				usage();
 			}
 			break;
@@ -99,15 +101,13 @@ main(argc, argv)
 		if (*argv) {
 			fn = *argv++;
 			if ((fd = open(fn, O_RDONLY, 0)) < 0) {
-				(void)fprintf(stderr, "cksum: %s: %s\n",
-				    fn, strerror(errno));
+				warn("%s", fn);
 				rval = 1;
 				continue;
 			}
 		}
 		if (cfncn(fd, &val, &len)) {
-			(void)fprintf(stderr, "cksum: %s: %s\n",
-			    fn ? fn : "stdin", strerror(errno));
+			warn("%s", fn ? fn : "stdin");
 			rval = 1;
 		} else
 			pfncn(fn, val, len);
@@ -116,7 +116,7 @@ main(argc, argv)
 	exit(rval);
 }
 
-void
+static void
 usage()
 {
 	(void)fprintf(stderr, "usage: cksum [-o 1 | 2] [file ...]\n");
