@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: machdep.c,v 1.17 1998/10/14 10:08:35 peter Exp $
+ *	$Id: machdep.c,v 1.18 1998/10/15 22:00:54 dfr Exp $
  */
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -1387,15 +1387,6 @@ void
 cpu_halt(void)
 {
 	alpha_pal_halt();
-}
-
-/*
- * Turn the power off.
- */
-void
-cpu_power_down(void)
-{
-	alpha_pal_halt();	/* XXX */
 }
 
 /*
