@@ -1,6 +1,9 @@
 #
 # $FreeBSD$
 #
+#Line starting with #PicoBSD contains PicoBSD build parameters
+#marker                def_sz  init    MFS_inodes      floppy_inodes
+#PicoBSD       2200    init    4096            32768
 
 machine		i386
 cpu		I386_CPU
@@ -14,7 +17,7 @@ options		MATH_EMULATE		#Support for x87 emulation
 options		INET			#InterNETworking
 options		FFS			#Berkeley Fast Filesystem
 options		FFS_ROOT		#FFS usable as root device [keep this!]
-options		NFS			#Network Filesystem
+options		NFS_NOSERVER		#Network Filesystem
 options		MFS			#Memory Filesystem
 options		MD_ROOT			#MFS as root
 options		MSDOSFS			#MSDOS Filesystem
@@ -32,28 +35,24 @@ options		PCI_QUIET
 #options	DUMMYNET
 #options	BRIDGE
 
-controller	isa0
-controller	pci0
+device	isa0
+device	pci0
 
-controller	fdc0	at isa? port IO_FD1 irq 6 drq 2
+device	fdc0	at isa? port IO_FD1 irq 6 drq 2
 device		fd0	at fdc0 drive 0
 #device		fd1	at fdc0 drive 1
 
-controller	wdc0	at isa? port IO_WD1 irq 14
-device		wd0	at wdc0 drive 0
-device		wd1	at wdc0 drive 1
+device  ata0    at isa? port IO_WD1 irq 14
+device  ata1    at isa? port IO_WD2 irq 15
+device          atadisk
+device          atapicd                 
+options         ATA_STATIC_ID           #Static device numbering
 
-controller	wdc1	at isa? port IO_WD2 irq 15
-device		wd2	at wdc1 drive 0
-device		wd3	at wdc1 drive 1
-
-device		wcd0	#IDE CD-ROM
-
-# atkbdc0 controlls both the keyboard and the PS/2 mouse
-controller	atkbdc0	at isa? port IO_KBD
+# atkbdc0 controls both the keyboard and the PS/2 mouse
+device	atkbdc0	at isa? port IO_KBD
 device		atkbd0	at atkbdc? irq 1
 
-device		vga0	at isa? port ? conflicts
+device		vga0	at isa? conflicts
 
 # syscons is the default console driver, resembling an SCO console
 device		sc0	at isa?
@@ -66,7 +65,7 @@ device		sio2	at isa? disable port IO_COM3 irq 5
 device		sio3	at isa? disable port IO_COM4 irq 9
 
 device		ppc0	at isa? port? flags 0x40 irq 7
-controller	ppbus0
+device	ppbus0
 device		lpt0	at ppbus?
 device		plip0	at ppbus?       
 device		ppi0	at ppbus?       
