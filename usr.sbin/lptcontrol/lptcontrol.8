@@ -11,7 +11,7 @@
 .\"    documentation and/or other materials provided with the distribution.
 .\"
 .\"
-.\" $Id: lptcontrol.8,v 1.7 1998/03/23 08:23:49 charnier Exp $
+.\" $Id: lptcontrol.8,v 1.8 1999/02/14 12:23:49 nsouch Exp $
 .Dd September 3, 1994
 .Dt LPTCONTROL 8
 .Os FreeBSD 2
@@ -25,6 +25,8 @@
 .Cm -p
 |
 .Cm -e
+|
+.Cm -s
 .Op Fl d Ar device
 .Sh DESCRIPTION
 The
@@ -48,6 +50,8 @@ Turn on interrupt-driven mode.
 Turn on polled mode.
 .It Fl e
 Turn on extended mode.
+.It Fl s
+Turn on standard mode, i.e. turn off extended mode.
 .It Fl d Ar dev
 Set the mode of the printer device specified by
 .Em dev .
