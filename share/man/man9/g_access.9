@@ -29,7 +29,7 @@
 .Os
 .Sh NAME
 .Nm g_access
-.Nd "control access count between given consumer and its provider"
+.Nd "control access to GEOM consumers and their providers"
 .Sh SYNOPSIS
 .In geom/geom.h
 .Ft int
@@ -37,26 +37,29 @@
 .Sh DESCRIPTION
 The
 .Fn g_access
-function allows to open/change access to/close the provider which is
-attached to the given consumer
+function allows to open, close, and generally change access to the provider
+which is attached to the given consumer
 .Fa cp .
-Arguments
+The arguments
 .Fa dcr ,
 .Fa dcw ,
+and
 .Fa dce
-stand for read, write and exclusive access count change.
-Read and write access are self explanatory.
-Exclusive access count prevents others write access.
-Provider's access count is the sum of all attached consumers counts.
-After attaching to the provider with
-.Fn g_attach
-function, one have to use
-.Fn g_access
-function before starting I/O requests.
-.Sh RESTRICTIONS/CONDITIONS
-The consumer must be attached.
+represent relative read, write, and exclusive access count changes.
+Read and write access counts are self explanatory, and
+exclusive access counts deny write access to other interested parties.
+A provider's access count is the sum of the access counts of all
+attached consumers.
 .Pp
-Change cannot result in negative access count.
+After attaching a consumer to a provider with
+.Fn g_attach ,
+the
+.Fn g_access
+function has to be called on the consumer before starting I/O requests.
+.Sh RESTRICTIONS/CONDITIONS
+The consumer has to be attached to a provider.
+.Pp
+The intended change must not result in a negative access count.
 .Pp
 No\-operation is not permitted
 .Fa ( dcr
@@ -67,17 +70,18 @@ No\-operation is not permitted
 =
 .Va 0 ) .
 .Pp
-Access method for provider's geom have to be defined (eg. gp->access).
+The provider's geom must have an access method defined (eg. gp->access).
 .Pp
-The topology lock must be held.
+The topology lock has to be held.
 .Sh RETURN VALUES
-.Fn g_attach
-returns the value 0 if successful; otherwise an error code is returned.
-Note, that
+The
 .Fn g_access
-function cannot failed when arguments
+function returns 0 if successful; otherwise an error code is returned.
+Note that
+.Fn g_access
+cannot fail when the arguments
 .Fa dcr ,
-.Fa dcw
+.Fa dcw ,
 and
 .Fa dce
 are less than or equal to 0.
@@ -85,17 +89,17 @@ are less than or equal to 0.
 Possible errors:
 .Bl -tag -width Er
 .It Bq Er EPERM
-The function is trying to open with exclusive access count, but provider
-is already open for writting.
+The function is trying to open a provider with an exclusive access count, but
+it is already open for writing.
 .It Bq Er EPERM
-The function is trying to open for write, but provider is already exclusively
-open.
+The function is trying to open a provider for writing, but it is already
+exclusively open.
 .El
 .Pp
-Any other error, than can be returned by provider's access method.
+Any other error that can be returned by the provider's access method.
 .Sh EXAMPLES
-Create consumer, attach it to given provider, gain read access and read first
-sector.
+Create a consumer, attach it to a given provider, gain read access and
+read first sector.
 .Bd -literal -offset indent
 void
 some_function(struct g_geom *mygeom, struct g_provider *pp)
@@ -123,7 +127,7 @@ some_function(struct g_geom *mygeom, struct g_provider *pp)
 	}
 
 	/*
-	 * Don't hold toplogy lock while reading.
+	 * Don't hold topology lock while reading.
 	 */
 	g_topology_unlock();
 	ptr = g_read_data(cp, 0, pp->sectorsize, &error);
