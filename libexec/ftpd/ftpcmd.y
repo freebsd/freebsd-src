@@ -1193,6 +1193,7 @@ getline(s, n, iop)
 {
 	int c;
 	register char *cs;
+	sigset_t sset, osset;
 
 	cs = s;
 /* tmpline may contain saved command from urgent mode interruption */
@@ -1208,21 +1209,28 @@ getline(s, n, iop)
 		if (c == 0)
 			tmpline[0] = '\0';
 	}
+	/* SIGURG would interrupt stdio if not blocked during the read loop */
+	sigemptyset(&sset);
+	sigaddset(&sset, SIGURG);
+	sigprocmask(SIG_BLOCK, &sset, &osset);
 	while ((c = getc(iop)) != EOF) {
 		c &= 0377;
 		if (c == IAC) {
-		    if ((c = getc(iop)) != EOF) {
+			if ((c = getc(iop)) == EOF)
+				goto got_eof;
 			c &= 0377;
 			switch (c) {
 			case WILL:
 			case WONT:
-				c = getc(iop);
+				if ((c = getc(iop)) == EOF)
+					goto got_eof;
 				printf("%c%c%c", IAC, DONT, 0377&c);
 				(void) fflush(stdout);
 				continue;
 			case DO:
 			case DONT:
-				c = getc(iop);
+				if ((c = getc(iop)) == EOF)
+					goto got_eof;
 				printf("%c%c%c", IAC, WONT, 0377&c);
 				(void) fflush(stdout);
 				continue;
@@ -1231,12 +1239,13 @@ getline(s, n, iop)
 			default:
 				continue;	/* ignore command */
 			}
-		    }
 		}
 		*cs++ = c;
 		if (--n <= 0 || c == '\n')
 			break;
 	}
+got_eof:
+	sigprocmask(SIG_SETMASK, &osset, NULL);
 	if (c == EOF && cs == s)
 		return (NULL);
 	*cs++ = '\0';
