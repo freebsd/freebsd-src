@@ -44,6 +44,9 @@
  */
 
 ENTRY(setjmp, 1)
+	mov	ret0=r0
+	br.ret.sptk.few rp
+
 #if 0
 	LDGP(pv)
 	stq	ra, (2 * 8)(a0)			/* sc_pc = return address */
