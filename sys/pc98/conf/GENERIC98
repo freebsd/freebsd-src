@@ -122,6 +122,9 @@ controller bs0 at isa? port IO_SCSI bio irq 5 drq 3 flags 0
 # Logitec LHA-20x
 #controller bs0 at isa? port IO_SCSI bio irq 5 drq 3 flags 0x50000
 
+# PC-9801-100
+controller	aic0	at isa? port 0x1840 cam irq 5 flags 0x10000
+
 # SCSI peripherals
 # Only one of each of these is needed, they are dynamically allocated.
 controller	scbus0		# SCSI bus (required)

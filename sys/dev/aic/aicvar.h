@@ -93,6 +93,9 @@ struct aic_softc {
 
 	struct aic_tinfo	tinfo[8];
 	struct aic_scb		scbs[256];
+#ifdef PC98
+	bus_addr_t		*bsh_iat;
+#endif
 };
 
 #define	AIC_DISC_ENABLE		0x01
@@ -117,6 +120,44 @@ struct aic_softc {
 #define	AIC_SYNC_PERIOD		(200 / 4)
 #define	AIC_SYNC_OFFSET		8
 
+#ifdef PC98
+#define	AIC98_GENERIC		0x00
+#define	AIC98_NEC100		0x01
+
+#define	AIC_TYPE98(x)		(((x) >> 16) & 0xff)
+
+#define	aic_inb(aic, port) \
+	bus_space_read_1((aic)->tag, (aic)->bsh, (aic)->bsh_iat[(port)])
+
+#define	aic_outb(aic, port, value) \
+	bus_space_write_1((aic)->tag, (aic)->bsh, (aic)->bsh_iat[(port)], \
+		(value))
+
+#define	aic_insb(aic, port, addr, count) \
+	bus_space_read_multi_1((aic)->tag, (aic)->bsh, \
+		(aic)->bsh_iat[(port)], (addr), (count))
+
+#define	aic_outsb(aic, port, addr, count) \
+	bus_space_write_multi_1((aic)->tag, (aic)->bsh, \
+		(aic)->bsh_iat[(port)], (addr), (count))
+
+#define	aic_insw(aic, port, addr, count) \
+	bus_space_read_multi_2((aic)->tag, (aic)->bsh, \
+		(aic)->bsh_iat[(port)], (u_int16_t *)(addr), (count))
+
+#define	aic_outsw(aic, port, addr, count) \
+	bus_space_write_multi_2((aic)->tag, (aic)->bsh, \
+		(aic)->bsh_iat[(port)], (u_int16_t *)(addr), (count))
+
+#define	aic_insl(aic, port, addr, count) \
+	bus_space_read_multi_4((aic)->tag, (aic)->bsh, \
+		(aic)->bsh_iat[(port)], (u_int32_t *)(addr), (count))
+
+#define	aic_outsl(aic, port, addr, count) \
+	bus_space_write_multi_4((aic)->tag, (aic)->bsh, \
+		(aic)->bsh_iat[(port)], (u_int32_t *)(addr), (count))
+
+#else	/* !PC98 */
 #define	aic_inb(aic, port) \
 	bus_space_read_1((aic)->tag, (aic)->bsh, (port))
 
@@ -144,6 +185,7 @@ struct aic_softc {
 #define	aic_outsl(aic, port, addr, count) \
 	bus_space_write_multi_4((aic)->tag, (aic)->bsh, (port), \
 		(u_int32_t *)(addr), (count))
+#endif	/* PC98 */
 
 extern int aic_probe __P((struct aic_softc *));
 extern int aic_attach __P((struct aic_softc *));
