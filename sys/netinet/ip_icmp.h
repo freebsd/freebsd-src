@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_icmp.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: ip_icmp.h,v 1.2 1994/08/02 07:48:35 davidg Exp $
  */
+
+#ifndef _NETINET_IP_ICMP_H_
+#define _NETINET_IP_ICMP_H_
 
 /*
  * Interface Control Message Protocol Definitions.
@@ -158,4 +161,6 @@ void	icmp_input __P((struct mbuf *, int));
 void	icmp_reflect __P((struct mbuf *));
 void	icmp_send __P((struct mbuf *, struct mbuf *));
 int	icmp_sysctl __P((int *, u_int, void *, size_t *, void *, size_t));
+#endif
+
 #endif

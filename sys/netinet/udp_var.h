@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)udp_var.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: udp_var.h,v 1.2 1994/08/02 07:49:26 davidg Exp $
  */
+
+#ifndef _NETINET_UDP_VAR_H_
+#define _NETINET_UDP_VAR_H_
 
 /*
  * UDP kernel structures and variables.
@@ -90,4 +93,6 @@ int	 udp_output __P((struct inpcb *,
 int	 udp_sysctl __P((int *, u_int, void *, size_t *, void *, size_t));
 int	 udp_usrreq __P((struct socket *,
 	    int, struct mbuf *, struct mbuf *, struct mbuf *));
+#endif
+
 #endif

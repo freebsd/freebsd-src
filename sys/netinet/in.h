@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)in.h	8.3 (Berkeley) 1/3/94
- * $Id$
+ * $Id: in.h,v 1.2 1994/08/02 07:48:14 davidg Exp $
  */
+
+#ifndef _NETINET_IN_H_
+#define _NETINET_IN_H_
 
 /*
  * Constants and structures defined by the internet system,
@@ -236,4 +239,6 @@ int	 in_cksum __P((struct mbuf *, int));
 int	 in_localaddr __P((struct in_addr));
 u_long	 in_netof __P((struct in_addr));
 void	 in_socktrim __P((struct sockaddr_in *));
+#endif
+
 #endif

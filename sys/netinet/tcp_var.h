@@ -31,9 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_var.h	8.3 (Berkeley) 4/10/94
- * $Id$
+ * $Id: tcp_var.h,v 1.2 1994/08/02 07:49:17 davidg Exp $
  */
 
+#ifndef _NETINET_TCP_VAR_H_
+#define _NETINET_TCP_VAR_H_
 /*
  * Kernel variables for tcp.
  */
@@ -276,4 +278,6 @@ struct tcpcb *
 int	 tcp_usrreq __P((struct socket *,
 	    int, struct mbuf *, struct mbuf *, struct mbuf *));
 void	 tcp_xmit_timer __P((struct tcpcb *, int));
+#endif
+
 #endif
