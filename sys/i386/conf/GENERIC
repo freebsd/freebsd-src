@@ -95,15 +95,15 @@ device		wst0		#IDE Tape (e.g. Travan)
 #options 	ATA_ENABLE_ATAPI_DMA	#Enable DMA on ATAPI devices
 
 # SCSI Controllers
-# A single entry for any of these controllers (ncr, ahb, ahc) is
+# A single entry for any of these controllers (ahb, ahc, amd, ncr, etc...) is
 # sufficient for any number of installed devices.
-controller	ncr0		# NCR/Symbios Logic
-#controller	sym0		# NCR/Symbios Logic (do not mix with ncr, it conflicts)
 controller	ahb0		# EISA AHA1742 family
 controller	ahc0		# AHA2940 and onboard AIC7xxx devices
 controller	amd0		# AMD 53C974 (Teckram DC-390(T))
-controller	isp0		# Qlogic family
 controller	dpt0		# DPT Smartcache - See LINT for options!
+controller	isp0		# Qlogic family
+controller	ncr0		# NCR/Symbios Logic
+#controller	sym0		# NCR/Symbios Logic (do not mix with ncr, it conflicts)
 
 controller	adv0	at isa? port ? irq ?
 controller	adw0
