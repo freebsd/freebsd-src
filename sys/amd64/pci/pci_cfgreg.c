@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcibus.c,v 1.33 1997/04/09 09:15:03 se Exp $
+**  $Id: pcibus.c,v 1.34 1997/04/09 09:16:27 se Exp $
 **
 **  pci bus subroutines for i386 architecture.
 **
@@ -177,7 +177,7 @@ pcibus_check (void)
 		class = pcibus_read (pcibus_tag (0,device,0), 8);
 		if (bootverbose)
 			printf ("[class=%x] ", class >> 8);
-		if (!class || (class & 0xf8f0ff00) != 0)
+		if ((class & 0xffffff00) == 0 || (class & 0xf8f0ff00) != 0)
 			continue;
 
 		header = pcibus_read (pcibus_tag (0,device,0), 12);
