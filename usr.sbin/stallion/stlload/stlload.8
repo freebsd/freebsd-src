@@ -44,7 +44,7 @@
 .Op Fl B Ar boot-banner
 .Op Fl b Ar unit-number
 .Sh DESCRIPTION
-.Nm stlload
+.Nm Stlload
 is used to download the firmware code to Stallion Technologies intelligent
 multiport serial boards.
 A firmware download is only required for those boards that use the Stallion
@@ -62,11 +62,11 @@ driver control device,
 This device implements a file type device that can read and write into the
 boards shared memory region.
 It also implements a number of special
-.Pa ioctls
+.Em ioctls
 that reset and restart the board.
 .Pp
 The options are:
-.Bl -tag -width xxxxx
+.Bl -tag -width indent
 .It Fl v
 Verbose output generation.
 Trace is generated at each phase of the download and startup process.
@@ -79,11 +79,13 @@ Reset the board only.
 Does not proceed to download firmware to the board.
 .It Fl i Ar image-file
 Specify the firmware image file to download.
-The default firmware image is /usr/libdata/stallion/cdk.sys.
+The default firmware image is
+.Pa /usr/libdata/stallion/cdk.sys .
 .It Fl c Ar control-device
 Specify the board control device through which to download the firmware
 and start up the board.
-The default is /dev/staliomem0.
+The default is
+.Pa /dev/staliomem0 .
 .It Fl r Ar rx-buf-size
 Specify the size of the boards shared memory Receive Data buffer.
 By default the buffer is dynamically sized to use the maximum
@@ -102,7 +104,7 @@ Specify the unit (board) number to be downloaded.  The default is to
 download board 0.
 .El
 .Pp
-.Nm stlload
+.Nm Stlload
 would typically be run from
 .Pa /etc/rc.serial .
 .Sh FILES
@@ -118,4 +120,5 @@ driver board control device
 .Xr stli 4 ,
 .Xr stlstats 8
 .Sh HISTORY
-This program was originally developed by Greg Ungerer (gerg@stallion.com).
+This program was originally developed by
+.An Greg Ungerer Aq gerg@stallion.com .
