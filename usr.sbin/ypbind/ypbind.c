@@ -28,7 +28,7 @@
  */
 
 #ifndef LINT
-static char rcsid[] = "$Id: ypbind.c,v 1.23 1997/02/22 16:14:56 peter Exp $";
+static char rcsid[] = "$Id: ypbind.c,v 1.24 1997/04/10 14:18:03 wpaul Exp $";
 #endif
 
 #include <sys/param.h>
@@ -61,6 +61,7 @@ static char rcsid[] = "$Id: ypbind.c,v 1.23 1997/02/22 16:14:56 peter Exp $";
 #include <rpcsvc/yp.h>
 struct dom_binding{};
 #include <rpcsvc/ypclnt.h>
+#include "yp_ping.h"
 
 #ifndef BINDINGDIR
 #define BINDINGDIR "/var/yp/binding"
@@ -121,6 +122,7 @@ int ppid;
  */
 #define RESTRICTED_SERVERS 10
 int yp_restricted = 0;
+int yp_manycast = 0;
 struct in_addr restricted_addrs[RESTRICTED_SERVERS];
 
 /* No more than MAX_CHILDREN child broadcasters at a time. */
@@ -417,6 +419,8 @@ char **argv;
 		        ypsecuremode++;
 		else if (strcmp("-S", argv[i]) == 0 && argc > i)
 			yp_restricted_mode(argv[i+1]);
+		else if (strcmp("-m", argv[i]) == 0)
+			yp_manycast++;
 	}
 
 	/* blow away everything in BINDINGDIR (if it exists) */
@@ -711,6 +715,40 @@ struct _dom_binding *ypdb;
 	}
 	close(yplockfd);
 
+	/*
+	 * Special 'many-cast' behavior. If we're in restricted mode,
+	 * we have a list of possible server addresses to try. What
+	 * we can do is transmit to each ypserv's YPPROC_DOMAIN_NONACK
+	 * procedure and time the replies. Whoever replies fastest
+	 * gets to be our server. Note that this is not a broadcast
+	 * operation: we transmit uni-cast datagrams only.
+	 */
+	if (yp_restricted && yp_manycast) {
+		short			port;
+		int			i;
+		struct sockaddr_in	sin;
+
+		i = __yp_ping(restricted_addrs, yp_restricted,
+				ypdb->dom_domain, &port);
+		if (i == -1) {
+			bzero((char *)&ypdb->dom_server_addr,
+						sizeof(struct sockaddr_in));
+			if (tell_parent(ypdb->dom_domain,
+					&ypdb->dom_server_addr))
+			syslog(LOG_WARNING, "lost connection to parent");
+		} else {
+			bzero((char *)&sin, sizeof(struct sockaddr_in));
+			bcopy((char *)&restricted_addrs[i],
+				(char *)&sin.sin_addr, sizeof(struct in_addr));
+			sin.sin_family = AF_INET;
+			sin.sin_port = port;
+			if (tell_parent(broad_domain->dom_domain, &sin))
+				syslog(LOG_WARNING,
+					"lost connection to parent");
+		}
+		_exit(0);
+	}
+
 	retries = 0;
 
 	{
@@ -729,7 +767,7 @@ struct _dom_binding *ypdb;
 			syslog(LOG_WARNING, "lost connection to parent");
 	}
 
-	exit(0);
+	_exit(0);
 }
 
 /*
@@ -981,6 +1019,6 @@ char *args;
 	/* ypset and ypsetme not allowed with restricted mode */
 	ypsetmode = YPSET_NO;
 	
-	yp_restricted = 1;
+	yp_restricted = i;
 	return;
 }
