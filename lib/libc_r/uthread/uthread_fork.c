@@ -51,7 +51,7 @@ fork(void)
 	_thread_kern_sig_block(&status);
 
 	/* Fork a new process: */
-	if ((ret = _thread_sys_fork()) <= 0) {
+	if ((ret = _thread_sys_fork()) != 0) {
 		/* Parent process or error. Nothing to do here. */
 	} else {
 		/* Close the pthread kernel pipe: */
