@@ -211,8 +211,13 @@ static u_char const char_type[] = {
 
 /*
  * list of struct tty where pstat(8) can pick it up with sysctl
+ *
+ * The lock order is to grab the list mutex before the tty mutex.
+ * Together with additions going on the tail of the list, this allows
+ * the sysctl to avoid doing retries.
  */
-static SLIST_HEAD(, tty) tty_list;
+static	TAILQ_HEAD(, tty) tty_list = TAILQ_HEAD_INITIALIZER(tty_list);
+static struct mtx tty_list_mutex;
 
 static int  drainwait = 5*60;
 SYSCTL_INT(_kern, OID_AUTO, drainwait, CTLFLAG_RW, &drainwait,
@@ -229,6 +234,7 @@ ttyopen(dev_t device, struct tty *tp)
 	s = spltty();
 	tp->t_dev = device;
 	if (!ISSET(tp->t_state, TS_ISOPEN)) {
+		ttyref(tp);
 		SET(tp->t_state, TS_ISOPEN);
 		if (ISSET(tp->t_cflag, CLOCAL))
 			SET(tp->t_state, TS_CONNECTED);
@@ -270,6 +276,7 @@ ttyclose(struct tty *tp)
 	tp->t_pgrp = NULL;
 	tp->t_session = NULL;
 	tp->t_state = 0;
+	ttyrel(tp);
 	splx(s);
 	return (0);
 }
@@ -1065,6 +1072,7 @@ ttioctl(struct tty *tp, u_long cmd, void *data, int flag)
 		tp->t_session = p->p_session;
 		tp->t_pgrp = p->p_pgrp;
 		SESS_LOCK(p->p_session);
+		ttyref(tp);		/* ttyrel(): kern_proc.c:pgdelete() */
 		p->p_session->s_ttyp = tp;
 		SESS_UNLOCK(p->p_session);
 		PROC_LOCK(p);
@@ -2631,41 +2639,96 @@ ttysleep(struct tty *tp, void *chan, int pri, char *wmesg, int timo)
 }
 
 /*
+ * Gain a reference to a TTY
+ */
+int
+ttyref(struct tty *tp)
+{
+	int i;
+	
+	mtx_lock(&tp->t_mtx);
+	KASSERT(tp->t_refcnt > 0,
+	    ("ttyref(): tty refcnt is %d (%s)",
+	    tp->t_refcnt, tp->t_dev != NULL ? devtoname(tp->t_dev) : "??"));
+	i = ++tp->t_refcnt;
+	mtx_unlock(&tp->t_mtx);
+	return (i);
+}
+
+/*
+ * Drop a reference to a TTY.
+ * When reference count drops to zero, we free it.
+ */
+int
+ttyrel(struct tty *tp)
+{
+	int i;
+	
+	mtx_lock(&tty_list_mutex);
+	mtx_lock(&tp->t_mtx);
+	KASSERT(tp->t_refcnt > 0,
+	    ("ttyrel(): tty refcnt is %d (%s)",
+	    tp->t_refcnt, tp->t_dev != NULL ? devtoname(tp->t_dev) : "??"));
+	i = --tp->t_refcnt;
+	if (i != 0) {
+		mtx_unlock(&tp->t_mtx);
+		mtx_unlock(&tty_list_mutex);
+		return (i);
+	}
+	TAILQ_REMOVE(&tty_list, tp, t_list);
+	mtx_unlock(&tp->t_mtx);
+	mtx_unlock(&tty_list_mutex);
+	mtx_destroy(&tp->t_mtx);
+	free(tp, M_TTYS);
+	return (i);
+}
+
+/*
  * Allocate a tty struct.  Clists in the struct will be allocated by
  * ttyopen().
  */
 struct tty *
 ttymalloc(struct tty *tp)
 {
+	static int once;
 
-	if (tp)
+	if (!once) {
+		mtx_init(&tty_list_mutex, "ttylist", NULL, MTX_DEF);
+		once++;
+	}
+
+	if (tp) {
+		/*
+		 * XXX: Either this argument should go away, or we should
+		 * XXX: require it and do a ttyrel(tp) here and allocate
+		 * XXX: a new tty.  For now do nothing.
+		 */
 		return(tp);
+	}
 	tp = malloc(sizeof *tp, M_TTYS, M_WAITOK | M_ZERO);
 	tp->t_timeout = -1;
-	SLIST_INSERT_HEAD(&tty_list, tp, t_list);
+	mtx_init(&tp->t_mtx, "tty", NULL, MTX_DEF);
+	tp->t_refcnt = 1;
+	mtx_lock(&tty_list_mutex);
+	TAILQ_INSERT_TAIL(&tty_list, tp, t_list);
+	mtx_unlock(&tty_list_mutex);
 	return (tp);
 }
-
-#if 0 /* XXX not yet usable: session leader holds a ref (see kern_exit.c). */
-/*
- * Free a tty struct.  Clists in the struct should have been freed by
- * ttyclose().
- */
-void
-ttyfree(struct tty *tp)
-{
-	free(tp, M_TTYS);
-}
-#endif /* 0 */
 
 static int
 sysctl_kern_ttys(SYSCTL_HANDLER_ARGS)
 {
-	struct tty *tp;
+	struct tty *tp, *tp2;
 	struct xtty xt;
 	int error;
 
-	SLIST_FOREACH(tp, &tty_list, t_list) {
+	error = 0;
+	mtx_lock(&tty_list_mutex);
+	tp = TAILQ_FIRST(&tty_list);
+	if (tp != NULL)
+		ttyref(tp);
+	mtx_unlock(&tty_list_mutex);
+	while (tp != NULL) {
 		bzero(&xt, sizeof xt);
 		xt.xt_size = sizeof xt;
 #define XT_COPY(field) xt.xt_##field = tp->t_##field
@@ -2673,14 +2736,14 @@ sysctl_kern_ttys(SYSCTL_HANDLER_ARGS)
 		xt.xt_cancc = tp->t_canq.c_cc;
 		xt.xt_outcc = tp->t_outq.c_cc;
 		XT_COPY(line);
-		if (tp->t_dev)
+		if (tp->t_dev != NULL)
 			xt.xt_dev = dev2udev(tp->t_dev);
 		XT_COPY(state);
 		XT_COPY(flags);
 		XT_COPY(timeout);
-		if (tp->t_pgrp)
+		if (tp->t_pgrp != NULL)
 			xt.xt_pgid = tp->t_pgrp->pg_id;
-		if (tp->t_session)
+		if (tp->t_session != NULL)
 			xt.xt_sid = tp->t_session->s_sid;
 		XT_COPY(termios);
 		XT_COPY(winsize);
@@ -2696,8 +2759,17 @@ sysctl_kern_ttys(SYSCTL_HANDLER_ARGS)
 		XT_COPY(ospeedwat);
 #undef XT_COPY
 		error = SYSCTL_OUT(req, &xt, sizeof xt);
-		if (error)
+		if (error != 0) {
+			ttyrel(tp);
 			return (error);
+		}
+		mtx_lock(&tty_list_mutex);
+		tp2 = TAILQ_NEXT(tp, t_list);
+		if (tp2 != NULL)
+			ttyref(tp2);
+		mtx_unlock(&tty_list_mutex);
+		ttyrel(tp);
+		tp = tp2;
 	}
 	return (0);
 }
