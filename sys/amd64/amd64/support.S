@@ -352,12 +352,13 @@ ENTRY(casuptr)
 	ret
 
 /*
- * fu{byte,sword,word} - MP SAFE
- *
- *	Fetch a byte (sword, word) from user memory
- *	%rdi
+ * Fetch (load) a 64-bit word, a 32-bit word, a 16-bit word, or an 8-bit
+ * byte from user memory.  All these functions are MPSAFE.
+ * addr = %rdi
  */
-ENTRY(fuword64)
+
+ALTENTRY(fuword64)
+ENTRY(fuword)
 	movq	PCPU(CURPCB),%rcx
 	movq	$fusufault,PCB_ONFAULT(%rcx)
 
@@ -368,9 +369,6 @@ ENTRY(fuword64)
 	movq	(%rdi),%rax
 	movq	$0,PCB_ONFAULT(%rcx)
 	ret
-
-ENTRY(fuword)
-	jmp	fuword64
 
 ENTRY(fuword32)
 	movq	PCPU(CURPCB),%rcx
@@ -385,9 +383,10 @@ ENTRY(fuword32)
 	ret
 
 /*
- * These two routines are called from the profiling code, potentially
- * at interrupt time. If they fail, that's okay, good things will
- * happen later. Fail all the time for now - until the trap code is
+ * fuswintr() and suswintr() are specialized variants of fuword16() and
+ * suword16(), respectively.  They are called from the profiling code,
+ * potentially at interrupt time.  If they fail, that's okay; good things
+ * will happen later.  They always fail for now, until the trap code is
  * able to deal with this.
  */
 ALTENTRY(suswintr)
@@ -395,9 +394,6 @@ ENTRY(fuswintr)
 	movq	$-1,%rax
 	ret
 
-/*
- * fuword16 - MP SAFE
- */
 ENTRY(fuword16)
 	movq	PCPU(CURPCB),%rcx
 	movq	$fusufault,PCB_ONFAULT(%rcx)
@@ -410,9 +406,6 @@ ENTRY(fuword16)
 	movq	$0,PCB_ONFAULT(%rcx)
 	ret
 
-/*
- * fubyte - MP SAFE
- */
 ENTRY(fubyte)
 	movq	PCPU(CURPCB),%rcx
 	movq	$fusufault,PCB_ONFAULT(%rcx)
@@ -434,12 +427,12 @@ fusufault:
 	ret
 
 /*
- * su{byte,sword,word} - MP SAFE
- *
- *	Write a byte (word, longword) to user memory
- * addr = %rdi,  value = %rsi
+ * Store a 64-bit word, a 32-bit word, a 16-bit word, or an 8-bit byte to
+ * user memory.  All these functions are MPSAFE.
+ * addr = %rdi, value = %rsi
  */
-ENTRY(suword64)
+ALTENTRY(suword64)
+ENTRY(suword)
 	movq	PCPU(CURPCB),%rcx
 	movq	$fusufault,PCB_ONFAULT(%rcx)
 
@@ -452,9 +445,6 @@ ENTRY(suword64)
 	movq	PCPU(CURPCB),%rcx
 	movq	%rax,PCB_ONFAULT(%rcx)
 	ret
-
-ENTRY(suword)
-	jmp	suword64
 
 ENTRY(suword32)
 	movq	PCPU(CURPCB),%rcx
@@ -470,9 +460,6 @@ ENTRY(suword32)
 	movq	%rax,PCB_ONFAULT(%rcx)
 	ret
 
-/*
- * suword16 - MP SAFE
- */
 ENTRY(suword16)
 	movq	PCPU(CURPCB),%rcx
 	movq	$fusufault,PCB_ONFAULT(%rcx)
@@ -487,9 +474,6 @@ ENTRY(suword16)
 	movq	%rax,PCB_ONFAULT(%rcx)
 	ret
 
-/*
- * subyte - MP SAFE
- */
 ENTRY(subyte)
 	movq	PCPU(CURPCB),%rcx
 	movq	$fusufault,PCB_ONFAULT(%rcx)
