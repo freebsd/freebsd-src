@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2002 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1990, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
@@ -18,7 +18,7 @@ SM_IDSTR(copyright,
      Copyright (c) 1990, 1993, 1994\n\
 	The Regents of the University of California.  All rights reserved.\n")
 
-SM_IDSTR(id, "@(#)$Id: mail.local.c,v 8.235 2001/12/30 04:59:39 gshapiro Exp $")
+SM_IDSTR(id, "@(#)$Id: mail.local.c,v 8.238 2002/03/30 07:43:21 geir Exp $")
 
 #include <stdlib.h>
 #include <sm/errstring.h>

@@ -14,9 +14,9 @@
 #include <sendmail.h>
 
 #if NAMED_BIND
-SM_RCSID("@(#)$Id: domain.c,v 8.177 2001/12/12 01:16:15 ca Exp $ (with name server)")
+SM_RCSID("@(#)$Id: domain.c,v 8.180 2002/03/05 05:47:12 gshapiro Exp $ (with name server)")
 #else /* NAMED_BIND */
-SM_RCSID("@(#)$Id: domain.c,v 8.177 2001/12/12 01:16:15 ca Exp $ (without name server)")
+SM_RCSID("@(#)$Id: domain.c,v 8.180 2002/03/05 05:47:12 gshapiro Exp $ (without name server)")
 #endif /* NAMED_BIND */
 
 #if NAMED_BIND
@@ -931,6 +931,14 @@ cnameloop:
 				*/
 
 				SM_SET_H_ERRNO(TRY_AGAIN);
+# if _FFR_DONT_STOP_LOOKING
+				if (**dp == '\0')
+				{
+					if (*statp == EX_OK)
+						*statp = EX_TEMPFAIL;
+					goto nexttype;
+				}
+# endif /* _FFR_DONT_STOP_LOOKING */
 				*statp = EX_TEMPFAIL;
 
 				if (WorkAroundBrokenAAAA)
@@ -952,6 +960,9 @@ cnameloop:
 					return false;
 			}
 
+# if _FFR_DONT_STOP_LOOKING
+nexttype:
+# endif /* _FFR_DONT_STOP_LOOKING */
 			if (h_errno != HOST_NOT_FOUND)
 			{
 				/* might have another type of interest */

@@ -5,8 +5,8 @@ This document describes how to install the sendmail configuration files.
 Please see ../README about the sendmail configuration files themselves.
 
 By default you need two .mc files: sendmail.mc and submit.mc.  The
-latter is a copy of msp.mc in which OSTYPE() has been filled in
-according to the host OS.  For the former see ../README.
+latter is an OS independent configuration file for the mail submission
+program (MSP).  See ../README for details about both files.
 
 Installation of these two files can be done via:
 
@@ -31,4 +31,4 @@ The name of the source file for "submit.cf" can be overridden by
 For more details see Makefile.
 
 
-$Revision: 1.1 $, Last updated $Date: 2001/04/26 15:43:20 $
+$Revision: 1.2 $, Last updated $Date: 2002/02/22 00:33:54 $

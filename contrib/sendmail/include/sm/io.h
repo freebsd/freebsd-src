@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2001 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2000-2002 Sendmail, Inc. and its suppliers.
  *      All rights reserved.
  * Copyright (c) 1990
  * 	 The Regents of the University of California.  All rights reserved.
@@ -11,7 +11,7 @@
  * forth in the LICENSE file which can be found at the top level of
  * the sendmail distribution.
  *
- *	$Id: io.h,v 1.19 2001/07/10 21:56:46 gshapiro Exp $
+ *	$Id: io.h,v 1.23 2002/02/23 19:32:17 gshapiro Exp $
  */
 
 /*-
@@ -46,6 +46,7 @@
 #define SM_IO_WHAT_ISTYPE	5
 #define SM_IO_IS_READABLE	6
 #define SM_IO_WHAT_TIMEOUT	7
+#define SM_IO_WHAT_SIZE		8
 
 /* info flags (exposed) */
 #define SM_IO_FTYPE_CREATE	1
@@ -111,13 +112,12 @@ struct sm_file
 	off_t		(*f_seek)  __P((SM_FILE_T *, off_t, int));
 	ssize_t		(*f_write) __P((SM_FILE_T *, const char *, size_t));
 	int		(*f_open) __P((SM_FILE_T *, const void *, int,
-				const void *));
+					const void *));
 	int		(*f_setinfo) __P((SM_FILE_T *, int , void *));
 	int		(*f_getinfo) __P((SM_FILE_T *, int , void *));
 	int		f_timeout;
 	int		f_timeoutstate;   /* either blocking or non-blocking */
 	char		*f_type;	/* for by-type lookups */
-	void		*f_self;	/* self for reference */
 	struct sm_file	*f_flushfp;	/* flush this before reading parent */
 	struct sm_file	*f_modefp;	/* sync mode with this fp */
 
@@ -129,9 +129,6 @@ struct sm_file
 	/* tricks to meet minimum requirements even when malloc() fails */
 	unsigned char	f_ubuf[3];	/* guarantee an ungetc() buffer */
 	unsigned char	f_nbuf[1];	/* guarantee a getc() buffer */
-
-	/* separate buffer for fgetln() when line crosses buffer boundary */
-	struct smbuf	f_lb;		/* buffer for fgetln() */
 
 	/* Unix stdio files get aligned to block boundaries on fseek() */
 	int		f_blksize;	/* stat.st_blksize (may be != bf.size) */
@@ -224,8 +221,7 @@ __END_DECLS
 #define SMOFF		0x004000	/* set iff offset is in fact correct */
 #define SMALC		0x010000	/* allocate string space dynamically */
 
-#define SMACCESSMASK	0x0070
-#define SMMODEMASK	0x011C
+#define SMMODEMASK	0x0070	/* read/write mode */
 
 /* defines for timeout constants */
 #define SM_TIME_IMMEDIATE	(0)

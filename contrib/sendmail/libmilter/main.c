@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 1999-2001 Sendmail, Inc. and its suppliers.
+ *  Copyright (c) 1999-2002 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -9,7 +9,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: main.c,v 8.53 2001/11/29 02:21:02 ca Exp $")
+SM_RCSID("@(#)$Id: main.c,v 8.55 2002/02/25 17:54:41 gshapiro Exp $")
 
 #define _DEFINE	1
 #include "libmilter.h"
@@ -161,7 +161,7 @@ smfi_setconn(oconn)
 **  SMFI_SETBACKLOG -- set backlog
 **
 **	Parameters:
-**		odbg -- new backlog.
+**		obacklog -- new backlog.
 **
 **	Returns:
 **		MI_SUCCESS/MI_FAILURE

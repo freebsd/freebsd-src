@@ -10,6 +10,7 @@ bldPRODUCT_START(`executable', `smrsh')
 define(`bldINSTALL_DIR', `E')
 define(`bldSOURCES', `smrsh.c ')
 bldPUSH_SMLIB(`sm')
+APPENDDEF(`confENVDEF', `-DNOT_SENDMAIL')
 bldPRODUCT_END
 
 bldPRODUCT_START(`manpage', `smrsh')

@@ -1,5 +1,5 @@
 /*
-** Copyright (c) 1999-2001 Sendmail, Inc. and its suppliers.
+** Copyright (c) 1999-2002 Sendmail, Inc. and its suppliers.
 **	All rights reserved.
 **
 ** By using this file, you agree to the terms and conditions set
@@ -8,7 +8,7 @@
 */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: smdb1.c,v 8.55 2001/09/12 21:19:12 gshapiro Exp $")
+SM_RCSID("@(#)$Id: smdb1.c,v 8.56 2002/01/21 04:10:44 gshapiro Exp $")
 
 #include <unistd.h>
 #include <stdlib.h>
@@ -434,6 +434,7 @@ smdb_db_open(database, db_name, mode, mode_mask, sff, type, user_info,
 	SMDB_USER_INFO *user_info;
 	SMDB_DBPARAMS *db_params;
 {
+	bool lockcreated = false;
 	int db_fd;
 	int lock_fd;
 	int result;
@@ -462,15 +463,21 @@ smdb_db_open(database, db_name, mode, mode_mask, sff, type, user_info,
 	if (result != SMDBE_OK)
 		return result;
 
+	if (stat_info.st_mode == ST_MODE_NOFILE &&
+	    bitset(mode, O_CREAT))
+		lockcreated = true;
+
 	lock_fd = -1;
-# if O_EXLOCK
-	mode |= O_EXLOCK;
-# else /* O_EXLOCK */
 	result = smdb_lock_file(&lock_fd, db_name, mode, sff,
 				SMDB1_FILE_EXTENSION);
 	if (result != SMDBE_OK)
 		return result;
-# endif /* O_EXLOCK */
+
+	if (lockcreated)
+	{
+		mode |= O_TRUNC;
+		mode &= ~(O_CREAT|O_EXCL);
+	}
 
 	*database = NULL;
 

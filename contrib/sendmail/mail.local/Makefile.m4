@@ -10,6 +10,7 @@ bldPRODUCT_START(`executable', `mail.local')
 define(`bldNO_INSTALL', `true')
 define(`bldSOURCES', `mail.local.c ')
 bldPUSH_SMLIB(`sm')
+APPENDDEF(`confENVDEF', `-DNOT_SENDMAIL')
 bldPRODUCT_END
 
 bldPRODUCT_START(`manpage', `mail.local')

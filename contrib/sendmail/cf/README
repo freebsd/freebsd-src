@@ -367,6 +367,9 @@ SMTP_MAILER_MAX		[undefined] The maximum size of messages that will
 SMTP_MAILER_MAXMSGS	[undefined] If defined, the maximum number of
 			messages to deliver in a single connection for the
 			smtp, smtp8, esmtp, or dsmtp mailers.
+SMTP_MAILER_MAXRCPTS	[undefined] If defined, the maximum number of
+			recipients to deliver in a single connection for the
+			smtp, smtp8, esmtp, or dsmtp mailers.
 SMTP_MAILER_ARGS	[TCP $h] The arguments passed to the smtp mailer.
 			About the only reason you would want to change this
 			would be to change the default port.
@@ -1084,6 +1087,9 @@ relay_entire_domain
 		By default, only hosts listed as RELAY in the access db
 		will be allowed to relay.  This option also allows any
 		host in your domain as defined by class {m}.
+		Notice: make sure that your domain is not just a top level
+		domain, e.g., com.  This can happen if you give your
+		host a name like example.com instead of host.example.com.
 
 relay_hosts_only
 		By default, names that are listed as RELAY in the access
@@ -1274,11 +1280,13 @@ no_default_msa	Don't generate the default MSA daemon, i.e.,
 		FEATURE and introduce new settings via DAEMON_OPTIONS().
 
 msp		Defines config file for Message Submission Program.
-		See sendmail/SECURITY for details and cf/cf/submit.mc
-		how to use it.  An optional argument can be used to
-		override the default of `localhost' to use as host to send
-		all e-mails to.  If `MSA' is specified as second argument
-		then port 587 is used to contact the server.  Example:
+		See sendmail/SECURITY for details and cf/cf/submit.mc how
+		to use it.  An optional argument can be used to override
+		the default of `[localhost]' to use as host to send all
+		e-mails to.  Note that MX records will be used if the
+		specified hostname is not in square brackets (e.g.,
+		[hostname]).  If `MSA' is specified as second argument then
+		port 587 is used to contact the server.  Example:
 
 			FEATURE(`msp', `', `MSA')
 
@@ -1297,6 +1305,9 @@ queuegroup	A simple example how to select a queue group based
 		where "main", "others", and "local" are names of
 		queue groups.  If an argument is specified, it is used
 		as default queue group.
+
+		Note: please read the warning in doc/op/op.me about
+		queue groups and possible queue manipulations.
 
 +-------+
 | HACKS |
@@ -1744,7 +1755,7 @@ CAUTION: aliases are additive so that entries like these:
 	sendmailMTAKey: bob
 	sendmailMTAAliasValue: eric
 
-	dn: sendmailMTAKey=bob, dc=sendmail, dc=org
+	dn: sendmailMTAKey=bobetrn, dc=sendmail, dc=org
 	objectClass: sendmailMTA
 	objectClass: sendmailMTAAlias
 	objectClass: sendmailMTAAliasObject
@@ -1973,19 +1984,21 @@ found, the +detail information is copied to the new address.
 
 The default <mailHost> map definition is:
 
-	ldap -1 -v mailHost -k (&(objectClass=inetLocalMailRecipient)
+	ldap -1 -T<TMPF> -v mailHost -k (&(objectClass=inetLocalMailRecipient)
 				 (mailLocalAddress=%0))
 
 The default <mailRoutingAddress> map definition is:
 
-	ldap -1 -v mailRoutingAddress -k (&(objectClass=inetLocalMailRecipient)
-					   (mailLocalAddress=%0))
+	ldap -1 -T<TMPF> -v mailRoutingAddress
+			 -k (&(objectClass=inetLocalMailRecipient)
+			      (mailLocalAddress=%0))
 
 Note that neither includes the LDAP server hostname (-h server) or base DN
 (-b o=org,c=COUNTRY), both necessary for LDAP queries.  It is presumed that
 your .mc file contains a setting for the confLDAP_DEFAULT_SPEC option with
 these settings.  If this is not the case, the map definitions should be
-changed as described above.
+changed as described above.  The "-T<TMPF>" is required in any user
+specified map definition to catch temporary errors.
 
 The following possibilities exist as a result of an LDAP lookup on an
 address:
@@ -2242,14 +2255,16 @@ For example,
 
 	spammer@aol.com			REJECT
 	cyberspammer.com		REJECT
+	TLD				REJECT
 	192.168.212			REJECT
 	IPv6:2002:c0a8:02c7		RELAY
 	IPv6:2002:c0a8:51d2::23f4	REJECT
 
 would refuse mail from spammer@aol.com, any user from cyberspammer.com
-(or any host within the cyberspammer.com domain), any host on the
-192.168.212.* network, and the IPv6 address 2002:c0a8:51d2::23f4.  It would
-allow relay for the IPv6 network 2002:c0a8:02c7::/48.
+(or any host within the cyberspammer.com domain), any host in the entire
+top level domain TLD, 192.168.212.* network, and the IPv6 address
+2002:c0a8:51d2::23f4.  It would allow relay for the IPv6 network
+2002:c0a8:02c7::/48.
 
 The value part of the map can contain:
 
@@ -2505,11 +2520,15 @@ FEATURE(`delay_checks') can take an optional argument:
 	FEATURE(`delay_checks', `hater')
 		 enables spamhater test
 
-If such an argument is given, the recipient will be looked up in the access
-map (using the tag Spam:).  If the argument is `friend', then the other
-rulesets will be skipped if the recipient address is found and has RHS
-friend.  If the argument is `hater', then the other rulesets will be
-applied if the recipient address is found and has RHS hater.
+If such an argument is given, the recipient will be looked up in the
+access map (using the tag Spam:).  If the argument is `friend', then
+the default behavior is to apply the other rulesets and make a SPAM
+friend the exception.  The rulesets check_mail and check_relay will be
+skipped only if the recipient address is found and has RHS FRIEND.  If
+the argument is `hater', then the default behavior is to skip the rulesets
+check_mail and check_relay and make a SPAM hater the exception.  The
+other two rulesets will be applied only if the recipient address is
+found and has RHS HATER.
 
 This allows for simple exceptions from the tests, e.g., by activating
 the friend option and having
@@ -3022,8 +3041,8 @@ For example:
 	LOCAL_NET_CONFIG
 	R$* < @ $* .$m. > $*	$#smtp $@ $2.$m. $: $1 < @ $2.$m. > $3
 
-This will cause all names that end in your domain name ($m) via
-SMTP; anything else will be sent via uucp-new (smart UUCP) to uunet.
+This will cause all names that end in your domain name ($m) to be sent
+via SMTP; anything else will be sent via uucp-new (smart UUCP) to uunet.
 If you have FEATURE(`nocanonify'), you may need to omit the dots after
 the $m.  If you are running a local DNS inside your domain which is
 not otherwise connected to the outside world, you probably want to
@@ -3998,7 +4017,9 @@ Notice: do not add options/features to submit.mc unless you are
 absolutely sure you need them.  Options you may want to change
 include:
 
-- confTIME_ZONE on OS that don't use the default, e.g., Irix.
+- confTRUSTED_USERS, FEATURE(`use_ct_file'), and confCT_FILE for
+  avoiding X-Authorization warnings.
+- confTIME_ZONE to change it from the default `USE_TZ'.
 - confDELIVERY_MODE is set to interactive in msp.m4 instead
   of the default background mode.
 
@@ -4237,4 +4258,4 @@ M4 DIVERSIONS
    8	DNS based blacklists
    9	special local rulesets (1 and 2)
 
-$Revision: 8.600 $, Last updated $Date: 2002/01/10 17:43:41 $
+$Revision: 8.612 $, Last updated $Date: 2002/04/03 17:12:52 $
