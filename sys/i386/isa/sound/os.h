@@ -57,7 +57,7 @@
 #define SHORT_BANNERS
 
 /* The soundcard.h could be in a nonstandard place so inclyde it here. */
-#include "soundcard.h"
+#include <machine/soundcard.h>
 
 /*
  * Here is the first portability problem. Every OS has it's own way to
