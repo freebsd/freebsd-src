@@ -139,9 +139,10 @@ pccard_attach_card(device_t dev)
 		pf->ih_arg = NULL;
 		pf->dev = NULL;
 	}
-
+#if 0
 	DEVPRINTF((dev, "chip_socket_disable\n"));
 	POWER_DISABLE_SOCKET(device_get_parent(dev), dev);
+#endif
 
 	STAILQ_FOREACH(pf, &sc->card.pf_head, pf_list) {
 		if (STAILQ_EMPTY(&pf->cfe_head))
@@ -267,7 +268,6 @@ pccard_function_enable(struct pccard_function *pf)
 	 * it's possible for different functions' CCRs to be in the same
 	 * underlying page.  Check for that.
 	 */
-
 	STAILQ_FOREACH(tmp, &pf->sc->card.pf_head, pf_list) {
 		if ((tmp->pf_flags & PFF_ENABLED) &&
 		    (pf->ccr_base >= (tmp->ccr_base - tmp->pf_ccr_offset)) &&
@@ -293,12 +293,15 @@ pccard_function_enable(struct pccard_function *pf)
 	if (tmp == NULL) {
 		pf->ccr_rid = 0;
 		pf->ccr_res = bus_alloc_resource(dev, SYS_RES_MEMORY,
-		    &pf->ccr_rid, pf->ccr_base, pf->ccr_base + PCCARD_CCR_SIZE,
-		    PCCARD_CCR_SIZE, RF_ACTIVE);
-		if (!pf->ccr_res)
+		    &pf->ccr_rid, 0xa0000, 0xdffff, 1 << 10, RF_ACTIVE);
+		if (!pf->ccr_res) {
+			DEVPRINTF((dev, "ccr_res == 0\n"));
 			goto bad;
+		}
 		CARD_SET_RES_FLAGS(device_get_parent(dev), dev, SYS_RES_MEMORY,
 		    pf->ccr_rid, PCCARD_A_MEM_ATTR);
+		CARD_SET_MEMORY_OFFSET(device_get_parent(dev), dev, 
+		    pf->ccr_rid, (pf->ccr_rid >> 10) << 10);
 		pf->pf_ccrt = rman_get_bustag(pf->ccr_res);
 		pf->pf_ccrh = rman_get_bushandle(pf->ccr_res);
 		pf->pf_ccr_offset = rman_get_start(pf->ccr_res);
@@ -375,7 +378,7 @@ pccard_function_enable(struct pccard_function *pf)
 	 */
 	if (--pf->sc->sc_enabled_count == 0)
 		POWER_DISABLE_SOCKET(device_get_parent(dev), dev);
-	DEVPRINTF((dev, "--enabled_count = %d\n", pf->sc->sc_enabled_count));
+	DEVPRINTF((dev, "bad --enabled_count = %d\n", pf->sc->sc_enabled_count));
 
 	return (1);
 }
