@@ -251,6 +251,18 @@
 		Overrides the compile-time set value of TCBHASHSIZE or
 		the preset default of 512.  Must be a power of 2.
 
+	set hw.physmem=<value>			MAXMEM (i386 only)
+
+		Limits the amount of physical memory space available to
+		the system to <value> bytes.  <value> may have a k, M or G
+		suffix to indicate kilobytes, megabytes and gigabytes
+		respectively.  Note that the current i386 architecture
+		limits this value to 4GB.
+
+		On systems where memory cannot be accurately probed,
+		this option provides a hint as to the actual size of
+		system memory (which will be tested before use).
+
 ################################################################################
 # Tshow DShow the values of variables
 
