@@ -10,7 +10,7 @@ LIB=	g++
 NOMAN=	noman
 CFLAGS+=	-nostdinc -I${.CURDIR}/include -I/usr/include
 CXXFLAGS+=	-I${.CURDIR}/include -I/usr/include/g++ -I/usr/include -nostdinc++
-LDADD+=	-lcurses
+LDADD+= -lcurses -lcompat
 .PATH:	${.CURDIR}/libiberty ${.CURDIR}/libio ${.CURDIR}/libg++ ${.CURDIR}/librx
 
 beforeinstall:
