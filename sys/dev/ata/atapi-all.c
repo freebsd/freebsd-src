@@ -177,6 +177,7 @@ atapi_queue_cmd(struct ata_device *atadev, int8_t *ccb, caddr_t data,
     request->data = data;
     request->bytecount = count;
     request->flags = flags;
+    request->error = EINPROGRESS;
     request->timeout = timeout * hz;
     request->ccbsize = atadev->param->packet_size ? 16 : 12;
     bcopy(ccb, request->ccb, request->ccbsize);
@@ -207,8 +208,9 @@ atapi_queue_cmd(struct ata_device *atadev, int8_t *ccb, caddr_t data,
 	return 0;
     }
 
-    /* wait for request to complete */
-    tsleep((caddr_t)request, PRIBIO, "atprq", 0);
+    /* only sleep when command is in progress */
+    if (request->error == EINPROGRESS)
+	tsleep((caddr_t)request, PRIBIO, "atprq", 0);
     splx(s);
     error = request->error;
     if (error)
