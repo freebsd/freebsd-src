@@ -380,6 +380,7 @@ int sppp_output (struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst, struct
 		h->protocol = htons (PPP_ISO);
 		break;
 #endif
+nosupport:
 	default:
 		m_freem (m);
 		splx (s);

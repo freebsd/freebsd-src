@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ethersubr.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ethersubr.c,v 1.3 1994/10/11 23:16:24 wollman Exp $
+ * $Id: if_ethersubr.c,v 1.4 1994/11/24 14:29:38 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -114,7 +114,7 @@ ether_output(ifp, m0, dst, rt0)
 	ifp->if_lastchange = time;
 	if (rt = rt0) {
 		if ((rt->rt_flags & RTF_UP) == 0) {
-			if (rt0 = rt = rtalloc1(dst, 1))
+			if (rt0 = rt = rtalloc1(dst, 1, 0UL))
 				rt->rt_refcnt--;
 			else 
 				senderr(EHOSTUNREACH);
@@ -124,7 +124,8 @@ ether_output(ifp, m0, dst, rt0)
 				goto lookup;
 			if (((rt = rt->rt_gwroute)->rt_flags & RTF_UP) == 0) {
 				rtfree(rt); rt = rt0;
-			lookup: rt->rt_gwroute = rtalloc1(rt->rt_gateway, 1);
+			lookup: rt->rt_gwroute = rtalloc1(rt->rt_gateway, 1, 
+							  0UL);
 				if ((rt = rt->rt_gwroute) == 0)
 					senderr(EHOSTUNREACH);
 			}
