@@ -13,7 +13,7 @@
 # your name on top after doing something trivial like reindenting it, just
 # to make it look like you wrote it!).
 #
-# $Id: bininst,v 1.24 1994/11/10 05:27:57 jkh Exp $
+# $Id: bininst,v 1.25 1994/11/10 23:43:25 jkh Exp $
 
 # Some useful constants.
 PATH=/usr/bin:/usr/sbin:/bin:/sbin:/stand
@@ -26,6 +26,16 @@ ROUTE=route
 ROUTE_FLAGS="add default"
 HOME=/
 export HOME
+
+interrupt() {
+	if dialog --clear --title "User Interrupt Requested" \
+	  --yesno "Do you wish to abort the installation?" 5 70; then
+		exit 0;
+	fi
+}
+
+# Deal with trigger-happy users.
+trap interrupt 1 2 15
 
 # Set the initial state of the system.
 set_defaults() {
@@ -274,10 +284,11 @@ setup_network_ether()
 {
 	dialog $clear --title "Ethernet Interface Name" \
 	--menu "Please select the type of ethernet interface you have:\n\n" \
-	 20 76 6 \
+	 20 76 7 \
 	"ed0" "WD80x3, SMC, Novell NE[21]000 or 3C503 generic NIC at 0x280/5" \
 	"ed1" "Same as above, but at address 0x300 and IRQ 5" \
 	"ed2" "Same as above, but at address 0x300 and IRQ 10" \
+	"de0" "DEC PCI ethernet adapter (or compatible)" \
 	"ie0" "AT&T StarLan and EN100 family at 0x360 and IRQ 7" \
 	"is0" "Isolan 4141-0 or Isolink 4110 at 0x280 and IRQ 7" \
 	"ze0" "PCMCIA IBM or National card at 0x300 and IRQ 5" \
@@ -400,7 +411,8 @@ setup_network()
 		if network_dialog "If you have a name server, enter its IP address"; then
 			if [ "$answer" != "" ]; then
 				nameserver=$answer
-				echo "nameserver $nameserver" > /etc/resolv.conf
+				echo "domain $domain" > /etc/resolv.conf
+				echo "nameserver $nameserver" >> /etc/resolv.conf
 			fi
 		fi
 	done
