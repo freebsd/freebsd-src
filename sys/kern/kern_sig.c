@@ -695,7 +695,6 @@ struct sigpending_args {
 /*
  * MPSAFE
  */
-/* ARGSUSED */
 int
 sigpending(td, uap)
 	struct thread *td;
@@ -703,15 +702,11 @@ sigpending(td, uap)
 {
 	struct proc *p = td->td_proc;
 	sigset_t siglist;
-	int error;
 
-	mtx_lock(&Giant);
 	PROC_LOCK(p);
 	siglist = p->p_siglist;
 	PROC_UNLOCK(p);
-	mtx_unlock(&Giant);
-	error = copyout(&siglist, uap->set, sizeof(sigset_t));
-	return(error);
+	return (copyout(&siglist, uap->set, sizeof(sigset_t)));
 }
 
 #ifdef COMPAT_43	/* XXX - COMPAT_FBSD3 */
