@@ -324,7 +324,7 @@ ng_make_node(const char *typename, node_p *nodepp)
 		int error;
 
 		/* Not found, try to load it as a loadable module */
-		snprintf(filename, sizeof(filename), "/boot/kernel/ng_%s", typename);
+		snprintf(filename, sizeof(filename), "ng_%s", typename);
 		error = linker_load_file(filename, &lf);
 		if (error != 0)
 			return (error);
