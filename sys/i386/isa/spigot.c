@@ -32,10 +32,15 @@
  * See the code for spigot_grab.c that is included with the library
  * data.
  *
- * We are working with the vendor so I can release the code, please don't
- * ask me for it.  When/if I can release it, I will.
+ * The vendor will not allow me to release the spigot library code.
+ * Please don't ask me for it.
  *
- * Version 1.4, August 29, 1995.
+ * To use this driver you will need the spigot library.  The library is
+ * available from:
+ *
+ *	ftp.cs.uwm.edu://pub/FreeBSD/spigot/spigot.tar.gz
+ *
+ * Version 1.5, August 30, 1995.
  *
  */
 
@@ -66,10 +71,11 @@ error "Can only have 1 spigot configured."
 #include	<i386/isa/isa_device.h>
 
 struct spigot_softc {
-	int		flags;
-	caddr_t	 	maddr;
+	u_long		flags;
+	u_long	 	maddr;
 	struct proc	*p;
-	int		signal_num;
+	u_long		signal_num;
+	u_short		irq;
 } spigot_softc[NSPIGOT];
 
 /* flags in softc */
@@ -122,7 +128,8 @@ int			status;
 struct	spigot_softc	*ss=(struct spigot_softc *)&spigot_softc[devp->id_unit];
 
 	ss->flags = 0;
-	ss->maddr = (char *)0;
+	ss->maddr = 0;
+	ss->irq = 0;
 
 	if(devp->id_iobase != 0xad6 || inb(0xad9) == 0xff) 
 		status = 0;	/* not found */
@@ -142,7 +149,8 @@ struct	spigot_softc	*ss=(struct spigot_softc *)&spigot_softc[devp->id_unit];
 
 	kdc_spigot[devp->id_unit].kdc_state = DC_UNKNOWN;
 
-	ss->maddr = devp->id_maddr;
+	ss->maddr = kvtop(devp->id_maddr);
+	ss->irq = devp->id_irq;
 
 	return 1;
 }
@@ -201,7 +209,9 @@ spigot_ioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 {
 struct	spigot_softc	*ss = (struct spigot_softc *)&spigot_softc[UNIT(dev)];
 struct	trapframe	*fp;
+struct	spigot_info	*info;
 
+	if(!data) return(EINVAL);
 	switch(cmd){
 	case	SPIGOT_SETINT:
 		ss->p = p;
@@ -215,10 +225,12 @@ struct	trapframe	*fp;
 		fp=(struct trapframe *)p->p_md.md_regs;
 		fp->tf_eflags &= ~PSL_IOPL;
 		break;
+	case	SPIGOT_GET_INFO:
+		info = (struct spigot_info *)data;
+		info->maddr  = ss->maddr;
+		info->irq = ss->irq;
+		break;
 	default:
-		printf("spigot ioctl: cmd=0x%x, '%c', num = %d, len=%d, %s\n",
-                        cmd, IOCGROUP(cmd), cmd & 0xff, IOCPARM_LEN(cmd),
-                        cmd&IOC_IN ? "in" : "out");
 		return ENOTTY;
 	}
 
@@ -254,7 +266,7 @@ spigot_mmap(dev_t dev, int offset, int nprot)
 struct	spigot_softc	*ss = (struct spigot_softc *)&spigot_softc[0];
 
 	if(offset != 0) {
-		printf("spigot mmap offset = 0x%x\n", offset);
+		printf("spigot mmap failed, offset = 0x%x != 0x0\n", offset);
 		return -1;
 	}
 
