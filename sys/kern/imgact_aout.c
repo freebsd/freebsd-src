@@ -75,7 +75,7 @@ struct sysentvec aout_sysvec = {
 	aout_coredump
 };
 
-int
+static int
 exec_aout_imgact(imgp)
 	struct image_params *imgp;
 {
@@ -251,12 +251,10 @@ aout_coredump(p, vp, limit)
 {
 	register struct ucred *cred = p->p_cred->pc_ucred;
 	register struct vmspace *vm = p->p_vmspace;
-	int error = 0;
+	int error;
 
-	if (ctob(UPAGES + vm->vm_dsize + vm->vm_ssize) >=
-	    limit)
+	if (ctob(UPAGES + vm->vm_dsize + vm->vm_ssize) >= limit)
 		return (EFAULT);
-
 	bcopy(p, &p->p_addr->u_kproc.kp_proc, sizeof(struct proc));
 	fill_eproc(p, &p->p_addr->u_kproc.kp_eproc);
 	error = cpu_coredump(p, vp, cred);
@@ -270,7 +268,7 @@ aout_coredump(p, vp, limit)
 		    round_page(ctob(vm->vm_ssize)),
 		    (off_t)ctob(UPAGES) + ctob(vm->vm_dsize), UIO_USERSPACE,
 		    IO_NODELOCKED|IO_UNIT, cred, (int *) NULL, p);
-	return error;
+	return (error);
 }
 
 /*
