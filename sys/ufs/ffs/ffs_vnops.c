@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vnops.c	8.15 (Berkeley) 5/14/95
- * $Id: ffs_vnops.c,v 1.54 1999/01/07 16:14:17 bde Exp $
+ * $Id: ffs_vnops.c,v 1.55 1999/03/02 04:04:31 mckusick Exp $
  */
 
 #include <sys/param.h>
@@ -60,6 +60,8 @@
 
 #include <ufs/ffs/fs.h>
 #include <ufs/ffs/ffs_extern.h>
+
+#include <miscfs/specfs/specdev.h>
 
 static int	ffs_fsync __P((struct vop_fsync_args *));
 static int	ffs_getpages __P((struct vop_getpages_args *));
@@ -129,6 +131,9 @@ ffs_fsync(ap)
 
 	if (vp->v_type == VBLK) {
 		lbn = INT_MAX;
+		if (vp->v_specmountpoint != NULL &&
+		    (vp->v_specmountpoint->mnt_flag & MNT_SOFTDEP))
+			softdep_fsync_mountdev(vp);
 	} else {
 		struct inode *ip;
 		ip = VTOI(vp);

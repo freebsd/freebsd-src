@@ -243,6 +243,14 @@ softdep_fsync(vp)
 	return (EIO);
 }
 
+void
+softdep_fsync_mountdev(vp)
+	struct vnode *vp;
+{
+
+	return;
+}
+
 int
 softdep_sync_metadata(ap)
 	struct vop_fsync_args /* {
