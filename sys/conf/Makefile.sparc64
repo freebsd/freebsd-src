@@ -12,7 +12,7 @@
 # after which you should do
 #	 config machineid
 # Generic makefile changes should be made in
-#	/sys/sparc64/conf/Makefile.sparc64
+#	/sys/conf/Makefile.sparc64
 # after which config should be rerun for all machines.
 #
 
