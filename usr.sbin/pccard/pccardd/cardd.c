@@ -481,6 +481,7 @@ assign_driver(struct slot *sp, struct card *cp)
 	struct card_config *conf;
 	struct pccard_resource res;
 	int i;
+	int irqmin, irqmax;
 
 	for (conf = cp->config; conf; conf = conf->next)
 		if (conf->inuse == 0 && conf->driver->card == cp &&
@@ -517,52 +518,72 @@ assign_driver(struct slot *sp, struct card *cp)
 		logmsg("Driver already being used for %s", cp->manuf);
 		return (NULL);
 	}
-	/* Allocate a free IRQ if none has been specified */
+
+	/*
+	 * Allocate a free IRQ if none has been specified.  When we're
+	 * sharing interrupts (cardbus bridge case), then we'll use what
+	 * the kernel tells us to use, reguardless of what the user
+	 * configured.  Asking the kernel for IRQ 0 is our way of asking
+	 * if we should use a shared interrupt.
+	 */
 	res.type = SYS_RES_IRQ;
 	res.size = 1;
 	if (conf->irq == 0) {
-		res.min = 0;
-		res.max = 0;
-		if (ioctl(sp->fd, PIOCSRESOURCE, &res) < 0)
-			err(1, "ioctl (PIOCSRESOURCE)");
-		if (res.resource_addr != ~0ul) {
+		irqmin = 1;
+		irqmax = 15;
+	} else {
+		irqmin = irqmax = conf->irq;
+		conf->irq = 0;		/* Make sure we get it. */
+	}
+	res.min = 0;
+	res.max = 0;
+	if (ioctl(sp->fd, PIOCSRESOURCE, &res) < 0)
+		err(1, "ioctl (PIOCSRESOURCE)");
+	if (res.resource_addr != ~0ul) {
+		conf->irq = res.resource_addr;
+		pool_irq[conf->irq] = 0;
+	} else {
+		for (i = irqmin; i <= irqmax; i++) {
+			/*
+			 * Skip irqs not in the pool.
+			 */
+			if (pool_irq[i] == 0)
+				continue;
+			/*
+			 * -I forces us to use the interrupt, so use it.
+			 */
+			if (!use_kern_irq) {
+				conf->irq = i;
+				pool_irq[i] = 0;
+				break;
+			}
+			/*
+			 * Ask the kernel if we have an free irq.
+			 */
+			res.min = i;
+			res.max = i;
+			if (ioctl(sp->fd, PIOCSRESOURCE, &res) < 0)
+				err(1, "ioctl (PIOCSRESOURCE)");
+			if (res.resource_addr == ~0ul)
+				continue;
+			/*
+			 * res.resource_addr might be the kernel's
+			 * better idea than i, so we have to check to
+			 * see if that's in use too.  If not, mark it
+			 * in use and break out of the loop.  I'm not
+			 * sure this can happen when IRQ 0 above fails,
+			 * but the test is cheap enough.
+			 */
+			if (pool_irq[res.resource_addr] == 0)
+				continue;
 			conf->irq = res.resource_addr;
 			pool_irq[conf->irq] = 0;
-		} else {
-			for (i = 1; i < 16; i++) {
-				if (!use_kern_irq && pool_irq[i]) {
-					conf->irq = i;
-					pool_irq[i] = 0;
-					break;
-				}
-				res.min = i;
-				res.max = i;
-				if (ioctl(sp->fd, PIOCSRESOURCE, &res) < 0)
-					err(1, "ioctl (PIOCSRESOURCE)");
-				if (res.resource_addr == ~0ul)
-					continue;
-				conf->irq = res.resource_addr;
-				pool_irq[conf->irq] = 0;
-			}
+			break;
 		}
-		if (conf->irq == 0) {
-			logmsg("Failed to allocate IRQ for %s\n", cp->manuf);
-			return (NULL);
-		}
-	} else {
-		res.min = res.max = conf->irq;
-		if (ioctl(sp->fd, PIOCSRESOURCE, &res) < 0)
-			err(1, "ioctl (PIOCSRESOURCE)");
-		if (res.resource_addr == ~0ul) {
-			logmsg("Failed to verify IRQ for %s\n", cp->manuf);
-			return (NULL);
-		}
-		if (res.resource_addr != conf->irq) {
-			logmsg("Kernel changed irq from %d to %d for %s\n",
-			    conf->irq, res.resource_addr, cp->manuf);
-			conf->irq = res.resource_addr;
-		}
-			
+	}
+	if (conf->irq == 0) {
+		logmsg("Failed to allocate IRQ for %s\n", cp->manuf);
+		return (NULL);
 	}
 	drvp->card = cp;
 	drvp->config = conf;
