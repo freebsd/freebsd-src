@@ -4,6 +4,10 @@
 # that need to be included after all the % directives, except %RULES and
 # things that act like they are part of %RULES
 #
+# Most make variables should not be defined in this file.  Instead, they
+# should be defined in the kern.pre.mk so that port makefiles can
+# oferride or augment them.
+#
 # $FreeBSD$
 #
 
@@ -167,14 +171,6 @@ reinstall: modules-reinstall
 reinstall.debug: modules-reinstall.debug
 .endif
 
-MKMODULESENV=	MAKEOBJDIRPREFIX=${.OBJDIR}/modules KMODDIR=${KODIR}
-.if defined(MODULES_OVERRIDE)
-MKMODULESENV+=	MODULES_OVERRIDE="${MODULES_OVERRIDE}"
-.endif
-.if defined(DEBUG)
-MKMODULESENV+=	DEBUG="${DEBUG}" DEBUG_FLAGS="${DEBUG}"
-.endif
-
 modules:
 	@mkdir -p ${.OBJDIR}/modules
 	cd $S/modules ; env ${MKMODULESENV} ${MAKE} obj ; \
@@ -232,10 +228,4 @@ vnode_if.h: $S/kern/vnode_if.pl $S/kern/vnode_if.src
 vnode_if.o:
 	${NORMAL_C}
 
-# Commented out for now pending a better solution.
-# How do we pick up compiler version specific flags??
-#.if exists($S/../share/mk)
-#.include "$S/../share/mk/bsd.kern.mk"
-#.else
 .include <bsd.kern.mk>
-#.endif
