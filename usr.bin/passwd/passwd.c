@@ -43,7 +43,7 @@ static const char copyright[] =
 #ifndef lint
 static const char sccsid[] = "From: @(#)passwd.c	8.3 (Berkeley) 4/2/94";
 static const char rcsid[] =
-	"$Id$";
+	"$Id: passwd.c,v 1.7 1995/12/16 09:45:15 markm Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -56,9 +56,10 @@ static const char rcsid[] =
 #ifdef YP
 #include <pwd.h>
 #include <pw_yp.h>
-char *prog_name;
+#include <rpcsvc/yp.h>
 int __use_yp = 0;
-int yp_passwd(char *user);
+int yp_errno = YP_TRUE;
+extern int yp_passwd	__P(( char * ));
 #endif
 
 #ifdef KERBEROS
@@ -83,9 +84,9 @@ main(argc, argv)
 #ifdef YP
 #ifdef KERBEROS
 	char realm[REALM_SZ];
-#define OPTIONS "lysfi:r:u:"
+#define OPTIONS "d:h:lysfoi:r:u:"
 #else
-#define OPTIONS "lysf"
+#define OPTIONS "d:h:lysfo"
 #endif
 #else
 #ifdef KERBEROS
@@ -99,7 +100,7 @@ main(argc, argv)
 #ifdef YP
 	int res = 0;
 
-	if (strstr(argv[0], (prog_name = "yppasswd"))) __use_yp = 1;
+	if (strstr(argv[0], "yppasswd")) __use_yp = 1;
 #endif
 
 	while ((ch = getopt(argc, argv, OPTIONS)) != EOF) {
@@ -121,6 +122,33 @@ main(argc, argv)
 #ifdef	YP
 		case 'y':			/* Change NIS password */
 			__use_yp = 1;
+			break;
+		case 'd':			/* Specify NIS domain. */
+#ifdef PARANOID
+			if (!getuid()) {
+#endif
+				yp_domain = optarg;
+				if (yp_server == NULL)
+					yp_server = "localhost";
+#ifdef PARANOID
+			} else {
+				warnx("Only the super-user may use the -d flag.");
+			}
+#endif
+			break;
+		case 'h':			/* Specify NIS server. */
+#ifdef PARANOID
+			if (!getuid()) {
+#endif
+				yp_server = optarg;
+#ifdef PARANOID
+			} else {
+				warnx("Only the super-user may use the -h flag.");
+			}
+#endif
+			break;
+		case 'o':
+			force_old++;
 			break;
 #endif
 		default:
@@ -152,8 +180,8 @@ main(argc, argv)
 #ifdef KERBEROS
 	if (__use_yp || (iflag == NULL && rflag == NULL && uflag == NULL)) {
 #endif
-		res = use_yp(uname);
-		if (res == USER_YP_ONLY) {
+		res = use_yp(uname, 0, 0);
+		if (res == USER_YP_ONLY || __use_yp) {
 			if (!use_local_passwd) {
 				exit(yp_passwd(uname));
 			} else {
@@ -198,9 +226,10 @@ usage()
 	fprintf(stderr,
 	 "usage: passwd [-l] [-i instance] [-r realm] [-u fullname]\n");
 	fprintf(stderr,
-	"        [-l] [-y] [user]\n");
+	"        [-l] [-y] [-o] [-d domain [-h host]] [user]\n");
 #else
-	(void)fprintf(stderr, "usage: passwd [-l] [-y] [user] \n");
+	(void)fprintf(stderr, "usage: passwd [-l] [-y] [-o] [-d domain \
+[-h host]] [user] \n");
 #endif
 #else
 #ifdef	KERBEROS

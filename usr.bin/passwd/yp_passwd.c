@@ -45,137 +45,141 @@
 #include <rpcsvc/ypclnt.h>
 #include <rpcsvc/yppasswd.h>
 #include <pw_yp.h>
-
-extern char *prog_name;
-uid_t	uid;
+#include "yppasswd_comm.h"
 
 extern char *getnewpasswd __P(( struct passwd * , int ));
-
-char *
-getserver( void )
-{
-  char  *domainname, *master;
-  int 	port, err;
-  int getrpcport();
-
-  if ((err = yp_get_default_domain(&domainname)) != 0) {
-      fprintf(stderr, "%s: can't get local yp domain: %s\n",
-              				prog_name, yperr_string(err));
-      return NULL;
-  }
-
-  if ((err = yp_master(domainname, "passwd.byname", &master)) != 0) {
-      fprintf(stderr, "%s: can't find the master ypserver: %s\n",
-              				prog_name, yperr_string(err));
-      return NULL;
-  }
-  port = getrpcport(master, YPPASSWDPROG, YPPASSWDPROC_UPDATE, IPPROTO_UDP);
-  if (port==0) {
-      fprintf (stderr, "%s: yppasswdd not running on NIS master host\n",
-					prog_name);
-      return NULL;
-  }
-  if (port >= IPPORT_RESERVED) {
-      fprintf (stderr, "%s: yppasswd daemon running on illegal port.\n",
-					prog_name);
-      return NULL;
-  }
-  return master;
-}
 
 int
 yp_passwd(char *user)
 {
-  struct timeval timeout;
-  struct yppasswd yppasswd;
-  struct passwd *pw;
-  CLIENT *clnt;
-  char   *master;
-  int    err, status;
-  char   *s;
+	struct timeval timeout;
+	struct yppasswd yppasswd;
+	struct master_yppasswd master_yppasswd;
+	struct passwd *pw;
+	CLIENT *clnt;
+	struct rpc_err err;
+	char   *master;
+	int    *status = NULL;
+	uid_t	uid;
 
-  if ((master = getserver()) == NULL) {
-      exit(1);
-  }
+	_use_yp = 1;
 
-  /* Obtain the passwd struct for the user whose password is to be changed.
-   */
-  uid = getuid();
-  if (user == NULL) {
-      if ((pw = getpwuid(uid)) == NULL) {
-          fprintf ( stderr, "%s: unknown user (uid=%d).\n",
-		prog_name, (int)uid );
-          exit(1);
-      }
-  } else {
-      if ((pw = getpwnam(user)) == NULL) {
-          fprintf ( stderr, "%s: unknown user: %s.\n", prog_name, user );
-          exit(1);
-      }
-      if (pw->pw_uid != uid && uid != 0) {
-          fprintf ( stderr, "%s: Only root may change account information "
-          		    "for others\n", prog_name );
-          exit(1);
-      }
-  }
+	uid = getuid();
 
-  /* Use the correct password */
-  pw = (struct passwd *)&yp_password;
+	if ((master = get_yp_master(1)) == NULL) {
+		warnx("failed to find NIS master server");
+		return(1);
+	}
 
-  /* Initialize password information */
-  yppasswd.newpw.pw_passwd = pw->pw_passwd;
-  yppasswd.newpw.pw_name = pw->pw_name;
-  yppasswd.newpw.pw_uid = pw->pw_uid;
-  yppasswd.newpw.pw_gid = pw->pw_gid;
-  yppasswd.newpw.pw_gecos = pw->pw_gecos;
-  yppasswd.newpw.pw_dir = pw->pw_dir;
-  yppasswd.newpw.pw_shell = pw->pw_shell;
-  yppasswd.oldpass = NULL;
+	/*
+	 * It is presumed that by the time we get here, use_yp()
+	 * has been called and that we have verified that the user
+	 * actually exists. This being the case, the yp_password
+	 * stucture has already been filled in for us.
+	 */
 
-  printf("Changing NIS password for %s on %s.\n", pw->pw_name, master);
+	/* Use the correct password */
+	pw = (struct passwd *)&yp_password;
 
-  /* Get old password */
-  if(pw->pw_passwd[0]) {
+	if (pw->pw_uid != uid && uid != 0) {
+		warnx("Only the super-user may change account information \
+for other users");
+		return(1);
+	}
 
-    s = getpass ("Old password: ");
-    if( strcmp(crypt(s, pw->pw_passwd), pw->pw_passwd)) {
-        fprintf(stderr, "Sorry.\n");
-        exit (1);
-    }
-    yppasswd.oldpass = strdup(s);
-  } else
-    yppasswd.oldpass = "";
+	/* Initialize password information */
+	if (suser_override) {
+		master_yppasswd.newpw.pw_passwd = strdup(pw->pw_passwd);
+		master_yppasswd.newpw.pw_name = strdup(pw->pw_name);
+		master_yppasswd.newpw.pw_uid = pw->pw_uid;
+		master_yppasswd.newpw.pw_gid = pw->pw_gid;
+		master_yppasswd.newpw.pw_expire = pw->pw_expire;
+		master_yppasswd.newpw.pw_change = pw->pw_change;
+		master_yppasswd.newpw.pw_fields = pw->pw_fields;
+		master_yppasswd.newpw.pw_gecos = strdup(pw->pw_gecos);
+		master_yppasswd.newpw.pw_dir = strdup(pw->pw_dir);
+		master_yppasswd.newpw.pw_shell = strdup(pw->pw_shell);
+		master_yppasswd.newpw.pw_class = strdup(pw->pw_class);
+		master_yppasswd.oldpass = "";
+		master_yppasswd.domain = yp_domain;
+	} else {
+		yppasswd.newpw.pw_passwd = strdup(pw->pw_passwd);
+		yppasswd.newpw.pw_name = strdup(pw->pw_name);
+		yppasswd.newpw.pw_uid = pw->pw_uid;
+		yppasswd.newpw.pw_gid = pw->pw_gid;
+		yppasswd.newpw.pw_gecos = strdup(pw->pw_gecos);
+		yppasswd.newpw.pw_dir = strdup(pw->pw_dir);
+		yppasswd.newpw.pw_shell = strdup(pw->pw_shell);
+		yppasswd.oldpass = "";
+	}
 
-  if ((s = getnewpasswd(pw, 1)) == NULL)
-	exit (1);
-  yppasswd.newpw.pw_passwd = s;
+	if (suser_override)
+		printf("Changing NIS password for %s on %s in domain %s.\n",
+			pw->pw_name, master, yp_domain);
+	else
+		printf("Changing NIS password for %s on %s.\n",
+							pw->pw_name, master);
 
-  /* The yppasswd.x file said `unix authentication required',
-   * so I added it. This is the only reason it is in here.
-   * My yppasswdd doesn't use it, but maybe some others out there
-   * do. 					--okir
-   */
-  clnt = clnt_create( master, YPPASSWDPROG, YPPASSWDVERS, "udp" );
-  clnt->cl_auth = authunix_create_default();
-  bzero( (char*)&status, sizeof(status) );
-  timeout.tv_sec = 25; timeout.tv_usec = 0;
-  err = clnt_call( clnt, YPPASSWDPROC_UPDATE,
-  		 xdr_yppasswd, (char*)&yppasswd,
-  		 xdr_int,      (char*)&status,
-  		 &timeout );
+	/* Get old password */
 
-  if (err) {
-      clnt_perrno(err);
-      fprintf( stderr, "\n" );
-  } else if (status) {
-      fprintf( stderr, "Error while changing NIS password.\n");
-  }
+	if(pw->pw_passwd[0] && !suser_override) {
+		yppasswd.oldpass = strdup(getpass("Old Password: "));
+		if (strcmp(crypt(yppasswd.oldpass, pw->pw_passwd),
+							pw->pw_passwd)) {
+			errx(1, "Sorry.");
+		}
 
-  printf("\nNIS password has%s been changed on %s.\n",
-  		(err || status)? " not" : "", master);
+	}
 
-  auth_destroy( clnt->cl_auth );
-  clnt_destroy( clnt );
-  exit ((err || status) != 0);
+	if (suser_override) {
+		if ((master_yppasswd.newpw.pw_passwd = getnewpasswd(pw, 1)) == NULL)
+			return(1);
+	} else {
+		if ((yppasswd.newpw.pw_passwd = getnewpasswd(pw, 1)) == NULL)
+			return(1);
+	}
+
+	if (suser_override) {
+		if (senddat(&master_yppasswd)) {
+			warnx("failed to send request to rpc.yppasswdd");
+			return(1);
+		}
+		status = getresp();
+	} else {
+		if ((clnt = clnt_create(master, YPPASSWDPROG,
+				YPPASSWDVERS, "udp")) == NULL) {
+			warnx("failed to contact rpc.yppasswdd on host %s: %s",
+				master, clnt_spcreateerror(""));
+			return(1);
+		}
+	/*
+	 * The yppasswd.x file said `unix authentication required',
+	 * so I added it. This is the only reason it is in here.
+	 * My yppasswdd doesn't use it, but maybe some others out there
+	 * do. 					--okir
+	 */
+		clnt->cl_auth = authunix_create_default();
+
+		status = yppasswdproc_update_1(&yppasswd, clnt);
+		clnt_geterr(clnt, &err);
+
+		auth_destroy(clnt->cl_auth);
+		clnt_destroy(clnt);
+	}
+
+	if ((!suser_override && err.re_status != RPC_SUCCESS) ||
+						status == NULL || *status) {
+		errx(1, "Failed to change NIS password: %s", 
+			(err.re_status != RPC_SUCCESS && !suser_override) ?
+			clnt_sperrno(err.re_status) :
+			"rpc.yppasswdd returned error status");
+	}
+
+	printf("\nNIS password has%s been changed on %s.\n",
+		((err.re_status != RPC_SUCCESS && !suser_override)
+		|| status == NULL || *status) ?
+		" not" : "", master);
+
+	return ((err.re_status || status == NULL || *status));
 }
 #endif /* YP */

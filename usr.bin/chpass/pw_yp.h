@@ -35,18 +35,91 @@
  * Center for Telecommunications Research
  * Columbia University, New York City
  *
- *	$Id: pw_yp.h,v 1.1 1995/08/13 16:12:28 wpaul Exp $
+ *	$Id: pw_yp.h,v 1.8 1996/02/17 18:14:23 wpaul Exp $
  */
 
 #ifdef YP
+#include <sys/types.h>
+#include <rpc/rpc.h>
+#include <rpc/auth.h>
+#include <rpc/auth_unix.h>
 /* Four possible return codes from use_yp() */
 #define USER_UNKNOWN 0
 #define USER_YP_ONLY 1
 #define USER_LOCAL_ONLY 2
 #define USER_YP_AND_LOCAL 3
+
+extern	int		force_old;
 extern	int		_use_yp;
+extern	int		suser_override;
 extern	struct passwd	local_password;
 extern	struct passwd	yp_password;
-void	yp_submit	__P(( struct passwd * ));
-int	use_yp		__P(( char * ));
+extern	void		copy_yp_pass __P(( char *, int, int ));
+extern	char		*yp_domain;
+extern	char		*yp_server;
+extern	void		yp_submit	__P(( struct passwd * ));
+extern	int		use_yp		__P(( char * , uid_t , int ));
+extern	char		*get_yp_master	__P(( int ));
+
+/*
+ * Yucky.
+ */
+#define GETPWUID(X) \
+	_use_yp = use_yp(NULL, X, 1);					\
+									\
+	if (_use_yp == USER_UNKNOWN) {					\
+		errx(1, "unknown user: uid %u", X);			\
+	}								\
+									\
+	if (_use_yp == USER_YP_ONLY) {					\
+		if (!force_local) {					\
+			_use_yp = 1;					\
+			pw = (struct passwd *)&yp_password;		\
+		} else							\
+			errx(1, "unknown local user: uid %u", X);	\
+	} else if (_use_yp == USER_LOCAL_ONLY) {			\
+		if (!force_yp) {					\
+			_use_yp = 0;					\
+			pw = (struct passwd *)&local_password;		\
+		} else							\
+			errx(1, "unknown NIS user: uid %u", X);		\
+	} else if (_use_yp == USER_YP_AND_LOCAL) {			\
+		if (!force_local) {					\
+			_use_yp = 1;					\
+			pw = (struct passwd *)&yp_password;		\
+		} else {						\
+			_use_yp = 0;					\
+			pw = (struct passwd *)&local_password;		\
+		}							\
+	}
+
+#define GETPWNAM(X) \
+	_use_yp = use_yp(X, 0, 0);					\
+									\
+	if (_use_yp == USER_UNKNOWN) {					\
+		errx(1, "unknown user: %s", X);				\
+	}								\
+									\
+	if (_use_yp == USER_YP_ONLY) {					\
+		if (!force_local) {					\
+			_use_yp = 1;					\
+			pw = (struct passwd *)&yp_password;		\
+		} else							\
+			errx(1, "unknown local user: %s.", X);		\
+	} else if (_use_yp == USER_LOCAL_ONLY) {			\
+		if (!force_yp) {					\
+			_use_yp = 0;					\
+			pw = (struct passwd *)&local_password;		\
+		} else							\
+			errx(1, "unknown NIS user: %s.", X);		\
+	} else if (_use_yp == USER_YP_AND_LOCAL) {			\
+		if (!force_local) {					\
+			_use_yp = 1;					\
+			pw = (struct passwd *)&yp_password;		\
+		} else {						\
+			_use_yp = 0;					\
+			pw = (struct passwd *)&local_password;		\
+		}							\
+	}
+
 #endif /* YP */
