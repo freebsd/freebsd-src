@@ -25,17 +25,21 @@
  * $FreeBSD$
  */
 
+#include "openfirm.h"
+
 /* Note: Must match the 'struct devdesc' in bootstrap.h */
 struct ofw_devdesc {
 	struct devsw	*d_dev;
 	int		d_type;
 	union {
 		struct {
-			int	unit;
-			char	path[64];
-			int	partition;
-			int	slice;
-			int	bsize;
+			phandle_t	handle;		/* OFW handle */
+			unsigned long	partoff;	/* sector offset */
+			int	unit;			/* disk number */
+			char	path[64];		/* OFW path */
+			int	slice;			/* slice# */
+			int	partition;		/* partition in slice */
+			int	bsize;			/* block size */
 		} ofwdisk;
 		struct {
 			int	unit;
@@ -48,8 +52,6 @@ struct ofw_devdesc {
  * I've made a wild guess as to what goes where, but I have no idea if it's
  * right.
  *
- *	u_long partoff;
- *	int bsize;
  *	void *dmabuf;
  */
 };
@@ -63,6 +65,7 @@ struct ofw_devdesc {
 
 extern int	ofw_getdev(void **vdev, const char *devspec, const char **path);
 extern char	*ofw_fmtdev(void *vdev);
+extern int	ofw_parseofwdev(struct ofw_devdesc *, const char *devspec);
 extern int	ofw_setcurrdev(struct env_var *ev, int flags, void *value);
 
 extern struct devsw		ofwdisk;
