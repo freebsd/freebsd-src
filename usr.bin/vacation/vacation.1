@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	From: @(#)vacation.1	8.1 (Berkeley) 6/16/93
-.\"	$Id$
+.\"	$Id: vacation.1,v 1.6 1997/02/22 19:57:38 peter Exp $
 .\"
 .Dd June 16, 1993
 .Dt VACATION 1
@@ -40,11 +40,14 @@
 .Nd return ``I am not here'' indication
 .Sh SYNOPSIS
 .Nm vacation
+.Op Fl d
 .Fl i
 .Op Fl r Ar interval
 .Nm vacation
+.Op Fl d
 .Fl l
 .Nm vacation
+.Op Fl d
 .Op Fl a Ar alias
 .Ar login
 .Sh DESCRIPTION
@@ -71,6 +74,8 @@ Handle messages for
 .Ar alias
 in the same manner as those received for the user's
 login name.
+.It Fl d
+Enable debugging mode. See below.
 .It Fl i
 Initialize the vacation database files.  It should be used
 before you modify your
@@ -160,7 +165,24 @@ Fatal errors, such as calling
 with incorrect arguments, or with non-existent
 .Ar login Ns Ar s ,
 are logged in the system log file, using
-.Xr syslog 3 .
+.Xr syslog 3
+unless debugging mode is enabled with the
+.Fl d
+option, in which case they are written to the standard error output.
+.Pp
+Building on the example provided above, you might choose to have errors
+redirected to a file while you are testing vacation's operation with
+the following in your 
+.Pa .forward
+file:
+.Pp
+.Bd -literal -offset indent
+\eeric, "|/bin/sh -c '/usr/bin/vacation -d -a allman eric' 2>/home/eric/.vacation.log"
+.Ed
+.Sh DIAGNOSTICS
+The
+.Nm
+utility exits 0 on success, and >0 if an error occurs.
 .Sh FILES
 .Bl -tag -width "vacation.dirxxx" -compact
 .It Pa ~/.vacation.db
