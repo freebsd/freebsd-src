@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)umount.8	8.2 (Berkeley) 5/8/95
+.\"	$Id$
 .\"
 .Dd May 8, 1995
 .Dt UMOUNT 8
@@ -38,9 +39,9 @@
 .Nm umount
 .Nd unmount filesystems
 .Sh SYNOPSIS
-.Nm umount
+.Nm
 .Op Fl fv
-.Ar special | node
+.Ar special \&| node
 .Nm umount
 .Fl a | A
 .Op Fl fv
@@ -48,7 +49,7 @@
 .Op Fl t Ar type
 .Sh DESCRIPTION
 The
-.Nm umount
+.Nm
 command
 calls the
 .Xr unmount 2
@@ -81,7 +82,7 @@ The root filesystem cannot be forcibly unmounted.
 .It Fl h Ar host
 Only filesystems mounted from the specified host will be
 unmounted.
-This option is implies the
+This option implies the
 .Fl A
 option and, unless otherwise specified with the
 .Fl t
@@ -96,7 +97,7 @@ to specify the filesystem types for which action should
 .Em not
 be taken.
 For example, the
-.Nm umount
+.Nm
 command:
 .Bd -literal -offset indent
 umount -a -t nfs,mfs
@@ -143,6 +144,6 @@ from the mountpoint
 .Ar /cdrom .
 .Sh HISTORY
 A
-.Nm umount
+.Nm
 command appeared in
 .At v6 .
