@@ -302,15 +302,14 @@ kvm_getprocs(kd, op, arg, cnt)
 			_kvm_syserr(kd, kd->program, "kvm_getprocs");
 			return (0);
 		}
-		kd->procbase = 0;
 		do {
 			size += size / 10;
 			kd->procbase = (struct kinfo_proc *)
-				_kvm_realloc(kd, kd->procbase, size);
+			    _kvm_realloc(kd, kd->procbase, size);
 			if (kd->procbase == 0)
 				return (0);
 			st = sysctl(mib, op == KERN_PROC_ALL ? 3 : 4,
-				    kd->procbase, &size, NULL, 0);
+			    kd->procbase, &size, NULL, 0);
 		} while (st == -1 && errno == ENOMEM);
 		if (st == -1) {
 			_kvm_syserr(kd, kd->program, "kvm_getprocs");
@@ -601,21 +600,18 @@ proc_verify(kd, kernp, p)
 	const struct proc *p;
 {
 	struct kinfo_proc kp;
-	int mib[4], st;
+	int mib[4];
 	size_t len;
 
 	mib[0] = CTL_KERN;
 	mib[1] = KERN_PROC;
 	mib[2] = KERN_PROC_PID;
 	mib[3] = p->p_pid;
-
-	len = sizeof kp;
-
-	st = sysctl(mib, 4, &kp, &len, NULL, 0);
-	if (st < 0)
-		return(0);
+	len = sizeof(kp);
+	if (sysctl(mib, 4, &kp, &len, NULL, 0) == -1)
+		return (0);
 	return (p->p_pid == kp.kp_proc.p_pid &&
-		(kp.kp_proc.p_stat != SZOMB || p->p_stat == SZOMB));
+	    (kp.kp_proc.p_stat != SZOMB || p->p_stat == SZOMB));
 }
 
 static char **
@@ -629,15 +625,14 @@ kvm_doargv(kd, kp, nchr, info)
 	register char **ap;
 	u_long addr;
 	int cnt;
-	static struct ps_strings arginfo, *ps_strings;
+	static struct ps_strings arginfo;
+	static u_long ps_strings;
 	size_t len;
-	int i;
 
 	if (ps_strings == NULL) {
-		len = sizeof ps_strings;
-		i = sysctlbyname("kern.ps_strings", 
-		    &ps_strings, &len, 0, 0);
-		if (i < 0 || ps_strings == NULL)
+		len = sizeof(ps_strings);
+		if (sysctlbyname("kern.ps_strings", &ps_strings, &len, NULL,
+		    0) == -1)
 			ps_strings = PS_STRINGS;
 	}
 
