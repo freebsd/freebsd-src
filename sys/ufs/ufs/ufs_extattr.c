@@ -52,7 +52,6 @@
 #include <sys/lock.h>
 #include <sys/dirent.h>
 #include <sys/extattr.h>
-#include <sys/stdint.h>
 #include <sys/sysctl.h>
 
 #include <vm/uma.h>

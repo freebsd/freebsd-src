@@ -49,7 +49,6 @@
 #include <sys/resourcevar.h>
 #include <sys/sched.h>
 #include <sys/sbuf.h>
-#include <sys/stdint.h>
 #include <sys/sysctl.h>
 #include <sys/vmmeter.h>
 

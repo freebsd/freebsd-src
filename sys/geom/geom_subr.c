@@ -37,7 +37,6 @@
 
 
 #include <sys/param.h>
-#include <sys/stdint.h>
 #ifndef _KERNEL
 #include <stdio.h>
 #include <unistd.h>

@@ -53,7 +53,6 @@
 #include "opt_mca.h"
 
 #include <sys/param.h>
-#include <sys/stdint.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/lock.h>

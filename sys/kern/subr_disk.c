@@ -14,7 +14,6 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/stdint.h>
 #include <sys/bio.h>
 #include <sys/conf.h>
 #include <sys/disk.h>

@@ -12,7 +12,6 @@
 #include "opt_ntp.h"
 
 #include <sys/param.h>
-#include <sys/stdint.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
