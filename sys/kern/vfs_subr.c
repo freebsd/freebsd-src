@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.13 (Berkeley) 4/18/94
- * $Id: vfs_subr.c,v 1.20 1995/03/09 20:27:04 phk Exp $
+ * $Id: vfs_subr.c,v 1.21 1995/03/10 21:18:24 davidg Exp $
  */
 
 /*
@@ -900,6 +900,10 @@ vflush(mp, skipvp, flags)
 		panic("vflush: not busy");
 loop:
 	for (vp = mp->mnt_vnodelist.lh_first; vp; vp = nvp) {
+		/*
+		 * Make sure this vnode wasn't reclaimed in getnewvnode().
+		 * Start over if it has (it won't be on the list anymore).
+		 */
 		if (vp->v_mount != mp)
 			goto loop;
 		nvp = vp->v_mntvnodes.le_next;
