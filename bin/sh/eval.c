@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)eval.c	8.9 (Berkeley) 6/8/95";
 #endif
 static const char rcsid[] =
-	"$Id: eval.c,v 1.16 1999/04/01 13:27:35 cracauer Exp $";
+	"$Id: eval.c,v 1.17 1999/04/03 12:55:51 cracauer Exp $";
 #endif /* not lint */
 
 #include <signal.h>
@@ -410,7 +410,7 @@ evalsubshell(n, flags)
 	}
 	if (! backgnd) {
 		INTOFF;
-		exitstatus = waitforjob(jp);
+		exitstatus = waitforjob(jp, (int *)NULL);
 		INTON;
 	}
 }
@@ -509,7 +509,7 @@ evalpipe(n)
 	INTON;
 	if (n->npipe.backgnd == 0) {
 		INTOFF;
-		exitstatus = waitforjob(jp);
+		exitstatus = waitforjob(jp, (int *)NULL);
 		TRACE(("evalpipe:  job done exit status %d\n", exitstatus));
 		INTON;
 	}
@@ -602,6 +602,7 @@ evalcommand(cmd, flags, backcmd)
 	struct localvar *volatile savelocalvars;
 	volatile int e;
 	char *lastarg;
+	int realstatus;
 #if __GNUC__
 	/* Avoid longjmp clobbering */
 	(void) &argv;
@@ -861,9 +862,9 @@ cmddone:
 parent:	/* parent process gets here (if we forked) */
 	if (mode == 0) {	/* argument to fork */
 		INTOFF;
-		exitstatus = waitforjob(jp);
+		exitstatus = waitforjob(jp, &realstatus);
 		INTON;
-		if (iflag && loopnest > 0 && WIFSIGNALED(exitstatus)) {
+		if (iflag && loopnest > 0 && WIFSIGNALED(realstatus)) {
 			evalskip = SKIPBREAK;
 			skipcount = loopnest;
 		}
