@@ -174,7 +174,13 @@ ufs_reclaim(ap)
 	if (ip->i_dirhash != NULL)
 		ufsdirhash_free(ip);
 #endif
-	UFS_IFREE(ump, ip);
+	/*
+	 * Lock the clearing of v_data so ffs_lock() can inspect it
+	 * prior to obtaining the lock.
+	 */
+	VI_LOCK(vp);
 	vp->v_data = 0;
+	VI_UNLOCK(vp);
+	UFS_IFREE(ump, ip);
 	return (0);
 }
