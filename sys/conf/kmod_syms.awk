@@ -2,7 +2,7 @@
 
 # Read global symbols from object file.
 BEGIN {
-        while ("nm -g " ARGV[1] | getline) {
+        while ("${NM:='nm'} -g " ARGV[1] | getline) {
                 if (match($0, /^[^[:space:]]+ [^AU] (.*)$/)) {
                         syms[$3] = $2
                 }
