@@ -3,18 +3,23 @@
 
 .PATH:  ${.CURDIR}/../../dev/cx
 KMOD=   if_cx
-SRCS=   if_cx.c cxddk.c csigma.c opt_netgraph.h opt_ng_cronyx.h bpf.h \
+SRCS=   if_cx.c cxddk.c csigma.c cx.h opt_netgraph.h opt_ng_cronyx.h bpf.h \
 	sppp.h device_if.h bus_if.h isa_if.h
+NOMAN=
 
 NBPF?=		0
+NCX?=		3
 PROTOS?=	-DINET
 NG_CRONYX?=	0
 NETGRAPH=	${NG_CRONYX}
 
 
 CFLAGS+= ${PROTOS}
-CLEANFILES+= opt_ng_cronyx.h opt_netgraph.h bpf.h cxddk.c csigma.c sppp.h
+CLEANFILES+= opt_ng_cronyx.h opt_netgraph.h cx.h bpf.h sppp.h
 
+cx.h:
+	echo "#define NCX $(NCX)" > cx.h
+	
 opt_netgraph.h:
 	echo "#define NETGRAPH $(NETGRAPH)" > opt_netgraph.h
 
