@@ -13,12 +13,12 @@
 #define DIST_COMPAT1X		0x0100
 #define DIST_COMPAT20		0x0200
 #define DIST_COMPAT21		0x0400
-#define DIST_XF86		0x0800
-#define DIST_DES		0x1000
-#define DIST_CATPAGES		0x2000
-#define DIST_PORTS		0x4000
-#define DIST_USR1		0x8000
-#define DIST_ALL		0x7FFF
+#define DIST_COMPAT22		0x0800
+#define DIST_XF86		0x1000
+#define DIST_DES		0x2000
+#define DIST_CATPAGES		0x4000
+#define DIST_PORTS		0x8000
+#define DIST_ALL		0xFFFF
 
 /* Canned distribution sets */
 #define _DIST_DEVELOPER \
