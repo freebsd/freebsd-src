@@ -1,6 +1,10 @@
 <!-- This is LINUXDOC.DTD, a hacked version of QWERTZ.DTD v1.3
       by Matt Welsh; modified from QWERTZ.DTD  by Tom Gordon     -->
 
+<!-- =========================================================== -->
+<!-- Parameter Entities                                          -->
+<!-- =========================================================== -->
+
 <!entity % emph 
 	" em|it|bf|sf|sl|tt|cparam " >
 
@@ -33,8 +37,38 @@
         (part | chapt | sect | article | report | 
 	 book | letter | telefax | slides | notes | manpage ) >
 
-<!entity % general system -- general purpose characters -- >
-%general;
+<!ENTITY % ISOlat1 PUBLIC
+  "ISO 8879:1986//ENTITIES Added Latin 1//EN">
+%ISOlat1;
+<!ENTITY % ISOnum PUBLIC
+  "ISO 8879:1986//ENTITIES Numeric and Special Graphic//EN">
+%ISOnum;
+<!ENTITY % ISOdia PUBLIC
+  "ISO 8879:1986//ENTITIES Diacritical Marks//EN">
+%ISOdia;
+<!ENTITY % ISOpub PUBLIC
+  "ISO 8879:1986//ENTITIES Publishing//EN">
+%ISOpub;
+<!ENTITY % ISOamsa PUBLIC
+  "ISO 8879:1986//ENTITIES Added Math Symbols: Arrow Relations//EN">
+%ISOamsa;
+<!ENTITY % ISOamsb PUBLIC
+  "ISO 8879:1986//ENTITIES Added Math Symbols: Binary Operators//EN">
+%ISOamsb;
+<!ENTITY % ISOamsc PUBLIC
+  "ISO 8879:1986//ENTITIES Added Math Symbols: Delimiters//EN">
+%ISOamsc;
+<!ENTITY % ISOamsn PUBLIC
+  "ISO 8879:1986//ENTITIES Added Math Symbols: Negated Relations//EN">
+%ISOamsn;
+<!ENTITY % ISOamso PUBLIC
+  "ISO 8879:1986//ENTITIES Added Math Symbols: Ordinary//EN">
+%ISOamso;
+<!ENTITY % ISOamsr PUBLIC
+  "ISO 8879:1986//ENTITIES Added Math Symbols: Relations//EN">
+%ISOamsr;
+
+<!--
 <!entity   Ae  '&Auml;' >
 <!entity   ae  '&auml;' >
 <!entity   Oe  '&Ouml;' >
@@ -42,6 +76,12 @@
 <!entity   Ue  '&Uuml;' >
 <!entity   ue  '&uuml;' >
 <!entity   sz  '&szlig;' >
+-->
+
+<!-- =========================================================== -->
+<!-- Elements                                                    -->
+<!-- =========================================================== -->
+
 <!element  p o o (( %inline | %sectpar )+) +(newline) >
 <!entity ptag '<p>' >
 <!entity psplit '</p><p>' >
@@ -49,17 +89,7 @@
 <!shortref pmap
 	"&#RS;B" null 
 	"&#RS;B&#RE;" psplit
-	"&#RS;&#RE;" psplit
---	'"' qtag  --
-      	"[" ftag
-      	"~" nbsp
-      	"_" lowbar
-      	"#" num
-      	"%" percnt
-      	"^" circ
-      	"{" lcub
-      	"}" rcub
-      	"|" verbar >
+	"&#RS;&#RE;" psplit>
 
 <!usemap pmap p>
 <!element em - - (%inline)>
@@ -73,21 +103,6 @@
 
 <!entity   ftag     '<f>'    -- formula begin -- >
 <!entity   qendtag  '</sq>'>
-
-<!shortref sqmap 
-      "&#RS;B" null
---      '"' qendtag  --
-      "[" ftag
-      "~" nbsp
-      "_" lowbar
-      "#" num
-      "%" percnt
-      "^" circ
-      "{" lcub
-      "}" rcub
-      "|" verbar >
-
-<!usemap   sqmap    sq >
 
 <!element lq - - (p*)>
 <!element quote - - ((%inline; | %sectpar;)*, p*)+ >
@@ -103,17 +118,7 @@
 <!shortref desmap
         "&#RS;B" null
         "&#RS;B&#RE;" ptag
-        "&#RS;&#RE;" ptag
-        "~" nbsp
-        "_" lowbar
-        "#" num
-        "%" percnt
-        "^" circ
-        "[" lsqb
-        "]" rsqb
-        "{" lcub
-        "}" rcub
-        "|" verbar >
+        "&#RS;&#RE;" ptag>
 
 <!element descrip - - (tag?, p+)+ >
 <!usemap desmap descrip>
@@ -124,22 +129,6 @@
 <!usemap global (list,itemize,enum)>
 <!entity space " ">
 <!entity null "">
-
-<!--
-<!shortref bodymap
-     "&#RS;B&#RE;" ptag
-     "&#RS;&#RE;" ptag
-      '"' qtag 
-      "[" ftag
-      "~" nbsp
-      "_" lowbar
-      "#" num
-      "%" percnt
-      "^" circ
-      "{" lcub
-      "}" rcub
-      "|" verbar>
--->
 
 <!element figure - - ((eps | ph ), caption?)>
 <!attlist figure
@@ -157,17 +146,7 @@
 <!shortref oneline
      "B&#RE;" space
      "&#RS;&#RE;" null 
-     "&#RS;B&#RE;" null
---      '"' qtag  --
-      "[" ftag
-      "~" nbsp
-      "_" lowbar
-      "#" num
-      "%" percnt
-      "^" circ
-      "{" lcub
-      "}" rcub
-      "|" verbar>
+     "&#RS;B&#RE;" null>
 
 <!usemap oneline tag>
 <!usemap oneline caption>
@@ -192,18 +171,7 @@
      "&#RS;B&#RE;" null
      "&#RS;B" null
       "B&#RE;" null
-      "BB"  space
-      "@" rowsep
-      "|" colsep 
-      "[" ftag
---      '"' qtag --
-      "_" thinsp
-      "~" nbsp
-      "#" num
-      "%" percnt
-      "^" circ
-      "{" lcub
-      "}" rcub >
+      "BB"  space>
 
 <!usemap  tabmap tabular>
 <!element table   - - (tabular, caption?) >
@@ -217,19 +185,9 @@
         "B&#RE;" space
         "&#RS;&#RE;" null 
         "&#RS;B&#RE;" null
-	"&#RS;B" null
-        '#'     num
-        '%'     percnt
-        '~'     tilde
-        '_'     lowbar
-        '^'     circ
-        '{'     lcub
-        '}'     rcub
-        '|'     verbar >
+	"&#RS;B" null>
 
 <!usemap ttmap  tt>
-<!entity % math system -- math symbols -- >
-%math;
 <!element  mc  - - cdata >
 <!entity % sppos     "tu" >
 <!entity % fcs       "%sppos;|phr" >
@@ -248,16 +206,7 @@
 <!shortref fmap 
       "&#RS;B" null
       "&#RS;B&#RE;" null
-      "&#RS;&#RE;" null
-      "_" thinsp
-      "~" nbsp
-      "]" fendtag
-      "#" num
-      "%" percnt
-      "^" circ
-      "{" lcub
-      "}" rcub
-      "|" verbar>
+      "&#RS;&#RE;" null>
 
 <!usemap   fmap     f >
 
@@ -265,16 +214,7 @@
 <!element  eq       - - ((%fbutxt;)*)>
 
 <!shortref dmmap
-     "&#RE;" space
-      "_" thinsp
-      "~" nbsp
-      "]" fendtag
-      "#" num
-      "%" percnt
-      "^" circ
-      "{" lcub
-      "}" rcub
-      "|" verbar>
+     "&#RE;" space>
 
 <!usemap dmmap (dm,eq)>
 <!element  fr       - - (nu,de) >
@@ -303,16 +243,7 @@
 <!entity   arc "<arc>" >
 
 <!shortref arrmap
-     "&#RE;" space
-      "@" arr
-      "|" arc 
-      "_" thinsp
-      "~" nbsp
-      "#" num
-      "%" percnt
-      "^" circ
-      "{" lcub
-      "}" rcub >
+     "&#RE;" space>
 
 <!usemap   arrmap   ar >
 <!element  sup      - - ((%fbutxt;)*) -(tu) >
@@ -340,17 +271,7 @@
 <!entity   qtag     '<sq>' >
 
 <!shortref global
-      "&#RS;B" null  -- delete leading blanks --
-  --    '"' qtag -- 
-      "[" ftag
-      "~" nbsp
-      "_" lowbar
-      "#" num
-      "%" percnt
-      "^" circ
-      "{" lcub
-      "}" rcub
-      "|" verbar>
+      "&#RS;B" null  -- delete leading blanks -- >
 
 <!usemap global linuxdoc>
 <!element label - o empty>
@@ -360,19 +281,19 @@
 <!element ref - o empty>
 <!attlist ref   
         id cdata #required
-        name cdata "&refnam">
+        name cdata #implied>
 
 <!-- url entity added to have direct url references HG -->
 <!element url - o empty>
 <!attlist url   
         url cdata #required
-        name cdata "&urlnam" >
+        name cdata #implied>
 
 <!-- htmlurl entity added to have quieter url references esr -->
 <!element htmlurl - o empty>
 <!attlist htmlurl   
         url cdata #required
-        name cdata "&urlnam" >
+        name cdata #implied>
 
 <!element pageref - o empty>
 <!attlist pageref
@@ -523,17 +444,7 @@
 	title cdata ""
 	sectnum cdata "1" >
 <!shortref manpage
-      "&#RS;B" null
---      '"' qtag  --
-      "[" ftag
-      "~" nbsp
-      "_" lowbar
-      "#" num
-      "%" percnt
-      "^" circ
-      "{" lcub
-      "}" rcub
-      "|" verbar>
+      "&#RS;B" null>
 
 <!usemap manpage  manpage >
 <!-- end of linuxdoc dtd -->
