@@ -537,18 +537,22 @@ apic_register_enumerator(struct apic_enumerator *enumerator)
 }
 
 /*
- * We have to look for CPU's very, very early because certain subsystems
- * want to know how many CPU's we have extremely early on in the boot
- * process.
+ * Probe the APIC enumerators, enumerate CPUs, and initialize the
+ * local APIC.
  */
 static void
 apic_init(void *dummy __unused)
 {
 	struct apic_enumerator *enumerator;
+	uint64_t apic_base;
 	int retval, best;
 
 	/* We only support built in local APICs. */
 	if (!(cpu_feature & CPUID_APIC))
+		return;
+
+	/* Don't probe if APIC mode is disabled. */
+	if (resource_disabled("apic", 0))
 		return;
 
 	/* First, probe all the enumerators to find the best match. */
@@ -573,26 +577,6 @@ apic_init(void *dummy __unused)
 		printf("APIC: Using the %s enumerator.\n",
 		    best_enum->apic_name);
 
-	/* Second, probe the CPU's in the system. */
-	retval = best_enum->apic_probe_cpus();
-	if (retval != 0)
-		printf("%s: Failed to probe CPUs: returned %d\n",
-		    best_enum->apic_name, retval);
-}
-SYSINIT(apic_init, SI_SUB_TUNABLES - 1, SI_ORDER_SECOND, apic_init, NULL)
-
-/*
- * Setup the local APIC.  We have to do this prior to starting up the APs
- * in the SMP case.
- */
-static void
-apic_setup_local(void *dummy __unused)
-{
-	int retval;
-	uint64_t apic_base;
-
-	if (best_enum == NULL)
-		return;
 	/*
 	 * To work around an errata, we disable the local APIC on some
 	 * CPUs during early startup.  We need to turn the local APIC back
@@ -604,12 +588,20 @@ apic_setup_local(void *dummy __unused)
 		apic_base |= APICBASE_ENABLED;
 		wrmsr(MSR_APICBASE, apic_base);
 	}
+
+	/* Second, probe the CPU's in the system. */
+	retval = best_enum->apic_probe_cpus();
+	if (retval != 0)
+		printf("%s: Failed to probe CPUs: returned %d\n",
+		    best_enum->apic_name, retval);
+
+	/* Third, initialize the local APIC. */
 	retval = best_enum->apic_setup_local();
 	if (retval != 0)
 		printf("%s: Failed to setup the local APIC: returned %d\n",
 		    best_enum->apic_name, retval);
 }
-SYSINIT(apic_setup_local, SI_SUB_CPU, SI_ORDER_FIRST, apic_setup_local, NULL)
+SYSINIT(apic_init, SI_SUB_CPU, SI_ORDER_FIRST, apic_init, NULL)
 
 /*
  * Setup the I/O APICs.

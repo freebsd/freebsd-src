@@ -351,8 +351,7 @@ madt_register(void *dummy __unused)
 
 	apic_register_enumerator(&madt_enumerator);
 }
-SYSINIT(madt_register, SI_SUB_TUNABLES - 1, SI_ORDER_FIRST,
-    madt_register, NULL)
+SYSINIT(madt_register, SI_SUB_CPU - 1, SI_ORDER_FIRST, madt_register, NULL)
 
 /*
  * Call the handler routine for each entry in the MADT table.
@@ -644,7 +643,7 @@ madt_set_ids(void *dummy)
 
 	if (madt == NULL)
 		return;
-	for (i = 0; i < MAXCPU; i++) {
+	for (i = 0; i <= mp_maxid; i++) {
 		if (CPU_ABSENT(i))
 			continue;
 		pc = pcpu_find(i);
