@@ -16,7 +16,7 @@ ia32_genassym.o			optional	ia32			\
 #
 ia32_assym.h			optional	ia32			\
 	dependency 	"$S/kern/genassym.sh ia32_genassym.o"		\
-	compile-with	"sh $S/kern/genassym.sh ia32_genassym.o > ${.TARGET}" \
+	compile-with	"env NM=${NM} sh $S/kern/genassym.sh ia32_genassym.o > ${.TARGET}" \
 	no-obj no-implicit-rule before-depend				\
 	clean		"ia32_assym.h"
 #
