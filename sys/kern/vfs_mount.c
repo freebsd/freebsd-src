@@ -1346,7 +1346,7 @@ vfs_mountroot_try(const char *mountfrom)
 	}
 
 	/* If the root device is a type "memory disk", mount RW */
-	if (rootdev != NULL && devsw(rootdev) != NULL) {
+	if (rootdev != NULL && rootdev->si_devsw != NULL) {
 		devname = devtoname(rootdev);
 		if (devname[0] == 'm' && devname[1] == 'd')
 			mp->mnt_flag &= ~MNT_RDONLY;
