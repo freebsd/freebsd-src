@@ -30,17 +30,17 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: mkdir.c,v 1.5.8.1 1997/08/17 13:36:49 joerg Exp $
  */
 
 #ifndef lint
-static char copyright[] =
+static char const copyright[] =
 "@(#) Copyright (c) 1983, 1992, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)mkdir.c	8.2 (Berkeley) 1/25/94";
+static char const sccsid[] = "@(#)mkdir.c	8.2 (Berkeley) 1/25/94";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -67,7 +67,7 @@ main(argc, argv)
 
 	omode = pflag = 0;
 	mode = NULL;
-	while ((ch = getopt(argc, argv, "m:p")) != EOF)
+	while ((ch = getopt(argc, argv, "m:p")) != -1)
 		switch(ch) {
 		case 'p':
 			pflag = 1;
