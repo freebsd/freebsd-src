@@ -60,10 +60,10 @@ __FBSDID("$FreeBSD$");
 #include "pam_mod_misc.h"
 
 #define USER_PROMPT		"Username: "
-#define PASSWORD_PROMPT		"Password: "
-#define PASSWORD_PROMPT_EXPIRED	"\nPassword expired\nOld Password: "
-#define NEW_PASSWORD_PROMPT_1	"New Password: "
-#define NEW_PASSWORD_PROMPT_2	"New Password (again): "
+#define PASSWORD_PROMPT		"Password:"
+#define PASSWORD_PROMPT_EXPIRED	"\nPassword expired\nOld Password:"
+#define NEW_PASSWORD_PROMPT_1	"New Password:"
+#define NEW_PASSWORD_PROMPT_2	"New Password (again):"
 #define PASSWORD_HASH		"md5"
 #define DEFAULT_WARN		(2L * 7L * 86400L)  /* Two weeks */
 #define	MAX_TRIES		3
