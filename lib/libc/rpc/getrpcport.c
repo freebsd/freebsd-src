@@ -30,7 +30,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)getrpcport.c 1.3 87/08/11 SMI";*/
 /*static char *sccsid = "from: @(#)getrpcport.c	2.1 88/07/29 4.0 RPCSRC";*/
-static char *rcsid = "$Id: getrpcport.c,v 1.4 1996/06/08 22:54:52 jraynard Exp $";
+static char *rcsid = "$Id: getrpcport.c,v 1.5 1996/08/12 14:00:22 peter Exp $";
 #endif
 
 /*
@@ -40,12 +40,12 @@ static char *rcsid = "$Id: getrpcport.c,v 1.4 1996/06/08 22:54:52 jraynard Exp $
 #include <stdio.h>
 #include <string.h>
 #include <rpc/rpc.h>
+#include <rpc/pmap_clnt.h>
 #include <netdb.h>
 #include <sys/socket.h>
 
-u_short pmap_getport(struct sockaddr_in *, u_long, u_long, u_int);
-
-int getrpcport(host, prognum, versnum, proto)
+int
+getrpcport(host, prognum, versnum, proto)
 	char *host;
 	int prognum, versnum, proto;
 {
@@ -55,9 +55,9 @@ int getrpcport(host, prognum, versnum, proto)
 	if ((hp = gethostbyname(host)) == NULL)
 		return (0);
 	memset(&addr, 0, sizeof(addr));
-	bcopy(hp->h_addr, (char *) &addr.sin_addr, hp->h_length);
 	addr.sin_len = sizeof(struct sockaddr_in);
 	addr.sin_family = AF_INET;
 	addr.sin_port =  0;
+	memcpy((char *)&addr.sin_addr, hp->h_addr, hp->h_length);
 	return (pmap_getport(&addr, prognum, versnum, proto));
 }
