@@ -59,7 +59,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_glue.c,v 1.13 1995/01/24 10:12:39 davidg Exp $
+ * $Id: vm_glue.c,v 1.14 1995/02/02 09:08:26 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -421,9 +421,7 @@ swapout_threads()
 	register struct proc *p;
 	struct proc *outp, *outp2;
 	int outpri, outpri2;
-	int tpri;
 	int didswap = 0;
-	extern int maxslp;
 
 	outp = outp2 = NULL;
 	outpri = outpri2 = INT_MIN;
