@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.173 1999/01/26 05:14:36 peter Exp $
+#	$Id: rc,v 1.174 1999/01/29 06:18:12 dillon Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -45,8 +45,8 @@ if [ "X$skip_diskconf" != "XYES" -a -f /etc/ccd.conf ]; then
 	ccdconfig -C
 fi
 
-if [ "X$skip_diskconf" != "XYES" -a -n "$vinum_slices" ]; then
-	vinum read $vinum_slices
+if [ "X$skip_diskconf" != "XYES" -a -n "$vinum_drives" ]; then
+	vinum read $vinum_drives
 fi
 
 if [ "X$skip_diskconf" != "XYES" ]; then
