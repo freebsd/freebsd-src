@@ -648,7 +648,7 @@ rc_start(struct tty *tp)
 	sc = rc->rc_rcb;
 	s = spltty();
 	rc->rc_flags |= RC_OSBUSY;
-	disable_intr();
+	critical_enter();
 	if (tp->t_state & TS_TTSTOP)
 		rc->rc_flags |= RC_OSUSP;
 	else
@@ -664,7 +664,7 @@ rc_start(struct tty *tp)
 		rcout(sc, CD180_CAR, rc->rc_chan);
 		rcout(sc, CD180_MSVR, rc->rc_msvr |= MSVR_RTS);
 	}
-	enable_intr();
+	critical_exit();
 	if (tp->t_state & (TS_TIMEOUT|TS_TTSTOP))
 		goto out;
 #ifdef RCDEBUG
@@ -683,10 +683,10 @@ rc_start(struct tty *tp)
 
 		tp->t_state |= TS_BUSY;
 		ocnt = q_to_b(&tp->t_outq, rc->rc_obuf, sizeof rc->rc_obuf);
-		disable_intr();
+		critical_enter();
 		rc->rc_optr = rc->rc_obuf;
 		rc->rc_obufend = rc->rc_optr + ocnt;
-		enable_intr();
+		critical_exit();
 		if (!(rc->rc_ier & IER_TxRdy)) {
 #ifdef RCDEBUG
 			device_printf(sc->sc_dev,
@@ -724,31 +724,31 @@ rc_pollcard(void *arg)
 				printrcflags(rc, "rcevent");
 #endif
 			if (rc->rc_flags & RC_WAS_BUFOVFL) {
-				disable_intr();
+				critical_enter();
 				rc->rc_flags &= ~RC_WAS_BUFOVFL;
 				sc->sc_scheduled_event--;
-				enable_intr();
+				critical_exit();
 				device_printf(sc->sc_dev,
 			    "channel %d: interrupt-level buffer overflow\n",
 				     chan);
 			}
 			if (rc->rc_flags & RC_WAS_SILOVFL) {
-				disable_intr();
+				critical_enter();
 				rc->rc_flags &= ~RC_WAS_SILOVFL;
 				sc->sc_scheduled_event--;
-				enable_intr();
+				critical_exit();
 				device_printf(sc->sc_dev,
 				    "channel %d: silo overflow\n", chan);
 			}
 			if (rc->rc_flags & RC_MODCHG) {
-				disable_intr();
+				critical_enter();
 				rc->rc_flags &= ~RC_MODCHG;
 				sc->sc_scheduled_event -= LOTS_OF_EVENTS;
-				enable_intr();
+				critical_exit();
 				(*linesw[tp->t_line].l_modem)(tp, !!(rc->rc_msvr & MSVR_CD));
 			}
 			if (rc->rc_flags & RC_DORXFER) {
-				disable_intr();
+				critical_enter();
 				rc->rc_flags &= ~RC_DORXFER;
 				eptr = rc->rc_iptr;
 				if (rc->rc_bufend == &rc->rc_ibuf[2 * RC_IBUFSIZE])
@@ -778,7 +778,7 @@ rc_pollcard(void *arg)
 					}
 					sc->sc_scheduled_event -= icnt;
 				}
-				enable_intr();
+				critical_exit();
 
 				if (icnt <= 0 || !(tp->t_state & TS_ISOPEN))
 					goto done1;
@@ -812,11 +812,11 @@ rc_pollcard(void *arg)
 done1: ;
 			}
 			if (rc->rc_flags & RC_DOXXFER) {
-				disable_intr();
+				critical_enter();
 				sc->sc_scheduled_event -= LOTS_OF_EVENTS;
 				rc->rc_flags &= ~RC_DOXXFER;
 				rc->rc_tp.t_state &= ~TS_BUSY;
-				enable_intr();
+				critical_exit();
 				(*linesw[tp->t_line].l_start)(tp);
 			}
 		}
@@ -841,7 +841,7 @@ rc_stop(struct tty *tp, int rw)
 #endif
 	if (rw & FWRITE)
 		rc_discard_output(rc);
-	disable_intr();
+	critical_enter();
 	if (rw & FREAD) {
 		rc->rc_flags &= ~RC_DORXFER;
 		eptr = rc->rc_iptr;
@@ -858,7 +858,7 @@ rc_stop(struct tty *tp, int rw)
 		rc->rc_flags |= RC_OSUSP;
 	else
 		rc->rc_flags &= ~RC_OSUSP;
-	enable_intr();
+	critical_exit();
 }
 
 static int
@@ -1544,14 +1544,14 @@ rc_dtrwakeup(void *arg)
 static void
 rc_discard_output(struct rc_chans *rc)
 {
-	disable_intr();
+	critical_enter();
 	if (rc->rc_flags & RC_DOXXFER) {
 		rc->rc_rcb->sc_scheduled_event -= LOTS_OF_EVENTS;
 		rc->rc_flags &= ~RC_DOXXFER;
 	}
 	rc->rc_optr = rc->rc_obufend;
 	rc->rc_tp.t_state &= ~TS_BUSY;
-	enable_intr();
+	critical_exit();
 	ttwwakeup(&rc->rc_tp);
 }
 
