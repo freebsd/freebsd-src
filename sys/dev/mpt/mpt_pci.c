@@ -57,6 +57,10 @@
 #define	PCI_PRODUCT_LSI_FC909		0x0620
 #endif
 
+#ifndef	PCI_PRODUCT_LSI_FC909A
+#define	PCI_PRODUCT_LSI_FC909A		0x0621
+#endif
+
 #ifndef	PCI_PRODUCT_LSI_FC929
 #define	PCI_PRODUCT_LSI_FC929		0x0622
 #endif
@@ -135,6 +139,9 @@ mpt_probe(device_t dev)
 	switch ((pci_get_device(dev) & ~1)) {
 	case PCI_PRODUCT_LSI_FC909:
 		desc = "LSILogic FC909 FC Adapter";
+		break;
+	case PCI_PRODUCT_LSI_FC909A:
+		desc = "LSILogic FC909A FC Adapter";
 		break;
 	case PCI_PRODUCT_LSI_FC929:
 		desc = "LSILogic FC929 FC Adapter";
@@ -239,6 +246,7 @@ mpt_attach(device_t dev)
 	bzero(mpt, sizeof (mpt_softc_t));
 	switch ((pci_get_device(dev) & ~1)) {
 	case PCI_PRODUCT_LSI_FC909:
+	case PCI_PRODUCT_LSI_FC909A:
 	case PCI_PRODUCT_LSI_FC929:
 		mpt->is_fc = 1;
 		break;

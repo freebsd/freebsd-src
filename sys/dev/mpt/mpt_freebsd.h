@@ -226,7 +226,8 @@ typedef struct mpt_softc {
 			fCONFIG_PAGE_SCSI_PORT_2	_port_page2;
 			fCONFIG_PAGE_SCSI_DEVICE_0	_dev_page0[16];
 			fCONFIG_PAGE_SCSI_DEVICE_1	_dev_page1[16];
-			uint16_t			_tagmask;
+			uint16_t			_tag_enable;
+			uint16_t			_disc_enable;
 			uint16_t			_update_params0;
 			uint16_t			_update_params1;
 		} spi;
@@ -235,7 +236,8 @@ typedef struct mpt_softc {
 #define	mpt_port_page2		cfg.spi._port_page2
 #define	mpt_dev_page0		cfg.spi._dev_page0
 #define	mpt_dev_page1		cfg.spi._dev_page1
-#define	mpt_tagmask		cfg.spi._tagmask
+#define	mpt_tag_enable		cfg.spi._tag_enable
+#define	mpt_disc_enable		cfg.spi._disc_enable
 #define	mpt_update_params0	cfg.spi._update_params0
 #define	mpt_update_params1	cfg.spi._update_params1
 		struct mpi_fc_cfg {

@@ -509,10 +509,6 @@ mpt_send_ioc_init(mpt_softc_t *mpt, u_int32_t who)
 
 static int
 mpt_read_cfg_header(mpt_softc_t *, int, int, int, fCONFIG_PAGE_HEADER *);
-static int
-mpt_read_cfg_page(mpt_softc_t *, int, fCONFIG_PAGE_HEADER *);
-static int
-mpt_write_cfg_page(mpt_softc_t *, int, fCONFIG_PAGE_HEADER *);
 
 static int
 mpt_read_cfg_header(mpt_softc_t *mpt, int PageType, int PageNumber,
@@ -565,7 +561,7 @@ mpt_read_cfg_header(mpt_softc_t *mpt, int PageType, int PageNumber,
 
 #define	CFG_DATA_OFF	40
 
-static int
+int
 mpt_read_cfg_page(mpt_softc_t *mpt, int PageAddress, fCONFIG_PAGE_HEADER *hdr)
 {
 	int count;
@@ -637,7 +633,7 @@ mpt_read_cfg_page(mpt_softc_t *mpt, int PageAddress, fCONFIG_PAGE_HEADER *hdr)
 	return (0);
 }
 
-static int
+int
 mpt_write_cfg_page(mpt_softc_t *mpt, int PageAddress, fCONFIG_PAGE_HEADER *hdr)
 {
 	int count, hdr_attr;
@@ -885,6 +881,9 @@ mpt_set_initial_config_spi(mpt_softc_t *mpt)
 {
 	int i, pp1val = ((1 << mpt->mpt_ini_id) << 16) | mpt->mpt_ini_id;
 
+	mpt->mpt_disc_enable = 0xff;
+	mpt->mpt_tag_enable = 0;
+
 	if (mpt->mpt_port_page1.Configuration != pp1val) {
 		fCONFIG_PAGE_SCSI_PORT_1 tmp;
 		device_printf(mpt->dev,
@@ -906,9 +905,6 @@ mpt_set_initial_config_spi(mpt_softc_t *mpt)
 		mpt->mpt_port_page1 = tmp;
 	}
 
-#if	1
-	i = i;
-#else
 	for (i = 0; i < 16; i++) {
 		fCONFIG_PAGE_SCSI_DEVICE_1 tmp;
 		tmp = mpt->mpt_dev_page1[i];
@@ -933,7 +929,35 @@ mpt_set_initial_config_spi(mpt_softc_t *mpt)
 			    mpt->mpt_dev_page1[i].Configuration);
 		}
 	}
-#endif
+
+	/*
+	 * If the BIOS hasn't been enabled, the SCSI Port Page2 device
+	 * parameter are apparently complete nonsense. I've had partially
+	 * sensible Page2 settings on *one* bus, but nothing on another-
+	 * it's ridiculous.
+	 *
+	 * For that matter, the Port Page 0 parameters are *also* nonsense,
+	 * so the offset and period and currently connected physical interface
+	 * is also nonsense.
+	 *
+	 * This makes it very difficult to try and figure out what maximum
+	 * settings we could have. Therefore, we'll synthesize the maximums
+	 * here.
+	 */
+	for (i = 0; i < 16; i++) {
+		mpt->mpt_port_page2.DeviceSettings[i].DeviceFlags =
+		    MPI_SCSIPORTPAGE2_DEVICE_DISCONNECT_ENABLE |
+		    MPI_SCSIPORTPAGE2_DEVICE_TAG_QUEUE_ENABLE;
+	}
+	mpt->mpt_port_page0.Capabilities =
+	    MPI_SCSIPORTPAGE0_CAP_IU |
+	    MPI_SCSIPORTPAGE0_CAP_DT |
+	    MPI_SCSIPORTPAGE0_CAP_QAS |
+	    MPI_SCSIPORTPAGE0_CAP_WIDE |
+	    (31 << 16) |			/* offset */
+	    (8 << 8);				/* period */
+	mpt->mpt_port_page0.PhysicalInterface =
+	    MPI_SCSIPORTPAGE0_PHY_SIGNAL_LVD;
 	return (0);
 }
 
@@ -1061,7 +1085,6 @@ mpt_init(mpt_softc_t *mpt, u_int32_t who)
 		break;
 	}
 	
-
 	for (try = 0; try < MPT_MAX_TRYS; try++) {
 		/*
 		 * No need to reset if the IOC is already in the READY state.
