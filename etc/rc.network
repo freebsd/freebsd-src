@@ -508,6 +508,23 @@ network_pass3() {
 			esac
 		fi
 		;;
+	*)
+		case ${single_mountd_enable} in
+		[Yy][Ee][Ss])
+			if [ -r /etc/exports ]; then
+				echo -n ' mountd'
+
+				case ${weak_mountd_authentication} in
+				[Yy][Ee][Ss])
+					mountd_flags="-n"
+					;;
+				esac
+
+				mountd ${mountd_flags}
+			fi
+			;;
+		esac
+		;;
 	esac
 
 	case ${nfs_client_enable} in
