@@ -32,25 +32,17 @@
 /* Share the devid database with NEWCARD */
 #include <dev/pccbb/pccbbdevid.h>
 
-/* CL-PD6832 CardBus defines */
-#define	CLPD6832_IO_BASE0		0x002c
-#define	CLPD6832_IO_LIMIT0		0x0030
-#define	CLPD6832_IO_BASE1		0x0034
-#define	CLPD6832_IO_LIMIT1		0x0038
-#define	CLPD6832_BRIDGE_CONTROL		0x003c
-#define	CLPD6832_LEGACY_16BIT_IOADDR	0x0044
-#define	CLPD6832_LEGACY_16BIT_IOENABLE	0x0001
-#define	CLPD6832_SOCKET	 		0x004c
+/* CL-PD683x CardBus defines */
+#define	CLPD6833_CFG_MISC_1		0x98
 
 /* Configuration constants */
-#define	CLPD6832_BCR_MGMT_IRQ_ENA	0x08000000
-#define	CLPD6832_BCR_ISA_IRQ		0x00800000
-#define	CLPD6832_COMMAND_DEFAULTS	0x00000045
-#define	CLPD6832_NUM_REGS		2
+#define	CLPD6832_BCR_MGMT_IRQ_ENA	0x0800
+#define CLPD6833_CM1_MGMT_EXCA_ENA	0x0001	/* Set ExCA, Clr PCI */
 
 /* End of CL-PD6832 defines */
 /* Texas Instruments PCI-1130/1131 CardBus Controller */
 #define TI113X_PCI_SYSTEM_CONTROL	0x80	/* System Control */
+#define TI12XX_PCI_MULTIMEDIA_CONTROL	0x84	/* Zoom Video */
 #define TI113X_PCI_RETRY_STATUS		0x90	/* Retry Status */
 #define TI113X_PCI_CARD_CONTROL		0x91	/* Card Control */
 #define TI113X_PCI_DEVICE_CONTROL	0x92	/* Device Control */
