@@ -42,6 +42,9 @@
 #include <sys/systm.h>
 #include <sys/buf.h>
 #include <sys/conf.h>
+#ifdef PC98
+#define PC98_ATCOMPAT
+#endif
 #include <sys/disklabel.h>
 #define	DOSPTYP_EXTENDED	5
 #define	DOSPTYP_EXTENDEDX	15
@@ -50,6 +53,10 @@
 #include <sys/malloc.h>
 #include <sys/syslog.h>
 
+#ifdef PC98_ATCOMPAT
+int     atcompat_dsinit __P((dev_t dev, struct disklabel *lp, struct diskslices **sspp));
+#define dsinit atcompat_dsinit
+#endif
 #define TRACE(str)	do { if (dsi_debug) printf str; } while (0)
 
 static volatile u_char dsi_debug;
@@ -160,6 +167,7 @@ dsinit(dev, lp, sspp)
 	int	dospart;
 	struct dos_partition *dp;
 	struct dos_partition *dp0;
+	struct dos_partition dpcopy[NDOSPART];
 	int	error;
 	int	max_ncyls;
 	int	max_nsectors;
@@ -200,7 +208,13 @@ reread_mbr:
 		error = EINVAL;
 		goto done;
 	}
-	dp0 = (struct dos_partition *)(cp + DOSPARTOFF);
+	/*
+	 * Take a temporary copy of the partition table to avoid
+	 * alignment problems.
+	 */
+	memcpy(dpcopy, cp + DOSPARTOFF,
+	       NDOSPART * sizeof(struct dos_partition));
+	dp0 = &dpcopy[0];
 
 	/* Check for "Ontrack Diskmanager". */
 	for (dospart = 0, dp = dp0; dospart < NDOSPART; dospart++, dp++) {
@@ -314,6 +328,11 @@ reread_mbr:
 		sp->ds_offset = mbr_offset + dp->dp_start;
 		sp->ds_size = dp->dp_size;
 		sp->ds_type = dp->dp_typ;
+#ifdef PC98_ATCOMPAT
+		/* fake up FreeBSD(98) */
+		if (sp->ds_type == DOSPTYP_386BSD)
+			sp->ds_type = 0x94;
+#endif
 #if 0
 		lp->d_subtype |= (lp->d_subtype & 3) | dospart
 				 | DSTYPE_INDOSPART;
@@ -355,6 +374,8 @@ mbr_extended(dev, lp, ssp, ext_offset, ext_size, base_ext_offset,
 	u_char	*cp;
 	int	dospart;
 	struct dos_partition *dp;
+	struct dos_partition *dp0;
+	struct dos_partition dpcopy[NDOSPART];
 	u_long	ext_offsets[NDOSPART];
 	u_long	ext_sizes[NDOSPART];
 	char	partname[2];
@@ -387,9 +408,15 @@ mbr_extended(dev, lp, ssp, ext_offset, ext_size, base_ext_offset,
 			       sname);
 		goto done;
 	}
+	/*
+	 * Take a temporary copy of the partition table to avoid
+	 * alignment problems.
+	 */
+	memcpy(dpcopy, cp + DOSPARTOFF,
+	       NDOSPART * sizeof(struct dos_partition));
+	dp0 = &dpcopy[0];
 
-	for (dospart = 0,
-	     dp = (struct dos_partition *)(bp->b_data + DOSPARTOFF),
+	for (dospart = 0, dp = dp0,
 	     slice = ssp->dss_nslices, sp = &ssp->dss_slices[slice];
 	     dospart < NDOSPART; dospart++, dp++) {
 		ext_sizes[dospart] = 0;
@@ -422,6 +449,11 @@ mbr_extended(dev, lp, ssp, ext_offset, ext_size, base_ext_offset,
 			sp->ds_offset = ext_offset + dp->dp_start;
 			sp->ds_size = dp->dp_size;
 			sp->ds_type = dp->dp_typ;
+#ifdef PC98_ATCOMPAT
+			/* fake up FreeBSD(98) */
+			if (sp->ds_type == DOSPTYP_386BSD)
+				sp->ds_type = 0x94;
+#endif
 			ssp->dss_nslices++;
 			slice++;
 			sp++;
@@ -431,11 +463,27 @@ mbr_extended(dev, lp, ssp, ext_offset, ext_size, base_ext_offset,
 	/* If we found any more slices, recursively find all the subslices. */
 	for (dospart = 0; dospart < NDOSPART; dospart++)
 		if (ext_sizes[dospart] != 0)
-			mbr_extended(dev, lp, ssp, ext_offsets[dospart],
-				 ext_sizes[dospart], base_ext_offset,
-				 nsectors, ntracks, mbr_offset);
+			mbr_extended(dev, lp, ssp,
+				 ext_offsets[dospart], ext_sizes[dospart],
+				 base_ext_offset, nsectors, ntracks,
+				 mbr_offset);
 
 done:
 	bp->b_flags |= B_INVAL | B_AGE;
 	brelse(bp);
 }
+
+#ifdef __alpha__
+void
+alpha_fix_srm_checksum(bp)
+	struct buf *bp;
+{
+	u_int64_t *p = (u_int64_t *) bp->b_data;
+	u_int64_t sum = 0;
+	int i;
+
+	for (i = 0; i < 63; i++)
+		sum += p[i];
+	p[63] = sum;
+}
+#endif

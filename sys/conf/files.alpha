@@ -80,7 +80,6 @@ clock_if.h			standard				\
 	compile-with	"perl $S/kern/makedevops.pl -h $S/alpha/alpha/clock_if.m" \
 	no-obj no-implicit-rule before-depend				\
 	clean		"clock_if.h"
-alpha/alpha/diskslice_machdep.c	standard
 alpha/tlsb/tlsb.c		optional	tlsb
 alpha/tlsb/gbus.c		optional	gbus
 alpha/tlsb/kftxx.c		optional	kft
@@ -156,6 +155,7 @@ isa/psm.c			optional	psm
 isa/sio.c			optional	sio
 isa/syscons_isa.c		optional	sc
 isa/vga_isa.c			optional	vga
+kern/subr_diskmbr.c		standard
 libkern/alpha/htonl.S		standard
 libkern/alpha/htons.S		standard
 libkern/alpha/ntohl.S		standard

@@ -207,7 +207,7 @@ struct disklabel {
 #define	DTYPE_VINUM		12		/* vinum volume */
 #define	DTYPE_DOC2K		13		/* Msys DiskOnChip */
 
-#ifdef PC98
+#if defined(PC98) && !defined(PC98_ATCOMPAT)
 #define	DSTYPE_SEC256		0x80		/* physical sector size=256 */
 #endif
 
@@ -328,7 +328,7 @@ struct partinfo {
 
 /* DOS partition table -- located in boot block */
 
-#ifdef PC98
+#if defined(PC98) && !defined(PC98_ATCOMPAT)
 #define	DOSBBSECTOR	0	/* DOS boot block relative sector number */
 #define DOSLABELSECTOR	1	/* 0: 256b/s, 1: 512b/s */
 #define	DOSPARTOFF	0

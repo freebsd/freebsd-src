@@ -187,7 +187,6 @@ i386/isa/cronyx.c		optional	cx
 i386/isa/ctx.c			optional	ctx
 i386/isa/cx.c			optional	cx
 i386/isa/cy.c			optional	cy
-i386/isa/diskslice_machdep.c	standard
 i386/isa/elink.c		optional	ep
 i386/isa/elink.c		optional	ie
 isa/fd.c			optional	fd
@@ -371,6 +370,7 @@ isa/psm.c			optional	psm
 isa/sio.c			optional	sio
 isa/syscons_isa.c		optional	sc
 isa/vga_isa.c			optional	vga
+kern/subr_diskmbr.c		standard
 libkern/bcd.c			standard
 libkern/divdi3.c		standard
 libkern/index.c			standard
