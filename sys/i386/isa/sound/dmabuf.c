@@ -29,6 +29,8 @@
 
 #include <i386/isa/sound/sound_config.h>
 
+#include <sys/select.h>
+
 #include <machine/md_var.h>
 
 #if defined(CONFIG_AUDIO) || defined(CONFIG_GUS)

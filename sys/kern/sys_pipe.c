@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: sys_pipe.c,v 1.45 1998/11/11 10:03:55 truckman Exp $
+ * $Id: sys_pipe.c,v 1.46 1998/12/07 21:58:29 archie Exp $
  */
 
 /*
@@ -59,6 +59,7 @@
 #include <sys/ttycom.h>
 #include <sys/stat.h>
 #include <sys/poll.h>
+#include <sys/select.h>
 #include <sys/signalvar.h>
 #include <sys/sysproto.h>
 #include <sys/pipe.h>
