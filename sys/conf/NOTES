@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.426 1998/04/19 23:31:25 julian Exp $
+#	$Id: LINT,v 1.427 1998/04/20 04:30:47 julian Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1300,6 +1300,10 @@ options	"EISA_SLOTS=12"
 # The `ncr' device provides support for the NCR 53C810 and 53C825
 # self-contained SCSI host adapters.
 #
+# The `isp' device provides support for the Qlogic ISP 1020, 1040
+# nd 1040B PCI SCSI host adapters, as well as the Qlogic ISP 2100
+# FC/AL Host Adapter.
+#
 # The `amd' device provides support for the Tekram DC-390 and 390T
 # SCSI host adapters, but is expected to work with any AMD 53c974
 # PCI SCSI chip and the AMD Ethernet+SCSI Combo chip, after some
@@ -1340,6 +1344,7 @@ options	"EISA_SLOTS=12"
 controller	pci0
 controller	ahc1
 controller	ncr0
+controller	isp0
 controller	amd0
 device		de0
 device		fxp0
