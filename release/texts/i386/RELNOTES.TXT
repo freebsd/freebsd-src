@@ -519,6 +519,8 @@ allowed a race condition that could cause users to have unauthorized
 access to data, has been fixed (see security advisory
 FreeBSD-SA-01:30). [MERGED]
 
+A remotely-exploitable vulnerability in ntpd(8) has been closed. [MERGED]
+
 
 1.3. USERLAND CHANGES
 ---------------------
@@ -1069,7 +1071,7 @@ file system Access Control Lists.
 ee(1) editor has been updated to 1.4.2.
 
 The default TCP port range used by libfetch for passive FTP retrievals
-has changed; this affects the behavior of ftp(1), which has gained the
+has changed; this affects the behavior of fetch(1), which has gained the
 -U option to restore the old behavior. [MERGED]
 
 atacontrol(8) has been added to control various aspects of the ata(4)
