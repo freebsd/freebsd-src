@@ -34,9 +34,10 @@
 .\" otherwise) arising in any way out of the use of this software, even if
 .\" advised of the possibility of such damage.
 .\"
+.\" $Id: vinum.8,v 1.12 1999/10/13 02:58:57 grog Exp grog $
 .\" $FreeBSD$
 .\"
-.Dd 28 March 1999
+.Dd 13 October 1999
 .Dt vinum 8
 .Os
 .Sh NAME
@@ -90,6 +91,7 @@ Detach a plex or subdisk from the volume or plex to which it is attached.
 .in
 .Cd info
 .Op Fl v
+.Op Fl V
 .in +1i
 List information about volume manager state.
 .in
@@ -363,7 +365,10 @@ The
 .Fl v
 .if t (``verbose'')
 .if n ("verbose")
-option can be used to request more detailed information.
+option can be used to request more detailed information. This flag also means
+``verify'' for the
+.Nm init
+command.
 .It Fl V
 The
 .Fl V
@@ -1207,7 +1212,6 @@ If the object is a volume or a plex,
 .Nm start
 currently has no effect: it checks the state of the subordinate subdisks (and
 plexes in the case of a volume) and sets the state of the object accordingly.
-In a later version, this operation will cause the subdisks
 .Pp
 To start a plex in a multi-plex volume, the data must be copied from another
 plex in the volume.  Since this frequently takes a long time, it is normally
@@ -1794,7 +1798,7 @@ Bad names are
 .Pa /dev/da0
 and
 .Pa /dev/da0s1 ,
-both of which represent a device, not a partition,
+both of which represent a device, not a partition, and
 .Pa /dev/wd1c ,
 which represents a complete disk and should be of type
 .Nm unused .
@@ -2478,7 +2482,7 @@ The name of the editor to use for editing configuration files, by default
 The
 .Nm
 command first appeared in
-.Fx 3.0.
+.Fx 3.0 .
 The RAID-5 component of
 .Nm
 was developed for Cybernet Inc. 
