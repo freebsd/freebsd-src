@@ -1,7 +1,7 @@
 #	@(#)Makefile	8.2 (Berkeley) 12/13/93
 # $FreeBSD$
 
-MAN3=	assert.3 bitstring.3 end.3 fpgetround.3 intro.3 pthread.3 queue.3 \
+MAN=	assert.3 bitstring.3 end.3 fpgetround.3 intro.3 pthread.3 queue.3 \
 	stdarg.3 sysexits.3
 MLINKS+=bitstring.3 bit_alloc.3 bitstring.3 bit_clear.3 \
 	bitstring.3 bit_decl.3 bitstring.3 bit_ffc.3 bitstring.3 bit_ffs.3 \

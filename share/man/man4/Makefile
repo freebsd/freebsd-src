@@ -1,7 +1,7 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/18/93
 # $FreeBSD$
 
-MAN4=	aac.4 adv.4 adw.4 aha.4 ahb.4 ahc.4 amd.4 amr.4 an.4 ata.4 atkbd.4 \
+MAN=	aac.4 adv.4 adw.4 aha.4 ahb.4 ahc.4 amd.4 amr.4 an.4 ata.4 atkbd.4 \
 	atkbdc.4 aue.4 bktr.4 blackhole.4 bpf.4 bridge.4 bt.4 ccd.4 cd.4 ch.4 \
 	csa.4 cue.4 da.4 dc.4 ddb.4 de.4 \
 	divert.4 dpt.4 dummynet.4 ed.4 faith.4 fd.4 fdc.4 fpa.4 fxp.4 \
