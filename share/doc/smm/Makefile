@@ -11,9 +11,6 @@
 # The following modules are built with their programs:
 # 07.lpd
 
-# Temporarily remove 10.named while we decide it's fate -dougb
-#	06.nfs 10.named 11.timedop \
-
 SUBDIR=	title contents 01.setup 02.config 03.fsck 04.quotas 05.fastfs \
 	06.nfs 11.timedop \
 	12.timed 18.net
