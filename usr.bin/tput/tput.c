@@ -53,7 +53,6 @@ static char sccsid[] = "@(#)tput.c	8.2 (Berkeley) 3/19/94";
 #define outc putchar
 
 static void   prlongname __P((char *));
-static void   setospeed __P((void));
 static void   usage __P((void));
 static char **process __P((char *, char *, char **));
 
@@ -84,7 +83,6 @@ main(argc, argv)
 errx(2, "no terminal type specified and no TERM environmental variable.");
 	if (tgetent(tbuf, term) != 1)
 		err(2, "tgetent failure");
-	setospeed();
 	for (exitval = 0; (p = *argv) != NULL; ++argv) {
 		switch (*p) {
 		case 'c':
@@ -200,17 +198,6 @@ process(cap, str, argv)
 		errx(2, errmany, arg_need, cap);
 	}
 	return (argv);
-}
-
-static void
-setospeed()
-{
-	struct termios t;
-
-	if (tcgetattr(STDOUT_FILENO, &t) != -1)
-		ospeed = 0;
-	else
-		_set_ospeed(cfgetospeed(&t));
 }
 
 static void
