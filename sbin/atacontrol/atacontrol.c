@@ -32,6 +32,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <fcntl.h>
+#include <errno.h>
 #include <err.h>
 #include <sys/ata.h>
 
@@ -88,10 +89,10 @@ version(int version)
 	int bit;
     
 	if (version == 0xffff)
-	    return 0;
+		return 0;
 	for (bit = 15; bit >= 0; bit--)
-	    if (version & (1<<bit))
-		 return bit;
+		if (version & (1<<bit))
+			return bit;
     	return 0;
 }
 
@@ -102,99 +103,92 @@ param_print(struct ata_params *parm)
 		parm->model, parm->revision, version(parm->versmajor)); 
 }
 
-void
-info_print(int fd, int channel)
+int
+info_print(int fd, int channel, int prchan)
 {
-	struct ata_param param;
+	struct ata_cmd iocmd;
 
-	bzero(&param, sizeof(struct ata_param));
-	param.channel = channel;
-	if (ioctl(fd, ATAGPARM, &param) < 0)
-		err(1, "ioctl(ATAGPARM)");
-	printf("Master slot: ");
-	if (param.type[0]) {
-		printf("%4.4s: ", param.name[0]);
-		param_print(&param.params[0]);
+	bzero(&iocmd, sizeof(struct ata_cmd));
+	iocmd.channel = channel;
+	iocmd.cmd = ATAGPARM;
+	if (ioctl(fd, IOCATA, &iocmd) < 0)
+		return errno;
+	if (prchan)
+		printf("ATA channel %d:\n", channel);
+	printf("%sMaster: ", prchan ? "    " : "");
+	if (iocmd.u.param.type[0]) {
+		printf("%4.4s ", iocmd.u.param.name[0]);
+		param_print(&iocmd.u.param.params[0]);
 	}
 	else
-		printf(" no device present\n");
-	printf("Slave  slot: ");
-	if (param.type[1]) {
-		printf("%4.4s: ", param.name[1]);
-		param_print(&param.params[1]);
+		printf("     no device present\n");
+	printf("%sSlave:  ", prchan ? "    " : "");
+	if (iocmd.u.param.type[1]) {
+		printf("%4.4s ", iocmd.u.param.name[1]);
+		param_print(&iocmd.u.param.params[1]);
 	}
 	else
-		printf(" no device present\n");
+		printf("     no device present\n");
+	return 0;
 }
 
 int
 main(int argc, char **argv)
 {
-	int unit;
-	int fd = open("/dev/ata", O_RDWR);
+	struct ata_cmd iocmd;
+	int fd;
 
-	if (fd < 0)
-		err(1, "control device not found\n");
+	if ((fd = open("/dev/ata", O_RDWR)) < 0)
+		err(1, "control device not found");
 
-	if (argc < 3)
+	if (argc < 2)
 		usage();
 
-	if (!strcmp(argv[1], "detach")) {
-		if (argc != 3)
-			usage();
-		unit = atoi(argv[2]);
-		if (ioctl(fd, ATADETACH, &unit) < 0)
+	bzero(&iocmd, sizeof(struct ata_cmd));
+	if (argc > 2)
+		iocmd.channel = atoi(argv[2]);
+
+	if (!strcmp(argv[1], "list") && argc == 2) {
+		int unit = 0;
+
+		while (info_print(fd, unit++, 1) != ENXIO);
+	}
+	else if (!strcmp(argv[1], "info") && argc == 3) {
+		info_print(fd, iocmd.channel, 0);
+	}
+	else if (!strcmp(argv[1], "detach") && argc == 3) {
+		iocmd.cmd = ATADETACH;
+		if (ioctl(fd, IOCATA, &iocmd) < 0)
 			err(1, "ioctl(ATADETACH)");
 	}
-	else if (!strcmp(argv[1], "attach")) {
-		if (argc != 3)
-			usage();
-		unit = atoi(argv[2]);
-		if (ioctl(fd, ATAATTACH, &unit) < 0)
+	else if (!strcmp(argv[1], "attach") && argc == 3) {
+		iocmd.cmd = ATAATTACH;
+		if (ioctl(fd, IOCATA, &iocmd) < 0)
 			err(1, "ioctl(ATAATTACH)");
-		info_print(fd, unit);
+		info_print(fd, iocmd.channel, 0);
 	}
-	else if (!strcmp(argv[1], "reinit")) {
-		if (argc != 3)
-			usage();
-		unit = atoi(argv[2]);
-		if (ioctl(fd, ATAREINIT, &unit) < 0 )
+	else if (!strcmp(argv[1], "reinit") && argc == 3) {
+		iocmd.cmd = ATAATTACH;
+		if (ioctl(fd, IOCATA, &iocmd) < 0)
 			warn("ioctl(ATAREINIT)");
-		info_print(fd, unit);
+		info_print(fd, iocmd.channel, 0);
 	}
-	else if (!strcmp(argv[1], "mode")) {
-		struct ata_modes modes;
-
-		bzero(&modes, sizeof(struct ata_modes));
-		if (argc == 3) {
-			modes.channel = atoi(argv[2]);
-			if (ioctl(fd, ATAGMODE, &modes) < 0)
+	else if (!strcmp(argv[1], "mode") && (argc == 3 || argc == 5)) {
+		if (argc == 5) {
+			iocmd.cmd = ATASMODE;
+			iocmd.u.mode.mode[0] = str2mode(argv[3]);
+			iocmd.u.mode.mode[1] = str2mode(argv[4]);
+			if (ioctl(fd, IOCATA, &iocmd) < 0)
+				warn("ioctl(ATASMODE)");
+		}
+		if (argc == 3 || argc == 5) {
+			iocmd.cmd = ATAGMODE;
+			if (ioctl(fd, IOCATA, &iocmd) < 0)
 				err(1, "ioctl(ATAGMODE)");
 			printf("Master = %s \nSlave  = %s\n",
-				mode2str(modes.mode[0]), 
-				mode2str(modes.mode[1]));
+				mode2str(iocmd.u.mode.mode[0]), 
+				mode2str(iocmd.u.mode.mode[1]));
 		}
-		else if (argc == 5) {
-			modes.channel = atoi(argv[2]);
-			modes.mode[0] = str2mode(argv[3]);
-			modes.mode[1] = str2mode(argv[4]);
-			if (ioctl(fd, ATASMODE, &modes) < 0) {
-				warn("ioctl(ATASMODE)");
-				modes.channel = atoi(argv[2]);
-				if (ioctl(fd, ATAGMODE, &modes) < 0)
-					err(1, "ioctl(ATAGMODE)");
-			}
-			printf("Master = %s \nSlave  = %s\n",
-				mode2str(modes.mode[0]),
-				mode2str(modes.mode[1]));
-		}
-		else
-			usage();
-	}
-	else if (!strcmp(argv[1], "info")) {
-		if (argc != 3)
-			usage();
-		info_print(fd, atoi(argv[2]));
 	}
 	else
 	    	usage();
