@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.49.2.15 1998/02/11 15:43:13 jkh Exp $
+ * $Id: devices.c,v 1.49.2.16 1998/03/15 16:16:29 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -143,6 +143,9 @@ deviceTry(struct _devname dev, char *try, int i)
 
     snprintf(unit, sizeof unit, dev.name, i);
     snprintf(try, FILENAME_MAX, "/dev/%s", unit);
+    fd = open(try, O_RDONLY);
+    if (fd >= 0)
+	return fd;
     m = 0640;
     if (dev.dev_type == 'c')
 	m |= S_IFCHR;
@@ -296,7 +299,7 @@ skipif:
 
 	    case DEVICE_TYPE_DISK:
 		fd = deviceTry(device_names[i], try, j);
-		if (fd >= 0) {
+		if (fd >= 0 && RunningAsInit) {
 		    dev_t d;
 		    int s, fail;
 		    char slice[80];
