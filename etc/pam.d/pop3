@@ -1,0 +1,11 @@
+#
+# $FreeBSD$
+#
+# PAM configuration for the "pop3" service
+#
+
+# auth
+#pop3	auth	required	pam_nologin.so	no_warn
+#pop3	auth	required	pam_opie.so	no_warn
+#pop3	auth	required	pam_ssh.so	no_warn try_first_pass
+#pop3	auth	required	pam_unix.so	no_warn try_first_pass

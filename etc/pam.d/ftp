@@ -1,0 +1,24 @@
+#
+# $FreeBSD$
+#
+# PAM configuration for the "ftp" service
+#
+
+# auth
+ftp	auth	required	pam_nologin.so	no_warn
+#ftp	auth	sufficient	pam_kerberosIV.so	no_warn
+#ftp	auth	sufficient	pam_krb5.so	no_warn
+#ftp	auth	required	pam_opie.so	no_warn
+#ftp	auth	required	pam_ssh.so	no_warn try_first_pass
+ftp	auth	required	pam_unix.so	no_warn try_first_pass
+
+# account
+#ftp	account	required	pam_kerberosIV.so
+#ftp	account	required	pam_krb5.so
+ftp	account	required	pam_unix.so
+
+# session
+#ftp	session	required	pam_kerberosIV.so
+#ftp	session	required	pam_krb5.so
+#ftp	session	required	pam_ssh.so
+ftp	session	required	pam_unix.so
