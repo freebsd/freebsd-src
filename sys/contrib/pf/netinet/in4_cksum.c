@@ -64,89 +64,36 @@
  */
 
 #include <sys/param.h>
-#include <sys/mbuf.h>
 #include <sys/systm.h>
-#include <sys/socket.h>
-#include <net/route.h>
+#include <sys/mbuf.h>
+
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>
 
-#if defined(__FreeBSD__) && defined(__i386__)
-/*
- * Copied from FreeBSD 5.0 sys/i386/i386/in_cksum.c
- * XXX
- * Currently support I386 processor only.
- * In the long run, we need an optimized cksum routines for each Tier1
- * architecture. Due to the lack of available hardware except I386 I
- * can't support other processors now. For those users which use Sparc64,
- * Alpha processors can use more optimized version in FreeBSD.
- * See sys/$ARCH/$ARCH/in_cksum.c where $ARCH=`uname -p`
- */
- 
-/*
- * These asm statements require __volatile because they pass information
- * via the condition codes.  GCC does not currently provide a way to specify
- * the condition codes as an input or output operand.
- *
- * The LOAD macro below is effectively a prefetch into cache.  GCC will
- * load the value into a register but will not use it.  Since modern CPUs
- * reorder operations, this will generally take place in parallel with
- * other calculations.
- */
-#define ADD(n)	__asm __volatile \
-		("addl %1, %0" : "+r" (sum) : \
-		"g" (((const u_int32_t *)w)[n / 4]))
-#define ADDC(n)	__asm __volatile \
-		("adcl %1, %0" : "+r" (sum) : \
-		"g" (((const u_int32_t *)w)[n / 4]))
-#define LOAD(n)	__asm __volatile \
-		("" : : "r" (((const u_int32_t *)w)[n / 4]))
-#define MOP	__asm __volatile \
-		("adcl         $0, %0" : "+r" (sum))
-#endif
-/*
- * Checksum routine for Internet Protocol family headers (Portable Version).
- * This is only for IPv4 pseudo header checksum.
- * No need to clear non-pseudo-header fields in IPv4 header.
- * len is for actual payload size, and does not include IPv4 header and
- * skipped header chain (off + len should be equal to the whole packet).
- *
- * This routine is very heavily used in the network
- * code and should be modified for each CPU to be as fast as possible.
- */
+#include <machine/in_cksum.h>
 
 #define ADDCARRY(x)  (x > 65535 ? x -= 65535 : x)
 #define REDUCE {l_util.l = sum; sum = l_util.s[0] + l_util.s[1]; ADDCARRY(sum);}
 
-#if defined(__FreeBSD__)
-int
-in4_cksum(struct mbuf *m, u_int8_t nxt, int off, int len);
-#endif
+int in4_cksum(struct mbuf *, u_int8_t, int, int);
 
 int
-in4_cksum(m, nxt, off, len)
-	struct mbuf *m;
-	u_int8_t nxt;
-	int off, len;
+in4_cksum(struct mbuf *m, u_int8_t nxt, int off, int len)
 {
-	u_int16_t *w;
-	int sum = 0;
-	int mlen = 0;
-	int byte_swapped = 0;
 	union {
 		struct ipovly ipov;
 		u_int16_t w[10];
 	} u;
 	union {
-		u_int8_t  c[2];
-		u_int16_t s;
-	} s_util;
-	union {
 		u_int16_t s[2];
 		u_int32_t l;
 	} l_util;
+
+	u_int16_t *w;
+	int psum;
+	int sum = 0;
 
 	if (nxt != 0) {
 		/* pseudo header */
@@ -165,223 +112,9 @@ in4_cksum(m, nxt, off, len)
 		sum += w[5]; sum += w[6]; sum += w[7]; sum += w[8]; sum += w[9];
 	}
 
-	/* skip unnecessary part */
-	while (m && off > 0) {
-		if (m->m_len > off)
-			break;
-		off -= m->m_len;
-		m = m->m_next;
-	}
-
-	for (;m && len; m = m->m_next) {
-		if (m->m_len == 0)
-			continue;
-		w = (u_int16_t *)(mtod(m, caddr_t) + off);
-		if (mlen == -1) {
-			/*
-			 * The first byte of this mbuf is the continuation
-			 * of a word spanning between this mbuf and the
-			 * last mbuf.
-			 *
-			 * s_util.c[0] is already saved when scanning previous
-			 * mbuf.
-			 */
-			s_util.c[1] = *(u_int8_t *)w;
-			sum += s_util.s;
-			w = (u_int16_t *)((u_int8_t *)w + 1);
-			mlen = m->m_len - off - 1;
-			len--;
-		} else
-			mlen = m->m_len - off;
-		off = 0;
-		if (len < mlen)
-			mlen = len;
-		len -= mlen;
-#if defined(__FreeBSD__) && defined(__i386__)
-		/*
-		 * Force to long boundary so we do longword aligned
-		 * memory operations
-		 */
-		if (3 & (int) w) {
-			REDUCE;
-			if ((1 & (int) w) && (mlen > 0)) {
-				sum <<= 8;
-				s_util.c[0] = *(char *)w;
-				w = (u_short *)((char *)w + 1);
-				mlen--;
-				byte_swapped = 1;
-			}
-			if ((2 & (int) w) && (mlen >= 2)) {
-				sum += *w++;
-				mlen -= 2;
-			}
-		}
-		/*
-		 * Advance to a 486 cache line boundary.
-		 */
-		if (4 & (int) w && mlen >= 4) {
-			ADD(0);
-			MOP;
-			w += 2;
-			mlen -= 4;
-		}
-		if (8 & (int) w && mlen >= 8) {
-			ADD(0);
-			ADDC(4);
-			MOP;
-			w += 4;
-			mlen -= 8;
-		}
-		/*
-		 * Do as much of the checksum as possible 32 bits at at time.
-		 * In fact, this loop is unrolled to make overhead from
-		 * branches &c small.
-		 */
-		mlen -= 1;
-		while ((mlen -= 32) >= 0) {
-			/*
-			 * Add with carry 16 words and fold in the last
-			 * carry by adding a 0 with carry.
-			 *
-			 * The early ADD(16) and the LOAD(32) are to load
-			 * the next 2 cache lines in advance on 486's.  The
-			 * 486 has a penalty of 2 clock cycles for loading
-			 * a cache line, plus whatever time the external
-			 * memory takes to load the first word(s) addressed.
-			 * These penalties are unavoidable.  Subsequent
-			 * accesses to a cache line being loaded (and to
-			 * other external memory?) are delayed until the
-			 * whole load finishes.  These penalties are mostly
-			 * avoided by not accessing external memory for
-			 * 8 cycles after the ADD(16) and 12 cycles after
-			 * the LOAD(32).  The loop terminates when mlen
-			 * is initially 33 (not 32) to guaranteed that
-			 * the LOAD(32) is within bounds.
-			 */
-			ADD(16);
-			ADDC(0);
-			ADDC(4);
-			ADDC(8);
-			ADDC(12);
-			LOAD(32);
-			ADDC(20);
-			ADDC(24);
-			ADDC(28);
-			MOP;
-			w += 16;
-		}
-		mlen += 32 + 1;
-		if (mlen >= 32) {
-			ADD(16);
-			ADDC(0);
-			ADDC(4);
-			ADDC(8);
-			ADDC(12);
-			ADDC(20);
-			ADDC(24);
-			ADDC(28);
-			MOP;
-			w += 16;
-			mlen -= 32;
-		}
-		if (mlen >= 16) {
-			ADD(0);
-			ADDC(4);
-			ADDC(8);
-			ADDC(12);
-			MOP;
-			w += 8;
-			mlen -= 16;
-		}
-		if (mlen >= 8) {
-			ADD(0);
-			ADDC(4);
-			MOP;
-			w += 4;
-			mlen -= 8;
-		}
-		if (mlen == 0 && byte_swapped == 0)
-			continue;       /* worth 1% maybe ?? */
-		REDUCE;
-		while ((mlen -= 2) >= 0) {
-			sum += *w++;
-		}
-		if (byte_swapped) {
-			REDUCE;
-			sum <<= 8;
-			byte_swapped = 0;
-			if (mlen == -1) {
-				s_util.c[1] = *(char *)w;
-				sum += s_util.s;
-				mlen = 0;
-			} else
-				mlen = -1;
-		} else if (mlen == -1)
-			/*
-			 * This mbuf has odd number of bytes.
-			 * There could be a word split betwen
-			 * this mbuf and the next mbuf.
-			 * Save the last byte (to prepend to next mbuf).
-			 */
-			s_util.c[0] = *(char *)w;
-#else
-		/*
-		 * Force to even boundary.
-		 */
-		if ((1 & (long) w) && (mlen > 0)) {
-			REDUCE;
-			sum <<= 8;
-			s_util.c[0] = *(u_int8_t *)w;
-			w = (u_int16_t *)((int8_t *)w + 1);
-			mlen--;
-			byte_swapped = 1;
-		}
-		/*
-		 * Unroll the loop to make overhead from
-		 * branches &c small.
-		 */
-		while ((mlen -= 32) >= 0) {
-			sum += w[0]; sum += w[1]; sum += w[2]; sum += w[3];
-			sum += w[4]; sum += w[5]; sum += w[6]; sum += w[7];
-			sum += w[8]; sum += w[9]; sum += w[10]; sum += w[11];
-			sum += w[12]; sum += w[13]; sum += w[14]; sum += w[15];
-			w += 16;
-		}
-		mlen += 32;
-		while ((mlen -= 8) >= 0) {
-			sum += w[0]; sum += w[1]; sum += w[2]; sum += w[3];
-			w += 4;
-		}
-		mlen += 8;
-		if (mlen == 0 && byte_swapped == 0)
-			continue;
-		REDUCE;
-		while ((mlen -= 2) >= 0) {
-			sum += *w++;
-		}
-		if (byte_swapped) {
-			REDUCE;
-			sum <<= 8;
-			byte_swapped = 0;
-			if (mlen == -1) {
-				s_util.c[1] = *(u_int8_t *)w;
-				sum += s_util.s;
-				mlen = 0;
-			} else
-				mlen = -1;
-		} else if (mlen == -1)
-			s_util.c[0] = *(u_int8_t *)w;
-#endif
-	}
-	if (len)
-		printf("cksum4: out of data\n");
-	if (mlen == -1) {
-		/* The last mbuf has odd # of bytes. Follow the
-		   standard (the odd byte may be shifted left by 8 bits
-		   or not as determined by endian-ness of the machine) */
-		s_util.c[1] = 0;
-		sum += s_util.s;
-	}
+	psum = in_cksum_skip(m, len + off, off);
+	psum = ~psum & 0xffff;
+	sum += psum;
 	REDUCE;
 	return (~sum & 0xffff);
 }
