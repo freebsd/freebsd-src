@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.162 1999/04/27 14:33:29 jkh Exp $
+ * $Id: sysinstall.h,v 1.163 1999/05/07 11:02:58 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -529,6 +529,9 @@ void		index_node_free(PkgNodePtr top, PkgNodePtr plist);
 void		index_sort(PkgNodePtr top);
 void		index_print(PkgNodePtr top, int level);
 int		index_extract(Device *dev, PkgNodePtr top, PkgNodePtr plist);
+int		index_extract_one(Device *dev, PkgNodePtr top, PkgNodePtr who, Boolean depended);
+int		index_initialize(char *path);
+PkgNodePtr	index_search(PkgNodePtr top, char *str, PkgNodePtr *tp);
 
 /* install.c */
 extern Boolean	checkLabels(Boolean whinge, Chunk **rdev, Chunk **sdev, Chunk **udev, Chunk **vdev);

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: package.c,v 1.69 1999/05/12 06:11:32 jkh Exp $
+ * $Id: package.c,v 1.70 1999/05/12 07:12:01 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -49,13 +49,27 @@ catch_pipe(int sig)
     sigpipe_caught = TRUE;
 }
 
-/* Like package_extract, but assumes current media device */
+extern PkgNode Top;
+
+/* Like package_extract, but assumes current media device and chases deps */
 int
 package_add(char *name)
 {
+    PkgNodePtr tmp;
+    int i;
+
     if (!mediaVerify())
 	return DITEM_FAILURE;
-    return package_extract(mediaDevice, name, FALSE);
+    i = index_initialize("packages/INDEX");
+    if (DITEM_STATUS(i) != DITEM_SUCCESS)
+	return i;
+    tmp = index_search(&Top, name, NULL);
+    if (tmp)
+	return index_extract_one(mediaDevice, &Top, tmp, FALSE);
+    else {
+	msgConfirm("Sorry, package %s was not found in the INDEX.", name);
+	return DITEM_FAILURE | DITEM_RESTORE;
+    }
 }
 
 /* For use by dispatch */
@@ -78,10 +92,6 @@ package_exists(char *name)
 {
     char fname[FILENAME_MAX];
     int status /* = vsystem("pkg_info -e %s", name) */;
-
-    /* If in "Latest" syntax, ignore; can't tell with these */
-    if (name[0] == '@')
-	return FALSE;
 
     /* XXX KLUDGE ALERT!  This makes evil assumptions about how XXX
      * packages register themselves and should *really be done with
@@ -126,10 +136,8 @@ package_extract(Device *dev, char *name, Boolean depended)
     Mkdir(variable_get(VAR_PKG_TMPDIR));
     vsystem("chmod 1777 %s", variable_get(VAR_PKG_TMPDIR));
 
-    if (name[0] == '@') {
-	/* @ at the beginning of the package name means "get latest" */
-	sprintf(path, "packages/Latest/%s.tgz", ++name);
-    }
+    if (!strpbrk(name, "-_"))
+	sprintf(path, "packages/Latest/%s.tgz", name);
     else if (!index(name, '/'))
 	sprintf(path, "packages/All/%s%s", name, strstr(name, ".tgz") ? "" : ".tgz");
     else

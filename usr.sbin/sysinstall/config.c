@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.129 1999/05/05 11:34:00 jkh Exp $
+ * $Id: config.c,v 1.130 1999/05/12 04:52:40 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -482,32 +482,32 @@ configXDesktop(dialogMenuItem *self)
 	!(desk = variable_get(VAR_DESKSTYLE)))
 	return DITEM_FAILURE;
     if (!strcmp(desk, "kde")) {
-	ret = package_add("@kde");
+	ret = package_add("kde");
 	if (DITEM_STATUS(ret) != DITEM_FAILURE)
 	    write_root_xprofile("exec startkde\n");
     }
     else if (!strcmp(desk, "gnome")) {
-	ret = package_add("@gnomecore");
+	ret = package_add("gnomecore");
 	if (DITEM_STATUS(ret) != DITEM_FAILURE) {
-	    ret = package_add("@afterstep");
+	    ret = package_add("afterstep");
 	    if (DITEM_STATUS(ret) != DITEM_FAILURE)
 		write_root_xprofile("gnome-session &\nexec afterstep");
 	}
     }
     else if (!strcmp(desk, "afterstep")) {
-	ret = package_add("@afterstep");
+	ret = package_add("afterstep");
 	if (DITEM_STATUS(ret) != DITEM_FAILURE)
 	    write_root_xprofile("xterm &\nexec afterstep\n");
     }
     else if (!strcmp(desk, "windowmaker")) {
-	ret = package_add("@windowmaker");
+	ret = package_add("windowmaker");
 	if (DITEM_STATUS(ret) != DITEM_FAILURE) {
 	    vsystem("/usr/X11R6/bin/wmaker.inst");
 	    write_root_xprofile("xterm &\nexec wmaker\n");
 	}
     }
     else if (!strcmp(desk, "enlightenment")) {
-	ret = package_add("@enlightenment");
+	ret = package_add("enlightenment");
 	if (DITEM_STATUS(ret) != DITEM_FAILURE)
 	    write_root_xprofile("xterm &\nexec enlightenment\n");
     }
@@ -657,7 +657,7 @@ configRouter(dialogMenuItem *self)
 	if (cp && strcmp(cp, "NO")) {
 	    variable_set2(VAR_ROUTER_ENABLE, "YES", 1);
 	    if (!strcmp(cp, "gated")) {
-		if (package_add("@gated") != DITEM_SUCCESS) {
+		if (package_add("gated") != DITEM_SUCCESS) {
 		    msgConfirm("Unable to load gated package.  Falling back to no router.");
 		    variable_unset(VAR_ROUTER);
 		    variable_unset(VAR_ROUTERFLAGS);
@@ -685,62 +685,35 @@ configRouter(dialogMenuItem *self)
     return ret | DITEM_RESTORE;
 }
 
+/* Shared between us and index_initialize() */
+extern PkgNode Top, Plist;
+
 int
 configPackages(dialogMenuItem *self)
 {
-    static PkgNode top, plist;
-    static Boolean index_initted = FALSE;
+    int i;
     PkgNodePtr tmp;
-    FILE *fp;
 
-    if (!mediaVerify())
-	return DITEM_FAILURE;
+    /* Did we get an INDEX? */
+    i = index_initialize("packages/INDEX");
+    if (DITEM_STATUS(i) == DITEM_FAILURE)
+	return i;
 
-    if (!mediaDevice->init(mediaDevice))
-	return DITEM_FAILURE;
-
-    if (!index_initted) {
-	msgNotify("Attempting to fetch packages/INDEX file from selected media.");
-	fp = mediaDevice->get(mediaDevice, "packages/INDEX", TRUE);
-	if (!fp) {
-	    dialog_clear_norefresh();
-	    msgConfirm("Unable to get packages/INDEX file from selected media.\n"
-		       "This may be because the packages collection is not available at\n"
-		       "on the distribution media you've chosen (most likely an FTP site\n"
-		       "without the packages collection mirrored).  Please verify media\n"
-		       "(or path to media) and try again.  If your local site does not\n"
-		       "carry the packages collection, then we recommend either a CD\n"
-		       "distribution or the master distribution on ftp.freebsd.org.");
-	    mediaDevice->shutdown(mediaDevice);
-	    return DITEM_FAILURE | DITEM_RESTORE;
-	}
-	msgNotify("Located INDEX, now reading package data from it...");
-	index_init(&top, &plist);
-	if (index_read(fp, &top)) {
-	    msgConfirm("I/O or format error on packages/INDEX file.\n"
-		       "Please verify media (or path to media) and try again.");
-	    fclose(fp);
-	    return DITEM_FAILURE | DITEM_RESTORE;
-	}
-	fclose(fp);
-	index_sort(&top);
-	index_initted = TRUE;
-    }
     while (1) {
 	int ret, pos, scroll;
 
 	/* Bring up the packages menu */
 	pos = scroll = 0;
-	index_menu(&top, &top, &plist, &pos, &scroll);
+	index_menu(&Top, &Top, &Plist, &pos, &scroll);
 
-	if (plist.kids && plist.kids->name) {
+	if (Plist.kids && Plist.kids->name) {
 	    /* Now show the packing list menu */
 	    pos = scroll = 0;
-	    ret = index_menu(&plist, &plist, NULL, &pos, &scroll);
+	    ret = index_menu(&Plist, &Plist, NULL, &pos, &scroll);
 	    if (ret & DITEM_LEAVE_MENU)
 		break;
 	    else if (DITEM_STATUS(ret) != DITEM_FAILURE) {
-		index_extract(mediaDevice, &top, &plist);
+		index_extract(mediaDevice, &Top, &Plist);
 		break;
 	    }
 	}
@@ -750,14 +723,14 @@ configPackages(dialogMenuItem *self)
 	    break;
 	}
     }
-    tmp = plist.kids;
+    tmp = Plist.kids;
     while (tmp) {
         PkgNodePtr tmp2 = tmp->next;
            
         safe_free(tmp);
         tmp = tmp2;
     }
-    index_init(NULL, &plist);
+    index_init(NULL, &Plist);
     return DITEM_SUCCESS | DITEM_RESTORE;
 }
 
@@ -767,7 +740,7 @@ configPCNFSD(dialogMenuItem *self)
 {
     int ret;
 
-    ret = package_add("@pcnfsd");
+    ret = package_add("pcnfsd");
     if (DITEM_STATUS(ret) == DITEM_SUCCESS) {
 	variable_set2(VAR_PCNFSD, "YES", 0);
 	variable_set2("mountd_flags", "-n", 1);
