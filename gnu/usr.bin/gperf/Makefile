@@ -1,16 +1,20 @@
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/../../../contrib/gperf
-.PATH:	${.CURDIR}/../../../contrib/gperf/src
+GPROFDIR=	${.CURDIR}/../../../contrib/gperf
 
 SUBDIR=	doc
 
 PROG=	gperf
 MAN1=	gperf.1
 
-CFLAGS+= -D_HAVE_PARAM_H -DLO_CAL -DGATHER_STATISTICS #-DRLIMIT_STACK 
+CXXFLAGS+=	-I${GPROFDIR}/lib -I${.CURDIR}
 
-SRCS =	options.c iterator.c main.c perfect.c keylist.c listnode.c xmalloc.c \
-	hashtable.c boolarray.c readline.c stderr.c version.c getopt.c
+SRCS=	bool-array.cc gen-perf.cc hash-table.cc iterator.cc key-list.cc \
+	list-node.cc main.cc new.cc options.cc read-line.cc trace.cc \
+	vectors.cc version.cc
+SRCS+=	hash.cc getopt.c getopt1.c
 
 .include <bsd.prog.mk>
+.PATH:	${GPROFDIR}/src
+.PATH:	${GPROFDIR}/lib
+.PATH:	${GPROFDIR}/doc
