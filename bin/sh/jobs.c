@@ -255,6 +255,7 @@ restartjob(struct job *jp)
 
 	if (jp->state == JOBDONE)
 		return;
+	setcurjob(jp);
 	INTOFF;
 	killpg(jp->ps[0].pid, SIGCONT);
 	for (ps = jp->ps, i = jp->nprocs ; --i >= 0 ; ps++) {
