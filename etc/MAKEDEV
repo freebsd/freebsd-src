@@ -75,7 +75,7 @@
 #	tw*	xten power controller
 #	snd*	various sound cards
 #
-#	$Id: MAKEDEV,v 1.29 1994/03/07 00:57:38 rgrimes Exp $
+#	$Id: MAKEDEV,v 1.30 1994/04/03 04:39:54 ache Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -485,11 +485,19 @@ cua0?|cua?|ttyd?)
 	chown uucp.wheel ttyd$unit cua0$unit
 	;;
 
-tty*)
-	unit=`expr $i : 'tty\(.\)'`
+tty0?|tty?)
+	unit=`expr $i : 'tty0*\(.\)$'`
 	rm -f tty0$unit cua0$unit ttyd$unit
+	case $unit in
+	[0-9]) m=$unit;;
+	a) m=10;; b) m=11;; c) m=12;; d) m=13;; e) m=14;; f) m=15;; g) m=16;;
+	h) m=17;; i) m=18;; j) m=19;; k) m=20;; l) m=21;; m) m=22;; n) m=23;;
+	o) m=24;; p) m=25;; q) m=26;; r) m=27;; s) m=28;; t) m=29;; u) m=30;;
+	v) m=31;; w) m=32;; x) m=33;; y) m=34;; z) m=35;;
+	*) echo not enough minor numbers, add manually ;;
+	esac
 	umask 0
-	mknod tty0$unit c 28 $unit
+	mknod tty0$unit c 28 $m
 	umask 77
 	;;
 
@@ -564,6 +572,10 @@ snd*)
 local)
 	umask 0
 	sh MAKEDEV.local
+	;;
+
+*)
+	echo $i - no such device name
 	;;
 
 esac
