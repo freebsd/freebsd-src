@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)socket.h	8.4 (Berkeley) 2/21/94
- * $Id: socket.h,v 1.24 1998/02/01 22:44:16 alex Exp $
+ * $Id: socket.h,v 1.25 1998/09/12 21:14:25 wollman Exp $
  */
 
 #ifndef _SYS_SOCKET_H_
@@ -127,8 +127,9 @@ struct	linger {
 #define	pseudo_AF_KEY	27		/* Internal key-management function */
 #define	AF_INET6	28		/* IPv6 */
 #define	AF_NATM		29		/* native ATM access */
+#define	AF_ATM		30		/* ATM */
 
-#define	AF_MAX		30
+#define	AF_MAX		31
 
 /*
  * Structure used by kernel to store most
@@ -185,6 +186,7 @@ struct sockproto {
 #define	PF_KEY		pseudo_AF_KEY
 #define	PF_INET6	AF_INET6
 #define	PF_NATM		AF_NATM
+#define	PF_ATM		AF_ATM
 
 #define	PF_MAX		AF_MAX
 
