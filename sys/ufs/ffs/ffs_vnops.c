@@ -184,7 +184,7 @@ ffs_fsync(ap)
 	VI_LOCK(vp);
 loop:
 	TAILQ_FOREACH(bp, &vp->v_dirtyblkhd, b_vnbufs)
-		bp->b_flags &= ~B_SCANNED;
+		bp->b_vflags &= ~BV_SCANNED;
 	for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp; bp = nbp) {
 		nbp = TAILQ_NEXT(bp, b_vnbufs);
 		/* 
@@ -195,22 +195,21 @@ loop:
 		 * it to be redirtied and it has not already been deferred,
 		 * or it is already being written.
 		 */
-		if ((bp->b_flags & B_SCANNED) != 0)
+		if ((bp->b_vflags & BV_SCANNED) != 0)
 			continue;
-		bp->b_flags |= B_SCANNED;
+		bp->b_vflags |= BV_SCANNED;
 		if ((skipmeta == 1 && bp->b_lblkno < 0))
+			continue;
+		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT))
 			continue;
 		if (!wait && LIST_FIRST(&bp->b_dep) != NULL &&
 		    (bp->b_flags & B_DEFERRED) == 0 &&
 		    buf_countdeps(bp, 0)) {
 			bp->b_flags |= B_DEFERRED;
+			BUF_UNLOCK(bp);
 			continue;
 		}
 		VI_UNLOCK(vp);
-		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT)) {
-			VI_LOCK(vp);
-			continue;
-		}
 		if ((bp->b_flags & B_DELWRI) == 0)
 			panic("ffs_fsync: not dirty");
 		if (vp != bp->b_vp)

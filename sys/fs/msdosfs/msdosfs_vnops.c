@@ -806,45 +806,12 @@ msdosfs_fsync(ap)
 		struct thread *a_td;
 	} */ *ap;
 {
-	struct vnode *vp = ap->a_vp;
-	int s;
-	struct buf *bp, *nbp;
-
 	/*
-	 * Flush all dirty buffers associated with a vnode.
+	 * Flush our dirty buffers.
 	 */
-loop:
-	s = splbio();
-	VI_LOCK(vp);
-	for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp; bp = nbp) {
-		nbp = TAILQ_NEXT(bp, b_vnbufs);
-		VI_UNLOCK(vp);
-		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT)) {
-			VI_LOCK(vp);
-			continue;
-		}
-		if ((bp->b_flags & B_DELWRI) == 0)
-			panic("msdosfs_fsync: not dirty");
-		bremfree(bp);
-		splx(s);
-		/* XXX Could do bawrite */
-		(void) bwrite(bp);
-		goto loop;
-	}
-	while (vp->v_numoutput) {
-		vp->v_iflag |= VI_BWAIT;
-		(void) msleep((caddr_t)&vp->v_numoutput, VI_MTX(vp),
-		    PRIBIO + 1, "msdosfsn", 0);
-	}
-#ifdef DIAGNOSTIC
-	if (!TAILQ_EMPTY(&vp->v_dirtyblkhd)) {
-		vprint("msdosfs_fsync: dirty", vp);
-		goto loop;
-	}
-#endif
-	VI_UNLOCK(vp);
-	splx(s);
-	return (deupdat(VTODE(vp), ap->a_waitfor == MNT_WAIT));
+	vop_stdfsync(ap);
+
+	return (deupdat(VTODE(ap->a_vp), ap->a_waitfor == MNT_WAIT));
 }
 
 static int
