@@ -4,13 +4,11 @@
 # Uncomment this to give you the default 4.2 behavior, where disk 
 # information is shown in K-Blocks
 # setenv BLOCKSIZE	K
-# Uncomment this two lines to activate Russian locale
-# setenv LANG ru_RU.KOI8-R
-# setenv MM_CHARSET KOI8-R
-# Uncomment this two lines to activate Italian locale
-# setenv LANG it_IT.ISO_8859-1
-# setenv MM_CHARSET ISO-8859-1
+# 
+# For the setting of languages and character sets please see
+# login.conf(5) and in particular the charset and lang options.
 # For full locales list check /usr/share/locale/*
+#
 # Read system messages
 # msgs -f
 # Allow terminal messages
