@@ -28,7 +28,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: rtprio.1,v 1.4 1996/01/30 13:50:29 mpp Exp $
+.\"	$Id: rtprio.1,v 1.5 1996/02/11 22:36:44 mpp Exp $
 .\"
 .Dd July 23, 1994
 .Dt RTPRIO 1
@@ -172,7 +172,7 @@ To make depend while not disturbing other machine usage:
 The
 .Nm rtprio
 utility appeared in
-FreeBSD 2.0,
+.Fx 2.0 ,
 but is similar to the HP-UX version.
 .Sh CAVEATS
 You can lock yourself out of the system by placing a cpu-heavy
@@ -182,12 +182,12 @@ There is no way to set/view the realtime priority of process 0
 (swapper) (see ps(1)).
 
 There is in
-FreeBSD
+.Tn FreeBSD
 no way to ensure that a process page is present in memory therefore
 the process may be stopped for pagein. (See mprotect(2), madvise(2)).
 
 Under
-FreeBSD
+.Tn FreeBSD
 system calls are currently never preempted, therefore non-realtime
 processes can starve realtime processes, or idletime processes can
 starve normal priority processes.
@@ -195,4 +195,6 @@ starve normal priority processes.
 Others ...
 .Sh AUTHOR
 Henrik Vestergaard Draboel - hvd@terry.ping.dk is the original author. This
-implementation in FreeBSD was substantially rewritten by David Greenman.
+implementation in
+.Tn FreeBSD 
+was substantially rewritten by David Greenman.
