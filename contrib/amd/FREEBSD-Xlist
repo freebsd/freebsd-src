@@ -1,9 +1,17 @@
 $FreeBSD$
+*LSM.am-utils
 *Makefile.*
 *README.autofs
+*ac*
 *aux
 *buildall
-*configure
+*config*
+*depcomp
+*install-sh
+*lt*
+*missing
+*mkinstalldirs
+*stamp-h.in
 *amd/Makefile.*
 *amq/Makefile.*
 *conf/checkmount/checkmount_aix.c
@@ -65,6 +73,7 @@ $FreeBSD$
 *conf/nfs_prot/nfs_prot_openbsd.h
 *conf/nfs_prot/nfs_prot_osf2.h
 *conf/nfs_prot/nfs_prot_osf4.h
+*conf/nfs_prot/nfs_prot_osf5_1.h
 *conf/nfs_prot/nfs_prot_sunos3.h
 *conf/nfs_prot/nfs_prot_sunos4.h
 *conf/nfs_prot/nfs_prot_sunos5_3.h
@@ -72,6 +81,7 @@ $FreeBSD$
 *conf/nfs_prot/nfs_prot_sunos5_5.h
 *conf/nfs_prot/nfs_prot_sunos5_6.h
 *conf/nfs_prot/nfs_prot_sunos5_7.h
+*conf/nfs_prot/nfs_prot_sunos5_8.h
 *conf/nfs_prot/nfs_prot_svr4.h
 *conf/nfs_prot/nfs_prot_ultrix.h
 *conf/sa_dref/sa_dref_386bsd.h
@@ -113,6 +123,7 @@ $FreeBSD$
 *doc/am-utils.info-7
 *doc/am-utils.ps
 *doc/hlfsd.ps
+*doc/mdate-sh
 *fixmount/Makefile.*
 *fsinfo/Makefile.*
 *hlfsd/Makefile.*
