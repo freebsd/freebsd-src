@@ -1138,15 +1138,20 @@ usbd_fill_deviceinfo(dev, di)
 	struct usbd_port *p;
 	int i, err, s;
 
-	di->config = dev->config;
+	di->bus = USBDEVUNIT(dev->bus->bdev);
+	di->addr = dev->address;
 	usbd_devinfo_vp(dev, di->vendor, di->product);
 	usbd_printBCD(di->release, UGETW(dev->ddesc.bcdDevice));
 	di->vendorNo = UGETW(dev->ddesc.idVendor);
 	di->productNo = UGETW(dev->ddesc.idProduct);
+	di->releaseNo = UGETW(dev->ddesc.bcdDevice);
 	di->class = dev->ddesc.bDeviceClass;
+	di->subclass = dev->ddesc.bDeviceSubClass;
+	di->protocol = dev->ddesc.bDeviceProtocol;
+	di->config = dev->config;
 	di->power = dev->self_powered ? 0 : dev->power;
 	di->lowspeed = dev->lowspeed;
-	di->addr = dev->address;
+
 	if (dev->hub) {
 		for (i = 0; 
 		     i < sizeof(di->ports) / sizeof(di->ports[0]) &&
@@ -1237,6 +1242,8 @@ usb_disconnect_port(up, parent)
 		return;
 	}
 
+	usbd_add_event(USB_EVENT_DETACH, dev);
+
 	if (dev->subdevs != NULL) {
 		for (i = 0; dev->subdevs[i]; i++) {
 			if (!dev->subdevs[i])	/* skip empty elements */
@@ -1257,7 +1264,6 @@ usb_disconnect_port(up, parent)
 		}
 	}
 
-	usbd_add_event(USB_EVENT_DETACH, dev);
 	dev->bus->devices[dev->address] = 0;
 	up->device = 0;
 	usb_free_device(dev);
