@@ -33,7 +33,7 @@
 
 
 
-#include <rpcsvc/sm_inter.h>
+#include "sm_inter.h"
 
 /* These pieces are missing from the distributed sm_inter.x, which	*/
 /* omits the SM_NOTIFY procedure used between cooperating rpc.statd's	*/
