@@ -158,7 +158,7 @@ creator_upa_attach(device_t dev)
 	struct upa_regs *reg;
 	video_switch_t *sw;
 	phandle_t chosen;
-	phandle_t stdout;
+	ihandle_t stdout;
 	bus_addr_t phys;
 	bus_size_t size;
 	phandle_t node;
