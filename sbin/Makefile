@@ -87,7 +87,6 @@ SUBDIR+=ipf \
 
 .if ${MACHINE_ARCH} == "i386"
 SUBDIR+=cxconfig \
-	kget \
 	mount_nwfs \
 	mount_smbfs \
 	nextboot
