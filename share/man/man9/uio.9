@@ -134,21 +134,21 @@ fooread(dev_t dev, struct uio *uio, int flag)
 {
 	int rv, amnt;
 
+	rv = 0;
 	while (uio->uio_resid > 0) {
 		if (data_available > 0) {
 			amnt = MIN(uio->uio_resid, data_available);
-			if ((rv = uiomove(buffer, amnt, uio))
-			    != 0)
-				goto error;
+			rv = uiomove(buffer, amnt, uio);
+			if (rv != 0)
+				break;
 			data_available -= amnt;
-		} else {
+		} else
 			tsleep(...);	/* wait for a better time */
-		}
 	}
-	return 0;
-error:
-	/* do error cleanup here */
-	return rv;
+	if (rv != 0) {
+		/* do error cleanup here */
+	}
+	return (rv);
 }
 .Ed
 .Sh RETURN VALUES
