@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2002 David E. O'Brien.  All rights reserved.
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
  * (c) UNIX System Laboratories, Inc.
@@ -44,9 +45,24 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	from: @(#)varargs.h	8.3 (Berkeley) 3/22/94
+ *	@(#)varargs.h	8.3 (Berkeley) 3/22/94
  * $FreeBSD$
  */
+
+#if defined(__GNUC__) && (__GNUC__ == 2 && __GNUC_MINOR__ > 95 || __GNUC__ >= 3)
+
+#include <machine/ansi.h>
+
+typedef _BSD_VA_LIST_ va_list;
+typedef int __builtin_va_alist_t __attribute__((__mode__(__word__)));
+
+#define	va_alist		__builtin_va_alist
+#define	va_dcl			__builtin_va_alist_t __builtin_va_alist; ...
+#define	va_start(ap)		__builtin_varargs_start(ap)
+#define	va_arg(ap, type)	__builtin_va_arg((ap), type)
+#define	va_end(ap)		__builtin_va_end(ap)
+
+#else	/* ! __GNUC__ post GCC 2.95 */
 
 #ifndef _MACHINE_VARARGS_H_
 #define	_MACHINE_VARARGS_H_
@@ -65,5 +81,7 @@
 #undef va_start
 #define	va_start(ap) \
 	((ap) = (va_list)__builtin_saveregs())
+
+#endif /* __GNUC__ post GCC 2.95 */
 
 #endif /* !_MACHINE_VARARGS_H_ */

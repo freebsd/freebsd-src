@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2002 David E. O'Brien.  All rights reserved.
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -32,8 +33,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	from: @(#)stdarg.h	8.2 (Berkeley) 9/27/93
- *	from: NetBSD: stdarg.h,v 1.11 2000/07/23 21:36:56 mycroft Exp
+ *	@(#)stdarg.h	8.2 (Berkeley) 9/27/93
+ *	$NetBSD: stdarg.h,v 1.11 2000/07/23 21:36:56 mycroft Exp $
  * $FreeBSD$
  */
 
@@ -43,6 +44,19 @@
 #include <machine/ansi.h>
 
 typedef _BSD_VA_LIST_	va_list;
+
+#if defined(__GNUC__) && (__GNUC__ == 2 && __GNUC_MINOR__ > 95 || __GNUC__ >= 3)
+
+#define	va_start(ap, last) \
+	__builtin_stdarg_start((ap), (last))
+
+#define	va_arg(ap, type) \
+	__builtin_va_arg((ap), type)
+
+#define	va_end(ap) \
+	__builtin_va_end(ap)
+
+#else	/* ! __GNUC__ post GCC 2.95 */
 
 #define	va_start(ap, last) \
 	(__builtin_next_arg(last), (ap) = (va_list)__builtin_saveregs())
@@ -68,5 +82,7 @@ typedef _BSD_VA_LIST_	va_list;
 	  (sizeof(type) <= 8 ? __va_arg8(ap, type) :			\
 	   (sizeof(type) <= 16 ? __va_arg16(ap, type) :			\
 	    *__va_arg8(ap, type *)))))
+
+#endif /* __GNUC__ post GCC 2.95 */
 
 #endif /* !_MACHINE_STDARG_H_ */
