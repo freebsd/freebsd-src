@@ -962,7 +962,7 @@ static int sis_attach(dev)
 		    sc->sis_rev == SIS_REV_630ET)
 			sis_read_cmos(sc, dev, (caddr_t)&eaddr, 0x9, 6);
 
-		else if (command == SIS_REV_635)
+		else if (sc->sis_rev == SIS_REV_635)
 			sis_read_mac(sc, dev, (caddr_t)&eaddr);
 		else
 #endif
