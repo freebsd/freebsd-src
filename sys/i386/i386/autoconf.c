@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.34 1995/07/16 10:45:04 phk Exp $
+ *	$Id: autoconf.c,v 1.35 1995/08/28 09:17:44 julian Exp $
  */
 
 /*
@@ -67,7 +67,6 @@ static void setroot(void);
  */
 int	dkn;		/* number of iostat dk numbers assigned so far */
 
-int vfs_mountroot __P((caddr_t));	/* XXX goes away*/
 #ifdef FFS
 extern struct vfsops	ufs_vfsops;
 #endif
