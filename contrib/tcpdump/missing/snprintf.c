@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: snprintf.c,v 1.4 2001/01/02 22:33:04 guy Exp $ */
+/* $Id: snprintf.c,v 1.5 2001/01/12 10:14:40 guy Exp $ */
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
@@ -39,7 +39,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-     "@(#) $Header: /tcpdump/master/tcpdump/missing/snprintf.c,v 1.4 2001/01/02 22:33:04 guy Exp $";
+     "@(#) $Header: /tcpdump/master/tcpdump/missing/snprintf.c,v 1.5 2001/01/12 10:14:40 guy Exp $";
 #endif
 
 #include <stdio.h>
@@ -93,6 +93,7 @@ sn_append_char (struct state *state, unsigned char c)
 }
 #endif
 
+#if 0
 static int
 as_reserve (struct state *state, size_t n)
 {
@@ -126,6 +127,7 @@ as_append_char (struct state *state, unsigned char c)
     return 0;
   }
 }
+#endif
 
 static int
 append_number(struct state *state,
@@ -490,6 +492,7 @@ snprintf (char *str, size_t sz, const char *format, ...)
 }
 #endif
 
+#if 0
 #ifndef HAVE_ASPRINTF
 int
 asprintf (char **ret, const char *format, ...)
@@ -599,6 +602,7 @@ vasnprintf (char **ret, size_t max_sz, const char *format, va_list args)
     return len;
   }
 }
+#endif
 #endif
 
 #ifndef HAVE_VSNPRINTF

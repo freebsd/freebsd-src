@@ -14,10 +14,6 @@
 /* Define if you can safely include both <sys/time.h> and <time.h>.  */
 #undef TIME_WITH_SYS_TIME
 
-/* Define if your processor stores words with the most significant
-   byte first (like Motorola and SPARC, unlike Intel and VAX).  */
-#undef WORDS_BIGENDIAN
-
 /* Define if you have SSLeay 0.9.0b with the buggy cast128. */
 #undef HAVE_BUGGY_CAST128
 
@@ -60,8 +56,8 @@
 /* define if you have struct sockaddr_storage */
 #undef HAVE_SOCKADDR_STORAGE
 
-/* define if you have both getipnodebyname() and getipnodebyaddr() */
-#undef USE_GETIPNODEBY
+/* define if you have ether_ntohost() and it works */
+#undef USE_ETHER_NTOHOST
 
 /* define if unaligned memory accesses fail */
 #undef LBL_ALIGN
@@ -86,6 +82,17 @@
 #undef u_int32_t
 #undef u_int8_t
 
+/* Whether or not to include the possibly-buggy SMB printer */
+#undef TCPDUMP_DO_SMB
+
+/* Long story short: aclocal.m4 depends on autoconf 2.13
+ * implementation details wrt "const"; newer versions
+ * have different implementation details so for now we
+ * put "const" here.  This may cause duplicate definitions
+ * in config.h but that should be OK since they're the same.
+ */
+#undef const
+
 /* The number of bytes in a char.  */
 #undef SIZEOF_CHAR
 
@@ -104,17 +111,8 @@
 /* Define if you have the ether_ntohost function.  */
 #undef HAVE_ETHER_NTOHOST
 
-/* Define if you have the freeaddrinfo function.  */
-#undef HAVE_FREEADDRINFO
-
 /* Define if you have the getaddrinfo function.  */
 #undef HAVE_GETADDRINFO
-
-/* Define if you have the getipnodebyaddr function.  */
-#undef HAVE_GETIPNODEBYADDR
-
-/* Define if you have the getipnodebyname function.  */
-#undef HAVE_GETIPNODEBYNAME
 
 /* Define if you have the getnameinfo function.  */
 #undef HAVE_GETNAMEINFO
@@ -145,6 +143,9 @@
 
 /* Define if you have the strcasecmp function.  */
 #undef HAVE_STRCASECMP
+
+/* Define if you have the strdup function.  */
+#undef HAVE_STRDUP
 
 /* Define if you have the strlcat function.  */
 #undef HAVE_STRLCAT
@@ -182,23 +183,11 @@
 /* Define if you have the dnet library (-ldnet).  */
 #undef HAVE_LIBDNET
 
-/* Define if you have the nsl library (-lnsl).  */
-#undef HAVE_LIBNSL
-
-/* Define if you have the resolv library (-lresolv).  */
-#undef HAVE_LIBRESOLV
-
 /* Define if you have the rpc library (-lrpc).  */
 #undef HAVE_LIBRPC
 
 /* Define if you have the smi library (-lsmi).  */
 #undef HAVE_LIBSMI
-
-/* Define if you have the socket library (-lsocket).  */
-#undef HAVE_LIBSOCKET
-
-/* Define if you have the str library (-lstr).  */
-#undef HAVE_LIBSTR
 
 /* define if your compiler has __attribute__ */
 #undef HAVE___ATTRIBUTE__

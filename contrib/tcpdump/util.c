@@ -21,7 +21,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/util.c,v 1.69 2000/07/11 00:49:03 assar Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/util.c,v 1.72 2001/10/08 16:12:13 fenner Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -178,14 +178,18 @@ ts_print(register const struct timeval *tvp)
 void
 relts_print(int secs)
 {
-	static char *lengths[] = {"y", "w", "d", "h", "m", "s"};
-	static int seconds[] = {31536000, 604800, 86400, 3600, 60, 1};
-	char **l = lengths;
-	int *s = seconds;
+	static const char *lengths[] = {"y", "w", "d", "h", "m", "s"};
+	static const int seconds[] = {31536000, 604800, 86400, 3600, 60, 1};
+	const char **l = lengths;
+	const int *s = seconds;
 
-	if (secs <= 0) {
+	if (secs == 0) {
 		(void)printf("0s");
 		return;
+	}
+	if (secs < 0) {
+		(void)printf("-");
+		secs = -secs;
 	}
 	while (secs > 0) {
 		if (secs >= *s) {
@@ -217,6 +221,25 @@ tok2str(register const struct tok *lp, register const char *fmt,
 	return (buf);
 }
 
+/*
+ * Convert a value to a string using an array; the macro
+ * tok2strary() in <interface.h> is the public interface to
+ * this function and ensures that the second argument is
+ * correct for bounds-checking.
+ */
+const char *
+tok2strary_internal(register const char **lp, int n, register const char *fmt,
+	register int v)
+{
+	static char buf[128];
+
+	if (v >= 0 && v < n && lp[v] != NULL)
+		return lp[v];
+	if (fmt == NULL)
+		fmt = "#%d";
+	(void)snprintf(buf, sizeof(buf), fmt, v);
+	return (buf);
+}
 
 /* VARARGS */
 void
@@ -303,7 +326,10 @@ read_infile(char *fname)
 		error("can't stat %s: %s", fname, pcap_strerror(errno));
 
 	cp = malloc((u_int)buf.st_size + 1);
-	cc = read(fd, cp, (int)buf.st_size);
+	if (cp == NULL)
+		error("malloc(%d) for %s: %s", (u_int)buf.st_size + 1,
+			fname, pcap_strerror(errno));
+	cc = read(fd, cp, (u_int)buf.st_size);
 	if (cc < 0)
 		error("read %s: %s", fname, pcap_strerror(errno));
 	if (cc != buf.st_size)

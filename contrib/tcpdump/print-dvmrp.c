@@ -21,7 +21,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-dvmrp.c,v 1.20 2000/09/29 04:58:36 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-dvmrp.c,v 1.21 2001/05/10 05:30:20 fenner Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -50,9 +50,7 @@ static const char rcsid[] =
 #define DVMRP_PROBE		1	/* for finding neighbors */
 #define DVMRP_REPORT		2	/* for reporting some or all routes */
 #define DVMRP_ASK_NEIGHBORS	3	/* sent by mapper, asking for a list */
-					/*
-					 * of this router's neighbors
-					 */
+					/* of this router's neighbors */
 #define DVMRP_NEIGHBORS		4	/* response to such a request */
 #define DVMRP_ASK_NEIGHBORS2	5	/* as above, want new format reply */
 #define DVMRP_NEIGHBORS2	6
@@ -90,11 +88,9 @@ dvmrp_print(register const u_char *bp, register u_int len)
 		return;
 
 	type = bp[1];
-	bp += 8;
-	/*
-	 * Skip IGMP header
-	 */
 
+	/* Skip IGMP header */
+	bp += 8;
 	len -= 8;
 
 	switch (type) {
@@ -107,7 +103,7 @@ dvmrp_print(register const u_char *bp, register u_int len)
 
 	case DVMRP_REPORT:
 		printf(" Report");
-		if (vflag)
+		if (vflag > 1)
 			print_report(bp, ep, len);
 		break;
 
@@ -222,7 +218,13 @@ print_probe(register const u_char *bp, register const u_char *ep,
 	genid = (bp[0] << 24) | (bp[1] << 16) | (bp[2] << 8) | bp[3];
 	bp += 4;
 	len -= 4;
-	printf("\n\tgenid %u", genid);
+	if (vflag > 1)
+		printf("\n\t");
+	else
+		printf(" ");
+	printf("genid %u", genid);
+	if (vflag < 2)
+		return;
 
 	while ((len > 0) && (bp < ep)) {
 		TCHECK2(bp[0], 4);

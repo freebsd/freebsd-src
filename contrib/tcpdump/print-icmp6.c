@@ -21,7 +21,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-icmp6.c,v 1.42 2000/12/13 07:57:05 itojun Exp $";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-icmp6.c,v 1.56 2001/06/27 02:48:43 itojun Exp $";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -43,6 +43,7 @@ static const char rcsid[] =
 #include <arpa/inet.h>
 
 #include <stdio.h>
+#include <string.h>
 #include <netdb.h>
 
 #include "ip6.h"
@@ -54,6 +55,9 @@ static const char rcsid[] =
 #include "udp.h"
 #include "ah.h"
 
+static const char *get_rtpref(u_int);
+static const char *get_lifetime(u_int32_t);
+static void print_lladdr(const u_char *, size_t);
 void icmp6_opt_print(const u_char *, int);
 void mld6_print(const u_char *);
 static struct udphdr *get_upperlayer(u_char *, int *);
@@ -65,22 +69,59 @@ void icmp6_rrenum_print(int, const u_char *, const u_char *);
 #define abs(a)	((0 < (a)) ? (a) : -(a))
 #endif
 
+static const char *
+get_rtpref(u_int v)
+{
+	static const char *rtpref_str[] = {
+		"medium",		/* 00 */
+		"high",			/* 01 */
+		"rsv",			/* 10 */
+		"low"			/* 11 */
+	};
+
+	return rtpref_str[((v & ND_RA_FLAG_RTPREF_MASK) >> 3) & 0xff];
+}
+
+static const char *
+get_lifetime(u_int32_t v)
+{
+	static char buf[20];
+
+	if (v == (u_int32_t)~0UL)
+		return "infinity";
+	else {
+		snprintf(buf, sizeof(buf), "%u", v);
+		return buf;
+	}
+}
+
+static void
+print_lladdr(const u_int8_t *p, size_t l)
+{
+	const u_int8_t *ep, *q;
+
+	q = p;
+	ep = p + l;
+	while (l > 0 && q < ep) {
+		if (q > p)
+			printf(":");
+		printf("%02x", *q++);
+		l--;
+	}
+}
+
 void
-icmp6_print(register const u_char *bp, register const u_char *bp2)
+icmp6_print(const u_char *bp, const u_char *bp2)
 {
 	const struct icmp6_hdr *dp;
-	register const struct ip6_hdr *ip;
-	register const char *str;
-	register const struct ip6_hdr *oip;
-	register const struct udphdr *ouh;
-	register int dport;
-	register const u_char *ep;
+	const struct ip6_hdr *ip;
+	const char *str;
+	const struct ip6_hdr *oip;
+	const struct udphdr *ouh;
+	int dport;
+	const u_char *ep;
 	char buf[256];
 	int icmp6len, prot;
-
-#if 0
-#define TCHECK(var) if ((u_char *)&(var) > ep - sizeof(var)) goto trunc
-#endif
 
 	dp = (struct icmp6_hdr *)bp;
 	ip = (struct ip6_hdr *)bp2;
@@ -93,12 +134,6 @@ icmp6_print(register const u_char *bp, register const u_char *bp2)
 			    (bp - bp2));
 	else			/* XXX: jumbo payload case... */
 		icmp6len = snapend - bp;
-
-#if 0
-	(void)printf("%s > %s: ",
-		ip6addr_string(&ip->ip6_src),
-		ip6addr_string(&ip->ip6_dst));
-#endif
 
 	TCHECK(dp->icmp6_code);
 	switch (dp->icmp6_type) {
@@ -155,7 +190,7 @@ icmp6_print(register const u_char *bp, register const u_char *bp2)
 		break;
 	case ICMP6_PACKET_TOO_BIG:
 		TCHECK(dp->icmp6_mtu);
-		printf("icmp6: too big %u\n", (u_int32_t)ntohl(dp->icmp6_mtu));
+		printf("icmp6: too big %u", (u_int32_t)ntohl(dp->icmp6_mtu));
 		break;
 	case ICMP6_TIME_EXCEEDED:
 		TCHECK(oip->ip6_dst);
@@ -177,15 +212,15 @@ icmp6_print(register const u_char *bp, register const u_char *bp2)
 		TCHECK(oip->ip6_dst);
 		switch (dp->icmp6_code) {
 		case ICMP6_PARAMPROB_HEADER:
-			printf("icmp6: parameter problem errorneous - octet %u\n",
+			printf("icmp6: parameter problem errorneous - octet %u",
 				(u_int32_t)ntohl(dp->icmp6_pptr));
 			break;
 		case ICMP6_PARAMPROB_NEXTHEADER:
-			printf("icmp6: parameter problem next header - octet %u\n",
+			printf("icmp6: parameter problem next header - octet %u",
 				(u_int32_t)ntohl(dp->icmp6_pptr));
 			break;
 		case ICMP6_PARAMPROB_OPTION:
-			printf("icmp6: parameter problem option - octet %u\n",
+			printf("icmp6: parameter problem option - octet %u",
 				(u_int32_t)ntohl(dp->icmp6_pptr));
 			break;
 		default:
@@ -232,13 +267,16 @@ icmp6_print(register const u_char *bp, register const u_char *bp2)
 				printf("M");
 			if (p->nd_ra_flags_reserved & ND_RA_FLAG_OTHER)
 				printf("O");
-#ifndef ND_RA_FLAG_HA
-#define ND_RA_FLAG_HA	0x20
-#endif
-			if (p->nd_ra_flags_reserved & ND_RA_FLAG_HA)
+			if (p->nd_ra_flags_reserved & ND_RA_FLAG_HOME_AGENT)
 				printf("H");
-			if (p->nd_ra_flags_reserved != 0)
+
+			if ((p->nd_ra_flags_reserved & ~ND_RA_FLAG_RTPREF_MASK)
+			    != 0)
 				printf(" ");
+
+			printf("pref=%s, ",
+			    get_rtpref(p->nd_ra_flags_reserved));
+
 			printf("router_ltime=%d, ", ntohs(p->nd_ra_router_lifetime));
 			printf("reachable_time=%u, ",
 				(u_int32_t)ntohl(p->nd_ra_reachable));
@@ -325,15 +363,12 @@ icmp6_print(register const u_char *bp, register const u_char *bp2)
 	return;
 trunc:
 	fputs("[|icmp6]", stdout);
-#if 0
-#undef TCHECK
-#endif
 }
 
 static struct udphdr *
-get_upperlayer(register u_char *bp, int *prot)
+get_upperlayer(u_char *bp, int *prot)
 {
-	register const u_char *ep;
+	const u_char *ep;
 	struct ip6_hdr *ip6 = (struct ip6_hdr *)bp;
 	struct udphdr *uh;
 	struct ip6_hbh *hbh;
@@ -404,149 +439,151 @@ get_upperlayer(register u_char *bp, int *prot)
 }
 
 void
-icmp6_opt_print(register const u_char *bp, int resid)
+icmp6_opt_print(const u_char *bp, int resid)
 {
-	register const struct nd_opt_hdr *op;
-	register const struct nd_opt_hdr *opl;	/* why there's no struct? */
-	register const struct nd_opt_prefix_info *opp;
-	register const struct icmp6_opts_redirect *opr;
-	register const struct nd_opt_mtu *opm;
-	register const struct nd_opt_advint *opa;
-	register const u_char *ep;
-	int	opts_len;
-#if 0
-	register const struct ip6_hdr *ip;
-	register const char *str;
-	register const struct ip6_hdr *oip;
-	register const struct udphdr *ouh;
-	register int hlen, dport;
-	char buf[256];
-#endif
+	const struct nd_opt_hdr *op;
+	const struct nd_opt_hdr *opl;	/* why there's no struct? */
+	const struct nd_opt_prefix_info *opp;
+	const struct icmp6_opts_redirect *opr;
+	const struct nd_opt_mtu *opm;
+	const struct nd_opt_advinterval *opa;
+	const struct nd_opt_route_info *opri;
+	const u_char *cp, *ep;
+	struct in6_addr in6, *in6p;
+	size_t l;
 
 #define ECHECK(var) if ((u_char *)&(var) > ep - sizeof(var)) return
 
-	op = (struct nd_opt_hdr *)bp;
-#if 0
-	ip = (struct ip6_hdr *)bp2;
-	oip = &dp->icmp6_ip6;
-	str = buf;
-#endif
+	cp = bp;
 	/* 'ep' points to the end of available data. */
 	ep = snapend;
 
-	ECHECK(op->nd_opt_len);
-	if (resid <= 0)
-		return;
-	switch (op->nd_opt_type) {
-	case ND_OPT_SOURCE_LINKADDR:
-		opl = (struct nd_opt_hdr *)op;
-#if 1
-		if ((u_char *)opl + (opl->nd_opt_len << 3) > ep)
+	while (cp < ep) {
+		op = (struct nd_opt_hdr *)cp;
+
+		ECHECK(op->nd_opt_len);
+		if (resid <= 0)
+			return;
+		if (op->nd_opt_len == 0)
 			goto trunc;
-#else
-		TCHECK((u_char *)opl + (opl->nd_opt_len << 3) - 1);
-#endif
-		printf("(src lladdr: %s",	/*)*/
-			etheraddr_string((u_char *)(opl + 1)));
-		if (opl->nd_opt_len != 1)
-			printf("!");
-		/*(*/
-		printf(")");
-		icmp6_opt_print((const u_char *)op + (op->nd_opt_len << 3),
-				resid - (op->nd_opt_len << 3));
-		break;
-	case ND_OPT_TARGET_LINKADDR:
-		opl = (struct nd_opt_hdr *)op;
-#if 1
-		if ((u_char *)opl + (opl->nd_opt_len << 3) > ep)
+		if (cp + (op->nd_opt_len << 3) > ep)
 			goto trunc;
-#else
-		TCHECK((u_char *)opl + (opl->nd_opt_len << 3) - 1);
-#endif
-		printf("(tgt lladdr: %s",	/*)*/
-			etheraddr_string((u_char *)(opl + 1)));
-		if (opl->nd_opt_len != 1)
-			printf("!");
-		/*(*/
-		printf(")");
-		icmp6_opt_print((const u_char *)op + (op->nd_opt_len << 3),
-				resid - (op->nd_opt_len << 3));
-		break;
-	case ND_OPT_PREFIX_INFORMATION:
-		opp = (struct nd_opt_prefix_info *)op;
-		TCHECK(opp->nd_opt_pi_prefix);
-		printf("(prefix info: ");	/*)*/
-		if (opp->nd_opt_pi_flags_reserved & ND_OPT_PI_FLAG_ONLINK)
-			printf("L");
-		if (opp->nd_opt_pi_flags_reserved & ND_OPT_PI_FLAG_AUTO)
-			printf("A");
-		if (opp->nd_opt_pi_flags_reserved & ND_OPT_PI_FLAG_ROUTER)
-			printf("R");
-		if (opp->nd_opt_pi_flags_reserved)
-			printf(" ");
-		printf("valid_ltime=");
-		if ((u_int32_t)ntohl(opp->nd_opt_pi_valid_time) == ~0U)
-			printf("infinity");
-		else {
-			printf("%u", (u_int32_t)ntohl(opp->nd_opt_pi_valid_time));
+
+		switch (op->nd_opt_type) {
+		case ND_OPT_SOURCE_LINKADDR:
+			opl = (struct nd_opt_hdr *)op;
+			printf("(src lladdr: ");
+			l = (op->nd_opt_len << 3) - 2;
+			print_lladdr(cp + 2, l);
+			/*(*/
+			printf(")");
+			break;
+		case ND_OPT_TARGET_LINKADDR:
+			opl = (struct nd_opt_hdr *)op;
+			printf("(tgt lladdr: ");
+			l = (op->nd_opt_len << 3) - 2;
+			print_lladdr(cp + 2, l);
+			/*(*/
+			printf(")");
+			break;
+		case ND_OPT_PREFIX_INFORMATION:
+			opp = (struct nd_opt_prefix_info *)op;
+			TCHECK(opp->nd_opt_pi_prefix);
+			printf("(prefix info: ");	/*)*/
+			if (op->nd_opt_len != 4) {
+				printf("badlen");
+				/*(*/
+				printf(")");
+				break;
+			}
+			if (opp->nd_opt_pi_flags_reserved & ND_OPT_PI_FLAG_ONLINK)
+				printf("L");
+			if (opp->nd_opt_pi_flags_reserved & ND_OPT_PI_FLAG_AUTO)
+				printf("A");
+			if (opp->nd_opt_pi_flags_reserved & ND_OPT_PI_FLAG_ROUTER)
+				printf("R");
+			if (opp->nd_opt_pi_flags_reserved)
+				printf(" ");
+			printf("valid_ltime=%s,",
+			    get_lifetime((u_int32_t)ntohl(opp->nd_opt_pi_valid_time)));
+			printf("preferred_ltime=%s,",
+			    get_lifetime((u_int32_t)ntohl(opp->nd_opt_pi_preferred_time)));
+			printf("prefix=%s/%d",
+			    ip6addr_string(&opp->nd_opt_pi_prefix),
+			    opp->nd_opt_pi_prefix_len);
+			if (opp->nd_opt_pi_len != 4)
+				printf("!");
+			/*(*/
+			printf(")");
+			break;
+		case ND_OPT_REDIRECTED_HEADER:
+			opr = (struct icmp6_opts_redirect *)op;
+			printf("(redirect)");
+			/* xxx */
+			break;
+		case ND_OPT_MTU:
+			opm = (struct nd_opt_mtu *)op;
+			TCHECK(opm->nd_opt_mtu_mtu);
+			printf("(mtu:");	/*)*/
+			if (op->nd_opt_len != 1) {
+				printf("badlen");
+				/*(*/
+				printf(")");
+				break;
+			}
+			printf(" mtu=%u", (u_int32_t)ntohl(opm->nd_opt_mtu_mtu));
+			if (opm->nd_opt_mtu_len != 1)
+				printf("!");
+			printf(")");
+			break;
+		case ND_OPT_ADVINTERVAL:
+			opa = (struct nd_opt_advinterval *)op;
+			TCHECK(opa->nd_opt_adv_interval);
+			printf("(advint:");	/*)*/
+			printf(" advint=%u",
+			    (u_int32_t)ntohl(opa->nd_opt_adv_interval));
+			/*(*/
+			printf(")");
+			break;                
+		case ND_OPT_ROUTE_INFO:
+			opri = (struct nd_opt_route_info *)op;
+			TCHECK(opri->nd_opt_rti_lifetime);
+			memset(&in6, 0, sizeof(in6));
+			in6p = (struct in6_addr *)(opri + 1);
+			switch (op->nd_opt_len) {
+			case 1:
+				break;
+			case 2:
+				TCHECK2(*in6p, 8);
+				memcpy(&in6, opri + 1, 8);
+				break;
+			case 3:
+				TCHECK(*in6p);
+				memcpy(&in6, opri + 1, sizeof(in6));
+				break;
+			default:
+				goto trunc;
+			}
+			printf("(rtinfo:");	/*)*/
+			printf(" %s/%u", ip6addr_string(&in6),
+			    opri->nd_opt_rti_prefixlen);
+			printf(", pref=%s", get_rtpref(opri->nd_opt_rti_flags));
+			printf(", lifetime=%s",
+			    get_lifetime((u_int32_t)ntohl(opri->nd_opt_rti_lifetime)));
+			/*(*/
+			printf(")");
+			break;
+		default:
+			printf("(unknwon opt_type=%d, opt_len=%d)",
+			       op->nd_opt_type, op->nd_opt_len);
+			break;
 		}
-		printf(", ");
-		printf("preffered_ltime=");
-		if ((u_int32_t)ntohl(opp->nd_opt_pi_preferred_time) == ~0U)
-			printf("infinity");
-		else {
-			printf("%u", (u_int32_t)ntohl(opp->nd_opt_pi_preferred_time));
-		}
-		printf(", ");
-		printf("prefix=%s/%d", ip6addr_string(&opp->nd_opt_pi_prefix),
-			opp->nd_opt_pi_prefix_len);
-		if (opp->nd_opt_pi_len != 4)
-			printf("!");
-		/*(*/
-		printf(")");
-		icmp6_opt_print((const u_char *)op + (op->nd_opt_len << 3),
-				resid - (op->nd_opt_len << 3));
-		break;
-	case ND_OPT_REDIRECTED_HEADER:
-		opr = (struct icmp6_opts_redirect *)op;
-		printf("(redirect)");
-		/* xxx */
-		icmp6_opt_print((const u_char *)op + (op->nd_opt_len << 3),
-				resid - (op->nd_opt_len << 3));
-		break;
-	case ND_OPT_MTU:
-		opm = (struct nd_opt_mtu *)op;
-		TCHECK(opm->nd_opt_mtu_mtu);
-		printf("(mtu: ");	/*)*/
-		printf("mtu=%u", (u_int32_t)ntohl(opm->nd_opt_mtu_mtu));
-		if (opm->nd_opt_mtu_len != 1)
-			printf("!");
-		printf(")");
-		icmp6_opt_print((const u_char *)op + (op->nd_opt_len << 3),
-				resid - (op->nd_opt_len << 3));
-		break;
-        case ND_OPT_ADVINT:
-		opa = (struct nd_opt_advint *)op;
-		TCHECK(opa->nd_opt_advint_advint);
-		printf("(advint: ");	/*)*/
-		printf("advint=%u",
-		    (u_int32_t)ntohl(opa->nd_opt_advint_advint));
-		/*(*/
-		printf(")");
-		icmp6_opt_print((const u_char *)op + (op->nd_opt_len << 3),
-				resid - (op->nd_opt_len << 3));
-		break;                
-	default:
-		opts_len = op->nd_opt_len;
-		printf("(unknwon opt_type=%d, opt_len=%d)",
-		       op->nd_opt_type, opts_len);
-		if (opts_len == 0)
-			opts_len = 1; /* XXX */
-		icmp6_opt_print((const u_char *)op + (opts_len << 3),
-				resid - (opts_len << 3));
-		break;
+
+		cp += op->nd_opt_len << 3;
+		resid -= op->nd_opt_len << 3;
 	}
 	return;
+
  trunc:
 	fputs("[ndp opt]", stdout);
 	return;
@@ -554,10 +591,10 @@ icmp6_opt_print(register const u_char *bp, int resid)
 }
 
 void
-mld6_print(register const u_char *bp)
+mld6_print(const u_char *bp)
 {
-	register struct mld6_hdr *mp = (struct mld6_hdr *)bp;
-	register const u_char *ep;
+	struct mld6_hdr *mp = (struct mld6_hdr *)bp;
+	const u_char *ep;
 
 	/* 'ep' points to the end of available data. */
 	ep = snapend;
@@ -820,7 +857,7 @@ icmp6_nodeinfo_print(int icmp6len, const u_char *bp, const u_char *ep)
 					break;
 				printf(" %s", getname6(bp + i));
 				i += sizeof(struct in6_addr);
-				printf("(%d)", ntohl(*(int32_t *)(bp + i)));
+				printf("(%d)", (int32_t)ntohl(*(int32_t *)(bp + i)));
 				i += sizeof(int32_t);
 			}
 			i = ni6->ni_flags;
@@ -893,7 +930,7 @@ icmp6_rrenum_print(int icmp6len, const u_char *bp, const u_char *ep)
 		if (rr6->rr_flags) {
 			printf("%s%s%s%s%s,", F(ICMP6_RR_FLAGS_TEST, "T"),
 			    F(ICMP6_RR_FLAGS_REQRESULT, "R"),
-			    F(ICMP6_RR_FLAGS_ALLIF, "A"),
+			    F(ICMP6_RR_FLAGS_FORCEAPPLY, "A"),
 			    F(ICMP6_RR_FLAGS_SPECSITE, "S"),
 			    F(ICMP6_RR_FLAGS_PREVDONE, "P"));
 		}
@@ -912,7 +949,7 @@ icmp6_rrenum_print(int icmp6len, const u_char *bp, const u_char *ep)
 
 		TCHECK(match->rpm_prefix);
 
-		if (vflag)
+		if (vflag > 1)
 			printf("\n\t");
 		else
 			printf(" ");
@@ -946,7 +983,7 @@ icmp6_rrenum_print(int icmp6len, const u_char *bp, const u_char *ep)
 
 			TCHECK(use->rpu_prefix);
 
-			if (vflag)
+			if (vflag > 1)
 				printf("\n\t");
 			else
 				printf(" ");

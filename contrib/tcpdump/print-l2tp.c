@@ -23,7 +23,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-l2tp.c,v 1.8 2000/08/18 07:44:46 itojun Exp $";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-l2tp.c,v 1.10 2001/11/10 21:37:58 guy Exp $";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -49,111 +49,145 @@ static char tstr[] = " [|l2tp]";
 #define FALSE 0
 #endif
 
-static char *l2tp_message_type_string[] = {
-	"RESERVED_0",		/* 0  Reserved */
-	"SCCRQ",		/* 1  Start-Control-Connection-Request */
-	"SCCRP",		/* 2  Start-Control-Connection-Reply */
-	"SCCCN",		/* 3  Start-Control-Connection-Connected */
-	"StopCCN",		/* 4  Stop-Control-Connection-Notification */
-	"RESERVED_5",		/* 5  Reserved */
-	"HELLO",		/* 6  Hello */
-	"OCRQ",			/* 7  Outgoing-Call-Request */
-	"OCRP",			/* 8  Outgoing-Call-Reply */
-	"OCCN",			/* 9  Outgoing-Call-Connected */
-	"ICRQ",			/* 10 Incoming-Call-Request */
-	"ICRP",			/* 11 Incoming-Call-Reply */
-	"ICCN",			/* 12 Incoming-Call-Connected */
-	"RESERVED_13",		/* 13 Reserved */
-	"CDN",			/* 14 Call-Disconnect-Notify */
-	"WEN",			/* 15 WAN-Error-Notify */
-	"SLI"			/* 16 Set-Link-Info */
-#define L2TP_MAX_MSGTYPE_INDEX	17
+#define	L2TP_MSGTYPE_SCCRQ	1  /* Start-Control-Connection-Request */
+#define	L2TP_MSGTYPE_SCCRP	2  /* Start-Control-Connection-Reply */
+#define	L2TP_MSGTYPE_SCCCN	3  /* Start-Control-Connection-Connected */
+#define	L2TP_MSGTYPE_STOPCCN	4  /* Stop-Control-Connection-Notification */
+#define	L2TP_MSGTYPE_HELLO	6  /* Hello */
+#define	L2TP_MSGTYPE_OCRQ	7  /* Outgoing-Call-Request */
+#define	L2TP_MSGTYPE_OCRP	8  /* Outgoing-Call-Reply */
+#define	L2TP_MSGTYPE_OCCN	9  /* Outgoing-Call-Connected */
+#define	L2TP_MSGTYPE_ICRQ	10 /* Incoming-Call-Request */
+#define	L2TP_MSGTYPE_ICRP	11 /* Incoming-Call-Reply */
+#define	L2TP_MSGTYPE_ICCN	12 /* Incoming-Call-Connected */
+#define	L2TP_MSGTYPE_CDN	14 /* Call-Disconnect-Notify */
+#define	L2TP_MSGTYPE_WEN	15 /* WAN-Error-Notify */
+#define	L2TP_MSGTYPE_SLI	16 /* Set-Link-Info */
+
+static struct tok l2tp_msgtype2str[] = {
+	{ L2TP_MSGTYPE_SCCRQ, 	"SCCRQ" },
+	{ L2TP_MSGTYPE_SCCRP,	"SCCRP" },
+	{ L2TP_MSGTYPE_SCCCN,	"SCCCN" },
+	{ L2TP_MSGTYPE_STOPCCN,	"StopCCN" },
+	{ L2TP_MSGTYPE_HELLO,	"HELLO" },
+	{ L2TP_MSGTYPE_OCRQ,	"OCRQ" },
+	{ L2TP_MSGTYPE_OCRP,	"OCRP" },
+	{ L2TP_MSGTYPE_OCCN,	"OCCN" },
+	{ L2TP_MSGTYPE_ICRQ,	"ICRQ" },
+	{ L2TP_MSGTYPE_ICRP,	"ICRP" },
+	{ L2TP_MSGTYPE_ICCN,	"ICCN" },
+	{ L2TP_MSGTYPE_CDN,	"CDN" },
+	{ L2TP_MSGTYPE_WEN,	"WEN" },
+	{ L2TP_MSGTYPE_SLI,	"SLI" },
+	{ 0,			NULL }
 };
 
-static void l2tp_msgtype_print(const u_char *dat, u_int length);
-static void l2tp_result_code_print(const u_char *dat, u_int length);
-static void l2tp_proto_ver_print(const u_char *dat, u_int length);
-static void l2tp_framing_cap_print(const u_char *dat, u_int length);
-static void l2tp_bearer_cap_print(const u_char *dat, u_int length);
-static void l2tp_tie_breaker_print(const u_char *dat, u_int length);
-static void l2tp_firm_ver_print(const u_char *dat, u_int length);
-static void l2tp_host_name_print(const u_char *dat, u_int length);
-static void l2tp_vendor_name_print(const u_char *dat, u_int length);
-static void l2tp_assnd_tun_id_print(const u_char *dat, u_int length);
-static void l2tp_recv_win_size_print(const u_char *dat, u_int length);
-static void l2tp_challenge_print(const u_char *dat, u_int length);
-static void l2tp_q931_cc_print(const u_char *dat, u_int length);
-static void l2tp_challenge_resp_print(const u_char *dat, u_int length);
-static void l2tp_assnd_sess_id_print(const u_char *dat, u_int length);
-static void l2tp_call_ser_num_print(const u_char *dat, u_int length);
-static void l2tp_minimum_bps_print(const u_char *dat, u_int length);
-static void l2tp_maximum_bps_print(const u_char *dat, u_int length);
-static void l2tp_bearer_type_print(const u_char *dat, u_int length);
-static void l2tp_framing_type_print(const u_char *dat, u_int length);
-static void l2tp_packet_proc_delay_print(const u_char *dat, u_int length);
-static void l2tp_called_number_print(const u_char *dat, u_int length);
-static void l2tp_calling_number_print(const u_char *dat, u_int length);
-static void l2tp_sub_address_print(const u_char *dat, u_int length);
-static void l2tp_tx_conn_speed_print(const u_char *dat, u_int length);
-static void l2tp_phy_channel_id_print(const u_char *dat, u_int length);
-static void l2tp_ini_recv_lcp_print(const u_char *dat, u_int length);
-static void l2tp_last_sent_lcp_print(const u_char *dat, u_int length);
-static void l2tp_last_recv_lcp_print(const u_char *dat, u_int length);
-static void l2tp_proxy_auth_type_print(const u_char *dat, u_int length);
-static void l2tp_proxy_auth_name_print(const u_char *dat, u_int length);
-static void l2tp_proxy_auth_chal_print(const u_char *dat, u_int length);
-static void l2tp_proxy_auth_id_print(const u_char *dat, u_int length);
-static void l2tp_proxy_auth_resp_print(const u_char *dat, u_int length);
-static void l2tp_call_errors_print(const u_char *dat, u_int length);
-static void l2tp_accm_print(const u_char *dat, u_int length);
-static void l2tp_random_vector_print(const u_char *dat, u_int length);
-static void l2tp_private_grp_id_print(const u_char *dat, u_int length);
-static void l2tp_rx_conn_speed_print(const u_char *dat, u_int length);
-static void l2tp_seq_required_print(const u_char *dat, u_int length);
-static void l2tp_avp_print(const u_char *dat, u_int length);
+#define L2TP_AVP_MSGTYPE		0  /* Message Type */
+#define L2TP_AVP_RESULT_CODE		1  /* Result Code */
+#define L2TP_AVP_PROTO_VER		2  /* Protocol Version */
+#define L2TP_AVP_FRAMING_CAP		3  /* Framing Capabilities */
+#define L2TP_AVP_BEARER_CAP		4  /* Bearer Capabilities */
+#define L2TP_AVP_TIE_BREAKER		5  /* Tie Breaker */
+#define L2TP_AVP_FIRM_VER		6  /* Firmware Revision */
+#define L2TP_AVP_HOST_NAME		7  /* Host Name */
+#define L2TP_AVP_VENDOR_NAME		8  /* Vendor Name */
+#define L2TP_AVP_ASSND_TUN_ID 		9  /* Assigned Tunnel ID */
+#define L2TP_AVP_RECV_WIN_SIZE		10 /* Receive Window Size */
+#define L2TP_AVP_CHALLENGE		11 /* Challenge */
+#define L2TP_AVP_Q931_CC		12 /* Q.931 Cause Code */
+#define L2TP_AVP_CHALLENGE_RESP		13 /* Challenge Response */
+#define L2TP_AVP_ASSND_SESS_ID  	14 /* Assigned Session ID */
+#define L2TP_AVP_CALL_SER_NUM 		15 /* Call Serial Number */
+#define L2TP_AVP_MINIMUM_BPS		16 /* Minimum BPS */
+#define L2TP_AVP_MAXIMUM_BPS		17 /* Maximum BPS */
+#define L2TP_AVP_BEARER_TYPE		18 /* Bearer Type */
+#define L2TP_AVP_FRAMING_TYPE 		19 /* Framing Type */
+#define L2TP_AVP_PACKET_PROC_DELAY	20 /* Packet Processing Delay (OBSOLETE) */
+#define L2TP_AVP_CALLED_NUMBER		21 /* Called Number */
+#define L2TP_AVP_CALLING_NUMBER		22 /* Calling Number */
+#define L2TP_AVP_SUB_ADDRESS		23 /* Sub-Address */
+#define L2TP_AVP_TX_CONN_SPEED		24 /* (Tx) Connect Speed */
+#define L2TP_AVP_PHY_CHANNEL_ID		25 /* Physical Channel ID */
+#define L2TP_AVP_INI_RECV_LCP		26 /* Initial Received LCP CONFREQ */
+#define L2TP_AVP_LAST_SENT_LCP		27 /* Last Sent LCP CONFREQ */
+#define L2TP_AVP_LAST_RECV_LCP		28 /* Last Received LCP CONFREQ */
+#define L2TP_AVP_PROXY_AUTH_TYPE	29 /* Proxy Authen Type */
+#define L2TP_AVP_PROXY_AUTH_NAME	30 /* Proxy Authen Name */
+#define L2TP_AVP_PROXY_AUTH_CHAL	31 /* Proxy Authen Challenge */
+#define L2TP_AVP_PROXY_AUTH_ID		32 /* Proxy Authen ID */
+#define L2TP_AVP_PROXY_AUTH_RESP	33 /* Proxy Authen Response */
+#define L2TP_AVP_CALL_ERRORS		34 /* Call Errors */
+#define L2TP_AVP_ACCM			35 /* ACCM */
+#define L2TP_AVP_RANDOM_VECTOR		36 /* Random Vector */
+#define L2TP_AVP_PRIVATE_GRP_ID		37 /* Private Group ID */
+#define L2TP_AVP_RX_CONN_SPEED		38 /* (Rx) Connect Speed */
+#define L2TP_AVP_SEQ_REQUIRED 		39 /* Sequencing Required */
+#define L2TP_AVP_PPP_DISCON_CC		46 /* PPP Disconnect Cause Code */
 
-static struct l2tp_avp_vec l2tp_avp[] = {
-  {"MSGTYPE", l2tp_msgtype_print}, 		/* 0  Message Type */
-  {"RESULT_CODE", l2tp_result_code_print},	/* 1  Result Code */
-  {"PROTO_VER", l2tp_proto_ver_print},		/* 2  Protocol Version */
-  {"FRAMING_CAP", l2tp_framing_cap_print},	/* 3  Framing Capabilities */
-  {"BEARER_CAP", l2tp_bearer_cap_print},	/* 4  Bearer Capabilities */
-  {"TIE_BREAKER", l2tp_tie_breaker_print},	/* 5  Tie Breaker */
-  {"FIRM_VER", l2tp_firm_ver_print},		/* 6  Firmware Revision */
-  {"HOST_NAME", l2tp_host_name_print},		/* 7  Host Name */
-  {"VENDOR_NAME", l2tp_vendor_name_print},	/* 8  Vendor Name */
-  {"ASSND_TUN_ID", l2tp_assnd_tun_id_print}, 	/* 9  Assigned Tunnel ID */
-  {"RECV_WIN_SIZE", l2tp_recv_win_size_print},	/* 10 Receive Window Size */
-  {"CHALLENGE", l2tp_challenge_print},		/* 11 Challenge */
-  {"Q931_CC", l2tp_q931_cc_print},		/* 12 Q.931 Cause Code */
-  {"CHALLENGE_RESP", l2tp_challenge_resp_print},/* 13 Challenge Response */
-  {"ASSND_SESS_ID", l2tp_assnd_sess_id_print},  /* 14 Assigned Session ID */
-  {"CALL_SER_NUM", l2tp_call_ser_num_print}, 	/* 15 Call Serial Number */
-  {"MINIMUM_BPS",	l2tp_minimum_bps_print},/* 16 Minimum BPS */
-  {"MAXIMUM_BPS", l2tp_maximum_bps_print},	/* 17 Maximum BPS */
-  {"BEARER_TYPE",	l2tp_bearer_type_print},/* 18 Bearer Type */
-  {"FRAMING_TYPE", l2tp_framing_type_print}, 	/* 19 Framing Type */
-  {"PACKET_PROC_DELAY", l2tp_packet_proc_delay_print}, /* 20 Packet Processing Delay (OBSOLETE) */
-  {"CALLED_NUMBER", l2tp_called_number_print},	/* 21 Called Number */
-  {"CALLING_NUMBER", l2tp_calling_number_print},/* 22 Calling Number */
-  {"SUB_ADDRESS",	l2tp_sub_address_print},/* 23 Sub-Address */
-  {"TX_CONN_SPEED", l2tp_tx_conn_speed_print},	/* 24 (Tx) Connect Speed */
-  {"PHY_CHANNEL_ID", l2tp_phy_channel_id_print},/* 25 Physical Channel ID */
-  {"INI_RECV_LCP", l2tp_ini_recv_lcp_print}, 	/* 26 Initial Received LCP CONFREQ */
-  {"LAST_SENT_LCP", l2tp_last_sent_lcp_print},	/* 27 Last Sent LCP CONFREQ */
-  {"LAST_RECV_LCP", l2tp_last_recv_lcp_print},	/* 28 Last Received LCP CONFREQ */
-  {"PROXY_AUTH_TYPE", l2tp_proxy_auth_type_print},/* 29 Proxy Authen Type */
-  {"PROXY_AUTH_NAME", l2tp_proxy_auth_name_print},/* 30 Proxy Authen Name */
-  {"PROXY_AUTH_CHAL", l2tp_proxy_auth_chal_print},/* 31 Proxy Authen Challenge */
-  {"PROXY_AUTH_ID", l2tp_proxy_auth_id_print},	/* 32 Proxy Authen ID */
-  {"PROXY_AUTH_RESP", l2tp_proxy_auth_resp_print},/* 33 Proxy Authen Response */
-  {"CALL_ERRORS", l2tp_call_errors_print},	/* 34 Call Errors */
-  {"ACCM", l2tp_accm_print},			/* 35 ACCM */
-  {"RANDOM_VECTOR", l2tp_random_vector_print},	/* 36 Random Vector */
-  {"PRIVATE_GRP_ID", l2tp_private_grp_id_print},/* 37 Private Group ID */
-  {"RX_CONN_SPEED", l2tp_rx_conn_speed_print},	/* 38 (Rx) Connect Speed */
-  {"SEQ_REQUIRED", l2tp_seq_required_print}, 	/* 39 Sequencing Required */
-#define L2TP_MAX_AVP_INDEX	40
+static struct tok l2tp_avp2str[] = {
+	{ L2TP_AVP_MSGTYPE,		"MSGTYPE" },
+	{ L2TP_AVP_RESULT_CODE,		"RESULT_CODE" },
+	{ L2TP_AVP_PROTO_VER,		"PROTO_VER" },
+	{ L2TP_AVP_FRAMING_CAP,		"FRAMING_CAP" },
+	{ L2TP_AVP_BEARER_CAP,		"BEARER_CAP" },
+	{ L2TP_AVP_TIE_BREAKER,		"TIE_BREAKER" },
+	{ L2TP_AVP_FIRM_VER,		"FIRM_VER" },
+	{ L2TP_AVP_HOST_NAME,		"HOST_NAME" },
+	{ L2TP_AVP_VENDOR_NAME,		"VENDOR_NAME" },
+	{ L2TP_AVP_ASSND_TUN_ID,	"ASSND_TUN_ID" },
+	{ L2TP_AVP_RECV_WIN_SIZE,	"RECV_WIN_SIZE" },
+	{ L2TP_AVP_CHALLENGE,		"CHALLENGE" },
+	{ L2TP_AVP_Q931_CC,		"Q931_CC", },
+	{ L2TP_AVP_CHALLENGE_RESP,	"CHALLENGE_RESP" },
+	{ L2TP_AVP_ASSND_SESS_ID,	"ASSND_SESS_ID" },
+	{ L2TP_AVP_CALL_SER_NUM,	"CALL_SER_NUM" },
+	{ L2TP_AVP_MINIMUM_BPS,		"MINIMUM_BPS" },
+	{ L2TP_AVP_MAXIMUM_BPS,		"MAXIMUM_BPS" },
+	{ L2TP_AVP_BEARER_TYPE,		"BEARER_TYPE" },
+	{ L2TP_AVP_FRAMING_TYPE,	"FRAMING_TYPE" },
+	{ L2TP_AVP_PACKET_PROC_DELAY,	"PACKET_PROC_DELAY" },	
+	{ L2TP_AVP_CALLED_NUMBER,	"CALLED_NUMBER" },
+	{ L2TP_AVP_CALLING_NUMBER,	"CALLING_NUMBER" },
+	{ L2TP_AVP_SUB_ADDRESS,		"SUB_ADDRESS" },
+	{ L2TP_AVP_TX_CONN_SPEED,	"TX_CONN_SPEED" },
+	{ L2TP_AVP_PHY_CHANNEL_ID,	"PHY_CHANNEL_ID" },
+	{ L2TP_AVP_INI_RECV_LCP,	"INI_RECV_LCP" },
+	{ L2TP_AVP_LAST_SENT_LCP,	"LAST_SENT_LCP" },	
+	{ L2TP_AVP_LAST_RECV_LCP,	"LAST_RECV_LCP" },	
+	{ L2TP_AVP_PROXY_AUTH_TYPE,	"PROXY_AUTH_TYPE" }, 	
+	{ L2TP_AVP_PROXY_AUTH_NAME,	"PROXY_AUTH_NAME" },
+	{ L2TP_AVP_PROXY_AUTH_CHAL,	"PROXY_AUTH_CHAL" },	
+	{ L2TP_AVP_PROXY_AUTH_ID,	"PROXY_AUTH_ID" },
+	{ L2TP_AVP_PROXY_AUTH_RESP,	"PROXY_AUTH_RESP" },
+	{ L2TP_AVP_CALL_ERRORS,		"CALL_ERRORS" },
+	{ L2TP_AVP_ACCM,		"ACCM" },		
+	{ L2TP_AVP_RANDOM_VECTOR,	"RANDOM_VECTOR" },	
+	{ L2TP_AVP_PRIVATE_GRP_ID,	"PRIVATE_GRP_ID" },
+	{ L2TP_AVP_RX_CONN_SPEED,	"RX_CONN_SPEED" }, 	
+	{ L2TP_AVP_SEQ_REQUIRED,	"SEQ_REQUIRED" }, 	
+	{ L2TP_AVP_PPP_DISCON_CC,	"PPP_DISCON_CC" },	
+	{ 0,				NULL }
+};
+
+static struct tok l2tp_authentype2str[] = {
+	{ L2TP_AUTHEN_TYPE_RESERVED,	"Reserved" },
+	{ L2TP_AUTHEN_TYPE_TEXTUAL,	"Textual" },
+	{ L2TP_AUTHEN_TYPE_CHAP,	"CHAP" },
+	{ L2TP_AUTHEN_TYPE_PAP,		"PAP" },
+	{ L2TP_AUTHEN_TYPE_NO_AUTH,	"No Auth" },
+	{ L2TP_AUTHEN_TYPE_MSCHAPv1,	"MS-CHAPv1" },
+	{ 0,				NULL }
+};
+
+#define L2TP_PPP_DISCON_CC_DIRECTION_GLOBAL	0
+#define L2TP_PPP_DISCON_CC_DIRECTION_AT_PEER	1
+#define L2TP_PPP_DISCON_CC_DIRECTION_AT_LOCAL	2
+
+static struct tok l2tp_cc_direction2str[] = {
+	{ L2TP_PPP_DISCON_CC_DIRECTION_GLOBAL,	"global error" },
+	{ L2TP_PPP_DISCON_CC_DIRECTION_AT_PEER,	"at peer" },
+	{ L2TP_PPP_DISCON_CC_DIRECTION_AT_LOCAL,"at local" },
+	{ 0,					NULL }
 };
 
 #if 0
@@ -227,57 +261,53 @@ print_octets(const u_char *dat, u_int length)
 }
 
 static void
-print_short(const u_short *dat)
+print_16bits_val(const u_int16_t *dat)
 {
 	printf("%u", ntohs(*dat));
 }
 
 static void
-print_int(const u_int *dat)
+print_32bits_val(const u_int32_t *dat)
 {
 	printf("%lu", (u_long)ntohl(*dat));
 }
 
-/**********************************/
-/* AVP-specific print out routines*/
-/**********************************/
+/***********************************/
+/* AVP-specific print out routines */
+/***********************************/
 static void
-l2tp_msgtype_print(const u_char *dat, u_int length)
+l2tp_msgtype_print(const u_char *dat)
 {
-	u_short *ptr = (u_short *)dat;
+	u_int16_t *ptr = (u_int16_t*)dat;
 
-	if (ntohs(*ptr) < L2TP_MAX_MSGTYPE_INDEX) {
-		printf("%s", l2tp_message_type_string[ntohs(*ptr)]);
-	}
+	printf("%s", tok2str(l2tp_msgtype2str, "MSGTYPE-#%u", ntohs(*ptr)));
 }
 
 static void
 l2tp_result_code_print(const u_char *dat, u_int length)
 {
-	/* we just print out the result and error code number */
-	u_short *ptr = (u_short *)dat;
+	u_int16_t *ptr = (u_int16_t *)dat;
 	
-	if (length == 2) {		/* result code */
-		printf("%u", ntohs(*ptr));	
-	} else if (length == 4) { 	/* result & error code */
-		printf("%u/%u", ntohs(*ptr), ntohs(*(ptr+1)));
-	} else if (length > 4) {	/* result & error code & msg */
-		printf("%u/%u ", ntohs(*ptr), ntohs(*(ptr+1)));
-		print_string((u_char *)(ptr+2), length - 4);
+	printf("%u", ntohs(*ptr++));		/* Result Code */
+	if (length > 2) {			/* Error Code (opt) */
+		printf("/%u", ntohs(*ptr++));	
+	}
+	if (length > 4) {			/* Error Message (opt) */
+		printf(" ");
+		print_string((u_char *)ptr, length - 4);
 	}
 }
 
 static void
-l2tp_proto_ver_print(const u_char *dat, u_int length)
+l2tp_proto_ver_print(const u_int16_t *dat)
 {
-	printf("%d.%d", *dat, *(dat+1));
+	printf("%u.%u", (ntohs(*dat) >> 8), (ntohs(*dat) & 0xff));
 }
 
-
 static void
-l2tp_framing_cap_print(const u_char *dat, u_int length)
+l2tp_framing_cap_print(const u_char *dat)
 {
-	u_int *ptr = (u_int *)dat;
+	u_int32_t *ptr = (u_int32_t *)dat;
 
 	if (ntohl(*ptr) &  L2TP_FRAMING_CAP_ASYNC_MASK) {
 		printf("A");
@@ -288,9 +318,9 @@ l2tp_framing_cap_print(const u_char *dat, u_int length)
 }
 
 static void
-l2tp_bearer_cap_print(const u_char *dat, u_int length)
+l2tp_bearer_cap_print(const u_char *dat)
 {
-	u_int *ptr = (u_int *)dat;
+	u_int32_t *ptr = (u_int32_t *)dat;
 
 	if (ntohl(*ptr) &  L2TP_BEARER_CAP_ANALOG_MASK) {
 		printf("A");
@@ -301,51 +331,9 @@ l2tp_bearer_cap_print(const u_char *dat, u_int length)
 }
 
 static void
-l2tp_tie_breaker_print(const u_char *dat, u_int length)
-{
-	print_octets(dat, 8);	/* Tie Break Value is 64bits long */
-}
-
-static void
-l2tp_firm_ver_print(const u_char *dat, u_int length)
-{
-	print_short((u_short *)dat);
-}
-
-static void
-l2tp_host_name_print(const u_char *dat, u_int length)
-{
-	print_string(dat, length);
-}
-
-static void
-l2tp_vendor_name_print(const u_char *dat, u_int length)
-{
-	print_string(dat, length);
-}
-
-static void
-l2tp_assnd_tun_id_print(const u_char *dat, u_int length)
-{
-	print_short((u_short *)dat);
-}
-
-static void
-l2tp_recv_win_size_print(const u_char *dat, u_int length)
-{
-	print_short((u_short *)dat); 
-}
-
-static void
-l2tp_challenge_print(const u_char *dat, u_int length)
-{
-	print_octets(dat, length);
-}
-
-static void
 l2tp_q931_cc_print(const u_char *dat, u_int length)
 {
-	print_short((u_short *)dat);
+	print_16bits_val((u_int16_t *)dat);
 	printf(", %02x", dat[2]);
 	if (length > 3) {
 		printf(" ");
@@ -354,39 +342,9 @@ l2tp_q931_cc_print(const u_char *dat, u_int length)
 }
 
 static void
-l2tp_challenge_resp_print(const u_char *dat, u_int length)
+l2tp_bearer_type_print(const u_char *dat)
 {
-	print_octets(dat, 16);		/* XXX length should be 16? */
-}
-
-static void
-l2tp_assnd_sess_id_print(const u_char *dat, u_int length)
-{
-	print_short((u_short *)dat);
-}
-
-static void
-l2tp_call_ser_num_print(const u_char *dat, u_int length)
-{
-	print_int((u_int *)dat);
-}
-
-static void
-l2tp_minimum_bps_print(const u_char *dat, u_int length)
-{
-	print_int((u_int *)dat);
-}
-
-static void
-l2tp_maximum_bps_print(const u_char *dat, u_int length)
-{
-	print_int((u_int *)dat);
-}
-
-static void
-l2tp_bearer_type_print(const u_char *dat, u_int length)
-{
-	u_int *ptr = (u_int *)dat;
+	u_int32_t *ptr = (u_int32_t *)dat;
 
 	if (ntohl(*ptr) &  L2TP_BEARER_TYPE_ANALOG_MASK) {
 		printf("A");
@@ -397,9 +355,9 @@ l2tp_bearer_type_print(const u_char *dat, u_int length)
 }
 
 static void
-l2tp_framing_type_print(const u_char *dat, u_int length)
+l2tp_framing_type_print(const u_char *dat)
 {
-	u_int *ptr = (u_int *)dat;
+	u_int32_t *ptr = (u_int32_t *)dat;
 
 	if (ntohl(*ptr) &  L2TP_FRAMING_TYPE_ASYNC_MASK) {
 		printf("A");
@@ -410,241 +368,251 @@ l2tp_framing_type_print(const u_char *dat, u_int length)
 }
 
 static void
-l2tp_packet_proc_delay_print(const u_char *dat, u_int length)
+l2tp_packet_proc_delay_print(void)
 {
 	printf("obsolete");
 }
 
 static void
-l2tp_called_number_print(const u_char *dat, u_int length)
+l2tp_proxy_auth_type_print(const u_char *dat)
 {
-	print_string(dat, length);
+	u_int16_t *ptr = (u_int16_t *)dat;
+
+	printf("%s", tok2str(l2tp_authentype2str, 
+			     "AuthType-#%u", ntohs(*ptr)));
 }
 
 static void
-l2tp_calling_number_print(const u_char *dat, u_int length)
+l2tp_proxy_auth_id_print(const u_char *dat)
 {
-	print_string(dat, length);
-}
-
-static void
-l2tp_sub_address_print(const u_char *dat, u_int length)
-{
-	print_string(dat, length);
-}
-
-static void
-l2tp_tx_conn_speed_print(const u_char *dat, u_int length)
-{
-	print_int((u_int *)dat);
-}
-
-static void
-l2tp_phy_channel_id_print(const u_char *dat, u_int length)
-{
-	print_int((u_int *)dat);
-}
-
-static void
-l2tp_ini_recv_lcp_print(const u_char *dat, u_int length)
-{
-	print_octets(dat, length);
-}
-
-static void
-l2tp_last_sent_lcp_print(const u_char *dat, u_int length)
-{
-	print_octets(dat, length);
-}
-
-static void
-l2tp_last_recv_lcp_print(const u_char *dat, u_int length)
-{
-	print_octets(dat, length);
-}
-
-static void
-l2tp_proxy_auth_type_print(const u_char *dat, u_int length)
-{
-	u_short *ptr = (u_short *)dat;
-
-	switch (ntohs(*ptr)) {
-	case L2TP_AUTHEN_TYPE_RESERVED:
-		printf("Reserved");
-		break;
-	case L2TP_AUTHEN_TYPE_TEXTUAL:
-		printf("Textual");
-		break;
-	case L2TP_AUTHEN_TYPE_CHAP:
-		printf("CHAP");
-		break;
-	case L2TP_AUTHEN_TYPE_PAP:
-		printf("PAP");
-		break;
-	case L2TP_AUTHEN_TYPE_NO_AUTH:
-		printf("No Auth");
-		break;
-	case L2TP_AUTHEN_TYPE_MSCHAP:
-		printf("MS-CHAP");
-		break;
-	default:
-		printf("unknown");
-	}
-}
-
-static void
-l2tp_proxy_auth_name_print(const u_char *dat, u_int length)
-{
-	print_octets(dat, length);
-}
-
-static void
-l2tp_proxy_auth_chal_print(const u_char *dat, u_int length)
-{
-	print_octets(dat, length);
-}
-
-static void
-l2tp_proxy_auth_id_print(const u_char *dat, u_int length)
-{
-	u_short *ptr = (u_short *)dat;
+	u_int16_t *ptr = (u_int16_t *)dat;
 
 	printf("%u", ntohs(*ptr) & L2TP_PROXY_AUTH_ID_MASK);
 }
 
 static void
-l2tp_proxy_auth_resp_print(const u_char *dat, u_int length)
+l2tp_call_errors_print(const u_char *dat)
 {
-	print_octets(dat, length);
+	u_int16_t *ptr = (u_int16_t *)dat;
+	u_int16_t val_h, val_l;
+	
+	ptr++;		/* skip "Reserved" */
+
+	val_h = ntohs(*ptr++);
+	val_l = ntohs(*ptr++);
+	printf("CRCErr=%u ", (val_h<<16) + val_l);
+
+	val_h = ntohs(*ptr++);
+	val_l = ntohs(*ptr++);
+	printf("FrameErr=%u ", (val_h<<16) + val_l);
+
+	val_h = ntohs(*ptr++);
+	val_l = ntohs(*ptr++);
+	printf("HardOver=%u ", (val_h<<16) + val_l);
+
+	val_h = ntohs(*ptr++);
+	val_l = ntohs(*ptr++);
+	printf("BufOver=%u ", (val_h<<16) + val_l);
+
+	val_h = ntohs(*ptr++);
+	val_l = ntohs(*ptr++);
+	printf("Timeout=%u ", (val_h<<16) + val_l);
+
+	val_h = ntohs(*ptr++);
+	val_l = ntohs(*ptr++);
+	printf("AlignErr=%u ", (val_h<<16) + val_l);
 }
 
 static void
-l2tp_call_errors_print(const u_char *dat, u_int length)
+l2tp_accm_print(const u_char *dat)
 {
-	struct l2tp_call_errors *ptr = (struct l2tp_call_errors *)dat;
+	u_int16_t *ptr = (u_int16_t *)dat;
+	u_int16_t val_h, val_l;
 
-	printf("CRCErr=%d FrameErr=%d HardOver=%d BufOver=%d ",
-	       ptr->crc_errs,
-	       ptr->framing_errs,
-	       ptr->hardware_overruns,
-	       ptr->buffer_overruns);
-	printf("Timeout=%d AlingErr=%d",
-	       ptr->timeout_errs,
-	       ptr->alignment_errs);
+	ptr++;		/* skip "Reserved" */
+
+	val_h = ntohs(*ptr++);
+	val_l = ntohs(*ptr++);
+	printf("send=%08x ", (val_h<<16) + val_l);
+	
+	val_h = ntohs(*ptr++);
+	val_l = ntohs(*ptr++);
+	printf("recv=%08x ", (val_h<<16) + val_l);
 }
 
 static void
-l2tp_accm_print(const u_char *dat, u_int length)
+l2tp_ppp_discon_cc_print(const u_char *dat, u_int length)
 {
-	struct l2tp_accm *ptr = (struct l2tp_accm *)dat;
+	u_int16_t *ptr = (u_int16_t *)dat;
+	
+	printf("%04x, ", ntohs(*ptr++));	/* Disconnect Code */
+	printf("%04x ",  ntohs(*ptr++));	/* Control Protocol Number */
+	printf("%s", tok2str(l2tp_cc_direction2str, 
+			     "Direction-#%u", *((u_char *)ptr++)));
 
-	printf("send=%x recv=%x", ptr->send_accm, ptr->recv_accm);
+	if (length > 5) {
+		printf(" ");
+		print_string((const u_char *)ptr, length-5);
+	}
 }
 
 static void
-l2tp_random_vector_print(const u_char *dat, u_int length)
-{
-	print_octets(dat, length);
-}
-
-static void
-l2tp_private_grp_id_print(const u_char *dat, u_int length)
-{
-	print_string(dat, length);	
-	/* XXX print_octets is more appropriate?? */
-}
-
-static void
-l2tp_rx_conn_speed_print(const u_char *dat, u_int length)
-{
-	print_int((u_int *)dat);
-}
-
-static void
-l2tp_seq_required_print(const u_char *dat, u_int length)
-{
-	return;
-}
-
-static void
-l2tp_avp_print(const u_char *dat, u_int length)
+l2tp_avp_print(const u_char *dat, int length)
 {
 	u_int len;
-	const u_short *ptr = (u_short *)dat;
+	const u_int16_t *ptr = (u_int16_t *)dat;
+	u_int16_t attr_type;
 	int hidden = FALSE;
 
-	printf(" ");
-	if (length > 0 && (snapend - dat) >= 2) {
-		/* there must be at least two octets for the length
-		   to be decoded */
-		if ((len = (ntohs(*ptr) & L2TP_AVP_HDR_LEN_MASK)) <=
-		    (snapend - dat)) {
-			if (ntohs(*ptr) & L2TP_AVP_HDR_FLAG_MANDATORY) {
-				printf("*");
-			}
-			if (ntohs(*ptr) & L2TP_AVP_HDR_FLAG_HIDDEN) {
-				hidden = TRUE;
-				printf("?");
-			}
-		} else {
-			printf("|...");
-			return;
-		}
-		ptr++;
-
-		if (ntohs(*ptr)) {
-			/* Vendor Specific Attribute */
-			printf("VENDOR%04x:", ntohs(*ptr));
-			ptr++;
-			printf("ATTR%04x", ntohs(*ptr));
-			printf("(");
-			print_octets((u_char *)ptr+2, len-6);
-			printf(")");
-		} else {
-			/* IETF-defined Attribute */ 
-			ptr++;
-			if (ntohs(*ptr) < L2TP_MAX_AVP_INDEX) {
-				printf("%s", l2tp_avp[ntohs(*ptr)].name);
-				printf("(");
-				if (!hidden) {
-					(l2tp_avp[ntohs(*ptr)].print)
-						((u_char *)ptr+2, len-6);
-				} else {
-					printf("???");
-				}
-				printf(")");
-			} else {
-				printf(" invalid AVP %u", ntohs(*ptr));
-			}
-		}
-
-		l2tp_avp_print(dat + len, length - len);
-	} else if (length == 0) {
+	if (length <= 0) {
 		return;
-	} else {
-		printf("|...");
 	}
+
+	printf(" ");
+
+	TCHECK(*ptr);	/* Flags & Length */
+	len = ntohs(*ptr) & L2TP_AVP_HDR_LEN_MASK;
+
+	/* If it is not long enough to decode the entire AVP, we'll 
+	   abandon. */
+	TCHECK2(*ptr, len);
+	/* After this point, no need to worry about truncation */
+
+	if (ntohs(*ptr) & L2TP_AVP_HDR_FLAG_MANDATORY) {
+		printf("*");
+	}
+	if (ntohs(*ptr) & L2TP_AVP_HDR_FLAG_HIDDEN) {
+		hidden = TRUE;
+		printf("?");
+	}
+	ptr++;
+
+	if (ntohs(*ptr)) {
+		/* Vendor Specific Attribute */
+		printf("VENDOR%04x:", ntohs(*ptr++));
+		printf("ATTR%04x", ntohs(*ptr++));
+		printf("(");
+		print_octets((u_char *)ptr, len-6);
+		printf(")");
+	} else {
+		/* IETF-defined Attributes */ 
+		ptr++;
+		attr_type = ntohs(*ptr++);
+		printf("%s", tok2str(l2tp_avp2str, "AVP-#%u", attr_type));
+		printf("(");
+		if (hidden) {
+			printf("???");
+		} else {
+			switch (attr_type) {
+			case L2TP_AVP_MSGTYPE:
+				l2tp_msgtype_print((u_char *)ptr);
+				break;
+			case L2TP_AVP_RESULT_CODE:
+				l2tp_result_code_print((u_char *)ptr, len-6);
+				break;
+			case L2TP_AVP_PROTO_VER:
+				l2tp_proto_ver_print(ptr);
+				break;
+			case L2TP_AVP_FRAMING_CAP:
+				l2tp_framing_cap_print((u_char *)ptr);
+				break;
+			case L2TP_AVP_BEARER_CAP:
+				l2tp_bearer_cap_print((u_char *)ptr);
+				break;
+			case L2TP_AVP_TIE_BREAKER:
+				print_octets((u_char *)ptr, 8);
+				break;
+			case L2TP_AVP_FIRM_VER:
+			case L2TP_AVP_ASSND_TUN_ID:
+			case L2TP_AVP_RECV_WIN_SIZE:
+			case L2TP_AVP_ASSND_SESS_ID:
+				print_16bits_val(ptr);
+				break;
+			case L2TP_AVP_HOST_NAME:
+			case L2TP_AVP_VENDOR_NAME:
+			case L2TP_AVP_CALLING_NUMBER:
+			case L2TP_AVP_CALLED_NUMBER:
+			case L2TP_AVP_SUB_ADDRESS:
+			case L2TP_AVP_PROXY_AUTH_NAME:
+			case L2TP_AVP_PRIVATE_GRP_ID:	
+				print_string((u_char *)ptr, len-6);
+				break;
+			case L2TP_AVP_CHALLENGE:
+			case L2TP_AVP_INI_RECV_LCP:
+			case L2TP_AVP_LAST_SENT_LCP:
+			case L2TP_AVP_LAST_RECV_LCP:
+			case L2TP_AVP_PROXY_AUTH_CHAL:
+			case L2TP_AVP_PROXY_AUTH_RESP:
+			case L2TP_AVP_RANDOM_VECTOR:
+				print_octets((u_char *)ptr, len-6);
+				break;
+			case L2TP_AVP_Q931_CC:
+				l2tp_q931_cc_print((u_char *)ptr, len-6);
+				break;
+			case L2TP_AVP_CHALLENGE_RESP:
+				print_octets((u_char *)ptr, 16);
+				break;
+			case L2TP_AVP_CALL_SER_NUM:
+			case L2TP_AVP_MINIMUM_BPS:
+			case L2TP_AVP_MAXIMUM_BPS:
+			case L2TP_AVP_TX_CONN_SPEED:
+			case L2TP_AVP_PHY_CHANNEL_ID:
+			case L2TP_AVP_RX_CONN_SPEED:
+				print_32bits_val((u_int32_t *)ptr);
+				break;
+			case L2TP_AVP_BEARER_TYPE:
+				l2tp_bearer_type_print((u_char *)ptr);
+				break;
+			case L2TP_AVP_FRAMING_TYPE:
+				l2tp_framing_type_print((u_char *)ptr);
+				break;
+			case L2TP_AVP_PACKET_PROC_DELAY:
+				l2tp_packet_proc_delay_print();
+				break;
+			case L2TP_AVP_PROXY_AUTH_TYPE:
+				l2tp_proxy_auth_type_print((u_char *)ptr);
+				break;
+			case L2TP_AVP_PROXY_AUTH_ID:
+				l2tp_proxy_auth_id_print((u_char *)ptr);
+				break;
+			case L2TP_AVP_CALL_ERRORS:
+				l2tp_call_errors_print((u_char *)ptr);
+				break;
+			case L2TP_AVP_ACCM:
+				l2tp_accm_print((u_char *)ptr);
+				break;
+			case L2TP_AVP_SEQ_REQUIRED:
+				break;	/* No Attribute Value */
+			case L2TP_AVP_PPP_DISCON_CC:
+				l2tp_ppp_discon_cc_print((u_char *)ptr, len-6);
+				break;
+			default:
+				break;
+			}
+		}
+		printf(")");
+	}
+
+	l2tp_avp_print(dat+len, length-len);
+	return;
+
+ trunc:
+	printf("|...");
 }
 
 
 void
 l2tp_print(const u_char *dat, u_int length)
 {
-	const u_short *ptr = (u_short *)dat;
+	const u_int16_t *ptr = (u_int16_t *)dat;
 	u_int cnt = 0;			/* total octets consumed */
-	u_short pad;
+	u_int16_t pad;
 	int flag_t, flag_l, flag_s, flag_o, flag_p;
-	u_short l2tp_len;
+	u_int16_t l2tp_len;
 
 	flag_t = flag_l = flag_s = flag_o = flag_p = FALSE;
 
-	if (min(length, snapend - dat) - 6 < 0) { 
-		/* flag/ver, tunnel_id, session_id must be present for
-		   this packet to be properly decoded */
-		printf("%s", tstr);
-		return;
-	}
-
+	TCHECK(*ptr);	/* Flags & Version */
 	if ((ntohs(*ptr) & L2TP_VERSION_MASK) == L2TP_VERSION_L2TP) {
 		printf(" l2tp:");
 	} else if ((ntohs(*ptr) & L2TP_VERSION_MASK) == L2TP_VERSION_L2F) {
@@ -682,24 +650,31 @@ l2tp_print(const u_char *dat, u_int length)
 	cnt += 2;
 	
 	if (flag_l) {
-		l2tp_len = ntohs(*ptr++);	/* XXX need to consider 
-						   truncation ?? */
+		TCHECK(*ptr);	/* Length */
+		l2tp_len = ntohs(*ptr++);
 		cnt += 2;
 	} else {
 		l2tp_len = 0;
 	}
 
-	printf("(%u/", ntohs(*ptr++));		/* Tunnel ID */
-	printf("%u)",  ntohs(*ptr++));		/* Session ID */
-	cnt += 4;
+	TCHECK(*ptr);		/* Tunnel ID */
+	printf("(%u/", ntohs(*ptr++));
+	cnt += 2;
+	TCHECK(*ptr);		/* Session ID */
+	printf("%u)",  ntohs(*ptr++));
+	cnt += 2;
 
 	if (flag_s) {
+		TCHECK(*ptr);	/* Ns */
 		printf("Ns=%u,", ntohs(*ptr++));
+		cnt += 2;
+		TCHECK(*ptr);	/* Nr */
 		printf("Nr=%u",  ntohs(*ptr++));
-		cnt += 4;
+		cnt += 2;
 	}
 
 	if (flag_o) {
+		TCHECK(*ptr);	/* Offset Size */
 		pad =  ntohs(*ptr++);
 		ptr += pad / sizeof(*ptr);
 		cnt += (2 + pad);
@@ -716,4 +691,9 @@ l2tp_print(const u_char *dat, u_int length)
 		ppp_print((u_char *)ptr, length - cnt);
 		printf("}");
 	}
+
+	return;
+
+ trunc:
+	printf("%s", tstr);
 }	

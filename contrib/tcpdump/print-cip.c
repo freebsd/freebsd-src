@@ -22,12 +22,14 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-cip.c,v 1.11 2000/12/22 22:45:10 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-cip.c,v 1.16 2001/09/23 21:52:38 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
+
+#include <string.h>
 
 #include <sys/param.h>
 #include <sys/time.h>
@@ -45,9 +47,6 @@ static const char rcsid[] =
 #include "ethertype.h"
 #include "ether.h"
 
-const u_char *packetp;
-const u_char *snapend;
-
 #define RFC1483LLC_LEN	8 
 
 static unsigned char rfcllc[] = {
@@ -61,25 +60,10 @@ static unsigned char rfcllc[] = {
 static inline void
 cip_print(register const u_char *bp, int length)
 {
-	int i;
-
-	if (memcmp(rfcllc, bp, sizeof(rfcllc))) {
-		if (qflag) {
-			for (i = 0;i < RFC1483LLC_LEN; i++)
-			(void)printf("%2.2x ",bp[i]);
-		} else {
-			for (i = 0;i < RFC1483LLC_LEN - 2; i++)
-				(void)printf("%2.2x ",bp[i]);
-			etherproto_string(((u_short*)bp)[3]);
-		} 
-	} else {
-		if (qflag)
-			(void)printf("(null encapsulation)");
-		else {
-			(void)printf("(null encap)");
-			etherproto_string(ETHERTYPE_IP);
-		}
-	}
+	/*
+	 * There is no MAC-layer header, so just print the length.
+	 */
+	printf("%d: ", length);
 }
 
 /*
@@ -91,12 +75,11 @@ cip_print(register const u_char *bp, int length)
 void
 cip_if_print(u_char *user, const struct pcap_pkthdr *h, const u_char *p)
 {
-	int caplen = h->caplen;
-	int length = h->len;
-	u_short ether_type;
+	u_int caplen = h->caplen;
+	u_int length = h->len;
 	u_short extracted_ethertype;
-	u_short *bp;
 
+	++infodelay;
 	ts_print(&h->ts);
 
 	if (memcmp(rfcllc, p, sizeof(rfcllc))==0 && caplen < RFC1483LLC_LEN) {
@@ -115,28 +98,15 @@ cip_if_print(u_char *user, const struct pcap_pkthdr *h, const u_char *p)
 	packetp = p;
 	snapend = p + caplen;
 
-	if (memcmp(rfcllc, p, sizeof(rfcllc))==0) {
-		length -= RFC1483LLC_LEN;
-		caplen -= RFC1483LLC_LEN;
-		bp = (u_short *)p;
-		p += RFC1483LLC_LEN;
-		ether_type = ntohs(bp[3]);
-	} else {
-		ether_type = ETHERTYPE_IP;
-		bp = (u_short *)p;
-	}
-
-	/*
-	 * Is it (gag) an 802.3 encapsulation?
-	 */
-	extracted_ethertype = 0;
-	if (ether_type < ETHERMTU) {
-		/* Try to print the LLC-layer header & higher layers */
+	if (memcmp(rfcllc, p, sizeof(rfcllc)) == 0) {
+		/*
+		 * LLC header is present.  Try to print it & higher layers.
+		 */
 		if (llc_print(p, length, caplen, NULL, NULL,
-		    &extracted_ethertype)==0) {
+		    &extracted_ethertype) == 0) {
 			/* ether_type not known, print raw packet */
 			if (!eflag)
-				cip_print((u_char *)bp, length + RFC1483LLC_LEN);
+				cip_print(p, length);
 			if (extracted_ethertype) {
 				printf("(LLC %s) ",
 			       etherproto_string(htons(extracted_ethertype)));
@@ -144,16 +114,18 @@ cip_if_print(u_char *user, const struct pcap_pkthdr *h, const u_char *p)
 			if (!xflag && !qflag)
 				default_print(p, caplen);
 		}
-	} else if (ether_encap_print(ether_type, p, length, caplen,
-	    &extracted_ethertype) == 0) {
-		/* ether_type not known, print raw packet */
-		if (!eflag)
-			cip_print((u_char *)bp, length + RFC1483LLC_LEN);
-		if (!xflag && !qflag)
-			default_print(p, caplen);
+	} else {
+		/*
+		 * LLC header is absent; treat it as just IP.
+		 */
+		ip_print(p, length);
 	}
+
 	if (xflag)
 		default_print(p, caplen);
  out:
 	putchar('\n');
+	--infodelay;
+	if (infoprint)
+		info(0);
 }
