@@ -278,7 +278,7 @@ restart:
 		goto out;
 	do {
 		s = splnet();
-		if (so->so_state & SS_CANTSENDMORE)
+		if (so->so_snd.sb_state & SBS_CANTSENDMORE)
 			snderr(EPIPE);
 		if (so->so_error) {
 			error = so->so_error;
@@ -371,7 +371,7 @@ restart:
 				so->so_options |= SO_DONTROUTE;
 			s = splnet();				/* XXX */
 			/*
-			 * XXX all the SS_CANTSENDMORE checks previously
+			 * XXX all the SBS_CANTSENDMORE checks previously
 			 * done could be out of date.  We could have recieved
 			 * a reset packet in an interrupt or maybe we slept
 			 * while doing page faults in uiomove() etc. We could
@@ -484,7 +484,7 @@ restart:
 				so->so_error = 0;
 			goto release;
 		}
-		if (so->so_state & SS_CANTRCVMORE) {
+		if (so->so_rcv.sb_state & SBS_CANTRCVMORE) {
 			if (m)
 				goto dontblock;
 			else
@@ -591,7 +591,7 @@ dontblock:
 		else
 		    KASSERT(m->m_type == MT_DATA || m->m_type == MT_HEADER,
 			("receive 3"));
-		so->so_state &= ~SS_RCVATMARK;
+		so->so_rcv.sb_state &= ~SBS_RCVATMARK;
 		len = resid;
 		if (so->so_oobmark && len > so->so_oobmark - offset)
 			len = so->so_oobmark - offset;
@@ -654,7 +654,7 @@ dontblock:
 			if ((flags & MSG_PEEK) == 0) {
 				so->so_oobmark -= len;
 				if (so->so_oobmark == 0) {
-					so->so_state |= SS_RCVATMARK;
+					so->so_rcv.sb_state |= SBS_RCVATMARK;
 					break;
 				}
 			} else {
@@ -674,7 +674,7 @@ dontblock:
 		 */
 		while (flags & MSG_WAITALL && m == 0 && resid > 0 &&
 		    !sosendallatonce(so) && !nextrecord) {
-			if (so->so_error || so->so_state & SS_CANTRCVMORE)
+			if (so->so_error || so->so_rcv.sb_state & SBS_CANTRCVMORE)
 				break;
 			/*
 			 * The window might have closed to zero, make
@@ -723,7 +723,7 @@ dontblock:
 			(*pr->pr_usrreqs->pru_rcvd)(so, flags);
 	}
 	if (orig_resid == resid && orig_resid &&
-	    (flags & MSG_EOR) == 0 && (so->so_state & SS_CANTRCVMORE) == 0) {
+	    (flags & MSG_EOR) == 0 && (so->so_rcv.sb_state & SBS_CANTRCVMORE) == 0) {
 		sbunlock(&so->so_rcv);
 		splx(s);
 		goto restart;
