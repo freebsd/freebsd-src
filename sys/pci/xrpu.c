@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: xrpu.c,v 1.13 1999/06/22 10:31:30 phk Exp $
+ * $Id: xrpu.c,v 1.14 1999/07/03 08:23:00 phk Exp $
  *
  * A very simple device driver for PCI cards based on Xilinx 6200 series
  * FPGA/RPU devices.  Current Functionality is to allow you to open and
@@ -128,6 +128,10 @@ xrpu_poll_pps(struct timecounter *tc)
 static int
 xrpu_open(dev_t dev, int flag, int mode, struct proc *p)
 {
+	struct softc *sc = softc[dev2unit(dev)];
+
+	if (!sc)
+		return (ENXIO);
 	return (0);
 }
 
