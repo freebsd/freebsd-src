@@ -69,7 +69,7 @@
  * Paul Mackerras (paulus@cs.anu.edu.au).
  */
 
-/* $Id: if_ppp.c,v 1.25 1995/10/31 20:24:08 peter Exp $ */
+/* $Id: if_ppp.c,v 1.26 1995/11/01 00:58:42 peter Exp $ */
 /* from if_ppp.c,v 1.5 1995/08/16 01:36:38 paulus Exp */
 /* from if_sl.c,v 1.11 84/10/04 12:54:47 rick Exp */
 
@@ -613,7 +613,15 @@ pppoutput(ifp, m0, dst, rtp)
 #endif
 #ifdef IPX
     case AF_IPX:
+	/*
+	 * This is pretty bogus.. We dont have an ipxcp module in pppd
+	 * yet to configure the link parameters.  Sigh. I guess a
+	 * manual ifconfig would do....  -Peter
+	 */
+	address = PPP_ALLSTATIONS;
+	control = PPP_UI;
 	protocol = PPP_IPX;
+	mode = NPMODE_PASS;
 	break;
 #endif
     case AF_UNSPEC:
