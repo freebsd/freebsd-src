@@ -1921,11 +1921,8 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		 * so we go ahead and sense modify status.
 		 */
 		if (origpte & PG_MANAGED) {
-			if ((origpte & PG_M) && pmap_track_modified(va)) {
-				vm_page_t om;
-				om = PHYS_TO_VM_PAGE(opa);
-				vm_page_dirty(om);
-			}
+			if ((origpte & PG_M) && pmap_track_modified(va))
+				vm_page_dirty(m);
 			pa |= PG_MANAGED;
 		}
 		goto validate;
