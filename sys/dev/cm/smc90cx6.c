@@ -68,13 +68,6 @@
 #include <net/if_dl.h>
 #include <net/if_types.h>
 #include <net/if_arc.h>
-#include <net/bpf.h>
-
-#if 0
-#if NBPFILTER > 0
-#include <net/bpfdesc.h>
-#endif
-#endif
 
 #include <dev/cm/smc90cx6reg.h>
 #include <dev/cm/smc90cx6var.h>
@@ -511,15 +504,6 @@ cm_start(ifp)
 
 	if (m == 0)
 		return;
-
-	/*
-	 * If bpf is listening on this interface, let it
-	 * see the packet before we commit it to the wire
-	 *
-	 * (can't give the copy in A2060 card RAM to bpf, because
-	 * that RAM is just accessed as on every other byte)
-	 */
-	BPF_MTAP(ifp, m);
 
 #ifdef CM_DEBUG
 	if (m->m_len < ARC_HDRLEN)
