@@ -82,6 +82,7 @@ setup(dev)
 
 	havesb = 0;
 	fswritefd = -1;
+	cursnapshot = 0;
 	skipclean = fflag ? 0 : preen;
 	if (stat(dev, &statb) < 0) {
 		printf("Can't stat %s: %s\n", dev, strerror(errno));
@@ -89,9 +90,13 @@ setup(dev)
 	}
 	if ((statb.st_mode & S_IFMT) != S_IFCHR &&
 	    (statb.st_mode & S_IFMT) != S_IFBLK) {
-		pfatal("%s is not a disk device", dev);
-		if (reply("CONTINUE") == 0)
-			return (0);
+		if ((statb.st_flags & SF_SNAPSHOT) != 0) {
+			cursnapshot = statb.st_ino;
+		} else {
+			pfatal("%s is not a disk device", dev);
+			if (reply("CONTINUE") == 0)
+				return (0);
+		}
 	}
 	if ((fsreadfd = open(dev, O_RDONLY)) < 0) {
 		printf("Can't open %s: %s\n", dev, strerror(errno));
@@ -378,6 +383,8 @@ readsb(listerr)
 	memmove(altsblock.fs_csp, sblock.fs_csp, sizeof sblock.fs_csp);
 	altsblock.fs_maxcluster = sblock.fs_maxcluster;
 	memmove(altsblock.fs_fsmnt, sblock.fs_fsmnt, sizeof sblock.fs_fsmnt);
+	memmove(altsblock.fs_snapinum, sblock.fs_snapinum,
+		sizeof sblock.fs_snapinum);
 	memmove(altsblock.fs_sparecon,
 		sblock.fs_sparecon, sizeof sblock.fs_sparecon);
 	/*

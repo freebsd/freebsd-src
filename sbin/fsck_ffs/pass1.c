@@ -40,6 +40,7 @@ static const char rcsid[] =
 #endif /* not lint */
 
 #include <sys/param.h>
+#include <sys/stat.h>
 
 #include <ufs/ufs/dinode.h>
 #include <ufs/ufs/dir.h>
@@ -82,7 +83,6 @@ pass1()
 	 * Find all allocated blocks.
 	 */
 	memset(&idesc, 0, sizeof(struct inodesc));
-	idesc.id_type = ADDR;
 	idesc.id_func = pass1check;
 	n_files = n_blks = 0;
 	for (c = 0; c < sblock.fs_ncg; c++) {
@@ -306,6 +306,10 @@ checkinode(inumber, idesc)
 	}
 	badblk = dupblk = 0;
 	idesc->id_number = inumber;
+	if (dp->di_flags & SF_SNAPSHOT)
+		idesc->id_type = SNAP;
+	else
+		idesc->id_type = ADDR;
 	(void)ckinode(dp, idesc);
 	idesc->id_entryno *= btodb(sblock.fs_fsize);
 	if (dp->di_blocks != idesc->id_entryno) {
@@ -341,6 +345,21 @@ pass1check(idesc)
 	register struct dups *dlp;
 	struct dups *new;
 
+	if (idesc->id_type == SNAP) {
+		if (blkno == BLK_NOCOPY)
+			return (KEEPON);
+		if (idesc->id_number == cursnapshot) {
+			if (blkno == blkstofrags(&sblock, idesc->id_lbn))
+				return (KEEPON);
+			if (blkno == BLK_SNAP) {
+				blkno = blkstofrags(&sblock, idesc->id_lbn);
+				idesc->id_entryno -= idesc->id_numfrags;
+			}
+		} else {
+			if (blkno == BLK_SNAP)
+				return (KEEPON);
+		}
+	}
 	if ((anyout = chkrange(blkno, idesc->id_numfrags)) != 0) {
 		blkerror(idesc->id_number, "BAD", blkno);
 		if (badblk++ >= MAXBAD) {
