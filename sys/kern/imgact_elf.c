@@ -363,8 +363,6 @@ __elfN(load_section)(struct proc *p, struct vmspace *vmspace,
 	vm_offset_t file_addr;
 	vm_offset_t data_buf = 0;
 
-	GIANT_REQUIRED;
-
 	error = 0;
 
 	/*
