@@ -171,6 +171,14 @@ wchar_t	*wmemset(wchar_t *, wchar_t, size_t);
 int	wprintf(const wchar_t * __restrict, ...);
 int	wscanf(const wchar_t * __restrict, ...);
 
+extern struct __sFILE *__stdinp;
+extern struct __sFILE *__stdoutp;
+
+#define	getwc(fp)	getwc(fp)
+#define	getwchar()	fgetwc(__stdinp)
+#define	putwc(wc, fp)	fputwc(wc, fp)
+#define	putwchar(wc)	fputwc(wc, __stdoutp)
+
 #if __ISO_C_VISIBLE >= 1999
 int	vfwscanf(struct __sFILE * __restrict, const wchar_t * __restrict,
 	    __va_list);

@@ -34,6 +34,8 @@ __FBSDID("$FreeBSD$");
 #include "libc_private.h"
 #include "local.h"
 
+#undef getwc
+
 /*
  * Synonym for fgetwc(). The only difference is that getwc(), if it is a
  * macro, may evaluate `fp' more than once.
