@@ -1,0 +1,29 @@
+# $FreeBSD$
+#
+#This is an example "refuse file".  CVSup will not touch anything listed
+#in the refuse file.
+#
+#You can copy this file to your sup directory and uncomment or add
+#whatever you would like.  If you are using the default setting for the
+#CVSup "base" directory, your sup directory is /usr/sup.  If you have
+#changed your base directory, your sup directory is /path/to/base/sup.
+#
+#Use this example if you have modified /usr/src/etc/sendmail/freebsd.mc
+#to reflect your local configuration, and you do not want CVSup to
+#overwrite it:
+#
+#etc/sendmail/freebsd.mc
+#
+#If you list a directory, changes to any files beneath that directory
+#will be rejected.  For example, if you are an English speaker and are
+#not tracking the foreign-language ports, you can uncomment the following.
+#
+#ports/chinese
+#ports/german
+#ports/japanese
+#ports/korean
+#ports/russian
+#ports/vietnamese
+#
+#Use this feature with care -- many parts of the src distribution depend
+#on files in completely different parts.
