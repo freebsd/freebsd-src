@@ -64,6 +64,8 @@ main(argc, argv)
 {
 	int niceness = DEFNICE;
 
+	if (argc < 2)
+		errx(1, "usage: nice [-number] command [arguments]");
 	if (argv[1][0] == '-')
 		if (argv[1][1] == '-' || isdigit(argv[1][1])) {
 			niceness = atoi(argv[1] + 1);
