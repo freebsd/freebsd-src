@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)reg.h	5.5 (Berkeley) 1/18/91
- *	$Id: reg.h,v 1.13 1997/02/22 09:35:07 peter Exp $
+ *	$Id: reg.h,v 1.14 1997/06/07 00:49:45 bde Exp $
  */
 
 #ifndef _MACHINE_REG_H_
@@ -69,6 +69,16 @@
 #define	tSS	(16)
 
 /*
+ * Indices for registers in `struct regs' only.
+ *
+ * Some registers live in the pcb and are only in an "array" with the
+ * other registers in application interfaces that copy all the registers
+ * to or from a `struct regs'.
+ */
+#define	tFS	(17)
+#define	tGS	(18)
+
+/*
  * Register set accessible via /proc/$pid/regs and PT_{SET,GET}REGS.
  */
 struct reg {
@@ -89,6 +99,8 @@ struct reg {
 	unsigned int	r_eflags;
 	unsigned int	r_esp;
 	unsigned int	r_ss;
+	unsigned int	r_fs;
+	unsigned int	r_gs;
 };
 
 /*

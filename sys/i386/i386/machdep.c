@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.245 1997/05/26 18:40:45 fsmp Exp $
+ *	$Id: machdep.c,v 1.246 1997/06/02 08:19:03 dfr Exp $
  */
 
 #include "npx.h"
@@ -1516,6 +1516,7 @@ fill_regs(p, regs)
 	struct proc *p;
 	struct reg *regs;
 {
+	struct pcb *pcb;
 	struct trapframe *tp;
 
 	tp = p->p_md.md_regs;
@@ -1533,6 +1534,9 @@ fill_regs(p, regs)
 	regs->r_eflags = tp->tf_eflags;
 	regs->r_esp = tp->tf_esp;
 	regs->r_ss = tp->tf_ss;
+	pcb = &p->p_addr->u_pcb;
+	regs->r_fs = pcb->pcb_fs;
+	regs->r_gs = pcb->pcb_gs;
 	return (0);
 }
 
@@ -1541,6 +1545,7 @@ set_regs(p, regs)
 	struct proc *p;
 	struct reg *regs;
 {
+	struct pcb *pcb;
 	struct trapframe *tp;
 
 	tp = p->p_md.md_regs;
@@ -1561,6 +1566,9 @@ set_regs(p, regs)
 	tp->tf_eflags = regs->r_eflags;
 	tp->tf_esp = regs->r_esp;
 	tp->tf_ss = regs->r_ss;
+	pcb = &p->p_addr->u_pcb;
+	pcb->pcb_fs = regs->r_fs;
+	pcb->pcb_gs = regs->r_gs;
 	return (0);
 }
 
