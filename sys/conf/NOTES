@@ -582,7 +582,6 @@ options 	MROUTING		# Multicast routing
 options 	PIM			# Protocol Independent Multicast
 options 	IPFIREWALL		#firewall
 options 	IPFIREWALL_VERBOSE	#enable logging to syslogd(8)
-options 	IPFIREWALL_FORWARD	#enable transparent proxy support
 options 	IPFIREWALL_VERBOSE_LIMIT=100	#limit verbosity
 options 	IPFIREWALL_DEFAULT_TO_ACCEPT	#allow everything by default
 options 	IPV6FIREWALL		#firewall for IPv6
@@ -843,14 +842,6 @@ options 	MAC_TEST
 # the accuracy of operation.
 
 options 	HZ=100
-
-# If you see the "calcru: negative time of %ld usec for pid %d (%s)\n"
-# message you probably have some broken sw/hw which disables interrupts
-# for too long.  You can make the system more resistant to this by
-# choosing a high value for NTIMECOUNTER.  The default is 5, there
-# is no upper limit but more than a couple of hundred are not productive.
-
-options 	NTIMECOUNTER=20
 
 # Enable support for the kernel PLL to use an external PPS signal,
 # under supervision of [x]ntpd(8)
@@ -1354,7 +1345,6 @@ device		dpt
 options 	DPT_TIMEOUT_FACTOR=4
 options 	DPT_LOST_IRQ
 options 	DPT_RESET_HBA
-options 	DPT_ALLOW_MEMIO
 
 #
 # Compaq "CISS" RAID controllers (SmartRAID 5* series)
