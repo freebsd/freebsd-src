@@ -184,7 +184,7 @@ main(argc, argv)
 	preload = 0;
 
 	datap = &outpack[8 + sizeof(struct timeval)];
-	while ((ch = getopt(argc, argv, "I:LQRT:c:adfh:i:l:np:qrs:v")) != EOF)
+	while ((ch = getopt(argc, argv, "I:LQRT:c:adfi:l:np:qrs:v")) != -1)
 		switch(ch) {
 		case 'a':
 			options |= F_AUDIBLE;
@@ -227,6 +227,12 @@ main(argc, argv)
 			options |= F_MIF;
 			break;
 		case 'l':
+			if (getuid()) {
+				(void)fprintf(stderr,
+				    "ping: %s\n", strerror(EPERM));
+				exit(1);
+			}
+			options |= F_FLOOD;
 			preload = atoi(optarg);
 			if (preload < 0) {
 				(void)fprintf(stderr,
@@ -307,8 +313,11 @@ main(argc, argv)
 			exit(1);
 		}
 		to->sin_family = hp->h_addrtype;
+		if (hp->h_length > sizeof(to->sin_addr))
+			errx(1,"gethostbyname returned an illegal address");
 		bcopy(hp->h_addr, (caddr_t)&to->sin_addr, hp->h_length);
 		(void)strncpy(hnamebuf, hp->h_name, sizeof(hnamebuf) - 1);
+		hnamebuf[sizeof(hnamebuf) - 1] = '\0';
 		hostname = hnamebuf;
 	}
 
@@ -642,7 +651,7 @@ pr_pack(buf, cc, from)
 #endif
 		struct icmp *oicmp = (struct icmp *)(oip + 1);
 
-		if ((options & F_VERBOSE) ||
+		if (((options & F_VERBOSE) && getuid() == 0) ||
 		    (!(options & F_QUIET2) &&
 		     (oip->ip_dst.s_addr ==
 			 ((struct sockaddr_in *)&whereto)->sin_addr.s_addr) &&
@@ -1056,7 +1065,7 @@ pr_addr(l)
 	u_long l;
 {
 	struct hostent *hp;
-	static char buf[80];
+	static char buf[MAXHOSTNAMELEN + 16 + 3];
 
 	if ((options & F_NUMERIC) ||
 	    !(hp = gethostbyaddr((char *)&l, 4, AF_INET)))
