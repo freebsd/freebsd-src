@@ -55,6 +55,38 @@ this!), here are the steps you should take:
 3.	Your console is blocked now, but you can use other virtual consoles
 	available under Alt-Fn.
 
+How to configure my Ethernet card?
+----------------------------------
+
+Hopefully your ethernet card is supported by PicoBSD kernel, and in case of
+ISA cards you have already set up correctly its parameters in UserConfig
+editor. You can check if PicoBSD found your card by looking into startup
+messages ('dmesg | more').
+
+The easiest way to do it is to edit /etc/rc.conf file ('ee /etc/rc.conf').
+Find the line which says 'network_interfaces' and add the name of your
+card to the list. Then add yet another line 'ifconfig_<if_name>' which
+actually sets up your IP address and netmask. E.g:
+
+	network_interfaces="lo0 ed0"
+	ifconfig_lo0="inet 127.0.0.1"
+	ifconfig_ed0="inet 192.168.0.1 netmask 255.255.255.0"
+
+Then you have to set up your default gateway, which is usually the router
+nearest to you (on the same LAN). E.g:
+
+	defaultrouter="192.168.0.100"
+
+Then you save this information on the floppy with 'update' command, and
+reboot.
+
+Of course, you can also issue the proper commands by hand:
+
+	ifconfig ed0 inet 192.168.0.1 netmask 255.255.255.0
+	route add default 192.168.0.100
+
+Once you do this, you should be able to 'ping' some remote IP address.
+
 Where to get additional info?
 -----------------------------
 
@@ -68,7 +100,7 @@ I'll put there also new versions of PicoBSD and bugfixes.
 I'll be glad hearing from you about your experiences with PicoBSD. Thanks.
 
 Have fun!
-  
+
 Andrzej Bialecki <abial@nask.pl>
 
-$Id: README.en,v 1.1.1.1 1998/08/27 17:38:42 abial Exp $
+$Id: README.en,v 1.2 1998/09/26 17:27:19 abial Exp $

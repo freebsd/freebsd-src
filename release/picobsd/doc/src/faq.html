@@ -1,5 +1,5 @@
 <HTML>
-<! $Id: faq.html,v 1.3 1998/08/31 13:08:16 abial Exp $ >
+<! $Id: faq.html,v 1.1 1998/09/26 17:23:01 abial Exp $ >
 <HEAD>
    <META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=iso-8859-1">
    <META NAME="Author" CONTENT="Dinesh Nair">
@@ -26,12 +26,23 @@ isp. For a description of how each of the flavours differ, take a look
 at the <B><A HREF="http://www.freebsd.org/~picobsd/picobsd.html">PicoBSD
 home page</A></B>.
 
+<p><B>What is this "pico" in the name?</B></p>
+
+<p>It's an SI measure unit, which is equivalent of 10e<sup>-12</sup>.
+This is a good approximation of more colloquial "extremely small".</p>
+
+<p>You can also think of normal FreeBSD as a system infested with
+fully grown daemons, and PicoBSD as a system infested with
+"the little people" :-). </p>
+
 <P><B>What version of FreeBSD is PicoBSD based on ?</B></p>
 
-<P>PicoBSD has versions based on both FreeBSD 3.0-current and FreeBSD 2.2.5-RELEASE.
+<P>PicoBSD has versions based on FreeBSD 3.0-RELEASE, 3.0-current and
+FreeBSD 2.2.5-RELEASE.
 <A HREF="mailto:abial@nask.pl">Andrzej Bialecki</A> maintains the <A HREF="http://www.freebsd.org/~picobsd/picobsd.html">FreeBSD
-3.0-current version</A> and <A HREF="mailto:dinesh@alphaque.com">Dinesh
-Nair</A> maintains the <A HREF="http://info.net-gw.com/picoBSD/">FreeBSD
+3.0-RELEASE and -current versions</A> and 
+<A HREF="mailto:dinesh@alphaque.com">Dinesh Nair</A>
+maintains the <A HREF="http://info.net-gw.com/picoBSD/">FreeBSD
 2.2.5-RELEASE</A> version. Both the versions don't differ by much except
 for the following:
 <UL TYPE=CIRCLE>
@@ -81,7 +92,7 @@ locations:
 <UL TYPE=CIRCLE>
 <LI>
 <A HREF="http://www.freebsd.org/~picobsd/picobsd.html">PicoBSD based on
-FreeBSD 3.0-current</A> maintained by Andrzej Bialecki</LI>
+FreeBSD 3.0-RELEASE and -current</A> maintained by Andrzej Bialecki</LI>
 
 <LI>
 <A HREF="http://info.net-gw.com/picoBSD/">PicoBSD based on FreeBSD 2.2.5-RELEASE</A>
@@ -178,7 +189,8 @@ FreeBSD distribution.</p>
 <p><b>Using version 0.4 I get many  strange messages on my console...</b></p>
 <p>This is related in large part to DEVFS subsystem - it is still somewhat
 experimental, and its author left some diagnostics turned on.. They are
-harmless.</p>
+harmless. Versions 0.4x, x>0 don't use DEVFS at all, as it was too
+experimental to work reliably...</p>
 
 <P><B>How do I connect using PPP ?</B></p>
 
@@ -206,7 +218,8 @@ and disappears. and moving the mouse has no effect.</b></p>
 <p>You have the mouse driver configured to use the modem's serial port.
 Issue a 'ps -ax', remember the pid (process ID) of 'moused', then issue a
 'kill -9 <pid>'. Edit /etc/rc.conf to specify the correct mouse port. Issue
-an 'update' commmand to save new configuration to the floppy, and reboot.
+an 'update' commmand to save new configuration to the floppy, and reboot.</p>
+
 <P><B>I saved my lynx configuration but it was not there when I rebooted.
 Why ?</B>
 
@@ -228,7 +241,7 @@ Handbook</A> or the <A HREF="http://www.freebsd.org/">FreeBSD Home</A>.
 PicoBSD user community comes in. And big thanks to all of you who already
 sent us some suggestions!</FONT></CENTER>
 <P><B><FONT SIZE=-1>Last Modified:
-Sun Aug  9 13:40:15 CEST 1998
+Thu Oct 15 23:31:28 CEST 1998
 </FONT></B></P>
 </BODY>
 </HTML>

@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.1 1998/09/03 10:41:25 abial Exp $
+# $Id: Makefile,v 1.2 1998/09/29 12:12:47 abial Exp $
 #
 
 SRC?=/usr/src
@@ -12,7 +12,8 @@ all: $(KERNFILE)
 
 $(KERNFILE): PICOBSD
 	cat PICOBSD | grep -v "MFS_ROOT" > ${CONF}/${CONFFILE}
-	echo "options	\"MFS_ROOT=${SIZE}\"" >> ${CONF}/${CONFFILE}
+	echo "options	MFS_ROOT" >> ${CONF}/${CONFFILE}
+	echo "options	MFS_ROOT_SIZE=${SIZE}" >> ${CONF}/${CONFFILE}
 	(cd ${CONF}; \
 	config ${CONFFILE}; \
 	cd ${COMPILE}; \

@@ -1,7 +1,7 @@
 #! /bin/sh -
 
 #
-#	$Id: clean,v 1.5 1998/09/19 21:44:42 abial Exp $
+#	$Id: clean,v 1.6 1998/09/29 11:58:54 abial Exp $
 #
 set -e
 
@@ -14,10 +14,16 @@ fi
 if [ "$1" = "all" ]
 then
 	list="dial net isp router"
-	mv -f picobsd.bin picobsd.bin.old
+	if [ -f picobsd.bin ]
+	then
+		mv -f picobsd.bin picobsd.bin.old
+	fi
 else
 	list=$1
-	mv -f picobsd.bin picobsd.bin.$1
+	if [ -f picobsd.bin ]
+	then
+		mv -f picobsd.bin picobsd.bin.$1
+	fi
 fi
 
 rm -f kernel kernel.kz fs.PICOBSD *.o *core *.db

@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: uc_isa.c,v 1.1.1.1 1998/07/14 07:30:54 abial Exp $
+ * $Id: uc_isa.c,v 1.5 1998/10/06 07:41:48 msmith Exp $
  */
 
 #include <sys/types.h>
@@ -44,7 +44,8 @@ get_isa_info(struct kernel *kp){
   char *name;
 
   if(kp->nl[ISA_BIOTAB].n_value || kp->nl[ISA_TTYTAB].n_value || kp->nl[ISA_NETTAB].n_value ||
-     kp->nl[ISA_NULLTAB].n_value || kp->nl[ISA_WDCTAB].n_value || kp->nl[ISA_FDCTAB].n_value) {
+     kp->nl[ISA_CAMTAB].n_value || kp->nl[ISA_NULLTAB].n_value || 
+     kp->nl[ISA_WDCTAB].n_value || kp->nl[ISA_FDCTAB].n_value) {
 
     idp = kp->isa_devp = (struct uc_isa *)malloc(sizeof(struct uc_isa));
     total=0; /* a running total of the number of isa devices */
@@ -155,10 +156,6 @@ get_isa_device(struct uc_isa *ip){
   free(tmp);
 
   asprintf(&tmp, "%d", ip->enabled );
-  list_append(list, tmp);
-  free(tmp);
-
-  asprintf(&tmp, "%d", ip->modified );
   list_append(list, tmp);
   free(tmp);
 
