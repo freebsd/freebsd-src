@@ -80,8 +80,16 @@ typedef struct {
 	u_int32_t	orig_datalen;
 	u_int32_t	bytes_xfered;
 	u_int32_t	last_xframt;
-	u_int32_t	tag;
+	u_int32_t	tag	: 16,
+			lun	: 13,	/* not enough */
+			state	: 3;
 } atio_private_data_t;
+#define	ATPD_STATE_FREE			0
+#define	ATPD_STATE_ATIO			1
+#define	ATPD_STATE_CAM			2
+#define	ATPD_STATE_CTIO			3
+#define	ATPD_STATE_LAST_CTIO		4
+#define	ATPD_STATE_PDON			5
 
 typedef struct tstate {
 	struct tstate *next;
@@ -91,6 +99,7 @@ typedef struct tstate {
 	lun_id_t lun;
 	int bus;
 	u_int32_t hold;
+	int atio_count;
 } tstate_t;
 
 #define	LUN_HASH_SIZE			32
