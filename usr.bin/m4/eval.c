@@ -593,12 +593,12 @@ dodefine(const char *name, const char *defn)
 			p->type = n & TYPEMASK;
 			if ((n & NOARGS) == 0)
 				p->type |= NEEDARGS;
-			p->defn = xstrdup(null);
+			p->defn = null;
 			return;
 		}
 	}
 	if (!*defn)
-		p->defn = xstrdup(null);
+		p->defn = null;
 	else
 		p->defn = xstrdup(defn);
 	p->type = MACRTYPE;
@@ -645,7 +645,7 @@ dopushdef(const char *name, const char *defn)
 		    CURRENT_LINE);
 	p = addent(name);
 	if (!*defn)
-		p->defn = xstrdup(null);
+		p->defn = null;
 	else
 		p->defn = xstrdup(defn);
 	p->type = MACRTYPE;
