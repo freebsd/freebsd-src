@@ -2020,13 +2020,13 @@ alpha_fpstate_check(struct thread *td)
 	 * For SMP, we should check the fpcurthread of each cpu.
 	 */
 #ifndef SMP
-	critical_t s;
+	register_t s;
 
-	s = cpu_critical_enter();
+	s = intr_disable();
 	if (td->td_pcb->pcb_hw.apcb_flags & ALPHA_PCB_FLAGS_FEN)
 		if (td != PCPU_GET(fpcurthread))
 			panic("alpha_check_fpcurthread: bogus");
-	cpu_critical_exit(s);
+	intr_restore(s);
 #endif
 }
 
@@ -2046,9 +2046,9 @@ alpha_fpstate_check(struct thread *td)
 void
 alpha_fpstate_save(struct thread *td, int write)
 {
-	critical_t s;
+	register_t s;
 
-	s = cpu_critical_enter();
+	s = intr_disable();
 	if (td != NULL && td == PCPU_GET(fpcurthread)) {
 		/*
 		 * If curthread != fpcurthread, then we need to enable FEN 
@@ -2083,7 +2083,7 @@ alpha_fpstate_save(struct thread *td, int write)
 				alpha_pal_wrfen(0);
 		}
 	}
-	cpu_critical_exit(s);
+	intr_restore(s);
 }
 
 /*
@@ -2094,9 +2094,9 @@ alpha_fpstate_save(struct thread *td, int write)
 void
 alpha_fpstate_drop(struct thread *td)
 {
-	critical_t s;
+	register_t s;
 
-	s = cpu_critical_enter();
+	s = intr_disable();
 	if (td == PCPU_GET(fpcurthread)) {
 		if (td == curthread) {
 			/*
@@ -2112,7 +2112,7 @@ alpha_fpstate_drop(struct thread *td)
 		}
 		PCPU_SET(fpcurthread, NULL);
 	}
-	cpu_critical_exit(s);
+	intr_restore(s);
 }
 
 /*
@@ -2122,12 +2122,12 @@ alpha_fpstate_drop(struct thread *td)
 void
 alpha_fpstate_switch(struct thread *td)
 {
-	critical_t s;
+	register_t s;
 
 	/*
 	 * Enable FEN so that we can access the fp registers.
 	 */
-	s = cpu_critical_enter();
+	s = intr_disable();
 	alpha_pal_wrfen(1);
 	if (PCPU_GET(fpcurthread)) {
 		/*
@@ -2154,7 +2154,7 @@ alpha_fpstate_switch(struct thread *td)
 	}
 
 	td->td_md.md_flags |= MDP_FPUSED;
-	cpu_critical_exit(s);
+	intr_restore(s);
 }
 
 /*

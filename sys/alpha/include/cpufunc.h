@@ -59,6 +59,19 @@ cpu_critical_exit(critical_t ipl)
 	alpha_pal_swpipl(ipl);
 }
 
+static __inline register_t
+intr_disable(void)
+{
+	return (alpha_pal_swpipl(ALPHA_PSL_IPL_MCES));
+}
+
+static __inline void
+intr_restore(register_t ipl)
+{
+	alpha_pal_swpipl(ipl);
+}
+
+
 #endif /* _KERNEL */
 
 #endif /* !_MACHINE_CPUFUNC_H_ */

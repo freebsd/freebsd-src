@@ -92,7 +92,7 @@ t2_pcib_maxslots(device_t dev)
 
 #define T2_TYPE1_SETUP(b,s,old_hae3) if((b)) {			\
         do {							\
-		(s) = cpu_critical_enter();			\
+		(s) = intr_disable();				\
 		(old_hae3) = REGVAL(T2_HAE0_3);			\
 		alpha_mb();					\
 		REGVAL(T2_HAE0_3) = (old_hae3) | (1<<30);	\
@@ -105,13 +105,13 @@ t2_pcib_maxslots(device_t dev)
 		alpha_mb();				\
 		REGVAL(T2_HAE0_3) = (old_hae3);		\
 		alpha_mb();				\
-		cpu_critical_exit((s));			\
+		intr_restore((s));			\
         } while(0);					\
 }
 
 #define SWIZ_CFGREAD(b, s, f, r, width, type) do {			 \
 	type val = ~0;							 \
-	int ipl = 0;							 \
+	register_t ipl = 0;						 \
 	u_int32_t old_hae3 = 0;						 \
 	vm_offset_t off = T2_CFGOFF(b, s, f, r);			 \
 	vm_offset_t kv = SPARSE_##width##_ADDRESS(KV(T2_PCI_CONF), off); \
@@ -125,7 +125,7 @@ t2_pcib_maxslots(device_t dev)
 } while (0)
 
 #define SWIZ_CFGWRITE(b, s, f, r, data, width, type) do {		 \
-	int ipl = 0;							 \
+	register_t ipl = 0;							 \
 	u_int32_t old_hae3 = 0;						 \
 	vm_offset_t off = T2_CFGOFF(b, s, f, r);			 \
 	vm_offset_t kv = SPARSE_##width##_ADDRESS(KV(T2_PCI_CONF), off); \
