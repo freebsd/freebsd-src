@@ -21,7 +21,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-"@(#) $Header: /tcpdump/master/tcpdump/print-lcp.c,v 1.3 1999/12/15 07:55:42 fenner Exp $ (LBL)";
+"@(#) $Header: /tcpdump/master/tcpdump/print-lcp.c,v 1.9 2000/10/06 04:23:12 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -32,18 +32,8 @@ static const char rcsid[] =
 #include <sys/time.h>
 #include <sys/socket.h>
 
-#if __STDC__
-struct mbuf;
-struct rtentry;
-#endif
-#include <net/if.h>
-
 #include <netinet/in.h>
-#include <netinet/if_ether.h>
 
-#ifdef HAVE_MEMORY_H
-#include <memory.h>
-#endif
 #include <stdio.h>
 #include <string.h>
 
@@ -144,7 +134,7 @@ lcp_print(register const u_char *bp, u_int length)
 
   printf("LCP %s id=0x%x", tok2str(lcpcode2str, "LCP-#%d", lcp_code), lcp_id);
   
-  switch(lcp_code) {
+  switch (lcp_code) {
   case LCP_CONFREQ:
   case LCP_CONFACK:
   case LCP_CONFNAK:
@@ -181,7 +171,7 @@ lcp_print(register const u_char *bp, u_int length)
 	  case LCP_ASYNCMAP:
 	  case LCP_MAGICNUM:
 	    if (snapend < p+4) return;
-	    printf("%#x",ntohl(*(u_long*)p));
+	    printf("%#x", (unsigned)ntohl(*(u_long*)p));
 	    if (lcpopt_length != 6) printf(" len=%d!",lcpopt_length);
 	    break;
 	  case LCP_PCOMP:
@@ -202,7 +192,7 @@ lcp_print(register const u_char *bp, u_int length)
   case LCP_ECHOREP:
   case LCP_DISCARD:
     if (snapend < lcp_data+4) return;
-    printf(" magic=%#x", ntohl(*(u_long *) lcp_data));
+    printf(" magic=%#x", (unsigned)ntohl(*(u_long *) lcp_data));
     lcp_data +=4;
     break;
   case LCP_PROTREJ:

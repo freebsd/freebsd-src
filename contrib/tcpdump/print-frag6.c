@@ -21,7 +21,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-frag6.c,v 1.3.2.1 2000/01/11 06:58:24 fenner Exp $";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-frag6.c,v 1.12 2000/10/07 05:53:10 itojun Exp $";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -35,21 +35,12 @@ static const char rcsid[] =
 #include <sys/types.h>
 #include <sys/socket.h>
 
-#include <net/if.h>
 
 #include <netinet/in.h>
-#include <netinet/if_ether.h>
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
-#include <netinet/ip_icmp.h>
-#include <netinet/ip_var.h>
-#include <netinet/udp.h>
-#include <netinet/udp_var.h>
-#include <netinet/tcp.h>
 
 #include <stdio.h>
 
-#include <netinet/ip6.h>
+#include "ip6.h"
 
 #include "interface.h"
 #include "addrtoname.h"
@@ -68,7 +59,7 @@ frag6_print(register const u_char *bp, register const u_char *bp2)
 	dp = (struct ip6_frag *)bp;
 	ip6 = (struct ip6_hdr *)bp2;
 
-	/* 'ep' points to the end of avaible data. */
+	/* 'ep' points to the end of available data. */
 	ep = snapend;
 
 	TCHECK(dp->ip6f_offlg);
@@ -86,7 +77,7 @@ frag6_print(register const u_char *bp, register const u_char *bp2)
 			       (long)(bp - bp2) - sizeof(struct ip6_frag));
 	}
 
-#if 0
+#if 1
 	/* it is meaningless to decode non-first fragment */
 	if (ntohs(dp->ip6f_offlg & IP6F_OFF_MASK) != 0)
 		return 65535;

@@ -171,7 +171,7 @@ token_if_print(u_char *user, const struct pcap_pkthdr *h, const u_char *p)
 
 	extracted_ethertype = 0;
 	/* Try to print the LLC-layer header & higher layers */
-	if (llc_print(p, length, caplen, ESRC(tp), EDST(tp)) == 0) {
+	if (llc_print(p, length, caplen, ESRC(tp), EDST(tp), &extracted_ethertype) == 0) {
 		/* ether_type not known, print raw packet */
 		if (!eflag)
 			token_print((u_char *)tp, length);

@@ -18,7 +18,7 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * @(#) $Header: /tcpdump/master/tcpdump/llc.h,v 1.6.1.1 1999/10/07 23:47:10 mcr Exp $ (LBL)
+ * @(#) $Header: /tcpdump/master/tcpdump/llc.h,v 1.8 2000/12/18 07:55:36 guy Exp $ (LBL)
  */
 
 /*
@@ -32,19 +32,19 @@
  */
 
 struct llc {
-	u_char dsap;
-	u_char ssap;
+	u_int8_t dsap;
+	u_int8_t ssap;
 	union {
-		u_char u_ctl;
-		u_short is_ctl;
+		u_int8_t u_ctl;
+		u_int16_t is_ctl;
 		struct {
-			u_char snap_ui;
-			u_char snap_pi[5];
+			u_int8_t snap_ui;
+			u_int8_t snap_pi[5];
 		} snap;
 		struct {
-			u_char snap_ui;
-			u_char snap_orgcode[3];
-			u_char snap_ethertype[2];
+			u_int8_t snap_ui;
+			u_int8_t snap_orgcode[3];
+			u_int8_t snap_ethertype[2];
 		} snap_ether;
 	} ctl;
 };
@@ -61,7 +61,7 @@ struct llc {
 #define LLC_S_FMT	1
 
 #define	LLC_U_POLL	0x10
-#define	LLC_IS_POLL	0x0001
+#define	LLC_IS_POLL	0x0100
 #define	LLC_XID_FI	0x81
 
 #define	LLC_U_CMD(u)	((u) & 0xef)
@@ -74,13 +74,13 @@ struct llc {
 #define	LLC_XID		0xaf
 #define	LLC_FRMR	0x87
 
-#define	LLC_S_CMD(is)	(((is) >> 10) & 0x03)
-#define	LLC_RR		0x0100
-#define	LLC_RNR		0x0500
-#define	LLC_REJ		0x0900
+#define	LLC_S_CMD(is)	(((is) >> 1) & 0x03)
+#define	LLC_RR		0x0001
+#define	LLC_RNR		0x0005
+#define	LLC_REJ		0x0009
 
-#define LLC_IS_NR(is)	(((is) >> 1) & 0x7f)
-#define LLC_I_NS(is)	(((is) >> 9) & 0x7f)
+#define LLC_IS_NR(is)	(((is) >> 9) & 0x7f)
+#define LLC_I_NS(is)	(((is) >> 1) & 0x7f)
 
 #ifndef LLCSAP_NULL
 #define	LLCSAP_NULL		0x00

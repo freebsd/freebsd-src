@@ -1,3 +1,41 @@
+$Header: /tcpdump/master/tcpdump/CHANGES,v 1.79 2001/01/10 20:13:58 mcr Exp $
+
+Tuesday January 9, 2001. mcr@sandelman.ottawa.on.ca. Summary for 3.6 release
+	Cleaned up documentation.
+	Promisc mode fixes for Linux
+	IPsec changes/cleanups.
+	Alignment fixes for picky architectures
+
+	Removed dependency on native headers for packet dissectors.
+	Removed Linux specific headers that were shipped
+
+	libpcap changes provide for exchanging capture files between
+	  systems. Save files now have well known PACKET_ values instead of
+	  depending upon system dependant mappings of DLT_* types.
+
+	Support for computing/checking IP and UDP/TCP checksums.
+
+	Updated autoconf stock files.
+
+	IPv6 improvements: dhcp (draft-15), mobile-ip6, ppp, ospf6, 
+
+	Added dissector support for: ISOCLNS, Token Ring, IGMPv3, bxxp,
+		timed, vrrp, radius, chdlc, cnfp, cdp, IEEE802.1d, raw-AppleTalk
+
+	Added filtering support for: VLANs, ESIS, ISIS
+
+	Improvements to: print-telnet, IPTalk, bootp/dhcp, ECN, PPP,
+		L2TP, PPPoE
+
+	HP-UX 11.0 -- find the right dlpi device.
+	Solaris 8 - IPv6 works
+	Linux - Added support for an "any" device to capture on all interfaces
+	
+	Security fixes: buffer overrun audit done. Strcpy replaced with
+		strlcpy, sprintf replaced with snprintf.
+	Look for lex problems, and warn about them.
+
+
 v3.5 Fri Jan 28 18:00:00 PST 2000
 
 Bill Fenner <fenner@research.att.com>
@@ -42,7 +80,6 @@ Love <lha@stacken.kth.se>
 
 Michael C. Richardson  <mcr@sandelman.ottawa.on.ca>
 - Created tcpdump.org repository
-
 
 v3.4 Sat Jul 25 12:40:55 PDT 1998
 
@@ -558,4 +595,4 @@ v2.0 Sun Jan 13 12:20:40 PST 1991
 
 - Initial public release.
 
-@(#) $Header: /tcpdump/master/tcpdump/CHANGES,v 1.63.2.1 2000/01/27 23:18:19 fenner Exp $ (LBL)
+@(#) $Header: /tcpdump/master/tcpdump/CHANGES,v 1.79 2001/01/10 20:13:58 mcr Exp $ (LBL)

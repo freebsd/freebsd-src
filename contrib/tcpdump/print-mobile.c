@@ -42,7 +42,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-     "@(#) $Header: /tcpdump/master/tcpdump/print-mobile.c,v 1.2.2.1 2000/01/11 06:58:26 fenner Exp $";
+     "@(#) $Header: /tcpdump/master/tcpdump/print-mobile.c,v 1.5 2000/09/29 04:58:43 guy Exp $";
 #endif
 
 #include <sys/param.h>
@@ -51,8 +51,6 @@ static const char rcsid[] =
 #include <sys/socket.h>
 
 #include <netinet/in.h>
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
 
 #include <netdb.h>
 #include <stdio.h>

@@ -24,7 +24,7 @@
  */
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-bootp.c,v 1.48 1999/11/21 09:36:49 fenner Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-bootp.c,v 1.56 2000/12/04 00:00:08 fenner Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -35,24 +35,19 @@ static const char rcsid[] =
 #include <sys/time.h>
 #include <sys/socket.h>
 
-#if __STDC__
 struct mbuf;
 struct rtentry;
-#endif
-#include <net/if.h>
 
 #include <netinet/in.h>
-#include <net/ethernet.h>
 
 #include <ctype.h>
-#ifdef HAVE_MEMORY_H
-#include <memory.h>
-#endif
 #include <stdio.h>
 #include <string.h>
 
 #include "interface.h"
 #include "addrtoname.h"
+#include "extract.h"
+#include "ether.h"
 #include "bootp.h"
 
 static void rfc1048_print(const u_char *, u_int);
@@ -181,7 +176,7 @@ bootp_print(register const u_char *cp, u_int length,
 	else {
 		u_int32_t ul;
 
-		memcpy((char *)&ul, (char *)bp->bp_vend, sizeof(ul));
+		ul = EXTRACT_32BITS(&bp->bp_vend);
 		if (ul != 0)
 			printf("vend-#0x%x", ul);
 	}
@@ -196,7 +191,7 @@ static struct tok tag2str[] = {
 /* RFC1048 tags */
 	{ TAG_PAD,		" PAD" },
 	{ TAG_SUBNET_MASK,	"iSM" },	/* subnet mask (RFC950) */
-	{ TAG_TIME_OFFSET,	"lTZ" },	/* seconds from UTC */
+	{ TAG_TIME_OFFSET,	"LTZ" },	/* seconds from UTC */
 	{ TAG_GATEWAY,		"iDG" },	/* default gateway */
 	{ TAG_TIME_SERVER,	"iTS" },	/* time servers (RFC868) */
 	{ TAG_NAME_SERVER,	"iIEN" },	/* IEN name servers (IEN116) */
@@ -271,7 +266,46 @@ static struct tok tag2str[] = {
 	{ TAG_RENEWAL_TIME,	"lRN" },
 	{ TAG_REBIND_TIME,	"lRB" },
 	{ TAG_VENDOR_CLASS,	"bVC" },
-	{ TAG_CLIENT_ID,	"bCID" },
+	{ TAG_CLIENT_ID,	"xCID" },
+/* RFC 2485 */
+	{ TAG_OPEN_GROUP_UAP,	"aUAP" },
+/* RFC 2563 */
+	{ TAG_DISABLE_AUTOCONF,	"BNOAUTO" },
+/* RFC 2610 */
+	{ TAG_SLP_DA,		"bSLP-DA" },	/*"b" is a little wrong */
+	{ TAG_SLP_SCOPE,	"bSLP-SCOPE" },	/*"b" is a little wrong */
+/* RFC 2937 */
+	{ TAG_NS_SEARCH,	"sNSSEARCH" },	/* XXX 's' */
+/* RFC 3011 */
+	{ TAG_IP4_SUBNET_SELECT, "iSUBNET" },
+/* ftp://ftp.isi.edu/.../assignments/bootp-dhcp-extensions */
+	{ TAG_USER_CLASS,	"aCLASS" },
+	{ TAG_SLP_NAMING_AUTH,	"aSLP-NA" },
+	{ TAG_CLIENT_FQDN,	"bFQDN" },	/* XXX 'b' */
+	{ TAG_AGENT_CIRCUIT,	"bACKT" },
+	{ TAG_AGENT_REMOTE,	"bARMT" },
+	{ TAG_AGENT_MASK,	"bAMSK" },
+	{ TAG_TZ_STRING,	"aTZSTR" },
+	{ TAG_FQDN_OPTION,	"bFQDNS" },	/* XXX 'b' */
+	{ TAG_AUTH,		"bAUTH" },	/* XXX 'b' */
+	{ TAG_VINES_SERVERS,	"iVINES" },
+	{ TAG_SERVER_RANK,	"sRANK" },
+	{ TAG_CLIENT_ARCH,	"sARCH" },
+	{ TAG_CLIENT_NDI,	"bNDI" },	/* XXX 'b' */
+	{ TAG_CLIENT_GUID,	"bGUID" },	/* XXX 'b' */
+	{ TAG_LDAP_URL,		"aLDAP" },
+	{ TAG_6OVER4,		"i6o4" },
+	{ TAG_PRINTER_NAME,	"aPRTR" },
+	{ TAG_MDHCP_SERVER,	"bMDHCP" },	/* XXX 'b' */
+	{ TAG_IPX_COMPAT,	"bIPX" },	/* XXX 'b' */
+	{ TAG_NETINFO_PARENT,	"iNI" },
+	{ TAG_NETINFO_PARENT_TAG, "aNITAG" },
+	{ TAG_URL,		"aURL" },
+	{ TAG_FAILOVER,		"bFAIL" },	/* XXX 'b' */
+	{ 0,			NULL }
+};
+/* 2-byte extended tags */
+static struct tok xtag2str[] = {
 	{ 0,			NULL }
 };
 
@@ -298,7 +332,16 @@ rfc1048_print(register const u_char *bp, register u_int length)
 			continue;
 		if (tag == TAG_END)
 			return;
-		cp = tok2str(tag2str, "?T%d", tag);
+		if (tag == TAG_EXTENDED_OPTION) {
+			TCHECK2(*(bp + 1), 2);
+			tag = EXTRACT_16BITS(bp + 1);
+			/* XXX we don't know yet if the IANA will
+			 * preclude overlap of 1-byte and 2-byte spaces.
+			 * If not, we need to offset tag after this step.
+			 */
+			cp = tok2str(xtag2str, "?xT%d", tag);
+		} else
+			cp = tok2str(tag2str, "?T%d", tag);
 		c = *cp++;
 		printf(" %s:", cp);
 
@@ -333,7 +376,21 @@ rfc1048_print(register const u_char *bp, register u_int length)
 			first = 1;
 			while (len-- > 0) {
 				c = *bp++;
-				cp = tok2str(tag2str, "?%d", c);
+				cp = tok2str(tag2str, "?T%d", c);
+				if (!first)
+					putchar('+');
+				printf("%s", cp + 1);
+				first = 0;
+			}
+			continue;
+		}
+		if (tag == TAG_EXTENDED_REQUEST) {
+			first = 1;
+			while (len > 1) {
+				len -= 2;
+				c = EXTRACT_16BITS(bp);
+				bp += 2;
+				cp = tok2str(xtag2str, "?xT%d", c);
 				if (!first)
 					putchar('+');
 				printf("%s", cp + 1);
@@ -367,13 +424,17 @@ rfc1048_print(register const u_char *bp, register u_int length)
 
 		case 'i':
 		case 'l':
+		case 'L':
 			/* ip addresses/32-bit words */
 			while (size >= sizeof(ul)) {
 				if (!first)
 					putchar(',');
-				memcpy((char *)&ul, (char *)bp, sizeof(ul));
-				if (c == 'i')
+				ul = EXTRACT_32BITS(bp);
+				if (c == 'i') {
+					ul = htonl(ul);
 					printf("%s", ipaddr_string(&ul));
+				} else if (c == 'L')
+					printf("%d", ul);
 				else
 					printf("%u", ul);
 				bp += sizeof(ul);
@@ -403,7 +464,7 @@ rfc1048_print(register const u_char *bp, register u_int length)
 			while (size >= sizeof(us)) {
 				if (!first)
 					putchar(',');
-				memcpy((char *)&us, (char *)bp, sizeof(us));
+				us = EXTRACT_16BITS(bp);
 				printf("%d", us);
 				bp += sizeof(us);
 				size -= sizeof(us);
@@ -434,12 +495,13 @@ rfc1048_print(register const u_char *bp, register u_int length)
 			break;
 
 		case 'b':
+		case 'x':
 		default:
 			/* Bytes */
 			while (size > 0) {
 				if (!first)
-					putchar('.');
-				printf("%d", *bp);
+					putchar (c == 'x' ? ':' : '.');
+				printf (c == 'x' ? "%02x" : "%d", *bp);
 				++bp;
 				--size;
 				first = 0;
@@ -450,6 +512,9 @@ rfc1048_print(register const u_char *bp, register u_int length)
 		if (size)
 			printf("[len %d]", len);
 	}
+	return;
+trunc:
+	printf("|[rfc1048]");
 }
 
 static void

@@ -23,47 +23,26 @@
 #include "config.h"
 #endif
 
-#if defined(__bsdi__)
-
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-vjc.c,v 1.2.2.1 2000/01/11 06:58:28 fenner Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-vjc.c,v 1.9 2000/10/09 01:53:21 guy Exp $ (LBL)";
 #endif
 
 #include <sys/param.h>
 #include <sys/time.h>
-#include <sys/socket.h>
-#include <sys/file.h>
-#include <sys/ioctl.h>
-
-#if __STDC__
-struct mbuf;
-struct rtentry;
-#endif
-#include <net/if.h>
 
 #include <netinet/in.h>
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
-#include <netinet/if_ether.h>
 
 #include <ctype.h>
 #include <netdb.h>
 #include <pcap.h>
 #include <stdio.h>
 
-#if defined(__NetBSD__)
-#include <sys/mbuf.h>
-#include <net/ppp_defs.h>
-#endif
-
-#if defined(__bsdi__) || defined(__NetBSD__)
-#include <net/if_ppp.h>
-#include <net/slcompress.h>
-#endif
-
 #include "interface.h"
 #include "addrtoname.h"
+
+#include "slcompress.h"
+#include "ppp.h"
 
 int
 vjc_print(register const char *bp, register u_int length, u_short proto)
@@ -101,4 +80,3 @@ vjc_print(register const char *bp, register u_int length, u_short proto)
 		return -1;
 	}
 }
-#endif /* defined(__bsdi__) || defined(__NetBSD__) */

@@ -23,7 +23,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-icmp.c,v 1.43 1999/11/22 04:28:21 fenner Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-icmp.c,v 1.57 2000/10/10 05:03:32 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -34,29 +34,139 @@ static const char rcsid[] =
 #include <sys/time.h>
 #include <sys/socket.h>
 
-#if __STDC__
 struct mbuf;
 struct rtentry;
-#endif
-#include <net/if.h>
 
 #include <netinet/in.h>
-#include <net/ethernet.h>
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
-#include <netinet/ip_icmp.h>
-#include <netinet/ip_var.h>
-#include <netinet/udp.h>
-#include <netinet/udp_var.h>
-#include <netinet/tcp.h>
 
 #include <stdio.h>
 #include <string.h>
+#include <netdb.h>		/* for MAXHOSTNAMELEN on some platforms */
 
 #include "interface.h"
 #include "addrtoname.h"
 #include "extract.h"			/* must come after interface.h */
 
+#include "ip.h"
+#include "udp.h"
+
+/*
+ * Interface Control Message Protocol Definitions.
+ * Per RFC 792, September 1981.
+ */
+
+/*
+ * Structure of an icmp header.
+ */
+struct icmp {
+	u_int8_t  icmp_type;		/* type of message, see below */
+	u_int8_t  icmp_code;		/* type sub code */
+	u_int16_t icmp_cksum;		/* ones complement cksum of struct */
+	union {
+		u_int8_t ih_pptr;			/* ICMP_PARAMPROB */
+		struct in_addr ih_gwaddr;	/* ICMP_REDIRECT */
+		struct ih_idseq {
+			u_int16_t icd_id;
+			u_int16_t icd_seq;
+		} ih_idseq;
+		u_int32_t ih_void;
+
+		/* ICMP_UNREACH_NEEDFRAG -- Path MTU Discovery (RFC1191) */
+		struct ih_pmtu {
+			u_int16_t ipm_void;    
+			u_int16_t ipm_nextmtu;
+		} ih_pmtu;
+	} icmp_hun;
+#define	icmp_pptr	icmp_hun.ih_pptr
+#define	icmp_gwaddr	icmp_hun.ih_gwaddr
+#define	icmp_id		icmp_hun.ih_idseq.icd_id
+#define	icmp_seq	icmp_hun.ih_idseq.icd_seq
+#define	icmp_void	icmp_hun.ih_void
+#define	icmp_pmvoid	icmp_hun.ih_pmtu.ipm_void
+#define	icmp_nextmtu	icmp_hun.ih_pmtu.ipm_nextmtu
+	union {
+		struct id_ts {
+			u_int32_t its_otime;
+			u_int32_t its_rtime;
+			u_int32_t its_ttime;
+		} id_ts;
+		struct id_ip  {
+			struct ip idi_ip;
+			/* options and then 64 bits of data */
+		} id_ip;
+		u_int32_t id_mask;
+		u_int8_t id_data[1];
+	} icmp_dun;
+#define	icmp_otime	icmp_dun.id_ts.its_otime
+#define	icmp_rtime	icmp_dun.id_ts.its_rtime
+#define	icmp_ttime	icmp_dun.id_ts.its_ttime
+#define	icmp_ip		icmp_dun.id_ip.idi_ip
+#define	icmp_mask	icmp_dun.id_mask
+#define	icmp_data	icmp_dun.id_data
+};
+
+/*
+ * Lower bounds on packet lengths for various types.
+ * For the error advice packets must first insure that the
+ * packet is large enought to contain the returned ip header.
+ * Only then can we do the check to see if 64 bits of packet
+ * data have been returned, since we need to check the returned
+ * ip header length.
+ */
+#define	ICMP_MINLEN	8				/* abs minimum */
+#define	ICMP_TSLEN	(8 + 3 * sizeof (u_int32_t))	/* timestamp */
+#define	ICMP_MASKLEN	12				/* address mask */
+#define	ICMP_ADVLENMIN	(8 + sizeof (struct ip) + 8)	/* min */
+#define	ICMP_ADVLEN(p)	(8 + (IP_HL(&(p)->icmp_ip) << 2) + 8)
+	/* N.B.: must separately check that ip_hl >= 5 */
+
+/*
+ * Definition of type and code field values.
+ */
+#define	ICMP_ECHOREPLY		0		/* echo reply */
+#define	ICMP_UNREACH		3		/* dest unreachable, codes: */
+#define		ICMP_UNREACH_NET	0		/* bad net */
+#define		ICMP_UNREACH_HOST	1		/* bad host */
+#define		ICMP_UNREACH_PROTOCOL	2		/* bad protocol */
+#define		ICMP_UNREACH_PORT	3		/* bad port */
+#define		ICMP_UNREACH_NEEDFRAG	4		/* IP_DF caused drop */
+#define		ICMP_UNREACH_SRCFAIL	5		/* src route failed */
+#define		ICMP_UNREACH_NET_UNKNOWN 6		/* unknown net */
+#define		ICMP_UNREACH_HOST_UNKNOWN 7		/* unknown host */
+#define		ICMP_UNREACH_ISOLATED	8		/* src host isolated */
+#define		ICMP_UNREACH_NET_PROHIB	9		/* prohibited access */
+#define		ICMP_UNREACH_HOST_PROHIB 10		/* ditto */
+#define		ICMP_UNREACH_TOSNET	11		/* bad tos for net */
+#define		ICMP_UNREACH_TOSHOST	12		/* bad tos for host */
+#define	ICMP_SOURCEQUENCH	4		/* packet lost, slow down */
+#define	ICMP_REDIRECT		5		/* shorter route, codes: */
+#define		ICMP_REDIRECT_NET	0		/* for network */
+#define		ICMP_REDIRECT_HOST	1		/* for host */
+#define		ICMP_REDIRECT_TOSNET	2		/* for tos and net */
+#define		ICMP_REDIRECT_TOSHOST	3		/* for tos and host */
+#define	ICMP_ECHO		8		/* echo service */
+#define	ICMP_ROUTERADVERT	9		/* router advertisement */
+#define	ICMP_ROUTERSOLICIT	10		/* router solicitation */
+#define	ICMP_TIMXCEED		11		/* time exceeded, code: */
+#define		ICMP_TIMXCEED_INTRANS	0		/* ttl==0 in transit */
+#define		ICMP_TIMXCEED_REASS	1		/* ttl==0 in reass */
+#define	ICMP_PARAMPROB		12		/* ip header bad */
+#define		ICMP_PARAMPROB_OPTABSENT 1		/* req. opt. absent */
+#define	ICMP_TSTAMP		13		/* timestamp request */
+#define	ICMP_TSTAMPREPLY	14		/* timestamp reply */
+#define	ICMP_IREQ		15		/* information request */
+#define	ICMP_IREQREPLY		16		/* information reply */
+#define	ICMP_MASKREQ		17		/* address mask request */
+#define	ICMP_MASKREPLY		18		/* address mask reply */
+
+#define	ICMP_MAXTYPE		18
+
+#define	ICMP_INFOTYPE(type) \
+	((type) == ICMP_ECHOREPLY || (type) == ICMP_ECHO || \
+	(type) == ICMP_ROUTERADVERT || (type) == ICMP_ROUTERSOLICIT || \
+	(type) == ICMP_TSTAMP || (type) == ICMP_TSTAMPREPLY || \
+	(type) == ICMP_IREQ || (type) == ICMP_IREQREPLY || \
+	(type) == ICMP_MASKREQ || (type) == ICMP_MASKREPLY)
 /* rfc1700 */
 #ifndef ICMP_UNREACH_NET_UNKNOWN
 #define ICMP_UNREACH_NET_UNKNOWN	6	/* destination net unknown */
@@ -89,14 +199,6 @@ struct rtentry;
 #endif
 #ifndef ICMP_UNREACH_PRECEDENCE_CUTOFF
 #define ICMP_UNREACH_PRECEDENCE_CUTOFF	15	/* precedence cutoff */
-#endif
-
-/* rfc1256 */
-#ifndef ICMP_ROUTERADVERT
-#define ICMP_ROUTERADVERT		9	/* router advertisement */
-#endif
-#ifndef ICMP_ROUTERSOLICIT
-#define ICMP_ROUTERSOLICIT		10	/* router solicitation */
 #endif
 
 /* Most of the icmp types */
@@ -151,15 +253,15 @@ static struct tok type2str[] = {
 
 /* rfc1191 */
 struct mtu_discovery {
-	short unused;
-	short nexthopmtu;
+	u_int16_t unused;
+	u_int16_t nexthopmtu;
 };
 
 /* rfc1256 */
 struct ih_rdiscovery {
-	u_char ird_addrnum;
-	u_char ird_addrsiz;
-	u_short ird_lifetime;
+	u_int8_t ird_addrnum;
+	u_int8_t ird_addrsiz;
+	u_int16_t ird_lifetime;
 };
 
 struct id_rdiscovery {
@@ -198,15 +300,16 @@ icmp_print(register const u_char *bp, u_int plen, register const u_char *bp2)
 
 		case ICMP_UNREACH_PROTOCOL:
 			TCHECK(dp->icmp_ip.ip_p);
-			(void)snprintf(buf, sizeof(buf), "%s protocol %d unreachable",
-				       ipaddr_string(&dp->icmp_ip.ip_dst),
-				       dp->icmp_ip.ip_p);
+			(void)snprintf(buf, sizeof(buf),
+			    "%s protocol %d unreachable",
+			    ipaddr_string(&dp->icmp_ip.ip_dst),
+			    dp->icmp_ip.ip_p);
 			break;
 
 		case ICMP_UNREACH_PORT:
 			TCHECK(dp->icmp_ip.ip_p);
 			oip = &dp->icmp_ip;
-			hlen = oip->ip_hl * 4;
+			hlen = IP_HL(oip) * 4;
 			ouh = (struct udphdr *)(((u_char *)oip) + hlen);
 			dport = ntohs(ouh->uh_dport);
 			switch (oip->ip_p) {
@@ -235,20 +338,20 @@ icmp_print(register const u_char *bp, u_int plen, register const u_char *bp2)
 			break;
 
 		case ICMP_UNREACH_NEEDFRAG:
-			{
+		    {
 			register const struct mtu_discovery *mp;
-
 			mp = (struct mtu_discovery *)&dp->icmp_void;
                         mtu = EXTRACT_16BITS(&mp->nexthopmtu);
-                        if (mtu)
-			    (void)snprintf(buf, sizeof(buf),
-				"%s unreachable - need to frag (mtu %d)",
-				ipaddr_string(&dp->icmp_ip.ip_dst), mtu);
-                        else
-			    (void)snprintf(buf, sizeof(buf),
-				"%s unreachable - need to frag",
-				ipaddr_string(&dp->icmp_ip.ip_dst));
+                        if (mtu) {
+				(void)snprintf(buf, sizeof(buf),
+				    "%s unreachable - need to frag (mtu %d)",
+				    ipaddr_string(&dp->icmp_ip.ip_dst), mtu);
+                        } else {
+				(void)snprintf(buf, sizeof(buf),
+				    "%s unreachable - need to frag",
+				    ipaddr_string(&dp->icmp_ip.ip_dst));
 			}
+		    }
 			break;
 
 		default:
@@ -270,49 +373,54 @@ icmp_print(register const u_char *bp, u_int plen, register const u_char *bp2)
 		break;
 
 	case ICMP_ROUTERADVERT:
-		{
+	    {
 		register const struct ih_rdiscovery *ihp;
 		register const struct id_rdiscovery *idp;
 		u_int lifetime, num, size;
 
-		(void)strcpy(buf, "router advertisement");
+		(void)snprintf(buf, sizeof(buf), "router advertisement");
 		cp = buf + strlen(buf);
 
 		ihp = (struct ih_rdiscovery *)&dp->icmp_void;
 		TCHECK(*ihp);
-		(void)strcpy(cp, " lifetime ");
+		(void)strncpy(cp, " lifetime ", sizeof(buf) - (cp - buf));
 		cp = buf + strlen(buf);
 		lifetime = EXTRACT_16BITS(&ihp->ird_lifetime);
-		if (lifetime < 60)
-			(void)snprintf(cp, sizeof(buf) - strlen(buf), "%u", lifetime);
-		else if (lifetime < 60 * 60)
-			(void)snprintf(cp, sizeof(buf) - strlen(buf), "%u:%02u",
+		if (lifetime < 60) {
+			(void)snprintf(cp, sizeof(buf) - (cp - buf), "%u",
+			    lifetime);
+		} else if (lifetime < 60 * 60) {
+			(void)snprintf(cp, sizeof(buf) - (cp - buf), "%u:%02u",
 			    lifetime / 60, lifetime % 60);
-		else
-			(void)snprintf(cp, sizeof(buf) - strlen(buf), "%u:%02u:%02u",
+		} else {
+			(void)snprintf(cp, sizeof(buf) - (cp - buf),
+			    "%u:%02u:%02u",
 			    lifetime / 3600,
 			    (lifetime % 3600) / 60,
 			    lifetime % 60);
+		}
 		cp = buf + strlen(buf);
 
 		num = ihp->ird_addrnum;
-		(void)snprintf(cp, sizeof(buf) - strlen(buf), " %d:", num);
+		(void)snprintf(cp, sizeof(buf) - (cp - buf), " %d:", num);
 		cp = buf + strlen(buf);
 
 		size = ihp->ird_addrsiz;
 		if (size != 2) {
-			(void)snprintf(cp, sizeof(buf) - strlen(buf), " [size %d]", size);
+			(void)snprintf(cp, sizeof(buf) - (cp - buf),
+			    " [size %d]", size);
 			break;
 		}
 		idp = (struct id_rdiscovery *)&dp->icmp_data;
 		while (num-- > 0) {
 			TCHECK(*idp);
-			(void)snprintf(cp, sizeof(buf) - strlen(buf), " {%s %u}",
+			(void)snprintf(cp, sizeof(buf) - (cp - buf), " {%s %u}",
 			    ipaddr_string(&idp->ird_addr),
 			    EXTRACT_32BITS(&idp->ird_pref));
 			cp = buf + strlen(buf);
+			++idp;
 		}
-		}
+	    }
 		break;
 
 	case ICMP_TIMXCEED:
@@ -328,26 +436,46 @@ icmp_print(register const u_char *bp, u_int plen, register const u_char *bp2)
 			break;
 
 		default:
-			(void)snprintf(buf, sizeof(buf), "time exceeded-#%d", dp->icmp_code);
+			(void)snprintf(buf, sizeof(buf), "time exceeded-#%d",
+			    dp->icmp_code);
 			break;
 		}
 		break;
 
 	case ICMP_PARAMPROB:
 		if (dp->icmp_code)
-			(void)snprintf(buf, sizeof(buf), "parameter problem - code %d",
-					dp->icmp_code);
+			(void)snprintf(buf, sizeof(buf),
+			    "parameter problem - code %d", dp->icmp_code);
 		else {
 			TCHECK(dp->icmp_pptr);
-			(void)snprintf(buf, sizeof(buf), "parameter problem - octet %d",
-					dp->icmp_pptr);
+			(void)snprintf(buf, sizeof(buf),
+			    "parameter problem - octet %d", dp->icmp_pptr);
 		}
 		break;
 
 	case ICMP_MASKREPLY:
 		TCHECK(dp->icmp_mask);
 		(void)snprintf(buf, sizeof(buf), "address mask is 0x%08x",
-		    (u_int32_t)ntohl(dp->icmp_mask));
+		    (unsigned)ntohl(dp->icmp_mask));
+		break;
+
+	case ICMP_TSTAMP:
+		TCHECK(dp->icmp_seq);
+		(void)snprintf(buf, sizeof(buf),
+		    "time stamp query id %u seq %u",
+		    (unsigned)ntohs(dp->icmp_id),
+		    (unsigned)ntohs(dp->icmp_seq));
+		break;
+
+	case ICMP_TSTAMPREPLY:
+		TCHECK(dp->icmp_ttime);
+		(void)snprintf(buf, sizeof(buf),
+		    "time stamp reply id %u seq %u : org 0x%lx recv 0x%lx xmit 0x%lx",
+		    (unsigned)ntohs(dp->icmp_id),
+		    (unsigned)ntohs(dp->icmp_seq),
+		    (unsigned long)ntohl(dp->icmp_otime),
+		    (unsigned long)ntohl(dp->icmp_rtime),
+		    (unsigned long)ntohl(dp->icmp_ttime));
 		break;
 
 	default:

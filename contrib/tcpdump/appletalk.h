@@ -20,13 +20,13 @@
  *
  * AppleTalk protocol formats (courtesy Bill Croft of Stanford/SUMEX).
  *
- * @(#) $Header: /tcpdump/master/tcpdump/appletalk.h,v 1.12.1.1 1999/10/07 23:47:09 mcr Exp $ (LBL)
+ * @(#) $Header: /tcpdump/master/tcpdump/appletalk.h,v 1.13 2000/10/03 02:54:54 itojun Exp $ (LBL)
  */
 
 struct LAP {
-	u_char	dst;
-	u_char	src;
-	u_char	type;
+	u_int8_t	dst;
+	u_int8_t	src;
+	u_int8_t	type;
 };
 #define lapShortDDP	1	/* short DDP type */
 #define lapDDP		2	/* DDP type */
@@ -35,22 +35,22 @@ struct LAP {
 /* Datagram Delivery Protocol */
 
 struct atDDP {
-	u_short	length;
-	u_short	checksum;
-	u_short	dstNet;
-	u_short	srcNet;
-	u_char	dstNode;
-	u_char	srcNode;
-	u_char	dstSkt;
-	u_char	srcSkt;
-	u_char	type;
+	u_int16_t	length;
+	u_int16_t	checksum;
+	u_int16_t	dstNet;
+	u_int16_t	srcNet;
+	u_int8_t	dstNode;
+	u_int8_t	srcNode;
+	u_int8_t	dstSkt;
+	u_int8_t	srcSkt;
+	u_int8_t	type;
 };
 
 struct atShortDDP {
-	u_short	length;
-	u_char	dstSkt;
-	u_char	srcSkt;
-	u_char	type;
+	u_int16_t	length;
+	u_int8_t	dstSkt;
+	u_int8_t	srcSkt;
+	u_int8_t	type;
 };
 
 #define	ddpMaxWKS	0x7F
@@ -73,9 +73,9 @@ struct atShortDDP {
 /* AppleTalk Transaction Protocol */
 
 struct atATP {
-	u_char	control;
-	u_char	bitmap;
-	u_short	transID;
+	u_int8_t	control;
+	u_int8_t	bitmap;
+	u_int16_t	transID;
 	int32_t userData;
 };
 
@@ -94,8 +94,8 @@ struct atATP {
 /* AppleTalk Echo Protocol */
 
 struct atEcho {
-	u_char	echoFunction;
-	u_char	*echoData;
+	u_int8_t	echoFunction;
+	u_int8_t	*echoData;
 };
 
 #define echoSkt		4		/* the echoer socket */
@@ -107,15 +107,15 @@ struct atEcho {
 /* Name Binding Protocol */
 
 struct atNBP {
-	u_char	control;
-	u_char	id;
+	u_int8_t	control;
+	u_int8_t	id;
 };
 
 struct atNBPtuple {
-	u_short	net;
-	u_char	node;
-	u_char	skt;
-	u_char	enumerator;
+	u_int16_t	net;
+	u_int8_t	node;
+	u_int8_t	skt;
+	u_int8_t	enumerator;
 };
 
 #define	nbpBrRq		0x10
@@ -141,8 +141,8 @@ struct atNBPtuple {
 /* Zone Information Protocol */
 
 struct zipHeader {
-	u_char	command;
-	u_char	netcount;
+	u_int8_t	command;
+	u_int8_t	netcount;
 };
 
 #define	zipHeaderSize	2

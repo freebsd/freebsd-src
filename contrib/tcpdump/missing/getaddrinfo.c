@@ -51,7 +51,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-     "@(#) $Header: /tcpdump/master/tcpdump/missing/getaddrinfo.c,v 1.6.2.2 2000/01/25 18:39:03 itojun Exp $";
+     "@(#) $Header: /tcpdump/master/tcpdump/missing/getaddrinfo.c,v 1.10 2000/10/24 00:56:53 fenner Exp $";
 #endif
 
 #include <sys/types.h>
@@ -73,10 +73,6 @@ static const char rcsid[] =
 #include <unistd.h>
 #include <stdio.h>
 #include <errno.h>
-
-#ifndef HAVE_PORTABLE_PROTOTYPE
-#include "cdecl_ext.h"
-#endif 
 
 #ifndef HAVE_U_INT32_T
 #include "bittypes.h"
@@ -175,24 +171,24 @@ static const struct explore explore[] = {
 #endif
 
 
-static int str_isnumber __P((const char *));
-static int explore_fqdn __P((const struct addrinfo *, const char *,
-	const char *, struct addrinfo **));
-static int explore_null __P((const struct addrinfo *, const char *,
-	const char *, struct addrinfo **));
-static int explore_numeric __P((const struct addrinfo *, const char *,
-	const char *, struct addrinfo **));
-static int explore_numeric_scope __P((const struct addrinfo *, const char *,
-	const char *, struct addrinfo **));
-static int get_name __P((const char *, const struct afd *, struct addrinfo **,
-	char *, const struct addrinfo *, const char *));
-static int get_canonname __P((const struct addrinfo *,
-	struct addrinfo *, const char *));
-static struct addrinfo *get_ai __P((const struct addrinfo *,
-	const struct afd *, const char *));
-static int get_portmatch __P((const struct addrinfo *, const char *));
-static int get_port __P((struct addrinfo *, const char *, int));
-static const struct afd *find_afd __P((int));
+static int str_isnumber (const char *);
+static int explore_fqdn (const struct addrinfo *, const char *,
+	const char *, struct addrinfo **);
+static int explore_null (const struct addrinfo *, const char *,
+	const char *, struct addrinfo **);
+static int explore_numeric (const struct addrinfo *, const char *,
+	const char *, struct addrinfo **);
+static int explore_numeric_scope (const struct addrinfo *, const char *,
+	const char *, struct addrinfo **);
+static int get_name (const char *, const struct afd *, struct addrinfo **,
+	char *, const struct addrinfo *, const char *);
+static int get_canonname (const struct addrinfo *,
+	struct addrinfo *, const char *);
+static struct addrinfo *get_ai (const struct addrinfo *,
+	const struct afd *, const char *);
+static int get_portmatch (const struct addrinfo *, const char *);
+static int get_port (struct addrinfo *, const char *, int);
+static const struct afd *find_afd (int);
 
 static char *ai_errlist[] = {
 	"Success",

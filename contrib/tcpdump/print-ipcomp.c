@@ -21,7 +21,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-ipcomp.c,v 1.2.2.2 2000/01/25 18:31:10 itojun Exp $";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-ipcomp.c,v 1.13 2000/12/12 09:58:41 itojun Exp $";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -34,24 +34,9 @@ static const char rcsid[] =
 #include <sys/types.h>
 #include <sys/socket.h>
 
-#include <net/route.h>
-#include <net/if.h>
-
 #include <netinet/in.h>
-#include <netinet/if_ether.h>
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
-#include <netinet/ip_icmp.h>
-#include <netinet/ip_var.h>
-#include <netinet/udp.h>
-#include <netinet/udp_var.h>
-#include <netinet/tcp.h>
 
 #include <stdio.h>
-
-#ifdef INET6
-#include <netinet/ip6.h>
-#endif
 
 struct ipcomp {
 	u_int8_t comp_nxt;	/* Next Header */
@@ -79,14 +64,14 @@ ipcomp_print(register const u_char *bp, register const u_char *bp2, int *nhdr)
 	ipcomp = (struct ipcomp *)bp;
 	cpi = (u_int16_t)ntohs(ipcomp->comp_cpi);
 
-	/* 'ep' points to the end of avaible data. */
+	/* 'ep' points to the end of available data. */
 	ep = snapend;
 
 	if ((u_char *)(ipcomp + 1) >= ep - sizeof(struct ipcomp)) {
 		fputs("[|IPCOMP]", stdout);
 		goto fail;
 	}
-	printf("IPComp(cpi=%u)", cpi);
+	printf("IPComp(cpi=0x%04x)", cpi);
 
 #if defined(HAVE_LIBZ) && defined(HAVE_ZLIB_H)
 	if (1)
