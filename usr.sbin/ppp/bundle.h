@@ -61,12 +61,12 @@ struct prompt;
 struct iface;
 
 struct bundle {
-  struct descriptor desc;     /* really all our datalinks */
+  struct fdescriptor desc;     /* really all our datalinks */
   int unit;                   /* The device/interface unit number */
 
   struct {
     char Name[20];            /* The /dev/XXXX name */
-    int fd;                   /* The /dev/XXXX descriptor */
+    int fd;                   /* The /dev/XXXX fdescriptor */
     unsigned header : 1;      /* Family header sent & received ? */
   } dev;
 
@@ -162,8 +162,8 @@ extern void bundle_StopIdleTimer(struct bundle *);
 extern int bundle_IsDead(struct bundle *);
 extern struct datalink *bundle2datalink(struct bundle *, const char *);
 
-extern void bundle_RegisterDescriptor(struct bundle *, struct descriptor *);
-extern void bundle_UnRegisterDescriptor(struct bundle *, struct descriptor *);
+extern void bundle_RegisterDescriptor(struct bundle *, struct fdescriptor *);
+extern void bundle_UnRegisterDescriptor(struct bundle *, struct fdescriptor *);
 
 extern void bundle_SetTtyCommandMode(struct bundle *, struct datalink *);
 

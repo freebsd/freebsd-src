@@ -225,7 +225,7 @@ radius_Process(struct radius *r, int got)
 }
 
 /*
- * We've either timed out or select()ed on the read descriptor
+ * We've either timed out or select()ed on the read fdescriptor
  */
 static void
 radius_Continue(struct radius *r, int sel)
@@ -257,16 +257,16 @@ radius_Timeout(void *v)
  * Time to call rad_continue_send_request() - something to read.
  */
 static void
-radius_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
+radius_Read(struct fdescriptor *d, struct bundle *bundle, const fd_set *fdset)
 {
   radius_Continue(descriptor2radius(d), 1);
 }
 
 /*
- * Behave as a struct descriptor (descriptor.h)
+ * Behave as a struct fdescriptor (fdescriptor.h)
  */
 static int
-radius_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
+radius_UpdateSet(struct fdescriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
 {
   struct radius *rad = descriptor2radius(d);
 
@@ -282,10 +282,10 @@ radius_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
 }
 
 /*
- * Behave as a struct descriptor (descriptor.h)
+ * Behave as a struct fdescriptor (fdescriptor.h)
  */
 static int
-radius_IsSet(struct descriptor *d, const fd_set *fdset)
+radius_IsSet(struct fdescriptor *d, const fd_set *fdset)
 {
   struct radius *r = descriptor2radius(d);
 
@@ -293,10 +293,10 @@ radius_IsSet(struct descriptor *d, const fd_set *fdset)
 }
 
 /*
- * Behave as a struct descriptor (descriptor.h)
+ * Behave as a struct fdescriptor (fdescriptor.h)
  */
 static int
-radius_Write(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
+radius_Write(struct fdescriptor *d, struct bundle *bundle, const fd_set *fdset)
 {
   /* We never want to write here ! */
   log_Printf(LogALERT, "radius_Write: Internal error: Bad call !\n");

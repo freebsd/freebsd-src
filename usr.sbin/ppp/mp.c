@@ -966,7 +966,7 @@ mp_SetEnddisc(struct cmdargs const *arg)
 }
 
 static int
-mpserver_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
+mpserver_UpdateSet(struct fdescriptor *d, fd_set *r, fd_set *w, fd_set *e,
                    int *n)
 {
   struct mpserver *s = descriptor2mpserver(d);
@@ -996,14 +996,14 @@ mpserver_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
 }
 
 static int
-mpserver_IsSet(struct descriptor *d, const fd_set *fdset)
+mpserver_IsSet(struct fdescriptor *d, const fd_set *fdset)
 {
   struct mpserver *s = descriptor2mpserver(d);
   return s->fd >= 0 && FD_ISSET(s->fd, fdset);
 }
 
 static void
-mpserver_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
+mpserver_Read(struct fdescriptor *d, struct bundle *bundle, const fd_set *fdset)
 {
   struct mpserver *s = descriptor2mpserver(d);
 
@@ -1011,7 +1011,7 @@ mpserver_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
 }
 
 static int
-mpserver_Write(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
+mpserver_Write(struct fdescriptor *d, struct bundle *bundle, const fd_set *fdset)
 {
   /* We never want to write here ! */
   log_Printf(LogALERT, "mpserver_Write: Internal error: Bad call !\n");

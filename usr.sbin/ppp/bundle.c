@@ -426,7 +426,7 @@ bundle_FillQueues(struct bundle *bundle)
 }
 
 static int
-bundle_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
+bundle_UpdateSet(struct fdescriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
 {
   struct bundle *bundle = descriptor2bundle(d);
   struct datalink *dl;
@@ -475,7 +475,7 @@ bundle_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
   /*
    * This *MUST* be called after the datalink UpdateSet()s as it
    * might be ``holding'' one of the datalinks (death-row) and
-   * wants to be able to de-select() it from the descriptor set.
+   * wants to be able to de-select() it from the fdescriptor set.
    */
   result += descriptor_UpdateSet(&bundle->ncp.mp.server.desc, r, w, e, n);
 
@@ -483,7 +483,7 @@ bundle_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
 }
 
 static int
-bundle_IsSet(struct descriptor *d, const fd_set *fdset)
+bundle_IsSet(struct fdescriptor *d, const fd_set *fdset)
 {
   struct bundle *bundle = descriptor2bundle(d);
   struct datalink *dl;
@@ -504,7 +504,7 @@ bundle_IsSet(struct descriptor *d, const fd_set *fdset)
 }
 
 static void
-bundle_DescriptorRead(struct descriptor *d, struct bundle *bundle,
+bundle_DescriptorRead(struct fdescriptor *d, struct bundle *bundle,
                       const fd_set *fdset)
 {
   struct datalink *dl;
@@ -600,7 +600,7 @@ bundle_DescriptorRead(struct descriptor *d, struct bundle *bundle,
 }
 
 static int
-bundle_DescriptorWrite(struct descriptor *d, struct bundle *bundle,
+bundle_DescriptorWrite(struct fdescriptor *d, struct bundle *bundle,
                        const fd_set *fdset)
 {
   struct datalink *dl;
@@ -872,7 +872,7 @@ bundle_Destroy(struct bundle *bundle)
   /*
    * Clean up the interface.  We don't need to timer_Stop()s, mp_Down(),
    * ipcp_CleanInterface() and bundle_DownInterface() unless we're getting
-   * out under exceptional conditions such as a descriptor exception.
+   * out under exceptional conditions such as a fdescriptor exception.
    */
   timer_Stop(&bundle->idle.timer);
   timer_Stop(&bundle->choked.timer);
@@ -1463,7 +1463,7 @@ bundle_ReceiveDatalink(struct bundle *bundle, int s)
   nfd = (cmsg->cmsg_len - sizeof *cmsg) / sizeof(int);
 
   if (nfd < 2) {
-    log_Printf(LogERROR, "Recvmsg: %d descriptor%s received (too few) !\n",
+    log_Printf(LogERROR, "Recvmsg: %d fdescriptor%s received (too few) !\n",
                nfd, nfd == 1 ? "" : "s");
     while (nfd--)
       close(fd[nfd]);
@@ -1521,7 +1521,7 @@ bundle_ReceiveDatalink(struct bundle *bundle, int s)
   close(fd[1]);
 
   onfd = nfd;	/* We've got this many in our array */
-  nfd -= 2;	/* Don't include p->fd and our reply descriptor */
+  nfd -= 2;	/* Don't include p->fd and our reply fdescriptor */
   niov = 1;	/* Skip the version id */
   dl = iov2datalink(bundle, iov, &niov, sizeof iov / sizeof *iov, fd[0],
                     fd + 2, &nfd);
@@ -1623,7 +1623,7 @@ bundle_SendDatalink(struct datalink *dl, int s, struct sockaddr_un *sun)
       log_Printf(LogERROR, "setsockopt(SO_RCVBUF, %d): %s\n", expect,
                  strerror(errno));
 
-    log_Printf(LogDEBUG, "Sending %d descriptor%s and %d bytes in scatter"
+    log_Printf(LogDEBUG, "Sending %d fdescriptor%s and %d bytes in scatter"
                "/gather array\n", nfd, nfd == 1 ? "" : "s", iov[0].iov_len);
 
     if ((got = sendmsg(s, &msg, 0)) == -1)
@@ -1633,7 +1633,7 @@ bundle_SendDatalink(struct datalink *dl, int s, struct sockaddr_un *sun)
       log_Printf(LogERROR, "%s: Failed initial sendmsg: Only sent %d of %d\n",
                  sun->sun_path, got, iov[0].iov_len);
     else {
-      /* We must get the ACK before closing the descriptor ! */
+      /* We must get the ACK before closing the fdescriptor ! */
       int res;
 
       if ((got = read(reply[0], &newpid, sizeof newpid)) == sizeof newpid) {
@@ -1825,8 +1825,8 @@ bundle_setsid(struct bundle *bundle, int holdsession)
         setuid(ID0realuid());
         /*
          * Hang around for a HUP.  This should happen as soon as the
-         * ppp that we passed our ctty descriptor to closes it.
-         * NOTE: If this process dies, the passed descriptor becomes
+         * ppp that we passed our ctty fdescriptor to closes it.
+         * NOTE: If this process dies, the passed fdescriptor becomes
          *       invalid and will give a select() error by setting one
          *       of the error fds, aborting the other ppp.  We don't
          *       want that to happen !
