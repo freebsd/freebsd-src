@@ -367,12 +367,16 @@ A path name lookup involved more than 32
 .Pq Dv MAXSYMLINKS
 symbolic links.
 .It Er 63 ENAMETOOLONG Em "File name too long" .
-A component of a path name exceeded 255
-.Pq Dv MAXNAMELEN
+A component of a path name exceeded
+.Brq Dv NAME_MAX
 characters, or an entire
-path name exceeded 1023
-.Pq Dv MAXPATHLEN Ns -1
+path name exceeded
+.Brq Dv PATH_MAX
 characters.
+(See also the description of
+.Dv _PC_NO_TRUNC
+in
+.Xr pathconf 2 . )
 .It Er 64 EHOSTDOWN Em "Host is down" .
 A socket operation failed because the destination host was down.
 .It Er 65 EHOSTUNREACH Em "No route to host" .
@@ -468,7 +472,7 @@ Each active process in the system is uniquely identified by a non-negative
 integer called a process ID.
 The range of this ID is from 0 to 99999.
 .It Parent process ID
-A new process is created by a currently active process; (see
+A new process is created by a currently active process (see
 .Xr fork 2 ) .
 The parent process ID of a process is initially the process ID of its creator.
 If the creating process exits,
@@ -595,19 +599,20 @@ or
 which uniquely identifies an access path to that file or socket from
 a given process or any of its children.
 .It File Name
-Names consisting of up to 255
-.Pq Dv MAXNAMELEN
+Names consisting of up to
+.Brq Dv NAME_MAX
 characters may be used to name
 an ordinary file, special file, or directory.
 .Pp
-These characters may be selected from the set of all
-.Tn ASCII
-character
-excluding 0 (NUL) and the
-.Tn ASCII
-code for
+These characters may be arbitrary eight-bit values,
+excluding NUL
+.Po Tn ASCII
+.No 0 Pc
+and the
 .Ql \&/
-(slash).
+character (slash, 
+.Tn ASCII
+47).
 .Pp
 Note that it is generally unwise to use
 .Ql \&* ,
@@ -626,9 +631,10 @@ optional slash
 .Ql \&/ ,
 followed by zero or more directory names separated
 by slashes, optionally followed by a file name.
-The total length of a path name must be less than 1024
-.Pq Dv MAXPATHLEN
+The total length of a path name must be less than
+.Brq Dv PATH_MAX
 characters.
+(On some systems, this limit may be infinite.)
 .Pp
 If a path name begins with a slash, the path search begins at the
 .Em root
