@@ -36,6 +36,7 @@
 
 #ifndef lint
 static char sccsid[] = "@(#)function.c	8.10 (Berkeley) 5/4/95";
+static char rcsid[] = "$FreeBSD$";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -56,6 +57,8 @@ static char sccsid[] = "@(#)function.c	8.10 (Berkeley) 5/4/95";
 #include <unistd.h>
 
 #include "find.h"
+
+int string_to_flags __P((char **, u_long *, u_long *));
 
 #define	COMPARE(a, b) {							\
 	switch (plan->flags) {						\
@@ -945,12 +948,66 @@ c_perm(perm)
 	}
 
 	if ((set = setmode(perm)) == NULL)
-		err(1, "-perm: %s: illegal mode string", perm);
+		errx(1, "-perm: %s: illegal mode string", perm);
 
 	new->m_data = getmode(set, 0);
 	free(set);
 	return (new);
 }
+
+/*
+ * -flags functions --
+ *
+ *	The flags argument is used to represent file flags bits.
+ */
+int
+f_flags(plan, entry)
+	PLAN *plan;
+	FTSENT *entry;
+{
+	u_long flags;
+
+	flags = entry->fts_statp->st_flags &
+	    (UF_NODUMP | UF_IMMUTABLE | UF_APPEND | UF_OPAQUE |
+	     SF_ARCHIVED | SF_IMMUTABLE | SF_APPEND);
+	if (plan->flags == F_ATLEAST)
+		/* note that plan->fl_flags always is a subset of
+		   plan->fl_mask */
+		return (flags & plan->fl_mask) == plan->fl_flags;
+	else
+		return flags == plan->fl_flags;
+	/* NOTREACHED */
+}
+
+PLAN *
+c_flags(flags_str)
+	char *flags_str;
+{
+	PLAN *new;
+	u_long flags, notflags;
+
+	ftsoptions &= ~FTS_NOSTAT;
+
+	new = palloc(N_FLAGS, f_flags);
+
+	if (*flags_str == '-') {
+		new->flags = F_ATLEAST;
+		flags_str++;
+	}
+	if (string_to_flags(&flags_str, &flags, &notflags) == 1)
+		errx(1, "-flags: %s: illegal flags string", flags_str);
+
+	new->fl_flags = flags;
+	new->fl_mask = flags | notflags;
+#if 0
+	printf("flags = %08x, mask = %08x (%08x, %08x)\n",
+		new->fl_flags, new->fl_mask, flags, notflags);
+#endif
+	return new;
+}
+  
+  /*
+
 
 /*
  * -print functions --

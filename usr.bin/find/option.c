@@ -70,6 +70,7 @@ static OPTION const options[] = {
 	{ "-depth",	N_DEPTH,	c_depth,	O_ZERO },
 	{ "-exec",	N_EXEC,		c_exec,		O_ARGVP },
 	{ "-execdir",	N_EXECDIR,	c_execdir,	O_ARGVP },
+	{ "-flags",	N_FLAGS,	c_flags,	O_ARGV },
 	{ "-follow",	N_FOLLOW,	c_follow,	O_ZERO },
 
 /*
