@@ -136,7 +136,6 @@ ip_output(m0, opt, ro, flags, imo, inp)
 #ifdef IPSEC
 	struct route iproute;
 	struct secpolicy *sp = NULL;
-	struct socket *so = inp ? inp->inp_socket : NULL;
 #endif
 #ifdef FAST_IPSEC
 	struct route iproute;
