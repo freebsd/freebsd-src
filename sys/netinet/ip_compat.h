@@ -6,7 +6,7 @@
  * to the original author and the contributors.
  *
  * @(#)ip_compat.h	1.8 1/14/96
- * $Id: ip_compat.h,v 2.1.2.3 1999/11/18 13:55:26 darrenr Exp $
+ * $Id: ip_compat.h,v 2.26.2.9 2001/01/14 14:58:01 darrenr Exp $
  * $FreeBSD$
  */
 
@@ -975,8 +975,6 @@ struct	ether_addr	{
 #define	A_A	&
 #endif
 
-#define	TCPF_ALL	(TH_FIN|TH_SYN|TH_RST|TH_PUSH|TH_ACK|TH_URG)
-
 #ifndef	ICMP_ROUTERADVERT
 # define	ICMP_ROUTERADVERT	9
 #endif
@@ -996,6 +994,20 @@ struct	ether_addr	{
 #define	ICMPERR_IPICMPHLEN	(20 + 8)
 #define	ICMPERR_MINPKTLEN	(20 + 8 + 20)
 #define	ICMPERR_MAXPKTLEN	(20 + 8 + 20 + 8)
-#define	ICMP6ERR_MINPKTLEN	(20 + 8)
+#define	ICMP6ERR_MINPKTLEN	(40 + 8)
+#define	ICMP6ERR_IPICMPHLEN	(40 + 8 + 40)
+
+/*
+ * ECN is a new addition to TCP - RFC 2481
+ */
+#ifndef TH_ECN
+# define	TH_ECN	0x40
+#endif
+#ifndef TH_CWR
+# define	TH_CWR	0x80
+#endif
+#define	TH_ECNALL	(TH_ECN|TH_CWR)
+
+#define	TCPF_ALL (TH_FIN|TH_SYN|TH_RST|TH_PUSH|TH_ACK|TH_URG|TH_ECN|TH_CWR)
 
 #endif	/* __IP_COMPAT_H__ */

@@ -8,7 +8,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)sock.c	1.2 1/11/96 (C)1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: sock.c,v 2.1 1999/08/04 17:31:16 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: sock.c,v 2.1.4.1 2000/12/16 21:05:44 darrenr Exp $";
 #endif
 #include <stdio.h>
 #include <unistd.h>
