@@ -897,8 +897,10 @@ RestartScan:
 				 */
 				offset = current->offset + (addr - current->start);
 				pindex = OFF_TO_IDX(offset);
+				VM_OBJECT_LOCK(current->object.vm_object);
 				m = vm_page_lookup(current->object.vm_object,
 					pindex);
+				VM_OBJECT_UNLOCK(current->object.vm_object);
 				vm_page_lock_queues();
 				/*
 				 * if the page is resident, then gather information about
