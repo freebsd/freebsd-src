@@ -26,8 +26,9 @@
  * $FreeBSD$
  */
 
-#include <stand.h>
 #include <assert.h>
+
+#include "stand.h"
 
 void
 __assert(const char *file, int line, const char *expression)
