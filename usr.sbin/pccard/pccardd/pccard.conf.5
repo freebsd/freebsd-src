@@ -1,19 +1,19 @@
 .\" Copyright (c) 1994 Andrew McRae
 .\" All rights reserved.
 .\"
-.Dd Novemeber 2, 1994
-.Dt CARD.CONF 5
+.Dd November 2, 1994
+.Dt PCCARD.CONF 5
 .Os FreeBSD
 .Sh NAME
-.Nm card.conf
+.Nm pccard.conf
 .Nd
-.Xr cardd 8
+.Xr pccardd 8
 configuration file
 .Sh DESCRIPTION
 The
-.Nm card.conf
+.Nm pccard.conf
 file is the configuration file for the
-.Xr cardd 8
+.Xr pccardd 8
 PC-CARD slot management daemon.
 It provides information to allow card
 identification, and the matching of drivers (along
@@ -38,7 +38,7 @@ interface to the particular card. There is a many-to-one mapping
 between cards to drivers i.e a single driver may interface to
 multiple types of cards. To aid this, card parameters may be
 specified separately from the driver to initialise the card or
-extract (in the case of a network card) an ethernet address.
+extract (in the case of a network card) an Ethernet address.
 .Pp
 Once a driver is allocated to a card, it stays
 allocated to that particular card.
@@ -58,7 +58,7 @@ A simple
 macro substitution allows the current kernel device name
 .Em ( $device )
 and
-network card ethernet address
+network card Ethernet address
 .Em ( $ether )
 to be inserted into the command line.
 .Xr Pcmciad 8
@@ -173,11 +173,11 @@ card "XYZZY" "FAX/1.0" tty
 
 .Ed
 .Sh FILES
-.Bl -tag -width /etc/card.conf -compact
-.It Pa /etc/card.conf
+.Bl -tag -width /etc/pccard.conf -compact
+.It Pa /etc/pccard.conf
 The
-.Xr cardd 8
+.Xr pccardd 8
 configuration file.
 .El
 .Sh SEE ALSO
-.Xr cardd 8
+.Xr pccardd 8
