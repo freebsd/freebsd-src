@@ -3,5 +3,5 @@
 	To polecenie wyswietla krotka instrukcje obslugi programow na
 	dyskietce. Uruchomione bez zadnego argumentu, wyswietla ten tekst. :-)
 	Kazdy inny argument traktowany jest jak nazwa pliku znajdujacego sie
-	w katalogu /help, po czym zostaje wyswietlona zawartosc tego pliku
+	w archiwum /help.a, po czym zostaje wyswietlona zawartosc tego pliku
 	strona po stronie.
