@@ -283,7 +283,7 @@ _worldtmp:
 	mkdir -p ${WORLDTMP}/legacy/${_dir}
 .endfor
 .for _dir in \
-    usr/bin usr/include usr/lib/compat/aout usr/libdata/ldscripts \
+    lib usr/bin usr/include usr/lib/compat/aout usr/libdata/ldscripts \
     usr/libexec usr/share/misc
 	mkdir -p ${WORLDTMP}/${_dir}
 .endfor
