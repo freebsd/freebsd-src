@@ -57,7 +57,6 @@ static const char rcsid[] =
 void
 instructions()
 {
-	extern int errno;
 	struct stat sb;
 	union wait pstat;
 	pid_t pid;
@@ -75,7 +74,7 @@ instructions()
 	case 0:
 		if (!(path = getenv("PAGER")))
 			path = _PATH_MORE;
-		if (pager = rindex(path, '/'))
+		if ((pager = rindex(path, '/')) != NULL)
 			++pager;
 		pager = path;
 		execlp(path, pager, _PATH_INSTR, (char *)NULL);
