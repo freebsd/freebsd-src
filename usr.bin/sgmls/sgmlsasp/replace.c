@@ -274,6 +274,7 @@ int get_token()
   default:
     parse_error("bad input character `%c'", c);
   }
+  return EOF; 
 }
 
 static
