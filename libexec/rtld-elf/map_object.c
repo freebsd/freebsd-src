@@ -38,6 +38,7 @@
 #include "debug.h"
 #include "rtld.h"
 
+static Elf_Ehdr *get_elf_header (int, const char *);
 static int convert_prot(int);	/* Elf flags -> mmap protection */
 static int convert_flags(int); /* Elf flags -> mmap flags */
 
@@ -53,12 +54,8 @@ Obj_Entry *
 map_object(int fd, const char *path, const struct stat *sb)
 {
     Obj_Entry *obj;
-    union {
-	Elf_Ehdr hdr;
-	char buf[PAGE_SIZE];
-    } u;
+    Elf_Ehdr *hdr;
     int i;
-    ssize_t nbytes;
     Elf_Phdr *phdr;
     Elf_Phdr *phlimit;
     Elf_Phdr **segs;
@@ -86,53 +83,9 @@ map_object(int fd, const char *path, const struct stat *sb)
     Elf_Addr bss_vlimit;
     caddr_t bss_addr;
 
-    if ((nbytes = read(fd, u.buf, PAGE_SIZE)) == -1) {
-	_rtld_error("%s: read error: %s", path, strerror(errno));
-	return NULL;
-    }
-
-    /* Make sure the file is valid */
-    if (nbytes < (ssize_t)sizeof(Elf_Ehdr)
-      || u.hdr.e_ident[EI_MAG0] != ELFMAG0
-      || u.hdr.e_ident[EI_MAG1] != ELFMAG1
-      || u.hdr.e_ident[EI_MAG2] != ELFMAG2
-      || u.hdr.e_ident[EI_MAG3] != ELFMAG3) {
-	_rtld_error("%s: invalid file format", path);
-	return NULL;
-    }
-    if (u.hdr.e_ident[EI_CLASS] != ELF_TARG_CLASS
-      || u.hdr.e_ident[EI_DATA] != ELF_TARG_DATA) {
-	_rtld_error("%s: unsupported file layout", path);
-	return NULL;
-    }
-    if (u.hdr.e_ident[EI_VERSION] != EV_CURRENT
-      || u.hdr.e_version != EV_CURRENT) {
-	_rtld_error("%s: unsupported file version", path);
-	return NULL;
-    }
-    if (u.hdr.e_type != ET_EXEC && u.hdr.e_type != ET_DYN) {
-	_rtld_error("%s: unsupported file type", path);
-	return NULL;
-    }
-    if (u.hdr.e_machine != ELF_TARG_MACH) {
-	_rtld_error("%s: unsupported machine", path);
-	return NULL;
-    }
-
-    /*
-     * We rely on the program header being in the first page.  This is
-     * not strictly required by the ABI specification, but it seems to
-     * always true in practice.  And, it simplifies things considerably.
-     */
-    if (u.hdr.e_phentsize != sizeof(Elf_Phdr)) {
-	_rtld_error(
-	  "%s: invalid shared object: e_phentsize != sizeof(Elf_Phdr)", path);
-	return NULL;
-    }
-    if (u.hdr.e_phoff + u.hdr.e_phnum * sizeof(Elf_Phdr) > (size_t)nbytes) {
-	_rtld_error("%s: program header too large", path);
-	return NULL;
-    }
+    hdr = get_elf_header(fd, path);
+    if (hdr == NULL)
+	return (NULL);
 
     /*
      * Scan the program header entries, and save key information.
@@ -140,11 +93,11 @@ map_object(int fd, const char *path, const struct stat *sb)
      * We rely on there being exactly two load segments, text and data,
      * in that order.
      */
-    phdr = (Elf_Phdr *) (u.buf + u.hdr.e_phoff);
-    phlimit = phdr + u.hdr.e_phnum;
+    phdr = (Elf_Phdr *) ((char *)hdr + hdr->e_phoff);
+    phlimit = phdr + hdr->e_phnum;
     nsegs = -1;
     phdyn = phphdr = phinterp = NULL;
-    segs = alloca(sizeof(segs[0]) * u.hdr.e_phnum);
+    segs = alloca(sizeof(segs[0]) * hdr->e_phnum);
     while (phdr < phlimit) {
 	switch (phdr->p_type) {
 
@@ -190,7 +143,7 @@ map_object(int fd, const char *path, const struct stat *sb)
     base_vaddr = trunc_page(segs[0]->p_vaddr);
     base_vlimit = round_page(segs[nsegs]->p_vaddr + segs[nsegs]->p_memsz);
     mapsize = base_vlimit - base_vaddr;
-    base_addr = u.hdr.e_type == ET_EXEC ? (caddr_t) base_vaddr : NULL;
+    base_addr = hdr->e_type == ET_EXEC ? (caddr_t) base_vaddr : NULL;
 
     mapbase = mmap(base_addr, mapsize, convert_prot(segs[0]->p_flags),
       convert_flags(segs[0]->p_flags), fd, base_offset);
@@ -267,8 +220,8 @@ map_object(int fd, const char *path, const struct stat *sb)
     obj->vaddrbase = base_vaddr;
     obj->relocbase = mapbase - base_vaddr;
     obj->dynamic = (const Elf_Dyn *) (obj->relocbase + phdyn->p_vaddr);
-    if (u.hdr.e_entry != 0)
-	obj->entry = (caddr_t) (obj->relocbase + u.hdr.e_entry);
+    if (hdr->e_entry != 0)
+	obj->entry = (caddr_t) (obj->relocbase + hdr->e_entry);
     if (phphdr != NULL) {
 	obj->phdr = (const Elf_Phdr *) (obj->relocbase + phphdr->p_vaddr);
 	obj->phsize = phphdr->p_memsz;
@@ -277,6 +230,62 @@ map_object(int fd, const char *path, const struct stat *sb)
 	obj->interp = (const char *) (obj->relocbase + phinterp->p_vaddr);
 
     return obj;
+}
+
+static Elf_Ehdr *
+get_elf_header (int fd, const char *path)
+{
+    static union {
+	Elf_Ehdr hdr;
+	char buf[PAGE_SIZE];
+    } u;
+    ssize_t nbytes;
+
+    if ((nbytes = read(fd, u.buf, PAGE_SIZE)) == -1) {
+	_rtld_error("%s: read error: %s", path, strerror(errno));
+	return NULL;
+    }
+
+    /* Make sure the file is valid */
+    if (nbytes < (ssize_t)sizeof(Elf_Ehdr) || !IS_ELF(u.hdr)) {
+	_rtld_error("%s: invalid file format", path);
+	return NULL;
+    }
+    if (u.hdr.e_ident[EI_CLASS] != ELF_TARG_CLASS
+      || u.hdr.e_ident[EI_DATA] != ELF_TARG_DATA) {
+	_rtld_error("%s: unsupported file layout", path);
+	return NULL;
+    }
+    if (u.hdr.e_ident[EI_VERSION] != EV_CURRENT
+      || u.hdr.e_version != EV_CURRENT) {
+	_rtld_error("%s: unsupported file version", path);
+	return NULL;
+    }
+    if (u.hdr.e_type != ET_EXEC && u.hdr.e_type != ET_DYN) {
+	_rtld_error("%s: unsupported file type", path);
+	return NULL;
+    }
+    if (u.hdr.e_machine != ELF_TARG_MACH) {
+	_rtld_error("%s: unsupported machine", path);
+	return NULL;
+    }
+
+    /*
+     * We rely on the program header being in the first page.  This is
+     * not strictly required by the ABI specification, but it seems to
+     * always true in practice.  And, it simplifies things considerably.
+     */
+    if (u.hdr.e_phentsize != sizeof(Elf_Phdr)) {
+	_rtld_error(
+	  "%s: invalid shared object: e_phentsize != sizeof(Elf_Phdr)", path);
+	return NULL;
+    }
+    if (u.hdr.e_phoff + u.hdr.e_phnum * sizeof(Elf_Phdr) > (size_t)nbytes) {
+	_rtld_error("%s: program header too large", path);
+	return NULL;
+    }
+
+    return (&u.hdr);
 }
 
 void
