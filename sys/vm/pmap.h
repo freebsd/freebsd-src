@@ -112,8 +112,7 @@ boolean_t	 pmap_is_modified(vm_page_t m);
 boolean_t	 pmap_ts_referenced(vm_page_t m);
 vm_offset_t	 pmap_map(vm_offset_t *, vm_paddr_t, vm_paddr_t, int);
 void		 pmap_object_init_pt(pmap_t pmap, vm_offset_t addr,
-		    vm_object_t object, vm_pindex_t pindex, vm_size_t size,
-		    int pagelimit);
+		    vm_object_t object, vm_pindex_t pindex, vm_size_t size);
 boolean_t	 pmap_page_exists_quick(pmap_t pmap, vm_page_t m);
 void		 pmap_page_protect(vm_page_t m, vm_prot_t prot);
 void		 pmap_pinit(pmap_t);

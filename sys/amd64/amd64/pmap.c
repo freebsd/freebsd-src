@@ -2057,31 +2057,22 @@ pmap_kenter_temporary(vm_offset_t pa, int i)
 	return ((void *)crashdumpmap);
 }
 
-#define MAX_INIT_PT (96)
 /*
- * pmap_object_init_pt preloads the ptes for a given object
- * into the specified pmap.  This eliminates the blast of soft
- * faults on process startup and immediately after an mmap.
+ * This code maps large physical mmap regions into the
+ * processor address space.  Note that some shortcuts
+ * are taken, but the code works.
  */
 void
 pmap_object_init_pt(pmap_t pmap, vm_offset_t addr,
 		    vm_object_t object, vm_pindex_t pindex,
-		    vm_size_t size, int limit)
+		    vm_size_t size)
 {
-	vm_pindex_t tmpidx;
-	int psize;
-	vm_page_t p, mpte;
+	vm_page_t p;
 
-	if (pmap == NULL || object == NULL)
-		return;
-	VM_OBJECT_LOCK(object);
-	/*
-	 * This code maps large physical mmap regions into the
-	 * processor address space.  Note that some shortcuts
-	 * are taken, but the code works.
-	 */
-	if ((object->type == OBJT_DEVICE) &&
-	    ((addr & (NBPDR - 1)) == 0) && ((size & (NBPDR - 1)) == 0)) {
+	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	KASSERT(object->type == OBJT_DEVICE,
+	    ("pmap_object_init_pt: non-device object"));
+	if (((addr & (NBPDR - 1)) == 0) && ((size & (NBPDR - 1)) == 0)) {
 		int i;
 		vm_page_t m[1];
 		int npdes;
@@ -2089,7 +2080,7 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr,
 
 		pde = pmap_pde(pmap, addr);
 		if (pde != 0 && (*pde & PG_V) != 0)
-			goto unlock_return;
+			return;
 retry:
 		p = vm_page_lookup(object, pindex);
 		if (p != NULL) {
@@ -2099,14 +2090,14 @@ retry:
 		} else {
 			p = vm_page_alloc(object, pindex, VM_ALLOC_NORMAL);
 			if (p == NULL)
-				goto unlock_return;
+				return;
 			m[0] = p;
 
 			if (vm_pager_get_pages(object, m, 1, 0) != VM_PAGER_OK) {
 				vm_page_lock_queues();
 				vm_page_free(p);
 				vm_page_unlock_queues();
-				goto unlock_return;
+				return;
 			}
 
 			p = vm_page_lookup(object, pindex);
@@ -2116,9 +2107,8 @@ retry:
 		vm_page_unlock_queues();
 
 		ptepa = VM_PAGE_TO_PHYS(p);
-		if (ptepa & (NBPDR - 1)) {
-			goto unlock_return;
-		}
+		if (ptepa & (NBPDR - 1))
+			return;
 
 		p->valid = VM_PAGE_BITS_ALL;
 
@@ -2130,65 +2120,7 @@ retry:
 			pde++;
 		}
 		pmap_invalidate_all(kernel_pmap);
-		goto unlock_return;
 	}
-
-	psize = amd64_btop(size);
-
-	if ((object->type != OBJT_VNODE) ||
-	    ((limit & MAP_PREFAULT_PARTIAL) && (psize > MAX_INIT_PT) &&
-	     (object->resident_page_count > MAX_INIT_PT))) {
-		goto unlock_return;
-	}
-
-	if (psize + pindex > object->size) {
-		if (object->size < pindex)
-			goto unlock_return;
-		psize = object->size - pindex;
-	}
-
-	mpte = NULL;
-
-	if ((p = TAILQ_FIRST(&object->memq)) != NULL) {
-		if (p->pindex < pindex) {
-			p = vm_page_splay(pindex, object->root);
-			if ((object->root = p)->pindex < pindex)
-				p = TAILQ_NEXT(p, listq);
-		}
-	}
-	/*
-	 * Assert: the variable p is either (1) the page with the
-	 * least pindex greater than or equal to the parameter pindex
-	 * or (2) NULL.
-	 */
-	for (;
-	     p != NULL && (tmpidx = p->pindex - pindex) < psize;
-	     p = TAILQ_NEXT(p, listq)) {
-		/*
-		 * don't allow an madvise to blow away our really
-		 * free pages allocating pv entries.
-		 */
-		if ((limit & MAP_PREFAULT_MADVISE) &&
-		    cnt.v_free_count < cnt.v_free_reserved) {
-			break;
-		}
-		vm_page_lock_queues();
-		if ((p->valid & VM_PAGE_BITS_ALL) == VM_PAGE_BITS_ALL &&
-		    (p->busy == 0) &&
-		    (p->flags & (PG_BUSY | PG_FICTITIOUS)) == 0) {
-			if ((p->queue - p->pc) == PQ_CACHE)
-				vm_page_deactivate(p);
-			vm_page_busy(p);
-			vm_page_unlock_queues();
-			mpte = pmap_enter_quick(pmap, 
-				addr + amd64_ptob(tmpidx), p, mpte);
-			vm_page_lock_queues();
-			vm_page_wakeup(p);
-		}
-		vm_page_unlock_queues();
-	}
-unlock_return:
-	VM_OBJECT_UNLOCK(object);
 }
 
 /*
