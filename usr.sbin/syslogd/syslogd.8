@@ -42,6 +42,7 @@
 .Nm
 .Op Fl 46Adknsuv
 .Op Fl a Ar allowed_peer
+.Op Fl b Ar bind_address
 .Op Fl f Ar config_file
 .Op Fl m Ar mark_interval
 .Op Fl p Ar log_socket
@@ -64,6 +65,7 @@ Forces
 .Nm
 to use IPv6 addresses only.
 .It Fl A
+Ordinarily,
 .Nm
 tries to send the message to only one address
 even if the host has more than one A or AAAA record.
@@ -150,6 +152,10 @@ The
 options are ignored if the
 .Fl s
 option is also specified.
+.It Fl b Ar bind_address
+Specify one specific IP address or hostname to bind to.
+If a hostname is specified,
+the IPv4 or IPv6 address which corresponds to it is used.
 .It Fl d
 Put
 .Nm
