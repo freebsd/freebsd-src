@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.62 1998/03/27 20:36:54 se Exp $
+**  $Id: pcisupport.c,v 1.63 1998/05/02 22:19:33 se Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -249,6 +249,27 @@ chipset_probe (pcici_t tag, pcidi_t type)
 		return ("VLSI 82C535 Eagle II System Controller");
 	case 0x01051004:
 		return ("VLSI 82C147 IrDA Controller");
+
+	/* VIA Technologies -- vendor 0x1106 
+	 * Note that the old Apollo Master chipset is not in here, as VIA
+	 * does not seem to have any docs on their website for it, and I do
+	 * not have a Master board in my posession. -LC */
+
+	case 0x05851106:
+		return("VIA 82C585 (Apollo VP1/VPX) system controller");
+	case 0x05861106: /* south bridge section -- IDE is covered in ide_pci.c */
+		return("VIA 82C586 PCI-ISA bridge");
+	case 0x05951106:
+	case 0x15951106:
+		return("VIA 82C595 (Apollo VP2) system controller");
+	case 0x05971106:
+		return("VIA 82C597 (Apollo VP3) system controller");
+	/* XXX need info on the MVP3 -- any takers? */
+	case 0x30381106:
+		return("VIA 82C586B USB host controller");
+	case 0x30401106:
+		return("VIA 82C586B ACPI interface");
+
 	};
 
 	if (descr = generic_pci_bridge(tag))
