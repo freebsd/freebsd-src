@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)printcap.5	8.2 (Berkeley) 12/11/93
-.\"	$Id: printcap.5,v 1.11 1997/05/08 15:31:39 joerg Exp $
+.\"	$Id: printcap.5,v 1.12 1997/10/14 16:01:02 joerg Exp $
 .\"
 .Dd December 11, 1993
 .Dt PRINTCAP 5
@@ -124,6 +124,49 @@ style text files
 .It "tf	str" Ta Dv NULL Ta No "troff data filter (cat phototypesetter)"
 .It "tr	str" Ta Dv NULL Ta No "trailer string to print when queue empties"
 .It "vf	str" Ta Dv NULL Ta No "raster image filter"
+.El
+.Pp
+Each two-letter capability has a human-readable alternate name.
+.Bl -column "Short form" "Long form"
+.Sy "Short form	Long form"
+.It "af	acct.file"
+.It "br	tty.rate"
+.It "cf	filt.cifplot"
+.It "ct	remote.timeout"
+.It "df	filt.dvi"
+.It "du	daemon.user"
+.It "ff	job.formfeed"
+.It "fo	job.topofform"
+.It "gf	filt.plot"
+.It "hl	banner.last"
+.It "if	filt.input"
+.It "lf	spool.log"
+.It "lo	spool.lock"
+.It "lp	tty.device"
+.It "mc	max.copies"
+.It "ms	tty.mode"
+.It "mx	max.blocks"
+.It "nf	filt.ditroff"
+.It "of	filt.output"
+.It "pc	acct.price"
+.It "pl	page.length"
+.It "pw	page.width"
+.It "px	page.pwidth"
+.It "py	page.plength"
+.It "rf	filt.fortran"
+.It "rg	daemon.restrictgrp"
+.It "rm	remote.host"
+.It "rp	remote.queue"
+.It "rs	daemon.restricted"
+.It "rw	tty.rw"
+.It "sb	banner.short"
+.It "sc	job.no_copies"
+.It "sd	spool.dir"
+.It "sf	job.no_formfeed"
+.It "sh	banner.disable"
+.It "st	spool.status"
+.It "tr	job.trailer"
+.It "vf	filt.raster"
 .El
 .Pp
 If the local line printer driver supports indentation, the daemon
