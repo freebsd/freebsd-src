@@ -49,7 +49,7 @@
  * 20 Apr 93	Bruce Evans		New npx-0.5 code
  * 25 Apr 93	Bruce Evans		New intr-0.1 code
  */
-static char rcsid[] = "$Header: /home/cvs/386BSD/src/sys.386bsd/i386/i386/machdep.c,v 1.1.1.1 93/06/12 14:58:06 rgrimes Exp $";
+static char rcsid[] = "$Header: /a/cvs/386BSD/src/sys.386bsd/i386/i386/machdep.c,v 1.2 1993/06/18 02:47:10 paul Exp $";
 
 
 #include <stddef.h>
@@ -412,11 +412,14 @@ sendsig(catcher, sig, mask, code)
  * psl to gain improper priviledges or to cause
  * a machine fault.
  */
+
+struct sigreturn_args {
+	struct sigcontext *sigcntxp;
+};
+
 sigreturn(p, uap, retval)
 	struct proc *p;
-	struct args {
-		struct sigcontext *sigcntxp;
-	} *uap;
+	struct sigreturn_args *uap;
 	int *retval;
 {
 	register struct sigcontext *scp;
@@ -531,7 +534,7 @@ boot(arghowto)
 	/*NOTREACHED*/
 }
 
-int	dumpmag = 0x8fca0101;	/* magic number for savecore */
+u_int	dumpmag = 0x8fca0101;	/* magic number for savecore */
 int	dumpsize = 0;		/* also for savecore */
 /*
  * Doadump comes here after turning off memory management and
