@@ -268,7 +268,6 @@ LOCKF_DEBUG		opt_debug_lockf.h
 LOUTB			opt_debug_outb.h
 NPX_DEBUG		opt_debug_npx.h
 NETATALKDEBUG		opt_atalk.h
-NULLFS_DIAGNOSTIC	opt_debug_nullfs.h
 SI_DEBUG		opt_debug_si.h
 
 # ppbus related options
