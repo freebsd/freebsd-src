@@ -229,7 +229,7 @@ cthw_chip_reset(bst, bsh, chipclk, hostid)
 
 	case 20:
 		seltout = (seltout * chipclk) / 20;
-		regv = IDR_FS_15_20;
+		regv = IDR_FS_16_20;
 		break;
 
 	default:
