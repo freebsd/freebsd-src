@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.55 1996/02/04 22:09:12 dyson Exp $
+ *	$Id: vm_machdep.c,v 1.56 1996/02/05 14:23:19 davidg Exp $
  */
 
 #include "npx.h"
@@ -596,10 +596,23 @@ void
 cpu_exit(p)
 	register struct proc *p;
 {
+#ifdef USER_LDT
+	struct pcb *pcb;
+#endif
 
 #if NNPX > 0
 	npxexit(p);
 #endif	/* NNPX */
+#ifdef USER_LDT
+	pcb = &p->p_addr->u_pcb; 
+	if (pcb->pcb_ldt != 0) {
+		if (pcb == curpcb)
+			lldt(GSEL(GUSERLDT_SEL, SEL_KPL));
+		kmem_free(kernel_map, (vm_offset_t)pcb->pcb_ldt,
+			pcb->pcb_ldt_len * sizeof(union descriptor));
+		pcb->pcb_ldt_len = (int)pcb->pcb_ldt = 0;
+	}
+#endif
 	cnt.v_swtch++;
 	cpu_switch(p);
 	panic("cpu_exit");

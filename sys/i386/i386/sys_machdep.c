@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)sys_machdep.c	5.5 (Berkeley) 1/19/91
- *	$Id: sys_machdep.c,v 1.13 1995/12/10 13:36:31 phk Exp $
+ *	$Id: sys_machdep.c,v 1.14 1996/01/03 21:41:32 wollman Exp $
  *
  */
 
@@ -55,6 +55,13 @@
 #include <machine/sysarch.h>
 
 #include <vm/vm_kern.h>		/* for kernel_map */
+
+#define MAX_LD 8192
+#define LD_PER_PAGE 512
+#define NEW_MAX_LD(num)  ((num + LD_PER_PAGE) & ~(LD_PER_PAGE-1))
+#define SIZE_FROM_LARGEST_LD(num) (NEW_MAX_LD(num) << 3)
+
+
 
 void set_user_ldt	__P((struct pcb *pcb));
 static int i386_get_ldt	__P((struct proc *, char *, int *));
@@ -93,6 +100,10 @@ sysarch(p, uap, retval)
 }
 
 #ifdef USER_LDT
+/*
+ * Update the GDT entry pointing to the LDT to point to the LDT of the
+ * current process.
+ */   
 void
 set_user_ldt(struct pcb *pcb)
 {
@@ -120,17 +131,19 @@ i386_get_ldt(p, args, retval)
 	int nldt, num;
 	union descriptor *lp;
 	int s;
-	struct i386_get_ldt_args ua, *uap;
+	struct i386_get_ldt_args ua;
+	struct i386_get_ldt_args *uap = &ua;
 
-	if ((error = copyin(args, &ua, sizeof(struct i386_get_ldt_args))) < 0)
+	if ((error = copyin(args, uap, sizeof(struct i386_get_ldt_args))) < 0)
 		return(error);
 
-	uap = &ua;
 #ifdef	DEBUG
-	printf("i386_get_ldt: start=%d num=%d descs=%x\n", uap->start, uap->num, uap->desc);
+	printf("i386_get_ldt: start=%d num=%d descs=%x\n", uap->start,
+		uap->num, uap->desc);
 #endif
 
-	if (uap->start < 0 || uap->num < 0)
+	/* verify range of LDTs exist */
+	if ((uap->start < 0) || (uap->num <= 0))
 		return(EINVAL);
 
 	s = splhigh();
@@ -170,7 +183,9 @@ i386_set_ldt(p, args, retval)
 	int *retval;
 {
 	int error = 0, i, n;
+ 	int largest_ld;
 	struct pcb *pcb = &p->p_addr->u_pcb;
+ 	union descriptor desc;
 	union descriptor *lp;
 	int s;
 	struct i386_set_ldt_args ua, *uap;
@@ -184,25 +199,36 @@ i386_set_ldt(p, args, retval)
 	printf("i386_set_ldt: start=%d num=%d descs=%x\n", uap->start, uap->num, uap->desc);
 #endif
 
-	if (uap->start < 0 || uap->num < 0)
-		return(EINVAL);
-
-	/* XXX Should be 8192 ! */
-	if (uap->start > 512 ||
-	    (uap->start + uap->num) > 512)
-		return(EINVAL);
-
-	/* allocate user ldt */
-	if (!pcb->pcb_ldt) {
-		union descriptor *new_ldt =
-			(union descriptor *)kmem_alloc(kernel_map, 512*sizeof(union descriptor));
-		bcopy(ldt, new_ldt, sizeof(ldt));
-		pcb->pcb_ldt = (caddr_t)new_ldt;
-		pcb->pcb_ldt_len = 512;		/* XXX need to grow */
-#ifdef DEBUG
-		printf("i386_set_ldt(%d): new_ldt=%x\n", p->p_pid, new_ldt);
-#endif
-	}
+ 	/* verify range of descriptors to modify */
+ 	if ((uap->start < NLDT) || (uap->start >= MAX_LD) || (uap->num < 0) ||
+ 		(uap->num > MAX_LD))
+ 	{
+ 		return(EINVAL);
+ 	}
+ 	largest_ld = uap->start + uap->num - 1;
+ 	if (largest_ld >= MAX_LD)
+  		return(EINVAL);
+  
+  	/* allocate user ldt */
+ 	if (!pcb->pcb_ldt || (largest_ld >= pcb->pcb_ldt_len)) {
+ 		union descriptor *new_ldt = (union descriptor *)kmem_alloc(
+ 			kernel_map, SIZE_FROM_LARGEST_LD(largest_ld));
+ 		if (new_ldt == NULL) {
+ 			return ENOMEM;
+ 		}
+ 		if (pcb->pcb_ldt) {
+ 			bcopy(pcb->pcb_ldt, new_ldt, pcb->pcb_ldt_len
+ 				* sizeof(union descriptor));
+ 			kmem_free(kernel_map, (vm_offset_t)pcb->pcb_ldt,
+ 				pcb->pcb_ldt_len * sizeof(union descriptor));
+ 		} else {
+ 			bcopy(ldt, new_ldt, sizeof(ldt));
+ 		}
+  		pcb->pcb_ldt = (caddr_t)new_ldt;
+ 		pcb->pcb_ldt_len = NEW_MAX_LD(largest_ld);
+ 		if (pcb == curpcb)
+ 		    set_user_ldt(pcb);
+  	}
 
 	/* Check descriptors for access violations */
 	for (i = 0, n = uap->start; i < uap->num; i++, n++) {
@@ -212,63 +238,71 @@ i386_set_ldt(p, args, retval)
 		if (error)
 			return(error);
 
-		/* Only user (ring-3) descriptors */
-		if (desc.sd.sd_dpl != SEL_UPL)
-			return(EACCES);
-
-		/* Must be "present" */
-		if (desc.sd.sd_p == 0)
-			return(EACCES);
-
 		switch (desc.sd.sd_type) {
-		case SDT_SYSNULL:
-		case SDT_SYS286CGT:
-		case SDT_SYS386CGT:
+ 		case SDT_SYSNULL:	/* system null */ 
+ 			desc.sd.sd_p = 0;
+  			break;
+ 		case SDT_SYS286TSS: /* system 286 TSS available */
+ 		case SDT_SYSLDT:    /* system local descriptor table */
+ 		case SDT_SYS286BSY: /* system 286 TSS busy */
+ 		case SDT_SYSTASKGT: /* system task gate */
+ 		case SDT_SYS286IGT: /* system 286 interrupt gate */
+ 		case SDT_SYS286TGT: /* system 286 trap gate */
+ 		case SDT_SYSNULL2:  /* undefined by Intel */ 
+ 		case SDT_SYS386TSS: /* system 386 TSS available */
+ 		case SDT_SYSNULL3:  /* undefined by Intel */
+ 		case SDT_SYS386BSY: /* system 386 TSS busy */
+ 		case SDT_SYSNULL4:  /* undefined by Intel */ 
+ 		case SDT_SYS386IGT: /* system 386 interrupt gate */
+ 		case SDT_SYS386TGT: /* system 386 trap gate */
+ 		case SDT_SYS286CGT: /* system 286 call gate */ 
+ 		case SDT_SYS386CGT: /* system 386 call gate */
+ 			/* I can't think of any reason to allow a user proc
+ 			 * to create a segment of these types.  They are
+ 			 * for OS use only.
+ 			 */
+     	    	    	return EACCES;
+ 
+ 		/* memory segment types */
+ 		case SDT_MEMEC:   /* memory execute only conforming */
+ 		case SDT_MEMEAC:  /* memory execute only accessed conforming */
+ 		case SDT_MEMERC:  /* memory execute read conforming */
+ 		case SDT_MEMERAC: /* memory execute read accessed conforming */
+                         /* Must be "present" if executable and conforming. */
+                         if (desc.sd.sd_p == 0)
+                                 return (EACCES);
+ 			break;
+ 		case SDT_MEMRO:   /* memory read only */
+ 		case SDT_MEMROA:  /* memory read only accessed */
+ 		case SDT_MEMRW:   /* memory read write */
+ 		case SDT_MEMRWA:  /* memory read write accessed */
+ 		case SDT_MEMROD:  /* memory read only expand dwn limit */
+ 		case SDT_MEMRODA: /* memory read only expand dwn lim accessed */
+ 		case SDT_MEMRWD:  /* memory read write expand dwn limit */  
+ 		case SDT_MEMRWDA: /* memory read write expand dwn lim acessed */
+ 		case SDT_MEME:    /* memory execute only */ 
+ 		case SDT_MEMEA:   /* memory execute only accessed */
+ 		case SDT_MEMER:   /* memory execute read */
+ 		case SDT_MEMERA:  /* memory execute read accessed */
 			break;
-		case SDT_MEMRO:
-		case SDT_MEMROA:
-		case SDT_MEMRW:
-		case SDT_MEMRWA:
-		case SDT_MEMROD:
-		case SDT_MEMRODA:
-		case SDT_MEME:
-		case SDT_MEMEA:
-		case SDT_MEMER:
-		case SDT_MEMERA:
-		case SDT_MEMEC:
-		case SDT_MEMEAC:
-		case SDT_MEMERC:
-		case SDT_MEMERAC: {
-#if 0
-			unsigned long base = (desc.sd.sd_hibase << 24)&0xFF000000;
-			base |= (desc.sd.sd_lobase&0x00FFFFFF);
-			if (base >= KERNBASE)
-				return(EACCES);
-#endif
-			break;
-		}
 		default:
-			return(EACCES);
+			return(EINVAL);
 			/*NOTREACHED*/
 		}
+ 
+ 		/* Only user (ring-3) descriptors may be present. */
+ 		if ((desc.sd.sd_p != 0) && (desc.sd.sd_dpl != SEL_UPL))
+ 			return (EACCES);
 	}
 
 	s = splhigh();
 
 	/* Fill in range */
-	for (i = 0, n = uap->start; i < uap->num && !error; i++, n++) {
-		union descriptor *dp;
-		dp = &uap->desc[i];
-		lp = &((union descriptor *)(pcb->pcb_ldt))[n];
-#ifdef DEBUG
-		printf("i386_set_ldt(%d): ldtp=%x\n", p->p_pid, lp);
-#endif
-		error = copyin(dp, lp, sizeof(union descriptor));
-	}
-	if (!error) {
-		*retval = uap->start;
-/*		need_resched(); */
-	}
+ 	error = copyin(uap->desc, 
+ 		 &((union descriptor *)(pcb->pcb_ldt))[uap->start],
+ 		uap->num * sizeof(union descriptor));
+ 	if (!error)
+  		*retval = uap->start;
 
 	splx(s);
 	return(error);
