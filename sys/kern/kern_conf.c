@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_conf.c,v 1.43 1999/06/01 20:41:26 dt Exp $
+ * $Id: kern_conf.c,v 1.44 1999/06/25 07:49:00 grog Exp $
  */
 
 #include <sys/param.h>
@@ -145,7 +145,7 @@ int
 devsw_module_handler(module_t mod, int what, void* arg)
 {
 	struct devsw_module_data* data = (struct devsw_module_data*) arg;
-	int error;
+	int error = 0;
 
 	if (data->cmaj == NOMAJ) 
 		data->cdev = NODEV;
@@ -174,8 +174,7 @@ devsw_module_handler(module_t mod, int what, void* arg)
 			if (error)
 				return error;
 		}
-		if (data->cdevsw->d_strategy != nostrategy)
-			bmaj2cmaj[major(data->bdev)] = 0;
+		cdevsw_remove(data->cdevsw);
 		return error;
 	}
 
@@ -221,9 +220,9 @@ dev_t
 makedev(int x, int y)
 {
 #ifdef DEVT_FASCIST
-        return ((dev_t) (((255 - x) << 8) | y));
+        return ((dev_t)(uintptr_t) (((255 - x) << 8) | y));
 #else
-        return ((dev_t) ((x << 8) | y));
+        return ((dev_t)(uintptr_t) ((x << 8) | y));
 #endif
 }
 
