@@ -189,7 +189,7 @@ lcp_ReportStatus(struct cmdargs const *arg)
   prompt_Printf(arg->prompt, "           CHAP =      %s\n",
                 command_ShowNegval(lcp->cfg.chap05));
 #ifdef HAVE_DES
-  prompt_Printf(arg->prompt, "           MSCHAP =    %s\n",
+  prompt_Printf(arg->prompt, "           CHAP80 =    %s\n",
                 command_ShowNegval(lcp->cfg.chap80nt));
   prompt_Printf(arg->prompt, "           LANMan =    %s\n",
                 command_ShowNegval(lcp->cfg.chap80lm));
