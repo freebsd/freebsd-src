@@ -27,6 +27,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
+.\"
 .Dd September 8, 2003
 .Dt PFIL 9
 .Os
@@ -49,9 +50,9 @@
 .Fn pfil_head_register "struct pfil_head *head"
 .Ft int
 .Fn pfil_head_unregister "struct pfil_head *head"
-.Ft struct pfil_head *
+.Ft "struct pfil_head *"
 .Fn pfil_head_get "int af" "u_long dlt"
-.Ft struct packet_filter_hook *
+.Ft "struct packet_filter_hook *"
 .Fn pfil_hook_get "int dir" "struct pfil_head *head"
 .Ft void
 .Fn pfil_add_hook "int (*func)()" "void *arg" "int flags" "struct pfil_head *"
@@ -71,9 +72,12 @@ transformations.
 .Pp
 Packet filtering points are registered with
 .Fn pfil_head_register .
-Filtering points are identified by a key (void *) and a data link type
-(int) in the
-.Em pfil_head
+Filtering points are identified by a key
+.Pq Vt "void *"
+and a data link type
+.Pq Vt int
+in the
+.Vt pfil_head
 structure.
 Packet filters use the key and data link type to look up the filtering
 point with which they register themselves.
@@ -103,11 +107,18 @@ When a filter is invoked, the packet appears just as if it
 .Dq came off the wire .
 That is, all protocol fields are in network byte order.
 The filter is called with its specified argument, the pointer to the
-pointer to the mbuf containing the packet, the pointer to the network
-interface that the packet is traversing, and the direction (PFIL_IN
-or PFIL_OUT) that the packet is traveling.
-The filter may change which mbuf the mbuf ** argument references.
-The filter returns an errno if the packet processing is to stop, or 0
+pointer to the
+.Vt mbuf
+containing the packet, the pointer to the network
+interface that the packet is traversing, and the direction
+.Dv ( PFIL_IN
+or
+.Dv PFIL_OUT )
+that the packet is traveling.
+The filter may change which mbuf the
+.Vt "mbuf\ **"
+argument references.
+The filter returns an error (errno) if the packet processing is to stop, or 0
 if the processing is to continue.
 If the packet processing is to stop, it is the responsibility of the
 filter to free the packet.
@@ -115,20 +126,28 @@ filter to free the packet.
 The
 .Nm
 interface is enabled in the kernel via the
-.Sy PFIL_HOOKS
+.Dv PFIL_HOOKS
 option.
 .Sh RETURN VALUES
 If successful,
-.Fn pfil_head_get 
-returns the pfil_head structure for the given key/dlt. 
-.Fn pfil_add_hook 
+.Fn pfil_head_get
+returns the
+.Vt pfil_head
+structure for the given key/dlt.
+The
+.Fn pfil_add_hook
 and
 .Fn pfil_remove_hook
-return 0 if successful. If called with flag PFIL_WAITOK, 
+functions
+return 0 if successful.
+If called with flag
+.Dv PFIL_WAITOK ,
 .Fn pfil_remove_hook
 is expected to always succeed.
 .Pp
+The
 .Fn pfil_head_unregister
+function
 might sleep!
 .Sh HISTORY
 The
@@ -138,7 +157,7 @@ interface first appeared in
 The
 .Nm
 input and output lists were originally implemented as
-.Fd \*[Lt]sys/queue.h\*[Gt]
+.In sys/queue.h
 .Dv LIST
 structures;
 however this was changed in
@@ -166,19 +185,29 @@ as well as be less IP-centric.
 Fine-grained locking was added in
 .Fx 5.2 .
 .Sh BUGS
+The
 .Fn pfil_hook_get
+function
 is only safe for internal use.
 .Pp
-FreeBSD implements only hooks for AF_INET and AF_INET6.
+.Fx
+implements only hooks for
+.Dv AF_INET
+and
+.Dv AF_INET6 .
 Packets diverted through these hooks have data in
 host byte order contrary to the above statements.
 .Pp
 The
 .Xr bridge 4
-diverts inbound AF_INET traffic, but contrary to the above
+diverts inbound
+.Dv AF_INET
+traffic, but contrary to the above
 statements, the data is provided in host byte order.
 .Pp
-When a pfil_head is being modified no traffic is diverted
+When a
+.Vt pfil_head
+is being modified, no traffic is diverted
 (to avoid deadlock).
 This means that unwanted traffic may flow for a short period
 of time.

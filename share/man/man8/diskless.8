@@ -132,7 +132,7 @@ cp /boot/pxeboot /tftpdir/
 In phase 3, the kernel acquires IP networking configuration in one
 of two ways, and then proceeds to mount the root file system and start
 operation.
-If the phase 2 loader supporst passing network configuration to the
+If the phase 2 loader supports passing network configuration to the
 kernel using the kernel environment, then the kernel will configure
 the network interface using that information.
 Otherwise, it must use
@@ -419,9 +419,12 @@ the following options:
 .D1 Cd "options BOOTP_NFSROOT"
 .D1 Cd "options BOOTP_COMPAT"
 .Pp
-NOTE: The PXE environment does not require these uptions.
+.Em Note :
+the PXE environment does not require these options.
 .Pp
-The diskless booting environment relies on memory-backed file systems to
+The
+.Nm
+booting environment relies on memory-backed file systems to
 support temporary local storage in the event that the root file system
 is mounted read-only; as such, it is necessary to add the following
 to the device section of the kernel configuration:

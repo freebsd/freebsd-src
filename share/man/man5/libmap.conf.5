@@ -48,7 +48,7 @@ executable or library in brackets.
 All mappings following a constraint will only be evaluated for that constraint.
 Constraints can be one of three types:
 .Bl -tag -width indent
-.It Exact 
+.It Exact
 The constraint is matched literally so that only an executable with an
 identical fully qualified pathname will match the constraint.
 This means that the executable
@@ -61,10 +61,10 @@ This is the default constraint type.
 A constraint with no path is matched against the basename of the
 executable.
 .Pa foo
-will match 
+will match
 .Pa /bin/foo ,
 .Pa /usr/local/sbin/foo ,
-or any other executable named 
+or any other executable named
 .Pa foo ,
 no matter what its path is.
 .It Directory
@@ -74,16 +74,16 @@ pathname of the executable.
 will match any executable with a path starting with /usr/bin.
 .El
 .Pp
-Note that the executable path matched against is the 
-.Pa path
-parameter in an 
+Note that the executable path matched against is the
+.Fa path
+parameter in an
 .Fn exec*
-function call. 
+function call.
 The Directory or Exact constraints can only match when the executable
 is called with a full pathname.
 Most programs executed from a shell are run without a full path, via
 .Fn exec*p ,
-so the Basename constraint type is the most useful.  
+so the Basename constraint type is the most useful.
 .Pp
 WARNING!
 Constrained mappings must never appear first in the configuration file.
@@ -95,7 +95,7 @@ The most common use at the date of writing is for allowing multiple
 .Tn POSIX
 threading libraries to be used on a system without relinking or
 changing symlinks.
-.Sh EXAMPLE
+.Sh EXAMPLES
 .Bd -literal
 # /etc/libmap.conf
 #

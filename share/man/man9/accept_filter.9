@@ -61,7 +61,7 @@ of
 .Sh IMPLEMENTATION NOTES
 A module that wants to be an accept filter
 must provide a
-.Vt struct accept_filter
+.Vt "struct accept_filter"
 to the system:
 .Bd -literal
 struct accept_filter {
@@ -76,30 +76,30 @@ struct accept_filter {
 The module should register it with the function
 .Fn accept_filt_add ,
 passing a pointer to a
-.Fa struct accept_filter ,
+.Vt "struct accept_filter" ,
 allocated with
-.Fn malloc .
+.Xr malloc 9 .
 .Pp
 The fields of
-.Vt struct accept_filter
+.Vt "struct accept_filter"
 are as follows:
-.Bl -tag -width accf_callbackXXX
-.It Vt accf_name
+.Bl -tag -width ".Va accf_callback"
+.It Va accf_name
 Name of the filter;
 this is how it will be accessed from userland.
-.It Fn accf_callback
+.It Va accf_callback
 The callback that the kernel will do
 once the connection is established.
 It is the same as a socket upcall
 and will be called when the connection is established
 and whenever new data arrives on the socket,
 unless the callback modifies the socket's flags.
-.It Fn accf_create
+.It Va accf_create
 Called whenever a
 .Xr setsockopt 2
 installs the filter onto
 a listening socket.
-.It Fn accf_destroy
+.It Va accf_destroy
 Called whenever the user removes the accept filter on the socket.
 .El
 .Pp
@@ -115,13 +115,13 @@ the kernel will then disallow and further userland use of the filter.
 The
 .Fn accept_filt_get
 function is used internally to locate which accept filter to use via the
-.Fn setsockopt
+.Xr setsockopt 2
 system call.
 .Pp
 The
 .Fn accept_filt_generic_mod_event
 function provides a simple way to avoid duplication of code
-for accept filters which don't use the argument field to load
+for accept filters which do not use the argument field to load
 and unload themselves.
 This function can be used in the
 .Vt moduledata_t
@@ -146,6 +146,6 @@ and
 .Pp
 The accept filter concept was pioneered by
 .An David Filo
-at Yahoo!
+at Yahoo!\&
 and refined to be a loadable module system by
-.An Alfred Perlstein.
+.An Alfred Perlstein .
