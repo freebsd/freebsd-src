@@ -47,17 +47,6 @@ AcpiOsAllocate(UINT32 Size)
     return(malloc(Size, M_ACPICA, M_NOWAIT));
 }
 
-void *
-AcpiOsCallocate (UINT32 Size)
-{
-    void	*alloc;
-
-    alloc = malloc(Size, M_ACPICA, M_NOWAIT);
-    if (alloc != NULL)
-	bzero(alloc, Size);
-    return(alloc);
-}
-
 void
 AcpiOsFree (void *Memory)
 {
