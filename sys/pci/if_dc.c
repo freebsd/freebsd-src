@@ -182,6 +182,8 @@ static struct dc_type dc_devs[] = {
 	{ DC_VENDORID_MX, DC_DEVICEID_987x5,
 		"Macronix 98715/98715A 10/100BaseTX" },
 	{ DC_VENDORID_MX, DC_DEVICEID_987x5,
+		"Macronix 98715AEC-C 10/100BaseTX" },
+	{ DC_VENDORID_MX, DC_DEVICEID_987x5,
 		"Macronix 98725 10/100BaseTX" },
 	{ DC_VENDORID_LO, DC_DEVICEID_82C115,
 		"LC82C115 PNIC II 10/100BaseTX" },
@@ -897,8 +899,9 @@ static void dc_miibus_mediainit(dev)
 }
 
 #define DC_POLY		0xEDB88320
-#define DC_BITS		9
-#define DC_BITS_PNIC_II	7
+#define DC_BITS_512	9
+#define DC_BITS_128	7
+#define DC_BITS_64	6
 
 static u_int32_t dc_crc_le(sc, addr)
 	struct dc_softc		*sc;
@@ -914,11 +917,18 @@ static u_int32_t dc_crc_le(sc, addr)
 			crc = (crc >> 1) ^ (((crc ^ data) & 1) ? DC_POLY : 0);
 	}
 
-	/* The hash table on the PNIC II is only 128 bits wide. */
-	if (DC_IS_PNICII(sc))
-		return (crc & ((1 << DC_BITS_PNIC_II) - 1));
+	/*
+	 * The hash table on the PNIC II and the MX98715AEC-C/D/E
+	 * chips is only 128 bits wide.
+	 */
+	if (sc->dc_flags & DC_128BIT_HASH)
+		return (crc & ((1 << DC_BITS_128) - 1));
 
-	return (crc & ((1 << DC_BITS) - 1));
+	/* The hash table on the MX98715BEC is only 64 bits wide. */
+	if (sc->dc_flags & DC_64BIT_HASH)
+		return (crc & ((1 << DC_BITS_64) - 1));
+
+	return (crc & ((1 << DC_BITS_512) - 1));
 }
 
 /*
@@ -1343,6 +1353,9 @@ static struct dc_type *dc_devtype(dev)
 			    rev >= DC_REVISION_98713A)
 				t++;
 			if (t->dc_did == DC_DEVICEID_987x5 &&
+			    rev >= DC_REVISION_98715AEC_C)
+				t++;
+			if (t->dc_did == DC_DEVICEID_987x5 &&
 			    rev >= DC_REVISION_98725)
 				t++;
 			if (t->dc_did == DC_DEVICEID_AX88140A &&
@@ -1550,13 +1563,23 @@ static int dc_attach(dev)
 		break;
 	case DC_DEVICEID_987x5:
 	case DC_DEVICEID_EN1217:
+		/*
+		 * Macronix MX98715AEC-C/D/E parts have only a
+		 * 128-bit hash table. We need to deal with these
+		 * in the same manner as the PNIC II so that we
+		 * get the right number of bits out of the
+		 * CRC routine.
+		 */
+		if (revision >= DC_REVISION_98715AEC_C &&
+		    revision < DC_REVISION_98725)
+			sc->dc_flags |= DC_128BIT_HASH;
 		sc->dc_type = DC_TYPE_987x5;
 		sc->dc_flags |= DC_TX_POLL|DC_TX_USE_TX_INTR;
 		sc->dc_flags |= DC_REDUCED_MII_POLL|DC_21143_NWAY;
 		break;
 	case DC_DEVICEID_82C115:
 		sc->dc_type = DC_TYPE_PNICII;
-		sc->dc_flags |= DC_TX_POLL|DC_TX_USE_TX_INTR;
+		sc->dc_flags |= DC_TX_POLL|DC_TX_USE_TX_INTR|DC_128BIT_HASH;
 		sc->dc_flags |= DC_REDUCED_MII_POLL|DC_21143_NWAY;
 		break;
 	case DC_DEVICEID_82C168:
