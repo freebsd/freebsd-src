@@ -75,6 +75,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sun_disklabel.h>
 #include <sys/wait.h>
 
+#include <ctype.h>
 #include <err.h>
 #include <fcntl.h>
 #include <inttypes.h>
@@ -459,6 +460,7 @@ parse_label(struct sun_disklabel *sl, const char *file)
 	char offset[32];
 	char size[32];
 	char buf[128];
+	char *bp;
 	uint8_t part;
 	FILE *fp;
 	int line;
@@ -468,13 +470,28 @@ parse_label(struct sun_disklabel *sl, const char *file)
 		err(1, "fopen");
 	bzero(sl->sl_part, sizeof(sl->sl_part));
 	while (fgets(buf, sizeof(buf), fp) != NULL) {
-		if (buf[0] != ' ' || buf[1] != ' ')
+		/*
+		 * In order to recognize a partition entry, we search
+		 * for lines starting with a single letter followed by
+		 * a colon as their first non-white characters.  We
+		 * silently ignore any other lines, so any comment etc.
+		 * lines in the label template will be ignored.
+		 *
+		 * XXX We should probably also recognize the geometry
+		 * fields on top, and allow changing the geometry
+		 * emulated by this disk.
+		 */
+		for (bp = buf; isspace(*bp); bp++)
+			;
+		if (strlen(bp) < 2 || bp[1] != ':') {
+			line++;
 			continue;
-		if (sscanf(buf, "  %c: %s %s\n", &part, size, offset) != 3 ||
+		}
+		if (sscanf(bp, "%c: %s %s\n", &part, size, offset) != 3 ||
 		    parse_size(sl, part - 'a', size) ||
 		    parse_offset(sl, part - 'a', offset)) {
-			warnx("%s: syntex error on line %d",
-			    file, line);
+			warnx("%s: syntax error on line %d",
+			    file, line + 1);
 			fclose(fp);
 			return (1);
 		}
