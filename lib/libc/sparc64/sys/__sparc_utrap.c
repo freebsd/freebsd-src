@@ -42,6 +42,10 @@ __FBSDID("$FreeBSD$");
 #include "fpu_extern.h"
 #include "__sparc_utrap_private.h"
 
+extern ssize_t __sys_write(int, const void *, size_t);
+extern int __sys_kill(pid_t, int);
+extern pid_t __sys_getpid(void);
+
 static const char *utrap_msg[] = {
 	"reserved",
 	"instruction access exception",
