@@ -32,7 +32,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	@(#)login	8.1 (Berkeley) 5/31/93
+#	@(#)login	8.2 (Berkeley) 5/4/95
 
 # replaces the login builtin in the BSD shell
 login () exec login "$@"

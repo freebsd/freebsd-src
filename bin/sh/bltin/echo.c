@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)echo.c	8.1 (Berkeley) 5/31/93
+ *	@(#)echo.c	8.2 (Berkeley) 5/4/95
  */
 
 /*
@@ -46,7 +46,11 @@
 
 /* #define eflag 1 */
 
-main(argc, argv)  char **argv; {
+int
+main(argc, argv)
+	int argc;
+	char **argv;
+{
 	register char **ap;
 	register char *p;
 	register char c;

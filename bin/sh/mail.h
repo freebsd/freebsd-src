@@ -33,11 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)mail.h	8.1 (Berkeley) 5/31/93
+ *	@(#)mail.h	8.2 (Berkeley) 5/4/95
  */
 
-#ifdef __STDC__
-void chkmail(int);
-#else
-void chkmail();
-#endif
+void chkmail __P((int));

@@ -33,15 +33,9 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)init.h	8.1 (Berkeley) 5/31/93
+ *	@(#)init.h	8.2 (Berkeley) 5/4/95
  */
 
-#ifdef __STDC__
-void init(void);
-void reset(void);
-void initshellproc(void);
-#else
-void init();
-void reset();
-void initshellproc();
-#endif
+void init __P((void));
+void reset __P((void));
+void initshellproc __P((void));

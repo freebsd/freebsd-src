@@ -33,16 +33,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)main.h	8.1 (Berkeley) 5/31/93
+ *	@(#)main.h	8.2 (Berkeley) 5/4/95
  */
 
 extern int rootpid;	/* pid of main shell */
 extern int rootshell;	/* true if we aren't a child of the main shell */
 
-#ifdef __STDC__
-void readcmdfile(char *);
-void cmdloop(int);
-#else
-void readcmdfile();
-void cmdloop();
-#endif
+void readcmdfile __P((char *));
+void cmdloop __P((int));
+int dotcmd __P((int, char **));
+int exitcmd __P((int, char **));

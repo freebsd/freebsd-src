@@ -33,10 +33,16 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)output.h	8.1 (Berkeley) 5/31/93
+ *	@(#)output.h	8.2 (Berkeley) 5/4/95
  */
 
 #ifndef OUTPUT_INCL
+
+#if __STDC__
+#include <stdarg.h>
+#else
+#include <varargs.h>
+#endif
 
 struct output {
 	char *nextc;
@@ -53,38 +59,21 @@ extern struct output memout;
 extern struct output *out1;
 extern struct output *out2;
 
-
-#ifdef __STDC__
-void outstr(char *, struct output *);
-void out1str(char *);
-void out2str(char *);
-void outfmt(struct output *, char *, ...);
-void out1fmt(char *, ...);
-void fmtstr(char *, int, char *, ...);
-/* void doformat(struct output *, char *, va_list); */
-void doformat();
-void emptyoutbuf(struct output *);
-void flushall(void);
-void flushout(struct output *);
-void freestdout(void);
-int xwrite(int, char *, int);
-int xioctl(int, int, int);
-#else
-void outstr();
-void out1str();
-void out2str();
-void outfmt();
-void out1fmt();
-void fmtstr();
-/* void doformat(); */
-void doformat();
-void emptyoutbuf();
-void flushall();
-void flushout();
-void freestdout();
-int xwrite();
-int xioctl();
-#endif
+void open_mem __P((char *, int, struct output *));
+void out1str __P((const char *));
+void out2str __P((const char *));
+void outstr __P((const char *, struct output *));
+void emptyoutbuf __P((struct output *));
+void flushall __P((void));
+void flushout __P((struct output *));
+void freestdout __P((void));
+void outfmt __P((struct output *, char *, ...));
+void out1fmt __P((char *, ...)); 
+void dprintf __P((char *, ...));
+void fmtstr __P((char *, int, char *, ...));
+void doformat __P((struct output *, char *, va_list));
+int xwrite __P((int, char *, int));
+int xioctl __P((int, unsigned long, char *));
 
 #define outc(c, file)	(--(file)->nleft < 0? (emptyoutbuf(file), *(file)->nextc++ = (c)) : (*(file)->nextc++ = (c)))
 #define out1c(c)	outc(c, out1);
