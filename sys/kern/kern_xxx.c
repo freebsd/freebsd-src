@@ -275,8 +275,8 @@ getdomainname(td, uap)
 
 	mtx_lock(&Giant);
 	domainnamelen = strlen(domainname) + 1;
-	if ((u_int)uap->len > domainnamelen + 1)
-		uap->len = domainnamelen + 1;
+	if ((u_int)uap->len > domainnamelen)
+		uap->len = domainnamelen;
 	error = copyout(domainname, uap->domainname, uap->len);
 	mtx_unlock(&Giant);
 	return (error);
