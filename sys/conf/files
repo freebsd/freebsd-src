@@ -225,6 +225,7 @@ dev/ppbus/ppi.c		optional ppi
 dev/ppbus/pps.c		optional pps
 dev/ppbus/vpo.c		optional vpo
 dev/ppbus/vpoio.c	optional vpo
+dev/randomdev/harvest.c	standard
 dev/randomdev/randomdev.c	optional randomdev
 dev/randomdev/yarrow.c	optional randomdev
 crypto/blowfish/bf_cbc.c	optional randomdev

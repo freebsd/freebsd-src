@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2000 Mark Murray
+ * Copyright (c) 2000 Mark R V Murray
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,103 +32,166 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/queue.h>
+#include <sys/taskqueue.h>
 #include <sys/linker.h>
 #include <sys/libkern.h>
 #include <sys/mbuf.h>
 #include <sys/random.h>
+#include <sys/time.h>
 #include <sys/types.h>
 #include <crypto/blowfish/blowfish.h>
 
 #include <dev/randomdev/yarrow.h>
 
-void generator_gate(void);
-void reseed(void);
-void randominit(void);
+/* #define DEBUG */
 
-/* This is the beastie that needs protecting. It contains all of the
- * state that we are excited about.
- */
-struct state state;
+static void generator_gate(void);
+static void reseed(int);
+static void random_harvest_internal(struct timespec *nanotime, u_int64_t entropy, u_int bits, u_int frac, u_int source);
 
-void
-randominit(void)
+/* Structure holding the entropy state */
+struct random_state random_state;
+
+/* When enough entropy has been harvested, asynchronously "stir" it in */
+static struct task regate_task;
+
+static struct context {
+	u_int pool;
+} context = { 0 };
+
+static void
+regate(void *context, int pending)
 {
-	/* XXX much more to come */
-	state.gengateinterval = 10;
+#ifdef DEBUG
+	printf("Regate task\n");
+#endif
+	reseed(((struct context *)context)->pool);
 }
 
 void
-reseed(void)
+random_init(void)
 {
-	unsigned char v[BINS][KEYSIZE];	/* v[i] */
-	unsigned char hash[KEYSIZE];	/* h' */
+#ifdef DEBUG
+	printf("Random init\n");
+#endif
+	random_state.gengateinterval = 10;
+	random_state.bins = 10;
+	random_state.pool[0].thresh = 100;
+	random_state.pool[1].thresh = 160;
+	random_state.slowoverthresh = 2;
+	random_state.which = FAST;
+	TASK_INIT(&regate_task, 0, &regate, (void *)&context);
+	random_init_harvester(random_harvest_internal);
+}
+
+void
+random_deinit(void)
+{
+#ifdef DEBUG
+	printf("Random deinit\n");
+#endif
+	random_deinit_harvester();
+}
+
+static void
+reseed(int fastslow)
+{
+	unsigned char v[TIMEBIN][KEYSIZE];	/* v[i] */
+	unsigned char hash[KEYSIZE];		/* h' */
 	BF_KEY hashkey;
 	unsigned char ivec[8];
 	unsigned char temp[KEYSIZE];
+	struct entropy *bucket;
 	int i, j;
+
+#ifdef DEBUG
+	printf("Reseed type %d\n", fastslow);
+#endif
 
 	/* 1. Hash the accumulated entropy into v[0] */
 
-	/* XXX to be done properly */
 	bzero((void *)&v[0], KEYSIZE);
-	for (j = 0; j < sizeof(state.randomstuff); j += KEYSIZE) {
-		BF_set_key(&hashkey, KEYSIZE, &state.randomstuff[j]);
-		BF_cbc_encrypt(v[0], temp, KEYSIZE, &hashkey,
-					ivec, BF_ENCRYPT);
-		memcpy(&v[0], temp, KEYSIZE);
+	if (fastslow == SLOW) {
+		/* Feed a hash of the slow pool into the fast pool */
+		for (i = 0; i < ENTROPYSOURCE; i++) {
+			for (j = 0; j < ENTROPYBIN; j++) {
+				bucket = &random_state.pool[SLOW].source[i].entropy[j];
+				if(bucket->nanotime.tv_sec || bucket->nanotime.tv_nsec) {
+					BF_set_key(&hashkey, sizeof(struct entropy),
+						(void *)bucket);
+					BF_cbc_encrypt(v[0], temp, KEYSIZE, &hashkey, ivec,
+						BF_ENCRYPT);
+					memcpy(&v[0], temp, KEYSIZE);
+					bucket->nanotime.tv_sec = 0;
+					bucket->nanotime.tv_nsec = 0;
+				}
+			}
+		}
+	}
+
+	for (i = 0; i < ENTROPYSOURCE; i++) {
+		for (j = 0; j < ENTROPYBIN; j++) {
+			bucket = &random_state.pool[FAST].source[i].entropy[j];
+			if(bucket->nanotime.tv_sec || bucket->nanotime.tv_nsec) {
+				BF_set_key(&hashkey, sizeof(struct entropy), (void *)bucket);
+				BF_cbc_encrypt(v[0], temp, KEYSIZE, &hashkey, ivec, BF_ENCRYPT);
+				memcpy(&v[0], temp, KEYSIZE);
+				bucket->nanotime.tv_sec = 0;
+				bucket->nanotime.tv_nsec = 0;
+			}
+		}
 	}
 
 	/* 2. Compute hash values for all v. _Supposed_ to be computationally */
 	/*    intensive.                                                      */
 
-	for (i = 1; i < BINS; i++) {
+	if (random_state.bins > TIMEBIN)
+		random_state.bins = TIMEBIN;
+	for (i = 1; i < random_state.bins; i++) {
 		bzero((void *)&v[i], KEYSIZE);
-		for (j = 0; j < sizeof(state.randomstuff); j += KEYSIZE) {
-			/* v[i] #= h(v[i-1]) */
-			BF_set_key(&hashkey, KEYSIZE, v[i - 1]);
-			BF_cbc_encrypt(v[i], temp, KEYSIZE, &hashkey,
-						ivec, BF_ENCRYPT);
-			memcpy(&v[i], temp, KEYSIZE);
-			/* v[i] #= h(v[0]) */
-			BF_set_key(&hashkey, KEYSIZE, v[0]);
-			BF_cbc_encrypt(v[i], temp, KEYSIZE, &hashkey,
-						ivec, BF_ENCRYPT);
-			memcpy(&v[i], temp, KEYSIZE);
-			/* v[i] #= h(i) */
-			BF_set_key(&hashkey, sizeof(int), (unsigned char *)&i);
-			BF_cbc_encrypt(v[i], temp, KEYSIZE, &hashkey,
-						ivec, BF_ENCRYPT);
-			memcpy(&v[i], temp, KEYSIZE);
-		}
+		/* v[i] #= h(v[i-1]) */
+		BF_set_key(&hashkey, KEYSIZE, v[i - 1]);
+		BF_cbc_encrypt(v[i], temp, KEYSIZE, &hashkey, ivec, BF_ENCRYPT);
+		memcpy(&v[i], temp, KEYSIZE);
+		/* v[i] #= h(v[0]) */
+		BF_set_key(&hashkey, KEYSIZE, v[0]);
+		BF_cbc_encrypt(v[i], temp, KEYSIZE, &hashkey, ivec, BF_ENCRYPT);
+		memcpy(&v[i], temp, KEYSIZE);
+		/* v[i] #= h(i) */
+		BF_set_key(&hashkey, sizeof(int), (unsigned char *)&i);
+		BF_cbc_encrypt(v[i], temp, KEYSIZE, &hashkey, ivec, BF_ENCRYPT);
+		memcpy(&v[i], temp, KEYSIZE);
 	}
 
 	/* 3. Compute a new Key. */
 
 	bzero((void *)hash, KEYSIZE);
-	BF_set_key(&hashkey, KEYSIZE, (unsigned char *)&state.key);
-	BF_cbc_encrypt(hash, temp, KEYSIZE, &hashkey,
-				ivec, BF_ENCRYPT);
+	BF_set_key(&hashkey, KEYSIZE, (unsigned char *)&random_state.key);
+	BF_cbc_encrypt(hash, temp, KEYSIZE, &hashkey, ivec, BF_ENCRYPT);
 	memcpy(hash, temp, KEYSIZE);
-	for (i = 1; i < BINS; i++) {
+	for (i = 1; i < random_state.bins; i++) {
 		BF_set_key(&hashkey, KEYSIZE, v[i]);
-		BF_cbc_encrypt(hash, temp, KEYSIZE, &hashkey,
-					ivec, BF_ENCRYPT);
+		BF_cbc_encrypt(hash, temp, KEYSIZE, &hashkey, ivec, BF_ENCRYPT);
 		memcpy(hash, temp, KEYSIZE);
 	}
-
-	BF_set_key(&state.key, KEYSIZE, hash);
+	BF_set_key(&random_state.key, KEYSIZE, hash);
 
 	/* 4. Recompute the counter */
 
-	state.counter = 0;
-	BF_cbc_encrypt((unsigned char *)&state.counter, temp,
-		sizeof(state.counter), &state.key, state.ivec,
-		BF_ENCRYPT);
-	memcpy(&state.counter, temp, state.counter);
+	random_state.counter = 0;
+	BF_cbc_encrypt((unsigned char *)&random_state.counter, temp,
+		sizeof(random_state.counter), &random_state.key,
+		random_state.ivec, BF_ENCRYPT);
+	memcpy(&random_state.counter, temp, random_state.counter);
 
-	/* 5. Reset all entropy estimate accumulators to zero */
+	/* 5. Reset entropy estimate accumulators to zero */
 
-	bzero((void *)state.randomstuff, sizeof(state.randomstuff));
+	for (i = 0; i <= fastslow; i++) {
+		for (j = 0; j < ENTROPYSOURCE; j++) {
+			random_state.pool[i].source[j].bits = 0;
+			random_state.pool[i].source[j].frac = 0;
+		}
+	}
 
 	/* 6. Wipe memory of intermediate values */
 
@@ -151,43 +214,46 @@ read_random(char *buf, u_int count)
 
 	if (gate) {
 		generator_gate();
-		state.outputblocks = 0;
+		random_state.outputblocks = 0;
 		gate = 0;
 	}
-	if (count >= sizeof(state.counter)) {
+	if (count >= sizeof(random_state.counter)) {
 		retval = 0;
-		for (i = 0; i < count; i += sizeof(state.counter)) {
-			state.counter++;
-			BF_cbc_encrypt((unsigned char *)&state.counter,
-				(unsigned char *)&genval, sizeof(state.counter),
-				&state.key, state.ivec, BF_ENCRYPT);
-			memcpy(&buf[i], &genval, sizeof(state.counter));
-			if (++state.outputblocks >= state.gengateinterval) {
+		for (i = 0; i < count; i += sizeof(random_state.counter)) {
+			random_state.counter++;
+			BF_cbc_encrypt((unsigned char *)&random_state.counter,
+				(unsigned char *)&genval,
+				sizeof(random_state.counter),
+				&random_state.key, random_state.ivec, BF_ENCRYPT);
+			memcpy(&buf[i], &genval, sizeof(random_state.counter));
+			if (++random_state.outputblocks >= random_state.gengateinterval) {
 				generator_gate();
-				state.outputblocks = 0;
+				random_state.outputblocks = 0;
 			}
-			retval += sizeof(state.counter);
+			retval += sizeof(random_state.counter);
 		}
 	}
 	else {
 		if (!cur) {
-			state.counter++;
-			BF_cbc_encrypt((unsigned char *)&state.counter,
-				(unsigned char *)&genval, sizeof(state.counter),
-				&state.key, state.ivec, BF_ENCRYPT);
+			random_state.counter++;
+			BF_cbc_encrypt((unsigned char *)&random_state.counter,
+				(unsigned char *)&genval,
+				sizeof(random_state.counter),
+				&random_state.key, random_state.ivec,
+				BF_ENCRYPT);
 			memcpy(buf, &genval, count);
-			cur = sizeof(state.counter) - count;
-			if (++state.outputblocks >= state.gengateinterval) {
+			cur = sizeof(random_state.counter) - count;
+			if (++random_state.outputblocks >= random_state.gengateinterval) {
 				generator_gate();
-				state.outputblocks = 0;
+				random_state.outputblocks = 0;
 			}
 			retval = count;
 		}
 		else {
 			retval = cur < count ? cur : count;
 			memcpy(buf,
-				(char *)&state.counter +
-					(sizeof(state.counter) - retval),
+				(char *)&random_state.counter +
+					(sizeof(random_state.counter) - retval),
 				retval);
 			cur -= retval;
 		}
@@ -195,19 +261,81 @@ read_random(char *buf, u_int count)
 	return retval;
 }
 
-void
+static void
 generator_gate(void)
 {
 	int i;
 	unsigned char temp[KEYSIZE];
 
-	for (i = 0; i < KEYSIZE; i += sizeof(state.counter)) {
-		state.counter++;
-		BF_cbc_encrypt((unsigned char *)&state.counter, &temp[i],
-			sizeof(state.counter), &state.key, state.ivec,
-			BF_ENCRYPT);
+#ifdef DEBUG
+	/* printf("Generator gate\n"); */
+#endif
+	for (i = 0; i < KEYSIZE; i += sizeof(random_state.counter)) {
+		random_state.counter++;
+		BF_cbc_encrypt((unsigned char *)&random_state.counter,
+			&(temp[i]), sizeof(random_state.counter),
+			&random_state.key, random_state.ivec, BF_ENCRYPT);
 	}
 
-	BF_set_key(&state.key, KEYSIZE, temp);
+	BF_set_key(&random_state.key, KEYSIZE, temp);
 	bzero((void *)temp, KEYSIZE);
+}
+
+/* Entropy harvesting routine. This is supposed to be fast; do */
+/* not do anything slow in here!                               */
+
+static void
+random_harvest_internal(struct timespec *nanotime, u_int64_t entropy,
+	u_int bits, u_int frac, u_int origin)
+{
+	u_int insert;
+	int which;	/* fast or slow */
+	struct entropy *bucket;
+	struct source *source;
+	struct pool *pool;
+
+#ifdef DEBUG
+	printf("Random harvest\n");
+#endif
+	if (origin < ENTROPYSOURCE) {
+
+		which = random_state.which;
+		pool = &random_state.pool[which];
+		source = &pool->source[origin];
+
+		insert = source->current + 1;
+		if (insert >= ENTROPYBIN)
+			insert = 0;
+
+		bucket = &source->entropy[insert];
+
+		if (!bucket->nanotime.tv_sec && !bucket->nanotime.tv_nsec) {
+
+			/* nanotime provides clock jitter */
+			bucket->nanotime = *nanotime;
+
+			/* the harvested entropy */
+			bucket->data = entropy;
+
+			/* update the estimates - including "fractional bits" */
+			source->bits += bits;
+			source->frac += frac;
+			if (source->frac >= 1024) {
+				source->bits += source->frac / 1024;
+				source->frac %= 1024;
+			}
+			context.pool = which;
+			if (source->bits >= pool->thresh) {
+				/* XXX Needs to be multiply queued? */
+				taskqueue_enqueue(taskqueue_swi, &regate_task);
+			}
+
+			/* bump the insertion point */
+			source->current = insert;
+
+			/* toggle the pool for next time */
+			random_state.which = !random_state.which;
+
+		}
+	}
 }
