@@ -1077,20 +1077,6 @@ p_cansignal(struct proc *p1, struct proc *p2, int signum)
 		case SIGHUP:
 		case SIGUSR1:
 		case SIGUSR2:
-			/*
-			 * Restricted rules allow a broadish scope of uid
-			 * uid overlap.
-			 * XXX: Maybe too broad.
-			 */
-			if (p1->p_cred->p_ruid != p2->p_cred->p_ruid &&
-			    p1->p_ucred->cr_uid != p2->p_cred->p_ruid &&
-			    p1->p_cred->p_ruid != p2->p_cred->p_svuid &&
-			    p1->p_ucred->cr_uid != p2->p_cred->p_svuid) {
-				/* Not permitted, try privilege. */
-				error = suser_xxx(NULL, p1, PRISON_ROOT);
-				if (error)
-					return (error);
-			}
 			break;
 		default:
 			/* Not permitted, try privilege. */
@@ -1098,20 +1084,20 @@ p_cansignal(struct proc *p1, struct proc *p2, int signum)
 			if (error)
 				return (error);
 		}
-	} else {
-		/*
-		 * Normal rules allow a broad scope of uid overlap.
-		 * XXX: Maybe too broad.
-		 */
-		if (p1->p_cred->p_ruid != p2->p_cred->p_ruid &&
-		    p1->p_cred->p_ruid != p2->p_cred->p_svuid &&
-		    p1->p_ucred->cr_uid != p2->p_cred->p_ruid &&
-		    p1->p_ucred->cr_uid != p2->p_cred->p_svuid) {
-			/* Not permitted, try privilege. */
-			error = suser_xxx(NULL, p1, PRISON_ROOT);
-			if (error)
-				return (error);
-		}
+	}
+
+	/*
+	 * Generally, the object credential's ruid or svuid must match the
+	 * subject credential's ruid or euid.
+	 */
+	if (p1->p_cred->p_ruid != p2->p_cred->p_ruid &&
+	    p1->p_cred->p_ruid != p2->p_cred->p_svuid &&
+	    p1->p_ucred->cr_uid != p2->p_cred->p_ruid &&
+	    p1->p_ucred->cr_uid != p2->p_cred->p_svuid) {
+		/* Not permitted, try privilege. */
+		error = suser_xxx(NULL, p1, PRISON_ROOT);
+		if (error)
+			return (error);
 	}
 
         return (0);
