@@ -39,7 +39,7 @@ static const char copyright[] =
 
 #ifndef lint
 #if 0
-static char sccsid[] = "@(#)rlogind.c	8.1 (Berkeley) 6/4/93";
+static const char sccsid[] = "@(#)rlogind.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
 	"$Id$";
@@ -55,6 +55,7 @@ static const char rcsid[] =
  */
 
 #define	FD_SETSIZE	16		/* don't need many bits for select */
+#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <sys/ioctl.h>
@@ -85,7 +86,7 @@ static const char rcsid[] =
 
 #ifdef	KERBEROS
 #include <des.h>
-#include <kerberosIV/krb.h>
+#include <krb.h>
 #define	SECURE_MESSAGE "This rlogin session is using DES encryption for all transmissions.\r\n"
 
 AUTH_DAT	*kdata;
@@ -136,7 +137,7 @@ main(argc, argv)
 	openlog("rlogind", LOG_PID | LOG_CONS, LOG_AUTH);
 
 	opterr = 0;
-	while ((ch = getopt(argc, argv, ARGSTR)) !=  -1)
+	while ((ch = getopt(argc, argv, ARGSTR)) != -1)
 		switch (ch) {
 		case 'D':
 			no_delay = 1;
@@ -194,7 +195,7 @@ main(argc, argv)
 		syslog(LOG_WARNING, "setsockopt (IP_TOS): %m");
 
 	doit(0, &from);
-	return(0);
+	return 0;
 }
 
 int	child;
@@ -294,7 +295,10 @@ doit(f, fromp)
 #ifdef	KERBEROS
 #ifdef	CRYPT
 	if (doencrypt)
-		(void) des_write(f, SECURE_MESSAGE, sizeof(SECURE_MESSAGE) - 1);
+		(void) des_enc_write(f,
+				     SECURE_MESSAGE,
+				     strlen(SECURE_MESSAGE),
+				     schedule, &kdata->session);
 #endif
 #endif
 	netf = f;
@@ -451,7 +455,8 @@ protocol(f, p)
 #ifdef	CRYPT
 #ifdef	KERBEROS
 			if (doencrypt)
-				fcc = des_read(f, fibuf, sizeof(fibuf));
+				fcc = des_enc_read(f, fibuf, sizeof(fibuf),
+					schedule, &kdata->session);
 			else
 #endif
 #endif
@@ -519,7 +524,8 @@ protocol(f, p)
 #ifdef	CRYPT
 #ifdef	KERBEROS
 			if (doencrypt)
-				cc = des_write(f, pbp, pcc);
+				cc = des_enc_write(f, pbp, pcc,
+					schedule, &kdata->session);
 			else
 #endif
 #endif
@@ -697,7 +703,7 @@ do_krb_login(dest)
 			ticket, "rcmd",
 			instance, dest, &faddr,
 			kdata, "", schedule, version);
-		 des_set_key_krb(&kdata->session, schedule);
+		 des_set_key(&kdata->session, schedule);
 
 	} else
 #endif
