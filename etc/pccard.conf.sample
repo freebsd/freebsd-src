@@ -8,7 +8,7 @@
 # IRQ == 0 means "allocate free IRQ from IRQ pool"
 # IRQ == 16 means "do not use IRQ (e.g. PIO mode)"
 #
-# $Id: pccard.conf.sample,v 1.7 1997/10/21 18:07:36 nate Exp $
+# $Id: pccard.conf.sample,v 1.9 1997/10/30 01:17:01 nate Exp $
 
 # Generally available IO ports
 io	0x240-0x360
@@ -86,6 +86,12 @@ card "HITACHI" "HT-4840-11"
 	insert	/etc/pccard_ether fe0
 	remove	echo HT-4840-11 removed
 	remove	/sbin/ifconfig fe0 delete
+
+# Danpex (Alloy, etc.) EN-6200P2
+card "DANPEX" "EN-6200P2"
+	config 0x22 "ed0" 9
+	insert /etc/pccard_ether ed0
+	remove /sbin/ifconfig ed0 delete
  
 # AIWA PV-JF288
 card "AIWA CO.,LTD." "PV-JF288  "
@@ -116,6 +122,12 @@ card "MEGAHERTZ" "XJ2288"
 	config	0x23 "sio2" 10
 	insert	echo Megahertz XJ2288 inserted
 	remove	echo Megahertz XJ2288 removed
+
+# Megahertz XJ4336
+card "Megahertz" "XJ4336-CC4336"
+	config 0x21 "sio1" 10
+	insert echo Megahertz XJ4336 inserted
+	remove echo Megahertz XJ4336 removed
 
 # Omron ME2814 FAX/DATA MODEM
 card "OMRON" "ME2814 FAX/DATA MOD"
@@ -154,11 +166,11 @@ card "CIRRUS LOGIC" "FAX MODEM"
 	remove	echo Newmedia 14.4 Modem removed
 
 # Omron MD24XCA FAX/Data Modem
-card "OMRON Corp." "MD24XCA"
-	config	0x23 "sio2" 16
-	reset	10000
-	insert	echo OMRON MD24XCA Modem inserted
-	remove	echo OMRON MD24XCA Modem removed
+#card "OMRON Corp." "MD24XCA"
+#	config	0x23 "sio2" 16
+#	reset	10000
+#	insert	echo OMRON MD24XCA Modem inserted
+#	remove	echo OMRON MD24XCA Modem removed
 
 # Hayes OPTIMA 288 FAX/Data Modem
 # currently does not work on my machine
@@ -219,34 +231,34 @@ card "NTT DoCoMo" "PCMCIA DATA/FAX ADA"
 	remove  echo NTT DoCoMo DATA/FAX Adapter removed
 
 # Panasonic FM-RADIO card
-card "Panasonic" "CF-JVR101"
-	config  0x22 "sio3" 16
-	insert  echo Panasonic FM radio card inserted
-	remove  echo Panasonic FM radio card removed
+#card "Panasonic" "CF-JVR101"
+#	config  0x22 "sio3" 16
+#	insert  echo Panasonic FM radio card inserted
+#	remove  echo Panasonic FM radio card removed
 
 # SunDisk Flash ATA
 # (OEM: Epson Flash Packer)
-card "SunDisk" "SDP5"
-	config	0x3 "wdc1" 7
-	insert	echo Sundisk Flash ATA inserted
-	remove	echo Sundisk Flash ATA removed
+#card "SunDisk" "SDP5"
+#	config	0x3 "wdc1" 7
+#	insert	echo Sundisk Flash ATA inserted
+#	remove	echo Sundisk Flash ATA removed
 
-card "SunDisk" "SDP"
-	config  0x3 "wdc1" 7
-	insert  echo SunDisk Flash ATA Inserted
-	remove  echo SunDisk Flash ATA Removed
+#card "SunDisk" "SDP"
+#	config  0x3 "wdc1" 7
+#	insert  echo SunDisk Flash ATA Inserted
+#	remove  echo SunDisk Flash ATA Removed
 
 # Midori Elec Fast Flash
-card "Midori Elec." "FAST FLASH"
-	config  0x3  "wdc1" 9
-	insert  echo Midori Elec Fast FLASH inserted
-	remove  echo Midori Elec Fast FLASH removed
+#card "Midori Elec." "FAST FLASH"
+#	config  0x3  "wdc1" 9
+#	insert  echo Midori Elec Fast FLASH inserted
+#	remove  echo Midori Elec Fast FLASH removed
 
 # Maxtor 131MB Type III HDD
-card "Maxtor" "MXL131"
-        config  0x03 "wdc1" 10
-	insert	echo Maxtor 131MB HDD inserted
-	remove	echo Maxtor 131MB HDD removed
+#card "Maxtor" "MXL131"
+#	config  0x03 "wdc1" 10
+#	insert	echo Maxtor 131MB HDD inserted
+#	remove	echo Maxtor 131MB HDD removed
 
 # Adaptec SlimSCSI (also included with Sony CD-ROM players)
 card "Adaptec, Inc." "APA-1460 SCSI Host Adapter"
