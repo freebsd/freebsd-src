@@ -187,6 +187,10 @@ static void SuffFindNormalDeps(GNode *, Lst *);
 static int SuffPrintName(void *, void *);
 static int SuffPrintSuff(void *, void *);
 static int SuffPrintTrans(void *, void *);
+#ifdef DEBUG_SRC
+static int PrintAddr(void *, void *);
+#endif /* DEBUG_SRC */
+
 
 	/*************** Lst Predicates ****************/
 /*-
@@ -2337,3 +2341,16 @@ Suff_PrintAll(void)
     printf("#*** Transformations:\n");
     Lst_ForEach(&transforms, SuffPrintTrans, (void *)NULL);
 }
+
+#ifdef DEBUG_SRC
+/*
+ * Printaddr --
+ * 	Print the address of a node.
+ */
+static int
+PrintAddr(void *a, void *b __unused)
+{
+    printf("%p ", a);
+    return (0);
+}
+#endif /* DEBUG_SRC */
