@@ -371,8 +371,8 @@ aac_print_aif(struct aac_softc *sc, struct aac_aif_command *aif)
 			device_printf(sc->aac_dev, "(DiskSetEvent) event %d "
 				      "diskset %lld creator %lld\n",
 				      aif->data.EN.data.EDS.eventType, 
-				      aif->data.EN.data.EDS.DsNum, 
-				      aif->data.EN.data.EDS.CreatorId);
+				      (long long)aif->data.EN.data.EDS.DsNum, 
+				      (long long)aif->data.EN.data.EDS.CreatorId);
 			break;
 		case AifDenMorphComplete: 	/* A morph operation
 						 * completed */
