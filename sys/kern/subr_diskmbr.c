@@ -71,7 +71,8 @@ static int check_part __P((char *sname, struct dos_partition *dp,
 static void mbr_extended __P((dev_t dev, struct disklabel *lp,
 			      struct diskslices *ssp, u_long ext_offset,
 			      u_long ext_size, u_long base_ext_offset,
-			      int nsectors, int ntracks, u_long mbr_offset));
+			      int nsectors, int ntracks, u_long mbr_offset,
+			      int level));
 
 static int
 check_part(sname, dp, offset, nsectors, ntracks, mbr_offset )
@@ -340,7 +341,15 @@ reread_mbr:
 		    sp->ds_type == DOSPTYP_EXTENDEDX)
 			mbr_extended(bp->b_dev, lp, ssp,
 				     sp->ds_offset, sp->ds_size, sp->ds_offset,
-				     max_nsectors, max_ntracks, mbr_offset);
+				     max_nsectors, max_ntracks, mbr_offset, 1);
+
+	/*
+	 * mbr_extended() abuses ssp->dss_nslices for the number of slices
+	 * that would be found if there were no limit on the number of slices
+	 * in *ssp.  Cut it back now.
+	 */
+	if (ssp->dss_nslices > MAX_SLICES)
+		ssp->dss_nslices = MAX_SLICES;
 
 done:
 	bp->b_flags |= B_INVAL | B_AGE;
@@ -352,7 +361,7 @@ done:
 
 void
 mbr_extended(dev, lp, ssp, ext_offset, ext_size, base_ext_offset, nsectors,
-	     ntracks, mbr_offset)
+	     ntracks, mbr_offset, level)
 	dev_t	dev;
 	struct disklabel *lp;
 	struct diskslices *ssp;
@@ -362,6 +371,7 @@ mbr_extended(dev, lp, ssp, ext_offset, ext_size, base_ext_offset, nsectors,
 	int	nsectors;
 	int	ntracks;
 	u_long	mbr_offset;
+	int	level;
 {
 	struct buf *bp;
 	u_char	*cp;
@@ -374,6 +384,13 @@ mbr_extended(dev, lp, ssp, ext_offset, ext_size, base_ext_offset, nsectors,
 	int	slice;
 	char	*sname;
 	struct diskslice *sp;
+
+	if (level >= 16) {
+		printf(
+	"%s: excessive recursion in search for slices; aborting search\n",
+		       devtoname(dev));
+		return;
+	}
 
 	/* Read extended boot record. */
 	bp = geteblk((int)lp->d_secsize);
@@ -403,16 +420,16 @@ mbr_extended(dev, lp, ssp, ext_offset, ext_size, base_ext_offset, nsectors,
 	/* Make a copy of the partition table to avoid alignment problems. */
 	memcpy(&dpcopy[0], cp + DOSPARTOFF, sizeof(dpcopy));
 
-	for (dospart = 0, dp = &dpcopy[0], slice = ssp->dss_nslices,
-	     sp = &ssp->dss_slices[slice];
-	     dospart < NDOSPART; dospart++, dp++) {
+	slice = ssp->dss_nslices;
+	for (dospart = 0, dp = &dpcopy[0]; dospart < NDOSPART;
+	    dospart++, dp++) {
 		ext_sizes[dospart] = 0;
 		if (dp->dp_scyl == 0 && dp->dp_shd == 0 && dp->dp_ssect == 0
 		    && dp->dp_start == 0 && dp->dp_size == 0)
 			continue;
 		if (dp->dp_typ == DOSPTYP_EXTENDED ||
 		    dp->dp_typ == DOSPTYP_EXTENDEDX) {
-			char buf[32];
+			static char buf[32];
 
 			sname = dsname(dev, dkunit(dev), WHOLE_DISK_SLICE,
 				       RAW_PART, partname);
@@ -433,6 +450,7 @@ mbr_extended(dev, lp, ssp, ext_offset, ext_size, base_ext_offset, nsectors,
 				slice++;
 				continue;
 			}
+			sp = &ssp->dss_slices[slice];
 			sp->ds_offset = ext_offset + dp->dp_start;
 			sp->ds_size = dp->dp_size;
 			sp->ds_type = dp->dp_typ;
@@ -441,18 +459,17 @@ mbr_extended(dev, lp, ssp, ext_offset, ext_size, base_ext_offset, nsectors,
 			if (sp->ds_type == DOSPTYP_386BSD)
 				sp->ds_type = 0x94;
 #endif
-			ssp->dss_nslices++;
 			slice++;
-			sp++;
 		}
 	}
+	ssp->dss_nslices = slice;
 
 	/* If we found any more slices, recursively find all the subslices. */
 	for (dospart = 0; dospart < NDOSPART; dospart++)
 		if (ext_sizes[dospart] != 0)
 			mbr_extended(dev, lp, ssp, ext_offsets[dospart],
 				     ext_sizes[dospart], base_ext_offset,
-				     nsectors, ntracks, mbr_offset);
+				     nsectors, ntracks, mbr_offset, ++level);
 
 done:
 	bp->b_flags |= B_INVAL | B_AGE;
