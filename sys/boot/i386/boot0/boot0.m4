@@ -13,7 +13,7 @@
 # purpose.
 #
 
-#	$Id: boot0.m4,v 1.2 1998/10/19 19:13:53 rnordier Exp $
+#	$Id: boot0.m4,v 1.3 1998/11/29 14:09:00 rnordier Exp $
 
 define(_al,0x0)dnl
 define(_cl,0x1)dnl
@@ -51,6 +51,7 @@ define(_bx_,0x7)dnl
 
 define(o16,`.byte 0x66')dnl
 
+define(addw1r,`.byte 0x3; .byte 0x40 | ($3 << 0x3) | $2; .byte $1')dnl
 define(addwia,`.byte 0x5; .word $1')dnl
 define(btwr1,`.word 0xa30f; .byte 0x40 | ($1 << 0x3) | $3; .byte $2')dnl
 define(btswr1,`.word 0xab0f; .byte 0x40 | ($1 << 0x3) | $3; .byte $2')dnl
@@ -62,6 +63,7 @@ define(movbr0,`.byte 0x88; .byte ($1 << 0x3) | $2')dnl
 define(movbr1,`.byte 0x88; .byte 0x40 | ($1 << 0x3) | $3; .byte $2')dnl
 define(movwr1,`.byte 0x89; .byte 0x40 | ($1 << 0x3) | $3; .byte $2')dnl
 define(movb0r,`.byte 0x8a; .byte ($2 << 0x3) | $1')dnl
+define(addb0r,`.byte 0x2; .byte ($2 << 0x3) | $1')dnl
 define(movb1r,`.byte 0x8a; .byte 0x40 | ($3 << 0x3) | $2; .byte $1')dnl
 define(movw1r,`.byte 0x8b; .byte 0x40 | ($3 << 0x3) | $2; .byte $1')dnl
 define(movws1,`.byte 0x8c; .byte 0x40 | ($1 << 0x3) | $3; .byte $2')dnl
@@ -71,3 +73,4 @@ define(callwi,`.byte 0xe8; .word $1 - . - 0x2')dnl
 define(jmpnwi,`.byte 0xe9; .word $1 - . - 0x2')dnl
 define(tstbi1,`.byte 0xf6; .byte 0x40 | $3; .byte $2; .byte $1')dnl
 define(incb1,`.byte 0xfe; .byte 0x40 | $2; .byte $1')dnl
+define(pushw1,`.byte 0xff; .byte 0x70 | $2; .byte $1')dnl
