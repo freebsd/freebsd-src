@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.64 1996/02/19 00:03:50 se Exp $
+**  $Id: ncr.c,v 1.65 1996/03/10 07:12:49 gibbs Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -120,7 +120,9 @@
 **    one lun, so take 1 as the default.
 */
 
+#ifndef	MAX_LUN
 #define MAX_LUN     (8)
+#endif	/* MAX_LUN */
 
 /*
 **    The maximum number of jobs scheduled for starting.
@@ -1245,7 +1247,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.64 1996/02/19 00:03:50 se Exp $\n";
+	"\n$Id: ncr.c,v 1.65 1996/03/10 07:12:49 gibbs Exp $\n";
 
 static u_long	ncr_version = NCR_VERSION	* 11
 	+ (u_long) sizeof (struct ncb)	*  7
@@ -3687,12 +3689,23 @@ static int32_t ncr_start (struct scsi_xfer * xp)
 
 	if (tp->inqdata[7]) {
 		/*
+		**	negotiate wide transfers ?
+		*/
+
+		if (!tp->widedone) {
+			if (tp->inqdata[7] & INQ7_WIDE16) {
+				nego = NS_WIDE;
+			} else
+				tp->widedone=1;
+		};
+
+		/*
 		**	negotiate synchronous transfers?
 		*/
 
-		if (!tp->period) {
+		if (!nego && !tp->period) {
 			if (SCSI_NCR_MAX_SYNC 
-#if defined (CDROM_ASYNC) || defined (GENERIC) || defined (BOOTMFS)
+#if defined (CDROM_ASYNC)
 			    && ((tp->inqdata[0] & 0x1f) != 5)
 #endif
 			    && (tp->inqdata[7] & INQ7_SYNC)) {
@@ -3703,17 +3716,6 @@ static int32_t ncr_start (struct scsi_xfer * xp)
 				PRINT_ADDR(xp);
 				printf ("asynchronous.\n");
 			};
-		};
-
-		/*
-		**	negotiate wide transfers ?
-		*/
-
-		if (!tp->widedone) {
-			if (tp->inqdata[7] & INQ7_WIDE16) {
-				if (!nego) nego = NS_WIDE;
-			} else
-				tp->widedone=1;
 		};
 	};
 
