@@ -376,7 +376,7 @@ do {									\
 
 #ifdef INVARIANTS
 #define	mtx_assert(m, what)						\
-	_mtx_assert((m), (what), LOCK_FILE, LOCK_LINE)
+	_mtx_assert((m), (what), __FILE__, __LINE__)
 
 #define GIANT_REQUIRED	mtx_assert(&Giant, MA_OWNED)
 
