@@ -1,4 +1,4 @@
-<!-- $Id: pgpkeys.sgml,v 1.6 1996/06/11 18:05:47 rich Exp $ -->
+<!-- $Id: pgpkeys.sgml,v 1.6.2.1 1996/06/26 09:24:00 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>PGP keys<label id="pgpkeys"></heading>
@@ -200,5 +200,37 @@ vccjdlg0Q6kBAZTZBACcNd/LiVnMFURPrO4pVRn1sVQeokVX7izeWQ7siE31Iy7g
 Sb97WRLEYDi686osaGfsuKNA87Rm+q5F+jxeUV4w4szoqp60gGvCbD0KCB2hWraP
 /2s2qdVAxhfcoTin/Qp1ZWvXxFF7imGA/IjYIfB42VkaRYu6BwLEm3YAGfGcSw==
 =QoiM
+-----END PGP PUBLIC KEY BLOCK-----
+</verb></tscreen>
+
+  <sect1><heading>&a.peter</heading><p>
+
+<tscreen><verb>
+Peter Wemm &lt;peter@FreeBSD.org&gt;
+Fingerprint = 47 05 04 CA 4C EE F8 93  F6 DB 02 92 6D F5 58 8A
+
+-----BEGIN PGP PUBLIC KEY BLOCK-----
+Version: 2.6.3ia
+
+mQCNAy9/FJwAAAEEALxs9dE9tFd0Ru1TXdq301KfEoe5uYKKuldHRBOacG2Wny6/
+W3Ill57hOi2+xmq5X/mHkapywxvy4cyLdt31i4GEKDvxpDvEzAYcy2n9dIup/eg2
+kEhRBX9G5k/LKM4NQsRIieaIEGGgCZRm0lINqw495aZYrPpO4EqGN2HYnOMZAAUT
+tCVQZXRlciBXZW1tIDxwZXRlckBoYXl3aXJlLmRpYWxpeC5jb20+iQCVAwUQMbET
+6kqGN2HYnOMZAQG1iwP/atRXZ55OLp6RkLBt9UG7a+AM2kA+ZvyRyOIEZkpm4+pb
+iTIDRt36TtOhnf2e7scgiQfKU7LdmvAv5YzmGcVk/ubks5EF3jIuXGHCNbGW1KZB
+7Zqj1utt4a9Twd2SwNUyHE20FvjcybMUNT3OlxvXxpE/Vl0Ft14XrQD/o7lUwIS0
+JVBldGVyIFdlbW0gPHBldGVyQHBlcnRoLmRpYWxpeC5vei5hdT6JAJUDBRAxsRQh
+SoY3Ydic4xkBAel5A/9hzsH7ha50FLXcBT1JILRKjXkq+uI0NzGs/MYBLW2sP8pt
+T24WwpN9dVFkKuPos2RNsZLR0xQpSX2jJ8VSH26D8rokhffSh4lp3/xrKXrdEu5v
+/kVyMGYtakqrwGp8TIgO5CoBUgpnIc2rPE0HMslx7Z/4Jfb9JISZG/3790dtG7Qe
+UGV0ZXIgV2VtbSA8cGV0ZXJARnJlZUJTRC5vcmc+iQCVAwUQMbESXUqGN2HYnOMZ
+AQGSVAP+IvzVh8+SyB/0eCBf91dy5XhcjBa+RDxWNP+JnL9r/o7vYG6zhDP8XeC5
+T68dV6j3me+CUOivZh0euEYSke2SSfQPtdsq+XVaooXvddSsiymm/eKmVB2It+lk
+LtlbSxp8P7fCYOOH0Es2wReavYk83HzTmIUZEg9wXQ6wt5ZcsDu0JVBldGVyIFdl
+bW0gPHBldGVyQHNwaW5uZXIuZGlhbGl4LmNvbT6JAJUDBRAxsRItSoY3Ydic4xkB
+AXQOBACpjRZY/ERfR0LKCN1Gm572KgFjecAsBAeLvmX/M6ujh4nNt086CtUj5Zkn
+QRNXV10Bkumog5C0/sTnXnsDbO531CHB/wwY0rpJQDicypYlz0FuxJLijcMuHquW
+5fo9xwdu4vlgV4Z+jmjTUGOu+CxmkeNRBquOFqOQE3CInIoP8w==
+=iB1t
 -----END PGP PUBLIC KEY BLOCK-----
 </verb></tscreen>
