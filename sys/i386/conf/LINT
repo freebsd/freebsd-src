@@ -4,7 +4,7 @@
 #
 #	This kernel is NOT MEANT to be runnable!
 #
-#	$Id: LINT,v 1.94 1994/10/04 14:11:02 ache Exp $
+#	$Id: LINT,v 1.95 1994/10/15 08:09:42 phk Exp $
 #
 
 machine		"i386"
@@ -196,7 +196,7 @@ device		sio3	at isa? port "IO_COM4" tty irq 9 vector siointr
 
 pseudo-device	speaker
 #tw	device-driver
-controller	uha0	at isa? port "IO_UHA0" bio irq 14 drq 5 vector uhaintr
+controller	uha0	at isa? port "IO_UHA0" bio irq ? drq 5 vector uhaintr
 controller	wdc0	at isa? port "IO_WD1" bio irq 14 vector wdintr
 disk		wd0	at wdc0 drive 0
 disk		wd1	at wdc0 drive 1
