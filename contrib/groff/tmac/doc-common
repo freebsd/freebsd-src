@@ -180,7 +180,7 @@
 .eo
 .
 .
-.\" punctuation values (suffix=3, prefix = 4)
+.\" punctuation values (suffix=3, prefix=4)
 .
 .nr doc-punct. 3
 .nr doc-punct, 3
@@ -321,11 +321,12 @@
 .          as doc-volume " \*[doc-volume-ds-\$2]
 .    \}\}\}
 .    el \{\
-.      ie "\$2"unass" .ds doc-volume DRAFT
-.      el \{ .ie "\$2"draft" .ds doc-volume DRAFT
-.      el \{ .ie "\$2"paper" .ds doc-volume UNTITLED
-.      el \
-.        tm mdoc warning: .Dt: unknown section `\$2' (#\n[.c])
+.      ie "\$2"unass" \
+.        ds doc-volume DRAFT
+.      el \{ .ie "\$2"draft" \
+.        ds doc-volume DRAFT
+.      el .if "\$2"paper" \
+.        ds doc-volume UNTITLED
 .      \}\}
 .      if \A\$3 \{\
 .        if d doc-volume-ds-\$3 \
@@ -542,7 +543,7 @@
 .  ev doc-env-dh
 .  doc-setup-page-layout
 .  if !\n[cR] \
-'    sp \n[doc-header-space]u
+.    sp \n[doc-header-space]u
 .  nr doc-reg-dh \w'\*[doc-caption-font]\*[doc-header-string]\f[]'
 .  nr doc-reg-dh1 \w'\*[doc-caption-font2]\*[doc-volume]\f[]'
 .  if (\n[doc-reg-dh] + \n[doc-reg-dh1] + \n[doc-reg-dh] >= \n[.lt]) \{\
@@ -553,8 +554,9 @@
 .    as doc-header-string "\|.\|.\|.
 .  \}
 .  tl \*[doc-caption-font]\*[doc-header-string]\f[]\*[doc-caption-font2]\*[doc-volume]\f[]\*[doc-caption-font]\*[doc-header-string]\f[]
-'  sp \n[doc-header-space]u
+.  sp \n[doc-header-space]u
 .  ev
+.  ns
 ..
 .
 .
@@ -563,11 +565,11 @@
 .
 .de doc-footer
 .  ie \n[cR] \
-'    br
+.    br
 .  el \{\
 .    ev doc-caption-enviroment
 .    doc-setup-page-layout
-'    sp \n[doc-footer-space]u
+.    sp \n[doc-footer-space]u
 .    ie \n[D] \{\
 .      ie o \
 .        tl %\*[doc-caption-font2]\*[doc-date-string]\f[]\*[doc-caption-font]\*[doc-operating-system]\f[]
@@ -576,7 +578,7 @@
 .    \}
 .    el \
 .      tl \*[doc-caption-font]\*[doc-operating-system]\f[]\*[doc-caption-font2]\*[doc-date-string]\f[]%
-'    bp
+.    bp
 .    ev
 .  \}
 ..
@@ -602,7 +604,7 @@
 .    tm mdoc warning: list open at EOF!  A .Bl directive has no matching .El
 .
 .  if \n[cR] \{\
-'    sp
+.    sp
 .    tl \*[doc-caption-font]\*[doc-operating-system]\f[]\*[doc-caption-font2]\*[doc-date-string]\f[]\*[doc-caption-font]\*[doc-operating-system]\f[]
 .    \" suppress empty lines after the footer
 .    pl \n[nl]u
@@ -761,14 +763,14 @@
 .    doc-parse-args \$@
 .
 .    if t \
-'      ad
+.      ad
 .
 .    \" this resolves e.g. `.Sh "SEE ALSO"'
 .    doc-first-parameter \$*
 .
 .    ie "\*[doc-str-dfp]"\*[doc-section-name]" \{\
 .      doc-setup-header
-'      in 0
+.      in 0
 .    \}
 .    el \{\
 .      nr doc-in-synopsis-section 0
@@ -805,12 +807,12 @@
 .    \}
 .
 .    doc-setup-page-layout
-'    sp
+.    sp
 .    ns
 .    ta T .5i
 .    if !\n[cR] \
 .      ne 3
-'    fi
+.    fi
 .
 .    if t \{\
 .      nr doc-reg-Sh \n[.ss]

@@ -3,11 +3,11 @@
 .ig
 groff_out.5
 
-Last update: 12 Sep 2002
+Last update: 13 Apr 2003
 
 This file is part of groff, the GNU roff type-setting system.
 
-Copyright (C) 1989, 2001, 2002 Free Software Foundation, Inc.
+Copyright (C) 1989, 2001, 2002, 2003 Free Software Foundation, Inc.
 rewritten from scrach 2001 by Bernd Warken <bwarken@mayn.de>
 
 Permission is granted to copy, distribute and/or modify this document
@@ -719,9 +719,18 @@ red, green, and blue.
 .command N n
 Print character with index\~\c
 .argument n
-(a non-negative integer) of the current font.
+(an integer, normally non-negative) of the current font.
 .
 The print position is not changed.
+.
+If
+.B \-T\~html
+is used, negative values are emitted also to indicate an unbreakable space
+with given width.
+.
+For example,
+.B N\~-193
+represents an unbreakable space which has a width of 193u.
 .
 This command is a groff extension.
 .
@@ -1290,7 +1299,7 @@ This is the second command of the prologue.
 .xsub Slant
 Set slant to\~\c
 .argument n
-(an integer in basic units\~\c
+degrees (an integer in basic units\~\c
 .unit u ).
 .
 .
@@ -1726,7 +1735,7 @@ Device description file for device
 .IR name .
 .
 .TP
-.IB \[la]groff_source_dir\[ra] /src/libs/libdriver/input.cc
+.IB \[la]groff_source_dir\[ra] /src/libs/libdriver/input.cpp
 Defines the parser and postprocessor for the intermediate output.
 .
 It is located relative to the top directory of the
@@ -1855,7 +1864,7 @@ see
 .SH "AUTHORS"
 .\" --------------------------------------------------------------------
 .
-Copyright (C) 1989, 2001, 2002 Free Software Foundation, Inc.
+Copyright (C) 1989, 2001, 2002, 2003 Free Software Foundation, Inc.
 .P
 This document is distributed under the terms of the FDL (GNU Free
 Documentation License) version 1.1 or later.
