@@ -71,8 +71,8 @@ struct m_hdr {
 	struct	mbuf *mh_nextpkt;	/* next chain in queue/record */
 	caddr_t	mh_data;		/* location of data */
 	int	mh_len;			/* amount of data in this mbuf */
+	int	mh_flags;		/* flags; see below */
 	short	mh_type;		/* type of data in this mbuf */
-	short	mh_flags;		/* flags; see below */
 };
 
 /*
@@ -471,7 +471,7 @@ void		 m_cat(struct mbuf *, struct mbuf *);
 void		 m_chtype(struct mbuf *, short);
 void		 m_clget(struct mbuf *, int);
 void		 m_extadd(struct mbuf *, caddr_t, u_int,
-		    void (*free)(void *, void *), void *, short, int);
+		    void (*free)(void *, void *), void *, int, int);
 void		 m_copyback(struct mbuf *, int, int, caddr_t);
 void		 m_copydata(const struct mbuf *, int, int, caddr_t);
 struct	mbuf	*m_copym(struct mbuf *, int, int, int);
