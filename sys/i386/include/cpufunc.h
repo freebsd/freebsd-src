@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cpufunc.h,v 1.74 1998/01/15 07:32:55 gibbs Exp $
+ *	$Id: cpufunc.h,v 1.75 1998/01/25 17:02:00 kato Exp $
  */
 
 /*
@@ -55,14 +55,6 @@ static __inline void
 breakpoint(void)
 {
 	__asm __volatile("int $3");
-}
-
-static __inline void
-cpuid(u_int *eax, u_int *ebx, u_int *ecx, u_int *edx)
-{
-	__asm __volatile(".byte 0x0f, 0xa2"
-			 : "=a" (*eax), "=b" (*ebx), "=c" (*ecx), "=d" (*edx)
-			 : "a" (*eax));
 }
 
 static __inline void
@@ -403,7 +395,6 @@ wrmsr(u_int msr, quad_t newval)
 #else /* !__GNUC__ */
 
 int	breakpoint	__P((void));
-void	cpuid		__P((u_int *eax, u_int *ebx, u_int *ecx, u_int *edx));
 void	disable_intr	__P((void));
 void	enable_intr	__P((void));
 u_char	inb		__P((u_int port));
