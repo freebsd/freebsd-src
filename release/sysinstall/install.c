@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.91 1996/05/29 04:37:14 jkh Exp $
+ * $Id: install.c,v 1.71.2.92 1996/06/14 18:35:08 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -658,21 +658,21 @@ installFilesystems(dialogMenuItem *self)
 
     /* As the very first thing, try to get ourselves some swap space */
     sprintf(dname, "/dev/%s", swapdev->name);
-    if (!MakeDevChunk(swapdev, "/dev") || !file_readable(dname)) {
+    if (!Fake && (!MakeDevChunk(swapdev, "/dev") || !file_readable(dname))) {
 	msgConfirm("Unable to make device node for %s in /dev!\n"
 		   "The creation of filesystems will be aborted.", dname);
 	return DITEM_FAILURE;
     }
-    if (!swapon(dname))
+    if (!Fake && !swapon(dname))
 	msgNotify("Added %s as initial swap device", dname);
-    else
+    else if (!Fake)
 	msgConfirm("WARNING!  Unable to swap to %s: %s\n"
 		   "This may cause the installation to fail at some point\n"
 		   "if you don't have a lot of memory.", dname, strerror(errno));
 
     /* Next, create and/or mount the root device */
     sprintf(dname, "/dev/r%sa", rootdev->disk->name);
-    if (!MakeDevChunk(rootdev, "/dev") || !file_readable(dname)) {
+    if (!Fake && (!MakeDevChunk(rootdev, "/dev") || !file_readable(dname))) {
 	msgConfirm("Unable to make device node for %s in /dev!\n"
 		   "The creation of filesystems will be aborted.", dname);
 	return DITEM_FAILURE;
@@ -723,7 +723,8 @@ installFilesystems(dialogMenuItem *self)
 	}
 	if (root->newfs || upgrade) {
 	    Mkdir("/mnt/dev", NULL);
-	    MakeDevDisk(disk, "/mnt/dev");
+	    if (!Fake)
+		MakeDevDisk(disk, "/mnt/dev");
 	}
 
 	for (c1 = disk->chunks->part; c1; c1 = c1->next) {
@@ -749,7 +750,7 @@ installFilesystems(dialogMenuItem *self)
 			if (c2 == swapdev)
 			    continue;
 			sprintf(fname, "/mnt/dev/%s", c2->name);
-			i = swapon(fname);
+			i = (Fake || swapon(fname));
 			if (!i)
 			    msgNotify("Added %s as an additional swap device", fname);
 			else
