@@ -320,9 +320,9 @@ main(argc, argv)
 			p = buf;
 			COMPACT(pwd.pw_name);
 			COMPACT("*");
-			memmove(p, &pwd.pw_uid, sizeof(int));
+			memmove(p, &pwd.pw_uid, sizeof(pwd.pw_uid));
 			p += sizeof(int);
-			memmove(p, &pwd.pw_gid, sizeof(int));
+			memmove(p, &pwd.pw_gid, sizeof(pwd.pw_gid));
 			p += sizeof(int);
 			memmove(p, &pwd.pw_change, sizeof(time_t));
 			p += sizeof(time_t);
@@ -340,9 +340,9 @@ main(argc, argv)
 			p = sbuf;
 			COMPACT(pwd.pw_name);
 			COMPACT(pwd.pw_passwd);
-			memmove(p, &pwd.pw_uid, sizeof(int));
+			memmove(p, &pwd.pw_uid, sizeof(pwd.pw_uid));
 			p += sizeof(int);
-			memmove(p, &pwd.pw_gid, sizeof(int));
+			memmove(p, &pwd.pw_gid, sizeof(pwd.pw_gid));
 			p += sizeof(int);
 			memmove(p, &pwd.pw_change, sizeof(time_t));
 			p += sizeof(time_t);
@@ -420,8 +420,8 @@ main(argc, argv)
 			char uidstr[20];
 			char gidstr[20];
 
-			snprintf(uidstr, sizeof(uidstr), "%d", pwd.pw_uid);
-			snprintf(gidstr, sizeof(gidstr), "%d", pwd.pw_gid);
+			snprintf(uidstr, sizeof(uidstr), "%u", pwd.pw_uid);
+			snprintf(gidstr, sizeof(gidstr), "%u", pwd.pw_gid);
 
 			if (fprintf(oldfp, "%s:*:%s:%s:%s:%s:%s\n",
 			    pwd.pw_name, pwd.pw_fields & _PWF_UID ? uidstr : "",
