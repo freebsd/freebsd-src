@@ -388,7 +388,7 @@ ata_raid_delete(int array)
     
     rdp->flags &= ~AR_F_READY;
     for (disk = 0; disk < rdp->total_disks; disk++) {
-	if (rdp->disks[disk].device) {
+	if ((rdp->disks[disk].flags&AR_DF_PRESENT) && rdp->disks[disk].device) {
 	    AD_SOFTC(rdp->disks[disk])->flags &= ~AD_F_RAID_SUBDISK;
 	    ata_drawerleds(rdp->disks[disk].device, ATA_LED_GREEN);
 	    rdp->disks[disk].flags = 0;
@@ -715,7 +715,7 @@ ar_config_changed(struct ar_softc *rdp, int writeback)
 	    }
 	    break;
 	}
-	if (rdp->disks[disk].device) {
+	if ((rdp->disks[disk].flags&AR_DF_PRESENT) && rdp->disks[disk].device) {
 	    if (rdp->disks[disk].flags & AR_DF_ONLINE)
 		ata_drawerleds(rdp->disks[disk].device, ATA_LED_GREEN);
 	    else
