@@ -1415,6 +1415,25 @@ fdshare(struct filedesc *fdp)
 }
 
 /*
+ * Unshare a filedesc structure, if necessary by making a copy
+ */
+void
+fdunshare(struct proc *p, struct thread *td)
+{
+
+	FILEDESC_LOCK_FAST(p->p_fd);
+	if (p->p_fd->fd_refcnt > 1) {
+		struct filedesc *tmp;
+
+		FILEDESC_UNLOCK_FAST(p->p_fd);
+		tmp = fdcopy(p->p_fd);
+		fdfree(td);
+		p->p_fd = tmp;
+	} else
+		FILEDESC_UNLOCK_FAST(p->p_fd);
+}
+
+/*
  * Copy a filedesc structure.
  * A NULL pointer in returns a NULL reference, this is to ease callers,
  * not catch errors.
