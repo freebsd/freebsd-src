@@ -4319,3 +4319,146 @@ extattr_delete_link(td, uap)
 	vrele(nd.ni_vp);
 	return(error);
 }
+
+/*-
+ * Retrieve a list of extended attributes on a file or directory.
+ *
+ * Arguments: unlocked vnode "vp", attribute namespace 'attrnamespace",
+ *            userspace buffer pointer "data", buffer length "nbytes",
+ *            thread "td".
+ * Returns: 0 on success, an error number otherwise
+ * Locks: none
+ * References: vp must be a valid reference for the duration of the call
+ */
+static int
+extattr_list_vp(struct vnode *vp, int attrnamespace, void *data,
+    size_t nbytes, struct thread *td)
+{
+	struct uio auio, *auiop;
+	size_t size, *sizep;
+	struct iovec aiov;
+	ssize_t cnt;
+	int error;
+
+	VOP_LEASE(vp, td, td->td_ucred, LEASE_READ);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+
+	auiop = NULL;
+	sizep = NULL;
+	cnt = 0;
+	if (data != NULL) {
+		aiov.iov_base = data;
+		aiov.iov_len = nbytes;
+		auio.uio_iov = &aiov;
+		auio.uio_offset = 0;
+		if (nbytes > INT_MAX) {
+			error = EINVAL;
+			goto done;
+		}
+		auio.uio_resid = nbytes;
+		auio.uio_rw = UIO_READ;
+		auio.uio_segflg = UIO_USERSPACE;
+		auio.uio_td = td;
+		auiop = &auio;
+		cnt = nbytes;
+	} else
+		sizep = &size;
+
+#ifdef MAC
+	error = mac_check_vnode_getextattr(td->td_ucred, vp, attrnamespace,
+	    "", &auio);
+	if (error)
+		goto done;
+#endif
+
+	error = VOP_GETEXTATTR(vp, attrnamespace, "", auiop, sizep,
+	    td->td_ucred, td);
+
+	if (auiop != NULL) {
+		cnt -= auio.uio_resid;
+		td->td_retval[0] = cnt;
+	} else
+		td->td_retval[0] = size;
+
+done:
+	VOP_UNLOCK(vp, 0, td);
+	return (error);
+}
+
+
+int
+extattr_list_fd(td, uap)
+	struct thread *td;
+	struct extattr_list_fd_args /* {
+		int fd;
+		int attrnamespace;
+		void *data;
+		size_t nbytes;
+	} */ *uap;
+{
+	struct file *fp;
+	int error;
+
+	error = getvnode(td->td_proc->p_fd, uap->fd, &fp);
+	if (error)
+		return (error);
+
+	error = extattr_list_vp(fp->f_data, uap->attrnamespace, uap->data,
+	    uap->nbytes, td);
+
+	fdrop(fp, td);
+	return (error);
+}
+
+int
+extattr_list_file(td, uap)
+	struct thread*td;
+	struct extattr_list_file_args /* {
+		const char *path;
+		int attrnamespace;
+		void *data;
+		size_t nbytes;
+	} */ *uap;
+{
+	struct nameidata nd;
+	int error;
+
+	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, uap->path, td);
+	error = namei(&nd);
+	if (error)
+		return (error);
+	NDFREE(&nd, NDF_ONLY_PNBUF);
+
+	error = extattr_list_vp(nd.ni_vp, uap->attrnamespace, uap->data,
+	    uap->nbytes, td);
+
+	vrele(nd.ni_vp);
+	return (error);
+}
+
+int
+extattr_list_link(td, uap)
+	struct thread*td;
+	struct extattr_list_link_args /* {
+		const char *path;
+		int attrnamespace;
+		void *data;
+		size_t nbytes;
+	} */ *uap;
+{
+	struct nameidata nd;
+	int error;
+
+	NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_USERSPACE, uap->path, td);
+	error = namei(&nd);
+	if (error)
+		return (error);
+	NDFREE(&nd, NDF_ONLY_PNBUF);
+
+	error = extattr_list_vp(nd.ni_vp, uap->attrnamespace, uap->data,
+	    uap->nbytes, td);
+
+	vrele(nd.ni_vp);
+	return (error);
+}
+
