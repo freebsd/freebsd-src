@@ -26,4 +26,16 @@ WARNS?=	2
 .include "${.CURDIR}/sys/Makefile.inc"
 .include "${.CURDIR}/arch/${MACHINE_ARCH}/Makefile.inc"
 
+.if !defined(NOLIBC_R)
+.if ${MACHINE_ARCH} == "ia64"
+SYMLINKS+=libthr.a ${LIBDIR}/libc_r.a
+.if !defined(NOPIC)
+SYMLINKS+=libthr.so ${SHLIBDIR}/libc_r.so
+.endif
+.if !defined(NOPROFILE)
+SYMLINKS+=libthr_p.a ${LIBDIR}/libc_r_p.a
+.endif
+.endif
+.endif
+
 .include <bsd.lib.mk>
