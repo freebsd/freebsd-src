@@ -1,4 +1,6 @@
-#	$Id: Makefile,v 1.11 1997/02/22 16:01:14 peter Exp $
+#	$Id: Makefile,v 1.12 1997/07/05 19:12:43 pst Exp $
+
+MAINTAINER= wosch
 
 SCRIPTS= adduser.perl rmuser.perl
 MAN8=	 adduser.8    rmuser.8
