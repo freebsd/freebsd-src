@@ -1,11 +1,11 @@
-#	$Id: Makefile,v 1.2 1995/01/21 23:30:31 wollman Exp $
+#	$Id: Makefile,v 1.3 1995/01/23 18:56:40 wollman Exp $
 
 LIB=	ss
 SRCS=	ss_err.c data.c error.c execute_cmd.c help.c invocation.c list_rqs.c \
 	listen.c pager.c parse.c prompt.c request_tbl.c requests.c \
 	std_rqs.c
 CFLAGS+= -I. -I${.CURDIR} -DPOSIX -DIN_LIBSS
-CLEANFILES+=	ss ss_err.c ss_err.h std_rqs.c
+CLEANFILES+=	ss ss_err.c ss_err.et ss_err.h std_rqs.c std_rqs.ct
 .if exists(${.CURDIR}/../libcom_err/obj/.)
 LDADD+=	-L${.CURDIR}/../libcom_err/obj
 .else
