@@ -1,3 +1,4 @@
+# $FreeBSD$
 *.brik
 *FAQ
 *contrib
@@ -5,6 +6,7 @@
 *faq.*
 */include
 */install*
+*getopt*
 *libchill
 *libf2c
 *libiberty
