@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_prot.c	8.6 (Berkeley) 1/21/94
- * $Id: kern_prot.c,v 1.8 1995/04/27 19:23:24 ache Exp $
+ * $Id: kern_prot.c,v 1.9 1995/04/28 17:00:27 ache Exp $
  */
 
 /*
@@ -261,20 +261,24 @@ setuid(p, uap, retval)
 	int error;
 
 	uid = uap->uid;
-	if (uid != pc->p_ruid &&
-	    (error = suser(pc->pc_ucred, &p->p_acflag)))
+	error = suser(pc->pc_ucred, &p->p_acflag);
+	if (uid != pc->p_ruid && uid != pc->p_svuid && error)
 		return (error);
 	/*
 	 * Everything's okay, do it.
 	 * Transfer proc count to new user.
 	 * Copy credentials so other references do not see our changes.
 	 */
-	(void)chgproccnt(pc->p_ruid, -1);
-	(void)chgproccnt(uid, 1);
+	if (!error && uid != pc->p_ruid) {
+		(void)chgproccnt(pc->p_ruid, -1);
+		(void)chgproccnt(uid, 1);
+	}
 	pc->pc_ucred = crcopy(pc->pc_ucred);
 	pc->pc_ucred->cr_uid = uid;
-	pc->p_ruid = uid;
-	pc->p_svuid = uid;
+	if (!error) {
+		pc->p_ruid = uid;
+		pc->p_svuid = uid;
+	}
 	p->p_flag |= P_SUGID;
 	return (0);
 }
@@ -322,12 +326,15 @@ setgid(p, uap, retval)
 	int error;
 
 	gid = uap->gid;
-	if (gid != pc->p_rgid && (error = suser(pc->pc_ucred, &p->p_acflag)))
+	error = suser(pc->pc_ucred, &p->p_acflag);
+	if (gid != pc->p_rgid && gid != pc->p_svgid && error)
 		return (error);
 	pc->pc_ucred = crcopy(pc->pc_ucred);
 	pc->pc_ucred->cr_groups[0] = gid;
-	pc->p_rgid = gid;
-	pc->p_svgid = gid;		/* ??? */
+	if (!error) {
+		pc->p_rgid = gid;
+		pc->p_svgid = gid;
+	}
 	p->p_flag |= P_SUGID;
 	return (0);
 }
