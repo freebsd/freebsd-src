@@ -62,6 +62,7 @@ map_object(int fd, const char *path, const struct stat *sb)
     int nsegs;
     Elf_Phdr *phdyn;
     Elf_Phdr *phphdr;
+    Elf_Phdr *phinterp;
     caddr_t mapbase;
     size_t mapsize;
     Elf_Off base_offset;
@@ -136,10 +137,13 @@ map_object(int fd, const char *path, const struct stat *sb)
     phdr = (Elf_Phdr *) (u.buf + u.hdr.e_phoff);
     phlimit = phdr + u.hdr.e_phnum;
     nsegs = 0;
-    phdyn = NULL;
-    phphdr = NULL;
+    phdyn = phphdr = phinterp = NULL;
     while (phdr < phlimit) {
 	switch (phdr->p_type) {
+
+	case PT_INTERP:
+	    phinterp = phdr;
+	    break;
 
 	case PT_LOAD:
 	    if (nsegs >= 2) {
@@ -239,15 +243,15 @@ map_object(int fd, const char *path, const struct stat *sb)
       base_vaddr;
     obj->vaddrbase = base_vaddr;
     obj->relocbase = mapbase - base_vaddr;
-    obj->dynamic = (const Elf_Dyn *)
-      (mapbase + (phdyn->p_vaddr - base_vaddr));
+    obj->dynamic = (const Elf_Dyn *) (obj->relocbase + phdyn->p_vaddr);
     if (u.hdr.e_entry != 0)
-	obj->entry = (caddr_t) (mapbase + (u.hdr.e_entry - base_vaddr));
+	obj->entry = (caddr_t) (obj->relocbase + u.hdr.e_entry);
     if (phphdr != NULL) {
-	obj->phdr = (const Elf_Phdr *)
-	  (mapbase + (phphdr->p_vaddr - base_vaddr));
+	obj->phdr = (const Elf_Phdr *) (obj->relocbase + phphdr->p_vaddr);
 	obj->phsize = phphdr->p_memsz;
     }
+    if (phinterp != NULL)
+	obj->interp = (const char *) (obj->relocbase + phinterp->p_vaddr);
 
     return obj;
 }

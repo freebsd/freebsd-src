@@ -99,6 +99,7 @@ typedef struct Struct_Obj_Entry {
     caddr_t entry;		/* Entry point */
     const Elf_Phdr *phdr;	/* Program header if it is mapped, else NULL */
     size_t phsize;		/* Size of program header in bytes */
+    const char *interp;		/* Pathname of the interpreter, if any */
 
     /* Items from the dynamic section. */
     Elf_Addr *pltgot;		/* PLT or GOT, depending on architecture */
