@@ -119,10 +119,10 @@ SYSCTL_INT(_net_inet_ip, IPCTL_KEEPFAITH, keepfaith, CTLFLAG_RW,
 	&ip_keepfaith,	0,
 	"Enable packet capture for FAITH IPv4->IPv6 translater daemon");
 
-static int	ip_nfragpackets = 0;
-static int	ip_maxfragpackets;	/* initialized in ip_init() */
+static int    nipq = 0;         /* total # of reass queues */
+static int    maxnipq;
 SYSCTL_INT(_net_inet_ip, OID_AUTO, maxfragpackets, CTLFLAG_RW,
-	&ip_maxfragpackets, 0,
+	&maxnipq, 0,
 	"Maximum number of IPv4 fragment reassembly queue entries");
 
 static int	ip_sendsourcequench = 0;
@@ -177,8 +177,6 @@ SYSCTL_STRUCT(_net_inet_ip, IPCTL_STATS, stats, CTLFLAG_RW,
 	(((((x) & 0xF) | ((((x) >> 8) & 0xF) << 4)) ^ (y)) & IPREASS_HMASK)
 
 static TAILQ_HEAD(ipqhead, ipq) ipq[IPREASS_NHASH];
-static int    nipq = 0;         /* total # of reass queues */
-static int    maxnipq;
 
 #ifdef IPCTL_DEFMTU
 SYSCTL_INT(_net_inet_ip, IPCTL_DEFMTU, mtu, CTLFLAG_RW,
@@ -259,7 +257,6 @@ ip_init()
 	    TAILQ_INIT(&ipq[i]);
 
 	maxnipq = nmbclusters / 4;
-	ip_maxfragpackets = nmbclusters / 4;
 
 #ifndef RANDOM_IP_ID
 	ip_id = time_second & 0xffff;
@@ -980,9 +977,6 @@ ip_reass(struct mbuf *m, struct ipqhead *head, struct ipq *fp,
 		 * If maxfrag is 0, never accept fragments.
 		 * If maxfrag is -1, accept all fragments without limitation.
 		 */
-		if ((ip_maxfragpackets >= 0) && (ip_nfragpackets >= ip_maxfragpackets))
-			goto dropfrag;
-		ip_nfragpackets++;
 		if ((t = m_get(M_NOWAIT, MT_FTABLE)) == NULL)
 			goto dropfrag;
 		fp = mtod(t, struct ipq *);
@@ -1145,7 +1139,6 @@ inserted:
 	TAILQ_REMOVE(head, fp, ipq_list);
 	nipq--;
 	(void) m_free(dtom(fp));
-	ip_nfragpackets--;
 	m->m_len += (ip->ip_hl << 2);
 	m->m_data -= (ip->ip_hl << 2);
 	/* some debugging cruft by sklower, below, will go away soon */
@@ -1183,7 +1176,6 @@ ip_freef(fhp, fp)
 	}
 	TAILQ_REMOVE(fhp, fp, ipq_list);
 	(void) m_free(dtom(fp));
-	ip_nfragpackets--;
 	nipq--;
 }
 
@@ -1217,8 +1209,8 @@ ip_slowtimo()
 	 * enough to get down to the new limit.
 	 */
 	for (i = 0; i < IPREASS_NHASH; i++) {
-		if (ip_maxfragpackets >= 0) {
-			while (ip_nfragpackets > ip_maxfragpackets &&
+		if (maxnipq >= 0) {
+			while (nipq > maxnipq &&
 				!TAILQ_EMPTY(&ipq[i])) {
 				ipstat.ips_fragdropped++;
 				ip_freef(&ipq[i], TAILQ_FIRST(&ipq[i]));
