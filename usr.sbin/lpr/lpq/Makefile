@@ -4,6 +4,7 @@
 BINDIR=	/usr/bin
 
 PROG=	lpq
+BINOWN=	root
 BINGRP=	daemon
 BINMODE= 6555
 
