@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_ti.c,v 1.11 1999/07/23 16:21:43 wpaul Exp $
+ *	$Id: if_ti.c,v 1.12 1999/07/23 18:46:24 wpaul Exp $
  */
 
 /*
@@ -131,7 +131,7 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-	"$Id: if_ti.c,v 1.11 1999/07/23 16:21:43 wpaul Exp $";
+	"$Id: if_ti.c,v 1.12 1999/07/23 18:46:24 wpaul Exp $";
 #endif
 
 /*
@@ -382,12 +382,7 @@ static void ti_mem(sc, addr, len, buf)
 
 	segptr = addr;
 	cnt = len;
-#ifdef __i386__
 	ti_winbase = (caddr_t)(sc->ti_bhandle + TI_WINDOW);
-#endif
-#ifdef __alpha__
-	ti_winbase = (caddr_t)(sc->ti_vhandle + TI_WINDOW);
-#endif
 	ptr = buf;
 
 	while(cnt) {
@@ -1380,14 +1375,8 @@ static int ti_gibinit(sc)
 	/* Set up the command ring and producer mailbox. */
 	rcb = &sc->ti_rdata->ti_info.ti_cmd_rcb;
 
-#ifdef __i386__
 	sc->ti_rdata->ti_cmd_ring =
 	    (struct ti_cmd_desc *)(sc->ti_bhandle + TI_GCR_CMDRING);
-#endif
-#ifdef __alpha__
-	sc->ti_rdata->ti_cmd_ring =
-	    (struct ti_cmd_desc *)(sc->ti_vhandle + TI_GCR_CMDRING);
-#endif
 	TI_HOSTADDR(rcb->ti_hostaddr) = TI_GCR_NIC_ADDR(TI_GCR_CMDRING);
 	rcb->ti_flags = 0;
 	rcb->ti_max_len = 0;
@@ -1473,14 +1462,8 @@ static int ti_gibinit(sc)
 	 */
 	CSR_WRITE_4(sc, TI_WINBASE, TI_TX_RING_BASE);
 	if (sc->ti_hwrev == TI_HWREV_TIGON) {
-#ifdef __i386__
 		sc->ti_rdata->ti_tx_ring_nic =
 		    (struct ti_tx_desc *)(sc->ti_bhandle + TI_WINDOW);
-#endif
-#ifdef __alpha__
-		sc->ti_rdata->ti_tx_ring_nic =
-		    (struct ti_tx_desc *)(sc->ti_vhandle + TI_WINDOW);
-#endif
 	}
 	bzero((char *)sc->ti_rdata->ti_tx_ring,
 	    TI_TX_RING_CNT * sizeof(struct ti_tx_desc));
