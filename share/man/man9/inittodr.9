@@ -85,8 +85,8 @@ variable.
 The
 .Fn inittodr
 function prints diagnostic messages if it has trouble figuring
-out the system time.  Conditions that can cause diagnostic
-messages to be printed include:
+out the system time.
+Conditions that can cause diagnostic messages to be printed include:
 .Bl -bullet
 .It
 The battery-backed clock's time appears nonsensical.
@@ -109,8 +109,8 @@ has to convert from
 a time expressed in terms of year, month, day, hours, minutes,
 and seconds to
 .Va time ,
-expressed in seconds.  Many of the implementations could share code,
-but do not.
+expressed in seconds.
+Many of the implementations could share code, but do not.
 .Pp
 Each system's heuristics for picking the correct time are slightly
 different.
@@ -119,5 +119,5 @@ The
 .Fx
 implementation should do a better job of validating the time provided in
 .Fa base
-when the battery-backed clock is unusable.  Currently it unconditionally
-sets the system clock to this value.
+when the battery-backed clock is unusable.
+Currently it unconditionally sets the system clock to this value.

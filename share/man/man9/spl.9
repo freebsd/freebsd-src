@@ -82,7 +82,8 @@ function family sets the interrupt priority
 .Dq level
 of the CPU.
 This prevents interrupt handlers of the blocked priority level from
-being run.  This is used in the
+being run.
+This is used in the
 .Dq synchronous
 part of a driver (the part that runs on behalf of the user process) to
 examine or modify data areas that might be examined or modified by
@@ -97,7 +98,8 @@ device foo0 at isa? port 0x0815 irq 12 tty
 .Pp
 assigns interrupt 12 to the
 .Dq tty
-priority group.  The system automatically arranges for interrupts in
+priority group.
+The system automatically arranges for interrupts in
 the
 .Em xxx
 group to be called at a priority >=
@@ -106,7 +108,8 @@ group to be called at a priority >=
 .Pp
 The function
 .Fn splx
-sets the interrupt priority to an absolute value.  The intent is that
+sets the interrupt priority to an absolute value.
+The intent is that
 the value returned by the other functions should be saved in a local
 variable, and later passed to
 .Fn splx
@@ -186,7 +189,8 @@ foointr(...)
 .Ed
 Note that the interrupt handler should
 .Em never
-reduce the priority level.  It is automatically called as it had
+reduce the priority level.
+It is automatically called as it had
 raised the interrupt priority to its own level, i.e. further interrupts
 of the same group are being blocked.
 .Sh HISTORY
@@ -194,8 +198,8 @@ The interrupt priority levels appeared in a very early version of
 .Ux .
 They have been traditionally known by number instead of by
 names, and were inclusive up to higher priority levels (i.e., priority
-5 has been blocking everything up to level 5).  This is no longer the
-case in
+5 has been blocking everything up to level 5).
+This is no longer the case in
 .Fx .
 The traditional name
 .Ql level
@@ -204,7 +208,8 @@ for them is still reflected in the letter
 of the respective functions and variables, although they are not
 really levels anymore, but rather different (partially inclusive)
 sets of functions to be blocked during some periods of the life of
-the system.  The historical number scheme can be considered as a
+the system.
+The historical number scheme can be considered as a
 simple linearly ordered set of interrupt priority groups.
 .Sh AUTHORS
 This man page was written by
