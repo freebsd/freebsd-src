@@ -82,7 +82,6 @@ softclock(void *dummy)
 {
 	register struct callout *c;
 	register struct callout_tailq *bucket;
-	register int s;
 	register int curticks;
 	register int steps;	/* #steps since we last allowed interrupts */
 
@@ -91,7 +90,6 @@ softclock(void *dummy)
 #endif /* MAX_SOFTCLOCK_STEPS */
 
 	steps = 0;
-	s = splhigh();
 	mtx_lock_spin(&callout_lock);
 	while (softticks != ticks) {
 		softticks++;
@@ -110,8 +108,7 @@ softclock(void *dummy)
 					nextsoftcheck = c;
 					/* Give interrupts a chance. */
 					mtx_unlock_spin(&callout_lock);
-					splx(s);
-					s = splhigh();
+					;	/* nothing */
 					mtx_lock_spin(&callout_lock);
 					c = nextsoftcheck;
 					steps = 0;
@@ -138,9 +135,7 @@ softclock(void *dummy)
 				mtx_unlock_spin(&callout_lock);
 				if (!(c_flags & CALLOUT_MPSAFE))
 					mtx_lock(&Giant);
-				splx(s);
 				c_func(c_arg);
-				s = splhigh();
 				if (!(c_flags & CALLOUT_MPSAFE))
 					mtx_unlock(&Giant);
 				mtx_lock_spin(&callout_lock);
@@ -151,7 +146,6 @@ softclock(void *dummy)
 	}
 	nextsoftcheck = NULL;
 	mtx_unlock_spin(&callout_lock);
-	splx(s);
 }
 
 /*
@@ -176,11 +170,9 @@ timeout(ftn, arg, to_ticks)
 	void *arg;
 	int to_ticks;
 {
-	int s;
 	struct callout *new;
 	struct callout_handle handle;
 
-	s = splhigh();
 	mtx_lock_spin(&callout_lock);
 
 	/* Fill in the next free callout structure. */
@@ -194,7 +186,6 @@ timeout(ftn, arg, to_ticks)
 
 	handle.callout = new;
 	mtx_unlock_spin(&callout_lock);
-	splx(s);
 	return (handle);
 }
 
@@ -204,7 +195,6 @@ untimeout(ftn, arg, handle)
 	void *arg;
 	struct callout_handle handle;
 {
-	register int s;
 
 	/*
 	 * Check for a handle that was initialized
@@ -214,12 +204,10 @@ untimeout(ftn, arg, handle)
 	if (handle.callout == NULL)
 		return;
 
-	s = splhigh();
 	mtx_lock_spin(&callout_lock);
 	if (handle.callout->c_func == ftn && handle.callout->c_arg == arg)
 		callout_stop(handle.callout);
 	mtx_unlock_spin(&callout_lock);
-	splx(s);
 }
 
 void
@@ -249,17 +237,15 @@ callout_reset(c, to_ticks, ftn, arg)
 	void	(*ftn) __P((void *));
 	void	*arg;
 {
-	int	s;
 
-	s = splhigh();
 	mtx_lock_spin(&callout_lock);
 	if (c->c_flags & CALLOUT_PENDING)
 		callout_stop(c);
 
 	/*
-	 * We could spl down here and back up at the TAILQ_INSERT_TAIL,
-	 * but there's no point since doing this setup doesn't take much
-	 * time.
+	 * We could unlock callout_lock here and lock it again before the
+	 * TAILQ_INSERT_TAIL, but there's no point since doing this setup
+	 * doesn't take much time.
 	 */
 	if (to_ticks <= 0)
 		to_ticks = 1;
@@ -271,16 +257,13 @@ callout_reset(c, to_ticks, ftn, arg)
 	TAILQ_INSERT_TAIL(&callwheel[c->c_time & callwheelmask], 
 			  c, c_links.tqe);
 	mtx_unlock_spin(&callout_lock);
-	splx(s);
 }
 
 void
 callout_stop(c)
 	struct	callout *c;
 {
-	int	s;
 
-	s = splhigh();
 	mtx_lock_spin(&callout_lock);
 	/*
 	 * Don't attempt to delete a callout that's not on the queue.
@@ -288,7 +271,6 @@ callout_stop(c)
 	if (!(c->c_flags & CALLOUT_PENDING)) {
 		c->c_flags &= ~CALLOUT_ACTIVE;
 		mtx_unlock_spin(&callout_lock);
-		splx(s);
 		return;
 	}
 	c->c_flags &= ~(CALLOUT_ACTIVE | CALLOUT_PENDING);
@@ -303,7 +285,6 @@ callout_stop(c)
 		SLIST_INSERT_HEAD(&callfree, c, c_links.sle);
 	}
 	mtx_unlock_spin(&callout_lock);
-	splx(s);
 }
 
 void
@@ -338,7 +319,6 @@ adjust_timeout_calltodo(time_change)
 {
 	register struct callout *p;
 	unsigned long delta_ticks;
-	int s;
 
 	/* 
 	 * How many ticks were we asleep?
@@ -366,7 +346,6 @@ adjust_timeout_calltodo(time_change)
 	 */
 
 	/* don't collide with softclock() */
-	s = splhigh(); 
 	mtx_lock_spin(&callout_lock);
 	for (p = calltodo.c_next; p != NULL; p = p->c_next) {
 		p->c_time -= delta_ticks;
@@ -379,7 +358,6 @@ adjust_timeout_calltodo(time_change)
 		delta_ticks = -p->c_time;
 	}
 	mtx_unlock_spin(&callout_lock);
-	splx(s);
 
 	return;
 }
