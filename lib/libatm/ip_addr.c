@@ -36,6 +36,7 @@
  */
 
 #include <sys/types.h>
+#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/socket.h>
 #include <net/if.h>
@@ -53,10 +54,7 @@
 
 #include "libatm.h"
 
-#ifndef lint
-__RCSID("@(#) $FreeBSD$");
-#endif
-
+__FBSDID("$FreeBSD$");
 
 /*
  * Get IP address
