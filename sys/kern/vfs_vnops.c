@@ -775,41 +775,41 @@ vn_ioctl(fp, com, data, active_cred, td)
 	struct thread *td;
 {
 	struct vnode *vp = fp->f_vnode;
-	struct vnode *vpold;
 	struct vattr vattr;
 	int error;
 
-	GIANT_REQUIRED;
-
+	mtx_lock(&Giant);
+	error = ENOTTY;
 	switch (vp->v_type) {
-
 	case VREG:
 	case VDIR:
 		if (com == FIONREAD) {
 			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 			error = VOP_GETATTR(vp, &vattr, active_cred, td);
 			VOP_UNLOCK(vp, 0, td);
-			if (error)
-				return (error);
-			*(int *)data = vattr.va_size - fp->f_offset;
-			return (0);
+			if (!error)
+				*(int *)data = vattr.va_size - fp->f_offset;
 		}
 		if (com == FIONBIO || com == FIOASYNC)	/* XXX */
-			return (0);			/* XXX */
-		/* FALLTHROUGH */
+			error = 0;
+		else
+			error = VOP_IOCTL(vp, com, data, fp->f_flag,
+			    active_cred, td);
+		break;
 
 	default:
 #if 0
-		return (ENOTTY);
+		break;
 #endif
 	case VFIFO:
 	case VCHR:
 	case VBLK:
 		if (com == FIODTYPE) {
 			if (vp->v_type != VCHR && vp->v_type != VBLK)
-				return (ENOTTY);
+				break;
 			*(int *)data = devsw(vp->v_rdev)->d_flags & D_TYPEMASK;
-			return (0);
+			error = 0;
+			break;
 		}
 		error = VOP_IOCTL(vp, com, data, fp->f_flag, active_cred, td);
 		if (error == ENOIOCTL) {
@@ -819,12 +819,14 @@ vn_ioctl(fp, com, data, active_cred, td)
 			error = ENOTTY;
 		}
 		if (error == 0 && com == TIOCSCTTY) {
+			struct vnode *vpold;
 
 			/* Do nothing if reassigning same control tty */
 			sx_slock(&proctree_lock);
 			if (td->td_proc->p_session->s_ttyvp == vp) {
 				sx_sunlock(&proctree_lock);
-				return (0);
+				error = 0;
+				break;
 			}
 
 			vpold = td->td_proc->p_session->s_ttyvp;
@@ -839,8 +841,10 @@ vn_ioctl(fp, com, data, active_cred, td)
 			if (vpold)
 				vrele(vpold);
 		}
-		return (error);
+		break;
 	}
+	mtx_unlock(&Giant);
+	return (error);
 }
 
 /*
@@ -854,22 +858,21 @@ vn_poll(fp, events, active_cred, td)
 	struct thread *td;
 {
 	struct vnode *vp;
-#ifdef MAC
 	int error;
-#endif
 
-	GIANT_REQUIRED;
+	mtx_lock(&Giant);
 
 	vp = fp->f_vnode;
 #ifdef MAC
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	error = mac_check_vnode_poll(active_cred, fp->f_cred, vp);
 	VOP_UNLOCK(vp, 0, td);
-	if (error)
-		return (error);
+	if (!error)
 #endif
 
-	return (VOP_POLL(vp, events, fp->f_cred, td));
+	error = VOP_POLL(vp, events, fp->f_cred, td);
+	mtx_unlock(&Giant);
+	return (error);
 }
 
 /*
