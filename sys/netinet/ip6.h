@@ -181,9 +181,8 @@ struct ip6_rthdr0 {
 	u_int8_t  ip6r0_len;		/* length in units of 8 octets */
 	u_int8_t  ip6r0_type;		/* always zero */
 	u_int8_t  ip6r0_segleft;	/* segments left */
-	u_int8_t  ip6r0_reserved;	/* reserved field */
-	u_int8_t  ip6r0_slmap[3];	/* strict/loose bit map */
-	struct in6_addr  ip6r0_addr[1];	/* up to 23 addresses */
+	u_int32_t  ip6r0_reserved;	/* reserved field */
+	/* followed by up to 127 struct in6_addr */
 } __attribute__((__packed__));
 
 /* Fragment header */
