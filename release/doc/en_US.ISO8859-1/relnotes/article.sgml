@@ -96,6 +96,9 @@
   <sect2 id="kernel">
     <title>Kernel Changes</title>
 
+    <para arch="pc98">Support for the CanBE power management
+      controller has been added.</para>
+
     <para>&man.devfs.5; is now mandatory; the
       <literal>NODEVFS</literal> option has been removed from the set of
       possible kernel configuration options.</para>
@@ -158,6 +161,15 @@
       <para>&man.geom.4; is now mandatory; the
         <literal>NO_GEOM</literal> has been removed from the set of
         kernel configuration options.</para>
+
+      <para>Support has been added for volume labels on UFS and UFS2
+        filesystems.  These labels are strings that can be used to
+        identify a volume, regardless of what device it appears on.
+        Labels can be set with the <option>-L</option> options to
+        &man.newfs.8; or &man.tunefs.8;.  With the
+        <literal>GEOM_VOL</literal> module, volumes can be accessed
+        using their labels under <filename>/dev/vol</filename>.</para>
+
     </sect3>
 
     <sect3>
@@ -213,7 +225,7 @@
       print file system parameters in the form of a &man.newfs.8;
       command.</para>
 
-    <para>elfdump, a utility to display information about &man.elf.5;
+    <para>&man.elfdump.1;, a utility to display information about &man.elf.5;
       format executable files, has been added.</para>
 
     <para>&man.fetch.1; uses the <filename>.netrc</filename> support
@@ -261,6 +273,9 @@
       make it available at times during system startup when only the
       root filesystem is mounted.</para>
 
+    <para>The MAKEDEV script is now unnecessary, due to the mandatory
+      presence of &man.devfs.5;, and has been removed.</para>
+
     <para>&man.newsyslog.8; now supports a <literal>W</literal> flag
       to force previously-started compression jobs for an entry (or
       group of entries specified with the <literal>G</literal> flag)
@@ -273,6 +288,10 @@
 
     <para>&man.ping.8; now supports a <option>-z</option> flag to set
       the Type of Service bits in outgoing packets.</para>
+
+    <para arch="sparc64">The sunlabel utility, a program analogous to
+      &man.disklabel.8; that works on Sun disk labels, has been
+      added.</para>
 
     <para>The &man.swapoff.8; command has been added to disable paging
       and swapping on a device.  A related &man.swapctl.8; command has
