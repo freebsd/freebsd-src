@@ -1704,17 +1704,16 @@ wx_hw_stop(wx_softc_t *sc)
 {
 	u_int32_t icr;
 	DPRINTF(sc, ("%s: wx_hw_stop\n", sc->wx_name));
+	WX_DISABLE_INT(sc);
 	if (sc->wx_idnrev < WX_WISEMAN_2_1) {
 		wx_mwi_whackon(sc);
 	}
 	WRITE_CSR(sc, WXREG_DCR, WXDCR_RST);
 	DELAY(20 * 1000);
-	WRITE_CSR(sc, WXREG_IMASK, ~0);
 	icr = READ_CSR(sc, WXREG_ICR);
 	if (sc->wx_idnrev < WX_WISEMAN_2_1) {
 		wx_mwi_unwhack(sc);
 	}
-	WX_DISABLE_INT(sc);
 }
 
 static void
