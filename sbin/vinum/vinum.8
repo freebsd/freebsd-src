@@ -1,0 +1,899 @@
+.\"  Hey, Emacs, edit this file in -*- nroff-fill -*- mode
+.\"
+.Dd 11 July 1998
+.Dt vinum 8
+.Os FreeBSD
+.Sh NAME
+.Nm vinum
+.Nd Logical Volume Manager control program
+.Sh SYNOPSIS
+.Nm
+.Op command
+.Sh COMMANDS
+.Cd create
+.Ar description-file
+.in +1i
+Create a volume as described in 
+.Ar description-file
+.in
+.\" XXX remove this
+.Cd attach Ar plex Ar volume 
+.Op Nm rename
+.Cd attach Ar subdisk Ar plex Ar [offset]
+.Op Nm rename
+.in +1i
+Attach a plex to a volume, or a subdisk to a plex.
+.in
+.\" XXX remove this
+.Cd debug
+.in +1i
+Cause the volume manager to enter the kernel debugger.
+.in
+.Cd detach
+.Op Ar plex | subdisk
+.in +1
+Detach a plex or subdisk from the volume or plex to which it is attached.
+.in
+.Cd info
+.Op Fl v
+.in +1i
+List information about volume manager state.
+.in
+.Cd init
+.Op Fl v
+.in +1i
+.\" XXX
+Initialize a plex by writing zeroes to all its subdisks.
+.in
+.Cd l
+.Op Fl r
+.Op Fl s
+.Op Fl v
+.Op Fl V
+.Op volume | plex | subdisk
+.in +1i
+List information about specified objects
+.in
+.Cd list
+.Op Fl r
+.Op Fl s
+.Op Fl v
+.Op Fl V
+.Op volume | plex | subdisk
+.in +1i
+List information about specified objects
+.in
+.Cd ld
+.Op Fl r
+.Op Fl s
+.Op Fl v
+.Op Fl V
+.Op volume
+.in +1i
+List information about drives
+.in
+.Cd ls
+.Op Fl r
+.Op Fl s
+.Op Fl v
+.Op Fl V
+.Op subdisk
+.in +1i
+List information about subdisks
+.in
+.Cd lp
+.Op Fl r
+.Op Fl s
+.Op Fl v
+.Op Fl V
+.Op plex
+.in +1i
+List information about plexes
+.in
+.Cd lv
+.Op Fl r
+.Op Fl s
+.Op Fl v
+.Op Fl V
+.Op volume
+.in +1i
+List information about volumes
+.in
+.Cd label
+.Ar volume
+.in +1i
+Create a volume label
+.in
+.Cd read
+.Ar disk-partition
+.in +1i
+Read the
+.Nm
+configuration from the specified disk partition.
+.in
+.Cd rename Op Fl r
+.Ar [ drive | subdisk | plex | volume ]
+.Ar newname
+.in +1i
+Change the name of the specified object.
+.in
+.Cd replace
+.Ar [ subdisk | plex ]
+.Ar newobject
+.in +1i
+Replace the object with an identical other object.  XXX not implemented yet.
+.in
+.Cd resetconfig
+.in +1i
+Reset the complete
+.Nm
+configuration.
+.in
+.Cd resetstats
+.Op Fl r
+.Op volume | plex | subdisk
+.in +1i
+Reset statistisc counters for the specified objects, or for all objects if none
+are specified.
+.in
+.Cd rm 
+.Op Fl f
+.Op Fl r
+.Ar volume | plex | subdisk
+.in +1i
+Remove an object
+.in
+.ig
+XXX
+.Cd set
+.Op Fl f
+.Ar state
+.Ar volume | plex | subdisk | disk
+.in +1i
+Set the state of the object to \fIstate\fP\|
+.in
+..
+.Cd start
+.Op volume | plex | subdisk
+.in +1i
+Allow the system to access the objects
+.in
+.Cd stop
+.Op Fl f
+.Op volume | plex | subdisk
+.in +1i
+Terminate access the objects
+.in
+.Sh DESCRIPTION
+.Nm
+is a utility program to communicate with the \fBVinum\fP\| logical volume
+manager.  See
+.Xr vinum 4
+for more information about the volume manager.
+.Xr vinum 8
+is designed either for interactive use, when started without a command, or to
+execute a single command if the command is supplied as arguments to
+.Nm vinum.
+.Ss OPTIONS
+.Bl -hang
+.It Cd -v
+The
+.Nm -v
+option can be used with any command to request more detailed information.  In
+some cases, such as the
+.Cd stop
+command, it does not have any effect.
+.Pp
+.It Cd -V
+The
+.Nm -V
+option can be used with any command to request more detailed information than
+the
+.Nm -v
+option provides.  As with the 
+.Nm -v
+option, in some cases it does not have any effect.
+.Pp
+Other options are specific to the command.  When specified directly on the
+command line, they may be specified either before or after the command name.
+For example, the following two commands are equivalent:
+.Pp
+.Bd -unfilled -offset indent
+vinum -v stop -f sd0
+vinum -v -f stop sd0
+.Ed
+.It Cd -f
+The
+.Nm -f
+option overrides safety checks.  Use with extreme care.  This option is for
+emergency use only.  For example, the command
+.Bd -unfilled -offset indent
+rm -f myvolume
+.Ed
+.Pp
+removes
+.Nm myvolume
+even if it is open.  Any subsequent access to the volume will probably cause a
+panic.
+.It Cd -r
+The
+.Nm -r
+(``recursive'') option is used by the list commands to display information not
+only about the specified objects, but also about subordinate objects.  For
+example, in conjnction with the
+.Nm lv
+command, the
+.Nm -r
+option will also show information about the plexes and subdisks belonging to the
+volume.
+.It Cd -s
+The
+.Nm -s
+option is used by the list commands to display statistical information.
+.El
+.Pp
+.Ss COMMANDS IN DETAIL
+.Pp
+.Nm
+commands perform the following functions:
+.Bl -hang
+.It Nm attach Ar plex Ar volume
+.Op Nm rename
+.sp -1v
+.It Nm attach Ar subdisk Ar plex Ar [offset]
+.Op Nm rename
+.sp
+.Nm
+.Ar attach
+inserts the specified plex or subdisk in a volume or plex.  In the case of a
+subdisk, an offset in the plex may be specified.  If it is not, the subdisk will
+be attached at the first possible location.  After attaching a plex to a
+non-empty volume,
+.Nm
+reintegrates the plex.
+.Pp
+If the keyword
+.Nm rename
+is specified,
+.Nm
+renames the object (and in the case of a plex, any subordinate subdisks) to fit
+in with the default
+.Nm 
+naming convention.
+.It Nm create Ar description-file
+.sp
+.Nm
+.Ar create
+is used to create any object.  In view of the relatively complicated
+relationship and the potential dangers involved in creating a
+.Nm
+object, there is no interactive interface to this function.  See the section
+CONFIGURATION FILE below for more information.
+.It Nm debug
+.Pp
+.Nm
+.Ar debug
+is used to enter the remote kernel debugger.  It is only activated if
+.Nm
+is built with the DEBUG option.  This option will stop the execution of the
+operating system until the kernel debugger is exited.  If there is no remote
+connection for a kernel debugger, it will be necessary to reset the system and
+reboot in order to leave the debugger.
+.It Nm detach Op Fl f 
+.Ar plex
+.sp -1v
+.It Nm detach Op Fl f 
+.Ar subdisk
+.sp
+.Nm
+.Ar detach
+removes the specified plex or subdisk from the volume or plex to which it is
+attached.  If removing the object would impair the data integrity of the volume,
+the operation will fail unless the
+.Fl f
+option is specified.  If the object is named after the object above it (for
+example, subdisk vol1.plex7.sd0 attached to plex vol1.plex7), the name will be
+changed by prepending the text ``ex-'' (for example, ex-vol1.plex7.sd0).  If
+necessary, the name will be truncated in the process.
+.It Nm info
+.Pp
+.Nm
+.Ar info
+displays information about
+.Nm
+memory usage.  This is intended primarily for debugging.  With the 
+.Fl v
+option, it will give detailed information about the memory areas in use.
+.\" XXX
+.It Nm init Ar plex
+.Pp
+.Nm
+.Ar init
+initializes a plex by writing zeroes to all its subdisks.  This is the only way
+to ensure consistent data in a plex.  You must perform this initialization
+before using a RAID-5 plex.  It is also recommended for other new plexes.
+.Pp
+.Nm 
+initializes all subdisks of a plex in parallel.  Since this operation can take a
+long time, it is performed in the background.  
+.Nm
+prints a console message when the initialization is complete.
+.It Nm list
+.Op Fl r
+.Op Fl V
+.Op volume | plex | subdisk
+.sp -1
+.It Nm l
+.Op Fl r
+.Op Fl V
+.Op volume | plex | subdisk
+.sp -1
+.It Nm ld
+.Op Fl r
+.Op Fl s
+.Op Fl v
+.Op Fl V
+.Op volume
+.sp -1
+.It Nm ls
+.Op Fl r
+.Op Fl s
+.Op Fl v
+.Op Fl V
+.Op subdisk
+.sp -1
+.It Nm lp
+.Op Fl r
+.Op Fl s
+.Op Fl v
+.Op Fl V
+.Op plex
+.sp -1
+.It Nm lv
+.Op Fl r
+.Op Fl s
+.Op Fl v
+.Op Fl V
+.Op volume
+.Pp
+.Ar list
+is used to show information about the specified object.  If the argument is
+omitted, information is shown about all objects known to
+.Nm vinum .
+The
+.Ar l
+command is a synonym for
+.Ar list .
+.Pp
+The
+.Fl r
+option relates to volumes and plexes: if specified, it recursively lists
+information for the subdisks and (for a volume) plexes subordinate to the
+objects.  The commands
+.Ar lv ,
+.Ar lp ,
+.Ar ls 
+and 
+.Ar ld
+commands list only volumes, plexes, subdisks and drives respectively.  This is
+particularly useful when used without parameters.
+.Pp
+The
+.Fl s
+option causes
+.Nm
+to output device statistics, the
+.Op Fl v
+(verbose) option causes some additional information to be output, and the
+.Op Fl V
+causes considerable additional information to be output.
+.It Nm label
+.Ar volume
+.Pp
+The
+.Nm label
+command writes a
+.Ar ufs
+style volume label on a volume.  It is a simple alternative to an appropriate
+call to
+.Ar disklabel . 
+This is needed because some
+.Ar ufs
+commands still read the disk to find the label instead of using the correct
+.Ar ioctl
+call to access it.
+.Nm
+maintains a volume label separately from the volume data, so this command is not
+needed for
+.Ar newfs .
+.Pp
+.It Nm read
+.Ar disk-partition
+.Pp
+The
+.Nm read
+command reads a previously created
+.Nm
+configuration from the specified disk partition.
+.Nm
+maintains an up-to-date copy of all configuration information on each of the
+disk slices.  You can specify any of the partitions in a configuration as the
+parameter to this command.
+.It Nm rename
+.Op Fl r
+.Ar [ drive | subdisk | plex | volume ]
+.Ar newname
+.Pp
+Change the name of the specified object.  If the
+.Fl r
+option is specified, subordinate objects will be named by the default rules:
+plex names will be formed by appending .p\f(BInumber\fP to the volume name, and
+subdisk names will be formed by appending .s\f(BInumber\fP to the plex name.
+.It Nm replace
+.Ar [ subdisk | plex ]
+.Ar newobject
+.Pp
+Replace the object with an identical other object.  XXX not implemented yet.
+.It Nm resetconfig
+.Pp
+The
+.Nm resetconfig
+command completely obliterates the
+.Nm
+configuration on a system.  Use this command only when you want to completely
+delete the configuration.
+.Nm
+will ask for confirmation: you must type in the words NO FUTURE exactly
+as shown:
+.Bd -unfilled -offset indent
+# \f(CBvinum resetconfig\f(CW
+
+WARNING!  This command will completely wipe out your vinum
+configuration.  All data will be lost.  If you really want
+to do this, enter the text
+
+NO FUTURE
+Enter text -> \f(BINO FUTURE\fP
+Vinum configuration obliterated
+.Ed
+.ft R
+.It Nm resetstats
+.Op Fl r
+.Op volume | plex | subdisk
+.Pp
+.Nm
+maintains a number of statistical counters for each object.  See the header file
+.Fi vinumvar.h
+for more information.
+.\" XXX put it in here when it's finalized
+Use the 
+.Nm resetstats
+command to reset these counters.  In conjunction with the
+.Fl r
+option, 
+.Nm
+also resets the counters of subordinate objects.
+.It Nm rm 
+.Op Fl f
+.Op Fl r
+.Ar volume | plex | subdisk
+.Pp
+.Nm rm
+removes an object from the
+.Nm
+configuration.  Once an object has been removed, there is no way to recover it.
+Normally
+.Nm
+performs a large amount of consistency checking before removing an object.  The
+.Fl f
+option tells
+.Nm
+to omit this checking and remove the object anyway.  Use this option with great
+care: it can result in total loss of data on a volume.
+.Pp
+Normally,
+.Nm
+refuses to remove a volume or plex if it has subordinate plexes or subdisks
+respectively.  You can tell
+.Nm
+to remove the object anyway by using the
+.Fl f
+flag, or you can cause
+.Nm
+to remove the subordinate objects as well by using the
+.Fl r
+(recursive) flag.  If you remove a volume with the
+.Fl r
+flag, it will remove both the plexes and the subdisks which belong to the
+plexes.
+.ig
+.It Nm set
+.Op Fl f
+.Ar state
+.Ar volume | plex | subdisk | disk
+.Nm set
+sets the state of the specified object to one of the valid states (see OBJECT
+STATES below).  Normally
+.Nm
+performs a large amount of consistency checking before making the change.  The
+.Fl f
+option tells
+.Nm
+to omit this checking and perform the change anyway.  Use this option with great
+care: it can result in total loss of data on a volume.
+.\"XXX
+.Nm This command has not yet been implemented.
+..
+.It Nm start
+.Op volume | plex | subdisk
+.Pp
+.Nm start
+starts the
+.Nm
+subsystem or one of its components.  To start a plex in a multi-plex volume, the
+data must be copied from another plex in the volume.  This frequently takes a
+long time and is done in the background.
+.ig
+XXX
+When invoked without arguments, it checks
+all disks connected to the system for BSD partitions (type 165) and scans the
+slices for a
+.Nm
+slice, which it calls a \fIdrive\fR\|.  The
+.Nm
+drive contains a header with all information about the data stored on the drive,
+including the names of the other drives which are required in order to represent
+plexes and volumes.
+.\" XXX 
+.Nm The scan function has not yet been implemented.
+..
+.It Nm stop
+.Op Fl f
+.Op volume | plex | subdisk
+.Pp
+.Nm stop
+disables access to the specified objects and any subordinate objects.  It does
+not remove the objects from the configuration.  They can be accessed again after
+a
+.Nm start 
+command.
+.Pp
+By default, 
+.Nm
+does not remove active objects.  For example, you cannot remove a plex which is
+attached to an active volume, and you cannot remove a volume which is open.  The
+.Fl f
+option tells
+.Nm
+to omit this checking and remove the object anyway.  Use this option with great
+care and understanding: used incorrectly, it can result in serious data
+corruption.
+.El
+.Ss CONFIGURATION FILE
+.Nm
+requires that all parameters to the
+.Nm create
+and
+.Nm modify
+commands must be in a configuration file.  Entries in the configuration file
+define volumes, plexes and subdisks, and may be in free format, except that each
+entry must be on a single line.
+.Pp
+Some configuration file parameters specify a size (lengths, stripe sizes).
+These lengths can be specified as bytes, as sectors of 512 bytes (by appending
+the letter \f(CWb\fR), as kilobytes (by appending the letter \f(CWk\fR), as
+megabytes (by appending the letter \f(CWm\fR) or as gigabytes (by appending the
+letter \f(CWg\fR).  These quantities represent the values 2**10, 2**20 and 2**30
+respectively.  For example, the value \f(CW16777216\fR bytes can also be written
+as \f(CW16m\fR, \f(CW16384k\fR or \f(CW32768b\fR.
+.Pp
+The configuration file can contain the following entries:
+.Pp
+.Bl -hang
+.It Nm volume
+.Ar name 
+.Op options
+.Pp
+Define a volume with name
+.Ar name .
+.Pp
+Options are:
+.Pp
+.TS H
+tab(#) ;
+l lw50 .
+Option#Meaning
+.TH N
+T{
+.Nm plex
+.Ar plexname
+T}#T{
+Add the specified plex to the volume.  If
+.Ar plexname
+is specified as 
+.Ar * ,
+.Nm
+will look for the definition of the plex as the next possible entry in the
+configuration file after the definition of the volume.
+T}
+.sp
+T{
+.Nm readpol
+.Ar policy
+T}#T{
+Define a
+.Ar read policy
+for the volume.
+.Ar policy
+may be either 
+.Nm round
+or
+.Nm prefer Ar plexname .
+.Nm
+satisfies a read request from only one of the plexes.  A
+.Ar round
+read policy specifies that each read should be performed from a different plex
+in \fIround-robin\fR\| fashion.  A
+.Ar prefer
+read policy reads from the specified plex every time.
+T}
+.sp
+T{
+.Nm setupstate
+T}#T{
+When creating a multi-plex volume, assume that the contents of all the plexes
+are consistent.  This is normally not the case, and correctly you should use the
+.Nm init
+command to first bring them to a consistent state.  In the case of striped and
+concatenated plexes, however, it does not normally cause problems to leave them
+inconsistent: when using a volume for a file system or a swap partition, the
+previous contents of the disks are not of interest, so they may be ignored.
+If you want to take this risk, use this keyword.
+.Pp
+Note that you \fImust\fP\| use the
+.Nm init
+command with RAID-5 plexes: otherwise extreme data corruption will result if one
+subdisk fails.
+T}
+.fi
+.TE
+.It Nm plex
+.Op options
+.Pp
+Define a plex.  Unlike a volume, a plex does not need a name.
+.Pp
+.TS H
+tab(#) ;
+l lw50 .
+Option#Meaning
+.TH N
+T{
+.Nm name
+.Ar plexname
+T}#T{
+Specify the name of the plex.  Note that you must use the keyword
+.Ar name
+when naming a plex or subdisk.
+T}
+.sp
+T{
+.Nm org
+.Ar organization
+.Op stripesize
+T}#T{
+Specify the organization of the plex.
+.Ar organization
+can be one of 
+.Ar concat ,
+.Ar striped
+or
+.Ar raid5 .
+For
+.Ar striped
+and
+.Ar raid5 
+plexes, the parameter
+.Ar stripesize
+must be specified, while for
+.Ar concat
+it must be omitted.  For type
+.Ar striped ,
+it specifies the width of each stripe.  For type
+.Ar raid5 ,
+it specifies the size of a group.  A group is a portion of a plex which
+stores the parity bits all in the same subdisk.   It must be a factor of the plex size (in
+other words, the result of dividing the plex size by the stripe size must be an
+integer), and it must be a multiple of a disk sector (512 bytes).
+T}
+.Pp
+#T{
+A striped plex must have at least two subdisks (otherwise it is a concatenated
+plex), and each must be the same size.  A RAID-5 plex must have at least three
+subdisks, and each must be the same size.  In practice, a RAID-5 plex should
+have at least 5 subdisks.
+T}
+.Pp
+T{
+.Nm volume
+.Ar volname
+T}#T{
+Add the plex to the specified volume.  If no
+.Nm volume
+keyword is specified, the plex will be added to the last volume mentioned in the
+configuration file.
+T}
+.sp
+T{
+.Nm sd
+.Ar sdname
+.Ar offset
+T}#T{
+Add the specified subdisk to the  plex at offset
+.Ar offset .
+T}
+.br
+.fi
+.TE
+.It Nm subdisk
+.Op options
+.Pp
+Define a subdisk. 
+.Pp
+.TS H
+tab(#) ;
+l lw50 .
+Option#Meaning
+.nf
+.sp
+T{
+.Nm name
+.Ar name
+T}#T{
+Specify the name of a subdisk.  It is not necessary to specify a name for a
+subdisk\(emsee OBJECT NAMING above.  Note that you must specify the keyword
+.Ar name
+if you wish to name a subdisk.
+T}
+.sp
+T{
+.Nm plexoffset
+.Ar offset
+T}#T{
+Specify the starting offset of the subdisk in the plex.  If not specified,
+.Nm
+allocates the space immediately after the previous subdisk, if any, or otherwise
+at the beginning of the plex.
+T}
+.sp
+T{
+.Nm driveoffset
+.Ar offset
+T}#T{
+Specify the starting offset of the subdisk in the drive.  If not specified,
+.Nm
+allocates the first contiguous
+.Ar length
+bytes of free space on the drive.
+T}
+.sp
+T{
+.Nm length
+.Ar length
+T}#T{
+Specify the length of the subdisk.  This keyword must be specified.  There is no
+default.
+.Nm length
+may be shortened to 
+.Nm len .
+T}
+.sp
+T{
+.Nm plex
+.Ar plex
+T}#T{
+Specify the plex to which the subdisk belongs.  By default, the subdisk belongs
+to the last plex specified.
+T}
+.sp
+T{
+.Nm drive
+.Ar drive
+T}#T{
+Specify the drive on which the subdisk resides.  By default, the subdisk resides
+on the last drive specified.
+T}
+.br
+.fi
+.TE
+.El
+.Sh EXAMPLE CONFIGURATION FILE
+.nf
+# Sample vinum configuration file
+#
+# Our drives
+drive drive1 device /dev/sd1h
+drive drive2 device /dev/sd2h
+drive drive3 device /dev/sd3h
+drive drive4 device /dev/sd4h
+drive drive5 device /dev/sd5h
+drive drive6 device /dev/sd6h
+# A volume with one striped plex
+volume tinyvol
+ plex org striped 32b
+  sd length 64m drive drive2
+  sd length 64m drive drive4
+volume stripe
+ plex org striped 32b
+  sd length 512m drive drive2
+  sd length 512m drive drive4
+# Two plexes
+volume concat
+ plex org concat
+  sd length 100m drive drive2
+  sd length 50m drive drive4
+ plex org concat
+  sd length 100m drive drive4
+# A volume with one striped plex and one concatenated plex
+volume strcon
+ plex org striped 32b
+  sd length 100m drive drive2
+  sd length 100m drive drive4
+ plex org concat
+  sd length 100m drive drive2
+  sd length 50m drive drive4
+# a volume with a  RAID-5 and a striped plex
+# note that the RAID-5 volume is longer by
+# the length of one subdisk
+volume vol5
+ plex org striped 64k
+  sd length 1000m drive drive2
+  sd length 1000m drive drive4
+ plex org raid5 32k
+  sd length 500m drive drive1
+  sd length 500m drive drive2
+  sd length 500m drive drive3
+  sd length 500m drive drive4
+  sd length 500m drive drive5
+.fi
+.Ss DRIVE LAYOUT CONSIDERATIONS
+.Nm
+drives are currently BSD disk partitions.  They must be of type
+.Ar unused 
+in order to avoid overwriting file systems.  In later versions of
+.Nm
+this requirement will change to type
+.Ar vinum .
+.Nm
+uses the first 265 sectors on each partition for configuration information, so
+the maximum size of a subdisk is 265 sectors smaller than the drive.
+.Sh BUGS
+.Nm
+is currently in alpha test.  Many bugs can be expected.  The configuration
+mechanism is not yet fully functional.
+.Sh FILES
+.Ar /dev/vinum
+- directory with device nodes for
+.Nm
+objects.
+.br
+.Ar /dev/vinum/control
+- control device for
+.Nm vinum 
+.br
+.Ar /dev/vinum/plex
+- directory containing device nodes for
+.Nm
+plexes.
+.br
+.Ar /dev/vinum/sd
+- directory containing device nodes for
+.Nm
+subdisks.
+.Sh SEE ALSO
+.Xr vinum 4 
+.Sh AUTHOR
+Greg Lehey
+.Sh HISTORY
+The
+.Nm
+command first appeared in FreeBSD 2.2.6.

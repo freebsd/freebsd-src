@@ -1,0 +1,1030 @@
+/* commands.c: vinum interface program, main commands */
+/*-
+ * Copyright (c) 1997, 1998
+ *	Nan Yang Computer Services Limited.  All rights reserved.
+ *
+ *  This software is distributed under the so-called ``Berkeley
+ *  License'':
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by Nan Yang Computer
+ *      Services Limited.
+ * 4. Neither the name of the Company nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
+ *
+ * This software is provided ``as is'', and any express or implied
+ * warranties, including, but not limited to, the implied warranties of
+ * merchantability and fitness for a particular purpose are disclaimed.
+ * In no event shall the company or contributors be liable for any
+ * direct, indirect, incidental, special, exemplary, or consequential
+ * damages (including, but not limited to, procurement of substitute
+ * goods or services; loss of use, data, or profits; or business
+ * interruption) however caused and on any theory of liability, whether
+ * in contract, strict liability, or tort (including negligence or
+ * otherwise) arising in any way out of the use of this software, even if
+ * advised of the possibility of such damage.
+ *
+ */
+
+/* $Id: commands.c,v 1.1 1998/08/19 08:06:57 grog Exp grog $ */
+
+#include <ctype.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <libutil.h>
+#include <netdb.h>
+#include <setjmp.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <syslog.h>
+#include <unistd.h>
+#include <sys/ioctl.h>
+#include "vinumhdr.h"
+#include "vext.h"
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <readline/history.h>
+#include <readline/readline.h>
+
+static void dorename(struct vinum_rename_msg *msg, const char *oldname, const char *name, int maxlen);
+
+void 
+vinum_create(int argc, char *argv[], char *arg0[])
+{
+    int error;
+    FILE *dfd;						    /* file descriptor for the config file */
+    char buffer[BUFSIZE];				    /* read config file in here */
+    struct _ioctl_reply *reply;
+
+    if (argc != 1) {					    /* wrong arg count */
+	fprintf(stderr, "Expecting 1 parameter, not %d\n", argc);
+	return;
+    }
+    reply = (struct _ioctl_reply *) &buffer;
+    dfd = fopen(argv[0], "r");
+    if (dfd == NULL) {					    /* no go */
+	fprintf(stderr, "Can't open %s: %s\n", argv[0], strerror(errno));
+	return;
+    }
+    if (ioctl(superdev, VINUM_STARTCONFIG, NULL)) {	    /* can't get config? */
+	printf("Can't configure: %s (%d)\n", strerror(errno), errno);
+	return;
+    }
+    file_line = 0;					    /* start with line 1 */
+    /* Parse the configuration, and add it to the global configuration */
+    for (;;) {						    /* love this style(9) */
+	char *configline;
+
+	configline = fgets(buffer, BUFSIZE, dfd);
+
+	if (configline == NULL) {
+	    if (ferror(dfd))
+		perror("Can't read config file");
+	    break;
+	}
+	file_line++;					    /* count the lines */
+	if (verbose)
+	    printf("%4d: %s", file_line, buffer);	    /* XXX */
+	ioctl(superdev, VINUM_CREATE, &buffer);
+	if (reply->error != 0) {			    /* error in config */
+	    fprintf(stdout, "** %d %s: %s\n", file_line, reply->msg, strerror(reply->error));
+	    /* XXX at the moment, we reset the config
+	     * lock on error, so try to get it again.
+	     * If we fail, don't cry again */
+	    if (ioctl(superdev, VINUM_STARTCONFIG, NULL))   /* can't get config? */
+		return;
+	}
+    }
+    fclose(dfd);					    /* done with the config file */
+    error = ioctl(superdev, VINUM_SAVECONFIG, NULL);	    /* save the config to disk */
+    if (error != 0)
+	perror("Can't save Vinum config");
+    make_devices();
+    listconfig();
+}
+
+/* Read vinum config from a disk */
+void 
+vinum_read(int argc, char *argv[], char *arg0[])
+{
+    int error;
+    char buffer[BUFSIZE];				    /* read config file in here */
+    struct _ioctl_reply *reply;
+    reply = (struct _ioctl_reply *) &buffer;
+
+    if (argc != 1) {					    /* wrong arg count */
+	fprintf(stderr, "Expecting 1 parameter, not %d\n", argc);
+	return;
+    }
+    strcpy(buffer, "read ");
+    strcat(buffer, argv[0]);
+    if (ioctl(superdev, VINUM_STARTCONFIG, NULL)) {	    /* can't get config? */
+	printf("Can't configure: %s (%d)\n", strerror(errno), errno);
+	return;
+    }
+    ioctl(superdev, VINUM_CREATE, &buffer);
+    if (reply->error != 0) {				    /* error in config */
+	fprintf(stdout, "** %s: %s\n", reply->msg, strerror(reply->error));
+	error = ioctl(superdev, VINUM_RELEASECONFIG, NULL); /* save the config to disk */
+	if (error != 0)
+	    perror("Can't save Vinum config");
+    } else {
+	error = ioctl(superdev, VINUM_RELEASECONFIG, NULL); /* save the config to disk */
+	if (error != 0)
+	    perror("Can't save Vinum config");
+	make_devices();
+    }
+}
+
+void 
+vinum_volume(int argc, char *argv[], char *arg0[])
+{
+    int i;
+    char *line;
+    struct _ioctl_reply *reply;
+
+    line = arg0[0];
+    for (i = 0; i < argc; i++)
+	line[strlen(line)] = ' ';			    /* remove the blocks */
+    ioctl(superdev, VINUM_CREATE, line);
+    reply = (struct _ioctl_reply *) line;
+    if (reply->error != 0)				    /* error in config */
+	fprintf(stdout, "** %d %s: %s\n", file_line, reply->msg, strerror(reply->error));
+}
+
+void 
+vinum_plex(int argc, char *argv[], char *arg0[])
+{
+    int i;
+    char *line;
+    struct _ioctl_reply *reply;
+
+    line = arg0[0];
+    for (i = 0; i < argc; i++)
+	line[strlen(line)] = ' ';			    /* remove the blocks */
+    ioctl(superdev, VINUM_CREATE, line);
+    reply = (struct _ioctl_reply *) line;
+    if (reply->error != 0)				    /* error in config */
+	fprintf(stdout, "** %d %s: %s\n", file_line, reply->msg, strerror(reply->error));
+}
+
+void 
+vinum_sd(int argc, char *argv[], char *arg0[])
+{
+    int i;
+    char *line;
+    struct _ioctl_reply *reply;
+
+    line = arg0[0];
+    for (i = 0; i < argc; i++)
+	line[strlen(line)] = ' ';			    /* remove the blocks */
+    ioctl(superdev, VINUM_CREATE, line);
+    reply = (struct _ioctl_reply *) line;
+    if (reply->error != 0)				    /* error in config */
+	fprintf(stdout, "** %d %s: %s\n", file_line, reply->msg, strerror(reply->error));
+}
+
+void 
+vinum_drive(int argc, char *argv[], char *arg0[])
+{
+    int i;
+    char *line;
+    struct _ioctl_reply *reply;
+
+    line = arg0[0];
+    for (i = 0; i < argc; i++)
+	line[strlen(line)] = ' ';			    /* remove the blocks */
+    ioctl(superdev, VINUM_CREATE, line);
+    reply = (struct _ioctl_reply *) line;
+    if (reply->error != 0)				    /* error in config */
+	fprintf(stdout, "** %d %s: %s\n", file_line, reply->msg, strerror(reply->error));
+}
+
+#ifdef DEBUG
+void 
+vinum_debug(int argc, char *argv[], char *arg0[])
+{
+    struct debuginfo info;
+
+    if (argc > 0) {
+	info.param = atoi(argv[0]);
+	info.changeit = 1;
+    } else {
+	info.changeit = 0;
+	sleep(2);					    /* give a chance to leave the window */
+    }
+    ioctl(superdev, VINUM_DEBUG, (caddr_t) & info);
+}
+#endif
+
+void 
+vinum_modify(int argc, char *argv[], char *arg0[])
+{
+    fprintf(stderr, "Modify command is currently not implemented\n");
+}
+
+void 
+vinum_set(int argc, char *argv[], char *arg0[])
+{
+    fprintf(stderr, "set is not implemented yet\n");
+}
+
+void 
+vinum_rm(int argc, char *argv[], char *arg0[])
+{
+    int object;
+    struct _ioctl_reply reply;
+    struct vinum_ioctl_msg *message = (struct vinum_ioctl_msg *) &reply;
+
+    if (argc == 0)					    /* start everything */
+	fprintf(stderr, "what do you want to remove?\n");
+    else {						    /* start specified objects */
+	int index;
+	enum objecttype type;
+
+	for (index = 0; index < argc; index++) {
+	    object = find_object(argv[index], &type);	    /* look for it */
+	    if (type == invalid_object)
+		fprintf(stderr, "Can't find object: %s\n", argv[index]);
+	    else {
+		message->index = object;		    /* pass object number */
+		message->type = type;			    /* and type of object */
+		message->force = force;			    /* do we want to force the operation? */
+		message->recurse = recurse;		    /* do we want to remove subordinates? */
+		ioctl(superdev, VINUM_REMOVE, message);
+		if (reply.error != 0) {
+		    fprintf(stderr,
+			"Can't remove %s: %s (%d)\n",
+			argv[index],
+			reply.msg[0] ? reply.msg : strerror(reply.error),
+			reply.error);
+		} else if (verbose)
+		    fprintf(stderr, "%s removed\n", argv[index]);
+	    }
+	}
+    }
+}
+
+void 
+vinum_resetconfig(int argc, char *argv[], char *arg0[])
+{
+    char reply[32];
+    int error;
+
+    printf(" WARNING!  This command will completely wipe out your vinum configuration.\n"
+	" All data will be lost.  If you really want to do this, enter the text\n\n"
+	" NO FUTURE\n"
+	" Enter text -> ");
+    fgets(reply, sizeof(reply), stdin);
+    if (strcmp(reply, "NO FUTURE\n"))			    /* changed his mind */
+	printf("\n No change\n");
+    else {
+	error = ioctl(superdev, VINUM_RESETCONFIG, NULL);   /* trash config on disk */
+	if (error) {
+	    if (errno == EBUSY)
+		fprintf(stderr, "Can't reset configuration: objects are in use\n");
+	    else
+		perror("Can't find vinum config");
+	} else {
+	    printf("\b Vinum configuration obliterated\n");
+	    system("rm -rf " VINUM_DIR "/" "*");	    /* remove the old /dev/vinum */
+	    syslog(LOG_NOTICE | LOG_KERN, "configuration obliterated");
+	}
+    }
+}
+
+void 
+vinum_init(int argc, char *argv[], char *arg0[])
+{
+    if (argc > 0) {					    /* initialize plexes */
+	int plexindex;
+	int sdno;
+	int plexno;
+	int plexfh = NULL;				    /* file handle for plex */
+	pid_t pid;
+	enum objecttype type;				    /* type returned */
+	struct _ioctl_reply reply;
+	struct vinum_ioctl_msg *message = (struct vinum_ioctl_msg *) &reply;
+	char filename[MAXPATHLEN];			    /* create a file name here */
+
+	for (plexindex = 0; plexindex < argc; plexindex++) {
+	    plexno = find_object(argv[plexindex], &type);   /* find the object */
+	    if (plexno < 0)
+		printf("Can't find %s\n", argv[plexindex]);
+	    else if (type != plex_object) {
+		/* XXX Consider doing this for all plexes in
+		 * a volume, etc. */
+		printf("%s is not a plex\n", argv[plexindex]);
+		break;
+	    } else if (plex.state == plex_unallocated)	    /* not a real plex, */
+		printf("%s is not allocated, can't initialize\n", plex.name);
+	    else {
+		sprintf(filename, VINUM_DIR "/plex/%s", argv[plexindex]);
+		if ((plexfh = open(filename, O_RDWR, S_IRWXU)) < 0) { /* got a plex, open it */
+							    /* We don't actually write anything to the plex,
+		       * since the system will try to format it.  We open
+		       * it to ensure that nobody else tries to open it
+		       * while we initialize its subdisks */
+		    fprintf(stderr, "can't open plex %s: %s\n", filename, strerror(errno));
+		    return;
+		}
+	    }
+	    message->index = plexno;			    /* pass object number */
+	    message->type = plex_object;		    /* and type of object */
+	    message->state = object_initializing;
+	    message->force = 1;				    /* insist */
+	    ioctl(superdev, VINUM_SETSTATE, message);
+	    if (reply.error) {
+		syslog(LOG_ERR | LOG_KERN,
+		    "can't initialize %s: %s",
+		    plex.name,
+		    reply.msg[0] ? reply.msg : strerror(reply.error));
+	    } else {
+		pid = fork();
+		if (pid == 0) {				    /* we're the child */
+		    int failed = 0;			    /* set if a child dies badly */
+		    int sdfh;				    /* and for subdisk */
+		    char zeros[PLEXINITSIZE];
+		    int count;				    /* write count */
+		    long long offset;			    /* offset in subdisk */
+		    long long sdsize;			    /* size of subdisk */
+
+		    bzero(zeros, sizeof(zeros));
+		    openlog("vinum", LOG_CONS | LOG_PERROR | LOG_PID, LOG_KERN);
+		    for (sdno = 0; sdno < plex.subdisks; sdno++) { /* initialize each subdisk */
+							    /* We already have the plex data in global
+			 * plex from the call to find_object */
+			pid = fork();			    /* into the background with you */
+			if (pid == 0) {			    /* I'm the child */
+			    get_plex_sd_info(&sd, plexno, sdno);
+			    sdsize = sd.sectors * DEV_BSIZE; /* size of subdisk in bytes */
+			    sprintf(filename, VINUM_DIR "/sd/%s", sd.name);
+			    setproctitle("initializing %s", filename); /* show what we're doing */
+			    syslog(LOG_INFO | LOG_KERN, "initializing subdisk %s\n", filename);
+			    if ((sdfh = open(filename, O_RDWR, S_IRWXU)) < 0) {	/* no go */
+				syslog(LOG_ERR | LOG_KERN,
+				    "can't open subdisk %s: %s\n",
+				    filename,
+				    strerror(errno));
+				exit(1);
+			    }
+			    for (offset = 0; offset < sdsize; offset += count) {
+				count = write(sdfh, zeros, PLEXINITSIZE); /* write a block */
+				if (count < 0) {
+				    syslog(LOG_ERR | LOG_KERN,
+					"can't write subdisk %s: %s\n",
+					filename,
+					strerror(errno));
+				    exit(1);
+				}
+							    /* XXX Grrrr why doesn't this thing recognize EOF? */
+				else if (count == 0)
+				    break;
+			    }
+			    syslog(LOG_INFO | LOG_KERN, "subdisk %s initialized\n", filename);
+			    exit(0);
+			} else if (pid < 0)		    /* failure */
+			    printf("couldn't fork for subdisk %d: %s", sdno, strerror(errno));
+		    }
+							    /* Now wait for them to complete */
+		    for (sdno = 0; sdno < plex.subdisks; sdno++) {
+			int status;
+			pid = wait(&status);
+			if (WEXITSTATUS(status) != 0) {	    /* oh, oh */
+			    printf("child %d exited with status 0x%x\n", pid, WEXITSTATUS(status));
+			    failed++;
+			}
+		    }
+		    if (failed == 0) {
+			for (sdno = 0; sdno < plex.subdisks; sdno++) { /* bring the subdisks up */
+			    get_plex_sd_info(&sd, plexno, sdno); /* get the SD info again */
+			    message->index = sd.sdno;	    /* pass object number */
+			    message->type = sd_object;	    /* and type of object */
+			    message->state = object_up;
+			    message->force = 1;		    /* insist */
+			    ioctl(superdev, VINUM_SETSTATE, message);
+			}
+			syslog(LOG_INFO | LOG_KERN, "plex %s initialized\n", plex.name);
+		    } else
+			syslog(LOG_ERR | LOG_KERN, "couldn't initialize plex %s, %d processes died\n",
+			    plex.name,
+			    failed);
+		    exit(0);
+		} else
+		    close(plexfh);			    /* we don't need this any more */
+	    }
+	}
+    }
+}
+
+void 
+vinum_start(int argc, char *argv[], char *arg0[])
+{
+    int object;
+    struct _ioctl_reply reply;
+    struct vinum_ioctl_msg *message = (struct vinum_ioctl_msg *) &reply;
+
+    if (argc == 0)					    /* start everything */
+	fprintf(stderr, "start must have an argument\n");
+    else {						    /* start specified objects */
+	int index;
+	enum objecttype type;
+
+	for (index = 0; index < argc; index++) {
+	    object = find_object(argv[index], &type);	    /* look for it */
+	    if (type == invalid_object)
+		fprintf(stderr, "Can't find object: %s\n", argv[index]);
+	    else {
+		message->index = object;		    /* pass object number */
+		message->type = type;			    /* and type of object */
+		message->state = object_up;
+		/* XXX Kludge until we get the kernelland
+		 * config stuff rewritten:
+		 * Take all subdisks down, then up. */
+		if (message->type == plex_object) {	    /* it's a plex */
+		    struct plex plex;
+		    struct sd sd;
+		    int sdno;
+		    struct _ioctl_reply sreply;
+		    struct vinum_ioctl_msg *smessage = (struct vinum_ioctl_msg *) &sreply;
+
+		    get_plex_info(&plex, message->index);
+		    if (plex.state != plex_up) {
+							    /* And when they were down, they were down */
+			for (sdno = 0; sdno < plex.subdisks; sdno++) {
+			    get_plex_sd_info(&sd, plex.plexno, sdno);
+			    smessage->type = sd_object;
+			    smessage->state = object_down;
+			    smessage->force = 1;
+			    smessage->index = sd.sdno;
+			    ioctl(superdev, VINUM_SETSTATE, smessage);
+			    if (sreply.error != 0) {
+				fprintf(stderr,
+				    "Can't stop %s: %s (%d)\n",
+				    sd.name,
+				    sreply.msg[0] ? sreply.msg : strerror(sreply.error),
+				    sreply.error);
+			    }
+			}
+
+							    /* And when they were up, they were up */
+			for (sdno = 0; sdno < plex.subdisks; sdno++) {
+			    get_plex_sd_info(&sd, plex.plexno, sdno);
+			    smessage->type = sd_object;
+			    smessage->state = object_up;
+			    smessage->force = 1;
+			    smessage->index = sd.sdno;
+			    ioctl(superdev, VINUM_SETSTATE, smessage);
+			    if (sreply.error != 0) {
+				fprintf(stderr,
+				    "Can't stop %s: %s (%d)\n",
+				    sd.name,
+				    sreply.msg[0] ? sreply.msg : strerror(sreply.error),
+				    sreply.error);
+			    }
+			}
+		    }
+		}
+		/* XXX End kludge until we get the kernelland
+		 * config stuff rewritten */
+		ioctl(superdev, VINUM_SETSTATE, message);
+		if (reply.error != 0) {
+		    if ((reply.error == EAGAIN)		    /* we're reviving */
+		    &&(type == plex_object))
+			continue_revive(object);
+		    else
+			fprintf(stderr,
+			    "Can't start %s: %s (%d)\n",
+			    argv[index],
+			    reply.msg[0] ? reply.msg : strerror(reply.error),
+			    reply.error);
+		}
+		if (Verbose)
+		    vinum_li(object, type);
+	    }
+	}
+    }
+}
+
+void 
+vinum_stop(int argc, char *argv[], char *arg0[])
+{
+    int object;
+    struct _ioctl_reply reply;
+    struct vinum_ioctl_msg *message = (struct vinum_ioctl_msg *) &reply;
+
+    message->force = force;				    /* should we force the transition? */
+    if (argc == 0)					    /* stop everything */
+	fprintf(stderr, "stop must have an argument\n");
+    else {						    /* stop specified objects */
+	int i;
+	enum objecttype type;
+
+	for (i = 0; i < argc; i++) {
+	    object = find_object(argv[i], &type);	    /* look for it */
+	    if (type == invalid_object)
+		fprintf(stderr, "Can't find object: %s\n", argv[i]);
+	    else {
+		message->index = object;		    /* pass object number */
+		message->type = type;			    /* and type of object */
+		message->state = object_down;
+		ioctl(superdev, VINUM_SETSTATE, message);
+		if (reply.error != 0)
+		    fprintf(stderr,
+			"Can't stop %s: %s (%d)\n",
+			argv[i],
+			reply.msg[0] ? reply.msg : strerror(reply.error),
+			reply.error);
+		if (Verbose)
+		    vinum_li(object, type);
+	    }
+	}
+    }
+}
+
+void 
+vinum_label(int argc, char *argv[], char *arg0[])
+{
+    int object;
+    struct _ioctl_reply reply;
+    int *message = (int *) &reply;
+
+    if (argc == 0)					    /* start everything */
+	fprintf(stderr, "label: please specify one or more volume names\n");
+    else {						    /* start specified objects */
+	int i;
+	enum objecttype type;
+
+	for (i = 0; i < argc; i++) {
+	    object = find_object(argv[i], &type);	    /* look for it */
+	    if (type == invalid_object)
+		fprintf(stderr, "Can't find object: %s\n", argv[i]);
+	    else if (type != volume_object)		    /* it exists, but it isn't a volume */
+		fprintf(stderr, "%s is not a volume\n", argv[i]);
+	    else {
+		message[0] = object;			    /* pass object number */
+		ioctl(superdev, VINUM_LABEL, message);
+		if (reply.error != 0)
+		    fprintf(stderr,
+			"Can't label %s: %s (%d)\n",
+			argv[i],
+			reply.msg[0] ? reply.msg : strerror(reply.error),
+			reply.error);
+		if (Verbose)
+		    vinum_li(object, type);
+	    }
+	}
+    }
+}
+
+void 
+reset_volume_stats(int volno, int recurse)
+{
+    struct vinum_ioctl_msg msg;
+    struct _ioctl_reply *reply = (struct _ioctl_reply *) &msg;
+
+    msg.index = volno;
+    msg.type = volume_object;
+    /* XXX get these numbers right if we ever
+     * actually return errors */
+    if (ioctl(superdev, VINUM_RESETSTATS, &msg) < 0) {
+	fprintf(stderr, "Can't reset stats for volume %d: %s\n", volno, reply->msg);
+	longjmp(command_fail, -1);
+    } else if (recurse) {
+	struct volume vol;
+	int plexno;
+
+	get_volume_info(&vol, volno);
+	for (plexno = 0; plexno < vol.plexes; plexno++)
+	    reset_plex_stats(vol.plex[plexno], recurse);
+    }
+}
+
+void 
+reset_plex_stats(int plexno, int recurse)
+{
+    struct vinum_ioctl_msg msg;
+    struct _ioctl_reply *reply = (struct _ioctl_reply *) &msg;
+
+    msg.index = plexno;
+    msg.type = plex_object;
+    /* XXX get these numbers right if we ever
+     * actually return errors */
+    if (ioctl(superdev, VINUM_RESETSTATS, &msg) < 0) {
+	fprintf(stderr, "Can't reset stats for plex %d: %s\n", plexno, reply->msg);
+	longjmp(command_fail, -1);
+    } else if (recurse) {
+	struct plex plex;
+	struct sd sd;
+	int sdno;
+
+	get_plex_info(&plex, plexno);
+	for (sdno = 0; sdno < plex.subdisks; sdno++) {
+	    get_plex_sd_info(&sd, plex.plexno, sdno);
+	    reset_sd_stats(sd.sdno, recurse);
+	}
+    }
+}
+
+void 
+reset_sd_stats(int sdno, int recurse)
+{
+    struct vinum_ioctl_msg msg;
+    struct _ioctl_reply *reply = (struct _ioctl_reply *) &msg;
+
+    msg.index = sdno;
+    msg.type = sd_object;
+    /* XXX get these numbers right if we ever
+     * actually return errors */
+    if (ioctl(superdev, VINUM_RESETSTATS, &msg) < 0) {
+	fprintf(stderr, "Can't reset stats for subdisk %d: %s\n", sdno, reply->msg);
+	longjmp(command_fail, -1);
+    } else if (recurse)
+	reset_drive_stats(sd.driveno);
+}
+
+void 
+reset_drive_stats(int driveno)
+{
+    struct vinum_ioctl_msg msg;
+    struct _ioctl_reply *reply = (struct _ioctl_reply *) &msg;
+
+    msg.index = driveno;
+    msg.type = drive_object;
+    /* XXX get these numbers right if we ever
+     * actually return errors */
+    if (ioctl(superdev, VINUM_RESETSTATS, &msg) < 0) {
+	fprintf(stderr, "Can't reset stats for drive %d: %s\n", driveno, reply->msg);
+	longjmp(command_fail, -1);
+    }
+}
+
+void 
+vinum_resetstats(int argc, char *argv[], char *argv0[])
+{
+    int i;
+    int objno;
+    enum objecttype type;
+
+    if (ioctl(superdev, VINUM_GETCONFIG, &vinum_conf) < 0) {
+	perror("Can't get vinum config");
+	return;
+    }
+    if (argc == 0) {
+	for (objno = 0; objno < vinum_conf.volumes_used; objno++)
+	    reset_volume_stats(objno, 1);		    /* clear everything recursively */
+    } else {
+	for (i = 0; i < argc; i++) {
+	    objno = find_object(argv[i], &type);
+	    if (objno >= 0) {				    /* not invalid */
+		switch (type) {
+		case drive_object:
+		    reset_drive_stats(objno);
+		    break;
+
+		case sd_object:
+		    reset_sd_stats(objno, recurse);
+		    break;
+
+		case plex_object:
+		    reset_plex_stats(objno, recurse);
+		    break;
+
+		case volume_object:
+		    reset_volume_stats(objno, recurse);
+		    break;
+
+		case invalid_object:			    /* can't get this */
+		    break;
+		}
+	    }
+	}
+    }
+}
+
+/* Attach a subdisk to a plex, or a plex to a volume.
+ * attach subdisk plex [offset] [rename]
+ * attach plex volume  [rename]
+ */
+void 
+vinum_attach(int argc, char *argv[], char *argv0[])
+{
+    int i;
+    enum objecttype supertype;
+    struct vinum_ioctl_msg msg;
+    struct _ioctl_reply *reply = (struct _ioctl_reply *) &msg;
+    const char *objname = argv[0];
+    const char *supername = argv[1];
+    int sdno;
+    int plexno = -1;
+    char newname[MAXNAME + 8];
+    int rename = 0;					    /* set if we want to rename the object */
+
+    if ((argc < 2)
+	|| (argc > 4)) {
+	fprintf(stderr,
+	    "Usage: \tattach <subdisk> <plex> [rename] [<plexoffset>]\n"
+	    "\tattach <plex> <volume> [rename]\n");
+	return;
+    }
+    if (ioctl(superdev, VINUM_GETCONFIG, &vinum_conf) < 0) {
+	perror("Can't get vinum config");
+	return;
+    }
+    msg.index = find_object(objname, &msg.type);	    /* find the object to attach */
+    msg.otherobject = find_object(supername, &supertype);   /* and the object to attach to */
+    msg.force = force;					    /* did we specify the use of force? */
+    msg.recurse = recurse;
+    msg.offset = -1;					    /* and no offset */
+
+    for (i = 2; i < argc; i++) {
+	if (!strcmp(argv[i], "rename")) {
+	    rename = 1;
+	    msg.rename = 1;				    /* do renaming */
+	} else if (!isdigit(argv[i][0])) {		    /* not an offset */
+	    fprintf(stderr, "Unknown attribute: %s\n", supername);
+	    return;
+	} else
+	    msg.offset = sizespec(argv[i]);
+    }
+
+    switch (msg.type) {
+    case sd_object:
+	if (supertype != plex_object) {			    /* huh? */
+	    fprintf(stderr, "%s can only be attached to a plex\n", objname);
+	    return;
+	}
+	get_plex_info(&plex, supertype);
+	if (plex.organization != plex_concat) {		    /* not a cat plex, */
+	    fprintf(stderr, "Can't attach subdisks to a %s plex\n", plex_org(plex.organization));
+	    return;
+	}
+	break;
+
+    case plex_object:
+	if (supertype != volume_object) {		    /* huh? */
+	    fprintf(stderr, "%s can only be attached to a volume\n", objname);
+	    return;
+	}
+	plexno = msg.index;				    /* note the plex number, we'll need it again */
+	break;
+
+    case volume_object:
+    case drive_object:
+	fprintf(stderr, "Can only attach subdisks and plexes\n");
+	return;
+
+    default:
+	fprintf(stderr, "%s is not a Vinum object\n", objname);
+	return;
+    }
+
+    ioctl(superdev, VINUM_ATTACH, &msg);
+    if (reply->error != 0) {
+	if (reply->error == EAGAIN)			    /* reviving */
+	    continue_revive(plexno);			    /* continue the revive */
+	else
+	    fprintf(stderr,
+		"Can't attach %s to %s: %s (%d)\n",
+		objname,
+		supername,
+		reply->msg[0] ? reply->msg : strerror(reply->error),
+		reply->error);
+    }
+    if (rename) {
+	struct sd;
+	struct plex;
+	struct volume;
+
+	/* we've overwritten msg with the
+	 * ioctl reply, start again */
+	msg.index = find_object(objname, &msg.type);	    /* find the object to rename */
+	switch (msg.type) {
+	case sd_object:
+	    get_sd_info(&sd, msg.index);
+	    get_plex_info(&plex, sd.plexno);
+	    for (sdno = 0; sdno < plex.subdisks; sdno++) {
+		if (plex.sdnos[sdno] == msg.index)	    /* found our subdisk */
+		    break;
+	    }
+	    sprintf(newname, "%s.s%d", plex.name, sdno);
+	    vinum_rename_2(sd.name, newname);
+	    break;
+
+	case plex_object:
+	    get_plex_info(&plex, msg.index);
+	    get_volume_info(&vol, plex.volno);
+	    for (plexno = 0; plexno < vol.plexes; plexno++) {
+		if (vol.plex[plexno] == msg.index)	    /* found our subdisk */
+		    break;
+	    }
+	    sprintf(newname, "%s.p%d", vol.name, plexno);
+	    vinum_rename_2(plex.name, newname);		    /* this may recurse */
+	    break;
+
+	default:					    /* can't get here */
+	}
+    }
+}
+
+/* Detach a subdisk from a plex, or a plex from a volume.
+ * detach subdisk plex [rename]
+ * detach plex volume [rename]
+ */
+void 
+vinum_detach(int argc, char *argv[], char *argv0[])
+{
+    struct vinum_ioctl_msg msg;
+    struct _ioctl_reply *reply = (struct _ioctl_reply *) &msg;
+
+    if ((argc < 1)
+	|| (argc > 2)) {
+	fprintf(stderr,
+	    "Usage: \tdetach <subdisk> [rename]\n"
+	    "\tdetach <plex> [rename]\n");
+	return;
+    }
+    if (ioctl(superdev, VINUM_GETCONFIG, &vinum_conf) < 0) {
+	perror("Can't get vinum config");
+	return;
+    }
+    msg.index = find_object(argv[0], &msg.type);	    /* find the object to detach */
+    msg.force = force;					    /* did we specify the use of force? */
+    msg.rename = 0;					    /* don't specify new name */
+    msg.recurse = recurse;				    /* but recurse if we have to */
+
+    /* XXX are we going to keep this?
+     * Don't document it yet, since the
+     * kernel side of things doesn't
+     * implement it */
+    if (argc == 2) {
+	if (!strcmp(argv[1], "rename"))
+	    msg.rename = 1;				    /* do renaming */
+	else {
+	    fprintf(stderr, "Unknown attribute: %s\n", argv[1]);
+	    return;
+	}
+    }
+    if ((msg.type != sd_object)
+	&& (msg.type != plex_object)) {
+	fprintf(stderr, "Can only detach subdisks and plexes\n");
+	return;
+    }
+    ioctl(superdev, VINUM_DETACH, &msg);
+    if (reply->error != 0)
+	fprintf(stderr,
+	    "Can't detach %s: %s (%d)\n",
+	    argv[0],
+	    reply->msg[0] ? reply->msg : strerror(reply->error),
+	    reply->error);
+}
+
+static void 
+dorename(struct vinum_rename_msg *msg, const char *oldname, const char *name, int maxlen)
+{
+    struct _ioctl_reply *reply = (struct _ioctl_reply *) msg;
+
+    if (strlen(name) > maxlen) {
+	fprintf(stderr, "%s is too long\n", name);
+	return;
+    }
+    strcpy(msg->newname, name);
+    ioctl(superdev, VINUM_RENAME, msg);
+    if (reply->error != 0)
+	fprintf(stderr,
+	    "Can't rename %s to %s: %s (%d)\n",
+	    oldname,
+	    name,
+	    reply->msg[0] ? reply->msg : strerror(reply->error),
+	    reply->error);
+}
+
+/* Rename an object:
+ * rename <object> "newname"
+ */
+void 
+vinum_rename_2(char *oldname, char *newname)
+{
+    struct vinum_rename_msg msg;
+    int volno;
+    int plexno;
+
+    msg.index = find_object(oldname, &msg.type);	    /* find the object to rename */
+    msg.recurse = recurse;
+
+    /* Ugh.  Determine how long the name may be */
+    switch (msg.type) {
+    case drive_object:
+	dorename(&msg, oldname, newname, MAXDRIVENAME);
+	break;
+
+    case sd_object:
+	dorename(&msg, oldname, newname, MAXSDNAME);
+	break;
+
+    case plex_object:
+	plexno = msg.index;
+	dorename(&msg, oldname, newname, MAXPLEXNAME);
+	if (recurse) {
+	    int sdno;
+
+	    get_plex_info(&plex, plexno);		    /* find out who we are */
+	    msg.type = sd_object;
+	    for (sdno = 0; sdno < plex.subdisks; sdno++) {
+		char sdname[MAXPLEXNAME + 8];
+
+		get_plex_sd_info(&sd, plex.plexno, sdno);   /* get info about the subdisk */
+		sprintf(sdname, "%s.s%d", newname, sdno);
+		msg.index = sd.sdno;			    /* number of the subdisk */
+		dorename(&msg, sd.name, sdname, MAXSDNAME);
+	    }
+	}
+	break;
+
+    case volume_object:
+	volno = msg.index;
+	dorename(&msg, oldname, newname, MAXVOLNAME);
+	if (recurse) {
+	    int sdno;
+	    int plexno;
+
+	    get_volume_info(&vol, volno);		    /* find out who we are */
+	    for (plexno = 0; plexno < vol.plexes; plexno++) {
+		char plexname[MAXVOLNAME + 8];
+
+		msg.type = plex_object;
+		sprintf(plexname, "%s.p%d", newname, plexno);
+		msg.index = vol.plex[plexno];		    /* number of the plex */
+		dorename(&msg, plex.name, plexname, MAXPLEXNAME);
+		get_plex_info(&plex, vol.plex[plexno]);	    /* find out who we are */
+		msg.type = sd_object;
+		for (sdno = 0; sdno < plex.subdisks; sdno++) {
+		    char sdname[MAXPLEXNAME + 8];
+
+		    get_plex_sd_info(&sd, plex.plexno, sdno); /* get info about the subdisk */
+		    sprintf(sdname, "%s.s%d", plexname, sdno);
+		    msg.index = sd.sdno;		    /* number of the subdisk */
+		    dorename(&msg, sd.name, sdname, MAXSDNAME);
+		}
+	    }
+	}
+	break;
+
+    default:
+	fprintf(stderr, "%s is not a Vinum object\n", oldname);
+	return;
+    }
+}
+
+void 
+vinum_rename(int argc, char *argv[], char *argv0[])
+{
+    if (argc != 2) {
+	fprintf(stderr, "Usage: \trename <object> <new name>\n");
+	return;
+    }
+    if (ioctl(superdev, VINUM_GETCONFIG, &vinum_conf) < 0) {
+	perror("Can't get vinum config");
+	return;
+    }
+    vinum_rename_2(argv[0], argv[1]);
+}
+
+#ifdef COMPLETE
+/* Replace an object.  Syntax and semantics TBD */
+void 
+vinum_replace(int argc, char *argv[], char *argv0[])
+{
+    int maxlen;
+    struct vinum_rename_msg msg;
+    struct _ioctl_reply *reply = (struct _ioctl_reply *) &msg;
+
+    if (argc != 2) {
+	fprintf(stderr, "Usage: \trename <object> <new name>\n");
+	return;
+    }
+    if (ioctl(superdev, VINUM_GETCONFIG, &vinum_conf) < 0) {
+	perror("Can't get vinum config");
+	return;
+    }
+    fprintf(stderr, "Not implemented yet\n");
+}
+#endif
+/* Replace an object.  Syntax and semantics TBD */
+void 
+vinum_replace(int argc, char *argv[], char *argv0[])
+{
+    fprintf(stderr, "replace function not implemented yet\n");
+}
