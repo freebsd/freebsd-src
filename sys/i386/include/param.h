@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)param.h	5.8 (Berkeley) 6/28/91
- *	$Id: param.h,v 1.4 1993/10/08 13:01:34 rgrimes Exp $
+ *	$Id: param.h,v 1.5 1993/10/12 07:13:12 rgrimes Exp $
  */
 
 /*
@@ -158,4 +158,4 @@
 /*
  * phystokv stolen from SCSI device drivers and fixed to use KERNBASE
  */
-#define PHYSTOKV(x)	(x + KERNBASE)
+#define PHYSTOKV(x)	(x | KERNBASE)
