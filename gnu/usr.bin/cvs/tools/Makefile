@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-MAINAINER=	peter@FreeBSD.org
+MAINTAINER=	peter@FreeBSD.org
 
 FILES=	INSTALL NEWS README \
 	pcl-cvs-lucid.el pcl-cvs-startup.el \
