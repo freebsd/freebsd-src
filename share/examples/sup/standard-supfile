@@ -1,5 +1,36 @@
+# $Id$
+#
+# This file contains all of the "SUP collections" that comprise the FreeBSD
+# source distribution from the current (new and experimental) development
+# branch.  SUP (Software Update Protocol) allows you to download the latest
+# source distribution to your system easily.  SUP, availible as a FreeBSD
+# package or in the ports collection, should be invoked as:
+#
+#	sup -v standard-supfile
+#
+# You may want to change some of the settings in this file to better
+# suit your system:
+#
+# base=/usr	
+#		base specifies the root where SUP will store information
+#		about the collections you have transfered to your system.
+#		A setting of "/usr" will generate this information in
+#		/usr/sup.  Even if you are SUPing a large number of
+#		collections, you will be hard pressed to generate more than
+#		~1MB of data in this directory.
+#
+# prefix=/usr/src
+#		prefix specifies where to place the requested files.  A
+#		setting of "/usr/src" will place the all of the files
+#		requested in /usr/src (ie /usr/src/bin, /usr/src/share).
+#		The directory that is the prefix must exist in order for
+#		SUP to transfer files successfully.
+
 src-base release=current host=sup.FreeBSD.org hostbase=/home base=/usr prefix=/usr/src delete old use-rel-suffix
 src-bin release=current host=sup.FreeBSD.org hostbase=/home base=/usr prefix=/usr/src delete old use-rel-suffix
+
+# Doemenstic users only please.  If you are outside of the U.S.A and Canada,
+# use the collections in secure-supfile.
 #src-eBones release=current host=sup.FreeBSD.org hostbase=/home base=/usr prefix=/usr/src delete old use-rel-suffix
 src-etc release=current host=sup.FreeBSD.org hostbase=/home base=/usr prefix=/usr/src delete old use-rel-suffix
 src-games release=current host=sup.FreeBSD.org hostbase=/home base=/usr prefix=/usr/src delete old use-rel-suffix
@@ -8,6 +39,9 @@ src-include release=current host=sup.FreeBSD.org hostbase=/home base=/usr prefix
 src-lib release=current host=sup.FreeBSD.org hostbase=/home base=/usr prefix=/usr/src delete old use-rel-suffix
 src-libexec release=current host=sup.FreeBSD.org hostbase=/home base=/usr prefix=/usr/src delete old use-rel-suffix
 src-sbin release=current host=sup.FreeBSD.org hostbase=/home base=/usr prefix=/usr/src delete old use-rel-suffix
+
+# Doemenstic users only please.  If you are outside of the U.S.A and Canada,
+# use the collections in secure-supfile.
 #src-secure release=current host=sup.FreeBSD.org hostbase=/home base=/usr prefix=/usr/src delete old use-rel-suffix
 src-share release=current host=sup.FreeBSD.org hostbase=/home base=/usr prefix=/usr/src delete old use-rel-suffix
 src-sys release=current host=sup.FreeBSD.org hostbase=/home base=/usr prefix=/usr/src delete old use-rel-suffix
