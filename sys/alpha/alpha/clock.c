@@ -49,6 +49,8 @@
 
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/queue.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
@@ -80,6 +82,7 @@ int tickfixinterval;
 int	adjkerntz;		/* local offset	from GMT in seconds */
 int	disable_rtc_set;	/* disable resettodr() if != 0 */
 int	wall_cmos_clock;	/* wall	CMOS clock assumed if != 0 */
+struct mtx clock_lock;
 static	int	beeping = 0;
 
 #define	TIMER_DIV(x) ((timer_freq + (x) / 2) / (x))
@@ -267,9 +270,8 @@ static int
 getit(void)
 {
 	int high, low;
-	critical_t s;
 
-	s = critical_enter();
+	mtx_lock_spin(&clock_lock);
 
 	/* Select timer0 and latch counter value. */
 	outb(TIMER_MODE, TIMER_SEL0 | TIMER_LATCH);
@@ -277,7 +279,7 @@ getit(void)
 	low = inb(TIMER_CNTR0);
 	high = inb(TIMER_CNTR0);
 
-	critical_exit(s);
+	mtx_unlock_spin(&clock_lock);
 	return ((high << 8) | low);
 }
 
@@ -368,9 +370,8 @@ static void
 set_timer_freq(u_int freq, int intr_freq)
 {
 	int new_timer0_max_count;
-	critical_t s;
 
-	s = critical_enter();
+	mtx_lock_spin(&clock_lock);
 	timer_freq = freq;
 	new_timer0_max_count = TIMER_DIV(intr_freq);
 	if (new_timer0_max_count != timer0_max_count) {
@@ -379,16 +380,14 @@ set_timer_freq(u_int freq, int intr_freq)
 		outb(TIMER_CNTR0, timer0_max_count & 0xff);
 		outb(TIMER_CNTR0, timer0_max_count >> 8);
 	}
-	critical_exit(s);
+	mtx_unlock_spin(&clock_lock);
 }
 
 static void
 handleclock(void* arg)
 {
 	if (timecounter->tc_get_timecount == i8254_get_timecount) {
-		critical_t s;
-		
-		s = critical_enter();
+		mtx_lock_spin(&clock_lock);
 		if (i8254_ticked)
 			i8254_ticked = 0;
 		else {
@@ -396,7 +395,7 @@ handleclock(void* arg)
 			i8254_lastcount = 0;
 		}
 		clkintr_pending = 0;
-		critical_exit(s);
+		mtx_unlock_spin(&clock_lock);
 	}
 
 	hardclock(arg);
@@ -566,9 +565,8 @@ i8254_get_timecount(struct timecounter *tc)
 {
 	u_int count;
 	u_int high, low;
-	critical_t s;
 
-	s = critical_enter();
+	mtx_lock_spin(&clock_lock);
 
 	/* Select timer0 and latch counter value. */
 	outb(TIMER_MODE, TIMER_SEL0 | TIMER_LATCH);
@@ -586,7 +584,7 @@ i8254_get_timecount(struct timecounter *tc)
 	i8254_lastcount = count;
 	count += i8254_offset;
 
-	critical_exit(s);
+	mtx_unlock_spin(&clock_lock);
 	return (count);
 }
 
@@ -638,14 +636,13 @@ sysbeepstop(void *chan)
 int
 sysbeep(int pitch, int period)
 {
-	critical_t s;
 
-	s = critical_enter();
+	mtx_lock_spin(&clock_lock);
 
 	if (acquire_timer2(TIMER_SQWAVE|TIMER_16BIT))
 		if (!beeping) {
 			/* Something else owns it. */
-			critical_exit(s);
+			mtx_unlock_spin(&clock_lock);
 			return (-1); /* XXX Should be EBUSY, but nobody cares anyway. */
 		}
 
@@ -659,7 +656,7 @@ sysbeep(int pitch, int period)
 		beeping = period;
 		timeout(sysbeepstop, (void *)NULL, period);
 	}
-	critical_exit(s);
+	mtx_unlock_spin(&clock_lock);
 	return (0);
 }
 
