@@ -45,6 +45,7 @@
 #include <sys/socket.h>
 #include <sys/sockio.h>
 
+#include <net/bpf.h>
 #include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_arp.h>
@@ -1224,12 +1225,14 @@ gem_start(ifp)
 			break;
 		}
 
-		if (m != NULL)
-			m_freem(m0);
-
 		/*
 		 * WE ARE NOW COMMITTED TO TRANSMITTING THE PACKET.
 		 */
+		if (ifp->if_bpf != NULL)
+			bpf_mtap(ifp, m0);
+
+		if (m != NULL)
+			m_freem(m0);
 
 #ifdef GEM_DEBUG
 		if (ifp->if_flags & IFF_DEBUG) {
