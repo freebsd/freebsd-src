@@ -1733,7 +1733,17 @@ fxp_intr_body(struct fxp_softc *sc, struct ifnet *ifp, u_int8_t statack,
 			m->m_pkthdr.len = m->m_len = total_len;
 			m->m_pkthdr.rcvif = ifp;
 
+			/*
+			 * Drop locks before calling if_input() since it
+			 * may re-enter fxp_start() in the netisr case.
+			 * This would result in a lock reversal.  Better
+			 * performance might be obtained by chaining all
+			 * packets received, dropping the lock, and then
+			 * calling if_input() on each one.
+			 */
+			FXP_UNLOCK(sc);
 			(*ifp->if_input)(ifp, m);
+			FXP_LOCK(sc);
 		}
 	}
 	if (rnr) {
