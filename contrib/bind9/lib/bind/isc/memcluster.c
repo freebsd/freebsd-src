@@ -24,7 +24,7 @@
 
 
 #if !defined(LINT) && !defined(CODECENTER)
-static const char rcsid[] = "$Id: memcluster.c,v 1.3.206.3 2004/03/17 00:29:52 marka Exp $";
+static const char rcsid[] = "$Id: memcluster.c,v 1.3.206.4 2004/09/16 00:57:34 marka Exp $";
 #endif /* not lint */
 
 #include "port_before.h"
@@ -471,9 +471,9 @@ memstats(FILE *out) {
 
 		if (s->totalgets == 0U && s->gets == 0U)
 			continue;
-		fprintf(out, "%s%5d: %11lu gets, %11lu rem",
+		fprintf(out, "%s%5lu: %11lu gets, %11lu rem",
 			(i == max_size) ? ">=" : "  ",
-			i, s->totalgets, s->gets);
+			(unsigned long)i, s->totalgets, s->gets);
 		if (s->blocks != 0U)
 			fprintf(out, " (%lu bl, %lu ff)",
 				s->blocks, s->freefrags);

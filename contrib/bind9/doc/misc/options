@@ -16,6 +16,7 @@ options {
         has-old-clients <boolean>; // obsolete
         heartbeat-interval <integer>;
         host-statistics <boolean>; // not implemented
+        host-statistics-max <integer>; // not implemented
         hostname ( <quoted_string> | none );
         interface-interval <integer>;
         listen-on [ port <integer> ] { <address_match_element>; ... };

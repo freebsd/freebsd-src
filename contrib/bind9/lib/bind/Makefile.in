@@ -13,11 +13,15 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: Makefile.in,v 1.12.2.5.2.5 2004/07/20 07:01:56 marka Exp $
+# $Id: Makefile.in,v 1.12.2.5.2.7 2004/12/09 04:07:14 marka Exp $
 
 srcdir =        @srcdir@
 VPATH =         @srcdir@
 top_srcdir =    @top_srcdir@
+
+# Attempt to disable parallel processing.
+.NOTPARALLEL:
+.NO_PARALLEL:
 
 @LIBBIND_API@
 
@@ -40,8 +44,8 @@ INETOBJS= inet/inet_addr.@O@ inet/inet_cidr_ntop.@O@ inet/inet_cidr_pton.@O@ \
 	inet/inet_netof.@O@ inet/inet_network.@O@ inet/inet_ntoa.@O@ \
 	inet/inet_ntop.@O@ inet/inet_pton.@O@ inet/nsap_addr.@O@
 
-WANT_IRS_THREADS_OBJS=	irs/gethostent_r.@O@ irs/getnetgrent_r.@O@ \
-	irs/getprotoent_r.@O@ irs/getservent_r.@O@
+WANT_IRS_THREADS_OBJS=	irs/gethostent_r.@O@ irs/getnetent_r.@O@ \
+	irs/getnetgrent_r.@O@ irs/getprotoent_r.@O@ irs/getservent_r.@O@
 
 WANT_IRS_NISGR_OBJS= irs/nis_gr.@O@ 
 WANT_IRS_GR_OBJS= irs/dns_gr.@O@ irs/irp_gr.@O@ irs/lcl_gr.@O@ irs/gen_gr.@O@ \
@@ -62,7 +66,7 @@ IRSOBJS= @WANT_IRS_GR_OBJS@ @WANT_IRS_NIS_OBJS@ @WANT_IRS_THREADS_OBJS@ \
 	irs/dns_sv.@O@ irs/gai_strerror.@O@ irs/gen.@O@ irs/gen_ho.@O@ \
 	irs/gen_ng.@O@ irs/gen_nw.@O@ irs/gen_pr.@O@ irs/gen_sv.@O@ \
 	irs/getaddrinfo.@O@ irs/gethostent.@O@  irs/getnameinfo.@O@ \
-	irs/getnetent.@O@ irs/getnetent_r.@O@ irs/getnetgrent.@O@ \
+	irs/getnetent.@O@ irs/getnetgrent.@O@ \
 	irs/getprotoent.@O@ irs/getservent.@O@ irs/hesiod.@O@ \
 	irs/irp.@O@ irs/irp_ho.@O@ irs/irp_ng.@O@ irs/irp_nw.@O@ \
 	irs/irp_pr.@O@ irs/irp_sv.@O@ irs/irpmarshall.@O@ irs/irs_data.@O@ \

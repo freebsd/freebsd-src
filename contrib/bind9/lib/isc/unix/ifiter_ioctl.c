@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ifiter_ioctl.c,v 1.19.2.5.2.14 2004/06/22 04:40:23 marka Exp $ */
+/* $Id: ifiter_ioctl.c,v 1.19.2.5.2.15 2004/11/10 22:22:49 marka Exp $ */
 
 /*
  * Obtain the list of network interfaces using the SIOCGLIFCONF ioctl.
@@ -339,9 +339,8 @@ isc_interfaceiter_create(isc_mem_t *mctx, isc_interfaceiter_t **iterp) {
 			result = ISC_R_UNEXPECTED;
 			goto socket6_failure;
 		}
-		iter->result6 = getbuf6(iter);
-		if (iter->result6 != ISC_R_NOTIMPLEMENTED &&
-		    iter->result6 != ISC_R_SUCCESS)
+		result = iter->result6 = getbuf6(iter);
+		if (result != ISC_R_NOTIMPLEMENTED && result != ISC_R_SUCCESS)
 			goto ioctl6_failure;
 	}
 #endif
