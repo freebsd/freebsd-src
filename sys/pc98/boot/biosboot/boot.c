@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, [92/04/03  16:51:14  rvb]
- *	$Id: boot.c,v 1.15 1997/09/01 10:38:30 kato Exp $
+ *	$Id: boot.c,v 1.16 1998/02/02 07:56:14 kato Exp $
  */
 
 
@@ -86,6 +86,10 @@ void
 boot(int drive)
 {
 	int ret;
+#ifdef PC98
+	int i;
+	unsigned char disk_equips;
+#endif
 
 	/* Pick up the story from the Bios on geometry of disks */
 
@@ -118,7 +122,15 @@ boot(int drive)
 	dosdev = drive;
 #ifdef PC98
 	maj = (drive&0x70) >> 3;		/* a good first bet */
-	unit = drive & 0x0f;
+	if (maj == 4) {		/* sd */
+		disk_equips = *(unsigned char *)V(0xA1482);
+		unit = 0;
+		for (i=0; i<(drive&0x0f); i++) {
+			unit += (disk_equips >> i) & 1;
+		}
+	} else {
+		unit = drive & 0x0f;
+	}
 #else /* IBM-PC */
 	maj = 2;
 	unit = drive & 0x7f;
