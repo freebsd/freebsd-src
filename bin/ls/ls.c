@@ -470,10 +470,13 @@ traverse(int argc, char *argv[], int options)
 			 * a separator.  If multiple arguments, precede each
 			 * directory with its name.
 			 */
-			if (output)
-				(void)printf("\n%s:\n", p->fts_path);
-			else if (argc > 1) {
-				(void)printf("%s:\n", p->fts_path);
+			if (output) {
+				putchar('\n');
+				printname(p->fts_path);
+				puts(":");
+			} else if (argc > 1) {
+				printname(p->fts_path);
+				puts(":");
 				output = 1;
 			}
 			chp = fts_children(ftsp, ch_options);
