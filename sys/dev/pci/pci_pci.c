@@ -120,7 +120,7 @@ void
 pcib_attach_common(device_t dev)
 {
     struct pcib_softc	*sc;
-    u_int8_t		iolow;
+    uint8_t		iolow;
 
     sc = device_get_softc(dev);
     sc->dev = dev;
@@ -174,7 +174,7 @@ pcib_attach_common(device_t dev)
     switch (pci_get_devid(dev)) {
 	case 0x12258086:		/* Intel 82454KX/GX (Orion) */
 	{
-	    u_int8_t	supbus;
+	    uint8_t	supbus;
 
 	    supbus = pci_read_config(dev, 0x41, 1);
 	    if (supbus != 0xff) {
@@ -462,14 +462,14 @@ pcib_maxslots(device_t dev)
 /*
  * Since we are a child of a PCI bus, its parent must support the pcib interface.
  */
-u_int32_t
+uint32_t
 pcib_read_config(device_t dev, int b, int s, int f, int reg, int width)
 {
     return(PCIB_READ_CONFIG(device_get_parent(device_get_parent(dev)), b, s, f, reg, width));
 }
 
 void
-pcib_write_config(device_t dev, int b, int s, int f, int reg, u_int32_t val, int width)
+pcib_write_config(device_t dev, int b, int s, int f, int reg, uint32_t val, int width)
 {
     PCIB_WRITE_CONFIG(device_get_parent(device_get_parent(dev)), b, s, f, reg, val, width);
 }
@@ -516,9 +516,9 @@ pcib_route_interrupt(device_t pcib, device_t dev, int pin)
  */
 int
 host_pcib_get_busno(pci_read_config_fn read_config, int bus, int slot, int func,
-    u_int8_t *busnum)
+    uint8_t *busnum)
 {
-	u_int32_t id;
+	uint32_t id;
 
 	id = read_config(bus, slot, func, PCIR_DEVVENDOR, 4);
 	if (id == 0xffffffff)

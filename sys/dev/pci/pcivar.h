@@ -46,9 +46,9 @@
 /* pci_addr_t covers this system's PCI bus address space: 32 or 64 bit */
 
 #ifdef PCI_A64
-typedef u_int64_t pci_addr_t;	/* u_int64_t for system with 64bit addresses */
+typedef uint64_t pci_addr_t;	/* uint64_t for system with 64bit addresses */
 #else
-typedef u_int32_t pci_addr_t;	/* u_int64_t for system with 64bit addresses */
+typedef uint32_t pci_addr_t;	/* uint64_t for system with 64bit addresses */
 #endif
 
 /* config header information common to all header types */
@@ -56,39 +56,39 @@ typedef u_int32_t pci_addr_t;	/* u_int64_t for system with 64bit addresses */
 typedef struct pcicfg {
     struct device *dev;		/* device which owns this */
 
-    u_int16_t	subvendor;	/* card vendor ID */
-    u_int16_t	subdevice;	/* card device ID, assigned by card vendor */
-    u_int16_t	vendor;		/* chip vendor ID */
-    u_int16_t	device;		/* chip device ID, assigned by chip vendor */
+    uint16_t	subvendor;	/* card vendor ID */
+    uint16_t	subdevice;	/* card device ID, assigned by card vendor */
+    uint16_t	vendor;		/* chip vendor ID */
+    uint16_t	device;		/* chip device ID, assigned by chip vendor */
 
-    u_int16_t	cmdreg;		/* disable/enable chip and PCI options */
-    u_int16_t	statreg;	/* supported PCI features and error state */
+    uint16_t	cmdreg;		/* disable/enable chip and PCI options */
+    uint16_t	statreg;	/* supported PCI features and error state */
 
-    u_int8_t	baseclass;	/* chip PCI class */
-    u_int8_t	subclass;	/* chip PCI subclass */
-    u_int8_t	progif;		/* chip PCI programming interface */
-    u_int8_t	revid;		/* chip revision ID */
+    uint8_t	baseclass;	/* chip PCI class */
+    uint8_t	subclass;	/* chip PCI subclass */
+    uint8_t	progif;		/* chip PCI programming interface */
+    uint8_t	revid;		/* chip revision ID */
 
-    u_int8_t	hdrtype;	/* chip config header type */
-    u_int8_t	cachelnsz;	/* cache line size in 4byte units */
-    u_int8_t	intpin;		/* PCI interrupt pin */
-    u_int8_t	intline;	/* interrupt line (IRQ for PC arch) */
+    uint8_t	hdrtype;	/* chip config header type */
+    uint8_t	cachelnsz;	/* cache line size in 4byte units */
+    uint8_t	intpin;		/* PCI interrupt pin */
+    uint8_t	intline;	/* interrupt line (IRQ for PC arch) */
 
-    u_int8_t	mingnt;		/* min. useful bus grant time in 250ns units */
-    u_int8_t	maxlat;		/* max. tolerated bus grant latency in 250ns */
-    u_int8_t	lattimer;	/* latency timer in units of 30ns bus cycles */
+    uint8_t	mingnt;		/* min. useful bus grant time in 250ns units */
+    uint8_t	maxlat;		/* max. tolerated bus grant latency in 250ns */
+    uint8_t	lattimer;	/* latency timer in units of 30ns bus cycles */
 
-    u_int8_t	mfdev;		/* multi-function device (from hdrtype reg) */
-    u_int8_t	nummaps;	/* actual number of PCI maps used */
+    uint8_t	mfdev;		/* multi-function device (from hdrtype reg) */
+    uint8_t	nummaps;	/* actual number of PCI maps used */
 
-    u_int8_t	bus;		/* config space bus address */
-    u_int8_t	slot;		/* config space slot address */
-    u_int8_t	func;		/* config space function number */
+    uint8_t	bus;		/* config space bus address */
+    uint8_t	slot;		/* config space slot address */
+    uint8_t	func;		/* config space function number */
 
-    u_int16_t	pp_cap;		/* PCI power management capabilities */
-    u_int8_t	pp_status;	/* config space address of PCI power status reg */
-    u_int8_t	pp_pmcsr;	/* config space address of PMCSR reg */
-    u_int8_t	pp_data;	/* config space address of PCI power data reg */
+    uint16_t	pp_cap;		/* PCI power management capabilities */
+    uint8_t	pp_status;	/* config space address of PCI power status reg */
+    uint8_t	pp_pmcsr;	/* config space address of PMCSR reg */
+    uint8_t	pp_data;	/* config space address of PCI power data reg */
     
 } pcicfgregs;
 
@@ -108,33 +108,33 @@ typedef struct pcicfg {
 typedef struct {
     pci_addr_t	pmembase;	/* base address of prefetchable memory */
     pci_addr_t	pmemlimit;	/* topmost address of prefetchable memory */
-    u_int32_t	membase;	/* base address of memory window */
-    u_int32_t	memlimit;	/* topmost address of memory window */
-    u_int32_t	iobase;		/* base address of port window */
-    u_int32_t	iolimit;	/* topmost address of port window */
-    u_int16_t	secstat;	/* secondary bus status register */
-    u_int16_t	bridgectl;	/* bridge control register */
-    u_int8_t	seclat;		/* CardBus latency timer */
+    uint32_t	membase;	/* base address of memory window */
+    uint32_t	memlimit;	/* topmost address of memory window */
+    uint32_t	iobase;		/* base address of port window */
+    uint32_t	iolimit;	/* topmost address of port window */
+    uint16_t	secstat;	/* secondary bus status register */
+    uint16_t	bridgectl;	/* bridge control register */
+    uint8_t	seclat;		/* CardBus latency timer */
 } pcih1cfgregs;
 
 /* additional type 2 device config header information (CardBus bridge) */
 
 typedef struct {
-    u_int32_t	membase0;	/* base address of memory window */
-    u_int32_t	memlimit0;	/* topmost address of memory window */
-    u_int32_t	membase1;	/* base address of memory window */
-    u_int32_t	memlimit1;	/* topmost address of memory window */
-    u_int32_t	iobase0;	/* base address of port window */
-    u_int32_t	iolimit0;	/* topmost address of port window */
-    u_int32_t	iobase1;	/* base address of port window */
-    u_int32_t	iolimit1;	/* topmost address of port window */
-    u_int32_t	pccardif;	/* PC Card 16bit IF legacy more base addr. */
-    u_int16_t	secstat;	/* secondary bus status register */
-    u_int16_t	bridgectl;	/* bridge control register */
-    u_int8_t	seclat;		/* CardBus latency timer */
+    uint32_t	membase0;	/* base address of memory window */
+    uint32_t	memlimit0;	/* topmost address of memory window */
+    uint32_t	membase1;	/* base address of memory window */
+    uint32_t	memlimit1;	/* topmost address of memory window */
+    uint32_t	iobase0;	/* base address of port window */
+    uint32_t	iolimit0;	/* topmost address of port window */
+    uint32_t	iobase1;	/* base address of port window */
+    uint32_t	iolimit1;	/* topmost address of port window */
+    uint32_t	pccardif;	/* PC Card 16bit IF legacy more base addr. */
+    uint16_t	secstat;	/* secondary bus status register */
+    uint16_t	bridgectl;	/* bridge control register */
+    uint8_t	seclat;		/* CardBus latency timer */
 } pcih2cfgregs;
 
-extern u_int32_t pci_numdevs;
+extern uint32_t pci_numdevs;
 
 /* Only if the prerequisites are present */
 #if defined(_SYS_BUS_H_) && defined(_SYS_PCIIO_H_)
@@ -186,35 +186,35 @@ enum pci_device_ivars {
 #define PCI_ACCESSOR(var, ivar, type)					\
 	__BUS_ACCESSOR(pci, var, PCI, ivar, type)
 
-PCI_ACCESSOR(subvendor,		SUBVENDOR,	u_int16_t)
-PCI_ACCESSOR(subdevice,		SUBDEVICE,	u_int16_t)
-PCI_ACCESSOR(vendor,		VENDOR,		u_int16_t)
-PCI_ACCESSOR(device,		DEVICE,		u_int16_t)
-PCI_ACCESSOR(devid,		DEVID,		u_int32_t)
-PCI_ACCESSOR(class,		CLASS,		u_int8_t)
-PCI_ACCESSOR(subclass,		SUBCLASS,	u_int8_t)
-PCI_ACCESSOR(progif,		PROGIF,		u_int8_t)
-PCI_ACCESSOR(revid,		REVID,		u_int8_t)
-PCI_ACCESSOR(intpin,		INTPIN,		u_int8_t)
-PCI_ACCESSOR(irq,		IRQ,		u_int8_t)
-PCI_ACCESSOR(bus,		BUS,		u_int8_t)
-PCI_ACCESSOR(slot,		SLOT,		u_int8_t)
-PCI_ACCESSOR(function,		FUNCTION,	u_int8_t)
-PCI_ACCESSOR(ether,		ETHADDR,	u_int8_t *)
+PCI_ACCESSOR(subvendor,		SUBVENDOR,	uint16_t)
+PCI_ACCESSOR(subdevice,		SUBDEVICE,	uint16_t)
+PCI_ACCESSOR(vendor,		VENDOR,		uint16_t)
+PCI_ACCESSOR(device,		DEVICE,		uint16_t)
+PCI_ACCESSOR(devid,		DEVID,		uint32_t)
+PCI_ACCESSOR(class,		CLASS,		uint8_t)
+PCI_ACCESSOR(subclass,		SUBCLASS,	uint8_t)
+PCI_ACCESSOR(progif,		PROGIF,		uint8_t)
+PCI_ACCESSOR(revid,		REVID,		uint8_t)
+PCI_ACCESSOR(intpin,		INTPIN,		uint8_t)
+PCI_ACCESSOR(irq,		IRQ,		uint8_t)
+PCI_ACCESSOR(bus,		BUS,		uint8_t)
+PCI_ACCESSOR(slot,		SLOT,		uint8_t)
+PCI_ACCESSOR(function,		FUNCTION,	uint8_t)
+PCI_ACCESSOR(ether,		ETHADDR,	uint8_t *)
 
 #undef PCI_ACCESSOR
 
 /*
  * Operations on configuration space.
  */
-static __inline u_int32_t
+static __inline uint32_t
 pci_read_config(device_t dev, int reg, int width)
 {
     return PCI_READ_CONFIG(device_get_parent(dev), dev, reg, width);
 }
 
 static __inline void
-pci_write_config(device_t dev, int reg, u_int32_t val, int width)
+pci_write_config(device_t dev, int reg, uint32_t val, int width)
 {
     PCI_WRITE_CONFIG(device_get_parent(dev), dev, reg, val, width);
 }
@@ -231,7 +231,7 @@ enum pcib_device_ivars {
 #define PCIB_ACCESSOR(var, ivar, type)					 \
     __BUS_ACCESSOR(pcib, var, PCIB, ivar, type)
 
-PCIB_ACCESSOR(bus,		BUS,		u_int32_t)
+PCIB_ACCESSOR(bus,		BUS,		uint32_t)
 
 #undef PCIB_ACCESSOR
 
@@ -306,8 +306,8 @@ pci_get_powerstate(device_t dev)
     return PCI_GET_POWERSTATE(device_get_parent(dev), dev);
 }
 
-device_t pci_find_bsf(u_int8_t, u_int8_t, u_int8_t);
-device_t pci_find_device(u_int16_t, u_int16_t);
+device_t pci_find_bsf(uint8_t, uint8_t, uint8_t);
+device_t pci_find_device(uint16_t, uint16_t);
 #endif	/* _SYS_BUS_H_ */
 
 /*
@@ -321,6 +321,6 @@ extern struct cdevsw pcicdev;
 STAILQ_HEAD(devlist, pci_devinfo);
 
 extern struct devlist	pci_devq;
-extern u_int32_t	pci_generation;
+extern uint32_t	pci_generation;
 
 #endif /* _PCIVAR_H_ */
