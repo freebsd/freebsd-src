@@ -1,3 +1,4 @@
+/*	$NecBSD: bsif.h,v 1.5 1997/10/23 20:52:34 honda Exp $	*/
 /*
  * Copyright (c) HONDA Naofumi, KATO Takenori, 1996.  All rights reserved.
  * 
@@ -38,11 +39,13 @@
 	struct scsi_link sc_link;
 
 #define	OS_DEPEND_MISC_HEADER			\
-	pisa_device_handle_t sc_pdv;		\
-	bus_chipset_tag_t sc_bc;		\
-	bus_io_handle_t sc_ioh;			\
-	bus_io_handle_t sc_delayioh;		\
-	bus_mem_handle_t sc_memh;
+	pisa_device_handle_t sc_dh;		\
+	bus_space_tag_t sc_iot;			\
+	bus_space_tag_t sc_memt;		\
+	bus_space_handle_t sc_ioh;		\
+	bus_space_handle_t sc_delaybah;		\
+	bus_space_handle_t sc_memh;		\
+	bus_dma_tag_t sc_dmat;		
 
 #endif	/* __NetBSD__ */
 #ifdef __FreeBSD__
@@ -85,6 +88,10 @@
 #include <dev/isa/isareg.h>
 #include <dev/isa/isavar.h>
 #include <dev/isa/pisaif.h>
+#include <dev/isa/isadmavar.h>
+#include <dev/isa/isadmareg.h>
+
+#include <dev/cons.h>
 
 #include <machine/cpufunc.h>
 #include <machine/bus.h>
@@ -123,18 +130,18 @@
  * BUS IO MAPPINGS & BS specific inclusion
  ***************************************************/
 #ifdef	__NetBSD__
-#define	BUS_IO_DELAY ((void) bus_io_read_1(bsc->sc_bc, bsc->sc_delayioh, 0))
-#define	BUS_IO_WEIGHT (bus_io_write_1(bsc->sc_bc, bsc->sc_delayioh, 0, 0))
-#define	BUS_IOR(offs) (BUS_IO_DELAY, bus_io_read_1(bsc->sc_bc, bsc->sc_ioh, (offs)))
-#define	BUS_IOW(offs, val) (BUS_IO_DELAY, bus_io_write_1(bsc->sc_bc, bsc->sc_ioh, (offs), (val)))
+#define	BUS_IO_DELAY ((void) bus_space_read_1(bsc->sc_iot, bsc->sc_delaybah, 0))
+#define	BUS_IO_WEIGHT (bus_space_write_1(bsc->sc_iot, bsc->sc_delaybah, 0, 0))
+#define	BUS_IOR(offs) (bus_space_read_1(bsc->sc_iot, bsc->sc_ioh, (offs)))
+#define	BUS_IOW(offs, val) (bus_space_write_1(bsc->sc_iot, bsc->sc_ioh, (offs), (val)))
 
 #include <dev/ic/wd33c93reg.h>
 #include <dev/isa/ccbque.h>
 
-#include <dev/isa/scsi_dvcfg.h>
-#include <dev/isa/bs/bsvar.h>
-#include <dev/isa/bs/bshw.h>
-#include <dev/isa/bs/bsfunc.h>
+#include <i386/Cbus/dev/scsi_dvcfg.h>
+#include <i386/Cbus/dev/bs/bsvar.h>
+#include <i386/Cbus/dev/bs/bshw.h>
+#include <i386/Cbus/dev/bs/bsfunc.h>
 #endif	/* __NetBSD__ */
 
 #ifdef	__FreeBSD__
@@ -193,8 +200,8 @@ extern int delaycount;
 
 /* (II) os depend declare */
 #ifdef __NetBSD__
-int bsprobe __P((struct device *, struct device *, void *));
-void bsattach __P((struct device *, struct device *, void *));
+int bsintr __P((void *));
+int bsprint __P((void *, const char *));
 #endif	/* __NetBSD__ */
 
 #ifdef __FreeBSD__
@@ -211,7 +218,7 @@ extern int dma_init_flag;
  * Please inform smp@freebsd.org if this is NOT the case.
  */
 #else
-#define softintr(y) ipending |= (y)
+#define softintr(y) ipending |= (1 << y)
 #endif /* SMP */
 
 static BS_INLINE void

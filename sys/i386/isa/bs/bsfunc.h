@@ -1,3 +1,4 @@
+/*	$NecBSD: bsfunc.h,v 1.1 1997/07/18 09:19:03 kmatsuda Exp $	*/
 /*	$NetBSD$	*/
 /*
  * [NetBSD for NEC PC98 series]
@@ -163,11 +164,11 @@ bs_hostque_head(bsc, ti)
 	struct targ_info *ti;
 {
 
-	if (ti->ti_flags & BSQUEUED)
-		TAILQ_REMOVE(&bsc->sc_sttab, ti, ti_wchain)
-	else
+	if (ti->ti_flags & BSQUEUED) {
+		TAILQ_REMOVE(&bsc->sc_sttab, ti, ti_wchain);
+	} else {
 		ti->ti_flags |= BSQUEUED;
-
+	}
 	TAILQ_INSERT_HEAD(&bsc->sc_sttab, ti, ti_wchain);
 }
 
@@ -177,12 +178,12 @@ bs_hostque_tail(bsc, ti)
 	struct targ_info *ti;
 {
 
-	if (ti->ti_flags & BSQUEUED)
-		TAILQ_REMOVE(&bsc->sc_sttab, ti, ti_wchain)
-	else
+	if (ti->ti_flags & BSQUEUED) {
+		TAILQ_REMOVE(&bsc->sc_sttab, ti, ti_wchain);
+	} else {
 		ti->ti_flags |= BSQUEUED;
-
-	TAILQ_INSERT_TAIL(&bsc->sc_sttab, ti, ti_wchain)
+	}
+	TAILQ_INSERT_TAIL(&bsc->sc_sttab, ti, ti_wchain);
 }
 
 static BS_INLINE void
@@ -194,7 +195,7 @@ bs_hostque_delete(bsc, ti)
 	if (ti->ti_flags & BSQUEUED)
 	{
 		ti->ti_flags &= ~BSQUEUED;
-		TAILQ_REMOVE(&bsc->sc_sttab, ti, ti_wchain)
+		TAILQ_REMOVE(&bsc->sc_sttab, ti, ti_wchain);
 	}
 }
 

@@ -1,3 +1,4 @@
+/*	$NecBSD: bsif.c,v 1.6 1997/10/31 17:43:40 honda Exp $	*/
 /*
  * Copyright (c) HONDA Naofumi, KATO Takenori, 1996.  All rights reserved.
  * 
@@ -32,7 +33,7 @@
 #endif
 
 #ifdef __NetBSD__
-#include <dev/isa/bs/bsif.h>
+#include <i386/Cbus/dev/bs/bsif.h>
 #endif	/* __NetBSD__ */
 #ifdef __FreeBSD__
 #include "bs.h"
@@ -43,8 +44,6 @@
  * DEVICE DECLARE
  **************************************************/
 #ifdef __NetBSD__
-int bsintr __P((void *));
-static int bsprint __P((void *, char *));
 static void bs_scsi_minphys __P((struct buf *));
 
 struct cfdriver bs_cd = {
@@ -69,7 +68,7 @@ struct scsi_adapter pc98texa55bs = {
 #ifdef __FreeBSD__
 static int bsprobe __P((struct isa_device *));
 static int bsattach __P((struct isa_device *));
-static int bsprint __P((void *, char *));
+static int bsprint __P((void *, const char *));
 static void bs_scsi_minphys __P((struct buf *));
 static int bs_dmarangecheck __P((caddr_t, unsigned));
 
@@ -119,26 +118,12 @@ static struct bs_softc *bscdata[NBS];
 static int
 bsprobe(dev)
 	struct isa_device *dev;
-#else	/* __NetBSD__ */
-int
-bsprobe(parent, self, aux)
-	struct device *parent;
-	struct device *self;
-	void *aux;
-#endif	/* __NetBSD__ */
 {
-#ifdef __FreeBSD__
 	struct bs_softc *bsc;
 	int unit = dev->id_unit;
-#else	/* __NetBSD__ */
-	struct bs_softc *bsc = (void *) self;
-	struct isa_attach_args *ia = aux;
-	bus_chipset_tag_t bc = ia->ia_bc;
-#endif	/* __NetBSD__ */
 	u_int irq, drq;
 	int i, rv = 0;
 
-#ifdef __FreeBSD__
 	if (unit >= NBS) {
 		printf("bs%d: unit number too high\n", unit);
 		return rv;
@@ -158,89 +143,35 @@ bsprobe(parent, self, aux)
 	callout_handle_init(&bsc->timeout_ch);
 	bscdata[unit] = bsc;
 	bsc->unit = unit;
-#endif	/* __FreeBSD__ */
 
-#ifdef __FreeBSD__
 	bsc->sc_cfgflags = DVCFG_MINOR(dev->id_flags);
 	bsc->sc_hw = DVCFG_HW(&bshw_hwsel, DVCFG_MAJOR(dev->id_flags));
-#else	/* __NetBSD__ */
-	bsc->sc_cfgflags = DVCFG_MINOR(ia->ia_cfgflags);
-	bsc->sc_hw = DVCFG_HW(&bshw_hwsel, DVCFG_MAJOR(ia->ia_cfgflags));
-#endif	/* __NetBSD__ */
 	if (bsc->sc_hw == NULL)
 		return rv;
 
-#ifdef __FreeBSD__
 	if ((bsc->sc_hw->hw_flags & BSHW_SMFIFO) &&
 			(dev->id_maddr != (caddr_t)MADDRUNK))
-		bsc->sm_vaddr = (u_int8_t *) dev->id_maddr;
+		bsc->sm_offset = (u_long) dev->id_maddr;
 	else
-		bsc->sm_vaddr = (u_int8_t *) MADDRUNK;
-#else	/* __NetBSD__ */
-	if ((bsc->sc_hw->hw_flags & BSHW_SMFIFO) && (ia->ia_maddr != MADDRUNK))
-	{
-		ia->ia_maddr &= ~((NBPG * 2) - 1);
-		ia->ia_maddr += NBPG;
-		ia->ia_msize = NBPG;
-		if (bus_mem_map(bc, ia->ia_maddr, NBPG, 0, &bsc->sc_memh))
-			return 0;
-		bsc->sm_vaddr = (u_int8_t *) bsc->sc_memh;	/* XXX */
-	}
-	else
-	{
-		bsc->sm_vaddr = (u_int8_t *) MADDRUNK;
-		ia->ia_msize = 0;
-	}
-#endif	/* __NetBSD__ */
+		bsc->sm_offset = (u_long) 0;
 
-#ifdef __FreeBSD__
 	sprintf(bsc->sc_dvname, "bs%d", unit);
-#else	/* __NetBSD__ */
-	strcpy(bsc->sc_dvname, bsc->sc_dev.dv_xname);
-#endif	/* __NetBSD__ */
 
-#ifdef __FreeBSD__
 	if (dev->id_iobase == 0)
-#else	/* __NetBSD__ */
-	if (ia->ia_iobase == IOBASEUNK)
-#endif	/* __NetBSD__ */
 	{
 		printf("%s: iobase not specified. Assume default port(0x%x)\n",
 			bsc->sc_dvname, BSHW_DEFAULT_PORT);
-#ifdef __FreeBSD__
 		dev->id_iobase = BSHW_DEFAULT_PORT;
-#else	/* __NetBSD__ */
-		ia->ia_iobase = BSHW_DEFAULT_PORT;
-#endif	/* __NetBSD__ */
 	}
 
-#ifdef __FreeBSD__
 	bsc->sc_iobase = dev->id_iobase;
-#else	/* __NetBSD__ */
-	bsc->sc_iobase = ia->ia_iobase;
-	bsc->sc_bc = bc;
-	bsc->sc_delayioh = ia->ia_delayioh;
-	if (bus_io_map(bsc->sc_bc, bsc->sc_iobase, BSHW_IOSZ, &bsc->sc_ioh))
-		return rv;
-#endif	/* __NetBSD__ */
-
-#ifdef	__FreeBSD__
 	irq = IRQUNK;
 	drq = DRQUNK;
-#else	/* __NetBSD__ */
-	irq = ia->ia_irq;
-	drq = ia->ia_drq;
-#endif	/* __NetBSD__ */
 	if (bshw_board_probe(bsc, &drq, &irq))
 		goto bad;
 
-#ifdef __FreeBSD__
 	dev->id_irq = pc98_irq_ball[irq];
 	dev->id_drq = (short)drq;
-#else	/* __NetBSD__ */
-	ia->ia_irq = irq;
-	ia->ia_drq = drq;
-#endif	/* __NetBSD__ */
 
 	/* initialize host queue and target info */
 	bs_hostque_init(bsc);
@@ -251,33 +182,26 @@ bsprobe(parent, self, aux)
 	/* initialize ccb queue */
 	bs_init_ccbque(BS_MAX_CCB);
 
-#ifdef __NetBSD__
-	/* init port data */
-	ia->ia_iosize = BSHW_IOSZ;
-#endif	/* __NetBSD__ */
-
 	/* scsi bus reset and restart */
 	bsc->sc_hstate = BSC_BOOTUP;
 	bsc->sc_retry = RETRIES;
 	bsc->sc_wc = delaycount * 250;	/* about 1 sec */
 	bs_reset_nexus(bsc);
 
-#ifdef __FreeBSD__
 	return BSHW_IOSZ;
 bad:
 	return rv;
-#else	/* __NetBSD__ */
-	rv = 1;
-bad:
-	bus_io_unmap(bsc->sc_bc, bsc->sc_ioh, BSHW_IOSZ);
-	return rv;
-#endif	/* __NetBSD__ */
 }
+#endif	/* __FreeBSD__ */
 
+#ifdef __FreeBSD__
 static int
+#else	/* __NetBSD__ */
+int
+#endif	/* __NetBSD__ */
 bsprint(aux, name)
 	void *aux;
-	char *name;
+	const char *name;
 {
 
 	if (name != NULL)
@@ -289,47 +213,19 @@ bsprint(aux, name)
 static int
 bsattach(dev)
 	struct isa_device *dev;
-#else	/* __NetBSD__ */
-void
-bsattach(parent, self, aux)
-	struct device *parent;
-	struct device *self;
-	void *aux;
-#endif	/* __NetBSD__ */
 {
-#ifdef __FreeBSD__
 	int unit = dev->id_unit;
 	struct bs_softc *bsc = bscdata[unit];
 	struct scsibus_data *scbus;
-#else	/* __NetBSD__ */
-	struct bs_softc *bsc = (void *) self;
-	struct isa_attach_args *ia = aux;
 
-	printf("\n");
-#endif	/* __NetBSD__ */
-
-#ifdef	__NetBSD__
-	bsc->sc_iobase = ia->ia_iobase;
-	bsc->sc_bc = ia->ia_bc;
-	bsc->sc_delayioh = ia->ia_delayioh;
-	if (bus_io_map(bsc->sc_bc, bsc->sc_iobase, BSHW_IOSZ, &bsc->sc_ioh))
-		panic("%s: bus io map failed\n", bsc->sc_dev.dv_xname);
-#endif	/* __NetBSD__ */
-
-#ifdef __FreeBSD__
 	bsc->sc_link.adapter_unit = unit;
 	bsc->sc_link.adapter_targ = bsc->sc_hostid;
 	bsc->sc_link.flags = SDEV_BOUNCE;
 	bsc->sc_link.opennings = XSMAX;
-#else	/* __NetBSD__ */
-	bsc->sc_link.adapter_target = bsc->sc_hostid;
-	bsc->sc_link.openings = XSMAX;
-#endif	/* __NetBSD__ */
 	bsc->sc_link.adapter_softc = bsc;
 	bsc->sc_link.adapter = &pc98texa55bs;
 	bsc->sc_link.device = &bs_dev;
 
-#ifdef __FreeBSD__
 	/*
 	 * Prepare the scsibus_data area for the upperlevel
 	 * scsi code.
@@ -342,16 +238,10 @@ bsattach(parent, self, aux)
 	 * ask the adapter what subunits are present
 	 */
 	scsi_attachdevs(scbus);
-#else	/* __NetBSD__ */
-	bsc->sc_ih = isa_intr_establish(ia->ia_ic, ia->ia_irq, IST_EDGE,
-	     IPL_BIO, bsintr, bsc);
-	config_found(self, &bsc->sc_link, bsprint);
-#endif	/* __NetBSD__ */
 	bs_start_timeout(bsc);
-#ifdef __FreeBSD__
 	return 1;
-#endif	/* __FreeBSD__ */
 }
+#endif	/* __FreeBSD__ */
 
 #ifdef __NetBSD__
 int
@@ -413,9 +303,12 @@ void
 bs_alloc_buf(ti)
 	struct targ_info *ti;
 {
-	extern int cold;
+	struct bs_softc *bsc = ti->ti_bsc;
 	caddr_t addr, physaddr;
+	bus_dma_segment_t seg;
+	int rseg, error;
 	u_int pages;
+	extern int cold;
 
 	/* XXX:
 	 * strategy change!
@@ -426,9 +319,15 @@ bs_alloc_buf(ti)
 		pages = 4;
 	else
 		pages = 1;
-
 	ti->bounce_size = NBPG * pages;
-	if ((addr = alloc_bounce_buffer(ti->bounce_size)) == NULL)
+
+	addr = NULL;
+	error = bus_dmamem_alloc(bsc->sc_dmat, ti->bounce_size, NBPG, 0,
+				 &seg, 1, &rseg, BUS_DMA_NOWAIT);
+	if (rseg == 1 && error == 0)
+		error = bus_dmamem_map(bsc->sc_dmat, &seg, rseg,
+				       ti->bounce_size, &addr, BUS_DMA_NOWAIT);
+	if (rseg != 1 || error != 0)
 	{
 		ti->bounce_size = NBPG;
 		if ((addr = malloc(NBPG, M_DEVBUF, M_NOWAIT)) == NULL)
