@@ -3,7 +3,7 @@
 
      $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/relnotes/common/new.sgml,v 1.17 2004/10/11 06:16:43 den Exp $
 
-     Original revision: 1.761.2.11
+     Original revision: 1.761.2.33
 -->
 
 <articleinfo>
@@ -19,8 +19,18 @@
     <year>2002</year>
     <year>2003</year>
     <year>2004</year>
+    <year>2005</year>
     <holder role="mailto:doc@FreeBSD.org">Проект документирования &os;</holder>
   </copyright>
+
+  <legalnotice id="trademarks" role="trademarks">
+    &tm-attrib.freebsd;
+    &tm-attrib.ibm;
+    &tm-attrib.ieee;
+    &tm-attrib.intel;
+    &tm-attrib.sparc;
+    &tm-attrib.general;
+  </legalnotice>
 
   <abstract>
     <para>Заметки о релизе для &os; &release.current; содержат общую
@@ -102,1816 +112,518 @@
   <sect2 id="security">
     <title>Сообщения безопасности</title>
 
-    <para>Исправлена ошибка в &man.mksnap.ffs.8;; она приводила к сбрасыванию
-      флагов файловой системы к их значению по умолчанию при создании
-      снимка (снэпшота) файловой системы.  Возможные последствия зависят
-      от способа использования, но могут привести к отключению дополнительных
-      списков контроля доступа, или разрешению использования setuid бита
-      на исполняемых файлах, расположенных на недоверяемой файловой системе.
-      Эта ошибка также относится к параметру &man.dump.8;
-      <option>-L</option>, где используется &man.mksnap.ffs.8;.
-      Обратите внимание, что &man.mksnap.ffs.8; обычно доступен только
-      суперпользователям и членам группы <groupname>operator</groupname>.
-      За дальнейшей информацией обращайтесь к сообщению безопасности <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:01.mksnap_ffs.asc">FreeBSD-SA-04:01</ulink>.</para>
+    <para>Была исправлена ошибка в утилите &man.fetch.1;, позволявшая
+      злонамеренному HTTP серверу перезапись произвольных участков памяти
+      клиента.  За дальнейшей информацией обращайтесь к сообщению безопасности
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:16.fetch.asc">FreeBSD-SA-04:16.fetch</ulink>.</para>
 
-    <para>Исправлена ошибка в интерфейсе System V Shared Memory
-      (а именно в системном вызове &man.shmat.2;).  Эта ошибка приводила
-      к расположению сегмента совместно используемой памяти в невыделенном
-      участке памяти ядра.  Это может привести к получению атакующим
-      неавторизованного доступа к частям памяти ядра, с возможным
-      раскрытием важной информации, обходу механизмов контроля
-      доступа, или расширению привилегий.  Более детальная информация
-      может быть найдена в сообщении безопасности <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:02.sh
-mat.asc">FreeBSD-SA-04:02</ulink>.
-      &merged;</para>
-
-    <para>Была исправлена ошибка в коде системного вызова &man.jail.attach.2;.
-      Эта ошибка может позволить процессу с привилегиями суперпользователя
-      внутри среды &man.jail.8; изменить свой корневой каталог на корневой
-      каталог другой среды jail, и таким образом получить полный доступ на
-      чтение и запись к файлам и каталогам внутри этого jail.  Дополнительная
-      информация может быть найдена в сообщении безопасности <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:03.jail.asc">FreeBSD-SA-04:03</ulink>.</para>
-
-    <para>Потенциальная DoS атака с низким трафиком на TCP стек &os;
-      была предотвращена путем ограничения количества TCP сегментов вне
-      последовательности, которые могут одновременно обслуживаться.
-      Более детальная информация может быть найдена в сообщении
-      безопасности <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:04.tcp.asc">FreeBSD-SA-04:04</ulink>.
-      &merged;</para>
-
-    <para>Была исправлена ошибка в SSL/TLS ChangeCipherSpec сообщении
-      <application>OpenSSL</application>, которая могла привести к
-      удалению нулевого указателя.  Она позволяла удаленной атакующей
-      стороне вызвать крах приложений, использующих
-      <application>OpenSSL</application>, и привести к отказу в обслуживании
-      (DoS).  Более детальная информация может быть найдена в сообщении
-      безопасности <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:05.openssl.asc">FreeBSD-SA-04:05</ulink>.
-      &merged;</para>
-
-    <para>Была исправлена ошибка в коде обработки некоторых параметров
-      сокета IPv6 в системном вызове &man.setsockopt.2;.  Она позволяла
-      атакующему локально вызвать системную панику, а также могла позволять
-      неавторизованный доступ к частям памяти ядра, что могло привести к
-      раскрытию важной информации, обходу механизмов контроля доступа, или
-      расширению привилегий.  Более детальная информация может быть найдена в
-      сообщении безопасности <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:06.ipv6.asc">FreeBSD-SA-04:06</ulink>.</para>
-
-    <para>Были исправлены две ошибки в коде <application>CVS</application>.
-      Они позволяли серверу перезаписывать произвольные файлы клиента,
-      а клиенту читать произвольные файлы на сервере при удаленном
-      доступе к CVS репозиториям. Более детальная информация может быть
-      найдена в сообщении безопасности <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:07.cvs.asc">FreeBSD-SA-04:07</ulink>. &merged;</para>
-
-    <para>Внесено исправление в <application>Heimdal</application>,
-      исправляющее проблему, вследствие которой не производилась
-      адекватная проверка аутентификации между автономными realm.
-      Более подробная информация находится в сообщении безопасности <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:08.heimdal.asc">FreeBSD-SA-04:08</ulink>. &merged;</para>
-
-    <para>Была исправлена программная ошибка в <application>CVS</application>,
-      позволявшая злонамеренному клиенту перезаписывать произвольные
-      участки памяти сервера.  За дальнейшей информацией обращайтесь к
-      сообщению безопасности <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:10.cvs.asc">FreeBSD-SA-04:10</ulink>. &merged;</para>
-
-    <para>Была исправлена потенциальная проблема с целостностью кэша в
-      реализации системного вызова &man.msync.2;, использующей
-      операцию <literal>MS_INVALIDATE</literal>.  Однако, в качестве
-      побочного эффекта исправления проблемы безопасности, флаг
-      <literal>MS_INVALIDATE</literal> более не гарантирует выгрузку
-      из памяти всех страниц.  Пользователи, которым требуется старая
-      семантика <literal>MS_INVALIDATE</literal>, могут установить
-      переменную sysctl <varname>vm.old_msync</varname>, если их
-      не беспокоит данная проблема безопасности.  За дальнейшей
-      информацией обращайтесь к сообщению безопасности <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:11.msync.asc">FreeBSD-SA-04:11</ulink>. &merged;</para>
-
-    <para>Была исправлена программная ошибка в системном вызове
-      &man.jail.2;, которая приводила к ошибке проверки
-      попытки манипулирования таблицами маршрутизации из
-      jail.  За дальнейшей информацией обращайтесь к сообщению
-      безопасности <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:12.jail.asc">FreeBSD-SA-04:12</ulink>. &merged;</para>
- 
-    <para>Была исправлена программная ошибка обработки некоторых системных
-      вызовов Linux, вследствие которой мог стать возможным доступ к областям
-      памяти без соответствующей проверки.  За дальнейшей информацией
-      обращайтесь к сообщению безопасности <ulink
-      url="ftp://ftp.freebsd.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:13.linux.asc">FreeBSD-SA-04:13</ulink>.
-      &merged;</para>
-
-    <para>Множество программных ошибок в <application>CVS</application>,
-      могущих привести к раскрытию информации, DoS, или
-      выполнению произвольного кода, были исправлены путем
-      обновления до <application>CVS</application> 1.11.17.
-      За дальнейшей информацией обращайтесь к сообщению безопасности <ulink
-      url="ftp://ftp.freebsd.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:14.cvs.asc">FreeBSD-SA-04:14</ulink>. &merged;</para>
-
-    <para>Ошибка в <literal>CONS_SCRSHOT</literal> &man.ioctl.2;
-      была исправлена; она может привести к получению неавторизованного
-      доступа к областям памяти ядра с возможным раскрытием
-      критической информации, пропуску механизмов контроля доступа,
-      или к получению повышенных привилегий.  За дальнейшей информацией
-      обращайтесь к сообщению безопасности <ulink
-      url="ftp://ftp.freebsd.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:15.syscons.asc">FreeBSD-SA-04:15</ulink>. &merged;</para>
+    <para>Была исправлена ошибка в &man.procfs.5; и &man.linprocfs.5;,
+      позволявшая злонамеренному локальному пользователю читать части
+      памяти ядра или выполнять локальную DoS атаку путем вызова паники
+      системы.  За дальнейшей информацией обращайтесь к сообщению безопасности
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:17.procfs.asc">FreeBSD-SA-04:17.procfs</ulink>.</para>
 
   </sect2>
 
   <sect2 id="kernel">
     <title>Изменения в ядре</title>
 
-    <para><literal>ADAPTIVE_MUTEXES</literal> были добавлены и
-      включены по умолчанию.  Это меняет поведение блокирующих
-      мьютексов, которые переключаются, если поток, которому
-      принадлежит мьютекс, выполняется другим процессором.
-      Это поведение может быть изменено путем установки
-      параметра ядра <varname>NO_ADAPTIVE_MUTEXES</varname>.</para>
+    <para>&man.jail.8; теперь поддерживает новую переменную sysctl
+      <varname>security.jail.chflags_allowed</varname>, которая контролирует
+      поведение &man.chflags.1; внутри jail.
+      Если переменная установлена в <literal>0</literal> (значение по
+      умолчанию), внутри jail <username>root</username> считается
+      непривилегированным пользователем; если она установлена в
+      <literal>1</literal>, различий между пользователем
+      <username>root</username> внутри jail и вне jail не делается.</para>
 
-    <para>Был добавлен параметр ядра <varname>ADAPTIVE_GIANT</varname>,
-      который включает адаптивность Giant блокировки при включении
-      адаптивности мьютексов.  Это повышает производительность
-      SMP систем и включено по умолчанию на i386.</para>
+    <para arch="alpha,amd64,i386">Переменная загрузчика
+      <varname>debug.mpsafevm</varname> была включена по
+      умолчанию.</para>
 
-    <para>Интерфейс &man.bus.dma.9; теперь прозрачно поддерживает
-      выравнивание и установление границ в теге DMA при загрузке буферов, и
-      <function>bus_dmamap_load()</function> будет автоматически использовать
-      сброс буферов когда это необходимо.  Кроме того, был добавлен набор
-      переменных sysctl <varname>hw.busdma.*</varname> для статистики
-      &man.bus.dma.9;.</para>
+    <para>Множество ошибок было исправлено в планировщике ULE.</para>
 
-    <para>Функция &man.contigmalloc.9; была переписана с новым алгоритмом,
-      который серьезно повышает надежность при высокой нагрузке.  Старый
-      алгоритм может быть использован путем установки sysctl
-      <varname>vm.old_contigmalloc</varname>.  Дополнительная информация
-      может быть получена со страницы справочника
-      &man.contigmalloc.9;.</para>
+    <para arch="i386">Была исправлена ошибка в обработке Inter-Processor
+      Interrupt (IPI), которая могла вызвать крах SMP систем под высокой
+      нагрузкой.  Более подробная информация опубликована в сообщении о
+      проблеме
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/ERRATA/notices/FreeBSD-EN-05:03.ipi.asc">FreeBSD-EN-05:03.ipi</ulink>.
+      &merged;</para>
 
-    <para>Правила path &man.devfs.5; теперь корректно работают с
-      каталогами.</para>
-
-    <para>API &man.getvfsent.3; был удален.</para>
-
-    <para>Переменная загрузчика
-      <varname>hw.pci.allow_unsupported_io_range</varname> была
-      удалена.</para>
-
-    <para>&man.jail.2; теперь поддерживает использование raw сокетов
-      изнутри jail.  Эта возможность отключена по умолчанию и контролируется
-      переменной sysctl
-      <varname>security.jail.allow_raw_sockets</varname>.</para>
-
-    <para>&man.kqueue.2; теперь поддерживает новый фильтр
-      <literal>EVFILT_FS</literal>, который используется для отправки
-      сигналов файловой системы в пространство пользователя.  На данный
-      момент сигнализируются события mount, unmount и up/down
-      статус NFS.</para>
-
-    <para>Была добавлена новая инфраструктура отладки, KDB.
-      Она состоит из новой подсистемы GDB, которая была переписана для
-      поддержки потоков, run-length encoding compression, и так далее,
-      и внешний интерфейс, в инфраструктуре которого могут быть настроены
-      несколько различных подсистем отладки, и предоставлены основные
-      сервисы для этих подсистем.  Были изменены следующие параметры:</para>
-
-    <itemizedlist>
-      <listitem>
-	<para>KDB включен по умолчанию через параметры ядра
-	  <literal>options KDB</literal>,
-	  <literal>options GDB</literal>, и <literal>options DDB</literal>.
-	  <literal>DDB</literal> и
-	  <literal>GDB</literal> указывают, какие подсистемы KDB
-	  включать.</para>
-      </listitem>
-
-      <listitem>
-	<para><literal>WITNESS_DDB</literal> был переименован в
-	  <literal>WITNESS_KDB</literal>.</para>
-      </listitem>
-
-      <listitem>
-	<para><literal>DDB_TRACE</literal> был переименован в
-	  <literal>KDB_TRACE</literal>.</para>
-      </listitem>
-
-      <listitem>
-	<para><literal>DDB_UNATTENDED</literal> был переименован
-	  в <literal>KDB_UNATTENDED</literal>.</para>
-      </listitem>
-
-      <listitem>
-	<para><literal>SC_HISTORY_DDBKEY</literal> был переименован
-	  в <literal>SC_HISTORY_KDBKEY</literal>.</para>
-      </listitem>
-
-      <listitem>
-	<para><literal>DDB_NOKLDSYM</literal> был удален.
-	  Новая подсистема DDB поддерживает pre-linker symbol
-	  lookups, так же как и KLD symbol lookups одновременно.</para>
-      </listitem>
-
-      <listitem>
-	<para><literal>GDB_REMOTE_CHAT</literal> был удален.
-	  Это изменение GDB протокола специфично для &os;.
-	  Вместе с тем в протоколе GDB есть пакеты для вывода на
-	  консоль.</para>
-      </listitem>
-    </itemizedlist>
-
-    <para>KDB дает также единственный способ взаимодействия для любого и
-      всего кода, которому необходимо использование функций отладки,
-      таких как вход в отладчик или обработка альтернативной
-      последовательности прерывания.  Для этих целей внешний интерфейс
-      был сделан не опциональным.  Все отладочные запросы перенаправляются
-      или обрабатываются текущей подсистемой.  Выбор текущей подсистемы
-      выполняется переменной sysctl <varname>debug.kdb.current</varname>.
-      Список установленных переменных находится в 
-      <varname>debug.kdb.available</varname>.  В отладчик можно перейти,
-      записав в sysctl <varname>debug.kdb.enter</varname>.</para>
-
-    <para>Была добавлена новая переменная sysctl
-      <varname>debug.kdb.stop_cpus</varname>.  Она контролирует,
-      будут или нет IPI (Inter Processor Interrupts) для других CPU
-      переданы при входе в отладчик, чтобы остановить их в
-      отладчике.</para>
-
-    <para arch="amd64">Загружаемые модули ядра теперь работают и включаются
-      при загрузке amd64.</para>
-
-    <para arch="amd64">Была добавлена предварительная поддержка запуска
-      32-битных бинарных файлов Linux на amd64.  Эта возможность включена
-      параметром ядра <literal>COMPAT_LINUX32</literal>.</para>
-
-    <para>Был добавлен новый параметр ядра, <literal>MAC_STATIC</literal>,
-      который отключает внутреннюю синхронизацию MAC Framework, защищая
-      от динамической загрузки и выгрузки политик MAC.</para>
-
-    <para>Политика &man.mac.bsdextended.4; теперь поддерживает
-      определение и применение только первого правила из всех
-      соответствующих правил.  Эта возможность может быть включена
-      установкой новой переменной sysctl
-      <varname>mac_bsdextended_firstmatch_enabled</varname>.</para>
-
-    <para>Политика &man.mac.bsdextended.4; теперь может протоколировать
-      неудачные попытки записи в syslog <literal>AUTHPRIV</literal>.
-      Эта возможность может быть включена установкой новой переменной
-      sysctl <varname>mac_bsdextended_logging</varname>.</para>
-
-    <para>mballoc был замещен на mbuma, Mbuf и Cluster аллокаторы
-      основаны на множестве расширений инфраструктуры UMA.
-      В связи с этим изменением, параметр ядра <literal>NMBCLUSTERS</literal>
-      более не используется.  Максимальное количество кластеров по прежнему
-      устанавливается в соответствии с <literal>maxusers</literal>,
-      но может быть сделано неограниченным путем установки
-      переменной загрузчика <varname>kern.ipc.nmbclusters</varname>
-      в нуль.</para>
-
-    <para><filename>/dev/kmem</filename>, <filename>/dev/mem</filename>,
-      и <filename>/dev/io</filename> теперь также поставляются в виде
-      загружаемых модулей ядра.</para>
-
-    <para>Ошибка в &man.mmap.2;, вследствие которой страницы, помеченные как
-      <literal>PROT_NONE</literal>, могли стать читаемыми при определенных
-      условиях, была исправлена.  &merged;</para>
-
-    <para arch="i386,pc98">Был добавлен новый параметр ядра
-      <literal>MP_WATCHDOG</literal>; он позволяет использовать один из
-      логических CPU системы в качестве выделенного watchdog для перехода
-      в отладчик и/или генерации NMI загружавшему процессору, если ядро
-      не отвечает.  Для включения watchdog вне потока ожидания процессора
-      доступны несколько sysctl; для сброса таймера в watchdog применяется
-      метка.  Если таймер не сбрасывается по метке в течение десяти секунд,
-      обрабатывается таймаут.  Процессор для запуска watchdog назначается
-      переменной sysctl <varname>debug.watchdog_cpu</varname>.</para>
-
-    <para arch="i386,pc98">Была добавлена переменная sysctl
-      <varname>debug.leak_schedlock</varname>.  Она заставляет обработчик
-      sysctl, некорректно заблокировавший планировщик, переключить блокировку
-      для обработки watchdog, в соответствии с параметром
-      <literal>MP_WATCHDOG</literal> option.</para>
-
-    <para>Новая переменная загрузчика <varname>debug.mpsafenet</varname> была
-      добавлена и включена по умолчанию.  Она отключает блокировку Giant
-      при работе сетевого стека &os;, что приводит к повышению
-      производительности за счет улучшения параллельности и уменьшения
-      задержек при сетевых вычислениях.  Обратите внимание, что включение
-      узла Netgraph &man.ng.tty.4;, KAME IPsec, и подсистемы IPX/SPX
-      приводит к включению сетевых операций с Giant, или к появлению
-      предупреждения при динамической загрузке этих компонентов, поскольку
-      для корректной работы им требуется блокировка Giant.</para>
-
-    <para>Был добавлен новый параметр ядра, <varname>NET_WITH_GIANT</varname>.
-      Он восстанавливает значение debug.mpsafenet по умолчанию
-      (<literal>0</literal>), и предназначен для использования на системах,
-      собранных с небезопасными компонентами, или там, где желательна более
-      консервативная конфигурация.</para>
-
-    <para arch="i386,amd64">Переменная загрузчика
-      <varname>debug.mpsafevm</varname> была включена по умолчанию.</para>
-
-    <para arch="alpha,amd64,i386">Был добавлен новый параметр ядра
-      <literal>PREEMPTION</literal>.  Он позволяет вытеснять потоки
-      в ядре потоками с более высокими приоритетами.  Этот параметр
-      позволяет повысить интерактивность и ускоряет работу
-      потоков.</para>
-
-    <para>В дерево dev sysctl был добавлен уровень devclass для поддержки
-      переменных по классам устройств, в дополнение к переменным по
-      устройствам.  Это означает, что  <varname>dev.foo0.bar</varname>
-      теперь называются <varname>dev.foo.0.bar</varname>, и возможно
-      также наличие <varname>dev.foo.bar</varname>.</para>
-
-    <para>Была добавлена новая переменная sysctl,
-      <varname>kern.always_console_output</varname>. Она направляет
-      вывод ядра на консоль независимо от
-      <varname>TIOCCONS</varname>.</para>
-
-    <para>Была добавлена переменная sysctl
-      <varname>kern.sched.name</varname>, в которой находится
-      имя используемого планировщика, и переменная
-      <varname>kern.quantum</varname> была перемещена в
-      <varname>kern.sched.quantum</varname>.</para>
-
-    <para>Обновлено управление ресурсами и энергопотреблением шины
-      &man.pci.4;.
-
-      <note>
-	<para>Хотя управление состоянием энергопотребления в шине
-	  &man.pci.4; было включено по умолчанию, это может привести к проблемам
-	  на некоторых системах.  Оно может быть отключено путем
-	  установки переменной <varname>hw.pci.do_powerstate</varname>
-	  в <literal>0</literal>.</para>
-      </note>
-    </para>
-
-    <para>Планировщик ULE был добавлен в качестве дополнительного
-      планировщика.  Обратите внимание, что в качестве планировщика
-      по умолчанию в ядре <filename>GENERIC</filename> все еще используется
-      традиционный 4BSD.  Для большинства
-      пользователей интерактивность возросла во многих случаях.
-      Это означает меньшее количество <quote>пропусков</quote> и
-      <quote>рывков</quote> в интерактивных приложениях, когда компьютер
-      сильно загружен.  Это не предотвращает проблем с перегруженными
-      дисковыми подсистемам, но может помочь при перегруженных CPU.
-      На компьютерах с SMP, ULE реализует очереди для каждого CPU,
-      позволяя использовать CPU affinity, CPU binding, и расширенную
-      поддержку HyperThreading, а также предоставляет основу для
-      дальнейших оптимизаций в будущем.  При продолжении разработки
-      fine-grained kernel locking, планировщик сможет более эффективно
-      использовать доступные параллельные ресурсы.</para>
-
-    <para>Линейный алгоритм поиска, использовавшийся в
-      &man.vm.map.findspace.9;, был замещен на алгоритм
-      O(log n), строящий карту в виде дерева.  Он значительно снижает
-      нагрузку в &man.vm.map.findspace.9; для приложений, которые
-      используют &man.mmap.2; во многих сотнях или тысячах
-      вхождений.</para>
-
-    <para>Переменные загрузчика <varname>debug.witness_*</varname>
-      были переименованы в <varname>debug.witness.*</varname>.</para>
-
-    <!-- Above this line, sort kernel changes by manpage/keyword-->
-
-    <para>Динамический и статический линковщик &os; теперь поддерживает
-      Thread Local Storage (TLS), возможность <application>GCC</application>
-      определять модификатор <literal>__thread</literal> к определению
-      глобальных и статических переменных.  Этот дополнительный
-      модификатор означает, что значение переменной локально
-      по отношению к потоку; один поток, изменяющий это значение,
-      не повлияет на значение переменной в любом другом потоке.</para>
-
-    <para>Был обновлен код ядра, выделяющий файловые дескрипторы, и теперь
-      он заимствован из кода OpenBSD.</para>
-
-    <para arch="sparc64">На &os;/sparc64, <varname>time_t</varname>
-      была изменена с 32-бит значения на 64-бит значение.
-
-      <note>
-	<para>Поскольку это изменение не обратно совместимое, все программы,
-	  которые были собраны на старой системе с использованием 32-бит
-	  <varname>time_t</varname> и обращаются к системе для обработки
-	  значений <varname>time_t</varname>, должны быть перекомпилированы.
-	  Более детальная информация и замечание по обновлению из исходных
-	  текстов могут быть найдены в
-	  <filename>/usr/src/UPDATING.64BTT</filename>.</para>
-      </note>
-    </para>
-
-    <para arch="i386">Стала возможной компиляция ядра &os;/i386
-      с Intel C/C++ Compiler (из порта <filename
-      role="package">lang/icc</filename>).</para>
+    <para arch="i386">Выделение памяти для старых PCI мостов было ограничено
+      до 32MB RAM.  Многие старые мосты позволяют выделение памяти только
+      из этого диапазона.  Изменение применяется только к устройствам,
+      память которых не выделена BIOS.  Это изменение исправляет ошибку
+      <quote>bad Vcc</quote> мостов CardBus (&man.pccbb.4;).</para>
 
     <sect3 id="boot">
       <title>Изменения в загрузчике</title>
 
-      <para arch="i386">Добавлена версия <filename>boot0</filename> для
-	последовательной консоли.  Она может быть записана на диск с
-	использованием &man.boot0cfg.8; и указанием
-	<filename>/boot/boot0sio</filename> в качестве аргумента
-	к параметру <option>-b</option>.</para>
-
-      <para arch="i386"><filename>cdboot</filename> теперь обходит проблему
-	BIOS, встречающуюся на некоторых системах при загрузке с USB
-	CDROM приводов.</para>
-
-      <!-- Above this line, order boot loader changes by keyword-->
-
+      <para></para>
     </sect3>
 
     <sect3 id="proc">
       <title>Поддержка оборудования</title>
 
-      <para arch="i386">Был добавлен драйвер &man.acpi.asus.4; для использования
-	на лэптопах ASUSTek управляемых ACPI аппаратных возможностей, таких как
-	горячие клавиши и LED.</para>
+      <para arch="sparc64">Был добавлен драйвер &man.auxio.4; для обработки
+	некоторых вспомогательных функций ввода/вывода, обнаруженных
+	в различных SBus/EBus &ultrasparc; моделях.</para>
 
-      <para arch="i386">Был добавлен драйвер &man.acpi.panasonic.4; для
-	поддержки горячих клавиш лэптопов Panasonic.  Теперь он поддерживает
-	Let's note (или Toughbook, вне Японии) CF-R1N, CF-R2A, и
-	CF-R3.</para>
+      <para>Была добавлена инфраструктура для гибкого управления
+	скоростью процессора.  Она предоставляет различным драйверам
+	методы управления энергопотреблением CPU путем изменения
+	скорости процессора.  Более детальная информация находится
+	на странице справочника &man.cpufreq.4;.</para>
 
-      <para arch="i386">Был добавлен драйвер &man.acpi.toshiba.4;,
-	использующий аппаратный интерфейс Toshiba для управления определенными
-	аппаратными возможностями на лэптопах Toshiba, такие как
-	переключение видео вывода.</para>
+      <para>Был добавлен драйвер pcii для поддержки карт GPIB-PCIIA
+	IEEE-488.</para>
 
-      <para>Добавлен драйвер &man.acpi.video.4; для обеспечения управления
-	переключением экранов и фоновой яркостью с использованием
-	видео расширений ACPI.</para>
+      <para arch="sparc64">Был добавлен драйвер rtc для поддержки
+	MC146818-совместимых часов, обнаруженных на некоторых моделях
+	&ultrasparc; II и III.</para>
 
-      <para arch="i386">Драйвер &man.acpi.4; теперь поддерживает sysctl
-	на устройства (например,
-	<varname>dev.root0.nexus0.acpi0.acpi_lid0.wake</varname>), чтобы
-	пользователи могли управлять возможностью пробуждения системы с
-	данного устройства.</para>
-
-      <para arch="i386">Драйвер &man.acpi.4; теперь автоматически отключается,
-	если в BIOS компьютера имеются известные проблемы.  Это поведение
-	может быть изменено путем установки переменной loader
-	<varname>hint.acpi.0.disabled</varname> в <literal>0</literal>.</para>
-
-      <para arch="amd64">Драйвер &man.agp.4; теперь поддерживает AMD64 graphics
-	aperture relocation table (GART).</para>
-
-      <para arch="i386">Был добавлен драйвер &man.ctau.4; для последовательных
-	синхронных адаптеров Cronyx Tau.  Этот драйвер долгое время был известен
-	как <quote>ct</quote> &ndash; до того, как был помещен в дерево
-	исходных текстов &os;.  &merged;
-
-	<note>
-	  <para>Имя драйвера изменилось, но сетевой интерфейс все еще использует
-	    имя <devicename>ct</devicename>.</para>
-	</note>
-      </para>
-
-      <para arch="i386,pc98">Был добавлен драйвер &man.cp.4; для
-	последовательных синхронных адаптеров Cronyx Tau-PCI.</para>
-
-      <para arch="i386,pc98">Драйвер <devicename>dgb</devicename>
-	(DigiBoard intelligent serial card)
-	был удален вследствие неработоспособности.  Его заменой является
-	драйвер &man.digi.4;, который поддерживает все оборудование,
-	которое поддерживалось драйвером <devicename>dgb</devicename>.</para>
-
-      <para>Драйвер &man.nmdm.4; был переписан для увеличения надежности.</para>
-
-      <para>Драйвер <devicename>raid(4)</devicename> (диск RAIDframe
-	из NetBSD) был удален.  В настоящее
-	время он не функционален, и потребует дополнительного объема работы,
-	чтобы стать работоспособным под существующим &man.geom.4; API
-	в 5-CURRENT.</para>
-
-      <para>Запись для драйвера &man.pcic.4; была исключена из файла
-	конфигурации ядра <filename>GENERIC</filename>, поскольку
-	драйвер более не поддерживается.  Эта запись была закомментирована
-	в течение длительного времени.</para>
-
-      <para arch="i386">Драйвер &man.psm.4; и &man.moused.8;
-	теперь поддерживают Synaptics TouchPad.</para>
-
-      <para arch="i386">Генератор случайных чисел &man.random.4; теперь
-	поддерживает аппаратный генератор (RNG) процессора VIA C3 Nehemiah
-	(Stepping 3 и выше).</para>
-
-      <para arch="sparc64">Драйвер &man.sab.4; теперь поддерживает параметр
-	ядра <literal>BREAK_TO_DEBUGGER</literal>.</para>
-
-      <para arch="i386,pc98">Добавлен драйвер <devicename>sx</devicename>,
-	поддерживающий Specialix I/O8+ и I/O4+ intelligent multiport serial
-	controllers.</para>
-
-      <para arch="alpha">Драйвер <devicename>tga</devicename> был удален
-	из ядра GENERIC, поскольку он требует серьезных исправлений,
-	чтобы не вызывать панику во время запуска ядра.  В качестве
-	альтернативы предлагается использование последовательной консоли
-	или обычной <devicename>vga</devicename> карты.</para>
-
-      <para arch="alpha">Поддержка машин TurboLaser.</para>
-
-      <para arch="alpha,amd64,i386">Добавлены переменные ядра
-	для <varname>hw.uart.console</varname> и
-	<varname>hw.uart.dbgport</varname> для устройства &man.uart.4;.
-	Они могут быть использованы соответственно для выбора последовательной
-	консоли и отладочного порта, как и атрибуты.</para>
-
-      <para>Был добавлен драйвер устройства &man.ubser.4; для поддержки
-	управляемых с консоли последовательных адаптеров BWCT.</para>
-
-      <para>Был добавлен драйвер &man.ucycom.4; для поддержки
-	семейства мостов USB к RS232 Cypress CY7C637xx и CY7C640/1xx,
-	один из которых используется в DeLorme Earthmate USB GPS
-	приемнике (который и является единственным поддерживаемым
-	этим драйвером устройством на данный момент).  Этот драйвер
-	не полон, поскольку в нем еще нет поддержки вывода и контроля
-	потока.</para>
-
-      <para arch="i386">Некоторые старые драйверы для ISA карт были удалены,
-	включая
-	<devicename>asc</devicename> драйвер для основанных на GI1904 ручных сканеров,
-	<devicename>ctx</devicename> драйвер для CORTEX-I Frame Grabber,
-	<devicename>gp</devicename> драйвер для карт National Instruments AT-GPIB и AT-GPIB/TNT,
-	<devicename>gsc</devicename> драйвер для ручного сканера Genius GS-4500,
-	<devicename>le</devicename> драйвер для DEC EtherWORKS II и III контроллеров Ethernet,
-	<devicename>rdp</devicename> драйвер для основанных на RealTek RTL 8002 адаптеров Ethernet,
-	<devicename>spigot</devicename> драйвер для платы видеозахвата Creative Labs Video Spigot,
-	<devicename>stl</devicename> и <devicename>stli</devicename> драйверы для мультипортовых последовательных контроллеров
-	Stallion Technologies и драйвер <devicename>wt</devicename> для лент Archive/Wangtek.
-	В настоящее время они нефункциональны, и потребуется определенный
-	объем работы для приведения их в работоспособное состояние под
-	новым API в 5-CURRENT.  Поддержка пользовательских программ для
-	этих устройств &ndash; соответствующие ioctl и утилиты, включая
-	<devicename>sasc</devicename> и <devicename>sgsc</devicename> также были удалены.</para>
-
-      <para>Инфраструктура драйверов устройств (как и многие драйверы)
-	была обновлена.  Среди прочих изменений: еще больше драйверов
-	теперь используют автоматически выделяемые главные (major) номера
-	(вместо старых статических главных номеров).  Расширены функции по
-	поддержке клонирования псевдо-устройств.  Несколько изменений в
-	API драйверов, включая новое поле <varname>d_version</varname>
-	в <varname>struct cdevsw</varname>.  Обратите внимание, что
-	сторонние драйвера устройств потребуют перекомпиляции после этого
-	изменения.</para>
+      <para arch="sparc64">Драйвер &man.uart.4; был включен в ядре
+	<filename>GENERIC</filename>, и теперь это драйвер по умолчанию
+	для последовательных портов.  Драйверы ofw_console и
+	&man.sab.4; теперь выключены в ядре
+	<filename>GENERIC</filename>.</para>
 
       <sect4 id="mm">
 	<title>Поддержка мультимедиа</title>
 
-	<para>Драйвер <devicename>meteor</devicename> (видеозахват) был удален вследствие
-	неработоспособности и отсутствия поддержки.</para>
+	<para arch="sparc64">Был добавлен драйвер &man.snd.audiocs.4; для
+	  поддержки Crystal Semiconductor CS4231 аудио контроллера,
+	  обнаруженного на рабочих станциях &ultrasparc;.</para>
 
-	<para>Код Direct Rendering Manager (DRM) был обновлен из дерева CVS
-	  DRI Project от 26 мая 2004 года.  Это обновление включает новые
-	  PCI ID и новый пакет для Radeon.</para>
-
-	<para>Драйверы для различных звуковых карт были реорганизованы;
-	  <literal>device sound</literal> это общий звуковой драйвер,
-	  а <literal>device snd_*</literal> это звуковые драйвера устройств.
-	  Драйвер <devicename>midi</devicename>, поддерживающий последовательный
-	  порт и несколько звуковых карт, был удален.  Дополнительные
-	  подробности находятся на соответствующих страницах справочной
-	  системы:
-	  &man.sound.4;, &man.snd.ad1816.4;, &man.snd.als4000.4;, &man.snd.cmi.4;,
-	  &man.snd.cs4281.4;, &man.snd.csa.4;, &man.snd.ds1.4;, &man.snd.emu10k1.4;,
-	  &man.snd.es137x.4;, &man.snd.gusc.4;, &man.snd.maestro3.4;,
-	  &man.snd.sbc.4;, &man.snd.solo.4;, и &man.snd.uaudio.4;.</para>
-
-	<para>Драйвер &man.sound.4; (бывший &man.pcm.4;) был модифицирован для
-	  чтения <filename>/boot/device.hints</filename> при запуске, чтобы
-	  восстанавливать значения каналов mixer по умолчанию.  Обратите внимание,
-	  что в <filename>/boot/device.hints</filename> все еще используется
-	  имя драйвера <literal>pcm</literal>.  Дополнительную информацию
-	  и примеры можно найти на странице справочной системы
-	  &man.sound.4;.</para>
       </sect4>
 
       <sect4 id="net-if">
 	<title>Поддержка сетевых интерфейсов</title>
 
-	<para arch="i386">Добавлен драйвер &man.arl.4;, поддерживающий
-	  беспроводные адаптеры Aironet Arlan 655. &merged;</para>
+	<para>Драйвер &man.cp.4; теперь MPSAFE.</para>
 
-	<para arch="sparc64">Драйвер &man.dc.4; теперь поддерживает карты
-	  sparc64 Davicom, которые хранят свой MAC адрес в Open Firmware.</para>
+	<para>Драйвер &man.ctau.4; теперь MPSAFE.</para>
 
-	<para>Было исправлено кратковременно отключение в драйвере &man.em.4;
-	  во время перенастройки параметров.  &merged;</para>
+	<para>Драйвер &man.cx.4; теперь MPSAFE.</para>
 
-	<para>Был добавлен драйвер &man.fwip.4;, поддерживающий IP через
-	  FireWire.  Обратите внимание, что на данный момент номер
-	  широковещательного канала жестко установлен и MCAP для
-	  широковещательного выделения каналов не поддерживается.
-	  Этот драйвер предназначен для соответствия стандартам
-	  RFC 2734 и RFC 3146 IP через FireWire и со временем заменит
-	  драйвер &man.fwe.4;.</para>
+	<para>Драйвер &man.ed.4; теперь поддерживает инфраструктуру
+          &man.altq.4;.</para>
 
-	<para>&man.fxp.4; теперь использует дерево устройств sysctl, например
-	  <varname>dev.fxp0</varname>, и эти переменные sysctl могут быть
-	  установлены для каждого устройства.</para>
+	<para>В драйвере &man.em.4; была выключена по умолчанию
+	  аппаратная поддержка тегов VLAN, поскольку эта функция
+	  конфликтовала с promiscuous режимом.</para>
 
-	<para>&man.fxp.4; теперь предоставляет реальный контроль над
-	  возможностью получения расширенных фреймов Ethernet,
-	  отображаемый как <literal>VLAN_MTU</literal>.
-	  Она может переключаться из пространства
-	  пользователя параметрами &man.ifconfig.8; <option>vlanmtu</option>
-	  и <option>-vlanmtu</option>.</para>
+	<para>Контроль потока Ethernet отключен по умолчанию в драйвере
+	  &man.fxp.4; для предотвращения проблем &mdash; паники ядра.
+	  <!--or is left in the kernel debugger. --></para>
 
-	<para arch="i386,pc98">Драйвер <devicename>hea</devicename>
-	  (Efficient Networks, Inc. ENI-155p
-	  ATM adapter) был удален вследствие неработоспособности.
-	  Его функциональность была добавлена в драйвер &man.en.4;.</para>
+	<para>Драйвер &man.hme.4; теперь MPSAFE.</para>
 
-	<para>Драйвер &man.hme.4; теперь поддерживает
-	  длинные фреймы, и может использоваться для &man.vlan.4; с полным
-	  размером Ethernet MTU.</para>
+	<para arch="amd64">Конвертер драйверов устройств &man.ndis.4;
+	  теперь поддерживает бинарные файлы &windows;/x86-64 на системах
+	  amd64.</para>
 
-	<para>Драйвер &man.hme.4; теперь поддерживает
-	  TCP/UDP Transmit/Receive разгрузку контрольной суммы
-	  (checksum offload) на прием/передачу. Поскольку &man.hme.4; не
-	  компенсирует контрольную сумму для UDP дейтаграммы, которая
-	  может принимать значение <literal>0x0</literal>,
-	  UDP разгрузка контрольной суммы на передачу выключена по
-	  умолчанию.  Она может быть включена путем установки
-	  параметра соединения <option>link0</option> через
-	  &man.ifconfig.8;.</para>
+	<para>Драйвер &man.sf.4; теперь поддерживает device polling и
+	  &man.altq.4;.</para>
 
-	<para>Был добавлен драйвер &man.ixgb.4;, поддерживающий карты
-	  Intel PRO/10GBE 10 Gigabit Ethernet. &merged;</para>
+	<para>Были исправлены несколько программных ошибок в драйвере
+	  &man.sk.4;.  Эти ошибки проявлялись на SMP системах,
+	  и могли приводить к панике, ошибкам page fault, обрыву соединений
+	  SSH или ошибкам при передаче файлов.  Более подробная
+	  информация находится в сообщении о проблеме
+	  <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/ERRATA/notices/FreeBSD-EN-05:02.sk.asc">FreeBSD-EN-05:02.sk</ulink>.</para>
 
-	<para arch="i386">Драйвер <devicename>lmc</devicename>
-	  (LAN Media Corp. PCI WAN adapter)
-	  был удален вследствие неработоспособности и отсутствия
-	  поддержки.</para>
+	<para>Драйвер &man.sk.4; теперь поддерживает &man.altq.4;.
+	  Этот драйвер также поддерживает jumbo фреймы на Yukon-based
+	  интерфейсах.</para>
 
-	<para arch="i386">Драйвер <devicename>loran</devicename>
-	  (Loran-C receiver) был удален вследствие
-	  неработоспособности и отсутствии поддержки.</para>
-
-	<para arch="i386">&os; теперь предоставляет уровень бинарной
-	  совместимости для использования &microsoft.windows; NDIS драйверов
-	  для сетевых адаптеров под &os;/i386.  Он включает relocator/linker
-	  для &windows; <filename>.SYS</filename> для интерфейса с ядром
-	  &os; и эмулирует различные части NDIS API используя родные
-	  функции ядра &os;.  Эта система поддерживает сетевые устройства
-	  PCI (&man.pci.4;) и CardBus (&man.cardbus.4;), и разработана главным образом для Ethernet
-	  и беспроводных сетевых интерфейсов.  За дополнительной информацией
-	  обращайтесь к страницам справочника &man.ndis.4; и
-	  &man.ndiscvt.8;.</para>
-
-	<para>Была исправлена ошибка в драйвере &man.nge.4;, которая
-	  делала невозможной работу VLAN.  &merged;</para>
-
-	<para>Были исправлены несколько ошибок, относящиеся к поддержке
-	  &man.polling.4; в драйвере &man.rl.4;.  &merged;</para>
-
-	<para>Были исправлены несколько ошибок, относящихся к обработке
-	  multicast и promiscuous режимов в драйвере &man.sk.4;.</para>
-
-	<para>Драйвер &man.ste.4; теперь поддерживает &man.polling.4;.
-	  &merged;</para>
-
-	<para>Был добавлен драйвер &man.udav.4;.  Он предоставляет поддержку
-	  USB Ethernet адаптеров, основанных на Davicom DM9601 чипсете.</para>
-
-	<para>Был добавлен драйвер &man.vge.4;, поддерживающий
-	  чип VIA Networking Technologies
-	  VT6122 Gigabit Ethernet и интегрированный 10/100/1000 copper
-	  PHY.</para>
-
-	<para>Драйвер &man.vr.4; теперь поддерживает &man.polling.4;.
-	  &merged;</para>
-
-	<para>Поддержка аппаратной TX контрольной суммы в драйвере &man.xl.4;
-	  была отключена, поскольку она не работала корректно и уменьшала
-	  скорость передачи данных.  &merged;</para>
-
-	<para>Поддержка интерфейсами &man.polling.4; теперь может быть включена
-	  поинтерфейсно.  Следующие сетевые драйверы поддерживают &man.polling.4;:
-	  &man.dc.4;, &man.fxp.4;, &man.em.4;, &man.ixgb.4;,
-          &man.nge.4;, &man.re.4;, &man.rl.4;, &man.sis.4;, &man.ste.4;, &man.vge.4;,
-          и &man.vr.4;.  Эта возможность может управляться
-	  через &man.ifconfig.8; (за исключением &man.ixgb.4;).  &merged;</para>
       </sect4>
     </sect3>
 
     <sect3 id="net-proto">
       <title>Сетевые протоколы</title>
 
-      <para>Драйвер туннеля &man.gre.4; теперь поддерживает WCCP версии
-	2.</para>
+      <para>MTU feedback в IPv6 выключается при отправке данных,
+	которые должны быть фрагментированы.</para>
 
-      <para>Правила &man.ipfw.4; теперь поддерживают параметр
-	<literal>versrcreach</literal>, для проверки наличия в таблице
-	маршрутизатора действующего маршрута к адресу источника пакета.
-	Этот параметр очень полезен для маршрутизаторов с полной
-	информацией об основных маршрутах интернет в таблице маршрутизации
-	(BGP) для отбрасывания пакетов с подделанными или немарштутизируемыми
-	адресами источников.  Например,
+      <para>Система &man.ipfw.4; может работать с
+	<varname>debug.mpsafenet</varname>=<literal>1</literal>
+	(эта переменная равна <literal>1</literal> по умолчанию)
+	когда используются параметры правил <literal>gid</literal>,
+	<literal>jail</literal>, и/или <literal>uid</literal>.</para>
 
-	<programlisting>deny ip from any to any not versrcreach</programlisting>
+      <para>Правило &man.ipfw.8; <literal>ipfw fwd</literal> теперь
+	поддерживает полное управление назначением пакета при
+	установке параметра ядра
+	<literal>options IPFIREWALL_FORWARD_EXTENDED</literal> в дополнение
+	к параметру <literal>options IPFIRWALL_FORWARD</literal>.
+	Этот параметр ядра устраняет все ограничения для локально созданных
+	пакетов и позволяет перенаправление пакетов, предназначенных для
+	локально сконфигурированного IP адреса.
+	Обратите внимание, что правила &man.ipfw.8; должны быть составлены
+	аккуратно, чтобы, например, не нарушить	определение PMTU.
+	</para>
 
-	это эквивалент следующей команды в синтаксисе Cisco IOS:
+      <para>&man.ipnat.8; теперь позволяет определять правила
+	перенаправления для не-TCP/UDP пакетов.</para>
 
-	<programlisting>ip verify unicast source reachable-via any</programlisting>
-      </para>
+      <para>Продолжается работа по уменьшению использования
+	Giant блокировки стеком сетевых протоколов и улучшению
+	стратегии блокировки.</para>
 
-      <para>Правила &man.ipfw.4; теперь поддерживают параметр
-	<literal>antispoof</literal>, для проверки адреса источника входящих
-	пакетов на принадлежность к непосредственно подключенной сети.
-	Если сеть подключена непосредственно, входящий пакет проверяется
-	на соответствие интерфейсу, с которого он пришел.  Когда
-	входящий интерфейс и подключенный непосредственно интерфейс не
-	совпадают, пакет не соответствует правилу.  Например:
+      <para>Новый узел NetGraph &man.ng.netflow.4; позволяет
+	маршрутизатору, работающему под &os;, выполнять экспорт
+	NetFlow версии 5.</para>
 
-	<programlisting>deny ip from any to any not antispoof in</programlisting>
-      </para>
+      <para>Драйвер &man.sppp.4; теперь включает поддержку Frame Relay
+	</para>
 
-      <para>Правила &man.ipfw.4; теперь поддерживают параметр
-	<literal>jail</literal>, для ассоциации со специфическим ID.
-	Например:
+      <para>Была исправлена ошибка TCP, которая иногда приводила к
+	игнорированию пакетов RST при окне приема в ноль байт.
+	</para>
 
-	<programlisting>count ip from any to any jail 2</programlisting>
+      <para>Были исправлены несколько ошибок в реализации TCP
+	SACK.</para>
 
-	Имейте ввиду, что это правило на данный момент применяется только к
-	TCP и UDP пакетам.
-      </para>
+      <para>Реализация KAME IPv4 IPsec, интегрированная в
+	&os;, теперь поддерживает TCP-MD5.</para>
 
-      <para>&man.ipfw.4; теперь поддерживает таблицы адресов (lookup tables),
-	полезные при обработке больших наборов разных адресов. &merged;</para>
-
-      <para>Правило &man.ipfw.4; <literal>forward</literal> было встроено в
-	ядро параметром <literal>IPFIREWALL_FORWARD</literal>.</para>
-
-      <para>Новая переменная sysctl
-	<varname>net.inet.ip.process_options</varname> для контроля обработки
-	параметров IP.  При установке этой переменной в <literal>0</literal>
-	параметры IP игнорируются и передаются не измененными, при установке
-	в <literal>1</literal> все параметры IP обрабатываются (поведение
-	по умолчанию), а при установке в <literal>2</literal> все пакеты
-	с параметрами IP отбрасываются с сообщением ICMP filter
-	prohibited.</para>
-
-      <para>Были исправлены некоторые ошибки в реализации IPsec от
-	KAME Project.  Эти ошибки были связаны с освобождением объектов
-	памяти перед тем, как все ссылки на эти объекты были удалены,
-	они могли стать причиной странного поведения или паники ядра
-	после очистки Security Policy Database (SPD).</para>
-
-      <para>&man.natd.8; теперь поддерживает несколько экземпляров через
-	новый параметр <option>globalports</option>.  Он позволяет
-	&man.natd.8; привязку к различным сетевым интерфейсам и
-	распределение нагрузки.</para>
-
-      <para>Был добавлен тип узла Netgraph &man.ng.atmllc.4;,
-	который работает с RFC 1483 ATM LLC инкапсуляцией.</para>
-
-      <para>Был добавлен тип узла Netgraph &man.ng.hub.4;,
-	который поддерживает простую рассылку пакетов и работает как
-	концентратор Ethernet.  &merged;</para>
-
-      <para>Тип узла Netgraph &man.ng.rfc1490.4; теперь поддерживает
-	инкапсуляцию в стиле Cisco, которая часто используется
-	вместе с RFC 1490 в соединениях frame relay.</para>
-
-      <para>Был добавлен тип узла Netgraph &man.ng.sppp.4;, являющийся
-	интерфейсом &man.netgraph.4; к оригинальному сетевому модулю
-	&man.sppp.4; для синхронных линий.</para>
-
-      <para>Был добавлен новый метод Netgraph, позволяющий восстановление
-	поведения, потерянного при изменении стиля узлов Netgraph
-	&man.ng.tee.4; с 4.<replaceable>X</replaceable>.</para>
-
-      <para>Был добавлен тип узла Netgraph &man.ng.vlan.4;,
-	который поддерживает IEEE 802.1Q VLAN tagging.  &merged;</para>
-
-      <para>Поддержка <literal>PFIL_HOOKS</literal> теперь постоянно
-	встроена в ядро, и соответствующие параметры ядра были
-	удалены.  Все подсистемы фильтрации пакетов, поддерживаемые
-	&os;, теперь используют инфраструктуру
-	<literal>PFIL_HOOKS</literal>.</para>
-
-      <para>В сокет маршрутизации была добавлена поддержка уведомления об
-	изменении состояния носителя Ethernet.</para>
-
-      <para>Поддержка Link Quality Monitoring (LQM) в &man.ppp.8;
-	была переписана заново.  LQM, описанный в RFC 1989, позволяет PPP
-	сохранять информацию о качестве работающего соединения. &merged;</para>
-
-      <para>Клонирование псевдо-интерфейсов было обновлено,
-	чтобы сделать возможным создание интерфейсов &man.stf.4;
-	с именами <devicename>stf0</devicename>,
-	<devicename>stf</devicename>, или
-	<devicename>6to4</devicename>.  Обратите внимание, что
-	это нарушает обратную совместимость; например, теперь
-	<command>ifconfig stf</command> создаст интерфейс
-	<devicename>stf</devicename>, а не
-	<devicename>stf0</devicename>, и не выведет
-	<devicename>stf0</devicename> на стандартный вывод.</para>
-
-      <para>Следующие возможности TCP теперь включены по умолчанию:
-	RFC 3042 (Limited Retransmit), RFC 3390 (increased initial
-        congestion window sizes), TCP bandwidth-delay product
-        limiting.  Для этих возможностей доступен набор переменных
-	sysctl <varname>net.inet.tcp.rfc3042</varname>,
-	<varname>net.inet.tcp.rfc3390</varname>, и
-	<varname>net.inet.tcp.inflight.enable</varname>.
-	Дополнительная информация может быть найдена в
-	&man.tcp.4;.</para>
-
-      <para>&os; реализация TCP теперь включает поддержку минимального
-	MSS (устанавливается через переменную sysctl
-	<varname>net.inet.tcp.minmss</varname>) и ограничение потока
-	данных через соединения, передающие множество мелких TCP
-	сегментов в короткий период времени (через переменную sysctl
-	<varname>net.inet.tcp.minmssoverload</varname>).  Соединения,
-	превысившие этот предел, могут быть сброшены.  Эта возможность
-	предоставляет защиту от целого класса исчерпывающих ресурсы
-	атак.</para>
-
-      <para>Реализация TCP теперь включает частичную поддержку
-	RFC 2385 (TCP-MD5) digest (только
-	на вывод).  Эта возможность, включаемая параметрами ядра
-	<literal>TCP_SIGNATURE</literal> и <literal>FAST_IPSEC</literal>,
-	является расширением TCP для аутентификации TCP сессий.
-	&man.setkey.8; теперь включает поддержку TCP-MD5 класса
-	ассоциаций безопасности.  &merged;</para>
-
-      <para>Обработка reset в TCP соединении была улучшена, чтобы усложнить
-	reset атаки настолько, насколько это возможно, при сохранении
-	совместимости с широчайшим диапазоном TCP стеков.</para>
-
-      <para>Реализация RFC 1948 была улучшена.  Компонент временного смещения
-	в Initial Sequence Number (ISN) теперь включает случайное положительное
-	число, так что ISN
-	всегда увеличивается, независимо от скорости повторного использования
-	порта.</para>
-
-      <para>Было реализовано произвольное <quote>эфемерное</quote> выделение
-	порта (random ephemeral port allocation), пришедшее из OpenBSD.  Оно
-	включено по умолчанию и может быть отключено через переменную
-	sysctl <varname>net.inet.ip.portrange.randomized</varname>.
-	&merged;</para>
-
-      <para>Был добавлен TCP Selective Acknowledgements (SACK), как описано в
-	RFC 2018.  Это увеличивает производительность TCP через соединения с
-	большими потерями пакетов.  SACK может быть включен переменной
-	sysctl <varname>net.inet.tcp.sack.enable</varname>.</para>
+      <para>Алгоритм <quote>Random ephemeral port number allocation</quote>
+	приводил к некоторым проблемам с повторным использованием
+	портов при высокой частоте новых подключений.  Теперь
+	в периоды, когда новые соединения создаются быстрее, чем
+	<varname>net.inet.ip.portrange.randomcps</varname> в секунду,
+	рандомизация номеров портов отключается на следующие
+        <varname>net.inet.ip.portrange.randomtime</varname> секунд.
+	Значения по умолчанию этих двух переменных sysctl равны
+        <literal>10</literal> и <literal>45</literal> соответственно.</para>
 
     </sect3>
 
     <sect3 id="disks">
       <title>Диски и хранение</title>
 
-      <para>Драйвер &man.ata.4; теперь поддерживает контроллеры &man.cardbus.4;
-	ATA/SATA.</para>
+      <para>Драйвер &man.amr.4; теперь может безопасно использоваться
+	на системах с &man.pae.4;.</para>
 
-      <para>Было исправлено множество ошибок в драйвере &man.ata.4;.
-	Наиболее заметные из них относятся к улучшению детектирования
-	master/slave устройств и к проблемам с задержками.</para>
+      <para>Был добавлен драйвер &man.hptmv.4;, поддерживающий
+	HighPoint RocketRAID 182x series.</para>
 
-      <para>Драйвер &man.ata.4; теперь поддерживает Promise command
-	sequencer, имеющийся на всех современных контроллерах Promise
-	(PDC203** PDC206**).
+      <para>Драйвер &man.ips.4; теперь поддерживает дампы ядра на
+	некоторых современных моделях ServeRAID.</para>
 
-	<note>
-	  <para>Добавлена также предварительная поддержка для
-	    Promise SX4/SX4000 в качестве <quote>обычного</quote> Promise ATA
-	    контроллера; ATA RAID поддерживается, но только
-	    с уровнями RAID0, RAID1 и RAID0+1.</para>
-	</note>
-      </para>
+      <para>Был удален драйвер &man.matcd.4;.</para>
 
-      <para>Параметр ядра <literal>DA_OLD_QUIRKS</literal>,
-	предназначенный для драйвера диска CAM SCSI (&man.cam.4;)
-	был удален.  &merged;</para>
+      <para>Был добавлен класс SHSEC GEOM.  Он предоставлен для
+	разделения секретного ключа (<quote>secret</quote>)
+	между несколькими провайдерами GEOM.  Все эти провайдеры
+	должны присутствовать, чтобы получить секретный ключ.
+	Эта функция контролируется утилитой &man.gshsec.8;.
+	</para>
 
-      <para arch="pc98">Была исправлена ошибка в коде автоматического
-	выбора плотности драйвера &man.fd.4;.</para>
-
-      <para>Была исправлена ошибка в &man.geom.4;, которая могла приводить к
-	прерыванию ввода/вывода в некоторых редких случаях.</para>
-
-      <para>Был добавлен новый класс &man.geom.4; <literal>GEOM_CONCAT</literal> для
-	соединения нескольких дисков в один.</para>
-
-      <para>Был добавлен новый класс &man.geom.4; <literal>GEOM_NOP</literal> для
-	различного тестирования.</para>
-
-      <para>Были добавлены новый класс &man.geom.4;
-	<literal>GEOM_RAID3</literal> для преобразования RAID3 и утилита
-	пользователя &man.graid3.8;.</para>
-
-      <para>Был добавлен новый класс &man.geom.4; <literal>GEOM_STRIPE</literal>,
-	который реализует преобразование RAID0.
-	В этом классе есть два режима: <quote>fast</quote> и
-	<quote>economic</quote>.  В режиме fast,
-	когда используются очень небольшой размер страйпа,
-	только один запрос ввода вывода отправляется к каждому диску
-	в страйпе; это приблизительно в 10 раз быстрее для
-	страйпов малого размера, чем режим economic и другие реализации RAID0.
-	Хотя режим fast используется по умолчанию,
-	он потребляет несколько больше памяти.  Путем установки
-	переменной загрузчика <varname>kern.geom.stripe.fast</varname>
-	в 0 может быть включен режим economic, в
-	котором запросы отправляются каждый раз.
-	Возможно также указание максимального количества памяти,
-	потребляемого в режиме fast, через переменную
-	загрузчика <varname>kern.geom.stripe.maxmem</varname>.</para>
-
-      <para>Был добавлен GEOM Gate, который состоит из нового класса
-	&man.geom.4; <literal>GEOM_GATE</literal> и нескольких утилит пользователя
-	GEOM Gate (&man.ggatel.8;, &man.ggatec.8;,
-	and &man.ggated.8;).  Он поддерживает экспорт устройств,
-	включающих не приспособленные к &man.geom.4; через сеть.</para>
-
-      <para>Был добавлен новый класс &man.geom.4; <literal>GEOM_LABEL</literal>
-	для обнаружения меток томов на различных файловых системах,
-	таких как UFS, MSDOSFS (FAT12, FAT16, FAT32), и
-	ISO9660.</para>
-
-      <para>Новый класс &man.geom.4; <literal>GEOM_GPT</literal>, поддерживающий
-	разделы GUID Partition Table (GPT) и
-	возможность создания большого количества разделов на одном диске,
-	был добавлен в <filename>GENERIC</filename> по умолчанию.</para>
-
-      <para>Был добавлен новый класс &man.geom.4;
-	<literal>GEOM_MIRROR</literal>, поддерживающий функциональность
-	RAID1.  Для контроля этого класса может использоваться утилита
-	&man.gmirror.8;.</para>
-
-      <para>Был добавлен новый класс &man.geom.4;
-	<literal>GEOM_UZIP</literal>, реализующий сжатые диски только для
-	чтения.  На данный момент он поддерживает формат сжатия дисков
-	cloop V2.0.</para>
-
-      <para>Был добавлен новый класс &man.geom.4; <literal>GEOM_VINUM</literal> для поддержки
-	взаимодействия между &man.vinum.4; и &man.geom.4;.</para>
-
-      <para>Драйвер &man.ips.4; теперь поддерживает современные контроллеры
-	Adaptec ServeRAID series SCSI.</para>
-
-      <para arch="sparc64">Была исправлена ошибка в драйвере &man.isp.4;,
-	которая делала невозможной работу карт на SBus.</para>
-
-      <para arch="i386">Был добавлен драйвер &man.twa.4;, поддерживающий
-	контроллеры 3ware's 9000 series PATA/SATA RAID.  &merged;</para>
-
-      <para>Драйвер &man.umass.4; теперь поддерживает отсутствовавшие команды
-	ATAPI MMC и правильно обрабатывает задержки.  &merged;</para>
-
-      <para>Менеджер томов &man.vinum.4; был обновлен для использования
-        &man.geom.4;, инфраструктуры трансформирования дисковых запросов
-	ввода-вывода 5.x.  Была добавлена утилита пользователя
-	<command>gvinum</command>.</para>
-
-      <para arch="sparc64">Драйвер устройства &man.esp.4; был портирован
-	из NetBSD для поддержки SBus SCSI карт в компьютерах Sun Ultra
-        1e и 2.</para>
-
-      <para>Была добавлена поддержка LSI-type программного RAID.</para>
+      <para>Информация о вновь смонтированных файловых системах cd9660
+	(например, информация о наличии расширений Rockridge) теперь
+	печатается только если ядро было собрано в режиме verbose.
+	Это изменение было сделано для уменьшения количества
+	(зачастую ненужных) протоколируемых сообщений ядра.</para>
 
     </sect3>
 
     <sect3 id="fs">
       <title>Файловые системы</title>
 
-      <para>Код файловой системы EXT2FS теперь включает частичную поддержку
-	больших файлов (&gt; 4GB).  Частичность поддержки заключается в том,
-	невозможно создать большие файлы на файловых системах, которые не
-	были обновлены до <literal>EXT2_DYN_REV</literal> или на тех,
-	где в суперблоке не установлен флаг
-	<literal>EXT2_FEATURE_RO_COMPAT_LARGE_FILE</literal>.</para>
+      <para>Вычисление суммарной информации для не размонтированных
+	корректно (<quote>dirty</quote>) файловых систем UFS и UFS2
+	больше не выполняется во время загрузки, а делается фоновым
+	&man.fsck.8;.  Это изменение увеличивает скорость загрузки при
+	монтировании больших файловых систем после сбоя.  Предыдущее
+	поведение может быть восстановлено установкой переменной sysctl
+	<varname>vfs.ffs.compute_summary_at_mount</varname>
+	в ненулевое значение.</para>
 
-      <para>Была исправлена паника в NFSv4 клиенте; она случалась при
-	попытке работы с поддерживающим только NFSv3/NFSv2
-	сервером.</para>
+      <para>Была исправлена ошибка NFS сервера, приводившая к панике ядра.
+	Более подробная информация находится в сообщении о проблеме
+	<ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/ERRATA/notices/FreeBSD-EN-05:01.nfs.asc">FreeBSD-EN-05:01.nfs</ulink>.
+	</para>
 
-      <para>Был добавлен параметр ядра <literal>MSDOSFS_LARGE</literal>
-	для поддержки файловых систем больших,
-	чем 128GB.  Этот параметр выключен по умолчанию. Имейте ввиду,
-	что он использует как минимум 32 байта памяти ядра для
-	каждого файла на диске; его использование безопасно только
-	в четко контролируемых ситуациях, таких как монтирование
-	файловой системы с менее чем 1 миллионом файлов только для
-	чтения, и так далее.  Экспорт этих больших файловых систем
-	по NFS не поддерживается.</para>
 
-      <para>Клиент SMBFS теперь поддерживает подпись SMB запроса, которая
-	предотвращает атаки <quote>man in the middle</quote> и необходима
-	для подключения к серверам Windows 2003 в настройке по умолчанию.
-	Поскольку подпись каждого сообщения понижает производительность,
-	эта возможность включается только если сервер ее требует;
-	со временем она может стать параметром &man.mount.smbfs.8;.</para>
     </sect3>
 
     <sect3>
       <title>Стороннее программное обеспечение</title>
 
-      <para><application>ALTQ framework</application>
-	была импортирована из снэпшота KAME от 7 июня 2004 года.
-	Этот импорт нарушает совместимость ABI в
-	<varname>struct ifnet</varname> и требует перекомпиляции
-	всех сетевых драйверов.
-	Кроме того, некоторые сетевые драйверы были изменены
-	для поддержки инфраструктуры ALTQ.  Обновлены
-	драйверы &man.bfe.4;, &man.em.4;, &man.fxp.4;,
-	&man.em.4;, &man.lnc.4;, &man.tun.4;, &man.de.4;,
-	&man.rl.4;, &man.sis.4;, и &man.xl.4;.</para>
+      <para><application>ACPI-CA</application> был обновлен с
+	20040527 до 20041119.</para>
 
-      <para><application>IPFilter</application> был обновлен с
-	версии 3.4.31 до версии 3.4.35 &merged;.</para>
-
-      <para arch="ia64">Был импортирован ia64 stack unwinder,
-	<application>Unwind Express (libuwx)</application>
-	от Hewlett-Packard для использования в ядре.</para>
     </sect3>
   </sect2>
 
   <sect2 id="userland">
     <title>Изменения в программах пользователя</title>
 
-    <para>&man.acpidump.8; теперь поддерживает таблицы SSDT.  Дамп
-      или дизассемблирование DSDT теперь также включает содержимое
-      этих таблиц, если они присутствуют.</para>
-
-    <para>&man.bsdlabel.8; теперь поддерживает параметр <option>-f</option>
-      для работы с файлами вместо разделов диска.</para>
-
-    <para>&man.bsdtar.1; теперь используется в качестве утилиты &man.tar.1;
-      в базовой системе &os; по умолчанию.  <filename>/usr/bin/tar</filename>
-      был сделан символической ссылкой, указывающей по умолчанию на
-      <filename>/usr/bin/bsdtar</filename>.  Для возврата к
-      <filename>/usr/bin/gtar</filename> по умолчанию, может быть использована
-      переменная сборки <varname>WITH_GTAR</varname>.</para>
-
-    <para>Были добавлены команды <command>bthidcontrol</command> и
-      <command>bthidd</command>, поддерживающие Bluetooth
-      HID (Human Interface Device).</para>
-
-    <para>&man.col.1;, &man.colcrt.1;, &man.colrm.1;,
-      &man.column.1;, &man.fmt.1;, &man.join.1;, &man.rev.1;,
-      &man.tr.1;, и &man.ul.1; теперь поддерживают многобайтовые
-      символы.</para>
-
-    <para>&man.conscontrol.8; теперь поддерживает команды
-      <literal>set</literal> и <literal>unset</literal>,
-      которые устанавливают/удаляют виртуальную консоль.
-      <literal>unset</literal> направляет вывод из системы,
-      например &man.printf.9; из ядра, на реальную основную
-      консоль.  Это интерфейс к tty ioctl
-      <literal>TIOCCONS</literal>.</para>
-
-    <para>Даемон &man.cron.8; теперь принимает два параметра,
-      <option>-j</option> и <option>-J</option>, включающие
-      рассинхронизацию заданий, запускаемых непривилегированными
-      пользователями и суперпользователем соответственно.
-      Рассинхронизация означает, что перед выполнением задания
-      &man.cron.8; останавливается на небольшой произвольный период
-      времени в заданном пределе.  Эта возможность предназначена для
-      уменьшения пиков нагрузки, появляющихся при выполнении большого
-      количества задач, запланированных на определенный момент
-      времени. &merged;</para>
-
-    <para>Параметры &man.cut.1; <option>-c</option>,
-      <option>-d</option>, и <option>-f</option>
-      теперь корректно работают в локалях с многобайтными
-      символами.</para>
-
-    <para>&man.cvs.1; теперь поддерживает ключевое слово
-      <option>iso8601</option> для отображения дат в формате
-      ISO 8601.</para>
-
-    <para>&man.daemon.8; теперь поддерживает параметр <option>-p</option>
-      для создания PID файла.</para>
-
-    <para>&man.dd.1; теперь поддерживает параметр <option>fillchar</option>
-      для указания альтернативного символа заполнения в режиме
-      конверсии, или при использовании <option>noerror</option> с
-      <option>sync</option> при возникновении ошибки ввода.</para>
-
-    <para>&man.df.1; теперь поддерживает параметр <option>-c</option>
-      для отображения полной статистики файловых систем.</para>
-
-    <para>Была исправлена ошибка в &man.df.1;, которая могла приводить
-      к выводу некорректной информации при указании параметра
-      <option>-t</option> и недоступности точки монтирования для
-      вызывающего пользователя.</para>
-
-    <para>Утилита <command>doscmd</command> была удалена из базовой
-      системы &os; и доступна через порт <filename
-      role="package">emulators/doscmd</filename> из коллекции портов
-      &os;.</para>
-
-    <para>&man.dump.8; и &man.restore.8; теперь поддерживают параметр
-      <option>-P</option> для указания других методов резервного копирования
-      (не в файлы или на ленты).  Аргумент передается &man.sh.1;
-      с определенной переменной окружения <varname>$DUMP_VOLUME</varname>
-      или <varname>$RESTORE_VOLUME</varname> соответственно.
-      Дополнительная информация находится на страницах справочника
-      &man.dump.8; и &man.restore.8;.</para>
-
-    <para>Была добавлена утилита &man.eeprom.8; для отображения и
-      изменения настроек системы, сохраненных в EEPROM или NVRAM.
-      Существующая реализация поддерживает системы, поставляемые с
-      Open Firmware.</para>
-
-    <para arch="pc98">Утилиты &man.fdcontrol.8;, &man.fdformat.1;, и
-      &man.fdread.1; теперь работают в &os;/pc98.</para>
-
-    <para>Была добавлена функция &man.fgetwln.3;, версия &man.fgetln.3;
-      для расширенных символов.</para>
-
-    <para>Утилита &man.find.1; теперь поддерживает параметр
-      <option>-acl</option> в основном для поиска файлов с
-      &man.acl.3;.</para>
-
-    <para>Утилита &man.find.1; теперь поддерживает новый основной
-      параметр <option>-depth <replaceable>n</replaceable></option>,
-      который проверяет, соответствует ли глубина вложения данного
-      файла относительно начальной точки поиска
-      <replaceable>n</replaceable>. &merged;</para>
-
-    <para>&man.ftpd.8; теперь при открытии сокета для передачи данных
-      в активном режиме использует эффективный UID текущего пользователя,
-      а не <username>root</username>.  Это полезно для сопоставления
-      анонимного FTP трафика правилу &man.ipfw.8; с параметром
-      <literal>uid</literal>.</para>
-
-    <para>Были реализованы функции &man.ftw.3; и &man.nftw.3;.  Они
-      используются для прохода по иерархии каталогов.</para>
-
-    <para>Была добавлена утилита &man.geom.8; для оперирования классами
-      &man.geom.4; из пространства пользователя.</para>
-
-    <para>&man.gpt.8;, утилита для работы с GUID таблицей разделов,
-      теперь поддерживает команду <option>remove</option>.  Ее команда
-      <option>add</option> теперь поддерживает параметр <option>-i</option>,
-      который позволяет пользователю определять номер для нового
-      раздела.</para>
-
-    <para>&man.id.1; теперь поддерживает параметр <option>-M</option> для
-      вывода метки MAC текущего процесса.</para>
-
-    <para>&man.ifconfig.8; теперь поддерживает переименование сетевых
-      интерфейсов на лету, используя параметр <option>name</option>.</para>
-
-    <para>&man.ifconfig.8; теперь выводит &man.polling.4; статус
-      интерфейса.  &merged;</para>
-
-    <para>&man.ifconfig.8; теперь предоставляет параметры
-      <option>vlanmtu</option> и <option>-vlanmtu</option>,
-      контролирующие возможность получения
-      расширенных фреймов некоторыми Ethernet интерфейсами (т.е.
-      фреймов, содержащих более чем 1500 байт данных).</para>
-
-    <para>&man.ifconfig.8; теперь предоставляет параметры
-      <option>vlanhwtag</option> и <option>-vlanhwtag</option>,
-      контролирующие возможность обработки
-      тегов VLAN некоторыми Ethernet интерфейсами на аппаратном
-      уровне.</para>
-
-    <para>&man.indent.1; теперь поддерживает параметр <option>-ldi</option>
-      для управления выравниванием локальных переменных.  В этой утилите
-      было сделано несколько других изменений.</para>
-
-    <para>&man.indent.1; now supports <option>-fbs</option> and
-      <option>-ut</option> for function declarations
-      with the opening brace on the same line as the declaration
-      of arguments all spaces and no tabs in order
-      to fix problem when non-8 space tabs are used.</para>
-
-    <para>&man.ip6fw.8; теперь поддерживает флаг <option>-n</option> для
-      запрета внесения любых изменений в правила ядра</para>
-
-    <para>&man.ipcs.1; теперь поддерживает параметр <option>-u</option>
-      для отображения информации о IPC механизмах, принадлежащих
-      определенному пользователю.</para>
-
-    <para>&man.ipfw.8; теперь поддерживает параметр <option>-b</option>
-      для вывода только действия и комментария каждого правила,
-      исключая тело правила.</para>
-
-    <para>&man.jail.8; теперь поддерживает параметр <option>-U</option> для
-      запуска команды под пользователем, который существует только
-      внутри среды &man.jail.2;.</para>
-
-    <para>&man.jail.8; теперь поддерживает параметр <option>-l</option> для
-      очистки окружения.  Все переменные окружения очищаются, за исключением
-      <varname>HOME</varname>, <varname>SHELL</varname>,
-      <varname>PATH</varname>, <varname>TERM</varname>, и
-      <varname>USER</varname> перед запуском программы в jail под
-      определенным пользователем.  Это поведение подобно поведению
-      &man.su.1; с параметром <option>-l</option>.</para>
-
-    <para>Была добавлена утилита отладки ядра &man.kgdb.1;, которая использует
-      <application>libgdb</application> и работает с потоками ядра, модулями
-      ядра и &man.kvm.3;.</para>
-
-    <para>&man.killall.1; теперь поддерживает флаг <option>-e</option>,
-      с которым <option>-u</option> указывает на эффективный, а не реальный
-      ID пользователя. &merged;</para>
-
-    <para>В &man.libalias.3; теперь есть поддержка (и новый API) для
-      нескольких синонимов в одном процессе.  Существующий API был
-      переписан в терминах нового для сохранения совместимости.</para>
-
-    <para>Была добавлена библиотека <application>libarchive</application>
-      для работы со сжатыми и несжатыми архивными файлами.  Дополнительная
-      информация может быть найдена в &man.libarchive.3;.</para>
-
-    <para arch="pc98"><application>libdisk</application> теперь использует
-      корректное для PC98 значение дискового раздела &os;.  Это позволяет
-      редактору дисковых разделов &man.sysinstall.8; корректно создавать
-      единственный раздел &os;, занимающий весь диск.  &merged;</para>
-
-    <para><application>libdisk</application> теперь использует
-      <varname>d_addr_t</varname> для адресов дисков.
-      Это позволяет &man.sysinstall.8; правильно работать с дисками
-      и файловыми системами размером более 1 TB.</para>
-
-    <para arch="i386,pc98,amd64,ia64">Библиотека, первоначально известная как
-      <application>libkse</application>, была переименована в
-      <application>libpthread</application> и теперь это библиотека потоков по
-      умолчанию для платформ i386, amd64 и ia64.  Параметр
-      <application>GCC</application> <option>-pthread</option> был
-      изменен для использования <application>libpthread</application>
-      вместо <application>libc_r</application>.
-
-      <note>
-	<para>Пользователи со старыми бинарными файлами (например,
-	  из портов, скомпилированных до внесения этого изменения) должны
-	  использовать &man.libmap.conf.5; для создания ссылок
-	  <application>libc_r</application> и/или
-	  <application>libkse</application> на
-	  <application>libpthread</application>.</para>
-      </note>
-
-      <note>
-	<para>Пользователям поставляемых NVIDIA драйверов и библиотек
-	  может потребоваться использование &man.libmap.conf.5;,
-	  в котором есть ссылка <application>libpthread</application> на
-	  старую библиотеку <application>libc_r</application>, поскольку
-	  эти драйвера не работают с <application>libpthread</application>.</para>
-      </note>
-    </para>
-
-    <para><application>libpthread</application> теперь поддерживает
-      переменную окружения <varname>LIBPTHREAD_SYSTEM_SCOPE</varname>
-      для включения режима 1:1 (используя набор системных потоков).
-      Обратите внимание, что сборка <application>libpthread</application> с
-      флагом <option>-DSYSTEM_SCOPE_ONLY</option> также включает режим 1:1,
-      и что этот параметр установлен по умолчанию для архитектур, которые
-      еще не поддерживают режим M:N.  Кроме того,
-      переменная окружения <varname>LIBPTHREAD_PROCESS_SCOPE</varname>
-      может использоваться для принудительного включения режима M:N
-      (используя набор потоков процесса).  Например:</para>
-
-    <screen>&prompt.user; <userinput>LIBPTHREAD_SYSTEM_SCOPE=yes <replaceable>threaded_app</replaceable></userinput></screen>
-
-    <para>заставляет приложение <replaceable>threaded_app</replaceable>
-      использовать системный набор потоков, а</para>
-
-    <screen>&prompt.user; <userinput>LIBPTHREAD_PROCESS_SCOPE=yes <replaceable>threaded_app</replaceable></userinput></screen>
-
-    <para>соответственно заставляет его использовать набор потоков
-      процесса.</para>
-
-    <para>Ошибка в параметре <option>-d</option> &man.look.1; была
-      исправлена.  Кроме того, &man.look.1; теперь корректно работает
-      с многобайтными локалями.</para>
-
-    <para>&man.ls.1; теперь обрабатывает имена файлов как мультибайтовые
-      последовательности символов, в соответствии с текущей
-      переменной <varname>LC_CTYPE</varname>, когда определяется
-      какие символы печатаемые.</para>
-
-    <para>&man.make.1; теперь поддерживает новую директиву
-      <literal>.warning</literal>.</para>
-
-    <para>&man.make.1; теперь поддерживает POSIX-совместимый флаг
-      <literal>+</literal> в командных строках <filename>Makefile</filename>,
-      которая приводит к выполнению строки даже при указании
-      параметра <option>-n</option>.  Это полезно например при
-      вызове вложенных make.</para>
-
-    <para>&man.make.1; теперь помещает переменные из командной строки
-      в переменную <varname>MAKEFLAGS</varname>, как этого требует
-      POSIX.  Это приводит к передаче переменных через все
-      вложенные make, вызываемые через &man.make.1; (кроме
-      переменной <varname>MAKEFLAGS</varname>, которая эксклюзивно
-      изменяется в окружении вложенного make).  Помимо прочего,
-      это делает переменные не переписываемыми во вложенных
-      make, кроме как из командной строки.</para>
-
-    <para>Были реализованы функции C99 &man.nearbyint.3; и
-      &man.nearbyintf.3;.</para>
-
-    <para>Был реализован заголовок C99 <filename>tgmath.h</filename>.
-      Он предоставляет макрос для функций <filename>math.h</filename>
-      и <filename>complex.h</filename>, которые реализованы для
-      float, double и long double.</para>
-
-    <para>Были реализованы расширения GNU для &man.mbsnrtowcs.3;
-      и &man.wcsnrtombs.3;.</para>
-
-    <para>&man.newsyslog.8; теперь позволяет пользователям устанавливать
-      параметр отладки через файл <filename>newsyslog.conf</filename>.</para>
-
-    <para>&man.newsyslog.8; теперь использует новый порядок при обработке
-      ротации файлов.  Сначала ротируются все файлы, которые необходимо
-      ротировать, затем посылается одиночный сигнал каждому процессу,
-      которому необходимо послать сигнал, и наконец все файлы, которые
-      были ротированы, сжимаются.</para>
-
-    <para>Была добавлена функция &man.nextwctype.3; для перебора всех
-      символов из определенного класса.</para>
-
-    <para>Была добавлена первичная поддержка для UTF-8 версий всех
-      поддерживаемых в настоящее время системных локалей.  Это сделано в
-      основном для порта <filename
-      role="package">misc/utf8locale</filename>.</para>
-
-    <para>Добавлена локаль Israel Hebrew
-      <literal>he_IL.UTF-8</literal>.</para>
-
-    <para>Была добавлена утилита &man.logins.1; для отображения информации о
-      пользовательских и системных учетных записях.</para>
-
-    <para>&man.mountd.8; теперь поддерживает параметр <option>-p</option>,
-      позволяющий пользователям указывать известный порт для указания
-      его в правилах брандмауэра.</para>
-
-    <para>&man.netstat.1; теперь отображает членство в широковещательных
-      группах, имеющихся в системе.</para>
-
-    <para>&man.newfs.8; и &man.mdmfs.8; теперь поддерживают флаг
-      <option>-l</option> для установки MAC multilabel флага на новых
-      системах без использования &man.tunefs.8;.</para>
-
-    <para>&man.nologin.8; теперь сообщает о попытках входа через
-       &man.syslogd.8;.</para>
-
-    <para>Программа &man.nologin.8; была перемещена из
-      <filename>/sbin/nologin</filename> в
-      <filename>/usr/sbin/nologin</filename>.
-      <filename>/sbin/nologin</filename> стал символической ссылкой для
-      обратной совместимости.</para>
-
-    <para>В поддержку NSS было внесено исправление, которое решает проблемы
-      с использованием сторонних NSS модулей (таких как <filename
-      role="package">net/nss_ldap</filename>) и групп с длинным списком
-      членов.</para>
-
-    <para>В &man.od.1; теперь есть поддержка многобайтных символов в
-      стиле POSIX.</para>
-
-    <para>&man.patch.1; была замещена BSD-лицензированной версией из
-      OpenBSD.  Она включает параметр <option>--posix</option> для
-      строгого соответствия POSIX.</para>
-
-    <para>Были добавлены команды &man.pgrep.1; и &man.pkill.1;, пришедшие
-      их NetBSD.  Они также поддерживают параметр <option>-M</option>
-      для извлечения значений, связанных со списком имен из указанного
-      дампа (core) вместо <filename>/dev/kmem</filename> по умолчанию, и
-      параметр <option>-N</option> для извлечения списка имен из указанной
-      системы вместо ядра (kernel) по умолчанию.</para>
-
-    <para>&man.ppp.8; теперь поддерживает
-      команду <quote>set rad_alive
-      <replaceable>N</replaceable></quote> для периодического отправления
-      учетной информации RADIUS на сервер RADIUS.  &merged;</para>
-
-    <para>&man.ppp.8; теперь поддерживает команду
-      <quote>set pppoe [standard|3Com]</quote> для настройки
-      режима взаимодействия с низлежащим узлом Netgraph
-      &man.ng.pppoe.4;.</para>
-
-    <para>Была улучшена совместимость &man.ps.1; с POSIX/SUSv3.  Эти изменения
-      включают параметры <option>-p</option> для списка ID процессов,
-      <option>-t</option> для списка имен терминалов,
-      <option>-A</option>, которая эквивалентна <option>-ax</option>,
-      <option>-G</option> для списка ID групп,
-      <option>-X</option>, которая противоположна <option>-x</option>,
-      и некоторые мелкие улучшения.  За дальнейшей информацией обращайтесь
-      к &man.ps.1;.  &merged;</para>
-
-    <para>&man.ps.1; теперь поддерживает параметр форматирования
-      <option>-O emul</option>, при котором печатается имя эмулируемых
-      системных переменных окружения, в которых находится процесс.</para>
-
-    <para>&man.pw.8; теперь поддерживает параметр <option>-H</option>, который
-      принимает указатель на файл с зашифрованным паролем.  &merged;</para>
-
-    <para>Была исправлена ошибка в &man.rarpd.8;, которая не позволяла ему
-      правильно работать на интерфейсах более чем с одним IP адресом.
-      &merged;</para>
-
-    <para>&man.regex.3; теперь поддерживает регулярные выражения, учитывая
-      многобайтные символы.</para>
-
-    <para>Файлы настройки, используемые &man.resolver.3;, теперь поддерживают
-      ключевые слова <literal>timeout:</literal> и
-     <literal>attempts:</literal>.</para>
-
-    <para>&man.resolver.3; и ассоциированные интерфейсы теперь гораздо
-      лучше подходят для повторного использования и работы с потоками.
-      Множественные запросы к DNS теперь могут происходить одновременно,
-      что приводит к значительному улучшению производительности некоторых
-      многопоточных приложений.  Некоторые многопоточные приложения
-      необходимо перекомпилировать; примеры из коллекции портов:
-      <filename role="package">www/mozilla</filename> и варианты, <filename
-      role="package">mail/evolution</filename>, <filename
-      role="package">devel/gnomevfs</filename>, и <filename
-      role="package">devel/gnomevfs2</filename>.</para>
-
-    <para>&man.rmdir.1; теперь поддерживает флаг <option>-v</option>,
-      для вывода информации об удаляемых файлах.</para>
-
-    <para>&man.savecore.8; теперь правильно работает для дамп файлов
-      больше 2GB.</para>
-
-    <para>Ошибка в &man.script.1; была исправлена, и теперь он работает
-      корректно если его стандартный ввод закрыт.  Это исправление предотвращает
-      потенциально опасное взаимодействие с пакетом <filename
-      role="package">sysutils/portupgrade</filename>; если он запускался
-      не интерактивно, то мог удалить все устаревшие порты без их
-      переустановки.</para>
-
-    <para>Был добавлен даемон &man.sdpd.8; Bluetooth Service Discovery
-      Protocol.</para>
-
-    <para>Команда &man.sed.1; <literal>y</literal> (транслирование)
-      теперь поддерживает многобайтные символы.</para>
-
-    <para>Были добавлены утилиты &man.sha1.1; и &man.rmd160.1;.
-      Подобно &man.md5.1;, они вычисляют хэш вводимых данных.
-      &merged;</para>
-
-    <para>Была добавлена небольшая утилита &man.smbmsg.8;, для
-      отправки/получения SMBus сообщений.</para>
-
-    <para arch="sparc64">&man.sunlabel.8; теперь поддерживает два новых
-      флага: <option>-c</option> для вычисления всех размеров разделов в
-      цилиндрах вместо секторов, и <option>-h</option> для печати метки в
-      удобном для чтения формате размер/смещения.</para>
-
-    <para>&man.talk.1; теперь использует <hostid>localhost</hostid>
-      в качестве компьютера по умолчанию в пакетах запроса
-      &man.talkd.8;, если назначение и источник локальны.
-      Это делает &man.talk.1; зависимым от правильно установленной
-      записи для <hostid>localhost</hostid> в <filename>/etc/hosts</filename>
-      или в DNS.</para>
-
-    <para>&man.tftpd.8; теперь поддерживает два новых параметра:
-      параметр <option>-w</option>, позволяющий создание новых файлов,
-      и параметр <option>-U</option>, позволяющий установку umask.</para>
-
-    <para>&man.top.1; теперь поддерживает отображение текущего количества
-      I/O.  Эта возможность может быть включена нажатием <quote>m</quote>
-      или передачей параметра командной строки <option>-m
-      io</option>.</para>
-
-    <para arch="amd64">&man.truss.1; теперь включает раннюю поддержку
-      &os;/amd64.</para>
-
-    <para>Многие утилиты пользователя в базовой системе (в основном
-      предоставленные GNU утилиты) теперь используют системную
-      версию &man.getopt.long.3;, вместо GNU версии.</para>
+    <para>Программа &man.ftpd.8; теперь корректно использует коды
+      статуса <literal>212</literal> и <literal>213</literal>
+      для каталога и файла (в предыдущей версии использовался
+      код <literal>211</literal>).  Это поведение описано в
+      RFC 959.</para>
+
+    <para>Функция &man.getaddrinfo.3; теперь запрашивает
+      записи DNS <literal>A</literal> перед записями <literal>AAAA</literal>,
+      когда указан <literal>AF_UNSPEC</literal>.  Некоторые
+      DNS серверы некорректно возвращают <literal>NXDOMAIN</literal>
+      в ответ на запрос несуществующей записи <literal>AAAA</literal>,
+      хотя должны возвращать <literal>NOERROR</literal> с пустой
+      записью.  Это проблема для двойного IPv4/IPv6 стека, поскольку
+      после возврата <literal>NXDOMAIN</literal> на запрос
+      <literal>AAAA</literal> приводит к тому, что запрашивающий сервер
+      не пытается разрешить запись <literal>A</literal>.  Кроме того,
+      такое поведение потенциально может привести к DoS атаке
+      (см. <ulink url="http://www.kb.cert.org/vuls/id/714121"></ulink>
+      с более подробной информацией).
+      Обратите внимание, что хотя порядок запроса был изменен, возвращаемый
+      результат все еще включает запись <literal>AF_INET6</literal>
+      перед записью <literal>AF_INET</literal>.</para>
+
+    <para>Команда <literal>create</literal> утилиты &man.gpt.8;
+      теперь поддерживает параметр командной строки <option>-f</option>
+      для форсирования создания GPT даже если на диске присутствует
+      запись MBR.</para>
+
+    <para>Утилита gvinum(8) теперь поддерживает субкоманды
+      <command>checkparity</command>,
+      <command>rebuildparity</command> и
+      <command>setstate</command>.</para>
+
+    <para>Библиотека <filename>libarchive</filename> (как и команда
+      &man.tar.1;, ее использующая) теперь поддерживает чтение образов
+      ISO (с опциональным расширением RockRidge) и архивов ZIP
+      (со сжатием <literal>deflate</literal> и <literal>none</literal>).</para>
+
+    <para>Была добавлена библиотека <filename>libgpib</filename>,
+      чтобы предоставить доступ уровня пользователя к устройствам
+      GPIB (используя драйвер pcii) через
+      <function>ib<replaceable>foo</replaceable></function>
+      API.</para>
+
+    <para>Множество исправлений для <filename>libpthread</filename>
+      были внесены из HEAD.</para>
+
+    <para>В библиотеке &man.math.3; было реализовано множество новых
+      функций.  В их число входят &man.ceill.3;,
+      &man.floorl.3;, &man.ilogbl.3;, &man.fma.3; и варианты,
+      &man.lrint.3; и варианты, и &man.lround.3; и
+      варианты.</para>
+
+    <para arch="i386">Была добавлена не-GPL утилита &man.mkuzip.8;,
+      для сжатия образов файловых систем перед использованием
+      с модулем <literal>GEOM_UZIP</literal> &man.geom.4;.</para>
+
+    <para>Даемон &man.moused.8; теперь поддерживает <quote>виртуальную
+      прокрутку</quote>, когда перемещения мыши при нажатой средней
+      кнопке интерпретируются как прокрутка.  Эта функция включается
+      флагом <option>-V</option>.</para>
+
+    <para>Для динамических зон &man.named.8; был добавлен отдельный
+      каталог, владельцем которого является пользователь
+      <username>bind</username> (для создания журнального файла зоны).
+      Более подробная информация находится в примере динамической
+      зоны файла &man.named.conf.5;.</para>
+
+    <para>Утилита &man.newfs.8; теперь поддерживает флаг <option>-n</option>
+      для подавления создания каталога <filename>.snap</filename>
+      на новых файловых системах.  Эта функция предназначена для
+      использования с файловыми системами в памяти или виртуальными
+      файловыми системами, которым не требуется поддержка образов.</para>
+
+    <para>Утилита &man.newfs.8; теперь выдает предупреждение при создании
+      файловых систем UFS или UFS2, которые не могут поддерживать образы.
+      Такая ситуация может возникать в случае очень больших файловых систем
+      с блоками малого размера.</para>
+
+    <para>Была добавлена переменная компиляции системы
+      <literal>NO_NIS</literal>.  Как следует из ее имени, включение
+      этой переменной приведет к исключению поддержки NIS из различных
+      программ, и утилиты NIS не будут компилироваться.</para>
+
+    <para>Утилита &man.ncal.1; теперь поддерживает флаг <option>-m</option>
+      для создания календаря определенного месяца в текущем году.</para>
+
+    <para>Проверка безопасности в &man.periodic.8; теперь поддерживает
+      отображение счетчиков пакетов, заблокированных
+      &man.pf.4;.</para>
+
+    <para>В программе &man.ppp.8; реализован параметр
+      <option>echo</option>, позволяющий включать LCP ECHO
+      независимо от LQR.  Более старые версии &man.ppp.8;
+      переходят в режим LCP ECHO если согласование lqr
+      не будет успешно проведено.  Теперь для получения
+      такого поведения необходимо указать <command>enable
+      echo</command>.</para>
+
+    <para>Были исправлены две ошибки в программе &man.pppd.8;.
+      Они могли привести к некорректному ответу CBCP,
+      нарушающему Microsoft PPP Callback Control Protocol
+      section 3.2.</para>
+
+    <para>Утилита &man.rm.1; теперь поддерживает параметр
+      <option>-I</option>, с которым (однократно) запрашивается
+      подтверждение при рекурсивном удалении каталогов или
+      более 3 файлов, перечисленных в командной строке.</para>
+
+    <para>Динамический компоновщик &man.rtld.1; теперь поддерживает
+      указание замещающих библиотек через переменную окружения
+      <varname>LD_LIBMAP</varname>.  Эта переменная перезаписывает
+      записи в &man.libmap.conf.5;.</para>
+
+    <para>Функция &man.strftime.3; теперь поддерживает некоторые GNU
+      расширения, такие как <literal>-</literal> (без заполнения),
+      <literal>_</literal> (использовать пробел для заполнения),
+      и <literal>0</literal> (заполнение нулями).</para>
+
+    <para>Функцию &man.syslog.3; теперь можно безопасно использовать
+      в многопоточных программах.</para>
+
+    <para>Утилита &man.syslogd.8; теперь открывает дополнительный
+      сокет (<filename>/var/run/logpriv</filename> по умолчанию),
+      с правами <literal>0600</literal> для использования
+      привилегированными программами.  Это предотвращает блокировку
+      привилегированных программ, когда буфер сокета переполняется
+      вследствие локальной DoS атаки.</para>
+
+    <para>&man.systat.1; <option>-netstat</option> теперь приспособлен
+      для IPv6.</para>
+
+    <para>Параметр <option>-f</option> утилиты &man.tail.1;
+      теперь поддерживает более одного файла одновременно.</para>
+
+    <para>&man.whois.1; теперь поддерживает флаг <option>-k</option>
+      для запроса <hostid role="fqdn">whois.krnic.net</hostid>
+      (the National Internet Development Agency of Korea),
+      содержащего информацию о IP адресах в Корее.</para>
 
     <sect3 id="rc-scripts">
       <title>Скрипты <filename>/etc/rc.d</filename></title>
 
-      <para>Скрипт <filename>diskless</filename> был разделен на
-	<filename>hostname</filename>, <filename>resolve</filename>,
-	<filename>tmp</filename> и <filename>var</filename>.</para>
+      <para>&man.rc.conf.5; теперь поддерживает изменение имен
+	сетевых интерфейсов во время загрузки.
+        Например:</para>
 
-      <para>Был добавлен скрипт <filename>gbde_swap</filename>,
-	поддерживающий gbde устройства подкачки.  При указании переменной
-	<varname>gbde_swap_enable</varname> в &man.rc.conf.5;, устройство
-	подкачки <filename>/dev/<replaceable>foo.bde</replaceable></filename>
-	из &man.fstab.5; автоматически подключается во время загрузки
-	с устройством <filename>/dev/<replaceable>foo</replaceable></filename>
-	и случайным ключом, полученным как контрольная сумма MD5 от 512 байт,
-	прочитанных из <filename>/dev/random</filename>.
-	Обратите внимание, что это делает невозможным восстановление дампов
-	ядра.</para>
+      <programlisting>ifconfig_fxp0_name="net0"
+ifconfig_net0="inet 10.0.0.1/16"</programlisting>
 
-      <para>Были добавлены <varname>ip6addrctl_enable</varname> и
-	<varname>ip6addrctl_verbose</varname>.  Когда
-	<varname>ip6addrctl_enable</varname> установлена в
-	<literal>YES</literal>, политика выбора адреса загружается в
-	ядро.  Если существует <filename>/etc/ip6addrctl.conf</filename>,
-	он будет использован, иначе будет задействована политика по
-	умолчанию.  Применяется политика по умолчанию, описанная в RFC 3484,
-	если <varname>ipv6_enable</varname> установлена в
-	<literal>YES</literal>.  Иначе в качестве политики по умолчанию
-	будет использована политика приоритетов для адресов IPv4.</para>
+      <para>&man.rc.conf.5; теперь поддерживает переменные
+	<varname>tmpmfs_flags</varname> и <varname>varmfs_flags</varname>.
+	Они могут использоваться для передачи дополнительных параметров
+	утилите &man.mdmfs.8;, задания &man.md.4; параметров создания
+	файловой системы, таких как включение/выключение softupdates,
+	указания владельца файловой системы по умолчанию и так далее.
+	</para>
 
-      <para>Был добавлен скрипт <filename>mixer</filename>.  При завершении
-	работы сохраняет текущие настройки всех аудио микшеров, присутствующих
-	в системе, и восстанавливает их при загрузке.</para>
-
-      <para>Скрипт <filename>named</filename> был обновлен для поддержки
-	<application>BIND 9</application> в базовой системе.  Изменения
-	включают:</para>
-
-      <itemizedlist>
-	<listitem>
-	  <para>&man.named.8; по умолчанию запускается в каталоге
-	    &man.chroot.2; <filename>/var/named</filename>.
-	    Это поведение может быть отменено переменной
-	    <varname>named_chrootdir</varname> в файле
-	    <varname>named_chrootdir</varname>,
-	    а каталог &man.chroot.2; может быть изменен переменной
-	    <varname>named_chrootdir</varname> в том же файле.</para>
-	</listitem>
-
-	<listitem>
-	  <para>Когда переменная <varname>named_chroot_autoupdate</varname>
-	    установлена в <literal>YES</literal> (это значение по умолчанию),
-	    каталог chroot автоматически настраивается во время загрузки.
-	    Символическая ссылка, которая указывает на
-	    <filename>/var/named/etc/namedb</filename>, создается как
-	    <filename>/etc/namedb</filename>, а символическая ссылка,
-	    которая указывает в
-	    <filename>/var/named/var/run/named/pid</filename>, создается
-	    как <filename>/var/run/named/pid</filename>.  Последнее может
-	    быть отменено переменной <varname>named_symlink_enable</varname>
-	    в файле <filename>rc.conf</filename>.</para>
-	</listitem>
-
-	<listitem>
-	  <para>Файл <filename>rndc.key</filename> создается
-	    автоматически, если еще не существует.</para>
-	</listitem>
-      </itemizedlist>
-
-      <para>Были добавлены скрипты <filename>pf</filename> и
-	<filename>pflog</filename> для &man.pf.4;.</para>
     </sect3>
   </sect2>
 
   <sect2 id="contrib">
     <title>Стороннее программное обеспечение</title>
 
-    <para>Код <application>ACPI-CA</application> был обновлен с
-      с снэпшота 20030619 до снэпшота 20040527.</para>
+    <para><application>Heimdal</application> был обновлен с
+      0.6.1 до 0.6.3.</para>
 
-    <para><application>AMD (am-utils)</application> был обновлен с версии
-      6.0.9 до версии 6.0.10p1.</para>
-
-    <para><application>awk</application> от Bell Labs был обновлен с релиза
-      от 29 июня 2003 года до релиза 7 февраля 2004 года.</para>
-
-    <para><application>BIND</application> был обновлен с версии
-     8.3.1-REL до версии 9.3.0.  &merged;</para>
-
-    <para><application>Binutils</application> были обновлены до снэпшота от
-      23 мая 2004 из ветви FSF 2.15.</para>
-
-    <para><application>CVS</application> был обновлен с версии
-      1.11.15 до версии 1.11.17.  &merged;</para>
- 
-    <para><application>FILE</application> был обновлен с версии
-      3.41 до версии 4.10.</para>
-
-    <para><application>gdtoa</application> (библиотека, выполняющая
-      преобразования чисел между бинарным и десятичным форматами)
-      была обновлена с версии 20030324 до версии 20040118.</para>
-
-    <para><application>GDB</application> был обновлен до версии
-      6.1.1.</para>
- 
-    <para><application>GNU GCC</application> был обновлен с
-      версии 3.3.3-prerelease от 6 ноября, 2003 до 3.4.2-prerelease
-      от 28 июля, 2004.</para>
-
-    <para><application>GNU grep</application> был обновлен с
-      версии 2.4d до версии 2.5.1.</para>
-
-    <para><application>less</application> был обновлен с
-      версии 371 до версии 381.</para>
-
-    <para><application>GNU readline</application> 4.3 была обновлена
-      официальными патчами с 001 до 005.</para>
-
-    <para>Библиотека <application>GNU regex</application> была обновлена
-      до версии, включенной в <application>GNU grep</application>
-      2.5.1.</para>
-
-    <para><application>GNU sort</application> был обновлен с
-      textutils 2.1 до снэпшота coreutils 5.2.1 от 12 августа 2004 года.</para>
-
-    <para>Реализация <application>GNU tar</application> в основной системе
-      теперь называется <filename>gtar</filename>.</para>
-
-    <para><application>Heimdal Kerberos</application> был обновлен
-      с версии 0.6 до версии 0.6.1.</para>
-
-    <para>Клиент <application>ISC DHCP</application> был обновлен c версии 3.0.1
-      RC10 до версии 3.0.1.</para>
-
-    <para><application>libpcap</application> была обновлена с версии
-      0.7.1 до версии 0.8.3.</para>
-
-    <para><application>lukemftpd</application>
-      был обновлен с снэпшота от 3 ноября 2003 года до снэпшота от
-      9 августа 2004 года.</para>
-
-    <para><application>NTP</application>
-      был обновлен с версии 4.1.1a до версии 4.2.0.</para>
-
-    <para><application>OpenPAM</application> был обновлен с
-      релиза Dogwood до релиза Eelgrass.</para>
-
-    <para><application>OpenSSH</application> был обновлен с
-      версии 3.6.1p1 до версии 3.8.1p1.
-
-      <note>
-	<para>Настройка по умолчанию для &man.sshd.8; была изменена.
-	  SSH протокол версии 1 теперь не включен по умолчанию.
-	  Кроме того, аутентификация по паролю через SSH выключена по
-	  умолчанию если включен PAM.</para>
-      </note>
-
-    </para>
+    <para>Был добавлен снэпшот <application>netcat</application>
+      из OpenBSD от 4 февраля 2005 года.  Более подробная информация
+      находится на странице справки по &man.nc.1;.</para>
 
     <para><application>OpenSSL</application> был обновлен с
-      версии 0.9.7c до версии 0.9.7d.  &merged;</para>
+      0.9.7d до 0.9.7e.</para>
 
-    <para>Поддержка <application>OpenSSL</application> VIA C3 Nehemiah
-      PadLock ACE (Advanced Cryptography Engine) криптографии,
-      которая предоставляет шифрование Advanced Encryption Standard (AES),
-      была импортирована из пререлиза
-      <application>OpenSSL</application>.</para>
+    <para><application>sendmail</application> был обновлен с
+      версии 8.13.1 до версии 8.13.3.</para>
 
-    <para><application>pf</application>, пакетный фильтр OpenBSD
-      из OpenBSD&nbsp;3.5-stable, был импортирован в дерево исходных текстов &os;,
-      и теперь установлен по умолчанию.  Добавлены также два новых
-      пользователя (<username>proxy</username> и
-      <username>_pflogd</username>) и три новых группы
-      (<username>authpf</username>, <username>proxy</username> и
-      <username>_pflogd</username>),
-      которые необходимы <application>pf</application>.</para>
+    <para>База данных timezone была обновлена с релиза
+      <application>tzdata2004e</application> до релиза
+      <application>tzdata2004g</application>.</para>
 
-      <note>
-	<para>При обновлении из исходных текстов, должны быть добавлены
-	  эти учетные записи.  Для добавления этих записей в &man.passwd.5;
-	  и &man.group.5; может быть использован
-	  <literal>mergemaster -p</literal>.
-	  Для выключения сборки
-	  <application>pf</application> может быть использована
-	  переменная <varname>NO_PF</varname> в
-	  <filename>make.conf</filename>.</para>
-      </note>
-
-    <para>Были импортированы несколько утилит пользователя из OpenBSD
-      <application>pf</application>.
-      &man.ftp-proxy.8; это ftp прокси для &man.pf.4;,
-      &man.pfctl.8; это эквивалент &man.ipf.8;,
-      &man.pflogd.8; это даемон для протоколирования пакетов
-      через <literal>if_pflog</literal> в формате &man.pcap.3;, и
-      &man.authpf.8; оболочка для изменения наборов правил
-      &man.pf.4;.</para>
-
-    <para><application>routed</application> был обновлен с
-      релиза 2.22 до релиза 2.27 с rhyolite.com.  Обратите внимание, что
-      для тех, кто использовал возможность RIP MD5 аутентификацию,
-      &man.routed.8; теперь несовместим с предыдущими версиями &os;;
-      однако, теперь он совместим с реализациями от Sun, Cisco и
-      других поставщиков.</para>
-
-    <para><application>sendmail</application> был обновлен с версии
-      8.12.10 до версии 8.13.1.  &merged;</para>
-
-    <para><application>tcpdump</application> был обновлен с версии
-      3.7.1 до версии 3.8.3.</para>
-
-    <para><application>tcsh</application> был обновлен с версии
-      6.11 до 6.13.00.</para>
-
-    <para>База данных временных зон была обновлена с
-      <filename>tzdata2003a</filename> до
-      <filename>tzdata2004a</filename>.</para>
-
-    <para><application>zlib</application> был обновлен с версии
-      1.1.4 до версии 1.2.1.</para>
   </sect2>
 
   <sect2 id="ports">
     <title>Инфраструктура коллекции портов/пакетов</title>
 
-    <para>Большинство скриптов запуска/останова, устанавливаемые различными
-      портами, теперь используют новую инфраструктуру &man.rc.8;,
-      представленную в &os; 5.<replaceable>X</replaceable>, хотя некоторые
-      порты все еще используют скрипты в старом стиле.  При запуске сначала
-      выполняются скрипты в новом стиле, а затем в старом.  При останове
-      все происходит в точности наоборот.</para>
+    <para>Файлы
+      <filename>ports/INDEX<replaceable>*</replaceable></filename>,
+      в которых находится индекс всех портов коллекции,
+      был удален из репозитория CVS.
+      Этот файл генерировался не часто, и следовательно обычно был
+      устаревшим и не соответствовал состоянию портов.
+      Пользователи, которым требуется индексный файл (например,
+      для использования с такими программами, как &man.portupgrade.1;),
+      могут получить копию двумя способами:</para>
 
-    <para>Был добавлен и включен по умолчанию атрибут <literal>SIZE</literal>
-      для distfiles, который может быть использован для проверки размеров
-      файлов перед загрузкой.  <varname>DISABLE_SIZE</varname>
-      может быть использована для запрещения проверки размера.  Это особенно
-      полезно на старых версиях &os;, где нет соответствующей поддержки
-      в &man.fetch.1;, и для некоторых FTP прокси, которые всегда выдают
-      неверные размеры.</para>
+    <itemizedlist>
+      <listitem>
+	<para>Создать индекс файл на основе текущего дерева портов,
+	  выполнив <command>make index</command> из корневого каталога
+	  дерева <filename>ports/</filename>.</para>
+      </listitem>
 
-    <para>Для отслеживания наиболее важных изменений в дерево портов были
-      добавлены два файла: <filename>ports/CHANGES</filename>
-      содержит список основных изменений в коллекции портов и ее
-      инфраструктуре.  <filename>ports/UPDATING</filename> описывает
-      некоторые потенциально проблемные случаи, которые могут встретиться
-      при обновлении определенных портов, по аналогии с
-      <filename>src/UPDATING</filename> в базовой системе.</para>
-
-    <para>Код обработки версий в системных утилитах
-      <filename>pkg_*</filename> был переписан для восстановления совместимости
-      с 4.x и <filename role="package">sysutils/portupgrade</filename>.</para>
-
-    <para>Инструментарий пакетов теперь может искать совпадения с помощью
-      операторов отношения и выборов в стиле csh <literal>{...}</literal>,
-      например:</para>
-
-    <screen>&prompt.root; <userinput>pkg_info -I 'docbook>=3.0'</userinput></screen>
-
-    <para>отобразит (все) docbook DTD с версией как минимум 3.0.
-      Дополнительные параметры командной строки также были добавлены
-      для поддержки шаблонов.</para>
-
-    <para>Была улучшена обработка сбойных баз данных пакетов.</para>
-
-    <para>&man.pkg.create.1; теперь поддерживает параметр <option>-S</option>
-      для добавления префикса ко всем <literal>@cwd</literal> во время
-      создания пакета.</para>
-
-    <para>&man.pkg.info.1; теперь поддерживает параметр <option>-j</option>
-      для отображения скрипта зависимостей каждого пакета.</para>
+      <listitem>
+	<para>Забрать индексный файл по сети, выполнив
+	  <command>make fetchindex</command> из корневого каталога
+	  дерева <filename>ports/</filename>.  Этот индексный файл
+	  (как правило) подходит для использования в течение дня.</para>
+      </listitem>
+    </itemizedlist>
 
   </sect2>
 
   <sect2 id="releng">
     <title>Подготовка релизов и интеграция</title>
 
-    <para arch="i386,pc98">Процесс сборки загрузочных дискет был полностью
-      пересмотрен.  Наиболее значительное изменение заключается
-      в том, что загрузчик теперь загружает <filename>GENERIC</filename>
-      ядро, разделенное на несколько дисков (два на момент написания).
-      Это существенно улучшает установку, начинающуюся загрузкой
-      с дискеты, поскольку теперь она использует точно такое же
-      ядро (и, таким образом, то же оборудование), что и при установке
-      с CDROM.  Урезанное ядро <filename>MFSROOT</filename> больше не нужно,
-      и образ <filename>mfsroot</filename> более не требует подключения
-      модулей ядра.  Образы <filename>boot.flp</filename> и
-      <filename>driver.flp</filename> также более не требуются и не
-      собираются.</para>
+    <para>В предыдущих релизах &os;, CD-ROM (или образ ISO)
+      <filename>disc1</filename> был загрузочным установочным
+      диском, содержащим основную систему, дерево портов
+      и широко используемые пакеты.  CD-ROM (или образ ISO)
+      <filename>disc2</filename> был загрузочным
+      <quote>fix it</quote> диском с live filesystem, и был
+      предназначен для восстановления после критических сбоев.
+      Теперь для всех архитектур за исключением ia64, на
+      <filename>disc1</filename> находится базовая система,
+      дерево портов и live filesystem, что делает возможным
+      как установку с этого диска, так и восстановление после
+      сбоев.  (На ia64, live filesystem находится на отдельном
+      диске, поскольку не умещается на первый).  Пакеты помещаются
+      на отдельный диск.</para>
 
-    <para>Поддержка криптографии в &os; более не опциональный компонент
-      релизов, и дистрибутивный компонент <literal>crypto</literal>
-      теперь часть <literal>base</literal>.  Обратите внимание, что
-      параметр сборки <option>-DNOCRYPT</option> все еще существует
-      для всех, кто хочет собрать бинарные файлы без поддержки
-      криптографии.</para>
-
-    <para>Поддерживаемый релиз <application>GNOME</application>
-      был обновлен с версии 2.4 до версии 2.6.
+    <para>Поддерживаемая версия десктопа
+      <application>GNOME</application> была обновлена с
+      2.6.2 до 2.10.
 
       <note>
-	<para>Если вы используете старый <application>GNOME</application>
-	  десктоп отдельно (<filename role="package">x11/gnome2</filename>),
-	  простое обновление его из коллекции портов &os; с помощью
-	  &man.portupgrade.1; (<filename
-	  role="package">sysutils/portupgrade</filename>) вызовет серьезные
-	  проблемы.  Если вы используете <application>GNOME</application>
-	  в качестве десктопа, внимательно прочтите инструкции
-	  <ulink url="&url.base;/gnome/docs/faq26.html"></ulink>,
-	  и используйте скрипт <filename>gnome_upgrade.sh</filename> для
-	  правильного обновления до <application>GNOME</application>
-	  2.6.</para>
+	<para>Пользователи предыдущих версий
+	  <application>GNOME</application>
+	  (<filename role="package">x11/gnome2</filename>)
+	  должны подойти к обновлению с определенной осторожностью.
+	  Простое обновление из коллекции портов &os; с помощью
+	  &man.portupgrade.1;
+	  (<filename role="package">sysutils/portupgrade</filename>)
+	  вызовет серьезные проблемы.  Пользователи
+	  <application>GNOME</application> должны внимательно прочесть
+	  инструкции
+	  <ulink url="&url.base;/gnome/docs/faq210.html"></ulink>
+	  и использовать скрипт
+	  <ulink url="&url.base;/gnome/gnome_upgrade.sh"><filename>gnome_upgrade.sh</filename></ulink>
+	  для обновления до
+	  <application>GNOME</application> 2.10.</para>
 
-	<para>Обратите внимание, что если вы используете только
-	  библиотеки <application>GNOME</application>, &man.portupgrade.1;
-	  будет достаточно для обновления портов.</para>
-      </note>
-    </para>
+	<para>Для обновления библиотек
+	  <application>GNOME</application>, достаточно
+	  использовать &man.portupgrade.1;.</para></note>
+      </para>
 
-    <para>Поддерживаемый релиз <application>KDE</application> был
-      обновлен с версии 3.1.4 до версии 3.2.3.</para>
+    <para>Поддерживаемая версия <application>KDE</application>
+      была обновлена с 3.3.0 до 3.3.2.</para>
 
-    <para>Утилита <filename role="package">security/portaudit</filename>
-      теперь находится в коллекции портов &os;.  Эта утилита читает базу данных,
-      содержащую известные уязвимости портов, и сообщает о них
-      администратору.</para>
+    <para>Поддерживаемая версия <application>Xorg</application> была
+      обновлена с 6.7.0 до 6.8.1.</para>
 
-    <para>&os; теперь использует <application>Xorg</application> вместо
-      <application>XFree86</application> в качестве X Window System по умолчанию.
-      Поддерживаемый релиз <application>Xorg</application> &ndash; X11R6.7.0.
-      Обратите внимание, что <application>XFree86</application> также доступен из
-      коллекции портов &os; (<filename
-      role="package">x11/XFree86-4</filename>).</para>
   </sect2>
 
   <sect2 id="doc">
