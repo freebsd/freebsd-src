@@ -1,5 +1,5 @@
 #	@(#)Makefile.inc	8.6 (Berkeley) 5/4/95
-#	$Id: Makefile.inc,v 1.46 1998/06/10 16:20:10 jdp Exp $
+#	$Id: Makefile.inc,v 1.47 1998/06/12 15:02:02 peter Exp $
 
 # machine-independent gen sources
 .PATH: ${.CURDIR}/../libc/${MACHINE_ARCH}/gen ${.CURDIR}/../libc/gen
@@ -14,7 +14,7 @@ SRCS+=  _rand48.c _spinlock_stub.c alarm.c arc4random.c assert.c \
 	getosreldate.c getpagesize.c getpass.c getpwent.c getttyent.c \
 	getusershell.c getvfsbyname.c getvfsent.c glob.c \
 	initgroups.c isatty.c jrand48.c lcong48.c \
-	lrand48.c mrand48.c msgctl.c \
+	lockf.c lrand48.c mrand48.c msgctl.c \
 	msgget.c msgrcv.c msgsnd.c nice.c \
 	nlist.c nrand48.c ntp_gettime.c opendir.c \
 	pause.c popen.c psignal.c pwcache.c raise.c readdir.c rewinddir.c \
@@ -41,7 +41,7 @@ MAN3+=  alarm.3 arc4random.3 clock.3 \
 	getmntinfo.3 getnetgrent.3 getpagesize.3 getpass.3 getpwent.3 \
 	getttyent.3 getusershell.3 getvfsbyname.3 getvfsent.3 \
 	glob.3 initgroups.3 isinf.3 \
-	ldexp.3 modf.3 msgctl.3 msgget.3 msgrcv.3 msgsnd.3 \
+	ldexp.3 lockf.3 modf.3 msgctl.3 msgget.3 msgrcv.3 msgsnd.3 \
 	nice.3 nlist.3 pause.3 popen.3 psignal.3 pwcache.3 \
 	raise.3 rand48.3 scandir.3 setjmp.3 setmode.3 siginterrupt.3 \
 	signal.3 sigsetops.3 sleep.3 stringlist.3 \
