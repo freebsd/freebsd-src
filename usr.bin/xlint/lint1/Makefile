@@ -2,7 +2,7 @@
 
 PROG=	lint1
 SRCS=	cgram.c scan.c mem1.c mem.c err.c main1.c decl.c tree.c func.c \
-	init.c emit.c emit1.c
+	init.c emit.c emit1.c y.tab.h
 NOMAN=
 LDADD+=	-ll
 DPADD+=	${LIBL}
@@ -15,5 +15,7 @@ BINDIR=	/usr/libexec
 
 # XXX: -O causes the gcc to die on the i386, when compiling tree.o
 CFLAGS+= -DXXX_BROKEN_GCC
+
+y.tab.h: cgram.c
 
 .include <bsd.prog.mk>
