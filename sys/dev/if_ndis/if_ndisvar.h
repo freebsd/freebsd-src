@@ -111,7 +111,6 @@ struct ndis_softc {
 	bus_dma_tag_t		ndis_ttag;
 	bus_dmamap_t		*ndis_mmaps;
 	bus_dmamap_t		*ndis_tmaps;
-	struct mbuf		**ndis_mbufs;
 	int			ndis_mmapcnt;
 
 };
