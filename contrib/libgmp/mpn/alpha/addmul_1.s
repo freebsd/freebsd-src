@@ -1,3 +1,4 @@
+/* $Id$
  # Alpha 21064 __mpn_addmul_1 -- Multiply a limb vector with a limb and add
  # the result to a second limb vector.
 
@@ -28,6 +29,7 @@
  # s2_limb	r19
 
  # This code runs at 42 cycles/limb on EV4 and 18 cycles/limb on EV5.
+*/
 
 	.set	noreorder
 	.set	noat
