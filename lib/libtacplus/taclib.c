@@ -1,5 +1,5 @@
 /*-
- * Copyright 1998 Juniper Networks, Inc.
+ * Copyright (c) 1998, 2001, 2002, Juniper Networks, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -51,7 +51,7 @@ static int		 add_str_8(struct tac_handle *, u_int8_t *,
 			    struct clnt_str *);
 static int		 add_str_16(struct tac_handle *, u_int16_t *,
 			    struct clnt_str *);
-static int		 authen_version(int, int);
+static int		 protocol_version(int, int, int);
 static void		 close_connection(struct tac_handle *);
 static int		 conn_server(struct tac_handle *);
 static void		 crypt_msg(struct tac_handle *, struct tac_msg *);
@@ -63,8 +63,8 @@ static void		 generr(struct tac_handle *, const char *, ...)
 			    __printflike(2, 3);
 static void		 gen_session_id(struct tac_msg *);
 static int		 get_srvr_end(struct tac_handle *);
-static int		 get_srvr_str(struct tac_handle *, struct srvr_str *,
-			    size_t);
+static int		 get_srvr_str(struct tac_handle *, const char *,
+				      struct srvr_str *, size_t);
 static void		 init_clnt_str(struct clnt_str *);
 static void		 init_srvr_str(struct srvr_str *);
 static int		 read_timed(struct tac_handle *, void *, size_t,
@@ -76,6 +76,8 @@ static int		 send_msg(struct tac_handle *);
 static int		 split(char *, char *[], int, char *, size_t);
 static void		*xmalloc(struct tac_handle *, size_t);
 static char		*xstrdup(struct tac_handle *, const char *);
+static void              clear_srvr_avs(struct tac_handle *);
+static void              create_msg(struct tac_handle *, int, int, int);
 
 /*
  * Append some optional data to the current request, and store its
@@ -138,39 +140,85 @@ add_str_16(struct tac_handle *h, u_int16_t *fld, struct clnt_str *cs)
 }
 
 static int
-authen_version(int action, int type)
+protocol_version(int msg_type, int var, int type)
 {
-	int minor;
+    int minor;
 
-	switch (action) {
+    switch (msg_type) {
+        case TAC_AUTHEN:
+	    /* 'var' represents the 'action' */
+	    switch (var) {
+	        case TAC_AUTHEN_LOGIN:
+		    switch (type) {
 
-	case TAC_AUTHEN_LOGIN:
-		switch (type) {
-
-		case TAC_AUTHEN_TYPE_PAP:
-		case TAC_AUTHEN_TYPE_CHAP:
-		case TAC_AUTHEN_TYPE_MSCHAP:
-		case TAC_AUTHEN_TYPE_ARAP:
-			minor = 1;
+		        case TAC_AUTHEN_TYPE_PAP:
+			case TAC_AUTHEN_TYPE_CHAP:
+			case TAC_AUTHEN_TYPE_MSCHAP:
+			case TAC_AUTHEN_TYPE_ARAP:
+			    minor = 1;
 			break;
+
+			default:
+			    minor = 0;
+			break;
+		     }
+		break;
+
+		case TAC_AUTHEN_SENDAUTH:
+		    minor = 1;
+		break;
 
 		default:
-			minor = 0;
-			break;
-		}
+		    minor = 0;
 		break;
+	    };
+	break;
 
-	case TAC_AUTHEN_SENDAUTH:
-		minor = 1;
+	case TAC_AUTHOR:
+	    /* 'var' represents the 'method' */
+	    switch (var) {
+	        /*
+		 * When new authentication methods are added, include 'method'
+		 * in determining the value of 'minor'.  At this point, all
+                 * methods defined in this implementation (see "Authorization 
+                 * authentication methods" in taclib.h) are minor version 0
+		 * Not all types, however, indicate minor version 0.
+		 */
+                case TAC_AUTHEN_METH_NOT_SET:
+                case TAC_AUTHEN_METH_NONE:
+                case TAC_AUTHEN_METH_KRB5:
+                case TAC_AUTHEN_METH_LINE:
+                case TAC_AUTHEN_METH_ENABLE:
+                case TAC_AUTHEN_METH_LOCAL:
+                case TAC_AUTHEN_METH_TACACSPLUS:
+                case TAC_AUTHEN_METH_RCMD:
+		    switch (type) {
+		        case TAC_AUTHEN_TYPE_PAP:
+			case TAC_AUTHEN_TYPE_CHAP:
+			case TAC_AUTHEN_TYPE_MSCHAP:
+			case TAC_AUTHEN_TYPE_ARAP:
+			    minor = 1;
+			break;
+
+			default:
+			    minor = 0;
+			break;
+		     }
+	        break;
+	        default:
+		    minor = 0;
 		break;
+	    }
+        break;
 
 	default:
-		minor = 0;
-		break;
-	};
+	    minor = 0;
+        break;
+    }
 
-	return TAC_VER_MAJOR << 4 | minor;
+    return TAC_VER_MAJOR << 4 | minor;
 }
+
 
 static void
 close_connection(struct tac_handle *h)
@@ -393,18 +441,27 @@ gen_session_id(struct tac_msg *msg)
 static int
 get_srvr_end(struct tac_handle *h)
 {
-	if (h->srvr_pos != ntohl(h->response.length)) {
-		generr(h, "Invalid length field in response from server");
+	int len;
+
+	len = ntohl(h->response.length);
+
+	if (h->srvr_pos != len) {
+		generr(h, "Invalid length field in response "
+		       "from server: end expected at %u, response length %u",
+		       h->srvr_pos, len);
 		return -1;
 	}
 	return 0;
 }
 
 static int
-get_srvr_str(struct tac_handle *h, struct srvr_str *ss, size_t len)
+get_srvr_str(struct tac_handle *h, const char *field,
+	     struct srvr_str *ss, size_t len)
 {
 	if (h->srvr_pos + len > ntohl(h->response.length)) {
-		generr(h, "Invalid length field in response from server");
+		generr(h, "Invalid length field in %s response from server "
+		       "(%lu > %lu)", field, (u_long)(h->srvr_pos + len),
+		       (u_long)ntohl(h->response.length));
 		return -1;
 	}
 	ss->data = len != 0 ? h->response.u.body + h->srvr_pos : NULL;
@@ -489,7 +546,7 @@ recv_msg(struct tac_handle *h)
 {
 	struct timeval deadline;
 	struct tac_msg *msg;
-	size_t len;
+	u_int32_t len;
 
 	msg = &h->response;
 	gettimeofday(&deadline, NULL);
@@ -504,16 +561,21 @@ recv_msg(struct tac_handle *h)
 		return -1;
 	}
 	if (msg->type != h->request.type) {
-		generr(h, "Invalid type in received message");
+		generr(h, "Invalid type in received message"
+			  " (got %u, expected %u)",
+			  msg->type, h->request.type);
 		return -1;
 	}
 	len = ntohl(msg->length);
 	if (len > BODYSIZE) {
-		generr(h, "Received message too large");
+		generr(h, "Received message too large (%u > %u)",
+			  len, BODYSIZE);
 		return -1;
 	}
 	if (msg->seq_no != ++h->last_seq_no) {
-		generr(h, "Invalid sequence number in received message");
+		generr(h, "Invalid sequence number in received message"
+			  " (got %u, expected %u)",
+			  msg->seq_no, h->last_seq_no);
 		return -1;
 	}
 
@@ -564,14 +626,14 @@ send_msg(struct tac_handle *h)
 		return -1;
 	}
 
+	if (establish_connection(h) == -1)
+		return -1;
+
 	msg = &h->request;
 	msg->seq_no = ++h->last_seq_no;
 	if (msg->seq_no == 1)
 		gen_session_id(msg);
 	crypt_msg(h, msg);
-
-	if (establish_connection(h) == -1)
-		return -1;
 
 	if (h->single_connect)
 		msg->flags |= TAC_SINGLE_CONNECT;
@@ -734,7 +796,7 @@ tac_add_server(struct tac_handle *h, const char *host, int port,
 void
 tac_close(struct tac_handle *h)
 {
-	int srv;
+	int i, srv;
 
 	if (h->fd != -1)
 		close(h->fd);
@@ -748,6 +810,11 @@ tac_close(struct tac_handle *h)
 	free_str(&h->rem_addr);
 	free_str(&h->data);
 	free_str(&h->user_msg);
+	for (i=0; i<MAXAVPAIRS; i++)
+		free_str(&(h->avs[i]));
+
+	/* Clear everything else before freeing memory */
+	memset(h, 0, sizeof(struct tac_handle));
 	free(h);
 }
 
@@ -786,7 +853,7 @@ tac_config(struct tac_handle *h, const char *path)
 		len = strlen(buf);
 		/* We know len > 0, else fgets would have returned NULL. */
 		if (buf[len - 1] != '\n') {
-			if (len == sizeof buf - 1)
+			if (len >= sizeof buf - 1)
 				generr(h, "%s:%d: line too long", path,
 				    linenum);
 			else
@@ -872,21 +939,47 @@ tac_config(struct tac_handle *h, const char *path)
 int
 tac_create_authen(struct tac_handle *h, int action, int type, int service)
 {
-	struct tac_msg *msg;
 	struct tac_authen_start *as;
 
-	h->last_seq_no = 0;
+	create_msg(h, TAC_AUTHEN, action, type);
 
-	msg = &h->request;
-	msg->type = TAC_AUTHEN;
-	msg->version = authen_version(action, type);
-	msg->flags = 0;
-
-	as = &msg->u.authen_start;
+	as = &h->request.u.authen_start;
 	as->action = action;
 	as->priv_lvl = TAC_PRIV_LVL_USER;
 	as->authen_type = type;
 	as->service = service;
+
+	return 0;
+}
+
+int
+tac_create_author(struct tac_handle *h, int method, int type, int service)
+{
+	struct tac_author_request *areq;
+
+	create_msg(h, TAC_AUTHOR, method, type);
+
+	areq = &h->request.u.author_request;
+	areq->authen_meth = method;
+	areq->priv_lvl = TAC_PRIV_LVL_USER;
+	areq->authen_type = type;
+	areq->service = service;
+
+	return 0;
+}
+
+static void
+create_msg(struct tac_handle *h, int msg_type, int var, int type)
+{
+	struct tac_msg *msg;
+	int i;
+
+	h->last_seq_no = 0;
+
+	msg = &h->request;
+	msg->type = msg_type;
+	msg->version = protocol_version(msg_type, var, type);
+	msg->flags = 0; /* encrypted packet body */
 
 	free_str(&h->user);
 	free_str(&h->port);
@@ -894,8 +987,8 @@ tac_create_authen(struct tac_handle *h, int action, int type, int service)
 	free_str(&h->data);
 	free_str(&h->user_msg);
 
-	/* XXX - more to do */
-	return 0;
+	for (i=0; i<MAXAVPAIRS; i++)
+		free_str(&(h->avs[i]));
 }
 
 void *
@@ -907,7 +1000,7 @@ tac_get_data(struct tac_handle *h, size_t *len)
 char *
 tac_get_msg(struct tac_handle *h)
 {
-	return (char *)dup_str(h, &h->srvr_msg, NULL);
+	return dup_str(h, &h->srvr_msg, NULL);
 }
 
 /*
@@ -918,6 +1011,7 @@ tac_get_msg(struct tac_handle *h)
 struct tac_handle *
 tac_open(void)
 {
+	int i;
 	struct tac_handle *h;
 
 	h = (struct tac_handle *)malloc(sizeof(struct tac_handle));
@@ -931,6 +1025,10 @@ tac_open(void)
 		init_clnt_str(&h->rem_addr);
 		init_clnt_str(&h->data);
 		init_clnt_str(&h->user_msg);
+		for (i=0; i<MAXAVPAIRS; i++) {
+			init_clnt_str(&(h->avs[i]));
+			init_srvr_str(&(h->srvr_avs[i]));
+		}
 		init_srvr_str(&h->srvr_msg);
 		init_srvr_str(&h->srvr_data);
 		srandomdev();
@@ -942,6 +1040,9 @@ int
 tac_send_authen(struct tac_handle *h)
 {
 	struct tac_authen_reply *ar;
+
+	if (h->num_servers == 0)
+	    return -1;
 
 	if (h->last_seq_no == 0) {	/* Authentication START packet */
 		struct tac_authen_start *as;
@@ -973,8 +1074,8 @@ tac_send_authen(struct tac_handle *h)
 	/* Scan the optional fields in the reply. */
 	ar = &h->response.u.authen_reply;
 	h->srvr_pos = offsetof(struct tac_authen_reply, rest[0]);
-	if (get_srvr_str(h, &h->srvr_msg, ntohs(ar->msg_len)) == -1 ||
-	    get_srvr_str(h, &h->srvr_data, ntohs(ar->data_len)) == -1 ||
+	if (get_srvr_str(h, "msg", &h->srvr_msg, ntohs(ar->msg_len)) == -1 ||
+	    get_srvr_str(h, "data", &h->srvr_data, ntohs(ar->data_len)) == -1 ||
 	    get_srvr_end(h) == -1)
 		return -1;
 
@@ -985,6 +1086,76 @@ tac_send_authen(struct tac_handle *h)
 		close_connection(h);
 
 	return ar->flags << 8 | ar->status;
+}
+
+int
+tac_send_author(struct tac_handle *h)
+{
+	int i, current;
+	char dbgstr[64];
+	struct tac_author_request *areq = &h->request.u.author_request;
+	struct tac_author_response *ares = &h->response.u.author_response;
+
+	h->request.length =
+		htonl(offsetof(struct tac_author_request, rest[0]));
+
+	/* Count each specified AV pair */
+	for (areq->av_cnt=0, i=0; i<MAXAVPAIRS; i++)
+		if (h->avs[i].len && h->avs[i].data)
+			areq->av_cnt++;
+
+	/*
+	 * Each AV size is a byte starting right after 'av_cnt'.  Update the
+	 * offset to include these AV sizes.
+	 */
+	h->request.length = ntohl(htonl(h->request.length) + areq->av_cnt);
+
+	/* Now add the string arguments from 'h' */
+	if (add_str_8(h, &areq->user_len, &h->user) == -1 ||
+	    add_str_8(h, &areq->port_len, &h->port) == -1 ||
+	    add_str_8(h, &areq->rem_addr_len, &h->rem_addr) == -1)
+		return -1;
+
+	/* Add each AV pair, the size of each placed in areq->rest[current] */
+	for (current=0, i=0; i<MAXAVPAIRS; i++) {
+		if (h->avs[i].len && h->avs[i].data) {
+			if (add_str_8(h, &areq->rest[current++],
+				      &(h->avs[i])) == -1)
+				return -1;
+		}
+	}
+
+	/* Send the message and retrieve the reply. */
+	if (send_msg(h) == -1 || recv_msg(h) == -1)
+		return -1;
+
+	/* Update the offset in the response packet based on av pairs count */
+	h->srvr_pos = offsetof(struct tac_author_response, rest[0]) +
+		ares->av_cnt;
+
+	/* Scan the optional fields in the response. */
+	if (get_srvr_str(h, "msg", &h->srvr_msg, ntohs(ares->msg_len)) == -1 ||
+	    get_srvr_str(h, "data", &h->srvr_data, ntohs(ares->data_len)) ==-1)
+		return -1;
+
+	/* Get each AV pair (just setting pointers, not malloc'ing) */
+	clear_srvr_avs(h);
+	for (i=0; i<ares->av_cnt; i++) {
+		snprintf(dbgstr, sizeof dbgstr, "av-pair-%d", i);
+		if (get_srvr_str(h, dbgstr, &(h->srvr_avs[i]),
+				 ares->rest[i]) == -1)
+			return -1;
+	}
+
+	/* Should have ended up at the end */
+	if (get_srvr_end(h) == -1)
+		return -1;
+
+	/* Sanity checks */
+	if (!h->single_connect)
+		close_connection(h);
+
+	return ares->av_cnt << 8 | ares->status;
 }
 
 int
@@ -1027,6 +1198,99 @@ tac_set_user(struct tac_handle *h, const char *user)
 {
 	return save_str(h, &h->user, user, user != NULL ? strlen(user) : 0);
 }
+
+int
+tac_set_av(struct tac_handle *h, u_int index, const char *av)
+{
+	if (index >= MAXAVPAIRS)
+		return -1;
+	return save_str(h, &(h->avs[index]), av, av != NULL ? strlen(av) : 0);
+}
+
+char *
+tac_get_av(struct tac_handle *h, u_int index)
+{
+	if (index >= MAXAVPAIRS)
+		return NULL;
+	return dup_str(h, &(h->srvr_avs[index]), NULL);
+}
+
+char *
+tac_get_av_value(struct tac_handle *h, const char *attribute)
+{
+	int i, len;
+	const char *ch, *end;
+	const char *candidate;
+	int   candidate_len;
+	int   found_seperator;
+	struct srvr_str srvr;
+
+	if (attribute == NULL || ((len = strlen(attribute)) == 0))
+		return NULL;
+
+	for (i=0; i<MAXAVPAIRS; i++) {
+		candidate = h->srvr_avs[i].data;
+		candidate_len = h->srvr_avs[i].len;
+
+		/*
+		 * Valid 'srvr_avs' guaranteed to be contiguous starting at 
+		 * index 0 (not necessarily the case with 'avs').  Break out
+		 * when the "end" of the list has been reached.
+		 */
+		if (!candidate)
+			break;
+
+		if (len < candidate_len && 
+		    !strncmp(candidate, attribute, len)) {
+
+			ch = candidate + len;
+			end = candidate + candidate_len;
+
+			/*
+			 * Sift out the white space between A and V (should not
+			 * be any, but don't trust implementation of server...)
+			 */
+			found_seperator = 0;
+			while ((*ch == '=' || *ch == '*' || *ch == ' ' ||
+				*ch == '\t') && ch != end) {
+				if (*ch == '=' || *ch == '*')
+					found_seperator++;
+				ch++;
+			}
+
+			/*
+			 * Note:
+			 *     The case of 'attribute' == "foo" and
+			 *     h->srvr_avs[0] = "foobie=var1"
+			 *     h->srvr_avs[1] = "foo=var2"
+			 * is handled.
+			 */
+			if (found_seperator == 1 && ch != end) {
+				srvr.len = end - ch;
+				srvr.data = ch;
+				return dup_str(h, &srvr, NULL);
+			}
+		}
+	}
+	return NULL;
+}
+
+void
+tac_clear_avs(struct tac_handle *h)
+{
+	int i;
+	for (i=0; i<MAXAVPAIRS; i++)
+		save_str(h, &(h->avs[i]), NULL, 0);
+}
+
+static void
+clear_srvr_avs(struct tac_handle *h)
+{
+	int i;
+	for (i=0; i<MAXAVPAIRS; i++)
+		init_srvr_str(&(h->srvr_avs[i]));
+}
+
 
 const char *
 tac_strerror(struct tac_handle *h)

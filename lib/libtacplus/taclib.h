@@ -1,5 +1,5 @@
 /*-
- * Copyright 1998 Juniper Networks, Inc.
+ * Copyright (c) 1998, 2001, Juniper Networks, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,6 +40,10 @@ struct tac_handle;
 /* Disassembly of tac_send_authen() return value. */
 #define	TAC_AUTHEN_STATUS(s)	((s) & 0xff)
 #define TAC_AUTHEN_NOECHO(s)	((s) & (1<<8))
+
+/* Disassembly of tac_send_author() return value. */
+#define	TAC_AUTHOR_STATUS(s)	((s) & 0xff)
+#define TAC_AUTHEN_AV_COUNT(s)	(((s)>>8) & 0xff)
 
 /* Privilege levels */
 #define TAC_PRIV_LVL_MIN	0x00
@@ -82,6 +86,23 @@ struct tac_handle;
 #define TAC_AUTHEN_STATUS_ERROR		0x07
 #define TAC_AUTHEN_STATUS_FOLLOW	0x21
 
+/* Authorization authenticatication methods */
+#define TAC_AUTHEN_METH_NOT_SET         0x00
+#define TAC_AUTHEN_METH_NONE            0x01
+#define TAC_AUTHEN_METH_KRB5            0x02
+#define TAC_AUTHEN_METH_LINE            0x03
+#define TAC_AUTHEN_METH_ENABLE          0x04
+#define TAC_AUTHEN_METH_LOCAL           0x05
+#define TAC_AUTHEN_METH_TACACSPLUS      0x06
+#define TAC_AUTHEN_METH_RCMD            0x20
+/* If adding more, see comments in protocol_version() in taclib.c */
+
+/* Authorization status */
+#define TAC_AUTHOR_STATUS_PASS_ADD      0x01
+#define TAC_AUTHOR_STATUS_PASS_REPL     0x02
+#define TAC_AUTHOR_STATUS_FAIL          0x10
+#define TAC_AUTHOR_STATUS_ERROR         0x11
+
 __BEGIN_DECLS
 int			 tac_add_server(struct tac_handle *,
 			    const char *, int, const char *, int, int);
@@ -100,6 +121,12 @@ int			 tac_set_priv(struct tac_handle *, int);
 int			 tac_set_rem_addr(struct tac_handle *, const char *);
 int			 tac_set_user(struct tac_handle *, const char *);
 const char		*tac_strerror(struct tac_handle *);
+int			 tac_send_author(struct tac_handle *);
+int			 tac_create_author(struct tac_handle *, int, int, int);
+int			 tac_set_av(struct tac_handle *, u_int, const char *);
+char			*tac_get_av(struct tac_handle *, u_int);
+char			*tac_get_av_value(struct tac_handle *, const char *);
+void			 tac_clear_avs(struct tac_handle *);
 __END_DECLS
 
 #endif /* _TACLIB_H_ */
