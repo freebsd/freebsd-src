@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.23 1994/08/06 09:20:56 davidg Exp $
+ *	$Id: vm_machdep.c,v 1.24 1994/08/06 10:25:37 davidg Exp $
  */
 
 #include "npx.h"
@@ -186,13 +186,15 @@ vm_bounce_kva(size, waitok)
 	int i;
 	int startfree;
 	vm_offset_t kva = 0;
+	vm_offset_t off;
 	int s = splbio();
 more:
 	if (!bmfreeing && kvasfreecnt) {
 		bmfreeing = 1;
 		for (i = 0; i < kvasfreecnt; i++) {
-			pmap_remove(kernel_pmap,
-				kvaf[i].addr, kvaf[i].addr + kvaf[i].size);
+			for(off=0;off<kvaf[i].size;off+=NBPG) {
+				pmap_kremove( kvaf[i].addr + off);
+			}
 			kmem_free_wakeup(io_map, kvaf[i].addr,
 				kvaf[i].size);
 		}
@@ -669,9 +671,8 @@ pagemove(from, to, size)
 			panic("pagemove 2");
 		if (pmap_kextract((vm_offset_t)to) != 0)
 			panic("pagemove 3");
-		pmap_remove(kernel_pmap,
-			    (vm_offset_t)from, (vm_offset_t)from + PAGE_SIZE);
-		pmap_kenter( (vm_offset_t)to, pa);
+		pmap_kremove((vm_offset_t)from);
+		pmap_kenter((vm_offset_t)to, pa);
 		from += PAGE_SIZE;
 		to += PAGE_SIZE;
 		size -= PAGE_SIZE;
@@ -730,7 +731,7 @@ vmapbuf(bp)
 		v = trunc_page(((vm_offset_t)vtopte(addr)));
 		if (v != lastv) {
 			vm_fault_quick(v, VM_PROT_READ);
-			pa = pmap_extract(&curproc->p_vmspace->vm_pmap, v);
+			pa = pmap_kextract( v);
 			vm_page_hold(PHYS_TO_VM_PAGE(pa));
 			lastv = v;
 		}
@@ -741,7 +742,7 @@ vmapbuf(bp)
  */
 		vm_fault_quick(addr,
 			(bp->b_flags&B_READ)?(VM_PROT_READ|VM_PROT_WRITE):VM_PROT_READ);
-		pa = pmap_extract(&curproc->p_vmspace->vm_pmap, (vm_offset_t) addr);
+		pa = pmap_kextract((vm_offset_t) addr);
 /*
  * hold the data page
  */
@@ -753,7 +754,7 @@ vmapbuf(bp)
 	npf = btoc(round_page(bp->b_bufsize + off));
 	bp->b_data = (caddr_t) (kva + off);
 	while (npf--) {
-		pa = pmap_extract(&curproc->p_vmspace->vm_pmap, (vm_offset_t)addr);
+		pa = pmap_kextract((vm_offset_t)addr);
 		if (pa == 0)
 			panic("vmapbuf: null page frame");
 		pmap_kenter(kva, trunc_page(pa));
@@ -771,12 +772,17 @@ void
 vunmapbuf(bp)
 	register struct buf *bp;
 {
-	register int npf;
-	register caddr_t addr = bp->b_data;
+	register caddr_t addr;
 	vm_offset_t kva,va,v,lastv,pa;
 
 	if ((bp->b_flags & B_PHYS) == 0)
 		panic("vunmapbuf");
+
+	for (addr = (caddr_t)trunc_page((vm_offset_t) bp->b_data);
+		addr < bp->b_data + bp->b_bufsize;
+		addr += NBPG)
+		pmap_kremove((vm_offset_t) addr);
+		
 	bp->b_data = bp->b_saveaddr;
 	bp->b_saveaddr = NULL;
 
@@ -784,14 +790,14 @@ vunmapbuf(bp)
  * unhold the pde, and data pages
  */
 	lastv = 0;
-	for (addr = (caddr_t)trunc_page(bp->b_data);
+	for (addr = (caddr_t)trunc_page((vm_offset_t) bp->b_data);
 		addr < bp->b_data + bp->b_bufsize;
 		addr += NBPG) {
 
 	/*
 	 * release the data page
 	 */
-		pa = pmap_extract(&curproc->p_vmspace->vm_pmap, (vm_offset_t) addr);
+		pa = pmap_kextract((vm_offset_t) addr);
 		vm_page_unhold(PHYS_TO_VM_PAGE(pa));
 
 	/*
@@ -799,11 +805,10 @@ vunmapbuf(bp)
 	 */
 		v = trunc_page(((vm_offset_t)vtopte(addr)));
 		if (v != lastv) {
-			pa = pmap_extract(&curproc->p_vmspace->vm_pmap, v);
+			pa = pmap_kextract(v);
 			vm_page_unhold(PHYS_TO_VM_PAGE(pa));
 			lastv = v;
 		}
-		pmap_kremove((vm_offset_t)addr);
 	}
 }
 
