@@ -66,7 +66,7 @@ struct kobj_class {
  * Implementation of kobj.
  */
 #define KOBJ_FIELDS				\
-	kobj_ops_t	ops;
+	kobj_ops_t	ops
 
 struct kobj {
 	KOBJ_FIELDS;
