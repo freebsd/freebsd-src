@@ -218,7 +218,8 @@ filt_procattach(struct knote *kn)
 		kn->kn_flags &= ~EV_FLAG1;
 	}
 
-	SLIST_INSERT_HEAD(&p->p_klist, kn, kn_selnext);
+	if (immediate == 0)
+		SLIST_INSERT_HEAD(&p->p_klist, kn, kn_selnext);
 
 	/*
 	 * Immediately activate any exit notes if the target process is a
@@ -278,13 +279,6 @@ filt_proc(struct knote *kn, long hint)
 		kn->kn_flags |= (EV_EOF | EV_ONESHOT); 
 		return (1);
 	}
-
-	/*
-	 * Process will already be reported as gone.
-	 * Do not report anything else, as the knote will be destroyed soon.
-	 */
-	if (kn->kn_status & KN_DETACHED)
-		return (0);
 
 	/*
 	 * process forked, and user wants to track the new process,
