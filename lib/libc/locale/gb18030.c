@@ -71,7 +71,7 @@ int
 _GB18030_mbsinit(const mbstate_t *ps)
 {
 
-	return (ps == NULL || ((_GB18030State *)ps)->count == 0);
+	return (ps == NULL || ((const _GB18030State *)ps)->count == 0);
 }
 
 size_t
