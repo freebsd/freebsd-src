@@ -33,309 +33,235 @@
  */
 
 #include <strhash.h>
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <ncurses.h>
 #include <forms.h>
 #include <err.h>
-#include <ncurses.h>
 
 #include "internal.h"
 
 extern FILE *yyin;
+hash_table *root_table, *cbind;
+OBJECT *cur_obj;
+int done;
 
-hash_table *global_bindings;
-
-unsigned int f_keymap[] = {
-	KEY_UP,         /* F_UP */
-	KEY_DOWN,       /* F_DOWN */
-	9,          /* F_RIGHT */
-	8,          /* F_LEFT */
-	10,         /* F_NEXT */
-	KEY_LEFT,       /* F_CLEFT */
-	KEY_RIGHT,      /* F_CRIGHT */
-	KEY_HOME,       /* F_CHOME */
-	KEY_END,        /* F_CEND */
-	263,            /* F_CBS */
-	330,            /* F_CDEL */
-	10          /* F_ACCEPT */
+/* Default attribute commands */
+struct attr_cmnd attr_cmnds[] = {
+	{"box",		ATTR_BOX	},
+	{"center",	ATTR_CENTER	},
+	{"right",	ATTR_RIGHT	}
 };
 
+/* Internal bindings */
+
+struct intbind {
+	char *key;
+	void *addr;
+};
+
+struct intbind internal_bindings[] = {
+	{"draw_box", &draw_box},
+	{"draw_shadow", &draw_shadow}
+};  
+
+/* Bind the internal function addresses */
+
+void
+bind_internals(hash_table *table)
+{
+	int i;
+
+	for (i=0; i < (sizeof internal_bindings)/(sizeof (struct intbind)); i++)
+		if (bind_tuple(table, internal_bindings[i].key,
+					   TT_FUNC, internal_bindings[i].addr) == ST_ERROR)
+			errx(-1, "Failed to bind internal tuples");
+}
+
+/*
+ * Find the default device and open a display on it.
+ */
+
+DISPLAY *
+default_open(DISPLAY *display)
+{
+	/* XXX -- not implemented, just calls ncurses */
+	return (ncurses_open(display));
+
+}
+
 int
-form_load(const char *filename)
+load_objects(const char *filename)
 {
 	FILE *fd;
 
-	global_bindings = hash_create(0);
+	root_table = hash_create(0);
+	if (!root_table)
+		errx(-1, "Failed to allocate root bindings table");
 
-	if (!global_bindings)
-		return (FS_ERROR);
+	cbind = root_table;
+
+	bind_internals(root_table);
 
 	if (!(fd = fopen(filename, "r"))) {
-		warn("Couldn't open forms file %s", filename);
-		return (FS_ERROR);
+		warn("Couldn't open file %s", filename);
+		return (ST_ERROR);
 	}
 
 	yyin = fd;
 	yyparse();
 
 	if (fclose(fd)) {
-		warn("Couldn't close forms file %s", filename);
-		return (FS_ERROR);
+		warn("Couldn't close file %s", filename);
+		return (ST_ERROR);
 	}
 
-	hash_stats(global_bindings, 1);
-
-	return (FS_OK);
+	return (ST_OK);
 }
 
 int
-find_editable(char *key, void *data, void *arg)
+start_object(char *objname)
 {
-	struct Tuple *tuple = (struct Tuple *)data;
-	struct Field *field;
+	TUPLE *tuple;
+	OBJECT *object;
 
-	if (tuple->type != FT_FIELD_INST)
-		return (1);
+	tuple = get_tuple(root_table, objname, TT_OBJ_INST);
+	if (!tuple)
+		return (ST_NOBIND);
 
-	field = (struct Field *)tuple->addr;
+	object = (OBJECT *)tuple->addr;
+	cur_obj = object;
 
-	if ((field->type == FF_INPUT) ||
-		(field->type == FF_MENU) ||
-		(field->type == FF_ACTION)) {
-		arg = field;
-		return (0);
-	} else
-		return (1);
-}
+	set_display(object->display);
 
-struct Form *
-form_start(char *formname)
-{
-	struct Tuple *tuple;
-	struct Form *form;
-	struct Field *field = 0;
-	struct Field *start = 0;
+	cur_obj->status |= O_VISIBLE;
 
-	tuple = form_get_tuple(global_bindings, formname, FT_FORM);
-
-	if (!tuple) {
-		warnx("No such form");
-		return (0);
+	while (!done) {
+		hash_traverse(root_table, &display_tuples, root_table);
+		hash_traverse(root_table, &refresh_displays, root_table);
+		process_object(cur_obj);
 	}
-
-	form = tuple->addr;
-
-	/* Initialise form */
-	if (!form->height)
-		form->height = LINES;
-	if (!form->width)
-		form->width = COLS;
-
-	form->window = newwin(form->height, form->width, form->y, form->x);
-	if (!form->window) {
-		warnx("Couldn't open window, closing form");
-		return (0);
-	}
-
-	/* Initialise the field instances */
-
-	hash_traverse(form->bindings, init_field, field);
-
-	tuple = form_get_tuple(form->bindings, form->startfield, FT_FIELD_INST);
-
-	if (!tuple) {
-		warnx("No start field specified");
-		/* Search for an editable field */
-		hash_traverse(form->bindings, &find_editable, start);
-		form->current_field = start;
-	} else	
-		form->current_field = (struct Field *)tuple->addr;
-
-	if (!form->current_field)
-		errx(1, "No suitable start field found, aborting");
-
-	form->prev_field = form->current_field;
-
-	form->status = FS_RUNNING;
-
-	return (form);
+	return (ST_DONE);
 }
 
 int
-form_bind_tuple(hash_table *htable, char *name, TupleType type, void *addr)
+call_function(char *func, OBJECT *obj)
 {
-	struct Tuple *tuple;
+	TUPLE *tuple;
 
-	tuple = malloc(sizeof (struct Tuple));
-	if (!tuple) {
-		warn("Couldn't allocate memory for new tuple");
-		return (FS_ERROR);
-	}
-
-	tuple->name = name;
-	tuple->type = type;
-	tuple->addr = addr;
-	tuple->next = 0;
-
-	if (!htable)
-		return (FS_ERROR);
-	else {
-		/* Check there isn't already a tuple of this type with this name */
-		if (form_get_tuple(htable, name, type)) {
-			warn("Duplicate tuple name, %s, skipping", name);
-			return (FS_ERROR);
-		} else
-			hash_search(htable, tuple->name, tuple, NULL);
-	}
-
-	return (0);
-}
-
-int
-tuple_match_any(char *key, struct Tuple *tuple, TupleType *type)
-{
-	if (tuple->type != *type) {
-		type = 0;
-		return (1);
-	} else {
-		type = (TupleType *)tuple;
+	tuple = tuple_search(obj, func, TT_FUNC);
+	if (!tuple)
 		return (0);
+
+	(*tuple->addr)(obj);
+	return (1);
+}
+
+set_display(DISPLAY *display)
+{
+	switch (display->type) {
+		case DT_NCURSES:
+			ncurses_set_display(display);
+			break;
+		default:
+			break;
 	}
 }
 
-struct Tuple *
-form_get_tuple(hash_table *htable, char *key, TupleType type)
+void
+display_object(OBJECT *obj)
 {
-	void *arg = &type;
+	switch(obj->display->type) {
+		case DT_NCURSES:
+			ncurses_display_object(obj);
+			break;
+		default:
+			break;
+	}
+}
 
-	/*
-	 * If a key is specified then search for that key,
-	 * otherwise, search the whole table for the first
-	 * tuple of the required type.
-	 */
+void
+process_object(OBJECT *obj)
+{
+	TUPLE *tuple;
 
-	if (key)
-		return(hash_search(htable, key, NULL, NULL));
-	else {
-		hash_traverse(htable, &tuple_match_any, arg);
-		return (arg);
+	/* Call user routine, if there is one. */
+	if (obj->UserProcFunc)
+		if (call_function(obj->UserProcFunc, obj))
+			return;
+
+	/* Find the first non-compound object or a default override */
+	while (obj->type == OT_COMPOUND) {
+		tuple = tuple_search(obj, obj->object.compound->defobj, TT_OBJ_INST);
+		obj = (OBJECT *)tuple->addr;
+	}
+	cur_obj = obj;
+
+	switch(obj->display->type) {
+		case DT_NCURSES:
+			ncurses_process_object(obj);
+			break;
+		default:
+			break;
 	}
 }
 
 int
-show_field(char *key, void *data, void *arg)
+refresh_displays(char *key, void *data, void *arg)
 {
-	struct Tuple *tuple = (struct Tuple *)data;
-	struct Field *field = (struct Field *)tuple->addr;
+	TUPLE *tuple = (TUPLE *)data;
+	DISPLAY *display;
 
-	display_field(arg, field);
+	if (tuple->type == TT_DISPLAY)
+		display = (DISPLAY *)tuple->addr;
+		switch (display->type) {
+			case DT_NCURSES:
+				ncurses_refresh_display(display);
+				break;
+			default:
+				break;
+		}
 
 	return (1);
-
 }
 
 int
-form_show(char *formname)
+display_tuples(char *key, void *data, void *arg)
 {
-	struct Tuple *tuple;
-	struct Form *form;
-	int x, y;
+	TUPLE *tuple = (TUPLE *)data;
+	OBJECT *obj;
+	void (* fn)();
 
-	tuple = form_get_tuple(global_bindings, formname, FT_FORM);
-	if (!tuple)
-		return (FS_NOBIND);
+    switch(tuple->type) {
+		case TT_OBJ_INST:
+			obj = (OBJECT *)tuple->addr;
 
-	form = tuple->addr;
+			/* Call user routine, if there is one. */
+			if (obj->UserDrawFunc) {
+				if (!call_function(obj->UserDrawFunc, obj))
+					display_object(obj);
+			} else
+				display_object(obj);
 
-	/* Clear form */
-	wattrset(form->window, form->attr);
-	for (y=0; y < form->height; y++)
-		for (x=0; x < form->width; x++)
-			mvwaddch(form->window, y, x, ' ');
-
-	hash_traverse(form->bindings, show_field, form->window);
-
-	return (FS_OK);
-}
-
-unsigned int
-do_key_bind(struct Form *form, unsigned int ch)
-{
-	struct Field *field = form->current_field;
-	struct Tuple *tuple=0;
-
-	/* XXX -- check for keymappings here --- not yet done */
-
-	if (ch == FK_UP) {
-		if (field->fup) {
-			tuple = form_get_tuple(form->bindings, field->fup, FT_FIELD_INST);
-			if (!tuple)
-				print_status("Field to move up to does not exist");
-		} else
-			print_status("Can't move up from this field");
-	} else if (ch == FK_DOWN) {
-		if (field->fdown) {
-			tuple = form_get_tuple(form->bindings, field->fdown, FT_FIELD_INST);
-			if (!tuple)
-				print_status("Field to move down to does not exist");
-		} else
-			print_status("Can't move down from this field");
-	} else if (ch == FK_LEFT) {
-		if (field->fleft) {
-			tuple = form_get_tuple(form->bindings, field->fleft, FT_FIELD_INST);
-			if (!tuple)
-				print_status("Field to move left to does not exist");
-		} else
-			print_status("Can't move left from this field");
-	} else if (ch == FK_RIGHT) {
-		if (field->fright) {
-			tuple = form_get_tuple(form->bindings, field->fright, FT_FIELD_INST);
-			if (!tuple)
-				print_status("Field to move right to does not exist");
-		} else
-			print_status("Can't move right from this field");
-	} else if (ch == FK_NEXT) {
-		if (field->fnext) {
-			tuple = form_get_tuple(form->bindings, field->fnext, FT_FIELD_INST);
-			if (!tuple)
-				print_status("Field to move to next does not exist");
-		} else
-			print_status("Can't move next from this field");
-	} else
-		/* No motion keys pressed */
-		return (ch);
-
-	if (tuple) {
-		form->prev_field = form->current_field;
-		form->current_field = tuple->addr;
-		return (FS_OK);
-	} else {
-		beep();
-		return (FS_ERROR);
+			/* Display sub-objects */
+			if (obj->bind)
+				hash_traverse(obj->bind, &display_tuples, 0);
+			break;
+		default:
+			break;
 	}
+	return (1);
 }
 
-#ifdef DEBUG_NOT_YET
-void
-debug_dump_bindings(hash_table *htable)
+AttrType
+parse_default_attributes(char *string)
 {
-	struct Tuple *binds;
+	int i;
 
-	binds = form_get_tuple(htable, 0, FT_ANY);
-	while (binds) {
-		printf("%s, %d, %x\n", binds->name, binds->type, (int)binds->addr);
-		binds = form_next_tuple(0, FT_ANY, binds->next);
-	}
+	for (i=0; i < (sizeof attr_cmnds) / (sizeof (struct attr_cmnd)); i++)
+		if (!strcmp(string, attr_cmnds[i].attr_name))
+			return (attr_cmnds[i].attr_type);
+	return (ATTR_UNKNOWN);
 }
-
-void debug_dump_form(struct Form *form)
-{
-	struct Field *field;
-
-	field = form->fieldlist;
-
-	for ( ; field; field = field->next) {
-		printf("%s, %x, next = %x\n", field->defname, (int)field, (int)field->next);
-	}
-}
-#endif

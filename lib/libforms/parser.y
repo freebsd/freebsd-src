@@ -37,73 +37,29 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <ncurses.h>
 #include <forms.h>
 #include <err.h>
 
 #include "internal.h"
 
-char *cpstr(char *);
-
 extern int yyleng;
 int lineno = 1;
-int charno = 1;
-int off;
 
-char *fieldname;
-char *defname;
-char *formname;
-char *startname;
-char *colortable;
-int formattr;
-char *text;
-char *label;
-char *function;
-char *up, *down, *left, *right, *next;
-int height, width;
-int y, x;
-int width;
-int limit;
-int attr;
-int selattr;
-int type;
-int lbl_flag;
-int selected, no_options=0;
+OBJECT *parent;
+extern hash_table *cbind;
 
-extern FILE *outf;
-extern hash_table *global_bindings;
 
-struct MenuList {
-	char *option;
-	struct MenuList *next;
-};
+/* Some variables for holding temporary values as we parse objects */
 
-struct MenuList *cur_menu;
-struct MenuList *menu_list;
-struct MenuList *menu;
+OBJECT *object, *tmpobj;
+DISPLAY *display;
 
-struct pair_node {
-	char *foreground;
-	char *background;
-	struct pair_node *next;
-};
-struct pair_node *pair_list;
-struct pair_node *cur_pair;
-struct pair_node *pair;
+int tmp, len;
+char *tmpstr, *objname, *dispname, *useobj;
+TUPLE *tmptuple;
+TupleType t_type;
 
-struct color_table {
-	char *tablename;
-	struct pair_node *pairs;
-	struct color_table *next;
-};
-
-struct color_table *color_table;
-struct color_table *cur_table;
-struct color_table *color_tables;
-
-struct Form *form;
-struct Field *field_inst_list;
-struct Field *field;
-struct Field *cur_field;
 %}
 
 %union {
@@ -111,9 +67,49 @@ struct Field *cur_field;
 	char *sval;
 }
 
-%token <ival> FORM
-%token <ival> COLORTABLE
-%token <ival> COLOR
+%token <ival> ACTION
+%token <ival> ACTIVE
+%token <ival> AS
+%token <ival> AT
+%token <ival> ATTR
+%token <ival> ATTRTABLE
+%token <ival> CALLFUNC
+%token <ival> COLORPAIRS
+%token <ival> DEFAULT
+%token <ival> A_DISPLAY
+%token <ival> DOWN
+%token <ival> FORMS
+%token <ival> FUNCTION
+%token <ival> HANDLER
+%token <ival> HEIGHT
+%token <ival> INPUT
+%token <ival> INPUTFILE
+%token <ival> LABEL
+%token <ival> LEFT
+%token <ival> LIMIT
+%token <ival> MENU
+%token <ival> NCURSES
+%token <ival> NEXT
+%token <ival> AN_OBJECT
+%token <ival> ON
+%token <ival> ONENTRY
+%token <ival> ONEXIT
+%token <ival> OPTIONS
+%token <ival> OUTPUTFILE
+%token <ival> RIGHT
+%token <ival> HIGHLIGHT
+%token <ival> SELECTED
+%token <ival> TEXT
+%token <ival> TTYNAME
+%token <ival> TYPE
+%token <ival> UP
+%token <ival> USE
+%token <ival> USERDRAWFUNC
+%token <ival> USERPROCFUNC
+%token <ival> VERSION
+%token <ival> WIDTH
+%token <ival> WINDOW
+
 %token <ival> BLACK
 %token <ival> RED
 %token <ival> GREEN
@@ -122,308 +118,605 @@ struct Field *cur_field;
 %token <ival> MAGENTA
 %token <ival> CYAN
 %token <ival> WHITE
-%token <ival> PAIR
-%token <sval> NAME
-%token <sval> STRING
-%token <ival> AT
-%token <ival> AS
-%token <ival> HEIGHT
-%token <ival> EQUALS
-%token <ival> NUMBER
-%token <ival> WIDTH
-%token <ival> STARTFIELD
+
 %token <ival> COMMA
+%token <ival> SEMICOLON
 %token <ival> LBRACE
 %token <ival> RBRACE
-%token <ival> TEXT
-%token <ival> ATTR
-%token <ival> SELATTR
-%token <ival> DEFAULT
-%token <ival> LABEL
-%token <ival> LIMIT
-%token <ival> SELECTED
-%token <ival> OPTIONS
-%token <ival> ACTION
-%token <ival> FUNC
-%token <ival> LINK
-%token <ival> UP
-%token <ival> DOWN
-%token <ival> LEFT
-%token <ival> RIGHT
-%token <ival> NEXT
-%token <ival> DEF
 
-%type <sval> a_color
+%token <sval> NAME
+%token <ival> NUMBER
+%token <sval> STRING
 
-%start spec
+%type <ival> color
+
+%start forms
 
 %%
 
-spec: /* empty */
-	| spec fields
-	| spec forms
-	| spec colours
+forms: FORMS VERSION NAME spec
+	{
+#ifdef DEBUG
+		printf("Forms language version %s\n", $3);
+#endif
+	}
 	;
 
-colours: COLOR NAME 
+spec: /* empty */
+	| spec display 
+	| spec window
+	| spec object
+	;
+
+display: A_DISPLAY NAME
 		{
-			color_table = malloc(sizeof (struct color_table));
-			if (!color_table) {
-				fprintf(stderr, "Couldn't allocate memory for a color table\n");
-				exit (1);
-			}
-			color_table->tablename = cpstr($2);
+			dispname = $2;
+			display = malloc(sizeof (DISPLAY));
+			if (!display)
+				errx(-1,
+					"Failed to allocate memory for display (%d)", lineno);
 		}
-	LBRACE color_pairs RBRACE
+	LBRACE HEIGHT NUMBER 
 		{
-			color_table->pairs = pair_list;
-			cur_pair = 0;
-			form_bind_tuple(global_bindings, color_table->tablename, FT_COLTAB, color_table);
+			display->virt_height = $6;
 		}
+	WIDTH NUMBER 
+		{
+			display->virt_width = $9;
+		}
+	disp_type disp_attr_table RBRACE
+		{
+			if (!display)
+				errx(-1, "Failed to open display (%d)", lineno);
+			bind_tuple(root_table, dispname, TT_DISPLAY, (FUNCP)display);
+			dispname = 0;
+		}
+	;
+
+disp_type: /* empty */
+		{
+			display->type = DT_ANY;
+			display->device = 0;
+			display = default_open(display);
+		}
+	| TYPE NCURSES device_ncurses
+		{ display->type = DT_NCURSES; }
+	;
+
+device_ncurses: /* empty */
+		{
+			/* Use ncurses drivers but on a default tty */
+			display->device.ncurses = 0;
+			display = ncurses_open(display);
+		}
+	| LBRACE device_ncurses_tty 
+		{
+			display = ncurses_open(display);
+		}
+	  device_ncurses_colors RBRACE
+	;
+
+device_ncurses_tty: /* empty */
+		{
+			/* Use ncurses drivers but on a default tty */
+			display->device.ncurses = 0;
+		}
+	| TTYNAME STRING INPUTFILE STRING OUTPUTFILE STRING
+		{
+			display->device.ncurses = (NCURSDEV *)malloc(sizeof (NCURSDEV));
+			if (!display->device.ncurses)
+				errx(-1, "Failed to allocate memory for ncurses device (%d)", lineno);
+			display->device.ncurses->ttyname = $2;
+			display->device.ncurses->input = $4;
+			display->device.ncurses->output = $6;
+		}
+	;
+
+device_ncurses_colors: /* empty */
+	| COLORPAIRS LBRACE color_pairs RBRACE
 	;
 
 color_pairs: /* empty */
-	| color_pairs pair
+	| color_pairs color_pair
 	;
 
-pair: PAIR EQUALS a_color
-		{
-			pair = malloc(sizeof (struct pair_node));
-			if (!pair) {
-				fprintf(stderr, "Couldn't allocate memory for a color pair\n");
-				exit(1);
-			}
-			pair->foreground = cpstr($3);
-		}
-	COMMA a_color
-		{
-			pair->background = cpstr($6);
-			if (!cur_pair) {
-				pair_list = pair;
-				cur_pair = pair;
-			} else {
-				cur_pair->next = pair;
-				cur_pair = pair;
-			}
-		}
+color_pair: NUMBER color color
+	{
+		if (display)
+			init_pair($1, $2, $3);
+	}
 	;
 
-a_color: BLACK
-		{ $$ = "COLOR_BLACK"; }
+color: BLACK
+		{ $$ = COLOR_BLACK; }
 	| RED
-		{ $$ = "COLOR_RED"; }
-	| GREEN
-		{ $$ = "COLOR_GREEN"; }
+		{ $$ = COLOR_RED; }
+	| GREEN	
+		{ $$ = COLOR_GREEN; }
 	| YELLOW
-		{ $$ = "COLOR_YELLOW"; }
+		{ $$ = COLOR_YELLOW; }
 	| BLUE
-		{ $$ = "COLOR_BLUE"; }
+		{ $$ = COLOR_BLUE; }
 	| MAGENTA
-		{ $$ = "COLOR_MAGENTA"; }
+		{ $$ = COLOR_MAGENTA; }
 	| CYAN
-		{ $$ = "COLOR_CYAN"; }
+		{ $$ = COLOR_CYAN; }
 	| WHITE
-		{ $$ = "COLOR_WHITE"; }
-	;
+		{ $$ = COLOR_WHITE; }
+	;		
 
-forms:  FORM NAME 
-		 { formname = cpstr($2); }
-	AT coord 
+disp_attr_table: /* empty */
+		{ display->bind = 0; }
+	| ATTRTABLE 
 		{
-			form = malloc(sizeof (struct Form));
-			if (!form) {
-				fprintf(stderr,"Failed to allocate memory for form\n");
-				exit(1);
-			}
-			form->bindings = hash_create(0);
-			if (!form->bindings)
-				errx(1, "Failed to allocate hash table for form");
-			form->y = y;
-			form->x = x;
+			display->bind = hash_create(0);
+			if (!display->bind)
+				errx(-1, "Failed to allocate memory for display bindings (%d)", lineno);
 		}
-	LBRACE formspec RBRACE
+	LBRACE disp_attrs RBRACE
+	;
+
+disp_attrs: /* empty */
+	| disp_attrs disp_attr
+	;
+
+disp_attr: NAME NUMBER
+		{ bind_tuple(display->bind, $1, TT_ATTR, (FUNCP)$2); }
+	;
+
+window: WINDOW NAME ON NAME AT NUMBER COMMA NUMBER LBRACE
 		{
-			form->startfield = startname;
-			form->colortable = colortable;
-			form->height = height;
-			form->width = width;
-			form->attr = formattr;
-			form_bind_tuple(global_bindings, formname, FT_FORM, form);
+			objname = $2;
+			dispname = $4;
+			object = malloc(sizeof (OBJECT));
+			if (!object)
+				errx(-1, "Failed to allocate memory for window (%d)", lineno);
+
+			object->y = $6;
+			object->x = $8;
+			object->status = O_VISIBLE;
+			object->bind = hash_create(0);
+			if (!object->bind)
+				errx(-1, "Failed to allocate memory for window's bindings (%d)", lineno);
 		}
-	;
+ object_params
+		{
+			tmptuple = tuple_search(object, dispname, TT_DISPLAY);
+			if (!tmptuple)
+				errx(-1, "Couldn't find binding for display (%d)", lineno);
+			free(dispname);
+			object->display = (struct Display *)tmptuple->addr;
 
-formspec: height width startfield colortable formattr fieldlocs
-	;
-
-startfield:	/* empty */
-		{	startname = 0; 
-			printf("Warning: No start field specified for form %s\n", formname);
-		}
-	| STARTFIELD EQUALS NAME
-		{ startname = cpstr($3); }
-	;
-
-colortable: /*empty */
-		{ colortable = 0; }
-	| COLORTABLE EQUALS NAME
-		{ colortable = cpstr($3); }
-	;
-
-formattr: /* empty */
-		{ formattr = 0; }
-	| ATTR EQUALS NUMBER
-		{ formattr = $3; }
-	;
-
-fieldlocs:	/* empty */
-	| fieldlocs field_at
-	;
-
-field_at: NAME 
-		 { fieldname = cpstr($1); }
-	field_def AT coord
-		{ 
-			field = malloc(sizeof (struct Field));
-			if (!field) {
-				fprintf(stderr,"Failed to allocate memory for form field\n");
-				exit(1);
+			switch (object->display->type) {
+				case DT_NCURSES:
+				default:
+					object->window.ncurses = malloc(sizeof (NCURSES_WINDOW));	
+					if (!object->window.ncurses)
+						errx(-1, "Failed to allocate memory for ncurses window, (%d)", lineno);
+					ncurses_open_window(object);
+					break;
 			}
-			if (!defname)
-				field->defname = fieldname;
+			object->parent = 0;
+			if (!object->height)
+				object->height = display->height;
+			if (!object->width)
+				object->width = display->width;
+			bind_tuple(root_table, objname, TT_OBJ_INST, (FUNCP)object);
+			parent = object;
+			cbind = parent->bind;
+		}
+	object RBRACE
+		{
+			parent = 0;
+			cbind = root_table;
+		}
+	;
+
+objects: /* empty */
+	| objects object
+	;
+
+object: NAME
+		 { 
+			objname = $1;
+			object = malloc(sizeof (OBJECT));
+			if (!object)
+				errx(-1, "Failed to allocate memory for object (%d)", lineno);
+
+			object->bind = hash_create(0);
+			if (!object->bind)
+				errx(-1, "Failed to allocate memory for ",
+						 "object's bindings (%d)", lineno);
+		}
+	at LBRACE use_copy
+		{
+			if (useobj) {
+				/* Need to declare parent to see previous scope levels */
+				object->parent = parent;
+				if (use_defined_object(object, useobj) == ST_NOBIND)
+					errx(-1, "Object, %s, not found in scope (%d)",
+						 useobj, lineno);
+			}
+		}
+	object_params
+		{
+			/*
+			 * If this is a function object convert it from
+			 * a definition to an instance (see 'at' below).
+			 */
+			if (object->type == OT_FUNCTION)
+				t_type = TT_OBJ_INST;
+
+			/*
+			 * If this is an instance object and it doesn't
+			 * have a parent then there's a syntax error since
+			 * instances can only be specified inside windows.
+			 */
+			if (parent)
+				inherit_properties(object, parent);
+			else if (t_type != TT_OBJ_DEF)
+				errx(-1, "Object, %s, has no parent (%d)", objname, lineno);
+
+			/* Propagate defobj up through nested compounds */
+			if (t_type == TT_OBJ_INST &&
+				parent && parent->type == OT_COMPOUND &&
+				!parent->object.compound->defobj)
+				parent->object.compound->defobj =
+					strdup(objname);
+
+			/* Add object and go down to next object */
+			bind_tuple(cbind, objname, t_type, (FUNCP)object);
+			parent = object;
+			cbind = object->bind;
+		}
+	objects RBRACE
+		{
+			parent = object->parent;
+			if (parent)
+				cbind = parent->bind;
 			else
-				field->defname = defname;
-			field->y = y;
-			field->x = x;
+				cbind = root_table;
+			object = parent;
 		}
-	links
+	;
+
+at: /* empty */
 		{
-			field->fup = up;
-			field->fdown = down;
-			field->fleft = left;
-			field->fright = right;
-			field->fnext = next;
-			up = 0;
-			down = 0;
-			left = 0;
-			right = 0;
-			next = 0;
-			form_bind_tuple(form->bindings, fieldname, FT_FIELD_INST, field);
+			/*
+			 * If there's no 'at' part specified then this is
+			 * either a definition rather than an instance of
+			 * an object or it's a function. Set it to a definition,
+			 * we deal with the function case above.
+			 */
+			t_type = TT_OBJ_DEF;
+			object->y = 0;
+			object->x = 0;
+		}
+	| AT NUMBER COMMA NUMBER
+		{
+			t_type = TT_OBJ_INST;
+			object->y = $2;
+			object->x = $4;
 		}
 	;
 
-fields: NAME 
-		{ defname = cpstr($1); }
-	field_spec
-		{ define_field(defname); }
+use_copy: /* empty */
+		{ useobj = 0; }
+	| USE NAME 
+		{ useobj = $2; }
 	;
 
-field_def: /* empty */
-		{ defname = 0; }
-	| LBRACE NAME 
-		{ defname = cpstr($2); }
-	  RBRACE
-	| field_spec
-		{ defname = fieldname; define_field(defname); }
+object_params: user_draw_func user_proc_func height width attributes highlight on_entry on_exit links object_type
 	;
 
-field_spec: LBRACE height width attr selattr type RBRACE
+object_type: /* empty */
+		{
+			/* If we haven't inherited a type assume it's a compound */
+			if (!object->type) {
+				object->type = OT_COMPOUND;
+				object->object.compound = malloc(sizeof (COMPOUND_OBJECT));
+				if (!object->object.compound)
+					errx(-1, "Failed to allocate memory for object, (%d)\n",
+						 lineno);
+				object->object.compound->defobj = 0;
+			}
+		}
+	| object_action
+	| object_compound
+	| object_function
+	| object_input
+	| object_menu
+	| object_text
 	;
 
 links: /* empty */
-	| links COMMA conns
+	| links  conns
 	;
 
-conns: UP EQUALS NAME
-		{ up = cpstr($3); }
-	| DOWN EQUALS NAME
-		{ down = cpstr($3); }
-	| LEFT EQUALS NAME
-		{ left = cpstr($3); }
-	| RIGHT EQUALS NAME
-		{ right = cpstr($3); }
-	| NEXT EQUALS NAME
-		{ next = cpstr($3); }
+conns: UP NAME
+		{ 
+			if (object->lup)
+				free(object->lup);
+			object->lup = $2;
+		}
+	| DOWN NAME
+		{ 
+			if (object->ldown)
+				free(object->ldown);
+			object->ldown = $2;
+		}
+	| LEFT NAME
+		{ 
+			if (object->lleft)
+				free(object->lleft);
+			object->lleft = $2;
+		}
+	| RIGHT NAME
+		{ 
+			if (object->lright)
+				free(object->lright);
+			object->lright = $2;
+		}
+	| NEXT NAME
+		{ 
+			if (object->lnext)
+				free(object->lnext);
+			object->lnext = $2;
+		}
 	;
 
-type: textfield
-	| inputfield
-	| menufield
-	| actionfield
+/*
+ * Parse the action object type.
+ */
+
+object_action: ACTION NAME LABEL STRING
+	{
+		object->type = OT_ACTION;
+		object->object.action = malloc(sizeof (ACTION_OBJECT));
+		if (!object->object.action)
+			errx(-1, "Failed to allocate memory for object, (%d)\n", lineno);
+		object->object.action->action = $2;
+		object->object.action->text = $4;
+		if (!object->width)
+			object->width = calc_string_width(object->object.text->text);
+		if (!object->height)
+			calc_object_height(object, object->object.text->text);
+	}
 	;
 
-textfield:	TEXT EQUALS STRING
-			{ type = FF_TEXT; text = cpstr($3); }
+/*
+ * Parse the compound object type.
+ */
+
+object_compound: ACTIVE NAME
+	{
+		object->type = OT_COMPOUND;
+		object->object.compound = malloc(sizeof (COMPOUND_OBJECT));
+		if (!object->object.compound)
+			errx(-1, "Failed to allocate memory for object, (%d)\n", lineno);
+		object->object.compound->defobj = $2;
+	}
 	;
 
-inputfield:	inputspec
-			{ type = FF_INPUT; }
+/*
+ * Parse the function object type
+ */
+
+object_function: CALLFUNC NAME 
+		{
+			object->type = OT_FUNCTION;
+			object->object.function = malloc(sizeof (FUNCTION_OBJECT));
+			if (!object->object.function)
+				errx(-1, "Failed to allocate memory for object (%d)", lineno);
+			object->object.function->fn = $2;
+		}
 	;
 
-inputspec:	LABEL EQUALS STRING limit
-			{ lbl_flag = 1; label = cpstr($3); }
-	| DEFAULT EQUALS STRING limit
-			{ lbl_flag = 0; label = cpstr($3); }
+/*
+ * Parse the input object type
+ */
+
+object_input: INPUT
+		{
+			object->type = OT_INPUT;
+			object->object.input = malloc(sizeof (INPUT_OBJECT));
+			if (!object->object.input)
+				errx(-1, "Failed to allocate memory for object (%d)", lineno);
+		}
+	input_params limit
+		{
+			/* Force height to 1 regardless */
+			object->height = 1;
+			if (!object->width && !object->object.input->limit) {
+				if (!object->object.input->label)
+					errx(-1, "Unable to determine size of input object (%d)",
+						lineno);
+				object->width = calc_string_width(object->object.input->label);
+				object->object.input->limit = object->width;
+			} else if (!object->width)
+				object->width = object->object.input->limit;
+			else if (!object->object.input->limit)
+				object->object.input->limit = object->width;
+			if (object->object.input->limit < object->width)
+				object->width = object->object.input->limit;
+
+			object->object.input->input = 
+				malloc(object->object.input->limit + 1);
+			if (!object->object.input->input)
+				errx(-1, "Failed to allocate memory for object (%d)", lineno);
+
+			/*
+			 * If it's a label then clear the input string
+			 * otherwise copy the default there.
+			 */
+
+			if (object->object.input->lbl_flag)
+				object->object.input->input[0] = '\0';
+			else if (object->object.input->label) {
+				tmp = strlen(object->object.input->label);
+				strncpy(object->object.input->input,
+					object->object.input->label,
+					tmp);
+				object->object.input->input[tmp] = 0;
+			}
+		}
+	;
+
+input_params: /* empty */ 
+		{
+			object->object.input->lbl_flag = 0;
+			object->object.input->label = 0;
+		}
+	| STRING
+		{
+			object->object.input->lbl_flag = 0;
+			object->object.input->label = $1;
+		}
+	| DEFAULT STRING
+		{
+			object->object.input->lbl_flag = 0;
+			object->object.input->label = $2;
+		}
+	| LABEL STRING
+		{
+			object->object.input->lbl_flag = 1;
+			object->object.input->label = $2;
+		}
 	;
 
 limit: /* empty */
-	| LIMIT EQUALS NUMBER
-			{ limit = $3; }
+		{ object->object.input->limit = 0; }
+	| LIMIT NUMBER 
+		{ object->object.input->limit = $2; }
+	;
 
-menufield: SELECTED EQUALS NUMBER OPTIONS EQUALS menuoptions
-			{ type = FF_MENU; selected = $3; }
+/*
+ * Parse the menu object type
+ */
+
+object_menu: OPTIONS LBRACE 
+		{
+			object->type = OT_MENU;
+			object->object.menu = malloc(sizeof (MENU_OBJECT));
+			if (!object->object.menu)
+				errx(-1, "Failed to allocate memory for object (%d)", lineno);
+			object->object.menu->no_options = 0;
+			object->object.menu->options = 0;
+			len = 0;
+		}
+	menuoptions 
+		{
+			object->height = 1;
+			if (!object->width)
+				object->width = len;
+		}
+	RBRACE option_selected
 	;
 
 menuoptions: menuoption
-	| menuoptions COMMA menuoption
+	| menuoptions  menuoption
 	;
 
 menuoption: STRING
-			{	
-				menu = malloc(sizeof(struct MenuList));
-				if (!menu) {
-						err(1, "Couldn't allocate memory for menu option\n");
-				}
-				menu->option = cpstr($1);
-				if (!cur_menu) {  
-					menu_list = menu;
-					cur_menu = menu;
-				} else {
-					cur_menu->next = menu; 
-					cur_menu = menu;
-				}
+			{
+				tmpstr = $1;
+				object->object.menu->no_options = 
+					add_menu_option(object->object.menu, tmpstr);
+				if (!object->object.menu->no_options)
+					errx(-1, "Failed to allocate memory for option (%d)", lineno);
+				tmp = calc_string_width(tmpstr);
+				if (tmp > len)
+					len = tmp;
+				free(tmpstr);
 			}
-;
+	;
 
-actionfield: ACTION EQUALS STRING FUNC EQUALS NAME
-			{ type = FF_ACTION; text = cpstr($3); function = cpstr($6); }
+option_selected: /* empty */
+		{ object->object.menu->selected = 0; }
+	| SELECTED NUMBER 
+		{ object->object.menu->selected = $2; }
+	;
+
+/*
+ * Parse the text object type
+ */
+
+object_text: TEXT STRING 
+		{
+			object->type = OT_TEXT;
+			object->object.text = malloc(sizeof (TEXT_OBJECT));
+			if (!object->object.text)
+				errx(-1, "Failed to allocate memory for object (%d)", lineno);
+			object->object.text->text = $2;
+			if (!object->width)
+				object->width = calc_string_width(object->object.text->text);
+			if (!object->height)
+				calc_object_height(object, object->object.text->text);
+		}
+	;
+
+user_draw_func: /* empty */
+	| USERDRAWFUNC NAME 
+		{
+			if (object->UserDrawFunc)
+				free(object->UserDrawFunc);
+			object->UserDrawFunc = $2;
+		}
+	;
+
+user_proc_func: /* empty */
+	| USERPROCFUNC NAME 
+		{
+			if (object->UserProcFunc)
+				free(object->UserProcFunc);
+			object->UserProcFunc = $2;
+		}
 	;
 
 height: /* empty */
-		{ height = 0; }
-	| HEIGHT EQUALS NUMBER
-		{ height = $3; }
+	| HEIGHT NUMBER 
+		{ object->height = $2; }
 	;
 
 width: /* empty */
-			{ width = 0; }
-	| WIDTH EQUALS NUMBER
-			{ width = $3; }
+	| WIDTH NUMBER 
+			{ object->width = $2; }
 	;
 
-attr: /* empty */
-			{ attr = 0; }
-	| ATTR EQUALS NUMBER
-			{ attr = $3; }
+attributes: /* empty */
+	| ATTR STRING 
+		{
+			if (object->attributes)
+				free(object->attributes);
+			object->attributes = $2;
+		}
 	;
 
-selattr: /* empty */
-			{ selattr = 0; }
-	| SELATTR EQUALS NUMBER
-			{ selattr = $3; }
+highlight: /* empty */
+	| HIGHLIGHT STRING 
+		{
+			if (object->highlight)
+				free(object->highlight);
+			object->highlight = $2;
+		}
 	;
 
-coord: NUMBER COMMA NUMBER
-		{ y = $1; x = $3; }
+on_entry:	/* empty */
+	| ONENTRY NAME 
+		{
+			if (object->OnEntry)
+				free(object->OnEntry);
+			object->OnEntry = $2;
+		}
+	;
+
+on_exit:	/* empty */
+	| ONEXIT NAME 
+		{
+			if (object->OnExit)
+				free(object->OnExit);
+			object->OnExit = $2;
+		}
 	;
 
 %%
@@ -431,101 +724,5 @@ coord: NUMBER COMMA NUMBER
 void
 yyerror (char *error)
 {
-	fprintf(stderr, "%s at line %d\n",error, lineno);
-	exit(1);
-}
-
-char *
-cpstr(char *ostr)
-{
-	char *nstr;
-
-	nstr = malloc(strlen(ostr)+1);
-	if (!nstr) {
-		fprintf(stderr, "Couldn't allocate memory for string\n");
-		exit(1);
-	}
-	strcpy(nstr, ostr);
-	return (nstr);
-}
-
-void
-define_field(char *defname)
-{
-	struct Field *field;
-	struct MenuList *menu_options;
-	int no_options;
-
-	field = malloc(sizeof (struct Field));
-	if (!field) {
-		fprintf(stderr,"Failed to allocate memory for form field\n");
-		exit(1);
-	}
-	field->defname = defname;
-	field->type = type;
-	field->height = height;
-	field->width = width;
-	field->attr = attr;
-	field->selattr = selattr;
-	switch (type) {
-		case FF_TEXT:
-			field->field.text = malloc(sizeof (struct TextField));
-			if (!field->field.text) {
-				fprintf(stderr,
-						"Failed to allocate memory for text field\n");
-				exit (1);
-			}
-			field->field.text->text = text;
-			break;
-		case FF_INPUT:
-			field->field.input = malloc(sizeof (struct InputField));
-			if (!field->field.input) {
-				fprintf(stderr,
-						"Failed to allocate memory for input field\n");
-				exit (1);
-			}
-			field->field.input->lbl_flag = lbl_flag;
-			field->field.input->label = label;
-			field->field.input->limit = limit;
-			break;
-		case FF_MENU:
-			printf("field type %s = %d\n", defname,field->type);
-			field->field.menu = malloc(sizeof (struct MenuField));
-			if (!field->field.menu) {
-				fprintf(stderr,
-						"Failed to allocate memory for menu field\n");
-				exit (1);
-			}
-			field->field.menu->selected = selected;
-			menu_options = menu_list;
-			field->field.menu->no_options = 0;
-			field->field.menu->options = 0;
-			for (; menu_options; menu_options = menu_options->next) {
-				no_options = add_menu_option(field->field.menu,
-											 menu_options->option);
-				if (!no_options)
-					err(1, "Couldn't add menu option");
-			}
-			field->field.menu->no_options = no_options;
-			cur_menu = 0;
-			break;
-		case FF_ACTION:
-			field->field.action = malloc(sizeof (struct ActionField));
-			if (!field->field.action) {
-				fprintf(stderr,
-						"Failed to allocate memory for action field\n");
-				exit (1);
-			}
-			field->field.action->text = text;
-			field->field.action->fn = (void *) function;
-			break;
-		default:
-			break;
-	}
-	form_bind_tuple(global_bindings, defname, FT_FIELD_DEF, field);
-	width=0;
-	height = 0;
-	attr=0;
-	selattr=0;
-	limit=0;
+	errx(-1, "%s at line %d\n", error, lineno);
 }
