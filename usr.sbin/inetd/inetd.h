@@ -97,13 +97,11 @@ struct	servtab {
 	struct	servtab *se_next;
 	struct se_flags {
 		u_int se_nomapped : 1;
-		u_int se_ctladdrinitok : 1;
 		u_int se_reset : 1;
 	} se_flags;
 };
 
 #define	se_nomapped		se_flags.se_nomapped
-#define	se_ctladdrinitok	se_flags.se_ctladdrinitok
 #define	se_reset		se_flags.se_reset
 
 void		chargen_dg __P((int, struct servtab *));
