@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cdefs.h	8.8 (Berkeley) 1/9/95
- * $Id: cdefs.h,v 1.20 1998/07/25 14:37:37 dfr Exp $
+ * $Id: cdefs.h,v 1.21 1998/08/24 06:17:01 bde Exp $
  */
 
 #ifndef	_SYS_CDEFS_H_
@@ -155,7 +155,7 @@
 	__asm__(".equ "  #alias ", " #sym)
 #define	__warn_references(sym,msg)	\
 	__asm__(".section .gnu.warning." #sym);	\
-	__asm__(".ascii \"" msg "\"");	\
+	__asm__(".asciz \"" msg "\"");	\
 	__asm__(".previous")
 #else
 #define	__weak_reference(sym,alias)	\
@@ -163,7 +163,7 @@
 	__asm__(".equ alias, sym")
 #define	__warn_references(sym,msg)	\
 	__asm__(".section .gnu.warning.sym"); \
-	__asm__(".ascii \"msg\"");	\
+	__asm__(".asciz \"msg\"");	\
 	__asm__(".previous")
 #endif	/* __STDC__ */
 #else	/* !__ELF__ */
