@@ -1,8 +1,8 @@
-#	$Id: Makefile,v 1.8 1994/09/23 07:47:43 rgrimes Exp $
+#	$Id: Makefile,v 1.9 1994/09/25 03:11:27 ache Exp $
 #
 # Doing a make install builds /usr/share/examples
 
-DIRS=etc FreeBSD_version lkm sunrpc syscons
+DIRS=etc FreeBSD_version ibcs2 lkm sunrpc syscons
 NOOBJ=	noobj
 
 # Define SHARED to indicate whether you want symbolic links to the system
