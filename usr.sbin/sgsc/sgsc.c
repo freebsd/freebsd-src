@@ -30,6 +30,7 @@
  */
 
 #include <stdlib.h>
+#include <unistd.h>
 #include <stdio.h>
 #include <sys/file.h>
 #include <sys/ioctl.h>

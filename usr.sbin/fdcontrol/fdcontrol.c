@@ -27,6 +27,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <machine/ioctl_fd.h>
 #include <sys/file.h>
 
