@@ -29,7 +29,8 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)syslog.conf.5	8.1 (Berkeley) 6/9/93
+.\"     From: @(#)syslog.conf.5	8.1 (Berkeley) 6/9/93
+.\"	$Id$
 .\"
 .Dd June 9, 1993
 .Dt SYSLOG.CONF 5
@@ -220,10 +221,14 @@ Upon receipt of a
 will close the pipe to the process.  If the process didn't exit
 voluntarily, it will be sent a
 .Dv SIGTERM
-signal after a grace period of up to 40 seconds.
+signal after a grace period of up to 60 seconds.
 .Pp
 The command will only be started once data arrives that should be piped
-to it.  If it exited later, it will be restarted as necessary.
+to it.  If it exited later, it will be restarted as necessary.  So if it
+is desired that the subprocess should get exactly one line of input only
+(which can be very resource-consuming if there are a lot of messages
+flowing quickly), this can be achieved by exiting after just one line of
+input.  If necessary, a script wrapper can be written to this effect.
 .Pp
 Unless the command is a full pipeline, it's probably useful to
 start the command with
