@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 24, 1996
+.Dd January 7, 2004
 .Os
 .Dt VFS_SYNC 9
 .Sh NAME
@@ -41,10 +41,13 @@
 .Ft int
 .Fn VFS_SYNC "struct mount *mp" "int waitfor" "struct ucred *cred" "struct thread *td"
 .Sh DESCRIPTION
-This writes out all unwritten data in a file system.
+The
+.Fn VFS_SYNC
+macro writes out all unwritten data in the file system mounted as
+.Fa mp .
 .Pp
-Its arguments are:
-.Bl -tag -width waitfor
+The arguments it expects are:
+.Bl -tag -width ".Fa waitfor"
 .It Fa mp
 The file system.
 .It Fa waitfor
@@ -64,7 +67,11 @@ The caller's credentials.
 The calling thread.
 .El
 .Pp
-This would normally call
+The
+.Fn VFS_SYNC
+macro calls the
+.Va vfs_sync
+method of the filesystem, which normally calls
 .Xr VOP_FSYNC 9
 for all the vnodes in the file system.
 .Sh SEE ALSO
