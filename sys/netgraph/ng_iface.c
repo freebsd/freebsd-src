@@ -145,11 +145,11 @@ static const struct ng_parse_type ng_iface_ifname_type = {
 };
 
 /* Parse type for struct ng_cisco_ipaddr */
-static const struct ng_parse_struct_info
-	ng_cisco_ipaddr_type_info = NG_CISCO_IPADDR_TYPE_INFO;
+static const struct ng_parse_struct_field ng_cisco_ipaddr_type_fields[]
+	= NG_CISCO_IPADDR_TYPE_INFO;
 static const struct ng_parse_type ng_cisco_ipaddr_type = {
 	&ng_parse_struct_type,
-	&ng_cisco_ipaddr_type_info
+	&ng_cisco_ipaddr_type_fields
 };
 
 /* List of commands and how to convert arguments to/from ASCII */

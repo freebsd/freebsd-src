@@ -71,7 +71,6 @@ struct ng_mesg {
 
 /* Keep this in sync with the above structure definition */
 #define NG_GENERIC_NG_MESG_INFO(dtype)	{			\
-	{							\
 	  { "version",		&ng_parse_uint8_type	},	\
 	  { "spare",		&ng_parse_uint8_type	},	\
 	  { "arglen",		&ng_parse_uint16_type	},	\
@@ -81,8 +80,7 @@ struct ng_mesg {
 	  { "cmd",		&ng_parse_uint32_type	},	\
 	  { "cmdstr",		&ng_parse_cmdbuf_type	},	\
 	  { "data",		(dtype)			},	\
-	  { NULL },						\
-	}							\
+	  { NULL }						\
 }
 
 /*
@@ -161,12 +159,10 @@ struct ngm_mkpeer {
 
 /* Keep this in sync with the above structure definition */
 #define NG_GENERIC_MKPEER_INFO()	{			\
-	{							\
 	  { "type",		&ng_parse_typebuf_type	},	\
 	  { "ourhook",		&ng_parse_hookbuf_type	},	\
 	  { "peerhook",		&ng_parse_hookbuf_type	},	\
-	  { NULL },						\
-	}							\
+	  { NULL }						\
 }
 
 /* Structure used for NGM_CONNECT */
@@ -178,12 +174,10 @@ struct ngm_connect {
 
 /* Keep this in sync with the above structure definition */
 #define NG_GENERIC_CONNECT_INFO()	{			\
-	{							\
 	  { "path",		&ng_parse_pathbuf_type	},	\
 	  { "ourhook",		&ng_parse_hookbuf_type	},	\
 	  { "peerhook",		&ng_parse_hookbuf_type	},	\
-	  { NULL },						\
-	}							\
+	  { NULL }						\
 }
 
 /* Structure used for NGM_NAME */
@@ -193,10 +187,8 @@ struct ngm_name {
 
 /* Keep this in sync with the above structure definition */
 #define NG_GENERIC_NAME_INFO()	{				\
-	{							\
 	  { "name",		&ng_parse_nodebuf_type	},	\
-	  { NULL },						\
-	}							\
+	  { NULL }						\
 }
 
 /* Structure used for NGM_RMHOOK */
@@ -206,10 +198,8 @@ struct ngm_rmhook {
 
 /* Keep this in sync with the above structure definition */
 #define NG_GENERIC_RMHOOK_INFO()	{			\
-	{							\
 	  { "hook",		&ng_parse_hookbuf_type	},	\
-	  { NULL },						\
-	}							\
+	  { NULL }						\
 }
 
 /* Structure used for NGM_NODEINFO */
@@ -222,13 +212,11 @@ struct nodeinfo {
 
 /* Keep this in sync with the above structure definition */
 #define NG_GENERIC_NODEINFO_INFO()	{			\
-	{							\
 	  { "name",		&ng_parse_nodebuf_type	},	\
 	  { "type",		&ng_parse_typebuf_type	},	\
 	  { "id",		&ng_parse_hint32_type	},	\
 	  { "hooks",		&ng_parse_uint32_type	},	\
-	  { NULL },						\
-	}							\
+	  { NULL }						\
 }
 
 /* Structure used for NGM_LISTHOOKS */
@@ -240,12 +228,10 @@ struct linkinfo {
 
 /* Keep this in sync with the above structure definition */
 #define NG_GENERIC_LINKINFO_INFO(nitype)	{		\
-	{							\
 	  { "ourhook",		&ng_parse_hookbuf_type	},	\
 	  { "peerhook",		&ng_parse_hookbuf_type	},	\
 	  { "nodeinfo",		(nitype)		},	\
-	  { NULL },						\
-	}							\
+	  { NULL }						\
 }
 
 struct hooklist {
@@ -255,11 +241,9 @@ struct hooklist {
 
 /* Keep this in sync with the above structure definition */
 #define NG_GENERIC_HOOKLIST_INFO(nitype,litype)	{		\
-	{							\
 	  { "nodeinfo",		(nitype)		},	\
 	  { "linkinfo",		(litype)		},	\
-	  { NULL },						\
-	}							\
+	  { NULL }						\
 }
 
 /* Structure used for NGM_LISTNAMES/NGM_LISTNODES */
@@ -270,11 +254,9 @@ struct namelist {
 
 /* Keep this in sync with the above structure definition */
 #define NG_GENERIC_LISTNODES_INFO(niarraytype)	{		\
-	{							\
 	  { "numnames",		&ng_parse_uint32_type	},	\
 	  { "nodeinfo",		(niarraytype)		},	\
-	  { NULL },						\
-	}							\
+	  { NULL }						\
 }
 
 /* Structure used for NGM_LISTTYPES */
@@ -285,11 +267,9 @@ struct typeinfo {
 
 /* Keep this in sync with the above structure definition */
 #define NG_GENERIC_TYPEINFO_INFO()		{		\
-	{							\
 	  { "typename",		&ng_parse_typebuf_type	},	\
 	  { "numnodes",		&ng_parse_uint32_type	},	\
-	  { NULL },						\
-	}							\
+	  { NULL }						\
 }
 
 struct typelist {
@@ -299,11 +279,9 @@ struct typelist {
 
 /* Keep this in sync with the above structure definition */
 #define NG_GENERIC_TYPELIST_INFO(tiarraytype)	{		\
-	{							\
 	  { "numtypes",		&ng_parse_uint32_type	},	\
 	  { "typeinfo",		(tiarraytype)		},	\
-	  { NULL },						\
-	}							\
+	  { NULL }						\
 }
 
 struct ngm_bandwidth {
@@ -315,13 +293,11 @@ struct ngm_bandwidth {
 
 /* Keep this in sync with the above structure definition */
 #define NG_GENERIC_BANDWIDTH_INFO()	{			\
-	{							\
 	  { "nominal_in",	&ng_parse_uint64_type	},	\
 	  { "seen_in",		&ng_parse_uint64_type	},	\
 	  { "nominal_out",	&ng_parse_uint64_type	},	\
 	  { "seen_out",		&ng_parse_uint64_type	},	\
-	  { NULL },						\
-	}							\
+	  { NULL }						\
 }
 
 /*
@@ -345,14 +321,12 @@ struct ngm_queue_state {
 
 /* Keep this in sync with the above structure definition */
 #define NG_GENERIC_QUEUE_INFO()	{				\
-	{							\
 	  { "max_queuelen_bytes", &ng_parse_uint_type	},	\
 	  { "max_queuelen_packets", &ng_parse_uint_type	},	\
 	  { "high_watermark",	&ng_parse_uint_type	},	\
 	  { "low_watermark",	&ng_parse_uint_type	},	\
 	  { "current",		&ng_parse_uint_type	},	\
-	  { NULL },						\
-	}							\
+	  { NULL }						\
 }
 
 /* Tell a node who to send async flow control info to. */
@@ -362,10 +336,8 @@ struct flow_manager {
 
 /* Keep this in sync with the above structure definition */
 #define NG_GENERIC_FLOW_MANAGER_INFO()	{			\
-	{							\
 	  { "id",		&ng_parse_hint32_type	},	\
-	  { NULL },						\
-	}							\
+	  { NULL }						\
 }
 
 

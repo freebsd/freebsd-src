@@ -105,19 +105,19 @@ static const struct ng_parse_type ng_one2many_enableLinks_array_type = {
 	&ng_parse_fixedarray_type,
 	&ng_one2many_enableLinks_array_type_info,
 };
-static const struct ng_parse_struct_info ng_one2many_config_type_info
+static const struct ng_parse_struct_field ng_one2many_config_type_fields[]
 	= NG_ONE2MANY_CONFIG_TYPE_INFO(&ng_one2many_enableLinks_array_type);
 static const struct ng_parse_type ng_one2many_config_type = {
 	&ng_parse_struct_type,
-	&ng_one2many_config_type_info,
+	&ng_one2many_config_type_fields
 };
 
 /* Parse type for struct ng_one2many_link_stats */
-static const struct ng_parse_struct_info
-	ng_one2many_link_stats_type_info = NG_ONE2MANY_LINK_STATS_TYPE_INFO;
+static const struct ng_parse_struct_field ng_one2many_link_stats_type_fields[]
+	= NG_ONE2MANY_LINK_STATS_TYPE_INFO;
 static const struct ng_parse_type ng_one2many_link_stats_type = {
 	&ng_parse_struct_type,
-	&ng_one2many_link_stats_type_info
+	&ng_one2many_link_stats_type_fields
 };
 
 /* List of commands and how to convert arguments to/from ASCII */

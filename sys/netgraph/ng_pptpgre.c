@@ -191,19 +191,19 @@ static void	ng_pptpgre_reset(node_p node);
 static pptptime_t ng_pptpgre_time(node_p node);
 
 /* Parse type for struct ng_pptpgre_conf */
-static const struct ng_parse_struct_info
-	ng_pptpgre_conf_type_info = NG_PPTPGRE_CONF_TYPE_INFO;
+static const struct ng_parse_struct_field ng_pptpgre_conf_type_fields[]
+	= NG_PPTPGRE_CONF_TYPE_INFO;
 static const struct ng_parse_type ng_pptpgre_conf_type = {
 	&ng_parse_struct_type,
-	&ng_pptpgre_conf_type_info,
+	&ng_pptpgre_conf_type_fields,
 };
 
 /* Parse type for struct ng_pptpgre_stats */
-static const struct ng_parse_struct_info
-	ng_pptpgre_stats_type_info = NG_PPTPGRE_STATS_TYPE_INFO;
+static const struct ng_parse_struct_field ng_pptpgre_stats_type_fields[]
+	= NG_PPTPGRE_STATS_TYPE_INFO;
 static const struct ng_parse_type ng_pptp_stats_type = {
 	&ng_parse_struct_type,
-	&ng_pptpgre_stats_type_info
+	&ng_pptpgre_stats_type_fields
 };
 
 /* List of commands and how to convert arguments to/from ASCII */
