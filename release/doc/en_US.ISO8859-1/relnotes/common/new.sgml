@@ -42,6 +42,15 @@
     that utilities such as &man.ps.1; can work with kernels compiled
     at different addresses.</para>
 
+    <para>Coredumps of large processes (or of a large number of
+    processes) no longer lock up the machine for long periods of
+    time.</para>
+
+    <para arch="i386">The number of memory pages allocated for the
+    per-process kernel state has been increased from 2 to 3, to reduce
+    the likelihood of kernel stack overflow (and subsequent corruption
+    of per-process data structures).</para>
+
     <sect3>
       <title>Processor/Motherboard Support</title>
 
@@ -51,7 +60,7 @@
     <sect3>
       <title>Network Interface Support</title>
 
-      <para></para>
+      <para>The dgm driver has been updated from &os; -CURRENT).</para>
     </sect3>
 
     <sect3>
@@ -63,7 +72,11 @@
     <sect3>
       <title>Disks and Storage</title>
 
-      <para></para>
+      <para>The &man.aac.4; driver has been updated from &os;
+      -CURRENT.  This update includes proper handling of commands
+      initiated by the adapter, addition/removal of disk devices,
+      crashdump functionality, and &man.ioctl.2; command necessary for
+      the management CLI.</para>
     </sect3>
 
     <sect3>
@@ -100,7 +113,7 @@
     <title>Userland Changes</title>
 
     <para>&man.cat.1; now has the ability to read from UNIX-domain
-    sockets. &merged;</para>
+    sockets.</para>
 
     <para>&man.find.1; can now take various units of time to be
     applied to the <option>-[acm]time</option> primaries.</para>
