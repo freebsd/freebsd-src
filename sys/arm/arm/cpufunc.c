@@ -54,6 +54,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/bus.h>
+#include <machine/bus.h>
 #include <machine/cpu.h>
 #include <machine/disassem.h>
 
@@ -2079,10 +2081,8 @@ ixp12x0_setup(args)
 	cpuctrl |= CPU_CONTROL_BEND_ENABLE;
 #endif
 
-#if 0
 	if (vector_page == ARM_VECTORS_HIGH)
 		cpuctrl |= CPU_CONTROL_VECRELOC;
-#endif
 
 	/* Clear out the cache */
 	cpu_idcache_wbinv_all();
@@ -2147,10 +2147,8 @@ xscale_setup(args)
 	cpuctrl |= CPU_CONTROL_BEND_ENABLE;
 #endif
 
-#if 0
 	if (vector_page == ARM_VECTORS_HIGH)
 		cpuctrl |= CPU_CONTROL_VECRELOC;
-#endif
 
 	/* Clear out the cache */
 	cpu_idcache_wbinv_all();
