@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_linker.c,v 1.31 1999/04/28 01:04:28 luoqi Exp $
+ *	$Id: kern_linker.c,v 1.32 1999/05/08 13:01:56 peter Exp $
  */
 
 #include "opt_ddb.h"
@@ -96,6 +96,7 @@ linker_file_sysinit(linker_file_t lf)
     struct sysinit** sipp;
     struct sysinit** xipp;
     struct sysinit* save;
+    struct proc *p2;
     const moduledata_t *moddata;
     int error;
 
@@ -156,18 +157,16 @@ linker_file_sysinit(linker_file_t lf)
 
 	case SI_TYPE_KTHREAD:
 	    /* kernel thread*/
-	    if (fork1(&proc0, RFFDG|RFPROC|RFMEM))
+	    if (fork1(&proc0, RFFDG|RFPROC|RFMEM, &p2))
 		panic("fork kernel thread");
-	    cpu_set_fork_handler(pfind(proc0.p_retval[0]),
-		(*sipp)->func, (*sipp)->udata);
+	    cpu_set_fork_handler(p2, (*sipp)->func, (*sipp)->udata);
 	    break;
 
 	case SI_TYPE_KPROCESS:
 	    /* kernel thread*/
-	    if (fork1(&proc0, RFFDG|RFPROC))
+	    if (fork1(&proc0, RFFDG|RFPROC, &p2))
 		panic("fork kernel process");
-	    cpu_set_fork_handler(pfind(proc0.p_retval[0]),
-		(*sipp)->func, (*sipp)->udata);
+	    cpu_set_fork_handler(p2, (*sipp)->func, (*sipp)->udata);
 	    break;
 
 	default:
