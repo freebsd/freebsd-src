@@ -688,10 +688,10 @@ wi_get_id(sc, dev)
 	case WI_NIC_37300P:
 		printf("RF:PRISM2.5 MAC:ISL37300P");
 		break;
-	case WI_P3_SST:
+	case WI_NIC_P3_SST:
 		printf("RF:PRISM3");
 		break;
-	case WI_P3_PCI:
+	case WI_NIC_P3_PCI:
 		printf("RF:PRISM3");
 		break;
 	case WI_NIC_LUCENT:
