@@ -41,13 +41,6 @@ int sparc64_bus_mem_map(bus_space_tag_t, bus_space_handle_t, bus_size_t,
 int sparc64_bus_mem_unmap(void *, bus_size_t);
 bus_space_handle_t sparc64_fake_bustag(int, bus_addr_t, struct bus_space_tag *);
 
-/*
- * This is more or less arbitrary, except for the stack space consumed by
- * the segments array. Choose more than ((BUS_SPACE_MAXSIZE / PAGE_SIZE) + 1),
- * since in practice we could be map pages more than once.
- */
-#define	BUS_DMAMAP_NSEGS	64
-
 struct bus_dmamap_res {
 	struct resource		*dr_res;
 	bus_size_t		dr_used;
