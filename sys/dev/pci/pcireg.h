@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcireg.h,v 1.3 1995/02/02 13:12:18 davidg Exp $
+**  $Id: pcireg.h,v 1.4 1995/02/02 22:01:40 se Exp $
 **
 **  Names for PCI configuration space registers.
 **
@@ -33,8 +33,7 @@
 */
 
 #ifndef __PCI_REG_H__
-#define __PCI_REG_H__
-
+#define __PCI_REG_H__ "pl2 95/03/21"
 
 /*
 ** Device identification register; contains a vendor ID and a device ID.
@@ -146,6 +145,32 @@
 #define	PCI_MAP_MEMORY_ADDRESS_MASK	0xfffffff0
 
 #define	PCI_MAP_IO_ADDRESS_MASK         0xfffffffc
+/*
+** PCI-PCI bridge mapping registers
+*/
+#define PCI_PCI_BRIDGE_BUS_REG		0x18
+#define PCI_PCI_BRIDGE_IO_REG		0x1c
+#define PCI_PCI_BRIDGE_MEM_REG		0x20
+#define PCI_PCI_BRIDGE_PMEM_REG		0x24
+
+
+#define PCI_SUBORDINATE_BUS_MASK	0x00ff0000
+#define PCI_SECONDARY_BUS_MASK		0x0000ff00
+#define PCI_PRIMARY_BUS_MASK		0x000000ff
+
+#define PCI_SUBORDINATE_BUS_EXTRACT(x)	(((x) > 16) & 0xff)
+#define PCI_SECONDARY_BUS_EXTRACT(x)	(((x) >  8) & 0xff)
+#define PCI_PRIMARY_BUS_EXTRACT(x)	(((x)	  ) & 0xff)
+
+#define	PCI_PRIMARY_BUS_INSERT(x, y)	(((x) & ~PCI_PRIMARY_BUS_MASK) | ((y) <<  0))
+#define	PCI_SECONDARY_BUS_INSERT(x, y)	(((x) & ~PCI_SECONDARY_BUS_MASK) | ((y) <<  8))
+#define	PCI_SUBORDINATE_BUS_INSERT(x, y) (((x) & ~PCI_SUBORDINATE_BUS_MASK) | ((y) << 16))
+
+#define	PCI_PPB_IOBASE_EXTRACT(x)	(((x) << 8) & 0xFF00)
+#define	PCI_PPB_IOLIMIT_EXTRACT(x)	(((x) << 0) & 0xFF00)
+
+#define	PCI_PPB_MEMBASE_EXTRACT(x)	(((x) << 16) & 0xFFFF0000)
+#define	PCI_PPB_MEMLIMIT_EXTRACT(x)	(((x) <<  0) & 0xFFFF0000)
 
 /*
 ** Interrupt configuration register
