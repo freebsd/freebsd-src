@@ -1,5 +1,5 @@
-.\" Copyright (c) 1990, 1991 The Regents of the University of California.
-.\" All rights reserved.
+.\" Copyright (c) 1990, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -29,9 +29,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)makekey.8	6.5 (Berkeley) 7/1/91
+.\"     @(#)makekey.8	8.2 (Berkeley) 12/11/93
 .\"
-.Dd July 1, 1991
+.Dd December 11, 1993
 .Dt MAKEKEY 8
 .Os
 .Sh NAME
@@ -41,7 +41,7 @@
 .Nm makekey
 .Sh DESCRIPTION
 .Nm Makekey
-encypts a key and salt which it reads from the standard input
+encrypts a key and salt which it reads from the standard input
 and writes the result to the standard output.
 The key is expected to be
 ten bytes; the salt is expected to be two bytes.
