@@ -239,6 +239,16 @@ typedef struct vid_info vid_info_t;
 /* release the current keyboard */
 #define CONS_RELKBD	_IO('c', 111)
 
+/* Snapshot the current video buffer */
+#define CONS_SCRSHOT	_IOWR('c', 105, scrshot_t)
+
+struct scrshot {
+	int		xsize;
+	int		ysize;
+	u_int16_t*	buf;
+};
+typedef struct scrshot scrshot_t;
+
 /* get/set the current terminal emulator info. */
 #define TI_NAME_LEN	32
 #define TI_DESC_LEN	64
