@@ -33,11 +33,6 @@ static char CLOOP_MAGIC_START[] = "#!/bin/sh\n#V2.0 Format\n"
     "m=geom_uzip\n(kldstat -n $m 2>&-||kldload $m)>&-&&"
     "mount_cd9660 /dev/`mdconfig -af $0`.uzip $1\nexit $?\n";
 
-/*
- * Maximum allowed valid block size (to prevent foot-shooting)
-  */
-#define MAX_BLKSZ	(MAXPHYS - MAXPHYS / 1000 - 12)
-
 static char *readblock(int, char *, u_int32_t);
 static void usage(void);
 static void *safe_malloc(size_t);
@@ -84,9 +79,8 @@ int main(int argc, char **argv)
 				    DEV_BSIZE);
 				/* Not reached */
 			}
-			if (tmp > MAX_BLKSZ) {
-				errx(1, "cluster size can't be more than %d",
-				    MAX_BLKSZ);
+			if (compressBound(tmp) > MAXPHYS) {
+				errx(1, "cluster size is too large");
 				    /* Not reached */
 			}
 			hdr.blksz = tmp;
@@ -132,12 +126,13 @@ int main(int argc, char **argv)
 		err(1, "%s", iname);
 		/* Not reached */
 	}
-	if ((sb.st_size % hdr.blksz) != 0) {
-		errx(1, "%s: incorrect image: file size is not multiple of %d",
-		    iname, hdr.blksz);
-		/* Not reached */
-	}
 	hdr.nblocks = sb.st_size / hdr.blksz;
+	if ((sb.st_size % hdr.blksz) != 0) {
+		if (verbose != 0)
+			fprintf(stderr, "file size is not multiple "
+			"of %d, padding data\n", hdr.blksz);
+		hdr.nblocks++;
+	}
 	toc = safe_malloc((hdr.nblocks + 1) * sizeof(*toc));
 
 	fdr = open(iname, O_RDONLY);
@@ -164,30 +159,30 @@ int main(int argc, char **argv)
 	lseek(fdw, offset, SEEK_SET);
 
 	if (verbose != 0)
-		fprintf(stderr, "Data size: %ld bytes, number of clusters: "
-		    "%ld, index lengh: %ld bytes\n", (long)sb.st_size,
-		    (long)(hdr.nblocks), ((long)hdr.nblocks + 1) * sizeof(*toc));
+		fprintf(stderr, "data size %llu bytes, number of clusters "
+		    "%u, index lengh %u bytes\n", sb.st_size,
+		    hdr.nblocks, iov[1].iov_len);
 
 	for(i = 0; i == 0 || ibuf != NULL; i++) {
 		ibuf = readblock(fdr, ibuf, hdr.blksz);
 		if (ibuf != NULL) {
 			destlen = compressBound(hdr.blksz);
-			memset(obuf, 0, destlen);
-			if (compress2(obuf, &destlen, ibuf, hdr.blksz, Z_BEST_COMPRESSION) != Z_OK) {
-				errx(1, "can't compress data: compress2() failed");
+			if (compress2(obuf, &destlen, ibuf, hdr.blksz,
+			    Z_BEST_COMPRESSION) != Z_OK) {
+				errx(1, "can't compress data: compress2() "
+				    "failed");
 				/* Not reached */
 			}
-#if 0
-			/*
-			 * We don't really need those two leading bytes. Moreover, they
-			 * confuse oldest decompression routine presented in the
-			 * FreeBSD kernel, so they should be omitted.
-			 */
-			destlen -= 2;
-#endif
+			if (verbose != 0)
+				fprintf(stderr, "cluster #%d, in %u bytes, "
+				    "out %lu bytes\n", i, hdr.blksz, destlen);
 		} else {
 			destlen = DEV_BSIZE - (offset % DEV_BSIZE);
 			memset(obuf, 0, destlen);
+			if (verbose != 0)
+				fprintf(stderr, "padding data with %lu bytes so "
+				    "that file size is multiple of %d\n", destlen,
+				    DEV_BSIZE);
 		}
 		if (write(fdw, obuf, destlen) < 0) {
 			err(1, "%s", oname);
@@ -199,7 +194,9 @@ int main(int argc, char **argv)
 	close(fdr);
 
 	if (verbose != 0)
-		fprintf(stderr, "compressed data to %llu bytes.\n", offset);
+		fprintf(stderr, "compressed data to %llu bytes, saved %lld "
+		    "bytes, %.2f%% decrease.\n", offset, (long long)(sb.st_size - offset),
+		    100.0 * (long long)(sb.st_size - offset) / (float)sb.st_size);
 
 	/* Convert to big endian */
 	hdr.blksz = htonl(hdr.blksz);
@@ -217,7 +214,8 @@ int main(int argc, char **argv)
 }
 
 static char *
-readblock(int fd, char *ibuf, u_int32_t clstsize) {
+readblock(int fd, char *ibuf, u_int32_t clstsize)
+{
 	int numread;
 
 	bzero(ibuf, clstsize);
@@ -233,14 +231,16 @@ readblock(int fd, char *ibuf, u_int32_t clstsize) {
 }
 
 static void
-usage(void) {
+usage(void)
+{
 
 	fprintf(stderr, "usage: mkuzip [-v] [-o outfile] [-s cluster_size] infile\n");
 	exit(1);
 }
 
 static void *
-safe_malloc(size_t size) {
+safe_malloc(size_t size)
+{
 	void *retval;
 
 	retval = malloc(size);
@@ -252,7 +252,8 @@ safe_malloc(size_t size) {
 }
 
 static void
-cleanup(void) {
+cleanup(void)
+{
 
 	if (cleanfile != NULL)
 		unlink(cleanfile);
