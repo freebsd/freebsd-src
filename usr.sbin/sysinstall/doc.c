@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: doc.c,v 1.13 1996/04/23 01:29:18 jkh Exp $
+ * $Id: doc.c,v 1.14 1996/04/25 17:31:17 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -44,6 +44,7 @@
 int
 docBrowser(dialogMenuItem *self)
 {
+    int ret;
     char *browser = variable_get(VAR_BROWSER_PACKAGE);
 
     if (RunningAsInit && !strstr(variable_get(SYSTEM_STATE), "install")) {
@@ -56,12 +57,14 @@ docBrowser(dialogMenuItem *self)
 	return DITEM_FAILURE;
 
     /* First, make sure we have whatever browser we've chosen is here */
-    if (package_add(browser) != DITEM_SUCCESS) {
+    ret = package_add(browser);
+    if (DITEM_STATUS(ret) != DITEM_SUCCESS) {
 	msgConfirm("Unable to install the %s HTML browser package.  You may\n"
 		   "wish to verify that your media is configured correctly and\n"
 		   "try again.", browser);
-	return DITEM_FAILURE;
+	return ret;
     }
+
     if (!file_executable(variable_get(VAR_BROWSER_BINARY))) {
 	if (!msgYesNo("Hmmm.  The %s package claims to have installed, but I can't\n"
 		      "find its binary in %s!  You may wish to try a different\n"
@@ -70,7 +73,7 @@ docBrowser(dialogMenuItem *self)
 		      "I suggest that we remove the version that was extracted since it does\n"
 		      "not appear to be correct.   Would you like me to do that now?"))
 	    vsystem("pkg_delete %s %s", !strcmp(variable_get(VAR_CPIO_VERBOSITY), "high") ? "-v" : "", browser);
-	return DITEM_FAILURE;
+	return DITEM_FAILURE | DITEM_RESTORE;
     }
 
     /* Run browser on the appropriate doc */

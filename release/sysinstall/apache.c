@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: apache.c,v 1.19 1996/04/23 01:29:08 jkh Exp $
+ * $Id: apache.c,v 1.20 1996/04/28 01:07:20 jkh Exp $
  *
  * Copyright (c) 1995
  *	Coranth Gryphon.  All rights reserved.
@@ -388,8 +388,8 @@ apacheOpenDialog(void)
     use_helpfile(NULL);
     
     if (cancel)
-	return DITEM_FAILURE;
-    return DITEM_SUCCESS;
+	return DITEM_FAILURE | DITEM_RESTORE;
+    return DITEM_SUCCESS | DITEM_RESTORE;
 }
 
 int
@@ -406,37 +406,37 @@ configApache(dialogMenuItem *self)
     msgConfirm("Since you elected to install the WEB server, we'll now add the\n"
 	       "Apache HTTPD package and set up a few configuration files.");
     i = package_add(APACHE_PACKAGE);
-    if (i != DITEM_SUCCESS) {
+    if (DITEM_STATUS(i) != DITEM_SUCCESS) {
 	msgConfirm("Hmmmmm.  Looks like we weren't able to fetch the Apache WEB server\n"
 		   "package.  You may wish to fetch and configure it by hand by looking\n"
 		   "in /usr/ports/net/apache (in the ports collection) or looking for the\n"
 		   "precompiled apache package in packages/networking/%s.", APACHE_PACKAGE);
-        return DITEM_FAILURE;
+        return i;
     }
 
     dialog_clear();
     i = apacheOpenDialog();
-    if (i != DITEM_SUCCESS) {
+    if (DITEM_STATUS(i) != DITEM_SUCCESS) {
 	msgConfirm("Configuration of the Apache WEB server was cancelled per\n"
 		   "user request.");
-	return DITEM_FAILURE | DITEM_RESTORE;
+	return i;
     }
     /*** Fix defaults for invalid value ***/
-    if (! tconf.logdir[0])
+    if (!tconf.logdir[0])
 	strcpy(tconf.logdir, LOGS_SUBDIR);
-    if (! tconf.accesslog[0])
+    if (!tconf.accesslog[0])
 	strcpy(tconf.accesslog, ACCESS_LOGNAME);
-    if (! tconf.errorlog[0])
+    if (!tconf.errorlog[0])
 	strcpy(tconf.errorlog, ERROR_LOGNAME);
     
-    if (! tconf.welcome[0])
+    if (!tconf.welcome[0])
 	strcpy(tconf.welcome, WELCOME_FILE);
-    if (! tconf.userdir[0])
+    if (!tconf.userdir[0])
 	strcpy(tconf.userdir, USER_HOMEDIR);
     
-    if (! tconf.defuser[0])
+    if (!tconf.defuser[0])
 	strcpy(tconf.defuser, DEFAULT_USER);
-    if (! tconf.defgroup[0])
+    if (!tconf.defgroup[0])
 	strcpy(tconf.defgroup, DEFAULT_GROUP);
     
     /*** If the user did not specify a directory, use default ***/
@@ -445,7 +445,7 @@ configApache(dialogMenuItem *self)
 	tconf.docroot[strlen(tconf.docroot) - 1] = '\0';
     
     if (!tconf.docroot[0])
-	sprintf(tconf.docroot,"%s/%s",APACHE_BASE,DATA_SUBDIR);
+	sprintf(tconf.docroot, "%s/%s", APACHE_BASE, DATA_SUBDIR);
     
     /*** If DocRoot does not exist, create it ***/
     
@@ -453,7 +453,7 @@ configApache(dialogMenuItem *self)
 	vsystem("mkdir -p %s", tconf.docroot);
     
     if (directory_exists(tconf.docroot)) {
-	sprintf(file,"%s/%s", tconf.docroot, tconf.welcome);
+	sprintf(file, "%s/%s", tconf.docroot, tconf.welcome);
 	if (!file_readable(file)) {
 	    tptr = msgGetInput(NULL, "What is your company name?");
 	    if (tptr && tptr[0])
@@ -464,24 +464,24 @@ configApache(dialogMenuItem *self)
 	    msgNotify("Creating sample web page...");
 	    fptr = fopen(file,"w");
 	    if (fptr) {
-		fprintf(fptr,"<CENTER>\n<TITLE>Welcome Page</TITLE>\n");
-		fprintf(fptr,"<H1>Welcome to %s </H1>\n</CENTER>\n",company);
-		fprintf(fptr,"<P><HR SIZE=4>\n<CENTER>\n");
-		fprintf(fptr,"<A HREF=\"http://www.FreeBSD.org/What\">\n");
-		fprintf(fptr,"<IMG SRC=\"./power.gif\" ALIGN=CENTER BORDER=0 ");
-		fprintf(fptr," ALT=\"Powered by FreeBSD\"></A>\n");
-		if (! tconf.email[0]) {
+		fprintf(fptr, "<CENTER>\n<TITLE>Welcome Page</TITLE>\n");
+		fprintf(fptr, "<H1>Welcome to %s </H1>\n</CENTER>\n",company);
+		fprintf(fptr, "<P><HR SIZE=4>\n<CENTER>\n");
+		fprintf(fptr, "<A HREF=\"http://www.FreeBSD.org/What\">\n");
+		fprintf(fptr, "<IMG SRC=\"./power.gif\" ALIGN=CENTER BORDER=0 ");
+		fprintf(fptr, " ALT=\"Powered by FreeBSD\"></A>\n");
+		if (!tconf.email[0]) {
 		    if ((tptr = variable_get(VAR_DOMAINNAME)))
-			sprintf(tconf.email,"root@%s",tptr);
+			sprintf(tconf.email, "root@%s", tptr);
 		}
 		if (tconf.email[0]) {
-		    fprintf(fptr,"<ADDRESS><H4>\n");
-		    fprintf(fptr,"    For questions or comments, please send mail to:\n");
-		    fprintf(fptr,"        <A HREF=\"mailto:%s\">%s</A>\n",
+		    fprintf(fptr, "<ADDRESS><H4>\n");
+		    fprintf(fptr, "    For questions or comments, please send mail to:\n");
+		    fprintf(fptr, "        <A HREF=\"mailto:%s\">%s</A>\n",
 			    tconf.email, tconf.email);
-		    fprintf(fptr,"</H4></ADDRESS>\n");
+		    fprintf(fptr, "</H4></ADDRESS>\n");
 		}
-		fprintf(fptr,"</CENTER>\n\n");
+		fprintf(fptr, "</CENTER>\n\n");
 		fclose(fptr);
 		if (file_readable(FREEBSD_GIF))
 		    vsystem("cp %s %s", FREEBSD_GIF, tconf.docroot);
@@ -506,15 +506,15 @@ configApache(dialogMenuItem *self)
     
     fptr = fopen(file,"w");
     if (fptr) {
-	fprintf(fptr,"<Directory %s/cgi-bin>\n", APACHE_BASE);
-	fprintf(fptr,"Options Indexes FollowSymLinks\n");
-	fprintf(fptr,"</Directory>\n");
-	fprintf(fptr,"\n");
-	fprintf(fptr,"<Directory %s>\n", tconf.docroot);
-	fprintf(fptr,"Options Indexes FollowSymLinks\n");
-	fprintf(fptr,"AllowOverride All\n");
-	fprintf(fptr,"</Directory>\n");
-	fprintf(fptr,"\n");
+	fprintf(fptr, "<Directory %s/cgi-bin>\n", APACHE_BASE);
+	fprintf(fptr, "Options Indexes FollowSymLinks\n");
+	fprintf(fptr, "</Directory>\n");
+	fprintf(fptr, "\n");
+	fprintf(fptr, "<Directory %s>\n", tconf.docroot);
+	fprintf(fptr, "Options Indexes FollowSymLinks\n");
+	fprintf(fptr, "AllowOverride All\n");
+	fprintf(fptr, "</Directory>\n");
+	fprintf(fptr, "\n");
 	fclose(fptr);
     }
     else {
@@ -528,28 +528,28 @@ configApache(dialogMenuItem *self)
     
     fptr = fopen(file,"w");
     if (fptr) {
-	fprintf(fptr,"ServerType standalone\n");
-	fprintf(fptr,"Port 80\n");
-	fprintf(fptr,"TimeOut 400\n");
-	fprintf(fptr,"\n");
-	fprintf(fptr,"ErrorLog %s/%s\n", LOGS_SUBDIR, ERROR_LOGNAME);
-	fprintf(fptr,"TransferLog %s/%s\n", LOGS_SUBDIR, ACCESS_LOGNAME);
-	fprintf(fptr,"PidFile /var/run/httpd.pid\n");
-	fprintf(fptr,"\n");
-	fprintf(fptr,"StartServers 5\n");
-	fprintf(fptr,"MinSpareServers 5\n");
-	fprintf(fptr,"MaxSpareServers 10\n");
-	fprintf(fptr,"MaxRequestsPerChild 30\n");
-	fprintf(fptr,"MaxClients 150\n");
-	fprintf(fptr,"\n");
-	fprintf(fptr,"User %s\n",tconf.defuser);
-	fprintf(fptr,"Group %s\n",tconf.defgroup);
-	fprintf(fptr,"\n");
+	fprintf(fptr, "ServerType standalone\n");
+	fprintf(fptr, "Port 80\n");
+	fprintf(fptr, "TimeOut 400\n");
+	fprintf(fptr, "\n");
+	fprintf(fptr, "ErrorLog %s/%s\n", LOGS_SUBDIR, ERROR_LOGNAME);
+	fprintf(fptr, "TransferLog %s/%s\n", LOGS_SUBDIR, ACCESS_LOGNAME);
+	fprintf(fptr, "PidFile /var/run/httpd.pid\n");
+	fprintf(fptr, "\n");
+	fprintf(fptr, "StartServers 5\n");
+	fprintf(fptr, "MinSpareServers 5\n");
+	fprintf(fptr, "MaxSpareServers 10\n");
+	fprintf(fptr, "MaxRequestsPerChild 30\n");
+	fprintf(fptr, "MaxClients 150\n");
+	fprintf(fptr, "\n");
+	fprintf(fptr, "User %s\n",tconf.defuser);
+	fprintf(fptr, "Group %s\n",tconf.defgroup);
+	fprintf(fptr, "\n");
 	
 	if (tconf.email[0])
-	    fprintf(fptr,"ServerAdmin %s\n",tconf.email);
+	    fprintf(fptr, "ServerAdmin %s\n", tconf.email);
 	if (tconf.hostname[0])
-	    fprintf(fptr,"ServerName %s\n",tconf.hostname);
+	    fprintf(fptr, "ServerName %s\n", tconf.hostname);
 	
 	fclose(fptr);
     }
@@ -606,7 +606,7 @@ configApache(dialogMenuItem *self)
 	msgConfirm("Could not create %s",file);
 	i = DITEM_FAILURE;
     }
-    if (i != DITEM_FAILURE)
+    if (DITEM_STATUS(i) == DITEM_SUCCESS)
 	variable_set2("apache_httpd", "YES");
     return i | DITEM_RESTORE;
 }

@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp_strat.c,v 1.12 1996/04/13 13:31:37 jkh Exp $
+ * $Id: ftp_strat.c,v 1.13 1996/04/23 01:29:21 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -68,7 +68,7 @@ get_new_host(Device *dev, Boolean probe)
 	MenuMediaFTP.title = "Request failed - please select another site";
 	j = mediaSetFTP(NULL);
 	MenuMediaFTP.title = oldTitle;
-	if (j == DITEM_SUCCESS) {
+	if (DITEM_STATUS(j) == DITEM_SUCCESS) {
 	    /* Bounce the link if necessary */
 	    if (ftpInitted) {
 		msgDebug("Bouncing FTP connection before reselecting new host.\n");
@@ -99,6 +99,7 @@ ftpShouldAbort(Device *dev, int retries)
 	if (isDebug())
 	    msgDebug("Aborting FTP connection.\n");
 	dev->shutdown(dev);
+	(void)dev->init(dev);
     }
     return rval;
 }
@@ -116,18 +117,23 @@ mediaInitFTP(Device *dev)
 
     if (isDebug())
 	msgDebug("Init routine for FTP called.  Net device is %x\n", netDevice);
-    if (!netDevice->init(netDevice))
+    if (!netDevice->init(netDevice)) {
+	if (isDebug())
+	    msgDebug("InitFTP: Net device init returns FALSE\n");
 	return FALSE;
+    }
 
     if (!ftp && (ftp = FtpInit()) == NULL) {
 	msgConfirm("FTP initialisation failed!");
 	return FALSE;
     }
+
     cp = variable_get(VAR_FTP_PATH);
     if (!cp) {
 	msgConfirm("%s is not set!", VAR_FTP_PATH);
 	return FALSE;
     }
+
     if (isDebug())
 	msgDebug("Attempting to open connection for URL: %s\n", cp);
     hostname = variable_get(VAR_HOSTNAME);

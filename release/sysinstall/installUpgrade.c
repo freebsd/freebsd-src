@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installUpgrade.c,v 1.21 1996/04/23 01:29:24 jkh Exp $
+ * $Id: installUpgrade.c,v 1.22 1996/04/25 17:31:20 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -230,7 +230,7 @@ installUpgrade(dialogMenuItem *self)
 	       "Once you're done in the label editor, press Q to return here for the next\n"
 	       "step.");
 
-    if (diskLabelEditor(self) == DITEM_FAILURE) {
+    if (DITEM_STATUS(diskLabelEditor(self)) == DITEM_FAILURE) {
 	msgConfirm("The disk label editor failed to work properly!  Upgrade operation\n"
 		   "aborted.");
 	return DITEM_FAILURE | DITEM_RESTORE | DITEM_RECREATE;
@@ -238,7 +238,7 @@ installUpgrade(dialogMenuItem *self)
 
     /* Don't write out MBR info */
     variable_set2(DISK_PARTITIONED, "written");
-    if (diskLabelCommit(self) == DITEM_FAILURE) {
+    if (DITEM_STATUS(diskLabelCommit(self)) == DITEM_FAILURE) {
 	msgConfirm("Not all file systems were properly mounted.  Upgrade operation\n"
 		   "aborted.");
 	variable_unset(DISK_PARTITIONED);
@@ -251,7 +251,7 @@ installUpgrade(dialogMenuItem *self)
 	return DITEM_FAILURE | DITEM_RESTORE | DITEM_RECREATE;
     }
 
-    if (chroot("/mnt") == DITEM_FAILURE) {
+    if (DITEM_STATUS(chroot("/mnt")) == DITEM_FAILURE) {
 	msgConfirm("Unable to chroot to /mnt - something is wrong with the\n"
 		   "root partition or the way it's mounted if this doesn't work.");
 	variable_unset(DISK_PARTITIONED);
@@ -297,7 +297,7 @@ installUpgrade(dialogMenuItem *self)
     }
 
     msgNotify("Beginning extraction of distributions..");
-    if (distExtractAll(self) == DITEM_FAILURE) {
+    if (DITEM_STATUS(distExtractAll(self)) == DITEM_FAILURE) {
 	if (extractingBin && (Dists & DIST_BIN)) {
 	    msgConfirm("Hmmmm.  We couldn't even extract the bin distribution.  This upgrade\n"
 		       "should be considered a failure and started from the beginning, sorry!\n"
@@ -315,7 +315,7 @@ installUpgrade(dialogMenuItem *self)
 		  "/dev entries and such that a 2.1 system expects to see.  I'll also perform a\n"
 		  "few \"fixup\" operations to repair the effects of splatting a bin distribution\n"
 		  "on top of an existing system..");
-	if (installFixup(self) == DITEM_FAILURE) {
+	if (DITEM_STATUS(installFixup(self)) == DITEM_FAILURE) {
 	    msgConfirm("Hmmmmm.  The fixups don't seem to have been very happy.\n"
 		       "You may wish to examine the system a little more closely when\n"
 		       "it comes time to merge your /etc customizations back.");

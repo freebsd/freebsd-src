@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: index.c,v 1.23 1996/04/13 13:31:39 jkh Exp $
+ * $Id: index.c,v 1.24 1996/04/23 01:29:21 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -57,9 +57,10 @@ _strdup(char *ptr)
 
 static char *descrs[] = {
     "Package Selection", "To mark a package or select a category, move to it and press SPACE.\n"
-    "To unmark a package, press SPACE again.  To go to a previous menu, select the Cancel\n"
-    "button.  To search for a package by name, press ESC.  To finally extract packages, you\n"
-    "should Cancel all the way out of any submenus and this top menu.",
+    "To unmark a package, press SPACE again.  To go to a previous menu,\n"
+    "select the Cancel button.  To search for a package by name, press ESC.\n"
+    "To finally extract packages, you should Cancel all the way out of any\n"
+    "submenus and then this top menu.",
     "Package Targets", "These are the packages you've selected for extraction.\n\n"
     "If you're sure of these choices, select OK.\n"
     "If not, select Cancel to go back to the package selection menu.\n",
@@ -528,12 +529,12 @@ index_extract_one(Device *dev, PkgNodePtr top, PkgNodePtr who, Boolean depended)
 
 	strcpy(t, id->deps);
 	cp = t;
-	while (cp && status == DITEM_SUCCESS) {
+	while (cp && DITEM_STATUS(status) == DITEM_SUCCESS) {
 	    if ((cp2 = index(cp, ' ')) != NULL)
 		*cp2 = '\0';
 	    if ((tmp2 = index_search(top, cp, NULL)) != NULL) {
 		status = index_extract_one(dev, top, tmp2, TRUE);
-		if (status != DITEM_SUCCESS) {
+		if (DITEM_STATUS(status) != DITEM_SUCCESS) {
 		    if (variable_get(VAR_NO_CONFIRM))
 			msgNotify("Loading of dependant package %s failed", cp);
 		    else
@@ -547,7 +548,7 @@ index_extract_one(Device *dev, PkgNodePtr top, PkgNodePtr who, Boolean depended)
 	}
     }
     /* Done with the deps?  Load the real m'coy */
-    if (status == DITEM_SUCCESS)
+    if (DITEM_STATUS(status) == DITEM_SUCCESS)
 	status = package_extract(dev, who->name, depended);
     return status;
 }

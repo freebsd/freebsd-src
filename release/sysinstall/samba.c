@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installFinal.c,v 1.28 1996/04/25 17:31:19 jkh Exp $
+ * $Id: samba.c,v 1.1 1996/04/28 01:07:26 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard & Coranth Gryphon.  All rights reserved.
@@ -61,7 +61,7 @@ configSamba(dialogMenuItem *self)
 
     if (!dmenuOpenSimple(&MenuSamba))
 	i = DITEM_FAILURE;
-    else if (package_add("samba-1.9.15p8") != DITEM_SUCCESS)
+    else if (DITEM_STATUS(package_add("samba-1.9.15p8")) != DITEM_SUCCESS)
 	i = DITEM_FAILURE;
     else {
 	FILE *fptr;
@@ -70,7 +70,7 @@ configSamba(dialogMenuItem *self)
 
 	fptr = fopen("/tmp/smb.conf","w");
 	if (fptr) {
-	    strcpy(tbuf,"FreeBSD - Samba %v");
+	    strcpy(tbuf, "FreeBSD - Samba %v");
 	    if (variable_get("SAMBA_string")) {
 		tptr = msgGetInput("FreeBSD - Samba %%v", "What should this server list as its description?\n"
 				   "Note that the \"%%v\" refers to the samba version number.");
@@ -148,6 +148,8 @@ configSamba(dialogMenuItem *self)
 	    msgConfirm("Unable to open temporary smb.conf file.\n"
 		       "Samba will have to be configured by hand.");
     }
+    if (DITEM_STATUS(i) == DITEM_SUCCESS)
+	variable_set2("samba", "YES");
     return i | DITEM_RESTORE | DITEM_RECREATE;
 }
 
