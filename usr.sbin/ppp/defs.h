@@ -107,3 +107,5 @@ extern int SpeedToInt(speed_t);
 extern speed_t IntToSpeed(int);
 extern char *findblank(char *, int);
 extern int MakeArgs(char *, char **, int, int);
+extern const char *NumStr(long, char *, size_t);
+extern const char *HexStr(long, char *, size_t);
