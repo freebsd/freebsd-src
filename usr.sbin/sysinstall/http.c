@@ -5,8 +5,10 @@
 #include <sys/param.h>
 #include <netdb.h>
 
+extern const char *ftp_dirs[]; /* defined in ftp.c */
+
 Boolean
-mediaInitHTTP(Device *dev)
+checkAccess(Boolean proxyCheckOnly)
 {
 /* 
  * Some proxies fetch files with certain extensions in "ascii mode" instead
@@ -19,7 +21,7 @@ mediaInitHTTP(Device *dev)
 
     int rv, s, af;
     bool el, found=FALSE;		    /* end of header line */
-    char *cp, *rel, buf[PATH_MAX], req[BUFSIZ];
+    char *cp, buf[PATH_MAX], req[BUFSIZ];
     struct addrinfo hints, *res, *res0;
 
     af = variable_cmp(VAR_IPV6_ENABLE, "YES") ? AF_INET : AF_UNSPEC;
@@ -30,6 +32,7 @@ mediaInitHTTP(Device *dev)
     if ((rv = getaddrinfo(variable_get(VAR_HTTP_HOST),
 			  variable_get(VAR_HTTP_PORT), &hints, &res0)) != 0) {
 	msgConfirm("%s", gai_strerror(rv));
+	variable_unset(VAR_HTTP_HOST);
 	return FALSE;
     }
     s = -1;
@@ -46,21 +49,12 @@ mediaInitHTTP(Device *dev)
     if (s == -1) {
 	msgConfirm("Couldn't connect to proxy %s:%s",
 		    variable_get(VAR_HTTP_HOST),variable_get(VAR_HTTP_PORT));
+	variable_unset(VAR_HTTP_HOST);
 	return FALSE;
     }
-    /* If the release is specified as "__RELEASE" or "any", then just
-     * assume that the path the user gave is ok.
-     */
-    rel = variable_get(VAR_RELNAME);
-    /*
-    msgConfirm("rel: -%s-", rel);
-    */
-    if (strcmp(rel, "__RELEASE") && strcmp(rel, "any"))  {
-    	sprintf(req, "%s/pub/FreeBSD/releases/"MACHINE"/%s",
-	  variable_get(VAR_FTP_PATH), rel);
-	variable_set2(VAR_HTTP_PATH, req, 0);
-    } else {
-	variable_set2(VAR_HTTP_PATH, variable_get(VAR_FTP_PATH), 0);
+    if (proxyCheckOnly) {
+       close(s);
+       return TRUE;
     }
 
     msgNotify("Checking access to\n %s", variable_get(VAR_HTTP_PATH));
@@ -71,6 +65,7 @@ mediaInitHTTP(Device *dev)
  *  this is extremely quick'n dirty
  *
  */
+    bzero(buf, PATH_MAX);
     cp=buf;
     el=FALSE;
     rv=read(s,cp,1);
@@ -106,12 +101,58 @@ mediaInitHTTP(Device *dev)
 	}
     }
     close(s);
-    if (!found) 
-    	msgConfirm("No such directory: %s\n"
-		   "please check the URL and try again.", variable_get(VAR_HTTP_PATH));
     return found;
 } 
 
+Boolean
+mediaInitHTTP(Device *dev)
+{
+    bool found=FALSE;		    /* end of header line */
+    char *rel, req[BUFSIZ];
+    int fdir;
+
+    /* 
+     * First verify the proxy access
+     */
+    checkAccess(TRUE);
+    while (variable_get(VAR_HTTP_HOST) == NULL) {
+        if (DITEM_STATUS(mediaSetHTTP(NULL)) == DITEM_FAILURE)
+            return FALSE;
+        checkAccess(TRUE);
+    }
+again:
+    /* If the release is specified as "__RELEASE" or "any", then just
+     * assume that the path the user gave is ok.
+     */
+    rel = variable_get(VAR_RELNAME);
+    /*
+    msgConfirm("rel: -%s-", rel);
+    */
+
+    if (strcmp(rel, "__RELEASE") && strcmp(rel, "any"))  {
+        for (fdir = 0; ftp_dirs[fdir]; fdir++) {
+            sprintf(req, "%s/%s/%s", variable_get(VAR_FTP_PATH),
+                ftp_dirs[fdir], rel);
+            variable_set2(VAR_HTTP_PATH, req, 0);
+            if (checkAccess(FALSE)) {
+                found = TRUE;
+                break;
+            }
+        }
+    } else {
+        variable_set2(VAR_HTTP_PATH, variable_get(VAR_FTP_PATH), 0);
+        found = checkAccess(FALSE);
+    }
+    if (!found) {
+    	msgConfirm("No such directory: %s\n"
+		   "please check the URL and try again.", variable_get(VAR_HTTP_PATH));
+        variable_unset(VAR_HTTP_PATH);
+        dialog_clear_norefresh();
+        clear();
+        if (DITEM_STATUS(mediaSetHTTP(NULL)) != DITEM_FAILURE) goto again;
+    }
+    return found;
+}
 
 FILE *
 mediaGetHTTP(Device *dev, char *file, Boolean probe)

@@ -49,7 +49,7 @@ static FILE *OpenConn;
 int FtpPort;
 
 /* List of sub directories to look for under a given FTP server. */
-static const char *ftp_dirs[] = { ".", "releases/"MACHINE, "snapshots/"MACHINE,
+const char *ftp_dirs[] = { ".", "releases/"MACHINE, "snapshots/"MACHINE,
     "pub/FreeBSD", "pub/FreeBSD/releases/"MACHINE,
     "pub/FreeBSD/snapshots/"MACHINE, NULL };
 
