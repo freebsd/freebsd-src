@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_vfsops.c	8.7 (Berkeley) 4/16/94
- * $Id: lfs_vfsops.c,v 1.4 1994/08/20 03:49:02 davidg Exp $
+ * $Id: lfs_vfsops.c,v 1.5 1994/08/20 16:03:26 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -75,6 +75,8 @@ struct vfsops lfs_vfsops = {
 	lfs_vptofh,
 	lfs_init,
 };
+
+VFS_SET(lfs_vfsops, lfs, MOUNT_LFS, 0);
 
 int
 lfs_mountroot()

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.6 (Berkeley) 4/9/94
- * $Id: spec_vnops.c,v 1.3 1994/08/02 07:45:27 davidg Exp $
+ * $Id: spec_vnops.c,v 1.4 1994/08/08 09:11:36 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -106,6 +106,8 @@ struct vnodeopv_entry_desc spec_vnodeop_entries[] = {
 };
 struct vnodeopv_desc spec_vnodeop_opv_desc =
 	{ &spec_vnodeop_p, spec_vnodeop_entries };
+
+VNODEOP_SET(spec_vnodeop_opv_desc);
 
 /*
  * Trivial lookup routine that always fails.

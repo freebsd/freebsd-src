@@ -31,12 +31,13 @@
  * SUCH DAMAGE.
  *
  *	@(#)dead_vnops.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: dead_vnops.c,v 1.3 1994/08/02 07:44:51 davidg Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/time.h>
+#include <sys/kernel.h>
 #include <sys/vnode.h>
 #include <sys/errno.h>
 #include <sys/namei.h>
@@ -135,6 +136,8 @@ struct vnodeopv_entry_desc dead_vnodeop_entries[] = {
 };
 struct vnodeopv_desc dead_vnodeop_opv_desc =
 	{ &dead_vnodeop_p, dead_vnodeop_entries };
+
+VNODEOP_SET(dead_vnodeop_opv_desc);
 
 /*
  * Trivial lookup routine that always fails.

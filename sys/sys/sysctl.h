@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sysctl.h	8.1 (Berkeley) 6/2/93
- * $Id: sysctl.h,v 1.9 1994/09/16 01:09:42 ache Exp $
+ * $Id: sysctl.h,v 1.10 1994/09/18 20:40:00 wollman Exp $
  */
 
 #ifndef _SYS_SYSCTL_H_
@@ -161,6 +161,16 @@ struct ctlname {
 	{ "update", CTLTYPE_INT }, \
 	{ "osreldate", CTLTYPE_INT }, \
         { "ntp_pll", CTLTYPE_NODE }, \
+}
+
+/*
+ * CTL_FS identifiers
+ */
+#define FS_VFSCONF		0	/* get configured filesystems */
+#define FS_MAXID		1	/* number of items */
+
+#define CTL_FS_NAMES { \
+	{ "vfsconf", CTLTYPE_STRUCT }, \
 }
 
 /* 

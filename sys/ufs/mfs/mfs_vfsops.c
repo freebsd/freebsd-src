@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vfsops.c	8.4 (Berkeley) 4/16/94
- * $Id: mfs_vfsops.c,v 1.3 1994/08/02 07:54:43 davidg Exp $
+ * $Id: mfs_vfsops.c,v 1.4 1994/08/18 22:35:55 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -79,6 +79,8 @@ struct vfsops mfs_vfsops = {
 	ffs_vptofh,
 	mfs_init,
 };
+
+VFS_SET(mfs_vfsops, mfs, MOUNT_MFS, 0);
 
 /*
  * Called by main() when mfs is going to be mounted as root.

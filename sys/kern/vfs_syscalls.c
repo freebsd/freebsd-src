@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.5 1994/09/02 04:14:44 davidg Exp $
+ * $Id: vfs_syscalls.c,v 1.6 1994/09/02 10:23:43 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -135,6 +135,7 @@ mount(p, uap, retval)
 		M_MOUNT, M_WAITOK);
 	bzero((char *)mp, (u_long)sizeof(struct mount));
 	mp->mnt_op = vfssw[uap->type];
+	mp->mnt_vfc = vfsconf[uap->type];
 	if (error = vfs_lock(mp)) {
 		free((caddr_t)mp, M_MOUNT);
 		vput(vp);
@@ -148,6 +149,8 @@ mount(p, uap, retval)
 	}
 	vp->v_mountedhere = mp;
 	mp->mnt_vnodecovered = vp;
+	vfsconf[uap->type]->vfc_refcount++;
+
 update:
 	/*
 	 * Set the mount level flags.
@@ -188,6 +191,7 @@ update:
 		vfs_unlock(mp);
 		free((caddr_t)mp, M_MOUNT);
 		vput(vp);
+		vfsconf[uap->type]->vfc_refcount--;
 	}
 	return (error);
 }
@@ -282,6 +286,7 @@ dounmount(mp, flags, p)
 		TAILQ_REMOVE(&mountlist, mp, mnt_list);
 		mp->mnt_vnodecovered->v_mountedhere = (struct mount *)0;
 		vfs_unlock(mp);
+		mp->mnt_vfc->vfc_refcount--;
 		if (mp->mnt_vnodelist.lh_first != NULL)
 			panic("unmount: dangling vnode");
 		free((caddr_t)mp, M_MOUNT);

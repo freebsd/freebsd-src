@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vnops.c	8.6 (Berkeley) 2/7/94
  *
- *	$Id: procfs_vnops.c,v 1.3 1994/08/02 07:45:25 davidg Exp $
+ *	$Id: procfs_vnops.c,v 1.4 1994/08/18 22:35:15 wollman Exp $
  */
 
 /*
@@ -831,3 +831,5 @@ struct vnodeopv_entry_desc procfs_vnodeop_entries[] = {
 };
 struct vnodeopv_desc procfs_vnodeop_opv_desc =
 	{ &procfs_vnodeop_p, procfs_vnodeop_entries };
+
+VNODEOP_SET(procfs_vnodeop_opv_desc);
