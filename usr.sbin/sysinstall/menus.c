@@ -836,8 +836,12 @@ DMenu MenuSubDistributions = {
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_PORTS },
       { " local",	"Local additions collection",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_LOCAL},
-      { " XFree86",	"The XFree86 3.3.6 distribution",
+      { " XFree86",	"The XFree86 distribution",
+#ifdef X_AS_PKG
+	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_XF86 },
+#else
 	x11FlagCheck,	distSetXF86 },
+#endif
       { NULL } },
 };
 
@@ -900,35 +904,19 @@ DMenu MenuSrcDistributions = {
 DMenu MenuXF86Config = {
     DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
     "Please select the XFree86 configuration tool you want to use.",
-#ifdef __alpha__
-    "Due to problems with the VGA16 server right now, only the\n"
-    "text-mode configuration tool (xf86config) is currently supported.",
-#else
-    "The first tool, XF86Setup, is fully graphical and requires the\n"
-    "VGA16 server in order to work (should have been selected by\n"
-    "default, but if you de-selected it then you won't be able to\n"
-    "use this fancy setup tool).  The second tool, xf86config, is\n"
+    "The first tool, xf86cfg, is fully graphical\n"
+    "The second tool, xf86config, is\n"
     "a more simplistic shell-script based tool and less friendly to\n"
     "new users, but it may work in situations where the fancier one\n"
     "does not.",
-#endif
     NULL,
     NULL,
     { { "X Exit", "Exit this menu (returning to previous)",
 	NULL, dmenuExit },
-#ifdef __alpha__
-      { "2 xf86config",	"Shell-script based XFree86 configuration tool.",
-	NULL, dmenuSetVariable, NULL, VAR_XF86_CONFIG "=xf86config" },
-#else
-      { "2 XF86Setup",	"Fully graphical XFree86 configuration tool.",
-	NULL, dmenuSetVariable, NULL, VAR_XF86_CONFIG "=XF86Setup" },
+      { "2 xf86cfg",	"Fully graphical XFree86 configuration tool.",
+	NULL, dmenuSetVariable, NULL, VAR_XF86_CONFIG "=xf86cfg" },
       { "3 xf86config",	"Shell-script based XFree86 configuration tool.",
 	NULL, dmenuSetVariable, NULL, VAR_XF86_CONFIG "=xf86config" },
-#ifdef PC98
-      { "4 XF98Setup",	"Fully graphical XFree86 configuration tool (PC98).",
-	NULL, dmenuSetVariable, NULL, VAR_XF86_CONFIG "=XF98Setup" },
-#endif
-#endif
       { "D XDesktop",	"X already set up, just do desktop configuration.",
 	NULL, dmenuSubmenu, NULL, &MenuXDesktops },
       { NULL } },
@@ -965,8 +953,8 @@ DMenu MenuXDesktops = {
 
 DMenu MenuXF86Select = {
     DMENU_NORMAL_TYPE,
-    "XFree86 3.3.6 Distribution",
-    "Please select the components you need from the XFree86 3.3.6\n"
+    "XFree86 Distribution",
+    "Please select the components you need from the XFree86\n"
     "distribution sets.",
     NULL,
     NULL,
@@ -979,7 +967,7 @@ DMenu MenuXF86Select = {
 
 DMenu MenuXF86SelectCore = {
     DMENU_CHECKLIST_TYPE | DMENU_SELECTION_RETURNS,
-    "XFree86 3.3.6 base distribution types",
+    "XFree86 base distribution types",
     "Please check off the basic XFree86 components you wish to install.\n"
     "Bin, lib, and set are recommended for a minimum installaion.",
     NULL,
