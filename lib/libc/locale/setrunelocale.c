@@ -106,7 +106,7 @@ setrunelocale(char *encoding)
 				return (ENAMETOOLONG);
 			_PathLocale = strdup(p);
 			if (_PathLocale == NULL)
-				return (ENOMEM);
+				return (errno == 0 ? ENOMEM : errno);
 		} else
 			_PathLocale = _PATH_LOCALE;
 	}
@@ -117,10 +117,10 @@ setrunelocale(char *encoding)
 	(void) strcat(name, "/LC_CTYPE");
 
 	if ((fp = fopen(name, "r")) == NULL)
-		return (errno);
+		return (errno == 0 ? ENOENT : errno);
 
 	if ((rl = _Read_RuneMagi(fp)) == NULL) {
-		saverr = errno;
+		saverr = (errno == 0 ? EFTYPE : errno);
 		(void)fclose(fp);
 		return (saverr);
 	}

@@ -78,7 +78,7 @@ _EUC_init(rl)
 		++v;
 
 	if ((ei = malloc(sizeof(_EucInfo))) == NULL)
-		return (ENOMEM);
+		return (errno == 0 ? ENOMEM : errno);
 
 	new__mb_cur_max = 0;
 	for (x = 0; x < 4; ++x) {
