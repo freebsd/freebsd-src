@@ -49,6 +49,7 @@ MAN=	BUF_LOCK.9 BUF_LOCKFREE.9 BUF_LOCKINIT.9 BUF_REFCNT.9 \
 	get_cyclecount.9 \
 	getnewvnode.9 \
 	groupmember.9 \
+	hexdump.9 \
 	ifnet.9 inittodr.9 intro.9 ithread.9 \
 	jumbo.9 \
 	kernacc.9 kobj.9 kthread.9 ktr.9 \
