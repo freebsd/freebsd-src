@@ -191,3 +191,6 @@ __do_frame_takedown:
 
 .weak __register_frame_info
 .weak __deregister_frame_info
+
+.section	.rodata
+	.ascii "$FreeBSD$\0"
