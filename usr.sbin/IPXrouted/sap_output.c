@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sap_output.c,v 1.2 1995/11/13 21:01:34 julian Exp $
+ *	$Id: sap_output.c,v 1.3 1995/12/05 04:59:56 julian Exp $
  */
 
 /*
@@ -126,7 +126,8 @@ sap_supply(dst, flags, ifp, ServType)
 	for (sh = base; sh < &base[SAPHASHSIZ]; sh++)
 	for (sap = sh->forw; sap != (struct sap_entry *)sh; sap = sap->forw) {
 		size = (char *)n - (char *)sap_msg;
-		if (size > MAXPACKETSIZE - sizeof (struct sap_info)) {
+		if (size >= ((MAXSAPENTRIES * sizeof (struct sap_info)) +
+				sizeof (sap_msg->sap_cmd))) {
 			(*output)(sapsock, flags, dst, size);
 			TRACE_SAP_OUTPUT(ifp, dst, size);
 			n = sap_msg->sap;

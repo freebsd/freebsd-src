@@ -34,7 +34,7 @@
  *
  *	@(#)defs.h	8.1 (Berkeley) 6/5/93
  *
- *	$Id: defs.h,v 1.1 1995/10/26 21:28:14 julian Exp $
+ *	$Id: defs.h,v 1.2 1995/10/27 10:48:25 julian Exp $
  */
 
 #include <sys/types.h>
@@ -87,7 +87,7 @@ extern int	r;			/* Routing socket to install updates with */
 extern int gateway;
 extern struct	sockaddr_ipx ipx_netmask;	/* Used in installing routes */
 
-extern char	packet[MAXPACKETSIZE+sizeof(struct ipx)+1];
+extern char	packet[MAXRXPACKETSIZE+1];
 extern struct	rip *msg;
 
 extern char	**argv0;
