@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: main.c,v 1.18 1997/09/15 06:37:08 charnier Exp $";
+	"$Id: main.c,v 1.19 1997/11/18 03:41:51 jdp Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -65,8 +65,8 @@ static const char rcsid[] =
 #define FALSE	(0)
 #endif
 
-static char *PREFIX;
-static int no_config_clobber = FALSE;
+char *PREFIX;
+static int no_config_clobber = TRUE;
 int old_config_present;
 
 static void usage __P((void));
@@ -86,7 +86,7 @@ main(argc, argv)
 	int ch;
 	char *p;
 
-	while ((ch = getopt(argc, argv, "gpn")) != -1)
+	while ((ch = getopt(argc, argv, "gpr")) != -1)
 		switch (ch) {
 		case 'g':
 			debugging++;
@@ -94,8 +94,8 @@ main(argc, argv)
 		case 'p':
 			profiling++;
 			break;
-		case 'n':
-			no_config_clobber = TRUE;
+		case 'r':
+			no_config_clobber = FALSE;
 			break;
 		case '?':
 		default:
@@ -109,8 +109,6 @@ main(argc, argv)
 
 	if (freopen(PREFIX = *argv, "r", stdin) == NULL)
 		err(2, "%s", PREFIX);
-	if (getenv("NO_CONFIG_CLOBBER"))
-		no_config_clobber = TRUE;
 
 	p = path((char *)NULL);
 	if (stat(p, &buf)) {
@@ -120,7 +118,6 @@ main(argc, argv)
 	else if ((buf.st_mode & S_IFMT) != S_IFDIR) {
 		errx(2, "%s isn't a directory", p);
 	}
-#ifndef NO_CLOBBER_EVER
 	else if (!no_config_clobber) {
 		char tmp[strlen(p) + 8];
 
@@ -135,9 +132,8 @@ main(argc, argv)
 		if (mkdir(p, 0777))
 			err(2, "%s", p);
 	}
-#endif
 	else
-		old_config_present++;
+		old_config_present = 1;
 
 	loadaddress = -1;
 	dtab = NULL;
@@ -189,7 +185,7 @@ main(argc, argv)
 	{
 	char xxx[80];
 
-	(void) sprintf(xxx, "../../%s/include", machinename);
+	(void) snprintf(xxx, sizeof(xxx), "../../%s/include", machinename);
 	(void) symlink(xxx, path("machine"));
 	}
 	options();			/* make options .h files */
@@ -204,7 +200,7 @@ main(argc, argv)
 static void
 usage()
 {
-		fprintf(stderr, "usage: config [-gpn] sysname\n");
+		fprintf(stderr, "usage: config [-gpr] sysname\n");
 		exit(1);
 }
 

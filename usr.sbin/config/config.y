@@ -404,6 +404,7 @@ Option:
 		op->op_name = $1;
 		op->op_next = opt;
 		op->op_value = 0;
+		op->op_line = yyline;
 		opt = op;
 		if ((s = strchr(op->op_name, '='))) {
 			/* AARGH!!!! Old-style bogon */
@@ -418,6 +419,7 @@ Option:
 		op->op_name = $1;
 		op->op_next = opt;
 		op->op_value = $3;
+		op->op_line = yyline;
 		opt = op;
 	      } ;
 
@@ -452,6 +454,7 @@ Mkoption:
 		op->op_ownfile = 0;	/* for now */
 		op->op_next = mkopt;
 		op->op_value = $3;
+		op->op_line = yyline;
 		mkopt = op;
 	      } ;
 

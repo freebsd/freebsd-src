@@ -39,7 +39,7 @@
 .Nd build system configuration files
 .Sh SYNOPSIS
 .Nm config
-.Op Fl gpn
+.Op Fl gpr
 .Ar SYSTEM_NAME
 .Sh DESCRIPTION
 This is the old version of the
@@ -84,8 +84,8 @@ If two or more
 options are supplied,
 .Nm
 will configure a system for high resolution profiling.
-.It Fl n
-Do not remove the old compile directory (see below).
+.It Fl r
+Remove the old compile directory (see below).
 .It Ar SYSTEM_NAME
 Specifies the name of the system configuration file
 containing device specifications, configuration options
@@ -101,12 +101,9 @@ subdirectory of the system source (usually
 will create the directory
 .Pa ../../compile/SYSTEM_NAME
 as necessary and place all output files there.
-If the directory already exists, it will be removed
-first unless the
-.Fl n
-flag was specified or the environment variable
-.Ev NO_CONFIG_CLOBBER
-is set.
+If the directory already exists and the
+.Fl r
+flag was specified, it will be removed first.
 The output of
 .Nm
 consists of a number of files; for the
