@@ -368,7 +368,8 @@ ad1816chan_setformat(kobj_t obj, void *data, u_int32_t format)
     	if (format & AFMT_STEREO) fmt |= AD1816_STEREO;
     	io_wr(ad1816, reg, fmt);
 	ad1816_unlock(ad1816);
-    	return format;
+
+	return (0);
 }
 
 static int
