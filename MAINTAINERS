@@ -5,7 +5,9 @@ subsystem	login	notes
 mergemaster	dougb	Prefers to pre-approve commits
 binutils	obrien	Insists to keep BU blocked from other's unapproved
 			commits
-libc/posix1e	rwatson	Would like to review patches
+libc/posix1e	rwatson	Pre-commit review requested.
+POSIX.1e ACLs	rwatson	Pre-commit review requested.
+UFS EAs		rwatson	Pre-commit review requested.
 ATA/IDE		sos	Pre-commit review requested.
 ahc(4)		gibbs	Pre-commit review requested.
 NEWCARD		imp	Pre-commit review requested.
