@@ -277,18 +277,21 @@ schedcpu(arg)
 				 * with 16-bit int's (remember them?)
 				 * overflow takes 45 days.
 				 */
-				/* XXXKSE **WRONG***/
 				/*
-				 * the kse slptimes are not touched in wakeup
-				 * because the thread may not HAVE a KSE
+				 * The kse slptimes are not touched in wakeup
+				 * because the thread may not HAVE a KSE.
 				 */
 				if ((ke->ke_state == KES_ONRUNQ) ||
 				    ((ke->ke_state == KES_THREAD) &&
 				    (ke->ke_thread->td_state == TDS_RUNNING))) {
-					ke->ke_slptime++;
-				} else {
 					ke->ke_slptime = 0;
 					awake = 1;
+				} else {
+					/* XXXKSE
+					 * This is probably a pointless
+					 * statistic in a KSE world.
+					 */
+					ke->ke_slptime++;
 				}
 
 				/*
@@ -296,7 +299,8 @@ schedcpu(arg)
 				 * Do it per kse.. and add them up at the end?
 				 * XXXKSE
 				 */
-				ke->ke_pctcpu = (ke->ke_pctcpu * ccpu) >> FSHIFT;
+				ke->ke_pctcpu
+				    = (ke->ke_pctcpu * ccpu) >> FSHIFT;
 				/*
 				 * If the kse has been idle the entire second,
 				 * stop recalculating its priority until
@@ -319,6 +323,10 @@ schedcpu(arg)
 #endif
 				ke->ke_cpticks = 0;
 			} /* end of kse loop */
+			/* 
+			 * If there are ANY running threads in this KSEGRP,
+			 * then don't count it as sleeping.
+			 */
 			if (awake == 0) {
 				kg->kg_slptime++;
 			} else {
@@ -1054,7 +1062,7 @@ schedclock(td)
 	struct kse *ke;
 	struct ksegrp *kg;
 
-	KASSERT((td != NULL), ("schedlock: null thread pointer"));
+	KASSERT((td != NULL), ("schedclock: null thread pointer"));
 	ke = td->td_kse;
 	kg = td->td_ksegrp;
 	ke->ke_cpticks++;
