@@ -33,7 +33,7 @@ static char sccsid[] = "from: @(#)rpc.rstatd.c 1.1 86/09/25 Copyr 1984 Sun Micro
 static char sccsid[] = "from: @(#)rstat_proc.c	2.2 88/08/01 4.0 RPCSRC";
 #endif
 static const char rcsid[] =
-	"$Id: rstat_proc.c,v 1.9 1998/01/07 07:50:59 charnier Exp $";
+	"$Id: rstat_proc.c,v 1.10 1998/01/19 23:13:19 wpaul Exp $";
 #endif
 
 /*
@@ -48,6 +48,7 @@ static const char rcsid[] =
 #include <sys/sysctl.h>
 #include <sys/time.h>
 #include <sys/vmmeter.h>
+#include <sys/param.h>
 
 #include <err.h>
 #include <fcntl.h>
@@ -59,6 +60,7 @@ static const char rcsid[] =
 #include <string.h>
 #include <syslog.h>
 #include <unistd.h>
+#include <devstat.h>
 
 #include <net/if.h>
 #include <net/if_mib.h>
@@ -77,14 +79,11 @@ struct nlist nl[] = {
 	{ "_cp_time" },
 #define	X_CNT		1
 	{ "_cnt" },
-#define	X_DKXFER	2
-	{ "_dk_xfer" },
-#define	X_DKNDRIVE	3
-	{ "_dk_ndrive" },
 	{ "" },
 };
 
 int havedisk __P((void));
+void updatexfers __P((int, int *));
 void setup __P((void));
 int stats_service();
 
@@ -268,12 +267,8 @@ updatestat()
 	    hz*(tm.tv_usec - btm.tv_usec)/1000000;
 	stats_all.s2.v_swtch = cnt.v_swtch;
 
-	/* XXX - should use sysctl */
- 	if (kvm_read(kd, (long)nl[X_DKXFER].n_value, (char *)stats_all.s1.dk_xfer, sizeof (stats_all.s1.dk_xfer))
-	    != sizeof (stats_all.s1.dk_xfer)) {
-		syslog(LOG_ERR, "rstat: can't read dk_xfer from kmem");
-		exit(1);
-	}
+	/* update disk transfers */
+	updatexfers(RSTAT_DK_NDRIVE, stats_all.s1.dk_xfer);
 
 	mib[0] = CTL_NET;
 	mib[1] = PF_LINK;
@@ -337,19 +332,98 @@ setup()
 int
 havedisk()
 {
-	int dk_ndrive;
+	register int i;
+	struct statinfo stats;
+	int num_devices, retval = 0;
 
-	if (kvm_nlist(kd, nl) != 0) {
-		syslog(LOG_ERR, "rstatd: can't get namelist.(d)");
-		exit (1);
-        }
-
-	if (kvm_read(kd, (long)nl[X_DKNDRIVE].n_value, (char *)&dk_ndrive,
-		     sizeof dk_ndrive)!= sizeof dk_ndrive) {
-		syslog(LOG_ERR, "rstat: can't read kmem");
+	if ((num_devices = getnumdevs()) < 0) {
+		syslog(LOG_ERR, "rstatd: can't get number of devices: %s",
+		       devstat_errbuf);
 		exit(1);
 	}
-	return (dk_ndrive != 0);
+
+	if (checkversion() < 0) {
+		syslog(LOG_ERR, "rstatd: %s", devstat_errbuf);
+		exit(1);
+	}
+
+	stats.dinfo = (struct devinfo *)malloc(sizeof(struct devinfo));
+	bzero(stats.dinfo, sizeof(struct devinfo));
+
+	if (getdevs(&stats) == -1) {
+		syslog(LOG_ERR, "rstatd: can't get device list: %s",
+		       devstat_errbuf);
+		exit(1);
+	}
+	for (i = 0; i < stats.dinfo->numdevs; i++) {
+		if (((stats.dinfo->devices[i].device_type
+		      & DEVSTAT_TYPE_MASK) == DEVSTAT_TYPE_DIRECT)
+		 && ((stats.dinfo->devices[i].device_type
+		      & DEVSTAT_TYPE_PASS) == 0)) {
+			retval = 1;
+			break;
+		}
+	}
+
+	free(stats.dinfo);
+	return(retval);
+}
+
+void
+updatexfers(numdevs, devs)
+	int numdevs, *devs;
+{
+	register int i, j;
+	struct statinfo stats;
+	int num_devices = 0;
+	u_int64_t total_transfers;
+
+	if ((num_devices = getnumdevs()) < 0) {
+		syslog(LOG_ERR, "rstatd: can't get number of devices: %s",
+		       devstat_errbuf);
+		exit(1);
+	}
+
+	if (checkversion() < 0) {
+		syslog(LOG_ERR, "rstatd: %s", devstat_errbuf);
+		exit(1);
+	}
+
+	stats.dinfo = (struct devinfo *)malloc(sizeof(struct devinfo));
+	bzero(stats.dinfo, sizeof(struct devinfo));
+
+	if (getdevs(&stats) == -1) {
+		syslog(LOG_ERR, "rstatd: can't get device list: %s",
+		       devstat_errbuf);
+		exit(1);
+	}
+
+	for (i = 0, j = 0; i < stats.dinfo->numdevs && j < numdevs; i++) {
+		if (((stats.dinfo->devices[i].device_type
+		      & DEVSTAT_TYPE_MASK) == DEVSTAT_TYPE_DIRECT)
+		 && ((stats.dinfo->devices[i].device_type
+		      & DEVSTAT_TYPE_PASS) == 0)) {
+			total_transfers = stats.dinfo->devices[i].num_reads +
+					  stats.dinfo->devices[i].num_writes +
+					  stats.dinfo->devices[i].num_other;
+			/*
+			 * XXX KDM If the total transfers for this device
+			 * are greater than the amount we can fit in a
+			 * signed integer, just set them to the maximum
+			 * amount we can fit in a signed integer.  I have a
+			 * feeling that the rstat protocol assumes 32-bit
+			 * integers, so this could well break on a 64-bit
+			 * architecture like the Alpha.
+			 */
+			if (total_transfers > INT_MAX)
+				devs[j] = INT_MAX;
+			else
+				devs[j] = total_transfers;
+			j++;
+		}
+	}
+
+	free(stats.dinfo);
 }
 
 void
