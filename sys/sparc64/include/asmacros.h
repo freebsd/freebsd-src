@@ -31,6 +31,11 @@
 
 #ifdef _KERNEL
 
+	.register %g2,#ignore
+	.register %g3,#ignore
+	.register %g6,#ignore
+	.register %g7,#ignore
+
 #define	PCPU(member)	%g7 + GD_ ## member
 #define	DEBUGGER()	ta %xcc, 1
 #define	PANIC(msg, reg) \
