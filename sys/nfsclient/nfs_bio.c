@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_bio.c	8.9 (Berkeley) 3/30/95
- * $Id: nfs_bio.c,v 1.65 1998/12/14 17:51:30 dt Exp $
+ * $Id: nfs_bio.c,v 1.66 1999/01/21 08:29:07 dillon Exp $
  */
 
 
@@ -418,6 +418,7 @@ nfs_bioread(vp, uio, ioflag, cred, getpages)
 				return (EINTR);
 			    if ((rabp->b_flags & (B_CACHE|B_DELWRI)) == 0) {
 				rabp->b_flags |= (B_READ | B_ASYNC);
+				rabp->b_flags &= ~B_DONE;
 				vfs_busy_pages(rabp, 0);
 				if (nfs_asyncio(rabp, cred)) {
 				    rabp->b_flags |= B_INVAL|B_ERROR;
@@ -513,6 +514,7 @@ again:
 			return (EINTR);
 		if ((bp->b_flags & B_CACHE) == 0) {
 		    bp->b_flags |= B_READ;
+		    bp->b_flags &= ~B_DONE;
 		    vfs_busy_pages(bp, 0);
 		    error = nfs_doio(bp, cred, p);
 		    if (error) {
@@ -537,6 +539,7 @@ again:
 		    return (EINTR);
 		if ((bp->b_flags & B_CACHE) == 0) {
 		    bp->b_flags |= B_READ;
+		    bp->b_flags &= ~B_DONE;
 		    vfs_busy_pages(bp, 0);
 		    error = nfs_doio(bp, cred, p);
 		    if (error) {
@@ -560,6 +563,7 @@ again:
 				return (EINTR);
 			    if ((bp->b_flags & B_DONE) == 0) {
 				bp->b_flags |= B_READ;
+				bp->b_flags &= ~B_DONE;
 				vfs_busy_pages(bp, 0);
 				error = nfs_doio(bp, cred, p);
 				if (error == 0 && (bp->b_flags & B_INVAL))
@@ -591,6 +595,7 @@ again:
 			if (rabp) {
 			    if ((rabp->b_flags & (B_CACHE|B_DELWRI)) == 0) {
 				rabp->b_flags |= (B_READ | B_ASYNC);
+				rabp->b_flags &= ~B_DONE;
 				vfs_busy_pages(rabp, 0);
 				if (nfs_asyncio(rabp, cred)) {
 				    rabp->b_flags |= B_INVAL|B_ERROR;
@@ -840,6 +845,12 @@ again:
 			bp->b_dirtyoff = on;
 			bp->b_dirtyend = on + n;
 		}
+		/*
+		 * To avoid code complexity, we may have to throw away
+		 * previously valid ranges when merging the new dirty range
+		 * into the valid range.  As long as we do not *ADD* an
+		 * invalid valid range, we are ok.
+		 */
 		if (bp->b_validend == 0 || bp->b_validend < bp->b_dirtyoff ||
 		    bp->b_validoff > bp->b_dirtyend) {
 			bp->b_validoff = bp->b_dirtyoff;
@@ -1004,7 +1015,7 @@ nfs_asyncio(bp, cred)
 
 	if (nfs_numasync == 0)
 		return (EIO);
-	
+
 	nmp = VFSTONFS(bp->b_vp->v_mount);
 again:
 	if (nmp->nm_flag & NFSMNT_INT)
@@ -1109,12 +1120,12 @@ again:
  */
 int
 nfs_doio(bp, cr, p)
-	register struct buf *bp;
+	struct buf *bp;
 	struct ucred *cr;
 	struct proc *p;
 {
-	register struct uio *uiop;
-	register struct vnode *vp;
+	struct uio *uiop;
+	struct vnode *vp;
 	struct nfsnode *np;
 	struct nfsmount *nmp;
 	int error = 0, diff, len, iomode, must_commit = 0;
@@ -1129,6 +1140,8 @@ nfs_doio(bp, cr, p)
 	uiop->uio_iovcnt = 1;
 	uiop->uio_segflg = UIO_SYSSPACE;
 	uiop->uio_procp = p;
+
+	KASSERT(!(bp->b_flags & B_DONE), ("nfs_doio: bp %p already marked done", bp));
 
 	/*
 	 * Historically, paging was done with physio, but no more.
@@ -1236,10 +1249,12 @@ nfs_doio(bp, cr, p)
 		io.iov_base = (char *)bp->b_data + bp->b_dirtyoff;
 		uiop->uio_rw = UIO_WRITE;
 		nfsstats.write_bios++;
+
 		if ((bp->b_flags & (B_ASYNC | B_NEEDCOMMIT | B_NOCACHE | B_CLUSTER)) == B_ASYNC)
 		    iomode = NFSV3WRITE_UNSTABLE;
 		else
 		    iomode = NFSV3WRITE_FILESYNC;
+
 		bp->b_flags |= B_WRITEINPROG;
 		error = nfs_writerpc(vp, uiop, cr, &iomode, &must_commit);
 		if (!error && iomode == NFSV3WRITE_UNSTABLE) {
@@ -1247,8 +1262,9 @@ nfs_doio(bp, cr, p)
 		    if (bp->b_dirtyoff == 0
 			&& bp->b_dirtyend == bp->b_bufsize)
 			bp->b_flags |= B_CLUSTEROK;
-		} else
+		} else {
 		    bp->b_flags &= ~B_NEEDCOMMIT;
+		}
 		bp->b_flags &= ~B_WRITEINPROG;
 
 		/*
@@ -1265,31 +1281,30 @@ nfs_doio(bp, cr, p)
 		 * the B_DELWRI and B_NEEDCOMMIT flags.
 		 *
 		 * If the buffer is marked B_PAGING, it does not reside on
-		 * the vp's paging queues so we do not ( and cannot ) reassign
-		 * it.  XXX numdirtybuffers should be integrated into 
-		 * reassignbuf() call.
+		 * the vp's paging queues so we cannot call bdirty().  The
+		 * bp in this case is not an NFS cache block so we should
+		 * be safe. XXX
 		 */
     		if (error == EINTR
 		    || (!error && (bp->b_flags & B_NEEDCOMMIT))) {
 			int s;
 
+			s = splbio();
 			bp->b_flags &= ~(B_INVAL|B_NOCACHE);
 			if ((bp->b_flags & B_PAGING) == 0) {
-			    ++numdirtybuffers;
-			    bp->b_flags |= B_DELWRI;
-			    s = splbio();
-			    reassignbuf(bp, vp);
-			    splx(s);
+			    bdirty(bp);
+			    bp->b_flags &= ~B_DONE;
 			}
 			if ((bp->b_flags & B_ASYNC) == 0)
 			    bp->b_flags |= B_EINTR;
+			splx(s);
 	    	} else {
-			if (error) {
-				bp->b_flags |= B_ERROR;
-				bp->b_error = np->n_error = error;
-				np->n_flag |= NWRITEERR;
-			}
-			bp->b_dirtyoff = bp->b_dirtyend = 0;
+		    if (error) {
+			bp->b_flags |= B_ERROR;
+			bp->b_error = np->n_error = error;
+			np->n_flag |= NWRITEERR;
+		    }
+		    bp->b_dirtyoff = bp->b_dirtyend = 0;
 		}
 	    } else {
 		bp->b_resid = 0;
@@ -1299,7 +1314,7 @@ nfs_doio(bp, cr, p)
 	}
 	bp->b_resid = uiop->uio_resid;
 	if (must_commit)
-		nfs_clearcommit(vp->v_mount);
+	    nfs_clearcommit(vp->v_mount);
 	biodone(bp);
 	return (error);
 }
