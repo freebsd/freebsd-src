@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: calendar.h,v 1.1.1.1 1997/12/04 10:41:49 helbig Exp $
  */
 typedef struct date {
 	int y;	/* year */
@@ -32,7 +32,8 @@ typedef struct date {
 } date;
 
 date    *easterg(int _year, date *_dt);
-date    *easterj(int _year, date *_dt);
+date    *easterog(int _year, date *_dt);
+date    *easteroj(int _year, date *_dt);
 date	*gdate(int _nd,  date *_dt);
 date	*jdate(int _nd, date *_dt);
 int	 ndaysg(date *_dt);
