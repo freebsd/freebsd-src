@@ -40,6 +40,7 @@
 #include <sys/user.h>
 
 #include <machine/md_var.h>
+#include <machine/mutex.h>
 #include <machine/pcb_ext.h>	/* pcb.h included via sys/user.h */
 #include <machine/psl.h>
 #include <machine/specialreg.h>
@@ -48,6 +49,8 @@
 extern int i386_extend_pcb	__P((struct proc *));
 extern int vm86pa;
 extern struct pcb *vm86pcb;
+
+static struct mtx vm86pcb_lock;
 
 extern int vm86_bioscall(struct vm86frame *);
 extern void vm86_biosret(struct vm86frame *);
@@ -423,6 +426,8 @@ vm86_initialize(void)
 	pcb = &vml->vml_pcb;
 	ext = &vml->vml_ext;
 
+	mtx_init(&vm86pcb_lock, "vm86pcb lock", MTX_DEF);
+
 	bzero(pcb, sizeof(struct pcb));
 	pcb->new_ptd = vm86pa | PG_V | PG_RW | PG_U;
 	pcb->vm86_frame = vm86paddr - sizeof(struct vm86frame);
@@ -565,11 +570,16 @@ vm86_trap(struct vm86frame *vmf)
 int
 vm86_intcall(int intnum, struct vm86frame *vmf)
 {
+	int retval;
+
 	if (intnum < 0 || intnum > 0xff)
 		return (EINVAL);
 
 	vmf->vmf_trapno = intnum;
-	return (vm86_bioscall(vmf));
+	mtx_enter(&vm86pcb_lock, MTX_DEF);
+	retval = vm86_bioscall(vmf);
+	mtx_exit(&vm86pcb_lock, MTX_DEF);
+	return (retval);
 }
 
 /*
@@ -596,7 +606,9 @@ vm86_datacall(intnum, vmf, vmc)
 	}
 
 	vmf->vmf_trapno = intnum;
+	mtx_enter(&vm86pcb_lock, MTX_DEF);
 	retval = vm86_bioscall(vmf);
+	mtx_exit(&vm86pcb_lock, MTX_DEF);
 
 	for (i = 0; i < vmc->npages; i++) {
 		entry = vmc->pmap[i].pte_num;
