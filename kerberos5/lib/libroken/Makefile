@@ -33,7 +33,6 @@ SRCS=	\
 	resolve.c			\
 	roken_gethostby.c		\
 	rtbl.c				\
-	signal.c			\
 	simple_exec.c			\
 	snprintf.c			\
 	socket.c			\
