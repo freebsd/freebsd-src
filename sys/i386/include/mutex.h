@@ -258,7 +258,7 @@ extern char STR_SIEN[];
 #else	/* !LOCORE */
 
 /*
- * Simple assembly macros to get and release spin locks
+ * Simple assembly macros to get and release spin locks.
  */
 
 #if defined(I386_CPU)
@@ -307,7 +307,7 @@ extern char STR_SIEN[];
 7:	movl	$ MTX_UNOWNED,%eax;					\
 	MPLOCKED							\
 	cmpxchgl reg,lck+MTX_LOCK;      				\
-	jnz	9b;							\
+	jnz	7b;							\
 	popl	lck+MTX_SAVEINTR;					\
 	jmp	9f;							\
 8:	add	$4,%esp;						\
