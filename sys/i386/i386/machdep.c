@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.192 1996/06/08 11:03:01 bde Exp $
+ *	$Id: machdep.c,v 1.193 1996/06/18 01:22:04 bde Exp $
  */
 
 #include "npx.h"
@@ -123,31 +123,12 @@ extern int ptrace_single_step __P((struct proc *p));
 extern int ptrace_write_u __P((struct proc *p, vm_offset_t off, int data));
 extern void dblfault_handler __P((void));
 
-extern void i486_bzero	__P((void *, size_t));
-extern void i586_bzero	__P((void *, size_t));
-extern void i686_bzero	__P((void *, size_t));
+extern void identifycpu(void);	/* XXX header file */
+extern void earlysetcpuclass(void);	/* same header file */
 
 static void cpu_startup __P((void *));
 SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL)
 
-static void identifycpu(void);
-
-char machine[] = "i386";
-SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD, machine, 0, "");
-
-static char cpu_model[128];
-SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD, cpu_model, 0, "");
-
-struct kern_devconf kdc_cpu0 = {
-	0, 0, 0,		/* filled in by dev_attach */
-	"cpu", 0, { MDDT_CPU },
-	0, 0, 0, CPU_EXTERNALLEN,
-	0,			/* CPU has no parent */
-	0,			/* no parentdata */
-	DC_BUSY,		/* the CPU is always busy */
-	cpu_model,		/* no sense in duplication */
-	DC_CLS_CPU		/* class */
-};
 
 #ifndef PANIC_REBOOT_WAIT_TIME
 #define PANIC_REBOOT_WAIT_TIME 15 /* default to 15 seconds */
@@ -203,8 +184,6 @@ vm_offset_t phys_avail[10];
 /* must be 2 less so 0 0 can signal end of chunks */
 #define PHYS_AVAIL_ARRAY_END ((sizeof(phys_avail) / sizeof(vm_offset_t)) - 2)
 
-int cpu_class = CPUCLASS_386;	/* smallest common denominator */
-
 static void dumpsys __P((void));
 static void setup_netisrs __P((struct linker_set *)); /* XXX declare elsewhere */
 
@@ -244,9 +223,12 @@ cpu_startup(dummy)
 	 * Good {morning,afternoon,evening,night}.
 	 */
 	printf(version);
-	cpu_class = i386_cpus[cpu].cpu_class;
+	earlysetcpuclass();
 	startrtclock();
 	identifycpu();
+#ifdef PERFMON
+	perfmon_init();
+#endif
 	printf("real memory  = %d (%dK bytes)\n", ptoa(Maxmem), ptoa(Maxmem) / 1024);
 	/*
 	 * Display any holes after the first chunk of extended memory.
@@ -483,176 +465,6 @@ setup_netisrs(ls)
 		nit = (const struct netisrtab *)ls->ls_items[i];
 		register_netisr(nit->nit_num, nit->nit_isr);
 	}
-}
-
-static struct cpu_nameclass i386_cpus[] = {
-	{ "Intel 80286",	CPUCLASS_286 },		/* CPU_286   */
-	{ "i386SX",		CPUCLASS_386 },		/* CPU_386SX */
-	{ "i386DX",		CPUCLASS_386 },		/* CPU_386   */
-	{ "i486SX",		CPUCLASS_486 },		/* CPU_486SX */
-	{ "i486DX",		CPUCLASS_486 },		/* CPU_486   */
-	{ "Pentium",		CPUCLASS_586 },		/* CPU_586   */
-	{ "Cy486DLC",		CPUCLASS_486 },		/* CPU_486DLC */
-	{ "Pentium Pro",	CPUCLASS_686 },		/* CPU_686 */
-};
-
-static void
-identifycpu()
-{
-	printf("CPU: ");
-	strncpy(cpu_model, i386_cpus[cpu].cpu_name, sizeof cpu_model);
-
-#if defined(I486_CPU) || defined(I586_CPU) || defined(I686_CPU)
-	if (!strcmp(cpu_vendor,"GenuineIntel")) {
-		if ((cpu_id & 0xf00) > 3) {
-			cpu_model[0] = '\0';
-
-			switch (cpu_id & 0x3000) {
-			case 0x1000:
-				strcpy(cpu_model, "Overdrive ");
-				break;
-			case 0x2000:
-				strcpy(cpu_model, "Dual ");
-				break;
-			}
-
-			switch (cpu_id & 0xf00) {
-			case 0x400:
-				strcat(cpu_model, "i486 ");
-				break;
-			case 0x500:
-				strcat(cpu_model, "Pentium"); /* nb no space */
-				break;
-			case 0x600:
-				strcat(cpu_model, "Pentium Pro");
-				break;
-			default:
-				strcat(cpu_model, "unknown");
-				break;
-			}
-
-			switch (cpu_id & 0xff0) {
-			case 0x400:
-				strcat(cpu_model, "DX"); break;
-			case 0x410:
-				strcat(cpu_model, "DX"); break;
-			case 0x420:
-				strcat(cpu_model, "SX"); break;
-			case 0x430:
-				strcat(cpu_model, "DX2"); break;
-			case 0x440:
-				strcat(cpu_model, "SL"); break;
-			case 0x450:
-				strcat(cpu_model, "SX2"); break;
-			case 0x470:
-				strcat(cpu_model, "DX2 Write-Back Enhanced");
-				break;
-			case 0x480:
-				strcat(cpu_model, "DX4"); break;
-				break;
-			}
-		}
-	}
-#endif
-	printf("%s (", cpu_model);
-	switch(cpu_class) {
-	case CPUCLASS_286:
-		printf("286");
-		break;
-#if defined(I386_CPU)
-	case CPUCLASS_386:
-		printf("386");
-		break;
-#endif
-#if defined(I486_CPU)
-	case CPUCLASS_486:
-		printf("486");
-		bzero = i486_bzero;
-		break;
-#endif
-#if defined(I586_CPU)
-	case CPUCLASS_586:
-		printf("%d.%02d-MHz ",
-		       ((100 * i586_ctr_rate) >> I586_CTR_RATE_SHIFT) / 100,
-		       ((100 * i586_ctr_rate) >> I586_CTR_RATE_SHIFT) % 100);
-		printf("586");
-		break;
-#endif
-#if defined(I686_CPU)
-	case CPUCLASS_686:
-		printf("%d.%02d-MHz ",
-		       ((100 * i586_ctr_rate) >> I586_CTR_RATE_SHIFT) / 100,
-		       ((100 * i586_ctr_rate) >> I586_CTR_RATE_SHIFT) % 100);
-		printf("686");
-		break;
-#endif
-	default:
-		printf("unknown");	/* will panic below... */
-	}
-	printf("-class CPU)\n");
-#if defined(I486_CPU) || defined(I586_CPU) || defined(I686_CPU)
-	if(*cpu_vendor)
-		printf("  Origin = \"%s\"",cpu_vendor);
-	if(cpu_id)
-		printf("  Id = 0x%lx",cpu_id);
-
-	if (!strcmp(cpu_vendor, "GenuineIntel")) {
-		printf("  Stepping=%ld", cpu_id & 0xf);
-		if (cpu_high > 0) {
-			printf("\n  Features=0x%b", cpu_feature, 
-			"\020"
-			"\001FPU"
-			"\002VME"
-			"\003DE"
-			"\004PSE"
-			"\005TSC"
-			"\006MSR"
-			"\007PAE"
-			"\010MCE"
-			"\011CX8"
-			"\012APIC"
-			"\013<b10>"
-			"\014<b11>"
-			"\015MTRR"
-			"\016PGE"
-			"\017MCA"
-			"\020CMOV"
-			);
-		}
-	}
-	/* Avoid ugly blank lines: only print newline when we have to. */
-	if (*cpu_vendor || cpu_id)
-		printf("\n");
-#endif
-	/*
-	 * Now that we have told the user what they have,
-	 * let them know if that machine type isn't configured.
-	 */
-	switch (cpu_class) {
-	case CPUCLASS_286:	/* a 286 should not make it this far, anyway */
-#if !defined(I386_CPU) && !defined(I486_CPU) && !defined(I586_CPU) && !defined(I686_CPU)
-#error This kernel is not configured for one of the supported CPUs
-#endif
-#if !defined(I386_CPU)
-	case CPUCLASS_386:
-#endif
-#if !defined(I486_CPU)
-	case CPUCLASS_486:
-#endif
-#if !defined(I586_CPU)
-	case CPUCLASS_586:
-#endif
-#if !defined(I686_CPU)
-	case CPUCLASS_686:
-#endif
-		panic("CPU class not configured");
-	default:
-		break;
-	}
-#ifdef PERFMON
-	perfmon_init();
-#endif
-	dev_attach(&kdc_cpu0);
 }
 
 /*
