@@ -20,6 +20,7 @@ SRCS=   sort.c \
 	posixver.c \
 	quote.c \
 	quotearg.c \
+	strnlen.c \
 	umaxtostr.c \
 	version-etc.c \
 	xmalloc.c \
