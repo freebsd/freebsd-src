@@ -105,9 +105,11 @@ pfs_vncache_alloc(struct mount *mp, struct vnode **vpp,
 {
 	struct pfs_vdata *pvd;
 	int error;
-	
-	/* see if the vnode is in the cache */
-	/* XXX linear search... not very efficient */
+
+	/*
+	 * See if the vnode is in the cache.  
+	 * XXX linear search is not very efficient.
+	 */
 	mtx_lock(&pfs_vncache_mutex);
 	for (pvd = pfs_vncache; pvd; pvd = pvd->pvd_next) {
 		if (pvd->pvd_pn == pn && pvd->pvd_pid == pid) {
@@ -115,6 +117,8 @@ pfs_vncache_alloc(struct mount *mp, struct vnode **vpp,
 				++pfs_vncache_hits;
 				*vpp = pvd->pvd_vnode;
 				mtx_unlock(&pfs_vncache_mutex);
+				/* XXX see comment at top of pfs_lookup() */
+				cache_purge(*vpp);
 				return (0);
 			}
 			/* XXX if this can happen, we're in trouble */
@@ -176,6 +180,8 @@ int
 pfs_vncache_free(struct vnode *vp)
 {
 	struct pfs_vdata *pvd;
+
+	cache_purge(vp);
 	
 	mtx_lock(&pfs_vncache_mutex);
 	pvd = (struct pfs_vdata *)vp->v_data;
