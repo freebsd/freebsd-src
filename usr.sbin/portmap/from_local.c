@@ -63,6 +63,7 @@ static const char rcsid[] =
 
 #include <net/if.h>
 #include <net/if_dl.h>
+#include <net/route.h>
 #include <netinet/in.h>
 
 #include "pmap_check.h"
@@ -72,11 +73,30 @@ static const char rcsid[] =
 #define FALSE	0
 #endif
 
+#define ROUNDUP(x) ((x) ? (1 + (((x) - 1) | (sizeof(long) - 1))) : sizeof(long))
+
 /* How many interfaces could there be on a computer? */
 
 #define	ESTIMATED_LOCAL 20
 static int num_local = -1;
 static struct in_addr *addrs;
+
+static void
+rtiparse(struct ifa_msghdr *ifam, struct rt_addrinfo *ai)
+{
+  char *wp;
+  int rtax;
+
+  wp = (char *)(ifam + 1);
+
+  ai->rti_addrs = ifam->ifam_addrs;
+  for (rtax = 0; rtax < sizeof ai->rti_info / sizeof *ai->rti_info; rtax++)
+    if (ifam->ifam_addrs & (1 << rtax)) {
+      ai->rti_info[rtax] = (struct sockaddr *)wp;
+      wp += ROUNDUP(ai->rti_info[rtax]->sa_len);
+    } else
+      ai->rti_info[rtax] = NULL;
+}
 
 /* find_local - find all IP addresses for this host */
 
@@ -87,6 +107,8 @@ find_local()
   size_t needed;
   char *buf, *end, *ptr;
   struct if_msghdr *ifm;
+  struct ifa_msghdr *ifam;
+  struct rt_addrinfo ai;
   struct ifreq ifr;
   struct sockaddr_dl *dl;
 
@@ -129,7 +151,7 @@ find_local()
     dl = (struct sockaddr_dl *)(ifm + 1);
 
     if (ifm->ifm_index != dl->sdl_index || dl->sdl_nlen == 0)
-      /* We only want to see each interface once */
+      /* Skip over remaining ifa_msghdrs */
       continue;
 
     n = dl->sdl_nlen > sizeof ifr.ifr_name ?
@@ -143,23 +165,26 @@ find_local()
       fprintf(stderr, "%.*s: SIOCGIFFLAGS: %s\n", n, ifr.ifr_name,
               strerror(errno));
     else if (ifr.ifr_flags & IFF_UP) {    /* active interface */
-      if (ioctl(s, SIOCGIFADDR, &ifr) < 0)
-        fprintf(stderr, "%.*s: SIOCGIFADDR: %s\n", n, ifr.ifr_name,
-                strerror(errno));
-      else {
-        if (alloced < num_local + 1) {
-          alloced += ESTIMATED_LOCAL;
-          if (addrs)
+      ifam = (struct ifa_msghdr *)(ptr + ifm->ifm_msglen);
+      while ((char *)ifam < end && ifam->ifam_type == RTM_NEWADDR) {
+        rtiparse(ifam, &ai);
+
+        if (ai.rti_info[RTAX_IFA] != NULL &&
+            ai.rti_info[RTAX_IFA]->sa_family == AF_INET) {
+          if (alloced < num_local + 1) {
+            alloced += ESTIMATED_LOCAL;
             addrs = (struct in_addr *)realloc(addrs, alloced * sizeof addrs[0]);
-          else
-            addrs = (struct in_addr *)malloc(alloced * sizeof addrs[0]);
-          if (addrs == NULL) {
-            perror("malloc/realloc");
-            num_local = 0;
-            break;
+            if (addrs == NULL) {
+              perror("malloc/realloc");
+              num_local = 0;
+              break;
+            }
           }
+          addrs[num_local++] = ((struct sockaddr_in *)
+            ai.rti_info[RTAX_IFA])->sin_addr;
+
         }
-        addrs[num_local++] = ((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr;
+        ifam = (struct ifa_msghdr *)((char *)ifam + ifam->ifam_msglen);
       }
     }
   }
