@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.39 1995/12/10 13:36:33 phk Exp $
+ **      $Id: userconfig.c,v 1.40 1996/02/04 10:03:19 pst Exp $
  **/
 
 /**
@@ -107,12 +107,15 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/malloc.h>
-#include <machine/md_var.h>
-#include <i386/i386/cons.h>
-#include <i386/include/clock.h>
-#include <i386/isa/isa_device.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
+
+#include <machine/clock.h>
+#include <machine/cons.h>
+#include <machine/md_var.h>
+
+#include <i386/isa/isa_device.h>
+
 #include <pci/pcivar.h>
 
 static struct isa_device *devtabs[] = { isa_devtab_bio, isa_devtab_tty, isa_devtab_net,
@@ -2144,12 +2147,12 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.39 1995/12/10 13:36:33 phk Exp $
+ *      $Id: userconfig.c,v 1.40 1996/02/04 10:03:19 pst Exp $
  */
 
+#include "scbus.h"
 
 #include <scsi/scsiconf.h>
-#include "scbus.h"
 
 #define PARM_DEVSPEC	0x1
 #define PARM_INT	0x2
