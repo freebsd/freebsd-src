@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)rtsock.c	8.5 (Berkeley) 11/2/94
- *	$Id: rtsock.c,v 1.20.2.5 1997/07/21 20:02:15 julian Exp $
+ *	$Id: rtsock.c,v 1.20.2.6 1997/11/02 07:29:25 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -96,10 +96,12 @@ route_usrreq(so, req, m, nam, control)
 
 	if (req == PRU_ATTACH) {
 		MALLOC(rp, struct rawcb *, sizeof(*rp), M_PCB, M_WAITOK);
+		if (rp)
+			bzero((caddr_t)rp, sizeof(*rp));
+		s = splnet();
 		so->so_pcb = (caddr_t)rp;
-		if (so->so_pcb)
-			bzero(so->so_pcb, sizeof(*rp));
-	}
+	} else
+		s = splnet();
 	if (req == PRU_DETACH && rp) {
 		int af = rp->rcb_proto.sp_protocol;
 		if (af == AF_INET)
@@ -112,7 +114,6 @@ route_usrreq(so, req, m, nam, control)
 			route_cb.iso_count--;
 		route_cb.any_count--;
 	}
-	s = splnet();
 	error = raw_usrreq(so, req, m, nam, control);
 	rp = sotorawcb(so);
 	if (req == PRU_ATTACH && rp) {
