@@ -1013,6 +1013,7 @@ swapmode()
 	long blocksize, *perdev;
 	struct rlist head;
 	struct rlist *swaplist;
+	u_long ptr;
 
 	KGET(VM_NSWAP, nswap);
 	KGET(VM_NSWDEV, nswdev);
@@ -1021,7 +1022,8 @@ swapmode()
 	if ((sw = malloc(nswdev * sizeof(*sw))) == NULL ||
 	    (perdev = malloc(nswdev * sizeof(*perdev))) == NULL)
 		err(1, "malloc");
-	KGET1(VM_SWDEVT, sw, nswdev * sizeof(*sw), "swdevt");
+	KGET1(VM_SWDEVT, &ptr, sizeof ptr, "swdevt");
+	KGET2(ptr, sw, nswdev * sizeof(*sw), "*swdevt");
 
 	/* Count up swap space. */
 	nfree = 0;
