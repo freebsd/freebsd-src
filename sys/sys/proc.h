@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)proc.h	8.15 (Berkeley) 5/19/95
- * $Id: proc.h,v 1.84 1999/07/01 13:21:45 peter Exp $
+ * $Id: proc.h,v 1.85 1999/07/04 00:25:34 mckusick Exp $
  */
 
 #ifndef _SYS_PROC_H_
@@ -174,7 +174,7 @@ struct	proc {
 	char	p_lock;			/* Process lock (prevent swap) count. */
 	u_char	p_oncpu;		/* Which cpu we are on */
 	u_char	p_lastcpu;		/* Last cpu we were on */
-	char	p_pad2;			/* alignment */
+	char	p_rqindex;		/* Run queue index */
 
 	short	p_locks;		/* DEBUG: lockmgr count of held locks */
 	short	p_simple_locks;		/* DEBUG: count of held simple locks */
@@ -288,10 +288,6 @@ struct	pcred {
 	int	p_refcnt;		/* Number of references. */
 };
 
-struct	prochd {
-	struct	proc *ph_link;		/* Linked list of running processes. */
-	struct	proc *ph_rlink;
-};
 
 #ifdef KERNEL
 
@@ -363,9 +359,10 @@ extern struct proclist zombproc;	/* List of zombie processes. */
 extern struct proc *initproc, *pageproc, *updateproc; /* Process slots for init, pager. */
 
 #define	NQS	32			/* 32 run queues. */
-extern struct prochd qs[];
-extern struct prochd rtqs[];
-extern struct prochd idqs[];
+TAILQ_HEAD(rq, proc);
+extern struct rq queues[];
+extern struct rq rtqueues[];
+extern struct rq idqueues[];
 extern int	whichqs;	/* Bit mask summary of non-empty Q's. */
 extern int	whichrtqs;	/* Bit mask summary of non-empty Q's. */
 extern int	whichidqs;	/* Bit mask summary of non-empty Q's. */
@@ -390,7 +387,7 @@ void	setrunqueue __P((struct proc *));
 void	sleepinit __P((void));
 int	suser __P((struct proc *));
 int	suser_xxx __P((struct ucred *cred, struct proc *proc, int flag));
-void	remrq __P((struct proc *));
+void	remrunqueue __P((struct proc *));
 void	cpu_switch __P((struct proc *));
 void	unsleep __P((struct proc *));
 void	wakeup_one __P((void *chan));
@@ -405,6 +402,10 @@ void	cpu_wait __P((struct proc *));
 int	cpu_coredump __P((struct proc *, struct vnode *, struct ucred *));
 void	setsugid __P((struct proc *p));
 void	faultin __P((struct proc *p));
+
+struct proc *	chooseproc __P((void));
+u_int32_t	procrunnable __P((void));
+
 #endif	/* KERNEL */
 
 #endif	/* !_SYS_PROC_H_ */
