@@ -623,7 +623,6 @@ product CANON N1240U		0x220e	CanoScan N1240U
 product CANON S10		0x3041	PowerShot S10
 product CANON S100		0x3045	PowerShot S100
 product CANON S200		0x3065	PowerShot S200
-product CANON Lide20		0x220d	CANOSCAN Lide20
 
 /* CATC products */
 product CATC NETMATE		0x000a	Netmate ethernet adapter
