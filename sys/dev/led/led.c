@@ -52,9 +52,13 @@ led_timeout(void *p)
 			sc->count--;
 			continue;
 		}
-		sc->func(sc->private, sc->ptr[0] >= 'a' ? 0 : 1);
-		sc->count = sc->ptr[0] & 0xf;
-		if (*(++sc->ptr) == '\0')
+		if (*sc->ptr >= 'a' && *sc->ptr <= 'j')
+			sc->func(sc->private, 0);
+		else if (*sc->ptr >= 'A' && *sc->ptr <= 'J')
+			sc->func(sc->private, 1);
+		sc->count = *sc->ptr & 0xf;
+		sc->ptr++;
+		if (*sc->ptr == '\0')
 			sc->ptr = sc->str;
 	}
 	mtx_unlock(&led_mtx);
@@ -66,7 +70,7 @@ static int
 led_write(dev_t dev, struct uio *uio, int ioflag)
 {
 	int error;
-	char *s;
+	char *s, *s2;
 	struct ledsc *sc;
 	struct sbuf *sb;
 	struct sbuf *sb2;
@@ -76,13 +80,13 @@ led_write(dev_t dev, struct uio *uio, int ioflag)
 
 	if (uio->uio_resid > 512)
 		return (EINVAL);
-	s = malloc(uio->uio_resid + 1, M_DEVBUF, M_WAITOK);
+	s2 = s = malloc(uio->uio_resid + 1, M_DEVBUF, M_WAITOK);
 	if (s == NULL)
 		return (ENOMEM);
 	s[uio->uio_resid] = '\0';
 	error = uiomove(s, uio->uio_resid, uio);
 	if (error) {
-		free(s, M_DEVBUF);
+		free(s2, M_DEVBUF);
 		return (error);
 	}
 
@@ -101,13 +105,13 @@ led_write(dev_t dev, struct uio *uio, int ioflag)
 		mtx_unlock(&led_mtx);
 		if (sb2 != NULL)
 			sbuf_delete(sb2);
-		free(s, M_DEVBUF);
+		free(s2, M_DEVBUF);
 		return(0);
 	}
 
 	sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
 	if (sb == NULL) {
-		free(s, M_DEVBUF);
+		free(s2, M_DEVBUF);
 		return (ENOMEM);
 	}
 		
@@ -179,10 +183,12 @@ led_write(dev_t dev, struct uio *uio, int ioflag)
 			sbuf_cat(sb, "j");
 			break;
 		default:
-			break;
+			sbuf_delete(sb);
+			free(s2, M_DEVBUF);
+			return (EINVAL);
 	}
 	sbuf_finish(sb);
-	free(s, M_DEVBUF);
+	free(s2, M_DEVBUF);
 	if (sbuf_overflowed(sb)) {
 		sbuf_delete(sb);
 		return (ENOMEM);
@@ -216,7 +222,7 @@ led_create(led_t *func, void *priv, char const *name)
 	struct sbuf *sb;
 
 	if (next_minor == 0) {
-		mtx_init(&led_mtx, "LED mtx", MTX_DEF, 0);
+		mtx_init(&led_mtx, "LED mtx", NULL, MTX_DEF);
 		timeout(led_timeout, NULL, hz / 10);
 	}
 
