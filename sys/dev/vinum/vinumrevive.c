@@ -101,9 +101,11 @@ revive_block(int sdno)
 
     case plex_striped:
 	stripeoffset = sd->revived % plex->stripesize;	    /* offset from beginning of stripe */
+	if (stripeoffset + (size >> DEV_BSHIFT) > plex->stripesize)
+	    size = (plex->stripesize - stripeoffset) << DEV_BSHIFT;
 	plexblkno = sd->plexoffset			    /* base */
 	    + (sd->revived - stripeoffset) * plex->subdisks /* offset to beginning of stripe */
-	    + sd->revived % plex->stripesize;		    /* offset from beginning of stripe */
+	    + stripeoffset;				    /* offset from beginning of stripe */
 	break;
 
     case plex_raid4:
@@ -111,7 +113,7 @@ revive_block(int sdno)
 	stripeoffset = sd->revived % plex->stripesize;	    /* offset from beginning of stripe */
 	plexblkno = sd->plexoffset			    /* base */
 	    + (sd->revived - stripeoffset) * (plex->subdisks - 1) /* offset to beginning of stripe */
-	    +stripeoffset;				    /* offset from beginning of stripe */
+	    + stripeoffset;				    /* offset from beginning of stripe */
 	stripe = (sd->revived / plex->stripesize);	    /* stripe number */
 
 	/* Make sure we don't go beyond the end of the band. */
@@ -157,8 +159,8 @@ revive_block(int sdno)
 	    lock = lockrange(plexblkno << DEV_BSHIFT, bp, plex); /* lock it */
 	if (vol != NULL)				    /* it's part of a volume, */
 	    /*
-	       * First, read the data from the volume.  We
-	       * don't care which plex, that's bre's job.
+	     * First, read the data from the volume.  We
+	     * don't care which plex, that's bre's job.
 	     */
 	    bp->b_dev = VINUMDEV(plex->volno, 0, 0, VINUM_VOLUME_TYPE);	/* create the device number */
 	else						    /* it's an unattached plex */
