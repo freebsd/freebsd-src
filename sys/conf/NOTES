@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.176 1995/04/28 00:51:18 dufault Exp $
+#	$Id: LINT,v 1.177 1995/05/05 07:47:44 davidg Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -507,9 +507,16 @@ disk		wd3	at wdc1 drive 1
 # Standard floppy disk controllers and floppy tapes: `fdc', `fd', and `ft'
 #
 controller	fdc0	at isa? port "IO_FD1" bio irq 6 drq 2 vector fdintr
+#
+# Activate this line instead of the fdc0 line above if you happen to
+# have an Insight floppy tape.  Probing them proved to be dangerous
+# for people with floppy disks only, so it's "hidden" behind a flag:
+#controller fdc0 at isa? port "IO_FD1" bio flags 1 irq 6 drq 2 vector fdintr
+
 disk		fd0	at fdc0 drive 0
 disk		fd1	at fdc0 drive 1
 tape		ft0	at fdc0 drive 2
+
 
 #
 # Options for `fd':
