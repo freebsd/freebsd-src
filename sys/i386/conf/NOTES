@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.425 1998/04/18 04:58:00 ahasty Exp $
+#	$Id: LINT,v 1.426 1998/04/19 23:31:25 julian Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -470,7 +470,7 @@ options		UNION			#Union filesystem
 options		"CD9660_ROOT"		#CD-ROM usable as root device
 options		FFS_ROOT		#FFS usable as root device
 options		NFS_ROOT		#NFS usable as root device
-# DEVFS and SLICE are experimental but seems to work.
+# DEVFS and SLICE are experimental but work.
 # SLICE disables too much old code so enabling it in LINT would be bad
 options		DEVFS			#devices filesystem
 #options		SLICE			#devfs based disk handling
@@ -1442,7 +1442,6 @@ options		COMPAT_LINUX
 options		CPU_UPGRADE_HW_CACHE
 options		DEBUG
 options		"DEBUG_1284"
-options		DEVFS_ROOT
 #options	DISABLE_PSE
 options		"EXT2FS"
 options		"I586_PMC_GUPROF=0x70000"

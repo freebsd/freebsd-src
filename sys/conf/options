@@ -1,4 +1,4 @@
-#	$Id: options,v 1.70 1998/03/28 11:49:16 dufault Exp $
+#	$Id: options,v 1.71 1998/04/20 03:57:21 julian Exp $
 #
 #        On the handling of kernel options   
 # 
@@ -40,7 +40,6 @@ DDB_UNATTENDED	opt_ddb.h
 GDB_REMOTE_CHAT	opt_ddb.h
 DEVFS
 SLICE		opt_devfs.h
-DEVFS_ROOT	opt_devfs.h
 FAILSAFE
 HW_WDOG
 KTRACE
