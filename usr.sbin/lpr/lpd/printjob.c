@@ -107,7 +107,7 @@ static char	 title[80];	/* ``pr'' title */
 static char      locale[80];    /* ``pr'' locale */
 
 static char	class[32];		/* classification field */
-static char	fromhost[32];		/* user's host machine */
+static char	fromhost[MAXHOSTNAMELEN];	/* user's host machine */
 				/* indentation size in static characters */
 static char	indent[10] = "-i0";
 static char	jobname[100];		/* job or file name */
@@ -844,9 +844,12 @@ sendit(pp, file)
 				i = i * 10 + (*cp++ - '0');
 			fino = i;
 		} else if (line[0] == 'H') {
-			strcpy(fromhost, line+1);
-			if (class[0] == '\0')
+			strncpy(fromhost, line+1, sizeof(fromhost) - 1);
+			fromhost[sizeof(fromhost) - 1] = '\0';
+			if (class[0] == '\0') {
 				strncpy(class, line+1, sizeof(class) - 1);
+				class[sizeof(class) - 1] = '\0';
+			}
 		} else if (line[0] == 'P') {
 			strncpy(logname, line+1, sizeof(logname) - 1);
 			if (pp->restricted) { /* restricted */
