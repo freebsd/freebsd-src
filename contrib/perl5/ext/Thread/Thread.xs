@@ -21,7 +21,7 @@ static int sig_pipe[2];
 #endif
 
 static void
-remove_thread(pTHX_ struct perl_thread *t)
+remove_thread(pTHX_ Thread t)
 {
 #ifdef USE_THREADS
     DEBUG_S(WITH_THR(PerlIO_printf(Perl_debug_log,
@@ -82,7 +82,7 @@ threadstart(void *arg)
 #else
     Thread thr = (Thread) arg;
     LOGOP myop;
-    djSP;
+    dSP;
     I32 oldmark = TOPMARK;
     I32 oldscope = PL_scopestack_ix;
     I32 retval;
@@ -98,7 +98,6 @@ threadstart(void *arg)
     DEBUG_S(PerlIO_printf(Perl_debug_log, "new thread %p waiting to start\n",
 			  thr));
 
-    /* Don't call *anything* requiring dTHR until after PERL_SET_THX() */
     /*
      * Wait until our creator releases us. If we didn't do this, then
      * it would be potentially possible for out thread to carry on and
@@ -116,7 +115,6 @@ threadstart(void *arg)
      */
     PERL_SET_THX(thr);
 
-    /* Only now can we use SvPEEK (which calls sv_newmortal which does dTHR) */
     DEBUG_S(PerlIO_printf(Perl_debug_log, "new thread %p starting at %s\n",
 			  thr, SvPEEK(TOPs)));
 
@@ -323,7 +321,13 @@ newthread (pTHX_ SV *startsv, AV *initargs, char *classname)
 
     return sv;
 #else
-    croak("No threads in this perl");
+#  ifdef USE_ITHREADS
+    croak("This perl was built for \"ithreads\", which currently does not support Thread.pm.\n"
+	  "Run \"perldoc Thread\" for more information");
+#  else
+    croak("This perl was not built with support for 5.005-style threads.\n"
+	  "Run \"perldoc Thread\" for more information");
+#  endif
     return &PL_sv_undef;
 #endif
 }

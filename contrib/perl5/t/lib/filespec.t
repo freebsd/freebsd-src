@@ -3,7 +3,7 @@
 BEGIN {
     $^O = '';
     chdir 't' if -d 't';
-    unshift @INC, '../lib';
+    @INC = '../lib';
 }
 
 # Each element in this array is a single test. Storing them this way makes

@@ -1,6 +1,6 @@
 /*    run.c
  *
- *    Copyright (c) 1991-2000, Larry Wall
+ *    Copyright (c) 1991-2001, Larry Wall
  *
  *    You may distribute under the terms of either the GNU General Public
  *    License or the Artistic License, as specified in the README file.
@@ -20,8 +20,6 @@
 int
 Perl_runops_standard(pTHX)
 {
-    dTHR;
-
     while ((PL_op = CALL_FPTR(PL_op->op_ppaddr)(aTHX))) {
 	PERL_ASYNC_CHECK();
     }
@@ -34,7 +32,6 @@ int
 Perl_runops_debug(pTHX)
 {
 #ifdef DEBUGGING
-    dTHR;
     if (!PL_op) {
 	if (ckWARN_d(WARN_DEBUGGING))
 	    Perl_warner(aTHX_ WARN_DEBUGGING, "NULL OP IN RUN");
@@ -67,6 +64,7 @@ Perl_debop(pTHX_ OP *o)
 {
 #ifdef DEBUGGING
     SV *sv;
+    SV **svp;
     STRLEN n_a;
     Perl_deb(aTHX_ "%s", PL_op_name[o->op_type]);
     switch (o->op_type) {
@@ -84,6 +82,16 @@ Perl_debop(pTHX_ OP *o)
 	else
 	    PerlIO_printf(Perl_debug_log, "(NULL)");
 	break;
+    case OP_PADSV:
+    case OP_PADAV:
+    case OP_PADHV:
+	/* print the lexical's name */
+	svp = av_fetch(PL_comppad_name, o->op_targ, FALSE);
+	if (svp)
+	    PerlIO_printf(Perl_debug_log, "(%s)", SvPV(*svp,n_a));
+	else
+           PerlIO_printf(Perl_debug_log, "[%"UVuf"]", (UV)o->op_targ);
+	break;
     default:
 	break;
     }
@@ -96,7 +104,6 @@ void
 Perl_watch(pTHX_ char **addr)
 {
 #ifdef DEBUGGING
-    dTHR;
     PL_watchaddr = addr;
     PL_watchok = *addr;
     PerlIO_printf(Perl_debug_log, "WATCHING, %"UVxf" is currently %"UVxf"\n",

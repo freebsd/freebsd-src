@@ -174,7 +174,8 @@ cat (Loc.U):
 cc (cc.U):
 	This variable holds the name of a command to execute a C compiler which
 	can resolve multiple global references that happen to have the same
-	name.  Usual values are 'cc', 'Mcc', 'cc -M', and 'gcc'.
+	name.  Usual values are 'cc' and 'gcc'.
+	Fervent ANSI compilers may be called 'c89'.  AIX has xlc.
 
 cccdlflags (dlsrc.U):
 	This variable contains any special flags that might need to be
@@ -192,11 +193,27 @@ ccflags (ccflags.U):
 	This variable contains any additional C compiler flags desired by
 	the user.  It is up to the Makefile to use this.
 
+ccflags_uselargefiles (uselfs.U):
+	This variable contains the compiler flags needed by large file builds
+	and added to ccflags by hints files.
+
+ccname (Checkcc.U):
+	This can set either by hints files or by Configure.  If using
+	gcc, this is gcc, and if not, usually equal to cc, unimpressive, no?
+	Some platforms, however, make good use of this by storing the
+	flavor of the C compiler being used here.  For example if using
+	the Sun WorkShop suite, ccname will be 'workshop'.
+
 ccsymbols (Cppsym.U):
 	The variable contains the symbols defined by the C compiler alone.
 	The symbols defined by cpp or by cc when it calls cpp are not in
 	this list, see cppsymbols and cppccsymbols.
 	The list is a space-separated list of symbol=value tokens.
+
+ccversion (Checkcc.U):
+	This can set either by hints files or by Configure.  If using
+	a (non-gcc) vendor cc, this variable may contain a version for
+	the compiler.
 
 cf_by (cf_who.U):
 	Login name of the person who ran the Configure script and answered the
@@ -322,6 +339,10 @@ csh (Loc.U):
 	This variable is used internally by Configure to determine the
 	full pathname (if any) of the csh program.  After Configure runs,
 	the value is reset to a plain "csh" and is not useful.
+
+d__fwalk (d__fwalk.U):
+	This variable conditionally defines HAS__FWALK if _fwalk() is
+	available to apply a function to all the file handles.
 
 d_access (d_access.U):
 	This variable conditionally defines HAS_ACCESS if the access() system
@@ -506,10 +527,6 @@ d_endsent (d_endsent.U):
 	This variable conditionally defines HAS_ENDSERVENT if endservent() is
 	available to close whatever was being used for service queries.
 
-d_endspent (d_endspent.U):
-	This variable conditionally defines HAS_ENDSPENT if endspent() is
-	available to finalize the scan of SysV shadow password entries.
-
 d_eofnblk (nblock_io.U):
 	This variable conditionally defines EOF_NONBLOCK if EOF can be seen
 	when reading from a non-blocking I/O source.
@@ -531,6 +548,10 @@ d_fchown (d_fchown.U):
 d_fcntl (d_fcntl.U):
 	This variable conditionally defines the HAS_FCNTL symbol, and indicates
 	whether the fcntl() function exists
+
+d_fcntl_can_lock (d_fcntl_can_lock.U):
+	This variable conditionally defines the FCNTL_CAN_LOCK symbol
+	and indicates whether file locking with fcntl() works.
 
 d_fd_macros (d_fd_set.U):
 	This variable contains the eventual value of the HAS_FD_MACROS symbol,
@@ -573,6 +594,10 @@ d_fpathconf (d_pathconf.U):
 d_fpos64_t (d_fpos64_t.U):
 	This symbol will be defined if the C compiler supports fpos64_t.
 
+d_frexpl (d_frexpl.U):
+	This variable conditionally defines the HAS_FREXPL symbol, which
+	indicates to the C program that the frexpl() routine is available.
+
 d_fs_data_s (d_fs_data_s.U):
 	This variable conditionally defines the HAS_STRUCT_FS_DATA symbol,
 	which indicates that the struct fs_data is supported.
@@ -592,6 +617,10 @@ d_fstatfs (d_fstatfs.U):
 d_fstatvfs (d_statvfs.U):
 	This variable conditionally defines the HAS_FSTATVFS symbol, which
 	indicates to the C program that the fstatvfs() routine is available.
+
+d_fsync (d_fsync.U):
+	This variable conditionally defines the HAS_FSYNC symbol, which
+	indicates to the C program that the fsync() routine is available.
 
 d_ftello (d_ftello.U):
 	This variable conditionally defines the HAS_FTELLO symbol, which
@@ -615,6 +644,10 @@ d_getcwd (d_getcwd.U):
 	This variable conditionally defines the HAS_GETCWD symbol, which
 	indicates to the C program that the getcwd() routine is available
 	to get the current working directory.
+
+d_getespwnam (d_getespwnam.U):
+	This variable conditionally defines HAS_GETESPWNAM if getespwnam() is
+	available to retrieve enchanced (shadow) password entries by name.
 
 d_getfsstat (d_getfsstat.U):
 	This variable conditionally defines the HAS_GETFSSTAT symbol, which
@@ -690,6 +723,10 @@ d_getnetprotos (d_getnetprotos.U):
 	prototypes for the various getnet*() functions.  
 	See also netdbtype.U for probing for various netdb types.
 
+d_getpagsz (d_getpagsz.U):
+	This variable conditionally defines HAS_GETPAGESIZE if getpagesize()
+	is available to get the system page size.
+
 d_getpbyname (d_getprotby.U):
 	This variable conditionally defines the HAS_GETPROTOBYNAME 
 	symbol, which indicates to the C program that the 
@@ -735,6 +772,10 @@ d_getprotoprotos (d_getprotoprotos.U):
 	prototypes for the various getproto*() functions.  
 	See also netdbtype.U for probing for various netdb types.
 
+d_getprpwnam (d_getprpwnam.U):
+	This variable conditionally defines HAS_GETPRPWNAM if getprpwnam() is
+	available to retrieve protected (shadow) password entries by name.
+
 d_getpwent (d_getpwent.U):
 	This variable conditionally defines the HAS_GETPWENT symbol, which
 	indicates to the C program that the getpwent() routine is available
@@ -761,10 +802,6 @@ d_getservprotos (d_getservprotos.U):
 	which indicates to the C program that <netdb.h> supplies
 	prototypes for the various getserv*() functions.  
 	See also netdbtype.U for probing for various netdb types.
-
-d_getspent (d_getspent.U):
-	This variable conditionally defines HAS_GETSPENT if getspent() is
-	available to retrieve SysV shadow password entries sequentially.
 
 d_getspnam (d_getspnam.U):
 	This variable conditionally defines HAS_GETSPNAM if getspnam() is
@@ -810,6 +847,14 @@ d_int64_t (d_int64_t.U):
 d_isascii (d_isascii.U):
 	This variable conditionally defines the HAS_ISASCII constant,
 	which indicates to the C program that isascii() is available.
+
+d_isnan (d_isnan.U):
+	This variable conditionally defines the HAS_ISNAN symbol, which
+	indicates to the C program that the isnan() routine is available.
+
+d_isnanl (d_isnanl.U):
+	This variable conditionally defines the HAS_ISNANL symbol, which
+	indicates to the C program that the isnanl() routine is available.
 
 d_killpg (d_killpg.U):
 	This variable conditionally defines the HAS_KILLPG symbol, which
@@ -933,6 +978,10 @@ d_mmap (d_mmap.U):
 	This variable conditionally defines HAS_MMAP if mmap() is
 	available to map a file into memory.
 
+d_modfl (d_modfl.U):
+	This variable conditionally defines the HAS_MODFL symbol, which
+	indicates to the C program that the modfl() routine is available.
+
 d_mprotect (d_mprotect.U):
 	This variable conditionally defines HAS_MPROTECT if mprotect() is
 	available to modify the access protection of a memory mapped file.
@@ -1003,6 +1052,10 @@ d_nv_preserves_uv (perlxv.U):
 	This variable indicates whether a variable of type nvtype
 	can preserve all the bits a variable of type uvtype.
 
+d_nv_preserves_uv_bits (perlxv.U):
+	This variable indicates how many of bits type uvtype
+	a variable nvtype can preserve.
+
 d_off64_t (d_off64_t.U):
 	This symbol will be defined if the C compiler supports off64_t.
 
@@ -1036,6 +1089,11 @@ d_pause (d_pause.U):
 	indicates to the C program that the pause() routine is available
 	to suspend a process until a signal is received.
 
+d_perl_otherlibdirs (otherlibdirs.U):
+	This variable conditionally defines PERL_OTHERLIBDIRS, which
+	contains a colon-separated set of paths for the perl binary to
+	include in @INC.  See also otherlibdirs.
+
 d_phostname (d_gethname.U):
 	This variable conditionally defines the HAS_PHOSTNAME symbol, which
 	contains the shell command which, when fed to popen(), may be
@@ -1061,28 +1119,34 @@ d_PRId64 (quadfio.U):
 	indiciates that stdio has a symbol to print 64-bit decimal numbers.
 
 d_PRIeldbl (longdblfio.U):
-	This variable conditionally defines the PERL_PRIfldlbl symbol, which
+	This variable conditionally defines the PERL_PRIfldbl symbol, which
 	indiciates that stdio has a symbol to print long doubles.
 
-d_PRIEldbl (longdblfio.U):
-	This variable conditionally defines the PERL_PRIfldlbl symbol, which
+d_PRIEUldbl (longdblfio.U):
+	This variable conditionally defines the PERL_PRIfldbl symbol, which
 	indiciates that stdio has a symbol to print long doubles.
+	The 'U' in the name is to separate this from d_PRIeldbl so that even
+	case-blind systems can see the difference.
 
 d_PRIfldbl (longdblfio.U):
-	This variable conditionally defines the PERL_PRIfldlbl symbol, which
+	This variable conditionally defines the PERL_PRIfldbl symbol, which
 	indiciates that stdio has a symbol to print long doubles.
 
-d_PRIFldbl (longdblfio.U):
-	This variable conditionally defines the PERL_PRIfldlbl symbol, which
+d_PRIFUldbl (longdblfio.U):
+	This variable conditionally defines the PERL_PRIfldbl symbol, which
 	indiciates that stdio has a symbol to print long doubles.
+	The 'U' in the name is to separate this from d_PRIfldbl so that even
+	case-blind systems can see the difference.
 
 d_PRIgldbl (longdblfio.U):
-	This variable conditionally defines the PERL_PRIfldlbl symbol, which
+	This variable conditionally defines the PERL_PRIfldbl symbol, which
 	indiciates that stdio has a symbol to print long doubles.
 
-d_PRIGldbl (longdblfio.U):
-	This variable conditionally defines the PERL_PRIfldlbl symbol, which
+d_PRIGUldbl (longdblfio.U):
+	This variable conditionally defines the PERL_PRIfldbl symbol, which
 	indiciates that stdio has a symbol to print long doubles.
+	The 'U' in the name is to separate this from d_PRIgldbl so that even
+	case-blind systems can see the difference.
 
 d_PRIi64 (quadfio.U):
 	This variable conditionally defines the PERL_PRIi64 symbol, which
@@ -1101,9 +1165,11 @@ d_PRIx64 (quadfio.U):
 	This variable conditionally defines the PERL_PRIx64 symbol, which
 	indiciates that stdio has a symbol to print 64-bit hexadecimal numbers.
 
-d_PRIX64 (quadfio.U):
-	This variable conditionally defines the PERL_PRIX64 symbol, which
+d_PRIXU64 (quadfio.U):
+	This variable conditionally defines the PERL_PRIXU64 symbol, which
 	indiciates that stdio has a symbol to print 64-bit hExADECimAl numbers.
+	The 'U' in the name is to separate this from d_PRIx64 so that even
+	case-blind systems can see the difference.
 
 d_pthread_yield (d_pthread_y.U):
 	This variable conditionally defines the HAS_PTHREAD_YIELD
@@ -1185,6 +1251,12 @@ d_sanemcmp (d_sanemcmp.U):
 	the memcpy() routine is available and can be used to compare relative
 	magnitudes of chars with their high bits set.
 
+d_sbrkproto (d_sbrkproto.U):
+	This variable conditionally defines the HAS_SBRK_PROTO symbol,
+	which indicates to the C program that the system provides
+	a prototype for the sbrk() function.  Otherwise, it is
+	up to the program to supply one.
+
 d_sched_yield (d_pthread_y.U):
 	This variable conditionally defines the HAS_SCHED_YIELD
 	symbol if the sched_yield routine is available to yield
@@ -1194,6 +1266,10 @@ d_scm_rights (d_socket.U):
 	This variable conditionally defines the HAS_SCM_RIGHTS symbol,
 	which indicates that the SCM_RIGHTS is available.  #ifdef is
 	not enough because it may be an enum, glibc has been known to do this.
+
+d_SCNfldbl (longdblfio.U):
+	This variable conditionally defines the PERL_PRIfldbl symbol, which
+	indiciates that stdio has a symbol to scan long doubles.
 
 d_seekdir (d_readdir.U):
 	This variable conditionally defines HAS_SEEKDIR if seekdir() is
@@ -1287,6 +1363,11 @@ d_setprior (d_setprior.U):
 	This variable conditionally defines HAS_SETPRIORITY if setpriority()
 	is available to set a process's priority.
 
+d_setproctitle (d_setproctitle.U):
+	This variable conditionally defines the HAS_SETPROCTITLE symbol,
+	which indicates to the C program that the setproctitle() routine
+	is available.
+
 d_setpwent (d_setpwent.U):
 	This variable conditionally defines the HAS_SETPWENT symbol, which
 	indicates to the C program that the setpwent() routine is available
@@ -1330,10 +1411,6 @@ d_setsid (d_setsid.U):
 	This variable conditionally defines HAS_SETSID if setsid() is
 	available to set the process group ID.
 
-d_setspent (d_setspent.U):
-	This variable conditionally defines HAS_SETSPENT if setspent() is
-	available to initialize the scan of SysV shadow password entries.
-
 d_setvbuf (d_setvbuf.U):
 	This variable conditionally defines the HAS_SETVBUF symbol, which
 	indicates to the C program that the setvbuf() routine is available
@@ -1372,6 +1449,11 @@ d_sigaction (d_sigaction.U):
 	This variable conditionally defines the HAS_SIGACTION symbol, which
 	indicates that the Vr4 sigaction() routine is available.
 
+d_sigprocmask (d_sigprocmask.U):
+	This variable conditionally defines HAS_SIGPROCMASK
+	if sigprocmask() is available to examine or change the signal mask
+	of the calling process.
+
 d_sigsetjmp (d_sigsetjmp.U):
 	This variable conditionally defines the HAS_SIGSETJMP symbol,
 	which indicates that the sigsetjmp() routine is available to
@@ -1387,6 +1469,10 @@ d_socklen_t (d_socklen_t.U):
 d_sockpair (d_socket.U):
 	This variable conditionally defines the HAS_SOCKETPAIR symbol, which
 	indicates that the BSD socketpair() is supported.
+
+d_socks5_init (d_socks5_init.U):
+	This variable conditionally defines the HAS_SOCKS5_INIT symbol, which
+	indicates to the C program that the socks5_init() routine is available.
 
 d_sqrtl (d_sqrtl.U):
 	This variable conditionally defines the HAS_SQRTL symbol, which
@@ -1418,6 +1504,15 @@ d_stdio_cnt_lval (d_stdstdio.U):
 d_stdio_ptr_lval (d_stdstdio.U):
 	This variable conditionally defines STDIO_PTR_LVALUE if the
 	FILE_ptr macro can be used as an lvalue.
+
+d_stdio_ptr_lval_nochange_cnt (d_stdstdio.U):
+	This symbol is defined if using the FILE_ptr macro as an lvalue
+	to increase the pointer by n leaves File_cnt(fp) unchanged.
+
+d_stdio_ptr_lval_sets_cnt (d_stdstdio.U):
+	This symbol is defined if using the FILE_ptr macro as an lvalue
+	to increase the pointer by n has the side effect of decreasing the
+	value of File_cnt(fp) by n.
 
 d_stdio_stream_array (stdio_streams.U):
 	This variable tells whether there is an array holding
@@ -1473,6 +1568,10 @@ d_strtold (d_strtold.U):
 d_strtoll (d_strtoll.U):
 	This variable conditionally defines the HAS_STRTOLL symbol, which
 	indicates to the C program that the strtoll() routine is available.
+
+d_strtoq (d_strtoq.U):
+	This variable conditionally defines the HAS_STRTOQ symbol, which
+	indicates to the C program that the strtoq() routine is available.
 
 d_strtoul (d_strtoul.U):
 	This variable conditionally defines the HAS_STRTOUL symbol, which
@@ -1782,7 +1881,12 @@ full_sed (Loc_sed.U):
 	can share this executable will have the same full pathname to
 	'sed.'
 
-gccversion (cc.U):
+gccosandvers (gccvers.U):
+	If GNU cc (gcc) is used, this variable the operating system and
+	version used to compile the gcc.  It is set to '' if not gcc,
+	or if nothing useful can be parsed as the os version.
+
+gccversion (gccvers.U):
 	If GNU cc (gcc) is used, this variable holds '1' or '2' to 
 	indicate whether the compiler is version 1 or 2.  This is used in
 	setting some of the default cflags.  It is set to '' if not gcc.
@@ -1848,12 +1952,6 @@ hostcat (nis.U):
 	"ypcat hosts" when NIS is used.
 	On some systems, such as os390, there may be no equivalent
 	command, in which case this variable is unset.
-
-huge (models.U):
-	This variable contains a flag which will tell the C compiler and loader
-	to produce a program running with a huge memory model.  If the
-	huge model is not supported, contains the flag to produce large
-	model programs.  It is up to the Makefile to use this.
 
 i16size (perlxv.U):
 	This variable is the size of an I16 in bytes.
@@ -1941,6 +2039,10 @@ i_inttypes (i_inttypes.U):
 	This variable conditionally defines the I_INTTYPES symbol,
 	and indicates whether a C program should include <inttypes.h>.
 
+i_libutil (i_libutil.U):
+	This variable conditionally defines the I_LIBUTIL symbol, and indicates
+	whether a C program should include <libutil.h>.
+
 i_limits (i_limits.U):
 	This variable conditionally defines the I_LIMITS symbol, and indicates
 	whether a C program may include <limits.h> to get symbols like WORD_BIT
@@ -1996,6 +2098,10 @@ i_niin (i_niin.U):
 i_poll (i_poll.U):
 	This variable conditionally defines the I_POLL symbol, and indicates
 	whether a C program should include <poll.h>.
+
+i_prot (i_prot.U):
+	This variable conditionally defines the I_PROT symbol, and indicates
+	whether a C program should include <prot.h>.
 
 i_pthread (i_pthread.U):
 	This variable conditionally defines the I_PTHREAD symbol,
@@ -2342,6 +2448,11 @@ intsize (intsize.U):
 	This variable contains the value of the INTSIZE symbol, which
 	indicates to the C program how many bytes there are in an int.
 
+issymlink (issymlink.U):
+	This variable holds the test command to test for a symbolic link
+	(if they are supported).  Typical values include 'test -h' and
+	'test -L'.
+
 ivdformat (perlxvf.U):
 	This variable contains the format string used for printing
 	a Perl IV as a signed decimal integer. 
@@ -2360,11 +2471,6 @@ ksh (Loc.U):
 	This variable is defined but not used by Configure.
 	The value is a plain '' and is not useful.
 
-large (models.U):
-	This variable contains a flag which will tell the C compiler and loader
-	to produce a program running with a large memory model.  It is up to
-	the Makefile to use this.
-
 ld (dlsrc.U):
 	This variable indicates the program to be used to link
 	libraries for dynamic loading.  On some systems, it is 'ld'.
@@ -2380,6 +2486,10 @@ lddlflags (dlsrc.U):
 ldflags (ccflags.U):
 	This variable contains any additional C loader flags desired by
 	the user.  It is up to the Makefile to use this.
+
+ldflags_uselargefiles (uselfs.U):
+	This variable contains the loader flags needed by large file builds
+	and added to ldflags by hints files.
 
 ldlibpthname (libperl.U):
 	This variable holds the name of the shared library
@@ -2432,6 +2542,12 @@ libswanted (Myinit.U):
 	This variable holds a list of all the libraries we want to
 	search.  The order is chosen to pick up the c library
 	ahead of ucb or bsd libraries for SVR4.
+
+libswanted_uselargefiles (uselfs.U):
+	This variable contains the libraries needed by large file builds
+	and added to ldflags by hints files.  It is a space separated list
+	of the library names without the "lib" prefix or any suffix, just
+	like libswanted..
 
 line (Loc.U):
 	This variable is defined but not used by Configure.
@@ -2578,12 +2694,6 @@ Mcc (Loc.U):
 	full pathname (if any) of the Mcc program.  After Configure runs,
 	the value is reset to a plain "Mcc" and is not useful.
 
-medium (models.U):
-	This variable contains a flag which will tell the C compiler and loader
-	to produce a program running with a medium memory model.  If the
-	medium model is not supported, contains the flag to produce large
-	model programs.  It is up to the Makefile to use this.
-
 mips_type (usrinc.U):
 	This variable holds the environment type for the mips system.
 	Possible values are "BSD 4.3" and "System V".
@@ -2597,11 +2707,6 @@ mmaptype (d_mmap.U):
 	This symbol contains the type of pointer returned by mmap()
 	(and simultaneously the type of the first argument).
 	It can be 'void *' or 'caddr_t'.
-
-models (models.U):
-	This variable contains the list of memory models supported by this
-	system.  Possible component values are none, split, unsplit, small,
-	medium, large, and huge.  The component values are space separated.
 
 modetype (modetype.U):
 	This variable defines modetype to be something like mode_t, 
@@ -2649,6 +2754,15 @@ n (n.U):
 	command to suppress newline.  Otherwise it is null.  Correct usage is
 	$echo $n "prompt for a question: $c".
 
+need_va_copy (need_va_copy.U):
+	This symbol, if defined, indicates that the system stores
+	the variable argument list datatype, va_list, in a format
+	that cannot be copied by simple assignment, so that some
+	other means must be used when copying is required.
+	As such systems vary in their provision (or non-provision)
+	of copying mechanisms, handy.h defines a platform-
+	independent macro, Perl_va_copy(src, dst), to do the job.
+
 netdb_hlen_type (netdbtype.U):
 	This variable holds the type used for the 2nd argument to
 	gethostbyaddr().  Usually, this is int or size_t or unsigned.
@@ -2695,6 +2809,30 @@ nroff (Loc.U):
 	full pathname (if any) of the nroff program.  After Configure runs,
 	the value is reset to a plain "nroff" and is not useful.
 
+nveformat (perlxvf.U):
+	This variable contains the format string used for printing
+	a Perl NV using %e-ish floating point format.
+
+nvEUformat (perlxvf.U):
+	This variable contains the format string used for printing
+	a Perl NV using %E-ish floating point format.
+
+nvfformat (perlxvf.U):
+	This variable confains the format string used for printing
+	a Perl NV using %f-ish floating point format.
+
+nvFUformat (perlxvf.U):
+	This variable confains the format string used for printing
+	a Perl NV using %F-ish floating point format.
+
+nvgformat (perlxvf.U):
+	This variable contains the format string used for printing
+	a Perl NV using %g-ish floating point format.
+
+nvGUformat (perlxvf.U):
+	This variable contains the format string used for printing
+	a Perl NV using %G-ish floating point format.
+
 nvsize (perlxv.U):
 	This variable is the size of an NV in bytes.
 
@@ -2740,6 +2878,16 @@ osvers (Oldconfig.U):
 	to keep, e.g. if 4.1.1, 4.1.2, and 4.1.3 are essentially the
 	same for this package, hints files might just be os_4.0 or
 	os_4.1, etc., not keeping separate files for each little release.
+
+otherlibdirs (otherlibdirs.U):
+	This variable contains a colon-separated set of paths for the perl
+	binary to search for additional library files or modules.
+	These directories will be tacked to the end of @INC.
+	Perl will automatically search below each path for version-
+	and architecture-specific directories.  See inc_version_list
+	for more details.
+	A value of ' ' means 'none' and is used to preserve this value
+	for the next run through Configure.
 
 package (package.U):
 	This variable contains the name of the package being constructed.
@@ -2791,6 +2939,10 @@ PERL_VERSION (Oldsyms.U):
 
 perladmin (perladmin.U):
 	Electronic mail address of the perl5 administrator.
+
+perllibs (End.U):
+	The list of libraries needed by Perl only (any libraries needed
+	by extensions only will by dropped, if using dynamic loading).
 
 perlpath (perlpath.U):
 	This variable contains the eventual value of the PERLPATH symbol,
@@ -3036,6 +3188,10 @@ sig_num_init (sig_name.U):
 	below.  A "ZERO" is prepended to the list, and the list is 
 	terminated with a plain 0.
 
+sig_size (sig_name.U):
+	This variable contains the number of elements of the sig_name
+	and sig_num arrays, excluding the final NULL entry.
+
 signal_t (d_voidsig.U):
 	This variable holds the type of the signal handler (void or int).
 
@@ -3114,11 +3270,6 @@ smail (Loc.U):
 	This variable is defined but not used by Configure.
 	The value is a plain '' and is not useful.
 
-small (models.U):
-	This variable contains a flag which will tell the C compiler and loader
-	to produce a program running with a small memory model.  It is up to
-	the Makefile to use this.
-
 so (so.U):
 	This variable holds the extension used to identify shared libraries
 	(also known as shared objects) on the system. Usually set to 'so'.
@@ -3148,12 +3299,6 @@ spitshell (spitshell.U):
 	This variable contains the command necessary to spit out a runnable
 	shell on this system.  It is either cat or a grep '-v' for # comments.
 
-split (models.U):
-	This variable contains a flag which will tell the C compiler and loader
-	to produce a program that will run in separate I and D space, for those
-	machines that support separation of instruction and data space.  It is
-	up to the Makefile to use this.
-
 sPRId64 (quadfio.U):
 	This variable, if defined, contains the string used by stdio to
 	format 64-bit decimal numbers (format 'd') for output.
@@ -3162,25 +3307,31 @@ sPRIeldbl (longdblfio.U):
 	This variable, if defined, contains the string used by stdio to
 	format long doubles (format 'e') for output.
 
-sPRIEldbl (longdblfio.U):
+sPRIEUldbl (longdblfio.U):
 	This variable, if defined, contains the string used by stdio to
 	format long doubles (format 'E') for output.
+	The 'U' in the name is to separate this from sPRIeldbl so that even
+	case-blind systems can see the difference.
 
 sPRIfldbl (longdblfio.U):
 	This variable, if defined, contains the string used by stdio to
 	format long doubles (format 'f') for output.
 
-sPRIFldbl (longdblfio.U):
+sPRIFUldbl (longdblfio.U):
 	This variable, if defined, contains the string used by stdio to
 	format long doubles (format 'F') for output.
+	The 'U' in the name is to separate this from sPRIfldbl so that even
+	case-blind systems can see the difference.
 
 sPRIgldbl (longdblfio.U):
 	This variable, if defined, contains the string used by stdio to
 	format long doubles (format 'g') for output.
 
-sPRIGldbl (longdblfio.U):
+sPRIGUldbl (longdblfio.U):
 	This variable, if defined, contains the string used by stdio to
 	format long doubles (format 'G') for output.
+	The 'U' in the name is to separate this from sPRIgldbl so that even
+	case-blind systems can see the difference.
 
 sPRIi64 (quadfio.U):
 	This variable, if defined, contains the string used by stdio to
@@ -3198,14 +3349,20 @@ sPRIx64 (quadfio.U):
 	This variable, if defined, contains the string used by stdio to
 	format 64-bit hexadecimal numbers (format 'x') for output.
 
-sPRIX64 (quadfio.U):
+sPRIXU64 (quadfio.U):
 	This variable, if defined, contains the string used by stdio to
 	format 64-bit hExADECimAl numbers (format 'X') for output.
+	The 'U' in the name is to separate this from sPRIx64 so that even
+	case-blind systems can see the difference.
 
 src (src.U):
 	This variable holds the path to the package source. It is up to
 	the Makefile to use this variable and set VPATH accordingly to
 	find the sources remotely.
+
+sSCNfldbl (longdblfio.U):
+	This variable, if defined, contains the string used by stdio to
+	format long doubles (format 'f') for input.
 
 ssizetype (ssizetype.U):
 	This variable defines ssizetype to be something like ssize_t, 
@@ -3521,7 +3678,11 @@ uvuformat (perlxvf.U):
 
 uvxformat (perlxvf.U):
 	This variable contains the format string used for printing
-	a Perl UV as an unsigned hexadecimal integer. 
+	a Perl UV as an unsigned hexadecimal integer in lowercase abcdef.
+
+uvXUformat (perlxvf.U):
+	This variable contains the format string used for printing
+	a Perl UV as an unsigned hexadecimal integer in uppercase ABCDEF.
 
 vendorarch (vendorarch.U):
 	This variable contains the value of the PERL_VENDORARCH symbol.
@@ -3582,6 +3743,18 @@ version (patchlevel.U):
 	full version number, including any possible subversions.
 	This is suitable for use as a directory name, and hence is
 	filesystem dependent.
+
+versiononly (versiononly.U):
+	If set, this symbol indicates that only the version-specific
+	components of a perl installation should be installed.
+	This may be useful for making a test installation of a new
+	version without disturbing the existing installation.
+	Setting versiononly is equivalent to setting installperl's -v option.
+	In particular, the non-versioned scripts and programs such as
+	a2p, c2ph, h2xs, pod2*, and perldoc are not installed
+	(see INSTALL for a more complete list).  Nor are the man
+	pages installed.
+	Usually, this is undef.
 
 vi (Loc.U):
 	This variable is defined but not used by Configure.

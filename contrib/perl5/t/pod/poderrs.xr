@@ -1,33 +1,46 @@
-*** ERROR: Unknown command 'unknown1' at line 25 in file pod/poderrs.t
-*** ERROR: Unknown interior-sequence 'Q' at line 29 in file pod/poderrs.t
-*** ERROR: Unknown interior-sequence 'A' at line 30 in file pod/poderrs.t
-*** ERROR: Unknown interior-sequence 'Y' at line 31 in file pod/poderrs.t
-*** ERROR: Unknown interior-sequence 'V' at line 31 in file pod/poderrs.t
-*** ERROR: unterminated B<...> at line 35 in file pod/poderrs.t
-*** ERROR: unterminated I<...> at line 34 in file pod/poderrs.t
-*** ERROR: unterminated C<...> at line 37 in file pod/poderrs.t
-*** WARNING: line containing nothing but whitespace in paragraph at line 45 in file pod/poderrs.t
-*** ERROR: =item without previous =over at line 52 in file pod/poderrs.t
-*** ERROR: =back without previous =over at line 56 in file pod/poderrs.t
-*** ERROR: =over on line 60 without closing =back (at head2) at line 64 in file pod/poderrs.t
-*** ERROR: =end without =begin at line 66 in file pod/poderrs.t
-*** ERROR: Nested =begin's (first at line 70:html) at line 72 in file pod/poderrs.t
-*** ERROR: =end without =begin at line 76 in file pod/poderrs.t
-*** ERROR: nested commands C<...C<...>...> at line 80 in file pod/poderrs.t
-*** ERROR: garbled entity E<alea iacta est> at line 84 in file pod/poderrs.t
-*** ERROR: garbled entity E<C<auml>> at line 85 in file pod/poderrs.t
-*** ERROR: garbled entity E<abcI<bla>> at line 86 in file pod/poderrs.t
-*** WARNING: collapsing newlines to blanks at line 96 in file pod/poderrs.t
-*** ERROR: malformed link L<> : empty link at line 98 in file pod/poderrs.t
-*** WARNING: ignoring leading whitespace in link at line 104 in file pod/poderrs.t
-*** WARNING: ignoring trailing whitespace in link at line 104 in file pod/poderrs.t
-*** ERROR: Spurious character(s) after =back at line 110 in file pod/poderrs.t
-*** WARNING: No items in =over (at line 118) / =back list at line 120 in file pod/poderrs.t
-*** WARNING: 2 unescaped <> in paragraph at line 122 in file pod/poderrs.t
-*** ERROR: unresolved internal link 'begin or begin' at line 90 in file pod/poderrs.t
-*** ERROR: unresolved internal link 'end with begin' at line 91 in file pod/poderrs.t
-*** ERROR: unresolved internal link 'OoPs' at line 92 in file pod/poderrs.t
-*** ERROR: unresolved internal link 'abc def' at line 96 in file pod/poderrs.t
-*** ERROR: unresolved internal link 'passwd(5)' at line 103 in file pod/poderrs.t
-*** WARNING: multiple occurence of link target 'oops' at line - in file pod/poderrs.t
-pod/poderrs.t has 25 pod syntax errors.
+*** ERROR: Unknown command 'unknown1' at line 25 in file t/pod/poderrs.t
+*** ERROR: Unknown interior-sequence 'Q' at line 29 in file t/pod/poderrs.t
+*** ERROR: Unknown interior-sequence 'A' at line 30 in file t/pod/poderrs.t
+*** ERROR: Unknown interior-sequence 'Y' at line 31 in file t/pod/poderrs.t
+*** ERROR: Unknown interior-sequence 'V' at line 31 in file t/pod/poderrs.t
+*** ERROR: unterminated B<...> at line 35 in file t/pod/poderrs.t
+*** ERROR: unterminated I<...> at line 34 in file t/pod/poderrs.t
+*** ERROR: unterminated C<...> at line 37 in file t/pod/poderrs.t
+*** WARNING: line containing nothing but whitespace in paragraph at line 45 in file t/pod/poderrs.t
+*** ERROR: =item without previous =over at line 52 in file t/pod/poderrs.t
+*** ERROR: =back without previous =over at line 56 in file t/pod/poderrs.t
+*** ERROR: =over on line 60 without closing =back (at head2) at line 64 in file t/pod/poderrs.t
+*** ERROR: =end without =begin at line 66 in file t/pod/poderrs.t
+*** ERROR: Nested =begin's (first at line 70:html) at line 72 in file t/pod/poderrs.t
+*** ERROR: =end without =begin at line 76 in file t/pod/poderrs.t
+*** ERROR: No argument for =begin at line 82 in file t/pod/poderrs.t
+*** ERROR: =for without formatter specification at line 88 in file t/pod/poderrs.t
+*** ERROR: nested commands C<...C<...>...> at line 94 in file t/pod/poderrs.t
+*** ERROR: garbled entity E<alea iacta est> at line 98 in file t/pod/poderrs.t
+*** ERROR: garbled entity E<C<auml>> at line 99 in file t/pod/poderrs.t
+*** ERROR: garbled entity E<abcI<bla>> at line 100 in file t/pod/poderrs.t
+*** ERROR: Entity number out of range E<0x100> at line 101 in file t/pod/poderrs.t
+*** ERROR: Entity number out of range E<07777> at line 102 in file t/pod/poderrs.t
+*** ERROR: Entity number out of range E<300> at line 103 in file t/pod/poderrs.t
+*** ERROR: malformed link L<> : empty link at line 115 in file t/pod/poderrs.t
+*** WARNING: ignoring leading whitespace in link at line 116 in file t/pod/poderrs.t
+*** WARNING: ignoring trailing whitespace in link at line 117 in file t/pod/poderrs.t
+*** WARNING: (section) in 'passwd(5)' deprecated at line 123 in file t/pod/poderrs.t
+*** WARNING: node '$|' contains non-escaped | or / at line 124 in file t/pod/poderrs.t
+*** WARNING: alternative text '$|' contains non-escaped | or / at line 124 in file t/pod/poderrs.t
+*** ERROR: Spurious character(s) after =back at line 130 in file t/pod/poderrs.t
+*** ERROR: Nonempty Z<> at line 144 in file t/pod/poderrs.t
+*** ERROR: Empty X<> at line 146 in file t/pod/poderrs.t
+*** WARNING: preceding non-item paragraph(s) at line 152 in file t/pod/poderrs.t
+*** WARNING: No argument for =item at line 154 in file t/pod/poderrs.t
+*** WARNING: previous =item has no contents at line 156 in file t/pod/poderrs.t
+*** WARNING: No items in =over (at line 164) / =back list at line 166 in file t/pod/poderrs.t
+*** ERROR: Spurious text after =pod at line 172 in file t/pod/poderrs.t
+*** ERROR: Spurious text after =cut at line 176 in file t/pod/poderrs.t
+*** WARNING: empty section in previous paragraph at line 192 in file t/pod/poderrs.t
+*** ERROR: unresolved internal link 'begin or begin' at line 107 in file t/pod/poderrs.t
+*** ERROR: unresolved internal link 'end with begin' at line 108 in file t/pod/poderrs.t
+*** ERROR: unresolved internal link 'OoPs' at line 109 in file t/pod/poderrs.t
+*** ERROR: unresolved internal link 'abc def' at line 113 in file t/pod/poderrs.t
+*** WARNING: multiple occurence of link target 'Misc' at line - in file t/pod/poderrs.t
+t/pod/poderrs.t has 33 pod syntax errors.

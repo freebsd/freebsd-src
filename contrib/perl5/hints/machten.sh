@@ -15,6 +15,9 @@
 #	Martijn Koster <m.koster@webcrawler.com>
 #	Richard Yeh <rcyeh@cco.caltech.edu>
 #
+# Deny system's false claims to support mmap() and munmap(); note
+# also that Sys V IPC (re)disabled by jhi due to continuing inadequacy
+#                      -- Dominic Dunlop <domo@computer.org> 001111
 # Remove dynamic loading libraries from search; enable SysV IPC with
 # MachTen 4.1.4 and above; define SYSTEM_ALIGN_BYTES for old MT versions
 #                      -- Dominic Dunlop <domo@computer.org> 000224
@@ -46,10 +49,7 @@
 #
 # MachTen 4.1.1's support for shadow password file access is incomplete:
 # disable its use completely.
-d_endspent=${d_endspent:-undef}
-d_getspent=${d_getspent:-undef}
 d_getspnam=${d_getspnam:-undef}
-d_setspent=${d_setspent:-undef}
 
 # MachTen 4.1.1 does support dynamic loading, but perl doesn't
 # know how to use it yet.
@@ -200,6 +200,11 @@ if test "$d_shm" = ""; then
     esac
 fi
 
+# MachTen has stubs for mmap and munmap(), but they just result in the
+# caller being killed on the grounds of "Bad system call"
+d_mmap=${d_mmap:-undef}
+d_munmap=${d_munmap:-undef}
+
 # Get rid of some extra libs which it takes Configure a tediously
 # long time never to find on MachTen, or which break perl
 set `echo X "$libswanted "|sed -e 's/ net / /' -e 's/ socket / /' \
@@ -231,6 +236,8 @@ During Configure, you may see the message
 as well as similar messages concerning \$d_sem and \$d_shm.  Select the
 default answers: MachTen 4.1 appears to provide System V IPC support,
 but it is incomplete and buggy: perl should be built without it.
+Similar considerations apply to memory mapping of files, controlled
+by \$d_mmap and \$d_munmap.
 
 Similarly, when you see
 
@@ -241,10 +248,9 @@ Similarly, when you see
 select the default answer: vfork() works, and avoids expensive data
 copying.
 
-You may also see "WHOA THERE!!!" messages concerning \$d_endspent,
-\$d_getspent, \$d_getspnam and \$d_setspent.  In all cases, select the
-default answer: MachTen's support for shadow password file access is
-incomplete, and should not be used.
+You may also see "WHOA THERE!!!" messages concerning \$d_getspnam.
+Select the default answer: MachTen's support for shadow password
+file access is incomplete, and should not be used.
 
 At the end of Configure, you will see a harmless message
 

@@ -361,7 +361,7 @@ perform the system call C<accept> on the socket and return a new object. The
 new object will be created in the same class as the listen socket, unless
 C<PKG> is specified. This object can be used to communicate with the client
 that was trying to connect. In a scalar context the new socket is returned,
-or undef upon failure. In an array context a two-element array is returned
+or undef upon failure. In a list context a two-element array is returned
 containing the new socket and the peer address; the list will
 be empty upon failure.
 

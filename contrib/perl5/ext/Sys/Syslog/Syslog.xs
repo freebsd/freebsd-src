@@ -550,8 +550,7 @@ _PATH_LOG()
 #ifdef _PATH_LOG
 	RETVAL = _PATH_LOG;
 #else
-	croak("Your vendor has not defined the Sys::Syslog macro _PATH_LOG");
-	RETVAL = NULL;
+	RETVAL = "";
 #endif
     OUTPUT:
 	RETVAL

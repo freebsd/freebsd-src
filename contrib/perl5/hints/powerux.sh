@@ -63,7 +63,7 @@ lddlflags='-Zlink=so'
 #
 i_ndbm='undef'
 
-# I have no clude what perl thinks it wants <sys/mode.h> for, but if
+# I have no clue what perl thinks it wants <sys/mode.h> for, but if
 # you include it in a program in PowerMAX without first including
 # <sys/vnode.h> the code don't compile...
 #

@@ -169,12 +169,14 @@ sub ReadLine {'Term::ReadLine::Stub'}
 sub readline {
   my $self = shift;
   my ($in,$out,$str) = @$self;
-  print $out $rl_term_set[0], shift, $rl_term_set[1], $rl_term_set[2]; 
+  my $prompt = shift;
+  print $out $rl_term_set[0], $prompt, $rl_term_set[1], $rl_term_set[2]; 
   $self->register_Tk 
      if not $Term::ReadLine::registered and $Term::ReadLine::toloop
 	and defined &Tk::DoOneEvent;
   #$str = scalar <$in>;
   $str = $self->get_line;
+  $str =~ s/^\s*\Q$prompt\E// if ($^O eq 'MacOS');
   print $out $rl_term_set[3]; 
   # bug in 5.000: chomping empty string creats length -1:
   chomp $str if defined $str;
@@ -185,7 +187,9 @@ sub addhistory {}
 sub findConsole {
     my $console;
 
-    if (-e "/dev/tty") {
+    if ($^O eq 'MacOS') {
+        $console = "Dev:Console";
+    } elsif (-e "/dev/tty") {
 	$console = "/dev/tty";
     } elsif (-e "con" or $^O eq 'MSWin32') {
 	$console = "con";

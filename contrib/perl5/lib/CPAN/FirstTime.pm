@@ -1,3 +1,4 @@
+# -*- Mode: cperl; coding: utf-8; cperl-indent-level: 4 -*-
 package CPAN::Mirrored::By;
 
 sub new { 
@@ -16,7 +17,7 @@ use FileHandle ();
 use File::Basename ();
 use File::Path ();
 use vars qw($VERSION);
-$VERSION = substr q$Revision: 1.38 $, 10;
+$VERSION = substr q$Revision: 1.53 $, 10;
 
 =head1 NAME
 
@@ -149,7 +150,7 @@ next question.
     print qq{
 
 How big should the disk cache be for keeping the build directories
-with all the intermediate files?
+with all the intermediate files\?
 
 };
 
@@ -175,6 +176,47 @@ disable the cache scanning with 'never'.
     $CPAN::Config->{scan_cache} = $ans;
 
     #
+    # cache_metadata
+    #
+    print qq{
+
+To considerably speed up the initial CPAN shell startup, it is
+possible to use Storable to create a cache of metadata. If Storable
+is not available, the normal index mechanism will be used.
+
+};
+
+    defined($default = $CPAN::Config->{cache_metadata}) or $default = 1;
+    do {
+        $ans = prompt("Cache metadata (yes/no)?", ($default ? 'yes' : 'no'));
+    } while ($ans !~ /^\s*[yn]/i);
+    $CPAN::Config->{cache_metadata} = ($ans =~ /^\s*y/i ? 1 : 0);
+
+    #
+    # term_is_latin
+    #
+    print qq{
+
+The next option deals with the charset your terminal supports. In
+general CPAN is English speaking territory, thus the charset does not
+matter much, but some of the aliens out there who upload their
+software to CPAN bear names that are outside the ASCII range. If your
+terminal supports UTF-8, you say no to the next question, if it
+supports ISO-8859-1 (also known as LATIN1) then you say yes, and if it
+supports neither nor, your answer does not matter, you will not be
+able to read the names of some authors anyway. If you answer no, names
+will be output in UTF-8.
+
+};
+
+    defined($default = $CPAN::Config->{term_is_latin}) or $default = 1;
+    do {
+        $ans = prompt("Your terminal expects ISO-8859-1 (yes/no)?",
+                      ($default ? 'yes' : 'no'));
+    } while ($ans !~ /^\s*[yn]/i);
+    $CPAN::Config->{term_is_latin} = ($ans =~ /^\s*y/i ? 1 : 0);
+
+    #
     # prerequisites_policy
     # Do we follow PREREQ_PM?
     #
@@ -188,7 +230,7 @@ policy to one of the three values.
 
 };
 
-    $default = $CPAN::Config->{prerequisites_policy} || 'follow';
+    $default = $CPAN::Config->{prerequisites_policy} || 'ask';
     do {
       $ans =
 	  prompt("Policy on building prerequisites (follow, ask or ignore)?",
@@ -202,10 +244,11 @@ policy to one of the three values.
 
     print qq{
 
-The CPAN module will need a few external programs to work
-properly. Please correct me, if I guess the wrong path for a program.
-Don\'t panic if you do not have some of them, just press ENTER for
-those.
+The CPAN module will need a few external programs to work properly.
+Please correct me, if I guess the wrong path for a program. Don\'t
+panic if you do not have some of them, just press ENTER for those. To
+disable the use of a download program, you can type a space followed
+by ENTER.
 
 };
 
@@ -214,7 +257,7 @@ those.
     my(@path) = split /$Config{'path_sep'}/, $ENV{'PATH'};
     local $^W = $old_warn;
     my $progname;
-    for $progname (qw/gzip tar unzip make lynx ncftpget ncftp ftp/){
+    for $progname (qw/gzip tar unzip make lynx wget ncftpget ncftp ftp/){
       if ($^O eq 'MacOS') {
           $CPAN::Config->{$progname} = 'not_here';
           next;
@@ -272,9 +315,9 @@ those.
     print qq{
 
 Every Makefile.PL is run by perl in a separate process. Likewise we
-run \'make\' and \'make install\' in processes. If you have any parameters
-\(e.g. PREFIX, INSTALLPRIVLIB, UNINST or the like\) you want to pass to
-the calls, please specify them here.
+run \'make\' and \'make install\' in processes. If you have any
+parameters \(e.g. PREFIX, LIB, UNINST or the like\) you want to pass
+to the calls, please specify them here.
 
 If you don\'t understand this question, just press ENTER.
 
@@ -282,13 +325,29 @@ If you don\'t understand this question, just press ENTER.
 
     $default = $CPAN::Config->{makepl_arg} || "";
     $CPAN::Config->{makepl_arg} =
-	prompt("Parameters for the 'perl Makefile.PL' command?",$default);
+	prompt("Parameters for the 'perl Makefile.PL' command?
+Typical frequently used settings:
+
+    POLLUTE=1        increasing backwards compatibility
+    LIB=~/perl       non-root users (please see manual for more hints)
+
+Your choice: ",$default);
     $default = $CPAN::Config->{make_arg} || "";
-    $CPAN::Config->{make_arg} = prompt("Parameters for the 'make' command?",$default);
+    $CPAN::Config->{make_arg} = prompt("Parameters for the 'make' command?
+Typical frequently used setting:
+
+    -j3              dual processor system
+
+Your choice: ",$default);
 
     $default = $CPAN::Config->{make_install_arg} || $CPAN::Config->{make_arg} || "";
     $CPAN::Config->{make_install_arg} =
-	prompt("Parameters for the 'make install' command?",$default);
+	prompt("Parameters for the 'make install' command?
+Typical frequently used setting:
+
+    UNINST=1         to always uninstall potentially conflicting files
+
+Your choice: ",$default);
 
     #
     # Alarm period
@@ -323,6 +382,44 @@ the \$CPAN::Config takes precedence.
     for (qw/ftp_proxy http_proxy no_proxy/) {
 	$default = $CPAN::Config->{$_} || $ENV{$_};
 	$CPAN::Config->{$_} = prompt("Your $_?",$default);
+    }
+
+    if ($CPAN::Config->{ftp_proxy} ||
+        $CPAN::Config->{http_proxy}) {
+        $default = $CPAN::Config->{proxy_user} || $CPAN::LWP::UserAgent::USER;
+        print qq{
+
+If your proxy is an authenticating proxy, you can store your username
+permanently. If you do not want that, just press RETURN. You will then
+be asked for your username in every future session.
+
+};
+        if ($CPAN::Config->{proxy_user} = prompt("Your proxy user id?",$default)) {
+            print qq{
+
+Your password for the authenticating proxy can also be stored
+permanently on disk. If this violates your security policy, just press
+RETURN. You will then be asked for the password in every future
+session.
+
+};
+
+            if ($CPAN::META->has_inst("Term::ReadKey")) {
+                Term::ReadKey::ReadMode("noecho");
+            } else {
+                print qq{
+
+Warning: Term::ReadKey seems not to be available, your password will
+be echoed to the terminal!
+
+};
+            }
+            $CPAN::Config->{proxy_pass} = prompt("Your proxy password?");
+            if ($CPAN::META->has_inst("Term::ReadKey")) {
+                Term::ReadKey::ReadMode("restore");
+            }
+            $CPAN::Frontend->myprint("\n\n");
+        }
     }
 
     #
@@ -361,8 +458,27 @@ sub conf_sites {
     File::Copy::copy($m,$mby) or die "Could not update $mby: $!";
   }
   my $loopcount = 0;
-  while () {
-    if ( ! -f $mby ){
+  local $^T = time;
+  my $overwrite_local = 0;
+  if ($mby && -f $mby && -M _ <= 60 && -s _ > 0) {
+      my $mtime = localtime((stat _)[9]);
+      my $prompt = qq{Found $mby as of $mtime
+
+I\'d use that as a database of CPAN sites. If that is OK for you,
+please answer 'y', but if you want me to get a new database now,
+please answer 'n' to the following question.
+
+Shall I use the local database in $mby?};
+      my $ans = prompt($prompt,"y");
+      $overwrite_local = 1 unless $ans =~ /^y/i;
+  }
+  while ($mby) {
+    if ($overwrite_local) {
+      print qq{Trying to overwrite $mby
+};
+      $mby = CPAN::FTP->localize($m,$mby,3);
+      $overwrite_local = 0;
+    } elsif ( ! -f $mby ){
       print qq{You have no $mby
   I\'m trying to fetch one
 };
@@ -383,6 +499,7 @@ sub conf_sites {
     }
   }
   read_mirrored_by($mby);
+  bring_your_own();
 }
 
 sub find_exe {
@@ -424,7 +541,7 @@ sub picklist {
 }
 
 sub read_mirrored_by {
-    my($local) = @_;
+    my $local = shift or return;
     my(%all,$url,$expected_size,$default,$ans,$host,$dst,$country,$continent,@location);
     my $fh = FileHandle->new;
     $fh->open($local) or die "Couldn't open $local: $!";
@@ -503,7 +620,8 @@ http: -- that host a CPAN mirror.
         }
     }
     push (@urls, map ("$_ (previous pick)", @previous_urls));
-    my $prompt = "Select as many URLs as you like";
+    my $prompt = "Select as many URLs as you like,
+put them on one line, separated by blanks";
     if (@previous_urls) {
        $default = join (' ', ((scalar @urls) - (scalar @previous_urls) + 1) ..
                              (scalar @urls));
@@ -512,25 +630,37 @@ http: -- that host a CPAN mirror.
 
     @urls = picklist (\@urls, $prompt, $default);
     foreach (@urls) { s/ \(.*\)//; }
-    %seen = map (($_ => 1), @urls);
+    push @{$CPAN::Config->{urllist}}, @urls;
+}
 
+sub bring_your_own {
+    my %seen = map (($_ => 1), @{$CPAN::Config->{urllist}});
+    my($ans,@urls);
     do {
-        $ans = prompt ("Enter another URL or RETURN to quit:", "");
+	my $prompt = "Enter another URL or RETURN to quit:";
+	unless (%seen) {
+	    $prompt = qq{CPAN.pm needs at least one URL where it can fetch CPAN files from.
+
+Please enter your CPAN site:};
+	}
+        $ans = prompt ($prompt, "");
 
         if ($ans) {
-            $ans =~ s|/?$|/|; # has to end with one slash
+            $ans =~ s|/?\z|/|; # has to end with one slash
             $ans = "file:$ans" unless $ans =~ /:/; # without a scheme is a file:
             if ($ans =~ /^\w+:\/./) {
-               push @urls, $ans 
-                  unless $seen{$ans};
-            }
-            else {
-                print qq{"$ans" doesn\'t look like an URL at first sight.
-I\'ll ignore it for now.  You can add it to $INC{'CPAN/MyConfig.pm'}
-later if you\'re sure it\'s right.\n};
+                push @urls, $ans unless $seen{$ans}++;
+            } else {
+                printf(qq{"%s" doesn\'t look like an URL at first sight.
+I\'ll ignore it for now.
+You can add it to your %s
+later if you\'re sure it\'s right.\n},
+                       $ans,
+                       $INC{'CPAN/MyConfig.pm'} || $INC{'CPAN/Config.pm'} || "configuration file",
+                      );
             }
         }
-    } while $ans;
+    } while $ans || !%seen;
 
     push @{$CPAN::Config->{urllist}}, @urls;
     # xxx delete or comment these out when you're happy that it works

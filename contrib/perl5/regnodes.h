@@ -173,7 +173,7 @@ EXTCONST U8 PL_regkind[] = {
 
 
 #ifdef REG_COMP_C
-const static U8 regarglen[] = {
+static const U8 regarglen[] = {
 	0,		/* END */
 	0,		/* SUCCEED */
 	0,		/* BOL */
@@ -256,7 +256,7 @@ const static U8 regarglen[] = {
 	0,		/* OPTIMIZED */
 };
 
-const static char reg_off_by_arg[] = {
+static const char reg_off_by_arg[] = {
 	0,		/* END */
 	0,		/* SUCCEED */
 	0,		/* BOL */
@@ -340,7 +340,7 @@ const static char reg_off_by_arg[] = {
 };
 
 #ifdef DEBUGGING
-const static char * const reg_name[] = {
+static const char * const reg_name[] = {
 	"END",		/*    0 */
 	"SUCCEED",		/*  0x1 */
 	"BOL",		/*  0x2 */
@@ -423,7 +423,7 @@ const static char * const reg_name[] = {
 	"OPTIMIZED",		/* 0x4f */
 };
 
-const static int reg_num = 80;
+static const int reg_num = 80;
 
 #endif /* DEBUGGING */
 #endif /* REG_COMP_C */

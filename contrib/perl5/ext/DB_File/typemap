@@ -1,8 +1,8 @@
 # typemap for Perl 5 interface to Berkeley 
 #
 # written by Paul Marquess <Paul.Marquess@btinternet.com>
-# last modified 7th September 1999
-# version 1.71
+# last modified 10th December 2000
+# version 1.74
 #
 #################################### DB SECTION
 #
@@ -29,9 +29,10 @@ T_dbtkeydatum
 T_dbtdatum
 	ckFilter($arg, filter_store_value, \"filter_store_value\");
 	DBT_clear($var) ;
-	$var.data = SvPV($arg, PL_na);
-	$var.size = (int)PL_na;
-
+	if (SvOK($arg)) {
+	    $var.data = SvPV($arg, PL_na);
+	    $var.size = (int)PL_na;
+	}
 
 OUTPUT
 

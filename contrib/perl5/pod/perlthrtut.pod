@@ -718,7 +718,7 @@ In addition to synchronizing access to data or resources, you might
 find it useful to synchronize access to subroutines.  You may be
 accessing a singular machine resource (perhaps a vector processor), or
 find it easier to serialize calls to a particular subroutine than to
-have a set of locks and sempahores.
+have a set of locks and semaphores.
 
 One of the additions to Perl 5.005 is subroutine attributes.  The
 Thread package uses these to provide several flavors of
@@ -991,7 +991,7 @@ the explanation is much longer than the program.
 
 A complete thread tutorial could fill a book (and has, many times),
 but this should get you well on your way.  The final authority on how
-Perl's threads behave is the documention bundled with the Perl
+Perl's threads behave is the documentation bundled with the Perl
 distribution, but with what we've covered in this article, you should
 be well on your way to becoming a threaded Perl expert.
 
@@ -1029,7 +1029,7 @@ LoVerso. Programming under Mach. Addison-Wesley, 1994, ISBN
 0-201-52739-1.
 
 Tanenbaum, Andrew S. Distributed Operating Systems. Prentice Hall,
-1995, ISBN 0-13-143934-0 (great textbook).
+1995, ISBN 0-13-219908-4 (great textbook).
 
 Silberschatz, Abraham, and Peter B. Galvin. Operating System Concepts,
 4th ed. Addison-Wesley, 1995, ISBN 0-201-59292-4

@@ -1,5 +1,5 @@
 package O;
-use B qw(minus_c);
+use B qw(minus_c save_BEGINs);
 use Carp;    
 
 sub import {
@@ -11,6 +11,7 @@ sub import {
     my $compilesub = &{"B::${backend}::compile"}(@options);
     if (ref($compilesub) eq "CODE") {
 	minus_c;
+	save_BEGINs;
 	eval 'CHECK { &$compilesub() }';
     } else {
 	die $compilesub;

@@ -1,16 +1,18 @@
 =head1 NAME
 
-perlunicode - Unicode support in Perl
+perlunicode - Unicode support in Perl (EXPERIMENTAL, subject to change)
 
 =head1 DESCRIPTION
 
 =head2 Important Caveat
 
-WARNING: The implementation of Unicode support in Perl is incomplete.
+    WARNING:  As of the 5.6.1 release, the implementation of Unicode
+    support in Perl is incomplete, and continues to be highly experimental.
 
-The following areas need further work.
+The following areas need further work.  They are being rapidly addressed
+in the 5.7.x development branch.
 
-=over
+=over 4
 
 =item Input and Output Disciplines
 
@@ -114,13 +116,7 @@ will typically occur directly within the literal strings as UTF-8
 characters, but you can also specify a particular character with an
 extension of the C<\x> notation.  UTF-8 characters are specified by
 putting the hexadecimal code within curlies after the C<\x>.  For instance,
-a Unicode smiley face is C<\x{263A}>.  A character in the Latin-1 range
-(128..255) should be written C<\x{ab}> rather than C<\xab>, since the
-former will turn into a two-byte UTF-8 code, while the latter will
-continue to be interpreted as generating a 8-bit byte rather than a
-character.  In fact, if the C<use warnings> pragma of the C<-w> switch
-is turned on, it will produce a warning
-that you might be generating invalid UTF-8.
+a Unicode smiley face is C<\x{263A}>.
 
 =item *
 
@@ -163,20 +159,10 @@ C<(?:\PM\pM*)>.
 
 =item *
 
-The C<tr///> operator translates characters instead of bytes.  It can also
-be forced to translate between 8-bit codes and UTF-8.  For instance, if you
-know your input in Latin-1, you can say:
-
-    while (<>) {
-	tr/\0-\xff//CU;		# latin1 char to utf8
-	...
-    }
-
-Similarly you could translate your output with
-
-    tr/\0-\x{ff}//UC;		# utf8 to latin1 char
-
-No, C<s///> doesn't take /U or /C (yet?).
+The C<tr///> operator translates characters instead of bytes.  Note
+that the C<tr///CU> functionality has been removed, as the interface
+was a mistake.  For similar functionality see pack('U0', ...) and
+pack('C0', ...).
 
 =item *
 
@@ -211,6 +197,18 @@ The C<chr()> and C<ord()> functions work on characters.  This is like
 C<pack("U")> and C<unpack("U")>, not like C<pack("C")> and
 C<unpack("C")>.  In fact, the latter are how you now emulate
 byte-oriented C<chr()> and C<ord()> under utf8.
+
+=item *
+
+The bit string operators C<& | ^ ~> can operate on character data.
+However, for backward compatibility reasons (bit string operations
+when the characters all are less than 256 in ordinal value) one cannot
+mix C<~> (the bit complement) and characters both less than 256 and
+equal or greater than 256.  Most importantly, the DeMorgan's laws
+(C<~($x|$y) eq ~$x&~$y>, C<~($x&$y) eq ~$x|~$y>) won't hold.
+Another way to look at this is that the complement cannot return
+B<both> the 8-bit (byte) wide bit complement, and the full character
+wide bit complement.
 
 =item *
 

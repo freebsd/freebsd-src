@@ -29,8 +29,12 @@ print OUT <<"!GROK!THIS!";
 $Config{startperl}
     eval 'exec $Config{perlpath} -S \$0 \${1+"\$@"}'
 	if \$running_under_some_shell;
-\$startperl = "$Config{startperl}";
-\$perlpath = "$Config{perlpath}";
+(\$startperl = <<'/../') =~ s/\\s*\\z//;
+$Config{startperl}
+/../
+(\$perlpath = <<'/../') =~ s/\\s*\\z//;
+$Config{perlpath}
+/../
 !GROK!THIS!
 
 # In the following, perl variables are not expanded during extraction.

@@ -42,12 +42,12 @@ foreach (keys %datahandle) {
 Test::Harness::runtests @tests;
 exit(0) unless -e "../testcompile";
 
-%infinite =  qw (
-        op/bop.t	1
-        lib/hostname.t	1
-	op/lex_assign.t	1
-	lib/ph.t	1  
-        );
+# %infinite =  qw (
+#        op/bop.t	1
+#        lib/hostname.t	1
+#	 op/lex_assign.t	1
+#	 lib/ph.t	1  
+#        );
 
 my $dhwrapper = <<'EOT';
 open DATA,"<".__FILE__;

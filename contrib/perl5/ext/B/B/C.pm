@@ -225,11 +225,10 @@ sub B::LISTOP::save {
     my ($op, $level) = @_;
     my $sym = objsym($op);
     return $sym if defined $sym;
-    $listopsect->add(sprintf("s\\_%x, s\\_%x, NULL, %u, %u, %u, 0x%x, 0x%x, s\\_%x, s\\_%x, %u",
+    $listopsect->add(sprintf("s\\_%x, s\\_%x, NULL, %u, %u, %u, 0x%x, 0x%x, s\\_%x, s\\_%x",
 			     ${$op->next}, ${$op->sibling},
 			     $op->targ, $op->type, $op_seq, $op->flags,
-			     $op->private, ${$op->first}, ${$op->last},
-			     $op->children));
+			     $op->private, ${$op->first}, ${$op->last}));
     my $ix = $listopsect->index;
     $init->add(sprintf("listop_list[$ix].op_ppaddr = %s;", $op->ppaddr));
     savesym($op, "(OP*)&listop_list[$ix]");
@@ -255,11 +254,11 @@ sub B::LOOP::save {
     #warn sprintf("LOOP: redoop %s, nextop %s, lastop %s\n",
     #		 peekop($op->redoop), peekop($op->nextop),
     #		 peekop($op->lastop)); # debug
-    $loopsect->add(sprintf("s\\_%x, s\\_%x, NULL, %u, %u, %u, 0x%x, 0x%x, s\\_%x, s\\_%x, %u, s\\_%x, s\\_%x, s\\_%x",
+    $loopsect->add(sprintf("s\\_%x, s\\_%x, NULL, %u, %u, %u, 0x%x, 0x%x, s\\_%x, s\\_%x, s\\_%x, s\\_%x, s\\_%x",
 			   ${$op->next}, ${$op->sibling},
 			   $op->targ, $op->type, $op_seq, $op->flags,
 			   $op->private, ${$op->first}, ${$op->last},
-			   $op->children, ${$op->redoop}, ${$op->nextop},
+			   ${$op->redoop}, ${$op->nextop},
 			   ${$op->lastop}));
     my $ix = $loopsect->index;
     $init->add(sprintf("loop_list[$ix].op_ppaddr = %s;", $op->ppaddr));
@@ -351,10 +350,10 @@ sub B::PMOP::save {
     # pmnext handling is broken in perl itself, I think. Bad op_pmnext
     # fields aren't noticed in perl's runtime (unless you try reset) but we
     # segfault when trying to dereference it to find op->op_pmnext->op_type
-    $pmopsect->add(sprintf("s\\_%x, s\\_%x, NULL, %u, %u, %u, 0x%x, 0x%x, s\\_%x, s\\_%x, %u, %s, %s, 0, 0, 0x%x, 0x%x",
+    $pmopsect->add(sprintf("s\\_%x, s\\_%x, NULL, %u, %u, %u, 0x%x, 0x%x, s\\_%x, s\\_%x, %s, %s, 0, 0, 0x%x, 0x%x",
 			   ${$op->next}, ${$op->sibling}, $op->targ,
 			   $op->type, $op_seq, $op->flags, $op->private,
-			   ${$op->first}, ${$op->last}, $op->children,
+			   ${$op->first}, ${$op->last}, 
 			   $replrootfield, $replstartfield,
 			   $op->pmflags, $op->pmpermflags,));
     my $pm = sprintf("pmop_list[%d]", $pmopsect->index);
@@ -1020,9 +1019,8 @@ sub output_all {
     print <<"EOT";
 static int $init_name()
 {
-	dTHR;
 	dTARG;
-	djSP;
+	dSP;
 EOT
     $init->output(\*STDOUT, "\t%s\n");
     print "\treturn 0;\n}\n";
@@ -1050,15 +1048,15 @@ typedef struct {
     STRLEN	xpv_cur;	/* length of xp_pv as a C string */
     STRLEN	xpv_len;	/* allocated size */
     IV		xof_off;	/* integer value */
-    double	xnv_nv;		/* numeric value, if any */
+    NV		xnv_nv;		/* numeric value, if any */
     MAGIC*	xmg_magic;	/* magic for scalar array */
     HV*		xmg_stash;	/* class package */
 
     HV *	xcv_stash;
     OP *	xcv_start;
     OP *	xcv_root;
-    void      (*xcv_xsub) (CV*);
-    void *	xcv_xsubany;
+    void      (*xcv_xsub) (pTHXo_ CV*);
+    ANY		xcv_xsubany;
     GV *	xcv_gv;
     char *	xcv_file;
     long	xcv_depth;	/* >= 2 indicates recursive call */
@@ -1174,7 +1172,7 @@ xs_init(pTHX)
 {
     char *file = __FILE__;
     dTARG;
-    djSP;
+    dSP;
 EOT
     print "\n#ifdef USE_DYNAMIC_LOADING";
     print qq/\n\tnewXS("DynaLoader::boot_DynaLoader", boot_DynaLoader, file);/;
@@ -1210,7 +1208,7 @@ dl_init(pTHX)
 {
     char *file = __FILE__;
     dTARG;
-    djSP;
+    dSP;
 EOT
     print("/* Dynamicboot strapping code*/\n\tSAVETMPS;\n");
     print("\ttarg=sv_newmortal();\n");
@@ -1338,7 +1336,7 @@ sub should_save
  # Now see if current package looks like an OO class this is probably too strong.
  foreach my $m (qw(new DESTROY TIESCALAR TIEARRAY TIEHASH TIEHANDLE)) 
   {
-   if ($package->can($m)) 
+   if (UNIVERSAL::can($package, $m))
     {
      warn "$package has method $m: saving package\n";#debug
      return mark_package($package);
@@ -1368,7 +1366,7 @@ sub walkpackages
    if ($sym =~ /::$/) 
     {
      $sym = $prefix . $sym;
-     if ($sym ne "main::" && &$recurse($sym)) 
+     if ($sym ne "main::" && $sym ne "<none>::" && &$recurse($sym)) 
       {
        walkpackages(\%glob, $recurse, $sym);
       }

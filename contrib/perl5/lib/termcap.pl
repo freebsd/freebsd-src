@@ -22,7 +22,7 @@ sub Tgetent {
     local($TERM) = @_;
     local($TERMCAP,$_,$entry,$loop,$field);
 
-    warn "Tgetent: no ospeed set" unless $ospeed;
+    # warn "Tgetent: no ospeed set" unless $ospeed;
     foreach $key (keys %TC) {
 	delete $TC{$key};
     }

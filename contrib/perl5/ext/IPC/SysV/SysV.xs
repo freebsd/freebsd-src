@@ -194,7 +194,7 @@ PPCODE:
 
 MODULE=IPC::SysV	PACKAGE=IPC::SysV
 
-int
+void
 ftok(path, id)
         char *          path
         int             id
@@ -203,10 +203,10 @@ ftok(path, id)
         key_t k = ftok(path, id);
         ST(0) = k == (key_t) -1 ? &PL_sv_undef : sv_2mortal(newSViv(k));
 #else
-        DIE(PL_no_func, "ftok");
+        DIE(aTHX_ PL_no_func, "ftok");
 #endif
 
-int
+void
 SHMLBA()
     CODE:
 #ifdef SHMLBA
@@ -436,7 +436,7 @@ BOOT:
     char *name;
     int i;
 
-    for(i = 0 ; name = IPC__SysV__const[i].n ; i++) {
+    for(i = 0 ; (name = IPC__SysV__const[i].n) ; i++) {
 	newCONSTSUB(stash,name, newSViv(IPC__SysV__const[i].v));
     }
 }

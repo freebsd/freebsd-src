@@ -1,3 +1,8 @@
+Change 171 on 2000-09-12 by <calle@lysator.liu.se> (Calle Dybedahl)
+
+	- Fixed filename-extracting regexp to allow whitespace between
+	  "#" and "line", which the cpp on Unicos 9 produces.
+
 Change 170 on 1998/07/05 by <gbarr@pobox.com> (Graham Barr)
 
 	Fixed three problems reported by Hans Mulder for NeXT

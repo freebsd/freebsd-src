@@ -1,6 +1,6 @@
 /* $RCSfile: a2p.h,v $$Revision: 4.1 $$Date: 92/08/07 18:29:09 $
  *
- *    Copyright (c) 1991-1997, Larry Wall
+ *    Copyright (c) 1991-2001, Larry Wall
  *
  *    You may distribute under the terms of either the GNU General Public
  *    License or the Artistic License, as specified in the README file.
@@ -121,6 +121,7 @@
 
 #ifdef DOSISH
 # if defined(OS2)
+#   define PTHX_UNUSED
 #   include "../os2ish.h"
 # else
 #   include "../dosish.h"

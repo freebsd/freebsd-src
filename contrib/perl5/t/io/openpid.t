@@ -9,17 +9,15 @@
 
 BEGIN {
     chdir 't' if -d 't';
-    unshift @INC, '../lib';
+    @INC = '../lib';
     if ($^O eq 'dos') {
         print "1..0 # Skip: no multitasking\n";
         exit 0;
     }
 }
 
-
-use FileHandle;
 use Config;
-autoflush STDOUT 1;
+$| = 1;
 $SIG{PIPE} = 'IGNORE';
 
 print "1..10\n";
@@ -33,10 +31,8 @@ $perl = qq[$^X "-I../lib"];
 # the other reader reads one line, waits a few seconds and then
 # exits to test the waitpid function.
 #
-$cmd1 = qq/$perl -e "use FileHandle; autoflush STDOUT 1; / .
-        qq/print qq[first process\\n]; sleep 30;"/;
-$cmd2 = qq/$perl -e "use FileHandle; autoflush STDOUT 1; / .
-        qq/print qq[second process\\n]; sleep 30;"/;
+$cmd1 = qq/$perl -e "\$|=1; print qq[first process\\n]; sleep 30;"/;
+$cmd2 = qq/$perl -e "\$|=1; print qq[second process\\n]; sleep 30;"/;
 $cmd3 = qq/$perl -e "print <>;"/; # hangs waiting for end of STDIN
 $cmd4 = qq/$perl -e "print scalar <>;"/;
 
@@ -76,9 +72,9 @@ print "not " unless $kill_cnt == 2;
 print "ok 8\n";
 
 # send one expected line of text to child process and then wait for it
-autoflush FH4 1;
+select(FH4); $| = 1; select(STDOUT);
+
 print FH4 "ok 9\n";
-print "ok 9 # skip VMS\n" if $^O eq 'VMS';
 print "# waiting for process $pid4 to exit\n";
 $reap_pid = waitpid $pid4, 0;
 print "# reaped pid $reap_pid != $pid4\nnot "

@@ -31,1083 +31,631 @@ print OUT <<"!GROK!THIS!";
 $Config{startperl}
     eval 'exec $Config{perlpath} -S \$0 \${1+"\$@"}'
     if \$running_under_some_shell;
+--\$running_under_some_shell;
 !GROK!THIS!
  
 # In the following, perl variables are not expanded during extraction.
  
 print OUT <<'!NO!SUBS!';
 
-use Config;
+# Version 2.0, Simon Cozens, Thu Mar 30 17:52:45 JST 2000 
+# Version 2.01, Tom Christiansen, Thu Mar 30 08:25:14 MST 2000
+# Version 2.02, Simon Cozens, Sun Apr 16 01:53:36 JST 2000
+# Version 2.03, Edward Peschko, Mon Feb 26 12:04:17 PST 2001
+
 use strict;
+use warnings;
+use v5.6.0;
+
 use FileHandle;
-use File::Basename qw(&basename &dirname);
+use Config;
+use Fcntl qw(:DEFAULT :flock);
+use File::Temp qw(tempfile);
 use Cwd;
+our $VERSION = 2.03;
+$| = 1;
 
-use Getopt::Long;
+$SIG{INT} = sub { exit(); }; # exit gracefully and clean up after ourselves.
 
-$Getopt::Long::bundling_override = 1;
-$Getopt::Long::passthrough = 0;
-$Getopt::Long::ignore_case = 0;
+use subs qw{
+    cc_harness check_read check_write checkopts_byte choose_backend
+    compile_byte compile_cstyle compile_module generate_code
+    grab_stash parse_argv sanity_check vprint yclept spawnit
+};
+sub opt(*); # imal quoting
 
-my $pathsep = ($Config{'osname'} eq 'MSWin32')? "\\" : "/"; # MAJOR HACK. SHOULD
-                                                            # BE IN Config.pm
+our ($Options, $BinPerl, $Backend);
+our ($Input => $Output);
+our ($logfh);
+our ($cfile);
 
-my $options = {};
-my $_fh;
-unshift @ARGV, split ' ', $ENV{PERLCC_OPTS} if $ENV{PERLCC_OPTS};
+# eval { main(); 1 } or die;
 
 main();
 
-sub main
-{
+sub main {
+    parse_argv();
+    check_write($Output);
+    choose_backend();
+    generate_code();
+    run_code();
+    _die("XXX: Not reached?");
+}
 
-    GetOptions
-            (
-            $options,   "L:s",
-                        "I:s",
-                        "C:s",
-                        "o:s",
-                        "e:s",
-                        "regex:s",
-                        "verbose:s",
-                        "log:s",
-                        "argv:s",
-                        "b",
-                        "opt",
-                        "gen",
-                        "sav",
-                        "run",
-                        "prog",
-                        "mod"
-            );
+#######################################################################
+
+sub choose_backend {
+    # Choose the backend.
+    $Backend = 'C';
+    if (opt(B)) {
+        checkopts_byte();
+        $Backend = 'Bytecode';
+    }
+    if (opt(S) && opt(c)) {
+        # die "$0: Do you want me to compile this or not?\n";
+        delete $Options->{S};
+    }
+    $Backend = 'CC' if opt(O);
+}
 
 
-    my $key;
+sub generate_code { 
 
-    local($") = "|";
+    vprint 0, "Compiling $Input";
 
-    _usage() if (!_checkopts());
-    push(@ARGV, _maketempfile()) if ($options->{'e'});
+    $BinPerl  = yclept();  # Calling convention for perl.
 
-    _usage() if (!@ARGV);
-                
-    my $file;
-    foreach $file (@ARGV)
+    if (opt(shared)) {
+        compile_module();
+    } else {
+        if ($Backend eq 'Bytecode') {
+            compile_byte();
+        } else {
+            compile_cstyle();
+        }
+    }
+    exit(0) if (!opt('r'));
+}
+
+sub run_code {
+    vprint 0, "Running code";
+    run("$Output @ARGV");
+    exit(0);
+}
+
+# usage: vprint [level] msg args
+sub vprint {
+    my $level;
+    if (@_ == 1) {
+        $level = 1;
+    } elsif ($_[0] =~ /^\d$/) {
+        $level = shift;
+    } else {
+        # well, they forgot to use a number; means >0
+        $level = 0;
+    } 
+    my $msg = "@_";
+    $msg .= "\n" unless substr($msg, -1) eq "\n";
+    if (opt(v) > $level)
     {
-        _print("
---------------------------------------------------------------------------------
-Compiling $file:
---------------------------------------------------------------------------------
-", 36 );
-        _doit($file);
+         print        "$0: $msg" if !opt('log');
+	 print $logfh "$0: $msg" if  opt('log');
     }
 }
+
+sub parse_argv {
+
+    use Getopt::Long; 
+#    Getopt::Long::Configure("bundling"); turned off. this is silly because 
+#                                         it doesn't allow for long switches.
+    Getopt::Long::Configure("no_ignore_case");
+
+    # no difference in exists and defined for %ENV; also, a "0"
+    # argument or a "" would not help cc, so skip
+    unshift @ARGV, split ' ', $ENV{PERLCC_OPTS} if $ENV{PERLCC_OPTS};
+
+    $Options = {};
+    Getopt::Long::GetOptions( $Options,
+        'L:s',          # lib directory
+        'I:s',          # include directories (FOR C, NOT FOR PERL)
+        'o:s',          # Output executable
+        'v:i',           # Verbosity level
+        'e:s',          # One-liner
+	'r',            # run resulting executable
+        'B',            # Byte compiler backend
+        'O',            # Optimised C backend
+        'c',            # Compile only
+        'h',            # Help me
+        'S',            # Dump C files
+	'r',            # run the resulting executable
+        'static',       # Dirty hack to enable -shared/-static
+        'shared',       # Create a shared library (--shared for compat.)
+	'log:s'         # where to log compilation process information
+    );
         
-sub _doit
-{
-    my ($file) = @_;
+    # This is an attempt to make perlcc's arg. handling look like cc.
+    # if ( opt('s') ) {  # must quote: looks like s)foo)bar)!
+    #   if (opt('s') eq 'hared') {
+    #        $Options->{shared}++; 
+    #    } elsif (opt('s') eq 'tatic') {
+    #        $Options->{static}++; 
+    #    } else {
+    #        warn "$0: Unknown option -s", opt('s');
+    #    }
+    # }
 
-    my ($program_ext, $module_ext) = _getRegexps();
-    my ($obj, $objfile, $so, $type, $backend, $gentype);
+    $Options->{v} += 0;
 
-    $backend = $options->{'b'} ? 'Bytecode' : $options->{'opt'} ? 'CC' : 'C';
+    helpme() if opt(h); # And exit
 
-    $gentype = $options->{'b'} ? 'Bytecode' : 'C';
+    $Output = opt(o) || 'a.out';
+    $Output = relativize($Output);
+    $logfh  = new FileHandle(">> " . opt('log')) if (opt('log'));
 
-    if  (
-            (($file =~ m"@$program_ext") && ($file !~ m"@$module_ext"))
-            || (defined($options->{'prog'}) || defined($options->{'run'}))
-        )
-    {
-        $type = 'program';
-
-        if ($options->{'b'})
-        {
-            $obj = $objfile = $options->{'o'} ? $options->{'o'} : "${file}c";
-        }
-        else
-        {
-            $objfile = $options->{'C'} ? $options->{'C'} : "$file.c";
-            $obj = $options->{'o'} ? $options->{'o'}
-                                   : _getExecutable( $file,$program_ext);
-        }
-
-        return() if (!$obj);
-
-    }
-    elsif (($file =~ m"@$module_ext") || ($options->{'mod'}))
-    {
-        $type = 'module';
-
-        if ($options->{'b'})
-        {
-            $obj = $objfile = $options->{'o'} ? $options->{'o'} : "${file}c";
-        }
-        else
-        {
-            die "Shared objects are not supported on Win32 yet!!!!\n"
-                                          if ($Config{'osname'} eq 'MSWin32');
-
-            $objfile = $options->{'C'} ? $options->{'C'} : "$file.c";
-            $obj = $options->{'o'} ? $options->{'o'}
-                                   : _getExecutable($file, $module_ext);
-            $so = "$obj.$Config{so}";
-        }
-
-        return() if (!$obj);
-    }
-    else
-    {
-        _error("noextension", $file, $program_ext, $module_ext);
-        return();
+    if (opt(e)) {
+        warn "$0: using -e 'code' as input file, ignoring @ARGV\n" if @ARGV;
+        # We don't use a temporary file here; why bother?
+        # XXX: this is not bullet proof -- spaces or quotes in name!
+        $Input = "-e '".opt(e)."'"; # Quotes eaten by shell
+    } else {
+        $Input = shift @ARGV;  # XXX: more files?
+        _usage_and_die("$0: No input file specified\n") unless $Input;
+        # DWIM modules. This is bad but necessary.
+        $Options->{shared}++ if $Input =~ /\.pm\z/;
+        warn "$0: using $Input as input file, ignoring @ARGV\n" if @ARGV;
+        check_read($Input);
+        check_perl($Input);
+        sanity_check();
     }
 
-    if ($type eq 'program')
-    {
-        _print("Making $gentype($objfile) for $file!\n", 36 );
-
-        my $errcode = _createCode($backend, $objfile, $file);
-        (_print( "ERROR: In generating code for $file!\n", -1), return()) 
-                                                                if ($errcode);
-
-        _print("Compiling C($obj) for $file!\n", 36 ) if (!$options->{'gen'} &&
-                                                          !$options->{'b'});
-        $errcode = _compileCode($file, $objfile, $obj) 
-                                            if (!$options->{'gen'} &&
-                                                !$options->{'b'});
-
-        if ($errcode)
-		{
-			_print( "ERROR: In compiling code for $objfile !\n", -1);
-			my $ofile = File::Basename::basename($objfile);
-			$ofile =~ s"\.c$"\.o"s;
-			
-			_removeCode("$ofile"); 
-			return()
-		}
-    
-        _runCode($objfile) if ($options->{'run'} && $options->{'b'});
-        _runCode($obj) if ($options->{'run'} && !$options->{'b'});
-
-        _removeCode($objfile) if (($options->{'b'} &&
-                                   ($options->{'e'} && !$options->{'o'})) ||
-                                  (!$options->{'b'} &&
-                                   (!$options->{'sav'} || 
-                                    ($options->{'e'} && !$options->{'C'}))));
-
-        _removeCode($file) if ($options->{'e'}); 
-
-        _removeCode($obj) if (!$options->{'b'} &&
-                              (($options->{'e'} &&
-			        !$options->{'sav'} && !$options->{'o'}) ||
-			       ($options->{'run'} && !$options->{'sav'})));
-    }
-    else
-    {
-        _print( "Making $gentype($objfile) for $file!\n", 36 );
-        my $errcode = _createCode($backend, $objfile, $file, $obj);
-        (_print( "ERROR: In generating code for $file!\n", -1), return()) 
-                                                                if ($errcode);
-    
-        _print( "Compiling C($so) for $file!\n", 36 ) if (!$options->{'gen'} &&
-                                                          !$options->{'b'});
-
-        $errcode = 
-            _compileCode($file, $objfile, $obj, $so ) if (!$options->{'gen'} &&
-                                                          !$options->{'b'});
-
-        (_print( "ERROR: In compiling code for $objfile!\n", -1), return()) 
-                                                                if ($errcode);
-    }
 }
 
-sub _getExecutable
-{
-    my ($sourceprog, $ext) = @_;
-    my ($obj);
+sub opt(*) {
+    my $opt = shift;
+    return exists($Options->{$opt}) && ($Options->{$opt} || 0);
+} 
 
-    if (defined($options->{'regex'}))
-    {
-        eval("(\$obj = \$sourceprog) =~ $options->{'regex'}");
-        return(0) if (_error('badeval', $@));
-        return(0) if (_error('equal', $obj, $sourceprog));
-    }
-    elsif (defined ($options->{'ext'}))
-    {
-        ($obj = $sourceprog) =~ s"@$ext"$options->{ext}"g;        
-        return(0) if (_error('equal', $obj, $sourceprog));
-    }
-    elsif (defined ($options->{'run'}))
-    {
-	    $obj = "perlc$$";
-    }
-    else
-    {
-        ($obj = $sourceprog) =~ s"@$ext""g;
-        return(0) if (_error('equal', $obj, $sourceprog));
-    }
-    return($obj);
+sub compile_module { 
+    die "$0: Compiling to shared libraries is currently disabled\n";
 }
 
-sub _createCode
-{
-    my ( $backend, $generated_file, $file, $final_output ) = @_;
-    my $return;
-    my $output_switch = "o";
-    my $max_line_len = '';
+sub compile_byte {
+    require ByteLoader;
+    my $stash = grab_stash();
+    my $command = "$BinPerl -MO=Bytecode,$stash $Input";
+    # The -a option means we'd have to close the file and lose the
+    # lock, which would create the tiniest of races. Instead, append
+    # the output ourselves. 
+    vprint 1, "Writing on $Output";
 
-    local($") = " -I";
+    my $openflags = O_WRONLY | O_CREAT;
+    $openflags |= O_BINARY if eval { O_BINARY; 1 };
+    $openflags |= O_EXLOCK if eval { O_EXLOCK; 1 };
 
-    if ($^O eq 'MSWin32' && $backend =~ /^CC?$/ && $Config{cc} =~ /^cl/i) {
-	$max_line_len = '-l2000,';
-    }
+    # these dies are not "$0: .... \n" because they "can't happen"
 
-    if ($backend eq "Bytecode")
-    {
-        require ByteLoader;
+    sysopen(OUT, $Output, $openflags)
+        or die "can't write to $Output: $!";
 
-	open(GENFILE, "> $generated_file") || die "Can't open $generated_file: $!";
-	binmode GENFILE;
-        print GENFILE "#!$^X\n" if @_ == 3;
-        print GENFILE "use ByteLoader $ByteLoader::VERSION;\n";
-	close(GENFILE);
+    # this is blocking; hold on; why are we doing this??
+    # flock OUT, LOCK_EX or die "can't lock $Output: $!"
+    #    unless eval { O_EXLOCK; 1 };
 
-	$output_switch ="a";
-    }
+    truncate(OUT, 0)
+        or die "couldn't trunc $Output: $!";
 
-    if (@_ == 3)                                   # compiling a program   
-    {
-        chmod $generated_file, 0777 & ~umask if $backend eq "Bytecode";
-	my $null=File::Spec->devnull;
-        _print( "$^X -I@INC -MB::Stash -c  $file\n", 36);
-        my @stash=`$^X -I@INC -MB::Stash -c  $file 2>$null`;
-	my $stash=$stash[-1];
-        chomp $stash;
-
-        _print( "$^X -I@INC -MO=$backend,$max_line_len$stash $file\n", 36);
-        $return =  _run("$^X -I@INC -MO=$backend,$max_line_len$stash,-$output_switch$generated_file $file", 9);
-        $return;
-    }
-    else                                           # compiling a shared object
-    {            
-        _print( 
-            "$^X -I@INC -MO=$backend,$max_line_len-m$final_output $file\n", 36);
-        $return = 
-        _run("$^X -I@INC -MO=$backend,$max_line_len-m$final_output,-$output_switch$generated_file $file  ", 9);
-        $return;
-    }
-}
-
-sub _compileCode
-{
-    my ($sourceprog, $generated_cfile, $output_executable, $shared_object) = @_;
-    my @return;
-
-    if (@_ == 3)                            # just compiling a program 
-    {
-        $return[0] = 
-        _ccharness('static', $sourceprog, "-o", $output_executable,
-		   $generated_cfile);  
-        $return[0];
-    }
-    else
-    {
-        my $object_file = $generated_cfile;
-        $object_file =~ s"\.c$"$Config{_o}";   
-
-        $return[0] = _ccharness('compile', $sourceprog, "-c", $generated_cfile);
-        $return[1] = _ccharness
-                            (
-                                'dynamic', 
-                                $sourceprog, "-o", 
-                                $shared_object, $object_file 
-                            );
-        return(1) if (grep ($_, @return));
-        return(0);
-    }
-}
-
-sub _runCode
-{
-    my ($executable) = @_;
-    _print("$executable $options->{'argv'}\n", 36);
-    _run("$executable $options->{'argv'}", -1 );
-}
-
-sub _removeCode
-{
-    my ($file) = @_;
-    unlink($file) if (-e $file);
-}
-
-sub _ccharness
-{
-    my $type = shift;
-    my (@args) = @_;
-    local($") = " ";
-
-    my $sourceprog = shift(@args);
-    my ($libdir, $incdir);
-
-    my $L = '-L';
-    $L = '-libpath:' if $^O eq 'MSWin32' && $Config{cc} =~ /^cl/i;
-
-    if (-d "$Config{installarchlib}/CORE")
-    {
-        $libdir = "$L$Config{installarchlib}/CORE";
-        $incdir = "-I$Config{installarchlib}/CORE";
-    }
-    else
-    {
-        $libdir = "$L.. $L."; 
-        $incdir = "-I.. -I.";
-    }
-
-    $libdir .= " $L$options->{L}" if (defined($options->{L}));
-    $incdir .= " -I$options->{L}" if (defined($options->{L}));
-
-    my $linkargs = '';
-    my $dynaloader = '';
-    my $optimize = '';
-    my $flags = '';
-
-    if (!grep(/^-[cS]$/, @args))
-    {
-	my $lperl = $^O eq 'os2' ? '-llibperl' 
-	   : $^O eq 'MSWin32' ? "$Config{archlibexp}\\CORE\\$Config{libperl}"
-	   : '-lperl';
-       ($lperl = $Config{libperl}) =~ s/lib(.*)\Q$Config{_a}\E/-l$1/
-	    if($^O eq 'cygwin');
-
-	$optimize = $Config{'optimize'} =~ /-O\d/ ? '' : $Config{'optimize'};
-
-	$flags = $type eq 'dynamic' ? $Config{lddlflags} : $Config{ldflags};
-	$linkargs = "$flags $libdir $lperl @Config{libs}";
-	$linkargs = "/link $linkargs" if $^O eq 'MSWin32' && $Config{cc} =~ /^cl/i;
-    }
-
-    my $libs = _getSharedObjects($sourceprog);
-    @$libs = grep { !(/DynaLoader\.a$/ && ($dynaloader = $_)) } @$libs
-	if($^O eq 'cygwin');
-
-    my $args = "@args";
-    if ($^O eq 'MSWin32' && $Config{cc} =~ /^bcc/i) {
-        # BC++ cmd line syntax does not allow space between -[oexz...] and arg
-        $args =~ s/(^|\s+)-([oe])\s+/$1-$2/g;
-    }
-
-    my $ccflags = $Config{ccflags};
-    $ccflags .= ' -DUSEIMPORTLIB' if $^O eq 'cygwin';
-    my $cccmd = "$Config{cc} $ccflags $optimize $incdir "
-		."$args $dynaloader $linkargs @$libs";
-
-    _print ("$cccmd\n", 36);
-    _run("$cccmd", 18 );
-}
-
-sub _getSharedObjects
-{
-    my ($sourceprog) = @_;
-    my ($tmpfile, $incfile);
-    my (@sharedobjects, @libraries);
-    local($") = " -I";
-
-    my ($tmpprog);
-    ($tmpprog = $sourceprog) =~ s"(.*)[\\/](.*)"$2";
-
-    my $tempdir= File::Spec->tmpdir;
-
-    $tmpfile = "$tempdir/$tmpprog.tst";
-    $incfile = "$tempdir/$tmpprog.val";
-
-    my $fd = new FileHandle("> $tmpfile") || die "Couldn't open $tmpfile!\n";
-    my $fd2 = 
-        new FileHandle("$sourceprog") || die "Couldn't open $sourceprog!\n";
-
-    print $fd <<"EOF";
-        use FileHandle;
-        my \$fh3  = new FileHandle("> $incfile") 
-                                        || die "Couldn't open $incfile\\n";
-
-        my \$key;
-        foreach \$key (keys(\%INC)) { print \$fh3 "\$key:\$INC{\$key}\\n"; }
-        close(\$fh3);
-        exit();
+    print OUT <<EOF;
+#!$^X
+use ByteLoader $ByteLoader::VERSION;
 EOF
 
-    print $fd (   <$fd2>    );
-    close($fd);
+    # Now the compile:
+    vprint 1, "Compiling...";
+    vprint 3, "Calling $command";
 
-    _print("$^X -I@INC $tmpfile\n", 36);
-    _run("$^X -I@INC $tmpfile", 9 );
+    my ($output_r, $error_r) = spawnit($command);
 
-    $fd = new FileHandle ("$incfile"); 
-    my @lines = <$fd>;    
-
-    unlink($tmpfile);
-    unlink($incfile);
-
-    my $line;
-    my $autolib;
-
-    my @return;
-
-    foreach $line (@lines) 
-    {
-        chomp($line);
-
-        my ($modname, $modpath) = split(':', $line);
-        my ($dir, $file) = ($modpath=~ m"(.*)[\\/]($modname)");
-
-        if ($autolib = _lookforAuto($dir, $file)) { push(@return, $autolib); }
+    if (@$error_r && $? != 0) {
+	_die("$0: $Input did not compile, which can't happen:\n@$error_r\n");
+    } else {
+	my @error = grep { !/^$Input syntax OK$/o } @$error_r;
+	warn "$0: Unexpected compiler output:\n@error" if @error;
     }
-    return(\@return);
+	
+    # Write it and leave.
+    print OUT @$output_r               or _die("can't write $Output: $!");
+    close OUT                          or _die("can't close $Output: $!");
+
+    # wait, how could it be anything but what you see next?
+    chmod 0777 & ~umask, $Output    or _die("can't chmod $Output: $!");
+    exit 0;
 }
 
-sub _maketempfile
-{
-    my $return;
-
-#    if ($Config{'osname'} eq 'MSWin32') 
-#            { $return = "C:\\TEMP\\comp$$.p"; }
-#    else
-#            { $return = "/tmp/comp$$.p"; }
-
-    $return = "comp$$.p"; 
-
-    my $fd = new FileHandle( "> $return") || die "Couldn't open $return!\n";
-    print $fd $options->{'e'};
-    close($fd);
-
-    return($return);
-}
+sub compile_cstyle {
+    my $stash = grab_stash();
     
-    
-sub _lookforAuto
-{
-    my ($dir, $file) = @_;    
+    # What are we going to call our output C file?
+    my $lose = 0;
+    my ($cfh);
 
-    my ($relabs, $relshared);
-    my ($prefix);
-    my $return;
-    my $sharedextension = $^O =~ /MSWin32|cygwin|os2/i
-			  ? $Config{_a} : ".$Config{so}";
-    ($prefix = $file) =~ s"(.*)\.pm"$1";
-
-    my ($tmp, $modname) = ($prefix =~ m"(?:(.*)[\\/]){0,1}(.*)"s);
-
-    $relshared = "$pathsep$prefix$pathsep$modname$sharedextension";
-    $relabs    = "$pathsep$prefix$pathsep$modname$Config{_a}";
-                                               # HACK . WHY DOES _a HAVE A '.'
-                                               # AND so HAVE NONE??
-
-    my @searchpaths =   map("$_${pathsep}auto", @INC);
-    
-    my $path;
-    foreach $path (@searchpaths)
-    {
-        if (-e ($return = "$path$relshared")) { return($return); } 
-        if (-e ($return = "$path$relabs"))    { return($return); }
+    if (opt(S) || opt(c)) {
+        # We need to keep it.
+        if (opt(e)) {
+            $cfile = "a.out.c";
+        } else {
+            $cfile = $Input;
+            # File off extension if present
+            # hold on: plx is executable; also, careful of ordering!
+            $cfile =~ s/\.(?:p(?:lx|l|h)|m)\z//i;
+            $cfile .= ".c";
+            $cfile = $Output if opt(c) && $Output =~ /\.c\z/i;
+        }
+        check_write($cfile);
+    } else {
+        # Don't need to keep it, be safe with a tempfile.
+        $lose = 1;
+        ($cfh, $cfile) = tempfile("pccXXXXX", SUFFIX => ".c"); 
+        close $cfh; # See comment just below
     }
-   return(undef);
+    vprint 1, "Writing C on $cfile";
+
+    my $max_line_len = '';
+    if ($^O eq 'MSWin32' && $Config{cc} =~ /^cl/i) {
+        $max_line_len = '-l2000,';
+    }
+
+    # This has to do the write itself, so we can't keep a lock. Life
+    # sucks.
+    my $command = "$BinPerl -MO=$Backend,$max_line_len$stash,-o$cfile $Input";
+    vprint 1, "Compiling...";
+    vprint 1, "Calling $command";
+
+	my ($output_r, $error_r) = spawnit($command);
+	my @output = @$output_r;
+	my @error = @$error_r;
+
+    if (@error && $? != 0) {
+        _die("$0: $Input did not compile, which can't happen:\n@error\n");
+    }
+
+    cc_harness($cfile,$stash) unless opt(c);
+
+    if ($lose) {
+        vprint 2, "unlinking $cfile";
+        unlink $cfile or _die("can't unlink $cfile: $!"); 
+    }
 }
 
-sub _getRegexps    # make the appropriate regexps for making executables, 
-{                  # shared libs
-
-    my ($program_ext, $module_ext) = ([],[]); 
-
-
-    @$program_ext = ($ENV{PERL_SCRIPT_EXT})? split(':', $ENV{PERL_SCRIPT_EXT}) :
-                                            ('.p$', '.pl$', '.bat$');
-
-
-    @$module_ext  = ($ENV{PERL_MODULE_EXT})? split(':', $ENV{PERL_MODULE_EXT}) :
-                                            ('.pm$');
-
-    _mungeRegexp( $program_ext );
-    _mungeRegexp( $module_ext  );    
-
-    return($program_ext, $module_ext);
+sub cc_harness {
+	my ($cfile,$stash)=@_;
+	use ExtUtils::Embed ();
+	my $command = ExtUtils::Embed::ccopts." -o $Output $cfile ";
+	$command .= " -I".$_ for split /\s+/, opt(I);
+	$command .= " -L".$_ for split /\s+/, opt(L);
+	my @mods = split /-?u /, $stash;
+	$command .= " ".ExtUtils::Embed::ldopts("-std", \@mods);
+	vprint 3, "running $Config{cc} $command";
+	system("$Config{cc} $command");
 }
 
-sub _mungeRegexp
-{
-    my ($regexp) = @_;
+# Where Perl is, and which include path to give it.
+sub yclept {
+    my $command = "$^X ";
 
-    grep(s:(^|[^\\])\.:$1\x00\\.:g, @$regexp);
-    grep(s:(^|[^\x00])\\\.:$1\.:g,  @$regexp);
-    grep(s:\x00::g,                 @$regexp);
-}
-
-sub _error
-{
-    my ($type, @args) = @_;
-
-    if ($type eq 'equal')
-    {
+    # DWIM the -I to be Perl, not C, include directories.
+    if (opt(I) && $Backend eq "Bytecode") {
+        for (split /\s+/, opt(I)) {
+            if (-d $_) {
+                push @INC, $_;
+            } else {
+                warn "$0: Include directory $_ not found, skipping\n";
+            }
+        }
+    }
             
-        if ($args[0] eq $args[1])
-        {
-            _print ("ERROR: The object file '$args[0]' does not generate a legitimate executable file! Skipping!\n", -1);
-            return(1);
-        }
-    }
-    elsif ($type eq 'badeval')
-    {
-        if ($args[0])
-        {
-            _print ("ERROR: $args[0]\n", -1);
-            return(1);
-        }
-    }
-    elsif ($type eq 'noextension')
-    {
-        my $progext = join(',', @{$args[1]});
-        my $modext  = join(',', @{$args[2]});
-
-        $progext =~ s"\\""g;
-        $modext  =~ s"\\""g;
-
-        $progext =~ s"\$""g;
-        $modext  =~ s"\$""g;
-
-        _print 
-        (
-"
-ERROR: '$args[0]' does not have a proper extension! Proper extensions are:
-
-    PROGRAM:       $progext 
-    SHARED OBJECT: $modext
-
-Use the '-prog' flag to force your files to be interpreted as programs.
-Use the '-mod' flag to force your files to be interpreted as modules.
-", -1
-        );
-        return(1);
-    }
-
-    return(0);
+    $command .= "-I$_ " for @INC;
+    return $command;
 }
 
-sub _checkopts
+# Use B::Stash to find additional modules and stuff.
 {
-    my @errors;
-    local($") = "\n";
+    my $_stash;
+    sub grab_stash {
 
-    if ($options->{'log'})
-    {
-        $_fh = new FileHandle(">> $options->{'log'}") || push(@errors, "ERROR: Couldn't open $options->{'log'}\n");
+        warn "already called get_stash once" if $_stash;
+
+        my $command = "$BinPerl -MB::Stash -c $Input";
+        # Filename here is perfectly sanitised.
+        vprint 3, "Calling $command\n";
+
+		my ($stash_r, $error_r) = spawnit($command);
+		my @stash = @$stash_r;
+		my @error = @$error_r;
+
+    	if (@error && $? != 0) {
+            _die("$0: $Input did not compile:\n@error\n");
+        }
+
+        $stash[0] =~ s/,-u\<none\>//;
+        vprint 2, "Stash: ", join " ", split /,?-u/, $stash[0];
+        chomp $stash[0];
+        return $_stash = $stash[0];
     }
 
-    if ($options->{'b'} && $options->{'c'})
-    {
-        push(@errors,
-"ERROR: The '-b' and '-c' options are incompatible. The '-c' option specifies
-       a name for the intermediate C code but '-b' generates byte code
-       directly.\n");
-    }
-    if ($options->{'b'} && ($options->{'sav'} || $options->{'gen'}))
-    {
-        push(@errors,
-"ERROR: The '-sav' and '-gen' options are incompatible with the '-b' option.
-       They ask for intermediate C code to be saved by '-b' generates byte
-       code directly.\n");
-    }
-
-    if (($options->{'c'}) && (@ARGV > 1) && ($options->{'sav'} ))
-    {
-        push(@errors, 
-"ERROR: The '-sav' and '-C' options are incompatible when you have more than 
-       one input file! ('-C' explicitly names resulting C code, '-sav' saves it,
-       and hence, with more than one file, the c code will be overwritten for 
-       each file that you compile)\n");
-    }
-    if (($options->{'o'}) && (@ARGV > 1))
-    {
-        push(@errors, 
-"ERROR: The '-o' option is incompatible when you have more than one input 
-       file! (-o explicitly names the resulting file, hence, with more than 
-       one file the names clash)\n");
-    }
-
-    if ($options->{'e'} && ($options->{'sav'} || $options->{'gen'}) &&
-                                                            !$options->{'C'})
-    {
-        push(@errors, 
-"ERROR: You need to specify where you are going to save the resulting 
-       C code when using '-sav' and '-e'. Use '-C'.\n");
-    }
-
-    if (($options->{'regex'} || $options->{'run'} || $options->{'o'}) 
-                                                    && $options->{'gen'})
-    {
-        push(@errors, 
-"ERROR: The options '-regex', '-run', and '-o' are incompatible with '-gen'. 
-       '-gen' says to stop at C generation, and the other three modify the 
-       compilation and/or running process!\n");
-    }
-
-    if ($options->{'run'} && $options->{'mod'})
-    {
-        push(@errors, 
-"ERROR: Can't run modules that you are compiling! '-run' and '-mod' are 
-       incompatible!\n"); 
-    }
-
-    if ($options->{'e'} && @ARGV)
-    {
-        push (@errors, 
-"ERROR: The option '-e' needs to be all by itself without any other 
-       file arguments!\n");
-    }
-    if ($options->{'e'} && !($options->{'o'} || $options->{'run'}))
-    {
-        $options->{'run'} = 1;
-    }
-
-    if (!defined($options->{'verbose'})) 
-    { 
-        $options->{'verbose'} = ($options->{'log'})? 64 : 7; 
-    }
-
-    my $verbose_error;
-
-    if ($options->{'verbose'} =~ m"[^tagfcd]" && 
-            !( $options->{'verbose'} eq '0' || 
-                ($options->{'verbose'} < 64 && $options->{'verbose'} > 0)))
-    {
-        $verbose_error = 1;
-        push(@errors, 
-"ERROR: Illegal verbosity level.  Needs to have either the letters 
-       't','a','g','f','c', or 'd' in it or be between 0 and 63, inclusive.\n");
-    }
-
-    $options->{'verbose'} = ($options->{'verbose'} =~ m"[tagfcd]")? 
-                            ($options->{'verbose'} =~ m"d") * 32 +     
-                            ($options->{'verbose'} =~ m"c") * 16 +     
-                            ($options->{'verbose'} =~ m"f") * 8     +     
-                            ($options->{'verbose'} =~ m"t") * 4     +     
-                            ($options->{'verbose'} =~ m"a") * 2     +     
-                            ($options->{'verbose'} =~ m"g") * 1     
-                                                    : $options->{'verbose'};
-
-    if     (!$verbose_error && (    $options->{'log'} && 
-                                !(
-                                    ($options->{'verbose'} & 8)   || 
-                                    ($options->{'verbose'} & 16)  || 
-                                    ($options->{'verbose'} & 32 ) 
-                                )
-                            )
-        )
-    {
-        push(@errors, 
-"ERROR: The verbosity level '$options->{'verbose'}' does not output anything 
-       to a logfile, and you specified '-log'!\n");
-    } # }
-
-    if     (!$verbose_error && (    !$options->{'log'} && 
-                                (
-                                    ($options->{'verbose'} & 8)   || 
-                                    ($options->{'verbose'} & 16)  || 
-                                    ($options->{'verbose'} & 32)  || 
-                                    ($options->{'verbose'} & 64)
-                                )
-                            )
-        )
-    {
-        push(@errors, 
-"ERROR: The verbosity level '$options->{'verbose'}' requires that you also 
-       specify a logfile via '-log'\n");
-    } # }
-
-
-    (_print( "\n". join("\n", @errors), -1), return(0)) if (@errors);
-    return(1);
 }
 
-sub _print
+# Check the consistency of options if -B is selected.
+# To wit, (-B|-O) ==> no -shared, no -S, no -c
+sub checkopts_byte {
+
+    _die("$0: Please choose one of either -B and -O.\n") if opt(O);
+
+    if (opt(shared)) {
+        warn "$0: Will not create a shared library for bytecode\n";
+        delete $Options->{shared};
+    }
+
+    for my $o ( qw[c S] ) { 
+        if (opt($o)) { 
+            warn "$0: Compiling to bytecode is a one-pass process--",
+                  "-$o ignored\n";
+            delete $Options->{$o};
+        }
+    }
+
+}
+
+# Check the input and output files make sense, are read/writeable.
+sub sanity_check {
+    if ($Input eq $Output) {
+        if ($Input eq 'a.out') {
+            _die("$0: Compiling a.out is probably not what you want to do.\n");
+            # You fully deserve what you get now. No you *don't*. typos happen.
+        } else {
+            warn "$0: Will not write output on top of input file, ",
+                "compiling to a.out instead\n";
+            $Output = "a.out";
+        }
+    }
+}
+
+sub check_read { 
+    my $file = shift;
+    unless (-r $file) {
+        _die("$0: Input file $file is a directory, not a file\n") if -d _;
+        unless (-e _) {
+            _die("$0: Input file $file was not found\n");
+        } else {
+            _die("$0: Cannot read input file $file: $!\n");
+        }
+    }
+    unless (-f _) {
+        # XXX: die?  don't try this on /dev/tty
+        warn "$0: WARNING: input $file is not a plain file\n";
+    } 
+}
+
+sub check_write {
+    my $file = shift;
+    if (-d $file) {
+        _die("$0: Cannot write on $file, is a directory\n");
+    }
+    if (-e _) {
+        _die("$0: Cannot write on $file: $!\n") unless -w _;
+    } 
+    unless (-w cwd()) { 
+        _die("$0: Cannot write in this directory: $!\n");
+    }
+}
+
+sub check_perl {
+    my $file = shift;
+    unless (-T $file) {
+        warn "$0: Binary `$file' sure doesn't smell like perl source!\n";
+        print "Checking file type... ";
+        system("file", $file);  
+        _die("Please try a perlier file!\n");
+    } 
+
+    open(my $handle, "<", $file)    or _die("XXX: can't open $file: $!");
+    local $_ = <$handle>;
+    if (/^#!/ && !/perl/) {
+        _die("$0: $file is a ", /^#!\s*(\S+)/, " script, not perl\n");
+    } 
+
+} 
+
+# File spawning and error collecting
+sub spawnit {
+	my ($command) = shift;
+	my (@error,@output);
+	my $errname;
+	(undef, $errname) = tempfile("pccXXXXX");
+	{ 
+	open (S_OUT, "$command 2>$errname |")
+		or _die("$0: Couldn't spawn the compiler.\n");
+	@output = <S_OUT>;
+	}
+	open (S_ERROR, $errname) or _die("$0: Couldn't read the error file.\n");
+	@error = <S_ERROR>;
+	close S_ERROR;
+	close S_OUT;
+	unlink $errname or _die("$0: Can't unlink error file $errname");
+	return (\@output, \@error);
+}
+
+sub helpme {
+       print "perlcc compiler frontend, version $VERSION\n\n";
+       { no warnings;
+       exec "pod2usage $0";
+       exec "perldoc $0";
+       exec "pod2text $0";
+       }
+}
+
+sub relativize {
+	my ($args) = @_;
+
+	return() if ($args =~ m"^[/\\]");
+	return("./$args");
+}
+
+sub _die {
+    $logfh->print(@_) if opt('log');
+    print STDERR @_;
+    exit(); # should die eventually. However, needed so that a 'make compile'
+            # can compile all the way through to the end for standard dist.
+}
+
+sub _usage_and_die {
+    _die(<<EOU);
+$0: Usage:
+$0 [-o executable] [-r] [-O|-B|-c|-S] [-log log] [source[.pl] | -e oneliner]
+EOU
+}
+
+sub run {
+    my (@commands) = @_;
+
+    print interruptrun(@commands) if (!opt('log'));
+    $logfh->print(interruptrun(@commands)) if (opt('log'));
+}
+
+sub interruptrun
 {
-    my ($text, $flag ) = @_;
+    my (@commands) = @_;
+
+    my $command = join('', @commands);
+    local(*FD);
+    my $pid = open(FD, "$command |");
+    my $text;
     
-    my $logflag = int($flag/8) * 8;
-    my $regflag = $flag % 8;
-
-    if ($flag == -1 || ($flag & $options->{'verbose'}))
-    {
-        my $dolog = ((($logflag & $options->{'verbose'}) || $flag == -1) 
-                                                        && $options->{'log'}); 
-
-        my $doreg = (($regflag & $options->{'verbose'}) || $flag == -1);
-        
-        if ($doreg) { print( STDERR $text ); }
-        if ($dolog) { print $_fh $text; }
-    }
-}
-
-sub _run
-{
-    my ($command, $flag) = @_;
-
-    my $logflag = ($flag != -1)? int($flag/8) * 8 : 0;
-    my $regflag = $flag % 8;
-
-    if ($flag == -1 || ($flag & $options->{'verbose'}))
-    {
-        my $dolog = ($logflag & $options->{'verbose'} && $options->{'log'});
-        my $doreg = (($regflag & $options->{'verbose'}) || $flag == -1);
-
-        if ($doreg && !$dolog) 
-        {
-	    print _interruptrun("$command");
-	}
-        elsif ($doreg && $dolog) 
-        { 
-	    my $text = _interruptrun($command); 
-	    print $_fh $text; 
-	    print STDERR $text;
-	}
-        else 
-        { 
-	    my $text = _interruptrun($command);
-	    print $_fh $text; 
-	}
-    }
-    else 
-    {
-	_interruptrun($command);
-    }
-    return($?);
-}
-
-sub _interruptrun
-{
-    my ($command) = @_;
-    my $pid = open (FD, "$command  |");
-
-    local($SIG{HUP}) = sub { 
-#	kill 9, $pid + 1;  
-#	HACK... 2>&1 doesn't propogate
-#	kill, comment out for quick and dirty
-#	process killing of child.
-
-	kill 9, $pid;  
-	exit(); 
-    };
-    local($SIG{INT}) = sub { 
-#	kill 9, $pid + 1;  
-#	HACK... 2>&1 doesn't propogate
-#	kill, comment out for quick and dirty
-#	process killing of child.
-	kill 9, $pid; 
-	exit(); 
-    }; 
+    local($SIG{HUP}) = sub { kill 9, $pid; exit };
+    local($SIG{INT}) = sub { kill 9, $pid; exit };
 
     my $needalarm = 
-            ($ENV{'PERLCC_TIMEOUT'} && 
-                    $Config{'osname'} ne 'MSWin32' && $command =~ m"^perlc");
-    my $text;
+          ($ENV{PERLCC_TIMEOUT} && 
+	  $Config{'osname'} ne 'MSWin32' && 
+	  $command =~ m"(^|\s)perlcc\s");
 
-    eval
+    eval 
     {
-        local($SIG{ALRM}) = sub { die "INFINITE LOOP"; };
-        alarm($ENV{'PERLCC_TIMEOUT'}) if ($needalarm);
-        $text = join('', <FD>); 
-        alarm(0) if ($needalarm);
+         local($SIG{ALRM}) = sub { die "INFINITE LOOP"; };
+         alarm($ENV{PERLCC_TIMEOUT}) if ($needalarm);
+	 $text = join('', <FD>);
+	 alarm(0) if ($needalarm);
     };
 
-    if ($@) 
-    { 
-        eval { kill 'HUP', $pid; };
-        _print("SYSTEM TIMEOUT (infinite loop?)\n", 36); 
+    if ($@)
+    {
+        eval { kill 'HUP', $pid };
+        vprint 0, "SYSTEM TIMEOUT (infinite loop?)\n";
     }
-        
+
     close(FD);
     return($text);
 }
 
-sub _usage
-{
-    _print
-    ( 
-    <<"EOF"
-
-Usage: $0 <file_list> 
-
-WARNING: The whole compiler suite ('perlcc' included) is considered VERY
-experimental.  Use for production purposes is strongly discouraged.
-
-    Flags with arguments
-        -L       < extra library dirs for installation (form of 'dir1:dir2') >
-        -I       < extra include dirs for installation (form of 'dir1:dir2') >
-        -C       < explicit name of resulting C code > 
-        -o       < explicit name of resulting executable >
-        -e       < to compile 'one liners'. Need executable name (-o) or '-run'>
-        -regex   < rename regex, -regex 's/\.p/\.exe/' compiles a.p to a.exe >
-        -verbose < verbose level < 1-63, or following letters 'gatfcd' >
-        -argv    < arguments for the executables to be run via '-run' or '-e' > 
-
-    Boolean flags
-        -b       ( to generate byte code )
-        -opt     ( to generated optimised C code. May not work in some cases. )
-        -gen     ( to just generate the C code. Implies '-sav' )
-        -sav     ( to save intermediate C code, (and executables with '-run'))
-        -run     ( to run the compiled program on the fly, as were interpreted.)
-        -prog    ( to indicate that the files on command line are programs )
-        -mod     ( to indicate that the files on command line are modules  )
-
-EOF
-, -1
-
-    );
-    exit(255);
+END {
+    unlink $cfile if ($cfile && !opt(S) && !opt(c));
 }
-
 
 __END__
 
 =head1 NAME
 
-perlcc - frontend for perl compiler
+perlcc - generate executables from Perl programs
 
 =head1 SYNOPSIS
 
-    %prompt  perlcc a.p        # compiles into executable 'a'
+    $ perlcc hello              # Compiles into executable 'a.out'
+    $ perlcc -o hello hello.pl  # Compiles into executable 'hello'
 
-    %prompt  perlcc A.pm       # compile into 'A.so'
+    $ perlcc -O file            # Compiles using the optimised C backend
+    $ perlcc -B file            # Compiles using the bytecode backend
 
-    %prompt  perlcc a.p -o execute  # compiles 'a.p' into 'execute'.
+    $ perlcc -c file            # Creates a C file, 'file.c'
+    $ perlcc -S -o hello file   # Creates a C file, 'file.c',
+                                # then compiles it to executable 'hello'
+    $ perlcc -c out.c file      # Creates a C file, 'out.c' from 'file'
 
-    %prompt  perlcc a.p -o execute -run # compiles 'a.p' into execute, runs on
-                                        # the fly
+    $ perlcc -e 'print q//'     # Compiles a one-liner into 'a.out'
+    $ perlcc -c -e 'print q//'  # Creates a C file 'a.out.c'
 
-    %prompt  perlcc a.p -o execute -run -argv 'arg1 arg2 arg3' 
-                                        # compiles into execute, runs with 
-                                        # arg1 arg2 arg3 as @ARGV
+    $ perlcc -r hello           # compiles 'hello' into 'a.out', runs 'a.out'.
 
-    %prompt perlcc a.p b.p c.p -regex 's/\.p/\.exe'
-                                        # compiles into 'a.exe','b.exe','c.exe'.
+    $ perlcc -r hello a b c     # compiles 'hello' into 'a.out', runs 'a.out'.
+                                # with arguments 'a b c' 
 
-    %prompt perlcc a.p -log compilelog  # compiles into 'a', saves compilation
-                                        # info into compilelog, as well
-                                        # as mirroring to screen
-
-    %prompt perlcc a.p -log compilelog -verbose cdf 
-                                        # compiles into 'a', saves compilation
-                                        # info into compilelog, being silent
-                                        # on screen.
-
-    %prompt perlcc a.p -C a.c -gen      # generates C code (into a.c) and 
-                                        # stops without compile.
-
-    %prompt perlcc a.p -L ../lib a.c 
-                                        # Compiles with the perl libraries 
-                                        # inside ../lib included.
+    $ perlcc hello -log c       # compiles 'hello' into 'a.out' logs compile
+                                # log into 'c'. 
 
 =head1 DESCRIPTION
 
-'perlcc' is the frontend into the perl compiler. Typing 'perlcc a.p'
-compiles the code inside a.p into a standalone executable, and 
-perlcc A.pm will compile into a shared object, A.so, suitable for inclusion 
-into a perl program via "use A".
+F<perlcc> creates standalone executables from Perl programs, using the
+code generators provided by the L<B> module. At present, you may
+either create executable Perl bytecode, using the C<-B> option, or 
+generate and compile C files using the standard and 'optimised' C
+backends.
 
-There are quite a few flags to perlcc which help with such issues as compiling 
-programs in bulk, testing compiled programs for compatibility with the 
-interpreter, and controlling.
+The code generated in this way is not guaranteed to work. The whole
+codegen suite (C<perlcc> included) should be considered B<very>
+experimental. Use for production purposes is strongly discouraged.
 
-=head1 OPTIONS 
+=head1 OPTIONS
 
 =over 4
 
-=item -L < library_directories >
+=item -LI<library directories>
 
-Adds directories in B<library_directories> to the compilation command.
+Adds the given directories to the library search path when C code is
+passed to your C compiler.
 
-=item -I  < include_directories > 
+=item -II<include directories>
 
-Adds directories inside B<include_directories> to the compilation command.
+Adds the given directories to the include file search path when C code is
+passed to your C compiler; when using the Perl bytecode option, adds the
+given directories to Perl's include path.
 
-=item -C   < c_code_name > 
+=item -o I<output file name>
 
-Explicitly gives the name B<c_code_name> to the generated file containing
-the C code which is to be compiled. Can only be used if compiling one file
-on the command line.
+Specifies the file name for the final compiled executable.
 
-=item -o   < executable_name >
+=item -c I<C file name>
 
-Explicitly gives the name B<executable_name> to the executable which is to be
-compiled. Can only be used if compiling one file on the command line.
+Create C code only; do not compile to a standalone binary.
 
-=item -e   < perl_line_to_execute>
+=item -e I<perl code>
 
-Compiles 'one liners', in the same way that B<perl -e> runs text strings at 
-the command line. Default is to have the 'one liner' be compiled, and run all
-in one go (see B<-run>); giving the B<-o> flag saves the resultant executable, 
-rather than throwing it away. Use '-argv' to pass arguments to the executable
-created.
+Compile a one-liner, much the same as C<perl -e '...'>
 
-=item -b
+=item -S
 
-Generates bytecode instead of C code.
+Do not delete generated C code after compilation.
 
-=item -opt
+=item -B
 
-Uses the optimized C backend (C<B::CC>)rather than the simple C backend
-(C<B::C>).  Beware that the optimized C backend creates very large
-switch structures and structure initializations.  Many C compilers
-find it a challenge to compile the resulting output in finite amounts
-of time.  Many Perl features such as C<goto LABEL> are also not
-supported by the optimized C backend.  The simple C backend should
-work in more instances, but can only offer modest speed increases.
+Use the Perl bytecode code generator.
 
-=item -regex   <rename_regex>
+=item -O
 
-Gives a rule B<rename_regex> - which is a legal perl regular expression - to 
-create executable file names.
+Use the 'optimised' C code generator. This is more experimental than
+everything else put together, and the code created is not guaranteed to
+compile in finite time and memory, or indeed, at all.
 
-=item -verbose <verbose_level>
+=item -v
 
-Show exactly what steps perlcc is taking to compile your code. You can
-change the verbosity level B<verbose_level> much in the same way that
-the C<-D> switch changes perl's debugging level, by giving either a
-number which is the sum of bits you want or a list of letters
-representing what you wish to see. Here are the verbosity levels so
-far :
+Increase verbosity of output; can be repeated for more verbose output.
 
-    Bit 1(g):      Code Generation Errors to STDERR
-    Bit 2(a):      Compilation Errors to STDERR
-    Bit 4(t):      Descriptive text to STDERR 
-    Bit 8(f):      Code Generation Errors to file (B<-log> flag needed)
-    Bit 16(c):     Compilation Errors to file (B<-log> flag needed)
-    Bit 32(d):     Descriptive text to file (B<-log> flag needed) 
+=item -r 
 
-If the B<-log> tag is given, the default verbose level is 63 (ie: mirroring 
-all of perlcc's output to both the screen and to a log file). If no B<-log>
-tag is given, then the default verbose level is 7 (ie: outputting all of 
-perlcc's output to STDERR).
+Run the resulting compiled script after compiling it.
 
-NOTE: Because of buffering concerns, you CANNOT shadow the output of '-run' to
-both a file, and to the screen! Suggestions are welcome on how to overcome this
-difficulty, but for now it simply does not work properly, and hence will only go
-to the screen.
+=item -log
 
-=item -log <logname>
-
-Opens, for append, a logfile to save some or all of the text for a given 
-compile command. No rewrite version is available, so this needs to be done 
-manually.
-
-=item -argv <arguments>
-
-In combination with C<-run> or C<-e>, tells perlcc to run the resulting 
-executable with the string B<arguments> as @ARGV.
-
-=item -sav
-
-Tells perl to save the intermediate C code. Usually, this C code is the name
-of the perl code, plus '.c'; 'perlcode.p' gets generated in 'perlcode.p.c',
-for example. If used with the C<-e> operator, you need to tell perlcc where to 
-save resulting executables.
-
-=item -gen
-
-Tells perlcc to only create the intermediate C code, and not compile the 
-results. Does an implicit B<-sav>, saving the C code rather than deleting it.
-
-=item -run
-
-Immediately run the perl code that has been generated. NOTE: IF YOU GIVE THE 
-B<-run> FLAG TO B<perlcc>, THEN THE REST OF @ARGV WILL BE INTERPRETED AS 
-ARGUMENTS TO THE PROGRAM THAT YOU ARE COMPILING.
-
-=item -prog
-
-Indicate that the programs at the command line are programs, and should be
-compiled as such. B<perlcc> will automatically determine files to be 
-programs if they have B<.p>, B<.pl>, B<.bat> extensions.
-
-=item -mod
-
-Indicate that the programs at the command line are modules, and should be
-compiled as such. B<perlcc> will automatically determine files to be 
-modules if they have the extension B<.pm>.
+Log the output of compiling to a file rather than to stdout.
 
 =back
-
-=head1 ENVIRONMENT
-
-Most of the work of B<perlcc> is done at the command line. However, you can 
-change the heuristic which determines what is a module and what is a program.
-As indicated above, B<perlcc> assumes that the extensions:
-
-.p$, .pl$, and .bat$
-
-indicate a perl program, and:
-
-.pm$
-
-indicate a library, for the purposes of creating executables. And furthermore,
-by default, these extensions will be replaced (and dropped) in the process of 
-creating an executable. 
-
-To change the extensions which are programs, and which are modules, set the
-environmental variables:
-
-PERL_SCRIPT_EXT
-PERL_MODULE_EXT
-
-These two environmental variables take colon-separated, legal perl regular 
-expressions, and are used by perlcc to decide which objects are which. 
-For example:
-
-setenv PERL_SCRIPT_EXT  '.prl$:.perl$'
-prompt%   perlcc sample.perl
-
-will compile the script 'sample.perl' into the executable 'sample', and
-
-setenv PERL_MODULE_EXT  '.perlmod$:.perlmodule$'
-
-prompt%   perlcc sample.perlmod
-
-will  compile the module 'sample.perlmod' into the shared object 
-'sample.so'
-
-NOTE: the '.' in the regular expressions for PERL_SCRIPT_EXT and PERL_MODULE_EXT
-is a literal '.', and not a wild-card. To get a true wild-card, you need to 
-backslash the '.'; as in:
-
-setenv PERL_SCRIPT_EXT '\.\.\.\.\.'
-
-which would have the effect of compiling ANYTHING (except what is in 
-PERL_MODULE_EXT) into an executable with 5 less characters in its name.
-
-The PERLCC_OPTS environment variable can be set to the default flags
-that must be used by the compiler.
-
-The PERLCC_TIMEOUT environment variable can be set to the number of
-seconds to wait for the backends before giving up.  This is sometimes
-necessary to avoid some compilers taking forever to compile the
-generated output.  May not work on Windows and similar platforms.
-
-=head1 FILES
-
-'perlcc' uses a temporary file when you use the B<-e> option to evaluate 
-text and compile it. This temporary file is 'perlc$$.p'. The temporary C code is
-perlc$$.p.c, and the temporary executable is perlc$$.
-
-When you use '-run' and don't save your executable, the temporary executable is
-perlc$$
-
-=head1 BUGS
-
-The whole compiler suite (C<perlcc> included) should be considered very
-experimental.  Use for production purposes is strongly discouraged.
-
-perlcc currently cannot compile shared objects on Win32. This should be fixed
-in future.
-
-Bugs in the various compiler backends still exist, and are perhaps too
-numerous to list here.
 
 =cut
 

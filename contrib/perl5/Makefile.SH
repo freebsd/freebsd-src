@@ -26,6 +26,7 @@ esac
 linklibperl='$(LIBPERL)'
 shrpldflags='$(LDDLFLAGS)'
 ldlibpth=''
+DPERL_EXTERNAL_GLOB='-DPERL_EXTERNAL_GLOB'
 case "$useshrplib" in
 true)
 	# Prefix all runs of 'miniperl' and 'perl' with 
@@ -70,12 +71,17 @@ true)
 		*)	shrpldflags="$shrpldflags -b noentry"
 			;;
 		esac
-	        shrpldflags="$shrpldflags $ldflags $libs $cryptlib"
+	        shrpldflags="$shrpldflags $ldflags $perllibs $cryptlib"
 		linklibperl="-L $archlibexp/CORE -L `pwd | sed 's/\/UU$//'` -lperl"
 		;;
 	hpux*)
 		linklibperl="-L `pwd | sed 's/\/UU$//'` -Wl,+s -Wl,+b$archlibexp/CORE -lperl"
 		;;
+	os390*)
+            shrpldflags='-W l,dll'
+	    linklibperl='libperl.x'
+	    DPERL_EXTERNAL_GLOB=''
+	    ;;
 	esac
 	case "$ldlibpthname" in
 	'') ;;
@@ -117,6 +123,24 @@ for f in $nonxs_ext; do
     nonxs_list="$nonxs_list ext/$f/pm_to_blib"
 done
 
+# Handle the usage of different yaccs in posix-bc (During Configure we
+# us yacc for perly.y and byacc for a2p.y.  The makefiles must use the
+# same configuration for run_byacc!):
+case "$osname" in
+    posix-bc)
+	byacc=$yacc
+	;;
+esac
+
+# Handle the usage of different yaccs in posix-bc (During Configure we
+# us yacc for perly.y and byacc for a2p.y.  The makefiles must use the
+# same configuration for run_byacc!):
+case "$osname" in
+    posix-bc)
+	byacc=$yacc
+	;;
+esac
+
 echo "Extracting Makefile (with variable substitutions)"
 $spitshell >Makefile <<!GROK!THIS!
 # Makefile.SH
@@ -134,11 +158,11 @@ LD = $ld
 LDFLAGS = $ldflags
 CLDFLAGS = $ldflags
 
-SMALL = $small
-LARGE = $large $split
 mallocsrc = $mallocsrc
 mallocobj = $mallocobj
 LNS = $lns
+# NOTE: some systems don't grok "cp -f". XXX Configure test needed?
+CPS = $cp
 RMS = rm -f
 ranlib = $ranlib
 
@@ -176,7 +200,7 @@ nonxs_ext = $nonxs_list
 ext = \$(dynamic_ext) \$(static_ext) \$(nonxs_ext)
 DYNALOADER = lib/auto/DynaLoader/DynaLoader\$(LIB_EXT)
 
-libs = $libs $cryptlib
+libs = $perllibs $cryptlib
 
 public = perl $suidperl utilities translators
 
@@ -206,11 +230,12 @@ SHELL = $sh
 # how to tr(anslate) newlines
 TRNL = '$trnl'
 
-# not used by Makefile but by installperl;
-# mentioned here so that metaconfig picks it up
-INSTALL_USR_BIN_PERL = $installusrbinperl
-
 !GROK!THIS!
+# not used by Makefile but by installperl;
+# mentioned here so that metaconfig picks these up
+# $installusrbinperl
+# $versiononly
+
 
 ## In the following dollars and backticks do not need the extra backslash.
 $spitshell >>Makefile <<'!NO!SUBS!'
@@ -222,19 +247,21 @@ private = preplibrary lib/ExtUtils/Miniperl.pm lib/Config.pm
 # Files to be built with variable substitution before miniperl
 # is available.
 sh = Makefile.SH cflags.SH config_h.SH makeaperl.SH makedepend.SH \
-	makedir.SH myconfig.SH writemain.SH
+	makedir.SH myconfig.SH writemain.SH pod/Makefile.SH
 
 shextract = Makefile cflags config.h makeaperl makedepend \
-	makedir myconfig writemain
+	makedir myconfig writemain pod/Makefile
 
 # Files to be built with variable substitution after miniperl is
 # available.  Dependencies handled manually below (for now).
 
 pl = pod/pod2html.PL pod/pod2latex.PL pod/pod2man.PL pod/pod2text.PL \
-	pod/pod2usage.PL pod/podchecker.PL pod/podselect.PL
+	pod/pod2usage.PL pod/podchecker.PL pod/podselect.PL \
+	pod/buildtoc.PL
 
 plextract = pod/pod2html pod/pod2latex pod/pod2man pod/pod2text \
-	pod/pod2usage pod/podchecker pod/podselect
+	pod/pod2usage pod/podchecker pod/podselect \
+	pod/buildtoc
 
 addedbyconf = UU $(shextract) $(plextract) pstruct
 
@@ -297,14 +324,18 @@ utilities:	miniperl lib/Config.pm $(plextract) FORCE
 # Apparently some makes require an action for the FORCE target.
 FORCE:
 	@sh -c true
+!NO!SUBS!
 
-opmini$(OBJ_EXT): op.c
-	$(RMS) opmini.c
-	$(LNS) op.c opmini.c
-	$(CCCMD) $(PLDLFLAGS) -DPERL_EXTERNAL_GLOB opmini.c
-	$(RMS) opmini.c
+$spitshell >>Makefile <<!GROK!THIS!
+opmini\$(OBJ_EXT): op.c config.h
+	\$(RMS) opmini.c
+	\$(CPS) op.c opmini.c
+	\$(CCCMD) \$(PLDLFLAGS) $DPERL_EXTERNAL_GLOB opmini.c
+	\$(RMS) opmini.c
 
-miniperlmain$(OBJ_EXT): miniperlmain.c
+!GROK!THIS!
+$spitshell >>Makefile <<'!NO!SUBS!'
+miniperlmain$(OBJ_EXT): miniperlmain.c patchlevel.h
 	$(CCCMD) $(PLDLFLAGS) $*.c
 
 perlmain.c: miniperlmain.c config.sh $(FIRSTMAKEFILE)
@@ -333,7 +364,7 @@ esac
 case "$osname" in
 aix)
 	$spitshell >>Makefile <<!GROK!THIS!
-LIBS			= $libs
+LIBS			= $perllibs
 # In AIX we need to change this for building Perl itself from
 # its earlier definition (which is for building external
 # extensions *after* Perl has been built and installed)
@@ -403,7 +434,7 @@ $(LIBPERL): $& perl$(OBJ_EXT) $(obj) $(LIBPERLEXPORT)
 	case "$useshrplib" in
 	true)
 		$spitshell >>Makefile <<'!NO!SUBS!'
-	$(LD) $(SHRPLDFLAGS) -o $@ perl$(OBJ_EXT) $(obj)
+	$(LD) -o $@ $(SHRPLDFLAGS) perl$(OBJ_EXT) $(obj)
 !NO!SUBS!
 		case "$osname" in
 		aix)
@@ -458,7 +489,7 @@ miniperl: $& miniperlmain$(OBJ_EXT) $(LIBPERL) opmini$(OBJ_EXT)
 	*)
 		$spitshell >>Makefile <<'!NO!SUBS!'
 miniperl: $& miniperlmain$(OBJ_EXT) $(LIBPERL) opmini$(OBJ_EXT)
-	$(LDLIBPTH) $(CC) $(LARGE) $(CLDFLAGS) -o miniperl \
+	$(LDLIBPTH) $(CC) $(CLDFLAGS) -o miniperl \
 	    miniperlmain$(OBJ_EXT) opmini$(OBJ_EXT) $(LLIBPERL) $(libs)
 	$(LDLIBPTH) ./miniperl -w -Ilib -MExporter -e '<?>' || $(MAKE) minitest
 !NO!SUBS!
@@ -468,16 +499,16 @@ miniperl: $& miniperlmain$(OBJ_EXT) $(LIBPERL) opmini$(OBJ_EXT)
 	$spitshell >>Makefile <<'!NO!SUBS!'
 
 perl: $& perlmain$(OBJ_EXT) $(LIBPERL) $(DYNALOADER) $(static_ext) ext.libs $(PERLEXPORT)
-	$(SHRPENV) $(LDLIBPTH) $(CC) $(LARGE) $(CLDFLAGS) $(CCDLFLAGS) -o perl perlmain$(OBJ_EXT) $(DYNALOADER) $(static_ext) $(LLIBPERL) `cat ext.libs` $(libs)
+	$(SHRPENV) $(LDLIBPTH) $(CC) -o perl $(CLDFLAGS) $(CCDLFLAGS) perlmain$(OBJ_EXT) $(DYNALOADER) $(static_ext) $(LLIBPERL) `cat ext.libs` $(libs)
 
 pureperl: $& perlmain$(OBJ_EXT) $(LIBPERL) $(DYNALOADER) $(static_ext) ext.libs $(PERLEXPORT)
-	$(SHRPENV) $(LDLIBPTH) purify $(CC) $(LARGE) $(CLDFLAGS) $(CCDLFLAGS) -o pureperl perlmain$(OBJ_EXT) $(DYNALOADER) $(static_ext) $(LLIBPERL) `cat ext.libs` $(libs)
+	$(SHRPENV) $(LDLIBPTH) purify $(CC) -o pureperl $(CLDFLAGS) $(CCDLFLAGS) perlmain$(OBJ_EXT) $(DYNALOADER) $(static_ext) $(LLIBPERL) `cat ext.libs` $(libs)
 
 purecovperl: $& perlmain$(OBJ_EXT) $(LIBPERL) $(DYNALOADER) $(static_ext) ext.libs $(PERLEXPORT)
-	$(SHRPENV) $(LDLIBPTH) purecov $(CC) $(LARGE) $(CLDFLAGS) $(CCDLFLAGS) -o purecovperl perlmain$(OBJ_EXT) $(DYNALOADER) $(static_ext) $(LLIBPERL) `cat ext.libs` $(libs)
+	$(SHRPENV) $(LDLIBPTH) purecov $(CC) -o purecovperl $(CLDFLAGS) $(CCDLFLAGS) perlmain$(OBJ_EXT) $(DYNALOADER) $(static_ext) $(LLIBPERL) `cat ext.libs` $(libs)
 
 quantperl: $& perlmain$(OBJ_EXT) $(LIBPERL) $(DYNALOADER) $(static_ext) ext.libs $(PERLEXPORT)
-	$(SHRPENV) $(LDLIBPTH) quantify $(CC) $(LARGE) $(CLDFLAGS) $(CCDLFLAGS) -o quantperl perlmain$(OBJ_EXT) $(DYNALOADER) $(static_ext) $(LLIBPERL) `cat ext.libs` $(libs)
+	$(SHRPENV) $(LDLIBPTH) quantify $(CC) -o quantperl $(CLDFLAGS) $(CCDLFLAGS) perlmain$(OBJ_EXT) $(DYNALOADER) $(static_ext) $(LLIBPERL) `cat ext.libs` $(libs)
 
 # This version, if specified in Configure, does ONLY those scripts which need
 # set-id emulation.  Suidperl must be setuid root.  It contains the "taint"
@@ -485,7 +516,7 @@ quantperl: $& perlmain$(OBJ_EXT) $(LIBPERL) $(DYNALOADER) $(static_ext) ext.libs
 # has been invoked correctly.
 
 suidperl: $& sperl$(OBJ_EXT) perlmain$(OBJ_EXT) $(LIBPERL) $(DYNALOADER) $(static_ext) ext.libs $(PERLEXPORT)
-	$(SHRPENV) $(LDLIBPTH) $(CC) $(LARGE) $(CLDFLAGS) $(CCDLFLAGS) -o suidperl perlmain$(OBJ_EXT) sperl$(OBJ_EXT) $(DYNALOADER) $(static_ext) $(LLIBPERL) `cat ext.libs` $(libs)
+	$(SHRPENV) $(LDLIBPTH) $(CC) -o suidperl $(CLDFLAGS) $(CCDLFLAGS) perlmain$(OBJ_EXT) sperl$(OBJ_EXT) $(DYNALOADER) $(static_ext) $(LLIBPERL) `cat ext.libs` $(libs)
 
 !NO!SUBS!
 
@@ -493,7 +524,7 @@ fi
 
 $spitshell >>Makefile <<'!NO!SUBS!'
 
-sperl$(OBJ_EXT): perl.c perly.h patchlevel.h $(h)
+sperl$(OBJ_EXT): perl.c $(h)
 	$(RMS) sperl.c
 	$(LNS) perl.c sperl.c
 	$(CCCMD) -DIAMSUID sperl.c
@@ -531,15 +562,25 @@ extra.pods: miniperl
 	-@rm -f extra.pods
 	-@for x in `grep -l '^=[a-z]' README.* | grep -v README.vms` ; do \
 	    nx=`echo $$x | sed -e "s/README\.//"`; \
-	    $(LNS) ../$$x "pod/perl"$$nx".pod" ; \
+	    cd pod ; $(LNS) ../$$x "perl"$$nx".pod" ; cd .. ; \
 	    echo "pod/perl"$$nx".pod" >> extra.pods ; \
 	done
-	-@test -f vms/perlvms.pod && $(LNS) ../vms/perlvms.pod pod/perlvms.pod && echo "pod/perlvms.pod" >> extra.pods
+	-@test -f vms/perlvms.pod && cd pod && $(LNS) ../vms/perlvms.pod perlvms.pod && cd .. && echo "pod/perlvms.pod" >> extra.pods
 
 install-strip:
 	$(MAKE) STRIPFLAGS=-s install
 
-install: all install.perl install.man
+install:
+	$(MAKE) install.perl install.man STRIPFLAGS=$(STRIPFLAGS)
+
+install-verbose:
+	$(MAKE) install.perl install.man STRIPFLAGS=$(STRIPFLAGS) INSTALLFLAGS=-V
+
+install-silent:
+	$(MAKE) install.perl install.man STRIPFLAGS=$(STRIPFLAGS) INSTALLFLAGS=-S
+
+no-install:
+	$(MAKE) install.perl install.man STRIPFLAGS=$(STRIPFLAGS) INSTALLFLAGS=-n
 
 install.perl:	all installperl
 	if [ -n "$(COMPILE)" ]; \
@@ -549,15 +590,15 @@ install.perl:	all installperl
 		cd ../pod; $(MAKE) compile; \
 	else :; \
 	fi
-	$(LDLIBPTH) ./perl installperl $(STRIPFLAGS)
+	$(LDLIBPTH) ./perl installperl $(INSTALLFLAGS) $(STRIPFLAGS)
 
 install.man:	all installman
-	$(LDLIBPTH) ./perl installman
+	$(LDLIBPTH) ./perl installman $(INSTALLFLAGS)
 
 # XXX Experimental. Hardwired values, but useful for testing.
 # Eventually Configure could ask for some of these values.
 install.html: all installhtml
-	-@test -f README.vms && $(LNS) ../README.vms vms/README_vms.pod
+	-@test -f README.vms && cd vms && $(LNS) ../README.vms README_vms.pod && cd ..
 	$(LDLIBPTH) ./perl installhtml                   \
       --podroot=. --podpath=. --recurse  \
       --htmldir=$(privlib)/html     \
@@ -577,7 +618,7 @@ install.html: all installhtml
 
 run_byacc:	FORCE
 	$(BYACC) -d perly.y
-	-chmod 664 perly.c
+	-chmod 664 perly.c perly.h
 	sh $(shellflags) ./perly.fixer y.tab.c perly.c
 	sed -e 's/fprintf *( *stderr *,/PerlIO_printf(Perl_debug_log,/g' \
 	    -e 's/y\.tab/perly/g' perly.c >perly.tmp && mv perly.tmp perly.c
@@ -624,7 +665,8 @@ AUTOGEN_FILES = keywords.h opcode.h opnames.h pp_proto.h pp.sym proto.h \
 		pod/perlintern.pod pod/perlapi.pod \
 		objXSUB.h perlapi.h perlapi.c ext/ByteLoader/byterun.h \
 		ext/ByteLoader/byterun.c ext/B/B/Asmdata.pm regnodes.h \
-		warnings.h lib/warnings.pm
+		warnings.h lib/warnings.pm \
+		vms/perly_c.vms vms/perly_h.vms
 
 regen_headers:	FORCE
 	-$(CHMOD_W) $(AUTOGEN_FILES)
@@ -634,6 +676,14 @@ regen_headers:	FORCE
 	-perl bytecode.pl
 	-perl regcomp.pl
 	-perl warnings.pl
+
+regen_pods:	FORCE
+	-cd pod; $(LDLIBPTH) make regen_pods
+
+regen_vms:	FORCE
+	-perl vms/vms_yfix.pl perly.c perly.h vms/perly_c.vms vms/perly_h.vms
+
+regen_all: regen_headers regen_pods regen_vms
 
 # Extensions:
 # Names added to $(dynamic_ext) or $(static_ext) or $(nonxs_ext) will
@@ -659,23 +709,29 @@ n_dummy $(nonxs_ext):	miniperl preplibrary $(DYNALOADER) FORCE
 
 clean:		_tidy _mopup
 
-realclean:	_cleaner _mopup
+realclean:	_realcleaner _mopup
 	@echo "Note that make realclean does not delete config.sh or Policy.sh"
 
-clobber:	_cleaner _mopup
+_clobber:
 	rm -f config.sh cppstdin Policy.sh
 
+clobber:	_realcleaner _mopup _clobber
+
 distclean:	clobber
+
+# Like distclean but also removes emacs backups and *.orig.
+veryclean:	_verycleaner _mopup _clobber
+	-@rm -f Obsolete Wanted
 
 # Do not 'make _mopup' directly.
 _mopup:
 	rm -f *$(OBJ_EXT) *$(LIB_EXT) all perlmain.c
 	-@test -f extra.pods && rm -f `cat extra.pods`
 	-@test -f vms/README_vms.pod && rm -f vms/README_vms.pod
-	-rm -f perl.exp ext.libs extra.pods
+	-rm -f perl.exp ext.libs extra.pods opmini.o
 	-rm -f perl.export perl.dll perl.libexp perl.map perl.def
 	-rm -f perl.loadmap miniperl.loadmap perl.prelmap miniperl.prelmap
-	rm -f perl suidperl miniperl $(LIBPERL)
+	rm -f perl suidperl miniperl $(LIBPERL) libperl.* microperl
 
 # Do not 'make _tidy' directly.
 _tidy:
@@ -687,16 +743,17 @@ _tidy:
 	done
 	rm -f testcompile compilelog
 
-# Do not 'make _cleaner' directly.
-_cleaner:
+_cleaner1:
 	-cd os2; rm -f Makefile
-	-cd pod; $(LDLIBPTH) $(MAKE) realclean
-	-cd utils; $(LDLIBPTH) $(MAKE) realclean
-	-cd x2p; $(LDLIBPTH) $(MAKE) realclean
+	-cd pod; $(LDLIBPTH) $(MAKE) $(CLEAN)
+	-cd utils; $(LDLIBPTH) $(MAKE) $(CLEAN)
+	-cd x2p; $(LDLIBPTH) $(MAKE) $(CLEAN)
 	-@for x in $(DYNALOADER) $(dynamic_ext) $(static_ext) $(nonxs_ext) ; do \
-	$(LDLIBPTH) sh ext/util/make_ext realclean $$x MAKE=$(MAKE) ; \
+	$(LDLIBPTH) sh ext/util/make_ext $(CLEAN) $$x MAKE=$(MAKE) ; \
 	done
-	rm -f *.orig */*.orig *~ */*~ core core.*perl.*.? *perl.core t/core t/core.perl.*.? t/*perl.core t/misctmp* t/tmp* t/c t/perl .?*.c so_locations $(LIBPERL_NONSHR) $(MINIPERL_NONSHR)
+
+_cleaner2:
+	rm -f core core.*perl.*.? *perl.core t/core t/core.perl.*.? t/*perl.core t/misctmp* t/forktmp* t/tmp* t/c t/perl t/rantests .?*.c so_locations $(LIBPERL_NONSHR) $(MINIPERL_NONSHR)
 	rm -rf $(addedbyconf)
 	rm -f $(FIRSTMAKEFILE) $(FIRSTMAKEFILE).old
 	rm -f $(private)
@@ -705,14 +762,23 @@ _cleaner:
 	rm -f h2ph.man pstruct
 	rm -rf .config
 	rm -f testcompile compilelog
-	-rmdir lib/B lib/Data lib/IO/Socket lib/IO
+	-rmdir lib/B lib/Data lib/IO/Socket lib/IO lib/Sys lib/Thread
+
+_realcleaner: 
+	@$(LDLIBPTH) $(MAKE) _cleaner1 CLEAN=realclean
+	@$(LDLIBPTH) $(MAKE) _cleaner2
+
+_verycleaner: 
+	@$(LDLIBPTH) $(MAKE) _cleaner1 CLEAN=veryclean
+	@$(LDLIBPTH) $(MAKE) _cleaner2
+	-rm -f *~ *.orig */*~ */*.orig */*/*~ */*/*.orig
 
 # The following lint has practically everything turned on.  Unfortunately,
 # you have to wade through a lot of mumbo jumbo that can't be suppressed.
 # If the source file has a /*NOSTRICT*/ somewhere, ignore the lint message
 # for that spot.
 
-lint: perly.c $(c)
+lint: $(c)
 	lint $(lintflags) $(defs) perly.c $(c) > perl.fuzz
 
 # Need to unset during recursion to go out of loop.
@@ -750,6 +816,7 @@ test check: test-prep
 	else \
 	  cd t && PERL_SKIP_TTY_TEST=1 $(LDLIBPTH) ./perl TEST; \
 	fi
+	@echo "Ran tests" > t/rantests
 
 utest ucheck: test-prep
 	if (true </dev/tty) >/dev/null 2>&1; then \
@@ -768,7 +835,7 @@ minitest: miniperl lib/re.pm
 	@echo "You may see some irrelevant test failures if you have been unable"
 	@echo "to build lib/Config.pm."
 	- cd t && (rm -f perl$(EXE_EXT); $(LNS) ../miniperl$(EXE_EXT) perl$(EXE_EXT)) \
-		&& $(LDLIBPTH) ./perl TEST base/*.t comp/*.t cmd/*.t io/*.t op/*.t pragma/*.t </dev/tty
+		&& $(LDLIBPTH) ./perl TEST base/*.t comp/*.t cmd/*.t run/*.t io/*.t op/*.t pragma/*.t </dev/tty
 
 # Handy way to run perlbug -ok without having to install and run the
 # installed perlbug. We don't re-run the tests here - we trust the user.
@@ -780,11 +847,23 @@ ok:	utilities
 okfile:	utilities
 	$(LDLIBPTH) ./perl -Ilib utils/perlbug -ok -s '(UNINSTALLED)' -F perl.ok
 
+oknack:	utilities
+	$(LDLIBPTH) ./perl -Ilib utils/perlbug -ok -s '(UNINSTALLED)' -A
+
+okfilenack:	utilities
+	$(LDLIBPTH) ./perl -Ilib utils/perlbug -ok -s '(UNINSTALLED)' -F perl.ok -A
+
 nok:	utilities
 	$(LDLIBPTH) ./perl -Ilib utils/perlbug -nok -s '(UNINSTALLED)'
 
 nokfile:	utilities
 	$(LDLIBPTH) ./perl -Ilib utils/perlbug -nok -s '(UNINSTALLED)' -F perl.nok
+
+noknack:	utilities
+	$(LDLIBPTH) ./perl -Ilib utils/perlbug -nok -s '(UNINSTALLED)' -A
+
+nokfilenack:	utilities
+	$(LDLIBPTH) ./perl -Ilib utils/perlbug -nok -s '(UNINSTALLED)' -F perl.nok -A
 
 clist:	$(c)
 	echo $(c) | tr ' ' $(TRNL) >.clist
@@ -896,6 +975,7 @@ os390|posix-bc)
             mv -f y.tab.c a2p.c
             chmod u+w a2p.c
             sed -e 's/fprintf *( *stderr *,/PerlIO_printf(Perl_debug_log,/g' \
+		-e 's|^static void __YY_YACC_MAIN.*BS2000.*|/*static main deleted*/|' \
                 -e 's/y\.tab/a2p/g' a2p.c >a2p.tmp && mv a2p.tmp a2p.c
             xxx="$xxx a2p.c"
         fi

@@ -5,8 +5,8 @@ perlXStut - Tutorial for writing XSUBs
 =head1 DESCRIPTION
 
 This tutorial will educate the reader on the steps involved in creating
-a Perl extension.  The reader is assumed to have access to L<perlguts> and
-L<perlxs>.
+a Perl extension.  The reader is assumed to have access to L<perlguts>,
+L<perlapi> and L<perlxs>.
 
 This tutorial starts with very simple examples and becomes more complex,
 with each new example adding new features.  Certain concepts may not be
@@ -187,7 +187,8 @@ been deleted):
 	Manifying ./blib/man3/Mytest.3
 	%
 
-You can safely ignore the line about "prototyping behavior".
+You can safely ignore the line about "prototyping behavior" - it is
+explained in the section "The PROTOTYPES: Keyword" in L<perlxs>.
 
 If you are on a Win32 system, and the build process fails with linker
 errors for functions in the C library, check if your Perl is configured
@@ -476,7 +477,7 @@ section on the argument stack.
 In general, it's not a good idea to write extensions that modify their input
 parameters, as in Example 3.  Instead, you should probably return multiple
 values in an array and let the caller handle them (we'll do this in a later
-example).  However, in order to better accomodate calling pre-existing C
+example).  However, in order to better accommodate calling pre-existing C
 routines, which often do modify their input parameters, this behavior is
 tolerated.
 
@@ -681,7 +682,8 @@ the meaning of these elements, pay attention to the line which reads
 
 Anything before this line is plain C code which describes which headers
 to include, and defines some convenience functions.  No translations are
-performed on this part, it goes into the generated output C file as is.
+performed on this part, apart from having embedded POD documentation
+skipped over (see L<perlpod>) it goes into the generated output C file as is.
 
 Anything after this line is the description of XSUB functions.
 These descriptions are translated by B<xsubpp> into C code which
@@ -1056,9 +1058,143 @@ the stack is I<always> large enough to take one return value.
 
 =back
 
-=head2 EXAMPLE 6 (Coming Soon)
+=head2 EXAMPLE 6
 
-Passing in and returning references to arrays and/or hashes
+In this example, we will accept a reference to an array as an input
+parameter, and return a reference to an array of hashes.  This will
+demonstrate manipulation of complex Perl data types from an XSUB.
+
+This extension is somewhat contrived.  It is based on the code in
+the previous example.  It calls the statfs function multiple times,
+accepting a reference to an array of filenames as input, and returning
+a reference to an array of hashes containing the data for each of the
+filesystems.
+
+Return to the Mytest directory and add the following code to the end of
+Mytest.xs:
+
+	SV *
+	multi_statfs(paths)
+		SV * paths
+	    INIT:
+        	AV * results;
+        	I32 numpaths = 0;
+        	int i, n;
+        	struct statfs buf;
+
+        	if ((!SvROK(paths))
+		    || (SvTYPE(SvRV(paths)) != SVt_PVAV)
+		    || ((numpaths = av_len((AV *)SvRV(paths))) < 0))
+		{
+		    XSRETURN_UNDEF;
+        	}
+        	results = (AV *)sv_2mortal((SV *)newAV());
+	    CODE:
+        	for (n = 0; n <= numpaths; n++) {
+		    HV * rh;
+            	    STRLEN l;
+            	    char * fn = SvPV(*av_fetch((AV *)SvRV(paths), n, 0), l);
+
+            	    i = statfs(fn, &buf);
+            	    if (i != 0) {
+		        av_push(results, newSVnv(errno));
+		        continue;
+            	    }
+
+            	    rh = (HV *)sv_2mortal((SV *)newHV());
+
+            	    hv_store(rh, "f_bavail", 8, newSVnv(buf.f_bavail), 0);
+            	    hv_store(rh, "f_bfree",  7, newSVnv(buf.f_bfree),  0);
+            	    hv_store(rh, "f_blocks", 8, newSVnv(buf.f_blocks), 0);
+            	    hv_store(rh, "f_bsize",  7, newSVnv(buf.f_bsize),  0);
+            	    hv_store(rh, "f_ffree",  7, newSVnv(buf.f_ffree),  0);
+            	    hv_store(rh, "f_files",  7, newSVnv(buf.f_files),  0);
+            	    hv_store(rh, "f_type",   6, newSVnv(buf.f_type),   0);
+
+            	    av_push(results, newRV((SV *)rh));
+        	}
+        	RETVAL = newRV((SV *)results);
+	    OUTPUT:
+        	RETVAL
+
+And add the following code to test.pl, while incrementing the "1..11" 
+string in the BEGIN block to "1..13":
+
+	$results = Mytest::multi_statfs([ '/', '/blech' ]);
+	print ((ref $results->[0]) ? "ok 12\n" : "not ok 12\n");
+	print ((! ref $results->[1]) ? "ok 13\n" : "not ok 13\n");
+
+=head2 New Things in this Example
+
+There are a number of new concepts introduced here, described below:
+
+=over 4
+
+=item *
+
+This function does not use a typemap.  Instead, we declare it as accepting
+one SV* (scalar) parameter, and returning an SV* value, and we take care of
+populating these scalars within the code.  Because we are only returning
+one value, we don't need a C<PPCODE:> directive - instead, we use C<CODE:>
+and C<OUTPUT:> directives.
+
+=item *
+
+When dealing with references, it is important to handle them with caution.
+The C<INIT:> block first checks that
+C<SvROK> returns true, which indicates that paths is a valid reference.  It
+then verifies that the object referenced by paths is an array, using C<SvRV>
+to dereference paths, and C<SvTYPE> to discover its type.  As an added test,
+it checks that the array referenced by paths is non-empty, using the C<av_len>
+function (which returns -1 if the array is empty).  The XSRETURN_UNDEF macro
+is used to abort the XSUB and return the undefined value whenever all three of
+these conditions are not met.
+
+=item *
+
+We manipulate several arrays in this XSUB.  Note that an array is represented
+internally by an AV* pointer.  The functions and macros for manipulating
+arrays are similar to the functions in Perl: C<av_len> returns the highest
+index in an AV*, much like $#array; C<av_fetch> fetches a single scalar value
+from an array, given its index; C<av_push> pushes a scalar value onto the
+end of the array, automatically extending the array as necessary.
+
+Specifically, we read pathnames one at a time from the input array, and
+store the results in an output array (results) in the same order.  If
+statfs fails, the element pushed onto the return array is the value of
+errno after the failure.  If statfs succeeds, though, the value pushed
+onto the return array is a reference to a hash containing some of the
+information in the statfs structure.
+
+As with the return stack, it would be possible (and a small performance win)
+to pre-extend the return array before pushing data into it, since we know
+how many elements we will return:
+
+	av_extend(results, numpaths);
+
+=item *
+
+We are performing only one hash operation in this function, which is storing
+a new scalar under a key using C<hv_store>.  A hash is represented by an HV*
+pointer.  Like arrays, the functions for manipulating hashes from an XSUB
+mirror the functionality available from Perl.  See L<perlguts> and L<perlapi>
+for details.
+
+=item *
+
+To create a reference, we use the C<newRV> function.  Note that you can
+cast an AV* or an HV* to type SV* in this case (and many others).  This
+allows you to take references to arrays, hashes and scalars with the same
+function.  Conversely, the C<SvRV> function always returns an SV*, which may
+need to be be cast to the appropriate type if it is something other than a
+scalar (check with C<SvTYPE>).
+
+=item *
+
+At this point, xsubpp is doing very little work - the differences between
+Mytest.xs and Mytest.c are minimal.
+
+=back
 
 =head2 EXAMPLE 7 (Coming Soon)
 
@@ -1112,7 +1248,7 @@ Some systems may have installed Perl version 5 as "perl5".
 
 =head1 See also
 
-For more information, consult L<perlguts>, L<perlxs>, L<perlmod>,
+For more information, consult L<perlguts>, L<perlapi>, L<perlxs>, L<perlmod>,
 and L<perlpod>.
 
 =head1 Author

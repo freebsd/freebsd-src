@@ -1,6 +1,6 @@
   pp_hot.c	
 
-  Filehandle %s never opened			[pp_print]
+  print() on unopened filehandle abc		[pp_print]
     $f = $a = "abc" ; print $f $a
 
   Filehandle %s opened only for input		[pp_print]
@@ -33,6 +33,9 @@
   readline() on closed filehandle %s		[Perl_do_readline]
     close STDIN ; $a = <STDIN>;
 
+  readline() on closed filehandle %s		[Perl_do_readline]
+    readline(NONESUCH);
+
   glob failed (child exited with status %d%s)	[Perl_do_readline] <<TODO
 
   Deep recursion on subroutine \"%s\"		[Perl_sub_crush_depth]
@@ -52,7 +55,7 @@ print $f $a;
 no warnings 'unopened' ;
 print $f $a;
 EXPECT
-Filehandle main::abc never opened at - line 4.
+print() on unopened filehandle abc at - line 4.
 ########
 # pp_hot.c [pp_print]
 use warnings 'io' ;
@@ -71,12 +74,12 @@ print getc(FOO);
 no warnings 'io' ;
 print STDIN "anc";
 EXPECT
-Filehandle main::STDIN opened only for input at - line 3.
-Filehandle main::STDOUT opened only for output at - line 4.
-Filehandle main::STDERR opened only for output at - line 5.
-Filehandle main::FOO opened only for output at - line 6.
-Filehandle main::STDERR opened only for output at - line 7.
-Filehandle main::FOO opened only for output at - line 8.
+Filehandle STDIN opened only for input at - line 3.
+Filehandle STDOUT opened only for output at - line 4.
+Filehandle STDERR opened only for output at - line 5.
+Filehandle FOO opened only for output at - line 6.
+Filehandle STDERR opened only for output at - line 7.
+Filehandle FOO opened only for output at - line 8.
 ########
 # pp_hot.c [pp_print]
 use warnings 'closed' ;
@@ -90,9 +93,9 @@ print STDIN "anc";
 opendir STDIN, ".";
 print STDIN "anc";
 EXPECT
-print() on closed filehandle main::STDIN at - line 4.
-print() on closed filehandle main::STDIN at - line 6.
-	(Are you trying to call print() on dirhandle main::STDIN?)
+print() on closed filehandle STDIN at - line 4.
+print() on closed filehandle STDIN at - line 6.
+	(Are you trying to call print() on dirhandle STDIN?)
 ########
 # pp_hot.c [pp_rv2av]
 use warnings 'uninitialized' ;
@@ -137,9 +140,9 @@ no warnings 'closed' ;
 opendir STDIN, "." ; $a = <STDIN> ;
 $a = <STDIN> ;
 EXPECT
-readline() on closed filehandle main::STDIN at - line 3.
-readline() on closed filehandle main::STDIN at - line 4.
-	(Are you trying to call readline() on dirhandle main::STDIN?)
+readline() on closed filehandle STDIN at - line 3.
+readline() on closed filehandle STDIN at - line 4.
+	(Are you trying to call readline() on dirhandle STDIN?)
 ########
 # pp_hot.c [Perl_do_readline]
 use warnings 'io' ;
@@ -148,9 +151,10 @@ open (FH, ">./xcv") ;
 my $a = <FH> ;
 no warnings 'io' ;
 $a = <FH> ;
+close (FH) ;
 unlink $file ;
 EXPECT
-Filehandle main::FH opened only for output at - line 5.
+Filehandle FH opened only for output at - line 5.
 ########
 # pp_hot.c [Perl_sub_crush_depth]
 use warnings 'recursion' ;

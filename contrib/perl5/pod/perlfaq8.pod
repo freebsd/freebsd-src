@@ -5,7 +5,7 @@ perlfaq8 - System Interaction ($Revision: 1.39 $, $Date: 1999/05/23 18:37:57 $)
 =head1 DESCRIPTION
 
 This section of the Perl FAQ covers questions involving operating
-system interaction.  This involves interprocess communication (IPC),
+system interaction.  Topics include interprocess communication (IPC),
 control over the user-interface (keyboard, screen and pointing
 devices), and most anything else not related to data manipulation.
 
@@ -95,10 +95,10 @@ It even includes limited support for Windows.
     $key = ReadKey(0);
     ReadMode('normal');
 
-However, that requires that you have a working C compiler and can use it
-to build and install a CPAN module.  Here's a solution using
-the standard POSIX module, which is already on your systems (assuming
-your system supports POSIX).
+However, using the code requires that you have a working C compiler
+and can use it to build and install a CPAN module.  Here's a solution
+using the standard POSIX module, which is already on your systems
+(assuming your system supports POSIX).
 
     use HotKey;
     $key = readkey();
@@ -214,10 +214,10 @@ illustrative:
 (This question has nothing to do with the web.  See a different
 FAQ for that.)
 
-There's an example of this in L<perlfunc/crypt>).  First, you put
-the terminal into "no echo" mode, then just read the password
-normally.  You may do this with an old-style ioctl() function, POSIX
-terminal control (see L<POSIX>, and Chapter 7 of the Camel), or a call
+There's an example of this in L<perlfunc/crypt>).  First, you put the
+terminal into "no echo" mode, then just read the password normally.
+You may do this with an old-style ioctl() function, POSIX terminal
+control (see L<POSIX> or its documentation the Camel Book), or a call
 to the B<stty> program, with varying degrees of portability.
 
 You can also do this for most systems using the Term::ReadKey module
@@ -232,16 +232,16 @@ from CPAN, which is easier to use and in theory more portable.
 
 This depends on which operating system your program is running on.  In
 the case of Unix, the serial ports will be accessible through files in
-/dev; on other systems, the devices names will doubtless differ.
+/dev; on other systems, device names will doubtless differ.
 Several problem areas common to all device interaction are the
-following
+following:
 
 =over 4
 
 =item lockfiles
 
 Your system may use lockfiles to control multiple access.  Make sure
-you follow the correct protocol.  Unpredictable behaviour can result
+you follow the correct protocol.  Unpredictable behavior can result
 from multiple processes reading from one device.
 
 =item open mode
@@ -264,7 +264,7 @@ give the numeric values you want directly, using octal ("\015"), hex
     print DEV "atv1\012";	# wrong, for some devices
     print DEV "atv1\015";	# right, for some devices
 
-Even though with normal text files, a "\n" will do the trick, there is
+Even though with normal text files a "\n" will do the trick, there is
 still no unified scheme for terminating a line that is portable
 between Unix, DOS/Win, and Macintosh, except to terminate I<ALL> line
 ends with "\015\012", and strip what you don't need from the output.
@@ -276,7 +276,8 @@ next.
 If you expect characters to get to your device when you print() them,
 you'll want to autoflush that filehandle.  You can use select()
 and the C<$|> variable to control autoflushing (see L<perlvar/$|>
-and L<perlfunc/select>):
+and L<perlfunc/select>, or L<perlfaq5>, ``How do I flush/unbuffer an
+output filehandle?  Why must I do this?''):
 
     $oldh = select(DEV);
     $| = 1;
@@ -320,7 +321,7 @@ go bump in the night, finally came up with this:
 	# been opened on a pipe...
 	system("/bin/stty $stty");
 	$_ = <MODEM_IN>;
-	chop;
+	chomp;
 	if ( !m/^Connected/ ) {
 	    print STDERR "$0: cu printed `$_' instead of `Connected'\n";
 	}
@@ -331,7 +332,7 @@ go bump in the night, finally came up with this:
 You spend lots and lots of money on dedicated hardware, but this is
 bound to get you talked about.
 
-Seriously, you can't if they are Unix password files - the Unix
+Seriously, you can't if they are Unix password files--the Unix
 password system employs one-way encryption.  It's more like hashing than
 encryption.  The best you can check is whether something else hashes to
 the same string.  You can't turn a hash back into the original string.
@@ -388,7 +389,8 @@ Zombies are not an issue with C<system("prog &")>.
 You don't actually "trap" a control character.  Instead, that character
 generates a signal which is sent to your terminal's currently
 foregrounded process group, which you then trap in your process.
-Signals are documented in L<perlipc/"Signals"> and chapter 6 of the Camel.
+Signals are documented in L<perlipc/"Signals"> and the
+section on ``Signals'' in the Camel.
 
 Be warned that very few C libraries are re-entrant.  Therefore, if you
 attempt to print() in a handler that got invoked during another stdio
@@ -397,7 +399,7 @@ inconsistent state, and your program will dump core.  You can
 sometimes avoid this by using syswrite() instead of print().
 
 Unless you're exceedingly careful, the only safe things to do inside a
-signal handler are: set a variable and exit.  And in the first case,
+signal handler are (1) set a variable and (2) exit.  In the first case,
 you should only set a variable in such a way that malloc() is not
 called (eg, by setting a variable that already has a value).
 
@@ -413,15 +415,16 @@ However, because syscalls restart by default, you'll find that if
 you're in a "slow" call, such as <FH>, read(), connect(), or
 wait(), that the only way to terminate them is by "longjumping" out;
 that is, by raising an exception.  See the time-out handler for a
-blocking flock() in L<perlipc/"Signals"> or chapter 6 of the Camel.
+blocking flock() in L<perlipc/"Signals"> or the section on ``Signals''
+in the Camel book.
 
 =head2 How do I modify the shadow password file on a Unix system?
 
-If perl was installed correctly, and your shadow library was written
+If perl was installed correctly and your shadow library was written
 properly, the getpw*() functions described in L<perlfunc> should in
 theory provide (read-only) access to entries in the shadow password
 file.  To change the file, make a new shadow password file (the format
-varies from system to system - see L<passwd(5)> for specifics) and use
+varies from system to system--see L<passwd(5)> for specifics) and use
 pwd_mkdb(8) to install it (see L<pwd_mkdb(8)> for more details).
 
 =head2 How do I set the time and date?
@@ -443,9 +446,8 @@ probably get away with setting an environment variable:
 
 If you want finer granularity than the 1 second that the sleep()
 function provides, the easiest way is to use the select() function as
-documented in L<perlfunc/"select">.  If your system has itimers and
-syscall() support, you can check out the old example in
-http://www.perl.com/CPAN/doc/misc/ancient/tutorial/eg/itimers.pl .
+documented in L<perlfunc/"select">.  Try the Time::HiRes and
+the BSD::Itimer modules (available from CPAN).
 
 =head2 How can I measure time under a second?
 
@@ -495,15 +497,16 @@ managed to finish its output without filling up the disk:
 	close(STDOUT) || die "stdout close failed: $!";
     } 
 
-The END block isn't called when untrapped signals kill the program, though, so if
-you use END blocks you should also use
+The END block isn't called when untrapped signals kill the program,
+though, so if you use END blocks you should also use
 
 	use sigtrap qw(die normal-signals);
 
 Perl's exception-handling mechanism is its eval() operator.  You can
 use eval() as setjmp and die() as longjmp.  For details of this, see
 the section on signals, especially the time-out handler for a blocking
-flock() in L<perlipc/"Signals"> and chapter 6 of the Camel.
+flock() in L<perlipc/"Signals"> or the section on ``Signals'' in
+the Camel Book.
 
 If exception handling is all you're interested in, try the
 exceptions.pl library (part of the standard perl distribution).
@@ -511,7 +514,7 @@ exceptions.pl library (part of the standard perl distribution).
 If you want the atexit() syntax (and an rmexit() as well), try the
 AtExit module available from CPAN.
 
-=head2 Why doesn't my sockets program work under System V (Solaris)? What does the error message "Protocol not supported" mean?
+=head2 Why doesn't my sockets program work under System V (Solaris)?  What does the error message "Protocol not supported" mean?
 
 Some Sys-V based systems, notably Solaris 2.X, redefined some of the
 standard socket constants.  Since these were constant across all
@@ -523,14 +526,14 @@ values are different.  Go figure.
 
 =head2 How can I call my system's unique C functions from Perl?
 
-In most cases, you write an external module to do it - see the answer
+In most cases, you write an external module to do it--see the answer
 to "Where can I learn about linking C with Perl? [h2xs, xsubpp]".
 However, if the function is a system call, and your system supports
 syscall(), you can use the syscall function (documented in
 L<perlfunc>).
 
 Remember to check the modules that came with your distribution, and
-CPAN as well - someone may already have written a module to do it.
+CPAN as well--someone may already have written a module to do it.
 
 =head2 Where do I get the include files to do ioctl() or syscall()?
 
@@ -568,9 +571,9 @@ scripts inherently insecure.  Perl gives you a number of options
 The IPC::Open2 module (part of the standard perl distribution) is an
 easy-to-use approach that internally uses pipe(), fork(), and exec() to do
 the job.  Make sure you read the deadlock warnings in its documentation,
-though (see L<IPC::Open2>).  See L<perlipc/"Bidirectional Communication
-with Another Process"> and L<perlipc/"Bidirectional Communication with
-Yourself">
+though (see L<IPC::Open2>).  See 
+L<perlipc/"Bidirectional Communication with Another Process"> and 
+L<perlipc/"Bidirectional Communication with Yourself">
 
 You may also use the IPC::Open3 module (part of the standard perl
 distribution), but be warned that it has a different order of
@@ -596,7 +599,7 @@ There are three basic ways of running external commands:
     open (PIPE, "cmd |");	# using open()
 
 With system(), both STDOUT and STDERR will go the same place as the
-script's versions of these, unless the command redirects them.
+script's STDOUT and STDERR, unless the system() command redirects them.
 Backticks and open() read B<only> the STDOUT of your command.
 
 With any of these, you can change file descriptors before the call:
@@ -689,7 +692,7 @@ In some cases, even this won't work.  If the second argument to a
 piped open() contains shell metacharacters, perl fork()s, then exec()s
 a shell to decode the metacharacters and eventually run the desired
 program.  Now when you call wait(), you only learn whether or not the
-I<shell> could be successfully started.  Best to avoid shell
+I<shell> could be successfully started...it's best to avoid shell
 metacharacters.
 
 On systems that follow the spawn() paradigm, open() I<might> do what
@@ -716,17 +719,17 @@ Consider this line:
     `cat /etc/termcap`;
 
 You haven't assigned the output anywhere, so it just wastes memory
-(for a little while).  Plus you forgot to check C<$?> to see whether
-the program even ran correctly.  Even if you wrote
+(for a little while).  You forgot to check C<$?> to see whether
+the program even ran correctly, too.  Even if you wrote
 
     print `cat /etc/termcap`;
 
-In most cases, this could and probably should be written as
+this code could and probably should be written as
 
     system("cat /etc/termcap") == 0
 	or die "cat program failed!";
 
-Which will get the output quickly (as it is generated, instead of only
+which will get the output quickly (as it is generated, instead of only
 at the end) and also check the return value.
 
 system() also provides direct control over whether shell wildcard
@@ -763,7 +766,7 @@ and fix it for you.
 
 =head2 Why can't my script read from STDIN after I gave it EOF (^D on Unix, ^Z on MS-DOS)?
 
-Because some stdio's set error and eof flags that need clearing.  The
+Some stdio's set error and eof flags that need clearing.  The
 POSIX module defines clearerr() that you can use.  That is the
 technically correct way to do it.  Here are some less reliable
 workarounds:
@@ -856,9 +859,9 @@ state there, as in:
 
 =item Unix
 
-In the strictest sense, it can't be done -- the script executes as a
+In the strictest sense, it can't be done--the script executes as a
 different process from the shell it was started from.  Changes to a
-process are not reflected in its parent, only in its own children
+process are not reflected in its parent--only in any children
 created after the change.  There is shell magic that may allow you to
 fake it by eval()ing the script's output in your shell; check out the
 comp.unix.questions FAQ for details.  
@@ -868,7 +871,7 @@ comp.unix.questions FAQ for details.
 =head2 How do I close a process's filehandle without waiting for it to complete?
 
 Assuming your system supports such things, just send an appropriate signal
-to the process (see L<perlfunc/"kill">.  It's common to first send a TERM
+to the process (see L<perlfunc/"kill">).  It's common to first send a TERM
 signal, wait a little bit, and then send a KILL signal to finish it off.
 
 =head2 How do I fork a daemon process?
@@ -906,10 +909,6 @@ Background yourself like this:
 The Proc::Daemon module, available from CPAN, provides a function to
 perform these actions for you.
 
-=head2 How do I make my program run with sh and csh?
-
-See the F<eg/nih> script (part of the perl source distribution).
-
 =head2 How do I find out if I'm running interactively or not?
 
 Good question.  Sometimes C<-t STDIN> and C<-t STDOUT> can give clues,
@@ -935,9 +934,9 @@ the current process group of your controlling terminal as follows:
 =head2 How do I timeout a slow event?
 
 Use the alarm() function, probably in conjunction with a signal
-handler, as documented in L<perlipc/"Signals"> and chapter 6 of the
-Camel.  You may instead use the more flexible Sys::AlarmCall module
-available from CPAN.
+handler, as documented in L<perlipc/"Signals"> and the section on
+``Signals'' in the Camel.  You may instead use the more flexible
+Sys::AlarmCall module available from CPAN.
 
 =head2 How do I set CPU limits?
 
@@ -976,9 +975,6 @@ sysopen():
     sysopen(FH, "/tmp/somefile", O_WRONLY|O_NDELAY|O_CREAT, 0644)
         or die "can't open /tmp/somefile: $!":
 
-
-
-
 =head2 How do I install a module from CPAN?
 
 The easiest way is to have a module also named CPAN do it for you.
@@ -1015,26 +1011,27 @@ just need to replace step 3 (B<make>) with B<make perl> and you will
 get a new F<perl> binary with your extension linked in.
 
 See L<ExtUtils::MakeMaker> for more details on building extensions.
-See also the next question.
+See also the next question, ``What's the difference between require
+and use?''.
 
 =head2 What's the difference between require and use?
 
 Perl offers several different ways to include code from one file into
 another.  Here are the deltas between the various inclusion constructs:
 
-    1)  do $file is like eval `cat $file`, except the former:
+    1)  do $file is like eval `cat $file`, except the former
 	1.1: searches @INC and updates %INC.
 	1.2: bequeaths an *unrelated* lexical scope on the eval'ed code.
 
-    2)  require $file is like do $file, except the former:
+    2)  require $file is like do $file, except the former
 	2.1: checks for redundant loading, skipping already loaded files.
 	2.2: raises an exception on failure to find, compile, or execute $file.
 
-    3)  require Module is like require "Module.pm", except the former:
+    3)  require Module is like require "Module.pm", except the former
 	3.1: translates each "::" into your system's directory separator.
 	3.2: primes the parser to disambiguate class Module as an indirect object.
 
-    4)  use Module is like require Module, except the former:
+    4)  use Module is like require Module, except the former
 	4.1: loads the module at compile time, not run-time.
 	4.2: imports symbols and semantics from that package to the current one.
 
@@ -1052,7 +1049,7 @@ scripts that use the modules/libraries (see L<perlrun>) or say
 
     use lib '/u/mydir/perl';
 
-This is almost the same as:
+This is almost the same as
 
     BEGIN {
 	unshift(@INC, '/u/mydir/perl');

@@ -1,6 +1,5 @@
 Unicode support
     finish byte <-> utf8 and localencoding <-> utf8 conversions
-    make substr($bytestr,0,0,$charstr) do the right conversion
     add Unicode::Map equivivalent to core
     add support for I/O disciplines
         - a way to specify disciplines when opening things:
@@ -12,7 +11,25 @@ Unicode support
     eliminate need for "use utf8;"
     autoload byte.pm when byte:: is seen by the parser
     check uv_to_utf8() calls for buffer overflow
-    (see also "Locales", "Regexen", and "Miscellaneous")
+    make \uXXXX (and \u{XXXX}?) where XXXX are hex digits
+	to work similarly to Unicode tech reports and Java
+	notation \uXXXX (and already existing \x{XXXX))?
+	more than four hexdigits? make also \U+XXXX work?
+    overloadable regex assertions? e.g. in Thai \b cannot
+        be deduced by any simple character class boundary rules,
+        word boundaries must algorithmically computed
+
+    see ext/Encode/Todo for notes and references about proper detection
+    of malformed UTF-8
+
+    SCSU?          http://www.unicode.org/unicode/reports/tr6/
+    Collation?     http://www.unicode.org/unicode/reports/tr10/
+    Normalization? http://www.unicode.org/unicode/reports/tr15/
+    EBCDIC?        http://www.unicode.org/unicode/reports/tr16/
+    Regexes?       http://www.unicode.org/unicode/reports/tr18/
+    Case Mappings? http://www.unicode.org/unicode/reports/tr21/
+
+    See also "Locales", "Regexen", and "Miscellaneous".
 
 Multi-threading
     support "use Thread;" under useithreads
@@ -39,17 +56,18 @@ Namespace cleanup
     API-space:    complete the list of things that constitute public api
 
 Configure
-    fix the vicious cyclic multidependency of cc <-> libpth <-> loclibpth
-	libswanted <-> usethreads <-> use64bitint <-> use64bitall <->
-  	uselargefiles <-> ...  
     make configuring+building away from source directory work (VPATH et al)
 	this is related to: cross-compilation configuring (see Todo)
     _r support (see Todo for mode detailed description)
     POSIX 1003.1 1996 Edition support--realtime stuff:
 	POSIX semaphores, message queues, shared memory, realtime clocks,
 	timers, signals (the metaconfig units mostly already exist for these)
+	PREFERABLY AS AN EXTENSION
     UNIX98 support: reader-writer locks, realtime/asynchronous IO
+	PREFERABLY AS AN EXTENSION
     IPv6 support: see RFC2292, RFC2553
+	PREFERABLY AS AN EXTENSION
+	there already is Socket6 in CPAN
 
 Long doubles
     figure out where the PV->NV->PV conversion gets it wrong at least
@@ -60,6 +78,7 @@ Long doubles
 64-bit support
     Configure probe for quad_t, uquad_t, and (argh) u_quad_t, they might
     be in some systems the only thing working as quadtype and uquadtype.
+    more pain: long_long, u_long_long. 
 
 Locales
     deprecate traditional/legacy locales?
@@ -67,15 +86,16 @@ Locales
     figure out how to support Unicode locales
 	suggestion: integrate the IBM Classes for Unicode (ICU)
 	http://oss.software.ibm.com/developerworks/opensource/icu/project/
-	and check out also the Locale Converter:
+		ICU is "portable, open-source Unicode library with:
+		charset-independent locales (with multiple locales
+		simultaneously supported in same thread; character
+		conversions; formatting/parsing for numbers, currencies,
+		date/time and messages; message catalogs (resources);
+		transliteration, collation, normalization, and text
+		boundaries (grapheme, word, line-break))".
+	Check out also the Locale Converter:
 	http://alphaworks.ibm.com/tech/localeconverter
-    ICU is "portable, open-source Unicode library with:
-    charset-independent locales (with multiple locales simultaneously
-    supported in same thread; character conversions; formatting/parsing
-    for numbers, currencies, date/time and messages; message catalogs
-    (resources) ; transliteration, collation, normalization, and text
-    boundaries (grapheme, word, line-break))".
-    There is also 'iconv', either from XPG4 or GNU (glibc).
+    There is also the iconv interface, either from XPG4 or GNU (glibc).
     iconv is about character set conversions.
     Either ICU or iconv would be valuable to get integrated
     into Perl, Configure already probes for libiconv and <iconv.h>. 
@@ -101,6 +121,9 @@ Regexen
 	this is also a part of the Unicode 3.0:
 	http://www.unicode.org/unicode/uni2book/u2.html
 	executive summary: there are several different levels of 'equivalence'
+   trie optimization: factor out common suffixes (and prefixes?)
+	from |-alternating groups (both for exact strings and character
+	classes, use lookaheads?)
    approximate matching
 
 Security
@@ -120,22 +143,27 @@ Win32 stuff
     work out DLL versioning
 
 Miscellaneous
+    introduce @( and @) because group names can have spaces
     add new modules (Archive::Tar, Compress::Zlib, CPAN::FTP?)
     sub-second sleep()? alarm()? time()? (integrate Time::HiRes?
 	Configure doesn't yet probe for usleep/nanosleep/ualarm but
 	the units exist)
     floating point handling: nans, infinities, fp exception masks, etc.
-	at least the following interfaces exist: fp_classify(), fp_class(),
-	class(), isnan(), isinf(), isfinite(), finite(), isnormal(),
-	ordered(), fp_setmask(), fp_getmask(), fp_setround(), fp_getround(), 
-	ieeefp.h, fp_class.h.  There are metaconfig units for most of these.
-        Search for ifdef __osf__ in pp.c to find a temporary fix that
-	needs to be done right.
+	At least the following interfaces exist: fp_classify(), fp_class(),
+	class(), isinf(), isfinite(), finite(), isnormal(), unordered(),
+	<ieeefp.h>, <fp_class.h> (there are metaconfig units for all these),
+	fp_setmask(), fp_getmask(), fp_setround(), fp_getround()
+	(no metaconfig units yet for these).
+        Don't forget finitel(), fp_classl(), fp_class_l(), (yes, both do,
+	unfortunately, exist), and unorderedl().
+	PREFERABLY AS AN EXTENSION.
+	As of 5.6.1 there is cpp macro Perl_isnan().
     fix the basic arithmetics (+ - * / %) to preserve IVness/UVness if
-	both arguments are IVs/UVs
+	both arguments are IVs/UVs: it sucks that one cannot see
+	the 'carry flag' (or equivalent) of the CPU from C,
+	C is too high-level...
     replace pod2html with new PodtoHtml? (requires other modules from CPAN)
     automate testing with large parts of CPAN
-    Unicode collation? http://www.unicode.org/unicode/reports/tr10/
     turn Cwd into an XS module?  (Configure already probes for getcwd())
     mmap for speeding up input? (Configure already probes for the mmap family)
     sendmsg, recvmsg? (Configure doesn't probe for these but the units exist)
@@ -154,3 +182,5 @@ Documentation
     spot-check all new modules for completeness
     better docs for pack()/unpack()
     reorg tutorials vs. reference sections
+    make roffitall to be dynamical about its pods and libs
+

@@ -1,6 +1,5 @@
 all:
-	./mktables.PL
-	./MakeEthiopicSyllables.PL
+	../../miniperl -I../../lib ./mktables.PL
 
 clean:
 	rm -f *.pl */*.pl

@@ -169,8 +169,8 @@ if (@ARGV && $ARGV[0] eq "tree")
     exit ;
 }
 
-#unlink "warnings.h";
-#unlink "lib/warnings.pm";
+unlink "warnings.h";
+unlink "lib/warnings.pm";
 open(WARN, ">warnings.h") || die "Can't create warnings.h: $!\n";
 open(PM, ">lib/warnings.pm") || die "Can't create lib/warnings.pm: $!\n";
 
@@ -199,45 +199,6 @@ print WARN <<'EOM' ;
 
 #define specialWARN(x)		((x) == pWARN_STD || (x) == pWARN_ALL ||	\
 				 (x) == pWARN_NONE)
-
-#define ckDEAD(x)							\
-	   ( ! specialWARN(PL_curcop->cop_warnings) &&			\
-	    IsSet(SvPVX(PL_curcop->cop_warnings), 2*x+1))
-
-#define ckWARN(x)							\
-	( (PL_curcop->cop_warnings != pWARN_STD &&			\
-	   PL_curcop->cop_warnings != pWARN_NONE &&			\
-	      (PL_curcop->cop_warnings == pWARN_ALL ||			\
-	       IsSet(SvPVX(PL_curcop->cop_warnings), 2*x) ) )		\
-	  || (PL_curcop->cop_warnings == pWARN_STD && PL_dowarn & G_WARN_ON) )
-
-#define ckWARN2(x,y)							\
-	  ( (PL_curcop->cop_warnings != pWARN_STD  &&			\
-	     PL_curcop->cop_warnings != pWARN_NONE &&			\
-	      (PL_curcop->cop_warnings == pWARN_ALL ||			\
-	        IsSet(SvPVX(PL_curcop->cop_warnings), 2*x)  ||		\
-	        IsSet(SvPVX(PL_curcop->cop_warnings), 2*y) ) ) 		\
-	    ||	(PL_curcop->cop_warnings == pWARN_STD && PL_dowarn & G_WARN_ON) )
-
-#define ckWARN_d(x)							\
-	  (PL_curcop->cop_warnings == pWARN_STD ||			\
-	   PL_curcop->cop_warnings == pWARN_ALL ||			\
-	     (PL_curcop->cop_warnings != pWARN_NONE &&			\
-	      IsSet(SvPVX(PL_curcop->cop_warnings), 2*x) ) )
-
-#define ckWARN2_d(x,y)							\
-	  (PL_curcop->cop_warnings == pWARN_STD ||			\
-	   PL_curcop->cop_warnings == pWARN_ALL ||			\
-	     (PL_curcop->cop_warnings != pWARN_NONE &&			\
-	        (IsSet(SvPVX(PL_curcop->cop_warnings), 2*x)  ||		\
-	         IsSet(SvPVX(PL_curcop->cop_warnings), 2*y) ) ) )
-
-
-#define isLEXWARN_on 	(PL_curcop->cop_warnings != pWARN_STD)
-#define isLEXWARN_off	(PL_curcop->cop_warnings == pWARN_STD)
-#define isWARN_ONCE	(PL_dowarn & (G_WARN_ON|G_WARN_ONCE))
-#define isWARN_on(c,x)	(IsSet(SvPVX(c), 2*(x)))
-
 EOM
 
 my $offset = 0 ;
@@ -262,6 +223,41 @@ print WARN tab(5, '#define WARN_ALLstring'), '"', ('\125' x $warn_size) , "\"\n"
 print WARN tab(5, '#define WARN_NONEstring'), '"', ('\0' x $warn_size) , "\"\n" ;
 
 print WARN <<'EOM';
+
+#define isLEXWARN_on 	(PL_curcop->cop_warnings != pWARN_STD)
+#define isLEXWARN_off	(PL_curcop->cop_warnings == pWARN_STD)
+#define isWARN_ONCE	(PL_dowarn & (G_WARN_ON|G_WARN_ONCE))
+#define isWARN_on(c,x)	(IsSet(SvPVX(c), 2*(x)))
+#define isWARNf_on(c,x)	(IsSet(SvPVX(c), 2*(x)+1))
+
+#define ckDEAD(x)							\
+	   ( ! specialWARN(PL_curcop->cop_warnings) &&			\
+	    ( isWARNf_on(PL_curcop->cop_warnings, WARN_ALL) || 		\
+	      isWARNf_on(PL_curcop->cop_warnings, x)))
+
+#define ckWARN(x)							\
+	( (isLEXWARN_on && PL_curcop->cop_warnings != pWARN_NONE &&	\
+	      (PL_curcop->cop_warnings == pWARN_ALL ||			\
+	       isWARN_on(PL_curcop->cop_warnings, x) ) )		\
+	  || (isLEXWARN_off && PL_dowarn & G_WARN_ON) )
+
+#define ckWARN2(x,y)							\
+	  ( (isLEXWARN_on && PL_curcop->cop_warnings != pWARN_NONE &&	\
+	      (PL_curcop->cop_warnings == pWARN_ALL ||			\
+	        isWARN_on(PL_curcop->cop_warnings, x)  ||		\
+	        isWARN_on(PL_curcop->cop_warnings, y) ) ) 		\
+	    ||	(isLEXWARN_off && PL_dowarn & G_WARN_ON) )
+
+#define ckWARN_d(x)							\
+	  (isLEXWARN_off || PL_curcop->cop_warnings == pWARN_ALL ||	\
+	     (PL_curcop->cop_warnings != pWARN_NONE &&			\
+	      isWARN_on(PL_curcop->cop_warnings, x) ) )
+
+#define ckWARN2_d(x,y)							\
+	  (isLEXWARN_off || PL_curcop->cop_warnings == pWARN_ALL ||	\
+	     (PL_curcop->cop_warnings != pWARN_NONE &&			\
+	        (isWARN_on(PL_curcop->cop_warnings, x)  ||		\
+	         isWARN_on(PL_curcop->cop_warnings, y) ) ) )
 
 /* end of file warnings.h */
 
@@ -352,6 +348,14 @@ warnings - Perl pragma to control optional warnings
         warnings::warn("void", "some warning");
     }
 
+    if (warnings::enabled($object)) {
+        warnings::warn($object, "some warning");
+    }
+
+    warnif("some warning");
+    warnif("void", "some warning");
+    warnif($object, "some warning");
+
 =head1 DESCRIPTION
 
 If no import list is supplied, all possible warnings are either enabled
@@ -363,30 +367,82 @@ A number of functions are provided to assist module authors.
 
 =item use warnings::register
 
-Creates a new warnings category which has the same name as the module
-where the call to the pragma is used.
+Creates a new warnings category with the same name as the package where
+the call to the pragma is used.
 
-=item warnings::enabled([$category])
+=item warnings::enabled()
 
-Returns TRUE if the warnings category C<$category> is enabled in the
-calling module.  Otherwise returns FALSE.
+Use the warnings category with the same name as the current package.
 
-If the parameter, C<$category>, isn't supplied, the current package name
-will be used.
+Return TRUE if that warnings category is enabled in the calling module.
+Otherwise returns FALSE.
 
-=item warnings::warn([$category,] $message)
+=item warnings::enabled($category)
 
-If the calling module has I<not> set C<$category> to "FATAL", print
-C<$message> to STDERR.
-If the calling module has set C<$category> to "FATAL", print C<$message>
-STDERR then die.
+Return TRUE if the warnings category, C<$category>, is enabled in the
+calling module.
+Otherwise returns FALSE.
 
-If the parameter, C<$category>, isn't supplied, the current package name
-will be used.
+=item warnings::enabled($object)
+
+Use the name of the class for the object reference, C<$object>, as the
+warnings category.
+
+Return TRUE if that warnings category is enabled in the first scope
+where the object is used.
+Otherwise returns FALSE.
+
+=item warnings::warn($message)
+
+Print C<$message> to STDERR.
+
+Use the warnings category with the same name as the current package.
+
+If that warnings category has been set to "FATAL" in the calling module
+then die. Otherwise return.
+
+=item warnings::warn($category, $message)
+
+Print C<$message> to STDERR.
+
+If the warnings category, C<$category>, has been set to "FATAL" in the
+calling module then die. Otherwise return.
+
+=item warnings::warn($object, $message)
+
+Print C<$message> to STDERR.
+
+Use the name of the class for the object reference, C<$object>, as the
+warnings category.
+
+If that warnings category has been set to "FATAL" in the scope where C<$object>
+is first used then die. Otherwise return.
+
+
+=item warnings::warnif($message)
+
+Equivalent to:
+
+    if (warnings::enabled())
+      { warnings::warn($message) }
+
+=item warnings::warnif($category, $message)
+
+Equivalent to:
+
+    if (warnings::enabled($category))
+      { warnings::warn($category, $message) }
+
+=item warnings::warnif($object, $message)
+
+Equivalent to:
+
+    if (warnings::enabled($object))
+      { warnings::warn($object, $message) }
 
 =back
 
-See L<perlmod/Pragmatic Modules> and L<perllexwarn>.
+See L<perlmodlib/Pragmatic Modules> and L<perllexwarn>.
 
 =cut
 
@@ -417,44 +473,80 @@ sub bits {
 
 sub import {
     shift;
-    ${^WARNING_BITS} |= bits(@_ ? @_ : 'all') ;
+    my $mask = ${^WARNING_BITS} ;
+    if (vec($mask, $Offsets{'all'}, 1)) {
+        $mask |= $Bits{'all'} ;
+        $mask |= $DeadBits{'all'} if vec($mask, $Offsets{'all'}+1, 1);
+    }
+    ${^WARNING_BITS} = $mask | bits(@_ ? @_ : 'all') ;
 }
 
 sub unimport {
     shift;
     my $mask = ${^WARNING_BITS} ;
     if (vec($mask, $Offsets{'all'}, 1)) {
-        $mask = $Bits{'all'} ;
+        $mask |= $Bits{'all'} ;
         $mask |= $DeadBits{'all'} if vec($mask, $Offsets{'all'}+1, 1);
     }
     ${^WARNING_BITS} = $mask & ~ (bits(@_ ? @_ : 'all') | $All) ;
+}
+
+sub __chk
+{
+    my $category ;
+    my $offset ;
+    my $isobj = 0 ;
+
+    if (@_) {
+        # check the category supplied.
+        $category = shift ;
+        if (ref $category) {
+            croak ("not an object")
+                if $category !~ /^([^=]+)=/ ;+
+	    $category = $1 ;
+            $isobj = 1 ;
+        }
+        $offset = $Offsets{$category};
+        croak("unknown warnings category '$category'")
+	    unless defined $offset;
+    }
+    else {
+        $category = (caller(1))[0] ; 
+        $offset = $Offsets{$category};
+        croak("package '$category' not registered for warnings")
+	    unless defined $offset ;
+    }
+
+    my $this_pkg = (caller(1))[0] ; 
+    my $i = 2 ;
+    my $pkg ;
+
+    if ($isobj) {
+        while (do { { package DB; $pkg = (caller($i++))[0] } } ) {
+            last unless @DB::args && $DB::args[0] =~ /^$category=/ ;
+        }
+	$i -= 2 ;
+    }
+    else {
+        for ($i = 2 ; $pkg = (caller($i))[0] ; ++ $i) {
+            last if $pkg ne $this_pkg ;
+        }
+        $i = 2 
+            if !$pkg || $pkg eq $this_pkg ;
+    }
+
+    my $callers_bitmask = (caller($i))[9] ; 
+    return ($callers_bitmask, $offset, $i) ;
 }
 
 sub enabled
 {
     croak("Usage: warnings::enabled([category])")
 	unless @_ == 1 || @_ == 0 ;
-    local $Carp::CarpLevel = 1 ;
-    my $category ;
-    my $offset ;
-    my $callers_bitmask = (caller(1))[9] ; 
+
+    my ($callers_bitmask, $offset, $i) = __chk(@_) ;
+
     return 0 unless defined $callers_bitmask ;
-
-
-    if (@_) {
-        # check the category supplied.
-        $category = shift ;
-        $offset = $Offsets{$category};
-        croak("unknown warnings category '$category'")
-	    unless defined $offset;
-    }
-    else {
-        $category = (caller(0))[0] ; 
-        $offset = $Offsets{$category};
-        croak("package '$category' not registered for warnings")
-	    unless defined $offset ;
-    }
-
     return vec($callers_bitmask, $offset, 1) ||
            vec($callers_bitmask, $Offsets{'all'}, 1) ;
 }
@@ -464,29 +556,34 @@ sub warn
 {
     croak("Usage: warnings::warn([category,] 'message')")
 	unless @_ == 2 || @_ == 1 ;
-    local $Carp::CarpLevel = 1 ;
-    my $category ;
-    my $offset ;
-    my $callers_bitmask = (caller(1))[9] ; 
 
-    if (@_ == 2) {
-        $category = shift ;
-        $offset = $Offsets{$category};
-        croak("unknown warnings category '$category'")
-	    unless defined $offset ;
-    }
-    else {
-        $category = (caller(0))[0] ; 
-        $offset = $Offsets{$category};
-        croak("package '$category' not registered for warnings")
-	    unless defined $offset ;
-    }
-
-    my $message = shift ;
+    my $message = pop ;
+    my ($callers_bitmask, $offset, $i) = __chk(@_) ;
+    local $Carp::CarpLevel = $i ;
     croak($message) 
 	if vec($callers_bitmask, $offset+1, 1) ||
 	   vec($callers_bitmask, $Offsets{'all'}+1, 1) ;
     carp($message) ;
 }
 
+sub warnif
+{
+    croak("Usage: warnings::warnif([category,] 'message')")
+	unless @_ == 2 || @_ == 1 ;
+
+    my $message = pop ;
+    my ($callers_bitmask, $offset, $i) = __chk(@_) ;
+    local $Carp::CarpLevel = $i ;
+
+    return 
+        unless defined $callers_bitmask &&
+            	(vec($callers_bitmask, $offset, 1) ||
+            	vec($callers_bitmask, $Offsets{'all'}, 1)) ;
+
+    croak($message) 
+	if vec($callers_bitmask, $offset+1, 1) ||
+	   vec($callers_bitmask, $Offsets{'all'}+1, 1) ;
+
+    carp($message) ;
+}
 1;

@@ -1,6 +1,6 @@
 /*    pp_sys.c
  *
- *    Copyright (c) 1991-2000, Larry Wall
+ *    Copyright (c) 1991-2001, Larry Wall
  *
  *    You may distribute under the terms of either the GNU General Public
  *    License or the Artistic License, as specified in the README file.
@@ -21,22 +21,22 @@
 #ifdef I_SHADOW
 /* Shadow password support for solaris - pdo@cs.umd.edu
  * Not just Solaris: at least HP-UX, IRIX, Linux.
- * the API is from SysV. --jhi */
-#ifdef __hpux__
+ * The API is from SysV.
+ *
+ * There are at least two more shadow interfaces,
+ * see the comments in pp_gpwent().
+ *
+ * --jhi */
+#   ifdef __hpux__
 /* There is a MAXINT coming from <shadow.h> <- <hpsecurity.h> <- <values.h>
- * and another MAXINT from "perl.h" <- <sys/param.h>. */ 
-#undef MAXINT
-#endif
-#include <shadow.h>
-#endif
-
-/* XXX If this causes problems, set i_unistd=undef in the hint file.  */
-#ifdef I_UNISTD
-# include <unistd.h>
+ * and another MAXINT from "perl.h" <- <sys/param.h>. */
+#       undef MAXINT
+#   endif
+#   include <shadow.h>
 #endif
 
-#ifdef HAS_SYSCALL   
-#ifdef __cplusplus              
+#ifdef HAS_SYSCALL
+#ifdef __cplusplus
 extern "C" int syscall(unsigned long,...);
 #endif
 #endif
@@ -49,25 +49,10 @@ extern "C" int syscall(unsigned long,...);
 # include <sys/resource.h>
 #endif
 
-#if defined(HAS_SOCKET) && !defined(VMS) /* VMS handles sockets via vmsish.h */
-# include <sys/socket.h>
-# if defined(USE_SOCKS) && defined(I_SOCKS)
-#   include <socks.h>
-# endif 
-# ifdef I_NETDB
-#  include <netdb.h>
-# endif
-# ifndef ENOTSOCK
-#  ifdef I_NET_ERRNO
-#   include <net/errno.h>
-#  endif
-# endif
-#endif
-
 #ifdef HAS_SELECT
-#ifdef I_SYS_SELECT
-#include <sys/select.h>
-#endif
+# ifdef I_SYS_SELECT
+#  include <sys/select.h>
+# endif
 #endif
 
 /* XXX Configure test needed.
@@ -137,7 +122,7 @@ extern int h_errno;
 #    include <fcntl.h>
 #  endif
 
-#  if defined(HAS_FCNTL) && defined(F_SETLK) && defined (F_SETLKW)
+#  if defined(HAS_FCNTL) && defined(FCNTL_CAN_LOCK)
 #    define FLOCK fcntl_emulate_flock
 #    define FCNTL_EMULATE_FLOCK
 #  else /* no flock() or fcntl(F_SETLK,...) */
@@ -195,10 +180,9 @@ static char zero_but_true[ZBTLEN + 1] = "0 but true";
 #endif
 
 #if !defined(PERL_EFF_ACCESS_R_OK) && defined(HAS_EACCESS)
-#   if defined(I_SYS_SECURITY)
+#   ifdef I_SYS_SECURITY
 #       include <sys/security.h>
 #   endif
-    /* XXX Configure test needed for eaccess */
 #   ifdef ACC_SELF
         /* HP SecureWare */
 #       define PERL_EFF_ACCESS_R_OK(p) (eaccess((p), R_OK, ACC_SELF))
@@ -299,7 +283,7 @@ S_emulate_eaccess(pTHX_ const char* path, Mode_t mode)
 
 PP(pp_backtick)
 {
-    djSP; dTARGET;
+    dSP; dTARGET;
     PerlIO *fp;
     STRLEN n_a;
     char *tmps = POPpx;
@@ -411,7 +395,7 @@ PP(pp_rcatline)
 
 PP(pp_warn)
 {
-    djSP; dMARK;
+    dSP; dMARK;
     SV *tmpsv;
     char *tmps;
     STRLEN len;
@@ -442,7 +426,7 @@ PP(pp_warn)
 
 PP(pp_die)
 {
-    djSP; dMARK;
+    dSP; dMARK;
     char *tmps;
     SV *tmpsv;
     STRLEN len;
@@ -501,10 +485,10 @@ PP(pp_die)
 
 PP(pp_open)
 {
-    djSP; dTARGET;
+    dSP; dTARGET;
     GV *gv;
     SV *sv;
-    SV *name;
+    SV *name = Nullsv;
     I32 have_name = 0;
     char *tmps;
     STRLEN len;
@@ -552,7 +536,7 @@ PP(pp_open)
 
 PP(pp_close)
 {
-    djSP;
+    dSP;
     GV *gv;
     MAGIC *mg;
 
@@ -578,7 +562,7 @@ PP(pp_close)
 
 PP(pp_pipe_op)
 {
-    djSP;
+    dSP;
 #ifdef HAS_PIPE
     GV *rgv;
     GV *wgv;
@@ -608,8 +592,8 @@ PP(pp_pipe_op)
     IoIFP(rstio) = PerlIO_fdopen(fd[0], "r");
     IoOFP(wstio) = PerlIO_fdopen(fd[1], "w");
     IoIFP(wstio) = IoOFP(wstio);
-    IoTYPE(rstio) = '<';
-    IoTYPE(wstio) = '>';
+    IoTYPE(rstio) = IoTYPE_RDONLY;
+    IoTYPE(wstio) = IoTYPE_WRONLY;
 
     if (!IoIFP(rstio) || !IoOFP(wstio)) {
 	if (IoIFP(rstio)) PerlIO_close(IoIFP(rstio));
@@ -633,7 +617,7 @@ badexit:
 
 PP(pp_fileno)
 {
-    djSP; dTARGET;
+    dSP; dTARGET;
     GV *gv;
     IO *io;
     PerlIO *fp;
@@ -662,7 +646,7 @@ PP(pp_fileno)
 
 PP(pp_umask)
 {
-    djSP; dTARGET;
+    dSP; dTARGET;
     Mode_t anum;
 
 #ifdef HAS_UMASK
@@ -687,7 +671,7 @@ PP(pp_umask)
 
 PP(pp_binmode)
 {
-    djSP;
+    dSP;
     GV *gv;
     IO *io;
     PerlIO *fp;
@@ -699,7 +683,7 @@ PP(pp_binmode)
     if (MAXARG > 1)
 	discp = POPs;
 
-    gv = (GV*)POPs; 
+    gv = (GV*)POPs;
 
     if (gv && (mg = SvTIED_mg((SV*)gv, 'q'))) {
 	PUSHMARK(SP);
@@ -718,7 +702,7 @@ PP(pp_binmode)
     if (!(io = GvIO(gv)) || !(fp = IoIFP(io)))
 	RETPUSHUNDEF;
 
-    if (do_binmode(fp,IoTYPE(io),mode_from_discipline(discp))) 
+    if (do_binmode(fp,IoTYPE(io),mode_from_discipline(discp)))
 	RETPUSHYES;
     else
 	RETPUSHUNDEF;
@@ -726,7 +710,7 @@ PP(pp_binmode)
 
 PP(pp_tie)
 {
-    djSP;
+    dSP;
     dMARK;
     SV *varsv;
     HV* stash;
@@ -765,7 +749,7 @@ PP(pp_tie)
 	    PUSHs(*MARK++);
 	PUTBACK;
 	call_method(methname, G_SCALAR);
-    } 
+    }
     else {
 	/* Not clear why we don't call call_method here too.
 	 * perhaps to get different error message ?
@@ -773,7 +757,7 @@ PP(pp_tie)
 	stash = gv_stashsv(*MARK, FALSE);
 	if (!stash || !(gv = gv_fetchmethod(stash, methname))) {
 	    DIE(aTHX_ "Can't locate object method \"%s\" via package \"%s\"",
-		 methname, SvPV(*MARK,n_a));                   
+		 methname, SvPV(*MARK,n_a));
 	}
 	ENTER;
 	PUSHSTACKi(PERLSI_MAGIC);
@@ -800,27 +784,40 @@ PP(pp_tie)
 
 PP(pp_untie)
 {
-    djSP;
+    dSP;
     SV *sv = POPs;
     char how = (SvTYPE(sv) == SVt_PVHV || SvTYPE(sv) == SVt_PVAV) ? 'P' : 'q';
 
-    if (ckWARN(WARN_UNTIE)) {
         MAGIC * mg ;
         if ((mg = SvTIED_mg(sv, how))) {
-            if (mg && SvREFCNT(SvRV(mg->mg_obj)) > 1)  
+	SV *obj = SvRV(mg->mg_obj);
+	GV *gv;
+	CV *cv = NULL;
+	if ((gv = gv_fetchmethod_autoload(SvSTASH(obj), "UNTIE", FALSE)) &&
+            isGV(gv) && (cv = GvCV(gv))) {
+	    PUSHMARK(SP);
+	    XPUSHs(SvTIED_obj((SV*)gv, mg));
+	    XPUSHs(sv_2mortal(newSViv(SvREFCNT(obj)-1)));
+	    PUTBACK;
+	    ENTER;
+	    call_sv((SV *)cv, G_VOID);
+	    LEAVE;
+	    SPAGAIN;
+        }
+        else if (ckWARN(WARN_UNTIE)) {
+	    if (mg && SvREFCNT(obj) > 1)
 		Perl_warner(aTHX_ WARN_UNTIE,
 		    "untie attempted while %"UVuf" inner references still exist",
-		    (UV)SvREFCNT(SvRV(mg->mg_obj)) - 1 ) ;
+		    (UV)SvREFCNT(obj) - 1 ) ;
         }
     }
- 
     sv_unmagic(sv, how);
     RETPUSHYES;
 }
 
 PP(pp_tied)
 {
-    djSP;
+    dSP;
     SV *sv = POPs;
     char how = (SvTYPE(sv) == SVt_PVHV || SvTYPE(sv) == SVt_PVAV) ? 'P' : 'q';
     MAGIC *mg;
@@ -837,7 +834,7 @@ PP(pp_tied)
 
 PP(pp_dbmopen)
 {
-    djSP;
+    dSP;
     HV *hv;
     dPOPPOPssrl;
     HV* stash;
@@ -885,7 +882,7 @@ PP(pp_dbmopen)
     }
 
     if (sv_isobject(TOPs)) {
-	sv_unmagic((SV *) hv, 'P');            
+	sv_unmagic((SV *) hv, 'P');
 	sv_magic((SV*)hv, TOPs, 'P', Nullch, 0);
     }
     LEAVE;
@@ -899,7 +896,7 @@ PP(pp_dbmclose)
 
 PP(pp_sselect)
 {
-    djSP; dTARGET;
+    dSP; dTARGET;
 #ifdef HAS_SELECT
     register I32 i;
     register I32 j;
@@ -1041,7 +1038,6 @@ PP(pp_sselect)
 void
 Perl_setdefout(pTHX_ GV *gv)
 {
-    dTHR;
     if (gv)
 	(void)SvREFCNT_inc(gv);
     if (PL_defoutgv)
@@ -1051,7 +1047,7 @@ Perl_setdefout(pTHX_ GV *gv)
 
 PP(pp_select)
 {
-    djSP; dTARGET;
+    dSP; dTARGET;
     GV *newdefout, *egv;
     HV *hv;
 
@@ -1066,7 +1062,7 @@ PP(pp_select)
     else {
 	GV **gvp = (GV**)hv_fetch(hv, GvNAME(egv), GvNAMELEN(egv), FALSE);
 	if (gvp && *gvp == egv) {
-	    gv_efullname3(TARG, PL_defoutgv, Nullch);
+	    gv_efullname4(TARG, PL_defoutgv, Nullch, TRUE);
 	    XPUSHTARG;
 	}
 	else {
@@ -1085,7 +1081,7 @@ PP(pp_select)
 
 PP(pp_getc)
 {
-    djSP; dTARGET;
+    dSP; dTARGET;
     GV *gv;
     MAGIC *mg;
 
@@ -1124,7 +1120,6 @@ PP(pp_read)
 STATIC OP *
 S_doform(pTHX_ CV *cv, GV *gv, OP *retop)
 {
-    dTHR;
     register PERL_CONTEXT *cx;
     I32 gimme = GIMME_V;
     AV* padlist = CvPADLIST(cv);
@@ -1145,7 +1140,7 @@ S_doform(pTHX_ CV *cv, GV *gv, OP *retop)
 
 PP(pp_enterwrite)
 {
-    djSP;
+    dSP;
     register GV *gv;
     register IO *io;
     GV *fgv;
@@ -1170,11 +1165,14 @@ PP(pp_enterwrite)
 
     cv = GvFORM(fgv);
     if (!cv) {
+        char *name = NULL;
 	if (fgv) {
 	    SV *tmpsv = sv_newmortal();
-	    gv_efullname3(tmpsv, fgv, Nullch);
-	    DIE(aTHX_ "Undefined format \"%s\" called",SvPVX(tmpsv));
+	    gv_efullname4(tmpsv, fgv, Nullch, FALSE);
+	    name = SvPV_nolen(tmpsv);
 	}
+	if (name && *name)
+	    DIE(aTHX_ "Undefined format \"%s\" called", name);
 	DIE(aTHX_ "Not a format reference");
     }
     if (CvCLONE(cv))
@@ -1186,7 +1184,7 @@ PP(pp_enterwrite)
 
 PP(pp_leavewrite)
 {
-    djSP;
+    dSP;
     GV *gv = cxstack[cxstack_ix].blk_sub.gv;
     register IO *io = GvIOp(gv);
     PerlIO *ofp = IoOFP(io);
@@ -1251,10 +1249,19 @@ PP(pp_leavewrite)
 	if (!fgv)
 	    DIE(aTHX_ "bad top format reference");
 	cv = GvFORM(fgv);
-	if (!cv) {
-	    SV *tmpsv = sv_newmortal();
-	    gv_efullname3(tmpsv, fgv, Nullch);
-	    DIE(aTHX_ "Undefined top format \"%s\" called",SvPVX(tmpsv));
+	{
+	    char *name = NULL;
+	    if (!cv) {
+	        SV *sv = sv_newmortal();
+		gv_efullname4(sv, fgv, Nullch, FALSE);
+		name = SvPV_nolen(sv);
+	    }
+	    if (name && *name)
+	        DIE(aTHX_ "Undefined top format \"%s\" called",name);
+	    /* why no:
+	    else
+	        DIE(aTHX_ "Undefined top format called");
+	    ?*/
 	}
 	if (CvCLONE(cv))
 	    cv = (CV*)sv_2mortal((SV*)cv_clone(cv));
@@ -1270,14 +1277,22 @@ PP(pp_leavewrite)
     if (!fp) {
 	if (ckWARN2(WARN_CLOSED,WARN_IO)) {
 	    if (IoIFP(io)) {
-		SV* sv = sv_newmortal();
-		gv_efullname3(sv, gv, Nullch);
-		Perl_warner(aTHX_ WARN_IO,
-			    "Filehandle %s opened only for input",
-			    SvPV_nolen(sv));
+		/* integrate with report_evil_fh()? */
+	        char *name = NULL;
+		if (isGV(gv)) {
+		    SV* sv = sv_newmortal();
+		    gv_efullname4(sv, gv, Nullch, FALSE);
+		    name = SvPV_nolen(sv);
+		}
+		if (name && *name)
+		    Perl_warner(aTHX_ WARN_IO,
+				"Filehandle %s opened only for input", name);
+		else
+		    Perl_warner(aTHX_ WARN_IO,
+				"Filehandle opened only for input");
 	    }
 	    else if (ckWARN(WARN_CLOSED))
-		report_closed_fh(gv, io, "write", "filehandle");
+		report_evil_fh(gv, io, PL_op->op_type);
 	}
 	PUSHs(&PL_sv_no);
     }
@@ -1305,7 +1320,7 @@ PP(pp_leavewrite)
 
 PP(pp_prtf)
 {
-    djSP; dMARK; dORIGMARK;
+    dSP; dMARK; dORIGMARK;
     GV *gv;
     IO *io;
     PerlIO *fp;
@@ -1340,24 +1355,29 @@ PP(pp_prtf)
 
     sv = NEWSV(0,0);
     if (!(io = GvIO(gv))) {
-	if (ckWARN(WARN_UNOPENED)) {
-	    gv_efullname3(sv, gv, Nullch);
-	    Perl_warner(aTHX_ WARN_UNOPENED,
-			"Filehandle %s never opened", SvPV(sv,n_a));
-	}
+	if (ckWARN2(WARN_UNOPENED,WARN_CLOSED))
+	    report_evil_fh(gv, io, PL_op->op_type);
 	SETERRNO(EBADF,RMS$_IFI);
 	goto just_say_no;
     }
     else if (!(fp = IoOFP(io))) {
 	if (ckWARN2(WARN_CLOSED,WARN_IO))  {
+	    /* integrate with report_evil_fh()? */
 	    if (IoIFP(io)) {
-		gv_efullname3(sv, gv, Nullch);
-		Perl_warner(aTHX_ WARN_IO,
-			    "Filehandle %s opened only for input",
-			    SvPV(sv,n_a));
+	        char *name = NULL;
+		if (isGV(gv)) {
+		    gv_efullname4(sv, gv, Nullch, FALSE);
+		    name = SvPV_nolen(sv);
+		}
+		if (name && *name)
+		    Perl_warner(aTHX_ WARN_IO,
+				"Filehandle %s opened only for input", name);
+		else
+		    Perl_warner(aTHX_ WARN_IO,
+				"Filehandle opened only for input");
 	    }
 	    else if (ckWARN(WARN_CLOSED))
-		report_closed_fh(gv, io, "printf", "filehandle");
+		report_evil_fh(gv, io, PL_op->op_type);
 	}
 	SETERRNO(EBADF,IoIFP(io)?RMS$_FAC:RMS$_IFI);
 	goto just_say_no;
@@ -1385,7 +1405,7 @@ PP(pp_prtf)
 
 PP(pp_sysopen)
 {
-    djSP;
+    dSP;
     GV *gv;
     SV *sv;
     char *tmps;
@@ -1415,7 +1435,7 @@ PP(pp_sysopen)
 
 PP(pp_sysread)
 {
-    djSP; dMARK; dORIGMARK; dTARGET;
+    dSP; dMARK; dORIGMARK; dTARGET;
     int offset;
     GV *gv;
     IO *io;
@@ -1473,16 +1493,16 @@ PP(pp_sysread)
 	if (bufsize >= 256)
 	    bufsize = 255;
 #endif
-#ifdef OS2	/* At least Warp3+IAK: only the first byte of bufsize set */
-	if (bufsize >= 256)
-	    bufsize = 255;
-#endif
 	buffer = SvGROW(bufsv, length+1);
 	/* 'offset' means 'flags' here */
 	length = PerlSock_recvfrom(PerlIO_fileno(IoIFP(io)), buffer, length, offset,
 			  (struct sockaddr *)namebuf, &bufsize);
 	if (length < 0)
 	    RETPUSHUNDEF;
+#ifdef EPOC
+	/* Bogus return without padding */
+	bufsize = sizeof (struct sockaddr_in);
+#endif
 	SvCUR_set(bufsv, length);
 	*SvEND(bufsv) = '\0';
 	(void)SvPOK_only(bufsv);
@@ -1511,7 +1531,7 @@ PP(pp_sysread)
     }
     if (PL_op->op_type == OP_SYSREAD) {
 #ifdef PERL_SOCK_SYSREAD_IS_RECV
-	if (IoTYPE(io) == 's') {
+	if (IoTYPE(io) == IoTYPE_SOCKET) {
 	    length = PerlSock_recv(PerlIO_fileno(IoIFP(io)),
 				   buffer+offset, length, 0);
 	}
@@ -1524,7 +1544,7 @@ PP(pp_sysread)
     }
     else
 #ifdef HAS_SOCKET__bad_code_maybe
-    if (IoTYPE(io) == 's') {
+    if (IoTYPE(io) == IoTYPE_SOCKET) {
 	char namebuf[MAXPATHLEN];
 #if defined(VMS_DO_SOCKETS) && defined(DECCRTL_SOCKETS)
 	bufsize = sizeof (struct sockaddr_in);
@@ -1543,13 +1563,22 @@ PP(pp_sysread)
 	    length = -1;
     }
     if (length < 0) {
-	if ((IoTYPE(io) == '>' || IoIFP(io) == PerlIO_stdout()
+	if ((IoTYPE(io) == IoTYPE_WRONLY || IoIFP(io) == PerlIO_stdout()
 	    || IoIFP(io) == PerlIO_stderr()) && ckWARN(WARN_IO))
 	{
-	    SV* sv = sv_newmortal();
-	    gv_efullname3(sv, gv, Nullch);
-	    Perl_warner(aTHX_ WARN_IO, "Filehandle %s opened only for output",
-			SvPV_nolen(sv));
+	    /* integrate with report_evil_fh()? */
+	    char *name = NULL;
+	    if (isGV(gv)) {
+		SV* sv = sv_newmortal();
+		gv_efullname4(sv, gv, Nullch, FALSE);
+		name = SvPV_nolen(sv);
+	    }
+	    if (name && *name)
+		Perl_warner(aTHX_ WARN_IO,
+			    "Filehandle %s opened only for output", name);
+	    else
+		Perl_warner(aTHX_ WARN_IO,
+			    "Filehandle opened only for output");
 	}
 	goto say_undef;
     }
@@ -1571,7 +1600,7 @@ PP(pp_sysread)
 
 PP(pp_syswrite)
 {
-    djSP;
+    dSP;
     int items = (SP - PL_stack_base) - TOPMARK;
     if (items == 2) {
 	SV *sv;
@@ -1585,7 +1614,7 @@ PP(pp_syswrite)
 
 PP(pp_send)
 {
-    djSP; dMARK; dORIGMARK; dTARGET;
+    dSP; dMARK; dORIGMARK; dTARGET;
     GV *gv;
     IO *io;
     SV *bufsv;
@@ -1626,12 +1655,8 @@ PP(pp_send)
     io = GvIO(gv);
     if (!io || !IoIFP(io)) {
 	retval = -1;
-	if (ckWARN(WARN_CLOSED)) {
-	    if (PL_op->op_type == OP_SYSWRITE)
-		report_closed_fh(gv, io, "syswrite", "filehandle");
-	    else
-		report_closed_fh(gv, io, "send", "socket");
-	}
+	if (ckWARN(WARN_CLOSED))
+	    report_evil_fh(gv, io, PL_op->op_type);
     }
     else if (PL_op->op_type == OP_SYSWRITE) {
 	if (MARK < SP) {
@@ -1647,7 +1672,7 @@ PP(pp_send)
 	if (length > blen - offset)
 	    length = blen - offset;
 #ifdef PERL_SOCK_SYSWRITE_IS_SEND
-	if (IoTYPE(io) == 's') {
+	if (IoTYPE(io) == IoTYPE_SOCKET) {
 	    retval = PerlSock_send(PerlIO_fileno(IoIFP(io)),
 				   buffer+offset, length, 0);
 	}
@@ -1696,7 +1721,7 @@ PP(pp_recv)
 
 PP(pp_eof)
 {
-    djSP;
+    dSP;
     GV *gv;
     MAGIC *mg;
 
@@ -1740,8 +1765,8 @@ PP(pp_eof)
 
 PP(pp_tell)
 {
-    djSP; dTARGET;
-    GV *gv;     
+    dSP; dTARGET;
+    GV *gv;
     MAGIC *mg;
 
     if (MAXARG == 0)
@@ -1775,7 +1800,7 @@ PP(pp_seek)
 
 PP(pp_sysseek)
 {
-    djSP;
+    dSP;
     GV *gv;
     int whence = POPi;
 #if LSEEKSIZE > IVSIZE
@@ -1826,7 +1851,7 @@ PP(pp_sysseek)
 
 PP(pp_truncate)
 {
-    djSP;
+    dSP;
     /* There seems to be no consensus on the length type of truncate()
      * and ftruncate(), both off_t and size_t have supporters. In
      * general one would think that when using large files, off_t is
@@ -1843,7 +1868,7 @@ PP(pp_truncate)
     len = (Off_t)POPi;
 #endif
     /* Checking for length < 0 is problematic as the type might or
-     * might not be signed: if it is not, clever compilers will moan. */ 
+     * might not be signed: if it is not, clever compilers will moan. */
     /* XXX Configure probe for the signedness of the length type of *truncate() needed? XXX */
     SETERRNO(0,0);
 #if defined(HAS_TRUNCATE) || defined(HAS_CHSIZE) || defined(F_FREESP)
@@ -1857,7 +1882,7 @@ PP(pp_truncate)
 	    PerlIO_flush(IoIFP(GvIOp(tmpgv)));
 #ifdef HAS_TRUNCATE
 	    if (ftruncate(PerlIO_fileno(IoIFP(GvIOn(tmpgv))), len) < 0)
-#else 
+#else
 	    if (my_chsize(PerlIO_fileno(IoIFP(GvIOn(tmpgv))), len) < 0)
 #endif
 		result = 0;
@@ -1913,7 +1938,7 @@ PP(pp_fcntl)
 
 PP(pp_ioctl)
 {
-    djSP; dTARGET;
+    dSP; dTARGET;
     SV *argsv = POPs;
     unsigned int func = U_I(POPn);
     int optype = PL_op->op_type;
@@ -1958,7 +1983,7 @@ PP(pp_ioctl)
 	retval = fcntl(PerlIO_fileno(IoIFP(io)), func, (int)s);
 #else
 	retval = fcntl(PerlIO_fileno(IoIFP(io)), func, s);
-#endif 
+#endif
 #else
 	DIE(aTHX_ "fcntl is not implemented");
 #endif
@@ -1984,10 +2009,11 @@ PP(pp_ioctl)
 
 PP(pp_flock)
 {
-    djSP; dTARGET;
+    dSP; dTARGET;
     I32 value;
     int argtype;
     GV *gv;
+    IO *io = NULL;
     PerlIO *fp;
 
 #ifdef FLOCK
@@ -1996,19 +2022,21 @@ PP(pp_flock)
 	gv = PL_last_in_gv;
     else
 	gv = (GV*)POPs;
-    if (gv && GvIO(gv))
-	fp = IoIFP(GvIOp(gv));
-    else
+    if (gv && (io = GvIO(gv)))
+	fp = IoIFP(io);
+    else {
 	fp = Nullfp;
+	io = NULL;
+    }
     if (fp) {
 	(void)PerlIO_flush(fp);
 	value = (I32)(PerlLIO_flock(PerlIO_fileno(fp), argtype) >= 0);
     }
     else {
+	if (ckWARN2(WARN_UNOPENED,WARN_CLOSED))
+	    report_evil_fh(gv, io, PL_op->op_type);
 	value = 0;
 	SETERRNO(EBADF,RMS$_IFI);
-	if (ckWARN(WARN_CLOSED))
-	    report_closed_fh(gv, GvIO(gv), "flock", "filehandle");
     }
     PUSHi(value);
     RETURN;
@@ -2021,7 +2049,7 @@ PP(pp_flock)
 
 PP(pp_socket)
 {
-    djSP;
+    dSP;
 #ifdef HAS_SOCKET
     GV *gv;
     register IO *io;
@@ -2047,7 +2075,7 @@ PP(pp_socket)
 	RETPUSHUNDEF;
     IoIFP(io) = PerlIO_fdopen(fd, "r");	/* stdio gets confused about sockets */
     IoOFP(io) = PerlIO_fdopen(fd, "w");
-    IoTYPE(io) = 's';
+    IoTYPE(io) = IoTYPE_SOCKET;
     if (!IoIFP(io) || !IoOFP(io)) {
 	if (IoIFP(io)) PerlIO_close(IoIFP(io));
 	if (IoOFP(io)) PerlIO_close(IoOFP(io));
@@ -2058,6 +2086,10 @@ PP(pp_socket)
     fcntl(fd, F_SETFD, fd > PL_maxsysfd);	/* ensure close-on-exec */
 #endif
 
+#ifdef EPOC
+    setbuf( IoIFP(io), NULL); /* EPOC gets confused about sockets */
+#endif
+
     RETPUSHYES;
 #else
     DIE(aTHX_ PL_no_sock_func, "socket");
@@ -2066,7 +2098,7 @@ PP(pp_socket)
 
 PP(pp_sockpair)
 {
-    djSP;
+    dSP;
 #ifdef HAS_SOCKETPAIR
     GV *gv1;
     GV *gv2;
@@ -2094,10 +2126,10 @@ PP(pp_sockpair)
 	RETPUSHUNDEF;
     IoIFP(io1) = PerlIO_fdopen(fd[0], "r");
     IoOFP(io1) = PerlIO_fdopen(fd[0], "w");
-    IoTYPE(io1) = 's';
+    IoTYPE(io1) = IoTYPE_SOCKET;
     IoIFP(io2) = PerlIO_fdopen(fd[1], "r");
     IoOFP(io2) = PerlIO_fdopen(fd[1], "w");
-    IoTYPE(io2) = 's';
+    IoTYPE(io2) = IoTYPE_SOCKET;
     if (!IoIFP(io1) || !IoOFP(io1) || !IoIFP(io2) || !IoOFP(io2)) {
 	if (IoIFP(io1)) PerlIO_close(IoIFP(io1));
 	if (IoOFP(io1)) PerlIO_close(IoOFP(io1));
@@ -2120,7 +2152,7 @@ PP(pp_sockpair)
 
 PP(pp_bind)
 {
-    djSP;
+    dSP;
 #ifdef HAS_SOCKET
 #ifdef MPE /* Requires PRIV mode to bind() to ports < 1024 */
     extern GETPRIVMODE();
@@ -2169,7 +2201,7 @@ PP(pp_bind)
 
 nuts:
     if (ckWARN(WARN_CLOSED))
-	report_closed_fh(gv, io, "bind", "socket");
+	report_evil_fh(gv, io, PL_op->op_type);
     SETERRNO(EBADF,SS$_IVCHAN);
     RETPUSHUNDEF;
 #else
@@ -2179,7 +2211,7 @@ nuts:
 
 PP(pp_connect)
 {
-    djSP;
+    dSP;
 #ifdef HAS_SOCKET
     SV *addrsv = POPs;
     char *addr;
@@ -2199,7 +2231,7 @@ PP(pp_connect)
 
 nuts:
     if (ckWARN(WARN_CLOSED))
-	report_closed_fh(gv, io, "connect", "socket");
+	report_evil_fh(gv, io, PL_op->op_type);
     SETERRNO(EBADF,SS$_IVCHAN);
     RETPUSHUNDEF;
 #else
@@ -2209,7 +2241,7 @@ nuts:
 
 PP(pp_listen)
 {
-    djSP;
+    dSP;
 #ifdef HAS_SOCKET
     int backlog = POPi;
     GV *gv = (GV*)POPs;
@@ -2225,7 +2257,7 @@ PP(pp_listen)
 
 nuts:
     if (ckWARN(WARN_CLOSED))
-	report_closed_fh(gv, io, "listen", "socket");
+	report_evil_fh(gv, io, PL_op->op_type);
     SETERRNO(EBADF,SS$_IVCHAN);
     RETPUSHUNDEF;
 #else
@@ -2235,7 +2267,7 @@ nuts:
 
 PP(pp_accept)
 {
-    djSP; dTARGET;
+    dSP; dTARGET;
 #ifdef HAS_SOCKET
     GV *ngv;
     GV *ggv;
@@ -2266,7 +2298,7 @@ PP(pp_accept)
 	goto badexit;
     IoIFP(nstio) = PerlIO_fdopen(fd, "r");
     IoOFP(nstio) = PerlIO_fdopen(fd, "w");
-    IoTYPE(nstio) = 's';
+    IoTYPE(nstio) = IoTYPE_SOCKET;
     if (!IoIFP(nstio) || !IoOFP(nstio)) {
 	if (IoIFP(nstio)) PerlIO_close(IoIFP(nstio));
 	if (IoOFP(nstio)) PerlIO_close(IoOFP(nstio));
@@ -2277,12 +2309,17 @@ PP(pp_accept)
     fcntl(fd, F_SETFD, fd > PL_maxsysfd);	/* ensure close-on-exec */
 #endif
 
+#ifdef EPOC
+    len = sizeof saddr;          /* EPOC somehow truncates info */
+    setbuf( IoIFP(nstio), NULL); /* EPOC gets confused about sockets */
+#endif
+
     PUSHp((char *)&saddr, len);
     RETURN;
 
 nuts:
     if (ckWARN(WARN_CLOSED))
-	report_closed_fh(ggv, ggv ? GvIO(ggv) : 0, "accept", "socket");
+	report_evil_fh(ggv, ggv ? GvIO(ggv) : 0, PL_op->op_type);
     SETERRNO(EBADF,SS$_IVCHAN);
 
 badexit:
@@ -2295,7 +2332,7 @@ badexit:
 
 PP(pp_shutdown)
 {
-    djSP; dTARGET;
+    dSP; dTARGET;
 #ifdef HAS_SOCKET
     int how = POPi;
     GV *gv = (GV*)POPs;
@@ -2309,7 +2346,7 @@ PP(pp_shutdown)
 
 nuts:
     if (ckWARN(WARN_CLOSED))
-	report_closed_fh(gv, io, "shutdown", "socket");
+	report_evil_fh(gv, io, PL_op->op_type);
     SETERRNO(EBADF,SS$_IVCHAN);
     RETPUSHUNDEF;
 #else
@@ -2328,7 +2365,7 @@ PP(pp_gsockopt)
 
 PP(pp_ssockopt)
 {
-    djSP;
+    dSP;
 #ifdef HAS_SOCKET
     int optype = PL_op->op_type;
     SV *sv;
@@ -2388,9 +2425,7 @@ PP(pp_ssockopt)
 
 nuts:
     if (ckWARN(WARN_CLOSED))
-	report_closed_fh(gv, io,
-			 optype == OP_GSOCKOPT ? "getsockopt" : "setsockopt",
-			 "socket");
+	report_evil_fh(gv, io, optype);
     SETERRNO(EBADF,SS$_IVCHAN);
 nuts2:
     RETPUSHUNDEF;
@@ -2411,7 +2446,7 @@ PP(pp_getsockname)
 
 PP(pp_getpeername)
 {
-    djSP;
+    dSP;
 #ifdef HAS_SOCKET
     int optype = PL_op->op_type;
     SV *sv;
@@ -2444,7 +2479,7 @@ PP(pp_getpeername)
 	    if (((struct sockaddr *)SvPVX(sv))->sa_family == AF_INET &&
 		!memcmp((char *)SvPVX(sv) + sizeof(u_short), nowhere,
 			sizeof(u_short) + sizeof(struct in_addr))) {
-		goto nuts2;	    
+		goto nuts2;	
 	    }
 	}
 #endif
@@ -2463,10 +2498,7 @@ PP(pp_getpeername)
 
 nuts:
     if (ckWARN(WARN_CLOSED))
-	report_closed_fh(gv, io,
-			 optype == OP_GETSOCKNAME ? "getsockname"
-						  : "getpeername",
-			 "socket");
+	report_evil_fh(gv, io, optype);
     SETERRNO(EBADF,SS$_IVCHAN);
 nuts2:
     RETPUSHUNDEF;
@@ -2485,33 +2517,36 @@ PP(pp_lstat)
 
 PP(pp_stat)
 {
-    djSP;
-    GV *tmpgv;
+    dSP;
+    GV *gv;
     I32 gimme;
     I32 max = 13;
     STRLEN n_a;
 
     if (PL_op->op_flags & OPf_REF) {
-	tmpgv = cGVOP_gv;
+	gv = cGVOP_gv;
       do_fstat:
-	if (tmpgv != PL_defgv) {
+	if (gv != PL_defgv) {
 	    PL_laststype = OP_STAT;
-	    PL_statgv = tmpgv;
+	    PL_statgv = gv;
 	    sv_setpv(PL_statname, "");
-	    PL_laststatval = (GvIO(tmpgv) && IoIFP(GvIOp(tmpgv))
-		? PerlLIO_fstat(PerlIO_fileno(IoIFP(GvIOn(tmpgv))), &PL_statcache) : -1);
+	    PL_laststatval = (GvIO(gv) && IoIFP(GvIOp(gv))
+		? PerlLIO_fstat(PerlIO_fileno(IoIFP(GvIOn(gv))), &PL_statcache) : -1);
 	}
-	if (PL_laststatval < 0)
+	if (PL_laststatval < 0) {
+	    if (ckWARN2(WARN_UNOPENED,WARN_CLOSED))
+		report_evil_fh(gv, GvIO(gv), PL_op->op_type);
 	    max = 0;
+	}
     }
     else {
 	SV* sv = POPs;
 	if (SvTYPE(sv) == SVt_PVGV) {
-	    tmpgv = (GV*)sv;
+	    gv = (GV*)sv;
 	    goto do_fstat;
 	}
 	else if (SvROK(sv) && SvTYPE(SvRV(sv)) == SVt_PVGV) {
-	    tmpgv = (GV*)SvRV(sv);
+	    gv = (GV*)SvRV(sv);
 	    goto do_fstat;
 	}
 	sv_setpv(PL_statname, SvPV(sv,n_a));
@@ -2552,7 +2587,7 @@ PP(pp_stat)
 	PUSHs(sv_2mortal(newSVuv(PL_statcache.st_uid)));
 #   endif
 #endif
-#if Gid_t_size > IVSIZE 
+#if Gid_t_size > IVSIZE
 	PUSHs(sv_2mortal(newSVnv(PL_statcache.st_gid)));
 #else
 #   if Gid_t_sign <= 0
@@ -2594,7 +2629,7 @@ PP(pp_stat)
 PP(pp_ftrread)
 {
     I32 result;
-    djSP;
+    dSP;
 #if defined(HAS_ACCESS) && defined(R_OK)
     STRLEN n_a;
     if ((PL_hints & HINT_FILETEST_ACCESS) && SvPOK(TOPs)) {
@@ -2621,7 +2656,7 @@ PP(pp_ftrread)
 PP(pp_ftrwrite)
 {
     I32 result;
-    djSP;
+    dSP;
 #if defined(HAS_ACCESS) && defined(W_OK)
     STRLEN n_a;
     if ((PL_hints & HINT_FILETEST_ACCESS) && SvPOK(TOPs)) {
@@ -2648,7 +2683,7 @@ PP(pp_ftrwrite)
 PP(pp_ftrexec)
 {
     I32 result;
-    djSP;
+    dSP;
 #if defined(HAS_ACCESS) && defined(X_OK)
     STRLEN n_a;
     if ((PL_hints & HINT_FILETEST_ACCESS) && SvPOK(TOPs)) {
@@ -2675,7 +2710,7 @@ PP(pp_ftrexec)
 PP(pp_fteread)
 {
     I32 result;
-    djSP;
+    dSP;
 #ifdef PERL_EFF_ACCESS_R_OK
     STRLEN n_a;
     if ((PL_hints & HINT_FILETEST_ACCESS) && SvPOK(TOPs)) {
@@ -2702,7 +2737,7 @@ PP(pp_fteread)
 PP(pp_ftewrite)
 {
     I32 result;
-    djSP;
+    dSP;
 #ifdef PERL_EFF_ACCESS_W_OK
     STRLEN n_a;
     if ((PL_hints & HINT_FILETEST_ACCESS) && SvPOK(TOPs)) {
@@ -2729,7 +2764,7 @@ PP(pp_ftewrite)
 PP(pp_fteexec)
 {
     I32 result;
-    djSP;
+    dSP;
 #ifdef PERL_EFF_ACCESS_X_OK
     STRLEN n_a;
     if ((PL_hints & HINT_FILETEST_ACCESS) && SvPOK(TOPs)) {
@@ -2756,7 +2791,7 @@ PP(pp_fteexec)
 PP(pp_ftis)
 {
     I32 result = my_stat();
-    djSP;
+    dSP;
     if (result < 0)
 	RETPUSHUNDEF;
     RETPUSHYES;
@@ -2770,7 +2805,7 @@ PP(pp_fteowned)
 PP(pp_ftrowned)
 {
     I32 result = my_stat();
-    djSP;
+    dSP;
     if (result < 0)
 	RETPUSHUNDEF;
     if (PL_statcache.st_uid == (PL_op->op_type == OP_FTEOWNED ?
@@ -2782,7 +2817,7 @@ PP(pp_ftrowned)
 PP(pp_ftzero)
 {
     I32 result = my_stat();
-    djSP;
+    dSP;
     if (result < 0)
 	RETPUSHUNDEF;
     if (PL_statcache.st_size == 0)
@@ -2793,7 +2828,7 @@ PP(pp_ftzero)
 PP(pp_ftsize)
 {
     I32 result = my_stat();
-    djSP; dTARGET;
+    dSP; dTARGET;
     if (result < 0)
 	RETPUSHUNDEF;
 #if Off_t_size > IVSIZE
@@ -2807,7 +2842,7 @@ PP(pp_ftsize)
 PP(pp_ftmtime)
 {
     I32 result = my_stat();
-    djSP; dTARGET;
+    dSP; dTARGET;
     if (result < 0)
 	RETPUSHUNDEF;
     PUSHn( (PL_basetime - PL_statcache.st_mtime) / 86400.0 );
@@ -2817,7 +2852,7 @@ PP(pp_ftmtime)
 PP(pp_ftatime)
 {
     I32 result = my_stat();
-    djSP; dTARGET;
+    dSP; dTARGET;
     if (result < 0)
 	RETPUSHUNDEF;
     PUSHn( (PL_basetime - PL_statcache.st_atime) / 86400.0 );
@@ -2827,7 +2862,7 @@ PP(pp_ftatime)
 PP(pp_ftctime)
 {
     I32 result = my_stat();
-    djSP; dTARGET;
+    dSP; dTARGET;
     if (result < 0)
 	RETPUSHUNDEF;
     PUSHn( (PL_basetime - PL_statcache.st_ctime) / 86400.0 );
@@ -2837,7 +2872,7 @@ PP(pp_ftctime)
 PP(pp_ftsock)
 {
     I32 result = my_stat();
-    djSP;
+    dSP;
     if (result < 0)
 	RETPUSHUNDEF;
     if (S_ISSOCK(PL_statcache.st_mode))
@@ -2848,7 +2883,7 @@ PP(pp_ftsock)
 PP(pp_ftchr)
 {
     I32 result = my_stat();
-    djSP;
+    dSP;
     if (result < 0)
 	RETPUSHUNDEF;
     if (S_ISCHR(PL_statcache.st_mode))
@@ -2859,7 +2894,7 @@ PP(pp_ftchr)
 PP(pp_ftblk)
 {
     I32 result = my_stat();
-    djSP;
+    dSP;
     if (result < 0)
 	RETPUSHUNDEF;
     if (S_ISBLK(PL_statcache.st_mode))
@@ -2870,7 +2905,7 @@ PP(pp_ftblk)
 PP(pp_ftfile)
 {
     I32 result = my_stat();
-    djSP;
+    dSP;
     if (result < 0)
 	RETPUSHUNDEF;
     if (S_ISREG(PL_statcache.st_mode))
@@ -2881,7 +2916,7 @@ PP(pp_ftfile)
 PP(pp_ftdir)
 {
     I32 result = my_stat();
-    djSP;
+    dSP;
     if (result < 0)
 	RETPUSHUNDEF;
     if (S_ISDIR(PL_statcache.st_mode))
@@ -2892,7 +2927,7 @@ PP(pp_ftdir)
 PP(pp_ftpipe)
 {
     I32 result = my_stat();
-    djSP;
+    dSP;
     if (result < 0)
 	RETPUSHUNDEF;
     if (S_ISFIFO(PL_statcache.st_mode))
@@ -2903,7 +2938,7 @@ PP(pp_ftpipe)
 PP(pp_ftlink)
 {
     I32 result = my_lstat();
-    djSP;
+    dSP;
     if (result < 0)
 	RETPUSHUNDEF;
     if (S_ISLNK(PL_statcache.st_mode))
@@ -2913,7 +2948,7 @@ PP(pp_ftlink)
 
 PP(pp_ftsuid)
 {
-    djSP;
+    dSP;
 #ifdef S_ISUID
     I32 result = my_stat();
     SPAGAIN;
@@ -2927,7 +2962,7 @@ PP(pp_ftsuid)
 
 PP(pp_ftsgid)
 {
-    djSP;
+    dSP;
 #ifdef S_ISGID
     I32 result = my_stat();
     SPAGAIN;
@@ -2941,7 +2976,7 @@ PP(pp_ftsgid)
 
 PP(pp_ftsvtx)
 {
-    djSP;
+    dSP;
 #ifdef S_ISVTX
     I32 result = my_stat();
     SPAGAIN;
@@ -2955,7 +2990,7 @@ PP(pp_ftsvtx)
 
 PP(pp_fttty)
 {
-    djSP;
+    dSP;
     int fd;
     GV *gv;
     char *tmps = Nullch;
@@ -2991,7 +3026,7 @@ PP(pp_fttty)
 
 PP(pp_fttext)
 {
-    djSP;
+    dSP;
     I32 i;
     I32 len;
     I32 odd = 0;
@@ -3053,10 +3088,9 @@ PP(pp_fttext)
 		len = 512;
 	}
 	else {
-	    if (ckWARN(WARN_UNOPENED)) {
+	    if (ckWARN2(WARN_UNOPENED,WARN_CLOSED)) {
 		gv = cGVOP_gv;
-		Perl_warner(aTHX_ WARN_UNOPENED, "Test on unopened file <%s>",
-			    GvENAME(gv));
+		report_evil_fh(gv, GvIO(gv), PL_op->op_type);
 	    }
 	    SETERRNO(EBADF,RMS$_IFI);
 	    RETPUSHUNDEF;
@@ -3078,7 +3112,7 @@ PP(pp_fttext)
 	    (void)PerlIO_close(fp);
 	    RETPUSHUNDEF;
 	}
-	do_binmode(fp, '<', TRUE);
+	do_binmode(fp, '<', O_BINARY);
 	len = PerlIO_read(fp, tbuf, sizeof(tbuf));
 	(void)PerlIO_close(fp);
 	if (len <= 0) {
@@ -3104,7 +3138,7 @@ PP(pp_fttext)
 	    break;
 	}
 #ifdef EBCDIC
-        else if (!(isPRINT(*s) || isSPACE(*s))) 
+        else if (!(isPRINT(*s) || isSPACE(*s)))
             odd++;
 #else
 	else if (*s & 128) {
@@ -3113,12 +3147,12 @@ PP(pp_fttext)
 		continue;
 #endif
 	    /* utf8 characters don't count as odd */
-	    if (*s & 0x40) {
+	    if (UTF8_IS_START(*s)) {
 		int ulen = UTF8SKIP(s);
 		if (ulen < len - i) {
 		    int j;
 		    for (j = 1; j < ulen; j++) {
-			if ((s[j] & 0xc0) != 0x80)
+			if (!UTF8_IS_CONTINUATION(s[j]))
 			    goto not_utf8;
 		    }
 		    --ulen;	/* loop does extra increment */
@@ -3152,7 +3186,7 @@ PP(pp_ftbinary)
 
 PP(pp_chdir)
 {
-    djSP; dTARGET;
+    dSP; dTARGET;
     char *tmps;
     SV **svp;
     STRLEN n_a;
@@ -3190,7 +3224,7 @@ PP(pp_chdir)
 
 PP(pp_chown)
 {
-    djSP; dMARK; dTARGET;
+    dSP; dMARK; dTARGET;
     I32 value;
 #ifdef HAS_CHOWN
     value = (I32)apply(PL_op->op_type, MARK, SP);
@@ -3204,7 +3238,7 @@ PP(pp_chown)
 
 PP(pp_chroot)
 {
-    djSP; dTARGET;
+    dSP; dTARGET;
     char *tmps;
 #ifdef HAS_CHROOT
     STRLEN n_a;
@@ -3219,7 +3253,7 @@ PP(pp_chroot)
 
 PP(pp_unlink)
 {
-    djSP; dMARK; dTARGET;
+    dSP; dMARK; dTARGET;
     I32 value;
     value = (I32)apply(PL_op->op_type, MARK, SP);
     SP = MARK;
@@ -3229,7 +3263,7 @@ PP(pp_unlink)
 
 PP(pp_chmod)
 {
-    djSP; dMARK; dTARGET;
+    dSP; dMARK; dTARGET;
     I32 value;
     value = (I32)apply(PL_op->op_type, MARK, SP);
     SP = MARK;
@@ -3239,7 +3273,7 @@ PP(pp_chmod)
 
 PP(pp_utime)
 {
-    djSP; dMARK; dTARGET;
+    dSP; dMARK; dTARGET;
     I32 value;
     value = (I32)apply(PL_op->op_type, MARK, SP);
     SP = MARK;
@@ -3249,7 +3283,7 @@ PP(pp_utime)
 
 PP(pp_rename)
 {
-    djSP; dTARGET;
+    dSP; dTARGET;
     int anum;
     STRLEN n_a;
 
@@ -3276,7 +3310,7 @@ PP(pp_rename)
 
 PP(pp_link)
 {
-    djSP; dTARGET;
+    dSP; dTARGET;
 #ifdef HAS_LINK
     STRLEN n_a;
     char *tmps2 = POPpx;
@@ -3291,7 +3325,7 @@ PP(pp_link)
 
 PP(pp_symlink)
 {
-    djSP; dTARGET;
+    dSP; dTARGET;
 #ifdef HAS_SYMLINK
     STRLEN n_a;
     char *tmps2 = POPpx;
@@ -3306,7 +3340,7 @@ PP(pp_symlink)
 
 PP(pp_readlink)
 {
-    djSP; dTARGET;
+    dSP; dTARGET;
 #ifdef HAS_SYMLINK
     char *tmps;
     char buf[MAXPATHLEN];
@@ -3418,7 +3452,7 @@ S_dooneliner(pTHX_ char *cmd, char *filename)
 
 PP(pp_mkdir)
 {
-    djSP; dTARGET;
+    dSP; dTARGET;
     int mode;
 #ifndef HAS_MKDIR
     int oldumask;
@@ -3447,7 +3481,7 @@ PP(pp_mkdir)
 
 PP(pp_rmdir)
 {
-    djSP; dTARGET;
+    dSP; dTARGET;
     char *tmps;
     STRLEN n_a;
 
@@ -3465,7 +3499,7 @@ PP(pp_rmdir)
 
 PP(pp_open_dir)
 {
-    djSP;
+    dSP;
 #if defined(Direntry_t) && defined(HAS_READDIR)
     STRLEN n_a;
     char *dirname = POPpx;
@@ -3492,7 +3526,7 @@ nope:
 
 PP(pp_readdir)
 {
-    djSP;
+    dSP;
 #if defined(Direntry_t) && defined(HAS_READDIR)
 #ifndef I_DIRENT
     Direntry_t *readdir (DIR *);
@@ -3550,7 +3584,7 @@ nope:
 
 PP(pp_telldir)
 {
-    djSP; dTARGET;
+    dSP; dTARGET;
 #if defined(HAS_TELLDIR) || defined(telldir)
  /* XXX does _anyone_ need this? --AD 2/20/1998 */
  /* XXX netbsd still seemed to.
@@ -3578,7 +3612,7 @@ nope:
 
 PP(pp_seekdir)
 {
-    djSP;
+    dSP;
 #if defined(HAS_SEEKDIR) || defined(seekdir)
     long along = POPl;
     GV *gv = (GV*)POPs;
@@ -3601,7 +3635,7 @@ nope:
 
 PP(pp_rewinddir)
 {
-    djSP;
+    dSP;
 #if defined(HAS_REWINDDIR) || defined(rewinddir)
     GV *gv = (GV*)POPs;
     register IO *io = GvIOn(gv);
@@ -3622,7 +3656,7 @@ nope:
 
 PP(pp_closedir)
 {
-    djSP;
+    dSP;
 #if defined(Direntry_t) && defined(HAS_READDIR)
     GV *gv = (GV*)POPs;
     register IO *io = GvIOn(gv);
@@ -3655,7 +3689,7 @@ nope:
 PP(pp_fork)
 {
 #ifdef HAS_FORK
-    djSP; dTARGET;
+    dSP; dTARGET;
     Pid_t childpid;
     GV *tmpgv;
 
@@ -3674,12 +3708,14 @@ PP(pp_fork)
     RETURN;
 #else
 #  if defined(USE_ITHREADS) && defined(PERL_IMPLICIT_SYS)
-    djSP; dTARGET;
+    dSP; dTARGET;
     Pid_t childpid;
 
     EXTEND(SP, 1);
     PERL_FLUSHALL_FOR_CHILD;
     childpid = PerlProc_fork();
+    if (childpid == -1)
+	RETSETUNDEF;
     PUSHi(childpid);
     RETURN;
 #  else
@@ -3690,13 +3726,18 @@ PP(pp_fork)
 
 PP(pp_wait)
 {
-#if (!defined(DOSISH) || defined(OS2) || defined(WIN32)) && !defined(MACOS_TRADITIONAL) 
-    djSP; dTARGET;
+#if (!defined(DOSISH) || defined(OS2) || defined(WIN32)) && !defined(MACOS_TRADITIONAL)
+    dSP; dTARGET;
     Pid_t childpid;
     int argflags;
 
     childpid = wait4pid(-1, &argflags, 0);
+#  if defined(USE_ITHREADS) && defined(PERL_IMPLICIT_SYS)
+    /* 0 and -1 are both error returns (the former applies to WNOHANG case) */
+    STATUS_NATIVE_SET((childpid && childpid != -1) ? argflags : -1);
+#  else
     STATUS_NATIVE_SET((childpid > 0) ? argflags : -1);
+#  endif
     XPUSHi(childpid);
     RETURN;
 #else
@@ -3706,8 +3747,8 @@ PP(pp_wait)
 
 PP(pp_waitpid)
 {
-#if (!defined(DOSISH) || defined(OS2) || defined(WIN32)) && !defined(MACOS_TRADITIONAL) 
-    djSP; dTARGET;
+#if (!defined(DOSISH) || defined(OS2) || defined(WIN32)) && !defined(MACOS_TRADITIONAL)
+    dSP; dTARGET;
     Pid_t childpid;
     int optype;
     int argflags;
@@ -3715,7 +3756,12 @@ PP(pp_waitpid)
     optype = POPi;
     childpid = TOPi;
     childpid = wait4pid(childpid, &argflags, optype);
+#  if defined(USE_ITHREADS) && defined(PERL_IMPLICIT_SYS)
+    /* 0 and -1 are both error returns (the former applies to WNOHANG case) */
+    STATUS_NATIVE_SET((childpid && childpid != -1) ? argflags : -1);
+#  else
     STATUS_NATIVE_SET((childpid > 0) ? argflags : -1);
+#  endif
     SETi(childpid);
     RETURN;
 #else
@@ -3725,7 +3771,7 @@ PP(pp_waitpid)
 
 PP(pp_system)
 {
-    djSP; dMARK; dORIGMARK; dTARGET;
+    dSP; dMARK; dORIGMARK; dTARGET;
     I32 value;
     Pid_t childpid;
     int result;
@@ -3743,7 +3789,7 @@ PP(pp_system)
 	}
     }
     PERL_FLUSHALL_FOR_CHILD;
-#if (defined(HAS_FORK) || defined(AMIGAOS)) && !defined(VMS) && !defined(OS2)
+#if (defined(HAS_FORK) || defined(AMIGAOS)) && !defined(VMS) && !defined(OS2) && !defined(__CYGWIN__)
     if (PerlProc_pipe(pp) >= 0)
 	did_pipes = 1;
     while ((childpid = vfork()) == -1) {
@@ -3812,6 +3858,8 @@ PP(pp_system)
     }
     PerlProc__exit(-1);
 #else /* ! FORK or VMS or OS/2 */
+    PL_statusvalue = 0;
+    result = 0;
     if (PL_op->op_flags & OPf_STACKED) {
 	SV *really = *++MARK;
 	value = (I32)do_aspawn(really, (void **)MARK, (void **)SP);
@@ -3821,17 +3869,19 @@ PP(pp_system)
     else {
 	value = (I32)do_spawn(SvPVx(sv_mortalcopy(*SP), n_a));
     }
+    if (PL_statusvalue == -1)	/* hint that value must be returned as is */
+	result = 1;
     STATUS_NATIVE_SET(value);
     do_execfree();
     SP = ORIGMARK;
-    PUSHi(STATUS_CURRENT);
+    PUSHi(result ? value : STATUS_CURRENT);
 #endif /* !FORK or VMS */
     RETURN;
 }
 
 PP(pp_exec)
 {
-    djSP; dMARK; dORIGMARK; dTARGET;
+    dSP; dMARK; dORIGMARK; dTARGET;
     I32 value;
     STRLEN n_a;
 
@@ -3883,7 +3933,7 @@ PP(pp_exec)
 
 PP(pp_kill)
 {
-    djSP; dMARK; dTARGET;
+    dSP; dMARK; dTARGET;
     I32 value;
 #ifdef HAS_KILL
     value = (I32)apply(PL_op->op_type, MARK, SP);
@@ -3898,7 +3948,7 @@ PP(pp_kill)
 PP(pp_getppid)
 {
 #ifdef HAS_GETPPID
-    djSP; dTARGET;
+    dSP; dTARGET;
     XPUSHi( getppid() );
     RETURN;
 #else
@@ -3909,7 +3959,7 @@ PP(pp_getppid)
 PP(pp_getpgrp)
 {
 #ifdef HAS_GETPGRP
-    djSP; dTARGET;
+    dSP; dTARGET;
     Pid_t pid;
     Pid_t pgrp;
 
@@ -3934,7 +3984,7 @@ PP(pp_getpgrp)
 PP(pp_setpgrp)
 {
 #ifdef HAS_SETPGRP
-    djSP; dTARGET;
+    dSP; dTARGET;
     Pid_t pgrp;
     Pid_t pid;
     if (MAXARG < 2) {
@@ -3965,7 +4015,7 @@ PP(pp_setpgrp)
 
 PP(pp_getpriority)
 {
-    djSP; dTARGET;
+    dSP; dTARGET;
     int which;
     int who;
 #ifdef HAS_GETPRIORITY
@@ -3980,7 +4030,7 @@ PP(pp_getpriority)
 
 PP(pp_setpriority)
 {
-    djSP; dTARGET;
+    dSP; dTARGET;
     int which;
     int who;
     int niceval;
@@ -4000,7 +4050,7 @@ PP(pp_setpriority)
 
 PP(pp_time)
 {
-    djSP; dTARGET;
+    dSP; dTARGET;
 #ifdef BIG_TIME
     XPUSHn( time(Null(Time_t*)) );
 #else
@@ -4027,7 +4077,7 @@ PP(pp_time)
 
 PP(pp_tms)
 {
-    djSP;
+    dSP;
 
 #ifndef HAS_TIMES
     DIE(aTHX_ "times not implemented");
@@ -4059,7 +4109,7 @@ PP(pp_localtime)
 
 PP(pp_gmtime)
 {
-    djSP;
+    dSP;
     Time_t when;
     struct tm *tmbuf;
     static char *dayname[] = {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
@@ -4112,7 +4162,7 @@ PP(pp_gmtime)
 
 PP(pp_alarm)
 {
-    djSP; dTARGET;
+    dSP; dTARGET;
     int anum;
 #ifdef HAS_ALARM
     anum = POPi;
@@ -4129,7 +4179,7 @@ PP(pp_alarm)
 
 PP(pp_sleep)
 {
-    djSP; dTARGET;
+    dSP; dTARGET;
     I32 duration;
     Time_t lasttime;
     Time_t when;
@@ -4166,7 +4216,7 @@ PP(pp_shmread)
 PP(pp_shmwrite)
 {
 #if defined(HAS_MSG) || defined(HAS_SEM) || defined(HAS_SHM)
-    djSP; dMARK; dTARGET;
+    dSP; dMARK; dTARGET;
     I32 value = (I32)(do_shmio(PL_op->op_type, MARK, SP) >= 0);
     SP = MARK;
     PUSHi(value);
@@ -4191,7 +4241,7 @@ PP(pp_msgctl)
 PP(pp_msgsnd)
 {
 #if defined(HAS_MSG) || defined(HAS_SEM) || defined(HAS_SHM)
-    djSP; dMARK; dTARGET;
+    dSP; dMARK; dTARGET;
     I32 value = (I32)(do_msgsnd(MARK, SP) >= 0);
     SP = MARK;
     PUSHi(value);
@@ -4204,7 +4254,7 @@ PP(pp_msgsnd)
 PP(pp_msgrcv)
 {
 #if defined(HAS_MSG) || defined(HAS_SEM) || defined(HAS_SHM)
-    djSP; dMARK; dTARGET;
+    dSP; dMARK; dTARGET;
     I32 value = (I32)(do_msgrcv(MARK, SP) >= 0);
     SP = MARK;
     PUSHi(value);
@@ -4219,7 +4269,7 @@ PP(pp_msgrcv)
 PP(pp_semget)
 {
 #if defined(HAS_MSG) || defined(HAS_SEM) || defined(HAS_SHM)
-    djSP; dMARK; dTARGET;
+    dSP; dMARK; dTARGET;
     int anum = do_ipcget(PL_op->op_type, MARK, SP);
     SP = MARK;
     if (anum == -1)
@@ -4234,7 +4284,7 @@ PP(pp_semget)
 PP(pp_semctl)
 {
 #if defined(HAS_MSG) || defined(HAS_SEM) || defined(HAS_SHM)
-    djSP; dMARK; dTARGET;
+    dSP; dMARK; dTARGET;
     int anum = do_ipcctl(PL_op->op_type, MARK, SP);
     SP = MARK;
     if (anum == -1)
@@ -4254,7 +4304,7 @@ PP(pp_semctl)
 PP(pp_semop)
 {
 #if defined(HAS_MSG) || defined(HAS_SEM) || defined(HAS_SHM)
-    djSP; dMARK; dTARGET;
+    dSP; dMARK; dTARGET;
     I32 value = (I32)(do_semop(MARK, SP) >= 0);
     SP = MARK;
     PUSHi(value);
@@ -4286,7 +4336,7 @@ PP(pp_ghbyaddr)
 
 PP(pp_ghostent)
 {
-    djSP;
+    dSP;
 #if defined(HAS_GETHOSTBYNAME) || defined(HAS_GETHOSTBYADDR) || defined(HAS_GETHOSTENT)
     I32 which = PL_op->op_type;
     register char **elem;
@@ -4395,7 +4445,7 @@ PP(pp_gnbyaddr)
 
 PP(pp_gnetent)
 {
-    djSP;
+    dSP;
 #if defined(HAS_GETNETBYNAME) || defined(HAS_GETNETBYADDR) || defined(HAS_GETNETENT)
     I32 which = PL_op->op_type;
     register char **elem;
@@ -4483,11 +4533,11 @@ PP(pp_gpbynumber)
 
 PP(pp_gprotoent)
 {
-    djSP;
+    dSP;
 #if defined(HAS_GETPROTOBYNAME) || defined(HAS_GETPROTOBYNUMBER) || defined(HAS_GETPROTOENT)
     I32 which = PL_op->op_type;
     register char **elem;
-    register SV *sv;  
+    register SV *sv;
 #ifndef HAS_GETPROTO_PROTOS /* XXX Do we need individual probes? */
     struct protoent *PerlSock_getprotobyname(Netdb_name_t);
     struct protoent *PerlSock_getprotobynumber(int);
@@ -4566,7 +4616,7 @@ PP(pp_gsbyport)
 
 PP(pp_gservent)
 {
-    djSP;
+    dSP;
 #if defined(HAS_GETSERVBYNAME) || defined(HAS_GETSERVBYPORT) || defined(HAS_GETSERVENT)
     I32 which = PL_op->op_type;
     register char **elem;
@@ -4656,7 +4706,7 @@ PP(pp_gservent)
 
 PP(pp_shostent)
 {
-    djSP;
+    dSP;
 #ifdef HAS_SETHOSTENT
     PerlSock_sethostent(TOPi);
     RETSETYES;
@@ -4667,7 +4717,7 @@ PP(pp_shostent)
 
 PP(pp_snetent)
 {
-    djSP;
+    dSP;
 #ifdef HAS_SETNETENT
     PerlSock_setnetent(TOPi);
     RETSETYES;
@@ -4678,7 +4728,7 @@ PP(pp_snetent)
 
 PP(pp_sprotoent)
 {
-    djSP;
+    dSP;
 #ifdef HAS_SETPROTOENT
     PerlSock_setprotoent(TOPi);
     RETSETYES;
@@ -4689,7 +4739,7 @@ PP(pp_sprotoent)
 
 PP(pp_sservent)
 {
-    djSP;
+    dSP;
 #ifdef HAS_SETSERVENT
     PerlSock_setservent(TOPi);
     RETSETYES;
@@ -4700,7 +4750,7 @@ PP(pp_sservent)
 
 PP(pp_ehostent)
 {
-    djSP;
+    dSP;
 #ifdef HAS_ENDHOSTENT
     PerlSock_endhostent();
     EXTEND(SP,1);
@@ -4712,7 +4762,7 @@ PP(pp_ehostent)
 
 PP(pp_enetent)
 {
-    djSP;
+    dSP;
 #ifdef HAS_ENDNETENT
     PerlSock_endnetent();
     EXTEND(SP,1);
@@ -4724,7 +4774,7 @@ PP(pp_enetent)
 
 PP(pp_eprotoent)
 {
-    djSP;
+    dSP;
 #ifdef HAS_ENDPROTOENT
     PerlSock_endprotoent();
     EXTEND(SP,1);
@@ -4736,7 +4786,7 @@ PP(pp_eprotoent)
 
 PP(pp_eservent)
 {
-    djSP;
+    dSP;
 #ifdef HAS_ENDSERVENT
     PerlSock_endservent();
     EXTEND(SP,1);
@@ -4766,54 +4816,92 @@ PP(pp_gpwuid)
 
 PP(pp_gpwent)
 {
-    djSP;
+    dSP;
 #ifdef HAS_PASSWD
     I32 which = PL_op->op_type;
     register SV *sv;
-    struct passwd *pwent;
     STRLEN n_a;
-#if defined(HAS_GETSPENT) || defined(HAS_GETSPNAM)
-    struct spwd *spwent = NULL;
-#endif
+    struct passwd *pwent  = NULL;
+    /*
+     * We currently support only the SysV getsp* shadow password interface.
+     * The interface is declared in <shadow.h> and often one needs to link
+     * with -lsecurity or some such.
+     * This interface is used at least by Solaris, HP-UX, IRIX, and Linux.
+     * (and SCO?)
+     *
+     * AIX getpwnam() is clever enough to return the encrypted password
+     * only if the caller (euid?) is root.
+     *
+     * There are at least two other shadow password APIs.  Many platforms
+     * seem to contain more than one interface for accessing the shadow
+     * password databases, possibly for compatibility reasons.
+     * The getsp*() is by far he simplest one, the other two interfaces
+     * are much more complicated, but also very similar to each other.
+     *
+     * <sys/types.h>
+     * <sys/security.h>
+     * <prot.h>
+     * struct pr_passwd *getprpw*();
+     * The password is in
+     * char getprpw*(...).ufld.fd_encrypt[]
+     * Mention HAS_GETPRPWNAM here so that Configure probes for it.
+     *
+     * <sys/types.h>
+     * <sys/security.h>
+     * <prot.h>
+     * struct es_passwd *getespw*();
+     * The password is in
+     * char *(getespw*(...).ufld.fd_encrypt)
+     * Mention HAS_GETESPWNAM here so that Configure probes for it.
+     *
+     * Mention I_PROT here so that Configure probes for it.
+     *
+     * In HP-UX for getprpw*() the manual page claims that one should include
+     * <hpsecurity.h> instead of <sys/security.h>, but that is not needed
+     * if one includes <shadow.h> as that includes <hpsecurity.h>,
+     * and pp_sys.c already includes <shadow.h> if there is such.
+     *
+     * Note that <sys/security.h> is already probed for, but currently
+     * it is only included in special cases.
+     *
+     * In Digital UNIX/Tru64 if using the getespw*() (which seems to be
+     * be preferred interface, even though also the getprpw*() interface
+     * is available) one needs to link with -lsecurity -ldb -laud -lm.
+     * One also needs to call set_auth_parameters() in main() before
+     * doing anything else, whether one is using getespw*() or getprpw*().
+     *
+     * Note that accessing the shadow databases can be magnitudes
+     * slower than accessing the standard databases.
+     *
+     * --jhi
+     */
 
-    if (which == OP_GPWNAM)
-	pwent = getpwnam(POPpx);
-    else if (which == OP_GPWUID)
-	pwent = getpwuid(POPi);
-    else
-#ifdef HAS_GETPWENT
-	pwent = (struct passwd *)getpwent();
-#else
+    switch (which) {
+    case OP_GPWNAM:
+	pwent  = getpwnam(POPpx);
+	break;
+    case OP_GPWUID:
+	pwent = getpwuid((Uid_t)POPi);
+	break;
+    case OP_GPWENT:
+#  ifdef HAS_GETPWENT
+	pwent  = getpwent();
+#  else
 	DIE(aTHX_ PL_no_func, "getpwent");
-#endif
-
-#ifdef HAS_GETSPNAM
-    if (which == OP_GPWNAM) {
-	if (pwent)
-	    spwent = getspnam(pwent->pw_name);
-    }
-#  ifdef HAS_GETSPUID /* AFAIK there isn't any anywhere. --jhi */ 
-    else if (which == OP_GPWUID) {
-	if (pwent)
-	    spwent = getspnam(pwent->pw_name);
-    }
 #  endif
-#  ifdef HAS_GETSPENT
-    else
-	spwent = (struct spwd *)getspent();
-#  endif
-#endif
+	break;
+    }
 
     EXTEND(SP, 10);
     if (GIMME != G_ARRAY) {
 	PUSHs(sv = sv_newmortal());
 	if (pwent) {
 	    if (which == OP_GPWNAM)
-#if Uid_t_sign <= 0
+#  if Uid_t_sign <= 0
 		sv_setiv(sv, (IV)pwent->pw_uid);
-#else
+#  else
 		sv_setuv(sv, (UV)pwent->pw_uid);
-#endif
+#  endif
 	    else
 		sv_setpv(sv, pwent->pw_name);
 	}
@@ -4825,81 +4913,114 @@ PP(pp_gpwent)
 	sv_setpv(sv, pwent->pw_name);
 
 	PUSHs(sv = sv_mortalcopy(&PL_sv_no));
-#ifdef PWPASSWD
-#   if defined(HAS_GETSPENT) || defined(HAS_GETSPNAM)
-      if (spwent)
-              sv_setpv(sv, spwent->sp_pwdp);
-      else
-              sv_setpv(sv, pwent->pw_passwd);
-#   else
-	sv_setpv(sv, pwent->pw_passwd);
+	SvPOK_off(sv);
+	/* If we have getspnam(), we try to dig up the shadow
+	 * password.  If we are underprivileged, the shadow
+	 * interface will set the errno to EACCES or similar,
+	 * and return a null pointer.  If this happens, we will
+	 * use the dummy password (usually "*" or "x") from the
+	 * standard password database.
+	 *
+	 * In theory we could skip the shadow call completely
+	 * if euid != 0 but in practice we cannot know which
+	 * security measures are guarding the shadow databases
+	 * on a random platform.
+	 *
+	 * Resist the urge to use additional shadow interfaces.
+	 * Divert the urge to writing an extension instead.
+	 *
+	 * --jhi */
+#  ifdef HAS_GETSPNAM
+	{
+	    struct spwd *spwent;
+	    int saverrno; /* Save and restore errno so that
+			   * underprivileged attempts seem
+			   * to have never made the unsccessful
+			   * attempt to retrieve the shadow password. */
+
+	    saverrno = errno;
+	    spwent = getspnam(pwent->pw_name);
+	    errno = saverrno;
+	    if (spwent && spwent->sp_pwdp)
+		sv_setpv(sv, spwent->sp_pwdp);
+	}
+#  endif
+#   ifdef PWPASSWD
+	if (!SvPOK(sv)) /* Use the standard password, then. */
+	    sv_setpv(sv, pwent->pw_passwd);
 #   endif
-#endif
-#ifndef INCOMPLETE_TAINTS
-	/* passwd is tainted because user himself can diddle with it. */
+
+#  ifndef INCOMPLETE_TAINTS
+	/* passwd is tainted because user himself can diddle with it.
+	 * admittedly not much and in a very limited way, but nevertheless. */
 	SvTAINTED_on(sv);
-#endif
+#  endif
 
 	PUSHs(sv = sv_mortalcopy(&PL_sv_no));
-#if Uid_t_sign <= 0
+#  if Uid_t_sign <= 0
 	sv_setiv(sv, (IV)pwent->pw_uid);
-#else
+#  else
 	sv_setuv(sv, (UV)pwent->pw_uid);
-#endif
+#  endif
 
 	PUSHs(sv = sv_mortalcopy(&PL_sv_no));
-#if Uid_t_sign <= 0
+#  if Uid_t_sign <= 0
 	sv_setiv(sv, (IV)pwent->pw_gid);
-#else
+#  else
 	sv_setuv(sv, (UV)pwent->pw_gid);
-#endif
-	/* pw_change, pw_quota, and pw_age are mutually exclusive. */
+#  endif
+	/* pw_change, pw_quota, and pw_age are mutually exclusive--
+	 * because of the poor interface of the Perl getpw*(),
+	 * not because there's some standard/convention saying so.
+	 * A better interface would have been to return a hash,
+	 * but we are accursed by our history, alas. --jhi.  */
 	PUSHs(sv = sv_mortalcopy(&PL_sv_no));
-#ifdef PWCHANGE
+#  ifdef PWCHANGE
 	sv_setiv(sv, (IV)pwent->pw_change);
-#else
-#   ifdef PWQUOTA
+#  else
+#    ifdef PWQUOTA
 	sv_setiv(sv, (IV)pwent->pw_quota);
-#   else
-#       ifdef PWAGE
+#    else
+#      ifdef PWAGE
 	sv_setpv(sv, pwent->pw_age);
-#       endif
-#   endif
-#endif
+#      endif
+#    endif
+#  endif
 
-	/* pw_class and pw_comment are mutually exclusive. */
+	/* pw_class and pw_comment are mutually exclusive--.
+	 * see the above note for pw_change, pw_quota, and pw_age. */
 	PUSHs(sv = sv_mortalcopy(&PL_sv_no));
-#ifdef PWCLASS
+#  ifdef PWCLASS
 	sv_setpv(sv, pwent->pw_class);
-#else
-#   ifdef PWCOMMENT
+#  else
+#    ifdef PWCOMMENT
 	sv_setpv(sv, pwent->pw_comment);
-#   endif
-#endif
+#    endif
+#  endif
 
 	PUSHs(sv = sv_mortalcopy(&PL_sv_no));
-#ifdef PWGECOS
+#  ifdef PWGECOS
 	sv_setpv(sv, pwent->pw_gecos);
-#endif
-#ifndef INCOMPLETE_TAINTS
+#  endif
+#  ifndef INCOMPLETE_TAINTS
 	/* pw_gecos is tainted because user himself can diddle with it. */
 	SvTAINTED_on(sv);
-#endif
+#  endif
 
 	PUSHs(sv = sv_mortalcopy(&PL_sv_no));
 	sv_setpv(sv, pwent->pw_dir);
 
 	PUSHs(sv = sv_mortalcopy(&PL_sv_no));
 	sv_setpv(sv, pwent->pw_shell);
-#ifndef INCOMPLETE_TAINTS
+#  ifndef INCOMPLETE_TAINTS
 	/* pw_shell is tainted because user himself can diddle with it. */
 	SvTAINTED_on(sv);
-#endif
+#  endif
 
-#ifdef PWEXPIRE
+#  ifdef PWEXPIRE
 	PUSHs(sv = sv_mortalcopy(&PL_sv_no));
 	sv_setiv(sv, (IV)pwent->pw_expire);
-#endif
+#  endif
     }
     RETURN;
 #else
@@ -4909,12 +5030,9 @@ PP(pp_gpwent)
 
 PP(pp_spwent)
 {
-    djSP;
+    dSP;
 #if defined(HAS_PASSWD) && defined(HAS_SETPWENT)
     setpwent();
-#   ifdef HAS_SETSPENT
-    setspent();
-#   endif
     RETPUSHYES;
 #else
     DIE(aTHX_ PL_no_func, "setpwent");
@@ -4923,12 +5041,9 @@ PP(pp_spwent)
 
 PP(pp_epwent)
 {
-    djSP;
+    dSP;
 #if defined(HAS_PASSWD) && defined(HAS_ENDPWENT)
     endpwent();
-#   ifdef HAS_ENDSPENT
-    endspent();
-#   endif
     RETPUSHYES;
 #else
     DIE(aTHX_ PL_no_func, "endpwent");
@@ -4955,7 +5070,7 @@ PP(pp_ggrgid)
 
 PP(pp_ggrent)
 {
-    djSP;
+    dSP;
 #ifdef HAS_GROUP
     I32 which = PL_op->op_type;
     register char **elem;
@@ -5014,7 +5129,7 @@ PP(pp_ggrent)
 
 PP(pp_sgrent)
 {
-    djSP;
+    dSP;
 #if defined(HAS_GROUP) && defined(HAS_SETGRENT)
     setgrent();
     RETPUSHYES;
@@ -5025,7 +5140,7 @@ PP(pp_sgrent)
 
 PP(pp_egrent)
 {
-    djSP;
+    dSP;
 #if defined(HAS_GROUP) && defined(HAS_ENDGRENT)
     endgrent();
     RETPUSHYES;
@@ -5036,7 +5151,7 @@ PP(pp_egrent)
 
 PP(pp_getlogin)
 {
-    djSP; dTARGET;
+    dSP; dTARGET;
 #ifdef HAS_GETLOGIN
     char *tmps;
     EXTEND(SP, 1);
@@ -5054,7 +5169,7 @@ PP(pp_getlogin)
 PP(pp_syscall)
 {
 #ifdef HAS_SYSCALL
-    djSP; dMARK; dORIGMARK; dTARGET;
+    dSP; dMARK; dORIGMARK; dTARGET;
     register I32 items = SP - MARK;
     unsigned long a[20];
     register I32 i = 0;
@@ -5081,7 +5196,7 @@ PP(pp_syscall)
 	    a[i++] = SvIV(*MARK);
 	else if (*MARK == &PL_sv_undef)
 	    a[i++] = 0;
-	else 
+	else
 	    a[i++] = (unsigned long)SvPV_force(*MARK, n_a);
 	if (i > 15)
 	    break;
@@ -5149,7 +5264,7 @@ PP(pp_syscall)
 }
 
 #ifdef FCNTL_EMULATE_FLOCK
- 
+
 /*  XXX Emulate flock() with fcntl().
     What's really needed is a good file locking module.
 */
@@ -5158,7 +5273,7 @@ static int
 fcntl_emulate_flock(int fd, int operation)
 {
     struct flock flock;
- 
+
     switch (operation & ~LOCK_NB) {
     case LOCK_SH:
 	flock.l_type = F_RDLCK;
@@ -5175,7 +5290,7 @@ fcntl_emulate_flock(int fd, int operation)
     }
     flock.l_whence = SEEK_SET;
     flock.l_start = flock.l_len = (Off_t)0;
- 
+
     return fcntl(fd, (operation & LOCK_NB) ? F_SETLK : F_SETLKW, &flock);
 }
 

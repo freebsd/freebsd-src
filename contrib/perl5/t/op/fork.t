@@ -4,7 +4,7 @@
 
 BEGIN {
     chdir 't' if -d 't';
-    unshift @INC, '../lib';
+    @INC = '../lib';
     require Config; import Config;
     unless ($Config{'d_fork'}
 	    or ($^O eq 'MSWin32' and $Config{useithreads}
@@ -183,6 +183,28 @@ child 3
 -1- [2] -3-
 [1] -2- -3-
 -1- -2- -3-
+########
+$| = 1;
+foreach my $c (1,2,3) {
+    if (fork) {
+	print "parent $c\n";
+    }
+    else {
+	print "child $c\n";
+	exit;
+    }
+}
+while (wait() != -1) { print "waited\n" }
+EXPECT
+child 1
+child 2
+child 3
+parent 1
+parent 2
+parent 3
+waited
+waited
+waited
 ########
 use Config;
 $| = 1;
@@ -374,3 +396,28 @@ else {
 EXPECT
 pipe_from_fork
 pipe_to_fork
+########
+$|=1;
+if ($pid = fork()) {
+    print "forked first kid\n";
+    print "waitpid() returned ok\n" if waitpid($pid,0) == $pid;
+}
+else {
+    print "first child\n";
+    exit(0);
+}
+if ($pid = fork()) {
+    print "forked second kid\n";
+    print "wait() returned ok\n" if wait() == $pid;
+}
+else {
+    print "second child\n";
+    exit(0);
+}
+EXPECT
+forked first kid
+first child
+waitpid() returned ok
+forked second kid
+second child
+wait() returned ok

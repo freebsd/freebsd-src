@@ -893,6 +893,10 @@ sub scan_dir {
 	    $pages{$_}  = "" unless defined $pages{$_};
 	    $pages{$_} .= "$dir/$_.pod:";
 	    push(@pods, "$dir/$_.pod");
+	} elsif (/\.html\z/) { 	    	    	    	    # .html
+	    s/\.html\z//;
+	    $pages{$_}  = "" unless defined $pages{$_};
+	    $pages{$_} .= "$dir/$_.pod:";
 	} elsif (/\.pm\z/) { 	    	    	    	    # .pm
 	    s/\.pm\z//;
 	    $pages{$_}  = "" unless defined $pages{$_};
@@ -1438,8 +1442,10 @@ sub process_text1($$;$$){
 
     } elsif( $func eq 'E' ){
 	# E<x> - convert to character
-	$$rstr =~ s/^(\w+)>//;
-	$res = "&$1;";
+	$$rstr =~ s/^([^>]*)>//;
+	my $escape = $1;
+	$escape =~ s/^(\d+|X[\dA-F]+)$/#$1/i;
+	$res = "&$escape;";
 
     } elsif( $func eq 'F' ){
 	# F<filename> - italizice
@@ -1940,7 +1946,7 @@ sub depod1($;$$){
       $res .= $$rstr;
   } elsif( $func eq 'E' ){
       # E<x> - convert to character
-      $$rstr =~ s/^(\w+)>//;
+      $$rstr =~ s/^([^>]*)>//;
       $res .= $E2c{$1} || "";
   } elsif( $func eq 'X' ){
       # X<> - ignore

@@ -3,7 +3,7 @@
 BEGIN {
     unless(grep /blib/, @INC) {
 	chdir 't' if -d 't';
-	unshift @INC, '../lib' if -d '../lib';
+	@INC = '../lib';
     }
 }
 
@@ -40,3 +40,4 @@ print scalar <$x>;
 $! = 0;
 $x->setpos(undef);
 print $! ? "ok 4 # $!\n" : "not ok 4\n";
+

@@ -2,7 +2,7 @@
 
 BEGIN {
     chdir 't' if -d 't';
-    unshift @INC, '../lib' if -d '../lib';
+    @INC = '../lib';
     require Config; import Config;
     if ($Config{'extensions'} !~ /\bSocket\b/ && 
         !(($^O eq 'VMS') && $Config{d_socket})) {
@@ -21,8 +21,8 @@ if (socket(T,PF_INET,SOCK_STREAM,6)) {
   if (connect(T,pack_sockaddr_in(7,inet_aton("localhost")))){
 	print "ok 2\n";
 
-	print "# Connected to ",
-		inet_ntoa((unpack_sockaddr_in(getpeername(T)))[1]),"\n";
+	print "# Connected to " .
+		inet_ntoa((unpack_sockaddr_in(getpeername(T)))[1])."\n";
 
 	syswrite(T,"hello",5);
 	$read = sysread(T,$buff,10);	# Connection may be granted, then closed!
@@ -51,8 +51,8 @@ if( socket(S,PF_INET,SOCK_STREAM,6) ){
   if (connect(S,pack_sockaddr_in(7,INADDR_LOOPBACK))){
 	print "ok 5\n";
 
-	print "# Connected to ",
-		inet_ntoa((unpack_sockaddr_in(getpeername(S)))[1]),"\n";
+	print "# Connected to " .
+		inet_ntoa((unpack_sockaddr_in(getpeername(S)))[1])."\n";
 
 	syswrite(S,"olleh",5);
 	$read = sysread(S,$buff,10);	# Connection may be granted, then closed!

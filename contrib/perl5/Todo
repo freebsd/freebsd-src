@@ -47,10 +47,6 @@ Would be nice to have
 	     to be used in re-entrant (=multithreaded) code
 	     Icky things: the _r API is not standardized and
 	     the _r-forms require per-thread data to store their state
-	memory profiler: turn malloc.c:Perl_get_mstats() into
-	    an extension (Devel::MProf?) that would return the malloc
-	    stats in a nice Perl datastructure (also a simple interface
-	    to return just the grand total would be good)
 	cross-compilation support
 	    host vs target: compile in the host, get the executable to
 	    the target, get the possible input files to the target,

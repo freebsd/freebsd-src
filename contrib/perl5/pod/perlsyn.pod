@@ -53,8 +53,8 @@ subroutine without defining it by saying C<sub name>, thus:
     sub myname;
     $me = myname $0 		or die "can't get myname";
 
-Note that my() functions as a list operator, not as a unary operator; so
-be careful to use C<or> instead of C<||> in this case.  However, if
+Note that myname() functions as a list operator, not as a unary operator;
+so be careful to use C<or> instead of C<||> in this case.  However, if
 you were to declare the subroutine as C<sub myname ($)>, then
 C<myname> would function as a unary operator, so either C<or> or
 C<||> would work.
@@ -172,7 +172,7 @@ If the LABEL is omitted, the loop control statement
 refers to the innermost enclosing loop.  This may include dynamically
 looking back your call-stack at run time to find the LABEL.  Such
 desperate behavior triggers a warning if you use the C<use warnings>
-praga or the B<-w> flag.
+pragma or the B<-w> flag.
 Unlike a C<foreach> statement, a C<while> statement never implicitly
 localises any variables.
 
@@ -263,7 +263,7 @@ available.   Replace any occurrence of C<if BLOCK> by C<if (do BLOCK)>.
 
 =head2 For Loops
 
-Perl's C-style C<for> loop works exactly like the corresponding C<while> loop;
+Perl's C-style C<for> loop works like the corresponding C<while> loop;
 that means that this:
 
     for ($i = 1; $i < 10; $i++) {
@@ -279,8 +279,10 @@ is the same as this:
 	$i++;
     }
 
-(There is one minor difference: The first form implies a lexical scope
-for variables declared with C<my> in the initialization expression.)
+There is one minor difference: if variables are declared with C<my>
+in the initialization section of the C<for>, the lexical scope of
+those variables is exactly the C<for> loop (the body of the loop
+and the control sections).
 
 Besides the normal array index looping, C<for> can lend itself
 to many other interesting applications.  Here's one that avoids the
@@ -309,9 +311,12 @@ The C<foreach> keyword is actually a synonym for the C<for> keyword, so
 you can use C<foreach> for readability or C<for> for brevity.  (Or because
 the Bourne shell is more familiar to you than I<csh>, so writing C<for>
 comes more naturally.)  If VAR is omitted, C<$_> is set to each value.
-If any element of LIST is an lvalue, you can modify it by modifying VAR
-inside the loop.  That's because the C<foreach> loop index variable is
-an implicit alias for each item in the list that you're looping over.
+
+If any element of LIST is an lvalue, you can modify it by modifying
+VAR inside the loop.  Conversely, if any element of LIST is NOT an
+lvalue, any attempt to modify that element will fail.  In other words,
+the C<foreach> loop index variable is an implicit alias for each item
+in the list that you're looping over.
 
 If any part of LIST is an array, C<foreach> will get very confused if
 you add or remove elements within the loop body, for example with
@@ -483,7 +488,7 @@ Or
 
 Or if you are certainly that all the C<&&> clauses are true, you can use
 something like this, which "switches" on the value of the
-C<HTTP_USER_AGENT> envariable.
+C<HTTP_USER_AGENT> environment variable.
 
     #!/usr/bin/perl 
     # pick out jargon file page based on browser
@@ -597,6 +602,11 @@ C preprocessors: it matches the regular expression
 C</^#\s*line\s+(\d+)\s*(?:\s"([^"]+)")?\s*$/> with C<$1> being the line
 number for the next line, and C<$2> being the optional filename
 (specified within quotes).
+
+There is a fairly obvious gotcha included with the line directive:
+Debuggers and profilers will only show the last source line to appear
+at a particular line number in a given file.  Care should be taken not
+to cause line number collisions in code you'd like to debug later.
 
 Here are some examples that you should be able to type into your command
 shell:

@@ -163,7 +163,7 @@ accumulated set of ops at that point.
 
 =item an operator set (opset)
 
-An I<opset> as a binary string of approximately 43 bytes which holds a
+An I<opset> as a binary string of approximately 44 bytes which holds a
 set or zero or more operators.
 
 The opset and opset_to_ops functions can be used to convert from
@@ -185,7 +185,7 @@ tags and sets. All are available for export by the package.
 =item opcodes
 
 In a scalar context opcodes returns the number of opcodes in this
-version of perl (around 340 for perl5.002).
+version of perl (around 350 for perl-5.7.0).
 
 In a list context it returns a list of all the operator names.
 (Not yet implemented, use @names = opset_to_ops(full_opset).)

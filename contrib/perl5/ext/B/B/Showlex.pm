@@ -12,7 +12,24 @@ use B::Terse ();
 # to see the names of file scope lexicals used by bar.pl
 #    
 
-sub showarray {
+sub shownamearray {
+    my ($name, $av) = @_;
+    my @els = $av->ARRAY;
+    my $count = @els;
+    my $i;
+    print "$name has $count entries\n";
+    for ($i = 0; $i < $count; $i++) {
+        print "$i: ";
+	my $sv = $els[$i];
+	if (class($sv) ne "SPECIAL") {
+	    printf "%s (0x%lx) %s\n", class($sv), $$sv, $sv->PVX;
+	} else {
+            $sv->terse;
+	}
+    }
+}
+
+sub showvaluearray {
     my ($name, $av) = @_;
     my @els = $av->ARRAY;
     my $count = @els;
@@ -26,8 +43,8 @@ sub showarray {
 
 sub showlex {
     my ($objname, $namesav, $valsav) = @_;
-    showarray("Pad of lexical names for $objname", $namesav);
-    showarray("Pad of lexical values for $objname", $valsav);
+    shownamearray("Pad of lexical names for $objname", $namesav);
+    showvaluearray("Pad of lexical values for $objname", $valsav);
 }
 
 sub showlex_obj {

@@ -296,7 +296,7 @@ values	HASH	return a list of the values in a hash
 vec	Binary	test or set particular bits in a string
 wait	Process	wait for any child process to die
 waitpid	Process	wait for  a particular child process to die
-wantarray	Misc,Flow	get list vs array context of current subroutine call
+wantarray	Misc,Flow	get void vs scalar vs list context of current subroutine call
 warn	I/O	print debugging info
 write	I/O	print a picture record
 y///	String	transliterate a string

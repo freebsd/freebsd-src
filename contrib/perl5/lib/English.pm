@@ -98,6 +98,8 @@ sub import {
 	*OSNAME
 	*LAST_REGEXP_CODE_RESULT
 	*EXCEPTIONS_BEING_CAUGHT
+	@LAST_MATCH_START
+	@LAST_MATCH_END
 );
 
 # The ground of all being. @ARG is deprecated (5.005 makes @_ lexical)
@@ -110,6 +112,8 @@ sub import {
 	*PREMATCH				= *`	;
 	*POSTMATCH				= *'	;
 	*LAST_PAREN_MATCH			= *+	;
+	*LAST_MATCH_START			= *-{ARRAY} ;
+	*LAST_MATCH_END				= *+{ARRAY} ;
 
 # Input.
 
