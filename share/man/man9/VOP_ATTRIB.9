@@ -64,9 +64,9 @@ Attributes which are not being modified by
 should be set to the value
 .Dv VNOVAL .
 .Sh LOCKS
-The vnode may be either unlocked or exclusively locked on entry to
-.Xr VOP_GETATTR 9 ,
-and will remain the same on return.
+.Xr VOP_GETATTR 9
+expects the vnode to be locked on entry and will leave the vnode locked on
+return.
 .Pp
 .Xr VOP_SETATTR 9
 expects the vnode to be locked on entry and will leave the vnode locked on
