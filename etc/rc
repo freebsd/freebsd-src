@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.104 1996/11/01 09:45:51 peter Exp $
+#	$Id: rc,v 1.105 1996/11/03 14:41:58 joerg Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -254,6 +254,10 @@ if [ "X${nfs_server}" = X"YES" -a -r /etc/exports ]; then
 		mountd
 	fi
 	echo -n ' nfsd';		nfsd -u -t 4
+# Warning: rpc.lockd is broken.
+# Only uncomment this line if the consequences are fully understood.
+#	echo -n ' rpc.lockd';		rpc.lockd
+	echo -n ' rpc.statd';		rpc.statd
 fi
 
 if [ "X${nfs_client}" = X"YES" ]; then
