@@ -31,5 +31,7 @@
 
 #include <sys/types.h>
 #include <machine/elf.h>
+#include <sys/elf32.h>
+#include <sys/elf64.h>
 
 #endif /* !_ELF_H_ */
