@@ -102,7 +102,7 @@ SUBDIR+=vinum
 .endif
 
 .if ${MACHINE_ARCH} == "i386"
-SUBDIR+=cxconfig
+SUBDIR+=sconfig
 .if ${MACHINE} == "pc98"
 SUBDIR+=fdisk_pc98
 .else
