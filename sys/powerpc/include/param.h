@@ -115,7 +115,7 @@
 #define	MAXDUMPPGS	(DFLTPHYS/PAGE_SIZE)
 
 #ifndef KSTACK_UPAGES
-#define	KSTACK_PAGES		2		/* includes pcb */
+#define	KSTACK_PAGES		4		/* includes pcb */
 #define	KSTACK_GUARD_PAGES	1
 #endif
 #define	USPACE		(KSTACK_PAGES * PAGE_SIZE)	/* total size of pcb */
