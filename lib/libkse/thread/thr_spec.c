@@ -107,13 +107,18 @@ void
 _thread_cleanupspecific(void)
 {
 	struct pthread	*curthread = _get_curthread();
+	void		(*destructor)( void *);
 	void		*data = NULL;
 	int		key;
-	void		(*destructor)( void *);
+	int		i;
 
-	if (curthread->specific != NULL) {
-		/* Lock the key table: */
-		THR_LOCK_ACQUIRE(curthread, &_keytable_lock);
+	if (curthread->specific == NULL)
+		return;
+
+	/* Lock the key table: */
+	THR_LOCK_ACQUIRE(curthread, &_keytable_lock);
+	for (i = 0; (i < PTHREAD_DESTRUCTOR_ITERATIONS) &&
+	    (curthread->specific_data_count > 0); i++) {
 		for (key = 0; (key < PTHREAD_KEYS_MAX) &&
 		    (curthread->specific_data_count > 0); key++) {
 			destructor = NULL;
@@ -122,7 +127,8 @@ _thread_cleanupspecific(void)
 			    (curthread->specific[key].data != NULL)) {
 				if (curthread->specific[key].seqno ==
 				    key_table[key].seqno) {
-					data = (void *)curthread->specific[key].data;
+					data = (void *)
+					    curthread->specific[key].data;
 					destructor = key_table[key].destructor;
 				}
 				curthread->specific[key].data = NULL;
@@ -143,10 +149,14 @@ _thread_cleanupspecific(void)
 				THR_LOCK_ACQUIRE(curthread, &_keytable_lock);
 			}
 		}
-		THR_LOCK_RELEASE(curthread, &_keytable_lock);
-		free(curthread->specific);
-		curthread->specific = NULL;
 	}
+	THR_LOCK_RELEASE(curthread, &_keytable_lock);
+	free(curthread->specific);
+	curthread->specific = NULL;
+	if (curthread->specific_data_count > 0)
+		stderr_debug("Thread %p has exited with leftover "
+		    "thread-specific data after %d destructor iterations\n",
+		    curthread, PTHREAD_DESTRUCTOR_ITERATIONS);
 }
 
 static inline struct pthread_specific_elem *
@@ -179,10 +189,8 @@ _pthread_setspecific(pthread_key_t key, const void *value)
 				if (pthread->specific[key].data == NULL) {
 					if (value != NULL)
 						pthread->specific_data_count++;
-				} else {
-					if (value == NULL)
-						pthread->specific_data_count--;
-				}
+				} else if (value == NULL)
+					pthread->specific_data_count--;
 				pthread->specific[key].data = value;
 				pthread->specific[key].seqno =
 				    key_table[key].seqno;
