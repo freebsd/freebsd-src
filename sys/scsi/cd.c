@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: cd.c,v 1.86 1997/09/21 22:02:59 gibbs Exp $
+ *      $Id: cd.c,v 1.87 1997/12/02 21:06:58 phk Exp $
  */
 
 #include "opt_bounce.h"
@@ -242,6 +242,7 @@ cd_open(dev_t dev, int flags, int fmt, struct proc *p,
 	errval  errcode = 0;
 	u_int32_t unit, part;
 	struct scsi_data *cd;
+	int n;
 
 	unit = CDUNIT(dev);
 	part = PARTITION(dev);
@@ -285,6 +286,17 @@ cd_open(dev_t dev, int flags, int fmt, struct proc *p,
 		SC_DEBUG(sc_link, SDEV_DB3, ("'start' attempted "));
 	}
 	sc_link->flags |= SDEV_OPEN;	/* unit attn errors are now errors */
+
+	/*
+	 * Some drives take a long time to become ready after a disk swap
+	 * and report 'Not Ready' rather than 'Unit in the Process of Getting
+	 * Ready' while doing so; attempts to mount during this period will
+	 * return ENXIO.  Give them some time to come up.
+	 */
+	for (n = 0; scsi_test_unit_ready(sc_link, SCSI_SILENT) && n != 12; n++)
+		tsleep(cd, PRIBIO | PCATCH, "cdrdy", hz);
+
+	/* If still not ready, give up */
 	if (scsi_test_unit_ready(sc_link, SCSI_SILENT) != 0) {
 		SC_DEBUG(sc_link, SDEV_DB3, ("not ready\n"));
 		errcode = ENXIO;
