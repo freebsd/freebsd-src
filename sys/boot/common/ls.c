@@ -58,7 +58,6 @@ static int
 command_ls(int argc, char *argv[])
 {
     int		fd;
-    size_t	size;
     struct stat	sb;
     struct 	dirent *d;
     char	*buf, *path;
