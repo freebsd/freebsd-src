@@ -80,7 +80,7 @@ userret(td, frame, oticks)
 	mtx_unlock(&Giant);
 
 	mtx_lock_spin(&sched_lock);
-	kg->kg_pri.pri_level = kg->kg_pri.pri_user;
+	td->td_priority = kg->kg_user_pri;
 	if (ke->ke_flags & KEF_NEEDRESCHED) {
 		DROP_GIANT();
 		setrunqueue(td);

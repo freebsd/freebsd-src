@@ -1492,10 +1492,9 @@ runfast:
 	 * Maybe just one would be enough?
 	 */
 	mtx_lock_spin(&sched_lock);
-	FOREACH_KSEGRP_IN_PROC(p, kg) {
-		if (kg->kg_pri.pri_level > PUSER) {
-			kg->kg_pri.pri_level = PUSER;
-		}
+
+	if (FIRST_THREAD_IN_PROC(p)->td_priority > PUSER) {
+		FIRST_THREAD_IN_PROC(p)->td_priority = PUSER;
 	}
 run:
 	/* If we jump here, sched_lock has to be owned. */

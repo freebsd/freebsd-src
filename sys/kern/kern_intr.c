@@ -131,14 +131,14 @@ ithread_update(struct ithd *ithd)
 	strncpy(p->p_comm, ithd->it_name, sizeof(ithd->it_name));
 	ih = TAILQ_FIRST(&ithd->it_handlers);
 	if (ih == NULL) {
-		td->td_ksegrp->kg_pri.pri_level = PRI_MAX_ITHD;
+		td->td_priority = PRI_MAX_ITHD;
 		ithd->it_flags &= ~IT_ENTROPY;
 		return;
 	}
 
 	entropy = 0;
-	td->td_ksegrp->kg_pri.pri_level = ih->ih_pri;
-	td->td_ksegrp->kg_pri.pri_native = ih->ih_pri;
+	td->td_priority = ih->ih_pri;
+	td->td_base_pri = ih->ih_pri;
 	TAILQ_FOREACH(ih, &ithd->it_handlers, ih_next) {
 		if (strlen(p->p_comm) + strlen(ih->ih_name) + 1 <
 		    sizeof(p->p_comm)) {
@@ -198,8 +198,8 @@ ithread_create(struct ithd **ithread, int vector, int flags,
 		return (error);
 	}
 	td = FIRST_THREAD_IN_PROC(p);	/* XXXKSE */
-	td->td_ksegrp->kg_pri.pri_class = PRI_ITHD;
-	td->td_ksegrp->kg_pri.pri_level = PRI_MAX_ITHD;
+	td->td_ksegrp->kg_pri_class = PRI_ITHD;
+	td->td_priority = PRI_MAX_ITHD;
 	p->p_stat = SWAIT;
 	ithd->it_td = td;
 	td->td_ithd = ithd;

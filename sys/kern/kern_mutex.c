@@ -67,8 +67,6 @@
 #define mtx_owner(m)	(mtx_unowned((m)) ? NULL \
 	: (struct thread *)((m)->mtx_lock & MTX_FLAGMASK))
 
-#define SET_PRIO(td, pri)	(td)->td_ksegrp->kg_pri.pri_level = (pri)
-
 /*
  * Lock classes for sleep and spin mutexes.
  */
@@ -90,7 +88,7 @@ static void
 propagate_priority(struct thread *td)
 {
 	struct ksegrp *kg = td->td_ksegrp;
-	int pri = kg->kg_pri.pri_level;
+	int pri = td->td_priority;
 	struct mtx *m = td->td_blocked;
 
 	mtx_assert(&sched_lock, MA_OWNED);
@@ -112,13 +110,13 @@ propagate_priority(struct thread *td)
 
 		MPASS(td->td_proc->p_magic == P_MAGIC);
 		KASSERT(td->td_proc->p_stat != SSLEEP, ("sleeping thread owns a mutex"));
-		if (kg->kg_pri.pri_level <= pri) /* lower is higher priority */
+		if (td->td_priority <= pri) /* lower is higher priority */
 			return;
 
 		/*
 		 * Bump this thread's priority.
 		 */
-		SET_PRIO(td, pri);
+		td->td_priority = pri;
 
 		/*
 		 * If lock holder is actually running, just bump priority.
@@ -174,7 +172,7 @@ propagate_priority(struct thread *td)
 		}
 
 		td1 = TAILQ_PREV(td, threadqueue, td_blkq);
-		if (td1->td_ksegrp->kg_pri.pri_level <= pri) {
+		if (td1->td_priority <= pri) {
 			continue;
 		}
 
@@ -188,7 +186,7 @@ propagate_priority(struct thread *td)
 		TAILQ_REMOVE(&m->mtx_blocked, td, td_blkq);
 		TAILQ_FOREACH(td1, &m->mtx_blocked, td_blkq) {
 			MPASS(td1->td_proc->p_magic == P_MAGIC);
-			if (td1->td_ksegrp->kg_pri.pri_level > pri)
+			if (td1->td_priority > pri)
 				break;
 		}
 
@@ -327,8 +325,8 @@ _mtx_lock_sleep(struct mtx *m, int opts, const char *file, int line)
 			MPASS(td1 != NULL);
 			m->mtx_lock = (uintptr_t)td | MTX_CONTESTED;
 
-			if (td1->td_ksegrp->kg_pri.pri_level < kg->kg_pri.pri_level)
-				SET_PRIO(td, td1->td_ksegrp->kg_pri.pri_level); 
+			if (td1->td_priority < td->td_priority)
+				td->td_priority = td1->td_priority; 
 			mtx_unlock_spin(&sched_lock);
 			return;
 		}
@@ -377,7 +375,7 @@ _mtx_lock_sleep(struct mtx *m, int opts, const char *file, int line)
 			TAILQ_INSERT_TAIL(&m->mtx_blocked, td, td_blkq);
 		} else {
 			TAILQ_FOREACH(td1, &m->mtx_blocked, td_blkq)
-				if (td1->td_ksegrp->kg_pri.pri_level > kg->kg_pri.pri_level)
+				if (td1->td_priority > td->td_priority)
 					break;
 			if (td1)
 				TAILQ_INSERT_BEFORE(td1, td, td_blkq);
@@ -499,14 +497,14 @@ _mtx_unlock_sleep(struct mtx *m, int opts, const char *file, int line)
 
 	pri = PRI_MAX;
 	LIST_FOREACH(m1, &td->td_contested, mtx_contested) {
-		int cp = TAILQ_FIRST(&m1->mtx_blocked)->td_ksegrp->kg_pri.pri_level;
+		int cp = TAILQ_FIRST(&m1->mtx_blocked)->td_priority;
 		if (cp < pri)
 			pri = cp;
 	}
 
-	if (pri > kg->kg_pri.pri_native)
-		pri = kg->kg_pri.pri_native;
-	SET_PRIO(td, pri);
+	if (pri > td->td_base_pri)
+		pri = td->td_base_pri;
+	td->td_priority = pri;
 
 	if (LOCK_LOG_TEST(&m->mtx_object, opts))
 		CTR2(KTR_LOCK, "_mtx_unlock_sleep: %p contested setrunqueue %p",
@@ -516,7 +514,7 @@ _mtx_unlock_sleep(struct mtx *m, int opts, const char *file, int line)
 	td1->td_proc->p_stat = SRUN;
 	setrunqueue(td1);
 
-	if (td->td_critnest == 1 && td1->td_ksegrp->kg_pri.pri_level < pri) {
+	if (td->td_critnest == 1 && td1->td_priority < pri) {
 #ifdef notyet
 		if (td->td_ithd != NULL) {
 			struct ithd *it = td->td_ithd;

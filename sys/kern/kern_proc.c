@@ -532,7 +532,6 @@ fill_kinfo_proc(p, kp)
 		kp->ki_dsize = vm->vm_dsize;
 		kp->ki_ssize = vm->vm_ssize;
 	}
-	td = FIRST_THREAD_IN_PROC(p);
 	if ((p->p_sflag & PS_INMEM) && p->p_stats) {
 		kp->ki_start = p->p_stats->p_start;
 		kp->ki_rusage = p->p_stats->p_ru;
@@ -556,11 +555,14 @@ fill_kinfo_proc(p, kp)
 	/* vvv XXXKSE */
 	kp->ki_runtime = p->p_runtime;
 	kp->ki_pctcpu = p->p_kse.ke_pctcpu;
-	kp->ki_estcpu = p->p_ksegrp.kg_estcpu;
-	kp->ki_slptime = p->p_ksegrp.kg_slptime;
+	kp->ki_estcpu = td->td_ksegrp->kg_estcpu;
+	kp->ki_slptime = td->td_ksegrp->kg_slptime;
 	kp->ki_wchan = td->td_wchan;
-	kp->ki_pri = p->p_ksegrp.kg_pri;
-	kp->ki_nice = p->p_ksegrp.kg_nice;
+	kp->ki_pri.pri_level = td->td_priority;
+	kp->ki_pri.pri_user = td->td_ksegrp->kg_user_pri;
+	kp->ki_pri.pri_class = td->td_ksegrp->kg_pri_class;
+	kp->ki_pri.pri_native = td->td_base_pri;
+	kp->ki_nice = td->td_ksegrp->kg_nice;
 	kp->ki_rqindex = p->p_kse.ke_rqindex;
 	kp->ki_oncpu = p->p_kse.ke_oncpu;
 	kp->ki_lastcpu = td->td_lastcpu;

@@ -267,6 +267,8 @@ struct thread {
 	/* XXXKSE p_md is in the "on your own" section in old struct proc */
 	struct mdthread td_md;		/* (k) Any machine-dependent fields. */
 	register_t 	td_retval[2];	/* (k) Syscall aux returns. */
+	u_char		td_base_pri;	/* (j) Thread base kernel priority */
+	u_char		td_priority;	/* (j) Thread active priority */
 #define	td_endcopy td_pcb
 
 	struct ucred	*td_ucred;	/* (k) Reference to credentials. */
@@ -335,12 +337,13 @@ struct ksegrp {
 	TAILQ_HEAD(, thread) kg_slpq;	/* (td_runq) NONRUNNABLE threads. */
 
 #define	kg_startzero kg_estcpu
- 	u_int		kg_slptime;	/* (j) How long completely blocked. */
 	u_int		kg_estcpu;	/* Sum of the same field in KSEs. */
-#define	kg_endzero kg_pri
+ 	u_int		kg_slptime;	/* (j) How long completely blocked. */
+#define	kg_endzero kg_pri_class
 
 #define	kg_startcopy 	kg_endzero
-	struct priority	kg_pri;		/* (j) Process priority. */
+	char		kg_pri_class;	/* (j) */
+	char		kg_user_pri;	/* (j) priority when in userland */
 	char		kg_nice;	/* (j?/k?) Process "nice" value. */
 	struct rtprio	kg_rtprio;	/* (j) Realtime priority. */
 #define	kg_endcopy kg_runnable
@@ -700,7 +703,7 @@ void	cpu_throw __P((void)) __dead2;
 void	unsleep __P((struct thread *));
 void	updatepri __P((struct thread *));
 void	userret __P((struct thread *, struct trapframe *, u_int));
-void	maybe_resched __P((struct ksegrp *));
+void	maybe_resched __P((struct thread *));
 
 void	cpu_exit __P((struct thread *));
 void	exit1 __P((struct thread *, int)) __dead2;

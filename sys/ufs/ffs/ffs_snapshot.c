@@ -1280,7 +1280,7 @@ retry:
 				VOP_UNLOCK(vp, 0, td);
 				if (error != EWOULDBLOCK)
 					break;
-				tsleep(vp, td->td_ksegrp->kg_pri.pri_user, "nap", 1);
+				tsleep(vp, td->td_ksegrp->kg_user_pri, "nap", 1);
 				goto retry;
 			}
 			indiroff = (lbn - NDADDR) % NINDIR(fs);
@@ -1308,7 +1308,7 @@ retry:
 			VOP_UNLOCK(vp, 0, td);
 			if (error != EWOULDBLOCK)
 				break;
-			tsleep(vp, td->td_ksegrp->kg_pri.pri_user, "nap", 1);
+			tsleep(vp, td->td_ksegrp->kg_user_pri, "nap", 1);
 			goto retry;
 		}
 #ifdef DEBUG
