@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dispatch.c,v 1.26 1998/11/15 09:06:19 jkh Exp $
+ * $Id: dispatch.c,v 1.27 1999/02/05 22:15:48 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -56,7 +56,6 @@ static struct _word {
     { "configNTP",		configNTP		},
     { "configPCNFSD",		configPCNFSD		},
     { "configPackages",		configPackages		},
-    { "configRegister",		configRegister		},
     { "configUsers",		configUsers		},
     { "configXEnvironment",	configXEnvironment	},
     { "diskPartitionEditor",	diskPartitionEditor	},
@@ -105,7 +104,6 @@ static struct _word {
     { "mediaGetType",		mediaGetType		},
     { "msgConfirm",		dispatch_msgConfirm	},
     { "optionsEditor",		optionsEditor		},
-    { "register",		configRegister		},	/* Alias */
     { "packageAdd",		packageAdd		},
     { "addGroup",		userAddGroup		},
     { "addUser",		userAddUser		},
