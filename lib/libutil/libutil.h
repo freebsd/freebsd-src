@@ -48,9 +48,9 @@ struct utmp;
 struct in_addr;
 
 __BEGIN_DECLS
-int	extattr_namespace_to_string __P((int attrnamespace, char **string));
-int	extattr_string_to_namespace __P((const char *string,
-					 int *attrnamespace));
+int	extattr_namespace_to_string __P((int _attrnamespace, char **_string));
+int	extattr_string_to_namespace __P((const char *_string,
+					 int *_attrnamespace));
 void	login __P((struct utmp *_ut));
 int	login_tty __P((int _fd));
 int	logout __P((const char *_line));
