@@ -435,7 +435,7 @@ ncp_args_parseopt(struct ncp_args *na, int opt, char *optarg, ncp_setopt_t *set_
  *  the rest - requester error;
  */
 void
-ncp_error(char *fmt, int error,...) {
+ncp_error(const char *fmt, int error, ...) {
 	va_list ap;
 
 	fprintf(stderr, "%s: ", __progname);

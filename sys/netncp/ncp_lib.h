@@ -168,7 +168,7 @@ NWCCODE NWDisableTTS(NWCONN_HANDLE);
 NWCCODE NWEnableTTS(NWCONN_HANDLE);
 NWCCODE NWDisableFileServerLogin(NWCONN_HANDLE);
 NWCCODE NWEnableFileServerLogin(NWCONN_HANDLE);
-void ncp_error(char *, int,...);
+void ncp_error(const char *, int, ...) __printf0like(1, 3);
 char *ncp_printb(char *, int, const struct ncp_bitname *);
 void nw_keyhash(const u_char *, const u_char *, int, u_char *);
 void nw_encrypt(const u_char *, const u_char *, u_char *);

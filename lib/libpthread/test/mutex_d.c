@@ -59,6 +59,9 @@
 
 #define MAX_THREAD_CMDS	10
 
+static void log_error(const char *, ...) __printflike(1, 2);
+static void log_trace (const char *, ...) __printflike(1, 2);
+static void log (const char *, ...) __printflike(1, 2);
 
 /*------------------------------------------------------------
  * Types

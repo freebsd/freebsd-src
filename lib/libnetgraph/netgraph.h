@@ -48,9 +48,9 @@
 
 __BEGIN_DECLS
 int	NgMkSockNode(const char *, int *, int *);
-int	NgNameNode(int, const char *, const char *, ...);
+int	NgNameNode(int, const char *, const char *, ...) __printflike(3, 4);
 int	NgSendMsg(int, const char *, int, int, const void *, size_t);
-int	NgSendAsciiMsg(int, const char *, const char *, ...);
+int	NgSendAsciiMsg(int, const char *, const char *, ...) __printflike(3, 4);
 int	NgSendReplyMsg(int, const char *,
 		const struct ng_mesg *, const void *, size_t);
 int	NgRecvMsg(int, struct ng_mesg *, size_t, char *);
