@@ -1131,15 +1131,34 @@ setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
 int
 ptrace_set_pc(struct thread *td, unsigned long addr)
 {
-	/* TODO set pc in trapframe */
-	return 0;
+	uint64_t slot;
+
+	switch (addr & 0xFUL) {
+	case 0:
+		slot = IA64_PSR_RI_0;
+		break;
+	case 1:
+		/* XXX we need to deal with MLX bundles here */
+		slot = IA64_PSR_RI_1;
+		break;
+	case 2:
+		slot = IA64_PSR_RI_2;
+		break;
+	default:
+		return (EINVAL);
+	}
+
+	td->td_frame->tf_cr_iip = addr & ~0x0FULL;
+	td->td_frame->tf_cr_ipsr = (td->td_frame->tf_cr_ipsr & ~IA64_PSR_RI) |
+	    slot;
+	return (0);
 }
 
 int
 ptrace_single_step(struct thread *td)
 {
-	/* TODO arrange for user process to single step */
-	return 0;
+	td->td_frame->tf_cr_ipsr |= IA64_PSR_SS;
+	return (0);
 }
 
 int
@@ -1153,7 +1172,26 @@ fill_regs(td, regs)
 	struct thread *td;
 	struct reg *regs;
 {
-	/* TODO copy trapframe to regs */
+	bcopy(td->td_frame->tf_b, regs->r_br, sizeof(regs->r_br));
+	bcopy(td->td_frame->tf_r, regs->r_gr+1, sizeof(td->td_frame->tf_r));
+	/* TODO copy registers from the register stack. */
+
+	regs->r_cfm = td->td_frame->tf_cr_ifs;
+	regs->r_ip = td->td_frame->tf_cr_iip;
+	regs->r_ip |= (td->td_frame->tf_cr_ipsr & IA64_PSR_RI) >> 41;
+	regs->r_pr = td->td_frame->tf_pr;
+	regs->r_psr = td->td_frame->tf_cr_ipsr;
+	regs->r_ar_rsc = td->td_frame->tf_ar_rsc;
+	regs->r_ar_bsp = 0;		/* XXX */
+	regs->r_ar_bspstore = td->td_frame->tf_ar_bspstore;
+	regs->r_ar_rnat = td->td_frame->tf_ar_rnat;
+	regs->r_ar_ccv = td->td_frame->tf_ar_ccv;
+	regs->r_ar_unat = td->td_frame->tf_ar_unat;
+	regs->r_ar_fpsr = td->td_frame->tf_ar_fpsr;
+	regs->r_ar_pfs = td->td_frame->tf_ar_pfs;
+	regs->r_ar_lc = td->td_frame->tf_ar_lc;
+	regs->r_ar_ec = td->td_frame->tf_ar_ec;
+
 	return (0);
 }
 
@@ -1162,7 +1200,34 @@ set_regs(td, regs)
 	struct thread *td;
 	struct reg *regs;
 {
-	/* TODO copy regs to trapframe */
+	int error;
+
+	error = ptrace_set_pc(td, regs->r_ip);
+	if (error)
+		return (error);
+
+	td->td_frame->tf_cr_ipsr &= ~0x1FUL;	/* clear user mask */
+	td->td_frame->tf_cr_ipsr |= regs->r_psr & 0x1FUL;
+
+	td->td_frame->tf_pr = regs->r_pr;
+
+	/* XXX r_ar_bsp */
+
+	td->td_frame->tf_ar_rsc = regs->r_ar_rsc;
+	td->td_frame->tf_ar_pfs = regs->r_ar_pfs;
+	td->td_frame->tf_cr_ifs = regs->r_cfm;
+	td->td_frame->tf_ar_bspstore = regs->r_ar_bspstore;
+	td->td_frame->tf_ar_rnat = regs->r_ar_rnat;
+	td->td_frame->tf_ar_unat = regs->r_ar_unat;
+	td->td_frame->tf_ar_ccv = regs->r_ar_ccv;
+	td->td_frame->tf_ar_fpsr = regs->r_ar_fpsr;
+	td->td_frame->tf_ar_lc = regs->r_ar_lc;
+	td->td_frame->tf_ar_ec = regs->r_ar_ec;
+
+	bcopy(regs->r_br, td->td_frame->tf_b, sizeof(td->td_frame->tf_b));
+	bcopy(regs->r_gr+1, td->td_frame->tf_r, sizeof(td->td_frame->tf_r));
+	/* TODO copy registers to the register stack. */
+
 	return (0);
 }
 
@@ -1185,12 +1250,20 @@ fill_fpregs(td, fpregs)
 	struct thread *td;
 	struct fpreg *fpregs;
 {
-	/* TODO copy fpu state to fpregs */
-	ia64_fpstate_save(td, 0);
+	fpregs->fpr_regs[2] = td->td_pcb->pcb_f2;
+	fpregs->fpr_regs[3] = td->td_pcb->pcb_f3;
+	fpregs->fpr_regs[4] = td->td_pcb->pcb_f4;
+	fpregs->fpr_regs[5] = td->td_pcb->pcb_f5;
 
-#if 0
-	bcopy(&td->td_pcb->pcb_fp, fpregs, sizeof *fpregs);
-#endif
+	bcopy(td->td_frame->tf_f, fpregs->fpr_regs+6,
+	    sizeof(td->td_frame->tf_f));
+
+	/* XXX f16-f31 */
+
+	ia64_fpstate_save(td, 0);
+	bcopy(td->td_pcb->pcb_highfp, fpregs->fpr_regs+32,
+	    sizeof(td->td_pcb->pcb_highfp));
+
 	return (0);
 }
 
@@ -1199,12 +1272,20 @@ set_fpregs(td, fpregs)
 	struct thread *td;
 	struct fpreg *fpregs;
 {
-	/* TODO copy fpregs fpu state */
-	ia64_fpstate_drop(td);
+	td->td_pcb->pcb_f2 = fpregs->fpr_regs[2];
+	td->td_pcb->pcb_f3 = fpregs->fpr_regs[3];
+	td->td_pcb->pcb_f4 = fpregs->fpr_regs[4];
+	td->td_pcb->pcb_f5 = fpregs->fpr_regs[5];
 
-#if 0
-	bcopy(fpregs, &td->td_pcb->pcb_fp, sizeof *fpregs);
-#endif
+	bcopy(fpregs->fpr_regs+6, td->td_frame->tf_f,
+	    sizeof(td->td_frame->tf_f));
+
+	/* XXX f16-f31 */
+
+	ia64_fpstate_drop(td);
+	bcopy(fpregs->fpr_regs+32, td->td_pcb->pcb_highfp,
+	    sizeof(td->td_pcb->pcb_highfp));
+
 	return (0);
 }
 
