@@ -1655,7 +1655,6 @@ union_inactive(ap)
 	struct vnode *vp = ap->a_vp;
 	struct thread *td = ap->a_td;
 	struct union_node *un = VTOUNION(vp);
-	struct vnode **vpp;
 
 	/*
 	 * Do nothing (and _don't_ bypass).
@@ -1665,12 +1664,8 @@ union_inactive(ap)
 	 *
 	 */
 
-	if (un->un_dircache != 0) {
-		for (vpp = un->un_dircache; *vpp != NULLVP; vpp++)
-			vrele(*vpp);
-		free (un->un_dircache, M_TEMP);
-		un->un_dircache = 0;
-	}
+	if (un->un_dircache != NULL)
+		union_dircache_free(un);
 
 #if 0
 	if ((un->un_flags & UN_ULOCK) && un->un_uppervp) {
