@@ -572,6 +572,17 @@ vop_openextattr {
 };
 
 #
+#% rmextattr	vp	L L L
+#
+vop_rmextattr {
+	IN struct vnode *vp;
+	IN int attrnamespace;
+	IN const char *name;
+	IN struct ucred *cred;
+	IN struct thread *td;
+};
+
+#
 #% setextattr	vp	L L L
 #
 vop_setextattr {
