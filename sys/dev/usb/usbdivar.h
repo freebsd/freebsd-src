@@ -1,4 +1,4 @@
-/*	$NetBSD: usbdivar.h,v 1.67 2001/11/21 13:44:47 augustss Exp $	*/
+/*	$NetBSD: usbdivar.h,v 1.68 2001/12/24 21:36:16 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -196,6 +196,7 @@ struct usbd_xfer {
 	u_int32_t		busy_free;
 #define XFER_FREE 0x46524545
 #define XFER_BUSY 0x42555357
+#define XFER_ONQU 0x504f5255
 #endif
 
 	/* For control pipe */
