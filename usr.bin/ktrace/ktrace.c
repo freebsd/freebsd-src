@@ -55,20 +55,21 @@ __FBSDID("$FreeBSD$");
 #include <sys/ktrace.h>
 
 #include <err.h>
+#include <stdlib.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 
 #include "ktrace.h"
 
+static char def_tracefile[] = DEF_TRACEFILE;
+
 static void no_ktrace(int);
 static int rpid(char *);
 static void usage(void);
 
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char *argv[])
 {
 	enum { NOTSET, CLEAR, CLEARALL } clear;
 	int append, ch, fd, inherit, ops, pid, pidset, trpoints;
@@ -79,7 +80,7 @@ main(argc, argv)
 	clear = NOTSET;
 	append = ops = pidset = inherit = 0;
 	trpoints = DEF_POINTS;
-	tracefile = DEF_TRACEFILE;
+	tracefile = def_tracefile;
 	while ((ch = getopt(argc,argv,"aCcdf:g:ip:t:")) != -1)
 		switch((char)ch) {
 		case 'a':
@@ -171,8 +172,7 @@ main(argc, argv)
 }
 
 static int
-rpid(p)
-	char *p;
+rpid(char *p)
 {
 	static int first;
 
@@ -188,7 +188,7 @@ rpid(p)
 }
 
 static void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr, "%s\n%s\n",
 "usage: ktrace [-aCcdi] [-f trfile] [-g pgrp | -p pid] [-t cnisuw]",
@@ -197,8 +197,7 @@ usage()
 }
 
 static void
-no_ktrace(sig)
-        int sig __unused;
+no_ktrace(int sig __unused)
 {
         (void)fprintf(stderr,
 "error:\tktrace() system call not supported in the running kernel\n\tre-compile kernel with 'options KTRACE'\n");
