@@ -42,7 +42,8 @@ ALL+=		${INSTALL_CF}
 
 # Additional .cf files to build
 .if defined(SENDMAIL_ADDITIONAL_MC)
-ALL+=		${SENDMAIL_ADDITIONAL_MC:S/.mc$/.cf/g}
+SENDMAIL_ADDITIONAL_CF=	${SENDMAIL_ADDITIONAL_MC:S/.mc$/.cf/g}
+ALL+=		${SENDMAIL_ADDITIONAL_CF}
 .endif
 
 CLEANFILES+=	${ALL}
@@ -60,6 +61,10 @@ install:	${INSTALL_CF}
 .if ${INSTALL_CF} != ${DEST_CF}
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 644 ${INSTALL_CF} \
 		${DEST_CF}
+.endif
+.if defined(SENDMAIL_ADDITIONAL_CF)
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 644 \
+		${SENDMAIL_ADDITIONAL_CF} ${DESTDIR}/etc/mail
 .endif
 .endif
 
