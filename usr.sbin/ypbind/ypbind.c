@@ -29,7 +29,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: ypbind.c,v 1.26 1997/10/27 07:45:47 charnier Exp $";
+	"$Id: ypbind.c,v 1.27 1998/01/19 23:31:38 wpaul Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -247,6 +247,7 @@ ypbind_setdom *argp;
 CLIENT *clnt;
 {
 	struct sockaddr_in *fromsin, bindsin;
+	static char		*result = NULL;
 
 	if (strchr(argp->ypsetdom_domain, '/')) {
 		syslog(LOG_WARNING, "Domain name '%s' has embedded slash -- \
@@ -286,7 +287,7 @@ rejecting.", argp->ypsetdom_domain);
 	bindsin.sin_port = *(u_short *)argp->ypsetdom_binding.ypbind_binding_port;
 	rpc_received(argp->ypsetdom_domain, &bindsin, 1);
 
-	return(NULL);
+	return((void *) &result);
 }
 
 static void
