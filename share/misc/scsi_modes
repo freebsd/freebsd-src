@@ -84,7 +84,7 @@
 	{Demand Retention Priority} t4
 	{Write Retention Priority} t4
 	{Disable Pre-fetch Transfer Length} i2
-	{Minumum Pre-fetch} i2
+	{Minimum Pre-fetch} i2
 	{Maximum Pre-fetch} i2
 	{Maximum Pre-fetch Ceiling} i2
 }
