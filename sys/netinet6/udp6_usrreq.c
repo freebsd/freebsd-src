@@ -459,7 +459,7 @@ udp6_ctlinput(cmd, sa, d)
 }
 
 static int
-udp6_getcred (SYSCTL_HANDLER_ARGS)
+udp6_getcred(SYSCTL_HANDLER_ARGS)
 {
 	struct sockaddr_in6 addrs[2];
 	struct inpcb *inp;
