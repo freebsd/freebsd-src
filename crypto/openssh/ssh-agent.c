@@ -748,7 +748,8 @@ main(int ac, char **av)
 	memset(&sunaddr, 0, sizeof(sunaddr));
 	sunaddr.sun_family = AF_UNIX;
 	strlcpy(sunaddr.sun_path, socket_name, sizeof(sunaddr.sun_path));
-	if (bind(sock, (struct sockaddr *) & sunaddr, sizeof(sunaddr)) < 0) {
+	sunaddr.sun_len = SUN_LEN(&sunaddr) + 1;
+	if (bind(sock, (struct sockaddr *)&sunaddr, sunaddr.sun_len) < 0) {
 		perror("bind");
 		cleanup_exit(1);
 	}
