@@ -1,4 +1,4 @@
-<!-- $Id: porting.sgml,v 1.4 1995/08/19 15:38:25 jfieber Exp $ -->
+<!-- $Id: porting.sgml,v 1.5 1995/09/27 00:46:24 jmz Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>Porting applications<label id="porting"></heading>
@@ -125,7 +125,7 @@
 # Date created:		5 December 1994
 # Whom:			asami
 #
-# $Id: porting.sgml,v 1.4 1995/08/19 15:38:25 jfieber Exp $
+# $Id: porting.sgml,v 1.5 1995/09/27 00:46:24 jmz Exp $
 #
 
 DISTNAME=	oneko-1.1b
@@ -558,7 +558,7 @@ work/foozolix-1.0/
 
       <sect2>
 	<heading>Dependencies</heading>
-	<p>Many ports depend on other ports.  There are three
+	<p>Many ports depend on other ports.  There are five
 	  variables that you can use to ensure that all the required
 	  bits will be on the user's machine.
 	<sect3>
@@ -579,22 +579,56 @@ LIB_DEPENDS=    tcl\\.7\\.:${PORTSDIR}/lang/tcl
 	    to `<tt>ldconfig -r | grep</tt>', so periods should be
 	    escaped by two backslashes like in the example above.
 	<sect3>
-	  <heading>EXEC_DEPENDS</heading>
-	  <p>This variable specifies executables this port depends
-	    on.  It is a list of `<tt>exec:dir</tt>' pairs
-	    where <tt>exec</tt> is the name of the executable, and
-	    <tt>dir</tt> is the directory in which to find it in case
-	    it's not available.  For example,
+	  <heading>RUN_DEPENDS</heading>
+	  <p>This variable specifies executables this port depends on
+	    during run-time.  It is a list of `<tt>exec:dir</tt>'
+	    pairs where <tt>exec</tt> is the name of the executable,
+	    and <tt>dir</tt> is the directory in which to find it in
+	    case it's not available.  For example,
 <tscreen><verb>
-EXEC_DEPENDS=   wish:${PORTSDIR}/x11/tk
+RUN_DEPENDS=   wish:${PORTSDIR}/x11/tk
 </verb></tscreen>
 	    will check for an executable called `<tt>wish</tt>', and
 	    descend into the <tt>x11/tk</tt> subdirectory of your
 	    ports tree to build and install it if it's not found.
+
+	    The dependency is checked from within the <tt>install</tt>
+	    target.  Also, the name of the dependency is put in to the 
+	    package so that <tt>pkg_add</tt> will automatically
+	    install it if it is not on the user's system.
+	<sect3>
+	  <heading>BUILD_DEPENDS</heading>
+	  <p>This variable specifies executables this port requires to
+	    build.  Like <tt>RUN_DEPENDS</tt>, it is a list of
+	    `<tt>exec:dir</tt>' pairs.  For example,
+<tscreen><verb>
+BUILD_DEPENDS=   unzip:${PORTSDIR}/archivers/unzip
+</verb></tscreen>
+	    will check for an executable called `<tt>unzip</tt>', and
+	    descend into the <tt>archivers/unzip</tt> subdirectory of
+	    your ports tree to build and install it if it's not found.
+
+	    Note that `build' here means everything from extracting to 
+	    compilation.  The dependency is checked from within the
+	    <tt>extract</tt> target.
+	<sect3>
+	  <heading>FETCH_DEPENDS</heading>
+	  <p>This variable specifies executables this port requires to
+	    fetch.  Like the previous two, it is a list of
+	    `<tt>exec:dir</tt>' pairs.  For example,
+<tscreen><verb>
+FETCH_DEPENDS=   ncftp2:${PORTSDIR}/net/ncftp2
+</verb></tscreen>
+	    will check for an executable called `<tt>ncftp2</tt>', and
+	    descend into the <tt>net/ncftp2</tt> subdirectory of
+	    your ports tree to build and install it if it's not found.
+
+	    The dependency is checked from within the <tt>fetch</tt>
+	    target.
 	<sect3>
 	  <heading>DEPENDS</heading>
 	  <p>If there is a dependency that doesn't fall into either of
-	    the above two categories, or your port requires to have
+	    the above four categories, or your port requires to have
 	    the source of the other port extracted (i.e., having them
 	    installed is not enough), then use this variable.  This is
 	    just a list of directories, as there is nothing to check,
@@ -790,7 +824,7 @@ post-install:
 	<heading>ldconfig</heading>
 	<p>If your port installs a shared library, add a
 	  <tt>post-install</tt> target to your Makefile that runs
-	  `<tt>ldconfig -m</tt>' on the directory where the new
+	  `<tt>/sbin/ldconfig -m</tt>' on the directory where the new
 	  library is installed (usually <tt>&dollar;{PREFIX}/lib</tt>)
 	  to register it into the shared library cache.
 
@@ -801,7 +835,7 @@ post-install:
 	  as in:
 <tscreen><verb>
 lib/libtcl.so.7.3
-@exec ldconfig -m %D/%F
+@exec /sbin/ldconfig -m %D/lib
 </verb></tscreen>
 
 	<p>Note: the `-m' option is new since 2.0.5 and
@@ -848,7 +882,7 @@ lib/libtcl.so.7.3
  person who wrote this Makefile]
 # Whom:			Satoshi Asami <asami@FreeBSD.ORG>
 #
-# $Id: porting.sgml,v 1.4 1995/08/19 15:38:25 jfieber Exp $
+# $Id: porting.sgml,v 1.5 1995/09/27 00:46:24 jmz Exp $
 [ ^^^^ don't worry about this...it will be automatically filled in by CVS when 
  it is committed to our repository]
 #
@@ -877,7 +911,7 @@ PATCHFILES=	xdvi-18.patch1.gz xdvi-18.patch2.gz
 MAINTAINER=	asami@FreeBSD.ORG
 
 [dependencies -- can be empty]
-EXEC_DEPENDS=	gs:${PORTSDIR}/print/ghostscript
+RUN_DEPENDS=	gs:${PORTSDIR}/print/ghostscript
 LIB_DEPENDS=	Xpm\\.4\\.:${PORTSDIR}/graphics/xpm
 
 [this section is for other standard bsd.port.mk variables that don't belong to
