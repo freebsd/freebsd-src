@@ -550,7 +550,7 @@ ffs_mountfs(devvp, mp, p, malloctype)
 	 */
 	if (devvp->v_tag != VT_MFS && vn_isdisk(devvp, NULL)) {
 		vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, p);
-		vfs_object_create(devvp, p, p->p_ucred);
+		vfs_object_create(devvp, p, cred);
 		simple_lock(&devvp->v_interlock);
 		VOP_UNLOCK(devvp, LK_INTERLOCK, p);
 	}
