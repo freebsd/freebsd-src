@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinum.c,v 1.24 1999/03/19 05:35:25 grog Exp grog $
+ * $Id: vinum.c,v 1.25 1999/06/29 04:07:55 grog Exp $
  */
 
 #define STATIC static					    /* nothing while we're testing XXX */
@@ -266,7 +266,9 @@ vinumopen(dev_t dev,
     struct volume *vol;
     struct plex *plex;
     struct sd *sd;
+    int devminor;
 
+    devminor = minor(dev);
     error = 0;
     /* First, decide what we're looking at */
     switch (DEVTYPE(dev)) {
@@ -343,9 +345,9 @@ vinumopen(dev_t dev,
     case VINUM_SUPERDEV_TYPE:
 	error = suser(p);				    /* are we root? */
 	if (error == 0) {				    /* yes, can do */
-	    if (dev == VINUM_DAEMON_DEV)		    /* daemon device */
+	    if (devminor == VINUM_DAEMON_DEV)		    /* daemon device */
 		vinum_conf.flags |= VF_DAEMONOPEN;	    /* we're open */
-	    else if (dev == VINUM_SUPERDEV)
+	    else if (devminor == VINUM_SUPERDEV)
 		vinum_conf.flags |= VF_OPEN;		    /* we're open */
 	    else
 		error = ENODEV;				    /* nothing, maybe a debug mismatch */
@@ -364,7 +366,9 @@ vinumclose(dev_t dev,
 {
     unsigned int index;
     struct volume *vol;
+    int devminor;
 
+    devminor = minor(dev);
     index = Volno(dev);
     /* First, decide what we're looking at */
     switch (DEVTYPE(dev)) {
@@ -413,9 +417,9 @@ vinumclose(dev_t dev,
 	 * don't worry about whether we're root:
 	 * nobody else would get this far.
 	 */
-	if (dev == VINUM_SUPERDEV)			    /* normal superdev */
+	if (devminor == VINUM_SUPERDEV)			    /* normal superdev */
 	    vinum_conf.flags &= ~VF_OPEN;		    /* no longer open */
-	else if (dev == VINUM_DAEMON_DEV) {		    /* the daemon device */
+	else if (devminor == VINUM_DAEMON_DEV) {	    /* the daemon device */
 	    vinum_conf.flags &= ~VF_DAEMONOPEN;		    /* no longer open */
 	    if (vinum_conf.flags & VF_STOPPING)		    /* we're stopping, */
 		wakeup(&vinumclose);			    /* we can continue stopping now */
