@@ -2185,32 +2185,27 @@ vm_map_delete(vm_map_t map, vm_offset_t start, vm_offset_t end)
 
 		offidxend = offidxstart + count;
 
-		if (object == kernel_object || object == kmem_object) {
+		mtx_lock(&Giant);
+		vm_page_lock_queues();
+		pmap_remove(map->pmap, s, e);
+		vm_page_unlock_queues();
+		if (object != NULL) {
 			VM_OBJECT_LOCK(object);
-			vm_object_page_remove(object, offidxstart, offidxend, FALSE);
-			VM_OBJECT_UNLOCK(object);
-		} else {
-			mtx_lock(&Giant);
-			vm_page_lock_queues();
-			pmap_remove(map->pmap, s, e);
-			vm_page_unlock_queues();
-			if (object != NULL) {
-				VM_OBJECT_LOCK(object);
-				if (object->ref_count != 1 &&
-				    (object->flags & (OBJ_NOSPLIT|OBJ_ONEMAPPING)) == OBJ_ONEMAPPING &&
-				    (object->type == OBJT_DEFAULT || object->type == OBJT_SWAP)) {
-					vm_object_collapse(object);
-					vm_object_page_remove(object, offidxstart, offidxend, FALSE);
-					if (object->type == OBJT_SWAP)
-						swap_pager_freespace(object, offidxstart, count);
-					if (offidxend >= object->size &&
-					    offidxstart < object->size)
-						object->size = offidxstart;
-				}
-				VM_OBJECT_UNLOCK(object);
+			if (object->ref_count != 1 &&
+			    ((object->flags & (OBJ_NOSPLIT|OBJ_ONEMAPPING)) == OBJ_ONEMAPPING ||
+			     object == kernel_object || object == kmem_object) &&
+			    (object->type == OBJT_DEFAULT || object->type == OBJT_SWAP)) {
+				vm_object_collapse(object);
+				vm_object_page_remove(object, offidxstart, offidxend, FALSE);
+				if (object->type == OBJT_SWAP)
+					swap_pager_freespace(object, offidxstart, count);
+				if (offidxend >= object->size &&
+				    offidxstart < object->size)
+					object->size = offidxstart;
 			}
-			mtx_unlock(&Giant);
+			VM_OBJECT_UNLOCK(object);
 		}
+		mtx_unlock(&Giant);
 
 		/*
 		 * Delete the entry (which may delete the object) only after
