@@ -1373,6 +1373,10 @@ netgraph/atm/atmpif/ng_atmpif.c	optional netgraph_atm_atmpif
 netgraph/atm/atmpif/ng_atmpif_harp.c	optional netgraph_atm_atmpif
 netgraph/atm/ngatmbase.c			optional ngatm_atmbase
 contrib/ngatm/netnatm/misc/unimsg_common.c	optional ngatm_atmbase
+contrib/ngatm/netnatm/misc/straddr.c		optional ngatm_atmbase
+contrib/ngatm/netnatm/msg/traffic.c		optional ngatm_atmbase
+contrib/ngatm/netnatm/msg/uni_ie.c		optional ngatm_atmbase
+contrib/ngatm/netnatm/msg/uni_msg.c		optional ngatm_atmbase
 netgraph/atm/ng_atm.c		optional ngatm_atm
 netgraph/atm/sscfu/ng_sscfu.c		optional ngatm_sscfu
 contrib/ngatm/netnatm/saal/saal_sscfu.c	optional ngatm_sscfu
