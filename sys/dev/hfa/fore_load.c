@@ -130,10 +130,6 @@ fore_start()
 			ATM_VERS_MAJ(atm_version), ATM_VERS_MIN(atm_version));
 		return (EINVAL);
 	}
-	/*
-	 * Initialize DMA mapping
-	 */
-	DMA_INIT();
 
 	/*
 	 * Start up watchdog timer

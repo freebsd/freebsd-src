@@ -94,8 +94,7 @@ fore_xmit_allocate(fup)
 	}
 	fup->fu_xmit_stat = (Q_status *) memp;
 
-	memp = DMA_GET_ADDR(fup->fu_xmit_stat, sizeof(Q_status) * XMIT_QUELEN,
-			QSTAT_ALIGN, ATM_DEV_NONCACHE);
+	memp = (void *)vtophys(fup->fu_xmit_stat);
 	if (memp == NULL) {
 		return (1);
 	}
@@ -121,8 +120,7 @@ fore_xmit_allocate(fup)
 			return (1);
 		}
 
-		hxp->hxq_descr_dma = DMA_GET_ADDR(hxp->hxq_descr,
-			sizeof(Xmit_descr), XMIT_DESCR_ALIGN, 0);
+		hxp->hxq_descr_dma = (Xmit_descr *)vtophys(hxp->hxq_descr);
 		if (hxp->hxq_descr_dma == NULL) {
 			return (1);
 		}
@@ -253,7 +251,6 @@ fore_xmit_drain(fup)
 			caddr_t		cp;
 
 			KB_DATASTART(m, cp, caddr_t);
-			DMA_FREE_ADDR(cp, *sdmap, KB_LEN(m), 0);
 		}
 		KB_FREEALL(hxp->hxq_buf);
 
@@ -346,7 +343,6 @@ fore_xmit_free(fup)
 				caddr_t		cp;
 
 				KB_DATASTART(m, cp, caddr_t);
-				DMA_FREE_ADDR(cp, *sdmap, KB_LEN(m), 0);
 			}
 			KB_FREEALL(hxp->hxq_buf);
 
@@ -359,11 +355,6 @@ fore_xmit_free(fup)
 	 * Free the status words
 	 */
 	if (fup->fu_xmit_stat) {
-		if (fup->fu_xmit_statd) {
-			DMA_FREE_ADDR(fup->fu_xmit_stat, fup->fu_xmit_statd,
-				sizeof(Q_status) * XMIT_QUELEN,
-				ATM_DEV_NONCACHE);
-		}
 		atm_dev_free((volatile void *)fup->fu_xmit_stat);
 		fup->fu_xmit_stat = NULL;
 		fup->fu_xmit_statd = NULL;
@@ -379,8 +370,6 @@ fore_xmit_free(fup)
 		 * Free the transmit descriptor for this queue entry
 		 */
 		if (hxp->hxq_descr_dma) {
-			DMA_FREE_ADDR(hxp->hxq_descr, hxp->hxq_descr_dma,
-				sizeof(Xmit_descr), 0);
 			hxp->hxq_descr_dma = NULL;
 		}
 

@@ -404,7 +404,7 @@ retry:
 		/*
 		 * Get a DMA address for the data
 		 */
-		dma = DMA_GET_ADDR(bfr, xsp->xsd_len, XMIT_SEG_ALIGN, 0);
+		dma = (void *)vtophys(bfr);
 		if (dma == NULL) {
 			fup->fu_stats->st_drv.drv_xm_segdma++;
 			fore_seg_dma_free(hxp, m0, nsegs);
@@ -472,7 +472,6 @@ fore_seg_dma_free(hxp, m0, nsegs)
 
 	for (i = 0; i < nsegs; i++) {
 		KB_DATASTART(m, cp, caddr_t);
-		DMA_FREE_ADDR(cp, *sdmap, KB_LEN(m), 0);
 		m = KB_NEXT(m);
 		sdmap++;
 	}
