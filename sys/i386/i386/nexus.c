@@ -560,23 +560,17 @@ nexus_setup_intr(device_t bus, device_t child, struct resource *irq,
 		 int flags, void (*ihand)(void *), void *arg, void **cookiep)
 {
 	driver_t	*driver;
-	int		error, icflags;
-	int 		pri;		/* interrupt thread priority */
+	int		error;
 
 	/* somebody tried to setup an irq that failed to allocate! */
 	if (irq == NULL)
 		panic("nexus_setup_intr: NULL irq resource!");
 
 	*cookiep = 0;
-	if (irq->r_flags & RF_SHAREABLE)
-		icflags = 0;
-	else
-		icflags = INTR_EXCL;
+	if ((irq->r_flags & RF_SHAREABLE) == 0)
+		flags |= INTR_EXCL;
 
 	driver = device_get_driver(child);
-	pri = ithread_priority(flags);
-	if (flags & INTR_FAST)
-		icflags |= INTR_FAST;
 
 	/*
 	 * We depend here on rman_activate_resource() being idempotent.
@@ -585,10 +579,8 @@ nexus_setup_intr(device_t bus, device_t child, struct resource *irq,
 	if (error)
 		return (error);
 
-	*cookiep = inthand_add(device_get_nameunit(child), irq->r_start,
-	    ihand, arg, pri, icflags);
-	if (*cookiep == NULL)
-		error = EINVAL;	/* XXX ??? */
+	error = inthand_add(device_get_nameunit(child), irq->r_start,
+	    ihand, arg, flags, cookiep);
 
 	return (error);
 }
