@@ -110,7 +110,7 @@ printlink(name)
 	char *name;
 {
 	int lnklen;
-	char path[MAXPATHLEN + 1];
+	char path[MAXPATHLEN];
 
 	if ((lnklen = readlink(name, path, MAXPATHLEN - 1)) == -1) {
 		warn("%s", name);
