@@ -182,7 +182,7 @@ for creating and deleting sysctl oids at runtime
 (e.g. during lifetime of a module).
 The alternative method,
 based on linker sets (see
-.Aq sys/linker_set.h
+.In sys/linker_set.h
 and
 .\" XXX Manual pages should avoid referencing source files
 .Pa src/sys/kern/kern_sysctl.c
@@ -271,7 +271,7 @@ The newly created oid will contain a copy of the name.
 .It Fa kind
 The kind of oid,
 specified as a bit mask of the type and access values defined in the
-.Aq sys/sysctl.h
+.In sys/sysctl.h
 header file.
 Oids created dynamically always have the
 .Dv CTLFLAG_DYN

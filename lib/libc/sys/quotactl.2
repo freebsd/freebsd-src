@@ -61,7 +61,7 @@ operates on the given filename
 for the given user
 .Fa id .
 (NOTE: One should use the QCMD macro defined in
-.Ao Pa ufs/ufs/quota.h Ac
+.In ufs/ufs/quota.h
 to formulate the value for
 .Fa cmd . )
 The address of an optional command specific data structure,
@@ -118,7 +118,7 @@ argument
 is a pointer to a
 .Fa struct dqblk
 structure (defined in
-.Ao Pa ufs/ufs/quota.h Ac ) .
+.In ufs/ufs/quota.h ) .
 .It Dv Q_SETQUOTA
 Set disk quota limits for the user or group
 (as determined by the command type) with identifier
@@ -129,7 +129,7 @@ argument
 is a pointer to a
 .Fa struct dqblk
 structure (defined in
-.Ao Pa ufs/ufs/quota.h Ac ) .
+.In ufs/ufs/quota.h ) .
 The usage fields of the
 .Fa dqblk
 structure are ignored.
@@ -144,7 +144,7 @@ argument
 is a pointer to a
 .Fa struct dqblk
 structure (defined in
-.Ao Pa ufs/ufs/quota.h Ac ) .
+.In ufs/ufs/quota.h ) .
 Only the usage fields are used.
 This system call is restricted to the super-user.
 .It Dv Q_SYNC
