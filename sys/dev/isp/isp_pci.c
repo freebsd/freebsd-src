@@ -45,6 +45,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <sys/malloc.h>
 
+#ifdef	ISP_TARGET_MODE
+#ifdef	PAE
+#error	"PAE and ISP_TARGET_MODE not supported yet"
+#endif
+#endif
+
 #include <dev/isp/isp_freebsd.h>
 
 static u_int16_t isp_pci_rd_reg(struct ispsoftc *, int);
@@ -385,15 +391,13 @@ isp_pci_attach(device_t dev)
 	}
 
 	/*
-	 * Figure out which we should try first - memory mapping or i/o mapping?
+	 * Which we should try first - memory mapping or i/o mapping?
+	 *
+	 * We used to try memory first followed by i/o on alpha, otherwise
+	 * the reverse, but we should just try memory first all the time now.
 	 */
-#ifdef	__alpha__
 	m1 = PCIM_CMD_MEMEN;
 	m2 = PCIM_CMD_PORTEN;
-#else
-	m1 = PCIM_CMD_PORTEN;
-	m2 = PCIM_CMD_MEMEN;
-#endif
 
 	tval = 0;
         if (resource_int_value(device_get_name(dev), device_get_unit(dev),
@@ -1075,7 +1079,7 @@ isp_pci_mbxdma(struct ispsoftc *isp)
 	caddr_t base;
 	u_int32_t len;
 	int i, error, ns;
-	bus_size_t alim, slim;
+	bus_size_t alim, slim, xlim;
 	struct imush im;
 
 	/*
@@ -1087,8 +1091,9 @@ isp_pci_mbxdma(struct ispsoftc *isp)
 
 #ifdef	ISP_DAC_SUPPORTED
 	alim = BUS_SPACE_UNRESTRICTED;
+	xlim = BUS_SPACE_MAXADDR_32BIT;
 #else
-	alim = BUS_SPACE_MAXADDR_32BIT;
+	xlim = alim = BUS_SPACE_MAXADDR_32BIT;
 #endif
 	if (IS_ULTRA2(isp) || IS_FC(isp) || IS_1240(isp)) {
 		slim = BUS_SPACE_MAXADDR_32BIT;
@@ -1144,7 +1149,7 @@ isp_pci_mbxdma(struct ispsoftc *isp)
 	}
 
 	ns = (len / PAGE_SIZE) + 1;
-	if (bus_dma_tag_create(pcs->dmat, QENTRY_LEN, slim+1, alim, alim,
+	if (bus_dma_tag_create(pcs->dmat, QENTRY_LEN, slim+1, xlim, xlim,
 	    NULL, NULL, len, ns, slim, 0, busdma_lock_mutex, &Giant,
 	    &isp->isp_cdmat)) {
 		isp_prt(isp, ISP_LOGERR,
@@ -1621,6 +1626,141 @@ tdma_mkfc(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 
 static void dma2(void *, bus_dma_segment_t *, int, int);
 
+#ifdef	PAE
+#define	LOWD(x)		((uint32_t) x)
+#define	HIWD(x)		((uint32_t) (x >> 32))
+
+static void
+dma2(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
+{
+	mush_t *mp;
+	struct ispsoftc *isp;
+	struct ccb_scsiio *csio;
+	struct isp_pcisoftc *pcs;
+	bus_dmamap_t *dp;
+	bus_dma_segment_t *eseg;
+	ispreq64_t *rq;
+	int seglim, datalen;
+	u_int16_t nxti;
+
+	mp = (mush_t *) arg;
+	if (error) {
+		mp->error = error;
+		return;
+	}
+
+	if (nseg < 1) {
+		isp_prt(mp->isp, ISP_LOGERR, "bad segment count (%d)", nseg);
+		mp->error = EFAULT;
+		return;
+	}
+	csio = mp->cmd_token;
+	isp = mp->isp;
+	rq = mp->rq;
+	pcs = (struct isp_pcisoftc *)mp->isp;
+	dp = &pcs->dmaps[isp_handle_index(rq->req_handle)];
+	nxti = *mp->nxtip;
+
+	if ((csio->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN) {
+		bus_dmamap_sync(pcs->dmat, *dp, BUS_DMASYNC_PREREAD);
+	} else {
+		bus_dmamap_sync(pcs->dmat, *dp, BUS_DMASYNC_PREWRITE);
+	}
+	datalen = XS_XFRLEN(csio);
+
+	/*
+	 * We're passed an initial partially filled in entry that
+	 * has most fields filled in except for data transfer
+	 * related values.
+	 *
+	 * Our job is to fill in the initial request queue entry and
+	 * then to start allocating and filling in continuation entries
+	 * until we've covered the entire transfer.
+	 */
+
+	if (IS_FC(isp)) {
+		rq->req_header.rqs_entry_type = RQSTYPE_T3RQS;
+		seglim = ISP_RQDSEG_T3;
+		((ispreqt3_t *)rq)->req_totalcnt = datalen;
+		if ((csio->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN) {
+			((ispreqt3_t *)rq)->req_flags |= REQFLAG_DATA_IN;
+		} else {
+			((ispreqt3_t *)rq)->req_flags |= REQFLAG_DATA_OUT;
+		}
+	} else {
+		rq->req_header.rqs_entry_type = RQSTYPE_A64;
+		if (csio->cdb_len > 12) {
+			seglim = 0;
+		} else {
+			seglim = ISP_RQDSEG_A64;
+		}
+		if ((csio->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN) {
+			rq->req_flags |= REQFLAG_DATA_IN;
+		} else {
+			rq->req_flags |= REQFLAG_DATA_OUT;
+		}
+	}
+
+	eseg = dm_segs + nseg;
+
+	while (datalen != 0 && rq->req_seg_count < seglim && dm_segs != eseg) {
+		if (IS_FC(isp)) {
+			ispreqt3_t *rq3 = (ispreqt3_t *)rq;
+			rq3->req_dataseg[rq3->req_seg_count].ds_base =
+			    LOWD(dm_segs->ds_addr);
+			rq3->req_dataseg[rq3->req_seg_count].ds_basehi =
+			    HIWD(dm_segs->ds_addr);
+			rq3->req_dataseg[rq3->req_seg_count].ds_count =
+			    dm_segs->ds_len;
+		} else {
+			rq->req_dataseg[rq->req_seg_count].ds_base =
+			    LOWD(dm_segs->ds_addr);
+			rq->req_dataseg[rq->req_seg_count].ds_basehi =
+			    HIWD(dm_segs->ds_addr);
+			rq->req_dataseg[rq->req_seg_count].ds_count =
+			    dm_segs->ds_len;
+		}
+		datalen -= dm_segs->ds_len;
+		rq->req_seg_count++;
+		dm_segs++;
+	}
+
+	while (datalen > 0 && dm_segs != eseg) {
+		u_int16_t onxti;
+		ispcontreq64_t local, *crq = &local, *cqe;
+
+		cqe = (ispcontreq64_t *) ISP_QUEUE_ENTRY(isp->isp_rquest, nxti);
+		onxti = nxti;
+		nxti = ISP_NXT_QENTRY(onxti, RQUEST_QUEUE_LEN(isp));
+		if (nxti == mp->optr) {
+			isp_prt(isp, ISP_LOGDEBUG0, "Request Queue Overflow++");
+			mp->error = MUSHERR_NOQENTRIES;
+			return;
+		}
+		rq->req_header.rqs_entry_count++;
+		MEMZERO((void *)crq, sizeof (*crq));
+		crq->req_header.rqs_entry_count = 1;
+		crq->req_header.rqs_entry_type = RQSTYPE_A64_CONT;
+
+		seglim = 0;
+		while (datalen > 0 && seglim < ISP_CDSEG64 && dm_segs != eseg) {
+			crq->req_dataseg[seglim].ds_base =
+			    LOWD(dm_segs->ds_addr);
+			crq->req_dataseg[seglim].ds_basehi =
+			    HIWD(dm_segs->ds_addr);
+			crq->req_dataseg[seglim].ds_count =
+			    dm_segs->ds_len;
+			rq->req_seg_count++;
+			dm_segs++;
+			seglim++;
+			datalen -= dm_segs->ds_len;
+		}
+		isp_put_cont64_req(isp, crq, cqe);
+		MEMORYBARRIER(isp, SYNC_REQUEST, onxti, QENTRY_LEN);
+	}
+	*mp->nxtip = nxti;
+}
+#else
 static void
 dma2(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 {
@@ -1744,6 +1884,7 @@ dma2(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	}
 	*mp->nxtip = nxti;
 }
+#endif
 
 static int
 isp_pci_dmasetup(struct ispsoftc *isp, struct ccb_scsiio *csio, ispreq_t *rq,
@@ -1821,7 +1962,7 @@ isp_pci_dmasetup(struct ispsoftc *isp, struct ccb_scsiio *csio, ispreq_t *rq,
 		} else {
 			/* Pointer to physical buffer */
 			struct bus_dma_segment seg;
-			seg.ds_addr = (bus_addr_t)csio->data_ptr;
+			seg.ds_addr = (bus_addr_t)(vm_offset_t)csio->data_ptr;
 			seg.ds_len = csio->dxfer_len;
 			(*eptr)(mp, &seg, 1, 0);
 		}
@@ -1866,6 +2007,10 @@ mbxsync:
 		break;
 	case RQSTYPE_T2RQS:
 		isp_put_request_t2(isp, (ispreqt2_t *) rq, (ispreqt2_t *) qep);
+		break;
+	case RQSTYPE_A64:
+	case RQSTYPE_T3RQS:
+		isp_put_request_t3(isp, (ispreqt3_t *) rq, (ispreqt3_t *) qep);
 		break;
 	}
 	return (CMD_QUEUED);
