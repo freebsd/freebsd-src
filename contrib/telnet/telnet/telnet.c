@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)telnet.c	8.4 (Berkeley) 5/30/95";
+static const char sccsid[] = "@(#)telnet.c	8.4 (Berkeley) 5/30/95";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -49,6 +49,10 @@ static char sccsid[] = "@(#)telnet.c	8.4 (Berkeley) 5/30/95";
 
 #include <ctype.h>
 
+#include <stdlib.h>
+#include <unistd.h>
+#include <termcap.h>
+
 #include "ring.h"
 
 #include "defines.h"
@@ -56,6 +60,13 @@ static char sccsid[] = "@(#)telnet.c	8.4 (Berkeley) 5/30/95";
 #include "types.h"
 #include "general.h"
 
+#if	defined(AUTHENTICATION)
+#include <libtelnet/auth.h>
+#endif
+#if	defined(ENCRYPTION)
+#include <libtelnet/encrypt.h>
+#endif
+#include <libtelnet/misc.h>
 
 #define	strip(x) ((my_want_state_is_wont(TELOPT_BINARY)) ? ((x)&0x7f) : (x))
 
@@ -104,7 +115,8 @@ int
 	donelclchars,	/* the user has set "localchars" */
 	donebinarytoggle,	/* the user has put us in binary */
 	dontlecho,	/* do we suppress local echoing right now? */
-	globalmode;
+	globalmode,
+	clienteof = 0;
 
 char *prompt = 0;
 
@@ -856,7 +868,7 @@ suboption()
 
 	    TerminalSpeeds(&ispeed, &ospeed);
 
-	    sprintf((char *)temp, "%c%c%c%c%d,%d%c%c", IAC, SB, TELOPT_TSPEED,
+	    sprintf((char *)temp, "%c%c%c%c%ld,%ld%c%c", IAC, SB, TELOPT_TSPEED,
 		    TELQUAL_IS, ospeed, ispeed, IAC, SE);
 	    len = strlen((char *)temp+4) + 4;	/* temp[3] is 0 ... */
 
@@ -1212,7 +1224,7 @@ slc_init()
 
 #define	initfunc(func, flags) { \
 					spcp = &spc_data[func]; \
-					if (spcp->valp = tcval(func)) { \
+					if ((spcp->valp = tcval(func))) { \
 					    spcp->val = *spcp->valp; \
 					    spcp->mylevel = SLC_VARIABLE|flags; \
 					} else { \
@@ -1620,12 +1632,12 @@ env_opt_add(ep)
 	if (ep == NULL || *ep == '\0') {
 		/* Send user defined variables first. */
 		env_default(1, 0);
-		while (ep = env_default(0, 0))
+		while ((ep = env_default(0, 0)))
 			env_opt_add(ep);
 
 		/* Now add the list of well know variables.  */
 		env_default(1, 1);
-		while (ep = env_default(0, 1))
+		while ((ep = env_default(0, 1)))
 			env_opt_add(ep);
 		return;
 	}
@@ -1655,7 +1667,7 @@ env_opt_add(ep)
 	else
 		*opt_replyp++ = ENV_USERVAR;
 	for (;;) {
-		while (c = *ep++) {
+		while ((c = *ep++)) {
 			switch(c&0xff) {
 			case IAC:
 				*opt_replyp++ = IAC;
@@ -1669,7 +1681,7 @@ env_opt_add(ep)
 			}
 			*opt_replyp++ = c;
 		}
-		if (ep = vp) {
+		if ((ep = vp)) {
 #ifdef	OLD_ENVIRON
 			if (telopt_environ == TELOPT_OLD_ENVIRON)
 				*opt_replyp++ = old_env_value;
@@ -2184,9 +2196,9 @@ Scheduler(block)
     ttyout = ring_full_count(&ttyoring);
 
 #if	defined(TN3270)
-    ttyin = ring_empty_count(&ttyiring) && (shell_active == 0);
+    ttyin = ring_empty_count(&ttyiring) && (clienteof == 0) && (shell_active == 0);
 #else	/* defined(TN3270) */
-    ttyin = ring_empty_count(&ttyiring);
+    ttyin = ring_empty_count(&ttyiring) && (clienteof == 0);
 #endif	/* defined(TN3270) */
 
 #if	defined(TN3270)

@@ -32,11 +32,21 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)utility.c	8.4 (Berkeley) 5/30/95";
+static const char sccsid[] = "@(#)utility.c	8.4 (Berkeley) 5/30/95";
 #endif /* not lint */
 
+#ifdef __FreeBSD__
+#include <locale.h>
+#endif
 #define PRINTOPTIONS
 #include "telnetd.h"
+
+#if	defined(AUTHENTICATION)
+#include <libtelnet/auth.h>
+#endif
+#if	defined(ENCRYPTION)
+#include <libtelnet/encrypt.h>
+#endif
 
 /*
  * utility functions performing io related tasks
@@ -93,6 +103,7 @@ stilloob(s)
     do {
 	FD_ZERO(&excepts);
 	FD_SET(s, &excepts);
+	memset((char *)&timeout, 0, sizeof timeout);
 	value = select(s+1, (fd_set *)0, (fd_set *)0, &excepts, &timeout);
     } while ((value == -1) && (errno == EINTR));
 
@@ -433,12 +444,16 @@ putchr(cc)
 	*putlocation++ = cc;
 }
 
+#ifdef __FreeBSD__
+static char fmtstr[] = { "%+" };
+#else
 /*
  * This is split on two lines so that SCCS will not see the M
  * between two % signs and expand it...
  */
 static char fmtstr[] = { "%l:%M\
 %P on %A, %d %B %Y" };
+#endif
 
 	void
 putf(cp, where)
@@ -481,6 +496,9 @@ putf(cp, where)
 			break;
 
 		case 'd':
+#ifdef __FreeBSD__
+			setlocale(LC_TIME, "");
+#endif
 			(void)time(&t);
 			(void)strftime(db, sizeof(db), fmtstr, localtime(&t));
 			putstr(db);
@@ -939,7 +957,6 @@ printsub(direction, pointer, length)
 			    break;
 
 			default:
-			def_case:
 			    if (isprint(pointer[i]) && pointer[i] != '"') {
 				if (noquote) {
 				    *nfrontp++ = '"';
@@ -1110,12 +1127,12 @@ printsub(direction, pointer, length)
 		break;
 
 	    case ENCRYPT_ENC_KEYID:
-		sprintf(nfrontp, " ENC_KEYID", pointer[1]);
+		sprintf(nfrontp, " ENC_KEYID");
 		nfrontp += strlen(nfrontp);
 		goto encommon;
 
 	    case ENCRYPT_DEC_KEYID:
-		sprintf(nfrontp, " DEC_KEYID", pointer[1]);
+		sprintf(nfrontp, " DEC_KEYID");
 		nfrontp += strlen(nfrontp);
 		goto encommon;
 

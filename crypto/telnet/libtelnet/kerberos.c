@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)kerberos.c	8.3 (Berkeley) 5/30/95";
+static const char sccsid[] = "@(#)kerberos.c	8.3 (Berkeley) 5/30/95";
 #endif /* not lint */
 
 /*
@@ -75,19 +75,12 @@ static char sccsid[] = "@(#)kerberos.c	8.3 (Berkeley) 5/30/95";
 #include "misc.h"
 
 int kerberos4_cksum P((unsigned char *, int));
-int krb_mk_req P((KTEXT, char *, char *, char *, u_long));
-int krb_rd_req P((KTEXT, char *, char *, u_long, AUTH_DAT *, char *));
-int krb_kntoln P((AUTH_DAT *, char *));
-int krb_get_cred P((char *, char *, char *, CREDENTIALS *));
-int krb_get_lrealm P((char *, int));
 int kuserok P((AUTH_DAT *, char *));
 
 extern auth_debug_mode;
 
 static unsigned char str_data[1024] = { IAC, SB, TELOPT_AUTHENTICATION, 0,
 			  		AUTHTYPE_KERBEROS_V4, };
-static unsigned char str_name[1024] = { IAC, SB, TELOPT_AUTHENTICATION,
-					TELQUAL_NAME, };
 
 #define	KRB_AUTH	0		/* Authentication data follows */
 #define	KRB_REJECT	1		/* Rejected (reason might follow) */
@@ -102,7 +95,7 @@ static	char name[ANAME_SZ];
 static	AUTH_DAT adat = { 0 };
 #ifdef	ENCRYPTION
 static Block	session_key	= { 0 };
-static Schedule sched;
+static des_key_schedule sched;
 static Block	challenge	= { 0 };
 #endif	/* ENCRYPTION */
 
@@ -167,9 +160,6 @@ kerberos4_send(ap)
 	Authenticator *ap;
 {
 	KTEXT_ST auth;
-#ifdef	ENCRYPTION
-	Block enckey;
-#endif	/* ENCRYPTION */
 	char instance[INST_SZ];
 	char *realm;
 	char *krb_realmofhost();
@@ -187,7 +177,7 @@ kerberos4_send(ap)
 
 	memset(instance, 0, sizeof(instance));
 
-	if (realm = krb_get_phost(RemoteHostName))
+	if ((realm = krb_get_phost(RemoteHostName)))
 		strncpy(instance, realm, sizeof(instance));
 
 	instance[sizeof(instance)-1] = '\0';
@@ -198,11 +188,11 @@ kerberos4_send(ap)
 		printf("Kerberos V4: no realm for %s\r\n", RemoteHostName);
 		return(0);
 	}
-	if (r = krb_mk_req(&auth, KRB_SERVICE_NAME, instance, realm, 0L)) {
+	if ((r = krb_mk_req(&auth, KRB_SERVICE_NAME, instance, realm, 0L))) {
 		printf("mk_req failed: %s\r\n", krb_err_txt[r]);
 		return(0);
 	}
-	if (r = krb_get_cred(KRB_SERVICE_NAME, instance, realm, &cred)) {
+	if ((r = krb_get_cred(KRB_SERVICE_NAME, instance, realm, &cred))) {
 		printf("get_cred failed: %s\r\n", krb_err_txt[r]);
 		return(0);
 	}
@@ -226,11 +216,11 @@ kerberos4_send(ap)
 	if ((ap->way & AUTH_HOW_MASK) == AUTH_HOW_MUTUAL) {
 		register int i;
 
-		des_key_sched(cred.session, sched);
-		des_init_random_number_generator(cred.session);
-		des_new_random_key(session_key);
-		des_ecb_encrypt(session_key, session_key, sched, 0);
-		des_ecb_encrypt(session_key, challenge, sched, 0);
+		des_key_sched(&cred.session, sched);
+		des_init_random_number_generator(&cred.session);
+		des_new_random_key(&session_key);
+		des_ecb_encrypt(&session_key, &session_key, sched, 0);
+		des_ecb_encrypt(&session_key, &challenge, sched, 0);
 		/*
 		 * Increment the challenge by 1, and encrypt it for
 		 * later comparison.
@@ -242,7 +232,7 @@ kerberos4_send(ap)
 			if (x < 256)		/* if no overflow, all done */
 				break;
 		}
-		des_ecb_encrypt(challenge, challenge, sched, 1);
+		des_ecb_encrypt(&challenge, &challenge, sched, 1);
 	}
 #endif	/* ENCRYPTION */
 
@@ -288,8 +278,8 @@ kerberos4_is(ap, data, cnt)
 			printf("\r\n");
 		}
 		instance[0] = '*'; instance[1] = 0;
-		if (r = krb_rd_req(&auth, KRB_SERVICE_NAME,
-				   instance, 0, &adat, "")) {
+		if ((r = krb_rd_req(&auth, KRB_SERVICE_NAME,
+				   instance, 0, &adat, ""))) {
 			if (auth_debug_mode)
 				printf("Kerberos failed him as %s\r\n", name);
 			Data(ap, KRB_REJECT, (void *)krb_err_txt[r], -1);
@@ -327,15 +317,15 @@ kerberos4_is(ap, data, cnt)
 		 * Initialize the random number generator since it's
 		 * used later on by the encryption routine.
 		 */
-		des_init_random_number_generator(session_key);
-		des_key_sched(session_key, sched);
+		des_init_random_number_generator(&session_key);
+		des_key_sched(&session_key, sched);
 		memmove((void *)datablock, (void *)data, sizeof(Block));
 		/*
 		 * Take the received encrypted challenge, and encrypt
 		 * it again to get a unique session_key for the
 		 * ENCRYPT option.
 		 */
-		des_ecb_encrypt(datablock, session_key, sched, 1);
+		des_ecb_encrypt(&datablock, &session_key, sched, 1);
 		skey.type = SK_DES;
 		skey.length = 8;
 		skey.data = session_key;
@@ -344,7 +334,7 @@ kerberos4_is(ap, data, cnt)
 		 * Now decrypt the received encrypted challenge,
 		 * increment by one, re-encrypt it and send it back.
 		 */
-		des_ecb_encrypt(datablock, challenge, sched, 0);
+		des_ecb_encrypt(&datablock, &challenge, sched, 0);
 		for (r = 7; r >= 0; r--) {
 			register int t;
 			t = (unsigned int)challenge[r] + 1;
@@ -352,7 +342,7 @@ kerberos4_is(ap, data, cnt)
 			if (t < 256)		/* if no overflow, all done */
 				break;
 		}
-		des_ecb_encrypt(challenge, challenge, sched, 1);
+		des_ecb_encrypt(&challenge, &challenge, sched, 1);
 		Data(ap, KRB_RESPONSE, (void *)challenge, sizeof(challenge));
 #endif	/* ENCRYPTION */
 		break;
@@ -397,7 +387,7 @@ kerberos4_reply(ap, data, cnt)
 #else	/* ENCRYPTION */
 			Data(ap, KRB_CHALLENGE, (void *)session_key,
 						sizeof(session_key));
-			des_ecb_encrypt(session_key, session_key, sched, 1);
+			des_ecb_encrypt(&session_key, &session_key, sched, 1);
 			skey.type = SK_DES;
 			skey.length = 8;
 			skey.data = session_key;

@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)network.c	8.2 (Berkeley) 12/15/93";
+static const char sccsid[] = "@(#)network.c	8.2 (Berkeley) 12/15/93";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -42,6 +42,7 @@ static char sccsid[] = "@(#)network.c	8.2 (Berkeley) 12/15/93";
 #include <errno.h>
 
 #include <arpa/telnet.h>
+#include <unistd.h>
 
 #include "ring.h"
 

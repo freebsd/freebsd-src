@@ -75,6 +75,10 @@ void auth_finished P((Authenticator *, int));
 int auth_wait P((char *));
 void auth_disable_name P((char *));
 void auth_gen_printsub P((unsigned char *, int, unsigned char *, int));
+void auth_name P((unsigned char *, int));
+void auth_printsub P((unsigned char *, int, unsigned char *, int));
+int auth_sendname P((unsigned char *, int));
+void auth_encrypt_user P((char *));
 
 #ifdef	KRB4
 int kerberos4_init P((Authenticator *, int));

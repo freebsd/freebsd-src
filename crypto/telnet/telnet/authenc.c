@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)authenc.c	8.1 (Berkeley) 6/6/93";
+static const char sccsid[] = "@(#)authenc.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 
 #if	defined(AUTHENTICATION) || defined(ENCRYPTION)
@@ -101,7 +101,7 @@ telnet_gets(prompt, result, length, echo)
 	if (echo) {
 		printf("%s", prompt);
 		res = fgets(result, length, stdin);
-	} else if (res = getpass(prompt)) {
+	} else if ((res = getpass(prompt))) {
 		strncpy(result, res, length);
 		res = result;
 	}

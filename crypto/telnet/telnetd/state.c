@@ -32,12 +32,15 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)state.c	8.5 (Berkeley) 5/30/95";
+static const char sccsid[] = "@(#)state.c	8.5 (Berkeley) 5/30/95";
 #endif /* not lint */
 
 #include "telnetd.h"
 #if	defined(AUTHENTICATION)
 #include <libtelnet/auth.h>
+#endif
+#if	defined(ENCRYPTION)
+#include <libtelnet/encrypt.h>
 #endif
 
 unsigned char	doopt[] = { IAC, DO, '%', 'c', 0 };

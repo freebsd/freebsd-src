@@ -32,13 +32,13 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1989, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)telnetd.c	8.4 (Berkeley) 5/30/95";
+static const char sccsid[] = "@(#)telnetd.c	8.4 (Berkeley) 5/30/95";
 #endif /* not lint */
 
 #include "telnetd.h"
@@ -75,6 +75,10 @@ struct	socket_security ss;
 #include <libtelnet/auth.h>
 int	auth_level = 0;
 #endif
+#if	defined(ENCRYPTION)
+#include <libtelnet/encrypt.h>
+#endif
+#include <libtelnet/misc.h>
 #if	defined(SecurID)
 int	require_SecurID = 0;
 #endif
@@ -101,8 +105,6 @@ char	ptyibuf2[BUFSIZ];
 unsigned char ctlbuf[BUFSIZ];
 struct	strbuf strbufc, strbufd;
 
-int readstream();
-
 #else	/* ! STREAMPTY */
 
 /*
@@ -111,6 +113,13 @@ int readstream();
  */
 char	ptyibuf[BUFSIZ], *ptyip = ptyibuf;
 char	ptyibuf2[BUFSIZ];
+
+# include <termcap.h>
+
+int readstream(int p, char *ibuf, int bufsize);
+void doit(struct sockaddr_in *who);
+int terminaltypeok(char *s);
+void startslave(char *host, int autologin, char *autoname);
 
 #endif /* ! STREAMPTY */
 
@@ -124,6 +133,7 @@ int	lowpty = 0, highpty;	/* low, high pty numbers */
 int debug = 0;
 int keepalive = 1;
 char *progname;
+char *altlogin;
 
 extern void usage P((void));
 
@@ -133,7 +143,7 @@ extern void usage P((void));
  * passed off to getopt().
  */
 char valid_opts[] = {
-	'd', ':', 'h', 'k', 'n', 'S', ':', 'u', ':', 'U',
+	'd', ':', 'h', 'k', 'n', 'p', ':', 'S', ':', 'u', ':', 'U',
 #ifdef	AUTHENTICATION
 	'a', ':', 'X', ':',
 #endif
@@ -301,6 +311,10 @@ main(argc, argv)
 			keepalive = 0;
 			break;
 
+		case 'p':
+			altlogin = optarg;
+			break;
+
 #ifdef CRAY
 		case 'r':
 		    {
@@ -385,7 +399,7 @@ main(argc, argv)
 		usage();
 		/* NOT REACHED */
 	    } else if (argc == 1) {
-		    if (sp = getservbyname(*argv, "tcp")) {
+		    if ((sp = getservbyname(*argv, "tcp"))) {
 			sin.sin_port = sp->s_port;
 		    } else {
 			sin.sin_port = atoi(*argv);
@@ -699,12 +713,14 @@ getterminaltype(name)
 	 * we have to just go with what we (might) have already gotten.
 	 */
 	if (his_state_is_will(TELOPT_TTYPE) && !terminaltypeok(terminaltype)) {
-	    (void) strncpy(first, terminaltype, sizeof(first));
+	    (void) strncpy(first, terminaltype, sizeof(first)-1);
+	    first[sizeof(first)-1] = '\0';
 	    for(;;) {
 		/*
 		 * Save the unknown name, and request the next name.
 		 */
-		(void) strncpy(last, terminaltype, sizeof(last));
+		(void) strncpy(last, terminaltype, sizeof(last)-1);
+		last[sizeof(last)-1] = '\0';
 		_gettermname();
 		if (terminaltypeok(terminaltype))
 		    break;
@@ -722,8 +738,10 @@ getterminaltype(name)
 		     * the start of the list.
 		     */
 		     _gettermname();
-		    if (strncmp(first, terminaltype, sizeof(first)) != 0)
-			(void) strncpy(terminaltype, first, sizeof(first));
+		    if (strncmp(first, terminaltype, sizeof(first)) != 0) {
+			(void) strncpy(terminaltype, first, sizeof(terminaltype)-1);
+			terminaltype[sizeof(terminaltype)-1] = '\0';
+		    }
 		    break;
 		}
 	    }
@@ -780,24 +798,20 @@ char *hostname;
 char host_name[MAXHOSTNAMELEN];
 char remote_host_name[MAXHOSTNAMELEN];
 
-#ifndef	convex
-extern void telnet P((int, int));
-#else
 extern void telnet P((int, int, char *));
-#endif
 
+int level;
+char user_name[256];
 /*
  * Get a pty, scan input lines.
  */
+void
 doit(who)
 	struct sockaddr_in *who;
 {
 	char *host, *inet_ntoa();
-	int t;
 	struct hostent *hp;
-	int level;
 	int ptynum;
-	char user_name[256];
 
 	/*
 	 * Find an available pty to use.
@@ -875,12 +889,6 @@ doit(who)
 	level = getterminaltype(user_name);
 	setenv("TERM", terminaltype ? terminaltype : "network", 1);
 
-	/*
-	 * Start up the login process on the slave side of the terminal
-	 */
-#ifndef	convex
-	startslave(host, level, user_name);
-
 #if	defined(_SC_CRAY_SECURE_SYS)
 	if (secflag) {
 		if (setulvl(dv.dv_actlvl) < 0)
@@ -890,10 +898,8 @@ doit(who)
 	}
 #endif	/* _SC_CRAY_SECURE_SYS */
 
-	telnet(net, pty);  /* begin server processing */
-#else
-	telnet(net, pty, host);
-#endif
+	telnet(net, pty, host);		/* begin server process */
+
 	/*NOTREACHED*/
 }  /* end of doit */
 
@@ -917,15 +923,9 @@ Xterm_output(ibufp, obuf, icountp, ocount)
  * hand data to telnet receiver finite state machine.
  */
 	void
-#ifndef	convex
-telnet(f, p)
-#else
 telnet(f, p, host)
-#endif
 	int f, p;
-#ifdef convex
 	char *host;
-#endif
 {
 	int on = 1;
 #define	TABBUFSIZ	512
@@ -1162,9 +1162,12 @@ telnet(f, p, host)
 		{sprintf(nfrontp, "td: Entering processing loop\r\n");
 		 nfrontp += strlen(nfrontp);});
 
-#ifdef	convex
-	startslave(host);
-#endif
+	/*
+	 * Startup the login process on the slave side of the terminal
+	 * now.  We delay this until here to insure option negotiation
+	 * is complete.
+	 */
+	startslave(host, level, user_name);
 
 	nfd = ((f > p) ? f : p) + 1;
 	for (;;) {

@@ -45,9 +45,7 @@ extern int	uselinemode;	/* what linemode to use (on/off) */
 extern int	editmode;	/* edit modes in use */
 extern int	useeditmode;	/* edit modes to use */
 extern int	alwayslinemode;	/* command line option */
-# ifdef	KLUDGELINEMODE
 extern int	lmodetype;	/* Client support for linemode */
-# endif	/* KLUDGELINEMODE */
 #endif	/* LINEMODE */
 extern int	flowmode;	/* current flow control state */
 extern int	restartany;	/* restart output on any character state */
@@ -233,7 +231,11 @@ extern int	needtermstat;
 #   ifdef ultrix
 #    define DEFAULT_IM	"\r\n\r\nULTRIX (%h) (%t)\r\n\r\r\n\r"
 #   else
+#    ifdef __FreeBSD__
+#     define DEFAULT_IM  "\r\n\r\nFreeBSD (%h) (%t)\r\n\r\r\n\r"
+#    else
 #    define DEFAULT_IM	"\r\n\r\n4.4 BSD UNIX (%h) (%t)\r\n\r\r\n\r"
+#    endif
 #   endif
 #  endif
 # endif

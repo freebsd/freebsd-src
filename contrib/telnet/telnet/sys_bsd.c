@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)sys_bsd.c	8.4 (Berkeley) 5/30/95";
+static const char sccsid[] = "@(#)sys_bsd.c	8.4 (Berkeley) 5/30/95";
 #endif /* not lint */
 
 /*
@@ -48,6 +48,7 @@ static char sccsid[] = "@(#)sys_bsd.c	8.4 (Berkeley) 5/30/95";
 #include <signal.h>
 #include <errno.h>
 #include <arpa/telnet.h>
+#include <unistd.h>
 
 #include "ring.h"
 
@@ -140,7 +141,7 @@ TerminalWrite(buf, n)
 
     int
 TerminalRead(buf, n)
-    unsigned char *buf;
+    char *buf;
     int  n;
 {
     return read(tin, buf, n);
@@ -1051,7 +1052,7 @@ process_rings(netin, netout, netex, ttyin, ttyout, poll)
 	    }
 #	    endif /* defined(TN3270) */
 		    /* I don't like this, does it ever happen? */
-	    printf("sleep(5) from telnet, after select\r\n");
+	    printf("sleep(5) from telnet, after select: %s\r\n", strerror(errno));
 	    sleep(5);
 	}
 	return 0;
