@@ -86,13 +86,21 @@ set of 32 master and slave pseudo terminals
 SCSI disk drives
 .It sa#
 SCSI tape drives
+.It ch#
+SCSI changer devices
+.It ses#
+SCSI SES/SAF-TE environmental devices
 .It vty#
 set of 12 virtual console devices for syscons/pcvt/codrv
-.It wd#
-.Dq winchester
-disk drives (ST506, IDE, ESDI, RLL etc.)
-.It wt#
-QIC-interfaced (e.g. not SCSI) 3M cartridge tape
+.It ad#
+.Dq ATAPI
+disk drives (IDE).
+.It ast#
+.Dq ATAPI
+tape drives.
+.It acd#
+.Dq ATAPI
+CDROM drives.
 .El
 .Sh FILES
 .Bl -tag -width /dev/xxxx -compact
@@ -100,6 +108,7 @@ QIC-interfaced (e.g. not SCSI) 3M cartridge tape
 The special file directory.
 .El
 .Sh SEE ALSO
+.Xr ata 4 ,
 .Xr intro 4 ,
 .Xr config 8 ,
 .Xr mknod 8
