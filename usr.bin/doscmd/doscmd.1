@@ -524,16 +524,15 @@ version
 To change it to version 3.2 (the default in previous versions of
 .Nm doscmd )
 use the value of
-.Cm 320 ;
-.Pp
+.Cm 320 .
 .It Cm X11_FONT
-The value of this variable determines the font used in an X
-window. The default font is
+The value of this variable determines the font used in an X window.
+The default font is
 .Cm vga ,
 which is installed in
 .Pa /usr/libdata/doscmd/fonts .
 Add the line
-.Ic xset fp+ /usr/libdata/doscmd/fonts
+.Ql xset fp+ /usr/libdata/doscmd/fonts
 to your
 .Pa ${HOME}/.xsession
 or
