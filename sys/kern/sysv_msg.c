@@ -772,7 +772,7 @@ msgsnd(td, uap)
 		goto done2;
 	}
 	mtx_lock(&msq_mtx);
-	user_msgp = (char *)user_msgp + sizeof(msghdr->msg_type);
+	user_msgp = (const char *)user_msgp + sizeof(msghdr->msg_type);
 
 	/*
 	 * Validate the message type
@@ -815,7 +815,7 @@ msgsnd(td, uap)
 		}
 		mtx_lock(&msq_mtx);
 		msgsz -= tlen;
-		user_msgp = (char *)user_msgp + tlen;
+		user_msgp = (const char *)user_msgp + tlen;
 		next = msgmaps[next].next;
 	}
 	if (next != -1)
