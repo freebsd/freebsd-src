@@ -334,7 +334,8 @@ pccard_function_enable(struct pccard_function *pf)
 		pf->ccr_rid = 0;
 		pf->ccr_res = bus_alloc_resource(dev, SYS_RES_MEMORY,
 		    &pf->ccr_rid, pf->ccr_base, pf->ccr_base + PCCARD_CCR_SIZE,
-		    PCCARD_CCR_SIZE, RF_ACTIVE | RF_PCCARD_ATTR);
+		    PCCARD_CCR_SIZE, RF_ACTIVE);
+		/* XXX SET MEM_ATTR */
 		if (!pf->ccr_res)
 			goto bad;
 		pf->pf_ccrt = rman_get_bustag(pf->ccr_res);
