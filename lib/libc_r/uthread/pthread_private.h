@@ -1207,7 +1207,6 @@ char    *__ttyname_r_basic(int, char *, size_t);
 char    *ttyname_r(int, char *, size_t);
 void	_cond_wait_backout(pthread_t);
 void	_fd_lock_backout(pthread_t);
-int     _find_dead_thread(pthread_t);
 int     _find_thread(pthread_t);
 struct pthread *_get_curthread(void);
 void	_set_curthread(struct pthread *);
