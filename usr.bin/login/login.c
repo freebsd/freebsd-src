@@ -78,10 +78,11 @@ static const char rcsid[] =
 #include <unistd.h>
 #include <utmp.h>
 
-#ifndef NO_PAM
+#ifdef USE_PAM
 #include <security/pam_appl.h>
 #include <security/pam_misc.h>
-#endif
+#include <sys/wait.h>
+#endif /* USE_PAM */
 
 #include "pathnames.h"
 
@@ -104,11 +105,23 @@ void	 timedout __P((int));
 int	 login_access __P((char *, char *));
 void     login_fbtab __P((char *, uid_t, gid_t));
 
-#ifndef NO_PAM
+#ifdef USE_PAM
 static int auth_pam __P((void));
 static int export_pam_environment __P((void));
 static int ok_to_export __P((const char *));
-#endif
+
+static pam_handle_t *pamh = NULL;
+static char **environ_pam;
+
+#define PAM_END { \
+	if ((e = pam_setcred(pamh, PAM_DELETE_CRED)) != PAM_SUCCESS) \
+		syslog(LOG_ERR, "pam_setcred: %s", pam_strerror(pamh, e)); \
+	if ((e = pam_close_session(pamh,0)) != PAM_SUCCESS) \
+		syslog(LOG_ERR, "pam_close_session: %s", pam_strerror(pamh, e)); \
+	if ((e = pam_end(pamh, e)) != PAM_SUCCESS) \
+		syslog(LOG_ERR, "pam_end: %s", pam_strerror(pamh, e)); \
+}
+#endif /* USE_PAM */
 static int auth_traditional __P((void));
 extern void login __P((struct utmp *));
 static void usage __P((void));
@@ -132,9 +145,6 @@ struct	passwd *pwd;
 int	failures;
 char	*term, *envinit[1], *hostname, *passwd_prompt, *prompt, *tty, *username;
 char    full_hostname[MAXHOSTNAMELEN];
-#ifndef NO_PAM
-static char **environ_pam;
-#endif
 
 int
 main(argc, argv)
@@ -157,6 +167,10 @@ main(argc, argv)
 	char tname[sizeof(_PATH_TTY) + 10];
 	char *shell = NULL;
 	login_cap_t *lc = NULL;
+#ifdef USE_PAM
+	pid_t pid;
+	int e;
+#endif /* USE_PAM */
 
 	(void)signal(SIGQUIT, SIG_IGN);
 	(void)signal(SIGINT, SIG_IGN);
@@ -322,19 +336,19 @@ main(argc, argv)
 
 		(void)setpriority(PRIO_PROCESS, 0, -4);
 
-#ifndef NO_PAM
+#ifdef USE_PAM
 		/*
 		 * Try to authenticate using PAM.  If a PAM system error
 		 * occurs, perhaps because of a botched configuration,
 		 * then fall back to using traditional Unix authentication.
 		 */
 		if ((rval = auth_pam()) == -1)
-#endif /* NO_PAM */
+#endif /* USE_PAM */
 			rval = auth_traditional();
 
 		(void)setpriority(PRIO_PROCESS, 0, 0);
 
-#ifndef NO_PAM
+#ifdef USE_PAM
 		/*
 		 * PAM authentication may have changed "pwd" to the
 		 * entry for the template user.  Check again to see if
@@ -342,7 +356,7 @@ main(argc, argv)
 		 */
 		if (pwd != NULL && pwd->pw_uid == 0)
 			rootlogin = 1;
-#endif /* NO_PAM */
+#endif /* USE_PAM */
 
 	ttycheck:
 		/*
@@ -431,10 +445,10 @@ main(argc, argv)
 			(void)printf("Sorry -- your password has expired.\n");
 			changepass = 1;
 			syslog(LOG_INFO, "%s Password expired - forcing change",
-				pwd->pw_name);
+			    pwd->pw_name);
 		} else if (pwd->pw_change - tp.tv_sec < warntime && !quietlog)
-		    (void)printf("Warning: your password expires on %s",
-				 ctime(&pwd->pw_change));
+			(void)printf("Warning: your password expires on %s",
+			    ctime(&pwd->pw_change));
 	}
 
 	if (lc != NULL) {
@@ -444,7 +458,8 @@ main(argc, argv)
 
 			memset(&hints, 0, sizeof(hints));
 			hints.ai_family = AF_UNSPEC;
-			ga_err = getaddrinfo(full_hostname, NULL, &hints, &res);
+			ga_err = getaddrinfo(full_hostname, NULL, &hints,
+					     &res);
 			if (ga_err == 0) {
 				char hostbuf[MAXHOSTNAMELEN];
 
@@ -532,11 +547,11 @@ main(argc, argv)
 	 * of wtmp or lastlogin files.
 	 */
 	if (hostname)
-		syslog(LOG_INFO, "login from %s on %s as %s", full_hostname,
-		    tty, pwd->pw_name);
+		syslog(LOG_INFO, "login from %s on %s as %s",
+		       full_hostname, tty, pwd->pw_name);
 	else
 		syslog(LOG_INFO, "login on %s as %s",
-		    tty, pwd->pw_name);
+		       tty, pwd->pw_name);
 #endif
 
 	/*
@@ -560,14 +575,59 @@ main(argc, argv)
 	if (!pflag)
 		environ = envinit;
 
-#ifndef NO_PAM
+#ifdef USE_PAM
 	/*
 	 * Add any environmental variables that the
 	 * PAM modules may have set.
 	 */
-	if (environ_pam)
-		export_pam_environment();
-#endif
+	if (pamh) {
+		environ_pam = pam_getenvlist(pamh);
+		if (environ_pam)
+			export_pam_environment();
+	}
+#endif /* USE_PAM */
+
+	/*
+	 * PAM modules might add supplementary groups during pam_setcred().
+	 */
+	if (setusercontext(lc, pwd, pwd->pw_uid, LOGIN_SETGROUP) != 0) {
+                syslog(LOG_ERR, "setusercontext() failed - exiting");
+		exit(1);
+	}
+
+#ifdef USE_PAM
+	if (pamh) {
+		if ((e = pam_open_session(pamh, 0)) != PAM_SUCCESS) {
+			syslog(LOG_ERR, "pam_open_session: %s",
+			    pam_strerror(pamh, e));
+		} else if ((e = pam_setcred(pamh, PAM_ESTABLISH_CRED))
+		    != PAM_SUCCESS) {
+			syslog(LOG_ERR, "pam_setcred: %s",
+			    pam_strerror(pamh, e));
+		}
+
+		/*
+		 * We must fork() before setuid() because we need to call
+		 * pam_close_session() as root.
+		 */
+		pid = fork();
+		if (pid < 0) {
+			err(1, "fork");
+			PAM_END;
+			exit(0);
+		} else if (pid) {
+			/* parent - wait for child to finish, then cleanup
+			   session */
+			wait(NULL);
+			PAM_END;
+			exit(0);
+		} else {
+			if ((e = pam_end(pamh, PAM_DATA_SILENT)) != PAM_SUCCESS)
+				syslog(LOG_ERR, "pam_end: %s",
+				    pam_strerror(pamh, e));
+		}
+	}
+#endif /* USE_PAM */
 
 	/*
 	 * We don't need to be root anymore, so
@@ -578,7 +638,7 @@ main(argc, argv)
 		exit(1);
 	}
 	if (setusercontext(lc, pwd, pwd->pw_uid,
-	    LOGIN_SETALL & ~LOGIN_SETLOGIN) != 0) {
+	    LOGIN_SETALL & ~(LOGIN_SETLOGIN|LOGIN_SETGROUP)) != 0) {
                 syslog(LOG_ERR, "setusercontext() failed - exiting");
 		exit(1);
 	}
@@ -644,7 +704,7 @@ main(argc, argv)
 	(void)strcpy(tbuf + 1,
 	    (p = strrchr(pwd->pw_shell, '/')) ? p + 1 : pwd->pw_shell);
 
-	execlp(shell, tbuf, 0);
+	execlp(shell, tbuf, (char *)0);
 	err(1, "%s", shell);
 }
 
@@ -674,7 +734,7 @@ auth_traditional()
 	return rval;
 }
 
-#ifndef NO_PAM
+#ifdef USE_PAM
 /*
  * Attempt to authenticate the user using PAM.  Returns 0 if the user is
  * authenticated, or 1 if not authenticated.  If some sort of PAM system
@@ -685,7 +745,6 @@ auth_traditional()
 static int
 auth_pam()
 {
-	pam_handle_t *pamh = NULL;
 	const char *tmpl_user;
 	const void *item;
 	int rval;
@@ -736,11 +795,6 @@ auth_pam()
 		} else
 			syslog(LOG_ERR, "Couldn't get PAM_USER: %s",
 			    pam_strerror(pamh, e));
-		if ((e = pam_setcred(pamh, PAM_ESTABLISH_CRED)) !=
-		    PAM_SUCCESS)
-			syslog(LOG_ERR, "Couldn't establish credentials: %s",
-			    pam_strerror(pamh, e));
-		environ_pam = pam_getenvlist(pamh);
 		rval = 0;
 		break;
 
@@ -751,13 +805,30 @@ auth_pam()
 		break;
 
 	default:
-		syslog(LOG_ERR, "auth_pam: %s", pam_strerror(pamh, e));
+		syslog(LOG_ERR, "pam_authenticate: %s", pam_strerror(pamh, e));
 		rval = -1;
 		break;
 	}
-	if ((e = pam_end(pamh, e)) != PAM_SUCCESS) {
-		syslog(LOG_ERR, "pam_end: %s", pam_strerror(pamh, e));
-		rval = -1;
+
+	if (rval == 0) {
+		e = pam_acct_mgmt(pamh, 0);
+		if (e == PAM_NEW_AUTHTOK_REQD) {
+			e = pam_chauthtok(pamh, PAM_CHANGE_EXPIRED_AUTHTOK);
+			if (e != PAM_SUCCESS) {
+				syslog(LOG_ERR, "pam_chauthtok: %s",
+				    pam_strerror(pamh, e));
+				rval = 1;
+			}
+		} else if (e != PAM_SUCCESS) {
+			rval = 1;
+		}
+	}
+
+	if (rval != 0) {
+		if ((e = pam_end(pamh, e)) != PAM_SUCCESS) {
+			syslog(LOG_ERR, "pam_end: %s", pam_strerror(pamh, e));
+		}
+		pamh = NULL;
 	}
 	return rval;
 }
@@ -804,7 +875,7 @@ ok_to_export(s)
 	}
 	return 1;
 }
-#endif /* NO_PAM */
+#endif /* USE_PAM */
 
 static void
 usage()
@@ -866,7 +937,6 @@ void
 sigint(signo)
 	int signo;
 {
-
 	motdinterrupt = 1;
 }
 
