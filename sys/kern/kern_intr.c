@@ -569,15 +569,17 @@ restart:
 static void
 start_softintr(void *dummy)
 {
+	struct proc *p;
 
 	if (swi_add(&clk_ithd, "clock", softclock, NULL, SWI_CLOCK,
 		INTR_MPSAFE, &softclock_ih) ||
 	    swi_add(NULL, "vm", swi_vm, NULL, SWI_VM, 0, &vm_ih))
 		panic("died while creating standard software ithreads");
 
-	PROC_LOCK(clk_ithd->it_td->td_proc);
-	clk_ithd->it_td->td_proc->p_flag |= P_NOLOAD;
-	PROC_UNLOCK(clk_ithd->it_td->td_proc);
+	p = clk_ithd->it_td->td_proc;
+	PROC_LOCK(p);
+	p->p_flag |= P_NOLOAD;
+	PROC_UNLOCK(p);
 }
 SYSINIT(start_softintr, SI_SUB_SOFTINTR, SI_ORDER_FIRST, start_softintr, NULL)
 

@@ -198,7 +198,7 @@ char    emulating = 0;
 static int
 math_emulate(struct trapframe * tframe)
 {
-
+	struct proc *p;
 	unsigned char FPU_modrm;
 	unsigned short code;
 #ifdef LOOKAHEAD_LIMIT
@@ -232,10 +232,11 @@ math_emulate(struct trapframe * tframe)
 #endif
 
 	FPU_lookahead = FPU_LOOKAHEAD;
-	PROC_LOCK(curthread->td_proc);
-	if (curproc->p_flag & P_TRACED)
+	p = curthread->td_proc;
+	PROC_LOCK(p);
+	if (p->p_flag & P_TRACED)
 		FPU_lookahead = 0;
-	PROC_UNLOCK(curthread->td_proc);
+	PROC_UNLOCK(p);
 
 do_another_FPU_instruction:
 
