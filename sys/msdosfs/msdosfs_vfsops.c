@@ -179,6 +179,7 @@ msdosfs_mountroot()
 	mp->mnt_op = &msdosfs_vfsops;
 	mp->mnt_flag = 0;
 	TAILQ_INIT(&mp->mnt_nvnodelist);
+	TAILQ_INIT(&mp->mnt_reservedvnlist);
 
 	args.flags = 0;
 	args.uid = 0;
