@@ -1,4 +1,4 @@
-# $Id: roken.awk,v 1.8 2002/09/10 20:05:55 joda Exp $
+# $Id: roken.awk,v 1.9 2003/03/04 10:37:26 lha Exp $
 
 BEGIN {
 	print "#ifdef HAVE_CONFIG_H"
@@ -6,7 +6,7 @@ BEGIN {
 	print "#endif"
 	print "#include <stdio.h>"
 	print ""
-	print "int main()"
+	print "int main(int argc, char **argv)"
 	print "{"
 	    print "puts(\"/* This is an OS dependent, generated file */\");"
 	print "puts(\"\\n\");"

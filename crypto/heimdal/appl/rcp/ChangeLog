@@ -1,3 +1,11 @@
+2003-04-16  Johan Danielsson  <joda@pdc.kth.se>
+
+	* rcp.1: add a HISTORY section
+
+	* rcp.1: brief manpage
+
+	* rcp.c: add a -4 option
+
 2001-09-24  Johan Danielsson  <joda@pdc.kth.se>
 
 	* rcp.c: more va_* fixing; from Thomas Klausner

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997, 2003 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "gssapi_locl.h"
 
-RCSID("$Id: test_oid_set_member.c,v 1.4 1999/12/02 17:05:04 joda Exp $");
+RCSID("$Id: test_oid_set_member.c,v 1.5 2003/03/16 17:54:06 lha Exp $");
 
 OM_uint32 gss_test_oid_set_member (
             OM_uint32 * minor_status,
@@ -44,14 +44,12 @@ OM_uint32 gss_test_oid_set_member (
 {
   size_t i;
 
+  *minor_status = 0;
   *present = 0;
   for (i = 0; i < set->count; ++i)
-    if (member->length == set->elements[i].length
-	&& memcmp (member->elements,
-		   set->elements[i].elements,
-		   member->length) == 0) {
-      *present = 1;
-      break;
-    }
+      if (gss_oid_equal(member, &set->elements[i]) != 0) {
+	  *present = 1;
+	  break;
+      }
   return GSS_S_COMPLETE;
 }

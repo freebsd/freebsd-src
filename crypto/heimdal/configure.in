@@ -1,8 +1,8 @@
 dnl Process this file with autoconf to produce a configure script.
-AC_REVISION($Revision: 1.325.2.2 $)
+AC_REVISION($Revision: 1.331.2.2 $)
 AC_PREREQ(2.53)
-#test -z "$CFLAGS" && CFLAGS="-g"
-AC_INIT(Heimdal, 0.5.1, heimdal-bugs@pdc.kth.se)
+##test -z "$CFLAGS" && CFLAGS="-g"
+AC_INIT(Heimdal, 0.6, heimdal-bugs@pdc.kth.se)
 AC_CONFIG_SRCDIR([kuser/kinit.c])
 AM_CONFIG_HEADER(include/config.h)
 
@@ -12,6 +12,7 @@ AC_PROG_CPP
 AC_PROG_CC_STDC
 
 AM_INIT_AUTOMAKE
+AM_MAINTAINER_MODE
 
 AC_PREFIX_DEFAULT(/usr/heimdal)
 
@@ -23,6 +24,11 @@ CANONICAL_HOST=$host
 AC_SUBST(CANONICAL_HOST)
 
 AC_SYS_LARGEFILE
+dnl need to set this on the command line, since it might otherwise break
+dnl with generated code, such as lex
+if test "$enable_largefile" != no -a "$ac_cv_sys_large_files" != no; then
+	CPPFLAGS="$CPPFLAGS -D_LARGE_FILES=$ac_cv_sys_large_files"
+fi
 
 dnl
 dnl this is needed to run the configure tests against glibc

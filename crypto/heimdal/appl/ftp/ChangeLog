@@ -1,6 +1,58 @@
-2002-10-21  Johan Danielsson  <joda@pdc.kth.se>
+2003-04-16  Love Hörnquist Åstrand <lha@it.su.se>
 
-	* ftp/ftp.c: pull up 1.75; fix parsing of epsv ports
+	* ftpd/ftpd.c: make sure argument to is* functions are unsigned
+	
+2003-04-06  Love Hörnquist Åstrand <lha@it.su.se>
+
+	* ftpd/ftpd.8: s/kerberos/Kerberos/
+	
+2003-03-23  Assar Westerlund  <assar@kth.se>
+
+	* ftpd/pathnames.h (_PATH_FTPUSERS): conditionalize
+
+2003-03-18  Love Hörnquist Åstrand <lha@it.su.se>
+
+	* ftpd/ftpd.c (krb5_verify): always do krb5_afslog, remove setpag
+	(its done in main)
+
+	* ftpd/gss_userok.c: drop setpag
+	
+	* ftpd/ftpd.c (main): set afs PAG
+
+	* ftpd/gss_userok.c: always try krb5_afslog, and while here do a
+	setpag too
+
+	* ftpd/ftpd_locl.h: always include kafs
+	
+2003-03-16  Love Hörnquist Åstrand <lha@it.su.se>
+
+	* ftp/gssapi.c (gss_adat): now that gss_export_name exports a
+	principal, bandaid with gss_display_name, and check that oid is
+	GSS_KRB5_NT_PRINCIPAL_NAME, also free memory
+	
+2003-02-25  Love Hörnquist Åstrand <lha@it.su.se>
+
+	* ftp/gssapi.c (gss_auth): print out the name we authenticated too
+	
+2003-02-25  Love Hörnquist Åstrand <lha@it.su.se>
+
+	* ftpd/ls.c: use readlink with bufsize - 1, From NetBSD
+
+	* ftp/ftp.1: s/utilizes/uses/ from NetBSD
+	
+	* ftpd/ftpd.8: s/utilize/use/ from NetBSD
+	
+2003-02-10  Assar Westerlund  <assar@kth.se>
+
+	* ftpd/ftpd.c (accept_with_timeout): use socklen_t
+
+2002-10-29  Johan Danielsson  <joda@pdc.kth.se>
+
+	* ftp/main.c: reinstate -n flag (from Torbjörn Granlund)
+
+2002-10-16  Johan Danielsson  <joda@pdc.kth.se>
+
+	* ftp/ftp.c: fix parsing of epsv ports (from Love)
 
 2002-09-05  Johan Danielsson  <joda@pdc.kth.se>
 

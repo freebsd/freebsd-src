@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999 - 2002 Kungliga Tekniska Högskolan
+ * Copyright (c) 1999 - 2003 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -43,95 +43,9 @@
 #include <asn1_err.h>
 #include <der.h>
 
-RCSID("$Id: check-der.c,v 1.8 2002/08/23 03:17:34 assar Exp $");
+#include "check-common.h"
 
-static void
-print_bytes (unsigned const char *buf, size_t len)
-{
-    int i;
-
-    for (i = 0; i < len; ++i)
-	printf ("%02x ", buf[i]);
-}
-
-struct test_case {
-    void *val;
-    int byte_len;
-    const unsigned char *bytes;
-    char *name;
-};
-
-static int
-generic_test (const struct test_case *tests,
-	      unsigned ntests,
-	      size_t data_size,
-	      int (*encode)(unsigned char *, size_t, void *, size_t *),
-	      int (*length)(void *),
-	      int (*decode)(unsigned char *, size_t, void *, size_t *),
-	      int (*cmp)(void *a, void *b))
-{
-    unsigned char buf[4711];
-    int i;
-    int failures = 0;
-    void *val = malloc (data_size);
-
-    if (data_size != 0 && val == NULL)
-	err (1, "malloc");
-
-    for (i = 0; i < ntests; ++i) {
-	int ret;
-	size_t sz, consumed_sz, length_sz;
-	unsigned char *beg;
-
-	ret = (*encode) (buf + sizeof(buf) - 1, sizeof(buf),
-			 tests[i].val, &sz);
-	beg = buf + sizeof(buf) - sz;
-	if (ret != 0) {
-	    printf ("encoding of %s failed\n", tests[i].name);
-	    ++failures;
-	}
-	if (sz != tests[i].byte_len) {
-	    printf ("encoding of %s has wrong len (%lu != %lu)\n",
-		    tests[i].name, 
-		    (unsigned long)sz, (unsigned long)tests[i].byte_len);
-	    ++failures;
-	}
-
-	length_sz = (*length) (tests[i].val);
-	if (sz != length_sz) {
-	    printf ("length for %s is bad (%lu != %lu)\n",
-		    tests[i].name, (unsigned long)length_sz, (unsigned long)sz);
-	    ++failures;
-	}
-
-	if (memcmp (beg, tests[i].bytes, tests[i].byte_len) != 0) {
-	    printf ("encoding of %s has bad bytes:\n"
-		    "correct: ", tests[i].name);
-	    print_bytes (tests[i].bytes, tests[i].byte_len);
-	    printf ("\nactual:  ");
-	    print_bytes (beg, sz);
-	    printf ("\n");
-	    ++failures;
-	}
-	ret = (*decode) (beg, sz, val, &consumed_sz);
-	if (ret != 0) {
-	    printf ("decoding of %s failed\n", tests[i].name);
-	    ++failures;
-	}
-	if (sz != consumed_sz) {
-	    printf ("different length decoding %s (%ld != %ld)\n",
-		    tests[i].name, 
-		    (unsigned long)sz, (unsigned long)consumed_sz);
-	    ++failures;
-	}
-	if ((*cmp)(val, tests[i].val) != 0) {
-	    printf ("%s: comparison failed\n", tests[i].name);
-	    ++failures;
-	}
-    }
-    free (val);
-    return failures;
-}
+RCSID("$Id: check-der.c,v 1.9 2003/01/23 10:19:49 lha Exp $");
 
 static int
 cmp_integer (void *a, void *b)
@@ -170,11 +84,9 @@ test_integer (void)
     }
 
     return generic_test (tests, ntests, sizeof(int),
-			 (int (*)(unsigned char *, size_t,
-				  void *, size_t *))encode_integer,
-			 (int (*)(void *))length_integer,
-			 (int (*)(unsigned char *, size_t,
-				  void *, size_t *))decode_integer,
+			 (generic_encode)encode_integer,
+			 (generic_length) length_integer,
+			 (generic_decode)decode_integer,
 			 cmp_integer);
 }
 
@@ -204,11 +116,9 @@ test_octet_string (void)
     asprintf (&tests[0].name, "a octet string");
 
     return generic_test (tests, ntests, sizeof(octet_string),
-			 (int (*)(unsigned char *, size_t,
-				  void *, size_t *))encode_octet_string,
-			 (int (*)(void *))length_octet_string,
-			 (int (*)(unsigned char *, size_t,
-				  void *, size_t *))decode_octet_string,
+			 (generic_encode)encode_octet_string,
+			 (generic_length)length_octet_string,
+			 (generic_decode)decode_octet_string,
 			 cmp_octet_string);
 }
 
@@ -235,11 +145,9 @@ test_general_string (void)
     asprintf (&tests[0].name, "the string \"%s\"", s1);
 
     return generic_test (tests, ntests, sizeof(unsigned char *),
-			 (int (*)(unsigned char *, size_t,
-				  void *, size_t *))encode_general_string,
-			 (int (*)(void *))length_general_string,
-			 (int (*)(unsigned char *, size_t,
-				  void *, size_t *))decode_general_string,
+			 (generic_encode)encode_general_string,
+			 (generic_length)length_general_string,
+			 (generic_decode)decode_general_string,
 			 cmp_general_string);
 }
 
@@ -269,11 +177,9 @@ test_generalized_time (void)
     }
 
     return generic_test (tests, ntests, sizeof(time_t),
-			 (int (*)(unsigned char *, size_t,
-				  void *, size_t *))encode_generalized_time,
-			 (int (*)(void *))length_generalized_time,
-			 (int (*)(unsigned char *, size_t,
-				  void *, size_t *))decode_generalized_time,
+			 (generic_encode)encode_generalized_time,
+			 (generic_length)length_generalized_time,
+			 (generic_decode)decode_generalized_time,
 			 cmp_generalized_time);
 }
 

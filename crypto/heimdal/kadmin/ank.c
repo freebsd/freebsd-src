@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2002 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "kadmin_locl.h"
 
-RCSID("$Id: ank.c,v 1.23 2002/06/07 19:05:38 nectar Exp $");
+RCSID("$Id: ank.c,v 1.25 2002/12/03 14:11:24 joda Exp $");
 
 /*
  * fetch the default principal corresponding to `princ'
@@ -112,7 +112,8 @@ add_one_principal (const char *name,
     if(use_defaults) 
 	set_defaults(&princ, &mask, default_ent, default_mask);
     else
-	edit_entry(&princ, &mask, default_ent, default_mask);
+	if(edit_entry(&princ, &mask, default_ent, default_mask))
+	    goto out;
     if(rand_key || key_data) {
 	princ.attributes |= KRB5_KDB_DISALLOW_ALL_TIX;
 	mask |= KADM5_ATTRIBUTES;
@@ -136,8 +137,10 @@ add_one_principal (const char *name,
     }
     
     ret = kadm5_create_principal(kadm_handle, &princ, mask, password);
-    if(ret)
+    if(ret) {
 	krb5_warn(context, ret, "kadm5_create_principal");
+	goto out;
+    }
     if(rand_key) {
 	krb5_keyblock *new_keys;
 	int n_keys, i;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997, 1999, 2003 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "gssapi_locl.h"
 
-RCSID("$Id: export_name.c,v 1.4 1999/12/02 17:05:03 joda Exp $");
+RCSID("$Id: export_name.c,v 1.5 2003/03/16 17:34:46 lha Exp $");
 
 OM_uint32 gss_export_name
            (OM_uint32  * minor_status,
@@ -41,8 +41,54 @@ OM_uint32 gss_export_name
             gss_buffer_t exported_name
            )
 {
-  return gss_display_name(minor_status,
-        input_name,
-        exported_name,
-        NULL);
+    krb5_error_code kret;
+    char *buf, *name;
+    size_t len;
+
+    GSSAPI_KRB5_INIT ();
+    kret = krb5_unparse_name (gssapi_krb5_context,
+			      input_name,
+			      &name);
+    if (kret) {
+	*minor_status = kret;
+	gssapi_krb5_set_error_string ();
+	return GSS_S_FAILURE;
+    }
+    len = strlen (name);
+
+    exported_name->length = 10 + len + GSS_KRB5_MECHANISM->length;
+    exported_name->value  = malloc(exported_name->length);
+    if (exported_name->value == NULL) {
+	free (name);
+	*minor_status = ENOMEM;
+	return GSS_S_FAILURE;
+    }
+
+    /* TOK, MECH_OID_LEN, DER(MECH_OID), NAME_LEN, NAME */
+
+    buf = exported_name->value;
+    memcpy(buf, "\x04\x01", 2);
+    buf += 2;
+    buf[0] = ((GSS_KRB5_MECHANISM->length + 2) >> 8) & 0xff;
+    buf[1] = (GSS_KRB5_MECHANISM->length + 2) & 0xff;
+    buf+= 2;
+    buf[0] = 0x06;
+    buf[1] = (GSS_KRB5_MECHANISM->length) & 0xFF;
+    buf+= 2;
+
+    memcpy(buf, GSS_KRB5_MECHANISM->elements, GSS_KRB5_MECHANISM->length);
+    buf += GSS_KRB5_MECHANISM->length;
+
+    buf[0] = (len >> 24) & 0xff;
+    buf[1] = (len >> 16) & 0xff;
+    buf[2] = (len >> 8) & 0xff;
+    buf[3] = (len) & 0xff;
+    buf += 4;
+
+    memcpy (buf, name, len);
+
+    free (name);
+
+    *minor_status = 0;
+    return GSS_S_COMPLETE;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2002 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2003 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -35,7 +35,7 @@
 #include <getarg.h>
 #include <parse_bytes.h>
 
-RCSID("$Id: config.c,v 1.43 2002/08/29 01:51:07 assar Exp $");
+RCSID("$Id: config.c,v 1.46 2003/03/18 00:22:23 lha Exp $");
 
 static const char *config_file;	/* location of kdc config file */
 
@@ -71,9 +71,11 @@ krb5_addresses explicit_addresses;
 #ifdef KRB4
 char *v4_realm;
 int enable_v4 = -1;
-int enable_524 = -1;
 int enable_kaserver = -1;
 #endif
+
+int enable_524 = -1;
+int enable_v4_cross_realm = -1;
 
 static int help_flag;
 static int version_flag;
@@ -98,22 +100,26 @@ static struct getargs args[] = {
     },
 #endif
     { "enable-http", 'H', arg_flag, &enable_http, "turn on HTTP support" },
-#ifdef KRB4
-    {	"kerberos4",	0, 	arg_negative_flag, &enable_v4,
-	"don't respond to kerberos 4 requests" 
-    },
     {	"524",		0, 	arg_negative_flag, &enable_524,
 	"don't respond to 524 requests" 
+    },
+#ifdef KRB4
+    {
+	"kaserver", 'K', arg_flag,   &enable_kaserver,
+	"enable kaserver support"
+    },
+    {	"kerberos4",	0, 	arg_flag, &enable_v4,
+	"respond to kerberos 4 requests" 
     },
     { 
 	"v4-realm",	'r',	arg_string, &v4_realm, 
 	"realm to serve v4-requests for"
     },
-    {
-	"kaserver", 'K', arg_flag,   &enable_kaserver,
-	"enable kaserver support"
-    },
 #endif
+    {	"kerberos4-cross-realm",	0, 	arg_flag,
+	&enable_v4_cross_realm,
+	"respond to kerberos 4 requests from foreign realms" 
+    },
     {	"ports",	'P', 	arg_string, &port_str,
 	"ports to listen to", "portspec"
     },
@@ -332,12 +338,20 @@ configure(int argc, char **argv)
 
 #ifdef KRB4
     if(enable_v4 == -1)
-	enable_v4 = krb5_config_get_bool_default(context, NULL, TRUE, "kdc", 
+	enable_v4 = krb5_config_get_bool_default(context, NULL, FALSE, "kdc", 
 					 "enable-kerberos4", NULL);
+#else
+#define enable_v4 0
+#endif
+    if(enable_v4_cross_realm == -1)
+	enable_v4_cross_realm =
+	    krb5_config_get_bool_default(context, NULL,
+					 FALSE, "kdc", 
+					 "enable-kerberos4-cross-realm",
+					 NULL);
     if(enable_524 == -1)
 	enable_524 = krb5_config_get_bool_default(context, NULL, enable_v4, 
 						  "kdc", "enable-524", NULL);
-#endif
 
     if(enable_http == -1)
 	enable_http = krb5_config_get_bool(context, NULL, "kdc", 
@@ -358,8 +372,11 @@ configure(int argc, char **argv)
 				    "kdc",
 				    "v4-realm",
 				    NULL);
-	if(p)
+	if(p != NULL) {
 	    v4_realm = strdup(p);
+	    if (v4_realm == NULL)
+		krb5_errx(context, 1, "out of memory");
+	}
     }
     if (enable_kaserver == -1)
 	enable_kaserver = krb5_config_get_bool_default(context, NULL, FALSE,
@@ -394,6 +411,8 @@ configure(int argc, char **argv)
 #ifdef KRB4
     if(v4_realm == NULL){
 	v4_realm = malloc(40); /* REALM_SZ */
+	if (v4_realm == NULL)
+	    krb5_errx(context, 1, "out of memory");
 	krb_get_lrealm(v4_realm, 1);
     }
 #endif

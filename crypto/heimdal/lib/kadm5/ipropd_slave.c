@@ -33,7 +33,7 @@
 
 #include "iprop.h"
 
-RCSID("$Id: ipropd_slave.c,v 1.26.2.1 2002/10/21 16:06:25 joda Exp $");
+RCSID("$Id: ipropd_slave.c,v 1.27 2002/10/21 15:51:44 joda Exp $");
 
 static krb5_log_facility *log_facility;
 

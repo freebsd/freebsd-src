@@ -1,4 +1,4 @@
-dnl $Id: crypto.m4,v 1.13 2002/09/10 19:55:48 joda Exp $
+dnl $Id: crypto.m4,v 1.16.2.1 2003/05/05 20:08:32 joda Exp $
 dnl
 dnl test for crypto libraries:
 dnl - libcrypto (from openssl)
@@ -11,8 +11,10 @@ m4_define([test_headers], [
 		#include <openssl/md4.h>
 		#include <openssl/md5.h>
 		#include <openssl/sha.h>
+		#define OPENSSL_DES_LIBDES_COMPATIBILITY
 		#include <openssl/des.h>
 		#include <openssl/rc4.h>
+		#include <openssl/rand.h>
 		#else
 		#include <md4.h>
 		#include <md5.h>
@@ -44,6 +46,9 @@ m4_define([test_body], [
 		MD4_Init(&md4);
 		MD5_Init(&md5);
 		SHA1_Init(&sha1);
+		#ifdef HAVE_OPENSSL
+		RAND_status();
+		#endif
 
 		des_cbc_encrypt(0, 0, 0, schedule, 0, 0);
 		RC4(0, 0, 0, 0);])
@@ -75,23 +80,31 @@ if test "$crypto_lib" = "unknown" -a "$with_krb4" != "no"; then
 	ires=
 	for i in $INCLUDE_krb4; do
 		CFLAGS="-DHAVE_OPENSSL $i $save_CFLAGS"
-		AC_TRY_COMPILE(test_headers, test_body,
-			openssl=yes ires="$i"; break)
+		for j in $cdirs; do
+			for k in $clibs; do
+				LIBS="$j $k $save_LIBS"
+				AC_TRY_LINK(test_headers, test_body,
+					openssl=yes ires="$i" lres="$j $k"; break 3)
+			done
+		done
 		CFLAGS="$i $save_CFLAGS"
-		AC_TRY_COMPILE(test_headers, test_body,
-			openssl=no ires="$i"; break)
-		CFLAGS="-DOLD_HASH_NAMES $i $save_CFLAGS"
-		AC_TRY_COMPILE(test_headers, test_body,
-			openssl=no ires="$i" old_hash=yes; break)
-	done
-	lres=
-	for i in $cdirs; do
-		for j in $clibs; do
-			LIBS="$i $j $save_LIBS"
-			AC_TRY_LINK(test_headers, test_body,
-				lres="$i $j"; break 2)
+		for j in $cdirs; do
+			for k in $clibs; do
+				LIBS="$j $k $save_LIBS"
+				AC_TRY_LINK(test_headers, test_body,
+					openssl=no ires="$i" lres="$j $k"; break 3)
+			done
+		done
+		CFLAGS="-DHAVE_OLD_HASH_NAMES $i $save_CFLAGS"
+		for j in $cdirs; do
+			for k in $clibs; do
+				LIBS="$j $k $save_LIBS"
+				AC_TRY_LINK(test_headers, test_body,
+					openssl=no ires="$i" lres="$j $k"; break 3)
+			done
 		done
 	done
+		
 	CFLAGS="$save_CFLAGS"
 	LIBS="$save_LIBS"
 	if test "$ires" -a "$lres"; then
@@ -111,21 +124,27 @@ if test "$crypto_lib" = "unknown" -a "$with_openssl" != "no"; then
 	INCLUDE_des=
 	LIB_des=
 	if test "$with_openssl_include" != ""; then
-		INCLUDE_des="-I${with_openssl}/include"
+		INCLUDE_des="-I${with_openssl_include}"
 	fi
 	if test "$with_openssl_lib" != ""; then
-		LIB_des="-L${with_openssl}/lib"
+		LIB_des="-L${with_openssl_lib}"
 	fi
 	CFLAGS="-DHAVE_OPENSSL ${INCLUDE_des} ${CFLAGS}"
-	LIB_des="${LIB_des} -lcrypto"
-	LIB_des_a="$LIB_des"
-	LIB_des_so="$LIB_des"
-	LIB_des_appl="$LIB_des"
-	LIBS="${LIBS} ${LIB_des}"
-	AC_TRY_LINK(test_headers, test_body, [
-		crypto_lib=libcrypto openssl=yes
-		AC_MSG_RESULT([libcrypto])
-	])
+	saved_LIB_des="$LIB_des"
+	for lres in "" "-lnsl -lsocket"; do
+		LIB_des="${saved_LIB_des} -lcrypto $lres"
+		LIB_des_a="$LIB_des"
+		LIB_des_so="$LIB_des"
+		LIB_des_appl="$LIB_des"
+		LIBS="${LIBS} ${LIB_des}"
+		AC_TRY_LINK(test_headers, test_body, [
+			crypto_lib=libcrypto openssl=yes
+			AC_MSG_RESULT([libcrypto])
+		])
+		if test "$crypto_lib" = libcrypto ; then
+			break;
+		fi
+	done
 	CFLAGS="$save_CFLAGS"
 	LIBS="$save_LIBS"
 fi

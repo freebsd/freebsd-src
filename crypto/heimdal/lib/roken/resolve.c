@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995 - 2002 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995 - 2003 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -45,7 +45,7 @@
 
 #include <assert.h>
 
-RCSID("$Id: resolve.c,v 1.36.4.1 2002/10/21 14:48:15 joda Exp $");
+RCSID("$Id: resolve.c,v 1.38.2.1 2003/04/22 15:02:47 lha Exp $");
 
 #undef HAVE_RES_NSEARCH
 #if (defined(HAVE_RES_SEARCH) || defined(HAVE_RES_NSEARCH)) && defined(HAVE_DN_EXPAND)
@@ -166,6 +166,8 @@ parse_record(const unsigned char *data, const unsigned char *end_data,
 	break;
     case T_MX:
     case T_AFSDB:{
+	size_t hostlen;
+
 	status = dn_expand(data, end_data, p + 2, host, sizeof(host));
 	if(status < 0){
 	    free(*rr);
@@ -176,17 +178,19 @@ parse_record(const unsigned char *data, const unsigned char *end_data,
 	    return -1;
 	}
 
+	hostlen = strlen(host);
 	(*rr)->u.mx = (struct mx_record*)malloc(sizeof(struct mx_record) + 
-						strlen(host));
+						hostlen);
 	if((*rr)->u.mx == NULL) {
 	    free(*rr);
 	    return -1;
 	}
 	(*rr)->u.mx->preference = (p[0] << 8) | p[1];
-	strcpy((*rr)->u.mx->domain, host);
+	strlcpy((*rr)->u.mx->domain, host, hostlen + 1);
 	break;
     }
     case T_SRV:{
+	size_t hostlen;
 	status = dn_expand(data, end_data, p + 6, host, sizeof(host));
 	if(status < 0){
 	    free(*rr);
@@ -197,9 +201,10 @@ parse_record(const unsigned char *data, const unsigned char *end_data,
 	    return -1;
 	}
 
+	hostlen = strlen(host);
 	(*rr)->u.srv = 
 	    (struct srv_record*)malloc(sizeof(struct srv_record) + 
-				       strlen(host));
+				       hostlen);
 	if((*rr)->u.srv == NULL) {
 	    free(*rr);
 	    return -1;
@@ -207,7 +212,7 @@ parse_record(const unsigned char *data, const unsigned char *end_data,
 	(*rr)->u.srv->priority = (p[0] << 8) | p[1];
 	(*rr)->u.srv->weight = (p[2] << 8) | p[3];
 	(*rr)->u.srv->port = (p[4] << 8) | p[5];
-	strcpy((*rr)->u.srv->target, host);
+	strlcpy((*rr)->u.srv->target, host, hostlen + 1);
 	break;
     }
     case T_TXT:{
@@ -247,7 +252,7 @@ parse_record(const unsigned char *data, const unsigned char *end_data,
 	break;
     }
     case T_SIG : {
-	size_t sig_len;
+	size_t sig_len, hostlen;
 
 	if(size <= 18) {
 	    free(*rr);
@@ -269,8 +274,9 @@ parse_record(const unsigned char *data, const unsigned char *end_data,
 	   don't you just love C?
 	*/
 	sig_len = size - 18 - status;
+	hostlen = strlen(host);
 	(*rr)->u.sig = malloc(sizeof(*(*rr)->u.sig)
-			      + strlen(host) + sig_len);
+			      + hostlen + sig_len);
 	if ((*rr)->u.sig == NULL) {
 	    free(*rr);
 	    return -1;
@@ -288,7 +294,7 @@ parse_record(const unsigned char *data, const unsigned char *end_data,
 	(*rr)->u.sig->sig_len        = sig_len;
 	memcpy ((*rr)->u.sig->sig_data, p + 18 + status, sig_len);
 	(*rr)->u.sig->signer         = &(*rr)->u.sig->sig_data[sig_len];
-	strcpy((*rr)->u.sig->signer, host);
+	strlcpy((*rr)->u.sig->signer, host, hostlen + 1);
 	break;
     }
 

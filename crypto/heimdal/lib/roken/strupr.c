@@ -33,7 +33,7 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: strupr.c,v 1.4 1999/12/02 16:58:53 joda Exp $");
+RCSID("$Id: strupr.c,v 1.5 2003/04/14 11:46:41 lha Exp $");
 #endif
 #include <string.h>
 #include <ctype.h>
@@ -47,7 +47,7 @@ strupr(char *str)
   char *s;
 
   for(s = str; *s; s++)
-    *s = toupper(*s);
+    *s = toupper((unsigned char)*s);
   return str;
 }
 #endif

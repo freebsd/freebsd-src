@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: transited.c,v 1.9 2002/09/09 14:03:03 nectar Exp $");
+RCSID("$Id: transited.c,v 1.10 2003/04/16 16:11:27 lha Exp $");
 
 /* this is an attempt at one of the most horrible `compression'
    schemes that has ever been invented; it's so amazingly brain-dead
@@ -166,28 +166,32 @@ expand_realms(krb5_context context,
     for(r = realms; r; r = r->next){
 	if(r->trailing_dot){
 	    char *tmp;
+	    size_t len = strlen(r->realm) + strlen(prev_realm) + 1;
+
 	    if(prev_realm == NULL)
 		prev_realm = client_realm;
-	    tmp = realloc(r->realm, strlen(r->realm) + strlen(prev_realm) + 1);
+	    tmp = realloc(r->realm, len);
 	    if(tmp == NULL){
 		free_realms(realms);
 		krb5_set_error_string (context, "malloc: out of memory");
 		return ENOMEM;
 	    }
 	    r->realm = tmp;
-	    strcat(r->realm, prev_realm);
+	    strlcat(r->realm, prev_realm, len);
 	}else if(r->leading_slash && !r->leading_space && prev_realm){
 	    /* yet another exception: if you use x500-names, the
                leading realm doesn't have to be "quoted" with a space */
 	    char *tmp;
-	    tmp = malloc(strlen(r->realm) + strlen(prev_realm) + 1);
+	    size_t len = strlen(r->realm) + strlen(prev_realm) + 1;
+
+	    tmp = malloc(len);
 	    if(tmp == NULL){
 		free_realms(realms);
 		krb5_set_error_string (context, "malloc: out of memory");
 		return ENOMEM;
 	    }
-	    strcpy(tmp, prev_realm);
-	    strcat(tmp, r->realm);
+	    strlcpy(tmp, prev_realm, len);
+	    strlcat(tmp, r->realm, len);
 	    free(r->realm);
 	    r->realm = tmp;
 	}
@@ -368,10 +372,10 @@ krb5_domain_x500_encode(char **realms, int num_realms, krb5_data *encoding)
     *s = '\0';
     for(i = 0; i < num_realms; i++){
 	if(i && i < num_realms - 1)
-	    strcat(s, ",");
+	    strlcat(s, ",", len + 1);
 	if(realms[i][0] == '/')
-	    strcat(s, " ");
-	strcat(s, realms[i]);
+	    strlcat(s, " ", len + 1);
+	strlcat(s, realms[i], len + 1);
     }
     encoding->data = s;
     encoding->length = strlen(s);
