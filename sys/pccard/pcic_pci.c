@@ -706,6 +706,7 @@ pcic_pci_attach(device_t dev)
 	struct pcic_slot *sp;
 	struct pcic_softc *sc;
 	u_int32_t sockbase;
+	u_int32_t stat;
 	struct pcic_pci_table *itm;
 	int rid;
 	struct resource *r = NULL;
@@ -827,6 +828,8 @@ pcic_pci_attach(device_t dev)
 		}
 	}
 
+	stat = bus_space_read_4(sp->bst, sp->bsh, CB_SOCKET_STATE);
+	sc->cd_present = (stat & CB_SS_CD) == 0;	
 	return (pcic_attach(dev));
 }
 
