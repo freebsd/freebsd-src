@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: rrs.c,v 1.20 1997/02/22 15:46:23 peter Exp $
  */
 
 #include <sys/param.h>
@@ -989,6 +989,7 @@ write_rrs_text()
 	int			symsize;
 	struct nzlist		*nlp;
 	int			offset = 0;
+	int			aligned_offset;
 	struct shobj		*shp;
 	struct sod		*sodp;
 	int			bind;
@@ -1165,7 +1166,10 @@ write_rrs_text()
 
 	} END_EACH_SYMBOL;
 
-	if (MALIGN(offset) != rrs_strtab_size)
+	aligned_offset = MALIGN(offset);
+	while (offset < aligned_offset)		/* Pad deterministically */
+		rrs_strtab[offset++] = '\0';
+	if (offset != rrs_strtab_size)
 		errx(1, "internal error: "
 			"inconsistent RRS string table length: %d, expected %d",
 			offset, rrs_strtab_size);
