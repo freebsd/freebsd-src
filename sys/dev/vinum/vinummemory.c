@@ -33,24 +33,65 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinummemory.c,v 1.19 1998/12/30 06:22:26 grog Exp grog $
+ * $Id: vinummemory.c,v 1.20 1999/03/19 03:21:08 grog Exp grog $
  */
 
 #define REALLYKERNEL
 #include "opt_vinum.h"
 #include <dev/vinum/vinumhdr.h>
 
-extern jmp_buf command_fail;				    /* return on a failed command */
-
 #ifdef VINUMDEBUG
+jmp_buf command_fail;					    /* return on a failed command */
+#undef longjmp						    /* this was defined as LongJmp */
+void longjmp(jmp_buf, int);				    /* the kernel doesn't define this */
+
 #include <dev/vinum/request.h>
 extern struct rqinfo rqinfo[];
 extern struct rqinfo *rqip;
-#endif
 
-/* Why aren't these declared anywhere? XXX */
-int setjmp(jmp_buf);
-void longjmp(jmp_buf, int);
+#ifdef __i386__						    /* check for validity */
+void 
+LongJmp(jmp_buf buf, int retval)
+{
+/*
+   * longjmp is not documented, not even jmp_buf.
+   * This is what's in i386/i386/support.s:
+   * ENTRY(longjmp)
+   *    movl    4(%esp),%eax
+   *    movl    (%eax),%ebx                      restore ebx 
+   *    movl    4(%eax),%esp                     restore esp 
+   *    movl    8(%eax),%ebp                     restore ebp 
+   *    movl    12(%eax),%esi                    restore esi 
+   *    movl    16(%eax),%edi                    restore edi 
+   *    movl    20(%eax),%edx                    get rta 
+   *    movl    %edx,(%esp)                      put in return frame 
+   *    xorl    %eax,%eax                        return(1); 
+   *    incl    %eax
+   *    ret
+   *
+   * from which we deduce the structure of jmp_buf:
+ */
+    struct JmpBuf {
+	int jb_ebx;
+	int jb_esp;
+	int jb_ebp;
+	int jb_esi;
+	int jb_edi;
+	int jb_eip;
+    };
+
+    struct JmpBuf *jb = (struct JmpBuf *) buf;
+
+    if ((jb->jb_esp < 0xd0000000)
+	|| (jb->jb_ebp < 0xd0000000)
+	|| (jb->jb_eip < 0xe0000000))
+	panic("Invalid longjmp");
+    longjmp(buf, retval);
+}
+#else
+#define LongJmp longjmp					    /* just use the kernel function */
+#endif
+#endif
 
 void 
 expand_table(void **table, int oldsize, int newsize)
