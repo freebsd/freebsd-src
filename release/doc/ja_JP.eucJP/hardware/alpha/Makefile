@@ -12,7 +12,7 @@ JADEFLAGS+=	-V %generate-article-toc%
 
 # SGML content
 SRCS+=	article.sgml
-SRCS+=	proc-alpha.sgml
+#SRCS+=	proc-alpha.sgml
 SRCS+=	../common/hw.ent
 SRCS+=	../common/artheader.sgml
 SRCS+=	../common/dev.sgml
