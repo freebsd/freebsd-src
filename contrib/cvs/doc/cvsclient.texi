@@ -1100,6 +1100,23 @@ This @var{mode} applies to the next file mentioned in
 @code{Checked-in}, @code{New-entry}, @code{Updated}, @code{Merged}, or
 @code{Patched} response.
 
+@item Mod-time @var{time} \n
+Set the modification time of the next file sent to @var{time}.  Next
+file sent means sent by @code{Checked-in}, @code{Created}, etc.  The
+@var{time} is in the format specified by RFC822 as modified by RFC1123.
+The server may specify any timezone it chooses; clients will want to
+convert that to their own timezone as appropriate.  An example of this
+format is:
+
+@example
+26 May 1997 13:01:40 -0400
+@end example
+
+There is no requirement that the client and server clocks be
+synchronized.  The server just sends its recommendation for a timestamp
+(based on its own clock, presumably), and the client should just believe
+it (this means that the time might be in the future, for example).
+
 @item Checksum @var{checksum}\n
 The @var{checksum} applies to the next file sent over via
 @code{Updated}, @code{Merged}, or @code{Patched}.  In the case of

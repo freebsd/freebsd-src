@@ -97,7 +97,7 @@ DISTFILES = \
 USOURCE_SUBDIRS = lib zlib src
 # All other subdirs:
 SUBDIRS = ${USOURCE_SUBDIRS} man doc contrib tools \
-	windows-NT os2 macintosh vms
+	windows-NT os2 emx macintosh vms
 # Only make TAGS/tags files in these directories.
 TSUBDIRS= src lib
 

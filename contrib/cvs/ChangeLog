@@ -1,3 +1,24 @@
+Wed Jun 18 00:00:02 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* NEWS: Mention pserver --allow-root.
+
+Mon Jun 16 19:07:34 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* Makefile.in (SUBDIRS): Add emx.
+	* configure.in (AC_OUTPUT): Add emx.
+	* configure: Regenerated.
+
+Sun Jun  8 23:44:00 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* configure.in (AC_CHECK_FUNCS): Remove mkfifo; not used anywhere.
+	* configure, config.h.in: Regenerated.
+
+Thu May 29 15:53:06 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* DEVEL-CVS: Add "Policy regarding checkout-only access" to
+	replace parenthetical remark about checkout-only access.  This is
+	more of a cosmetic/editorial change than a new policy.
+
 Wed May 21 17:02:29 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
 	* BUGS: Add item about wrappers.

@@ -104,10 +104,6 @@
 # endif
 #endif
 
-#if !defined(HAVE_MKFIFO)
-#define mkfifo(path, mode) (mknod ((path), (mode) | S_IFIFO, 0))
-#endif
-
 #ifdef NEED_DECOY_PERMISSIONS        /* OS/2, really */
 
 #define	S_IRUSR S_IREAD
@@ -467,6 +463,11 @@ char *getwd ();
 
 #ifndef CVS_UNLINK
 #define CVS_UNLINK unlink
+#endif
+
+/* Wildcard matcher.  Should be case-insensitive if the system is.  */
+#ifndef CVS_FNMATCH
+#define CVS_FNMATCH fnmatch
 #endif
 
 /* Some file systems are case-insensitive.  If FOLD_FN_CHAR is
