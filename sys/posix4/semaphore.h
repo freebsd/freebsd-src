@@ -1,8 +1,3 @@
-#ifndef _SEMAPHORE_H_
-#define _SEMAPHORE_H_
-
-/* semaphore.h: POSIX 1003.1b semaphores */
-
 /*-
  * Copyright (c) 1996, 1997
  *	HD Associates, Inc.  All rights reserved.
@@ -37,6 +32,11 @@
  * $FreeBSD$
  */
 
+/* semaphore.h: POSIX 1003.1b semaphores */
+
+#ifndef _SEMAPHORE_H_
+#define _SEMAPHORE_H_
+
 #include <sys/_posix.h>
 #include <machine/limits.h>
 
@@ -47,10 +47,10 @@
 
 /* Opaque type definition. */
 struct sem;
-typedef struct sem *sem_t;
+typedef	struct sem *	sem_t;
 
-#define SEM_FAILED	((sem_t *)0)
-#define SEM_VALUE_MAX	UINT_MAX
+#define	SEM_FAILED	((sem_t *)0)
+#define	SEM_VALUE_MAX	UINT_MAX
 
 #ifndef _KERNEL
 #include <sys/cdefs.h>
@@ -69,4 +69,4 @@ __END_DECLS
 
 #endif
 
-#endif /* _SEMAPHORE_H_ */
+#endif /* !_SEMAPHORE_H_ */
