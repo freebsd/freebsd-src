@@ -1021,7 +1021,9 @@ GENERIC contains things that are known to work on Alpha only.
 
 - Expansion buses: PCI and ISA are fully supported. Turbo Channel is not
 in GENERIC and has limited support (see the relevant machine model info).
-The MCA bus is not supported.
+The MCA bus is not supported. The EISA bus is not supported for use with
+EISA expansion cards as the EISA support code is lacking. ISA cards in EISA 
+slots are reported to work.
 
 - Floppy drives: 1.44Mbyte and 1.2Mbyte floppy drives are supported.
 2.88Mbyte drives sometimes found in Alpha machines are supported up to
