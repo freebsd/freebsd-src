@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pci.c,v 1.51 1996/06/09 11:58:19 asami Exp $
+**  $Id: pci.c,v 1.52 1996/09/02 21:23:04 se Exp $
 **
 **  General subroutines for the PCI bus.
 **  pci_configure ()
@@ -971,6 +971,7 @@ void pci_configure()
 			if (pcicb)
 				pcicb = pcicb->pcicb_next;
 		}
+		pcibusmax++;
 	}
 	pci_conf_count++;
 }
