@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.55.2.18 1998/02/19 19:57:01 brian Exp $
+ * $Id: lcp.c,v 1.55.2.19 1998/02/21 01:45:14 brian Exp $
  *
  * TODO:
  *	o Limit data field length by MRU
@@ -88,10 +88,12 @@ static void LcpSendTerminateAck(struct fsm *);
 static void LcpDecodeConfig(struct fsm *, u_char *, int, int);
 
 static struct fsm_callbacks lcp_Callbacks = {
-  LcpLayerUp,
-  LcpLayerDown,
-  LcpLayerStart,
-  LcpLayerFinish,
+  {
+    LcpLayerUp,
+    LcpLayerDown,
+    LcpLayerStart,
+    LcpLayerFinish
+  },
   LcpInitRestartCounter,
   LcpSendConfigReq,
   LcpSendTerminateReq,

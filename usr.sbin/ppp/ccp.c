@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.c,v 1.30.2.12 1998/02/21 01:45:00 brian Exp $
+ * $Id: ccp.c,v 1.30.2.13 1998/02/23 00:38:17 brian Exp $
  *
  *	TODO:
  *		o Support other compression protocols
@@ -64,10 +64,12 @@ static void CcpRecvResetReq(struct fsm *);
 static void CcpRecvResetAck(struct fsm *, u_char);
 
 static struct fsm_callbacks ccp_Callbacks = {
-  CcpLayerUp,
-  CcpLayerDown,
-  CcpLayerStart,
-  CcpLayerFinish,
+  {
+    CcpLayerUp,
+    CcpLayerDown,
+    CcpLayerStart,
+    CcpLayerFinish
+  },
   CcpInitRestartCounter,
   CcpSendConfigReq,
   CcpSendTerminateReq,

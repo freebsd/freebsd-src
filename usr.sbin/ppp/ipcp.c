@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.50.2.14 1998/02/19 19:56:59 brian Exp $
+ * $Id: ipcp.c,v 1.50.2.15 1998/02/21 01:45:11 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -89,10 +89,12 @@ static void IpcpSendTerminateAck(struct fsm *);
 static void IpcpDecodeConfig(struct fsm *, u_char *, int, int);
 
 static struct fsm_callbacks ipcp_Callbacks = {
-  IpcpLayerUp,
-  IpcpLayerDown,
-  IpcpLayerStart,
-  IpcpLayerFinish,
+  {
+    IpcpLayerUp,
+    IpcpLayerDown,
+    IpcpLayerStart,
+    IpcpLayerFinish
+  },
   IpcpInitRestartCounter,
   IpcpSendConfigReq,
   IpcpSendTerminateReq,
