@@ -192,7 +192,7 @@ innetgr(group, host, user, dom)
 	char *hst, *usr, *dm;
 
 	/* Sanity check */
-
+	
 	if (group == NULL || !strlen(group))
 		return (0);
 
@@ -217,6 +217,9 @@ parse_netgrp(group)
 {
 	register char *spos, *epos;
 	register int len, strpos;
+#ifdef DEBUG
+	register int fields;
+#endif
 	char *pos, *gpos;
 	struct netgrp *grp;
 	struct linelist *lp = linehead;
@@ -233,7 +236,15 @@ parse_netgrp(group)
 	    (lp = read_for_group(group)) == (struct linelist *)0)
 		return (1);
 	if (lp->l_parsed) {
+#ifdef DEBUG
+		/*
+		 * This error message is largely superflous since the
+		 * code handles the error condition sucessfully, and
+		 * spewing it out from inside libc can actually hose
+		 * certain programs.
+		 */
 		fprintf(stderr, "Cycle in netgroup %s\n", lp->l_groupname);
+#endif
 		return (1);
 	} else
 		lp->l_parsed = 1;
@@ -247,8 +258,14 @@ parse_netgrp(group)
 			grouphead.gr = grp;
 			pos++;
 			gpos = strsep(&pos, ")");
+#ifdef DEBUG
+			fields = 0;
+#endif
 			for (strpos = 0; strpos < 3; strpos++) {
 				if (spos = strsep(&gpos, ",")) {
+#ifdef DEBUG
+					fields++;
+#endif
 					while (*spos == ' ' || *spos == '\t')
 						spos++;
 					if (epos = strpbrk(spos, " \t")) {
@@ -262,9 +279,32 @@ parse_netgrp(group)
 						bcopy(spos, grp->ng_str[strpos],
 							len + 1);
 					}
-				} else
-					goto errout;
+				} else {
+					/*
+					 * All other systems I've tested
+					 * return NULL for empty netgroup
+					 * fields. It's up to user programs
+					 * to handle the NULLs appropriately.
+					 */
+					grp->ng_str[strpos] = NULL;
+				}
 			}
+#ifdef DEBUG
+			/*
+			 * Note: on other platforms, malformed netgroup
+			 * entries are not normally flagged. While we
+			 * can catch bad entries and report them, we should
+			 * stay silent by default for compatibility's sake.
+			 */
+			if (fields < 3)
+					fprintf(stderr, "Bad entry (%s%s%s%s%s) in netgroup \"%s\"\n",
+						grp->ng_str[NG_HOST] == NULL ? "" : grp->ng_str[NG_HOST],
+						grp->ng_str[NG_USER] == NULL ? "" : ",",
+						grp->ng_str[NG_USER] == NULL ? "" : grp->ng_str[NG_USER],
+						grp->ng_str[NG_DOM] == NULL ? "" : ",",
+						grp->ng_str[NG_DOM] == NULL ? "" : grp->ng_str[NG_DOM],
+						lp->l_groupname);
+#endif
 		} else {
 			spos = strsep(&pos, ", \t");
 			if (parse_netgrp(spos))
@@ -276,10 +316,6 @@ parse_netgrp(group)
 				pos++;
 	}
 	return (0);
-errout:
-	fprintf(stderr, "Bad netgroup %s at ..%s\n", lp->l_groupname,
-		spos);
-	return (1);
 }
 
 /*
