@@ -31,13 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)uio.h	8.5 (Berkeley) 2/22/94
- * $Id: uio.h,v 1.6 1997/02/22 09:46:19 peter Exp $
+ * $Id: uio.h,v 1.7 1997/12/19 09:03:37 dyson Exp $
  */
 
 #ifndef _SYS_UIO_H_
 #define	_SYS_UIO_H_
-
-struct vm_object;
 
 /*
  * XXX
@@ -59,6 +57,7 @@ enum uio_seg {
 };
 
 #ifdef KERNEL
+
 struct uio {
 	struct	iovec *uio_iov;
 	int	uio_iovcnt;
@@ -74,9 +73,8 @@ struct uio {
  */
 #define UIO_MAXIOV	1024		/* max 1K of iov's */
 #define UIO_SMALLIOV	8		/* 8 on stack, else malloc */
-#endif /* KERNEL */
 
-#ifdef KERNEL
+struct vm_object;
 
 int	uiomove __P((caddr_t, int, struct uio *));
 int	uiomoveco __P((caddr_t, int, struct uio *, struct vm_object *));
