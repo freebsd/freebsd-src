@@ -77,7 +77,6 @@ main(argc, argv)
 	int ch, mntflags;
 	char source[MAXPATHLEN];
 	char target[MAXPATHLEN];
-	int error;
 
 	mntflags = 0;
 	while ((ch = getopt(argc, argv, "o:")) != -1)
@@ -106,7 +105,7 @@ main(argc, argv)
 	iov[0].iov_base = "fstype";
 	iov[0].iov_len = sizeof("fstype");
 	iov[1].iov_base = "nullfs";
-	iov[1].iov_len = strlen("nullfs") + 1;
+	iov[1].iov_len = strlen(iov[1].iov_base) + 1;
 	iov[2].iov_base = "fspath";
 	iov[2].iov_len = sizeof("fspath");
 	iov[3].iov_base = source;
