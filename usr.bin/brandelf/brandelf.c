@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2000, 2001 David O'Brien
  * Copyright (c) 1996 Søren Schmidt
  * All rights reserved.
  *
@@ -24,10 +25,14 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
+#ifndef lint
+static const char rcsid[] =
+  "$FreeBSD$";
+#endif /* not lint */
+
+#include <sys/types.h>
 #include <elf.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -166,14 +171,14 @@ fprintf(stderr, "usage: brandelf [-f ELF ABI number] [-v] [-l] [-t string] file 
 }
 
 static const char *
-iselftype(int elftype)
+iselftype(int etype)
 {
-	int elfwalk;
+	size_t elfwalk;
 
 	for (elfwalk = 0;
 	     elfwalk < sizeof(elftypes)/sizeof(elftypes[0]);
 	     elfwalk++)
-		if (elftype == elftypes[elfwalk].value)
+		if (etype == elftypes[elfwalk].value)
 			return elftypes[elfwalk].str;
 	return 0;
 }
@@ -181,7 +186,7 @@ iselftype(int elftype)
 static int
 elftype(const char *elfstrtype)
 {
-	int elfwalk;
+	size_t elfwalk;
 
 	for (elfwalk = 0;
 	     elfwalk < sizeof(elftypes)/sizeof(elftypes[0]);
@@ -194,7 +199,7 @@ elftype(const char *elfstrtype)
 static void
 printelftypes()
 {
-	int elfwalk;
+	size_t elfwalk;
 
 	fprintf(stderr, "known ELF types are: ");
 	for (elfwalk = 0;
