@@ -238,6 +238,30 @@ print_caddr_t(void *data __unused)
 }
 SYSINIT(announce, SI_SUB_COPYRIGHT, SI_ORDER_FIRST, print_caddr_t, copyright)
 
+static void
+print_bday(void *data __unused)
+{
+	struct timeval tv;
+	int day;
+
+	getmicrotime(&tv);
+
+	/*
+	 * We modulus by 126230400 (4*365.25*24*60*60) and then check each
+	 * valid day in the four years covered by that interval to account
+	 * for leap years.  Note that this will break in 2100 AD.
+	 */
+	day = (tv.tv_sec % 126230400) / (24*60*60);
+
+	/*
+	 * Day 0 is Jan 1, so day 22 of Feb is Feb 23.  Leap year was '72,
+	 * so the third year in each set is a leap year.
+	 */
+	if ((day == (31+22)) || (day == (31+22+365)) ||
+	    (day == (31+22+365+365)) || (day == (31+22+365+365+366)))
+		printf("\t---===>  Happy Birthday Peter!!!  <===---\n");
+}
+SYSINIT(bday, SI_SUB_KTHREAD_IDLE, SI_ORDER_ANY, print_bday, NULL)
 
 /*
  ***************************************************************************
