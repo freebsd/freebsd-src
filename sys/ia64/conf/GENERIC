@@ -100,7 +100,7 @@ device		amr		# AMI MegaRAID
 device		mlx		# Mylex DAC960 family
 
 # atkbdc0 controls both the keyboard and the PS/2 mouse
-device		atkbdc	1	# AT keyboard controller
+device		atkbdc		# AT keyboard controller
 device		atkbd		# AT keyboard
 device		psm		# PS/2 mouse
 
@@ -109,7 +109,7 @@ device		vga		# VGA video card driver
 device		splash		# Splash screen and screen saver support
 
 # syscons is the default console driver, resembling an SCO console
-#device		sc	1
+#device		sc
 
 # Serial (COM) ports
 device		sio
