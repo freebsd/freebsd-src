@@ -7,6 +7,7 @@
 .Sh SYNOPSIS
 .Nm ldd
 .Op Fl f Ar format
+.Op Fl v
 .Ar program ...
 .Sh DESCRIPTION
 .Nm ldd
@@ -25,6 +26,12 @@ and allows customization of
 output. See
 .Xr rtld 1
 for a list of recognised conversion characters.
+.Pp
+The
+.Fl v
+option displays an verbose listing of the dynamic linking headers
+encoded in the executable.  See the source code and include
+files for the definitive meaning of all the fields.
 .Sh SEE ALSO
 .Xr ld 1 ,
 .Xr ld.so 1 ,
@@ -34,3 +41,7 @@ A
 .Nm ldd
 utility first appeared in SunOS 4.0, it appeared in its current form
 in FreeBSD 1.1.
+.Pp
+The
+.Fl v
+support is based on code written by John Polstra <jdp@polstra.com>

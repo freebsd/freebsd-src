@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ldd.c,v 1.5 1994/12/23 22:31:31 nate Exp $
+ *	$Id: ldd.c,v 1.6 1996/10/01 01:34:32 peter Exp $
  */
 
 #include <sys/types.h>
@@ -43,6 +43,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+
+extern void	dump_filename __P((const char *));
+extern int	error_count;
 
 void
 usage()
@@ -61,9 +64,13 @@ char	*argv[];
 	char		*fmt1 = NULL, *fmt2 = NULL;
 	int		rval;
 	int		c;
+	int		vflag;
 
-	while ((c = getopt(argc, argv, "f:")) != EOF) {
+	while ((c = getopt(argc, argv, "vf:")) != EOF) {
 		switch (c) {
+		case 'v':
+			vflag++;
+			break;
 		case 'f':
 			if (fmt1) {
 				if (fmt2)
@@ -80,9 +87,18 @@ char	*argv[];
 	argc -= optind;
 	argv += optind;
 
+	if (vflag && fmt1)
+		errx(1, "-v may not be used with -f");
+
 	if (argc <= 0) {
 		usage();
 		/*NOTREACHED*/
+	}
+
+	if (vflag) {
+		for (c = 0; c < argc; c++)
+			dump_file(argv[c]);
+		exit(error_count == 0 ? EXIT_SUCCESS : EXIT_FAILURE);
 	}
 
 	/* ld.so magic */
