@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pci.c,v 1.110 1999/07/03 20:17:07 peter Exp $
+ * $Id: pci.c,v 1.111 1999/07/27 04:28:14 mdodd Exp $
  *
  */
 
@@ -1139,7 +1139,7 @@ pci_probe_nomatch(device_t dev, device_t child)
 	dinfo = device_get_ivars(child);
 	cfg = &dinfo->cfg;
 
-	device_printf(dev, "unknown card %c%c%c%04x (vendor=0x%04x, dev=0x%04x) at %d.$d",
+	device_printf(dev, "unknown card %c%c%c%04x (vendor=0x%04x, dev=0x%04x) at %d.%d",
 		PCI_MFCTR_CHAR0(cfg->vendor),
 		PCI_MFCTR_CHAR1(cfg->vendor),
 		PCI_MFCTR_CHAR2(cfg->vendor),
@@ -1472,7 +1472,7 @@ static device_method_t pci_methods[] = {
 
 	/* Bus interface */
 	DEVMETHOD(bus_print_child,	pci_print_child),
-	DEvMETHOD(bus_probe_nomatch,	pci_probe_nomatch),
+	DEVMETHOD(bus_probe_nomatch,	pci_probe_nomatch),
 	DEVMETHOD(bus_read_ivar,	pci_read_ivar),
 	DEVMETHOD(bus_write_ivar,	pci_write_ivar),
 	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
