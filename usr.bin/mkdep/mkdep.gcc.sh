@@ -32,9 +32,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)mkdep.gcc.sh	8.1 (Berkeley) 6/6/93
-#	$Id$
-
-PATH=/bin:/usr/bin; export PATH
+#	$Id: mkdep.gcc.sh,v 1.12 1997/02/22 19:56:10 peter Exp $
 
 D=.depend			# default dependency file is .depend
 append=0
