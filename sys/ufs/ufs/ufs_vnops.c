@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.10 (Berkeley) 4/1/94
- * $Id: ufs_vnops.c,v 1.18 1995/03/19 09:47:32 davidg Exp $
+ * $Id: ufs_vnops.c,v 1.19 1995/03/19 13:44:03 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -1643,7 +1643,7 @@ ufs_strategy(ap)
 			return (error);
 		}
 		if ((long)bp->b_blkno == -1)
-			clrbuf(bp);
+			vfs_bio_clrbuf(bp);
 	}
 	if ((long)bp->b_blkno == -1) {
 		biodone(bp);

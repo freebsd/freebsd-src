@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.39 1995/03/25 06:09:33 davidg Exp $
+ * $Id: vm_object.c,v 1.40 1995/03/25 08:42:14 davidg Exp $
  */
 
 /*
@@ -85,6 +85,7 @@
 #include <vm/vm_kern.h>
 
 static void _vm_object_allocate(vm_size_t, vm_object_t);
+
 
 /*
  *	Virtual memory objects maintain the actual data
@@ -370,7 +371,6 @@ vm_object_terminate(object)
 	register vm_page_t p, next;
 	vm_object_t shadow_object;
 	int s;
-	struct vnode *vp = NULL;
 
 	/*
 	 * Detach the object from its shadow if we are the shadow's copy.
@@ -379,23 +379,12 @@ vm_object_terminate(object)
 		vm_object_lock(shadow_object);
 		if (shadow_object->copy == object)
 			shadow_object->copy = NULL;
-#if 0
-		else if (shadow_object->copy != NULL)
-			panic("vm_object_terminate: copy/shadow inconsistency");
-#endif
 		vm_object_unlock(shadow_object);
 	}
-	if (object->pager && (object->pager->pg_type == PG_VNODE)) {
-		vn_pager_t vnp = object->pager->pg_data;
 
-		vp = vnp->vnp_vp;
-		VOP_LOCK(vp);
-		vinvalbuf(vp, V_SAVE, NOCRED, NULL, 0, 0);
-	}
 	/*
-	 * Wait until the pageout daemon is through with the object.
+	 * wait for the pageout daemon to be done with the object
 	 */
-
 	s = splhigh();
 	while (object->paging_in_progress) {
 		vm_object_unlock(object);
@@ -405,31 +394,6 @@ vm_object_terminate(object)
 	}
 	splx(s);
 
-	/*
-	 * While the paging system is locked, pull the object's pages off the
-	 * active and inactive queues.  This keeps the pageout daemon from
-	 * playing with them during vm_pager_deallocate.
-	 * 
-	 * We can't free the pages yet, because the object's pager may have to
-	 * write them out before deallocating the paging space.
-	 */
-
-	for (p = object->memq.tqh_first; p; p = next) {
-		VM_PAGE_CHECK(p);
-		next = p->listq.tqe_next;
-
-		vm_page_lock_queues();
-		if (p->flags & PG_CACHE)
-			vm_page_free(p);
-		else {
-			s = splhigh();
-			vm_page_unqueue(p);
-			splx(s);
-		}
-		vm_page_unlock_queues();
-		p = next;
-	}
-
 	if (object->paging_in_progress != 0)
 		panic("vm_object_deallocate: pageout in progress");
 
@@ -437,11 +401,14 @@ vm_object_terminate(object)
 	 * Clean and free the pages, as appropriate. All references to the
 	 * object are gone, so we don't need to lock it.
 	 */
-	if (vp != NULL) {
-		VOP_UNLOCK(vp);
-		vm_object_page_clean(object, 0, 0, TRUE);
+	if (object->pager && (object->pager->pg_type == PG_VNODE)) {
+		vn_pager_t vnp = object->pager->pg_data;
+		struct vnode *vp;
+
+		vp = vnp->vnp_vp;
 		VOP_LOCK(vp);
-		vinvalbuf(vp, 0, NOCRED, NULL, 0, 0);
+		(void) _vm_object_page_clean(object, 0, 0, TRUE);
+		vinvalbuf(vp, V_SAVE, NOCRED, NULL, 0, 0);
 		VOP_UNLOCK(vp);
 	}
 
@@ -490,60 +457,178 @@ vm_object_terminate(object)
  *
  *	The object must be locked.
  */
+
 void
-vm_object_page_clean(object, start, end, syncio)
-	register vm_object_t object;
-	register vm_offset_t start;
-	register vm_offset_t end;
+_vm_object_page_clean(object, start, end, syncio)
+	vm_object_t object;
+	vm_offset_t start;
+	vm_offset_t end;
 	boolean_t syncio;
 {
-	register vm_page_t p, nextp;
-	int size;
-	int s;
+	register vm_page_t p;
+	register vm_offset_t tstart, tend;
+	int pass;
+	int pgcount, s;
+	int allclean;
 
-	if (object->pager == NULL)
+	if (object->pager == NULL || (object->flags & OBJ_WRITEABLE) == 0)
 		return;
 
 	if (start != end) {
 		start = trunc_page(start);
 		end = round_page(end);
 	}
-	size = end - start;
 
-again:
-	/*
-	 * Wait until the pageout daemon is through with the object.
-	 */
-	s = splhigh();
-	while (object->paging_in_progress) {
-		object->flags |= OBJ_PIPWNT;
-		tsleep(object, PVM, "objpcw", 0);
+	object->flags &= ~OBJ_WRITEABLE;
+
+	pass = 0;
+startover:
+	tstart = start;
+	if (end == 0) {
+		tend = object->size;
+	} else {
+		tend = end;
 	}
-	splx(s);
+	/*
+	 * Wait until potential collapse operation is complete
+	 */
+	if (object->flags & OBJ_INTERNAL) {
+		s = splhigh();
+		while (object->paging_in_progress) {
+			object->flags |= OBJ_PIPWNT;
+			tsleep(object, PVM, "objpcw", 0);
+		}
+		splx(s);
+	}
 
-	nextp = object->memq.tqh_first;
-	while ((p = nextp) && ((start == end) || (size != 0))) {
-		nextp = p->listq.tqe_next;
-		if (start == end || (p->offset >= start && p->offset < end)) {
-			if ((p->flags & PG_BUSY) || p->busy) {
-				s = splhigh();
+	pgcount = object->resident_page_count;
 
-				p->flags |= PG_WANTED;
-				tsleep(p, PVM, "objpcn", 0);
-				splx(s);
-				goto again;
+	if (pass == 0 &&
+		(pgcount < 128 || pgcount > (object->size / (8 * PAGE_SIZE)))) {
+		allclean = 1;
+		for(; pgcount && (tstart < tend); tstart += PAGE_SIZE) {
+			p = vm_page_lookup(object, tstart);
+			if (!p)
+				continue;
+			--pgcount;
+			s = splhigh();
+			TAILQ_REMOVE(&object->memq, p, listq);
+			TAILQ_INSERT_TAIL(&object->memq, p, listq);
+			splx(s);
+			if ((p->flags & (PG_BUSY|PG_CACHE)) || p->busy || p->valid == 0 ||
+			    p->bmapped) {
+				continue;
 			}
-			size -= PAGE_SIZE;
-
 			vm_page_test_dirty(p);
-
-			if ((p->dirty & p->valid) != 0) {
-				vm_pageout_clean(p, VM_PAGEOUT_FORCE);
-				goto again;
+			if ((p->valid & p->dirty) != 0) {
+				vm_offset_t tincr;
+				tincr = vm_pageout_clean(p, VM_PAGEOUT_FORCE);
+				pgcount -= (tincr - 1);
+				tincr *= PAGE_SIZE;
+				tstart += tincr - PAGE_SIZE;
+				allclean = 0;
 			}
 		}
+		if (!allclean) {
+			pass = 1;
+			goto startover;
+		}
+		object->flags &= ~OBJ_WRITEABLE;
+		return;
+	}
+
+	allclean = 1;
+	while ((p = object->memq.tqh_first) != NULL && pgcount > 0) {
+
+		if (p->flags & PG_CACHE) {
+			goto donext;
+		}
+
+		if (p->offset >= tstart && p->offset < tend) {
+			if (p->valid == 0 || p->bmapped) {
+				goto donext;
+			}
+
+			s = splhigh();
+			if ((p->flags & PG_BUSY) || p->busy) {
+				allclean = 0;
+				if (pass > 0) {
+					p->flags |= PG_WANTED;
+					tsleep(p, PVM, "objpcn", 0);
+					splx(s);
+					continue;
+				} else {
+					splx(s);
+					goto donext;
+				}
+			}
+
+			TAILQ_REMOVE(&object->memq, p, listq);
+			TAILQ_INSERT_TAIL(&object->memq, p, listq);
+			splx(s);
+
+			pgcount--;
+			vm_page_test_dirty(p);
+			if ((p->valid & p->dirty) != 0) {
+				vm_pageout_clean(p, VM_PAGEOUT_FORCE);
+				allclean = 0;
+			}
+			continue;
+		}
+	donext:
+		TAILQ_REMOVE(&object->memq, p, listq);
+		TAILQ_INSERT_TAIL(&object->memq, p, listq);
+		pgcount--;
+	}
+	if ((!allclean && (pass == 0)) || (object->flags & OBJ_WRITEABLE)) {
+		pass = 1;
+		object->flags &= ~OBJ_WRITEABLE;
+		goto startover;
 	}
 	return;
+}
+
+
+void
+vm_object_page_clean(object, start, end, syncio) 
+	register vm_object_t object;
+	register vm_offset_t start;
+	register vm_offset_t end;
+	boolean_t syncio;
+{
+	if (object->pager && (object->flags & OBJ_WRITEABLE) &&
+		(object->pager->pg_type == PG_VNODE)) {
+		vn_pager_t vnp = (vn_pager_t) object->pager->pg_data;
+		struct vnode *vp;
+
+		vp = vnp->vnp_vp;
+		vget(vp, 1);
+		_vm_object_page_clean(object, start, end, syncio);
+		vput(vp);
+	} else {
+		_vm_object_page_clean(object, start, end, syncio);
+	}
+}
+
+void
+vm_object_cache_clean()
+{
+	vm_object_t object;
+	vm_object_cache_lock();
+	while(1) {
+		object = vm_object_cached_list.tqh_first;
+		while( object) {
+			if( (object->flags & OBJ_WRITEABLE) &&
+				object->pager &&
+				object->pager->pg_type == PG_VNODE) {
+				vm_object_page_clean(object, 0, 0, 0);
+				goto loop;
+			}
+			object = object->cached_list.tqe_next;
+		}
+		return;
+loop:
+	}
 }
 
 /*
@@ -1045,7 +1130,7 @@ vm_object_qcollapse(object)
 
 		next = p->listq.tqe_next;
 		if ((p->flags & (PG_BUSY | PG_FICTITIOUS | PG_CACHE)) ||
-		    !p->valid || p->hold_count || p->wire_count || p->busy || p->bmapped) {
+		    !p->valid || p->hold_count || p->wire_count || p->busy) {
 			p = next;
 			continue;
 		}
