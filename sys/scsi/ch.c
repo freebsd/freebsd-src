@@ -2,7 +2,7 @@
  * Written by grefen@convex.com (probably moved by now)
  * Based on scsi drivers by Julian Elischer (julian@tfs.com)
  *
- *      $Id: ch.c,v 1.25 1995/12/06 23:44:14 bde Exp $
+ *      $Id: ch.c,v 1.26 1995/12/08 11:18:40 julian Exp $
  */
 
 #include	<sys/types.h>
@@ -80,7 +80,7 @@ static	d_close_t	chclose;
 static	d_ioctl_t	chioctl;
 
 #define CDEV_MAJOR 17
-struct cdevsw ch_cdevsw = 
+static struct cdevsw ch_cdevsw = 
 	{ chopen,	chclose,	noread,		nowrite,	/*17*/
 	  chioctl,	nostop,		nullreset,	nodevtotty,/* ch */
 	  noselect,	nommap,		nostrat,	"ch",	NULL,	-1 };

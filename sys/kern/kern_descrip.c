@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_descrip.c	8.6 (Berkeley) 4/19/94
- * $Id: kern_descrip.c,v 1.20 1995/12/07 12:46:38 davidg Exp $
+ * $Id: kern_descrip.c,v 1.21 1995/12/08 11:16:59 julian Exp $
  */
 
 #include <sys/param.h>
@@ -70,7 +70,7 @@ static	 d_open_t  fdopen;
 #define NUMFDESC 64
 
 #define CDEV_MAJOR 22
-struct cdevsw fildesc_cdevsw = 
+static struct cdevsw fildesc_cdevsw = 
 	{ fdopen,	noclose,	noread,		nowrite,	/*22*/
 	  noioc,	nostop,		nullreset,	nodevtotty,/*fd(!=Fd)*/
 	  noselect,	nommap,		nostrat };

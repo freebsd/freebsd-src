@@ -2,7 +2,7 @@
  * Driver for a device we can't identify.
  * by Julian Elischer (julian@tfs.com)
  *
- *      $Id: uk.c,v 1.11 1995/11/29 14:41:07 julian Exp $
+ *      $Id: uk.c,v 1.12 1995/12/08 11:19:03 julian Exp $
  *
  * If you find that you are adding any code to this file look closely
  * at putting it in "scsi_driver.c" instead.
@@ -24,7 +24,7 @@ static	d_close_t	ukclose;
 static	d_ioctl_t	ukioctl;
 
 #define CDEV_MAJOR 31
-struct cdevsw uk_cdevsw = 
+static struct cdevsw uk_cdevsw = 
 	{ ukopen,	ukclose,	noread,         nowrite,      	/*31*/
 	  ukioctl,	nostop,		nullreset,	nodevtotty,/* unknown */
 	  seltrue,	nommap,		NULL,	"uk"	,NULL,	-1 };

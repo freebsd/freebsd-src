@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: soundcard.c,v 1.36 1995/12/06 23:51:21 bde Exp $
+ * $Id: soundcard.c,v 1.37 1995/12/08 11:16:44 julian Exp $
  */
 
 #include "sound_config.h"
@@ -81,7 +81,7 @@ static d_ioctl_t	sndioctl;
 static d_select_t	sndselect;
 
 #define CDEV_MAJOR 30
-struct cdevsw snd_cdevsw = 
+static struct cdevsw snd_cdevsw = 
 	{ sndopen,	sndclose,	sndread,	sndwrite,	/*30*/
   	  sndioctl,	nostop,		nullreset,	nodevtotty,/* sound */
   	  sndselect,	nommap,		NULL,	"snd", NULL, -1 };

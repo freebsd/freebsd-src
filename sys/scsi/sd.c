@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.75 1995/12/07 12:47:48 davidg Exp $
+ *      $Id: sd.c,v 1.76 1995/12/08 11:18:53 julian Exp $
  */
 
 #define SPLSD splbio
@@ -105,11 +105,11 @@ static	d_strategy_t	sdstrategy;
 #define CDEV_MAJOR 13
 #define BDEV_MAJOR 4
 extern struct cdevsw sd_cdevsw; /* hold off the complaints for a second */
-struct bdevsw sd_bdevsw = 
+static struct bdevsw sd_bdevsw = 
 	{ sdopen,	sdclose,	sdstrategy,	sdioctl,	/*4*/
 	  sddump,	sdsize,		0,	"sd",	&sd_cdevsw,	-1 };
 
-struct cdevsw sd_cdevsw = 
+static struct cdevsw sd_cdevsw = 
 	{ sdopen,	sdclose,	rawread,	rawwrite,	/*13*/
 	  sdioctl,	nostop,		nullreset,	nodevtotty,
 	  seltrue,	nommap,		sdstrategy,	"sd",

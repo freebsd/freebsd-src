@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_log.c	8.1 (Berkeley) 6/10/93
- * $Id: subr_log.c,v 1.13 1995/12/02 18:58:52 bde Exp $
+ * $Id: subr_log.c,v 1.14 1995/12/08 11:17:06 julian Exp $
  */
 
 /*
@@ -64,7 +64,7 @@ static	d_ioctl_t	logioctl;
 static	d_select_t	logselect;
 
 #define CDEV_MAJOR 7
-struct cdevsw log_cdevsw = 
+static struct cdevsw log_cdevsw = 
 	{ logopen,	logclose,	logread,	nowrite,	/*7*/
 	  logioctl,	nostop,		nullreset,	nodevtotty,/* klog */
 	  logselect,	nommap,		NULL,	"log",	NULL,	-1 };

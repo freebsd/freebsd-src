@@ -41,7 +41,7 @@
  */
 
 
-/* $Id: scd.c,v 1.12 1995/11/29 14:39:53 julian Exp $ */
+/* $Id: scd.c,v 1.13 1995/12/08 11:15:01 julian Exp $ */
 
 /* Please send any comments to micke@dynas.se */
 
@@ -199,11 +199,11 @@ static	d_strategy_t	scdstrategy;
 #define CDEV_MAJOR 45
 #define BDEV_MAJOR 16
 extern	struct cdevsw scd_cdevsw;
-struct bdevsw scd_bdevsw = 
+static struct bdevsw scd_bdevsw = 
 	{ scdopen,	scdclose,	scdstrategy,	scdioctl,	/*16*/
 	  nxdump,	scdsize,	0, "scd",	&scd_cdevsw,	-1 };
 
-struct cdevsw scd_cdevsw = 
+static struct cdevsw scd_cdevsw = 
 	{ scdopen,	scdclose,	rawread,	nowrite,	/*45*/
 	  scdioctl,	nostop,		nullreset,	nodevtotty,/* sony cd */
 	  seltrue,	nommap,		scdstrategy,	"scd",

@@ -38,7 +38,7 @@
  *
  *	from: Utah $Hdr: mem.c 1.13 89/10/08$
  *	from: @(#)mem.c	7.2 (Berkeley) 5/9/91
- *	$Id: mem.c,v 1.22 1995/12/07 12:45:34 davidg Exp $
+ *	$Id: mem.c,v 1.23 1995/12/08 11:13:25 julian Exp $
  */
 
 /*
@@ -77,7 +77,7 @@ static	d_ioctl_t	mmioctl;
 static	d_mmap_t	memmmap;
 
 #define CDEV_MAJOR 2
-struct cdevsw mem_cdevsw = 
+static struct cdevsw mem_cdevsw = 
 	{ mmopen,	mmclose,	mmrw,		mmrw,		/*2*/
 	  mmioctl,	nullstop,	nullreset,	nodevtotty,/* memory */
 	  seltrue,	memmmap,	NULL,	"mem",	NULL, -1 };

@@ -8,7 +8,7 @@
  *	of this software, nor does the author assume any responsibility
  *	for damages incurred with its use.
  *
- *	$Id: ctx.c,v 1.11 1995/12/06 23:42:26 bde Exp $
+ *	$Id: ctx.c,v 1.12 1995/12/08 11:13:56 julian Exp $
  */
 
 /*
@@ -149,7 +149,7 @@ static	d_write_t	ctxwrite;
 static	d_ioctl_t	ctxioctl;
 #define CDEV_MAJOR 40
 
-struct cdevsw ctx_cdevsw = 
+static struct cdevsw ctx_cdevsw = 
 	{ ctxopen,	ctxclose,	ctxread,	ctxwrite,	/*40*/
 	  ctxioctl,	nostop,		nullreset,	nodevtotty,/* cortex */
 	  seltrue,	nommap,		NULL,	"ctx",	NULL,	-1 };

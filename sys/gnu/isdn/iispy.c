@@ -1,6 +1,6 @@
-static char     _ispyid[] = "@(#)$Id: iispy.c,v 1.7 1995/12/06 23:43:37 bde Exp $";
+static char     _ispyid[] = "@(#)$Id: iispy.c,v 1.8 1995/12/08 11:12:52 julian Exp $";
 /*******************************************************************************
- *  II - Version 0.1 $Revision: 1.7 $   $State: Exp $
+ *  II - Version 0.1 $Revision: 1.8 $   $State: Exp $
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -10,6 +10,29 @@ static char     _ispyid[] = "@(#)$Id: iispy.c,v 1.7 1995/12/06 23:43:37 bde Exp 
  *
  *******************************************************************************
  * $Log: iispy.c,v $
+ * Revision 1.8  1995/12/08  11:12:52  julian
+ * Pass 3 of the great devsw changes
+ * most devsw referenced functions are now static, as they are
+ * in the same file as their devsw structure. I've also added DEVFS
+ * support for nearly every device in the system, however
+ * many of the devices have 'incorrect' names under DEVFS
+ * because I couldn't quickly work out the correct naming conventions.
+ * (but devfs won't be coming on line for a month or so anyhow so that doesn't
+ * matter)
+ *
+ * If you "OWN" a device which would normally have an entry in /dev
+ * then search for the devfs_add_devsw() entries and munge to make them right..
+ * check out similar devices to see what I might have done in them in you
+ * can't see what's going on..
+ * for a laugh compare conf.c conf.h defore and after... :)
+ * I have not doen DEVFS entries for any DISKSLICE devices yet as that will be
+ * a much more complicated job.. (pass 5 :)
+ *
+ * pass 4 will be to make the devsw tables of type (cdevsw * )
+ * rather than (cdevsw)
+ * seems to work here..
+ * complaints to the usual places.. :)
+ *
  * Revision 1.7  1995/12/06  23:43:37  bde
  * Removed unnecessary #includes of <sys/user.h>.  Some of these were just
  * to get the definitions of TRUE and FALSE which happen to be defined in
@@ -106,7 +129,7 @@ static	d_read_t	ispyread;
 static	d_ioctl_t	ispyioctl;
 
 #define CDEV_MAJOR 59
-struct cdevsw ispy_cdevsw = 
+static struct cdevsw ispy_cdevsw = 
 	{ ispyopen,	ispyclose,	ispyread,	nowrite,	/*59*/
 	  ispyioctl,	nostop,		nullreset,	nodevtotty,/* ispy */
 	  seltrue,	nommap,         NULL,	"ispy",	NULL,	-1 };

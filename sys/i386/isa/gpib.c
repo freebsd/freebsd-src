@@ -82,7 +82,7 @@ static	d_write_t	gpwrite;
 static	d_ioctl_t	gpioctl;
 
 #define CDEV_MAJOR 44
-struct cdevsw gp_cdevsw = 
+static struct cdevsw gp_cdevsw = 
 	{ gpopen,	gpclose,	noread,		gpwrite,	/*44*/
 	  gpioctl,	nostop,		nullreset,	nodevtotty,/* GPIB */
           seltrue,	nommap,		NULL,	"gp",	NULL,	-1 };

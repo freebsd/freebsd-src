@@ -130,7 +130,7 @@ static	d_ioctl_t	bquioctl;
 static	d_select_t	bquselect;
 
 #define CDEV_MAJOR 8
-struct cdevsw bqu_cdevsw = 
+static struct cdevsw bqu_cdevsw = 
 	{ bquopen,      bquclose,       bquread,        bquwrite,       /*8*/
 	  bquioctl,     nostop,         nullreset,      nodevtotty,/* tputer */
 	  bquselect,    nommap,         NULL,	"bqu",	NULL,	-1 };
