@@ -98,31 +98,20 @@ static int mask_match(const struct encaptab *, const struct sockaddr *,
 		const struct sockaddr *);
 static void encap_fillarg(struct mbuf *, const struct encaptab *);
 
-#ifndef LIST_HEAD_INITIALIZER
-/* rely upon BSS initialization */
-LIST_HEAD(, encaptab) encaptab;
-#else
+/*
+ * All global variables in ip_encap.c are locked using encapmtx.
+ */
+static struct mtx encapmtx;
+MTX_SYSINIT(encapmtx, &encapmtx, "encapmtx", MTX_DEF);
 LIST_HEAD(, encaptab) encaptab = LIST_HEAD_INITIALIZER(&encaptab);
-#endif
 
+/*
+ * We currently keey encap_init() for source code compatibility reasons --
+ * it's referenced by KAME pieces in netinet6.
+ */
 void
 encap_init()
 {
-	static int initialized = 0;
-
-	if (initialized)
-		return;
-	initialized++;
-#if 0
-	/*
-	 * we cannot use LIST_INIT() here, since drivers may want to call
-	 * encap_attach(), on driver attach.  encap_init() will be called
-	 * on AF_INET{,6} initialization, which happens after driver
-	 * initialization - using LIST_INIT() here can nuke encap_attach()
-	 * from drivers.
-	 */
-	LIST_INIT(&encaptab);
-#endif
 }
 
 #ifdef INET
@@ -152,6 +141,7 @@ encap4_input(m, off)
 
 	match = NULL;
 	matchprio = 0;
+	mtx_lock(&encapmtx);
 	LIST_FOREACH(ep, &encaptab, chain) {
 		if (ep->af != AF_INET)
 			continue;
@@ -193,6 +183,7 @@ encap4_input(m, off)
 			match = ep;
 		}
 	}
+	mtx_unlock(&encapmtx);
 
 	if (match) {
 		/* found a match, "match" has the best one */
@@ -237,6 +228,7 @@ encap6_input(mp, offp, proto)
 
 	match = NULL;
 	matchprio = 0;
+	mtx_lock(&encapmtx);
 	LIST_FOREACH(ep, &encaptab, chain) {
 		if (ep->af != AF_INET6)
 			continue;
@@ -261,6 +253,7 @@ encap6_input(mp, offp, proto)
 			match = ep;
 		}
 	}
+	mtx_unlock(&encapmtx);
 
 	if (match) {
 		/* found a match */
@@ -285,6 +278,7 @@ encap_add(ep)
 	struct encaptab *ep;
 {
 
+	mtx_assert(&encapmtx, MA_OWNED);
 	LIST_INSERT_HEAD(&encaptab, ep, chain);
 }
 
@@ -303,21 +297,17 @@ encap_attach(af, proto, sp, sm, dp, dm, psw, arg)
 	void *arg;
 {
 	struct encaptab *ep;
-	int s;
 
-	s = splnet();
 	/* sanity check on args */
-	if (sp->sa_len > sizeof(ep->src) || dp->sa_len > sizeof(ep->dst)) {
-		goto fail;
-	}
-	if (sp->sa_len != dp->sa_len) {
-		goto fail;
-	}
-	if (af != sp->sa_family || af != dp->sa_family) {
-		goto fail;
-	}
+	if (sp->sa_len > sizeof(ep->src) || dp->sa_len > sizeof(ep->dst))
+		return (NULL);
+	if (sp->sa_len != dp->sa_len)
+		return (NULL);
+	if (af != sp->sa_family || af != dp->sa_family)
+		return (NULL);
 
 	/* check if anyone have already attached with exactly same config */
+	mtx_lock(&encapmtx);
 	LIST_FOREACH(ep, &encaptab, chain) {
 		if (ep->af != af)
 			continue;
@@ -332,12 +322,14 @@ encap_attach(af, proto, sp, sm, dp, dm, psw, arg)
 		    bcmp(&ep->dstmask, dm, dp->sa_len) != 0)
 			continue;
 
-		goto fail;
+		mtx_unlock(&encapmtx);
+		return (NULL);
 	}
 
 	ep = malloc(sizeof(*ep), M_NETADDR, M_NOWAIT);	/*XXX*/
 	if (ep == NULL) {
-		goto fail;
+		mtx_unlock(&encapmtx);
+		return (NULL);
 	}
 	bzero(ep, sizeof(*ep));
 
@@ -351,13 +343,8 @@ encap_attach(af, proto, sp, sm, dp, dm, psw, arg)
 	ep->arg = arg;
 
 	encap_add(ep);
-
-	splx(s);
-	return ep;
-
-fail:
-	splx(s);
-	return NULL;
+	mtx_unlock(&encapmtx);
+	return (ep);
 }
 
 const struct encaptab *
@@ -369,16 +356,14 @@ encap_attach_func(af, proto, func, psw, arg)
 	void *arg;
 {
 	struct encaptab *ep;
-	int s;
 
-	s = splnet();
 	/* sanity check on args */
 	if (!func)
-		goto fail;
+		return (NULL);
 
 	ep = malloc(sizeof(*ep), M_NETADDR, M_NOWAIT);	/*XXX*/
 	if (ep == NULL)
-		goto fail;
+		return (NULL);
 	bzero(ep, sizeof(*ep));
 
 	ep->af = af;
@@ -387,14 +372,10 @@ encap_attach_func(af, proto, func, psw, arg)
 	ep->psw = psw;
 	ep->arg = arg;
 
+	mtx_lock(&encapmtx);
 	encap_add(ep);
-
-	splx(s);
-	return ep;
-
-fail:
-	splx(s);
-	return NULL;
+	mtx_unlock(&encapmtx);
+	return (ep);
 }
 
 int
@@ -404,13 +385,16 @@ encap_detach(cookie)
 	const struct encaptab *ep = cookie;
 	struct encaptab *p;
 
+	mtx_lock(&encapmtx);
 	LIST_FOREACH(p, &encaptab, chain) {
 		if (p == ep) {
 			LIST_REMOVE(p, chain);
+			mtx_unlock(&encapmtx);
 			free(p, M_NETADDR);	/*XXX*/
 			return 0;
 		}
 	}
+	mtx_unlock(&encapmtx);
 
 	return EINVAL;
 }
