@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static char sccsid[] = "@(#)ns_req.c	4.47 (Berkeley) 7/1/91";
-static char rcsid[] = "$Id: ns_req.c,v 1.2 1995/05/30 03:48:55 rgrimes Exp $";
+static char rcsid[] = "$Id: ns_req.c,v 1.3 1995/08/20 21:18:54 peter Exp $";
 #endif /* not lint */
 
 /*
@@ -922,10 +922,32 @@ fetchns:
 			 */
 			delete_all(np, class, T_NS);
 #endif
+			for (dp = np->n_data; dp ; dp = dp->d_next)
+				if (dp->d_zone && match(dp, class, T_NS))
+					break;
+			if (dp) {
+				/*
+				 * we know the child zone exists but are
+				 * missing glue.
+				 *
+				 * nslookup has called sysquery() to get the
+				 * missing glue.
+				 *
+				 * for UDP, drop the response and let the
+				 * client retry.  for TCP, we should probably
+				 * (XXX) hold open the TCP connection for a
+				 * while in case the sysquery() comes back
+				 * soon.  meanwhile we SERVFAIL.
+				 */
+				if (qsp)
+					goto do_servfail;
+				break;
+			}
 			np = np->n_parent;
 		}
 		goto fetchns;	/* Try again. */
 	case FW_SERVFAIL:
+ do_servfail:
 		hp->rcode = SERVFAIL;
 #ifdef DATUMREFCNT
 		free_nsp(nsp);

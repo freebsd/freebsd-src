@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static char sccsid[] = "@(#)ns_forw.c	4.32 (Berkeley) 3/3/91";
-static char rcsid[] = "$Id: ns_forw.c,v 1.2 1995/05/30 03:48:49 rgrimes Exp $";
+static char rcsid[] = "$Id: ns_forw.c,v 1.3 1995/08/20 21:18:36 peter Exp $";
 #endif /* not lint */
 
 /*
@@ -374,6 +374,29 @@ nslookup(nsp, qp, syslogdname, sysloginfo)
 				       dname);
 				continue;
 			}
+#ifdef INADDR_LOOPBACK
+			if (ntohl(data_inaddr(dp->d_data).s_addr) ==
+					INADDR_LOOPBACK) {
+				syslog(LOG_INFO, "Bogus LOOPBACK A RR for %s",
+				       dname);
+				continue;
+			}
+#endif
+#ifdef INADDR_BROADCAST
+			if (ntohl(data_inaddr(dp->d_data).s_addr) == 
+					INADDR_BROADCAST) {
+				syslog(LOG_INFO, "Bogus BROADCAST A RR for %s",
+				       dname);
+				continue;
+			}
+#endif
+#ifdef IN_MULTICAST
+			if (IN_MULTICAST(ntohl(data_inaddr(dp->d_data).s_addr))) {
+				syslog(LOG_INFO, "Bogus MULTICAST A RR for %s",
+				       dname);
+				continue;
+			}
+#endif
 			/*
 			 * Don't use records that may become invalid to
 			 * reference later when we do the rtt computation.
