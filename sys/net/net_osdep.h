@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: net_osdep.h,v 1.21 2000/07/02 23:34:38 itojun Exp $	*/
+/*	$KAME: net_osdep.h,v 1.22 2000/08/15 07:23:10 itojun Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -150,6 +150,10 @@
  *	FreeBSD4: opt_{inet,inet6,ipsec,ip6fw,altq}.h
  *	NetBSD: opt_{inet,ipsec,altq}.h
  *	others: does not use defopt
+ *
+ * - IN_MULTICAST/IN_CLASS[A-D] macro.
+ *	OpenBSD and NetBSD: net endian (kernel) or host endian (userland)
+ *	others: always host endian
  */
 
 #ifndef __NET_NET_OSDEP_H_DEFINED_
