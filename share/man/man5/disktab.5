@@ -54,16 +54,15 @@ after the
 .Xr termcap 5
 terminal data base.  Entries in
 .Nm
-consist of a number of `:' separated fields.  The
-first entry for each disk gives the names which are
-known for the disk, separated by `|' characters.  The
+consist of a number of `:'-separated fields.  The
+first field for each entry gives the names by which a
+disk's entry may be selected, separated by `|' characters.  The
 last name given should be a long name fully identifying
 the disk.
 .Pp
-The following list indicates the normal values
-stored for each disk entry.
+The optional fields for each entry are:
 .Bl -column "indent" "boolx"
-.It Sy "Name	Type	Description"
+.It Sy "ID	Type	Description"
 .It "\&ty	str	Type of disk (e.g. removable, winchester)"
 .It "\&dt	str	Type of controller (e.g."
 .Tn SMD , ESDI ,
@@ -86,6 +85,8 @@ default
 .It "\&d[0-4]	num	Drive-type-dependent parameters"
 .It "\&bs	num	Boot block size, default"
 .Dv BBSIZE
+.It "\&b[0-1]	num	Boot block filenames; see"
+.Xr bsdlabel 8
 .It "\&sb	num	Superblock size, default"
 .Dv SBSIZE
 .It "\&ba	num	Block size for partition `a' (bytes)"
