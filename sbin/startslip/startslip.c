@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: startslip.c,v 1.18 1995/09/27 17:15:37 ache Exp $
+ * $Id: startslip.c,v 1.18.2.1 1997/06/23 06:34:27 charnier Exp $
  */
 
 #ifndef lint
@@ -43,26 +43,30 @@ static char copyright[] =
 static char sccsid[] = "@(#)startslip.c	8.1 (Berkeley) 6/5/93";
 #endif /* not lint */
 
+#include <sys/types.h>
+#include <sys/ioctl.h>
+#include <sys/socket.h>
+#include <sys/time.h>
+
+#include <errno.h>
+#include <fcntl.h>
+#include <paths.h>
+#include <netdb.h>
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <syslog.h>
 #include <termios.h>
 #include <time.h>
-#include <sys/ioctl.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <syslog.h>
+#include <unistd.h>
+#include <libutil.h>
+#include <err.h>
+
 #include <netinet/in.h>
 #include <net/if.h>
 #include <net/if_slvar.h>
 #include <net/slip.h>
-#include <netdb.h>
-#include <errno.h>
-#include <fcntl.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <signal.h>
-#include <string.h>
-#include <unistd.h>
-#include <paths.h>
-#include <err.h>
 
 #define DEFAULT_BAUD    B9600
 int     speed = DEFAULT_BAUD;
@@ -131,7 +135,7 @@ main(argc, argv)
 	pid_t pid;
 	struct termios t;
 
-	while ((ch = getopt(argc, argv, "dhlb:s:t:w:A:U:D:W:K:O:S:L")) != EOF)
+	while ((ch = getopt(argc, argv, "dhlb:s:t:w:A:U:D:W:K:O:S:L")) != -1)
 		switch (ch) {
 		case 'd':
 			debug = 1;
@@ -289,7 +293,10 @@ restart:
 	}
 	printd("open");
 	if (uucp_lock) {
-		if (uu_lock(dvname)) {
+		int res;
+		if ((res = uu_lock(dvname)) != UU_LOCK_OK) {
+			if (res != UU_LOCK_INUSE)
+				syslog(LOG_ERR, "uu_lock: %s", uu_lockerr(res));
 			syslog(LOG_ERR, "%s: can't lock %s", username, devicename);
 			goto restart;
 		}
