@@ -119,8 +119,8 @@ network_start()
 		#
 		route add -inet6 ::0.0.0.0 -prefixlen 96 ::1 -reject
 
-		sysctl -w net.inet6.ip6.forwarding=0 >/dev/null
-		sysctl -w net.inet6.ip6.accept_rtadv=0 >/dev/null
+		sysctl net.inet6.ip6.forwarding=0 >/dev/null
+		sysctl net.inet6.ip6.accept_rtadv=0 >/dev/null
 
 		# backward compatibility
 		#
@@ -139,12 +139,12 @@ network_start()
 		case $ip6mode in
 		router)
 			echo 'IPv6 mode: router'
-			sysctl -w net.inet6.ip6.forwarding=1 >/dev/null
+			sysctl net.inet6.ip6.forwarding=1 >/dev/null
 			;;
 
 		autohost)
 			echo 'IPv6 mode: autoconfigured host'
-			sysctl -w net.inet6.ip6.accept_rtadv=1 >/dev/null
+			sysctl net.inet6.ip6.accept_rtadv=1 >/dev/null
 			;;
 
 		host)	

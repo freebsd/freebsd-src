@@ -109,7 +109,7 @@ network6_pass1() {
 			case ${ipv6_firewall_logging} in
 			[Yy][Ee][Ss] | '')
 				echo 'IPv6 Firewall logging=YES'
-				sysctl -w net.inet6.ip6.fw.verbose=1 >/dev/null
+				sysctl net.inet6.ip6.fw.verbose=1 >/dev/null
 				;;
 			*)
 				;;
@@ -139,8 +139,8 @@ network6_pass1() {
 	case ${ipv6_gateway_enable} in
 	[Yy][Ee][Ss])
 		# act as a router
-		sysctl -w net.inet6.ip6.forwarding=1
-		sysctl -w net.inet6.ip6.accept_rtadv=0
+		sysctl net.inet6.ip6.forwarding=1
+		sysctl net.inet6.ip6.accept_rtadv=0
 
 		# wait for DAD
 		for i in $ipv6_network_interfaces; do
@@ -151,8 +151,8 @@ network6_pass1() {
 		;;
 	*)
 		# act as endhost - start with manual configuration
-		sysctl -w net.inet6.ip6.forwarding=0
-		sysctl -w net.inet6.ip6.accept_rtadv=0
+		sysctl net.inet6.ip6.forwarding=0
+		sysctl net.inet6.ip6.accept_rtadv=0
 		;;
 	esac
 
@@ -266,11 +266,11 @@ network6_pass1() {
 	case ${ipv6_ipv4mapping} in
 	[Yy][Ee][Ss])
 		echo -n ' IPv4 mapped IPv6 address support=YES'
-		sysctl -w net.inet6.ip6.v6only=0 >/dev/null
+		sysctl net.inet6.ip6.v6only=0 >/dev/null
 		;;
 	'' | *)
 		echo -n ' IPv4 mapped IPv6 address support=NO'
-		sysctl -w net.inet6.ip6.v6only=1 >/dev/null
+		sysctl net.inet6.ip6.v6only=1 >/dev/null
 		;;
 	esac
 
@@ -340,7 +340,7 @@ network6_interface_setup() {
 		# You can configure only single interface, as
 		# specification assumes that autoconfigured host has
 		# single interface only.
-		sysctl -w net.inet6.ip6.accept_rtadv=1
+		sysctl net.inet6.ip6.accept_rtadv=1
 		set ${rtsol_interfaces}
 		ifconfig $1 up
 		rtsol $1
@@ -432,7 +432,7 @@ network6_faith_setup() {
 	[Nn][Oo] | '')
 		;;
 	*)
-		sysctl -w net.inet6.ip6.keepfaith=1
+		sysctl net.inet6.ip6.keepfaith=1
 		ifconfig faith0 up
 		for prefix in ${ipv6_faith_prefix}; do
 			prefixlen=`expr "${prefix}" : ".*/\(.*\)"`
