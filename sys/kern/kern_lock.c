@@ -340,11 +340,10 @@ debuglockmgr(lkp, flags, interlkp, td, name, file, line)
 			                   wakeup((void *)lkp);
 			         break;
 			}
-
-			lkp->lk_flags |= LK_HAVE_EXCL;
-			lkp->lk_lockholder = thr;
 			if (lkp->lk_exclusivecount != 0)
 				panic("lockmgr: non-zero exclusive count");
+			lkp->lk_flags |= LK_HAVE_EXCL;
+			lkp->lk_lockholder = thr;
 			lkp->lk_exclusivecount = 1;
 #if defined(DEBUG_LOCKS)
 			lkp->lk_filename = file;
