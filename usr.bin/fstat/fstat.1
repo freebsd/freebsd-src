@@ -40,7 +40,7 @@
 .Nd file status
 .Sh SYNOPSIS
 .Nm fstat
-.Op Fl fnv
+.Op Fl fmnv
 .Op Fl M Ar core
 .Op Fl N Ar system
 .Op Fl p Ar pid
@@ -74,6 +74,9 @@ instead of the default
 .It Fl N
 Extract the name list from the specified system instead of the default
 .Pa /kernel .
+.It Fl m
+Include memory-mapped files in the listing; normally these are excluded
+due to the extra processing required.
 .It Fl n
 Numerical format.  Print the device number (maj,min) of the filesystem
 the file resides in rather than the mount point name; for special
@@ -117,6 +120,7 @@ text	- executable text inode
 wd 	- current working directory
 root	- root inode
 tr	- kernel trace file
+mmap	- memory-mapped file
 .Ed
 .Pp
 If the file number is followed by an asterisk (``*''), the file is
