@@ -281,7 +281,7 @@ read_piece(char *input_file)
 	 */
 	i = strlen(line) - 1;
 	while (i > 0 && isspace(line[i]))
-		line[--i] = '\0';
+		line[i--] = '\0';
 
 	/*
 	 * Look for the beginning of an encoded piece.
