@@ -203,7 +203,7 @@ wtmp()
 				if (want(bp)) {
 					tm = localtime(&bp->ut_time);
 					(void) strftime(ct, sizeof(ct), "%c", tm);
-					printf("%-*.*s  %-*.*s %-*.*s %10.10s %5.5s \n",
+					printf("%-*.*s %-*.*s %-*.*s %10.10s %5.5s \n",
 					    UT_NAMESIZE, UT_NAMESIZE,
 					    bp->ut_name, UT_LINESIZE,
 					    UT_LINESIZE, bp->ut_line,
@@ -223,7 +223,7 @@ wtmp()
 				if (want(bp)) {
 					tm = localtime(&bp->ut_time);
 					(void) strftime(ct, sizeof(ct), "%c", tm);
-					printf("%-*.*s  %-*.*s %-*.*s %10.10s %5.5s \n",
+					printf("%-*.*s %-*.*s %-*.*s %10.10s %5.5s \n",
 					    UT_NAMESIZE, UT_NAMESIZE, bp->ut_name,
 					    UT_LINESIZE, UT_LINESIZE, bp->ut_line,
 					    UT_HOSTSIZE, UT_HOSTSIZE, bp->ut_host,
@@ -261,7 +261,7 @@ wtmp()
 						bp->ut_line[4] = '\0';
 					tm = localtime(&bp->ut_time);
 					(void) strftime(ct, sizeof(ct), "%c", tm);
-					printf("%-*.*s  %-*.*s %-*.*s %10.10s %5.5s ",
+					printf("%-*.*s %-*.*s %-*.*s %10.10s %5.5s ",
 					    UT_NAMESIZE, UT_NAMESIZE, bp->ut_name,
 					    UT_LINESIZE, UT_LINESIZE, bp->ut_line,
 					    UT_HOSTSIZE, UT_HOSTSIZE, bp->ut_host,
