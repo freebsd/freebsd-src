@@ -1316,7 +1316,7 @@ sf_encap(sc, c, m_head)
 
 		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
 		if (m_new == NULL) {
-			printf("sf%d: no memory for tx list", sc->sf_unit);
+			printf("sf%d: no memory for tx list\n", sc->sf_unit);
 			return(1);
 		}
 
@@ -1324,7 +1324,7 @@ sf_encap(sc, c, m_head)
 			MCLGET(m_new, M_DONTWAIT);
 			if (!(m_new->m_flags & M_EXT)) {
 				m_freem(m_new);
-				printf("sf%d: no memory for tx list",
+				printf("sf%d: no memory for tx list\n",
 				    sc->sf_unit);
 				return(1);
 			}
