@@ -248,10 +248,9 @@ wdattach(struct isa_device *dvp)
 			}
 			printf("\n");
 			du->dk_unit = unit;
-			return(1);
 		}
 	}
-	return(0);
+	return(1);
 }
 
 /* Read/write routine for a buffer.  Finds the proper unit, range checks
