@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)ls.1	8.6 (Berkeley) 4/18/94
-.\"	$Id$
+.\"	$Id: ls.1,v 1.4 1995/09/26 08:48:09 mpp Exp $
 .\"
 .Dd April 18, 1994
 .Dt LS 1
@@ -82,9 +82,10 @@ Force multi-column output; this is the default when output is to a terminal.
 Display a slash (/) immediately after each pathname
 that is a directory, an asterisk (*) after each that is
 executable,
-and an at sign (@) after each symbolic link.
-.\" and a vertical bar (|) after each that is a
-.\" .Tn FIFO . 
+an at sign (@) after each symbolic link,
+an equals sign (=) after each socket,
+and a vertical bar (|) after each that is a
+.Tn FIFO . 
 .It Fl L
 If argument is a symbolic link, list the file or directory the link references
 rather than the link itself.
@@ -215,8 +216,8 @@ Directory.
 Symbolic link.
 .It Sy s
 Socket link.
-.\" .It Sy p
-.\" .Tn FIFO .
+.It Sy p
+.Tn FIFO .
 .It Sy \-
 Regular file.
 .El
