@@ -43,9 +43,8 @@ static char sccsid[] = "@(#)mount.c	8.25 (Berkeley) 5/8/95";
 
 #include <sys/param.h>
 #include <sys/mount.h>
-#include <sys/wait.h>
-#include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
 
 #include <err.h>
 #include <errno.h>
@@ -59,8 +58,7 @@ static char sccsid[] = "@(#)mount.c	8.25 (Berkeley) 5/8/95";
 
 #include "pathnames.h"
 
-int debug, verbose;
-int fstab_style = 0;
+int debug, fstab_style, verbose;
 
 int	checkvfsname __P((const char *, const char **));
 char   *catopt __P((char *, const char *));
@@ -73,8 +71,8 @@ void	mangle __P((char *, int *, const char **));
 int	mountfs __P((const char *, const char *, const char *,
 			int, const char *, const char *));
 void	prmount __P((struct statfs *));
-void	usage __P((void));
 void	putfsent __P((const struct statfs *));
+void	usage __P((void));
 
 /* From mount_ufs.c. */
 int	mount_ufs __P((int, char * const *));
@@ -95,7 +93,6 @@ static struct opt {
 	{ MNT_RDONLY,		"read-only" },
 	{ MNT_SYNCHRONOUS,	"synchronous" },
 	{ MNT_UNION,		"union" },
-	{ MNT_NOATIME,		"noatime" },
 	{ NULL }
 };
 
@@ -116,12 +113,8 @@ main(argc, argv)
 	options = NULL;
 	vfslist = NULL;
 	vfstype = "ufs";
-	while ((ch = getopt(argc, argv, "padfo:rwt:uv")) != EOF)
+	while ((ch = getopt(argc, argv, "adfo:prwt:uv")) != -1)
 		switch (ch) {
-		case 'p':
-			fstab_style = 1;
-			verbose = 1;
-			break;
 		case 'a':
 			all = 1;
 			break;
@@ -134,6 +127,10 @@ main(argc, argv)
 		case 'o':
 			if (*optarg)
 				options = catopt(options, optarg);
+			break;
+		case 'p':
+			fstab_style = 1;
+			verbose = 1;
 			break;
 		case 'r':
 			init_flags |= MNT_RDONLY;
@@ -177,9 +174,9 @@ main(argc, argv)
 				if (hasopt(fs->fs_mntops, "noauto"))
 					continue;
 				if (mountfs(fs->fs_vfstype, fs->fs_spec,
-		    			fs->fs_file, init_flags, options,
-			    		fs->fs_mntops))
-						rval = 1;
+				    fs->fs_file, init_flags, options,
+				    fs->fs_mntops))
+					rval = 1;
 			}
 		else if (fstab_style) {
 			if ((mntsize = getmntinfo(&mntbuf, MNT_NOWAIT)) == 0)
@@ -187,14 +184,14 @@ main(argc, argv)
 			for (i = 0; i < mntsize; i++) {
 				if (checkvfsname(mntbuf[i].f_fstypename, vfslist))
 					continue;
-				putfsent (&mntbuf[i]);
+				putfsent(&mntbuf[i]);
 			}
-		}
-		else {
+		} else {
 			if ((mntsize = getmntinfo(&mntbuf, MNT_NOWAIT)) == 0)
 				err(1, "getmntinfo");
 			for (i = 0; i < mntsize; i++) {
-				if (checkvfsname(mntbuf[i].f_fstypename, vfslist))
+				if (checkvfsname(mntbuf[i].f_fstypename,
+				    vfslist))
 					continue;
 				prmount(&mntbuf[i]);
 			}
@@ -288,8 +285,6 @@ mountfs(vfstype, spec, name, flags, options, mntopts)
 	const char *vfstype, *spec, *name, *options, *mntopts;
 	int flags;
 {
-	struct stat sb;
-
 	/* List of directories containing mount_xxx subcommands. */
 	static const char *edirs[] = {
 		_PATH_SBIN,
@@ -297,6 +292,7 @@ mountfs(vfstype, spec, name, flags, options, mntopts)
 		NULL
 	};
 	const char *argv[100], **edir;
+	struct stat sb;
 	struct statfs sf;
 	pid_t pid;
 	int argc, i, status;
@@ -311,9 +307,6 @@ mountfs(vfstype, spec, name, flags, options, mntopts)
 		warn("%s", mntpath);
 		return (1);
 	}
-
-	if (mntopts == NULL)
-		mntopts = "";
 
 	name = mntpath;
 
@@ -415,7 +408,7 @@ mountfs(vfstype, spec, name, flags, options, mntopts)
 				return (1);
 			}
 			if (fstab_style)
-				putfsent (&sf);
+				putfsent(&sf);
 			else
 				prmount(&sf);
 		}
@@ -529,43 +522,36 @@ usage()
 }
 
 void
-putfsent (ent)
-    const struct statfs	    *ent;
+putfsent(ent)
+	const struct statfs *ent;
 {
-    struct fstab    *fst;
+	struct fstab *fst;
 
-    printf ("%s\t%s\t%s %s",
-	    ent->f_mntfromname, ent->f_mntonname,
-	    ent->f_fstypename,
-	    (ent->f_flags & MNT_RDONLY) ? "ro" : "rw");
+	printf("%s\t%s\t%s %s", ent->f_mntfromname, ent->f_mntonname,
+	    ent->f_fstypename, (ent->f_flags & MNT_RDONLY) ? "ro" : "rw");
 
-    if (ent->f_flags & MNT_SYNCHRONOUS)
-	printf (",sync");
+	/* XXX should use optnames[] - put shorter names in it. */
+	if (ent->f_flags & MNT_SYNCHRONOUS)
+		printf(",sync");
+	if (ent->f_flags & MNT_NOEXEC)
+		printf(",noexec");
+	if (ent->f_flags & MNT_NOSUID)
+		printf(",nosuid");
+	if (ent->f_flags & MNT_NODEV)
+		printf(",nodev");
+	if (ent->f_flags & MNT_UNION)
+		printf(",union");
+	if (ent->f_flags & MNT_ASYNC)
+		printf(",async");
+	if (ent->f_flags & MNT_NOATIME)
+		printf(",noatime");
 
-    if (ent->f_flags & MNT_NOEXEC)
-	printf (",noexec");
-
-    if (ent->f_flags & MNT_NOSUID)
-	printf (",nosuid");
-
-    if (ent->f_flags & MNT_NODEV)
-	printf (",nodev");
-
-    if (ent->f_flags & MNT_UNION)
-	printf (",union");
-
-    if (ent->f_flags & MNT_ASYNC)
-	printf (",async");
-
-    if (ent->f_flags & MNT_NOATIME)
-	printf (",noatime");
-
-    if (fst = getfsspec (ent->f_mntfromname))
-	printf ("\t%u %u\n", fst->fs_freq, fst->fs_passno);
-    else if (fst = getfsfile (ent->f_mntonname))
-	printf ("\t%u %u\n", fst->fs_freq, fst->fs_passno);
-    else if (ent->f_type == MOUNT_UFS)
-	printf ("\t1 1\n");
-    else
-	printf ("\t0 0\n");
+	if (fst = getfsspec(ent->f_mntfromname))
+		printf("\t%u %u\n", fst->fs_freq, fst->fs_passno);
+	else if (fst = getfsfile(ent->f_mntonname))
+		printf("\t%u %u\n", fst->fs_freq, fst->fs_passno);
+	else if (ent->f_type == MOUNT_UFS)
+		printf("\t1 1\n");
+	else
+		printf("\t0 0\n");
 }
