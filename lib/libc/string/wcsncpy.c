@@ -39,8 +39,8 @@ __FBSDID("$FreeBSD$");
 
 wchar_t *
 wcsncpy(s1, s2, n)
-	wchar_t *s1;
-	const wchar_t *s2;
+	wchar_t * __restrict s1;
+	const wchar_t * __restrict s2;
 	size_t n;
 {
 	wchar_t *p;
