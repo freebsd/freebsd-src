@@ -1,6 +1,6 @@
 #ifndef lint
 static const char rcsid[] =
-	"$Id: plist.c,v 1.26 1998/09/01 06:58:11 jkh Exp $";
+	"$Id: plist.c,v 1.27 1998/09/11 07:26:58 jkh Exp $";
 #endif
 
 /*
@@ -493,11 +493,12 @@ delete_hierarchy(char *dir, Boolean ign_err, Boolean nukedirs)
 	    *cp2 = '\0';
 	if (!isemptydir(dir))
 	    return 0;
-	if (RMDIR(dir) && !ign_err)
+	if (RMDIR(dir) && !ign_err) {
 	    if (!fexists(dir))
 		warnx("directory `%s' doesn't really exist", dir);
 	    else
 		return 1;
+	}
 	/* back up the pathname one component */
 	if (cp2) {
 	    cp1 = dir;

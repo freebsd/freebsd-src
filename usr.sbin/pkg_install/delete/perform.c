@@ -1,6 +1,6 @@
 #ifndef lint
 static const char rcsid[] =
-	"$Id: perform.c,v 1.17 1998/11/11 06:09:04 jkh Exp $";
+	"$Id: perform.c,v 1.18 1998/12/16 13:59:30 jkh Exp $";
 #endif
 
 /*
@@ -144,8 +144,8 @@ pkg_do(char *pkg)
     if (fexists(POST_DEINSTALL_FNAME)) {
 	new_m = 1;
 	sprintf(post_script, "%s", POST_DEINSTALL_FNAME);
-	sprintf(pre_arg, "");
-	sprintf(post_arg, "");
+	pre_arg[0] = '\0';
+	post_arg[0] = '\0';
     } else {
 	if (fexists(DEINSTALL_FNAME)) {
 	    sprintf(post_script, "%s", DEINSTALL_FNAME);
