@@ -591,7 +591,7 @@ ufs_dirbad(ip, offset, how)
 	mp = ITOV(ip)->v_mount;
 	(void)printf("%s: bad dir ino %lu at offset %ld: %s\n",
 	    mp->mnt_stat.f_mntonname, (u_long)ip->i_number, (long)offset, how);
-	if ((mp->mnt_stat.f_flags & MNT_RDONLY) == 0)
+	if ((mp->mnt_flag & MNT_RDONLY) == 0)
 		panic("ufs_dirbad: bad dir");
 }
 
