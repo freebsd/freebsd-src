@@ -499,7 +499,9 @@ MLINKS+=malloc.9 FREE.9 \
 	malloc.9 free.9 \
 	malloc.9 MALLOC.9 \
 	malloc.9 realloc.9 \
-	malloc.9 reallocf.9
+	malloc.9 reallocf.9 \
+	malloc.9 MALLOC_DEFINE.9 \
+	malloc.9 MALLOC_DECLARE.9
 MLINKS+=mbchain.9 mb_detach.9 \
 	mbchain.9 mb_done.9 \
 	mbchain.9 mb_fixhdr.9 \
