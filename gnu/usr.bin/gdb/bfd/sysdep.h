@@ -19,7 +19,7 @@
 #define SEEK_SET 0
 #define SEEK_CUR 1
 
-#define	HOST_PAGE_SIZE		NBPG
+#define	HOST_PAGE_SIZE		PAGE_SIZE
 #define	HOST_MACHINE_ARCH	bfd_arch_i386
 #define	HOST_TEXT_START_ADDR		USRTEXT
 
