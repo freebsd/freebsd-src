@@ -20,6 +20,11 @@
 #ifndef __REGEXP_LIBRARY_H__
 #define __REGEXP_LIBRARY_H__
 
+/* Allow the use in C++ code.  */
+#ifdef __cplusplus
+extern "C" { 
+#endif
+
 /* POSIX says that <sys/types.h> must be included (by the caller) before
    <regex.h>.  */
 
@@ -157,13 +162,16 @@ extern reg_syntax_t re_syntax_options;
   (RE_BACKSLASH_ESCAPE_IN_LISTS | RE_DOT_NOT_NULL			\
    | RE_NO_BK_PARENS            | RE_NO_BK_REFS				\
    | RE_NO_BK_VBAR               | RE_NO_EMPTY_RANGES			\
+   | RE_DOT_NEWLINE               | RE_CONTEXT_INDEP_ANCHORS		\
    | RE_UNMATCHED_RIGHT_PAREN_ORD | RE_NO_GNU_OPS)
 
 #define RE_SYNTAX_GNU_AWK 						\
-  (RE_SYNTAX_POSIX_EXTENDED | RE_BACKSLASH_ESCAPE_IN_LISTS)
+  ((RE_SYNTAX_POSIX_EXTENDED | RE_BACKSLASH_ESCAPE_IN_LISTS)		\
+   & ~(RE_DOT_NOT_NULL | RE_INTERVALS | RE_CONTEXT_INDEP_OPS))
 
 #define RE_SYNTAX_POSIX_AWK 						\
-  (RE_SYNTAX_GNU_AWK | RE_NO_GNU_OPS)
+  (RE_SYNTAX_POSIX_EXTENDED | RE_BACKSLASH_ESCAPE_IN_LISTS		\
+   | RE_INTERVALS           | RE_NO_GNU_OPS)
 
 #define RE_SYNTAX_GREP							\
   (RE_BK_PLUS_QM              | RE_CHAR_CLASSES				\
@@ -493,6 +501,10 @@ extern size_t regerror
   _RE_ARGS ((int errcode, const regex_t *preg, char *errbuf,
              size_t errbuf_size));
 extern void regfree _RE_ARGS ((regex_t *preg));
+
+#ifdef __cplusplus
+}
+#endif  /* C++ */
 
 #endif /* not __REGEXP_LIBRARY_H__ */
 
