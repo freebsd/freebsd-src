@@ -33,21 +33,9 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)genassym.c	5.11 (Berkeley) 5/10/91
- *
- * PATCHES MAGIC                LEVEL   PATCH THAT GOT US HERE
- * --------------------         -----   ----------------------
- * CURRENT PATCH LEVEL:         1       00154
- * --------------------         -----   ----------------------
- *
- * 24 Apr 93	Bruce Evans/Dave Rivers	Npx-0.5 support
- *
+ *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
+ *	$Id$
  */
-static char rcsid[] = "$Header: /usr/bill/working/sys/i386/i386/RCS/genassym.c,v 1.2 92/01/21 14:22:02 william Exp $";
-
-#ifndef lint
-static char sccsid[] = "@(#)genassym.c	5.11 (Berkeley) 5/10/91";
-#endif /* not lint */
 
 #include "sys/param.h"
 #include "sys/buf.h"
@@ -60,7 +48,6 @@ static char sccsid[] = "@(#)genassym.c	5.11 (Berkeley) 5/10/91";
 #include "machine/cpu.h"
 #include "machine/trap.h"
 #include "machine/psl.h"
-#include "machine/reg.h"
 #include "sys/syscall.h"
 #include "vm/vm_param.h"
 #include "vm/vm_map.h"
@@ -77,6 +64,8 @@ main()
 	vm_map_t map = (vm_map_t)0;
 	pmap_t pmap = (pmap_t)0;
 	struct pcb *pcb = (struct pcb *)0;
+	struct trapframe *tf = (struct trapframe *)0;
+	struct sigframe *sigf = (struct sigframe *)0;
 	register unsigned i;
 
 	printf("#define\tI386_CR3PAT %d\n", I386_CR3PAT);
@@ -115,6 +104,7 @@ main()
 	printf("#define\tSHMMAXPGS %d\n", SHMMAXPGS);
 #endif
 	printf("#define\tUSRSTACK %d\n", USRSTACK);
+	printf("#define\tKERNBASE %d\n", KERNBASE);
 	printf("#define\tMSGBUFPTECNT %d\n", btoc(sizeof (struct msgbuf)));
 	printf("#define\tNMBCLUSTERS %d\n", NMBCLUSTERS);
 	printf("#define\tMCLBYTES %d\n", MCLBYTES);
@@ -143,6 +133,7 @@ main()
 	printf("#define\tPCB_FS %d\n", &pcb->pcb_tss.tss_fs);
 	printf("#define\tPCB_GS %d\n", &pcb->pcb_tss.tss_gs);
 	printf("#define\tPCB_LDT %d\n", &pcb->pcb_tss.tss_ldt);
+	printf("#define\tPCB_USERLDT %d\n", &pcb->pcb_ldt);
 	printf("#define\tPCB_IOOPT %d\n", &pcb->pcb_tss.tss_ioopt);
 	printf("#define\tNKMEMCLUSTERS %d\n", NKMEMCLUSTERS);
 	printf("#define\tU_PROF %d\n", &up->u_stats.p_prof);
@@ -154,17 +145,35 @@ main()
 	printf("#define\tRU_MINFLT %d\n", &rup->ru_minflt);
 	printf("#define\tPCB_FLAGS %d\n", &pcb->pcb_flags);
 	printf("#define\tPCB_SAVEFPU %d\n", &pcb->pcb_savefpu);
-#ifdef notused
-	printf("#define\tFP_WASUSED %d\n", FP_WASUSED);
-	printf("#define\tFP_NEEDSSAVE %d\n", FP_NEEDSSAVE);
-	printf("#define\tFP_NEEDSRESTORE %d\n", FP_NEEDSRESTORE);
-#endif
 	printf("#define\tFP_USESEMC %d\n", FP_USESEMC);
 	printf("#define\tPCB_SAVEEMC %d\n", &pcb->pcb_saveemc);
 	printf("#define\tPCB_CMAP2 %d\n", &pcb->pcb_cmap2);
-	printf("#define\tPCB_SIGC %d\n", pcb->pcb_sigc);
 	printf("#define\tPCB_IML %d\n", &pcb->pcb_iml);
 	printf("#define\tPCB_ONFAULT %d\n", &pcb->pcb_onfault);
+
+	printf("#define\tTF_ES %d\n", &tf->tf_es);
+	printf("#define\tTF_DS %d\n", &tf->tf_ds);
+	printf("#define\tTF_EDI %d\n", &tf->tf_edi);
+	printf("#define\tTF_ESI %d\n", &tf->tf_esi);
+	printf("#define\tTF_EBP %d\n", &tf->tf_ebp);
+	printf("#define\tTF_ISP %d\n", &tf->tf_isp);
+	printf("#define\tTF_EBX %d\n", &tf->tf_ebx);
+	printf("#define\tTF_EDX %d\n", &tf->tf_edx);
+	printf("#define\tTF_ECX %d\n", &tf->tf_ecx);
+	printf("#define\tTF_EAX %d\n", &tf->tf_eax);
+	printf("#define\tTF_TRAPNO %d\n", &tf->tf_trapno);
+	printf("#define\tTF_ERR %d\n", &tf->tf_err);
+	printf("#define\tTF_EIP %d\n", &tf->tf_eip);
+	printf("#define\tTF_CS %d\n", &tf->tf_cs);
+	printf("#define\tTF_EFLAGS %d\n", &tf->tf_eflags);
+	printf("#define\tTF_ESP %d\n", &tf->tf_esp);
+	printf("#define\tTF_SS %d\n", &tf->tf_ss);
+
+	printf("#define\tSIGF_SIGNUM %d\n", &sigf->sf_signum);
+	printf("#define\tSIGF_CODE %d\n", &sigf->sf_code);
+	printf("#define\tSIGF_SCP %d\n", &sigf->sf_scp);
+	printf("#define\tSIGF_HANDLER %d\n", &sigf->sf_handler);
+	printf("#define\tSIGF_SC %d\n", &sigf->sf_sc);
 
 	printf("#define\tB_READ %d\n", B_READ);
 	printf("#define\tENOENT %d\n", ENOENT);
