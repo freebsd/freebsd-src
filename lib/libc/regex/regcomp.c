@@ -35,6 +35,8 @@
  * SUCH DAMAGE.
  *
  *	@(#)regcomp.c	8.5 (Berkeley) 3/20/94
+ *
+ * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -122,6 +124,8 @@ static void dofwd __P((struct parse *p, sopno pos, sop value));
 static void enlarge __P((struct parse *p, sopno size));
 static void stripsnug __P((struct parse *p, struct re_guts *g));
 static void findmust __P((struct parse *p, struct re_guts *g));
+static void computejumps __P((struct parse *p, struct re_guts *g));
+static void computematchjumps __P((struct parse *p, struct re_guts *g));
 static sopno pluscount __P((struct parse *p, struct re_guts *g));
 
 #ifdef __cplusplus
@@ -166,6 +170,9 @@ static int never = 0;		/* for use in asserts; shuts lint up */
 #else
 #define	never	0		/* some <assert.h>s have bugs too */
 #endif
+
+/* Macro used by computejump()/computematchjump() */
+#define MIN(a,b)	((a)<(b)?(a):(b))
 
 /*
  - regcomp - interface for parser and compilation
@@ -262,6 +269,17 @@ int cflags;
 	categorize(p, g);
 	stripsnug(p, g);
 	findmust(p, g);
+	/* only use Boyer-Moore algorithm if the pattern is bigger
+	 * than three characters
+	 */
+	if(g->mlen > 3) {
+		computejumps(p, g);
+		computematchjumps(p, g);
+		if(g->matchjump == NULL) {
+			free(g->charjump);
+			g->charjump = NULL;
+		}
+	}
 	g->nplus = pluscount(p, g);
 	g->magic = MAGIC2;
 	preg->re_nsub = g->nsub;
@@ -1738,6 +1756,132 @@ register struct re_guts *g;
 	}
 	assert(cp == g->must + g->mlen);
 	*cp++ = '\0';		/* just on general principles */
+}
+
+/*
+ - computejumps - compute char jumps for BM scan
+ == static void computejumps(register struct parse *p, register struct re_guts *g);
+ *
+ * This algorithm assumes g->must exists and is has size greater than
+ * zero. It's based on the algorithm found on Computer Algorithms by
+ * Sara Baase.
+ *
+ * A char jump is the number of characters one needs to jump based on
+ * the value of the character from the text that was mismatched.
+ */
+static void
+computejumps(p, g)
+struct parse *p;
+struct re_guts *g;
+{
+	int ch;
+	int mindex;
+
+	/* Avoid making errors worse */
+	if (p->error != 0)
+		return;
+
+	g->charjump = malloc(256 * sizeof(int));
+	if (g->charjump == NULL)	/* Not a fatal error */
+		return;
+
+	/* If the character does not exist in the pattern, the jump
+	 * is equal to the number of characters in the pattern.
+	 */
+	for (ch = 0; ch < 256; ch++)
+		g->charjump[ch] = g->mlen;
+
+	/* If the character does exist, compute the jump that would
+	 * take us to the last character in the pattern equal to it
+	 * (notice that we match right to left, so that last character
+	 * is the first one that would be matched).
+	 */
+	for (mindex = 0; mindex < g->mlen; mindex++)
+		g->charjump[g->must[mindex]] = g->mlen - mindex - 1;
+}
+
+/*
+ - computematchjumps - compute match jumps for BM scan
+ == static void computematchjumps(register struct parse *p, register struct re_guts *g);
+ *
+ * This algorithm assumes g->must exists and is has size greater than
+ * zero. It's based on the algorithm found on Computer Algorithms by
+ * Sara Baase.
+ *
+ * A match jump is the number of characters one needs to advance based
+ * on the already-matched suffix.
+ * Notice that all values here are minus (g->mlen-1), because of the way
+ * the search algorithm works.
+ */
+static void
+computematchjumps(p, g)
+struct parse *p;
+struct re_guts *g;
+{
+	int mindex;		/* General "must" iterator */
+	int suffix;		/* Keeps track of matching suffix */
+	int ssuffix;		/* Keeps track of suffixes' suffix */
+	int* pmatches;		/* pmatches[k] points to the next i
+				 * such that i+1...mlen is a substring
+				 * of k+1...k+mlen-i-1
+				 */
+
+	/* Avoid making errors worse */
+	if (p->error != 0)
+		return;
+
+	pmatches = malloc(g->mlen * sizeof(unsigned int));
+	if (pmatches == NULL) {
+		g->matchjump = NULL;
+		return;
+	}
+
+	g->matchjump = malloc(g->mlen * sizeof(unsigned int));
+	if (g->matchjump == NULL)	/* Not a fatal error */
+		return;
+
+	/* Set maximum possible jump for each character in the pattern */
+	for (mindex = 0; mindex < g->mlen; mindex++)
+		g->matchjump[mindex] = 2*g->mlen - mindex - 1;
+
+	/* Compute pmatches[] */
+	for (mindex = g->mlen - 1, suffix = g->mlen; mindex >= 0;
+	    mindex--, suffix--) {
+		pmatches[mindex] = suffix;
+
+		/* If a mismatch is found, interrupting the substring,
+		 * compute the matchjump for that position. If no
+		 * mismatch is found, then a text substring mismatched
+		 * against the suffix will also mismatch against the
+		 * substring.
+		 */
+		while (suffix < g->mlen
+		    && g->must[mindex] != g->must[suffix]) {
+			g->matchjump[suffix] = MIN(g->matchjump[suffix],
+			    g->mlen - mindex - 1);
+			suffix = pmatches[suffix];
+		}
+	}
+
+	/* Compute the matchjump up to the last substring found to jump
+	 * to the beginning of the largest must pattern prefix matching
+	 * it's own suffix.
+	 */
+	for (mindex = 0; mindex <= suffix; mindex++)
+		g->matchjump[mindex] = MIN(g->matchjump[mindex],
+		    g->mlen + suffix - mindex);
+
+        ssuffix = pmatches[suffix];
+        while(suffix < g->mlen) {
+                while(suffix <= ssuffix) {
+                        g->matchjump[suffix] = MIN(g->matchjump[suffix],
+			    g->mlen + ssuffix - suffix);
+                        suffix++;
+                }
+                ssuffix = pmatches[ssuffix];
+        }
+
+	free(pmatches);
 }
 
 /*
