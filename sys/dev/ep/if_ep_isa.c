@@ -405,6 +405,7 @@ static device_method_t ep_isa_methods[] = {
 #endif
 	DEVMETHOD(device_probe,		ep_isa_probe),
 	DEVMETHOD(device_attach,	ep_isa_attach),
+	DEVMETHOD(device_detach,	ep_detach),
 
 	{ 0, 0 }
 };

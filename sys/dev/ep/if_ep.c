@@ -263,6 +263,8 @@ ep_free(device_t dev)
 {
 	struct ep_softc	*	sc = device_get_softc(dev);
 
+	if (sc->ep_intrhand)
+		bus_teardown_intr(dev, sc->irq, sc->ep_intrhand);
 	if (sc->iobase)
 		bus_release_resource(dev, SYS_RES_IOPORT, 0, sc->iobase);
 	if (sc->irq)
@@ -349,6 +351,31 @@ ep_attach(sc)
 	epstop(sc);
 
 	return 0;
+}
+
+int
+ep_detach(device_t dev)
+{
+	struct ep_softc *sc;
+	struct ifnet *ifp;
+
+	sc = device_get_softc(dev);
+	ifp = &sc->arpcom.ac_if;
+
+	if (sc->gone) {
+		device_printf(dev, "already unloaded\n");
+		return (0);
+	}
+
+	epstop(sc);
+
+	ifp->if_flags &= ~IFF_RUNNING;
+	ether_ifdetach(ifp);
+
+	sc->gone = 1;
+	ep_free(dev);
+
+	return (0);
 }
 
 /*
