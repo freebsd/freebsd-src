@@ -59,6 +59,7 @@ SUBDIR=	IPXrouted \
 	mixer \
 	mld6query \
 	mlxcontrol \
+	mount_portalfs \
 	mountd \
 	moused \
 	mrouted \
@@ -179,6 +180,8 @@ SUBDIR+=acpi \
 	kgmon \
 	kgzip \
 	lptcontrol \
+	mount_nwfs \
+	mount_smbfs \
 	mptable \
 	pccard \
 	pcvt \
