@@ -3,6 +3,8 @@
  * All Rights Reserved.
  */
 
+#include "opt_atalk.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
@@ -184,7 +186,7 @@ aarpwhohas( struct arpcom *ac, struct sockaddr_at *sat )
     printf("aarp: sending request for %u.%u\n",
 	   ntohs(AA_SAT( aa )->sat_addr.s_net),
 	   AA_SAT( aa )->sat_addr.s_node);
-#endif NETATALKDEBUG
+#endif /* NETATALKDEBUG */
 
     sa.sa_len = sizeof( struct sockaddr );
     sa.sa_family = AF_UNSPEC;
@@ -592,7 +594,7 @@ aarpprobe( void *arg )
     printf("aarp: sending probe for %u.%u\n",
 	   ntohs(AA_SAT( aa )->sat_addr.s_net),
 	   AA_SAT( aa )->sat_addr.s_node);
-#endif NETATALKDEBUG
+#endif /* NETATALKDEBUG */
 
     sa.sa_len = sizeof( struct sockaddr );
     sa.sa_family = AF_UNSPEC;

@@ -23,9 +23,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppb_1284.c,v 1.1 1997/08/16 14:05:32 msmith Exp $
+ *	$Id: ppb_1284.c,v 1.2 1997/09/01 00:51:44 bde Exp $
  *
  */
+
+#include "opt_debug_1284.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 

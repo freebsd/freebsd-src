@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ethersubr.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ethersubr.c,v 1.42 1998/01/08 23:41:23 eivind Exp $
+ * $Id: if_ethersubr.c,v 1.43 1998/01/09 00:51:53 eivind Exp $
  */
 
 #include "opt_atalk.h"
@@ -232,7 +232,7 @@ ether_output(ifp, m0, dst, rt0)
 #ifdef NETATALKDEBUG
                 	extern char *prsockaddr(struct sockaddr *);
                 	printf("aarpresolv: failed for %s\n", prsockaddr(dst));
-#endif NETATALKDEBUG
+#endif /* NETATALKDEBUG */
                 	return (0);
         	}
 

@@ -1,4 +1,4 @@
-#	$Id: options,v 1.51 1998/01/30 11:32:09 phk Exp $
+#	$Id: options,v 1.52 1998/01/31 05:00:11 eivind Exp $
 
 # Format:
 # Option name	filename
@@ -151,3 +151,19 @@ DPT_HANDLE_TIMEOUTS     opt_dpt.h
 DPT_TIMEOUT_FACTOR      opt_dpt.h
 DPT_INTR_DELAY		opt_dpt.h
 DPT_LOST_IRQ		opt_dpt.h
+
+# Misc debug flags.  Most of these should probably be replaced with
+# 'DEBUG', and then let people recompile just the interesting modules
+# with 'make CC="cc -DDEBUG'.
+CLUSTERDEBUG		opt_debug_cluster.h
+DEBUG_1284		opt_debug_1284.h
+LOCKF_DEBUG		opt_debug_lockf.h
+LOUTB			opt_debug_outb.h
+NPX_DEBUG		opt_debug_npx.h
+NETATALKDEBUG		opt_atalk.h
+NULLFS_DIAGNOSTIC	opt_debug_nullfs.h
+SI_DEBUG		opt_debug_si.h
+
+
+# This cause changes all over the kernel
+SIMPLELOCK_DEBUG	opt_global.h

@@ -32,12 +32,13 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)npx.c	7.2 (Berkeley) 5/12/91
- *	$Id: npx.c,v 1.28 1997/10/28 14:30:47 kato Exp $
+ *	$Id: npx.c,v 1.29 1997/11/19 11:36:24 kato Exp $
  */
 
 #include "npx.h"
 #if NNPX > 0
 
+#include "opt_debug_npx.h"
 #include "opt_math_emulate.h"
 
 #include <sys/param.h>

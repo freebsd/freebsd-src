@@ -36,13 +36,15 @@
  *	@(#)null_vfsops.c	8.2 (Berkeley) 1/21/94
  *
  * @(#)lofs_vfsops.c	1.2 (Berkeley) 6/18/92
- * $Id: null_vfsops.c,v 1.20 1997/10/12 20:24:50 phk Exp $
+ * $Id: null_vfsops.c,v 1.21 1998/01/01 08:28:05 bde Exp $
  */
 
 /*
  * Null Layer
  * (See null_vnops.c for a description of what this does.)
  */
+
+#include "opt_debug_nullfs.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
