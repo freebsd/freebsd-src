@@ -50,7 +50,7 @@ load:
 	@echo "system console each time it is run."
 	@echo
 	@echo
-	${MODSTAT} -n new_syscall
+	${MODSTAT} -n newsyscall_mod
 	@echo
 	@./testsyscall
 
@@ -59,10 +59,6 @@ unload:
 	@echo "has been successfully unloaded by building 'unload' in"
 	@echo "the 'module' subdirectory."
 	@echo
-	${MODSTAT} -n new_syscall
+	${MODSTAT} -n newsyscall_mod
 
 .include <bsd.prog.mk>
-
-#
-# EOF -- This file has not been truncated.
-#

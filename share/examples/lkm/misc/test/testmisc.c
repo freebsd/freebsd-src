@@ -47,7 +47,7 @@ main()
 
 	printf( "Table offset as reported by modstat: ");
 	fflush( stdout);
-	if( fgets( buf, 80, stdin) == NULL) {
+	if( fgets( buf, sizeof buf, stdin) == NULL) {
 		printf( "[ABORT]\n");
 		exit( 1);
 	}
@@ -57,7 +57,3 @@ main()
 
 	exit( err);
 }
-
-/*
- * EOF -- This file has not been truncated
- */

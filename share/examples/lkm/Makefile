@@ -39,7 +39,3 @@
 SUBDIR=	syscall misc
 
 .include <bsd.subdir.mk>
-
-#
-# EOF -- This file has not been truncated.
-#
