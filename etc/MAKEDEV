@@ -65,8 +65,9 @@
 #	dcf*	dcf clock
 #	speaker	pc speaker
 #	tw*	xten power controller
+#	snd*	various sound cards
 #
-#	$Id: MAKEDEV,v 1.10 1993/10/06 03:35:03 rgrimes Exp $
+#	$Id: MAKEDEV,v 1.11 1993/10/19 20:00:35 nate Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -380,6 +381,48 @@ mouse*)
 	fi
 	rm -f mouse
 	ln -s $name mouse
+	;;
+
+
+snd*)
+	rm -f /dev/mixer	# Mixer	[ Control ]
+	mknod /dev/mixer 	c 21 0
+	chmod 666 /dev/mixer
+
+	rm -f /dev/sequencer	# Sequencer [ FM Synth and MIDI output ]
+	mknod /dev/sequencer	c 21 1
+	chmod 666 /dev/sequencer
+
+	rm -f /dev/midi		# Midi input [ Not implemented ]
+	mknod /dev/midi		c 21 2
+
+	rm -f /dev/dsp		# DSP [ Digitized voice ]
+	mknod /dev/dsp		c 21 3
+	chmod 666 /dev/dsp
+
+	rm -f /dev/audio	# SPARC audio [ Not fully implemented ]
+	mknod /dev/audio	c 21 4
+	chmod 666 /dev/audio
+
+	rm -f /dev/dsp16	# DSP16 [ Same as /dev/dsp, except 16 bits ]
+	mknod /dev/dsp16	c 21 5
+	chmod 666 /dev/dsp16
+
+	rm -f /dev/sndstat	# Status Device [ Debugging interface ]
+	mknod /dev/sndstat	c 21 6
+	chmod 666 /dev/sndstat
+
+	rm -f /dev/pro_midi	# PRO_MIDI [PAS midi input and output]
+	mknod /dev/pro_midi	c 21 15
+	chmod 666 /dev/pro_midi
+
+	rm -f /dev/dsp1		# DSP 1 [ SB emulation of PAS16 or 2nd audio ]
+	mknod /dev/dsp1		c 21 19
+	chmod 666 /dev/dsp1
+
+	rm -f /dev/audio1	# Sparc Audio 1 [ SB emulation of PAS16 or 2nd audio ]
+	mknod /dev/audio1	c 21 20
+	chmod 666 /dev/audio1
 	;;
 
 local)
