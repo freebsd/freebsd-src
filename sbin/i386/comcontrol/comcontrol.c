@@ -38,7 +38,7 @@
 
 void usage(char *progname)
 {
-	fprintf(stderr, "usage: %s <filename> [[-]bidir] [dtrwait <n>]\n", progname);
+	fprintf(stderr, "usage: %s <filename> [dtrwait <n>]\n", progname);
 	exit(1);
 }
 
@@ -58,10 +58,6 @@ int main(int argc, char *argv[])
 	}
 
 	if (argc == 2) {
-		if (ioctl(fd, TIOCMGBIDIR, &res) >= 0) {
-			if (!res)  printf("-");
-			printf("bidir ");
-		}
 		if (ioctl(fd, TIOCMGDTRWAIT, &dtrwait) < 0) {
 			perror("TIOCMGDTRWAIT");
 			exit(1);
@@ -72,17 +68,7 @@ int main(int argc, char *argv[])
 
 		res = dtrwait = -1;
 		while (argv[2] != NULL) {
-			if (!strcmp(argv[2],"bidir")) {
-				if (res >= 0)
-					usage(prg);
-				res = 1;
-				argv++;
-			} else if (!strcmp(argv[2],"-bidir")) {
-				if (res >= 0)
-					usage(prg);
-				res = 0;
-				argv++;
-			} else if (!strcmp(argv[2],"dtrwait")) {
+			if (!strcmp(argv[2],"dtrwait")) {
 				if (dtrwait >= 0)
 					usage(prg);
 				if (argv[3] == NULL || !isdigit(argv[3][0]))
@@ -91,12 +77,6 @@ int main(int argc, char *argv[])
 				argv += 2;
 			} else {
 				usage(prg);
-			}
-		}
-		if (res >= 0) {
-			if (ioctl(fd, TIOCMSBIDIR, &res) < 0) {
-				perror("TIOCMSBIDIR");
-				exit(1);
 			}
 		}
 		if (dtrwait >= 0) {
