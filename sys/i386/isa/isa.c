@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa.c,v 1.37 1995/02/17 02:22:54 phk Exp $
+ *	$Id: isa.c,v 1.38 1995/02/25 18:29:10 phk Exp $
  */
 
 /*
@@ -456,12 +456,11 @@ config_isadev_c(isdp, mp, reconfig)
 				if (!(isdp->id_iobase & 0xf300)) {
 					printf(" on motherboard\n");
 				} else if (isdp->id_iobase >= 0x1000 &&
-					!(isdp->id_opbase & 0x300)) {
-						printf (" on eisa slot %d\n",
-							isdp->id_iobase >> 12);
-					} else {
-						printf (" on isa\n");
-					}
+					    !(isdp->id_iobase & 0x300)) {
+					printf (" on eisa slot %d\n",
+						isdp->id_iobase >> 12);
+				} else {
+					printf (" on isa\n");
 				}
 			}
 			/*
