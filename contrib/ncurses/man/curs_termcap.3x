@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
+.\" Copyright (c) 1998-2001,2002 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_termcap.3x,v 1.14 2000/12/02 22:47:14 tom Exp $
+.\" $Id: curs_termcap.3x,v 1.16 2002/02/16 19:26:41 tom Exp $
 .TH curs_termcap 3X ""
 .ds n 5
 .SH NAME
@@ -40,6 +40,11 @@
 \fB#include <curses.h>\fR
 .br
 \fB#include <term.h>\fR
+.br
+\fBextern char PC;\fR
+\fBextern char * UP;\fR
+\fBextern char * BC;\fR
+\fBextern @NCURSES_OSPEED@ ospeed;\fR
 .br
 \fBint tgetent(char *bp, const char *name);\fR
 .br
@@ -89,6 +94,21 @@ The output from this routine is to be passed to \fBtputs\fR.
 The \fBtputs\fR routine is described on the \fBcurs_terminfo\fR(3X) manual
 page.  It can retrieve capabilities by either termcap or terminfo name.
 
+The variables
+\fBPC\fR,
+\fBUP\fR and
+\fBBC\fR
+are set by \fBtgetent\fR to the terminfo entry's data for
+\fBpad_char\fR,
+\fBcursor_up\fR and
+\fBbackspace_if_not_bs\fR,
+respectively.
+\fBUP\fR is not used by ncurses.
+\fBPC\fR is used in the \fBtdelay_output\fR function.
+\fBBC\fR is used in the \fBtgoto\fR emulation.
+The variable \fBospeed\fR is set by ncurses in a system-specific coding
+to reflect the terminal speed.
+
 .SH RETURN VALUE
 Except where explicitly noted,
 routines that return an integer return \fBERR\fR upon failure and \fBOK\fR
@@ -117,6 +137,17 @@ are marked TO BE WITHDRAWN and may be removed in future versions.
 Neither the XSI Curses standard nor the SVr4 man pages documented the return
 values of \fBtgetent\fR correctly, though all three were in fact returned ever
 since SVr1.
+In particular, an omission in the XSI Curses documentation has been
+misinterpreted to mean that \fBtgetent\fR returns \fBOK\fR or \fBERR\fR.
+Because the purpose of these functions is to provide compatibility with
+the \fItermcap\fR library, that is a defect in XCurses, Issue 4, Version 2
+rather than in ncurses.
+
+External variables are provided for support of certain termcap applications.
+However, termcap applications' use of those variables is poorly documented,
+e.g., not distinguishing between input and output.
+In particular, some applications are reported to declare and/or
+modify \fBospeed\fR.
 .SH SEE ALSO
 \fBcurses\fR(3X), \fBterminfo\fR(\*n), \fBputc\fR(3S).
 .\"#

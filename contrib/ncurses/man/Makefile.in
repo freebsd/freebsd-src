@@ -1,6 +1,6 @@
-# $Id: Makefile.in,v 1.28 2000/08/19 19:15:44 tom Exp $
+# $Id: Makefile.in,v 1.33 2002/01/19 22:49:44 tom Exp $
 ##############################################################################
-# Copyright (c) 1998,2000 Free Software Foundation, Inc.                     #
+# Copyright (c) 1998,2000,2001,2002 Free Software Foundation, Inc.           #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -47,10 +47,11 @@ INSTALL		= @INSTALL@
 INSTALL_DATA	= @INSTALL_DATA@
 
 all \
-sources:	terminfo.5
+sources :	terminfo.5
+depend :
 
 $(DESTDIR)$(mandir) :
-	$(srcdir)/../mkinstalldirs $@
+	sh $(srcdir)/../mkinstalldirs $@
 
 EDITARGS = $(DESTDIR)$(mandir) $(srcdir) terminfo.5 $(srcdir)/*.[0-9]*
 
@@ -61,15 +62,18 @@ uninstall uninstall.man :
 	-sh ./edit_man.sh removing $(EDITARGS)
 
 # We compose terminfo.5 from the real sources...
-CAPLIST=$(srcdir)/../include/Caps
+CAPLIST=$(srcdir)/../include/@TERMINFO_CAPS@
 terminfo.5: $(srcdir)/terminfo.head $(CAPLIST) $(srcdir)/terminfo.tail Makefile $(srcdir)/MKterminfo.sh
 	sh $(srcdir)/MKterminfo.sh $(srcdir)/terminfo.head $(CAPLIST) $(srcdir)/terminfo.tail >terminfo.5
 
 mostlyclean :
-	-rm -f core tags TAGS *~ *.ln *.atac trace
+	-rm -f core tags TAGS *~ *.bak *.ln *.atac trace
 
 clean:	mostlyclean
 	rm -f terminfo.5
+
+edit_man.sed : make_sed.sh @MANPAGE_RENAMES@
+	sh $srcdir/make_sed.sh @MANPAGE_RENAMES@ >edit_man.sed
 
 distclean realclean: clean
 	rm -f Makefile edit_man.*

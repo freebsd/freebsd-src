@@ -1,7 +1,17 @@
 #include "test.priv.h"
 
 #include <math.h>
-#include <time.h>
+
+#if TIME_WITH_SYS_TIME
+# include <sys/time.h>
+# include <time.h>
+#else
+# if HAVE_SYS_TIME_H
+#  include <sys/time.h>
+# else
+#  include <time.h>
+# endif
+#endif
 
 /*
   tclock - analog/digital clock for curses.
@@ -103,9 +113,7 @@ dline(int pair, int from_x, int from_y, int x2, int y2, char ch)
 }
 
 int
-main(
-	int argc GCC_UNUSED,
-	char *argv[]GCC_UNUSED)
+main(int argc GCC_UNUSED, char *argv[]GCC_UNUSED)
 {
     int i, cx, cy;
     double cr, mradius, hradius, mangle, hangle;
@@ -119,6 +127,10 @@ main(
     struct tm *t;
     char szChar[10];
     int my_bg = COLOR_BLACK;
+#if HAVE_GETTIMEOFDAY
+    struct timeval current;
+    double fraction = 0.0;
+#endif
 
     initscr();
     noecho();
@@ -172,7 +184,7 @@ main(
 	if (hours > 12.0)
 	    hours -= 12.0;
 
-	mangle = ((t->tm_min) * (2 * PI) / 60.0);
+	mangle = ((t->tm_min + (t->tm_sec / 60.0)) * (2 * PI) / 60.0);
 	mdx = A2X(mangle, mradius);
 	mdy = A2Y(mangle, mradius);
 
@@ -180,7 +192,11 @@ main(
 	hdx = A2X(hangle, hradius);
 	hdy = A2Y(hangle, hradius);
 
-	sangle = ((t->tm_sec) * (2.0 * PI) / 60.0);
+#if HAVE_GETTIMEOFDAY
+	gettimeofday(&current, 0);
+	fraction = (current.tv_usec / 1.0e6);
+#endif
+	sangle = ((t->tm_sec + fraction) * (2.0 * PI) / 60.0);
 	sdx = A2X(sangle, sradius);
 	sdy = A2Y(sangle, sradius);
 
@@ -193,7 +209,7 @@ main(
 	if (has_colors())
 	    attrset(COLOR_PAIR(1));
 
-	plot(cx + sdx, cy - sdy, 'O');
+	dline(1, cx, cy, cx + sdx, cy - sdy, 'O');
 
 	if (has_colors())
 	    attrset(COLOR_PAIR(0));
@@ -218,13 +234,13 @@ main(
 	    break;
 	}
 
-	plot(cx + sdx, cy - sdy, ' ');
 	dline(0, cx, cy, cx + hdx, cy - hdy, ' ');
 	dline(0, cx, cy, cx + mdx, cy - mdy, ' ');
+	dline(0, cx, cy, cx + sdx, cy - sdy, ' ');
 
     }
 
     curs_set(1);
     endwin();
-    return 0;
+    ExitProgram(EXIT_SUCCESS);
 }

@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998 Free Software Foundation, Inc.                        *
+.\" Copyright (c) 1998,2002 Free Software Foundation, Inc.                   *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,18 +26,22 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" Author: Thomas E. Dickey <dickey@clark.net> 1996,1997
+.\" Author: Thomas E. Dickey <dickey@clark.net> 1996,1997,2002
 .\"
-.\" $Id: resizeterm.3x,v 1.7 1998/03/14 23:42:52 tom Exp $
+.\" $Id: resizeterm.3x,v 1.9 2002/02/16 22:32:24 tom Exp $
 .TH resizeterm 3X ""
 .SH NAME
+\fBis_term_resized\fR,
+\fBresize_term\fR,
 \fBresizeterm\fR - change the curses terminal size
-..
 .SH SYNOPSIS
 \fB#include <curses.h>\fR
 
+\fBbool is_term_resized(int lines, int columns);\fR
+.br
+\fBint resize_term(int lines, int columns);\fR
+.br
 \fBint resizeterm(int lines, int columns);\fR
-..
 .SH DESCRIPTION
 This is an extension to the curses library.
 It provides callers with a hook into the \fBncurses\fR data to resize windows,
@@ -46,26 +50,29 @@ The function \fBresizeterm\fR resizes the standard and current windows
 to the specified dimensions, and adjusts other bookkeeping data used by
 the \fBncurses\fR library that record the window dimensions.
 
-When resizing the windows, the function blank-fills the areas that are
-extended. The calling application should fill in these areas with
-appropriate data.
-
-The function attempts to resize all windows.
+Most of the work is done by the inner function \fBresize_term\fR.
+The outer function \fBresizeterm\fR adds bookkeeping for the SIGWINCH handler.
+When resizing the windows,
+\fBresize_term\fR blank-fills the areas that are extended.
+The calling application should fill in these areas with appropriate data.
+The \fBresize_term\fR function attempts to resize all windows.
 However, due to the calling convention of pads,
 it is not possible to resize these
 without additional interaction with the application.
-..
+
+A support function \fBis_term_resized\fR is provided so that applications
+can check if the \fBresize_term\fR function would modify the window structures.
+It returns TRUE if the windows would be modified, and FALSE otherwise.
 .SH RETURN VALUE
-The function returns the integer \fBERR\fR upon failure and \fBOK\fR on success.
-It will fail if either of the dimensions less than or equal to zero,
-or if an error occurs while (re)allocating memory for the windows. 
-..
+Except as notes, these function return
+the integer \fBERR\fR upon failure and \fBOK\fR on success.
+They will fail if either of the dimensions are less than or equal to zero,
+or if an error occurs while (re)allocating memory for the windows.
 .SH NOTES
-While this function is intended to be used to support a signal handler
-(i.e., for SIGWINCH), care should be taken to avoid invoking it in a
+While these functions are intended to be used to support a signal handler
+(i.e., for SIGWINCH), care should be taken to avoid invoking them in a
 context where \fBmalloc\fR or \fBrealloc\fR may have been interrupted,
 since it uses those functions.
-..
 .PP
 If ncurses is configured to supply its own SIGWINCH handler,
 the \fBresizeterm\fR function ungetch's a \fBKEY_RESIZE\fR which
@@ -73,10 +80,8 @@ will be read on the next call to \fBgetch\fR.
 This is used to alert an application that the screen size has changed,
 and that it should repaint special features such as pads that cannot
 be done automatically.
-..
 .SH SEE ALSO
 \fBwresize\fR(3X).
-..
 .SH AUTHOR
 Thomas Dickey (from an equivalent function written in 1988 for BSD curses).
 .\"#

@@ -1,4 +1,4 @@
-# $Id: dist.mk,v 1.247 2001/05/12 18:18:37 tom Exp $
+# $Id: dist.mk,v 1.303 2002/05/18 19:18:04 tom Exp $
 # Makefile for creating ncurses distributions.
 #
 # This only needs to be used directly as a makefile by developers, but
@@ -10,7 +10,7 @@ SHELL = /bin/sh
 # These define the major/minor/patch versions of ncurses.
 NCURSES_MAJOR = 5
 NCURSES_MINOR = 2
-NCURSES_PATCH = 20010512
+NCURSES_PATCH = 20020518
 
 # We don't append the patch to the version, since this only applies to releases
 VERSION = $(NCURSES_MAJOR).$(NCURSES_MINOR)
@@ -63,17 +63,33 @@ manhtml: MANIFEST
 	     echo "s/$${xu}/$${x}/g" >> subst.tmp ;\
 	   fi ;\
 	done
+	# change some things to make weblint happy:
+	@echo 's/<B>/<STRONG>/g'     >> subst.tmp
+	@echo 's/<\/B>/<\/STRONG>/g' >> subst.tmp
+	@echo 's/<I>/<EM>/g'         >> subst.tmp
+	@echo 's/<\/I>/<\/EM>/g'     >> subst.tmp
+	@echo 's/<\/TITLE>/<\/TITLE><link rev=made href="mailto:bug-ncurses@gnu.org">/' >> subst.tmp
 	@sort < subst.tmp | uniq > subst.sed
 	@rm -f subst.tmp
 	@for f in man/*.[0-9]* ; do \
 	   m=`basename $$f` ;\
+	   T=`egrep '^.TH' $$f|sed -e 's/^.TH //' -e s'/"//g' -e 's/[ 	]\+$$//'` ; \
 	   g=$${m}.html ;\
 	   if [ -f doc/html/$$g ]; then chmod +w doc/html/$$g; fi;\
 	   echo "Converting $$m to HTML" ;\
-	   man/edit_man.sh editing /usr/man man $$f | $(MANPROG) | tr '\255' '-' | $(MAN2HTML) | \
+	   echo '<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">' > doc/html/man/$$g ;\
+	   echo '<!-- ' >> doc/html/man/$$g ;\
+	   egrep '^.\\"[^#]' $$f | \
+	   	sed	-e 's/\$$/@/g' \
+			-e 's/^.../  */' \
+			-e 's/</\&lt;/g' \
+			-e 's/>/\&gt;/g' \
+	   >> doc/html/man/$$g ;\
+	   echo '-->' >> doc/html/man/$$g ;\
+	   man/edit_man.sh editing /usr/man man $$f | $(MANPROG) | tr '\255' '-' | $(MAN2HTML) -title "$$T" | \
 	   sed -f subst.sed |\
 	   sed -e 's/"curses.3x.html"/"ncurses.3x.html"/g' \
-	   > doc/html/man/$$g ;\
+	   >> doc/html/man/$$g ;\
 	done
 	@rm -f subst.sed
 	@sed -e "\%./doc/html/man/%d" < MANIFEST > MANIFEST.tmp

@@ -23,7 +23,7 @@
 #include <time.h>
 #include <tic.h>
 
-MODULE_ID("$Id: edit.c,v 1.7 2001/02/24 22:10:40 tom Exp $")
+MODULE_ID("$Id: edit.c,v 1.8 2001/06/18 18:44:32 tom Exp $")
 
 /*
  * Terminfo edit features
@@ -876,7 +876,7 @@ change_one_entry(
 	putln(buf);
 	ptextln("Enter new pad.  0 for no pad.  CR for no change.");
 	read_string(buf, 32);
-	if (buf[0] == '\0' || (buf[1] == '\0' && isalpha(CharOf(buf[0])))) {
+	if (buf[0] == '\0' || (buf[1] == '\0' && isalpha(UChar(buf[0])))) {
 		*chp = buf[0];
 		return;
 	}

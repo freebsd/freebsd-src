@@ -35,6 +35,12 @@
 * Top level private header file for all libnmenu modules                   *
 ***************************************************************************/
 
+#ifndef MENU_PRIV_H_incl
+#define MENU_PRIV_H_incl 1
+
+#include <ncurses_cfg.h>
+#include <curses.h>
+
 #include "mf_common.h"
 #include "menu.h"
 
@@ -112,3 +118,5 @@ extern NCURSES_EXPORT(void) _nc_Link_Items (MENU *);
 extern NCURSES_EXPORT(int)  _nc_Match_Next_Character_In_Item_Name (MENU*,int,ITEM**);
 extern NCURSES_EXPORT(int)  _nc_menu_cursor_pos (const MENU* menu, const ITEM* item,
 				int* pY, int* pX);
+
+#endif /* MENU_PRIV_H_incl */

@@ -2,7 +2,35 @@
 #
 # MKlib_gen.sh -- generate sources from curses.h macro definitions
 #
-# ($Id: MKlib_gen.sh,v 1.13 2000/12/10 00:30:25 tom Exp $)
+# ($Id: MKlib_gen.sh,v 1.18 2002/04/30 00:37:55 tom Exp $)
+#
+##############################################################################
+# Copyright (c) 1998-2001,2002 Free Software Foundation, Inc.                #
+#                                                                            #
+# Permission is hereby granted, free of charge, to any person obtaining a    #
+# copy of this software and associated documentation files (the "Software"), #
+# to deal in the Software without restriction, including without limitation  #
+# the rights to use, copy, modify, merge, publish, distribute, distribute    #
+# with modifications, sublicense, and/or sell copies of the Software, and to #
+# permit persons to whom the Software is furnished to do so, subject to the  #
+# following conditions:                                                      #
+#                                                                            #
+# The above copyright notice and this permission notice shall be included in #
+# all copies or substantial portions of the Software.                        #
+#                                                                            #
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR #
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,   #
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL    #
+# THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER      #
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING    #
+# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER        #
+# DEALINGS IN THE SOFTWARE.                                                  #
+#                                                                            #
+# Except as contained in this notice, the name(s) of the above copyright     #
+# holders shall not be used in advertising or otherwise to promote the sale, #
+# use or other dealings in this Software without prior written               #
+# authorization.                                                             #
+##############################################################################
 #
 # The XSI Curses standard requires all curses entry points to exist as
 # functions, even though many definitions would normally be shadowed
@@ -28,21 +56,30 @@
 
 preprocessor="$1 -I../include"
 AWK="$2"
-ED1=sed1$$.sed
-ED2=sed2$$.sed
-ED3=sed3$$.sed
-AW1=awk1$$.awk
-TMP=gen$$.c
-trap "rm -f $ED1 $ED2 $ED3 $AW1 $TMP" 0 1 2 5 15
+USE="$3"
 
-(cat <<EOF
-#include <ncurses_cfg.h>
-#include <curses.h>
+PID=$$
+ED1=sed1_${PID}.sed
+ED2=sed2_${PID}.sed
+ED3=sed3_${PID}.sed
+ED4=sed4_${PID}.sed
+AW1=awk1_${PID}.awk
+AW2=awk2_${PID}.awk
+TMP=gen__${PID}.c
+trap "rm -f $ED1 $ED2 $ED3 $ED4 $AW1 $AW2 $TMP" 0 1 2 5 15
 
-DECLARATIONS
-
-EOF
-cat >$ED1 <<EOF1
+ALL=$USE
+if test "$USE" = implemented ; then
+	CALL="call_"
+	cat >$ED1 <<EOF1
+/^extern.*implemented/{
+	h
+	s/^.*implemented:\([^ 	*]*\).*/P_#if_USE_\1_SUPPORT/p
+	g
+	s/^extern \([^;]*\);.*/\1/p
+	g
+	s/^.*implemented:\([^ 	*]*\).*/P_#endif/p
+}
 /^extern.*generated/{
 	h
 	s/^.*generated:\([^ 	*]*\).*/P_#if_USE_\1_SUPPORT/p
@@ -52,6 +89,19 @@ cat >$ED1 <<EOF1
 	s/^.*generated:\([^ 	*]*\).*/P_#endif/p
 }
 EOF1
+else
+	CALL=""
+	cat >$ED1 <<EOF1
+/^extern.*${ALL}/{
+	h
+	s/^.*${ALL}:\([^ 	*]*\).*/P_#if_USE_\1_SUPPORT/p
+	g
+	s/^extern \([^;]*\);.*/\1/p
+	g
+	s/^.*${ALL}:\([^ 	*]*\).*/P_#endif/p
+}
+EOF1
+fi
 
 cat >$ED2 <<EOF2
 /^P_/b nc
@@ -74,6 +124,7 @@ cat >$ED2 <<EOF2
 	s/*/ * /g
 	s/%/ , /g
 	s/)/ z)/
+	s/\.\.\. z)/...)/
 :nc
 	/(/s// ( /
 	s/)/ )/
@@ -88,6 +139,7 @@ cat >$ED3 <<EOF3
 	s/		*/ /g
 	s/  */ /g
 	s/ ,/,/g
+	s/( /(/g
 	s/ )/)/g
 	s/ gen_/ /
 	s/^M_/#undef /
@@ -95,34 +147,74 @@ cat >$ED3 <<EOF3
 :done
 EOF3
 
+if test "$USE" = generated ; then
+cat >$ED4 <<EOF
+	s/^\(.*\) \(.*\) (\(.*\))\$/NCURSES_EXPORT(\1) \2 (\3)/
+EOF
+else
+cat >$ED4 <<EOF
+/^\(.*\) \(.*\) (\(.*\))\$/ {
+	h
+	s/^\(.*\) \(.*\) (\(.*\))\$/extern \1 call_\2 (\3);/
+	p
+	g
+	s/^\(.*\) \(.*\) (\(.*\))\$/\1 call_\2 (\3)/
+	}
+EOF
+fi
+
 cat >$AW1 <<\EOF1
 BEGIN	{
 		skip=0;
 	}
-	/^P_#if/ {
+/^P_#if/ {
 		print "\n"
 		print $0
 		skip=0;
-	}
-	/^P_#endif/ {
+}
+/^P_#endif/ {
 		print $0
 		skip=1;
-	}
-	$0 !~ /^P_/ {
+}
+$0 !~ /^P_/ {
 	if (skip)
 		print "\n"
 	skip=1;
 
-	if ( $1 == "chtype" ) {
+	first=$1
+	for (i = 1; i <= NF; i++) {
+		if ( $i != "NCURSES_CONST" ) {
+			first = i;
+			break;
+		}
+	}
+	second = first + 1;
+	if ( $first == "chtype" ) {
 		returnType = "Char";
+	} else if ( $first == "SCREEN" ) {
+		returnType = "SP";
+	} else if ( $first == "WINDOW" ) {
+		returnType = "Win";
+	} else if ( $second == "*" ) {
+		returnType = "Ptr";
 	} else {
 		returnType = "Code";
 	}
-	print "M_" $2
+	myfunc = second;
+	for (i = second; i <= NF; i++) {
+		if ($i != "*") {
+			myfunc = i;
+			break;
+		}
+	}
+	if (using == "generated") {
+		print "M_" $myfunc
+	}
 	print $0;
 	print "{";
 	argcount = 1;
-	if (NF == 5 && $4 == "void")
+	check = NF - 1;
+	if ($check == "void")
 		argcount = 0;
 	if (argcount != 0) {
 		for (i = 1; i <= NF; i++)
@@ -133,8 +225,19 @@ BEGIN	{
 	# suppress trace-code for functions that we cannot do properly here,
 	# since they return data.
 	dotrace = 1;
-	if ($2 == "innstr")
+	if ($myfunc ~ /innstr/)
 		dotrace = 0;
+	if ($myfunc ~ /innwstr/)
+		dotrace = 0;
+
+	# workaround functions that we do not parse properly
+	if ($myfunc ~ /ripoffline/) {
+		dotrace = 0;
+		argcount = 2;
+	}
+	if ($myfunc ~ /wunctrl/) {
+		dotrace = 0;
+	}
 
 	call = "%%T((T_CALLED(\""
 	args = ""
@@ -142,7 +245,7 @@ BEGIN	{
 	num = 0;
 	pointer = 0;
 	argtype = ""
-	for (i = 1; i <= NF; i++) {
+	for (i = myfunc; i <= NF; i++) {
 		ch = $i;
 		if ( ch == "*" )
 			pointer = 1;
@@ -181,7 +284,7 @@ BEGIN	{
 			}
 			if (ch == ",")
 				args = args comma "a" ++num;
-			else if (argcount != 0)
+			else if ( argcount != 0 && $check != "..." )
 				args = args comma "z"
 			call = call ch
 			if (pointer == 0 && argcount != 0 && argtype != "" )
@@ -209,11 +312,17 @@ BEGIN	{
 	else
 		call = "%%return ";
 
-	call = call $2 "(";
-	for (i = 1; i < argcount; i++)
-		call = call "a" i ", ";
-	if (argcount != 0)
+	call = call $myfunc "(";
+	for (i = 1; i < argcount; i++) {
+		if (i != 1)
+			call = call ", ";
+		call = call "a" i;
+	}
+	if ( argcount != 0 && $check != "..." ) {
+		if (argcount != 1)
+			call = call ", ";
 		call = call "z";
+	}
 	if (!match($0, "^void"))
 		call = call ") ";
 	if (dotrace)
@@ -226,38 +335,54 @@ BEGIN	{
 }
 EOF1
 
+cat >$AW2 <<EOF1
+BEGIN		{
+		print "/*"
+		print " * DO NOT EDIT THIS FILE BY HAND!"
+		printf " * It is generated by $0 %s.\n", "$USE"
+		if ( "$USE" == "generated" ) {
+			print " *"
+			print " * This is a file of trivial functions generated from macro"
+			print " * definitions in curses.h to satisfy the XSI Curses requirement"
+			print " * that every macro also exist as a callable function."
+			print " *"
+			print " * It will never be linked unless you call one of the entry"
+			print " * points with its normal macro definition disabled.  In that"
+			print " * case, if you have no shared libraries, it will indirectly"
+			print " * pull most of the rest of the library into your link image."
+		}
+		print " */"
+		print "#include <curses.priv.h>"
+		print ""
+		}
+/^DECLARATIONS/	{start = 1; next;}
+		{if (start) print \$0;}
+END		{
+		if ( "$USE" != "generated" ) {
+			print "int main(void) { return 0; }"
+		}
+		}
+EOF1
+
+cat >$TMP <<EOF
+#include <ncurses_cfg.h>
+#include <curses.h>
+
+DECLARATIONS
+
+EOF
+
 sed -n -f $ED1 \
 | sed -e 's/NCURSES_EXPORT(\(.*\)) \(.*\) (\(.*\))/\1 \2(\3)/' \
 | sed -f $ED2 \
-| $AWK -f $AW1 ) \
-| sed \
-	-e '/^\([a-z_][a-z_]*\) /s//\1 gen_/' >$TMP
-  $preprocessor $TMP 2>/dev/null \
-| $AWK '
-BEGIN		{
-	print "/*"
-	print " * DO NOT EDIT THIS FILE BY HAND!"
-	print " * It is generated by MKlib_gen.sh."
-	print " *"
-	print " * This is a file of trivial functions generated from macro"
-	print " * definitions in curses.h to satisfy the XSI Curses requirement"
-	print " * that every macro also exist as a callable function."
-	print " *"
-	print " * It will never be linked unless you call one of the entry"
-	print " * points with its normal macro definition disabled.  In that"
-	print " * case, if you have no shared libraries, it will indirectly"
-	print " * pull most of the rest of the library into your link image."
-	print " */"
-	print "#include <curses.priv.h>"
-	print ""
-		}
-/^DECLARATIONS/	{start = 1; next;}
-		{if (start) print $0;}
-' \
+| $AWK -f $AW1 using=$USE \
+| sed -e 's/^\([a-z_][a-z_]*[ *]*\)/\1 gen_/' -e 's/  / /g' >>$TMP
+
+$preprocessor $TMP 2>/dev/null \
+| sed -e 's/  / /g' -e 's/^ //' \
+| $AWK -f $AW2 \
 | sed -f $ED3 \
 | sed \
 	-e 's/^.*T_CALLED.*returnCode( \([a-z].*) \));/	return \1;/' \
 	-e 's/^.*T_CALLED.*returnCode( \((wmove.*) \));/	return \1;/' \
-| sed \
-	-e 's/^\(.*\) \(.*\) (\(.*\))$/NCURSES_EXPORT(\1) \2 (\3)/'
-
+| sed -f $ED4

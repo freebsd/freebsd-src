@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
+.\" Copyright (c) 1998-2001,2002 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_getch.3x,v 1.18 2001/02/25 00:20:30 tom Exp $
+.\" $Id: curs_getch.3x,v 1.21 2002/03/17 14:36:21 tom Exp $
 .TH curs_getch 3X ""
 .SH NAME
 \fBgetch\fR,
@@ -53,14 +53,19 @@
 .br
 .SH DESCRIPTION
 The \fBgetch\fR, \fBwgetch\fR, \fBmvgetch\fR and \fBmvwgetch\fR, routines read
-a character from the window.  In no-delay mode, if no input is waiting, the
-value \fBERR\fR is returned.  In delay mode, the program waits until the system
-passes text through to the program.  Depending on the setting of \fBcbreak\fR,
-this is after one character (cbreak mode), or after the first newline (nocbreak
-mode).  In half-delay mode, the program waits until a character is typed or the
+a character from the window.
+In no-delay mode, if no input is waiting, the value \fBERR\fR is returned.
+In delay mode, the program waits until the system
+passes text through to the program.
+Depending on the setting of \fBcbreak\fR,
+this is after one character (cbreak mode),
+or after the first newline (nocbreak mode).
+In half-delay mode,
+the program waits until a character is typed or the
 specified timeout has been reached.
 
-Unless \fBnoecho\fR has been set, then the character will also be echoed into the
+Unless \fBnoecho\fR has been set,
+then the character will also be echoed into the
 designated window according to the following rules:
 If the character is the current erase character, left arrow, or backspace,
 the cursor is moved one space to the left and that screen position is erased
@@ -74,26 +79,30 @@ call to \fBwrefresh\fR, \fBwrefresh\fR will be called before another character
 is read.
 
 If \fBkeypad\fR is \fBTRUE\fR, and a function key is pressed, the token for
-that function key is returned instead of the raw characters.  Possible function
+that function key is returned instead of the raw characters.
+Possible function
 keys are defined in \fB<curses.h>\fR as macros with values outside the range
 of 8-bit characters whose names begin with \fBKEY_.\fR Thus, a variable
 intended to hold the return value of a function key must be of short size or
 larger.
 
 When a character that could be the beginning of a function key is received
-(which, on modern terminals, means an escape character), \fBcurses\fR sets a
-timer.  If the remainder of the sequence does not come in within the designated
-time, the character is passed through; otherwise, the function key value is
-returned.  For this reason, many terminals experience a delay between the time
+(which, on modern terminals, means an escape character),
+\fBcurses\fR sets a timer.
+If the remainder of the sequence does not come in within the designated
+time, the character is passed through;
+otherwise, the function key value is returned.
+For this reason, many terminals experience a delay between the time
 a user presses the escape key and the escape is returned to the program.
 
 The \fBungetch\fR routine places \fIch\fR back onto the input queue to be
-returned by the next call to \fBwgetch\fR.  Note that there is, in effect,
-just one input queue for all windows.
+returned by the next call to \fBwgetch\fR.
+There is just one input queue for all windows.
 
 .SS Function Keys
 The following function keys, defined in \fB<curses.h>\fR, might be returned by
-\fBgetch\fR if \fBkeypad\fR has been enabled.  Note that not all of these are
+\fBgetch\fR if \fBkeypad\fR has been enabled.
+Note that not all of these are
 necessarily supported on any particular terminal.
 .sp
 .TS
@@ -211,8 +220,8 @@ c c c .
 .TE
 .sp
 The \fBhas_key\fR routine takes a key value from the above list, and
-returns TRUE or FALSE according as the current terminal type recognizes
-a key with that value.
+returns TRUE or FALSE according to whether
+the current terminal type recognizes a key with that value.
 
 .SH RETURN VALUE
 All routines return the integer \fBERR\fR upon failure and an integer value
@@ -234,30 +243,38 @@ when you press control/M.
 
 When using \fBgetch\fR, \fBwgetch\fR, \fBmvgetch\fR, or
 \fBmvwgetch\fR, nocbreak mode (\fBnocbreak\fR) and echo mode
-(\fBecho\fR) should not be used at the same time.  Depending on the
+(\fBecho\fR) should not be used at the same time.
+Depending on the
 state of the tty driver when each character is typed, the program may
 produce undesirable results.
 
 Note that \fBgetch\fR, \fBmvgetch\fR, and \fBmvwgetch\fR may be macros.
 
 Historically, the set of keypad macros was largely defined by the extremely
-function-key-rich keyboard of the AT&T 7300, aka 3B1, aka Safari 4.  Modern
-personal computers usually have only a small subset of these.  IBM PC-style
+function-key-rich keyboard of the AT&T 7300, aka 3B1, aka Safari 4.
+Modern
+personal computers usually have only a small subset of these.
+IBM PC-style
 consoles typically support little more than \fBKEY_UP\fR, \fBKEY_DOWN\fR,
 \fBKEY_LEFT\fR, \fBKEY_RIGHT\fR, \fBKEY_HOME\fR, \fBKEY_END\fR,
-\fBKEY_NPAGE\fR, \fBKEY_PPAGE\fR, and function keys 1 through 12.  The Ins key
+\fBKEY_NPAGE\fR, \fBKEY_PPAGE\fR, and function keys 1 through 12.
+The Ins key
 is usually mapped to \fBKEY_IC\fR.
 .SH PORTABILITY
-The *get* functions are described in the XSI Curses standard, Issue 4.  They
-read single-byte characters only.  The standard specifies that they return
+The *get* functions are described in the XSI Curses standard, Issue 4.
+They
+read single-byte characters only.
+The standard specifies that they return
 \fBERR\fR on failure, but specifies no error conditions.
 
 The echo behavior of these functions on input of \fBKEY_\fR or backspace
-characters was not specified in the SVr4 documentation.  This description is
+characters was not specified in the SVr4 documentation.
+This description is
 adopted from the XSI Curses standard.
 
 The behavior of \fBgetch\fR and friends in the presence of handled signals is
-unspecified in the SVr4 and XSI Curses documentation.  Under historical curses
+unspecified in the SVr4 and XSI Curses documentation.
+Under historical curses
 implementations, it varied depending on whether the operating system's
 implementation of handled signal receipt interrupts a \fBread\fR(2) call in
 progress or not, and also (in some implementations) depending on whether an
@@ -266,10 +283,12 @@ input timeout or non-blocking mode hsd been set.
 Programmers concerned about portability should be prepared for either of two
 cases: (a) signal receipt does not interrupt \fBgetch\fR; (b) signal receipt
 interrupts \fBgetch\fR and causes it to return ERR with \fBerrno\fR set to
-\fBEINTR\fR.  Under the \fBncurses\fR implementation, handled signals never
+\fBEINTR\fR.
+Under the \fBncurses\fR implementation, handled signals never
 interrupt \fBgetch\fR.
 
-The \fBhas_key\fR function is unique to \fBncurses\fR.  We recommend that
+The \fBhas_key\fR function is unique to \fBncurses\fR.
+We recommend that
 any code using it be conditionalized on the \fBNCURSES_VERSION\fR feature macro.
 .SH SEE ALSO
 \fBcurses\fR(3X),

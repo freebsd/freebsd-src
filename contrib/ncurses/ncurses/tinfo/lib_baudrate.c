@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
+ * Copyright (c) 1998,2000,2002 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -69,13 +69,14 @@
 #undef B115200
 #undef B230400
 #undef B460800
+#undef B921600
 #define USE_OLD_TTY
 #include <sys/ttydev.h>
 #else
 #undef USE_OLD_TTY
 #endif /* USE_OLD_TTY */
 
-MODULE_ID("$Id: lib_baudrate.c,v 1.21 2001/06/30 22:59:22 tom Exp $")
+MODULE_ID("$Id: lib_baudrate.c,v 1.22 2002/01/19 23:07:53 Andrey.A.Chernov Exp $")
 
 /*
  *	int
@@ -131,6 +132,9 @@ static struct speed const speeds[] =
 #endif
 #ifdef B460800
     {B460800, 460800},
+#endif
+#ifdef B921600
+    {B921600, 921600},
 #endif
 };
 
@@ -203,14 +207,14 @@ baudrate(void)
 #ifdef USE_OLD_TTY
     result = cfgetospeed(&cur_term->Nttyb);
     ospeed = _nc_ospeed(result);
-#else
+#else /* !USE_OLD_TTY */
 #ifdef TERMIOS
     ospeed = cfgetospeed(&cur_term->Nttyb);
 #else
     ospeed = cur_term->Nttyb.sg_ospeed;
 #endif
     result = _nc_baudrate(ospeed);
-#endif /* __FreeBSD__ */
+#endif
     if (cur_term != 0)
 	cur_term->_baudrate = result;
 

@@ -1,6 +1,6 @@
-# $Id: modules,v 1.74 2000/10/03 08:51:18 tom Exp $
+# $Id: modules,v 1.90 2002/05/11 20:14:41 tom Exp $
 ##############################################################################
-# Copyright (c) 1998,1999,2000 Free Software Foundation, Inc.                #
+# Copyright (c) 1998-2001,2002 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -27,7 +27,7 @@
 # authorization.                                                             #
 ##############################################################################
 #
-# Author: Thomas E. Dickey <dickey@clark.net> 1996-1998
+# Author: Thomas E. Dickey <dickey@clark.net> 1996-1998, etc.
 #
 
 @ base
@@ -109,14 +109,35 @@ lib_wattroff	lib		$(base)
 lib_wattron	lib		$(base)
 lib_winch	lib		$(base)
 lib_window	lib		$(base)
+link_test 	lib		.		../include/curses.h
 nc_panel	lib		$(base)
 safe_sprintf	lib		$(base)
 tty_update	lib		$(serial)	../include/term.h
+varargs		lib		$(trace)
 
 # Modules for porting
 memmove		lib		$(base)
 sigaction	lib		$(base)
 vsscanf 	lib		$(base)
+
+# XSI extensions to the base library (wide-character)
+@ widechar
+lib_box_set	lib		$(wide)
+lib_cchar	lib		$(wide)
+lib_get_wch	lib		$(wide)
+lib_erasewchar	lib		$(wide)
+lib_get_wstr	lib		$(wide)
+lib_hline_set	lib		$(wide)
+lib_in_wch	lib		$(wide)
+lib_in_wchnstr	lib		$(wide)
+lib_ins_nwstr	lib		$(wide)
+lib_ins_wch	lib		$(wide)
+lib_inwstr	lib		$(wide)
+lib_unget_wch	lib		$(wide)
+lib_vid_attr	lib		$(wide)		../include/term.h
+lib_vline_set	lib		$(wide)
+lib_wacs	lib		$(wide)
+lib_wunctrl	lib		$(wide)
 
 # Extensions to the base library
 @ ext_funcs
@@ -186,4 +207,5 @@ strings		lib		$(tinfo)
 trace_buf	lib		$(trace)
 trace_tries	lib		$(trace)
 unctrl		lib		.
+visbuf		lib		$(trace)	$(INCDIR)/tic.h
 write_entry	lib		$(tinfo)	../include/term.h $(INCDIR)/term_entry.h $(INCDIR)/tic.h

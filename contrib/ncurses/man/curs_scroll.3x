@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
+.\" Copyright (c) 1998,2000,2001 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_scroll.3x,v 1.8 2000/07/01 17:54:23 tom Exp $
+.\" $Id: curs_scroll.3x,v 1.9 2001/10/14 00:51:56 tom Exp $
 .TH curs_scroll 3X ""
 .SH NAME
 \fBscroll\fR, \fBscrl\fR, \fBwscrl\fR - scroll a \fBcurses\fR window
@@ -40,15 +40,19 @@
 \fBint wscrl(WINDOW *win, int n);\fR
 .br
 .SH DESCRIPTION
-The \fBscroll\fR routine scrolls the window up one line.  This involves moving
-the lines in the window data structure.  As an optimization, if the scrolling
+The \fBscroll\fR routine scrolls the window up one line.
+This involves moving
+the lines in the window data structure.
+As an optimization, if the scrolling
 region of the window is the entire screen, the physical screen may be scrolled
 at the same time.
 
 For positive \fIn\fR, the \fBscrl\fR and \fBwscrl\fR routines scroll the
 window up \fIn\fR lines (line \fIi\fR+\fIn\fR becomes \fIi\fR); otherwise
-scroll the window down \fIn\fR lines.  This involves moving the lines in the
-window character image structure.  The current cursor position is not changed.
+scroll the window down \fIn\fR lines.
+This involves moving the lines in the
+window character image structure.
+The current cursor position is not changed.
 
 For these functions to work, scrolling must be enabled via \fBscrollok\fR.
 .SH RETURN VALUE
@@ -59,8 +63,9 @@ Note that \fBscrl\fR and \fBscroll\fR may be macros.
 
 The SVr4 documentation says that the optimization of physically scrolling 
 immediately if the scroll region is the entire screen "is" performed, not
-"may be" performed.  This implementation deliberately does not guarantee
-that this will occur, in order to leave open the possibility of smarter
+"may be" performed.
+This implementation deliberately does not guarantee
+that this will occur, to leave open the possibility of smarter
 optimization of multiple scroll actions on the next update. 
 
 Neither the SVr4 nor the XSI documentation specify whether the current

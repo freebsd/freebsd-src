@@ -50,7 +50,7 @@
 #include <term_entry.h>
 #include <tic.h>
 
-MODULE_ID("$Id: comp_scan.c,v 1.56 2001/04/21 18:53:34 tom Exp $")
+MODULE_ID("$Id: comp_scan.c,v 1.59 2001/09/23 00:56:29 tom Exp $")
 
 /*
  * Maximum length of string capability we'll accept before raising an error.
@@ -86,7 +86,7 @@ _nc_curr_token =
 static bool first_column;	/* See 'next_char()' below */
 static char separator;		/* capability separator */
 static int pushtype;		/* type of pushback token */
-static char pushname[MAX_NAME_SIZE + 1];
+static char *pushname;
 
 #if NCURSES_EXT_FUNCS
 NCURSES_EXPORT_VAR(bool)
@@ -146,26 +146,28 @@ NCURSES_EXPORT(int)
 _nc_get_token(bool silent)
 {
     static const char terminfo_punct[] = "@%&*!#";
-    long number;
-    int type;
-    int ch;
+    static char *buffer;
+
     char *numchk;
-    char numbuf[80];
-    unsigned found;
-    static char buffer[MAX_ENTRY_SIZE];
     char *ptr;
+    char numbuf[80];
+    int ch;
     int dot_flag = FALSE;
+    int type;
+    long number;
     long token_start;
+    unsigned found;
 
     if (pushtype != NO_PUSHBACK) {
 	int retval = pushtype;
 
-	_nc_set_type(pushname);
+	_nc_set_type(pushname != 0 ? pushname : "");
 	DEBUG(3, ("pushed-back token: `%s', class %d",
 		  _nc_curr_token.tk_name, pushtype));
 
 	pushtype = NO_PUSHBACK;
-	pushname[0] = '\0';
+	if (pushname != 0)
+	    pushname[0] = '\0';
 
 	/* currtok wasn't altered by _nc_push_token() */
 	return (retval);
@@ -217,6 +219,9 @@ _nc_get_token(bool silent)
 	    _nc_panic_mode(separator);
 	    goto start_token;
 	}
+
+	if (buffer == 0)
+	    buffer = _nc_doalloc(buffer, MAX_ENTRY_SIZE);
 
 	ptr = buffer;
 	*(ptr++) = ch;
@@ -302,7 +307,7 @@ _nc_get_token(bool silent)
 	     * special characters can be dangerous due to shell expansion.
 	     */
 	    for (ptr = buffer; ptr < desc; ptr++) {
-		if (isspace(CharOf(*ptr))) {
+		if (isspace(UChar(*ptr))) {
 		    if (!silent)
 			_nc_warning("whitespace in name or alias field");
 		    break;
@@ -373,7 +378,7 @@ _nc_get_token(bool silent)
 		break;
 
 	    case '=':
-		ch = _nc_trans_string(ptr, buffer + sizeof(buffer));
+		ch = _nc_trans_string(ptr, buffer + MAX_ENTRY_SIZE);
 		if (!silent && ch != separator)
 		    _nc_warning("Missing separator");
 		_nc_curr_token.tk_name = buffer;
@@ -629,10 +634,12 @@ _nc_push_token(int tokclass)
     /*
      * This implementation is kind of bogus, it will fail if we ever do more
      * than one pushback at a time between get_token() calls.  It relies on the
-     * fact that curr_tok is static storage that nothing but get_token()
-     * touches.
+     * fact that _nc_curr_token is static storage that nothing but
+     * _nc_get_token() touches.
      */
     pushtype = tokclass;
+    if (pushname == 0)
+	pushname = _nc_doalloc(pushname, MAX_NAME_SIZE + 1);
     _nc_get_type(pushname);
 
     DEBUG(3, ("pushing token: `%s', class %d",
@@ -680,7 +687,8 @@ NCURSES_EXPORT(void)
 _nc_reset_input(FILE * fp, char *buf)
 {
     pushtype = NO_PUSHBACK;
-    pushname[0] = '\0';
+    if (pushname != 0)
+	pushname[0] = '\0';
     yyin = fp;
     bufstart = bufptr = buf;
     _nc_curr_file_pos = 0L;
@@ -699,7 +707,7 @@ last_char(void)
 {
     size_t len = strlen(bufptr);
     while (len--) {
-	if (!isspace(CharOf(bufptr[len])))
+	if (!isspace(UChar(bufptr[len])))
 	    return bufptr[len];
     }
     return 0;

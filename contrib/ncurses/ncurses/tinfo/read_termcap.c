@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,1999,2000 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998,1999,2000,2001 Free Software Foundation, Inc.         *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -52,10 +52,12 @@
 #include <curses.priv.h>
 
 #include <ctype.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <tic.h>
 #include <term_entry.h>
 
-MODULE_ID("$Id: read_termcap.c,v 1.55 2000/12/10 02:55:08 tom Exp $")
+MODULE_ID("$Id: read_termcap.c,v 1.58 2001/10/28 01:11:34 tom Exp $")
 
 #if !PURE_TERMINFO
 
@@ -71,6 +73,17 @@ MODULE_ID("$Id: read_termcap.c,v 1.55 2000/12/10 02:55:08 tom Exp $")
 #define TC_NOT_FOUND  -2
 #define TC_SYS_ERR    -3
 #define TC_REF_LOOP   -4
+
+static char *
+get_termpath(void)
+{
+    char *result;
+
+    if (!use_terminfo_vars() || (result = getenv("TERMPATH")) == 0)
+	result = TERMPATH;
+    T(("TERMPATH is %s", result));
+    return result;
+}
 
 #if USE_GETCAP
 
@@ -125,13 +138,7 @@ static int _nc_nfcmp(const char *, char *);
 
 #define	BFRAG		1024
 #define	BSIZE		1024
-#define	ESC		('[' & 037)	/* ASCII ESC */
 #define	MAX_RECURSION	32	/* maximum getent recursion */
-#define	SFRAG		100	/* cgetstr mallocs in SFRAG chunks */
-
-#define RECOK	(char)0
-#define TCERR	(char)1
-#define	SHADOW	(char)2
 
 static size_t topreclen;	/* toprec length */
 static char *toprec;		/* Additional record specified by cgetset() */
@@ -797,9 +804,9 @@ _nc_tgetent(char *bp, char **sourcename, int *lineno, const char *name)
      */
     _nc_str_init(&desc, pathbuf, sizeof(pathbuf));
     if (cp == NULL) {
-	_nc_safe_strcpy(&desc, "/etc/termcap /usr/share/misc/termcap");
+	_nc_safe_strcpy(&desc, get_termpath());
     } else if (!is_pathname(cp)) {	/* TERMCAP holds an entry */
-	if ((termpath = getenv("TERMPATH")) != 0) {
+	if ((termpath = get_termpath()) != 0) {
 	    _nc_safe_strcat(&desc, termpath);
 	} else {
 	    char temp[PBUFSIZ];
@@ -812,8 +819,8 @@ _nc_tgetent(char *bp, char **sourcename, int *lineno, const char *name)
 	    /* if no $HOME look in current directory */
 	    strcat(temp, ".termcap");
 	    _nc_safe_strcat(&desc, temp);
-	    _nc_safe_strcat(&desc, " /etc/termcap");
-	    _nc_safe_strcat(&desc, " /usr/share/misc/termcap");
+	    _nc_safe_strcat(&desc, " ");
+	    _nc_safe_strcat(&desc, get_termpath());
 	}
     } else {			/* user-defined name in TERMCAP */
 	_nc_safe_strcat(&desc, cp);	/* still can be tokenized */
@@ -908,18 +915,24 @@ _nc_tgetent(char *bp, char **sourcename, int *lineno, const char *name)
 static int
 add_tc(char *termpaths[], char *path, int count)
 {
+    char *save = strchr(path, NCURSES_PATHSEP);
+    if (save != 0)
+	*save = '\0';
     if (count < MAXPATHS
-	&& _nc_access(path, R_OK) == 0)
+	&& _nc_access(path, R_OK) == 0) {
 	termpaths[count++] = path;
+	T(("Adding termpath %s", path));
+    }
     termpaths[count] = 0;
+    if (save != 0)
+	*save = NCURSES_PATHSEP;
     return count;
 }
 #define ADD_TC(path, count) filecount = add_tc(termpaths, path, count)
 #endif /* !USE_GETCAP */
 
 NCURSES_EXPORT(int)
-_nc_read_termcap_entry
-(const char *const tn, TERMTYPE * const tp)
+_nc_read_termcap_entry(const char *const tn, TERMTYPE * const tp)
 {
     int found = FALSE;
     ENTRY *ep;
@@ -931,6 +944,7 @@ _nc_read_termcap_entry
     static char *source;
     static int lineno;
 
+    T(("read termcap entry for %s", tn));
     if (use_terminfo_vars() && (p = getenv("TERMCAP")) != 0
 	&& !is_pathname(p) && _nc_name_match(p, tn, "|:")) {
 	/* TERMCAP holds a termcap entry */
@@ -976,41 +990,38 @@ _nc_read_termcap_entry
     FILE *fp;
     char *tc, *termpaths[MAXPATHS];
     int filecount = 0;
+    int j, k;
     bool use_buffer = FALSE;
+    bool normal = TRUE;
     char tc_buf[1024];
     char pathbuf[PATH_MAX];
+    char *copied = 0;
+    char *cp;
+    struct stat test_stat[MAXPATHS];
 
     termpaths[filecount] = 0;
     if (use_terminfo_vars() && (tc = getenv("TERMCAP")) != 0) {
 	if (is_pathname(tc)) {	/* interpret as a filename */
 	    ADD_TC(tc, 0);
+	    normal = FALSE;
 	} else if (_nc_name_match(tc, tn, "|:")) {	/* treat as a capability file */
 	    use_buffer = TRUE;
 	    (void) sprintf(tc_buf, "%.*s\n", (int) sizeof(tc_buf) - 2, tc);
-	} else if ((tc = getenv("TERMPATH")) != 0) {
-	    char *cp;
-
-	    for (cp = tc; *cp; cp++) {
-		if (*cp == NCURSES_PATHSEP)
-		    *cp = '\0';
-		else if (cp == tc || cp[-1] == '\0') {
-		    ADD_TC(cp, filecount);
-		}
-	    }
+	    normal = FALSE;
 	}
-    } else {			/* normal case */
+    }
+
+    if (normal) {		/* normal case */
 	char envhome[PATH_MAX], *h;
 
-	filecount = 0;
-
-	/*
-	 * Probably /etc/termcap is a symlink to /usr/share/misc/termcap.
-	 * Avoid reading the same file twice.
-	 */
-	if (_nc_access("/etc/termcap", F_OK) == 0)
-	    ADD_TC("/etc/termcap", filecount);
-	else
-	    ADD_TC("/usr/share/misc/termcap", filecount);
+	copied = strdup(get_termpath());
+	for (cp = copied; *cp; cp++) {
+	    if (*cp == NCURSES_PATHSEP)
+		*cp = '\0';
+	    else if (cp == copied || cp[-1] == '\0') {
+		ADD_TC(cp, filecount);
+	    }
+	}
 
 #define PRIVATE_CAP "%s/.termcap"
 
@@ -1022,6 +1033,37 @@ _nc_read_termcap_entry
 	    ADD_TC(pathbuf, filecount);
 	}
     }
+
+    /*
+     * Probably /etc/termcap is a symlink to /usr/share/misc/termcap.
+     * Avoid reading the same file twice.
+     */
+#ifdef HAVE_LINK
+    for (j = 0; j < filecount; j++) {
+	bool omit = FALSE;
+	if (stat(termpaths[j], &test_stat[j]) != 0
+	    || (test_stat[j].st_mode & S_IFMT) != S_IFREG) {
+	    omit = TRUE;
+	} else {
+	    for (k = 0; k < j; k++) {
+		if (test_stat[k].st_dev == test_stat[j].st_dev
+		    && test_stat[k].st_ino == test_stat[j].st_ino) {
+		    omit = TRUE;
+		    break;
+		}
+	    }
+	}
+	if (omit) {
+	    T(("Path %s is a duplicate", termpaths[j]));
+	    for (k = j + 1; k < filecount; k++) {
+		termpaths[k - 1] = termpaths[k];
+		test_stat[k - 1] = test_stat[k];
+	    }
+	    --filecount;
+	    --j;
+	}
+    }
+#endif
 
     /* parse the sources */
     if (use_buffer) {
@@ -1038,7 +1080,8 @@ _nc_read_termcap_entry
 	for (i = 0; i < filecount; i++) {
 
 	    T(("Looking for %s in %s", tn, termpaths[i]));
-	    if ((fp = fopen(termpaths[i], "r")) != (FILE *) 0) {
+	    if (_nc_access(termpaths[i], R_OK) == 0
+		&& (fp = fopen(termpaths[i], "r")) != (FILE *) 0) {
 		_nc_set_source(termpaths[i]);
 
 		/*
@@ -1052,6 +1095,8 @@ _nc_read_termcap_entry
 	    }
 	}
     }
+    if (copied != 0)
+	free(copied);
 #endif /* USE_GETCAP */
 
     if (_nc_head == 0)

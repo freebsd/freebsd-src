@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,1999,2000 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998,1999,2000,2001 Free Software Foundation, Inc.         *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -95,15 +95,15 @@ char *ttyname(int fd);
 #if NEED_PTEM_H
 /* they neglected to define struct winsize in termios.h -- it's only
    in termio.h	*/
-#include	<sys/stream.h>
-#include	<sys/ptem.h>
+#include <sys/stream.h>
+#include <sys/ptem.h>
 #endif
 
 #include <curses.h>		/* for bool typedef */
 #include <dump_entry.h>
 #include <transform.h>
 
-MODULE_ID("$Id: tset.c,v 0.49 2001/02/24 23:29:33 tom Exp $")
+MODULE_ID("$Id: tset.c,v 0.52 2001/09/29 21:13:56 tom Exp $")
 
 extern char **environ;
 
@@ -112,15 +112,16 @@ extern char **environ;
 
 const char *_nc_progname = "tset";
 
-static TTY mode, oldmode;
+static TTY mode, oldmode, original;
 
+static bool can_restore = FALSE;
 static bool isreset = FALSE;	/* invoked as reset */
 static int terasechar = -1;	/* new erase character */
 static int intrchar = -1;	/* new interrupt character */
 static int tkillchar = -1;	/* new kill character */
 static int tlines, tcolumns;	/* window size */
 
-#define LOWERCASE(c) ((isalpha(CharOf(c)) && isupper(CharOf(c))) ? tolower(CharOf(c)) : (c))
+#define LOWERCASE(c) ((isalpha(UChar(c)) && isupper(UChar(c))) ? tolower(UChar(c)) : (c))
 
 static int
 CaselessCmp(const char *a, const char *b)
@@ -135,6 +136,17 @@ CaselessCmp(const char *a, const char *b)
 }
 
 static void
+exit_error(void)
+{
+    if (can_restore)
+	SET_TTY(STDERR_FILENO, &original);
+    (void) fprintf(stderr, "\n");
+    fflush(stderr);
+    exit(EXIT_FAILURE);
+    /* NOTREACHED */
+}
+
+static void
 err(const char *fmt,...)
 {
     va_list ap;
@@ -142,8 +154,7 @@ err(const char *fmt,...)
     (void) fprintf(stderr, "tset: ");
     (void) vfprintf(stderr, fmt, ap);
     va_end(ap);
-    (void) fprintf(stderr, "\n");
-    exit(EXIT_FAILURE);
+    exit_error();
     /* NOTREACHED */
 }
 
@@ -152,25 +163,24 @@ failed(const char *msg)
 {
     char temp[BUFSIZ];
     perror(strncat(strcpy(temp, "tset: "), msg, sizeof(temp) - 10));
-    exit(EXIT_FAILURE);
+    exit_error();
     /* NOTREACHED */
 }
 
 static void
 cat(char *file)
 {
-    register int fd, nr;
+    FILE *fp;
+    size_t nr;
     char buf[BUFSIZ];
 
-    if ((fd = open(file, O_RDONLY, 0)) < 0)
+    if ((fp = fopen(file, "r")) == 0)
 	failed(file);
 
-    while ((nr = read(fd, buf, sizeof(buf))) > 0)
-	if (write(STDERR_FILENO, buf, (size_t) nr) == -1)
-	    failed("write to stderr");
-    if (nr != 0)
-	failed(file);
-    (void) close(fd);
+    while ((nr = fread(buf, sizeof(char), sizeof(buf), fp)) != 0)
+	if (fwrite(buf, sizeof(char), nr, stderr) != nr)
+	      failed("write to stderr");
+    fclose(fp);
 }
 
 static int
@@ -189,7 +199,8 @@ askuser(const char *dflt)
     /* We can get recalled; if so, don't continue uselessly. */
     if (feof(stdin) || ferror(stdin)) {
 	(void) fprintf(stderr, "\n");
-	exit(EXIT_FAILURE);
+	exit_error();
+	/* NOTREACHED */
     }
     for (;;) {
 	if (dflt)
@@ -200,8 +211,8 @@ askuser(const char *dflt)
 
 	if (fgets(answer, sizeof(answer), stdin) == 0) {
 	    if (dflt == 0) {
-		(void) fprintf(stderr, "\n");
-		exit(EXIT_FAILURE);
+		exit_error();
+		/* NOTREACHED */
 	    }
 	    return (dflt);
 	}
@@ -534,7 +545,7 @@ get_termcap_entry(char *userarg)
 
 	    while (fgets(buffer, sizeof(buffer) - 1, fp) != 0) {
 		for (s = buffer, t = d = 0; *s; s++) {
-		    if (isspace(CharOf(*s)))
+		    if (isspace(UChar(*s)))
 			*s = '\0';
 		    else if (t == 0)
 			t = s;
@@ -757,11 +768,7 @@ reset_mode(void)
 	);
 #endif
 
-#ifdef TERMIOS
-    tcsetattr(STDERR_FILENO, TCSADRAIN, &mode);
-#else
-    stty(STDERR_FILENO, &mode);
-#endif
+    SET_TTY(STDERR_FILENO, &mode);
 }
 
 /*
@@ -891,7 +898,7 @@ set_init(void)
 #ifdef TAB3
     if (oldmode.c_oflag & (TAB3 | ONLCR | OCRNL | ONLRET)) {
 	oldmode.c_oflag &= (TAB3 | ONLCR | OCRNL | ONLRET);
-	tcsetattr(STDERR_FILENO, TCSADRAIN, &oldmode);
+	SET_TTY(STDERR_FILENO, &oldmode);
     }
 #endif
     settle = set_tabs();
@@ -1034,8 +1041,9 @@ static void
 usage(const char *pname)
 {
     (void) fprintf(stderr,
-		   "usage: %s [-IQVrs] [-] [-e ch] [-i ch] [-k ch] [-m mapping] [terminal]\n", pname);
-    exit(EXIT_FAILURE);
+		   "usage: %s [-IQVrs] [-] [-e ch] [-i ch] [-k ch] [-m mapping] [terminal]", pname);
+    exit_error();
+    /* NOTREACHED */
 }
 
 static char
@@ -1058,14 +1066,15 @@ main(int argc, char **argv)
 
     if (GET_TTY(STDERR_FILENO, &mode) < 0)
 	failed("standard error");
-    oldmode = mode;
+    can_restore = TRUE;
+    original = oldmode = mode;
 #ifdef TERMIOS
     ospeed = cfgetospeed(&mode);
 #else
     ospeed = mode.sg_ospeed;
 #endif
 
-    p = _nc_basename(*argv);
+    p = _nc_rootname(*argv);
     if (!strcmp(p, PROG_RESET)) {
 	isreset = TRUE;
 	reset_mode();
@@ -1154,11 +1163,7 @@ main(int argc, char **argv)
 
 	/* Set the modes if they've changed. */
 	if (memcmp(&mode, &oldmode, sizeof(mode))) {
-#ifdef TERMIOS
-	    tcsetattr(STDERR_FILENO, TCSADRAIN, &mode);
-#else
-	    stty(STDERR_FILENO, &mode);
-#endif
+	    SET_TTY(STDERR_FILENO, &mode);
 	}
     }
 

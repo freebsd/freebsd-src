@@ -1,5 +1,5 @@
 dnl***************************************************************************
-dnl Copyright (c) 1998,1999,2000,2001 Free Software Foundation, Inc.         *
+dnl Copyright (c) 1998,1999,2000,2001,2002 Free Software Foundation, Inc.    *
 dnl                                                                          *
 dnl Permission is hereby granted, free of charge, to any person obtaining a  *
 dnl copy of this software and associated documentation files (the            *
@@ -28,14 +28,14 @@ dnl***************************************************************************
 dnl
 dnl Author: Thomas E. Dickey <dickey@clark.net> 1996,1997
 dnl
-dnl $Id: configure.in,v 1.233 2001/04/07 22:09:57 tom Exp $
+dnl $Id: configure.in,v 1.267 2002/05/18 21:14:13 tom Exp $
 dnl Process this file with autoconf to produce a configure script.
 dnl
 dnl See http://dickey.his.com/autoconf/ for additional information.
 dnl
 dnl ---------------------------------------------------------------------------
 AC_PREREQ(2.13.20000819)
-AC_REVISION($Revision: 1.233 $)
+AC_REVISION($Revision: 1.267 $)
 AC_INIT(ncurses/base/lib_initscr.c)
 AC_CONFIG_HEADER(include/ncurses_cfg.h:include/ncurses_cfg.hin)
 
@@ -80,16 +80,40 @@ CF_CFG_DEFAULTS
 
 ###	Checks for programs.
 AC_PROG_CC
+GCC_VERSION=none
 if test "$GCC" = yes ; then
 	AC_MSG_CHECKING(version of gcc)
-	eval "$CC --version"
+	GCC_VERSION="`${CC} --version|head -1`"
+	AC_MSG_RESULT($GCC_VERSION)
 fi
-if test "$host" != $build; then
-	AC_CHECK_PROGS(BUILD_CC, $CC gcc cc)
-else
-	BUILD_CC="$CC"
+
+# If we're cross-compiling, allow the user to override the tools and their
+# options.  The configure script is oriented toward identifying the target
+# compiler, etc., but we need a host compiler to generate parts of the source.
+BUILD_CC='$(CC)'
+BUILD_CFLAGS='$(CFLAGS)'
+BUILD_LDFLAGS='$(LDFLAGS)'
+BUILD_LIBS='$(LIBS)'
+if test "$host_alias" != "$target_alias" ; then
+	AC_ARG_WITH(build-cc,
+		[  --with-build-cc=XXX     if cross-compiling, the host C compiler (\$BUILD_CC)],
+		[BUILD_CC="$withval"],
+		[AC_CHECK_PROGS(BUILD_CC, $CC gcc cc)])
+	AC_ARG_WITH(build-cflags,
+		[  --with-build-cflags=XXX if cross-compiling, the host C compiler-flags],
+		[BUILD_CFLAGS="$withval"])
+	AC_ARG_WITH(build-ldflags,
+		[  --with-build-ldflags=XXX if cross-compiling, the host linker-flags],
+		[BUILD_LDFLAGS="$withval"])
+	AC_ARG_WITH(build-libs,
+		[  --with-build-libs=XXX   if cross-compiling, the host libraries],
+		[BUILD_LIBS="$withval"])
 fi
 AC_SUBST(BUILD_CC)
+AC_SUBST(BUILD_CFLAGS)
+AC_SUBST(BUILD_LDFLAGS)
+AC_SUBST(BUILD_LIBS)
+
 AC_PROG_CPP
 AC_PROG_GCC_TRADITIONAL
 AC_ISC_POSIX
@@ -126,12 +150,16 @@ else
 	popdef([AC_MSG_ERROR])dnl
 fi
 
+GXX_VERSION=none
 if test "$GXX" = yes; then
-	case "`${CXX-g++} --version`" in
+	AC_MSG_CHECKING(version of g++)
+	GXX_VERSION="`${CXX-g++} --version|head -1`"
+	AC_MSG_RESULT($GXX_VERSION)
+	case $GXX_VERSION in
 	1*|2.[[0-6]]*)
 		GXX=""; CXX=""; ac_cv_prog_gxx=no
 		cf_cxx_library=no
-		echo No: templates do not work
+		AC_MSG_WARN(templates do not work)
 		;;
 	esac
 fi
@@ -195,7 +223,7 @@ dnl adjust the location into which the actual install is done, so that an
 dnl archive can be built without modifying the host system's configuration.
 AC_MSG_CHECKING(if you have specified an install-prefix)
 AC_ARG_WITH(install-prefix,
-	[  --with-install-prefix   prefixes actual install-location],
+	[  --with-install-prefix   prefixes actual install-location (\$DESTDIR)],
 	[case "$withval" in #(vi
 	yes|no) #(vi
 		;;
@@ -394,7 +422,7 @@ AC_MSG_RESULT($with_overwrite)
 
 AC_MSG_CHECKING(if external terminfo-database is used)
 AC_ARG_ENABLE(database,
-	[  --disable-database      use only built-in data],
+	[  --disable-database      do not use terminfo, only fallbacks/termcap],
 	[use_database=$enableval],
 	[use_database=yes])
 AC_MSG_RESULT($use_database)
@@ -409,6 +437,7 @@ os2*) #(vi
 esac
 AC_SUBST(TERMINFO_SRC)
 
+CF_PATHSEP
 if test "$use_database" != no ; then
 	AC_DEFINE(USE_DATABASE)
 	AC_MSG_CHECKING(which terminfo source-file will be installed)
@@ -427,11 +456,10 @@ AC_MSG_RESULT($with_fallback)
 FALLBACK_LIST=`echo $with_fallback|sed -e 's/,/ /g'`
 AC_SUBST(FALLBACK_LIST)
 
+MAKE_TERMINFO=
 if test "$use_database" = no ; then
-	if test -z $with_fallback ; then
-		AC_ERROR(You have disabled the database w/o specifying fallbacks)
-	fi
 	TERMINFO="${datadir}/terminfo"
+	MAKE_TERMINFO="#"
 else
 
 AC_MSG_CHECKING(for list of terminfo directories)
@@ -455,6 +483,7 @@ AC_DEFINE_UNQUOTED(TERMINFO,"$TERMINFO")
 fi
 
 AC_SUBST(TERMINFO)
+AC_SUBST(MAKE_TERMINFO)
 
 ###	use option --disable-big-core to make tic run on small machines
 ###	We need 4Mb, check if we can allocate 50% more than that.
@@ -487,8 +516,22 @@ AC_ARG_ENABLE(termcap,
 AC_MSG_RESULT($with_termcap)
 
 if test "$with_termcap" != "yes" ; then
+	if test "$use_database" = no ; then
+		if test -z $with_fallback ; then
+			AC_ERROR(You have disabled the database w/o specifying fallbacks)
+		fi
+	fi
 	AC_DEFINE(PURE_TERMINFO)
 else
+
+AC_DEFINE(USE_TERMCAP)
+AC_MSG_CHECKING(for list of termcap files)
+CF_WITH_PATHLIST(termpath,
+	[  --with-termpath=XXX     specify list of termcap files],
+	TERMPATH,
+	/etc/termcap:/usr/share/misc/termcap)
+AC_MSG_RESULT($TERMPATH)
+test -n "$TERMPATH" && AC_DEFINE_UNQUOTED(TERMPATH,"$TERMPATH")
 
 ###	use option --enable-getcap to use a hacked getcap for reading termcaps
 AC_MSG_CHECKING(if fast termcap-loader is needed)
@@ -551,13 +594,36 @@ AC_ARG_ENABLE(broken_linker,
 	[with_broken_linker=$enableval],
 	[with_broken_linker=$BROKEN_LINKER])
 AC_MSG_RESULT($with_broken_linker)
-test "$with_broken_linker" = yes && AC_DEFINE(BROKEN_LINKER)
+
+BROKEN_LINKER=0
+if test "$with_broken_linker" = yes ; then
+	AC_DEFINE(BROKEN_LINKER)
+	BROKEN_LINKER=1
+elif test $DFT_LWR_MODEL = shared ; then
+	case $cf_cv_system_name in #(vi
+	cygwin*)
+		AC_DEFINE(BROKEN_LINKER)
+		BROKEN_LINKER=1
+		CF_VERBOSE(cygwin linker is broken anyway)
+		;;
+	esac
+fi
+AC_SUBST(BROKEN_LINKER)
+
+###   use option --with-bool to override bool's type
+AC_MSG_CHECKING(for type of bool)
+AC_ARG_WITH(bool,
+	[  --with-bool=TYPE        override fallback type of bool variable],
+	[NCURSES_BOOL="$withval"],
+	[NCURSES_BOOL=auto])
+AC_MSG_RESULT($NCURSES_BOOL)
+AC_SUBST(NCURSES_BOOL)
 
 ###   use option --with-ospeed to override ospeed's type
 AC_MSG_CHECKING(for type of ospeed)
 AC_ARG_WITH(ospeed,
 	[  --with-ospeed=TYPE      override type of ospeed variable],
-	[NCURSES_OSPEED=$withval],
+	[NCURSES_OSPEED="$withval"],
 	[NCURSES_OSPEED=short])
 AC_MSG_RESULT($NCURSES_OSPEED)
 AC_SUBST(NCURSES_OSPEED)
@@ -594,13 +660,17 @@ AC_ARG_ENABLE(ext-funcs,
 	[with_ext_funcs=yes])
 AC_MSG_RESULT($with_ext_funcs)
 if test "$with_ext_funcs" = yes ; then
+	NCURSES_EXT_FUNCS=1
 	AC_DEFINE(HAVE_CURSES_VERSION)
 	AC_DEFINE(HAVE_HAS_KEY)
 	AC_DEFINE(HAVE_RESIZETERM)
 	AC_DEFINE(HAVE_USE_DEFAULT_COLORS)
 	AC_DEFINE(HAVE_WRESIZE)
 	AC_DEFINE(NCURSES_EXT_FUNCS)
+else
+	NCURSES_EXT_FUNCS=0
 fi
+AC_SUBST(NCURSES_EXT_FUNCS)
 
 ###   use option --enable-const to turn on use of const beyond that in XSI.
 AC_MSG_CHECKING(for extended use of const keyword)
@@ -655,7 +725,7 @@ AC_MSG_RESULT($with_develop)
 
 ###   use option --enable-colorfgbg to turn on use of $COLORFGBG environment
 AC_MSG_CHECKING(if you want colorfgbg code)
-AC_ARG_ENABLE(hard-tabs,
+AC_ARG_ENABLE(enable-colorfgbg,
 	[  --enable-colorfgbg      compile with \$COLORFGBG code],
 	[with_colorfgbg=$enableval],
 	[with_colorfgbg=$with_develop])
@@ -730,6 +800,9 @@ test "$with_scroll_hints" = yes && AC_DEFINE(USE_SCROLL_HINTS)
 fi
 
 ###   use option --enable-widec to turn on use of wide-character support
+NCURSES_CH_T=chtype
+NCURSES_LIBUTF8=0
+NCURSES_MBSTATE_T=0
 AC_MSG_CHECKING(if you want experimental wide-character code)
 AC_ARG_ENABLE(widec,
 	[  --enable-widec          compile with experimental wide-char/UTF-8 code],
@@ -739,7 +812,33 @@ AC_MSG_RESULT($with_widec)
 if test "$with_widec" = yes ; then
 	LIB_SUFFIX="w${LIB_SUFFIX}"
 	AC_DEFINE(USE_WIDEC_SUPPORT)
+	CPPFLAGS="$CPPFLAGS -D_XOPEN_SOURCE_EXTENDED"
+	with_overwrite=no
+	NCURSES_CH_T=cchar_t
+	AC_CHECK_FUNC(putwc)
+if test "$ac_cv_func_putwc" != yes ; then
+	CF_LIBUTF8
+	if test "$cf_cv_libutf8" = yes ; then
+		NCURSES_LIBUTF8=1
+	fi
 fi
+	CF_MBSTATE_T
+	if test $cf_cv_mbstate_t = yes ; then
+		NCURSES_MBSTATE_T=1
+	fi
+fi
+AC_SUBST(NCURSES_CH_T)
+AC_SUBST(NCURSES_LIBUTF8)
+AC_SUBST(NCURSES_MBSTATE_T)
+
+AC_MSG_CHECKING(for terminal capabilities file)
+AC_ARG_WITH(caps,
+	[  --with-caps=alt         compile with experimental alternate Caps file],
+	[TERMINFO_CAPS=Caps.$withval],
+	[TERMINFO_CAPS=Caps])
+test -f ${srcdir}/include/${TERMINFO_CAPS} || TERMINFO_CAPS=Caps
+AC_MSG_RESULT($TERMINFO_CAPS)
+AC_SUBST(TERMINFO_CAPS)
 
 ###############################################################################
 CF_HELP_MESSAGE(Testing/development Options:)
@@ -818,8 +917,10 @@ CF_MATH_LIB(MATH_LIB,sin(x))
 AC_SUBST(MATH_LIB)
 
 ###	Checks for header files.
+CF_GNU_SOURCE
 AC_STDC_HEADERS
 AC_HEADER_DIRENT
+AC_HEADER_TIME
 CF_REGEX
 
 dnl These are some other potentially nonportable headers.
@@ -857,7 +958,6 @@ AC_C_INLINE
 test "$ac_cv_c_inline" != no && AC_DEFINE(CC_HAS_INLINE_FUNCS)
 
 CF_TYPEOF_CHTYPE
-CF_WIDEC_SHIFT
 
 ###	Checks for external-data
 CF_ERRNO
@@ -871,7 +971,6 @@ geteuid \
 getttynam \
 issetugid \
 memccpy \
-mkstemp \
 nanosleep \
 poll \
 remove \
@@ -885,9 +984,7 @@ strdup \
 strstr \
 tcgetpgrp \
 times \
-vfscanf \
 vsnprintf \
-vsscanf \
 )
 if test "$with_getcap" = "yes" ; then
 	CF_CGETENT
@@ -896,6 +993,16 @@ fi
 CF_ISASCII
 CF_STRUCT_SIGACTION
 CF_FUNC_TERMIOS
+CF_FUNC_VSSCANF
+CF_MKSTEMP
+
+# setup for prototype of fallback for vsscanf()
+if test "$cf_cv_func_vsscanf" = vsscanf ; then
+	HAVE_VSSCANF=1
+else
+	HAVE_VSSCANF=0
+fi
+AC_SUBST(HAVE_VSSCANF)
 
 dnl FIXME (may need this) AC_SYS_RESTARTABLE_SYSCALLS
 if test "$cross_compiling" = yes ; then
@@ -921,23 +1028,17 @@ if test -n "$CXX" ; then
 	AC_LANG_CPLUSPLUS
 	CF_STDCPP_LIBRARY
 
-	if test "$GXX" = yes; then
-		AC_MSG_CHECKING(version of ${CXX-g++})
-		eval "${CXX-g++} --version"
-		case "`${CXX-g++} --version`" in
-		1*|2.[0-6]*)
-			cf_cxx_library=yes
-			;;
-		*-2.7*|2.7*)
-			CF_GPP_LIBRARY
-			;;
-		*)
-			cf_cxx_library=no
-			;;
-		esac
-	else
+	case $GXX_VERSION in
+	1*|2.[0-6]*)
+		cf_cxx_library=yes
+		;;
+	*-2.7*|2.7*)
+		CF_GPP_LIBRARY
+		;;
+	*)
 		cf_cxx_library=no
-	fi
+		;;
+	esac
 
 	AC_CHECK_HEADERS(typeinfo)
 
@@ -947,12 +1048,28 @@ if test -n "$CXX" ; then
 	CF_CPP_PARAM_INIT
 	CF_CPP_VSCAN_FUNC
 
+	CXX_AR='$(AR)'
+	CXX_AR_OPTS='$(AR_OPTS)'
 	case $cf_cv_system_name in #(vi
-	sco3.2v5*)
+	irix*) #(vi
+	    if test "$GXX" != yes ; then
+		CXX_AR='$(CXX)'
+		CXX_AR_OPTS='-ar -o'
+	    fi
+	    ;;
+	sco3.2v5*) #(vi
 	    CXXLDFLAGS="-u main"
+	    ;;
+	solaris2*)
+	    if test "$GXX" != yes ; then
+		CXX_AR='$(CXX)'
+		CXX_AR_OPTS='-xar -o'
+	    fi
 	    ;;
 	esac
 	AC_SUBST(CXXLDFLAGS)
+	AC_SUBST(CXX_AR)
+	AC_SUBST(CXX_AR_OPTS)
 else
 	cf_cxx_library=no
 	cf_cv_builtin_bool=1
@@ -966,12 +1083,20 @@ else
 	# Caveat: since the storage of the bool type is not standardized, it
 	# may change.
 
-	AC_MSG_CHECKING(for fallback type of bool)
-	case "$host_cpu" in #(vi
-	i?86)	cf_cv_type_of_bool=char	;; #(vi
-	*)	cf_cv_type_of_bool=int	;;
-	esac
-	AC_MSG_RESULT($cf_cv_type_of_bool)
+	if test "$NCURSES_BOOL" != auto ; then
+		cf_cv_type_of_bool=$NCURSES_AUTO
+	else
+		if test "$cf_cv_header_stdbool_h" = 1 ; then
+			CF_BOOL_SIZE
+		else
+			AC_MSG_CHECKING(for fallback type of bool)
+			case "$host_cpu" in #(vi
+			i?86)	cf_cv_type_of_bool=char	;; #(vi
+			*)	cf_cv_type_of_bool=int	;;
+			esac
+			AC_MSG_RESULT($cf_cv_type_of_bool)
+		fi
+	fi
 fi
 AC_SUBST(CXXLIBS)
 
@@ -1043,18 +1168,16 @@ fi
 ### using a 'char' for bools.  gcc 2.7.0's conversion-warnings are broken too
 ### badly to consider using for development purposes, but 2.5.8 is okay.
 if test -n "$with_warnings"; then
-	if test "$GCC" = yes; then
-		case "`$CC --version`" in
-		2.6.3)
-			if test "$cf_cv_type_of_bool" != "char"; then
-				EXTRA_CFLAGS="$EXTRA_CFLAGS -Wconversion"
-			fi
-			;;
-		2.5*)
+	case $GCC_VERSION in
+	2.6.3)
+		if test "$cf_cv_type_of_bool" != "char"; then
 			EXTRA_CFLAGS="$EXTRA_CFLAGS -Wconversion"
-			;;
-		esac
-	fi
+		fi
+		;;
+	2.5*)
+		EXTRA_CFLAGS="$EXTRA_CFLAGS -Wconversion"
+		;;
+	esac
 fi
 
 ### Construct the library-subsets, if any, from this set of keywords:
@@ -1066,6 +1189,7 @@ else
 	LIB_SUBSETS="termlib+"
 fi
 LIB_SUBSETS="${LIB_SUBSETS}base"
+test "$with_widec" = yes && LIB_SUBSETS="${LIB_SUBSETS}+widechar"
 test "$with_ext_funcs" = yes && LIB_SUBSETS="${LIB_SUBSETS}+ext_funcs"
 AC_MSG_RESULT($LIB_SUBSETS)
 
@@ -1091,6 +1215,13 @@ AC_MSG_RESULT($DFT_ARG_SUFFIX)
 
 AC_MSG_CHECKING(default library-dependency suffix)
 CF_LIB_SUFFIX($DFT_LWR_MODEL,DFT_DEP_SUFFIX)dnl
+if test $DFT_LWR_MODEL = shared ; then
+	case $cf_cv_system_name in #(vi
+	cygwin*)
+		DFT_DEP_SUFFIX=".dll.a"
+		;;
+	esac
+fi
 AC_SUBST(DFT_DEP_SUFFIX)dnl the corresponding library-suffix (".a")
 AC_MSG_RESULT($DFT_DEP_SUFFIX)
 
@@ -1149,7 +1280,7 @@ CFLAGS="$CFLAGS $EXTRA_CFLAGS"
 ################################################################################
 AC_OUTPUT( \
 	include/MKterm.h.awk \
-	include/curses.h \
+	include/curses.head:include/curses.h.in \
 	include/termcap.h \
 	include/unctrl.h \
 	misc/run_tic.sh:misc/run_tic.in \
@@ -1165,22 +1296,25 @@ CF_LIST_MODELS="$cf_list_models"
 DFT_LWR_MODEL="$DFT_LWR_MODEL"
 LDCONFIG="$LDCONFIG"
 LIB_NAME="$LIB_NAME"
-LIB_SUFFIX="$LIB_SUFFIX"
 LIB_SUBSETS="$LIB_SUBSETS"
+LIB_SUFFIX="$LIB_SUFFIX"
 LIB_TRACING="$LIB_TRACING"
+MAKE_TERMINFO="$MAKE_TERMINFO"
+NCURSES_OSPEED="$NCURSES_OSPEED"
 SRC_SUBDIRS="$SRC_SUBDIRS"
 TERMINFO="$TERMINFO"
 TINFO_NAME="$TINFO_NAME"
+WITH_CURSES_H="$with_curses_h"
 WITH_ECHO="$with_echo"
 WITH_OVERWRITE="$with_overwrite"
-WITH_CURSES_H="$with_curses_h"
 cf_cv_abi_version="$cf_cv_abi_version"
 cf_cv_do_symlinks="$cf_cv_do_symlinks"
 cf_cv_rel_version="$cf_cv_rel_version"
 cf_cv_rm_so_locs="$cf_cv_rm_so_locs"
+cf_cv_shlib_version="$cf_cv_shlib_version"
+cf_cv_shlib_version_infix="$cf_cv_shlib_version_infix"
 cf_cv_system_name="$cf_cv_system_name"
 cf_with_cxx_binding="$cf_with_cxx_binding"
-cf_cv_shlib_version="$cf_cv_shlib_version"
 target="$target"
 
 ],sort)dnl

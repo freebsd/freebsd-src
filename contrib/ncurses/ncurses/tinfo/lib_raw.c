@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,1999,2000 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998,1999,2000,2001 Free Software Foundation, Inc.         *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -48,7 +48,7 @@
 #include <curses.priv.h>
 #include <term.h>		/* cur_term */
 
-MODULE_ID("$Id: lib_raw.c,v 1.10 2000/12/10 02:55:07 tom Exp $")
+MODULE_ID("$Id: lib_raw.c,v 1.12 2001/08/04 17:18:38 tom Exp $")
 
 #if SVR4_TERMIO && !defined(_POSIX_SOURCE)
 #define _POSIX_SOURCE
@@ -140,8 +140,8 @@ qiflush(void)
     cur_term->Nttyb.c_lflag &= ~(NOFLSH);
     AFTER("qiflush");
     (void) _nc_set_tty_mode(&cur_term->Nttyb);
-    returnVoid;
 #endif
+    returnVoid;
 }
 
 NCURSES_EXPORT(int)
@@ -205,8 +205,8 @@ noqiflush(void)
     cur_term->Nttyb.c_lflag |= NOFLSH;
     AFTER("noqiflush");
     (void) _nc_set_tty_mode(&cur_term->Nttyb);
-    returnVoid;
 #endif
+    returnVoid;
 }
 
 NCURSES_EXPORT(int)

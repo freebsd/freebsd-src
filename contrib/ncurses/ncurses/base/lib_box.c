@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
+ * Copyright (c) 1998,2000,2001,2002 Free Software Foundation, Inc.         *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -40,16 +40,18 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_box.c,v 1.13 2000/12/10 02:43:26 tom Exp $")
+MODULE_ID("$Id: lib_box.c,v 1.18 2002/02/23 20:40:06 tom Exp $")
 
 NCURSES_EXPORT(int)
-wborder
-(WINDOW *win,
- chtype ls, chtype rs, chtype ts, chtype bs,
- chtype tl, chtype tr, chtype bl, chtype br)
+wborder(WINDOW *win,
+	chtype ls, chtype rs,
+	chtype ts, chtype bs,
+	chtype tl, chtype tr,
+	chtype bl, chtype br)
 {
     NCURSES_SIZE_T i;
     NCURSES_SIZE_T endx, endy;
+    chtype wls, wrs, wts, wbs, wtl, wtr, wbl, wbr;
 
     T((T_CALLED("wborder(%p,%s,%s,%s,%s,%s,%s,%s,%s)"),
        win,
@@ -65,55 +67,47 @@ wborder
     if (!win)
 	returnCode(ERR);
 
-    if (ls == 0)
-	ls = ACS_VLINE;
-    if (rs == 0)
-	rs = ACS_VLINE;
-    if (ts == 0)
-	ts = ACS_HLINE;
-    if (bs == 0)
-	bs = ACS_HLINE;
-    if (tl == 0)
-	tl = ACS_ULCORNER;
-    if (tr == 0)
-	tr = ACS_URCORNER;
-    if (bl == 0)
-	bl = ACS_LLCORNER;
-    if (br == 0)
-	br = ACS_LRCORNER;
+#define RENDER_WITH_DEFAULT(ch,def) w ## ch = (ch == 0) ? def : ch
 
-    ls = _nc_render(win, ls);
-    rs = _nc_render(win, rs);
-    ts = _nc_render(win, ts);
-    bs = _nc_render(win, bs);
-    tl = _nc_render(win, tl);
-    tr = _nc_render(win, tr);
-    bl = _nc_render(win, bl);
-    br = _nc_render(win, br);
+    RENDER_WITH_DEFAULT(ls, ACS_VLINE);
+    RENDER_WITH_DEFAULT(rs, ACS_VLINE);
+    RENDER_WITH_DEFAULT(ts, ACS_HLINE);
+    RENDER_WITH_DEFAULT(bs, ACS_HLINE);
+    RENDER_WITH_DEFAULT(tl, ACS_ULCORNER);
+    RENDER_WITH_DEFAULT(tr, ACS_URCORNER);
+    RENDER_WITH_DEFAULT(bl, ACS_LLCORNER);
+    RENDER_WITH_DEFAULT(br, ACS_LRCORNER);
 
-    T(("using %#lx, %#lx, %#lx, %#lx, %#lx, %#lx, %#lx, %#lx",
-       ls, rs, ts, bs, tl, tr, bl, br));
+    T(("using %s, %s, %s, %s, %s, %s, %s, %s",
+       _tracechtype2(1, wls),
+       _tracechtype2(2, wrs),
+       _tracechtype2(3, wts),
+       _tracechtype2(4, wbs),
+       _tracechtype2(5, wtl),
+       _tracechtype2(6, wtr),
+       _tracechtype2(7, wbl),
+       _tracechtype2(8, wbr)));
 
     endx = win->_maxx;
     endy = win->_maxy;
 
     for (i = 0; i <= endx; i++) {
-	win->_line[0].text[i] = ts;
-	win->_line[endy].text[i] = bs;
+	SetChar(win->_line[0].text[i], ChCharOf(wts), ChAttrOf(wts));
+	SetChar(win->_line[endy].text[i], ChCharOf(wbs), ChAttrOf(wbs));
     }
     win->_line[endy].firstchar = win->_line[0].firstchar = 0;
     win->_line[endy].lastchar = win->_line[0].lastchar = endx;
 
     for (i = 0; i <= endy; i++) {
-	win->_line[i].text[0] = ls;
-	win->_line[i].text[endx] = rs;
+	SetChar(win->_line[i].text[0], ChCharOf(wls), ChAttrOf(wls));
+	SetChar(win->_line[i].text[endx], ChCharOf(wrs), ChAttrOf(wrs));
 	win->_line[i].firstchar = 0;
 	win->_line[i].lastchar = endx;
     }
-    win->_line[0].text[0] = tl;
-    win->_line[0].text[endx] = tr;
-    win->_line[endy].text[0] = bl;
-    win->_line[endy].text[endx] = br;
+    SetChar(win->_line[0].text[0], ChCharOf(wtl), ChAttrOf(wtl));
+    SetChar(win->_line[0].text[endx], ChCharOf(wtr), ChAttrOf(wtr));
+    SetChar(win->_line[endy].text[0], ChCharOf(wbl), ChAttrOf(wbl));
+    SetChar(win->_line[endy].text[endx], ChCharOf(wbr), ChAttrOf(wbr));
 
     _nc_synchook(win);
     returnCode(OK);

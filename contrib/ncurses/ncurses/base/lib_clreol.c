@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,1999,2000 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998,1999,2000,2001 Free Software Foundation, Inc.         *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -40,7 +40,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_clreol.c,v 1.19 2000/12/10 02:43:26 tom Exp $")
+MODULE_ID("$Id: lib_clreol.c,v 1.21 2001/12/19 01:06:04 tom Exp $")
 
 NCURSES_EXPORT(int)
 wclrtoeol(WINDOW *win)
@@ -50,8 +50,8 @@ wclrtoeol(WINDOW *win)
     T((T_CALLED("wclrtoeol(%p)"), win));
 
     if (win) {
-	chtype blank;
-	chtype *ptr, *end;
+	NCURSES_CH_T blank;
+	NCURSES_CH_T *ptr, *end;
 	struct ldat *line;
 	NCURSES_SIZE_T y = win->_cury;
 	NCURSES_SIZE_T x = win->_curx;
@@ -74,7 +74,7 @@ wclrtoeol(WINDOW *win)
 	    || x > win->_maxx)
 	    returnCode(ERR);
 
-	blank = _nc_background(win);
+	blank = win->_nc_bkgd;
 	line = &win->_line[y];
 	CHANGED_TO_EOL(line, x, win->_maxx);
 

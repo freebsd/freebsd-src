@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,1999,2000 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998,1999,2000,2001 Free Software Foundation, Inc.         *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -41,7 +41,7 @@
 #include <curses.priv.h>
 #include <ctype.h>
 
-MODULE_ID("$Id: lib_insstr.c,v 1.17 2000/12/10 02:43:27 tom Exp $")
+MODULE_ID("$Id: lib_insstr.c,v 1.19 2001/06/09 23:43:02 skimo Exp $")
 
 NCURSES_EXPORT(int)
 winsnstr(WINDOW *win, const char *s, int n)
@@ -58,9 +58,11 @@ winsnstr(WINDOW *win, const char *s, int n)
 	oy = win->_cury;
 	ox = win->_curx;
 	for (cp = str; *cp && (n <= 0 || (cp - str) < n); cp++) {
-	    if (*cp == '\n' || *cp == '\r' || *cp == '\t' || *cp == '\b')
-		_nc_waddch_nosync(win, (chtype) (*cp));
-	    else if (is7bits(*cp) && iscntrl(*cp)) {
+	    if (*cp == '\n' || *cp == '\r' || *cp == '\t' || *cp == '\b') {
+		NCURSES_CH_T wch;
+		SetChar2(wch, *cp);
+		_nc_waddch_nosync(win, wch);
+	    } else if (is7bits(*cp) && iscntrl(*cp)) {
 		winsch(win, ' ' + (chtype) (*cp));
 		winsch(win, (chtype) '^');
 		win->_curx += 2;
