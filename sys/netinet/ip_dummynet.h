@@ -10,14 +10,12 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_dummynet.h,v 1.1 1998/05/10 01:30:23 luigi Exp $
+ *	$Id: ip_dummynet.h,v 1.2 1998/12/14 18:09:13 luigi Exp $
  */
 
 #ifndef _IP_DUMMYNET_H
 #define _IP_DUMMYNET_H
 
-typedef int ip_dn_ctl_t __P((struct sockopt *)) ;
-extern ip_dn_ctl_t *ip_dn_ctl_ptr;
 /*
  * Definition of dummynet data structures.
  * Dummynet handles a list of pipes, each one identified by a unique
@@ -99,12 +97,19 @@ struct dn_pipe {			/* a pipe */
 #define DN_TO_IP_OUT	1
 #define DN_TO_IP_IN	2
 #define DN_TO_BDG_FWD	3
+
 #ifdef KERNEL
+
 MALLOC_DECLARE(M_IPFW);
+
+typedef int ip_dn_ctl_t __P((struct sockopt *)) ;
+extern ip_dn_ctl_t *ip_dn_ctl_ptr;
+
 void ip_dn_init(void);	/* called in ip_input.c */
 void dn_rule_delete(void *r);		/* used in ip_fw.c */
 int dummynet_io(int pipe, int dir,
 	struct mbuf *m, struct ifnet *ifp, struct route *ro, int hlen,
 	struct ip_fw_chain *rule);
-#endif
+#endif /* KERNEL */
+
 #endif /* _IP_DUMMYNET_H */
