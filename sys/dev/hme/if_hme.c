@@ -34,7 +34,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- *	from: NetBSD: hme.c,v 1.20 2000/12/14 06:27:25 thorpej Exp
+ *	from: NetBSD: hme.c,v 1.29 2002/05/05 03:02:38 thorpej Exp
  */
 
 #include <sys/cdefs.h>
@@ -816,6 +816,9 @@ hme_init(void *xsc)
 	    HME_MAC_READ_4(sc, HME_MACI_RXCFG),
 	    HME_MAC_READ_4(sc, HME_MACI_TXCFG));
 #endif
+
+	/* Set the current media. */
+	mii_mediachg(sc->sc_mii);
 
 	/* Start the one second timer. */
 	callout_reset(&sc->sc_tick_ch, hz, hme_tick, sc);
