@@ -29,6 +29,12 @@
 #ifndef _DEV_UART_BUS_H_
 #define _DEV_UART_BUS_H_
 
+#ifndef KLD_MODULE
+#include "opt_uart.h"
+#endif
+
+#include <sys/timepps.h>
+
 /* Drain and flush targets. */
 #define	UART_DRAIN_RECEIVER	0x0001
 #define	UART_DRAIN_TRANSMITTER	0x0002
@@ -74,6 +80,14 @@
 #define	UART_SIGMASK_DCE	0x003c
 #define	UART_SIGMASK_STATE	0x003f
 #define	UART_SIGMASK_DELTA	0x3f00
+
+#ifdef UART_PPS_ON_CTS
+#define	UART_SIG_DPPS		UART_SIG_DCTS
+#define	UART_SIG_PPS		UART_SIG_CTS
+#else
+#define	UART_SIG_DPPS		UART_SIG_DDCD
+#define	UART_SIG_PPS		UART_SIG_DCD
+#endif
 
 /* UART_IOCTL() requests */
 #define	UART_IOCTL_BREAK	1
@@ -132,6 +146,9 @@ struct uart_softc {
 	uint8_t		*sc_txbuf;
 	int		sc_txdatasz;
 	int		sc_txfifosz;	/* Size of TX FIFO and buffer. */
+
+	/* Pulse capturing support (PPS). */
+	struct pps_state sc_pps;
 
 	/* Upper layer data. */
 	void		*sc_softih;
