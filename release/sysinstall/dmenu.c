@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: dmenu.c,v 1.25.2.8 1997/10/14 18:17:56 jkh Exp $
+ * $Id: dmenu.c,v 1.25.2.9 1998/03/10 17:24:27 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -136,7 +136,7 @@ dmenuToggleVariable(dialogMenuItem *tmp)
 	msgConfirm("Incorrect data field for `%s'!", tmp->title);
 	return DITEM_FAILURE;
     }
-    if (!variable_get(var))
+    if (!variable_check(var))
 	variable_set(var);
     else
 	variable_unset(var);
