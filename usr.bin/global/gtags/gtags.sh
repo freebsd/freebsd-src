@@ -29,7 +29,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	gtags.sh	17-Feb-97
+#	gtags.sh	21-Apr-97
 #
 com=`echo $0 | sed 's/.*\///'`		# command name
 usage="usage: $com [-e][-s][dbpath]"

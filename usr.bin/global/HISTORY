@@ -80,7 +80,8 @@ version 1.7	make suitable for large project (mainly FreeBSD kernel) [17-Feb-97]
 		  function too.
 		- works MUCH faster than previous version.
 	[fixed bug]
-	htags	- string 'param' follows '&' means specific charactor in hypertext.
+	htags	- generate path name including '&param'. (It means special
+		  charactor in hypertertext.)
 		  So, changed internal separator from '&' to '|'.
 	[added]
 	gtags	- -s option added. If specified, gtags extract ENTRY() and
@@ -129,3 +130,32 @@ version 1.81	make global to understand 'obj' directory and bug fix. [14-Apr-97]
 	[changed]
 	global
 		- can find tag file in obj directory.
+
+version 1.9	fix some bugs, add options and support of 1.79 nvi [21-Apr-97]
+
+	[fixed bug]
+	htags   - doesn't keep the code formatted correctly.
+		  So, changed to convert tabs in source files into spaces.
+		  (expand(1) needed)
+		
+		Thanks to Andy Newman.
+
+		- cannot print error message correctly.
+	[changed]
+	gctags, btreeop
+		- modify for SunOS 4.1.3.
+
+		Thanks to Yoshiharu Ito.
+
+	[added]
+	btreeop - META record and 'format version record' is available.
+		  (It will be used in the furture.)
+		- -A and -D option added. (It will be used in the future.)
+	htags   - use temporary directory specified by TMPDIR environment
+		  variable.
+		- -l option added.
+
+		Thanks to Jeff Trawick. This option is his idea.
+
+	nvi-1.79.diff
+		- patch for nvi 1.79 to make extended vi.
