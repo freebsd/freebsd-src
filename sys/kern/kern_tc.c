@@ -291,7 +291,7 @@ tc_init(struct timecounter *tc)
 {
 	unsigned u;
 
-	printf("Timecounter \"%s\"  frequency %ju Hz",
+	printf("Timecounter \"%s\" frequency %ju Hz",
 	    tc->tc_name, (intmax_t)tc->tc_frequency);
 
 	u = tc->tc_frequency / tc->tc_counter_mask;
