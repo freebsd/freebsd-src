@@ -1939,9 +1939,19 @@ uma_zone_slab(uma_zone_t zone, int flags)
 	 * buckets there too we will recurse in kmem_alloc and bad
 	 * things happen.  So instead we return a NULL bucket, and make
 	 * the code that allocates buckets smart enough to deal with it
+	 *
+	 * XXX: While we want this protection for the bucket zones so that
+	 * recursion from the VM is handled (and the calling code that
+	 * allocates buckets knows how to deal with it), we do not want
+	 * to prevent allocation from the slab header zones (slabzone
+	 * and slabrefzone) if uk_recurse is not zero for them.  The
+	 * reason is that it could lead to NULL being returned for
+	 * slab header allocations even in the M_WAITOK case, and the
+	 * caller can't handle that.
 	 */
 	if (keg->uk_flags & UMA_ZFLAG_INTERNAL && keg->uk_recurse != 0)
-		return (NULL);
+		if ((zone != slabzone) && (zone != slabrefzone))
+			return (NULL);
 
 	slab = NULL;
 
