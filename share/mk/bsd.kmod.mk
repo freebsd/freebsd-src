@@ -111,7 +111,6 @@ CFLAGS+=	-I${DESTDIR}/usr/include
 
 .if defined(VFS_KLD)
 SRCS+=		vnode_if.h
-CLEANFILES+=	vnode_if.h vnode_if.c
 .endif
 
 .if ${OBJFORMAT} == elf
@@ -261,9 +260,39 @@ KERN=	${.CURDIR}/../../kern
 KERN=	${.CURDIR}/../../sys/kern
 .endif
 
-.ORDER: vnode_if.c vnode_if.h
-vnode_if.c vnode_if.h:	${KERN}/vnode_if.sh ${KERN}/vnode_if.src
-	sh ${KERN}/vnode_if.sh ${KERN}/vnode_if.src
+.for _src in ${SRCS:Mopt_*.h}
+CLEANFILES+=	${_src}
+.if !target(${_src})
+${_src}:
+	touch ${.TARGET}
+.endif
+.endfor
+
+.for _srcsrc in kern/bus_if.m kern/device_if.m dev/iicbus/iicbb_if.m \
+    dev/iicbus/iicbus_if.m isa/isa_if.m dev/mii/miibus_if.m pci/pci_if.m \
+    dev/smbus/smbus_if.m dev/usb/usb_if.m
+.for _ext in c h
+.for _src in ${SRCS:M${_srcsrc:T:R}.${_ext}}
+CLEANFILES+=	${_src}
+.if !target(${_src})
+${_src}: @
+.if exists(@)
+${_src}: @/kern/makedevops.pl @/${_srcsrc}
+.endif
+	perl @/kern/makedevops.pl -${_ext} @/${_srcsrc}
+.endif
+.endfor # _src
+.endfor # _ext
+.endfor # _srcsrc
+
+.if ${SRCS:Mvnode_if.[ch]} != ""
+CLEANFILES+=	vnode_if.c vnode_if.h
+vnode_if.c vnode_if.h: @
+.if exists(@)
+vnode_if.c vnode_if.h: @/kern/vnode_if.sh @/kern/vnode_if.src
+.endif
+	sh @/kern/vnode_if.sh @/kern/vnode_if.src
+.endif
 
 regress:
 
