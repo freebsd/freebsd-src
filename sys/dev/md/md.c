@@ -782,11 +782,14 @@ mdcreate_malloc(struct md_ioctl *mdio)
 				break;
 		}
 	}
-	if (!error)  {
-		mdinit(sc);
-	} else
+	if (error)  {
 		mddestroy(sc, NULL);
-	return (error);
+		return (error);
+	}
+	mdinit(sc);
+	if (!(mdio->md_options & MD_RESERVE))
+		sc->pp->flags |= G_PF_CANDELETE;
+	return (0);
 }
 
 
@@ -989,11 +992,14 @@ mdcreate_swap(struct md_ioctl *mdio, struct thread *td)
 		}
 	}
 	error = mdsetcred(sc, td->td_ucred);
-	if (error)
+	if (error) {
 		mddestroy(sc, td);
-	else
-		mdinit(sc);
-	return (error);
+		return (error);
+	}
+	mdinit(sc);
+	if (!(mdio->md_options & MD_RESERVE))
+		sc->pp->flags |= G_PF_CANDELETE;
+	return (0);
 }
 
 static int
