@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: msg.c,v 1.19 1995/05/20 13:24:34 jkh Exp $
+ * $Id: msg.c,v 1.20 1995/05/20 14:05:31 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -88,7 +88,7 @@ msgInfo(char *fmt, ...)
     attrset(attrs);
     refresh();
     if (OnVTY) {
-	msgDebug("Informational message `%s'\n", errstr);
+	msgDebug("Information: `%s'\n", errstr);
 	msgInfo(NULL);
     }
     free(errstr);
