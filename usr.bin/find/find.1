@@ -82,6 +82,9 @@ If the referenced file does not exist, the file information and type will
 be for the link itself.
 File information of all symbolic links not on
 the command line is that of the link itself.
+This is a suitable replacement for the archaic
+.Ic -follow
+option.
 .It Fl L
 Cause the file information and file type (see
 .Xr stat 2 )
@@ -256,7 +259,7 @@ It ensures that you have write permission while you are placing files in a
 directory, then sets the directory's permissions as the last thing.
 .It Ic -empty
 True if the current file or directory is empty.
-.It Ic -exec Ar utility Op Ar argument ... ;
+.It Ic -exec Ar utility Oo Ar argument ...  Oc Li \&;
 True if the program named
 .Ar utility
 returns a zero value as its exit status.
@@ -495,7 +498,7 @@ the command is not executed and the
 value of the
 .Ic -ok
 expression is false.
-.It Ic -okdir Ar utility Op Ar argument ... ;
+.It Ic -okdir Ar utility Oo Ar argument ... Oc Li \&;
 The
 .Ic -okdir
 primary is identical to the
@@ -718,10 +721,20 @@ Print out a list of all the files that are either owned by
 .Dq wnj
 or that are newer than
 .Pa ttt .
-.It Li "find . -newerct '1 minute ago' -print"
+.It Li "find / -newerct '1 minute ago' -print"
 Print out a list of all the files whose inode change time is more
 recent than the current time minus one minute.
+.It Li "find / -type f -exec echo {} \e\;"
+Use the
+.Xr echo 1
+command to print out a list of all the files.
 .El
+.Sh COMPATIBILITY
+The
+.Ic -follow
+option has been deprecated;
+.Fl H
+is considered to be a suitable replacement.
 .Sh SEE ALSO
 .Xr chflags 1 ,
 .Xr chmod 1 ,
@@ -752,7 +765,7 @@ primaries are extensions to
 .St -p1003.2 .
 .Pp
 Historically, the
-.Fl d , h
+.Fl d , H
 and
 .Fl x
 options were implemented using the primaries
