@@ -75,8 +75,8 @@
 #include <sys/vnode.h>
 #include <sys/file.h>
 #include <sys/uio.h>
+#include <sys/disklabel.h>		/* YF - needed anyway for disksort() */
 #ifdef TEST_LABELLING
-#include <sys/disklabel.h>
 #include <sys/diskslice.h>
 #include <sys/stat.h>
 #endif
@@ -160,7 +160,7 @@ vnopen(dev_t dev, int flags, int mode, struct proc *p)
 
 #ifdef DEBUG
 	if (vndebug & VDB_FOLLOW)
-		printf("vnopen(%x, %x, %x, %x)\n", dev, flags, mode, p);
+		printf("vnopen(0x%lx, 0x%x, 0x%x, %p)\n", dev, flags, mode, p);
 #endif
 	if (unit >= numvnd) {
 		/*
@@ -229,7 +229,7 @@ vnstrategy(struct buf *bp)
 
 #ifdef DEBUG
 	if (vndebug & VDB_FOLLOW)
-		printf("vnstrategy(%x): unit %d\n", bp, unit);
+		printf("vnstrategy(%p): unit %d\n", bp, unit);
 #endif
 	if ((vn->sc_flags & VNF_INITED) == 0) {
 		bp->b_error = ENXIO;
@@ -264,7 +264,7 @@ vnstrategy(struct buf *bp)
 	flags = bp->b_flags | B_CALL;
 	for (resid = bp->b_resid; resid; resid -= sz) {
 		struct vnode *vp;
-		daddr_t nbn;
+		daddr_t nbn;			/* YYY - bn was int !? */
 		int off, s, nra;
 
 		nra = 0;
@@ -276,7 +276,8 @@ vnstrategy(struct buf *bp)
 			nra = 0;
 #endif
 
-		if (off = bn % bsize)
+		off = bn % bsize;
+		if (off)
 			sz = bsize - off;
 		else
 			sz = (1 + nra) * bsize;
@@ -284,7 +285,7 @@ vnstrategy(struct buf *bp)
 			sz = resid;
 #ifdef DEBUG
 		if (vndebug & VDB_IO)
-			printf("vnstrategy: vp %x/%x bn %x/%x sz %x\n",
+			printf("vnstrategy: vp %p/%p bn 0x%x/0x%lx sz 0x%x\n",
 			       vn->sc_vp, vp, bn, nbn, sz);
 #endif
 
@@ -364,7 +365,7 @@ vnstart(struct vn_softc *vn)
 	vn->sc_tab.b_actf = bp->b_actf;
 #ifdef DEBUG
 	if (vndebug & VDB_IO)
-		printf("vnstart(%d): bp %x vp %x blkno %x addr %x cnt %x\n",
+		printf("vnstart(%d): bp %p vp %p blkno 0x%lx addr %p cnt 0x%lx\n",
 		       0, bp, bp->b_vp, bp->b_blkno, bp->b_data,
 		       bp->b_bcount);
 #endif
@@ -383,14 +384,14 @@ vniodone(struct buf *bp)
 	s = splbio();
 #ifdef DEBUG
 	if (vndebug & VDB_IO)
-		printf("vniodone(%d): bp %x vp %x blkno %x addr %x cnt %x\n",
+		printf("vniodone(%d): bp %p vp %p blkno 0x%lx addr %p cnt 0x%lx\n",
 		       0, bp, bp->b_vp, bp->b_blkno, bp->b_data,
 		       bp->b_bcount);
 #endif
 	if (bp->b_error) {
 #ifdef DEBUG
 		if (vndebug & VDB_IO)
-			printf("vniodone: bp %x error %d\n", bp, bp->b_error);
+			printf("vniodone: bp %p error %d\n", bp, bp->b_error);
 #endif
 		pbp->b_flags |= B_ERROR;
 		pbp->b_error = biowait(bp);
@@ -400,7 +401,7 @@ vniodone(struct buf *bp)
 	if (pbp->b_resid == 0) {
 #ifdef DEBUG
 		if (vndebug & VDB_IO)
-			printf("vniodone: pbp %x iodone\n", pbp);
+			printf("vniodone: pbp %p iodone\n", pbp);
 #endif
 		biodone(pbp);
 	}
@@ -424,7 +425,7 @@ vnioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 
 #ifdef DEBUG
 	if (vndebug & VDB_FOLLOW)
-		printf("vnioctl(%x, %x, %x, %x, %x): unit %d\n",
+		printf("vnioctl(0x%lx, 0x%lx, %p, 0x%x, %p): unit %d\n",
 		       dev, cmd, data, flag, p, unit);
 #endif
 
@@ -468,9 +469,11 @@ vnioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 		 * have to worry about them.
 		 */
 		NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, vio->vn_file, p);
-		if (error = vn_open(&nd, FREAD|FWRITE, 0))
+		error = vn_open(&nd, FREAD|FWRITE, 0);
+		if (error)
 			return(error);
-		if (error = VOP_GETATTR(nd.ni_vp, &vattr, p->p_ucred, p)) {
+		error = VOP_GETATTR(nd.ni_vp, &vattr, p->p_ucred, p);
+		if (error) {
 			VOP_UNLOCK(nd.ni_vp);
 			(void) vn_close(nd.ni_vp, FREAD|FWRITE, p->p_ucred, p);
 			return(error);
@@ -478,7 +481,8 @@ vnioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 		VOP_UNLOCK(nd.ni_vp);
 		vn->sc_vp = nd.ni_vp;
 		vn->sc_size = btodb(vattr.va_size);	/* note truncation */
-		if (error = vnsetcred(vn, p->p_ucred)) {
+		error = vnsetcred(vn, p->p_ucred);
+		if (error) {
 			(void) vn_close(nd.ni_vp, FREAD|FWRITE, p->p_ucred, p);
 			return(error);
 		}
@@ -499,7 +503,7 @@ vnioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 #endif
 #ifdef DEBUG
 		if (vndebug & VDB_INIT)
-			printf("vnioctl: SET vp %x size %x\n",
+			printf("vnioctl: SET vp %p size %x\n",
 			       vn->sc_vp, vn->sc_size);
 #endif
 		break;
@@ -599,7 +603,7 @@ vnclear(struct vn_softc *vn)
 
 #ifdef DEBUG
 	if (vndebug & VDB_FOLLOW)
-		printf("vnclear(%x): vp %x\n", vp);
+		printf("vnclear(%p): vp %p\n", vn, vp);	/* YF - added vn */
 #endif
 	vn->sc_flags &= ~VNF_INITED;
 	if (vp == (struct vnode *)0)
