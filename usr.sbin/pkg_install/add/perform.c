@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.17 1995/04/19 14:54:25 jkh Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.18 1995/04/22 07:40:54 jkh Exp $";
 #endif
 
 /*
@@ -58,7 +58,8 @@ pkg_do(char *pkg)
 {
     char pkg_fullname[FILENAME_MAX];
     char home[FILENAME_MAX];
-    char *tmp;
+    char extract_contents[FILENAME_MAX];
+    char *where_to, *tmp;
     FILE *cfile;
     int code = 0;
     PackingList p;
@@ -91,6 +92,57 @@ pkg_do(char *pkg)
 	    whinge("Can't find package '%s'.", pkg_fullname);
 	    return 1;
 	}
+	Home = make_playpen(PlayPen, 0);
+	sprintf(extract_contents, "--fast-read %s", CONTENTS_FNAME);
+	if (unpack(pkg_fullname, extract_contents)) {
+	    whinge("Unable to extract table of contents file from `%s' - not a package?.", pkg_fullname);
+	    goto bomb;
+	}
+	cfile = fopen(CONTENTS_FNAME, "r");
+	if (!cfile) {
+	    whinge("Unable to open table of contents file `%s' - not a package?", CONTENTS_FNAME);
+	    goto bomb;
+	}
+	read_plist(&Plist, cfile);
+	fclose(cfile);
+
+	/*
+	 * If we have a prefix, delete the first one we see and add this
+	 * one in place of it.
+	 */
+	if (Prefix) {
+	    delete_plist(&Plist, FALSE, PLIST_CWD, NULL);
+	    add_plist_top(&Plist, PLIST_CWD, Prefix);
+	}
+
+	/* Extract directly rather than moving?  Oh goodie! */
+	if (find_plist_option(&Plist, "extract-in-place")) {
+	    if (Verbose)
+		printf("Doing in-place extraction for %s\n", pkg_fullname);
+	    p = find_plist(&Plist, PLIST_CWD);
+	    if (p) {
+		if (!isdir(p->name) && !NoInstall) {
+		    if (Verbose)
+			printf("Desired prefix of %s does not exist, creating..\n", p->name);
+		    vsystem("mkdir -p %s", p->name);
+		    if (chdir(p->name)) {
+			whinge("Unable to change directory to `%s' - no permission?", p->name);
+			perror("chdir");
+			leave_playpen();
+			return 1;
+		    }
+		}
+		where_to = p->name;
+	    }
+	    else {
+		whinge("No prefix specified in `%s' - this is a bad package!",
+		       pkg_fullname);
+		leave_playpen();
+		return 1;
+	    }
+	}
+	else
+	    where_to = PlayPen;
 	/*
 	 * Apply a crude heuristic to see how much space the package will
 	 * take up once it's unpacked.  I've noticed that most packages
@@ -100,33 +152,43 @@ pkg_do(char *pkg)
 	    whinge("Can't stat package file '%s'.", pkg_fullname);
 	    return 1;
 	}
-	sb.st_size *= 4;
-	Home = make_playpen(PlayPen, sb.st_size);
+
+	if (min_free(where_to) < sb.st_size * 4) {
+	    whinge("Projected size of %d exceeds free space in %s.",
+		   sb.st_size * 4, where_to);
+	    whinge("Not extracting %s, sorry!", pkg_fullname);
+	    goto bomb;
+	}
+
+	/* If this is a direct extract and we didn't want it, stop now */
+	if (where_to != PlayPen && NoInstall)
+	    goto success;
+
+	setenv(PKG_PREFIX_VNAME,
+	       (p = find_plist(&Plist, PLIST_CWD)) ? p->name : NULL, 1);
+	/* Protect against old packages with bogus @name fields */
+	PkgName = (p = find_plist(&Plist, PLIST_NAME)) ? p->name : "anonymous";
+
+	/* See if we're already registered */
+	sprintf(LogDir, "%s/%s", (tmp = getenv(PKG_DBDIR)) ? tmp : DEF_LOG_DIR,
+		basename_of(PkgName));
+	if (isdir(LogDir)) {
+	    char tmp[FILENAME_MAX];
+
+	    whinge("Package `%s' already recorded as installed.\n", PkgName);
+	    code = 1;
+	    goto success;	/* close enough for government work */
+        }
+
+	/* Finally unpack the whole mess */
 	if (unpack(pkg_fullname, NULL)) {
-	    leave_playpen();
-	    return 1;
+	    whinge("Unable to extract `%s'!", pkg_fullname);
+	    goto bomb;
 	}
 
-	if (sanity_check(pkg_fullname)) {
-	    leave_playpen();
-	    return 1;
-	}
+	if (sanity_check(pkg_fullname))
+	    goto bomb;
 
-	cfile = fopen(CONTENTS_FNAME, "r");
-	if (!cfile) {
-	    whinge("Unable to open %s file.", CONTENTS_FNAME);
-	    goto fail;
-	}
-	read_plist(&Plist, cfile);
-	fclose(cfile);
-	if (Prefix) {
-	    /*
-	     * If we have a prefix, delete the first one we see and add this
-	     * one in place of it.
-	     */
-	    delete_plist(&Plist, FALSE, PLIST_CWD, NULL);
-	    add_plist_top(&Plist, PLIST_CWD, Prefix);
-	}
 	/* If we're running in MASTER mode, just output the plist and return */
 	if (AddMode == MASTER) {
 	    printf("%s\n", where_playpen());
@@ -134,28 +196,28 @@ pkg_do(char *pkg)
 	    return 0;
 	}
     }
-    setenv(PKG_PREFIX_VNAME,
-	   (p = find_plist(&Plist, PLIST_CWD)) ? p->name : NULL, 1);
-    /* Protect against old packages with bogus @name fields */
-    PkgName = (p = find_plist(&Plist, PLIST_NAME)) ? p->name : "anonymous";
-    sprintf(LogDir, "%s/%s", (tmp = getenv(PKG_DBDIR)) ? tmp : DEF_LOG_DIR,
-    	    basename_of(PkgName));
-    if (isdir(LogDir)) {
-	whinge("Package `%s' already recorded as installed.\n", PkgName);
-	code = 1;
-	goto success;	/* close enough for government work */
-    }
     for (p = Plist.head; p ; p = p->next) {
 	if (p->type != PLIST_PKGDEP)
 	    continue;
 	if (Verbose)
 	    printf("Package `%s' depends on `%s'", PkgName, p->name);
 	if (!Fake && vsystem("pkg_info -e %s", p->name)) {
-	    char tmp[120];
+	    char *cp, tmp[FILENAME_MAX], path[FILENAME_MAX*2];
 
 	    if (Verbose)
 		printf(" which is not currently loaded");
-	    sprintf(tmp, "%s/%s.tgz", Home, p->name);
+	    cp = getenv("PKG_PATH");
+	    if (!cp)
+		cp = Home;
+	    strcpy(path, cp);
+	    cp = path;
+	    while (cp) {
+		char *cp2 = strsep(&cp, ":");
+
+		sprintf(tmp, "%s/%s.tgz", cp2 ? cp2 : cp, p->name);
+		if (fexists(tmp))
+		    break;
+	    }
 	    if (fexists(tmp)) {
 		if (Verbose)
 		    printf(" but was found - loading:\n");
@@ -169,7 +231,7 @@ pkg_do(char *pkg)
 		    printf("\t`%s' loaded successfully.\n", p->name);
 	    }
 	    else {
-	    	whinge("and was not found%s.", p->name,
+	    	printf("and was not found%s.\n",
 	    	       Force ? " (proceeding anyway)" : "");
 	    	if (!Force)
 		    code++;
@@ -201,6 +263,7 @@ pkg_do(char *pkg)
 	    printf("Running install with PRE-INSTALL for %s..\n", PkgName);
 	if (!Fake && vsystem("./%s %s PRE-INSTALL", INSTALL_FNAME, PkgName)) {
 	    whinge("Install script returned error status.");
+	    unlink(INSTALL_FNAME);
 	    code = 1;
 	    goto success;		/* nothing to uninstall yet */
 	}
@@ -217,18 +280,22 @@ pkg_do(char *pkg)
 	    if (vsystem("/usr/sbin/mtree -u -f %s -d -e -p %s",
 			MTREE_FNAME, p ? p->name : "/")) {
 		perror("error in the execution of mtree");
+		unlink(MTREE_FNAME);
 		goto fail;
 	    }
 	}
+	unlink(MTREE_FNAME);
     }
     if (!NoInstall && fexists(INSTALL_FNAME)) {
 	if (Verbose)
 	    printf("Running install with POST-INSTALL for %s..\n", PkgName);
 	if (!Fake && vsystem("./%s %s POST-INSTALL", INSTALL_FNAME, PkgName)) {
 	    whinge("Install script returned error status.");
+	    unlink(INSTALL_FNAME);
 	    code = 1;
 	    goto fail;
 	}
+	unlink(INSTALL_FNAME);
     }
     if (!NoRecord && !Fake) {
 	char contents[FILENAME_MAX];
@@ -257,9 +324,9 @@ pkg_do(char *pkg)
 	/* Make sure pkg_info can read the entry */
 	vsystem("chmod a+rx %s", LogDir);
 	if (fexists(DEINSTALL_FNAME))
-	    copy_file(".", DEINSTALL_FNAME, LogDir);
+	    move_file(".", DEINSTALL_FNAME, LogDir);
 	if (fexists(REQUIRE_FNAME))
-	    copy_file(".", REQUIRE_FNAME, LogDir);
+	    move_file(".", REQUIRE_FNAME, LogDir);
 	sprintf(contents, "%s/%s", LogDir, CONTENTS_FNAME);
 	cfile = fopen(contents, "w");
 	if (!cfile) {
@@ -269,10 +336,10 @@ pkg_do(char *pkg)
 	}
 	write_plist(&Plist, cfile);
 	fclose(cfile);
-	copy_file(".", DESC_FNAME, LogDir);
-	copy_file(".", COMMENT_FNAME, LogDir);
+	move_file(".", DESC_FNAME, LogDir);
+	move_file(".", COMMENT_FNAME, LogDir);
 	if (fexists(DISPLAY_FNAME))
-	    copy_file(".", DISPLAY_FNAME, LogDir);
+	    move_file(".", DISPLAY_FNAME, LogDir);
 	for (p = Plist.head; p ; p = p->next) {
 	    if (p->type != PLIST_PKGDEP)
 		continue;
@@ -310,6 +377,10 @@ pkg_do(char *pkg)
 	    warn("Cannot open display file `%s'.", p->name);
     }
 
+    goto success;
+
+ bomb:
+    code = 1;
     goto success;
 
  fail:
