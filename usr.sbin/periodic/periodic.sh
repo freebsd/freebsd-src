@@ -92,7 +92,6 @@ do
                     cp /dev/null $tmp_output
                 fi
             done
-            rm -f $tmp_output
         done
         if [ $empty = TRUE ]
         then
@@ -101,3 +100,4 @@ do
         fi
     } | eval $pipe
 done
+rm -f $tmp_output
