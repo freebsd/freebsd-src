@@ -25,6 +25,8 @@
  * $FreeBSD$
  */
 
+#include "opt_puc.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -41,8 +43,6 @@
 
 #include <dev/sio/sioreg.h>
 #include <dev/pccard/pccardvar.h>
-
-#include <opt_puc.h>
 
 const struct puc_device_description rscom_devices = {
 
