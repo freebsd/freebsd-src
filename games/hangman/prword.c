@@ -45,6 +45,7 @@ static const char rcsid[] =
  * prword:
  *	Print out the current state of the word
  */
+void
 prword()
 {
 	move(KNOWNY, KNOWNX + sizeof "Word: ");

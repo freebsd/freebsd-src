@@ -31,14 +31,17 @@
  * SUCH DAMAGE.
  *
  *	@(#)hangman.h	8.1 (Berkeley) 5/31/93
+ *	$FreeBSD$
  */
 
+# include	<stdlib.h>
 # include	<string.h>
 # include	<curses.h>
 # include	<sys/types.h>
 # include	<sys/stat.h>
 # include	<ctype.h>
 # include	<signal.h>
+# include	<unistd.h>
 # include	"pathnames.h"
 
 # define	MINLEN	6
@@ -77,4 +80,13 @@ extern FILE	*Dict;
 
 extern off_t	Dict_size;
 
-void	die();
+void	die __P((int));
+void	endgame __P((void));
+void	getguess __P((void));
+void	getword __P((void));
+void	playgame __P((void));
+void	prdata __P((void));
+void	prman __P((void));
+void	prword __P((void));
+char	readch __P((void));
+void	setup __P((void));
