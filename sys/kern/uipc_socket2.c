@@ -189,7 +189,7 @@ sonewconn(head, connstatus)
 
 	if (head->so_qlen > 3 * head->so_qlimit / 2)
 		return ((struct socket *)0);
-	so = soalloc(0);
+	so = soalloc(M_NOWAIT);
 	if (so == NULL)
 		return ((struct socket *)0);
 	if ((head->so_options & SO_ACCEPTFILTER) != 0)
