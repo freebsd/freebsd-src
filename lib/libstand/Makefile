@@ -12,7 +12,8 @@ NOPIC=		YES
 INCS=		stand.h
 MAN=		libstand.3
 
-CFLAGS+= -ffreestanding
+CFLAGS+= -ffreestanding -Wformat
+CFLAGS+= -I${.CURDIR}
 
 .if ${MACHINE_ARCH} == "alpha"
 CFLAGS+=	-mno-fp-regs
@@ -25,7 +26,7 @@ CFLAGS+=	-msoft-float
 .endif
 
 # standalone components and stuff we have modified locally
-SRCS+=	__main.c assert.c bcd.c bswap.c environment.c getopt.c gets.c \
+SRCS+=	zutil.h __main.c assert.c bcd.c bswap.c environment.c getopt.c gets.c \
 	globals.c pager.c printf.c strdup.c strerror.c strtol.c random.c \
 	sbrk.c twiddle.c zalloc.c zalloc_malloc.c
 
@@ -132,9 +133,22 @@ _${file}: ${file}
 
 # decompression functionality from libz
 .PATH:	${.CURDIR}/../libz
-CFLAGS+=-DHAVE_MEMCPY
-SRCS+=	adler32.c crc32.c infblock.c infcodes.c inffast.c inflate.c \
-	inftrees.c infutil.c zutil.c 
+CFLAGS+=-DHAVE_MEMCPY -I${.CURDIR}/../libz
+SRCS+=	adler32.c crc32.c _infblock.c _infcodes.c _inffast.c _inflate.c \
+	_inftrees.c _infutil.c _zutil.c _zutil.h
+
+# aargh
+.for file in zutil.h
+CLEANFILES+=	_${file} _${file}.orig
+
+_${file}: ${file} ${file}.diff
+	patch -s -b .orig -o ${.TARGET} < ${.ALLSRC:M*.diff} ${.ALLSRC:M*.[ch]}
+.endfor
+
+.for file in infblock.c infcodes.c inffast.c inflate.c inftrees.c infutil.c zutil.c
+_${file}: ${file}
+	sed "s|zutil\.h|_zutil.h|" ${.ALLSRC} > ${.TARGET}
+.endfor
 
 # io routines
 SRCS+=	closeall.c dev.c ioctl.c nullfs.c stat.c \

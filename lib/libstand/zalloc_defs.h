@@ -96,6 +96,7 @@ typedef struct Guard {
 #define MATYPE		long double
 #define MALLOCALIGN	((sizeof(MATYPE) > sizeof(Guard)) ? sizeof(MATYPE) : sizeof(Guard))
 #define GAMAGIC		0x55FF44FD
+#define GAFREE		0x5F54F4DF
 
 #include "zalloc_protos.h"
 
