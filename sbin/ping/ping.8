@@ -41,7 +41,7 @@
 packets to network hosts
 .Sh SYNOPSIS
 .Nm ping
-.Op Fl dfnqrvR
+.Op Fl dfnqrvRQ
 .Op Fl c Ar count
 .Op Fl i Ar wait
 .Op Fl l Ar preload
@@ -115,6 +115,20 @@ For example,
 .Dq Li \-p ff
 will cause the sent packet to be filled with all
 ones.
+.It Fl Q
+Somewhat quiet output.
+Don't display ICMP error messages that are in response to our query messages.
+Originally, the
+.Fl v
+flag was required to display such errors, but
+.Fl v
+displays all ICMP error messages.  On a busy machine, this output can
+be overbearing.  Without the
+.Fl Q
+flag, 
+.Nm
+prints out any ICMP error messages caused by its own ECHO_REQUEST
+messages.
 .It Fl q
 Quiet output.
 Nothing is displayed except the summary lines at startup time and
@@ -316,6 +330,10 @@ There's not much that that can be done about this, however.
 .Pp
 Flood pinging is not recommended in general, and flood pinging the
 broadcast address should only be done under very controlled conditions.
+.Pp
+The
+.Fl v
+option is not worth much on busy hosts.
 .Sh SEE ALSO
 .Xr netstat 1 ,
 .Xr ifconfig 8 ,
