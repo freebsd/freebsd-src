@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.153.2.11 1999/05/12 09:04:17 jkh Exp $
+ * $Id: sysinstall.h,v 1.153.2.12 1999/05/15 14:38:44 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -645,6 +645,7 @@ extern void	msgError(char *fmt, ...);
 extern void	msgFatal(char *fmt, ...);
 extern void	msgConfirm(char *fmt, ...);
 extern void	msgNotify(char *fmt, ...);
+extern void	msgCNotify(char *fmt, ...);
 extern void	msgWeHaveOutput(char *fmt, ...);
 extern int	msgYesNo(char *fmt, ...);
 extern char	*msgGetInput(char *buf, char *fmt, ...);

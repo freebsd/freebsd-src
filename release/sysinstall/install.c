@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.223.2.12 1999/05/07 11:03:21 jkh Exp $
+ * $Id: install.c,v 1.223.2.13 1999/05/12 09:04:14 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -173,19 +173,6 @@ checkLabels(Boolean whinge, Chunk **rdev, Chunk **sdev, Chunk **udev, Chunk **vd
 	msgConfirm("No swap devices found - you must create at least one\n"
 		   "swap partition.");
 	status = FALSE;
-    }
-    if (!usrdev && whinge && !variable_get(VAR_NO_USR)) {
-	msgConfirm("WARNING:  No /usr filesystem found.  This is not technically\n"
-		   "an error if your root filesystem is big enough (or you later\n"
-		   "intend to mount your /usr filesystem over NFS), but it may otherwise\n"
-		   "cause you trouble if you're not exactly sure what you are doing!");
-    }
-    if (!vardev && whinge && variable_cmp(SYSTEM_STATE, "upgrade")) {
-	msgConfirm("WARNING:  No /var filesystem found.  This is not technically\n"
-		   "an error if your root filesystem is big enough (or you later\n"
-		   "intend to link /var to someplace else), but it may otherwise\n"
-		   "cause your root filesystem to fill up if you receive lots of mail\n"
-		   "or edit large temporary files.");
     }
     return status;
 }
