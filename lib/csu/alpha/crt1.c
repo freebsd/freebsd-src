@@ -30,7 +30,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: crt1.c,v 1.1.1.1 1998/03/07 20:27:10 jdp Exp $
+ *      $Id: crt1.c,v 1.1.1.2 1998/03/11 20:36:09 jb Exp $
  */
 
 #ifndef __GNUC__
@@ -39,7 +39,6 @@
 
 #include <stdlib.h>
 
-#ifdef	HAVE_RTLD
 #include <sys/exec.h>
 #include <sys/syscall.h>
 #include <rtld.h>
@@ -58,15 +57,6 @@ extern int		__syscall (int, ...);
 
 #pragma weak _DYNAMIC
 extern int _DYNAMIC;
-#else
-/*
- * When doing a bootstrap build, the header files for runtime
- * loader support are not available, so this source file is
- * compiled to a static object.
- */
-#define	Obj_Entry	void
-struct	ps_strings;
-#endif
 
 extern void _init(void);
 extern void _fini(void);
@@ -93,7 +83,6 @@ _start(char **ap,
 	if(argc > 0)
 		__progname = argv[0];
 
-#ifdef	HAVE_RTLD
 	if (&_DYNAMIC != NULL) {
 		if ((obj == NULL) || (obj->magic != RTLD_MAGIC))
 			_FATAL("Corrupt Obj_Entry pointer in GOT");
@@ -103,7 +92,6 @@ _start(char **ap,
 		__mainprog_obj = obj;
 		atexit(cleanup);
 	}
-#endif
 
 	atexit(_fini);
 	_init();
