@@ -360,11 +360,10 @@ vm_object_allocate(objtype_t type, vm_size_t size)
 void
 vm_object_reference(vm_object_t object)
 {
-	GIANT_REQUIRED;
-
 	if (object == NULL)
 		return;
 
+	mtx_lock(&Giant);
 #if 0
 	/* object can be re-referenced during final cleaning */
 	KASSERT(!(object->flags & OBJ_DEAD),
@@ -377,6 +376,7 @@ vm_object_reference(vm_object_t object)
 			printf("vm_object_reference: delay in getting object\n");
 		}
 	}
+	mtx_unlock(&Giant);
 }
 
 /*
@@ -427,12 +427,12 @@ vm_object_deallocate(vm_object_t object)
 {
 	vm_object_t temp;
 
-	GIANT_REQUIRED;
-
+	mtx_lock(&Giant);
 	while (object != NULL) {
 
 		if (object->type == OBJT_VNODE) {
 			vm_object_vndeallocate(object);
+			mtx_unlock(&Giant);
 			return;
 		}
 
@@ -447,6 +447,7 @@ vm_object_deallocate(vm_object_t object)
 		 */
 		object->ref_count--;
 		if (object->ref_count > 1) {
+			mtx_unlock(&Giant);
 			return;
 		} else if (object->ref_count == 1) {
 			if (object->shadow_count == 0) {
@@ -487,13 +488,10 @@ vm_object_deallocate(vm_object_t object)
 					continue;
 				}
 			}
-
+			mtx_unlock(&Giant);
 			return;
-
 		}
-
 doterm:
-
 		temp = object->backing_object;
 		if (temp) {
 			TAILQ_REMOVE(&temp->shadow_head, object, shadow_list);
@@ -514,6 +512,7 @@ doterm:
 			vm_object_terminate(object);
 		object = temp;
 	}
+	mtx_unlock(&Giant);
 }
 
 /*
