@@ -1,3 +1,16 @@
+Wed Jan  8 14:50:47 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* Makefile.in: Remove CVSid; we decided to get rid
+	of these some time ago.
+
+Thu Jan  2 13:30:56 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* Makefile.in: Remove "675" paragraph; see ../ChangeLog for rationale.
+
+Fri Aug 16 16:05:56 1996  Norbert Kiesel  <nk@col.sw-ley.de>
+
+	* Makefile.in (installdirs): new (empty) target
+
 Sun Apr 14 11:07:43 1996  Karl Fogel  <kfogel@floss.red-bean.com>
 
         * .cvsignore: new file.

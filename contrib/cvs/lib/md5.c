@@ -15,7 +15,17 @@
  * will fill a supplied 16-byte array with the digest.
  */
 
+/* This code was modified in 1997 by Jim Kingdon of Cyclic Software to
+   not require an integer type which is exactly 32 bits.  This work
+   draws on the changes for the same purpose by Tatu Ylonen
+   <ylo@cs.hut.fi> as part of SSH, but since I didn't actually use
+   that code, there is no copyright issue.  I hereby disclaim
+   copyright in any changes I have made; this code remains in the
+   public domain.  */
+
+#ifdef HAVE_CONFIG_H
 #include "config.h"
+#endif
 
 #if HAVE_STRING_H || STDC_HEADERS
 #include <string.h>	/* for memcpy() */
@@ -32,25 +42,30 @@
 
 #include "md5.h"
 
-void byteReverse PROTO ((unsigned char *buf, unsigned longs));
+/* Little-endian byte-swapping routines.  Note that these do not
+   depend on the size of datatypes such as uint32, nor do they require
+   us to detect the endianness of the machine we are running on.  It
+   is possible they should be macros for speed, but I would be
+   surprised if they were a performance bottleneck for MD5.  */
 
-#ifndef ASM_MD5
-/*
- * Note: this code is harmless on little-endian machines.
- */
-void byteReverse (buf, longs)
-     unsigned char *buf;
-     unsigned longs;
+static uint32
+getu32 (addr)
+     const unsigned char *addr;
 {
-	uint32 t;
-	do {
-		t = (uint32)((unsigned)buf[3]<<8 | buf[2]) << 16 |
-		            ((unsigned)buf[1]<<8 | buf[0]);
-		*(uint32 *)buf = t;
-		buf += 4;
-	} while (--longs);
+	return (((((unsigned long)addr[3] << 8) | addr[2]) << 8)
+		| addr[1]) << 8 | addr[0];
 }
-#endif
+
+static void
+putu32 (data, addr)
+     uint32 data;
+     unsigned char *addr;
+{
+	addr[0] = (unsigned char)data;
+	addr[1] = (unsigned char)(data >> 8);
+	addr[2] = (unsigned char)(data >> 16);
+	addr[3] = (unsigned char)(data >> 24);
+}
 
 /*
  * Start MD5 accumulation.  Set bit count to 0 and buffer to mysterious
@@ -84,7 +99,7 @@ MD5Update(ctx, buf, len)
 	/* Update bitcount */
 
 	t = ctx->bits[0];
-	if ((ctx->bits[0] = t + ((uint32)len << 3)) < t)
+	if ((ctx->bits[0] = (t + ((uint32)len << 3)) & 0xffffffff) < t)
 		ctx->bits[1]++;	/* Carry from low to high */
 	ctx->bits[1] += len >> 29;
 
@@ -93,7 +108,7 @@ MD5Update(ctx, buf, len)
 	/* Handle any leading odd-sized chunks */
 
 	if ( t ) {
-		unsigned char *p = (unsigned char *)ctx->in + t;
+		unsigned char *p = ctx->in + t;
 
 		t = 64-t;
 		if (len < t) {
@@ -101,8 +116,7 @@ MD5Update(ctx, buf, len)
 			return;
 		}
 		memcpy(p, buf, t);
-		byteReverse(ctx->in, 16);
-		MD5Transform(ctx->buf, (uint32 *)ctx->in);
+		MD5Transform(ctx->buf, ctx->in);
 		buf += t;
 		len -= t;
 	}
@@ -111,8 +125,7 @@ MD5Update(ctx, buf, len)
 
 	while (len >= 64) {
 		memcpy(ctx->in, buf, 64);
-		byteReverse(ctx->in, 16);
-		MD5Transform(ctx->buf, (uint32 *)ctx->in);
+		MD5Transform(ctx->buf, ctx->in);
 		buf += 64;
 		len -= 64;
 	}
@@ -149,8 +162,7 @@ MD5Final(digest, ctx)
 	if (count < 8) {
 		/* Two lots of padding:  Pad the first block to 64 bytes */
 		memset(p, 0, count);
-		byteReverse(ctx->in, 16);
-		MD5Transform(ctx->buf, (uint32 *)ctx->in);
+		MD5Transform(ctx->buf, ctx->in);
 
 		/* Now fill the next block with 56 bytes */
 		memset(ctx->in, 0, 56);
@@ -158,15 +170,16 @@ MD5Final(digest, ctx)
 		/* Pad block to 56 bytes */
 		memset(p, 0, count-8);
 	}
-	byteReverse(ctx->in, 14);
 
 	/* Append length in bits and transform */
-	((uint32 *)ctx->in)[ 14 ] = ctx->bits[0];
-	((uint32 *)ctx->in)[ 15 ] = ctx->bits[1];
+	putu32(ctx->bits[0], ctx->in + 56);
+	putu32(ctx->bits[1], ctx->in + 60);
 
-	MD5Transform(ctx->buf, (uint32 *)ctx->in);
-	byteReverse((unsigned char *)ctx->buf, 4);
-	memcpy(digest, ctx->buf, 16);
+	MD5Transform(ctx->buf, ctx->in);
+	putu32(ctx->buf[0], digest);
+	putu32(ctx->buf[1], digest + 4);
+	putu32(ctx->buf[2], digest + 8);
+	putu32(ctx->buf[3], digest + 12);
 	memset(ctx, 0, sizeof(ctx));	/* In case it's sensitive */
 }
 
@@ -182,7 +195,7 @@ MD5Final(digest, ctx)
 
 /* This is the central step in the MD5 algorithm. */
 #define MD5STEP(f, w, x, y, z, data, s) \
-	( w += f(x, y, z) + data,  w = w<<s | w>>(32-s),  w += x )
+	( w += f(x, y, z) + data, w &= 0xffffffff, w = w<<s | w>>(32-s), w += x )
 
 /*
  * The core of the MD5 algorithm, this alters an existing MD5 hash to
@@ -190,11 +203,16 @@ MD5Final(digest, ctx)
  * the data and converts bytes into longwords for this routine.
  */
 void
-MD5Transform(buf, in)
+MD5Transform(buf, inraw)
      uint32 buf[4];
-     uint32 const in[16];
+     const unsigned char inraw[64];
 {
 	register uint32 a, b, c, d;
+	uint32 in[16];
+	int i;
+
+	for (i = 0; i < 16; ++i)
+		in[i] = getu32 (inraw + 4 * i);
 
 	a = buf[0];
 	b = buf[1];
@@ -275,3 +293,37 @@ MD5Transform(buf, in)
 	buf[3] += d;
 }
 #endif
+
+#ifdef TEST
+/* Simple test program.  Can use it to manually run the tests from
+   RFC1321 for example.  */
+#include <stdio.h>
+
+int
+main (int argc, char **argv)
+{
+	struct MD5Context context;
+	unsigned char checksum[16];
+	int i;
+	int j;
+
+	if (argc < 2)
+	{
+		fprintf (stderr, "usage: %s string-to-hash\n", argv[0]);
+		exit (1);
+	}
+	for (j = 1; j < argc; ++j)
+	{
+		printf ("MD5 (\"%s\") = ", argv[j]);
+		MD5Init (&context);
+		MD5Update (&context, argv[j], strlen (argv[j]));
+		MD5Final (checksum, &context);
+		for (i = 0; i < 16; i++)
+		{
+			printf ("%02x", (unsigned int) checksum[i]);
+		}
+		printf ("\n");
+	}
+	return 0;
+}
+#endif /* TEST */

@@ -1,5 +1,3 @@
-/* $CVSid: @(#)hash.h 1.23 94/10/07 $	 */
-
 /*
  * Copyright (c) 1992, Brian Berliner and Jeff Polk
  * 
@@ -20,7 +18,7 @@ enum ntype
 {
     UNKNOWN, HEADER, ENTRIES, FILES, LIST, RCSNODE,
     RCSVERS, DIRS, UPDATE, LOCK, NDBMNODE, FILEATTR,
-    VARIABLE
+    VARIABLE, RCSFIELD
 };
 typedef enum ntype Ntype;
 

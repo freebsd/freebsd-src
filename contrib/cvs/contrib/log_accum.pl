@@ -1,8 +1,6 @@
 #! xPERL_PATHx
 # -*-Perl-*-
 #
-#ident	"@(#)ccvs/contrib:$Name:  $:$Id: log_accum.pl,v 1.4 1996/03/06 15:27:09 woods Exp $"
-#
 # Perl filter to handle the log messages from the checkin of files in
 # a directory.  This script will group the lists of files by log
 # message, and mail a single consolidated log message at the end of
@@ -22,6 +20,7 @@
 #	-M modulename	- set module name to "modulename"
 #	-f logfile	- write commit messages to logfile too
 #	-s		- *don't* run "cvs status -v" for each file
+#	-w		- show working directory with log message
 
 #
 #	Configurable options
@@ -173,9 +172,10 @@ sub read_logfile {
 sub build_header {
     local($header);
     local($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime(time);
-    $header = sprintf("CVSROOT:\t%s\nModule name:\t%s\nChanges by:\t%s@%s\t%02d/%02d/%02d %02d:%02d:%02d",
+    $header = sprintf("CVSROOT:\t%s\nModule name:\t%s\nRepository:\t%s\nChanges by:\t%s@%s\t%02d/%02d/%02d %02d:%02d:%02d",
 		      $cvsroot,
 		      $modulename,
+		      $dir,
 		      $login, $hostdomain,
 		      $year%100, $mon+1, $mday,
 		      $hour, $min, $sec);
@@ -228,7 +228,6 @@ sub mail_notification {
     print MAIL "Date:     " . $rfc822date . "\n";
     print MAIL "Subject:  CVS Update: " . $modulename . "\n";
     print MAIL "To:       " . $mailto . "\n";
-    print MAIL "From:     " . $login . "@" . $hostdomain . "\n";
     print MAIL "Reply-To: " . $replyto . "\n";
     print MAIL "\n";
     print MAIL join("\n", @text), "\n";
@@ -255,9 +254,13 @@ $state = $STATE_NONE;
 $login = getlogin || (getpwuid($<))[0] || "nobody";
 chop($hostname = `hostname`);
 chop($domainname = `domainname`);
+if ($domainname !~ '^\..*') {
+    $domainname = '.' . $domainname;
+}
 $hostdomain = $hostname . $domainname;
 $cvsroot = $ENV{'CVSROOT'};
-$do_status = 1;
+$do_status = 1;			# moderately useful
+$show_wd = 0;			# useless in client/server
 $modulename = "";
 
 # parse command line arguments (file list is seen as one arg)
@@ -284,6 +287,8 @@ while (@ARGV) {
 	$modulename = shift @ARGV;
     } elsif ($arg eq '-s') {
 	$do_status = 0;
+    } elsif ($arg eq '-w') {
+	$show_wd = 1;
     } elsif ($arg eq '-f') {
 	($commitlog) && die("Too many '-f' args\n");
 	$commitlog = shift @ARGV;
@@ -303,10 +308,14 @@ if ($replyto eq '') {
 #
 @path = split('/', $files[0]);
 
-# XXX there are some ugly assumptions in here about module names and
+# XXX There are some ugly assumptions in here about module names and
 # XXX directories relative to the $CVSROOT location -- really should
 # XXX read $CVSROOT/CVSROOT/modules, but that's not so easy to do, since
 # XXX we have to parse it backwards.
+# XXX 
+# XXX Fortunately it's relatively easy for the user to specify the
+# XXX module name as appropriate with a '-M' via the directory
+# XXX matching in loginfo.
 #
 if ($modulename eq "") {
     $modulename = $path[0];	# I.e. the module name == top-level dir
@@ -384,8 +393,10 @@ while (<STDIN>) {
     chop;			# Drop the newline
 
     if (/^In directory/) {
-	push(@log_lines, $_);
-	push(@log_lines, "");
+	if ($show_wd) {		# useless in client/server mode
+	    push(@log_lines, $_);
+	    push(@log_lines, "");
+	}
 	next;
     }
 

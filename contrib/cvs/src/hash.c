@@ -10,7 +10,10 @@
 #include "cvs.h"
 #include <assert.h>
 
-/* global caches */
+/* Global caches.  The idea is that we maintain a linked list of "free"d
+   nodes or lists, and get new items from there.  It has been suggested
+   to use an obstack instead, but off the top of my head, I'm not sure
+   that would gain enough to be worth worrying about.  */
 static List *listcache = NULL;
 static Node *nodecache = NULL;
 
@@ -98,15 +101,27 @@ dellist (listp)
 	if ((p = (*listp)->hasharray[i]) != (Node *) NULL)
 	{
 	    /* put the nodes into the cache */
+#ifndef NOCACHE
 	    p->type = UNKNOWN;
 	    p->next = nodecache;
 	    nodecache = p;
+#else
+	    /* If NOCACHE is defined we turn off the cache.  This can make
+	       it easier to tools to determine where items were allocated
+	       and freed, for tracking down memory leaks and the like.  */
+	    free (p);
+#endif
 	}
     }
 
     /* put it on the cache */
+#ifndef NOCACHE
     (*listp)->next = listcache;
     listcache = *listp;
+#else
+    free ((*listp)->list);
+    free (*listp);
+#endif
     *listp = (List *) NULL;
 }
 
@@ -195,9 +210,13 @@ freenode (p)
     freenode_mem (p);
 
     /* then put it in the cache */
+#ifndef NOCACHE
     p->type = UNKNOWN;
     p->next = nodecache;
     nodecache = p;
+#else
+    free (p);
+#endif
 }
 
 /*
@@ -332,6 +351,19 @@ list_isempty (list)
     return list == NULL || list->list->next == list->list;
 }
 
+static int (*client_comp) PROTO ((const Node *, const Node *));
+static int qsort_comp PROTO ((const void *, const void *));
+
+static int
+qsort_comp (elem1, elem2)
+    const void *elem1;
+    const void *elem2;
+{
+    Node **node1 = (Node **) elem1;
+    Node **node2 = (Node **) elem2;
+    return client_comp (*node1, *node2);
+}
+
 /*
  * sort the elements of a list (in place)
  */
@@ -340,49 +372,48 @@ sortlist (list, comp)
     List *list;
     int (*comp) PROTO ((const Node *, const Node *));
 {
-    Node *head, *remain, *p, *q;
+    Node *head, *remain, *p, **array;
+    int i, n;
 
     /* save the old first element of the list */
     head = list->list;
     remain = head->next;
 
-    /* make the header node into a null list of it's own */
+    /* count the number of nodes in the list */
+    n = 0;
+    for (p = remain; p != head; p = p->next)
+	n++;
+
+    /* allocate an array of nodes and populate it */
+    array = (Node **) xmalloc (sizeof(Node *) * n);
+    i = 0;
+    for (p = remain; p != head; p = p->next)
+	array[i++] = p;
+
+    /* sort the array of nodes */
+    client_comp = comp;
+    qsort (array, n, sizeof(Node *), qsort_comp);
+
+    /* rebuild the list from beginning to end */
     head->next = head->prev = head;
-
-    /* while there are nodes remaining, do insert sort */
-    while (remain != head)
+    for (i = 0; i < n; i++)
     {
-	/* take one from the list */
-	p = remain;
-	remain = remain->next;
-
-	/* traverse the sorted list looking for the place to insert it */
-	for (q = head->next; q != head; q = q->next)
-	{
-	    if (comp (p, q) < 0)
-	    {
-		/* p comes before q */
-		p->next = q;
-		p->prev = q->prev;
-		p->prev->next = p;
-		q->prev = p;
-		break;
-	    }
-	}
-	if (q == head)
-	{
-	    /* it belongs at the end of the list */
-	    p->next = head;
-	    p->prev = head->prev;
-	    p->prev->next = p;
-	    head->prev = p;
-	}
+	p = array[i];
+	p->next = head;
+	p->prev = head->prev;
+	p->prev->next = p;
+	head->prev = p;
     }
+
+    /* release the array of nodes */
+    free (array);
 }
 
 /* Debugging functions.  Quite useful to call from within gdb. */
 
-char *
+static char *nodetypestring PROTO ((Ntype));
+
+static char *
 nodetypestring (type)
     Ntype type;
 {
@@ -400,6 +431,7 @@ nodetypestring (type)
     case NDBMNODE:	return("NDBMNODE");
     case FILEATTR:	return("FILEATTR");
     case VARIABLE:	return("VARIABLE");
+    case RCSFIELD:	return("RCSFIELD");
     }
 
     return("<trash>");
@@ -422,6 +454,11 @@ printnode (node, closure)
 
     return(0);
 }
+
+/* This is global, not static, so that its name is unique and to avoid
+   compiler warnings about it not being used.  But it is not used by CVS;
+   it exists so one can call it from a debugger.  */
+void printlist PROTO ((List *));
 
 void
 printlist (list)

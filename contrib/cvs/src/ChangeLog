@@ -1,1373 +1,1376 @@
-Sun May  5 21:39:02 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+Tue Jun 17 22:48:00 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
-	* vers_ts.c (Version_TS): If sdtp is NULL, go ahead and check
-	RCS_getexpand for options.  Fixes binaries and non-unix clients.
-	* sanity.sh: Fix binfiles-5.5 to test for the correct behavior
-	rather than the buggy behavior which existed when the binfiles-5.5
-	test was written.
-	(binfiles-14c,binfiles-14f): Likewise.
+	* main.c (main): Add --allow-root=ROOT argument; call
+	root_allow_add for each time it is specified.  Call
+	root_allow_free before exiting.
+	* root.c, cvs.h (root_allow_add, root_allow_free, root_allow_ok):
+	New function.
+	* server.c (pserver_authenticate_connection): If root_allow_ok
+	doesn't like the CVSROOT directory, don't allow access.
 
-Sun May  5 17:38:21 1996  Benjamin J. Lee  <benjamin@cyclic.com>
+Tue Jun 17 14:30:14 1997  Jim Kingdon  (unknown@beezley)
 
-        Integrated changes submitted by Ian Taylor <ian@cygnus.com>
+	* client.c: Add "copyright" notice.  If NO_EXT_METHOD, omit
+	start_rsh_method.
+	* client.c (update_entries): Cast argument to MD5Update from
+	char * to unsigned char *.
 
-        * update.c (update_dirent_proc): cvs co -p doesn't print
-        anything when run from an empty directory.
+Mon Jun 16 16:46:28 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
-        * import.c (import_descend_dir): Check for a file in the
-        repository which will be checked out to the same name as the
-        directory.
+	* run.c (piped_child, filter_stream_through_program):
+	If USE_SETMODE_BINARY, then put the pipes into binary mode.
+	* find_names.c, ignore.c, lock.c, wrapper.c: Change fnmatch to
+	CVS_FNMATCH.
+	* client.c (start_server): If NO_EXT_METHOD, then give a fatal
+	error on any use of :ext:.
 
-Thu May  2 13:34:37 1996  Benjamin J. Lee  <benjamin@cyclic.com>
+Sun Jun 15 22:30:27 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
-	* Version 1.7.88
+	* sanity.sh (toplevel): Match U CVSROOT/* lines with DOTSTAR in
+	test toplevel-9.
 
-Thu May  2 01:40:55 1996  Benjamin J. Lee  <benjamin@cyclic.com>
+Thu Jun 12 10:27:51 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
-	* server.c (HAVE_INITGROUPS): Use initgroups() only if
-        located by configure, in the event a system has crypt(), but
-	no initgroups()
+	* sanity.sh (toplevel): Remove Emptydir before starting.
 
-Wed May  1 18:05:02 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+	* sanity.sh: Change "rm -rf" to "rm -r" when deleting working
+	directories (except a few watches cases).  Helps detect cases
+	where the testsuite has cd'd to somewhere other than where we
+	think it has.
+	(basic2): Remove "rm -r first-dir" between tests 49 and 50.  The
+	directory was already deleted in test 45.5.
+	(rcs): Add "cd .." at end of tests.
+	(stamps): No longer cd to TESTDIR; shouldn't be necessary with
+	fix to "rcs" test.
 
-	* sanity.sh (basica): When testing rejection of reserved tag name,
-	use BASE instead of RESERVED.
+Wed Jun 11 22:28:38 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
-Wed May  1 15:15:11 1996  Tom Jarmolowski  <tjj@booklink.com>
+	* sanity.sh (basicb): Also remove CVSROOT/Emptydir at end of
+	test.  Otherwise it affects the toplevel-9 test for remote.
 
-	* rcs.c (linevector_delete): Only copy up to vec->nlines - nlines,
-	not to vec->nlines.
+Tue Jun 10 14:03:32 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
-Wed May  1 15:43:21 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+	* sanity.sh (toplevel): Change "update" and "checkout" to "[a-z]*"
+	as these read "server" instead for "make remotecheck".  Change
+	expect strings for toplevel-9 to accept the behavior of remote CVS
+	(see comments for more discussion).
 
-	* rcscmds.c (RCS_settag): Instead of reserving all tag names
-	containing only uppercase letters, reserve only BASE and HEAD.
-	* sanity.sh (mflag): Revert 26 Mar change; use all-uppercase tag
-	name again.
+	* sanity.sh: New tests stamps-9 through stamps-11 test timestamp
+	behavior on cvs update.
 
-Wed May  1 15:15:11 1996  Tom Jarmolowski  <tjj@booklink.com>
+Mon Jun  9 22:42:50 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
-	* rcs.c (linevector_add): Move increment of i out of larger
-	statement, to avoid assumptions about evaluation order.
+	* sanity.sh: Remove "#! /bin/zsh" line at end.  I assume it was
+	added accidentally.
 
-Tue Apr 30 15:46:03 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+Tue Jun 10 03:08:46 1997  Norbert Kiesel  <nk@psycho.de>
 
-	* Version 1.7.87.
+	* sanity.sh: new tests "toplevel" for the new toplevel CVS
+	directory creation (including one test which shows an error in
+	this area).
 
-	* server.c (check_password): Don't use ANSI string concatenation.
-	Reindent function.
+Sun Jun  8 20:52:00 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
-Wed Apr 24 17:27:53 1996  Norbert Kiesel  <nk@col.sw-ley.de>
+	* rcs.c (getrcsrev): Before printing error, check whether it was
+	feof or ferror.
 
-	* vers_ts.c (Version_TS): xmalloc enough space (1 more
-	  byte). Thanks to purify!
+	* rcs.h, import.c (add_rcs_file): No longer static.  New arguments
+	add_vbranch, add_vhead, and add_logfp replace access to static
+	variables vbranch, vhead, and logfp.
+	* mkmodules.c: Call it instead of RCS_CI.
+	* import.c (process_import_file): Adjust call to add_rcs_file.
 
-Fri Apr 19 11:22:35 1996  Benjamin J. Lee  <benjamin@cyclic.com>
+Tue Jun  3 10:18:33 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
-        * Version 1.7.86
+	* sanity.sh (basicb): Match "." with "\." not ".".
 
-Thu Apr 18 1996  Jim Kingdon  <kingdon@cyclic.com>
+Tue Jun  3 13:02:37 1997  Norbert Kiesel  <nk@cosa.de>
 
-	* client.c (try_read_from_server): Compare return value from fwrite
-	with a size_t not an int (Visual C++ lint).
+	* checkout.c (checkout): Removed restriction of not sending -k in
+ 	remote export (I think this was introduced while the -k handling
+ 	was still broken in remote mode).  Give better error texts
+ 	regarding -c and -s options.  Use error() instead of usage() for
+ 	reporting errors in all places.  Reindented some lines.  Free
+ 	xmalloc'd space of options.
 
-Wed Apr 17 11:56:32 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+Thu May 29 16:32:47 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
-	* client.c (try_read_from_server): New function.
-	(read_from_server): Use it.
-	(read_counted_file): New function.
-	* client.c, server.c: Add Template response.
-	* cvs.h (CVSADM_TEMPLATE): Added.
-	* logmsg.c (do_editor): If repository is NULL, use CVSADM_TEMPLATE
-	file in place of rcsinfo.
-	* server.c, server.h (server_template): New function.
-	* create_adm.c (Create_Admin): Call it.
+	* rcscmds.c (RCS_checkin), mkmodules.c (init): Pass -w option to
+	"ci", specifying getcaller ().
+	* server.h, server.c (CVS_Username): Now extern.
+	* subr.c (getcaller): Return CVS_Username if it is set.
 
-Tue Apr 16 13:56:06 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+Wed May 28 22:31:38 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
-	* repos.c (Name_Repository): Fix comments.
-	* create_adm.c (Create_Admin): Fix indentation.
+	* update.c (update_fileproc): If wrap_merge_is_copy and we would
+	like to do a merge, give a fatal error.  See comment for why.
+	* sanity.sh (mwrap): New tests, tests for above fix.
 
-Wed Apr 10 16:46:54 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+Tue May 27 21:59:32 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
-	* options.h.in: Include relevant information here rather than
-	citing (former) FAQ.
+	* sanity.sh (stamps): cd to ${TESTDIR} before starting.
 
-	* ChangeLog-9395: Fix typo in introductory paragraph.
+Mon May 26 15:31:30 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
-Wed Apr 10 14:55:10 1996  code by Mike Spengler  mks@msc.edu
-	comments by Jim Kingdon  <kingdon@harvey.cyclic.com>
-
-	* filesubr.c (unlink_file_dir,deep_remove_dir): Don't call unlink
-	on something which might be a directory; check using isdir instead.
-
-Wed Apr 10 14:55:10 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
-
-	* checkout.c (build_dirs_and_chdir): Pass path, not cp, to
-	Create_Admin.  The former is the correct update dir.
-	* sanity.sh (modules): New tests modules-155* test, for above fix.
-
-Mon Apr  8 13:53:27 1996  Samuel Tardieu  <sam@inf.enst.fr>
-
-	* rcs.c (annotate_fileproc): If the file is not under CVS control,
-	return instead of dumping a core. Don't bug on files with an empty
-	first revision.
-
-Fri Mar 29 16:08:28 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
-
-	* rcs.c (annotate_fileproc): If last line of add-chunk is not
-	newline terminated, end the loop when we find that out.
-
-Fri Mar 29 16:59:34 1996  Norbert Kiesel  <nk@col.sw-ley.de>
-
-	* rcs.c (annotate_fileproc): allow last line of add-chunk not to
-	  be newline terminated
-
-Thu Mar 28 10:56:36 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
-
-	Add more diff tests:
-	* sanity.sh (basic2): Use dotest for test 61.
-	(basica): Add test basica-6.2.
-	(branches): Add tests branches-14.4 and branches-14.5.
-	(basic1): Remove tests 19, 20, 25, and 26.  The only thing this
-	might miss out on is diff's interaction with added and removed
-	files, but those tests didn't test that very well anyway.
-
-	* rcs.c (RCS_getrevtime): Add comment regarding years after 1999.
-
-	* rcs.c: Add "cvs annotate" command and related code.
-	(getrcskey): Move special handling of RCSDESC from here to
-	callers.  Handle those keys (desc, log, text) which do not
-	end in a semicolon.
-	* rcs.h (RCSVers): Add author field.
-	* rcs.c (RCS_reparsercsfile): Set it.
-	* cvs.h (annotate), main.c (cmd_usage, cmds), client.h client.c
-	(client_annotate), server.c (serve_annotate, requests): Usual
-	machinery to add a new command.
-	* sanity.sh (basica): Test cvs annotate.
-
-	* sanity.sh (branches): More tests, of things like adding files on
-	the trunk after a branch has been made.
-
-Tue Mar 26 09:48:49 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
-
-	* expand_path.c: Don't declare free and xmalloc; cvs.h already
-	takes care of that.
-
-	* sanity.sh (mflag): Don't use tag name reserved to CVS.
-
-	NT local changes plus miscellaneous things noticed in the process:
-	* import.c (add_rcs_file): Use binary mode to write RCS file.  Use
-	\012 where linefeed is intended.  Copy data a small block at a
-	time, until we hit EOF, rather than trying to read the whole file
-	into memory at once.
-	* client.c (send_modified): Add comments regarding st_size.
-	* commit.c (commit): Add comments regarding binary mode and read().
-	* logmsg.c (do_editor): Add comments regarding st_size.
-	* server.c (server_updated): Use binary mode to read file we are
-	sending.
-
-	* rcscmds.c (RCS_settag): Complain if user tries to add a tag name
-	reserved to CVS.
-	* sanity.sh (basica): Test for this behavior.
-
-	* sanity.sh (binfiles): New tests test ability to change keyword
-	expansion.
-
-Mon Mar 25 1996  Jim Kingdon  <kingdon@cyclic.com>
-
-	* cvs.h, filesubr.c (expand_wild): New function.
-	* recurse.c (start_recursion): Call expand_wild at beginning and
-	free its results at the end.
-	* cvs.h, subr.c (xrealloc): Make argument and return value void *.
-	* client.h, client.c (send_file_names): Add flags argument.   If
-	SEND_EXPAND_WILD flag is passed, call expand_wild at beginning and
-	free its results at the end.
-	* admin.c, add.c, log.c, tag.c, status.c, edit.c, watch.c,
-	update.c, commit.c, remove.c, client.c, diff.c: Update callers.
-
-Fri Mar 22 10:09:55 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
-
-	* error.c (error, fperror): Exit with status EXIT_FAILURE rather
-	than STATUS.  We had been neglecting to check for 256, and the
-	value of providing a count of errors is probably minimal anyway.
-	* add.c, modules.c, mkmodules.c, tag.c, server.c, main.c,
-	import.c, client.c, scramble.c, recurse.c: Exit with status
-	EXIT_FAILURE rather than 1.  On VMS, 1 is success, not failure.
-	* main.c (main): Return EXIT_FAILURE or 0.  The value of providing
-	a count of errors is minimal.
-
-	* client.c (init_sockaddr): Exit with status 1 rather than
-	EXIT_FAILURE.  The latter apparently doesn't exist on SunOS4.
-	Reindent function.
-
-Mon Mar 18 14:28:00 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
-
-	* cvs.h, ignore.c: New variable ign_case.
-	* ignore.c (ign_name): If it is set, match in a case-insensitive
-	fashion.
-	* server.c (serve_case): New function.
-	(requests): Add Case request.
-	* client.c (start_server): If FILENAMES_CASE_INSENSITIVE is
-	defined, send Case request.
-
-Sat Mar 16 08:20:01 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
-
-	For reference, this change takes cvs's text segment from 315392
-	bytes to 311296 bytes (one 4096 byte page).
-	* cvs.h (struct file_info): Add fullname field.
-	* recurse.c (do_file_proc): Set it.
-	* commit.c (find_fileproc), client.c (send_fileproc), commit.c
-	(check_fileproc), diff.c (diff_fileproc), edit.c
-	(unedit_fileproc), patch.c (patch_fileproc), remove.c
-	(remove_fileproc), rtag.c (rtag_fileproc), tag.c (tag_fileproc),
-	update.c (update_fileproc), watch.c (watchers_fileproc): Use it
-	instead of computing it each time.
-	* diff.c (diff_fileproc), remove.c (remove_fileproc): Use fullname
-	where we had been (bogusly) omitting the directory from user
-	messages.
-	* edit.c (unedit_fileproc, edit_fileproc): If we cannot close
-	CVSADM_NOTIFY, mention CVSADM_NOTIFY rather than finfo->file in
-	error message.
-	* rtag.c (rtag_fileproc), tag.c (tag_fileproc): Reindent.
-
-Fri Mar 15 15:12:11 1996  Norbert Kiesel  <nk@col.sw-ley.de>
-
-	* server.h: fix prototype of server_pause_check (was
-	  server_check_pause)
-
-Thu Mar 14 1996  Jim Kingdon  <kingdon@cyclic.com>
-
-	* vers_ts.c (Version_TS), entries.c (Scratch_Entry, AddEntryNode):
-	Change findnode to findnode_fn.
-
-	* main.c: Depending on HAVE_WINSOCK_H, include winsock.h or
-	declare gethostname.
-	* cvs.h: Don't declare it here.
-
-Thu Mar 14 07:06:59 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
-
-	* commit.c (find_fileproc): If vn_user is NULL and ts_user is not,
-	print an error rather than silently succeeding.
-	* sanity.sh (basica-notadded): New test, for above fix.
-	(dotest_internal): New function.
-	(dotest,dotest_fail): Call it instead of duplicating code between
-	these two functions.
-
-	* sanity.sh: Skip tests binfiles-9 through binfiles-13 for remote.
-
-	* options.h.in: Adjust comment to reflect kfogel change.
-
-Thu Mar 14 01:38:30 1996  Karl Fogel  <kfogel@floss.red-bean.com>
-
-        * options.h.in (AUTH_CLIENT_SUPPORT): turn on by default.
-
-Wed Mar 13 09:25:56 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
-
-	* vers_ts.c (Version_TS): Don't try to override options from rcs
-	file if there isn't an rcs file (e.g. called from send_fileproc).
-	This fixes a bug detected by test 59 in "make remotecheck".
-
-	* rcs.c (RCS_reparsercsfile, RCS_getexpand): Assert that argument
-	is not NULL.
-
-	Fix a gcc -Wall warning:
-	* rcs.c, rcs.h (RCS_getexpand): New function.
+	* client.c (handle_mod_time): New function.
+	(responses): Add "Mod-time".
+	(stored_modtime_valid, stored_modtime): New variables.
+	(update_entries): If it is set, change the file's modtime.
+	* server.c, server.h (server_modtime): New function.
 	* vers_ts.c (Version_TS): Call it.
-	* rcs.c (RCS_reparsercsfile): Make static.
+	* patch.c (patch_fileproc): Add comment about why we don't.
+	* sanity.sh (stamps): Added, tests for above fix.
 
-	Add a "cvs init" command.  This is needed because cvsinit.sh
-	invoked mkmodules which doesn't exist any more.
-	* mkmodules.c: Break filelist out of mkmodules function, rename
-	struct _checkout_file to struct admin_file (for namespace
-	correctness), and add contents field.
-	(init,mkdir_if_needed): New functions.
-	* cvs.h (init): Declare.
-	* main.c (cmds): Add init.
-	(main): If command is init, don't require cvsroot to exist.
-	* client.c, client.h (client_init, send_init_command): New functions.
-	* client.c (start_server): Don't send Root request if command is init.
-	* server.c (serve_init): New function.
-	(requests): Add "init".
+Fri May 16 13:14:30 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
-Wed Mar 13 09:51:03 MET 1996  Norbert Kiesel  <nk@col.sw-ley.de>
+	* subr.c (free_names): Update documentation to reflect fact that
+	free_names is now called to free vectors allocated by expand_wild
+	as well	as by line2argv.
 
-	* vers_ts.c (Version_TS): set options to default option if the
-	  file if no -k option but -A was given.  This avoids the (wrong)
-	  update message for binary files which are up-to-date when
-	  running 'cvs -A'.
+	* main.c (main): Use "xstrdup (foo)" not "xstrdup(foo)" as
+	specified in HACKING.
 
-	* update.c (checkout_file): remove test of -k option stored in the
-	  file itself because it was moved to vers_ts.c
+Fri May 16 15:10:37 1997  Norbert Kiesel  <nk@cosa.de>
 
-	* sanity.sh: added tests for the above fix.
+	* modules.c (do_module): initialize optind to 0.  use local copies
+ 	of optarg's (because they might me freed within free_names).
 
-Tue Mar 12 13:47:09 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+Thu May 15 11:50:15 1997  Norbert Kiesel  <nk@cosa.de>
 
-	* hash.c (findnode): Adjust comment regarding errors.
+	* main.c (main): initialize optind to 0.  use local copies of
+	optarg's (because they might me freed within read_cvsrc).
 
-	* hash.c (findnode, findnode_fn): Assert that key != NULL.  This
-	way the check still happens even if the function is later
-	rewritten to not start out by calling hashp.
+	* cvsrc.c (read_cvsrc): free old argv after constructing a new
+	one.  This fixes a memory leak.
 
-Mon Mar 11 10:21:05 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+	* recurse.c (start_recursion): use free_names() instead of
+	reimplementing it
 
-	* sanity.sh: If expr accepts multi-line patterns but is too
-	liberal in matching them, print a warning but keep going.
+	* rcs.c (RCS_deltas): free branchversion (memory leak).
 
-	* sanity.sh: Add QUESTION variable, analogous to PLUS.  Use it
-	instead of \? to match a question mark.
+	* parseinfo.c (Parse_Info): free some vars (3 memory leaks).
 
-	* cvs.h (CVSMODULE_OPTS, CVSMODULE_SPEC): Move from here...
-	* modules.c: ...to here.  They are only used here and the code to
-	handle the syntax of modules files should not be scattered all over.
-	* modules.c (CVSMODULE_OPTS): Add "+" as first character.
-	* sanity.sh (modules): New tests 148a0 and 148a1 test for
-	above-fixed bug.
+	* logmsg.c (logfile_write): free str_list_format (memory leak).
 
-Mon Mar 11 13:11:04 1996  Samuel Tardieu  <sam@inf.enst.fr>
+	* watch.c (watch_addremove), (watchers), update.c (update), tag.c
+ 	(cvstag), status.c (status), rtag.c (rtag), remove.c (cvsremove),
+ 	release.c (release), patch.c (patch), log.c (cvslog), import.c
+ 	(import), history.c (history), edit.c (watch_onoff), (edit),
+ 	(unedit), (editors), diff.c (diff), commit.c (commit), checkout.c
+ 	(checkout), add.c (add): initialize optind to 0
 
-	* modules.c (cat_module): set optind to 0 to force getopt() to
-	reinitialize its internal nextchar
+	* diff.c (diff_fileproc): cosmetic change (whitespace added).
 
-Mon Mar 11 00:09:14 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
-
-	* hash.c (findnode, findnode_fn): Revert changes of 7-8 Mar 1996.
-	The correct style is to assert() that key != NULL (see HACKING),
-	which is already done in the hashp function.
-	* fileattr.c (fileattr_delproc): Likewise, assert() that
-	node->data != NULL rather than trying to deal with it being NULL.
+	* checkout.c (checkout): move local variable definition into the
+	block where the variable is used.
 
-Fri Mar  8 01:31:04 1996  Greg A. Woods  <woods@most.weird.com>
+	* client.c (update_entries): initialize some local variables to shut up
+	gcc -O -Wall.
 
-	* hash.c (findnode_fn): one more place to avoid calling hashp()
-	with a NULL key
+	* buffer.c (buf_read_line): initialize a local variable to shut up
+	gcc -O -Wall.
+		   
 
-Thu Mar  7 17:30:01 1996  Greg A. Woods  <woods@most.weird.com>
+Wed May 14 16:29:50 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
-	* hash.c (findnode): also return NULL if key is not set
-	[[ reported by Chris_Eich@optilink.optilink.dsccc.com, and
-	supposedly in a PR that should be marked "fixed"..... ]]
+	* admin.c (admin): When sending options to server, don't try to
+	send av[ac].  It may contain one of the names that we'll send in
+	send_file_names (which caused tests like keyword-6 to work,
+	sort of accidentally), or it may contain NULL (which would tend to
+	cause a coredump).
+	* sanity.sh (basicb): New test basicb-21 tests for above fix.
 
-	* fileattr.c (fileattr_set): set node->data to NULL after freeing
-	it to prevent subsequent accesses
-	(fileattr_delproc): don't free node->data if it's NULL, and set it
-	to NULL after freeing
-	[[ reported by Chris_Eich@optilink.optilink.dsccc.com, and
-	supposedly in a PR that should be marked "fixed"..... ]]
+Mon May 12 16:22:00 1997  Larry Jones  <larry.jones@sdrc.com>
 
-Fri Mar  1 14:56:08 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+	* add.c (add): Free message and repository in client code.
+	* checkout.c (checkout): Don't free repository unless allocated.
+	* client.c (start_rsh_server): Free command.
 
-	* sanity.sh (basica): New test basica-4a tests for bug fixed by
-	sam@inf.enst.fr on 1 Mar 96.
+Sun May 11 11:43:54 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
-Fri Mar  1 18:10:49 1996  Samuel Tardieu  <sam@inf.enst.fr>
+	* client.c: Remove all references to USE_DIRECT_TCP; see
+	../ChangeLog for rationale.
 
-	* tag.c (check_fileproc): Check for file existence before trying
-	to tag it.
+Fri May  9 22:19:36 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
-Fri Mar  1 07:51:29 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+	* main.c (main): Add comment explaining why we call exit.  Pass 0
+	not EXIT_SUCCESS, because lib/system.h has portability cruft for
+	EXIT_FAILURE but not EXIT_SUCCESS.
 
-	* client.c (update_entries): If command is export, set options to
-	NULL.
+Fri May  9 17:25:00 1997  Larry Jones  <larry.jones@sdrc.com>
 
-Thu Feb 29 16:54:14 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+	Fix miscellaneous memory allocation problems:
+	* add.c (add): Free repository.
+	* client.c (notified_a_file): Free getline buffer.
+	* edit.c (notify_check): Free getline buffer.
+	* hash.c (dellist): Free header node when not caching.
+	* login.c (login): Don't continually free & allocate getline
+	buffer, use xstrdup instead of xmalloc/strcpy, free getline
+	buffer before returning.
+	* main.c (main): Call exit instead of returning so tools like
+	Purify won't consider permanently allocated memory as leaks.
+	* mkmodules.c (mkmodules): Free getline buffer.
+	* modules.c (cat_module): Call close_module.
+	* rcs.c (rcsvers_delproc): Free state.
+	* recurse.c (start_recursion): Free files_by_dir.
+	(unroll_files_proc): NULL out p->data after using it to set
+	filelist to avoid multiple frees.
+	* server.c (check_command_legal_p): Don't continually free &
+	allocate getline buffer, free getline buffer before returning.
+	(check_repository_password): Ditto, use xstrdup instead of
+	xmalloc/strcpy.
+	* wrapper.c (wrap_add_file): Free getline buffer.
 
-	* lock.c (write_lock, Reader_Lock): Remove
-	BOGUS_UNLESS_PROVEN_OTHERWISE code.  It was pretty bogus, and has
-	been ifdeffed out for a long time.
-	* cvs.h (CVSTFL): Removed; no longer used.
+Thu May  8 14:21:00 1997  Larry Jones  <larry.jones@sdrc.com>
+	and Jim Kingdon  <kingdon@harvey.cyclic.com>
 
-	* cvsrc.c, cvs.h (read_cvsrc): Pass in command name rather than
-	using global variable command_name.
-	* main.c (command_name): Initialize to "", not "cvs" so that error
-	messages don't say "cvs cvs".  Update calls to read_cvsrc to pass
-	in command_name or "cvs" as appropriate.
-	* sanity.sh (basica): New test basica-9 tests for above-fixed bug.
+	* checkout.c (checkout_proc): Free finfo.rcs (memory leak).
 
-	* lock.c: Rename unlock to lock_simple_remove to avoid conflict
-	with builtin function on QNX.
+8 May 1997  Larry Jones  <larry.jones@sdrc.com>
+	and Jim Kingdon  <kingdon@harvey.cyclic.com>
 
-Thu Feb 29 17:02:22 1996  Samuel Tardieu  <sam@inf.enst.fr>
+	* hash.c: Add #ifdef's to disable caching.  This makes it easier
+	to track down memory allocation problems.
 
-	* fileattr.c (fileattr_get): Removed NULL pointer dereference
-	which occurred in the absence of default attribute.
+Thu May  8 11:40:39 1997  Larry Jones  <larry.jones@sdrc.com>
 
-Thu Feb 29 07:36:57 1996  J.T. Conklin  <jtc@rtl.cygnus.com>
+	* sanity.sh: In setting "tests" use a number of statements rather
+	than one very long line.
 
-	* rcs.c (RCS_isbranch, RCS_whatbranch): Remove no longer used file
- 	argument, swap order of remaining two arguments to be like other
-	RCS_* functions.
-	(RCS_nodeisbranch): swap order of arguments to be like other RCS_*
-	functions.
-	* rcs.h (RCS_isbranch, RCS_whatbranch, RCS_nodeisbranch): Update
-	prototypes for above changes.
-	* commit.c, rtag.c, status.c, tag.c: Update for above calling
- 	convention changes.
+Thu May  8 11:40:39 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
-Thu Feb 29 08:39:03 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+	* cvsbug.sh: Remove $Id; we decided to get rid of these some time
+	ago.
 
-	* client.c (start_server): Revert changes which claimed to fall
-	back to a different way of connecting.  Add comments explaining
-	why.  (I don't think the changes did what they claimed, anyway).
-	Use indentation rather than comments to line up #if, #else, and
-	#endif.
+Thu May  8 11:34:02 1997  Larry Jones  <larry.jones@sdrc.com>
 
-	* patch.c (patch, patch_fileproc): Revert change to add optional
-	arguments to -c and -u.  Optional arguments are evil and in
-	violation of the POSIX argument syntax guidelines.  The correct
-	way to do this is -C and -U.  Also change DIFF back to "diff" in
-	output (see comments).
+	* cvsbug.sh: Put separate statements on separate lines, so it
+	works if awk is AT&T nawk.
 
-	gcc -Wall lint:
-	* client.c (copy_a_file): Declare p inside the #ifdef in which is
-	it used.
-	* commit.c (remove_file): Remove unused variable p.
-	* commit.c (checkaddfile): Remove unused variables p.
-	* rcs.c (RCS_isbranch): Remove unused variable p.
-	* rcs.c: Remove unused declarations and definitions of
-	parse_rcs_proc, rcsnode_delproc, rcslist, and repository.
-	* rtag.c (rtag_fileproc): Remove unused variable p.
-	* patch.c (patch_fileproc): Remove unused variable p.
-	* tag.c (val_fileproc): Remove unused variable node.
-	* client.c, import.c, lock.c, server.c: Cast pid_t to long before
-	passing it to %ld.
+Tue May  6 16:56:00 1997  Larry Jones  <larry.jones@sdrc.com>
+	and Jim Kingdon  <kingdon@harvey.cyclic.com>
 
-	* cvs.h: Don't prototype gethostname; merely declare it (on linux,
-	second argument is size_t not int).
+	* cvsrc.c (read_cvsrc): Fix various memory allocation problems:
+	rearrange code to avoid leaks, use xrealloc instead of xmalloc/
+	copy/free, make sure there's room for the remaining args before
+	appending them.
 
-Thu Feb 29 10:29:25 MET 1996  Norbert Kiesel (nk)  <nk@col.sw-ley.de>
+Tue May  6 14:20:00 1997  Larry Jones  <larry.jones@sdrc.com>
 
-	* sanity.sh: added "cat > /dev/null" to loginfo entry to avoid the
-	  SIGPIPE signal
+	* edit.c (watch_onoff, edit, unedit, editors): Add -R like
+	other things with -l.
+	* watch.c (watch_addremove, watchers): Ditto.
 
-Thu Feb 29 10:28:25 MET 1996  Norbert Kiesel (nk)  <nk@col.sw-ley.de>
+Mon May  5 18:10:37 1997  larry.jones@sdrc.com
+	and Jim Kingdon  <kingdon@harvey.cyclic.com>
 
-	* patch.c: added new variable diff_opt
-	(patch): allow optional parameter to -c and -u option, send it to
-	server
-	(patch_fileproc): cleaned up the code which prints the current
-	filename.  For "-s" option, print the pathname relative to CVSROOT
-	instead of just the filename.
+	* sanity.sh: Change all /tmp/cvs-sanity to TESTDIR.  If TESTDIR
+	environment variable is set, use it instead of /tmp/cvs-sanity.
+	* sanity.sh: Make TMPPWD the pwd equivalent of TESTDIR, not of /tmp.
 
-	* filesubr.c (xchmod): added cast to shut up gcc
+4 May 1997  Larry jones  <larry.jones@sdrc.com>
+	    and Jim Kingdon
 
-	* cvs.h: added prototype for gethostname
+	* checkout.c, diff.c, patch.c, rcs.c: Update usage messages.
+	* rcs.c (annotate): Add -R like other things with -l.
 
-Thu Feb 29 10:27:25 MET 1996  Norbert Kiesel (nk)  <nk@col.sw-ley.de>
+Sat May  3 14:57:40 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
-	* lock.c (write_lock), (Reader_Lock), import.c (update_rcs_file),
-	  client.c (update_entries), (send_modified), server.c (server),
-	  (receive_file), (server_updated): use %ld for printing pid_t
-	  variables
+	* sanity.sh (basic1): Rewrite test (use dotest, unroll the loops
+	which IMHO makes the test a zillion times more understandable, and
+	only do the variant which tests for 4 files at a time--we test one
+	file at a time lots of places).
 
-Thu Feb 29 02:22:12 1996  Benjamin J. Lee  <benjamin@cyclic.com>
+2 May 1997  Ziv Gigus <ziv@rest.home.net>
+	    and Jim Kingdon
 
-	* run.c (run_exec): Added VMS return status support.
+	* client.c, client.h (client_process_import_file): New argument
+	all_files_binary means treat all files as binary.
+	* import.c (import_descend): Pass it if -kb is specified.
+	* client.c (client_process_import_file): In the
+	non-all_files_binary case, call wrap_rcsoption to determine
+	whether the file is binary.
 
-Thu Feb 29 01:07:43 1996  Benjamin J. Lee  <benjamin@cyclic.com>
+Thu May  1 13:44:51 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
-	* client.c (send_to_server): wrtn wasn't being declared under
-	VMS for some reason.
+	* sanity.sh (binfiles2): New tests, for update -j and binary files.
 
-Wed Feb 28 23:27:04 1996  Benjamin J. Lee  <benjamin@cyclic.com>
+Wed Apr 30 11:18:36 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
-	* client.c: Changed #ifdef VMS && NO_SOCKET_TO_FD to
-	#if defined(VMS) && defined(NO_SOCKET_TO_FD)
+	* recurse.c (start_recursion): Also free reposfile.
+	Don't look in repository if client_active (latter bug reported by Paul
+	Sanders <p.sanders@dial.pipex.com>).
 
-Wed Feb 28 22:28:43 1996  Benjamin J. Lee  <benjamin@cyclic.com>
+Mon Apr 28 22:36:39 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
-	* build_src.com: Added DCL command procedure to build
-	and link CVS client for VMS.
+	* diff.c (diff_file_nodiff): Remove SERVER_SUPPORT ifdefs.  They
+	were not based on server_active, which doesn't really make any
+	sense (it meant that compiling --disable-server could affect the
+	behavior of the non-client/server CVS).  This affected the output
+	in tests death2-diff-11 and death2-diff-12 in the testsuite.
+	* sanity.sh (newb-123j0): Also accept "Needs Checkout", for a
+	--disable-server CVS.
 
-Wed Feb 28 22:07:20 1996  Benjamin J. Lee  <benjamin@cyclic.com>
+	* main.c (cmd_usage): Change "run diffs" to "show differences";
+	the former is jargon.
+	* edit.c (edit_usage): Fix typo ("." -> ",").
+	* edit.c (editors_usage), watch.c (watchers_usage): Mention -l.
+	* checkout.c (export_usage): Say what -P does.
+	* history.c (history_usg): Add comment about message wording.
 
-	* client.c: VMS CVS client specific changes.
+Mon Apr 28 14:47:45 1997  Norbert Kiesel  <nk@cosa.de>
 
-	Added USE_DIRECT_TCP to allow CVS_PORT to be used to specify
-	a TCP connection port (no Kerberos).  Changed
-	start_kerberos_server() to start_tcp_server().
+	* checkin.c (Checkin): use filename without path when calling
+ 	wrapper (bug found by Michal Schmitz <ms@cosa.de>).
 
-	In copy_a_file(): transform a backup file to have a
-        VMS-friendly name. 
+Fri Apr 25 13:28:55 1997  Ian Lance Taylor  <ian@cygnus.com>
 
-	Added HAVE_CONFIG_H to include "config.h".  
+	* client.c (update_entries): In UPDATE_ENTRIES_RCS_DIFF case,
+	write to a temporary file and then rename it.
 
-	start_server() will starts the first successful of any
-	mutually exclusive methods of starting the CVS server
-	which might be enabled.
+Thu Apr 24 11:35:40 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
-	Initialized use_socket_style and server_sock for VMS in
-	start_server().
+	* subr.c, cvs.h (pathname_levels): New function, from a piece of
+	send_file_names.
+	* client.c (send_file_names): Call pathname_levels in place of the
+	code which was moved there.
+	* server.c, server.h (server_pathname_check): New function.
+	* recurse.c (start_recursion): Call it.
+	* sanity.sh (modules3): New test modules3-11b tests for above fix.
 
-Wed Feb 28 21:49:48 1996  Benjamin J. Lee  <benjamin@cyclic.com>
+	* filesubr.c: Do not define L_tmpnam.  It is in ANSI and SunOS4,
+	so I don't think there will be a problem with it being missing.
+	Defining it too small can cause memory corruption.
+	(cvs_temp_name): Do not use L_tmpnam in the mktemp code; this
+	could cause a buffer overflow if the -T global option was in use.
 
-	* find_names.c, recurse.c, cvs.h: Changed Find_Dirs() to
-	Find_Directories().
-	* cvs.h: Added VMS filenames enabled through USE_VMS_FILENAMES
-	VMS POSIX will require to use the regular CVS filenames
-	while VMS is #define'd.
+Thu Apr 24 13:21:15 1997  Norbert Kiesel  <nk@cosa.de>
 
-Wed Feb 28 21:26:22 1996  Benjamin J. Lee  <benjamin@cyclic.com>
+	* filesubr.c (cvs_temp_name): Use tempnam if available, else
+ 	mktemp, else tmpnam. See the comment for rationale.
 
-	* ignore.c: Added the patterns *.olb *.exe _$* *$ to default
-	ignore list for VMS.
+	* sanity.sh: use "tar cf - ." instead of "tar cf - *" for
+ 	directory copies.
 
-Wed Feb 28 13:32:28 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+Wed Apr 23 23:41:47 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
-	* logmsg.c (do_editor): Fix indentation.
+	* server.c (serve_update_prog): If in readonly mode, give an error.
 
-Wed Feb 28 12:56:49 1996  Benjamin J. Lee  <benjamin@cyclic.com>
+Wed Apr 23 19:07:41 1997  Norbert Kiesel  <nk@cosa.de>
 
-	* logmsg.c (do_editor): If no editor is defined, exit and print
-	a message.
+	* subr.c (line2argv): Allocate at least 4 slots for argv.
 
-Wed Feb 28 10:40:25 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+	* checkout.c (checkout_proc): Add a comment which says why the
+ 	above change was necessary to avoid writing to unallocated memory.
 
-	* vers_ts.c (time_stamp, time_stamp_server): Reindent and revise
-	comments.
+Wed Apr 23 11:20:40 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
-Tue Feb 27 23:57:55 1996  Benjamin J. Lee  <benjamin@cyclic.com>
+	* entries.c (ParseTag): Always set *NONBRANCHP.
 
-	* vers_ts.c: gmtime() returns NULL on some systems (VMS)
-	revert to local time via ctime() if GMT is not avaiable.
+21 Apr 1997  Jim Kingdon
 
-Tue Feb 27 13:07:45 1996  J.T. Conklin  <jtc@rtl.cygnus.com>
+	* client.c (update_entries), rcs.c (expand_keywords): Rewrite
+	test to avoid signed/unsigned warning.
 
-	The changes listed below cause cvs to parse each rcs file (and
- 	free the associated rcsnode after the file has been processed)
- 	sequentially.  cvs used to parse all files in a directory, an
-	approach that does not scale to huge repositories with lots 
-	of revisions/branches/tags/etc.  
-	
-	* cvs.h (struct file_info): Removed srcfiles field.  Added rcs
- 	(node) field.
-	* recurse.c (do_recursion): Removed code that pre-parsed all
- 	rcs files in the directory.
-	(do_file_proc): Parse current rcs file.
-	* rcs.c (RCS_parsefiles, parse_rcs_proc, RCS_addnode): Removed.
-	(RCS_isbranch, RCS_whatbranch): Changed srcfiles argument to
-	rcs (node).
-	* rcs.h (RCS_parsefiles, RCS_addnode): Removed prototypes.
-	(RCS_isbranch, RCS_whatbranch): Updated prototypes.
-	* add.c, admin.c, checkin.c, checkout.c, classify.c, client.c, 
-	commit.c, diff.c, history.c, import.c, log.c, patch.c, remove.c, 
-	rtag.c, status.c, tag.c, update.c, vers_ts: Updated for above
-	calling convention / data structure changes.
+Mon Apr 21 09:02:22 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
-Mon Feb 26 16:07:56 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+	* update.c (patch_file): Add comment about whether auto-detecting
+	features of the DIFF program is a good idea.
 
-	* Version 1.7.3.
+Mon Apr 21 00:03:34 1997  Ian Lance Taylor  <ian@cygnus.com>
 
-	* Version 1.7.2.
+	Don't require the patch program:
+	* client.c (struct update_entries_data): Add
+	UPDATE_ENTRIES_RCS_DIFF to contents enum.
+	(update_entries): Handle UPDATE_ENTRIES_RCS_DIFF.
+	(handle_rcs_diff): New static function.
+	(responses): Add "Rcs-diff".
+	* server.c (server_updated): Handle SERVER_RCS_DIFF.
+	(server_use_rcs_diff): New function.
+	* server.h (enum server_updated_arg4): Add SERVER_RCS_DIFF.
+	(server_use_rcs_diff): Declare.
+	* update.c (rcs_diff_patches): New static variable.
+	(update): Set rcs_diff_patches.
+	(update_fileproc): If rcs_diff_patches, pass SERVER_RCS_DIFF
+	rather than SERVER_PATCHED to server_updated.
+	(patch_file): Correct initial comment to say diff rather than
+	rcsdiff.  If rcs_diff_options, pass -n to diff rather than -c.
+	* rcs.c (rcs_change_text): New function.
+	* rcs.h (rcs_change_text): Declare.
 
-Mon Feb 26 1996  Jim Kingdon  <kingdon@cyclic.com>
+Mon Apr 21 00:08:59 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
-	* recurse.c (start_recursion): Use last_component rather than
-	checking for '/' directly.
-	(do_dir_proc): Likewise.
+	* diff.c (diff_fileproc): Add comment concerning updating the
+	client timestamp.
 
-	Visual C++ lint:
-	* client.c (send_to_server): Change wrtn to size_t.
-	(connect_to_pserver): Put tofd and fromfd declarations inside
-	#ifndef NO_SOCKET_TO_FD.
-	* scramble.c (shifts): Change from array of char to array of
-	unsigned char.
+Sun Apr 20 23:20:37 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
-Mon Feb 26 13:31:25 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+	* commit.c (commit): Add comment regarding SEND_FORCE rationale.
 
-	* server.c (check_repository_password): Remove unused variables
-	linelen, ch.
+Sat Apr 19 17:10:36 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
-	* client.c (send_file_names): Translate ISDIRSEP characters to '/'.
+	* server.c (dirswitch): If directory ends in '/', complain.
 
-Sat Feb 24 21:25:46 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+Fri Apr 18 18:09:57 1997  Ian Lance Taylor  <ian@cygnus.com>
 
-	* checkout.c (safe_location): Re-indent one line.
+	* rcs.c (apply_rcs_changes): New static function, broken out of
+	RCS_deltas.
+	(RCS_deltas): Call it.
+	(linevector_add): Change return type to int.  Return an indication
+	of an error for an invalid add, rather than calling error.
 
-Sat Feb 24 10:50:42 1996  Karl Fogel  <kfogel@floss.red-bean.com>
+Fri Apr 18 11:24:26 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
-        * checkout.c (safe_location): put assignment to hardpath[x] in an
-        `else'-clause, so we don't do it when x == -1.
+	* version.c: Change version number to 1.9.9.
 
-Sat Feb 24 01:40:28 1996  Marcus Daniels  <marcus@sayre.sysc.pdx.edu>
-                          via Karl Fogel  <kfogel@floss.red-bean.com>
- 
- 	* server.c (check_repository_password): Return by reference an
-  	  optional username, the `host_user', from the passwd file.  The
-  	  host_user will be the user-id under which the cvs repository is
-  	  run.
- 	  (check_repository_password): Use `read_line' instead of fgets to
-  	  allow for passwords larger than 32 characters, as well as the
-  	  optional host user argument.
- 	  (check_password): Modify to use host_user.
- 	  (authenticate_connection): Modify to use host_user.
+	* version.c: Version 1.9.8.
 
-Sat Feb 24 01:05:21 1996  Karl Fogel  <kfogel@floss.red-bean.com>
+	* commit.c (struct find_data): Add field force.
+	(find_fileproc, commit): Use it instead of force_ci to decide
+	whether to send files to server.
+	(commit): Set it if either -f or -r is specified.
+	* sanity.sh (basica): Add tests basica-8a0, basica-8a1, and
+	basica-8a2; tests for above fix.
 
-        * scramble.c (descramble): just shift descrambled string to get
-        rid of tag char, instead of allocating a whole new copy.
-        (scramble): cast return value of xmalloc to avoid unsightly
-        compiler warnings.
+Wed Apr 16 11:50:59 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
-        * options.h.in (RCSBIN_DFLT): don't refer to AUTH_SERVER_SUPPORT
-        in comment anymore, now that it's not defined in this file.
+	* zlib.c: Remove paragraph with Free Software Foundation address.
+	See 2 Jan 1997 entry in ../ChangeLog for rationale.
 
-Fri Feb 23 1996  Jim Kingdon  <kingdon@cyclic.com>
+Tue Apr 15 00:36:23 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
-	* client.c: Ifdef HAVE_WINSOCK_H, include winsock.h
-	instead of sys/socket.h and friends.
-	* login.c: Don't include sys/socket.h and friends.
-	* login.c (login): Only fclose fp in the case where it was
-	successfully fopen'd.
-	* login.c: Declare getpass.
-	* filesubr.c, cvs.h (get_homedir): New function.
-	* cvsrc.c, expand_path.c, history.c, login.c: Call it instead
-	of getenv ("HOME").
+	* update.c (patch_file_write): Always assign to final_nl, so that
+	it ends up reflecting whether the data from the last call had a
+	newline, not whether the data from any of the calls ended in a
+	newline.  Doesn't matter with the current RCS_checkout
+	implementation, but it will if RCS_checkout is changed to pass
+	less than the entire file.
 
-Fri Feb 23 09:23:20 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+	* rcs.c (RCS_cmp_file): Change NULL to RUN_TTY in passing sout to
+	RCS_checkout, for clarity.
 
-	* client.c (connect_to_pserver): Remove unused variable host.
-	* login.c: Include getline.h.
-	(login): Remove unused variables i and username.
-	(get_cvs_password): Move free of linebuf to where it actually will
-	be called.  Add a "return NULL" at the end of the function to shut
-	up gcc -Wall.
+	* import.c (update_rcs_file): Remove unused variable ierrno.
 
-	* options.h.in: Remove AUTH_SERVER_SUPPORT.
-	* client.h (authenticate_connection): Declare.
-	* scramble.c (scramble): Cast char to unsigned char before using
-	it to look up in table (char might be signed).
-	* server.c [AUTH_SERVER_SUPPORT]: Include grp.h
-	(authenticate_connection): Remove unused variables len and
-	server_user.
+	* add.c, checkout.c, commit.c, diff.c, edit.c, import.c,
+	history.c, log.c, main.c, patch.c, release.c, remove.c, rtag.c,
+	status.c, tag.c, update.c, watch.c: Pass "+" to all calls to
+	getopt.  This ensures that we maintain existing behavior even with
+	glibc2.
 
-	* sanity.sh (basica): Add comments regarding creating a top-level
+	* filesubr.c (fopen_case): Don't set *PATHP if we return an
+	error.  Since the 9 Apr 1997 change, the behavior has been to
+	sometimes set it and sometimes not.
+	* rcs.c (RCS_parse): Adjust callers to not free it.  Without this
+	change, they could call free() on an uninitialized variable.
+
+	* checkout.c (checkout): Add comment about export -k.
+
+	* root.c (check_root_consistent): Add comment about wording of
+	message.
+
+Mon Apr 14 11:51:49 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* client.c (call_in_directory): If rdirp reaches the end of
+	reposdirname, then just set it to NULL.  If server does not create
+	directories one at a time, give a warning.
+	* sanity.sh (modules3): Enable tests modules3-8 through
+	modules3-11 for remote; tests for above fix.
+
+	* client.c (call_in_directory): Don't set short_pathname to
+	pathname for a while; just use pathname itself (cleans up a relic
+	of the old "Repository" (not "Directory") code).  Add comment
+	explaining short_pathname.
+
+Sun Apr 13 18:07:50 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	* rcs.c (RCS_checkout): Add pfn and callerdat parameters.  Change
+	all callers.  Move setting of expand after retrieval of file
+	data.
+	(struct cmp_file_data): Define.
+	(RCS_cmp_file): New function.
+	(cmp_file_buffer): New static function.
+	* rcs.h (RCSCHECKOUTPROC): Define type.
+	(RCS_checkout): Update declaration.
+	(RCS_cmp_file): Define.
+	* diff.c (diff_file_nodiff): Call RCS_cmp_file rather than
+	RCS_checkout and xcmp.
+	* import.c (update_rcs_file): Likewise.
+	* no_diff.c (No_Difference): Likewise.
+	* update.c (struct patch_file_data): Define.
+	(patch_file): Just return if noexec, or if binary file.  Pass
+	patch_file_write to RCS_checkout.  Don't check for newlines or
+	compute checksums here.  Stat RCS file to set modes.
+	(patch_file_write): New static function.
+
+	* update.c (patch_file): Checkout directly to file2, rather than
+	to finfo->file followed by rename.  Remove check for whether
+	result of checkout is readable; that was for an old, obsolete,
+	form of death support.
+
+Sun Apr 13 13:16:40 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* checkout.c (build_one_dir): New function.
+	(struct dir_to_build): New structure.
+	(build_dirs_and_chir): Rewritten to accept a linked list of struct
+	dir_to_build rather than the silly string processing we had been
+	doing before.
+	(checkout_proc): Rewrite code that calls build_dirs_and_chdir
+	accordingly.
+	* sanity.sh: Enable tests modules3-10 and modules3-11 for local CVS;
+	tests for above fix.
+
+	* rcs.h (RCS_CO): Removed; no longer used.
+
+Sun Apr 13 00:04:34 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	Expand RCS keywords internally; never call co:
+	* rcs.h (struct rcsversnode): Add state field.
+	* rcs.c (kflags): Move out of RCS_check_kflag, and make file
+	static.
+	(enum kflag): Define.
+	(RCS_reparsercsfile): Always save lock information.  Save state in
+	new state field, rather than other field.
+	(struct rcs_keyword): Define.
+	(keywords): New static variable.
+	(enum keyword): Define.
+	(printable_date, escape_keyword_value): New static functions.
+	(expand_keywords): New static function.
+	(RCS_checkout): Call expand_keywords.  Don't call
+	RCS_exec_checkout.
+	(RCS_deltas): Add log and loglen parameters.  Change all callers.
+	* log.c (log_version_requested): Use new state field.
+	(log_version): Likewise.
+	* cvs.h (RCS_exec_checkout): Don't declare.
+	* rcscmds.c (RCS_exec_checkout): Remove.
+
+Sat Apr 12 17:32:59 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	* sanity.sh (modules3): Remove second-dir at end of tests.
+	(sticky): Correct removal of directories at end of tests.
+
+	* sanity.sh (keyword): New tests for RCS keyword expansion.
+
+Sat Apr 12 16:47:13 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* sanity.sh (basicb): New tests basicb-1b, basicb-1c, basicb-9b,
+	basic-9c test current build_dirs_and_chdir behavior.
+
+Fri Apr 11 23:54:56 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* sanity.sh (modules3): New tests modules3-7* test for ability to
+	supply a path in -d in modules.  Similar to modules3-8 through
+	modules3-11 except because the nesting is different, these ones
+	work.
+
+Thu Apr 10 00:14:47 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* sanity.sh (modules3): New tests modules3-12 through modules3-15
+	test use of a module name which contains a slash.
+
+	* sanity.sh (basicb): New tests basicb-14 to basicb-20 test use of
+	co -d with two or more arguments.
+
+	* rcscmds.c: Refer to doc/RCSFILES in comment.
+
+Wed Apr  9 09:49:17 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* sanity.sh (basicb): New tests basicb-11 through basicb-13 test
+	ability to specify several directory levels in co -d (commented
+	out).
+
+	* filesubr.c (fopen_case): If CVS_OPENDIR gives an
+	existence_error, return it to the caller instead of giving a fatal
+	error.
+
+	* client.c (update_entries): Fix typo in call to error (1 -> errno).
+
+Tue Apr  8 23:02:22 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* error.h, error.c: Test for #ifdef __STDC__, not #if __STDC__.
+	This is consistent with other parts of CVS; it means that the
+	declaration for fperror will match the definition even if __STDC__
+	is defined to 0 as the SunPro 4.0 compiler does.  Reported by
+	Richard Smith <rjsmith@cisco.com>.
+
+2 Apr 1997  Jim Kingdon
+
+	* entries.c (ParseTag): Add "break;" after "default:" to avoid
+	error from Visual C++.
+
+Wed Apr  2 12:06:44 1997  Vince Del Vecchio  <vdelvecc@spd.analog.com>
+			  and Jim Kingdon
+
+	* client.c: In reporting errors from socket calls, use
+ 	SOCK_STRERROR and SOCK_ERRNO since strerror(errno) doesn't work
+ 	for Win32.
+
+Tue Apr  8 10:45:32 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* sanity.sh (modules3): Add tests modules3-8 to modules3-11, to
+	test for ability to supply a path to -d in modules.  Mostly
+	commented out as CVS is buggy in this area.
+
+Mon Apr  7 12:41:44 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* add.c (add): Add comment about SEND_NO_CONTENTS.
+
+Sun Apr  6 21:46:32 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* update.c (update): Add comment about noexec and SEND_NO_CONTENTS.
+
+Sun Apr  6 17:34:08 1997  Robert Bihlmeyer  <robbe@orcus.priv.at>
+
+	* Pass +f not f to getopt_long to prevent options from being
+	permuted with glibc 2.0.1.
+
+Sun Mar 30 00:07:05 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.h (struct vers_ts): Adjust comment regarding ts_user.
+	* server.c (serve_is_modified): New function.  Set entries to show
+	that the file is modified but we don't know the contents.
+	* server.c (requests): Add "Is-modified" request.
+	* vers_ts.c (time_stamp_server): If the timestamp in entdata is
+	"M" or "D", just copy that over into ts_user.
+	* vers_ts.c (Version_TS): If timestamp is "D", use the entries
+	line for the sole purpose of passing it to time_stamp_server.
+	* no_diff.c (No_Difference): If ts_user is "M", conclude the files
+	are different.
+	* client.h, client.c (send_files): Replace arguments build_dirs
+	and force with argument flags.  Add flag SEND_NO_CONTENTS and add
+	to struct send_data.
+	(send_fileproc): If no_contents, then send Is-modified instead of
+	Modified.
+	* add.c, admin.c, client.c, commit.c, diff.c, edit.c, log.c,
+	rcs.c, remove.c, status.c, tag.c, update.c, watch.c: Change all
+	send_files callers.
+
+Fri Mar 28 22:32:25 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* server.c (requests): Change "Repository" to rq_optional.  I'm
+	not sure whether I overlooked this when I removed support for
+	Repository, or whether I was thinking that servers would need to
+	support it anyway, for CVS 1.5 to 1.9 clients, but making it
+	optional doesn't prevent the server from supporting it and it
+	seems silly for the client to complain about absence of a request
+	that it never will use.
+
+Fri Mar 28 10:06:59 1997  Steven Miller  <Miller@wingra.com>
+
+	* entries.c (Subdirs_Known): Don't create Entries.Log if noexec.
+
+Thu Mar 27 18:14:12 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	* sanity.sh (death2): Remove commented out test death2-21.  It
+	would now pass, but it duplicates the new test sticky-11.
+
+Thu Mar 27 10:21:19 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* sanity.sh (dotest_internal): Write test output to logfile even
+	if test succeeds.  This was the behavior prior to 30 Sep 1996.
+	See the comment for rationale.
+
+Tue Mar 25 13:26:52 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.h, entries.c (WriteTag): Add arguments nonbranch,
+	update_dir, and repository.  Move the server_set_sticky call from
+	callers to here.
+	* cvs.h, create_adm.c (Create_Admin): New argument nonbranch.
+	* cvs.h, entries.c (ParseTag): Add argument nonbranchp.
+	* cvs.h (struct stickydirtag): Add field nonbranch.
+	* entries.c (Entries_Open): Set it.
+	* cvs.h (Vers_TS): Add field nonbranch.
+	* vers_ts.c (Version_TS): Copy it from struct stickydirtag.
+	* server.c, server.h (server_set_sticky): Add argument nonbranch.
+	* add.c, client.c, checkout.c, modules.c, update.c, create_adm.c,
+	commit.c: Update callers.
+	* add.c (add): If nonbranch, don't add the file on that "branch".
+	* commit.c (write_dirnonbranch): New variable.
+	(commit_fileproc, commit): Set it.
+	(commit_dirleaveproc): Pass it to WriteTag.
+	* update.c (rewrite_tag, nonbranch): New variables.
+	(update, update_dirent_proc, update_fileproc): Set them.
+	(update_filesdoneproc): If rewrite_tag, call WriteTag.
+	* sanity.sh (sticky): New tests, test for above fix.
+
+	* version.c: Change version number to 1.9.7.
+
+	* version.c: Version 1.9.6.
+
+Mon Mar 24 13:02:04 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* entries.c (ParseTag): Add comment about unrecognized characters
+	in CVS/Tag file.
+
+	* classify.c (Classify_File): Add comment about how specifying a
+	tag (bogusly?) suppresses certain messages.
+
+Fri Mar 21 13:37:46 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* rcs.h (struct rcsnode): Add comment about case of PATH.
+	* rcs.c (RCS_parse): If ign_case, then try opening the file with
+	fopen_case.
+	* ignore.c (ign_case): Adjust comment.
+	* cvs.h, filesubr.c (cvs_casecmp, fopen_case): New functions.
+
+20 Mar 1997  Jim Kingdon
+
+	* client.c (send_repository): When sending Directory request,
+	send any ISDIRSEP character as '/'.  Fixes
+	"cvs log foo\bar\baz.c" on NT & friends.
+
+	* client.c (send_file_names): Don't try to read Entries file if
+	CVSADM directory does not exist.  Fixes fairly serious regression
+	(warning on all fresh checkouts) introduced by 1997-01-08 change.
+
+Tue Mar 18 13:03:33 1997  Jim Meyering  <meyering@totoro.cyclic.com>
+
+	* sanity.sh (RCSINIT): Define to be empty and export, to hide any
+	existing value that might cause spurious failures.
+
+	* Makefile.in: (install): Depend on installdirs.
+	Remove `CYGNUS LOCAL' comment saying not to.
+
+Tue Mar 18 09:36:26 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* recurse.c (struct recursion_frame): Reindent.
+	(do_dir_proc): Print message if we try to recurse into a CVSADM
 	directory.
-	(basic1): Don't try to remove first-dir and
-	${CVSROOT_DIRNAME}/first-dir at start of test; tests are now
-	responsible for cleaning up at the end.
-	(PLUS,DOTSTAR,ENDANCHOR): Add comments regarding fixed GNU expr.
+	* sanity.sh (basicb): New test basicb-4a tests for above fix.
+
+Sun Mar 16 10:18:28 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* sanity.sh (death2): Replace regexp matching temporary file name
+	with new variable ${tempname}.  For most of the tests this is a
+	cosmetic change, but death2-diff-6 had been missing _ which caused
+	it to fail on Solaris (at least sometimes).
+
+	* sanity.sh (modes): Don't use export -n; it doesn't seem
+	to be sufficiently portable.
+
+	* version.c: Change version number to 1.9.5.
+
+	* version.c: Version 1.9.4.
+
+	* rcscmds.c (RCS_checkin): Preserve the mode of the rcsfile.
+	RCS_CI usually, but not always, does this for us.
+	* commit.c (fix_rcs_modes): Replace algorithm with a more
+	CVSUMASK-friendly one.
+	* sanity.sh (modes): Update tests modes-5, modes-7, modes-10, and
+	modes-15 so they test that CVSUMASK is honored.
+
+Sun Mar 16 10:18:28 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* sanity.sh (modes): New tests modes-7a and modes-7b test behavior
+	if one manually changes the modes in the repository.
+
+	* server.c (server): Revise code which checks for errors creating
+	temporary directory.  This won't solve the intermittent
+	  can't create temporary directory
+	  Unknown error -1
+	but it will mean (a) the right message based on errno gets
+	printed, instead of "unknown error -1", and (b) the message says
+	that it happened in chmod instead of mkdir_p.
+
+Sat Mar 15 16:47:12 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* sanity.sh (modes): New tests.  Note that (for now) these are
+	just testing how CVS already behaves; I want to record that before
+	I move on to changing CVS's behavior with modes of RCS files.
+
+13 Mar 1997  Jim Kingdon
+
+	* subr.c (line2argv): Change argv_allocated from size_t to int.
+
+Wed Mar 12 22:16:44 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
-Thu Feb 22 22:34:11 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+	* add.c (add_directory): If repository has an extraneous "."
+	directory at the end, strip it off.  This fixes a bug which was
+	introduced when strip_path was nuked (this fix is much more
+	limited in scope than strip_path was; I _think_ that is a good
+	thing).
+	(add): Likewise, for client.
+	(combine_dir): New function, helps with above.
+	* sanity.sh (modules3): Reenable tests for this behavior.
+	(basica-0b, basicb-0e): Adjust test to reflect "foo/bar" instead
+	of "foo/./bar" in message.  As with the rest of this, I believe
+	this is just restoring the behavior prior to the strip_path nuking
+	(I tried it with CVS 1.9).
 
-	* cvs.h: Remove alloca cruft.
+Sun Mar  9 10:06:29 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* root.c (parse_cvsroot), server.c (serve_root, serve_init):
+	If CVSroot_directory is not an absolute pathname, give a fatal error.
+	* sanity.sh (crerepos): New tests crerepos-6* test for above fixes.
+
+Sat Mar  8 22:06:17 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
-Wed Feb 21 07:30:16 1996  J.T. Conklin  <jtc@rtl.cygnus.com>
+	This cleans up the last known code which can overflow its buffers
+	(except the Mac client).  I've skimmed through much of CVS looking
+	for other such places; but I didn't read everything.  If I missed
+	any please report it to bug-cvs.
+	* logmsg.c (logfile_write, title_proc): Realloc str_list as
+	needed; don't assume MAXLISTLEN is enough.
+	* cvs.h (MAXLISTLEN, MAXFILEPERDIR): Removed; no longer used.
+	* add.c, myndbm.c, parseinfo.c, update.c: Nuke MAXLINELEN limit.
+	* parseinfo.c, update.c, mkmodules.c: Check for errors reading file.
+	* cvs.h (MAXLINELEN): Removed; no longer used.
+	* logmsg (MAXHOSTNAMELEN): Removed; not used.
+	* main.c (cmd_synonyms): Allocate based on fullname, nick1, and
+	nick2, just in case someone makes those big enough so that 100
+	bytes is not enough.
+	(Make_Date): Use MAXDATELEN rather than our own fixed size.
+	* mkmodules.c (mkmodules): Nuke arbitrary limit on line length.
+	* rcs.c (ALLOCINCR): Remove; not used.
+	(RCS_check_kflag): Add comment concerning karg size.
+	* run.c: Allocate run_prog to the needed size, rather than
+	allocating a fixed size buffer.
 
-	* modules.c (do_module): call free_cwd before exiting.
+Fri Mar  7 22:39:08 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
-	* recurse.c: Removed entries global variable.
-	(do_recursion): Declare entries.  Moved call to Entries_Close so
- 	entries list is closed on all code paths.
-	(start_recursion): Removed call to Entries_Close, entries list has
- 	been moved to do_recursion only.
+	* logmsg.c (logfile_write): Allocate prog to needed length rather
+	than assuming MAXPROGLEN is enough.
+	* cvs.h (MAXPROGLEN): Removed; no longer used.
+	* subr.c (MIN_INCR): Update comment to reflect MAXPROGLEN's demise.
 
-Tue Feb 20 22:10:05 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+	* subr.c (free_names): Fix comment: this function is not used to
+	free memory allocated by Find_Names (at least it hasn't for a long
+	time).
+	* subr.c, cvs.h (line2argv): Change calling convention so that we
+	allocate argv array rather than the caller.  The previous one had
+	no way of checking whether we overflowed the passed-in buffer.
+	* subr.c (free_names): Free the argv array too.
+	* modules.c (do_module, cat_module): Update callers.
 
-	* update.c (update_dirent_proc): If dir lacks a CVS subdirectory,
-	don't recurse into it.
-	* sanity.sh (conflicts): Test for above-fixed bug.
+Thu Mar  6 12:44:42 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
-	* update.c (merge_file): Use write_letter not printf.
+	* import.c: Allocate vhead and vbranch dynamically; removes
+	arbitrary limit.
+	* history.c: Likewise (since_rev, since_tag, backto, rec_types).
+	* ignore.c: Likewise (line).  Also check for errors from getline
+	and add 'copyright' notice to top of file.
+	* wrapper.c (wrap_add_file): Likewise (line).  Also check for
+	errors from various calls and add 'copyright' notice to top of file.
 
-Tue Feb 20 12:34:07 EST 1996: Gary Oberbrunner <garyo@avs.com>
-			      and Jim Kingdon <kingdon@cyclic.com>
-
-	* history.c (history_write): Change username to char * and call
-	getcaller() to set it.  Setting username accidentally got deleted
-	8 Feb 96.
-	* sanity.sh: Revise test 64 to test for above-fixed bug.
-	* sanity.sh (PLUS): New variable, work around yet another GNU expr
-	bug.
-
-Tue Feb 20 14:07:50 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
-
-	* sanity.sh: Merge test rtags into test basic2.  They never were
-	capable of running separately of each other.
-
-	* sanity.sh (deep): New test, to test ability to operate in deeply
-	nested directories (more quickly than basic2 test did).
-	(basic2,rtags): Remove directories dir3 and dir4.  Remove file8,
-	file10, file12, file9, file11, file13, file15, file16, file17.
-	These additional files slowed down the tests considerably without
-	significantly increasing coverage.
+Tue Mar  4 17:39:15 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
-	* sanity.sh (PROG): New variable.  Use it instead of "cvs"
-	to match the name cvs prints out for itself.
+	* client.c (update_entries): Add comment about "move away <file>"
+	message.
 
-Mon Feb 19 09:00:29 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+Mon Mar  3 21:51:40 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
-	This fixes a bug whereby old default attributes would get
-	clobbered instead of added to on "cvs watch add".
-	* hash.c (findnode): Don't check for key == NULL; let the
-	assertion in hashp take care of it.
-	* fileattr.h, fileattr.c (fileattr_get): If filename is NULL,
-	return default attributes.
+	* sanity.sh (basicb): Clean up topfile,v at end of test.  Fixes
+	failure in modules-155b.
 
-	* client.c (send_repository): Fix indentation.
+Sun Mar  2 18:11:09 1997  Dan Wilder  <dan@gasboy.com>
+			  and Jim Kingdon
 
-Mon Feb 19 01:10:01 1996  Karl Fogel  <kfogel@floss.red-bean.com>
+	* admin.c (admin): Arrange to perform recursion if "cvs admin"
+	is passed only options.
 
-        * login.c (login): print out full repos so user knows which server
-        she's logging into.
+Sun Mar  2 18:11:09 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
-        * client.c (send_repository): die if `repos' is NULL.  This is a
-        lame solution; see comments in code.
+	* sanity.sh (basicb): New tests basicb-0* test for files at top
+	level.
 
-Thu Feb 15 15:04:01 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+	* error.c (error): Add newline to "out of memory" message.  I think
+	that its omission probably could cause the message to be lost in
+	the bowels of server.c and never passed to the user.
 
-	* error.c (error): Free entire and mess when done with them.
+	* client.c (start_rsh_server): Add comment about "remsh" vs. "rsh".
 
-	* sanity.sh (info): Correct syntax of .cvsrc file.
+	* cvs.h: Move copyright notice to top of file.
 
-	* cvs.h, expand_path.c, edit.c, parseinfo.c, wrapper.c:
-	expand_path now takes arguments containing file and line for error
-	message, and it prints the error message itself.
-	* sanity.sh (info-6a): Test printing of error message.
-
-	* expand_path.c (expand_variable): Add USER internal variable.
-	* sanity.sh (info): Test USER and CVSROOT internal variables too.
-
-Wed Feb 14 19:11:08 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
-
-	* main.c (usg): Add -s option.
-
-Tue Feb 13 20:26:06 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
-
-	gcc -Wall lint:
-	* mkmodules.c (mkmodules_usage): Remove declaration of
-	non-existent function.
-	* cvs.h (mkmodules): Declare.
-
-Mon Feb 12 12:20:04 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
-
-	* mkmodules.c: Rename main to mkmodules and remove various pieces
-	of scaffolding which it used to emulate non-existent parts of CVS.
-	Change calling convention to just take a char * not argc,argv.
-	Save and restore working directory.
-	* commit.c (commit_filesdoneproc): Call it if checking files into
-	CVSROOT.
-	* Makefile.in (SOURCES): Add mkmodules.c.
-	(OBJECTS): Add mkmodules.o.
-	(MSOURCES,MOBJECTS): Removed.
-	(COMMON_OBJECTS): Removed; move former contents into OBJECTS.
-	Update other rules accordingly.
-	* sanity.sh: Adjust to reflect nonexistence of mkmodules.
-
-	These changes introduce functions cvs_output and cvs_outerr;
-	eventually all server output will go through them rather than
-	stdio directly.
-	* server.c (saved_output, saved_outerr): New variables.
-	(do_cvs_command): Initialize them.
-	(buf_output): Don't require that buf->output be set; saved_* use
-	this to shove some data in a buffer which buf_copy_lines will
-	later want to get data from.
-	* server.c, cvs.h (cvs_output, cvs_outerr): New functions.
-	* mkmodules.c (cvs_outerr): New function, so error() works.
-	* error.c: Reindent.  Don't declare program_name and command_name;
-	cvs.h declares them.
-	(error): Use vasprintf and cvs_outerr (or fputs in the
-	error_use_protocol case) rather than stdio directly.
-	* import.c (import_descend_dir): Remove kludge which had prevented
-	messages from error() from being out of order with respect to
-	messages from printf; cvs_output and cvs_outerr are a cleaner
-	solution to the problem.
-	(add_log, import): Use cvs_output not printf.
-	* update.c (write_letter): Use cvs_output not printf.
-	(checkout_file): Use write_letter not printf.
-	* sanity.sh: Use dotest for test 56 (test that output is actually
-	correct).  In theory should test that the import.c bug is fixed,
-	but I was unable to reproduce the bug (it is timing dependent).
-
-Mon Feb 12 16:07:45 1996  Norbert Kiesel  <nk@col.sw-ley.de>
-
-	* commit.c: define last_register_time
-	(commit): make sure cvs doesn't exit in the same second it wrote
-	the last timestamp
-	(commit_fileproc): set last_register_time
-	(finaladd): set last_register_time
-
-	* run.c, cvs.h: Changed more Popen() to run_popen()
-
-Mon Feb 12 03:06:50 1996  Benjamin J. Lee  <benjamin@cyclic.com>
-
-	* release.c, rtag.c, tag.c: changed 'delete' to 'delete_flag'
-	to avoid symbol collision with DEC C RTL function delete()
-
-Mon Feb 12 03:01:48 1996  Benjamin J. Lee  <benjamin@cyclic.com>
-
-	* mkmodules.c: changed 'void Lock_Cleanup()' to 'void static
-	Lock_Cleanup() to avoid conflict with more substantial
-	Lock_Cleanup() in lock.c
-
-Mon Feb 12 02:50:19 1996  Benjamin J. Lee  <benjamin@cyclic.com>
-
-	* edit.c, logmsg.c, release.c, run.c: Changed Popen() to
-	run_popen().  VMS' linker is not case sensitive and considered
-	popen() and Popen() to be identical symbols.
-
-Sun Feb 11 10:51:14 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
-
-	* main.c (main) [!CLIENT_SUPPORT]: Silently ignore gzip level
-	rather than printing usage message.
-
-	* cvs.h, expand_path.c (variable_list): New variable.
-	(variable_set): New function.
-	* hash.h (enum ntype), hash.c (nodetypestring): Add VARIABLE.
-	* expand_path.c (expand_path, expand_variable): Reindent.
-	(expand_variable): Use user variables not environment variables
-	for ${=VAR} syntax.  The environment variables didn't work
-	client/server.
-	* main.c (main): Process new -s global option.
-	* client.c (send_variable_proc): New function.
-	(start_server): Call it, to send user variables.
-	* server.c (serve_set): New function.
-	(requests): Add Set request.
-	* sanity.sh: Revise info test to use user variables rather than
-	environment variables.
-
-Sat Feb 10 16:55:37 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
-
-	By itself this is only a small cleanup, but in the long run it
-	will be way cool (for reference, it takes CVS's text segment from
-	290816 bytes to 294912, which I expect will be made up by future
-	changes which this enables):
-	* cvs.h (struct file_info): Added.
-	(FILEPROC): Replace 5 args with single struct file_info *.
-	* recurse.c (do_file_proc): Adjust args to fileproc; passed in
-	instead of from globals.
-	(do_recursion): Call do_file_proc accordingly.  Remove srcfiles
-	global variable.
-	* update.c (update_fileproc): Renamed from update_file_proc.
-	* admin.c, client.c, commit.c, diff.c, edit.c, log.c, patch.c,
-	remove.c, rtag.c, status.c, tag.c, update.c, watch.c: Update
-	fileprocs to new calling convention.
-
-Fri Feb  9 15:30:32 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
-
-	* expand_path.c (expand_variable): Accept a variable name starting
-	with '=' as a way to specify an environment variable.
-	* sanity.sh (info): New tests, for above behavior.
-
-	* Makefile.in (clean): Also remove check.log check.plog.
-
-	* import.c (comtable): Remove SYSTEM_COMMENT_TABLE; the table
-	should *not* depend on what kind of machine the server happens to
-	be.  Add "mak", "rc", "dlg", "frm", and "bas" types which were
-	formerly included via SYSTEM_COMMENT_TABLE.
-
-	* cvs.h, rcs.h, add.c, checkin.c, classify.c, commit.c, diff.c,
-	import.c, patch.c, rcs.c, update.c, vers_ts.c: Remove
-	DEATH_SUPPORT ifdefs.  They were introduced to facilitate merging
-	between Cygnus and Berliner variants of CVS, not because it was
-	intended to subset CVS this way.  And they clutter up the code
-	quite a bit.
-	* cvs.h, create_adm.c, main.c, update.c: Likewise, remove
-	CVSADM_ROOT ifdefs (it is still a #define, of course).  I believe
-	they had a more-or-less similar motivation.
-
-	* sanity.sh: Move setting of HOME from ignore test to the start of
-	the tests so it applies to all tests.
-	(CVS): Remove -f; the above change takes care of it.
-
-	* rcs.h (RCS_MERGE): Removed; unused.
-
-	* commit.c (checkaddfile): Fix memory leak.
-
-	* admin.c, commit.c, diff.c, log.c, mkmodules.c: Pass -x,v/ to RCS
-	commands.
-
-	* rcscmds.c, cvs.h (RCS_checkin): New function.
-	* checkin.c, commit.c, import.c: Call it, rather than run_*.
-	* cvs.h, commit.c: Remove DEATH_STATE define; the behavior
-	which used to be the default (DEATH_STATE) is now the only one.
-	Failing to define DEATH_STATE has been commented as obsolete at
-	least since CVS 1.5.  We still can read repositories created with
-	such a CVS, however.
-	* rcs.h, rcs.c: Adjust comments regarding DEATH_STATE.
-	* subr.c (make_message_rcslegal): Add comment, describing
-	allocation of returned value.
-
-Fri Feb  9 09:53:44 MET 1996  Norbert Kiesel  <nk@col.sw-ley.de>
-
-	* sanity.sh: use "${testcvs}" instead of "cvs" in devcom tests
-
-	* hash.c: fix "dereferencing a NULL pointer" bug triggered with
-	  "cvs watch add"
-	(findnode): return NULL if key == NULL
-	(hashp): assert (key != NULL)
-	
-Fri Feb  9 00:46:47 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
-
-	* rcs.c (RCS_reparsercsfile): Remove unused variable date.
-
-	* myndbm.c (mydbm_load_file): Fix typo ('015' -> '\015').
-
-Thu Feb  8 13:00:00 1996  Jim Kingdon  <kingdon@peary.cyclic.com>
-
-	* rcs.c (RCS_parse, RCS_parsercsfile, RCS_reparsercsfile),
-	fileattr.c (fileattr_read), myndbm.c (myndbm_open):
-	Use FOPEN_BINARY_READ.
-	* fileattr.c (fileattr_write), myndbm.c (myndbm_close):
-	Use FOPEN_BINARY_WRITE.
-	* history.c (history_write, read_hrecs): Specify OPEN_BINARY.
-	* rcs.c: Remove calls to abort.
-	* myndbm.c (myndbm_load_file): Ignore CRs from ends of lines
-	if present.
-	* myndbm.c, fileattr.c: While I am at it, change \n to \012
-	a few places where LF is intended.
-	* history.c (history_write): Use getenv ("HOME"), not getpwnam,
-	to find home directory.  If it isn't set, just keep going; don't
-	print a message.
-	* rcscmds.c, cvs.h (RCS_checkout): New function.
-	* update.c, checkin.c, commit.c, diff.c, import.c, no_diff.c, 
-	patch.c: Call it instead of run_*.
-	* patch.c (patch_fileproc): Clean up inconsistent handling of
-	noexec flag.
-	* rcscmds.c (RCS_*): Pass -x,v/ to RCS commands; elsewhere in
-	CVS it is assumed that ,v is a suffix.
-
-Fri Feb  2 14:07:32 1996  J.T. Conklin  <jtc@rtl.cygnus.com>
-
-	* rcs.h (struct rcsnode): Remove dates field (list of rcsversnodes
- 	indexed by date).  CVS maintained this list for each RCS file even
-	though it was never used.  This resulted in higher then necessary 
-	memory requirements (and run time too).  Even if revision info was
-	needed, CVS' List data structure is inappropriate because can't
-	handle duplicate keys.  The above was discovered by tracking down
-	a memory leak.
-	* rcs.c (RCS_reparsercsfile): Don't build dates list.
-	(freercsnode): Don't delete dates list.
-	(rcsvers_delproc): Free date field.
-	(null_delproc): Removed.
-	
-Thu Feb  1 12:28:33 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
-
-	* remove.c (cvsremove): Don't tell user the name of the program
-	which they use to remove files; we don't have any way of knowing
-	that, and besides which they might use a GUI or emacs 'dired' anyway.
-	* update.c (update_filesdone_proc, update_dirleave_proc): Call
-	unlink_file_dir instead of rm -rf.
-	* options.h.in: Remove RM; no longer used.
-
-	* sanity.sh: New tests devcom-a* test "cvs watch add",
-	"cvs watch remove", and "cvs watchers".
-
-	* sanity.sh: New test 171a0 tests for watch.c bug just fixed by kfogel.
-
-	* Most .c files: Remove rcsids.
-	* cvs.h: Remove USE macro.
-
-Thu Feb  1 13:07:15 1996  J.T. Conklin  <jtc@rtl.cygnus.com>
-
-	* tag.c, rtag.c: Update various comments to reflect function name
- 	changes.
-
-Thu Feb  1 14:14:31 1996  Karl Fogel  <kfogel@floss.red-bean.com>
-
-        * recurse.c (do_recursion): comment #endif.
-
-        * edit.c (notify_check): surround with #ifdef CLIENT_SUPPORT; else
-        CVS won't compile if CLIENT_SUPPORT is undefined.
-        
-        * edit.h (notify_check): surround declaration with #ifdef
-        CLIENT_SUPPORT.
-
-        * watch.c (watch): if argc <= 1, then just give usage (previously
-        was "argc == -1").
-
-Thu Feb  1 12:28:33 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
-
-	* README-rm-add: Remove information which is now in cvs.texinfo.
-
-	* sanity.sh: Remove basic0 tests.  Move a few to new tests
-	basica-1a* (but there is no need to test that *every* command
-	gracefully does nothing on an empty directory; exhaustive testing
-	is impractical and the generic recursion processor handles this
-	anyway).
-
-	* sanity.sh: New tests 69a* test use of update -p to restore old
-	version of dead file.
-
-Wed Jan 31 18:32:34 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
-
-	* ChangeLog-9395: Remove duplicate entries from 1996 which
-	accidentally got into this file.
-
-	* client.c (read_line, read_from_server): Change "premature end of
-	file from server" message to "end of file from server (consult
-	above messages if any)" because 99% of the time it means rsh has
-	printed an error message and exited.
-
-Wed Jan 31 15:09:51 1996  J.T. Conklin  <jtc@rtl.cygnus.com>
-
-	* edit.c (ncheck_fileproc): Fix memory leak; free line before
-	returning.
-
-Tue Jan 30 18:06:12 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
-
-	* recurse.c (do_recursion): Add comment about the fact that we
-	don't have locks in place at certain points.
-
-Tue Jan 30 09:43:34 1996  Vince Demarco  <vdemarco@bou.shl.com>
-
-	* edit.c (notify_proc): have notify_proc call expand_path with
-	the name of the filter program. The user may have used a
-	cvs environmental variable. (Popen will expand it, but it may not
-	use the correct value)
-
-Tue Jan 30 09:43:34 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
-
-	* ChangeLog: take the pre-1996 changes and put them in a new file
-	ChangeLog-9395.
-	* ChangeLog-9194: Renamed from ChangeLog.fsf.
-	* ChangeLog-9194, ChangeLog-9395, ChangeLog: Add additional text
-	explaining the difference between all these logs and pointing to
-	older logs.
-	* Makefile.in (DISTFILES): Add ChangeLog-9194 and ChangeLog-9395;
-	remove ChangeLog.fsf.
-
-	* modules.c (do_module): Don't fall through from 'l' to 'o' case
-	of option processing switch statement.
-
-Tue Jan 30 06:50:19 1996  J.T. Conklin  <jtc@rtl.cygnus.com>
-
-	* client.c (send_repository): Fix memory leak; free adm_name
- 	before returning.
-	* diff.c (diff_file_nodiff): Fix memory leak; free xvers before
- 	returning.
-	* rtag.c (rtag_fileproc): Fix memory leak; if branch_mode is set,
- 	free rev before returning.
-	* status.c (status_fileproc, tag_list_proc): Fix memory leak; free
- 	return value of RCS_whatbranch.
-	* tag.c (tag_fileproc): Fix memory leak; free vers before
- 	returning.
-	(val_fileproc): Fix memory leak; free return value of RCS_gettag.
-	* watch.c (watch_modify_watchers): Fix memory leak; free mynewattr
-	before returning.
-
-Tue Jan 30 09:43:34 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
-
-	* lock.c (readers_exist): If stat gave an error, print an error
-	message saying it was from stat, rather than from "reading
-	directory".  Skip the message completely if it was an
-	existence_error.
-
-	* sanity.sh (branches): New tests (branches off of branches, etc.).
-
-Tue Jan 30 11:55:34 MET 1996  Norbert Kiesel  <nk@col.sw-ley.de>
-
-	* main.c (main): Add change to run getopt_long twice again.
-
-Mon Jan 29 15:59:31 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
-
-	gcc -Wall lint:
-	* client.c: Include edit.h
-
-Sun Jan 28 09:45:53 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
-
-	* edit.c, edit.h (mark_up_to_date): New function, to remove file
-	in CVS/Base.
-	* client.c (update_entries): Call it if file is up to date.
-	* checkin.c (Checkin): Call it in non-server (local) case.
-	* sanity.sh: New test 182.5, tests for above-fixed bug.
-
-Sun Jan 28 01:07:22 1996  Jim Kingdon  (kingdon@beezley)
-
-	* client.c (change_mode): Separate out CHMOD_BROKEN code to parse
-	mode_string, rather than going through a mode_t.  Cleaner than
-	the previous CHMOD_BROKEN code (which also had a typo of && not &).
-
-Sat Jan 27 23:29:46 1996  Jim Kingdon  (kingdon@beezley)
-
-	* edit.c (edit_fileproc): Check for EACCESS as well as EEXIST.
-
-Sat Jan 27 16:26:30 1996  Karl Fogel  (kfogel@floss.cyclic.com)
-
-        * client.c (notified_a_file): use rename_file() instead of
-        rename() (but temporarily set `noexec' to 0 so it runs
-        unconditionally).
-        (change_mode): deal with CHMOD_BROKEN.        
-
-Fri Jan 26 00:14:00 1996  Karl Fogel  <kfogel@floss.red-bean.com>
-
-        * server.c: renamed `dirname' to `dir_name', to avoid conflicts
-        with system headers.
-
-        * client.c: renamed `dirname' and `last_dirname' to `dir_name' and
-        last_dir_name' (see above).  Not strictly necessary, but
-        consistency is nice -- as long as you do it all the time.
-
-Thu Jan 25 00:41:59 1996  Karl Fogel  <kfogel@floss.red-bean.com>
-
-        * options.h.in (AUTH_SERVER_SUPPORT, AUTH_CLIENT_SUPPORT): change
-        comment now that no longer under construction.
-
-Wed Jan 24 15:25:22 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
-
-	* Version 1.7.1.
-
-	* Version 1.7.
-
-Sat Jan 20 00:05:08 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
-
-	* Version 1.6.87.
-
-Mon Jan 15 18:14:55 1996  Gary Oberbrunner  <garyo@avs.com>
+Sun Mar  2 13:44:36 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	* sanity.sh: Use -n when testing whether rsh works.
+
+	* server.c (serve_root): Free path.
+
+Sun Mar  2 13:12:46 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	The following are things that I noticed in the process of trying
+	to track down:
+	  can't create temporary directory
+	  Unknown error -1
+	  FAIL: test 28
+	from nightly testing.  I'm not sure that either item explains that
+	message however.
+	* server.c (server): Allocate pending_error_text;
+	print_pending_error will try to free it so
+	  pending_error_text = "foo"
+	won't work.
+	(mkdir_p): Don't assume that isdir will leave errno unmolested.
+
+Thu Feb 27 15:29:58 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	* remove.c (cvsremove): When forcing removal in client mode, use
+	start_recursion rather than calling CVS_UNLINK on each argument.
+	(remove_force_fileproc): New static function.
+	* sanity.sh (deep): Add tests deep-rm7 through deep-rm10 for above
+	patch.
+
+	* sanity.sh (death): Enable death-76a0 and death-76a1 tests for
+	remote, since they now work.
+
+Wed Feb 26 16:13:26 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	* client.c (add_prune_candidate): Skip adding this directory if
+	it is the same as the first directory already on the list.
+
+Mon Feb 24 21:36:43 1997  Noel Cragg  <noel@gargle.rain.org>
+
+	* main.c (lookup_command_attribute): Add the "init" command to the
+ 	list of commands that don't use the current working directory.
+
+Sun Feb 23 09:54:49 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* sanity.sh (devcom3): Clean up at end of test.
+
+	* sanity.sh (basicb): Add commented out test basicb-8a0, for
+	whether CVS can print an error on bad numeric revision to diff.
+	Commented out until we get around to fixing CVS.
+	* diff.c (diff_file_nodiff): Add comment about this case.
+
+	* fileattr.c (fileattr_read): If a filename is duplicated,
+	continue to ignore subsequent lines but free the node so that we
+	don't leak memory.
+	* sanity.sh (devcom3): New tests devcom3-8 and devcom3-9 test for
+	behavior on duplicated filenames.
+
+	* fileattr.h: Add comment about unrecognized ENT-TYPE and order of
+	lines in fileattr file.
+	* fileattr.c (struct unrecog, unrecog_head): New variables, to
+	record unrecognized lines.
+	(fileattr_startdir): Assert that unrecog_head == NULL.
+	(fileattr_read): Record unrecognized lines in unrecog_head linked
+	list rather than ignoring them.
+	(fileattr_write): Also write out unrecognized lines, if any.
+	* sanity.sh (devcom3): New tests, test for above fix.
+
+	* fileattr.h (fileattr_modify): Fix example in comment.
+
+Sat Feb 22 08:30:27 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* sanity.sh: Add variable username.
+	(basica rdiff multibranch log log2): Use it instead of our own
+	(inconsistent) ways of matching an author name.
+
+	* filesubr.c, root.c, rtag.c, server.c, subr.c, update.c,
+	wrapper.c: Nuke PATH_MAX.
+	* cvs.h, wrapper.c (wrap_fromcvs_process_file): Now returns void
+	(return value had been unused).
+	* cvs.h: Adjust comment to reflect the fact that PATH_MAX is
+	gone, at least from src/*.c (except safe_location, as noted).
+
+22 Feb 1997  patch by Tom Hageman  <tom@basil.icce.rug.nl> (4 Jun 1996)
+	updated and commented by Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* update.c (checkout_file): Call unlink_file_dir on backup, not
+	unlink_file.
+
+Fri Feb 21 16:40:03 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* Makefile.in (DISTFILES): Remove NOTES.
+
+	* NOTES: Removed.  bcopy->memcpy is done.  "static buffers" I
+	assume refers to what is covered by reentrancy text in HACKING.
+ 	Obstack idea moved to comment in hash.c (at nodecache).  Checking
+	system calls for error returns largely done, and isn't a very
+	helpful suggestion unless you know where the bogus calls are
+	anyway.  Sizing limits--we're in the progress of removing them
+	(assuming it meant things like PATH_MAX and earlier, already
+	nuked, limits).  Removed various items about changes which were
+	done a long time ago (I realize that the ChangeLog's probably
+	aren't reliable that far back, but I'm not convinced anyone cares
+	anymore).  CONFIRM_DIRECTORY_ADDS: I assume this is a
+	reference to the #if 0'd code in add_directory which asks for
+	confirmation--a better way of making it harder to accidentally add
+	directories would be to have to add and commit directories like
+	for files.  I don't know what FORCE_MESSAGE_ON_ADD meant.
+
+	* rcs.c (RCS_getrevtime): Fix documentation (in particular, the
+	size of the array that DATE must point to, but many other things
+	too).
+	* patch.c, recurse.c, release.c, remove.c, repos.c: Nuke PATH_MAX.
+	(patch_fileproc): Use MAXDATELEN not hardcoded 50.
+
+Sun Feb 16 12:00:44 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* client.c (client_process_import_file): New variable fullname;
+	pass it to send_modified.  This finishes the job of untangling the
+	old short_pathname variable into update_dir vs. fullname.
+
+	* client.c (client_process_import_file): Nuke first_time.  If
+	toplevel_repos were ever NULL here, the code would dump core in
+	strncmp a few lines down.  And client_import_setup ensures
+	toplevel_repos is not NULL.
+
+Sun Feb 16 08:16:48 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	* client.c (client_process_import_file): Rename short_pathname to
+	update_dir (to reflect its function) and make sure that it doesn't
+	point to uninitialized memory if repository and toplevel_repos
+	contain the same string.
+
+Sun Feb 16 08:16:48 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* client.c (start_rsh_server): Nuke comment about weirdnesses with
+	pre-1.5 versions of CVS and .bashrc/.cshrc.  The remote protocol
+	is interoperable only back to 1.5, and people who need to know are
+	unlikely to see this comment anyway.
+
+Sun Dec 15 13:12:30 1996  Michael Douglass <mikedoug@texas.net>
 			  and Jim Kingdon  <kingdon@harvey.cyclic.com>
 
-	* tag.c (val_direntproc):  New function to ignore
-	  nonexistent dirs when recursing to check tag validity.
-	  (tag_check_valid): Pass it to start_recursion.
-	* sanity.sh (death): New tests 65a0-65a6 cause test 74 to test for
-	above-fixed bug.
+	* main.c (cmds): Added an entry for new logout command.
+	(cmd_usage): Added an entry for new logout command.
+	(lookup_command_attribute): Added 'logout' to list of commands
+	that set need_to_crate_root to 1.
+	* login.c, cvs.h (logout): New command for removing entries from
+	the .cvspass file.
+	(logout_usage): Usage information on the logout command.
 
-Mon Jan 15 12:55:37 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+Wed Feb 12 11:19:42 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
-	* main.c: Revert change to run getopt_long twice.  This can go in
-	after 1.7.
+	* client.c (struct send_data): Fix indentation.
 
-Mon Jan 15 13:03:28 1996  Norbert Kiesel  <nk@col.sw-ley.de>
+Wed Feb 12 08:48:04 1997  Greg A. Woods  <woods@most.weird.com>
 
-	* filesubr.c (deep_remove_dir): added test of EEXIST for nonempty
-	  directory (Posix states that both ENOTEMPTY (BSD) and EEXIST
-	  (SYSV) are valid)
+	* mkmodules.c (loginfo_contents): add missing comma in
+	initializer statement (caused syntax error on SunOS-4).
 
-	* main.c (main): run getopt_long twice to allow command-line
-	  suppression of reading the cvsrc file
+Tue Feb 11 21:14:28 1997  Ian Lance Taylor  <ian@cygnus.com>
 
-Fri Jan 12 10:02:43 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+	* commit.c (find_fileproc): If force_ci is set, set the status to
+	T_MODIFIED even if the file hasn't changed.
+	(commit): Pass force_ci to send_files as new force argument.
+	* client.c (struct send_data): Define.
+	(send_fileproc): The callerdat parameter now points to a send_data
+	struct.  If force is set, always call send_modified.
+	(send_dirent_proc): The callerdat parameter now points to a
+	send_data struct.
+	(send_files): Add force parameter. Change all callers.  Set up a
+	send_data struct and pass it to start_recursion as callerdat.
+	* client.h (send_files): Update declaration.
+	* sanity.sh (basica): Add a simple test for the above patch.
 
-	* Version 1.6.86.
+Sun Feb  9 12:58:59 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
-Thu Jan 11 23:28:05 1996  J.T. Conklin  <jtc@rtl.cygnus.com>
-			  and Jim Kingdon  <kingdon@harvey.cyclic.com>
+	* tag.c (cvstag), rtag.c (rtag): Pass -f to server if specified in
+	the client.  I haven't tried to come up with a test case because
+	the fix seems obvious.
 
-	* fileattr.h (fileattr_startdir): Add comment about REPOS == NULL.
-	* fileattr.c (fileattr_read, fileattr_write): Assert that
-	fileattr_stored_repos != NULL.
-	(fileattr_free): If fileattr_stored_repos is NULL, don't free it.
+	* import.c (add_rcs_file): Change size of altdate1 and altdate2 to
+	MAXDATELEN.
+	* cvs.h (MAXDATELEN): Fix comments; describe what this is for.
 
-Thu Jan 11 18:03:21 1996  Karl Fogel  <kfogel@floss.red-bean.com>
+	* diff.c (diff_usage): Document --ifdef and try to briefly say
+	what "rcsdiff-options" means.
 
-        * scramble.c (descramble): deal with DIAGNOSTIC better.
+	* update.c (update): If update had a nonzero status and we haven't
+	yet tried to fetch unpatchable files, go ahead and try it again.
+	The previous behavior was to quit, which meant that updates would
+	keep failing until you hacked around the problem.  Patch and bug
+	report by Ian; comment, ChangeLog entry, and willingness to take
+	the flak if checking it is premature by Jim.
 
-Thu Jan 11 12:04:42 1996  Norbert Kiesel  <nk@col.sw-ley.de>
+	* server.c (alloc_pending): New function.
+	* server.c: Call it.  Fixes places where we had neglected to
+	check for NULL return from malloc.
 
-	* main.c: remove CVS_NOADMIN.
+	* sanity.sh (binwrap): Add test binwrap-0, tests for import.c fix
+	below.
 
-	* options.h.in: remove CVS_NOADMIN
+Sun, 9 Feb 1997 (submitted 19 Jul 1996)  John Polstra  <jdp@polstra.com>
 
-Thu Jan 11 10:28:44 1996  Karl Fogel  <kfogel@floss.red-bean.com>
+	* import.c (import): Give error if the same tag is specified more
+	than once.  The previous behavior was to write an RCS file which
+	had the same tag listed twice, once pointing to each revision,
+	which is not legal.
 
-        * scramble.c (descramble): make sure the string returned is safe
-        to free().
+Sun Feb  9 12:37:09 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
-Wed Jan 10 01:11:23 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+	* checkin.c (Checkin): Use cvs_output to print message (should
+	make out of order bugs no worse, as it merely substitues a
+	protocol_pipe vs. stderr_pipe race instead of a stdout_pipe
+	vs. stderr_pipe race).  Add comment about stdout vs. stderr.
 
-	* server.c (serve_notify): Cast return value from malloc.
+Fri Feb  7 08:29:52 1997  Josef Nelissen  <josef.nelissen@munich.ixos.de>
 
-	* edit.c (notify_do): Use struct assignment, not struct
-	initialization (which SunOS4 /bin/cc doesn't have).
+	* server.c (check_command_legal_p): Don't use ANSI-style definition.
 
-Tue Jan  9 09:41:29 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+Thu Feb  6 10:55:37 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
-	* Version 1.6.85.
+	* patch.c (patch): Give a fatal error for -V option (see comment
+	for rationale).
 
-	We use version numbers instead of patchlevels.  But there was some
-	confusing patchlevel stuff lying around.  Nuke it:
-	* Makefile.in (HEADERS): Remove patchlevel.h
-	* patchlevel.h: Removed.
-	* main.c: Don't include patchlevel.h.
-	(main): Don't print patch level.
+	* diff.c (diff): Also send "options" to server.  Pretty much the
+	patch submitted independently by josef.nelissen@munich.ixos.de and
+	Ronald Khoo <ronald@demon.net>.
 
-	* server.c (check_repository_password): Check for errors from
-	system calls; reindent function.
+Wed Feb  5 18:57:14 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
-Tue Jan  9 23:15:30 1996  Karl Fogel  <kfogel@floss.red-bean.com>
+	* modules.c (do_module): Fix typo in 30 Jan 97 PATH_MAX nuking
+	(free -> free_cwd).  Testsuite test 151 gets credit for catching
+	this one.
 
-        * expand_path.c: fix comments (explain expand_path()'s behavior
-        correctly).
+Mon Feb  3 16:14:54 1997  Ian Lance Taylor  <ian@cygnus.com>
 
-Tue Jan  9 09:41:29 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+	* main.c (lookup_command_attribute): Don't use an ANSI prototype
+	when defining the function.
 
-	* edit.c (notify_proc): After copying in string following %s,
-	don't clobber it.  Instead set up q to end of string.
+Fri Jan 31 12:49:02 1997  Ian Lance Taylor <ian@cygnus.com>
 
-	* watch.c (watch_modify_watchers), edit.c (editor_set): Fix sense
-	of test in trying to decide whether attributes are changed.
+	* modules.c (do_module): Actually goto found if is_found is set
+	(fixes thinko in PATH_MAX nuking of 30 Jan 97).
 
-	* cvs.h (CVSROOTADM_USERS): New macro.
-	* edit.c (notify_do): Look up notifyee in CVSROOTADM_USERS if it
-	exists.
+Fri Jan 31 12:49:02 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
-Tue Jan  9 21:39:45 1996  Karl Fogel  <kfogel@floss.red-bean.com>
+	* sanity.sh: Add modules3 and big to list of tests to run
+	by default; they were omitted by accident.
 
-        * expand_path.c: don't redundantly #include things that cvs.h
-        already #includes (i.e., stdio.h, ctype.h, string[s].h).
+Thu Jan 30 11:46:33 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
-Tue Jan  9 09:41:29 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+	* logmsg.c, main.c, mkmodules.c, modules.c, parseinfo.c, patch.c:
+	Nuke more PATH_MAX.
 
-	* ignore.c (ign_default): Add *.obj.
+	* server.c (server_updated): After we send Created or
+	Update-existing for a file, mark it as unchanged, in case we
+	process it again.
+	* sanity.sh (modules3): New tests, test for above fix.
 
-	* server.c: Put /* */ around #endif comment.
+	* logmsg.c (do_verify): Error return from fopen is NULL, not -1.
+	Pass errno to error().
 
-Mon Jan  8 20:37:17 1996  Karl Fogel  <kfogel@floss.red-bean.com>
+	* login.c [_CRAY]: Don't declare getpass.
 
-        * client.c (connect_to_pserver): check return value of recv().
+Mon Jan 27 17:25:27 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
-Mon Jan  8 11:37:57 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+	* import.c (process_import_file): Fix freeing of rcs (Don't free
+	it before we are done using it, and don't free it twice).
 
-	* client.c (connect_to_pserver): Check for error from connect;
-	reindent function.
+	* modules.c (cat_module): Allocate line right before we use
+	it.  The previous code was wrong because the length of the
+	s_h->rest changes between the time we allocate line and the time we
+	sprintf s_h->rest into it.
 
-	* sanity.sh (4.75): Use dotest, so we get a PASS if test passes.
+Sun Jan 26 21:58:16 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
-	* sanity.sh (dotest): New argument OUTPUT2.
-	(188a): Use it instead of \|.
+	* expand_path.c (expand_path): Revise to call expand_string as
+	needed.  Nuke PATH_MAX.
+	* find_names.c (find_dirs): Likewise.
+	* import.c, lock.c: Nuke more PATH_MAX.
 
-	* sanity.sh (import): Avoid using string $ followed by Id followed
-	by $ in sanity.sh source, in case sanity.sh itself is under CVS.
-	I hate keyword expansion.
+	* server.c (mkdir_p): Set retval to 0 at start of function.
+	Previously it had been uninitialized for some cases.  Thanks are
+	due to nightly testing for catching this one.
 
-	* sanity.sh: If expr cannot handle multiline expressions, fail and
-	tell the user to get one which can.
+Sat Jan 25 21:34:19 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
-	* release.c (release_delete): Remove unused variable retcode.
+	* subr.c, cvs.h (expand_string): New function.
+	* rcs.c (getrcskey, getrcsrev): Call it.  This greatly reduces the
+	number of calls to realloc if there is a very large file in the
+	RCS file.  Credit goes to Mike Heath <mike@pswtech.com> for
+	pointing out the problem and the basic solution (MIN_INCR,
+	MAX_INCR); I adapted it into the separate function expand_string.
+	* sanity.sh (big): New test helps insure this hasn't broken
+	anything obvious.
 
-Fri Jan  5 13:30:00 1996  Jim Kingdon   <kingdon@peary.cyclic.com>
+Wed Jan 22 10:06:13 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
-	* release.c (release_delete): Call unlink_file_dir rather 
-	than "rm -rf".
+	* status.c (status_fileproc): Change message which is printed for
+	T_MODIFIED and ts_conflict set, so that it doesn't say "unresolved
+	confict".  This message occurs whether the conflict is resolved or
+	not.
+	* sanity.sh (conflicts): Add tests conflicts-status-* to test
+	output of "cvs status" in the context of conflicts.  Tests for
+	above fix.
 
-Thu Jan  4 09:58:30 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+	* rtag.c (rtag): Send -n if run_module_prog is NOT true.
 
-	* commit.c (find_fileproc): Print "nothing known about foo" and
-	return 1 if the file doesn't exist and isn't in CVS/Entries.
-	(commit): If the recursion over find_fileproc returns an error,
-	print "correct above errors first!" just like local CVS.
-	* sanity.sh (basica): Test for above-fixed bug.
+Thu Jan 16 00:06:00 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
-	* release.c (release): If we are the client, only unedit if the
-	server supports it.
+	* version.c: Change version number to 1.9.3.
 
-	* sanity.sh: Remove STARTANCHOR stuff; expr patterns are
-	automatically anchored to the start.  ENDANCHOR remains.
+	* version.c: Version 1.9.2.
 
-	* commit.c (commit): Don't start the server until we have
-	determined that there is something to commit.
+Wed Jan 15 09:14:38 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
-Thu Jan  4 09:48:33 1996  Ben Laurie  <ben@gonzo.ben.algroup.co.uk>
-			  and Jim Kingdon  <kingdon@harvey.cyclic.com>
+	* client.c (call_in_directory): Take code that creates CVSADM at
+	top level, move it before the CVS_CHDIR (dir_name) call, and do it
+	regardless of whether dir_name is ".".  Pass "." not dir_name to
+	Create_Admin (when the code was written they were always the
+	same).  Don't add reposdirname to the repository we pass to
+	Create_Admin (when the code was written, I think reposdirname
+	probably would always be ".").  Don't create CVSADM if
+	reposdirname_absolute.
+	* sanity.sh (basicb): Enable tests basicb-1a and basicb-9a for
+	remote; tests for above fix.
+	(basic1): Do entire test within a "1" directory to deal with
+	creation of CVS directories at top level.  Support --keep.
+	(conflicts): In test conflicts-136, only update first-dir.
+	(basica): Uncomment the part that tests "cvs co -l .".  That tests
+	the existing functionality which I might have (but hopefully did not)
+	perturbed with the call_in_directory changes.
 
-	* client.c (start_server): dup the file descriptor before
-	fdopening it.
+Mon Jan 13 11:04:32 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
-Wed Jan  3 18:25:25 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+	* server.c (check_command_legal_p): Do not call error (1, ...)
+ 	here; that will always cause a protocol violation by shutting down
+	the connection prematurely.  Remove croak_on_illegal arg.
+	(do_cvs_command): Move call to check_command_legal_p until after
+	the call to print_pending_error.  Print the error message ourself.
 
-	* sanity.sh: Remove tests 5, 5.5, and 5.75.  All that stuff is
-	tested elsewhere.
+	* mkmodules.c (filelist): Add readers and writers.  Add comment
+	about why passwd is not included.  Add comment about meaning of
+	NULL contents field.
 
-	* ignore.c (ign_default): Change CVS* to CVS CVS.adm.  CVS* is too
-	broad, especially in a case-insensitive filesystem.
+Fri Jan 10 13:23:09 1997  Norbert Kiesel  <nk@col.sw-ley.de>
 
-	* Makefile.in (cvsbug): version.c is in srcdir.
+	* release.c (release): Initialize delete_flag before reading it
+	(found by running purify)
 
-Wed Jan  3 17:30:45 1996  Phi-Long Tran  <ptran@autodesk.com>
+	* logmsg.c (do_verify): Fix reading unallocated memory (found by
+ 	running purify)
 
-	* modules.c (do_module): Honor error_use_protocol in printing trace.
-	* server.c (server_register): Move check for options NULL to above
-	printing of the trace.
+Thu Jan  9 16:32:47 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
-Wed Jan  3 01:19:53 1996  Mark Immel <immel@centerline.com>
-			  and Jim Kingdon  <kingdon@harvey.cyclic.com>
+	* checkout.c (build_dirs_and_chdir): Partially revert 3 Jan
+	change--move call to Subdir_Register back above the CVS_CHDIR call
+	(we need to register in the old, not the new, directory).  Instead
+	of calling CVS_MKDIR and ignoring errors, call mkdir_if_needed;
+	this is an effort to catch errors there rather than catching them
+	in the CVS_CHDIR.  This makes test 27-add-add in sanity.sh work
+	again.
 
-	* update.c (checkout_file): Do not resurrect file on join if it
-	doesn't contain the revisions we are joining.  Probably not a
-	perfect test, but should be an improvement.
-	* sanity.sh (death): New death-file4-* tests, for bug fixed above.
+	* find_names.c (Find_Directories): Remove code inside
+	#ifdef ATTIC_DIR_SUPPORT and replace it with a comment explaining
+	why we don't look in the attic.  ATTIC_DIR_SUPPORT was never defined.
 
-Wed Jan  3 01:19:53 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+	* find_names.c (find_dirs): Add comment about tmp being unset.
 
-	* add.c, admin.c, checkout.c, client.c, commit.c, diff.c, edit.c,
-	history.c, import.c, log.c, patch.c, release.c, remove.c, rtag.c,
-	status.c, tag.c, update.c, watch.c: In calling send_to_server,
-	pass \012 not \n.  On the Mac \n is CR, not LF, and we want to
-	send LF.  I didn't try to deal with whether files in CVSADM should
-	contain CR or LF--in fact there is some code in client.c which
-	reads \n from CVSADM files and passes it to send_to_server; it
-	needs to be cleaned up one way or the other.
+	* commit.c (checkaddfile): Report errors with errno and specific
+	error messages.
 
-	* entries.c (Entries_Open): Don't try to close fpin twice.
+	* rcs.c, commit.c, create_adm.c, entries.c, find_names.c,
+	ignore.c, history.c: Nuke PATH_MAX arbitrary limits.
 
-	* client.c (update_entries): Fix typo ("strlen (filename + 10)"
-	-> "strlen (filename) + 10").
+Wed Jan  8 23:07:41 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
-	* commit.c (checkaddfile): Remove arbitrary limit.
+	* add.c (add): Reindent a portion which needed it.
 
-Tue Jan  2 11:25:22 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+1997-01-08  Jim Kingdon
 
-	* commit.c (commit): Only pass files which were modified, added,
-	or removed to send_file_names.  This has as a side effect a
-	semantic change--the up-to-date check is now skipped for other
-	files--but probably a good one, or at least not a bad one.
-	* sanity.sh (basica): New test; tests for bug fixed above.
-	* sanity.sh (187a3): Adjust for new 'cvs commit' output.  Set up
-	DOTSTAR to match arbitrary text (another GNU expr bug/misfeature,
-	sigh).
+	* client.c (send_file_names): When looking name up in Entries,
+	call Entries_Open and Entries_Close.  This has two effects:
+	(1) we look at Entries.Log, and (2) we don't skip 'D' entries,
+	both of which are needed to make us get the right (command
+	line) name for a directory we are adding.
 
-	* sanity.sh: Test that the commit in test 43 actually worked.
-	Merge tests basic2 and basic3 and make them independent of basic1.
-	(pass,fail): Don't insert spurious space.
-	(45.5): Fix typo in directory name.
+Wed Jan  8 14:50:47 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
-Tue Jan  2 13:00:00 1996  Jim Kingdon  <kingdon@peary.cyclic.com>
+	* Makefile.in, cvs.h, hash.h, myndbm.h, rcs.h: Remove CVSid; we
+	decided to get rid of these some time ago.
 
-	Visual C++ lint:
-	* myndbm.c: Prototype write_item.
+Tue Jan  7 12:56:10 1997  Karl Fogel  <kfogel@ynu38.ynu.edu.cn>
 
-Tue Jan  2 11:25:22 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+        * root.c (check_root_consistent): new func, compares below new
+        global var with CVSroot_directory, assuming both set.
+        (set_local_cvsroot): use above new func for security check.
+        (parse_cvsroot): same.
+        But do all of above only #ifdef AUTH_SERVER_SUPPORT.
 
-	gcc -Wall lint:
-	* client.c (client_expand_modules): Pass error message not "" to error.
-	* client.c (supported_request), server.c (supported_response):
-	Return a value (gcc -Wall can't know that error doesn't return).
-	* commit.c (copy_ulist): Return a value.
-	* history.c (fill_hrec): Don't make assumptions about whether
-	time_t is "int" or "long" or what.
-	* cvs.h: Declare link_file.
-	* server.c: Include fileattr.h.
-	* server.c (server_notify): Remove unused variable val.
-	* tag.c (val_fileproc): Remove unused variable foundtag.
+        * server.c: (Pserver_Repos): new global var, init to NULL.
+        (pserver_authenticate_connection): set above new global.
+        (check_repository_password): be a good scout and use
+        CVSROOTADM and CVSROOTADM_PASSWD, now that they are the standard.
+        Make sure all of above is in #ifdef AUTH_SERVER_SUPPORT.
+        (check_command_legal_p): wrap most of body in #ifdef
+        AUTH_SERVER_SUPPORT.
+        Everywhere: wrap all references to CVS_Username in #ifdef
+        AUTH_SERVER_SUPPORT.
 
-Mon Jan  1 09:49:16 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+        * cvs.h (Pserver_Repos): new var, used in consistency [security]
+        check.  Defined only #ifdef AUTH_SERVER_SUPPORT.
+        (CVSROOTADM_PASSWD): new #define, trying to get with the program.
 
-	* Version 1.6.5.
+Fri Jan  3 18:10:39 1997  Ian Lance Taylor  <ian@cygnus.com>
 
-	* Version 1.6.4.
+	* checkout.c (build_dirs_and_chdir): Move call to Subdir_Register
+	until after we know that the directory exists.
 
-	* filesubr.c (link_file): Add comment about link vs. copy semantics.
+Thu Jan  2 13:30:56 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
-	* cvs.h (struct vers_ts): Fix comments.
-	* commit.c (commit): Before we ask for a log message, figure out
-	what is modified and what is not and pass the information to
-	do_editor.
-	(copy_ulist,find_fileproc): New helper functions for above code.
+	* Makefile.in, cvsbug.sh, edit.c, edit.h, error.c, error.h,
+	fileattr.c, fileattr.h, filesubr.c, run.c, update.h, watch.c,
+	watch.h: Remove "675" paragraph; see ../ChangeLog for rationale.
 
-	* client.c (read_line): When writing to from_server_logfile, write
-	the \n too.
+Thu Jan  2 12:27:46 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
-	* client.c (send_files): No longer call send_file_names.
-	* client.h: Update comment.
-	* add.c, admin.c, commit.c, diff.c, edit.c, log.c, remove.c,
-	status.c, tag.c, update.c, watch.c: Call send_file_names before
-	send_files.
-	* client.c: New variables module_argc, module_argv.
-	(client_expand_modules): Set them, to arguments.
-	(client_send_expansions): Use them instead of modules_vector to
-	send arguments.
-	* sanity.sh (modules): Add test of modules -d flag.
+	* sanity.sh (info): New test info-cleanup-verifymsg gets rid of
+	verifymsg when we are done with it.
 
-
-For older changes see ChangeLog-9395.
+	* sanity.sh (basicb): Skip tests basicb-1a and basicb-9a for remote.
+	* sanity.sh (modules-155a4): It is OK if a CVS directory exists.
+	* sanity.sh (ignore): Do everything inside a "1" directory.  The
+	change to create CVS directories at top-level causes messages such as
+	"? home" otherwise.  In test 191, specify -I CVS so that new CVS
+	directory is ignored.
+	* sanity.sh (crerepos): Manually remove CVS directory which had not
+	existed before.
+
+Thu Jan  2 09:06:20 1997  Karl Fogel  <kfogel@ynu38.ynu.edu.cn>
+
+        * server.c: Changes for pserver read-only repository access:
+        (check_command_legal_p): new func.  Right now, just checks if
+        repository modification is permitted, and that only if pserver is
+        active.
+        (do_cvs_command): take new parameter `cmd_name', a string.  All
+        callers changed.  Pass it on to new func check_command_legal_p()
+        before executing the command.
+        (CVS_Username): new global, init to NULL.  Used by
+        check_command_legal_p(), set in check_password().
+        (check_password): set above new global CVS_Username; reorganized a
+        bit to facilitate this.
+        (check_repository_password): give *host_user_ptr permanent
+        storage iff success.
+
+        * main.c: Changes for pserver read-only repository access:
+        (lookup_command_attribute): new func.
+        (main): use new func lookup_command_attribute() to establish if
+        CVS_CMD_IGNORE_ADMROOT and CVS_CMD_USES_WORK_DIR.
+
+        * cvs.h: Changes for pserver read-only repository access:
+        (CVSROOTADM_READERS, CVSROOTADM_WRITERS): new #defines.
+        Prototype lookup_command_attribute().
+        (CVS_CMD_IGNORE_ADMROOT, CVS_CMD_USES_WORK_DIR,
+        CVS_CMD_MODIFIES_REPOSITORY): new #defines for
+        lookup_command_attribute() and its callers.
+
+Wed Jan  1 19:50:38 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* options.h.in: Reword comment for TMPDIR_DFLT to make it clear
+	that this isn't specific to the pserver server.
+
+	* modules.c (do_module): Give an error message if one tries to
+	specify -a together with another option.
+	* sanity.sh (modules2): New tests modules2-a* test for above fix.
+
+	* sanity.sh (devcom): Add tests devcom-a-nonexist and
+	devcom-t-nonexist for "cvs watchers" on nonexistent argument.
+
+1997-01-01  Fred Fish  <fnf@ninemoons.com>
+
+	* run.c (piped_child, filter_stream_through_program): Actually
+	install these HAVE_VFORK patches that got missed.
+	(There was a log entry for these changes for 29 Nov 1996 but it
+	seems I accidentally forgot to actually check them in -kingdon).
+
+Wed Jan  1 18:32:44 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* Makefile.in: Add ChangeLog-96.
+	* ChangeLog-96: New file, contains former contents of ChangeLog.
+	* ChangeLog: Now just contains 1997 changes.
+
+
+For older changes see ChangeLog-96.

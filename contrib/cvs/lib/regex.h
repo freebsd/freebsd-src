@@ -11,11 +11,7 @@
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
+   GNU General Public License for more details.  */
 
 #ifndef __REGEXP_LIBRARY_H__
 #define __REGEXP_LIBRARY_H__
@@ -465,9 +461,11 @@ extern void re_set_registers
   _RE_ARGS ((struct re_pattern_buffer *buffer, struct re_registers *regs,
              unsigned num_regs, regoff_t *starts, regoff_t *ends));
 
-/* 4.2 bsd compatibility.  */
-extern char *re_comp _RE_ARGS ((const char *));
-extern int re_exec _RE_ARGS ((const char *));
+/* 4.2 bsd compatibility.  System headers may declare the argument as
+   either "char *" (e.g. Cray unistd.h) or "const char *" (e.g. linux
+   regex.h), so don't prototype them here.  */
+extern char *re_comp ();
+extern int re_exec ();
 
 /* POSIX compatibility.  */
 extern int regcomp _RE_ARGS ((regex_t *preg, const char *pattern, int cflags));
