@@ -85,11 +85,7 @@ __RCSID("$FreeBSD$");
  *	Parse_MainName	    	    Returns a Lst of the main target to create.
  */
 
-#ifdef __STDC__
 #include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
 #include <ctype.h>
 #include <err.h>
 #include <stdio.h>
@@ -312,25 +308,11 @@ ParseFindKeyword (str)
  */
 /* VARARGS */
 void
-#ifdef __STDC__
 Parse_Error(int type, char *fmt, ...)
-#else
-Parse_Error(va_alist)
-	va_dcl
-#endif
 {
 	va_list ap;
-#ifdef __STDC__
+
 	va_start(ap, fmt);
-#else
-	int type;		/* Error type (PARSE_WARNING, PARSE_FATAL) */
-	char *fmt;
-
-	va_start(ap);
-	type = va_arg(ap, int);
-	fmt = va_arg(ap, char *);
-#endif
-
 	(void)fprintf(stderr, "\"%s\", line %d: ", fname, lineno);
 	if (type == PARSE_WARNING)
 		(void)fprintf(stderr, "warning: ");
