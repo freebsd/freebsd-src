@@ -38,9 +38,9 @@
 .Sh SYNOPSIS
 .Fd #include <sys/param.h>
 .Fd #include <sys/bus.h>
-.Ft int
+.Ft device_t
 .Fn device_add_child "device_t dev" "const char *name" "int unit"
-.Ft int
+.Ft device_t
 .Fn device_add_child_ordered "device_t dev" "int order" "const char *name" "int unit"
 .Sh DESCRIPTION
 .Pp
