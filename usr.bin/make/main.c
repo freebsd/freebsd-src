@@ -938,11 +938,14 @@ ReadMakefile(p, q)
 	FILE *stream;
 	char *name, path[MAXPATHLEN + 1];
 	char *MAKEFILE;
+	int setMAKEFILE;
 
 	if (!strcmp(fname, "-")) {
 		Parse_File("(stdin)", stdin);
 		Var_Set("MAKEFILE", "", VAR_GLOBAL);
 	} else {
+		setMAKEFILE = strcmp(fname, ".depend");
+
 		/* if we've chdir'd, rebuild the path name */
 		if (curdir != objdir && *fname != '/') {
 			(void)snprintf(path, MAXPATHLEN, "%s/%s", curdir, fname);
@@ -970,7 +973,9 @@ ReadMakefile(p, q)
 		 * placement of the setting here means it gets set to the last
 		 * makefile specified, as it is set by SysV make.
 		 */
-found:		Var_Set("MAKEFILE", MAKEFILE, VAR_GLOBAL);
+found:
+		if (setMAKEFILE)
+			Var_Set("MAKEFILE", MAKEFILE, VAR_GLOBAL);
 		Parse_File(fname, stream);
 		(void)fclose(stream);
 	}
