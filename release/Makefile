@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.207 1996/02/13 13:28:41 joerg Exp $
+#	$Id: Makefile,v 1.208 1996/02/27 03:40:40 jkh Exp $
 #
 # How to roll a release:
 #
@@ -178,7 +178,6 @@ release.3:
 # You are not supposed to like this :-)
 release.4:
 	@cd ${.CURDIR} && $(MAKE) ckRELEASEDIR
-	cd ${.CURDIR}/libdisk && make obj && make depend && make all
 	cd ${.CURDIR}/sysinstall && make obj && make depend && make all
 	rm -rf ${RD}/crunch
 	mkdir -p ${RD}/crunch
