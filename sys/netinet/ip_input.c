@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.21 1995/05/11 00:13:18 wollman Exp $
+ * $Id: ip_input.c,v 1.23 1995/06/13 17:51:10 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -243,7 +243,7 @@ next:
 
         if (ip_fw_chk_ptr!=NULL)
                if (!(*ip_fw_chk_ptr)(ip,m->m_pkthdr.rcvif,ip_fw_chain) ) {
-                       goto bad;
+                       goto next;
                }
 
 	/*
