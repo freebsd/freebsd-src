@@ -51,5 +51,6 @@
 #define NG_RFC1490_HOOK_DOWNSTREAM	"downstream"
 #define NG_RFC1490_HOOK_INET		"inet"
 #define NG_RFC1490_HOOK_PPP		"ppp"
+#define NG_RFC1490_HOOK_ETHERNET	"ethernet"
 
 #endif /* _NETGRAPH_NG_RFC1490_H_ */

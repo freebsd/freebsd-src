@@ -83,6 +83,7 @@ struct ng_rfc1490_private {
 	hook_p  downlink;
 	hook_p  ppp;
 	hook_p  inet;
+	hook_p  ethernet;
 };
 typedef struct ng_rfc1490_private *priv_p;
 
@@ -154,6 +155,10 @@ ng_rfc1490_newhook(node_p node, hook_p hook, const char *name)
 		if (priv->inet)
 			return (EISCONN);
 		priv->inet = hook;
+	} else if (!strcmp(name, NG_RFC1490_HOOK_ETHERNET)) {
+		if (priv->ethernet)
+			return (EISCONN);
+		priv->ethernet = hook;
 	} else
 		return (EINVAL);
 	return (0);
@@ -193,10 +198,10 @@ ng_rfc1490_rcvmsg(node_p node, item_p item, hook_p lasthook)
  *      |               specified    |                       |
  *      |               0x70        PID                     Ethertype
  *      |                            |                       |
- *      -------------------        --------------...        ----------
- *      |0x51 |0x4E |     |0x4C    |0x1   |0xB  |           |0x806   |
- *      |     |     |     |        |      |     |           |        |
- *     7776  Q.922 Others 802.2   802.3  802.6 Others       ARP(*)  Others
+ *      -------------------        -----------------...     ----------
+ *      |0x51 |0x4E |     |0x4C    |0x7      |0xB  |        |0x806   |
+ *      |     |     |     |        |         |     |        |        |
+ *     7776  Q.922 Others 802.2   802.3(*)  802.6 Others    ARP(*)  Others
  *
  *
  */
@@ -251,9 +256,16 @@ ng_rfc1490_rcvdata(hook_p hook, item_p item)
 				default:
 					ERROUT(0);
 				}
-			} else if (OUICMP(ptr, 0x00, 0x80, 0xc2))	/* 802.1 bridging */
-				ERROUT(0);
-			else	/* Other weird stuff... */
+			} else if (OUICMP(ptr, 0x00, 0x80, 0xc2)) {
+				/* 802.1 bridging */
+				ptr += 3;
+				if (*ptr++ != 0x00)
+					ERROUT(0);     /* unknown PID octet 0 */
+				if (*ptr++ != 0x07)
+					ERROUT(0);	/* not FCS-less 802.3 */
+				m_adj(m, ptr - start);
+				NG_FWD_NEW_DATA(error, item, priv->ethernet, m);
+			} else	/* Other weird stuff... */
 				ERROUT(0);
 			break;
 		case NLPID_IP:
@@ -290,6 +302,19 @@ ng_rfc1490_rcvdata(hook_p hook, item_p item)
 			ERROUT(ENOBUFS);
 		mtod(m, u_char *)[0] = HDLC_UI;
 		mtod(m, u_char *)[1] = NLPID_IP;
+		NG_FWD_NEW_DATA(error, item, priv->downlink, m);
+	} else if (hook == priv->ethernet) {
+		M_PREPEND(m, 8, M_DONTWAIT);	/* Prepend NLPID, OUI, PID */
+		if (!m)
+			ERROUT(ENOBUFS);
+		mtod(m, u_char *)[0] = HDLC_UI;
+		mtod(m, u_char *)[1] = 0x00;		/* pad */
+		mtod(m, u_char *)[2] = NLPID_SNAP;
+		mtod(m, u_char *)[3] = 0x00;		/* OUI */
+		mtod(m, u_char *)[4] = 0x80;
+		mtod(m, u_char *)[5] = 0xc2;
+		mtod(m, u_char *)[6] = 0x00;		/* PID */
+		mtod(m, u_char *)[7] = 0x07;
 		NG_FWD_NEW_DATA(error, item, priv->downlink, m);
 	} else
 		panic(__func__);
@@ -334,6 +359,8 @@ ng_rfc1490_disconnect(hook_p hook)
 		priv->inet = NULL;
 	else if (hook == priv->ppp)
 		priv->ppp = NULL;
+	else if (hook == priv->ethernet)
+		priv->ethernet = NULL;
 	else
 		panic(__func__);
 	return (0);
