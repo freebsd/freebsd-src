@@ -127,7 +127,7 @@
 #	ipl	ipfilter control devices (ipl, ipnat, ipstate, ipauth)
 #	kbd	keyboard devices
 #
-#	$Id: MAKEDEV,v 1.196 1999/05/04 17:03:58 hosokawa Exp $
+#	$Id: MAKEDEV,v 1.197 1999/05/20 10:06:52 hm Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:$PATH
@@ -1366,19 +1366,19 @@ i4brbch*)
 	chmod 600 i4brbch$unit
 	;;
 
-i4btel*)
-	unit=`expr $i : 'i4btel\(.*\)'`
-	mknod i4btel$unit c 56 $unit
-	chown root:wheel i4btel$unit
-	chmod 600 i4btel$unit
-	;;
-
 i4bteld*)
 	offset=64
 	unit=`expr $i : 'i4bteld\(.*\)'`
 	mknod i4bteld$unit c 56 `expr $offset + $unit `
 	chown root:wheel i4bteld$unit
 	chmod 600 i4bteld$unit
+	;;
+
+i4btel*)
+	unit=`expr $i : 'i4btel\(.*\)'`
+	mknod i4btel$unit c 56 $unit
+	chown root:wheel i4btel$unit
+	chmod 600 i4btel$unit
 	;;
 
 i4btrc*)
