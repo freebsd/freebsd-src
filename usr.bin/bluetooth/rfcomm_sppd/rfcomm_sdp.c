@@ -40,7 +40,7 @@
 #undef	PROTOCOL_DESCRIPTOR_LIST_MINIMAL_SIZE
 #define	PROTOCOL_DESCRIPTOR_LIST_MINIMAL_SIZE	12
 
-static int rfcomm_proto_list_parse (u_int8_t const *start, u_int8_t const *end,
+static int rfcomm_proto_list_parse (uint8_t const *start, uint8_t const *end,
 					int *channel, int *error);
 
 /*
@@ -62,14 +62,14 @@ int
 rfcomm_channel_lookup(bdaddr_t const *local, bdaddr_t const *remote,
 			int service, int *channel, int *error)
 {
-	u_int8_t	 buffer[PROTOCOL_DESCRIPTOR_LIST_BUFFER_SIZE];
-	void		*ss      = NULL;
-	u_int16_t	 serv    = (u_int16_t) service;
-	u_int32_t	 attr    = SDP_ATTR_RANGE(
+	uint8_t		 buffer[PROTOCOL_DESCRIPTOR_LIST_BUFFER_SIZE];
+	void		*ss    = NULL;
+	uint16_t	 serv  = (uint16_t) service;
+	uint32_t	 attr  = SDP_ATTR_RANGE(
 					SDP_ATTR_PROTOCOL_DESCRIPTOR_LIST,
 					SDP_ATTR_PROTOCOL_DESCRIPTOR_LIST);
-	sdp_attr_t	 proto   = { SDP_ATTR_INVALID,0,sizeof(buffer),buffer };
-	u_int32_t	 type, len;
+	sdp_attr_t	 proto = { SDP_ATTR_INVALID,0,sizeof(buffer),buffer };
+	uint32_t	 type, len;
 
 	if (local == NULL)
 		local = NG_HCI_BDADDR_ANY;
@@ -172,7 +172,7 @@ rfcomm_channel_lookup(bdaddr_t const *local, bdaddr_t const *remote,
 }
 
 static int
-rfcomm_proto_list_parse(u_int8_t const *start, u_int8_t const *end,
+rfcomm_proto_list_parse(uint8_t const *start, uint8_t const *end,
 			int *channel, int *error)
 {
 	int	type, len, value;
@@ -220,10 +220,10 @@ rfcomm_proto_list_parse(u_int8_t const *start, u_int8_t const *end,
 			rfcomm_proto_list_parse_exit(EINVAL);
 
 		/* Get protocol UUID */
-		SDP_GET8(type, start); len -= sizeof(u_int8_t);
+		SDP_GET8(type, start); len -= sizeof(uint8_t);
 		switch (type) {
 		case SDP_DATA_UUID16:
-			SDP_GET16(value, start); len -= sizeof(u_int16_t);
+			SDP_GET16(value, start); len -= sizeof(uint16_t);
 			if (value != SDP_UUID_PROTOCOL_RFCOMM)
 				goto next_protocol;
 			break;
