@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)ps.1	8.3 (Berkeley) 4/18/94
-.\"	$Id$
+.\"	$Id: ps.1,v 1.4 1994/09/24 02:56:46 davidg Exp $
 .\"
 .Dd April 18, 1994
 .Dt PS 1
@@ -47,6 +47,7 @@
 .Op Fl o Ar fmt
 .Op Fl p Ar pid
 .Op Fl t Ar tty
+.Op Fl U Ar username
 .Op Fl W Ar swap
 .Nm ps
 .Op Fl L
@@ -130,6 +131,9 @@ with the standard input.
 .It Fl t
 Display information about processes attached to the specified terminal
 device.
+.It Fl U
+Display the processes belonging to the specified
+.Tn username .
 .It Fl u
 Display information associated with the following keywords:
 user, pid, %cpu, %mem, vsz, rss, tt, state, start, time and command.
