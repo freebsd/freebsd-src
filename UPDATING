@@ -4,7 +4,7 @@ This file is maintained by imp@village.org.  Please send new entries
 directly to him.  See end of file for further details.
 
 19991205:
-	Raw devices are going away.  You will need to update your /dev
+	Block devices are going away.  You will need to update your /dev
 	tree with a fresh copy of MAKEDEV for things to always work in 
 	the future.  fsck is unable to cope with dirty file systems
 	after this change, so it may work for you or it may not.
