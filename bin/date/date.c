@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: date.c,v 1.17 1997/08/10 16:37:33 brian Exp $
+ *	$Id: date.c,v 1.18 1997/09/30 20:06:15 joerg Exp $
  */
 
 #ifndef lint
@@ -76,7 +76,7 @@ main(argc, argv)
 	extern int optind;
 	extern char *optarg;
 	struct timezone tz;
-	int ch, rflag;
+	int ch, rflag, sflag;
 	char *format, buf[1024];
 	char *endptr, *fmt;
 	int set_timezone;
@@ -88,9 +88,9 @@ main(argc, argv)
 	fmt = NULL;
 	(void) setlocale(LC_TIME, "");
 	tz.tz_dsttime = tz.tz_minuteswest = 0;
-	rflag = 0;
+	rflag = sflag = 0;
 	set_timezone = 0;
-	while ((ch = getopt(argc, argv, "d:f:nr:t:uv:")) != -1)
+	while ((ch = getopt(argc, argv, "d:f:nr:st:uv:")) != -1)
 		switch((char)ch) {
 		case 'd':		/* daylight savings time */
 			tz.tz_dsttime = strtol(optarg, &endptr, 10) ? 1 : 0;
@@ -107,6 +107,9 @@ main(argc, argv)
 		case 'r':		/* user specified seconds */
 			rflag = 1;
 			tval = atol(optarg);
+			break;
+		case 's':
+			sflag = 1;
 			break;
 		case 't':		/* minutes west of GMT */
 					/* error check; don't allow "PST" */
@@ -164,7 +167,9 @@ main(argc, argv)
 	}
 	vary_destroy(v);
 	(void)strftime(buf, sizeof(buf), format, &lt);
-	(void)printf("%s\n", buf);
+	(void)printf("%s", buf);
+	if (!sflag)
+		(void)printf("\n");
 	exit(retval);
 }
 
