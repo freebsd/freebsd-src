@@ -241,6 +241,7 @@ void vm_map_lock(vm_map_t map);
 void vm_map_unlock(vm_map_t map);
 void vm_map_lock_read(vm_map_t map);
 void vm_map_unlock_read(vm_map_t map);
+int vm_map_trylock(vm_map_t map);
 int vm_map_lock_upgrade(vm_map_t map);
 void vm_map_lock_downgrade(vm_map_t map);
 void vm_map_set_recursive(vm_map_t map);
