@@ -128,6 +128,10 @@ cpu_fork(p1, p2, flags)
 	register struct proc *p1, *p2;
 	int flags;
 {
+	struct user *up;
+	struct trapframe *p2tf;
+	u_int64_t bspstore, *p1bs, *p2bs, rnatloc, rnat;
+
 	if ((flags & RFPROC) == 0)
 		return;
 
@@ -173,92 +177,86 @@ cpu_fork(p1, p2, flags)
 
 	/*
 	 * create the child's kernel stack, from scratch.
+	 *
+	 * Pick a stack pointer, leaving room for a trapframe;
+	 * copy trapframe from parent so return to user mode
+	 * will be to right address, with correct registers.
 	 */
-	{
-		struct user *up = p2->p_addr;
-		struct trapframe *p2tf;
-		u_int64_t bspstore, *p1bs, *p2bs, rnatloc, rnat;
+	p2->p_frame = (struct trapframe *)
+	    ((char *)p2->p_addr + USPACE - sizeof(struct trapframe));
+	bcopy(p1->p_frame, p2->p_frame, sizeof(struct trapframe));
 
-		/*
-		 * Pick a stack pointer, leaving room for a trapframe;
-		 * copy trapframe from parent so return to user mode
-		 * will be to right address, with correct registers.
-		 */
-		p2tf = p2->p_frame = (struct trapframe *)
-		    ((char *)p2->p_addr + USPACE - sizeof(struct trapframe));
-		bcopy(p1->p_frame, p2->p_frame, sizeof(struct trapframe));
+	/*
+	 * Set up return-value registers as fork() libc stub expects.
+	 */
+	p2tf = p2->p_frame;
+	p2tf->tf_r[FRAME_R8] = 0; 	/* child's pid (linux) 	*/
+	p2tf->tf_r[FRAME_R9] = 1;	/* is child (FreeBSD) 	*/
+	p2tf->tf_r[FRAME_R10] = 0;	/* no error 		*/
 
-		/*
-		 * Set up return-value registers as fork() libc stub expects.
-		 */
-		p2tf->tf_r[FRAME_R8] = 0; 	/* child's pid (linux) 	*/
-		p2tf->tf_r[FRAME_R9] = 1;	/* is child (FreeBSD) 	*/
-		p2tf->tf_r[FRAME_R10] = 0;	/* no error 		*/
+	/*
+	 * Turn off RSE for a moment and work out our current
+	 * ar.bspstore. This assumes that p1==curproc. Also
+	 * flush dirty regs to ensure that the user's stacked
+	 * regs are written out to backing store.
+	 *
+	 * We could cope with p1!=curproc by digging values
+	 * out of its PCB but I don't see the point since
+	 * current usage never allows it.
+	 */
+	__asm __volatile("mov ar.rsc=0;;");
+	__asm __volatile("flushrs;;" ::: "memory");
+	__asm __volatile("mov %0=ar.bspstore" : "=r"(bspstore));
 
-		/*
-		 * Turn off RSE for a moment and work out our current
-		 * ar.bspstore. This assumes that p1==curproc. Also
-		 * flush dirty regs to ensure that the user's stacked
-		 * regs are written out to backing store.
-		 *
-		 * We could cope with p1!=curproc by digging values
-		 * out of its PCB but I don't see the point since
-		 * current usage never allows it.
-		 */
-		__asm __volatile("mov ar.rsc=0;;");
-		__asm __volatile("flushrs;;" ::: "memory");
-		__asm __volatile("mov %0=ar.bspstore" : "=r"(bspstore));
+	p1bs = (u_int64_t *) (p1->p_addr + 1);
+	p2bs = (u_int64_t *) (p2->p_addr + 1);
 
-		p1bs = (u_int64_t *) (p1->p_addr + 1);
-		p2bs = (u_int64_t *) (p2->p_addr + 1);
+	/*
+	 * Copy enough of p1's backing store to include all
+	 * the user's stacked regs.
+	 */
+	bcopy(p1bs, p2bs, p1->p_frame->tf_ndirty);
+	/*
+	 * To calculate the ar.rnat for p2, we need to decide
+	 * if p1's ar.bspstore has advanced past the place
+	 * where the last ar.rnat which covers the user's
+	 * saved registers would be placed. If so, we read
+	 * that one from memory, otherwise we take p1's
+	 * current ar.rnat.
+	 */
+	rnatloc = (u_int64_t)p1bs + p1->p_frame->tf_ndirty;
+	rnatloc |= 0x1f8;
+	if (bspstore > rnatloc)
+		rnat = *(u_int64_t *) rnatloc;
+	else
+		__asm __volatile("mov %0=ar.rnat;;" : "=r"(rnat));
+	
+	/*
+	 * Switch the RSE back on.
+	 */
+	__asm __volatile("mov ar.rsc=3;;");
 
-		/*
-		 * Copy enough of p1's backing store to include all
-		 * the user's stacked regs.
-		 */
-		bcopy(p1bs, p2bs, p1->p_frame->tf_ndirty);
-		/*
-		 * To calculate the ar.rnat for p2, we need to decide
-		 * if p1's ar.bspstore has advanced past the place
-		 * where the last ar.rnat which covers the user's
-		 * saved registers would be placed. If so, we read
-		 * that one from memory, otherwise we take p1's
-		 * current ar.rnat.
-		 */
-		rnatloc = (u_int64_t)p1bs + p1->p_frame->tf_ndirty;
-		rnatloc |= 0x1f8;
-		if (bspstore > rnatloc)
-			rnat = *(u_int64_t *) rnatloc;
-		else
-			__asm __volatile("mov %0=ar.rnat;;" : "=r"(rnat));
-		
-		/*
-		 * Switch the RSE back on.
-		 */
-		__asm __volatile("mov ar.rsc=3;;");
+	/*
+	 * Setup the child's pcb so that its ar.bspstore
+	 * starts just above the region which we copied. This
+	 * should work since the child will normally return
+	 * straight into exception_restore.
+	 */
+	up = p2->p_addr;
+	up->u_pcb.pcb_bspstore = (u_int64_t)p2bs + p1->p_frame->tf_ndirty;
+	up->u_pcb.pcb_rnat = rnat;
+	up->u_pcb.pcb_pfs = 0;
 
-		/*
-		 * Setup the child's pcb so that its ar.bspstore
-		 * starts just above the region which we copied. This
-		 * should work since the child will normally return
-		 * straight into exception_restore.
-		 */
-		up->u_pcb.pcb_bspstore =
-			(u_int64_t)p2bs + p1->p_frame->tf_ndirty;
-		up->u_pcb.pcb_rnat = rnat;
-		up->u_pcb.pcb_pfs = 0;
-
-		/*
-		 * Arrange for continuation at fork_return(), which
-		 * will return to exception_restore().  Note that the
-		 * child process doesn't stay in the kernel for long!
-		 */
-		up->u_pcb.pcb_sp = (u_int64_t)p2tf - 16;	
-		up->u_pcb.pcb_r4 = (u_int64_t)fork_return;
-		up->u_pcb.pcb_r5 = FDESC_FUNC(exception_restore);
-		up->u_pcb.pcb_r6 = (u_int64_t)p2;
-		up->u_pcb.pcb_b0 = FDESC_FUNC(fork_trampoline);
-	}
+	/*
+	 * Arrange for continuation at fork_return(), which
+	 * will return to exception_restore().  Note that the
+	 * child process doesn't stay in the kernel for long!
+	 */
+	up->u_pcb.pcb_sp = (u_int64_t)p2tf - 16;	
+	up->u_pcb.pcb_r4 = (u_int64_t)fork_return;
+	up->u_pcb.pcb_r5 = FDESC_FUNC(exception_restore);
+	up->u_pcb.pcb_r6 = (u_int64_t)p2;
+	up->u_pcb.pcb_b0 = FDESC_FUNC(fork_trampoline);
 }
 
 /*
