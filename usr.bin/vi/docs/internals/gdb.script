@@ -1,0 +1,68 @@
+#	@(#)gdb.script	8.2 (Berkeley) 9/29/93
+
+# display the SVI screen map
+# usage dmap(sp)
+define	dmap
+	set $h = ((SVI_PRIVATE *)$arg0->svi_private)->h_smap
+	set $t = ((SVI_PRIVATE *)$arg0->svi_private)->t_smap
+	while ($h <= $t)
+		printf "lno: %d; off %d ", (int)$h->lno, (int)$h->off
+		if ($h->c_ecsize == 0)
+			printf "flushed\n"
+		else
+			printf "\n\tsboff %d; scoff %d\n", \
+			    (int)$h->c_sboff, (int)$h->c_scoff
+			printf "\teboff %d; eclen %d; ecsize %d\n", \
+			    (int)$h->c_eboff, (int)$h->c_eclen, \
+			    (int)$h->c_ecsize
+		end
+		set $h = $h + 1
+	end
+end
+
+# display the tail of the SVI screen map
+define	tmap
+	set $h = ((SVI_PRIVATE *)$arg0->svi_private)->h_smap
+	set $t = ((SVI_PRIVATE *)$arg0->svi_private)->t_smap
+	while ($t >= $h)
+		printf "lno: %d; off %d ", (int)$t->lno, (int)$t->off
+		if ($t->c_ecsize == 0)
+			printf "flushed\n"
+		else
+			printf "\n\tsboff %d; scoff %d\n", \
+			    (int)$t->c_sboff, (int)$t->c_scoff
+			printf "\teboff %d; eclen %d; ecsize %d\n", \
+			    (int)$t->c_eboff, (int)$t->c_eclen, \
+			    (int)$t->c_ecsize
+		end
+		set $t = $t - 1
+	end
+end
+
+# display the SVI private structure
+define	svp
+	print *((SVI_PRIVATE *)sp->svi_private)
+end
+
+# display the marks
+define	markp
+	set $h = sp->ep->marks.next
+	set $t = &sp->ep->marks
+	while ($h != 0 && $h != $t)
+		printf "key %c lno: %d cno: %d flags: %x\n", \
+		    ((MARK *)$h)->name, ((MARK *)$h)->lno, \
+		    ((MARK *)$h)->cno, ((MARK *)$h)->flags
+		set $h = ((MARK *)$h)->next
+	end
+end
+
+# display the tags
+define	tagp
+	set $h = sp->taghdr.next
+	set $t = &sp->taghdr
+	while ($h != 0 && $h != $t)
+		printf "tag: %s lno %d cno %d\n", ((TAG *)$h)->frp->fname, \
+		    ((TAG *)$h)->lno, ((TAG *)$h)->cno
+		set $h= ((TAG *)$h)->next
+	end
+end

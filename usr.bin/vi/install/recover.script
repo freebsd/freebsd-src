@@ -1,0 +1,32 @@
+#	@(#)recover.script	8.4 (Berkeley) 8/13/94
+#
+# Recover nvi editor files:
+RECDIR=/var/tmp/vi.recover
+SENDMAIL=/usr/lib/sendmail
+echo 'Recovering nvi editor sessions.'
+
+# Unmodified nvi editor backup files are either zero length or
+# have the execute bit set.  Delete both cases.
+vibackup=`echo $RECDIR/vi.*`
+if [ "$vibackup" != "$RECDIR/vi.*" ]; then
+	for i in $vibackup; do
+		if test -x $i -o ! -s $i; then
+			rm $i
+		fi
+	done
+fi
+
+# It is possible to get incomplete recovery files, if the editor
+# crashes at the right time.  Delete any recovery files without
+# corresponding backup files, otherwise send mail to the user.
+virecovery=`echo $RECDIR/recover.*`
+if [ "$virecovery" != "$RECDIR/recover.*" ]; then
+	for i in $virecovery; do
+		recfile=`awk '/^X-vi-recover-path:/{print $2}' < $i`
+		if test ! -n $recfile -a -s $recfile; then
+			$SENDMAIL -t < $i
+		else
+			rm $i
+		fi
+	done
+fi
