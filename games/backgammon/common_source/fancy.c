@@ -35,6 +35,9 @@
 static char sccsid[] = "@(#)fancy.c	8.1 (Berkeley) 5/31/93";
 #endif /* not lint */
 
+#include <stdlib.h>
+#include <string.h>
+#include <termcap.h>
 #include "back.h"
 
 char	PC;			/* padding character */
@@ -78,7 +81,7 @@ int	oldw;
 int	realr;
 int	realc;
 
-void	addbuf();
+int	addbuf __P((int));
 
 fboard ()  {
 	register int	i, j, l;
