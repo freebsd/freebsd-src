@@ -191,6 +191,14 @@ struct _bktr_clip {
 #define BT848SFMT		_IOW('x', 67, unsigned long )
 #define BT848GFMT		_IOR('x', 67, unsigned long )
 
+/* Read/Write the BT848's I2C bus directly
+ * b7-b0:    data (read/write)
+ * b15-b8:   internal peripheral register (write)   
+ * b23-b16:  i2c addr (write)
+ * b31-b24:  1 = write, 0 = read 
+ */
+#define BT848_I2CWR     _IOWR('x', 57, u_long)    /* i2c read-write */
+
 /*  XXX - Copied from /sys/pci/brktree_reg.h  */
 #define BT848_IFORM_FORMAT              (0x7<<0)
 # define BT848_IFORM_F_RSVD             (0x7)
@@ -201,5 +209,4 @@ struct _bktr_clip {
 # define BT848_IFORM_F_NTSCJ            (0x2)
 # define BT848_IFORM_F_NTSCM            (0x1)
 # define BT848_IFORM_F_AUTO             (0x0)
-
 
