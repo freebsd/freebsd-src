@@ -87,6 +87,7 @@ MAN+=	sched_get_priority_max.2 sched_setparam.2 \
 	sched_setscheduler.2 sched_yield.2
 .endif
 
+MLINKS+=access.2 eaccess.2
 MLINKS+=brk.2 sbrk.2
 MLINKS+=chdir.2 fchdir.2
 MLINKS+=chflags.2 fchflags.2
