@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: job.c,v 1.8 1998/04/28 05:08:10 imp Exp $
+ *	$Id: job.c,v 1.9 1998/06/04 05:48:57 bde Exp $
  */
 
 #ifndef lint
@@ -399,7 +399,7 @@ JobPassSig(signo)
      * Leave gracefully if SIGQUIT, rather than core dumping.
      */
     if (signo == SIGQUIT) {
-	Finish(0);
+	signo = SIGINT;
     }
 
     /*
@@ -2914,7 +2914,6 @@ JobInterrupt(runINTERRUPT, signo)
 	}
     }
     (void) eunlink(tfile);
-    exit(signo);
 }
 
 /*
