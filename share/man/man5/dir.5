@@ -40,7 +40,6 @@
 .Nm dirent
 .Nd directory file format
 .Sh SYNOPSIS
-.Fd #include <sys/types.h>
 .Fd #include <dirent.h>
 .Sh DESCRIPTION
 Directories provide a convenient hierarchical method of grouping
@@ -87,6 +86,8 @@ The directory entry format is defined in the file
 #ifndef	_SYS_DIRENT_H_
 #define	_SYS_DIRENT_H_
 
+#include <machine/ansi.h>
+
 /*
  * The dirent structure defines the format of directory entries returned by
  * the getdirentries(2) system call.
@@ -99,10 +100,10 @@ The directory entry format is defined in the file
  */
 
 struct dirent {
-	u_int32_t d_fileno;		/* file number of entry */
-	u_int16_t d_reclen;		/* length of this record */
-	u_int8_t  d_type; 		/* file type, see below */
-	u_int8_t  d_namlen;		/* length of string in d_name */
+	__uint32_t d_fileno;		/* file number of entry */
+	__uint16_t d_reclen;		/* length of this record */
+	__uint8_t  d_type; 		/* file type, see below */
+	__uint8_t  d_namlen;		/* length of string in d_name */
 #ifdef _POSIX_SOURCE
 	char	d_name[255 + 1];	/* name must be no longer than this */
 #else
@@ -139,7 +140,7 @@ struct dirent {
 #define	_GENERIC_DIRSIZ(dp) \
     ((sizeof (struct dirent) - (MAXNAMLEN+1)) + (((dp)->d_namlen+1 + 3) &~ 3))
 
-#ifdef KERNEL
+#ifdef _KERNEL
 #define	GENERIC_DIRSIZ(dp)	_GENERIC_DIRSIZ(dp)
 #endif
 
