@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_sysctl.c,v 1.40 1995/11/14 09:05:40 phk Exp $
+ * $Id: kern_sysctl.c,v 1.41 1995/11/14 09:07:14 phk Exp $
  */
 
 /*
@@ -270,19 +270,8 @@ SYSCTL_PROC(_sysctl, 0, debug, CTLTYPE_STRING|CTLFLAG_RD,
 	0, 0, sysctl_sysctl_debug, "");
 
 char domainname[MAXHOSTNAMELEN];
-int domainnamelen;
-static int
-sysctl_kern_domainname SYSCTL_HANDLER_ARGS
-{
-	int error = sysctl_handle_string(oidp,
-		oidp->oid_arg1, oidp->oid_arg2, req);
-	if (req->newptr && (error == 0 || error == ENOMEM))
-		domainnamelen = req->newlen;
-	return error;
-}
-
-SYSCTL_PROC(_kern, KERN_DOMAINNAME, domainname, CTLTYPE_STRING|CTLFLAG_RW,
-	&domainname, sizeof(domainname), sysctl_kern_domainname, "");
+SYSCTL_STRING(_kern, KERN_DOMAINNAME, domainname, CTLFLAG_RW,
+	&domainname, sizeof(domainname), "");
 
 long hostid;
 /* Some trouble here, if sizeof (int) != sizeof (long) */
