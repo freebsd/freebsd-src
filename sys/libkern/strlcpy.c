@@ -28,7 +28,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char *rcsid = "$OpenBSD: strlcpy.c,v 1.4 1999/05/01 18:56:41 millert Exp $");
+static char *rcsid = "$OpenBSD: strlcpy.c,v 1.4 1999/05/01 18:56:41 millert Exp $";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
