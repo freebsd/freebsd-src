@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.14 1994/10/05 09:48:21 davidg Exp $
+ * $Id: vfs_bio.c,v 1.15 1994/10/18 06:55:40 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -706,8 +706,8 @@ vm_hold_load_pages(vm_offset_t froma, vm_offset_t toa) {
 			}
 		}
 #endif
-		if (cnt.v_free_count <=
-			cnt.v_free_reserved + (toa-froma) / PAGE_SIZE) {
+		if ((curproc != pageproc) && (cnt.v_free_count <=
+			cnt.v_free_reserved + (toa-froma) / PAGE_SIZE)) {
 			VM_WAIT;
 			goto tryagain;
 		}
