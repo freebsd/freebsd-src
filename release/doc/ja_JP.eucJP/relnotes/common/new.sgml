@@ -244,7 +244,7 @@ options HZ=1000 # 必須ではないが、これも付けることを強く推奨</programlisting>
 	2002 年 4 月 29 日時点の &os; -CURRENT と同期しました。</para>
 
       <para>&man.ata.4; ドライバが
-	2002 年 5 月 18 時点の &os; -CURRENT と同期しました。</para>
+	2002 年 5 月 18 日時点の &os; -CURRENT と同期しました。</para>
 
       <important>
 	<para>ATA タグ付きキューイングを使ってテストしている際に
@@ -260,7 +260,7 @@ options HZ=1000 # 必須ではないが、これも付けることを強く推奨</programlisting>
 	  はずです。</para>
       </important>
 
-      <para>&man.ata.4; ドライバが &man.atacontrol.8; の制御化の下に
+      <para>&man.ata.4; ドライバが &man.atacontrol.8; の制御の下に
 	ATA RAID の生成、削除、クエリ、再構築をサポートするようになりました。</para>
     </sect3>
 
@@ -270,7 +270,7 @@ options HZ=1000 # 必須ではないが、これも付けることを強く推奨</programlisting>
       <para>新しいカーネルやソフトウェアをインストールするといった
 	ファイルシステムに負荷のかかる作業を行った直後に
 	システムをシャットダウンした場合、
-	ファイルシステムが破壊される可能性がある
+	ファイルシステムを破壊する可能性がある
 	soft updates のバグが修正されました。</para>
     </sect3>
 
@@ -450,7 +450,7 @@ options HZ=1000 # 必須ではないが、これも付けることを強く推奨</programlisting>
       (<option>ether</option> は後方互換性のためにまだ利用できます)。</para>
 
     <para>&man.fsdb.8; が
-      特定の inode によって割り当てられたブロック一覧を表示するための、
+      特定の inode によって割り当てられたブロック一覧を表示するための
       <literal>blocks</literal> コマンドをサポートするようになりました。</para>
 
     <para>&man.ispppcontrol.8; が削除され、
@@ -728,6 +728,6 @@ options HZ=1000 # 必須ではないが、これも付けることを強く推奨</programlisting>
   <important>
     <para>もちろん言うまでもないことですが、
       &os; のアップグレードは、データと設定ファイルを
-      <emphasis>すべて</emphasis> バックアップさせた後に行なうべきです。</para>
+      <emphasis>すべて</emphasis> バックアップした後に行なうべきです。</para>
   </important>
 </sect1>
