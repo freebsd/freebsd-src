@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_alloc.c	8.4 (Berkeley) 1/4/94
- * $Id: lfs_alloc.c,v 1.6 1995/03/19 14:29:16 davidg Exp $
+ * $Id: lfs_alloc.c,v 1.7 1995/03/28 07:58:02 bde Exp $
  */
 
 #include <sys/param.h>
@@ -179,8 +179,8 @@ lfs_vcreate(mp, ino, vpp)
 	ip->i_flag = IN_MODIFIED;
 	ip->i_dev = ump->um_dev;
 	ip->i_number = ip->i_din.di_inumber = ino;
-ip->i_din.di_spare[0] = 0xdeadbeef;
-ip->i_din.di_spare[1] = 0xdeadbeef;
+ip->i_din.di_spare[0] = 0xdeadc0de;
+ip->i_din.di_spare[1] = 0xdeadc0de;
 	ip->i_lfs = ump->um_lfs;
 #ifdef QUOTA
 	for (i = 0; i < MAXQUOTAS; i++)
