@@ -13,7 +13,7 @@
  * bad that happens because of using this software isn't the responsibility
  * of the author.  This software is distributed AS-IS.
  *
- * $Id: vfs_aio.c,v 1.48 1999/05/06 20:00:25 phk Exp $
+ * $Id: vfs_aio.c,v 1.49 1999/05/08 06:39:46 phk Exp $
  */
 
 /*
@@ -927,7 +927,6 @@ aio_qphysio(p, aiocbe)
 	struct filedesc *fdp;
 	struct aio_liojob *lj;
 	int fd;
-	int majordev;
 	int s;
 	int cnt;
 	dev_t dev;
@@ -958,8 +957,7 @@ aio_qphysio(p, aiocbe)
 		return -1;
 	}
 
-	majordev = major(vp->v_rdev);
-	if (majordev == NODEV) {
+	if (vp->v_rdev == NODEV) {
 		return -1;
 	}
 
