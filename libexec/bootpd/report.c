@@ -94,13 +94,13 @@ static int numlevels = sizeof(levelnames) / sizeof(levelnames[0]);
  */
 #ifdef	__STDC__
 void
-report(int priority, char *fmt,...)
+report(int priority, const char *fmt,...)
 #else
 /*VARARGS2*/
 void
 report(priority, fmt, va_alist)
 	int priority;
-	char *fmt;
+	const char *fmt;
 	va_dcl
 #endif
 {
@@ -136,7 +136,7 @@ report(priority, fmt, va_alist)
 /*
  * Return pointer to static string which gives full filesystem error message.
  */
-char *
+const char *
 get_errmsg()
 {
 	return strerror(errno);
