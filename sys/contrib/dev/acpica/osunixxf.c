@@ -815,7 +815,7 @@ AcpiOsSleep (
     UINT32                  milliseconds)
 {
 
-    sleep ((seconds * 1000) + milliseconds);
+    usleep (((seconds * 1000) + milliseconds) * 1000);
     return;
 }
 
