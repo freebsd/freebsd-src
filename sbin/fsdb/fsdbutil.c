@@ -29,7 +29,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$NetBSD: fsdbutil.c,v 1.2 1995/10/08 23:18:12 thorpej Exp $";
+static char rcsid[] = "$Id$";
 #endif /* not lint */
 
 #include <sys/types.h>
