@@ -1024,10 +1024,9 @@ sysctl_kern_proc_args(SYSCTL_HANDLER_ARGS)
 	if (req->oldptr && pa != NULL) {
 		error = SYSCTL_OUT(req, pa->ar_args, pa->ar_length);
 	}
-	if (req->newptr == NULL) {
-		pargs_drop(pa);
+	pargs_drop(pa);
+	if (req->newptr == NULL)
 		return (error);
-	}
 
 	PROC_LOCK(p);
 	pa = p->p_args;
