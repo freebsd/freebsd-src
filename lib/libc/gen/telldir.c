@@ -38,9 +38,12 @@ static char sccsid[] = "@(#)telldir.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
+#include <sys/queue.h>
 #include <dirent.h>
 #include <stdlib.h>
 #include <unistd.h>
+
+#include "telldir.h"
 
 /*
  * The option SINGLEUSE may be defined to say that a telldir
@@ -50,33 +53,20 @@ static char sccsid[] = "@(#)telldir.c	8.1 (Berkeley) 6/4/93";
 #define SINGLEUSE
 
 /*
- * One of these structures is malloced to describe the current directory
- * position each time telldir is called. It records the current magic
- * cookie returned by getdirentries and the offset within the buffer
- * associated with that return value.
- */
-struct _ddloc {
-	LIST_ENTRY(_ddloc) loc_lqe; /* entry in list */
-	long	loc_index;	/* key associated with structure */
-	long	loc_seek;	/* magic cookie returned by getdirentries */
-	long	loc_loc;	/* offset of entry in buffer */
-};
-
-/*
  * return a pointer into a directory
  */
 long
 telldir(dirp)
 	DIR *dirp;
 {
-	struct _ddloc *lp;
+	struct ddloc *lp;
 
-	if ((lp = (struct _ddloc *)malloc(sizeof(struct _ddloc))) == NULL)
+	if ((lp = (struct ddloc *)malloc(sizeof(struct ddloc))) == NULL)
 		return (-1);
-	lp->loc_index = dirp->dd_loccnt++;
+	lp->loc_index = dirp->dd_td->td_loccnt++;
 	lp->loc_seek = dirp->dd_seek;
 	lp->loc_loc = dirp->dd_loc;
-	LIST_INSERT_HEAD(&dirp->dd_locq, lp, loc_lqe);
+	LIST_INSERT_HEAD(&dirp->dd_td->td_locq, lp, loc_lqe);
 	return (lp->loc_index);
 }
 
@@ -89,10 +79,10 @@ _seekdir(dirp, loc)
 	DIR *dirp;
 	long loc;
 {
-	struct _ddloc *lp;
+	struct ddloc *lp;
 	struct dirent *dp;
 
-	LIST_FOREACH(lp, &dirp->dd_locq, loc_lqe) {
+	LIST_FOREACH(lp, &dirp->dd_td->td_locq, loc_lqe) {
 		if (lp->loc_index == loc)
 			break;
 	}
@@ -122,14 +112,14 @@ void
 _reclaim_telldir(dirp)
 	DIR *dirp;
 {
-	struct _ddloc *lp;
-	struct _ddloc *templp;
+	struct ddloc *lp;
+	struct ddloc *templp;
 
-	lp = LIST_FIRST(&dirp->dd_locq);
+	lp = LIST_FIRST(&dirp->dd_td->td_locq);
 	while (lp != NULL) {
 		templp = lp;
 		lp = LIST_NEXT(lp, loc_lqe);
 		free(templp);
 	}
-	LIST_INIT(&dirp->dd_locq);
+	LIST_INIT(&dirp->dd_td->td_locq);
 }
