@@ -325,8 +325,7 @@ ng_eiface_start2(node_p node, hook_p hook, void *arg1, int arg2)
 	 * Pass packet to bpf if there is a listener.
 	 * XXX is this safe? locking?
 	 */
-	if (ifp->if_bpf)
-		bpf_mtap(ifp, m);
+	BPF_MTAP(ifp, m);
 
 	/* Copy length before the mbuf gets invalidated */
 	len = m->m_pkthdr.len;
@@ -458,7 +457,7 @@ ng_eiface_constructor(node_p node)
 	 */
 
 	/* Attach the interface */
-	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
+	ether_ifattach(ifp, priv->arpcom.ac_enaddr);
 
 	/* Done */
 	return (0);
@@ -602,9 +601,6 @@ ng_eiface_rcvdata(hook_p hook, item_p item)
 {
 	priv_p		priv = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
 	struct ifnet   *const ifp = priv->ifp;
-	int		s, error = 0;
-	struct ether_header *eh;
-	u_short		ether_type;
 	struct mbuf *m;
 
 	NGI_GET_M(item, m);
@@ -626,26 +622,10 @@ ng_eiface_rcvdata(hook_p hook, item_p item)
 	/* Update interface stats */
 	ifp->if_ipackets++;
 
-	eh = mtod(m, struct ether_header *);
-	ether_type = ntohs(eh->ether_type);
-
-	s = splimp();
-	m->m_pkthdr.len -= sizeof(*eh);
-	m->m_len -= sizeof(*eh);
-	if (m->m_len) {
-		m->m_data += sizeof(*eh);
-	} else {
-		if (ether_type == ETHERTYPE_ARP) {
-			m->m_len = m->m_next->m_len;
-			m->m_data = m->m_next->m_data;
-		}
-	}
-	splx(s);
-
-	ether_input(ifp, eh, m);
+	(*ifp->if_input)(ifp, m);
 
 	/* Done */
-	return (error);
+	return (0);
 }
 
 /*
@@ -657,7 +637,7 @@ ng_eiface_rmnode(node_p node)
 	priv_p		priv = NG_NODE_PRIVATE(node);
 	struct ifnet   *const ifp = priv->ifp;
 
-	ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
+	ether_ifdetach(ifp);
 	ng_eiface_free_unit(priv->unit);
 	FREE(priv, M_NETGRAPH);
 	NG_NODE_SET_PRIVATE(node, NULL);

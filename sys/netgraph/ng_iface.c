@@ -490,7 +490,7 @@ ng_iface_bpftap(struct ifnet *ifp, struct mbuf *m, sa_family_t family)
 		m0.m_next = m;
 		m0.m_len = sizeof(family4);
 		m0.m_data = (char *)&family4;
-		bpf_mtap(ifp, &m0);
+		BPF_MTAP(ifp, &m0);
 	}
 }
 
