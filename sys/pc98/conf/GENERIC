@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC98,v 1.59 1998/11/25 11:00:31 kato Exp $
+#	$Id: GENERIC98,v 1.60 1998/12/05 09:17:31 kato Exp $
 
 # GENERIC98 -- Generic PC98 machine with WD/SCSI disks
 
@@ -58,6 +58,15 @@ options		COM_MULTIPORT
 
 config		kernel	root on wd0
 
+# To make an SMP kernel, the next two are needed
+#options	SMP			# Symmetric MultiProcessor Kernel
+#options	APIC_IO			# Symmetric (APIC) I/O
+# Optionally these may need tweaked, (defaults shown):
+#options	NCPU=2			# number of CPUs
+#options	NBUS=4			# number of busses
+#options	NAPIC=1			# number of IO APICs
+#options	NINTR=24		# number of INTs
+
 controller	isa0
 controller	pci0
 
@@ -66,7 +75,6 @@ disk		fd0	at fdc0 drive 0
 disk		fd1	at fdc0 drive 1
 disk		fd2	at fdc0 drive 2
 disk		fd3	at fdc0 drive 3
-tape		ft0	at fdc0 drive 4
 
 # options		"CMD640"	# work around CMD640 chip deficiency
 controller	wdc0	at isa? port "IO_WD1" bio irq 9
@@ -77,7 +85,7 @@ disk		wd0	at wdc0 drive 0
 
 options		ATAPI	# Enable ATAPI support for IDE bus
 options		ATAPI_STATIC	#Don't do it as an LKM
-device		wcd0	#IDE CD-ROM
+device		acd0	#IDE CD-ROM
 
 # A single entry for any of these controllers (ncr, ahb, ahc) is
 # for any number of installed devices.
@@ -118,9 +126,7 @@ device		cd0	#Only need one of these, the code dynamically grows
 
 controller	matcd0	at isa? port? bio
 
-# syscons is the default console driver, resembling an SCO console
 device		sc0	at isa? port IO_KBD tty irq 1
-#options		XSERVER			# support for X server
 
 device		npx0	at isa? port IO_NPX irq 8
 
