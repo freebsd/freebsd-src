@@ -435,8 +435,8 @@ KASSERT((ke->ke_kgrlist.tqe_next != ke), ("linked to self!"));
 	pmap_pinit0(vmspace_pmap(&vmspace0));
 	p->p_vmspace = &vmspace0;
 	vmspace0.vm_refcnt = 1;
-	vm_map_init(&vmspace0.vm_map, round_page(VM_MIN_ADDRESS),
-	    trunc_page(VM_MAXUSER_ADDRESS));
+	vm_map_init(&vmspace0.vm_map, p->p_sysent->sv_minuser,
+	    p->p_sysent->sv_maxuser);
 	vmspace0.vm_map.pmap = vmspace_pmap(&vmspace0);
 
 	/*
@@ -571,7 +571,7 @@ start_init(void *dummy)
 	/*
 	 * Need just enough stack to hold the faked-up "execve()" arguments.
 	 */
-	addr = trunc_page(USRSTACK - PAGE_SIZE);
+	addr = p->p_sysent->sv_usrstack - PAGE_SIZE;
 	if (vm_map_find(&p->p_vmspace->vm_map, NULL, 0, &addr, PAGE_SIZE,
 			FALSE, VM_PROT_ALL, VM_PROT_ALL, 0) != 0)
 		panic("init: couldn't allocate argument space");
@@ -603,7 +603,7 @@ start_init(void *dummy)
 		 * Move out the boot flag argument.
 		 */
 		options = 0;
-		ucp = (char *)USRSTACK;
+		ucp = (char *)p->p_sysent->sv_usrstack;
 		(void)subyte(--ucp, 0);		/* trailing zero */
 		if (boothowto & RB_SINGLE) {
 			(void)subyte(--ucp, 's');

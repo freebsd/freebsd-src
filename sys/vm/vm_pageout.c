@@ -596,8 +596,8 @@ vm_pageout_map_deactivate_pages(map, desired)
 	 * table pages.
 	 */
 	if (desired == 0 && nothingwired)
-		pmap_remove(vm_map_pmap(map),
-			VM_MIN_ADDRESS, VM_MAXUSER_ADDRESS);
+		pmap_remove(vm_map_pmap(map), vm_map_min(map),
+		    vm_map_max(map));
 	vm_map_unlock(map);
 	return;
 }

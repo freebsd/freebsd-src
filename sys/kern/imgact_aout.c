@@ -140,7 +140,7 @@ exec_aout_imgact(imgp)
 		file_offset = 0;
 		/* Pass PS_STRINGS for BSD/OS binaries only. */
 		if (N_GETMID(*a_out) == MID_ZERO)
-			imgp->ps_strings = PS_STRINGS;
+			imgp->ps_strings = aout_sysvec.sv_psstrings;
 		break;
 	default:
 		/* NetBSD compatibility */
@@ -192,7 +192,7 @@ exec_aout_imgact(imgp)
 	/*
 	 * Destroy old process VM and create a new one (with a new stack)
 	 */
-	exec_new_vmspace(imgp, VM_MIN_ADDRESS, VM_MAXUSER_ADDRESS, USRSTACK);
+	exec_new_vmspace(imgp, &aout_sysvec);
 
 	/*
 	 * The vm space can be changed by exec_new_vmspace
@@ -299,8 +299,8 @@ aout_coredump(td, vp, limit)
 		    IO_UNIT | IO_DIRECT, cred, NOCRED, (int *) NULL, td);
 	if (error == 0)
 		error = vn_rdwr_inchunks(UIO_WRITE, vp,
-		    (caddr_t)trunc_page(USRSTACK - ctob(vm->vm_ssize)),
-		    round_page(ctob(vm->vm_ssize)),
+		    (caddr_t)trunc_page(p->p_sysent->sv_usrstack -
+		    ctob(vm->vm_ssize)), round_page(ctob(vm->vm_ssize)),
 		    (off_t)ctob(uarea_pages + kstack_pages) +
 		        ctob(vm->vm_dsize), UIO_USERSPACE,
 		    IO_UNIT | IO_DIRECT, cred, NOCRED, (int *) NULL, td);
