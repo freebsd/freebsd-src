@@ -56,6 +56,16 @@ opendir(name)
 	int saved_errno;
 	struct stat sb;
 
+	/*
+	 * stat() before open() because opening of special files may be
+	 * harmful.  fstat() after open because the file may have changed.
+	 */
+	if (stat(name, &sb) != 0)
+		return NULL;
+	if (!S_ISDIR(sb.st_mode)) {
+		errno = ENOTDIR;
+		return NULL;
+	}
 	if ((fd = open(name, O_RDONLY | O_NONBLOCK)) == -1)
 		return NULL;
 	dirp = NULL;
