@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)libkern.h	8.1 (Berkeley) 6/10/93
- * $Id: libkern.h,v 1.12 1996/08/01 20:31:45 wollman Exp $
+ * $Id: libkern.h,v 1.13 1996/08/31 16:52:44 bde Exp $
  */
 
 #ifndef _SYS_LIBKERN_H_
@@ -76,6 +76,7 @@ char	*index __P((const char *, int));
 char	*rindex __P((const char *, int));
 int	 scanc __P((u_int, const u_char *, const u_char *, int));
 int	 skpc __P((int, int, char *));
+void	 srandom __P((u_long));
 char	*strcat __P((char *, const char *));
 int	 strcmp __P((const char *, const char *));
 char	*strcpy __P((char *, const char *));
