@@ -11,6 +11,8 @@ PROG=	named-xfer
 SRCS=	pathnames.h \
 	named-xfer.c db_glue.c ns_glue.c tmp_version.c 
 
+WFORMAT=0
+
 .if exists(${.OBJDIR}/../../lib/libisc)
 LIBISCDIR:=	${.OBJDIR}/../../lib/libisc
 .else

@@ -12,6 +12,7 @@ BINDIR=	${ATLIB_DIR}
 CLEANFILES= ${MAN}
 
 CFLAGS+=-I${MAINSRC} -I${.CURDIR}
+WFORMAT=0
 
 atrun.8: atrun.man
 	@${ECHO} Making ${.TARGET:T} from ${.ALLSRC:T}; \
