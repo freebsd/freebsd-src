@@ -28,7 +28,6 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
-#include <sys/gpt.h>
 
 #include <err.h>
 #include <stddef.h>
@@ -40,7 +39,7 @@ __FBSDID("$FreeBSD$");
 #include "map.h"
 #include "gpt.h"
 
-int recoverable;
+static int recoverable;
 
 static void
 usage_destroy(void)
