@@ -118,7 +118,7 @@ struct _pcm_channel {
 	u_int32_t blocks;
 
 	int direction;
-	snd_dbuf buffer, buffer2nd;
+	snd_dbuf buffer, bufsoft;
 	snddev_info *parent;
 	void *devinfo;
 };

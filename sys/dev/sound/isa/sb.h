@@ -3,6 +3,13 @@
  * $FreeBSD$
  */
 
+#ifndef SB_H
+#define SB_H
+
+struct sbc_softc;
+void sbc_lock(struct sbc_softc *);
+void sbc_unlock(struct sbc_softc *);
+
 /*
  * sound blaster registers
  */
@@ -182,6 +189,4 @@
 #define SB16_IMASK_L	0x3d
 #define SB16_IMASK_R	0x3e
 #define SB16_OMASK	0x3c
-
-
-
+#endif

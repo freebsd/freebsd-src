@@ -59,7 +59,7 @@ static u_int32_t ess_pfmt[] = {
 	0
 };
 
-static pcmchan_caps ess_playcaps = {5000, 49000, ess_pfmt, 0};
+static struct pcmchan_caps ess_playcaps = {5000, 49000, ess_pfmt, 0};
 
 static u_int32_t ess_rfmt[] = {
 	AFMT_U8,
@@ -73,19 +73,20 @@ static u_int32_t ess_rfmt[] = {
 	0
 };
 
-static pcmchan_caps ess_reccaps = {5000, 49000, ess_rfmt, 0};
+static struct pcmchan_caps ess_reccaps = {5000, 49000, ess_rfmt, 0};
 
 struct ess_info;
 
 struct ess_chinfo {
 	struct ess_info *parent;
-	pcm_channel *channel;
-	snd_dbuf *buffer;
+	struct pcm_channel *channel;
+	struct snd_dbuf *buffer;
 	int dir, hwch, stopping, run;
 	u_int32_t fmt, spd, blksz;
 };
 
 struct ess_info {
+	device_t parent_dev;
     	struct resource *io_base;	/* I/O address for the board */
     	struct resource *irq;
    	struct resource *drq1;
@@ -129,6 +130,18 @@ static devclass_t pcm_devclass;
  * ess_write is actually ess_cmd1
  * ess_read access ext. regs via ess_cmd(0xc0, reg) followed by ess_get_byte
  */
+
+static void
+ess_lock(struct ess_info *sc) {
+
+	sbc_lock(device_get_softc(sc->parent_dev));
+}
+
+static void
+ess_unlock(struct ess_info *sc) {
+
+	sbc_unlock(device_get_softc(sc->parent_dev));
+}
 
 static int
 port_rd(struct resource *port, int off)
@@ -203,29 +216,21 @@ ess_cmd1(struct ess_info *sc, u_char cmd, int val)
 static void
 ess_setmixer(struct ess_info *sc, u_int port, u_int value)
 {
-    	u_long   flags;
-
 	DEB(printf("ess_setmixer: reg=%x, val=%x\n", port, value);)
-    	flags = spltty();
     	ess_wr(sc, SB_MIX_ADDR, (u_char) (port & 0xff)); /* Select register */
     	DELAY(10);
     	ess_wr(sc, SB_MIX_DATA, (u_char) (value & 0xff));
     	DELAY(10);
-    	splx(flags);
 }
 
 static int
 ess_getmixer(struct ess_info *sc, u_int port)
 {
     	int val;
-    	u_long flags;
-
-    	flags = spltty();
     	ess_wr(sc, SB_MIX_ADDR, (u_char) (port & 0xff)); /* Select register */
     	DELAY(10);
     	val = ess_rd(sc, SB_MIX_DATA);
     	DELAY(10);
-    	splx(flags);
 
     	return val;
 }
@@ -344,6 +349,7 @@ ess_intr(void *arg)
     	struct ess_info *sc = (struct ess_info *)arg;
 	int src, pirq, rirq;
 
+	ess_lock(sc);
 	src = 0;
 	if (ess_getmixer(sc, 0x7a) & 0x80)
 		src |= 2;
@@ -383,6 +389,7 @@ ess_intr(void *arg)
 		ess_setmixer(sc, 0x7a, ess_getmixer(sc, 0x7a) & ~0x80);
 	if (src & 1)
     		ess_rd(sc, DSP_DATA_AVAIL);
+	ess_unlock(sc);
 }
 
 /* utility functions for ESS */
@@ -497,8 +504,8 @@ ess_setupch(struct ess_info *sc, int ch, int dir, int spd, u_int32_t fmt, int le
 			/* filter cutoff */
 			ess_setmixer(sc, 0x72, ess_calcfilter(spd));
 		}
-
 	}
+
 	return 0;
 }
 static int
@@ -507,6 +514,7 @@ ess_start(struct ess_chinfo *ch)
 	struct ess_info *sc = ch->parent;
     	int play = (ch->dir == PCMDIR_PLAY)? 1 : 0;
 
+	ess_lock(sc);
 	ess_setupch(sc, ch->hwch, ch->dir, ch->spd, ch->fmt, ch->blksz);
 	ch->stopping = 0;
 	if (ch->hwch == 1)
@@ -515,6 +523,7 @@ ess_start(struct ess_chinfo *ch)
 		ess_setmixer(sc, 0x78, ess_getmixer(sc, 0x78) | 0x03);
 	if (play)
 		ess_cmd(sc, DSP_CMD_SPKON);
+	ess_unlock(sc);
 	return 0;
 }
 
@@ -524,6 +533,7 @@ ess_stop(struct ess_chinfo *ch)
 	struct ess_info *sc = ch->parent;
     	int play = (ch->dir == PCMDIR_PLAY)? 1 : 0;
 
+	ess_lock(sc);
 	ch->stopping = 1;
 	if (ch->hwch == 1)
 		ess_write(sc, 0xb8, ess_read(sc, 0xb8) & ~0x04);
@@ -531,13 +541,14 @@ ess_stop(struct ess_chinfo *ch)
 		ess_setmixer(sc, 0x78, ess_getmixer(sc, 0x78) & ~0x10);
 	if (play)
 		ess_cmd(sc, DSP_CMD_SPKOFF);
+	ess_unlock(sc);
 	return 0;
 }
 
 /* -------------------------------------------------------------------- */
 /* channel interface for ESS18xx */
 static void *
-esschan_init(kobj_t obj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
+esschan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *c, int dir)
 {
 	struct ess_info *sc = devinfo;
 	struct ess_chinfo *ch = (dir == PCMDIR_PLAY)? &sc->pch : &sc->rch;
@@ -619,7 +630,7 @@ esschan_getptr(kobj_t obj, void *data)
 	return sndbuf_isadmaptr(ch->buffer);
 }
 
-static pcmchan_caps *
+static struct pcmchan_caps *
 esschan_getcaps(kobj_t obj, void *data)
 {
 	struct ess_chinfo *ch = data;
@@ -642,7 +653,7 @@ CHANNEL_DECLARE(esschan);
 /************************************************************/
 
 static int
-essmix_init(snd_mixer *m)
+essmix_init(struct snd_mixer *m)
 {
     	struct ess_info *sc = mix_getdevinfo(m);
 
@@ -659,7 +670,7 @@ essmix_init(snd_mixer *m)
 }
 
 static int
-essmix_set(snd_mixer *m, unsigned dev, unsigned left, unsigned right)
+essmix_set(struct snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 {
     	struct ess_info *sc = mix_getdevinfo(m);
     	int preg = 0, rreg = 0, l, r;
@@ -723,7 +734,7 @@ essmix_set(snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 }
 
 static int
-essmix_setrecsrc(snd_mixer *m, u_int32_t src)
+essmix_setrecsrc(struct snd_mixer *m, u_int32_t src)
 {
     	struct ess_info *sc = mix_getdevinfo(m);
     	u_char recdev;
@@ -795,6 +806,7 @@ ess_attach(device_t dev)
 		return ENXIO;
     	bzero(sc, sizeof *sc);
 
+	sc->parent_dev = device_get_parent(dev);
     	if (ess_alloc_resources(sc, dev))
 		goto no;
     	if (ess_reset_dsp(sc))
@@ -828,7 +840,7 @@ ess_attach(device_t dev)
 	if (sc->newspeed)
 		ess_setmixer(sc, 0x71, 0x22);
 
-	bus_setup_intr(dev, sc->irq, INTR_TYPE_TTY, ess_intr, sc, &sc->ih);
+	snd_setup_intr(dev, sc->irq, INTR_MPSAFE, ess_intr, sc, &sc->ih);
     	if (!sc->duplex)
 		pcm_setflags(dev, pcm_getflags(dev) | SD_F_SIMPLEX);
 
@@ -890,11 +902,12 @@ static device_method_t ess_methods[] = {
 static driver_t ess_driver = {
 	"pcm",
 	ess_methods,
-	sizeof(snddev_info),
+	sizeof(struct snddev_info),
 };
 
 DRIVER_MODULE(snd_ess, sbc, ess_driver, pcm_devclass, 0, 0);
 MODULE_DEPEND(snd_ess, snd_pcm, PCM_MINVER, PCM_PREFVER, PCM_MAXVER);
+MODULE_DEPEND(snd_ess, snd_sbc, 1, 1, 1);
 MODULE_VERSION(snd_ess, 1);
 
 /************************************************************/
@@ -961,7 +974,7 @@ static device_method_t esscontrol_methods[] = {
 static driver_t esscontrol_driver = {
 	"esscontrol",
 	esscontrol_methods,
-	sizeof(snddev_info),
+	sizeof(struct snddev_info),
 };
 
 DRIVER_MODULE(esscontrol, isa, esscontrol_driver, esscontrol_devclass, 0, 0);

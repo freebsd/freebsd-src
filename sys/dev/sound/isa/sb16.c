@@ -36,6 +36,8 @@
 #include  <dev/sound/isa/sb.h>
 #include  <dev/sound/chip.h>
 
+#include <sys/mutex.h>
+
 #include "mixer_if.h"
 
 #define SB16_BUFFSIZE	4096
@@ -46,14 +48,14 @@ static u_int32_t sb16_fmt8[] = {
 	AFMT_STEREO | AFMT_U8,
 	0
 };
-static pcmchan_caps sb16_caps8 = {5000, 45000, sb16_fmt8, 0};
+static struct pcmchan_caps sb16_caps8 = {5000, 45000, sb16_fmt8, 0};
 
 static u_int32_t sb16_fmt16[] = {
 	AFMT_S16_LE,
 	AFMT_STEREO | AFMT_S16_LE,
 	0
 };
-static pcmchan_caps sb16_caps16 = {5000, 45000, sb16_fmt16, 0};
+static struct pcmchan_caps sb16_caps16 = {5000, 45000, sb16_fmt16, 0};
 
 static u_int32_t sb16x_fmt[] = {
 	AFMT_U8,
@@ -62,14 +64,14 @@ static u_int32_t sb16x_fmt[] = {
 	AFMT_STEREO | AFMT_S16_LE,
 	0
 };
-static pcmchan_caps sb16x_caps = {5000, 49000, sb16x_fmt, 0};
+static struct pcmchan_caps sb16x_caps = {5000, 49000, sb16x_fmt, 0};
 
 struct sb_info;
 
 struct sb_chinfo {
 	struct sb_info *parent;
-	pcm_channel *channel;
-	snd_dbuf *buffer;
+	struct pcm_channel *channel;
+	struct snd_dbuf *buffer;
 	int dir, run, dch;
 	u_int32_t fmt, spd, blksz;
 };
@@ -86,8 +88,11 @@ struct sb_info {
     	u_long bd_flags;       /* board-specific flags */
 	int prio, prio16;
     	struct sb_chinfo pch, rch;
+	device_t parent_dev;
 };
 
+static void sb_lock(struct sb_info *sb);
+static void sb_unlock(struct sb_info *sb);
 static int sb_rd(struct sb_info *sb, int reg);
 static void sb_wr(struct sb_info *sb, int reg, u_int8_t val);
 static int sb_cmd(struct sb_info *sb, u_char val);
@@ -148,6 +153,7 @@ sb_dspwr(struct sb_info *sb, u_char val)
 			return 1;
 		}
     	}
+	if (curproc->p_intr_nesting_level == 0)
     	printf("sb_dspwr(0x%02x) timed out.\n", val);
     	return 0;
 }
@@ -193,28 +199,25 @@ sb_cmd2(struct sb_info *sb, u_char cmd, int val)
 static void
 sb_setmixer(struct sb_info *sb, u_int port, u_int value)
 {
-    	u_long   flags;
-
-    	flags = spltty();
+	sb_lock(sb);
     	sb_wr(sb, SB_MIX_ADDR, (u_char) (port & 0xff)); /* Select register */
     	DELAY(10);
     	sb_wr(sb, SB_MIX_DATA, (u_char) (value & 0xff));
     	DELAY(10);
-    	splx(flags);
+	sb_unlock(sb);
 }
 
 static int
 sb_getmixer(struct sb_info *sb, u_int port)
 {
     	int val;
-    	u_long flags;
 
-    	flags = spltty();
+	sb_lock(sb);
     	sb_wr(sb, SB_MIX_ADDR, (u_char) (port & 0xff)); /* Select register */
     	DELAY(10);
     	val = sb_rd(sb, SB_MIX_DATA);
     	DELAY(10);
-    	splx(flags);
+	sb_unlock(sb);
 
     	return val;
 }
@@ -236,10 +239,15 @@ sb_get_byte(struct sb_info *sb)
 static int
 sb_reset_dsp(struct sb_info *sb)
 {
+	u_char b;
+
+	sb_lock(sb);
     	sb_wr(sb, SBDSP_RST, 3);
     	DELAY(100);
     	sb_wr(sb, SBDSP_RST, 0);
-    	if (sb_get_byte(sb) != 0xAA) {
+	b = sb_get_byte(sb);
+	sb_unlock(sb);
+    	if (b != 0xAA) {
         	DEB(printf("sb_reset_dsp 0x%lx failed\n",
 			   rman_get_start(d->io_base)));
 		return ENXIO;	/* Sorry */
@@ -271,7 +279,7 @@ static const struct sb16_mixent sb16_mixtab[32] = {
 };
 
 static int
-sb16mix_init(snd_mixer *m)
+sb16mix_init(struct snd_mixer *m)
 {
     	struct sb_info *sb = mix_getdevinfo(m);
 
@@ -292,7 +300,7 @@ sb16mix_init(snd_mixer *m)
 }
 
 static int
-sb16mix_set(snd_mixer *m, unsigned dev, unsigned left, unsigned right)
+sb16mix_set(struct snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 {
     	struct sb_info *sb = mix_getdevinfo(m);
     	const struct sb16_mixent *e;
@@ -317,7 +325,7 @@ sb16mix_set(snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 }
 
 static int
-sb16mix_setrecsrc(snd_mixer *m, u_int32_t src)
+sb16mix_setrecsrc(struct snd_mixer *m, u_int32_t src)
 {
     	struct sb_info *sb = mix_getdevinfo(m);
     	u_char recdev;
@@ -429,6 +437,7 @@ sb16_alloc_resources(struct sb_info *sb, device_t dev)
 	} else return ENXIO;
 }
 
+/* sbc does locking for us */
 static void
 sb_intr(void *arg)
 {
@@ -441,7 +450,14 @@ sb_intr(void *arg)
      	 */
 
 	reason = 0;
+	sb_lock(sb);
     	c = sb_getmixer(sb, IRQ_STAT);
+    	if (c & 1)
+		sb_rd(sb, DSP_DATA_AVAIL); /* 8-bit int ack */
+
+    	if (c & 2)
+		sb_rd(sb, DSP_DATA_AVL16); /* 16-bit int ack */
+	sb_unlock(sb);
 
 	/*
 	 * this tells us if the source is 8-bit or 16-bit dma. We
@@ -483,12 +499,6 @@ sb_intr(void *arg)
 
     	if ((reason & 2) && (sb->rch.run))
 		chn_intr(sb->rch.channel);
-
-    	if (c & 1)
-		sb_rd(sb, DSP_DATA_AVAIL); /* 8-bit int ack */
-
-    	if (c & 2)
-		sb_rd(sb, DSP_DATA_AVL16); /* 16-bit int ack */
 }
 
 static int
@@ -498,6 +508,7 @@ sb_setup(struct sb_info *sb)
 	u_int8_t v;
 	int l, pprio;
 
+	sb_lock(sb);
 	if (sb->bd_flags & BD_F_DMARUN)
 		sndbuf_isadma(sb->pch.buffer, PCMTRIG_STOP);
 	if (sb->bd_flags & BD_F_DMARUN2)
@@ -591,13 +602,14 @@ sb_setup(struct sb_info *sb)
 		sndbuf_isadma(ch->buffer, PCMTRIG_START);
 		sb->bd_flags |= BD_F_DMARUN2;
 	}
+	sb_unlock(sb);
 
     	return 0;
 }
 
 /* channel interface */
 static void *
-sb16chan_init(kobj_t obj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
+sb16chan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *c, int dir)
 {
 	struct sb_info *sb = devinfo;
 	struct sb_chinfo *ch = (dir == PCMDIR_PLAY)? &sb->pch : &sb->rch;
@@ -671,7 +683,7 @@ sb16chan_getptr(kobj_t obj, void *data)
 	return sndbuf_isadmaptr(ch->buffer);
 }
 
-static pcmchan_caps *
+static struct pcmchan_caps *
 sb16chan_getcaps(kobj_t obj, void *data)
 {
 	struct sb_chinfo *ch = data;
@@ -745,7 +757,8 @@ sb16_attach(device_t dev)
 		return ENXIO;
     	bzero(sb, sizeof *sb);
 
-	BUS_READ_IVAR(device_get_parent(dev), dev, 1, &ver);
+	sb->parent_dev = device_get_parent(dev);
+	BUS_READ_IVAR(sb->parent_dev, dev, 1, &ver);
 	sb->bd_id = ver & 0x0000ffff;
 	sb->bd_flags = (ver & 0xffff0000) >> 16;
 
@@ -755,7 +768,7 @@ sb16_attach(device_t dev)
 		goto no;
 	if (mixer_init(dev, &sb16mix_mixer_class, sb))
 		goto no;
-	if (bus_setup_intr(dev, sb->irq, INTR_TYPE_TTY, sb_intr, sb, &sb->ih))
+	if (snd_setup_intr(dev, sb->irq, INTR_MPSAFE, sb_intr, sb, &sb->ih))
 		goto no;
 
 	if (sb->bd_flags & BD_F_SB16X)
@@ -810,6 +823,18 @@ sb16_detach(device_t dev)
 	return 0;
 }
 
+static void
+sb_lock(struct sb_info *sb) {
+
+	sbc_lock(device_get_softc(sb->parent_dev));
+}
+
+static void
+sb_unlock(struct sb_info *sb) {
+
+	sbc_unlock(device_get_softc(sb->parent_dev));
+}
+
 static device_method_t sb16_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		sb16_probe),
@@ -822,13 +847,10 @@ static device_method_t sb16_methods[] = {
 static driver_t sb16_driver = {
 	"pcm",
 	sb16_methods,
-	sizeof(snddev_info),
+	sizeof(struct snddev_info),
 };
 
 DRIVER_MODULE(snd_sb16, sbc, sb16_driver, pcm_devclass, 0, 0);
 MODULE_DEPEND(snd_sb16, snd_pcm, PCM_MINVER, PCM_PREFVER, PCM_MAXVER);
+MODULE_DEPEND(snd_sb16, snd_sbc, 1, 1, 1);
 MODULE_VERSION(snd_sb16, 1);
-
-
-
-
