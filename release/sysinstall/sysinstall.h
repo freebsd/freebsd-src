@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.82.2.1 1996/11/04 19:47:11 phk Exp $
+ * $Id: sysinstall.h,v 1.85 1996/11/07 08:03:28 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -323,9 +323,11 @@ extern DMenu		MenuMediaTape;		/* Tape media menu				*/
 extern DMenu		MenuNetworkDevice;	/* Network device menu				*/
 extern DMenu		MenuNTP;		/* NTP time server menu				*/
 extern DMenu		MenuSyscons;		/* System console configuration menu		*/
+extern DMenu		MenuSysconsFont;	/* System console font configuration menu	*/
 extern DMenu		MenuSysconsKeymap;	/* System console keymap configuration menu	*/
 extern DMenu		MenuSysconsKeyrate;	/* System console keyrate configuration menu	*/
 extern DMenu		MenuSysconsSaver;	/* System console saver configuration menu	*/
+extern DMenu		MenuSysconsScrnmap;	/* System console screenmap configuration menu	*/
 extern DMenu		MenuNetworking;		/* Network configuration menu			*/
 extern DMenu		MenuInstallCustom;	/* Custom Installation menu			*/
 extern DMenu		MenuDistributions;	/* Distribution menu				*/
@@ -380,6 +382,7 @@ extern int	configSamba(dialogMenuItem *self);
 extern int	configPCNFSD(dialogMenuItem *self);
 extern int	configNFSServer(dialogMenuItem *self);
 extern int	configNovell(dialogMenuItem *self);
+extern int	configWriteSysconfig(dialogMenuItem *self);
 
 /* crc.c */
 extern int	crc(int, unsigned long *, unsigned long *);
@@ -430,6 +433,7 @@ extern int	dmenuSystemCommand(dialogMenuItem *tmp);
 extern int	dmenuSystemCommandBox(dialogMenuItem *tmp);
 extern int	dmenuExit(dialogMenuItem *tmp);
 extern int	dmenuSetVariable(dialogMenuItem *tmp);
+extern int	dmenuSetVariables(dialogMenuItem *tmp);
 extern int	dmenuToggleVariable(dialogMenuItem *tmp);
 extern int	dmenuSetFlag(dialogMenuItem *tmp);
 extern int	dmenuSetValue(dialogMenuItem *tmp);
