@@ -38,4 +38,7 @@ it came straight from gawk-3.0.3 with small editing and fixes.
 Many folks contributed see THANKS, if I omited someone please
 send me email.
 
-Alain Magloire is the current maintainer.
+Alain Magloire maintained GNU grep until version 2.5e.
+
+Bernhard "Bero" Rosenkränzer <bero@redhat.com> is the current maintainer.
+

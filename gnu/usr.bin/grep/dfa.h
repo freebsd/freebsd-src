@@ -22,18 +22,24 @@
    In addition to clobbering modularity, we eat up valuable
    name space. */
 
-# undef PARAMS
-#if __STDC__
+#ifdef __STDC__
 # ifndef _PTR_T
 # define _PTR_T
   typedef void * ptr_t;
 # endif
-# define PARAMS(x) x
 #else
 # ifndef _PTR_T
 # define _PTR_T
   typedef char * ptr_t;
 # endif
+#endif
+
+#ifdef PARAMS
+# undef PARAMS
+#endif
+#if PROTOTYPES
+# define PARAMS(x) x
+#else
 # define PARAMS(x) ()
 #endif
 
@@ -136,6 +142,21 @@ typedef enum
 
   RPAREN,			/* RPAREN never appears in the parse tree. */
 
+  CRANGE,			/* CRANGE never appears in the parse tree.
+				   It stands for a character range that can
+				   match a string of one or more characters.
+				   For example, [a-z] can match "ch" in
+				   a Spanish locale.  */
+
+#ifdef MBS_SUPPORT
+  ANYCHAR,                     /* ANYCHAR is a terminal symbol that matches
+                                  any multibyte(or singlebyte) characters.
+			          It is used only if MB_CUR_MAX > 1.  */
+
+  MBCSET,			/* MBCSET is similar to CSET, but for
+				   multibyte characters.  */
+#endif /* MBS_SUPPORT */
+
   CSET				/* CSET and (and any value greater) is a
 				   terminal symbol that matches any of a
 				   class of characters. */
@@ -223,6 +244,12 @@ typedef struct
   char backref;			/* True if this state matches a \<digit>. */
   unsigned char constraint;	/* Constraint for this state to accept. */
   int first_end;		/* Token value of the first END in elems. */
+#ifdef MBS_SUPPORT
+  position_set mbps;           /* Positions which can match multibyte
+                                  characters.  e.g. period.
+				  These staff are used only if
+				  MB_CUR_MAX > 1.  */
+#endif
 } dfa_state;
 
 /* Element of a list of strings, at least one of which is known to
@@ -233,6 +260,26 @@ struct dfamust
   char *must;
   struct dfamust *next;
 };
+
+#ifdef MBS_SUPPORT
+/* A bracket operator.
+   e.g. [a-c], [[:alpha:]], etc.  */
+struct mb_char_classes
+{
+  int invert;
+  wchar_t *chars;		/* Normal characters.  */
+  int nchars;
+  wctype_t *ch_classes;		/* Character classes.  */
+  int nch_classes;
+  wchar_t *range_sts;		/* Range characters (start of the range).  */
+  wchar_t *range_ends;		/* Range characters (end of the range).  */
+  int nranges;
+  char **equivs;		/* Equivalent classes.  */
+  int nequivs;
+  char **coll_elems;
+  int ncoll_elems;		/* Collating elements.  */
+};
+#endif
 
 /* A compiled regular expression. */
 struct dfa
@@ -252,6 +299,32 @@ struct dfa
   int nleaves;			/* Number of leaves on the parse tree. */
   int nregexps;			/* Count of parallel regexps being built
 				   with dfaparse(). */
+#ifdef MBS_SUPPORT
+  /* These stuff are used only if MB_CUR_MAX > 1 or multibyte environments.  */
+  int nmultibyte_prop;
+  int *multibyte_prop;
+  /* The value of multibyte_prop[i] is defined by following rule.
+       if tokens[i] < NOTCHAR
+         bit 1 : tokens[i] is a singlebyte character, or the last-byte of
+	         a multibyte character.
+	 bit 0 : tokens[i] is a singlebyte character, or the 1st-byte of
+	         a multibyte character.
+       if tokens[i] = MBCSET
+         ("the index of mbcsets correspnd to this operator" << 2) + 3
+
+     e.g.
+     tokens
+        = 'single_byte_a', 'multi_byte_A', single_byte_b'
+        = 'sb_a', 'mb_A(1st byte)', 'mb_A(2nd byte)', 'mb_A(3rd byte)', 'sb_b'
+     multibyte_prop
+        = 3     , 1               ,  0              ,  2              , 3
+  */
+
+  /* Array of the bracket expressoin in the DFA.  */
+  struct mb_char_classes *mbcsets;
+  int nmbcsets;
+  int mbcsets_alloc;
+#endif
 
   /* Stuff owned by the state builder. */
   dfa_state *states;		/* States of the dfa. */
@@ -290,13 +363,6 @@ struct dfa
 				   on a state that potentially could do so. */
   int *success;			/* Table of acceptance conditions used in
 				   dfaexec and computed in build_state. */
-  int *newlines;		/* Transitions on newlines.  The entry for a
-				   newline in any transition table is always
-				   -1 so we can count lines without wasting
-				   too many cycles.  The transition for a
-				   newline is stored separately and handled
-				   as a special case.  Newline is also used
-				   as a sentinel at the end of the buffer. */
   struct dfamust *musts;	/* List of strings, at least one of which
 				   is known to appear in any r.e. matching
 				   the dfa. */
@@ -323,26 +389,21 @@ struct dfa
 /* dfasyntax() takes three arguments; the first sets the syntax bits described
    earlier in this file, the second sets the case-folding flag, and the
    third specifies the line terminator. */
-extern void dfasyntax PARAMS ((reg_syntax_t, int, int));
+extern void dfasyntax PARAMS ((reg_syntax_t, int, unsigned char));
 
 /* Compile the given string of the given length into the given struct dfa.
    Final argument is a flag specifying whether to build a searching or an
    exact matcher. */
-extern void dfacomp PARAMS ((char *, size_t, struct dfa *, int));
+extern void dfacomp PARAMS ((char const *, size_t, struct dfa *, int));
 
 /* Execute the given struct dfa on the buffer of characters.  The
-   first char * points to the beginning, and the second points to the
-   first character after the end of the buffer, which must be a writable
-   place so a sentinel end-of-buffer marker can be stored there.  The
-   second-to-last argument is a flag telling whether to allow newlines to
-   be part of a string matching the regexp.  The next-to-last argument,
-   if non-NULL, points to a place to increment every time we see a
-   newline.  The final argument, if non-NULL, points to a flag that will
+   last byte of the buffer must equal the end-of-line byte.
+   The final argument points to a flag that will
    be set if further examination by a backtracking matcher is needed in
    order to verify backreferencing; otherwise the flag will be cleared.
-   Returns NULL if no match is found, or a pointer to the first
+   Returns (size_t) -1 if no match is found, or the offset of the first
    character after the first & shortest matching string in the buffer. */
-extern char *dfaexec PARAMS ((struct dfa *, char *, char *, int, int *, int *));
+extern size_t dfaexec PARAMS ((struct dfa *, char const *, size_t, int *));
 
 /* Free the storage held by the components of a struct dfa. */
 extern void dfafree PARAMS ((struct dfa *));
@@ -353,7 +414,7 @@ extern void dfafree PARAMS ((struct dfa *));
 extern void dfainit PARAMS ((struct dfa *));
 
 /* Incrementally parse a string of given length into a struct dfa. */
-extern void dfaparse PARAMS ((char *, size_t, struct dfa *));
+extern void dfaparse PARAMS ((char const *, size_t, struct dfa *));
 
 /* Analyze a parsed regexp; second argument tells whether to build a searching
    or an exact matcher. */
@@ -367,6 +428,5 @@ extern void dfastate PARAMS ((int, struct dfa *, int []));
 
 /* dfaerror() is called by the regexp routines whenever an error occurs.  It
    takes a single argument, a NUL-terminated string describing the error.
-   The default dfaerror() prints the error message to stderr and exits.
-   The user can provide a different dfafree() if so desired. */
+   The user must supply a dfaerror.  */
 extern void dfaerror PARAMS ((const char *));

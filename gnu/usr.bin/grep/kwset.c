@@ -81,22 +81,13 @@ struct kwset
   struct trie *next[NCHAR];	/* Table of children of the root. */
   char *target;			/* Target string if there's only one. */
   int mind2;			/* Used in Boyer-Moore search for one string. */
-  char *trans;			/* Character translation table. */
+  char const *trans;		/* Character translation table. */
 };
-
-/* prototypes */
-static void enqueue PARAMS((struct tree *, struct trie **));
-static void treefails PARAMS((register struct tree *, struct trie *, struct trie *));
-static void treedelta PARAMS((register struct tree *,register unsigned int, unsigned char *));
-static int  hasevery PARAMS((register struct tree *, register struct tree *));
-static void treenext PARAMS((struct tree *, struct trie **));
-static char * bmexec PARAMS((kwset_t, char *, size_t));
-static char * cwexec PARAMS((kwset_t, char *, size_t, struct kwsmatch *));
 
 /* Allocate and initialize a keyword set object, returning an opaque
    pointer to it.  Return NULL if memory is not available. */
 kwset_t
-kwsalloc (char *trans)
+kwsalloc (char const *trans)
 {
   struct kwset *kwset;
 
@@ -131,7 +122,7 @@ kwsalloc (char *trans)
 /* Add the given string to the contents of the keyword set.  Return NULL
    for success, an error message otherwise. */
 char *
-kwsincr (kwset_t kws, char *text, size_t len)
+kwsincr (kwset_t kws, char const *text, size_t len)
 {
   struct kwset *kwset;
   register struct trie *trie;
@@ -301,7 +292,8 @@ enqueue (struct tree *tree, struct trie **last)
    from the given tree, given the failure function for their parent as
    well as a last resort failure node. */
 static void
-treefails (register struct tree *tree, struct trie *fail, struct trie *recourse)
+treefails (register struct tree const *tree, struct trie const *fail,
+	   struct trie *recourse)
 {
   register struct tree *link;
 
@@ -335,7 +327,7 @@ treefails (register struct tree *tree, struct trie *fail, struct trie *recourse)
 /* Set delta entries for the links of the given tree such that
    the preexisting delta value is larger than the current depth. */
 static void
-treedelta (register struct tree *tree,
+treedelta (register struct tree const *tree,
 	   register unsigned int depth,
 	   unsigned char delta[])
 {
@@ -349,7 +341,7 @@ treedelta (register struct tree *tree,
 
 /* Return true if A has every label in B. */
 static int
-hasevery (register struct tree *a, register struct tree *b)
+hasevery (register struct tree const *a, register struct tree const *b)
 {
   if (!b)
     return 1;
@@ -368,7 +360,7 @@ hasevery (register struct tree *a, register struct tree *b)
 /* Compute a vector, indexed by character code, of the trie nodes
    referenced from the given tree. */
 static void
-treenext (struct tree *tree, struct trie *next[])
+treenext (struct tree const *tree, struct trie *next[])
 {
   if (!tree)
     return;
@@ -385,7 +377,7 @@ kwsprep (kwset_t kws)
   register struct kwset *kwset;
   register int i;
   register struct trie *curr, *fail;
-  register char *trans;
+  register char const *trans;
   unsigned char delta[NCHAR];
   struct trie *last, *next[NCHAR];
 
@@ -497,23 +489,26 @@ kwsprep (kwset_t kws)
 #define U(C) ((unsigned char) (C))
 
 /* Fast boyer-moore search. */
-static char *
-bmexec (kwset_t kws, char *text, size_t size)
+static size_t
+bmexec (kwset_t kws, char const *text, size_t size)
 {
-  struct kwset *kwset;
-  register unsigned char *d1;
-  register char *ep, *sp, *tp;
+  struct kwset const *kwset;
+  register unsigned char const *d1;
+  register char const *ep, *sp, *tp;
   register int d, gc, i, len, md2;
 
-  kwset = (struct kwset *) kws;
+  kwset = (struct kwset const *) kws;
   len = kwset->mind;
 
   if (len == 0)
-    return text;
-  if (len > size)
     return 0;
+  if (len > size)
+    return -1;
   if (len == 1)
-    return memchr(text, kwset->target[0], size);
+    {
+      tp = memchr (text, kwset->target[0], size);
+      return tp ? tp - text : -1;
+    }
 
   d1 = kwset->delta;
   sp = kwset->target + len;
@@ -552,7 +547,7 @@ bmexec (kwset_t kws, char *text, size_t size)
 	    for (i = 3; i <= len && U(tp[-i]) == U(sp[-i]); ++i)
 	      ;
 	    if (i > len)
-	      return tp - len;
+	      return tp - len - text;
 	  }
 	tp += md2;
       }
@@ -571,26 +566,29 @@ bmexec (kwset_t kws, char *text, size_t size)
 	  for (i = 3; i <= len && U(tp[-i]) == U(sp[-i]); ++i)
 	    ;
 	  if (i > len)
-	    return tp - len;
+	    return tp - len - text;
 	}
       d = md2;
     }
 
-  return 0;
+  return -1;
 }
 
 /* Hairy multiple string search. */
-static char *
-cwexec (kwset_t kws, char *text, size_t len, struct kwsmatch *kwsmatch)
+static size_t
+cwexec (kwset_t kws, char const *text, size_t len, struct kwsmatch *kwsmatch)
 {
-  struct kwset *kwset;
-  struct trie **next, *trie, *accept;
-  char *beg, *lim, *mch, *lmch;
-  register unsigned char c, *delta;
+  struct kwset const *kwset;
+  struct trie * const *next;
+  struct trie const *trie;
+  struct trie const *accept;
+  char const *beg, *lim, *mch, *lmch;
+  register unsigned char c;
+  register unsigned char const *delta;
   register int d;
-  register char *end, *qlim;
-  register struct tree *tree;
-  register char *trans;
+  register char const *end, *qlim;
+  register struct tree const *tree;
+  register char const *trans;
 
 #ifdef lint
   accept = NULL;
@@ -599,7 +597,7 @@ cwexec (kwset_t kws, char *text, size_t len, struct kwsmatch *kwsmatch)
   /* Initialize register copies and look for easy ways out. */
   kwset = (struct kwset *) kws;
   if (len < kwset->mind)
-    return 0;
+    return -1;
   next = kwset->next;
   delta = kwset->delta;
   trans = kwset->trans;
@@ -668,7 +666,7 @@ cwexec (kwset_t kws, char *text, size_t len, struct kwsmatch *kwsmatch)
       if (mch)
 	goto match;
     }
-  return 0;
+  return -1;
 
  match:
   /* Given a known match, find the longest possible match anchored
@@ -728,10 +726,10 @@ cwexec (kwset_t kws, char *text, size_t len, struct kwsmatch *kwsmatch)
   if (kwsmatch)
     {
       kwsmatch->index = accept->accepting / 2;
-      kwsmatch->beg[0] = mch;
+      kwsmatch->offset[0] = mch - text;
       kwsmatch->size[0] = accept->depth;
     }
-  return mch;
+  return mch - text;
 }
 
 /* Search through the given text for a match of any member of the
@@ -741,20 +739,18 @@ cwexec (kwset_t kws, char *text, size_t len, struct kwsmatch *kwsmatch)
    matching substring.  Similarly, if FOUNDIDX is non-NULL, store
    in the referenced location the index number of the particular
    keyword matched. */
-char *
-kwsexec (kwset_t kws, char *text, size_t size, struct kwsmatch *kwsmatch)
+size_t
+kwsexec (kwset_t kws, char const *text, size_t size,
+	 struct kwsmatch *kwsmatch)
 {
-  struct kwset *kwset;
-  char *ret;
-
-  kwset = (struct kwset *) kws;
+  struct kwset const *kwset = (struct kwset *) kws;
   if (kwset->words == 1 && kwset->trans == 0)
     {
-      ret = bmexec(kws, text, size);
-      if (kwsmatch != 0 && ret != 0)
+      size_t ret = bmexec (kws, text, size);
+      if (kwsmatch != 0 && ret != (size_t) -1)
 	{
 	  kwsmatch->index = 0;
-	  kwsmatch->beg[0] = ret;
+	  kwsmatch->offset[0] = ret;
 	  kwsmatch->size[0] = kwset->mind;
 	}
       return ret;
