@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_de.c,v 1.50 1996/09/06 23:08:50 phk Exp $
+ * $Id: if_de.c,v 1.51 1996/09/18 14:44:31 davidg Exp $
  *
  */
 
@@ -3886,19 +3886,15 @@ static const int tulip_eisa_irqs[4] = { IRQ5, IRQ9, IRQ10, IRQ11 };
 
 #define	TULIP_PCI_ATTACH_ARGS	pcici_t config_id, int unit
 
-static int
-tulip_pci_shutdown(
-    int unit,
-    int force)
+static void
+tulip_shutdown(
+    int howto,
+    void *sc)
 {
-    tulip_softc_t * const sc = TULIP_UNIT_TO_SOFTC(unit);
-    if (sc != NULL) {
-	TULIP_CSR_WRITE(sc, csr_busmode, TULIP_BUSMODE_SWRESET);
-	DELAY(10);	/* Wait 10 microseconds (actually 50 PCI cycles but at 
-			   33MHz that comes to two microseconds but wait a
-			   bit longer anyways) */
-    }
-    return 0;
+    TULIP_CSR_WRITE((tulip_softc_t *) sc, csr_busmode, TULIP_BUSMODE_SWRESET);
+    DELAY(10);	/* Wait 10 microseconds (actually 50 PCI cycles but at 
+		   33MHz that comes to two microseconds but wait a
+		   bit longer anyways) */
 }
 
 static char*
@@ -3931,7 +3927,7 @@ struct pci_device dedevice = {
     tulip_pci_probe,
     tulip_pci_attach,
    &tulip_pci_count,
-    tulip_pci_shutdown,
+    NULL
 };
 
 DATA_SET (pcidevice_set, dedevice);
@@ -4362,6 +4358,7 @@ tulip_pci_attach(
 		return;
 	    }
 	}
+	at_shutdown(tulip_shutdown, sc, SHUTDOWN_POST_SYNC);
 #endif
 #if defined(__bsdi__)
 	if ((sc->tulip_flags & TULIP_SLAVEDINTR) == 0) {
