@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.49 1997/08/25 00:29:21 brian Exp $
+ * $Id: modem.c,v 1.50 1997/08/31 22:59:41 brian Exp $
  *
  *  TODO:
  */
@@ -31,7 +31,11 @@
 #include <netdb.h>
 #include <errno.h>
 #include <time.h>
+#ifdef __OpenBSD__
+#include <util.h>
+#else
 #include <libutil.h>
+#endif
 #include "hdlc.h"
 #include "lcp.h"
 #include "ip.h"
