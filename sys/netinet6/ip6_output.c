@@ -2001,6 +2001,8 @@ ip6_setpktoptions(control, opt, priv)
 	if (control->m_next)
 		return(EINVAL);
 
+	opt->ip6po_m = control;
+
 	for (; control->m_len; control->m_data += ALIGN(cm->cmsg_len),
 		     control->m_len -= ALIGN(cm->cmsg_len)) {
 		cm = mtod(control, struct cmsghdr *);
