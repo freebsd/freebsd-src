@@ -219,8 +219,6 @@ struct uma_zone {
 	struct uma_hash	uz_hash;
 	u_int16_t	uz_pgoff;	/* Offset to uma_slab struct */
 	u_int16_t	uz_ppera;	/* pages per allocation from backend */
-	u_int16_t	uz_cacheoff;	/* Next cache offset */
-	u_int16_t	uz_cachemax;	/* Max cache offset */
 
 	uma_ctor	uz_ctor;	/* Constructor for each allocation */
 	uma_dtor	uz_dtor;	/* Destructor */
@@ -244,8 +242,6 @@ struct uma_zone {
 	 */
 	struct uma_cache	uz_cpu[1];	/* Per cpu caches */
 };
-
-#define UMA_CACHE_INC	16	/* How much will we move data */
 
 /*
  * These flags must not overlap with the UMA_ZONE flags specified in uma.h.
