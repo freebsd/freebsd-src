@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.141 1998/12/22 12:33:32 jkh Exp $
+#	$Id: BSD.usr.dist,v 1.142 1998/12/27 16:44:24 phk Exp $
 #
 
 /set type=dir uname=root gname=wheel mode=0755
@@ -213,6 +213,10 @@
                 27.nfsrfc
                 ..
                 28.cvs
+                ..
+            ..
+            ru
+                FAQ
                 ..
             ..
             smm
