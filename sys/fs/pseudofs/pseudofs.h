@@ -64,12 +64,26 @@ struct pfs_info;
 struct pfs_node;
 struct pfs_bitmap;
 
+/*
+ * Filler callback
+ */
 #define PFS_FILL_ARGS \
 	struct thread *td, struct proc *p, struct pfs_node *pn, \
 	struct sbuf *sb, struct uio *uio
 #define PFS_FILL_PROTO(name) \
 	int name(PFS_FILL_ARGS);
 typedef int (*pfs_fill_t)(PFS_FILL_ARGS);
+
+/*
+ * Attribute callback
+ */
+struct vattr;
+#define PFS_ATTR_ARGS \
+	struct thread *td, struct proc *p, struct pfs_node *pn, \
+	struct vattr *vap
+#define PFS_ATTR_PROTO(name) \
+	int name(PFS_ATTR_ARGS);
+typedef int (*pfs_attr_t)(PFS_ATTR_ARGS);
 
 struct pfs_bitmap;		/* opaque */
 
@@ -91,41 +105,39 @@ struct pfs_info {
 struct pfs_node {
 	char			 pn_name[PFS_NAMELEN];
 	pfs_type_t		 pn_type;
-	int			 pn_flags;
-	uid_t			 pn_uid;
-	gid_t			 pn_gid;
-	mode_t			 pn_mode;
 	union {
-		void		*_pn_data;
+		void		*_pn_dummy;
 		pfs_fill_t	 _pn_func;
 		struct pfs_node	*_pn_nodes;
 	} u1;
-#define pn_data		u1._pn_data
 #define pn_func		u1._pn_func
 #define pn_nodes	u1._pn_nodes
+	pfs_attr_t		 pn_attr;
+	void			*pn_data;
+	int			 pn_flags;
 	/* members below this line aren't initialized */
 	struct pfs_node		*pn_parent;
 	u_int32_t		 pn_fileno;
 };
 
-#define PFS_NODE(name, type, flags, uid, gid, mode, data) \
-        { (name), (type), (flags), (uid), (gid), (mode), { (data) } }
-#define PFS_DIR(name, flags, uid, gid, mode, nodes) \
-        PFS_NODE(name, pfstype_dir, flags, uid, gid, mode, nodes)
+#define PFS_NODE(name, type, fill, attr, data, flags) \
+        { (name), (type), { (fill) }, (attr), (data), (flags) }
+#define PFS_DIR(name, nodes, attr, data, flags) \
+        PFS_NODE(name, pfstype_dir, nodes, attr, data, flags)
 #define PFS_ROOT(nodes) \
-        PFS_NODE("/", pfstype_root, 0, 0, 0, 0555, nodes)
+        PFS_NODE("/", pfstype_root, nodes, NULL, NULL, 0)
 #define PFS_THIS \
-	PFS_NODE(".", pfstype_this, 0, 0, 0, 0, NULL)
+	PFS_NODE(".", pfstype_this, NULL, NULL, NULL, 0)
 #define PFS_PARENT \
-	PFS_NODE("..", pfstype_parent, 0, 0, 0, 0, NULL)
-#define PFS_FILE(name, flags, uid, gid, mode, func) \
-	PFS_NODE(name, pfstype_file, flags, uid, gid, mode, func)
-#define PFS_SYMLINK(name, flags, uid, gid, mode, func) \
-	PFS_NODE(name, pfstype_symlink, flags, uid, gid, mode, func)
-#define PFS_PROCDIR(flags, uid, gid, mode, nodes) \
-        PFS_NODE("", pfstype_procdir, flags, uid, gid, mode, nodes)
+	PFS_NODE("..", pfstype_parent, NULL, NULL, NULL, 0)
+#define PFS_FILE(name, func, attr, data, flags) \
+	PFS_NODE(name, pfstype_file, func, attr, data, flags)
+#define PFS_SYMLINK(name, func, attr, data, flags) \
+	PFS_NODE(name, pfstype_symlink, func, attr, data, flags)
+#define PFS_PROCDIR(nodes, attr, data, flags) \
+        PFS_NODE("", pfstype_procdir, nodes, attr, data, flags)
 #define PFS_LASTNODE \
-	PFS_NODE("", pfstype_none, 0, 0, 0, 0, NULL)
+	PFS_NODE("", pfstype_none, NULL, NULL, NULL, 0)
 
 /*
  * VFS interface
@@ -154,7 +166,7 @@ static struct pfs_info name##_info = {					\
 static int								\
 _##name##_mount(struct mount *mp, char *path, caddr_t data,		\
 	     struct nameidata *ndp, struct thread *td) {		\
-        return pfs_mount(&name##_info, mp, path, data, ndp, td);		\
+        return pfs_mount(&name##_info, mp, path, data, ndp, td);	\
 }									\
 									\
 static int								\
@@ -185,6 +197,6 @@ static struct vfsops name##_vfsops = {					\
 };									\
 VFS_SET(name##_vfsops, name, VFCF_SYNTHETIC);				\
 MODULE_VERSION(name, version);						\
-MODULE_DEPEND(name, pseudofs, 1, 1, 1);
+MODULE_DEPEND(name, pseudofs, 2, 2, 2);
 
 #endif
