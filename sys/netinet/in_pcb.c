@@ -210,10 +210,10 @@ out:
 }
 
 int
-in_pcbbind(inp, nam, td)
+in_pcbbind(inp, nam, cred)
 	register struct inpcb *inp;
 	struct sockaddr *nam;
-	struct thread *td;
+	struct ucred *cred;
 {
 	int anonport, error;
 
@@ -225,7 +225,7 @@ in_pcbbind(inp, nam, td)
 	anonport = inp->inp_lport == 0 && (nam == NULL ||
 	    ((struct sockaddr_in *)nam)->sin_port == 0);
 	error = in_pcbbind_setup(inp, nam, &inp->inp_laddr.s_addr,
-	    &inp->inp_lport, td);
+	    &inp->inp_lport, cred);
 	if (error)
 		return (error);
 	if (in_pcbinshash(inp) != 0) {
@@ -248,12 +248,12 @@ in_pcbbind(inp, nam, td)
  * On error, the values of *laddrp and *lportp are not changed.
  */
 int
-in_pcbbind_setup(inp, nam, laddrp, lportp, td)
+in_pcbbind_setup(inp, nam, laddrp, lportp, cred)
 	struct inpcb *inp;
 	struct sockaddr *nam;
 	in_addr_t *laddrp;
 	u_short *lportp;
-	struct thread *td;
+	struct ucred *cred;
 {
 	struct socket *so = inp->inp_socket;
 	unsigned short *lastport;
@@ -287,7 +287,7 @@ in_pcbbind_setup(inp, nam, laddrp, lportp, td)
 			return (EAFNOSUPPORT);
 #endif
 		if (sin->sin_addr.s_addr != INADDR_ANY)
-			if (prison_ip(td->td_ucred, 0, &sin->sin_addr.s_addr))
+			if (prison_ip(cred, 0, &sin->sin_addr.s_addr))
 				return(EINVAL);
 		if (sin->sin_port != *lportp) {
 			/* Don't allow the port to change. */
@@ -318,9 +318,9 @@ in_pcbbind_setup(inp, nam, laddrp, lportp, td)
 			/* GROSS */
 			if (ntohs(lport) <= ipport_reservedhigh &&
 			    ntohs(lport) >= ipport_reservedlow &&
-			    td && suser_cred(td->td_ucred, PRISON_ROOT))
+			    suser_cred(cred, PRISON_ROOT))
 				return (EACCES);
-			if (td && jailed(td->td_ucred))
+			if (jailed(cred))
 				prison = 1;
 			if (so->so_cred->cr_uid != 0 &&
 			    !IN_MULTICAST(ntohl(sin->sin_addr.s_addr))) {
@@ -356,8 +356,7 @@ in_pcbbind_setup(inp, nam, laddrp, lportp, td)
 					return (EADDRINUSE);
 				}
 			}
-			if (prison &&
-			    prison_ip(td->td_ucred, 0, &sin->sin_addr.s_addr))
+			if (prison && prison_ip(cred, 0, &sin->sin_addr.s_addr))
 				return (EADDRNOTAVAIL);
 			t = in_pcblookup_local(pcbinfo, sin->sin_addr,
 			    lport, prison ? 0 : wild);
@@ -386,7 +385,7 @@ in_pcbbind_setup(inp, nam, laddrp, lportp, td)
 		int count;
 
 		if (laddr.s_addr != INADDR_ANY)
-			if (prison_ip(td->td_ucred, 0, &laddr.s_addr))
+			if (prison_ip(cred, 0, &laddr.s_addr))
 				return (EINVAL);
 
 		if (inp->inp_flags & INP_HIGHPORT) {
@@ -394,8 +393,7 @@ in_pcbbind_setup(inp, nam, laddrp, lportp, td)
 			last  = ipport_hilastauto;
 			lastport = &pcbinfo->lasthi;
 		} else if (inp->inp_flags & INP_LOWPORT) {
-			if (td && (error = suser_cred(td->td_ucred,
-			    PRISON_ROOT)) != 0)
+			if ((error = suser_cred(cred, PRISON_ROOT)) != 0)
 				return error;
 			first = ipport_lowfirstauto;	/* 1023 */
 			last  = ipport_lowlastauto;	/* 600 */
@@ -444,7 +442,7 @@ in_pcbbind_setup(inp, nam, laddrp, lportp, td)
 			    wild));
 		}
 	}
-	if (prison_ip(td->td_ucred, 0, &laddr.s_addr))
+	if (prison_ip(cred, 0, &laddr.s_addr))
 		return (EINVAL);
 	*laddrp = laddr.s_addr;
 	*lportp = lport;
@@ -458,10 +456,10 @@ in_pcbbind_setup(inp, nam, laddrp, lportp, td)
  * then pick one.
  */
 int
-in_pcbconnect(inp, nam, td)
+in_pcbconnect(inp, nam, cred)
 	register struct inpcb *inp;
 	struct sockaddr *nam;
-	struct thread *td;
+	struct ucred *cred;
 {
 	u_short lport, fport;
 	in_addr_t laddr, faddr;
@@ -471,7 +469,7 @@ in_pcbconnect(inp, nam, td)
 	laddr = inp->inp_laddr.s_addr;
 	anonport = (lport == 0);
 	error = in_pcbconnect_setup(inp, nam, &laddr, &lport, &faddr, &fport,
-	    NULL, td);
+	    NULL, cred);
 	if (error)
 		return (error);
 
@@ -517,7 +515,7 @@ in_pcbconnect(inp, nam, td)
  * is set to NULL.
  */
 int
-in_pcbconnect_setup(inp, nam, laddrp, lportp, faddrp, fportp, oinpp, td)
+in_pcbconnect_setup(inp, nam, laddrp, lportp, faddrp, fportp, oinpp, cred)
 	register struct inpcb *inp;
 	struct sockaddr *nam;
 	in_addr_t *laddrp;
@@ -525,12 +523,12 @@ in_pcbconnect_setup(inp, nam, laddrp, lportp, faddrp, fportp, oinpp, td)
 	in_addr_t *faddrp;
 	u_short *fportp;
 	struct inpcb **oinpp;
-	struct thread *td;
+	struct ucred *cred;
 {
 	struct sockaddr_in *sin = (struct sockaddr_in *)nam;
 	struct in_ifaddr *ia;
 	struct sockaddr_in sa;
-	struct ucred *cred;
+	struct ucred *socred;
 	struct inpcb *oinp;
 	struct in_addr laddr, faddr;
 	u_short lport, fport;
@@ -548,14 +546,14 @@ in_pcbconnect_setup(inp, nam, laddrp, lportp, faddrp, fportp, oinpp, td)
 	lport = *lportp;
 	faddr = sin->sin_addr;
 	fport = sin->sin_port;
-	cred = inp->inp_socket->so_cred;
-	if (laddr.s_addr == INADDR_ANY && jailed(cred)) {
+	socred = inp->inp_socket->so_cred;
+	if (laddr.s_addr == INADDR_ANY && jailed(socred)) {
 		bzero(&sa, sizeof(sa));
-		sa.sin_addr.s_addr = htonl(prison_getip(cred));
+		sa.sin_addr.s_addr = htonl(prison_getip(socred));
 		sa.sin_len = sizeof(sa);
 		sa.sin_family = AF_INET;
 		error = in_pcbbind_setup(inp, (struct sockaddr *)&sa,
-		    &laddr.s_addr, &lport, td);
+		    &laddr.s_addr, &lport, cred);
 		if (error)
 			return (error);
 	}
@@ -646,7 +644,8 @@ in_pcbconnect_setup(inp, nam, laddrp, lportp, faddrp, fportp, oinpp, td)
 		return (EADDRINUSE);
 	}
 	if (lport == 0) {
-		error = in_pcbbind_setup(inp, NULL, &laddr.s_addr, &lport, td);
+		error = in_pcbbind_setup(inp, NULL, &laddr.s_addr, &lport,
+		    cred);
 		if (error)
 			return (error);
 	}

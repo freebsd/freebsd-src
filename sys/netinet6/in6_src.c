@@ -742,10 +742,10 @@ in6_selecthlim(in6p, ifp)
  * share this function by all *bsd*...
  */
 int
-in6_pcbsetport(laddr, inp, td)
+in6_pcbsetport(laddr, inp, cred)
 	struct in6_addr *laddr;
 	struct inpcb *inp;
-	struct thread *td;
+	struct ucred *cred;
 {
 	struct socket *so = inp->inp_socket;
 	u_int16_t lport = 0, first, last, *lastport;
@@ -763,7 +763,7 @@ in6_pcbsetport(laddr, inp, td)
 		last  = ipport_hilastauto;
 		lastport = &pcbinfo->lasthi;
 	} else if (inp->inp_flags & INP_LOWPORT) {
-		if (td && (error = suser(td)))
+		if ((error = suser_cred(cred, 0)))
 			return error;
 		first = ipport_lowfirstauto;	/* 1023 */
 		last  = ipport_lowlastauto;	/* 600 */
