@@ -222,6 +222,15 @@ pthread_mutex_trylock(pthread_mutex_t * mutex)
 	 */
 	else if (*mutex != NULL || (ret = init_static(mutex)) == 0) {
 		/*
+		 * If the mutex was statically allocated, properly
+		 * initialize the tail queue.
+		 */
+		if (((*mutex)->m_flags & MUTEX_FLAGS_INITED) == 0) {
+			TAILQ_INIT(&(*mutex)->m_queue);
+			(*mutex)->m_flags |= MUTEX_FLAGS_INITED;
+		}
+
+		/*
 		 * Guard against being preempted by a scheduling signal.
 		 * To support priority inheritence mutexes, we need to
 		 * maintain lists of mutex ownerships for each thread as
@@ -351,6 +360,15 @@ pthread_mutex_lock(pthread_mutex_t * mutex)
 	 * initialization:
 	 */
 	else if (*mutex != NULL || (ret = init_static(mutex)) == 0) {
+		/*
+		 * If the mutex was statically allocated, properly
+		 * initialize the tail queue.
+		 */
+		if (((*mutex)->m_flags & MUTEX_FLAGS_INITED) == 0) {
+			TAILQ_INIT(&(*mutex)->m_queue);
+			(*mutex)->m_flags |= MUTEX_FLAGS_INITED;
+		}
+
 		/*
 		 * Guard against being preempted by a scheduling signal.
 		 * To support priority inheritence mutexes, we need to
