@@ -74,11 +74,13 @@ The following platforms & compilers have been tested:
 
 - AIX 4.1.5:
 - AIX 4.2.1:
-	- Compiler: cc -qlanglvl=ansi
+- AIX 4.3.3:
+	- Compiler: xlc -qlanglvl=ansi
 	   version: xlC 3.1.4.10 -- C for AIX Compiler
+	   version: ibmcxx.cmp 3.6.6.6 -- IBM C and C++ Compilers
 
 	  Configure with:
-		env CC="cc -qlanglvl=ansi" ./configure
+		env CC="xlc" CFLAGS="-qlanglvl=ansi" ./configure
 
 - BSD/OS 4.0.1 (x86)
 - BSD/OS 4.1 (x86)
@@ -172,10 +174,6 @@ The following platforms & compilers have been tested:
 
 XXX: clean up to match reality
 ------------------------------
-
-- AIX 4.3.2:
-	Compiler: cc
-	 version: ibmcxx 3.6.6.1 -- IBM C and C++ Compilers
 
 - RedHat Linux 5.0 (i386)
 	Compiler: cc

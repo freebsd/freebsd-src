@@ -1,10 +1,10 @@
-dnl $Id: configure.in,v 1.32 2000/09/18 00:10:43 lukem Exp $
+dnl $Id: configure.in,v 1.37 2002/06/10 08:08:53 lukem Exp $
 dnl
 dnl configure.in --
 dnl	process this file with autoconf to produce a configure script.
 dnl
 
-AC_REVISION($Revision: 1.32 $)dnl
+AC_REVISION($Revision: 1.37 $)dnl
 
 AC_INIT(lukemftp.h)
 
@@ -37,7 +37,6 @@ AC_AIX
 
 dnl Checks for libraries.
 dnl
-dnl XXX: we check fparseln twice; probably best to fix that
 AC_CHECK_LIB(util, fparseln)
 if test $opt_editcomplete = yes; then
 	AC_CHECK_LIB(tinfo, tgetent, ,
@@ -48,6 +47,12 @@ if test $opt_editcomplete = yes; then
 fi
 AC_LIBRARY_NET
 AC_LIBRARY_SOCKS
+if test -n "$socks"; then
+	if test $opt_ipv6 = yes; then
+		echo "IPv6 is incompatible with socks, disabling IPv6 support"
+		opt_ipv6=no
+	fi
+fi
 
 
 dnl Checks for header files.
@@ -55,7 +60,8 @@ dnl
 AC_CONFIG_HEADER(config.h)
 AC_HEADER_DIRENT
 AC_HEADER_STDC
-AC_CHECK_HEADERS(err.h regex.h paths.h poll.h sys/poll.h termcap.h util.h vis.h)
+AC_CHECK_HEADERS(arpa/nameser.h err.h regex.h paths.h poll.h sys/poll.h \
+		termcap.h util.h libutil.h vis.h)
 
 
 dnl Checks for typedefs, structures, and compiler characteristics.
@@ -73,6 +79,10 @@ have_long_long=yes], [have_long_long=no])
 AC_MSG_TRY_COMPILE(for in_port_t, ftp_cv_HAVE_IN_PORT_T, [
 #include <sys/types.h>
 #include <netinet/in.h> ], [ in_port_t X ], [AC_DEFINE(HAVE_IN_PORT_T, 1)])
+
+AC_MSG_TRY_COMPILE(for sa_family_t, ftp_cv_HAVE_SA_FAMILY_T, [
+#include <sys/types.h>
+#include <sys/socket.h> ], [ sa_family_t X ], [AC_DEFINE(HAVE_SA_FAMILY_T, 1)])
 
 AC_MSG_TRY_COMPILE(for sockaddr_in.sin_len, ftp_cv_HAVE_SOCKADDR_SA_LEN, [
 #include <sys/types.h>
@@ -123,9 +133,6 @@ AC_MSG_TRY_COMPILE(for d_namlen in struct dirent, ftp_cv_HAVE_D_NAMLEN, [
 	struct dirent dp;
 	int X = dp.d_namlen; ], [AC_DEFINE(HAVE_D_NAMLEN, 1)])
 
-AC_MSG_TRY_COMPILE(for GLOB_BRACE, ftp_cv_have_glob_brace, [
-#include <glob.h> ], [ int X = GLOB_BRACE ], [:])
-
 AC_MSG_TRY_COMPILE(for h_errno declaration, ftp_cv_HAVE_H_ERRNO_D, [
 #include <netdb.h> ], [ int X = h_errno ], [AC_DEFINE(HAVE_H_ERRNO_D, 1)])
 
@@ -151,14 +158,18 @@ AC_MSG_TRY_COMPILE(for pclose() declaration, ftp_cv_HAVE_PCLOSE_D, [
 
 dnl Checks for library functions.
 dnl
-AC_REPLACE_FUNCS(err fgetln fparseln getaddrinfo getnameinfo glob inet_ntop \
-		inet_pton mkstemp sl_init snprintf strdup strerror strlcat \
+AC_REPLACE_FUNCS(err fgetln fseeko getaddrinfo getnameinfo inet_ntop inet_pton \
+		mkstemp setprogname sl_init snprintf strdup strerror strlcat \
 		strlcpy strptime strsep strunvis strvis timegm usleep)
-AC_CHECK_FUNCS(gethostbyname2 getpassphrase getpgrp issetugid memmove poll \
-		select)
+AC_CHECK_FUNCS(gethostbyname2 getpassphrase getpgrp memmove poll select)
 if test $ac_cv_func_getpgrp = yes; then
 	AC_FUNC_GETPGRP
 fi
+if test $ac_cv_lib_util_fparseln != yes; then
+	AC_REPLACE_FUNCS(fparseln)
+fi
+
+LIBOBJS="$LIBOBJS glob.o"
 
 if test $ac_cv_func_strptime = yes; then
 	AC_MSG_TRY_COMPILE(for strptime() declaration, ftp_cv_HAVE_STRPTIME_D, [
@@ -166,44 +177,51 @@ if test $ac_cv_func_strptime = yes; then
 	[AC_DEFINE(HAVE_STRPTIME_D, 1)])
 fi
 
-AC_MSG_CHECKING(for GLOB_BRACE support in glob)
-if test $ftp_cv_have_glob_brace = yes; then
-	AC_DEFINE(HAVE_GLOB_BRACE, 1)
-	AC_MSG_RESULT(yes)
-else
-	AC_MSG_RESULT([no, using my own])
-	LIBOBJS="$LIBOBJS glob.o"
-fi
-
 if test $have_long_long = yes -a $ac_cv_sizeof_off_t -ge 8; then
-	AC_DEFINE(HAVE_QUAD_SUPPORT, 1)
-	AC_REPLACE_FUNCS(strtoll)
-	AC_MSG_CHECKING(snprintf support for %lld)
-	if test $ac_cv_func_snprintf = yes; then
+
+dnl		We assume that if sprintf() supports %lld or %qd,
+dnl		then all of *printf() does. If not, disable long long
+dnl		support because we don't know how to display it.
+
+	AC_MSG_CHECKING(*printf() support for %lld)
+	can_printf_longlong=no
+	AC_TRY_RUN([
+		#include <stdio.h>
+		int main() {
+			char buf[100];
+			sprintf(buf, "%lld", 4294967300LL);
+			return (strcmp(buf, "4294967300"));
+		}
+	], [
+		AC_MSG_RESULT(yes)
+		can_printf_longlong=yes
+	], [
+		AC_MSG_RESULT(no)
+	], [ : ])
+
+	if test $can_printf_longlong != yes; then
+		AC_MSG_CHECKING(*printf() support for %qd)
 		AC_TRY_RUN([
 			#include <stdio.h>
 			int main() {
 				char buf[100];
-				snprintf(buf, sizeof(buf), "%lld",
-				    4294967300LL);
+				sprintf(buf, "%qd", 4294967300LL);
 				return (strcmp(buf, "4294967300"));
 			}
 		], [
 			AC_MSG_RESULT(yes)
-			have_snprintf_lld=yes
+			can_printf_longlong=yes
+			AC_DEFINE(HAVE_PRINTF_QD, 1)
 		], [
-			AC_MSG_RESULT(no, using local version)
-			have_snprintf_lld=no
-		], [
-			AC_MSG_RESULT(cross-compiling, using local version)
-			have_snprintf_lld=no
-		])
-		if test $have_snprintf_lld = no; then
-			LIBOBJS="$LIBOBJS snprintf.o"
-		fi
-	else
-		AC_MSG_RESULT(using local version)
+			AC_MSG_RESULT(no)
+		], [ : ])
 	fi
+
+	if test $can_printf_longlong = yes; then
+		AC_DEFINE(HAVE_QUAD_SUPPORT, 1)
+		AC_REPLACE_FUNCS(strtoll)
+	fi
+
 fi
 
 
@@ -217,7 +235,7 @@ if test $opt_editcomplete = yes; then
 
 	AC_MSG_CHECKING(for working libedit)
 	if test $have_libedit = no; then
-		AC_MSG_RESULT([no, using my own])
+		AC_MSG_RESULT(no - using my own)
 		INCLUDES="-I\${srcdir}/../libedit $INCLUDES"
 		LDFLAGS="-L../libedit $LDFLAGS"
 		LIBS="-ledit $LIBS"
@@ -238,18 +256,24 @@ fi
 
 
 have_rfc2553_netdb=no
-if test $ac_cv_func_getaddrinfo = yes; then
-	AC_MSG_TRY_COMPILE(for AI_NUMERICHOST, ftp_cv_have_ai_numerichost, [
+if test $ac_cv_func_getaddrinfo = yes -a ! -n "$socks"; then
+	AC_MSG_TRY_COMPILE(for AI_NUMERICHOST,
+	    ftp_cv_have_ai_numerichost, [
 	#include <sys/types.h>
 	#include <sys/socket.h>
 	#include <netdb.h> ],
 	    [ int X = AI_NUMERICHOST ], [ have_rfc2553_netdb=yes ])
 fi
+AC_MSG_CHECKING(for working getaddrinfo())
 if test $have_rfc2553_netdb = yes; then
 	AC_DEFINE(HAVE_RFC2553_NETDB, 1)
+	AC_MSG_RESULT(yes)
 else
 	if test $ac_cv_func_getaddrinfo = yes; then
 		LIBOBJS="$LIBOBJS getaddrinfo.o"
+		AC_MSG_RESULT(no - using local version)
+	else
+		AC_MSG_RESULT(using local version)
 	fi
 fi
 

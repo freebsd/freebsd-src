@@ -1,7 +1,7 @@
-/* $Id: lukemftp.h,v 1.36 2000/10/11 03:07:36 lukem Exp $ */
+/* $Id: lukemftp.h,v 1.43 2002/06/10 08:13:01 lukem Exp $ */
 
 #define	FTP_PRODUCT	"lukemftp"
-#define	FTP_VERSION	"1.5"
+#define	FTP_VERSION	"1.6-beta2"
 
 #include "config.h"
 
@@ -77,7 +77,7 @@
 # include <err.h>
 #endif
 
-#if HAVE_GLOB_BRACE
+#if USE_GLOB_H		/* not set by configure; used by other build systems */
 # include <glob.h>
 #else
 # include "ftpglob.h"
@@ -85,9 +85,12 @@
 
 #if HAVE_PATHS_H
 # include <paths.h>
-#else
-# define _PATH_BSHELL	"/bin/sh"
-# define _PATH_TMP	"/tmp/"
+#endif
+#ifndef _PATH_BSHELL
+#define _PATH_BSHELL	"/bin/sh"
+#endif
+#ifndef _PATH_TMP
+#define _PATH_TMP	"/tmp/"
 #endif
 
 typedef struct _stringlist {
@@ -116,6 +119,10 @@ void	 tputs(const char *, int, int (*)(int));
 # include <util.h>
 #endif
 
+#if HAVE_LIBUTIL_H
+# include <libutil.h>
+#endif
+
 #if HAVE_VIS_H
 # include <vis.h>
 #else
@@ -124,6 +131,10 @@ void	 tputs(const char *, int, int (*)(int));
 
 #if ! HAVE_IN_PORT_T
 typedef unsigned short in_port_t;
+#endif
+
+#if ! HAVE_SA_FAMILY_T
+typedef unsigned short sa_family_t;
 #endif
 
 #if ! HAVE_SOCKLEN_T
@@ -274,6 +285,10 @@ void	warnx(const char *, ...);
 char   *fgetln(FILE *, size_t *);
 #endif
 
+#if ! HAVE_FSEEKO
+int	fseeko(FILE *, off_t, int);
+#endif
+
 #if ! HAVE_FPARSELN
 # define FPARSELN_UNESCESC	0x01
 # define FPARSELN_UNESCCONT	0x02
@@ -287,8 +302,17 @@ char   *fparseln(FILE *, size_t *, size_t *, const char[3], int);
 const char *inet_ntop(int, const void *, char *, size_t);
 #endif
 
+#if ! HAVE_INET_PTON
+int inet_pton(int, const char *, void *);
+#endif
+
 #if ! HAVE_MKSTEMP
 int	mkstemp(char *);
+#endif
+
+#if ! HAVE_SETPROGNAME
+const char *getprogname(void);
+void	setprogname(const char *);
 #endif
 
 #if ! HAVE_SNPRINTF

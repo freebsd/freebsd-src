@@ -1,7 +1,7 @@
-/*	$NetBSD: main.c,v 1.73 2000/07/18 07:16:56 lukem Exp $	*/
+/*	$NetBSD: main.c,v 1.82 2002/06/05 13:51:54 lukem Exp $	*/
 
 /*-
- * Copyright (c) 1996-2000 The NetBSD Foundation, Inc.
+ * Copyright (c) 1996-2002 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
  * This code is derived from software contributed to The NetBSD Foundation
@@ -112,8 +112,6 @@
 #define	NO_PROXY	"no_proxy"	/* env var with list of non-proxied
 					 * hosts, comma or space separated */
 
-char * __progname;
-
 static void	setupoption(char *, char *, char *);
 int		main(int, char *[]);
 
@@ -121,15 +119,14 @@ int
 main(int argc, char *argv[])
 {
 	int ch, rval;
-	struct passwd *pw = NULL;
+	struct passwd *pw;
 	char *cp, *ep, *anonuser, *anonpass, *upload_path;
 	int dumbterm, s, len, isupload;
 
-	__progname  = strrchr(argv[0], '/');
-	if (__progname == NULL)
-		__progname = argv[0];
-	else
-		__progname++;
+#if 0			/* XXX */
+	setlocale(LC_ALL, "");
+#endif
+	setprogname(argv[0]);
 
 	ftpport = "ftp";
 	httpport = "http";
@@ -172,6 +169,11 @@ main(int argc, char *argv[])
 	isupload = 0;
 	reply_callback = NULL;
 	family = AF_UNSPEC;
+
+	netrc[0] = '\0';
+	cp = getenv("NETRC");
+	if (cp != NULL && strlcpy(netrc, cp, sizeof(netrc)) >= sizeof(netrc))
+		errx(1, "$NETRC `%s': %s", cp, strerror(ENAMETOOLONG));
 
 	/*
 	 * Get the default socket buffer sizes if we don't already have them.
@@ -218,10 +220,10 @@ main(int argc, char *argv[])
 			warnx("unknown $FTPMODE '%s'; using defaults", cp);
 	}
 
-	if (strcmp(__progname, "pftp") == 0) {
+	if (strcmp(getprogname(), "pftp") == 0) {
 		passivemode = 1;
 		activefallback = 0;
-	} else if (strcmp(__progname, "gate-ftp") == 0)
+	} else if (strcmp(getprogname(), "gate-ftp") == 0)
 		gatemode = 1;
 
 	gateserver = getenv("FTPSERVER");
@@ -256,14 +258,18 @@ main(int argc, char *argv[])
 		}
 	}
 
-	while ((ch = getopt(argc, argv, "46Aadefgino:pP:r:RtT:u:vV")) != -1) {
+	while ((ch = getopt(argc, argv, "46AadefginN:o:pP:r:RtT:u:vV")) != -1) {
 		switch (ch) {
 		case '4':
 			family = AF_INET;
 			break;
 
 		case '6':
+#ifdef INET6
 			family = AF_INET6;
+#else
+			warnx("INET6 support is not available; ignoring -6");
+#endif
 			break;
 
 		case 'A':
@@ -300,6 +306,13 @@ main(int argc, char *argv[])
 
 		case 'n':
 			autologin = 0;
+			break;
+
+		case 'N':
+			if (strlcpy(netrc, optarg, sizeof(netrc))
+			    >= sizeof(netrc))
+				errx(1, "%s: %s", optarg,
+				    strerror(ENAMETOOLONG));
 			break;
 
 		case 'o':
@@ -387,21 +400,38 @@ main(int argc, char *argv[])
 	proxy = 0;	/* proxy not active */
 	crflag = 1;	/* strip c.r. on ascii gets */
 	sendport = -1;	/* not using ports */
+
 	/*
-	 * Set up the home directory in case we're globbing.
+	 * Cache the user name and home directory.
 	 */
+	localhome = NULL;
+	localname = NULL;
+	anonuser = "anonymous";
+	cp = getenv("HOME");
+	if (! EMPTYSTRING(cp))
+		localhome = xstrdup(cp);
+	pw = NULL;
 	cp = getlogin();
 	if (cp != NULL)
 		pw = getpwnam(cp);
 	if (pw == NULL)
 		pw = getpwuid(getuid());
 	if (pw != NULL) {
-		(void)strlcpy(home, pw->pw_dir, sizeof(home));
-		anonuser = pw->pw_name;
-	} else {
-		(void)strlcpy(home, "/", sizeof(home));
-		anonuser = "anonymous";
+		if (localhome == NULL && !EMPTYSTRING(pw->pw_dir))
+			localhome = xstrdup(pw->pw_dir);
+		localname = xstrdup(pw->pw_name);
+		anonuser = localname;
 	}
+	if (netrc[0] == '\0' && localhome != NULL) {
+		if (strlcpy(netrc, localhome, sizeof(netrc)) >= sizeof(netrc) ||
+	    	    strlcat(netrc, "/.netrc", sizeof(netrc)) >= sizeof(netrc)) {
+			warnx("%s/.netrc: %s", localhome,
+			    strerror(ENAMETOOLONG));
+			netrc[0] = '\0';
+		}
+	}
+	if (localhome == NULL)
+		localhome = xstrdup("/");
 
 	/*
 	 * Every anonymous FTP server I've encountered will accept the
@@ -467,7 +497,8 @@ main(int argc, char *argv[])
 				user = host;
 				host = cp + 1;
 			}
-			xargv[0] = __progname;
+			/* XXX discards const */
+			xargv[0] = (char *)getprogname();
 			xargv[1] = host;
 			xargv[2] = argv[1];
 			xargv[3] = NULL;
@@ -633,7 +664,7 @@ cmdscanner(void)
 			 * such commands as invalid.
 			 */
 			if (strchr(margv[0], ':') != NULL ||
-			    el_parse(el, margc, margv) != 0)
+			    el_parse(el, margc, (const char **)margv) != 0)
 #endif /* !NO_EDITCOMPLETE */
 				fputs("?Invalid command.\n", ttyout);
 			continue;
@@ -643,6 +674,7 @@ cmdscanner(void)
 			continue;
 		}
 		confirmrest = 0;
+		margv[0] = c->c_name;
 		(*c->c_handler)(margc, margv);
 		if (bell && c->c_bell)
 			(void)putc('\007', ttyout);
@@ -908,7 +940,7 @@ help(int argc, char *argv[])
 			    cmd, arg);
 		else {
 			if (isusage) {
-				nargv[0] = arg;
+				nargv[0] = c->c_name;
 				(*c->c_handler)(0, nargv);
 			} else
 				fprintf(ttyout, "%-*s\t%s\n", HELPINDENT,
@@ -964,11 +996,13 @@ setupoption(char *name, char *value, char *defaultvalue)
 void
 usage(void)
 {
+	const char *progname = getprogname();
+
 	(void)fprintf(stderr,
-"usage: %s [-46AadefginpRtvV] [-o outfile] [-P port] [-r retry]\n"
+"usage: %s [-46AadefginpRtvV] [-N netrc] [-o outfile] [-P port] [-r retry]\n"
 "           [-T dir,max[,inc][[user@]host [port]]] [host:path[/]]\n"
 "           [file:///file] [ftp://[user[:pass]@]host[:port]/path[/]]\n"
 "           [http://[user[:pass]@]host[:port]/path] [...]\n"
-"       %s -u url file [...]\n", __progname, __progname);
+"       %s -u url file [...]\n", progname, progname);
 	exit(1);
 }
