@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
- *	$Id: genassym.c,v 1.16 1994/10/09 07:34:28 davidg Exp $
+ *	$Id: genassym.c,v 1.17 1994/10/15 13:32:47 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -63,6 +63,7 @@
 #include <nfs/nfsv2.h>
 #include <nfs/nfsdiskless.h>
 
+int
 main()
 {
 	struct proc *p = (struct proc *)0;
@@ -201,6 +202,6 @@ main()
 	printf("#define\tBOOTINFO_KERNELNAME %d\n", &bootinfo->kernelname);
 	printf("#define\tBOOTINFO_NFS_DISKLESS %d\n", &bootinfo->nfs_diskless);
 	printf("#define\tNFSDISKLESS_SIZE %d\n", sizeof(struct nfs_diskless));
-	exit(0);
+	return 0;
 }
 
