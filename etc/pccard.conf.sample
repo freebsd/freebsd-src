@@ -78,6 +78,22 @@ card "ACCTON" "EN2216-PCMCIA-ETHERNET"
 	remove echo Accton 2216 removed
 	remove /sbin/ifconfig ed0 delete
 
+# COREGA EtherII PCC-T
+card "corega K.K." "corega EtherII PCC-T"
+	config  0x20 "ed0" ?
+	insert  echo EtherII PCC-T inserted
+	insert  /etc/pccard_ether ed0
+	remove  echo EtherII PCC-T removed
+	remove  /sbin/ifconfig ed0 delete
+
+# I-O DATA PCLATE
+card "IO DATA" "PCLATE"
+	config  0x20 "ed0" ? 0x10
+	insert  echo IO DATA PCLATE inserted
+	insert  /etc/pccard_ether ed0
+	remove  echo IO DATA PCLATE removed
+	remove  /sbin/ifconfig ed0 delete
+
 # 3Com Etherlink III 3C589B, 3C589C
 card "3Com Corporation" "3C589"
 	config	0x1 "ep0" ?
