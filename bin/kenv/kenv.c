@@ -31,32 +31,44 @@
 #include <string.h>
 #include <errno.h>
 #include <err.h>
+#include <kenv.h>
 #include <unistd.h>
 
-static char sbuf[1024];
+static void	usage(void);
+static int	kdumpenv(void);
+static int	kgetenv(char *);
+static int	ksetenv(char *, char *);
+static int	kunsetenv(char *);
+
+static int hflag = 0;
+static int uflag = 0;
 
 static void
 usage(void)
 {
-	(void)fprintf(stderr, "usage: kenv [-h] [variable]\n");
+	(void)fprintf(stderr, "%s\n%s\n%s\n",
+	    "usage: kenv [-h]",
+	    "       kenv variable[=value]",
+	    "       kenv -u variable");
 	exit(1);
 }
 
 int
 main(int argc, char **argv)
 {
-	int name2oid_oid[2];
-	int real_oid[CTL_MAXNAME+4];
-	size_t oidlen;
-	int ch, error, hflag, i, slen;
-	char *env, *eq, *name, *var, *val;
+	char *env, *eq, *val;
+	int ch, error;
 
-	hflag = 0;
+	error = 0;
+	val = NULL;
 	env = NULL;
-	while ((ch = getopt(argc, argv, "h")) != -1) {
+	while ((ch = getopt(argc, argv, "hu")) != -1) {
 		switch (ch) {
 		case 'h':
 			hflag++;
+			break;
+		case 'u':
+			uflag++;
 			break;
 		default:
 			usage();
@@ -66,67 +78,96 @@ main(int argc, char **argv)
 	argv += optind;
 	if (argc > 0) {
 		env = argv[0];
+		eq = strchr(env, '=');
+		if (eq != NULL) {
+			*eq++ = '\0';
+			val = eq;
+		}
 		argv++;
 		argc--;
 	}
-	if (argc > 0)
+	if (hflag && (env != NULL))
 		usage();
-	name2oid_oid[0] = 0;	/* This is magic & undocumented! */
-	name2oid_oid[1] = 3;
-	oidlen = sizeof(real_oid);
-	name = "kern.environment";
-	error = sysctl(name2oid_oid, 2, real_oid, &oidlen, name, strlen(name));
-	if (error < 0) 
-		err(1, "cannot find kern.environment base sysctl OID");
-	oidlen /= sizeof (int);
-	if (oidlen >= CTL_MAXNAME)
-		errx(1, "kern.environment OID is too large!");
-	real_oid[oidlen] = 0;
-	for (i = 0; ; i++) {
-		real_oid[oidlen + 1] = i;
-		slen = sizeof(sbuf) - 1;
-		error = sysctl(real_oid, oidlen + 2, sbuf, &slen, NULL, 0);
-		if (error < 0) {
-			if (errno != ENOENT)
-				err(1, "sysctl kern.environment.%d\n", i);
-			break;
+	if ((argc > 0) || (uflag && (env == NULL)))
+		usage();
+	if (env == NULL)
+		kdumpenv();
+	else if (val == NULL) {
+		if (uflag) {
+			error = kunsetenv(env);
+			if (error)
+				warnx("unable to unset %s", env);
+		} else {
+			error = kgetenv(env);
+			if (error)
+				warnx("unable to get %s", env);
 		}
-		sbuf[sizeof(sbuf) - 1] = '\0';
-		eq = strchr(sbuf, '=');
-		if (eq == NULL)
-			err(1, "malformed environment string: %s\n", sbuf);
-		var = sbuf;
-		*eq = '\0';
-		val = eq + 1;
-		if (env) {
-			if (strcmp(var, env) != 0)
-				continue;
-			printf("%s\n", val);
-			break;
-		}
-		if (hflag) {
-			if (strncmp(var, "hint.", 5) != 0)
-				continue;
-			/* FALLTHROUGH */
-		}
-		printf("%s=\"", var);
-		while (*val) {
-			switch (*val) {
-			case '"':
-				putchar('\\');
-				putchar('"');
-				break;
-			case '\\':
-				putchar('\\');
-				putchar('\\');
-				break;
-			default:
-				putchar(*val);
-				break;
-			}
-			val++;
-		}
-		printf("\"\n");
+	} else {
+		error = ksetenv(env, val);
+		if (error)
+			warnx("unable to set %s to %s", env, val);
 	}
-	exit(0);
+	return (error);
+}
+
+static int
+kdumpenv()
+{
+	char *buf, *cp;
+	int len;
+
+	len = kenv(KENV_DUMP, NULL, NULL, 0);
+	len = len * 120 / 100;
+	buf = malloc(len);
+	if (buf == NULL)
+		return (-1);
+	/* Be defensive */
+	memset(buf, 0, len);
+	kenv(KENV_DUMP, NULL, buf, len);
+	for (; *buf != '\0'; buf += strlen(buf) + 1) {
+		if (hflag) {
+			if (strncmp(buf, "hint.", 5) != 0)
+				continue;
+		}
+		cp = strchr(buf, '=');
+		if (cp == NULL)
+			continue;
+		*cp++ = '\0';
+		printf("%s=\"%s\"\n", buf, cp);
+		buf = cp;
+	}
+	return (0);
+}
+
+static int
+kgetenv(char *env)
+{
+	char buf[1024];
+	int ret;
+
+	ret = kenv(KENV_GET, env, buf, sizeof(buf));
+	if (ret == -1)
+		return (ret);
+	printf("%s\n", buf);
+	return (0);
+}
+
+static int
+ksetenv(char *env, char *val)
+{
+	int ret;
+
+	ret = kenv(KENV_SET, env, val, strlen(val)+1);
+	if (ret == 0)
+		printf("%s=\"%s\"\n", env, val);
+	return (ret);
+}
+
+static int
+kunsetenv(char *env)
+{
+	int ret;
+	
+	ret = kenv(KENV_UNSET, env, NULL, 0);
+	return (ret);
 }
