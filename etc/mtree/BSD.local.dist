@@ -63,8 +63,7 @@
         ..
         catn
         ..
-        de_DE.ISO_8859-1 \
-                        uname=root
+        de_DE.ISO_8859-1        uname=root
             cat1
             ..
             cat2
@@ -111,8 +110,42 @@
             mann
             ..
         ..
-        ja
+	en.ISO8859-1
 /set uname=man
+            cat1
+            ..
+            cat1aout
+            ..
+            cat2
+            ..
+            cat3
+            ..
+            cat4
+                alpha
+                ..
+                i386
+                ..
+            ..
+            cat5
+            ..
+            cat6
+            ..
+            cat7
+            ..
+            cat8
+                alpha
+                ..
+                i386
+                ..
+            ..
+            cat9
+                i386
+                ..
+            ..
+            catn
+            ..
+        ..
+        ja      uname=root
             cat1
             ..
             cat2
