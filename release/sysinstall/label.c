@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.63.2.14 1997/10/14 14:41:33 jkh Exp $
+ * $Id: label.c,v 1.63.2.15 1997/11/05 05:54:27 obrien Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -1184,6 +1184,8 @@ diskLabelNonInteractive(Device *dev)
 			    type = PART_FILESYSTEM;
 			    if (!strcmp(mpoint, "/"))
 				flags |= CHUNK_IS_ROOT;
+			    else
+				flags &= ~CHUNK_IS_ROOT;
 			}
 			if (!sz)
 			    sz = space_free(c1);
