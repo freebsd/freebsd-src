@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.113 1997/10/10 12:42:48 peter Exp $
+ *	$Id: trap.c,v 1.114 1997/11/06 19:28:09 phk Exp $
  */
 
 /*
@@ -50,6 +50,8 @@
 #include <sys/systm.h>
 #include <sys/proc.h>
 #include <sys/kernel.h>
+#include <sys/resourcevar.h>
+#include <sys/signalvar.h>
 #include <sys/syscall.h>
 #include <sys/sysent.h>
 #include <sys/vmmeter.h>
@@ -67,15 +69,16 @@
 #include <vm/vm_page.h>
 #include <vm/vm_extern.h>
 
-#include <sys/user.h>
-
 #include <machine/cpu.h>
 #include <machine/ipl.h>
 #include <machine/md_var.h>
-#include <machine/psl.h>
-#include <machine/../isa/intr_machdep.h>
+#include <machine/pcb.h>
+#ifdef SMP
 #include <machine/smp.h>
+#endif
 #include <machine/tss.h>
+
+#include <i386/isa/intr_machdep.h>
 
 #ifdef POWERFAIL_NMI
 #include <sys/syslog.h>
@@ -907,10 +910,11 @@ syscall(frame)
 	int args[8];
 	u_int code;
 
-	sticks = p->p_sticks;
+#ifdef DIAGNOSTIC
 	if (ISPL(frame.tf_cs) != SEL_UPL)
 		panic("syscall");
-
+#endif
+	sticks = p->p_sticks;
 	p->p_md.md_regs = &frame;
 	params = (caddr_t)frame.tf_esp + sizeof(int);
 	code = frame.tf_eax;
