@@ -85,7 +85,7 @@ Updater failed: Cannot delete "/usr/ports/www/jakarta-tomcat/files": Directory n
 	instead of ad-hoc.
 
 20010310:
-	/dev/urandmon should be a sumbolic link to /dev/random now.
+	/dev/urandmon should be a symbolic link to /dev/random now.
 	Users of current not using DEVFS need to run MAKEDEV std.
 	ssh might not work if you don't.
 
