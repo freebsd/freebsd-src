@@ -479,7 +479,6 @@ trap_pfault(struct trapframe *frame, int user)
 	}
 	va = trunc_page(eva);
 
-	mtx_lock(&Giant);
 	if (map != kernel_map) {
 		/*
 		 * Keep swapout from messing with us during this
@@ -489,20 +488,8 @@ trap_pfault(struct trapframe *frame, int user)
 		++p->p_lock;
 		PROC_UNLOCK(p);
 
-		/*
-		 * Grow the stack if necessary
-		 */
-		/* vm_map_growstack returns failure only if va falls into
-		 * a growable stack region and the stack growth
-		 * fails.  It succeeds if va was not within
-		 * a growable stack region, or if the stack 
-		 * growth succeeded.
-		 */
-		if (vm_map_growstack(p, va) != KERN_SUCCESS)
-			rv = KERN_FAILURE;
-		else
-			/* Fault in the user page: */
-			rv = vm_fault(map, va, ftype,
+		/* Fault in the user page: */
+		rv = vm_fault(map, va, ftype,
 			      (ftype & VM_PROT_WRITE) ? VM_FAULT_DIRTY
 						      : VM_FAULT_NORMAL);
 
@@ -516,8 +503,6 @@ trap_pfault(struct trapframe *frame, int user)
 		 */
 		rv = vm_fault(map, va, ftype, VM_FAULT_NORMAL);
 	}
-	mtx_unlock(&Giant);
-
 	if (rv == KERN_SUCCESS)
 		return (0);
 
