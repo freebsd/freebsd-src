@@ -50,12 +50,34 @@
  * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
  * SOFTWARE.
  * -
+ * Portions Copyright (c) 1995 by International Business Machines, Inc.
+ *
+ * International Business Machines, Inc. (hereinafter called IBM) grants
+ * permission under its copyrights to use, copy, modify, and distribute this
+ * Software with or without fee, provided that the above copyright notice and
+ * all paragraphs of this notice appear in all copies, and that the name of IBM
+ * not be used in connection with the marketing of any product incorporating
+ * the Software or modifications thereof, without specific, written prior
+ * permission.
+ *
+ * To the extent it has a right to do so, IBM grants an immunity from suit
+ * under its patents, if any, for the use, sale or manufacture of products to
+ * the extent that such products are used for performing Domain Name System
+ * dynamic updates in TCP/IP networks by means of the Software.  No immunity is
+ * granted for any product per se or for any other function of any product.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", AND IBM DISCLAIMS ALL WARRANTIES,
+ * INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ * PARTICULAR PURPOSE.  IN NO EVENT SHALL IBM BE LIABLE FOR ANY SPECIAL,
+ * DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER ARISING
+ * OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE, EVEN
+ * IF IBM IS APPRISED OF THE POSSIBILITY OF SUCH DAMAGES.
  * --Copyright--
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)res_debug.c	8.1 (Berkeley) 6/4/93";
-static char rcsid[] = "$Id: res_debug.c,v 8.12 1996/08/05 08:31:35 vixie Exp $";
+static char rcsid[] = "$Id: res_debug.c,v 8.19 1996/11/26 10:11:23 vixie Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -65,11 +87,14 @@ static char rcsid[] = "$Id: res_debug.c,v 8.12 1996/08/05 08:31:35 vixie Exp $";
 #include <arpa/inet.h>
 #include <arpa/nameser.h>
 
-#include <stdio.h>
+#include <ctype.h>
 #include <netdb.h>
 #include <resolv.h>
-#include <ctype.h>
+#include <stdio.h>
+#include <time.h>
+
 #if defined(BSD) && (BSD >= 199103) && defined(AF_INET6)
+# include <stdlib.h>
 # include <string.h>
 #else
 # include "../conf/portability.h"
@@ -213,6 +238,7 @@ __p_query(msg)
 }
 
 #ifdef ultrix
+#undef p_query
 /* ultrix 4.0's packaging has some icky packaging.  alias for it here.
  * there is more junk of this kind over in res_comp.c.
  */
@@ -261,7 +287,7 @@ __fp_nquery(msg, len, file)
 	if ((_res.options & RES_INIT) == 0 && res_init() == -1)
 		return;
 
-#define TruncTest(x) if (x >= endMark) goto trunc
+#define TruncTest(x) if (x > endMark) goto trunc
 #define	ErrorTest(x) if (x == NULL) goto error
 
 	/*
@@ -269,7 +295,7 @@ __fp_nquery(msg, len, file)
 	 */
 	hp = (HEADER *)msg;
 	cp = msg + HFIXEDSZ;
-	endMark = cp + len;
+	endMark = msg + len;
 	if ((!_res.pfcode) || (_res.pfcode & RES_PRF_HEADX) || hp->rcode) {
 		fprintf(file, ";; ->>HEADER<<- opcode: %s, status: %s, id: %d",
 			_res_opcodes[hp->opcode],
@@ -291,6 +317,12 @@ __fp_nquery(msg, len, file)
 			fprintf(file, " rd");
 		if (hp->ra)
 			fprintf(file, " ra");
+		if (hp->unused)
+			fprintf(file, " UNUSED-BIT-ON");
+		if (hp->ad)
+			fprintf(file, " ad");
+		if (hp->cd)
+			fprintf(file, " cd");
 	}
 	if ((!_res.pfcode) || (_res.pfcode & RES_PRF_HEAD1)) {
 		fprintf(file, "; Ques: %d", ntohs(hp->qdcount));
@@ -404,6 +436,30 @@ __p_cdname(cp, msg, file)
 	return (p_cdnname(cp, msg, PACKETSZ, file));
 }
 
+
+/* Return a fully-qualified domain name from a compressed name (with
+   length supplied).  */
+
+const u_char *
+__p_fqnname(cp, msg, msglen, name, namelen)
+	const u_char *cp, *msg;
+	int msglen;
+	char *name;
+	int namelen;
+{
+	int n, newlen;
+
+	if ((n = dn_expand(msg, cp + msglen, cp, name, namelen)) < 0)
+		return (NULL);
+	newlen = strlen (name);
+	if (newlen == 0 || name[newlen - 1] != '.')
+		if (newlen+1 >= namelen)	/* Lack space for final dot */
+			return (NULL);
+		else
+			strcpy(name + newlen, ".");
+	return (cp + n);
+}
+
 /* XXX:	the rest of these functions need to become length-limited, too. (vix)
  */
 
@@ -413,18 +469,13 @@ __p_fqname(cp, msg, file)
 	FILE *file;
 {
 	char name[MAXDNAME];
-	int n;
+	const u_char *n;
 
-	if ((n = dn_expand(msg, cp + MAXCDNAME, cp, name, sizeof name)) < 0)
+	n = __p_fqnname(cp, msg, MAXCDNAME, name, sizeof name);
+	if (n == NULL)
 		return (NULL);
-	if (name[0] == '\0') {
-		putc('.', file);
-	} else {
-		fputs(name, file);
-		if (name[strlen(name) - 1] != '.')
-			putc('.', file);
-	}
-	return (cp + n);
+	fputs(name, file);
+	return (n);
 }
 
 /*
@@ -440,13 +491,19 @@ __p_rr(cp, msg, file)
 	const u_char *cp1, *cp2;
 	u_int32_t tmpttl, t;
 	int lcnt;
+	u_int16_t keyflags;
+	char rrname[MAXDNAME];		/* The fqdn of this RR */
+	char base64_key[MAX_KEY_BASE64];
 
 	if ((_res.options & RES_INIT) == 0 && res_init() == -1) {
 		h_errno = NETDB_INTERNAL;
 		return (NULL);
 	}
-	if ((cp = p_fqname(cp, msg, file)) == NULL)
+	cp = __p_fqnname(cp, msg, MAXCDNAME, rrname, sizeof rrname);
+	if (!cp)
 		return (NULL);			/* compression error */
+	fputs(rrname, file);
+	
 	type = _getshort((u_char*)cp);
 	cp += INT16SZ;
 	class = _getshort((u_char*)cp);
@@ -481,7 +538,7 @@ __p_rr(cp, msg, file)
 				address = inet_ntoa(inaddr);
 				cp += INADDRSZ;
 				protocol = *(u_char*)cp;
-				cp += sizeof(u_char);
+				cp += sizeof (u_char);
 				port = _getshort((u_char*)cp);
 				cp += INT16SZ;
 				fprintf(file, "\t%s\t; proto %d, port %d",
@@ -505,16 +562,16 @@ __p_rr(cp, msg, file)
 
 	case T_HINFO:
 	case T_ISDN:
-		(void) fputs("\t\"", file);
 		cp2 = cp + dlen;
+		(void) fputs("\t\"", file);
 		if ((n = (unsigned char) *cp++) != 0) {
 			for (c = n; c > 0 && cp < cp2; c--) {
 				if (strchr("\n\"\\", *cp))
 					(void) putc('\\', file);
 				(void) putc(*cp++, file);
 			}
-			putc('"', file);
 		}
+		putc('"', file);
 		if (cp < cp2 && (n = (unsigned char) *cp++) != 0) {
 			(void) fputs ("\t\"", file);
 			for (c = n; c > 0 && cp < cp2; c--) {
@@ -572,11 +629,24 @@ __p_rr(cp, msg, file)
 			return (NULL);
 		break;
 
-	case T_TXT:
 	case T_X25:
+		cp2 = cp + dlen;
 		(void) fputs("\t\"", file);
+		if ((n = (unsigned char) *cp++) != 0) {
+			for (c = n; c > 0 && cp < cp2; c--) {
+				if (strchr("\n\"\\", *cp))
+					(void) putc('\\', file);
+				(void) putc(*cp++, file);
+			}
+		}
+		putc('"', file);
+		break;
+
+	case T_TXT:
+		(void) putc('\t', file);
 		cp2 = cp1 + dlen;
 		while (cp < cp2) {
+			putc('"', file);
 			if (n = (unsigned char) *cp++) {
 				for (c = n; c > 0 && cp < cp2; c--) {
 					if (strchr("\n\"\\", *cp))
@@ -584,8 +654,10 @@ __p_rr(cp, msg, file)
 					(void) putc(*cp++, file);
 				}
 			}
+			putc('"', file);
+			if (cp < cp2)
+				putc(' ', file);
 		}
-		putc('"', file);
 		break;
 
 	case T_NSAP:
@@ -596,18 +668,53 @@ __p_rr(cp, msg, file)
 	case T_AAAA: {
 		char t[sizeof "ffff:ffff:ffff:ffff:ffff:ffff:255.255.255.255"];
 
-		fprintf(file, "\t%s\n", inet_ntop(AF_INET6, cp, t, sizeof t));
+		fprintf(file, "\t%s", inet_ntop(AF_INET6, cp, t, sizeof t));
 		cp += dlen;
 		break;
-	}
+	    }
 
 	case T_LOC: {
 		char t[255];
 
-		(void) fprintf(file, "\t%s\n", loc_ntoa(cp, t));
+		fprintf(file, "\t%s", loc_ntoa(cp, t));
 		cp += dlen;
 		break;
-	}
+	    }
+
+	case T_NAPTR: {
+		u_int order, preference;
+
+		order = _getshort(cp);  cp += INT16SZ;
+		preference   = _getshort(cp);  cp += INT16SZ;
+		fprintf(file, "\t%u %u ",order, preference);
+		/* Flags */
+		n = *cp++;
+		fprintf(file,"\"%.*s\" ", (int)n, cp);
+		cp += n;
+		/* Service */
+		n = *cp++;
+		fprintf(file,"\"%.*s\" ", (int)n, cp);
+		cp += n;
+		/* Regexp */
+		n = *cp++;
+		fprintf(file,"\"%.*s\" ", (int)n, cp);
+		cp += n;
+		if ((cp = p_fqname(cp, msg, file)) == NULL)
+			return (NULL);
+		break;
+	    }
+
+	case T_SRV: {
+		u_int priority, weight, port;
+
+		priority = _getshort(cp);  cp += INT16SZ;
+		weight   = _getshort(cp);  cp += INT16SZ;
+		port     = _getshort(cp);  cp += INT16SZ;
+		fprintf(file, "\t%u %u %u ", priority, weight, port);
+		if ((cp = p_fqname(cp, msg, file)) == NULL)
+			return (NULL);
+		break;
+	    }
 
 	case T_MINFO:
 	case T_RP:
@@ -641,7 +748,7 @@ __p_rr(cp, msg, file)
 		fprintf(file, "\t%s %s ( ",
 			inet_ntoa(inaddr),
 			deproto((int) *cp));
-		cp += sizeof(u_char);
+		cp += sizeof (u_char);
 		n = 0;
 		lcnt = 0;
 		while (cp < cp1 + dlen) {
@@ -660,6 +767,72 @@ __p_rr(cp, msg, file)
 			} while (++n & 07);
 		}
 		putc(')', file);
+		break;
+
+	case T_KEY:
+		putc('\t', file);
+		keyflags = _getshort(cp);
+		cp += 2;
+		fprintf(file,"0x%04x", keyflags );	/* flags */
+		fprintf(file," %u", *cp++);	/* protocol */
+		fprintf(file," %u (", *cp++);	/* algorithm */
+
+		n = b64_ntop(cp, (cp1 + dlen) - cp,
+			     base64_key, sizeof base64_key);
+		for (c = 0; c < n; ++c) {
+			if (0 == (c & 0x3F))
+				fprintf(file, "\n\t");
+			putc(base64_key[c], file);  /* public key data */
+		}
+
+		fprintf(file, " )");
+		if (n < 0)
+			fprintf(file, "\t; BAD BASE64");
+		fflush(file);
+		cp = cp1 + dlen;
+		break;
+
+	case T_SIG:
+	        type = _getshort((u_char*)cp);
+		cp += INT16SZ;
+		fprintf(file, " %s", p_type(type));
+		fprintf(file, "\t%d", *cp++);	/* algorithm */
+		/* Check label value and print error if wrong. */
+		n = *cp++;
+		c = dn_count_labels (rrname);
+		if (n != c)
+			fprintf(file, "\t; LABELS WRONG (%d should be %d)\n\t",
+				n, c);
+		/* orig ttl */
+		n = _getlong((u_char*)cp);
+		if (n != tmpttl)
+			fprintf(file, " %u", n);
+		cp += INT32SZ;
+		/* sig expire */
+		fprintf(file, " (\n\t%s",
+				     __p_secstodate(_getlong((u_char*)cp)));
+		cp += INT32SZ;
+		/* time signed */
+		fprintf(file, " %s", __p_secstodate(_getlong((u_char*)cp)));
+		cp += INT32SZ;
+		/* sig footprint */
+		fprintf(file," %u ", _getshort((u_char*)cp));
+		cp += INT16SZ;
+		/* signer's name */
+		cp = p_fqname(cp, msg, file);
+		n = b64_ntop(cp, (cp1 + dlen) - cp,
+			     base64_key, sizeof base64_key);
+		for (c = 0; c < n; c++) {
+			if (0 == (c & 0x3F))
+				fprintf (file, "\n\t");
+			putc(base64_key[c], file);		/* signature */
+		}
+		/* Clean up... */
+		fprintf(file, " )");
+		if (n < 0)
+			fprintf(file, "\t; BAD BASE64");
+		fflush(file);
+		cp = cp1+dlen;
 		break;
 
 #ifdef ALLOW_T_UNSPEC
@@ -697,54 +870,144 @@ __p_rr(cp, msg, file)
 }
 
 /*
+ * Names of RR classes and qclasses.  Classes and qclasses are the same, except
+ * that C_ANY is a qclass but not a class.  (You can ask for records of class
+ * C_ANY, but you can't have any records of that class in the database.)
+ */
+const struct res_sym __p_class_syms[] = {
+	{C_IN,		"IN"},
+	{C_CHAOS,	"CHAOS"},
+	{C_HS,		"HS"},
+	{C_HS,		"HESIOD"},
+	{C_ANY,		"ANY"},
+	{C_IN, 		(char *)0}
+};
+
+/*
+ * Names of RR types and qtypes.  Types and qtypes are the same, except
+ * that T_ANY is a qtype but not a type.  (You can ask for records of type
+ * T_ANY, but you can't have any records of that type in the database.)
+ */
+const struct res_sym __p_type_syms[] = {
+	{T_A,		"A",		"address"},
+	{T_NS,		"NS",		"name server"},
+	{T_MD,		"MD",		"mail destination (deprecated)"},
+	{T_MF,		"MF",		"mail forwarder (deprecated)"},
+	{T_CNAME,	"CNAME",	"canonical name"},
+	{T_SOA,		"SOA",		"start of authority"},
+	{T_MB,		"MB",		"mailbox"},
+	{T_MG,		"MG",		"mail group member"},
+	{T_MR,		"MR",		"mail rename"},
+	{T_NULL,	"NULL",		"null"},
+	{T_WKS,		"WKS",		"well-known service (deprecated)"},
+	{T_PTR,		"PTR",		"domain name pointer"},
+	{T_HINFO,	"HINFO",	"host information"},
+	{T_MINFO,	"MINFO",	"mailbox information"},
+	{T_MX,		"MX",		"mail exchanger"},
+	{T_TXT,		"TXT",		"text"},
+	{T_RP,		"RP",		"responsible person"},
+	{T_AFSDB,	"AFSDB",	"DCE or AFS server"},
+	{T_X25,		"X25",		"X25 address"},
+	{T_ISDN,	"ISDN",		"ISDN address"},
+	{T_RT,		"RT",		"router"},
+	{T_NSAP,	"NSAP",		"nsap address"},
+	{T_NSAP_PTR,	"NSAP_PTR",	"domain name pointer"},
+	{T_SIG,		"SIG",		"signature"},
+	{T_KEY,		"KEY",		"key"},
+	{T_PX,		"PX",		"mapping information"},
+	{T_GPOS,	"GPOS",		"geographical position (withdrawn)"},
+	{T_AAAA,	"AAAA",		"IPv6 address"},
+	{T_LOC,		"LOC",		"location"},
+	{T_NXT,		"NXT",		"next valid name (unimplemented)"},
+	{T_EID,		"EID",		"endpoint identifier (unimplemented)"},
+	{T_NIMLOC,	"NIMLOC",	"NIMROD locator (unimplemented)"},
+	{T_SRV,		"SRV",		"server selection"},
+	{T_ATMA,	"ATMA",		"ATM address (unimplemented)"},
+	{T_IXFR,	"IXFR",		"incremental zone transfer"},
+	{T_AXFR,	"AXFR",		"zone transfer"},
+	{T_MAILB,	"MAILB",	"mailbox-related data (deprecated)"},
+	{T_MAILA,	"MAILA",	"mail agent (deprecated)"},
+	{T_UINFO,	"UINFO",	"user information (nonstandard)"},
+	{T_UID,		"UID",		"user ID (nonstandard)"},
+	{T_GID,		"GID",		"group ID (nonstandard)"},
+	{T_NAPTR,	"NAPTR",	"URN Naming Authority"},
+#ifdef ALLOW_T_UNSPEC
+	{T_UNSPEC,	"UNSPEC",	"unspecified data (nonstandard)"},
+#endif /* ALLOW_T_UNSPEC */
+	{T_ANY,		"ANY",		"\"any\""},
+	{0, 		NULL,		NULL}
+};
+
+int
+__sym_ston(syms, name, success)
+	const struct res_sym *syms;
+	char *name;
+	int *success;
+{
+	for (NULL; syms->name != 0; syms++) {
+		if (strcasecmp (name, syms->name) == 0) {
+			if (success)
+				*success = 1;
+			return (syms->number);
+		}
+	}
+	if (success)
+		*success = 0;
+	return (syms->number);		/* The default value. */
+}
+
+const char *
+__sym_ntos(syms, number, success)
+	const struct res_sym *syms;
+	int number;
+	int *success;
+{
+	static char unname[20];
+
+	for (NULL; syms->name != 0; syms++) {
+		if (number == syms->number) {
+			if (success)
+				*success = 1;
+			return (syms->name);
+		}
+	}
+
+	sprintf (unname, "%d", number);
+	if (success)
+		*success = 0;
+	return (unname);
+}
+
+
+const char *
+__sym_ntop(syms, number, success)
+	const struct res_sym *syms;
+	int number;
+	int *success;
+{
+	static char unname[20];
+
+	for (NULL; syms->name != 0; syms++) {
+		if (number == syms->number) {
+			if (success)
+				*success = 1;
+			return (syms->humanname);
+		}
+	}
+	sprintf(unname, "%d", number);
+	if (success)
+		*success = 0;
+	return (unname);
+}
+
+/*
  * Return a string for the type
  */
 const char *
 __p_type(type)
 	int type;
 {
-	static char nbuf[20];
-
-	switch (type) {
-	case T_A:	return "A";
-	case T_NS:	return "NS";
-	case T_CNAME:	return "CNAME";
-	case T_SOA:	return "SOA";
-	case T_MB:	return "MB";
-	case T_MG:	return "MG";
-	case T_MR:	return "MR";
-	case T_NULL:	return "NULL";
-	case T_WKS:	return "WKS";
-	case T_PTR:	return "PTR";
-	case T_HINFO:	return "HINFO";
-	case T_MINFO:	return "MINFO";
-	case T_MX:	return "MX";
-	case T_TXT:	return "TXT";
-	case T_RP:	return "RP";
-	case T_AFSDB:	return "AFSDB";
-	case T_X25:	return "X25";
-	case T_ISDN:	return "ISDN";
-	case T_RT:	return "RT";
-	case T_NSAP:	return "NSAP";
-	case T_NSAP_PTR: return "NSAP_PTR";
-	case T_SIG:	return "SIG";
-	case T_KEY:	return "KEY";
-	case T_PX:	return "PX";
-	case T_GPOS:	return "GPOS";
-	case T_AAAA:	return "AAAA";
-	case T_LOC:	return "LOC";
-	case T_AXFR:	return "AXFR";
-	case T_MAILB:	return "MAILB";
-	case T_MAILA:	return "MAILA";
-	case T_ANY:	return "ANY";
-	case T_UINFO:	return "UINFO";
-	case T_UID:	return "UID";
-	case T_GID:	return "GID";
-#ifdef ALLOW_T_UNSPEC
-	case T_UNSPEC:	return "UNSPEC";
-#endif /* ALLOW_T_UNSPEC */
-	default:	(void)sprintf(nbuf, "%d", type); return (nbuf);
-	}
+	return (__sym_ntos (__p_type_syms, type, (int *)0));
 }
 
 /*
@@ -754,14 +1017,7 @@ const char *
 __p_class(class)
 	int class;
 {
-	static char nbuf[20];
-
-	switch (class) {
-	case C_IN:	return "IN";
-	case C_HS:	return "HS";
-	case C_ANY:	return "ANY";
-	default:	(void)sprintf(nbuf, "%d", class); return (nbuf);
-	}
+	return (__sym_ntos (__p_class_syms, class, (int *)0));
 }
 
 /*
@@ -794,8 +1050,8 @@ __p_option(option)
 /*
  * Return a mnemonic for a time to live
  */
-char *
-__p_time(value)
+const char *
+p_time(value)
 	u_int32_t value;
 {
 	static char nbuf[40];
@@ -856,7 +1112,7 @@ static const char *
 precsize_ntoa(prec)
 	u_int8_t prec;
 {
-	static char retbuf[sizeof("90000000.00")];
+	static char retbuf[sizeof "90000000.00"];
 	unsigned long val;
 	int mantissa, exponent;
 
@@ -1043,11 +1299,11 @@ loc_aton(ascii, binary)
 			longit = lltemp1;
 			latit = lltemp2;
 		} else {	/* some kind of brokenness */
-			return 0;
+			return (0);
 		}
 		break;
 	default:		/* we didn't get one of each */
-		return 0;
+		return (0);
 	}
 
 	/* altitude */
@@ -1122,7 +1378,7 @@ loc_aton(ascii, binary)
 }
 
 /* takes an on-the-wire LOC RR and formats it in a human readable format. */
-char *
+const char *
 loc_ntoa(binary, ascii)
 	const u_char *binary;
 	char *ascii;
@@ -1222,4 +1478,54 @@ loc_ntoa(binary, ascii)
 		free(vpstr);
 
 	return (ascii);
+}
+
+
+/* Return the number of DNS hierarchy levels in the name. */
+int
+__dn_count_labels(name)
+	char *name;
+{
+	int i, len, count;
+
+	len = strlen(name);
+
+	for(i = 0, count = 0; i < len; i++) {
+		if (name[i] == '.')
+			count++;
+	}
+
+	/* don't count initial wildcard */
+	if (name[0] == '*')
+		if (count)
+			count--;
+
+	/* don't count the null label for root. */
+	/* if terminating '.' not found, must adjust */
+	/* count to include last label */
+	if (len > 0 && name[len-1] != '.')
+		count++;
+	return (count);
+}
+
+
+/* 
+ * Make dates expressed in seconds-since-Jan-1-1970 easy to read.  
+ * SIG records are required to be printed like this, by the Secure DNS RFC.
+ */
+char *
+__p_secstodate (secs)
+	unsigned long secs;
+{
+	static char output[15];		/* YYYYMMDDHHMMSS and null */
+	time_t clock = secs;
+	struct tm *time;
+	
+	time = gmtime(&clock);
+	time->tm_year += 1900;
+	time->tm_mon += 1;
+	sprintf(output, "%04d%02d%02d%02d%02d%02d",
+		time->tm_year, time->tm_mon, time->tm_mday,
+		time->tm_hour, time->tm_min, time->tm_sec);
+	return (output);
 }

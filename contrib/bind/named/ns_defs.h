@@ -1,6 +1,6 @@
 /*
  *	from ns.h	4.33 (Berkeley) 8/23/90
- *	$Id: ns_defs.h,v 8.6 1996/05/17 09:10:46 vixie Exp $
+ *	$Id: ns_defs.h,v 8.8 1996/09/22 00:13:10 vixie Exp $
  */
 
 /*
@@ -167,13 +167,8 @@ struct notify {
 #define	Z_INCLUDE	0x0080		/* set if include used in file */
 #define	Z_DB_BAD	0x0100		/* errors when loading file */
 #define	Z_TMP_FILE	0x0200		/* backup file for xfer is temporary */
-#ifdef ALLOW_UPDATES
-#define	Z_DYNAMIC	0x0400		/* allow dynamic updates */
-#define	Z_DYNADDONLY	0x0800		/* dynamic mode: add new data only */
-#define	Z_CHANGED	0x1000		/* zone has changed */
-#endif /* ALLOW_UPDATES */
-#define	Z_XFER_ABORTED	0x2000		/* zone transfer has been aborted */
-#define	Z_XFER_GONE	0x4000		/* zone transfer process is gone */
+#define	Z_XFER_ABORTED	0x0400		/* zone transfer has been aborted */
+#define	Z_XFER_GONE	0x0800		/* zone transfer process is gone */
 
 	/* named_xfer exit codes */
 #define	XFER_UPTODATE	0		/* zone is up-to-date */
@@ -224,9 +219,10 @@ struct qinfo {
 	int16_t		q_nqueries;	/* # of queries required */
 	struct qstream	*q_stream;	/* TCP stream, null if UDP */
 	struct zoneinfo	*q_zquery;	/* Zone query is about (Q_ZSERIAL) */
-#if defined(LAME_DELEGATION) || defined(VALIDATE)
-	char    q_domain[MAXDNAME];	/* domain for servers we are querying */
-#endif
+	char		*q_domain;	/* domain of most enclosing zone cut */
+	char		*q_name;	/* domain of query */
+	u_int16_t	q_class;	/* class of query */
+	u_int16_t	q_type;		/* type of query */
 #ifdef BIND_NOTIFY
 	int		q_notifyzone;	/* zone which needs a sysnotify()
 					 * when the reply to this comes in.

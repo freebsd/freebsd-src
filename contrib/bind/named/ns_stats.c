@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static char sccsid[] = "@(#)ns_stats.c	4.10 (Berkeley) 6/27/90";
-static char rcsid[] = "$Id: ns_stats.c,v 8.7 1996/08/05 08:31:30 vixie Exp $";
+static char rcsid[] = "$Id: ns_stats.c,v 8.8 1996/09/22 00:13:10 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -131,11 +131,6 @@ ns_stats()
 		(long)(timenow - boottime));
 	fprintf(f, "%ld\ttime since reset (secs)\n",
 		(long)(timenow - resettime));
-
-#ifdef DMALLOC
-	/* malloc statistics */
-	dmallocstats(f);
-#endif
 
 	/* query type statistics */
 	fprintf(f, "%lu\tUnknown query types\n", (u_long)typestats[0]);
