@@ -237,6 +237,9 @@ dumpfs(const char *name)
 	if (fsflags != 0)
 		printf("unknown flags (%#x)", fsflags);
 	putchar('\n');
+	printf("fsmnt\t%s\n", afs.fs_fsmnt);
+	printf("volname\t%s\tswuid\t%qu\n",
+		afs.fs_volname, afs.fs_swuid);
 	printf("\ncs[].cs_(nbfree,ndir,nifree,nffree):\n\t");
 	afs.fs_csp = calloc(1, afs.fs_cssize);
 	if (bread(&disk, fsbtodb(&afs, afs.fs_csaddr), afs.fs_csp, afs.fs_cssize) == -1)

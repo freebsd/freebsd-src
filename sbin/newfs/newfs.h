@@ -49,6 +49,7 @@
 /*
  * variables set up by front end.
  */
+extern int	Lflag;		/* add a volume label */
 extern int	Nflag;		/* run mkfs without writing file system */
 extern int	Oflag;		/* build UFS1 format file system */
 extern int	Rflag;		/* regression test */
@@ -68,5 +69,6 @@ extern int	maxbpg;		/* maximum blocks per file in a cyl group */
 extern int	avgfilesize;	/* expected average file size */
 extern int	avgfilesperdir;	/* expected number of files per directory */
 extern int	fso;		/* filedescriptor to device */
+extern u_char	*volumelabel;	/* volume label for filesystem */
 
 void mkfs (struct partition *, char *);

@@ -41,6 +41,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl A
+.Op Fl L Ar volname
 .Op Fl a Cm enable | disable
 .Op Fl e Ar maxbpg
 .Op Fl f Ar avgfilesize
@@ -71,6 +72,8 @@ Specifying
 this option will cause all backups to be modified as well as the
 primary super-block.
 This is potentially dangerous - use with caution.
+.It Fl L Ar volname
+Add/modify an optional file system volume label.
 .It Fl a Cm enable | disable
 Turn on/off the administrative ACL enable flag.
 .It Fl e Ar maxbpg

@@ -57,6 +57,7 @@ static const char rcsid[] =
 #include <ufs/ufs/dinode.h>
 #include <ufs/ffs/fs.h>
 
+#include <ctype.h>
 #include <err.h>
 #include <fcntl.h>
 #include <fstab.h>
@@ -81,25 +82,41 @@ main(int argc, char *argv[])
 {
 	const char *special, *on;
 	const char *name;
-	int Aflag = 0, active = 0, aflag = 0;
+	int Aflag = 0, Lflag = 0, active = 0, aflag = 0;
 	int eflag = 0, fflag = 0, lflag = 0, mflag = 0;
 	int nflag = 0, oflag = 0, pflag = 0, sflag = 0;
 	int evalue = 0, fvalue = 0;
 	int mvalue = 0, ovalue = 0, svalue = 0;
-	char *avalue = NULL, *lvalue = NULL, *nvalue = NULL; 
+	char *Lvalue = NULL, *avalue = NULL, *lvalue = NULL, *nvalue = NULL; 
 	const char *chg[2];
 	struct ufs_args args;
 	struct statfs stfs;
-	int found_arg, ch;
+	int found_arg, ch, i;
 
         if (argc < 3)
                 usage();
 	found_arg = 0; /* at least one arg is required */
-	while ((ch = getopt(argc, argv, "Aa:e:f:l:m:n:o:ps:")) != -1)
+	while ((ch = getopt(argc, argv, "AL:a:e:f:l:m:n:o:ps:")) != -1)
 	  switch (ch) {
 	  case 'A':
 		found_arg = 1;
 		Aflag++;
+		break;
+	  case 'L':
+		found_arg = 1;
+		name = "volume label";
+		Lvalue = optarg;
+		i = -1;
+		while (isalnum(Lvalue[++i]));
+		if (Lvalue[i] != '\0') {
+			errx(10, "bad %s. Valid characters are alphanumerics.",
+			    name);
+		}
+		if (strlen(Lvalue) >= MAXVOLLEN) {
+			errx(10, "bad %s. Length is longer than %d.",
+			    name, MAXVOLLEN - 1);
+		}
+		Lflag = 1;
 		break;
 	  case 'a':
 		found_arg = 1;
@@ -203,6 +220,10 @@ main(int argc, char *argv[])
 	if (pflag) {
 		printfs();
 		exit(0);
+	}
+	if (Lflag) {
+		name = "volume label";
+		strlcpy(sblock.fs_volname, Lvalue, MAXVOLLEN);
 	}
 	if (aflag) {
 		name = "ACLs";
@@ -354,10 +375,11 @@ err:
 void
 usage(void)
 {
-	fprintf(stderr, "%s\n%s\n%s\n",
-"usage: tunefs [-A] [-a enable | disable] [-e maxbpg] [-f avgfilesize]",
-"              [-l enable | disable] [-m minfree] [-n enable | disable]",
-"              [-o space | time] [-p] [-s avgfpdir] special | filesystem");
+	fprintf(stderr, "%s\n%s\n%s\n%s\n",
+"usage: tunefs [-A] [-L volname] [-a enable | disable] [-e maxbpg]",
+"              [-f avgfilesize] [-l enable | disable] [-m minfree]",
+"              [-n enable | disable] [-o space | time] [-p]",
+"              [-s avgfpdir] special | filesystem");
 	exit(2);
 }
 
@@ -386,4 +408,6 @@ printfs(void)
 	if (sblock.fs_minfree < MINFREE &&
 	    sblock.fs_optim == FS_OPTTIME)
 		warnx(OPTWARN, "space", "<", MINFREE);
+	warnx("volume label: (-L)                                 %s",
+		sblock.fs_volname);
 }

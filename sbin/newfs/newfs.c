@@ -117,6 +117,7 @@ static const char rcsid[] =
  */
 #define	NFPI		4
 
+int	Lflag;			/* add a volume label */
 int	Nflag;			/* run without writing file system */
 int	Oflag = 1;		/* file system format (1 => UFS1, 2 => UFS2) */
 int	Rflag;			/* regression test */
@@ -136,6 +137,7 @@ int	maxbpg;			/* maximum blocks per file in a cyl group */
 int	avgfilesize = AVFILESIZ;/* expected average file size */
 int	avgfilesperdir = AFPDIR;/* expected number of files per directory */
 int	fso;			/* filedescriptor to device */
+u_char	*volumelabel = NULL;	/* volume label for filesystem */
 
 static char	device[MAXPATHLEN];
 static char	*disktype;
@@ -153,12 +155,25 @@ main(int argc, char *argv[])
 	struct partition oldpartition;
 	struct stat st;
 	char *cp, *special;
-	int ch;
+	int ch, i;
 	off_t mediasize;
 
 	while ((ch = getopt(argc, argv,
-	    "NO:RS:T:Ua:b:c:d:e:f:g:h:i:m:o:s:")) != -1)
+	    "L:NO:RS:T:Ua:b:c:d:e:f:g:h:i:m:o:s:")) != -1)
 		switch (ch) {
+		case 'L':
+			volumelabel = optarg;
+			i = -1;
+			while (isalnum(volumelabel[++i]));
+			if (volumelabel[i] != '\0') {
+				errx(1, "bad volume label. Valid characters are alphanumerics.");
+			}
+			if (strlen(volumelabel) >= MAXVOLLEN) {
+				errx(1, "bad volume label. Length is longer than %d.",
+				    MAXVOLLEN);
+			}
+			Lflag = 1;
+			break;
 		case 'N':
 			Nflag = 1;
 			break;
@@ -390,6 +405,7 @@ usage()
 	    getprogname(),
 	    " [device-type]");
 	fprintf(stderr, "where fsoptions are:\n");
+	fprintf(stderr, "\t-L volume label to add to superblock\n");
 	fprintf(stderr,
 	    "\t-N do not create file system, just print out parameters\n");
 	fprintf(stderr, "\t-O file system format: 1 => UFS1, 2 => UFS2\n");
