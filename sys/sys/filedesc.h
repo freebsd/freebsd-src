@@ -168,7 +168,6 @@ void	fdunshare(struct proc *p, struct thread *td);
 void	fdfree(struct thread *td);
 struct	filedesc *fdinit(struct filedesc *fdp);
 struct	filedesc *fdshare(struct filedesc *fdp);
-void	fdused(struct filedesc *fdp, int fd);
 struct filedesc_to_leader *
 	filedesc_to_leader_alloc(struct filedesc_to_leader *old,
 	    struct filedesc *fdp, struct proc *leader);
