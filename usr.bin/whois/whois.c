@@ -175,6 +175,8 @@ main(int argc, char *argv[])
 	}
 	while (argc-- > 0) {
 		if (country != NULL) {
+			if (strcasecmp(country, "su") == 0)
+				country = "ru";
 			s_asprintf(&qnichost, "%s%s", country, QNICHOST_TAIL);
 			whois(*argv, qnichost, flags);
 		} else if (use_qnichost)
@@ -216,8 +218,11 @@ choose_server(char *domain)
 		return (NULL);
 	if (isdigit((unsigned char)*++pos))
 		s_asprintf(&retval, "%s", ANICHOST);
-	else
+	else {
+		if (strcasecmp(pos, "su") == 0)
+			pos = "ru";
 		s_asprintf(&retval, "%s%s", pos, QNICHOST_TAIL);
+	}
 	return (retval);
 }
 
