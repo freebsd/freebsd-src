@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: plist.c,v 1.6 1993/09/04 05:06:52 jkh Exp $";
+static const char *rcsid = "$Id: plist.c,v 1.4 1993/09/12 20:45:53 jkh Exp $";
 #endif
 
 /*
@@ -184,6 +184,8 @@ plist_cmd(char *s, char **arg)
 	return PLIST_CWD;
     else if (!strcmp(cmd, "exec"))
 	return PLIST_CMD;
+    else if (!strcmp(cmd, "unexec"))
+	return PLIST_UNEXEC;
     else if (!strcmp(cmd, "mode"))
 	return PLIST_CHMOD;
     else if (!strcmp(cmd, "owner"))
@@ -219,6 +221,8 @@ read_plist(Package *pkg, FILE *fp)
 	    cmd = plist_cmd(pline + 1, &cp);
 	    if (cmd == FAIL)
 		barf("Bad command '%s'", pline);
+	    if (*cp == '\0')
+		cp = NULL;
 	}
 	else
 	    cmd = PLIST_FILE; 
@@ -244,6 +248,10 @@ write_plist(Package *pkg, FILE *fp)
 
 	case PLIST_CMD:
 	    fprintf(fp, "%cexec %s\n", CMD_CHAR, plist->name);
+	    break;
+
+	case PLIST_UNEXEC:
+	    fprintf(fp, "%cunexec %s\n", CMD_CHAR, plist->name);
 	    break;
 
 	case PLIST_CHMOD:
@@ -286,13 +294,22 @@ void
 delete_package(Boolean ign_err, Package *pkg)
 {
     PackingList p = pkg->head;
-    char *Where = ".";
+    char *Where = ".", *last_file = "";
 
     while (p) {
 	if (p->type == PLIST_CWD) {
 	    Where = p->name;
 	    if (Verbose)
 		printf("(CWD to %s)\n", Where);
+	}
+	else if (p->type == PLIST_UNEXEC) {
+	    char cmd[FILENAME_MAX];
+
+	    format_cmd(cmd, p->name, Where, last_file);
+	    if (Verbose)
+		printf("unexec command: %s\n", cmd);
+	    if (!Fake && system(cmd))
+		whinge("unexec '%s' failed.", cmd);
 	}
 	else if (p->type == PLIST_IGNORE)
 	    p = p->next;
@@ -305,6 +322,7 @@ delete_package(Boolean ign_err, Package *pkg)
 	    
 	    if (!Fake && delete_hierarchy(full_name, ign_err))
 		whinge("Unable to completely remove file '%s'", full_name);
+	    last_file = p->name;
 	}
 	p = p->next;
     }
