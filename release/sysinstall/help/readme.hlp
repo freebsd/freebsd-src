@@ -6,18 +6,19 @@ Welcome to the latest 2.2 SNAPSHOT releases of        /- _  `-/  '
 FreeBSD!  These 2.2 snapshots are done periodically  (/\/ \ \   /\
 along the way to 2.2-RELEASE (which is slated        / /   | `    \
 for release in late summer of '96) as test releases  O O   ) /    |
-and `early access' to new features of the system     `-^--'`<     '
-for those developers who have an interest in co-    (_.)  _  )   /
-developing or testing them with us.                  `.___/`    /
+and to provide early access to new 2.2 features      `-^--'`<     '
+for those developers or hobbiests who have an       (_.)  _  )   /
+interest in knowing more about what we're up to.     `.___/`    /
                                                        `-----' /
 Feedback or offers to help with anything  <----.     __ / __   \
 you see in this release are most welcome  <----|====O)))==) \) /====
 and should be sent to one of the approp-  <----'    `--' `.__,' \
 riate mailing lists (see notes below).                 |        |
                                                         \       /       /\
-                                                   ______( (_  / \______/
-                                                 ,'  ,-----'   |
-                                                 `--{__________)
+Please also note that these SNAP releases are      ______( (_  / \______/
+EXPERIMENTAL in nature and not intended for the  ,'  ,-----'   |
+casual user or in production environments!       `--{__________)
+
 
 
 What is FreeBSD?  FreeBSD is an operating system based on 4.4 BSD Lite
