@@ -37,36 +37,36 @@
 .Nd control/diagnose IPv6 neighbor discovery protocol
 .\"
 .Sh SYNOPSIS
-.Nm ndp
+.Nm
 .Op Fl nt
 .Ar hostname
-.Nm ndp
+.Nm
 .Op Fl nt
-.Fl a | Fl c | Fl p
-.Nm ndp
+.Fl a | c | p
+.Nm
 .Op Fl nt
 .Fl r
-.Nm ndp
+.Nm
 .Op Fl nt
-.Fl H | Fl P | Fl R
-.Nm ndp
+.Fl H | P | R
+.Nm
 .Op Fl nt
 .Fl A Ar wait
-.Nm ndp
+.Nm
 .Op Fl nt
 .Fl d Ar hostname
-.Nm ndp
+.Nm
 .Op Fl nt
 .Fl f Ar filename
-.Nm ndp
+.Nm
 .Op Fl nt
 .Fl i
 .Ar interface
 .Op Ar flags ...
-.Nm ndp
+.Nm
 .Op Fl nt
 .Fl I Op Ar interface | Li delete
-.Nm ndp
+.Nm
 .Op Fl nt
 .Fl s Ar nodename etheraddr
 .Op Li temp
@@ -75,7 +75,7 @@
 .Sh DESCRIPTION
 The
 .Nm
-command manipulates the address mapping table
+utility manipulates the address mapping table
 used by the Neighbor Discovery Protocol (NDP).
 .Bl -tag -width Ds
 .It Fl a
@@ -114,7 +114,7 @@ Stale
 Delay
 .It P
 Probe
-.It ?
+.It ?\&
 Unknown state (should never happen).
 .El
 .It Flags
@@ -127,7 +127,7 @@ which means the number of NS probes the node has sent during the current state.
 .It Fl A Ar wait
 Repeat
 .Fl a
-.Pq dump NDP entries
+(dump NDP entries)
 every
 .Ar wait
 seconds.
@@ -173,15 +173,11 @@ in this case.
 .\"
 .Pp
 .Bl -tag -width Ds -compact
-.It Xo
-.Ic nud
-.Xc
+.It Ic nud
 Turn on or off NUD (Neighbor Unreachability Detection) on the
 interface.
 NUD is usually turned on by default.
-.It Xo
-.Ic accept_rtadv
-.Xc
+.It Ic accept_rtadv
 Specify whether or not to accept Router Advertisement messages
 received on the
 .Ar interface .
@@ -190,9 +186,7 @@ unless the
 .Li net.inet6.ip6.accept_rtadv
 variable is non-0, even if the flag is on.
 This flag is set to 1 by default.
-.It Xo
-.Ic prefer_source
-.Xc
+.It Ic prefer_source
 Prefer addresses on the
 .Ar interface
 as candidates of the source address for outgoing packets.
@@ -213,13 +207,13 @@ Show default router list.
 .It Fl R
 Flush all the entries in the default router list.
 .It Fl s
-Register a NDP entry for a node.
+Register an NDP entry for a node.
 The entry will be permanent unless the word
 .Li temp
 is given in the command.
 If the word
 .Li proxy
-is given, this system will act as an proxy NDP server,
+is given, this system will act as a proxy NDP server,
 responding to requests for
 .Ar hostname
 even though the host address is not its own.
@@ -231,10 +225,8 @@ Most useful when used with
 .Fl A .
 .El
 .\"
-.Sh RETURN VALUES
-The
-.Nm
-command will exit with 0 on success, and non-zero on errors.
+.Sh DIAGNOSTICS
+.Ex -std
 .\"
 .Sh SEE ALSO
 .Xr arp 8
@@ -242,7 +234,7 @@ command will exit with 0 on success, and non-zero on errors.
 .Sh HISTORY
 The
 .Nm
-command first appeared in the WIDE Hydrangea IPv6 protocol stack kit.
+utility first appeared in the WIDE Hydrangea IPv6 protocol stack kit.
 .\"
 .\" .Sh BUGS
 .\" (to be written)
