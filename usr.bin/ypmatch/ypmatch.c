@@ -46,6 +46,7 @@ struct ypalias {
 	char *alias, *name;
 } ypaliases[] = {
 	{ "passwd", "passwd.byname" },
+	{ "master.passwd", "master.passwd.byname" },
 	{ "group", "group.byname" },
 	{ "networks", "networks.byaddr" },
 	{ "hosts", "hosts.byname" },
