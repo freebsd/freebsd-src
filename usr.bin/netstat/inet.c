@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)inet.c	8.5 (Berkeley) 5/24/95";
 */
 static const char rcsid[] =
-	"$Id: inet.c,v 1.31 1999/03/10 17:25:42 des Exp $";
+	"$Id: inet.c,v 1.30.2.1 1999/03/10 17:32:26 des Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -163,9 +163,7 @@ protopr(proto, name)
 			putchar('\n');
 			if (Aflag)
 				printf("%-8.8s ", "Socket");
-			printf(Aflag ?
-				"%-5.5s %-6.6s %-6.6s  %-18.18s %-18.18s %s\n" :
-				"%-5.5s %-6.6s %-6.6s  %-22.22s %-22.22s %s\n",
+			printf("%-5.5s %-6.6s %-6.6s %-21.21s %-21.21s %s\n",
 				"Proto", "Recv-Q", "Send-Q",
 				"Local Address", "Foreign Address", "(state)");
 			first = 0;
@@ -196,9 +194,9 @@ protopr(proto, name)
 		}
 		if (istcp) {
 			if (tp->t_state < 0 || tp->t_state >= TCP_NSTATES)
-				printf(" %d", tp->t_state);
+				printf("%d", tp->t_state);
                       else {
-				printf(" %s", tcpstates[tp->t_state]);
+				printf("%s", tcpstates[tp->t_state]);
 #if defined(TF_NEEDSYN) && defined(TF_NEEDFIN)
                               /* Show T/TCP `hidden state' */
                               if (tp->t_flags & (TF_NEEDSYN|TF_NEEDFIN))
@@ -555,7 +553,6 @@ inetprint(in, port, proto,numeric)
 {
 	struct servent *sp = 0;
 	char line[80], *cp;
-	int width;
 
 	sprintf(line, "%.*s.", (Aflag && !numeric) ? 12 : 16, inetname(in));
 	cp = index(line, '\0');
@@ -565,8 +562,7 @@ inetprint(in, port, proto,numeric)
 		sprintf(cp, "%.15s", sp ? sp->s_name : "*");
 	else
 		sprintf(cp, "%d", ntohs((u_short)port));
-	width = Aflag ? 18 : 22;
-	printf(" %-*.*s", width, width, line);
+	printf("%-21.21s ", line);
 }
 
 /*
