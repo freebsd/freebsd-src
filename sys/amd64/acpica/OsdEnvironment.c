@@ -37,7 +37,7 @@ __FBSDID("$FreeBSD$");
 
 #include "acpi.h"
 
-u_long amd64_acpi_root;
+static u_long amd64_acpi_root;
 
 SYSCTL_ULONG(_machdep, OID_AUTO, acpi_root, CTLFLAG_RD, &amd64_acpi_root, 0,
 	     "The physical address of the RSDP");
