@@ -514,6 +514,9 @@ c_exec(option, argvp)
 			break;
 	}
 
+	if (ap == argv)
+		errx(1, "%s: no command specified", option->name);
+
 	cnt = ap - *argvp + 1;
 	new->e_argv = (char **)emalloc((u_int)cnt * sizeof(char *));
 	new->e_orig = (char **)emalloc((u_int)cnt * sizeof(char *));
