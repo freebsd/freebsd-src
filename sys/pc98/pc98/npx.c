@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)npx.c	7.2 (Berkeley) 5/12/91
- *	$Id: npx.c,v 1.46 1999/05/11 16:29:21 luoqi Exp $
+ *	$Id: npx.c,v 1.47 1999/05/17 12:13:28 kato Exp $
  */
 
 #include "npx.h"
@@ -215,7 +215,11 @@ npx_probe(dev)
 #ifdef SMP
 
 	if (resource_int_value("npx", 0, "irq", &npx_irq) != 0)
+#ifdef PC98
+		npx_irq = 8;
+#else
 		npx_irq = 13;
+#endif
 	return npx_probe1(dev);
 
 #else /* SMP */
@@ -234,7 +238,11 @@ npx_probe(dev)
 	 * won't need to do so much here.
 	 */
 	if (resource_int_value("npx", 0, "irq", &npx_irq) != 0)
+#ifdef PC98
 		npx_irq = 8;
+#else
+		npx_irq = 13;
+#endif
 	npx_intrno = NRSVIDT + npx_irq;
 	save_eflags = read_eflags();
 	disable_intr();
@@ -407,15 +415,9 @@ npx_probe1(dev)
 				if (r == 0)
 					panic("npx: can't get ports");
 				rid = 0;
-#ifdef PC98
-				r = bus_alloc_resource(dev, SYS_RES_IRQ,
-						       &rid, NPXIRQ, NPXIRQ,
-						       1, RF_ACTIVE);
-#else
 				r = bus_alloc_resource(dev, SYS_RES_IRQ,
 						       &rid, npx_irq, npx_irq,
 						       1, RF_ACTIVE);
-#endif
 				if (r == 0)
 					panic("npx: can't get IRQ");
 				BUS_SETUP_INTR(device_get_parent(dev),
