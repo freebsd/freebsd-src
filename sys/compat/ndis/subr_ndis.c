@@ -79,6 +79,9 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/stdarg.h>
 
+#include <net80211/ieee80211_var.h>
+#include <net80211/ieee80211_ioctl.h>
+
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
@@ -647,7 +650,7 @@ ndis_create_lock(lock)
 	mtx = malloc(sizeof(struct mtx), M_DEVBUF, M_NOWAIT|M_ZERO);
 	if (mtx == NULL)
 		return;
-	mtx_init(mtx, "ndislock", MTX_NETWORK_LOCK,
+	mtx_init(mtx, "ndislock", "ndis spin lock",
 	    MTX_DEF | MTX_RECURSE | MTX_DUPOK);
 	lock->nsl_spinlock = (ndis_kspin_lock)mtx;
 
