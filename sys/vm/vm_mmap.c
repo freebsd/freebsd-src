@@ -1199,7 +1199,7 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 		ASSERT_VOP_LOCKED(vp, "vm_mmap");
 		if (vp->v_type == VCHR) {
 			type = OBJT_DEVICE;
-			handle = (void *)(intptr_t)vp->v_rdev;
+			handle = vp->v_rdev;
 		} else {
 			struct vattr vat;
 			int error;
