@@ -1,6 +1,6 @@
 /*	$NetBSD: cpuconf.h,v 1.8 2003/09/06 08:55:42 rearnsha Exp $	*/
 
-/*
+/*-
  * Copyright (c) 2002 Wasabi Systems, Inc.
  * All rights reserved.
  *

@@ -1,6 +1,6 @@
 /*	$NetBSD: bcopy_page.S,v 1.7 2003/10/13 21:03:13 scw Exp $	*/
 
-/*
+/*-
  * Copyright (c) 1995 Scott Stevens
  * All rights reserved.
  *

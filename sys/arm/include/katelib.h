@@ -1,6 +1,6 @@
 /*	$NetBSD: katelib.h,v 1.3 2001/11/23 19:21:48 thorpej Exp $	*/
 
-/*
+/*-
  * Copyright (c) 1994-1996 Mark Brinicombe.
  * Copyright (c) 1994 Brini.
  * All rights reserved.

@@ -1,6 +1,6 @@
 /*	$NetBSD: i80321_mainbus.c,v 1.13 2003/12/17 22:03:24 abs Exp $	*/
 
-/*
+/*-
  * Copyright (c) 2001, 2002 Wasabi Systems, Inc.
  * All rights reserved.
  *

@@ -1,6 +1,6 @@
 /*	$NetBSD: bus_space_asm_generic.S,v 1.3 2003/03/27 19:46:14 mycroft Exp $	*/
 
-/*
+/*-
  * Copyright (c) 1997 Causality Limited.
  * Copyright (c) 1997 Mark Brinicombe.
  * All rights reserved.

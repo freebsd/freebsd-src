@@ -1,6 +1,6 @@
 /*	$NetBSD: xscalevar.h,v 1.1 2002/10/08 23:59:41 thorpej Exp $	*/
 
-/*
+/*-
  * Copyright (c) 2002 Wasabi Systems, Inc.
  * All rights reserved.
  *

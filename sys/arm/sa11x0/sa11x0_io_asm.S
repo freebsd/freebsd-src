@@ -1,6 +1,6 @@
 /*	$NetBSD: sa11x0_io_asm.S,v 1.1 2001/07/08 23:37:53 rjs Exp $	*/
 
-/*
+/*-
  * Copyright (c) 1997 Mark Brinicombe.
  * Copyright (c) 1997 Causality Limited.
  * All rights reserved.

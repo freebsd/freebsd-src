@@ -1,6 +1,6 @@
 /*	$NetBSD: i80321_mcu.c,v 1.2 2003/07/15 00:24:54 lukem Exp $	*/
 
-/*
+/*-
  * Copyright (c) 2001, 2002 Wasabi Systems, Inc.
  * All rights reserved.
  *

@@ -1,6 +1,6 @@
 /*	$NetBSD: setstack.S,v 1.1 2001/07/28 13:28:03 chris Exp $	*/
 
-/*
+/*-
  * Copyright (c) 1994 Mark Brinicombe.
  * Copyright (c) 1994 Brini.
  * All rights reserved.

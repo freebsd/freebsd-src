@@ -1,6 +1,6 @@
 /*	$NetBSD: pte.h,v 1.1 2001/11/23 17:39:04 thorpej Exp $	*/
 
-/*
+/*-
  * Copyright (c) 1994 Mark Brinicombe.
  * All rights reserved.
  *

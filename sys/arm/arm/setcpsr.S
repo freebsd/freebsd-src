@@ -1,6 +1,6 @@
 /*	$NetBSD: setcpsr.S,v 1.2 2002/08/15 01:37:02 briggs Exp $	*/
 
-/*
+/*-
  * Copyright (c) 1994 Mark Brinicombe.
  * Copyright (c) 1994 Brini.
  * All rights reserved.
