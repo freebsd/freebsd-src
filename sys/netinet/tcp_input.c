@@ -2217,7 +2217,8 @@ check_delack:
 		callout_reset(tp->tt_delack, tcp_delacktime,  
 		    tcp_timer_delack, tp);  
 	}
-	KASSERT(headlocked == 0, ("headlocked should be 0"));
+	if (headlocked)
+		INP_INFO_WUNLOCK(&tcbinfo);
 	INP_UNLOCK(inp);
 	return;
 
