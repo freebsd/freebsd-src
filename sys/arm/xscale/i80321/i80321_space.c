@@ -65,7 +65,6 @@ bs_protos(i80321_io);
 bs_protos(i80321_mem);
 bs_protos(generic);
 bs_protos(generic_armv4);
-bs_protos(bs_notimpl);
 
 /*
  * Template bus_space -- copied, and the bits that are NULL are
