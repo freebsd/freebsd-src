@@ -430,14 +430,9 @@ void
 vm_waitproc(p)
 	struct proc *p;
 {
-	struct thread *td;
 
 	GIANT_REQUIRED;
 	cpu_wait(p);
-/* XXXKSE by here there should not be any threads left! */
-	FOREACH_THREAD_IN_PROC(p, td) {
-		panic("vm_waitproc: Survivor thread!");
-	}
 	vmspace_exitfree(p);		/* and clean-out the vmspace */
 }
 

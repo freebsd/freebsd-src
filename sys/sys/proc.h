@@ -264,6 +264,7 @@ struct thread {
 
 	TAILQ_HEAD(, selinfo) td_selq;	/* (p) List of selinfos. */
 
+/* Cleared during fork1() or thread_sched_upcall() */
 #define	td_startzero td_flags
 	int		td_flags;	/* (j) TDF_* flags. */
 	struct kse	*td_last_kse;	/* Where it wants to be if possible. */
@@ -284,16 +285,21 @@ struct thread {
 	void 		*td_mailbox;	/* the userland mailbox address */
 	struct ucred	*td_ucred;	/* (k) Reference to credentials. */
 	void		(*td_switchin)(void); /* (k) switchin special func */
+	u_int		td_critnest;	/* (k) Critical section nest level. */
 #define	td_endzero td_md
 
+/* Copied during fork1() or thread_sched_upcall() */
 #define	td_startcopy td_endzero
-	/* XXXKSE p_md is in the "on your own" section in old struct proc */
+	/* XXXKSE just copying td_md needs checking! */
 	struct mdthread td_md;		/* (k) Any machine-dependent fields. */
-	register_t 	td_retval[2];	/* (k) Syscall aux returns. */
 	u_char		td_base_pri;	/* (j) Thread base kernel priority. */
 	u_char		td_priority;	/* (j) Thread active priority. */
 #define	td_endcopy td_pcb
 
+/*
+ * fields that must be manually set in fork1() or thread_sched_upcall()
+ * or already have been set in the allocator, contstructor, etc..
+ */
 	struct pcb	*td_pcb;	/* (k) Kernel VA of pcb and kstack. */
 	enum {
 		TDS_NEW = 0x20,
@@ -308,11 +314,11 @@ struct thread {
 		TDS_SWAPPED,
 		TDS_SUSP_SLP		/* on sleep queue AND suspend queue */
 	} td_state;
+	register_t 	td_retval[2];	/* (k) Syscall aux returns. */
 	struct callout	td_slpcallout;	/* (h) Callout for sleep. */
 	struct trapframe *td_frame;	/* (k) */
 	struct vm_object *td_kstack_obj;/* (a) Kstack object. */
 	vm_offset_t	td_kstack;	/* Kernel VA of kstack. */
-	u_int		td_critnest;	/* (k) Critical section nest level. */
 };
 /* flags kept in td_flags */
 #define	TDF_UNBOUND	0x000001 /* may give away the kse, uses the kg runq */
@@ -354,7 +360,6 @@ struct kse {
 	int		ke_flags;	/* (j) KEF_* flags. */
 	struct thread	*ke_thread;	/* Active associated thread. */
 	struct thread	*ke_bound;	/* Thread bound to this KSE (*) */
-	/*u_int		ke_estcpu; */	/* (j) Time averaged val of cpticks. */
 	int		ke_cpticks;	/* (j) Ticks of cpu time. */
 	fixpt_t		ke_pctcpu;	/* (j) %cpu during p_swtime. */
 	u_int64_t	ke_uu;		/* (j) Previous user time in usec. */
@@ -425,11 +430,8 @@ struct ksegrp {
 	u_int		kg_estcpu;	/* Sum of the same field in KSEs. */
  	u_int		kg_slptime;	/* (j) How long completely blocked. */
 	struct thread 	*kg_last_assigned; /* Last thread assigned to a KSE */
-	int		kg_numthreads;	/* Num threads in total */
 	int		kg_runnable;	/* Num runnable threads on queue. */
-	int		kg_kses;	/* Num KSEs in group. */
 	int		kg_runq_kses;	/* Num KSEs on runq. */
-	int		kg_idle_kses;	/* num KSEs idle */
 #define	kg_endzero kg_pri_class
 
 #define	kg_startcopy 	kg_endzero
@@ -437,8 +439,10 @@ struct ksegrp {
 	u_char		kg_user_pri;	/* (j) User pri from estcpu and nice. */
 	char		kg_nice;	/* (j?/k?) Process "nice" value. */
 /*	struct rtprio	kg_rtprio; */	/* (j) Realtime priority. */
-#define	kg_endcopy kg_dummy
-	int		kg_dummy;
+#define	kg_endcopy kg_numthreads
+	int		kg_numthreads;	/* Num threads in total */
+	int		kg_idle_kses;	/* num KSEs idle */
+	int		kg_kses;	/* Num KSEs in group. */
 };
 
 /*
@@ -505,8 +509,6 @@ struct proc {
 	u_char		p_pfsflags;	/* (c) Procfs flags. */
 	struct nlminfo	*p_nlminfo;	/* (?) Only used by/for lockd. */
 	void		*p_aioinfo;	/* (c) ASYNC I/O info. */
-	int		p_numthreads;	/* (?) number of threads */
-	int		p_numksegrps;	/* (?) number of ksegrps */
 	struct thread	*p_singlethread;/* (j) If single threading this is it */
 	int		p_suspcount;	/* (j) # threads in suspended mode */
 	int		p_userthreads;	/* (j) # threads in userland */
@@ -526,6 +528,8 @@ struct proc {
 #define	p_endcopy	p_xstat
 
 	u_short		p_xstat;	/* (c) Exit status; also stop sig. */
+	int		p_numthreads;	/* (?) number of threads */
+	int		p_numksegrps;	/* (?) number of ksegrps */
 	struct mdproc	p_md;		/* (c) Any machine-dependent fields. */
 	struct callout	p_itcallout;	/* (h) Interval timer callout. */
 	struct user	*p_uarea;	/* (k) Kernel VA of u-area (CPU) */
