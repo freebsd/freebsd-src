@@ -26,7 +26,7 @@
 
 LIB=		radius
 SRCS=		radlib.c
-INCS=		radlib.h
+INCS=		radlib.h radlib_vs.h
 CFLAGS+=	-Wall
 DPADD+=		${LIBMD}
 LDADD+=		-lmd

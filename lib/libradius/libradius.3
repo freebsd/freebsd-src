@@ -65,6 +65,14 @@
 .Ft int
 .Fn rad_put_string "struct rad_handle *h" "int type" "const char *str"
 .Ft int
+.Fn rad_put_vendor_addr "struct rad_handle *h" "int vendor" "int type" "struct in_addr addr"
+.Ft int
+.Fn rad_put_vendor_attr "struct rad_handle *h" "int vendor" "int type" "const void *data" "size_t len"
+.Ft int
+.Fn rad_put_vendor_int "struct rad_handle *h" "int vendor" "int type" "u_int32_t value"
+.Ft int
+.Fn rad_put_vendor_string "struct rad_handle *h" "int vendor" "int type" "const char *str"
+.Ft int
 .Fn rad_send_request "struct rad_handle *h"
 .Ft const char *
 .Fn rad_strerror "struct rad_handle *h"
@@ -183,6 +191,14 @@ Each accepts a
 parameter identifying the attribute, and a value which may be
 an Internet address, an integer, or a NUL-terminated string,
 respectively.
+Alternatively,
+.Fn rad_put_vendor_addr ,
+.Fn rad_put_vendor_int
+or
+.Fn rad_put_vendor_string
+may be used to specify vendor specific attributes.  Vendor specific
+definitions may be found in
+.In radlib_vs.h
 .Pp
 The library also provides a function
 .Fn rad_put_attr
