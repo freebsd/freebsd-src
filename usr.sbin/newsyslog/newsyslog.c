@@ -29,7 +29,7 @@ provided "as is" without express or implied warranty.
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: newsyslog.c,v 1.2 1996/01/09 08:40:08 graichen Exp $";
+static char rcsid[] = "$Id: newsyslog.c,v 1.3 1996/01/16 10:32:04 graichen Exp $";
 #endif /* not lint */
 
 #ifndef CONF
@@ -237,7 +237,7 @@ struct conf_entry *parse_file()
         char    line[BUFSIZ], *parse, *q;
         char    *errline, *group;
         struct conf_entry *first = NULL;
-        struct conf_entry *working;
+        struct conf_entry *working = NULL;
         struct passwd *pass;
         struct group *grp;
 
