@@ -14,11 +14,11 @@
  * $FreeBSD$
  */
 
-#ifndef	_MACHINE_LPT_H_
-#define	_MACHINE_LPT_H_
+#ifndef	_DEV_PPBUS_LPT_H_
+#define	_DEV_PPBUS_LPT_H_
 
 #include <sys/ioccom.h>
 
 #define	LPT_IRQ		_IOW('p', 1, long)	/* set interrupt status */
 
-#endif /* !_MACHINE_LPT_H_ */
+#endif /* !_DEV_PPBUS_LPT_H_ */
