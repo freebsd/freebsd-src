@@ -443,14 +443,11 @@ fddi_input(ifp, fh, m)
 			break;
 
 		case ETHERTYPE_ARP:
-#if !defined(__bsdi__) || _BSDI_VERSION >= 199401
+			if (ifp->if_flags & IFF_NOARP)
+				goto dropanyway;
 			schednetisr(NETISR_ARP);
 			inq = &arpintrq;
 			break;
-#else
-			arpinput((struct arpcom *)ifp, m);
-			return;
-#endif
 #endif
 #ifdef INET6
 		case ETHERTYPE_IPV6:
