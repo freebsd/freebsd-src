@@ -160,9 +160,6 @@ static int nge_newbuf		(struct nge_softc *,
 static int nge_encap		(struct nge_softc *,
 					struct mbuf *, u_int32_t *);
 static void nge_rxeof		(struct nge_softc *);
-#ifdef notdef
-static void nge_rxeoc		(struct nge_softc *);
-#endif
 static void nge_txeof		(struct nge_softc *);
 static void nge_intr		(void *);
 static void nge_tick		(void *);
@@ -1348,20 +1345,6 @@ static void nge_rxeof(sc)
 	return;
 }
 
-#ifdef notdef
-void nge_rxeoc(sc)
-	struct nge_softc	*sc;
-{
-	struct ifnet		*ifp;
-
-	ifp = &sc->arpcom.ac_if;
-	nge_rxeof(sc);
-	ifp->if_flags &= ~IFF_RUNNING;
-	nge_init(sc);
-	return;
-}
-#endif
-
 /*
  * A frame was downloaded to the chip. It's safe for us to clean up
  * the list buffers.
@@ -1496,12 +1479,14 @@ static void nge_intr(arg)
 		if ((status & NGE_ISR_RX_DESC_OK) ||
 		    (status & NGE_ISR_RX_ERR) ||
 		    (status & NGE_ISR_RX_OFLOW) ||
+		    (status & NGE_ISR_RX_FIFO_OFLOW) ||
+		    (status & NGE_ISR_RX_IDLE) ||
 		    (status & NGE_ISR_RX_OK))
 			nge_rxeof(sc);
-#ifdef notdef
-		if ((status & NGE_ISR_RX_OFLOW))
-			nge_rxeoc(sc);
-#endif
+
+		if ((status & NGE_ISR_RX_IDLE))
+			NGE_SETBIT(sc, NGE_CSR, NGE_CSR_RX_ENABLE);
+
 		if (status & NGE_ISR_SYSERR) {
 			nge_reset(sc);
 			ifp->if_flags &= ~IFF_RUNNING;
