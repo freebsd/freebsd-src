@@ -1,3 +1,4 @@
+.\" Copyright (c) 2004  Poul-Henning Kamp <phk@FreeBSD.org>
 .\" Copyright (c) 2003  Sean M. Kelly <smkelly@FreeBSD.org>
 .\" All rights reserved.
 .\"
@@ -29,20 +30,45 @@
 .Os
 .Sh NAME
 .Nm watchdogd
-.Nd Software watchdog daemon
+.Nd Watchdog daemon
 .Sh SYNOPSIS
 .Nm
 .Op Fl d
+.Op Fl e Ar cmd
 .Op Fl I Ar file
+.Op Fl s Ar sleep
+.Op Fl t Ar timeout
 .Sh DESCRIPTION
 The
 .Nm
-utility interfaces with the kernel's software watchdog facility to ensure
+utility interfaces with the kernel's watchdog facility to ensure
 that the system is in a working state.
 If
 .Nm
 is unable to interface with the kernel over a specific timeout,
 the kernel will take actions to assist in debugging or restarting the computer.
+.Pp
+If 
+.Fl e Ar cmd
+is specified,
+.Nm
+will attempt to execute this command with
+.Xr system 3
+and only if the command returns with a zero exit code will the
+watchdog be reset.
+If
+.Fl e Ar cmd
+is not specified the daemon will perform a trivial filesystem
+check instead.
+.Pp
+The
+.Fl -s Ar sleep
+argument can be used to control the sleep period between each execution
+of the check and defaults to one second.
+.Pp
+The
+.Fl -t Ar timeout
+specifies the desired timeout period in seconds.
 .Pp
 One possible circumstance which will cause a watchdog timeout is an interrupt
 storm.
@@ -80,13 +106,16 @@ will not fork into the background at startup.
 .El
 .Sh SEE ALSO
 .Xr watchdog 4 ,
-.Xr sysctl 8
+.Xr watchdog 8 ,
+.Xr watchdog 9 ,
 .Sh AUTHORS
 .An -nosplit
 The
 .Nm
 utility and manual page were written by
-.An Sean Kelly Aq smkelly@FreeBSD.org .
+.An Sean Kelly Aq smkelly@FreeBSD.org 
+and
+.An Poul-Henning Kamp Aq phk@FreeBSD.org .
 .Pp
 Some contributions made by
 .An Jeff Roberson Aq jeff@FreeBSD.org .

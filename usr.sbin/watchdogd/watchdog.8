@@ -1,4 +1,4 @@
-.\" Copyright (c) 2004 Poul-Henning Kamp <phk@FreeBSD.org>
+.\" Copyright (c) 2004  Poul-Henning Kamp <phk@FreeBSD.org>
 .\" Copyright (c) 2003  Sean M. Kelly <smkelly@FreeBSD.org>
 .\" All rights reserved.
 .\"
@@ -25,65 +25,42 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 25, 2003
-.Dt watchdog 4
+.Dd February 28, 2004
+.Dt WATCHDOG 8
 .Os
 .Sh NAME
 .Nm watchdog
-.Nd Hardware and Software watchdog
+.Nd watchdog control program
 .Sh SYNOPSIS
-.Cd options CPU_ELAN
-.Cd options CPU_GEODE
-.Cd options SW_WATCHDOG
-.Pp
-.In sys/watchdog.h
-.Bd -literal
-
-u_int u = WD_ACTIVE | WD_8SEC;
-int fd = open("/dev/" _PATH_WATCHDOG, O_RDWR);
-
-ioctl(fd, WDIOCPATPAT, &u);
-.Ed
-.Sh DESCRIPTION
 .Nm
-is a facility for controlling hardware and software watchdog facilities.
-.Pp
-The interface is through a device named "/dev/" _PATH_WATCHDOG which
-responds to a single ioctl call, WDIOCPATPAT.
-.Pp
-The ioctl call takes an argument which consists of a timeout value
-specified an integer power of two nanoseconds.
-.Pp
-In the flag WD_ACTIVE signals that the watchdog will be kept from 
-timing out from userland, for instance by the
-.Xr watchdogd 8
-daemon.
-.Pp
-To disable the watchdogs, use an argument of zero.
-.Pp
-The ioctl call will return success if just one of the available
-watchdog implementations support the request.
-If the ioctl fails, for instance if no watchdog supports the timeout
-length, all watchdogs are disabled and must be explicitly reenabled.
-.Sh SEE ALSO
-.Xr sysctl 8 ,
-.Xr watchdogd 8
-.Xr watchdogd 9
-.Sh HISTORY
+.Op Fl d
+.Op Fl t Ar timeout
+.Sh DESCRIPTION
 The
 .Nm
-code first appeared in
-.Fx 5.1 .
+utility can be used to control the kernels watchdog facility.
+.Pp
+The
+.Fl t Ar timeout
+specifies the desired timeout period in seconds, a value of
+zero will disable the watchdog.
+.Sh SEE ALSO
+.Xr watchdogd 8 ,
+.Xr watchdog 4 ,
+.Xr watchdog 9 ,
 .Sh AUTHORS
 .An -nosplit
 The
-.Nm watchdog
-facility were written by
-.An Poul-Henning Kamp Aq phk@FreeBSD.org .
+.Nm
+utility and manual page were written by
+.An Sean Kelly Aq smkelly@FreeBSD.org
+and
+.An Poul-Henning Kamp Aq phk@FreeBSD.org
 .Pp
-The
-.Nm SW_WATCHDOG
-code and manual page were written by
-.An Sean Kelly Aq smkelly@FreeBSD.org .
-Some contributions were made by
+Some contributions made by
 .An Jeff Roberson Aq jeff@FreeBSD.org .
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Fx 5.1 .
