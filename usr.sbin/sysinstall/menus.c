@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.64 1996/06/12 14:02:12 jkh Exp $
+ * $Id: menus.c,v 1.65 1996/06/12 14:20:18 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -490,15 +490,14 @@ select one of the following tape devices detected on your system.",
 DMenu MenuNetworkDevice = {
     DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
     "Network interface information required",
-    "If you are using PPP over a serial device (cuaa0 or cuaa1) as opposed\n\
-to a direct ethernet connection, then you may first need to dial your\n\
-service provider using the ppp utility we provide for that purpose.\n\
-You can also install over a parallel port using a special \"laplink\"\n\
-cable, though this only works if you have another FreeBSD machine running\n\
-a fairly recent (2.0R or later) release to talk to.\n\n\
-To use PPP, select one of the serial devices, otherwise select lp0 for\n\
-the parallel port or one of the ethernet controllers (if you have one)\n\
-for an ethernet installation.",
+    "If you are using PPP over a serial device as opposed\n"
+    "to a direct ethernet connection, then you may first need to dial your\n"
+    "service provider using the ppp utility we provide for that purpose.\n"
+    "If you're using SLIP over a serial device then it's expected that you\n"
+    "have a hardwired connection.\n\n"
+    "You can also install over a parallel port using a special \"laplink\"\n"
+    "cable to another machine running a fairly recent (2.0R or later) version\n"
+    "of FreeBSD.",
     "Press F1 to read network configuration manual",
     "network_device",
     { { NULL } },

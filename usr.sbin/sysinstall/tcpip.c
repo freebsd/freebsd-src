@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.38 1996/04/30 05:25:15 jkh Exp $
+ * $Id: tcpip.c,v 1.39 1996/05/21 15:57:21 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -488,7 +488,7 @@ tcpOpenDialog(Device *devp)
 	    variable_set2(VAR_NAMESERVER, nameserver);
 
 	if (!devp->private)
-	    devp->private = (DevInfo *)malloc(sizeof(DevInfo));
+	    devp->private = (DevInfo *)safe_malloc(sizeof(DevInfo));
 	di = devp->private;
 	strcpy(di->ipaddr, ipaddr);
 	strcpy(di->netmask, netmask);
