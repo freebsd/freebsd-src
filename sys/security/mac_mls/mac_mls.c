@@ -1282,27 +1282,6 @@ mac_mls_create_cred(struct ucred *cred_parent, struct ucred *cred_child)
 }
 
 static void
-mac_mls_execve_transition(struct ucred *old, struct ucred *new,
-    struct vnode *vp, struct label *vnodelabel)
-{
-	struct mac_mls *source, *dest;
-
-	source = SLOT(&old->cr_label);
-	dest = SLOT(&new->cr_label);
-
-	mac_mls_copy_single(source, dest);
-	mac_mls_copy_range(source, dest);
-}
-
-static int
-mac_mls_execve_will_transition(struct ucred *old, struct vnode *vp,
-    struct label *vnodelabel)
-{
-
-	return (0);
-}
-
-static void
 mac_mls_create_proc0(struct ucred *cred)
 {
 	struct mac_mls *dest;
@@ -2445,8 +2424,6 @@ static struct mac_policy_ops mac_mls_ops =
 	.mpo_relabel_ifnet = mac_mls_relabel_ifnet,
 	.mpo_update_ipq = mac_mls_update_ipq,
 	.mpo_create_cred = mac_mls_create_cred,
-	.mpo_execve_transition = mac_mls_execve_transition,
-	.mpo_execve_will_transition = mac_mls_execve_will_transition,
 	.mpo_create_proc0 = mac_mls_create_proc0,
 	.mpo_create_proc1 = mac_mls_create_proc1,
 	.mpo_relabel_cred = mac_mls_relabel_cred,
