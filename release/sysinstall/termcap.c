@@ -31,7 +31,8 @@ prompt_term(char **termp, char **termcapp)
 		   { "vt100", termcap_vt100 },
 		   { "cons25w", termcap_cons25w },
 		   { "cons25", termcap_cons25 },
-		   { "cons25-m", termcap_cons25_m } };
+		   { "cons25-m", termcap_cons25_m },
+		   { "xterm", termcap_xterm } };
 
     if (RunningAsInit) {
 	while (1) {
@@ -44,7 +45,8 @@ prompt_term(char **termp, char **termcapp)
 	    printf("2 ...................... VT100 or compatible terminal.\n");
 	    printf("3 ...................... FreeBSD system console (color).\n");
 	    printf("4 ...................... FreeBSD system console (monochrome).\n\n");
-	    printf("Your choice: (1-4) ");
+	    printf("5 ...................... xterm terminal emulator.\n\n");
+	    printf("Your choice: (1-5) ");
 	    fflush(stdout);
 	    fgets(str, 80, stdin);
 	    i = str[0] - '0';

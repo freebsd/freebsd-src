@@ -604,6 +604,7 @@ extern const char	termcap_cons25r[];
 extern const char	termcap_cons25r_m[];
 extern const char	termcap_cons25l1[];
 extern const char	termcap_cons25l1_m[];
+extern const char	termcap_xterm[];
 extern const u_char	font_iso_8x16[];
 extern const u_char	font_cp850_8x16[];
 extern const u_char	font_cp866_8x16[];
