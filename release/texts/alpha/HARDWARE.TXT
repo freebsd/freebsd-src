@@ -435,6 +435,10 @@ The MiataGL has a faster PCI-PCI bridge chip on the PCI riser card than
 some of the MX5 riser card versions. Some of the MX5 risers have the *same*
 chip as the MiataGL. All in all there is a lot of variation.
 
+Not all VGA cards will work behind the PCI-PCI bridge.
+Workaround is to put the VGA card 'before' the bridge in one of the 64 bit
+PCI slots.
+
 Sound: 
 Both MX5 and MiataGL have an on-board sound chip, an ESS1888. It emulates
 a SoundBlaster and can be enabled by putting 
@@ -1031,7 +1035,8 @@ Features:
 - Cypress 82C693 USB controller       
 - Cypress 82C693 PCI-ISA bridge       
 - Cypress 82C693 controller 
-- expansion: 2 independent PCI buses (called hoses)
+- expansion: 2 independent PCI buses, driven by high-speed I/O
+	     channels called 'hoses':
         hose 0: (the upper 3 slots)
              2 64-bit PCI slots    
              1 32-bit PCI slot     
@@ -1077,12 +1082,13 @@ If you experience problems trying to use the USB interface please check if
 the SRM variable "usb_enable" is set to "on". You can change this by
 performing: "set usb_enable on" at the SRM >>> prompt.
 
-Expansion:
-Don't try to use NCR/Symbios-chip based SCSI adapters in the PCI slots
+Expansion caveats:
+- Don't try to use NCR/Symbios-chip based SCSI adapters in the PCI slots
 connected to hose 1. There is a not-yet-found FreeBSD bug that prevents this
-from working correctly. Not all VGA cards will work behind the PCI-PCI
-bridge (so in slots 4 & 5). Only cards that implement VGA-legacy adressing
-correctly will work. Workaround is to put the VGA card 'before' the bridge.
+from working correctly. 
+- Not all VGA cards will work behind the PCI-PCI bridge (so in slots 4 & 5). 
+Only cards that implement VGA-legacy adressing correctly will work. Workaround 
+is to put the VGA card 'before' the bridge.
 
 Sound:
 The sound chip is not currently supported with FreeBSD. There is work in
@@ -1109,7 +1115,8 @@ Features:
 	  max. 4Gb
 - 21271 Core Logic chip-set ("Tsunami") 
 - embedded Adaptec ? Wide Ultra SCSI 
-- expansion: 2 independent PCI buses (called hoses)
+- expansion: 2 independent PCI buses, driven by high-speed I/O
+             channels called 'hoses'
 	     6 64-bit PCI slots (3 per hose)
 	     1 ISA slot
 
@@ -1161,7 +1168,8 @@ Features:
 - embedded Adaptec AIC7890/91 Wide Ultra SCSI 
 - 2x embedded IDE based on Cypress 82C693 chips
 - embedded USB via Cypress 82C693
-- expansion: 2 independent PCI buses (called hoses)
+- expansion: 2 independent PCI buses driven by high-speed I/O
+             channels called 'hoses'
 	     6 64-bit PCI slots (3 per hose)
 	     1 ISA slot
 
