@@ -63,8 +63,8 @@ sn_isa_probe (device_t dev)
 	if (isa_get_logicalid(dev))		/* skip PnP probes */
 		return (ENXIO);
 	if (sn_probe(dev, 0) != 0)
-		return (0);
-	return (ENXIO);
+		return (ENXIO);
+	return (0);
 }
 
 static int
