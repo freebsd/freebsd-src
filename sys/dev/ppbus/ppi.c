@@ -173,6 +173,10 @@ ppi_attach(device_t dev)
 	/* declare our interrupt handler */
 	ppi->intr_resource = bus_alloc_resource(dev, SYS_RES_IRQ,
 						&zero, irq, irq, 1, RF_ACTIVE);
+	if (ppi->intr_resource == NULL) {
+		device_printf(dev, "can't allocate irq\n");
+		return (ENOMEM);
+	}
 
 	make_dev(&ppi_cdevsw, device_get_unit(dev),	/* XXX cleanup */
 		 UID_ROOT, GID_WHEEL,
