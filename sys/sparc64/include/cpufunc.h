@@ -61,14 +61,14 @@ struct thread;
 #define	StoreStore	MMASK_GEN(M_StoreStore)
 
 #define	casa(rs1, rs2, rd, asi) ({					\
-	u_int __rd = (u_int32_t)(rd);					\
+	u_int __rd = (uint32_t)(rd);					\
 	__asm __volatile("casa [%1] %2, %3, %0"				\
 	    : "+r" (__rd) : "r" (rs1), "n" (asi), "r" (rs2));		\
 	__rd;								\
 })
 
 #define	casxa(rs1, rs2, rd, asi) ({					\
-	u_long __rd = (u_int64_t)(rd);					\
+	u_long __rd = (uint64_t)(rd);					\
 	__asm __volatile("casxa [%1] %2, %3, %0"			\
 	    : "+r" (__rd) : "r" (rs1), "n" (asi), "r" (rs2));		\
 	__rd;								\
@@ -150,7 +150,7 @@ int fasword32(u_long asi, void *addr, uint32_t *val);
 } while (0)
 
 #define	rd(name) ({							\
-	u_int64_t __sr;							\
+	uint64_t __sr;							\
 	__asm __volatile("rd %%" #name ", %0" : "=r" (__sr) :);		\
 	__sr;								\
 })
@@ -161,7 +161,7 @@ int fasword32(u_long asi, void *addr, uint32_t *val);
 } while (0)
 
 #define	rdpr(name) ({							\
-	u_int64_t __pr;							\
+	uint64_t __pr;							\
 	__asm __volatile("rdpr %%" #name", %0" : "=r" (__pr) :);	\
 	__pr;								\
 })
