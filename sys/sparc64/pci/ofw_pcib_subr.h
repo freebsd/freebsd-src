@@ -35,10 +35,8 @@ struct ofw_pcib_gen_softc {
 	 * filled.
 	 */
 	struct pcib_softc	ops_pcib_sc;
-#ifdef OFW_NEWPCI
 	phandle_t		ops_node;
 	struct ofw_bus_iinfo	ops_iinfo;
-#endif
 };
 
 void ofw_pcib_gen_setup(device_t);

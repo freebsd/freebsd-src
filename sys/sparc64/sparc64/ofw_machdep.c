@@ -29,8 +29,6 @@
  * Some OpenFirmware helper functions that are likely machine dependent.
  */
 
-#include "opt_ofw_pci.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 
@@ -65,11 +63,7 @@ OF_getetheraddr2(device_t dev, u_char *addr)
 {
 	phandle_t node;
 
-#ifdef OFW_NEWPCI
 	node = ofw_pci_get_node(dev);
-#else
-	node = ofw_pci_node(dev);
-#endif
 	if (node <= 0)
 	       return (-1);
 	return (OF_getprop(node, "local-mac-address", addr, ETHER_ADDR_LEN));

@@ -46,8 +46,6 @@
  * there are machines with both ISA and EBus.
  */
 
-#include "opt_ofw_pci.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -59,7 +57,6 @@
 #include <sys/rman.h>
 
 #include <dev/ofw/openfirm.h>
-#include <dev/ofw/ofw_pci.h>
 
 #include <machine/ofw_bus.h>
 #include <machine/resource.h>
@@ -99,9 +96,7 @@ struct ebus_softc {
 	int			sc_nrange;
 	int			sc_nimap;
 
-#ifdef OFW_NEWPCI
 	struct ofw_bus_iinfo	sc_iinfo;
-#endif
 };
 
 static device_probe_t ebus_probe;
@@ -151,25 +146,13 @@ static devclass_t ebus_devclass;
 
 DRIVER_MODULE(ebus, pci, ebus_driver, ebus_devclass, 0, 0);
 
-static phandle_t
-ebus_get_busnode(device_t dev)
-{
-
-#ifdef OFW_NEWPCI
-	return (ofw_pci_get_node(dev));
-#else
-	return (ofw_pci_find_node(pci_get_bus(dev), pci_get_slot(dev),
-	    pci_get_function(dev)));
-#endif
-}
-
 static int
 ebus_probe(device_t dev)
 {
 	char name[10];
 	phandle_t node;
 
-	if ((node = ebus_get_busnode(dev)) == 0)
+	if ((node = ofw_pci_get_node(dev)) == 0)
 		return (ENXIO);
 
 	OF_getprop(node, "name", &name, sizeof(name));
@@ -200,7 +183,7 @@ ebus_attach(device_t dev)
 	int i, rnum, rid;
 
 	sc = device_get_softc(dev);
-	sc->sc_node = node = ebus_get_busnode(dev);
+	sc->sc_node = node = ofw_pci_get_node(dev);
 
 	sc->sc_nrange = OF_getprop_alloc(node, "ranges",
 	    sizeof(*sc->sc_range), (void **)&sc->sc_range);
@@ -239,9 +222,7 @@ ebus_attach(device_t dev)
 		}
 	}
 
-#ifdef OFW_NEWPCI
 	ofw_bus_setup_iinfo(node, &sc->sc_iinfo, sizeof(ofw_isa_intr_t));
-#endif
 
 	/*
 	 * Now attach our children.
@@ -490,17 +471,10 @@ ebus_setup_dinfo(device_t dev, struct ebus_softc *sc, phandle_t node,
 	nintr = OF_getprop_alloc(node, "interrupts",  sizeof(*intrs),
 	    (void **)&intrs);
 	for (i = 0; i < nintr; i++) {
-#ifdef OFW_NEWPCI
 		rintr = ofw_isa_route_intr(dev, node, &sc->sc_iinfo, intrs[i]);
-		if (rintr == PCI_INVALID_IRQ) {
-#else
-		rintr = ofw_bus_route_intr(node, intrs[i], ofw_pci_orb_callback,
-		    dev);
-		if (rintr == ORIR_NOTFOUND) {
-#endif
+		if (rintr == PCI_INVALID_IRQ)
 			panic("ebus_setup_dinfo: could not map ebus "
 			    "interrupt %d", intrs[i]);
-		}
 		resource_list_add(&edi->edi_rl, SYS_RES_IRQ, i,
 		    rintr, rintr, 1);
 	}

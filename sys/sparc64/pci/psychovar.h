@@ -67,9 +67,7 @@ struct psycho_softc {
 	struct resource			*sc_irq_res[6];
 	void				*sc_ihand[6];
 
-#ifdef OFW_NEWPCI
 	struct ofw_bus_iinfo		sc_iinfo;
-#endif
 
 	struct upa_ranges		*sc_range;
 	int				sc_nrange;
