@@ -1,14 +1,17 @@
 # $FreeBSD$
 
-PERL5SRC?= ${.CURDIR}/../../../../../contrib/perl5
-PERL5LIBSRC?= ${.CURDIR}/../../libperl
+PERL5SRC?=	${.CURDIR}/../../../../../contrib/perl5
+PERL5LIBSRC?=	${.CURDIR}/../../libperl
+MINIPERL=	${.OBJDIR}/../../miniperl/miniperl
 
 MODULEDIR?=	${MODULE}
 
 MAKEMAKER_ARGS=	INSTALLDIRS=perl PERL_SRC=${.OBJDIR} \
 		INSTALLMAN3DIR=${DESTDIR}/usr/share/perl/man3 \
-		PERL=miniperl FULLPERL=perl DEFINE=-I${DESTDIR}/usr/include \
+		PERL=${MINIPERL} FULLPERL=perl DEFINE=-I${DESTDIR}/usr/include \
 		DEFINE=-DPERL_CORE
+
+CFLAGS+=	-L${.OBJDIR}/../../libperl
 
 all:	lib/auto/${MODULE}.so
 
@@ -20,7 +23,7 @@ lib/auto/${MODULE}.so: ext/${MODULEDIR}/Makefile ${DYNALOADER}
 
 ext/${MODULEDIR}/Makefile: scripts
 	cd ext/${MODULEDIR}; \
-	miniperl -I${.OBJDIR}/lib Makefile.PL ${MAKEMAKER_ARGS} \
+	${MINIPERL} -I${.OBJDIR}/lib Makefile.PL ${MAKEMAKER_ARGS} \
 		LINKTYPE=dynamic LIBS="-lperl -lm" \
 		INST_LIB=${.OBJDIR}/build/${MODULEDIR} \
 		INST_ARCHLIB=${.OBJDIR}/build/${MODULEDIR}; \
