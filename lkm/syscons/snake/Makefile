@@ -1,6 +1,5 @@
-#	$Id: Makefile,v 1.1 1995/02/22 13:48:06 sos Exp $
+#	$Id: Makefile,v 1.2 1995/02/23 19:45:29 phk Exp $
 
-BINDIR=	/lkm
 KMOD=	snake_saver_mod
 SRCS= 	snake_saver.c
 

@@ -1,6 +1,5 @@
-#	$Id: Makefile,v 1.1 1995/02/22 13:47:10 sos Exp $
+#	$Id: Makefile,v 1.2 1995/02/23 19:45:28 phk Exp $
 
-BINDIR=	/lkm
 KMOD=	green_saver_mod
 SRCS= 	green_saver.c
 
