@@ -233,11 +233,17 @@ struct mac_policy_ops {
 		    struct label *mntlabel);
 	int	(*mpo_check_pipe_ioctl)(struct ucred *cred, struct pipe *pipe,
 		    struct label *pipelabel, unsigned long cmd, void *data); 
-	int	(*mpo_check_pipe_op)(struct ucred *cred, struct pipe *pipe,
-		    struct label *pipelabel, int op);
+	int	(*mpo_check_pipe_poll)(struct ucred *cred, struct pipe *pipe,
+		    struct label *pipelabel);
+	int	(*mpo_check_pipe_read)(struct ucred *cred, struct pipe *pipe,
+		    struct label *pipelabel);
 	int	(*mpo_check_pipe_relabel)(struct ucred *cred,
 		    struct pipe *pipe, struct label *pipelabel,
 		    struct label *newlabel);
+	int	(*mpo_check_pipe_stat)(struct ucred *cred, struct pipe *pipe,
+		    struct label *pipelabel);
+	int	(*mpo_check_pipe_write)(struct ucred *cred, struct pipe *pipe,
+		    struct label *pipelabel);
 	int	(*mpo_check_proc_debug)(struct ucred *cred,
 		    struct proc *proc);
 	int	(*mpo_check_proc_sched)(struct ucred *cred,
@@ -408,8 +414,11 @@ enum mac_op_constant {
 	MAC_CHECK_IFNET_TRANSMIT,
 	MAC_CHECK_MOUNT_STAT,
 	MAC_CHECK_PIPE_IOCTL,
-	MAC_CHECK_PIPE_OP,
+	MAC_CHECK_PIPE_POLL,
+	MAC_CHECK_PIPE_READ,
 	MAC_CHECK_PIPE_RELABEL,
+	MAC_CHECK_PIPE_STAT,
+	MAC_CHECK_PIPE_WRITE,
 	MAC_CHECK_PROC_DEBUG,
 	MAC_CHECK_PROC_SCHED,
 	MAC_CHECK_PROC_SIGNAL,
