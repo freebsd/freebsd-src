@@ -944,22 +944,6 @@ pmap_qenter(vm_offset_t sva, vm_page_t *m, int count)
 }
 
 /*
- * As above, but take an additional flags argument and call
- * pmap_kenter_flags().
- */
-void
-pmap_qenter_flags(vm_offset_t sva, vm_page_t *m, int count, u_long fl)
-{
-	vm_offset_t va;
-	int i;
-
-	va = sva;
-	for (i = 0; i < count; i++, va += PAGE_SIZE)
-		pmap_kenter_flags(va, VM_PAGE_TO_PHYS(m[i]), fl);
-	tlb_range_demap(kernel_pmap, sva, sva + (count * PAGE_SIZE) - 1);
-}
-
-/*
  * Remove page mappings from kernel virtual address space.  Intended for
  * temporary mappings entered by pmap_qenter.
  */
