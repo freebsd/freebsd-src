@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998, 1999 Kenneth D. Merry.
+ * Copyright (c) 1997, 1998, 1999, 2002 Kenneth D. Merry.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -289,16 +289,13 @@ cam_get_device(const char *path, char *dev_name, int devnamelen, int *unit)
 	 */
 	for (i = 0;i < (sizeof(devmatchtable)/sizeof(struct cam_devequiv));i++){
 		if (strcmp(tmpstr, devmatchtable[i].given_dev) == 0) {
-			strncpy(dev_name,devmatchtable[i].real_dev, devnamelen);
+			strlcpy(dev_name,devmatchtable[i].real_dev, devnamelen);
 			found = 1;
 			break;
 		}
 	}
 	if (found == 0)
-		strncpy(dev_name, tmpstr, devnamelen);
-
-	/* Make sure we pass back a null-terminated string */
-	dev_name[devnamelen - 1] = '\0';
+		strlcpy(dev_name, tmpstr, devnamelen);
 
 	/* Clean up allocated memory */
 	free(newpath);
@@ -322,7 +319,7 @@ cam_open_device(const char *path, int flags)
 	 * cam_get_device() has already put an error message in cam_errbuf,
 	 * so we don't need to.
 	 */
-	if (cam_get_device(path, dev_name, DEV_IDLEN + 1, &unit) == -1)
+	if (cam_get_device(path, dev_name, sizeof(dev_name), &unit) == -1)
 		return(NULL);
 
 	return(cam_lookup_pass(dev_name, unit, flags, path, NULL));
@@ -490,8 +487,7 @@ cam_lookup_pass(const char *dev_name, int unit, int flags,
 	ccb.ccb_h.func_code = XPT_GDEVLIST;
 
 	/* These two are necessary for the GETPASSTHRU ioctl to work. */
-	strncpy(ccb.cgdl.periph_name, dev_name, DEV_IDLEN - 1);
-	ccb.cgdl.periph_name[DEV_IDLEN - 1] = '\0';
+	strlcpy(ccb.cgdl.periph_name, dev_name, sizeof(ccb.cgdl.periph_name));
 	ccb.cgdl.unit_number = unit;
 
 	/*
@@ -552,7 +548,6 @@ cam_real_open_device(const char *path, int flags, struct cam_device *device,
 		     const char *given_path, const char *given_dev_name,
 		     int given_unit_number)
 {
-	char newpath[MAXPATHLEN+1];
 	char *func_name = "cam_real_open_device";
 	union ccb ccb;
 	int fd = -1, malloced_device = 0;
@@ -576,7 +571,8 @@ cam_real_open_device(const char *path, int flags, struct cam_device *device,
 	 * If the user passed in a path, save it for him.
 	 */
 	if (given_path != NULL)
-		strncpy(device->device_path, given_path, MAXPATHLEN + 1);
+		strlcpy(device->device_path, given_path,
+			sizeof(device->device_path));
 	else
 		device->device_path[0] = '\0';
 
@@ -585,7 +581,8 @@ cam_real_open_device(const char *path, int flags, struct cam_device *device,
 	 * those as well.
 	 */
 	if (given_dev_name != NULL)
-		strncpy(device->given_dev_name, given_dev_name, DEV_IDLEN);
+		strlcpy(device->given_dev_name, given_dev_name,
+			sizeof(device->given_dev_name));
 	else
 		device->given_dev_name[0] = '\0';
 	device->given_unit_number = given_unit_number;
@@ -637,7 +634,8 @@ cam_real_open_device(const char *path, int flags, struct cam_device *device,
 	}
 
 	device->dev_unit_num = ccb.cgdl.unit_number;
-	strcpy(device->device_name, ccb.cgdl.periph_name);
+	strlcpy(device->device_name, ccb.cgdl.periph_name,
+		sizeof(device->device_name));
 	device->path_id = ccb.ccb_h.path_id;
 	device->target_id = ccb.ccb_h.target_id;
 	device->target_lun = ccb.ccb_h.target_lun;
@@ -648,7 +646,7 @@ cam_real_open_device(const char *path, int flags, struct cam_device *device,
 			"%s: %s", func_name, func_name, strerror(errno));
 		goto crod_bailout;
 	}
-	strncpy(device->sim_name, ccb.cpi.dev_name, SIM_IDLEN);
+	strlcpy(device->sim_name, ccb.cpi.dev_name, sizeof(device->sim_name));
 	device->sim_unit_number = ccb.cpi.unit_number;
 	device->bus_id = ccb.cpi.bus_id;
 
