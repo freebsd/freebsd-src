@@ -3959,7 +3959,7 @@ vop_unlock_post(void *ap, int rc)
 static struct klist fs_klist = SLIST_HEAD_INITIALIZER(&fs_klist);
 
 void
-vfs_event_signal(fsid_t *fsid, u_int32_t event, void *data __unused)
+vfs_event_signal(fsid_t *fsid, u_int32_t event, intptr_t data __unused)
 {
 
 	KNOTE(&fs_klist, event);
