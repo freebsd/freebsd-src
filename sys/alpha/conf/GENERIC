@@ -1,14 +1,18 @@
 #
 # GENERIC -- Generic machine with WD/AHx/NCR/BTx family disks
 #
-# For more information read the handbook part System Administration -> 
-# Configuring the FreeBSD Kernel -> The Configuration File. 
-# The handbook is available in /usr/share/doc/handbook or online as
-# latest version from the FreeBSD World Wide Web server 
-# <URL:http://www.FreeBSD.ORG/>
+# For more information on this file, please read the handbook section on
+# Kernel Configuration Files:
 #
-# An exhaustive list of options and more detailed explanations of the 
-# device lines is present in the ./LINT configuration file. If you are 
+#    http://www.freebsd.org/handbook/kernelconfig-config.html
+#
+# The handbook is also available locally in /usr/share/doc/handbook
+# if you've installed the doc distribution, otherwise always see the
+# FreeBSD World Wide Web server (http://www.FreeBSD.ORG/) for the
+# latest information.
+#
+# An exhaustive list of options and more detailed explanations of the
+# device lines is also present in the ./LINT configuration file. If you are
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
 # $FreeBSD$
@@ -18,6 +22,8 @@ cpu		EV4
 cpu		EV5
 ident		GENERIC
 maxusers	32
+
+#makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 
 # Platforms supported
 options		DEC_AXPPCI_33		# UDB, Multia, AXPpci33, Noname
@@ -32,38 +38,31 @@ options		DEC_3000_500		# DEC3000/[4-9]00 Flamingo/Sandpiper family
 
 options		INET			#InterNETworking
 options		FFS			#Berkeley Fast Filesystem
-options		NFS			#Network Filesystem
+options		FFS_ROOT		#FFS usable as root device [keep this!]
 options		MFS			#Memory Filesystem
 options		MFS_ROOT		#Memory Filesystem as rootfs
+options		NFS			#Network Filesystem
+options		NFS_ROOT		#NFS usable as root device
 options		MSDOSFS			#MSDOS Filesystem
 options		CD9660			#ISO 9660 Filesystem
 options		CD9660_ROOT		#CD-ROM usable as root device
-options		FFS_ROOT		#FFS usable as root device [keep this!]
-options		NFS_ROOT		#NFS usable as root device
 options		PROCFS			#Process filesystem
 options		COMPAT_43		#Compatible with BSD 4.3 [KEEP THIS!]
 options		SCSI_DELAY=15000	#Be pessimistic about Joe SCSI device
 options		UCONSOLE		#Allow users to grab the console
+options		KTRACE			#ktrace(1) syscall trace support
+options         SYSVSHM			#SYSV-style shared memory
+options         SYSVMSG			#SYSV-style message queues
+options         SYSVSEM			#SYSV-style semaphores
 
 # Standard busses
-controller	pci0
 controller	isa0
+controller	pci0
 
-# A single entry for any of these controllers (ncr, ahb, ahc, amd) is
-# sufficient for any number of installed devices.
-controller	ncr0
-controller	isp0
-controller	ahc0
-#controller	esp0
+# Floppy drives
+controller	fdc0	at isa? port IO_FD1 irq 6 drq 2
+disk		fd0	at fdc0 drive 0
 
-controller	scbus0
-
-device		da0
-device		sa0
-device		pass0
-device		cd0
-
-#
 # ATA and ATAPI devices
 # This is work in progress, use at your own risk.
 # It currently reuses the majors of wd.c and friends.
@@ -76,12 +75,23 @@ device		cd0
 #device		atapifd0	# ATAPI floppy drives
 #device		atapist0	# ATAPI tape drives
 
-# real time clock
-device		mcclock0 at isa0 port 0x70
+# SCSI Controllers
+# A single entry for any of these controllers (ncr, ahb, ahc, amd) is
+# sufficient for any number of installed devices.
+controller	ncr0		# NCR/Symbios Logic
+controller	isp0		# Qlogic family
+controller	ahc0		# AHA2940 and onboard AIC7xxx devices
+#controller	esp0
 
-controller	fdc0	at isa? port IO_FD1 irq 6 drq 2
-disk		fd0	at fdc0 drive 0
+# SCSI peripherals
+# Only one of each of these is needed, they are dynamically allocated.
+controller	scbus0		# SCSI bus (required)
+device		da0		# Direct Access (disks)
+device		sa0		# Sequential Access (tape etc)
+device		cd0		# CD
+device		pass0		# Passthrough device (direct SCSI access)
 
+# atkbdc0 controls both the keyboard and the PS/2 mouse
 controller	atkbdc0	at isa? port IO_KBD
 device		atkbd0	at atkbdc? irq 1
 device		psm0	at atkbdc? irq 12
@@ -94,44 +104,53 @@ pseudo-device	splash
 # syscons is the default console driver, resembling an SCO console
 device		sc0	at isa?
 
+# real time clock
+device		mcclock0 at isa0 port 0x70
+
+# Serial (COM) ports
 device		sio0	at isa0 port IO_COM1 irq 4
 device		sio1	at isa0 port IO_COM2 irq 3 flags 0x50
 
-# MII bus support, required for some 10/100 NICs.
-controller miibus0
+# PCI Ethernet NICs.
+device		ax0		# ASIX AX88140A
+device		de0		# DEC/Intel DC21x4x (``Tulip'')
+device		fxp0		# Intel EtherExpress PRO/100B (82557, 82558)
+device		le0		# Lance
+device		mx0		# Macronix 98713/98715/98725 (``PMAC'')
 
-# Operational PCI Ethernet drivers.
-device al0
-device ax0
-device de0
-device dm0
-device fxp0
-device le0
-device mx0
-device pn0
-device rl0
-device sf0
-device sis0
-device ste0
-device tl0
-device vr0
-device wb0
-device xl0
+# PCI Ethernet NICs that use the common MII bus controller code.
+controller	miibus0		# MII bus support
+device		al0		# ADMtek AL981/AN985 (``Comet''/``Centaur'')
+device		dm0		# Davicom DM9100/DM9102
+device		pn0		# Lite-On 82c168/82c169 (``PNIC'')
+device		rl0		# RealTek 8129/8139
+device		sf0		# Adaptec AIC-6915 (``Starfire'')
+device		sis0		# Silicon Integrated Systems SiS 900/SiS 7016
+device		ste0		# Sundance ST201 (D-Link DFE-550TX)
+device		tl0		# Texas Instruments ThunderLAN
+device		vr0		# VIA Rhine, Rhine II
+device		wb0		# Winbond W89C840F
+device		xl0		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 
-pseudo-device	loop
-pseudo-device	ether
-pseudo-device	sl	1
-pseudo-device	ppp	1
-pseudo-device	tun
-pseudo-device	pty
+# Pseudo devices - the number indicates how many units to allocated.
+pseudo-device	loop		# Network loopback
+pseudo-device	ether		# Ethernet support
+pseudo-device	sl	1	# Kernel SLIP
+pseudo-device	ppp	1	# Kernel PPP
+pseudo-device	tun		# Packet tunnel.
+pseudo-device	pty		# Pseudo-ttys (telnet etc)
 
-# KTRACE enables the system-call tracing facility ktrace(2).
-# This adds 4 KB bloat to your kernel, and slightly increases
-# the costs of each syscall.
-options		KTRACE		#kernel tracing
+# The `bpf' pseudo-device enables the Berkeley Packet Filter.
+# Be aware of the administrative consequences of enabling this!
+pseudo-device	bpf		#Berkeley packet filter
 
-# This provides support for System V shared memory and message queues.
-#
-options         SYSVSHM
-options         SYSVMSG
-options         SYSVSEM
+# USB support
+#controller	uhci0		# UHCI PCI->USB interface
+#controller	ohci0		# OHCI PCI->USB interface
+#controller	usb0		# USB Bus (required)
+#device		ugen0		# Generic
+#device		uhid0		# "Human Interface Devices"
+#device		ukbd0		# Keyboard
+#device		ulpt0		# Printer
+#controller	umass0		# Disks/Mass storage - Requires scbus and da0
+#device		ums0		# Mouse
