@@ -94,7 +94,8 @@ option, the office location and office phone information is displayed
 instead of the name of the remote host.
 .It Fl g
 This option restricts the gecos output to only the users' real
-name. It also has the side-effect of restricting the output
+name.
+It also has the side-effect of restricting the output
 of the remote host when used in conjunction with the
 .Fl h
 option.
@@ -247,6 +248,8 @@ command appeared in
 .Bx 3.0 .
 .Sh BUGS
 The current FINGER protocol RFC requires that the client keep the connection
-fully open until the server closes.  This prevents the use of the optimal
-three-packet T/TCP exchange.  (Servers which depend on this requirement are
+fully open until the server closes.
+This prevents the use of the optimal
+three-packet T/TCP exchange.
+(Servers which depend on this requirement are
 bogus but have nonetheless been observed in the Internet at large.)

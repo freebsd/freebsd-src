@@ -109,7 +109,8 @@ has.
 .Pp
 Arguments containing white space or embedded shell metacharacters
 generally will not survive intact;  this looks easy to fix but
-isn't. People trying to fix
+isn't.
+People trying to fix
 .Nm
 or the example in this manpage should check the history of this file
 in
@@ -129,6 +130,7 @@ command to set the arguments without disrupting the value(s) of
 shell options varies from one shell version to another.
 .Pp
 Each shellscript has to carry complex code to parse arguments halfway
-correctly (like the example presented here). A better getopt-like tool
+correctly (like the example presented here).
+A better getopt-like tool
 would move much of the complexity into the tool and keep the client
 shell scripts simpler.

@@ -47,16 +47,20 @@
 .Sh DESCRIPTION
 The
 .Nm
-utility is designed to copy magnetic tapes.  The only assumption made
+utility is designed to copy magnetic tapes.
+The only assumption made
 about the tape is that there are two tape marks at the end.
 The
 .Nm
 utility with only a source tape
 .Pf ( Ar /dev/sa0
 by default) specified will print
-information about the sizes of records and tape files.  If a destination
-is specified a copy will be made of the source tape.  The blocking on the
-destination tape will be identical to that used on the source tape.  Copying
+information about the sizes of records and tape files.
+If a destination
+is specified a copy will be made of the source tape.
+The blocking on the
+destination tape will be identical to that used on the source tape.
+Copying
 a tape will yield the same output as if just printing the sizes.
 .Pp
 Options:

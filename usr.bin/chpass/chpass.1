@@ -163,7 +163,8 @@ Both of these fields should be unique across the system (and often
 across a group of systems) as they control file access.
 .Pp
 While it is possible to have multiple entries with identical login names
-and/or identical user id's, it is usually a mistake to do so.  Routines
+and/or identical user id's, it is usually a mistake to do so.
+Routines
 that manipulate these files will often return only one of the multiple
 entries, and that one by random selection.
 .Pp
@@ -447,7 +448,8 @@ When invoked by the super-user on the NIS master server,
 allows unrestricted changes to the NIS passwd maps using dedicated,
 non-RPC-based mechanism (in this case, a
 .Ux
-domain socket). The
+domain socket).
+The
 .Fl o
 flag can be used to force
 .Nm
