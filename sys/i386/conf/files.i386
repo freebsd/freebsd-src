@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.246 1999/06/01 18:18:38 jlemon Exp $
+#	$Id: files.i386,v 1.247 1999/06/18 19:55:50 green Exp $
 #
 # The long compile-with and dependency lines are required because of
 # limitations in config: backslash-newline doesn't work in strings, and
@@ -19,10 +19,10 @@ linux_assym.h			optional	compat_linux		   \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"linux_assym.h"
 #
-font8x16.o			optional	std8x16font		\
-	compile-with	"uudecode < /usr/share/syscons/fonts/${STD8X16FONT}-8x16.fnt && file2c 'unsigned char font_16[16*256] = {' '};' < ${STD8X16FONT}-8x16 > font8x16.c && ${CC} -c ${CFLAGS} font8x16.c" \
-	no-implicit-rule before-depend \
-	clean		"${STD8X16FONT}-8x16 font8x16.c" 
+font.h				optional	sc_dflt_font		\
+	compile-with	"uudecode < /usr/share/syscons/fonts/${SC_DFLT_FONT}-8x16.fnt && file2c 'static u_char dflt_font_16[16*256] = {' '};' < ${SC_DFLT_FONT}-8x16 > font.h && uudecode < /usr/share/syscons/fonts/${SC_DFLT_FONT}-8x14.fnt && file2c 'static u_char dflt_font_14[14*256] = {' '};' < ${SC_DFLT_FONT}-8x14 >> font.h && uudecode < /usr/share/syscons/fonts/${SC_DFLT_FONT}-8x8.fnt && file2c 'static u_char dflt_font_8[8*256] = {' '};' < ${SC_DFLT_FONT}-8x8 >> font.h" \
+	no-obj no-implicit-rule before-depend				\
+	clean		"font.h"
 #
 atkbdmap.h			optional	atkbd_dflt_keymap	\
 	compile-with	"kbdcontrol -L ${ATKBD_DFLT_KEYMAP} | sed -e 's/^static keymap_t.* = /static keymap_t key_map = /' -e 's/^static accentmap_t.* = /static accentmap_t accent_map = /' > atkbdmap.h"				\
@@ -44,14 +44,19 @@ dev/ata/atapi-tape.c		optional	atapist	device-driver
 dev/fb/fb.c			optional	fb	device-driver
 dev/fb/fb.c			optional	vga	device-driver
 dev/fb/splash.c			optional	splash
+dev/fb/vga.c			optional	vga	device-driver
 dev/kbd/atkbd.c			optional	atkbd	device-driver
 dev/kbd/atkbdc.c		optional	atkbdc	device-driver
 dev/kbd/kbd.c			optional	atkbd	device-driver
 dev/kbd/kbd.c			optional	kbd	device-driver
 dev/kbd/kbd.c			optional	ukbd	device-driver
 dev/syscons/syscons.c		optional	sc	device-driver
+dev/syscons/schistory.c		optional	sc	device-driver
+dev/syscons/scmouse.c		optional	sc	device-driver
 dev/syscons/scvidctl.c		optional	sc	device-driver
 dev/syscons/scvesactl.c		optional	sc	device-driver
+dev/syscons/scvgarndr.c		optional	sc	device-driver
+dev/syscons/scvtb.c		optional	sc	device-driver
 i386/apm/apm.c			optional	apm	device-driver
 i386/apm/apm_setup.s		optional	apm
 i386/eisa/dpt_eisa.c		optional	eisa dpt device-driver

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons.c	7.2 (Berkeley) 5/9/91
- *	$Id: cons.c,v 1.9 1999/05/31 11:23:35 phk Exp $
+ *	$Id: cons.c,v 1.10 1999/06/01 20:26:04 dt Exp $
  */
 
 #include "opt_devfs.h"
@@ -56,25 +56,6 @@
 
 #include <machine/cpu.h>
 #include <machine/cons.h>
-
-/* XXX this should be config(8)ed. */
-#if 0
-#include "sc.h"
-#include "vt.h"
-#include "sio.h"
-#endif
-static struct consdev constab[] = {
-#if NSC > 0
-	{ sccnprobe,	sccninit,	sccngetc,	sccncheckc,	sccnputc },
-#endif
-#if NVT > 0
-	{ pccnprobe,	pccninit,	pccngetc,	pccncheckc,	pccnputc },
-#endif
-#if NSIO > 0
-	{ siocnprobe,	siocninit,	siocngetc,	siocncheckc,	siocnputc },
-#endif
-	{ 0 },
-};
 
 static	d_open_t	cnopen;
 static	d_close_t	cnclose;
@@ -129,16 +110,22 @@ static struct tty *cn_tp;		/* physical console tty struct */
 static void *cn_devfs_token;		/* represents the devfs entry */
 #endif /* DEVFS */
 
+CONS_DRIVER(cons, NULL, NULL, NULL, NULL, NULL, NULL);
+
 void
 cninit()
 {
 	struct consdev *best_cp, *cp;
+	struct consdev **list;
 
 	/*
 	 * Find the first console with the highest priority.
 	 */
 	best_cp = NULL;
-	for (cp = constab; cp->cn_probe; cp++) {
+	list = (struct consdev **)cons_set.ls_items;
+	while ((cp = *list++) != NULL) {
+		if (cp->cn_probe == NULL)
+			continue;
 		(*cp->cn_probe)(cp);
 		if (cp->cn_pri > CN_DEAD &&
 		    (best_cp == NULL || cp->cn_pri > best_cp->cn_pri))
@@ -161,6 +148,8 @@ cninit()
 	 * If no console, give up.
 	 */
 	if (best_cp == NULL) {
+		if (cn_tab != NULL && cn_tab->cn_term != NULL)
+			(*cn_tab->cn_term)(cn_tab);
 		cn_tab = best_cp;
 		return;
 	}
@@ -168,10 +157,13 @@ cninit()
 	/*
 	 * Initialize console, then attach to it.  This ordering allows
 	 * debugging using the previous console, if any.
-	 * XXX if there was a previous console, then its driver should
-	 * be informed when we forget about it.
 	 */
 	(*best_cp->cn_init)(best_cp);
+	if (cn_tab != NULL && cn_tab != best_cp) {
+		/* Turn off the previous console.  */
+		if (cn_tab->cn_term != NULL)
+			(*cn_tab->cn_term)(cn_tab);
+	}
 	cn_tab = best_cp;
 }
 

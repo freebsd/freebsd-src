@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons.c	7.2 (Berkeley) 5/9/91
- *	$Id: cons.c,v 1.66 1999/05/30 16:52:03 phk Exp $
+ *	$Id: cons.c,v 1.67 1999/05/31 11:25:41 phk Exp $
  */
 
 #include "opt_devfs.h"
@@ -109,19 +109,19 @@ static struct tty *cn_tp;		/* physical console tty struct */
 static void *cn_devfs_token;		/* represents the devfs entry */
 #endif /* DEVFS */
 
-CONS_DRIVER(cons, NULL, NULL, NULL, NULL, NULL);
+CONS_DRIVER(cons, NULL, NULL, NULL, NULL, NULL, NULL);
 
 void
 cninit()
 {
 	struct consdev *best_cp, *cp;
-	struct consdev **list;
+	const struct consdev **list;
 
 	/*
 	 * Find the first console with the highest priority.
 	 */
 	best_cp = NULL;
-	list = (struct consdev **)cons_set.ls_items;
+	list = (const struct consdev **)cons_set.ls_items;
 	while ((cp = *list++) != NULL) {
 		if (cp->cn_probe == NULL)
 			continue;
@@ -147,6 +147,8 @@ cninit()
 	 * If no console, give up.
 	 */
 	if (best_cp == NULL) {
+		if (cn_tab != NULL && cn_tab->cn_term != NULL)
+			(*cn_tab->cn_term)(cn_tab);
 		cn_tab = best_cp;
 		return;
 	}
@@ -154,10 +156,13 @@ cninit()
 	/*
 	 * Initialize console, then attach to it.  This ordering allows
 	 * debugging using the previous console, if any.
-	 * XXX if there was a previous console, then its driver should
-	 * be informed when we forget about it.
 	 */
 	(*best_cp->cn_init)(best_cp);
+	if (cn_tab != NULL && cn_tab != best_cp) {
+		/* Turn off the previous console.  */
+		if (cn_tab->cn_term != NULL)
+			(*cn_tab->cn_term)(cn_tab);
+	}
 	cn_tab = best_cp;
 }
 

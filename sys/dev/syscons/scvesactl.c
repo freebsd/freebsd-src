@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: scvesactl.c,v 1.9 1999/01/11 03:18:26 yokota Exp $
+ * $Id: scvesactl.c,v 1.10 1999/06/01 18:17:31 jlemon Exp $
  */
 
 #include "sc.h"
@@ -44,7 +44,6 @@
 #include <sys/tty.h>
 #include <sys/kernel.h>
 
-#include <machine/apm_bios.h>
 #include <machine/console.h>
 #include <machine/pc/vesa.h>
 
@@ -71,7 +70,7 @@ vesa_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	case SW_TEXT_132x25: case SW_TEXT_132x30:
 	case SW_TEXT_132x43: case SW_TEXT_132x50:
 	case SW_TEXT_132x60:
-		if (!(scp->adp->va_flags & V_ADP_MODECHANGE))
+		if (!(scp->sc->adp->va_flags & V_ADP_MODECHANGE))
 			return ENODEV;
 		return sc_set_text_mode(scp, tp, cmd & 0xff, 0, 0, 0);
 
@@ -81,7 +80,7 @@ vesa_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	case SW_VESA_C132x43:
 	case SW_VESA_C132x50:
 	case SW_VESA_C132x60:
-		if (!(scp->adp->va_flags & V_ADP_MODECHANGE))
+		if (!(scp->sc->adp->va_flags & V_ADP_MODECHANGE))
 			return ENODEV;
 		mode = (cmd & 0xff) + M_VESA_BASE;
 		return sc_set_text_mode(scp, tp, mode, 0, 0, 0);
@@ -107,7 +106,7 @@ vesa_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	case SW_VESA_1280x1024:	case SW_VESA_CG1280x1024:
 	case SW_VESA_32K_1280:	case SW_VESA_64K_1280:
 	case SW_VESA_FULL_1280:
-		if (!(scp->adp->va_flags & V_ADP_MODECHANGE))
+		if (!(scp->sc->adp->va_flags & V_ADP_MODECHANGE))
 			return ENODEV;
 		mode = (cmd & 0xff) + M_VESA_BASE;
 		return sc_set_graphics_mode(scp, tp, mode);

@@ -93,6 +93,7 @@ static void *pcvt_devfs_token[MAXCONS];
 #endif /*DEVFS*/
 
 #if PCVT_FREEBSD >= 200
+#include <sys/bus.h>
 #include <machine/stdarg.h>
 #else
 #include "machine/stdarg.h"
@@ -121,7 +122,7 @@ static cn_getc_t	pccngetc;
 static cn_checkc_t	pccncheckc;
 static cn_putc_t	pccnputc;
 
-CONS_DRIVER(pc, pccnprobe, pccninit, pccngetc, pccncheckc, pccnputc);
+CONS_DRIVER(pc, pccnprobe, pccninit, NULL, pccngetc, pccncheckc, pccnputc);
 
 static	d_open_t	pcopen;
 static	d_close_t	pcclose;
@@ -1177,6 +1178,12 @@ pccnprobe(struct consdev *cp)
 {
 	static int uarg = 0;
 	int i;
+
+	/* See if this driver is disabled in probe hint. */ 
+	if (resource_int_value("vt", 0, "disabled", &i) == 0 && i) {
+		cp->cn_pri = CN_DEAD;
+		return;
+	}
 
 #ifdef _DEV_KBD_KBDREG_H_
 	/*

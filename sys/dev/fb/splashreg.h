@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: splashreg.h,v 1.1 1999/01/09 02:44:49 yokota Exp $
+ * $Id: splashreg.h,v 1.2 1999/01/11 03:06:28 yokota Exp $
  */
 
 #ifndef _DEV_FB_SPLASHREG_H_
@@ -91,7 +91,8 @@ int	splash_register(splash_decoder_t *decoder);
 int	splash_unregister(splash_decoder_t *decoder);
 
 /* entry points for the console driver */
-int	splash_init(video_adapter_t *adp, int (*callback)(int));
+int	splash_init(video_adapter_t *adp, int (*callback)(int, void *),
+		    void *arg);
 int	splash_term(video_adapter_t *adp);
 int	splash(video_adapter_t *adp, int on);
 

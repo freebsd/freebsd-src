@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sio.c,v 1.248 1999/06/19 08:14:56 grog Exp $
+ *	$Id: sio.c,v 1.249 1999/06/20 13:10:09 peter Exp $
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
  *	from: i386/isa sio.c,v 1.234
  */
@@ -2656,7 +2656,7 @@ static cn_checkc_t siocncheckc;
 static cn_getc_t siocngetc;
 static cn_putc_t siocnputc;
 
-CONS_DRIVER(sio, siocnprobe, siocninit, siocngetc, siocncheckc, siocnputc);
+CONS_DRIVER(sio, siocnprobe, siocninit, NULL, siocngetc, siocncheckc, siocnputc);
 
 /* To get the GDB related variables */
 #if DDB > 0
@@ -2855,7 +2855,6 @@ siocnprobe(cp)
 				cp->cn_pri = COM_FORCECONSOLE(flags)
 					     || boothowto & RB_SERIAL
 					     ? CN_REMOTE : CN_NORMAL;
-				printf("sio%d: system console\n", unit);
 				siocniobase = iobase;
 				siocnunit = unit;
 			}
@@ -2897,10 +2896,7 @@ siocnprobe(cp)
 
 #ifdef __alpha__
 
-struct consdev siocons = {
-	NULL, NULL, siocngetc, siocncheckc, siocnputc,
-	NULL, 0, CN_NORMAL,
-};
+CONS_DRIVER(sio, NULL, NULL, NULL, siocngetc, siocncheckc, siocnputc);
 
 extern struct consdev *cn_tab;
 
@@ -2915,6 +2911,8 @@ siocnattach(port, speed)
 
 	siocniobase = port;
 	comdefaultrate = speed;
+	sio_consdev.cn_pri = CN_NORMAL;
+	sio_consdev.cn_dev = makedev(CDEV_MAJOR, 0);
 
 	s = spltty();
 
@@ -2938,8 +2936,7 @@ siocnattach(port, speed)
 	siocnopen(&sp, siocniobase, comdefaultrate);
 	splx(s);
 
-	siocons.cn_dev = makedev(CDEV_MAJOR, 0);
-	cn_tab = &siocons;
+	cn_tab = &sio_consdev;
 	return 0;
 }
 

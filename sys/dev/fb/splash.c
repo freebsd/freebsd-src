@@ -35,8 +35,7 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/linker.h>
-
-#include <machine/console.h>
+#include <sys/fbio.h>
 
 #include <dev/fb/fbreg.h>
 #include <dev/fb/splashreg.h>
@@ -51,7 +50,8 @@ static splash_decoder_t **decoder_set;
 #define DECODER_ARRAY_DELTA 4
 
 /* console driver callback */
-static int		(*splash_callback)(int);
+static int		(*splash_callback)(int, void *);
+static void		*splash_arg;
 
 static int
 splash_find_data(splash_decoder_t *decoder)
@@ -98,7 +98,7 @@ splash_new(splash_decoder_t *decoder)
 {
 	splash_decoder = decoder;
 	if (splash_callback != NULL)
-		(*splash_callback)(SPLASH_INIT);
+		(*splash_callback)(SPLASH_INIT, splash_arg);
 }
 
 int
@@ -159,12 +159,13 @@ splash_unregister(splash_decoder_t *decoder)
 }
 
 int
-splash_init(video_adapter_t *adp, int (*callback)(int))
+splash_init(video_adapter_t *adp, int (*callback)(int, void *), void *arg)
 {
 	int i;
 
 	splash_adp = adp;
 	splash_callback = callback;
+	splash_arg = arg;
 
 	splash_decoder = NULL;
 	for (i = 0; i < decoders; ++i) {
@@ -187,9 +188,11 @@ splash_term(video_adapter_t *adp)
 {
 	int error = 0;
 
+	if (splash_adp != adp)
+		return EINVAL;
 	if (splash_decoder != NULL) {
 		if (splash_callback != NULL)
-			error = (*splash_callback)(SPLASH_TERM);
+			error = (*splash_callback)(SPLASH_TERM, splash_arg);
 		if (error == 0)
 			error = (*splash_decoder->term)(adp);
 		if (error == 0)

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: daemon_saver.c,v 1.14 1999/01/17 14:25:08 yokota Exp $
+ *	$Id: daemon_saver.c,v 1.15 1999/02/05 12:40:15 des Exp $
  */
 
 #include <sys/param.h>
@@ -34,21 +34,20 @@
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
+#include <sys/consio.h>
+#include <sys/fbio.h>
 
-#include <machine/md_var.h>
 #include <machine/pc/display.h>
 
-#include <saver.h>
-
-#define CONSOLE_VECT(x, y) \
-	(window + (y)*cur_console->xsize + (x))
+#include <dev/fb/fbreg.h>
+#include <dev/fb/splashreg.h>
+#include <dev/syscons/syscons.h>
 
 #define DAEMON_MAX_WIDTH	32
 #define DAEMON_MAX_HEIGHT	19
 
 static char *message;
 static int messagelen;
-static u_short *window;
 static int blanked;
 
 /* Who is the author of this ASCII pic? */
@@ -119,20 +118,23 @@ xflip_symbol(char symbol)
 }
 
 static void
-clear_daemon(int xpos, int ypos, int dxdir, int xoff, int yoff, 
+clear_daemon(sc_softc_t *sc, int xpos, int ypos, int dxdir, int xoff, int yoff, 
 	    int xlen, int ylen)
 {
 	int y;
 
 	if (xlen <= 0)
 		return;
-	for (y = yoff; y < ylen; y++)
-		fillw(((FG_LIGHTGREY|BG_BLACK) << 8) | scr_map[0x20], 
-		      CONSOLE_VECT(xpos + xoff, ypos + y), xlen - xoff);
+	for (y = yoff; y < ylen; y++) {
+		sc_vtb_erase(&sc->cur_scp->scr,
+			     (ypos + y)*sc->cur_scp->xsize + xpos + xoff,
+			     xlen - xoff,
+			     sc->scr_map[0x20], (FG_LIGHTGREY | BG_BLACK) << 8);
+	}
 }
 
 static void
-draw_daemon(int xpos, int ypos, int dxdir, int xoff, int yoff, 
+draw_daemon(sc_softc_t *sc, int xpos, int ypos, int dxdir, int xoff, int yoff, 
 	    int xlen, int ylen)
 {
 	int x, y;
@@ -148,41 +150,60 @@ draw_daemon(int xpos, int ypos, int dxdir, int xoff, int yoff,
 			continue;
 		for (x = xoff; (x < xlen) && (daemon_pic[y][px] != '\0'); x++, px++) {
 			switch (daemon_attr[y][px]) {
+#ifndef PC98
 			case 'R': attr = (FG_LIGHTRED|BG_BLACK)<<8; break;
 			case 'Y': attr = (FG_YELLOW|BG_BLACK)<<8; break;
 			case 'B': attr = (FG_LIGHTBLUE|BG_BLACK)<<8; break;
 			case 'W': attr = (FG_LIGHTGREY|BG_BLACK)<<8; break;
 			case 'C': attr = (FG_CYAN|BG_BLACK)<<8; break;
 			default: attr = (FG_WHITE|BG_BLACK)<<8; break;
+#else /* PC98 */
+			case 'R': attr = (FG_RED|BG_BLACK)<<8; break;
+			case 'Y': attr = (FG_BROWN|BG_BLACK)<<8; break;
+			case 'B': attr = (FG_BLUE|BG_BLACK)<<8; break;
+			case 'W': attr = (FG_LIGHTGREY|BG_BLACK)<<8; break;
+			case 'C': attr = (FG_CYAN|BG_BLACK)<<8; break;
+			default: attr = (FG_LIGHTGREY|BG_BLACK)<<8; break;
+#endif /* PC98 */
 			}
 			if (dxdir < 0) {	/* Moving left */
-				*CONSOLE_VECT(xpos + x, ypos + y) =
-					scr_map[daemon_pic[y][px]]|attr;
+				sc_vtb_putc(&sc->cur_scp->scr,
+					    (ypos + y)*sc->cur_scp->xsize
+						 + xpos + x,
+					    sc->scr_map[daemon_pic[y][px]],
+					    attr);
 			} else {		/* Moving right */
-				*CONSOLE_VECT(xpos + DAEMON_MAX_WIDTH - px - 1, ypos + y) =
-					scr_map[xflip_symbol(daemon_pic[y][px])]|attr;
+				sc_vtb_putc(&sc->cur_scp->scr,
+					    (ypos + y)*sc->cur_scp->xsize
+						+ xpos + DAEMON_MAX_WIDTH 
+						- px - 1,
+					    sc->scr_map[xflip_symbol(daemon_pic[y][px])], 
+					    attr);
 			}
 		}
 	}
 }
 
 static void
-clear_string(int xpos, int ypos, int xoff, char *s, int len)
+clear_string(sc_softc_t *sc, int xpos, int ypos, int xoff, char *s, int len)
 {
 	if (len <= 0)
 		return;
-	fillw(((FG_LIGHTGREY|BG_BLACK) << 8) | scr_map[0x20], 
-	      CONSOLE_VECT(xpos + xoff, ypos), len - xoff);
+	sc_vtb_erase(&sc->cur_scp->scr,
+		     ypos*sc->cur_scp->xsize + xpos + xoff, len - xoff,
+		     sc->scr_map[0x20], (FG_LIGHTGREY | BG_BLACK) << 8);
 }
 
 static void
-draw_string(int xpos, int ypos, int xoff, char *s, int len)
+draw_string(sc_softc_t *sc, int xpos, int ypos, int xoff, char *s, int len)
 {
 	int x;
 
-	for (x = xoff; x < len; x++)
-		*CONSOLE_VECT(xpos + x, ypos) =
-			scr_map[s[x]]|(FG_LIGHTGREEN|BG_BLACK)<<8;
+	for (x = xoff; x < len; x++) {
+		sc_vtb_putc(&sc->cur_scp->scr,
+			    ypos*sc->cur_scp->xsize + xpos + x,
+			    sc->scr_map[s[x]], (FG_LIGHTGREEN | BG_BLACK) << 8);
+	}
 }
 
 static int
@@ -195,17 +216,30 @@ daemon_saver(video_adapter_t *adp, int blank)
 	static int moved_daemon = 0;
 	static int xoff, yoff, toff;
 	static int xlen, ylen, tlen;
-	scr_stat *scp = cur_console;
+	sc_softc_t *sc;
+	scr_stat *scp;
 	int min, max;
+
+	sc = sc_find_softc(adp, NULL);
+	if (sc == NULL)
+		return EAGAIN;
+	scp = sc->cur_scp;
 
 	if (blank) {
 		if (adp->va_info.vi_flags & V_INFO_GRAPHICS)
 			return EAGAIN;
 		if (blanked == 0) {
-			window = (u_short *)adp->va_window;
+#ifdef PC98
+			if (epson_machine_id == 0x20) {
+				outb(0x43f, 0x42);
+				outb(0x0c17, inb(0xc17) & ~0x08);
+				outb(0x43f, 0x40);
+			}
+#endif /* PC98 */
 			/* clear the screen and set the border color */
-			fillw(((FG_LIGHTGREY|BG_BLACK) << 8) | scr_map[0x20],
-			      window, scp->xsize * scp->ysize);
+			sc_vtb_clear(&scp->scr, sc->scr_map[0x20],
+				     (FG_LIGHTGREY | BG_BLACK) << 8);
+			(*vidsw[adp->va_index]->set_hw_cursor)(adp, -1, -1);
 			set_border(scp, 0);
 			xlen = ylen = tlen = 0;
 		}
@@ -213,8 +247,8 @@ daemon_saver(video_adapter_t *adp, int blank)
 			return 0;
 		blanked = 1;
 
- 		clear_daemon(dxpos, dypos, dxdir, xoff, yoff, xlen, ylen);
-		clear_string(txpos, typos, toff, (char *)message, tlen);
+ 		clear_daemon(sc, dxpos, dypos, dxdir, xoff, yoff, xlen, ylen);
+		clear_string(sc, txpos, typos, toff, (char *)message, tlen);
 
 		if (++moved_daemon) {
 			/*
@@ -319,9 +353,16 @@ daemon_saver(video_adapter_t *adp, int blank)
 		else if (txpos + tlen > scp->xsize)
 			tlen = scp->xsize - txpos;
 
- 		draw_daemon(dxpos, dypos, dxdir, xoff, yoff, xlen, ylen);
-		draw_string(txpos, typos, toff, (char *)message, tlen);
+ 		draw_daemon(sc, dxpos, dypos, dxdir, xoff, yoff, xlen, ylen);
+		draw_string(sc, txpos, typos, toff, (char *)message, tlen);
 	} else {
+#ifdef PC98
+		if (epson_machine_id == 0x20) {
+			outb(0x43f, 0x42);
+			outb(0x0c17, inb(0xc17) | 0x08);
+			outb(0x43f, 0x40);
+		}
+#endif /* PC98 */
 		blanked = 0;
 	}
 	return 0;
