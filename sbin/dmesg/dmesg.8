@@ -40,6 +40,7 @@
 .Nd "display the system message buffer"
 .Sh SYNOPSIS
 .Nm
+.Op Fl a
 .Op Fl M Ar core
 .Op Fl N Ar system
 .Sh DESCRIPTION
@@ -48,6 +49,11 @@ displays the contents of the system message buffer.
 .Pp
 The options are as follows:
 .Bl -tag -width indent
+.It Fl a
+Show all data in the message buffer.  This includes any syslog records
+and
+.Pa /dev/console
+output.
 .It Fl M
 Extract values associated with the name list from the specified core
 instead of the default
