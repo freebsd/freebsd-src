@@ -89,6 +89,9 @@
 #   define malloc_minsize		16U
 #endif /* __FOOCPU__ && __BAROS__ */
 
+#ifndef ZEROSIZEPTR
+#define ZEROSIZEPTR	((void *)(1 << (malloc_pageshift - 1)))
+#endif
 
 /*
  * No user serviceable parts behind this point.
@@ -1091,6 +1094,8 @@ malloc(size_t size)
 	malloc_init();
     if (malloc_sysv && !size)
 	r = 0;
+    else if (!size)
+	r = ZEROSIZEPTR;
     else
 	r = imalloc(size);
     UTRACE(0, size, r);
@@ -1110,10 +1115,10 @@ free(void *ptr)
 	wrtwarning("recursive call\n");
 	malloc_active--;
 	return;
-    } else {
-	ifree(ptr);
-	UTRACE(ptr, 0, 0);
     }
+    if (ptr != ZEROSIZEPTR)
+	    ifree(ptr);
+    UTRACE(ptr, 0, 0);
     malloc_active--;
     THREAD_UNLOCK();
     return;
@@ -1137,9 +1142,14 @@ realloc(void *ptr, size_t size)
     }		
     if (!malloc_started)
 	malloc_init();
+    if (ptr == ZEROSIZEPTR)
+	ptr = NULL;
     if (malloc_sysv && !size) {
 	ifree(ptr);
 	r = 0;
+    } else if (!size) {
+	ifree(ptr);
+	r = ZEROSIZEPTR;
     } else if (!ptr) {
 	r = imalloc(size);
     } else {
