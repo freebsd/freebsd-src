@@ -39,7 +39,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aic7xxx_pci.c#68 $
+ * $Id: //depot/aic7xxx/aic7xxx/aic7xxx_pci.c#69 $
  *
  * $FreeBSD$
  */
@@ -1289,6 +1289,14 @@ ahc_pci_test_register_access(struct ahc_softc *ahc)
 	ahc_outb(ahc, HCNTRL, hcntrl|PAUSE);
 	while (ahc_is_paused(ahc) == 0)
 		;
+
+	/* Clear any PCI errors that occurred before our driver attached. */
+	status1 = ahc_pci_read_config(ahc->dev_softc,
+				      PCIR_STATUS + 1, /*bytes*/1);
+	ahc_pci_write_config(ahc->dev_softc, PCIR_STATUS + 1,
+			     status1, /*bytes*/1);
+	ahc_outb(ahc, CLRINT, CLRPARERR);
+
 	ahc_outb(ahc, SEQCTL, PERRORDIS);
 	ahc_outb(ahc, SCBPTR, 0);
 	ahc_outl(ahc, SCB_BASE, 0x5aa555aa);

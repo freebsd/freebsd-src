@@ -38,7 +38,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aic79xx_pci.c#74 $
+ * $Id: //depot/aic7xxx/aic7xxx/aic79xx_pci.c#75 $
  *
  * $FreeBSD$
  */
@@ -418,9 +418,11 @@ ahd_pci_config(struct ahd_softc *ahd, struct ahd_pci_identity *entry)
 int
 ahd_pci_test_register_access(struct ahd_softc *ahd)
 {
-	uint32_t	cmd;
-	int		error;
-	uint8_t		hcntrl;
+	uint32_t cmd;
+	u_int	 targpcistat;
+	u_int	 pci_status1;
+	int	 error;
+	uint8_t	 hcntrl;
 
 	error = EIO;
 
@@ -454,6 +456,18 @@ ahd_pci_test_register_access(struct ahd_softc *ahd)
 	ahd_outb(ahd, HCNTRL, hcntrl|PAUSE);
 	while (ahd_is_paused(ahd) == 0)
 		;
+
+	/* Clear any PCI errors that occurred before our driver attached. */
+	ahd_set_modes(ahd, AHD_MODE_CFG, AHD_MODE_CFG);
+	targpcistat = ahd_inb(ahd, TARGPCISTAT);
+	ahd_outb(ahd, TARGPCISTAT, targpcistat);
+	pci_status1 = ahd_pci_read_config(ahd->dev_softc,
+					  PCIR_STATUS + 1, /*bytes*/1);
+	ahd_pci_write_config(ahd->dev_softc, PCIR_STATUS + 1,
+			     pci_status1, /*bytes*/1);
+	ahd_set_modes(ahd, AHD_MODE_SCSI, AHD_MODE_SCSI);
+	ahd_outb(ahd, CLRINT, CLRPCIINT);
+
 	ahd_outb(ahd, SEQCTL0, PERRORDIS);
 	ahd_outl(ahd, SRAM_BASE, 0x5aa555aa);
 	if (ahd_inl(ahd, SRAM_BASE) != 0x5aa555aa)
@@ -472,8 +486,6 @@ ahd_pci_test_register_access(struct ahd_softc *ahd)
 
 fail:
 	if ((ahd_inb(ahd, INTSTAT) & PCIINT) != 0) {
-		u_int targpcistat;
-		u_int pci_status1;
 
 		ahd_set_modes(ahd, AHD_MODE_CFG, AHD_MODE_CFG);
 		targpcistat = ahd_inb(ahd, TARGPCISTAT);
@@ -486,7 +498,6 @@ fail:
 				     pci_status1, /*bytes*/1);
 		ahd_outb(ahd, CLRINT, CLRPCIINT);
 	}
-
 	ahd_outb(ahd, SEQCTL0, PERRORDIS|FAILDIS);
 	ahd_pci_write_config(ahd->dev_softc, PCIR_COMMAND, cmd, /*bytes*/2);
 	return (error);
