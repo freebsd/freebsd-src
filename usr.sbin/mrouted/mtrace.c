@@ -100,7 +100,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "$Id: mtrace.c,v 1.12 1997/09/30 06:15:16 charnier Exp $";
+    "$Id: mtrace.c,v 1.13 1998/01/16 07:17:44 charnier Exp $";
 #endif
 
 #include <ctype.h>
@@ -2654,8 +2654,10 @@ log(severity, syserr, format, va_alist)
 	case 2: if (severity > LOG_INFO  ) return;
 	default:
 	    fmt[0] = '\0';
-	    if (severity == LOG_WARNING) strcat(fmt, "warning - ");
-	    strncat(fmt, format, 80);
+	    if (severity == LOG_WARNING) 
+		strcpy(fmt, "warning - ");
+	    strncat(fmt, format, sizeof(fmt)-strlen(fmt));
+	    fmt[sizeof(fmt)-1]='\0';
 	    vfprintf(stderr, fmt, ap);
 	    if (syserr == 0)
 		fprintf(stderr, "\n");
