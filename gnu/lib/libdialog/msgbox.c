@@ -171,7 +171,7 @@ dialog_mesgbox(unsigned char *title, unsigned char *prompt, int height, int widt
     for (i = 0; i < width-2; i++)
     waddch(dialog, ' ');
     display_helpline(dialog, height-1, width);
-    print_button(dialog, " EXIT ", height-2, width/2-4, TRUE);
+    print_button(dialog, " CONTINUE ", height-2, width/2-8, TRUE);
     wattrset(dialog, dialog_attr);
 
     theight = height - 4;
@@ -180,7 +180,7 @@ dialog_mesgbox(unsigned char *title, unsigned char *prompt, int height, int widt
     max_lines = getnlines(prompt);
     print_page(dialog, theight, width, prompt, startline, hscroll);
     print_perc(dialog, height-3, width-9, (float) (startline+theight)/max_lines);
-    wmove(dialog, height-2, width/2-2);
+    wmove(dialog, height-2, width/2-6);
     wrefresh(dialog);
     while ((key != ESC) && (key != '\n') && (key != '\r')) {
 	key = wgetch(dialog);
