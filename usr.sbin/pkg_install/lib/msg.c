@@ -1,6 +1,6 @@
 #ifndef lint
 static const char rcsid[] =
-	"$Id: msg.c,v 1.6.2.1 1997/10/09 07:10:08 charnier Exp $";
+	"$Id: msg.c,v 1.6.2.2 1997/10/13 15:06:14 jkh Exp $";
 #endif
 
 /*
@@ -35,31 +35,6 @@ upchuck(const char *err)
     cleanup(0);
 }
 
-/* Die a more complex death */
-void
-barf(const char *err, ...)
-{
-    va_list args;
-
-    va_start(args, err);
-    vfprintf(stderr, err, args);
-    fputc('\n', stderr);
-    va_end(args);
-    cleanup(0);
-}
-
-/* Get annoyed about something but don't go to pieces over it */
-void
-whinge(const char *err, ...)
-{
-    va_list args;
-
-    va_start(args, err);
-    vfprintf(stderr, err, args);
-    fputc('\n', stderr);
-    va_end(args);
-}
-
 /*
  * As a yes/no question, prompting from the varargs string and using
  * default if user just hits return.
@@ -77,8 +52,10 @@ y_or_n(Boolean def, const char *msg, ...)
      * collected on stdin
      */
     tty = fopen("/dev/tty", "r");
-    if (!tty)
-	cleanup(0), errx(2, "can't open /dev/tty!");
+    if (!tty) {
+	warnx("can't open /dev/tty!");
+	cleanup(0);
+    }
     while (ch != 'Y' && ch != 'N') {
 	vfprintf(stderr, msg, args);
 	if (def)
