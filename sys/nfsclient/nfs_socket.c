@@ -156,7 +156,7 @@ int
 nfs_connect(struct nfsmount *nmp, struct nfsreq *rep)
 {
 	struct socket *so;
-	int s, error, rcvreserve, sndreserve;
+	int error, rcvreserve, sndreserve;
 	int pktscale;
 	struct sockaddr *saddr;
 	struct thread *td = &thread0; /* only used for socreate and sobind */
@@ -241,25 +241,25 @@ nfs_connect(struct nfsmount *nmp, struct nfsreq *rep)
 		 * connect system call but with the wait timing out so
 		 * that interruptible mounts don't hang here for a long time.
 		 */
-		s = splnet();
+		SOCK_LOCK(so);
 		while ((so->so_state & SS_ISCONNECTING) && so->so_error == 0) {
-			(void) tsleep(&so->so_timeo,
+			(void) msleep(&so->so_timeo, SOCK_MTX(so),
 			    PSOCK, "nfscon", 2 * hz);
 			if ((so->so_state & SS_ISCONNECTING) &&
 			    so->so_error == 0 && rep &&
 			    (error = nfs_sigintr(nmp, rep, rep->r_td)) != 0) {
 				so->so_state &= ~SS_ISCONNECTING;
-				splx(s);
+				SOCK_UNLOCK(so);
 				goto bad;
 			}
 		}
 		if (so->so_error) {
 			error = so->so_error;
 			so->so_error = 0;
-			splx(s);
+			SOCK_UNLOCK(so);
 			goto bad;
 		}
-		splx(s);
+		SOCK_UNLOCK(so);
 	}
 	so->so_rcv.sb_timeo = 5 * hz;
 	so->so_snd.sb_timeo = 5 * hz;
