@@ -572,7 +572,6 @@ ffs_mountfs(devvp, mp, td)
 	int32_t *lp;
 	struct ucred *cred;
 	size_t strsize;
-	int ncount;
 
 	dev = devvp->v_rdev;
 	cred = td ? td->td_ucred : NOCRED;
@@ -585,9 +584,7 @@ ffs_mountfs(devvp, mp, td)
 	error = vfs_mountedon(devvp);
 	if (error)
 		return (error);
-	ncount = vcount(devvp);
-
-	if (ncount > 1 && devvp != rootvp)
+	if (vcount(devvp) > 1 && devvp != rootvp)
 		return (EBUSY);
 	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
 	error = vinvalbuf(devvp, V_SAVE, cred, td, 0, 0);
@@ -998,9 +995,7 @@ ffs_unmount(mp, mntflags, td)
 #else
 	error = VOP_CLOSE(ump->um_devvp, FREAD | FWRITE, NOCRED, td);
 #endif
-
 	vrele(ump->um_devvp);
-
 	free(fs->fs_csp, M_UFSMNT);
 	free(fs, M_UFSMNT);
 	free(ump, M_UFSMNT);
