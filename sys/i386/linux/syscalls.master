@@ -1,4 +1,4 @@
-	$Id: syscalls.master,v 1.20 1999/08/14 18:19:00 marcel Exp $
+	$Id: syscalls.master,v 1.21 1999/08/15 17:25:56 marcel Exp $
 
 ;	@(#)syscalls.master	8.1 (Berkeley) 7/19/93
 ; System call name/number master file (or rather, slave, from LINUX).
@@ -271,4 +271,4 @@
 187	UNIMPL	LINUX	sendfile
 188	UNIMPL	LINUX	getpmsg
 189	UNIMPL	LINUX	putpmsg
-190	UNIMPL	LINUX	vfork
+190	STD	LINUX	{ int linux_vfork(void); }
