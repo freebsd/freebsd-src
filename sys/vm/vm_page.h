@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_page.h,v 1.66 1999/08/14 06:25:54 alc Exp $
+ * $Id: vm_page.h,v 1.67 1999/08/15 01:16:53 mjacob Exp $
  */
 
 /*
@@ -193,7 +193,7 @@ struct vm_page {
 
 #define PQ_L2_MASK (PQ_L2_SIZE - 1)
 
-#ifdef	__alpha__
+#if 1
 #define PQ_NONE 0
 #define PQ_FREE	1
 #define PQ_INACTIVE (1 + 1*PQ_L2_SIZE)
