@@ -29,29 +29,30 @@
 #ifndef _MACHINE_SF_BUF_H_
 #define _MACHINE_SF_BUF_H_
 
-#include <sys/queue.h>
-
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/vm_page.h>
 
-struct sf_buf {
-	SLIST_ENTRY(sf_buf) free_list;	/* list of free buffer slots */
-	vm_page_t m;			/* currently mapped page */
-};
+/*
+ * On this machine, the only purpose for which sf_buf is used is to implement
+ * an opaque pointer required by the machine-independent parts of the kernel.
+ * That pointer references the vm_page that is "mapped" by the sf_buf.  The
+ * actual mapping is provided by the direct virtual-to-physical mapping.  
+ */
+struct sf_buf;
 
 static __inline vm_offset_t
 sf_buf_kva(struct sf_buf *sf)
 {
 
-	return (ALPHA_PHYS_TO_K0SEG(sf->m->phys_addr));
+	return (ALPHA_PHYS_TO_K0SEG(VM_PAGE_TO_PHYS((vm_page_t)sf)));
 }
 
 static __inline vm_page_t
 sf_buf_page(struct sf_buf *sf)
 {
 
-	return (sf->m);
+	return ((vm_page_t)sf);
 }
 
 #endif /* !_MACHINE_SF_BUF_H_ */
