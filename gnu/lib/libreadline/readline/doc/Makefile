@@ -12,7 +12,7 @@ CLEANFILES += readline.texinfo
 
 readline.info: rlman.texinfo rltech.texinfo rluser.texinfo manvers.texinfo
 
-readline.texinfo:
+readline.texinfo: rlman.texinfo
 	cp ${SRCDIR}/rlman.texinfo ${.TARGET}
 
 rluserman.info: rluser.texinfo manvers.texinfo
