@@ -462,7 +462,7 @@ if_detach(ifp)
 	 * Clean up all addresses.
 	 */
 	ifaddr_byindex(ifp->if_index) = NULL;
-	destroy_dev(ifdev_byindex(ifp->if_index));
+	revoke_and_destroy_dev(ifdev_byindex(ifp->if_index));
 	ifdev_byindex(ifp->if_index) = NULL;
 
 	while (if_index > 0 && ifaddr_byindex(if_index) == NULL)
