@@ -38,6 +38,9 @@ sed	-e '/	pci$/d' \
 	-e '/	vr/d' \
 	-e '/	wb/d' \
 	-e '/	xl/d' \
+	-e '/	an$/d' \
+	-e '/	wi$/d' \
+	-e '/	awi$/d' \
 	-e '/pty/d' \
 	-e '/pass/d' \
 	-e '/	apm/d' \
@@ -48,7 +51,7 @@ sed	-e '/	pci$/d' \
 	-e '/splash/d' \
 	-e '/PROCFS/d' \
 	-e '/KTRACE/d' \
-	-e '/SYSV/d' \
+	-e '/SYSVMSG/d' \
 	-e '/SOFTUPDATES/d' \
 	-e '/UFS_DIRHASH/d' \
 	-e '/MFS/d' \
@@ -79,13 +82,16 @@ sed	-e '/pty/d' \
 	-e '/splash/d' \
 	-e '/PROCFS/d' \
 	-e '/KTRACE/d' \
-	-e '/SYSV/d' \
+	-e '/SYSVMSG/d' \
 	-e '/SOFTUPDATES/d' \
 	-e '/UFS_DIRHASH/d' \
 	-e '/MFS/d' \
 	-e '/NFS_ROOT/d' \
 	-e '/RANDOMDEV/d' \
 	-e '/	ncr/d' \
+	-e '/	an$/d' \
+	-e '/	wi$/d' \
+	-e '/	awi$/d' \
 	-e '/atapist/d' \
 	-e '/lpt/d' \
 	-e '/ppi/d' \
