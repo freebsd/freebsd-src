@@ -103,19 +103,19 @@ LINUX_IOCTL_SET(tdfx, LINUX_IOCTL_TDFX_MIN, LINUX_IOCTL_TDFX_MAX);
 
 /* Char. Dev. file operations structure */
 static struct cdevsw tdfx_cdev = {
-	tdfx_open,		/* open */
-	tdfx_close,		/* close */
-	noread,			/* read */
-	nowrite,			/* write */
-	tdfx_ioctl,		/* ioctl */
-	nopoll,			/* poll */
-	tdfx_mmap,		/* mmap */
-	nostrategy,		/* strategy */
-	"tdfx",			/* dev name */
-	CDEV_MAJOR, 	/* char major */
-	nodump,			/* dump */
-	nopsize,			/* size */
-	0,					/* flags (no set flags) */
+	/* open */	tdfx_open,
+	/* close */	tdfx_close,
+	/* read */	noread,
+	/* write */	nowrite,
+	/* ioctl */	tdfx_ioctl,
+	/* poll */	nopoll,
+	/* mmap */	tdfx_mmap,
+	/* strategy */	nostrategy,
+	/* name */	"tdfx",
+	/* maj */	CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	0,
 };
 
 static int
