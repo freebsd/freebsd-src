@@ -891,6 +891,9 @@ mi_switch()
 {
 	struct timeval new_switchtime;
 	register struct proc *p = curproc;	/* XXX */
+#if	0
+	struct rlimit *rlim;
+#endif
 	int x;
 
 	/*
@@ -946,7 +949,7 @@ mi_switch()
 	 */
 	if (p->p_stat != SZOMB && p->p_limit->p_cpulimit != RLIM_INFINITY &&
 	    p->p_runtime > p->p_limit->p_cpulimit) {
-		register struct rlimit *rlim = &p->p_rlimit[RLIMIT_CPU];
+		rlim = &p->p_rlimit[RLIMIT_CPU];
 		if (p->p_runtime / (rlim_t)1000000 >= rlim->rlim_max) {
 			killproc(p, "exceeded maximum CPU limit");
 		} else {
