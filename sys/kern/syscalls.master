@@ -599,6 +599,8 @@
 414	STD	BSD	{ int extattr_delete_link(const char *path, \
 			    int attrnamespace, const char *attrname); }
 415	UNIMPL	BSD	__execve_mac
+416	UNIMPL	BSD	newsigreturn
+417	UNIMPL	BSD	newsigaction
 
 ; Please copy any additions and changes to the following compatability tables:
 ; sys/ia64/ia32/syscalls.master  (take a best guess)
