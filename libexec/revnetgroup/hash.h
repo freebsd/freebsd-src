@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: hash.h,v 1.1.1.1 1995/10/26 16:25:29 wpaul Exp $
  */
 
 /* Groupname entry hung off a member_entry node. */
@@ -50,7 +50,6 @@ struct member_entry {
 struct group_entry {
 	char *key;
 	char *data;
-	struct grps *groups;
 	struct group_entry *next;
 };
 
