@@ -2220,6 +2220,12 @@ scsi_print_inquiry(struct scsi_inquiry_data *inq_data)
 	case T_ENCLOSURE:
 		dtype = "Enclosure Services";
 		break;
+	case T_RBC:
+		dtype = "Simplified Direct Access";
+		break;
+	case T_OCRW:
+		dtype = "Optical Card Read/Write";
+		break;
 	case T_NODEVICE:
 		dtype = "Uninstalled";
 	default:
