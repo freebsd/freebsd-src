@@ -86,7 +86,7 @@ ed
 program.
 .El
 .Pp
-.Nm
+.Nm Mkstr
 finds error messages in the source by
 searching for the string
 .Li \&`error("'
@@ -108,14 +108,12 @@ error(a1, a2, a3, a4)
 
 	if (efil < 0) {
 		efil = open(efilname, 0);
-		if (efil < 0) {
-oops:
-			perror(efilname);
-			exit 1 ;
-		}
+		if (efil < 0)
+			err(1, "%s", efilname);
 	}
-	if (lseek(efil, (long) a1, 0) \ read(efil, buf, 256) <= 0)
-		goto oops;
+	if (lseek(efil, (off_t)a1, SEEK_SET) < 0 ||
+	    read(efil, buf, 256) <= 0)
+		err(1, "%s", efilname);
 	printf(buf, a2, a3, a4);
 }
 .Ed
@@ -127,7 +125,7 @@ oops:
 appeared in
 .Bx 3.0 .
 .Sh BUGS
-.Nm
+.Nm Mkstr
 was intended for the limited architecture of the PDP 11 family.
 Very few programs actually use it.
 The Pascal interpreter,
