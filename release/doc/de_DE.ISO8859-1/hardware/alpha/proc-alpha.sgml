@@ -1,8 +1,8 @@
 <!--
   $FreeBSD$
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/alpha/proc-alpha.sgml,v 1.5 2002/03/12 01:26:09 ue Exp $
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/alpha/proc-alpha.sgml,v 1.4.2.2 2002/03/12 09:28:03 ue Exp $
   $Id: proc-alpha.sgml,v 1.18 2002/03/10 16:53:43 ue Exp $
-  basiert auf: 1.33
+  basiert auf: 1.13.2.17
 -->
 
 <sect1>
@@ -494,9 +494,7 @@
         wenn die folgende Zeile in der Konfigurationsdatei des Kernels
         steht:</para>
 
-      <programlisting>device ata</programlisting>
-
-      <para>Der IDE-Anschlu&szlig; nutzt IRQ 14</para>
+      <programlisting>device ata0 at isa? port IO_WD1 irq 14</programlisting>
 
       <para>Leider kann die SRM Konsole von der IDE-Festplatte
         <emphasis>nicht booten</emphasis>.  Sie brauchen daher eine
@@ -705,11 +703,7 @@ cpu     EV4</programlisting>
         in der Konfigurationsdatei f&uuml;r Ihren Kernel
         haben:</para>
 
-      <programlisting>device pcm</programlisting>
-
-      <para>Die Audio-Hardware nutzt Port 0x530, IRQ 9 und DRQ 3.  Sie
-        m&uuml;ssen in <filename>hints</filename> zus&auml;tzlich noch
-        <literal>flags 0x15</literal> angeben.</para>
+      <programlisting>device pcm0 at isa? port 0x530  irq 9 drq 3 flags 0x15</programlisting>
 
       <para>Bis jetzt hat es noch niemand geschafft, einer Multia mit
         einem AD1848 einen Ton zu entlocken..</para>
@@ -738,9 +732,7 @@ cpu     EV4</programlisting>
         Zeile in der Konfigurationsdatei Ihres
         angepa&szlig;ten Kernels:</para>
 
-      <programlisting>device ata</programlisting>
-
-      <para>Der IDE-Anschlu&szlig; nutzt IRQ 14</para>
+      <programlisting>device ata0 at isa? port IO_WD1 irq 14</programlisting>
 
       <para>Der IDE-Anschlu&szlig; ist f&uuml;r die 2.5&quot;
         Laptop-Festplatten ausgelegt.  Eine 3.5&quot; IDE-Festplatte
@@ -1028,8 +1020,8 @@ Jan  3 12:22:32 miata /kernel: pcib0: &lt;2117x PCI host bus adapter&gt; on cia0
         Konfigurationsdatei Ihres angepa&szlig;ten Kernels
         haben:</para>
 
-      <programlisting>device    pcm
-device  sbc</programlisting>
+      <programlisting>device    pcm0
+device  sbc0</programlisting>
 
       <para>Falls in Ihrer Miata eines der optionalen Cache Module
         steckt, sollten Sie sicherstellen, da&szlig; es fest
@@ -1943,11 +1935,7 @@ cpu             EV5</programlisting>
         wenn man die folgende Zeile in die Konfigurationsdatei
         f&uuml;r den angepa&szlig;ten Kernel einf&uuml;gt:</para>
 
-      <programlisting>device pcm</programlisting>
-
-      <para>Die Audio-Hardware nutzt Port 0x530, IRQ 9 und DRQ 3.  Sie
-        m&uuml;ssen in <filename>hints</filename> zus&auml;tzlich noch
-        <literal>flags 0x10011</literal> angeben.</para>
+      <programlisting>device pcm0 at isa? port 0x530 irq 9 drq 0 flags 0x10011</programlisting>
 
       <para>Die Modelle AlphaStation 200 und 250 verf&uuml;gen
         &uuml;ber einen automatischen SCSI-Terminator.  Sobald Sie

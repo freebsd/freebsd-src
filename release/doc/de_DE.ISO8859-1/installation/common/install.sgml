@@ -1,9 +1,9 @@
 <!--
 
 $FreeBSD$
-$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/installation/common/install.sgml,v 1.3 2002/03/12 17:24:25 ue Exp $
+$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/installation/common/install.sgml,v 1.2.2.2 2002/03/12 18:15:45 ue Exp $
 $Id: install.sgml,v 1.3 2002/03/10 15:37:17 ue Exp $
-basiert auf: 1.12
+basiert auf: 1.1.2.11
 
 install.sgml
 
@@ -83,12 +83,13 @@ from {alpha,i386}/INSTALL.TXT.
 
     <para arch="i386">Wenn Sie &os; auf einem &arch.print; System
       benutzen wollen, mu&szlig; das System mindestens &uuml;ber einen
-      386 Prozessor (es tut uns ja leid, aber die 286 CPU wird nicht
-      unterst&uuml;tzt) und mindestens 5 MByte RAM f&uuml;r die
-      Installation und 4 MByte RAM f&uuml;r den Betrieb verf&uuml;gen.
-      Sie brauchen mindestens 100 MByte freien Platz auf der
-      Festplatte f&uuml;r die Minimalinstallation.  Weiter unten
-      finden Sie Hinweise, wie Sie existierende Partitionen
+      386 Prozessor verf&uuml;gen.  Das Installationsprogramm
+      &man.sysinstall.8; ben&ouml;tigt 16 MByte; nach der Installation
+      l&auml;ft &os; mit einem entsprechenden Kernel mit 4&ndash;8
+      MByte RAM. Sie brauchen mindestens 100 MByte freien Platz auf
+      der Festplatte f&uuml;r die absolute Minimalinstallation;  ein
+      realistischerer Wert liegt bei 250&ndash;350 MByte.  Weiter
+      unten finden Sie Hinweise, wie Sie existierende Partitionen
       verkleinern k&ouml;nnen, um Platz f&uuml;r &os; zu
       schaffen.</para>
 

@@ -1,8 +1,8 @@
 <!--
   $FreeBSD$
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/i386/proc-i386.sgml,v 1.3 2002/03/12 15:36:48 ue Exp $
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/i386/proc-i386.sgml,v 1.2.2.2 2002/03/12 15:37:00 ue Exp $
   $Id: proc-i386.sgml,v 1.3 2002/03/10 15:37:15 ue Exp $
-  basiert auf: 1.2
+  basiert auf: 1.1.2.2
 -->
 
 <sect1>

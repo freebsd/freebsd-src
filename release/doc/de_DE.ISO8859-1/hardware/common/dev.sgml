@@ -28,9 +28,9 @@
 	this file to fix "missed" conversions are likely to break the
 	build.
 
-	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/common/dev.sgml,v 1.4 2002/03/12 15:33:52 ue Exp $
+	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/common/dev.sgml,v 1.3.2.2 2002/03/12 15:34:44 ue Exp $
 	$Id: dev.sgml,v 1.14 2002/03/10 17:09:14 ue Exp $
-	basiert auf: 1.76
+	basiert auf: 1.13.2.53
 -->
 
 <sect1>
@@ -55,7 +55,7 @@
   <sect2>
     <title>Festplatten-Controller</title>
 
-    <para arch="i386,alpha,sparc64,ia64">IDE/ATA Controller
+    <para arch="i386,alpha">IDE/ATA Controller
       (&man.ata.4; Treiber) 
       <itemizedlist>
         <listitem>
@@ -96,7 +96,7 @@
         </listitem>
 
         <listitem>
-          <para>Promise Fasttrak-33, -66, -100, -100 TX2/TX4</para>
+          <para>Promise Fasttrak-33, -66, -100 TX2/TX4</para>
         </listitem>
 
         <listitem>
@@ -592,7 +592,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,alpha,sparc64">LSI/SymBios (ehemals NCR) 53C810,
+    <para arch="i386,alpha">LSI/SymBios (ehemals NCR) 53C810,
       53C810a, 53C815, 53C825, 53C825a, 53C860, 53C875, 53C875a,
       53C876, 53C885, 53C895, 53C895a, 53C896, 53C1010-33, 53C1010-66,
       53C1000, 53C1000R PCI SCSI Controller, sowohl auf Hostadaptern
@@ -696,7 +696,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,alpha,ia64">Qlogic(-&auml;hnlich) Controller
+    <para arch="i386,alpha">Qlogic(-&auml;hnlich) Controller
       (&man.isp.4; Treiber) 
       <itemizedlist>
         <listitem>
@@ -789,20 +789,6 @@
       <itemizedlist>
         <listitem>
           <para>Compaq Smart Array 5* series (5300, 5i, 532)</para>
-        </listitem>
-      </itemizedlist>
-    </para>
-
-    <para arch="i386">Intel Integrated RAID Controllers (iir Treiber)
-      
-      <itemizedlist>
-        <listitem>
-          <para>Intel RAID Controller SRCMR</para>
-        </listitem>
-
-        <listitem>
-          <para>ICP Vortex SCSI RAID Controller (alle Wide/Ultra160,
-            32-Bit/64-Bit PCI Varianten)</para>
         </listitem>
       </itemizedlist>
     </para>
@@ -914,46 +900,7 @@
     </para>
 
     <para arch="i386">Allied-Telesis AT1700 und RE2000 Karten
-      (&man.fe.4; Treiber) 
-      <itemizedlist>
-        <listitem>
-          <para>CONTEC C-NET(PC)C PCMCIA Ethernet</para>
-        </listitem>
-
-        <listitem>
-          <para>Fujitsu MBH10303, MBH10302 Ethernet PCMCIA</para>
-        </listitem>
-
-        <listitem>
-          <para>Fujitsu Towa LA501 Ethernet</para>
-        </listitem>
-
-        <listitem>
-          <para>Fujitsu FMV-J182, FMV-J182A</para>
-        </listitem>
-
-        <listitem>
-          <para>RATOC REX-5588, REX-9822, REX-4886, und
-            REX-R280</para>
-        </listitem>
-
-        <listitem>
-          <para>Eiger Labs EPX-10BT</para>
-        </listitem>
-
-        <listitem>
-          <para>HITACHI HT-4840-11</para>
-        </listitem>
-
-        <listitem>
-          <para>NextCom J Link NC5310</para>
-        </listitem>
-
-        <listitem>
-          <para>TDK LAK-CD021, LAK-CD021A, LAK-CD021BX</para>
-        </listitem>
-      </itemizedlist>
-    </para>
+      (&man.fe.4; Treiber)</para>
 
     <para arch="i386">Alteon Networks PCI Gigabit Ethernet
       Netzwerkkarten mit Tigon 1 und Tigon 2 Chipsatz (&man.ti.4;
@@ -1159,9 +1106,7 @@
         </listitem>
 
         <listitem>
-          <para>Elecom Laneed LD-CDL/TX, LD-CDF, LD-CDS, LD-10/100CD,
-            LD-CDWA (DP83902A), MACNICA Ethernet ME1 f&uuml;r
-            JEIDA</para>
+          <para>Elecom Laneed LD-CDL/TX</para>
         </listitem>
 
         <listitem>
@@ -1177,12 +1122,8 @@
         </listitem>
 
         <listitem>
-          <para>Kingston KNE-PC2, KNE-PCM/x Ethernet</para>
-        </listitem>
-
-        <listitem>
-          <para>Linksys EC2T/PCMPC100, PCMLM56, EtherFast 10/100 PC
-            Card, Combo PCMCIA Ethernet Karte (PCMPC100 V2)</para>
+          <para>Linksys EC2T/PCMPC100, EtherFast 10/100 PC Card
+            (PCMPC100 V2)</para>
         </listitem>
 
         <listitem>
@@ -1405,11 +1346,6 @@
         </listitem>
 
         <listitem>
-          <para>Ark PC SOHO-GA2500T (32-bit PCI) und SOHO-GA2000T
-            (64-bit PCI)</para>
-        </listitem>
-
-        <listitem>
           <para>Asante FriendlyNet GigaNIC 1000TA und 1000TPC</para>
         </listitem>
 
@@ -1432,11 +1368,6 @@
 
         <listitem>
           <para>Surecom Technology EP-320G-TX</para>
-        </listitem>
-
-        <listitem>
-          <para>Trendware TEG-PCITX (32-bit PCI) und TEG-PCITX2
-            (64-bit PCI)</para>
         </listitem>
       </itemizedlist>
     </para>
@@ -1717,9 +1648,6 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386">Xircom 3201 (Cardbus) (&man.dc.4;
-      Treiber)</para>
-
     <para arch="i386">Conexant LANfinity RS7112 (MiniPCI) (&man.dc.4;
       Treiber)</para>
 
@@ -1761,7 +1689,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,alpha,ia64">Fast Ethernet Karten mit Intel 82557
+    <para arch="i386,alpha">Fast Ethernet Karten mit Intel 82557
       oder 82559 (&man.fxp.4; Treiber) 
       <itemizedlist>
         <listitem>
@@ -1783,10 +1711,6 @@
       <itemizedlist>
         <listitem>
           <para>Intel EtherExpress Pro/10 und Pro/10+</para>
-        </listitem>
-
-        <listitem>
-          <para>Olicom OC2220</para>
         </listitem>
       </itemizedlist>
     </para>
@@ -1832,24 +1756,8 @@
         </listitem>
 
         <listitem>
-          <para>3CXE589EC, 3CXE589ET PCMCIA</para>
-        </listitem>
-
-        <listitem>
-          <para>3C589/589B/589C/589D/589E/574TX/574B
+          <para>3C589/589B/589C/589D/589E/XE589ET/574TX/574B
             PC-card/PCMCIA</para>
-        </listitem>
-
-        <listitem>
-          <para>Megahertz 3CCFEM556BI, 3CXEM556, 3CCFEM556B</para>
-        </listitem>
-
-        <listitem>
-          <para>OfficeConnect 3CXSH572BT</para>
-        </listitem>
-
-        <listitem>
-          <para>Farallon EtherMac</para>
         </listitem>
       </itemizedlist>
     </para>
@@ -1878,11 +1786,6 @@
 
         <listitem>
           <para>3cSOHO100-TX OfficeConnect</para>
-        </listitem>
-
-        <listitem>
-          <para>3C575TX/575B/XFE575BT/575C/656/656B/656C
-            (Cardbus)</para>
         </listitem>
 
         <listitem>
@@ -1931,32 +1834,6 @@
 
     <para arch="i386">Megahertz X-Jack Ethernet PC-Card CC-10BT (sn
       Treiber)</para>
-
-    <para arch="i386">Netzwerkkarten mit Xircom X3201 (Cardbus), dazu
-      geh&ouml;ren auch:  
-      <itemizedlist>
-        <listitem>
-          <para>IBM EtherJet Cardbus Adapter</para>
-        </listitem>
-
-        <listitem>
-          <para>Intel PRO/100 Mobile Cardbus (Modelle mit
-            X3201)</para>
-        </listitem>
-
-        <listitem>
-          <para>Xircom Cardbus Realport</para>
-        </listitem>
-
-        <listitem>
-          <para>Xircom Cardbus Ethernet 10/100</para>
-        </listitem>
-
-        <listitem>
-          <para>Xircom Cardbus Ethernet II 10/100</para>
-        </listitem>
-      </itemizedlist>
-    </para>
 
     <para arch="i386">Xircom CreditCard (16 bit) und baugleiche Karten
       (xe Treiber) 
@@ -2077,7 +1954,7 @@
     </para>
 
     <para arch="i386,alpha">Gigabit Ethernet Karten mit Intel 82542
-      und 82543 Controllern (&man.gx.4; and &man.em.4; Treiber) 
+      und 82543 Controllern (&man.wx.4;, &man.gx.4; und &man.em.4; Treiber) 
       <itemizedlist>
         <listitem>
           <para>Intel PRO/1000 Gigabit Ethernet</para>
@@ -2085,16 +1962,15 @@
       </itemizedlist>
 
       <note>
+        <para>Der Treiber &man.wx.4; sollte nicht mehr verwendet
+          werden.</para>
+      </note>
+
+      <note>
         <para>Der &man.em.4; Treiber wird von Intel unterst&uuml;tzt,
           allerdings nur auf der i386 Plattform.</para>
       </note>
     </para>
-
-    <para arch="sparc64">Sun HME Ethernet und Fast Ethernet Karten
-      (hme driver)</para>
-
-    <para arch="sparc64">Sun GEM (Gigabit Ethernet) und ERI (Fast
-      Ethernet) Karten (gem driver)</para>
   </sect2>
 
   <sect2>
@@ -2387,10 +2263,6 @@
 
         <listitem>
           <para>Fritz!Card PCI</para>
-        </listitem>
-
-        <listitem>
-          <para>Fritz!Card PCI, Version 2</para>
         </listitem>
 
         <listitem>
@@ -2905,7 +2777,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,alpha">Hubs 
+    <para>Hubs 
       <itemizedlist>
         <listitem>
           <para>Andromeda hub</para>
@@ -3110,13 +2982,13 @@
 
     <para arch="i386">GPB und Transputer drivers</para>
 
-    <para arch="i386,alpha,ia64">Tastaturen:  
+    <para arch="i386,alpha">Tastaturen:  
       <itemizedlist>
         <listitem arch="i386,alpha">
           <para>AT-Tastaturen</para>
         </listitem>
 
-        <listitem arch="i386,alpha,ia64">
+        <listitem arch="i386,alpha">
           <para>PS/2-Tastaturen</para>
         </listitem>
 
@@ -3131,18 +3003,18 @@
     <para arch="i386">Loran-C Empf&auml;nger (Dave Mills experimental
       hardware, loran Treiber).</para>
 
-    <para arch="i386,alpha,ia64">M&auml;use:  
+    <para arch="i386,alpha">M&auml;use:  
       <itemizedlist>
         <listitem arch="i386">
           <para>Bus M&auml;use (&man.mse.4; Treiber)</para>
         </listitem>
 
-        <listitem arch="i386,alpha,ia64">
+        <listitem arch="i386,alpha">
           <para>PS/2 M&auml;use (&man.psm.4; Treiber)</para>
         </listitem>
 
         <listitem>
-          <para>serielle M&auml;se</para>
+          <para>serielle M&auml;use</para>
         </listitem>
 
         <listitem arch="i386,alpha">
@@ -3175,7 +3047,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,alpha,ia64,sparc64">Serielle Schnittstellen nach
+    <para arch="i386,alpha">Serielle Schnittstellen nach
       <quote>PC-Standard</quote> auf Basis von 8250, 16450, und
       16550-Chips (&man.sio.4;  Treiber)</para>
 

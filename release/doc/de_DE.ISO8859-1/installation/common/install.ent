@@ -2,9 +2,9 @@
 
 <!--
   $FreeBSD$
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/installation/common/install.ent,v 1.2 2002/03/10 18:41:41 ue Exp $
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/installation/common/install.ent,v 1.2.2.1 2002/03/11 01:28:35 ue Exp $
   $Id: install.ent,v 1.3 2002/03/10 15:37:17 ue Exp $
-  basiert auf: 1.2
+  basiert auf: 1.1.2.2
 -->
 
 <!-- Text constants which probably don't need to be changed.-->

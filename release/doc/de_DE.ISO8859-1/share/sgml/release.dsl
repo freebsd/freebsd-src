@@ -1,8 +1,8 @@
 <!--
 	$FreeBSD$
-	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/share/sgml/release.dsl,v 1.4 2002/03/12 15:22:03 ue Exp $
+	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/share/sgml/release.dsl,v 1.2.2.3 2002/03/12 15:22:43 ue Exp $
 	$Id: release.dsl,v 1.6 2002/03/10 15:37:20 ue Exp $
-	basiert auf: 1.4
+	basiert auf: 1.1.2.5
 -->
 
 <!DOCTYPE style-sheet PUBLIC "-//James Clark//DTD DSSSL Style Sheet//EN" [
@@ -44,8 +44,8 @@
 		(literal (entity-text "release.branch"))
 		(literal " sollten sich in die Mailingliste ")
                 (literal "<")
-		(create-link (list (list "HREF" "mailto:current@FreeBSD.org"))
-                  (literal "current@FreeBSD.org"))
+		(create-link (list (list "HREF" "mailto:stable@FreeBSD.org"))
+                  (literal "stable@FreeBSD.org"))
                 (literal "> eintragen.")))
 
             (make element gi: "p"
@@ -69,7 +69,7 @@
         (define ($create-refentry-xref-link$ refentrytitle manvolnum)
 	  (string-append "http://www.FreeBSD.org/cgi/man.cgi?query="
 			 refentrytitle "&" "sektion=" manvolnum
-                         "&" "manpath=FreeBSD+5.0-current"))
+                         "&" "manpath=FreeBSD+4.5-stable"))
 
        (define (toc-depth nd)
          (if (string=? (gi nd) (normalize "book"))
