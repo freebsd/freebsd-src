@@ -509,6 +509,7 @@ nfs4_daemon(void *arg)
 		if (nmounts == 0) {
 			mtx_lock(&Giant);
 			nfs4_daemonproc = NULL;
+			mtx_unlock(&Giant);
 			printf("nfsv4 renewd exiting\n");
 			kthread_exit(0);
 		}
