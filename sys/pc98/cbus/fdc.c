@@ -1460,7 +1460,7 @@ fdopen(struct cdev *dev, int flags, int mode, struct thread *td)
 		/*
 		 * Unfortunately, physio(9) discards its ioflag
 		 * argument, thus preventing us from seeing the
-		 * IO_NDELAY bit.  So we need to keep track
+		 * O_NONBLOCK bit.  So we need to keep track
 		 * ourselves.
 		 */
 		fd->flags |= FD_NONBLOCK;
