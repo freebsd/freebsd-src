@@ -1,13 +1,11 @@
 #
-# $Id: Makefile,v 1.2 1999/03/05 04:55:03 obrien Exp $
+# $Id: Makefile,v 1.1 1999/04/04 16:36:34 obrien Exp $
 #
 .include "../Makefile.inc"
 
 .PATH: ../cc_tools ${GCCDIR} 
 
 SRCS=	multilib.h choose-temp.c obstack.c prefix.c pexecute.c version.c
-#	XXX change choose-temp.c to use stock mkstemp()
-SRCS+=	mkstemp.c
 
 CFLAGS+=	-DPREFIX=\"/usr\"
 CFLAGS+=	-DIN_GCC
