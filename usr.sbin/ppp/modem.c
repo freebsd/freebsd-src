@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.12 1996/01/30 11:08:43 dfr Exp $
+ * $Id: modem.c,v 1.13 1996/03/08 09:03:07 ache Exp $
  *
  *  TODO:
  */
@@ -223,6 +223,7 @@ DownConnection()
       printf("failed to open modem.\n");
       modem = 0;
       TtyCommandMode(1);
+      return;
     }
     TtyTermMode();
   }
