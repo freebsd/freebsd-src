@@ -446,8 +446,16 @@ ether_input(ifp, eh, m)
 			m_freem(m);
 			return;
 		}
-		if (bif != BDG_LOCAL)
+		if (bif != BDG_LOCAL) {
 			bdg_forward(&m, eh, bif);	/* needs forwarding */
+			/*
+			 * Do not continue if bdg_forward() processed our
+			 * packet (and cleared the mbuf pointer m) or if
+			 * it dropped (m_free'd) the packet itself.
+			 */
+			 if (m == NULL)
+				return;
+		}
 		if (bif == BDG_LOCAL
 		    || bif == BDG_BCAST
 		    || bif == BDG_MCAST)

@@ -781,6 +781,9 @@ bdg_forward(struct mbuf **m0, struct ether_header *const eh, struct ifnet *dst)
 	m_freem(m);
 	if (canfree == 0) /* m was a copy */
 	    m_freem(*m0);
+#ifdef DIAGNOSTIC
+	printf("bdg_forward: No rules match, so dropping packet!\n");
+#endif
 	*m0 = NULL ;
 	return 0 ;
     }
