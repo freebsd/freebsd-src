@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)buf.h	8.9 (Berkeley) 3/30/95
- * $Id: buf.h,v 1.29 1996/02/24 04:05:54 hsu Exp $
+ * $Id: buf.h,v 1.29 1996/03/11 02:04:27 hsu Exp $
  */
 
 #ifndef _SYS_BUF_H_
@@ -66,7 +66,7 @@ struct buf {
 	LIST_ENTRY(buf) b_hash;		/* Hash chain. */
 	LIST_ENTRY(buf) b_vnbufs;	/* Buffer's associated vnode. */
 	TAILQ_ENTRY(buf) b_freelist;	/* Free list position if not active. */
-	struct	buf *b_actf, **b_actb;	/* Device driver queue when active. *deprecated* XXX */
+	struct	buf *b_actf;		/* Device driver queue when active. *deprecated* XXX */
 	TAILQ_ENTRY(buf) b_act;		/* Device driver queue when active. *new* */
 	struct  proc *b_proc;		/* Associated proc; NULL if kernel. */
 	long	b_flags;	/* B_* flags. */
