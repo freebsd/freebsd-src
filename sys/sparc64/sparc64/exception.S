@@ -1625,209 +1625,210 @@ END(tl1_spill_topcb)
 	.globl	tl0_base
 
 tl0_base:
-	tl0_reserved	8		! 0x0-0x7 reserved
+	tl0_reserved	8				! 0x0-0x7
 tl0_insn_excptn:
-	tl0_insn_excptn			! 0x8 instruction access exception
-	tl0_reserved	1		! 0x9 reserved
+	tl0_insn_excptn					! 0x8
+	tl0_reserved	1				! 0x9
 tl0_insn_error:
-	tl0_gen		T_INSTRUCTION_ERROR	! 0xa instruction access error
-	tl0_reserved	5		! 0xb-0xf reserved
+	tl0_gen		T_INSTRUCTION_ERROR		! 0xa
+	tl0_reserved	5				! 0xb-0xf
 tl0_insn_illegal:
-	tl0_gen		T_ILLEGAL_INSTRUCTION	! 0x10 illegal instruction
+	tl0_gen		T_ILLEGAL_INSTRUCTION		! 0x10
 tl0_priv_opcode:
-	tl0_gen		T_PRIVILEGED_OPCODE	! 0x11 privileged opcode
-	tl0_reserved	14		! 0x12-0x1f reserved
+	tl0_gen		T_PRIVILEGED_OPCODE		! 0x11
+	tl0_reserved	14				! 0x12-0x1f
 tl0_fp_disabled:
-	tl0_gen		T_FP_DISABLED	! 0x20 floating point disabled
+	tl0_gen		T_FP_DISABLED			! 0x20
 tl0_fp_ieee:
-	tl0_gen		T_FP_EXCEPTION_IEEE_754	! 0x21 floating point exception ieee
+	tl0_gen		T_FP_EXCEPTION_IEEE_754		! 0x21
 tl0_fp_other:
-	tl0_gen		T_FP_EXCEPTION_OTHER	! 0x22 floating point exception other
+	tl0_gen		T_FP_EXCEPTION_OTHER		! 0x22
 tl0_tag_ovflw:
-	tl0_gen		T_TAG_OFERFLOW	! 0x23 tag overflow
+	tl0_gen		T_TAG_OFERFLOW			! 0x23
 tl0_clean_window:
-	clean_window			! 0x24 clean window
+	clean_window					! 0x24
 tl0_divide:
-	tl0_gen		T_DIVISION_BY_ZERO	! 0x28 division by zero
-	tl0_reserved	7		! 0x29-0x2f reserved
+	tl0_gen		T_DIVISION_BY_ZERO		! 0x28
+	tl0_reserved	7				! 0x29-0x2f
 tl0_data_excptn:
-	tl0_data_excptn			! 0x30 data access exception
-	tl0_reserved	1		! 0x31 reserved
+	tl0_data_excptn					! 0x30
+	tl0_reserved	1				! 0x31
 tl0_data_error:
-	tl0_gen		T_DATA_ERROR	! 0x32 data access error
-	tl0_reserved	1		! 0x33 reserved
+	tl0_gen		T_DATA_ERROR			! 0x32
+	tl0_reserved	1				! 0x33
 tl0_align:
-	tl0_align			! 0x34 memory address not aligned
+	tl0_align					! 0x34
 tl0_align_lddf:
-	tl0_gen		T_RESERVED	! 0x35 lddf memory address not aligned
+	tl0_gen		T_RESERVED			! 0x35
 tl0_align_stdf:
-	tl0_gen		T_RESERVED	! 0x36 stdf memory address not aligned
+	tl0_gen		T_RESERVED			! 0x36
 tl0_priv_action:
-	tl0_gen		T_PRIVILEGED_ACTION	! 0x37 privileged action
-	tl0_reserved	9		! 0x38-0x40 reserved
+	tl0_gen		T_PRIVILEGED_ACTION		! 0x37
+	tl0_reserved	9				! 0x38-0x40
 tl0_intr_level:
-	tl0_intr_level			! 0x41-0x4f interrupt level 1 to 15
-	tl0_reserved	16		! 0x50-0x5f reserved
+	tl0_intr_level					! 0x41-0x4f
+	tl0_reserved	16				! 0x50-0x5f
 tl0_intr_vector:
-	tl0_intr_vector			! 0x60 interrupt vector
+	tl0_intr_vector					! 0x60
 tl0_watch_phys:
-	tl0_gen		T_PA_WATCHPOINT	! 0x61 physical address watchpoint
+	tl0_gen		T_PA_WATCHPOINT			! 0x61
 tl0_watch_virt:
-	tl0_gen		T_VA_WATCHPOINT	! 0x62 virtual address watchpoint
+	tl0_gen		T_VA_WATCHPOINT			! 0x62
 tl0_ecc:
-	tl0_gen		T_CORRECTED_ECC_ERROR	! 0x63 corrected ecc error
+	tl0_gen		T_CORRECTED_ECC_ERROR		! 0x63
 tl0_immu_miss:
-	tl0_immu_miss			! 0x64 fast instruction access mmu miss
+	tl0_immu_miss					! 0x64
 tl0_dmmu_miss:
-	tl0_dmmu_miss			! 0x68 fast data access mmu miss
+	tl0_dmmu_miss					! 0x68
 tl0_dmmu_prot:
-	tl0_dmmu_prot			! 0x6c fast data access protection
-	tl0_reserved	16		! 0x70-0x7f reserved
+	tl0_dmmu_prot					! 0x6c
+	tl0_reserved	16				! 0x70-0x7f
 tl0_spill_0_n:
-	tl0_spill_0_n			! 0x80 spill 0 normal
+	tl0_spill_0_n					! 0x80
 tl0_spill_1_n:
-	tl0_spill_1_n			! 0x84 spill 1 normal
+	tl0_spill_1_n					! 0x84
 tl0_spill_2_n:
-	tl0_spill_2_n			! 0x88 spill 2 normal
+	tl0_spill_2_n					! 0x88
 tl0_spill_3_n:
-	tl0_spill_3_n			! 0x8c spill 3 normal
-	tl0_spill_bad	12		! 0x90-0xbf spill normal, other
+	tl0_spill_3_n					! 0x8c
+	tl0_spill_bad	12				! 0x90-0xbf
 tl0_fill_0_n:
-	tl0_fill_0_n			! 0xc0 fill 0 normal
+	tl0_fill_0_n					! 0xc0
 tl0_fill_1_n:
-	tl0_fill_1_n			! 0xc4 fill 1 normal
+	tl0_fill_1_n					! 0xc4
 tl0_fill_2_n:
-	tl0_fill_2_n			! 0xc8 fill 2 normal
+	tl0_fill_2_n					! 0xc8
 tl0_fill_3_n:
-	tl0_fill_3_n			! 0xcc fill 3 normal
-	tl0_fill_bad	12		! 0xc4-0xff fill normal, other
+	tl0_fill_3_n					! 0xcc
+	tl0_fill_bad	12				! 0xc4-0xff
 tl0_soft:
-	tl0_reserved	1		! 0x100 reserved
-	tl0_gen		T_BREAKPOINT	! 0x101 breakpoint
-	tl0_gen		T_DIVISION_BY_ZERO	! 0x102 division by zero
-	tl0_reserved	1		! 0x103 reserved
-	tl0_gen		T_CLEAN_WINDOW	! 0x104 clean window
-	tl0_gen		T_RANGE_CHECK	! 0x105 range check
-	tl0_gen		T_FIX_ALIGNMENT	! 0x106 fix alignment
-	tl0_gen		T_INTEGER_OVERFLOW	! 0x107 integer overflow
-	tl0_reserved	1		! 0x108 reserved
-	tl0_syscall			! 0x109 BSD syscall
-	tl0_reserved	6		! 0x10a-0x10f reserved
-	tl0_gen		T_TRAP_INSTRUCTION_16	! 0x110
-	tl0_gen		T_TRAP_INSTRUCTION_17	! 0x111
-	tl0_gen		T_TRAP_INSTRUCTION_18	! 0x112
-	tl0_gen		T_TRAP_INSTRUCTION_19	! 0x113
-	tl0_gen		T_TRAP_INSTRUCTION_20	! 0x114
-	tl0_gen		T_TRAP_INSTRUCTION_21	! 0x115
-	tl0_gen		T_TRAP_INSTRUCTION_22	! 0x116
-	tl0_gen		T_TRAP_INSTRUCTION_23	! 0x117
-	tl0_gen		T_TRAP_INSTRUCTION_24	! 0x118
-	tl0_gen		T_TRAP_INSTRUCTION_25	! 0x119
-	tl0_gen		T_TRAP_INSTRUCTION_26	! 0x11a
-	tl0_gen		T_TRAP_INSTRUCTION_27	! 0x11b
-	tl0_gen		T_TRAP_INSTRUCTION_28	! 0x11c
-	tl0_gen		T_TRAP_INSTRUCTION_29	! 0x11d
-	tl0_gen		T_TRAP_INSTRUCTION_30	! 0x11e
-	tl0_gen		T_TRAP_INSTRUCTION_31	! 0x11f
-	tl0_reserved	224		! 0x120-1ff reserved
+	tl0_reserved	1				! 0x100
+	tl0_gen		T_BREAKPOINT			! 0x101
+	tl0_gen		T_DIVISION_BY_ZERO		! 0x102
+	tl0_reserved	1				! 0x103
+	tl0_gen		T_CLEAN_WINDOW			! 0x104
+	tl0_gen		T_RANGE_CHECK			! 0x105
+	tl0_gen		T_FIX_ALIGNMENT			! 0x106
+	tl0_gen		T_INTEGER_OVERFLOW		! 0x107
+	tl0_reserved	1				! 0x108
+	tl0_syscall					! 0x109
+	tl0_fp_restore					! 0x10a
+	tl0_reserved	5				! 0x10b-0x10f
+	tl0_gen		T_TRAP_INSTRUCTION_16		! 0x110
+	tl0_gen		T_TRAP_INSTRUCTION_17		! 0x111
+	tl0_gen		T_TRAP_INSTRUCTION_18		! 0x112
+	tl0_gen		T_TRAP_INSTRUCTION_19		! 0x113
+	tl0_gen		T_TRAP_INSTRUCTION_20		! 0x114
+	tl0_gen		T_TRAP_INSTRUCTION_21		! 0x115
+	tl0_gen		T_TRAP_INSTRUCTION_22		! 0x116
+	tl0_gen		T_TRAP_INSTRUCTION_23		! 0x117
+	tl0_gen		T_TRAP_INSTRUCTION_24		! 0x118
+	tl0_gen		T_TRAP_INSTRUCTION_25		! 0x119
+	tl0_gen		T_TRAP_INSTRUCTION_26		! 0x11a
+	tl0_gen		T_TRAP_INSTRUCTION_27		! 0x11b
+	tl0_gen		T_TRAP_INSTRUCTION_28		! 0x11c
+	tl0_gen		T_TRAP_INSTRUCTION_29		! 0x11d
+	tl0_gen		T_TRAP_INSTRUCTION_30		! 0x11e
+	tl0_gen		T_TRAP_INSTRUCTION_31		! 0x11f
+	tl0_reserved	224				! 0x120-0x1ff
 
 tl1_base:
-	tl1_reserved	8		! 0x200-0x207 reserved
+	tl1_reserved	8				! 0x200-0x207
 tl1_insn_excptn:
-	tl1_insn_excptn			! 0x208 instruction access exception
-	tl1_reserved	1		! 0x209 reserved
+	tl1_insn_excptn					! 0x208
+	tl1_reserved	1				! 0x209
 tl1_insn_error:
-	tl1_gen		T_INSTRUCTION_ERROR	! 0x20a instruction access error
-	tl1_reserved	5		! 0x20b-0x20f reserved
+	tl1_gen		T_INSTRUCTION_ERROR		! 0x20a
+	tl1_reserved	5				! 0x20b-0x20f
 tl1_insn_illegal:
-	tl1_gen		T_ILLEGAL_INSTRUCTION	! 0x210 illegal instruction
+	tl1_gen		T_ILLEGAL_INSTRUCTION		! 0x210
 tl1_priv_opcode:
-	tl1_gen		T_PRIVILEGED_OPCODE	! 0x211 privileged opcode
-	tl1_reserved	14		! 0x212-0x21f reserved
+	tl1_gen		T_PRIVILEGED_OPCODE		! 0x211
+	tl1_reserved	14				! 0x212-0x21f
 tl1_fp_disabled:
-	tl1_gen		T_FP_DISABLED	! 0x220 floating point disabled
+	tl1_gen		T_FP_DISABLED			! 0x220
 tl1_fp_ieee:
-	tl1_gen		T_FP_EXCEPTION_IEEE_754	! 0x221 floating point exception ieee
+	tl1_gen		T_FP_EXCEPTION_IEEE_754		! 0x221
 tl1_fp_other:
-	tl1_gen		T_FP_EXCEPTION_OTHER	! 0x222 floating point exception other
+	tl1_gen		T_FP_EXCEPTION_OTHER		! 0x222
 tl1_tag_ovflw:
-	tl1_gen		T_TAG_OFERFLOW	! 0x223 tag overflow
+	tl1_gen		T_TAG_OFERFLOW			! 0x223
 tl1_clean_window:
-	clean_window			! 0x224 clean window
+	clean_window					! 0x224
 tl1_divide:
-	tl1_gen		T_DIVISION_BY_ZERO	! 0x228 division by zero
-	tl1_reserved	7		! 0x229-0x22f reserved
+	tl1_gen		T_DIVISION_BY_ZERO		! 0x228
+	tl1_reserved	7				! 0x229-0x22f
 tl1_data_excptn:
-	tl1_data_excptn			! 0x230 data access exception
-	tl1_reserved	1		! 0x231 reserved
+	tl1_data_excptn					! 0x230
+	tl1_reserved	1				! 0x231
 tl1_data_error:
-	tl1_gen		T_DATA_ERROR	! 0x232 data access error
-	tl1_reserved	1		! 0x233 reserved
+	tl1_gen		T_DATA_ERROR			! 0x232
+	tl1_reserved	1				! 0x233
 tl1_align:
-	tl1_align			! 0x234 memory address not aligned
+	tl1_align					! 0x234
 tl1_align_lddf:
-	tl1_gen		T_RESERVED	! 0x235 lddf memory address not aligned
+	tl1_gen		T_RESERVED			! 0x235
 tl1_align_stdf:
-	tl1_gen		T_RESERVED	! 0x236 stdf memory address not aligned
+	tl1_gen		T_RESERVED			! 0x236
 tl1_priv_action:
-	tl1_gen		T_PRIVILEGED_ACTION	! 0x237 privileged action
-	tl1_reserved	9		! 0x238-0x240 reserved
+	tl1_gen		T_PRIVILEGED_ACTION		! 0x237
+	tl1_reserved	9				! 0x238-0x240
 tl1_intr_level:
-	tl1_intr_level			! 0x241-0x24f interrupt level 1 to 15
-	tl1_reserved	16		! 0x250-0x25f reserved
+	tl1_intr_level					! 0x241-0x24f
+	tl1_reserved	16				! 0x250-0x25f
 tl1_intr_vector:
-	tl1_intr_vector			! 0x260 interrupt vector
+	tl1_intr_vector					! 0x260
 tl1_watch_phys:
-	tl1_gen		T_PA_WATCHPOINT	! 0x261 physical address watchpoint
+	tl1_gen		T_PA_WATCHPOINT			! 0x261
 tl1_watch_virt:
-	tl1_gen		T_VA_WATCHPOINT	! 0x262 virtual address watchpoint
+	tl1_gen		T_VA_WATCHPOINT			! 0x262
 tl1_ecc:
-	tl1_gen		T_CORRECTED_ECC_ERROR		! 0x263 corrected ecc error
+	tl1_gen		T_CORRECTED_ECC_ERROR		! 0x263
 tl1_immu_miss:
-	tl1_immu_miss			! 0x264 fast instruction access mmu miss
+	tl1_immu_miss					! 0x264
 tl1_dmmu_miss:
-	tl1_dmmu_miss			! 0x268 fast data access mmu miss
+	tl1_dmmu_miss					! 0x268
 tl1_dmmu_prot:
-	tl1_dmmu_prot			! 0x26c fast data access protection
-	tl1_reserved	16		! 0x270-0x27f reserved
+	tl1_dmmu_prot					! 0x26c
+	tl1_reserved	16				! 0x270-0x27f
 tl1_spill_0_n:
-	tl1_spill_0_n			! 0x280 spill 0 normal
-	tl1_spill_bad	3		! 0x284-0x28f spill normal
+	tl1_spill_0_n					! 0x280
+	tl1_spill_bad	3				! 0x284-0x28f
 tl1_spill_4_n:
-	tl1_spill_4_n			! 0x290 spill 4 normal
+	tl1_spill_4_n					! 0x290
 tl1_spill_5_n:
-	tl1_spill_5_n			! 0x294 spill 5 normal
+	tl1_spill_5_n					! 0x294
 tl1_spill_6_n:
-	tl1_spill_6_n			! 0x298 spill 6 normal
+	tl1_spill_6_n					! 0x298
 tl1_spill_7_n:
-	tl1_spill_7_n			! 0x29c spill 7 normal
+	tl1_spill_7_n					! 0x29c
 tl1_spill_0_o:
-	tl1_spill_0_o			! 0x2a0 spill 0 other
+	tl1_spill_0_o					! 0x2a0
 tl1_spill_1_o:
-	tl1_spill_1_o			! 0x2a4 spill 1 other
+	tl1_spill_1_o					! 0x2a4
 tl1_spill_2_o:
-	tl1_spill_2_o			! 0x2a8 spill 2 other
+	tl1_spill_2_o					! 0x2a8
 tl1_spill_3_o:
-	tl1_spill_3_o			! 0x2ac spill 3 other
-	tl1_spill_bad	4		! 0x2b0-0x2bf spill other
+	tl1_spill_3_o					! 0x2ac
+	tl1_spill_bad	4				! 0x2b0-0x2bf
 tl1_fill_0_n:
-	tl1_fill_0_n			! 0x2c0 fill 0 normal
-	tl1_fill_bad	3		! 0x2c4-0x2cf fill normal
+	tl1_fill_0_n					! 0x2c0
+	tl1_fill_bad	3				! 0x2c4-0x2cf
 tl1_fill_4_n:
-	tl1_fill_4_n			! 0x2d0 fill 4 normal
+	tl1_fill_4_n					! 0x2d0
 tl1_fill_5_n:
-	tl1_fill_5_n			! 0x2d4 fill 5 normal
+	tl1_fill_5_n					! 0x2d4
 tl1_fill_6_n:
-	tl1_fill_6_n			! 0x2d8 fill 6 normal
+	tl1_fill_6_n					! 0x2d8
 tl1_fill_7_n:
-	tl1_fill_7_n			! 0x2dc fill 7 normal
-	tl1_fill_bad	8		! 0x2e0-0x2ff fill other
-	tl1_reserved	1		! 0x300 reserved
+	tl1_fill_7_n					! 0x2dc
+	tl1_fill_bad	8				! 0x2e0-0x2ff
+	tl1_reserved	1				! 0x300
 tl1_breakpoint:
-	tl1_gen		T_BREAKPOINT	! 0x301 breakpoint
-	tl1_gen		T_RSTRWP_PHYS	! 0x302 restore physical watchpoint
-	tl1_gen		T_RSTRWP_PHYS	! 0x303 restore virtual watchpoint
-	tl1_reserved	252		! 0x304-0x3ff reserved
+	tl1_gen		T_BREAKPOINT			! 0x301
+	tl1_gen		T_RSTRWP_PHYS			! 0x302
+	tl1_gen		T_RSTRWP_VIRT			! 0x303
+	tl1_reserved	252				! 0x304-0x3ff
 
 /*
  * User trap entry point.
