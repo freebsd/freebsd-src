@@ -239,8 +239,10 @@ The
 allows the type of DMA operation that will be or has been performed
 to be communicated to the system so that the correct coherency measures
 are taken.
-All operations specified below are performed from the DMA engine's
-point of view:
+All operations specified below are performed from the CPU's
+point of view (for a complete description, see the
+.Fn bus_dmamap_sync
+description below):
 .Bl -tag -width BUS_DMASYNC_POSTWRITE
 .It Dv BUS_DMASYNC_PREREAD
 Perform any synchronization required after an update of memory by the CPU
