@@ -21,7 +21,7 @@
 .Nd system console control and configuration utility
 .Sh SYNOPSIS
 .Nm
-.Op Fl CdLPpx
+.Op Fl CdLHPpx
 .Op Fl b Ar color
 .Op Fl c Ar appearance
 .Oo
@@ -209,6 +209,15 @@ Same as
 but dump contents of the video buffer in a plain text format
 ignoring nonprintable characters and information about text
 attributes.
+.It Fl H
+When used with
+.Fl p
+or
+.Fl P ,
+it instructs
+.Nm
+to dump full history buffer instead of visible portion of
+the video buffer only.
 .It Fl r Ar foreground background
 Change reverse mode colors to
 .Ar foreground
