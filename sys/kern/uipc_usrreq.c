@@ -353,11 +353,14 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 			from = (struct sockaddr *)unp->unp_addr;
 		else
 			from = &sun_noname;
-		if (sbappendaddr(&so2->so_rcv, from, m, control)) {
+		SOCKBUF_LOCK(&so2->so_rcv);
+		if (sbappendaddr_locked(&so2->so_rcv, from, m, control)) {
+			SOCKBUF_UNLOCK(&so2->so_rcv);
 			sorwakeup(so2);
 			m = NULL;
 			control = NULL;
 		} else {
+			SOCKBUF_UNLOCK(&so2->so_rcv);
 			error = ENOBUFS;
 		}
 		if (nam != NULL)
@@ -389,16 +392,17 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 		if (unp->unp_conn == NULL)
 			panic("uipc_send connected but no connection?");
 		so2 = unp->unp_conn->unp_socket;
+		SOCKBUF_LOCK(&so2->so_rcv);
 		/*
 		 * Send to paired receive port, and then reduce
 		 * send buffer hiwater marks to maintain backpressure.
 		 * Wake up readers.
 		 */
 		if (control != NULL) {
-			if (sbappendcontrol(&so2->so_rcv, m, control))
+			if (sbappendcontrol_locked(&so2->so_rcv, m, control))
 				control = NULL;
 		} else {
-			sbappend(&so2->so_rcv, m);
+			sbappend_locked(&so2->so_rcv, m);
 		}
 		so->so_snd.sb_mbmax -=
 			so2->so_rcv.sb_mbcnt - unp->unp_conn->unp_mbcnt;
@@ -408,6 +412,7 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 		(void)chgsbsize(so->so_cred->cr_uidinfo, &so->so_snd.sb_hiwat,
 		    newhiwat, RLIM_INFINITY);
 		unp->unp_conn->unp_cc = so2->so_rcv.sb_cc;
+		SOCKBUF_UNLOCK(&so2->so_rcv);
 		sorwakeup(so2);
 		m = NULL;
 		break;
