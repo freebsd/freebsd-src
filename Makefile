@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.27 1994/10/15 21:19:56 wollman Exp $
+#	$Id: Makefile,v 1.28 1994/11/01 19:52:38 pst Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include and MOST of /usr/lib 
@@ -206,6 +206,7 @@ includes:
 	chmod 755 ${DESTDIR}/usr/include
 .endif
 	cd ${.CURDIR}/include &&		${MAKE} install
+	cd ${.CURDIR}/gnu/include &&		${MAKE}	install
 	cd ${.CURDIR}/gnu/lib/libreadline &&	${MAKE} beforeinstall
 	cd ${.CURDIR}/gnu/lib/libg++ &&         ${MAKE} beforeinstall
 	cd ${.CURDIR}/gnu/lib/libdialog &&      ${MAKE} beforeinstall
