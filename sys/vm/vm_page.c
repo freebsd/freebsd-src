@@ -125,9 +125,6 @@
  *	Associated with page of user-allocatable memory is a
  *	page structure.
  */
-static struct vm_page **vm_page_buckets; /* Array of buckets */
-static int vm_page_bucket_count;	/* How big is array? */
-static int vm_page_hash_mask;		/* Mask for hash function */
 
 struct mtx vm_page_queue_mtx;
 struct mtx vm_page_queue_free_mtx;
@@ -166,7 +163,6 @@ vm_offset_t
 vm_page_startup(vm_offset_t starta, vm_offset_t enda, vm_offset_t vaddr)
 {
 	vm_offset_t mapped;
-	struct vm_page **bucket;
 	vm_size_t npages, page_range;
 	vm_offset_t new_end;
 	int i;
@@ -219,7 +215,8 @@ vm_page_startup(vm_offset_t starta, vm_offset_t enda, vm_offset_t vaddr)
 	vm_pageq_init();
 
 	/*
-	 * Allocate memory for use when boot strapping the kernel memory allocator
+	 * Allocate memory for use when boot strapping the kernel memory
+	 * allocator.
 	 */
 	bootpages = UMA_BOOT_PAGES * UMA_SLAB_SIZE;
 	new_end = end - bootpages;
@@ -228,46 +225,6 @@ vm_page_startup(vm_offset_t starta, vm_offset_t enda, vm_offset_t vaddr)
 	    VM_PROT_READ | VM_PROT_WRITE);
 	bzero((caddr_t) mapped, end - new_end);
 	uma_startup((caddr_t)mapped);
-
-	end = new_end;
-
-	/*
-	 * Allocate (and initialize) the hash table buckets.
-	 *
-	 * The number of buckets MUST BE a power of 2, and the actual value is
-	 * the next power of 2 greater than the number of physical pages in
-	 * the system.  
-	 *
-	 * We make the hash table approximately 2x the number of pages to
-	 * reduce the chain length.  This is about the same size using the 
-	 * singly-linked list as the 1x hash table we were using before 
-	 * using TAILQ but the chain length will be smaller.
-	 *
-	 * Note: This computation can be tweaked if desired.
-	 */
-	if (vm_page_bucket_count == 0) {
-		vm_page_bucket_count = 1;
-		while (vm_page_bucket_count < atop(total))
-			vm_page_bucket_count <<= 1;
-	}
-	vm_page_bucket_count <<= 1;
-	vm_page_hash_mask = vm_page_bucket_count - 1;
-
-	/*
-	 * Validate these addresses.
-	 */
-	new_end = end - vm_page_bucket_count * sizeof(struct vm_page *);
-	new_end = trunc_page(new_end);
-	mapped = pmap_map(&vaddr, new_end, end,
-	    VM_PROT_READ | VM_PROT_WRITE);
-	bzero((caddr_t) mapped, end - new_end);
-
-	vm_page_buckets = (struct vm_page **)mapped;
-	bucket = vm_page_buckets;
-	for (i = 0; i < vm_page_bucket_count; i++) {
-		*bucket = NULL;
-		bucket++;
-	}
 
 	/*
 	 * Compute the number of pages of memory that will be available for
