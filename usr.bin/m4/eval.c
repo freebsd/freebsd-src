@@ -170,7 +170,10 @@ register int td;
 	case SYSCTYPE:
 	/*
 	 * dosys - execute system command
-	 */
+	 */		
+		/* Make sure m4 output is NOT interrupted */		
+		fflush(stdout);			
+		fflush(stderr);
 		if (argc > 2)
 			sysval = system(argv[2]);
 		break;
