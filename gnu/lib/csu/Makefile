@@ -1,37 +1,62 @@
 # $FreeBSD$
 
-GCCDIR=	${.CURDIR}/../../../contrib/gcc
+GCCDIR=	${.CURDIR}/../../../contrib/gcc.295
 
+TARGET_ARCH?=	${MACHINE_ARCH}
+
+.if ${TARGET_ARCH} == "alpha"
+.PATH: ${GCCDIR}/config/alpha
+SRCS=		crtbegin.s crtend.s
+UGLYHACK=	-x assembler
+.else
 .PATH: ${GCCDIR}
+SRCS=		crtstuff.c tm.h
+.endif
 
-SRCS=		crtbegin.c crtend.c tm.h
-OBJS=		${SRCS:N*.h:R:S/$/.o/g}
-#OBJS+=		gcrt1.o
+OBJS=		crtbegin.o crtend.o
 SOBJS=		crtbegin.So crtend.So
-CFLAGS+=	-elf -Wall 
-CFLAGS+=	-fkeep-inline-functions -finhibit-size-directive -fno-exceptions
-CFLAGS+=	-I${GCCDIR}/config -I${GCCDIR} -I.
-CFLAGS+=	-O0
-LDFLAGS+=	-elf
+CFLAGS+=	-I${GCCDIR}/config -I. -DIN_GCC \
+		-finhibit-size-directive -fno-inline-functions \
+		-fno-exceptions -fno-omit-frame-pointer
 NOMAN=		true
 NOPIC=		true
 NOPROFILE=	true
 INTERNALLIB=	true
-CLEANFILES+=	${SRCS}
+CLEANFILES+=	tm.h
+
+CRTS_CFLAGS=	-DCRTSTUFFS_O ${PICFLAG}
 
 all: ${OBJS} ${SOBJS}
 
-gcrt1.o:	crt1.c
-	${CC} ${CFLAGS} -DGCRT -c -o gcrt1.o ${.CURDIR}/crt1.c
-
-crtbegin.c: crtstuff.c ${.CURDIR}/../../../lib/csu/common/crtbrand.c
-	cat ${.ALLSRC} > ${.TARGET}
-
-#crtbegin.c crtend.c: crtstuff.c
-crtend.c: crtstuff.c
+.if ${TARGET_ARCH} == "alpha"
+crtbegin.o crtbegin.So:	crtbegin.s
+crtend.o crtend.So:	crtend.s
+.for PART in begin end
+CLEANFILES+=	crt${PART}.s
+crt${PART}.s:  crt${PART}.asm
 	ln -sf ${.ALLSRC} ${.TARGET}
+.endfor
+.else
+crtbegin.o crtbegin.So crtend.o crtend.So:	crtstuff.c tm.h
+.endif
 
-#	KEEP THIS IN SYNC with src/gcc/usr.bin/cc/cc_tools/Makefile !!
+crtbegin.o:
+	${CC} ${CFLAGS} -g0 -DCRT_BEGIN \
+		-c -o ${.TARGET} ${UGLYHACK} ${.ALLSRC:N*.h}
+
+crtbegin.So:
+	${CC} ${CFLAGS} -g0 -DCRT_BEGIN ${CRTS_CFLAGS} \
+		-c -o ${.TARGET} ${UGLYHACK} ${.ALLSRC:N*.h}
+
+crtend.o:
+	${CC} ${CFLAGS} -g0 -DCRT_END \
+		-c -o ${.TARGET} ${UGLYHACK} ${.ALLSRC:N*.h}
+
+crtend.So:
+	${CC} ${CFLAGS} -g0 -DCRT_END ${CRTS_CFLAGS} \
+		-c -o ${.TARGET} ${UGLYHACK} ${.ALLSRC:N*.h}
+
+#	KEEP THIS IN SYNC with src/gnu/usr.bin/cc/cc_tools/Makefile !!
 tm.h:
 	echo '#include "${MACHINE_ARCH}/${MACHINE_ARCH}.h"'	> ${.TARGET}
 .if ${MACHINE_ARCH} == "i386"
