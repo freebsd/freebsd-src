@@ -624,10 +624,10 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
     </sect3>
   </sect2>
 
-  <sect2 arch="i386">
-    <title>DOS User's Question and Answer Section</title>
+  <sect2>
+    <title>Question and Answer Section for &arch; Architecture Users</title>
 
-    <qandaset>
+    <qandaset arch="i386">
       <qandaentry>
         <question>
 	  <para>Help!  I have no space!  Do I need to delete
@@ -727,6 +727,73 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
 	  &os; Ports Collection which emulates an 8088 and enough BIOS
 	  services to run DOS text mode applications.  It requires the
 	  X Window System (XFree86) to operate.</para>
+	</answer>
+      </qandaentry>
+    </qandaset>
+
+    <qandaset arch="alpha">
+      <qandaentry>
+        <question>
+	  <para>Can I boot from the ARC or Alpha BIOS Console?</para>
+	</question>
+
+	<answer>
+	  <para>No.  &os;, like Compaq Tru64 and VMS, will only boot
+	  from the SRM console.</para>
+	</answer>
+      </qandaentry>
+
+      <qandaentry>
+        <question>
+	  <para>Help!  I have no space!  Do I need to delete
+	  everything first?</para>
+	</question>
+
+	<answer>
+	  <para>Unfortunately, yes.</para>
+	</answer>
+      </qandaentry>
+
+      <qandaentry>
+        <question>
+	  <para>Can I mount my Compaq Tru64 or VMS extended partitions?</para>
+	</question>
+
+	<answer>
+	  <para>No, not at this time.</para>
+	</answer>
+      </qandaentry>
+
+      <qandaentry>
+        <question>
+	  <para>What about support for Compaq Tru64 (OSF/1) binaries?</para>
+	</question>
+
+	<answer>
+	  <para>&os; can run Tru64 applications very well using the
+	  <filename>emulators/osf1_base</filename> port/package.</para>
+	</answer>
+      </qandaentry>
+
+      <qandaentry>
+        <question>
+	  <para>What about support for Linux binaries?</para>
+	</question>
+
+	<answer>
+	  <para>At the moment, &os; cannot run AlphaLinux.  Support is
+	  currently being worked on.</para>
+	</answer>
+      </qandaentry>
+
+      <qandaentry>
+        <question>
+	  <para>What about support for NT Alpha binaries?</para>
+	</question>
+
+	<answer>
+	  <para>&os; is not able to run NT applications natively,
+	  although it has the ability to mount NT partitions.</para>
 	</answer>
       </qandaentry>
     </qandaset>
