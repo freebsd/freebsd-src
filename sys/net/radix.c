@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)radix.c	8.2 (Berkeley) 1/4/94
- * $Id: radix.c,v 1.5 1994/10/15 21:33:17 phk Exp $
+ *	$Id: radix.c,v 1.6 1995/03/20 21:30:12 wollman Exp $
  */
 
 /*
@@ -684,16 +684,21 @@ rn_walktree_from(h, a, m, f, w)
 	/*
 	 * rn_search_m is sort-of-open-coded here.
 	 */
+	/* printf("about to search\n"); */
 	for (rn = h->rnh_treetop; rn->rn_b >= 0; ) {
 		last = rn;
-		if (!(rn->rn_bmask & xm[rn->rn_off]))
+		/* printf("rn_b %d, rn_bmask %x, xm[rn_off] %x\n",
+		       rn->rn_b, rn->rn_bmask, xm[rn->rn_off]); */
+		if (!(rn->rn_bmask & xm[rn->rn_off])) {
 			break;
+		}
 		if (rn->rn_bmask & xa[rn->rn_off]) {
 			rn = rn->rn_r;
 		} else {
 			rn = rn->rn_l;
 		}
 	}
+	/* printf("done searching\n"); */
 
 	/*
 	 * Two cases: either we stepped off the end of our mask,
@@ -704,6 +709,8 @@ rn_walktree_from(h, a, m, f, w)
 	rn = last;
 	lastb = rn->rn_b;
 
+	/* printf("rn %p, lastb %d\n", rn, lastb);*/
+
 	/*
 	 * This gets complicated because we may delete the node
 	 * while applying the function f to it, so we need to calculate
@@ -713,6 +720,7 @@ rn_walktree_from(h, a, m, f, w)
 		rn = rn->rn_l;
 
 	while (!stopping) {
+		/* printf("node %p (%d)\n", rn, rn->rn_b); */
 		base = rn;
 		/* If at right child go back up, otherwise, go right */
 		while (rn->rn_p->rn_r == rn && !(rn->rn_flags & RNF_ROOT)) {
@@ -721,6 +729,7 @@ rn_walktree_from(h, a, m, f, w)
 			/* if went up beyond last, stop */ 
 			if (rn->rn_b < lastb) {
 				stopping = 1;
+				/* printf("up too far\n"); */
 			}
 		}
 
@@ -731,11 +740,18 @@ rn_walktree_from(h, a, m, f, w)
 		/* Process leaves */
 		while ((rn = base) != 0) {
 			base = rn->rn_dupedkey;
+			/* printf("leaf %p\n", rn); */
 			if (!(rn->rn_flags & RNF_ROOT) 
 			    && (error = (*f)(rn, w)))
 				return (error);
 		}
 		rn = next;
+
+		if (rn->rn_flags & RNF_ROOT) {
+			/* printf("root, stopping"); */
+			stopping = 1;
+		}
+
 	}
 	return 0;
 }
