@@ -60,7 +60,7 @@ beforeinstall:
 	    ${NORMALFILES} ${DESTDIR}${TMACDIR}
 	cd ${.CURDIR}; \
 	    ${INSTALL} -o ${TMACOWN} -g ${TMACGRP} -m ${TMACMODE} \
-	    hyphen.us-ru ${DESTDIR}${TMACDIR}
+	    hyphen.ru ${DESTDIR}${TMACDIR}
 	cd ${.OBJDIR}
 .for f in ${STRIPFILES} ${SPECIALFILES}
 	${INSTALL} -o ${TMACOWN} -g ${TMACGRP} -m ${TMACMODE} \

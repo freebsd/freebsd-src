@@ -32,22 +32,16 @@ troffrc!X100 troffrc!X100-12 troffrc!lj4 troff!lbp troffrc!html
 .el \
 .	do tr \[char65]\~
 .
-.ie "\*[.T]"koi8-r" \{\
-.
-.\" Set the hyphenation language to `us-ru'.
-.do hla us-ru
-.
-.\" Load hyphenation patterns from `hyphen.us-ru' (in the tmac directory).
-.do hpf hyphen.us-ru
-.
-.\}
-.el \{\
-.
 .\" Set the hyphenation language to `us'.
 .do hla us
 .
 .\" Load hyphenation patterns from `hyphen.us' (in the tmac directory).
 .do hpf hyphen.us
+.
+.if "\*[.T]"koi8-r" \{\
+.
+.\" Append hyphenation patterns from `hyphen.ru' (in the tmac directory).
+.do hpfa hyphen.ru
 .
 .\}
 .
