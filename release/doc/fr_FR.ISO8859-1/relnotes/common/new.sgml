@@ -4,7 +4,7 @@
 
      $Id$
      $FreeBSD$
-     Original revision: 1.22.2.293
+     Original revision: 1.22.2.294
 -->
 
 <articleinfo>
@@ -104,17 +104,12 @@
 	de base d&eacute;couverts apr&egrave;s la &release.prev; sont 
 	&eacute;galements mentionn&eacute;s.</para>
 
-
   <sect2 id="kernel">
     <title>Changements concernant le noyau</title>
-
-    <para></para>
-
 
     <para>&man.acct.2; a &eacute;t&eacute; modifi&eacute; pour ouvrir le 
     fichier de comptage en mode ajout, cela permet &agrave; &man.accton.8; 
     d'etre utilis&eacute; en mode ajout seul.</para>
-
 
     <para>Le support de <literal>RLIMIT_VMEM</literal> a &eacute;t&eacute; 
     ajout&eacute;. Cette fonctionnalit&eacute; d&eacute;fini une nouvelle 
@@ -140,13 +135,16 @@
     de connecter les Handspring Visors via USB &agrave; &eacute;t&eacute; 
     ajout&eacute;.</para>
 
-
 <!-- Above this line, kernel changes ordered by manpage/variable name -->
 
     <sect3>
       <title>Support des cartes m&egrave;res et des processeurs</title>
 
-      <para></para>
+      <para arch="i386">Le support des cartes AMD &Eacute;lan SC520 a 
+      &eacute;t&eacute; ajout&eacute;; cette carte n&eacute;cessite 
+      l'option <literal>CPU_ELAN</literal> dans le fichier de configuration du 
+      noyau.</para>
+
     </sect3>
 
     <sect3>
@@ -213,7 +211,6 @@
        fonctionnalit&eacute; est activable via la variable sysctl 
        <varname>net.inet.tcp.inflight_enable</varname></para>
 
-
     </sect3>
 
     <sect3>
@@ -224,7 +221,6 @@
       AIC7901A, et AIC7902 Ultra320 PCI-X, a &eacute;t&eacute; 
       ajout&eacute;.</para>
 
-
       <para>Un bogue emp&eacute;chant parfois &man.ata.4; de fonctionner
       correctement en mode "tagged queueing" a &eacute;t&eacute; 
       corrig&eacute;.</para>
@@ -234,6 +230,9 @@
       de <literal>READ_BIG</literal>
       et autres erreus qui apparaissaient lors de l'acc&egrave;s &agrave; 
       certains p&eacute;riph&eacute;riques ATA.</para>
+
+      <para>Le gestionnaire de p&eacute;riph&eacute;rique &man.ata.4; supporte 
+      maintenant les controleurs Sil 0680 et VIA 8233/8235.</para>
 
       <para arch="i386,alpha">Le gestionnaire de p&eacute;riph&eacute;rique 
       mpt, permettant le support des architectures des controlleurs 
@@ -326,7 +325,6 @@
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:30.ktrace.asc">FreeBSD-SA-02:30</ulink>
       .</para>
  
-
     <para>Une "race condition" dans &man.pppd.8;, permettant de changer les
     permissions d'un fichier de façon arbitraire a &eacute;t&eacute; 
     r&eacute;solue.
@@ -337,7 +335,7 @@
     <para>De multiples d&eacute;passements de tampons dans
       <application>OpenSSL</application> on &eacute;t&eacute; 
       corrig&eacute;s via
-      la mise ç jour dans le syst&egrave;me de base de la version de
+      la mise &agrave; jour dans le syst&egrave;me de base de la version de
       <application>OpenSSL</application>. Pour plus d'informations, 
       voyez l'avis de s&eacute;curit&eacute; <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:33.openssl.asc">FreeBSD-SA-02:33</ulink>.
@@ -424,7 +422,6 @@
     <option>-b</option> permettant de couper a un certain nombre de bytes
     et de l'option <option>-s</option> permettant de couper au mot.</para>
 
-
     <para>&man.ftp.1; dispose maintenant de la commande 
     <command>epsv4</command> pour lui permettre de basculer entre la
     nouvelle requ&egrave;te EPSV/EPRT et l'ancienne PASV/PORT lors
@@ -457,7 +454,6 @@
     <para>&man.inetd.8; dispose de la capacit&eacute; &agrave; limiter le 
     nombre maximum d'executions simultan&eacute;es de chaque service depuis 
     une adresse IP..</para>
-
 
     <para>Le programme &man.ls.1; dispose maintenant d'une option
     <option>-m</option> permettant de lister par page, d'une option
@@ -552,7 +548,6 @@
       <option>am i</option>; <option>-u</option> affiche le temps idle;
       <option>-q</option> affiche les noms en colonnes.</para>
 
-
     <para>&man.xargs.1; dispose de l'option <option>-I</option>
       <replaceable>replstr</replaceable> permettant de demander &agrave;
       l'utilisateur les donn&eacute;es &agrave; ins&eacute;r&eacute;es depuis
@@ -567,7 +562,6 @@
     lignes.</para>
 
 <!-- Above this line, order userland changes by manpage/variable name-->
-
 
     <sect3>
       <title>Logiciels externes</title>
@@ -682,7 +676,6 @@
       <para><application>top</application> a &eacute;t&eacute; mis &agrave; 
       jour en version 3.5b12.</para>
 
-
     </sect3>
 
     <sect3>
@@ -725,14 +718,12 @@
       maintenant possible. Voyez &man.release.7; pour plus de d&eacute;tails.
       </para>
 
-
   </sect2>
 
 </sect1>
 
 <sect1>
   <title>Mise &agrave; jour depuis une version pr&eacute;cedente de  &os;</title>
-
 
        <para>Si vous effectuez une mise &agrave; jour depuis une version
         ant&eacute;rieure de &os;, vous avez g&eacute;n&eacute;ralement 
