@@ -45,7 +45,6 @@
 
 #include <machine/mutex.h>
 
-#ifndef LOCORE
 #ifdef _KERNEL
 
 /*
@@ -87,6 +86,8 @@
 #define MTX_UNOWNED	0x8		/* Cookie for free mutex */
 
 #endif	/* _KERNEL */
+
+#ifndef LOCORE
 
 #ifdef WITNESS
 struct mtx_debug {

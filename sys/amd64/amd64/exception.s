@@ -37,8 +37,8 @@
 
 #include <machine/asmacros.h>
 #include <sys/ipl.h>
+#include <sys/mutex.h>
 #include <machine/lock.h>
-#include <machine/mutex.h>
 #include <machine/psl.h>
 #include <machine/trap.h>
 #ifdef SMP
@@ -293,7 +293,7 @@ IDTVEC(int0x80_syscall)
 	jmp	_doreti
 
 ENTRY(fork_trampoline)
- 	MTX_EXIT(_sched_lock, %ecx)
+ 	MTX_EXIT(_sched_lock, MTX_SPIN)
 	sti				/* XXX: we need this for kernel threads
 					   created very early before interrupts
 					   are enabled */
