@@ -450,20 +450,21 @@ iphack:
 		 * See the comment in ip_output for the return values
 		 * produced by the firewall.
 		 */
-		i = ip_fw_chk_ptr(&ip,
-		    hlen, NULL, &divert_cookie, &m, &rule, &ip_fw_fwd_addr);
+		i = ip_fw_chk_ptr(&ip, hlen, NULL,
+		    &divert_cookie, &m, &rule, &ip_fw_fwd_addr);
 		if (i & IP_FW_PORT_DENY_FLAG) { /* XXX new interface-denied */
-		    if (m)
-			m_freem(m);
-		    return ;
+			if (m)
+				m_freem(m);
+			return;
 		}
 		if (m == NULL) {	/* Packet discarded by firewall */
-		    static int __debug=10;
-		    if (__debug >0) {
-			printf("firewall returns NULL, please update!\n");	
-			__debug-- ;
-		    }
-		    return;
+			static int __debug=10;
+			if (__debug > 0) {
+				printf(
+				    "firewall returns NULL, please update!\n");	
+				__debug--;
+			}
+			return;
 		}
 		if (i == 0 && ip_fw_fwd_addr == NULL)	/* common case */
 			goto pass;
