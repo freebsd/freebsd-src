@@ -80,8 +80,10 @@ struct ng_node {
 	int	numhooks;	/* number of hooks */
 	int	colour;		/* for graph colouring algorithms */
 	void   *private;	/* node type dependant node ID */
+	ng_ID_t		ID;	/* Unique per node */
 	LIST_HEAD(hooks, ng_hook) hooks;	/* linked list of node hooks */
 	LIST_ENTRY(ng_node)	  nodes;	/* linked list of all nodes */
+	LIST_ENTRY(ng_node)	  idnodes;	/* ID hash collision list */
 };
 typedef struct ng_node *node_p;
 
@@ -223,6 +225,7 @@ DECLARE_MODULE(ng_##typename, ng_##typename##_mod, sub, order)
 /* Special malloc() type for netgraph structs and ctrl messages */
 MALLOC_DECLARE(M_NETGRAPH);
 
+int	ng_bypass(hook_p hook1, hook_p hook2);
 void	ng_cutlinks(node_p node);
 int	ng_con_nodes(node_p node,
 	     const char *name, node_p node2, const char *name2);
@@ -235,6 +238,7 @@ int	ng_mkpeer(node_p node, const char *name, const char *name2, char *type);
 int	ng_mod_event(module_t mod, int what, void *arg);
 int	ng_name_node(node_p node, const char *name);
 int	ng_newtype(struct ng_type *tp);
+ng_ID_t ng_node2ID(node_p node);
 int	ng_path2node(node_p here, const char *path, node_p *dest, char **rtnp);
 int	ng_path_parse(char *addr, char **node, char **path, char **hook);
 int	ng_queue_data(hook_p hook, struct mbuf *m, meta_p meta);
@@ -248,7 +252,6 @@ int	ng_send_msg(node_p here, struct ng_mesg *msg,
 	    const char *address, struct ng_mesg **resp);
 void	ng_unname(node_p node);
 void	ng_unref(node_p node);
-int	ng_bypass(hook_p hook1, hook_p hook2);
 int	ng_wait_node(node_p node, char *msg);
 
 #endif /* _NETGRAPH_NETGRAPH_H_ */

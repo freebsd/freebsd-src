@@ -67,13 +67,18 @@ static LIST_HEAD(, ng_node) nodelist;
 /* List of installed types */
 static LIST_HEAD(, ng_type) typelist;
 
+/* Hash releted definitions */
+#define ID_HASH_SIZE 32 /* most systems wont need even this many */
+static LIST_HEAD(, ng_node) ID_hash[ID_HASH_SIZE];
+/* Don't nead to initialise them because it's a LIST */
+
 /* Internal functions */
 static int	ng_add_hook(node_p node, const char *name, hook_p * hookp);
 static int	ng_connect(hook_p hook1, hook_p hook2);
 static void	ng_disconnect_hook(hook_p hook);
 static int	ng_generic_msg(node_p here, struct ng_mesg *msg,
 			const char *retaddr, struct ng_mesg ** resp);
-static node_p	ng_decodeidname(const char *name);
+static ng_ID_t	ng_decodeidname(const char *name);
 static int	ngb_mod_event(module_t mod, int event, void *data);
 static void	ngintr(void);
 
@@ -84,6 +89,9 @@ MALLOC_DEFINE(M_NETGRAPH, "netgraph", "netgraph structures and ctrl messages");
 #ifndef TRAP_ERROR
 #define TRAP_ERROR
 #endif
+
+static	ng_ID_t nextID = 1;
+
 
 /************************************************************************
 			Node routines
@@ -163,6 +171,10 @@ ng_make_node_common(struct ng_type *type, node_p *nodepp)
 	/* Initialize hook list for new node */
 	LIST_INIT(&node->hooks);
 
+	/* get an ID and put us in the hash chain */
+	node->ID = nextID++; /* 137 per second for 1 year before wrap */
+	LIST_INSERT_HEAD(&ID_hash[node->ID % ID_HASH_SIZE], node, idnodes);
+
 	/* Done */
 	*nodepp = node;
 	return (0);
@@ -231,6 +243,7 @@ ng_unref(node_p node)
 	if (--node->refs <= 0) {
 		node->type->refs--;
 		LIST_REMOVE(node, nodes);
+		LIST_REMOVE(node, idnodes);
 		FREE(node, M_NETGRAPH);
 	}
 }
@@ -290,6 +303,26 @@ ng_release_node(node_p node)
 }
 
 /************************************************************************
+			Node ID handling
+************************************************************************/
+static node_p
+ng_ID2node(ng_ID_t ID)
+{
+	node_p np;
+	LIST_FOREACH(np, &ID_hash[ID % ID_HASH_SIZE], idnodes) {
+		if (np->ID == ID)
+			break;
+	}
+	return(np);
+}
+
+ng_ID_t
+ng_node2ID(node_p node)
+{
+	return (node->ID);
+}
+
+/************************************************************************
 			Node name handling
 ************************************************************************/
 
@@ -310,7 +343,7 @@ ng_name_node(node_p node, const char *name)
 		TRAP_ERROR;
 		return (EINVAL);
 	}
-	if (ng_decodeidname(name) != NULL) {
+	if (ng_decodeidname(name) != 0) { /* valid IDs not allowed here */
 		TRAP_ERROR;
 		return (EINVAL);
 	}
@@ -350,21 +383,16 @@ ng_name_node(node_p node, const char *name)
 node_p
 ng_findname(node_p this, const char *name)
 {
-	node_p node, temp;
+	node_p node;
+	ng_ID_t temp;
 
 	/* "." means "this node" */
 	if (strcmp(name, ".") == 0)
 		return(this);
 
 	/* Check for name-by-ID */
-	if ((temp = ng_decodeidname(name)) != NULL) {
-
-		/* Make sure the ID really points to a node */
-		LIST_FOREACH(node, &nodelist, nodes) {
-			if (node == temp)
-				break;
-		}
-		return (node);
+	if ((temp = ng_decodeidname(name)) != 0) {
+		return (ng_ID2node(temp));
 	}
 
 	/* Find node by name */
@@ -376,16 +404,13 @@ ng_findname(node_p this, const char *name)
 }
 
 /*
- * Decode a ID name, eg. "[f03034de]". Returns NULL if the
- * string is not valid, otherwise returns the ID cast to a
- * node pointer.
- *
- * NOTE: the returned pointer is not necessarily valid!
+ * Decode a ID name, eg. "[f03034de]". Returns 0 if the
+ * string is not valid, otherwise returns the value.
  */
-static node_p
+static ng_ID_t
 ng_decodeidname(const char *name)
 {
-	u_int32_t val;
+	ng_ID_t val;
 	int k, len;
 
 	/* Basic checks */
@@ -415,7 +440,7 @@ ng_decodeidname(const char *name)
 		else
 			val = (val << 4) | (((ch & 0xdf) - 'A' + 10) & 0xf);
 	}
-	return ((node_p) val);
+	return (val);
 }
 
 /*
@@ -895,7 +920,7 @@ ng_path2node(node_p here, const char *address, node_p *destp, char **rtnp)
 		if (start->name != NULL)
 			sprintf(*rtnp, "%s:", start->name);
 		else
-			sprintf(*rtnp, "[%lx]:", (u_long) start);
+			sprintf(*rtnp, "[%x]:", ng_node2ID(start));
 	}
 
 	/* Done */
@@ -1067,7 +1092,7 @@ ng_generic_msg(node_p here, struct ng_mesg *msg, const char *retaddr,
 		if (here->name != NULL)
 			strncpy(ni->name, here->name, NG_NODELEN);
 		strncpy(ni->type, here->type->name, NG_TYPELEN);
-		ni->id = (u_int32_t) here;
+		ni->id = ng_node2ID(here);
 		ni->hooks = here->numhooks;
 		*resp = rp;
 		break;
@@ -1098,7 +1123,7 @@ ng_generic_msg(node_p here, struct ng_mesg *msg, const char *retaddr,
 		if (here->name)
 			strncpy(ni->name, here->name, NG_NODELEN);
 		strncpy(ni->type, here->type->name, NG_TYPELEN);
-		ni->id = (u_int32_t) here;
+		ni->id = ng_node2ID(here);
 
 		/* Cycle through the linked list of hooks */
 		ni->hooks = 0;
@@ -1119,7 +1144,7 @@ ng_generic_msg(node_p here, struct ng_mesg *msg, const char *retaddr,
 				    hook->peer->node->name, NG_NODELEN);
 			strncpy(link->nodeinfo.type,
 			   hook->peer->node->type->name, NG_TYPELEN);
-			link->nodeinfo.id = (u_int32_t) hook->peer->node;
+			link->nodeinfo.id = ng_node2ID(hook->peer->node);
 			link->nodeinfo.hooks = hook->peer->node->numhooks;
 			ni->hooks++;
 		}
@@ -1177,7 +1202,7 @@ ng_generic_msg(node_p here, struct ng_mesg *msg, const char *retaddr,
 			if (node->name != NULL)
 				strncpy(np->name, node->name, NG_NODELEN);
 			strncpy(np->type, node->type->name, NG_TYPELEN);
-			np->id = (u_int32_t) node;
+			np->id = ng_node2ID(node);
 			np->hooks = node->numhooks;
 			nl->numnames++;
 		}
@@ -1537,7 +1562,7 @@ ng_queue_msg(node_p here, struct ng_mesg * msg, int len, const char *address)
 	char   *retaddr = NULL;
 	int     error;
 
-	/* Find the target node. Note that this trashes address */
+	/* Find the target node. */
 	error = ng_path2node(here, address, &dest, &retaddr);
 	if (error) {
 		FREE(msg, M_NETGRAPH);
