@@ -76,9 +76,9 @@ int ldisc_register(int , struct linesw *);
 void ldisc_deregister(int);
 #define LDISC_LOAD 	-1		/* Loadable line discipline */
 
-l_ioctl_t	l_nullioctl;
 l_read_t	l_noread;
 l_write_t	l_nowrite;
+l_ioctl_t	l_nullioctl;
 
 static __inline int
 ttyld_open(struct tty *tp, dev_t dev)
@@ -109,7 +109,8 @@ ttyld_write(struct tty *tp, struct uio *uio, int flag)
 }
 
 static __inline int
-ttyld_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag, struct thread *td)
+ttyld_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag,
+    struct thread *td)
 {
 
 	return ((*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag, td));
