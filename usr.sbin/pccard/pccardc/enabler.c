@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: enabler.c,v 1.5.2.1 1997/10/08 07:33:23 charnier Exp $";
+	"$Id: enabler.c,v 1.5.2.2 1997/10/26 04:13:38 nate Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -47,7 +47,7 @@ enabler_main(argc, argv)
 	int     argc;
 	char   *argv[];
 {
-	struct drv_desc drv;
+	struct dev_desc drv;
 	struct mem_desc mem;
 	struct io_desc io;
 	int     fd, slot, i, card_addr;
