@@ -1,7 +1,7 @@
 #
 # Makefile for the NIS databases
 #
-# $Id: Makefile.yp,v 1.8 1996/07/18 23:48:13 adam Exp $
+# $Id: Makefile.yp,v 1.9 1996/07/24 10:48:07 peter Exp $
 #
 # This Makefile should only be run on the NIS master server of a domain.
 # All updated maps will be pushed to all NIS slave servers listed in the
@@ -118,8 +118,8 @@ target:
 #
 
 all:  master.passwd passwd hosts group networks protocols rpc \
-      services servers netid # aliases publickey netgrp ethers bootparam \
-      amd.host
+      services servers netid
+      # aliases publickey netgrp ethers bootparam amd.host
 
 ethers:	   ethers.byname ethers.byaddr
 bootparam: bootparams
@@ -185,7 +185,7 @@ ethers.byname: $(ETHERS)
 						-o $(YPMAPDIR)/$@ - $(TMP)
 	@$(MV) $(TMP) $@
 	@$(DBLOAD) -c
-	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) -i $(ETHERS) $@; fi
+	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
 	@if [ ! $(NOPUSH) ]; then echo "Pushed $@ map." ; fi
 
 
