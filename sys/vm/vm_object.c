@@ -533,7 +533,9 @@ vm_object_terminate(vm_object_t object)
 	/*
 	 * Make sure no one uses us.
 	 */
+	VM_OBJECT_LOCK(object);
 	vm_object_set_flag(object, OBJ_DEAD);
+	VM_OBJECT_UNLOCK(object);
 
 	/*
 	 * wait for the pageout daemon to be done with the object
