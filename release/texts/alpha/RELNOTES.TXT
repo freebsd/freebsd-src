@@ -240,6 +240,10 @@ O_EXCL|O_CREAT opens was fixed.  [MERGED]
 The bug that made certain CDROM drives fail to attach when connected
 to a SCSI card driven by 'isp' has been fixed. [MERGED]
 
+Condition variables have now been implemented in the FreeBSD kernel.
+See condvar(9) for more details.
+
+
 1.2. SECURITY FIXES
 -------------------
 
@@ -594,7 +598,8 @@ gcc now uses a unified libgcc rather than a separate one fro threaded
 and non-threaded programs.  This provides threaded programs with the
 needed exception frame symbols. [MERGED]
 
-syslogd(8) now supports a "LOG_CONSOLE" facility. [MERGED]
+syslogd(8) now supports a "LOG_CONSOLE" facility (disabled by
+default), which can be used to log /dev/console output. [MERGED]
 
 rpcgen now uses /usr/bin/cpp (as on NetBSD), not /usr/libexec/cpp.
 
@@ -608,6 +613,24 @@ used as a filename for stdin.
 
 dmesg(8) now has a -a option to show the entire message buffer,
 including syslog records and /dev/console output. [MERGED]
+
+In /etc/ssh/sshd_config, ConnectionsPerPeriod has been deprecated.
+
+Entropy from the random(4) device is now periodically saved to files 
+in /var/db/entropy.
+
+cdcontrol(1) now uses the CDROM environment variable to pick a default
+device. [MERGED]
+
+sysctl(8) now supports a -N option to print out variable names only.
+
+All packages and ports now contain an "origin" directive, which makes
+it easier for programs like pkg_version(1) to determine the directory
+from which a package was built. [MERGED]
+
+sysinstall(8) now lives in /usr/sbin, which simplifies the installation
+process.  The sysinstall(8) manpage is also installed in a more
+consistent fashion now.
 
 
 2. Supported Configurations
