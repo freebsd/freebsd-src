@@ -112,6 +112,26 @@ Responses to multicast ICMP ECHO REQUEST (``ping'') and ADDRESS MASK
 REQUEST packets can now be disabled via sysctl.  The netstat program
 will print out statistics on how many times this happens.
 
+It is possible to compile in a font for syscons.
+
+The bootblocks can set VESA videomode 0x102 (800x600x16) before loading
+the kernel, this allows XFree86 to work in this resolution on most 
+moderately recent graphics hardware, including many laptops.
+A set of patches are making their way to -current that allows syscons
+to operate in this mode too;  contact phk@FreeBSD.org.
+
+A subtle and seldom bug in ffs has been fixed.
+
+The VFS name cache has been reworked to be more accountable and efficient.
+
+The generic part of VOP_LOOKUP() has been put it in system-wide function
+which filesystems can rely on for the canonical stuff.
+
+Vnode freelist handling has been hauled over.  Vnodes are only on the
+freelist if nobody care about them.
+
+The kernel provides assistance to getcwd() if possible.
+
 
 SECURITY CHANGES:
 
