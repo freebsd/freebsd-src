@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.217 1998/09/10 20:44:55 ache Exp $
+#	$Id: Makefile,v 1.218 1998/09/15 05:10:17 jkh Exp $
 #
 # The user-driven targets are:
 #
@@ -32,7 +32,7 @@
 # For novices wanting to build from current sources, the simple instructions
 # are:
 #
-# 1.  Ensure that your /usr/obj directory has at least 165 Mb of free space.
+# 1.  Ensure that your /usr/obj directory has at least 260 Mb of free space.
 # 2.  `cd /usr/src'  (or to the directory containing your source tree).
 # 3.  `make world'
 #
