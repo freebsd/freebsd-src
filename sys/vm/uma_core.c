@@ -1546,9 +1546,9 @@ zfree_start:
 			KASSERT(bucket->ub_bucket[bucket->ub_ptr] == NULL,
 			    ("uma_zfree: Freeing to non free bucket index."));
 			bucket->ub_bucket[bucket->ub_ptr] = item;
-			CPU_UNLOCK(zone, cpu);
 			if (zone->uz_dtor)
 				zone->uz_dtor(item, zone->uz_size, udata);
+			CPU_UNLOCK(zone, cpu);
 			return;
 		} else if (cache->uc_allocbucket) {
 #ifdef UMA_DEBUG_ALLOC
@@ -1699,10 +1699,10 @@ uma_zfree_internal(uma_zone_t zone, void *item, void *udata, int skip)
 	/* Zone statistics */
 	zone->uz_free++;
 
-	ZONE_UNLOCK(zone);
-
 	if (!skip && zone->uz_dtor)
 		zone->uz_dtor(item, zone->uz_size, udata);
+
+	ZONE_UNLOCK(zone);
 }
 
 /* See uma.h */
