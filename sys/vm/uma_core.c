@@ -697,6 +697,18 @@ slab_zalloc(uma_zone_t zone, int wait)
 		}
 	}
 
+	/*
+	 * This reproduces the old vm_zone behavior of zero filling pages the
+	 * first time they are added to a zone.
+	 *
+	 * Malloced items are zeroed in uma_zalloc.
+	 */
+
+	if ((zone->uz_flags & UMA_ZFLAG_MALLOC) == 0)
+		wait |= M_ZERO;
+	else
+		wait &= ~M_ZERO;
+
 	if (booted || (zone->uz_flags & UMA_ZFLAG_PRIVALLOC)) {
 		mtx_lock(&Giant);
 		mem = zone->uz_allocf(zone, 
@@ -794,18 +806,8 @@ page_alloc(uma_zone_t zone, int bytes, u_int8_t *pflag, int wait)
 {
 	void *p;	/* Returned page */
 
-	/*
-	 * XXX The original zone allocator did this, but I don't think it's
-	 * necessary in current.
-	 */
-
-	if (lockstatus(&kernel_map->lock, NULL)) {
-		*pflag = UMA_SLAB_KMEM;
-		p = (void *) kmem_malloc(kmem_map, bytes, wait);
-	} else {
-		*pflag = UMA_SLAB_KMAP;
-		p = (void *) kmem_alloc(kernel_map, bytes);
-	}
+	*pflag = UMA_SLAB_KMEM;
+	p = (void *) kmem_malloc(kmem_map, bytes, wait);
   
 	return (p);
 }
@@ -874,10 +876,9 @@ static void
 page_free(void *mem, int size, u_int8_t flags)
 {
 	vm_map_t map;
+
 	if (flags & UMA_SLAB_KMEM)
 		map = kmem_map;
-	else if (flags & UMA_SLAB_KMAP)
-		map = kernel_map;
 	else
 		panic("UMA: page_free used with invalid flags %d\n", flags);
 
@@ -1620,8 +1621,9 @@ new_slab:
 	ZONE_UNLOCK(zone);
 
 	/* Only construct at this time if we're not filling a bucket */
-	if (bucket == NULL && zone->uz_ctor != NULL)  {
-		zone->uz_ctor(item, zone->uz_size, udata);
+	if (bucket == NULL) {
+		if (zone->uz_ctor != NULL) 
+			zone->uz_ctor(item, zone->uz_size, udata);
 		if (flags & M_ZERO)
 			bzero(item, zone->uz_size);
 	}
