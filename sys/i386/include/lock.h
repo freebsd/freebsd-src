@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: lock.h,v 1.4 1997/09/07 22:01:39 fsmp Exp $
+ *	$Id: lock.h,v 1.5 1997/12/15 02:18:27 tegge Exp $
  */
 
 
@@ -85,7 +85,6 @@
  * Botom half routines, ie. those already protected from INTs.
  *
  * Used in:
- *  sys/i386/i386/microtime.s (XXX currently NOT used, possible race?)
  *  sys/i386/isa/ipl.s:		_doreti
  *  sys/i386/isa/apic_vector.s:	_Xintr0, ..., _Xintr23
  */

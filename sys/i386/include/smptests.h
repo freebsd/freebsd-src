@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: smptests.h,v 1.30 1998/03/04 23:45:12 tegge Exp $
+ *	$Id: smptests.h,v 1.31 1998/03/07 20:48:16 tegge Exp $
  */
 
 #ifndef _MACHINE_SMPTESTS_H_
@@ -74,8 +74,6 @@
 #define REAL_AVCPL	/* apic_vector.s:	CPL_LOCK/CPL_UNLOCK */
 #define REAL_IFCPL	/* ipl_funcs.c:		SCPL_LOCK/SCPL_UNLOCK */
 #endif /* PUSHDOWN_LEVEL_2 */
-
-#define REAL_MCPL_NOT	/* microtime.s:		CPL_LOCK/movl $0,_cpl_lock */
 
 /*
  * The xCPL_LOCK/xCPL_UNLOCK defines control the spinlocks
