@@ -332,6 +332,12 @@
 
     <para>&man.nl.1;, a line numbering filter program, has been added.</para>
 
+    <para>&man.pciconf.8; now supports a <option>-v</option> option to
+    display the vendor/device information of configured devices,
+    in conjunction with the <option>-l</option> option.  The default
+    vendor/device database can be found at
+    <filename>/usr/share/misc/pci_vendors</filename>.</para>
+
     <para>&man.ping.8; now supports a <option>-A</option> option to
     beep when packets are lost.</para>
 
