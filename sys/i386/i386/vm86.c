@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: vm86.c,v 1.11 1998/03/24 16:47:12 jlemon Exp $
+ *	$Id: vm86.c,v 1.12 1998/04/15 17:45:08 bde Exp $
  */
 
 #include "opt_vm86.h"
@@ -334,55 +334,71 @@ vm86_emulate(vmf)
 	return (SIGBUS);
 }
 
+#define PGTABLE_SIZE	((1024 + 64) * 1024 / PAGE_SIZE)
+#define INTMAP_SIZE	32
+#define IOMAP_SIZE	ctob(IOPAGES)
+#define TSS_SIZE \
+	(sizeof(struct pcb_ext) - sizeof(struct segment_descriptor) + \
+	 INTMAP_SIZE + IOMAP_SIZE + 1)
+
+struct vm86_layout {
+	pt_entry_t	vml_pgtbl[PGTABLE_SIZE];
+	struct 	pcb vml_pcb;
+	struct	pcb_ext vml_ext;
+	char	vml_intmap[INTMAP_SIZE];
+	char	vml_iomap[IOMAP_SIZE];
+	char	vml_iomap_trailer;
+};
+
 static void
 vm86_initialize(void)
 {
-	int i, offset;
+	int i;
 	u_long *addr;
+	struct vm86_layout *vml = (struct vm86_layout *)vm86paddr;
 	struct pcb *pcb;
 	struct pcb_ext *ext;
 	struct segment_descriptor sd;
 	struct soft_segment_descriptor ssd = {
 		0,			/* segment base address (overwritten) */
-		ctob(IOPAGES + 1) - 1,	/* length */
+		0,			/* length (overwritten) */
 		SDT_SYS386TSS,		/* segment type */
 		0,			/* priority level */
 		1,			/* descriptor present */
 		0, 0,
-		0,			/* default 32 size */
+		0,			/* default 16 size */
 		0			/* granularity */
 	};
 
 	/*
+	 * this should be a compile time error, but cpp doesn't grok sizeof().
+	 */
+	if (sizeof(struct vm86_layout) > ctob(3))
+		panic("struct vm86_layout exceeds space allocated in locore.s");
+
+	/*
 	 * Below is the memory layout that we use for the vm86 region.
 	 *
-	 * The last byte of the i/o map must be followed by an 0xff byte.
-	 * We arbitrarily allocate 16 bytes here, to keep the starting
-	 * address on a doubleword boundary.
-	 *
-	 * If a ~2K stack is enough for interrupt handling, then 
-	 * it may be possible to get the page count down to 3 pages.
-	 *
-	 * +--------+ +--------+
-	 * |        | |Page Tbl| 1M + 64K = 272 entries = 1088 bytes
-	 * |        | +--------+
-	 * | page 0 | 
+	 * +--------+
+	 * |        | 
+	 * |        |
+	 * | page 0 |       
 	 * |        | +--------+
 	 * |        | | stack  |
-	 * +--------+ +--------+
-	 * +--------+ +--------+
-	 * |        | |  PCB   | size: ~240 bytes
-	 * |        | |PCB Ext | size: ~140 bytes (includes TSS)
+	 * +--------+ +--------+ <--------- vm86paddr
+	 * |        | |Page Tbl| 1M + 64K = 272 entries = 1088 bytes
 	 * |        | +--------+
-	 * | page 1 | 
+	 * |        | |  PCB   | size: ~240 bytes
+	 * | page 1 | |PCB Ext | size: ~140 bytes (includes TSS)
 	 * |        | +--------+
 	 * |        | |int map |
-	 * |        | +--------+ <-- &(PAGE 1) - 16
+	 * |        | +--------+
 	 * +--------+ |        |
 	 * | page 2 | |  I/O   |
 	 * +--------+ | bitmap |
 	 * | page 3 | |        |
-	 * +--------+ +--------+
+	 * |        | +--------+
+	 * +--------+ 
 	 */
 
 	/*
@@ -398,35 +414,37 @@ vm86_initialize(void)
 	 * pcb_fs	=    saved TSS descriptor, word 0
 	 * pcb_gs	=    saved TSS descriptor, word 1
 	 */
+#define new_ptd		pcb_esi
+#define vm86_frame	pcb_ebp
+#define pgtable_va	pcb_ebx
 
-	pcb = (struct pcb *)(vm86paddr + PAGE_SIZE);
-	bzero(pcb, sizeof(struct pcb)); 
-	pcb->pcb_esi = vm86pa | PG_V | PG_RW | PG_U;
-	pcb->pcb_ebp = vm86paddr + PAGE_SIZE - sizeof(struct vm86frame);
-	pcb->pcb_ebx = vm86paddr;
+	pcb = &vml->vml_pcb;
+	ext = &vml->vml_ext;
 
-	ext = (struct pcb_ext *)((u_int)pcb + sizeof(struct pcb));
+	bzero(pcb, sizeof(struct pcb));
+	pcb->new_ptd = vm86pa | PG_V | PG_RW | PG_U;
+	pcb->vm86_frame = vm86paddr - sizeof(struct vm86frame);
+	pcb->pgtable_va = vm86paddr;
 	pcb->pcb_ext = ext;
 
 	bzero(ext, sizeof(struct pcb_ext)); 
-	ext->ext_tss.tss_esp0 = vm86paddr + PAGE_SIZE;
+	ext->ext_tss.tss_esp0 = vm86paddr;
 	ext->ext_tss.tss_ss0 = GSEL(GDATA_SEL, SEL_KPL);
-
-	offset = PAGE_SIZE - 16;
 	ext->ext_tss.tss_ioopt = 
-	    (offset - ((u_int)&ext->ext_tss & PAGE_MASK)) << 16;
-	ext->ext_iomap = (caddr_t)(offset + ((u_int)&ext->ext_tss & PG_FRAME));
+		((u_int)vml->vml_iomap - (u_int)&ext->ext_tss) << 16;
+	ext->ext_iomap = vml->vml_iomap;
+	ext->ext_vm86.vm86_intmap = vml->vml_intmap;
 
-	ext->ext_vm86.vm86_intmap = ext->ext_iomap - 32;
 	if (cpu_feature & CPUID_VME)
 		ext->ext_vm86.vm86_has_vme = (rcr4() & CR4_VME ? 1 : 0);
 
 	addr = (u_long *)ext->ext_vm86.vm86_intmap;
-	for (i = 0; i < (ctob(IOPAGES) + 32 + 16) / sizeof(u_long); i++)
+	for (i = 0; i < (INTMAP_SIZE + IOMAP_SIZE) / sizeof(u_long); i++)
 		*addr++ = 0;
+	vml->vml_iomap_trailer = 0xff;
 
 	ssd.ssd_base = (u_int)&ext->ext_tss;
-	ssd.ssd_limit -= ((u_int)&ext->ext_tss & PAGE_MASK);
+	ssd.ssd_limit = TSS_SIZE - 1; 
 	ssdtosd(&ssd, &ext->ext_tssd);
 
 	vm86pcb = pcb;
