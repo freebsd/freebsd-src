@@ -51,67 +51,6 @@
 
 MALLOC_DEFINE(M_P31B, "p1003.1b", "Posix 1003.1B");
 
-/* p31b_proc: Return a proc struct corresponding to a pid to operate on.
- *
- * Enforce permission policy.
- *
- * The policy is the same as for sending signals except there
- * is no notion of process groups.
- *
- * pid == 0 means my process.
- *
- * This is disabled until I've got a permission gate in again:
- * only root can do this.
- */
-
-#if 0
-/*
- * This is stolen from CANSIGNAL in kern_sig:
- *
- * Can process with credential cr1 do "write flavor" operations to credential
- * cr2.  This check needs to use generalized checks.
- */
-#define CAN_AFFECT(cr1, cr2) \
-	(!suser_xxx(cr1, NULL, PRISON_ROOT) || \
-	    (c1)->cr_ruid == (cr2)->cr_ruid || \
-	    (c1)->cr_uid == (cr2)->cr_ruid || \
-	    (c1)->cr_ruid == (cr2)->cr_uid || \
-	    (c1)->cr_uid == (cr2)->cr_uid)
-#else
-#define CAN_AFFECT(cr1, cr2) (!suser_xxx(cr1, NULL, PRISON_ROOT))
-#endif
-
-/*
- * p31b_proc: Look up a proc from a PID.  If proc is 0 it is
- * my own proc.
- */
-int p31b_proc(struct proc *p, pid_t pid, struct proc **pp)
-{
-	int ret = 0;
-	struct proc *other_proc = 0;
-
-	if (pid == 0) {
-		other_proc = p;
-		PROC_LOCK(p);
-	} else
-		other_proc = pfind(pid);
-
-	if (other_proc)
-	{
-		/* Enforce permission policy.
-		 */
-		if (CAN_AFFECT(p->p_ucred, other_proc->p_ucred))
-			*pp = other_proc;
-		else
-			ret = EPERM;
-		PROC_UNLOCK(other_proc);
-	}
-	else
-		ret = ESRCH;
-
-	return ret;
-}
-
 /* The system calls return ENOSYS if an entry is called that is
  * not run-time supported.  I am also logging since some programs
  * start to use this when they shouldn't.  That will be removed if annoying.
@@ -174,9 +113,20 @@ int sched_setparam(struct proc *p,
 	if (e)
 		return (e);
 
-	e = p31b_proc(p, uap->pid, &targetp);
+	if (uap->pid == 0) {
+		targetp = p;
+		PROC_LOCK(targetp);
+	} else {
+		targetp = pfind(uap->pid);
+		if (targetp == NULL)
+			return (ESRCH);
+	}
+
+	e = p_can(p, targetp, P_CAN_SCHED, NULL);
+	PROC_UNLOCK(targetp);
 	if (e)
 		return (e);
+
 	e = ksched_setparam(&p->p_retval[0], ksched, targetp,
 		(const struct sched_param *)&sched_param);
 	return (e);
@@ -189,9 +139,20 @@ int sched_getparam(struct proc *p,
 	struct sched_param sched_param;
 	struct proc *targetp;
 
-	e = p31b_proc(p, uap->pid, &targetp);
+	if (uap->pid == 0) {
+		targetp = p;
+		PROC_LOCK(targetp);
+	} else {
+		targetp = pfind(uap->pid);
+		if (targetp == NULL)
+			return (ESRCH);
+	}
+
+	e = p_can(p, targetp, P_CAN_SEE, NULL);
+	PROC_UNLOCK(targetp);
 	if (e)
 		return (e);
+
 	e = ksched_getparam(&p->p_retval[0], ksched, targetp, &sched_param);
 	if (e)
 		return (e);
@@ -210,9 +171,20 @@ int sched_setscheduler(struct proc *p,
 	if (e)
 		return (e);
 
-	e = p31b_proc(p, uap->pid, &targetp);
+	if (uap->pid == 0) {
+		targetp = p;
+		PROC_LOCK(targetp);
+	} else {
+		targetp = pfind(uap->pid);
+		if (targetp == NULL)
+			return (ESRCH);
+	}
+
+	e = p_can(p, targetp, P_CAN_SCHED, NULL);
+	PROC_UNLOCK(targetp);
 	if (e)
 		return (e);
+
 	e = ksched_setscheduler(&p->p_retval[0], ksched, targetp, uap->policy,
 		(const struct sched_param *)&sched_param);
 
@@ -224,9 +196,20 @@ int sched_getscheduler(struct proc *p,
 	int e;
 	struct proc *targetp;
 
-	e = p31b_proc(p, uap->pid, &targetp);
+	if (uap->pid == 0) {
+		targetp = p;
+		PROC_LOCK(targetp);
+	} else {
+		targetp = pfind(uap->pid);
+		if (targetp == NULL)
+			return (ESRCH);
+	}
+
+	e = p_can(p, targetp, P_CAN_SEE, NULL);
+	PROC_UNLOCK(targetp);
 	if (e)
 		return (e);
+
 	e = ksched_getscheduler(&p->p_retval[0], ksched, targetp);
 
 	return (e);
@@ -254,9 +237,20 @@ int sched_rr_get_interval(struct proc *p,
 	int e;
 	struct proc *targetp;
 
-	e = p31b_proc(p, uap->pid, &targetp);
+	if (uap->pid == 0) {
+		targetp = p;
+		PROC_LOCK(targetp);
+	} else {
+		targetp = pfind(uap->pid);
+		if (targetp == NULL)
+			return (ESRCH);
+	}
+
+	e = p_can(p, targetp, P_CAN_SEE, NULL);
+	PROC_UNLOCK(targetp);
 	if (e)
 		return (e);
+
 	e = ksched_rr_get_interval(&p->p_retval[0], ksched, targetp,
 	    uap->interval);
 
