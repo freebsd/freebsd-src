@@ -674,9 +674,9 @@ sbus_setup_intr(device_t dev, device_t child,
 			 * intr registers.
 			 */
 			slot = INTSLOT(vec);
-
 			intrmapptr = SBR_SLOT0_INT_MAP + slot * 8;
-			intrclrptr = SBR_SLOT0_INT_CLR + inr * 8;
+			intrclrptr = SBR_SLOT0_INT_CLR +
+			    (slot * 8 * 8) + (INTPRI(vec) * 8);
 			/* Enable the interrupt, insert IGN. */
 			intrmap = inr | sc->sc_ign;
 		} else {
