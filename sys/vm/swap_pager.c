@@ -90,13 +90,16 @@
 
 #include "opt_swap.h"
 #include <vm/vm.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
+#include <vm/vm_kern.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
 #include <vm/vm_pageout.h>
+#include <vm/vm_zone.h>
 #include <vm/swap_pager.h>
 #include <vm/vm_extern.h>
-#include <vm/vm_zone.h>
 
 #define SWM_FREE	0x02	/* free, period			*/
 #define SWM_POP		0x04	/* pop out			*/
@@ -273,7 +276,7 @@ swap_pager_init()
 void
 swap_pager_swap_init()
 {
-	int n;
+	int n, n2;
 
 	/*
 	 * Number of in-transit swap bp operations.  Don't
@@ -311,15 +314,23 @@ swap_pager_swap_init()
 	 * can hold 16 pages, so this is probably overkill.
 	 */
 
-	n = cnt.v_page_count * 2;
+	n = min(cnt.v_page_count, (kernel_map->max_offset - kernel_map->min_offset) / PAGE_SIZE) * 2;
+	n2 = n;
 
-	swap_zone = zinit(
-	    "SWAPMETA", 
-	    sizeof(struct swblock), 
-	    n,
-	    ZONE_INTERRUPT, 
-	    1
-	);
+	while (n > 0
+	       && (swap_zone = zinit(
+		       "SWAPMETA", 
+		       sizeof(struct swblock), 
+		       n,
+		       ZONE_INTERRUPT, 
+		       1
+		       )) == NULL)
+		n >>= 1;
+	if (swap_zone == NULL)
+		printf("WARNING: failed to init swap_zone!\n");
+	if (n2 != n)
+		printf("Swap zone entries reduced to %d.\n", n);
+	n2 = n;
 
 	/*
 	 * Initialize our meta-data hash table.  The swapper does not need to
@@ -330,7 +341,7 @@ swap_pager_swap_init()
 	 *	swhash_mask:	hash table index mask
 	 */
 
-	for (n = 1; n < cnt.v_page_count / 4; n <<= 1)
+	for (n = 1; n < n2 ; n <<= 1)
 		;
 
 	swhash = malloc(sizeof(struct swblock *) * n, M_VMPGDATA, M_WAITOK | M_ZERO);

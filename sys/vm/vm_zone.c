@@ -80,8 +80,11 @@ int
 zinitna(vm_zone_t z, vm_object_t obj, char *name, int size,
 	int nentries, int flags, int zalloc)
 {
-	int totsize;
+	int totsize, oldzflags;
+	vm_zone_t oldzlist;
 
+	oldzflags = z->zflags;
+	oldzlist = zlist;
 	if ((z->zflags & ZONE_BOOT) == 0) {
 		z->zsize = (size + ZONE_ROUNDING - 1) & ~(ZONE_ROUNDING - 1);
 		simple_lock_init(&z->zlock);
@@ -112,8 +115,12 @@ zinitna(vm_zone_t z, vm_object_t obj, char *name, int size,
 		zone_kmem_kvaspace += totsize;
 
 		z->zkva = kmem_alloc_pageable(kernel_map, totsize);
-		if (z->zkva == 0)
+		if (z->zkva == 0) {
+			/* Clean up the zlist in case we messed it. */
+			if ((oldzflags & ZONE_BOOT) == 0)
+				zlist = oldzlist;
 			return 0;
+		}
 
 		z->zpagemax = totsize / PAGE_SIZE;
 		if (obj == NULL) {
@@ -156,11 +163,10 @@ zinit(char *name, int size, int nentries, int flags, int zalloc)
 {
 	vm_zone_t z;
 
-	z = (vm_zone_t) malloc(sizeof (struct vm_zone), M_ZONE, M_NOWAIT);
+	z = (vm_zone_t) malloc(sizeof (struct vm_zone), M_ZONE, M_NOWAIT | M_ZERO);
 	if (z == NULL)
 		return NULL;
 
-	z->zflags = 0;
 	if (zinitna(z, NULL, name, size, nentries, flags, zalloc) == 0) {
 		free(z, M_ZONE);
 		return NULL;

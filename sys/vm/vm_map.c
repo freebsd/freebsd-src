@@ -86,8 +86,8 @@
 #include <vm/vm_pager.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
-#include <vm/swap_pager.h>
 #include <vm/vm_zone.h>
+#include <vm/swap_pager.h>
 
 /*
  *	Virtual memory maps provide for the mapping, protection,
