@@ -1,0 +1,52 @@
+#	$Id$
+#
+
+/set type=dir uname=bin gname=bin mode=0755
+.              
+    arpa           
+    ..
+    g++            
+    ..
+    kerberosIV     
+    ..
+    machine        
+    ..
+    net            
+    ..
+    netccitt       
+    ..
+    netinet        
+    ..
+    netiso         
+    ..
+    netns          
+    ..
+    nfs            
+    ..
+    objc           
+    ..
+    protocols      
+    ..
+    readline       
+    ..
+    rpc            
+    ..
+    rpcsvc         
+    ..
+    ss             
+    ..
+    sys            
+    ..
+    ufs            
+        ffs            
+        ..
+        lfs            
+        ..
+        mfs            
+        ..
+        ufs            
+        ..
+    ..
+    vm             
+    ..
+..
