@@ -41,29 +41,8 @@
 #ifndef _SETJMP_H_
 #define _SETJMP_H_
 
-#if defined(__hp300__) || defined(__luna68k__)
-#define _JBLEN	17
-#endif
-
-#if defined(__i386__)
-#define _JBLEN	8
-#endif
-
-#if defined(__mips__)
-#define _JBLEN	83
-#endif
-
-#if defined(__sparc__)
-#define _JBLEN	10
-#endif
-
-#if defined(__tahoe__)
-#define _JBLEN	10
-#endif
-
-#if defined(__vax__)
-#define _JBLEN	10
-#endif
+/* The size of the jmp_buf is machine dependent: */
+#include <machine/setjmp.h>
 
 /*
  * jmp_buf and sigjmp_buf are encapsulated in different structs to force
@@ -71,10 +50,10 @@
  * internally to avoid some run-time errors for mismatches.
  */
 #ifndef _ANSI_SOURCE
-typedef struct { int _sjb[_JBLEN + 1]; } sigjmp_buf[1];
+typedef struct { long _sjb[_JBLEN + 1]; } sigjmp_buf[1];
 #endif /* not ANSI */
 
-typedef struct { int _jb[_JBLEN + 1]; } jmp_buf[1];
+typedef struct { long _jb[_JBLEN + 1]; } jmp_buf[1];
 
 #include <sys/cdefs.h>
 
