@@ -1006,8 +1006,10 @@ sppp_attach(struct ifnet *ifp)
 	sp->pp_phase = PHASE_DEAD;
 	sp->pp_up = lcp.Up;
 	sp->pp_down = lcp.Down;
-	mtx_init(&sp->pp_cpq.ifq_mtx, "sppp_cpq", MTX_DEF);
-	mtx_init(&sp->pp_fastq.ifq_mtx, "sppp_fastq", MTX_DEF);
+	if(!mtx_initialized(&sp->pp_cpq.ifq_mtx))
+		mtx_init(&sp->pp_cpq.ifq_mtx, "sppp_cpq", MTX_DEF);
+	if(!mtx_initialized(&sp->pp_fastq.ifq_mtx))
+		mtx_init(&sp->pp_fastq.ifq_mtx, "sppp_fastq", MTX_DEF);
 	sp->pp_last_recv = sp->pp_last_sent = time_second;
 	sp->enable_vj = 1;
 	sp->pp_comp = malloc(sizeof(struct slcompress), M_TEMP, M_WAIT);
