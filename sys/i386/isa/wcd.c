@@ -342,7 +342,7 @@ void wcd_describe (struct wcd *t)
 	printf ("\n");
 }
 
-int wcdopen (dev_t dev)
+int wcdopen (dev_t dev, int flags, int fmt, struct proc *p)
 {
 	int lun = UNIT(dev);
 	struct wcd *t;
@@ -413,7 +413,7 @@ int wcdopen (dev_t dev)
  * Close the device.  Only called if we are the LAST
  * occurence of an open device.
  */
-int wcdclose (dev_t dev)
+int wcdclose (dev_t dev, int flags, int fmt, struct proc *p)
 {
 	int lun = UNIT(dev);
 	struct wcd *t = wcdtab[lun];
@@ -430,7 +430,7 @@ int wcdclose (dev_t dev)
  * understand. The transfer is described by a buf and will include only one
  * physical transfer.
  */
-int wcdstrategy (struct buf *bp)
+void wcdstrategy (struct buf *bp)
 {
 	int lun = UNIT(bp->b_dev);
 	struct wcd *t = wcdtab[lun];
@@ -442,7 +442,7 @@ int wcdstrategy (struct buf *bp)
 		bp->b_error = EIO;
 		bp->b_flags |= B_ERROR;
 		biodone (bp);
-		return (0);
+		return;
 	}
 
 	/* Can't ever write to a CD. */
@@ -450,14 +450,14 @@ int wcdstrategy (struct buf *bp)
 		bp->b_error = EROFS;
 		bp->b_flags |= B_ERROR;
 		biodone (bp);
-		return (0);
+		return;
 	}
 
 	/* If it's a null transfer, return immediatly. */
 	if (bp->b_bcount == 0) {
 		bp->b_resid = 0;
 		biodone (bp);
-		return (0);
+		return;
 	}
 
 	/* Process transfer request. */
@@ -472,7 +472,6 @@ int wcdstrategy (struct buf *bp)
 	 * not doing anything, otherwise just wait for completion. */
 	wcd_start (t);
 	splx(x);
-	return (0);
 }
 
 /*
@@ -600,7 +599,7 @@ static inline void lba2msf (int lba, u_char *m, u_char *s, u_char *f)
  * Perform special action on behalf of the user.
  * Knows about the internals of this device
  */
-int wcdioctl (dev_t dev, int cmd, caddr_t addr, int flag)
+int wcdioctl (dev_t dev, int cmd, caddr_t addr, int flags, struct proc *p)
 {
 	int lun = UNIT(dev);
 	struct wcd *t = wcdtab[lun];
