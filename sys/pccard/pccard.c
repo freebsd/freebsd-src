@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pccard.c,v 1.76 1999/04/27 18:47:39 jdp Exp $
+ *	$Id: pccard.c,v 1.77 1999/05/02 04:19:27 nate Exp $
  */
 
 #include "opt_devfs.h"
@@ -526,7 +526,7 @@ pccard_alloc_intr(u_int imask, inthand2_t *hand, int unit,
 		if (!(mask & imask))
 			continue;
 		INTRMASK(*maskp, mask);
-		if (register_pcic_intr(irq, 0, 0, hand, maskp, unit) == 0) {
+		if (register_pcic_intr(irq, unit, 0, hand, maskp, unit) == 0) {
 			/* add this to the PCIC controller's mask */
 			if (pcic_imask)
 				INTRMASK(*pcic_imask, (1 << irq));
