@@ -149,6 +149,7 @@ struct xfile {
 	int	xf_msgcount;	/* references from message queue */
 	off_t	xf_offset;	/* file offset */
 	void	*xf_data;	/* file descriptor specific data */
+	void	*xf_vnode;	/* vnode pointer */
 	u_int	xf_flag;	/* flags (see fcntl.h) */
 };
 
