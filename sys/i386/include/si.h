@@ -1,5 +1,5 @@
 /*
- * Device driver for Specialix range (SLXOS) of serial line multiplexors.
+ * Device driver for Specialix range (SI/XIO) of serial line multiplexors.
  * 'C' definitions for Specialix serial multiplex driver.
  *
  * Copyright (C) 1990, 1992 Specialix International,
@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.h,v 1.4 1995/09/13 08:39:28 peter Exp $
+ *	$Id: si.h,v 1.5 1995/11/09 21:53:48 peter Exp $
  */
 
 /*
@@ -90,7 +90,7 @@
 #define	SIEISA		4
 
 /* Buffer parameters */
-#define	SLXOS_BUFFERSIZE	256
+#define	SI_BUFFERSIZE	256
 
 typedef	unsigned char	BYTE;		/* Type cast for unsigned 8 bit */
 typedef	unsigned short	WORD;		/* Type cast for unsigned 16 bit */
@@ -195,8 +195,8 @@ struct	si_channel {
 	BYTE	hi_mask;		/* Mask for CS7 etc. */
 	BYTE	mask_z280;		/* Z280's copy */
 	BYTE	res[0x60 - 36];
-	BYTE	hi_txbuf[SLXOS_BUFFERSIZE];
-	BYTE	hi_rxbuf[SLXOS_BUFFERSIZE];
+	BYTE	hi_txbuf[SI_BUFFERSIZE];
+	BYTE	hi_rxbuf[SI_BUFFERSIZE];
 	BYTE	res1[0xA0];
 };
 
