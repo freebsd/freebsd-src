@@ -1,4 +1,4 @@
-/* $Id: ccd.c,v 1.37.2.1 1999/02/18 22:06:00 ken Exp $ */
+/* $Id: ccd.c,v 1.37.2.2 1999/03/11 19:21:31 dg Exp $ */
 
 /*	$NetBSD: ccd.c,v 1.22 1995/12/08 19:13:26 thorpej Exp $	*/
 
@@ -1219,6 +1219,11 @@ ccdioctl(dev, cmd, data, flag, p)
 		free(ccddevs[unit].ccd_vpp, M_DEVBUF);
 		ccd.ccd_dk = -1;
 		bcopy(&ccd, &ccddevs[unit], sizeof(ccd));
+
+		/*
+		 * And remove the devstat entry.
+		 */
+		devstat_remove_entry(&cs->device_stats);
 
 		/* This must be atomic. */
 		s = splhigh();
