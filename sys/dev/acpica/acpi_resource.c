@@ -535,7 +535,7 @@ static driver_t acpi_sysresource_driver = {
     0,
 };
 
-devclass_t acpi_sysresource_devclass;
+static devclass_t acpi_sysresource_devclass;
 DRIVER_MODULE(acpi_sysresource, acpi, acpi_sysresource_driver, acpi_sysresource_devclass, 0, 0);
 
 static int

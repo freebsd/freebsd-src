@@ -35,8 +35,6 @@
 #include <machine/bus.h>
 #include <machine/resource.h>
 
-extern devclass_t	acpi_devclass;
-
 struct acpi_softc {
     device_t		acpi_dev;
     dev_t		acpi_dev_t;

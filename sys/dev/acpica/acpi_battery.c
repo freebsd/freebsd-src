@@ -183,7 +183,7 @@ acpi_battery_init(void)
 	struct acpi_softc	*sc;
 	int	 		 error;
 
-	if ((dev = devclass_get_device(acpi_devclass, 0)) == NULL) {
+	if ((dev = devclass_get_device(devclass_find("acpi"), 0)) == NULL) {
 		return (ENXIO);
 	}
 	if ((sc = device_get_softc(dev)) == NULL) {
