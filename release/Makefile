@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.460.2.18 1999/05/13 02:50:57 jkh Exp $
+#	$Id: Makefile,v 1.460.2.19 1999/05/29 08:56:36 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -18,7 +18,7 @@
 #
 # Automatic SNAP versioning:
 DATE != date +%Y%m%d
-BASE = 3.1
+BASE = 3.2
 BUILDNAME?=${BASE}-${DATE}-SNAP
 #
 #CHROOTDIR=/junk/release
