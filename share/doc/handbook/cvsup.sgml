@@ -1,4 +1,4 @@
-<!-- $Id: cvsup.sgml,v 1.9 1997/02/22 21:05:17 mpp Exp $ -->
+<!-- $Id: cvsup.sgml,v 1.10 1997/02/26 22:24:28 jdp Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>CVSup<label id="cvsup"></heading>
@@ -448,6 +448,8 @@ cryptography code.
     Graphics utilities.
     <tag><tt>ports-japanese release=cvs</tt></tag>
     Japanese language support.
+    <tag><tt>ports-korean release=cvs</tt></tag>
+    Korean language support.
     <tag><tt>ports-lang release=cvs</tt></tag>
     Programming languages.
     <tag><tt>ports-mail release=cvs</tt></tag>
