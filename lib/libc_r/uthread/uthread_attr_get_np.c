@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002 Alexey Zelkin <phantom@FreeBSD.org>
+ * Copyright (c) 2002,2003 Alexey Zelkin <phantom@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -45,5 +45,13 @@ _pthread_attr_get_np(pthread_t pid, pthread_attr_t *dst)
 		return (ret);
 
 	memcpy(*dst, &pid->attr, sizeof(struct pthread_attr));
+
+	/*
+	 * Special case, if stack address was not provided by caller
+	 * of pthread_create(), then return address allocated internally
+	 */
+	if ((*dst)->stackaddr_attr == NULL)
+		(*dst)->stackaddr_attr = pid->stack;
+
 	return (0);
 }
