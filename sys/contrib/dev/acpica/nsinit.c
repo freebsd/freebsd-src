@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: nsinit - namespace initialization
- *              $Revision: 49 $
+ *              $Revision: 50 $
  *
  *****************************************************************************/
 
@@ -419,7 +419,7 @@ AcpiNsInitOneDevice (
     ACPI_FUNCTION_TRACE ("NsInitOneDevice");
 
 
-    if (!(AcpiDbgLevel & ACPI_LV_INIT))
+    if ((AcpiDbgLevel <= ACPI_LV_ALL_EXCEPTIONS) && (!(AcpiDbgLevel & ACPI_LV_INFO)))
     {
         ACPI_DEBUG_PRINT_RAW ((ACPI_DB_OK, "."));
     }

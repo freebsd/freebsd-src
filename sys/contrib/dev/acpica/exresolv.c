@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exresolv - AML Interpreter object resolution
- *              $Revision: 116 $
+ *              $Revision: 117 $
  *
  *****************************************************************************/
 
@@ -230,7 +230,7 @@ AcpiExResolveObjectToValue (
 
     switch (ACPI_GET_OBJECT_TYPE (StackDesc))
     {
-    case INTERNAL_TYPE_REFERENCE:
+    case ACPI_TYPE_LOCAL_REFERENCE:
 
         Opcode = StackDesc->Reference.Opcode;
 
@@ -365,9 +365,9 @@ AcpiExResolveObjectToValue (
      * These cases may never happen here, but just in case..
      */
     case ACPI_TYPE_BUFFER_FIELD:
-    case INTERNAL_TYPE_REGION_FIELD:
-    case INTERNAL_TYPE_BANK_FIELD:
-    case INTERNAL_TYPE_INDEX_FIELD:
+    case ACPI_TYPE_LOCAL_REGION_FIELD:
+    case ACPI_TYPE_LOCAL_BANK_FIELD:
+    case ACPI_TYPE_LOCAL_INDEX_FIELD:
 
         ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "FieldRead SourceDesc=%p Type=%X\n",
             StackDesc, ACPI_GET_OBJECT_TYPE (StackDesc)));
@@ -412,7 +412,7 @@ AcpiExResolveMultiple (
     ACPI_OBJECT_TYPE        Type;
 
 
-    ACPI_FUNCTION_TRACE ("ExGetObjectType");
+    ACPI_FUNCTION_TRACE ("AcpiExResolveMultiple");
 
 
     /*
@@ -421,7 +421,7 @@ AcpiExResolveMultiple (
      * of the ObjectType and SizeOf operators).  This means traversing 
      * the list of possibly many nested references.
      */
-    while (ACPI_GET_OBJECT_TYPE (ObjDesc) == INTERNAL_TYPE_REFERENCE)
+    while (ACPI_GET_OBJECT_TYPE (ObjDesc) == ACPI_TYPE_LOCAL_REFERENCE)
     {
         switch (ObjDesc->Reference.Opcode)
         {
@@ -540,11 +540,18 @@ Exit:
 
     switch (Type)
     {
-    case INTERNAL_TYPE_REGION_FIELD:
-    case INTERNAL_TYPE_BANK_FIELD:
-    case INTERNAL_TYPE_INDEX_FIELD:
+    case ACPI_TYPE_LOCAL_REGION_FIELD:
+    case ACPI_TYPE_LOCAL_BANK_FIELD:
+    case ACPI_TYPE_LOCAL_INDEX_FIELD:
 
         Type = ACPI_TYPE_FIELD_UNIT;
+        break;
+
+    case ACPI_TYPE_LOCAL_SCOPE:
+
+        /* Per ACPI Specification, Scope is untyped */
+
+        Type = ACPI_TYPE_ANY;
         break;
 
     default:

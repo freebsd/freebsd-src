@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: utobject - ACPI object create/delete/size/cache routines
- *              $Revision: 76 $
+ *              $Revision: 79 $
  *
  *****************************************************************************/
 
@@ -182,7 +182,7 @@ AcpiUtCreateInternalObjectDbg (
             return_PTR (NULL);
         }
 
-        SecondObject->Common.Type = INTERNAL_TYPE_EXTRA;
+        SecondObject->Common.Type = ACPI_TYPE_LOCAL_EXTRA;
         SecondObject->Common.ReferenceCount = 1;
 
         /* Link the second object to the first */
@@ -211,6 +211,61 @@ AcpiUtCreateInternalObjectDbg (
 
 /*******************************************************************************
  *
+ * FUNCTION:    AcpiUtCreateBufferObject
+ *
+ * PARAMETERS:  BufferSize             - Size of buffer to be created
+ *
+ * RETURN:      Pointer to a new Buffer object
+ *
+ * DESCRIPTION: Create a fully initialized buffer object
+ *
+ ******************************************************************************/
+
+ACPI_OPERAND_OBJECT *
+AcpiUtCreateBufferObject (
+    ACPI_SIZE               BufferSize)
+{
+    ACPI_OPERAND_OBJECT     *BufferDesc;
+    UINT8                   *Buffer;
+
+
+    ACPI_FUNCTION_TRACE_U32 ("UtCreateBufferObject", BufferSize);
+
+
+    /*
+     * Create a new Buffer object
+     */
+    BufferDesc = AcpiUtCreateInternalObject (ACPI_TYPE_BUFFER);
+    if (!BufferDesc)
+    {
+        return_PTR (NULL);
+    }
+
+    /* Allocate the actual buffer */
+
+    Buffer = ACPI_MEM_CALLOCATE (BufferSize);
+    if (!Buffer)
+    {
+        ACPI_REPORT_ERROR (("CreateBuffer: could not allocate size %X\n", 
+            (UINT32) BufferSize));
+        AcpiUtRemoveReference (BufferDesc);
+        return_PTR (NULL);
+    }
+
+    /* Complete buffer object initialization */
+
+    BufferDesc->Buffer.Flags |= AOPOBJ_DATA_VALID;
+    BufferDesc->Buffer.Pointer = Buffer;
+    BufferDesc->Buffer.Length = (UINT32) BufferSize;
+
+    /* Return the new buffer descriptor */
+
+    return_PTR (BufferDesc);
+}
+
+
+/*******************************************************************************
+ *
  * FUNCTION:    AcpiUtValidInternalObject
  *
  * PARAMETERS:  Object              - Object to be validated
@@ -231,8 +286,7 @@ AcpiUtValidInternalObject (
 
     if (!Object)
     {
-        ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
-            "**** Null Object Ptr\n"));
+        ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "**** Null Object Ptr\n"));
         return (FALSE);
     }
 
@@ -258,10 +312,17 @@ AcpiUtValidInternalObject (
             "**** Obj %p is a parser obj, not ACPI obj\n", Object));
         break;
 
+    case ACPI_DESC_TYPE_CACHED:
+
+        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
+            "**** Obj %p has already been released to internal cache\n", Object));
+        break;
+
     default:
 
-        ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
-            "**** Obj %p is of unknown type\n", Object));
+        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
+            "**** Obj %p has unknown descriptor type %X\n", Object,
+            ACPI_GET_DESCRIPTOR_TYPE (Object)));
         break;
     }
 
@@ -454,7 +515,7 @@ AcpiUtGetSimpleObjectSize (
         break;
 
 
-    case INTERNAL_TYPE_REFERENCE:
+    case ACPI_TYPE_LOCAL_REFERENCE:
 
         switch (InternalObject->Reference.Opcode)
         {

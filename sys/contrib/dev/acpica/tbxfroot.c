@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: tbxfroot - Find the root ACPI table (RSDT)
- *              $Revision: 64 $
+ *              $Revision: 65 $
  *
  *****************************************************************************/
 
@@ -415,7 +415,8 @@ AcpiFindRootPointer (
     Status = AcpiTbFindRsdp (&TableInfo, Flags);
     if (ACPI_FAILURE (Status))
     {
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "RSDP structure not found\n"));
+        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "RSDP structure not found, %s Flags=%X\n",
+            AcpiFormatException (Status), Flags));
         return_ACPI_STATUS (AE_NO_ACPI_TABLES);
     }
 
@@ -523,6 +524,8 @@ AcpiTbFindRsdp (
                                     (void **) &TablePtr);
         if (ACPI_FAILURE (Status))
         {
+            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Could not map memory at %X for length %X\n",
+                LO_RSDP_WINDOW_BASE, LO_RSDP_WINDOW_SIZE));
             return_ACPI_STATUS (Status);
         }
 
@@ -547,6 +550,8 @@ AcpiTbFindRsdp (
                                     (void **) &TablePtr);
         if (ACPI_FAILURE (Status))
         {
+            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Could not map memory at %X for length %X\n",
+                HI_RSDP_WINDOW_BASE, HI_RSDP_WINDOW_SIZE));
             return_ACPI_STATUS (Status);
         }
 

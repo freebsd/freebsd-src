@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exprep - ACPI AML (p-code) execution - field prep utilities
- *              $Revision: 119 $
+ *              $Revision: 121 $
  *
  *****************************************************************************/
 
@@ -205,28 +205,24 @@ AcpiExDecodeFieldAccess (
         break;
 
     case AML_FIELD_ACCESS_BYTE:
+    case AML_FIELD_ACCESS_BUFFER:   /* ACPI 2.0 (SMBus Buffer) */
         ByteAlignment = 1;
-        BitLength = 8;
+        BitLength     = 8;
         break;
 
     case AML_FIELD_ACCESS_WORD:
         ByteAlignment = 2;
-        BitLength = 16;
+        BitLength     = 16;
         break;
 
     case AML_FIELD_ACCESS_DWORD:
         ByteAlignment = 4;
-        BitLength = 32;
+        BitLength     = 32;
         break;
 
-    case AML_FIELD_ACCESS_QWORD:  /* ACPI 2.0 */
+    case AML_FIELD_ACCESS_QWORD:    /* ACPI 2.0 */
         ByteAlignment = 8;
-        BitLength = 64;
-        break;
-
-    case AML_FIELD_ACCESS_BUFFER:  /* ACPI 2.0 */
-        ByteAlignment = 8;
-        BitLength = 8;
+        BitLength     = 64;
         break;
 
     default:
@@ -414,7 +410,7 @@ AcpiExPrepFieldValue (
 
     /* Parameter validation */
 
-    if (Info->FieldType != INTERNAL_TYPE_INDEX_FIELD)
+    if (Info->FieldType != ACPI_TYPE_LOCAL_INDEX_FIELD)
     {
         if (!Info->RegionNode)
         {
@@ -456,7 +452,7 @@ AcpiExPrepFieldValue (
 
     switch (Info->FieldType)
     {
-    case INTERNAL_TYPE_REGION_FIELD:
+    case ACPI_TYPE_LOCAL_REGION_FIELD:
 
         ObjDesc->Field.RegionObj     = AcpiNsGetAttachedObject (Info->RegionNode);
 
@@ -471,7 +467,7 @@ AcpiExPrepFieldValue (
         break;
 
 
-    case INTERNAL_TYPE_BANK_FIELD:
+    case ACPI_TYPE_LOCAL_BANK_FIELD:
 
         ObjDesc->BankField.Value     = Info->BankValue;
         ObjDesc->BankField.RegionObj = AcpiNsGetAttachedObject (Info->RegionNode);
@@ -492,7 +488,7 @@ AcpiExPrepFieldValue (
         break;
 
 
-    case INTERNAL_TYPE_INDEX_FIELD:
+    case ACPI_TYPE_LOCAL_INDEX_FIELD:
 
         ObjDesc->IndexField.IndexObj = AcpiNsGetAttachedObject (Info->RegisterNode);
         ObjDesc->IndexField.DataObj  = AcpiNsGetAttachedObject (Info->DataRegisterNode);

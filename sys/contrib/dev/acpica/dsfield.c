@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: dsfield - Dispatcher field routines
- *              $Revision: 68 $
+ *              $Revision: 69 $
  *
  *****************************************************************************/
 
@@ -200,7 +200,7 @@ AcpiDsCreateBufferField (
      * Enter the NameString into the namespace
      */
     Status = AcpiNsLookup (WalkState->ScopeInfo, Arg->Common.Value.String,
-                            INTERNAL_TYPE_DEF_ANY, ACPI_IMODE_LOAD_PASS1,
+                            ACPI_TYPE_ANY, ACPI_IMODE_LOAD_PASS1,
                             Flags, WalkState, &(Node));
     if (ACPI_FAILURE (Status))
     {
@@ -454,7 +454,7 @@ AcpiDsCreateField (
 
     /* Each remaining arg is a Named Field */
 
-    Info.FieldType = INTERNAL_TYPE_REGION_FIELD;
+    Info.FieldType = ACPI_TYPE_LOCAL_REGION_FIELD;
     Info.RegionNode = RegionNode;
 
     Status = AcpiDsGetFieldNames (&Info, WalkState, Arg->Common.Next);
@@ -496,17 +496,17 @@ AcpiDsInitFieldObjects (
     {
     case AML_FIELD_OP:
         Arg = AcpiPsGetArg (Op, 2);
-        Type = INTERNAL_TYPE_REGION_FIELD;
+        Type = ACPI_TYPE_LOCAL_REGION_FIELD;
         break;
 
     case AML_BANK_FIELD_OP:
         Arg = AcpiPsGetArg (Op, 4);
-        Type = INTERNAL_TYPE_BANK_FIELD;
+        Type = ACPI_TYPE_LOCAL_BANK_FIELD;
         break;
 
     case AML_INDEX_FIELD_OP:
         Arg = AcpiPsGetArg (Op, 3);
-        Type = INTERNAL_TYPE_INDEX_FIELD;
+        Type = ACPI_TYPE_LOCAL_INDEX_FIELD;
         break;
 
     default:
@@ -595,11 +595,11 @@ AcpiDsCreateBankField (
         }
     }
 
-    /* Second arg is the Bank Register (must already exist) */
+    /* Second arg is the Bank Register (Field) (must already exist) */
 
     Arg = Arg->Common.Next;
     Status = AcpiNsLookup (WalkState->ScopeInfo, Arg->Common.Value.String,
-                    INTERNAL_TYPE_BANK_FIELD_DEFN, ACPI_IMODE_EXECUTE,
+                    ACPI_TYPE_ANY, ACPI_IMODE_EXECUTE,
                     ACPI_NS_SEARCH_PARENT, WalkState, &Info.RegisterNode);
     if (ACPI_FAILURE (Status))
     {
@@ -619,7 +619,7 @@ AcpiDsCreateBankField (
 
     /* Each remaining arg is a Named Field */
 
-    Info.FieldType = INTERNAL_TYPE_BANK_FIELD;
+    Info.FieldType = ACPI_TYPE_LOCAL_BANK_FIELD;
     Info.RegionNode = RegionNode;
 
     Status = AcpiDsGetFieldNames (&Info, WalkState, Arg->Common.Next);
@@ -672,7 +672,7 @@ AcpiDsCreateIndexField (
 
     Arg = Arg->Common.Next;
     Status = AcpiNsLookup (WalkState->ScopeInfo, Arg->Common.Value.String,
-                    INTERNAL_TYPE_INDEX_FIELD_DEFN, ACPI_IMODE_EXECUTE,
+                    ACPI_TYPE_ANY, ACPI_IMODE_EXECUTE,
                     ACPI_NS_SEARCH_PARENT, WalkState, &Info.DataRegisterNode);
     if (ACPI_FAILURE (Status))
     {
@@ -687,7 +687,7 @@ AcpiDsCreateIndexField (
 
     /* Each remaining arg is a Named Field */
 
-    Info.FieldType = INTERNAL_TYPE_INDEX_FIELD;
+    Info.FieldType = ACPI_TYPE_LOCAL_INDEX_FIELD;
     Info.RegionNode = RegionNode;
 
     Status = AcpiDsGetFieldNames (&Info, WalkState, Arg->Common.Next);

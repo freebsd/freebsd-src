@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: dsobject - Dispatcher object management routines
- *              $Revision: 108 $
+ *              $Revision: 110 $
  *
  *****************************************************************************/
 
@@ -837,7 +837,7 @@ AcpiDsInitObjectFromOp (
     case ACPI_TYPE_STRING:
 
         ObjDesc->String.Pointer = Op->Common.Value.String;
-        ObjDesc->String.Length = ACPI_STRLEN (Op->Common.Value.String);
+        ObjDesc->String.Length = (UINT32) ACPI_STRLEN (Op->Common.Value.String);
 
         /*
          * The string is contained in the ACPI table, don't ever try
@@ -851,7 +851,7 @@ AcpiDsInitObjectFromOp (
         break;
 
 
-    case INTERNAL_TYPE_REFERENCE:
+    case ACPI_TYPE_LOCAL_REFERENCE:
 
         switch (OpInfo->Type)
         {

@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dsutils - Dispatcher utilities
- *              $Revision: 95 $
+ *              $Revision: 97 $
  *
  ******************************************************************************/
 
@@ -379,6 +379,46 @@ AcpiDsResolveOperands (
 
     return_ACPI_STATUS (Status);
 }
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDsClearOperands
+ *
+ * PARAMETERS:  WalkState           - Current walk state with operands on stack
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Clear all operands on the current walk state operand stack.
+ *
+ ******************************************************************************/
+
+void
+AcpiDsClearOperands (
+    ACPI_WALK_STATE         *WalkState)
+{
+    UINT32                  i;
+
+
+    ACPI_FUNCTION_TRACE_PTR ("AcpiDsClearOperands", WalkState);
+
+
+    /*
+     * Remove a reference on each operand on the stack
+     */
+    for (i = 0; i < WalkState->NumOperands; i++)
+    {
+        /*
+         * Remove a reference to all operands, including both
+         * "Arguments" and "Targets".
+         */
+        AcpiUtRemoveReference (WalkState->Operands[i]);
+        WalkState->Operands[i] = NULL;
+    }
+
+    WalkState->NumOperands = 0;
+    return_VOID;
+}
 #endif
 
 
@@ -549,7 +589,7 @@ AcpiDsCreateOperand (
         /* Get the object type of the argument */
 
         OpInfo = AcpiPsGetOpcodeInfo (Opcode);
-        if (OpInfo->ObjectType == INTERNAL_TYPE_INVALID)
+        if (OpInfo->ObjectType == ACPI_TYPE_INVALID)
         {
             return_ACPI_STATUS (AE_NOT_IMPLEMENTED);
         }
