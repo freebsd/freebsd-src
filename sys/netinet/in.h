@@ -458,14 +458,16 @@ struct ip_mreq {
 	{ "fastforwarding", CTLTYPE_INT }, \
 }
 
+#ifdef _KERNEL
+struct ifnet; struct mbuf;	/* forward declarations for Standard C */
+#endif
+
 /* INET6 stuff */
 #define	__KAME_NETINET_IN_H_INCLUDED_
 #include <netinet6/in6.h>
 #undef __KAME_NETINET_IN_H_INCLUDED_
 
 #ifdef _KERNEL
-struct ifnet; struct mbuf;	/* forward declarations for Standard C */
-struct proc;
 
 int	 in_broadcast __P((struct in_addr, struct ifnet *));
 int	 in_canforward __P((struct in_addr));
