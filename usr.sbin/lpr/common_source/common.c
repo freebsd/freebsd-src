@@ -225,12 +225,11 @@ lock_file_name(const struct printer *pp, char *buf, size_t len)
 	if (len == 0)
 		len = MAXPATHLEN;
 
-	if (pp->lock_file[0] == '/') {
-		buf[0] = '\0';
-		strncpy(buf, pp->lock_file, len);
-	} else {
+	if (pp->lock_file[0] == '/')
+		strlcpy(buf, pp->lock_file, len);
+	else
 		snprintf(buf, len, "%s/%s", pp->spool_dir, pp->lock_file);
-	}
+
 	return buf;
 }
 
@@ -244,18 +243,17 @@ status_file_name(const struct printer *pp, char *buf, size_t len)
 	if (len == 0)
 		len = MAXPATHLEN;
 
-	if (pp->status_file[0] == '/') {
-		buf[0] = '\0';
-		strncpy(buf, pp->status_file, len);
-	} else {
+	if (pp->status_file[0] == '/')
+		strlcpy(buf, pp->status_file, len);
+	else
 		snprintf(buf, len, "%s/%s", pp->spool_dir, pp->status_file);
-	}
+
 	return buf;
 }
 
 /* routine to get a current timestamp, optionally in a standard-fmt string */
 void
-lpd_gettime(struct timespec *tsp, char *strp, int strsize)
+lpd_gettime(struct timespec *tsp, char *strp, size_t strsize)
 {
 	struct timespec local_ts;
 	struct timeval btime;
@@ -312,7 +310,7 @@ lpd_gettime(struct timespec *tsp, char *strp, int strsize)
 		strsize = TIMESTR_SIZE;
 		strp[TIMESTR_SIZE+1] = '\0';
 	}
-	strncpy(strp, tempstr, strsize);
+	strlcpy(strp, tempstr, strsize);
 }
 
 /* routines for writing transfer-statistic records */
@@ -346,7 +344,7 @@ trstat_init(struct printer *pp, const char *fname, int filenum)
 	/* get the starting time in both numeric and string formats, and
 	 * save those away along with the file-number */
 	pp->jobdfnum = filenum;
-	lpd_gettime(&pp->tr_start, pp->tr_timestr, TIMESTR_SIZE);
+	lpd_gettime(&pp->tr_start, pp->tr_timestr, (size_t)TIMESTR_SIZE);
 
 	return;
 }
@@ -367,7 +365,7 @@ trstat_write(struct printer *pp, tr_sendrecv sendrecv, size_t bytecnt,
 	remspace = eostat - xStr;     \
 } while(0)
 	
-	lpd_gettime(&pp->tr_done, NULL, 0);
+	lpd_gettime(&pp->tr_done, NULL, (size_t)0);
 	trtime = DIFFTIME_TS(pp->tr_done, pp->tr_start);
 
 	gethostname(thishost, sizeof(thishost));
