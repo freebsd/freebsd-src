@@ -18,7 +18,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *      $Id$
+ *      $Id: 93cx6.c,v 1.10 1997/02/22 09:38:36 peter Exp $
  */
 
 /*
@@ -58,7 +58,6 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #if defined(__FreeBSD__)
-#include <machine/clock.h>
 #include <i386/scsi/93cx6.h>
 #elif defined(__NetBSD__)
 #include <machine/bus.h>
