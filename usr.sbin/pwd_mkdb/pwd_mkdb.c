@@ -115,7 +115,7 @@ main(argc, argv)
 	strcpy(prefix, _PATH_PWD);
 	makeold = 0;
 	username = NULL;
-	while ((ch = getopt(argc, argv, "Cd:ps:u:vN")) != -1)
+	while ((ch = getopt(argc, argv, "Cd:pqs:u:vN")) != -1)
 		switch(ch) {
 		case 'C':                       /* verify only */
 			Cflag = 1;
@@ -125,6 +125,9 @@ main(argc, argv)
 			break;
 		case 'p':			/* create V7 "file.orig" */
 			makeold = 1;
+			break;
+		case 'q':
+			pw_big_ids_warning = 0;
 			break;
 		case 's':			/* change default cachesize */
 			openinfo.cachesize = atoi(optarg) * 1024 * 1024;
