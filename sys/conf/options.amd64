@@ -59,3 +59,4 @@ PPC_DEBUG		opt_ppc.h
 PSM_HOOKRESUME		opt_psm.h
 PSM_RESETAFTERSUSPEND	opt_psm.h
 PSM_DEBUG		opt_psm.h
+IA32

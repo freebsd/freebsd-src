@@ -124,12 +124,11 @@ extern void initializecpu(void);
 #define	EFL_SECURE(ef, oef)	((((ef) ^ (oef)) & ~PSL_USERCHANGE) == 0)
 
 static void cpu_startup(void *);
-static void fpstate_drop(struct thread *td);
 static void get_fpcontext(struct thread *td, mcontext_t *mcp);
 static int  set_fpcontext(struct thread *td, const mcontext_t *mcp);
 SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL)
 
-int	_udatasel, _ucodesel;
+int	_udatasel, _ucodesel, _ucode32sel;
 u_long	atdevbase;
 
 u_int64_t	modulep;	/* phys addr of metadata table */
@@ -390,6 +389,16 @@ sigreturn(td, uap)
 	return (EJUSTRETURN);
 }
 
+#ifdef COMPAT_FREEBSD4
+int
+freebsd4_sigreturn(struct thread *td, struct freebsd4_sigreturn_args *uap)
+{
+ 
+	return sigreturn(td, (struct sigreturn_args *)uap);
+}
+#endif
+
+
 /*
  * Machine dependent boot() routine
  *
@@ -467,11 +476,25 @@ exec_setregs(td, entry, stack, ps_strings)
 {
 	struct trapframe *regs = td->td_frame;
 	struct pcb *pcb = td->td_pcb;
+	u_int64_t pc;
 	
-	pcb->pcb_fsbase = 0;
-	pcb->pcb_gsbase = 0;
 	wrmsr(MSR_FSBASE, 0);
 	wrmsr(MSR_KGSBASE, 0);	/* User value while we're in the kernel */
+	pcb->pcb_fsbase = 0;
+	pcb->pcb_gsbase = 0;
+	pcb->pcb_kgsbase = rdmsr(MSR_GSBASE);
+	load_ds(_udatasel);
+	load_es(_udatasel);
+	load_fs(_udatasel);
+	critical_enter();
+	pc = rdmsr(MSR_GSBASE);
+	load_gs(_udatasel);	/* Clobbers kernel %GS.base */
+	wrmsr(MSR_GSBASE, pc);
+	critical_exit();
+	pcb->pcb_ds = _udatasel;
+	pcb->pcb_es = _udatasel;
+	pcb->pcb_fs = _udatasel;
+	pcb->pcb_gs = _udatasel;
 
 	bzero((char *)regs, sizeof(struct trapframe));
 	regs->tf_rip = entry;
@@ -590,7 +613,7 @@ struct soft_segment_descriptor gdt_segs[] = {
 	0xfffff,		/* length - all address space */
 	SDT_MEMERA,		/* segment type */
 	SEL_UPL,		/* segment descriptor priority level */
-	0,			/* segment descriptor present */
+	1,			/* segment descriptor present */
 	0,			/* long */
 	1,			/* default 32 vs 16 bit size */
 	1  			/* limit granularity (byte/page units)*/ },
@@ -661,7 +684,7 @@ extern inthand_t
 	IDTVEC(bnd), IDTVEC(ill), IDTVEC(dna), IDTVEC(fpusegm),
 	IDTVEC(tss), IDTVEC(missing), IDTVEC(stk), IDTVEC(prot),
 	IDTVEC(page), IDTVEC(mchk), IDTVEC(rsvd), IDTVEC(fpu), IDTVEC(align),
-	IDTVEC(xmm), IDTVEC(dblfault), IDTVEC(int0x80_syscall),
+	IDTVEC(xmm), IDTVEC(dblfault),
 	IDTVEC(fast_syscall), IDTVEC(fast_syscall32);
 
 void
@@ -1232,7 +1255,6 @@ hammer_time(void)
 	setidt(17, &IDTVEC(align), SDT_SYSIGT, SEL_KPL, 0);
 	setidt(18, &IDTVEC(mchk),  SDT_SYSIGT, SEL_KPL, 0);
 	setidt(19, &IDTVEC(xmm), SDT_SYSIGT, SEL_KPL, 0);
- 	setidt(0x80, &IDTVEC(int0x80_syscall), SDT_SYSIGT, SEL_UPL, 0);
 
 	r_idt.rd_limit = sizeof(idt0) - 1;
 	r_idt.rd_base = (long) idt;
@@ -1290,10 +1312,12 @@ hammer_time(void)
 
 	_ucodesel = GSEL(GUCODE_SEL, SEL_UPL);
 	_udatasel = GSEL(GUDATA_SEL, SEL_UPL);
+	_ucode32sel = GSEL(GUCODE32_SEL, SEL_UPL);
 
 	/* setup proc 0's pcb */
 	thread0.td_pcb->pcb_flags = 0; /* XXXKSE */
 	thread0.td_pcb->pcb_cr3 = IdlePML4;
+	thread0.td_pcb->pcb_kgsbase = (u_int64_t)pc;
 	thread0.td_frame = &proc0_tf;
 }
 
@@ -1613,7 +1637,7 @@ set_fpcontext(struct thread *td, const mcontext_t *mcp)
 	return (0);
 }
 
-static void
+void
 fpstate_drop(struct thread *td)
 {
 	register_t s;

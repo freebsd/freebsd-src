@@ -74,9 +74,9 @@
 #include <vm/vm_object.h>
 #include <vm/vm_extern.h>
 
-#include <ia64/ia32/ia32_util.h>
-#include <ia64/ia32/ia32.h>
-#include <ia64/ia32/ia32_proto.h>
+#include <amd64/ia32/ia32_util.h>
+#include <amd64/ia32/ia32.h>
+#include <amd64/ia32/ia32_proto.h>
 
 static const char ia32_emul_path[] = "/compat/ia32";
 /*
@@ -439,6 +439,7 @@ ia32_execve(struct thread *td, struct ia32_execve_args *uap)
 	return execve(td, &ap);
 }
 
+#ifdef __ia64__
 static int
 ia32_mmap_partial(struct thread *td, vm_offset_t start, vm_offset_t end,
 		  int prot, int fd, off_t pos)
@@ -485,6 +486,7 @@ ia32_mmap_partial(struct thread *td, vm_offset_t start, vm_offset_t end,
 		return (0);
 	}
 }
+#endif
 
 int
 ia32_mmap(struct thread *td, struct ia32_mmap_args *uap)
@@ -497,6 +499,7 @@ ia32_mmap(struct thread *td, struct ia32_mmap_args *uap)
 	int fd		 = uap->fd;
 	off_t pos	 = (uap->poslo
 			    | ((off_t)uap->poshi << 32));
+#ifdef __ia64__
 	vm_size_t pageoff;
 	int error;
 
@@ -567,6 +570,7 @@ ia32_mmap(struct thread *td, struct ia32_mmap_args *uap)
 		addr = start;
 		len = end - start;
 	}
+#endif
 
 	ap.addr = (void *) addr;
 	ap.len = len;
@@ -651,6 +655,83 @@ ia32_select(struct thread *td, struct ia32_select_args *uap)
 	 * XXX big-endian needs to convert the fd_sets too.
 	 */
 	return (select(td, (struct select_args *) uap));
+}
+
+struct kevent32 {
+	u_int32_t	ident;		/* identifier for this event */
+	short		filter;		/* filter for event */
+	u_short		flags;
+	u_int		fflags;
+	int32_t		data;
+	u_int32_t	udata;		/* opaque user data identifier */
+};
+
+int
+ia32_kevent(struct thread *td, struct ia32_kevent_args *uap)
+{
+	int error;
+	caddr_t sg;
+	struct timespec32 ts32;
+	struct timespec ts;
+	struct kevent32 ks32;
+	struct kevent *ks;
+	struct kevent_args a;
+	int i;
+
+	sg = stackgap_init();
+
+	a.fd = uap->fd;
+	a.changelist = uap->changelist;
+	a.nchanges = uap->nchanges;
+	a.eventlist = uap->eventlist;
+	a.nevents = uap->nevents;
+	a.timeout = NULL;
+
+	if (uap->timeout) {
+		a.timeout = stackgap_alloc(&sg, sizeof(struct timespec));
+		error = copyin(uap->timeout, &ts32, sizeof(ts32));
+		if (error)
+			return (error);
+		CP(ts32, ts, tv_sec);
+		CP(ts32, ts, tv_nsec);
+		error = copyout(&ts, (void *)(uintptr_t)a.timeout, sizeof(ts));
+		if (error)
+			return (error);
+	}
+	if (uap->changelist) {
+		a.changelist = (struct kevent *)stackgap_alloc(&sg, uap->nchanges * sizeof(struct kevent));
+		for (i = 0; i < uap->nchanges; i++) {
+			error = copyin(&uap->changelist[i], &ks32, sizeof(ks32));
+			if (error)
+				return (error);
+			ks = (struct kevent *)(uintptr_t)&a.changelist[i];
+			CP(ks32, *ks, ident);
+			CP(ks32, *ks, filter);
+			CP(ks32, *ks, flags);
+			CP(ks32, *ks, fflags);
+			CP(ks32, *ks, data);
+			PTRIN_CP(ks32, *ks, udata);
+		}
+	}
+	if (uap->eventlist) {
+		a.eventlist = stackgap_alloc(&sg, uap->nevents * sizeof(struct kevent));
+	}
+	error = kevent(td, &a);
+	if (uap->eventlist && error > 0) {
+		for (i = 0; i < error; i++) {
+			ks = &a.eventlist[i];
+			CP(*ks, ks32, ident);
+			CP(*ks, ks32, filter);
+			CP(*ks, ks32, flags);
+			CP(*ks, ks32, fflags);
+			CP(*ks, ks32, data);
+			PTROUT_CP(*ks, ks32, udata);
+			error = copyout(&ks32, &uap->eventlist[i], sizeof(ks32));
+			if (error)
+				return (error);
+		}
+	}
+	return error;
 }
 
 int
@@ -1286,6 +1367,35 @@ ia32_sigaction(struct thread *td, struct ia32_sigaction_args *uap)
 	}
 	return (error);
 }
+
+#ifdef COMPAT_FREEBSD4
+int
+freebsd4_ia32_sigaction(struct thread *td, struct freebsd4_ia32_sigaction_args *uap)
+{
+	struct sigaction32 s32;
+	struct sigaction sa, osa, *sap;
+	int error;
+
+	if (uap->act) {
+		error = copyin(uap->act, &s32, sizeof(s32));
+		if (error)
+			return (error);
+		sa.sa_handler = PTRIN(s32.sa_u);
+		CP(s32, sa, sa_flags);
+		CP(s32, sa, sa_mask);
+		sap = &sa;
+	} else
+		sap = NULL;
+	error = kern_sigaction(td, uap->sig, sap, &osa, KSA_FREEBSD4);
+	if (error != 0 && uap->oact != NULL) {
+		s32.sa_u = PTROUT(osa.sa_handler);
+		CP(osa, s32, sa_flags);
+		CP(osa, s32, sa_mask);
+		error = copyout(&s32, uap->oact, sizeof(s32));
+	}
+	return (error);
+}
+#endif
 
 #if 0
 

@@ -125,6 +125,11 @@ ASSYM(PCB_RIP, offsetof(struct pcb, pcb_rip));
 ASSYM(PCB_RFLAGS, offsetof(struct pcb, pcb_rflags));
 ASSYM(PCB_FSBASE, offsetof(struct pcb, pcb_fsbase));
 ASSYM(PCB_GSBASE, offsetof(struct pcb, pcb_gsbase));
+ASSYM(PCB_KGSBASE, offsetof(struct pcb, pcb_kgsbase));
+ASSYM(PCB_DS, offsetof(struct pcb, pcb_ds));
+ASSYM(PCB_ES, offsetof(struct pcb, pcb_es));
+ASSYM(PCB_FS, offsetof(struct pcb, pcb_fs));
+ASSYM(PCB_GS, offsetof(struct pcb, pcb_gs));
 
 ASSYM(PCB_FLAGS, offsetof(struct pcb, pcb_flags));
 ASSYM(PCB_FULLCTX, PCB_FULLCTX);
@@ -181,8 +186,10 @@ ASSYM(KCSEL, GSEL(GCODE_SEL, SEL_KPL));
 ASSYM(KDSEL, GSEL(GDATA_SEL, SEL_KPL));
 ASSYM(KUCSEL, GSEL(GUCODE_SEL, SEL_UPL));
 ASSYM(KUDSEL, GSEL(GUDATA_SEL, SEL_UPL));
+ASSYM(KUC32SEL, GSEL(GUCODE32_SEL, SEL_UPL));
 
 ASSYM(MSR_FSBASE, MSR_FSBASE);
+ASSYM(MSR_GSBASE, MSR_GSBASE);
 ASSYM(MSR_KGSBASE, MSR_KGSBASE);
 ASSYM(GPROC0_SEL, GPROC0_SEL);
 

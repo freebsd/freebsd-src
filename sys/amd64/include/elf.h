@@ -33,9 +33,12 @@
  * ELF definitions for the AMD64 architecture.
  */
 
-#include <sys/elf64.h>	/* Definitions common to all 64 bit architectures. */
 
+#ifndef __ELF_WORD_SIZE
 #define	__ELF_WORD_SIZE	64	/* Used by <sys/elf_generic.h> */
+#endif
+#include <sys/elf32.h>	/* Definitions common to all 32 bit architectures. */
+#include <sys/elf64.h>	/* Definitions common to all 64 bit architectures. */
 #include <sys/elf_generic.h>
 
 #define	ELF_ARCH	EM_X86_64
@@ -48,6 +51,13 @@
  * The i386 supplement to the SVR4 ABI specification names this "auxv_t",
  * but POSIX lays claim to all symbols ending with "_t".
  */
+typedef struct {	/* Auxiliary vector entry on initial stack */
+	int	a_type;			/* Entry type. */
+	union {
+		int	a_val;		/* Integer value. */
+	} a_un;
+} Elf32_Auxinfo;
+
 
 typedef struct {	/* Auxiliary vector entry on initial stack */
 	long	a_type;			/* Entry type. */
@@ -118,7 +128,11 @@ __ElfType(Auxinfo);
 #define	R_X86_64_COUNT	16	/* Count of defined relocation types. */
 
 /* Define "machine" characteristics */
-#define	ELF_TARG_CLASS	ELFCLASS64
+#if __ELF_WORD_SIZE == 32
+#define ELF_TARG_CLASS  ELFCLASS32
+#else
+#define ELF_TARG_CLASS  ELFCLASS64
+#endif
 #define	ELF_TARG_DATA	ELFDATA2LSB
 #define	ELF_TARG_MACH	EM_X86_64
 #define	ELF_TARG_VER	1
