@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.43 1994/12/18 01:21:51 ache Exp $
+#	$Id: rc,v 1.44 1995/01/24 16:49:14 jkh Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -126,7 +126,7 @@ kvm_mkdb
 dev_mkdb
 
 # snapshot any kernel changes back to disk
-/sbin/dset -q
+#/sbin/dset -q
 
 chmod 666 /dev/tty[pqrs]*
 
