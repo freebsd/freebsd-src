@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)ftpd.8	8.2 (Berkeley) 4/19/94
-.\"	$Id: ftpd.8,v 1.14 1997/03/25 03:45:52 mpp Exp $
+.\"	$Id: ftpd.8,v 1.15 1997/04/23 04:56:39 davidn Exp $
 .\"
 .Dd April 19, 1994
 .Dt FTPD 8
@@ -347,6 +347,25 @@ Guests
 can then place files which are to be accessible via the anonymous
 account in this directory.
 .El
+.Pp
+If compiled with the
+.Em INTERNAL_LS
+option,
+.Nm ftpd
+will have internal support for handling remote requests to list
+files, and will not execute
+.Pa /bin/ls
+in either a chrooted or non-chrooted environment.
+In this case, the
+.Pa ~/bin/ls
+executable need not be placed into the chrooted tree, nor need the
+.Pa ~/bin
+directory exist.
+This support may be added by making ftpd with the
+.Em FTP_INTERNAL_LS
+variable set either in
+.Pa /etc/make.conf
+or in the shell's environment.
 .Sh FILES
 .Bl -tag -width /etc/ftpwelcome -compact
 .It Pa /etc/ftpusers
