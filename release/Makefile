@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.128 1995/04/07 01:20:19 phk Exp $
+#	$Id: Makefile,v 1.129 1995/04/08 09:45:31 phk Exp $
 #
 # How to roll a release:
 #
@@ -301,7 +301,9 @@ release.9:
 	if [ -f sebones.aa ] ; then mv sebones.* ../secure ; fi && \
 	sh -e ${.CURDIR}/scripts/mkchecksums.sh )
 	cp ${.CURDIR}/scripts/extract_src.sh ${RD}/dists/src/extract.sh
-	( cd ${RD}/dists/secure && sh -e ${.CURDIR}/scripts/mkchecksums.sh ) 
+	if [ -d ${RD}/dists/secure ] ; then \
+	( cd ${RD}/dists/secure && sh -e ${.CURDIR}/scripts/mkchecksums.sh );\
+	fi
 	@echo "src distribution is finished."
 	touch release.9
 
