@@ -37,7 +37,7 @@ main(argc, argv)
     if (argc != 2) {
 	fputs("Usage: ", stderr);
 	fputs(argv[0], stderr);
-	fputs("cmdtbl.ct\n", stderr);
+	fputs(" cmdtbl.ct\n", stderr);
 	exit(1);
     }
 
