@@ -194,6 +194,10 @@ SYSCTL_STRUCT(_hw_ubsec, OID_AUTO, stats, CTLFLAG_RD, &ubsecstats,
 static int
 ubsec_probe(device_t dev)
 {
+	if (pci_get_vendor(dev) == PCI_VENDOR_SUN &&
+	    (pci_get_device(dev) == PCI_PRODUCT_SUN_5821 ||
+	     pci_get_device(dev) == PCI_PRODUCT_SUN_SCA1K))
+		return (0);
 	if (pci_get_vendor(dev) == PCI_VENDOR_BLUESTEEL &&
 	    (pci_get_device(dev) == PCI_PRODUCT_BLUESTEEL_5501 ||
 	     pci_get_device(dev) == PCI_PRODUCT_BLUESTEEL_5601))
@@ -232,6 +236,12 @@ ubsec_partname(struct ubsec_softc *sc)
 		case PCI_PRODUCT_BLUESTEEL_5601: return "Bluesteel 5601";
 		}
 		return "Bluesteel unknown-part";
+	case PCI_VENDOR_SUN:
+		switch (pci_get_device(sc->sc_dev)) {
+		case PCI_PRODUCT_SUN_5821: return "Sun Crypto 5821";
+		case PCI_PRODUCT_SUN_SCA1K: return "Sun Crypto 1K";
+		}
+		return "Sun unknown-part";
 	}
 	return "Unknown-vendor unknown-part";
 }
@@ -280,10 +290,13 @@ ubsec_attach(device_t dev)
 		sc->sc_flags |= UBS_FLAGS_KEY | UBS_FLAGS_RNG |
 		    UBS_FLAGS_LONGCTX | UBS_FLAGS_HWNORM | UBS_FLAGS_BIGKEY;
 
-	if (pci_get_vendor(dev) == PCI_VENDOR_BROADCOM &&
-	    (pci_get_device(dev) == PCI_PRODUCT_BROADCOM_5821 ||
-	     pci_get_device(dev) == PCI_PRODUCT_BROADCOM_5822 ||
-	     pci_get_device(dev) == PCI_PRODUCT_BROADCOM_5823 )) {
+	if ((pci_get_vendor(dev) == PCI_VENDOR_BROADCOM &&
+	     (pci_get_device(dev) == PCI_PRODUCT_BROADCOM_5821 ||
+	      pci_get_device(dev) == PCI_PRODUCT_BROADCOM_5822 ||
+	      pci_get_device(dev) == PCI_PRODUCT_BROADCOM_5823)) ||
+	    (pci_get_vendor(dev) == PCI_VENDOR_SUN &&
+	     (pci_get_device(dev) == PCI_PRODUCT_SUN_SCA1K ||
+	      pci_get_device(dev) == PCI_PRODUCT_SUN_5821))) {
 		/* NB: the 5821/5822 defines some additional status bits */
 		sc->sc_statmask |= BS_STAT_MCR1_ALLEMPTY |
 		    BS_STAT_MCR2_ALLEMPTY;
