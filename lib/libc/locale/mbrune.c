@@ -34,10 +34,13 @@
  * SUCH DAMAGE.
  */
 
+/* mb*rune() and mbmb() are obsolete in FreeBSD 6. */
+#define	OBSOLETE_IN_6
+
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)mbrune.c	8.1 (Berkeley) 6/27/93";
 #endif /* LIBC_SCCS and not lint */
-#include <sys/cdefs.h>
+#include <sys/param.h>
 __FBSDID("$FreeBSD$");
 
 #include <limits.h>
