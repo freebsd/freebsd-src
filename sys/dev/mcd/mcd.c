@@ -40,7 +40,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.35 1994/12/24 13:24:00 ache Exp $
+ *	$Id: mcd.c,v 1.37 1995/02/22 01:11:36 ache Exp $
  */
 static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
@@ -1330,7 +1330,7 @@ mcd_read_toc(int unit)
 	for(trk=th.starting_track; trk<=th.ending_track; trk++)
 		cd->toc[trk].idx_no = 0;
 	trk = th.ending_track - th.starting_track + 1;
-	for(retry=0; retry<300 && trk>0; retry++)
+	for(retry=0; retry<600 && trk>0; retry++)
 	{
 		if (mcd_getqchan(unit, &q) < 0) break;
 		idx = bcd2bin(q.idx_no);
