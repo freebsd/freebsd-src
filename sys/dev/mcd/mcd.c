@@ -40,7 +40,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.98 1998/06/07 17:10:46 dfr Exp $
+ *	$Id: mcd.c,v 1.99 1998/07/04 22:30:17 julian Exp $
  */
 static const char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
@@ -415,7 +415,7 @@ mcdstrategy(struct buf *bp)
 	bp,unit,bp->b_blkno,bp->b_bcount);*/
 	if (unit >= NMCD || bp->b_blkno < 0) {
 		printf("mcdstrategy: unit = %d, blkno = %ld, bcount = %ld\n",
-			unit, bp->b_blkno, bp->b_bcount);
+			unit, (long)bp->b_blkno, bp->b_bcount);
 		printf("mcd: mcdstratregy failure");
 		bp->b_error = EINVAL;
 		bp->b_flags |= B_ERROR;
@@ -529,7 +529,7 @@ int mcdioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 
 	if (mcd_getstat(unit, 1) == -1) /* detect disk change too */
 		return EIO;
-MCD_TRACE("ioctl called 0x%x\n", cmd);
+MCD_TRACE("ioctl called 0x%lx\n", cmd);
 
 	switch (cmd) {
 	case CDIOCSETPATCH:

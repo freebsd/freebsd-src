@@ -41,7 +41,7 @@
  */
 
 
-/* $Id: scd.c,v 1.38 1998/06/08 09:47:36 bde Exp $ */
+/* $Id: scd.c,v 1.39 1998/07/04 22:30:17 julian Exp $ */
 
 /* Please send any comments to micke@dynas.se */
 
@@ -334,11 +334,12 @@ scdstrategy(struct buf *bp)
 
 	cd = scd_data + unit;
 
-	XDEBUG(2, ("scd%d: DEBUG: strategy: block=%ld, bcount=%ld\n", unit, bp->b_blkno, bp->b_bcount));
+	XDEBUG(2, ("scd%d: DEBUG: strategy: block=%ld, bcount=%ld\n",
+		unit, (long)bp->b_blkno, bp->b_bcount));
 
 	if (unit >= NSCD || bp->b_blkno < 0 || (bp->b_bcount % SCDBLKSIZE)) {
 		printf("scd%d: strategy failure: blkno = %ld, bcount = %ld\n",
-			unit, bp->b_blkno, bp->b_bcount);
+			unit, (long)bp->b_blkno, bp->b_bcount);
 		bp->b_error = EINVAL;
 		bp->b_flags |= B_ERROR;
 		goto bad;
@@ -437,7 +438,7 @@ scdioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 	part = scd_part(dev);
 	cd = scd_data + unit;
 
-	XDEBUG(1, ("scd%d: ioctl: cmd=0x%x\n", unit, cmd));
+	XDEBUG(1, ("scd%d: ioctl: cmd=0x%lx\n", unit, cmd));
 
 	if (!(cd->flags & SCDVALID))
 		return EIO;
@@ -500,7 +501,7 @@ scdioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 #endif
 		return 0;
 	default:
-		printf("scd%d: unsupported ioctl (cmd=0x%x)\n", unit, cmd);
+		printf("scd%d: unsupported ioctl (cmd=0x%lx)\n", unit, cmd);
 		return ENOTTY;
 	}
 }

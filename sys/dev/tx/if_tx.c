@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_tx.c,v 1.32 1998/07/03 23:59:09 galv Exp $
+ *	$Id: if_tx.c,v 1.13 1998/07/04 08:02:46 semenu Exp $
  *
  */
 
@@ -1513,13 +1513,14 @@ epic_dump_state __P((
 	printf("\ntx%d: dumping tx descriptors",sc->unit);
 	for(j=0;j<TX_RING_SIZE;j++){
 		tdesc = sc->tx_desc + j;
-		printf("\ndesc%d: %4d 0x%04x, 0x%08x, 0x%04x %4d, 0x%08x, mbuf: 0x%08x",
+		printf(
+		"\ndesc%d: %4d 0x%04x, 0x%08lx, 0x%04x %4u, 0x%08lx, mbuf: %p",
 			j,
 			tdesc->txlength,tdesc->status,
-			tdesc->bufaddr,
+			(u_long)tdesc->bufaddr,
 			tdesc->control,tdesc->buflength,
-			tdesc->next,
-			sc->tx_buffer[j].mbuf
+			(u_long)tdesc->next,
+			(void *)sc->tx_buffer[j].mbuf
 		);
 	}
 }

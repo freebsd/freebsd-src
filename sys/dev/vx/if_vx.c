@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_vx.c,v 1.16 1998/02/21 05:35:02 gpalmer Exp $
+ * $Id: if_vx.c,v 1.17 1998/06/07 17:09:51 dfr Exp $
  *
  */
 
@@ -327,7 +327,7 @@ vxgetlink(sc)
     if (sc->vx_connector & 0x10) {
 	sc->vx_connector &= 0x0f;
 	printf("[*%s*]", conn_tab[sc->vx_connector].name);
-	printf(": disable 'auto select' with DOS util!", sc->unit);
+	printf(": disable 'auto select' with DOS util!");
     } else {
 	printf("[*%s*]", conn_tab[sc->vx_connector].name);
     }

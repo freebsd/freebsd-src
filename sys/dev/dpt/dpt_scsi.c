@@ -64,7 +64,7 @@
  *       3.  dpt_handle_timeouts   potentially inserts into the queue
  */
 
-#ident "$Id: dpt_scsi.c,v 1.5 1998/03/11 00:30:08 julian Exp $"
+#ident "$Id: dpt_scsi.c,v 1.6 1998/06/02 00:32:38 eivind Exp $"
 #define _DPT_C_
 
 #include "opt_dpt.h"
@@ -1866,7 +1866,7 @@ dpt_scsi_cmd(struct scsi_xfer * xs)
 	if (xs->flags & SCSI_RESET) {
 		printf("dpt%d: Unsupported option...\n"
 		       "      I refuse to Reset b%dt%du%d...!\n",
-		       __FILE__, __LINE__, channel, target, lun);
+		       dpt->unit, channel, target, lun);
 		xs->error = XS_DRIVER_STUFFUP;
 		return (COMPLETE);
 	}
@@ -2163,7 +2163,7 @@ dptminphys(struct buf * bp)
 	}
 	if (bp->b_bcount > ((dpt_min_segs - 1) * PAGE_SIZE)) {
 #ifdef DPT_DEBUG_MINPHYS
-		printf("DPT: Block size of %x is larger than %x.  Truncating\n",
+		printf("DPT: Block size of %lx is larger than %x. Truncating\n",
 		       bp->b_bcount, ((dpt_min_segs - 1) * PAGE_SIZE));
 #endif
 		bp->b_bcount = ((dpt_min_segs - 1) * PAGE_SIZE);
@@ -2380,9 +2380,10 @@ dpt_intr(void *arg)
 	if ((dccb == NULL)
 	    || (dccb == (dpt_ccb_t *) ~ 0)
 	    || (dccb == (dpt_ccb_t *) 0x55555555)) {
-		printf("dpt%d: BAD (%x) CCB in SP (AUX status = %s).\n",
-		       dpt->unit, dccb, i2bin((unsigned long) aux_status,
-					      sizeof(aux_status) * 8));
+		printf("dpt%d: BAD (%p) CCB in SP (AUX status = %s).\n",
+		       dpt->unit, (void *)dccb,
+		       i2bin((unsigned long) aux_status,
+			     sizeof(aux_status) * 8));
 #ifdef DPT_MEASURE_PERFORMANCE
 		++dpt->performance.aborted_interrupts;
 #endif
@@ -2394,29 +2395,29 @@ dpt_intr(void *arg)
 	     (tccb != NULL) && (tccb != dccb);
 	     tccb = TAILQ_NEXT(tccb, links));
 	if (tccb == NULL) {
-		printf("dpt%d: %x is not in the SUBMITTED queue\n",
-		       dpt->unit, dccb);
+		printf("dpt%d: %p is not in the SUBMITTED queue\n",
+		       dpt->unit, (void *)dccb);
 
 		for (tccb = TAILQ_FIRST(&dpt->completed_ccbs);
 		     (tccb != NULL) && (tccb != dccb);
 		     tccb = TAILQ_NEXT(tccb, links));
 		if (tccb != NULL)
-			printf("dpt%d: %x is in the COMPLETED queue\n",
-			       dpt->unit, dccb);
+			printf("dpt%d: %p is in the COMPLETED queue\n",
+			       dpt->unit, (void *)dccb);
 
 		for (tccb = TAILQ_FIRST(&dpt->waiting_ccbs);
 		     (tccb != NULL) && (tccb != dccb);
 		     tccb = TAILQ_NEXT(tccb, links));
 		if (tccb != NULL)
-			printf("dpt%d: %x is in the WAITING queue\n",
-			       dpt->unit, dccb);
+			printf("dpt%d: %p is in the WAITING queue\n",
+			       dpt->unit, (void *)dccb);
 
 		for (tccb = TAILQ_FIRST(&dpt->free_ccbs);
 		     (tccb != NULL) && (tccb != dccb);
 		     tccb = TAILQ_NEXT(tccb, links));
 		if (tccb != NULL)
-			printf("dpt%d: %x is in the FREE queue\n",
-			       dpt->unit, dccb);
+			printf("dpt%d: %p is in the FREE queue\n",
+			       dpt->unit, (void *)dccb);
 
 #ifdef DPT_MEASURE_PERFORMANCE
 		++dpt->performance.aborted_interrupts;
@@ -2459,8 +2460,7 @@ dpt_intr(void *arg)
 			       "....  <<----<<",
 			       dpt->unit);
 			printf("      Incomplete Code; Re-queue the lost "
-			       "commands\n",
-			       dpt->unit);
+			       "commands\n");
 			Debugger("DPT Rebooted");
 
 #ifdef DPT_MEASURE_PERFORMANCE
@@ -2677,8 +2677,8 @@ dpt_process_completion(dpt_softc_t * dpt,
 	struct scsi_xfer *xs;
 
 	if (ccb == NULL) {
-		panic("dpt%d: Improper argumet to process_completion (%p%p)\n",
-		      dpt->unit, ccb);
+		panic("dpt%d: Improper argumet to process_completion (%p)\n",
+		      dpt->unit, (void *)ccb);
 	} else {
 		xs = ccb->xs;
 	}
