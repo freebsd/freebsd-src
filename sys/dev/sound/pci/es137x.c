@@ -340,7 +340,7 @@ eschan_trigger(kobj_t obj, void *data, int go)
 {
 	struct es_chinfo *ch = data;
 	struct es_info *es = ch->parent;
-	unsigned ss, cnt;
+	unsigned cnt;
 
 	if (go == PCMTRIG_EMLDMAWR || go == PCMTRIG_EMLDMARD)
 		return 0;
