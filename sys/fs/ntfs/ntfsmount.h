@@ -1,4 +1,4 @@
-/*	$NetBSD: ntfsmount.h,v 1.2 1999/05/06 15:43:21 christos Exp $	*/
+/*	$NetBSD: ntfsmount.h,v 1.3 1999/07/26 14:02:32 jdolecek Exp $	*/
 
 /*-
  * Copyright (c) 1998, 1999 Semen Ustimenko

@@ -1,4 +1,4 @@
-/*	$NetBSD: ntfs_vfsops.h,v 1.2 1999/05/06 15:43:20 christos Exp $	*/
+/*	$NetBSD: ntfs_vfsops.h,v 1.4 1999/10/10 14:20:33 jdolecek Exp $	*/
 
 /*-
  * Copyright (c) 1998, 1999 Semen Ustimenko (semenu@FreeBSD.org)
@@ -28,7 +28,7 @@
  * $FreeBSD$
  */
 #define VG_DONTLOADIN	0x0001	/* Tells ntfs_vgetex to do not call */
-				/* ntfs_loadnode on ntnode, even if */
+				/* ntfs_loadntnode() on ntnode, even if */
 				/* ntnode not loaded */
 #define	VG_DONTVALIDFN	0x0002	/* Tells ntfs_vgetex to do not validate */
 				/* fnode */
