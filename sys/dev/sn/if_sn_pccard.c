@@ -112,4 +112,4 @@ static driver_t sn_pccard_driver = {
 
 extern devclass_t sn_devclass;
 
-DRIVER_MODULE(sn, pccard, sn_pccard_driver, sn_devclass, 0, 0);
+DRIVER_MODULE(if_sn, pccard, sn_pccard_driver, sn_devclass, 0, 0);
