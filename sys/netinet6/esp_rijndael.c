@@ -40,6 +40,7 @@
 
 #include <net/if.h>
 #include <net/route.h>
+#include <netinet/in.h>
 
 #include <netinet6/ipsec.h>
 #include <netinet6/esp.h>
