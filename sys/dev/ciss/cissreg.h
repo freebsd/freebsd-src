@@ -622,6 +622,9 @@ struct ciss_bmic_id_pdrive {
     char	connector[2];
     u_int8_t	res5;
     u_int8_t	bay;
+    u_int16_t	rpm;
+    u_int8_t	drive_type;
+    u_int8_t	res6[393];
 } __packed;
 
 /* CISS_BMIC_BLINK_PDRIVE */
