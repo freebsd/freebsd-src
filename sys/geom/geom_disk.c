@@ -196,6 +196,14 @@ g_disk_start(struct bio *bp)
 		} else 
 			error = ENOIOCTL;
 		break;
+	case BIO_SETATTR:
+		if (!strcmp(bp->bio_attribute, "GEOM::ioctl") &&
+		    bp->bio_length == sizeof *gio) {
+			g_call_me(g_disk_ioctl, bp);
+			return;
+		} else 
+			error = ENOIOCTL;
+		break;
 	default:
 		error = EOPNOTSUPP;
 		break;
