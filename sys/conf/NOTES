@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.334 1997/05/10 09:23:55 jmg Exp $
+#	$Id: LINT,v 1.335 1997/05/10 11:16:22 jhay Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -91,6 +91,9 @@ config		kernel	root on wd0 dumps on wd0
 options		SMP			# Symmetric MultiProcessor Kernel
 options		APIC_IO			# Symmetric (APIC) I/O
 
+# Useful:
+options		SMP_AUTOSTART		# start the additional CPUs during boot
+
 # Optional, these are the defaults:
 #options		NCPU=2			# number of CPUs
 #options		NBUS=4			# number of busses
@@ -98,7 +101,6 @@ options		APIC_IO			# Symmetric (APIC) I/O
 #options		NINTR=24		# number of INTs
 
 # Currently unusable:
-#options		SMP_AUTOSTART		# BROKEN: bug or race somewhere
 #options		SMP_PRIVPAGES		# BROKEN: architecture problem
 
 #
