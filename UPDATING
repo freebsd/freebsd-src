@@ -11,13 +11,18 @@ the common items quick how-tos, followed by entries for versions of
 
 This is for the 4.5 release branch.  All entries since 4.5 are an
 itemized list of commits to this branch, numbered from the beginning.
-By this count, we're at 4.5.0p1.
+By this count, we're at 4.5-RELEASE-p3.
 
 The security advisories related to various patches contain information
 on how to build/install a minimal set of binaries and start/stop a
 minimal number of processes, if possible, for that patch.  For those
 updates that don't have an advisory, or to be safe, you can do a full
 build and install as described in the COMMON ITEMS section.
+
+20020316:	p3
+	IP routing table leak in icmp_relect().
+	mmap/msync bug which can panic the kernel.
+	TCP broadcast connection bug.
 
 20020307:	p2	FreeBSD-SA-02:13.openssh
 	OpenSSH off-by-one bug.
