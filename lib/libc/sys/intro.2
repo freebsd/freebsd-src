@@ -453,6 +453,10 @@ invalid or an incomplete sequence of bytes or the given wide
 character is invalid.
 .It Er 87 ENOATTR Em "Attribute not found" .
 The specified extended attribute does not exist.
+.It Er 88 EDOFUS Em "Programming error" .
+A function or API is being abused in a way which could only be detected
+at run-time.
+
 .El
 .Sh DEFINITIONS
 .Bl -tag -width Ds
