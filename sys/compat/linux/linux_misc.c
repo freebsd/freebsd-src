@@ -35,7 +35,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/blist.h>
 #include <sys/fcntl.h>
+#if defined(__i386__) || defined(__alpha__)
 #include <sys/imgact_aout.h>
+#endif
 #include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/limits.h>
@@ -70,8 +72,15 @@ __FBSDID("$FreeBSD$");
 
 #include <posix4/sched.h>
 
+#include "opt_compat.h"
+
+#if !COMPAT_LINUX32
 #include <machine/../linux/linux.h>
 #include <machine/../linux/linux_proto.h>
+#else
+#include <machine/../linux32/linux.h>
+#include <machine/../linux32/linux32_proto.h>
+#endif
 
 #include <compat/linux/linux_mib.h>
 #include <compat/linux/linux_util.h>
@@ -236,6 +245,8 @@ linux_brk(struct thread *td, struct linux_brk_args *args)
 
 	return 0;
 }
+
+#if defined(__i386__) || defined(__alpha__)
 
 int
 linux_uselib(struct thread *td, struct linux_uselib_args *args)
@@ -427,7 +438,7 @@ linux_uselib(struct thread *td, struct linux_uselib_args *args)
 			goto cleanup;
 
 		/* copy from kernel VM space to user space */
-		error = copyout((void *)(uintptr_t)(buffer + file_offset),
+		error = copyout(PTRIN(buffer + file_offset),
 		    (void *)vmaddr, a_out->a_text + a_out->a_data);
 
 		/* release temporary kernel space */
@@ -484,6 +495,8 @@ cleanup:
 
 	return error;
 }
+
+#endif	/* __i386__ || __alpha__ */
 
 int
 linux_select(struct thread *td, struct linux_select_args *args)
@@ -610,7 +623,8 @@ linux_mremap(struct thread *td, struct linux_mremap_args *args)
 	}
 
 	if (args->new_len < args->old_len) {
-		bsd_args.addr = (caddr_t)(args->addr + args->new_len);
+		bsd_args.addr =
+		    (caddr_t)((uintptr_t)args->addr + args->new_len);
 		bsd_args.len = args->old_len - args->new_len;
 		error = munmap(td, &bsd_args);
 	}
@@ -628,8 +642,8 @@ linux_msync(struct thread *td, struct linux_msync_args *args)
 {
 	struct msync_args bsd_args;
 
-	bsd_args.addr = (caddr_t)args->addr;
-	bsd_args.len = args->len;
+	bsd_args.addr = (caddr_t)(uintptr_t)args->addr;
+	bsd_args.len = (uintptr_t)args->len;
 	bsd_args.flags = args->fl & ~LINUX_MS_SYNC;
 
 	return msync(td, &bsd_args);
@@ -755,7 +769,7 @@ linux_newuname(struct thread *td, struct linux_newuname_args *args)
 	return (copyout(&utsname, args->buf, sizeof(utsname)));
 }
 
-#if defined(__i386__)
+#if defined(__i386__) || (defined(__amd64__) && COMPAT_LINUX32)
 struct l_utimbuf {
 	l_time_t l_actime;
 	l_time_t l_modtime;
@@ -793,7 +807,7 @@ linux_utime(struct thread *td, struct linux_utime_args *args)
 	LFREEPATH(fname);
 	return (error);
 }
-#endif /* __i386__ */
+#endif /* __i386__ || (__amd64__ && COMPAT_LINUX32) */
 
 #define __WCLONE 0x80000000
 
@@ -1179,12 +1193,21 @@ linux_old_getrlimit(struct thread *td, struct linux_old_getrlimit_args *args)
 	lim_rlimit(p, which, &bsd_rlim);
 	PROC_UNLOCK(p);
 
+#if !COMPAT_LINUX32
 	rlim.rlim_cur = (unsigned long)bsd_rlim.rlim_cur;
 	if (rlim.rlim_cur == ULONG_MAX)
 		rlim.rlim_cur = LONG_MAX;
 	rlim.rlim_max = (unsigned long)bsd_rlim.rlim_max;
 	if (rlim.rlim_max == ULONG_MAX)
 		rlim.rlim_max = LONG_MAX;
+#else
+	rlim.rlim_cur = (unsigned int)bsd_rlim.rlim_cur;
+	if (rlim.rlim_cur == UINT_MAX)
+		rlim.rlim_cur = INT_MAX;
+	rlim.rlim_max = (unsigned int)bsd_rlim.rlim_max;
+	if (rlim.rlim_max == UINT_MAX)
+		rlim.rlim_max = INT_MAX;
+#endif
 	return (copyout(&rlim, args->rlim, sizeof(rlim)));
 }
 
