@@ -253,4 +253,7 @@ struct host_ring_entry {
 /* Functional declarations */
 extern int lnc_attach_common __P((device_t));
 extern void lnc_stop __P((struct lnc_softc *));
+
+/* Variable declarations */
 extern driver_intr_t lncintr; 
+extern devclass_t lnc_devclass;
