@@ -64,8 +64,8 @@ salloc(size)
 	int index;
 
 	s = size;
-	s += 3;
-	s &= ~03;
+	s += (sizeof (char *) - 1);
+	s &= ~(sizeof (char *) - 1);
 	index = 0;
 	for (sp = &stringdope[0]; sp < &stringdope[NSPACE]; sp++) {
 		if (sp->s_topFree == NOSTR && (STRINGSIZE << index) >= s)
