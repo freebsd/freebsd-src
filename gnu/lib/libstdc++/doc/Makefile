@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-SRCDIR= ${.CURDIR}/../../../../contrib/egcs/libstdc++
+SRCDIR= ${.CURDIR}/../../../../contrib/libstdc++
 
 .PATH: ${SRCDIR}/../libio
 
