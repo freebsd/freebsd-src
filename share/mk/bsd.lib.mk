@@ -37,11 +37,6 @@ SHLIB_NAME?=	lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR}
 .endif
 .endif
 
-.if defined(DESTDIR) && !defined(BOOTSTRAPPING)
-CFLAGS+= -I${DESTDIR}/usr/include
-CXXINCLUDES+= -I${DESTDIR}/usr/include/g++
-.endif
-
 .if defined(DEBUG_FLAGS)
 CFLAGS+= ${DEBUG_FLAGS}
 .endif
@@ -196,10 +191,6 @@ lib${LIB}_p.a:: ${POBJS}
 	${RANLIB} lib${LIB}_p.a
 .endif
 
-.if defined(DESTDIR) && !defined(BOOTSTRAPPING)
-LDDESTDIRENV?=	LIBRARY_PATH=${DESTDIR}${SHLIBDIR}:${DESTDIR}${LIBDIR}
-.endif
-
 SOBJS+= ${OBJS:.o=.So}
 
 .if defined(SHLIB_NAME)
@@ -210,13 +201,13 @@ ${SHLIB_NAME}: ${SOBJS}
 	@ln -sf ${SHLIB_NAME} ${SHLIB_LINK}
 .endif
 .if ${OBJFORMAT} == aout
-	@${LDDESTDIRENV} ${CC} -shared -Wl,-x,-assert,pure-text \
+	@${CC} -shared -Wl,-x,-assert,pure-text \
 	    -o ${SHLIB_NAME} \
-	    `lorder ${SOBJS} | tsort -q` ${LDDESTDIR} ${LDADD}
+	    `lorder ${SOBJS} | tsort -q` ${LDADD}
 .else
-	@${LDDESTDIRENV} ${CC} -shared -Wl,-x \
+	@${CC} -shared -Wl,-x \
 	    -o ${SHLIB_NAME} -Wl,-soname,${SONAME} \
-	    `lorder ${SOBJS} | tsort -q` ${LDDESTDIR} ${LDADD}
+	    `lorder ${SOBJS} | tsort -q` ${LDADD}
 .endif
 .endif
 
@@ -252,7 +243,7 @@ _EXTRADEPEND:
 .if !defined(NOEXTRADEPEND) && defined(SHLIB_NAME)
 .if ${OBJFORMAT} == aout
 	echo ${SHLIB_NAME}: \
-	    `${LDDESTDIRENV} ${CC} -shared -Wl,-f ${LDDESTDIR} ${LDADD}` \
+	    `${CC} -shared -Wl,-f ${LDADD}` \
 	    >> ${DEPENDFILE}
 .else
 .if defined(DPADD) && !empty(DPADD)
