@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.58 1994/10/22 09:21:35 jkh Exp $
+# $Id: bsd.port.mk,v 1.59 1994/10/22 23:02:39 jkh Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -308,7 +308,7 @@ ${CONFIGURE_COOKIE}:
 	@${MAKE} ${.MAKEFLAGS} pre-configure
 	@if [ -d ${PATCHDIR} ]; then \
 		echo "===>  Applying patches for ${DISTNAME}" ; \
-		for i in ${PATCHDIR}/patch-*; do \
+		for i in ${PATCHDIR}/*; do \
 			${PATCH} ${PATCH_ARGS} < $$i; \
 	done; \
 	fi
