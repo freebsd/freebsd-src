@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.31 1997/03/10 06:54:58 ache Exp $
+ * $Id: modem.c,v 1.32 1997/03/31 22:51:00 brian Exp $
  *
  *  TODO:
  */
@@ -763,11 +763,6 @@ DialModem()
     }
   }
   HangupModem(0);
-  if (mode & MODE_BACKGROUND) {
-      extern void Cleanup();
-      CloseModem();
-      Cleanup(excode);
-  } 
   return(0);
 }
 
