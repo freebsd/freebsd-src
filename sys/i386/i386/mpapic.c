@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mpapic.c,v 1.28 1998/03/03 19:54:49 tegge Exp $
+ *	$Id: mpapic.c,v 1.29 1998/04/01 21:07:34 tegge Exp $
  */
 
 #include "opt_smp.h"
@@ -164,7 +164,7 @@ io_apic_setup(int apic)
 	if (apic == 0) {
 		maxpin = REDIRCNT_IOAPIC(apic);		/* pins in APIC */
 		for (pin = 0; pin < maxpin; ++pin) {
-			int bus;
+			int bus, bustype;
 
 			/* we only deal with vectored INTs here */
 			if (apic_int_type(apic, pin) != 0)
@@ -174,12 +174,23 @@ io_apic_setup(int apic)
 			bus = apic_src_bus_id(apic, pin);
 			if (bus == -1)
 				continue;
+			bustype = apic_bus_type(bus);
 
-			flags = DEFAULT_FLAGS;
-			level = trigger(apic, pin, &flags);
-			if (level == 1)
-				apic_pin_trigger[apic] |= (1 << pin);
-			polarity(apic, pin, &flags, level);
+			/* the "ISA" type INTerrupts */
+			if ((bustype == ISA) &&
+			    (pin < IOAPIC_ISA_INTS) && 
+			    (isa_apic_pin(pin) == pin)) {
+				flags = DEFAULT_ISA_FLAGS;
+			}
+
+			/* PCI or other bus */
+			else {
+				flags = DEFAULT_FLAGS;
+				level = trigger(apic, pin, &flags);
+				if (level == 1)
+					apic_pin_trigger[apic] |= (1 << pin);
+				polarity(apic, pin, &flags, level);
+			}
 
 			/* program the appropriate registers */
 			select = pin * 2 + IOAPIC_REDTBL0;	/* register */
