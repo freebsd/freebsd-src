@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)vfscanf.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-		"$Id: vfscanf.c,v 1.3.2.4 1997/11/23 06:03:31 bde Exp $";
+		"$Id: vfscanf.c,v 1.13 1998/09/25 12:20:27 obrien Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <stdio.h>
@@ -137,13 +137,8 @@ __svfscanf(fp, fmt0, ap)
 		if (c == 0)
 			return (nassigned);
 		if (isspace(c)) {
-			for (;;) {
-				if (fp->_r <= 0 && __srefill(fp))
-					goto input_failure;
-				if (!isspace(*fp->_p))
-					break;
+			while ((fp->_r > 0 || __srefill(fp) == 0) && isspace(*fp->_p))
 				nread++, fp->_r--, fp->_p++;
-			}
 			continue;
 		}
 		if (c != '%')
