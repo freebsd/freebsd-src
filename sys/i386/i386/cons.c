@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons.c	7.2 (Berkeley) 5/9/91
- *	$Id: cons.c,v 1.37 1995/12/08 11:13:21 julian Exp $
+ *	$Id: cons.c,v 1.38 1995/12/08 23:20:00 phk Exp $
  */
 
 #include <sys/param.h>
@@ -46,9 +46,11 @@
 #include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
+#include <sys/sysctl.h>
 #include <sys/proc.h>
 #include <sys/tty.h>
 
+#include <machine/cpu.h>
 #include <machine/cons.h>
 #include <machine/stdarg.h>
 
@@ -83,7 +85,11 @@ static struct cdevsw cn_cdevsw =
 	  cnselect,	nommap,		NULL,	"console",	NULL,	-1 };
 
 struct	tty *constty = 0;	/* virtual console output device */
-struct	tty *cn_tty;		/* XXX: console tty struct for tprintf */
+
+static dev_t	cn_dev_t;
+SYSCTL_OPAQUE(_machdep, CPU_CONSDEV, consdev, CTLTYPE_OPAQUE|CTLFLAG_RD,
+	&cn_dev_t, sizeof cn_dev_t, "T,dev_t", "");
+
 int	cons_unavail = 0;	/* XXX:
 				 * physical console not available for
 				 * input (i.e., it is in graphics mode)
@@ -150,14 +156,7 @@ cninit_finish()
 	cn_phys_open = cdp->d_open;
 	cdp->d_open = cnopen;
 	cn_tp = (*cdp->d_devtotty)(cn_tab->cn_dev);
-	/*
-	 * XXX there are too many tty pointers.  cn_tty is only used for
-	 * sysctl(CPU_CONSDEV) (not for tprintf like the above comment
-	 * says).  cn_tp in struct consdev hasn't been initialized
-	 * (except statically to NULL) or used (except to initialize
-	 * cn_tty to the wrong value) for a year or two.
-	 */
-	cn_tty = cn_tp;
+	cn_dev_t = cn_tp->t_dev;
 }
 
 static int
