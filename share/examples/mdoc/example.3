@@ -30,7 +30,9 @@
 .\" SUCH DAMAGE.
 .\"
 .\"
-.Dd "January 2, 1997"
+.\" Note: The date here should be updated whenever a non-trivial
+.\" change is made to the manual page.
+.Dd January 8, 1997
 .Dt EXAMPLE 3
 .\" Note: Only specify the operating system when the command
 .\" is FreeBSD specific, otherwise use the .Os macro with no
@@ -81,7 +83,7 @@ otherwise
 .Fn example
 returns -1 and the global variable
 .Va errno
-indicates the reason for the falure.
+indicates the reason for the failure.
 .Sh ENVIRONMENT
 The 
 .Fn example
@@ -100,6 +102,22 @@ section.
 .Xr example 4 ,
 .Xr mdoc 7 ,
 .Xr mdoc.samples 7
+.Rs
+.%A A. B. Author
+.%T Example RFC Title
+.%O RFC0000
+.Re
+.Rs
+.%A A. B. Author
+.%B Example Book Title
+.%O ISBN-0-000-00000-0
+.Re
+.Rs
+.%A A. B. Author
+.%D January 1997
+.%J Example Journal Name
+.%T Example Article Title
+.Re
 .Sh STANDARDS
 If the command conforms to some standard, such as
 .St -p1003.2
@@ -109,24 +127,194 @@ it should be noted here.
 .Sh DIAGNOSTICS
 None.
 .Sh ERRORS
+.\" Delete any errno's that are not returned by your
+.\" function or system call and then tailor the
+.\" remaining text as needed.
 .Fn Example
 will fail if:
 .Bl -tag -width Er
-.It Bq Er EINVAL
-One of the arguments passed to
-.Fn example
-was invalid.
 .It Bq Er EPERM
-The caller did not have permission to 
-use the 
-.Fn example
-function.
+Operation not permitted.
+.It Bq Er ENOENT
+No such file or directory.
+.It Bq Er ESRCH
+No such process.
+.It Bq Er EINTR
+Interrupted system call.
+.It Bq Er EIO
+Input/output error.
+.It Bq Er ENXIO
+Device not configured.
+.It Bq Er E2BIG
+Argument list too long.
+.It Bq Er ENOEXEC
+Exec format error.
+.It Bq Er EBADF
+Bad file descriptor.
+.It Bq Er ECHILD
+No child processes.
+.It Bq Er EDEADLK
+Resource deadlock avoided.
+.It Bq Er ENOMEM
+Cannot allocate memory.
+.It Bq Er EACCES
+Permission denied.
+.It Bq Er EFAULT
+Bad address.
+.It Bq Er ENOTBLK
+Block device required.
+.It Bq Er EBUSY
+Device busy.
+.It Bq Er EEXIST
+File exists.
+.It Bq Er EXDEV
+Cross-device link.
+.It Bq Er ENODEV
+Operation not supported by device.
+.It Bq Er ENOTDIR
+Not a directory.
+.It Bq Er EISDIR
+Is a directory.
+.It Bq Er EINVAL
+Invalid argument.
+.It Bq Er ENFILE
+Too many open files in system.
+.It Bq Er EMFILE
+Too many open files.
+.It Bq Er ENOTTY
+Inappropriate ioctl for device.
+.It Bq Er ETXTBSY
+Text file busy.
+.It Bq Er EFBIG
+File too large.
+.It Bq Er ENOSPC
+No space left on device.
+.It Bq Er ESPIPE
+Illegal seek.
+.It Bq Er EROFS
+Read-only file system.
+.It Bq Er EMLINK
+Too many links.
+.It Bq Er EPIPE
+Broken pipe.
+.It Bq Er EDOM
+Numerical argument out of domain.
+.It Bq Er ERANGE
+Result too large.
+.It Bq Er EAGAIN
+Resource temporarily unavailable.
+.It Bq Er EWOULDBLOCK
+Operation would block.
+.It Bq Er EINPROGRESS
+Operation now in progress.
+.It Bq Er EALREADY
+Operation already in progress.
+.It Bq Er ENOTSOCK
+Socket operation on non-socket.
+.It Bq Er EDESTADDRREQ
+Destination address required.
+.It Bq Er EMSGSIZE
+Message too long.
+.It Bq Er EPROTOTYPE
+Protocol wrong type for socket.
+.It Bq Er ENOPROTOOPT
+Protocol not available.
+.It Bq Er EPROTONOSUPPORT
+Protocol not supported.
+.It Bq Er ESOCKNOTSUPORT
+Socket type not supported.
+.It Bq Er EOPNOTSUPP
+Operation not supported.
+.It Bq Er EPFNOSUPPORT
+Protocol family not supported.
+.It Bq Er EAFNNOSUPPORT
+Address family not supported by protocol family.
+.It Bq Er EADDRINUSE
+Address already in use.
+.It Bq Er EADDRNOTAVAIL
+Cannot assign requested address.
+.It Bq Er ENETDOWN
+Network is down.
+.It Bq Er ENETUNREACH
+Network is unreachable.
+.It Bq Er ENETRESET
+Network dropped connection on reset.
+.It Bq Er ECONNABORTED
+Software causes connection abort.
+.It Bq Er ENOBUFS
+No buffer space available.
+.It Bq Er EISCONN
+Socket is already connected.
+.It Bq Er ENOTCONN
+Socket is not connected.
+.It Bq Er ESHUTDOWN
+Cannot send after socket shutdown.
+.It Bq Er ETOOMANYREFS
+Too many references:  cannot splice.
+.It Bq Er ETIMEDOUT
+Operation timed out.
+.It Bq Er ECONNREFUSED
+Connection refused.
+.It Bq Er ELOOP
+Too many levels of symbolic links.
+.It Bq Er ENAMETOOLONG
+File name too long.
+.It Bq Er EHOSTDOWN
+Host is down.
+.It Bq Er EHOSTUNREACH
+No route to host.
+.It Bq Er ENOTEMPTY
+Directory not empty.
+.It Bq Er EPROCLIM
+Too many processes.
+.It Bq Er EUSERS
+Too many users.
+.It Bq Er EDQUOT
+Disc quota exceeded.
+.It Bq Er ESTALE
+Stale NFS file handle.
+.It Bq Er EREMOTE
+Too many levels of remote in path.
+.It Bq Er EBADRPC
+RPC struct is bad.
+.It Bq Er ERPCMISMATCH
+RPC version wrong.
+.It Bq Er EPROGUNAVAIL
+RPC program not available.
+.It Bq Er EPROGMISMATCH
+Program version wrong.
+.It Bq Er EPROCUNAVAIL
+Bad procedure for program.
+.It Bq Er ENOLCK
+No locks available.
+.It Bq Er ENOSYS
+Function not implemented.
+.It Bq Er EFTYPE
+Inappropriate file type or format.
+.It Bq Er EAUTH
+Authentication error.
+.It Bq Er ENEEDAUTH
+Need authenticator.
 .El
 .Sh HISTORY
 The
 .Nm
 manual page example first appeared in
 .Fx 3.0 .
+.Pp
+Some other common
+.Sx HISTORY
+section examples are:
+.Pp
+The
+.Nm
+manual page example first appeared in
+.Bx 4.4 .
+.Pp
+The
+.Nm
+manual page example first appeared in
+.At v6 .
 .Sh AUTHOR
 This
 manual page was written by Mike Pritchard 
