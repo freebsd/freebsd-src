@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.22 1994/03/02 08:10:42 alm Exp $
+ *	$Id: fd.c,v 1.23 1994/03/02 18:34:41 ache Exp $
  *
  */
 
@@ -818,6 +818,7 @@ fdstate(fdcu, fdc)
 		fd->skip = 0;
 		fdc->fd = fd;
 		fdc->fdu = fdu;
+		outb(fdc->baseport+fdctl, fd->ft->trans);
 		/*******************************************************\
 		* If the next drive has a motor startup pending, then	*
 		* it will start up in it's own good time		*
