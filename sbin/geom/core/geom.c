@@ -438,7 +438,8 @@ load_library(void)
 	uint32_t *lib_version;
 	void *dlh;
 
-	snprintf(path, sizeof(path), "%s/geom_%s.so", CLASSDIR, class_name);
+	snprintf(path, sizeof(path), "%s/geom_%s.so.%u", CLASS_DIR, class_name,
+	    CLASS_MAJOR);
 	dlh = dlopen(path, RTLD_NOW);
 	if (dlh == NULL) {
 #if 0
