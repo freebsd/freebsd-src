@@ -290,7 +290,7 @@ vers.o:
 	${NORMAL_C}
 
 vnode_if.c: $S/kern/vnode_if.sh $S/kern/vnode_if.src
-	perl $S/kern/vnode_if.sh -h $S/kern/vnode_if.src
+	perl $S/kern/vnode_if.sh -c $S/kern/vnode_if.src
 
 vnode_if.h: $S/kern/vnode_if.sh $S/kern/vnode_if.src
 	perl $S/kern/vnode_if.sh -h $S/kern/vnode_if.src
