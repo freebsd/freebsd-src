@@ -142,7 +142,7 @@ main(argc, argv)
 		}
 #ifdef SUPPORT_DOT
 		else if ((cp = strchr(*argv, '.')) != NULL) {
-			warnx("seperation of user and group with a period is deprecated");
+			warnx("separation of user and group with a period is deprecated");
 			*cp++ = '\0';
 			a_gid(cp);
 		}
