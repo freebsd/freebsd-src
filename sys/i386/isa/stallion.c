@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: stallion.c,v 1.8 1997/03/23 03:35:06 bde Exp $
+ * $Id: stallion.c,v 1.9 1997/03/24 07:25:31 davidn Exp $
  */
 
 /*****************************************************************************/
@@ -44,7 +44,6 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
-#include <sys/ioctl.h>
 #include <sys/tty.h>
 #include <sys/proc.h>
 #include <sys/conf.h>

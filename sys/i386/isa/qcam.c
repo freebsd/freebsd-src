@@ -40,7 +40,6 @@
 #include	<sys/systm.h>
 #include	<sys/kernel.h>
 #include	<sys/conf.h>
-#include	<sys/ioctl.h>
 #include	<sys/uio.h>
 #include	<sys/malloc.h>
 #include	<sys/errno.h>

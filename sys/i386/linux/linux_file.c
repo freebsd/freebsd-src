@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id$
+ *  $Id: linux_file.c,v 1.11 1997/02/22 09:38:20 peter Exp $
  */
 
 #include <sys/param.h>
@@ -35,7 +35,6 @@
 #include <sys/file.h>
 #include <sys/filedesc.h>
 #include <sys/proc.h>
-#include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <sys/vnode.h>
 #include <sys/malloc.h>

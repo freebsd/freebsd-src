@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id$
+ * $Id: ibcs2_signal.c,v 1.9 1997/02/22 09:33:26 peter Exp $
  */
 
 #include <sys/param.h>
@@ -33,7 +33,6 @@
 #include <sys/namei.h>
 #include <sys/proc.h>
 #include <sys/filedesc.h>
-#include <sys/ioctl.h>
 #include <sys/mount.h>
 #include <sys/kernel.h>
 #include <sys/signal.h>

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vfsops.c	8.11 (Berkeley) 6/19/95
- * $Id: mfs_vfsops.c,v 1.27 1997/03/05 01:57:54 msmith Exp $
+ * $Id: mfs_vfsops.c,v 1.28 1997/03/22 03:59:46 bde Exp $
  */
 
 #include <sys/param.h>
@@ -44,7 +44,6 @@
 #include <sys/mbuf.h>
 #include <sys/file.h>
 #include <sys/disklabel.h>
-#include <sys/ioctl.h>
 #include <sys/mount.h>
 #include <sys/signalvar.h>
 #include <sys/vnode.h>

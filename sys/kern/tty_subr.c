@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: tty_subr.c,v 1.25 1997/02/22 09:39:26 peter Exp $
+ * $Id: tty_subr.c,v 1.26 1997/03/05 16:45:01 bde Exp $
  */
 
 /*
@@ -34,7 +34,6 @@
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
-#include <sys/ioctl.h>
 #include <sys/tty.h>
 #include <sys/clist.h>
 #include <sys/malloc.h>

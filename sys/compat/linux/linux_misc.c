@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_misc.c,v 1.24 1997/02/22 09:38:23 peter Exp $
+ *  $Id: linux_misc.c,v 1.25 1997/03/23 03:36:04 bde Exp $
  */
 
 #include <sys/param.h>
@@ -38,7 +38,6 @@
 #include <sys/dirent.h>
 #include <sys/fcntl.h>
 #include <sys/filedesc.h>
-#include <sys/ioctl.h>
 #include <sys/imgact_aout.h>
 #include <sys/mount.h>
 #include <sys/namei.h>

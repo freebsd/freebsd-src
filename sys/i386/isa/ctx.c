@@ -8,7 +8,7 @@
  *	of this software, nor does the author assume any responsibility
  *	for damages incurred with its use.
  *
- *	$Id$
+ *	$Id: ctx.c,v 1.23 1997/02/22 09:36:01 peter Exp $
  */
 
 /*
@@ -114,7 +114,6 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
-#include <sys/ioctl.h>
 #include <sys/proc.h>
 #include <sys/uio.h>
 #include <sys/kernel.h>

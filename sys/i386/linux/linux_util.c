@@ -27,7 +27,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	from: svr4_util.c,v 1.5 1995/01/22 23:44:50 christos Exp
- *	$Id$
+ *	$Id: linux_util.c,v 1.5 1997/02/22 09:38:29 peter Exp $
  */
 
 #include <sys/param.h>
@@ -37,7 +37,6 @@
 #include <sys/file.h>
 #include <sys/stat.h>
 #include <sys/filedesc.h>
-#include <sys/ioctl.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/vnode.h>
