@@ -1593,8 +1593,6 @@ static int cnw_pccard_detach(dev)
 #if 0
 	splx(s);
 #endif
-	device_printf(dev, "unload\n");
-
 	return(0);
 }
 
