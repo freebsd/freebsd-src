@@ -5,7 +5,7 @@
 #
 
 # PROVIDE: mountcritlocal
-# REQUIRE: root ataraid
+# REQUIRE: root
 # KEYWORD: FreeBSD NetBSD
 
 . /etc/rc.subr
