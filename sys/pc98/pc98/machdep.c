@@ -1557,6 +1557,7 @@ getmemsize(int first)
 	char *cp;
 	struct bios_smap *smap;
 #endif
+	quad_t dcons_addr, dcons_size;
 
 #ifdef PC98
 	/* XXX - some of EPSON machines can't use PG_N */
@@ -1872,6 +1873,13 @@ physmap_done:
 	pte = CMAP1;
 
 	/*
+	 * Get dcons buffer address
+	 */
+	if (getenv_quad("dcons.addr", &dcons_addr) == 0 ||
+	    getenv_quad("dcons.size", &dcons_size) == 0)
+		dcons_addr = 0;
+
+	/*
 	 * physmap is in bytes, so when converting to page boundaries,
 	 * round up the start address and round down the end address.
 	 */
@@ -1890,7 +1898,15 @@ physmap_done:
 			 */
 			if (pa >= KERNLOAD && pa < first)
 				continue;
-	
+
+			/*
+			 * block out dcons buffer
+			 */
+			if (dcons_addr > 0
+			    && pa >= trunc_page(dcons_addr)
+			    && pa < dcons_addr + dcons_size)
+				continue;
+
 			page_bad = FALSE;
 
 			/*
