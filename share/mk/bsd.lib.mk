@@ -317,32 +317,9 @@ _libinstall:
 .endif
 .endif defined(LIB) && !empty(LIB) && !defined(INTERNALLIB)
 
-realinstall:
-.if defined(LINKS) && !empty(LINKS)
-	@set ${LINKS}; \
-	while test $$# -ge 2; do \
-		l=${DESTDIR}$$1; \
-		shift; \
-		t=${DESTDIR}$$1; \
-		shift; \
-		${ECHO} $$t -\> $$l; \
-		ln -f $$l $$t; \
-	done; true
-.endif
-.if defined(SYMLINKS) && !empty(SYMLINKS)
-	@set ${SYMLINKS}; \
-	while test $$# -ge 2; do \
-		l=$$1; \
-		shift; \
-		t=${DESTDIR}$$1; \
-		shift; \
-		${ECHO} $$t -\> $$l; \
-		ln -fs $$l $$t; \
-	done; true
-.endif
-
 .include <bsd.files.mk>
 .include <bsd.incs.mk>
+.include <bsd.links.mk>
 
 .if !defined(NOMAN)
 realinstall: _maninstall
