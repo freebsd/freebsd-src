@@ -55,8 +55,8 @@ extern int errno;
 #include "rldefs.h"
 
 /* Some standard library routines. */
-#include "readline.h"
-#include "history.h"
+#include <readline/readline.h>
+#include <readline/history.h>
 
 static void cr ();
 

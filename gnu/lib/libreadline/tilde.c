@@ -33,7 +33,7 @@
 #  include "ansi_stdlib.h"
 #endif /* HAVE_STDLIB_H */
 
-#include "tilde.h"
+#include <readline/tilde.h>
 #include <pwd.h>
 
 #if defined (USG) && !defined (HAVE_GETPW_DECLS)

@@ -24,7 +24,7 @@
 #include <stdio.h>
 #endif /* !BUFSIZ */
 
-#include "readline.h"
+#include <readline/readline.h>
 
 /* An array of function pointers, one for each possible key.
    If the type byte is ISKMAP, then the pointer is the address of
