@@ -61,36 +61,33 @@ options 	SYSVMSG			#SYSV-style message queues
 options 	SYSVSEM			#SYSV-style semaphores
 
 # Standard busses
-device		isa0
-device		pci0
+device		isa
+device		pci
 
 # Floppy drives
 device		fdc0	at isa? port IO_FD1 irq 6 drq 2
 device		fd0	at fdc0 drive 0
 
 # ATA and ATAPI devices
-device		ata0
-device		atadisk0	# ATA disk drives
-device		atapicd0	# ATAPI CDROM drives
-device		atapifd0	# ATAPI floppy drives
-device		atapist0	# ATAPI tape drives
+device		ata
+device		atadisk		# ATA disk drives
+device		atapicd		# ATAPI CDROM drives
+device		atapifd		# ATAPI floppy drives
+device		atapist		# ATAPI tape drives
 
 # SCSI Controllers
-# A single entry for any of these controllers (ahb, ahc, amd, ncr, etc...) is
-# sufficient for any number of installed devices.
-device		ahc0		# AHA2940 and onboard AIC7xxx devices
-#device		esp0		# 53C94 & friends, not CAM-ified
-device		isp0		# Qlogic family
-device		ncr0		# NCR/Symbios Logic
-device		sym0		# NCR/Symbios Logic (newer chipsets)
+device		ahc		# AHA2940 and onboard AIC7xxx devices
+#device		esp		# 53C94 & friends, not CAM-ified
+device		isp		# Qlogic family
+device		ncr		# NCR/Symbios Logic
+device		sym		# NCR/Symbios Logic (newer chipsets)
 
 # SCSI peripherals
-# Only one of each of these is needed, they are dynamically allocated.
-device		scbus0		# SCSI bus (required)
-device		da0		# Direct Access (disks)
-device		sa0		# Sequential Access (tape etc)
-device		cd0		# CD
-device		pass0		# Passthrough device (direct SCSI access)
+device		scbus		# SCSI bus (required)
+device		da		# Direct Access (disks)
+device		sa		# Sequential Access (tape etc)
+device		cd		# CD
+device		pass		# Passthrough device (direct SCSI access)
 
 # atkbdc0 controls both the keyboard and the PS/2 mouse
 device		atkbdc0	at isa? port IO_KBD
@@ -106,29 +103,29 @@ pseudo-device	splash
 device		sc0	at isa?
 
 # real time clock
-device		mcclock0 at isa0 port 0x70
+device		mcclock0 at isa? port 0x70
 
 # Serial (COM) ports
-device		sio0	at isa0 port IO_COM1 irq 4
-device		sio1	at isa0 port IO_COM2 irq 3 flags 0x50
+device		sio0	at isa? port IO_COM1 irq 4
+device		sio1	at isa? port IO_COM2 irq 3 flags 0x50
 
 # PCI Ethernet NICs.
-device		de0		# DEC/Intel DC21x4x (``Tulip'')
-device		fxp0		# Intel EtherExpress PRO/100B (82557, 82558)
-device		le0		# Lance
-device		wx0		# Intel Gigabit Ethernet Card (``Wiseman'')
+device		de		# DEC/Intel DC21x4x (``Tulip'')
+device		fxp		# Intel EtherExpress PRO/100B (82557, 82558)
+device		le		# Lance
+device		wx		# Intel Gigabit Ethernet Card (``Wiseman'')
 
 # PCI Ethernet NICs that use the common MII bus controller code.
-device		miibus0		# MII bus support
-device		dc0		# DEC/Intel 21143 and workalikes
-device		rl0		# RealTek 8129/8139
-device		sf0		# Adaptec AIC-6915 (``Starfire'')
-device		sis0		# Silicon Integrated Systems SiS 900/SiS 7016
-device		ste0		# Sundance ST201 (D-Link DFE-550TX)
-device		tl0		# Texas Instruments ThunderLAN
-device		vr0		# VIA Rhine, Rhine II
-device		wb0		# Winbond W89C840F
-device		xl0		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
+device		miibus		# MII bus support
+device		dc		# DEC/Intel 21143 and workalikes
+device		rl		# RealTek 8129/8139
+device		sf		# Adaptec AIC-6915 (``Starfire'')
+device		sis		# Silicon Integrated Systems SiS 900/SiS 7016
+device		ste		# Sundance ST201 (D-Link DFE-550TX)
+device		tl		# Texas Instruments ThunderLAN
+device		vr		# VIA Rhine, Rhine II
+device		wb		# Winbond W89C840F
+device		xl		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 
 # Pseudo devices - the number indicates how many units to allocated.
 pseudo-device	loop		# Network loopback
@@ -144,16 +141,16 @@ pseudo-device	md		# Memory "disks"
 pseudo-device	bpf		#Berkeley packet filter
 
 # USB support
-#device		uhci0		# UHCI PCI->USB interface
-#device		ohci0		# OHCI PCI->USB interface
-#device		usb0		# USB Bus (required)
-#device		ugen0		# Generic
-#device		uhid0		# "Human Interface Devices"
-#device		ukbd0		# Keyboard
-#device		ulpt0		# Printer
-#device		umass0		# Disks/Mass storage - Requires scbus and da0
-#device		ums0		# Mouse
+#device		uhci		# UHCI PCI->USB interface
+#device		ohci		# OHCI PCI->USB interface
+#device		usb		# USB Bus (required)
+#device		ugen		# Generic
+#device		uhid		# "Human Interface Devices"
+#device		ukbd		# Keyboard
+#device		ulpt		# Printer
+#device		umass		# Disks/Mass storage - Requires scbus and da0
+#device		ums		# Mouse
 # USB Ethernet
-#device		aue0		# ADMtek USB ethernet
-#device		cue0		# CATC USB ethernet
-#device		kue0		# Kawasaki LSI USB ethernet
+#device		aue		# ADMtek USB ethernet
+#device		cue		# CATC USB ethernet
+#device		kue		# Kawasaki LSI USB ethernet
