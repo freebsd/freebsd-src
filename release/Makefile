@@ -1,9 +1,11 @@
-#	$Id: Makefile,v 1.29 1994/11/09 20:27:32 phk Exp $
+#	$Id: Makefile,v 1.30 1994/11/09 23:07:04 phk Exp $
 #
 
+# Evil floppies are, of course, 1.2MB floppies.
 FLOPPY=		fd0
+EVIL_FLOPPY=	yes
 
-.if 1
+.if defined(EVIL_FLOPPY)
 FDLABEL=	fd1200
 DDBS=		15k
 DDCOUNT=	80
