@@ -143,6 +143,9 @@ device		npx
 # Power management support (see NOTES for more options)
 device		apm
 
+# Audio support
+device		pcm
+
 # PCCARD (PCMCIA) support
 device		card		# pccard bus
 device		pcic		# pcmcia bridge
