@@ -1,4 +1,4 @@
-#	$Id: options,v 1.128 1999/02/22 18:19:56 des Exp $
+#	$Id: options,v 1.129 1999/03/02 20:26:02 semenu Exp $
 #
 #        On the handling of kernel options   
 # 
@@ -181,6 +181,11 @@ SCSI_NCR_MYADDR		opt_ncr.h
 SCSI_ISP_NO_FWLOAD_MASK	opt_isp.h
 SCSI_ISP_NO_NVRAM_MASK	opt_isp.h
 SCSI_ISP_PREFER_MEM_MAP	opt_isp.h
+SCSI_ISP_FABRIC		opt_isp.h
+SCSI_ISP_SCCLUN		opt_isp.h
+ISP_DISABLE_1020_SUPPORT	opt_isp.h
+ISP_DISABLE_1080_SUPPORT	opt_isp.h
+ISP_DISABLE_2100_SUPPORT	opt_isp.h
 
 # Resource limits.
 DFLDSIZ			opt_rlimit.h
