@@ -39,25 +39,30 @@ __weak_reference(_execve, execve);
 int 
 _execve(const char *name, char *const *argv, char *const *envp)
 {
-	struct kse_execve_args args;
-	struct pthread *curthread = _get_curthread();
+	sigset_t omask;
+	struct pthread *curthread;
+	kse_critical_t crit;
+	int saved_errno;
 	int ret;
 
-	if (curthread->attr.flags & PTHREAD_SCOPE_SYSTEM)
-		ret = __sys_execve(name, argv, envp);
-	else {
-		/*
-		 * When exec'ing, set the kernel signal mask to the thread's
-	 	 * signal mask to satisfy POSIX requirements.
-		 */
-		args.sigmask = curthread->sigmask;
-		args.sigpend = curthread->sigpend;
-		args.path = (char *)name;
-		args.argv = (char **)argv;
-		args.envp = (char **)envp;
-		args.reserved = NULL;
-		ret = kse_thr_interrupt(NULL, KSE_INTR_EXECVE, (long)&args);
-	}
+	/*
+	 * When exec'ing, set the kernel signal mask to the thread's
+	 * signal mask to satisfy POSIX requirements.  We have to enter
+	 * a critical region so that the kernel thread doesn't get
+	 * changed out from under us after setting the signal mask.
+	 */
+	curthread = _get_curthread();
+	crit = _kse_critical_enter();
+	__sys_sigprocmask(SIG_SETMASK, &curthread->sigmask, &omask);
+	 ret = __sys_execve(name, argv, envp);
 
+	/*
+	 * If something went wrong, set the signal mask back but don't
+	 * destroy errno.
+	 */
+	saved_errno = errno;
+	__sys_sigprocmask(SIG_SETMASK, &omask, NULL);
+	errno = saved_errno;
+	_kse_critical_leave(crit);
 	return (ret);
 }
