@@ -102,6 +102,9 @@ static const char *uhci_device_ich3_a = "Intel 82801CA/CAM (ICH3) USB controller
 #define PCI_UHCI_DEVICEID_ICH3_B	0x24848086
 static const char *uhci_device_ich3_b = "Intel 82801CA/CAM (ICH3) USB controller USB-B";
 
+#define PCI_UHCI_DEVICEID_ICH3_C	0x24878086
+static const char *uhci_device_ich3_c = "Intel 82801CA/CAM (ICH3) USB controller USB-C";
+
 #define PCI_UHCI_DEVICEID_ICH4_A	0x24c28086
 static const char *uhci_device_ich4_a = "Intel 82801DB (ICH4) USB controller USB-A";
 
@@ -177,6 +180,8 @@ uhci_pci_match(device_t self)
 		return (uhci_device_ich3_a);
 	} else if (device_id == PCI_UHCI_DEVICEID_ICH3_B) {
 		return (uhci_device_ich3_b);
+	} else if (device_id == PCI_UHCI_DEVICEID_ICH3_C) {
+		return (uhci_device_ich3_c);
 	} else if (device_id == PCI_UHCI_DEVICEID_ICH4_A) {
 		return (uhci_device_ich4_a);
 	} else if (device_id == PCI_UHCI_DEVICEID_ICH4_B) {
@@ -250,68 +255,20 @@ uhci_pci_attach(device_t self)
 	}
 	device_set_ivars(sc->sc_bus.bdev, sc);
 
-	switch (pci_get_devid(self)) {
-	case PCI_UHCI_DEVICEID_PIIX3:
-		device_set_desc(sc->sc_bus.bdev, uhci_device_piix3);
+	/* uhci_pci_match must never return NULL if uhci_pci_probe succeeded */
+	device_set_desc(sc->sc_bus.bdev, uhci_pci_match(self));
+	switch (pci_get_vendor(self)) {
+	case PCI_UHCI_VENDORID_INTEL:
 		sprintf(sc->sc_vendor, "Intel");
 		break;
-	case PCI_UHCI_DEVICEID_PIIX4:
-		device_set_desc(sc->sc_bus.bdev, uhci_device_piix4);
-		sprintf(sc->sc_vendor, "Intel");
-		break;
-	case PCI_UHCI_DEVICEID_ICH:
-		device_set_desc(sc->sc_bus.bdev, uhci_device_ich);
-		sprintf(sc->sc_vendor, "Intel");
-		break;
-	case PCI_UHCI_DEVICEID_ICH0:
-		device_set_desc(sc->sc_bus.bdev, uhci_device_ich0);
-		sprintf(sc->sc_vendor, "Intel");
-		break;
-	case PCI_UHCI_DEVICEID_ICH2_A:
-		device_set_desc(sc->sc_bus.bdev, uhci_device_ich2_a);
-		sprintf(sc->sc_vendor, "Intel");
-		break;
-	case PCI_UHCI_DEVICEID_ICH2_B:
-		device_set_desc(sc->sc_bus.bdev, uhci_device_ich2_b);
-		sprintf(sc->sc_vendor, "Intel");
-		break;
-	case PCI_UHCI_DEVICEID_ICH3_A:
-		device_set_desc(sc->sc_bus.bdev, uhci_device_ich3_a);
-		sprintf(sc->sc_vendor, "Intel");
-		break;
-	case PCI_UHCI_DEVICEID_ICH3_B:
-		device_set_desc(sc->sc_bus.bdev, uhci_device_ich3_b);
-		sprintf(sc->sc_vendor, "Intel");
-		break;
-	case PCI_UHCI_DEVICEID_ICH4_A:
-		device_set_desc(sc->sc_bus.bdev, uhci_device_ich4_a);
-		sprintf(sc->sc_vendor, "Intel");
-		break;
-	case PCI_UHCI_DEVICEID_ICH4_B:
-		device_set_desc(sc->sc_bus.bdev, uhci_device_ich4_b);
-		sprintf(sc->sc_vendor, "Intel");
-		break;
-	case PCI_UHCI_DEVICEID_ICH4_C:
-		device_set_desc(sc->sc_bus.bdev, uhci_device_ich4_c);
-		sprintf(sc->sc_vendor, "Intel");
-		break;
-	case PCI_UHCI_DEVICEID_440MX:
-		device_set_desc(sc->sc_bus.bdev, uhci_device_440mx);
-		sprintf(sc->sc_vendor, "Intel");
-		break;
-	case PCI_UHCI_DEVICEID_460GX:
-		device_set_desc(sc->sc_bus.bdev, uhci_device_460gx);
-		sprintf(sc->sc_vendor, "Intel");
-		break;
-	case PCI_UHCI_DEVICEID_VT83C572:
-		device_set_desc(sc->sc_bus.bdev, uhci_device_vt83c572);
+	case PCI_UHCI_VENDORID_VIA:
 		sprintf(sc->sc_vendor, "VIA");
 		break;
 	default:
-		device_printf(self, "(New UHCI DeviceId=0x%08x)\n",
-		    pci_get_devid(self));
-		device_set_desc(sc->sc_bus.bdev, uhci_device_generic);
-		sprintf(sc->sc_vendor, "(0x%08x)", pci_get_devid(self));
+		if (bootverbose)
+			device_printf(self, "(New UHCI DeviceId=0x%08x)\n",
+			    pci_get_devid(self));
+		sprintf(sc->sc_vendor, "(0x%04x)", pci_get_vendor(self));
 	}
 
 	switch (pci_read_config(self, PCI_USBREV, 4) & PCI_USBREV_MASK) {
@@ -340,7 +297,7 @@ uhci_pci_attach(device_t self)
 	 * that the BIOS won't touch the keyboard anymore if it is connected
 	 * to the ports of the root hub?
 	 */
-#ifdef UHCI_DEBUG
+#ifdef USB_DEBUG
 	if (pci_read_config(self, PCI_LEGSUP, 4) != PCI_LEGSUP_USBPIRQDEN)
 		device_printf(self, "LegSup = 0x%08x\n",
 		    pci_read_config(self, PCI_LEGSUP, 4));
