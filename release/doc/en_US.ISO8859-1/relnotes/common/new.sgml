@@ -329,6 +329,9 @@
     <para>&man.mail.1; now takes a <option>-E</option> flag to avoid
     sending messages with empty bodies. &merged;</para>
 
+    <para>&man.vidcontrol.1; now supports a <option>-C</option> option to
+    clear the history buffer for a given tty.</para>
+
     <sect3>
       <title>Contributed Software</title>
 
