@@ -15,6 +15,7 @@ name="ypbind"
 command="/usr/sbin/${name}"
 start_precmd="ypbind_precmd"
 
+load_rc_config $name
 case ${OSTYPE} in
 FreeBSD)
 	rcvar="nis_client_enable"
@@ -44,5 +45,4 @@ ypbind_precmd()
 	fi
 }
 
-load_rc_config $name
 run_rc_command "$1"

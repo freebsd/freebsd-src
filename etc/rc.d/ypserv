@@ -14,6 +14,7 @@ name="ypserv"
 command="/usr/sbin/${name}"
 start_precmd="ypserv_precmd"
 
+load_rc_config $name
 case ${OSTYPE} in
 FreeBSD)
 	rcvar="nis_server_enable"
@@ -49,5 +50,4 @@ ypserv_precmd()
 	fi
 }
 
-load_rc_config $name
 run_rc_command "$1"
