@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: igmp.c,v 1.7 1995/06/28 17:58:32 wollman Exp $
+ * $Id: igmp.c,v 3.8 1995/11/29 22:36:57 fenner Rel $
  */
 
 
@@ -94,6 +94,8 @@ packet_kind(type, code)
 	    case DVMRP_PRUNE:			return "prune message     ";
 	    case DVMRP_GRAFT:			return "graft message     ";
 	    case DVMRP_GRAFT_ACK:		return "graft message ack ";
+	    case DVMRP_INFO_REQUEST:		return "info request      ";
+	    case DVMRP_INFO_REPLY:		return "info reply        ";
 	    default:	    			return "unknown DVMRP msg ";
 	  }
  	case IGMP_PIM:
@@ -154,8 +156,8 @@ accept_igmp(recvlen)
     ipdatalen = ip->ip_len;
     if (iphdrlen + ipdatalen != recvlen) {
 	log(LOG_WARNING, 0,
-	    "received packet shorter (%u bytes) than hdr+data length (%u+%u)",
-	    recvlen, iphdrlen, ipdatalen);
+	    "received packet from %s shorter (%u bytes) than hdr+data length (%u+%u)",
+	    inet_fmt(src, s1), recvlen, iphdrlen, ipdatalen);
 	return;
     }
 
@@ -232,6 +234,15 @@ accept_igmp(recvlen)
 		    accept_g_ack(src, dst, (char *)(igmp+1), igmpdatalen);
 		    return;
 
+		case DVMRP_INFO_REQUEST:
+		    accept_info_request(src, dst, (char *)(igmp+1),
+				igmpdatalen);
+		    return;
+
+		case DVMRP_INFO_REPLY:
+		    accept_info_reply(src, dst, (char *)(igmp+1), igmpdatalen);
+		    return;
+
 		default:
 		    log(LOG_INFO, 0,
 		     "ignoring unknown DVMRP message code %u from %s to %s",
@@ -296,9 +307,10 @@ send_igmp(src, dst, type, code, group, datalen)
     u_int32 group;
     int datalen;
 {
-    static struct sockaddr_in sdst;
+    struct sockaddr_in sdst;
     struct ip *ip;
     struct igmp *igmp;
+    int setloop;
 
     ip                      = (struct ip *)send_buf;
     ip->ip_src.s_addr       = src;
@@ -313,9 +325,13 @@ send_igmp(src, dst, type, code, group, datalen)
     igmp->igmp_cksum        = inet_cksum((u_short *)igmp,
 					 IGMP_MINLEN + datalen);
 
-    if (IN_MULTICAST(ntohl(dst))) k_set_if(src);
-    if (dst == allhosts_group || type == IGMP_HOST_MEMBERSHIP_QUERY)
+    if (IN_MULTICAST(ntohl(dst))) {
+	k_set_if(src);
+	if (type != IGMP_DVMRP) {
+	    setloop = 1;
 	    k_set_loop(TRUE);
+	}
+    }
 
     bzero(&sdst, sizeof(sdst));
     sdst.sin_family = AF_INET;
@@ -333,7 +349,7 @@ send_igmp(src, dst, type, code, group, datalen)
 		inet_fmt(dst, s1), inet_fmt(src, s2));
     }
 
-    if (dst == allhosts_group || type == IGMP_HOST_MEMBERSHIP_QUERY)
+    if (setloop)
 	    k_set_loop(FALSE);
 
     log(LOG_DEBUG, 0, "SENT %s from %-15s to %s",
