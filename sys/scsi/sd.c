@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.64 1995/05/08 16:53:33 bde Exp $
+ *      $Id: sd.c,v 1.65 1995/05/30 08:13:51 rgrimes Exp $
  */
 
 #define SPLSD splbio
@@ -480,6 +480,7 @@ sdstart(u_int32 unit, u_int32 flags)
 			return;
 		}
 		dp->b_actf = bp->b_actf;
+		bp->b_actf = NULL;
 
 		/*
 		 *  If the device has become invalid, abort all the
