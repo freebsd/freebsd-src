@@ -35,7 +35,7 @@
 
 #include <paths.h>
 
-#define	_PATH_DEFTAPE	"/dev/rst0"
+#define	_PATH_DEFTAPE	"/dev/rsa0"
 #define	_PATH_DTMP	"/etc/dtmp"
 #define	_PATH_DUMPDATES	"/etc/dumpdates"
 #define	_PATH_LOCK	"/tmp/dumplockXXXXXX"
