@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_sl.c	8.6 (Berkeley) 2/1/94
- * $Id: if_sl.c,v 1.45 1996/10/11 18:40:48 wollman Exp $
+ * $Id: if_sl.c,v 1.45.2.1 1997/03/11 19:40:37 bde Exp $
  */
 
 /*
@@ -73,6 +73,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
+#include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/buf.h>
 #include <sys/dkstat.h>
@@ -367,7 +368,7 @@ sltioctl(tp, cmd, data, flag, p)
 	int flag;
 	struct proc *p;
 {
-	struct sl_softc *sc = (struct sl_softc *)tp->t_sc, *nc;
+	struct sl_softc *sc = (struct sl_softc *)tp->t_sc, *nc, *tmpnc;
 	int s, nsl;
 
 	s = splimp();
@@ -382,10 +383,21 @@ sltioctl(tp, cmd, data, flag, p)
 				if (   nc->sc_if.if_unit == *(u_int *)data
 				    && nc->sc_ttyp == NULL
 				   ) {
-					nc->sc_if.if_unit = sc->sc_if.if_unit;
-					nc->sc_flags &= ~SC_STATIC;
-					nc->sc_flags |= sc->sc_flags & SC_STATIC;
-					sc->sc_if.if_unit = *(u_int *)data;
+					tmpnc = malloc(sizeof *tmpnc, M_TEMP,
+						       M_WAITOK);
+					*tmpnc = *nc;
+					*nc = *sc;
+					nc->sc_if = tmpnc->sc_if;
+					tmpnc->sc_if = sc->sc_if;
+					*sc = *tmpnc;
+					free(tmpnc, M_TEMP);
+					if (sc->sc_if.if_flags & IFF_UP) {
+						if_down(&sc->sc_if);
+						if (!(nc->sc_if.if_flags & IFF_UP))
+							if_up(&nc->sc_if);
+					} else if (nc->sc_if.if_flags & IFF_UP)
+						if_down(&nc->sc_if);
+					tp->t_sc = sc = nc;
 					goto slfound;
 				}
 			}
