@@ -36,8 +36,9 @@
 #define EVFILT_PROC		(-5)	/* attached to struct proc */
 #define EVFILT_SIGNAL		(-6)	/* attached to struct proc */
 #define EVFILT_TIMER		(-7)	/* timers */
+#define EVFILT_NETDEV		(-8)	/* network devices */
 
-#define EVFILT_SYSCOUNT		7
+#define EVFILT_SYSCOUNT		8
 
 #define EV_SET(kevp, a, b, c, d, e, f) do {	\
 	(kevp)->ident = (a);			\
@@ -103,6 +104,13 @@ struct kevent {
 #define	NOTE_TRACK	0x00000001		/* follow across forks */
 #define	NOTE_TRACKERR	0x00000002		/* could not track child */
 #define	NOTE_CHILD	0x00000004		/* am a child process */
+
+/*
+ * data/hint flags for EVFILT_NETDEV, shared with userspace
+ */
+#define NOTE_LINKUP	0x0001			/* link is up */
+#define NOTE_LINKDOWN	0x0002			/* link is down */
+#define NOTE_LINKINV	0x0004			/* link state is invalid */
 
 /*
  * This is currently visible to userland to work around broken
