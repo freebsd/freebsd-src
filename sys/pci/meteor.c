@@ -860,13 +860,13 @@ set_fps(meteor_reg_t *mtr, u_short fps)
 static vm_offset_t
 get_meteor_mem(int unit, unsigned size)
 {
-vm_offset_t	addr = NULL;
+vm_offset_t	addr = 0;
 
 	addr = vm_page_alloc_contig(size, 0x100000, 0xffffffff, 1<<24);
-	if(addr == NULL)
+	if(addr == 0)
 		addr = vm_page_alloc_contig(size, 0x100000, 0xffffffff,
 								PAGE_SIZE);
-	if(addr == NULL) {
+	if(addr == 0) {
 		printf("meteor%d: Unable to allocate %d bytes of memory.\n",
 			unit, size);
 	}
@@ -1056,7 +1056,7 @@ met_attach(pcici_t tag, int unit)
 	if(METEOR_ALLOC)
 		buf = get_meteor_mem(unit, METEOR_ALLOC);
 	else
-		buf = NULL;
+		buf = 0;
 	if(bootverbose) {
 		printf("meteor%d: buffer size %d, addr 0x%x\n",
 			unit, METEOR_ALLOC, vtophys(buf));
@@ -1064,7 +1064,7 @@ met_attach(pcici_t tag, int unit)
 
 	mtr->bigbuf = buf;
 	mtr->alloc_pages = METEOR_ALLOC_PAGES;
-	if(buf != NULL) {
+	if(buf != 0) {
 		bzero((caddr_t) buf, METEOR_ALLOC);
 		buf = vtophys(buf);
 					/* 640x480 RGB 16 */
@@ -1259,7 +1259,7 @@ meteor_read(dev_t dev, struct uio *uio, int ioflag)
 		return(ENXIO);
 
 	mtr = &(meteor[unit]);
-	if (mtr->bigbuf == NULL)/* no frame buffer allocated (ioctl failed) */
+	if (mtr->bigbuf == 0)/* no frame buffer allocated (ioctl failed) */
 		return(ENOMEM);
 
 	if (mtr->flags & METEOR_CAP_MASK)
@@ -1570,7 +1570,7 @@ meteor_ioctl(dev_t dev, int cmd, caddr_t arg, int flag, struct proc *pr)
 		temp = mtr->flags;
 		switch (*(int *) arg) {
 		case METEOR_CAP_SINGLE:
-			if (mtr->bigbuf==NULL)	/* no frame buffer allocated */
+			if (mtr->bigbuf==0)	/* no frame buffer allocated */
 				return(ENOMEM);
 
 			if (temp & METEOR_CAP_MASK)
@@ -1586,7 +1586,7 @@ meteor_ioctl(dev_t dev, int cmd, caddr_t arg, int flag, struct proc *pr)
 			mtr->flags &= ~(METEOR_SINGLE|METEOR_WANT_MASK);
 			break;
 		case METEOR_CAP_CONTINOUS:
-			if (mtr->bigbuf==NULL)	/* no frame buffer allocated */
+			if (mtr->bigbuf==0)	/* no frame buffer allocated */
 				return(ENOMEM);
 
 			if (temp & METEOR_CAP_MASK)
@@ -1618,7 +1618,7 @@ meteor_ioctl(dev_t dev, int cmd, caddr_t arg, int flag, struct proc *pr)
 			return(EIO);
 		if (mtr->flags & (METEOR_YUV_PLANAR | METEOR_YUV_422)) /* XXX */
 			return(EINVAL); /* should fix intr so we allow these */
-		if (mtr->bigbuf == NULL)
+		if (mtr->bigbuf == 0)
 			return(ENOMEM);
 		if ((mtr->frames < 2) ||
 		    (frame->lowat < 1 || frame->lowat >= mtr->frames) ||
@@ -1723,7 +1723,7 @@ meteor_ioctl(dev_t dev, int cmd, caddr_t arg, int flag, struct proc *pr)
 #endif
 			) {
 				buf = get_meteor_mem(unit, temp*PAGE_SIZE);
-				if(buf != NULL) {
+				if(buf != 0) {
 					kmem_free(kernel_map, mtr->bigbuf,
 					  (mtr->alloc_pages * PAGE_SIZE));
 					mtr->bigbuf = buf;

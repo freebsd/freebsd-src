@@ -47,7 +47,7 @@
  */
 
 /*
- * $Id: if_ze.c,v 1.30 1996/06/12 05:03:45 gpalmer Exp $
+ * $Id: if_ze.c,v 1.31 1996/06/25 20:30:30 bde Exp $
  */
 
 #include "ze.h"
@@ -355,7 +355,7 @@ ze_probe(isa_dev)
 	int slot;
 
         if ((slot = ze_find_adapter (isa_dev->id_maddr, isa_dev->id_reconfig)) < 0)
-	    return NULL;
+	    return 0;
 
 	/*
 	 * okay, we found a card, so set it up

@@ -41,7 +41,7 @@
  */
 
 
-/* $Id: scd.c,v 1.21 1996/06/08 09:18:23 bde Exp $ */
+/* $Id: scd.c,v 1.22 1996/06/18 01:22:30 bde Exp $ */
 
 /* Please send any comments to micke@dynas.se */
 
@@ -1159,7 +1159,7 @@ spin_up(unsigned unit)
 	int loop_count = 0;
 
 again:
-	rc = send_cmd(unit, CMD_SPIN_UP, NULL, 0, res_reg, &res_size);
+	rc = send_cmd(unit, CMD_SPIN_UP, 0, 0, res_reg, &res_size);
 	if (rc != 0) {
 		XDEBUG(2, ("scd%d: CMD_SPIN_UP error 0x%x\n", unit, rc));
 		return rc;

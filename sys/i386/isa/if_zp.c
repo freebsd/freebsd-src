@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	From: if_ep.c,v 1.9 1994/01/25 10:46:29 deraadt Exp $
- *	$Id: if_zp.c,v 1.21 1996/06/18 01:22:24 bde Exp $
+ *	$Id: if_zp.c,v 1.22 1996/06/25 20:30:34 bde Exp $
  */
 /*-
  * TODO:
@@ -339,7 +339,7 @@ zpprobe(struct isa_device * isa_dev)
 	int     re_init_flag;
 
 	if ((slot = zp_find_adapter(isa_dev->id_maddr, isa_dev->id_reconfig)) < 0)
-		return NULL;
+		return 0;
 
 	/* okay, we found a card, so set it up */
 	/* Inhibit 16 bit memory delay. POINTETH.SYS apparently does this, for

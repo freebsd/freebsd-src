@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.42 1996/06/03 04:07:35 davidg Exp $
+ *	$Id: kern_exec.c,v 1.43 1996/06/03 04:12:18 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -525,7 +525,7 @@ exec_copyout_strings(imgp)
 	}
 
 	/* a null vector table pointer seperates the argp's from the envp's */
-	suword(vectp++, NULL);
+	suword(vectp++, 0);
 
 	suword(&arginfo->ps_envstr, (int)vectp);
 	suword(&arginfo->ps_nenvstr, envc);
@@ -541,7 +541,7 @@ exec_copyout_strings(imgp)
 	}
 
 	/* end of vector table is a null pointer */
-	suword(vectp, NULL);
+	suword(vectp, 0);
 
 	return (stack_base);
 }
