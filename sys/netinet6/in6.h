@@ -539,9 +539,11 @@ struct in6_pktinfo {
 #define IPV6CTL_AUTO_LINKLOCAL	35	/* automatic link-local addr assign */
 #define IPV6CTL_RIP6STATS	36	/* raw_ip6 stats */
 
+#define IPV6CTL_MAXFRAGS	41	/* max fragments */
+
 /* New entries should be added here from current IPV6CTL_MAXID value. */
 /* to define items, should talk with KAME guys first, for *BSD compatibility */
-#define IPV6CTL_MAXID		37
+#define IPV6CTL_MAXID		42
 
 /*
  * Redefinition of mbuf flags

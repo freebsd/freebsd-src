@@ -89,6 +89,7 @@ struct	ip6q {
 #ifdef notyet
 	u_char		*ip6q_nxtp;
 #endif
+	int		ip6q_nfrag;	/* # of fragments */
 };
 
 struct	ip6asfrag {
@@ -267,6 +268,7 @@ extern int	ip6_v6only;
 extern struct socket *ip6_mrouter; 	/* multicast routing daemon */
 extern int	ip6_sendredirects;	/* send IP redirects when forwarding? */
 extern int	ip6_maxfragpackets; /* Maximum packets in reassembly queue */
+extern int	ip6_maxfrags;	/* Maximum fragments in reassembly queue */
 extern int	ip6_sourcecheck;	/* Verify source interface */
 extern int	ip6_sourcecheck_interval; /* Interval between log messages */
 extern int	ip6_accept_rtadv;	/* Acts as a host not a router */
