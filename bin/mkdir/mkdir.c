@@ -53,10 +53,13 @@ static const char rcsid[] =
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sysexits.h>
 #include <unistd.h>
 
 int	build __P((char *, mode_t));
 void	usage __P((void));
+
+int vflag;
 
 int
 main(argc, argv)
@@ -69,10 +72,13 @@ main(argc, argv)
 
 	omode = pflag = 0;
 	mode = NULL;
-	while ((ch = getopt(argc, argv, "m:p")) != -1)
+	while ((ch = getopt(argc, argv, "m:pv")) != -1)
 		switch(ch) {
 		case 'p':
 			pflag = 1;
+			break;
+		case 'v':
+			vflag = 1;
 			break;
 		case 'm':
 			mode = optarg;
@@ -104,7 +110,9 @@ main(argc, argv)
 		} else if (mkdir(*argv, omode) < 0) {
 			warn("%s", *argv);
 			success = 0;
-		}
+		} else if (vflag)
+			(void)printf("%s\n", *argv);
+		
 		if (!success)
 			exitval = 1;
 		/*
@@ -172,7 +180,8 @@ build(path, omode)
 				warn("%s", path);
 				retval = 1;
 				break;
-			}
+			} else if (vflag)
+				printf("%s\n", path);
 		}
 		else if ((sb.st_mode & S_IFMT) != S_IFDIR) {
 			if (last)
@@ -194,6 +203,6 @@ build(path, omode)
 void
 usage()
 {
-	(void)fprintf(stderr, "usage: mkdir [-p] [-m mode] directory ...\n");
-	exit (1);
+	(void)fprintf(stderr, "usage: mkdir [-p] [-m mode] [-v] directory ...\n");
+	exit (EX_USAGE);
 }
