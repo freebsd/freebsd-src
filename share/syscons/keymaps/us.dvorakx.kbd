@@ -49,7 +49,7 @@
   038   'n'    'N'    so     so     'n'    'N'    so     so      C
   039   's'    'S'    dc3    dc3    's'    'S'    dc3    dc3     C
   040   '-'    '_'    ns     ns     '-'    '_'    ns     ns      O
-  041   esc    esc    nop    nop    esc    esc    nop    nop     O
+  041   esc    esc    nop    nop    esc    esc    debug  nop     O
   042   lshift lshift lshift lshift lshift lshift lshift lshift  O
   043   '='    '+'    nop    nop    '='    '+'    nop    nop     O
   044   ';'    ':'    nop    nop    ';'    ':'    nop    nop     O
@@ -65,7 +65,7 @@
   054   rshift rshift rshift rshift rshift rshift rshift rshift  O
   055   '*'    '*'    nscr   nscr   '*'    '*'    nscr   nscr    O
   056   lalt   lalt   lalt   lalt   lalt   lalt   lalt   lalt    O
-  057   ' '    ' '    nul    ' '    ' '    ' '    ' '    ' '     O
+  057   ' '    ' '    nul    ' '    ' '    ' '    susp   ' '     O
   058   lctrl  lctrl  lctrl  lctrl  lctrl  lctrl  lctrl  lctrl   O
   059   fkey01 fkey13 fkey25 fkey37 scr01  scr11  scr01  scr11   O
   060   fkey02 fkey14 fkey26 fkey38 scr02  scr12  scr02  scr12   O

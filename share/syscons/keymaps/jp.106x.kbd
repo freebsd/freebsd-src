@@ -6,17 +6,17 @@
   000   nop    nop    nop    nop    nop    nop    nop    nop     O
   001   esc    esc    esc    esc    esc    esc    debug  esc     O
   002   '1'    '!'    nop    nop    '1'    '!'    nop    nop     O
-  003   '2'    '"'    nul    nul    '2'    '"'    nul    nul     O
+  003   '2'    '"'    nop    nop    '2'    '"'    nop    nop     O
   004   '3'    '#'    nop    nop    '3'    '#'    nop    nop     O
   005   '4'    '$'    nop    nop    '4'    '$'    nop    nop     O
   006   '5'    '%'    nop    nop    '5'    '%'    nop    nop     O
-  007   '6'    '&'    rs     rs     '6'    '&'    rs     rs      O
+  007   '6'    '&'    nop    nop    '6'    '&'    nop    nop     O
   008   '7'    '''    nop    nop    '7'    '''    nop    nop     O
   009   '8'    '('    nop    nop    '8'    '('    nop    nop     O
   010   '9'    ')'    nop    nop    '9'    ')'    nop    nop     O
   011   '0'    '~'    nop    nop    '0'    '~'    nop    nop     O
-  012   '-'    '='    ns     ns     '-'    '='    ns     ns      O
-  013   '^'    '~'    nop    nop    '^'    '~'    nop    nop     O
+  012   '-'    '='    nop    nop    '-'    '='    nop    nop     O
+  013   '^'    '~'    rs     rs     '^'    '~'    rs     rs      O
   014   bs     bs     del    del    bs     bs     del    del     O
   015   ht     bs     nop    nop    ht     bs     nop    nop     O
   016   'q'    'Q'    dc1    dc1    'q'    'Q'    dc1    dc1     C
@@ -29,8 +29,8 @@
   023   'i'    'I'    ht     ht     'i'    'I'    ht     ht      C
   024   'o'    'O'    si     si     'o'    'O'    si     si      C
   025   'p'    'P'    dle    dle    'p'    'P'    dle    dle     C
-  026   '@'    '`'    esc    esc    '@'    '`'    esc    esc     O
-  027   '['    '{'    gs     gs     '['    '{'    gs     gs      O
+  026   '@'    '`'    nul    nul    '@'    '`'    nul    nul     O
+  027   '['    '{'    esc    esc    '['    '{'    esc    esc     O
   028   cr     cr     nl     nl     cr     cr     nl     nl      O
   029   clock  clock  clock  clock  clock  clock  clock  clock   O
   030   'a'    'A'    soh    soh    'a'    'A'    soh    soh     C
@@ -46,7 +46,7 @@
   040   ':'    '*'    nop    nop    ':'    '*'    nop    nop     O
   041   esc    esc    esc    esc    esc    esc    debug  esc     O
   042   lshift lshift lshift lshift lshift lshift lshift lshift  O
-  043   ']'    '}'    fs     fs     ']'    '}'    fs     fs      O
+  043   ']'    '}'    gs     gs     ']'    '}'    gs     gs      O
   044   'z'    'Z'    sub    sub    'z'    'Z'    sub    sub     C
   045   'x'    'X'    can    can    'x'    'X'    can    can     C
   046   'c'    'C'    etx    etx    'c'    'C'    etx    etx     C
@@ -60,7 +60,7 @@
   054   rshift rshift rshift rshift rshift rshift rshift rshift  O
   055   '*'    '*'    nscr   nscr   '*'    '*'    nscr   nscr    O
   056   lalt   lalt   lalt   lalt   lalt   lalt   lalt   lalt    O
-  057   ' '    ' '    ' '    ' '    ' '    ' '    ' '    ' '     O
+  057   ' '    ' '    nul    ' '    ' '    ' '    susp   ' '     O
   058   lctrl  lctrl  lctrl  lctrl  lctrl  lctrl  lctrl  lctrl   O
   059   fkey01 fkey13 fkey25 fkey37 scr01  scr11  scr01  scr11   O
   060   fkey02 fkey14 fkey26 fkey38 scr02  scr12  scr02  scr12   O
@@ -108,7 +108,7 @@
   102   fkey60 fkey60 fkey60 fkey60 fkey60 fkey60 fkey60 fkey60  O
   103   fkey54 fkey54 fkey54 fkey54 fkey54 fkey54 boot   fkey54  O
   104   slock  slock  slock  slock  slock  slock  slock  slock   O
-  115   '\'    '_'    nop    nop    '\'    '_'    nop    nop     O
+  115   '\'    '_'    fs     ns     '\'    '_'    fs     ns      O
   121   ' '    ' '    ' '    ' '    ' '    ' '    ' '    ' '     O
   123   ' '    ' '    ' '    ' '    ' '    ' '    ' '    ' '     O
-  125   '\'    '|'    nop    nop    '\'    '|'    nop    nop     O
+  125   '\'    '|'    fs     fs     '\'    '|'    fs     fs      O
