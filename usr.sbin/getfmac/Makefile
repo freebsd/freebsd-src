@@ -1,7 +1,9 @@
 # $FreeBSD$
 
 PROG=   getfmac
-SRCS=   getfmac.c
 MAN=	getfmac.8
-CFLAGS+=-Wall
+SRCS=   getfmac.c
+
+WARNS?=	2
+
 .include <bsd.prog.mk>
