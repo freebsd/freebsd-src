@@ -73,7 +73,9 @@ ahb0    dyn     dyn     dyn     dyn     Adaptec 174x SCSI controller
 ahc0    dyn     dyn     dyn     dyn     Adaptec 274x/284x/294x SCSI controller
 aic0    340     11      dyn     dyn     Adaptec 152x/AIC-6360/AIC-6260 SCSI
                                         controller
-isp0    dyn     dyn     dyn     dyn     QLogic 10X0, 2100 SCSI/FC controllers
+isp0    dyn     dyn     dyn     dyn     QLogic 10X0, 1240 Ultra SCSI, 1080/1280
+					Ultra2 SCSI, 12160 Ultra3 SCSI, 2X00
+					Fibre Channel SCSI controller
 dpt0    dyn    	dyn     n/a     n/a     DPT RAID SCSI controllers
 amr0    dyn	dyn	n/a	n/a	AMI MegaRAID controllers
 mlx0    dyn	dyn	n/a	dyn	Mylex DAC960 RAID controllers
@@ -378,6 +380,14 @@ AcceleRAID models may function but have not been tested.  Booting from
 these controllers is not supported, and enabling the controller BIOS may
 cause the FreeBSD bootstrap to fail.
 
+Qlogic Controllers:
+
+	Qlogic 1020, 1040 SCSI and Ultra SCSI Host Adaptes
+	Qlogic 1240 dual Ultra SCSI controllers
+	Qlogic 1080 Ultra2 LVD and 1280 Dual Ultra2 LVD Controllers
+	Qlogic 12160 Ultra3 LVD Controllers
+	Qlogic 2100 and Qlogic 2200 Fibre Channel SCSI Controllers
+
 SymBios (formerly NCR) 53C810, 53C810a, 53C815, 53C820, 53C825a, 53C860,
 53C875, 53C875e, 53C875j, 53C885, 53C895 and 53C896 PCI SCSI controllers:
         ASUS SC-200
@@ -389,8 +399,6 @@ SymBios (formerly NCR) 53C810, 53C810a, 53C815, 53C820, 53C825a, 53C860,
         Tekram DC390W, 390U and 390F
         Tyan S1365
 
-
-QLogic 1020, 1040, 1040B and 2100 SCSI and Fibre Channel Adapters
 
 DTC 3290 EISA SCSI controller in 1542 emulation mode.
 
@@ -552,6 +560,7 @@ Intel EtherExpress (not recommended due to driver instability)
 Intel EtherExpress Pro/10
 Intel EtherExpress Pro/100B PCI Fast Ethernet
 Intel PRO/100+ Management Adapter
+Intel Gigabit Ethernet (PRO/1000)
 
 Isolan AT 4141-0 (16 bit)
 Isolink 4110     (8 bit)
