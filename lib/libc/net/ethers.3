@@ -59,7 +59,7 @@
 .Fn ether_hostton "const char *hostname" "struct ether_addr *e"
 .Sh DESCRIPTION
 These functions operate on ethernet addresses using an
-.Ar ether_addr
+.Vt ether_addr
 structure, which is defined in the header file
 .Aq Pa netinet/if_ether.h :
 .Bd -literal -offset indent
@@ -79,15 +79,15 @@ struct  ether_addr {
 The function
 .Fn ether_line
 scans
-.Ar l ,
+.Fa l ,
 an
 .Tn ASCII
 string in
 .Xr ethers 5
 format and sets
-.Ar e
+.Fa e
 to the ethernet address specified in the string and
-.Ar h
+.Fa h
 to the hostname.
 This function is used to parse lines from
 .Pa /etc/ethers
@@ -98,12 +98,12 @@ The
 function converts an
 .Tn ASCII
 representation of an ethernet address into an
-.Ar ether_addr
+.Vt ether_addr
 structure.
 Likewise,
 .Fn ether_ntoa
 converts an ethernet address specified as an
-.Ar ether_addr
+.Vt ether_addr
 structure into an
 .Tn ASCII
 string.
@@ -128,13 +128,13 @@ The
 function
 returns zero on success and non-zero if it was unable to parse
 any part of the supplied line
-.Ar l .
+.Fa l .
 It returns the extracted ethernet address in the supplied
-.Ar ether_addr
+.Vt ether_addr
 structure
-.Ar e
+.Fa e
 and the hostname in the supplied string
-.Ar h .
+.Fa h .
 .Pp
 On success,
 .Fn ether_ntoa
@@ -143,14 +143,14 @@ returns a pointer to a string containing an
 representation of an ethernet address.
 If it is unable to convert
 the supplied
-.Ar ether_addr
+.Vt ether_addr
 structure, it returns a
 .Dv NULL
 pointer.
 Likewise,
 .Fn ether_aton
 returns a pointer to an
-.Ar ether_addr
+.Vt ether_addr
 structure on success and a
 .Dv NULL
 pointer on failure.

@@ -53,11 +53,11 @@ The
 .Fn atexit
 function
 registers the given
-.Ar function
+.Fa function
 to be called at program exit, whether via
 .Xr exit 3
 or via return from the program's
-.Em main .
+.Fn main .
 Functions so registered are called in reverse order;
 no arguments are passed.
 .Pp

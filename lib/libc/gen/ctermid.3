@@ -53,14 +53,14 @@ function generates a string, that, when used as a pathname, refers to
 the current controlling terminal of the calling process.
 .Pp
 If
-.Ar buf
+.Fa buf
 is the
 .Dv NULL
 pointer, a pointer to a static area is returned.
 Otherwise, the pathname is copied into the memory referenced by
-.Ar buf .
+.Fa buf .
 The argument
-.Ar buf
+.Fa buf
 is assumed to be at least
 .Dv L_ctermid
 (as defined in the include
@@ -74,7 +74,7 @@ function
 provides the same functionality as
 .Fn ctermid
 except that if
-.Ar buf
+.Fa buf
 is a
 .Dv NULL
 pointer,

@@ -125,11 +125,11 @@ query and reply messages with Internet domain name servers.
 .Pp
 Global configuration and state information that is used by the
 resolver routines is kept in the structure
-.Em _res .
+.Va _res .
 Most of the values have reasonable defaults and can be ignored.
 Options
 stored in
-.Em _res.options
+.Va _res.options
 are defined in
 .Pa resolv.h
 and are as follows.
@@ -228,16 +228,16 @@ This environment variable may contain several blank-separated
 tokens if you wish to override the
 .Em "search list"
 on a per-process basis.  This is similar to the
-.Em search
+.Ic search
 command in the configuration file.
 Another environment variable
 .Dq Ev RES_OPTIONS
 can be set to
 override certain internal resolver options which are otherwise
 set by changing fields in the
-.Em _res
+.Va _res
 structure or are inherited from the configuration file's
-.Em options
+.Ic options
 command.  The syntax of the
 .Dq Ev RES_OPTIONS
 environment variable is explained in
@@ -335,7 +335,7 @@ is to update the list of pointers for
 labels inserted into the message
 as the name is compressed.
 If
-.Em dnptr
+.Fa dnptr
 is
 .Dv NULL ,
 names are not compressed.

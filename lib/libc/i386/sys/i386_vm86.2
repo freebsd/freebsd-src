@@ -77,7 +77,7 @@ it will be dispatched by the vm86 interrupt table.
 vm86 mode is entered by calling
 .Xr sigreturn 2
 with the correct machine context for vm86, and with the
-.Em PSL_VM
+.Dv PSL_VM
 bit set.  Control returns to the process upon delivery of a signal.
 .Sh RETURN VALUES
 .Rv -std i386_vm86

@@ -177,7 +177,7 @@ current and pending instances
 of the signal are ignored and discarded.
 .Pp
 Options may be specified by setting
-.Em sa_flags .
+.Va sa_flags .
 The meaning of the various bits is as follows:
 .Bl -tag -offset indent -width SA_RESETHANDXX
 .It Dv SA_NOCLDSTOP
@@ -238,7 +238,7 @@ Restart of pending calls is requested
 by setting the
 .Dv SA_RESTART
 bit in
-.Ar sa_flags .
+.Va sa_flags .
 The affected system calls include
 .Xr open 2 ,
 .Xr read 2 ,

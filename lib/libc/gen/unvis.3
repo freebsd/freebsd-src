@@ -61,33 +61,33 @@ by the
 .Xr vis 3
 function, back into
 the original form.  Unvis is called with successive characters in
-.Ar c
+.Fa c
 until a valid
 sequence is recognized, at which time the decoded character is
 available at the character pointed to by
-.Ar cp .
+.Fa cp .
 Strunvis decodes the
 characters pointed to by
-.Ar src
+.Fa src
 into the buffer pointed to by
-.Ar dst .
+.Fa dst .
 .Pp
 The
 .Fn strunvis
 function
 simply copies
-.Ar src
+.Fa src
 to
-.Ar dst ,
+.Fa dst ,
 decoding any escape sequences along the way,
 and returns the number of characters placed into
-.Ar dst ,
+.Fa dst ,
 or \-1 if an
 invalid escape sequence was detected.  The size of
-.Ar dst
+.Fa dst
 should be
 equal to the size of
-.Ar src
+.Fa src
 (that is, no expansion takes place during
 decoding).
 .Pp
@@ -97,7 +97,7 @@ function does the same as the
 .Fn strunvis
 function,
 but it allows you to add a flag that specifies the style the string
-.Ar src
+.Fa src
 is encoded with.
 Currently, the only supported flag is
 .Dv VIS_HTTPSTYLE .
@@ -141,13 +141,13 @@ unknown state.  The decoder is placed into the starting state.
 When all bytes in the stream have been processed, call
 .Fn unvis
 one more time with
-.Ar flag
+.Fa flag
 set to
 .Dv UNVIS_END
 to extract any remaining character (the character passed in is ignored).
 .Pp
 The
-.Ar flag
+.Fa flag
 argument is also used to specify the encoding style of the source.
 If set to
 .Dv VIS_HTTPSTYLE ,
