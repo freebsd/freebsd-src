@@ -25,6 +25,8 @@ COPTFLAGS?=-O2 -frename-registers -pipe
 COPTFLAGS?=-O2 -pipe
 . elif ${MACHINE_ARCH} == "sparc64"
 COPTFLAGS?=-O2 -pipe
+. elif ${MACHINE_ARCH} == "arm"
+COPTFLAGS?=-O2 -pipe
 . else
 COPTFLAGS?=-O -pipe
 . endif
