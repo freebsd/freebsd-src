@@ -212,6 +212,7 @@ tuninit(unit)
 	TUNDEBUG("%s%d: tuninit\n", ifp->if_name, ifp->if_unit);
 
 	ifp->if_flags |= IFF_UP | IFF_RUNNING;
+	microtime(&ifp->if_lastchange);
 
 	for (ifa = ifp->if_addrlist; ifa; ifa = ifa->ifa_next)
 		if (ifa->ifa_addr->sa_family == AF_INET) {
