@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ipl_funcs.c,v 1.18 1999/05/06 22:13:53 peter Exp $
+ *	$Id: ipl_funcs.c,v 1.19 1999/05/09 23:29:56 peter Exp $
  */
 
 #include <sys/types.h>
@@ -32,17 +32,29 @@
 #include <machine/globals.h>
 #include <i386/isa/intr_machdep.h>
 
-#ifndef SMP
 /*
  * The volatile bitmap variables must be set atomically.  This normally
  * involves using a machine-dependent bit-set or `or' instruction.
  */
+#ifndef SMP
 
 #define DO_SETBITS(name, var, bits) \
 void name(void)					\
 {						\
 	setbits(var, bits);			\
 }
+
+#else /* !SMP */
+
+#define DO_SETBITS(name, var, bits)		\
+void name(void)					\
+{						\
+	IFCPL_LOCK();				\
+	setbits(var, bits);			\
+	IFCPL_UNLOCK();				\
+}
+
+#endif /* !SMP */
 
 DO_SETBITS(setdelayed,   &ipending, loadandclear(&idelayed))
 DO_SETBITS(setsoftast,   &ipending, SWI_AST_PENDING)
@@ -58,6 +70,8 @@ DO_SETBITS(schedsoftcambio, &idelayed, SWI_CAMBIO_PENDING)
 DO_SETBITS(schedsoftnet, &idelayed, SWI_NET_PENDING)
 DO_SETBITS(schedsofttty, &idelayed, SWI_TTY_PENDING)
 DO_SETBITS(schedsoftvm,	&idelayed, SWI_VM_PENDING)
+
+#ifndef SMP
 
 unsigned
 softclockpending(void)
@@ -129,34 +143,6 @@ splq(intrmask_t mask)
 #define POSTCODE_HI(X)
 #endif /* SPL_DEBUG_POSTCODE */
 
-
-/*
- * The volatile bitmap variables must be set atomically.  This normally
- * involves using a machine-dependent bit-set or `or' instruction.
- */
-
-#define DO_SETBITS(name, var, bits)		\
-void name(void)					\
-{						\
-	IFCPL_LOCK();				\
-	setbits(var, bits);			\
-	IFCPL_UNLOCK();				\
-}
-
-DO_SETBITS(setdelayed,   &ipending, loadandclear(&idelayed))
-DO_SETBITS(setsoftast,   &ipending, SWI_AST_PENDING)
-DO_SETBITS(setsoftcamnet,&ipending, SWI_CAMNET_PENDING)
-DO_SETBITS(setsoftcambio,&ipending, SWI_CAMBIO_PENDING)
-DO_SETBITS(setsoftclock, &ipending, SWI_CLOCK_PENDING)
-DO_SETBITS(setsoftnet,   &ipending, SWI_NET_PENDING)
-DO_SETBITS(setsofttty,   &ipending, SWI_TTY_PENDING)
-DO_SETBITS(setsoftvm,	 &ipending, SWI_VM_PENDING)
-
-DO_SETBITS(schedsoftcamnet, &idelayed, SWI_CAMNET_PENDING)
-DO_SETBITS(schedsoftcambio, &idelayed, SWI_CAMBIO_PENDING)
-DO_SETBITS(schedsoftnet, &idelayed, SWI_NET_PENDING)
-DO_SETBITS(schedsofttty, &idelayed, SWI_TTY_PENDING)
-DO_SETBITS(schedsoftvm,	&idelayed, SWI_VM_PENDING)
 
 unsigned
 softclockpending(void)
