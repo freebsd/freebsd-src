@@ -22,18 +22,18 @@
  *
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
- *
- * $FreeBSD$
  */
-
 /*
  *	Author: David B. Golub, Carnegie Mellon University
  *	Date:	7/90
  */
-
 /*
  * Command dispatcher.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/param.h>
 #include <sys/linker_set.h>
 #include <sys/lock.h>
