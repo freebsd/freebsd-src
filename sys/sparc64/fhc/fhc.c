@@ -229,7 +229,7 @@ fhc_setup_intr(device_t bus, device_t child, struct resource *r, int flags,
 	sc = device_get_softc(bus);
 	rid = rman_get_rid(r);
 
-	fc = malloc(sizeof(*fc), M_DEVBUF, M_ZERO);
+	fc = malloc(sizeof(*fc), M_DEVBUF, M_WAITOK | M_ZERO);
 	fc->fc_func = func;
 	fc->fc_arg = arg;
 	fc->fc_bt = sc->sc_bt[rid];
