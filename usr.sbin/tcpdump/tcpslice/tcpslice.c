@@ -248,7 +248,7 @@ parse_time(char *time_string, struct timeval base_time)
 			result.tv_sec += base_time.tv_sec;
 			result.tv_usec += base_time.tv_usec;
 
-			if ( result.tv_usec > 1000000 )
+			if ( result.tv_usec >= 1000000 )
 				{
 				result.tv_usec -= 1000000;
 				++result.tv_sec;
