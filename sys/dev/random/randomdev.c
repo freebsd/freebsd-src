@@ -70,8 +70,6 @@ static struct cdevsw random_cdevsw = {
 	.d_name = "random",
 };
 
-static void *random_buf;
-
 struct random_systat random_systat;
 
 /* For use with make_dev(9)/destroy_dev(9). */
@@ -102,6 +100,7 @@ static int
 random_read(dev_t dev __unused, struct uio *uio, int flag)
 {
 	int c, error = 0;
+	void *random_buf;
 
 	/* Blocking logic */
 	while (!random_systat.seeded && !error) {
@@ -118,11 +117,17 @@ random_read(dev_t dev __unused, struct uio *uio, int flag)
 
 	/* The actual read */
 	if (!error) {
+
+		random_buf = (void *)malloc(PAGE_SIZE, M_TEMP, M_WAITOK);
+
 		while (uio->uio_resid > 0 && !error) {
 			c = MIN(uio->uio_resid, PAGE_SIZE);
 			c = (*random_systat.read)(random_buf, c);
 			error = uiomove(random_buf, c, uio);
 		}
+
+		free(random_buf, M_TEMP);
+
 	}
 
 	return (error);
@@ -133,6 +138,9 @@ static int
 random_write(dev_t dev __unused, struct uio *uio, int flag __unused)
 {
 	int c, error = 0;
+	void *random_buf;
+
+	random_buf = (void *)malloc(PAGE_SIZE, M_TEMP, M_WAITOK);
 
 	while (uio->uio_resid > 0) {
 		c = MIN((int)uio->uio_resid, PAGE_SIZE);
@@ -141,6 +149,8 @@ random_write(dev_t dev __unused, struct uio *uio, int flag __unused)
 			break;
 		(*random_systat.write)(random_buf, c);
 	}
+
+	free(random_buf, M_TEMP);
 
 	return (error);
 }
@@ -186,7 +196,6 @@ random_modevent(module_t mod __unused, int type, void *data __unused)
 
 	switch (type) {
 	case MOD_LOAD:
-		random_buf = (void *)malloc(PAGE_SIZE, M_TEMP, M_WAITOK);
 		random_ident_hardware(&random_systat);
 		(*random_systat.init)();
 
@@ -200,7 +209,6 @@ random_modevent(module_t mod __unused, int type, void *data __unused)
 
 	case MOD_UNLOAD:
 		(*random_systat.deinit)();
-		free(random_buf, M_TEMP);
 
 		destroy_dev(random_dev);
 
