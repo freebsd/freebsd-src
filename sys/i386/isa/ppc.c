@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppc.c,v 1.7 1998/09/13 18:26:44 nsouch Exp $
+ *	$Id: ppc.c,v 1.8 1998/09/13 20:57:06 nsouch Exp $
  *
  */
 #include "ppc.h"
@@ -125,7 +125,7 @@ static void ppc_wfifo(int unit, char byte) { w_fifo(ppcdata[unit], byte); }
 static void ppc_reset_epp_timeout(int);
 static void ppc_ecp_sync(int);
 
-static int ppc_exec_microseq(int, struct ppb_microseq *, int *);
+static int ppc_exec_microseq(int, struct ppb_microseq **);
 static int ppc_generic_setmode(int, int);
 static int ppc_smclike_setmode(int, int);
 
@@ -879,10 +879,10 @@ ppc_detect(struct ppc_data *ppc, int chipset_mode) {
  * Microsequence mechanism is supposed to handle fast I/O operations.
  */
 static int
-ppc_exec_microseq(int unit, struct ppb_microseq *msq, int *ppbpc)
+ppc_exec_microseq(int unit, struct ppb_microseq **p_msq)
 {
 	struct ppc_data	*ppc = ppcdata[unit];
-	struct ppb_microseq *pc;
+	struct ppb_microseq *mi;
 	char cc, *p;
 	int i, iter, len;
 	int error;
@@ -892,21 +892,16 @@ ppc_exec_microseq(int unit, struct ppb_microseq *msq, int *ppbpc)
 	register int accum = 0;
 	register char *ptr = 0;
 
-	struct ppb_microseq *microseq_stack = 0;
-	struct ppb_microseq *pc_stack = 0;
+	struct ppb_microseq *stack = 0;
 
 /* microsequence registers are equivalent to PC-like port registers */
 #define r_reg(register,ppc) ((char)inb((ppc)->ppc_base + register))
 #define w_reg(register,ppc,byte) outb((ppc)->ppc_base + register, byte)
 
-#define INCR_PC (pc ++)		/* increment program counter */
-#define mi pc			/* microinstruction currently executed */
+#define INCR_PC (mi ++)		/* increment program counter */
 
-	/* get the state of pc from ppb level of execution */
-	pc = &msq[*ppbpc];
-
+	mi = *p_msq;
 	for (;;) {
-
 		switch (mi->opcode) {                                           
 		case MS_OP_RSET:
 			cc = r_reg(mi->arg[0].i, ppc);
@@ -999,7 +994,7 @@ ppc_exec_microseq(int unit, struct ppb_microseq *msq, int *ppbpc)
 
                 case MS_OP_DBRA:
                         if (--ppc->ppc_accum > 0)
-                                pc += mi->arg[0].i;
+                                mi += mi->arg[0].i;
 			else
 				INCR_PC;
                         break;                                        
@@ -1007,7 +1002,7 @@ ppc_exec_microseq(int unit, struct ppb_microseq *msq, int *ppbpc)
                 case MS_OP_BRSET:
                         cc = r_str(ppc);
                         if ((cc & (char)mi->arg[0].i) == (char)mi->arg[0].i) 
-                                pc += mi->arg[1].i;                      
+                                mi += mi->arg[1].i;                      
 			else
 				INCR_PC;
                         break;
@@ -1015,7 +1010,7 @@ ppc_exec_microseq(int unit, struct ppb_microseq *msq, int *ppbpc)
                 case MS_OP_BRCLEAR:
                         cc = r_str(ppc);
                         if ((cc & (char)mi->arg[0].i) == 0)    
-                                pc += mi->arg[1].i;                             
+                                mi += mi->arg[1].i;                             
 			else
 				INCR_PC;
                         break;                                
@@ -1024,7 +1019,7 @@ ppc_exec_microseq(int unit, struct ppb_microseq *msq, int *ppbpc)
 			cc = r_str(ppc);
 			if ((cc & ((char)mi->arg[0].i | (char)mi->arg[1].i)) ==
 							(char)mi->arg[0].i)
-				pc += mi->arg[2].i;
+				mi += mi->arg[2].i;
 			else
 				INCR_PC;
 			break;
@@ -1046,19 +1041,17 @@ ppc_exec_microseq(int unit, struct ppb_microseq *msq, int *ppbpc)
 			break;
 
 		case MS_OP_CALL:
-			if (microseq_stack)
+			if (stack)
 				panic("%s: too much calls", __FUNCTION__);
 
 			if (mi->arg[0].p) {
 				/* store the state of the actual
 				 * microsequence
 				 */
-				microseq_stack = msq;
-				pc_stack = pc;
+				stack = mi;
 
 				/* jump to the new microsequence */
-				msq = (struct ppb_microseq *)mi->arg[0].p;
-				pc = msq;
+				mi = (struct ppb_microseq *)mi->arg[0].p;
 			} else
 				INCR_PC;
 
@@ -1066,11 +1059,10 @@ ppc_exec_microseq(int unit, struct ppb_microseq *msq, int *ppbpc)
 
 		case MS_OP_SUBRET:
 			/* retrieve microseq and pc state before the call */
-			msq = microseq_stack;
-			pc = pc_stack;
+			mi = stack;
 
 			/* reset the stack */
-			microseq_stack = 0;
+			stack = 0;
 
 			/* XXX return code */
 
@@ -1082,12 +1074,12 @@ ppc_exec_microseq(int unit, struct ppb_microseq *msq, int *ppbpc)
                 case MS_OP_RET:
 			/* can't return to ppb level during the execution
 			 * of a submicrosequence */
-			if (microseq_stack)
+			if (stack)
 				panic("%s: can't return to ppb level",
 								__FUNCTION__);
 
 			/* update pc for ppb level of execution */
-			*ppbpc = (int)(pc - msq);
+			*p_msq = mi;
 
 			/* return to ppb level of execution */
 			return (0);
