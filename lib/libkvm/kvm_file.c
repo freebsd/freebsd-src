@@ -78,8 +78,9 @@ kvm_deadfiles(kd, op, arg, filehead_o, nfiles)
 	long filehead_o;
 {
 	int buflen = kd->arglen, n = 0;
-	struct file *fp, *filehead;
+	struct file *fp;
 	register char *where = kd->argspc;
+	struct filelist filehead;
 
 	/*
 	 * first copyout filehead
@@ -91,12 +92,12 @@ kvm_deadfiles(kd, op, arg, filehead_o, nfiles)
 		}
 		buflen -= sizeof (filehead);
 		where += sizeof (filehead);
-		*(struct file **)kd->argspc = filehead;
+		*(struct filelist *)kd->argspc = filehead;
 	}
 	/*
 	 * followed by an array of file structures
 	 */
-	for (fp = filehead; fp != NULL; fp = fp->f_filef) {
+	for (fp = filehead.lh_first; fp != 0; fp = fp->f_list.le_next) {
 		if (buflen > sizeof (struct file)) {
 			if (KREAD(kd, (long)fp, ((struct file *)where))) {
 				_kvm_err(kd, kd->program, "can't read kfp");
@@ -122,7 +123,8 @@ kvm_getfiles(kd, op, arg, cnt)
 	int *cnt;
 {
 	int mib[2], size, st, nfiles;
-	struct file *filehead, *fp, *fplim;
+	struct file *fp, *fplim;
+	struct filelist filehead;
 
 	if (ISALIVE(kd)) {
 		size = 0;
@@ -145,11 +147,11 @@ kvm_getfiles(kd, op, arg, cnt)
 			_kvm_syserr(kd, kd->program, "kvm_getfiles");
 			return (0);
 		}
-		filehead = *(struct file **)kd->argspc;
+		filehead = *(struct filelist *)kd->argspc;
 		fp = (struct file *)(kd->argspc + sizeof (filehead));
 		fplim = (struct file *)(kd->argspc + size);
-		for (nfiles = 0; filehead && (fp < fplim); nfiles++, fp++)
-			filehead = fp->f_filef;
+		for (nfiles = 0; filehead.lh_first && (fp < fplim); nfiles++, fp++)
+			filehead.lh_first = fp->f_list.le_next;
 	} else {
 		struct nlist nl[3], *p;
 
