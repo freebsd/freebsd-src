@@ -955,7 +955,8 @@ UNCH *tbuf;
 	       if (c < 0)
 		    bad = 1;
 	       else if ((char_flags[c] & (CHAR_SIGNIFICANT | CHAR_MAGIC))
-			&& c != '.' && c != '-') {
+			&& c != '.' && c != '-'
+			&& !(c == '_' && i >= 2)) {
 		    int class = lextoke[c];
 		    if (class == SEP || class == SP || class == NMC
 			|| class == NMS || class == NU)
