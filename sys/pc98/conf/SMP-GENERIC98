@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: SMP-GENERIC98,v 1.4 1998/09/19 13:36:13 kato Exp $
+#	$Id: SMP-GENERIC98,v 1.5 1998/09/28 08:20:55 kato Exp $
 
 # GENERIC98 -- Generic PC98 machine with WD/SCSI disks
 
@@ -39,7 +39,11 @@ options		"PC98"			#PC98
 #options		MATH_EMULATE		#Support for x87 emulation
 options		INET			#InterNETworking
 options		FFS			#Berkeley Fast Filesystem
+options		FFS_ROOT		#FFS usable as root device [keep this!]
+options		MFS			#Memory Filesystem
+options		MFS_ROOT		#MFS usable as root device, "MFS" req'ed
 options		NFS			#Network Filesystem
+options		NFS_ROOT		#NFS usable as root device, "NFS" req'ed
 options		MSDOSFS			#MSDOS Filesystem
 options		"CD9660"		#ISO 9660 Filesystem
 options		"CD9660_ROOT"		#CD-ROM usable as root device
@@ -95,7 +99,8 @@ disk		wd0	at wdc0 drive 0
 
 options		ATAPI	# Enable ATAPI support for IDE bus
 options		ATAPI_STATIC	#Don't do it as an LKM
-device		wcd0	#IDE CD-ROM
+device		wcd0		#IDE CD-ROM
+device		wfd0		#IDE Floppy (e.g. LS-120)
 
 # A single entry for any of these controllers (ncr, ahb, ahc) is sufficient
 # for any number of installed devices.
@@ -227,4 +232,10 @@ options		KTRACE		#kernel tracing
 
 # This provides support for System V shared memory.
 #
-options         SYSVSHM  
+options		SYSVSHM
+
+#  The `bpfilter' pseudo-device enables the Berkeley Packet Filter.  Be
+#  aware of the legal and administrative consequences of enabling this
+#  option.  The number of devices determines the maximum number of
+#  simultaneous BPF clients programs runnable.
+#pseudo-device	bpfilter	4	#Berkeley packet filter
