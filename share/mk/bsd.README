@@ -87,11 +87,6 @@ environment or otherwise.  You probably don't want to touch this file.
 
 =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
-bsd.locale.mk - a list of location specific parameters (currently this is
-used to list official ports mirrors only)
-
-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-
 The include file <bsd.man.mk> handles installing manual pages and their
 links.
 
