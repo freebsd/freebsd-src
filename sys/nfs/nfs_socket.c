@@ -706,12 +706,13 @@ errout:
 				    error,
 				 rep->r_nmp->nm_mountp->mnt_stat.f_mntfromname);
 			error = nfs_sndlock(rep);
-			if (!error)
+			if (!error) {
 				error = nfs_reconnect(rep);
-			if (!error)
-				goto tryagain;
-			else
-				nfs_sndunlock(rep);
+				if (!error)
+					goto tryagain;
+				else
+					nfs_sndunlock(rep);
+			}
 		}
 	} else {
 		if ((so = rep->r_nmp->nm_so) == NULL)
