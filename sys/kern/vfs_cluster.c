@@ -395,15 +395,15 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run, fbp)
 			 * VMIO backed.  The clustering code can only deal
 			 * with VMIO-backed buffers.
 			 */
-			VI_LOCK(bp->b_vp);
+			VI_LOCK(vp);
 			if ((tbp->b_vflags & BV_BKGRDINPROG) ||
 			    (tbp->b_flags & B_CACHE) ||
 			    (tbp->b_flags & B_VMIO) == 0) {
-				VI_UNLOCK(bp->b_vp);
+				VI_UNLOCK(vp);
 				bqrelse(tbp);
 				break;
 			}
-			VI_UNLOCK(bp->b_vp);
+			VI_UNLOCK(vp);
 
 			/*
 			 * The buffer must be completely invalid in order to
@@ -1010,13 +1010,12 @@ cluster_collectbufs(vp, last_bp)
 		(void) bread(vp, lbn, last_bp->b_bcount, NOCRED, &bp);
 		buflist->bs_children[i] = bp;
 		if (bp->b_blkno == bp->b_lblkno)
-			VOP_BMAP(bp->b_vp, bp->b_lblkno, NULL, &bp->b_blkno,
+			VOP_BMAP(vp, bp->b_lblkno, NULL, &bp->b_blkno,
 				NULL, NULL);
 	}
 	buflist->bs_children[i] = bp = last_bp;
 	if (bp->b_blkno == bp->b_lblkno)
-		VOP_BMAP(bp->b_vp, bp->b_lblkno, NULL, &bp->b_blkno,
-			NULL, NULL);
+		VOP_BMAP(vp, bp->b_lblkno, NULL, &bp->b_blkno, NULL, NULL);
 	buflist->bs_nchildren = i + 1;
 	return (buflist);
 }
