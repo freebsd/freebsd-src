@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.8 (Berkeley) 4/18/94
- * $Id: ffs_vfsops.c,v 1.25 1995/07/21 16:20:20 davidg Exp $
+ * $Id: ffs_vfsops.c,v 1.26 1995/08/06 11:56:42 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -125,7 +125,7 @@ ffs_mountroot()
 		free(mp, M_MOUNT);
 		return (error);
 	}
-	TAILQ_INSERT_TAIL(&mountlist, mp, mnt_list);
+	CIRCLEQ_INSERT_TAIL(&mountlist, mp, mnt_list);
 	mp->mnt_flag |= MNT_ROOTFS;
 	mp->mnt_vnodecovered = NULLVP;
 	ump = VFSTOUFS(mp);

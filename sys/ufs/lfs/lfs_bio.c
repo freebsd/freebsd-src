@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_bio.c	8.4 (Berkeley) 12/30/93
- * $Id: lfs_bio.c,v 1.4 1994/08/20 03:49:01 davidg Exp $
+ * $Id: lfs_bio.c,v 1.5 1994/10/10 01:04:49 phk Exp $
  */
 
 #include <sys/param.h>
@@ -142,7 +142,7 @@ lfs_flush()
 	if (lfs_writing)
 		return;
 	lfs_writing = 1;
-	for (mp = mountlist.tqh_first; mp != NULL; mp = mp->mnt_list.tqe_next) {
+	for (mp = mountlist.cqh_first; mp != (void *)&mountlist; mp = mp->mnt_list.cqe_next) {
 		/* The lock check below is to avoid races with unmount. */
 		if (mp->mnt_stat.f_type == MOUNT_LFS &&
 		    (mp->mnt_flag & (MNT_MLOCK|MNT_RDONLY|MNT_UNMOUNT)) == 0 &&

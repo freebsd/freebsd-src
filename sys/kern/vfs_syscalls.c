@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.29 1995/07/31 00:35:47 bde Exp $
+ * $Id: vfs_syscalls.c,v 1.30 1995/08/01 18:50:39 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -190,10 +190,12 @@ update:
 	 */
 	cache_purge(vp);
 	if (!error) {
-		TAILQ_INSERT_TAIL(&mountlist, mp, mnt_list);
+		CIRCLEQ_INSERT_TAIL(&mountlist, mp, mnt_list);
 		VOP_UNLOCK(vp);
 		vfs_unlock(mp);
 		error = VFS_START(mp, 0, p);
+		if (error)
+			vrele(vp);
 	} else {
 		mp->mnt_vnodecovered->v_mountedhere = (struct mount *)0;
 		vfs_unlock(mp);
@@ -294,7 +296,7 @@ dounmount(mp, flags, p)
 		vfs_unlock(mp);
 	} else {
 		vrele(coveredvp);
-		TAILQ_REMOVE(&mountlist, mp, mnt_list);
+		CIRCLEQ_REMOVE(&mountlist, mp, mnt_list);
 		mp->mnt_vnodecovered->v_mountedhere = (struct mount *)0;
 		vfs_unlock(mp);
 		mp->mnt_vfc->vfc_refcount--;
@@ -323,7 +325,7 @@ sync(p, uap, retval)
 	register struct mount *mp;
 	int asyncflag;
 
-	for (mp = mountlist.tqh_first; mp != NULL; mp = mp->mnt_list.tqe_next) {
+	for (mp = mountlist.cqh_first; mp != (void *)&mountlist; mp = mp->mnt_list.cqe_next) {
 		/*
 		 * The lock check below is to avoid races with mount
 		 * and unmount.
@@ -456,8 +458,9 @@ getfsstat(p, uap, retval)
 
 	maxcount = uap->bufsize / sizeof(struct statfs);
 	sfsp = (caddr_t)uap->buf;
-	for (count = 0, mp = mountlist.tqh_first; mp != NULL; mp = nmp) {
-		nmp = mp->mnt_list.tqe_next;
+	count = 0;
+	for (mp = mountlist.cqh_first; mp != (void *)&mountlist; mp = nmp) {
+		nmp = mp->mnt_list.cqe_next;
 		if (sfsp && count < maxcount &&
 		    ((mp->mnt_flag & MNT_MLOCK) == 0)) {
 			sp = &mp->mnt_stat;
