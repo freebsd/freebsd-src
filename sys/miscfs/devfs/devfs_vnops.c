@@ -1,7 +1,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.35 1997/02/24 17:08:49 bde Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.36 1997/04/10 15:05:38 bde Exp $
  *
  * symlinks can wait 'til later.
  */
@@ -111,66 +111,8 @@ DBPRINT(("lookup\n"));
 	/*
 	 * We now have a segment name to search for, and a directory to search.
 	 *
-	 * Before tediously performing a linear scan of the directory,
-	 * check the name cache to see if the directory/name pair
-	 * we are looking for is known already.
 	 */
 
-#ifdef NOT_AT_THE_MOMENT
-	if (error = cache_lookup(dir_vnode, result_vnode, cnp)) {
-		int vpid;	/* capability number of vnode */
-
-		if (error == ENOENT)
-			return (error); /* got an actual -ve hit */
-DBPRINT(("cached "));
-		/*
-		 * Claim the next vnode in the path.
-		 * See comment below starting `Step through' for
-		 * an explaination of the locking protocol.
-		 */
-#ifdef MAYBE_NOT_NEEDED
-		if(devfs_vntodn(*result_vnode,&new_node))
-		{
-			printf("vnode has changed!?\n");
-			vprint("=",*result_vnode);
-			return(EINVAL);
-		}
-#endif
-		vpid = (*result_vnode)->v_id;
-		if (dir_vnode == *result_vnode) {	/* is "." */
-			VREF(*result_vnode); /* not a full vget() */
-			error = 0;
-		} else if (flags & ISDOTDOT) {/* do a locking dance */
-			VOP_UNLOCK(dir_vnode, 0, p);
-			error = vget(*result_vnode,1);
-			if (!error && lockparent && (flags & ISLASTCN))
-				vn_lock(dir_vnode, LK_EXCLUSIVE | LK_RETRY, p);
-		} else {
-			error = vget(*result_vnode,1);
-			if (!lockparent || error || !(flags & ISLASTCN))
-				VOP_UNLOCK(dir_vnode, 0, p);
-		}
-		/*
-		 * Check that the capability number did not change
-		 * while we were waiting for the lock.
-		 */
-		if (!error) {
-			if (vpid == (*result_vnode)->v_id)
-				return (0);	/* SUCCCESS, return! */
-			vput((*result_vnode));	/* pretend we failed */
-			if (lockparent
-			&& (dir_vnode != *result_vnode)
-			&& (flags & ISLASTCN))
-				VOP_UNLOCK(dir_vnode, 0, p);
-		} else { /* we have an error */
-
-		}
-		if (error = vn_lock(dir_vnode, LK_EXCLUSIVE | LK_RETRY, p))
-			return error;
-		*result_vnode = NULL; /* safe not sorry */
-DBPRINT(("errr, maybe not cached "));
-	}
-#endif
 /***********************************************************************\
 * SEARCH FOR NAME							*
 * while making sure the component is null terminated for the strcmp 	*
@@ -197,7 +139,6 @@ DBPRINT(("errr, maybe not cached "));
 			 * (as non-existent) if appropriate.
 			 */
 			if ((cnp->cn_flags & MAKEENTRY) && op != CREATE)
-			cache_enter(dir_vnode, *result_vnode, cnp);
 DBPRINT(("NOT\n"));
 			return ENOENT;
 		}
@@ -339,11 +280,6 @@ DBPRINT(("MKACCESS "));
 			VOP_UNLOCK(dir_vnode, 0, p);
 	}
 
-	/*
-	 * Insert name into cache if appropriate.
-	 */
-	if (cnp->cn_flags & MAKEENTRY)
-		cache_enter(dir_vnode, *result_vnode, cnp);
 DBPRINT(("GOT\n"));
 	return (0);
 }
@@ -973,7 +909,6 @@ abortit:
 			error = ENOTEMPTY;
 			goto abortit;
 	}
-	cache_purge(vp); /*XXX*/
 	dev_free_name(tnp);
 	tp = NULL;
 	vput(vp);
@@ -1264,7 +1199,6 @@ abortit:
 				error = ENOTEMPTY;
 				goto bad;
 		}
-		cache_purge(tvp); /*XXX*/
 		dev_free_name(tnp);
 		tp = NULL;
 	}
