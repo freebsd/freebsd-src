@@ -3,6 +3,6 @@
 #
 
 PROG=	tcpconnect
-NO_MAN=
+NOMAN=
 
 .include <bsd.prog.mk>
