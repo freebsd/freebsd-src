@@ -1,8 +1,7 @@
 # $FreeBSD$
 # Copyright (c) David E. O'Brien, 2000-2004
 
-#CONTRDIR=	${.CURDIR}/../../contrib/file
-CONTRDIR=	${.CURDIR}/../file-4.10
+CONTRDIR=	${.CURDIR}/../../contrib/file
 .PATH: ${CONTRDIR}
 
 LIB=	magic
