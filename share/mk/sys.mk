@@ -34,10 +34,11 @@ AFLAGS		?=
 
 .if defined(%POSIX)
 CC		?=	c89
+CFLAGS		?=	-O
 .else
 CC		?=	cc
-.endif
 CFLAGS		?=	-O -pipe
+.endif
 
 CXX		?=	c++
 CXXFLAGS	?=	${CFLAGS:N-std=*}
