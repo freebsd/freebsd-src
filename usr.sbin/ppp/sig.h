@@ -23,13 +23,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: sig.h,v 1.11.2.1 1998/05/01 19:25:57 brian Exp $
  */
 
 typedef void (*sig_type)(int);
 
 /* Call this instead of signal() */
-extern sig_type pending_signal(int, sig_type);
+extern sig_type sig_signal(int, sig_type);
 
 /* Call this when you want things to *actually* happen */
-extern void handle_signals(void);
+extern void sig_Handle(void);

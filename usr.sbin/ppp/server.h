@@ -23,11 +23,27 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: server.h,v 1.4.2.5 1998/05/01 19:25:52 brian Exp $
  */
 
-extern int server;
+struct bundle;
 
-extern int ServerLocalOpen(const char *, mode_t);
-extern int ServerTcpOpen(int);
-extern void ServerClose(void);
+struct server {
+  struct descriptor desc;
+  int fd;
+  char passwd[50];
+
+  struct sockaddr_un ifsun;	/* local socket */
+  char *rm;			/* Points to local socket path */
+
+  u_short port;			/* tcp socket */
+};
+
+#define descriptor2server(d) \
+  ((d)->type == SERVER_DESCRIPTOR ? (struct server *)(d) : NULL)
+
+extern struct server server;
+
+extern int server_LocalOpen(struct bundle *, const char *, mode_t);
+extern int server_TcpOpen(struct bundle *, int);
+extern int server_Close(struct bundle *);

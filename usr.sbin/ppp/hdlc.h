@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: hdlc.h,v 1.13 1997/12/03 10:23:48 brian Exp $
+ * $Id: hdlc.h,v 1.14.2.12 1998/05/01 19:24:39 brian Exp $
  *
  *	TODO:
  */
@@ -54,13 +54,62 @@
 #define	PRI_NORMAL	0	/* Normal priority */
 #define	PRI_FAST	1	/* Fast (interractive) */
 #define	PRI_LINK	1	/* Urgent (LQR packets) */
+#define	PRI_MAX		1
 
-extern u_char EscMap[33];
+struct physical;
+struct link;
+struct lcp;
+struct bundle;
+struct mbuf;
+struct cmdargs;
 
-extern void HdlcInit(void);
-extern void HdlcErrorCheck(void);
-extern void HdlcInput(struct mbuf *);
-extern void HdlcOutput(int, u_short, struct mbuf *bp);
-extern u_short HdlcFcs(u_short, u_char *, int);
-extern int ReportHdlcStatus(struct cmdargs const *);
-extern int ReportProtStatus(struct cmdargs const *);
+struct hdlc {
+  struct pppTimer ReportTimer;
+
+  struct {
+    int badfcs;
+    int badaddr;
+    int badcommand;
+    int unknownproto;
+  } laststats, stats;
+
+  struct {
+    struct lcp *owner;			/* parent LCP */
+    struct pppTimer timer;		/* When to send */
+    int method;				/* bit-mask for LQM_* from lqr.h */
+
+    u_int32_t OutPackets;		/* Packets sent by me */
+    u_int32_t OutOctets;		/* Octets sent by me */
+    u_int32_t SaveInPackets;		/* Packets received from peer */
+    u_int32_t SaveInDiscards;		/* Discards */
+    u_int32_t SaveInErrors;		/* Errors */
+    u_int32_t SaveInOctets;		/* Octets received from peer */
+
+    struct {
+      u_int32_t OutLQRs;		/* LQRs sent by me */
+      u_int32_t SaveInLQRs;		/* LQRs received from peer */
+      struct lqrdata peer;		/* Last LQR from peer */
+      int peer_timeout;			/* peers max lqr timeout */
+      int resent;			/* Resent last packet `resent' times */
+    } lqr;
+
+    struct {
+      u_int32_t seq_sent;		/* last echo sent */
+      u_int32_t seq_recv;		/* last echo received */
+    } echo;
+  } lqm;
+};
+
+
+extern void hdlc_Init(struct hdlc *, struct lcp *);
+extern void hdlc_StartTimer(struct hdlc *);
+extern void hdlc_StopTimer(struct hdlc *);
+extern int hdlc_ReportStatus(struct cmdargs const *);
+extern const char *hdlc_Protocol2Nam(u_short);
+extern void hdlc_DecodePacket(struct bundle *, u_short, struct mbuf *,
+                              struct link *);
+
+extern void hdlc_Input(struct bundle *, struct mbuf *, struct physical *);
+extern void hdlc_Output(struct link *, int, u_short, struct mbuf *bp);
+extern u_short hdlc_Fcs(u_short, u_char *, int);
+extern u_char *hdlc_Detect(struct physical *, u_char *, int);

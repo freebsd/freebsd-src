@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: loadalias.c,v 1.14 1998/01/19 22:59:57 brian Exp $
+ *	$Id: loadalias.c,v 1.14.2.5 1998/05/01 19:25:01 brian Exp $
  */
 
 #include <sys/param.h>
@@ -34,22 +34,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/socket.h>
 #include <unistd.h>
 
-#include "command.h"
-#include "mbuf.h"
 #include "log.h"
-#include "systems.h"
 #include "id.h"
 #include "loadalias.h"
-#include "defs.h"
-#include "vars.h"
 
 #define _PATH_ALIAS_PREFIX "/usr/lib/libalias.so.2."
 
 #define off(item) ((int)&(((struct aliasHandlers *)0)->item))
-#define entry(a) { off(a), "_" #a }
+#define entry(a) { off(a), "_PacketAlias" #a }
 
 #ifndef RTLD_NOW
 #define RTLD_NOW 1		/* really RTLD_LAZY */
@@ -59,27 +53,30 @@ static struct {
   int offset;
   const char *name;
 } map[] = {
-  entry(PacketAliasGetFragment),
-  entry(PacketAliasInit),
-  entry(PacketAliasIn),
-  entry(PacketAliasOut),
-  entry(PacketAliasRedirectAddr),
-  entry(PacketAliasRedirectPort),
-  entry(PacketAliasSaveFragment),
-  entry(PacketAliasSetAddress),
-  entry(PacketAliasSetMode),
-  entry(PacketAliasFragmentIn),
+  entry(GetFragment),
+  entry(Init),
+  entry(In),
+  entry(Out),
+  entry(RedirectAddr),
+  entry(RedirectPort),
+  entry(SaveFragment),
+  entry(SetAddress),
+  entry(SetMode),
+  entry(FragmentIn),
   { 0, 0 }
 };
 
-static void *dl;
+struct aliasHandlers PacketAlias;
 
 int 
-loadAliasHandlers(struct aliasHandlers * h)
+alias_Load()
 {
   const char *path;
   const char *env;
   int i;
+
+  if (PacketAlias.dl)
+    return 0;
 
   path = _PATH_ALIAS_PREFIX;
   env = getenv("_PATH_ALIAS_PREFIX");
@@ -87,20 +84,20 @@ loadAliasHandlers(struct aliasHandlers * h)
     if (ID0realuid() == 0)
       path = env;
     else
-      LogPrintf(LogALERT, "Ignoring environment _PATH_ALIAS_PREFIX"
+      log_Printf(LogALERT, "Ignoring environment _PATH_ALIAS_PREFIX"
                 " value (%s)\n", env);
   }
 
-  dl = dlopen(path, RTLD_NOW);
-  if (dl == (void *) 0) {
+  PacketAlias.dl = dlopen(path, RTLD_NOW);
+  if (PacketAlias.dl == (void *) 0) {
     /* Look for _PATH_ALIAS_PREFIX with any number appended */
     int plen;
 
     plen = strlen(path);
     if (plen && plen < MAXPATHLEN - 1 && path[plen-1] == '.') {
       DIR *d;
-      char p[MAXPATHLEN], *fix;
-      char *file, *dir;
+      char p[MAXPATHLEN], *fix, *file;
+      const char *dir;
 
       strcpy(p, path);
       if ((file = strrchr(p, '/')) != NULL) {
@@ -134,37 +131,37 @@ loadAliasHandlers(struct aliasHandlers * h)
 
         if (maxver > -1) {
           sprintf(p + plen, "%ld", maxver);
-          dl = dlopen(p, RTLD_NOW);
+          PacketAlias.dl = dlopen(p, RTLD_NOW);
         }
       }
     }
-    if (dl == (void *) 0) {
-      LogPrintf(LogWARN, "_PATH_ALIAS_PREFIX (%s*): Invalid lib: %s\n",
+    if (PacketAlias.dl == (void *) 0) {
+      log_Printf(LogWARN, "_PATH_ALIAS_PREFIX (%s*): Invalid lib: %s\n",
 	        path, dlerror());
       return -1;
     }
   }
   for (i = 0; map[i].name; i++) {
-    *(void **) ((char *) h + map[i].offset) = dlsym(dl, map[i].name);
-    if (*(void **) ((char *) h + map[i].offset) == (void *) 0) {
-      LogPrintf(LogWARN, "_PATH_ALIAS (%s*): %s: %s\n", path,
+    *(void **)((char *)&PacketAlias + map[i].offset) =
+      dlsym(PacketAlias.dl, map[i].name);
+    if (*(void **)((char *)&PacketAlias + map[i].offset) == (void *)0) {
+      log_Printf(LogWARN, "_PATH_ALIAS (%s*): %s: %s\n", path,
 		map[i].name, dlerror());
-      (void) dlclose(dl);
-      dl = (void *) 0;
+      alias_Unload();
       return -1;
     }
   }
 
-  VarPacketAliasInit();
+  (*PacketAlias.Init)();
 
   return 0;
 }
 
 void 
-unloadAliasHandlers()
+alias_Unload()
 {
-  if (dl) {
-    dlclose(dl);
-    dl = (void *) 0;
+  if (PacketAlias.dl) {
+    dlclose(PacketAlias.dl);
+    memset(&PacketAlias, '\0', sizeof PacketAlias);
   }
 }

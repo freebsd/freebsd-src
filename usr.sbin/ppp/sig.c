@@ -23,15 +23,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sig.c,v 1.11 1997/12/21 12:11:08 brian Exp $
+ *	$Id: sig.c,v 1.11.2.5 1998/05/01 19:25:56 brian Exp $
  */
 
 #include <sys/types.h>
 
 #include <signal.h>
 
-#include "command.h"
-#include "mbuf.h"
 #include "log.h"
 #include "sig.h"
 
@@ -54,13 +52,13 @@ signal_recorder(int sig)
 */
 
 sig_type
-pending_signal(int sig, sig_type fn)
+sig_signal(int sig, sig_type fn)
 {
   sig_type Result;
 
   if (sig <= 0 || sig > NSIG) {
     /* Oops - we must be a bit out of date (too many sigs ?) */
-    LogPrintf(LogALERT, "Eeek! %s:%s: I must be out of date!\n",
+    log_Printf(LogALERT, "Eeek! %s:%d: I must be out of date!\n",
 	      __FILE__, __LINE__);
     return signal(sig, fn);
   }
@@ -80,7 +78,7 @@ pending_signal(int sig, sig_type fn)
 /* Call the handlers for any pending signals */
 
 void
-handle_signals()
+sig_Handle()
 {
   int sig;
   int got;

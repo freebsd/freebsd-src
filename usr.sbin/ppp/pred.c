@@ -26,26 +26,20 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pred.c,v 1.19 1997/12/21 12:11:08 brian Exp $
+ *	$Id: pred.c,v 1.20.2.12 1998/05/01 19:25:40 brian Exp $
  */
 
-#include <sys/param.h>
-#include <netinet/in.h>
+#include <sys/types.h>
 
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "command.h"
 #include "mbuf.h"
 #include "log.h"
-#include "defs.h"
-#include "loadalias.h"
-#include "vars.h"
 #include "timer.h"
 #include "fsm.h"
+#include "lqr.h"
 #include "hdlc.h"
-#include "lcpproto.h"
 #include "lcp.h"
 #include "ccp.h"
 #include "pred.h"
@@ -56,16 +50,16 @@
  * A better hash function would result in additional compression,
  * at the expense of time.
  */
-#define IHASH(x) do {iHash = (iHash << 4) ^ (x);} while(0)
-#define OHASH(x) do {oHash = (oHash << 4) ^ (x);} while(0)
+#define HASH(state, x) state->hash = (state->hash << 4) ^ (x)
 #define GUESS_TABLE_SIZE 65536
 
-static unsigned short int iHash, oHash;
-static unsigned char *InputGuessTable;
-static unsigned char *OutputGuessTable;
+struct pred1_state {
+  u_short hash;
+  u_char dict[GUESS_TABLE_SIZE];
+};
 
 static int
-compress(u_char * source, u_char * dest, int len)
+compress(struct pred1_state *state, u_char *source, u_char *dest, int len)
 {
   int i, bitmask;
   unsigned char *flagdest, flags, *orgdest;
@@ -75,13 +69,13 @@ compress(u_char * source, u_char * dest, int len)
     flagdest = dest++;
     flags = 0;			/* All guess wrong initially */
     for (bitmask = 1, i = 0; i < 8 && len; i++, bitmask <<= 1) {
-      if (OutputGuessTable[oHash] == *source) {
+      if (state->dict[state->hash] == *source) {
 	flags |= bitmask;	/* Guess was right - don't output */
       } else {
-	OutputGuessTable[oHash] = *source;
+	state->dict[state->hash] = *source;
 	*dest++ = *source;	/* Guess wrong, output char */
       }
-      OHASH(*source++);
+      HASH(state, *source++);
       len--;
     }
     *flagdest = flags;
@@ -90,19 +84,17 @@ compress(u_char * source, u_char * dest, int len)
 }
 
 static void
-SyncTable(u_char * source, u_char * dest, int len)
+SyncTable(struct pred1_state *state, u_char * source, u_char * dest, int len)
 {
-
   while (len--) {
-    if (InputGuessTable[iHash] != *source) {
-      InputGuessTable[iHash] = *source;
-    }
-    IHASH(*dest++ = *source++);
+    if (state->dict[state->hash] != *source)
+      state->dict[state->hash] = *source;
+    HASH(state, *dest++ = *source++);
   }
 }
 
 static int
-decompress(u_char * source, u_char * dest, int len)
+decompress(struct pred1_state *state, u_char * source, u_char * dest, int len)
 {
   int i, bitmask;
   unsigned char flags, *orgdest;
@@ -113,157 +105,151 @@ decompress(u_char * source, u_char * dest, int len)
     len--;
     for (i = 0, bitmask = 1; i < 8; i++, bitmask <<= 1) {
       if (flags & bitmask) {
-	*dest = InputGuessTable[iHash];	/* Guess correct */
+	*dest = state->dict[state->hash];	/* Guess correct */
       } else {
 	if (!len)
 	  break;		/* we seem to be really done -- cabo */
-	InputGuessTable[iHash] = *source;	/* Guess wrong */
+	state->dict[state->hash] = *source;	/* Guess wrong */
 	*dest = *source++;	/* Read from source */
 	len--;
       }
-      IHASH(*dest++);
+      HASH(state, *dest++);
     }
   }
   return (dest - orgdest);
 }
 
 static void
-Pred1TermInput(void)
+Pred1Term(void *v)
 {
-  if (InputGuessTable != NULL) {
-    free(InputGuessTable);
-    InputGuessTable = NULL;
-  }
+  struct pred1_state *state = (struct pred1_state *)v;
+  free(state);
 }
 
 static void
-Pred1TermOutput(void)
+Pred1ResetInput(void *v)
 {
-  if (OutputGuessTable != NULL) {
-    free(OutputGuessTable);
-    OutputGuessTable = NULL;
-  }
+  struct pred1_state *state = (struct pred1_state *)v;
+  state->hash = 0;
+  memset(state->dict, '\0', sizeof state->dict);
+  log_Printf(LogCCP, "Predictor1: Input channel reset\n");
 }
 
 static void
-Pred1ResetInput(void)
+Pred1ResetOutput(void *v)
 {
-  iHash = 0;
-  memset(InputGuessTable, '\0', GUESS_TABLE_SIZE);
-  LogPrintf(LogCCP, "Predictor1: Input channel reset\n");
+  struct pred1_state *state = (struct pred1_state *)v;
+  state->hash = 0;
+  memset(state->dict, '\0', sizeof state->dict);
+  log_Printf(LogCCP, "Predictor1: Output channel reset\n");
 }
 
-static void
-Pred1ResetOutput(void)
+static void *
+Pred1InitInput(struct lcp_opt *o)
 {
-  oHash = 0;
-  memset(OutputGuessTable, '\0', GUESS_TABLE_SIZE);
-  LogPrintf(LogCCP, "Predictor1: Output channel reset\n");
+  struct pred1_state *state;
+  state = (struct pred1_state *)malloc(sizeof(struct pred1_state));
+  if (state != NULL)
+    Pred1ResetInput(state);
+  return state;
 }
 
-static int
-Pred1InitInput(void)
+static void *
+Pred1InitOutput(struct lcp_opt *o)
 {
-  if (InputGuessTable == NULL)
-    if ((InputGuessTable = malloc(GUESS_TABLE_SIZE)) == NULL)
-      return 0;
-  Pred1ResetInput();
-  return 1;
-}
-
-static int
-Pred1InitOutput(void)
-{
-  if (OutputGuessTable == NULL)
-    if ((OutputGuessTable = malloc(GUESS_TABLE_SIZE)) == NULL)
-      return 0;
-  Pred1ResetOutput();
-  return 1;
+  struct pred1_state *state;
+  state = (struct pred1_state *)malloc(sizeof(struct pred1_state));
+  if (state != NULL)
+    Pred1ResetOutput(state);
+  return state;
 }
 
 static int
-Pred1Output(int pri, u_short proto, struct mbuf * bp)
+Pred1Output(void *v, struct ccp *ccp, struct link *l, int pri, u_short proto,
+            struct mbuf *bp)
 {
+  struct pred1_state *state = (struct pred1_state *)v;
   struct mbuf *mwp;
   u_char *cp, *wp, *hp;
   int orglen, len;
   u_char bufp[MAX_MTU + 2];
   u_short fcs;
 
-  orglen = plength(bp) + 2;	/* add count of proto */
-  mwp = mballoc((orglen + 2) / 8 * 9 + 12, MB_HDLCOUT);
+  orglen = mbuf_Length(bp) + 2;	/* add count of proto */
+  mwp = mbuf_Alloc((orglen + 2) / 8 * 9 + 12, MB_HDLCOUT);
   hp = wp = MBUF_CTOP(mwp);
   cp = bufp;
   *wp++ = *cp++ = orglen >> 8;
   *wp++ = *cp++ = orglen & 0377;
   *cp++ = proto >> 8;
   *cp++ = proto & 0377;
-  mbread(bp, cp, orglen - 2);
-  fcs = HdlcFcs(INITFCS, bufp, 2 + orglen);
+  mbuf_Read(bp, cp, orglen - 2);
+  fcs = hdlc_Fcs(INITFCS, bufp, 2 + orglen);
   fcs = ~fcs;
 
-  len = compress(bufp + 2, wp, orglen);
-  LogPrintf(LogDEBUG, "Pred1Output: orglen (%d) --> len (%d)\n", orglen, len);
-  CcpInfo.uncompout += orglen;
+  len = compress(state, bufp + 2, wp, orglen);
+  log_Printf(LogDEBUG, "Pred1Output: orglen (%d) --> len (%d)\n", orglen, len);
+  ccp->uncompout += orglen;
   if (len < orglen) {
     *hp |= 0x80;
     wp += len;
-    CcpInfo.compout += len;
+    ccp->compout += len;
   } else {
     memcpy(wp, bufp + 2, orglen);
     wp += orglen;
-    CcpInfo.compout += orglen;
+    ccp->compout += orglen;
   }
 
   *wp++ = fcs & 0377;
   *wp++ = fcs >> 8;
   mwp->cnt = wp - MBUF_CTOP(mwp);
-  HdlcOutput(PRI_NORMAL, PROTO_COMPD, mwp);
+  hdlc_Output(l, PRI_NORMAL, ccp_Proto(ccp), mwp);
   return 1;
 }
 
 static struct mbuf *
-Pred1Input(u_short *proto, struct mbuf *bp)
+Pred1Input(void *v, struct ccp *ccp, u_short *proto, struct mbuf *bp)
 {
+  struct pred1_state *state = (struct pred1_state *)v;
   u_char *cp, *pp;
   int len, olen, len1;
   struct mbuf *wp;
   u_char *bufp;
   u_short fcs;
 
-  wp = mballoc(MAX_MTU + 2, MB_IPIN);
+  wp = mbuf_Alloc(MAX_MTU + 2, MB_IPIN);
   cp = MBUF_CTOP(bp);
-  olen = plength(bp);
+  olen = mbuf_Length(bp);
   pp = bufp = MBUF_CTOP(wp);
   *pp++ = *cp & 0177;
   len = *cp++ << 8;
   *pp++ = *cp;
   len += *cp++;
-  CcpInfo.uncompin += len & 0x7fff;
+  ccp->uncompin += len & 0x7fff;
   if (len & 0x8000) {
-    len1 = decompress(cp, pp, olen - 4);
-    CcpInfo.compin += olen;
+    len1 = decompress(state, cp, pp, olen - 4);
+    ccp->compin += olen;
     len &= 0x7fff;
     if (len != len1) {		/* Error is detected. Send reset request */
-      LogPrintf(LogCCP, "Pred1: Length error\n");
-      CcpSendResetReq(&CcpFsm);
-      pfree(bp);
-      pfree(wp);
+      log_Printf(LogCCP, "Pred1: Length error\n");
+      ccp_SendResetReq(&ccp->fsm);
+      mbuf_Free(bp);
+      mbuf_Free(wp);
       return NULL;
     }
     cp += olen - 4;
     pp += len1;
   } else {
-    CcpInfo.compin += len;
-    SyncTable(cp, pp, len);
+    ccp->compin += len;
+    SyncTable(state, cp, pp, len);
     cp += len;
     pp += len;
   }
   *pp++ = *cp++;		/* CRC */
   *pp++ = *cp++;
-  fcs = HdlcFcs(INITFCS, bufp, wp->cnt = pp - bufp);
+  fcs = hdlc_Fcs(INITFCS, bufp, wp->cnt = pp - bufp);
   if (fcs != GOODFCS)
-    LogPrintf(LogDEBUG, "Pred1Input: fcs = 0x%04x (%s), len = 0x%x,"
+    log_Printf(LogDEBUG, "Pred1Input: fcs = 0x%04x (%s), len = 0x%x,"
 	      " olen = 0x%x\n", fcs, (fcs == GOODFCS) ? "good" : "bad",
 	      len, olen);
   if (fcs == GOODFCS) {
@@ -279,19 +265,19 @@ Pred1Input(u_short *proto, struct mbuf *bp)
       wp->cnt -= 2;
       *proto = (*proto << 8) | *pp++;
     }
-    pfree(bp);
+    mbuf_Free(bp);
     return wp;
   } else {
-    LogDumpBp(LogHDLC, "Bad FCS", wp);
-    CcpSendResetReq(&CcpFsm);
-    pfree(wp);
+    log_DumpBp(LogHDLC, "Bad FCS", wp);
+    ccp_SendResetReq(&ccp->fsm);
+    mbuf_Free(wp);
   }
-  pfree(bp);
+  mbuf_Free(bp);
   return NULL;
 }
 
 static void
-Pred1DictSetup(u_short proto, struct mbuf * bp)
+Pred1DictSetup(void *v, struct ccp *ccp, u_short proto, struct mbuf * bp)
 {
 }
 
@@ -302,40 +288,44 @@ Pred1DispOpts(struct lcp_opt *o)
 }
 
 static void
-Pred1GetOpts(struct lcp_opt *o)
+Pred1InitOptsOutput(struct lcp_opt *o, const struct ccp_config *cfg)
 {
-  o->id = TY_PRED1;
   o->len = 2;
 }
 
 static int
-Pred1SetOpts(struct lcp_opt *o)
+Pred1SetOptsOutput(struct lcp_opt *o)
 {
-  if (o->id != TY_PRED1 || o->len != 2) {
-    Pred1GetOpts(o);
+  if (o->len != 2) {
+    o->len = 2;
     return MODE_NAK;
   }
   return MODE_ACK;
 }
 
+static int
+Pred1SetOptsInput(struct lcp_opt *o, const struct ccp_config *cfg)
+{
+  return Pred1SetOptsOutput(o);
+}
+
 const struct ccp_algorithm Pred1Algorithm = {
   TY_PRED1,
-  ConfPred1,
+  CCP_NEG_PRED1,
   Pred1DispOpts,
   {
-    Pred1GetOpts,
-    Pred1SetOpts,
+    Pred1SetOptsInput,
     Pred1InitInput,
-    Pred1TermInput,
+    Pred1Term,
     Pred1ResetInput,
     Pred1Input,
     Pred1DictSetup
   },
   {
-    Pred1GetOpts,
-    Pred1SetOpts,
+    Pred1InitOptsOutput,
+    Pred1SetOptsOutput,
     Pred1InitOutput,
-    Pred1TermOutput,
+    Pred1Term,
     Pred1ResetOutput,
     Pred1Output
   },

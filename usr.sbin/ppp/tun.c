@@ -23,44 +23,54 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: tun.c,v 1.5 1998/01/11 17:53:27 brian Exp $
+ *	$Id: tun.c,v 1.6.4.18 1998/05/06 23:50:22 brian Exp $
  */
 
-#include <sys/param.h>
-#include <sys/time.h>
+#include <sys/types.h>
 #include <sys/socket.h>
-#include <netinet/in.h>
 #include <net/if.h>
+#include <netinet/in.h>
 #include <net/if_tun.h>
+#include <netinet/in_systm.h>
+#include <netinet/ip.h>
+#include <sys/un.h>
 
-#include <stdio.h>
 #include <string.h>
 #include <sys/ioctl.h>
 #include <sys/errno.h>
 
-#include "command.h"
 #include "mbuf.h"
 #include "log.h"
+#include "timer.h"
+#include "lqr.h"
 #include "hdlc.h"
 #include "defs.h"
-#include "loadalias.h"
-#include "vars.h"
+#include "fsm.h"
+#include "throughput.h"
+#include "iplist.h"
+#include "slcompress.h"
+#include "ipcp.h"
+#include "filter.h"
+#include "descriptor.h"
+#include "lcp.h"
+#include "ccp.h"
+#include "link.h"
+#include "mp.h"
+#include "bundle.h"
 #include "tun.h"
 
 void
-tun_configure(int mtu, int speed)
+tun_configure(struct bundle *bundle, int mtu)
 {
   struct tuninfo info;
 
   info.type = 23;
   info.mtu = mtu;
-  if (VarPrefMTU != 0 && VarPrefMTU < mtu)
-    info.mtu = VarPrefMTU;
-  info.baudrate = speed;
+  info.baudrate = bundle->ifp.Speed;
 #ifdef __OpenBSD__                                           
   info.flags = IFF_UP|IFF_POINTOPOINT;                             
 #endif
-  if (ioctl(tun_out, TUNSIFINFO, &info) < 0)
-    LogPrintf(LogERROR, "tun_configure: ioctl(TUNSIFINFO): %s\n",
+  if (ioctl(bundle->dev.fd, TUNSIFINFO, &info) < 0)
+    log_Printf(LogERROR, "tun_configure: ioctl(TUNSIFINFO): %s\n",
 	      strerror(errno));
 }

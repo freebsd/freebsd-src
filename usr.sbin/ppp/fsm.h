@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.h,v 1.15 1998/01/20 22:47:37 brian Exp $
+ * $Id: fsm.h,v 1.16.2.16 1998/05/01 19:24:35 brian Exp $
  *
  *	TODO:
  */
@@ -45,15 +45,50 @@
 
 #define	OPEN_PASSIVE	-1
 
+struct fsm;
+
+struct fsm_decode {
+  u_char ack[100], *ackend;
+  u_char nak[100], *nakend;
+  u_char rej[100], *rejend;
+};
+
+struct fsm_callbacks {
+  int (*LayerUp) (struct fsm *);             /* Layer is now up (tlu) */
+  void (*LayerDown) (struct fsm *);          /* About to come down (tld) */
+  void (*LayerStart) (struct fsm *);         /* Layer about to start up (tls) */
+  void (*LayerFinish) (struct fsm *);        /* Layer now down (tlf) */
+  void (*InitRestartCounter) (struct fsm *); /* Set fsm timer load */
+  void (*SendConfigReq) (struct fsm *);      /* Send REQ please */
+  void (*SentTerminateReq) (struct fsm *);   /* Term REQ just sent */
+  void (*SendTerminateAck) (struct fsm *, u_char); /* Send Term ACK please */
+  void (*DecodeConfig) (struct fsm *, u_char *, int, int, struct fsm_decode *);
+                                             /* Deal with incoming data */
+  void (*RecvResetReq) (struct fsm *fp);         /* Reset output */
+  void (*RecvResetAck) (struct fsm *fp, u_char); /* Reset input */
+};
+
+struct fsm_parent {
+  void (*LayerStart) (void *, struct fsm *);         /* tls */
+  void (*LayerUp) (void *, struct fsm *);            /* tlu */
+  void (*LayerDown) (void *, struct fsm *);          /* tld */
+  void (*LayerFinish) (void *, struct fsm *);        /* tlf */
+  void *object;
+};
+
+struct link;
+struct bundle;
+
 struct fsm {
   const char *name;		/* Name of protocol */
   u_short proto;		/* Protocol number */
+  u_short min_code;
   u_short max_code;
-  int open_mode;
+  int open_mode;		/* Delay before config REQ (-1 forever) */
   int state;			/* State of the machine */
   u_char reqid;			/* Next request id */
   int restart;			/* Restart counter value */
-  int maxconfig;
+  int maxconfig;		/* Max config REQ before a close() */
 
   struct pppTimer FsmTimer;	/* Restart Timer */
   struct pppTimer OpenTimer;	/* Delay before opening */
@@ -70,15 +105,14 @@ struct fsm {
   struct pppTimer StoppedTimer;
   int LogLevel;
 
-  void (*LayerUp) (struct fsm *);
-  void (*LayerDown) (struct fsm *);
-  void (*LayerStart) (struct fsm *);
-  void (*LayerFinish) (struct fsm *);
-  void (*InitRestartCounter) (struct fsm *);
-  void (*SendConfigReq) (struct fsm *);
-  void (*SendTerminateReq) (struct fsm *);
-  void (*SendTerminateAck) (struct fsm *);
-  void (*DecodeConfig) (u_char *, int, int);
+  /* The link layer active with this FSM (may be our bundle below) */
+  struct link *link;
+
+  /* Our high-level link */
+  struct bundle *bundle;
+
+  const struct fsm_parent *parent;
+  const struct fsm_callbacks *fn;
 };
 
 struct fsmheader {
@@ -103,30 +137,21 @@ struct fsmheader {
 #define	CODE_RESETREQ	14	/* Used in CCP */
 #define	CODE_RESETACK	15	/* Used in CCP */
 
-struct fsmcodedesc {
-  void (*action) (struct fsm *, struct fsmheader *, struct mbuf *);
-  const char *name;
-};
-
+/* Minimum config req size.  This struct is *only* used for it's size */
 struct fsmconfig {
   u_char type;
   u_char length;
 };
 
-extern u_char AckBuff[200];
-extern u_char NakBuff[200];
-extern u_char RejBuff[100];
-extern u_char ReqBuff[200];
-extern u_char *ackp;
-extern u_char *nakp;
-extern u_char *rejp;
-
-extern char const *StateNames[];
-
-extern void FsmInit(struct fsm *);
-extern void FsmOutput(struct fsm *, u_int, u_int, u_char *, int);
-extern void FsmOpen(struct fsm *);
-extern void FsmUp(struct fsm *);
-extern void FsmDown(struct fsm *);
-extern void FsmInput(struct fsm *, struct mbuf *);
-extern void FsmClose(struct fsm *);
+extern void fsm_Init(struct fsm *, const char *, u_short, int, int, int, int,
+                     struct bundle *, struct link *, const  struct fsm_parent *,
+                     struct fsm_callbacks *, const char *[3]);
+extern void fsm_Output(struct fsm *, u_int, u_int, u_char *, int);
+extern void fsm_Open(struct fsm *);
+extern void fsm_Up(struct fsm *);
+extern void fsm_Down(struct fsm *);
+extern void fsm_Input(struct fsm *, struct mbuf *);
+extern void fsm_Close(struct fsm *);
+extern void fsm_NullRecvResetReq(struct fsm *fp);
+extern void fsm_NullRecvResetAck(struct fsm *fp, u_char);
+extern const char *State2Nam(u_int);

@@ -19,28 +19,24 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: chap_ms.c,v 1.4 1997/12/24 09:28:53 brian Exp $
+ * $Id: chap_ms.c,v 1.5.4.3 1998/05/01 19:24:07 brian Exp $
  *
  */
 
 #include <sys/types.h>
 
 #include <des.h>
-#include <stdio.h>
 #include <string.h>
-#include <sys/time.h>
 
-#include "command.h"
-#include "mbuf.h"
 #include "chap_ms.h"
 
 /* unused, for documentation only */
 /* only NTResp is filled in for FreeBSD */
-typedef struct {
+struct MS_ChapResponse {
     u_char LANManResp[24];
     u_char NTResp[24];
     u_char UseNT;	/* If 1, ignore the LANMan response field */
-} MS_ChapResponse;
+};
 
 static void DesEncrypt(u_char *, u_char *, u_char *);
 static void MakeKey(u_char *, u_char *);
@@ -101,7 +97,7 @@ static void MakeKey(u_char *key, u_char *des_key)
    challenge    8-bytes peer CHAP challenge
    since passwordHash is in a 24-byte buffer, response is written in there */
 void
-ChapMS(char *passwordHash, char *challenge, int challenge_len)
+chap_MS(char *passwordHash, char *challenge, int challenge_len)
 {
     u_char response[24];
 

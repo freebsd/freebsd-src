@@ -17,13 +17,37 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: route.h,v 1.9 1997/12/30 02:45:48 brian Exp $
+ * $Id: route.h,v 1.10.2.6 1998/05/05 23:30:13 brian Exp $
  *
  */
 
+struct bundle;
+struct cmdargs;
+
+#define ROUTE_STATIC		0
+#define ROUTE_DSTMYADDR		1
+#define ROUTE_DSTHISADDR	2
+#define ROUTE_DSTANY		3
+#define ROUTE_GWHISADDR		4	/* May be ORd with DST_MYADDR */
+
+struct sticky_route {
+  int type;				/* ROUTE_* value (not _STATIC) */
+  struct sticky_route *next;		/* next in list */
+
+  struct in_addr dst;
+  struct in_addr mask;
+  struct in_addr gw;
+};
+
 extern int GetIfIndex(char *);
-extern int ShowRoute(struct cmdargs const *);
-extern void OsSetRoute(int, struct in_addr, struct in_addr, struct in_addr,int);
-extern void DeleteIfRoutes(int);
-extern struct in_addr ChooseHisAddr(const struct in_addr);
+extern int route_Show(struct cmdargs const *);
+extern void route_IfDelete(struct bundle *, int);
 extern const char *Index2Nam(int);
+extern void route_Change(struct bundle *, struct sticky_route *,
+                         struct in_addr, struct in_addr);
+extern void route_Add(struct sticky_route **, int, struct in_addr,
+                      struct in_addr, struct in_addr);
+extern void route_Delete(struct sticky_route **, int, struct in_addr);
+extern void route_DeleteAll(struct sticky_route **);
+extern void route_Clean(struct bundle *, struct sticky_route *);
+extern void route_ShowSticky(struct prompt *, struct sticky_route *);
