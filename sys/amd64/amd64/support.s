@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: support.s,v 1.20 1995/02/12 09:13:27 davidg Exp $
+ *	$Id: support.s,v 1.21 1995/03/11 03:49:50 phk Exp $
  */
 
 #include "assym.s"				/* system definitions */
@@ -350,6 +350,29 @@ bcopy:
 	popl	%edi
 	popl	%esi
 	cld
+	ret
+
+
+/*
+ * Note: memcpy does not support overlapping copies
+ */
+ENTRY(memcpy)
+	pushl	%edi
+	pushl	%esi
+	movl	12(%esp),%edi
+	movl	16(%esp),%esi
+	movl	20(%esp),%ecx
+	movl	%edi,%eax
+	shrl	$2,%ecx				/* copy by 32-bit words */
+	cld					/* nope, copy forwards */
+	rep
+	movsl
+	movl	20(%esp),%ecx
+	andl	$3,%ecx				/* any bytes left? */
+	rep
+	movsb
+	popl	%esi
+	popl	%edi
 	ret
 
 
