@@ -1,6 +1,6 @@
-#	$Id: Makefile,v 1.96 1999/02/07 05:40:13 yokota Exp $
+#	$Id: Makefile,v 1.97 1999/02/10 02:45:05 des Exp $
 
-MAN4=	adv.4 adw.4 aha.4 ahb.4 ahc.4 aic.4 apm.4 ar.4 asc.4 atkbd.4 \
+MAN4=	adv.4 adw.4 aha.4 ahb.4 ahc.4 aic.4 alpm.4 apm.4 ar.4 asc.4 atkbd.4 \
 	atkbdc.4 ax.4 bktr.4 bt.4 cs.4 cx.4 cy.4 de.4 \
 	dgb.4 dpt.4 ed.4 el.4 en.4 ep.4 ex.4 fdc.4 fe.4 fxp.4 gsc.4 ie.4 \
 	io.4 joy.4 keyboard.4 labpc.4 le.4 lnc.4 lp.4 matcd.4 mcd.4 \
