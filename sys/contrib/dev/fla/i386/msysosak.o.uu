@@ -1,3 +1,4 @@
+# $FreeBSD$
 
 SOFTWARE LICENSE AGREEMENT
 
@@ -100,7 +101,7 @@ DiskOnChip® product lines.
         exclusive of conflict-of-laws provisions, shall govern this 
         Agreement in all respects. 
 
-begin 664 msysosak.o
+begin 644 msysosak.o
 M?T5,1@$!`0!&<F5E0E-$``$``P`!``````````````"H60```````#0`````
 M`"@`#``)`%6)Y>C\____A<!U(.C\____A<!U%_\U`````/\U`````.C\____
 MA<!U`C'`R<.0D%6)Y8M%#(M5$*,`````B14`````_P4`````@ST``````74)
