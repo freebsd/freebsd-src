@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.154 1998/07/04 22:03:56 brian Exp $
+ * $Id: command.c,v 1.155 1998/07/12 00:30:18 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -122,7 +122,7 @@
 #define NEG_DNS		50
 
 const char Version[] = "2.0";
-const char VersionDate[] = "$Date: 1998/07/04 22:03:56 $";
+const char VersionDate[] = "$Date: 1998/07/12 00:30:18 $";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -1617,7 +1617,7 @@ AddCommand(struct cmdargs const *arg)
     gateway = GetIpAddr(arg->argv[arg->argn+gw]);
 
   if (bundle_SetRoute(arg->bundle, RTM_ADD, dest, gateway, netmask,
-                  arg->cmd->args ? 1 : 0))
+                  arg->cmd->args ? 1 : 0, (addrs & ROUTE_GWHISADDR) ? 1 : 0))
     route_Add(&arg->bundle->ncp.ipcp.route, addrs, dest, netmask, gateway);
 
   return 0;
@@ -1650,7 +1650,7 @@ DeleteCommand(struct cmdargs const *arg)
       }
       none.s_addr = INADDR_ANY;
       bundle_SetRoute(arg->bundle, RTM_DELETE, dest, none, none,
-                      arg->cmd->args ? 1 : 0);
+                      arg->cmd->args ? 1 : 0, 0);
       route_Delete(&arg->bundle->ncp.ipcp.route, addrs, dest);
     }
   } else
