@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: atm_cm.c,v 1.3 1998/10/31 20:06:54 phk Exp $
+ *	@(#) $Id: atm_cm.c,v 1.4 1999/01/27 22:16:15 dillon Exp $
  *
  */
 
@@ -38,7 +38,7 @@
 #include <netatm/kern_include.h>
 
 #ifndef lint
-__RCSID("@(#) $Id: atm_cm.c,v 1.3 1998/10/31 20:06:54 phk Exp $");
+__RCSID("@(#) $Id: atm_cm.c,v 1.4 1999/01/27 22:16:15 dillon Exp $");
 #endif
 
 
@@ -2189,7 +2189,7 @@ atm_cm_share_llc(ap)
 		/*
 		 * AAL
 		 */
-		if (ap->aal.type = ATM_AAL5) {
+		if (ap->aal.type == ATM_AAL5) {
 			struct t_atm_aal5	*ap5, *cv5;
 
 			ap5 = &ap->aal.v.aal5;
