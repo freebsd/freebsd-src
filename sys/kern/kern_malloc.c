@@ -164,7 +164,8 @@ malloc(size, type, flags)
 		if (flags & M_NOWAIT) {
 			splx(s);
 			mtx_exit(&malloc_mtx, MTX_DEF);
-			return ((void *) NULL);
+			va = NULL;
+			goto checkpanic;
 		}
 		if (ksp->ks_limblocks < 65535)
 			ksp->ks_limblocks++;
@@ -188,7 +189,7 @@ malloc(size, type, flags)
 
 		if (va == NULL) {
 			splx(s);
-			return ((void *) NULL);
+			goto checkpanic;
 		}
 		/*
 		 * Enter malloc_mtx after the error check to avoid having to
@@ -282,6 +283,9 @@ out:
 	/* XXX: Do idle pre-zeroing.  */
 	if (va != NULL && (flags & M_ZERO))
 		bzero(va, size);
+checkpanic:
+	if (va == NULL && (flags & M_PANIC))
+		panic("malloc: failed to allocate %ld bytes", size);
 	return ((void *) va);
 }
 
