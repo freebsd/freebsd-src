@@ -126,12 +126,18 @@ struct	radix_node_head *rt_tables[AF_MAX+1];
 int	NewTree = 0;
 
 static struct sockaddr *kgetsa (struct sockaddr *);
+static void size_cols (int ef, struct radix_node *rn);
+static void size_cols_tree (struct radix_node *rn);
+static void size_cols_rtentry (struct rtentry *rt);
 static void p_tree (struct radix_node *);
 static void p_rtnode (void);
 static void ntreestuff (void);
 static void np_rtentry (struct rt_msghdr *);
 static void p_sockaddr (struct sockaddr *, struct sockaddr *, int, int);
+static const char *fmt_sockaddr (struct sockaddr *sa, struct sockaddr *mask,
+				 int flags);
 static void p_flags (int, char *);
+static const char *fmt_flags(int f);
 static void p_rtentry (struct rtentry *);
 static u_long forgemask (u_long);
 static void domask (char *, u_long, u_long);
@@ -166,6 +172,7 @@ routepr(u_long rtree)
 					p_tree(head.rnh_treetop);
 				}
 			} else if (af == AF_UNSPEC || af == i) {
+				size_cols(i, head.rnh_treetop);
 				pr_family(i);
 				do_rtent = 1;
 				pr_rthdr(i);
@@ -224,16 +231,133 @@ pr_family(int af)
 
 /* column widths; each followed by one space */
 #ifndef INET6
-#define	WID_DST(af) 	18	/* width of destination column */
-#define	WID_GW(af)	18	/* width of gateway column */
-#define	WID_IF(af)	6	/* width of netif column */
+#define	WID_DST_DEFAULT(af) 	18	/* width of destination column */
+#define	WID_GW_DEFAULT(af)	18	/* width of gateway column */
+#define	WID_IF_DEFAULT(af)	6	/* width of netif column */
 #else
-#define	WID_DST(af) \
-	((af) == AF_INET6 ? (Wflag ? 39 : (numeric_addr ? 33: 18)) : 18)
-#define	WID_GW(af) \
-	((af) == AF_INET6 ? (Wflag ? 31 : (numeric_addr ? 29 : 18)) : 18)
-#define	WID_IF(af)	((af) == AF_INET6 ? 8 : 6)
+#define	WID_DST_DEFAULT(af) \
+	((af) == AF_INET6 ? (numeric_addr ? 33: 18) : 18)
+#define	WID_GW_DEFAULT(af) \
+	((af) == AF_INET6 ? (numeric_addr ? 29 : 18) : 18)
+#define	WID_IF_DEFAULT(af)	((af) == AF_INET6 ? 8 : 6)
 #endif /*INET6*/
+
+static int wid_dst;
+static int wid_gw;
+static int wid_flags;
+static int wid_refs;
+static int wid_use;
+static int wid_mtu;
+static int wid_if;
+static int wid_expire;
+
+static void
+size_cols(int ef, struct radix_node *rn)
+{
+	wid_dst = WID_DST_DEFAULT(ef);
+	wid_gw = WID_GW_DEFAULT(ef);
+	wid_flags = 6;
+	wid_refs = 6;
+	wid_use = 8;
+	wid_mtu = 6;
+	wid_if = WID_IF_DEFAULT(ef);
+	wid_expire = 6;
+
+	if (Wflag)
+		size_cols_tree(rn);
+}
+
+static void
+size_cols_tree(struct radix_node *rn)
+{
+again:
+	kget(rn, rnode);
+	if (rnode.rn_bit < 0) {
+		if ((rnode.rn_flags & RNF_ROOT) == 0) {
+			kget(rn, rtentry);
+			size_cols_rtentry(&rtentry);
+		}
+		if ((rn = rnode.rn_dupedkey))
+			goto again;
+	} else {
+		rn = rnode.rn_right;
+		size_cols_tree(rnode.rn_left);
+		size_cols_tree(rn);
+	}
+}
+
+static void
+size_cols_rtentry(struct rtentry *rt)
+{
+	static struct ifnet ifnet, *lastif;
+	struct rtentry parent;
+	static char buffer[100];
+	const char *bp;
+	struct sockaddr *sa;
+	sa_u addr, mask;
+	int len;
+
+	/*
+	 * Don't print protocol-cloned routes unless -a.
+	 */
+	if (rt->rt_flags & RTF_WASCLONED && !aflag) {
+		kget(rt->rt_parent, parent);
+		if (parent.rt_flags & RTF_PRCLONING)
+			return;
+	}
+
+	bzero(&addr, sizeof(addr));
+	if ((sa = kgetsa(rt_key(rt))))
+		bcopy(sa, &addr, sa->sa_len);
+	bzero(&mask, sizeof(mask));
+	if (rt_mask(rt) && (sa = kgetsa(rt_mask(rt))))
+		bcopy(sa, &mask, sa->sa_len);
+	bp = fmt_sockaddr(&addr.u_sa, &mask.u_sa, rt->rt_flags);
+	len = strlen(bp);
+	wid_dst = MAX(len, wid_dst);
+
+	bp = fmt_sockaddr(kgetsa(rt->rt_gateway), NULL, RTF_HOST);
+	len = strlen(bp);
+	wid_gw = MAX(len, wid_gw);
+
+	bp = fmt_flags(rt->rt_flags);
+	len = strlen(bp);
+	wid_flags = MAX(len, wid_flags);
+
+	if (addr.u_sa.sa_family == AF_INET || Wflag) {
+		len = snprintf(buffer, sizeof(buffer), "%ld", rt->rt_refcnt);
+		wid_refs = MAX(len, wid_refs);
+		len = snprintf(buffer, sizeof(buffer), "%lu", rt->rt_use);
+		wid_use = MAX(len, wid_use);
+		if (Wflag && rt->rt_rmx.rmx_mtu != 0) {
+			len = snprintf(buffer, sizeof(buffer),
+				       "%lu", rt->rt_rmx.rmx_mtu);
+			wid_mtu = MAX(len, wid_mtu);
+		}
+	}
+	if (rt->rt_ifp) {
+		if (rt->rt_ifp != lastif) {
+			len = snprintf(buffer, sizeof(buffer), "%d",
+				       ifnet.if_unit);
+			kget(rt->rt_ifp, ifnet);
+			kread((u_long)ifnet.if_name, buffer, sizeof(buffer));
+			lastif = rt->rt_ifp;
+			len += strlen(buffer);
+			wid_if = MAX(len, wid_if);
+		}
+		if (rt->rt_rmx.rmx_expire) {
+			time_t expire_time;
+
+			if ((expire_time =
+			    rt->rt_rmx.rmx_expire - time(NULL)) > 0) {
+				snprintf(buffer, sizeof(buffer), "%d",
+					 (int)expire_time);
+				wid_expire = MAX(len, wid_expire);
+			}
+		}
+	}
+}
+
 
 /*
  * Print header for routing table columns.
@@ -244,24 +368,35 @@ pr_rthdr(int af)
 
 	if (Aflag)
 		printf("%-8.8s ","Address");
-	if (af == AF_INET || Wflag)
-		if (Wflag)
-			printf("%-*.*s %-*.*s %-6.6s %6.6s %8.8s %6.6s %*.*s %6s\n",
-				WID_DST(af), WID_DST(af), "Destination",
-				WID_GW(af), WID_GW(af), "Gateway",
-				"Flags", "Refs", "Use", "Mtu",
-				WID_IF(af), WID_IF(af), "Netif", "Expire");
-		else
-			printf("%-*.*s %-*.*s %-6.6s %6.6s %8.8s %*.*s %6s\n",
-				WID_DST(af), WID_DST(af), "Destination",
-				WID_GW(af), WID_GW(af), "Gateway",
-				"Flags", "Refs", "Use",
-				WID_IF(af), WID_IF(af), "Netif", "Expire");
-	else
-		printf("%-*.*s %-*.*s %-6.6s  %8.8s %6s\n",
-			WID_DST(af), WID_DST(af), "Destination",
-			WID_GW(af), WID_GW(af), "Gateway",
-			"Flags", "Netif", "Expire");
+	if (af == AF_INET || Wflag) {
+		if (Wflag) {
+			printf("%-*.*s %-*.*s %-*.*s %*.*s %*.*s %*.*s %*.*s %*s\n",
+				wid_dst,	wid_dst,	"Destination",
+				wid_gw,		wid_gw,		"Gateway",
+				wid_flags,	wid_flags,	"Flags",
+				wid_refs,	wid_refs,	"Refs",
+				wid_use,	wid_use,	"Use",
+				wid_mtu,	wid_mtu,	"Mtu",
+				wid_if,		wid_if,		"Netif",
+				wid_expire,			"Expire");
+		} else {
+			printf("%-*.*s %-*.*s %-*.*s %*.*s %*.*s %*.*s %*s\n",
+				wid_dst,	wid_dst,	"Destination",
+				wid_gw,		wid_gw,		"Gateway",
+				wid_flags,	wid_flags,	"Flags",
+				wid_refs,	wid_refs,	"Refs",
+				wid_use,	wid_use,	"Use",
+				wid_if,		wid_if,		"Netif",
+				wid_expire,			"Expire");
+		}
+	} else {
+		printf("%-*.*s %-*.*s %-*.*s  %*.*s %*s\n",
+			wid_dst,	wid_dst,	"Destination",
+			wid_gw,		wid_gw,		"Gateway",
+			wid_flags,	wid_flags,	"Flags",
+			wid_if,		wid_if,		"Netif",
+			wid_expire,			"Expire");
+	}
 }
 
 static struct sockaddr *
@@ -422,8 +557,26 @@ np_rtentry(struct rt_msghdr *rtm)
 static void
 p_sockaddr(struct sockaddr *sa, struct sockaddr *mask, int flags, int width)
 {
-	char workbuf[128], *cplim;
-	register char *cp = workbuf;
+	const char *cp;
+
+	cp = fmt_sockaddr(sa, mask, flags);
+
+	if (width < 0 )
+		printf("%s ", cp);
+	else {
+		if (numeric_addr)
+			printf("%-*s ", width, cp);
+		else
+			printf("%-*.*s ", width, width, cp);
+	}
+}
+
+static const char *
+fmt_sockaddr(struct sockaddr *sa, struct sockaddr *mask, int flags)
+{
+	static char workbuf[128];
+	char *cplim;
+	char *cp = workbuf;
 
 	switch(sa->sa_family) {
 	case AF_INET:
@@ -542,27 +695,28 @@ p_sockaddr(struct sockaddr *sa, struct sockaddr *mask, int flags, int width)
 		cp = workbuf;
 	    }
 	}
-	if (width < 0 )
-		printf("%s ", cp);
-	else {
-		if (numeric_addr)
-			printf("%-*s ", width, cp);
-		else
-			printf("%-*.*s ", width, width, cp);
-	}
+
+	return (cp);
 }
 
 static void
 p_flags(int f, char *format)
 {
-	char name[33], *flags;
-	register struct bits *p = bits;
+	printf(format, fmt_flags(f));
+}
+
+static const char *
+fmt_flags(int f)
+{
+	static char name[33];
+	char *flags;
+	struct bits *p = bits;
 
 	for (flags = name; p->b_mask; p++)
 		if (p->b_mask & f)
 			*flags++ = p->b_val;
 	*flags = '\0';
-	printf(format, name);
+	return (name);
 }
 
 static void
@@ -570,8 +724,8 @@ p_rtentry(struct rtentry *rt)
 {
 	static struct ifnet ifnet, *lastif;
 	struct rtentry parent;
-	static char name[16];
-	static char prettyname[9];
+	static char buffer[128];
+	static char prettyname[128];
 	struct sockaddr *sa;
 	sa_u addr, mask;
 
@@ -590,36 +744,35 @@ p_rtentry(struct rtentry *rt)
 	bzero(&mask, sizeof(mask));
 	if (rt_mask(rt) && (sa = kgetsa(rt_mask(rt))))
 		bcopy(sa, &mask, sa->sa_len);
-	p_sockaddr(&addr.u_sa, &mask.u_sa, rt->rt_flags,
-	    WID_DST(addr.u_sa.sa_family));
-	p_sockaddr(kgetsa(rt->rt_gateway), NULL, RTF_HOST,
-	    WID_GW(addr.u_sa.sa_family));
-	p_flags(rt->rt_flags, "%-6.6s ");
+	p_sockaddr(&addr.u_sa, &mask.u_sa, rt->rt_flags, wid_dst);
+	p_sockaddr(kgetsa(rt->rt_gateway), NULL, RTF_HOST, wid_gw);
+	snprintf(buffer, sizeof(buffer), "%%-%d.%ds ", wid_flags, wid_flags);
+	p_flags(rt->rt_flags, buffer);
 	if (addr.u_sa.sa_family == AF_INET || Wflag) {
-		printf("%6ld %8ld ", rt->rt_refcnt, rt->rt_use);
+		printf("%*ld %*lu ", wid_refs, rt->rt_refcnt,
+				     wid_use, rt->rt_use);
 		if (Wflag) {
 			if (rt->rt_rmx.rmx_mtu != 0)
-				printf("%6lu ", rt->rt_rmx.rmx_mtu);
+				printf("%*lu ", wid_mtu, rt->rt_rmx.rmx_mtu);
 			else
-				printf("%6s ", "");
+				printf("%*s ", wid_mtu, "");
 		}
 	}
 	if (rt->rt_ifp) {
 		if (rt->rt_ifp != lastif) {
 			kget(rt->rt_ifp, ifnet);
-			kread((u_long)ifnet.if_name, name, 16);
+			kread((u_long)ifnet.if_name, buffer, sizeof(buffer));
 			lastif = rt->rt_ifp;
-			snprintf(prettyname, sizeof prettyname,
-				 "%s%d", name, ifnet.if_unit);
+			snprintf(prettyname, sizeof(prettyname),
+				 "%s%d", buffer, ifnet.if_unit);
 		}
-		printf("%*.*s", WID_IF(addr.u_sa.sa_family),
-		    WID_IF(addr.u_sa.sa_family), prettyname);
+		printf("%*.*s", wid_if, wid_if, prettyname);
 		if (rt->rt_rmx.rmx_expire) {
 			time_t expire_time;
 
 			if ((expire_time =
 			    rt->rt_rmx.rmx_expire - time((time_t *)0)) > 0)
-				printf(" %6d", (int)expire_time);
+				printf(" %*d", wid_expire, (int)expire_time);
 		}
 		if (rt->rt_nodes[0].rn_dupedkey)
 			printf(" =>");
