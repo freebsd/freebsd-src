@@ -35,61 +35,38 @@
  *	i4b_avm_a1.c - AVM A1/Fritz passive card driver for isdn4bsd
  *	------------------------------------------------------------
  *
- * $FreeBSD$ 
+ *	$Id: i4b_avm_a1.c,v 1.2 1999/12/13 21:25:26 hm Exp $ 
  *
- *      last edit-date: [Sun Feb 14 10:25:11 1999]
+ * $FreeBSD$
+ *
+ *      last edit-date: [Mon Dec 13 21:58:36 1999]
  *
  *---------------------------------------------------------------------------*/
 
-#if defined(__FreeBSD__)
 #include "isic.h"
 #include "opt_i4b.h"
-#else
-#define	NISIC	1
-#endif
+
 #if NISIC > 0 && defined(AVM_A1)
 
 #include <sys/param.h>
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
 #include <sys/ioccom.h>
-#else
-#include <sys/ioctl.h>
-#endif
 #include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
-
-#ifdef __FreeBSD__
-#include <machine/clock.h>
-#include <i386/isa/isa_device.h>
-#else
-#include <machine/bus.h>
-#include <sys/device.h>
-#endif
-
 #include <sys/socket.h>
+
 #include <net/if.h>
 
-#ifdef __FreeBSD__
+#include <machine/clock.h>
+
 #include <machine/i4b_debug.h>
 #include <machine/i4b_ioctl.h>
-#else
-#include <i4b/i4b_debug.h>
-#include <i4b/i4b_ioctl.h>
-#endif
 
 #include <i4b/include/i4b_global.h>
 
 #include <i4b/layer1/i4b_l1.h>
 #include <i4b/layer1/i4b_isac.h>
 #include <i4b/layer1/i4b_hscx.h>
-
-#ifndef __FreeBSD__
-static u_int8_t avma1_read_reg __P((struct isic_softc *sc, int what, bus_size_t offs));
-static void avma1_write_reg __P((struct isic_softc *sc, int what, bus_size_t offs, u_int8_t data));
-static void avma1_read_fifo __P((struct isic_softc *sc, int what, void *buf, size_t size));
-static void avma1_write_fifo __P((struct isic_softc *sc, int what, const void *data, size_t size));
-#endif
 
 /*---------------------------------------------------------------------------*
  *	AVM A1 and AVM Fritz! Card special registers
@@ -111,106 +88,189 @@ static void avma1_write_fifo __P((struct isic_softc *sc, int what, const void *d
 #define	 AVM_CONF_RD_TEST	0x10	/* test bit read back              */
 #define	 AVM_CONF_RD_ZER2	0x20	/* unused, always read 0           */
 
+#define AVM_ISAC_R_OFFS		(0x1400-0x20)
+#define AVM_HSCXA_R_OFFS	(0x400-0x20)
+#define AVM_HSCXB_R_OFFS	(0xc00-0x20)
+#define AVM_ISAC_F_OFFS		(0x1400-0x20-0x3e0)
+#define AVM_HSCXA_F_OFFS	(0x400-0x20-0x3e0)
+#define AVM_HSCXB_F_OFFS	(0xc00-0x20-0x3e0)
+
 /*---------------------------------------------------------------------------*
- *	AVM read fifo routines
+ *	AVM read fifo routine
  *---------------------------------------------------------------------------*/
-#ifdef __FreeBSD__
-static void		
-avma1_read_fifo(void *buf, const void *base, size_t len)
-{
-	insb((int)base - 0x3e0, (u_char *)buf, (u_int)len);
-}
-#else
 static void
-avma1_read_fifo(struct isic_softc *sc, int what, void *buf, size_t size)
+avma1_read_fifo(struct l1_softc *sc, int what, void *buf, size_t size)
 {
-	bus_space_tag_t t = sc->sc_maps[what+4].t;
-	bus_space_handle_t h = sc->sc_maps[what+4].h;
+	bus_space_tag_t t = rman_get_bustag(sc->sc_resources.io_base[what+4]);
+	bus_space_handle_t h = rman_get_bushandle(sc->sc_resources.io_base[what+4]);
 	bus_space_read_multi_1(t, h, 0, buf, size);
 }
-#endif
 
 /*---------------------------------------------------------------------------*
- *	AVM write fifo routines
+ *	AVM write fifo routine
  *---------------------------------------------------------------------------*/
-#ifdef __FreeBSD__
 static void
-avma1_write_fifo(void *base, const void *buf, size_t len)
+avma1_write_fifo(struct l1_softc *sc, int what, void *buf, size_t size)
 {
-	outsb((int)base - 0x3e0, (u_char *)buf, (u_int)len);
-}
-#else
-static void
-avma1_write_fifo(struct isic_softc *sc, int what, const void *buf, size_t size)
-{
-	bus_space_tag_t t = sc->sc_maps[what+4].t;
-	bus_space_handle_t h = sc->sc_maps[what+4].h;
+	bus_space_tag_t t = rman_get_bustag(sc->sc_resources.io_base[what+4]);
+	bus_space_handle_t h = rman_get_bushandle(sc->sc_resources.io_base[what+4]);
 	bus_space_write_multi_1(t, h, 0, (u_int8_t*)buf, size);
 }
-#endif
 
 /*---------------------------------------------------------------------------*
- *	AVM write register routines
+ *	AVM write register routine
  *---------------------------------------------------------------------------*/
-#ifdef __FreeBSD__
 static void
-avma1_write_reg(u_char *base, u_int offset, u_int v)
+avma1_write_reg(struct l1_softc *sc, int what, bus_size_t offs, u_int8_t data)
 {
-	outb((int)base + offset, (u_char)v);
-}
-#else
-static void
-avma1_write_reg(struct isic_softc *sc, int what, bus_size_t offs, u_int8_t data)
-{
-	bus_space_tag_t t = sc->sc_maps[what+1].t;
-	bus_space_handle_t h = sc->sc_maps[what+1].h;
+	bus_space_tag_t t = rman_get_bustag(sc->sc_resources.io_base[what+1]);
+	bus_space_handle_t h = rman_get_bushandle(sc->sc_resources.io_base[what+1]);
 	bus_space_write_1(t, h, offs, data);
 }
-#endif
 
 /*---------------------------------------------------------------------------*
- *	AVM read register routines
+ *	AVM read register routine
  *---------------------------------------------------------------------------*/
-#ifdef __FreeBSD__
-static u_char
-avma1_read_reg(u_char *base, u_int offset)
-{
-	return (inb((int)base + offset));
-}
-#else
 static u_int8_t
-avma1_read_reg(struct isic_softc *sc, int what, bus_size_t offs)
+avma1_read_reg(struct l1_softc *sc, int what, bus_size_t offs)
 {
-	bus_space_tag_t t = sc->sc_maps[what+1].t;
-	bus_space_handle_t h = sc->sc_maps[what+1].h;
+	bus_space_tag_t t = rman_get_bustag(sc->sc_resources.io_base[what+1]);
+	bus_space_handle_t h = rman_get_bushandle(sc->sc_resources.io_base[what+1]);
 	return bus_space_read_1(t, h, offs);
 }
-#endif
+
+/*---------------------------------------------------------------------------*
+ *	allocate an io port
+ *---------------------------------------------------------------------------*/
+static int
+isic_alloc_port(device_t dev, int rid, u_int base, u_int len)
+{ 
+	size_t unit = device_get_unit(dev);
+	struct l1_softc *sc = &l1_sc[unit];
+
+	sc->sc_resources.io_rid[rid] = rid;
+
+	bus_set_resource(dev, SYS_RES_IOPORT, rid, base, len);
+
+	if(!(sc->sc_resources.io_base[rid] =
+		bus_alloc_resource(dev, SYS_RES_IOPORT,
+				   &sc->sc_resources.io_rid[rid],
+				   0ul, ~0ul, 1, RF_ACTIVE)))
+	{
+		printf("isic%d: Error, failed to reserve io #%d!\n", unit, rid);
+		isic_detach_common(dev);
+		return(ENXIO);
+	}
+	return(0);
+}
 
 /*---------------------------------------------------------------------------*
  *	isic_probe_avma1 - probe for AVM A1 and compatibles
  *---------------------------------------------------------------------------*/
-#ifdef __FreeBSD__
 int
-isic_probe_avma1(struct isa_device *dev)
+isic_probe_avma1(device_t dev)
 {
-	struct isic_softc *sc = &isic_sc[dev->id_unit];
+	size_t unit = device_get_unit(dev);	/* get unit */
+	struct l1_softc *sc = 0;	/* pointer to softc */
+	void *ih = 0;			/* dummy */
+	bus_space_tag_t    t;		/* bus things */
+	bus_space_handle_t h;
 	u_char savebyte;
 	u_char byte;
-	
+
 	/* check max unit range */
-	
-	if(dev->id_unit >= ISIC_MAXUNIT)
+
+	if(unit >= ISIC_MAXUNIT)
 	{
 		printf("isic%d: Error, unit %d >= ISIC_MAXUNIT for AVM A1/Fritz!\n",
-				dev->id_unit, dev->id_unit);
-		return(0);	
-	}	
-	sc->sc_unit = dev->id_unit;
+				unit, unit);
+		return(ENXIO);	
+	}
+
+	sc = &l1_sc[unit];			/* get pointer to softc */
+	sc->sc_unit = unit;			/* set unit */
+	sc->sc_flags = FLAG_AVM_A1;		/* set flags */
+
+	/* see if an io base was supplied */
+	
+	if(!(sc->sc_resources.io_base[0] =
+			bus_alloc_resource(dev, SYS_RES_IOPORT,
+	                                   &sc->sc_resources.io_rid[0],
+	                                   0ul, ~0ul, 1, RF_ACTIVE)))
+	{
+		printf("isic%d: Could not get iobase for AVM A1/Fritz!\n",
+				unit);
+		return(ENXIO);
+	}
+
+	/* set io base */
+
+	sc->sc_port = rman_get_start(sc->sc_resources.io_base[0]);
+	
+	/* release io base */
+	
+        bus_release_resource(dev, SYS_RES_IOPORT, sc->sc_resources.io_rid[0],
+			sc->sc_resources.io_base[0]);
+
+	switch(sc->sc_port)
+	{
+		case 0x200:
+		case 0x240:
+		case 0x300:
+		case 0x340:		
+			break;
+			
+		default:
+			printf("isic%d: Error, invalid iobase 0x%x specified for AVM A1/Fritz!\n",
+				unit, sc->sc_port);
+			return(ENXIO);
+			break;
+	}
+
+	if(isic_alloc_port(dev, 0, sc->sc_port+AVM_CONF_REG, 0x20))
+		return(ENXIO);
+
+	if(isic_alloc_port(dev, 1, sc->sc_port+AVM_ISAC_R_OFFS, 0x20))
+		return(ENXIO);
+
+	if(isic_alloc_port(dev, 2, sc->sc_port+AVM_HSCXA_R_OFFS, 0x20))
+		return(ENXIO);
+
+	if(isic_alloc_port(dev, 3, sc->sc_port+AVM_HSCXB_R_OFFS, 0x20))
+		return(ENXIO);
+
+	if(isic_alloc_port(dev, 4, sc->sc_port+AVM_ISAC_F_OFFS, 0x20))
+		return(ENXIO);
+
+	if(isic_alloc_port(dev, 5, sc->sc_port+AVM_HSCXA_F_OFFS, 0x20))
+		return(ENXIO);
+
+	if(isic_alloc_port(dev, 6, sc->sc_port+AVM_HSCXB_F_OFFS, 0x20))
+		return(ENXIO);
+
+	/* get our irq */
+
+	if(!(sc->sc_resources.irq =
+		bus_alloc_resource(dev, SYS_RES_IRQ,
+				   &sc->sc_resources.irq_rid,
+				   0ul, ~0ul, 1, RF_ACTIVE)))
+	{
+		printf("isic%d: Could not get an irq for AVM A1/Fritz!\n",unit);
+		isic_detach_common(dev);
+		return ENXIO;
+	}
+
+	/* get the irq number */
+	sc->sc_irq = rman_get_start(sc->sc_resources.irq);
+
+	/* register interupt routine */
+	bus_setup_intr(dev, sc->sc_resources.irq, INTR_TYPE_NET,
+			(void(*)(void *))(isicintr),
+			sc, &ih);
 
 	/* check IRQ validity */
-	
-	switch(ffs(dev->id_irq)-1)
+
+	switch(sc->sc_irq)
 	{
 		case 3:
 		case 4:
@@ -228,40 +288,11 @@ isic_probe_avma1(struct isa_device *dev)
 			
 		default:
 			printf("isic%d: Error, invalid IRQ [%d] specified for AVM A1/Fritz!\n",
-				dev->id_unit, ffs(dev->id_irq)-1);
-			return(0);
+				unit, sc->sc_irq);
+			isic_detach_common(dev);
+			return(ENXIO);
 			break;
 	}		
-	sc->sc_irq = dev->id_irq;
-
-	/* check if memory addr specified */
-
-	if(dev->id_maddr)
-	{
-		printf("isic%d: Error, mem addr 0x%lx specified for AVM A1/Fritz!\n",
-			dev->id_unit, (u_long)dev->id_maddr);
-		return(0);
-	}
-		
-	dev->id_msize = 0;
-	
-	/* check if we got an iobase */
-
-	switch(dev->id_iobase)
-	{
-		case 0x200:
-		case 0x240:
-		case 0x300:
-		case 0x340:		
-			break;
-			
-		default:
-			printf("isic%d: Error, invalid iobase 0x%x specified for AVM A1/Fritz!\n",
-				dev->id_unit, dev->id_iobase);
-			return(0);
-			break;
-	}
-	sc->sc_port = dev->id_iobase;
 
 	sc->clearirq = NULL;
 	sc->readreg = avma1_read_reg;
@@ -281,13 +312,6 @@ isic_probe_avma1(struct isa_device *dev)
 	sc->sc_ipac = 0;
 	sc->sc_bfifolen = HSCX_FIFO_LEN;
 
-	/* setup ISAC and HSCX base addr */
-	
-	ISAC_BASE = (caddr_t)dev->id_iobase + 0x1400 - 0x20;
-
-	HSCX_A_BASE = (caddr_t)dev->id_iobase + 0x400 - 0x20;
-	HSCX_B_BASE = (caddr_t)dev->id_iobase + 0xc00 - 0x20;
-
 	/* 
 	 * Read HSCX A/B VSTR.
 	 * Expected value for AVM A1 is 0x04 or 0x05 and for the
@@ -300,12 +324,12 @@ isic_probe_avma1(struct isa_device *dev)
 	     ((HSCX_READ(1, H_VSTR) & 0xf) != 0x4)) )  
 	{
 		printf("isic%d: HSCX VSTR test failed for AVM A1/Fritz\n",
-			dev->id_unit);
+			unit);
 		printf("isic%d: HSC0: VSTR: %#x\n",
-			dev->id_unit, HSCX_READ(0, H_VSTR));
+			unit, HSCX_READ(0, H_VSTR));
 		printf("isic%d: HSC1: VSTR: %#x\n",
-			dev->id_unit, HSCX_READ(1, H_VSTR));
-		return (0);
+			unit, HSCX_READ(1, H_VSTR));
+		return(ENXIO);
 	}                   
 
 	/* AVM A1 or Fritz! control register bits:	*/
@@ -323,164 +347,54 @@ isic_probe_avma1(struct isa_device *dev)
 	 * fails, we write back the saved byte .....
 	 */
 
-	savebyte = inb(dev->id_iobase + AVM_CONF_REG);
+	t = rman_get_bustag(sc->sc_resources.io_base[0]);
+	h = rman_get_bushandle(sc->sc_resources.io_base[0]);
+
+	savebyte = bus_space_read_1(t, h, 0);
 	
 	/* write low to test bit */
 
-	outb(dev->id_iobase + AVM_CONF_REG, 0x00);
+	bus_space_write_1(t, h, 0, 0x00);
 	
 	/* test bit and next higher and lower bit must be 0 */
 
-	if((byte = inb(dev->id_iobase + AVM_CONF_REG) & 0x38) != 0x00)
+	if((byte = bus_space_read_1(t, h, 0) & 0x38) != 0x00)
 	{
 		printf("isic%d: Error, probe-1 failed, 0x%02x should be 0x00 for AVM A1/Fritz!\n",
-				dev->id_unit, byte);
-		outb(dev->id_iobase + AVM_CONF_REG, savebyte);
-		return (0);
+				unit, byte);
+		bus_space_write_1(t, h, 0, savebyte);
+		return(ENXIO);
 	}
 
 	/* write high to test bit */
 
-	outb(dev->id_iobase + AVM_CONF_REG, 0x10);
+	bus_space_write_1(t, h, 0, 0x10);
 	
 	/* test bit must be high, next higher and lower bit must be 0 */
 
-	if((byte = inb(dev->id_iobase + AVM_CONF_REG) & 0x38) != 0x10)
+	if((byte = bus_space_read_1(t, h, 0) & 0x38) != 0x10)
 	{
 		printf("isic%d: Error, probe-2 failed, 0x%02x should be 0x10 for AVM A1/Fritz!\n",
-				dev->id_unit, byte);
-		outb(dev->id_iobase + AVM_CONF_REG, savebyte);
-		return (0);
+				unit, byte);
+		bus_space_write_1(t, h, 0, savebyte);
+		return(ENXIO);
 	}
-
-	return (1);
+	return(0);
 }
-
-#else
-
-int
-isic_probe_avma1(struct isic_attach_args *ia)
-{
-	u_int8_t savebyte, v1, v2;
-
-	/* 
-	 * Read HSCX A/B VSTR.
-	 * Expected value for AVM A1 is 0x04 or 0x05 and for the
-	 * AVM Fritz!Card is 0x05 in the least significant bits.
-	 */
-
-	v1 = bus_space_read_1(ia->ia_maps[ISIC_WHAT_HSCXA+1].t, ia->ia_maps[ISIC_WHAT_HSCXA+1].h, H_VSTR) & 0x0f;
-	v2 = bus_space_read_1(ia->ia_maps[ISIC_WHAT_HSCXB+1].t, ia->ia_maps[ISIC_WHAT_HSCXB+1].h, H_VSTR) & 0x0f;
-	if (v1 != v2 || (v1 != 0x05 && v1 != 0x04))
-	    	return 0;
-
-	/* AVM A1 or Fritz! control register bits:	*/
-	/*        read                write		*/
-	/* 0x01  hscx irq*           RESET		*/
-	/* 0x02  isac irq*           clear counter1	*/
-	/* 0x04  counter irq*        clear counter2	*/
-	/* 0x08  always 0            irq enable		*/
-	/* 0x10  read test bit       set test bit	*/
-	/* 0x20  always 0            unused		*/
-
-	/*
-	 * XXX the following test may be destructive, to prevent the
-	 * worst case, we save the byte first, and in case the test
-	 * fails, we write back the saved byte .....
-	 */
-
-	savebyte = bus_space_read_1(ia->ia_maps[0].t, ia->ia_maps[0].h, 0);
-	
-	/* write low to test bit */
-
-	bus_space_write_1(ia->ia_maps[0].t, ia->ia_maps[0].h, 0, 0);
-	
-	/* test bit and next higher and lower bit must be 0 */
-
-	if((bus_space_read_1(ia->ia_maps[0].t, ia->ia_maps[0].h, 0) & 0x38) != 0x00)
-	{
-		bus_space_write_1(ia->ia_maps[0].t, ia->ia_maps[0].h, 0, savebyte);
-		return 0;
-	}
-
-	/* write high to test bit */
-
-	bus_space_write_1(ia->ia_maps[0].t, ia->ia_maps[0].h, 0, 0x10);
-	
-	/* test bit must be high, next higher and lower bit must be 0 */
-
-	if((bus_space_read_1(ia->ia_maps[0].t, ia->ia_maps[0].h, 0) & 0x38) != 0x10)
-	{
-		bus_space_write_1(ia->ia_maps[0].t, ia->ia_maps[0].h, 0, savebyte);
-		return 0;
-	}
-
-	return (1);
-}
-#endif
 
 /*---------------------------------------------------------------------------*
  *	isic_attach_avma1 - attach AVM A1 and compatibles
  *---------------------------------------------------------------------------*/
-#ifdef __FreeBSD__
 int
-isic_attach_avma1(struct isa_device *dev)
+isic_attach_avma1(device_t dev)
 {
-	struct isic_softc *sc = &isic_sc[dev->id_unit];
+	size_t unit = device_get_unit(dev);
+	struct l1_softc *sc = &l1_sc[unit];
+	bus_space_tag_t t = rman_get_bustag(sc->sc_resources.io_base[0]);
+	bus_space_handle_t h = rman_get_bushandle(sc->sc_resources.io_base[0]);
 
-	/* reset the HSCX and ISAC chips */
-	
-	outb(dev->id_iobase + AVM_CONF_REG, 0x00);
-	DELAY(SEC_DELAY / 10);
+	/* reset ISAC/HSCX */
 
-	outb(dev->id_iobase + AVM_CONF_REG, AVM_CONF_WR_RESET);
-	DELAY(SEC_DELAY / 10);
-
-	outb(dev->id_iobase + AVM_CONF_REG, 0x00);
-	DELAY(SEC_DELAY / 10);
-
-	/* setup IRQ */
-
-	outb(dev->id_iobase + AVM_CONF_IRQ, (ffs(sc->sc_irq)) - 1);
-	DELAY(SEC_DELAY / 10);
-
-	/* enable IRQ, disable counter IRQ */
-
-	outb(dev->id_iobase + AVM_CONF_REG, AVM_CONF_WR_IRQEN |
-		AVM_CONF_WR_CCH | AVM_CONF_WR_CCL);
-	DELAY(SEC_DELAY / 10);
-
-	return (1);
-}
-
-#else
-
-int
-isic_attach_avma1(struct isic_softc *sc)
-{
-	bus_space_tag_t t = sc->sc_maps[0].t;
-	bus_space_handle_t h = sc->sc_maps[0].h;
-
-	sc->clearirq = NULL;
-	sc->readreg = avma1_read_reg;
-	sc->writereg = avma1_write_reg;
-
-	sc->readfifo = avma1_read_fifo;
-	sc->writefifo = avma1_write_fifo;
-
-	/* setup card type */
-
-	sc->sc_cardtyp = CARD_TYPEP_AVMA1;
-
-	/* setup IOM bus type */
-	
-	sc->sc_bustyp = BUS_TYPE_IOM2;
-
-	sc->sc_ipac = 0;
-	sc->sc_bfifolen = HSCX_FIFO_LEN;
-	
-	/* reset the HSCX and ISAC chips */
-	
 	bus_space_write_1(t, h, 0, 0x00);
 	DELAY(SEC_DELAY / 10);
 
@@ -498,11 +412,10 @@ isic_attach_avma1(struct isic_softc *sc)
 	/* enable IRQ, disable counter IRQ */
 
 	bus_space_write_1(t, h, 0, AVM_CONF_WR_IRQEN |
-		AVM_CONF_WR_CCH | AVM_CONF_WR_CCL);
+				AVM_CONF_WR_CCH | AVM_CONF_WR_CCL);
 	DELAY(SEC_DELAY / 10);
 
-	return (1);
+	return(0);
 }
-#endif
 
-#endif /* ISIC > 0 */
+#endif /* NISIC > 0 && defined(AVM_A1) */

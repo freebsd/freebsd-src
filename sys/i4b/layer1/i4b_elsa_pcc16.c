@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1999 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -24,21 +24,21 @@
  *
  *---------------------------------------------------------------------------
  *
- *	isic - I4B Siemens ISDN Chipset Driver for ELSA Quickstep 1000pro ISA
+ *	isic - I4B Siemens ISDN Chipset Driver for ELSA MicroLink ISDN/PCC-16
  *	=====================================================================
  *
- *	$Id: i4b_elsa_qs1i.c,v 1.3 1999/12/13 21:25:26 hm Exp $
+ *	$Id: i4b_elsa_pcc16.c,v 1.2 1999/12/13 21:25:26 hm Exp $
  *
  * $FreeBSD$
  *
- *      last edit-date: [Mon Dec 13 21:59:44 1999]
+ *      last edit-date: [Mon Dec 13 21:59:36 1999]
  *
  *---------------------------------------------------------------------------*/
 
 #include "isic.h"
 #include "opt_i4b.h"
 
-#if (NISIC > 0) && defined(ELSA_QS1ISA)
+#if (NISIC > 0) && defined(ELSA_PCC16)
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -61,7 +61,7 @@
 #include <i4b/layer1/i4b_isac.h>
 #include <i4b/layer1/i4b_hscx.h>
 
-static void i4b_eq1i_clrirq(struct l1_softc *sc);
+static void i4b_epcc16_clrirq(struct l1_softc *sc);
 
 /* masks for register encoded in base addr */
 
@@ -93,10 +93,10 @@ static void i4b_eq1i_clrirq(struct l1_softc *sc);
 #define ELSA_CTRL_SECRET	0x50
 
 /*---------------------------------------------------------------------------*
- *      ELSA QuickStep 1000pro/ISA clear IRQ routine
+ *      ELSA MicroLink ISDN/PCC-16 clear IRQ routine
  *---------------------------------------------------------------------------*/
 static void
-i4b_eq1i_clrirq(struct l1_softc *sc)
+i4b_epcc16_clrirq(struct l1_softc *sc)
 {
 	bus_space_tag_t    t = rman_get_bustag(sc->sc_resources.io_base[0]);
 	bus_space_handle_t h = rman_get_bushandle(sc->sc_resources.io_base[0]);
@@ -104,10 +104,10 @@ i4b_eq1i_clrirq(struct l1_softc *sc)
 }
 
 /*---------------------------------------------------------------------------*
- *      ELSA QuickStep 1000pro/ISA ISAC get fifo routine
+ *      ELSA MicroLink ISDN/PCC-16 ISAC get fifo routine
  *---------------------------------------------------------------------------*/
 static void
-eqs1pi_read_fifo(struct l1_softc *sc, int what, void *buf, size_t size)
+epcc16_read_fifo(struct l1_softc *sc, int what, void *buf, size_t size)
 {
 	bus_space_tag_t    t = rman_get_bustag(sc->sc_resources.io_base[0]);
 	bus_space_handle_t h = rman_get_bushandle(sc->sc_resources.io_base[0]);
@@ -129,10 +129,10 @@ eqs1pi_read_fifo(struct l1_softc *sc, int what, void *buf, size_t size)
 }
 
 /*---------------------------------------------------------------------------*
- *      ELSA QuickStep 1000pro/ISA ISAC put fifo routine
+ *      ELSA MicroLink ISDN/PCC-16 ISAC put fifo routine
  *---------------------------------------------------------------------------*/
 static void
-eqs1pi_write_fifo(struct l1_softc *sc, int what, void *buf, size_t size)
+epcc16_write_fifo(struct l1_softc *sc, int what, void *buf, size_t size)
 {
 	bus_space_tag_t    t = rman_get_bustag(sc->sc_resources.io_base[0]);
 	bus_space_handle_t h = rman_get_bushandle(sc->sc_resources.io_base[0]);
@@ -154,10 +154,10 @@ eqs1pi_write_fifo(struct l1_softc *sc, int what, void *buf, size_t size)
 }
 
 /*---------------------------------------------------------------------------*
- *      ELSA QuickStep 1000pro/ISA ISAC put register routine
+ *      ELSA MicroLink ISDN/PCC-16 ISAC put register routine
  *---------------------------------------------------------------------------*/
 static void
-eqs1pi_write_reg(struct l1_softc *sc, int what, bus_size_t offs, u_int8_t data)
+epcc16_write_reg(struct l1_softc *sc, int what, bus_size_t offs, u_int8_t data)
 {
 	bus_space_tag_t    t = rman_get_bustag(sc->sc_resources.io_base[0]);
 	bus_space_handle_t h = rman_get_bushandle(sc->sc_resources.io_base[0]);
@@ -179,10 +179,10 @@ eqs1pi_write_reg(struct l1_softc *sc, int what, bus_size_t offs, u_int8_t data)
 }
 
 /*---------------------------------------------------------------------------*
- *	ELSA QuickStep 1000pro/ISA ISAC get register routine
+ *	ELSA MicroLink ISDN/PCC-16 ISAC get register routine
  *---------------------------------------------------------------------------*/
 static u_int8_t
-eqs1pi_read_reg(struct l1_softc *sc, int what, bus_size_t offs)
+epcc16_read_reg(struct l1_softc *sc, int what, bus_size_t offs)
 {
 	bus_space_tag_t    t = rman_get_bustag(sc->sc_resources.io_base[0]);
 	bus_space_handle_t h = rman_get_bushandle(sc->sc_resources.io_base[0]);
@@ -202,26 +202,94 @@ eqs1pi_read_reg(struct l1_softc *sc, int what, bus_size_t offs)
 }
 
 /*---------------------------------------------------------------------------*
- * isic_attach_Eqs1pi - attach for ELSA QuickStep 1000pro/ISA
+ *	isic_detach_Epcc16 - detach for ELSA MicroLink ISDN/PCC-16
+ *---------------------------------------------------------------------------*/
+static void
+isic_detach_Epcc16(device_t dev)
+{
+	struct l1_softc *sc = &l1_sc[device_get_unit(dev)];
+
+	if ( sc->sc_resources.irq )
+	{
+		bus_teardown_intr(dev,sc->sc_resources.irq,
+			(void(*)(void *))isicintr);
+		bus_release_resource(dev,SYS_RES_IRQ,
+					sc->sc_resources.irq_rid,
+					sc->sc_resources.irq);
+		sc->sc_resources.irq = 0;
+	}
+	
+	if ( sc->sc_resources.io_base[0] ) {
+		bus_release_resource(dev,SYS_RES_IOPORT,
+					sc->sc_resources.io_rid[0],
+					sc->sc_resources.io_base[0]);
+		sc->sc_resources.io_base[0] = 0;
+	}
+}
+
+/*---------------------------------------------------------------------------*
+ *	isic_probe_Epcc16 - probe for ELSA MicroLink ISDN/PCC-16
  *---------------------------------------------------------------------------*/
 int
-isic_attach_Eqs1pi(device_t dev)
+isic_probe_Epcc16(device_t dev)
 {
-	int unit = device_get_unit(dev);
-	struct l1_softc *sc = &l1_sc[unit];	
-	bus_space_tag_t    t = rman_get_bustag(sc->sc_resources.io_base[0]);
-	bus_space_handle_t h = rman_get_bushandle(sc->sc_resources.io_base[0]);
+	size_t unit = device_get_unit(dev);	/* get unit */
+	struct l1_softc *sc = 0;		/* pointer to softc */
+	void *ih = 0;				/* dummy */
 
-	u_char byte = ELSA_CTRL_SECRET;
+	/* check max unit range */
+	if(unit >= ISIC_MAXUNIT)
+	{
+		printf("isic%d: Error, unit %d >= ISIC_MAXUNIT for ELSA PCC-16!\n",
+				unit, unit);
+		return(ENXIO);	
+	}
+
+	sc = &l1_sc[unit];		/* get pointer to softc */
+
+	sc->sc_unit = unit;		/* set unit */
+
+	sc->sc_flags = FLAG_ELSA_PCC16;	/* set flags */
+
+	/* see if an io base was supplied */
+	
+	if(!(sc->sc_resources.io_base[0] =
+			bus_alloc_resource(dev, SYS_RES_IOPORT,
+	                                   &sc->sc_resources.io_rid[0],
+	                                   0ul, ~0ul, 1, RF_ACTIVE)))
+	{
+		printf("isic%d: Could not get iobase for ELSA PCC-16.\n",
+				unit);
+		return(ENXIO);
+	}
+
+	/* check if we got an iobase */
+
+	sc->sc_port = rman_get_start(sc->sc_resources.io_base[0]);
+
+	switch(sc->sc_port)
+	{
+		case 0x160:
+		case 0x170:
+		case 0x260:
+		case 0x360:
+			break;
+		default:
+			printf("isic%d: Error, invalid iobase 0x%x specified for ELSA MicroLink ISDN/PCC-16!\n",
+				unit, sc->sc_port);
+			isic_detach_Epcc16(dev);
+			return(ENXIO);
+			break;
+	}
 
 	/* setup access routines */
 
-	sc->clearirq = i4b_eq1i_clrirq;
-	sc->readreg = eqs1pi_read_reg;
-	sc->writereg = eqs1pi_write_reg;
+	sc->clearirq = i4b_epcc16_clrirq;
+	sc->readreg = epcc16_read_reg;
+	sc->writereg = epcc16_write_reg;
 
-	sc->readfifo = eqs1pi_read_fifo;
-	sc->writefifo = eqs1pi_write_fifo;
+	sc->readfifo = epcc16_read_fifo;
+	sc->writefifo = epcc16_write_fifo;
 
 	/* setup card type */
 	
@@ -234,8 +302,81 @@ isic_attach_Eqs1pi(device_t dev)
 	sc->sc_ipac = 0;
 	sc->sc_bfifolen = HSCX_FIFO_LEN;	
 
-	/* enable the card */
-	
+	/* 
+	 * Read HSCX A/B VSTR.  Expected value for the ELSA PCC-16
+	 * is 0x05 ( = version 2.1 ) in the least significant bits.
+	 */
+
+	if( ((HSCX_READ(0, H_VSTR) & 0xf) != 0x5) ||
+            ((HSCX_READ(1, H_VSTR) & 0xf) != 0x5) )
+	{
+		printf("isic%d: HSCX VSTR test failed for ELSA MicroLink ISDN/PCC-16\n",
+			unit);
+		printf("isic%d: HSC0: VSTR: %#x\n",
+			unit, HSCX_READ(0, H_VSTR));
+		printf("isic%d: HSC1: VSTR: %#x\n",
+			unit, HSCX_READ(1, H_VSTR));
+		isic_detach_Epcc16(dev);
+		return (ENXIO);
+	}                   
+
+	/* get our irq */
+
+	if(!(sc->sc_resources.irq =
+			bus_alloc_resource(dev, SYS_RES_IRQ,
+					&sc->sc_resources.irq_rid,
+					0ul, ~0ul, 1, RF_ACTIVE)))
+	{
+		printf("isic%d: Could not get an irq.\n",unit);
+		isic_detach_Epcc16(dev);
+		return ENXIO;
+	}
+
+	/* get the irq number */
+	sc->sc_irq = rman_get_start(sc->sc_resources.irq);
+
+	/* check IRQ validity */	
+	switch(sc->sc_irq)
+	{
+		case 2:
+		case 9:		
+		case 3:		
+		case 5:
+		case 10:
+		case 11:
+		case 15:		
+			break;
+			
+		default:
+			printf("isic%d: Error, invalid IRQ [%d] specified for ELSA MicroLink ISDN/PCC-16!\n",
+				unit, sc->sc_irq);
+			isic_detach_Epcc16(dev);
+			return(ENXIO);
+			break;
+	}
+
+	/* register interupt routine */
+	bus_setup_intr(dev,sc->sc_resources.irq,INTR_TYPE_NET,
+			(void(*)(void *))(isicintr),
+			sc,&ih);
+
+
+	return (0);
+}
+
+/*---------------------------------------------------------------------------*
+ * isic_attach_Epcc16 - attach for ELSA MicroLink ISDN/PCC-16
+ *---------------------------------------------------------------------------*/
+int
+isic_attach_Epcc16(device_t dev)
+{
+	int unit = device_get_unit(dev);
+	struct l1_softc *sc = &l1_sc[unit];	
+	bus_space_tag_t    t = rman_get_bustag(sc->sc_resources.io_base[0]);
+	bus_space_handle_t h = rman_get_bushandle(sc->sc_resources.io_base[0]);
+
+	u_char byte = ELSA_CTRL_SECRET;
+
 	byte &= ~ELSA_CTRL_RESET;
         bus_space_write_1(t, h, ELSA_OFF_CTRL, byte);
         DELAY(20);
@@ -247,4 +388,5 @@ isic_attach_Eqs1pi(device_t dev)
 
 	return 0;
 }
-#endif /* (NISIC > 0) && defined(ELSA_QS1ISA) */
+
+#endif /* (NISIC > 0) && defined(ELSA_PCC16) */

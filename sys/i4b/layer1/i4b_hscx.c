@@ -27,52 +27,33 @@
  *	i4b - Siemens HSCX chip (B-channel) handling
  *	--------------------------------------------
  *
- * $FreeBSD$ 
+ *	$Id: i4b_hscx.c,v 1.2 1999/12/13 21:25:26 hm Exp $ 
  *
- *      last edit-date: [Wed Mar 17 11:59:05 1999]
+ * $FreeBSD$
+ *
+ *      last edit-date: [Mon Dec 13 21:59:58 1999]
  *
  *---------------------------------------------------------------------------*/
 
-#ifdef __FreeBSD__
 #include "isic.h"
-#else
-#define	NISIC	1	/* doesn't matter in non-FreeBSD, config(8) d.t.r.t. */
-#endif
+
 #if NISIC > 0
 
 #include <sys/param.h>
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
 #include <sys/ioccom.h>
-#else
-#include <sys/ioctl.h>
-#endif
 #include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
-#include <machine/stdarg.h>
-
-#ifdef __FreeBSD__
-#include <machine/clock.h>
-#include <i386/isa/isa_device.h>
-#else
-#ifndef __bsdi__
-#include <machine/bus.h>
-#endif
-#include <sys/device.h>
-#endif
-
 #include <sys/socket.h>
+
+#include <machine/stdarg.h>
+#include <machine/clock.h>
+
 #include <net/if.h>
 
-#ifdef __FreeBSD__
 #include <machine/i4b_debug.h>
 #include <machine/i4b_ioctl.h>
 #include <machine/i4b_trace.h>
-#else
-#include <i4b/i4b_debug.h>
-#include <i4b/i4b_ioctl.h>
-#include <i4b/i4b_trace.h>
-#endif
 
 #include <i4b/layer1/i4b_l1.h>
 #include <i4b/layer1/i4b_isac.h>
@@ -86,9 +67,9 @@
  *	HSCX IRQ Handler
  *---------------------------------------------------------------------------*/
 void
-isic_hscx_irq(register struct isic_softc *sc, u_char ista, int h_chan, u_char ex_irq)
+isic_hscx_irq(register struct l1_softc *sc, u_char ista, int h_chan, u_char ex_irq)
 {
-	register isic_Bchan_t *chan = &sc->sc_chan[h_chan];
+	register l1_bchan_state_t *chan = &sc->sc_chan[h_chan];
 	u_char exir = 0;
 	int activity = -1;
 	u_char cmd = 0;
@@ -467,9 +448,9 @@ isic_hscx_irq(register struct isic_softc *sc, u_char ista, int h_chan, u_char ex
  *	for raw hdlc:  transparent mode 0
  *---------------------------------------------------------------------------*/
 void
-isic_hscx_init(struct isic_softc *sc, int h_chan, int activate)
+isic_hscx_init(struct l1_softc *sc, int h_chan, int activate)
 {	
-	isic_Bchan_t *chan = &sc->sc_chan[h_chan];
+	l1_bchan_state_t *chan = &sc->sc_chan[h_chan];
 
 	HSCX_WRITE(h_chan, H_MASK, 0xff);		/* mask irq's */
 
@@ -634,7 +615,7 @@ isic_hscx_init(struct isic_softc *sc, int h_chan, int activate)
  *	write command to HSCX command register
  *---------------------------------------------------------------------------*/
 void
-isic_hscx_cmd(struct isic_softc *sc, int h_chan, unsigned char cmd)
+isic_hscx_cmd(struct l1_softc *sc, int h_chan, unsigned char cmd)
 {	
 	int timeout = 20;
 
@@ -656,7 +637,7 @@ isic_hscx_cmd(struct isic_softc *sc, int h_chan, unsigned char cmd)
  *	wait for HSCX transmit FIFO write enable
  *---------------------------------------------------------------------------*/
 void
-isic_hscx_waitxfw(struct isic_softc *sc, int h_chan)
+isic_hscx_waitxfw(struct l1_softc *sc, int h_chan)
 {	
 #define WAITVAL 50
 #define WAITTO	200

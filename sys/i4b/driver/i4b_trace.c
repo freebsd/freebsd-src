@@ -27,9 +27,11 @@
  *	i4btrc - device driver for trace data read device
  *	---------------------------------------------------
  *
- * $FreeBSD$
+ *	$Id: i4b_trace.c,v 1.24 1999/12/13 21:25:24 hm Exp $
  *
- *	last edit-date: [Tue Jun  1 12:15:40 1999]
+ *	last edit-date: [Mon Dec 13 21:39:35 1999]
+ *
+ * $FreeBSD$
  *
  *	NOTE: the code assumes that SPLI4B >= splimp !
  *
@@ -69,20 +71,28 @@
 #include <sys/tty.h>
 
 #ifdef __FreeBSD__
-#include <machine/i4b_trace.h>
-#include <machine/i4b_ioctl.h>
-#else
-#include <i4b/i4b_trace.h>
-#include <i4b/i4b_ioctl.h>
+
+#ifdef DEVFS
+#include <sys/devfsext.h>
 #endif
 
-#ifndef __FreeBSD__
-#define	memcpy(d,s,l)	bcopy(s,d,l)
+#include <machine/i4b_trace.h>
+#include <machine/i4b_ioctl.h>
+
+#else
+
+#include <i4b/i4b_trace.h>
+#include <i4b/i4b_ioctl.h>
+
 #endif
 
 #include <i4b/include/i4b_mbuf.h>
 #include <i4b/include/i4b_global.h>
 #include <i4b/include/i4b_l3l4.h>
+
+#ifndef __FreeBSD__
+#define	memcpy(d,s,l)	bcopy(s,d,l)
+#endif
 
 static struct ifqueue trace_queue[NI4BTRC];
 static int device_state[NI4BTRC];
@@ -90,22 +100,31 @@ static int device_state[NI4BTRC];
 #define ST_ISOPEN	0x01
 #define ST_WAITDATA	0x02
 
+#if defined(__FreeBSD__) && __FreeBSD__ == 3
+#ifdef DEVFS
+static void *devfs_token[NI4BTRC];
+#endif
+#endif
+
 static int analyzemode = 0;
 static int rxunit = -1;
 static int txunit = -1;
 static int outunit = -1;
 
 #ifndef __FreeBSD__
+
 #define	PDEVSTATIC	/* - not static - */
 void i4btrcattach __P((void));
 int i4btrcopen __P((dev_t dev, int flag, int fmt, struct proc *p));
 int i4btrcclose __P((dev_t dev, int flag, int fmt, struct proc *p));
 int i4btrcread __P((dev_t dev, struct uio * uio, int ioflag));
+
 #ifdef __bsdi__
 int i4btrcioctl __P((dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p));
 #else
 int i4btrcioctl __P((dev_t dev, int cmd, caddr_t data, int flag, struct proc *p));
 #endif
+
 #endif
 
 #if BSD > 199306 && defined(__FreeBSD__)
@@ -124,22 +143,22 @@ static d_poll_t i4btrcpoll;
 
 #define CDEV_MAJOR 59
 
-#if defined (__FreeBSD_version) && __FreeBSD_version >= 400006
+#if defined(__FreeBSD__) && __FreeBSD__ >= 4
 static struct cdevsw i4btrc_cdevsw = {
-	/* open */	i4btrcopen,
-	/* close */	i4btrcclose,
-	/* read */	i4btrcread,
-	/* write */	nowrite,
-	/* ioctl */	i4btrcioctl,
-	/* poll */	POLLFIELD,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	"i4btrc",
-	/* maj */	CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	0,
-	/* bmaj */	-1
+	/* open */      i4btrcopen,
+        /* close */     i4btrcclose,
+        /* read */      i4btrcread,
+        /* write */     nowrite,
+        /* ioctl */     i4btrcioctl,
+        /* poll */      POLLFIELD,
+        /* mmap */      nommap,
+        /* strategy */  nostrategy,
+        /* name */      "i4btrc",
+        /* maj */       CDEV_MAJOR,
+        /* dump */      nodump,
+        /* psize */     nopsize,
+        /* flags */     0,
+        /* bmaj */      -1
 };
 #else
 static struct cdevsw i4btrc_cdevsw = {
@@ -155,7 +174,7 @@ static struct cdevsw i4btrc_cdevsw = {
 static
 void i4btrcinit(void *unused)
 {
-#if defined (__FreeBSD_version) && __FreeBSD_version >= 400006
+#if defined(__FreeBSD__) && __FreeBSD__ >= 4
 	cdevsw_add(&i4btrc_cdevsw);
 #else
 	dev_t dev = makedev(CDEV_MAJOR, 0);
@@ -221,8 +240,22 @@ i4btrcattach()
 	
 	for(i=0; i < NI4BTRC; i++)
 	{
+
+#if defined(__FreeBSD__)
+#if __FreeBSD__ < 4
+
+#ifdef DEVFS
+	  	devfs_token[i]
+		  = devfs_add_devswf(&i4btrc_cdevsw, i, DV_CHR,
+				     UID_ROOT, GID_WHEEL, 0600,
+				     "i4btrc%d", i);
+#endif
+
+#else
 		make_dev(&i4btrc_cdevsw, i,
 				     UID_ROOT, GID_WHEEL, 0600, "i4btrc%d", i);
+#endif
+#endif
 		trace_queue[i].ifq_maxlen = IFQ_MAXLEN;
 		device_state[i] = ST_IDLE;
 	}

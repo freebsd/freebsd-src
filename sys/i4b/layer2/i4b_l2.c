@@ -27,9 +27,11 @@
  *      i4b_l2.c - ISDN layer 2 (Q.921)
  *	-------------------------------
  *
- * $FreeBSD$ 
+ *	$Id: i4b_l2.c,v 1.30 1999/12/13 21:25:27 hm Exp $ 
  *
- *      last edit-date: [Fri May 28 16:15:39 1999]
+ * $FreeBSD$
+ *
+ *      last edit-date: [Mon Dec 13 22:03:23 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -41,11 +43,13 @@
 #if NI4BQ921 > 0
 
 #include <sys/param.h>
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
+
+#if defined(__FreeBSD__)
 #include <sys/ioccom.h>
 #else
 #include <sys/ioctl.h>
 #endif
+
 #include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
@@ -284,7 +288,7 @@ i4b_mph_status_ind(int unit, int status, int parm)
 			bzero(&l2sc->stat, sizeof(lapdstat_t));			
 			i4b_l2_unit_init(unit);
 			
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
+#if defined(__FreeBSD__)
 			/* initialize the callout handles for timeout routines */
 			callout_handle_init(&l2sc->T200_callout);
 			callout_handle_init(&l2sc->T202_callout);
@@ -297,7 +301,7 @@ i4b_mph_status_ind(int unit, int status, int parm)
 			break;
 		
 		case STI_PDEACT:	/* Timer 4 expired */
-			if((l2sc->Q921_state >= ST_AW_EST) &&
+/*XXX*/			if((l2sc->Q921_state >= ST_AW_EST) &&
 			   (l2sc->Q921_state <= ST_TIMREC))
 			{
 				DBGL2(L2_ERROR, "i4b_mph_status_ind", ("unit %d, persistent deactivation!\n", unit));

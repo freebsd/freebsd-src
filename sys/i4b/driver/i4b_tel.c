@@ -27,9 +27,11 @@
  *	i4b_tel.c - device driver for ISDN telephony
  *	--------------------------------------------
  *
+ *	$Id: i4b_tel.c,v 1.47 1999/12/13 21:25:24 hm Exp $
+ *
  * $FreeBSD$
  *
- *	last edit-date: [Sat Aug 28 22:28:25 1999]
+ *	last edit-date: [Mon Dec 13 21:39:26 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -42,7 +44,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 300001 || defined(__NetBSD__)
+#if (defined(__FreeBSD__) && __FreeBSD__ >= 3) || defined(__NetBSD__)
 #include <sys/ioccom.h>
 #include <sys/poll.h>
 #else
@@ -58,6 +60,18 @@
 #include <net/if.h>
 #include <sys/proc.h>
 #include <sys/tty.h>
+
+#ifdef __FreeBSD__
+
+#if defined(__FreeBSD__) && __FreeBSD__ == 3
+#include "opt_devfs.h"
+#endif
+
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif
+
+#endif /* __FreeBSD__ */
 
 #ifdef __bsdi__
 #include <sys/device.h>
@@ -122,6 +136,13 @@ typedef struct {
 #define ST_WRWAITEMPTY	0x08		/* userland write waiting */
 
 	struct selinfo		selp;		/* select / poll */
+
+#if defined(__FreeBSD__) && __FreeBSD__ == 3
+#ifdef DEVFS
+        void                    *devfs_token;   /* token for DEVFS */
+#endif
+#endif
+
 } tel_sc_t;
 
 static tel_sc_t tel_sc[NI4BTEL][NOFUNCS];
@@ -182,22 +203,22 @@ PDEVSTATIC d_select_t i4btelsel;
 
 #define CDEV_MAJOR 56
 
-#if defined (__FreeBSD_version) && __FreeBSD_version >= 400006
+#if defined(__FreeBSD__) && __FreeBSD__ >= 4
 static struct cdevsw i4btel_cdevsw = {
-	/* open */	i4btelopen,
-	/* close */	i4btelclose,
-	/* read */	i4btelread,
-	/* write */	i4btelwrite,
-	/* ioctl */	i4btelioctl,
-	/* poll */	POLLFIELD,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	"i4btel",
-	/* maj */	CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	0,
-	/* bmaj */	-1
+	/* open */      i4btelopen,
+	/* close */     i4btelclose,
+	/* read */      i4btelread,
+	/* write */     i4btelwrite,
+	/* ioctl */     i4btelioctl,
+	/* poll */      POLLFIELD,
+	/* mmap */      nommap,
+	/* strategy */  nostrategy,
+	/* name */      "i4btel",
+	/* maj */       CDEV_MAJOR,
+	/* dump */      nodump,
+	/* psize */     nopsize,
+	/* flags */     0,
+	/* bmaj */      -1
 };
 #else
 static struct cdevsw i4btel_cdevsw = {
@@ -222,7 +243,7 @@ PSEUDO_SET(i4btelattach, i4b_tel);
 PDEVSTATIC void
 i4btelinit(void *unused)
 {
-#if defined (__FreeBSD_version) && __FreeBSD_version >= 400006    
+#if defined(__FreeBSD__) && __FreeBSD__ >= 4
 	cdevsw_add(&i4btel_cdevsw);
 #else
 	dev_t dev = makedev(CDEV_MAJOR, 0);
@@ -294,6 +315,18 @@ i4btelattach()
 			tel_sc[i][j].wcvttab = 0;
 			tel_sc[i][j].result = 0;
 
+#if defined(__FreeBSD__)
+#if __FreeBSD__ == 3
+
+#ifdef DEVFS
+
+/* XXX */  		tel_sc[i][j].devfs_token
+		  		= devfs_add_devswf(&i4btel_cdevsw, i, DV_CHR,
+				     UID_ROOT, GID_WHEEL, 0600,
+				     "i4btel%d", i);
+#endif
+
+#else
 			switch(j)
 			{
 				case FUNCTEL:	/* normal i4btel device */
@@ -308,6 +341,8 @@ i4btelattach()
 						0600, "i4bteld%d", i);
 					break;
 			}
+#endif
+#endif
 		}
 		tel_init_linktab(i);		
 	}

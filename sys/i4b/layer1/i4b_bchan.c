@@ -27,53 +27,33 @@
  *	i4b_bchan.c - B channel handling L1 procedures
  *	----------------------------------------------
  *
+ *	$Id: i4b_bchan.c,v 1.2 1999/12/13 21:25:26 hm Exp $
+ *
  * $FreeBSD$
  *
- *      last edit-date: [Sun Feb 14 10:25:27 1999]
+ *      last edit-date: [Mon Dec 13 21:59:11 1999]
  *
  *---------------------------------------------------------------------------*/
 
-#if defined(__FreeBSD__)
 #include "isic.h"
-#else
-#define NISIC 1
-#endif
 
 #if NISIC > 0
 
 #include <sys/param.h>
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
 #include <sys/ioccom.h>
-#else
-#include <sys/ioctl.h>
-#endif
 #include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
 #include <machine/stdarg.h>
 
-#ifdef __FreeBSD__
 #include <machine/clock.h>
-#include <i386/isa/isa_device.h>
-#else
-#ifndef __bsdi__
-#include <machine/bus.h>
-#endif
-#include <sys/device.h>
-#endif
 
 #include <sys/socket.h>
 #include <net/if.h>
 
-#ifdef __FreeBSD__
 #include <machine/i4b_debug.h>
 #include <machine/i4b_ioctl.h>
 #include <machine/i4b_trace.h>
-#else
-#include <i4b/i4b_debug.h>
-#include <i4b/i4b_ioctl.h>
-#include <i4b/i4b_trace.h>
-#endif
 
 #include <i4b/layer1/i4b_l1.h>
 #include <i4b/layer1/i4b_isac.h>
@@ -83,14 +63,8 @@
 #include <i4b/include/i4b_mbuf.h>
 #include <i4b/include/i4b_global.h>
 
-#ifdef __FreeBSD__
 static void isic_bchannel_start(int unit, int h_chan);
 static void isic_bchannel_stat(int unit, int h_chan, bchan_statistics_t *bsp);
-#else
-static void isic_bchannel_start __P((int unit, int h_chan));
-static void isic_bchannel_stat __P((int unit, int h_chan, bchan_statistics_t *bsp));
-#endif
-
 static void isic_set_linktab(int unit, int channel, drvr_link_t *dlt);
 static isdn_link_t *isic_ret_linktab(int unit, int channel);
 
@@ -100,12 +74,8 @@ static isdn_link_t *isic_ret_linktab(int unit, int channel);
 void
 isic_bchannel_setup(int unit, int h_chan, int bprot, int activate)
 {
-#ifdef __FreeBSD__
-	struct isic_softc *sc = &isic_sc[unit];
-#else
-	struct isic_softc *sc = isic_find_sc(unit);
-#endif
-	isic_Bchan_t *chan = &sc->sc_chan[h_chan];
+	struct l1_softc *sc = &l1_sc[unit];
+	l1_bchan_state_t *chan = &sc->sc_chan[h_chan];
 
 	int s = SPLI4B();
 	
@@ -169,13 +139,8 @@ isic_bchannel_setup(int unit, int h_chan, int bprot, int activate)
 static void
 isic_bchannel_start(int unit, int h_chan)
 {
-#ifdef __FreeBSD__
-	struct isic_softc *sc = &isic_sc[unit];
-#else
-	struct isic_softc *sc = isic_find_sc(unit);
-#endif
-
-	register isic_Bchan_t *chan = &sc->sc_chan[h_chan];
+	struct l1_softc *sc = &l1_sc[unit];
+	register l1_bchan_state_t *chan = &sc->sc_chan[h_chan];
 	register int next_len;
 	register int len;
 
@@ -356,12 +321,8 @@ isic_bchannel_start(int unit, int h_chan)
 static void
 isic_bchannel_stat(int unit, int h_chan, bchan_statistics_t *bsp)
 {
-#ifdef __FreeBSD__
-	struct isic_softc *sc = &isic_sc[unit];
-#else
-	struct isic_softc *sc = isic_find_sc(unit);
-#endif
-	isic_Bchan_t *chan = &sc->sc_chan[h_chan];
+	struct l1_softc *sc = &l1_sc[unit];
+	l1_bchan_state_t *chan = &sc->sc_chan[h_chan];
 	int s;
 
 	s = SPLI4B();
@@ -381,12 +342,8 @@ isic_bchannel_stat(int unit, int h_chan, bchan_statistics_t *bsp)
 static isdn_link_t *
 isic_ret_linktab(int unit, int channel)
 {
-#ifdef __FreeBSD__
-	struct isic_softc *sc = &isic_sc[unit];
-#else
-	struct isic_softc *sc = isic_find_sc(unit);
-#endif
-	isic_Bchan_t *chan = &sc->sc_chan[channel];
+	struct l1_softc *sc = &l1_sc[unit];
+	l1_bchan_state_t *chan = &sc->sc_chan[channel];
 
 	return(&chan->isdn_linktab);
 }
@@ -397,12 +354,8 @@ isic_ret_linktab(int unit, int channel)
 static void
 isic_set_linktab(int unit, int channel, drvr_link_t *dlt)
 {
-#ifdef __FreeBSD__
-	struct isic_softc *sc = &isic_sc[unit];
-#else
-	struct isic_softc *sc = isic_find_sc(unit);
-#endif
-	isic_Bchan_t *chan = &sc->sc_chan[channel];
+	struct l1_softc *sc = &l1_sc[unit];
+	l1_bchan_state_t *chan = &sc->sc_chan[channel];
 
 	chan->drvr_linktab = dlt;
 }
@@ -411,9 +364,9 @@ isic_set_linktab(int unit, int channel, drvr_link_t *dlt)
  *	initialize our local linktab
  *---------------------------------------------------------------------------*/
 void
-isic_init_linktab(struct isic_softc *sc)
+isic_init_linktab(struct l1_softc *sc)
 {
-	isic_Bchan_t *chan = &sc->sc_chan[HSCX_CH_A];
+	l1_bchan_state_t *chan = &sc->sc_chan[HSCX_CH_A];
 	isdn_link_t *lt = &chan->isdn_linktab;
 
 	/* make sure the hardware driver is known to layer 4 */

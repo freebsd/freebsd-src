@@ -27,52 +27,33 @@
  *	i4b_l1.c - isdn4bsd layer 1 handler
  *	-----------------------------------
  *
- * $FreeBSD$ 
+ *	$Id: i4b_l1.c,v 1.2 1999/12/13 21:25:26 hm Exp $ 
  *
- *      last edit-date: [Sun Feb 14 10:28:10 1999]
+ * $FreeBSD$
+ *
+ *      last edit-date: [Mon Dec 13 22:01:55 1999]
  *
  *---------------------------------------------------------------------------*/
 
-#ifdef __FreeBSD__
 #include "isic.h"
-#else
-#define	NISIC	1	/* don't bother */
-#endif
+
 #if NISIC > 0
 
 #include <sys/param.h>
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
 #include <sys/ioccom.h>
-#else
-#include <sys/ioctl.h>
-#endif
 #include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
-#include <machine/stdarg.h>
-
-#ifdef __FreeBSD__
-#include <machine/clock.h>
-#include <i386/isa/isa_device.h>
-#else
-#ifndef __bsdi__
-#include <machine/bus.h>
-#endif
-#include <sys/device.h>
-#endif
-
 #include <sys/socket.h>
+
+#include <machine/stdarg.h>
+#include <machine/clock.h>
+
 #include <net/if.h>
 
-#ifdef __FreeBSD__
 #include <machine/i4b_debug.h>
 #include <machine/i4b_ioctl.h>
 #include <machine/i4b_trace.h>
-#else
-#include <i4b/i4b_debug.h>
-#include <i4b/i4b_ioctl.h>
-#include <i4b/i4b_trace.h>
-#endif
 
 #include <i4b/layer1/i4b_l1.h>
 #include <i4b/layer1/i4b_isac.h>
@@ -145,12 +126,7 @@ ph_data_req(int unit, struct mbuf *m, int freeflag)
 {
 	u_char cmd;
 	int s;
-	
-#ifdef __FreeBSD__
-	struct isic_softc *sc = &isic_sc[unit];
-#else
-	struct isic_softc *sc = isic_find_sc(unit);
-#endif
+	struct l1_softc *sc = &l1_sc[unit];
 
 #ifdef NOTDEF
 	DBGL1(L1_PRIM, "PH-DATA-REQ", ("unit %d, freeflag=%d\n", unit, freeflag));
@@ -269,13 +245,7 @@ ph_data_req(int unit, struct mbuf *m, int freeflag)
 static int
 ph_activate_req(int unit)
 {
-
-#ifdef __FreeBSD__
-	struct isic_softc *sc = &isic_sc[unit];
-#else
-	struct isic_softc *sc = isic_find_sc(unit);
-#endif
-
+	struct l1_softc *sc = &l1_sc[unit];
 	DBGL1(L1_PRIM, "PH-ACTIVATE-REQ", ("unit %d\n", unit));
 	isic_next_state(sc, EV_PHAR);
 	return(0);
@@ -287,12 +257,8 @@ ph_activate_req(int unit)
 static int
 i4b_mph_command_req(int unit, int command, int parm)
 {
-#ifdef __FreeBSD__
-	struct isic_softc *sc = &isic_sc[unit];
-#else
-	struct isic_softc *sc = isic_find_sc(unit);
-#endif
-	
+	struct l1_softc *sc = &l1_sc[unit];
+
 	switch(command)
 	{
 		case CMR_DOPEN:		/* daemon running */
@@ -314,4 +280,3 @@ i4b_mph_command_req(int unit, int command, int parm)
 }
 
 #endif /* NISIC > 0 */
-

@@ -24,60 +24,42 @@
  *
  *---------------------------------------------------------------------------
  *
- *	isic - I4B Siemens ISDN Chipset Driver for Creatix PnP cards
+ *	isic - I4B Siemens ISDN Chipset Driver for Creatix/Teles PnP
  *	============================================================
  *
- * $FreeBSD$ 
+ *	$Id: i4b_ctx_s0P.c,v 1.4 1999/12/13 21:25:26 hm Exp $ 
  *
- *      last edit-date: [Sun Feb 14 10:25:33 1999]
+ * $FreeBSD$
+ *
+ *	last edit-date: [Mon Dec 13 21:59:23 1999]
+ *
+ *	Note: this driver works for the Creatix ISDN S0-16 P+P and
+ *	      for the Teles S0/16.3 PnP card. Although they are not
+ *            the same hardware and don't share the same PnP config
+ *            information, once the base addresses are set, the
+ *            offsets are same and therefore they can use the same
+ *            driver.
  *
  *---------------------------------------------------------------------------*/
-
-#ifdef __FreeBSD__
 
 #include "isic.h"
 #include "opt_i4b.h"
 
-#else
-
-#define	NISIC	1
-
-#endif
-
-#define NPNP	1
-
-#if (NISIC > 0) && (NPNP > 0) && defined(CRTX_S0_P)
+#if (NISIC > 0) && (defined(CRTX_S0_P) || defined(TEL_S0_16_3_P))
 
 #include <sys/param.h>
-
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
 #include <sys/ioccom.h>
-#else
-#include <sys/ioctl.h>
-#endif
-
 #include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
-
-#ifdef __FreeBSD__
-#include <machine/clock.h>
-#include <i386/isa/isa_device.h>
-#else
-#include <machine/bus.h>
-#include <sys/device.h>
-#endif
-
 #include <sys/socket.h>
+
+#include <machine/clock.h>
+
 #include <net/if.h>
 
-#ifdef __FreeBSD__
 #include <machine/i4b_debug.h>
 #include <machine/i4b_ioctl.h>
-#else
-#include <i4b/i4b_debug.h>
-#include <i4b/i4b_ioctl.h>
-#endif
 
 #include <i4b/include/i4b_global.h>
 
@@ -88,186 +70,156 @@
 #include <i4b/include/i4b_l1l2.h>
 #include <i4b/include/i4b_mbuf.h>
 
-#ifndef __FreeBSD__
-static u_int8_t ctxs0P_read_reg __P((struct isic_softc *sc, int what, bus_size_t offs));
-static void ctxs0P_write_reg __P((struct isic_softc *sc, int what, bus_size_t offs, u_int8_t data));
-static void ctxs0P_read_fifo __P((struct isic_softc *sc, int what, void *buf, size_t size));
-static void ctxs0P_write_fifo __P((struct isic_softc *sc, int what, const void *data, size_t size));
-void isic_attach_Cs0P(struct isic_softc *sc);
-#endif
-
-#ifdef __FreeBSD__
-/* #include <i386/isa/pnp.h> */
-extern void isicintr ( int unit );
-#endif
+/*---------------------------------------------------------------------------*
+ *      Creatix / Teles PnP ISAC get fifo routine
+ *---------------------------------------------------------------------------*/
+static void
+ctxs0P_read_fifo(struct l1_softc *sc, int what, void *buf, size_t size)
+{
+	bus_space_tag_t    t = rman_get_bustag(sc->sc_resources.io_base[what+2]);
+	bus_space_handle_t h = rman_get_bushandle(sc->sc_resources.io_base[what+2]);
+	bus_space_read_multi_1(t,h,0x3e,buf,size);
+}
 
 /*---------------------------------------------------------------------------*
- *      Creatix ISDN-S0 P&P ISAC get fifo routine
+ *      Creatix / Teles PnP ISAC put fifo routine
  *---------------------------------------------------------------------------*/
-#ifdef __FreeBSD__
-
-static void             
-ctxs0P_read_fifo(void *buf, const void *base, size_t len)
-{
-        insb((int)base + 0x3e, (u_char *)buf, (u_int)len);
-}
-
-#else
-
 static void
-ctxs0P_read_fifo(struct isic_softc *sc, int what, void *buf, size_t size)
+ctxs0P_write_fifo(struct l1_softc *sc, int what, void *buf, size_t size)
 {
-        bus_space_tag_t t = sc->sc_maps[what+1].t;
-        bus_space_handle_t h = sc->sc_maps[what+1].h;
-        bus_size_t o = sc->sc_maps[what+1].offset;
-        bus_space_read_multi_1(t, h, o + 0x3e, buf, size);
+	bus_space_tag_t    t = rman_get_bustag(sc->sc_resources.io_base[what+2]);
+	bus_space_handle_t h = rman_get_bushandle(sc->sc_resources.io_base[what+2]);
+	bus_space_write_multi_1(t,h,0x3e,buf,size);
 }
-
-#endif
 
 /*---------------------------------------------------------------------------*
- *      Creatix ISDN-S0 P&P ISAC put fifo routine
+ *      Creatix / Teles PnP ISAC put register routine
  *---------------------------------------------------------------------------*/
-#ifdef __FreeBSD__
-
 static void
-ctxs0P_write_fifo(void *base, const void *buf, size_t len)
+ctxs0P_write_reg(struct l1_softc *sc, int what, bus_size_t offs, u_int8_t data)
 {
-        outsb((int)base + 0x3e, (u_char *)buf, (u_int)len);
+	bus_space_tag_t    t = rman_get_bustag(sc->sc_resources.io_base[what+2]);
+	bus_space_handle_t h = rman_get_bushandle(sc->sc_resources.io_base[what+2]);
+	bus_space_write_1(t,h,offs,data);
 }
-
-#else
-
-static void
-ctxs0P_write_fifo(struct isic_softc *sc, int what, const void *buf, size_t size)
-{
-        bus_space_tag_t t = sc->sc_maps[what+1].t;
-        bus_space_handle_t h = sc->sc_maps[what+1].h;
-        bus_size_t o = sc->sc_maps[what+1].offset;
-        bus_space_write_multi_1(t, h, o + 0x3e, (u_int8_t*)buf, size);
-}
-#endif
 
 /*---------------------------------------------------------------------------*
- *      Creatix ISDN-S0 P&P ISAC put register routine
+ *	Creatix / Teles PnP ISAC get register routine
  *---------------------------------------------------------------------------*/
-#ifdef __FreeBSD__
-
-static void
-ctxs0P_write_reg(u_char *base, u_int offset, u_int v)
-{
-        outb((int)base + offset, (u_char)v);
-}
-
-#else
-
-static void
-ctxs0P_write_reg(struct isic_softc *sc, int what, bus_size_t offs, u_int8_t data)
-{
-	bus_space_tag_t t = sc->sc_maps[what+1].t;
-	bus_space_handle_t h = sc->sc_maps[what+1].h;
-	bus_size_t o = sc->sc_maps[what+1].offset;
-	bus_space_write_1(t, h, o + offs, data);
-}
-#endif
-
-/*---------------------------------------------------------------------------*
- *	Creatix ISDN-S0 P&P ISAC get register routine
- *---------------------------------------------------------------------------*/
-#ifdef __FreeBSD__
-
-static u_char
-ctxs0P_read_reg(u_char *base, u_int offset)
-{
-	return (inb((int)base + offset));
-}
-
-#else
-
 static u_int8_t
-ctxs0P_read_reg(struct isic_softc *sc, int what, bus_size_t offs)
+ctxs0P_read_reg(struct l1_softc *sc, int what, bus_size_t offs)
 {
-	bus_space_tag_t t = sc->sc_maps[what+1].t;
-	bus_space_handle_t h = sc->sc_maps[what+1].h;
-	bus_size_t o = sc->sc_maps[what+1].offset;
-	return bus_space_read_1(t, h, o + offs);
+	bus_space_tag_t    t = rman_get_bustag(sc->sc_resources.io_base[what+2]);
+	bus_space_handle_t h = rman_get_bushandle(sc->sc_resources.io_base[what+2]);
+	return bus_space_read_1(t,h,offs);
 }
 
-#endif
-
-#ifdef __FreeBSD__
-
 /*---------------------------------------------------------------------------*
- *	isic_probe_Cs0P - probe for Creatix ISDN-S0 P&P and compatibles
+ *	isic_attach_Cs0P - attach Creatix / Teles PnP
  *---------------------------------------------------------------------------*/
 int
-isic_probe_Cs0P(struct isa_device *dev, unsigned int iobase2)
+isic_attach_Cs0P(device_t dev)
 {
-	struct isic_softc *sc = &isic_sc[dev->id_unit];
+	u_int32_t iobase1;
+	u_int32_t iobase2;
+	int unit = device_get_unit(dev);
+	struct l1_softc *sc = &l1_sc[unit];	
+	bus_space_tag_t t;
+	bus_space_handle_t h;
+
+	/*
+	 * this card needs a second io_base,
+	 * free resources if we don't get it
+	 */
+
+	sc->sc_resources.io_rid[1] = 1;
 	
-	/* check max unit range */
+	if(!(sc->sc_resources.io_base[1] =
+			bus_alloc_resource(dev, SYS_RES_IOPORT,
+					&sc->sc_resources.io_rid[1],
+					0UL, ~0UL, 1, RF_ACTIVE)))
+	{
+		printf("isic%d: Could not get io area 1 for Creatix / Teles PnP!\n", unit);
+		isic_detach_common(dev);
+		return ENXIO;
+	}
+
+	/* remember the io base addresses */
 	
-	if(dev->id_unit >= ISIC_MAXUNIT)
-	{
-		printf("isic%d: Error, unit %d >= ISIC_MAXUNIT for Creatix ISDN-S0 P&P!\n",
-				dev->id_unit, dev->id_unit);
-		return(0);	
-	}	
-	sc->sc_unit = dev->id_unit;
-
-	/* check IRQ validity */
-
-	switch(ffs(dev->id_irq) - 1)
-	{
-		case 3:
-		case 5:
-		case 7:
-		case 10:
-		case 11:
-		case 12:
-			break;
-			
-		default:
-			printf("isic%d: Error, invalid IRQ [%d] specified for Creatix ISDN-S0 P&P!\n",
-				dev->id_unit, ffs(dev->id_irq)-1);
-			return(0);
-			break;
-	}
-	sc->sc_irq = dev->id_irq;
-
-	/* check if memory addr specified */
-
-	if(dev->id_maddr)
-	{
-		printf("isic%d: Error, mem addr 0x%lx specified for Creatix ISDN-S0 P&P!\n",
-			dev->id_unit, (u_long)dev->id_maddr);
-		return(0);
-	}
-	dev->id_msize = 0;
+	iobase1 = rman_get_start(sc->sc_resources.io_base[0]);
+	iobase2 = rman_get_start(sc->sc_resources.io_base[1]);
 	
-	if(iobase2 == 0)
+	/*
+	 * because overlapping resources are invalid,
+	 * release the first io port resource
+	 */
+	
+        bus_release_resource(dev, SYS_RES_IOPORT, sc->sc_resources.io_rid[0],
+			sc->sc_resources.io_base[0]);
+	
+	/* set and allocate a base io address for the ISAC chip */
+	
+	sc->sc_resources.io_rid[2] = 2;
+	
+	bus_set_resource(dev, SYS_RES_IOPORT, 2, iobase1-0x20, 0x40);
+	
+	if(!(sc->sc_resources.io_base[2] =
+		bus_alloc_resource(dev, SYS_RES_IOPORT,
+				   &sc->sc_resources.io_rid[2],
+				   0ul, ~0ul, 1, RF_ACTIVE)))
 	{
-		printf("isic%d: Error, iobase2 is 0 for Creatix ISDN-S0 P&P!\n",
-			dev->id_unit);
-		return(0);
+		printf("isic%d: Could not get io area 2 for Creatix / Teles PnP!\n", unit);
+		isic_detach_common(dev);
+		return ENXIO;
 	}
 
-	/* check if we got an iobase */
+	/*
+	 * because overlapping resources are invalid,
+	 * release the second io port resource
+	 */
 
-	switch(dev->id_iobase)
+        bus_release_resource(dev, SYS_RES_IOPORT, sc->sc_resources.io_rid[1],
+			sc->sc_resources.io_base[1]);
+
+	/* set and allocate a resource for the HSCX channel A */
+	
+	sc->sc_resources.io_rid[3] = 3;
+
+/*XXX*/	/* FIXME !!!!
+	 * the width of the resource is too small, there are accesses
+	 * to it with an offset of 0x3e into the next resource. anyway,
+         * it seems to work and i have no idea how to do 2 resources
+	 * overlapping each other.
+	 */
+
+	bus_set_resource(dev, SYS_RES_IOPORT, 3, iobase2-0x20, 0x20);
+
+	if(!(sc->sc_resources.io_base[3] =
+		bus_alloc_resource(dev,SYS_RES_IOPORT,
+				   &sc->sc_resources.io_rid[3],
+				   0ul,~0ul, 1, RF_ACTIVE)))
 	{
-		case 0x120:
-		case 0x180:
-/*XXX*/			break;
-			
-		default:
-			printf("isic%d: Error, invalid iobase 0x%x specified for Creatix ISDN-S0 P&P!\n",
-				dev->id_unit, dev->id_iobase);
-			return(0);
-			break;
+		printf("isic%d: Could not get io area 3 for Creatix / Teles PnP!\n", unit);
+		isic_detach_common(dev);
+		return ENXIO;
 	}
-	sc->sc_port = dev->id_iobase;
 
+	/* set and allocate a resources for the HSCX channel B */
+	
+	sc->sc_resources.io_rid[4] = 4;
+	
+	bus_set_resource(dev, SYS_RES_IOPORT, 4, iobase2, 0x40);
+					
+	if(!(sc->sc_resources.io_base[4] =
+		bus_alloc_resource(dev,SYS_RES_IOPORT,
+				   &sc->sc_resources.io_rid[4],
+				   0ul, ~0ul, 1, RF_ACTIVE)))
+	{
+		printf("isic%d: Could not get io area 4 for Creatix / Teles PnP!\n", unit);
+		isic_detach_common(dev);
+		return ENXIO;
+	}
+	
 	/* setup access routines */
 
 	sc->clearirq = NULL;
@@ -287,80 +239,20 @@ isic_probe_Cs0P(struct isa_device *dev, unsigned int iobase2)
 
 	sc->sc_ipac = 0;
 	sc->sc_bfifolen = HSCX_FIFO_LEN;
+
+	/* enable the card */
 	
-	/* setup ISAC and HSCX base addr */
+	t = rman_get_bustag(sc->sc_resources.io_base[2]);
+	h = rman_get_bushandle(sc->sc_resources.io_base[2]);
 	
-	ISAC_BASE   = (caddr_t) dev->id_iobase - 0x20;
-	HSCX_A_BASE = (caddr_t) iobase2 - 0x20;
-	HSCX_B_BASE = (caddr_t) iobase2;
+	bus_space_write_1(t, h, 0x3c, 0);
+	DELAY(SEC_DELAY / 10);
 
-	/* 
-	 * Read HSCX A/B VSTR.  Expected value for the Creatix PnP card is
-	 * 0x05 ( = version 2.1 ) in the least significant bits.
-	 */
+	bus_space_write_1(t, h, 0x3c, 1);
+	DELAY(SEC_DELAY / 10);
 
-	if( ((HSCX_READ(0, H_VSTR) & 0xf) != 0x5) ||
-            ((HSCX_READ(1, H_VSTR) & 0xf) != 0x5) )
-	{
-		printf("isic%d: HSCX VSTR test failed for Creatix PnP\n",
-			dev->id_unit);
-		printf("isic%d: HSC0: VSTR: %#x\n",
-			dev->id_unit, HSCX_READ(0, H_VSTR));
-		printf("isic%d: HSC1: VSTR: %#x\n",
-			dev->id_unit, HSCX_READ(1, H_VSTR));
-		return (0);
-	}                   
-
-	return (1);
+	return 0;
 }
 
-/*---------------------------------------------------------------------------*
- *	isic_attach_s0163P - attach Creatix ISDN-S0 P&P
- *---------------------------------------------------------------------------*/
-int
-isic_attach_Cs0P(struct isa_device *dev, unsigned int iobase2)
-{
-	outb((dev->id_iobase) + 0x1c, 0);
-	DELAY(SEC_DELAY / 10);
-	outb((dev->id_iobase) + 0x1c, 1);
-	DELAY(SEC_DELAY / 10);
-	return(1);
-}
-
-#else /* !__FreeBSD__ */
-
-void
-isic_attach_Cs0P(struct isic_softc *sc)
-{
-	/* init card */
-	bus_space_tag_t t = sc->sc_maps[0].t;
-	bus_space_handle_t h = sc->sc_maps[0].h;
-	bus_space_write_1(t, h, 0x1c, 0);
-	DELAY(SEC_DELAY / 10);
-	bus_space_write_1(t, h, 0x1c, 1);
-	DELAY(SEC_DELAY / 10);
-
-	/* setup access routines */
-
-	sc->clearirq = NULL;
-	sc->readreg = ctxs0P_read_reg;
-	sc->writereg = ctxs0P_write_reg;
-
-	sc->readfifo = ctxs0P_read_fifo;
-	sc->writefifo = ctxs0P_write_fifo;
-
-	/* setup card type */
-	
-	sc->sc_cardtyp = CARD_TYPEP_CS0P;
-
-	/* setup IOM bus type */
-	
-	sc->sc_bustyp = BUS_TYPE_IOM2;
-
-	sc->sc_ipac = 0;
-	sc->sc_bfifolen = HSCX_FIFO_LEN;	
-}
-#endif
-
-#endif /* (NISIC > 0) && (NPNP > 0) && defined(CRTX_S0_P) */
+#endif /* (NISIC > 0) && (defined(CRTX_S0_P) || defined(TEL_S0_16_3_P)) */
 
