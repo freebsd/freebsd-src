@@ -42,7 +42,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.70 1995/02/28 00:20:45 pst Exp $
+ *	$Id: conf.c,v 1.71 1995/03/01 22:29:05 dufault Exp $
  */
 
 #include <sys/param.h>
@@ -332,8 +332,8 @@ struct bdevsw	bdevsw[] =
 	  vndump,	vnsize,		0 },
 	{ scdopen,	scdclose,	scdstrategy,	scdioctl,	/*16*/
 	  scddump,	scdsize,	0 },
-	{ pcdopen,	pcdclose,	pcdstrategy,	pcdioctl,	/*17*/
-	  pcddump,	pcdsize,	0 }
+	{ matcdopen,	matcdclose,	matcdstrategy,	matcdioctl,	/*17*/
+	  matcddump,	matcdsize,	0 }
 /*
  * If you need a bdev major number for a driver that you intend to donate
  * back to the group or release publically, please contact the FreeBSD team
@@ -903,6 +903,22 @@ d_ioctl_t ispyioctl;
 #define ispyioctl       nxioctl
 #endif
 
+#include "matcd.h"
+#if NMATCD > 0
+d_open_t  matcdopen;
+d_close_t matcdclose;
+d_strategy_t matcdstrategy;
+d_ioctl_t matcdioctl;
+d_psize_t matcdsize;
+#define       matcddump       nxdump
+#else
+#define       matcdopen       nxopen
+#define       matcdclose      nxclose
+#define       matcdstrategy   nxstrategy
+#define       matcdioctl      nxioctl
+#define       matcddump       nxdump
+#define       matcdsize       (d_psize_t *)0
+#endif
 
 /* open, close, read, write, ioctl, stop, reset, ttys, select, mmap, strat */
 struct cdevsw	cdevsw[] =
@@ -1054,9 +1070,9 @@ struct cdevsw	cdevsw[] =
 	{ scdopen,	scdclose,	rawread,	nowrite,	/*45*/
 	  scdioctl,	nostop,		nullreset,	nodevtotty,/* sony cd */
 	  seltrue,	nommap,		scdstrategy },
-	{ pcdopen,	pcdclose,	rawread,	nowrite,	/*46*/
-	  pcdioctl,	nostop,		nullreset,	nodevtotty,/* pana cd */
-	  seltrue,	nommap,		pcdstrategy },
+	{ matcdopen,	matcdclose,	rawread,	nowrite,	/*46*/
+	  matcdioctl,	nostop,		nullreset,	nodevtotty,/* SB cd */
+	  seltrue,	nommap,		matcdstrategy },
 	{ gscopen,      gscclose,       gscread,        nowrite,	/*47*/
 	  gscioctl,     nostop,         nullreset,      nodevtotty,/* gsc */
 	  seltrue,      nommap,         NULL },
