@@ -712,10 +712,10 @@ options 	_KPOSIX_VERSION=199309L
 # controller	scbus1 at ahc1 bus 0	# Single bus device
 # controller	scbus3 at ahc2 bus 0	# Twin bus device
 # controller	scbus2 at ahc2 bus 1	# Twin bus device
-# disk 		da0 at scbus0 target 0 unit 0
-# disk		da1 at scbus3 target 1
-# disk		da2 at scbus2 target 3
-# tape		sa1 at scbus1 target 6
+# device 	da0 at scbus0 target 0 unit 0
+# device	da1 at scbus3 target 1
+# device	da2 at scbus2 target 3
+# device	sa1 at scbus1 target 6
 # device	cd0 at scbus?
 
 # "units" (SCSI logical unit number) that are not specified are
@@ -1130,11 +1130,11 @@ controller	amr0		# AMI MegaRAID
 #
 
 controller	wdc0	at isa? port IO_WD1 irq 14
-disk		wd0	at wdc0 drive 0
-disk		wd1	at wdc0 drive 1
+device		wd0	at wdc0 drive 0
+device		wd1	at wdc0 drive 1
 controller	wdc1	at isa? port IO_WD2 irq 15
-disk		wd2	at wdc1 drive 0
-disk		wd3	at wdc1 drive 1
+device		wd2	at wdc1 drive 0
+device		wd3	at wdc1 drive 1
 
 #
 # This option allow you to override the default probe time for IDE
@@ -1175,8 +1175,8 @@ options 	FDC_YE		#XXX newbus broken
 # for people with floppy disks only, so it's "hidden" behind a flag:
 #controller fdc0 at isa? port IO_FD1 flags 1 irq 6 drq 2
 
-disk		fd0	at fdc0 drive 0
-disk		fd1	at fdc0 drive 1
+device		fd0	at fdc0 drive 0
+device		fd1	at fdc0 drive 1
 
 # M-systems DiskOnchip products see src/sys/contrib/dev/fla/README
 device		fla0	at isa?
