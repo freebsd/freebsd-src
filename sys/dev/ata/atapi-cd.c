@@ -488,17 +488,18 @@ acd_geom_access(struct g_provider *pp, int dr, int dw, int de)
     if (!(request = ata_alloc_request()))
 	return ENOMEM;
 
-    request->device = cdp->device;
-    request->driver = cdp;
-    bcopy(ccb, request->u.atapi.ccb, 16);
-    request->flags = ATA_R_ATAPI;
-    request->timeout = 5;
-
     /* wait if drive is not finished loading the medium */
     while (timeout--) {
+	bzero(request, sizeof(struct ata_request));
+	request->device = cdp->device;
+	request->driver = cdp;
+	bcopy(ccb, request->u.atapi.ccb, 16);
+	request->flags = ATA_R_ATAPI;
+	request->timeout = 5;
 	ata_queue_request(request);
 	if (!request->error &&
-	    request->u.atapi.sense_data.sense_key == 2 &&
+	    (request->u.atapi.sense_data.sense_key == 2 ||
+	     request->u.atapi.sense_data.sense_key == 7) &&
 	    request->u.atapi.sense_data.asc == 4 &&
 	    request->u.atapi.sense_data.ascq == 1)
 	    tsleep(&timeout, PRIBIO, "acdld", hz / 2);
