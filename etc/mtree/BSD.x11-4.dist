@@ -27,6 +27,8 @@
             ..
             Xaw
             ..
+            Xcursor
+            ..
             Xft
             ..
             Xmu
@@ -115,6 +117,8 @@
             ..
             fs
             ..
+            icons
+            ..
             lbxproxy
             ..
             locale
@@ -123,6 +127,8 @@
                 armscii-8
                 ..
                 common
+                ..
+                el_GR.UTF-8
                 ..
                 en_US.UTF-8
                 ..
@@ -141,6 +147,8 @@
                 iso8859-1
                 ..
                 iso8859-10
+                ..
+                iso8859-11
                 ..
                 iso8859-13
                 ..
@@ -172,13 +180,21 @@
                 ..
                 ja.SJIS
                 ..
+                ja_JP.UTF-8
+                ..
                 ko
+                ..
+                ko_KR.UTF-8
                 ..
                 koi8-c
                 ..
                 koi8-r
                 ..
                 koi8-u
+                ..
+                lib
+                    common
+                    ..
                 ..
                 microsoft-cp1251
                 ..
@@ -200,6 +216,8 @@
                 ..
                 th_TH.TACTIS
                 ..
+                th_TH.UTF-8
+                ..
                 tscii-0
                 ..
                 vi_VN.tcvn
@@ -219,6 +237,10 @@
                 zh_TW
                 ..
                 zh_TW.Big5
+                ..
+                zh_TW.UTF-8
+                ..
+                zh_TW.big5
                 ..
             ..
             proxymngr
@@ -241,6 +263,8 @@
             ..
             xedit
                 lisp
+                    progmodes
+                    ..
                 ..
             ..
             xinit
@@ -285,6 +309,8 @@
                     ..
                     nec
                     ..
+                    pc
+                    ..
                     sgi
                     ..
                     sony
@@ -322,6 +348,8 @@
         ..
     ..
     libdata
+        pkgconfig
+        ..
     ..
     libexec
     ..
