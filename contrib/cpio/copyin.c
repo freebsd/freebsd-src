@@ -1321,7 +1321,6 @@ create_final_defers ()
   
   for (d = deferments; d != NULL; d = d->next)
     {
-      d = deferments;
       link_res = link_to_maj_min_ino (d->header.c_name, 
 		    d->header.c_dev_maj, d->header.c_dev_maj,
 		    d->header.c_ino);
