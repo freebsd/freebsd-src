@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.84 1998/01/24 02:54:12 eivind Exp $
+ *	$Id: autoconf.c,v 1.85 1998/01/30 11:32:39 phk Exp $
  */
 
 /*
@@ -443,25 +443,26 @@ static	char devname[][2] = {
 static void
 setroot()
 {
-	int  majdev, mindev, unit, part, adaptor;
+	int  majdev, mindev, unit, part, adaptor, slice;
 	dev_t orootdev;
 
 /*printf("howto %x bootdev %x ", boothowto, bootdev);*/
 	if (boothowto & RB_DFLTROOT ||
 	    (bootdev & B_MAGICMASK) != (u_long)B_DEVMAGIC)
 		return;
-	majdev = (bootdev >> B_TYPESHIFT) & B_TYPEMASK;
+	majdev  = B_TYPE(bootdev);
+	adaptor = B_ADAPTOR(bootdev);
+	unit    = B_UNIT(bootdev);
+	slice   = B_SLICE(bootdev);
 	if (majdev > sizeof(devname) / sizeof(devname[0]))
 		return;
-	adaptor = (bootdev >> B_ADAPTORSHIFT) & B_ADAPTORMASK;
-	unit = (bootdev >> B_UNITSHIFT) & B_UNITMASK;
 	if (majdev == FDMAJOR) {
 		part = RAW_PART;
 		mindev = unit << FDUNITSHIFT;
 	}
 	else {
 		part = (bootdev >> B_PARTITIONSHIFT) & B_PARTITIONMASK;
-		mindev = (unit << PARTITIONSHIFT) + part;
+		mindev = (slice << 16) + (unit << PARTITIONSHIFT) + part;
 	}
 	orootdev = rootdev;
 	rootdev = makedev(majdev, mindev);
@@ -471,9 +472,10 @@ setroot()
 	 */
 	if (rootdev == orootdev)
 		return;
-	printf("changing root device to %c%c%d%c\n",
+	printf("changing root device to %c%c%ds%d%c\n",
 		devname[majdev][0], devname[majdev][1],
-		mindev >> (majdev == FDMAJOR ? FDUNITSHIFT : PARTITIONSHIFT),
+		(mindev & 0xf) >> (majdev == FDMAJOR ? FDUNITSHIFT : PARTITIONSHIFT),
+		slice,
 		part + 'a');
 }
 
