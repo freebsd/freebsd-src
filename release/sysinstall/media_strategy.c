@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media_strategy.c,v 1.23 1995/05/26 08:41:43 jkh Exp $
+ * $Id: media_strategy.c,v 1.24 1995/05/26 10:20:47 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -712,7 +712,7 @@ mediaGetFTP(char *dist, char *path)
     struct attribs	*dist_attr;
 
     msgNotify("Attempting to retreive `%s' over FTP", dist);
-    snprintf(buf, PATH_MAX, "/stand/info/%s.inf", dist);
+    snprintf(buf, PATH_MAX, "/stand/info/%s%s.inf", path ? path : "", dist);
     if (!access(buf, R_OK)) {
 	msgDebug("Parsing attributes file for %s\n", dist);
 	dist_attr = safe_malloc(sizeof(struct attribs) * MAX_ATTRIBS);
