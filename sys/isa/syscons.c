@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.107 1995/03/03 08:37:07 sos Exp $
+ *  $Id: syscons.c,v 1.109 1995/03/30 14:32:29 sos Exp $
  */
 
 #include "sc.h"
@@ -1528,7 +1528,7 @@ scan_esc(scr_stat *scp, u_char c)
 	    src = dst + count;
 	    fillw(scp->term.cur_attr | scr_map[0x20], src, n);
 	    mark_for_update(scp, scp->cursor_pos - scp->scr_buf);
-	    mark_for_update(scp, scp->cursor_pos - scp->scr_buf + n);
+	    mark_for_update(scp, scp->cursor_pos - scp->scr_buf + count + n);
 	    break;
 
 	case '@':   /* Insert n chars */
@@ -1541,7 +1541,7 @@ scan_esc(scr_stat *scp, u_char c)
 	    bcopyw(src, dst, count * sizeof(u_short));
 	    fillw(scp->term.cur_attr | scr_map[0x20], src, n);
 	    mark_for_update(scp, scp->cursor_pos - scp->scr_buf);
-	    mark_for_update(scp, scp->cursor_pos - scp->scr_buf + count);
+	    mark_for_update(scp, scp->cursor_pos - scp->scr_buf + count + n);
 	    break;
 
 	case 'S':   /* scroll up n lines */
@@ -1570,7 +1570,7 @@ scan_esc(scr_stat *scp, u_char c)
     	    mark_all(scp);
 	    break;
 
-	case 'X':   /* delete n characters in line */
+	case 'X':   /* erase n characters in line */
 	    n = scp->term.param[0]; if (n < 1)  n = 1;
 	    if (n > scp->xsize - scp->xpos)
 		n = scp->xsize - scp->xpos;
