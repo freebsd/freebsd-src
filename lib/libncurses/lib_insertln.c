@@ -23,6 +23,7 @@ int	y, touched = 0;
 	temp = win->_line[win->_regbottom];
 
 	if (win->_idlok && (insert_line != NULL)) {
+		wrefresh(win);
 		if (back_color_erase) {
 			T(("back_color_erase, turning attributes off"));
 			vidattr(curscr->_attrs = A_NORMAL);
