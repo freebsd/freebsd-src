@@ -408,6 +408,8 @@ printit(struct printer *pp, char *file)
 	 *		R -- laser dpi "resolution"
 	 *              f -- "file name" name of text file to print
 	 *		l -- "file name" text file with control chars
+	 *		o -- "file name" postscript file, according to
+	 *		     the RFC.  Here it is treated like an 'f'.
 	 *		p -- "file name" text file to print with pr(1)
 	 *		t -- "file name" troff(1) file to print
 	 *		n -- "file name" ditroff(1) file to print
@@ -626,7 +628,7 @@ print(struct printer *pp, int format, char *file)
 		pp->tof = 1;
 	}
 	if (pp->filters[LPF_INPUT] == NULL
-	    && (format == 'f' || format == 'l')) {
+	    && (format == 'f' || format == 'l' || format == 'o')) {
 		pp->tof = 0;
 		while ((n = read(fi, buf, BUFSIZ)) > 0)
 			if (write(ofd, buf, n) != n) {
@@ -674,6 +676,14 @@ print(struct printer *pp, int format, char *file)
 			return(ERROR);
 		}
 		fi = p[0];			/* use pipe for input */
+	case 'o':	/* print postscript file */
+		/*
+		 * For now, treat this as a plain-text file, and assume
+		 * the standard LPF_INPUT filter will recognize that it
+		 * is postscript and know what to do with it.  These
+		 * 'o'-file requests could come from MacOS 10.1 systems.
+		 */
+		/* FALLTHROUGH */
 	case 'f':	/* print plain text file */
 		prog = pp->filters[LPF_INPUT];
 		av[1] = width;
