@@ -40,7 +40,6 @@
 .Ft void
 .Fn DEVICE_IDENTIFY "driver_t *driver" "device_t parent"
 .Sh DESCRIPTION
-.Pp
 The identify function for a device is only needed for devices on busses
 that cannot identify their childs independently, e.g. the ISA bus.
 It is used to recognize the device (usually done by accessing non-ambigous
@@ -56,7 +55,6 @@ for each resource (refer to
 .Xr bus_set_resource 9
 for more information).
 .Sh EXAMPLES
-.Pp
 The following pseudo-code shows an example of a function that
 probes for a piece of hardware and registers it and its resource
 (an I/O port) with the kernel.
@@ -77,7 +75,6 @@ foo_identify(driver_t *driver, device_t parent)
 }
 .Ed
 .Sh RETURN VALUES
-.Pp
 Zero is returned on success,
 otherwise an appropriate error is returned (see
 .Xr errno 2 ) .

@@ -78,14 +78,12 @@ to represent an user space address.
 The process context to use for this
 operation is taken from the global variable
 .Va curproc .
-.Pp
 .Sh RETURN VALUES
 Both functions return boolean true if the type of access specified 
 by
 .Fa rw
 is permitted.
 Otherwise boolean false is returned.
-.Pp
 .Sh BUGS
 The process pointer should be passed in as an argument to 
 .Fn useracc .

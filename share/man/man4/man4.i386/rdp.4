@@ -95,7 +95,6 @@ driver as well as a
 driver into the same kernel.  If no RTL 8002 hardware is present, probing
 will eventually detect the printer driver.
 .Sh DIAGNOSTICS
-.Pp
 .Dl "rdp0: configured IRQ (7) cannot be asserted by device"
 .Pp
 The probe routine was unable to get the RTL 8002 asserting an interrupt
@@ -119,7 +118,6 @@ should be tried.
 After initiating a packet transmission, the ethernet adapter didn't
 return a notification of the (successful or failed) transmission.  The
 hardware is likely to be wedged, and is being reset.
-.Pp
 .Sh SEE ALSO
 .Xr ng_ether 4 ,
 .Xr ppc 4 ,
