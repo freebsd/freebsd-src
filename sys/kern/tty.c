@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.74 1995/12/14 08:31:56 phk Exp $
+ * $Id: tty.c,v 1.75 1995/12/14 22:32:39 bde Exp $
  */
 
 /*-
@@ -1166,7 +1166,20 @@ again:
 		CLR(tp->t_state, TS_LOCAL);
 		ttwakeup(tp);
 		if (ISSET(tp->t_state, TS_TBLOCK)) {
+			if (rw & FWRITE)
+				FLUSHQ(&tp->t_outq);
 			ttyunblock(tp);
+
+			/*
+			 * Don't let leave any state that might clobber the
+			 * next line discipline (although we should do more
+			 * to send the START char).  Not clearing the state
+			 * may have caused the "putc to a clist with no
+			 * reserved cblocks" panic/printf.
+			 */
+			CLR(tp->t_state, TS_TBLOCK);
+
+#if 0 /* forget it, sleeping isn't always safe and we don't know when it is */
 			if (ISSET(tp->t_iflag, IXOFF)) {
 				/*
 				 * XXX wait a bit in the hope that the stop
@@ -1186,6 +1199,7 @@ again:
 				CLR(tp->t_state, TS_TBLOCK);
 				goto again;
 			}
+#endif
 		}
 	}
 	if (rw & FWRITE) {
