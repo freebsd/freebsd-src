@@ -47,7 +47,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ie.c,v 1.36 1996/09/06 23:07:36 phk Exp $
+ *	$Id: if_ie.c,v 1.36.2.1 1997/04/14 00:48:45 gibbs Exp $
  */
 
 /*
@@ -71,7 +71,7 @@
 Mode of operation:
 
 We run the 82586 in a standard Ethernet mode.  We keep NFRAMES received
-frame descriptors around for the receiver to use, and NRXBUF associated
+frame descriptors around for the receiver to use, and NRXBUFS associated
 receive buffer descriptors, both in a circular list.  Whenever a frame is
 received, we rotate both lists as necessary.  (The 586 treats both lists
 as a simple queue.)  We also keep a transmit command around so that packets
@@ -172,13 +172,6 @@ iomem and and with 0xffff.
 int ie_debug = IED_RNR;
 #endif
 
-#if 0
-/* these values are defined in net/ethernet.h -acs */
-#define ETHER_MIN_LEN   60
-#define ETHER_MAX_LEN   1512
-#define ETHER_ADDR_LEN  6
-#endif
-
 #define IE_BUF_LEN      ETHER_MAX_LEN    /* length of transmit buffer */
 
 /* Forward declaration */
@@ -227,7 +220,7 @@ static int ietint(int unit, struct ie_softc *ie);
 static int iernr(int unit, struct ie_softc *ie);
 static void start_receiver(int unit);
 static int ieget(int, struct ie_softc *, struct mbuf **,
-		   struct ether_header *, int *);
+		 struct ether_header *, int *);
 static caddr_t setup_rfa(caddr_t ptr, struct ie_softc *ie);
 static int mc_setup(int, caddr_t, volatile struct ie_sys_ctl_block *);
 static void ie_mc_reset(int unit);
@@ -276,12 +269,12 @@ sizeof(transmit buffer desc) == 8
 -----
 1946
 
-NRXBUF * sizeof(rbd) == NRXBUF*(2+2+4+2+2) == NRXBUF*12
-NRXBUF * IE_RBUF_SIZE == NRXBUF*256
+NRXBUFS * sizeof(rbd) == NRXBUFS*(2+2+4+2+2) == NRXBUFS*12
+NRXBUFS * IE_RBUF_SIZE == NRXBUFS*256
 
-NRXBUF should be (16384 - 1946) / (256 + 12) == 14438 / 268 == 53
+NRXBUFS should be (16384 - 1946) / (256 + 12) == 14438 / 268 == 53
 
-With NRXBUF == 48, this leaves us 1574 bytes for another command or
+With NRXBUFS == 48, this leaves us 1574 bytes for another command or
 more buffers.  Another transmit command would be 18+8+1512 == 1538
 ---just barely fits!
 
@@ -290,12 +283,13 @@ With a larger memory, it would be possible to roughly double the number of
 both transmit and receive buffers.
 */
 
-#define NFRAMES         16	        /* number of receive frames */
-#define NRXBUF          48	        /* number of buffers to allocate */
-#define IE_RBUF_SIZE    256	        /* size of each buffer, 
-					        MUST BE POWER OF TWO */
-#define NTXBUF          2               /* number of transmit commands */
-#define IE_TBUF_SIZE    ETHER_MAX_LEN   /* size of transmit buffer */
+#define NFRAMES		8		/* number of receive frames */
+#define NRXBUFS		48	        /* number of buffers to allocate */
+#define IE_RBUF_SIZE	256		/* size of each buffer, 
+					 * MUST BE POWER OF TWO
+					 */
+#define NTXBUFS		2		/* number of transmit commands */
+#define IE_TBUF_SIZE	ETHER_MAX_LEN	/* size of transmit buffer */
 
 /*
  * Ethernet status, per interface.
@@ -315,16 +309,19 @@ static struct ie_softc {
 
   int want_mcsetup;
   int promisc;
+  int nframes;
+  int nrxbufs;
+  int ntxbufs;
   volatile struct ie_int_sys_conf_ptr *iscp;
   volatile struct ie_sys_ctl_block *scb;
-  volatile struct ie_recv_frame_desc *rframes[NFRAMES];
-  volatile struct ie_recv_buf_desc *rbuffs[NRXBUF];
-  volatile char *cbuffs[NRXBUF];
+  volatile struct ie_recv_frame_desc **rframes; /* nframes worth */
+  volatile struct ie_recv_buf_desc **rbuffs;	/* nrxbufs worth */
+  volatile u_char **cbuffs;			/* nrxbufs worth */
   int rfhead, rftail, rbhead, rbtail;
 
-  volatile struct ie_xmit_cmd *xmit_cmds[NTXBUF];
-  volatile struct ie_xmit_buf *xmit_buffs[NTXBUF];
-  u_char *xmit_cbuffs[NTXBUF];
+  volatile struct ie_xmit_cmd **xmit_cmds;	/* ntxbufs worth */
+  volatile struct ie_xmit_buf **xmit_buffs;	/* ntxbufs worth */
+  u_char **xmit_cbuffs;				/* ntxbufs worth */
   int xmit_count;
 
   struct ie_en_addr mcast_addrs[MAXMCAST + 1];
@@ -807,9 +804,38 @@ int
 ieattach(dvp)
      struct isa_device *dvp;
 {
+  int factor;
   int unit = dvp->id_unit;
   struct ie_softc *ie = &ie_softc[unit];
   struct ifnet *ifp = &ie->arpcom.ac_if;
+  size_t allocsize;
+
+  /*
+   * based on the amount of memory we have,
+   * allocate our tx and rx resources.
+   */
+  factor = dvp->id_msize / 16384;
+  ie->nframes = factor * NFRAMES;
+  ie->nrxbufs = factor * NRXBUFS;
+  ie->ntxbufs = factor * NTXBUFS;
+
+  /*
+   * Since all of these guys are arrays of pointers, allocate as one
+   * big chunk and dole out accordingly.
+   */
+  allocsize = sizeof(void *) * (ie->nframes
+			      + (ie->nrxbufs * 2)
+			      + (ie->ntxbufs * 3));
+  ie->rframes = (volatile struct ie_recv_frame_desc **)malloc(allocsize,
+							      M_DEVBUF,
+							      M_NOWAIT);
+  if (ie->rframes == NULL)
+	return (0);
+  ie->rbuffs = (volatile struct ie_recv_buf_desc **)&ie->rframes[ie->nframes];
+  ie->cbuffs = (volatile u_char **)&ie->rbuffs[ie->nrxbufs];
+  ie->xmit_cmds = (volatile struct ie_xmit_cmd **)&ie->cbuffs[ie->nrxbufs];
+  ie->xmit_buffs = (volatile struct ie_xmit_buf **)&ie->xmit_cmds[ie->ntxbufs];
+  ie->xmit_cbuffs = (u_char **)&ie->xmit_buffs[ie->ntxbufs];
 
   ifp->if_softc = ie;
   ifp->if_unit = unit;
@@ -829,7 +855,7 @@ ieattach(dvp)
   ifp->if_hdrlen = 14;
 
   if (ie->hard_type == IE_EE16)
-	  at_shutdown(ee16_shutdown, ie, SHUTDOWN_POST_SYNC);
+	at_shutdown(ee16_shutdown, ie, SHUTDOWN_POST_SYNC);
 
 #if NBPFILTER > 0
   bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
@@ -861,6 +887,10 @@ ieintr(unit)
   status = ie->scb->ie_status;
 
 loop:
+
+  /* Don't ack interrupts which we didn't receive */
+  ie_ack(ie->scb, IE_ST_WHENCE & status, unit, ie->ie_chan_attn);
+
   if(status & (IE_ST_RECV | IE_ST_RNR)) {
 #ifdef DEBUG
     in_ierint++;
@@ -898,9 +928,6 @@ loop:
      && (ie_debug & IED_CNA))
     printf("ie%d: cna\n", unit);
 #endif
-  
-  /* Don't ack interrupts which we didn't receive */
-  ie_ack(ie->scb, IE_ST_WHENCE & status, unit, ie->ie_chan_attn);
 
   if ((status = ie->scb->ie_status) & IE_ST_WHENCE)
 	goto loop;
@@ -953,7 +980,7 @@ ierint(unit, ie)
       }
       break;
     }
-    i = (i + 1) % NFRAMES;
+    i = (i + 1) % ie->nframes;
   }
   return 0;
 }
@@ -1190,7 +1217,7 @@ static inline int ie_packet_len(int unit, struct ie_softc *ie) {
     i = ie->rbuffs[head]->ie_rbd_actual & IE_RBD_LAST;
 
     acc += ie_buflen(ie, head);
-    head = (head + 1) % NRXBUF;
+    head = (head + 1) % ie->nrxbufs;
   } while(!i);
 
   return acc;
@@ -1358,9 +1385,9 @@ nextbuf:
       offset = 0;
       ie->rbuffs[head]->ie_rbd_actual = 0;
       ie->rbuffs[head]->ie_rbd_length |= IE_RBD_LAST;
-      ie->rbhead = head = (head + 1) % NRXBUF;
+      ie->rbhead = head = (head + 1) % ie->nrxbufs;
       ie->rbuffs[ie->rbtail]->ie_rbd_length &= ~IE_RBD_LAST;
-      ie->rbtail = (ie->rbtail + 1) % NRXBUF;
+      ie->rbtail = (ie->rbtail + 1) % ie->nrxbufs;
   }
 
   /*
@@ -1398,8 +1425,8 @@ static void ie_readframe(unit, ie, num)
   ie->rframes[num]->ie_fd_status = 0;
   ie->rframes[num]->ie_fd_last |= IE_FD_LAST;
   ie->rframes[ie->rftail]->ie_fd_last &= ~IE_FD_LAST;
-  ie->rftail = (ie->rftail + 1) % NFRAMES;
-  ie->rfhead = (ie->rfhead + 1) % NFRAMES;
+  ie->rftail = (ie->rftail + 1) % ie->nframes;
+  ie->rfhead = (ie->rfhead + 1) % ie->nframes;
 
   if(rfd.ie_fd_status & IE_FD_OK) {
     if(
@@ -1495,9 +1522,9 @@ static void ie_drop_packet_buffer(int unit, struct ie_softc *ie) {
 
     ie->rbuffs[ie->rbhead]->ie_rbd_length |= IE_RBD_LAST;
     ie->rbuffs[ie->rbhead]->ie_rbd_actual = 0;
-    ie->rbhead = (ie->rbhead + 1) % NRXBUF;
+    ie->rbhead = (ie->rbhead + 1) % ie->nrxbufs;
     ie->rbuffs[ie->rbtail]->ie_rbd_length &= ~IE_RBD_LAST;
-    ie->rbtail = (ie->rbtail + 1) % NRXBUF;
+    ie->rbtail = (ie->rbtail + 1) % ie->nrxbufs;
   } while(!i);
 }
 
@@ -1560,7 +1587,7 @@ iestart(ifp)
     *bptr = MK_16(ie->iomem, ie->xmit_cmds[ie->xmit_count]);
     bptr = &ie->xmit_cmds[ie->xmit_count]->com.ie_cmd_link;
     ie->xmit_count++;
-  } while (ie->xmit_count < NTXBUF);
+  } while (ie->xmit_count < ie->ntxbufs);
 
   /*
    * If we queued up anything for transmission, send it.
@@ -2008,7 +2035,7 @@ static caddr_t setup_rfa(caddr_t ptr, struct ie_softc *ie) {
   int unit = ie - &ie_softc[0];
 
   /* First lay them out */
-  for(i = 0; i < NFRAMES; i++) {
+  for(i = 0; i < ie->nframes; i++) {
     ie->rframes[i] = rfd;
     bzero((char *)rfd, sizeof *rfd); /* ignore cast-qual */
     rfd++;
@@ -2017,13 +2044,13 @@ static caddr_t setup_rfa(caddr_t ptr, struct ie_softc *ie) {
   ptr = (caddr_t)Align((caddr_t)rfd); /* ignore cast-qual */
 
   /* Now link them together */
-  for(i = 0; i < NFRAMES; i++) {
+  for(i = 0; i < ie->nframes; i++) {
     ie->rframes[i]->ie_fd_next =
-      MK_16(MEM, ie->rframes[(i + 1) % NFRAMES]);
+      MK_16(MEM, ie->rframes[(i + 1) % ie->nframes]);
   }
 
   /* Finally, set the EOL bit on the last one. */
-  ie->rframes[NFRAMES - 1]->ie_fd_last |= IE_FD_LAST;
+  ie->rframes[ie->nframes - 1]->ie_fd_last |= IE_FD_LAST;
 
   /*
    * Now lay out some buffers for the incoming frames.  Note that
@@ -2032,7 +2059,7 @@ static caddr_t setup_rfa(caddr_t ptr, struct ie_softc *ie) {
    */
   rbd = (void *)ptr;
 
-  for(i = 0; i < NRXBUF; i++) {
+  for(i = 0; i < ie->nrxbufs; i++) {
     ie->rbuffs[i] = rbd;
     bzero((char *)rbd, sizeof *rbd); /* ignore cast-qual */
     ptr = (caddr_t)Align(ptr + sizeof *rbd);
@@ -2044,19 +2071,19 @@ static caddr_t setup_rfa(caddr_t ptr, struct ie_softc *ie) {
   }
 
   /* Now link them together */
-  for(i = 0; i < NRXBUF; i++) {
-    ie->rbuffs[i]->ie_rbd_next = MK_16(MEM, ie->rbuffs[(i + 1) % NRXBUF]);
+  for(i = 0; i < ie->nrxbufs; i++) {
+    ie->rbuffs[i]->ie_rbd_next = MK_16(MEM, ie->rbuffs[(i + 1) % ie->nrxbufs]);
   }
 
   /* Tag EOF on the last one */
-  ie->rbuffs[NRXBUF - 1]->ie_rbd_length |= IE_RBD_LAST;
+  ie->rbuffs[ie->nrxbufs - 1]->ie_rbd_length |= IE_RBD_LAST;
 
   /* We use the head and tail pointers on receive to keep track of
    * the order in which RFDs and RBDs are used. */
   ie->rfhead = 0;
-  ie->rftail = NFRAMES - 1;
+  ie->rftail = ie->nframes - 1;
   ie->rbhead = 0;
-  ie->rbtail = NRXBUF - 1;
+  ie->rbtail = ie->nrxbufs - 1;
 
   ie->scb->ie_recv_list = MK_16(MEM, ie->rframes[0]);
   ie->rframes[0]->ie_fd_buf_desc = MK_16(MEM, ie->rbuffs[0]);
@@ -2108,6 +2135,7 @@ ieinit(unit)
   struct ie_softc *ie = &ie_softc[unit];
   volatile struct ie_sys_ctl_block *scb = ie->scb;
   caddr_t ptr;
+  int i;
 
   ptr = (caddr_t)Align((caddr_t)scb + sizeof *scb); /* ignore cast-qual */
 
@@ -2161,21 +2189,6 @@ ieinit(unit)
    */
   ie_ack(ie->scb, IE_ST_WHENCE, unit, ie->ie_chan_attn);
 
-  /* take the ee16 out of loopback */
-  {
-	  u_char	bart_config;
-	  
-	  if(ie->hard_type == IE_EE16) {
-		  bart_config = inb(PORT + IEE16_CONFIG);
-		  bart_config &= ~IEE16_BART_LOOPBACK;
-		  /* inb doesn't get bit! */
-		  bart_config |= IEE16_BART_MCS16_TEST; 
-		  outb(PORT + IEE16_CONFIG, bart_config);
-		  ee16_interrupt_enable(ie); 
-		  ee16_chan_attn(unit);
-	  }
-  }
-
   /*
    * Set up the RFA.
    */
@@ -2184,39 +2197,51 @@ ieinit(unit)
   /*
    * Finally, the transmit command and buffer are the last little bit of work.
    */
-  ie->xmit_cmds[0] = (void *)ptr;
-  ptr += sizeof *ie->xmit_cmds[0];
-  ptr = Align(ptr);
-  ie->xmit_buffs[0] = (void *)ptr;
-  ptr += sizeof *ie->xmit_buffs[0];
-  ptr = Align(ptr);
 
-  /* Second transmit command */
-  ie->xmit_cmds[1] = (void *)ptr;
-  ptr += sizeof *ie->xmit_cmds[1];
-  ptr = Align(ptr);
-  ie->xmit_buffs[1] = (void *)ptr;
-  ptr += sizeof *ie->xmit_buffs[1];
-  ptr = Align(ptr);
+  /* transmit command buffers */
+  for (i = 0; i < ie->ntxbufs; i++) {
+    ie->xmit_cmds[i] = (void *)ptr;
+    ptr += sizeof *ie->xmit_cmds[i];
+    ptr = Align(ptr);
+    ie->xmit_buffs[i] = (void *)ptr;
+    ptr += sizeof *ie->xmit_buffs[i];
+    ptr = Align(ptr);
+  }
 
-  /* Both transmit buffers */
-  ie->xmit_cbuffs[0] = (void *)ptr;
-  ptr += IE_BUF_LEN;
-  ptr = Align(ptr);
-  ie->xmit_cbuffs[1] = (void *)ptr;
+  /* transmit buffers */
+  for (i = 0; i < ie->ntxbufs - 1; i++) {
+    ie->xmit_cbuffs[i] = (void *)ptr;
+    ptr += IE_BUF_LEN;
+    ptr = Align(ptr);
+  }
+  ie->xmit_cbuffs[ie->ntxbufs - 1] = (void *)ptr;
 
-  bzero((caddr_t)ie->xmit_cmds[0], sizeof *ie->xmit_cmds[0]); /* ignore */
-  bzero((caddr_t)ie->xmit_buffs[0], sizeof *ie->xmit_buffs[0]);	/* cast-qual */
-  bzero((caddr_t)ie->xmit_cmds[1], sizeof *ie->xmit_cmds[0]); /* warnings */
-  bzero((caddr_t)ie->xmit_buffs[1], sizeof *ie->xmit_buffs[0]);	/* here */
+  for (i = 1; i < ie->ntxbufs; i++) { /* ignore */
+    bzero((caddr_t)ie->xmit_cmds[i], sizeof *ie->xmit_cmds[i]); /* cast-qual */
+    bzero((caddr_t)ie->xmit_buffs[i], sizeof *ie->xmit_buffs[i]);/* warnings */
+  }                                                            /* here */
 
   /*
    * This must be coordinated with iestart() and ietint().
    */
   ie->xmit_cmds[0]->ie_xmit_status = IE_STAT_COMPL;
 
+  /* take the ee16 out of loopback */
+  if(ie->hard_type == IE_EE16) {
+	u_int8_t bart_config;
+	  
+	bart_config = inb(PORT + IEE16_CONFIG);
+	bart_config &= ~IEE16_BART_LOOPBACK;
+	/* inb doesn't get bit! */
+	bart_config |= IEE16_BART_MCS16_TEST; 
+	outb(PORT + IEE16_CONFIG, bart_config);
+	ee16_interrupt_enable(ie); 
+	ee16_chan_attn(unit);
+  }
+
   ie->arpcom.ac_if.if_flags |= IFF_RUNNING; /* tell higher levels we're here */
   start_receiver(unit);
+
   return;
 }
 
