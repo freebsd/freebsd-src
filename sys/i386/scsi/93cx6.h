@@ -20,7 +20,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *      $Id$
+ *      $Id: 93cx6.h,v 1.2 1995/09/05 23:52:00 gibbs Exp $
  */
 
 #include <sys/param.h>
@@ -43,6 +43,7 @@
  */
 int read_seeprom (u_long   offset,
 		  u_short *buf,
+		  u_int	   start_addr,
 		  int      count,
 		  u_short  CS,
 		  u_short  CK,
