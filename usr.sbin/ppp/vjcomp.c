@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vjcomp.c,v 1.16.2.17 1998/05/04 03:00:09 brian Exp $
+ * $Id: vjcomp.c,v 1.17 1998/05/21 21:49:06 brian Exp $
  *
  *  TODO:
  */
@@ -106,7 +106,8 @@ VjUncompressTcp(struct ipcp *ipcp, struct mbuf * bp, u_char type)
      * space for uncompression job.
      */
     bufp = MBUF_CTOP(bp);
-    len = sl_uncompress_tcp(&bufp, len, type, &ipcp->vj.cslc, &ipcp->vj.slstat);
+    len = sl_uncompress_tcp(&bufp, len, type, &ipcp->vj.cslc, &ipcp->vj.slstat,
+                            (ipcp->my_compproto >> 8) & 255);
     if (len <= 0) {
       mbuf_Free(bp);
       bp = NULL;
@@ -124,7 +125,8 @@ VjUncompressTcp(struct ipcp *ipcp, struct mbuf * bp, u_char type)
   rlen = len;
   bufp = work + MAX_HDR;
   bp = mbuf_Read(bp, bufp, rlen);
-  len = sl_uncompress_tcp(&bufp, olen, type, &ipcp->vj.cslc, &ipcp->vj.slstat);
+  len = sl_uncompress_tcp(&bufp, olen, type, &ipcp->vj.cslc, &ipcp->vj.slstat,
+                          (ipcp->my_compproto >> 8) & 255);
   if (len <= 0) {
     mbuf_Free(bp);
     return NULL;
