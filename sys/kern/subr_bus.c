@@ -512,8 +512,7 @@ devclass_alloc_unit(devclass_t dc, int *unitp)
 	device_t *newlist;
 	int newsize;
 
-	newsize = (dc->maxunit ? 2 * dc->maxunit
-		   : MINALLOCSIZE / sizeof(device_t));
+	newsize = roundup((unit + 1), MINALLOCSIZE / sizeof(device_t));
 	newlist = malloc(sizeof(device_t) * newsize, M_BUS, M_NOWAIT);
 	if (!newlist)
 	    return ENOMEM;
