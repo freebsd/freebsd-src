@@ -178,6 +178,10 @@ from the last message sent.  This typically means that the
 receiver is not listening on the remote port.
 .It Bq Er EHOSTDOWN
 The remote host was down.
+.It Bq Er EPIPE
+The socket is unable to send anymore data (SS_CANTSENDMORE has
+been set on the socket). This typically means that the socket
+is not connected.
 .El
 .Sh BUGS
 Because
