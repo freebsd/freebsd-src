@@ -384,6 +384,7 @@ extern int	whichrtqs;	/* Bit mask summary of non-empty Q's. */
 extern int	whichidqs;	/* Bit mask summary of non-empty Q's. */
 
 extern	u_long ps_arg_cache_limit;
+extern	int ps_argsopen;
 
 struct proc *pfind __P((pid_t));	/* Find process by id. */
 struct pgrp *pgfind __P((pid_t));	/* Find process group by id. */
