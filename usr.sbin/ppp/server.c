@@ -186,7 +186,7 @@ server_LocalOpen(struct bundle *bundle, const char *name, mode_t mask)
   int s;
 
   if (server.rm && !strcmp(server.rm, name)) {
-    if (chmod(server.rm, mask))
+    if (chmod(server.rm, 0777 & ~mask))
       log_Printf(LogERROR, "Local: chmod: %s\n", strerror(errno));
     return 0;
   }
