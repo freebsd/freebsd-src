@@ -18,13 +18,12 @@
  * 5. Modifications may be freely made to this file providing the above
  *    conditions are met.
  *
- * $Id: libutil.h,v 1.16 1998/06/05 08:21:33 ache Exp $
+ * $Id: libutil.h,v 1.17 1998/10/07 17:32:49 jkh Exp $
  */
 
 #ifndef _LIBUTIL_H_
 #define	_LIBUTIL_H_
 
-#include <stdio.h>
 #include <sys/cdefs.h>
 
 /* for properties.c */
