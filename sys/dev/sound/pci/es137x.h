@@ -18,7 +18,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: es1370_reg.h,v 1.1 1998/12/31 08:14:27 luigi Exp $
+ * $FreeBSD$
  */
 
 #ifndef _ES1370_REG_H
