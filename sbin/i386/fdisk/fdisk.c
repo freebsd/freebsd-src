@@ -582,14 +582,18 @@ write_s0()
 	 * sector 0. (e.g. empty disk)
 	 */
 	flag = 1;
+#ifdef NOT_NOW
 	if (ioctl(fd, DIOCWLABEL, &flag) < 0)
 		perror("ioctl DIOCWLABEL");
+#endif
 	if (write_disk(0, (char *) mboot.bootinst) == -1) {
 		fprintf(stderr, "%s: Can't write fdisk partition table\n",
 			name);
 		return -1;
 	flag = 0;
+#ifdef NOT_NOW
 	(void) ioctl(fd, DIOCWLABEL, &flag);
+#endif
 	}
 }
 
