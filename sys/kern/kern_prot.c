@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_prot.c	8.6 (Berkeley) 1/21/94
- * $Id: kern_prot.c,v 1.34 1997/08/19 06:00:27 peter Exp $
+ * $Id: kern_prot.c,v 1.35 1997/10/12 20:23:54 phk Exp $
  */
 
 /*
@@ -810,12 +810,8 @@ void
 crfree(cr)
 	struct ucred *cr;
 {
-	int s;
-
-	s = splimp();				/* ??? */
 	if (--cr->cr_ref == 0)
 		FREE((caddr_t)cr, M_CRED);
-	(void) splx(s);
 }
 
 /*
