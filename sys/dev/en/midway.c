@@ -986,7 +986,7 @@ en_start(struct ifnet *ifp)
 		if (ATM_PH_FLAGS(ap) & ATM_PH_AAL5)
 			flags |= TX_AAL5;
 
-		if (ATM_PH_VPI(ap) != 0 || vci > MID_N_VC) {
+		if (ATM_PH_VPI(ap) != 0 || vci >= MID_N_VC) {
 			DBG(sc, TX, ("output vpi=%u, vci=%u -- drop",
 			    ATM_PH_VPI(ap), vci));
 			m_freem(m);
