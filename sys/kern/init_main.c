@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.50 1996/10/20 21:01:46 alex Exp $
+ * $Id: init_main.c,v 1.51 1996/10/28 11:34:42 phk Exp $
  */
 
 #include "opt_rlimit.h"
@@ -101,7 +101,7 @@ struct	timeval runtime;
  * Promiscuous argument pass for start_init()
  *
  * This is a kludge because we use a return from main() rather than a call
- * to a new reoutine in locore.s to kick the kernel alive from locore.s.
+ * to a new routine in locore.s to kick the kernel alive from locore.s.
  */
 static void	*init_framep;
 
