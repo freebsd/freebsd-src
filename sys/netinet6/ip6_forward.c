@@ -495,11 +495,11 @@ ip6_forward(m, srcrt)
 #endif
 		{
 			printf("ip6_forward: outgoing interface is loopback. "
-			       "src %s, dst %s, nxt %d, rcvif %s, outif %s\n",
-			       ip6_sprintf(&ip6->ip6_src),
-			       ip6_sprintf(&ip6->ip6_dst),
-			       ip6->ip6_nxt, if_name(m->m_pkthdr.rcvif),
-			       if_name(rt->rt_ifp));
+				"src %s, dst %s, nxt %d, rcvif %s, outif %s\n",
+				ip6_sprintf(&ip6->ip6_src),
+				ip6_sprintf(&ip6->ip6_dst),
+				ip6->ip6_nxt, if_name(m->m_pkthdr.rcvif),
+				if_name(rt->rt_ifp));
 		}
 
 		/* we can just use rcvif in forwarding. */
