@@ -153,6 +153,7 @@ g_vfs_open(struct vnode *vp, struct g_consumer **cpp, const char *fsname, int wr
 	bo->bo_ops = g_vfs_bufops;
 	bo->bo_private = cp;
 	bo->bo_bsize = pp->sectorsize;
+	gp->softc = bo;
 
 	return (error);
 }
@@ -161,9 +162,12 @@ void
 g_vfs_close(struct g_consumer *cp, struct thread *td)
 {
 	struct g_geom *gp;
+	struct bufobj *bo;
 
 	g_topology_assert();
 
 	gp = cp->geom;
+	bo = gp->softc;
+	bufobj_invalbuf(bo, V_SAVE, td, 0, 0);
 	g_wither_geom_close(gp, ENXIO);
 }
