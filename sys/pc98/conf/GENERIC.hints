@@ -35,45 +35,6 @@ hint.aic.0.port="0x1840"
 hint.aic.0.irq="5"
 hint.aic.0.flags="0x10000"
 
-# PC-9801-92
-#hint.bs.0.at="isa"
-#hint.bs.0.port="0xCC0"
-#hint.bs.0.irq="5"
-#hint.bs.0.drq="3"
-#hint.bs.0.flags="0"
-# SC-98
-#hint.bs.0.at="isa"
-#hint.bs.0.port="0xCC0"
-#hint.bs.0.irq="5"
-#hint.bs.0.drq="3"
-#hint.bs.0.flags="0x10000"
-# HA-55BS2 and later
-#hint.bs.0.at="isa"
-#hint.bs.0.port="0xCC0"
-#hint.bs.0.irq="5"
-#hint.bs.0.drq="3"
-#hint.bs.0.flags="0x20000"
-# ELECOM type
-#hint.bs.0.at="isa"
-#hint.bs.0.port="0xCC0"
-#hint.bs.0.irq="5"
-#hint.bs.0.drq="3"
-#hint.bs.0.flags="0x30000"
-# SMIT
-#hint.bs.0.at="isa"
-#hint.bs.0.port="0xCC0"
-#hint.bs.0.irq="5"
-#hint.bs.0.drq="3"
-#hint.bs.0.maddr="0xdd000"
-#hint.bs.0.iosiz="0x1000"
-#hint.bs.0.flags="0x40000"
-# Logitec LHA-20x
-#hint.bs.0.at="isa"
-#hint.bs.0.port="0xCC0"
-#hint.bs.0.irq="5"
-#hint.bs.0.drq="3"
-#hint.bs.0.flags="0x50000"
-
 # GENERIC
 hint.ct.0.at="isa"
 # SC98
