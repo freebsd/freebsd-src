@@ -1,237 +1,198 @@
-''' $Header
-'''
-.de Sh
-.br
-.ne 5
-.PP
-\fB\\$1\fR
-.PP
-..
-.de Sp
-.if t .sp .5v
-.if n .sp
-..
-.de Ip
-.br
-.ie \\n.$>=3 .ne \\$3
-.el .ne 3
-.IP "\\$1" \\$2
-..
-'''
-'''     Set up \*(-- to give an unbreakable dash;
-'''     string Tr holds user defined translation string.
-'''     Greek uppercase omega is used as a dummy character.
-'''
-.tr \(*W-|\(bv\*(Tr
-.ie n \{\
-.ds -- \(*W-
-.if (\n(.H=4u)&(1m=24u) .ds -- \(*W\h'-12u'\(*W\h'-12u'-\" diablo 10 pitch
-.if (\n(.H=4u)&(1m=20u) .ds -- \(*W\h'-12u'\(*W\h'-8u'-\" diablo 12 pitch
-.ds L" ""
-.ds R" ""
-.ds L' '
-.ds R' '
-'br\}
-.el\{\
-.ds -- \(em\|
-.tr \*(Tr
-.ds L" ``
-.ds R" ''
-.ds L' `
-.ds R' '
-'br\}
-.TH XNTPDC 8 LOCAL
-.SH NAME
-xntpdc - query/control program for the Network Time Protocol daemon
-.SH SYNOPSIS
-.B xntpdc
-[
-.B -ilnps
-] [
-.B -c
-.I command
-] [
-.I host
-] [
-.I ...
-]
-.SH DESCRIPTION
-.I Xntpdc
+.\"
+.\"	$Id$
+.\"
+.Dd December 21, 1993
+.Dt XNTPDC 8
+.Os
+.Sh NAME
+.Nm xntpdc
+.Nd query/control program for the Network Time Protocol daemon
+.Sh SYNOPSIS
+.Nm xntpdc
+.Op Fl ilnps
+.Op Fl c Ar command
+.Op Ar host ...
+.Sh DESCRIPTION
+.Nm Xntpdc
 is used to query the
-.IR xntpd (8)
+.Xr xntpd 8
 daemon about its current state and to request changes in that state. The
 program may be run either in interactive mode or controlled using
 command line arguments. Extensive state and statistics information is
 available through the
-.I xntpdc
+.Nm
 interface. In addition, nearly all the configuration options which can
 be specified at start up using
-.IR xntpd 's
+.Nm xntpd Ns 's
 configuration file may also be specified at run time using
-.IR xntpdc .
-.PP
+.Nm Ns .
+.Pp
 If one or more request options is included on the command line when
-.I xntpdc
-is executed, each of the requests will be sent to the NTP servers
+.Nm
+is executed, each of the requests will be sent to the
+.Tn NTP
+servers
 running on each of the hosts given as command line arguments, or on
-.I localhost
+.Ar localhost
 by default. If no request options are given,
-.I xntpdc
+.Nm
 will attempt to read commands from the standard input and execute these
-on the NTP server running on the first host given on the command line,
+on the
+.Tn NTP
+server running on the first host given on the command line,
 again defaulting to
-.I localhost
+.Ar localhost
 when no other host is specified.
-.I Xntpdc
+.Nm Xntpdc
 will prompt for commands if the standard input is a terminal device.
-.PP
-.I Xntpdc
-uses NTP mode 7 packets to communicate with the NTP server, and hence
+.Pp
+.Nm Xntpdc
+uses
+.Tn NTP
+mode 7 packets to communicate with the
+.Tn NTP
+server, and hence
 can be used to query any compatable server on the network which permits
-it. Note that since NTP is a UDP protocol this communication will be
+it. Note that since
+.Tn NTP
+is a UDP protocol this communication will be
 somewhat unreliable, especially over large distances in terms of network
 topology.
-.I Xntpdc
+.Nm Xntpdc
 makes no attempt to retransmit requests, and will time requests out if
 the remote host is not heard from within a suitable time out time.
-.PP
+.Pp
 Command line options are described following. Specifying a command line
 option other than
-.B -i
+.Fl i
 or
-.B -n
+.Fl n
 will cause the specified query (queries) to be sent to the indicated
 host(s) immediately. Otherwise,
-.I xntpdc
+.Nm
 will attempt to read interactive format commands from the standard
 input.
-.Ip -c 8
+.Bl -tag -width indent
+.It Fl c
 The following argument is interpreted as an interactive format command
 and is added to the list of commands to be executed on the specified
 host(s). Multiple
-.B -c
+.Fl c
 options may be given.
-.Ip -i 8
+.It Fl i
 Force
-.I xntpdc
+.Nm
 to operate in interactive mode. Prompts will be written to the standard
 output and commands read from the standard input.
-.Ip -l 8
+.It Fl l
 Obtain a list of peers which are known to the server(s). This switch is
-equivalent to \*(L"-c listpeers\*(R".
-.Ip -n 8
+equivalent to
+.Qq -c listpeers .
+.It Fl n
 Output all host addresses in dotted\-quad numeric format rather than
 converting to the canonical host names.
-.Ip -p 8
+.It Fl p
 Print a list of the peers known to the server as well as a summary of
-their state. This is equivalent to \*(L"-c peers\*(R".
-.Ip -s 8
+their state. This is equivalent to
+.Qq -c peers .
+.It Fl s
 Print a list of the peers known to the server as well as a summary of
 their state, but in a slightly different format than the
-.B -p
-switch. This is equivalent to \*(L"-c dmpeers\*(R".
-.SH INTERNAL COMMANDS
-.PP
+.Fl p
+switch. This is equivalent to
+.Qq -c dmpeers .
+.El
+.Sh INTERNAL COMMANDS
 Interactive format commands consist of a keyword followed by zero to
 four arguments. Only enough characters of the full keyword to uniquely
 identify the command need be typed. The output of a command is normally
 sent to the standard output, but optionally the output of individual
-commands may be sent to a file by appending a \*(L">\*(R", followed by a
+commands may be sent to a file by appending a
+.Qq > ,
+followed by a
 file name, to the command line.
-.PP
+.Pp
 A number of interactive format commands are executed entirely within the
-.I xntpdc
-program itself and do not result in NTP mode 7 requests being sent to a
-server. These are described following.
-.PP
-.B ?
-[
-.I command_keyword
-]
-.PP
-A \*(L"?\*(R" by itself will print a list of all the command keywords
+.Nm
+program itself and do not result in
+.Tn NTP
+mode 7 requests being sent to a
+server. These are described following:
+.Pp
+.Bl -tag -width indent
+.It Xo ?
+.Op Ar command_keyword
+.Xc
+A
+.Em ?
+by itself will print a list of all the command keywords
 known to this incarnation of
-.IR xntpdc .
-A \*(L"?\*(R" followed by a command keyword will print funcation and
+.Nm Ns .
+A
+.Em ?
+followed by a command keyword will print function and
 usage information about the command. This command is probably a better
 source of information about
-.I xntpdc
+.Nm
 than this manual page.
-.PP
-.B help
-[
-.I command_keyword
-]
-.PP
+.It help Ar command_keyword
 A synonym for the
-.B ?
+.Em ?
 command.
-.PP
-.B timeout
-.I millseconds
-.PP
+.It timeout Ar millseconds
 Specify a time out period for responses to server queries. The default
 is about 8000 milliseconds.
-.PP
-.B delay
-.I milliseconds
-.PP
+.It delay Ar milliseconds
 Specify a time interval to be added to timestamps included in requests
 which require authentication. This is used to enable (unreliable) server
 reconfiguration over long delay network paths or between machines whose
 clocks are unsynchronized.
-.PP
-.B host
-.I hostname
-.PP
+.It host Ar hostname
 Set the host to which future queries will be sent.
-.I Hostname
+.Ar Hostname
 may be either a host name or a numeric (dotted quad) dmaddress.
-.PP
-.B keyid
-.I #
-.PP
+.It keyid Ar #
 This command allows the specification of a key number to be used to
 authenticate configuration requests. This must correspond to the key
 number the server has been configured to use for this purpose.
-.PP
-.B passwd
-.PP
+.It passwd
 This command prompts you to type in a password (which will not be
 echoed) which will be used to authenticate configuration requests. The
-password must correspond to the key configured for use by the NTP server
-for this purpose if such requests are to be successful.
-.PP
-.B "hostnames yes|no"
-.PP
-If \*(L"yes\*(R" is specified, host names are printed in information
-displays. If \*(L"no\*(R" is given, numeric addresses are printed
-instead. The default is \*(L"yes\*(R" unless modified using the command
-line
-.B -n
+password must correspond to the key configured for use by the
+.Tn NTP
+server for this purpose if such requests are to be successful.
+.It hostnames Ar yes|no
+If
+.Ar yes
+is specified, host names are printed in information
+displays. If
+.Ar no
+is given, numeric addresses are printed
+instead. The default is
+.Ar yes
+unless modified using the command line
+.Fl n
 switch.
-.PP
-.B quit
-.PP
+.It quit
 Exit
-.IR xntpdc .
-.SH QUERY COMMANDS
-.PP
-Query commands result in NTP mode 7 packets containing requests for
-information being sent to the server. These are \*(L"read\-only\*(R"
+.Nm Ns .
+.El
+.Sh QUERY COMMANDS
+Query commands result in
+.Tn NTP
+mode 7 packets containing requests for
+information being sent to the server. These are
+.Qq read\-only
 commands in that they make no modification of the server configuration
 state.
-.PP
-.B listpeers
-.PP
-Obtains and prints a brief list of the peers for which the server is
+.Bl -tag -width indent
+.It listpeers
+Obtain and print a brief list of the peers for which the server is
 maintaining state. These should include all configured peer associations
 as well as those peers whose stratum is such that they are considered by
-the server to be possible future synchonization candidates.
-.PP
-.B peers
-.PP
-Obtains a list of peers for which the server is maintaining state, along
+the server to be possible future synchronization candidates.
+.It peers
+Obtain a list of peers for which the server is maintaining state, along
 with a summary of that state. Summary information includes the address
 of the remote peer, the local interface address (0.0.0.0 if a local
 address has yet to be determined), the stratum of the remote peer (a
@@ -239,167 +200,171 @@ stratum of 16 indicates the remote peer is unsynchronized), the polling
 interval, in seconds, the reachability register, in octal, and the
 current estimated delay, offset and dispersion of the peer, all in
 seconds. In addition, the character in the left margin indicates the
-mode this peer entry is operating in. A \*(L"+\*(R" denotes symmetric
-active, a \*(L"-\*(R" indicates symmetric passive, a \*(L"=\*(R" means
-the remote server is being polled in client mode, a \*(L"^\*(R"
-indicates that the server is broadcasting to this address, a \*(L"~\*(R"
-denotes that the remote peer is sending broadcasts and a \*(L"*\*(R"
-marks the peer the server is currently synchonizing to.
-.PP
+mode this peer entry is operating in. A
+.Qq +
+denotes symmetric
+active, a
+.Qq -
+indicates symmetric passive, a
+.Qq =
+means
+the remote server is being polled in client mode, a
+.Qq ^
+indicates that the server is broadcasting to this address, a
+.Qq ~
+denotes that the remote peer is sending broadcasts and a
+.Qq *
+marks the peer the server is currently synchronizing to.
+.Pp
 The contents of the host field may be one of four forms. It may be a
 host name, an IP address, a reference clock implementation name with its
-parameter or \*(L"REFCLK(<implementation number>, <parameter>)\*(R". On
-\*(L"hostnames no\*(R" only IP\-addresses will be displayed.
-.PP
-.B dmpeers
-.PP
+parameter or
+.Qq REFCLK(<implementation number>, <parameter>) .
+On
+.Qq hostnames no
+only IP\-addresses will be displayed.
+.It dmpeers
 A slightly different peer summary list. Identical to the output of the
-.B peers
+.Em peers
 command except for the character in the leftmost column. Characters only
 appear beside peers which were included in the final stage of the clock
-selection algorithm. A \*(L".\*(R" indicates that this peer was cast off
-in the falseticker detection, while a \*(L"+\*(R" indicates that the
-peer made it through. A \*(L"*\*(R" denotes the peer the server is
+selection algorithm. A
+.Qq \&.
+indicates that this peer was cast off
+in the falseticker detection, while a
+.Qq +
+indicates that the
+peer made it through. A
+.Qq *
+denotes the peer the server is
 currently synchronizing with.
-.PP
-.B showpeer
-.I peer_address
-[
-.I addr2
-] [
-.I addr3
-] [
-.I addr4
-]
-.PP
-Shows a detailed display of the current peer variables for one or more
-peers. Most of these values are described in the NTP Version 2
-specification.
-.PP
-.B pstats
-.I peer_address
-[
-.I addr2
-] [
-.I addr3
-] [
-.I addr4
-]
-.PP
+.It Xo showpeer
+.Ar peer_address
+.Op Ar addr2
+.Op Ar addr3
+.Op Ar addr4
+.Xc
+Show a detailed display of the current peer variables for one or more
+peers. Most of these values are described in the
+.Tn NTP
+Version 2 specification.
+.It Xo pstats
+.Ar peer_address
+.Op Ar addr2
+.Op Ar addr3
+.Op Ar addr4
+.Xc
 Show per\-peer statistic counters associated with the specified peer(s).
-.PP
-.B clockinfo
-.I clock_peer_address
-[
-.I addr2
-] [
-.I addr3
-] [
-.I addr4
-]
-.PP
+.It Xo clockinfo
+.Ar clock_peer_address
+.Op Ar addr2
+.Op Ar addr3
+.Op Ar addr4
+.Xc
 Obtain and print information concerning a peer clock. The values
 obtained provide information on the setting of fudge factors and other
 clock performance information.
-.PP
-.B kerninfo
-.PP
+.It kerninfo
 Obtain and print kernel phase-lock loop operating parameters. This
 information is available only if the kernel has been specially modified
 for a precision timekeeping function.
-.PP
-.B loopinfo
-[
-.B oneline|multiline
-]
-.PP
+.It loopinfo Op Ar oneline|multiline
 Print the values of selected loop filter variables. The loop filter is
-the part of NTP which deals with adjusting the local system clock. The
-\*(L"offset\*(R" is the last offset given to the loop filter by the
-packet processing code. The \*(L"frequency\*(R" is the frequency error
-of the local clock in parts-per-million (ppm). The \*(L"time_const\*(R"
-controls the "stiffness" of the phase-lock loop and thus the speed at
-which it can adapt to oscillator drift. The \*(L"watchdog timer\*(R"
+the part of
+.Tn NTP
+which deals with adjusting the local system clock. The
+.Qq offset
+is the last offset given to the loop filter by the
+packet processing code. The
+.Qq frequency
+is the frequency error
+of the local clock in parts-per-million (ppm). The
+.Qq time_const
+controls the
+.Qq stiffness
+of the phase-lock loop and thus the speed at
+which it can adapt to oscillator drift. The
+.Qq watchdog timer
 value is the number of seconds which have elapsed since the last sample
-offset was given to the loop filter. The \*(L"oneline\*(R" and
-\*(L"multiline\*(R" options specify the format in which this information
-is to be printed, with \*(L"multiline\*(R" as the default.
-.PP
-.B sysinfo
-.PP
+offset was given to the loop filter. The
+.Ar oneline
+and
+.Ar multiline
+options specify the format in which this information
+is to be printed, with
+.Ar multiline
+as the default.
+.It sysinfo
 Print a variety of system state variables, i.e. state related to the
-local server. All except the last four lines are described in the NTP
-Version 3 specification, RFC 1305. The \*(L"system flags\*(R" show
-various system flags, some of which can be set and cleared by the
-\*(L"enable\*(R" and \*(L"disable\*(R" configuration commands,
-respectively. The \*(L"stability\*(R" is the residual frequency error
+local server. All except the last four lines are described in the
+.Tn NTP
+Version 3 specification, RFC 1305. The
+.Qq system flags
+show various system flags, some of which can be set and cleared by the
+.Qq enable
+and
+.Qq disable
+configuration commands,
+respectively. The
+.Qq stability
+is the residual frequency error
 remaining after the system frequency correction is applied and is
 intended for maintenance and debugging. In most architectures, this
 value will initially decrease from as high as 500 ppm to a nominal value
 in the range .01 to 0.1 ppm. If it remains high for some time after
 starting the daemon, something may be wrong with the local clock, or the
-value of the kernel variable \*(L"tick\*(R" may be incorrect. The
-\*(L"broadcastdelay\*(R" shows the default broadcast delay, as set by
-the \*(L"broadcastdelay\*(R" configuration command, while the
-\*(L"authdelay\*(R" shows the default authentication delay, as set by
-the \*(L"authdelay\*(R" configuration command.
-.PP
-.B sysstats
-.PP
+value of the kernel variable
+.Qq tick
+may be incorrect. The
+.Qq broadcastdelay
+shows the default broadcast delay, as set by
+the
+.Qq broadcastdelay
+configuration command, while the
+.Qq authdelay
+shows the default authentication delay, as set by
+the
+.Qq authdelay
+configuration command.
+.It sysstats
 Print statistics counters maintained in the protocol module.
-.PP
-.B memstats
-.PP
+.It memstats
 Print statistics counters related to memory allocation
 code.
-.PP
-.B iostats
-.PP
+.It iostats
 Print statistics counters maintained in the input\-output module.
-.PP
-.B timerstats
-.PP
+.It timerstats
 Print statistics counters maintained in the timer/event queue support
 code.
-.PP
-.B reslist
-.PP
+.It reslist
 Obtain and print the server's restriction list. This list is (usually)
 printed in sorted order and may help to understand how the restrictions
 are applied.
-.PP
-.B monlist
-[
-.I version
-]
-.PP
+.It monlist Op Ar version
 Obtain and print traffic counts collected and maintained by the monitor
 facility. The version number should not normally need to be specified.
-.PP
-.B clkbug
-.I clock_peer_address
-[
-.I addr2
-] [
-.I addr3
-] [
-.I addr4
-]
-.PP
+.It Xo clkbug
+.Ar clock_peer_address
+.Op Ar addr2
+.Op Ar addr3
+.Op Ar addr4
+.Xc
 Obtain debugging information for a reference clock driver. This
 information is provided only by some clock drivers and is mostly
 undecodable without a copy of the driver source in hand.
-.SH RUNTIME CONFIGURATION REQUESTS
-.PP
+.El
+.Sh RUNTIME CONFIGURATION REQUESTS
 All requests which cause state changes in the server are authenticated
-by the server using a configured NTP key (the facility can also be
+by the server using a configured
+.Tn NTP
+key (the facility can also be
 disabled by the server by not configuring a key). The key number and the
 corresponding key must also be made known to
-.IR xtnpdc .
+.Nm Ns .
 This can be done using the
-.B keyid
+.Em keyid
 and
-.B passwd
+.Em passwd
 commands, the latter of which will prompt at the terminal for a password
 to use as the encryption key. You will also be prompted automatically
 for both the key number and password the first time a command which
@@ -407,7 +372,7 @@ would result in an authenticated request to the server is given.
 Authentication not only provides verification that the requester has
 permission to make such changes, but also gives an extra degree of
 protection again transmission errors.
-.PP
+.Pp
 Authenticated requests always include a timestamp in the packet data,
 which is included in the computation of the authentication code. This
 timestamp is compared by the server to its receive time stamp. If they
@@ -423,309 +388,285 @@ reasonable passwords are chosen, care is taken in the distribution and
 protection of keys and appropriate source address restrictions are
 applied, the run time reconfiguration facility should provide an
 adequate level of security.
-.PP
-The following commands all make authenticated requests.
-.PP
-.B addpeer
-.I peer_address
-[
-.I keyid
-] [
-.I version#
-] [
-.B prefer
-]
-.PP
+.Pp
+The following commands all make authenticated requests:
+.Bl -tag -width indent
+.It Xo addpeer
+.Ar peer_address
+.Op Ar keyid
+.Op Ar version#
+.Op Ar prefer
+.Xc
 Add a configured peer association at the given address and operating in
 symmetric active mode. Note that an existing association with the same
 peer may be deleted when this command is executed, or may simply be
 converted to conform to the new configuration, as appropriate. If the
-optional \*(L"keyid\*(R" is a nonzero integer, all outgoing packets to
+optional
+.Ar keyid
+is a nonzero integer, all outgoing packets to
 the remote server will have an authentication field attached encrypted
 with this key. If the value is 0 (or not given) no authentication will
-be done. The \*(L"version#\*(R" can be 1, 2 or 3 and defaults to 3. The
-\*(L"prefer\*(R" keyword indicates a preferred peer (and thus will be
+be done. The
+.Ar version#
+can be 1, 2 or 3 and defaults to 3. The
+.Ar prefer
+keyword indicates a preferred peer (and thus will be
 used primarily for clock synchronisation if possible). The preferred
 peer also determines the validity of the PPS signal - if the preferred
 peer is suitable for synchronisation so is the PPS signal.
-.PP
-.B addserver
-.I peer_address
-[
-.I keyid
-] [
-.I version#
-] [
-.B prefer
-]
-.PP
+.It Xo addserver
+.Ar peer_address
+.Op Ar keyid
+.Op Ar version#
+.Op Ar prefer
+.Xc
 Identical to the
-.B addpeer
+.Em addpeer
 command, except that the operating mode is client.
-.PP
-.B broadcast
-.I peer_address
-[
-.I keyid
-] [
-.I version#
-]
-.PP
+.It Xo broadcast
+.Ar peer_address
+.Op Ar keyid
+.Op Ar version#
+.Xc
 Identical to the
-.B addpeer
+.Em addpeer
 command, except that the operating mode is broadcast. In this case a
-valid key identifier and key are required. The \*(L"peer_address\*(R"
+valid key identifier and key are required. The
+.Ar peer_address
 parameter can be the broadcast address of the local network or a
-multicast group address assigned to NTP. If a multicast address, a
+multicast group address assigned to
+.Tn NTP .
+If a multicast address, a
 multicast-capable kernel is required.
-.PP
-.B unconfig
-.I peer_address
-[
-.I addr2
-] [
-.I addr3
-] [
-.I addr4
-]
-.PP
+.It Xo unconfig
+.Ar peer_address
+.Op Ar addr2
+.Op Ar addr3
+.Op Ar addr4
+.Xc
 This command causes the configured bit to be removed from the specified
 peer(s). In many cases this will cause the peer association to be
 deleted. When appropriate, however, the association may persist in an
 unconfigured mode if the remote peer is willing to continue on in this
 fashion.
-.PP
-.B fudge
-.I peer_address
-[
-.I time1
-] [
-.I time2
-] [
-.I stratum
-] [
-.I refid
-]
-.PP
+.It Xo fudge
+.Ar peer_address
+.Op Ar time1
+.Op Ar time2
+.Op Ar stratum
+.Op Ar refid
+.Xc
 This command provides a way to set certain data for a reference clock.
 See the source listing for further information.
-.PP
-.B enable auth|bclient|pll|monitor|stats
-[
-.I ...
-]
-.PP
-Provides a way to enable various server options. Flags not mentioned are
-unaffected. The \*(L"auth\*(R" flag causes the server to synchronize
+.It Xo enable
+.Ar auth|bclient|pll|monitor|stats
+.Op Ar ...
+.Xc
+Provide a way to enable various server options. Flags not mentioned are
+unaffected. The
+.Ar auth
+flag causes the server to synchronize
 with unconfigured peers only if the peer has been correctly
 authenticated using a trusted key and key identifier. The default for
-this flag is disable (off). The \*(L"bclient\*(R" flag causes the server
+this flag is disable (off). The
+.Ar bclient
+flag causes the server
 to listen for a message from a broadcast or multicast server, following
 which an association is automatically instantiated for that server. The
-default for this flag is disable (off). The \*(L"pll\*(R" flag enables
+default for this flag is disable (off). The
+.Ar pll
+flag enables
 the server to adjust its local clock, with default enable (on). If not
 set, the local clock free-runs at its intrinsic time and frequency
 offset. This flag is useful in case the local clock is controlled by
-some other device or protocol and NTP is used only to provide
-synchronization to other clients. The \*(L"monitor\*(R" flag enables the
+some other device or protocol and
+.Tn NTP
+is used only to provide
+synchronization to other clients. The
+.Ar monitor
+flag enables the
 monitoring facility (see elsewhere), with default disable (off). The
-\*(L"stats\*(R" flag enables statistics facility filegen (see
+.Ar stats
+flag enables statistics facility filegen (see
 description elsewhere.), with default enable (on).
-.PP
-.B disable auth|bclient|pll|monitor|stats
-[
-.I ...
-]
-.PP
-Provides a way to disable various server options. Flags not mentioned
+.It Xo disable
+.Ar auth|bclient|pll|monitor|stats
+.Op Ar ...
+.Xc
+Provide a way to disable various server options. Flags not mentioned
 are unaffected. The flags presently available are described under the
 enable command.
-.PP
-.B restrict
-.I address
-.I mask
-.I flag
-[
-.I flag
-]
-.PP
-Causes flag(s) to be added to an existing restrict list entry, or adds a
+.It Xo restrict
+.Ar address
+.Ar mask
+.Ar flag
+.Op Ar flag
+.Xc
+Cause flag(s) to be added to an existing restrict list entry, or adds a
 new entry to the list with the specified flag(s). The possible choices
 for the flags arguments are given in the following list:
-.Ip ignore 10
+.Bl -tag -width indent
+.It ignore
 Ignore all packets from hosts which match this entry. If this flag is
 specified neither queries nor time server polls will be responded to.
-.Ip noquery 10
-Ignore all NTP mode 7 packets (i.e. information queries and
+.It noquery
+Ignore all
+.Tn NTP
+mode 7 packets (i.e. information queries and
 configuration requests) from the source. Time service is not affected.
-.Ip nomodify 10
-Ignore all NTP mode 7 packets which attempt to modify the state of the
+.It nomodify
+Ignore all
+.Tn NTP
+mode 7 packets which attempt to modify the state of the
 server (i.e. run time reconfiguration). Queries which return information
 are permitted.
-.Ip notrap 10
+.It notrap
 Decline to provide mode 6 control message trap service to matching
 hosts. The trap service is a subsystem of the mode 6 control message
 protocol which is intended for use by remote event logging programs.
-.Ip lowpriotrap 10
+.It lowpriotrap
 Declare traps set by matching hosts to be low priority. The number of
 traps a server can maintain is limited (the current limit is 3). Traps
 are usually assigned on a first come, first served basis, with later
 trap requestors being denied service. This flag modifies the assignment
 algorithm by allowing low priority traps to be overridden by later
 requests for normal priority traps.
-.Ip noserve 10
-Ignore NTP packets whose mode is other than 7. In effect, time service
+.It noserve
+Ignore
+.Tn NTP
+packets whose mode is other than 7. In effect, time service
 is denied, though queries may still be permitted.
-.Ip nopeer 10
+.It nopeer
 Provide stateless time service to polling hosts, but do not allocate
 peer memory resources to these hosts even if they otherwise might be
 considered useful as future synchronization partners.
-.Ip notrust 10
+.It notrust
 Treat these hosts normally in other respects, but never use them as
 synchronization sources.
-.Ip limited 10
+.It limited
 These hosts are subject to limitation of number of clients from the same
 net. Net in this context refers to the IP notion of net (class A, class
-B, class C, etc.). Only the first \*(L"client_limit\*(R" hosts that have
+B, class C, etc.). Only the first
+.Qq client_limit
+hosts that have
 shown up at the server and that have been active during the last
-\*(L"client_limit_period\*(R" seconds are accepted. Requests from other
+.Qq client_limit_period
+seconds are accepted. Requests from other
 clients from the same net are rejected. Only time request packets are
-taken into account. \*(L"Private\*(R", \*(L"control\*(R", and
-\*(L"broadcast\*(R" packets are not subject to client limitation and
+taken into account.
+.Qq Private ,
+.Qq control ,
+and
+.Qq broadcast
+packets are not subject to client limitation and
 therefore are not contributing to client count. History of clients is
 kept using the monitoring capability of
-.IR xntpd.
+.Xr xntpd 8 .
 Thus, monitoring is active as long as there is a restriction entry with
-the \*(L"limited\*(R" flag. The default value for \*(L"client_limit\*(R"
-is 3. The default value for \*(L"client_limit_period\*(R" is 3600
+the
+.Ar limited
+flag. The default value for
+.Qq client_limit
+is 3. The default value for
+.Qq client_limit_period
+is 3600
 seconds. Currently both variables are not runtime configurable.
-.Ip ntpport 10
+.It ntpport
 This is actually a match algorithm modifier, rather than a restriction
 flag. Its presence causes the restriction entry to be matched only if
-the source port in the packet is the standard NTP UDP port (123). Both
-\*(L"ntpport\*(R" and non\-\*(L"ntpport\*(R" may be specified. The
-\*(L"ntpport\*(R" is considered more specific and is sorted later in the
-list.
-.PP
-.B unrestrict
-.I address
-.I mask
-.I flag
-[
-.I flag
-]
-.PP
+the source port in the packet is the standard
+.Tn NTP
+UDP port (123). Both
+.Em ntpport
+and
+.Pf non\- Em ntpport
+may be specified. The
+.Em ntpport
+is considered more specific and is sorted later in the list.
+.El
+.It Xo unrestrict
+.Ar address
+.Ar mask
+.Ar flag
+.Op Ar flag
+.Xc
 Remove the specified flag(s) from the restrict list entry indicated
 by the
-.I address
+.Ar address
 and
-.I mask
+.Ar mask
 arguments.
-.PP
-.B delrestrict
-.I address
-.I mask
-[
-.B ntpport
-]
-.PP
+.It Xo delrestrict
+.Ar address
+.Ar mask
+.Op Ar ntpport
+.Xc
 Delete the matching entry from the restrict list.
-.PP
-.B "monitor yes|no"
-.PP
+.It monitor Ar yes|no
 Enable or disable the monitoring facility. Note that a
-.B "monitor no"
+.Em monitor Ar no
 command followed by a
-.B "monitor yes"
+.Em monitor Ar yes
 command is a good way of resetting the packet counts.
-.PP
-.B readkeys
-.PP
-Causes the current set of authentication keys to be purged and a new set
+.It readkeys
+Cause the current set of authentication keys to be purged and a new set
 to be obtained by rereading the keys file (which must have been
 specified in the
-.I xntpd
+.Nm xntpd
 configuration file). This allows encryption keys to be changed without
 restarting the server.
-.PP
-.B trustkey
-.I keyid
-[
-.I keyid
-] [
-.I keyid
-] [
-.I keyid
-]
-.PP
-Adds one or more keys to the trusted key list. When authentication is
+.It Xo trustkey
+.Ar keyid
+.Op Ar keyid
+.Op Ar keyid
+.Op Ar keyid
+.Xc
+Add one or more keys to the trusted key list. When authentication is
 enabled, peers whose time is to be trusted must be authenticated using a
 trusted key.
-.PP
-.B untrustkey
-.I keyid
-[
-.I keyid
-] [
-.I keyid
-] [
-.I keyid
-]
-.PP
-Removes one or more keys from the trusted key list.
-.PP
-.B authinfo
-.PP
-Returns information concerning the authentication module, including
+.It Xo untrustkey
+.Ar keyid
+.Op Ar keyid  
+.Op Ar keyid  
+.Op Ar keyid  
+.Xc
+Remove one or more keys from the trusted key list.
+.It authinfo
+Return information concerning the authentication module, including
 known keys and counts of encryptions and decryptions which have been
 done.
-.PP
-.B setprecision
-.I precision_value
-.PP
-Sets the precision which the server advertises to the specified value.
+.It setprecision Ar precision_value
+Set the precision which the server advertises to the specified value.
 This should be a negative integer in the range -4 through -20.
-.PP
-.B traps
-.PP
+.It traps
 Display the traps set in the server. See the source listing for further
 information.
-.PP
-.B addtrap
-.I address
-[
-.I port
-] [
-.I interface
-]
-.PP
+.It Xo addtrap
+.Ar address
+.Op Ar port
+.Op Ar interface
+.Xc
 Set a trap for asynchronous messages. See the source listing for further
 information.
-.PP
-.B clrtrap
-.I address
-[
-.I port
-] [
-.I interface
-]
-.PP
+.It Xo clrtrap
+.Ar address
+.Op Ar port
+.Op Ar interface
+.Xc
 Clear a trap for asynchronous messages. See the source listing for
 further information.
-.PP
-.B reset ...
-.PP
+.It reset Ar ...
 Clear the statistics counters in various modules of the server. See the
 source listing for further information.
-.SH SEE ALSO
-.PP
-.IR xntpd (8)
-.SH HISTORY
-.PP
-Written by Dennis Ferguson at the University of Toronto.
-.SH BUGS
-.PP
-.I Xntpdc
+.El
+.Sh SEE ALSO
+.Xr xntpd 8
+.Sh HISTORY
+Written by
+.An Dennis Ferguson
+at the University of Toronto.
+.Sh BUGS
+.Nm Xntpdc
 is a crude hack. Much of the information it shows is deadly boring and
 could only be loved by its implementer. The program was designed so that
 new (and temporary) features were easy to hack in, at great expense to
