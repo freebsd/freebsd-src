@@ -99,7 +99,6 @@ static int acphy_detach		__P((device_t));
 static device_method_t acphy_methods[] = {
 	/* device interface */
 	DEVMETHOD(device_probe,		acphy_probe),
-A
 	DEVMETHOD(device_attach,	acphy_attach),
 	DEVMETHOD(device_detach,	acphy_detach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
