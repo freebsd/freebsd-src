@@ -648,3 +648,9 @@ sched_sizeof_thread(void)
 {
 	return (sizeof(struct thread));
 }
+
+fixpt_t
+sched_pctcpu(struct kse *ke)
+{
+	return (ke->ke_pctcpu);
+}
