@@ -206,7 +206,8 @@ extern ACPI_STATUS	acpi_EvaluateInteger(ACPI_HANDLE handle, char *path, int *num
 extern ACPI_STATUS	acpi_ForeachPackageObject(ACPI_OBJECT *obj, 
 						  void (* func)(ACPI_OBJECT *comp, void *arg),
 						  void *arg);
-extern ACPI_STATUS	acpi_FindIndexedResource(ACPI_RESOURCE *resbuf, int index, ACPI_RESOURCE **resp);
+extern ACPI_STATUS	acpi_FindIndexedResource(ACPI_BUFFER *buf, int index, ACPI_RESOURCE **resp);
+extern ACPI_STATUS	acpi_AppendBufferResource(ACPI_BUFFER *buf, ACPI_RESOURCE *res);
 
 extern ACPI_STATUS	acpi_SetSleepState(struct acpi_softc *sc, int state);
 extern ACPI_STATUS	acpi_Enable(struct acpi_softc *sc);
@@ -230,6 +231,8 @@ struct acpi_parse_resource_set {
 extern struct acpi_parse_resource_set	acpi_res_parse_set;
 extern ACPI_STATUS	acpi_parse_resources(device_t dev, ACPI_HANDLE handle,
 					     struct acpi_parse_resource_set *set);
+/* XXX until Intel fix this in their headers, based on NEXT_RESOURCE */
+#define ACPI_RESOURCE_NEXT(Res)      (ACPI_RESOURCE *)((UINT8 *) Res + Res->Length)
 
 /* 
  * ACPI event handling
