@@ -36,6 +36,7 @@
 #include <sys/bus.h>
 #include <sys/malloc.h>
 #include <machine/bus.h>
+#include <sys/rman.h>
 #include <dev/ata/ata-all.h>
 #include <dev/ata/atapi-all.h>
 
@@ -246,9 +247,9 @@ atapi_transfer(struct atapi_request *request)
 #endif
     /* is this just a POLL DSC command ? */
     if (request->ccb[0] == ATAPI_POLL_DSC) {
-	outb(atp->controller->ioaddr + ATA_DRIVE, ATA_D_IBM | atp->unit);
+	ATA_OUTB(atp->controller->r_io, ATA_DRIVE, ATA_D_IBM | atp->unit);
 	DELAY(10);
-	if (inb(atp->controller->altioaddr) & ATA_S_DSC)
+	if (ATA_INB(atp->controller->r_altio, ATA_ALTSTAT) & ATA_S_DSC)
 	    request->error = 0;
 	else
 	    request->error = EBUSY;
@@ -303,15 +304,15 @@ atapi_transfer(struct atapi_request *request)
     /* ready to write ATAPI command */
     timout = 5000; /* might be less for fast devices */
     while (timout--) {
-	reason = inb(atp->controller->ioaddr + ATA_IREASON);
-	atp->controller->status = inb(atp->controller->ioaddr + ATA_STATUS);
+	reason = ATA_INB(atp->controller->r_io, ATA_IREASON);
+	atp->controller->status = ATA_INB(atp->controller->r_io, ATA_STATUS);
 	if (((reason & (ATA_I_CMD | ATA_I_IN)) |
 	     (atp->controller->status&(ATA_S_DRQ|ATA_S_BUSY)))==ATAPI_P_CMDOUT)
 	    break;
 	DELAY(20);
     }
     if (timout <= 0) {
-	request->result = inb(atp->controller->ioaddr + ATA_ERROR);
+	request->result = ATA_INB(atp->controller->r_io, ATA_ERROR);
 	printf("%s: failure to execute ATAPI packet command\n", atp->devname);
 	return;
     }
@@ -320,8 +321,8 @@ atapi_transfer(struct atapi_request *request)
     DELAY(10);
 
     /* send actual command */
-    outsw(atp->controller->ioaddr + ATA_DATA, request->ccb, 
-	  request->ccbsize / sizeof(int16_t));
+    ATA_OUTSW(atp->controller->r_io, ATA_DATA, (int16_t *)request->ccb,
+	      request->ccbsize / sizeof(int16_t));
 }
 
 int
@@ -330,17 +331,17 @@ atapi_interrupt(struct atapi_request *request)
     struct atapi_softc *atp = request->device;
     int reason, dma_stat = 0;
 
-    reason = (inb(atp->controller->ioaddr+ATA_IREASON) & (ATA_I_CMD|ATA_I_IN)) |
+    reason = (ATA_INB(atp->controller->r_io, ATA_IREASON) & (ATA_I_CMD|ATA_I_IN)) |
 	     (atp->controller->status & ATA_S_DRQ);
 
     if (reason == ATAPI_P_CMDOUT) {
 	if (!(atp->controller->status & ATA_S_DRQ)) {
-	    request->result = inb(atp->controller->ioaddr + ATA_ERROR);
+	    request->result = ATA_INB(atp->controller->r_io, ATA_ERROR);
 	    printf("%s: command interrupt without DRQ\n", atp->devname);
 	    goto op_finished;
 	}
-	outsw(atp->controller->ioaddr + ATA_DATA, request->ccb,
-	      request->ccbsize / sizeof(int16_t));
+	ATA_OUTSW(atp->controller->r_io, ATA_DATA, (int16_t *)request->ccb,
+		  request->ccbsize / sizeof(int16_t));
 	return ATA_OP_CONTINUES;
     }
 
@@ -348,7 +349,7 @@ atapi_interrupt(struct atapi_request *request)
 	dma_stat = ata_dmadone(atp->controller);
 	if ((atp->controller->status & (ATA_S_ERROR | ATA_S_DWF)) ||
 	    dma_stat & ATA_BMSTAT_ERROR) {
-	    request->result = inb(atp->controller->ioaddr + ATA_ERROR);
+	    request->result = ATA_INB(atp->controller->r_io, ATA_ERROR);
 	}
 	else {
 	    request->result = 0;
@@ -357,13 +358,13 @@ atapi_interrupt(struct atapi_request *request)
 	}
     }
     else {
-	int length = inb(atp->controller->ioaddr + ATA_CYL_LSB) |
-		     inb(atp->controller->ioaddr + ATA_CYL_MSB) << 8;
+	int length = ATA_INB(atp->controller->r_io, ATA_CYL_LSB) |
+		     ATA_INB(atp->controller->r_io, ATA_CYL_MSB) << 8;
 
 	switch (reason) {
 	case ATAPI_P_WRITE:
 	    if (request->flags & ATPR_F_READ) {
-		request->result = inb(atp->controller->ioaddr + ATA_ERROR);
+		request->result = ATA_INB(atp->controller->r_io, ATA_ERROR);
 		printf("%s: %s trying to write on read buffer\n",
 		       atp->devname, atapi_cmd2str(atp->cmd));
 		break;
@@ -373,7 +374,7 @@ atapi_interrupt(struct atapi_request *request)
 	
 	case ATAPI_P_READ:
 	    if (!(request->flags & ATPR_F_READ)) {
-		request->result = inb(atp->controller->ioaddr + ATA_ERROR);
+		request->result = ATA_INB(atp->controller->r_io, ATA_ERROR);
 		printf("%s: %s trying to read on write buffer\n",
 		       atp->devname, atapi_cmd2str(atp->cmd));
 		break;
@@ -392,7 +393,7 @@ atapi_interrupt(struct atapi_request *request)
 	case ATAPI_P_ABORT:
 	case ATAPI_P_DONE:
 	    if (atp->controller->status & (ATA_S_ERROR | ATA_S_DWF))
-		request->result = inb(atp->controller->ioaddr + ATA_ERROR);
+		request->result = ATA_INB(atp->controller->r_io, ATA_ERROR);
 	    else 
 		if (!(request->flags & ATPR_F_INTERNAL))
 		    request->result = 0;
@@ -499,7 +500,7 @@ atapi_test_ready(struct atapi_softc *atp)
 }
 	
 int
-atapi_wait_ready(struct atapi_softc *atp, int timeout)
+atapi_wait_dsc(struct atapi_softc *atp, int timeout)
 {
     int error = 0;
     int8_t ccb[16] = { ATAPI_POLL_DSC, 0, 0, 0, 0,
@@ -539,17 +540,17 @@ atapi_read(struct atapi_request *request, int length)
 
     if (request->device->controller->flags & ATA_USE_16BIT ||
 	(size % sizeof(int32_t)))
-	insw(request->device->controller->ioaddr + ATA_DATA, 
-	     (void *)((uintptr_t)*buffer), size / sizeof(int16_t));
+	ATA_INSW(request->device->controller->r_io, ATA_DATA, 
+		 (void *)((uintptr_t)*buffer), size / sizeof(int16_t));
     else
-	insl(request->device->controller->ioaddr + ATA_DATA, 
-	     (void *)((uintptr_t)*buffer), size / sizeof(int32_t));
+	ATA_INSL(request->device->controller->r_io, ATA_DATA, 
+		 (void *)((uintptr_t)*buffer), size / sizeof(int32_t));
 
     if (request->bytecount < length) {
 	printf("%s: read data overrun %d/%d\n",
 	       request->device->devname, length, request->bytecount);
 	for (resid=request->bytecount; resid<length; resid+=sizeof(int16_t))
-	     inw(request->device->controller->ioaddr + ATA_DATA);
+	     ATA_INW(request->device->controller->r_io, ATA_DATA);
     }
     *buffer += size;
     request->bytecount -= size;
@@ -568,17 +569,17 @@ atapi_write(struct atapi_request *request, int length)
 
     if (request->device->controller->flags & ATA_USE_16BIT ||
 	(size % sizeof(int32_t)))
-	outsw(request->device->controller->ioaddr + ATA_DATA, 
-	      (void *)((uintptr_t)*buffer), size / sizeof(int16_t));
+	ATA_OUTSW(request->device->controller->r_io, ATA_DATA, 
+		  (void *)((uintptr_t)*buffer), size / sizeof(int16_t));
     else
-	outsl(request->device->controller->ioaddr + ATA_DATA, 
-	      (void *)((uintptr_t)*buffer), size / sizeof(int32_t));
+	ATA_OUTSL(request->device->controller->r_io, ATA_DATA, 
+		  (void *)((uintptr_t)*buffer), size / sizeof(int32_t));
 
     if (request->bytecount < length) {
 	printf("%s: write data underrun %d/%d\n",
 	       request->device->devname, length, request->bytecount);
 	for (resid=request->bytecount; resid<length; resid+=sizeof(int16_t))
-	     outw(request->device->controller->ioaddr + ATA_DATA, 0);
+	    ATA_OUTW(request->device->controller->r_io, ATA_DATA, 0);
     }
     *buffer += size;
     request->bytecount -= size;

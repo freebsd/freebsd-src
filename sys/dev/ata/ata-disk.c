@@ -44,6 +44,7 @@
 #include <vm/pmap.h>
 #include <machine/md_var.h>
 #include <machine/bus.h>
+#include <sys/rman.h>
 #include <dev/ata/ata-all.h>
 #include <dev/ata/ata-disk.h>
 #include <dev/ata/ata-raid.h>
@@ -457,7 +458,7 @@ ad_transfer(struct ad_request *request)
 
 		/* if ATA bus RELEASE check for SERVICE */
 		if (adp->flags & AD_F_TAG_ENABLED &&
-		    inb(adp->controller->ioaddr + ATA_IREASON) & ATA_I_RELEASE){
+		    ATA_INB(adp->controller->r_io, ATA_IREASON) & ATA_I_RELEASE) {
 		    return ad_service(adp, 1);
 		}
 	    }
@@ -524,13 +525,13 @@ ad_transfer(struct ad_request *request)
 
     /* output the data */
     if (adp->controller->flags & ATA_USE_16BIT)
-	outsw(adp->controller->ioaddr + ATA_DATA,
-	      (void *)((uintptr_t)request->data + request->donecount),
-	      request->currentsize / sizeof(int16_t));
+	ATA_OUTSW(adp->controller->r_io, ATA_DATA,
+		     (void *)((uintptr_t)request->data + request->donecount),
+		     request->currentsize / sizeof(int16_t));
     else
-	outsl(adp->controller->ioaddr + ATA_DATA,
-	      (void *)((uintptr_t)request->data + request->donecount),
-	      request->currentsize / sizeof(int32_t));
+	ATA_OUTSL(adp->controller->r_io, ATA_DATA,
+		     (void *)((uintptr_t)request->data + request->donecount),
+		     request->currentsize / sizeof(int32_t));
     return ATA_OP_CONTINUES;
 
 transfer_failed:
@@ -576,7 +577,7 @@ ad_interrupt(struct ad_request *request)
     /* did any real errors happen ? */
     if ((adp->controller->status & ATA_S_ERROR) ||
 	(request->flags & ADR_F_DMA_USED && dma_stat & ATA_BMSTAT_ERROR)) {
-	adp->controller->error = inb(adp->controller->ioaddr + ATA_ERROR);
+	adp->controller->error = ATA_INB(adp->controller->r_io, ATA_ERROR);
 	diskerr(request->bp,
 		(adp->controller->error & ATA_E_ICRC) ? "UDMA ICRC" : "hard",
 		request->blockaddr + (request->donecount / DEV_BSIZE),
@@ -636,13 +637,13 @@ ad_interrupt(struct ad_request *request)
 	else {
 	    /* data ready, read in */
 	    if (adp->controller->flags & ATA_USE_16BIT)
-		insw(adp->controller->ioaddr + ATA_DATA,
-		     (void *)((uintptr_t)request->data + request->donecount), 
-		     request->currentsize / sizeof(int16_t));
+		ATA_INSW(adp->controller->r_io, ATA_DATA,
+		    (void *)((uintptr_t)request->data + request->donecount), 
+		    request->currentsize / sizeof(int16_t));
 	    else
-		insl(adp->controller->ioaddr + ATA_DATA,
-		     (void *)((uintptr_t)request->data + request->donecount), 
-		     request->currentsize / sizeof(int32_t));
+		ATA_INSL(adp->controller->r_io, ATA_DATA,
+		    (void *)((uintptr_t)request->data + request->donecount), 
+		    request->currentsize / sizeof(int32_t));
 	}
     }
 
@@ -709,12 +710,12 @@ ad_service(struct ad_softc *adp, int change)
 	if (device != adp->unit &&
 	    ((struct ad_softc *)
 	     (adp->controller->dev_softc[ATA_DEV(device)]))->outstanding > 0) {
-	    outb(adp->controller->ioaddr + ATA_DRIVE, ATA_D_IBM | device);
+	    ATA_OUTB(adp->controller->r_io, ATA_DRIVE, ATA_D_IBM | device);
 	    adp = adp->controller->dev_softc[ATA_DEV(device)];
 	    DELAY(1);
 	}
     }
-    adp->controller->status = inb(adp->controller->altioaddr);
+    adp->controller->status = ATA_INB(adp->controller->r_altio, ATA_ALTSTAT);
  
     /* do we have a SERVICE request from the drive ? */
     if (adp->flags & AD_F_TAG_ENABLED &&
@@ -742,12 +743,12 @@ ad_service(struct ad_softc *adp, int change)
 	/* setup the transfer environment when ready */
 	if (ata_wait(adp->controller, adp->unit, ATA_S_READY)) {
 	    printf("ad%d: problem issueing SERVICE tag=%d s=0x%02x e=0x%02x\n",
-	           adp->lun, inb(adp->controller->ioaddr + ATA_COUNT) >> 3,
+	           adp->lun, ATA_INB(adp->controller->r_io, ATA_COUNT) >> 3,
 		   adp->controller->status, adp->controller->error);
 	    ad_invalidatequeue(adp, NULL);
 	    return ATA_OP_FINISHED;
 	}
-	tag = inb(adp->controller->ioaddr + ATA_COUNT) >> 3;
+	tag = ATA_INB(adp->controller->r_io, ATA_COUNT) >> 3;
 	if (!(request = adp->tags[tag])) {
 	    printf("ad%d: no request for this tag=%d??\n", adp->lun, tag);	
 	    ad_invalidatequeue(adp, NULL);
