@@ -1,13 +1,93 @@
-# NOTE: this is from original KAME distribution.
-# Some portion of this document is not applicable to the code merged into
-# FreeBSD-current (for example, section 5).
-
 	Implementation Note
 
 	KAME Project
 	http://www.kame.net/
 	$KAME: IMPLEMENTATION,v 1.216 2001/05/25 07:43:01 jinmei Exp $
 	$FreeBSD$
+
+NOTE: The document tries to describe behaviors/implementation choices
+of the latest KAME/*BSD stack (like KAME/NetBSD 1.5.1).  The description
+here may not be applicable to KAME-integrated *BSD releases (like stock
+NetBSD 1.5.1), as we have certain amount of changes between them.  Still,
+some of the content can be useful for KAME-integrated *BSD releases.
+
+Table of Contents
+
+	1. IPv6
+	1.1 Conformance
+	1.2 Neighbor Discovery
+	1.3 Scope Zone Index
+	1.3.1 Kernel internal
+	1.3.2 Interaction with API
+	1.3.3 Interaction with users (command line)
+	1.4 Plug and Play
+	1.4.1 Assignment of link-local, and special addresses
+	1.4.2 Stateless address autoconfiguration on hosts
+	1.4.3 DHCPv6
+	1.5 Generic tunnel interface
+	1.6 Address Selection
+	1.6.1 Source Address Selection
+	1.6.2 Destination Address Ordering
+	1.7 Jumbo Payload
+	1.8 Loop prevention in header processing
+	1.9 ICMPv6
+	1.10 Applications
+	1.11 Kernel Internals
+	1.12 IPv4 mapped address and IPv6 wildcard socket
+	1.12.1 KAME/BSDI3 and KAME/FreeBSD228
+	1.12.2 KAME/FreeBSD[34]x
+	1.12.2.1 KAME/FreeBSD[34]x, listening side
+	1.12.2.2 KAME/FreeBSD[34]x, initiating side
+	1.12.3 KAME/NetBSD
+	1.12.3.1 KAME/NetBSD, listening side
+	1.12.3.2 KAME/NetBSD, initiating side
+	1.12.4 KAME/BSDI4
+	1.12.4.1 KAME/BSDI4, listening side
+	1.12.4.2 KAME/BSDI4, initiating side
+	1.12.5 KAME/OpenBSD
+	1.12.5.1 KAME/OpenBSD, listening side
+	1.12.5.2 KAME/OpenBSD, initiating side
+	1.12.6 More issues
+	1.12.7 Interaction with SIIT translator
+	1.13 sockaddr_storage
+	1.14 Invalid addresses on the wire
+	1.15 Node's required addresses
+	1.15.1 Host case
+	1.15.2 Router case
+	1.16 Advanced API
+	1.17 DNS resolver
+	2. Network Drivers
+	2.1 FreeBSD 2.2.x-RELEASE
+	2.2 BSD/OS 3.x
+	2.3 NetBSD
+	2.4 FreeBSD 3.x-RELEASE
+	2.5 FreeBSD 4.x-RELEASE
+	2.6 OpenBSD 2.x
+	2.7 BSD/OS 4.x
+	3. Translator
+	3.1 FAITH TCP relay translator
+	3.2 IPv6-to-IPv4 header translator
+	4. IPsec
+	4.1 Policy Management
+	4.2 Key Management
+	4.3 AH and ESP handling
+	4.4 IPComp handling
+	4.5 Conformance to RFCs and IDs
+	4.6 ECN consideration on IPsec tunnels
+	4.7 Interoperability
+	4.8 Operations with IPsec tunnel mode
+	4.8.1 RFC2401 IPsec tunnel mode approach
+	4.8.2 draft-touch-ipsec-vpn approach
+	5. ALTQ
+	6. Mobile IPv6
+	6.1 KAME node as correspondent node
+	6.2 KAME node as home agent/mobile node
+	6.3 Old Mobile IPv6 code
+	7. Routing table extensions
+	7.1 ART routing table lookup algorithm
+	7.2 Multipath routing support
+	8. Coding style
+	9. Policy on technology with intellectual property right restriction
 
 1. IPv6
 
@@ -36,7 +116,7 @@ RFC2283: Multiprotocol Extensions for BGP-4
     * so-called "BGP4+".
     * KAME-supplied bgpd supports this.
 RFC2292: Advanced Sockets API for IPv6
-    * For supported library functions/kernel APIs, see sys/netinet6/ADVAPI.
+    * see RFC3542
 RFC2362: Protocol Independent Multicast-Sparse Mode (PIM-SM)
     * RFC2362 defines the packet formats and the protcol of PIM-SM.
 RFC2373: IPv6 Addressing Architecture
@@ -55,7 +135,7 @@ RFC2461: Neighbor discovery for IPv6
 RFC2462: IPv6 Stateless Address Autoconfiguration
     * See 1.4 in this document for details.
 RFC2463: ICMPv6 for IPv6 specification
-    * See 1.8 in this document for details.
+    * See 1.9 in this document for details.
 RFC2464: Transmission of IPv6 Packets over Ethernet Networks
 RFC2465: MIB for IPv6: Textual Conventions and General Group
     * Necessary statistics are gathered by the kernel.  Actual IPv6 MIB
@@ -69,14 +149,7 @@ RFC2492: IPv6 over ATM Networks
     * only PVC is supported.
 RFC2497: Transmission of IPv6 packet over ARCnet Networks
 RFC2545: Use of BGP-4 Multiprotocol Extensions for IPv6 Inter-Domain Routing
-RFC2553: Basic Socket Interface Extensions for IPv6
-    * IPv4 mapped address (3.7) and special behavior of IPv6 wildcard bind
-      socket (3.8) are,
-	- supported and turned on by default on KAME/FreeBSD[34]x
-	  and KAME/BSDI4,
-	- supported but turned off by default on KAME/NetBSD,
-	- not supported on KAME/FreeBSD228, KAME/OpenBSD and KAME/BSDI3.
-      see 1.12 in this document for details.
+RFC2553: (see RFC3493)
 RFC2671: Extension Mechanisms for DNS (EDNS0)
     * see USAGE for how to use it.
     * not supported on kame/freebsd4 and kame/bsdi4.
@@ -110,24 +183,26 @@ RFC3056: Connection of IPv6 Domains via IPv4 Clouds
     * "stf" interface implements it.  Be sure to read
       draft-itojun-ipv6-transition-abuse-01.txt
       below before configuring it, there can be security issues.
-draft-ietf-ipngwg-icmp-name-lookups-07: IPv6 Name Lookups Through ICMP
-draft-ietf-dhc-dhcpv6-15.txt: DHCPv6
-draft-ietf-dhc-dhcpv6exts-12.txt: Extensions for DHCPv6
-    * kame/dhcp6 has test implementation, which will not be compiled in
-      default compilation.
-    * 15/12 drafts are not explicit about padding and string termination.
-      at IETF48, the author confirmed that there's no padding/termination
-      (and extensions can appear unaligned).  our code follows the comment.
-draft-itojun-ipv6-tcp-to-anycast-00.txt:
-	Disconnecting TCP connection toward IPv6 anycast address
-draft-ietf-ipngwg-rfc2553bis-03.txt:
-	Basic Socket Interface Extensions for IPv6 (revised)
-draft-ietf-ipngwg-rfc2292bis-02.txt:
-	Advanced Sockets API for IPv6 (revised)
+RFC3152: Delegation of IP6.ARPA
+    * libinet6 resolvers contained in the KAME snaps support to use
+      the ip6.arpa domain (with the nibble format) for IPv6 reverse
+      lookups.
+RFC3484: Default Address Selection for IPv6
+    * the selection algorithm for both source and destination addresses
+      is implemented based on the RFC, though some rules are still omitted.
+RFC3493: Basic Socket Interface Extensions for IPv6
+    * IPv4 mapped address (3.7) and special behavior of IPv6 wildcard bind
+      socket (3.8) are,
+	- supported and turned on by default on KAME/FreeBSD[34]
+	  and KAME/BSDI4,
+	- supported but turned off by default on KAME/NetBSD and KAME/FreeBSD5,
+	- not supported on KAME/FreeBSD228, KAME/OpenBSD and KAME/BSDI3.
+      see 1.12 in this document for details.
+RFC3542: Advanced Sockets API for IPv6 (revised)
+    * For supported library functions/kernel APIs, see sys/netinet6/ADVAPI.
     * Some of the updates in the draft are not implemented yet.  See
       TODO.2292bis for more details.
-draft-ietf-mobileip-ipv6-13.txt: Mobility Support in IPv6
-    * See section 6.
+draft-ietf-ipngwg-icmp-name-lookups-09: IPv6 Name Lookups Through ICMP
 draft-ietf-ngtrans-tcpudp-relay-04.txt:
 	An IPv6-to-IPv4 transport relay translator
     * FAITH tcp relay translator (faithd) implements this.  See 3.1 for more
@@ -147,7 +222,9 @@ draft-ietf-dnsext-mdns-00.txt: Multicast DNS
     * kame/mdnsd has test implementation, which will not be built in
       default compilation.  The draft will experience a major change in the
       near future, so don't rely upon it.
-draft-itojun-ipv6-transition-abuse-02.txt:
+draft-itojun-ipv6-tcp-to-anycast-01.txt:
+	Disconnecting TCP connection toward IPv6 anycast address
+draft-itojun-ipv6-transition-abuse-01.txt:
 	Possible abuse against IPv6 transition technologies (expired)
     * KAME does not implement RFC1933/2893 automatic tunnel.
     * "stf" interface implements some address filters.  Refer to stf(4)
@@ -156,7 +233,6 @@ draft-itojun-ipv6-transition-abuse-02.txt:
     * kame/openbsd completely disables IPv4 mapped address support.
     * kame/netbsd makes IPv4 mapped address support off by default.
     * See section 1.12.6 and 1.14 for more details.
-draft-itojun-ipv6-tclass-api-02.txt: Socket API for IPv6 traffic class field
 draft-itojun-ipv6-flowlabel-api-01.txt: Socket API for IPv6 flow label field
     * no consideration is made against the use of routing headers and such.
 
@@ -327,7 +403,7 @@ There are several candidates of API to deal with scoped addresses
 without ambiguity.
 
 The IPV6_PKTINFO ancillary data type or socket option defined in the
-advanced API (RFC2292 or draft-ietf-ipngwg-rfc2292bis-xx) can specify
+advanced API (RFC2292 or RFC3542) can specify
 the outgoing interface of a packet.  Similarly, the IPV6_PKTINFO or
 IPV6_RECVPKTINFO socket options tell kernel to pass the incoming
 interface to user applications.
@@ -343,9 +419,8 @@ these options; we cannot just say "send the packet to (one of the
 interfaces of) the site."
 
 Another kind of candidates is to use the sin6_scope_id member in the
-sockaddr_in6 structure, defined in RFC2553 and
-draft-ietf-ipngwg-rfc2553bis-xx.txt.  The KAME kernel interprets the
-sin6_scope_id field properly in order to disambiguate scoped
+sockaddr_in6 structure, defined in RFC2553.  The KAME kernel
+interprets the sin6_scope_id field properly in order to disambiguate scoped
 addresses.  For example, if an application passes a sockaddr_in6
 structure that has a non-zero sin6_scope_id value to the sendto(2)
 system call, the kernel should send the packet to the appropriate zone
@@ -386,7 +461,7 @@ use these APIs have to be prepared about differences in kernels
 anyway.
 
 getaddrinfo(3) and getnameinfo(3) support an extended numeric IPv6
-syntax, as documented in draft-ietf-ipngwg-rfc2553bis-xx.txt.  You can
+syntax, as documented in draft-ietf-ipv6-scoping-arch-xx.txt.  You can
 specify the outgoing link, by using the name of the outgoing interface
 as the link, like "fe80::1%ne0" (again, note that we assume there is
 1-to-1 relationship between links and interfaces.)  This way you will
@@ -412,8 +487,11 @@ routes, in order to avoid configuration mistakes.)
 Some applications have command line options for specifying an
 appropriate zone of a scoped address (like "ping6 -I ne0 ff02::1" to
 specify the outgoing interface).  However, you can't always expect such
-options.  Thus, we recommend you to use the extended format described
-above.
+options.  Additionally, specifying the outgoing "interface" is in
+theory an overspecification as a way to specify the outgoing "link"
+(see above).  Thus, we recommend you to use the extended format
+described above.  This should apply to the case where the outgoing
+interface is specified.
 
 In any case, when you specify a scoped address to the command line,
 NEVER write the embedded form (such as ff02:1::1 or fe80:2::fedc),
@@ -556,129 +634,78 @@ If you would like to configure an IPv4-in-IPv6 tunnel with gif interface,
 read gif(4) carefully.  You may need to remove IPv6 link-local address
 automatically assigned to the gif interface.
 
-1.6 Source Address Selection
+1.6 Address Selection
 
-KAME's source address selection takes care of the following
-conditions:
-- address scope
-- outgoing interface
-- whether an address is deprecated
-- whether an address is temporary (in terms of RFC 3041)
-- prefix matching against the destination
+1.6.1 Source Address Selection
 
-Roughly speaking, the selection policy is as follows:
-- always use an address that belongs to the same scope zone as the
-  destination.
-- addresses that have equal or larger scope than the scope of the
-  destination are preferred.
-- a deprecated address is not used in new communications if an
-  alternate (non-deprecated) address is available and has sufficient
-  scope.
-- a temporary address (in terms of RFC 3041 privacy extension) are
-  preferred to a public address.
-- if none of above conditions tie-breaks, addresses assigned on the
-  outgoing interface are preferred.
-- if none of above conditions tie-breaks, one which is longest prefix
-  matching against the destination is preferred as the last resort.
+The KAME kernel chooses the source address for an outgoing packet
+sent from a user application as follows:
 
-For instance, ::1 is selected for ff01::1,
-fe80::200:f8ff:fe01:6317%ne0 for fe80::2a0:24ff:feab:839b%ne0.
-To see how longest-matching works, suppose that
-3ffe:501:808:1:200:f8ff:fe01:6317 and 3ffe:2001:9:124:200:f8ff:fe01:6317
-are given on the outgoing interface. Then the former is chosen as the
-source for the destination 3ffe:501:800::1. Note that even if all
-available addresses have smaller scope than the scope of the
-destination, we choose one anyway. For example, if we have link-local
-and site-local addresses only, we choose a site-local addresses for a
-global destination. If the packet is going to break a site boundary,
-the boundary router will return an ICMPv6 destination unreachable
-error with code 2 - beyond scope of source address.
+1. if the source address is explicitly specified via an IPV6_PKTINFO
+   ancillary data item or the socket option of that name, just use it.
+   Note that this item/option overrides the bound address of the
+   corresponding (datagram) socket.
 
-The precise desripction of the algorithm is quite complicated. To
-describe the algorithm, we introduce the following notation:
+2. if the corresponding socket is bound, use the bound address.
 
-For a given destination D,
-  samescope(D): The set of addresses that have the same scope as D.
-  largerscope(D): The set of addresses that have a larger scope than D.
-  smallerscope(D): The set of addresses that have a smaller scope than D.
+3. otherwise, the kernel first tries to find the outgoing interface of
+   the packet.  If it fails, the source address selection also fails.
+   If the kernel can find an interface, choose the most appropriate
+   address based on the algorithm described in RFC3484.
 
-For a given set of addresses A,
-  DEP(A): the set of deprecated addresses in A.
-  nonDEP(A): A - DEP(A).
+   The policy table used in this algorithm is stored in the kernel.
+   To install or view the policy, use the ip6addrctl(8) command.  The
+   kernel does not have pre-installed policy.  It is expected that the
+   default policy described in the draft should be installed at the
+   bootstrap time using this command.
 
-For a given set of addresses A,
-  tmp(A): the set of preferred temporary-autoconfigured or
-          manually-configure addresses in A.
+   This draft allows an implementation to add implementation-specific
+   rules with higher precedence than the rule "Use longest matching
+   prefix."  KAME's implementation has the following additional rules
+   (that apply in the appeared order):
 
-Also, the algorithm assumes that the outgoing interface for the
-destination D is determined. We call the interface "I".
+   - prefer addresses on alive interfaces, that is, interfaces with
+     the UP flag being on.  This rule is particularly useful for
+     routers, since some routing daemons stop advertising prefixes
+    (addresses) on interfaces that have become down.
 
-The algorithm is as follows. Selection proceeds step by step as
-described; For example, if an address is selected by item 1, item 2 and
-later are not considered at all.
+   In any case, addresses that break the scope zone of the
+   destination, or addresses whose zone do not contain the outgoing
+   interface are never chosen.
 
-  0. If there is no address in the same scope zone as D, just give up;
-     the packet will not be sent.
-  1. If we do not prefer temporary addresses, go to 3.
-     Otherwise, and if tmp(samescope(D)) is not empty, 
-     then choose an address that is on the interface I.  If every
-     address is on I, or every address is on a different interface
-     from I, choose an arbitrary one provided that an address longest
-     matching against D is always preferred.
-  2. If tmp(largerscope(D)) is not empty,
-     then choose an address that has the smallest scope. If more than one
-     address has the smallest scope, choose an arbitrary one provided
-     that addresses on I are always preferred.
-  3. If nonDEP(samescope(D)) is not empty,
-     then apply the same logic as of 1.
-  4. If nonDEP(largerscope(D)) is not empty,
-     then apply the same logic as of 2.
-  5. If we do not prefer temporary addresses, go to 7.
-     Otherwise, and if tmp(DEP(samescope(D))) is not empty,
-     then choose an address that is on the interface I.  If every
-     address is on I, or every address is on a different interface
-     from I, choose an arbitrary one provided that an address longest
-     matching against D is always preferred.
-  6. If tmp(DEP(largerscope(D))) is not empty,
-     then choose an address that has the smallest scope. If more than
-     one address has the smallest scope, choose an arbitrary one provided
-     that an address on I is always preferred.
-  7. If DEP(samescope(D)) is not empty,
-     then apply the same logic as of 5.
-  8. If DEP(largerscope(D)) is not empty,
-     then apply the same logic as of 6.
-  9. If we do not prefer temporary addresses, go to 11.
-     Otherwise, and if tmp(nonDEP(smallerscope(D))) is not empty,
-     then choose an address that has the largest scope. If more than
-     one address has the largest scope, choose an arbitrary one provided
-     that an address on I is always preferred.
- 10. If tmp(DEP(smallerscope(D))) is not empty,
-     then choose an address that has the largest scope. If more than
-     one address has the largest scope, choose an arbitrary one provided
-     that an address on I is always preferred.
- 11. If nonDEP(smallerscope(D)) is not empty,
-     then apply the same logic as of 9.
- 12. If DEP(smallerscope(D)) is not empty,
-     then apply the same logic as of 10.
+When the procedure above fails, the kernel usually returns
+EADDRNOTAVAIL to the application.
 
-There exists a document about source address selection
-(draft-ietf-ipngwg-default-addr-select-xx.txt). KAME's algorithm
-described above takes a similar approach to the document, but there
-are some differences. See the document for more details.
-
-There are some cases where we do not use the above rule.  One
-example is connected TCP session, and we use the address kept in TCP
-protocol control block (tcb) as the source.
-Another example is source address for Neighbor Advertisement.
+In some cases, the specification explicitly requires the
+implementation to choose a particular source address.  The source
+address for a Neighbor Advertisement (NA) message is an example.
 Under the spec (RFC2461 7.2.2) NA's source should be the target
-address of the corresponding NS's target.  In this case we follow
-the spec rather than the above longest-match rule.
+address of the corresponding NS's target.  In this case we follow the
+spec rather than the above rule.
 
 If you would like to prohibit the use of deprecated address for some
 reason, configure net.inet6.ip6.use_deprecated to 0.  The issue
 related to deprecated address is described in RFC2462 5.5.4 (NOTE:
 there is some debate underway in IETF ipngwg on how to use
 "deprecated" address).
+
+As documented in the source address selection document, temporary
+addresses for privacy extension are less preferred to public addresses
+by default.  However, for administrators who are particularly aware of
+the privacy, there is a system-wide sysctl(3) variable
+"net.inet6.ip6.prefer_tempaddr".  When the variable is set to
+non-zero, the kernel will rather prefer temporary addresses.  The
+default value of this variable is 0.
+
+1.6.2 Destination Address Ordering
+
+KAME's getaddrinfo(3) supports the destination address ordering
+algorithm described in RFC3484.  Getaddrinfo(3) needs to know the
+source address for each destination address and policy entries
+(described in the previous section) for the source and destination
+addresses.  To get the source address, the library function opens a
+UDP socket and tries to connect(2) for the destination.  To get the
+policy entry, the function issues sysctl(3).
 
 1.7 Jumbo Payload
 
@@ -867,7 +894,7 @@ address.  These extensions have thus not been implemented in KAME.
 
 1.12 IPv4 mapped address and IPv6 wildcard socket
 
-RFC2553 describes IPv4 mapped address (3.7) and special behavior
+RFC2553/3493 describes IPv4 mapped address (3.7) and special behavior
 of IPv6 wildcard bind socket (3.8).  The spec allows you to:
 - Accept IPv4 connections by AF_INET6 wildcard bind socket.
 - Transmit IPv4 packet over AF_INET6 socket by using special form of
@@ -904,7 +931,7 @@ configure the behavior.
 
 Comments on listening side:
 
-It looks that RFC2553 talks too little on wildcard bind issue,
+It looks that RFC2553/3493 talks too little on wildcard bind issue,
 specifically on (1) port space issue, (2) failure mode, (3) relationship
 between AF_INET/INET6 wildcard bind like ordering constraint, and (4) behavior
 when conflicting socket is opened/closed.  There can be several separate
@@ -949,7 +976,7 @@ is the key to the success:
 
 If you would like to use AF_INET6 socket for both IPv4 and IPv6 outgoing
 connection, you will need tweaked implementation in DNS support libraries,
-as documented in RFC2553 6.1.  KAME libinet6 includes the tweak in
+as documented in RFC2553/3493 6.1.  KAME libinet6 includes the tweak in
 getipnodebyname().  Note that getipnodebyname() itself is not recommended as
 it does not handle scoped IPv6 addresses at all.  For IPv6 name resolution
 getaddrinfo() is the preferred API.  getaddrinfo() does not implement the
@@ -968,7 +995,7 @@ and initiating side).  AF_INET6 and AF_INET sockets are totally separated.
 Port number space is totally separate between AF_INET and AF_INET6 sockets. 
 
 It should be noted that KAME/BSDI3 and KAME/FreeBSD228 are not conformant
-to RFC2553 section 3.7 and 3.8.  It is due to code sharing reasons.
+to RFC2553/3493 section 3.7 and 3.8.  It is due to code sharing reasons.
 
 1.12.2 KAME/FreeBSD[34]x
 
@@ -1007,10 +1034,8 @@ from KAME/FreeBSD[34]x.  KAME/NetBSD uses separate inpcb/in6pcb structures,
 while KAME/FreeBSD[34]x uses merged inpcb structure.
 
 It should be noted that the default configuration of KAME/NetBSD is not
-conformant to RFC2553 section 3.8.  It is intentionally turned off by default
-for security reasons.
-
-1.12.3.1 KAME/NetBSD, listening side
+conformant to RFC2553/3493 section 3.8.  It is intentionally turned off by
+default for security reasons.
 
 The platform can be configured to support IPv4 mapped address/special AF_INET6
 wildcard bind (disabled by default).  Kernel behavior can be summarized as
@@ -1018,7 +1043,7 @@ follows:
 - default: special support code will be compiled in, but is disabled by
   default.  It can be controlled by sysctl (net.inet6.ip6.v6only),
   or setsockopt(IPV6_V6ONLY).
-- add "INET6_V6ONLY": No special support code for AF_INET6 wildcard socket
+- add "INET6_BINDV6ONLY": No special support code for AF_INET6 wildcard socket
   will be compiled in.  AF_INET6 sockets and AF_INET sockets are totally
   separate.  The behavior is similar to what described in 1.12.1.
 
@@ -1027,6 +1052,8 @@ only.  In other words, per-socket configuration will be copied from sysctl
 configuration at in6pcb creation time.  To change per-socket behavior, you
 must perform setsockopt or reopen the socket.  Change in sysctl configuration
 will not change the behavior or sockets that are already opened.
+
+1.12.3.1 KAME/NetBSD, listening side
 
 Wildcard AF_INET6 socket grabs IPv4 connection if and only if the following 
 conditions are satisfied:
@@ -1039,10 +1066,12 @@ number duplicate and other twists.
 
 1.12.3.2 KAME/NetBSD, initiating side
 
-When you initiate a connection, you can always connect to IPv4 destination
-over AF_INET6 socket, usin IPv4 mapped address destination (::ffff:10.1.1.1).
-This is enabled independently from the configuration for listening side, and
-always enabled.
+When getsockopt(IPV6_V6ONLY) is 0 for a socket, you can make an outgoing
+traffic to IPv4 destination over AF_INET6 socket, using IPv4 mapped
+address destination (::ffff:10.1.1.1).
+
+When getsockopt(IPV6_V6ONLY) is 1 for a socket, you cannot use IPv4 mapped
+address for outgoing traffic.
 
 1.12.4 KAME/BSDI4
 
@@ -1070,8 +1099,8 @@ KAME/BSDi4 supports connection initiation to IPv4 mapped address
 KAME/OpenBSD uses NRL-based TCP/UDP stack and inpcb source code,
 which was derived from NRL IPv6/IPsec stack.
 
-It should be noted that KAME/OpenBSD is not conformant to RFC2553 section 3.7
-and 3.8.  It is intentionally omitted for security reasons.
+It should be noted that KAME/OpenBSD is not conformant to RFC2553/3493 section
+3.7 and 3.8.  It is intentionally omitted for security reasons.
 
 1.12.5.1 KAME/OpenBSD, listening side
 
@@ -1124,7 +1153,9 @@ mapped address or not.  This adds many twists:
 - By enabling kernel support for IPv4 mapped address (outgoing direction),
   servers on the kernel can be hosed by IPv6 native packet that has IPv4
   mapped address in IPv6 header source, and can generate unwanted IPv4 packets.
-  draft-itojun-ipv6-transition-abuse-01.txt talks more about this scenario.
+  draft-itojun-ipv6-transition-abuse-01.txt, draft-cmetz-v6ops-v4mapped-api-
+  harmful-00.txt, and draft-itojun-v6ops-v4mapped-harmful-01.txt
+  has more on this scenario.
 
 Due to the above twists, some of KAME userland programs has restrictions on
 the use of IPv4 mapped addresses:
@@ -1180,12 +1211,12 @@ On the contrary, XNET draft defines as follows:
 		/* and bunch of padding */
 	};
 
-In December 1999, it was agreed that RFC2553bis should pick the latter (XNET)
-definition.
+In December 1999, it was agreed that RFC2553bis (RFC3493) should pick the
+latter (XNET) definition.
 
 KAME kit prior to December 1999 used RFC2553 definition.  KAME kit after
 December 1999 (including December) will conform to XNET definition,
-based on RFC2553bis discussion.
+based on RFC3493 discussion.
 
 If you look at multiple IPv6 implementations, you will be able to see
 both definitions.  As an userland programmer, the most portable way of
@@ -1251,7 +1282,9 @@ KAME kernel will reject packets with certain source/dstination address in IPv6
 base header, or IPv6 routing header.  Also, KAME default configuration file
 is written carefully, to avoid those attacks.
 
-draft-itojun-ipv6-transition-abuse-01.txt talks about more about this.
+draft-itojun-ipv6-transition-abuse-01.txt, draft-cmetz-v6ops-v4mapped-api-
+harmful-00.txt and draft-itojun-v6ops-v4mapped-harmful-01.txt has more on
+this issue.
 
 1.15 Node's required addresses
 
@@ -1300,24 +1333,23 @@ Users can join groups by using appropriate system calls like setsockopt(2).
 
 1.16 Advanced API
 
-Current KAME kernel implements 2292bis API, documented in
-draft-ietf-ipngwg-rfc2292bis-xx.txt.  It also implements RFC2292 API,
+Current KAME kernel implements RFC3542 API.  It also implements RFC2292 API,
 for backward compatibility purposes with *BSD-integrated codebase.
-KAME tree ships with 2292bis headers.
-*BSD-integrated codebase implements either RFC2292, or 2292bis, API.
+KAME tree ships with RFC3542 headers.
+*BSD-integrated codebase implements either RFC2292, or RFC3542, API.
 see "COVERAGE" document for detailed implementation status.
 
 Here are couple of issues to mention:
 - *BSD-integrated binaries, compiled for RFC2292, will work on KAME kernel.
   For example, OpenBSD 2.7 /sbin/rtsol will work on KAME/openbsd kernel.
-- KAME binaries, compiled using 2292bis, will not work on *BSD-integrated
+- KAME binaries, compiled using RFC3542, will not work on *BSD-integrated
   kenrel.  For example, KAME /usr/local/v6/sbin/rtsol will not work on
   OpenBSD 2.7 kernel.
-- 2292bis API is not compatible with RFC2292 API.  2292bis #define symbols
+- RFC3542 API is not compatible with RFC2292 API.  RFC3542 #define symbols
   conflict with RFC2292 symbols.  Therefore, if you compile programs that
   assume RFC2292 API, the compilation itself goes fine, however, the compiled
   binary will not work correctly.  The problem is not KAME issue, but API
-  issue.  For example, Solaris 8 implements 2292bis API.  If you compile
+  issue.  For example, Solaris 8 implements RFC3542 API.  If you compile
   RFC2292-based code on Solaris 8, the binary can behave strange.
 
 There are few (or couple of) incompatible behavior in RFC2292 binary backward
@@ -1326,17 +1358,36 @@ compatibility support in KAME tree.  To enumerate:
   Even if we see packets with "strict" bit set, those bits will not be made
   visible to the userland.
   Background: RFC2292 document is based on RFC1883 IPv6, and it uses
-  strict/loose bitmap.  2292bis document is based on RFC2460 IPv6, and it has
+  strict/loose bitmap.  RFC3542 document is based on RFC2460 IPv6, and it has
   no strict/loose bitmap (it was removed from RFC2460).  KAME tree obeys
   RFC2460 IPv6, and lacks support for strict/loose bitmap.
+
+The RFC3542 documents leave some particular cases unspecified.  The
+KAME implementation treats them as follows:
+- The IPV6_DONTFRAG and IPV6_RECVPATHMTU socket options for TCP
+  sockets are ignored.  That is, the setsocktopt() call will succeed
+  but the specified value will have no effect.
+
+1.17 DNS resolver
+
+KAME ships with modified DNS resolver, in libinet6.a.
+libinet6.a has a comple of extensions against libc DNS resolver:
+- Can take "options insecure1" and "options insecure2" in /etc/resolv.conf,
+  which toggles RES_INSECURE[12] option flag bit.
+- EDNS0 receive buffer size notification support.  It can be enabled by
+  "options edns0" in /etc/resolv.conf.  See USAGE for details.
+- IPv6 transport support (queries/responses over IPv6).  Most of BSD official
+  releases now has it already.
+- Partial A6 chain chasing/DNAME/bit string label support (KAME/BSDI4).
+
 
 2. Network Drivers
 
 KAME requires three items to be added into the standard drivers:
 
-(1) mbuf clustering requirement. In this stable release, we changed
-    MINCLSIZE into MHLEN+1 for all the operating systems in order to make
-    all the drivers behave as we expect.  
+(1) (freebsd[234] and bsdi[34] only) mbuf clustering requirement.
+    In this stable release, we changed MINCLSIZE into MHLEN+1 for all the
+    operating systems in order to make all the drivers behave as we expect.  
 
 (2) multicast.  If "ifmcstat" yields no multicast group for a
     interface, that interface has to be patched.
@@ -1570,7 +1621,7 @@ including usage examples.
 
 4.1 Policy Management
 
-The kernel implements experimental policy management code.  There are two way
+The kernel implements experimental policy management code.  There are two ways
 to manage security policy.  One is to configure per-socket policy using
 setsockopt(3).  In this cases, policy configuration is described in
 ipsec_set_policy(3).  The other is to configure kernel packet filter-based
@@ -1596,8 +1647,12 @@ For example, if we would like to propose the use of following packet:
 some implementation proposes it as "AH transport and ESP tunnel", since
 this is more logical from packet construction point of view.  Some
 implementation proposes it as "AH tunnel and ESP tunnel".
-Racoon follows the former route.
+Racoon follows the latter route (previously it followed the former, and
+the latter interpretation seems to be popular/consensus).
 This raises real interoperability issue.  We hope this to be resolved quickly.
+
+racoon does not implement byte lifetime for both phase 1 and phase 2
+(RFC2409 page 35, Life Type = kilobytes).
 
 4.3 AH and ESP handling
 
@@ -1701,10 +1756,7 @@ The IPsec code in the kernel conforms (or, tries to conform) to the
 following standards:
     "old IPsec" specification documented in rfc182[5-9].txt
     "new IPsec" specification documented in:
-	rfc240[1-6].txt rfc241[01].txt rfc2451.txt
-	draft-mcdonald-simple-ipsec-api-01.txt
-		(expired, available in ftp://ftp.kame.net/pub/internet-drafts/)
-	draft-ietf-ipsec-ciph-aes-cbc-00.txt
+	rfc240[1-6].txt rfc241[01].txt rfc2451.txt rfc3602.txt
     IPComp:
 	RFC2393: IP Payload Compression Protocol (IPComp)
 IKE specifications (rfc240[7-9].txt) are implemented in userland
@@ -1844,6 +1896,132 @@ IPsec/IKE implementations.  Their test results are available at
 http://www.vpnc.org/conformance.html, and it may give you more idea
 about which implementation interoperates with KAME IPsec/IKE implementation.
 
+4.8 Operations with IPsec tunnel mode
+
+First of all, IPsec tunnel is a very hairy thing.  It seems to do a neat thing
+like VPN configuration or secure remote accesses, however, it comes with lots
+of architectural twists.
+
+RFC2401 defines IPsec tunnel mode, within the context of IPsec.  RFC2401
+defines tunnel mode packet encapsulation/decapsulation on its own, and
+does not refer other tunnelling specifications.  Since RFC2401 advocates
+filter-based SPD database matches, it would be natural for us to implement
+IPsec IPsec tunnel mode as filters - not as pseudo interfaces.
+
+There are some people who are trying to separate IPsec "tunnel mode" from
+the IPsec itself.  They would like to implement IPsec transport mode only,
+and combine it with tunneling pseudo devices.  The prime example is found
+in draft-touch-ipsec-vpn-01.txt.  However, if you really define pseudo
+interfaces separately from IPsec, IKE daemons would need to negotiate
+transport mode SAs, instead of tunnel mode SAs.  Therefore, we cannot
+really mix RFC2401-based interpretation and draft-touch-ipsec-vpn-01.txt
+interpretation.
+
+The KAME stack implements can be configured in two ways.  You may need
+to recompile your kernel to switch the behavior.
+- RFC2401 IPsec tunnel mode appraoch (4.8.1)
+- draft-touch-ipsec-vpn approach (4.8.2)
+	Works in all kernel configuration, but racoon(8) may not interoperate.
+
+There are pros and cons on these approaches:
+
+RFC2401 IPsec tunnel mode (filter-like) approach
+	PRO: SPD lookup fits nicely with packet filters (if you integrate them)
+	CON: cannot run routing daemons across IPsec tunnels
+	CON: it is very hard to control source address selection on originating
+		cases
+	???: IPv6 scope zone is kept the same
+draft-touch-ipsec-vpn (transportmode + Pseudo-interface) approach
+	PRO: run routing daemons across IPsec tunnels
+	PRO: source address selection can be done normally, by looking at
+		IPsec tunnel pseudo devices
+	CON: on outbound, possibility of infinite loops if routing setup
+		is wrong
+	CON: due to differences in encap/decap logic from RFC2401, it may not
+		interoperate with very picky RFC2401 implementations
+		(those who check TOS bits, for example)
+	CON: cannot negotiate IKE with other IPsec tunnel-mode devices
+		(the other end has to implement 
+	???: IPv6 scope zone is likely to be different from the real ethernet
+		interface
+
+The recommendation is different depending on the situation you have:
+- use draft-touch-ipsec-vpn if you have the control over the other end.
+  this one is the best in terms of simplicity.
+- if the other end is normal IPsec device with RFC2401 implementation,
+  you need to use RFC2401, otherwise you won't be able to run IKE.
+- use RFC2401 approach if you just want to forward packets back and forth
+  and there's no plan to use IPsec gateway itself as an originating device.
+
+4.8.1 RFC2401 IPsec tunnel mode approach
+
+To configure your device as RFC2401 IPsec tunnel mode endpoint, you will
+use "tunnel" keyword in setkey(8) "spdadd" directives.  Let us assume the
+following topology (A and B could be a network, like prefix/length):
+
+	((((((((((((The internet))))))))))))
+	  |			  |
+	  |C (global)		  |D
+	your device		peer's device
+	  |A (private)		  |B
+	==+===== VPN net	==+===== VPN net
+
+The policy configuration directive is like this.  You will need manual
+SAs, or IKE daemon, for actual encryption:
+
+	# setkey -c <<EOF
+	spdadd A B any -P out ipsec esp/tunnel/C-D/use;
+	spdadd B A any -P in ipsec esp/tunnel/D-C/use;
+	^D
+
+The inbound/outbound traffic is monitored/captured by SPD engine, which works
+just like packet filters.
+
+With this, forwarding case should work flawlessly.  However, troubles arise
+when you have one of the following requirements:
+- When you originate traffic from your VPN gateway device to VPN net on the
+  other end (like B), you want your source address to be A (private side)
+  so that the traffic would be protected by the policy.
+  With this approach, however, the source address selection logic follows
+  normal routing table, and C (global side) will be picked for any outgoing
+  traffic, even if the destination is B.  The resulting packet will be like
+  this:
+	IP[C -> B] payload
+  and will not match the policy (= sent in clear).
+- When you want to run routing protocols on top of the IPsec tunnel, it is
+  not possible.  As there is no pseudo device that identifies the IPsec tunnel,
+  you cannot identify where the routing information came from.  As a result,
+  you can't run routing daemons.
+
+4.8.2 draft-touch-ipsec-vpn approach
+
+With this approach, you will configure gif(4) tunnel interfaces, as well as
+IPsec transport mode SAs.
+
+	# gifconfig gif0 C D
+	# ifconfig gif0 A B
+	# setkey -c <<EOF
+	spdadd C D any -P out ipsec esp/transport//use;
+	spdadd D C any -P in ipsec esp/transport//use;
+	^D
+
+Since we have a pseudo-interface "gif0", and it affects the routes and
+the source address selection logic, we can have source address A, for
+packets originated by the VPN gateway to B (and the VPN cloud).
+We can also exchange routing information over the tunnel (gif0), as the tunnel
+is represented as a pseudo interface (dynamic routes points to the
+pseudo interface).
+
+There is a big drawbacks, however; with this, you can use IKE if and only if
+the other end is using draft-touch-ipsec-vpn approach too.  Since racoon(8)
+grabs phase 2 IKE proposals from the kernel SPD database, you will be
+negotiating IPsec transport-mode SAs with the other end, not tunnel-mode SAs.
+Also, since the encapsulation mechanism is different from RFC2401, you may not
+be able to interoperate with a picky RFC2401 implementations - if the other
+end checks certain outer IP header fields (like TOS), you will not be able to
+interoperate.
+
+
 5. ALTQ
 
 KAME kit includes ALTQ 2.1 code, which supports FreeBSD2, FreeBSD3,
@@ -1892,8 +2070,20 @@ The KAME developers basically do not make a bother about coding
 style.  However, there is still some agreement on the style, in order
 to make the distributed develoment smooth.
 
+- follow *BSD KNF where possible.  note: there are multiple KNF standards.
 - the tab character should be 8 columns wide (tabstops are at 8, 16, 24, ...
   column).  With vi, use ":set ts=8 sw=8".
+  With GNU Emacs 20 and later, the easiest way is to use the "bsd" style of
+  cc-mode with the variable "c-basic-offset" being 8;
+  (add-hook 'c-mode-common-hook
+	    (function
+	     (lambda ()
+	       (c-set-style "bsd")
+	       (setq c-basic-offset 8)  ; XXX for Emacs 20 only
+	       )))
+  The "bsd" style in GNU Emacs 21 sets the variable to 8 by default,
+  so the line marked by "XXX" is not necessary if you only use GNU
+  Emacs 21.
 - each line should be within 80 characters.
 - keep a single open/close bracket in a comment such as in the following
   line:
@@ -1905,7 +2095,7 @@ to make the distributed develoment smooth.
 - add the following line to the head of every KAME-derived file:
   /*	(dollar)KAME(dollar)	*/
   where "(dollar)" is the dollar character ($), and around "$" are tabs.
-  (this is for C. For other language, you should use its own comment
+  (this is for C.  For other language, you should use its own comment
   line.)
   Once commited to the CVS repository, this line will contain its
   version number (see, for example, at the top of this file).  This
@@ -1915,11 +2105,94 @@ to make the distributed develoment smooth.
   included automatically.
 - when editting a third-party package, keep its own coding style as
   much as possible, even if the style does not follow the items above.
+- it is recommended to always wrap an expression containing
+  bitwise operators by parentheses, especially when the expression is
+  combined with relational operators, in order to avoid unintentional
+  mismatch of operators.  Thus, we should write
+	if ((a & b) == 0)	/* (A) */
+  or
+	if (a & (b == 0))	/* (B) */
+  instead of
+	if (a & b == 0)		/* (C) */
+  even if the programmer's intention was (C), which is equivalent to
+  (B) according to the grammar of the language C.
+  Thus, we should write a code to test if a bit-flag is set for a
+  given variable as follows:
+	if ((flag & FLAG_A) == 0)	/* (D) the FLAG_A is NOT set */
+	if ((flag & FLAG_A) != 0)	/* (E) the FLAG_A is set */
+  Some developers in the KAME project rather prefer the following style:
+	if (!(flag & FLAG_A))	/* (F) the FLAG_A is NOT set */
+	if ((flag & FLAG_A))	/* (G) the FLAG_A is set */
+  because it would be more intuitive in terms of the relationship
+  between the negation operator (!) and the semantics of the
+  condition.  The KAME developers have discussed the style, and have
+  agreed that all the styles from (D) to (G) are valid.  So, when you
+  see styles like (D) and (E) in the KAME code and feel a bit strange,
+  please just keep them.  They are intentional.
+- When inserting a separate block just to define some intra-block
+  variables, add the level of indentation as if the block was in a
+  control statement such as if-else, for, or while.  For example,
+	foo ()
+	{
+		int a;
+
+		{
+			int internal_a;
+			...
+		}
+	}
+  should be used, instead of
+	foo ()
+	{
+		int a;
+
+	    {
+		int internal_a;
+		...
+	     }
+	}
+- Do not use printf() or log() in the packet input path of the kernel code.
+  They can make the system vulnerable to packet flooding attacks (results in
+  /var overflow).
+- (not a style issue)
+  To disable a module that is mistakenly imported (by CVS), just
+  remove the source tree in the repository.  Note, however, that the
+  removal might annoy other developers who have already checked the
+  module out, so you should announce the removal as soon as possible.
+  Also, be 100% sure not to remove other modules.
 
 When you want to contribute something to the KAME project, and if *you
 do not mind* the agreement, it would be helpful for the project to
 keep these rules.  Note, however, that we would never intend to force
 you to adopt our rules.  We would rather regard your own style,
 especially when you have a policy about the style.
+
+
+9. Policy on technology with intellectual property right restriction
+
+There are quite a few IETF documents/whatever which has intellectual property
+right (IPR) restriction.  KAME's stance is stated below.
+
+    The goal of KAME is to provide freely redistributable, BSD-licensed,
+    implementation of Internet protocol technologies.
+    For this purpose, we implement protocols that (1) do not need license
+    contract with IPR holder, and (2) are royalty-free.
+    The reason for (1) is, even if KAME contracts with the IPR holder in
+    question, the users of KAME stack (usually implementers of some other
+    codebase) would need to make a license contract with the IPR holder.
+    It would damage the "freely redistributable" status of KAME codebase.
+
+    By doing so KAME is (implicitly) trying to advocate no-license-contract,
+    royalty-free, release of IPRs.
+
+Note however, as documented in README, we do not guarantee that KAME code
+is free of IPR infringement, you MUST check it if you are to integrate
+KAME into your product (or whatever):
+    READ CAREFULLY: Several countries have legal enforcement for
+    export/import/use of cryptographic software.  Check it before playing
+    with the kit.  We do not intend to be your legalease clearing house
+    (NO WARRANTY).  If you intend to include KAME stack into your product,
+    you'll need to check if the licenses on each file fit your situations,
+    and/or possible intellectual property right issues.
 
 						 <end of IMPLEMENTATION>
