@@ -222,9 +222,11 @@ agp_i810_attach(device_t dev)
 	case 0x71258086:
 	case 0x11328086:
 		sc->chiptype = CHIP_I810;
+		break;
 	case 0x35778086:
 	case 0x25628086:
 		sc->chiptype = CHIP_I830;
+		break;
 	};
 
 	/* Same for i810 and i830 */
