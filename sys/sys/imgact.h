@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: imgact.h,v 1.14 1997/02/22 09:45:17 peter Exp $
  */
 
 #ifndef _SYS_IMGACT_H_
@@ -46,6 +46,7 @@ struct image_params {
 	char *stringp;		/* current 'end' pointer of tmp strings */
 	int stringspace;	/* space left in tmp string storage area */
 	int argc, envc;		/* count of argument and environment strings */
+	char *argv0;		/* Replacement for argv[0] when interpreting */
 	unsigned long entry_addr; /* entry address of target executable */
 	char vmspace_destroyed;	/* flag - we've blown away original vm space */
 	char interpreted;	/* flag - this executable is interpreted */
