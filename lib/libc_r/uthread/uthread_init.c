@@ -38,8 +38,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <fcntl.h>
+#include <paths.h>
 #include <unistd.h>
 #include <sys/time.h>
+#include <sys/ttycom.h>
 #ifdef _THREAD_SAFE
 #include <machine/reg.h>
 #include <pthread.h>
@@ -76,6 +78,7 @@ static void ***dynamic_allocator_handler_fn()
 void
 _thread_init(void)
 {
+	int		fd;
 	int             flags;
 	int             i;
 	struct sigaction act;
@@ -84,6 +87,31 @@ _thread_init(void)
 	if (_thread_initial)
 		/* Only initialise the threaded application once. */
 		return;
+
+	/*
+	 * Check for the special case of this process running as
+	 * or in place of init as pid = 1:
+	 */
+	if (getpid() == 1) {
+		/*
+		 * Setup a new session for this process which is
+		 * assumed to be running as root.
+		 */
+    		if (setsid() == -1)
+			PANIC("Can't set session ID");
+    		if (revoke(_PATH_CONSOLE) != 0)
+			PANIC("Can't revoke console");
+    		if ((fd = _thread_sys_open(_PATH_CONSOLE, O_RDWR)) < 0)
+			PANIC("Can't open console");
+    		if (setlogin("root") == -1)
+			PANIC("Can't set login to root");
+    		if (_thread_sys_ioctl(fd,TIOCSCTTY, (char *) NULL) == -1)
+			PANIC("Can't set controlling terminal");
+    		if (_thread_sys_dup2(fd,0) == -1 ||
+    		    _thread_sys_dup2(fd,1) == -1 ||
+    		    _thread_sys_dup2(fd,2) == -1)
+			PANIC("Can't dup2");
+	}
 
 	/* Get the standard I/O flags before messing with them : */
 	for (i = 0; i < 3; i++)
@@ -154,7 +182,7 @@ _thread_init(void)
 		/* Initialise the global signal action structure: */
 		sigfillset(&act.sa_mask);
 		act.sa_handler = (void (*) ()) _thread_sig_handler;
-		act.sa_flags = SA_RESTART;
+		act.sa_flags = 0;
 
 		/* Enter a loop to get the existing signal status: */
 		for (i = 1; i < NSIG; i++) {
