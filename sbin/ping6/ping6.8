@@ -30,7 +30,7 @@
 .\"
 .Dd May 17, 1998
 .Dt PING6 8
-.Os KAME
+.Os
 .Sh NAME
 .Nm ping6
 .Nd send
@@ -322,8 +322,8 @@ if an error occurred.
 .Sh SEE ALSO
 .Xr netstat 1 ,
 .Xr ifconfig 8 ,
-.Xr routed 8 ,
 .Xr ping 8 ,
+.Xr routed 8 ,
 .Xr traceroute 8 ,
 .Xr traceroute6 8
 .Sh HISTORY
@@ -331,8 +331,11 @@ The
 .Nm ping
 command appeared in
 .Bx 4.3 .
-.Nm Ping6
+The
+.Nm
 command with IPv6 support first appeared in WIDE Hydrangea IPv6 protocol stack
 kit.
-.\" .Sh BUGS
-.\" (to be written)
+.Pp
+IPv6 and IPsec support based on the KAME Project (http://www.kame.net/) stack
+was initialy integrated into
+.Fx 4.0
