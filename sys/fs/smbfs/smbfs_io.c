@@ -679,12 +679,8 @@ smbfs_vinvalbuf(vp, flags, cred, td, intrflg)
 	struct smbnode *np = VTOSMB(vp);
 	int error = 0, slpflag, slptimeo;
 
-	if (vp->v_iflag & VI_XLOCK) {
-#ifdef INVARIANTS
-		backtrace();
-#endif
+	if (vp->v_iflag & VI_XLOCK)
 		return 0;
-	}
 
 	if (intrflg) {
 		slpflag = PCATCH;
