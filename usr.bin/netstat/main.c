@@ -222,7 +222,7 @@ struct protox netgraphprotox[] = {
 	  NULL,		NULL,		"ctrl",	0 },
 	{ N_NGSOCKS,	-1,		1,	netgraphprotopr,
 	  NULL,		NULL,		"data",	0 },
-	{ -1,		NULL,		0,	0,
+	{ -1,		0,		0,	0,
 	  0,		NULL,		0,	0 }
 };
 
