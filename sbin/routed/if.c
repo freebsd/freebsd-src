@@ -31,12 +31,13 @@
  * SUCH DAMAGE.
  */
 
-#if !defined(lint) && !defined(sgi) && !defined(__NetBSD__)
+#ifndef lint
+#if 0
 static char sccsid[] = "@(#)if.c	8.1 (Berkeley) 6/5/93";
-#elif defined(__NetBSD__)
-static char rcsid[] = "$NetBSD$";
 #endif
-#ident "$Revision: 1.1.1.5 $"
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
 
 #include "defs.h"
 #include "pathnames.h"
@@ -695,7 +696,7 @@ ifinit(void)
 					    ? CHECK_ACT_INTERVAL
 					    : CHECK_QUIET_INTERVAL);
 
-	/* mark all interfaces so we can get rid of thost that disappear */
+	/* mark all interfaces so we can get rid of those that disappear */
 	for (ifp = ifnet; 0 != ifp; ifp = ifp->int_next)
 		ifp->int_state &= ~(IS_CHECKED | IS_DUP);
 
@@ -994,7 +995,7 @@ ifinit(void)
 			}
 			ifp->int_data = ifs.int_data;
 
-			/* Withhold judgement when the short error
+			/* Withhold judgment when the short error
 			 * counters wrap or the interface is reset.
 			 */
 			if (ierr < 0 || in < 0 || oerr < 0 || out < 0) {

@@ -31,11 +31,13 @@
  * SUCH DAMAGE.
  */
 
-#if !defined(lint) && !defined(sgi) && !defined(__NetBSD__)
+#ifndef lint
+#if 0
 static char sccsid[] = "@(#)tables.c	8.1 (Berkeley) 6/5/93";
-#elif defined(__NetBSD__)
-static char rcsid[] = "$NetBSD$";
 #endif
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
 
 #include "defs.h"
 
@@ -175,11 +177,11 @@ ag_del(struct ag_info *ag)
 }
 
 
-/* Flush routes waiting for aggretation.
+/* Flush routes waiting for aggregation.
  *	This must not suppress a route unless it is known that among all
  *	routes with coarser masks that match it, the one with the longest
  *	mask is appropriate.  This is ensured by scanning the routes
- *	in lexical order, and with the most restritive mask first
+ *	in lexical order, and with the most restrictive mask first
  *	among routes to the same destination.
  */
 void
@@ -316,8 +318,8 @@ ag_check(naddr	dst,
 		 * A route to an address less than the current destination
 		 * will not be affected by the current route or any route
 		 * seen hereafter.  That means it is safe to suppress it.
-		 * This check keeps poor routes (eg. with large hop counts)
-		 * from preventing suppresion of finer routes.
+		 * This check keeps poor routes (e.g. with large hop counts)
+		 * from preventing suppression of finer routes.
 		 */
 		if (ag_cors != 0
 		    && ag->ag_dst_h < dst
@@ -769,7 +771,7 @@ kern_add(naddr dst, naddr mask)
 	if (k != 0)
 		return k;
 
-	k = (struct khash *)malloc(sizeof(*k));
+	k = (struct khash *)rtmalloc(sizeof(*k), "kern_add");
 
 	bzero(k, sizeof(*k));
 	k->k_dst = dst;
@@ -953,7 +955,7 @@ flush_kern(void)
 		DBGERR(1,"RT_DUMP-sysctl-estimate");
 		return;
 	}
-	buf = malloc(needed);
+	buf = (char *)rtmalloc(needed, "flush_kern");
 	if (sysctl(mib, 6, buf, &needed, 0, 0) < 0)
 		BADERR(1,"RT_DUMP");
 	lim = buf + needed;

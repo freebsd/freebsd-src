@@ -31,12 +31,13 @@
  * SUCH DAMAGE.
  */
 
-#if !defined(lint) && !defined(sgi) && !defined(__NetBSD__)
+#ifndef lint
+#if 0
 static char sccsid[] = "@(#)rdisc.c	8.1 (Berkeley) x/y/95";
-#elif defined(__NetBSD__)
-static char rcsid[] = "$NetBSD$";
 #endif
-#ident "$Revision: 1.20 $"
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
 
 #include "defs.h"
 #include <netinet/in_systm.h>
@@ -252,7 +253,7 @@ set_supplier(void)
 	if (supplier_set)
 		return;
 
-	trace_act("start suppying routes");
+	trace_act("start supplying routes");
 
 	/* Forget discovered routes.
 	 */
@@ -294,7 +295,7 @@ rdisc_age(naddr bad_gate)
 	struct dr *drp;
 
 
-	/* If only adverising, then do only that. */
+	/* If only advertising, then do only that. */
 	if (supplier) {
 		/* if switching from client to server, get rid of old
 		 * default routes.
@@ -307,7 +308,7 @@ rdisc_age(naddr bad_gate)
 
 	/* If we are being told about a bad router,
 	 * then age the discovered default route, and if there is
-	 * no alternative, solicite a replacement.
+	 * no alternative, solicit a replacement.
 	 */
 	if (bad_gate != 0) {
 		/* Look for the bad discovered default route.
@@ -610,7 +611,7 @@ parse_ad(naddr from,
 				new_drp = drp;
 
 		} else if (new_drp->dr_ts != 0) {
-			/* look for the least valueable entry to reuse
+			/* look for the least valuable entry to reuse
 			 */
 			if ((!(new_drp->dr_ifp->int_state & IS_SICK)
 			     && (drp->dr_ifp->int_state & IS_SICK))
@@ -670,7 +671,7 @@ static void
 send_rdisc(union ad_u *p,
 	   int p_size,
 	   struct interface *ifp,
-	   naddr dst,			/* 0 or unicast destination */
+	   naddr dst,			/* 0 or UNICAST destination */
 	   int	type)			/* 0=unicast, 1=bcast, 2=mcast */
 {
 	struct sockaddr_in sin;
@@ -688,7 +689,7 @@ send_rdisc(union ad_u *p,
 	flags = MSG_DONTROUTE;
 
 	switch (type) {
-	case 0:				/* unicast */
+	case 0:				/* UNICAST */
 	default:
 		msg = "Send";
 		break;
@@ -714,7 +715,7 @@ send_rdisc(union ad_u *p,
 		if (rdisc_sock_mcast != ifp) {
 			/* select the right interface. */
 #ifdef MCAST_PPP_BUG
-			/* Do not specifiy the primary interface explicitly
+			/* Do not specify the primary interface explicitly
 			 * if we have the multicast point-to-point kernel
 			 * bug, since the kernel will do the wrong thing
 			 * if the local address of a point-to-point link
@@ -764,7 +765,7 @@ send_rdisc(union ad_u *p,
  */
 static void
 send_adv(struct interface *ifp,
-	 naddr	dst,			/* 0 or unicast destination */
+	 naddr	dst,			/* 0 or UNICAST destination */
 	 int	type)			/* 0=unicast, 1=bcast, 2=mcast */
 {
 	union ad_u u;

@@ -31,12 +31,13 @@
  * SUCH DAMAGE.
  */
 
-#if !defined(lint) && !defined(sgi) && !defined(__NetBSD__)
+#ifndef lint
+#if 0
 static char sccsid[] = "@(#)input.c	8.1 (Berkeley) 6/5/93";
-#elif defined(__NetBSD__)
-static char rcsid[] = "$NetBSD$";
 #endif
-#ident "$Revision: 1.1.1.5 $"
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
 
 #include "defs.h"
 
@@ -181,7 +182,7 @@ input(struct sockaddr_in *from,		/* received from this IP address */
 	 *
 	 * RIPv2 authentication is lame.  Why authenticate queries?
 	 * Why should a RIPv2 implementation with authentication disabled
-	 * not be able to listen to RIPv2 packets with authenication, while
+	 * not be able to listen to RIPv2 packets with authentication, while
 	 * RIPv1 systems will listen?  Crazy!
 	 */
 	if (!auth_ok
@@ -231,7 +232,7 @@ input(struct sockaddr_in *from,		/* received from this IP address */
 			}
 		}
 
-		/* According to RFC 1723, we should ignore unathenticated
+		/* According to RFC 1723, we should ignore unauthenticated
 		 * queries.  That is too silly to bother with.  Sheesh!
 		 * Are forwarding tables supposed to be secret, when
 		 * a bad guy can infer them with test traffic?  When RIP

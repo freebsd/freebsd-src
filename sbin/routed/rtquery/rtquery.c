@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)query.c	8.1 (Berkeley) 6/5/93";
 #endif
 static const char rcsid[] =
-	"$Id: rtquery.c,v 1.7 1998/01/14 07:17:12 charnier Exp $";
+	"$Id: rtquery.c,v 1.8 1998/07/22 05:49:36 phk Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -106,9 +106,9 @@ static void query_loop(char *argv[], int);
 static int getnet(char *, struct netinfo *);
 static u_int std_mask(u_int);
 static int parse_quote(char **, char *, char *, char *, int);
+static void usage(void);
 
-
-void
+int
 main(int argc,
      char *argv[])
 {
@@ -140,21 +140,19 @@ main(int argc,
 			wtime = (int)strtoul(optarg, &p, 0);
 			if (*p != '\0'
 			    || wtime <= 0)
-				goto usage;
+				usage();
 			break;
 
 		case 'r':
 			not_trace = 1;
 			if (rflag)
-				goto usage;
+				usage();
 			rflag = getnet(optarg, &OMSG.rip_nets[0]);
 			if (!rflag) {
 				struct hostent *hp = gethostbyname(optarg);
-				if (hp == 0) {
-					fprintf(stderr, "rtquery: %s:", optarg);
-					herror(0);
-					exit(1);
-				}
+				if (hp == 0)
+					errx(1, "%s: %s",
+						optarg, hstrerror(h_errno));
 				bcopy(hp->h_addr, &OMSG.rip_nets[0].n_dst,
 				      sizeof(OMSG.rip_nets[0].n_dst));
 				OMSG.rip_nets[0].n_family = RIP_AF_INET;
@@ -183,28 +181,28 @@ main(int argc,
 					OMSG.rip_cmd = RIPCMD_TRACEON;
 					if (!value
 					    || strlen(value) > MAXPATHLEN)
-						goto usage;
+						usage();
 					break;
 				case TRACE_MORE:
 					if (value)
-						goto usage;
+						usage();
 					OMSG.rip_cmd = RIPCMD_TRACEON;
 					value = "";
 					break;
 				case TRACE_OFF:
 					if (value)
-						goto usage;
+						usage();
 					OMSG.rip_cmd = RIPCMD_TRACEOFF;
 					value = "";
 					break;
 				case TRACE_DUMP:
 					if (value)
-						goto usage;
+						usage();
 					OMSG.rip_cmd = RIPCMD_TRACEON;
 					value = "dump/../table";
 					break;
 				default:
-					goto usage;
+					usage();
 				}
 				strcpy((char*)OMSG.rip_tracefile, value);
 				omsg_len += strlen(value) - sizeof(OMSG.ripun);
@@ -215,38 +213,34 @@ main(int argc,
 			not_trace = 1;
 			p = strchr(optarg,'=');
 			if (!p)
-				goto usage;
+				usage();
 			*p++ = '\0';
 			if (!strcasecmp("passwd",optarg))
 				auth_type = RIP_AUTH_PW;
 			else if (!strcasecmp("md5_passwd",optarg))
 				auth_type = RIP_AUTH_MD5;
 			else
-				goto usage;
+				usage();
 			if (0 > parse_quote(&p,"|",&delim,
 					    passwd,sizeof(passwd)))
-				goto usage;
+				usage();
 			if (auth_type == RIP_AUTH_MD5
 			    && delim == '|') {
 				keyid = strtoul(p+1,&p,0);
 				if (keyid > 255 || *p != '\0')
-					goto usage;
+					usage();
 			} else if (delim != '\0') {
-				goto usage;
+				usage();
 			}
 			break;
 
 		default:
-			goto usage;
+			usage();
 	}
 	argv += optind;
 	argc -= optind;
-	if ((not_trace && trace) || argc == 0) {
-usage:		fprintf(stderr, "%s\n%s\n",
-		"usage: rtquery [-np1v] [-r addr] [-w timeout] [-a secret] host ...",
-		"       rtquery [-t op] host ...");
-		exit(1);
-	}
+	if ((not_trace && trace) || argc == 0)
+		usage();
 
 	s = socket(AF_INET, SOCK_DGRAM, 0);
 	if (s < 0)
@@ -267,9 +261,18 @@ usage:		fprintf(stderr, "%s\n%s\n",
 		trace_loop(argv);
 	else
 		query_loop(argv, argc);
+	return(0);
 	/* NOTREACHED */
 }
 
+static void
+usage()
+{
+	fprintf(stderr, "%s\n%s\n",
+	"usage: rtquery [-np1v] [-r addr] [-w timeout] [-a secret] host ...",
+	"       rtquery [-t op] host ...");
+	exit(1);
+}
 
 /* tell the target hosts about tracing
  */

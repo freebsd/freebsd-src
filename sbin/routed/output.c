@@ -31,12 +31,13 @@
  * SUCH DAMAGE.
  */
 
-#if !defined(lint) && !defined(sgi) && !defined(__NetBSD__)
+#ifndef lint
+#if 0
 static char sccsid[] = "@(#)output.c	8.1 (Berkeley) 6/5/93";
-#elif defined(__NetBSD__)
-static char rcsid[] = "$NetBSD$";
 #endif
-#ident "$Revision: 1.21 $"
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
 
 #include "defs.h"
 
@@ -152,7 +153,7 @@ output(enum output_type type,
 			msg = "Send mcast";
 			if (rip_sock_mcast != ifp) {
 #ifdef MCAST_PPP_BUG
-				/* Do not specifiy the primary interface
+				/* Do not specify the primary interface
 				 * explicitly if we have the multicast
 				 * point-to-point kernel bug, since the
 				 * kernel will do the wrong thing if the
@@ -212,7 +213,7 @@ output(enum output_type type,
 
 
 /* Find the first key for a packet to send.
- * Try for a key that is eligable and has not expired, but settle for
+ * Try for a key that is eligible and has not expired, but settle for
  * the last key if they have all expired.
  * If no key is ready yet, give up.
  */
@@ -313,7 +314,7 @@ static void
 supply_write(struct ws_buf *wb)
 {
 	/* Output multicast only if legal.
-	 * If we would multcast and it would be illegal, then discard the
+	 * If we would multicast and it would be illegal, then discard the
 	 * packet.
 	 */
 	switch (wb->type) {
@@ -492,7 +493,7 @@ walk_supply(struct radix_node *rn,
 
 		} else {
 			/* Do not send automatic synthetic network routes
-			 * if they are not needed becaus no RIPv1 listeners
+			 * if they are not needed because no RIPv1 listeners
 			 * can hear them.
 			 */
 			if (ws.state & WS_ST_RIP2_ALL)

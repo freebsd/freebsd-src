@@ -31,23 +31,25 @@
  * SUCH DAMAGE.
  */
 
+#ifndef lint
 char copyright[] =
 "@(#) Copyright (c) 1983, 1988, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
-#if !defined(lint) && !defined(sgi) && !defined(__NetBSD__)
+#endif /* not lint */
+
+#ifndef lint
+#if 0
 static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 6/5/93";
-#elif defined(__NetBSD__)
-static char rcsid[] = "$NetBSD$";
 #endif
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
 
 #include "defs.h"
-#include "pathnames.h"
 #ifdef sgi
 #include "math.h"
 #endif
-#include <signal.h>
 #include <fcntl.h>
-#include <sys/file.h>
 
 pid_t	mypid;
 
@@ -62,7 +64,7 @@ int	default_gateway;		/* 1=advertise default */
 int	background = 1;
 int	ridhosts;			/* 1=reduce host routes */
 int	mhome;				/* 1=want multi-homed host route */
-int	advertise_mhome;		/* 1=must continue adverising it */
+int	advertise_mhome;		/* 1=must continue advertising it */
 int	auth_ok = 1;			/* 1=ignore auth if we do not care */
 
 struct timeval epoch;			/* when started */
@@ -197,7 +199,7 @@ main(int argc,
 			break;
 
 		case 'P':
-			/* handle arbirary, (usually) per-interface
+			/* handle arbitrary, (usually) per-interface
 			 * parameters.
 			 */
 			p = parse_parms(optarg, 0);
@@ -749,7 +751,7 @@ rtmalloc(size_t size,
 	 char *msg)
 {
 	void *p = malloc(size);
-	if (p == 0)
+	if (p == NULL)
 		logbad(1,"malloc() failed in %s", msg);
 	return p;
 }
@@ -775,7 +777,7 @@ timevaladd(struct timeval *t1,
 {
 
 	t1->tv_sec += t2->tv_sec;
-	if ((t1->tv_usec += t2->tv_usec) > 1000000) {
+	if ((t1->tv_usec += t2->tv_usec) >= 1000000) {
 		t1->tv_sec++;
 		t1->tv_usec -= 1000000;
 	}
