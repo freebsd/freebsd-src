@@ -37,6 +37,7 @@
 #include "opt_compat.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
+#include "opt_mac.h"
 #include "opt_tcpdebug.h"
 
 #include <sys/param.h>
@@ -44,6 +45,7 @@
 #include <sys/callout.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
+#include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #ifdef INET6
@@ -443,6 +445,21 @@ tcp_respond(tp, ipgen, th, m, ack, seq, flags)
 	m->m_len = tlen;
 	m->m_pkthdr.len = tlen;
 	m->m_pkthdr.rcvif = (struct ifnet *) 0;
+#ifdef MAC
+	if (tp != NULL) {
+		/*
+		 * Packet is associated with a socket, so allow the
+		 * label of the response to reflect the socket label.
+		 */
+		mac_create_mbuf_from_socket(tp->t_inpcb->inp_socket, m);
+	} else {
+		/*
+		 * XXXMAC: This will need to call a mac function that
+		 * modifies the mbuf label in place for TCP datagrams
+		 * not associated with a PCB.
+		 */
+	}
+#endif
 	nth->th_seq = htonl(seq);
 	nth->th_ack = htonl(ack);
 	nth->th_x2 = 0;

@@ -36,6 +36,7 @@
 
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
+#include "opt_mac.h"
 #include "opt_tcpdebug.h"
 
 #include <sys/param.h>
@@ -43,6 +44,7 @@
 #include <sys/domain.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/mac.h>
 #include <sys/mbuf.h>
 #include <sys/mutex.h>
 #include <sys/protosw.h>
@@ -639,6 +641,9 @@ send:
 		m->m_len = hdrlen;
 	}
 	m->m_pkthdr.rcvif = (struct ifnet *)0;
+#ifdef MAC
+	mac_create_mbuf_from_socket(so, m);
+#endif
 #ifdef INET6
 	if (isipv6) {
 		ip6 = mtod(m, struct ip6_hdr *);

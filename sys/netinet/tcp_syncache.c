@@ -36,12 +36,14 @@
 
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
+#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 #include <sys/malloc.h>
+#include <sys/mac.h>
 #include <sys/mbuf.h>
 #include <sys/md5.h>
 #include <sys/proc.h>		/* for proc0 declaration */
@@ -560,6 +562,9 @@ syncache_socket(sc, lso, m)
 		tcpstat.tcps_listendrop++;
 		goto abort;
 	}
+#ifdef MAC
+	mac_set_socket_peer_from_mbuf(m, so);
+#endif
 
 	inp = sotoinpcb(so);
 
@@ -1095,6 +1100,9 @@ syncache_respond(sc, m)
 	m->m_len = tlen;
 	m->m_pkthdr.len = tlen;
 	m->m_pkthdr.rcvif = NULL;
+#ifdef MAC
+	mac_create_mbuf_from_socket(sc->sc_tp->t_inpcb->inp_socket, m);
+#endif
 
 #ifdef IPSEC
 	/* use IPsec policy on listening socket to send SYN,ACK */
