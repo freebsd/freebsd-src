@@ -88,7 +88,7 @@ SYSCTL_NODE(_kern, OID_AUTO, timecounter, CTLFLAG_RW, 0, "");
 
 #define TC_STATS(foo) \
 	static u_int foo; \
-	SYSCTL_UINT(_kern_timecounter, OID_AUTO, foo, CTLFLAG_RD, &foo, 0, "") \
+	SYSCTL_UINT(_kern_timecounter, OID_AUTO, foo, CTLFLAG_RD, &foo, 0, "");\
 	struct __hack
 
 TC_STATS(nbinuptime);    TC_STATS(nnanouptime);    TC_STATS(nmicrouptime);
