@@ -1308,7 +1308,6 @@ pci/agp_i810.c		optional agp
 pci/alpm.c		optional alpm
 pci/amd.c		optional amd
 pci/amdpm.c		optional amdpm
-pci/cy_pci.c		optional cy pci
 pci/if_dc.c		optional dc
 pci/if_de.c		optional de
 pci/if_en_pci.c		optional en pci
