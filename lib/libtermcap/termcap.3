@@ -240,6 +240,23 @@ capability)
 if a null
 .Pq Sy ^@
 is inappropriate.
+.Pp
+The
+.Fn tparm
+function
+instantiates the string
+.Fa cp
+with given parameters.
+A pointer is returned which points to
+the result of
+.Fa cp
+with the parameters applied.
+If a
+.Sy %
+sequence is given which is not understood, then
+.Fn tparm
+returns
+.Pq Dv OOPS .
 .Sh FILES
 .Bl -tag -width /usr/share/misc/termcap -compact
 .It Pa /usr/lib/libtermcap.a
