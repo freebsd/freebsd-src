@@ -135,6 +135,9 @@
 #include <machine/smp.h>
 #include <machine/tlb.h>
 
+static void nexus_bus_barrier(bus_space_tag_t, bus_space_handle_t,
+    bus_size_t, bus_size_t, int);
+
 /* ASI's for bus access. */
 int bus_type_asi[] = {
 	ASI_PHYS_BYPASS_EC_WITH_EBIT,		/* UPA */
@@ -767,7 +770,6 @@ sparc64_bus_mem_unmap(void *bh, bus_size_t size)
 /*
  * Fake up a bus tag, for use by console drivers in early boot when the regular
  * means to allocate resources are not yet available.
- * Note that these tags are not eligible for bus_space_barrier operations.
  * Addr is the physical address of the desired start of the handle.
  */
 bus_space_handle_t
@@ -777,15 +779,13 @@ sparc64_fake_bustag(int space, bus_addr_t addr, struct bus_space_tag *ptag)
 	ptag->bst_cookie = NULL;
 	ptag->bst_parent = NULL;
 	ptag->bst_type = space;
-	ptag->bst_bus_barrier = NULL;
+	ptag->bst_bus_barrier = nexus_bus_barrier;
 	return (addr);
 }
 
 /*
  * Base bus space handlers.
  */
-static void nexus_bus_barrier(bus_space_tag_t, bus_space_handle_t,
-    bus_size_t, bus_size_t, int);
 
 static void
 nexus_bus_barrier(bus_space_tag_t t, bus_space_handle_t h, bus_size_t offset,
