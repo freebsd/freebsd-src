@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.56 1998/06/07 09:51:08 kato Exp $
+ *	$Id: clock.c,v 1.57 1998/06/08 08:56:43 kato Exp $
  */
 
 /*
@@ -310,7 +310,7 @@ acquire_timer0(int rate, void (*function) __P((struct clockframe *frame)))
 
 	if (rate <= 0 || rate > TIMER0_MAX_FREQ)
 		return (-1);
-	if (strcmp(timecounter->name, "i8254") == 0)
+	if (strcmp(timecounter->tc_name, "i8254") == 0)
 		return (-1);
 	switch (timer0_state) {
 
@@ -866,7 +866,7 @@ startrtclock()
 #endif
 
 	set_timer_freq(timer_freq, hz);
-	i8254_timecounter[0].frequency = timer_freq;
+	i8254_timecounter[0].tc_frequency = timer_freq;
 	init_timecounter(i8254_timecounter);
 
 #ifndef CLK_USE_TSC_CALIBRATION
@@ -916,7 +916,7 @@ startrtclock()
 #endif /* NAPM > 0 */
 
 	if (tsc_present && tsc_freq != 0) {
-		tsc_timecounter[0].frequency = tsc_freq;
+		tsc_timecounter[0].tc_frequency = tsc_freq;
 		init_timecounter(tsc_timecounter);
 	}
 
@@ -1381,7 +1381,7 @@ sysctl_machdep_i8254_freq SYSCTL_HANDLER_ARGS
 		if (timer0_state != RELEASED)
 			return (EBUSY);	/* too much trouble to handle */
 		set_timer_freq(freq, hz);
-		i8254_timecounter[0].frequency = freq;
+		i8254_timecounter[0].tc_frequency = freq;
 	}
 	return (error);
 }
@@ -1401,7 +1401,7 @@ sysctl_machdep_tsc_freq SYSCTL_HANDLER_ARGS
 	error = sysctl_handle_opaque(oidp, &freq, sizeof freq, req);
 	if (error == 0 && req->newptr != NULL) {
 		tsc_freq = freq;
-		tsc_timecounter[0].frequency = tsc_freq;
+		tsc_timecounter[0].tc_frequency = tsc_freq;
 	}
 	return (error);
 }
