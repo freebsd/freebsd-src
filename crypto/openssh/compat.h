@@ -9,11 +9,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by Markus Friedl.
- * 4. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -26,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-/* RCSID("$Id: compat.h,v 1.7 2000/05/08 17:42:24 markus Exp $"); */
+/* RCSID("$OpenBSD: compat.h,v 1.10 2000/09/07 20:27:50 deraadt Exp $"); */
 
 #ifndef COMPAT_H
 #define COMPAT_H
@@ -40,6 +35,7 @@
 #define SSH_BUG_PUBKEYAUTH	0x02
 #define SSH_BUG_HMAC		0x04
 #define SSH_BUG_X11FWD		0x08
+#define SSH_COMPAT_SESSIONID_ENCODING		0x10
 
 void    enable_compat13(void);
 void    enable_compat20(void);

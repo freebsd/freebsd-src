@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999 Theo de Raadt
+ * Copyright (c) 1995,1999 Theo de Raadt
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,7 +24,7 @@
  */
 
 #include "includes.h"
-RCSID("$Id: atomicio.c,v 1.3 2000/03/16 20:56:13 markus Exp $");
+RCSID("$OpenBSD: atomicio.c,v 1.5 2000/09/07 20:27:49 deraadt Exp $");
 
 #include "xmalloc.h"
 #include "ssh.h"

@@ -3,12 +3,7 @@
 PROG=	ssh
 BINOWN=	root
 
-.if (${MACHINE_ARCH} == "alpha" || ${MACHINE_ARCH} == "powerpc" || \
-	${MACHINE_ARCH} == "hppa")
-BINMODE=0000
-.else
 BINMODE?=4555
-.endif
 
 BINDIR=	/usr/bin
 MAN=	ssh.1
@@ -20,11 +15,11 @@ SRCS=	ssh.c log-client.c readconf.c clientloop.c \
 
 .include <bsd.own.mk> # for AFS
 
-.if (${KERBEROS} == "yes")
+.if (${KERBEROS:L} == "yes")
 CFLAGS+= -DKRB4 -I${DESTDIR}/usr/include/kerberosIV
 LDADD+=	 -lkrb
 DPADD+=	 ${LIBKRB}
-.if (${AFS} == "yes")
+.if (${AFS:L} == "yes")
 CFLAGS+= -DAFS
 LDADD+=  -lkafs
 DPADD+=  ${LIBKRBAFS}

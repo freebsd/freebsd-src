@@ -2,12 +2,17 @@
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1994 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
- * Created: Mon Mar 27 02:26:40 1995 ylo
  * Identity and host key generation and maintenance.
+ *
+ * As far as I am concerned, the code I have written for this software
+ * can be used freely for any purpose.  Any derived versions of this
+ * software must be clearly marked as such, and if the derived work is
+ * incompatible with the protocol description in the RFC file, it must be
+ * called by a name other than "ssh" or "Secure Shell".
  */
 
 #include "includes.h"
-RCSID("$Id: ssh-keygen.c,v 1.26 2000/05/30 17:32:06 markus Exp $");
+RCSID("$OpenBSD: ssh-keygen.c,v 1.31 2000/09/07 20:27:54 deraadt Exp $");
 
 #include <openssl/evp.h>
 #include <openssl/pem.h>
@@ -16,7 +21,6 @@ RCSID("$Id: ssh-keygen.c,v 1.26 2000/05/30 17:32:06 markus Exp $");
 
 #include "ssh.h"
 #include "xmalloc.h"
-#include "fingerprint.h"
 #include "key.h"
 #include "rsa.h"
 #include "dsa.h"
@@ -123,13 +127,13 @@ do_convert_to_ssh2(struct passwd *pw)
 		exit(1);
 	}
 	dsa_make_key_blob(k, &blob, &len);
-	fprintf(stdout, SSH_COM_MAGIC_BEGIN "\n");
+	fprintf(stdout, "%s\n", SSH_COM_MAGIC_BEGIN);
 	fprintf(stdout,
 	    "Comment: \"%d-bit DSA, converted from openssh by %s@%s\"\n",
 	    BN_num_bits(k->dsa->p),
 	    pw->pw_name, hostname);
 	dump_base64(stdout, blob, len);
-	fprintf(stdout, SSH_COM_MAGIC_END "\n");
+	fprintf(stdout, "%s\n", SSH_COM_MAGIC_END);
 	key_free(k);
 	xfree(blob);
 	exit(0);
@@ -224,8 +228,9 @@ do_print_public(struct passwd *pw)
 void
 do_fingerprint(struct passwd *pw)
 {
+	/* XXX RSA1 only */
+
 	FILE *f;
-	BIGNUM *e, *n;
 	Key *public;
 	char *comment = NULL, *cp, *ep, line[16*1024];
 	int i, skip = 0, num = 1, invalid = 1;
@@ -245,13 +250,9 @@ do_fingerprint(struct passwd *pw)
 		key_free(public);
 		exit(0);
 	}
-	key_free(public);
 
-	/* XXX */
 	f = fopen(identity_file, "r");
 	if (f != NULL) {
-		n = BN_new();
-		e = BN_new();
 		while (fgets(line, sizeof(line), f)) {
 			i = strlen(line) - 1;
 			if (line[i] != '\n') {
@@ -286,18 +287,17 @@ do_fingerprint(struct passwd *pw)
 				*cp++ = '\0';
 			}
 			ep = cp;
-			if (auth_rsa_read_key(&cp, &ignore, e, n)) {
+			if (auth_rsa_read_key(&cp, &ignore, public->rsa->e, public->rsa->n)) {
 				invalid = 0;
 				comment = *cp ? cp : comment;
-				printf("%d %s %s\n", BN_num_bits(n),
-				    fingerprint(e, n),
+				printf("%d %s %s\n", key_size(public),
+				    key_fingerprint(public),
 				    comment ? comment : "no comment");
 			}
 		}
-		BN_free(e);
-		BN_free(n);
 		fclose(f);
 	}
+	key_free(public);
 	if (invalid) {
 		printf("%s is not a valid key file.\n", identity_file);
 		exit(1);
@@ -654,7 +654,7 @@ main(int ac, char **av)
 	snprintf(dotsshdir, sizeof dotsshdir, "%s/%s", pw->pw_dir, SSH_USER_DIR);
 	if (strstr(identity_file, dotsshdir) != NULL &&
 	    stat(dotsshdir, &st) < 0) {
-		if (mkdir(dotsshdir, 0755) < 0)
+		if (mkdir(dotsshdir, 0700) < 0)
 			error("Could not create directory '%s'.", dotsshdir);
 		else if (!quiet)
 			printf("Created directory '%s'.\n", dotsshdir);
