@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: cd.c,v 1.78 1997/02/22 09:44:23 peter Exp $
+ *      $Id: cd.c,v 1.79 1997/03/23 03:37:23 bde Exp $
  */
 
 #include "opt_bounce.h"
@@ -46,6 +46,8 @@
 #include <scsi/scsi_cd.h>
 #include <scsi/scsi_disk.h>	/* rw_big and start_stop come from there */
 #include <scsi/scsiconf.h>
+#include <scsi/scsi_debug.h>
+#include <scsi/scsi_driver.h>
 
 static errval cd_get_parms __P((int, int));
 static u_int32_t cd_size __P((int unit, int flags));

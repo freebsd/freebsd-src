@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- * $Id$
+ * $Id: st.c,v 1.76 1997/02/22 09:44:39 peter Exp $
  */
 
 /*
@@ -51,8 +51,8 @@
 #include <scsi/scsi_all.h>
 #include <scsi/scsi_tape.h>
 #include <scsi/scsiconf.h>
-
-
+#include <scsi/scsi_debug.h>
+#include <scsi/scsi_driver.h>
 
 /* Defines for device specific stuff */
 #define		PAGE_0_SENSE_DATA_SIZE	12

@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx.c,v 1.105 1997/03/01 06:50:41 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.106 1997/03/16 07:12:07 gibbs Exp $
  */
 /*
  * TODO:
@@ -106,6 +106,7 @@
 #include <scsi/scsi_debug.h>
 #endif
 #include <scsi/scsiconf.h>
+#include <scsi/scsi_debug.h>
 
 #if defined(__FreeBSD__)
 #include <machine/clock.h>
