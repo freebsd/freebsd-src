@@ -47,6 +47,9 @@ all:
 	@echo "Running test PATH_exists"
 	@${MAKE} PATH_exists || ${MAKE} failure
 	@echo "PASS: Test PATH_exists detected no regression."
+	@echo "Running test double_quotes"
+	@${MAKE} double_quotes || ${MAKE} failure
+	@echo "PASS: Test double_quotes detected no regression."
 
 .if make(double)
 # Doubly-defined targets.  make(1) will warn, but use the "right" one.  If it
@@ -110,6 +113,14 @@ PATH_exists:
 .PATH: ${.CURDIR}
 .if !exists(${.CURDIR}/) || !exists(${.CURDIR}/.) || !exists(${.CURDIR}/..)
 .error exists() failed
+.endif
+.endif
+
+.if make(double_quotes)
+VALUE=	foo ""
+double_quotes:
+.if ${VALUE:S/$//} != ${VALUE}
+.error "" reduced to "
 .endif
 .endif
 
