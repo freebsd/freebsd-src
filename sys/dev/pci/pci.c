@@ -41,6 +41,7 @@
 #include <sys/conf.h>
 #include <sys/kernel.h>
 #include <sys/queue.h>
+#include <sys/sysctl.h>
 #include <sys/types.h>
 
 #include <vm/vm.h>
@@ -162,6 +163,17 @@ struct pci_quirk pci_quirks[] = {
 struct devlist pci_devq;
 u_int32_t pci_generation;
 u_int32_t pci_numdevs = 0;
+
+/* sysctl vars */
+SYSCTL_NODE(_hw, OID_AUTO, pci, CTLFLAG_RD, 0, "PCI bus tuning parameters");
+
+int pci_enable_io_modes = 1;
+TUNABLE_INT("hw.pci.enable_io_modes", (int *)&pci_enable_io_modes);
+SYSCTL_INT(_hw_pci, OID_AUTO, enable_io_modes, CTLFLAG_RW,
+    &pci_enable_io_modes, 1,
+    "Enable I/O and memory bits in the config register.  Some BIOSes do not\n\
+enable these bits correctly.  We'd like to do this all the time, but there\n\
+are some peripherals that this causes problems with.");
 
 /* Find a device_t by bus/slot/function */
 
@@ -663,9 +675,7 @@ pci_add_map(device_t pcib, int b, int s, int f, int reg,
 	u_int8_t ln2size;
 	u_int8_t ln2range;
 	u_int32_t testval;
-#ifdef PCI_ENABLE_IO_MODES
 	u_int16_t cmd;
-#endif
 	int type;
 
 	map = PCIB_READ_CONFIG(pcib, b, s, f, reg, 4);
@@ -707,25 +717,24 @@ pci_add_map(device_t pcib, int b, int s, int f, int reg,
 	 * peripherals respond oddly to having these bits
 	 * enabled.  Leave them alone by default.
 	 */
-#ifdef PCI_ENABLE_IO_MODES
-	/* Turn on resources that have been left off by a lazy BIOS */
-	if (type == SYS_RES_IOPORT && !pci_porten(pcib, b, s, f)) {
-		cmd = PCIB_READ_CONFIG(pcib, b, s, f, PCIR_COMMAND, 2);
-		cmd |= PCIM_CMD_PORTEN;
-		PCIB_WRITE_CONFIG(pcib, b, s, f, PCIR_COMMAND, cmd, 2);
+	if (pci_enable_io_modes) {
+		/* Turn on resources that have been left off by a lazy BIOS */
+		if (type == SYS_RES_IOPORT && !pci_porten(pcib, b, s, f)) {
+			cmd = PCIB_READ_CONFIG(pcib, b, s, f, PCIR_COMMAND, 2);
+			cmd |= PCIM_CMD_PORTEN;
+			PCIB_WRITE_CONFIG(pcib, b, s, f, PCIR_COMMAND, cmd, 2);
+		}
+		if (type == SYS_RES_MEMORY && !pci_memen(pcib, b, s, f)) {
+			cmd = PCIB_READ_CONFIG(pcib, b, s, f, PCIR_COMMAND, 2);
+			cmd |= PCIM_CMD_MEMEN;
+			PCIB_WRITE_CONFIG(pcib, b, s, f, PCIR_COMMAND, cmd, 2);
+		}
+	} else {
+		if (type == SYS_RES_IOPORT && !pci_porten(pcib, b, s, f))
+			return (1);
+		if (type == SYS_RES_MEMORY && !pci_memen(pcib, b, s, f))
+			return (1);
 	}
-	if (type == SYS_RES_MEMORY && !pci_memen(pcib, b, s, f)) {
-		cmd = PCIB_READ_CONFIG(pcib, b, s, f, PCIR_COMMAND, 2);
-		cmd |= PCIM_CMD_MEMEN;
-		PCIB_WRITE_CONFIG(pcib, b, s, f, PCIR_COMMAND, cmd, 2);
-	}
-#else
-        if (type == SYS_RES_IOPORT && !pci_porten(pcib, b, s, f))
-                return (1);
-        if (type == SYS_RES_MEMORY && !pci_memen(pcib, b, s, f))
-		return (1);
-#endif
-
 	resource_list_add(rl, type, reg, base, base + (1 << ln2size) - 1,
 	    (1 << ln2size));
 
@@ -1185,6 +1194,12 @@ pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	struct pci_devinfo *dinfo = device_get_ivars(child);
 	struct resource_list *rl = &dinfo->resources;
 	pcicfgregs *cfg = &dinfo->cfg;
+
+	/*
+	 * You can share PCI interrupts.
+	 */
+	if (type == SYS_RES_IRQ)
+		flags |= RF_SHAREABLE;
 
 	/*
 	 * Perform lazy resource allocation
