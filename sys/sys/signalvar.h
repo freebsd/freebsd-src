@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)signalvar.h	8.3 (Berkeley) 1/4/94
- * $Id: signalvar.h,v 1.4 1994/10/02 17:24:55 phk Exp $
+ * $Id: signalvar.h,v 1.5 1995/03/16 18:16:24 bde Exp $
  */
 
 #ifndef	_SYS_SIGNALVAR_H_		/* tmp for user.h */
@@ -58,6 +58,7 @@ struct	sigacts {
 	int	ps_code;		/* for core dump/debugger XXX */
 	int	ps_addr;		/* for core dump/debugger XXX */
 	sigset_t ps_usertramp;		/* SunOS compat; libc sigtramp XXX */
+	sigset_t ps_nodefer;		/* signals not to defer */
 };
 
 /* signal flags */
