@@ -1,4 +1,4 @@
-$Id: majors.i386,v 1.20 1997/11/10 03:50:29 msmith Exp $
+$Id: majors.i386,v 1.21 1997/11/16 10:02:13 sos Exp $
 
 Hopefully, this list will one day be obsoleted by DEVFS, but for now
 this is the current allocation of device major numbers.
@@ -123,4 +123,4 @@ chrdev	name		comments
 82	ppi		Generic Parallel I/O <Nicolas.Souchu@prism.uvsq.fr>
 83	can		CAN16-2 CAN-PC Interface
 84	ttxt		Unitext teletext decoder (arg@arg1.demon.co.uk)
-85	vesa		VESA support device (mini@d198-232.uoregon.edu)
+85	vesa		VESA support device (j_mini@efn.org)
