@@ -158,7 +158,7 @@ ep_get_macaddr(struct ep_softc *sc, u_char *addr)
 
 	macaddr = (u_int16_t *) addr;
 
-	GO_WINDOW(0);
+	GO_WINDOW(sc, 0);
 	for (i = EEPROM_NODE_ADDR_0; i <= EEPROM_NODE_ADDR_2; i++) {
 		error = get_e(sc, i, &result);
 		if (error)
@@ -203,7 +203,7 @@ ep_alloc(device_t dev)
 	sc->ep_connectors = 0;
 	sc->ep_connector = 0;
 
-	GO_WINDOW(0);
+	GO_WINDOW(sc, 0);
 	sc->epb.cmd_off = 0;
 
 	error = get_e(sc, EEPROM_PROD_ID, &result);
@@ -225,7 +225,7 @@ ep_get_media(struct ep_softc *sc)
 {
 	u_int16_t config;
 
-	GO_WINDOW(0);
+	GO_WINDOW(sc, 0);
 	config = CSR_READ_2(sc, EP_W0_CONFIG_CTRL);
 	if (config & IS_AUI)
 		sc->ep_connectors |= AUI;
@@ -281,7 +281,7 @@ ep_attach(struct ep_softc *sc)
 	 * Setup the station address
 	 */
 	p = (u_short *)&sc->arpcom.ac_enaddr;
-	GO_WINDOW(2);
+	GO_WINDOW(sc, 2);
 	for (i = 0; i < 3; i++)
 		CSR_WRITE_2(sc, EP_W2_ADDR_0 + (i * 2), ntohs(p[i]));
 
@@ -393,11 +393,11 @@ epinit_locked(struct ep_softc *sc)
 	EP_ASSERT_LOCKED(sc);
 	EP_BUSY_WAIT(sc);
 
-	GO_WINDOW(0);
+	GO_WINDOW(sc, 0);
 	CSR_WRITE_2(sc, EP_COMMAND, STOP_TRANSCEIVER);
-	GO_WINDOW(4);
+	GO_WINDOW(sc, 4);
 	CSR_WRITE_2(sc, EP_W4_MEDIA_TYPE, DISABLE_UTP);
-	GO_WINDOW(0);
+	GO_WINDOW(sc, 0);
 
 	/* Disable the card */
 	CSR_WRITE_2(sc, EP_W0_CONFIG_CTRL, 0);
@@ -405,7 +405,7 @@ epinit_locked(struct ep_softc *sc)
 	/* Enable the card */
 	CSR_WRITE_2(sc, EP_W0_CONFIG_CTRL, ENABLE_DRQ_IRQ);
 
-	GO_WINDOW(2);
+	GO_WINDOW(sc, 2);
 
 	/* Reload the ether_addr. */
 	for (i = 0; i < 6; i++)
@@ -416,7 +416,7 @@ epinit_locked(struct ep_softc *sc)
 	EP_BUSY_WAIT(sc);
 
 	/* Window 1 is operating window */
-	GO_WINDOW(1);
+	GO_WINDOW(sc, 1);
 	for (i = 0; i < 31; i++)
 		CSR_READ_1(sc, EP_W1_TX_STATUS);
 
@@ -461,7 +461,7 @@ epinit_locked(struct ep_softc *sc)
 	 * called from intr or somewhere else.
 	 */
 
-	GO_WINDOW(1);
+	GO_WINDOW(sc, 1);
 	epstart_locked(ifp);
 }
 
@@ -616,7 +616,7 @@ rescan:
 			/* we need ACK */
 			ifp->if_timer = 0;
 			ifp->if_flags &= ~IFF_OACTIVE;
-			GO_WINDOW(1);
+			GO_WINDOW(sc, 1);
 			CSR_READ_2(sc, EP_W1_FREE_TX);
 			epstart_locked(ifp);
 		}
@@ -624,7 +624,7 @@ rescan:
 			ifp->if_timer = 0;
 #ifdef EP_LOCAL_STATS
 			printf("\nep%d:\n\tStatus: %x\n", sc->unit, status);
-			GO_WINDOW(4);
+			GO_WINDOW(sc, 4);
 			printf("\tFIFO Diagnostic: %x\n",
 			    CSR_READ_2(sc, EP_W4_FIFO_DIAG));
 			printf("\tStat: %x\n", sc->stat);
@@ -689,7 +689,7 @@ rescan:
 				CSR_WRITE_1(sc, EP_W1_TX_STATUS, 0x0);
 			}	/* while */
 			ifp->if_flags &= ~IFF_OACTIVE;
-			GO_WINDOW(1);
+			GO_WINDOW(sc, 1);
 			CSR_READ_2(sc, EP_W1_FREE_TX);
 			epstart_locked(ifp);
 		}	/* end TX_COMPLETE */
@@ -860,17 +860,17 @@ ep_ifmedia_upd(struct ifnet *ifp)
 	struct ep_softc *sc = ifp->if_softc;
 	int i = 0, j;
 
-	GO_WINDOW(0);
+	GO_WINDOW(sc, 0);
 	CSR_WRITE_2(sc, EP_COMMAND, STOP_TRANSCEIVER);
-	GO_WINDOW(4);
+	GO_WINDOW(sc, 4);
 	CSR_WRITE_2(sc, EP_W4_MEDIA_TYPE, DISABLE_UTP);
-	GO_WINDOW(0);
+	GO_WINDOW(sc, 0);
 
 	switch (IFM_SUBTYPE(sc->ifmedia.ifm_media)) {
 	case IFM_10_T:
 		if (sc->ep_connectors & UTP) {
 			i = ACF_CONNECTOR_UTP;
-			GO_WINDOW(4);
+			GO_WINDOW(sc, 4);
 			CSR_WRITE_2(sc, EP_W4_MEDIA_TYPE, ENABLE_UTP);
 		}
 		break;
@@ -891,7 +891,7 @@ ep_ifmedia_upd(struct ifnet *ifp)
 		    "strange connector type in EEPROM: assuming AUI\n");
 	}
 
-	GO_WINDOW(0);
+	GO_WINDOW(sc, 0);
 	j = CSR_READ_2(sc, EP_W0_ADDRESS_CFG) & 0x3fff;
 	CSR_WRITE_2(sc, EP_W0_ADDRESS_CFG, j | (i << ACF_CONNECTOR_BITS));
 

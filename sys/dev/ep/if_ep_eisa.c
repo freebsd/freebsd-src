@@ -214,7 +214,7 @@ ep_eisa_attach(device_t dev)
 	if (irq == 9)
 		irq = 2;
 
-	GO_WINDOW(0);
+	GO_WINDOW(sc, 0);
 	SET_IRQ(sc, irq);
 
 	if ((error = ep_attach(sc))) {
