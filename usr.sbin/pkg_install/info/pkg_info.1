@@ -25,7 +25,7 @@
 .Nd a utility for displaying information on software packages
 .Sh SYNOPSIS
 .Nm
-.Op Fl cdDfgGiIkLmopqrRsvx
+.Op Fl cdDfgGiIkLmopqrRsvVx
 .Op Fl e Ar package
 .Op Fl l Ar prefix
 .Op Fl t Ar template
@@ -163,6 +163,8 @@ and one would have to have a very small
 .Pa /tmp
 indeed to overflow it.
 .Ed
+.It Fl V
+Show revision number of the packing list format.
 .El
 .Sh TECHNICAL DETAILS
 Package info is either extracted from package files named on the
