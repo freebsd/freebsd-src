@@ -562,13 +562,13 @@ nfs_print(vp)
 }
 
 void
-union_header() 
+union_header()
 {
 	(void)printf("    UPPER    LOWER");
 }
 
 int
-union_print(vp) 
+union_print(vp)
 	struct vnode *vp;
 {
 	struct union_node unode, *up = &unode;
@@ -579,7 +579,7 @@ union_print(vp)
 	    (u_long)(void *)up->un_lowervp);
 	return (0);
 }
-	
+
 /*
  * Given a pointer to a mount structure in kernel space,
  * read it in and return a usable pointer to it.
@@ -988,7 +988,7 @@ swapmode(void)
 	long blocksize;
 
 	n = kvm_getswapinfo(
-	    kd, 
+	    kd,
 	    kswap,
 	    sizeof(kswap)/sizeof(kswap[0]),
 	    ((swapflag > 1) ? SWIF_DUMP_TREE : 0) | SWIF_DEV_PREFIX
@@ -1025,7 +1025,7 @@ swapmode(void)
 		blocksize = 1024 * 1024;
 
 		(void)printf(
-		    "%dM/%dM swap space\n", 
+		    "%dM/%dM swap space\n",
 		    CONVERT(kswap[n].ksw_used),
 		    CONVERT(kswap[n].ksw_total)
 		);
@@ -1033,7 +1033,7 @@ swapmode(void)
 		(void)printf(
 		    "%-15s %*d %8d %8d %5.0f%%\n",
 		    "Total",
-		    hlen, 
+		    hlen,
 		    CONVERT(kswap[n].ksw_total),
 		    CONVERT(kswap[n].ksw_used),
 		    CONVERT(kswap[n].ksw_total - kswap[n].ksw_used),
