@@ -27,7 +27,7 @@ extern int kernel_writablecore;
 /* START_PROGRESS is called at the top of main */
 #undef START_PROGRESS
 #define START_PROGRESS(STR,N) \
-  if (!strcmp(STR, "kgdb")) \
+  if (!strcmp (STR, "kgdb")) \
      kernel_debugging = 1;
 
 #endif /* FBSD_KGDB_H */
