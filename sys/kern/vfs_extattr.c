@@ -4258,7 +4258,8 @@ extattr_delete_vp(struct vnode *vp, int attrnamespace, const char *attrname,
 		goto done;
 #endif
 
-	error = VOP_RMEXTATTR(vp, attrnamespace, attrname, td->td_ucred, td);
+	error = VOP_DELETEEXTATTR(vp, attrnamespace, attrname, td->td_ucred,
+	    td);
 	if (error == EOPNOTSUPP)
 		error = VOP_SETEXTATTR(vp, attrnamespace, attrname, NULL,
 		    td->td_ucred, td);
