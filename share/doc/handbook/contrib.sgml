@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.110 1996/07/25 13:53:47 peter Exp $ -->
+<!-- $Id: contrib.sgml,v 1.111 1996/07/25 19:06:10 asami Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>FreeBSD contributor list<label id="contrib"></heading>
@@ -280,6 +280,7 @@
 	  <item>Terry Lee &lt;terry@uivlsi.csl.uiuc.edu&gt;
 	  <item>Theo Deraadt &lt;deraadt@fsa.ca&gt;
 	  <item>Thomas Gellekum &lt;thomas@ghpc8.ihf.rwth-aachen.de&gt;
+	  <item>Tim Kientzle &lt;kientzle@netcom.com&gt;
 	  <item>Tom Samplonius &lt;tom@misery.sdf.com&gt;
 	  <item>Torbjorn Granlund &lt;tege@matematik.su.se&gt;
 	  <item>Werner Griessl &lt;werner@btp1da.phy.uni-bayreuth.de&gt;
