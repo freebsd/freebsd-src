@@ -126,7 +126,7 @@ main(argc, argv)
 	uid_t *uids;
 	int all, ch, flag, i, fmt, lineno, nentries, dropgid;
 	int prtheader, wflag, what, xflg, uid, nuids;
-	char *nlistf, *memf, *swapf, errbuf[_POSIX2_LINE_MAX];
+	char *nlistf, *memf, errbuf[_POSIX2_LINE_MAX];
 
 	(void) setlocale(LC_ALL, "");
 
@@ -147,12 +147,12 @@ main(argc, argv)
 	uids = NULL;
 	ttydev = NODEV;
 	dropgid = 0;
-	memf = nlistf = swapf = _PATH_DEVNULL;
+	memf = nlistf = _PATH_DEVNULL;
 	while ((ch = getopt(argc, argv,
 #if defined(LAZY_PS)
-	    "aCcefghjLlM:mN:O:o:p:rSTt:U:uvW:wx")) != -1)
+	    "aCcefghjLlM:mN:O:o:p:rSTt:U:uvwx")) != -1)
 #else
-	    "aCceghjLlM:mN:O:o:p:rSTt:U:uvW:wx")) != -1)
+	    "aCceghjLlM:mN:O:o:p:rSTt:U:uvwx")) != -1)
 #endif
 		switch((char)ch) {
 		case 'a':
@@ -261,10 +261,6 @@ main(argc, argv)
 			fmt = 1;
 			vfmt[0] = '\0';
 			break;
-		case 'W':
-			swapf = optarg;
-			dropgid = 1;
-			break;
 		case 'w':
 			if (wflag)
 				termwidth = UNLIMITED;
@@ -288,8 +284,6 @@ main(argc, argv)
 		nlistf = *argv;
 		if (*++argv) {
 			memf = *argv;
-			if (*++argv)
-				swapf = *argv;
 		}
 	}
 #endif
@@ -302,7 +296,7 @@ main(argc, argv)
 		setuid(getuid());
 	}
 
-	kd = kvm_openfiles(nlistf, memf, swapf, O_RDONLY, errbuf);
+	kd = kvm_openfiles(nlistf, memf, NULL, O_RDONLY, errbuf);
 	if (kd == 0)
 		errx(1, "%s", errbuf);
 
@@ -611,7 +605,7 @@ kludge_oldps_options(s)
 	 * option string, the remainder of the string is the argument to
 	 * that flag; do not modify that argument.
 	 */
-	if (strcspn(s, "MNOoUW") == len && *cp == 't' && *s != '-')
+	if (strcspn(s, "MNOoU") == len && *cp == 't' && *s != '-')
 		*cp = 'T';
 	else {
 		/*
@@ -643,7 +637,7 @@ usage()
 
 	(void)fprintf(stderr, "%s\n%s\n%s\n",
 	    "usage: ps [-aChjlmrSTuvwx] [-O|o fmt] [-p pid] [-t tty] [-U user]",
-	    "          [-M core] [-N system] [-W swap]",
+	    "          [-M core] [-N system]",
 	    "       ps [-L]");
 	exit(1);
 }

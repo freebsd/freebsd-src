@@ -48,7 +48,6 @@
 .Op Fl p Ar pid
 .Op Fl t Ar tty
 .Op Fl U Ar username
-.Op Fl W Ar swap
 .Nm
 .Op Fl L
 .Sh DESCRIPTION
@@ -166,9 +165,6 @@ The
 option implies the
 .Fl m
 option.
-.It Fl W
-Extract swap information from the specified file instead of
-using libkvm.
 .It Fl w
 Use 132 columns to display information, instead of the default which
 is your window size.
@@ -483,10 +479,6 @@ exit or stop status (valid only for stopped or zombie process)
 .El
 .Sh FILES
 .Bl -tag -width /var/db/kvm_kernel.db -compact
-.It Pa /dev
-special files and device names
-.It Pa /dev/drum
-default swap device
 .It Pa /dev/kmem
 default kernel memory
 .It Pa /var/run/dev.db
