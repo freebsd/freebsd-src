@@ -1810,7 +1810,7 @@ ohci_rem_ed(ohci_soft_ed_t *sed, ohci_soft_ed_t *head)
 	SPLUSBCHECK;
 
 	/* XXX */
-	for (p = head; p == NULL && p->next != sed; p = p->next)
+	for (p = head; p != NULL && p->next != sed; p = p->next)
 		;
 	if (p == NULL)
 		panic("ohci_rem_ed: ED not found\n");
