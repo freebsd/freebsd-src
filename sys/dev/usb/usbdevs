@@ -600,7 +600,8 @@ product DAISY DMC		0x6901	USB MultiMedia Reader
 product DALLAS J6502		0x4201	J-6502 speakers
 
 /* Dell products */
-product DELL BC02		0x8000	Dell BC02 Bluetooth USB Adapter
+product DELL PORT		0x0058	Port Replicator
+product DELL BC02		0x8000	BC02 Bluetooth USB Adapter
 
 /* Delorme Paublishing products */
 product DELORME EARTHMATE	0x0100	Earthmate GPS
