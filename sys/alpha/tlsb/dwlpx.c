@@ -66,6 +66,7 @@
 #include <sys/module.h>
 #include <sys/bus.h>
 #include <machine/bus.h>
+#include <machine/md_var.h>
 #include <sys/proc.h>
 #include <sys/rman.h>
 #include <sys/interrupt.h>
@@ -153,7 +154,7 @@ dwlpx_probe(device_t dev)
 	sc->bushose = (io << 2) | hose; 
 
 	if (dwlpxs[io][hose]) {
-		printf("%s: already attached\n", device_get_nameunit(dev));
+		device_printf(dev, "already attached\n");
 		return EEXIST;
 	}
 	if ((xc = dwlpx_root) == NULL) {
@@ -326,7 +327,7 @@ dwlpx_attach(device_t dev)
 
 
 	/*
-	 * Register our interrupt service requirements with out parent.
+	 * Register our interrupt service requirements with our parent.
 	 */
 	i = BUS_SETUP_INTR(parent, dev, NULL,
 		INTR_TYPE_MISC, dwlpx_intr, 0, &intr);
@@ -856,6 +857,7 @@ static device_method_t dwlpx_methods[] = {
 	DEVMETHOD(pcib_maxslots,	dwlpx_maxslots),
 	DEVMETHOD(pcib_read_config,	dwlpx_read_config),
 	DEVMETHOD(pcib_write_config,	dwlpx_write_config),
+	DEVMETHOD(pcib_route_interrupt,	alpha_pci_route_interrupt),
 
 	{ 0, 0 }
 };
