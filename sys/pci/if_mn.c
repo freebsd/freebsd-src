@@ -441,11 +441,11 @@ mn_parse_ts(const char *s)
 		j = 0;
 		r |= 1 << i;
 		if (*p == ',') {
-			s = (const char *)p + 1;
+			s = p + 1;
 			continue;
 		} else if (*p == '-') {
 			j = i;
-			s = (const char *)p + 1;
+			s = p + 1;
 			continue;
 		} else if (!*p) {
 			break;
