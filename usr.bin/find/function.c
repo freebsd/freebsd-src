@@ -794,6 +794,30 @@ c_print()
 }
  
 /*
+ * -print0 functions --
+ *
+ *	Always true, causes the current pathame to be written to
+ *	standard output followed by a NUL character
+ */
+int
+f_print0(plan, entry)
+	PLAN *plan;
+	FTSENT *entry;
+{
+	fputs(entry->fts_path, stdout);
+	fputc('\0', stdout);
+	return (1);
+}
+ 
+PLAN *
+c_print0()
+{
+	isoutput = 1;
+
+	return (palloc(N_PRINT0, f_print0));
+}
+ 
+/*
  * -prune functions --
  *
  *	Prune a portion of the hierarchy.
