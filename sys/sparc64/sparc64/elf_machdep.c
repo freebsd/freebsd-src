@@ -42,14 +42,19 @@
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
+#include <sys/exec.h>
+#include <sys/imgact.h>
 #include <sys/linker.h>
 #include <sys/sysent.h>
 #include <sys/imgact_elf.h>
 #include <sys/syscall.h>
 #include <sys/signalvar.h>
 #include <sys/vnode.h>
+
+#include <vm/vm.h>
+#include <vm/vm_param.h>
+
 #include <machine/elf.h>
-#include <machine/md_var.h>
 
 #include "linker_if.h"
 
@@ -58,19 +63,27 @@ struct sysentvec elf64_freebsd_sysvec = {
 	sysent,
 	0,
 	0,
+	NULL,
 	0,
-	0,
-	0,
-	0,
-	elf64_freebsd_fixup,
+	NULL,
+	NULL,
+	__elfN(freebsd_fixup),
 	sendsig,
 	NULL,
 	NULL,
-	0,
+	NULL,
 	"FreeBSD ELF64",
 	__elfN(coredump),
 	NULL,
-	MINSIGSTKSZ
+	MINSIGSTKSZ,
+	PAGE_SIZE,
+	VM_MIN_ADDRESS,
+	VM_MAXUSER_ADDRESS,
+	USRSTACK,
+	PS_STRINGS,
+	VM_PROT_READ | VM_PROT_WRITE,
+	exec_copyout_strings,
+	exec_setregs
 };
 
 static Elf64_Brandinfo freebsd_brand_info = {
