@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.246.2.58 1997/07/23 14:54:19 jkh Exp $
+#	$Id: Makefile,v 1.246.2.59 1997/07/31 10:08:32 jkh Exp $
 #
 # How to roll a release:
 #
@@ -457,7 +457,7 @@ release.9:
 		${FIXITINODE} ${FDLABEL}
 	mv fs-image ${RD}/floppies/fixit.flp
 # Do our last minute floppies directory setup in a convenient place.
-	cp ${.CURDIR}/floppies/README.TXT ${RD}/floppies/README.TXT
+	cp ${.CURDIR}/README.TXT ${RD}/floppies/README.TXT
 	@(cd ${RD}/floppies; md5 * > CHECKSUM.MD5)
 	touch release.9
 
