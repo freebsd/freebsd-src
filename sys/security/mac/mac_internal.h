@@ -202,8 +202,8 @@ int	vn_setlabel(struct vnode *vp, struct label *intlabel,
 			break;						\
 		}							\
 		claimed = 0;						\
-		MAC_CHECK(externalize_ ## type, label, element_name,	\
-		    &sb, &claimed);					\
+		MAC_CHECK(externalize_ ## type ## _label, label,	\
+		    element_name, &sb, &claimed);			\
 		if (error)						\
 			break;						\
 		if (claimed == 0 && ignorenotfound) {			\
@@ -233,8 +233,8 @@ int	vn_setlabel(struct vnode *vp, struct label *intlabel,
 			break;						\
 		}							\
 		claimed = 0;						\
-		MAC_CHECK(internalize_ ## type, label, element_name,	\
-		    element_data, &claimed);				\
+		MAC_CHECK(internalize_ ## type ## _label, label,	\
+		    element_name, element_data, &claimed);		\
 		if (error)						\
 			break;						\
 		if (claimed != 1) {					\
