@@ -5,6 +5,8 @@
  *	$NetBSD: uhci.c,v 1.173 2003/05/13 04:41:59 gson Exp $
  *	$NetBSD: uhci.c,v 1.175 2003/09/12 16:18:08 mycroft Exp $
  *	$NetBSD: uhci.c,v 1.176 2003/11/04 19:11:21 mycroft Exp $
+ *	$NetBSD: uhci.c,v 1.177 2003/12/29 08:17:10 toshii Exp $
+ *	$NetBSD: uhci.c,v 1.178 2004/03/02 16:32:05 martin Exp $
  */
 
 #include <sys/cdefs.h>
@@ -1268,7 +1270,7 @@ void
 uhci_softintr(void *v)
 {
 	uhci_softc_t *sc = v;
-	uhci_intr_info_t *ii;
+	uhci_intr_info_t *ii, *nextii;
 
 	DPRINTFN(10,("%s: uhci_softintr (%d)\n", USBDEVNAME(sc->sc_bus.bdev),
 		     sc->sc_bus.intr_context));
@@ -1286,7 +1288,7 @@ uhci_softintr(void *v)
 	 * We scan all interrupt descriptors to see if any have
 	 * completed.
 	 */
-	LIST_FOREACH(ii, &sc->sc_intrhead, list)
+	LIST_FOREACH_SAFE(ii, &sc->sc_intrhead, list, nextii)
 		uhci_check_intr(sc, ii);
 
 #ifdef USB_USE_SOFTINTR
@@ -3341,7 +3343,7 @@ uhci_root_ctrl_start(usbd_xfer_handle xfer)
 		}
 		break;
 	case C(UR_GET_DESCRIPTOR, UT_READ_CLASS_DEVICE):
-		if (value != 0) {
+		if ((value & 0xff) != 0) {
 			err = USBD_IOERROR;
 			goto ret;
 		}
