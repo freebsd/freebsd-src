@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: index.c,v 1.6 1995/10/15 12:41:00 jkh Exp $
+ * $Id: index.c,v 1.7 1995/10/15 17:22:24 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -158,14 +158,18 @@ new_index(char *name, char *pathto, char *prefix, char *comment, char *descr, ch
 }
 
 static char *
-clip(char *str, int len)
+strchop(char *s1, char *s2, int len)
 {
     int len2;
 
-    len2 = strlen(str);
-    if (len2 > len)
-	str[len] = '\0';
-    return str;
+    len2 = strlen(s1);
+    if (len2 >= len) {
+	strncpy(s1, s2, len - 1);
+	s1[len] = '\0';
+    }
+    else
+	strcpy(s1, s2);
+    return s1;
 }
 
 static void
@@ -190,7 +194,7 @@ index_register(PkgNodePtr top, char *where, IndexEntryPtr ptr)
 	top->kids = q;
     }
     p = new_pkg_node(ptr->name, PACKAGE);
-    p->desc = clip(ptr->comment, 52 - (strlen(ptr->name) / 2));
+    p->desc = ptr->comment;
     p->data = ptr;
     p->next = q->kids;
     q->kids = p;
@@ -497,7 +501,11 @@ index_menu(PkgNodePtr top, PkgNodePtr plist, int *pos, int *scroll)
 	    ++n;
 	}
 	while (kp && kp->name) {
-	    nitems = item_add_pair(nitems, kp->name, kp->desc, &curr, &max);
+	    char name[10], desc[62];
+
+	    strchop(name, kp->name, 8);
+	    strchop(desc, kp->desc, 60);
+	    nitems = item_add_pair(nitems, name, desc, &curr, &max);
 	    if (hasPackages) {
 		if (kp->type == PACKAGE)
 		    nitems = item_add(nitems, index_search(plist, kp->name, NULL) ? "ON" : "OFF", &curr, &max);
