@@ -409,8 +409,6 @@ again:
 		bzero(mclrefcnt, mb_map_size / MCLBYTES);
 		mb_map = kmem_suballoc(kmem_map, (vm_offset_t *)&mbutl, &maxaddr,
 			mb_map_size);
-		callout_init(&callout[i]);
-		callout[i].c_flags = CALLOUT_LOCAL_ALLOC;
 		mb_map->system_map = 1;
 	}
 
@@ -419,6 +417,8 @@ again:
 	 */
 	SLIST_INIT(&callfree);
 	for (i = 0; i < ncallout; i++) {
+		callout_init(&callout[i]);
+		callout[i].c_flags = CALLOUT_LOCAL_ALLOC;
 		SLIST_INSERT_HEAD(&callfree, &callout[i], c_links.sle);
 	}
 
