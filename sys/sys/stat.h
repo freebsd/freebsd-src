@@ -87,7 +87,7 @@ typedef	__uid_t		uid_t;
 #define	_UID_T_DECLARED
 #endif
 
-#if !defined(_KERNEL) && !defined(_POSIX_SOURCE)
+#if !defined(_KERNEL) && __BSD_VISIBLE
 /*
  * XXX we need this for struct timespec.  We get miscellaneous namespace
  * pollution with it.
@@ -95,7 +95,7 @@ typedef	__uid_t		uid_t;
 #include <sys/time.h>
 #endif
 
-#ifdef _POSIX_SOURCE
+#ifndef __BSD_VISIBLE
 #include <sys/_timespec.h>
 #endif
 
