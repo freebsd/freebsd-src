@@ -20,7 +20,7 @@ hostname $hostname
 # ifconfig ne0 inet $hostname netmask my-netmask
 # ifconfig ec0 inet $hostname netmask my-netmask
 # ifconfig is0 inet $hostname netmask my-netmask
-# ifconfig ed0 inet $hostname netwask my-netmask
+# ifconfig ed0 inet $hostname netmask my-netmask
 
 # set the address for the loopback interface
 ifconfig lo0 inet localhost
