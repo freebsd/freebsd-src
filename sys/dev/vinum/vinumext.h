@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumext.h,v 1.26 2000/05/16 07:38:08 grog Exp grog $
+ * $Id: vinumext.h,v 1.27 2001/05/22 04:07:22 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -236,6 +236,7 @@ int vinum_finddaemon(void);
 int vinum_setdaemonopts(int);
 extern struct daemonq *daemonq;				    /* daemon's work queue */
 extern struct daemonq *dqend;				    /* and the end of the queue */
+extern struct cdevsw vinum_cdevsw;
 
 #undef Free						    /* defined in some funny net stuff */
 #ifdef _KERNEL
