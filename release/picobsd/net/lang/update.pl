@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: update.pl,v 1.3 1998/08/10 19:17:11 abial Exp $
+# $Id: update.pl,v 1.1.1.1 1998/08/27 17:38:43 abial Exp $
 pwd=`pwd`
 echo -n "Uaktualniam katalog /etc na dyskietce...  "
 mount /dev/fd0a /start_floppy
@@ -17,7 +17,7 @@ cp -Rp . /start_floppy/etc/
 pwd_mkdb master.passwd
 echo " Zrobione."
 echo -n "Uaktualniam parametry jadra..."
-kget -incore /start_floppy/kernel.config /stand/vanilla
+kget /start_floppy/kernel.config
 umount /dev/fd0a
 cd ${pwd}
 echo " Zrobione."
