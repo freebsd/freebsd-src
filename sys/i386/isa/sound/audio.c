@@ -1,10 +1,10 @@
 /*
  * sound/audio.c
- * 
+ *
  * Device file manager for /dev/audio
- * 
+ *
  * Copyright by Hannu Savolainen 1993
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met: 1. Redistributions of source code must retain the above copyright
@@ -12,7 +12,7 @@
  * Redistributions in binary form must reproduce the above copyright notice,
  * this list of conditions and the following disclaimer in the documentation
  * and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -24,7 +24,7 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- * 
+ *
  */
 
 #include "sound_config.h"
@@ -116,9 +116,9 @@ translate_bytes (const void *table, void *buff, unsigned long n)
 	   "1:\tlodsb\n\t"
 	   "xlatb\n\t"
 	   "stosb\n\t"
-"loop 1b\n\t":
-:	   "b" ((long) table), "c" (n), "D" ((long) buff), "S" ((long) buff)
-:	   "bx", "cx", "di", "si", "ax");
+	   "loop 1b\n\t":
+	   :"b" ((long) table), "c" (n), "D" ((long) buff), "S" ((long) buff)
+	   :"bx", "cx", "di", "si", "ax");
 }
 
 #endif
@@ -183,7 +183,7 @@ audio_write (int dev, struct fileinfo *file, snd_rw_buf * buf, int count)
 	  /* This just allows interrupts while the conversion is running */
 	  __asm__ ("sti");
 #endif
-	  translate_bytes (ulaw_dsp, &wr_dma_buf[dev][wr_buff_ptr[dev]], l);
+	  translate_bytes (ulaw_dsp, (unsigned char *) &wr_dma_buf[dev][wr_buff_ptr[dev]], l);
 	}
 
       c -= l;
@@ -244,7 +244,7 @@ audio_read (int dev, struct fileinfo *file, snd_rw_buf * buf, int count)
 	  __asm__ ("sti");
 #endif
 
-	  translate_bytes (dsp_ulaw, dmabuf, l);
+	  translate_bytes (dsp_ulaw, (unsigned char *) dmabuf, l);
 	}
 
       COPY_TO_USER (buf, p, dmabuf, l);

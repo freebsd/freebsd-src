@@ -1,10 +1,10 @@
 /*
  * sound/sb16_midi.c
- * 
+ *
  * The low level driver for the MPU-401 UART emulation of the SB16.
- * 
+ *
  * Copyright by Hannu Savolainen 1993
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met: 1. Redistributions of source code must retain the above copyright
@@ -12,7 +12,7 @@
  * Redistributions in binary form must reproduce the above copyright notice,
  * this list of conditions and the following disclaimer in the documentation
  * and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -24,7 +24,7 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- * 
+ *
  */
 
 #include "sound_config.h"
@@ -58,26 +58,19 @@ static int      my_dev;
 static int      reset_sb16midi (void);
 static void     (*midi_input_intr) (int dev, unsigned char data);
 
+extern int      sbc_major;
+
 static void
 sb16midi_input_loop (void)
 {
-  int             count;
 
-  count = 10;
+  while (input_avail ())
+    {
+      unsigned char   c = sb16midi_read ();
 
-  while (count)			/* Not timed out */
-    if (input_avail ())
-      {
-	unsigned char   c = sb16midi_read ();
-
-	count = 100;
-
-	if (sb16midi_opened & OPEN_READ)
-	  midi_input_intr (my_dev, c);
-      }
-    else
-      while (!input_avail () && count)
-	count--;
+      if (sb16midi_opened & OPEN_READ)
+	midi_input_intr (my_dev, c);
+    }
 }
 
 void
@@ -85,31 +78,6 @@ sb16midiintr (int unit)
 {
   if (input_avail ())
     sb16midi_input_loop ();
-}
-
-/*
- * It looks like there is no input interrupts in the UART mode. Let's try
- * polling.
- */
-
-static void
-poll_sb16midi (unsigned long dummy)
-{
-  unsigned long   flags;
-
-  DEFINE_TIMER (sb16midi_timer, poll_sb16midi);
-
-  if (!(sb16midi_opened & OPEN_READ))
-    return;			/* No longer required */
-
-  DISABLE_INTR (flags);
-
-  if (input_avail ())
-    sb16midi_input_loop ();
-
-  ACTIVATE_TIMER (sb16midi_timer, poll_sb16midi, 1);	/* Come back later */
-
-  RESTORE_INTR (flags);
 }
 
 static int
@@ -127,7 +95,6 @@ sb16midi_open (int dev, int mode,
 
   midi_input_intr = input;
   sb16midi_opened = mode;
-  poll_sb16midi (0);		/* Enable input polling */
 
   return 0;
 }
@@ -245,7 +212,11 @@ attach_sb16midi (long mem_start, struct address_info *hw_config)
 
   RESTORE_INTR (flags);
 
+#ifdef __FreeBSD__
   printk ("snd7: <SoundBlaster MPU-401>");
+#else
+  printk (" <SoundBlaster MPU-401>");
+#endif
 
   my_dev = num_midis;
   midi_devs[num_midis++] = &sb16midi_operations;
@@ -299,6 +270,8 @@ probe_sb16midi (struct address_info *hw_config)
   int             ok = 0;
 
   sb16midi_base = hw_config->io_base;
+  if (sbc_major < 4)
+    return 0;			/* SB16 not detected */
 
   if (sb_get_irq () < 0)
     return 0;

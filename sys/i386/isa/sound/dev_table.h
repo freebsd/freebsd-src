@@ -58,6 +58,9 @@ struct generic_midi_info{
 
 struct audio_operations {
         char name[32];
+	int flags;
+#define NOTHING_SPECIAL 	0
+#define NEEDS_RESTART		1
 	int (*open) (int dev, int mode);
 	void (*close) (int dev);
 	void (*output_block) (int dev, unsigned long buf, 
@@ -96,6 +99,7 @@ struct synth_operations {
 	void (*aftertouch) (int dev, int voice, int pressure);
 	void (*controller) (int dev, int voice, int ctrl_num, int value);
 	void (*panning) (int dev, int voice, int value);
+	void (*volume_method) (int dev, int mode);
 	int (*pmgr_interface) (int dev, struct patmgr_info *info);
 };
 

@@ -1,10 +1,10 @@
 /*
  * sound/sb_dsp.c
- * 
+ *
  * The low level driver for the SoundBlaster DS chips.
- * 
+ *
  * Copyright by Hannu Savolainen 1993
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met: 1. Redistributions of source code must retain the above copyright
@@ -12,7 +12,7 @@
  * Redistributions in binary form must reproduce the above copyright notice,
  * this list of conditions and the following disclaimer in the documentation
  * and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -24,7 +24,7 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- * 
+ *
  */
 
 #include "sound_config.h"
@@ -49,12 +49,16 @@ extern int      sb_midi_busy;	/* 1 if the process has output to MIDI */
 extern int      sb_dsp_busy;
 extern int      sb_dsp_highspeed;
 
-extern volatile int sb_irq_mode;	/* IMODE_INPUT, IMODE_OUTPUT
+extern volatile int sb_irq_mode;/* IMODE_INPUT, IMODE_OUTPUT
 
 					 * or IMODE_NONE */
-extern int      sb_dsp_model;	/* 1=SB, 2=SB Pro */
 extern int      sb_duplex_midi;
 extern int      sb_intr_active;
+extern int      sbc_base;
+
+static int      input_opened = 0;
+static void     (*midi_input_intr) (int dev, unsigned char data);
+static int      my_dev = 0;
 
 static int
 sb_midi_open (int dev, int mode,
@@ -73,7 +77,7 @@ sb_midi_open (int dev, int mode,
   if (mode != OPEN_WRITE && !sb_duplex_midi)
     {
       if (num_midis == 1)
-	printk ("SoundBlaster: Midi input not currently supported\n");
+	printk ("SoundBlaster: MIDI input not supported with plain SB\n");
       return RET_ERROR (EPERM);
     }
 
@@ -97,6 +101,9 @@ sb_midi_open (int dev, int mode,
 
       sb_reset_dsp ();
 
+      if (!sb_dsp_command (0xf2))	/* This is undodumented, isn't it */
+	return RET_ERROR (EIO);	/* be nice to DSP */
+
       if (!sb_dsp_command (0x35))
 	return RET_ERROR (EIO);	/* Enter the UART mode */
       sb_intr_active = 1;
@@ -106,6 +113,9 @@ sb_midi_open (int dev, int mode,
 	  sb_reset_dsp ();
 	  return 0;		/* IRQ not free */
 	}
+      input_opened = 1;
+      my_dev = dev;
+      midi_input_intr = input;
     }
 
   sb_midi_busy = 1;
@@ -123,6 +133,7 @@ sb_midi_close (int dev)
     }
   sb_intr_active = 0;
   sb_midi_busy = 0;
+  input_opened = 0;
 }
 
 static int
@@ -173,6 +184,21 @@ static int
 sb_midi_ioctl (int dev, unsigned cmd, unsigned arg)
 {
   return RET_ERROR (EPERM);
+}
+
+void
+sb_midi_interrupt (int dummy)
+{
+  unsigned long   flags;
+  unsigned char   data;
+
+  DISABLE_INTR (flags);
+
+  data = INB (DSP_READ);
+  if (input_opened)
+    midi_input_intr (my_dev, data);
+
+  RESTORE_INTR (flags);
 }
 
 static struct midi_operations sb_midi_operations =

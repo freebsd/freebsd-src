@@ -2,11 +2,11 @@
 
 /*
  * sound/pas2_mixer.c
- * 
+ *
  * Mixer routines for the Pro Audio Spectrum cards.
- * 
+ *
  * Copyright by Hannu Savolainen 1993
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met: 1. Redistributions of source code must retain the above copyright
@@ -14,7 +14,7 @@
  * Redistributions in binary form must reproduce the above copyright notice,
  * this list of conditions and the following disclaimer in the documentation
  * and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -26,7 +26,7 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- * 
+ *
  */
 
 #include "sound_config.h"
@@ -39,7 +39,7 @@
 
 extern int      translat_code;
 
-static int      rec_devices = (SOUND_MASK_MIC);		/* Default recording source */
+static int      rec_devices = (SOUND_MASK_MIC);	/* Default recording source */
 static int      mode_control = 0;
 
 #define POSSIBLE_RECORDING_DEVICES	(SOUND_MASK_SYNTH | SOUND_MASK_SPEAKER | SOUND_MASK_LINE | SOUND_MASK_MIC | \
@@ -331,7 +331,7 @@ mixer_get_levels (struct sb_mixer_levels *user_l)
   struct sb_mixer_levels l;
 
   l.master.r = ((((levels[SOUND_MIXER_VOLUME] >> 8) & 0x7f) * 15) + 50) / 100;	/* Master */
-  l.master.l = (((levels[SOUND_MIXER_VOLUME] & 0x7f) * 15) + 50) / 100;		/* Master */
+  l.master.l = (((levels[SOUND_MIXER_VOLUME] & 0x7f) * 15) + 50) / 100;	/* Master */
 
   l.line.r = ((getmixer (SOUND_MIXER_LINE, P_M_MV508_RIGHT) * 15) + 50) / 100;	/* Line */
   l.line.l = ((getmixer (SOUND_MIXER_LINE, P_M_MV508_LEFT) * 15) + 50) / 100;

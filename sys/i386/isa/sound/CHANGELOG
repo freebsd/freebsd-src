@@ -1,5 +1,25 @@
-Changelog for version 2.4
+Changelog for version 2.5
 -------------------------
+
+Since 2.5-beta2
+- Some fine tuning to the GUS v3.7 mixer code.
+- Fixed speed limits for the plain SB (1.0 to 2.0).
+
+Since 2.5-beta
+- Fixed OPL-3 detection with SB. Caused problems with PAS16.
+- GUS v3.7 mixer support.
+
+Since 2.4
+- Mixer support for Sound Galaxy NX Pro (define __SGNXPRO__ on your local.h).
+- Fixed truncated sound on /dev/dsp when the device is closed.
+- Linear volume mode for GUS
+- Pitch bends larger than +/- 2 octaves.
+- MIDI recording for SB and SB Pro. (Untested).
+- Some other fixes.
+- SB16 MIDI and DSP drivers only initialized if SB16 actually installed.
+- Implemented better detection for OPL-3. This should be usefull if you
+  have an old SB Pro (the non-OPL-3 one) or a SB 2.0 clone which has a OPL-3.
+- SVR4.2 support by Ian Hartas. Initial ALPHA TEST version (untested).
 
 Since 2.3b
 - Fixed bug which made it impossible to make long recordings to disk.

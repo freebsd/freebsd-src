@@ -1,10 +1,10 @@
 /*
  * sound/sequencer.c
- * 
+ *
  * The sequencer personality manager.
- * 
+ *
  * Copyright by Hannu Savolainen 1993
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met: 1. Redistributions of source code must retain the above copyright
@@ -12,7 +12,7 @@
  * Redistributions in binary form must reproduce the above copyright notice,
  * this list of conditions and the following disclaimer in the documentation
  * and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -24,7 +24,7 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- * 
+ *
  */
 
 #define SEQUENCER_C
@@ -46,7 +46,7 @@ static int      midi_opened[MAX_MIDI_DEV] =
 static int      midi_written[MAX_MIDI_DEV] =
 {0};
 
-unsigned long            seq_time = 0;   /* Reference point for the timer */
+unsigned long   seq_time = 0;	/* Reference point for the timer */
 
 #include "tuning.h"
 
@@ -87,6 +87,9 @@ sequencer_read (int dev, struct fileinfo *file, snd_rw_buf * buf, int count)
     {
       if (!iqlen)
 	{
+	  if (c != count)	/* Some data has been received */
+	    return count - c;	/* Return what we have */
+
 	  DO_SLEEP (midi_sleeper, midi_sleep_flag, 0);
 
 	  if (!iqlen)
@@ -325,6 +328,10 @@ extended_event (unsigned char *q)
 
     case SEQ_CONTROLLER:
       synth_devs[dev]->controller (dev, q[3], q[4], *(short *) &q[5]);
+      break;
+
+    case SEQ_VOLMODE:
+      synth_devs[dev]->volume_method (dev, q[3]);
       break;
 
     default:
@@ -688,7 +695,7 @@ seq_reset (void)
 	  {
 	    midi_outc (i,
 		       (unsigned char) (0xb0 + (chn & 0xff)));	/* Channel msg */
-	    midi_outc (i, 0x7b);	/* All notes off */
+	    midi_outc (i, 0x7b);/* All notes off */
 	    midi_outc (i, 0);	/* Dummy parameter */
 	  }
 
@@ -1049,7 +1056,7 @@ unsigned long
 compute_finetune (unsigned long base_freq, int bend, int range)
 {
   unsigned long   amount;
-  int             negative, semitones, cents;
+  int             negative, semitones, cents, multiplier = 1;
 
   if (!bend)
     return base_freq;
@@ -1073,13 +1080,20 @@ compute_finetune (unsigned long base_freq, int bend, int range)
   if (bend > range)
     bend = range;
 
-  if (bend > 2399)
-    bend = 2399;
+  /*
+     if (bend > 2399)
+     bend = 2399;
+   */
+  while (bend > 2399)
+    {
+      multiplier *= 4;
+      bend -= 2400;
+    }
 
   semitones = bend / 100;
   cents = bend % 100;
 
-  amount = semitone_tuning[semitones] * cent_tuning[cents] / 10000;
+  amount = semitone_tuning[semitones] * multiplier * cent_tuning[cents] / 10000;
 
   if (negative)
     return (base_freq * 10000) / amount;	/* Bend down */
