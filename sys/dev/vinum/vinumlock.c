@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: lock.c,v 1.3 1998/12/28 04:56:23 peter Exp $
+ * $Id: vinumlock.c,v 1.8 1999/01/14 02:52:13 grog Exp grog $
  */
 
 #define REALLYKERNEL
@@ -43,6 +43,39 @@
 /* Lock routines.  Currently, we lock either an individual volume
  * or the global configuration.  I don't think tsleep and
  * wakeup are SMP safe. FIXME XXX */
+
+/* Lock a drive, wait if it's in use */
+int 
+lockdrive(struct drive *drive)
+{
+    int error;
+
+    /* XXX get rid of     drive->flags |= VF_LOCKING; */
+    while ((drive->flags & VF_LOCKED) != 0) {
+	/* There are problems sleeping on a unique identifier,
+	 * since the drive structure can move, and the unlock
+	 * function can be called after killing the drive.
+	 * Solve this by waiting on this function; the number
+	 * of conflicts is negligible */
+	if ((error = tsleep(&lockdrive,
+		    PRIBIO | PCATCH,
+		    "vindrv",
+		    0)) != 0)
+	    return error;
+    }
+    drive->flags |= VF_LOCKED;
+    drive->pid = curproc->p_pid;			    /* it's a panic error if curproc is null */
+    return 0;
+}
+
+/* Unlock a drive and let the next one at it */
+void 
+unlockdrive(struct drive *drive)
+{
+    drive->flags &= ~VF_LOCKED;
+    /* we don't reset pid: it's of hysterical interest */
+    wakeup(&lockdrive);
+}
 
 /* Lock a volume, wait if it's in use */
 int 
@@ -86,7 +119,7 @@ lockplex(struct plex *plex)
     while ((plex->flags & VF_LOCKED) != 0) {
 	plex->flags |= VF_LOCKING;
 	/* It would seem to make more sense to sleep on
-	 * the address 'plex'.  Unfortuntaly we can't
+	 * the address 'plex'.  Unfortunately we can't
 	 * guarantee that this address won't change due to
 	 * table expansion.  The address we choose won't change. */
 	if ((error = tsleep(&vinum_conf.plex + plex->sdnos[0],
