@@ -100,3 +100,8 @@ void g_io_schedule_up(struct thread *tp);
 
 /* geom_kern.c / geom_kernsim.c */
 void g_init(void);
+
+/* geom_stats.c */
+void g_stat_init(void);
+struct g_stat *g_stat_new(void *id);
+void g_stat_delete(struct g_stat *);
