@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mcount.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: mcount.c,v 1.12 1997/02/22 09:39:55 peter Exp $";
 #endif
 
 #include <sys/param.h>
@@ -70,7 +70,7 @@ void	user __P((void));
  * perform this optimization.
  */
 _MCOUNT_DECL(frompc, selfpc)	/* _mcount; may be static, inline, etc */
-	register fptrint_t frompc, selfpc;
+	register uintfptr_t frompc, selfpc;
 {
 #ifdef GUPROF
 	int delta;
@@ -108,9 +108,9 @@ _MCOUNT_DECL(frompc, selfpc)	/* _mcount; may be static, inline, etc */
 	 */
 	if (frompci >= p->textsize) {
 		if (frompci + p->lowpc
-		    >= (fptrint_t)(VM_MAXUSER_ADDRESS + UPAGES * PAGE_SIZE))
+		    >= (uintfptr_t)(VM_MAXUSER_ADDRESS + UPAGES * PAGE_SIZE))
 			goto done;
-		frompci = (fptrint_t)user - p->lowpc;
+		frompci = (uintfptr_t)user - p->lowpc;
 		if (frompci >= p->textsize)
 		    goto done;
 	}
@@ -155,12 +155,12 @@ _MCOUNT_DECL(frompc, selfpc)	/* _mcount; may be static, inline, etc */
 	 * exceptions appear in the call graph as calls from btrap() and
 	 * bintr() instead of calls from all over.
 	 */
-	if ((fptrint_t)selfpc >= (fptrint_t)btrap
-	    && (fptrint_t)selfpc < (fptrint_t)eintr) {
-		if ((fptrint_t)selfpc >= (fptrint_t)bintr)
-			frompci = (fptrint_t)bintr - p->lowpc;
+	if ((uintfptr_t)selfpc >= (uintfptr_t)btrap
+	    && (uintfptr_t)selfpc < (uintfptr_t)eintr) {
+		if ((uintfptr_t)selfpc >= (uintfptr_t)bintr)
+			frompci = (uintfptr_t)bintr - p->lowpc;
 		else
-			frompci = (fptrint_t)btrap - p->lowpc;
+			frompci = (uintfptr_t)btrap - p->lowpc;
 	}
 #endif /* KERNEL */
 
@@ -267,13 +267,13 @@ MCOUNT
 #ifdef GUPROF
 void
 mexitcount(selfpc)
-	fptrint_t selfpc;
+	uintfptr_t selfpc;
 {
 	struct gmonparam *p;
-	fptrint_t selfpcdiff;
+	uintfptr_t selfpcdiff;
 
 	p = &_gmonparam;
-	selfpcdiff = selfpc - (fptrint_t)p->lowpc;
+	selfpcdiff = selfpc - (uintfptr_t)p->lowpc;
 	if (selfpcdiff < p->textsize) {
 		int delta;
 

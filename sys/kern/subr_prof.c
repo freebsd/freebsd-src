@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_prof.c	8.3 (Berkeley) 9/23/93
- * $Id: subr_prof.c,v 1.25 1998/04/15 17:46:23 bde Exp $
+ * $Id: subr_prof.c,v 1.26 1998/05/01 16:40:20 bde Exp $
  */
 
 #include <sys/param.h>
@@ -87,7 +87,7 @@ kmstartup(dummy)
 	int mexitcount_overhead;
 	int nullfunc_loop_overhead;
 	int nullfunc_loop_profiled_time;
-	fptrint_t tmp_addr;
+	uintfptr_t tmp_addr;
 #endif
 
 	/*
@@ -188,8 +188,8 @@ kmstartup(dummy)
 	enable_intr();
 
 	nullfunc_loop_profiled_time = 0;
-	for (tmp_addr = (fptrint_t)nullfunc_loop_profiled;
-	     tmp_addr < (fptrint_t)nullfunc_loop_profiled_end;
+	for (tmp_addr = (uintfptr_t)nullfunc_loop_profiled;
+	     tmp_addr < (uintfptr_t)nullfunc_loop_profiled_end;
 	     tmp_addr += HISTFRACTION * sizeof(HISTCOUNTER))
 		nullfunc_loop_profiled_time += KCOUNT(p, PC_TO_I(p, tmp_addr));
 #define CALIB_DOSCALE(count)	(((count) + CALIB_SCALE / 3) / CALIB_SCALE)
