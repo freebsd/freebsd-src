@@ -120,11 +120,15 @@
 
 #include <sys/param.h>
 #include <sys/kernel.h>
-#include <sys/systm.h>
 #include <sys/malloc.h>
+#include <sys/mbuf.h>
+#include <sys/proc.h>
+#include <sys/systm.h>
+#include <sys/uio.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
+#include <vm/vm_map.h>
 
 #include <machine/bus.h>
 #include <machine/bus_private.h>
@@ -135,6 +139,12 @@
 #include <sys/rman.h>
 
 #include <machine/iommuvar.h>
+
+/*
+ * Tuning constants.
+ */
+#define	IOMMU_MAX_PRE		BUS_SPACE_MAXSIZE
+#define	IOMMU_MAX_PRE_SEG	3
 
 MALLOC_DEFINE(M_IOMMU, "dvmamem", "IOMMU DVMA Buffers");
 
@@ -148,8 +158,8 @@ static 	void iommu_diag(struct iommu_state *, vm_offset_t va);
  * the IOTSBs are divorced.
  * LRU queue handling for lazy resource allocation.
  */
-static STAILQ_HEAD(, bus_dmamap) iommu_maplruq =
-   STAILQ_HEAD_INITIALIZER(iommu_maplruq);
+static TAILQ_HEAD(, bus_dmamap) iommu_maplruq =
+   TAILQ_HEAD_INITIALIZER(iommu_maplruq);
 
 /* DVMA space rman. */
 static struct rman iommu_dvma_rman;
@@ -182,6 +192,19 @@ static STAILQ_HEAD(, iommu_state) iommu_insts =
 
 #define	IOMMU_SET_TTE(is, va, tte)					\
 	(iommu_tsb[IOTSBSLOT(va)] = (tte))
+
+/* Resource helpers */
+#define	IOMMU_RES_START(res)						\
+	((bus_addr_t)rman_get_start(res) << IO_PAGE_SHIFT)
+#define	IOMMU_RES_END(res)						\
+	((bus_addr_t)(rman_get_end(res) + 1) << IO_PAGE_SHIFT)
+#define	IOMMU_RES_SIZE(res)						\
+	((bus_size_t)rman_get_size(res) << IO_PAGE_SHIFT)
+
+/* Helpers for struct bus_dmamap_res */
+#define	BDR_START(r)	IOMMU_RES_START((r)->dr_res)
+#define	BDR_END(r)	IOMMU_RES_END((r)->dr_res)
+#define	BDR_SIZE(r)	IOMMU_RES_SIZE((r)->dr_res)
 
 static __inline void
 iommu_tlb_flush(struct iommu_state *is, bus_addr_t va)
@@ -234,9 +257,11 @@ static __inline void
 iommu_map_insq(bus_dmamap_t map)
 {
 
-	if (!map->onq && map->dvmaresv != 0) {
-		STAILQ_INSERT_TAIL(&iommu_maplruq, map, maplruq);
-		map->onq = 1;
+	if (!SLIST_EMPTY(&map->dm_reslist)) {
+		if (map->dm_onq)
+			TAILQ_REMOVE(&iommu_maplruq, map, dm_maplruq);
+		TAILQ_INSERT_TAIL(&iommu_maplruq, map, dm_maplruq);
+		map->dm_onq = 1;
 	}
 }
 
@@ -244,9 +269,9 @@ static __inline void
 iommu_map_remq(bus_dmamap_t map)
 {
 
-	if (map->onq)
-		STAILQ_REMOVE(&iommu_maplruq, map, bus_dmamap, maplruq);
-	map->onq = 0;
+	if (map->dm_onq)
+		TAILQ_REMOVE(&iommu_maplruq, map, dm_maplruq);
+	map->dm_onq = 0;
 }
 
 /*
@@ -490,8 +515,12 @@ static int
 iommu_dvma_valloc(bus_dma_tag_t t, struct iommu_state *is, bus_dmamap_t map,
     bus_size_t size)
 {
+	struct resource *res;
+	struct bus_dmamap_res *bdr;
 	bus_size_t align, bound, sgsize;
 
+	if ((bdr = malloc(sizeof(*bdr), M_IOMMU, M_NOWAIT)) == NULL)
+		return (EAGAIN);
 	/*
 	 * If a boundary is specified, a map cannot be larger than it; however
 	 * we do not clip currently, as that does not play well with the lazy
@@ -503,29 +532,136 @@ iommu_dvma_valloc(bus_dma_tag_t t, struct iommu_state *is, bus_dmamap_t map,
 	if (t->dt_boundary > 0 && t->dt_boundary < IO_PAGE_SIZE)
 		panic("iommu_dvmamap_load: illegal boundary specified");
 	bound = ulmax(t->dt_boundary >> IO_PAGE_SHIFT, 1);
-	map->dvmaresv = 0;
-	map->res = rman_reserve_resource_bound(&iommu_dvma_rman, 0L,
+	res = rman_reserve_resource_bound(&iommu_dvma_rman, 0L,
 	    t->dt_lowaddr, sgsize, bound >> IO_PAGE_SHIFT,
 	    RF_ACTIVE | rman_make_alignment_flags(align), NULL);
-	if (map->res == NULL)
+	if (res == NULL)
 		return (ENOMEM);
 
-	map->start = rman_get_start(map->res) * IO_PAGE_SIZE;
-	map->dvmaresv = size;
-	iommu_map_insq(map);
+	bdr->dr_res = res;
+	bdr->dr_used = 0;
+	SLIST_INSERT_HEAD(&map->dm_reslist, bdr, dr_link);
 	return (0);
 }
 
-/* Free DVMA virtual memory for a map. */
+/* Unload the map and mark all resources as unused, but do not free them. */
 static void
-iommu_dvma_vfree(bus_dmamap_t map)
+iommu_dvmamap_vunload(struct iommu_state *is, bus_dmamap_t map)
+{
+	struct bus_dmamap_res *r;
+
+	SLIST_FOREACH(r, &map->dm_reslist, dr_link) {
+		iommu_remove(is, BDR_START(r), r->dr_used);
+		r->dr_used = 0;
+	}
+}
+
+/* Free a DVMA virtual memory resource. */
+static __inline void
+iommu_dvma_vfree_res(bus_dmamap_t map, struct bus_dmamap_res *r)
+{
+
+	KASSERT(r->dr_used == 0, ("iommu_dvma_vfree_res: resource busy!"));
+	if (r->dr_res != NULL && rman_release_resource(r->dr_res) != 0)
+		printf("warning: DVMA space lost\n");
+	SLIST_REMOVE(&map->dm_reslist, r, bus_dmamap_res, dr_link);
+	free(r, M_IOMMU);
+}
+
+/* Free all DVMA virtual memory for a map. */
+static void
+iommu_dvma_vfree(struct iommu_state *is, bus_dmamap_t map)
 {
 
 	iommu_map_remq(map);
-	if (map->res != NULL && rman_release_resource(map->res) != 0)
-		printf("warning: DVMA space lost\n");
-	map->res = NULL;
-	map->dvmaresv = 0;
+	iommu_dvmamap_vunload(is, map);
+	while (!SLIST_EMPTY(&map->dm_reslist))
+		iommu_dvma_vfree_res(map, SLIST_FIRST(&map->dm_reslist));
+}
+
+/* Prune a map, freeing all unused DVMA resources. */
+static bus_size_t
+iommu_dvma_vprune(bus_dmamap_t map)
+{
+	struct bus_dmamap_res *r, *n;
+	bus_size_t freed = 0;
+
+	for (r = SLIST_FIRST(&map->dm_reslist); r != NULL; r = n) {
+		n = SLIST_NEXT(r, dr_link);
+		if (r->dr_used == 0) {
+			freed += BDR_SIZE(r);
+			iommu_dvma_vfree_res(map, r);
+		}
+	}
+	return (freed);
+}
+
+/*
+ * Try to find a suitably-sized (and if requested, -aligned) slab of DVMA
+ * memory with IO page offset voffs. A preferred address can be specified by
+ * setting prefaddr to a value != 0.
+ */
+static bus_addr_t
+iommu_dvma_vfindseg(bus_dmamap_t map, vm_offset_t voffs, bus_size_t size,
+    bus_addr_t amask)
+{
+	struct bus_dmamap_res *r;
+	bus_addr_t dvmaddr, dvmend;
+
+	SLIST_FOREACH(r, &map->dm_reslist, dr_link) {
+		dvmaddr = round_io_page(BDR_START(r) + r->dr_used);
+		/* Alignment can only work with voffs == 0. */
+		dvmaddr = (dvmaddr + amask) & ~amask;
+		dvmaddr += voffs;
+		dvmend = dvmaddr + size;
+		if (dvmend <= BDR_END(r)) {
+			r->dr_used = dvmend - BDR_START(r);
+			return (dvmaddr);
+		}
+	}
+	return (0);
+}
+
+/*
+ * Try to find or allocate a slab of DVMA space; see above.
+ */
+static int
+iommu_dvma_vallocseg(bus_dma_tag_t dt, struct iommu_state *is, bus_dmamap_t map,
+    vm_offset_t voffs, bus_size_t size, bus_addr_t amask, bus_addr_t *addr)
+{
+	bus_dmamap_t tm;
+	bus_addr_t dvmaddr, freed;
+	int error;
+
+	dvmaddr = iommu_dvma_vfindseg(map, voffs, size, amask);
+
+	/* Need to allocate. */
+	if (dvmaddr == 0) {
+		tm = TAILQ_FIRST(&iommu_maplruq);
+		while ((error = iommu_dvma_valloc(dt, is, map,
+			voffs + size)) == ENOMEM && tm != NULL) {
+			/*
+			 * Free the allocated DVMA of a few tags until
+			 * the required size is reached. This is an
+			 * approximation to not have to call the allocation
+			 * function too often; most likely one free run
+			 * will not suffice if not one map was large enough
+			 * itself due to fragmentation.
+			 */
+			freed = 0;
+			do {
+				freed += iommu_dvma_vprune(tm);
+				tm = TAILQ_NEXT(tm, dm_maplruq);
+			} while (freed < size && tm != NULL);
+		}
+		if (error != 0)
+			return (error);
+		dvmaddr = iommu_dvma_vfindseg(map, voffs, size, amask);
+		KASSERT(dvmaddr != 0,
+		    ("iommu_dvma_vallocseg: allocation failed unexpectedly!"));
+	}
+	*addr = dvmaddr;
+	return (0);
 }
 
 int
@@ -543,18 +679,16 @@ iommu_dvmamem_alloc(bus_dma_tag_t pt, bus_dma_tag_t dt, struct iommu_state *is,
 	if ((*vaddr = malloc(dt->dt_maxsize, M_IOMMU,
 	    (flags & BUS_DMA_NOWAIT) ? M_NOWAIT : M_WAITOK)) == NULL) {
 		error = ENOMEM;
-		goto failm;
+		sparc64_dmamem_free_map(dt, *mapp);
+		return (error);
 	}
+	iommu_map_insq(*mapp);
 	/*
-	 * Try to preallocate DVMA memory. If this fails, it is retried at load
+	 * Try to preallocate DVMA space. If this fails, it is retried at load
 	 * time.
 	 */
 	iommu_dvma_valloc(dt, is, *mapp, IOMMU_SIZE_ROUNDUP(dt->dt_maxsize));
 	return (0);
-
-failm:
-	sparc64_dmamem_free_map(dt, *mapp);
-	return (error);
 }
 
 void
@@ -562,7 +696,7 @@ iommu_dvmamem_free(bus_dma_tag_t pt, bus_dma_tag_t dt, struct iommu_state *is,
     void *vaddr, bus_dmamap_t map)
 {
 
-	iommu_dvma_vfree(map);
+	iommu_dvma_vfree(is, map);
 	sparc64_dmamem_free_map(dt, map);
 	free(vaddr, M_IOMMU);
 }
@@ -571,20 +705,40 @@ int
 iommu_dvmamap_create(bus_dma_tag_t pt, bus_dma_tag_t dt, struct iommu_state *is,
     int flags, bus_dmamap_t *mapp)
 {
-	int error;
+	bus_size_t totsz, presz, currsz;
+	int error, i, maxpre;
 
 	if ((error = sparc64_dmamap_create(pt->dt_parent, dt, flags, mapp)) != 0)
 		return (error);
-	KASSERT((*mapp)->res == NULL,
+	KASSERT(SLIST_EMPTY(&(*mapp)->dm_reslist),
 	    ("iommu_dvmamap_create: hierarchy botched"));
+	iommu_map_insq(*mapp);
 	/*
-	 * Preallocate DMVA memory; if this fails now, it is retried at load
-	 * time.
+	 * Preallocate DVMA space; if this fails now, it is retried at load
+	 * time. Through bus_dmamap_load_mbuf() and bus_dmamap_load_uio(), it
+	 * is possible to have multiple discontiguous segments in a single map,
+	 * which is handled by allocating additional resources, instead of
+	 * increasing the size, to avoid fragmentation.
 	 * Clamp preallocation to BUS_SPACE_MAXSIZE. In some situations we can
 	 * handle more; that case is handled by reallocating at map load time.
 	 */
-	iommu_dvma_valloc(dt, is, *mapp,
-	    ulmin(IOMMU_SIZE_ROUNDUP(dt->dt_maxsize), BUS_SPACE_MAXSIZE));
+	totsz = ulmin(IOMMU_SIZE_ROUNDUP(dt->dt_maxsize), IOMMU_MAX_PRE); 
+	error = iommu_dvma_valloc(dt, is, *mapp, totsz);
+	if (error != 0)
+		return (0);
+	/*
+	 * Try to be smart about preallocating some additional segments if
+	 * needed.
+	 */
+	maxpre = imin(dt->dt_nsegments, IOMMU_MAX_PRE_SEG);
+	presz = dt->dt_maxsize / maxpre;
+	for (i = 0; i < maxpre && totsz < IOMMU_MAX_PRE; i++) {
+		currsz = round_io_page(ulmin(presz, IOMMU_MAX_PRE - totsz));
+		error = iommu_dvma_valloc(dt, is, *mapp, currsz);
+		if (error != 0)
+			break;
+		totsz += currsz;
+	}
 	return (0);
 }
 
@@ -593,91 +747,52 @@ iommu_dvmamap_destroy(bus_dma_tag_t pt, bus_dma_tag_t dt,
     struct iommu_state *is, bus_dmamap_t map)
 {
 
-	iommu_dvma_vfree(map);
+	iommu_dvma_vfree(is, map);
 	return (sparc64_dmamap_destroy(pt->dt_parent, dt, map));
 }
-
-#define BUS_DMAMAP_NSEGS ((BUS_SPACE_MAXSIZE / PAGE_SIZE) + 1)
 
 /*
  * IOMMU DVMA operations, common to SBUS and PCI.
  */
-int
-iommu_dvmamap_load(bus_dma_tag_t pt, bus_dma_tag_t dt, struct iommu_state *is,
-    bus_dmamap_t map, void *buf, bus_size_t buflen, bus_dmamap_callback_t *cb,
-    void *cba, int flags)
+static int
+iommu_dvmamap_load_buffer(bus_dma_tag_t dt, struct iommu_state *is,
+    bus_dmamap_t map, bus_dma_segment_t sgs[], void *buf,
+    bus_size_t buflen, struct thread *td, int flags, int *segp, int align)
 {
-#ifdef __GNUC__
-	bus_dma_segment_t sgs[dt->dt_nsegments];
-#else
-	bus_dma_segment_t sgs[BUS_DMAMAP_NSEGS];
-#endif
-	bus_dmamap_t tm;
-	bus_size_t sgsize, fsize, maxsize;
-	vm_offset_t curaddr;
-	u_long dvmaddr;
-	vm_offset_t vaddr;
-	int error, sgcnt;
+	bus_size_t sgsize;
+	vm_offset_t curaddr, vaddr, voffs;
+	bus_addr_t amask, dvmaddr;
+	int error, sgcnt, firstpg;
+	pmap_t pmap = NULL;
 
-	if (map->buflen != 0) {
-		/* Already in use?? */
-#ifdef DIAGNOSTIC
-		printf("iommu_dvmamap_load: map still in use\n");
-#endif
-		bus_dmamap_unload(dt, map);
-	}
+	KASSERT(buflen != 0, ("iommu_dvmamap_load_buffer: buflen == 0!"));
 	if (buflen > dt->dt_maxsize)
 		return (EINVAL);
 
-	maxsize = IOMMU_SIZE_ROUNDUP(buflen);
-	if (maxsize > map->dvmaresv) {
-		/*
-		 * Need to allocate resources now; free any old allocation
-		 * first.
-		 */
-		fsize = map->dvmaresv;
-		iommu_dvma_vfree(map);
-		while (iommu_dvma_valloc(dt, is, map, maxsize) == ENOMEM &&
-		    !STAILQ_EMPTY(&iommu_maplruq)) {
-			/*
-			 * Free the allocated DVMA of a few tags until
-			 * the required size is reached. This is an
-			 * approximation to not have to call the allocation
-			 * function too often; most likely one free run
-			 * will not suffice if not one map was large enough
-			 * itself due to fragmentation.
-			 */
-			do {
-				tm = STAILQ_FIRST(&iommu_maplruq);
-				if (tm == NULL)
-					break;
-				fsize += tm->dvmaresv;
-				iommu_dvma_vfree(tm);
-			} while (fsize < maxsize);
-			fsize = 0;
-		}
-		if (map->dvmaresv < maxsize) {
-			printf("DVMA allocation failed: needed %ld, got %ld\n",
-			    maxsize, map->dvmaresv);
-			return (ENOMEM);
-		}
-	}
-
-	/* Busy the map by removing it from the LRU queue. */
-	iommu_map_remq(map);
+	if (td != NULL)
+		pmap = vmspace_pmap(td->td_proc->p_vmspace);
 
 	vaddr = (vm_offset_t)buf;
-	map->buf = buf;
-	map->buflen = buflen;
+	voffs = vaddr & IO_PAGE_MASK;
+	amask = align ? dt->dt_alignment - 1 : 0;
 
-	dvmaddr = map->start | (vaddr & IO_PAGE_MASK);
-	sgcnt = -1;
+	/* Try to find a slab that is large enough. */
+	error = iommu_dvma_vallocseg(dt, is, map, voffs, buflen, amask,
+	    &dvmaddr);
+	if (error != 0)
+		return (error);
+
+	sgcnt = *segp;
 	error = 0;
+	firstpg = 1;
 	for (; buflen > 0; ) {
 		/*
 		 * Get the physical address for this page.
 		 */
-		curaddr = pmap_kextract((vm_offset_t)vaddr);
+		if (pmap != NULL)
+			curaddr = pmap_extract(pmap, vaddr);
+		else
+			curaddr = pmap_kextract(vaddr);
 
 		/*
 		 * Compute the segment size, and adjust counts.
@@ -689,17 +804,24 @@ iommu_dvmamap_load(bus_dma_tag_t pt, bus_dma_tag_t dt, struct iommu_state *is,
 		iommu_enter(is, trunc_io_page(dvmaddr), trunc_io_page(curaddr),
 		    flags);
 
-		if (sgcnt == -1 || sgs[sgcnt].ds_len + sgsize > dt->dt_maxsegsz) {
+		if (firstpg || sgs[sgcnt].ds_len + sgsize > dt->dt_maxsegsz) {
 			if (sgsize > dt->dt_maxsegsz) {
 				/* XXX: add fixup */
-				panic("iommu_dvmamap_load: magsegsz too "
+				panic("iommu_dvmamap_load_buffer: magsegsz too "
 				    "small\n");
 			}
 			sgcnt++;
-			if (sgcnt > dt->dt_nsegments || sgcnt > BUS_DMAMAP_NSEGS) {
-				error = ENOMEM;
+			if (sgcnt >= dt->dt_nsegments ||
+			    sgcnt >= BUS_DMAMAP_NSEGS) {
+				error = EFBIG;
 				break;
 			}
+			/*
+			 * No extra alignment here - the common practice in the
+			 * busdma code seems to be that only the first segment
+			 * needs to satisfy the alignment constraints (and that
+			 * only for bus_dmamem_alloc()ed maps).
+			 */
 			sgs[sgcnt].ds_addr = dvmaddr;
 			sgs[sgcnt].ds_len = sgsize;
 		} else
@@ -707,28 +829,162 @@ iommu_dvmamap_load(bus_dma_tag_t pt, bus_dma_tag_t dt, struct iommu_state *is,
 		dvmaddr += sgsize;
 		vaddr += sgsize;
 		buflen -= sgsize;
+		firstpg = 0;
 	}
-	(*cb)(cba, sgs, sgcnt + 1, error);
+	*segp = sgcnt;
 	return (0);
+
 }
 
+int
+iommu_dvmamap_load(bus_dma_tag_t pt, bus_dma_tag_t dt, struct iommu_state *is,
+    bus_dmamap_t map, void *buf, bus_size_t buflen, bus_dmamap_callback_t *cb,
+    void *cba, int flags)
+{
+#ifdef __GNUC__
+	bus_dma_segment_t sgs[dt->dt_nsegments];
+#else
+	bus_dma_segment_t sgs[BUS_DMAMAP_NSEGS];
+#endif
+	int error, seg = -1;
+
+	if (map->dm_loaded) {
+#ifdef DIAGNOSTIC
+		printf("iommu_dvmamap_load: map still in use\n");
+#endif
+		bus_dmamap_unload(dt, map);
+	}
+
+	error = iommu_dvmamap_load_buffer(dt, is, map, sgs, buf, buflen, NULL,
+	    flags, &seg, 1);
+
+	if (error != 0) {
+		iommu_dvmamap_vunload(is, map);
+		(*cb)(cba, NULL, 0, error);
+	} else {
+		/* Move the map to the end of the LRU queue. */
+		iommu_map_insq(map);
+		map->dm_loaded = 1;
+		(*cb)(cba, sgs, seg + 1, 0);
+	}
+
+	return (error);
+}
+
+int
+iommu_dvmamap_load_mbuf(bus_dma_tag_t pt, bus_dma_tag_t dt,
+    struct iommu_state *is, bus_dmamap_t map, struct mbuf *m0,
+    bus_dmamap_callback2_t *cb, void *cba, int flags)
+{
+#ifdef __GNUC__
+	bus_dma_segment_t sgs[dt->dt_nsegments];
+#else
+	bus_dma_segment_t sgs[BUS_DMAMAP_NSEGS];
+#endif
+	struct mbuf *m;
+	int error = 0, first = 1, nsegs = -1;
+
+	KASSERT(m0->m_flags & M_PKTHDR,
+	    ("iommu_dvmamap_load_mbuf: no packet header"));
+
+	if (map->dm_loaded) {
+#ifdef DIAGNOSTIC
+		printf("iommu_dvmamap_load_mbuf: map still in use\n");
+#endif
+		bus_dmamap_unload(dt, map);
+	}
+
+	if (m0->m_pkthdr.len <= dt->dt_maxsize) {
+		for (m = m0; m != NULL && error == 0; m = m->m_next) {
+			if (m->m_len == 0)
+				continue;
+			error = iommu_dvmamap_load_buffer(dt, is, map, sgs,
+			    m->m_data, m->m_len, NULL, flags, &nsegs, first);
+			first = 0;
+		}
+	} else
+		error = EINVAL;
+
+	if (error != 0) {
+		iommu_dvmamap_vunload(is, map);
+		/* force "no valid mappings" in callback */
+		(*cb)(cba, sgs, 0, 0, error);
+	} else {
+		iommu_map_insq(map);
+		map->dm_loaded = 1;
+		(*cb)(cba, sgs, nsegs + 1, m0->m_pkthdr.len, 0);
+	}
+	return (error);
+}
+
+int
+iommu_dvmamap_load_uio(bus_dma_tag_t pt, bus_dma_tag_t dt,
+    struct iommu_state *is, bus_dmamap_t map, struct uio *uio,
+    bus_dmamap_callback2_t *cb, void *cba, int flags)
+{
+#ifdef __GNUC__
+	bus_dma_segment_t sgs[dt->dt_nsegments];
+#else
+	bus_dma_segment_t sgs[BUS_DMAMAP_NSEGS];
+#endif
+	struct iovec *iov;
+	struct thread *td = NULL;
+	bus_size_t minlen, resid;
+	int nsegs = -1, error = 0, first = 1, i;
+
+	if (map->dm_loaded) {
+#ifdef DIAGNOSTIC
+		printf("iommu_dvmamap_load_uio: map still in use\n");
+#endif
+		bus_dmamap_unload(dt, map);
+	}
+
+	resid = uio->uio_resid;
+	iov = uio->uio_iov;
+
+	if (uio->uio_segflg == UIO_USERSPACE) {
+		td = uio->uio_td;
+		KASSERT(td != NULL,
+		    ("%s: USERSPACE but no proc", __func__));
+	}
+
+	for (i = 0; i < uio->uio_iovcnt && resid != 0 && error == 0; i++) {
+		/*
+		 * Now at the first iovec to load.  Load each iovec
+		 * until we have exhausted the residual count.
+		 */
+		minlen = resid < iov[i].iov_len ? resid : iov[i].iov_len;
+		if (minlen == 0)
+			continue;
+
+		error = iommu_dvmamap_load_buffer(dt, is, map, sgs,
+		    iov[i].iov_base, minlen, td, flags, &nsegs, first);
+		first = 0;
+
+		resid -= minlen;
+	}
+
+	if (error) {
+		iommu_dvmamap_vunload(is, map);
+		/* force "no valid mappings" in callback */
+		(*cb)(cba, sgs, 0, 0, error);
+	} else {
+		iommu_map_insq(map);
+		map->dm_loaded = 1;
+		(*cb)(cba, sgs, nsegs + 1, uio->uio_resid, 0);
+	}
+	return (error);
+}
 
 void
 iommu_dvmamap_unload(bus_dma_tag_t pt, bus_dma_tag_t dt, struct iommu_state *is,
     bus_dmamap_t map)
 {
 
-	/*
-	 * If the resource is already deallocated, just pass to the parent
-	 * tag.
-	 */
-	if (map->buflen == 0 || map->start == 0)
+	if (map->dm_loaded == 0)
 		return;
-
-	iommu_remove(is, map->start, map->buflen);
-	map->buflen = 0;
+	iommu_dvmamap_vunload(is, map);
 	iommu_map_insq(map);
-	/* Flush the caches */
 	sparc64_dmamap_unload(pt->dt_parent, dt, map);
 }
 
@@ -736,20 +992,23 @@ void
 iommu_dvmamap_sync(bus_dma_tag_t pt, bus_dma_tag_t dt, struct iommu_state *is,
     bus_dmamap_t map, bus_dmasync_op_t op)
 {
+	struct bus_dmamap_res *r;
 	vm_offset_t va;
 	vm_size_t len;
 
-	va = (vm_offset_t)map->start;
-	len = map->buflen;
 	if ((op & BUS_DMASYNC_PREREAD) != 0)
 		membar(Sync);
 	if ((op & (BUS_DMASYNC_POSTREAD | BUS_DMASYNC_PREWRITE)) != 0) {
-		/* if we have a streaming buffer, flush it here first */
-		while (len > 0) {
-			iommu_strbuf_flush(is, va,
-			    len <= IO_PAGE_SIZE);
-			len -= ulmin(len, IO_PAGE_SIZE);
-			va += IO_PAGE_SIZE;
+		SLIST_FOREACH(r, &map->dm_reslist, dr_link) {
+			va = (vm_offset_t)BDR_START(r);
+			len = r->dr_used;
+			/* if we have a streaming buffer, flush it here first */
+			while (len > 0) {
+				iommu_strbuf_flush(is, va,
+				    len <= IO_PAGE_SIZE);
+				len -= ulmin(len, IO_PAGE_SIZE);
+				va += IO_PAGE_SIZE;
+			}
 		}
 	}
 	if ((op & BUS_DMASYNC_PREWRITE) != 0)
