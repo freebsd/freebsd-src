@@ -1414,7 +1414,7 @@
     <para>&man.ppp.8; now supports a
       <quote>set pppoe [standard|3Com]</quote> command
       to configure the operating mode of an underlying
-      the &man.ng.pppoe.4; Netgraph node.</para>
+      &man.ng.pppoe.4; Netgraph node.</para>
 
     <para>&man.ps.1; compatibility with POSIX/SUSv3 has been improved.
       The changes include <option>-p</option> for a list of process IDs,
