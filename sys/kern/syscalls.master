@@ -598,3 +598,7 @@
 			    void *data, size_t nbytes); }
 414	STD	BSD	{ int extattr_delete_link(const char *path, \
 			    int attrnamespace, const char *attrname); }
+
+; Please copy any additions and changes to the following compatability tables:
+; sys/ia64/ia32/syscalls.master  (take a best guess)
+; [other 64 bit platforms with an alternate 32 bit syscall table go here too]
