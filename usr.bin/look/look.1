@@ -38,21 +38,21 @@
 .Nm look
 .Nd display lines beginning with a given string
 .Sh SYNOPSIS
-.Nm look
+.Nm
 .Op Fl df
 .Op Fl t Ar termchar
 .Ar string
 .Op Ar file
 .Sh DESCRIPTION
 The 
-.Nm look
+.Nm
 utility displays any lines in
 .Ar file
 which contain
 .Ar string
 as a prefix.
 As
-.Nm look
+.Nm
 performs a binary search, the lines in
 .Ar file
 must be sorted.
@@ -81,7 +81,7 @@ are compared.
 .El
 .Pp
 The
-.Nm look
+.Nm
 utility exits 0 if one or more lines were found and displayed,
 1 if no lines were found, and >1 if an error occurred.
 .Sh FILES
