@@ -34,7 +34,7 @@
 #include <sys/types.h>
 #include <machine/ia64_cpu.h>
 
-#define	CRITICAL_FORK	(ia64_get_psr() |= IA64_PSR_I)
+#define	CRITICAL_FORK	(ia64_get_psr() | IA64_PSR_I)
 
 #ifdef __GNUC__
 
