@@ -647,9 +647,8 @@ cmd
 	| SITE SP CHMOD check_login_ro SP octal_number SP pathname CRLF
 		{
 			if ($4 && ($8 != NULL)) {
-				if ($6 > 0777)
-					reply(501,
-				"CHMOD: Mode value must be between 0 and 0777");
+				if (($6 == -1 ) || ($6 > 0777))
+					reply(501, "Bad mode value");
 				else if (chmod($8, $6) < 0)
 					perror_reply(550, $8);
 				else
