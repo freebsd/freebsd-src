@@ -58,7 +58,7 @@
 #endif
 
 #define	ISP_CORE_VERSION_MAJOR	1
-#define	ISP_CORE_VERSION_MINOR	15
+#define	ISP_CORE_VERSION_MINOR	16
 
 /*
  * Vector for bus specific code to provide specific services.
@@ -329,16 +329,18 @@ struct ispsoftc {
 	 * Volatile state
 	 */
 
-	volatile u_int32_t	:	9,
+	volatile u_int32_t
+		isp_mboxbsy	:	8,	/* mailbox command active */
+				:	1,
 		isp_state	:	3,
 		isp_sendmarker	:	2,	/* send a marker entry */
 		isp_update	:	2,	/* update parameters */
 		isp_nactive	:	16;	/* how many commands active */
-
 	volatile u_int16_t	isp_reqodx;	/* index of last ISP pickup */
 	volatile u_int16_t	isp_reqidx;	/* index of next request */
 	volatile u_int16_t	isp_residx;	/* index of next result */
 	volatile u_int16_t	isp_lasthdls;	/* last handle seed */
+	volatile u_int16_t	isp_mboxtmp[MAX_MAILBOX];
 
 	/*
 	 * Active commands are stored here, indexed by handle functions.
