@@ -174,7 +174,6 @@ extern double scalbn __P((double, int));
 /*
  * BSD math library entry points
  */
-extern double cabs();
 extern double drem __P((double, double));
 extern double expm1 __P((double));
 extern double log1p __P((double));
@@ -257,7 +256,6 @@ extern float scalbnf __P((float, int));
 /*
  * float versions of BSD math library entry points
  */
-extern float cabsf ();
 extern float dremf __P((float, float));
 extern float expm1f __P((float));
 extern float log1pf __P((float));
