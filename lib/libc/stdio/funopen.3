@@ -49,9 +49,9 @@
 .Ft FILE *
 .Fn funopen "const void *cookie" "int (*readfn)(void *, char *, int)" "int (*writefn)(void *, const char *, int)" "fpos_t (*seekfn)(void *, fpos_t, int)" "int (*closefn)(void *)"
 .Ft FILE *
-.Fn fropen "void  *cookie" "int  (*readfn)(void *, char *, int)"
+.Fn fropen "void *cookie" "int (*readfn)(void *, char *, int)"
 .Ft FILE *
-.Fn fwopen "void  *cookie" "int  (*writefn)(void *, const char *, int)"
+.Fn fwopen "void *cookie" "int (*writefn)(void *, const char *, int)"
 .Sh DESCRIPTION
 The
 .Fn funopen

@@ -60,11 +60,11 @@ structure contains at least these fields:
 .Bl -tag -width ".Va mcontext_t\ \ uc_mcontext" -offset 3n -compact
 .It Va "ucontext_t *uc_link"
 context to assume when this one returns
-.It Va "sigset_t    uc_sigmask"
+.It Va "sigset_t uc_sigmask"
 signals being blocked
-.It Va "stack_t     uc_stack"
+.It Va "stack_t uc_stack"
 stack area
-.It Va "mcontext_t  uc_mcontext"
+.It Va "mcontext_t uc_mcontext"
 saved registers
 .El
 .Pp
