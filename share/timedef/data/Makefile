@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.2.2.10 1998/01/24 13:11:39 helbig Exp $
+# $Id: Makefile,v 1.2.2.11 1998/03/07 11:51:35 jkh Exp $
 
 NOMAN=YES
 CLEANFILES+= ${LOCALES:S/$/.out/g}
@@ -12,6 +12,7 @@ LOCALES=        da_DK.ISO_8859-1 \
 		fi_FI.ISO_8859-1 \
 		fr_FR.ISO_8859-1 \
 		hr_HR.ISO_8859-2 \
+		hu_HU.ISO_8859-2 \
 		is_IS.ISO_8859-1 \
 		ja_JP.EUC	 \
 		ja_JP.SJIS 	 \
