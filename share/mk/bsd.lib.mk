@@ -119,35 +119,35 @@ PICFLAG=-fpic
 	@mv ${.TARGET}.tmp ${.TARGET}
 
 .s.o .asm.o:
-	${CC} -x assembler-with-cpp ${CFLAGS:M-[BID]*} ${AINC} -c \
+	${CC} -x assembler-with-cpp ${CFLAGS} ${AINC} -c \
 	    ${.IMPSRC} -o ${.TARGET}
 	@${LD} ${LDFLAGS} -o ${.TARGET}.tmp -x -r ${.TARGET}
 	@mv ${.TARGET}.tmp ${.TARGET}
 
 .s.po .asm.po:
-	${CC} -x assembler-with-cpp -DPROF ${CFLAGS:M-[BID]*} ${AINC} -c \
+	${CC} -x assembler-with-cpp -DPROF ${CFLAGS} ${AINC} -c \
 	    ${.IMPSRC} -o ${.TARGET}
 	@${LD} ${LDFLAGS} -o ${.TARGET}.tmp -X -r ${.TARGET}
 	@mv ${.TARGET}.tmp ${.TARGET}
 
 .s.So .asm.So:
-	${CC} -x assembler-with-cpp ${PICFLAG} -DPIC ${CFLAGS:M-[BID]*} \
+	${CC} -x assembler-with-cpp ${PICFLAG} -DPIC ${CFLAGS} \
 	    ${AINC} -c ${.IMPSRC} -o ${.TARGET}
 	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
 	@mv ${.TARGET}.tmp ${.TARGET}
 
 .S.o:
-	${CC} ${CFLAGS:M-[BID]*} ${AINC} -c ${.IMPSRC} -o ${.TARGET}
+	${CC} ${CFLAGS} ${AINC} -c ${.IMPSRC} -o ${.TARGET}
 	@${LD} ${LDFLAGS} -o ${.TARGET}.tmp -x -r ${.TARGET}
 	@mv ${.TARGET}.tmp ${.TARGET}
 
 .S.po:
-	${CC} -DPROF ${CFLAGS:M-[BID]*} ${AINC} -c ${.IMPSRC} -o ${.TARGET}
+	${CC} -DPROF ${CFLAGS} ${AINC} -c ${.IMPSRC} -o ${.TARGET}
 	@${LD} ${LDFLAGS} -o ${.TARGET}.tmp -X -r ${.TARGET}
 	@mv ${.TARGET}.tmp ${.TARGET}
 
 .S.So:
-	${CC} ${PICFLAG} -DPIC ${CFLAGS:M-[BID]*} ${AINC} -c ${.IMPSRC} \
+	${CC} ${PICFLAG} -DPIC ${CFLAGS} ${AINC} -c ${.IMPSRC} \
 	    -o ${.TARGET}
 	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
 	@mv ${.TARGET}.tmp ${.TARGET}
