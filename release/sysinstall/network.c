@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: network.c,v 1.36 1999/05/19 10:49:43 jkh Exp $
+ * $Id: network.c,v 1.37 1999/07/18 10:18:05 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -246,7 +246,7 @@ startPPP(Device *devp)
 	close(fd2);
     }
     if (!Fake)
-	fp = fopen("/etc/ppp/ppp.conf", "w");
+	fp = fopen("/etc/ppp/ppp.conf", "a");
     else
 	fp = fopen("/dev/stderr", "w");
     if (!fp) {
@@ -268,7 +268,7 @@ startPPP(Device *devp)
 	dialog_clear_norefresh();
 	pulse = dialog_yesno("", "Does your telephone line support tone dialing?", -1, -1);
     }
-    fprintf(fp, "default:\n");
+    fprintf(fp, "\ninstall:\n");
     fprintf(fp, " set speed %s\n", speed);
     fprintf(fp, " set device %s\n", devp->devname);
     fprintf(fp, " set ifaddr %s %s\n", myaddr, provider);
@@ -282,9 +282,13 @@ startPPP(Device *devp)
 	fprintf(fp, " set authkey %s\n", authkey);
 	fprintf(fp, " set phone %s\n", phone);
     }
-    if (fchmod(fileno(fp), 0640) != 0)
+    if (fchmod(fileno(fp), 0600) != 0)
 	msgConfirm("Warning: Failed to fix permissions on /etc/ppp/ppp.conf !");
     fclose(fp);
+
+    /* Make the ppp config persistent */
+    variable_set2(VAR_PPP_ENABLE, "YES", 0);
+    variable_set2(VAR_PPP_PROFILE, "install", 0);
 
     if (!Fake && !file_readable("/dev/tun0") && mknod("/dev/tun0", 0600 | S_IFCHR, makedev(52, 0))) {
 	msgConfirm("Warning:  No /dev/tun0 device.  PPP will not work!");
@@ -318,7 +322,7 @@ startPPP(Device *devp)
 	}
 	else
 	    msgDebug("ppp: Unable to get the terminal attributes!\n");
-	execlp("ppp", "ppp", (char *)NULL);
+	execlp("ppp", "ppp", "install", (char *)NULL);
 	msgDebug("PPP process failed to exec!\n");
 	exit(1);
     }

@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.200 1999/07/09 05:30:33 obrien Exp $
+#	$Id: Makefile,v 1.201 1999/07/10 18:02:12 iwasaki Exp $
 
 SUBDIR=	sendmail
 
@@ -24,6 +24,7 @@ MTREE=	BSD.include.dist BSD.local.dist BSD.root.dist BSD.usr.dist \
 	BSD.var.dist BSD.x11.dist
 NAMEDB= PROTO.localhost.rev named.conf named.root make-localhost
 PPPCNF= ppp.deny ppp.shells.sample
+PPPCF2= ppp.conf
 NOSPAM=	Makefile README
 
 
@@ -79,6 +80,8 @@ distribution:
 	    ${NAMEDB} ${DESTDIR}/etc/namedb
 	cd ${.CURDIR}/ppp; ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 \
 	    ${PPPCNF} ${DESTDIR}/etc/ppp
+	cd ${.CURDIR}/ppp; ${INSTALL} -c -o root -g ${BINGRP} -m 600 \
+	    ${PPPCF2} ${DESTDIR}/etc/ppp
 	cd ${.CURDIR}/mail; ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 \
 	    ${NOSPAM} ${DESTDIR}/etc/mail
 	${INSTALL} -c -o ${BINOWN} -g operator -m 664 /dev/null \

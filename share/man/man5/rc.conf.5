@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     $Id: rc.conf.5,v 1.35 1999/07/12 19:24:53 mpp Exp $
+.\"     $Id: rc.conf.5,v 1.36 1999/07/16 09:22:01 jkh Exp $
 .\"
 .Dd April 26, 1997
 .Dt RC.CONF 5
@@ -218,6 +218,30 @@ ifconfig_ed0_alias4="inet 127.0.0.254 netmask 0xffffffff"
 .Ed
 Then note that alias4 would \fBnot\fR be added since the search would
 stop with the missing alias3 entry.
+.It Ar ppp_enable
+(bool) If set to
+.Ar YES ,
+run the
+.Xr ppp 8
+daemon.
+.It Ar ppp_mode
+(str) Mode in which to run the
+.Xr ppp 8
+daemon.  Accepted modes are
+.Ar auto , ddial , direct
+and
+.Ar dedicated .
+See the manual for a full description.
+.It Ar ppp_alias
+(bool) If set to
+.Ar YES ,
+enables packet aliasing. Used in conjunction with
+.Ar gateway_enable
+allows hosts on private network addresses access to the Internet using
+this host as a network address translating router.
+.It Ar ppp_profile
+(str) The name of the profile to use from
+.Ar /etc/ppp/ppp.conf .
 .It Ar rc_conf_files
 (str) This option is used to specify a list of files that will override
 the settings in
