@@ -165,7 +165,7 @@ gdc_attach(device_t dev)
 
 #ifdef FB_INSTALL_CDEV
 	/* attach a virtual frame buffer device */
-	error = fb_attach(makedev(0, GDC_MKMINOR(device_get_unit(dev))),
+	error = fb_attach(GDC_MKMINOR(device_get_unit(dev),
 				  sc->adp, &gdc_cdevsw);
 	if (error) {
 		gdc_release_resource(dev);

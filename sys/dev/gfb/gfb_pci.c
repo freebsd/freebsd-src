@@ -210,7 +210,7 @@ pcigfb_attach(device_t dev)
 	       sc->adp->va_info.vi_depth, sc->gfbc->ramdac_name);
 #ifdef FB_INSTALL_CDEV
 	/* attach a virtual frame buffer device */
-	error = fb_attach(makedev(0, unit), sc->adp, sc->cdevsw);
+	error = fb_attach(unit, sc->adp, sc->cdevsw);
 	if(error)
 		goto fail;
 	if(bootverbose)
@@ -249,9 +249,6 @@ pcigfb_detach(device_t dev)
 	int rid;
 
 	sc = device_get_softc(dev);
-#ifdef FB_INSTALL_CDEV
-	destroy_dev(sc->devt);
-#endif /*FB_INSTALL_CDEV*/
 	bus_teardown_intr(dev, sc->irq, sc->intrhand);
 	rid = 0x0;
 	bus_release_resource(dev, SYS_RES_IRQ, rid, sc->irq);
