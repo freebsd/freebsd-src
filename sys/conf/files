@@ -861,6 +861,7 @@ isa_if.h		optional isa					\
 	clean		"isa_if.h"
 isa/isa_common.c	optional isa
 isa/isahint.c		optional isa
+isa/joy.c		optional joy
 isa/pnp.c		optional pnp
 isa/pnpparse.c		optional pnp
 dev/sound/pcm/sound.c	optional pcm
