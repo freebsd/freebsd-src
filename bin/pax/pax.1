@@ -34,7 +34,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)pax.1	8.4 (Berkeley) 4/18/94
-.\"	$Id: pax.1,v 1.6 1998/03/19 07:26:37 charnier Exp $
+.\"	$Id: pax.1,v 1.7 1998/05/15 06:27:45 charnier Exp $
 .\"
 .Dd April 18, 1994
 .Dt PAX 1
@@ -1053,13 +1053,13 @@ gives the verbose table of contents for an archive stored in
 .Pa filename .
 .Pp
 The following commands:
-.Dl mkdir newdir
-.Dl cd olddir
-.Dl pax -rw .\ newdir
+.Dl mkdir /tmp/foo
+.Dl cd /tmp/bar
+.Dl pax -rw .\ /tmp/foo
 will copy the entire
-.Pa olddir
+.Pa /tmp/bar
 directory hierarchy to
-.Pa newdir .
+.Pa /tmp/foo .
 .Pp
 The command:
 .Dl pax -r -s ',^//*usr//*,,' -f a.pax
