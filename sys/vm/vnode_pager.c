@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.21 1995/01/24 10:14:09 davidg Exp $
+ *	$Id: vnode_pager.c,v 1.22 1995/02/03 06:46:28 davidg Exp $
  */
 
 /*
@@ -175,8 +175,9 @@ vnode_pager_alloc(handle, size, prot, offset)
 		if ((rtval = VOP_GETATTR(vp, &vattr, p->p_ucred, p)) == 0) {
 			object = vm_object_allocate(round_page(vattr.va_size));
 			object->flags &= ~OBJ_INTERNAL;
+			object->flags |= OBJ_CANPERSIST;
 			vm_object_enter(object, pager);
-			vm_object_setpager(object, pager, 0, TRUE);
+			object->pager = pager;
 		} else {
 			printf("Error in getattr: %d\n", rtval);
 			free((caddr_t) vnp, M_VMPGDATA);
