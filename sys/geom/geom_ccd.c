@@ -1,4 +1,4 @@
-/* $Id: ccd.c,v 1.36 1998/08/19 10:50:32 sos Exp $ */
+/* $Id: ccd.c,v 1.37 1998/09/15 08:15:26 gibbs Exp $ */
 
 /*	$NetBSD: ccd.c,v 1.22 1995/12/08 19:13:26 thorpej Exp $	*/
 
@@ -93,6 +93,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/module.h>
 #include <sys/proc.h>
 #include <sys/buf.h>
 #include <sys/malloc.h>
@@ -184,9 +185,9 @@ static struct cdevsw ccd_cdevsw = {
 	  NULL, 	-1,		ccddump,	ccdsize,
 	  D_DISK,	0,		-1 };
 
-/* Called by main() during pseudo-device attachment */
-static void	ccdattach __P((void *));
-PSEUDO_SET(ccdattach, ccd);
+/* called during module initialization */
+static	void ccdattach __P((void));
+static	int ccd_modevent __P((module_t, int, void *));
 
 /* called by biodone() at interrupt time */
 static	void ccdiodone __P((struct ccdbuf *cbp));
@@ -212,8 +213,6 @@ struct	ccd_softc *ccd_softc;
 struct	ccddevice *ccddevs;
 static	int numccd = 0;
 
-static int ccd_devsw_installed = 0;
-
 /*
  * Number of blocks to untouched in front of a component partition.
  * This is to avoid violating its disklabel area when it starts at the
@@ -229,8 +228,7 @@ static int ccd_devsw_installed = 0;
  * add devsw entries.
  */
 static void
-ccdattach(dummy)
-	void *dummy;
+ccdattach()
 {
 	int i;
 	int num = NCCD;
@@ -259,15 +257,33 @@ ccdattach(dummy)
 	/* XXX: is this necessary? */
 	for (i = 0; i < numccd; ++i)
 		ccddevs[i].ccd_dk = -1;
-
-	if( ! ccd_devsw_installed ) {
-		cdevsw_add_generic(BDEV_MAJOR,CDEV_MAJOR, &ccd_cdevsw);
-		ccd_devsw_installed = 1;
-    	}
-	else {
-		printf("huh?\n");
-	}
 }
+
+static int
+ccd_modevent(mod, type, data)
+	module_t mod;
+	int type;
+	void *data;
+{
+	int error = 0;
+
+	switch (type) {
+	case MOD_LOAD:
+		ccdattach();
+		break;
+
+	case MOD_UNLOAD:
+		printf("ccd0: Unload not supported!\n");
+		error = EOPNOTSUPP;
+		break;
+
+	default:	/* MOD_SHUTDOWN etc */
+		break;
+	}
+	return (error);
+}
+
+BDEV_MODULE(ccd, BDEV_MAJOR, CDEV_MAJOR, ccd_cdevsw, ccd_modevent, NULL);
 
 static int
 ccdinit(ccd, cpaths, p)
