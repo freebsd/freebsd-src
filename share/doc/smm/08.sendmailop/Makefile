@@ -3,13 +3,11 @@
 
 MAINTAINER=	gshapiro@FreeBSD.org
 
-VOLUME=	smm/08.sendmailop
-SRCS=	op.me
-MACROS=	-me
-
-SRCDIR=	${.CURDIR}/../../../../contrib/sendmail/doc/op
-
-USE_PIC=	yes
-USE_EQN=	yes
+VOLUME=		smm/08.sendmailop
+SRCS=		op.me
+MACROS=		-me
+USE_PIC=	YES
+USE_EQN=	YES
+SRCDIR=		${.CURDIR}/../../../../contrib/sendmail/doc/op
 
 .include <bsd.doc.mk>

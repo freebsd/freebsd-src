@@ -1,9 +1,7 @@
 # $FreeBSD$
 
-SRCS=	vi.summary
-DOC=	summary
-SRCDIR=	${.CURDIR}/../../../../../contrib/nvi/docs/USD.doc/vitut
-
+DOC=		summary
+SRCS=		vi.summary
 USE_TBL=	YES
 
 .include <bsd.doc.mk>

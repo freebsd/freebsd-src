@@ -1,10 +1,9 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/8/93
 # $FreeBSD$
 
-VOLUME=	psd/06.Clang
-SRCS=	Clang.ms
-MACROS=	-ms
-
+VOLUME=		psd/06.Clang
+SRCS=		Clang.ms
+MACROS=		-ms
 USE_TBL=	YES
 
 .include <bsd.doc.mk>

@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-SUBDIR=	vi viapwh summary 
+SUBDIR=	vi viapwh summary
 
 .include <bsd.subdir.mk>
 
