@@ -99,6 +99,7 @@ int     auth_rsa_challenge_dialog(RSA *pk);
 
 #ifdef KRB5
 #include <krb5.h>
+#include <krb.h>
 int auth_krb5();  /* XXX Doplnit prototypy */
 int auth_krb5_tgt();
 int krb5_init();
