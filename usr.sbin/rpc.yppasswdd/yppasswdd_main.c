@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yppasswdd_main.c,v 1.10 1996/02/24 21:41:15 wpaul Exp $
+ *	$Id: yppasswdd_main.c,v 1.11 1996/06/03 03:21:24 wpaul Exp $
  */
 
 #include "yppasswd.h"
@@ -72,7 +72,7 @@ struct dom_binding {};
 
 #define	_RPCSVC_CLOSEDOWN 120
 #ifndef lint
-static const char rcsid[] = "$Id: yppasswdd_main.c,v 1.10 1996/02/24 21:41:15 wpaul Exp $";
+static const char rcsid[] = "$Id: yppasswdd_main.c,v 1.11 1996/06/03 03:21:24 wpaul Exp $";
 #endif /* not lint */
 int _rpcpmstart = 0;		/* Started by a port monitor ? */
 static int _rpcfdtype;
@@ -94,6 +94,7 @@ int allow_additions = 0;
 int multidomain = 0;
 int verbose = 0;
 int resvport = 1;
+int inplace = 0;
 char *yp_dir = "/var/yp/";
 int yp_sock;
 
@@ -188,7 +189,7 @@ closedown(int sig)
 static void usage()
 {
 	fprintf(stderr, "Usage: %s [-t master.passwd file] [-d domain] \
-[-p path] [-s] [-f] [-m] [-a] [-v] [-u] [-h]\n",
+[-p path] [-s] [-f] [-m] [-i] [-a] [-v] [-u] [-h]\n",
 		progname);
 	exit(1);
 }
@@ -211,7 +212,7 @@ main(argc, argv)
 
 	debug = 1;
 
-	while ((ch = getopt(argc, argv, "t:d:p:sfamvh")) != EOF) {
+	while ((ch = getopt(argc, argv, "t:d:p:sfamivh")) != EOF) {
 		switch(ch) {
 		case 't':
 			passfile_default = optarg;
@@ -233,6 +234,9 @@ main(argc, argv)
 			break;
 		case 'm':
 			multidomain++;
+			break;
+		case 'i':
+			inplace++;
 			break;
 		case 'v':
 			verbose++;
