@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC,v 1.86 1997/02/22 09:31:34 peter Exp $
+#	$Id: GENERIC,v 1.87 1997/03/12 19:59:58 se Exp $
 
 machine		"i386"
 cpu		"I386_CPU"
@@ -47,7 +47,7 @@ disk		fd0	at fdc0 drive 0
 disk		fd1	at fdc0 drive 1
 tape		ft0	at fdc0 drive 2
 
-options		CMD640		# work around CMD640 chip deficiency
+options		"CMD640"	# work around CMD640 chip deficiency
 controller	wdc0	at isa? port "IO_WD1" bio irq 14 vector wdintr
 disk		wd0	at wdc0 drive 0
 disk		wd1	at wdc0 drive 1
@@ -102,7 +102,6 @@ device		sc0	at isa? port "IO_KBD" tty irq 1 vector scintr
 # If you have a ThinkPAD, uncomment this along with the rest of the PCVT lines
 #options		PCVT_SCANSET=2		# IBM keyboards are non-std
 
-# Mandatory, don't remove
 device		npx0	at isa? port "IO_NPX" irq 13 vector npxintr
 
 #
