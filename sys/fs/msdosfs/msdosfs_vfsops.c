@@ -103,6 +103,9 @@ static vfs_sync_t	msdosfs_sync;
 static vfs_unmount_t	msdosfs_unmount;
 static vfs_vptofh_t	msdosfs_vptofh;
 
+/* Maximum length of a character set name (arbitrary). */
+#define	MAXCSLEN	64
+
 static int
 update_mp(mp, argp, td)
 	struct mount *mp;
@@ -110,24 +113,45 @@ update_mp(mp, argp, td)
 	struct thread *td;
 {
 	struct msdosfsmount *pmp = VFSTOMSDOSFS(mp);
+	char *dos, *win, *local;
 	int error;
+
+	if (argp->flags & MSDOSFSMNT_KICONV) {
+		if (msdosfs_iconv) {
+			win = malloc(MAXCSLEN, M_TEMP, M_WAITOK);
+			local = malloc(MAXCSLEN, M_TEMP, M_WAITOK);
+			dos = malloc(MAXCSLEN, M_TEMP, M_WAITOK);
+			if ((error = copyinstr(argp->cs_win, win, MAXCSLEN,
+			    NULL)) != 0)
+				goto iconvdone;
+			if ((error = copyinstr(argp->cs_local, local, MAXCSLEN,
+			    NULL)) != 0)
+				goto iconvdone;
+			if ((error = copyinstr(argp->cs_dos, dos, MAXCSLEN,
+			    NULL)) != 0)
+				goto iconvdone;
+			msdosfs_iconv->open(win, local, &pmp->pm_u2w);
+			msdosfs_iconv->open(local, win, &pmp->pm_w2u);
+			msdosfs_iconv->open(dos, local, &pmp->pm_u2d);
+			msdosfs_iconv->open(local, dos, &pmp->pm_d2u);
+iconvdone:		free(win, M_TEMP);
+			free(local, M_TEMP);
+			free(dos, M_TEMP);
+			if (error != 0)
+				return (error);
+		} else {
+			pmp->pm_w2u = NULL;
+			pmp->pm_u2w = NULL;
+			pmp->pm_d2u = NULL;
+			pmp->pm_u2d = NULL;
+		}
+	}
 
 	pmp->pm_gid = argp->gid;
 	pmp->pm_uid = argp->uid;
 	pmp->pm_mask = argp->mask & ALLPERMS;
 	pmp->pm_dirmask = argp->dirmask & ALLPERMS;
 	pmp->pm_flags |= argp->flags & MSDOSFSMNT_MNTOPT;
-	if (pmp->pm_flags & MSDOSFSMNT_KICONV && msdosfs_iconv) {
-		msdosfs_iconv->open(argp->cs_win, argp->cs_local , &pmp->pm_u2w);
-		msdosfs_iconv->open(argp->cs_local, argp->cs_win , &pmp->pm_w2u);
-		msdosfs_iconv->open(argp->cs_dos, argp->cs_local , &pmp->pm_u2d);
-		msdosfs_iconv->open(argp->cs_local, argp->cs_dos , &pmp->pm_d2u);
-	} else {
-		pmp->pm_w2u = NULL;
-		pmp->pm_u2w = NULL;
-		pmp->pm_d2u = NULL;
-		pmp->pm_u2d = NULL;
-	}
 
 	if (pmp->pm_flags & MSDOSFSMNT_NOWIN95)
 		pmp->pm_flags |= MSDOSFSMNT_SHORTNAME;
@@ -289,7 +313,8 @@ msdosfs_omount(mp, path, data, td)
 
 	error = update_mp(mp, &args, td);
 	if (error) {
-		msdosfs_unmount(mp, MNT_FORCE, td);
+		if ((mp->mnt_flag & MNT_UPDATE) == 0)
+			msdosfs_unmount(mp, MNT_FORCE, td);
 		return error;
 	}
 	(void) copyinstr(args.fspec, mp->mnt_stat.f_mntfromname, MNAMELEN - 1,
