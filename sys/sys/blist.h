@@ -30,6 +30,8 @@
 #ifndef _SYS_BLIST_H_
 #define _SYS_BLIST_H_
 
+typedef	u_int32_t	u_daddr_t;	/* unsigned disk address */
+
 static __inline int
 LOG2(u_daddr_t v)
 {
