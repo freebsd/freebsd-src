@@ -63,7 +63,6 @@
 #endif
 static struct swdevt should_be_malloced[NSWAPDEV];
 static struct swdevt *swdevt = should_be_malloced;
-struct vnode *swapdev_vp;
 static int nswap;		/* first block after the interleaved devs */
 static int nswdev = NSWAPDEV;
 int vm_swap_size;
@@ -162,7 +161,6 @@ swapon(p, uap)
 	struct swapon_args *uap;
 {
 	register struct vnode *vp;
-	dev_t dev;
 	struct nameidata nd;
 	int error;
 
@@ -177,33 +175,11 @@ swapon(p, uap)
 
 	vp = nd.ni_vp;
 
-	switch (vp->v_type) {
-	case VBLK:
-		dev = vp->v_rdev;
-		if (devsw(dev) == NULL) {
-			error = ENXIO;
-			break;
-		}
-		error = swaponvp(p, vp, dev, 0);
-		break;
-	case VCHR:
-		/*
-		 * For now, we disallow swapping to regular files.
-		 * It requires logical->physcal block translation
-		 * support in the swap pager before it will work.
-		 */
+	if (!vn_isdisk(vp)) 
 		error = ENOTBLK;
-		break;
-#if 0
-		error = VOP_GETATTR(vp, &attr, p->p_ucred, p);
-		if (!error)
-			error = swaponvp(p, vp, NODEV, attr.va_size / DEV_BSIZE);
-		break;
-#endif
-	default:
-		error = EINVAL;
-		break;
-	}
+
+	if (!error)
+		error = swaponvp(p, vp, vp->v_rdev, 0);
 
 	if (error)
 		vrele(vp);
@@ -296,12 +272,5 @@ swaponvp(p, vp, dev, nblks)
 		vm_swap_size += blk;
 	}
 
-	if (!swapdev_vp) {
-		error = getnewvnode(VT_NON, (struct mount *) 0,
-		    spec_vnodeop_p, &swapdev_vp);
-		if (error)
-			panic("Cannot get vnode for swapdev");
-		swapdev_vp->v_type = VBLK;
-	}
 	return (0);
 }
