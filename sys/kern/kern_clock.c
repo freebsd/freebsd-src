@@ -38,12 +38,12 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_ntp.h"
-#include "opt_ddb.h"
 #include "opt_watchdog.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/callout.h>
+#include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/ktr.h>
@@ -67,10 +67,6 @@ __FBSDID("$FreeBSD$");
 
 #ifdef GPROF
 #include <sys/gmon.h>
-#endif
-
-#ifdef DDB
-#include <ddb/ddb.h>
 #endif
 
 #ifdef DEVICE_POLLING
@@ -543,12 +539,12 @@ watchdog_fire(void)
 	}
 	printf("Total        %20ju\n", (uintmax_t)inttotal);
 
-#ifdef DDB
-	db_print_backtrace();
-	Debugger("watchdog timeout");
-#else /* !DDB */
+#ifdef KDB
+	kdb_backtrace();
+	kdb_enter("watchdog timeout");
+#else
 	panic("watchdog timeout");
-#endif /* DDB */
+#endif /* KDB */
 }
 
 #endif /* SW_WATCHDOG */
