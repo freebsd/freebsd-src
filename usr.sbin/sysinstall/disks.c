@@ -309,6 +309,8 @@ diskPartition(Device *dev)
 		if (val && (size = strtol(val, &cp, 0)) > 0) {
 		    if (*cp && toupper(*cp) == 'M')
 			size *= ONE_MEG;
+		    else if (*cp && toupper(*cp) == 'G')
+			size *= ONE_GIG;
 		    strcpy(tmp, "165");
 		    val = msgGetInput(tmp, "Enter type of partition to create:\n\n"
 				      "Pressing Enter will choose the default, a native FreeBSD\n"
@@ -733,6 +735,8 @@ diskPartitionNonInteractive(Device *dev)
 	    /* Look for sz bytes free */
 	    if (*cp && toupper(*cp) == 'M')
 		sz *= ONE_MEG;
+	    else if (*cp && toupper(*cp) == 'G')
+		sz *= ONE_GIG;
 	    for (i = 0; chunk_info[i]; i++) {
 		/* If a chunk is at least sz MB, use it. */
 		if (chunk_info[i]->type == unused && chunk_info[i]->size >= sz) {
