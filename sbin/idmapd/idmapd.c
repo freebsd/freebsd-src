@@ -215,7 +215,7 @@ idmap_service(struct idmap_e * e)
 	}
 
 	if (e->msg.msg_len != sizeof(struct idmap_msg)) {
-		fprintf(stderr, "bad message length: %d/%d\n", e->msg.msg_len,
+		fprintf(stderr, "bad message length: %zd/%zd\n", e->msg.msg_len,
 	    	sizeof(struct idmap_msg));
 		return -1;
 	}
@@ -354,9 +354,6 @@ main(int argc, char ** argv)
 
 	if (!verbose)
 		daemon(0,0);
-
-	if (verbose)
-		printf("sizeof nfs4dev_msg: %d\n", sizeof(struct nfs4dev_msg));
 
 	maxfd = fd;
 	for (;;) {
