@@ -199,7 +199,7 @@ restart:
 	 */
 	if (vn_canvmio(vp) == TRUE) {
 		if ((error = vfs_object_create(vp, td, cred)) != 0)
-			/* XXX: Should VOP_CLOSE() again here. */
+			VOP_CLOSE(vp, fmode, cred, td);
 			goto bad;
 	}
 
