@@ -708,7 +708,7 @@ vtryrecycle(struct vnode *vp)
 	vp->v_iflag &= ~VI_FREE;
 	mtx_unlock(&vnode_free_list_mtx);
 	vp->v_iflag |= VI_DOOMED;
-	if (vp->v_type != VBAD) {
+	if ((vp->v_type != VBAD) || (vp->v_data != NULL)) {
 		VOP_UNLOCK(vp, 0, td);
 		vgonel(vp, td);
 		VI_LOCK(vp);
