@@ -30,70 +30,43 @@ static const char rcsid[] =
 #endif /* not lint */
 
 #include <err.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/ioctl.h>
 
-typedef int (*main_t)(int, char **);
+#include <pccard/cardinfo.h>
+#include <pccard/cis.h>
+#include "readcis.h"
 
-#define DECL(foo) int foo(int, char**);
-DECL(beep_main);
-DECL(dumpcis_main);
-DECL(dumpcisfile_main);
-DECL(enabler_main);
-DECL(help_main);
-DECL(pccardmem_main);
-DECL(power_main);
-DECL(rdattr_main);
-DECL(rdmap_main);
-DECL(rdreg_main);
-DECL(wrattr_main);
-DECL(wrreg_main);
-
-struct {
-	char   *name;
-	main_t  func;
-	char   *help;
-} subcommands[] = {
-	{ "beep", beep_main, "Beep type" },
-	{ "dumpcis", dumpcis_main, "Prints CIS for all cards" },
-	{ "dumpcisfile", dumpcisfile_main, "Prints CIS from a file" },
-	{ "enabler", enabler_main, "Device driver enabler" },
-	{ "help", help_main, "Prints command summary" },
-	{ "pccardmem", pccardmem_main, "Allocate memory for pccard driver" },
-	{ "power", power_main, "Power on/off slots" },
-	{ "rdattr", rdattr_main, "Read attribute memory" },
-	{ "rdmap", rdmap_main, "Read pcic mappings" },
-	{ "rdreg", rdreg_main, "Read pcic register" },
-	{ "wrattr", wrattr_main, "Write byte to attribute memory" },
-	{ "wrreg", wrreg_main, "Write pcic register" },
-	{ 0, 0 }
-};
-
-int
-main(int argc, char **argv)
+static void
+scanfile(name)
+	char     *name;
 {
-	int     i;
+	int     fd;
+	struct cis *cp;
 
-	for (i = 0; argc > 1 && subcommands[i].name; i++) {
-		if (!strcmp(argv[1], subcommands[i].name)) {
-			argv[1] = argv[0];
-			return (*subcommands[i].func) (argc - 1, argv + 1);
-		}
+	fd = open(name, O_RDONLY);
+	if (fd < 0)
+		return;
+	cp = readcis(fd);
+	if (cp) {
+		printf("Configuration data for file %s\n",
+		    name);
+		dumpcis(cp);
+		freecis(cp);
 	}
-	if (argc > 1)
-		warnx("unknown subcommand");
-	return help_main(argc, argv);
+	close(fd);
 }
 
 int
-help_main(int argc, char **argv)
+dumpcisfile_main(int argc, char **argv)
 {
-	int     i;
 
-	fprintf(stderr, "usage: pccardc <subcommand> <arg> ...\n");
-	fprintf(stderr, "subcommands:\n");
-	for (i = 0; subcommands[i].name; i++)
-		fprintf(stderr, "\t%s\n\t\t%s\n",
-		    subcommands[i].name, subcommands[i].help);
-	return 1;
+	isdumpcisfile = 1;
+	for (argc--, argv++; argc; argc--, argv++)
+		scanfile(*argv);
+	return 0;
 }
