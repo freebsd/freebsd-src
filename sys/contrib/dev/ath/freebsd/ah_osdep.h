@@ -33,7 +33,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGES.
  *
- * $Id: ah_osdep.h,v 1.8 2003/06/25 04:50:26 sam Exp $
+ * $Id: ah_osdep.h,v 1.9 2003/07/26 14:55:11 sam Exp $
  */
 #ifndef _ATH_AH_OSDEP_H_
 #define _ATH_AH_OSDEP_H_
@@ -56,7 +56,6 @@ typedef bus_addr_t HAL_BUS_ADDR;
 #define	OS_MEMCPY(_dst, _src, _size)	bcopy((_src), (_dst), (_size))
 #define	OS_MACEQU(_a, _b) \
 	(bcmp((_a), (_b), IEEE80211_ADDR_LEN) == 0)
-#define	OS_QSORT(_a, _n, _es, _cmp)	qsort((_a), (_n), (_es), (_cmp))
 
 struct ath_hal;
 extern 	u_int32_t OS_GETUPTIME(struct ath_hal *);

@@ -1,4 +1,4 @@
-$Id: README,v 1.1 2003/06/23 17:59:07 sam Exp $
+$Id: README,v 1.2 2003/07/02 01:55:27 sam Exp $
 
 
 WARNING: THIS IS A BETA DISTRIBUTION.  THIS SOFTWARE HAS KNOWN PROBLEMS AND
@@ -9,7 +9,9 @@ WARNING: USE AT YOUR OWN RISK!
 Atheros Hardware Access Layer (HAL)
 ===================================
 
-* Copyright (c) 2002, 2003 Sam Leffler.  All rights reserved.
+* Copyright (c) 2002, 2003 Sam Leffler.
+* Copyright (c) 2002, 2003 Atheros Communications, Inc.
+* All rights reserved.
 
 Read the file COPYRIGHT for the complete copyright.
 

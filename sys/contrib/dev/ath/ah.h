@@ -33,7 +33,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGES.
  *
- * $Id: ah.h,v 1.34 2003/06/25 04:50:21 sam Exp $
+ * $Id: ah.h,v 1.35 2003/07/21 02:36:53 sam Exp $
  */
 
 #ifndef _ATH_AH_H_
@@ -286,7 +286,8 @@ typedef enum {
 typedef enum {
 	HAL_M_STA	= 1,			/* infrastructure station */
 	HAL_M_IBSS	= 0,			/* IBSS (adhoc) station */
-	HAL_M_HOSTAP	= 6			/* Software Access Point */
+	HAL_M_HOSTAP	= 6,			/* Software Access Point */
+	HAL_M_MONITOR	= 8			/* Monitor mode */
 } HAL_OPMODE;
 
 typedef struct {
