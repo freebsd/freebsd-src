@@ -50,7 +50,6 @@ SYSCTL_UINT(_kern_geom_vinum, OID_AUTO, debug, CTLFLAG_RW, &gv_debug, 0,
 #endif
 
 int	gv_create(struct g_geom *, struct gctl_req *);
-void	config_new_drive(struct gv_drive *);
 
 static void
 gv_orphan(struct g_consumer *cp)
@@ -262,36 +261,6 @@ gv_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	}
 }
 
-/* XXX this really belongs somewhere else */
-void
-config_new_drive(struct gv_drive *d)
-{
-	struct gv_hdr *vhdr;
-	struct gv_freelist *fl;
-
-	KASSERT(d != NULL, ("config_new_drive: NULL d"));
-
-	vhdr = g_malloc(sizeof(*vhdr), M_WAITOK | M_ZERO);
-	vhdr->magic = GV_MAGIC;
-	vhdr->config_length = GV_CFG_LEN;
-
-	bcopy(hostname, vhdr->label.sysname, GV_HOSTNAME_LEN);
-	strncpy(vhdr->label.name, d->name, GV_MAXDRIVENAME);
-	microtime(&vhdr->label.date_of_birth);
-
-	d->hdr = vhdr;
-
-	LIST_INIT(&d->subdisks);
-	LIST_INIT(&d->freelist);
-
-	fl = g_malloc(sizeof(struct gv_freelist), M_WAITOK | M_ZERO);
-	fl->offset = GV_DATA_START;
-	fl->size = d->avail;
-	LIST_INSERT_HEAD(&d->freelist, fl, freelist);
-	d->freelist_entries = 1;
-
-}
-
 /* Handle userland requests for creating new objects. */
 int
 gv_create(struct g_geom *gp, struct gctl_req *req)
@@ -336,7 +305,7 @@ gv_create(struct g_geom *gp, struct gctl_req *req)
 		d->size = pp->mediasize - GV_DATA_START;
 		d->avail = d->size;
 
-		config_new_drive(d);
+		gv_config_new_drive(d);
 
 		LIST_INSERT_HEAD(&sc->drives, d, drive);
 	}

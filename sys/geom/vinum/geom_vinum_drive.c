@@ -50,6 +50,34 @@ __FBSDID("$FreeBSD$");
 void	gv_drive_modify(struct gv_drive *);
 
 void
+gv_config_new_drive(struct gv_drive *d)
+{
+	struct gv_hdr *vhdr;
+	struct gv_freelist *fl;
+
+	KASSERT(d != NULL, ("config_new_drive: NULL d"));
+
+	vhdr = g_malloc(sizeof(*vhdr), M_WAITOK | M_ZERO);
+	vhdr->magic = GV_MAGIC;
+	vhdr->config_length = GV_CFG_LEN;
+
+	bcopy(hostname, vhdr->label.sysname, GV_HOSTNAME_LEN);
+	strncpy(vhdr->label.name, d->name, GV_MAXDRIVENAME);
+	microtime(&vhdr->label.date_of_birth);
+
+	d->hdr = vhdr;
+
+	LIST_INIT(&d->subdisks);
+	LIST_INIT(&d->freelist);
+
+	fl = g_malloc(sizeof(struct gv_freelist), M_WAITOK | M_ZERO);
+	fl->offset = GV_DATA_START;
+	fl->size = d->avail;
+	LIST_INSERT_HEAD(&d->freelist, fl, freelist);
+	d->freelist_entries = 1;
+}
+
+void
 gv_save_config_all(struct gv_softc *sc)
 {
 	struct gv_drive *d;
