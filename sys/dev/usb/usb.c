@@ -261,11 +261,11 @@ USB_ATTACH(usb)
 #if defined(__FreeBSD__)
 	/* The per controller devices (used for usb_discover) */
 	make_dev(&usb_cdevsw, device_get_unit(self), UID_ROOT, GID_OPERATOR,
-		0644, "usb%d", device_get_unit(self));
+		0660, "usb%d", device_get_unit(self));
 	if (!global_init_done) {
 		/* The device spitting out events */
 		make_dev(&usb_cdevsw, USB_DEV_MINOR, UID_ROOT, GID_OPERATOR,
-			0644, "usb");
+			0660, "usb");
 		global_init_done = 1;
 	}
 #endif
