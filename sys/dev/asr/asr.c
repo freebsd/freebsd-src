@@ -3578,7 +3578,8 @@ asr_intr (
                         break;
 
                 case I2O_SCSI_DSC_CHECK_CONDITION:
-                        ccb->ccb_h.status |= CAM_REQ_CMP|CAM_AUTOSNS_VALID;
+                        ccb->ccb_h.status |= CAM_SCSI_STATUS_ERROR |
+                            CAM_AUTOSNS_VALID;
                         break;
 
                 case I2O_SCSI_DSC_BUSY:
