@@ -40,7 +40,6 @@
 #include <sys/ioctl.h>
 #include <sys/tty.h>
 #include <sys/proc.h>
-#include <sys/user.h>
 #include <sys/conf.h>
 #include <sys/dkstat.h>
 #include <sys/file.h>

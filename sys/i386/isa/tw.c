@@ -131,7 +131,7 @@
 #include "param.h"
 #include "systm.h"
 #include "proc.h"
-#include "user.h"
+#include "conf.h"
 #include "buf.h"
 #include "kernel.h"
 #include "ioctl.h"
