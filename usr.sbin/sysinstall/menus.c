@@ -1234,12 +1234,12 @@ DMenu MenuConfigure = {
 	NULL, configPackages },
       { " Root Password", "Set the system manager's password",
 	NULL,	dmenuSystemCommand, NULL, "passwd root" },
-      { " Label",	"The disk Label editor",
-	NULL, diskLabelEditor },
 #ifdef __i386__
       { " Fdisk",	"The disk Slice (PC-style partition) Editor",
 	NULL, diskPartitionEditor },
 #endif
+      { " Label",	"The disk Label editor",
+	NULL, diskLabelEditor },
       { " User Management",	"Add user and group information",
 	NULL, dmenuSubmenu, NULL, &MenuUsermgmt },
       { " Console",	"Customize system console behavior",
