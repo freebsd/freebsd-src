@@ -201,7 +201,7 @@ n=$(catmsgs | grep -i "^$yesterday.*refused connect" | tee /dev/stderr | wc -l)
 #
 separator
 echo "$host checking for denied secondary zone transfers:"
-n=$(catmsgs | grep -i "denied AXFR from" | tee /dev/stderr | wc -l)
+n=$(catmsgs | grep -i -E "denied (AXFR|IXFR) from" | tee /dev/stderr | wc -l)
 [ $n -gt 0 -a $rc -lt 1 ] && rc=1
 
 rm -f ${TMP}
