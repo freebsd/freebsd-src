@@ -32,6 +32,9 @@
 typedef void tick_func_t(struct clockframe *);
 
 void	tick_start(u_long clock, tick_func_t *func);
+#ifdef SMP
+void	tick_start_ap(void);
+#endif
 void	tick_stop(void);
 
 tick_func_t tick_hardclock;
