@@ -997,5 +997,7 @@ static driver_t npxisa_driver = {
 static devclass_t npxisa_devclass;
 
 DRIVER_MODULE(npxisa, isa, npxisa_driver, npxisa_devclass, 0, 0);
+#ifndef PC98
 DRIVER_MODULE(npxisa, acpi, npxisa_driver, npxisa_devclass, 0, 0);
+#endif
 
