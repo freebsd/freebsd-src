@@ -110,7 +110,7 @@ static u_long sf_buf_hashmask;
 
 #define	SF_BUF_HASH(m)	(((m) - vm_page_array) & sf_buf_hashmask)
 
-static struct sf_head sf_buf_freelist;
+static TAILQ_HEAD(, sf_buf) sf_buf_freelist;
 static u_int	sf_buf_alloc_want;
 
 /*
@@ -583,13 +583,13 @@ sf_buf_init(void *arg)
 	int i;
 
 	sf_buf_active = hashinit(nsfbufs, M_TEMP, &sf_buf_hashmask);
-	LIST_INIT(&sf_buf_freelist);
+	TAILQ_INIT(&sf_buf_freelist);
 	sf_base = kmem_alloc_nofault(kernel_map, nsfbufs * PAGE_SIZE);
 	sf_bufs = malloc(nsfbufs * sizeof(struct sf_buf), M_TEMP,
 	    M_NOWAIT | M_ZERO);
 	for (i = 0; i < nsfbufs; i++) {
 		sf_bufs[i].kva = sf_base + i * PAGE_SIZE;
-		LIST_INSERT_HEAD(&sf_buf_freelist, &sf_bufs[i], list_entry);
+		TAILQ_INSERT_TAIL(&sf_buf_freelist, &sf_bufs[i], free_entry);
 	}
 	sf_buf_alloc_want = 0;
 	mtx_init(&sf_buf_lock, "sf_buf", NULL, MTX_DEF);
@@ -609,11 +609,13 @@ sf_buf_alloc(struct vm_page *m)
 	mtx_lock(&sf_buf_lock);
 	LIST_FOREACH(sf, hash_list, list_entry) {
 		if (sf->m == m) {
+			if (sf->ref_count == 0)
+				TAILQ_REMOVE(&sf_buf_freelist, sf, free_entry);
 			sf->ref_count++;
 			goto done;
 		}
 	}
-	while ((sf = LIST_FIRST(&sf_buf_freelist)) == NULL) {
+	while ((sf = TAILQ_FIRST(&sf_buf_freelist)) == NULL) {
 		sf_buf_alloc_want++;
 		error = msleep(&sf_buf_freelist, &sf_buf_lock, PVM|PCATCH,
 		    "sfbufa", 0);
@@ -625,7 +627,9 @@ sf_buf_alloc(struct vm_page *m)
 		if (error)
 			goto done;
 	}
-	LIST_REMOVE(sf, list_entry);
+	TAILQ_REMOVE(&sf_buf_freelist, sf, free_entry);
+	if (sf->m != NULL)
+		LIST_REMOVE(sf, list_entry);
 	LIST_INSERT_HEAD(hash_list, sf, list_entry);
 	sf->ref_count = 1;
 	sf->m = m;
@@ -649,10 +653,7 @@ sf_buf_free(void *addr, void *args)
 	m = sf->m;
 	sf->ref_count--;
 	if (sf->ref_count == 0) {
-		pmap_qremove((vm_offset_t)addr, 1);
-		sf->m = NULL;
-		LIST_REMOVE(sf, list_entry);
-		LIST_INSERT_HEAD(&sf_buf_freelist, sf, list_entry);
+		TAILQ_INSERT_TAIL(&sf_buf_freelist, sf, free_entry);
 		if (sf_buf_alloc_want > 0)
 			wakeup_one(&sf_buf_freelist);
 	}
