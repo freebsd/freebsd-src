@@ -977,7 +977,7 @@ g_mirror_sync_request(struct bio *bp)
 			    "Synchronization request failed (error=%d).",
 			    bp->bio_error);
 			g_destroy_bio(bp);
-			disk->d_softc->sc_bump_syncid = G_MIRROR_BUMP_IMMEDIATELY;
+			sc->sc_bump_syncid = G_MIRROR_BUMP_IMMEDIATELY;
 			g_mirror_event_send(disk,
 			    G_MIRROR_DISK_STATE_DISCONNECTED,
 			    G_MIRROR_EVENT_DONTWAIT);
