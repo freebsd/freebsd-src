@@ -113,7 +113,7 @@ mount_point(Chunk *c1)
 {
     if (c1->type == part && c1->subtype == FS_SWAP)
 	return "none";
-    else if (c1->type == part || c1->type == fat)
+    else if (c1->type == part || c1->type == fat || c1->type == efi)
 	return ((PartInfo *)c1->private_data)->mountpoint;
     return "/bogus";
 }
@@ -121,7 +121,7 @@ mount_point(Chunk *c1)
 static char *
 fstype(Chunk *c1)
 {
-    if (c1->type == fat)
+    if (c1->type == fat || c1->type == efi)
 	return "msdosfs";
     else if (c1->type == part) {
 	if (c1->subtype != FS_SWAP)
@@ -151,6 +151,9 @@ fstype_short(Chunk *c1)
 	else
 	    return "ro";
     }
+    else if (c1->type == efi)
+	return "rw";
+
     return "bog";
 }
 
@@ -208,7 +211,7 @@ configFstab(dialogMenuItem *self)
 			chunk_list[nchunks++] = c2;
 		}
 	    }
-	    else if (c1->type == fat && c1->private_data)
+	    else if ((c1->type == fat || c1->type == efi) && c1->private_data)
 		chunk_list[nchunks++] = c1;
 	}
     }

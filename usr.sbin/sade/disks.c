@@ -508,6 +508,8 @@ diskPartition(Device *dev)
 			partitiontype = freebsd;
 		    else if (subtype == SUBTYPE_FAT)
 			partitiontype = fat;
+		    else if (subtype == SUBTYPE_EFI)
+			partitiontype = efi;
 		    else
 			partitiontype = unknown;
 		    chunk_info[current_chunk]->type = partitiontype;
