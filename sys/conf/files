@@ -80,6 +80,7 @@ kern/subr_xxx.c		standard
 kern/sys_generic.c	standard
 kern/sys_process.c	standard
 kern/sys_socket.c	standard
+kern/sys_pipe.c		standard
 kern/sysv_ipc.c		standard
 kern/sysv_msg.c		optional sysvmsg
 kern/sysv_sem.c		optional sysvsem
