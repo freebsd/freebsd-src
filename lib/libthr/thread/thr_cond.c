@@ -200,13 +200,9 @@ cond_wait_common(pthread_cond_t * cond, pthread_mutex_t * mutex,
 	         const struct timespec * abstime)
 {
 	int	rval = 0;
-	int	done = 0;
-	int	seqno;
 	int	mtxrval;
 
 
-	_thread_enter_cancellation_point();
-	
 	if (cond == NULL)
 		return (EINVAL);
 	/*
@@ -216,6 +212,8 @@ cond_wait_common(pthread_cond_t * cond, pthread_mutex_t * mutex,
 	if (*cond == PTHREAD_COND_INITIALIZER && (rval = cond_init(cond)) != 0)
 		return (rval);
 
+	if ((*cond)->c_type != COND_TYPE_FAST)
+		return (EINVAL);
 
 	COND_LOCK(*cond);
 
@@ -228,124 +226,86 @@ cond_wait_common(pthread_cond_t * cond, pthread_mutex_t * mutex,
 		(*cond)->c_flags |= COND_FLAGS_INITED;
 	}
 
-	/* Process according to condition variable type. */
-
-	switch ((*cond)->c_type) {
-	/* Fast condition variable: */
-	case COND_TYPE_FAST:
-		if ((mutex == NULL) || (((*cond)->c_mutex != NULL) &&
-		    ((*cond)->c_mutex != *mutex))) {
-			COND_UNLOCK(*cond);
-			rval = EINVAL;
-			break;
-		} 
-		/* Remember the mutex */
-		(*cond)->c_mutex = *mutex;
-
-		if ((rval = _mutex_cv_unlock(mutex)) != 0) {
-			if (rval == -1){
-				printf("foo");
-				fflush(stdout);
-				abort();
-			}
-
-			COND_UNLOCK(*cond);
-			break;
-		}
-
-		/*
-		 * We need to protect the queue operations.  It also 
-		 * protects c_seqno and the pthread flag fields.  This is
-		 * dropped before calling _thread_suspend() and reaquired
-		 * when we return.
-		 */
-
-		_thread_critical_enter(curthread);
-		/*
-		 * c_seqno is protected.
-		 */
-		seqno = (*cond)->c_seqno;
-
-		do {
-			/*
-			 * Queue the running thread on the condition
-			 * variable.
-			 */
-			cond_queue_enq(*cond, curthread);
-
-			if (curthread->cancelflags & PTHREAD_CANCELLING) {
-				/*
-				 * POSIX Says that we must relock the mutex
-				 * even if we're being canceled.
-				 */
-				_thread_critical_exit(curthread);
-				COND_UNLOCK(*cond);
-				_mutex_cv_lock(mutex);
-				pthread_testcancel();
-				PANIC("Shouldn't have come back.");
-			}
-
-			PTHREAD_SET_STATE(curthread, PS_COND_WAIT);
-			_thread_critical_exit(curthread);
-			COND_UNLOCK(*cond);
-			rval = _thread_suspend(curthread, (struct timespec *)abstime);
-			if (rval != 0 && rval != ETIMEDOUT && rval != EINTR) {
-				printf("foo");
-				fflush(stdout);
-				abort();
-			}
-			COND_LOCK(*cond);
-			_thread_critical_enter(curthread);
-
-			done = (seqno != (*cond)->c_seqno);
-
-			/*
-			 * If we timed out, this will remove us from the
-			 * queue. Otherwise, if we were signaled it does
-			 * nothing because this thread won't be on the queue.
-			 */
-			cond_queue_remove(*cond, curthread);
-
-		} while ((done == 0) && (rval == 0));
-		/*
-		 * If we timed out someone still may have signaled us
-		 * before we got a chance to run again.  We check for
-		 * this by looking to see if our state is RUNNING.
-		 */
-		if (rval == ETIMEDOUT) {
-			if (curthread->state != PS_RUNNING) {
-				PTHREAD_SET_STATE(curthread, PS_RUNNING);
-			} else
-				rval = 0;
-		}
-		_thread_critical_exit(curthread);
+	if ((mutex == NULL) || (((*cond)->c_mutex != NULL) &&
+	    ((*cond)->c_mutex != *mutex))) {
 		COND_UNLOCK(*cond);
+		return (EINVAL);
+	} 
+	/* Remember the mutex */
+	(*cond)->c_mutex = *mutex;
 
-		mtxrval = _mutex_cv_lock(mutex);
-
-		/*
-		 * If the mutex failed return that error, otherwise we're
-		 * returning ETIMEDOUT.
-		 */
-		if (mtxrval == -1) {
-			printf("foo");
+	_thread_enter_cancellation_point();
+	if ((rval = _mutex_cv_unlock(mutex)) != 0) {
+		if (rval == -1){
+			printf("mutex unlock by condvar failed!");
 			fflush(stdout);
 			abort();
 		}
-		if (mtxrval != 0)
-			rval = mtxrval;
-
-		break;
-
-	/* Trap invalid condition variable types: */
-	default:
+		_thread_leave_cancellation_point();
 		COND_UNLOCK(*cond);
-		rval = EINVAL;
-		break;
+		return (rval);
 	}
 
-	_thread_leave_cancellation_point();
+	/*
+	 * We need to protect the queue operations.  It also 
+	 * protects the pthread flag field.  This is
+	 * dropped before calling _thread_suspend() and reaquired
+	 * when we return.
+	 */
+	PTHREAD_LOCK(curthread);
 
+	/*
+	 * Queue the running thread on the condition
+	 * variable and wait to be signaled.
+	 */
+	cond_queue_enq(*cond, curthread);
+	do {
+		PTHREAD_UNLOCK(curthread);
+		COND_UNLOCK(*cond);
+		if (curthread->cancellation == CS_PENDING) {
+			/*
+			 * Posix says we must lock the mutex
+			 * even if we're being canceled.
+			 */
+			_mutex_cv_lock(mutex);
+			_thread_leave_cancellation_point();
+			PANIC("Shouldn't have come back.");
+		}
+		rval = _thread_suspend(curthread, (struct timespec *)abstime);
+		if (rval != 0 && rval != ETIMEDOUT && rval != EINTR) {
+			printf("thread suspend returned an invalid value");
+			fflush(stdout);
+			abort();
+		}
+		COND_LOCK(*cond);
+		PTHREAD_LOCK(curthread);
+		if (rval == ETIMEDOUT) {
+			/*
+			 * Condition may have been signaled between the
+			 * time the thread timed out and locked the condvar.
+			 * If it wasn't, manually remove it from the queue.
+			 */
+			if ((curthread->flags & PTHREAD_FLAGS_IN_CONDQ) == 0)
+				rval = 0;
+			else
+				cond_queue_remove(*cond, curthread);
+		}
+	} while ((curthread->flags & PTHREAD_FLAGS_IN_CONDQ) != 0);
+
+	PTHREAD_UNLOCK(curthread);
+	COND_UNLOCK(*cond);
+	mtxrval = _mutex_cv_lock(mutex);
+
+	/* If the mutex failed return that error. */
+	if (mtxrval == -1) {
+		printf("mutex lock from condvar failed!");
+		fflush(stdout);
+		abort();
+	}
+	if (mtxrval != 0)
+		rval = mtxrval;
+
+	_thread_leave_cancellation_point();
 	return (rval);
 }
 
@@ -376,40 +336,26 @@ cond_signal(pthread_cond_t * cond, int broadcast)
 	if (*cond == PTHREAD_COND_INITIALIZER && (rval = cond_init(cond)) != 0)
 		return (rval);
 
+	if ((*cond)->c_type != COND_TYPE_FAST)
+		return (EINVAL);
 	COND_LOCK(*cond);
 
-	/* Process according to condition variable type: */
-	switch ((*cond)->c_type) {
-	/* Fast condition variable: */
-	case COND_TYPE_FAST:
-		(*cond)->c_seqno++;
-
+	/*
+	 * Enter a loop to bring all (or only one) threads off the
+	 * condition queue:
+	 */
+	do {
 		/*
-		 * Enter a loop to bring all (or only one) threads off the
-		 * condition queue:
+		 * Wake up the signaled thread. It will be returned
+		 * to us locked.
 		 */
-		do {
-			/*
-			 * Wake up the signaled thread. It will be returned
-			 * to us locked, and with signals disabled.
-			 */
-			if ((pthread = cond_queue_deq(*cond)) != NULL) {
-				PTHREAD_NEW_STATE(pthread, PS_RUNNING);
-				_thread_critical_exit(pthread);
-			}
-		} while (broadcast && pthread != NULL);
-
-		break;
-
-	/* Trap invalid condition variable types: */
-	default:
-		rval = EINVAL;
-		break;
-	}
+		if ((pthread = cond_queue_deq(*cond)) != NULL) {
+			PTHREAD_WAKE(pthread);
+			PTHREAD_UNLOCK(pthread);
+		}
+	} while (broadcast && pthread != NULL);
 
 	COND_UNLOCK(*cond);
-
-
 	return (rval);
 }
 
@@ -443,20 +389,17 @@ cond_queue_deq(pthread_cond_t cond)
 	pthread_t pthread;
 
 	while ((pthread = TAILQ_FIRST(&cond->c_queue)) != NULL) {
-		_thread_critical_enter(pthread);
-		TAILQ_REMOVE(&cond->c_queue, pthread, sqe);
+		PTHREAD_LOCK(pthread);
 		cond_queue_remove(cond, pthread);
-		if ((pthread->cancelflags & PTHREAD_CANCELLING) == 0 &&
-		    pthread->state == PS_COND_WAIT)
-			/*
-			 * Only exit the loop when we find a thread
-			 * that hasn't timed out or been canceled;
-			 * those threads are already running and don't
-			 * need their run state changed.
-			 */
+
+		/*
+		 * Only exit the loop when we find a thread
+		 * that hasn't been canceled.
+		 */
+		if (pthread->cancellation == CS_NULL)
 			break;
 		else
-			_thread_critical_exit(pthread);
+			PTHREAD_UNLOCK(pthread);
 	}
 
 	return(pthread);

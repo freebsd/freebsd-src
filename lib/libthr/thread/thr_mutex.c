@@ -234,9 +234,9 @@ acquire_mutex(struct pthread_mutex *mtx, struct pthread *ptd)
 {
 	mtx->m_owner = ptd;
 	_MUTEX_ASSERT_NOT_OWNED(mtx);
-	_thread_critical_enter(ptd);
+	PTHREAD_LOCK(ptd);
 	TAILQ_INSERT_TAIL(&ptd->mutexq, mtx, m_qe);
-	_thread_critical_exit(ptd);
+	PTHREAD_UNLOCK(ptd);
 }
 
 /*
@@ -261,7 +261,7 @@ mutex_attach_to_next_pthread(struct pthread_mutex *mtx)
 	if ((ptd = mutex_queue_deq(mtx)) != NULL) {
 		TAILQ_INSERT_TAIL(&ptd->mutexq, mtx, m_qe);
 		ptd->data.mutex = NULL;
-		PTHREAD_NEW_STATE(ptd, PS_RUNNING);
+		PTHREAD_WAKE(ptd);
 	}
 	mtx->m_owner = ptd;
 }
@@ -385,7 +385,7 @@ retry:
 	/*
 	 * The mutex is now owned by curthread.
 	 */
-	_thread_critical_enter(curthread);
+	PTHREAD_LOCK(curthread);
 
 	/*
 	 * The mutex's priority may have changed while waiting for it.
@@ -394,8 +394,8 @@ retry:
 	    curthread->active_priority > (*mutex)->m_prio) {
 		mutex_attach_to_next_pthread(*mutex);
 		if ((*mutex)->m_owner != NULL)
-			_thread_critical_exit((*mutex)->m_owner);
-		_thread_critical_exit(curthread);
+			PTHREAD_UNLOCK((*mutex)->m_owner);
+		PTHREAD_UNLOCK(curthread);
 		_SPINUNLOCK(&(*mutex)->lock);
 		return (EINVAL);
 	}
@@ -417,7 +417,7 @@ retry:
 		/* Nothing */
 		break;
 	}
-	_thread_critical_exit(curthread);
+	PTHREAD_UNLOCK(curthread);
 out:
 	_SPINUNLOCK(&(*mutex)->lock);
 	return (error);
@@ -452,14 +452,14 @@ adjust_prio_inheritance(struct pthread *ptd)
 
 		tempTd = TAILQ_FIRST(&tempMtx->m_queue);
 		if (tempTd != NULL) {
-			UMTX_LOCK(&tempTd->lock);
+			PTHREAD_LOCK(tempTd);
 			if (tempTd->active_priority > ptd->active_priority) {
 				ptd->inherited_priority =
 				    tempTd->active_priority;
 				ptd->active_priority =
 				    tempTd->active_priority;
 			}
-			UMTX_UNLOCK(&tempTd->lock);
+			PTHREAD_UNLOCK(tempTd);
 		}
 		_SPINUNLOCK(&tempMtx->lock);
 	}
@@ -641,7 +641,7 @@ mutex_self_lock(pthread_mutex_t mutex, int noblock)
 		 */
 		if (noblock)
 			return (EBUSY);
-		PTHREAD_SET_STATE(curthread, PS_DEADLOCK);
+		curthread->isdeadlocked = 1;
 		_SPINUNLOCK(&(mutex)->lock);
 		_thread_suspend(curthread, NULL);
 		PANIC("Shouldn't resume here?\n");
@@ -683,10 +683,10 @@ mutex_unlock_common(pthread_mutex_t * mutex, int add_reference)
 	 * Release the mutex from this thread and attach it to
 	 * the next thread in the queue, if there is one waiting.
 	 */
-	_thread_critical_enter(curthread);
+	PTHREAD_LOCK(curthread);
 	mutex_attach_to_next_pthread(*mutex);
 	if ((*mutex)->m_owner != NULL)
-		_thread_critical_exit((*mutex)->m_owner);
+		PTHREAD_UNLOCK((*mutex)->m_owner);
 	if (add_reference != 0) {
 		/* Increment the reference count: */
 		(*mutex)->m_refcount++;
@@ -717,7 +717,7 @@ mutex_unlock_common(pthread_mutex_t * mutex, int add_reference)
 		/* Nothing */
 		break;
 	}
-	_thread_critical_exit(curthread);
+	PTHREAD_UNLOCK(curthread);
 	return (0);
 }
 
@@ -759,24 +759,20 @@ mutex_queue_deq(pthread_mutex_t mutex)
 	pthread_t pthread;
 
 	while ((pthread = TAILQ_FIRST(&mutex->m_queue)) != NULL) {
-		_thread_critical_enter(pthread);
+		PTHREAD_LOCK(pthread);
 		TAILQ_REMOVE(&mutex->m_queue, pthread, sqe);
 		pthread->flags &= ~PTHREAD_FLAGS_IN_MUTEXQ;
 
 		/*
 		 * Only exit the loop if the thread hasn't been
-		 * cancelled.
+		 * asynchronously cancelled.
 		 */
-		if (((pthread->cancelflags & PTHREAD_CANCELLING) == 0 ||
-		    (pthread->cancelflags & PTHREAD_CANCEL_DISABLE) != 0 ||
-		    ((pthread->cancelflags & PTHREAD_CANCELLING) != 0 &&
-		    (pthread->cancelflags & PTHREAD_CANCEL_ASYNCHRONOUS) == 0)) &&
-		    pthread->state == PS_MUTEX_WAIT)
-			break;
+		if (pthread->cancelmode == M_ASYNC &&
+		    pthread->cancellation != CS_NULL)
+			continue;
 		else
-			_thread_critical_exit(pthread);
+			break;
 	}
-
 	return (pthread);
 }
 
@@ -824,7 +820,7 @@ mutex_queue_enq(pthread_mutex_t mutex, pthread_t pthread)
 	}
 	if (mutex->m_protocol == PTHREAD_PRIO_INHERIT &&
 	    pthread == TAILQ_FIRST(&mutex->m_queue)) {
-		UMTX_LOCK(&mutex->m_owner->lock);
+		PTHREAD_LOCK(mutex->m_owner);
 		if (pthread->active_priority >
 		    mutex->m_owner->active_priority) {
 			mutex->m_owner->inherited_priority =
@@ -832,7 +828,7 @@ mutex_queue_enq(pthread_mutex_t mutex, pthread_t pthread)
 			mutex->m_owner->active_priority =
 			    pthread->active_priority;
 		}
-		UMTX_UNLOCK(&mutex->m_owner->lock);
+		PTHREAD_UNLOCK(mutex->m_owner);
 	}
 	pthread->flags |= PTHREAD_FLAGS_IN_MUTEXQ;
 }
@@ -843,14 +839,14 @@ mutex_queue_enq(pthread_mutex_t mutex, pthread_t pthread)
 void
 readjust_priorities(struct pthread *pthread, struct pthread_mutex *mtx)
 {
-	if (pthread->state == PS_MUTEX_WAIT) {
+	if ((pthread->flags & PTHREAD_FLAGS_IN_MUTEXQ) != 0) {
 		mutex_queue_remove(mtx, pthread);
 		mutex_queue_enq(mtx, pthread);
-		UMTX_LOCK(&mtx->m_owner->lock);
+		PTHREAD_LOCK(mtx->m_owner);
 		adjust_prio_inheritance(mtx->m_owner);
 		if (mtx->m_owner->prio_protect_count > 0)
 			adjust_prio_protection(mtx->m_owner);
-		UMTX_UNLOCK(&mtx->m_owner->lock);
+		PTHREAD_UNLOCK(mtx->m_owner);
 	}
 	if (pthread->prio_inherit_count > 0)
 		adjust_prio_inheritance(pthread);
@@ -883,41 +879,36 @@ get_mcontested(pthread_mutex_t mutexp, const struct timespec *abstime)
 	 * threads are concerned) setting of the thread state with
 	 * it's status on the mutex queue.
 	 */
-	_thread_critical_enter(curthread);
+	PTHREAD_LOCK(curthread);
 	mutex_queue_enq(mutexp, curthread);
 	do {
-		if ((curthread->cancelflags & PTHREAD_CANCEL_ASYNCHRONOUS) != 0 &&
-		    (curthread->cancelflags & PTHREAD_CANCEL_DISABLE) == 0 &&
-		    (curthread->cancelflags & PTHREAD_CANCELLING) != 0) {
+		if (curthread->cancelmode == M_ASYNC &&
+		    curthread->cancellation != CS_NULL) {
 			mutex_queue_remove(mutexp, curthread);
-			_thread_critical_exit(curthread);
+			PTHREAD_UNLOCK(curthread);
 			_SPINUNLOCK(&mutexp->lock);
 			pthread_testcancel();
 		}
-		PTHREAD_SET_STATE(curthread, PS_MUTEX_WAIT);
 		curthread->data.mutex = mutexp;
-		_thread_critical_exit(curthread);
+		PTHREAD_UNLOCK(curthread);
 		_SPINUNLOCK(&mutexp->lock);
 		error = _thread_suspend(curthread, abstime);
 		if (error != 0 && error != ETIMEDOUT && error != EINTR)
 			PANIC("Cannot suspend on mutex.");
 		_SPINLOCK(&mutexp->lock);
-		_thread_critical_enter(curthread);
+		PTHREAD_LOCK(curthread);
 		if (error == ETIMEDOUT) {
 			/*
 			 * Between the timeout and when the mutex was
 			 * locked the previous owner may have released
 			 * the mutex to this thread. Or not.
 			 */
-			if (mutexp->m_owner == curthread) {
+			if (mutexp->m_owner == curthread)
 				error = 0;
-			} else {
+			else
 				_mutex_lock_backout(curthread);
-				curthread->state = PS_RUNNING;
-				error = ETIMEDOUT;
-			}
 		}
 	} while ((curthread->flags & PTHREAD_FLAGS_IN_MUTEXQ) != 0);
-	_thread_critical_exit(curthread);
+	PTHREAD_UNLOCK(curthread);
 	return (error);
 }

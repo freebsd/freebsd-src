@@ -41,14 +41,21 @@ __weak_reference(_pthread_detach, pthread_detach);
 int
 _pthread_detach(pthread_t pthread)
 {
+	int error;
+
 	if (pthread->magic != PTHREAD_MAGIC)
 		return (EINVAL);
 
-	UMTX_LOCK(&pthread->lock);
+	PTHREAD_LOCK(pthread);
 
 	if ((pthread->attr.flags & PTHREAD_DETACHED) != 0) {
-		UMTX_UNLOCK(&pthread->lock);
-		return ((pthread->state == PS_DEAD) ? ESRCH : EINVAL);
+		_thread_sigblock();
+		DEAD_LIST_LOCK;
+		error = pthread->isdead ? ESRCH : EINVAL;
+		DEAD_LIST_UNLOCK;
+		_thread_sigunblock();
+		PTHREAD_UNLOCK(pthread);
+		return (error);
 	}
 
 	pthread->attr.flags |= PTHREAD_DETACHED;
@@ -56,10 +63,6 @@ _pthread_detach(pthread_t pthread)
 	/* Check if there is a joiner: */
 	if (pthread->joiner != NULL) {
 		struct pthread	*joiner = pthread->joiner;
-		_thread_critical_enter(joiner);
-
-		/* Make the thread runnable: */
-		PTHREAD_NEW_STATE(joiner, PS_RUNNING);
 
 		/* Set the return value for the woken thread: */
 		joiner->join_status.error = ESRCH;
@@ -70,10 +73,10 @@ _pthread_detach(pthread_t pthread)
 		 * Disconnect the joiner from the thread being detached:
 		 */
 		pthread->joiner = NULL;
-		_thread_critical_exit(joiner);
+		PTHREAD_WAKE(joiner);
 	}
 
-	UMTX_UNLOCK(&pthread->lock);
+	PTHREAD_UNLOCK(pthread);
 
 	return (0);
 }
