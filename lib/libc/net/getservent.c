@@ -57,13 +57,94 @@ static char *serv_aliases[MAXALIASES];
 int _serv_stayopen;
 
 #ifdef YP
+char *___getservbyname_yp = NULL;
+char *___getservbyproto_yp = NULL;
+int ___getservbyport_yp = 0;
+static char *yp_domain = NULL;
+
 static int
-_getypservent(line)
+_getservbyport_yp(line)
+	char *line;
+{
+	char *result;
+	int resultlen;
+	char buf[YPMAXRECORD];
+	int rv;
+
+	snprintf(buf, sizeof(buf), "%d/%s", ntohs(___getservbyport_yp),
+						___getservbyproto_yp);
+
+	___getservbyport_yp = 0;
+	___getservbyproto_yp = NULL;
+
+	if(!yp_domain) {
+		if(yp_get_default_domain(&yp_domain))
+			return (0);
+	}
+
+	/*
+	 * We have to be a little flexible here. Ideally you're supposed
+	 * to have both a services.byname and a services.byport map, but
+	 * some systems have only services.byname. FreeBSD cheats a little
+	 * by putting the services.byport information in the same map as
+	 * services.byname so that either case will work. We allow for both
+	 * possibilities here: if there is no services.byport map, we try
+	 * services.byname instead.
+	 */
+	if ((rv = yp_match(yp_domain, "services.byport", buf, strlen(buf),
+						&result, &resultlen))) {
+		if (rv == YPERR_MAP) {
+			if (yp_match(yp_domain, "services.byname", buf,
+					strlen(buf), &result, &resultlen))
+			return(0);
+		} else
+			return(0);
+	}
+		
+	/* getservent() expects lines terminated with \n -- make it happy */
+	snprintf(line, BUFSIZ, "%.*s\n", resultlen, result);
+
+	free(result);
+	return(1);
+}
+
+static int
+_getservbyname_yp(line)
+	char *line;
+{
+	char *result;
+	int resultlen;
+	char buf[YPMAXRECORD];
+
+	if(!yp_domain) {
+		if(yp_get_default_domain(&yp_domain))
+			return (0);
+	}
+
+	snprintf(buf, sizeof(buf), "%s/%s", ___getservbyname_yp,
+						___getservbyproto_yp);
+
+	___getservbyname_yp = 0;
+	___getservbyproto_yp = NULL;
+
+	if (yp_match(yp_domain, "services.byname", buf, strlen(buf),
+						&result, &resultlen)) {
+		return(0);
+	}
+		
+	/* getservent() expects lines terminated with \n -- make it happy */
+	snprintf(line, BUFSIZ, "%.*s\n", resultlen, result);
+
+	free(result);
+	return(1);
+}
+
+static int
+_getservent_yp(line)
 	char *line;
 {
 	static char *key = NULL;
 	static int keylen;
-	static char *yp_domain = NULL;
 	char *lastkey, *result;
 	int resultlen;
 	int rv;
@@ -93,9 +174,8 @@ _getypservent(line)
 		}
 	}
 
-	strncpy(line, result, BUFSIZ - 1);
 	/* getservent() expects lines terminated with \n -- make it happy */
-	strcat(line, "\n");
+	snprintf(line, BUFSIZ, "%.*s\n", resultlen, result);
 
 	free(result);
 
@@ -131,7 +211,7 @@ getservent()
 	register char *cp, **q;
 
 #ifdef YP
-	if (serv_stepping_yp && _getypservent(line)) {
+	if (serv_stepping_yp && _getservent_yp(line)) {
 		p = (char *)&line;
 		goto unpack;
 	}
@@ -143,8 +223,16 @@ again:
 	if ((p = fgets(line, BUFSIZ, servf)) == NULL)
 		return (NULL);
 #ifdef YP
-	if (*p == '+') {
-		if (!_getypservent(&line))
+	if (*p == '+' && _yp_check(NULL)) {
+		if (___getservbyname_yp != NULL) {
+			if (!_getservbyname_yp(&line))
+				goto tryagain;
+		} 
+		else if (___getservbyport_yp != 0) {
+			if (!_getservbyport_yp(&line))
+				goto tryagain;
+		}
+		else if (!_getservent_yp(&line))
 			goto tryagain;
 	}
 unpack:
