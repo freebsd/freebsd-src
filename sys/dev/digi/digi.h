@@ -37,7 +37,9 @@
 #define	CE_NTYPES			3
 #define	CE_RECORD(com, errnum)		(++(com)->delta_error_counts[errnum])
 
+#ifndef DEBUG
 #define	DEBUG
+#endif
 
 #ifdef DEBUG
 extern unsigned digi_debug;
