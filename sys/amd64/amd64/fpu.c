@@ -73,6 +73,7 @@ __FBSDID("$FreeBSD$");
 #define	fnstsw(addr)		__asm __volatile("fnstsw %0" : "=m" (*(addr)))
 #define	fxrstor(addr)		__asm("fxrstor %0" : : "m" (*(addr)))
 #define	fxsave(addr)		__asm __volatile("fxsave %0" : "=m" (*(addr)))
+#define	ldmxcsr(r)		__asm __volatile("ldmxcsr %0" : "m" (r))
 #define	start_emulating()	__asm("smsw %%ax; orb %0,%%al; lmsw %%ax" \
 				      : : "n" (CR0_TS) : "ax")
 #define	stop_emulating()	__asm("clts")
@@ -111,6 +112,7 @@ void
 fpuinit(void)
 {
 	register_t savecrit;
+	u_int mxcsr;
 	u_short control;
 
 	savecrit = intr_disable();
@@ -119,6 +121,8 @@ fpuinit(void)
 	fninit();
 	control = __INITIAL_FPUCW__;
 	fldcw(&control);
+	mxcsr = __INITIAL_MXCSR__;
+	ldmxcsr(mxcsr);
 	fxsave(&fpu_cleanstate);
 	start_emulating();
 	fpu_cleanstate_ready = 1;
