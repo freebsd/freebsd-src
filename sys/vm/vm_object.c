@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.65 1996/03/11 06:11:41 hsu Exp $
+ * $Id: vm_object.c,v 1.66 1996/03/28 04:53:26 dyson Exp $
  */
 
 /*
@@ -190,7 +190,7 @@ vm_object_init()
 	
 	vm_object_cache_max = 84;
 	if (cnt.v_page_count > 1000)
-		vm_object_cache_max += (cnt.v_page_count - 1000) / 3;
+		vm_object_cache_max += (cnt.v_page_count - 1000) / 4;
 
 	kernel_object = &kernel_object_store;
 	_vm_object_allocate(OBJT_DEFAULT, OFF_TO_IDX(VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS),
