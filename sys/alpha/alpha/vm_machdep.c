@@ -288,8 +288,7 @@ cpu_coredump(p, vp, cred)
 {
 
 	return (vn_rdwr(UIO_WRITE, vp, (caddr_t) p->p_addr, ctob(UPAGES),
-	    (off_t)0, UIO_SYSSPACE, IO_NODELOCKED|IO_UNIT, cred, (int *)NULL,
-	    p));
+	    (off_t)0, UIO_SYSSPACE, IO_UNIT, cred, (int *)NULL, p));
 }
 
 /*
