@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: mount_smbfs.c,v 1.15 2001/12/20 15:03:41 bp Exp $
+ * $Id: mount_smbfs.c,v 1.16 2001/12/26 04:09:57 bp Exp $
  */
 #include <sys/param.h>
 #include <sys/stat.h>
@@ -61,7 +61,7 @@ static void usage(void);
 
 static struct mntopt mopts[] = {
 	MOPT_STDOPTS,
-	{ NULL }
+	{ NULL, 0, 0, 0 }
 };
 
 
@@ -269,10 +269,10 @@ static void
 usage(void)
 {
 	fprintf(stderr, "%s\n%s\n%s\n%s\n",
-	"usage: mount_smbfs [-Chv] [-U user] [-connection options]",
-	"                   [-M mode] [-c case] [-d mode] [-f mode]",
-	"                   [-g gid] [-l locale] [-n os2] [-u uid] [-w scheme]",
-	"                   /user@server/share node");
+	"usage: mount_smbfs [-E cs1:cs2] [-I host] [-L locale] [-M crights:srights]",
+	"                   [-N] [-O cowner:cgroup/sowner:sgroup] [-R retrycount]",
+	"                   [-T timeout] [-W workgroup] [-c case] [-d mode] [-f mode]",
+	"                   [-g gid] [-n opt] [-u uid] //user@server/share node");
 
 	exit (1);
 }
