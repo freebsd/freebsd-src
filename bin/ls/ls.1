@@ -539,18 +539,20 @@ files in order to be compatible with the
 .St -p1003.2
 specification.
 .Sh FILES
-.Bl -tag -width /dev/lomac -compact
+.Bl -tag -width ".Pa /dev/lomac" -compact
 .It Pa /dev/lomac
-interface used to query the LOMAC LKM
+interface used to query the
+.Xr lomac 4
+KLD
 .El
 .Sh SEE ALSO
 .Xr chflags 1 ,
 .Xr chmod 1 ,
 .Xr sort 1 ,
 .Xr xterm 1 ,
+.Xr lomac 4 ,
 .Xr termcap 5 ,
 .Xr symlink 7 ,
-.Xr lomac 4 ,
 .Xr sticky 8
 .Sh HISTORY
 An
