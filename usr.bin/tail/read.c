@@ -142,7 +142,7 @@ lines(fp, off)
 
 	if ((lines = malloc(off * sizeof(*lines))) == NULL)
 		err(1, "%s", strerror(errno));
-
+	bzero(lines, off * sizeof(*lines));
 	sp = NULL;
 	blen = cnt = recno = wrap = 0;
 

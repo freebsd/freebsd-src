@@ -234,6 +234,7 @@ term_init(el)
     el->el_term.t_buf = (char *)  el_malloc(TC_BUFSIZE);
     el->el_term.t_cap = (char *)  el_malloc(TC_BUFSIZE);
     el->el_term.t_fkey = (fkey_t *) el_malloc(4 * sizeof(fkey_t));
+    (void) memset(el->el_term.t_fkey, 0, 4 * sizeof(fkey_t));
     el->el_term.t_loc = 0;
     el->el_term.t_str = (char **) el_malloc(T_str * sizeof(char*));
     (void) memset(el->el_term.t_str, 0, T_str * sizeof(char*));
