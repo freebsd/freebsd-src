@@ -1,0 +1,57 @@
+.\" @(#)newkey.8 1.3 91/03/11 TIRPC 1.0; from 1.12 90/02/03 SMI;
+.TH NEWKEY 8 "12 October 1987"
+.SH NAME
+newkey \- create a new key in the publickey database
+.SH SYNOPSIS
+.B "newkey \-h"
+.I hostname
+.br
+.B "newkey \-u"
+.I username
+.SH DESCRIPTION
+.IX "newkey command" "" "\fLnewkey\fP command"
+.LP
+.B newkey 
+is normally run by the network administrator on the
+Network Interface Service
+(\s-1NIS\s0)
+master machine in order to establish public keys for
+users and super-users on the network.
+These keys are needed for using secure
+.SM RPC
+or secure
+.SM NFS\s0.
+.LP
+.B newkey
+will prompt for the login password of the given username and then
+create a new public/secret key pair in 
+.B /etc/publickey
+encrypted with the login password of the given user.
+.LP
+Use of this program is
+not required: users may create their own keys using 
+.BR chkey (1).
+.SH OPTIONS
+.TP 12
+.BI \-h " hostname"
+Create a new public key for the super-user at the given hostname. 
+Prompts for the root password of the given hostname.
+.TP
+.BI \-u " username"
+Create a new public key for the given username.
+Prompts for the 
+.SM NIS
+password of the given username.
+.SH "SEE ALSO"
+.BR chkey (1),
+.BR keylogin (1),
+.BR publickey (5),
+.BR keyserv (8C)
+.SH NOTES
+.LP
+The Network Information Service
+(\s-1NIS\s0)
+was formerly known as Sun Yellow Pages
+(\s-1YP\s0). 
+The functionality of the two remains the same;
+only the name has changed.
