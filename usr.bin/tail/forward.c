@@ -32,6 +32,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #ifndef lint
@@ -43,6 +45,7 @@ static char sccsid[] = "@(#)forward.c	8.1 (Berkeley) 6/6/93";
 #include <sys/time.h>
 #include <sys/mman.h>
 
+#include <event.h>
 #include <limits.h>
 #include <fcntl.h>
 #include <errno.h>
@@ -84,9 +87,8 @@ forward(fp, style, off, sbp)
 	long off;
 	struct stat *sbp;
 {
-	register int ch;
-	struct timeval interval;
-	struct stat sb2;
+	int ch, add_events = 0, kq = -1;
+	struct kevent ev[2];
 
 	switch(style) {
 	case FBYTES:
@@ -161,10 +163,12 @@ forward(fp, style, off, sbp)
 		break;
 	}
 
-	/*
-	 * We pause for 1/4 second after displaying any data that has
-	 * accumulated since we read the file.
-	 */
+	if (fflag) {
+		kq = kqueue();
+		if (kq < 0)
+			err(1, "kqueue");
+		add_events = 1;
+	}
 
 	for (;;) {
 		while ((ch = getc(fp)) != EOF)
@@ -175,24 +179,49 @@ forward(fp, style, off, sbp)
 			return;
 		}
 		(void)fflush(stdout);
-		if (!fflag)
+		if (! fflag)
 			break;
-
-		(void) usleep(250000);
 		clearerr(fp);
 
-		if (Fflag && fileno(fp) != STDIN_FILENO &&
-		    stat(fname, &sb2) != -1) {
-			if (sb2.st_ino != sbp->st_ino ||
-			    sb2.st_dev != sbp->st_dev ||
-			    sb2.st_rdev != sbp->st_rdev ||
-			    sb2.st_nlink == 0) {
-				fp = freopen(fname, "r", fp);
-				if (fp == NULL) {
-					ierr();
-					break;
-				}
-				*sbp = sb2;
+		if (add_events) {
+			int n = 0;
+			struct kevent *evp[2];
+			struct timespec ts = { 0, 0 };
+
+			if (Fflag && fileno(fp) != STDIN_FILENO) {
+				ev[n].ident = fileno(fp);
+				ev[n].filter = EVFILT_VNODE;
+				ev[n].flags = EV_ADD | EV_ENABLE | EV_CLEAR;
+				ev[n].fflags = NOTE_DELETE | NOTE_RENAME;
+				evp[n] = &ev[n];
+				n++;
+			}
+			ev[n].ident = fileno(fp);
+			ev[n].filter = EVFILT_READ;
+			ev[n].flags = EV_ADD | EV_ENABLE;
+			evp[n] = &ev[n];
+			n++;
+
+			if (kevent(kq, n, evp, 0, NULL, &ts) < 0)
+				err(1, "kevent");
+			add_events = 0;
+		}
+
+		if (kevent(kq, 0, NULL, 1, ev, NULL) < 0)
+			err(1, "kevent");
+
+		if (ev->filter == EVFILT_VNODE) {
+			fp = freopen(fname, "r", fp);
+			if (fp == NULL) {
+				ierr();
+				break;
+			}
+			add_events = 1;
+		} else if (ev->data < 0) {
+			/* file shrank, reposition to end */
+			if (fseek(fp, 0L, SEEK_END) == -1) {
+				ierr();
+				return;
 			}
 		}
 	}
