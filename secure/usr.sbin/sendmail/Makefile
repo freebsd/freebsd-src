@@ -39,4 +39,12 @@ beforeinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${SMDIR}/sendmail.hf \
 	    ${DESTDIR}/usr/share/misc
 
+afterinstall:
+	@if [ -d ${DESTDIR}/etc/mail -a -f ${DESTDIR}/etc/sendmail.cf -a \
+	      ! -f ${DESTDIR}/etc/mail/sendmail.cf ]; then \
+		set -x; \
+		mv -f ${DESTDIR}/etc/sendmail.cf \
+		    ${DESTDIR}/etc/mail/sendmail.cf; \
+	fi
+
 .include <bsd.prog.mk>
