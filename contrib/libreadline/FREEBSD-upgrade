@@ -1,4 +1,7 @@
 # $FreeBSD$
+#
+# Official patches 001-005 imported as v4_3_p1_p5
+#
 
 rm doc/*.dvi doc/*.html doc/*.ps doc/*.0 doc/*.info doc/*.tex doc/texi2*
 rm savestring.c
