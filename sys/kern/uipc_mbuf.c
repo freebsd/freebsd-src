@@ -116,13 +116,13 @@ m_dup_pkthdr(struct mbuf *to, struct mbuf *from, int how)
 	KASSERT(to->m_flags & M_PKTHDR, ("m_dup_pkthdr: called on non-header"));
 	KASSERT(SLIST_EMPTY(&to->m_pkthdr.tags), ("m_dup_pkthdr: to has tags"));
 #endif
-	KASSERT((to->m_flags & M_EXT) == 0, ("m_dup_pkthdr: to has cluster"));
 #ifdef MAC
 	if (to->m_flags & M_PKTHDR)
 		mac_destroy_mbuf(to);
 #endif
-	to->m_flags = from->m_flags & M_COPYFLAGS;
-	to->m_data = to->m_pktdat;
+	to->m_flags = (from->m_flags & M_COPYFLAGS) | (to->m_flags & M_EXT);
+	if ((to->m_flags & M_EXT) == 0)
+		to->m_data = to->m_pktdat;
 	to->m_pkthdr = from->m_pkthdr;
 #ifdef MAC
 	mac_init_mbuf(to, 1);			/* XXXMAC no way to fail */
