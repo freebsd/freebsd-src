@@ -79,7 +79,6 @@ __FBSDID("$FreeBSD$");
 #include "un-namespace.h"
 #include "libc_private.h"
 
-#include <machine/emul.h>
 #include <machine/fp.h>
 #include <machine/frame.h>
 #include <machine/fsr.h>
