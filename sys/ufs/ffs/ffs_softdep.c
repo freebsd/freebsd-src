@@ -238,7 +238,6 @@ static struct lockit {
 	int	lkt_spl;
 	struct	thread *lkt_held;
 } lk = { 0, NOHOLDER };
-static int lockcnt;
 
 static	void acquire_lock(struct lockit *);
 static	void free_lock(struct lockit *);
@@ -263,7 +262,6 @@ acquire_lock(lk)
 	}
 	lk->lkt_spl = splbio();
 	lk->lkt_held = curthread;
-	lockcnt++;
 }
 
 static void
@@ -344,7 +342,6 @@ interlocked_sleep(lk, op, ident, mtx, flags, wmesg, timo)
 			panic("interlocked_sleep: lock held by %p", holder);
 	}
 	lk->lkt_held = curthread;
-	lockcnt++;
 #	endif /* DEBUG */
 	lk->lkt_spl = s;
 	return (retval);
