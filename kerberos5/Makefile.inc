@@ -10,6 +10,7 @@ INCLUDEDIR=	${.CURDIR}/../../include
 KRB4DIR=	${.CURDIR}/../../../crypto/kerberosIV
 KRB5DIR=	${.CURDIR}/../../../crypto/heimdal
 ROKENDIR=	${.CURDIR}/../../lib/libroken
+TELNETDIR=	${.CURDIR}/../../../crypto/telnet
 
 CFLAGS+=-Wall -I${INCLUDEDIR} -I${INCLUDEOBJDIR} -DHAVE_CONFIG_H
 
@@ -96,6 +97,12 @@ KDB5OBJDIR=	${.CURDIR}/../../lib/libkdb5
 SLOBJDIR=	${.OBJDIR}/../../lib/libsl
 .else
 SLOBJDIR=	${.CURDIR}/../../lib/libsl
+.endif
+
+.if exists(${.OBJDIR}/../../lib/libtelnet)
+LIBTELNET=	${.OBJDIR}/../../lib/libtelnet/libtelnet.a
+.else
+LIBTELNET=	${.CURDIR}/../../lib/libtelnet/libtelnet.a
 .endif
 
 COMPILE_ET=     compile_et

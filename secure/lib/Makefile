@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 SUBDIR= libcipher
-.if !defined(NOCRYPT) && !defined(MAKE_KERBEROS4)
+.if !defined(NOCRYPT) && !defined(MAKE_KERBEROS4) && !defined(MAKE_KERBEROS5)
 SUBDIR+=libtelnet
 .endif
 .if !defined(NO_OPENSSL)
