@@ -56,7 +56,7 @@ DIST_DOCS= ABOUT.TXT ERRATA.TXT LAYOUT.TXT README.TXT HARDWARE.TXT \
 #
 COMPAT_DISTS?=	compat1x compat20 compat21 compat22 compat3x
 OTHER_DISTS?=	manpages catpages games proflibs dict info doc
-CRYPTO_DISTS?=	des krb4
+CRYPTO_DISTS?=	crypto krb4 krb5
 BIN_DISTS?=	bin
 DISTRIBUTIONS?=	${BIN_DISTS} ${OTHER_DISTS} ${COMPAT_DISTS} ${CRYPTO_DISTS}
 KERNELS?=	GENERIC
@@ -297,6 +297,13 @@ release.2:
 		make kprog \
 	)
 .endif
+.if exists(${.CURDIR}/../kerberos5) && exists(${.CURDIR}/../crypto) && !defined(NOKERBEROS)
+	cd ${.CURDIR}/../kerberos5 && ( \
+		make bootstrap &&\
+		make obj all help-distribute DISTDIR=${RD}/trees &&\
+		make kprog \
+	)
+.endif
 	-chflags -R noschg ${RD}/trees
 	touch release.2
 
@@ -388,7 +395,9 @@ release.6:
 	done
 	# More munition braindeadness.
 	( cd ${RD}/dists && \
-		if [ -f krb4/krb4.aa ] ; then mv krb4/* des && rmdir krb4 ; fi )
+		if [ -f krb4/krb4.aa ] ; then mv krb4/* crypto && rmdir krb4 ; fi )
+	( cd ${RD}/dists && \
+		if [ -f krb5/krb5.aa ] ; then mv krb5/* crypto && rmdir krb5 ; fi )
 	touch release.6
 
 
@@ -402,7 +411,10 @@ release.7:
 	@for i in `cd /usr/src && echo [a-z]*` ; do \
 		if [ -d /usr/src/$$i ] ; then \
 			cd ${.CURDIR} && $(MAKE) doTARBALL \
-				TN=`echo s$$i | tr -d '.' | sed 's/usr/u/'` \
+				TN=`echo s$$i | tr -d '.' | \
+				    sed -e 's/usr/u/' \
+					-e 's/kerberosIV/krb4/' \
+					-e 's/kerberos5/krb5/'` \
 				SD=/usr/src TD=src ARG="$$i" ; \
 		fi ; \
 	done
@@ -415,10 +427,11 @@ release.7:
 		fi && shift && shift ; \
 	done
 .endif
-	if [ -d ${RD}/dists/des ] ; then ( cd ${RD}/dists/src && \
-		if [ -f ssecure.aa ] ; then mv ssecure.* ../des ; fi && \
-		if [ -f scrypto.aa ] ; then mv scrypto.* ../des ; fi && \
-		if [ -f skerbero.aa ] ; then mv skerbero.* ../des ; fi ; ) ; fi
+	if [ -d ${RD}/dists/crypto ] ; then ( cd ${RD}/dists/src && \
+		if [ -f ssecure.aa ] ; then mv ssecure.* ../crypto ; fi && \
+		if [ -f scrypto.aa ] ; then mv scrypto.* ../crypto ; fi && \
+		if [ -f skrb4.aa ] ; then mv skrb4.* ../crypto ; fi ; ) ; fi
+		if [ -f skrb5.aa ] ; then mv skrb5.* ../crypto ; fi ; ) ; fi
 	@echo "src distribution is finished."
 .endif
 	touch release.7
@@ -595,6 +608,10 @@ doc.1:
 
 # Various "subroutine" and other supporting targets.
 
+# RD=
+# SD=
+# TD=
+# ARG=
 doTARBALL:
 .if !defined(SD)
 	@echo "SD undefined in doTARBALL" && exit 1
