@@ -184,17 +184,22 @@ CMD_SWAPFS - Set swap filesystem name
 cmd_swapfs(p)
 	char *p;
 {
-	if (!setip(p, &arptable[ARP_SWAPSERVER].ipaddr)) {
+	if (*p == '/') {
+		bcopy(&arptable[ARP_SERVER].ipaddr,
+		    &arptable[ARP_SWAPSERVER].ipaddr, 4);
+	} else if (!setip(p, &arptable[ARP_SWAPSERVER].ipaddr)) {
 		printf("Swap filesystem is %I:%s\n",
 			nfsdiskless.swap_saddr.sin_addr,
 			nfsdiskless.swap_hostnam);
+		return;
 	} else {
-		bcopy(&arptable[ARP_SWAPSERVER].ipaddr,
-			&nfsdiskless.swap_saddr.sin_addr, 4);
 		while (*p && (*p != ':')) p++;
 		if (*p == ':') p++;
-		sprintf(&nfsdiskless.swap_hostnam, "%s", p);
 	}
+
+	bcopy(&arptable[ARP_SWAPSERVER].ipaddr,
+	    &nfsdiskless.swap_saddr.sin_addr, 4);
+	sprintf(&nfsdiskless.swap_hostnam, "%s", p);
 }
 
 /**************************************************************************
@@ -333,6 +338,18 @@ bootmenu()
 {
 	char cmd[80];
 	int ptr, c;
+#ifdef SECURE_BOOT
+	char *p;
+
+	printf("\n");
+
+	printf("Press any key to retry:");
+	while (iskey())
+		getchar();
+	getchar();
+	printf("\n");
+	eth_probe();
+#else
 	printf("\n");
 	while (1) {
 		ptr = 0;

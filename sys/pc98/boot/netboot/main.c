@@ -685,22 +685,6 @@ decode_rfc1048(p)
 			case 141:
 				bootp_string("", p);
 				break;
-			case RFC1048_ROOT_PATH: /* XXX check len */
-				bootp_string("rootfs", p);
-				break;
-			case RFC1048_SWAP_PATH:
-				bootp_string("swapfs", p);
-				break;
-			case RFC1048_SWAP_LEN: /* T129 */
-				sprintf(config_buffer+strlen(config_buffer),
-				    "swapsize %d\n", ntohl(*(long *)(p+2)) );
-				break;
-			case 130:       /* root mount options */
-				bootp_string("rootopts", p);
-				break;
-			case 131:       /* swap mount options */
-				bootp_string("swapopts", p);
-				break;
 			default:
 				printf("Unknown RFC1048-tag ");
 				for(q=p;q<p+2+TAG_LEN(p);q++)
