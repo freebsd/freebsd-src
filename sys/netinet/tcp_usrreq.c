@@ -97,6 +97,7 @@ static struct tcpcb *
 		tcp_disconnect(struct tcpcb *);
 static struct tcpcb *
 		tcp_usrclosed(struct tcpcb *);
+static void	tcp_fill_info(struct tcpcb *, struct tcp_info *);
 
 #ifdef TCPDEBUG
 #define	TCPDEBUG0	int ostate = 0
@@ -942,11 +943,50 @@ tcp6_connect(tp, nam, td)
 #endif /* INET6 */
 
 /*
+ * Export TCP internal state information via a struct tcp_info, based on the
+ * Linux 2.6 API.  Not ABI compatible as our constants are mapped differently
+ * (TCP state machine, etc).  We export all information using FreeBSD-native
+ * constants -- for example, the numeric values for tcpi_state will differ
+ * from Linux.
+ */
+static void
+tcp_fill_info(tp, ti)
+	struct tcpcb *tp;
+	struct tcp_info *ti;
+{
+
+	INP_LOCK_ASSERT(tp->t_inpcb);
+	bzero(ti, sizeof(*ti));
+
+	ti->tcpi_state = tp->t_state;
+	if ((tp->t_flags & TF_REQ_TSTMP) && (tp->t_flags & TF_RCVD_TSTMP))
+		ti->tcpi_options |= TCPI_OPT_TIMESTAMPS;
+	if (tp->sack_enable)
+		ti->tcpi_options |= TCPI_OPT_SACK;
+	if ((tp->t_flags & TF_REQ_SCALE) && (tp->t_flags & TF_RCVD_SCALE)) {
+		ti->tcpi_options |= TCPI_OPT_WSCALE;
+		ti->tcpi_snd_wscale = tp->snd_scale;
+		ti->tcpi_rcv_wscale = tp->rcv_scale;
+	}
+	ti->tcpi_snd_ssthresh = tp->snd_ssthresh;
+	ti->tcpi_snd_cwnd = tp->snd_cwnd;
+
+	/*
+	 * FreeBSD-specific extension fields for tcp_info.
+	 */
+	ti->tcpi_snd_wnd = tp->snd_wnd;
+	ti->tcpi_snd_bwnd = tp->snd_bwnd;
+}
+
+/*
  * The new sockopt interface makes it possible for us to block in the
  * copyin/out step (if we take a page fault).  Taking a page fault at
  * splnet() is probably a Bad Thing.  (Since sockets and pcbs both now
  * use TSM, there probably isn't any need for this function to run at
  * splnet() any more.  This needs more examination.)
+ *
+ * XXXRW: The locking here is wrong; we may take a page fault while holding
+ * the inpcb lock.
  */
 int
 tcp_ctloutput(so, sopt)
@@ -956,6 +996,7 @@ tcp_ctloutput(so, sopt)
 	int	error, opt, optval;
 	struct	inpcb *inp;
 	struct	tcpcb *tp;
+	struct	tcp_info ti;
 
 	error = 0;
 	INP_INFO_RLOCK(&tcbinfo);
@@ -1046,6 +1087,10 @@ tcp_ctloutput(so, sopt)
 				error = EINVAL;
 			break;
 
+		case TCP_INFO:
+			error = EINVAL;
+			break;
+
 		default:
 			error = ENOPROTOOPT;
 			break;
@@ -1057,26 +1102,33 @@ tcp_ctloutput(so, sopt)
 #ifdef TCP_SIGNATURE
 		case TCP_MD5SIG:
 			optval = (tp->t_flags & TF_SIGNATURE) ? 1 : 0;
+			error = sooptcopyout(sopt, &optval, sizeof optval);
 			break;
 #endif
 		case TCP_NODELAY:
 			optval = tp->t_flags & TF_NODELAY;
+			error = sooptcopyout(sopt, &optval, sizeof optval);
 			break;
 		case TCP_MAXSEG:
 			optval = tp->t_maxseg;
+			error = sooptcopyout(sopt, &optval, sizeof optval);
 			break;
 		case TCP_NOOPT:
 			optval = tp->t_flags & TF_NOOPT;
+			error = sooptcopyout(sopt, &optval, sizeof optval);
 			break;
 		case TCP_NOPUSH:
 			optval = tp->t_flags & TF_NOPUSH;
+			error = sooptcopyout(sopt, &optval, sizeof optval);
+			break;
+		case TCP_INFO:
+			tcp_fill_info(tp, &ti);
+			error = sooptcopyout(sopt, &ti, sizeof ti);
 			break;
 		default:
 			error = ENOPROTOOPT;
 			break;
 		}
-		if (error == 0)
-			error = sooptcopyout(sopt, &optval, sizeof optval);
 		break;
 	}
 	INP_UNLOCK(inp);
