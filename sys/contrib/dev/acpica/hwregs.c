@@ -186,7 +186,7 @@ AcpiHwClearAcpiStatus (void)
         for (i = 0; i < GpeBlock->RegisterCount; i++)
         {
             Status = AcpiHwLowLevelWrite (8, 0xFF,
-                        &GpeBlock->RegisterInfo[i].StatusAddress, (UINT32) i);
+                        &GpeBlock->RegisterInfo[i].StatusAddress, (UINT32) 0);
             if (ACPI_FAILURE (Status))
             {
                 goto UnlockAndExit;
