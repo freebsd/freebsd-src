@@ -673,6 +673,7 @@ pcvt_cn_init(struct consdev *cp)
 	int i;
 
 	pcvt_is_console = 1;
+	pcvt_consptr = cp;
 
 	/*
 	 * Don't reset the keyboard via `kbdio' just yet.

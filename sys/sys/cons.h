@@ -83,9 +83,9 @@ struct consdev {
 
 /* Values for cn_flags. */
 #define	CN_FLAG_NODEBUG	0x00000001	/* Not supported with debugger. */
+#define	CN_FLAG_NOAVAIL	0x00000002	/* Temporarily not available. */
 
 #ifdef _KERNEL
-extern int cons_unavail;
 
 #define CONS_DRIVER(name, probe, init, term, getc, checkc, putc, dbctl)	\
 	static struct consdev name##_consdev = {			\
@@ -97,12 +97,14 @@ extern int cons_unavail;
 void	cninit(void);
 void	cninit_finish(void);
 int	cnadd(struct consdev *);
+void	cnavailable(struct consdev *, int);
 void	cnremove(struct consdev *);
 void	cnselect(struct consdev *);
 int	cncheckc(void);
 int	cngetc(void);
 void	cndbctl(int);
 void	cnputc(int);
+int	cn_unavailable(void);
 
 #endif /* _KERNEL */
 
