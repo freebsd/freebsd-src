@@ -41,8 +41,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl dtM
-.Op Fl i Ar network
-.Op Fl n Ar network
+.Op Fl i Ar network | Fl n Ar network
 .Op Fl F Ar host ...
 .Sh DESCRIPTION
 The
@@ -108,7 +107,7 @@ to add more than one network to the list.
 .It Fl t
 Enable tracing of received messages
 and log to the file
-.It Pa /var/log/timed.log .
+.Pa /var/log/timed.log .
 Tracing can be turned on or off while
 .Nm
 is running with the
@@ -208,15 +207,17 @@ Messages printed by the kernel on the system console occur with
 interrupts disabled.
 This means that the clock stops while they are printing.
 A machine with many disk or network hardware problems and consequent
-messages cannot keep good time by itself.  Each message typically causes
-the clock to lose a dozen milliseconds.  A time daemon can
-correct the result.
+messages cannot keep good time by itself.
+Each message typically causes
+the clock to lose a dozen milliseconds.
+A time daemon can correct the result.
 .Pp
 Messages in the system log about machines that failed to respond
 usually indicate machines that crashed or were turned off.
 Complaints about machines that failed to respond to initial time
-settings are often associated with "multi-homed" machines
-that looked for time masters on more than one network and eventually
+settings are often associated with
+.Dq multi-homed
+machines that looked for time masters on more than one network and eventually
 chose to become a slave on the other network.
 .Sh WARNINGS
 Temporal chaos will result if two or more time daemons attempt
@@ -232,21 +233,24 @@ never attempts to adjust the local clock.
 .Pp
 The protocol is based on
 .Tn UDP/IP
-broadcasts.  All machines within
-the range of a broadcast that are using the
+broadcasts.
+All machines within the range of a broadcast that are using the
 .Tn TSP
 protocol must cooperate.
 There cannot be more than a single administrative domain using the
 .Fl F
 flag among all machines reached by a broadcast packet.
 Failure to follow this rule is usually indicated by complaints concerning
-"untrusted" machines in the system log.
+.Dq untrusted
+machines in the system log.
 .Sh FILES
 .Bl -tag -width /var/log/timed.masterlog -compact
 .It Pa /var/log/timed.log
-tracing file for timed
+tracing file for
+.Nm
 .It Pa /var/log/timed.masterlog
-log file for master timed
+log file for master
+.Nm
 .El
 .Sh SEE ALSO
 .Xr date 1 ,
