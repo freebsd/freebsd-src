@@ -130,7 +130,7 @@ typedef struct _MCSetT {
  */
 typedef struct {
     long	loadType;	/* How to load the messages (see MSLoadType) */
-    int		fd;		/* File descriptor of catalog (if load-on-demand) */
+    FILE        *fp;            /* File descriptor of catalog (if load-on-demand) */
     long	numSets;	/* Number of sets */
     MCSetT	*sets;		/* Pointer to the sets */
     off_t	firstSet;	/* Offset of first set on disk */

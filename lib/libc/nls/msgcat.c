@@ -259,7 +259,7 @@ __const char *dflt;
     if (catd == NULL || catd == NLERR)
 	return((char *)dflt);
     msg = MCGetMsg(MCGetSet(cat, setId), msgId);
-    if (msg) cptr = msg->msg.str;
+    if (msg != NULL) cptr = msg->msg.str;
     else cptr = dflt;
     return((char *)cptr);
 }
@@ -277,7 +277,8 @@ nl_catd catd;
 	return -1;
     }
 
-    if (cat->loadType != MCLoadAll) _close(cat->fd);
+    if (cat->loadType != MCLoadAll)
+	(void) fclose(cat->fp);
     for (i = 0; i < cat->numSets; ++i) {
 	set = cat->sets + i;
 	if (!set->invalid) {
@@ -313,14 +314,14 @@ __const char *catpath;
     if (cat == NULL) return(NLERR);
     cat->loadType = MCLoadBySet;
 
-    if ((cat->fd = _open(catpath, O_RDONLY)) < 0) {
+    if ((cat->fp = fopen(catpath, "r")) == NULL) {
 	free(cat);
 	return(NLERR);
     }
 
-    (void)_fcntl(cat->fd, F_SETFD, FD_CLOEXEC);
+    (void) _fcntl(fileno(cat->fp), F_SETFD, FD_CLOEXEC);
 
-    if (_read(cat->fd, &header, sizeof(header)) != sizeof(header))
+    if (fread(&header, sizeof(header), 1, cat->fp) != 1)
     	CORRUPT();
 
     if (strncmp(header.magic, MCMagic, MCMagicLen) != 0) CORRUPT();
@@ -347,7 +348,7 @@ __const char *catpath;
 
     nextSet = header.firstSet;
     for (i = 0; i < cat->numSets; ++i) {
-	if (lseek(cat->fd, nextSet, 0) == -1) {
+	if (fseeko(cat->fp, nextSet, SEEK_SET) == -1) {
 		for (j = 0; j < i; j++) {
 			set = cat->sets + j;
 			if (!set->invalid) {
@@ -361,7 +362,7 @@ __const char *catpath;
 
 	/* read in the set header */
 	set = cat->sets + i;
-	if (_read(cat->fd, set, sizeof(*set)) != sizeof(*set)) {
+	if (fread(set, sizeof(*set), 1, cat->fp) != 1) {
 		for (j = 0; j < i; j++) {
 			set = cat->sets + j;
 			if (!set->invalid) {
@@ -400,8 +401,8 @@ __const char *catpath;
 	nextSet = set->nextSet;
     }
     if (cat->loadType == MCLoadAll) {
-	_close(cat->fd);
-	cat->fd = -1;
+	(void) fclose(cat->fp);
+	cat->fp = NULL;
     }
     return((nl_catd) cat);
 }
@@ -414,14 +415,14 @@ MCSetT *set;
     int		i;
 
     /* Get the data */
-    if (lseek(cat->fd, set->data.off, 0) == -1) return(0);
+    if (fseeko(cat->fp, set->data.off, SEEK_SET) == -1) return(0);
     if ((set->data.str = malloc(set->dataLen)) == NULL) return(-1);
-    if (_read(cat->fd, set->data.str, set->dataLen) != set->dataLen) {
+    if (fread(set->data.str, set->dataLen, 1, cat->fp) != 1) {
 	free(set->data.str); return(0);
     }
 
     /* Get the messages */
-    if (lseek(cat->fd, set->u.firstMsg, 0) == -1) {
+    if (fseeko(cat->fp, set->u.firstMsg, SEEK_SET) == -1) {
 	free(set->data.str); return(0);
     }
     if ((set->u.msgs = (MCMsgT *) malloc(sizeof(MCMsgT) * set->numMsgs)) == NULL) {
@@ -430,7 +431,7 @@ MCSetT *set;
 
     for (i = 0; i < set->numMsgs; ++i) {
 	msg = set->u.msgs + i;
-	if (_read(cat->fd, msg, sizeof(*msg)) != sizeof(*msg)) {
+	if (fread(msg, sizeof(*msg), 1, cat->fp) != 1) {
 	    free(set->u.msgs); free(set->data.str); return(0);
 	}
 	if (msg->invalid) {
