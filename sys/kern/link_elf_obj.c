@@ -61,7 +61,6 @@ __FBSDID("$FreeBSD$");
 typedef struct {
 	void		*addr;
 	Elf_Off		size;
-	int		align;
 	int		flags;
 	int		sec;	/* Original section */
 	char		*name;
@@ -83,7 +82,6 @@ typedef struct {
 typedef struct elf_file {
 	struct linker_file lf;		/* Common fields */
 
-	char pad0[80];
 	caddr_t		address;	/* Relocation address */
 	vm_object_t	object;		/* VM object to hold file pages */
 	Elf_Shdr	*e_shdr;
@@ -104,7 +102,6 @@ typedef struct elf_file {
 
 	caddr_t		shstrtab;	/* Section name string table */
 	long		shstrcnt;	/* number of bytes in string table */
-	char pad2[80];
 
 } *elf_file_t;
 
@@ -503,7 +500,6 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 				bzero(ef->progtab[pb].addr, shdr[i].sh_size);
 			}
 			ef->progtab[pb].size = shdr[i].sh_size;
-			ef->progtab[pb].align = shdr[i].sh_addralign;
 			ef->progtab[pb].sec = i;
 			if (ef->shstrtab && shdr[i].sh_name != 0)
 				ef->progtab[pb].name =
@@ -673,7 +669,7 @@ relocate_file(elf_file_t ef)
 	for (i = 0; i < ef->nrel; i++) {
 		rel = ef->reltab[i].rel;
 		if (rel == NULL)
-			continue;
+			panic("lost a reltab!");
 		rellim = rel + ef->reltab[i].nrel;
 		base = findbase(ef, ef->reltab[i].sec);
 		for ( ; rel < rellim; rel++) {
@@ -698,7 +694,7 @@ relocate_file(elf_file_t ef)
 	for (i = 0; i < ef->nrela; i++) {
 		rela = ef->relatab[i].rela;
 		if (rela == NULL)
-			continue;
+			panic("lost a relatab!");
 		relalim = rela + ef->relatab[i].nrela;
 		base = findbase(ef, ef->relatab[i].sec);
 		for ( ; rela < relalim; rela++) {
@@ -925,7 +921,7 @@ link_elf_reloc_local(linker_file_t lf)
 	for (i = 0; i < ef->nrel; i++) {
 		rel = ef->reltab[i].rel;
 		if (rel == NULL)
-			continue;
+			panic("lost a reltab!");
 		rellim = rel + ef->reltab[i].nrel;
 		base = findbase(ef, ef->reltab[i].sec);
 		for ( ; rel < rellim; rel++) {
@@ -945,7 +941,7 @@ link_elf_reloc_local(linker_file_t lf)
 	for (i = 0; i < ef->nrela; i++) {
 		rela = ef->relatab[i].rela;
 		if (rela == NULL)
-			continue;
+			panic("lost a relatab!");
 		relalim = rela + ef->relatab[i].nrela;
 		base = findbase(ef, ef->relatab[i].sec);
 		for ( ; rela < relalim; rela++) {
