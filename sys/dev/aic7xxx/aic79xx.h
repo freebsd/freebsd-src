@@ -1346,19 +1346,6 @@ struct ahd_pci_identity {
 extern struct ahd_pci_identity ahd_pci_ident_table [];
 extern const u_int ahd_num_pci_devs;
 
-/***************************** VL/EISA Declarations ***************************/
-struct aic7770_identity {
-	uint32_t		 full_id;
-	uint32_t		 id_mask;
-	char			*name;
-	ahd_device_setup_t	*setup;
-};
-extern struct aic7770_identity aic7770_ident_table [];
-extern const int ahd_num_aic7770_devs;
-
-#define AHD_EISA_SLOT_OFFSET	0xc00
-#define AHD_EISA_IOSIZE		0x100
-
 /*************************** Function Declarations ****************************/
 /******************************************************************************/
 void			ahd_reset_cmds_pending(struct ahd_softc *ahd);
