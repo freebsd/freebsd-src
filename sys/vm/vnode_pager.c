@@ -328,7 +328,7 @@ vnode_pager_setsize(vp, nsize)
 				 * Clear out partial-page garbage in case
 				 * the page has been mapped.
 				 */
-				vm_page_zero_fill_area(m, base, size);
+				pmap_zero_page_area(m, base, size);
 
 				/*
 				 * XXX work around SMP data integrity race
