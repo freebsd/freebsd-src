@@ -33,8 +33,13 @@
 .Nm bt
 .Nd Buslogic/Mylex MultiMaster SCSI host adapter driver
 .Sh SYNOPSIS
-.Cd "device bt0 at isa? port ? irq ?"
-.Cd device scbus0 at bt0
+.Cd device bt
+.Cd device scbus
+.Pp
+In
+.Pa /boot/device.hints :
+.Cd hint.bt.0.at="isa"
+.Cd hint.bt.0.port="0x330"
 .Sh DESCRIPTION
 This driver provides access to the
 .Tn SCSI

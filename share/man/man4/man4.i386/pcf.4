@@ -31,7 +31,13 @@
 .Nm pcf
 .Nd Philips I2C bus controller
 .Sh SYNOPSIS
-.Cd "device pcf0 at isa? port? irq 5"
+.Cd "device pcf"
+.Pp
+In
+.Pa /boot/device.hints :
+.Cd hint.pcf.0.at="isa"
+.Cd hint.pcf.0.port="0x320"
+.Cd hint.pcf.0.irq="5"
 .Pp
 For one or more iicbus busses:
 .Cd "device iicbus"

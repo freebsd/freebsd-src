@@ -34,22 +34,9 @@
 .Nm lpt
 .Nd generic printer device driver
 .Sh SYNOPSIS
+.Cd "device ppc"
 .Cd "device ppbus"
 .Cd "device lpt"
-.Pp
-.Cd "device	ppc0	at isa? port IO_LPT1 irq 7"
-.Cd "device	ppc1	at isa? port IO_LPT2 irq 7"
-.Cd "device	ppc2	at isa? port IO_LPT3 irq 7"
-.Pp
-For BIOS-probed ports:
-.Cd "device ppc0 at isa? port? irq 7"
-.Pp
-For polled ports:
-.Cd "device ppc0 at isa? port?"
-.Cd "device ppc1 at isa? port IO_LPT2"
-.Pp
-For DMA capable parallel port:
-.Cd "device ppc0 at isa? port? irq 7 drq 1"
 .Sh DESCRIPTION
 The current
 .Em lpt
@@ -89,6 +76,7 @@ If the printer supports IEEE1284 nibble mode and has
 data to send to the host, you'll get it.
 .Sh SEE ALSO
 .Xr ppbus 4 ,
+.Xr ppc 4 ,
 .Xr lptcontrol 8
 .Sh HISTORY
 This driver replaces the functionality of the lpa

@@ -30,7 +30,14 @@
 .Nm wt
 .Nd Archive/Wangtek cartridge tape driver
 .Sh SYNOPSIS
-.Cd "device wt0 at isa? port 0x300 irq 5 drq 1"
+.Cd "device wt 1"
+.Pp
+In
+.Pa /boot/device.hints :
+.Cd hint.wt.0.at="isa"
+.Cd hint.wt.0.port="0x300"
+.Cd hint.wt.0.irq="5"
+.Cd hint.wt.0.drq="1"
 .Sh DESCRIPTION
 The
 .Nm

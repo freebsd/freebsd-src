@@ -10,7 +10,11 @@
 .Nd "driver for Comtrol RocketPort Intelligent Serial Port Cards"
 .Sh SYNOPSIS
 .Cd "device rp"
-.Cd "device rp0 at isa? port 0x180"
+.Pp
+For ISA cards, you must specify the port address in
+.Pa /boot/device.hints :
+.Cd hints.rp.0.at="isa"
+.Cd hints.rp.0.port="0x100"
 .Sh DESCRIPTION
 This driver provides a kernel device driver for the
 .Tn RocketPort
@@ -68,8 +72,8 @@ including other
 .Tn RocketPort
 cards.
 The starting range of the I/O ports used by each card
-must match with the I/O address specified in the kernel
-configuration file.
+must match with the I/O address specified in
+.Pa /boot/device.hints .
 .Pp
 Since the first
 .Tn RocketPort
@@ -82,6 +86,15 @@ board may not use the block of addresses starting at 0x140,
 since the first three I/O addresses of that range
 are used by the first board.
 This is an important point to keep in mind.
+.Pp
+If you have two ISA cards, one installed at 0x100 and the
+second installed at 0x180, then you should add the following to
+.Pa /boot/device.hints :
+.Pp
+.Dl hints.rp.0.at="isa"
+.Dl hints.rp.0.port="0x100"
+.Dl hints.rp.1.at="isa"
+.Dl hints.rp.1.port="0x180"
 .Pp
 The configuration of the
 .Tn RocketPort

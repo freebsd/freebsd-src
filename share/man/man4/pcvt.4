@@ -45,7 +45,11 @@
 .Nm vt
 .Nd VT220 virtual screen system console
 .Sh SYNOPSIS
-.Cd "device vt0 at isa?"
+.Cd "device vt0"
+.Pp
+In
+.Pa /boot/device.hints :
+.Cd hint.vt.0.at="isa"
 .Sh DESCRIPTION
 .Ss Overview
 The

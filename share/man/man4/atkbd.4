@@ -36,7 +36,12 @@
 .Cd "options ATKBD_DFLT_KEYMAP"
 .Cd "makeoptions ATKBD_DFLT_KEYMAP=_keymap_name_"
 .Cd "options KBD_DISABLE_KEYMAP_LOAD"
-.Cd "device atkbd0 at atkbdc? irq 1"
+.Cd "device atkbd"
+.Pp
+In
+.Pa /boot/device.hints :
+.Cd hint.atkbd.0.at="atkbdc"
+.Cd hint.atkbd.0.irq="1"
 .Sh DESCRIPTION
 The
 .Nm
@@ -138,13 +143,12 @@ changing key assignment.
 .Ss Driver Flags
 The
 .Nm
-driver accepts the following driver flags.  They can be set either in the
-kernel configuration file
+driver accepts the following driver flags.
+They can be set either in
+.Pa /boot/device.hints ,
+or else from within the boot loader
 (see
-.Xr config 8 ) ,
-or else in the User Configuration Menu at boot time
-(see
-.Xr boot 8 ) .
+.Xr loader 8 ) .
 .Bl -tag -width FAIL
 .It bit 0 (FAIL_IF_NO_KBD)
 By default the
@@ -171,16 +175,25 @@ driver requires the keyboard controller
 .Nm atkbdc .
 Thus, the kernel configuration file should contain the following lines.
 .Pp
-.Dl "device atkbdc0 at isa"
-.Dl "device atkbd0 at atkbdc? irq 1"
+.Dl "device atkbdc"
+.Dl "device atkbd"
 .Pp
 The following example shows how to set the default, built-in keymap
 to
 .Pa jp.106.kbd .
 .Pp
+.Dl "device atkbdc"
 .Dl "options ATKBD_DFLT_KEYMAP"
 .Dl "makeoptions ATKBD_DFLT_KEYMAP=jp.106"
-.Dl "device atkbd0 at atkbdc? irq 1"
+.Dl "device atkbd"
+.Pp
+In both cases, you also need to have following lines in
+.Pa /boot/device.hints .
+.Pp
+.Dl hint.atkbdc.0.at="isa"
+.Dl hint.atkbdc.0.port="0x060"
+.Dl hint.atkbd.0.at="atkbdc"
+.Dl hint.atkbd.0.irq="1"
 .Pp
 .\".Sh DIAGNOSTICS
 .\".Sh CAVEATS
@@ -191,8 +204,7 @@ to
 .Xr pcvt 4 ,
 .Xr psm 4 ,
 .Xr syscons 4 ,
-.Xr boot 8 ,
-.Xr config 8
+.Xr loader 8
 .Sh HISTORY
 The
 .Nm

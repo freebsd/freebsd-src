@@ -20,7 +20,13 @@
 .Nd bus and InPort mice driver
 .Sh SYNOPSIS
 .\" .Cd "options MSE_XXX=N"
-.Cd "device mse0 at isa? port 0x23c irq 5"
+.Cd "device mse"
+.Pp
+In
+.Pa /boot/device.hints :
+.Cd hint.mse.0.at="isa"
+.Cd hint.mse.0.port="0x23c"
+.Cd hint.mse.0.irq="5"
 .Sh DESCRIPTION
 The
 .Nm
@@ -342,13 +348,24 @@ movement counts as described in
 .Em devfs .
 .El
 .Sh EXAMPLES
-.Dl "device mse0 at isa? port 0x23c irq 5"
+.Dl "device mse"
+.Pp
+In
+.Pa /boot/device.hints :
+.Dl hint.mse.0.at="isa"
+.Dl hint.mse.0.port="0x23c"
+.Dl hint.mse.0.irq="5"
 .Pp
 Add the
 .Nm
 driver at the primary port address with the IRQ 5.
 .Pp
-.Dl "device mse1 at isa? port 0x238 flags 0x30 irq 4"
+.Dl "device mse"
+.Pp
+.Dl hint.mse.1.at="isa"
+.Dl hint.mse.1.port="0x238"
+.Dl hint.mse.1.irq="4"
+.Dl hint.mse.1.flags="0x30"
 .Pp
 Define the
 .Nm

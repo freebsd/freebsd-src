@@ -29,7 +29,13 @@
 .Nm fe
 .Nd Fujitsu MB86960A/MB86965A based Ethernet adapters
 .Sh SYNOPSIS
-.Cd "device fe0 at isa? port 0x300 irq ?"
+.Cd "device fe 1"
+.Pp
+In
+.Pa /boot/device.hints :
+.Cd hint.fe.0.at="isa"
+.Cd hint.fe.0.port="0x300"
+.Cd hint.fe.0.flags="0x0"
 .Sh DESCRIPTION
 The
 .Nm
@@ -49,7 +55,9 @@ It currently works with Fujitsu FMV-180 series for ISA,
 Allied-Telesis AT1700 series and RE2000 series for ISA,
 and Fujitsu MBH10302 PC card.
 .Ss Parameters
-On the kernel configuration file, two parameters,
+In the
+.Pa /boot/device.hints
+file, two parameters,
 .Ar port
 and
 .Ar irq ,
@@ -57,8 +65,6 @@ must be specified to reflect adapter hardware settings.
 Another parameter
 .Ar flags
 can be specified to provide additional configuration as an option.
-Other parameters of the device statement
-must appear as described on the synopsis.
 .Pp
 The
 .Ar port
@@ -66,8 +72,9 @@ parameter specifies a base I/O port address of the adapter.
 It must match with the hardware setting of the adapter.
 The
 .Ar port
-may be a left unspecified as
-.Dq Li \&? .
+may be left unspecified by removing
+.Dl hint.fe.0.port="..."
+from the file.
 In that case, the driver tries to detect the hardware setting
 of the I/O address automatically.
 This feature may not work with some adapter hardware.
@@ -77,8 +84,9 @@ The
 parameter specifies an IRQ number used by the adapter.
 It must match the hardware setting of the adapter.
 .Ar Irq
-may be left unspecified as
-.Dq Li \&? ;
+may be left unspecified by removing
+.Dl hint.fe.0.irq="..."
+from the file.
 in that case, the driver tries to detect
 the hardware setting of the IRQ automatically.
 This feature may not work on some adapters.
@@ -187,23 +195,24 @@ Automatic I/O port address detection feature of
 works mostly fine for FMV-180 series.
 It works even if there are two or more FMV-180s in a system.
 However, some combination of other adapters may confuse the driver.
-It is recommended not to use
-.Em "port ?"
+It is recommended to explicitly specify
+.Ar port
 when you experience some difficulties with hardware probe.
 .Pp
 Automatic IRQ detection feature of
 .Nm
 works reliably for FMV-180 series.
-It is recommended to use
-.Em "irq ?"
+It is recommended to explicitly specify
+.Ar irq
 always for FMV-180.
 The hardware setting of IRQ is read
 from the configuration EEPROM on the adapter,
 even when the kernel config file specifies an IRQ value.
 The driver will generate a warning message,
-if the IRQ setting specified in the kernel config file
+if the IRQ setting specified in
+.Pa /boot/device.hints
 does not match one stored in EEPROM.
-Then, it will use the value specified in the config file.
+Then, it will use the value specified in the file.
 (This behavior has been changed from the previous releases.)
 .Ss Allied-Telesis AT1700 series and RE2000 series adapters
 Automatic I/O port address detection
@@ -218,8 +227,9 @@ The
 driver
 tries to get IRQ setting from the configuration EEPROM on the board,
 if
-.Dq irq ?\&
-is specified in the configuration file.
+.Ar irq
+is not specified in
+.Pa /boot/device.hints .
 Unfortunately,
 AT1700 series and RE2000 series seems to have two types of models;
 One type allows IRQ selection from 3/4/5/9,
