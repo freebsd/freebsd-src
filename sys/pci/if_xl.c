@@ -234,7 +234,9 @@ static void xl_txeof_90xB	(struct xl_softc *);
 static void xl_txeoc		(struct xl_softc *);
 static void xl_intr		(void *);
 static void xl_start		(struct ifnet *);
-static void xl_start_90xB	(struct ifnet *);
+static void xl_start_locked	(struct ifnet *);
+static void xl_start_90xB_locked
+				(struct ifnet *);
 static int xl_ioctl		(struct ifnet *, u_long, caddr_t);
 static void xl_init		(void *);
 static void xl_init_locked	(struct xl_softc *);
@@ -1476,15 +1478,14 @@ xl_attach(device_t dev)
 	ifp->if_ioctl = xl_ioctl;
 	ifp->if_capabilities = IFCAP_VLAN_MTU;
 	if (sc->xl_type == XL_TYPE_905B) {
-		ifp->if_start = xl_start_90xB;
 		ifp->if_hwassist = XL905B_CSUM_FEATURES;
 #ifdef XL905B_TXCSUM_BROKEN
 		ifp->if_capabilities |= IFCAP_RXCSUM;
 #else
 		ifp->if_capabilities |= IFCAP_HWCSUM;
 #endif
-	} else
-		ifp->if_start = xl_start;
+	}
+	ifp->if_start = xl_start;
 	ifp->if_watchdog = xl_watchdog;
 	ifp->if_init = xl_init;
 	ifp->if_baudrate = 10000000;
@@ -2281,10 +2282,14 @@ xl_intr(void *arg)
 		}
 	}
 
-	XL_UNLOCK(sc);
+	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd)) {
+		if (sc->xl_type == XL_TYPE_905B)
+			xl_start_90xB_locked(ifp);
+		else
+			xl_start_locked(ifp);
+	}
 
-	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-		(*ifp->if_start)(ifp);
+	XL_UNLOCK(sc);
 }
 
 /*
@@ -2429,8 +2434,24 @@ xl_encap(struct xl_softc *sc, struct xl_chain *c, struct mbuf *m_head)
  * copy of the pointers since the transmit list fragment pointers are
  * physical addresses.
  */
+
 static void
 xl_start(struct ifnet *ifp)
+{
+	struct xl_softc		*sc = ifp->if_softc;
+
+	XL_LOCK(sc);
+
+	if (sc->xl_type == XL_TYPE_905B)
+		xl_start_90xB_locked(ifp);
+	else
+		xl_start_locked(ifp);
+
+	XL_UNLOCK(sc);
+}
+
+static void
+xl_start_locked(struct ifnet *ifp)
 {
 	struct xl_softc		*sc = ifp->if_softc;
 	struct mbuf		*m_head = NULL;
@@ -2439,7 +2460,7 @@ xl_start(struct ifnet *ifp)
 	u_int32_t		status;
 	int			error;
 
-	XL_LOCK(sc);
+	XL_LOCK_ASSERT(sc);
 
 	/*
 	 * Check for an available queue slot. If there are none,
@@ -2450,7 +2471,6 @@ xl_start(struct ifnet *ifp)
 		xl_txeof(sc);
 		if (sc->xl_cdata.xl_tx_free == NULL) {
 			ifp->if_flags |= IFF_OACTIVE;
-			XL_UNLOCK(sc);
 			return;
 		}
 	}
@@ -2493,10 +2513,8 @@ xl_start(struct ifnet *ifp)
 	/*
 	 * If there are no packets queued, bail.
 	 */
-	if (cur_tx == NULL) {
-		XL_UNLOCK(sc);
+	if (cur_tx == NULL)
 		return;
-	}
 
 	/*
 	 * Place the request for the upload interrupt
@@ -2557,12 +2575,10 @@ xl_start(struct ifnet *ifp)
 	 * we may as well take advantage of it. :)
 	 */
 	xl_rxeof(sc);
-
-	XL_UNLOCK(sc);
 }
 
 static void
-xl_start_90xB(struct ifnet *ifp)
+xl_start_90xB_locked(struct ifnet *ifp)
 {
 	struct xl_softc		*sc = ifp->if_softc;
 	struct mbuf		*m_head = NULL;
@@ -2570,10 +2586,10 @@ xl_start_90xB(struct ifnet *ifp)
 	struct xl_chain		*prev_tx;
 	int			error, idx;
 
-	XL_LOCK(sc);
+	XL_LOCK_ASSERT(sc);
 
 	if (ifp->if_flags & IFF_OACTIVE)
-		goto out_locked;
+		return;
 
 	idx = sc->xl_cdata.xl_tx_prod;
 	start_tx = &sc->xl_cdata.xl_tx_chain[idx];
@@ -2618,7 +2634,7 @@ xl_start_90xB(struct ifnet *ifp)
 	 * If there are no packets queued, bail.
 	 */
 	if (cur_tx == NULL)
-		goto out_locked;
+		return;
 
 	/*
 	 * Place the request for the upload interrupt
@@ -2640,9 +2656,6 @@ xl_start_90xB(struct ifnet *ifp)
 	 * Set a timeout in case the chip goes out to lunch.
 	 */
 	ifp->if_timer = 5;
-
-out_locked:
-	XL_UNLOCK(sc);
 }
 
 static void
