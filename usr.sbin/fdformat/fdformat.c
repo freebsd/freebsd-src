@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1992-1993 by Joerg Wunsch, Dresden
+ * Copyright (C) 1992-1994 by Joerg Wunsch, Dresden
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -11,17 +11,17 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR(S) ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR(S) BE LIABLE FOR ANY DIRECT,
+ * INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+ * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+ * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
  */
 
 /*
@@ -90,7 +90,16 @@ verify_track(int fd, int track, int tracksize)
 {
 	static char *buf = 0;
 	static int bufsz = 0;
+	int fdopts = -1, ofdopts, rv = 0;
 
+	if (ioctl(fd, FD_GOPTS, &fdopts) < 0)
+		perror("warning: ioctl(FD_GOPTS)");
+	else {
+		ofdopts = fdopts;
+		fdopts |= FDOPT_NORETRY;
+		(void)ioctl(fd, FD_SOPTS, &fdopts);
+	}
+	
 	if (bufsz < tracksize) {
 		if (buf)
 			free (buf);
@@ -104,10 +113,14 @@ verify_track(int fd, int track, int tracksize)
 		exit (2);
 	}
 	if (lseek (fd, (long) track*tracksize, 0) < 0)
-		return (-1);
-	if (read (fd, buf, tracksize) != tracksize)
-		return (-1);
-	return (0);
+		rv = -1;
+	/* try twice reading it, without using the normal retrier */
+	else if (read (fd, buf, tracksize) != tracksize
+		 && read (fd, buf, tracksize) != tracksize)
+		rv = -1;
+	if(fdopts != -1)
+		(void)ioctl(fd, FD_SOPTS, &ofdopts);
+	return (rv);
 }
 
 static const char *
@@ -127,7 +140,7 @@ makename(const char *arg, const char *suffix)
 }
 
 static void
-usage ()
+usage (void)
 {
 	printf("Usage:\n\tfdformat [-q] [-n | -v] [-f #] [-c #] [-s #] [-h #]\n");
 	printf("\t\t [-r #] [-g #] [-i #] [-S #] [-F #] [-t #] devname\n");
@@ -152,7 +165,7 @@ usage ()
 }
 
 static int
-yes ()
+yes (void)
 {
 	char reply [256], *p;
 
@@ -353,3 +366,18 @@ main(int argc, char **argv)
 
 	return errs;
 }
+/*
+ * Local Variables:
+ *  c-indent-level:               8
+ *  c-continued-statement-offset: 8
+ *  c-continued-brace-offset:     0
+ *  c-brace-offset:              -8
+ *  c-brace-imaginary-offset:     0
+ *  c-argdecl-indent:             8
+ *  c-label-offset:              -8
+ *  c++-hanging-braces:           1
+ *  c++-access-specifier-offset: -8
+ *  c++-empty-arglist-indent:     8
+ *  c++-friend-offset:            0
+ * End:
+ */
