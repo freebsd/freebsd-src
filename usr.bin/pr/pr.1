@@ -59,6 +59,9 @@
 .Oc
 .Ek
 .Bk -words
+.Op Fl L Ar locale
+.Ek
+.Bk -words
 .Op Fl h Ar header
 .Ek
 .Bk -words
@@ -218,6 +221,11 @@ If any nondigit character,
 is specified, it is used as the output
 .Em <tab>
 character.
+.It Fl L Ar locale
+Use
+.Ar locale
+specified as argument instead of one found in environment.
+Use "C" to reset locale to default.
 .It Fl l Ar lines
 Override the 66 line default and reset the page length to 
 .Ar lines .

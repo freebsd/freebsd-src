@@ -35,6 +35,7 @@
  * SUCH DAMAGE.
  *
  *      @(#)pr.h	8.1 (Berkeley) 6/6/93
+ * $FreeBSD$
  */
 
 /*
@@ -58,7 +59,7 @@
 #define	HDFMT		"%s %s Page %d\n\n\n"
 #define	HEADLEN		5
 #define	TAILLEN		5
-#define	TIMEFMT		"%b %e %H:%M %Y"
+#define	TIMEFMT		"%Ef %H:%M %Y"
 #define	FNAME		""
 #define	LBUF		8192
 #define	HDBUF		512
