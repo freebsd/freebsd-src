@@ -88,6 +88,7 @@ struct	sockaddr_ipx ipx_netmask, ipx_hostmask;
 /*
  * IPX protocol control block (pcb) lists.
  */
+struct mtx		ipxpcb_list_mtx;
 struct ipxpcbhead	ipxpcb_list;
 struct ipxpcbhead	ipxrawpcb_list;
 
@@ -113,6 +114,8 @@ ipx_init()
 
 	LIST_INIT(&ipxpcb_list);
 	LIST_INIT(&ipxrawpcb_list);
+
+	IPX_LIST_LOCK_INIT();
 
 	ipx_netmask.sipx_len = 6;
 	ipx_netmask.sipx_addr.x_net = ipx_broadnet;
