@@ -33,7 +33,6 @@ static void
 physwakeup(struct buf *bp)
 {
 	wakeup((caddr_t) bp);
-	bp->b_flags &= ~B_CALL;
 }
 
 int
