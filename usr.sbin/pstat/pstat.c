@@ -199,6 +199,14 @@ usage(void)
 	exit (1);
 }
 
+static const char fhdr32[] =
+  "   LOC   TYPE   FLG  CNT MSG   DATA        OFFSET\n";
+/* c0000000 ------ RWAI 123 123 c0000000 1000000000000000 */
+
+static const char fhdr64[] =
+  "       LOC       TYPE   FLG  CNT MSG       DATA            OFFSET\n";
+/* c000000000000000 ------ RWAI 123 123 c000000000000000 1000000000000000 */
+
 static const char hdr[] =
 "  LINE RAW CAN OUT IHIWT ILOWT OHWT LWT     COL STATE  SESS      PGID DISC\n";
 
@@ -334,7 +342,7 @@ ttyprt(struct xtty *xt)
 		errx(1, "struct xtty size mismatch");
 	if (usenumflag || xt->xt_dev == 0 ||
 	   (name = devname(xt->xt_dev, S_IFCHR)) == NULL)
-		(void)printf("   %2d,%-2d", major(xt->xt_dev), minor(xt->xt_dev));
+		printf("   %2d,%-2d", major(xt->xt_dev), minor(xt->xt_dev));
 	else
 		(void)printf("%7s ", name);
 	(void)printf("%2ld %3ld ", xt->xt_rawcc, xt->xt_cancc);
@@ -376,8 +384,10 @@ filemode(void)
 	char *buf, flagbuf[16], *fbp;
 	int maxf, openf;
 	size_t len;
-	static char *dtypes[] = { "???", "inode", "socket" };
+	static char *dtypes[] = { "???", "inode", "socket", "pipe",
+	    "fifo", "kqueue", "crypto" };
 	int i;
+	int wid;
 
 	if (kd != NULL) {
 		if (kvm_read(kd, nl[NL_MAXFILES].n_value,
@@ -399,13 +409,15 @@ filemode(void)
 	if (getfiles(&buf, &len) == -1)
 		return;
 	openf = len / sizeof *fp;
+
 	(void)printf("%d/%d open files\n", openf, maxf);
-	(void)printf("   LOC   TYPE    FLG     CNT  MSG    DATA    OFFSET\n");
+	printf(sizeof(uintptr_t) == 4 ? fhdr32 : fhdr64);
+	wid = (int)sizeof(uintptr_t) * 2;
 	for (fp = (struct xfile *)buf, i = 0; i < openf; ++fp, ++i) {
-		if ((unsigned)fp->xf_type > DTYPE_SOCKET)
+		if ((size_t)fp->xf_type >= sizeof(dtypes) / sizeof(dtypes[0]))
 			continue;
-		(void)printf("%8jx ", (uintmax_t)(uintptr_t)fp->xf_file);
-		(void)printf("%-8.8s", dtypes[fp->xf_type]);
+		(void)printf("%*jx", wid, (uintmax_t)(uintptr_t)fp->xf_file);
+		(void)printf(" %-6.6s", dtypes[fp->xf_type]);
 		fbp = flagbuf;
 		if (fp->xf_flag & FREAD)
 			*fbp++ = 'R';
@@ -416,10 +428,11 @@ filemode(void)
 		if (fp->xf_flag & FASYNC)
 			*fbp++ = 'I';
 		*fbp = '\0';
-		(void)printf("%6s  %3d", flagbuf, fp->xf_count);
-		(void)printf("  %3d", fp->xf_msgcount);
-		(void)printf("  %p", fp->xf_data);
-		(void)printf("  %jx\n", (uintmax_t)fp->xf_offset);
+		(void)printf(" %4s %3d", flagbuf, fp->xf_count);
+		(void)printf(" %3d", fp->xf_msgcount);
+		(void)printf(" %*jx", wid, (uintmax_t)(uintptr_t)fp->xf_data);
+		(void)printf(" %*jx\n", (int)sizeof(fp->xf_offset) * 2,
+		    (uintmax_t)fp->xf_offset);
 	}
 	free(buf);
 }
