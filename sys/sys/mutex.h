@@ -238,7 +238,7 @@ void	_mtx_assert(struct mtx *m, int what, const char *file, int line);
 #define mtx_unlock(m)		mtx_unlock_flags((m), 0)
 #define mtx_unlock_spin(m)	mtx_unlock_spin_flags((m), 0)
 
-#ifdef KLD_MODULE
+#ifdef LOCK_DEBUG
 #define	mtx_lock_flags(m, opts)						\
 	_mtx_lock_flags((m), (opts), __FILE__, __LINE__)
 #define	mtx_unlock_flags(m, opts)					\
