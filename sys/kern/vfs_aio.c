@@ -1300,6 +1300,7 @@ _aio_aqueue(struct proc *p, struct aiocb *job, struct aio_liojob *lj, int type)
 	{
 		struct kevent kev, *kevp;
 		struct kqueue *kq;
+		struct file *kq_fp;
 
 		kevp = (struct kevent *)job->aio_lio_opcode;
 		if (kevp == NULL)
@@ -1310,12 +1311,12 @@ _aio_aqueue(struct proc *p, struct aiocb *job, struct aio_liojob *lj, int type)
 			goto aqueue_fail;
 
 		if ((u_int)kev.ident >= fdp->fd_nfiles ||
-		    (fp = fdp->fd_ofiles[kev.ident]) == NULL ||
-		    (fp->f_type != DTYPE_KQUEUE)) {
+		    (kq_fp = fdp->fd_ofiles[kev.ident]) == NULL ||
+		    (kq_fp->f_type != DTYPE_KQUEUE)) {
 			error = EBADF;
 			goto aqueue_fail;
 		}
-        	kq = (struct kqueue *)fp->f_data;
+        	kq = (struct kqueue *)kq_fp->f_data;
 		kev.ident = (u_long)aiocbe;
 		kev.filter = EVFILT_AIO;
 		kev.flags = EV_ADD | EV_ENABLE | EV_FLAG1;
