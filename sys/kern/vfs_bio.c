@@ -2805,6 +2805,34 @@ allocbuf(struct buf *bp, int size)
 	return 1;
 }
 
+void
+biodone(struct bio *bp)
+{
+	bp->bio_flags |= BIO_DONE;
+	if (bp->bio_done != NULL)
+		bp->bio_done(bp);
+	else
+		wakeup(bp);
+}
+
+/*
+ * Wait for a BIO to finish.
+ * XXX: For now resort to a timeout, the optimal locking (if any) for this
+ * case is not at this point obvious.
+ */
+int
+biowait(struct bio *bp, const char *wchan)
+{
+
+	while ((bp->bio_flags & BIO_DONE) == 0)
+		msleep(bp, NULL, 0, wchan, hz);
+	if (!(bp->bio_flags & BIO_ERROR))
+		return (0);
+	if (bp->bio_error)
+		return (bp->bio_error);
+	return (EIO);
+}
+
 /*
  *	bufwait:
  *
