@@ -68,6 +68,9 @@ Driver support has been added for IEEE 802.11 PCMCIA wireless network
 adapters based on the Lucent Hermes chipset, including the Lucent
 WaveLAN/IEEE 802.11 and the Cabletron RoamAbout.
 
+Driver support has been added for PCI fast ethernet cards based
+on the ADMtek Inc. AL981 Comet chipset.
+
 1.2. SECURITY FIXES
 -------------------
 A new jail(2) system call and admin command (jail(8)) have been added for
@@ -244,6 +247,7 @@ Lite-On 82c168/82c169 PNIC fast ethernet NICs including the following:
   LinkSys EtherFast LNE100TX
   NetGear FA310-TX Rev. D1
   Matrox FastNIC 10/100
+  Kingston KNE110TX
 
 Macronix 98713, 98713A, 98715, 98715A and 98725 fast ethernet NICs
   NDC Communications SFA100A (98713A)
@@ -266,6 +270,8 @@ Texas Instruments ThunderLAN PCI NICs, including the following:
   Olicom OC-2135/2138, OC-2325, OC-2326 10/100 TX UTP
   Racore 8165 10/100baseTX
   Racore 8148 10baseT/100baseTX/100baseFX multi-personality
+
+ADMtek Inc. AL981-based PCI fast ethernet NICs
 
 ASIX Electronics AX88140A PCI NICs, including the following:
   Alfa Inc. GFC2204
