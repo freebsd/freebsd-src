@@ -40,7 +40,9 @@
  *
  */
 
-/* $FreeBSD$ */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 
 #undef	SCD_DEBUG
 
