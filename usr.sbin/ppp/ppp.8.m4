@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.84 1997/12/13 02:37:31 brian Exp $
+.\" $Id: ppp.8,v 1.85 1997/12/16 00:32:35 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -1242,13 +1242,14 @@ This modem "chat" string means:
 .It
 Abort if the string "BUSY" or "NO CARRIER" are received.
 .It
-Set the timeout to 4.
+Set the timeout to 4 seconds.
 .It
 Expect nothing.
 .It
 Send ATZ.
 .It
-Expect OK.  If that's not received, send ATZ and expect OK.
+Expect OK.  If that's not received within the 4 second timeout, send ATZ
+and expect OK.
 .It
 Send ATDTxxxxxxx where xxxxxxx is the next number in the phone list from
 above.
@@ -1259,10 +1260,12 @@ Wait for the CONNECT string.
 .El
 
 Once the connection is established, the login script is executed.  This
-script is written in the same style as the dial script:
+script is written in the same style as the dial script, but care should
+be taken to avoid having your password logged:
 .Bd -literal -offset indent
+set authkey MySecret
 set login "TIMEOUT 15 login:-\\\\r-login: awfulhak \e
-  word: xxx ocol: PPP HELLO"
+  word: \\\\P ocol: PPP HELLO"
 .Ed
 .Pp
 This login "chat" string means:
@@ -1277,7 +1280,9 @@ Send "awfulhak"
 .It
 Expect "word:" (the tail end of a "Password:" prompt).
 .It
-Send "xxx".
+Send whatever our current
+.Ar authkey
+value is set to.
 .It
 Expect "ocol:" (the tail end of a "Protocol:" prompt).
 .It
@@ -1285,6 +1290,17 @@ Send "PPP".
 .It
 Expect "HELLO".
 .El
+.Pp
+The
+.Dq set authkey
+command is logged specially (when using
+.Ar command
+logging) so that the actual password is not compromised
+(it is logged as
+.Sq ******** Ns
+), and the '\\P' is logged when
+.Ar chat
+logging is active rather than the actual password.
 .Pp
 Login scripts vary greatly between ISPs.
 
@@ -2031,8 +2047,14 @@ Refer to the section on PACKET FILTERING above for further details.
 .It set authkey|key value
 This sets the authentication key (or password) used in client mode
 PAP or CHAP negotiation to the given value.  It can also be used to
-specify the password to be used in the dial or login scripts, preventing
-the actual password from being logged.
+specify the password to be used in the dial or login scripts in place
+of the '\\P' sequence, preventing the actual password from being logged.  If
+.Ar command
+logging is in effect,
+.Ar value
+is logged as
+.Ar ********
+for security reasons.
 
 .It set authname id
 This sets the authentication id used in client mode PAP or CHAP negotiation.
@@ -2066,16 +2088,59 @@ above for further details.
 .It set dial chat-script
 This specifies the chat script that will be used to dial the other
 side.  See also the
-.Dv set login
+.Dq set login
 command below.  Refer to
 .Xr chat 8
 and to the example configuration files for details of the chat script
-format.  The string \\\\T will be replaced with the current phone number
-(see
+format.
+It is possible to specify some special
+.Sq values
+in your chat script as follows:
+.Bd -literal -offset indent
+.It \\\\\\\\\\\\\\\\c
+When used as the last character in a
+.Sq send
+string, this indicates that a newline should not be appended.
+.It \\\\\\\\\\\\\\\\d
+When the chat script encounters this sequence, it delays two seconds.
+.It \\\\\\\\\\\\\\\\p
+When the chat script encounters this sequence, it delays for one quarter of
+a second.
+.It \\\\\\\\\\\\\\\\n
+This is replaced with a newline character.
+.It \\\\\\\\\\\\\\\\r
+This is replaced with a carriage return character.
+.It \\\\\\\\\\\\\\\\s
+This is replaced with a space character.
+.It \\\\\\\\\\\\\\\\t
+This is replaced with a tab character.
+.It \\\\\\\\\\\\\\\\T
+This is replaced by the current phone number (see
 .Dq set phone
-below) and the string \\\\P will be replaced with the password (see
-.Dq set key
+below).
+.It \\\\\\\\\\\\\\\\P
+This is replaced by the current
+.Ar authkey
+value (see
+.Dq set authkey
 above).
+.It \\\\\\\\\\\\\\\\U
+This is replaced by the current
+.Ar authname
+value (see
+.Dq set authname
+above).
+.Ed
+.Pp
+Note that two parsers will examine these escape sequences, so in order to
+have the
+.Sq chat parser
+see the escape character, it is necessary to escape it from the
+.Sq command parser .
+This means that in practice you should use two escapes, for example:
+.Bd -literal -offset indent
+set dial "... ATDT\\\\T CONNECT"
+.Ed
 
 .It set hangup chat-script
 This specifies the chat script that will be used to reset the modem
@@ -2365,7 +2430,11 @@ This command allows the user to examine the following:
 List the current rules for the given filter.
 
 .It show auth
-Show the current authname and authkey.
+Show the current authname and encryption values.  If you have built
+.Nm
+without DES support, the encryption value is not displayed as it will
+always be
+.Ar MD5 .
 
 .It show ccp
 Show the current CCP statistics.
