@@ -29,7 +29,7 @@ The default is 300 hundredths, i.e., 3 seconds.
 The standard way to use
 .Nm comcontrol
 is to put invocations of it in the
-.Ar /etc/rc.local
+.Ar /etc/rc.serial
 startup script.
 .Sh SEE ALSO
 .Xr sio 4 ,
@@ -37,8 +37,8 @@ startup script.
 .Sh FILES
 .Bl -tag -width Pa
 .It Pa /dev/ttyd?
-dialin devices.
-.It Pa /dev/cua0?
+dialin devices, hardwired terminals
+.It Pa /dev/cuaa?
 dialout devices.
 .Sh AUTHOR
 Christopher G. Demetriou
