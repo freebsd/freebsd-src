@@ -42,13 +42,14 @@ static const char copyright[] =
 static char sccsid[] = "@(#)leave.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: leave.c,v 1.3 1998/01/06 17:27:09 helbig Exp $";
 #endif /* not lint */
 
-#include <sys/param.h>
-#include <sys/time.h>
+#include <err.h>
 #include <ctype.h>
+#include <locale.h>
 #include <stdio.h>
+#include <time.h>
 #include <unistd.h>
 
 void doalarm __P((u_int));
@@ -71,8 +72,11 @@ main(argc, argv)
 	register char c, *cp;
 	struct tm *t, *localtime();
 	time_t now, time();
-	int plusnow;
+	int plusnow, t_12_hour;
 	char buf[50];
+
+	if (setlocale(LC_TIME, "") == NULL)
+		warn("setlocale");
 
 	if (argc < 2) {
 #define	MSG1	"When do you have to leave? "
@@ -86,11 +90,8 @@ main(argc, argv)
 	if (*cp == '+') {
 		plusnow = 1;
 		++cp;
-	} else {
+	} else
 		plusnow = 0;
-		(void)time(&now);
-		t = localtime(&now);
-	}
 
 	for (hours = 0; (c = *cp) && c != '\n'; ++cp) {
 		if (!isdigit(c))
@@ -105,11 +106,30 @@ main(argc, argv)
 	if (plusnow)
 		secs = hours * 60 * 60 + minutes * 60;
 	else {
-		if (hours > 23 || t->tm_hour > hours ||
-		    (t->tm_hour == hours && minutes <= t->tm_min))
+		(void)time(&now);
+		t = localtime(&now);
+
+		if (hours > 23)
 			usage();
-		secs = (hours - t->tm_hour) * 60 * 60;
+
+		/* Convert tol to 12 hr time (0:00...11:59) */
+		if (hours > 11)
+			hours -= 12;
+
+		/* Convert tm to 12 hr time (0:00...11:59) */
+		if (t->tm_hour > 11)
+			t_12_hour = t->tm_hour - 12;
+		else
+			t_12_hour = t->tm_hour;
+
+		if (hours < t_12_hour ||
+	 	   (hours == t_12_hour && minutes <= t->tm_min))
+			/* Leave time is in the past so we add 12 hrs */
+			hours += 12;
+
+		secs = (hours - t_12_hour) * 60 * 60;
 		secs += (minutes - t->tm_min) * 60;
+		secs -= now % 60;	/* truncate (now + secs) to min */
 	}
 	doalarm(secs);
 	exit(0);
@@ -121,17 +141,18 @@ doalarm(secs)
 {
 	register int bother;
 	time_t daytime, time();
+	char tb[80];
 	int pid;
-	char *ctime();
 
 	if ((pid = fork())) {
 		(void)time(&daytime);
 		daytime += secs;
-		printf("Alarm set for %.16s. (pid %d)\n",
-		    ctime(&daytime), pid);
+		strftime(tb, sizeof(tb), "%+", localtime(&daytime));
+		printf("Alarm set for %s. (pid %d)\n", tb, pid);
 		exit(0);
 	}
 	sleep((u_int)2);		/* let parent print set message */
+	secs -= 2;
 
 	/*
 	 * if write fails, we've lost the terminal through someone else
