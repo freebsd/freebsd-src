@@ -75,6 +75,9 @@
 #ifdef HAVE_NETDB_H
 #include <netdb.h>
 #endif
+#ifdef HAVE_UTIL_H
+#include <util.h>
+#endif
 #include <err.h>
 #include <roken.h>
 #include <getarg.h>
@@ -82,6 +85,7 @@
 #include <parse_units.h>
 #include <openssl/des.h>
 #include <krb5.h>
+#include <krb5_locl.h>
 #include <hdb.h>
 #include <hdb_err.h>
 #include <der.h> /* copy_octet_string */
@@ -93,6 +97,10 @@
 #include <krb_db.h>
 #endif
 
+#undef ALLOC
 #define ALLOC(X) ((X) = malloc(sizeof(*(X))))
+#undef ALLOC_SEQ
+#define ALLOC_SEQ(X, N) do { (X)->len = (N); \
+(X)->val = calloc((X)->len, sizeof(*(X)->val)); } while(0)
 
 #endif /* __HEADERS_H__ */

@@ -47,14 +47,21 @@
 #include <string.h>
 #include <ctype.h>
 #include <errno.h>
+#include <limits.h>
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
+#endif
+#ifdef HAVE_SYS_SELECT_H
+#include <sys/select.h>
 #endif
 #ifdef HAVE_FCNTL_H
 #include <fcntl.h>
 #endif
 #ifdef HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
+#endif
+#ifdef HAVE_SYS_SELECT_H
+#include <sys/select.h>
 #endif
 #ifdef HAVE_NETINET_IN_H
 #include <netinet/in.h>
@@ -66,6 +73,9 @@
 #include <netinet6/in6.h>
 #endif
 
+#ifdef HAVE_UTIL_H
+#include <util.h>
+#endif
 #ifdef HAVE_NETDB_H
 #include <netdb.h>
 #endif
@@ -76,6 +86,7 @@
 #include <roken.h>
 #include <openssl/des.h>
 #include <krb5.h>
+#include <krb5_locl.h>
 #include <hdb.h>
 #include <hdb_err.h>
 #include <kadm5/admin.h>
@@ -107,6 +118,7 @@ DECL(dump);
 DECL(load);
 DECL(merge);
 
+#undef ALLOC
 #define ALLOC(X) ((X) = malloc(sizeof(*(X))))
 
 /* util.c */
@@ -145,6 +157,9 @@ foreach_principal(const char *exp,
 
 void get_response(const char *prompt, const char *def, char *buf, size_t len);
 
+int parse_des_key (const char *key_string,
+		   krb5_key_data *key_data, const char **err);
+
 /* server.c */
 
 krb5_error_code
@@ -153,11 +168,23 @@ kadmind_loop (krb5_context, krb5_auth_context, krb5_keytab, int);
 /* version4.c */
 
 void
-handle_v4(krb5_context context, int len, int fd);
+handle_v4(krb5_context context, krb5_keytab keytab, int len, int fd);
 
 /* random_password.c */
 
 void
 random_password(char *pw, size_t len);
+
+/* kadm_conn.c */
+
+sig_atomic_t term_flag, doing_useful_work;
+
+void parse_ports(krb5_context, const char*);
+int start_server(krb5_context);
+
+/* server.c */
+
+krb5_error_code
+kadmind_loop (krb5_context, krb5_auth_context, krb5_keytab, int);
 
 #endif /* __ADMIN_LOCL_H__ */
