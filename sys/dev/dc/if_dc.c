@@ -180,6 +180,8 @@ static struct dc_type dc_devs[] = {
 		"82c169 PNIC 10/100BaseTX" },
 	{ DC_VENDORID_ACCTON, DC_DEVICEID_EN1217,
 		"Accton EN1217 10/100BaseTX" },
+	{ DC_VENDORID_ACCTON, DC_DEVICEID_EN2242,
+		"Accton EN2242 MiniPCI 10/100BaseTX" },
     	{ DC_VENDORID_XIRCOM, DC_DEVICEID_X3201,
 	  	"Xircom X3201 10/100BaseTX" },
 	{ DC_VENDORID_ABOCOM, DC_DEVICEID_FE2500,
@@ -1862,6 +1864,7 @@ static int dc_attach(dev)
 		break;
 	case DC_DEVICEID_AN985:
 	case DC_DEVICEID_FE2500:
+	case DC_DEVICEID_EN2242:
 		sc->dc_type = DC_TYPE_AN985;
 		sc->dc_flags |= DC_TX_USE_TX_INTR;
 		sc->dc_flags |= DC_TX_ADMTEK_WAR;
