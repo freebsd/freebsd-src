@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vnops.c	8.15 (Berkeley) 5/14/95
- * $Id: ffs_vnops.c,v 1.38 1998/01/06 05:23:44 dyson Exp $
+ * $Id: ffs_vnops.c,v 1.39 1998/02/01 01:59:12 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -105,9 +105,6 @@ SYSCTL_NODE(_vfs, MOUNT_UFS, ffs, CTLFLAG_RW, 0, "FFS filesystem");
 
 #include <ufs/ufs/ufs_readwrite.c>
 
-int ffs_log_sync = 0;
-
-
 /*
  * Synch an open file.
  */
@@ -129,18 +126,13 @@ ffs_fsync(ap)
 	int s;
 	daddr_t lbn;
 
+
 	if (vp->v_type == VBLK) {
 		lbn = INT_MAX;
 	} else {
 		struct inode *ip;
 		ip = VTOI(vp);
 		lbn = lblkno(ip->i_fs, (ip->i_size + ip->i_fs->fs_bsize - 1));
-	}
-
-	if (ffs_log_sync) {
-		struct inode* ip = VTOI(vp);
-		printf("fsync i %u iflags 0x%x vn 0x%x vtype %d tag %d vflags 0x%x\n",
-			ip->i_number, ip->i_flag, vp, vp->v_type, vp->v_tag, vp->v_flag);
 	}
 
 	pass = 0;
@@ -155,11 +147,6 @@ loop:
 			continue;
 		if ((bp->b_flags & B_DELWRI) == 0)
 			panic("ffs_fsync: not dirty");
-
-		if (ffs_log_sync) {
-			printf("  blk %u (%u) flags 0x%x vn 0x%x\n", bp->b_lblkno, bp->b_blkno,
-			bp->b_flags, bp->b_vp);
-		}
 
 		if (((bp->b_vp != vp) || (ap->a_waitfor != MNT_NOWAIT)) ||
 			((vp->v_type != VREG) && (vp->v_type != VBLK))) {
@@ -219,5 +206,5 @@ loop:
 	}
 
 	gettime(&tv);
-	return (UFS_UPDATE(ap->a_vp, &tv, &tv, 1));
+	return (UFS_UPDATE(ap->a_vp, &tv, &tv, ap->a_waitfor == MNT_WAIT));
 }
