@@ -53,9 +53,11 @@ static const char rcsid[] =
  * and 65537^2 > 2^32-1.
  */
 
+#include <stddef.h>
+
 #include "primes.h"
 
-ubig prime[] = {
+const ubig prime[] = {
 2,3,5,7,11,13,17,19,23,29,31,37,41,43,47,53,59,61,67,71,73,79,83,89,97,101,103,
 107,109,113,127,131,137,139,149,151,157,163,167,173,179,181,191,193,197,199,
 211,223,227,229,233,239,241,251,257,263,269,271,277,281,283,293,307,311,313,
@@ -547,4 +549,4 @@ ubig prime[] = {
 };
 
 /* pr_limit - largest prime in the prime table */
-ubig *pr_limit = &prime[(sizeof(prime)/sizeof(prime[0]))-1];
+const ubig *const pr_limit = &prime[(sizeof(prime)/sizeof(prime[0]))-1];
