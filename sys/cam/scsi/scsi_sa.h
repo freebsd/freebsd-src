@@ -1,5 +1,5 @@
 /*
- * Structure and function declartaions for the
+ * Structure and function declarations for the
  * SCSI Sequential Access Peripheral driver for CAM.
  *
  * Copyright (c) 1999, 2000 Matthew Jacob
