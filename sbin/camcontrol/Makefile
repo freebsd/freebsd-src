@@ -1,3 +1,5 @@
+MAINTAINER=ken@FreeBSD.ORG
+
 PROG=   camcontrol
 SRCS=   camcontrol.c modeedit.c
 MAN8=   camcontrol.8

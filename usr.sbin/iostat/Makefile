@@ -1,5 +1,7 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
 
+MAINTAINER=ken@FreeBSD.ORG
+
 PROG=	iostat
 CFLAGS+=-I${.CURDIR}/../../sys
 SRCS=	iostat.c
