@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.77 1995/11/01 16:53:25 nate Exp $
+#	$Id: rc,v 1.78 1995/11/04 05:03:16 pst Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -273,7 +273,7 @@ echo -n ' printer';		lpd
 # $sendmail_flags is imported from /etc/sysconfig;
 # if $sendmail_flags is something other than NO, sendmail is run.
 if [ "X${sendmail_flags}" != X"NO" -a -r /etc/sendmail.cf ]; then
-	echo -n ' sendmail';		sendmail ${sendmail_flags} 
+	echo -n ' sendmail';            /usr/sbin/sendmail ${sendmail_flags}
 fi
 
 echo '.'
