@@ -94,14 +94,36 @@ Use
 as an alternate config file.
 .It Fl g
 Fiddle global options. 
-.It Fl r Ar option
+.It Fl r Ar flag
 Reset
-.Ar option .
-.Ar Option
-is one of labels, follow, debug, io, all, none.
-.It Fl s Ar option
+.Ar flag .
+The list of allowed flags and their meanings are:
+.Bl -tag -width "follow"
+.It Ar labels 
+use disk/slice labels.
+.It Ar follow 
+debug flow in the 
+.Xr vn 4
+driver.
+.It Ar debug 
+debug data in the
+.Xr vn 4
+driver.
+.It Ar io 
+debug I/O in the
+.Xr vn 4
+driver.
+.It Ar all 
+turn on all flags.
+.It Ar none
+turn off all flags.
+.El
+.It Fl s Ar flag
 Set
-.Ar option .
+.Ar flag .
+The list of allowed flags and their meanings are the same as for the
+.Fl r
+option.
 .It Fl u
 Disable and ``unconfigure'' the device.
 .It Fl v
