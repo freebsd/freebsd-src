@@ -365,7 +365,7 @@ beforeinstall:  openssl/opensslconf.h openssl/evp.h
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 \
 	    ${CRYPTO_HDRS} openssl/evp.h openssl/opensslconf.h \
 	    ${DESTDIR}/usr/include/openssl
-	ln -fs openssl/des.h ${INCDIR}/des.h
+	ln -fs openssl/des.h ${DESTDIR}/usr/include/des.h
 
 afterinstall:
 .if !defined(NOPIC)
