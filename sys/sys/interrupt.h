@@ -88,7 +88,7 @@ extern void	*softclock_ih;
 extern void	*vm_ih;
 
 int	ithread_create __P((struct ithd **ithread, int vector, int flags,
-	    void (*disable)(int), void (*enable)(int), const char *name, ...))
+	    void (*disable)(int), void (*enable)(int), const char *fmt, ...))
 	    __printflike(6, 7);
 int	ithread_destroy __P((struct ithd *ithread));
 u_char	ithread_priority __P((enum intr_type flags));
@@ -96,6 +96,7 @@ int	ithread_add_handler __P((struct ithd *ithread, const char *name,
 	    driver_intr_t handler, void *arg, u_char pri, enum intr_type flags,
 	    void **cookiep));
 int	ithread_remove_handler __P((void *cookie));
+int	ithread_schedule __P((struct ithd *ithread, int do_switch));
 int     swi_add __P((struct ithd **ithdp, const char *name,
 	    driver_intr_t handler, void *arg, int pri, enum intr_type flags,
 	    void **cookiep));
