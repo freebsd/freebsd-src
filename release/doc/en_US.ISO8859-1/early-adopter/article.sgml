@@ -411,8 +411,6 @@
           role="package">security/cfs</filename> ports need to be
           recompiled due to changes in the <literal>statfs</literal>
           structure.</para>
-
-<!-- Michel TALON <talon@lpthe.jussieu.fr>:  libmap.conf -->
       </listitem>
 
       <listitem>
@@ -420,6 +418,23 @@
 	  configuration file has been replaced by the (much more
 	  general) &man.nsswitch.conf.5; name-service switch
 	  configuration mechanism.</para>
+      </listitem>
+
+      <listitem>
+	<para><application>BIND</application> has been updated from
+	  version 8 to version 9.  There are numerous differences
+	  between BIND 8 and 9.  Users with critical &man.named.8;
+	  installations should read the migration documentation in
+	  <filename>/usr/share/doc/bind9/misc/migration</filename>.
+	  There is also a new instruction manual in
+	  <filename>/usr/share/doc/bind9/arm</filename>.  On systems
+	  that run &man.named.8;, it now runs by default in a
+	  &man.chroot.8; environment in
+	  <filename>/var/named</filename>.  Users with existing
+	  &man.named.8; configurations in
+	  <filename>/var/named</filename> should back up the contents
+	  of this directory before upgrading to avoid them being
+	  overwritten by the &man.named.8; startup script.</para>
       </listitem>
 
 <!-- Ports -->
@@ -787,7 +802,28 @@
 &prompt.root; <userinput>make installworld</userinput></screen>
         </listitem>
 
-        <listitem>
+	<listitem>
+	  <para>On systems running &man.named.8;, its
+	    configuration files need to be moved into a
+	    &man.chroot.8; area in
+	    <filename>/var/named</filename>.  If any files exist in
+	    <filename>/var/named</filename>, they should be backed up
+	    at this point.</para>
+
+	  <screen>&prompt.root; <userinput>cd /etc</userinput>
+&prompt.root; <userinput>mv named named.bak</userinput>
+&prompt.root; <userinput>mkdir -p /var/named/etc/namedb</userinput>
+&prompt.root; <userinput>cp -Rp named.bak/* /var/named/etc/namedb</userinput></screen>
+
+	  <para>If the configuration uses the generated
+	    <filename>localhost</filename> files, the following steps
+	    may be needed to regenerate them:</para>
+
+	  <screen>&prompt.root; <userinput>cd /var/named/etc/namedb</userinput>
+&prompt.root; <userinput>/bin/sh make-localhost</userinput>
+&prompt.root; <userinput>rm -f localhost-v6.rev localhost.rev</userinput></screen>
+
+	<listitem>
 	  <para>Update the system configuration files by running:</para>
 
 	  <screen>&prompt.root; <userinput>mergemaster -i</userinput></screen>
@@ -804,6 +840,16 @@
 	    changed; in particular, some services that were enabled by
 	    default in &release.4x; are now disabled by default in
 	    &release.5x;.</para>
+	</listitem>
+
+	<listitem>
+
+	  <para>Remove leftover <application>BIND 8</application>
+	    files:</para>
+
+	    <screen>&prompt.root; <userinput>rm /usr/bin/dnskeygen /usr/bin/dnsquery</userinput>
+&prompt.root; <userinput>rm /usr/libexec/named-xfer</userinput>
+&prompt.root; <userinput>rm /usr/sbin/named.restart /usr/sbin/ndc</userinput></screen>
 	</listitem>
 
         <listitem>
