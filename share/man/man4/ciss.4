@@ -1,0 +1,88 @@
+.\" $FreeBSD$
+.\" Written by Tom Rhodes
+.\" This file is in the public domain.
+.\"
+.Dd December 29, 2002
+.Dt CISS 4
+.Os
+.Sh NAME
+.Nm ciss
+.Nd Common Interface for SCSI-3 Support driver.
+.Sh SYNOPSIS
+For one or more adapters:
+.Cd device scbus
+.Cd device ciss
+.Sh DESCRIPTION
+.Pp
+The
+.Nm
+driver claims to provide a common interface between generic SCSI
+transports and intelligent host adapters.
+.Pp
+The
+.Nm
+driver supports
+.Em CISS
+as defined in the document entitled
+.Dq CISS Command Interface for SCSI-3 Support Open Specification ,
+Version 1.04,
+Valence Number 1, dated 20001127, produced by Compaq Computer
+Corporation.
+.Pp
+We provide a shim layer between the
+.Nm
+interface and CAM,
+offloading most of the queueing and being-a-disk chores onto CAM.
+Entry to the driver is via the PCI bus attachment
+.Fa ciss_probe ,
+.Fa ciss_attach ,
+etc and via the CAM interface
+.Fa ciss_cam_action ,
+and
+.Fa ciss_cam_poll .
+The Compaq
+.Nm
+adapters require faked responses to get reasonable
+behavior out of them.
+In addition, the
+.Nm
+command set is by no means adequate to support the functionality of a RAID controller,
+and thus the supported Compaq adapters utilize portions of the
+control protocol from earlier Compaq adapter families.
+.Pp
+Currently
+.Nm
+only supports the
+.Dq simple
+transport layer over PCI.
+This interface (ab)uses the I2O register set (specifically the post
+queues) to exchange commands with the adapter.
+Other interfaces are available, but we are not supposed to know about them,
+and it is dubious whether they would provide major performance improvements
+except under extreme load.
+.Sh COMPATIBILITY
+Non disk devices (such as internal DATs and devices
+attached to the external SCSI bus) are not yet supported.
+.Pp
+Supported controllers include:
+.Pp
+.Bl -tag -compact -width "Compaq Smart Array 5* series"
+.It Compaq Smart Array 5300
+.It Compaq Smart Array 532
+.It Compaq Smart Array 5i
+.El
+.Sh SEE ALSO
+.Xr cam 4 ,
+.Xr pass 4 ,
+.Xr xpt 4 ,
+.Xr camcontrol 8 ,
+.Pp
+.Dq CISS Command Interface for SCSI-3 Support Open Specification, Version 1.04,
+Valence Number 1, dated 20001127, produced by Compaq Computer Corporation.
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Mike Smith Aq msmith@FreeBSD.org .
+This manual page is based on his comments and was written by
+.An Tom Rhodes Aq trhodes@FreeBSD.org .
