@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.26 1996/01/23 20:21:24 wollman Exp $
+**  $Id: pcisupport.c,v 1.27 1996/01/23 20:36:49 wollman Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -386,7 +386,7 @@ static const struct condmsg conf82437fx[] =
     { 0x50, 0xe0, 0x00, M_EQ, "1" },
     { 0x00, 0x00, 0x00, M_TR, " clocks\n\tPeer Concurrency: " },
     { 0x50, 0x08, 0x08, M_EN, 0 },
-    { 0x00, 0x00, 0x00, M_TR, "\n\tCPU-to-PCI Write Busting: " },
+    { 0x00, 0x00, 0x00, M_TR, "\n\tCPU-to-PCI Write Bursting: " },
     { 0x50, 0x04, 0x00, M_NN, 0 },
     { 0x00, 0x00, 0x00, M_TR, "\n\tPCI Streaming: " },
     { 0x50, 0x02, 0x00, M_NN, 0 },
