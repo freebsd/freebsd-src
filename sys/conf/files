@@ -1270,7 +1270,6 @@ net/zlib.c		optional crypto
 net/zlib.c		optional geom_uzip
 net80211/ieee80211.c	optional wlan
 net80211/ieee80211_crypto.c	optional wlan
-net80211/ieee80211_freebsd.c	optional wlan
 net80211/ieee80211_input.c	optional wlan
 net80211/ieee80211_ioctl.c	optional wlan
 net80211/ieee80211_node.c	optional wlan
