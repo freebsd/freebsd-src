@@ -750,7 +750,7 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 		upcall_free(newku);
 		return (EPROCLIM);
 	}
-	if (first) {
+	if (first && sa) {
 		SIGSETOR(p->p_siglist, td->td_siglist);
 		SIGEMPTYSET(td->td_siglist);
 		SIGFILLSET(td->td_sigmask);
