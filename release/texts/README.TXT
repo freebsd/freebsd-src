@@ -32,7 +32,7 @@ If you're both technically proficient and know exactly what you're
 getting into here (e.g. you've been following -current) then this
 snapshot is probably for you.  If you're more interested in doing
 business with FreeBSD than in playing with the cutting edge of
-technology, however, then 2.2.x is almost certainly your best bet.
+technology, however, then 3.x is almost certainly your best bet.
 
 
 ROAD MAP:
@@ -80,17 +80,13 @@ o It is also important to check the ERRATA.TXT file for any
   the latest information on upgrade, security or other problems
   which an administrator should be aware of.
 
-o Information regarding problems which arise after the CD
-  is printed can be found at:
-  ftp://ftp.freebsd.org/pub/FreeBSD/3.0-RELEASE/ERRATA.TXT
+For the most up-to-date software along the RELENG_3 branch
+(also known as 3.1-stable) which is now proceeding onwards toward
+the release of FreeBSD 3.2, please install from:
 
-For the most up-to-date software along the RELENG_2_2 branch
-(also known as -Stable) which is now proceeding onwards toward
-the release of FreeBSD 2.2.8, please install from:
+        ftp://releng3.freebsd.org/pub/FreeBSD/
 
-        ftp://releng22.freebsd.org/pub/FreeBSD/
-
-Or for the latest 3.0-Current (HEAD branch) snapshot releases,
+Or for the latest 4.0-Current (HEAD branch) snapshot releases,
 please install from:
 
         ftp://current.freebsd.org/pub/FreeBSD
