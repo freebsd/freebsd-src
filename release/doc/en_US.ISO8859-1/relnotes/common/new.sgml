@@ -132,6 +132,8 @@
     <sect3>
       <title>Network Interface Support</title>
 
+      <para>The cm driver now supports IPX.</para>
+
       <para>The &man.nge.4; driver now supports network device
 	&man.polling.4;.</para>
 
@@ -297,6 +299,16 @@
     <para>&man.make.1; now supports a <option>-C</option> flag to
       change to a given directory before building its
       target(s).</para>
+
+    <para>&man.mount.nfs.8; now supports a <option>-c</option> to
+      avoid doing a &man.connect.2; for UDP mount points.  This option
+      must be used if the server does not reply to requests from the
+      standard NFS port number 2049 or if it replies to requests using
+      a different IP address (which can occur if the server is
+      multi-homed).  Setting the
+      <varname>vfs.nfs.nfs_ip_paranoia</varname> sysctl to
+      <literal>0</literal> will make this option the
+      default.</para>
 
     <para>&man.newsyslog.8; now supports a <literal>W</literal> flag
       to force previously-started compression jobs for an entry (or
