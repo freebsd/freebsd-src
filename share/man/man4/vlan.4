@@ -32,7 +32,6 @@
 .Nm vlan
 .Nd IEEE 802.1Q VLAN network interface
 .Sh SYNOPSIS
-.\" In -stable: .Cd pseudo-device vlan Op Ar count
 .Cd device vlan Op Ar count
 .\"
 .Sh DESCRIPTION
@@ -80,7 +79,6 @@ are
 .Xr nge 4 ,
 .Xr ti 4 ,
 and
-.\" not in -stable
 .Xr txp 4 .
 .Pp
 The rest of the ethernet NICs supported by
@@ -110,7 +108,6 @@ requires defining
 in the
 .Pa /usr/src/sys/pci/if_de.c
 source file and rebuilding the kernel
-.\" not in -stable
 or module.
 The hack works only for the 21041, 21140, and 21140A chips.
 .It Xr fxp 4
