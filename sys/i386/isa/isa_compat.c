@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: isa_compat.c,v 1.9 1999/05/08 21:59:25 dfr Exp $
+ *	$Id: isa_compat.c,v 1.10 1999/05/22 15:18:12 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -81,7 +81,8 @@ isa_compat_alloc_resources(device_t dev, struct isa_compat_resources *res)
 		res->ports = 0;
 
 	if (ISA_GET_RESOURCE(parent, dev, SYS_RES_MEMORY, 0,
-			     &start, &count) == 0) {
+			     &start, &count) == 0
+	    && start != 0) {
 		rid = 0;
 		res->memory = bus_alloc_resource(dev, SYS_RES_MEMORY,
 						 &rid, 0ul, ~0ul, 1,
