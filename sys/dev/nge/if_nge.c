@@ -1767,10 +1767,12 @@ static void nge_init(xsc)
 
 	/*
 	 * Enable the delivery of PHY interrupts based on
-	 * link/speed/duplex status changes.
+	 * link/speed/duplex status changes. Also enable the
+	 * extsts field in the DMA descriptors (needed for
+	 * TCP/IP checksum offload on transmit).
 	 */
 	NGE_SETBIT(sc, NGE_CFG, NGE_CFG_PHYINTR_SPD|NGE_CFG_MODE_1000|
-	    NGE_CFG_PHYINTR_LNK|NGE_CFG_PHYINTR_DUP);
+	    NGE_CFG_PHYINTR_LNK|NGE_CFG_PHYINTR_DUP|NGE_CFG_EXTSTS_ENB);
 
 	/*
 	 * Enable interrupts.
