@@ -48,6 +48,7 @@
 
 #define COPYRIGHT_FILE	"/COPYRIGHT"
 #define README_FILE	"/README"
+#define HELPME_FILE	"/HELPME"
 
 #ifndef EXTERN
 #  define EXTERN extern
@@ -100,6 +101,8 @@ void	Mkdir __P((char *path));
 void	Link __P((char *from, char *to));
 void	CopyFile __P((char *p1, char *p2));
 u_long	PartMb(struct disklabel *lbl,int part);
+char *	SetMount __P((int disk, int part, char *path));
+void	CleanMount __P((int disk, int part));
 
 /* exec.c */
 int	exec __P((int magic, char *cmd, char *args, ...));
@@ -129,9 +132,10 @@ int	set_termcap __P((void));
 /* makedevs.c */
 int	makedevs __P((void));
 
-/* outcurses.c */
+/* ourcurses.c */
 int	edit_line __P((WINDOW *window, int y, int x, char *field, int width, int maxlen));
 int AskEm __P((WINDOW *w,char *prompt, char *answer, int len));
+void ShowFile __P((char *filename, char *header));
 
 /* bootarea.c */
 void	enable_label __P((int fd));

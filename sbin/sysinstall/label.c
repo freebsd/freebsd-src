@@ -408,36 +408,17 @@ AskWhichPartition(char *prompt)
     return tolower(*buf) - 'a';
 }
 
-static void
-CleanMount(int disk, int part)
-{
-    int i = MP[disk][part];
-    if (Fmount[i]) {
-	free(Fmount[i]);
-	Fmount[i] = 0;
-    }
-    if (Fname[i]) {
-	free(Fname[i]);
-	Fname[i] = 0;
-    }
-    if (Ftype[i]) {
-	free(Ftype[i]);
-	Ftype[i] = 0;
-    }
-    MP[disk][part] = 0;
-}
-
 void
 DiskLabel()
 {
     int i, j, done = 0, diskno, flag, k;
-    char buf[128];
+    char buf[128],*p;
     struct disklabel *lbl, olbl;
     u_long cyl, hd, sec, tsec;
     u_long l1, l2, l3, l4;
     
     *buf = 0;
-    i = AskEm(stdscr, "Enter number of disk to Disklabel ", buf, 2);
+    i = AskEm(stdscr, "Enter number of disk to Disklabel> ", buf, 2);
     printf("%d", i);
     if (i != '\n' && i != '\r') return;
     diskno = atoi(buf);
@@ -494,10 +475,13 @@ DiskLabel()
 	mvprintw(18, 0, "Total size:      %d blocks", ourpart_size);
 	mvprintw(19, 0, "Space allocated: %d blocks", allocated_space);
 	mvprintw(21, 0, "Commands available:");
-	mvprintw(22, 0, "(S)ize  (M)ountpoint  (D)elete  (R)eread  (W)rite  (Q)uit");
+	mvprintw(22, 0, "(H)elp  (S)ize  (M)ountpoint  (D)elete  (R)eread  (W)rite  (Q)uit");
 	mvprintw(23, 0, "Enter Command> ");
 	i=getch();
 	switch(i) {
+	case 'h': case 'H':
+            ShowFile(HELPME_FILE,"Help file for disklayout");
+	    break;
 	case 'd': case 'D':
 	    j = AskWhichPartition("Delete which partition? ");
 	    if (j < 0) {
@@ -552,7 +536,7 @@ DiskLabel()
 		break;
 	    }
 	    sprintf(buf, "%lu", (l2-l1+1024L)/2048L);
-	    i = AskEm(stdscr, "Size of slice in MB ", buf, 10);
+	    i = AskEm(stdscr, "Size of partition in MB> ", buf, 10);
 	    l3= strtol(buf, 0, 0) * 2048L;
 	    if (!l3) {
 		yelp("Invalid size given");
@@ -597,31 +581,16 @@ DiskLabel()
 	    else
 		*buf = 0;
 	    if (k != FS_SWAP) {
-		i = AskEm(stdscr, "Mount on directory ", buf, 28);
+		i = AskEm(stdscr, "Mount on directory> ", buf, 28);
 		if (i != '\n' && i != '\r') {
 		    yelp("Invalid directory name");
 		    break;
 		}
 	    }
 	    CleanMount(diskno, j);
-	    for (k = 1; k < MAX_NO_FS; k++)
-		if (!Fmount[k])
-		    break;
-	    if (k >= MAX_NO_FS) {
-		yelp("Maximum number of filesystems exceeded");
-		break;
-	    }
-	    Fmount[k] = StrAlloc(buf);
-	    MP[diskno][j] = k;
-	    sprintf(buf, "%s%c", Dname[diskno], j+'a');
-	    Fname[MP[diskno][j]] = StrAlloc(buf);
-	    if (lbl->d_partitions[j].p_fstype == FS_BSDFFS)
-		Ftype[MP[diskno][j]] = StrAlloc("ufs");
-	    else if (lbl->d_partitions[j].p_fstype == FS_MSDOS)
-		Ftype[MP[diskno][j]] = StrAlloc("msdos");
-	    else if (lbl->d_partitions[j].p_fstype == FS_SWAP)
-		Ftype[MP[diskno][j]] = StrAlloc("swap");
-	    Fsize[MP[diskno][j]] = (lbl->d_partitions[j].p_size+1024)/2048;
+	    p = SetMount(diskno,j,buf);
+	    if(p) 
+		yelp(p);
 	    break;
 
 	case 'w': case 'W':
