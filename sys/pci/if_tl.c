@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_tl.c,v 1.6 1998/05/26 23:42:24 wpaul Exp $
+ *	$Id: if_tl.c,v 1.7 1998/05/29 16:58:46 wpaul Exp $
  */
 
 /*
@@ -240,7 +240,7 @@
 
 #ifndef lint
 static char rcsid[] =
-	"$Id: if_tl.c,v 1.6 1998/05/26 23:42:24 wpaul Exp $";
+	"$Id: if_tl.c,v 1.7 1998/05/29 16:58:46 wpaul Exp $";
 #endif
 
 /*
@@ -497,6 +497,7 @@ static u_int8_t tl_eeprom_getbyte(csr, addr, dest)
 		if (DIO_BYTE1_GET(TL_SIO_EDATA))
 			byte |= i;
 		DIO_BYTE1_CLR(TL_SIO_ECLOK);
+		DELAY(1);
 	}
 
 	EEPROM_STOP;
