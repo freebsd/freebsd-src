@@ -46,7 +46,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: moused.c,v 1.15 1998/02/04 06:46:33 ache Exp $";
+	"$Id: moused.c,v 1.16 1998/03/06 03:09:31 yokota Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -155,6 +155,7 @@ int	nodaemon = FALSE;
 int	background = FALSE;
 int	identify = ID_NONE;
 int	extioctl = FALSE;
+char	*pidfile = "/var/run/moused.pid";
 
 /* local variables */
 
@@ -392,7 +393,7 @@ main(int argc, char *argv[])
     int c;
     int	i;
 
-    while((c = getopt(argc,argv,"3C:DF:PRS:cdfhi:l:m:p:r:st:z:")) != -1)
+    while((c = getopt(argc,argv,"3C:DF:I:PRS:cdfhi:l:m:p:r:st:z:")) != -1)
 	switch(c) {
 
 	case '3':
@@ -510,6 +511,10 @@ main(int argc, char *argv[])
 	        warnx("invalid argument `%s'", optarg);
 	        usage();
 	    }
+	    break;
+
+	case 'I':
+	    pidfile = optarg;
 	    break;
 
 	case 'P':
@@ -645,6 +650,7 @@ moused(void)
     mousestatus_t action2;		/* mapped action */
     fd_set fds;
     u_char b;
+    FILE *fp;
 
     if ((rodent.cfd = open("/dev/consolectl", O_RDWR, 0)) == -1)
 	logerr(1, "cannot open /dev/consolectl", 0);
@@ -654,6 +660,11 @@ moused(void)
 	    logerr(1, "failed to become a daemon", 0);
 	} else {
 	    background = TRUE;
+	    fp = fopen(pidfile, "w");
+	    if (fp != NULL) {
+		fprintf(fp, "%d\n", getpid());
+		fclose(fp);
+	    }
 	}
 
     /* clear mouse data */
