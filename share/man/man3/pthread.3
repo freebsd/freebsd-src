@@ -28,7 +28,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: pthread.3,v 1.1.2.1 1997/03/07 04:17:57 mpp Exp $
+.\"	$Id: pthread.3,v 1.6 1998/04/10 09:33:09 jb Exp $
 .\"
 .Dd April 4, 1996
 .Dt PTHREAD 3
@@ -178,36 +178,28 @@ for threaded applications.
 .Pp
 By default,
 .Fa libc_r
-is not built as part of a 'make world'. To build and install it, type:
-.Bl -item -offset indent
-.It
-cd /usr/src/lib/libc_r
-.It
-make depend && make all && make install
-.El
-.Pp
-This assumes you have a full source tree below /usr/src and that you have at
-least installed the header files in the way that 'make world' does.
-.Pp
-If you wish to install
+is built as part of a 'make world'.  To disable the build of
 .Fa libc_r
-as part of 'make world', type:
-.Bl -item -offset indent
-.It
-cd /usr/src
-.It
-make -DWANT_LIBC_R world
-.El
+you must supply the '-DNOLIBC_R' option to
+.Xr make 1 .
+.Pp
+A FreeBSD specific option has been added to gcc to make linking
+threaded processes simple.
+.Fa gcc -pthread
+links a threaded process against
+.Fa libc_r
+instead of
+.Fa libc.
 .Sh STANDARDS
 The functions in
 .Fa libc_r
 with the
 .Fa pthread_
-prefix and no
+prefix and not
 .Fa _np
-suffix are expected to conform to IEEE
+suffix conform to IEEE
 .Pq Dq Tn POSIX
-Std 1003.1c when it is published.
+Std 1003.1 Second Edition 1996-07-12
 .Pp
 The functions in libc_r with the
 .Fa pthread_
