@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.78 1996/12/18 01:37:22 se Exp $
+ **      $Id: userconfig.c,v 1.79 1996/12/23 12:33:08 joerg Exp $
  **/
 
 /**
@@ -99,7 +99,8 @@
  ** - Implement page up/down (as what?)
  ** - Wizard mode (no restrictions)
  ** - Find out how to put syscons back into low-intensity mode so that the
- **   !b escape is useful on the console.
+ **   !b escape is useful on the console.  (It seems to be that it actually
+ **   gets low/high intensity backwards. That looks OK.)
  **
  ** - Only display headings with devices under them. (difficult)
  **/
@@ -335,6 +336,8 @@ typedef struct _devlist_struct
 
 #define KEY_ZOOM	10	/* these for zoom all/collapse all */
 #define KEY_UNZOOM	11
+
+#define KEY_HELP	12	/* duh? */
 
 static void redraw(void);
 static void insdev(DEV_LIST *dev, DEV_LIST *list);
@@ -944,12 +947,12 @@ collapselist(DEV_LIST *list)
  ** On a device in the active list
  **
  ** [Enter] Edit device parameters  [DEL] Disable device
- ** [TAB]   Change fields           [Q]   Save and Exit
+ ** [TAB]   Change fields           [Q]   Save and Exit             [?] Help
  **
  ** On a device in the inactive list
  **
  ** [Enter] Enable device
- ** [TAB]   Change fields           [Q]   Save and Exit
+ ** [TAB]   Change fields           [Q]   Save and Exit             [?] Help
  **
  ** While editing parameters
  **
@@ -1289,7 +1292,7 @@ drawlist(int row, int num, int detail, DEV_LIST *list)
     {
 	if (list)
 	{
-	    drawline(row+ofs,detail,list,0,"");
+	    drawline(row+ofs,detail,list,0,NULL);	/* NULL -> don't draw empty help string */
 	    list = nextent(list);			/* move down visible list */
 	}else{
 	    erase(0,row+ofs,80,1);
@@ -1347,7 +1350,7 @@ redraw(void)
     putxy(63,9,"!bDev");
     putxy(0,17,lines);
     putxy(0,21,lines);
-    masterhelp("  [!bTAB!n]   Change fields           [!bQ!n]   Save and Exit");
+    masterhelp("  [!bTAB!n]   Change fields           [!bQ!n]   Save and Exit             [!b?!n] Help");
 
     redrawactive();
     redrawinactive();
@@ -1841,6 +1844,126 @@ editparams(DEV_LIST *dev)
     dev->changed = 1;					/* mark as changed */
 }
 
+static char *helptext[] =
+{
+    "                Using the UserConfig kernel settings editor",
+    "                -------------------------------------------",
+    "",
+    "VISUAL MODE:",
+    "",
+    "- - Layout -",
+    "",
+    "The screen displays a list of available drivers, divided into two",
+    "scrolling lists: Active Drivers, and Inactive Drivers.  Each list is",
+    "by default collapsed and can be expanded to show all the drivers",
+    "available in each category.  The parameters for the currently selected",
+    "driver are shown at the bottom of the screen.",
+    "",
+    "- - Moving around -",
+    "",
+    "To move in the current list, use the UP and DOWN cursor keys to select",
+    "an item (the selected item will be highlighted).  If the item is a",
+    "category name, you may alternatively expand or collapse the list of",
+    "drivers for that category by pressing [!bRETURN!n].  Once the category is",
+    "expanded, you can select each driver in the same manner and either:",
+    "",
+    "  - change its parameters using [!bRETURN!n]",
+    "  - move it to the Inactive list using [!bDEL!n]",
+    "",
+    "Use the [!bTAB!n] key to toggle between the Active and Inactive list; if",
+    "you need to move a driver from the Inactive list back to the Active",
+    "one, select it in the Inactive list, using [!bTAB!n] to change lists if",
+    "necessary, and press [!bRETURN!n] -- the device will me moved to its",
+    "category in the Active list.",
+    "",
+    "- - Altering the list/parameters -",
+    "",
+    "Any drivers for devices not installed in your system should be moved",
+    "to the Inactive list, until there are no remaining parameter conflicts",
+    "between the drivers, as indicated at the top.",
+    "",
+    "Once the list of Active drivers only contains entries for the devices",
+    "present in your system, you can set their parameters (Interrupt, DMA",
+    "channel, I/O addresses).  To do this, select the driver and press",
+    "[!bRETURN!n]: it is now possible to edit the settings the settings at the",
+    "bottom of the screen.  Use [!bTAB!n] to change fields, and when you are",
+    "finished, use [!bQ!n] to return to the list.",
+    "",
+    "- - Saving changes -",
+    "",
+    "When all settings seem correct, and you wish to proceed with the",
+    "kernel device probing and boot, press [!bQ!n] -- you will be asked to",
+    "confirm your choice.",
+    "",
+    NULL
+};
+
+
+/**
+ ** helpscreen
+ **
+ ** Displays help text onscreen for people that are confused, using a simple
+ ** pager.
+ **/
+static void
+helpscreen(void) 
+{
+    int		topline = 0;			/* where we are in the text */
+    int		line, c, delta = 1;
+    char	prompt[80];
+
+    for (;;)					/* loop until user quits */
+    {
+	/* display help text */
+	if (delta) 
+	{
+	    clear();					/* remove everything else */
+	    for (line = topline; 
+		 (line < (topline + 24)) && (helptext[line]); 
+		 line++)
+		putxy(0,line-topline,helptext[line]);
+	    delta = 0;
+	}
+	
+	/* prompt */
+	sprintf(prompt,"!i --%s-- [U]p [D]own [Q]uit !n",helptext[line] ? "MORE" : "END");
+	putxy(0,24,prompt);
+	
+	c = getchar();				/* so what do they say? */
+	
+	switch (c)
+	{
+	case 'u':
+	case 'U':
+	case 'b':
+	case 'B':				/* wired into 'more' users' fingers */
+	    if (topline > 0)			/* room to go up? */
+	    {
+		topline -= 24;
+		if (topline < 0)		/* don't go too far */
+		    topline = 0;
+		delta = 1;
+	    }
+	    break;
+
+	case 'd':
+	case 'D':
+	case ' ':				/* expected by most people */
+	    if (helptext[line]) 		/* maybe more below? */
+	    {
+		topline += 24;
+		delta = 1;
+	    }
+	    break;
+	    
+	case 'q':
+	case 'Q':
+	    redraw();				/* restore the screen */
+	    return;
+	}
+    }
+}
+
 
 /** 
  ** High-level control functions
@@ -1958,6 +2081,10 @@ dolist(int row, int num, int detail, int *ofs, DEV_LIST **list, char *dhelp)
 		
 	    case '\014':			/* ^L, redraw */
 		return(KEY_REDRAW);
+		
+	    case '?':				/* helptext */
+		return(KEY_HELP);
+		
 	    }
 	}
     }		
@@ -2054,7 +2181,7 @@ visuserconfig(void)
 			{
 			    masterhelp("  [!bTAB!n]   Change fields           [!bQ!n]   Save device parameters");
 			    editparams(dp);
-			    masterhelp("  [!bTAB!n]   Change fields           [!bQ!n]   Save and Exit");
+			    masterhelp("  [!bTAB!n]   Change fields           [!bQ!n]   Save and Exit             [!b?!n] Help");
 			    putxy(0,17,lines);
 			    conflicts = findconflict(active);	/* update conflict tags */
 			}
@@ -2156,9 +2283,15 @@ visuserconfig(void)
 	default:
 	    mode = 0;				/* shouldn't happen... */
 	}
-	if (ret == KEY_EXIT)
-	{
-	    i = yesnocancel(" Save these parameters before exiting? (Yes/No/Cancel) ");
+
+	/* handle returns that are the same for both modes */
+	switch (ret) {
+	case KEY_HELP:
+	    helpscreen();
+	    break;
+	    
+	case KEY_EXIT:
+	    i = yesnocancel(" Save these parameters before exiting? ([!bY!n]es/[!bN!n]o/[!bC!n]ancel) ");
 	    switch(i)
 	    {
 	    case 2:				/* cancel */
@@ -2176,6 +2309,7 @@ visuserconfig(void)
 		clear();
 		return(1);
 	    }
+	    break;
 	}
     }
 }
@@ -2223,7 +2357,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.78 1996/12/18 01:37:22 se Exp $
+ *      $Id: userconfig.c,v 1.79 1996/12/23 12:33:08 joerg Exp $
  */
 
 #include "scbus.h"
@@ -2618,7 +2752,7 @@ static int
 introfunc(CmdParm *parms)
 {
 #if defined (VISUAL_USERCONFIG)
-    int curr_item, first_time;
+    int curr_item, first_time, extended = 0;
     static char *choices[] = {
 	" Skip kernel configuration and continue with installation ",
 	" Start kernel configuration in Visual mode                ",
@@ -2632,32 +2766,34 @@ introfunc(CmdParm *parms)
     first_time = 1;
     while (1) {
 	char tmp[80];
-	int c, i, extended = 0;
+	int c, i;
 
-	for (i = 0; i < 3; i++) {
-	    tmp[0] = '\0';
-	    if (curr_item == i)
-		strcpy(tmp, "!i");
-	    strcat(tmp, choices[i]);
-	    if (curr_item == i)
-		strcat(tmp, "!n");
-	    putxy(10, 5 + i, tmp);
+	if (!extended) { 
+	    for (i = 0; i < 3; i++) {
+		tmp[0] = '\0';
+		if (curr_item == i)
+		    strcpy(tmp, "!i");
+		strcat(tmp, choices[i]);
+		if (curr_item == i)
+		    strcat(tmp, "!n");
+		putxy(10, 5 + i, tmp);
+	    }
+
+	    if (first_time) {
+		putxy(2, 10, "Here you have the chance to go into kernel configuration mode, making");
+		putxy(2, 11, "any changes which may be necessary to properly adjust the kernel to");
+		putxy(2, 12, "match your hardware configuration.");
+		putxy(2, 14, "If you are installing FreeBSD for the first time, select Visual Mode");
+		putxy(2, 15, "(press Down-Arrow then ENTER).");
+		putxy(2, 17, "If you need to do more specialized kernel configuration and are an");
+		putxy(2, 18, "experienced FreeBSD user, select CLI mode.");
+		putxy(2, 20, "If you are !icertain!n that you do not need to configure your kernel");
+		putxy(2, 21, "then simply press ENTER or Q now.");
+		first_time = 0;
+	    }
+	    
+	    move(0, 0);	/* move the cursor out of the way */
 	}
-
-	if (first_time) {
-	    putxy(2, 10, "Here you have the chance to go into kernel configuration mode, making");
-	    putxy(2, 11, "any changes which may be necessary to properly adjust the kernel to");
-	    putxy(2, 12, "match your hardware configuration.");
-	    putxy(2, 14, "If you are installing FreeBSD for the first time, select Visual Mode");
-	    putxy(2, 15, "(press Down-Arrow then ENTER).");
-	    putxy(2, 17, "If you need to do more specialized kernel configuration and are an");
-	    putxy(2, 18, "experienced FreeBSD user, select CLI mode.");
-	    putxy(2, 20, "If you are !icertain!n that you do not need to configure your kernel");
-	    putxy(2, 21, "then simply press ENTER or Q now.");
-	    first_time = 0;
-	}
-
-	move(0, 0);	/* move the cursor out of the way */
 	c = getchar();
 	if ((extended == 2) || (c == 588) || (c == 596)) {	/* console gives "alternative" codes */
 	    extended = 0;		/* no longer */
