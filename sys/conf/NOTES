@@ -452,7 +452,10 @@ options 	NETGRAPH_VJC
 options		NETGRAPH_ATM_ATMPIF
 
 # NgATM - Netgraph ATM
-options		NGATM_ATM
+options 	NGATM_ATM
+options 	NGATM_ATMBASE
+options 	NGATM_SSCOP
+options 	NGATM_SSCFU
 
 device		mn	# Munich32x/Falc54 Nx64kbit/sec cards.
 device		lmc	# tulip based LanMedia WAN cards
