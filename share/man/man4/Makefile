@@ -113,6 +113,7 @@ MAN4=	aac.4 \
 	psm.4 \
 	pt.4 \
 	pty.4 \
+	random.4 \
 	rl.4 \
 	route.4 \
 	sa.4 \
