@@ -2,5 +2,5 @@
 # it should only contain variable definitions -- it is sourced
 # by the shell much like rc.conf* files
 
-MY_DEVS="std tun2 vty10 fd0 ad0 pty0 cuaa0 cuaa1 bpf0 bpf1 bpf2"
+o_no_devfs="" # we have devfs.
 #fd_size="2880"
