@@ -48,15 +48,13 @@ __FBSDID("$FreeBSD$");
 ENTRY(setjmp)
 	/* Block all signals and retrieve the old signal mask */
 	stmfd	sp!, {r0, r14}
-	mov	r0, #0x00000000
+	add	r2, r0, #4 /* oset */
+	mov	r0, #0x00000001 /* SIG_BLOCK */
+	mov	r1, #0 /* set */
 
-	bl	PIC_SYM(_C_LABEL(sigblock), PLT)
-	mov	r1, r0
+	bl	PIC_SYM(_C_LABEL(sigprocmask), PLT)
 
 	ldmfd	sp!, {r0, r14}
-
-	/* Store signal mask */
-	str	r1, [r0, #(25 * 4)]
 
 	ldr	r1, .Lsetjmp_magic
 	str	r1, [r0], #4
@@ -88,14 +86,16 @@ ENTRY(__longjmp)
 	bne	botch
 
 	/* Fetch signal mask */
-	ldr	r2, [r0, #(25 * 4)]
+	add	r2, r0, #4
 
 	/* Set signal mask */
 	stmfd	sp!, {r0, r1, r14}
 	sub	sp, sp, #4	/* align the stack */
 
-	mov	r0, r2
-	bl	PIC_SYM(_C_LABEL(sigsetmask), PLT)
+	mov	r1, r2
+	mov	r0, #3 /* SIG_SETMASK */
+	mov	r2, #0
+	bl	PIC_SYM(_C_LABEL(sigprocmask), PLT)
 
 	add	sp, sp, #4	/* unalign the stack */
 	ldmfd	sp!, {r0, r1, r14} 
