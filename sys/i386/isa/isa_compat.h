@@ -39,7 +39,6 @@
 #include "le.h"
 #include "lnc.h"
 #include "rdp.h"
-#include "sn.h"
 #include "sr.h"
 #include "wl.h"
 #include "oltr.h"
@@ -101,7 +100,6 @@ extern struct isa_driver  iedriver;
 extern struct isa_driver  ledriver;
 extern struct isa_driver lncdriver;
 extern struct isa_driver rdpdriver;
-extern struct isa_driver  sndriver;
 extern struct isa_driver  srdriver;
 extern struct isa_driver  wldriver;
 extern struct isa_driver oltrdriver;
@@ -258,9 +256,6 @@ static struct old_isa_driver old_drivers[] = {
 #endif
 #if NEL > 0
 	{ INTR_TYPE_NET, &eldriver },
-#endif
-#if NSN > 0
-	{ INTR_TYPE_NET, &sndriver },
 #endif
 #if NSR > 0
 	{ INTR_TYPE_NET, &srdriver },
