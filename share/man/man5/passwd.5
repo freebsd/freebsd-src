@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     From: @(#)passwd.5	8.1 (Berkeley) 6/5/93
-.\"	$Id: passwd.5,v 1.17 1997/03/21 20:16:33 mpp Exp $
+.\"	$Id: passwd.5,v 1.6.2.5 1997/10/07 05:34:31 obrien Exp $
 .\"
 .Dd September 29, 1994
 .Dt PASSWD 5
@@ -625,6 +625,7 @@ password database, with passwords intact
 .Xr yp 4 ,
 .Xr login.conf 5 ,
 .Xr adduser 8 ,
+.Xr pw 8 ,
 .Xr pwd_mkdb 8 ,
 .Xr vipw 8
 .Sh BUGS
@@ -663,9 +664,10 @@ The additional fields
 and
 .Dq expire
 are added, but are turned off by default.
-Class is currently not implemented, but change and expire are; to set them,
-use the current day in seconds from the epoch + whatever number of seconds
-of offset you want.
+These fields can be then set using
+.Xr vipw 8
+or
+.Xr pw 8 .
 .Bd -literal -offset indent
 BEGIN { FS = ":"}
 { print $1 ":" $2 ":" $3 ":" $4 "::0:0:" $5 ":" $6 ":" $7 }
