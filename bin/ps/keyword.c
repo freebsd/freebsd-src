@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: keyword.c,v 1.12 1997/02/22 14:05:03 peter Exp $
  */
 
 #ifndef lint
@@ -105,7 +105,7 @@ VAR var[] = {
 	{"ktrace", "KTRACE", NULL, 0, pvar, 8, POFF(p_traceflag), LONG, "x"},
 	{"ktracep", "KTRACEP", NULL, 0, pvar, 8, POFF(p_tracep), LONG, "x"},
 	{"lim", "LIM", NULL, 0, maxrss, 5},
-	{"login", "LOGIN", NULL, LJUST, logname, MAXLOGNAME},
+	{"login", "LOGIN", NULL, LJUST, logname, MAXLOGNAME-1},
 	{"logname", "", "login"},
 	{"lstart", "STARTED", NULL, LJUST|USER, lstarted, 28},
 	{"majflt", "MAJFLT", NULL, USER, rvar, 4, ROFF(ru_majflt), LONG, "d"},
@@ -193,7 +193,7 @@ VAR var[] = {
 	{"ktrace", "KTRACE", NULL, 0, pvar, 8, POFF(p_traceflag), LONG, "x"},
 	{"ktracep", "KTRACEP", NULL, 0, pvar, 8, POFF(p_tracep), LONG, "x"},
 	{"lim", "LIM", NULL, 0, maxrss, 5},
-	{"logname", "LOGNAME", NULL, LJUST, logname, MAXLOGNAME},
+	{"logname", "LOGNAME", NULL, LJUST, logname, MAXLOGNAME-1},
 	{"lstart", "STARTED", NULL, LJUST|USER, lstarted, 28},
 	{"majflt", "MAJFLT", NULL, USER, rvar, 4, ROFF(ru_majflt), LONG, "d"},
 	{"minflt", "MINFLT", NULL, USER, rvar, 4, ROFF(ru_minflt), LONG, "d"},
