@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)reboot.8	8.1 (Berkeley) 6/9/93
-.\"	$Id$
+.\"	$Id: reboot.8,v 1.6 1999/06/23 07:00:30 ru Exp $
 .\"
 .Dd June 9, 1993
 .Dt REBOOT 8
@@ -55,10 +55,14 @@ The
 and
 .Nm
 utilities flush the file system cache to disk, send all running processes
-a SIGTERM (and subsequently a SIGKILL) and, respectively, halt or restart
-the system.
-The action is logged, including entering a shutdown record into the login
-accounting file.
+a
+.Dv SIGTERM
+(and subsequently a
+.Dv SIGKILL )
+and, respectively, halt or restart the system.
+The action is logged, including entering a shutdown record into the
+.Xr wtmp 5
+file.
 .Pp
 The options are as follows:
 .Bl -tag -width indent
@@ -67,7 +71,9 @@ The file system cache is not flushed.
 This option should probably not be used.
 .It Fl q
 The system is halted or restarted quickly and ungracefully, and only
-the flushing of the file system cache is performed.
+the flushing of the file system cache is performed (if the
+.Fl n
+is not specified).
 This option should probably not be used.
 .It Fl p
 The system will turn off the power
@@ -90,9 +96,10 @@ utilities.
 Normally, the
 .Xr shutdown 8
 utility is used when the system needs to be halted or restarted, giving
-users advance warning of their impending doom.
+users advance warning of their impending doom and cleanly terminating
+specific programs.
 .Sh SEE ALSO
-.Xr utmp 5 ,
+.Xr wtmp 5 ,
 .Xr boot 8 ,
 .Xr shutdown 8 ,
 .Xr sync 8

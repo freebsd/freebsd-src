@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)shutdown.8	8.2 (Berkeley) 4/27/95
-.\"	$Id: shutdown.8,v 1.8 1998/12/11 10:35:38 bde Exp $
+.\"	$Id: shutdown.8,v 1.11 1999/06/21 16:06:20 ru Exp $
 .\"
 .Dd Dec 11, 1998
 .Dt SHUTDOWN 8
@@ -40,8 +40,15 @@
 .Nd "close down the system at a given time"
 .Sh SYNOPSIS
 .Nm shutdown
-.Op Fl 
-.Op Fl hknpr
+.Op Fl
+.Oo
+.Fl h | Fl p |
+.Fl r | Fl k
+.Oc
+.Oo
+.Fl o
+.Op Fl n
+.Oc
 .Ar time
 .Op Ar warning-message ...
 .Sh DESCRIPTION
@@ -55,11 +62,15 @@ The following options are available:
 .Bl -tag -width indent
 .It Fl h
 The system is halted at the specified
-.Ar time
-when
-.Nm
-executes
-.Xr halt 8 .
+.Ar time .
+.It Fl p
+The system is halted and the power is turned off
+.Pq hardware support required
+at the specified
+.Ar time .
+.It Fl r
+The system is rebooted at the specified
+.Ar time .
 .It Fl k
 Kick everybody off.
 The
@@ -67,18 +78,30 @@ The
 option
 does not actually halt the system, but leaves the
 system multi-user with logins disabled (for all but super-user).
-.It Fl n
-Prevent the normal
-.Xr sync 2
-before stopping.
-.It Fl p
-The system will turn the power off after shutdown if it can.
-.It Fl r 
-.Nm Shutdown
-executes
+.It Fl o
+If one of the
+.Fl h ,
+.Fl p
+or
+.Fl r
+is specified,
+.Nm
+will execute
+.Xr halt 8
+or
 .Xr reboot 8
-at the specified
-.Ar time .
+instead of sending signal to
+.Xr init 8 .
+.It Fl n
+If the
+.Fl o
+is specified, prevent the file system cache from being flushed by passing
+.Fl n
+option to
+.Xr halt 8
+or
+.Xr reboot 8 .
+This option should probably not be used.
 .It Ar time
 .Ar Time
 is the time at which
@@ -120,13 +143,12 @@ removed just before
 .Nm
 exits.
 .Pp
-At shutdown time a message is written in the system log, containing the
-time of shutdown, who initiated the shutdown and the reason.
-A terminate
-signal is then sent to
+At shutdown time a message is written to the system log, containing the
+time of shutdown, the person who initiated the shutdown and the reason.
+Corresponding signal is then sent to
 .Xr init 8
-to bring the system down to single-user state (depending on above
-options).
+to respectively halt, reboot or bring the system down to single-user state
+(depending on the above options).
 The time of the shutdown and the warning message
 are placed in
 .Pa /var/run/nologin
@@ -143,6 +165,7 @@ tells login not to let anyone log in
 .Xr wall 1 ,
 .Xr nologin 5 ,
 .Xr halt 8 ,
+.Xr init 8 ,
 .Xr reboot 8
 .Sh BACKWARD COMPATIBILITY
 The hours and minutes in the second time format may be separated by
