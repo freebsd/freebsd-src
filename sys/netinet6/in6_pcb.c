@@ -424,8 +424,7 @@ in6_selectsrc(dstsock, opts, mopts, ro, laddr, errorp)
 	 */
 	if (pi && pi->ipi6_ifindex) {
 		/* XXX boundary check is assumed to be already done. */
-		ia6 = in6_ifawithscope(ifindex2ifnet[pi->ipi6_ifindex],
-				       dst);
+		ia6 = in6_ifawithscope(ifnet_byindex(pi->ipi6_ifindex), dst);
 		if (ia6 == 0) {
 			*errorp = EADDRNOTAVAIL;
 			return(0);
@@ -453,7 +452,7 @@ in6_selectsrc(dstsock, opts, mopts, ro, laddr, errorp)
 			*errorp = ENXIO; /* XXX: better error? */
 			return(0);
 		}
-		ia6 = in6_ifawithscope(ifindex2ifnet[dstsock->sin6_scope_id],
+		ia6 = in6_ifawithscope(ifnet_byindex(dstsock->sin6_scope_id),
 				       dst);
 		if (ia6 == 0) {
 			*errorp = EADDRNOTAVAIL;

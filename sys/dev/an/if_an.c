@@ -1001,7 +1001,7 @@ static void an_setdef(sc, areq)
 	case AN_RID_GENCONFIG:
 		cfg = (struct an_ltv_genconfig *)areq;
 
-		ifa = ifnet_addrs[ifp->if_index - 1];
+		ifa = ifaddr_byindex(ifp->if_index);
 		sdl = (struct sockaddr_dl *)ifa->ifa_addr;
 		bcopy((char *)&cfg->an_macaddr, (char *)&sc->arpcom.ac_enaddr,
 		    ETHER_ADDR_LEN);

@@ -141,8 +141,7 @@ in6_selectsrc(dstsock, opts, mopts, ro, laddr, errorp)
 	 */
 	if (pi && pi->ipi6_ifindex) {
 		/* XXX boundary check is assumed to be already done. */
-		ia6 = in6_ifawithscope(ifindex2ifnet[pi->ipi6_ifindex],
-				       dst);
+		ia6 = in6_ifawithscope(ifnet_byindex(pi->ipi6_ifindex), dst);
 		if (ia6 == 0) {
 			*errorp = EADDRNOTAVAIL;
 			return(0);
@@ -170,7 +169,7 @@ in6_selectsrc(dstsock, opts, mopts, ro, laddr, errorp)
 			*errorp = ENXIO; /* XXX: better error? */
 			return(0);
 		}
-		ia6 = in6_ifawithscope(ifindex2ifnet[dstsock->sin6_scope_id],
+		ia6 = in6_ifawithscope(ifnet_byindex(dstsock->sin6_scope_id),
 				       dst);
 		if (ia6 == 0) {
 			*errorp = EADDRNOTAVAIL;
@@ -474,7 +473,7 @@ in6_embedscope(in6, sin6, in6p, ifpp)
 		if (in6p && in6p->in6p_outputopts &&
 		    (pi = in6p->in6p_outputopts->ip6po_pktinfo) &&
 		    pi->ipi6_ifindex) {
-			ifp = ifindex2ifnet[pi->ipi6_ifindex];
+			ifp = ifnet_byindex(pi->ipi6_ifindex);
 			in6->s6_addr16[1] = htons(pi->ipi6_ifindex);
 		} else if (in6p && IN6_IS_ADDR_MULTICAST(in6) &&
 			   in6p->in6p_moptions &&
@@ -485,7 +484,7 @@ in6_embedscope(in6, sin6, in6p, ifpp)
 			/* boundary check */
 			if (scopeid < 0 || if_index < scopeid)
 				return ENXIO;  /* XXX EINVAL? */
-			ifp = ifindex2ifnet[scopeid];
+			ifp = ifnet_byindex(scopeid);
 			/*XXX assignment to 16bit from 32bit variable */
 			in6->s6_addr16[1] = htons(scopeid & 0xffff);
 		}

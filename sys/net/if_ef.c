@@ -134,8 +134,8 @@ ef_attach(struct efnet *sc)
 	ifp->if_type = IFT_XETHER;
 	ifp->if_flags |= IFF_RUNNING;
 
-	ifa1 = ifnet_addrs[ifp->if_index - 1];
-	ifa2 = ifnet_addrs[sc->ef_ifp->if_index - 1];
+	ifa1 = ifaddr_byindex(ifp->if_index);
+	ifa2 = ifaddr_byindex(sc->ef_ifp->if_index);
 	sdl1 = (struct sockaddr_dl *)ifa1->ifa_addr;
 	sdl2 = (struct sockaddr_dl *)ifa2->ifa_addr;
 	sdl1->sdl_type = IFT_ETHER;
