@@ -1,4 +1,0 @@
-# $Id$
-# This file determines whether the Kerberos server should be
-# automatically started.  The default is off.
-off
