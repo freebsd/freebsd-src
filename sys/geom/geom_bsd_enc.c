@@ -44,10 +44,12 @@
 #include <sys/types.h>
 #include <sys/endian.h>
 #include <sys/disklabel.h>
+#include <sys/errno.h>
 #ifdef _KERNEL
 #include <sys/systm.h>
 #else
 #include <string.h>
+#include <stdio.h>
 #endif
 
 void
@@ -61,12 +63,38 @@ bsd_partition_le_dec(u_char *ptr, struct partition *d)
 	d->p_cpg = le16dec(ptr + 14);
 }
 
-void
-bsd_disklabel_le_dec(u_char *ptr, struct disklabel *d)
+int
+bsd_disklabel_le_dec(u_char *ptr, struct disklabel *d, int maxpart)
 {
 	int i;
+	u_char *p, *pe;
+	uint16_t sum;
 
 	d->d_magic = le32dec(ptr + 0);
+	if (d->d_magic != DISKMAGIC)
+		return(EINVAL);
+
+	d->d_magic2 = le32dec(ptr + 132);
+	if (d->d_magic2 != DISKMAGIC) {
+printf("HERE %s %d\n", __FILE__, __LINE__);
+		return(EINVAL);
+	}
+
+	d->d_npartitions = le16dec(ptr + 138);
+	if (d->d_npartitions > maxpart) {
+printf("HERE %s %d\n", __FILE__, __LINE__);
+		return(EINVAL);
+	}
+
+	pe = ptr + 148 + 16 * d->d_npartitions;
+	sum = 0;
+	for (p = ptr; p < pe; p += 2)
+		sum ^= le16dec(p);
+	if (sum != 0) {
+printf("HERE %s %d\n", __FILE__, __LINE__);
+		return(EINVAL);
+	}
+
 	d->d_type = le16dec(ptr + 4);
 	d->d_subtype = le16dec(ptr + 6);
 	bcopy(ptr + 8, d->d_typename, 16);
@@ -97,13 +125,13 @@ bsd_disklabel_le_dec(u_char *ptr, struct disklabel *d)
 	d->d_spare[2] = le32dec(ptr + 120);
 	d->d_spare[3] = le32dec(ptr + 124);
 	d->d_spare[4] = le32dec(ptr + 128);
-	d->d_magic2 = le32dec(ptr + 132);
 	d->d_checksum = le16dec(ptr + 136);
 	d->d_npartitions = le16dec(ptr + 138);
 	d->d_bbsize = le32dec(ptr + 140);
 	d->d_sbsize = le32dec(ptr + 144);
 	for (i = 0; i < MAXPARTITIONS; i++)
 		bsd_partition_le_dec(ptr + 148 + 16 * i, &d->d_partitions[i]);
+	return(0);
 }
 
 void
@@ -121,6 +149,8 @@ void
 bsd_disklabel_le_enc(u_char *ptr, struct disklabel *d)
 {
 	int i;
+	u_char *p, *pe;
+	uint16_t sum;
 
 	le32enc(ptr + 0, d->d_magic);
 	le16enc(ptr + 4, d->d_type);
@@ -154,10 +184,15 @@ bsd_disklabel_le_enc(u_char *ptr, struct disklabel *d)
 	le32enc(ptr + 124, d->d_spare[3]);
 	le32enc(ptr + 128, d->d_spare[4]);
 	le32enc(ptr + 132, d->d_magic2);
-	le16enc(ptr + 136, d->d_checksum);
+	le16enc(ptr + 136, 0);
 	le16enc(ptr + 138, d->d_npartitions);
 	le32enc(ptr + 140, d->d_bbsize);
 	le32enc(ptr + 144, d->d_sbsize);
-	for (i = 0; i < MAXPARTITIONS; i++)
+	for (i = 0; i < d->d_npartitions; i++)
 		bsd_partition_le_enc(ptr + 148 + 16 * i, &d->d_partitions[i]);
+	pe = ptr + 148 + 16 * d->d_npartitions;
+	sum = 0;
+	for (p = ptr; p < pe; p += 2)
+		sum ^= le16dec(p);
+	le16enc(ptr + 136, sum);
 }
