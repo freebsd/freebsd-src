@@ -126,6 +126,7 @@
 .ds aa \&\f\\n(cF\s\\n(cZ
 .if \\n(.$==2 \{\
 .	if "\\$1"32v" \&Version 32V \\*(tNAT&T UNIX\\*(aa\\$2
+.	if "\\$1"v1"  \&Version 1 \\*(tNAT&T UNIX\\*(aa\\$2
 .	if "\\$1"v6"  \&Version 6 \\*(tNAT&T UNIX\\*(aa\\$2
 .	if "\\$1"v7"  \&Version 7 \\*(tNAT&T UNIX\\*(aa\\$2
 .	if "\\$1"V"  \&\\*(tNAT&T\\*(aa System V \\*(tNUNIX\\*(aa\\$2
@@ -135,6 +136,7 @@
 .\}
 .if \\n(.$==1 \{\
 .	if "\\$1"32v" \&Version 32V \\*(tNAT&T UNIX\\*(aa
+.	if "\\$1"v1"  \&Version 1 \\*(tNAT&T UNIX\\*(aa
 .	if "\\$1"v6"  \&Version 6 \\*(tNAT&T UNIX\\*(aa
 .	if "\\$1"v7"  \&Version 7 \\*(tNAT&T UNIX\\*(aa
 .	if "\\$1"V"  \&\\*(tNAT&T\\*(aa System V \\*(tNUNIX\\*(aa
