@@ -116,10 +116,6 @@ gpprobe(struct isa_device *dvp)
 {
 	int	status;
         struct gpib_softc *sc = &gpib_sc;
-	static int once;
-
-	if (!once++)
-		cdevsw_add(&gp_cdevsw);
 
 	gpib_port = dvp->id_iobase;
         status=1;

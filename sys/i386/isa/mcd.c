@@ -730,10 +730,6 @@ mcd_probe(struct isa_device *dev)
 	int unit = dev->id_unit;
 	int i, j;
 	unsigned char stbytes[3];
-	static int once;
-
-	if (!once++)
-		cdevsw_add(&mcd_cdevsw);
 
 	mcd_data[unit].flags = MCDPROBING;
 

@@ -128,10 +128,6 @@ spigot_probe(struct isa_device *devp)
 {
 int			status;
 struct	spigot_softc	*ss=(struct spigot_softc *)&spigot_softc[devp->id_unit];
-static int once;
-
-	if (!once++)
-		cdevsw_add(&spigot_cdevsw);
 
 	ss->flags = 0;
 	ss->maddr = 0;
