@@ -1,4 +1,4 @@
-<!-- $Id: sections.sgml,v 1.2 1995/09/25 04:53:33 jfieber Exp $ -->
+<!-- $Id: sections.sgml,v 1.3 1995/09/25 18:23:04 wollman Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!-- Entities containing all the pieces of the handbook are -->
@@ -30,6 +30,7 @@
 <!ENTITY porting SYSTEM "porting.sgml">
 <!ENTITY ports SYSTEM "ports.sgml">
 <!ENTITY ppp SYSTEM "ppp.sgml">
+<!ENTITY printing SYSTEM "printing.sgml">
 <!ENTITY relnotes SYSTEM "relnotes.sgml">
 <!ENTITY scsi SYSTEM "scsi.sgml">
 <!ENTITY skey SYSTEM "skey.sgml">
