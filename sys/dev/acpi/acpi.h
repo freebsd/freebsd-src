@@ -84,6 +84,7 @@ typedef struct acpi_softc {
 	LIST_HEAD(, acpi_powerres_info) acpi_powerres_inflist;
 	LIST_HEAD(, acpi_powerres_device) acpi_powerres_devlist;
 	STAILQ_HEAD(, acpi_event) event;
+	struct	proc *acpi_thread;
 } acpi_softc_t;
 
 /* Device State */
