@@ -199,7 +199,7 @@ svr4_sendit(td, s, mp, flags)
 		control = 0;
 	}
 #ifdef KTRACE
-	if (KTRPOINT(td->td_proc, KTR_GENIO)) {
+	if (KTRPOINT(td, KTR_GENIO)) {
 		int iovlen = auio.uio_iovcnt * sizeof (struct iovec);
 
 		MALLOC(ktriov, struct iovec *, iovlen, M_TEMP, M_WAITOK);
@@ -277,7 +277,7 @@ svr4_recvit(td, s, mp, namelenp)
 		}
 	}
 #ifdef KTRACE
-	if (KTRPOINT(td->td_proc, KTR_GENIO)) {
+	if (KTRPOINT(td, KTR_GENIO)) {
 		int iovlen = auio.uio_iovcnt * sizeof (struct iovec);
 
 		MALLOC(ktriov, struct iovec *, iovlen, M_TEMP, M_WAITOK);
