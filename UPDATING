@@ -27,8 +27,8 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 5.x IS SLOW:
 20040308:
 	The packet filter (pf) is now installed with the base system. Make
 	sure to run mergemaster -p before installworld to create required
-	user accounts. If you do not want to build pf with your system you
-	can use the NO_PF knob in make.conf.
+	user account ("proxy"). If you do not want to build pf with your
+	system you can use the NO_PF knob in make.conf.
 	Also note that pf requires "options PFIL_HOOKS" in the kernel. The
 	pf system consists of the following three devices:
 	device		pf		# required
