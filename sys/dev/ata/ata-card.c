@@ -171,7 +171,7 @@ ata_pccard_detach(device_t dev)
 			 ATA_ALTADDR_RID, ch->r_io[ATA_ALTSTAT].res);
     bus_release_resource(dev, SYS_RES_IOPORT,
 			 ATA_IOADDR_RID, ch->r_io[ATA_DATA].res);
-    for (i = ATA_DATA; i <= ATA_MAX_RES; i++)
+    for (i = ATA_DATA; i < ATA_MAX_RES; i++)
 	ch->r_io[i].res = NULL;
     return 0;
 }
