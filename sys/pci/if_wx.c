@@ -73,6 +73,7 @@
 
 static int wx_intr		__P((void *));
 static void wx_handle_link_intr	__P((wx_softc_t *));
+static void wx_check_link	__P((wx_softc_t *));
 static void wx_handle_rxint	__P((wx_softc_t *));
 static void wx_gc		__P((wx_softc_t *));
 static void wx_start		__P((struct ifnet *));
@@ -84,7 +85,7 @@ static void wx_hw_stop		__P((wx_softc_t *));
 static void wx_set_addr		__P((wx_softc_t *, int, u_int8_t *));
 static int wx_hw_initialize	__P((wx_softc_t *));
 static void wx_stop		__P((wx_softc_t *));
-static void wx_watchdog		__P((struct ifnet *));
+static void wx_txwatchdog	__P((struct ifnet *));
 static int wx_get_rbuf		__P((wx_softc_t *, rxpkt_t *));
 static void wx_rxdma_map	__P((wx_softc_t *, rxpkt_t *, struct mbuf *));
 
@@ -97,7 +98,7 @@ static INLINE u_int16_t wx_read_eeprom_word __P((wx_softc_t *, int));
 static void wx_read_eeprom __P((wx_softc_t *, u_int16_t *, int, int));
 
 static int wx_attach_common	__P((wx_softc_t *));
-static void wx_stats_update	__P((void *));
+static void wx_watchdog		__P((void *));
 
 static INLINE void wx_mwi_whackon	__P((wx_softc_t *));
 static INLINE void wx_mwi_unwhack	__P((wx_softc_t *));
@@ -245,7 +246,7 @@ wx_attach(parent, self, aux)
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = wx_ioctl;
 	ifp->if_start = wx_start;
-	ifp->if_watchdog = wx_watchdog;
+	ifp->if_watchdog = wx_txwatchdog;
 
 	/*
 	 * Attach the interface.
@@ -615,6 +616,7 @@ wx_attach(device_t dev)
 	    sc->w.arpcom.ac_enaddr[4], sc->w.arpcom.ac_enaddr[5]);
 	(void) snprintf(sc->wx_name, sizeof (sc->wx_name) - 1, "wx%d",
 	    device_get_unit(dev));
+
 	ifp = &sc->w.arpcom.ac_if;
 	ifp->if_unit = device_get_unit(dev);
 	ifp->if_name = "wx";
@@ -626,7 +628,7 @@ wx_attach(device_t dev)
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = wx_ioctl;
 	ifp->if_start = wx_start;
-	ifp->if_watchdog = wx_watchdog;
+	ifp->if_watchdog = wx_txwatchdog;
 	if_attach(ifp);
 	ifp->if_snd.ifq_maxlen = WX_MAX_TDESC - 1;
 	ether_ifattach(ifp);
@@ -760,23 +762,32 @@ wx_attach_common(sc)
 	int ll = 0;
 
 	/*
-	 * First, reset the chip.
+	 * First, check for revision support.
+	 */
+	if (sc->revision < 2) {
+		printf("%s: cannot support revision %d chips\n",
+		    sc->wx_name, sc->revision);
+		return (ENXIO);
+	}
+
+	/*
+	 * Second, reset the chip.
 	 */
 	wx_hw_stop(sc);
 
 	/*
-	 * Second, validate our EEPROM.
+	 * Third, validate our EEPROM.
 	 */
 
 	/* TBD */
 
 	/*
-	 * Third, read eeprom for our MAC address and other things.
+	 * Fourth, read eeprom for our MAC address and other things.
 	 */
 	wx_read_eeprom(sc, (u_int16_t *)sc->wx_enaddr, WX_EEPROM_MAC_OFF, 3);
 
 	/*
-	 * Fourth, establish some adapter parameters.
+	 * Fifth, establish some adapter parameters.
 	 */
 	sc->wx_txint_delay = 128;
 	ifmedia_init(&sc->wx_media, IFM_IMASK, wx_ifmedia_upd, wx_ifmedia_sts);
@@ -787,7 +798,7 @@ wx_attach_common(sc)
 	ll += 1;
 
 	/*
-	 * Fifth, establish a default device control register word.
+	 * Sixth, establish a default device control register word.
 	 */
 	sc->wx_dcr = 0;
 	if (sc->wx_cfg1 & WX_EEPROM_CTLR1_FD)
@@ -807,7 +818,7 @@ wx_attach_common(sc)
 
 
 	/*
-	 * Sixth, allocate various sw structures...
+	 * Seventh, allocate various sw structures...
 	 */
 	len = sizeof (rxpkt_t) * WX_MAX_RDESC;
 	sc->rbase = (rxpkt_t *) WXMALLOC(len);
@@ -826,7 +837,7 @@ wx_attach_common(sc)
 	ll += 1;
 
 	/*
-	 * Seventh, allocate and dma map (platform dependent) descriptor rings.
+	 * Eighth, allocate and dma map (platform dependent) descriptor rings.
 	 * They have to be aligned on a 4KB boundary.
 	 */
 	if (wx_dring_setup(sc) == 0) {
@@ -1183,8 +1194,82 @@ static void
 wx_handle_link_intr(sc)
 	wx_softc_t *sc;
 {
+	u_int32_t txcw, rxcw, dcr, dsr;
+
 	sc->wx_linkintr++;
-	printf("%s: link intr 0x%x\n", sc->wx_name, sc->wx_icr);
+
+	dcr = READ_CSR(sc, WXREG_DCR);
+	txcw = READ_CSR(sc, WXREG_XMIT_CFGW);
+	rxcw = READ_CSR(sc, WXREG_RECV_CFGW);
+	dsr = READ_CSR(sc, WXREG_DSR);
+
+	/*
+	 * If we have LOS or are now receiving Ordered Sets and are not
+	 * doing auto-negotiation, restore autonegotiation.
+	 */
+
+	if (((dcr & WXDCR_SWDPIN1) || (rxcw & WXRXCW_C)) &&
+	    ((txcw & WXTXCW_ANE) == 0)) {
+		if (sc->wx_debug) {
+			printf("%s: /C/ ordered sets seen- enabling ANE\n",
+			    sc->wx_name);
+		}
+		WRITE_CSR(sc, WXREG_XMIT_CFGW, WXTXCW_DEFAULT);
+		sc->wx_dcr &= ~WXDCR_SLU;
+		WRITE_CSR(sc, WXREG_DCR, sc->wx_dcr);
+		sc->ane_failed = 0;
+	}
+
+	if (sc->wx_icr & WXISR_LSC) {
+		if (READ_CSR(sc, WXREG_DSR) & WXDSR_LU) {
+			printf("%s: gigabit link now up\n", sc->wx_name);
+			sc->linkup = 1;
+			sc->wx_dcr |= (WXDCR_SWDPIO0|WXDCR_SWDPIN0);
+		} else {
+			printf("%s: gigabit link now down\n", sc->wx_name);
+			sc->linkup = 0;
+			sc->wx_dcr &= ~(WXDCR_SWDPIO0|WXDCR_SWDPIN0);
+		}
+		WRITE_CSR(sc, WXREG_DCR, sc->wx_dcr);
+	} else {
+		printf("%s: receive sequence error\n", sc->wx_name);
+	}
+}
+
+static void
+wx_check_link(sc)
+	wx_softc_t *sc;
+{
+	u_int32_t rxcw, dcr, dsr;
+
+	rxcw = READ_CSR(sc, WXREG_RECV_CFGW);
+	dcr = READ_CSR(sc, WXREG_DCR);
+	dsr = READ_CSR(sc, WXREG_DSR);
+
+	if ((dsr & WXDSR_LU) == 0 && (dcr & WXDCR_SWDPIN1) == 0 &&
+	    (rxcw & WXRXCW_C) == 0) {
+		if (sc->ane_failed == 0) {
+			sc->ane_failed = 1;
+			return;
+		}
+		if (sc->wx_debug) {
+			printf("%s: no /C/ ordered sets seen- disabling ANE\n",
+			    sc->wx_name);
+		}
+		WRITE_CSR(sc, WXREG_XMIT_CFGW, WXTXCW_DEFAULT & ~WXTXCW_ANE);
+		if (sc->revision == 2)
+			sc->wx_dcr &= ~WXDCR_TFCE;
+		sc->wx_dcr |= WXDCR_SLU;
+     		WRITE_CSR(sc, WXREG_DCR, sc->wx_dcr);
+	} else if ((rxcw & WXRXCW_C) != 0 && (dcr & WXDCR_SLU) != 0) {
+		if (sc->wx_debug) {
+			printf("%s: /C/ ordered sets seen- enabling ANE\n",
+			    sc->wx_name);
+		}
+		WRITE_CSR(sc, WXREG_XMIT_CFGW, WXTXCW_DEFAULT);
+		sc->wx_dcr &= ~WXDCR_SLU;
+		WRITE_CSR(sc, WXREG_DCR, sc->wx_dcr);
+	}
 }
 
 static void
@@ -1464,10 +1549,12 @@ wx_gc(sc)
 }
 
 /*
- * Update packet in/out/collision statistics.
+ * Periodic timer to update packet in/out/collision statistics,
+ * and, more importantly, garbage collect completed transmissions
+ * and to handle link status changes.
  */
 static void
-wx_stats_update(arg)
+wx_watchdog(arg)
 	void *arg;
 {
 	wx_softc_t *sc = arg;
@@ -1475,12 +1562,13 @@ wx_stats_update(arg)
 
 	s = splimp();
 	wx_gc(sc);
+	wx_check_link(sc);
 	splx(s);
 
 	/*
 	 * Schedule another timeout one second from now.
 	 */
-	TIMEOUT(sc, wx_stats_update, sc, hz);
+	TIMEOUT(sc, wx_watchdog, sc, hz);
 }
 
 /*
@@ -1565,6 +1653,13 @@ wx_hw_initialize(sc)
 	for (i = 0; i < WX_MC_TAB_SIZE; i++) {
 		WRITE_CSR(sc, WXREG_MTA + (sizeof (u_int32_t) * 4), 0);
 	}
+
+	/*
+	 * Handle link control
+	 */
+	WRITE_CSR(sc, WXREG_DCR, sc->wx_dcr | WXDCR_LRST);
+	DELAY(50 * 1000);
+
 	if (sc->wx_dcr & (WXDCR_RFCE|WXDCR_TFCE)) {
 		WRITE_CSR(sc, WXREG_FCAL, FC_FRM_CONST_LO);
 		WRITE_CSR(sc, WXREG_FCAH, FC_FRM_CONST_HI);
@@ -1578,6 +1673,7 @@ wx_hw_initialize(sc)
 	if (sc->revision == 2) {
 		WRITE_CSR(sc, WXREG_FLOW_RCV_HI, 0);
 		WRITE_CSR(sc, WXREG_FLOW_RCV_LO, 0);
+		sc->wx_dcr &= ~(WXDCR_RFCE|WXDCR_TFCE);
 	} else {
 		WRITE_CSR(sc, WXREG_FLOW_RCV_HI, WX_RCV_FLOW_HI_DFLT);
 		WRITE_CSR(sc, WXREG_FLOW_RCV_LO, WX_RCV_FLOW_LO_DFLT);
@@ -1590,19 +1686,21 @@ wx_hw_initialize(sc)
 	 * The pin stuff is all FM from the Linux driver.
 	 */
 	if ((READ_CSR(sc, WXREG_DCR) & WXDCR_SWDPIN1) == 0) {
-		for (i = 0; i < 500; i++) {
+		for (i = 0; i < (WX_LINK_UP_TIMEOUT/10); i++) {
 			DELAY(10 * 1000);
 			if (READ_CSR(sc, WXREG_DSR) & WXDSR_LU) {
 				sc->linkup = 1;
 				break;
 			}
 		}
+		if (sc->linkup == 0) {
+			sc->ane_failed = 1;
+			wx_check_link(sc);
+		}
+		sc->ane_failed = 0;
 	} else {
-		printf("%s: swdpio did not clear\n", sc->wx_name);
-		return (-1);
-	}
-	if (sc->linkup == 0) {
-		printf("%s: link never came up\n", sc->wx_name);
+		printf("%s: swdpio1 did not clear- check for reversed cable\n",
+		    sc->wx_name);
 		return (-1);
 	}
 	sc->wx_ienable = WXIENABLE_DEFAULT;
@@ -1623,7 +1721,7 @@ wx_stop(sc)
 	/*
 	 * Cancel stats updater.
 	 */
-	UNTIMEOUT(wx_stats_update, sc, sc);
+	UNTIMEOUT(wx_watchdog, sc, sc);
 
 	/*
 	 * Reset the chip
@@ -1664,10 +1762,10 @@ wx_stop(sc)
 }
 
 /*
- * Watchdog/transmission transmit timeout handler.
+ * Transmit Watchdog
  */
 static void
-wx_watchdog(ifp)
+wx_txwatchdog(ifp)
 	struct ifnet *ifp;
 {
 	wx_softc_t *sc = SOFTC_IFP(ifp);
@@ -1800,7 +1898,7 @@ wx_init(xsc)
 	/*
 	 * Start stats updater.
 	 */
-	TIMEOUT(sc, wx_stats_update, sc, hz);
+	TIMEOUT(sc, wx_watchdog, sc, hz);
 
 	/*
 	 * And we're outta here...
