@@ -35,6 +35,9 @@
     ..
     empty               mode=0555 flags=schg
     ..
+/set gname=games mode=0775
+    games
+    ..
 /set gname=wheel mode=0755
     heimdal         mode=0700
     ..
