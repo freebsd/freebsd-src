@@ -79,7 +79,9 @@ The options are as follows:
 All the filesystems described in
 .Xr fstab 5
 are mounted.
-Exceptions are those marked as ``noauto'', excluded by the
+Exceptions are those marked as
+.Dq noauto ,
+excluded by the
 .Fl t
 flag (see below), or if they are already mounted (except the
 root filesystem which is always remounted to preserve
@@ -106,7 +108,7 @@ In case of conflicting options being specified, the rightmost option
 takes effect.
 The following options are available:
 .Bl -tag -width indent
-.It async
+.It Cm async
 All
 .Tn I/O
 to the file system should be done asynchronously.
@@ -115,69 +117,72 @@ This is a
 flag to set,
 and should not be used unless you are prepared to recreate the file
 system should your system crash.
-.It current
+.It Cm current
 When used with the
 .Fl u
 flag, this is the same as specifying the options currently in effect for
 the mounted filesystem.
-.It force
+.It Cm force
 The same as
 .Fl f ;
 forces the revocation of write access when trying to downgrade
 a filesystem mount status from read-write to read-only.
 Also
 forces the R/W mount of an unclean filesystem (dangerous; use with caution).
-.It fstab
+.It Cm fstab
 When used with the
 .Fl u
 flag, this is the same as specifying all the options listed in the
 .Xr fstab 5
 file for the filesystem.
-.It noasync
+.It Cm noasync
 Metadata I/O should be done synchronously, while data I/O should be done
-asynchronously.  This is the default.
-.It noatime
+asynchronously.
+This is the default.
+.It Cm noatime
 Do not update the file access time when reading from a file.
 This option
 is useful on filesystems where there are large numbers of files and
 performance is more critical than updating the file access time (which is
-rarely ever important). This option is currently only supported on local
-filesystems.
-.It noauto
-This filesystem should be skipped when mount is run with the
+rarely ever important).
+This option is currently only supported on local filesystems.
+.It Cm noauto
+This filesystem should be skipped when
+.Nm
+is run with the
 .Fl a
 flag.
-.It noclusterr
+.It Cm noclusterr
 Disable read clustering.
-.It noclusterw
+.It Cm noclusterw
 Disable write clustering.
-.It nodev
+.It Cm nodev
 Do not interpret character or block special devices on the file system.
 This option is useful for a server that has file systems containing
 special devices for architectures other than its own.
-.It noexec
+.It Cm noexec
 Do not allow execution of any binaries on the mounted file system.
 This option is useful for a server that has file systems containing
 binaries for architectures other than its own.
-.It nosuid
+.It Cm nosuid
 Do not allow set-user-identifier or set-group-identifier bits to take effect.
 Note: this option is worthless if a public available suid or sgid
 wrapper like
 .Xr suidperl 1
 is installed on your system.
-.It nosymfollow
+.It Cm nosymfollow
 Do not follow symlinks
 on the mounted file system.
-.It rdonly
+.It Cm rdonly
 The same as
 .Fl r ;
 mount the file system read-only (even the super-user may not write it).
-.It sync
+.It Cm sync
 All
 .Tn I/O
 to the file system should be done synchronously.
-.It suiddir
-A directory on the mounted filesystem will respond to the SUID bit 
+.It Cm suiddir
+A directory on the mounted filesystem will respond to the SUID bit
 being set, by setting the owner of any new files to be the same
 as the owner of the directory.
 New directories will inherit the bit from their parents.
@@ -194,11 +199,11 @@ Only UFS filesystems support this option.
 See
 .Xr chmod 2
 for more information.
-.It update
+.It Cm update
 The same as
 .Fl u ;
 indicate that the status of an already mounted file system should be changed.
-.It union
+.It Cm union
 Causes the namespace at the mount point to appear as the union
 of the mounted filesystem root and the existing directory.
 Lookups will be done in the mounted filesystem first.
@@ -238,7 +243,9 @@ may be described in the manual pages for the associated
 .Pa /sbin/mount_ Ns Sy XXX
 utilities.
 .It Fl p
-Print mount information in fstab format.
+Print mount information in
+.Xr fstab 5
+format.
 Implies also the
 .Fl v
 option.
@@ -246,18 +253,18 @@ option.
 The file system is to be mounted read-only.
 Mount the file system read-only (even the super-user may not write it).
 The same as the
-.Dq rdonly
+.Cm rdonly
 argument to the
 .Fl o
 option.
-.It Fl t Ar ufs | Ar external_type
+.It Fl t Ar ufs | external_type
 The argument following the
 .Fl t
 is used to indicate the file system type.
 The type
 .Ar ufs
 is the default.
-The 
+The
 .Fl t
 option can be used
 to indicate that the actions should only be taken on
@@ -290,16 +297,19 @@ is replaced by the type name.
 For example, nfs filesystems are mounted by the program
 .Pa /sbin/mount_nfs .
 .Pp
-Most filesystems will be dynamically loaded by their mount programs
+Most filesystems will be dynamically loaded by their
+.Nm
+programs
 if not already present in the kernel, using the
 .Xr vfsload 3
-subroutine.  Because this mechanism requires writable temporary space,
+subroutine.
+Because this mechanism requires writable temporary space,
 the filesystem type containing
 .Pa /tmp
 must be compiled into the kernel, and the filesystems containing
-.Pa /tmp 
+.Pa /tmp
 and
-.Pa /usr/bin/ld 
+.Pa /usr/bin/ld
 must be listed in
 .Pa /etc/fstab
 before any filesystems which might be dynamically loaded.
@@ -318,9 +328,9 @@ An attempt to change from read-write to read-only will fail if any
 files on the filesystem are currently open for writing unless the
 .Fl f
 flag is also specified.
-The set of options is determined by applying the options specified 
-in the argument to 
-.Fl o 
+The set of options is determined by applying the options specified
+in the argument to
+.Fl o
 and finally applying the
 .Fl r
 or
@@ -335,16 +345,17 @@ Various, most of them are self-explanatory.
 .Pp
 .Dl XXXXX filesystem is not available
 .Pp
-The kernel doesn't support the respective filesystem type.  Note that
+The kernel does not support the respective filesystem type.
+Note that
 support for a particular filesystem might be provided either on a static
 (kernel compile-time), or dynamic basis (loaded as a kernel module by
-.Xr kldload 8 ).
+.Xr kldload 8 ) .
 Normally,
 .Nm
 or its subprocesses attempt to dynamically load a filesystem module if
-it hasn't been configured statically, using
+it has not been configured statically, using
 .Xr vfsload 3 .
-In this case, the above error message can also mean that you didn't
+In this case, the above error message can also mean that you did not
 have permission to load the module.
 .Sh FILES
 .Bl -tag -width /etc/fstab -compact
@@ -377,11 +388,13 @@ file system table
 .Sh BUGS
 It is possible for a corrupted file system to cause a crash.
 .Sh CAVEATS
-After a successful mount, the permissions on the original mount point 
-determine if 
-.Pa ".."
-is accessible from the mounted file system.  The minimum permissions for
-the mount point for traversal across the mount point in both 
+After a successful
+.Nm ,
+the permissions on the original mount point determine if
+.Pa ..\&
+is accessible from the mounted file system.
+The minimum permissions for
+the mount point for traversal across the mount point in both
 directions to be possible for all users is 0111 (execute for all).
 .Sh HISTORY
 A
