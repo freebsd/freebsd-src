@@ -1169,7 +1169,7 @@ vr_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	sc->rxcycles = count;
 	vr_rxeof(sc);
 	vr_txeof(sc);
-	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd)) {
+	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		vr_start_locked(ifp);
 
 	if (cmd == POLL_AND_CHECK_STATUS) {
