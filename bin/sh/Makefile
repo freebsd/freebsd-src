@@ -6,6 +6,7 @@ SRCS=	alias.c builtins.c cd.c echo.c error.c eval.c exec.c expand.c \
 	mystring.c nodes.c options.c parser.c printf.c redir.c show.c \
 	signames.c syntax.c trap.c output.c var.c
 OBJS+=	init.o arith.o arith_lex.o
+DPADD=	${LIBL} ${LIBEDIT} ${LIBTERMCAP} ${LIBCOMPAT}
 LDADD=	-ll -ledit -ltermcap -lcompat
 LFLAGS= -8	# 8-bit lex scanner for arithmetic
 CFLAGS+=-DSHELL -I. -I${.CURDIR}
