@@ -840,7 +840,7 @@ aac_complete(void *context, int pending)
 				    &fib))
 			break;	/* nothing to do */
 
-		/* get the command, unmap and queue for later processing */
+		/* get the command, unmap and hand off for processing */
 		cm = sc->aac_commands + fib->Header.SenderData;
 		if (cm == NULL) {
 			AAC_PRINT_FIB(sc, fib);
@@ -848,7 +848,7 @@ aac_complete(void *context, int pending)
 		}
 
 		aac_remove_busy(cm);
-		aac_unmap_command(cm);		/* XXX defer? */
+		aac_unmap_command(cm);
 		cm->cm_flags |= AAC_CMD_COMPLETED;
 
 		/* is there a completion handler? */
@@ -2401,7 +2401,6 @@ aac_ioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, d_thread_t *td)
 		case AACQ_BIO:
 		case AACQ_READY:
 		case AACQ_BUSY:
-		case AACQ_COMPLETE:
 			bcopy(&sc->aac_qstat[as->as_item], &as->as_qstat,
 			      sizeof(struct aac_qstat));
 			break;
