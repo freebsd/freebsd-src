@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.148 1999/02/07 21:48:22 dillon Exp $
+ * $Id: vm_map.c,v 1.149 1999/02/12 09:51:42 dillon Exp $
  */
 
 /*
@@ -1472,12 +1472,6 @@ vm_map_user_pageable(map, start, end, new_pageable)
 					entry->offset = (vm_offset_t) 0;
 
 				}
-#if 0
-				/*
-				 * (no longer applies)
-				 */
-				default_pager_convert_to_swapq(entry->object.vm_object);
-#endif
 			}
 
 			vm_map_clip_start(map, entry, start);
@@ -1668,12 +1662,6 @@ vm_map_pageable(map, start, end, new_pageable)
 							atop(entry->end - entry->start));
 						entry->offset = (vm_offset_t) 0;
 					}
-#if 0
-					/*
-					 * (no longer applies)
-					 */
-					default_pager_convert_to_swapq(entry->object.vm_object);
-#endif
 				}
 			}
 			vm_map_clip_start(map, entry, start);
@@ -2464,14 +2452,9 @@ vm_map_lookup(vm_map_t *var_map,		/* IN/OUT */
 	      vm_prot_t *out_prot,		/* OUT */
 	      boolean_t *wired)			/* OUT */
 {
-	vm_map_t share_map;
-	vm_offset_t share_offset;
 	vm_map_entry_t entry;
 	vm_map_t map = *var_map;
 	vm_prot_t prot;
-#if 0
-	boolean_t su;
-#endif
 	vm_prot_t fault_type = fault_typea;
 
 RetryLookup:;
@@ -2557,13 +2540,6 @@ RetryLookup:;
 		prot = fault_type = entry->protection;
 
 	/*
-	 * If we don't already have a VM object, track it down.
-	 */
-
-	share_map = map;
-	share_offset = vaddr;
-
-	/*
 	 * If the entry was copy-on-write, we either ...
 	 */
 
@@ -2584,19 +2560,16 @@ RetryLookup:;
 			 * object.
 			 */
 
-			if (vm_map_lock_upgrade(share_map)) {
-				if (share_map != map)
-					vm_map_unlock_read(map);
-
+			if (vm_map_lock_upgrade(map))
 				goto RetryLookup;
-			}
+
 			vm_object_shadow(
 			    &entry->object.vm_object,
 			    &entry->offset,
 			    atop(entry->end - entry->start));
 
 			entry->eflags &= ~MAP_ENTRY_NEEDS_COPY;
-			vm_map_lock_downgrade(share_map);
+			vm_map_lock_downgrade(map);
 		} else {
 			/*
 			 * We're attempting to read a copy-on-write page --
@@ -2611,31 +2584,21 @@ RetryLookup:;
 	 * Create an object if necessary.
 	 */
 	if (entry->object.vm_object == NULL) {
-
-		if (vm_map_lock_upgrade(share_map)) {
-			if (share_map != map)
-				vm_map_unlock_read(map);
+		if (vm_map_lock_upgrade(map)) 
 			goto RetryLookup;
-		}
+
 		entry->object.vm_object = vm_object_allocate(OBJT_DEFAULT,
 		    atop(entry->end - entry->start));
 		entry->offset = 0;
-		vm_map_lock_downgrade(share_map);
+		vm_map_lock_downgrade(map);
 	}
 
-#if 0
-	/*
-	 * (no longer applies)
-	 */
-	if (entry->object.vm_object->type == OBJT_DEFAULT)
-		default_pager_convert_to_swapq(entry->object.vm_object);
-#endif
 	/*
 	 * Return the object/offset from this entry.  If the entry was
 	 * copy-on-write or empty, it has been fixed up.
 	 */
 
-	*pindex = OFF_TO_IDX((share_offset - entry->start) + entry->offset);
+	*pindex = OFF_TO_IDX((vaddr - entry->start) + entry->offset);
 	*object = entry->object.vm_object;
 
 	/*
@@ -2873,9 +2836,6 @@ vm_uiomove(mapa, srcobject, cp, cnta, uaddra, npages)
 
 			object = srcobject;
 			ooffset = cp;
-#if 0
-			vm_object_shadow(&object, &ooffset, osize);
-#endif
 
 			rv = vm_map_insert(map, object, ooffset, start, tend,
 				VM_PROT_ALL, VM_PROT_ALL, MAP_COPY_ON_WRITE|MAP_COPY_NEEDED);
@@ -3009,15 +2969,6 @@ DB_SHOW_COMMAND(map, vm_map_print)
 	db_indent += 2;
 	for (entry = map->header.next; entry != &map->header;
 	    entry = entry->next) {
-#if 0
-		if (nlines > 18) {
-			db_printf("--More--");
-			cngetc();
-			db_printf("\r");
-			nlines = 0;
-		}
-#endif
-		
 		db_iprintf("map entry %p: start=%p, end=%p\n",
 		    (void *)entry, (void *)entry->start, (void *)entry->end);
 		nlines++;
