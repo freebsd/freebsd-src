@@ -237,7 +237,7 @@ ng_bpf_newhook(node_p node, hook_p hook, const char *name)
 	int error;
 
 	/* Create hook private structure */
-	MALLOC(hip, hinfo_p, sizeof(*hip), M_NETGRAPH, M_WAITOK);
+	MALLOC(hip, hinfo_p, sizeof(*hip), M_NETGRAPH, M_NOWAIT);
 	if (hip == NULL)
 		return (ENOMEM);
 	bzero(hip, sizeof(*hip));
@@ -489,7 +489,7 @@ ng_bpf_setprog(hook_p hook, const struct ng_bpf_hookprog *hp0)
 
 	/* Make a copy of the program */
 	size = NG_BPF_HOOKPROG_SIZE(hp0->bpf_prog_len);
-	MALLOC(hp, struct ng_bpf_hookprog *, size, M_NETGRAPH, M_WAITOK);
+	MALLOC(hp, struct ng_bpf_hookprog *, size, M_NETGRAPH, M_NOWAIT);
 	if (hp == NULL)
 		return (ENOMEM);
 	bcopy(hp0, hp, size);
