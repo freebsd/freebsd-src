@@ -72,8 +72,8 @@ static const char sccsid[] = "@(#)kerberos.c	8.3 (Berkeley) 5/30/95";
 #include "auth.h"
 #include "misc.h"
 
-int kerberos4_cksum P((unsigned char *, int));
-int kuserok P((AUTH_DAT *, char *));
+int kerberos4_cksum(unsigned char *, int);
+int kuserok(AUTH_DAT *, char *);
 
 extern int auth_debug_mode;
 

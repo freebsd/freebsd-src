@@ -53,13 +53,6 @@
  * this software for any purpose.  It is provided "as is" without express
  * or implied warranty.
  */
-#if	!defined(P)
-#ifdef	__STDC__
-#define	P(x)	x
-#else
-#define	P(x)	()
-#endif
-#endif
 
 #ifdef	ENCRYPTION
 void encrypt_init(const char *, int);

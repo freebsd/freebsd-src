@@ -140,9 +140,9 @@ struct termios termbuf, termbuf2;	/* pty control structure */
 #include <sys/types.h>
 #include <libutil.h>
 
-int cleanopen __P((char *));
-void scrub_env __P((void));
-static char **addarg __P((char **, const char *));
+int cleanopen(char *);
+void scrub_env(void);
+static char **addarg(char **, const char *);
 
 /*
  * init_termbuf()
