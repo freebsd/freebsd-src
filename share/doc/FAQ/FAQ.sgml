@@ -1,5 +1,5 @@
 <!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN">
-<!-- $Id: FAQ.sgml,v 1.13.2.7 1997/03/15 23:29:02 jkh Exp $ -->
+<!-- $Id: FAQ.sgml,v 1.13.2.8 1997/04/10 13:56:43 asami Exp $ -->
 
   <article>
 
@@ -7,7 +7,8 @@
 <author>Maintainer: Peter da Silva <tt><htmlurl url='mailto:pds@FreeBSD.ORG'
   name='&lt;pds@FreeBSD.ORG&gt;'></tt>
 
-<date>$Date: 1997/03/15 23:29:02 $
+Last updated: <date>$Date: 1997/03/15 23:29:02 $</date>
+
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -40,7 +41,7 @@ Any entries with a &lt;XXX&gt; are under construction.
       <sect1>
 	<heading>What is FreeBSD?</heading>
         <p>
-          Briefly, FreeBSD 2.X is a UN*X type operating system based on
+          Briefly, FreeBSD 2.X is a UN*X-like operating system based on
           U.C. Berkeley's 4.4BSD-lite release for the i386 platform.  It is
           also based indirectly on William Jolitz's port of U.C. Berkeley's
           Net/2 to the i386, known as 386BSD, though very little of the 386BSD
@@ -53,7 +54,7 @@ Any entries with a &lt;XXX&gt; are under construction.
           in their work, education and recreation.  See some of them in the 
           <url url="http://www.freebsd.org/gallery.html" name="FreeBSD Gallery."> 
 
-          For a more detailed description of FreeBSD, see the Introduction to
+          For more detailed information on FreeBSD, please see the
           <url url="../handbook/handbook.html" name="FreeBSD Handbook.">
 
       <sect1>
@@ -102,18 +103,31 @@ Any entries with a &lt;XXX&gt; are under construction.
       <sect1>
 	<heading>What is the latest version of FreeBSD?</heading>
 	<p>
-	  Version 2.1.7 is the latest version; it was released in February, 1997.
+	  Version <url url="ftp://ftp.freebsd.org/pub/FreeBSD/2.1.7.1-RELEASE" name="2.1.7">
+	  is the latest <em>stable</em> version; it was released in February, 1997.
+	  Version <url url="ftp://ftp.freebsd.org/pub/FreeBSD/2.2.1-RELEASE" name="2.2.1">
+	  is the latest <em>release</em> version; it was released in March, 1997.
+	Briefly explained, <bf>-stable</bf> is aimed at the ISP or other
+	corporate user who wants stability and a low change count over
+	the wizzy new features of the latest release (which is <bf>2.2.1</bf>).
+
+	<p>This is not to say that 2.2.1 is unusable for business services,
+	and many people who need some 2.2 specific feature (newer
+	compiler technology, faster networking code, etc) have decided to take
+	a chance with it with very good results.  We simply do not wish to
+	"certify" 2.2 as mission-worthy until it's run another release or two
+	down its branch and been better shaken-out.
 
       <sect1>
 	<heading>What is FreeBSD-current?</heading>
 	<p>
 	  <url url="../handbook/current.html" name="FreeBSD-current"> is the
 	  development version of the operating system, which will in due
-	  course become version 3.0.  As such, it is really only of interest
+	  course become 3.0-RELEASE.  As such, it is really only of interest
 	  to developers working on the system and die-hard hobbiests.
  	  See the <url url="../handbook/current.html" name="relevant section">
 	  in the <url url="../handbook/handbook.html" name="handbook"> for
-	  details.
+	  details on running -current.
 
       <sect1>
         <heading> What are ``snapshots''?<label id="snapshots"></heading>
@@ -165,7 +179,7 @@ Any entries with a &lt;XXX&gt; are under construction.
                        |
                        |
                     2.2-ALPHA -> -BETA -> -GAMMA -> 2.2-RELEASE -> [2.2-stable]
-                       |                             (Q1 1997)
+                       |                             (Mar 1997)
                        |
                     3.0-SNAPs  (Q1 1997)
                        |
@@ -194,7 +208,8 @@ Any entries with a &lt;XXX&gt; are under construction.
           Perhaps in the future we'll figure out another model which gives 
           everyone what they want, and we are working on such a model, but in 
           the meantime it's probably best to think of -stable coming to an end 
-          with 2.1.7-RELEASE.
+          with <url url="ftp://ftp.freebsd.org/pub/FreeBSD/pub/2.1.7.1-RELEASE"
+	  name="2.1.7.1-RELEASE"> (the final point release after 2.1.7).
 
       <sect1>
         <heading> When are FreeBSD releases made?</heading>
@@ -213,11 +228,10 @@ Any entries with a &lt;XXX&gt; are under construction.
       <sect1>
         <heading> Is FreeBSD only available for PCs?</heading>
         <p>
-          At present, yes. If your machine has a different architecture, we 
-         suggest you look at
-         
-         <url url="http://www.netbsd.org/" name="NetBSD">
-         or 
+          At present, yes, though a port to the DEC Alpha architecture
+	  is planned.  If your machine has a different architecture and
+	  you need something right now, we suggest you look at
+         <url url="http://www.netbsd.org/" name="NetBSD"> or 
          <url url="http://www.openbsd.org/" name="OpenBSD">.
 
        <sect1>
@@ -225,9 +239,11 @@ Any entries with a &lt;XXX&gt; are under construction.
          <p>
            The key decisions concerning the FreeBSD project, such as the 
            overall direction of the project and who is allowed to add code to 
-           the source tree, are made by a ``core team'' consisting of 16
-           people. There is a much larger group of around 60 people who can 
-           make changes to the source tree.
+           the source tree, are made by a <url url="../handbook/contrib:core.html"
+	   name="core team"> of some 17 people. There is a much larger
+	   team of around 70+ <url url="../handbook/contrib:committers.html"
+	   name="committers"> who are authorized to make changes directly to the
+	   FreeBSD source tree.
           <p>
             However, most non-trivial changes are discussed in advance in the 
             mailing lists, and there are no restrictions on who may take part 
@@ -236,13 +252,26 @@ Any entries with a &lt;XXX&gt; are under construction.
       <sect1>
 	<heading>Where can I get FreeBSD?<label id="where-get"></heading>
         <p>
-          The distribution is available via anonymous ftp from:
-          <url url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/"
-		name="the FreeBSD FTP site">
+	  The distribution is available via anonymous ftp from:
+	  <url url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/" name="the FreeBSD FTP site">
 
-          For the current release, 2.1.7R, look in:
-          <url url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/2.1.7-RELEASE/"
-		name="FreeBSD 2.1.7-RELEASE">
+          For the current stable release, 2.1.7.1R, look in:
+	  <url url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/2.1.7.1-RELEASE/"
+	  name="FreeBSD 2.1.7.1-RELEASE">
+
+          For the current 2.2 branch release, 2.2.1R, look in:
+          <url url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/2.2.1-RELEASE/"
+	  name="FreeBSD 2.2.1-RELEASE">
+
+	  <url url="ftp://releng22.freebsd.org/pub/FreeBSD/" name="SNAPshot releases">
+	  are also made once a day along the RELENG_2_2 branch (2.2.1 -> 2.2.x)
+	  as it winds its way towards the next point release on the 2.2 branch
+	  (2.2.3, possibly, or maybe 2.2.5 depending on the change delta).  With
+	  the occasional exception of accidental breakage, the RELENG_2_2
+	  branch is being carefully maintained (no experimental changes, fixes only
+	  after testing in -current) and these snapshots of it may be considered
+	  "2.2.1+" for all intents and purposes and more desirable than 2.2.1 for new
+	  installations.
 
           FreeBSD is also available via CDROM, from the following place(s):
  
@@ -362,6 +391,15 @@ Any entries with a &lt;XXX&gt; are under construction.
  
           <url url="http://gnn.com/gnn/bus/ora/category/bsd.html"
             name="4.4BSD books description">
+
+	  For a more in-depth look at the 4.4BSD kernel organization,
+	  you can't go wrong with:
+
+	  McKusick, Marshall Kirk, Keith Bostic, Michael J Karels,
+          and John Quarterman.<newline>
+	  <em>The Design and Implementation of the 4.4BSD Operating
+	  System</em>.  Reading, Mass. : Addison-Wesley, 1996.<newline>
+	  ISBN 0-201-54979-4<newline>
  
           A good book on system administration is:
  
@@ -393,22 +431,18 @@ Any entries with a &lt;XXX&gt; are under construction.
       <sect1>
 	<heading>Other sources of information.</heading>
         <p>
-          One good source of additional information is the
-          ``&lsqb;comp.unix.bsd&rsqb; NetBSD, FreeBSD, and 386BSD (0.1)
-          FAQ''.  Much of the information is relevant to FreeBSD, and this
-          FAQ is posted around twice a month to the following newsgroups:
+	 The following newsgroups contain pertinent discussion for FreeBSD
+	 users:
  
-          <verb>
-            comp.unix.bsd.netbsd.announce
-            comp.unix.bsd.freebsd.announce
-            comp.answers
-            news.answers
-          </verb>
+        <itemize>
+	<item><url url="comp.unix.bsd.freebsd.announce" name="comp.unix.bsd.freebsd.announce">
+	<item><url url="comp.unix.bsd.freebsd.misc" name="comp.unix.bsd.freebsd.misc">
+	<item><url url="comp.unix.bsd.misc" name="comp.unix.bsd.misc">
+	</itemize>
 
-          If you have WWW access, the FreeBSD home page is at:
+          If you have WWW access, please visit <url url="http://www.freebsd.org/"
+	  name="the FreeBSD home page">.
  
-          <url url="http://www.freebsd.org/" name="Main FreeBSD page">
-
           The FreeBSD handbook has a pretty complete
           <url url="../handbook/bibliography.html" name="Bibliography">
 
@@ -423,84 +457,45 @@ Any entries with a &lt;XXX&gt; are under construction.
       <sect1>
         <heading>Which file do I download to get FreeBSD?</heading>
         <p>
-          I'll answer that in a minute, but first a few words of explanation
-          might be in order.  FreeBSD is not an application that you can
-          run from inside an existing DOS/Windows setup, it is an operating
-          system in its own right (in the same way as Windows NT or OS/2).
+	  You generally need just one floppy image, the <em>floppies/boot.flp</em>
+	  file, which you image-copy onto a 1.44MB floppy and then boot it
+	  in order to download the rest (and the installation will manage your TCP/IP
+	  collection, deal with tapes, CDROMs, floppies, DOS partitions, whatever's
+	  necessary to get the reset of the bits installed).
 
-          To install it involves making a ``primary partition'' for it on
-          the hard disk and arranging for it to be booted at system startup.
-          (FreeBSD gives you the option of installing a boot manager, so you
-          will be able to choose which operating system to use every time the
-          system starts up.  Alternatively, you can use the boot managers
-          provided with oher operating systems, such as OS/2 or Linux).
-
-          Obviously, this is not as simple as using an operating system that
-          those nice people you bought your PC from pre-installed for you,
-          but it's not too difficult provided you read (and, if possible, print
-          out) all the instructions before starting.  It may be a lot to
-          read, but it's very complete.  You should also make full note of the
-          exhortations to back everything up first and the legal disclaimers.
-          These are not there for amusement value - we mean it!  However,
-          most people find the installation goes fairly smoothly.
-
-          If you are able to be connected to the Internet for the duration
-          of the FreeBSD installation (lucky you!), the simplest way to
-          install FreeBSD is to download 
-          <url 
-          url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/2.1.7-RELEASE/floppies/boot.flp"
-          name="the boot image,"> make a boot floppy, boot with it and watch it 
-          pull down all the necessary files. Depending on connection speed and 
-          how much of FreeBSD you wish to install, this could take several hours
-          (even the minimal installation requires downloading about 15MB of 
-          compressed files).
-
-          For people who do not have good Internet connectivity, the best
-          way to install FreeBSD is to buy a CDROM (see <ref id="where-get"
-          name="Where to get FreeBSD"> for details).  Unfortunately, this
-          is problematic for some people, as the support for IDE CDROMs in
-          FreeBSD is still in alpha (not because of some violent antipathy
-          towards IDE CDROMs, but simply due to a lack of people with the
-          necessary combination of skill, inclination and time).
-
-          Finally, if you already have a copy of the necessary files, FreeBSD 
-          can be installed from floppy disks, a DOS hard disk partition or
-          tape or over a network via SLIP, PPP, NFS, PLIP and Ethernet.
-
-          For further information, please see 
-          <url	url="../handbook/install.html"
-          name="Handbook entry on installing FreeBSD.">
+          Full instructions on this procedure and a little bit more about installation
+	  issues in general can be found in the <url url="../handbook/install.html"
+	  name="Handbook entry on installing FreeBSD.">
 
       <sect1>
         <heading>Where are the instructions for installing FreeBSD?</heading>
         <p>
           Installation instructions can be found in the
 		<url url="../handbook/install.html"
-			name="Handbook install section.">
+			name="Handbook entry on installing FreeBSD.">
  
       <sect1>
-	<heading>What do I need to run FreeBSD?</heading>
+	<heading>What do I need in order to run FreeBSD?</heading>
         <p>
-          You'll need a 386 or better PC, with 4 MB or more of RAM and at
+          You'll need a 386 or better PC, with 5 MB or more of RAM and at
           least 60 MB of hard disk space. It can run with a low end MDA
           card but to run X11R6, a VGA or better video card is needed.
 
-          See the section on <ref id="hardware" name="Hardware compatibility">
+          See also the section on <ref id="hardware" name="Hardware compatibility">
 
       <sect1>
 	<heading>I have only 4 MB of RAM. Can I install FreeBSD?</heading>
         <p>
-          FreeBSD 2.1.7 is the last version of FreeBSD that will install on
+          FreeBSD 2.1.7 was the last version of FreeBSD that could be installed on
 	  a 4MB system.  Newer versions of FreeBSD, like 2.2, need at least
 	  5MB to install on a new system. 
 
-          All versions of FreeBSD, including 2.2, will RUN in 4MB of ram.  You
-	  can add extra memory for the install process, if you like, and then
-          after the system is up and running, go back to 4MB.
-
-	Use <url 
-          url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/2.1.7-RELEASE/floppies/boot4.flp"
-          name="special boot floppy for 4MB computers from FreeBSD 2.1.7">
+          All versions of FreeBSD, including 2.2, will RUN in 4MB of ram, they
+	  just can't run the installation program in 4MB.  You can add
+	  extra memory for the install process, if you like, and then
+	  after the system is up and running, go back to 4MB.  Or you could
+	  always just swap your disk into a system which has >4MB, install onto
+	  it and then swap it back.
 
           There are also situations in which FreeBSD 2.1.7 will not install
 	  in 4 MB.  To be exact: it does not install with 640 kB base + 3 MB
@@ -527,7 +522,34 @@ Any entries with a &lt;XXX&gt; are under construction.
 
         <p>
           Install Windows 95 first, after that FreeBSD. FreeBSD's boot
-          manager will then manage to boot Win95 and FreeBSD.
+          manager will then manage to boot Win95 and FreeBSD.  If you
+	  install Windows 95 second, it will boorishly overwrite your
+	  boot manager without even asking.  If that happens, see
+	  the next section.
+
+      <sect1>
+	<heading>Help, Windows 95 killed my boot manager!  How do I get
+	it back?</heading>
+
+	<p>You can reinstall the boot manager FreeBSD comes with in one of
+	two ways:
+
+	<itemize>
+	<item>Running DOS, go into the tools/ directory of your FreeBSD
+	distribution and look for <bf>bootinst.exe</bf>.  You run it like so:
+	<p><bf>bootinst.exe boot.bin</bf>
+	<p>And the boot manager will be reinstalled.
+
+	<item>Boot the FreeBSD boot floppy again and go to the Custom
+	installation menu item.  Choose Partition.  Select the drive which
+	used to contain your boot manager (likely the first one) and when you
+	come to the partition editor for it, as the very first thing (e.g.
+	do not make any changes) select (W)rite.  This will ask for
+	confirmation, say yes, and when you get the Boot Manager selection
+	prompt, be sure to select "Boot Manager."
+	This will re-write the boot manager to disk.  Now quit out of the
+	installation menu and reboot off the hard disk as normal.
+        </itemize>
 
       <sect1>
         <heading>How can I have more than one operating system on my PC?</heading>
@@ -559,11 +581,6 @@ Any entries with a &lt;XXX&gt; are under construction.
 	    <item>Did you download the floppy image in binary (or image) mode?
 		  (don't be embarrassed, even the best of us have made this 
 		  mistake at least once when FTP'ing things!)
-            <item>If you're using one of these new-fangled operating systems
-		  like Windows95 or Windows NT, did you shut it down and restart
-		  the system in plain, honest DOS?  It seems these OS's can
-		  interfere with programs that write directly to hardware, as
-		  the disk creation program does; even running it inside a DOS
 		  shell in the GUI can cause this problem.
           </enum>
 
@@ -722,25 +739,12 @@ Any entries with a &lt;XXX&gt; are under construction.
           <tt>/stand/sysinstall</tt> as root.
         <p>
           Alternatively, if you still have the install floppy, you can just
-          reboot from that.
-        <p>
-          Select the ``Express Install'' option, which will put you
-          straight into the partition editor, and create a single slice on the
-          disk with the (A)ll option (make sure you are editing the right
-          disk!). Say ``No'' when asked if you want to remain compatible with
-          other operating systems, and ``Yes'' when asked if you know what
-          you're doing.  Then write it out with the (W)rite command and
-          press (Q)uit to transfer to the disklabel editor. 
-
-	<p>
-          Divide up your FreeBSD slice according to taste and press `w' when
-          you are happy with the way it looks. Again, say ``Yes'' when asked
-          for confirmation, and press `q' to quit. If you're adding swap
-          space on the second drive, look at <ref id="swap" name="this note">
-          for a nasty little gotcha that can cause no end of trouble.
+          reboot from that and use the partition & label editors while
+	  the system is totally quiescent.
         <p>
           <label id="2_1-disklabel-fix">
-          <bf>Using disklabel(8) manually</bf>
+          If the above does not work for you, or if you're a total masochist
+	  who likes arcane interfaces, this is how to use disklabel(8) manually:
         <p>
           <em>WARNING: There is no substitute for reading carefully
           &amp; understanding what you are doing! Things described here may
@@ -1205,6 +1209,12 @@ options   PSM_CHECKSYNC      #checks the header byte for sync.
 	  See the <url url="../handbook/kernelconfig.html"
 	  name="Handbook entry on configuring the kernel">
 	  if you've no experience with building kernels.
+
+	  If you're running FreeBSD 2.1.6 or later, the psm0 device
+	  line is already there, but it's disabled. Remove the keyword
+	  <tt/disable/ from the device line to enable it, or if you
+	  don't want to compile a kernel just boot with the "-c" flag
+	  and enable it from there.
 
 	  Once you have a kernel detecting psm0 correctly at boot time,
 	  make sure that an entry for psm0 exists in /dev.  You can do this
@@ -3766,10 +3776,6 @@ domain foo.bar.edu
         </code>
 
         <descrip>
-          <tag/James Raynard/
-            Acting FAQ caretaker
-          <tag/Ollivier Robert/
-            FreeBSD FAQ maintenance man 
           <tag/Gary Clark II/
             FreeBSD Doc Team   
           <tag/Jordan Hubbard/
@@ -3782,6 +3788,8 @@ domain foo.bar.edu
             Networking and formatting
           <tag/Jim Lowe/
             Multicast information 
+          <tag/Peter da Silva/
+            FreeBSD FAQ typing machine slavey
           <tag/The FreeBSD Team/
             Kvetching, moaning, submitting data
         </descrip>
