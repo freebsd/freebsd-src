@@ -212,8 +212,7 @@ options 	CYRIX_CACHE_REALLY_WORKS
 #options 	NO_F00F_HACK
 
 # Debug options
-options 	NPX_DEBUG	# enable npx debugging (FPU/math emu)
-					#new math emulator
+options 	NPX_DEBUG	# enable npx debugging
 
 #
 # PERFMON causes the driver for Pentium/Pentium Pro performance counters
@@ -350,10 +349,6 @@ device		agp
 
 #####################################################################
 # HARDWARE DEVICE CONFIGURATION
-
-#
-# Mandatory devices:
-#
 
 # To include support for VGA VESA video modes
 options 	VESA
@@ -635,8 +630,6 @@ options		SAFE_RNDTEST	# enable rndtest support
 # Notes on APM
 #  The flags takes the following meaning for apm0:
 #    0x0020  Statclock is broken.
-#  If apm is omitted, some systems require sysctl kern.timecounter.method=1
-#  for correct timekeeping.
 
 # Notes on the spigot:
 #  The video spigot is at 0xad6.  This port address can not be changed.
