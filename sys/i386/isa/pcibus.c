@@ -212,6 +212,11 @@ nexus_pcib_is_host_bridge(pcicfgregs *cfg,
 		*busnum = pci_cfgread(cfg, 0x44, 1);
 		break;
 
+	case 0x00101166:
+		s = "ServerWorks CIOB30 host to PCI bridge";
+		*busnum = pci_cfgread(cfg, 0x44, 1);
+		break;
+
 		/* XXX unknown chipset, but working */
 	case 0x00171166:
 		/* FALLTHROUGH */
