@@ -2,15 +2,15 @@
  *  version.h
  *
  *
- * Copyright (C) 1992, 1993  W. Metzenthen, 22 Parker St, Ormond,
- *                           Vic 3163, Australia.
- *                           E-mail apm233m@vaxc.cc.monash.edu.au
+ * Copyright (C) 1992,1993,1994
+ *                       W. Metzenthen, 22 Parker St, Ormond, Vic 3163,
+ *                       Australia.  E-mail   billm@vaxc.cc.monash.edu.au
  * All rights reserved.
  *
  * This copyright notice covers the redistribution and use of the
  * FPU emulator developed by W. Metzenthen. It covers only its use
- * in the 386BSD operating system. Any other use is not permitted
- * under this copyright.
+ * in the 386BSD, FreeBSD and NetBSD operating systems. Any other
+ * use is not permitted under this copyright.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -44,7 +44,17 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *
- *    $Id:$
+ * The purpose of this copyright, based upon the Berkeley copyright, is to
+ * ensure that the covered software remains freely available to everyone.
+ *
+ * The software (with necessary differences) is also available, but under
+ * the terms of the GNU copyleft, for the Linux operating system and for
+ * the djgpp ms-dos extender.
+ *
+ * W. Metzenthen   June 1994.
+ *
+ *
+ *    $Id: version.h,v 1.2 1994/04/29 21:34:28 gclarkii Exp $
  *
  */
 
