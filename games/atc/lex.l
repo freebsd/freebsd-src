@@ -48,7 +48,7 @@
 static char sccsid[] = "@(#)lex.l	8.1 (Berkeley) 5/31/93";
 #endif /* not lint */
 
-#include "grammar.tab.h"
+#include "y.tab.h"
 extern int	line;
 
 %}
