@@ -2923,7 +2923,7 @@ siocnprobe(cp)
 
 #ifdef __alpha__
 
-CONS_DRIVER(sio, NULL, NULL, NULL, siocngetc, siocncheckc, siocnputc);
+CONS_DRIVER(sio, NULL, NULL, NULL, siocngetc, siocncheckc, siocnputc, NULL);
 
 int
 siocnattach(port, speed)
