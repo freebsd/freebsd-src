@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.22.2.346
+    Original revision: 1.22.2.354
 -->
 
 <articleinfo>
@@ -32,7 +32,7 @@
   </abstract>
 </articleinfo>
 
-<sect1>
+<sect1 id="intro">
   <title>はじめに</title>
 
   <para>この文書は &arch.print; アーキテクチャ版 &os; &release.current;
@@ -84,7 +84,7 @@
        entries.
 -->
 
-<sect1>
+<sect1 id="new">
   <title>更新情報</title>
 
   <para>この節では &release.prev; 以降に新たに追加・変更された
@@ -96,139 +96,73 @@
     &release.prev; 以降に発行され、
     ベースシステムに影響のあるセキュリティ勧告も記載されています。</para>
 
+  <sect2 id="security">
+    <title>セキュリティ勧告</title>
+
+    <para><application>sendmail</application> にあった
+      リモートから悪用可能なバッファオーバフロー問題が修正されました。
+      問題の詳細は、セキュリティ勧告 <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:07.sendmail.asc">FreeBSD-SA-03:07</ulink>
+      をご覧ください。
+      問題を修正するために、&os; &release.prev; では
+      ベンダの提供している修正パッチを適用しました
+      (直前だったため、リリースノートには記載されていません)。
+      &os; &release.current; では、新しい
+      <application>sendmail</application>
+      を統合することで問題の修正を行なっています。</para>
+  </sect2>
+
   <sect2 id="kernel">
     <title>カーネルの変更点</title>
-
-    <para>OpenBSD 由来の新しいカーネル暗号化フレームワークが
-      統合されました
-      (詳細は &man.crypto.4; と &man.crypto.9; をご覧ください)。
-      これは、ソフトウェアで実装された暗号アルゴリズムと
-      ハードウェアで実装された暗号アルゴリズムの両方を、
-      カーネルから共通の方法で利用できるインターフェースを提供し、
-      ユーザアプリケーションから暗号化ハードウェアへアクセスできるように
-      するためのものです。
-      ハードウェア用デバイスドライバとして、
-      hifn ベースのカードに対応した &man.hifn.4; ドライバと
-      Broadcom ベースのカードに対応した &man.ubsec.4; ドライバが
-      追加されています。</para>
-
-    <para arch="i386,pc98,powerpc">FireWire デバイスへに対する
-      初期的な対応が追加されました
-      (詳細は &man.firewire.4; をご覧ください)。</para>
-
-    <para arch="i386,pc98">CanBe の電源管理コントローラに対応しました。</para>
-
-    <para arch="i386,pc98">Belkin F5U103 USB-シリアル変換アダプタ
-      (およびその互換製品) に対応する ubsa ドライバが追加されました。</para>
-
-    <para>support FTDI USB-シリアル変換アダプタに対応した
-       &man.uftdi.4; ドライバが追加されました。</para>
+      
+    <para></para>
 
 <!-- Above this line, kernel changes ordered by manpage/variable name -->
 
-    <sect3>
+    <sect3 id="proc">
       <title>プロセッサ・マザーボードの対応状況</title>
-
-      <para arch="i386">部分的に、HyperThreading (HTT) に対応しました。
-	カーネルオプション <literal>HTT</literal> を付けて構築した
-	SMP カーネルは HTT 機能を持つマシンの論理プロセッサを検出して
-	利用できるようにします。
-	この論理プロセッサは、プロセススケジューラによって
-	あたかも増設された物理プロセッサのように扱われます。</para>
-
-      <para arch="alpha">AlphaServer 8200/8400 TurboLaser マシンは、
-	インストール後にシリアルコンソールを利用するには
-	明示的に &man.getty.8; を有効にしなければなりません。
-	もし設定されていないと、ログインプロンプトが出力されないので
-	システムがハングアップしたような状態になってしまいます。
-	(<filename>/etc/ttys</filename> の中の <literal>zs0</literal> という
-	行の付近をご覧ください)。</para>
+      
+      <para arch="i386">Intel 80386
+        プロセッサでカーネルが起動しないというバグが修正されました。</para>
 
     </sect3>
 
-    <sect3>
+    <sect3 id="boot">
       <title>起動ローダ関連</title>
 
-      <para arch="pc98">PC98 ブートローダが SCSI MO
-        メディアからの起動に対応しました。</para>
+      <para></para>
 
 <!-- Above this line, order boot loader changes by manpage/variable name-->
       
     </sect3>
     
-    <sect3>
+    <sect3 id="net-if">
       <title>ネットワークインターフェイスの対応状況</title>
 
-      <para>cm ドライバが IPX に対応しました。</para>
-
-      <para>&man.nge.4; ドライバがネットワークデバイスポーリング (
-	&man.polling.4;) に対応しました。</para>
+      <para></para>
 
 <!-- Above this line, order network driver changes by manpage/variable name-->
 
     </sect3>
 
-    <sect3>
+    <sect3 id="net-proto">
       <title>ネットワークプロトコル</title>
 
-      <para>IPsec 実装でハードウェア暗号化アクセラレータに対応した
-        カーネル &man.crypto.4; フレームワークが使えるようになりました。
-        有効にするには、<literal>FAST_IPSEC</literal>
-        カーネルオプションを指定します。
-
-        <note>
-          <para><literal>FAST_IPSEC</literal> オプションと
-            <literal>IPSEC</literal> オプションを同時に指定することはできません。</para>
-	</note>
-
-        <note>
-          <para>現時点では、<literal>FAST_IPSEC</literal> オプションは
-            IPv6 または <literal>INET6</literal> オプションと共存できません。
-            </para>
-	</note></para>
-
-      <para>&man.gre.4; ドライバが追加されました。
-        これは IP パケットを GRE (RFC 1701) や
-        minimal IP encapsulation for Mobile IP (RFC 2004)
-        を利用してカプセル化を行います。</para>
-
-      <para>NewReno を有効にしていると高速リカバリが途中で終了してしまうという、
-        TCP NewReno のバグが修正されました。</para>
-
-      <para>IP フラグメントの再構成を行なうコードを改善し、
-	大量のパケット断片を受けとったときの挙動をより強固なものにしました。
-	これにより、フラグメントベースのサービス妨害攻撃への
-	耐性がさらに向上しました。</para>
+      <para></para>
 
     </sect3>
 
-    <sect3>
+    <sect3 id="fs">
       <title>ディスク・記憶装置</title>
 
-      <para>&man.ata.4; ドライバが、
-	CAM レイヤと CAM ドライバ
-	(&man.cd.4;, &man.da.4;, &man.st.4;, &man.pass.4;)
-	を経由して、ATA デバイスを
-	SCSI デバイスとしてアクセスできるようにする機能に対応しました。
-	この機能を有効にするには、
-	カーネルコンフィグファイルに
-	<literal>device atapicam</literal> を追加する必要があります。
-	詳細は &man.atapicam.4; をご覧ください。</para>
-
-      <para arch="i386,pc98">&man.matcd.4;
-	ドライバはライセンス上の問題のために、削除されました。
-	現在この問題に取り組んでおり、&os; の将来のリリースで
-	再度このドライバが登場するかも知れません。
-        (実際には &release.prev; の公開時点ですでに削除されていたのですが、
-        リリースノートには記載されていませんでした)。</para>
-
-      <para>&man.targ.4; ドライバが書き直され、
-        ダイレクトアクセスデバイスをエミュレートする新しいユーザモードが
-        <filename>/usr/share/examples/scsi_target</filename>
-        に追加されました。</para>
-
-      <para>Tekram TRM-S1040 SCSI チップセットが搭載された
-        SCSI アダプタに対応する trm ドライバが追加されました。</para>
+      <para>新しく <literal>DIRECTIO</literal>
+        カーネルオプションが追加されました。
+        これはバッファキャッシュを経由せずに直接データを読み込んだり、
+        ユーザ空間のバッファに直接データを書き込むことを可能にします。
+        この機能を使うには、ファイル記述子に
+        <literal>O_DIRECT</literal> フラグをセットすることと、
+        読み出し操作時のオフセット・データ長の両方に、
+        物理メディアセクタ長の整数倍を指定する必要があります。</para>
     </sect3>
 
     <sect3>
@@ -238,272 +172,58 @@
 
     </sect3>
 
-    <sect3>
+    <sect3 id="pccard">
       <title>PCCARD 対応状況</title>
 
       <para></para>
 
     </sect3>
 
-    <sect3>
+    <sect3 id="mm">
       <title>マルチメディアへの対応状況</title>
       
       <para></para>
 
     </sect3>
-
-    <sect3>
-      <title>寄贈ソフトウェア</title>
-
-      <para><application>IPFilter</application> がバージョン
-	3.4.31 に更新されました。</para>
-    </sect3>
-
-  </sect2>
-
-  <sect2 id="security">
-    <title>セキュリティ勧告</title>
-
-    <para>kadmind(8) および k5admin にあったバッファオーバフロー問題が修正されました。
-      詳細はセキュリティ勧告 <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:40.kadmind.asc">FreeBSD-SA-02:40</ulink> をご覧ください。</para>
-
-    <para><application>BIND</application>
-      における複数のセキュリティ上の弱点が修正されました。
-      詳細はセキュリティ勧告 <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:43.bind.asc">FreeBSD-SA-02:43</ulink> をご覧ください。</para>
-
-    <para>&man.fpathconf.2; システムコールにあった、
-      ローカルユーザからシステムをクラッシュさせたり、
-      高い権限を不正に取得するために利用可能な、
-      ファイル記述子の漏洩問題が修正されました。
-      詳細はセキュリティ勧告 <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:44.filedesc.asc">FreeBSD-SA-02:44</ulink> をご覧ください。</para>
-
-    <para>バージョン 1.11.5 の統合により、<application>CVS</application>
-      にあったリモートから悪用可能なセキュリティ上の弱点が修正されました。
-      問題の詳細は、セキュリティ勧告 <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:01.cvs.asc">FreeBSD-SA-03:01</ulink>
-      をご覧ください。</para>
-
-    <para><application>OpenSSL</application> には、特定の条件下で、
-      クライアントとサーバ間で交換されるネットワークメッセージを
-      横取り・置き換えできるような強い影響力を持つ攻撃者が
-      タイミングベースの攻撃を行ない平文データを得ることができる
-      ぜい弱性があり、この弱点は <application>OpenSSL</application> を
-      バージョン 0.9.7 に更新して修正されました。
-      詳細は、セキュリティ勧告 <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:02.openssl.asc">FreeBSD-SA-03:02</ulink>
-      をご覧ください。</para>
-
-    <para>攻撃者からの詐称された TCP 接続を防止できるよう、
-      <quote>syncookies</quote> 機能のセキュリティと性能が改良されました。
-      詳細は、セキュリティ勧告 <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:03.syncookies.asc">FreeBSD-SA-03:03</ulink>
-      をご覧ください。</para>
-
-    <para><application>sendmail</application> の
-      リモートから悪用可能なぜい弱性は、
-      <application>sendmail</application> を
-      バージョン 8.12.8 に更新して修正されました。
-      詳細はセキュリティ勧告 <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:04.sendmail.asc">FreeBSD-SA-03:04</ulink>
-      をご覧ください。</para>
-
-    <para>XDR の実装において、境界チェックに存在していたバグを悪用して
-      リモートの攻撃者がサービス妨害攻撃を起こすことのできる
-      ぜい弱性が修正されました。
-      詳細はセキュリティ勧告 <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:05.xdr.asc">FreeBSD-SA-03:05</ulink>
-      をご覧ください。</para>
-
-    <para>最近発見された
-      <application>OpenSSL</application> の二つの弱点
-      (訳注: RSA のタイミング攻撃と Klima-Pokorny-Rosa 攻撃)
-      が修正されました、
-      詳細はセキュリティ勧告 <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:06.openssl.asc">FreeBSD-SA-03:06</ulink>
-      をご覧ください。</para>
-
   </sect2>
 
   <sect2 id="userland">
     <title>ユーザランドの変更点</title>
 
-    <para>&man.burncd.8; が、
-      <option>-s</option> オプションの値に
-      <literal>max</literal> を指定すると、
-      そのドライブの最大書き込み速度を設定するようになりました。</para>
-
-    <para>&man.cdcontrol.1; が
-      CDROM ドライブの最大速度を設定する
-      <literal>speed</literal> コマンドに対応しました
-      (速度に <literal>max</literal> と指定することで、
-      ドライブの最大速度と同じ値に設定することも可能)。</para>
-
-    <para>FireWire サブシステムをユーザから操作・制御するための
-      &man.fwcontrol.8; ユーティリティが追加されました。</para>
-
-    <para arch="alpha,i386"><filename>compat4x</filename>
-      配布物に、&os; 4.7-RELEASE に含まれる
-      <filename>libcrypto.so.2</filename>,
-      <filename>libssl.so.2</filename> ライブラリが追加されました。</para>
-
-    <para>&man.ftpd.8; に、サーバメッセージ中に &man.ftpd.8;
-      のバージョンやホスト名などの固有情報を表示しないようにする
-      <option>-h</option> オプションが追加されました。</para>
-
-    <para>&man.ftpd.8; に、デーモンモードで listen するポート番号を
-      指定する <option>-P</option> が追加されました。
-      また、デフォルトのデータポート番号は制御ポート番号より 1 少ない値になっており、
-      特定の固定値は使わなくなりました。</para>
-
-    <para>&man.ftpd.8; に使われる <filename>/etc/ftpchroot</filename>
-      ファイルの書式が拡張されました。詳しくは、新しく追加された
-      &man.ftpchroot.5; のマニュアルページをご覧ください。</para>
-
-    <para>&man.ftpd.8; のログインディレクトリのパス名に、
-      &man.chroot.2; 用のディレクトリと、
-      chroot 環境でのカレントディレクトリが指定できるようになりました。
-      指定には、他の FTP デーモンでも使われている
-      <literal>/./</literal>
-      というセパレータを使います。
-      これは &man.ftpchroot.5; と &man.passwd.5; の両方で指定可能です。</para>
-
-    <para>&man.getconf.1; ユーティリティが追加されました。
-      これは POSIX、X/Open パスの値、
-      あるいはシステム設定変数の値を出力します。</para>
-
-    <para>&man.ipfw.8; に、(ファイアウォール機能そのものの有効化・無効化を含む)
-      &man.ipfw.4; におけるさまざまな制御を実現するため、
-      <literal>enable</literal> コマンド、
-      <literal>disable</literal> コマンドが追加されました。
-      これらは、従来の sysctl 変数よりもわかりやすく、
-      便利な操作手段を提供します。</para>
-
-    <para>&man.make.1; に新しいオプション <option>-C</option> が追加されました。
-      これは、ターゲットを構築する前に、
-      カレントディレクトリを指定されたディレクトリに移動します。</para>
-
-    <para>&man.mount.nfs.8; に、UDP マウントポイントに対して
-      &man.connect.2; を行なわないようにする <option>-c</option>
-      オプションが追加されました。このオプションは、サーバが
-      標準の NFS ポート番号である 2049 からの要求に応答しない、
-      あるいはその要求に対してサーバが異なる IP アドレスを
-      使って応答する (サーバがマルチホーム構成の場合など) 時に使います。
-      <varname>vfs.nfs.nfs_ip_paranoia</varname> sysctl 変数を
-      <literal>0</literal> にすると、このオプションがデフォルト動作になります。</para>
-
-    <para>&man.newsyslog.8; に、エントリの圧縮処理の開始前に、
-      前回開始した圧縮処理を強制終了させる
-      <literal>W</literal> フラグ (エントリのグループの場合は
-      <literal>G</literal> フラグ) が追加されました。
-      この機能は、大きいファイルを同時に圧縮する処理でシステムが過負荷に
-      なるのを避けるためのものです。</para>
-
-    <para>パス名の妥当性や他の POSIX システムとの移植性をチェックする
-      &man.pathchk.1; ユーティリティが追加されました。</para>
-
-    <para>&man.pw.8; が、<literal>$</literal>
-      文字で終わるユーザの追加に対応しました。
-      これは、主に <application>Samba</application>
-      サービスの管理を容易にするための変更です。</para>
-
-    <para>&man.rarpd.8; に
-      <filename>/tftpboot</filename> ディレクトリを変更する
-      <option>-t</option> フラグが追加されました。</para>
-
-    <para>&man.uuencode.1; と &man.uudecode.1; の base64 変換機能が、
-      それぞれ &man.b64encode.1; と &man.b64decode.1;
-      という名前で実行することで自動的に有効になるようになりました。
-      (訳注: &man.b64encode.1; は &man.uuencode.1; の、
-      &man.b64decode.1; は &man.uudecode.1; のハードリンクです)。</para>
+    <para>&man.uudecode.1; と &man.b64decode.1; に、
+      先頭フレーム行、もしくは最終フレーム行が欠けた、
+      壊れたファイルをデコードするための
+      <option>-r</option> フラグが追加されました。</para>
 
 <!-- Above this line, order userland changes by manpage/variable name-->
 
-    <para>標準ファイルストリーム
-      (<varname>stdin</varname>, <varname>stdout</varname>,
-      <varname>stderr</varname>) の定義が変更され、
-      コンパイル時の定数ではなくなりました。
-      古いバイナリのいくつかは、
-      3.X 互換ライブラリが必要になるかも知れません
-      (これを有効にするには、たとえば buildworld/installworld 時に
-      <literal>COMPAT3X=yes</literal> を指定します)。</para>
-
-    <sect3>
-      <title>寄贈ソフトウェア</title>
-
-      <para><application>BIND</application> がバージョン
-        8.3.4 に更新されました。</para>
-
-      <para>ベースシステムに <application>bzip2</application>
-        スイート全体、特に <command>bzip2recover</command>
-        がインストールされるようになりました。</para>
-
-      <para><application>CVS</application> がバージョン
-	 1.11.5 に更新されました。</para>
-
-      <para><application>FILE</application> がバージョン
-	 3.41 に更新されました。</para>
-
-      <para><application>groff</application> と関連ユーティリティが
-	FSF バージョン 1.18.1 に更新されました。</para>
-
-      <para><application>Heimdal Kerberos</application> がバージョン
-	0.5.1 に更新されました。</para>
-
-      <para><application>ISC DHCP</application> クライアントがバージョン
-	3.0.1RC11 に更新されました。</para>
-
-      <para><application>libz</application> がバージョン
-        1.1.4 に更新されました。</para>
-
-      <para><application>OpenSSH</application> がバージョン
-        3.5p1 に更新されました。</para>
-
-      <para><application>OpenSSL</application> がリリース
-        0.9.7a に更新されました。
-        このリリースには、AES と &man.crypto.4;
-        デバイス対応が含まれています。</para>
-
-      <para><application>sendmail</application> がバージョン
-        8.12.8 に更新されました。</para>
-
-      <para><application>tcpdump</application> がバージョン
-	3.7.2 に更新されました。</para>
-
-      <para>タイムゾーンデータベースが
-	<filename>tzdata2002d</filename> release に更新されました。</para>
-    </sect3>
-    
-    <sect3>
-      <title>Ports/Packages Collection</title>
-
-      <para>オンラインファイル <filename>pkg-comment</filename> が
-	各 Port のスケルトンから取り除かれ、
-	その内容は <filename>Makefile</filename> の中に移動されました。
-	この変更により、Ports ツリーが使用するディスクスペースと
-	i ノード数が減少しました。</para>
-
-    </sect3>
   </sect2>
 
-  <sect2>
+  <sect2 id="contrib">
+    <title>寄贈ソフトウェア</title>
+
+    <para><application>sendmail</application> がバージョン
+      8.12.9 に更新されました。</para>
+  </sect2>
+    
+  <sect2 id="ports">
+    <title>Ports/Packages Collection</title>
+
+    <para></para>
+  </sect2>
+
+  <sect2 id="releng">
     <title>リリースエンジニアリングと統合</title>
 
     <para><application>GNOME</application> 対応リリースが
-      2.2 に更新されました。</para>
+      2.2.1 に更新されました。</para>
 
     <para><application>KDE</application> 対応リリースが
-      3.1 に更新されました。</para>
-
-    <para><application>XFree86</application> 対応リリースが
-      4.3.0 に更新されました。</para>
-
+      3.1.1a に更新されました。</para>
   </sect2>
 </sect1>
 
-<sect1>
+<sect1 id="upgrade">
   <title>以前の &os; リリース版からのアップグレード</title>
 
   <para>以前の &os; リリース版からのアップグレードを行なうには、
