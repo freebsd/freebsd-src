@@ -201,6 +201,10 @@ pkg_do(char *pkg)
 	    show_plist("Prefix(s):\n", &plist, PLIST_CWD);
 	if (Flags & SHOW_FILES)
 	    show_files("Files:\n", &plist);
+	if ((Flags & SHOW_SIZE) && installed)
+	    show_size("Package Size:\n", &plist);
+	if (Flags & SHOW_ORIGIN)
+	    show_origin("Origin:\n", &plist);
 	if (!Quiet)
 	    puts(InfoPrefix);
     }

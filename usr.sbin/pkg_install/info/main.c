@@ -28,7 +28,7 @@ static const char rcsid[] =
 #include "lib.h"
 #include "info.h"
 
-static char Options[] = "acdDe:fikrRpLqImvhl:";
+static char Options[] = "acdDe:fhiIkl:LmopqrRsv";
 
 int	Flags		= 0;
 Boolean AllInstalled	= FALSE;
@@ -111,6 +111,14 @@ main(int argc, char **argv)
 	    Flags |= SHOW_MTREE;
 	    break;
 
+        case 's':
+            Flags |= SHOW_SIZE;
+            break;
+
+	case 'o':
+	    Flags |= SHOW_ORIGIN;
+	    break;
+
 	case 'l':
 	    InfoPrefix = optarg;
 	    break;
@@ -157,7 +165,7 @@ static void
 usage()
 {
     fprintf(stderr, "%s\n%s\n%s\n",
-	"usage: pkg_info [-cdDikrRpLqImv] [-e package] [-l prefix]",
+	"usage: pkg_info [-cdDfiIkLmopqrRsv] [-e package] [-l prefix]",
 	"                pkg-name [pkg-name ...]",
 	"       pkg_info -a [flags]");
     exit(1);

@@ -85,6 +85,10 @@ pkg_perform(char **pkgs)
     else
 	suf = "tar";
 
+    /* Add the origin if asked, at the top */
+    if (Origin)
+	add_plist(&plist, PLIST_COMMENT, strconcat("ORIGIN:", Origin));
+
     /* Stick the dependencies, if any, at the top */
     if (Pkgdeps) {
 	if (Verbose && !PlistOnly)
@@ -92,7 +96,7 @@ pkg_perform(char **pkgs)
 	while (Pkgdeps) {
 	    cp = strsep(&Pkgdeps, " \t\n");
 	    if (*cp) {
-		add_plist(&plist, PLIST_PKGDEP, cp);
+		add_plist_top(&plist, PLIST_PKGDEP, cp);
 		if (Verbose && !PlistOnly)
 		    printf(" %s", cp);
 	    }

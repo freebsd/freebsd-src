@@ -25,7 +25,7 @@
 .Nd a utility for displaying information on software packages
 .Sh SYNOPSIS
 .Nm pkg_info
-.Op Fl cdDikrRpLqImv
+.Op Fl cdDfiIkLmopqrRsv
 .Op Fl e Ar package
 .Op Fl l Ar prefix
 .Ar pkg-name [pkg-name ...]
@@ -81,6 +81,15 @@ Show the mtree file (if any) for each package.
 Show the files within each package.  This is different from just
 viewing the packing list, since full pathnames for everything
 are generated.
+.It Fl s
+Show the total size occupied by files installed within each package.
+.It Fl o
+Show the
+.Dq origin
+path recorded on package generation.  This path
+intended to give an idea as to where the underlying port, from which
+package was generated, is located in the
+.Em "FreeBSD Ports Collection" .
 .It Fl e Ar pkg-name
 If the package identified by
 .Ar pkg-name
@@ -158,6 +167,7 @@ Default location of the installed package database.
 .Xr pkg_add 1 ,
 .Xr pkg_create 1 ,
 .Xr pkg_delete 1 ,
+.Xr pkg_version 1 ,
 .Xr mktemp 3 ,
 .Xr mtree 8
 .Sh AUTHORS

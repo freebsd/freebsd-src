@@ -43,6 +43,8 @@
 #define SHOW_DISPLAY	0x0200
 #define SHOW_REQBY	0x0400
 #define SHOW_MTREE	0x0800
+#define SHOW_SIZE	0x1000
+#define SHOW_ORIGIN	0x2000
 
 extern int Flags;
 extern Boolean AllInstalled;
@@ -55,5 +57,7 @@ extern void	show_file(char *, char *);
 extern void	show_plist(char *, Package *, plist_t);
 extern void	show_files(char *, Package *);
 extern void	show_index(char *, char *);
+extern void	show_size(char *, Package *);
+extern void	show_origin(char *, Package *);
 
 #endif	/* _INST_INFO_H_INCLUDE */
