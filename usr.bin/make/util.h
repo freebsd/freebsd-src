@@ -76,10 +76,10 @@ do {						\
 
 void Debug(const char *, ...);
 void Error(const char *, ...);
-void Fatal(const char *, ...);
-void Punt(const char *, ...);
-void DieHorribly(void);
-void Finish(int);
+void Fatal(const char *, ...) __dead2;
+void Punt(const char *, ...) __dead2;
+void DieHorribly(void) __dead2;
+void Finish(int) __dead2;
 char *estrdup(const char *);
 void *emalloc(size_t);
 void *erealloc(void *, size_t);
