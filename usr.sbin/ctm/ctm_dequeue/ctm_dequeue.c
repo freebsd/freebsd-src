@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ctm_dequeue.c,v 1.2 1996/07/12 13:12:46 gpalmer Exp $
+ *	$Id: ctm_dequeue.c,v 1.3 1996/09/07 18:48:42 peter Exp $
  */
 
 /* 
@@ -92,8 +92,11 @@ main(int argc, char **argv)
     ftsent = fts_children(fts, 0);
     if (ftsent == NULL)
     {
-	err("ftschildren failed");
-	exit(1);
+	if (errno) {
+	    err("ftschildren failed");
+	    exit(1);
+	} else
+	    exit(0);
     }
 
     /* assumption :-( */
