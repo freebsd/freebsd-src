@@ -74,6 +74,7 @@
 #if SMP == 0
 #define isa_apic_irq(x) x
 #endif
+#define IOMASK	0xfffffffc /* XXX SOS 0xfffc */
 
 /* prototypes */
 static int32_t ata_probe(int32_t, int32_t, int32_t, device_t, int32_t *);
@@ -263,9 +264,9 @@ ata_pciattach(device_t dev)
 	irq1 = 14;
     } 
     else {
-	iobase_1 = pci_read_config(dev, 0x10, 4) & 0xfffc;
-	altiobase_1 = pci_read_config(dev, 0x14, 4) & 0xfffc;
-	bmaddr_1 = pci_read_config(dev, 0x20, 4) & 0xfffc;
+	iobase_1 = pci_read_config(dev, 0x10, 4) & IOMASK;
+	altiobase_1 = pci_read_config(dev, 0x14, 4) & IOMASK;
+	bmaddr_1 = pci_read_config(dev, 0x20, 4) & IOMASK;
 	irq1 = pci_read_config(dev, PCI_INTERRUPT_REG, 4) & 0xff;
     }
 
@@ -275,9 +276,9 @@ ata_pciattach(device_t dev)
 	irq2 = 15;
     }
     else {
-	iobase_2 = pci_read_config(dev, 0x18, 4) & 0xfffc;
-	altiobase_2 = pci_read_config(dev, 0x1c, 4) & 0xfffc;
-	bmaddr_2 = (pci_read_config(dev, 0x20, 4) & 0xfffc) + ATA_BM_OFFSET1;
+	iobase_2 = pci_read_config(dev, 0x18, 4) & IOMASK;
+	altiobase_2 = pci_read_config(dev, 0x1c, 4) & IOMASK;
+	bmaddr_2 = (pci_read_config(dev, 0x20, 4) & IOMASK) + ATA_BM_OFFSET1;
 	irq2 = pci_read_config(dev, PCI_INTERRUPT_REG, 4) & 0xff;
     }
 
@@ -286,7 +287,7 @@ ata_pciattach(device_t dev)
 	/* is busmastering support turned on ? */
 	if ((pci_read_config(dev, PCI_COMMAND_STATUS_REG, 4) & 5) == 5) {
 	    /* is there a valid port range to connect to ? */
-	    if ((bmaddr_1 = pci_read_config(dev, 0x20, 4) & 0xfffc)) {
+	    if ((bmaddr_1 = pci_read_config(dev, 0x20, 4) & IOMASK)) {
 		bmaddr_2 = bmaddr_1 + ATA_BM_OFFSET1;
 		printf("ata-pci%d: Busmastering DMA supported\n", unit);
 	    }
@@ -297,20 +298,26 @@ ata_pciattach(device_t dev)
 	    printf("ata-pci%d: Busmastering DMA not enabled\n", unit);
     }
     else {
-	/* the Promise controllers need this to support burst mode */
-	if (type == 0x4d33105a || type == 0x4d38105a)
-	    outb(bmaddr_1 + 0x1f, inb(bmaddr_1 + 0x1f) | 0x01);
-
-	/* Promise and HPT366 controllers support busmastering DMA */
-    	if (type == 0x4d33105a || type == 0x4d38105a || type == 0x00041103)
+    	if (type == 0x4d33105a || type == 0x4d38105a || type == 0x00041103) {
+	    /* Promise and HPT366 controllers support busmastering DMA */
 	    printf("ata-pci%d: Busmastering DMA supported\n", unit);
-
-	/* we dont know this controller, disable busmastering DMA */
+	}
 	else {
+	    /* we dont know this controller, disable busmastering DMA */
 	    bmaddr_1 = bmaddr_2 = 0;
 	    printf("ata-pci%d: Busmastering DMA not supported\n", unit);
 	}
     }
+
+    /* on the Aladdin activate the ATAPI FIFO */
+    if (type == 0x522910b9) {
+	pci_write_config(dev, 0x53, 
+			 (pci_read_config(dev, 0x53, 1) & ~0x01) | 0x02, 1);
+    }
+
+    /* the Promise controllers needs burst mode to be turned on explicitly */
+    if (type == 0x4d33105a || type == 0x4d38105a)
+	outb(bmaddr_1 + 0x1f, inb(bmaddr_1 + 0x1f) | 0x01);
 	
     /* now probe the addresse found for "real" ATA/ATAPI hardware */
     lun = 0;
@@ -512,10 +519,11 @@ ataintr(void *data)
     struct ata_softc *scp =(struct ata_softc *)data;
 
     /* is this interrupt really for this channel */
-    if (scp->flags & ATA_DMA_ACTIVE)
-	if (!(ata_dmastatus(scp) & ATA_BMSTAT_INTERRUPT))
-	    return;
-    if ((scp->status = inb(scp->ioaddr + ATA_STATUS)) == ATA_S_BUSY)
+    if ((scp->flags & ATA_DMA_ACTIVE) &&
+	!(ata_dmastatus(scp) & ATA_BMSTAT_INTERRUPT))
+	return;
+
+    if (((scp->status = inb(scp->ioaddr+ATA_STATUS)) & ATA_S_BUSY)==ATA_S_BUSY)
 	return;
 
     /* find & call the responsible driver to process this interrupt */
@@ -530,7 +538,7 @@ ataintr(void *data)
 #endif
 #if NATAPICD > 0 || NATAPIFD > 0 || NATAPIST > 0
     case ATA_ACTIVE_ATAPI:
-	if (!scp->running) 
+	if (!scp->running)
 	    return;
 	if (atapi_interrupt(scp->running) == ATA_OP_CONTINUES)
 	    return;
