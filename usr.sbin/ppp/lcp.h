@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.h,v 1.16.2.23 1998/05/01 19:24:57 brian Exp $
+ * $Id: lcp.h,v 1.17 1998/05/21 21:46:03 brian Exp $
  *
  *	TODO:
  */
@@ -28,7 +28,7 @@ struct lcp {
   u_int16_t his_mrru;		/* Peers maximum reassembled packet size (MP) */
   u_int32_t his_accmap;		/* Peeers async char control map */
   u_int32_t his_magic;		/* Peers magic number */
-  u_int32_t his_lqrperiod;	/* Peers LQR frequency */
+  u_int32_t his_lqrperiod;	/* Peers LQR frequency (100ths of seconds) */
   u_short his_auth;		/* Peer wants this type of authentication */
   unsigned his_shortseq : 1;	/* Peer would like only 12bit seqs (MP) */
   unsigned his_protocomp : 1;	/* Does peer do Protocol field compression */
@@ -38,7 +38,7 @@ struct lcp {
   u_short want_mrru;		/* Our maximum reassembled packet size (MP) */
   u_int32_t want_accmap;	/* Our async char control map */
   u_int32_t want_magic;		/* Our magic number */
-  u_int32_t want_lqrperiod;	/* Our LQR frequency */
+  u_int32_t want_lqrperiod;	/* Our LQR frequency (100ths of seconds) */
   u_short want_auth;		/* We want this type of authentication */
   unsigned want_shortseq : 1;	/* I'd like only 12bit seqs (MP) */
   unsigned want_protocomp : 1;	/* Do we do protocol field compression */
@@ -56,7 +56,7 @@ struct lcp {
     u_short mru;		/* Preferred MRU value */
     u_int32_t accmap;		/* Initial ACCMAP value */
     int openmode;		/* when to start CFG REQs */
-    u_int lqrperiod;		/* LQR frequency */
+    u_int32_t lqrperiod;	/* LQR frequency (seconds) */
     u_int fsmretry;		/* FSM retry frequency */
 
     unsigned acfcomp : 2;	/* Address & Control Field Compression neg */

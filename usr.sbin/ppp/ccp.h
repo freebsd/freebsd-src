@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.h,v 1.16 1998/05/23 13:38:02 brian Exp $
+ * $Id: ccp.h,v 1.17 1998/06/15 19:06:37 brian Exp $
  *
  *	TODO:
  */
@@ -83,8 +83,8 @@ struct ccp {
   u_int32_t his_reject;		/* Request codes rejected by peer */
   u_int32_t my_reject;		/* Request codes I have rejected */
 
-  u_long uncompout, compout;
-  u_long uncompin, compin;
+  u_long uncompout, compout;	/* Outgoing bytes before/after compression */
+  u_long uncompin, compin;	/* Incoming bytes after/before decompression */
 
   struct ccp_config cfg;
 };

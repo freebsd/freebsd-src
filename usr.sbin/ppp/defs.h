@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: defs.h,v 1.31 1998/05/28 23:17:40 brian Exp $
+ * $Id: defs.h,v 1.32 1998/05/29 18:32:11 brian Exp $
  *
  *	TODO:
  */
@@ -48,7 +48,9 @@
 #define NCP_IDLE_TIMEOUT 180		/* Drop all links */
 
 #define LINK_MINWEIGHT 20
+#define MIN_LQRPERIOD 5		/* Minimum LQR frequency */
 #define DEF_LQRPERIOD 30	/* LQR frequency */
+#define MIN_FSMRETRY 3		/* Minimum FSM retry frequency */
 #define DEF_FSMRETRY 3		/* FSM retry frequency */
 
 #define	CONFFILE 	"ppp.conf"

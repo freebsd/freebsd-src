@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: route.c,v 1.49 1998/06/16 19:40:40 brian Exp $
+ * $Id: route.c,v 1.50 1998/06/27 12:03:49 brian Exp $
  *
  */
 
@@ -80,8 +80,8 @@ p_sockaddr(struct prompt *prompt, struct sockaddr *phost,
     else if (!mask) 
       strcpy(buf, inet_ntoa(ihost->sin_addr));
     else {
-      u_int msk = ntohl(mask->sin_addr.s_addr);
-      u_int tst;
+      u_int32_t msk = ntohl(mask->sin_addr.s_addr);
+      u_int32_t tst;
       int bits;
       int len;
       struct sockaddr_in net;
@@ -90,20 +90,20 @@ p_sockaddr(struct prompt *prompt, struct sockaddr *phost,
         if (msk & tst)
           break;
 
-      for (tst <<=1; tst; tst <<= 1)
+      for (tst <<= 1; tst; tst <<= 1)
         if (!(msk & tst))
           break;
 
       net.sin_addr.s_addr = ihost->sin_addr.s_addr & mask->sin_addr.s_addr;
       strcpy(buf, inet_ntoa(net.sin_addr));
-      for (len = strlen(buf); len > 3; buf[len-=2] = '\0')
-        if (strcmp(buf+len-2, ".0"))
+      for (len = strlen(buf); len > 3; buf[len -= 2] = '\0')
+        if (strcmp(buf + len - 2, ".0"))
           break;
 
       if (tst)    /* non-contiguous :-( */
-        sprintf(buf+strlen(buf),"&0x%08x", msk);
+        sprintf(buf + strlen(buf),"&0x%08lx", (u_long)msk);
       else
-        sprintf(buf+strlen(buf), "/%d", bits);
+        sprintf(buf + strlen(buf), "/%d", bits);
     }
     break;
 

@@ -23,24 +23,27 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: iplist.h,v 1.2 1997/12/21 12:11:06 brian Exp $
  */
 
+struct iplist_cur {
+  struct in_addr ip;
+  int pos;
+  char *srcptr;
+  u_long srcitem;
+  u_int32_t lstart;
+  u_long nItems;
+};
+
 struct iplist {
-  struct iplist_cur {
-    struct in_addr ip;
-    int pos;
-    char *srcptr;
-    int srcitem;
-    u_long lstart, nItems;
-  } cur;
-  int nItems;
+  struct iplist_cur cur;
+  u_long nItems;
   char src[LINE_LEN];
 };
 
 extern int iplist_setsrc(struct iplist *, const char *);
 extern void iplist_reset(struct iplist *);
-extern struct in_addr iplist_setcurpos(struct iplist *, int);
+extern struct in_addr iplist_setcurpos(struct iplist *, long);
 extern struct in_addr iplist_setrandpos(struct iplist *);
 extern int iplist_ip2pos(struct iplist *, struct in_addr);
 extern struct in_addr iplist_next(struct iplist *);

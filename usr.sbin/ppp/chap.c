@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: chap.c,v 1.32 1998/05/21 22:55:02 brian Exp $
+ * $Id: chap.c,v 1.33 1998/06/27 14:18:01 brian Exp $
  *
  *	TODO:
  */
@@ -32,6 +32,7 @@
 #endif
 #include <md5.h>
 #include <stdlib.h>
+#include <string.h>
 #include <termios.h>
 
 #include "mbuf.h"

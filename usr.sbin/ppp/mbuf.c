@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: mbuf.c,v 1.16 1998/06/16 07:15:11 brian Exp $
+ * $Id: mbuf.c,v 1.17 1998/06/16 19:40:20 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -63,7 +63,8 @@ mbuf_Alloc(int cnt, int type)
     log_Printf(LogERROR, "Bad mbuf type %d\n", type);
   bp = (struct mbuf *) malloc(sizeof(struct mbuf));
   if (bp == NULL) {
-    log_Printf(LogALERT, "failed to allocate memory: %u\n", sizeof(struct mbuf));
+    log_Printf(LogALERT, "failed to allocate memory: %ld\n",
+               (long)sizeof(struct mbuf));
     AbortProgram(EX_OSERR);
   }
   memset(bp, '\0', sizeof(struct mbuf));
