@@ -671,7 +671,7 @@ struct pr_usrreqs div_usrreqs = {
 	.pru_send =		div_send,
 	.pru_shutdown =		div_shutdown,
 	.pru_sockaddr =		div_sockaddr,
-	.pru_sosetlabel		in_pcbsosetlabel
+	.pru_sosetlabel =	in_pcbsosetlabel
 };
 
 struct protosw div_protosw = {
