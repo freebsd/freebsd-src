@@ -14,7 +14,7 @@
 # Note that some of FreeBSD's defaults differ from OpenBSD's, and
 # FreeBSD has a few additional options.
 
-#VersionAddendum FreeBSD-20030201
+#VersionAddendum FreeBSD-20030924
 
 #Port 22
 #Protocol 2,1
