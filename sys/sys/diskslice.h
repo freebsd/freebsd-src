@@ -47,6 +47,10 @@ struct	diskslice {
 	u_long	ds_offset;		/* starting sector */
 	u_long	ds_size;		/* number of sectors */
 	int	ds_type;		/* (foreign) slice type */
+#ifdef PC98
+	int	ds_subtype;		/* sub slice type */
+	u_char	ds_name[16];		/* slice name */
+#endif
 	struct dkbad_intern *ds_bad;	/* bad sector table, if any */
 	struct disklabel *ds_label;	/* BSD label, if any */
 	void	*ds_bdev;		/* devfs token for whole slice */
@@ -84,6 +88,10 @@ struct	diskslice {
 	u_long	ds_offset;		/* starting sector */
 	u_long	ds_size;		/* number of sectors */
 	int	ds_type;		/* (foreign) slice type */
+#ifdef PC98
+	int	ds_subtype;		/* sub slice type */
+	u_char	ds_name[16];		/* slice name */
+#endif
 	struct dkbad_intern *ds_bad;	/* bad sector table, if any */
 	void	*ds_date;		/* Slice type specific data */
 	struct slice_switch *switch;	/* switch table for type handler */
