@@ -117,6 +117,12 @@
 #endif
 #endif
 
+#ifdef FAST_IPSEC
+#include <netipsec/ipsec.h>
+#include <netipsec/ipsec6.h>
+#define	IPSEC
+#endif /* FAST_IPSEC */
+
 #include <netinet6/ip6_fw.h>
 
 #include <netinet6/ip6protosw.h>
