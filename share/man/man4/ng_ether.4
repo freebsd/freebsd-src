@@ -133,12 +133,28 @@ Returns the name of the associated interface as a NUL-terminated ASCII string.
 Normally this is the same as the name of the node.
 .It Dv NGM_ETHER_GET_IFINDEX
 Returns the global index of the associated interface as a 32 bit integer.
+.It Dv NGM_ETHER_GET_ENADDR
+Returns the device's unique six byte Ethernet address.
+.It Dv NGM_ETHER_SET_PROMISC
+Enable or disable promiscuous mode.
+This message includes a single 32 bit integer flag that enables or
+disables promiscuous mode on the interface.
+.It Dv NGM_ETHER_SET_AUTOSRC
+Sets the automatic source address override flag.
+This message includes a single 32 bit integer flag that causes
+all outgoing packets to have their source Ethernet
+address field overwritten with the device's unique Ethernet address.
+If this flag is set to zero, the source address in outgoing packets
+is not modified.
+The default setting for this flag is enabled.
 .El
 .Sh SHUTDOWN
 This node is persistent for as long as the interface exists.
 Upon receipt of a
 .Dv NGM_SHUTDOWN
-control message, all hooks are disconnected, but the node is not removed.
+control message, all hooks are disconnected, promiscuous mode is disabled,
+and the source address override flag is reenabled,
+but the node is not removed.
 If the interface itself is detached (e.g., because of PCCARD removal), the
 node disappears as well.
 .Sh EXAMPLE
