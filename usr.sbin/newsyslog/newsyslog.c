@@ -155,14 +155,14 @@ static void createdir(const struct conf_entry *ent, char *dirpart);
 static void createlog(const struct conf_entry *ent);
 
 /*
- * All the following are defined to work on an 'int', in the
- * range 0 to 255, plus EOF.  Define wrappers which can take
- * values of type 'char', either signed or unsigned.
+ * All the following take a parameter of 'int', but expect values in the
+ * range of unsigned char.  Define wrappers which take values of type 'char',
+ * whether signed or unsigned, and ensure they end up in the right range.
  */
-#define isdigitch(Anychar)    isdigit(((int) Anychar) & 255)
-#define isprintch(Anychar)    isprint(((int) Anychar) & 255)
-#define isspacech(Anychar)    isspace(((int) Anychar) & 255)
-#define tolowerch(Anychar)    tolower(((int) Anychar) & 255)
+#define	isdigitch(Anychar) isdigit((u_char)(Anychar))
+#define	isprintch(Anychar) isprint((u_char)(Anychar))
+#define	isspacech(Anychar) isspace((u_char)(Anychar))
+#define	tolowerch(Anychar) tolower((u_char)(Anychar))
 
 int
 main(int argc, char **argv)
