@@ -296,17 +296,17 @@ read_label(struct sun_disklabel *sl, const char *disk)
 		sl->sl_part[2].sdkp_cyloffset = 0;
 		sl->sl_part[2].sdkp_nsectors = sl->sl_ncylinders *
 		    sl->sl_ntracks * sl->sl_nsectors;
-		if (mediasize > 4999L * 1024L * 1024L) {
+		if (mediasize > (off_t)4999L * 1024L * 1024L) {
 			sprintf(sl->sl_text,
-			    "FreeBSD%luG cyl %u alt %u hd %u sec %u",
-			    (mediasize + 512 * 1024 * 1024) /
+			    "FreeBSD%jdG cyl %u alt %u hd %u sec %u",
+			    (intmax_t)(mediasize + 512 * 1024 * 1024) /
 			        (1024 * 1024 * 1024),
 			    sl->sl_ncylinders, sl->sl_acylinders,
 			    sl->sl_ntracks, sl->sl_nsectors);
 		} else {
 			sprintf(sl->sl_text,
-			    "FreeBSD%luM cyl %u alt %u hd %u sec %u",
-			    (mediasize + 512 * 1024) / (1024 * 1024),
+			    "FreeBSD%jdM cyl %u alt %u hd %u sec %u",
+			    (intmax_t)(mediasize + 512 * 1024) / (1024 * 1024),
 			    sl->sl_ncylinders, sl->sl_acylinders,
 			    sl->sl_ntracks, sl->sl_nsectors);
 		}
