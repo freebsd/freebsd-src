@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id: vm_mmap.c,v 1.3 1994/08/02 07:55:28 davidg Exp $
+ * $Id: vm_mmap.c,v 1.4 1994/08/04 03:06:44 davidg Exp $
  */
 
 /*
@@ -67,6 +67,8 @@ int mmapdebug = 0;
 #define MDB_SYNC	0x02
 #define MDB_MAPIT	0x04
 #endif
+
+void pmap_object_init_pt();
 
 struct sbrk_args {
 	int	incr;
@@ -712,6 +714,9 @@ vm_mmap(map, addr, size, prot, maxprot, flags, handle, foff)
 				pager_cache(object, FALSE);
 			else
 				vm_object_deallocate(object);
+
+			if( map->pmap)
+				pmap_object_init_pt(map->pmap, *addr, object, foff, size); 
 		}
 		/*
 		 * Copy-on-write of file.  Two flavors.
@@ -784,6 +789,8 @@ vm_mmap(map, addr, size, prot, maxprot, flags, handle, foff)
 			 * protect everything ourselves.
 			 */
 			vm_object_pmap_copy(object, foff, foff + size);
+			if( map->pmap)
+				pmap_object_init_pt(map->pmap, *addr, object, foff, size); 
 			vm_object_deallocate(object);
 			vm_map_deallocate(tmap);
 			if (rv != KERN_SUCCESS)
