@@ -30,6 +30,7 @@ LOCALES=	cs_CZ.ISO_8859-2 \
 		ru_RU.CP866 	 \
 		ru_RU.ISO_8859-5 \
 		ru_RU.KOI8-R     \
+		sk_SK.ISO_8859-2 \
 		sl_SI.ISO_8859-2 \
 		sv_SE.ISO_8859-1 \
 		tr_TR.ISO_8859-9 \
