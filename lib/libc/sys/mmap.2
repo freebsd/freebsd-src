@@ -202,18 +202,6 @@ Modifications are private.
 .It Dv MAP_SHARED
 Modifications are shared.
 .It Dv MAP_STACK
-This option is only available if your system has been compiled with
-.Dv VM_STACK
-defined when compiling the kernel.
-This is the default for
-i386 only.
-Consider adding
-.Li -DVM_STACK
-to
-.Va COPTFLAGS
-in your
-.Pa /etc/make.conf
-to enable this option for other architechures.
 .Dv MAP_STACK
 implies
 .Dv MAP_ANON ,
