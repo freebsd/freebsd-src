@@ -76,6 +76,8 @@ dump_interface_status()
 		}
 		fprintf(fp, "  interface status: %s\n",
 			ifinfo->active > 0 ? "active" : "inactive");
+		fprintf(fp, "  other config: %s\n",
+		    ifinfo->otherconfig ? "on" : "off");
 		fprintf(fp, "  rtsold status: %s\n", ifstatstr[ifinfo->state]);
 		fprintf(fp, "  carrier detection: %s\n",
 			ifinfo->mediareqok ? "available" : "unavailable");
