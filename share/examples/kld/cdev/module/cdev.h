@@ -70,29 +70,8 @@
 #ifndef __CDEV_H_
 #define __CDEV_H_
 
-#include <sys/conf.h>
-
 d_open_t mydev_open;
 d_close_t mydev_close;
 d_ioctl_t mydev_ioctl;
-
-#define CDEV_MAJOR 32
-
-static struct cdevsw my_devsw = {
-    mydev_open,
-    mydev_close,
-    noread,
-    nowrite,
-    mydev_ioctl,
-    nostop,
-    noreset,
-    nodevtotty,
-    NULL,
-    nommap,
-    NULL,
-    "cdev",
-    NULL,
-    CDEV_MAJOR
-};
 
 #endif 

@@ -34,7 +34,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $Id: Makefile,v 1.5 1998/11/08 22:31:00 rv Exp $
+# $Id: Makefile,v 1.1 1998/12/11 10:44:30 dfr Exp $
 #
 # Copyright (c) 1993 Terrence R. Lambert.
 # All rights reserved.
@@ -69,7 +69,7 @@
 
 BINDIR	= /tmp
 SRCS	= cdev.c cdevmod.c
-KMOD	= cdev_mod
+KMOD	= cdev
 NOMAN	= t
 KLDMOD	= t
 
