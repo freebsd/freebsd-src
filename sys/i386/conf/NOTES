@@ -750,13 +750,7 @@ device		da0			#SCSI direct access devices (aka disks)
 device		sa0			#SCSI tapes
 device		cd0			#SCSI CD-ROMs
 device		pass0			#CAM passthrough driver
-
-# The previous devices (ch, da, st, cd) are recognized by config.
-# config doesn't (and shouldn't) know about these newer ones,
-# so we have to specify that they are on a SCSI bus with the "at scbus?"
-# clause.
-
-device		pt0 at scbus?		# SCSI processor type
+device		pt0			#SCSI processor type
 
 # CAM OPTIONS:
 # debugging options:
@@ -1924,11 +1918,11 @@ options 	POWERFAIL_NMI	# make it beep instead of panicing
 # intpm	Intel PIIX4 Power Management Unit
 # alpm	Acer Aladdin-IV/V/Pro2 Power Management Unit
 #
-device		smbus0
+device		smbus0		# Bus support, required for smb below.
 device		intpm0
 device		alpm0
 
-device		smb0	at smbus?
+device		smb0
 
 #
 # I2C Bus
@@ -1947,12 +1941,12 @@ device		smb0	at smbus?
 # Other:
 # iicbb	generic I2C bit-banging code (needed by lpbb, bktr)
 #
-device		iicbus0
+device		iicbus0		# Bus support, required for ic/iic/iicsmb below.
 device		iicbb0
 
-device		ic0	at iicbus?
-device		iic0	at iicbus?
-device		iicsmb0	at iicbus?
+device		ic0
+device		iic0
+device		iicsmb0		# smb over i2c bridge
 
 device		pcf0	at isa? port 0x320 irq 5
 
@@ -2129,13 +2123,13 @@ options 	LPT_DEBUG	# Printer driver debug
 options 	PPC_DEBUG	# Parallel chipset level debug
 options 	PLIP_DEBUG	# Parallel network IP interface debug
 
-device		ppbus0
-device		vpo0	at ppbus?
-device		lpt0	at ppbus?
-device		plip0	at ppbus?
-device		ppi0	at ppbus?
-device		pps0	at ppbus?
-device		lpbb0	at ppbus?
+device		ppbus0		# Bus support, required for drivers below.
+device		vpo0
+device		lpt0
+device		plip0
+device		ppi0
+device		pps0
+device		lpbb0
 
 device		ppc0	at isa? port? irq 7
 
