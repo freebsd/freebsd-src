@@ -88,7 +88,8 @@
 #define	PHYS_DEDICATED		8  /* Dedicated link */
 #define	PHYS_DDIAL		16 /* Dial immediately, stay connected */
 #define PHYS_BACKGROUND		32 /* Dial immediately, deleted when closed */
-#define PHYS_ALL		63
+#define PHYS_FOREGROUND		64 /* Pseudo mode, same as background */
+#define PHYS_ALL		127
 
 extern void randinit(void);
 extern ssize_t fullread(int, void *, size_t);
