@@ -1321,7 +1321,7 @@ including the following:
   D-Link DE-650/660
   Danpex EN-6200P2
   ELECOM Laneed LD-CDL/TX
-  IO DATA PCLATE
+  IO DATA PCLATE,PCET/TX-R
   IBM Creditcard Ethernet I/II
   IC-CARD Ethernet/IC-CARD+ Ethernet
   Linksys EC2T/PCMPC100,EtherFast 10/100 PC Card (PCMPC100 V2)
