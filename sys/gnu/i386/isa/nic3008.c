@@ -1,6 +1,6 @@
-static char     nic38_id[] = "@(#)$Id: nic3008.c,v 1.6 1995/05/30 07:57:57 rgrimes Exp $";
+static char     nic38_id[] = "@(#)$Id: nic3008.c,v 1.7 1995/09/08 11:06:46 bde Exp $";
 /*******************************************************************************
- *  II - Version 0.1 $Revision: 1.6 $   $State: Exp $
+ *  II - Version 0.1 $Revision: 1.7 $   $State: Exp $
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -10,6 +10,10 @@ static char     nic38_id[] = "@(#)$Id: nic3008.c,v 1.6 1995/05/30 07:57:57 rgrim
  *
  *******************************************************************************
  * $Log: nic3008.c,v $
+ * Revision 1.7  1995/09/08  11:06:46  bde
+ * Fix benign type mismatches in devsw functions.  82 out of 299 devsw
+ * functions were wrong.
+ *
  * Revision 1.6  1995/05/30  07:57:57  rgrimes
  * Remove trailing whitespace.
  *
@@ -341,7 +345,7 @@ nic_connect(int cn, int ap, int b_channel, int inf_mask, int out_serv
 }
 
 int
-nic_listen(int cn, int ap, int inf_mask, int subadr_mask, int si_mask)
+nic_listen(int cn, int ap, int inf_mask, int subadr_mask, int si_mask, int spv)
 {
 	u_short         sbuf[4];
 
@@ -572,7 +576,7 @@ nicopen(dev_t dev, int flags, int fmt, struct proc *p)
 	if (dpr->msg_flg[0])
 	{
 		x = splhigh();
-		s_intr(sc, dpr);
+		s_intr(sc);
 		splx(x);
 	}
 	return (0);
@@ -745,7 +749,7 @@ nicioctl(dev_t dev, int cmd, caddr_t data, int flags, struct proc *p)
 		dpr->card_number = sc->sc_unit;
 		dpr->int_flg_pc = 0xff;
 		if (dpr->msg_flg[0])
-			s_intr(sc, dpr);
+			s_intr(sc);
 		splx(x);
 		return (0);
 
