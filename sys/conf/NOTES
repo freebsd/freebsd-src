@@ -2235,6 +2235,8 @@ device		ohci
 # General USB code (mandatory for USB)
 device		usb
 #
+# USB Double Bulk Pipe devices
+device		udbp
 # Generic USB device driver
 device		ugen
 # Human Interface Device (anything with buttons and dials)

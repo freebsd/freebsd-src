@@ -221,6 +221,7 @@ pseudo-device	bpf		# Berkeley packet filter
 #device		uhci		# UHCI PCI->USB interface
 #device		ohci		# OHCI PCI->USB interface
 #device		usb		# USB Bus (required)
+#device		udbp		# USB Double Bulk Pipe devices
 #device		ugen		# Generic
 #device		uhid		# "Human Interface Devices"
 #device		ukbd		# Keyboard
