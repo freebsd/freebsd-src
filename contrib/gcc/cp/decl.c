@@ -3523,7 +3523,9 @@ duplicate_decls (newdecl, olddecl)
 
       /* Already complained about this, so don't do so again.  */
       else if (current_class_type == NULL_TREE
-	  || IDENTIFIER_ERROR_LOCUS (DECL_ASSEMBLER_NAME (newdecl)) != current_class_type)
+	       || !DECL_ASSEMBLER_NAME_SET_P (newdecl)
+	       || (IDENTIFIER_ERROR_LOCUS (DECL_ASSEMBLER_NAME (newdecl)) 
+		   != current_class_type))
 	{
 	  error ("conflicting types for `%#D'", newdecl);
 	  cp_error_at ("previous declaration as `%#D'", olddecl);
@@ -4047,6 +4049,15 @@ duplicate_decls (newdecl, olddecl)
   /* NEWDECL contains the merged attribute lists.
      Update OLDDECL to be the same.  */
   DECL_ATTRIBUTES (olddecl) = DECL_ATTRIBUTES (newdecl);
+
+  /* If OLDDECL had its DECL_RTL instantiated, re-invoke make_decl_rtl
+     so that encode_section_info has a chance to look at the new decl
+     flags and attributes.  */
+  if (DECL_RTL_SET_P (olddecl)
+      && (TREE_CODE (olddecl) == FUNCTION_DECL
+	  || (TREE_CODE (olddecl) == VAR_DECL
+	      && TREE_STATIC (olddecl))))
+    make_decl_rtl (olddecl, NULL);
 
   return 1;
 }
@@ -8200,6 +8211,7 @@ reshape_init (tree type, tree *initp)
     {
       my_friendly_assert (TREE_CODE (old_init) == TREE_LIST, 20021202);
       TREE_VALUE (old_init) = error_mark_node;
+      *initp = TREE_CHAIN (old_init);
       return old_init;
     }
 
@@ -14013,16 +14025,16 @@ finish_enum (enumtype)
   else
     fixup_signed_type (enumtype);
 
-  /* We use "int" or "unsigned int" as the underlying type, unless all
-     the values will not fit or the user has requested that we try to
-     use shorter types where possible.  */
-  if (precision < TYPE_PRECISION (integer_type_node)
-      && !flag_short_enums)
-    {
-      TYPE_PRECISION (enumtype) = TYPE_PRECISION (integer_type_node);
-      TYPE_SIZE (enumtype) = NULL_TREE;
-      layout_type (enumtype);
-    }
+  if (flag_short_enums || (precision > TYPE_PRECISION (integer_type_node)))
+    /* Use the width of the narrowest normal C type which is wide
+       enough.  */
+    TYPE_PRECISION (enumtype) = TYPE_PRECISION (c_common_type_for_size
+						(precision, 1));
+  else
+    TYPE_PRECISION (enumtype) = TYPE_PRECISION (integer_type_node);
+
+  TYPE_SIZE (enumtype) = NULL_TREE;
+  layout_type (enumtype);
 
   /* Fix up all variant types of this enum type.  */
   for (t = TYPE_MAIN_VARIANT (enumtype); t; t = TYPE_NEXT_VARIANT (t))
