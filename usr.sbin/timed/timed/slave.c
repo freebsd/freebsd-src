@@ -32,12 +32,12 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)slave.c	8.1 (Berkeley) 6/6/93";
-#endif /* not lint */
-
-#ifdef sgi
-#ident "$Revision: 1.1.1.1 $"
 #endif
+static const char rcsid[] =
+	"$Id: slave.c,v 1.5 1997/10/31 12:33:06 charnier Exp $";
+#endif /* not lint */
 
 #include "globals.h"
 #include <setjmp.h>
@@ -49,7 +49,7 @@ extern int justquit;
 
 extern u_short sequence;
 
-static char master_name[MAXHOSTNAMELEN+1];
+static char master_name[MAXHOSTNAMELEN];
 static struct netinfo *old_slavenet;
 static int old_status;
 
@@ -499,7 +499,8 @@ loop:
 				bytenetorder(&to);
 				if (sendto(sock, (char *)&to,
 					   sizeof(struct tsp), 0,
-					   (struct sockaddr*)&taddr, sizeof(taddr)) < 0) {
+					   (struct sockaddr*)&taddr,
+					   sizeof(taddr)) < 0) {
 					trace_sendto_err(taddr.sin_addr);
 				}
 			}

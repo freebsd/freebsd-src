@@ -32,7 +32,11 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)cmdtab.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id: cmdtab.c,v 1.2 1997/10/22 06:20:04 charnier Exp $";
 #endif /* not lint */
 
 #include "timedc.h"

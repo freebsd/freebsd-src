@@ -46,8 +46,6 @@
 #include <netdb.h>
 #include <stdio.h>
 
-extern int errno;
-
 #define ON		1
 #define OFF		0
 

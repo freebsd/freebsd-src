@@ -32,12 +32,12 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)master.c	8.1 (Berkeley) 6/6/93";
-#endif /* not lint */
-
-#ifdef sgi
-#ident "$Revision: 1.1.1.1 $"
 #endif
+static const char rcsid[] =
+	"$Id: master.c,v 1.4 1997/10/29 07:32:28 charnier Exp $";
+#endif /* not lint */
 
 #include "globals.h"
 #include <sys/file.h>

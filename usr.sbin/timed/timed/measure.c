@@ -32,12 +32,12 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)measure.c	8.1 (Berkeley) 6/6/93";
-#endif /* not lint */
-
-#ifdef sgi
-#ident "$Revision: 1.2 $"
 #endif
+static const char rcsid[] =
+	"$Id: measure.c,v 1.5 1997/10/27 07:41:12 charnier Exp $";
+#endif /* not lint */
 
 #include "globals.h"
 #include <netinet/in_systm.h>
@@ -151,7 +151,7 @@ measure(maxmsec, wmsec, hname, addr, print)
 		 */
 		if (trials < TRIALS) {
 			trials++;
-			oicp->icmp_otime = ntohl((tcur.tv_sec % SECDAY) * 1000
+			oicp->icmp_otime = htonl((tcur.tv_sec % SECDAY) * 1000
 						 + tcur.tv_usec / 1000);
 			oicp->icmp_cksum = 0;
 			oicp->icmp_cksum = in_cksum((u_short*)oicp,
@@ -274,8 +274,7 @@ quit:
 		}
 	} else if (print) {
 		if (errno != 0)
-			fprintf(stderr, "measure %s: %s\n", hname,
-				strerror(errno));
+			warn("measure %s", hname);
 	} else {
 		if (errno != 0) {
 			syslog(LOG_ERR, "measure %s: %m", hname);
