@@ -87,6 +87,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/smp.h>
 #endif
 #include <machine/tss.h>
+#include <machine/vm86.h>
 
 #include <i386/isa/icu.h>
 #include <i386/isa/intr_machdep.h>
@@ -96,11 +97,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/clock.h>
 #endif
 
-#include <machine/vm86.h>
-
 #include <ddb/ddb.h>
-
-#include <sys/sysctl.h>
 
 extern void trap(struct trapframe frame);
 #ifdef I386_CPU
