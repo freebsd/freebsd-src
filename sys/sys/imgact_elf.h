@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_elf.h,v 1.8 1998/09/07 07:30:44 dfr Exp $
+ *	$Id: imgact_elf.h,v 1.9 1998/09/14 05:36:51 jdp Exp $
  */
 
 #ifndef _SYS_IMGACT_ELF_H_
@@ -64,10 +64,10 @@ typedef struct {
 
 #define MAX_BRANDS      8
 
-int elf_insert_brand_entry __P((Elf32_Brandinfo *entry));
-int elf_remove_brand_entry __P((Elf32_Brandinfo *entry));
+int	elf_insert_brand_entry __P((Elf32_Brandinfo *entry));
+int	elf_remove_brand_entry __P((Elf32_Brandinfo *entry));
 
-#else
+#else /* !(ELF_TARG_CLASS == ELFCLASS32) */
 
 /*
  * Structure used to pass infomation from the loader to the
@@ -94,16 +94,14 @@ typedef struct {
 
 #define MAX_BRANDS      8
 
-int elf_insert_brand_entry __P((Elf64_Brandinfo *entry));
-int elf_remove_brand_entry __P((Elf64_Brandinfo *entry));
+int	elf_insert_brand_entry __P((Elf64_Brandinfo *entry));
+int	elf_remove_brand_entry __P((Elf64_Brandinfo *entry));
 
-#endif
+#endif /* ELF_TARG_CLASS == ELFCLASS32 */
 
 struct proc;
 
-__BEGIN_DECLS
-int elf_coredump __P((struct proc *));
-__END_DECLS
+int	elf_coredump __P((struct proc *));
 
 #endif /* KERNEL */
 
