@@ -26,7 +26,7 @@
 .\" OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: rtentry.9,v 1.7 1998/03/12 07:31:18 charnier Exp $
+.\"	$Id: rtentry.9,v 1.9 1999/08/16 22:11:19 chris Exp $
 .Dd October 8, 1996
 .Os
 .Dt RTENTRY 9
@@ -223,7 +223,7 @@ Number of intermediate systems on the path to this destination.
 .It Li "u_long rmx_expire;"
 The time 
 (\*(aga la
-.Xr time 2 )
+.Xr time 3 )
 at which this route should expire, or zero if it should never expire.
 It is the responsibility of individual protocol suites to ensure that routes
 are actually deleted once they expire.
