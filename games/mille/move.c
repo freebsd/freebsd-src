@@ -38,9 +38,7 @@ static char sccsid[] = "@(#)move.c	8.1 (Berkeley) 5/31/93";
 #include <termios.h>
 
 #include	"mille.h"
-#ifndef	unctrl
-#include	"unctrl.h"
-#endif
+#include	<unctrl.h>
 
 # ifdef	attron
 #	include	<term.h>
