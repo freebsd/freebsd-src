@@ -1015,7 +1015,7 @@ If you've got something to say, do so!  We'd like your input.
 
 Please send random comments to:
 
-	FreeBSD-comments@freefall.cdrom.com
+	FreeBSD-questions@freefall.cdrom.com
 
 Please send bug reports, and that sort of material to:
 
@@ -1032,4 +1032,4 @@ THANKS FOR USING THIS; that's what makes it all worthwhile.
  as they will end up in our personal mail spools.  We will be
  happy to make other arrangements]
 
-This is $Id: install_notes,v 1.5 1993/09/14 21:26:32 alm Exp $
+This is $Id: install_notes,v 1.6 1993/09/22 07:38:16 alm Exp $
