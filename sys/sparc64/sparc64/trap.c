@@ -337,9 +337,6 @@ trap(struct trapframe *tf)
 			/*
 			 * handle PCI poke/peek as per UltraSPARC IIi
 			 * User's Manual 16.2.1.
-			 *
-			 * XXX - We really should make sure that tpc is
-			 * pointing to the membar #Sync we are expecting.
 			 */
 #define MEMBARSYNC_INST	((u_int32_t)0x8143e040)
 			if (tf->tf_tpc > (u_long)fas_nofault_begin &&
