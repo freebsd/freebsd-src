@@ -86,7 +86,11 @@ typedef void * usb_dma_t;
 #define		usb_allocmem(t,s,a,p)	(*(p) = malloc(s, M_USB, M_NOWAIT), (*(p) == NULL? USBD_NOMEM: USBD_NORMAL_COMPLETION))
 #define		usb_freemem(t,p)	(free(*(p), M_USB))
 
+#ifdef __alpha__
+#define DMAADDR(dma)	(alpha_XXX_dmamap((vm_offset_t) *(dma)))
+#else
 #define DMAADDR(dma)	(vtophys(*(dma)))
+#endif
 #define KERNADDR(dma)	((void *) *(dma))
 #endif
 
