@@ -2,7 +2,6 @@
 # $FreeBSD$
 #
 
-PROG=	splain
-NOMAN=	true
+PROG=	perlbc
 
 .include <bsd.prog.mk>

@@ -2,7 +2,6 @@
 # $FreeBSD$
 #
 
-PROG=	splain
-NOMAN=	true
+PROG=	dprofpp
 
 .include <bsd.prog.mk>
