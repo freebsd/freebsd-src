@@ -661,8 +661,8 @@ vm/vm_zone.c		standard
 dev/streams/streams.c	optional streams device-driver
 #
 # USB support
-dev/pci/uhci_pci.c	optional uhci device-driver
-dev/pci/ohci_pci.c	optional ohci device-driver
+pci/uhci_pci.c		optional uhci device-driver
+pci/ohci_pci.c		optional ohci device-driver
 usb_if.o		optional usb device-driver			\
 	dependency	"usb_if.c"					\
 	compile-with	"${NORMAL_C}"					\
