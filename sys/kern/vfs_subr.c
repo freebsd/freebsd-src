@@ -2425,26 +2425,6 @@ vgonel(struct vnode *vp, struct thread *td)
 }
 
 /*
- * Lookup a vnode by device number.
- */
-int
-vfinddev(dev, vpp)
-	struct cdev *dev;
-	struct vnode **vpp;
-{
-	struct vnode *vp;
-
-	dev_lock();
-	SLIST_FOREACH(vp, &dev->si_hlist, v_specnext) {
-		*vpp = vp;
-		dev_unlock();
-		return (1);
-	}
-	dev_unlock();
-	return (0);
-}
-
-/*
  * Calculate the total number of references to a special device.
  */
 int
