@@ -200,8 +200,13 @@ static dpt_sig_S ASR_sig = {
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
-#include <machine/cputypes.h>
+
+#if defined (__i386__)
+#include <i386/include/cputypes.h>
 #include <i386/include/vmparam.h>
+#elif defined (__alpha__)
+#include <alpha/include/pmap.h>
+#endif
 
 #include <pci/pcivar.h>
 #include <pci/pcireg.h>
@@ -4158,6 +4163,7 @@ asr_ioctl(
                 Info.numDrives = *((char *)ptok(0x475));
 
                 Info.processorFamily = ASR_sig.dsProcessorFamily;
+#if defined (__i386__)
                 switch (cpu) {
                 case CPU_386SX: case CPU_386:
                         Info.processorType = PROC_386; break;
@@ -4168,6 +4174,10 @@ asr_ioctl(
                 case CPU_686:
                         Info.processorType = PROC_SEXIUM; break;
                 }
+#elif defined (__alpha__)
+		Info.processorType = PROC_ALPHA;
+#endif
+
                 Info.osType = OS_BSDI_UNIX;
                 Info.osMajorVersion = osrelease[0] - '0';
                 Info.osMinorVersion = osrelease[2] - '0';
