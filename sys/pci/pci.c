@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pci.c,v 1.23.4.1 1995/07/20 17:46:52 davidg Exp $
+**  $Id: pci.c,v 1.23.4.2 1995/09/09 23:10:19 davidg Exp $
 **
 **  General subroutines for the PCI bus.
 **  pci_configure ()
@@ -1367,7 +1367,7 @@ fail:
 	**	If included in mask, remove it.
 	*/
 
-	if (free) free (new, M_DEVBUF);
+	if (new) free(new, M_DEVBUF);
 	if (!mdp) (void) pcibus->pb_imaskexc (irq, maskptr);
 	splx (oldspl);
 	return (0);
