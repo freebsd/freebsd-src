@@ -21,7 +21,7 @@
 
 4) Import the sources:
 
-	$ cvs import src/crypto/openssh-portable OPENSSH OpenSSH_X_YpZ
+	$ cvs import src/crypto/openssh OPENSSH OpenSSH_X_YpZ
 
 5) Resolve conflicts.  Remember to bump the version number and
    addendum in version.h.
