@@ -208,6 +208,8 @@ checkinode(inumber, idesc)
 	lastino = inumber;
 	/* This should match the file size limit in ffs_mountfs(). */
 	kernmaxfilesize = (u_int64_t)0x40000000 * sblock.fs_bsize - 1;
+	if (kernmaxfilesize > (u_int64_t)0x80000000u * PAGE_SIZE - 1)
+		kernmaxfilesize = (u_int64_t)0x80000000u * PAGE_SIZE - 1;
 	if (dp->di_size > kernmaxfilesize ||
 	    dp->di_size > sblock.fs_maxfilesize ||
 	    (mode == IFDIR && dp->di_size > MAXDIRSIZE)) {
