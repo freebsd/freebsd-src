@@ -18,7 +18,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: demand.c,v 1.6 1997/04/30 05:51:56 paulus Exp $";
+static char rcsid[] = "$Id: demand.c,v 1.7 1997/11/27 06:08:26 paulus Exp $";
 #endif
 
 #include <stdio.h>
@@ -35,8 +35,8 @@ static char rcsid[] = "$Id: demand.c,v 1.6 1997/04/30 05:51:56 paulus Exp $";
 #include <sys/resource.h>
 #include <sys/stat.h>
 #include <sys/socket.h>
-#include <net/if.h>
 #ifdef PPP_FILTER
+#include <net/if.h>
 #include <net/bpf.h>
 #include <pcap.h>
 #endif
