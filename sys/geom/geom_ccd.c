@@ -143,8 +143,8 @@ SYSCTL_INT(_debug, OID_AUTO, ccddebug, CTLFLAG_RW, &ccddebug, 0, "");
  */
 
 struct ccdbuf {
-	struct buf	cb_buf;		/* new I/O buf */
-	struct buf	*cb_obp;	/* ptr. to original I/O buf */
+	struct bio	cb_buf;		/* new I/O buf */
+	struct bio	*cb_obp;	/* ptr. to original I/O buf */
 	struct ccdbuf	*cb_freenext;	/* free list link */
 	int		cb_unit;	/* target unit */
 	int		cb_comp;	/* target component */
@@ -192,15 +192,15 @@ static	void ccdattach __P((void));
 static	int ccd_modevent __P((module_t, int, void *));
 
 /* called by biodone() at interrupt time */
-static	void ccdiodone __P((struct buf *bp));
+static	void ccdiodone __P((struct bio *bp));
 
-static	void ccdstart __P((struct ccd_softc *, struct buf *));
+static	void ccdstart __P((struct ccd_softc *, struct bio *));
 static	void ccdinterleave __P((struct ccd_softc *, int));
-static	void ccdintr __P((struct ccd_softc *, struct buf *));
+static	void ccdintr __P((struct ccd_softc *, struct bio *));
 static	int ccdinit __P((struct ccddevice *, char **, struct proc *));
 static	int ccdlookup __P((char *, struct proc *p, struct vnode **));
 static	void ccdbuffer __P((struct ccdbuf **ret, struct ccd_softc *,
-		struct buf *, daddr_t, caddr_t, long));
+		struct bio *, daddr_t, caddr_t, long));
 static	void ccdgetdisklabel __P((dev_t));
 static	void ccdmakedisklabel __P((struct ccd_softc *));
 static	int ccdlock __P((struct ccd_softc *));
@@ -248,12 +248,8 @@ getccdbuf(struct ccdbuf *cpy)
 		bzero(cbp, sizeof(struct ccdbuf));
 
 	/*
-	 * independant struct buf initialization
+	 * independant struct bio initialization
 	 */
-	LIST_INIT(&cbp->cb_buf.b_dep);
-	BUF_LOCKINIT(&cbp->cb_buf);
-	BUF_LOCK(&cbp->cb_buf, LK_EXCLUSIVE);
-	BUF_KERNPROC(&cbp->cb_buf);
 
 	return(cbp);
 }
@@ -268,8 +264,6 @@ static __inline
 void
 putccdbuf(struct ccdbuf *cbp)
 {
-	BUF_UNLOCK(&cbp->cb_buf);
-	BUF_LOCKFREE(&cbp->cb_buf);
 
 	if (numccdfreebufs < NCCDFREEHIWAT) {
 		cbp->cb_freenext = ccdfreebufs;
@@ -763,11 +757,10 @@ ccdclose(dev, flags, fmt, p)
 }
 
 static void
-ccdstrategy(bip)
-	struct bio *bip;
+ccdstrategy(bp)
+	struct bio *bp;
 {
-	struct buf *bp = (struct buf *)bip;
-	int unit = ccdunit(bp->b_dev);
+	int unit = ccdunit(bp->bio_dev);
 	struct ccd_softc *cs = &ccd_softc[unit];
 	int s;
 	int wlabel;
@@ -778,13 +771,13 @@ ccdstrategy(bip)
 		printf("ccdstrategy(%x): unit %d\n", bp, unit);
 #endif
 	if ((cs->sc_flags & CCDF_INITED) == 0) {
-		bp->b_error = ENXIO;
-		bp->b_ioflags |= BIO_ERROR;
+		bp->bio_error = ENXIO;
+		bp->bio_flags |= BIO_ERROR;
 		goto done;
 	}
 
 	/* If it's a nil transfer, wake up the top half now. */
-	if (bp->b_bcount == 0)
+	if (bp->bio_bcount == 0)
 		goto done;
 
 	lp = &cs->sc_label;
@@ -794,15 +787,15 @@ ccdstrategy(bip)
 	 * error, the bounds check will flag that for us.
 	 */
 	wlabel = cs->sc_flags & (CCDF_WLABEL|CCDF_LABELLING);
-	if (ccdpart(bp->b_dev) != RAW_PART) {
-		if (bounds_check_with_label(&bp->b_io, lp, wlabel) <= 0)
+	if (ccdpart(bp->bio_dev) != RAW_PART) {
+		if (bounds_check_with_label(bp, lp, wlabel) <= 0)
 			goto done;
 	} else {
 		int pbn;        /* in sc_secsize chunks */
 		long sz;        /* in sc_secsize chunks */
 
-		pbn = bp->b_blkno / (cs->sc_geom.ccg_secsize / DEV_BSIZE);
-		sz = howmany(bp->b_bcount, cs->sc_geom.ccg_secsize);
+		pbn = bp->bio_blkno / (cs->sc_geom.ccg_secsize / DEV_BSIZE);
+		sz = howmany(bp->bio_bcount, cs->sc_geom.ccg_secsize);
 
 		/*
 		 * If out of bounds return an error. If at the EOF point,
@@ -810,11 +803,10 @@ ccdstrategy(bip)
 		 */
 
 		if (pbn < 0 || pbn >= cs->sc_size) {
-			bp->b_resid = bp->b_bcount;
+			bp->bio_resid = bp->bio_bcount;
 			if (pbn != cs->sc_size) {
-				bp->b_error = EINVAL;
-				bp->b_flags |= B_INVAL;
-				bp->b_ioflags |= BIO_ERROR;
+				bp->bio_error = EINVAL;
+				bp->bio_flags |= BIO_ERROR;
 			}
 			goto done;
 		}
@@ -823,12 +815,12 @@ ccdstrategy(bip)
 		 * If the request crosses EOF, truncate the request.
 		 */
 		if (pbn + sz > cs->sc_size) {
-			bp->b_bcount = (cs->sc_size - pbn) * 
+			bp->bio_bcount = (cs->sc_size - pbn) * 
 			    cs->sc_geom.ccg_secsize;
 		}
 	}
 
-	bp->b_resid = bp->b_bcount;
+	bp->bio_resid = bp->bio_bcount;
 
 	/*
 	 * "Start" the unit.
@@ -838,13 +830,13 @@ ccdstrategy(bip)
 	splx(s);
 	return;
 done:
-	bufdone(bp);
+	biodone(bp);
 }
 
 static void
 ccdstart(cs, bp)
 	struct ccd_softc *cs;
-	struct buf *bp;
+	struct bio *bp;
 {
 	long bcount, rcount;
 	struct ccdbuf *cbp[4];
@@ -864,19 +856,19 @@ ccdstart(cs, bp)
 	/*
 	 * Translate the partition-relative block number to an absolute.
 	 */
-	bn = bp->b_blkno;
-	if (ccdpart(bp->b_dev) != RAW_PART) {
-		pp = &cs->sc_label.d_partitions[ccdpart(bp->b_dev)];
+	bn = bp->bio_blkno;
+	if (ccdpart(bp->bio_dev) != RAW_PART) {
+		pp = &cs->sc_label.d_partitions[ccdpart(bp->bio_dev)];
 		bn += pp->p_offset;
 	}
 
 	/*
 	 * Allocate component buffers and fire off the requests
 	 */
-	addr = bp->b_data;
-	for (bcount = bp->b_bcount; bcount > 0; bcount -= rcount) {
+	addr = bp->bio_data;
+	for (bcount = bp->bio_bcount; bcount > 0; bcount -= rcount) {
 		ccdbuffer(cbp, cs, bp, bn, addr, bcount);
-		rcount = cbp[0]->cb_buf.b_bcount;
+		rcount = cbp[0]->cb_buf.bio_bcount;
 
 		if (cs->sc_cflags & CCDF_MIRROR) {
 			/*
@@ -888,11 +880,9 @@ ccdstart(cs, bp)
 			 * to writes when making this determination and we
 			 * also try to avoid hogging.
 			 */
-			if (cbp[0]->cb_buf.b_iocmd == BIO_WRITE) {
-				cbp[0]->cb_buf.b_vp->v_numoutput++;
-				cbp[1]->cb_buf.b_vp->v_numoutput++;
-				BUF_STRATEGY(&cbp[0]->cb_buf);
-				BUF_STRATEGY(&cbp[1]->cb_buf);
+			if (cbp[0]->cb_buf.bio_cmd == BIO_WRITE) {
+				BIO_STRATEGY(&cbp[0]->cb_buf, 0);
+				BIO_STRATEGY(&cbp[1]->cb_buf, 0);
 			} else {
 				int pick = cs->sc_pick;
 				daddr_t range = cs->sc_size / 16;
@@ -903,15 +893,13 @@ ccdstart(cs, bp)
 					cs->sc_pick = pick = 1 - pick;
 				}
 				cs->sc_blk[pick] = bn + btodb(rcount);
-				BUF_STRATEGY(&cbp[pick]->cb_buf);
+				BIO_STRATEGY(&cbp[pick]->cb_buf, 0);
 			}
 		} else {
 			/*
 			 * Not mirroring
 			 */
-			if (cbp[0]->cb_buf.b_iocmd == BIO_WRITE)
-				cbp[0]->cb_buf.b_vp->v_numoutput++;
-			BUF_STRATEGY(&cbp[0]->cb_buf);
+			BIO_STRATEGY(&cbp[0]->cb_buf, 0);
 		}
 		bn += btodb(rcount);
 		addr += rcount;
@@ -925,7 +913,7 @@ static void
 ccdbuffer(cb, cs, bp, bn, addr, bcount)
 	struct ccdbuf **cb;
 	struct ccd_softc *cs;
-	struct buf *bp;
+	struct bio *bp;
 	daddr_t bn;
 	caddr_t addr;
 	long bcount;
@@ -1048,20 +1036,18 @@ ccdbuffer(cb, cs, bp, bn, addr, bcount)
 	 * Fill in the component buf structure.
 	 */
 	cbp = getccdbuf(NULL);
-	cbp->cb_buf.b_flags = bp->b_flags;
-	cbp->cb_buf.b_iocmd = bp->b_iocmd;
-	cbp->cb_buf.b_iodone = ccdiodone;
-	cbp->cb_buf.b_dev = ci->ci_dev;		/* XXX */
-	cbp->cb_buf.b_blkno = cbn + cboff + CCD_OFFSET;
-	cbp->cb_buf.b_offset = dbtob(cbn + cboff + CCD_OFFSET);
-	cbp->cb_buf.b_data = addr;
-	cbp->cb_buf.b_vp = ci->ci_vp;
+	cbp->cb_buf.bio_cmd = bp->bio_cmd;
+	cbp->cb_buf.bio_done = ccdiodone;
+	cbp->cb_buf.bio_dev = ci->ci_dev;		/* XXX */
+	cbp->cb_buf.bio_blkno = cbn + cboff + CCD_OFFSET;
+	cbp->cb_buf.bio_offset = dbtob(cbn + cboff + CCD_OFFSET);
+	cbp->cb_buf.bio_data = addr;
 	if (cs->sc_ileave == 0)
               cbc = dbtob((off_t)(ci->ci_size - cbn));
 	else
               cbc = dbtob((off_t)(cs->sc_ileave - cboff));
-	cbp->cb_buf.b_bcount = (cbc < bcount) ? cbc : bcount;
- 	cbp->cb_buf.b_bufsize = cbp->cb_buf.b_bcount;
+	cbp->cb_buf.bio_bcount = (cbc < bcount) ? cbc : bcount;
+ 	cbp->cb_buf.bio_caller1 = (void*)cbp->cb_buf.bio_bcount;
 
 	/*
 	 * context for ccdiodone
@@ -1073,8 +1059,8 @@ ccdbuffer(cb, cs, bp, bn, addr, bcount)
 #ifdef DEBUG
 	if (ccddebug & CCDB_IO)
 		printf(" dev %x(u%d): cbp %x bn %d addr %x bcnt %d\n",
-		       ci->ci_dev, ci-cs->sc_cinfo, cbp, cbp->cb_buf.b_blkno,
-		       cbp->cb_buf.b_data, cbp->cb_buf.b_bcount);
+		       ci->ci_dev, ci-cs->sc_cinfo, cbp, cbp->cb_buf.bio_blkno,
+		       cbp->cb_buf.bio_data, cbp->cb_buf.bio_bcount);
 #endif
 	cb[0] = cbp;
 
@@ -1085,8 +1071,7 @@ ccdbuffer(cb, cs, bp, bn, addr, bcount)
 	if (cs->sc_cflags & CCDF_MIRROR) {
 		/* mirror, setup second I/O */
 		cbp = getccdbuf(cb[0]);
-		cbp->cb_buf.b_dev = ci2->ci_dev;
-		cbp->cb_buf.b_vp = ci2->ci_vp;
+		cbp->cb_buf.bio_dev = ci2->ci_dev;
 		cbp->cb_comp = ci2 - cs->sc_cinfo;
 		cb[1] = cbp;
 		/* link together the ccdbuf's and clear "mirror done" flag */
@@ -1100,7 +1085,7 @@ ccdbuffer(cb, cs, bp, bn, addr, bcount)
 static void
 ccdintr(cs, bp)
 	struct ccd_softc *cs;
-	struct buf *bp;
+	struct bio *bp;
 {
 #ifdef DEBUG
 	if (ccddebug & CCDB_FOLLOW)
@@ -1109,10 +1094,10 @@ ccdintr(cs, bp)
 	/*
 	 * Request is done for better or worse, wakeup the top half.
 	 */
-	if (bp->b_ioflags & BIO_ERROR)
-		bp->b_resid = bp->b_bcount;
-	devstat_end_transaction_buf(&cs->device_stats, bp);
-	bufdone(bp);
+	if (bp->bio_flags & BIO_ERROR)
+		bp->bio_resid = bp->bio_bcount;
+	devstat_end_transaction_bio(&cs->device_stats, bp);
+	biodone(bp);
 }
 
 /*
@@ -1122,10 +1107,10 @@ ccdintr(cs, bp)
  */
 static void
 ccdiodone(ibp)
-	struct buf *ibp;
+	struct bio *ibp;
 {
 	struct ccdbuf *cbp = (struct ccdbuf *)ibp;
-	struct buf *bp = cbp->cb_obp;
+	struct bio *bp = cbp->cb_obp;
 	int unit = cbp->cb_unit;
 	int count, s;
 
@@ -1135,11 +1120,11 @@ ccdiodone(ibp)
 		printf("ccdiodone(%x)\n", cbp);
 	if (ccddebug & CCDB_IO) {
 		printf("ccdiodone: bp %x bcount %d resid %d\n",
-		       bp, bp->b_bcount, bp->b_resid);
+		       bp, bp->bio_bcount, bp->bio_resid);
 		printf(" dev %x(u%d), cbp %x bn %d addr %x bcnt %d\n",
-		       cbp->cb_buf.b_dev, cbp->cb_comp, cbp,
-		       cbp->cb_buf.b_blkno, cbp->cb_buf.b_data,
-		       cbp->cb_buf.b_bcount);
+		       cbp->cb_buf.bio_dev, cbp->cb_comp, cbp,
+		       cbp->cb_buf.bio_blkno, cbp->cb_buf.bio_data,
+		       cbp->cb_buf.bio_bcount);
 	}
 #endif
 	/*
@@ -1149,11 +1134,11 @@ ccdiodone(ibp)
 	 * succeed.
 	 */
 
-	if (cbp->cb_buf.b_ioflags & BIO_ERROR) {
+	if (cbp->cb_buf.bio_flags & BIO_ERROR) {
 		const char *msg = "";
 
 		if ((ccd_softc[unit].sc_cflags & CCDF_MIRROR) &&
-		    (cbp->cb_buf.b_iocmd == BIO_READ) &&
+		    (cbp->cb_buf.bio_cmd == BIO_READ) &&
 		    (cbp->cb_pflags & CCDPF_MIRROR_DONE) == 0) {
 			/*
 			 * We will try our read on the other disk down
@@ -1165,15 +1150,15 @@ ccdiodone(ibp)
 
 			msg = ", trying other disk";
 			cs->sc_pick = 1 - cs->sc_pick;
-			cs->sc_blk[cs->sc_pick] = bp->b_blkno;
+			cs->sc_blk[cs->sc_pick] = bp->bio_blkno;
 		} else {
-			bp->b_ioflags |= BIO_ERROR;
-			bp->b_error = cbp->cb_buf.b_error ? 
-			    cbp->cb_buf.b_error : EIO;
+			bp->bio_flags |= BIO_ERROR;
+			bp->bio_error = cbp->cb_buf.bio_error ? 
+			    cbp->cb_buf.bio_error : EIO;
 		}
 		printf("ccd%d: error %d on component %d block %d (ccd block %d)%s\n",
-		       unit, bp->b_error, cbp->cb_comp, 
-		       (int)cbp->cb_buf.b_blkno, bp->b_blkno, msg);
+		       unit, bp->bio_error, cbp->cb_comp, 
+		       (int)cbp->cb_buf.bio_blkno, bp->bio_blkno, msg);
 	}
 
 	/*
@@ -1186,7 +1171,7 @@ ccdiodone(ibp)
 	 */
 
 	if (ccd_softc[unit].sc_cflags & CCDF_MIRROR) {
-		if (cbp->cb_buf.b_iocmd == BIO_WRITE) {
+		if (cbp->cb_buf.bio_cmd == BIO_WRITE) {
 			/*
 			 * When writing, handshake with the second buffer
 			 * to determine when both are done.  If both are not
@@ -1205,10 +1190,10 @@ ccdiodone(ibp)
 			 * occured with this one.
 			 */
 			if ((cbp->cb_pflags & CCDPF_MIRROR_DONE) == 0) {
-				if (cbp->cb_buf.b_ioflags & BIO_ERROR) {
+				if (cbp->cb_buf.bio_flags & BIO_ERROR) {
 					cbp->cb_mirror->cb_pflags |= 
 					    CCDPF_MIRROR_DONE;
-					BUF_STRATEGY(&cbp->cb_mirror->cb_buf);
+					BIO_STRATEGY(&cbp->cb_mirror->cb_buf, 0);
 					putccdbuf(cbp);
 					splx(s);
 					return;
@@ -1221,24 +1206,24 @@ ccdiodone(ibp)
 	}
 
 	/*
-	 * use b_bufsize to determine how big the original request was rather
-	 * then b_bcount, because b_bcount may have been truncated for EOF.
+	 * use bio_caller1 to determine how big the original request was rather
+	 * then bio_bcount, because bio_bcount may have been truncated for EOF.
 	 *
 	 * XXX We check for an error, but we do not test the resid for an
 	 * aligned EOF condition.  This may result in character & block
 	 * device access not recognizing EOF properly when read or written 
 	 * sequentially, but will not effect filesystems.
 	 */
-	count = cbp->cb_buf.b_bufsize;
+	count = (long)cbp->cb_buf.bio_caller1;
 	putccdbuf(cbp);
 
 	/*
 	 * If all done, "interrupt".
 	 */
-	bp->b_resid -= count;
-	if (bp->b_resid < 0)
+	bp->bio_resid -= count;
+	if (bp->bio_resid < 0)
 		panic("ccdiodone: count");
-	if (bp->b_resid == 0)
+	if (bp->bio_resid == 0)
 		ccdintr(&ccd_softc[unit], bp);
 	splx(s);
 }
