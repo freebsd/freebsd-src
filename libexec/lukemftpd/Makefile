@@ -15,12 +15,8 @@ WFORMAT= 0
 CFLAGS+= -I${.CURDIR} -I${LUKEMFTPD} -I${LUKEMFTPD}/src
 YFLAGS=
 
-LDADD=	-lmd -lcrypt -lutil
-DPADD=	${LIBMD} ${LIBCRYPT} ${LIBUTIL}
-
-# XXX Kluge! Conversation mechanism needs to be fixed.
-LDADD+=	-lopie
-DPADD+=	${LIBOPIE}
+LDADD=	-lcrypt -lutil
+DPADD=	${LIBCRYPT} ${LIBUTIL}
 
 LSDIR=	../../bin/ls
 .PATH: ${.CURDIR}/${LSDIR}
@@ -33,12 +29,6 @@ CLEANFILES+=	ls-unmain.c
 ls-unmain.c: ls.c
 	sed -e 's/^main(/ls_main(/g' -e 's,extern.h,${LSDIR}/extern.h,' \
 	    ${.ALLSRC} > ${.TARGET}
-
-.if !defined(NOPAM)
-CFLAGS+= -DUSE_PAM
-DPADD+=	${LIBPAM}
-LDADD+=	${MINUSLPAM}
-.endif
 
 ftpd.o ftpcmd.o: version.h
 
