@@ -310,6 +310,11 @@ struct fw_pkt {
 struct fw_eui64 {
 	u_int32_t hi, lo;
 };
+#define FW_EUI64_BYTE(eui, x) \
+	((((x)<4)?				\
+		((eui)->hi >> (8*(3-(x)))): 	\
+		((eui)->lo >> (8*(7-(x))))	\
+	) & 0xff)
 
 struct fw_asyreq {
 	struct fw_asyreq_t{
@@ -328,11 +333,17 @@ struct fw_asyreq {
 	u_int32_t data[512];
 };
 
+struct fw_devinfo {
+	struct fw_eui64 eui;
+	u_int16_t dst;
+	u_int16_t status;
+};
+
+#define FW_MAX_DEVLST 70
 struct fw_devlstreq {
-	int n;
-	struct fw_eui64 eui[64];
-	u_int16_t dst[64];
-	u_int16_t status[64];
+	u_int16_t n;
+	u_int16_t info_len;
+	struct fw_devinfo dev[FW_MAX_DEVLST];
 };
 
 #define FW_SELF_ID_PORT_CONNECTED_TO_CHILD 3
@@ -428,11 +439,6 @@ struct fw_speed_map {
 		  crc_len:16;
 	u_int32_t generation;
 	u_int8_t  speed[64][64];
-};
-
-struct fw_map_buf {
-	int len;
-	void *ptr;
 };
 
 struct fw_crom_buf {

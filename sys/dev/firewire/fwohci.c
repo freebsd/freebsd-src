@@ -579,6 +579,7 @@ fwohci_init(struct fwohci_softc *sc, device_t dev)
 {
 	int i;
 	u_int32_t reg;
+	u_int8_t ui[8];
 
 	reg = OREAD(sc, OHCI_VERSION);
 	device_printf(dev, "OHCI version %x.%x (ROM=%d)\n",
@@ -682,19 +683,13 @@ fwohci_init(struct fwohci_softc *sc, device_t dev)
 	if ((sc->atrs.flags & FWOHCI_DBCH_INIT) == 0)
 		return ENOMEM;
 
-	reg = OREAD(sc, FWOHCIGUID_H);
-	for( i = 0 ; i < 4 ; i ++){
-		sc->fc.eui[3 - i] = reg & 0xff;
-		reg = reg >> 8;
-	}
-	reg = OREAD(sc, FWOHCIGUID_L);
-	for( i = 0 ; i < 4 ; i ++){
-		sc->fc.eui[7 - i] = reg & 0xff;
-		reg = reg >> 8;
-	}
+	sc->fc.eui.hi = OREAD(sc, FWOHCIGUID_H);
+	sc->fc.eui.lo = OREAD(sc, FWOHCIGUID_L);
+	for( i = 0 ; i < 8 ; i ++)
+		ui[i] = FW_EUI64_BYTE(&sc->fc.eui,i);
 	device_printf(dev, "EUI64 %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x\n",
-		sc->fc.eui[0], sc->fc.eui[1], sc->fc.eui[2], sc->fc.eui[3],
-		sc->fc.eui[4], sc->fc.eui[5], sc->fc.eui[6], sc->fc.eui[7]);
+		ui[0], ui[1], ui[2], ui[3], ui[4], ui[5], ui[6], ui[7]);
+
 	sc->fc.ioctl = fwohci_ioctl;
 	sc->fc.cyctimer = fwohci_cyctimer;
 	sc->fc.set_bmr = fwohci_set_bus_manager;
