@@ -38,12 +38,13 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)basename.c	8.3 (Berkeley) 4/2/94";
+static char sccsid[] = "@(#)basename.c	8.4 (Berkeley) 5/4/95";
 #endif /* not lint */
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 void usage __P((void));
 
@@ -55,7 +56,7 @@ main(argc, argv)
 	char *p;
 	int ch;
 
-	while ((ch = getopt(argc, argv, "")) !=  -1)
+	while ((ch = getopt(argc, argv, "")) != -1)
 		switch(ch) {
 		case '?':
 		default:
