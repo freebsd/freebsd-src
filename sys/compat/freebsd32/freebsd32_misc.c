@@ -761,29 +761,21 @@ int
 freebsd32_gettimeofday(struct thread *td,
 		       struct freebsd32_gettimeofday_args *uap)
 {
-	int error;
-	caddr_t sg;
-	struct timeval32 *p32, s32;
-	struct timeval *p = NULL, s;
+	struct timeval atv;
+	struct timeval32 atv32;
+	struct timezone rtz;
+	int error = 0;
 
-	p32 = uap->tp;
-	if (p32) {
-		sg = stackgap_init();
-		p = stackgap_alloc(&sg, sizeof(struct timeval));
-		uap->tp = (struct timeval32 *)p;
+	if (uap->tp) {
+		microtime(&atv);
+		CP(atv, atv32, tv_sec);
+		CP(atv, atv32, tv_usec);
+		error = copyout(&atv32, uap->tp, sizeof (atv32));
 	}
-	error = gettimeofday(td, (struct gettimeofday_args *) uap);
-	if (error)
-		return (error);
-	if (p32) {
-		error = copyin(p, &s, sizeof(s));
-		if (error)
-			return (error);
-		CP(s, s32, tv_sec);
-		CP(s, s32, tv_usec);
-		error = copyout(&s32, p32, sizeof(s32));
-		if (error)
-			return (error);
+	if (error == 0 && uap->tzp != NULL) {
+		rtz.tz_minuteswest = tz_minuteswest;
+		rtz.tz_dsttime = tz_dsttime;
+		error = copyout(&rtz, uap->tzp, sizeof (rtz));
 	}
 	return (error);
 }
