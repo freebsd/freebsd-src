@@ -32,7 +32,7 @@
 .\"     @(#)devname.3	8.2 (Berkeley) 4/29/95
 .\" $FreeBSD$
 .\"
-.Dd April 29, 1995
+.Dd July 18, 1999
 .Dt DEVNAME 3
 .Os
 .Sh NAME
@@ -50,12 +50,15 @@ The
 .Fn devname
 function returns a pointer to the name of the block or character
 device in
-.Dq Pa /dev
+.Pa /dev
 with a device number of
 .Fa dev ,
 and a file type matching the one encoded in
 .Fa type
-which must be one of S_IFBLK or S_IFCHR.
+which must be one of
+.Dv S_IFBLK
+or
+.Dv S_IFCHR .
 To find the right name,
 .Fn devname
 first searches the device database created by
