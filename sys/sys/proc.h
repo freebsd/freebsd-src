@@ -307,7 +307,8 @@ struct thread {
 		TDS_SUSPENDED,		/* would have liked to have run */
 		TDS_IWAIT,
 		TDS_SURPLUS,
-		TDS_SWAPPED
+		TDS_SWAPPED,
+		TDS_SUSP_SLP		/* on sleep queue AND suspend queue */
 	} td_state;
 	struct callout	td_slpcallout;	/* (h) Callout for sleep. */
 	struct trapframe *td_frame;	/* (k) */
