@@ -478,7 +478,10 @@ vnode_pager_input_smlfs(object, m)
 
 			/* do the input */
 			bp->b_iooffset = dbtob(bp->b_blkno);
-			VOP_SPECSTRATEGY(bp->b_vp, bp);
+			if (dp->v_type == VCHR)
+				VOP_SPECSTRATEGY(bp->b_vp, bp);
+			else
+				VOP_STRATEGY(bp->b_vp, bp);
 
 			/* we definitely need to be at splvm here */
 
