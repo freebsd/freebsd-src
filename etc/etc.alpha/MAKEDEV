@@ -1,0 +1,363 @@
+#!/bin/sh -
+#	$NetBSD: MAKEDEV,v 1.29 1998/04/16 04:38:11 thorpej Exp $
+#
+# Copyright (c) 1990 The Regents of the University of California.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+# 3. All advertising materials mentioning features or use of this software
+#    must display the following acknowledgement:
+#	This product includes software developed by the University of
+#	California, Berkeley and its contributors.
+# 4. Neither the name of the University nor the names of its contributors
+#    may be used to endorse or promote products derived from this software
+#    without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# Device "make" file.  Valid arguments:
+#	all	makes all known devices, including local devices.
+#		Tries to make the 'standard' number of each type.
+#	minimal	A minimal set of devices for install disks, etc.
+#	std	standard devices
+#	local	configuration specific devices
+#
+# Tapes:
+#	st*	SCSI tape
+#
+# Disks:
+#	ccd*	concatenated disk driver
+#	cd*	SCSI CD-ROM
+#	md*	"memory disk" pseudo-disks
+#	sd*	SCSI disks
+#	vnd*	"file" pseudo-disks
+#	wd*	IDE disks
+#	fd*	PC-ish floppy disks
+#
+# Terminals:
+#	ttyB?	DEC 3000 ZS8530 ("scc") serial ports
+#	ttyC?	AlphaStation NS16550 ("com") serial ports
+#	ttyE?	Workstation console ("wscons") glass-tty emulators
+#
+# Pseudo terminals:
+#	pty*	set of 16 master and slave pseudo terminals
+#
+# Printers:
+#	lpt*	stock lp
+#	lpa*	interruptless lp
+#
+# Special purpose devices:
+#	audio	audio device
+#	bpf*	packet filter
+#	ch*	SCSI media changer
+#	fd	file descriptors
+#	ipl	IP filter
+#	kbd	keyboard (provides events, for X11)
+#	lkm	loadable kernel modules interface
+#	mouse	mouse (provides events, for X11)
+#	random	Random number generator
+#	satlink* PlanetConnect satellite receiver driver
+#	speaker	PC speaker (IBM BASIC playstring emulation)
+#	ss*	SCSI scanner
+#	tun*	network tunnel driver
+#	uk*	SCSI unknown
+
+PATH=/sbin:/usr/sbin:/bin:/usr/bin
+umask 77
+for i
+do
+case $i in
+
+all)
+	sh $0 std fd sd0 sd1 sd2 sd3 sd4 pty0 pty1
+	sh $0 st0 st1 ch0 cd0 cd1 vnd0 vnd1 vnd2 vnd3
+	sh $0 ccd0 ccd1 ccd2 ccd3 md0 md1 ss0 ss1 uk0 uk1
+	sh $0 bpf0 bpf1 bpf2 bpf3 tun0 tun1 tun2 tun3
+	sh $0 ttyB0 ttyB1 ttyC0 ttyC1 ttyE0 ttyE1 lkm
+	sh $0 kbd mouse lpa0 lpt0 audio ipl wd0 wd1 fd0 fd1
+	sh $0 random satlink0 speaker local
+	;;
+
+minimal)
+	sh $0 std
+	sh $0 sd0 sd1 sd2 sd3 pty0 st0 ch0 cd0 ccd0 ccd1 md0
+	sh $0 wd0 wd1 fd0 fd1
+	sh $0 ttyB0 ttyB1 ttyC0 ttyC1 ttyE0 ttyE1 kdb mouse
+	;;
+
+std)
+	rm -f console drum mem kmem null zero io tty klog stdin stdout stderr
+	mknod console		c 0 0
+	mknod drum		c 3 0	; chmod 640 drum ; chgrp kmem drum
+	mknod kmem		c 2 1	; chmod 640 kmem ; chgrp kmem kmem
+	mknod mem		c 2 0	; chmod 640 mem ; chgrp kmem mem
+	mknod null		c 2 2	; chmod 666 null
+	mknod zero		c 2 12	; chmod 666 zero
+	mknod tty		c 1 0	; chmod 666 tty
+	mknod klog		c 6 0	; chmod 600 klog
+	mknod stdin		c 10 0	; chmod 666 stdin
+	mknod stdout		c 10 1	; chmod 666 stdout
+	mknod stderr		c 10 2	; chmod 666 stderr
+	;;
+
+fd)
+	rm -f fd/*
+	mkdir fd > /dev/null 2>&1
+	n=0
+	while [ $n -lt 64 ]; do
+		mknod fd/$n c 10 $n
+		n=$(($n + 1))
+	done
+	chown -R root.wheel fd
+	chmod 755 fd
+	chmod 666 fd/*
+	;;
+
+ccd*|cd*|fd*|md*|sd*|vnd*|wd*)
+	case $i in
+	ccd*)	name=ccd;	unit=${i#ccd};	blk=7; chr=27;;
+	cd*)	name=cd;	unit=${i#cd};	blk=3; chr=13;;
+	fd*)	name=fd;	unit=${i#fd};	blk=0; chr=34;;
+	md*)	name=md;	unit=${i#md};	blk=6; chr=28;;
+	sd*)	name=sd;	unit=${i#sd};	blk=8; chr=8;;
+	vnd*)	name=vnd;	unit=${i#vnd};	blk=9; chr=9;;
+	wd*)	name=wd;	unit=${i#wd};	blk=4; chr=36;;
+	esac
+	rm -f $name$unit? r$name$unit?
+	mknod ${name}${unit}a	b $blk $(($unit * 8 + 0))
+	mknod ${name}${unit}b	b $blk $(($unit * 8 + 1))
+	mknod ${name}${unit}c	b $blk $(($unit * 8 + 2))
+	mknod ${name}${unit}d	b $blk $(($unit * 8 + 3))
+	mknod ${name}${unit}e	b $blk $(($unit * 8 + 4))
+	mknod ${name}${unit}f	b $blk $(($unit * 8 + 5))
+	mknod ${name}${unit}g	b $blk $(($unit * 8 + 6))
+	mknod ${name}${unit}h	b $blk $(($unit * 8 + 7))
+	mknod r${name}${unit}a	c $chr $(($unit * 8 + 0))
+	mknod r${name}${unit}b	c $chr $(($unit * 8 + 1))
+	mknod r${name}${unit}c	c $chr $(($unit * 8 + 2))
+	mknod r${name}${unit}d	c $chr $(($unit * 8 + 3))
+	mknod r${name}${unit}e	c $chr $(($unit * 8 + 4))
+	mknod r${name}${unit}f	c $chr $(($unit * 8 + 5))
+	mknod r${name}${unit}g	c $chr $(($unit * 8 + 6))
+	mknod r${name}${unit}h	c $chr $(($unit * 8 + 7))
+	chgrp operator ${name}${unit}[a-h] r${name}${unit}[a-h]
+	chmod 640 ${name}${unit}[a-h] r${name}${unit}[a-h]
+	;;
+
+ttyB*|ttyC*|ttyE*)
+	case $i in
+	ttyB*)	name=ttyB; unit=${i#ttyB};	major=15; minor=$(($unit * 2));;
+	ttyC*)	name=ttyC; unit=${i#ttyC};	major=26; minor=$unit;;
+	ttyE*)	name=ttyE; unit=${i#ttyE};	major=25; minor=$unit;;
+	esac
+        rm -f $name$unit
+        mknod $name$unit c $major $minor
+        chown uucp.wheel $name$unit
+        ;;
+
+pty*)
+	class=${i#pty}
+	case $class in
+	0)      name=p;;
+	1)      name=q;;
+	2)      name=r;;
+	3)      name=s;;
+	4)      name=t;;
+	5)      name=u;;
+	6)      name=v;;
+	7)      name=w;;
+	8)      name=x;;
+	9)      name=y;;
+	10)     name=z;;
+	11)     name=P;;
+	12)     name=Q;;
+	13)     name=R;;
+	14)     name=S;;
+	15)     name=T;;
+	*)      echo "$0: $i: pty unit must be between 0 and 15"
+	        continue ;;
+	esac
+	rm -f tty$name[0-9a-f] pty$name[0-9a-f]
+	for j in 0 1 2 3 4 5 6 7 8 9 a b c d e f
+	do
+		case $j in
+		[0-9])  jn=$j ;;
+		a)      jn=10 ;;
+		b)      jn=11 ;;
+		c)      jn=12 ;;
+		d)      jn=13 ;;
+		e)      jn=14 ;;
+		f)      jn=15 ;;
+		esac
+		unit=$(($class * 16 + $jn))
+		mknod tty$name$j c 4 $unit
+		mknod pty$name$j c 5 $unit
+	done
+        chgrp wheel tty$name? pty$name?
+        chmod 666 tty$name? pty$name?
+	;;
+
+st*)
+	case $i in
+	st*) name=st;	unit=${i#st};	chr=12;	blk=2;;
+	esac
+	rm -f $name$unit n$name$unit e$name$unit en$name$unit \
+	r$name$unit nr$name$unit er$name$unit enr$name$unit
+	mknod ${name}${unit}	b $blk $(($unit * 16+ 0))
+	mknod n${name}${unit}	b $blk $(($unit * 16+ 1))
+	mknod e${name}${unit}	b $blk $(($unit * 16+ 2))
+	mknod en${name}${unit}	b $blk $(($unit * 16+ 3))
+	mknod r${name}${unit}	c $chr $(($unit * 16+ 0))
+	mknod nr${name}${unit}	c $chr $(($unit * 16+ 1))
+	mknod er${name}${unit}	c $chr $(($unit * 16+ 2))
+	mknod enr${name}${unit} c $chr $(($unit * 16+ 3))
+	chgrp operator ${name}${unit} n${name}${unit} \
+		e$name$unit en$name$unit \
+		r${name}${unit} nr${name}${unit} \
+		er${name}${unit} enr${name}${unit}
+	chmod 660 ${name}${unit} n${name}${unit} \
+		e$name$unit en$name$unit \
+		r${name}${unit} nr${name}${unit} \
+		er${name}${unit} enr${name}${unit}
+	;;
+
+ch*|uk*)
+	case $i in
+	ch*) name=ch;	unit=${i#ch};	chr=14;;
+	uk*) name=uk;	unit=${i#uk};	chr=33;;
+	esac
+	rm -f $name$unit
+	mknod $name$unit	c $chr $unit
+	chgrp operator $name$unit
+	chmod 640 $name$unit
+	;;
+
+ss*)
+	case $i in
+	ss*) name=ss;	unit=${i#ss};	chr=32;;
+	esac
+	rm -f $name$unit n$name$unit en$name$unit
+	mknod $name$unit	c $chr $(($unit * 16 + 0))
+	mknod n$name$unit	c $chr $(($unit * 16 + 1))
+	mknod en$name$unit	c $chr $(($unit * 16 + 3))
+	chgrp operator $name$unit n$name$unit en$name$unit
+	chmod 640 $name$unit n$name$unit en$name$unit
+	;;
+
+bpf*|tun*)
+	case $i in
+	bpf*) name=bpf;	unit=${i#bpf};	chr=11;;
+	tun*) name=tun;	unit=${i#tun};	chr=7;;
+	esac
+	rm -f $name$unit
+	mknod $name$unit	c $chr $unit
+	chown root.wheel $name$unit
+	;;
+
+lkm)
+	rm -f lkm
+	mknod lkm c 16 0
+	chown root.kmem lkm
+	chmod 640 lkm
+	;;
+
+kbd)
+	rm -f kbd
+	mknod kbd c 29 0
+	chmod 666 kbd
+	;;
+
+mouse)
+	rm -f mouse
+	mknod mouse c 30 0
+	chmod 666 mouse
+	;;
+
+audio*)
+	unit=${i#audio}
+	audio=audio$unit
+	sound=sound$unit
+	mixer=mixer$unit
+	major=24
+	audioctl=audioctl$unit
+	if [ "$unit" = "" ]; then unit=0; fi
+	rm -f $audio $sound $mixer $audioctl
+	mknod $sound    c $major $(($unit + 0))
+	mknod $audio    c $major $(($unit + 128))
+	mknod $mixer    c $major $(($unit + 16))
+	mknod $audioctl c $major $(($unit + 192))
+	chown root.wheel $audio $sound $mixer $audioctl
+	chmod 666 $audio $sound $mixer $audioctl
+	;;
+
+lpt*|lpa*)
+	case $i in
+	lpt*) name=lpt; unit=${i#lpt};	flags=0;;
+	lpa*) name=lpa; unit=${i#lpa};	flags=128;;
+	esac
+	rm -f $name$unit
+	mknod $name$unit c 31 $(($unit + $flags))
+	chown root.wheel $name$unit
+	;;
+
+ipl)    
+	rm -f ipl ipnat ipstate ipauth
+	mknod ipl c 35 0
+	mknod ipnat c 35 1
+	mknod ipstate c 35 2
+	mknod ipauth c 35 3
+	chown root.wheel ipl ipnat ipstate ipauth
+	chmod 600 ipl ipnat ipstate ipauth
+	;;
+
+satlink*)
+	unit=${i#satlink};
+	rm -f satlink$unit
+	mknod satlink$unit c 38 $unit
+	chmod 444 satlink$unit
+	;;
+
+speaker)
+	rm -f speaker
+	mknod speaker c 41 0
+	chown root.wheel speaker
+	;;
+
+random)
+	rm -f random urandom
+	mknod random c 39 0
+	mknod urandom c 39 1
+	chown root.wheel random urandom
+	chmod 444 random
+	chmod 644 urandom
+	;;
+
+local)
+	umask 0
+	sh $0.local all
+	umask 77
+	;;
+
+*)
+	echo $i: unknown device
+	;;
+
+esac
+done
