@@ -195,6 +195,7 @@ klogin(pw, instance, localhost, password)
 	dest_tkt();
 	return (1);
 #else
+	notickets = 0;
 	return (0);
 #endif
 }
