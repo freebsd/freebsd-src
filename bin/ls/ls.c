@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)ls.c	8.5 (Berkeley) 4/2/94";
 #else
 static const char rcsid[] =
-	"$Id: ls.c,v 1.25 1999/08/02 14:55:58 sheldonh Exp $";
+	"$Id: ls.c,v 1.26 1999/08/19 11:36:12 sheldonh Exp $";
 #endif
 #endif /* not lint */
 
@@ -72,7 +72,7 @@ static const char rcsid[] =
  * represent a value of integral type t as a string, excluding the
  * NUL terminator, with provision for a sign.
  */
-#define STRBUF_SIZEOF(t)	(CHAR_BIT * sizeof(t) / 3 + 1)
+#define	STRBUF_SIZEOF(t)	(1 + CHAR_BIT * sizeof(t) / 3 + 1)
 
 static void	 display __P((FTSENT *, FTSENT *));
 static u_quad_t	 makenines __P((u_long));
