@@ -1,0 +1,3 @@
+# $Id$
+
+KLDMOD=	true
