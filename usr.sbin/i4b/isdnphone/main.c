@@ -29,7 +29,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Tue Mar 26 14:39:27 2002]
+ *      last edit-date: [Tue Aug 27 16:38:55 2002]
  *
  *---------------------------------------------------------------------------*/
 
@@ -46,12 +46,14 @@ usage(void)
 {
 	fprintf(stderr, "\n");
 	fprintf(stderr, "isdnphone - i4b phone program, version %d.%d.%d, compiled %s %s\n",VERSION, REL, STEP, __DATE__, __TIME__);
-	fprintf(stderr, "usage: isdnphone -d -h -k <string> -n <number> -u <unit>\n");
+	fprintf(stderr, "usage: isdnphone -d -h -k <string> -n <number> -u <unit> -v -w\n");
 	fprintf(stderr, "       -d            debug\n");
 	fprintf(stderr, "       -h            hangup\n");
 	fprintf(stderr, "       -k string     keypad string\n");
 	fprintf(stderr, "       -n number     dial number\n");
 	fprintf(stderr, "       -u unit       set unit number\n");
+	fprintf(stderr, "       -v            be verbose\n");
+	fprintf(stderr, "       -w            wait for response (with -n)\n");
 	fprintf(stderr, "\n");
 	exit(1);
 }
@@ -70,12 +72,14 @@ main(int argc, char **argv)
 	int opt_s = 0;
 	int opt_h = 0;
 	int opt_k = 0;
+	int opt_v = 0;
+	int opt_w = 0;
 	char *number = "";
 	char *subaddr = "";
 	
 	numberbuffer[0] = '\0';	
 
-	while ((c = getopt(argc, argv, "dhk:n:s:u:")) != -1)
+	while ((c = getopt(argc, argv, "dhk:n:s:u:w")) != -1)
 	{
 		switch(c)
 		{
@@ -108,6 +112,14 @@ main(int argc, char **argv)
 					usage();
 				break;
 
+			case 'v':
+				opt_v = 1;
+				break;
+				
+			case 'w':
+				opt_w = 1;
+				break;
+				
 			case '?':
 			default:
 				usage();
@@ -123,12 +135,13 @@ main(int argc, char **argv)
 	if(opt_n || opt_h || opt_k)
 	{
 		char commandbuffer[80];
+		int exitval = 0;
 		
 		/* commandline operation goes here */
 		
 		if(opt_n)
 		{
-			if (opt_s)
+			if(opt_s)
 				sprintf(commandbuffer, "D%s*%s", number, subaddr);
 			else
 				sprintf(commandbuffer, "D%s", number);
@@ -150,9 +163,58 @@ main(int argc, char **argv)
 			exit(1);
 		}
 	
+		if(opt_n && opt_w)
+		{
+			char result;
+
+			if((read (dialerfd, &result, 1) < 0))
+			{
+				exitval = 99;
+				if(opt_v)
+					printf("error\n");
+				fprintf(stderr, "error, read failed: %s\n", strerror(errno));
+			}
+			else
+			{
+				switch(result)
+				{
+					case RSP_CONN:
+						exitval = 0;
+						if(opt_v)
+							printf("connected\n");
+						break;
+						
+					case RSP_BUSY:
+						exitval = 1;
+						if(opt_v)
+							printf("busy\n");
+						break;
+			
+					case RSP_HUP:
+						exitval = 2;
+						if(opt_v)
+							printf("disconnected\n");
+						break;
+			
+					case RSP_NOA:
+						exitval = 3;
+						if(opt_v)
+							printf("noanswer\n");
+						break;
+			
+					default:
+						exitval = 99;
+						if(opt_v)
+							printf("error\n");
+						fprintf(stderr, "unknown response = 0x%2x!", result);
+						break;
+				}
+			}
+		}
+
 		close(dialerfd);
 		
-		exit(0);
+		exit(exitval);
 	}
 
 	if((audiofd = init_audio(AUDIODEVICE)) == -1)
