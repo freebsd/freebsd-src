@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: splash_bmp.c,v 1.1 1999/01/11 03:34:56 yokota Exp $
+ * $Id: splash_bmp.c,v 1.2 1999/01/11 17:32:22 yokota Exp $
  */
 
 #include <sys/param.h>
@@ -444,7 +444,7 @@ bmp_Init(const char *data, int swidth, int sheight, int sdepth)
     bmp_info.ncols = (bmf->bmfi.bmiHeader.biClrUsed);
     bzero(bmp_info.palette,sizeof(bmp_info.palette));
     if (bmp_info.ncols == 0) {	/* uses all of them */
-	bmp_info.ncols = 2 << bmf->bmfi.bmiHeader.biBitCount;
+	bmp_info.ncols = 1 << bmf->bmfi.bmiHeader.biBitCount;
     }
     if ((bmp_info.height > bmp_info.sheight) ||
 	(bmp_info.width > bmp_info.swidth) ||
