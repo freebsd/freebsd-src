@@ -1352,7 +1352,7 @@ dofork(pp, action)
 		 */
 		if (pid == 0) {
 			if ((pwd = getpwuid(pp->daemon_user)) == NULL) {
-				syslog(LOG_ERR, "Can't lookup default daemon uid (%d) in password file",
+				syslog(LOG_ERR, "Can't lookup default daemon uid (%ld) in password file",
 				    pp->daemon_user);
 				break;
 			}
