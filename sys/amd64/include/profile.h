@@ -148,7 +148,6 @@ __BEGIN_DECLS
 #ifdef __GNUC__
 void	mcount(void) __asm(".mcount");
 #endif
-static void	_mcount(uintfptr_t frompc, uintfptr_t selfpc);
 __END_DECLS
 
 #endif /* _KERNEL */
