@@ -18,7 +18,7 @@ static const char rcsid[] =
 #include "lib.h"
 #include "create.h"
 
-static char Options[] = "YNOhvyf:p:P:c:d:i:I:k:K:r:t:X:D:m:s:o:";
+static char Options[] = "YNOhvyf:p:P:c:d:i:I:k:K:r:t:X:D:m:s:o:b:";
 
 char	*Prefix		= NULL;
 char	*Comment        = NULL;
@@ -35,6 +35,7 @@ char	*ExcludeFrom	= NULL;
 char	*Mtree		= NULL;
 char	*Pkgdeps	= NULL;
 char	*Origin		= NULL;
+char	*InstalledPkg	= NULL;
 char	PlayPen[FILENAME_MAX];
 int	Dereference	= FALSE;
 int	PlistOnly	= FALSE;
@@ -46,7 +47,7 @@ int
 main(int argc, char **argv)
 {
     int ch;
-    char **pkgs, **start;
+    char **pkgs, **start, *tmp;
 
     pkgs = start = argv;
     while ((ch = getopt(argc, argv, Options)) != -1)
@@ -139,6 +140,21 @@ main(int argc, char **argv)
 	    UseBzip2 = TRUE;
 	    break;
 
+	case 'b':
+	    while ((tmp = strrchr(optarg, (int)'/')) != NULL) {
+		*tmp++ = '\0';
+		/*
+		 * If character after the '/' is alphanumeric, then we've
+		 * found the package name.  Otherwise we've come across
+		 * a trailing '/' and need to continue our quest.
+		 */
+		if (isalpha(*tmp)) {
+		    InstalledPkg = tmp;
+		    break;
+		}
+	    }
+	    break;
+
 	case '?':
 	default:
 	    usage();
@@ -153,12 +169,15 @@ main(int argc, char **argv)
 	*pkgs++ = *argv++;
 
     /* If no packages, yelp */
-    if (pkgs == start)
+    if ((pkgs == start) && (InstalledPkg == NULL))
 	warnx("missing package name"), usage();
     *pkgs = NULL;
-    if (start[1])
-	warnx("only one package name allowed ('%s' extraneous)", start[1]),
+    if ((start[0] != NULL) && (start[1] != NULL)) {
+	warnx("only one package name allowed ('%s' extraneous)", start[1]);
 	usage();
+    }
+    if (start[0] == NULL)
+	start[0] = InstalledPkg;
     if (!pkg_perform(start)) {
 	if (Verbose)
 	    warnx("package creation failed");
@@ -171,11 +190,12 @@ main(int argc, char **argv)
 static void
 usage()
 {
-    fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n",
+    fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n",
 "usage: pkg_create [-YNOhvy] [-P pkgs] [-p prefix] [-f contents] [-i iscript]",
 "                  [-I piscript] [-k dscript] [-K pdscript] [-r rscript] ",
 "                  [-t template] [-X excludefile] [-D displayfile] ",
 "                  [-m mtreefile] [-o origin] -c comment -d description ",
-"                  -f packlist pkg-name");
+"                  -f packlist pkg-filename",
+"       pkg_create [-YNhvy] -b pkg-name [pkg-filename]");
     exit(1);
 }

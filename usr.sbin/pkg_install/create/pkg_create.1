@@ -49,7 +49,11 @@
 .Fl c Ar comment
 .Fl d Ar description
 .Fl f Ar packlist
-.Ar pkg-name
+.Ar pkg-filename
+.Nm
+.Op Fl YNhvy
+.Fl b Ar pkg-name
+.Op Ar pkg-filename
 .Sh DESCRIPTION
 The
 .Nm
@@ -263,13 +267,22 @@ utility to compress package tarball instead of
 .Xr gzip 1 .
 Please note that this option is no-op if format of the resulting
 archive is explicitly specified by the recognizeable suffix of
-.Ar pkg-name .
+.Ar pkg-filename .
 Currently
 .Nm
 recognizes the following suffixes:
 .Pa .tgz , .tar
 and
 .Pa .tbz2 .
+.It Fl b Ar pkg-name
+Create package file from a locally installed package named
+.Ar pkg-name .
+If the
+.Ar pkg-filename
+is not specified, then resulting archive will be created in the
+current directory and named
+.Ar pkg-name
+with an appropriate extraction suffix applied.
 .El
 .Sh PACKING LIST DETAILS
 The
