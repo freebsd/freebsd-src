@@ -263,9 +263,8 @@ int cd9660_uninit(struct vfsconf *);
 #define cd9660_sysctl ((int (*)(int *, u_int, void *, size_t *, void *, \
 				size_t, struct proc *))eopnotsupp)
 
-extern vop_t **cd9660_vnodeop_p;
-extern vop_t **cd9660_specop_p;
-extern vop_t **cd9660_fifoop_p;
+extern struct vop_vector cd9660_vnodeops;
+extern struct vop_vector cd9660_fifoops;
 
 int isochar(u_char *, u_char *, int, u_short *, int *, int, void *);
 int isofncmp(u_char *, int, u_char *, int, int, int, void *, void *);

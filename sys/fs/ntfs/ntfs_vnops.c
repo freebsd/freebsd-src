@@ -77,9 +77,9 @@ static vop_access_t	ntfs_access;
 static vop_open_t	ntfs_open;
 static vop_close_t	ntfs_close;
 static vop_readdir_t	ntfs_readdir;
-static vop_lookup_t	ntfs_lookup;
+static vop_cachedlookup_t	ntfs_lookup;
 static vop_fsync_t	ntfs_fsync;
-static int	ntfs_pathconf(void *);
+static vop_pathconf_t	ntfs_pathconf;
 
 int	ntfs_prtactive = 1;	/* 1 => print out reclaim of active vnodes */
 
@@ -607,7 +607,7 @@ ntfs_readdir(ap)
 
 int
 ntfs_lookup(ap)
-	struct vop_lookup_args /* {
+	struct vop_cachedlookup_args /* {
 		struct vnode *a_dvp;
 		struct vnode **a_vpp;
 		struct componentname *a_cnp;
@@ -717,14 +717,9 @@ ntfs_fsync(ap)
  * Return POSIX pathconf information applicable to NTFS filesystem
  */
 int
-ntfs_pathconf(v)
-	void *v;
+ntfs_pathconf(ap)
+	struct vop_pathconf_args *ap;
 {
-	struct vop_pathconf_args /* {
-		struct vnode *a_vp;
-		int a_name;
-		register_t *a_retval;
-	} */ *ap = v;
 
 	switch (ap->a_name) {
 	case _PC_LINK_MAX:
@@ -751,35 +746,26 @@ ntfs_pathconf(v)
 /*
  * Global vfs data structures
  */
-vop_t **ntfs_vnodeop_p;
-static
-struct vnodeopv_entry_desc ntfs_vnodeop_entries[] = {
-	{ &vop_default_desc, (vop_t *)vop_defaultop },
+struct vop_vector ntfs_vnodeops = {
+	.vop_default = &default_vnodeops,
 
-	{ &vop_getattr_desc, (vop_t *)ntfs_getattr },
-	{ &vop_inactive_desc, (vop_t *)ntfs_inactive },
-	{ &vop_reclaim_desc, (vop_t *)ntfs_reclaim },
-	{ &vop_pathconf_desc, ntfs_pathconf },
+	.vop_getattr = ntfs_getattr,
+	.vop_inactive = ntfs_inactive,
+	.vop_reclaim = ntfs_reclaim,
+	.vop_pathconf = ntfs_pathconf,
 
-	{ &vop_cachedlookup_desc, (vop_t *)ntfs_lookup },
-	{ &vop_lookup_desc, (vop_t *)vfs_cache_lookup },
+	.vop_cachedlookup = ntfs_lookup,
+	.vop_lookup = vfs_cache_lookup,
 
-	{ &vop_access_desc, (vop_t *)ntfs_access },
-	{ &vop_close_desc, (vop_t *)ntfs_close },
-	{ &vop_open_desc, (vop_t *)ntfs_open },
-	{ &vop_readdir_desc, (vop_t *)ntfs_readdir },
-	{ &vop_fsync_desc, (vop_t *)ntfs_fsync },
+	.vop_access = ntfs_access,
+	.vop_close = ntfs_close,
+	.vop_open = ntfs_open,
+	.vop_readdir = ntfs_readdir,
+	.vop_fsync = ntfs_fsync,
 
-	{ &vop_bmap_desc, (vop_t *)ntfs_bmap },
-	{ &vop_strategy_desc, (vop_t *)ntfs_strategy },
-	{ &vop_read_desc, (vop_t *)ntfs_read },
-	{ &vop_write_desc, (vop_t *)ntfs_write },
+	.vop_bmap = ntfs_bmap,
+	.vop_strategy = ntfs_strategy,
+	.vop_read = ntfs_read,
+	.vop_write = ntfs_write,
 
-	{ NULL, NULL }
 };
-
-static
-struct vnodeopv_desc ntfs_vnodeop_opv_desc =
-	{ &ntfs_vnodeop_p, ntfs_vnodeop_entries };
-
-VNODEOP_SET(ntfs_vnodeop_opv_desc);

@@ -63,5 +63,5 @@ struct portalnode {
 
 #define PORTAL_ROOTFILEID	2
 
-extern vop_t **portal_vnodeop_p;
+extern struct vop_vector portal_vnodeops;
 #endif /* _KERNEL */

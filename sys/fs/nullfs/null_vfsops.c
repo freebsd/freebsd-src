@@ -105,7 +105,7 @@ nullfs_mount(struct mount *mp, struct thread *td)
 	 * Unlock lower node to avoid deadlock.
 	 * (XXX) VOP_ISLOCKED is needed?
 	 */
-	if ((mp->mnt_vnodecovered->v_op == null_vnodeop_p) &&
+	if ((mp->mnt_vnodecovered->v_op == &null_vnodeops) &&
 		VOP_ISLOCKED(mp->mnt_vnodecovered, NULL)) {
 		VOP_UNLOCK(mp->mnt_vnodecovered, 0, td);
 		isvnunlocked = 1;

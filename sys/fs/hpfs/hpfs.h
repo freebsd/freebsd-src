@@ -387,7 +387,7 @@ MALLOC_DECLARE(M_HPFSNO);
 #define	HPTOV(h)	((struct vnode *)((h)->h_vp))
 #define	FID(f)		(*((lsn_t *)(f)->fid_data))
 
-extern vop_t ** hpfs_vnodeop_p;
+extern struct vop_vector hpfs_vnodeops;
 
 /* Hash routines, too small to be separate header */
 void hpfs_hphashinit(void);

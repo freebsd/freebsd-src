@@ -89,8 +89,8 @@ int	ffs_vfree(struct vnode *, ino_t, int);
 vfs_vget_t ffs_vget;
 vfs_vptofh_t ffs_vptofh;
 
-extern vop_t **ffs_vnodeop_p;
-extern vop_t **ffs_fifoop_p;
+extern struct vop_vector ffs_vnodeops;
+extern struct vop_vector ffs_fifoops;
 
 /*
  * Soft update function prototypes.

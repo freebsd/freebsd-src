@@ -1242,7 +1242,7 @@ ffs_vget(mp, ino, flags, vpp)
 	ip = uma_zalloc(uma_inode, M_WAITOK);
 
 	/* Allocate a new vnode/inode. */
-	error = getnewvnode("ufs", mp, ffs_vnodeop_p, &vp);
+	error = getnewvnode("ufs", mp, &ffs_vnodeops, &vp);
 	if (error) {
 		*vpp = NULL;
 		uma_zfree(uma_inode, ip);
@@ -1322,7 +1322,7 @@ ffs_vget(mp, ino, flags, vpp)
 	 * Initialize the vnode from the inode, check for aliases.
 	 * Note that the underlying vnode may have changed.
 	 */
-	error = ufs_vinit(mp, ffs_fifoop_p, &vp);
+	error = ufs_vinit(mp, &ffs_fifoops, &vp);
 	if (error) {
 		vput(vp);
 		*vpp = NULL;

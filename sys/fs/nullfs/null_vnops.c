@@ -275,7 +275,7 @@ null_bypass(ap)
 		 * that aren't.  (We must always map first vp or vclean fails.)
 		 */
 		if (i && (*this_vp_p == NULLVP ||
-		    (*this_vp_p)->v_op != null_vnodeop_p)) {
+		    (*this_vp_p)->v_op != &null_vnodeops)) {
 			old_vps[i] = NULLVP;
 		} else {
 			old_vps[i] = *this_vp_p;
@@ -857,30 +857,24 @@ null_getvobject(ap)
 /*
  * Global vfs data structures
  */
-vop_t **null_vnodeop_p;
-static struct vnodeopv_entry_desc null_vnodeop_entries[] = {
-	{ &vop_default_desc,		(vop_t *) null_bypass },
+struct vop_vector null_vnodeops = {
+	.vop_bypass =		null_bypass,
 
-	{ &vop_access_desc,		(vop_t *) null_access },
-	{ &vop_bmap_desc,		(vop_t *) vop_eopnotsupp },
-	{ &vop_createvobject_desc,	(vop_t *) null_createvobject },
-	{ &vop_destroyvobject_desc,	(vop_t *) null_destroyvobject },
-	{ &vop_getattr_desc,		(vop_t *) null_getattr },
-	{ &vop_getvobject_desc,		(vop_t *) null_getvobject },
-	{ &vop_getwritemount_desc,	(vop_t *) vop_stdgetwritemount},
-	{ &vop_inactive_desc,		(vop_t *) null_inactive },
-	{ &vop_islocked_desc,		(vop_t *) null_islocked },
-	{ &vop_lock_desc,		(vop_t *) null_lock },
-	{ &vop_lookup_desc,		(vop_t *) null_lookup },
-	{ &vop_print_desc,		(vop_t *) null_print },
-	{ &vop_reclaim_desc,		(vop_t *) null_reclaim },
-	{ &vop_rename_desc,		(vop_t *) null_rename },
-	{ &vop_setattr_desc,		(vop_t *) null_setattr },
-	{ &vop_strategy_desc,		(vop_t *) vop_eopnotsupp },
-	{ &vop_unlock_desc,		(vop_t *) null_unlock },
-	{ NULL, NULL }
+	.vop_access =		null_access,
+	.vop_bmap =		VOP_EOPNOTSUPP,
+	.vop_createvobject =	null_createvobject,
+	.vop_destroyvobject =	null_destroyvobject,
+	.vop_getattr =		null_getattr,
+	.vop_getvobject =		null_getvobject,
+	.vop_getwritemount =	vop_stdgetwritemount,
+	.vop_inactive =		null_inactive,
+	.vop_islocked =		null_islocked,
+	.vop_lock =		null_lock,
+	.vop_lookup =		null_lookup,
+	.vop_print =		null_print,
+	.vop_reclaim =		null_reclaim,
+	.vop_rename =		null_rename,
+	.vop_setattr =		null_setattr,
+	.vop_strategy =		VOP_EOPNOTSUPP,
+	.vop_unlock =		null_unlock,
 };
-static struct vnodeopv_desc null_vnodeop_opv_desc =
-	{ &null_vnodeop_p, null_vnodeop_entries };
-
-VNODEOP_SET(null_vnodeop_opv_desc);
