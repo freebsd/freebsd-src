@@ -44,16 +44,20 @@
 .Nd configure and enable vnode disks
 .Sh SYNOPSIS
 .Nm vnconfig
-.Op Fl cdeuv
+.Op Fl cdeguv
+.Op Fl s Ar option
+.Op Fl r Ar option
 .Ar special_file Ar regular_file
-.Oo Ar feature Oc
+.Op Ar feature
 .Nm vnconfig
 .Fl a 
-.Op Fl cdeuv
+.Op Fl cdeguv
+.Op Fl s Ar option
+.Op Fl r Ar option
 .Op Fl f Ar config_file
 .Sh DESCRIPTION
 The
-.Nm vnconfig
+.Nm
 command configures and enables vnode pseudo disk devices.
 The first form of the command will associate the special file 
 .Ar special_file
@@ -65,24 +69,41 @@ or can contain a filesystem that is mounted in the name space.
 .Pp
 Options indicate an action to be performed:
 .Bl -tag -width indent
+.It Fl a
+Read a command file and performs the
+specified actions for each device/file pair.
 .It Fl c
-Configures the device.
+Configure the device.
 If successful, references to
 .Ar special_file
 will access the contents of
 .Ar regular_file .
+.It Fl d
+Disable (if possible) the specified feature.
 .It Fl e
-Configures the device and enables any
+Configure the device and enables any
 .Ar feature
 that was specified.
 If no feature was specified,
 .Fl e
 is the same as
 .Fl c .
-.It Fl d
-Disables (if possible) the specified feature.
+.It Fl f Ar config_file
+Use
+.Ar config_file
+as an alternate config file.
+.It Fl g
+Fiddle global options. 
+.It Fl r Ar option
+Reset
+.Ar option .
+.Ar Option
+is one of labels, follow, debug, io, all, none.
+.It Fl s Ar option
+Set
+.Ar option .
 .It Fl u
-Disables and ``unconfigures'' the device.
+Disable and ``unconfigure'' the device.
 .It Fl v
 Print messages to stdout describing actions taken.
 .El
@@ -115,15 +136,6 @@ See
 Same as ``mountrw=''.
 .El
 .Pp
-The second (
-.Fl a
-) form of the command reads a command file and performs the
-specified actions for each device/file pair.
-With
-.Fl f
-it reads the indicated configuration file
-.Ar config_file .
-Otherwise it uses a default configuration file.
 A configuration file contains one line per device/file pair in the form:
 .Bd -literal
 	special_file	regular_file	[ feature ]
