@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.72 1997/12/28 02:56:43 brian Exp $
+ * $Id: modem.c,v 1.73 1997/12/30 23:22:31 brian Exp $
  *
  *  TODO:
  */
@@ -94,7 +94,7 @@ Enqueue(struct mqueue * queue, struct mbuf * bp)
 }
 
 struct mbuf *
-Dequeue(struct mqueue * queue)
+Dequeue(struct mqueue *queue)
 {
   struct mbuf *bp;
 
@@ -110,6 +110,14 @@ Dequeue(struct mqueue * queue)
     }
   }
   return (bp);
+}
+
+void
+SequenceQueues()
+{
+  LogPrintf(LogDEBUG, "SequenceQueues\n");
+  while (OutputQueues[PRI_NORMAL].qlen)
+    Enqueue(OutputQueues + PRI_LINK, Dequeue(OutputQueues + PRI_NORMAL));
 }
 
 static struct speeds {
