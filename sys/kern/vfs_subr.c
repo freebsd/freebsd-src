@@ -1905,6 +1905,7 @@ vput(vp)
 	struct vnode *vp;
 {
 	struct thread *td = curthread;	/* XXX */
+	int error;
 
 	KASSERT(vp != NULL, ("vput: null vp"));
 	ASSERT_VOP_LOCKED(vp, "vput");
@@ -1912,6 +1913,7 @@ vput(vp)
 	/* Skip this v_writecount check if we're going to panic below. */
 	VNASSERT(vp->v_writecount < vp->v_usecount || vp->v_usecount < 1, vp,
 	    ("vput: missed vn_close"));
+	error = 0;
 
 	if (vp->v_usecount > 1 || ((vp->v_iflag & VI_DOINGINACT) &&
 	    vp->v_usecount == 1)) {
@@ -1927,10 +1929,15 @@ vput(vp)
 		panic("vput: negative ref cnt");
 	}
 	v_incr_usecount(vp, -1);
-	if (VOP_ISLOCKED(vp, td) != LK_EXCLUSIVE &&
-	    VOP_LOCK(vp, LK_EXCLUPGRADE, td) != 0)
-		vp->v_iflag |= VI_OWEINACT;
-	else
+	vp->v_iflag |= VI_OWEINACT;
+	if (VOP_ISLOCKED(vp, td) != LK_EXCLUSIVE) {
+		error = VOP_LOCK(vp, LK_EXCLUPGRADE|LK_INTERLOCK, td);
+		VI_LOCK(vp);
+	}
+	/*
+	 * OWEINACT may be cleared while we're sleeping in EXCLUPGRADE.
+	 */
+	if (!error && vp->v_iflag & VI_OWEINACT)
 		vinactive(vp, td);
 	VOP_UNLOCK(vp, 0, td);
 	if (VSHOULDFREE(vp))
@@ -2205,6 +2212,7 @@ vgone(struct vnode *vp)
 void
 vgonel(struct vnode *vp, struct thread *td)
 {
+	int oweinact;
 	int active;
 	int doomed;
 
@@ -2226,6 +2234,7 @@ vgonel(struct vnode *vp, struct thread *td)
 	doomed = (vp->v_iflag & VI_DOOMED);
 	vp->v_iflag |= VI_DOOMED;
 	vp->v_vxthread = curthread;
+	oweinact = (vp->v_iflag & VI_OWEINACT);
 	VI_UNLOCK(vp);
 
 	/*
@@ -2241,15 +2250,11 @@ vgonel(struct vnode *vp, struct thread *td)
 	 * If purging an active vnode, it must be closed and
 	 * deactivated before being reclaimed.
 	 */
-	if (active) {
+	if (active)
 		VOP_CLOSE(vp, FNONBLOCK, NOCRED, td);
+	if (oweinact || active) {
 		VI_LOCK(vp);
 		if ((vp->v_iflag & VI_DOINGINACT) == 0)
-			vinactive(vp, td);
-		VI_UNLOCK(vp);
-	} else {
-		VI_LOCK(vp);
-		if (vp->v_iflag & VI_OWEINACT)
 			vinactive(vp, td);
 		VI_UNLOCK(vp);
 	}
@@ -2744,7 +2749,7 @@ vbusy(struct vnode *vp)
 	freevnodes--;
 	mtx_unlock(&vnode_free_list_mtx);
 
-	vp->v_iflag &= ~(VI_FREE|VI_AGE|VI_OWEINACT);
+	vp->v_iflag &= ~(VI_FREE|VI_AGE);
 }
 
 /*
