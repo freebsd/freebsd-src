@@ -47,6 +47,9 @@
 #include <sys/proc.h>
 #include <sys/user.h>
 #include <sys/devconf.h>
+
+#include <machine/clock.h>
+
 #include <i386/isa/isa_device.h>
 #include <i386/isa/ic/ncr5380.h>
 #include <i386/isa/ic/ncr53400.h>

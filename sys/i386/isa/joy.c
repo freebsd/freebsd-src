@@ -32,9 +32,9 @@
 
 #include <errno.h>
 
-#include <sys/types.h>
+#include <sys/param.h>
+#include <sys/systm.h>
 
-#include <machine/cpufunc.h>
 #include <machine/joystick.h>
 
 #include <i386/isa/isa.h>
@@ -158,7 +158,7 @@ joyread (dev_t dev, struct uio *uio, int flag)
     state >>= 4;
     c.b1 = ~state & 1;
     c.b2 = ~(state >> 1) & 1;
-    return uiomove (&c, sizeof(struct joystick), uio);
+    return uiomove ((caddr_t)&c, sizeof(struct joystick), uio);
 }
 int joyioctl (dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 {

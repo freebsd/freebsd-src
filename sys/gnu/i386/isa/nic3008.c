@@ -1,6 +1,6 @@
-static char     nic38_id[] = "@(#)$Id: nic3008.c,v 1.2 1995/02/15 11:59:40 jkh Exp $";
+static char     nic38_id[] = "@(#)$Id: nic3008.c,v 1.3 1995/03/19 14:28:35 davidg Exp $";
 /*******************************************************************************
- *  II - Version 0.1 $Revision: 1.2 $   $State: Exp $
+ *  II - Version 0.1 $Revision: 1.3 $   $State: Exp $
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -10,6 +10,9 @@ static char     nic38_id[] = "@(#)$Id: nic3008.c,v 1.2 1995/02/15 11:59:40 jkh E
  *
  *******************************************************************************
  * $Log: nic3008.c,v $
+ * Revision 1.3  1995/03/19  14:28:35  davidg
+ * Removed redundant newlines that were in some panic strings.
+ *
  * Revision 1.2  1995/02/15  11:59:40  jkh
  * Fix a few more nits.  Should compile better now! :_)
  *
@@ -40,6 +43,7 @@ static char     nic38_id[] = "@(#)$Id: nic3008.c,v 1.2 1995/02/15 11:59:40 jkh E
 #include "ioctl.h"
 #include "kernel.h"
 #include "systm.h"
+#include <sys/proc.h>
 
 #include "i386/isa/isa_device.h"
 #include "gnu/i386/isa/nic3008.h"
@@ -817,8 +821,11 @@ b_intr(int mb, int c, struct nic_softc * sc)
 			{
 				chan->state = IDLE;
 				ctrl->o_len = 0;
-				timeout(isdn_start_out, (void *)chan->ctrl,
-					hz/5);
+				/*
+				 * XXX the chan->ctrl arg is very bogus.
+				 * Don't just use a cast to "fix" it.
+				 */
+				timeout(isdn_start_out, chan->ctrl, hz / 5);
 				break;
 			}
 			break;

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_extern.h	8.3 (Berkeley) 4/16/94
- * $Id: ffs_extern.h,v 1.4 1994/08/18 22:35:53 wollman Exp $
+ * $Id: ffs_extern.h,v 1.5 1994/09/22 19:38:32 wollman Exp $
  */
 
 struct buf;
@@ -60,6 +60,7 @@ int	ffs_bmap __P((struct vop_bmap_args *));
 void	ffs_clrblock __P((struct fs *, u_char *, daddr_t));
 int	ffs_fhtovp __P((struct mount *, struct fid *, struct mbuf *,
 	    struct vnode **, int *, struct ucred **));
+int	ffs_flushfiles __P((struct mount *, int, struct proc *));
 void	ffs_fragacct __P((struct fs *, int, long [], int));
 int	ffs_fsync __P((struct vop_fsync_args *));
 int	ffs_init __P((void));

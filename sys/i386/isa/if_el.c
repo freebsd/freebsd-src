@@ -6,7 +6,7 @@
  *
  * Questions, comments, bug reports and fixes to kimmel@cs.umass.edu.
  * 
- * $Id: if_el.c,v 1.9 1994/11/24 14:29:17 davidg Exp $
+ * $Id: if_el.c,v 1.10 1994/12/22 21:56:06 wollman Exp $
  */
 /* Except of course for the portions of code lifted from other FreeBSD
  * drivers (mainly elread, elget and el_ioctl)
@@ -53,6 +53,8 @@
 #include <net/bpf.h>
 #include <net/bpfdesc.h>
 #endif
+
+#include <machine/clock.h>
 
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>

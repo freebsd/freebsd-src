@@ -65,8 +65,8 @@
 #include <scsi/scsiconf.h>
 #include <sys/devconf.h>
 
+#include <machine/clock.h>
 #include <machine/cpu.h>
-#include <machine/cpufunc.h>
 
 #include <i386/isa/isa_device.h>
 

@@ -35,7 +35,7 @@
 #include "kernel.h"
 #include "malloc.h"
 
-
+#include <machine/clock.h>
 
 #include "i386/isa/gpibreg.h"
 #include "i386/isa/gpib.h"

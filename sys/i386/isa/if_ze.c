@@ -47,7 +47,7 @@
  */
 
 /*
- * $Id: if_ze.c,v 1.11 1995/02/17 02:22:51 phk Exp $
+ * $Id: if_ze.c,v 1.12 1995/02/26 05:14:48 bde Exp $
  */
 
 #include "ze.h"
@@ -84,6 +84,8 @@
 #include <net/bpf.h>
 #include <net/bpfdesc.h>
 #endif
+
+#include <machine/clock.h>
 
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>

@@ -128,6 +128,11 @@ struct lnc_softc {
 } lnc_softc[NLNC];
 
 /* Function prototypes */
+int bicc_probe(struct isa_device *);
+int depca_probe(struct isa_device *);
+int lance_probe(int);
+int ne2100_probe(struct isa_device *);
+int pcnet_probe(int);
 void lnc_init(int);
 void lnc_start(struct ifnet *);
 int  lnc_ioctl(struct ifnet *, int, caddr_t);

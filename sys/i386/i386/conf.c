@@ -42,7 +42,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.77 1995/03/05 22:24:59 joerg Exp $
+ *	$Id: conf.c,v 1.78 1995/03/27 19:39:58 ache Exp $
  */
 
 #include <sys/param.h>
@@ -418,14 +418,6 @@ d_ttycv_t	pcdevtotty;
 #define scmmap		nxmmap
 #define	scdevtotty	nxdevtotty
 #endif /* NSC > 0, NVT > 0 */
-
-/* controlling TTY */
-d_open_t	cttyopen;
-d_rdwr_t	cttyread;
-d_rdwr_t	cttywrite;
-d_ioctl_t	cttyioctl;
-d_select_t	cttyselect;
-d_ttycv_t	cttydevtotty;
 
 /* /dev/mem */
 d_open_t	mmopen;

@@ -35,7 +35,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	From: if_ep.c,v 1.9 1994/01/25 10:46:29 deraadt Exp $
- *	$Id: if_zp.c,v 1.1 1995/02/17 02:22:52 phk Exp $
+ *	$Id: if_zp.c,v 1.2 1995/02/26 05:14:49 bde Exp $
  */
 /*-
  * TODO:
@@ -173,6 +173,14 @@ enum memtype { COMMON, ATTRIBUTE };
 #if NBPFILTER > 0
 #include <net/bpf.h>
 #include <net/bpfdesc.h>
+#endif
+
+#if defined(__FreeBSD__)
+#include <machine/clock.h>
+#endif
+
+#if defined(__FreeBSD__) && defined(ZP_DEBUG)
+#include <i386/i386/cons.h>
 #endif
 
 #include <i386/isa/isa.h>

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)iso_snpac.h	8.1 (Berkeley) 6/10/93
- * $Id: iso_snpac.h,v 1.2 1994/08/02 07:50:47 davidg Exp $
+ * $Id: iso_snpac.h,v 1.3 1994/08/21 06:14:21 paul Exp $
  */
 
 #ifndef _NETISO_ISO_SNPAC_H_
@@ -113,6 +113,8 @@ struct llinfo_llc {
 
 #ifdef	KERNEL
 struct llinfo_llc llinfo_llc;	/* head for linked lists */
+int	iso_snparesolve __P((struct ifnet *ifp, struct sockaddr_iso *dest,
+			     caddr_t snpa, int *snpa_len));
 #endif	/* KERNEL */
 
 #endif

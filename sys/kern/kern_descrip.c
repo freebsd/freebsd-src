@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_descrip.c	8.6 (Berkeley) 4/19/94
- * $Id: kern_descrip.c,v 1.7 1994/12/12 12:27:39 bde Exp $
+ * $Id: kern_descrip.c,v 1.8 1995/02/20 19:42:33 guido Exp $
  */
 
 #include <sys/param.h>
@@ -330,9 +330,6 @@ finishdup(fdp, old, new, retval)
 /*
  * Close a file descriptor.
  */
-struct close_args {
-	int	fd;
-};
 /* ARGSUSED */
 int
 close(p, uap, retval)

@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: dev_table.h,v 1.9 1995/02/13 22:49:03 jkh Exp $
+ * $Id: dev_table.h,v 1.12 1995/03/12 23:33:50 swallace Exp $
  */
 
 #ifndef _DEV_TABLE_H_
@@ -336,6 +336,8 @@ struct sound_timer_operations {
 	extern int num_sound_cards;
 
 long sndtable_init(long mem_start);
+int sndtable_probe(int unit, struct address_info *hw_config);
+int sndtable_init_card(int unit, struct address_info *hw_config);
 int sndtable_get_cardcount (void);
 struct address_info *sound_getconf(int card_type);
 void sound_chconf(int card_type, int ioaddr, int irq, int dma);
