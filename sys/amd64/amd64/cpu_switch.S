@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swtch.s,v 1.17 1994/10/30 20:09:13 bde Exp $
+ *	$Id: swtch.s,v 1.18 1994/12/03 10:02:22 bde Exp $
  */
 
 #include "npx.h"	/* for NNPX */
@@ -280,10 +280,7 @@ badsw:
  * cpu_switch()
  */
 ENTRY(cpu_switch)
-	incl	_cnt+V_SWTCH
-
 	/* switch to new process. first, save context as needed */
-
 	movl	_curproc,%ecx
 
 	/* if no process to save, don't bother */
