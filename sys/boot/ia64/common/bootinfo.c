@@ -253,7 +253,6 @@ bi_load(struct bootinfo *bi, struct preloaded_file *fp, UINTN *mapkey,
     struct efi_devdesc		*rootdev;
     struct preloaded_file	*xp;
     vm_offset_t			addr, bootinfo_addr;
-    u_int			pad;
     vm_offset_t			ssym, esym;
     struct file_metadata	*md;
     EFI_STATUS			status;
@@ -311,23 +310,17 @@ bi_load(struct bootinfo *bi, struct preloaded_file *fp, UINTN *mapkey,
 	if (addr < (xp->f_addr + xp->f_size))
 	    addr = xp->f_addr + xp->f_size;
     }
+
     /* pad to a page boundary */
-    pad = (u_int)addr & PAGE_MASK;
-    if (pad != 0) {
-	pad = PAGE_SIZE - pad;
-	addr += pad;
-    }
+    addr = (addr + PAGE_MASK) & ~PAGE_MASK;
 
     /* copy our environment */
     bi->bi_envp = addr;
     addr = bi_copyenv(addr);
 
     /* pad to a page boundary */
-    pad = (u_int)addr & PAGE_MASK;
-    if (pad != 0) {
-	pad = PAGE_SIZE - pad;
-	addr += pad;
-    }
+    addr = (addr + PAGE_MASK) & ~PAGE_MASK;
+
     /* copy module list and metadata */
     bi->bi_modulep = addr;
     addr = bi_copymodules(addr);
