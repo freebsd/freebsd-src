@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 1998 Doug Rabson.
  * Copyright (c) 2001 Jake Burkholder.
  * All rights reserved.
  *
@@ -23,6 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ *	from: FreeBSD: src/sys/i386/include/atomic.h,v 1.20 2001/02/11
  * $FreeBSD$
  */
 
@@ -115,9 +117,12 @@
 	atomic_op(p, op, v, sz);					\
 } while (0)
 
+#define	atomic_load(p, sz)						\
+	atomic_cas(p, 0, 0, sz)
+
 #define	atomic_load_acq(p, sz) ({					\
 	itype(sz) v;							\
-	v = atomic_cas_ ## sz(p, 0, 0);					\
+	v = atomic_load(p, sz);						\
 	membar(LoadLoad | LoadStore);					\
 	v;								\
 })
@@ -125,21 +130,25 @@
 #define	atomic_load_clear(p, sz) ({					\
 	itype(sz) e, r;							\
 	for (e = *(volatile itype(sz) *)p;; e = r) {			\
-		r = atomic_cas_ ## sz(p, e, 0);				\
+		r = atomic_cas(p, e, 0, sz);				\
 		if (r == e)						\
 			break;						\
 	}								\
 	e;								\
 })
 
-#define	atomic_store_rel(p, v, sz) do {					\
+#define	atomic_store(p, v, sz) do {					\
 	itype(sz) e, r;							\
-	membar(LoadStore | StoreStore);					\
 	for (e = *(volatile itype(sz) *)p;; e = r) {			\
-		r = atomic_cas_ ## sz(p, e, v);				\
+		r = atomic_cas(p, e, v, sz);				\
 		if (r == e)						\
 			break;						\
 	}								\
+} while (0)
+
+#define	atomic_store_rel(p, v, sz) do {					\
+	membar(LoadStore | StoreStore);					\
+	atomic_store(p, v, sz);						\
 } while (0)
 
 #define	ATOMIC_GEN(name, ptype, vtype, atype, sz)			\
@@ -193,6 +202,11 @@ atomic_cmpset_rel_ ## name(volatile ptype p, vtype e, vtype s)		\
 }									\
 									\
 static __inline vtype							\
+atomic_load_ ## name(volatile ptype p)					\
+{									\
+	return ((vtype)atomic_cas(p, 0, 0, sz));			\
+}									\
+static __inline vtype							\
 atomic_load_acq_ ## name(volatile ptype p)				\
 {									\
 	return ((vtype)atomic_cas_acq(p, 0, 0, sz));			\
@@ -236,6 +250,11 @@ atomic_subtract_rel_ ## name(volatile ptype p, atype v)			\
 	atomic_op_rel(p, -, v, sz);					\
 }									\
 									\
+static __inline void							\
+atomic_store_ ## name(volatile ptype p, vtype v)			\
+{									\
+	atomic_store(p, v, sz);						\
+}									\
 static __inline void							\
 atomic_store_rel_ ## name(volatile ptype p, vtype v)			\
 {									\
