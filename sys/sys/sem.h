@@ -1,4 +1,4 @@
-/* $Id: sem.h,v 1.5 1995/07/29 11:42:50 bde Exp $ */
+/* $Id: sem.h,v 1.6 1995/08/30 00:33:34 bde Exp $ */
 /*	$NetBSD: sem.h,v 1.5 1994/06/29 06:45:15 cgd Exp $	*/
 
 /*
@@ -153,6 +153,11 @@ extern int	*semu;		/* undo structure pool */
  * Macro to find a particular sem_undo vector
  */
 #define SEMU(ix)	((struct sem_undo *)(((long)semu)+ix * SEMUSZ))
+
+/*
+ * Process sem_undo vectors at proc exit.
+ */
+void	semexit __P((struct proc *p));
 
 /*
  * Parameters to the semconfig system call
