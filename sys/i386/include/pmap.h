@@ -42,7 +42,7 @@
  *
  *	from: hp300: @(#)pmap.h	7.2 (Berkeley) 12/16/90
  *	from: @(#)pmap.h	7.4 (Berkeley) 5/12/91
- * 	$Id: pmap.h,v 1.34 1996/02/25 03:02:53 dyson Exp $
+ * 	$Id: pmap.h,v 1.35 1996/04/03 05:23:44 dyson Exp $
  */
 
 #ifndef _MACHINE_PMAP_H_
@@ -73,8 +73,6 @@ struct vm_map;
 #define NKPDE			63	/* addressable number of page tables/pde's */
 #endif
 
-#define	NUPDE		(NPTEPG-NKPDE)	/* number of user pde's */
-
 /*
  * The *PTDI values control the layout of virtual memory
  *
@@ -85,7 +83,7 @@ struct vm_map;
 #define	KPTDI		(APTDPTDI-NKPDE)/* start of kernel virtual pde's */
 #define	PTDPTDI		(KPTDI-1)	/* ptd entry that points to ptd! */
 #define	KSTKPTDI	(PTDPTDI-1)	/* ptd entry for u./kernel&user stack */
-#define KSTKPTEOFF	(NBPG/sizeof(pd_entry_t)-UPAGES) /* pte entry for kernel stack */
+#define KSTKPTEOFF	(NPTEPG-UPAGES) /* pte entry for kernel stack */
 
 #define PDESIZE		sizeof(pd_entry_t) /* for assembly files */
 #define PTESIZE		sizeof(pt_entry_t) /* for assembly files */
