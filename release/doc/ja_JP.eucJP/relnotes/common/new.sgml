@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.22.2.173
+    Original revision: 1.22.2.174
 -->
 
 <articleinfo>
@@ -230,9 +230,9 @@
         &man.bge.4; ドライバが追加されました.
         これは 3Com 3c996-T,
         SysKonnect SK-9D21, SK-9D41 および
-        Dell PowerEdge 2550 サーバの内蔵ギガビットイーサネット NIC
+        Dell PowerEdge 2550 サーバの内蔵ギガビット Ethernet NIC
         などに使われている Broadcom BCM570x
-        ファミリのギガビットイーサネットコントローラ用ドライバで,
+        ファミリのギガビット Ethernet コントローラ用ドライバで,
         送信側における TCP/IP チェックサムの負荷低減機能,
         ジャンボフレーム, VLAN タグ挿入・削除機能に加え,
         割り込み低減機能に対応しています.</para>
@@ -282,6 +282,10 @@
         <port>sysutil/sbniconfig</port> の port
         が利用可能です.</para>
       
+      <para>&man.sis.4; ドライバが新しく,
+        SiS 635 および 735 マザーボードチップセットに内蔵されている
+        SiS 900 系の オンボード Ethernet コントローラに対応しました.</para>
+
       <para>&man.sis.4; ドライバが VLAN に対応しました.</para>
 
       <para>&man.vlan.4; デバイスがロード・アンロード可能になり,
