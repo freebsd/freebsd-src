@@ -31,12 +31,15 @@
 
 #include "devd.h"
 #include <stdio.h>
+#include <string.h>
 
 %}
 
 %union {
 	char *str;
 	int i;
+	struct eps *eps;	/* EventProcStatement */
+	struct event_proc *eventproc;
 }
 
 %token SEMICOLON BEGINBLOCK ENDBLOCK COMMA
@@ -46,14 +49,14 @@
 %token OPTIONS SET DIRECTORY PID_FILE DEVICE_NAME ACTION MATCH
 %token ATTACH DETACH NOMATCH
 
-%type <str> id
-%type <i> number
-%type <str> string
+%type <eventproc> match_or_action_list
+%type <eps> match_or_action match action
 
 %%
 
 config_file
 	: config_list
+	|
 	;
 
 config_list
@@ -83,32 +86,36 @@ option
 	;
 
 directory_option
-	: DIRECTORY string SEMICOLON { add_directory($2); }
+	: DIRECTORY STRING SEMICOLON { add_directory($2); }
 	;
 
 pid_file_option
-	: PID_FILE string SEMICOLON
+	: PID_FILE STRING SEMICOLON { set_pidfile($2); }
 	;
 
 set_option
-	: SET id string SEMICOLON
+	: SET ID STRING SEMICOLON { set_variable($2, $3); }
 	;
 
 attach_block
-	: ATTACH number BEGINBLOCK match_or_action_list ENDBLOCK SEMICOLON
+	: ATTACH NUMBER BEGINBLOCK match_or_action_list ENDBLOCK SEMICOLON
+		{ add_attach($2, $4); }
 	;
 
 detach_block
-	: DETACH number BEGINBLOCK match_or_action_list ENDBLOCK SEMICOLON
+	: DETACH NUMBER BEGINBLOCK match_or_action_list ENDBLOCK SEMICOLON
+		{ add_detach($2, $4); }
 	;
 
 nomatch_block
-	: NOMATCH number BEGINBLOCK match_or_action_list ENDBLOCK SEMICOLON
+	: NOMATCH NUMBER BEGINBLOCK match_or_action_list ENDBLOCK SEMICOLON
+		{ add_nomatch($2, $4); }
 	;
 
 match_or_action_list
-	: match_or_action
+	: match_or_action { $$ = add_to_event_proc( NULL, $1); }
 	| match_or_action_list match_or_action
+			{ $$ = add_to_event_proc($1, $2); }
 	;
 
 match_or_action
@@ -117,21 +124,13 @@ match_or_action
 	;
 
 match
-	: MATCH string string SEMICOLON
-	| DEVICE_NAME string SEMICOLON
+	: MATCH STRING STRING SEMICOLON	{ $$ = new_match($2, $3); }
+	| DEVICE_NAME STRING SEMICOLON
+		{ $$ = new_match(strdup("device-name"), $2); }
 	;
 
 action
-	: ACTION string SEMICOLON
+	: ACTION STRING SEMICOLON	{ $$ = new_action($2); }
 	;
-
-number
-	: NUMBER	{ $$ = $1; }
-
-string
-	: STRING	{ $$ = $1; }
-
-id
-	: ID		{ $$ = $1; }
 
 %%
