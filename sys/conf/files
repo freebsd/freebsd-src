@@ -1370,7 +1370,13 @@ netatm/uni/unisig_util.c	optional atm_uni atm_core
 netatm/uni/unisig_vc_state.c	optional atm_uni atm_core
 netgraph/atm/atmpif/ng_atmpif.c	optional netgraph_atm_atmpif
 netgraph/atm/atmpif/ng_atmpif_harp.c	optional netgraph_atm_atmpif
-netgraph/atm/ng_atm.c	optional ngatm_atm
+netgraph/atm/ngatmbase.c			optional ngatm_atmbase
+contrib/ngatm/netnatm/misc/unimsg_common.c	optional ngatm_atmbase
+netgraph/atm/ng_atm.c		optional ngatm_atm
+netgraph/atm/sscfu/ng_sscfu.c		optional ngatm_sscfu
+contrib/ngatm/netnatm/saal/saal_sscfu.c	optional ngatm_sscfu
+netgraph/atm/sscop/ng_sscop.c		optional ngatm_sscop
+contrib/ngatm/netnatm/saal/saal_sscop.c	optional ngatm_sscop
 netgraph/ng_UI.c	optional netgraph_UI
 netgraph/ng_async.c	optional netgraph_async
 netgraph/ng_base.c	optional netgraph
