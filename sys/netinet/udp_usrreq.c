@@ -287,26 +287,23 @@ udp_input(m, off)
 		 */
 		last = NULL;
 		LIST_FOREACH(inp, &udb, inp_list) {
-			INP_LOCK(inp);
-			if (inp->inp_lport != uh->uh_dport) {
-		docontinue:
-				INP_UNLOCK(inp);
+			if (inp->inp_lport != uh->uh_dport)
 				continue;
-			}
 #ifdef INET6
 			if ((inp->inp_vflag & INP_IPV4) == 0)
-				goto docontinue;
+				continue;
 #endif
 			if (inp->inp_laddr.s_addr != INADDR_ANY) {
 				if (inp->inp_laddr.s_addr != ip->ip_dst.s_addr)
-					goto docontinue;
+					continue;
 			}
 			if (inp->inp_faddr.s_addr != INADDR_ANY) {
 				if (inp->inp_faddr.s_addr !=
 				    ip->ip_src.s_addr ||
 				    inp->inp_fport != uh->uh_sport)
-					goto docontinue;
+					continue;
 			}
+			INP_LOCK(inp);
 
 			/*
 			 * Check multicast packets to make sure they are only
@@ -327,8 +324,10 @@ udp_input(m, off)
 						break;
 					}
 				}
-				if (foundmship == 0)
-					goto docontinue;
+				if (foundmship == 0) {
+					INP_UNLOCK(inp);
+					continue;
+				}
 			}
 #undef NMSHIPS
 #undef MSHIP
