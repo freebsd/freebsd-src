@@ -61,11 +61,8 @@ SOFTWARE.
 #define PRIVATE static
 #endif
 
-#define P(args) args
+PRIVATE void hashi_FreeMembers(hash_member *, hash_freefp);
 
-PRIVATE void hashi_FreeMembers P((hash_member *, hash_freefp));
-
-#undef P
 
 
 

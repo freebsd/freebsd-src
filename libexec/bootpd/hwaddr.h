@@ -22,13 +22,9 @@ struct hwinfo {
 extern struct hwinfo hwinfolist[];
 extern int hwinfocnt;
 
-#define P(args) args
-
-extern void setarp P((int, struct in_addr *, int, u_char *, int));
-extern char *haddrtoa P((u_char *, int));
-extern void haddr_conv802 P((u_char *, u_char *, int));
-
-#undef P
+extern void setarp(int, struct in_addr *, int, u_char *, int);
+extern char *haddrtoa(u_char *, int);
+extern void haddr_conv802(u_char *, u_char *, int);
 
 /*
  * Return the length in bytes of a hardware address of the given type.

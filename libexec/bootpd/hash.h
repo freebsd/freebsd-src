@@ -117,35 +117,32 @@ struct hash_tblstruct {
 };
 
 /* ANSI function prototypes or empty arg list? */
-#define P(args) args
 
-typedef int (*hash_cmpfp) P((hash_datum *, hash_datum *));
-typedef void (*hash_freefp) P((hash_datum *));
+typedef int (*hash_cmpfp)(hash_datum *, hash_datum *);
+typedef void (*hash_freefp)(hash_datum *);
 
-extern hash_tbl	  *hash_Init P((u_int tablesize));
+extern hash_tbl	  *hash_Init(u_int tablesize);
 
-extern void	   hash_Reset P((hash_tbl *tbl, hash_freefp));
+extern void	   hash_Reset(hash_tbl *tbl, hash_freefp);
 
-extern unsigned	   hash_HashFunction P((u_char *str, u_int len));
+extern unsigned	   hash_HashFunction(u_char *str, u_int len);
 
-extern int	   hash_Exists P((hash_tbl *, u_int code,
-				  hash_cmpfp, hash_datum *key));
+extern int	   hash_Exists(hash_tbl *, u_int code,
+				  hash_cmpfp, hash_datum *key);
 
-extern int	   hash_Insert P((hash_tbl *, u_int code,
+extern int	   hash_Insert(hash_tbl *, u_int code,
 				  hash_cmpfp, hash_datum *key,
-				  hash_datum *element));
+				  hash_datum *element);
 
-extern int	   hash_Delete P((hash_tbl *, u_int code,
+extern int	   hash_Delete(hash_tbl *, u_int code,
 				  hash_cmpfp, hash_datum *key,
-				  hash_freefp));
+				  hash_freefp);
 
-extern hash_datum *hash_Lookup P((hash_tbl *, u_int code,
-				  hash_cmpfp, hash_datum *key));
+extern hash_datum *hash_Lookup(hash_tbl *, u_int code,
+				  hash_cmpfp, hash_datum *key);
 
-extern hash_datum *hash_FirstEntry P((hash_tbl *));
+extern hash_datum *hash_FirstEntry(hash_tbl *);
 
-extern hash_datum *hash_NextEntry P((hash_tbl *));
-
-#undef P
+extern hash_datum *hash_NextEntry(hash_tbl *);
 
 #endif	/* HASH_H */
