@@ -81,7 +81,6 @@ main(argc, argv)
 
 	oldmode = mode;
 	Ospeed = cfgetospeed(&mode);
-	_set_ospeed(Ospeed);
 
 	if (p = strrchr(*argv, '/'))
 		++p;
