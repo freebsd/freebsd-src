@@ -385,6 +385,7 @@ dev/mly/mly_cam.c	optional mly
 dev/mly/mly_pci.c	optional mly
 dev/musycc/musycc.c	optional musycc
 dev/null/null.c		standard
+dev/nulmodem/tty_nulmodem.c	optional nmdm
 dev/pccard/card_if.m	optional card
 dev/pccard/card_if.m	optional cardbus
 dev/pccard/card_if.m	optional pccard
