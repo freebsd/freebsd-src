@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.4 1994/08/02 07:41:49 davidg Exp $
+ * $Id: init_main.c,v 1.5 1994/08/18 22:34:57 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -51,6 +51,7 @@
 #include <sys/signalvar.h>
 #include <sys/systm.h>
 #include <sys/vnode.h>
+#include <sys/sysent.h>
 #include <sys/conf.h>
 #include <sys/buf.h>
 #include <sys/clist.h>
@@ -126,6 +127,7 @@ main(framep)
 	extern struct pdevinit pdevinit[];
 	extern void roundrobin __P((void *));
 	extern void schedcpu __P((void *));
+	extern struct sysentvec aout_sysvec;
 
 	/*
 	 * Initialize the current process pointer (curproc) before
@@ -155,6 +157,8 @@ main(framep)
 	pgrp0.pg_session = &session0;
 	session0.s_count = 1;
 	session0.s_leader = p;
+
+	p->p_sysent = &aout_sysvec;
 
 	p->p_flag = P_INMEM | P_SYSTEM;
 	p->p_stat = SRUN;
