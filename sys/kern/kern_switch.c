@@ -573,6 +573,8 @@ critical_enter(void)
 	if (td->td_critnest == 0)
 		cpu_critical_enter(td);
 	td->td_critnest++;
+	CTR4(KTR_CRITICAL, "critical_enter by thread %p (%ld, %s) to %d", td,
+	    (long)td->td_proc->p_pid, td->td_proc->p_comm, td->td_critnest);
 }
 
 void
@@ -601,6 +603,8 @@ critical_exit(void)
 	} else {
 		td->td_critnest--;
 	}
+	CTR4(KTR_CRITICAL, "critical_exit by thread %p (%ld, %s) to %d", td,
+	    (long)td->td_proc->p_pid, td->td_proc->p_comm, td->td_critnest);
 }
 
 /*
