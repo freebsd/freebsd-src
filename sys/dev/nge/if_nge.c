@@ -151,7 +151,7 @@ static int nge_detach(device_t);
 
 static int nge_newbuf(struct nge_softc *, struct nge_desc *, struct mbuf *);
 static int nge_encap(struct nge_softc *, struct mbuf *, u_int32_t *);
-#ifdef VGE_FIXUP_RX
+#ifdef NGE_FIXUP_RX
 static __inline void nge_fixup_rx (struct mbuf *);
 #endif
 static void nge_rxeof(struct nge_softc *);

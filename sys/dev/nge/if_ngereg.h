@@ -637,7 +637,7 @@ struct nge_mii_frame {
 #define NGE_JUMBO_MTU		(NGE_JUMBO_FRAMELEN-ETHER_HDR_LEN-ETHER_CRC_LEN)
 
 #if !defined(__i386__)
-#define VGE_FIXUP_RX
+#define NGE_FIXUP_RX
 #endif
 
 struct nge_ring_data {
