@@ -240,9 +240,6 @@ acpi_modevent(struct module *mod, int event, void *junk)
 ACPI_STATUS
 acpi_Startup(void)
 {
-#ifdef ACPI_DEBUGGER
-    char *debugpoint;
-#endif
     static int started = 0;
     int error, val;
 
