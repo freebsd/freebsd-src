@@ -36,13 +36,14 @@
 static char sccsid[] = "@(#)inet.c	8.5 (Berkeley) 5/24/95";
 */
 static const char rcsid[] =
-	"$Id$";
+	"$Id: inet.c,v 1.25 1997/02/22 19:56:21 peter Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
+#include <sys/sysctl.h>
 #include <sys/protosw.h>
 
 #include <net/route.h>
@@ -378,11 +379,20 @@ icmp_stats(off, name)
 	char *name;
 {
 	struct icmpstat icmpstat;
-	register int i, first;
+	int i, first;
+	int mib[4];		/* CTL_NET + PF_INET + IPPROTO_ICMP + req */
+	size_t len;
 
-	if (off == 0)
-		return;
-	kread(off, (char *)&icmpstat, sizeof (icmpstat));
+	mib[0] = CTL_NET;
+	mib[1] = PF_INET;
+	mib[2] = IPPROTO_ICMP;
+	mib[3] = ICMPCTL_STATS;
+
+	len = sizeof icmpstat;
+	memset(&icmpstat, 0, len);
+	if (sysctl(mib, 4, &icmpstat, &len, (void *)0, 0) < 0)
+		return;		/* XXX should complain, but not traditional */
+
 	printf("%s:\n", name);
 
 #define	p(f, m) if (icmpstat.f || sflag <= 1) \
@@ -404,6 +414,8 @@ icmp_stats(off, name)
 	p(icps_tooshort, "\t%lu message%s < minimum length\n");
 	p(icps_checksum, "\t%lu bad checksum%s\n");
 	p(icps_badlen, "\t%lu message%s with bad length\n");
+	p(icps_bmcastecho, "\t%lu multicast echo requests ignored\n");
+	p(icps_bmcasttstamp, "\t%lu multicast timestamp requests ignored\n");
 	for (first = 1, i = 0; i < ICMP_MAXTYPE + 1; i++)
 		if (icmpstat.icps_inhist[i] != 0) {
 			if (first) {
@@ -415,6 +427,12 @@ icmp_stats(off, name)
 		}
 	p(icps_reflect, "\t%lu message response%s generated\n");
 #undef p
+	mib[3] = ICMPCTL_MASKREPL;
+	len = sizeof i;
+	if (sysctl(mib, 4, &i, &len, (void *)0, 0) < 0)
+		return;
+	printf("\tICMP address mask responses are %sabled\n", 
+	       i ? "en" : "dis");
 }
 
 /*
