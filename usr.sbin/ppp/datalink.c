@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.2 1998/05/21 21:44:54 brian Exp $
+ *	$Id: datalink.c,v 1.3 1998/05/23 13:38:06 brian Exp $
  */
 
 #include <sys/types.h>
@@ -543,7 +543,6 @@ datalink_Create(const char *name, struct bundle *bundle, int type)
     return dl;
 
   dl->desc.type = DATALINK_DESCRIPTOR;
-  dl->desc.next = NULL;
   dl->desc.UpdateSet = datalink_UpdateSet;
   dl->desc.IsSet = datalink_IsSet;
   dl->desc.Read = datalink_Read;
@@ -612,7 +611,6 @@ datalink_Clone(struct datalink *odl, const char *name)
     return dl;
 
   dl->desc.type = DATALINK_DESCRIPTOR;
-  dl->desc.next = NULL;
   dl->desc.UpdateSet = datalink_UpdateSet;
   dl->desc.IsSet = datalink_IsSet;
   dl->desc.Read = datalink_Read;
@@ -973,7 +971,6 @@ iov2datalink(struct bundle *bundle, struct iovec *iov, int *niov, int maxiov,
   (*niov)++;
 
   dl->desc.type = DATALINK_DESCRIPTOR;
-  dl->desc.next = NULL;
   dl->desc.UpdateSet = datalink_UpdateSet;
   dl->desc.IsSet = datalink_IsSet;
   dl->desc.Read = datalink_Read;
