@@ -6,6 +6,8 @@
 SRCS+= \
 	thr_attr.c \
 	thr_autoinit.c \
+	thr_barrier.c \
+	thr_barrierattr.c \
 	thr_cancel.c \
 	thr_clean.c \
 	thr_concurrency.c \
