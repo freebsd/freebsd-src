@@ -70,6 +70,9 @@ static struct ieee80211_node *ieee80211_node_alloc(struct ieee80211com *);
 static void ieee80211_node_free(struct ieee80211com *, struct ieee80211_node *);
 static void ieee80211_node_copy(struct ieee80211com *,
 		struct ieee80211_node *, const struct ieee80211_node *);
+static u_int8_t ieee80211_node_getrssi(struct ieee80211com *,
+		struct ieee80211_node *);
+
 static void ieee80211_setup_node(struct ieee80211com *ic,
 		struct ieee80211_node *ni, u_int8_t *macaddr);
 static void _ieee80211_free_node(struct ieee80211com *,
@@ -86,6 +89,7 @@ ieee80211_node_attach(struct ifnet *ifp)
 	ic->ic_node_alloc = ieee80211_node_alloc;
 	ic->ic_node_free = ieee80211_node_free;
 	ic->ic_node_copy = ieee80211_node_copy;
+	ic->ic_node_getrssi = ieee80211_node_getrssi;
 }
 
 void
@@ -404,6 +408,12 @@ ieee80211_node_copy(struct ieee80211com *ic,
 	struct ieee80211_node *dst, const struct ieee80211_node *src)
 {
 	*dst = *src;
+}
+
+static u_int8_t
+ieee80211_node_getrssi(struct ieee80211com *ic, struct ieee80211_node *ni)
+{
+	return ni->ni_rssi;
 }
 
 static void
