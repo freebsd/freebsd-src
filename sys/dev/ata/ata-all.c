@@ -221,8 +221,9 @@ ata_detach(device_t dev)
 int
 ata_reinit(struct ata_channel *ch)
 {
+    struct ata_request *request = ch->running;
     int devices, misdev, newdev;
-
+    
     if (!ch->r_irq)
 	return ENXIO;
 
@@ -237,11 +238,29 @@ ata_reinit(struct ata_channel *ch)
     /* detach what left the channel during reset */
     if ((misdev = devices & ~ch->devices)) {
 	if ((misdev & (ATA_ATA_MASTER | ATA_ATAPI_MASTER)) &&
-	    ch->device[MASTER].detach)
+	    ch->device[MASTER].detach) {
+	    if (request && (request->device == &ch->device[MASTER])) {
+		request->result = ENXIO;
+		request->flags |= ATA_R_DONE;
+		if (request->callback)
+		    (request->callback)(request);
+		else
+        	    wakeup(request);
+	    }
 	    ch->device[MASTER].detach(&ch->device[MASTER]);
+	}
 	if ((misdev & (ATA_ATA_SLAVE | ATA_ATAPI_SLAVE)) &&
-	    ch->device[SLAVE].detach)
+	    ch->device[SLAVE].detach) {
+	    if (request && (request->device == &ch->device[SLAVE])) {
+		request->result = ENXIO;
+		request->flags |= ATA_R_DONE;
+		if (request->callback)
+		    (request->callback)(request);
+		else
+        	    wakeup(request);
+	    }
 	    ch->device[SLAVE].detach(&ch->device[SLAVE]);
+	}
     }
 
     /* identify whats present on this channel now */
