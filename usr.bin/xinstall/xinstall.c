@@ -40,7 +40,7 @@ static const char copyright[] =
 #ifndef lint
 /*static char sccsid[] = "From: @(#)xinstall.c	8.1 (Berkeley) 7/21/93";*/
 static const char rcsid[] =
-	"$Id: xinstall.c,v 1.16 1996/09/29 06:29:54 imp Exp $";
+	"$Id: xinstall.c,v 1.17 1996/09/29 23:09:51 imp Exp $";
 #endif /* not lint */
 
 /*-
@@ -678,8 +678,9 @@ usage()
 {
 	(void)fprintf(stderr,"\
 usage: install [-CcDps] [-f flags] [-g group] [-m mode] [-o owner] file1 file2\n\
-    install [-CcDps] [-f flags] [-g group] [-m mode] [-o owner] f1 ... fN dir\n\
-    install  -d       [-g group] [-m mode] [-o owner] directory ...\n");
+       install [-CcDps] [-f flags] [-g group] [-m mode] [-o owner] file1 ...\n\
+             fileN directory\n\
+       install -d [-g group] [-m mode] [-o owner] directory ...\n");
 	exit(EX_USAGE);
 	/* NOTREACHED */
 }
