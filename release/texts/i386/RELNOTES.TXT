@@ -791,8 +791,8 @@ purposes. [MERGED]
 
 libc is now thread-safe by default; libc_r contains only thread functions.
 
-find(1) now takes the -empty flag, which returns true if a directory
-is empty. [MERGED]
+find(1) now takes the -empty flag, which returns true if a file or
+directory is empty. [MERGED]
 
 tftpd(8) now takes the -c and -C options, which allow the server to
 chroot(2) based on the IP address of the connecting client.  tftp(1)
