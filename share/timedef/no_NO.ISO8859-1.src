@@ -63,7 +63,7 @@ lørdag
 #
 # c_fmt
 #
-%a %Ef %X %Y
+%a %e %b %X %Y
 #
 # am
 #
@@ -75,7 +75,7 @@ pm
 #
 # date_fmt
 #
-%a %Ef %Y %X %Z
+%a %e %b %Y %X %Z
 #
 # Long months names (alternative)
 #

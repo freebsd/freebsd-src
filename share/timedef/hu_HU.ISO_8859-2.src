@@ -63,7 +63,7 @@ Szombat
 #
 # c_fmt
 #
-%a %Ef %X %Y
+%a %b %e %X %Y
 #
 # am
 #
@@ -75,7 +75,7 @@ du
 #
 # date_fmt
 #
-%Y %Ef %a %X %Z
+%Y %b %e %a %X %Z
 #
 # Long months names (alternative)
 #

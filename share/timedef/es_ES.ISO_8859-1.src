@@ -63,7 +63,7 @@ sábado
 #
 # c_fmt
 #
-%a %Ef %X %Y
+%a %e %b %X %Y
 #
 # am
 #
