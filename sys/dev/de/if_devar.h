@@ -406,11 +406,6 @@ typedef struct {
     void (*bd_media_select)(tulip_softc_t * const sc);
     void (*bd_media_poll)(tulip_softc_t * const sc, tulip_mediapoll_event_t event);
     void (*bd_media_preset)(tulip_softc_t * const sc);
-#if defined(__bsdi__) && _BSDI_VERSION >= 199701
-    struct ifmedia_entry *bd_media_list;
-    int bd_media_cnt;
-    int bd_media_options_mask;
-#endif
 } tulip_boardsw_t;
 
 /*
@@ -494,21 +489,6 @@ typedef struct {
  *
  */
 struct _tulip_softc_t {
-#if defined(__bsdi__)
-    struct device tulip_dev;		/* base device */
-    struct isadev tulip_id;		/* ISA device */
-    struct intrhand tulip_ih;		/* intrrupt vectoring */
-    struct atshutdown tulip_ats;	/* shutdown hook */
-#if _BSDI_VERSION < 199401
-    caddr_t tulip_bpf;			/* for BPF */
-#else
-    prf_t tulip_pf;			/* printf function */
-#if _BSDI_VERSION >= 199701
-    struct mii_data tulip_mii;		/* Generic MII and media data */
-#define	tulip_ifmedia tulip_mii.mii_media
-#endif /* _BSDI_VERSION >= 199701 */
-#endif /* _BSDI_VERSION < 199401 */
-#endif /* __bsdi__ */
 #if defined(__NetBSD__)
     struct device tulip_dev;		/* base device */
     void *tulip_ih;			/* intrrupt vectoring */
@@ -982,34 +962,6 @@ NETISR_SET(NETISR_DE, tulip_softintr);
 #define	loudprintf			if (bootverbose) printf
 #endif
 
-#if defined(__bsdi__)
-typedef int ifnet_ret_t;
-typedef u_long ioctl_cmd_t;
-extern struct cfdriver decd;
-#define	TULIP_UNIT_TO_SOFTC(unit)	((tulip_softc_t *) decd.cd_devs[unit])
-#define TULIP_IFP_TO_SOFTC(ifp)		(TULIP_UNIT_TO_SOFTC((ifp)->if_unit))
-#define	TULIP_ETHER_IFATTACH(sc)	ether_attach(&(sc)->tulip_if)
-#if _BSDI_VERSION >= 199510
-#if 0
-#define	TULIP_BURSTSIZE(unit)		log2_burst_size
-#endif
-#define	loudprintf			aprint_verbose
-#define	printf				(*sc->tulip_pf)
-#define	MCNT(x) (sizeof(x) / sizeof(struct ifmedia_entry))
-#elif _BSDI_VERSION <= 199401
-#define	DRQNONE				0
-#define	loudprintf			printf
-static void
-arp_ifinit(
-    struct arpcom *ac,
-    struct ifaddr *ifa)
-{
-    ac->ac_ipaddr = IA_SIN(ifa)->sin_addr;
-    arpwhohas(ac, &ac->ac_ipaddr);
-}
-#endif
-#endif	/* __bsdi__ */
-
 #if defined(__NetBSD__)
 typedef void ifnet_ret_t;
 typedef u_long ioctl_cmd_t;
@@ -1076,7 +1028,7 @@ extern struct cfdriver de_cd;
 #define	TULIP_ETHER_IFATTACH(sc)	ether_ifattach(&(sc)->tulip_if)
 #endif
 
-#if !defined(tulip_bpf) && (!defined(__bsdi__) || _BSDI_VERSION >= 199401)
+#if !defined(tulip_bpf)
 #define	tulip_bpf	tulip_if.if_bpf
 #endif
 
