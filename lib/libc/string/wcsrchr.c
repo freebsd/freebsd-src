@@ -1,5 +1,5 @@
 /*-
- * Copyright (c)1999 Citrus Project,
+ * Copyright (c) 2002 Tim J. Robbins
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,36 +22,26 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	citrus Id: wcsrchr.c,v 1.2 2000/12/21 05:07:25 itojun Exp
  */
 
 #include <sys/cdefs.h>
-#if 0
-#if defined(LIBC_SCCS) && !defined(lint)
-__RCSID("$NetBSD: wcsrchr.c,v 1.1 2000/12/23 23:14:37 itojun Exp $");
-#endif /* LIBC_SCCS and not lint */
-#endif
 __FBSDID("$FreeBSD$");
 
 #include <wchar.h>
 
 wchar_t *
-wcsrchr(s, c)
-	const wchar_t *s;
-	wchar_t c;
+wcsrchr(const wchar_t *s, wchar_t c)
 {
-	const wchar_t *p;
+	const wchar_t *last;
 
-	p = s;
-	while (*p)
-		p++;
-	while (s <= p) {
-		if (*p == c) {
-			/* LINTED interface specification */
-			return (wchar_t *)p;
-		}
-		p--;
+	last = NULL;
+	for (;;) {
+		if (*s == c)
+			last = s;
+		if (*s == L'\0')
+			break;
+		s++;
 	}
-	return NULL;
+
+	return ((wchar_t *)last);
 }
