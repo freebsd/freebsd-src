@@ -1561,7 +1561,9 @@ pmap_remove_page(pmap_t pmap, vm_offset_t va)
 void
 pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 {
-	vm_offset_t pdnxt;
+	vm_offset_t va_next;
+	pml4_entry_t *pml4e;
+	pdp_entry_t *pdpe;
 	pd_entry_t ptpaddr, *pde;
 	pt_entry_t *pte;
 	int anyvalid;
@@ -1587,15 +1589,27 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 
 	anyvalid = 0;
 
-	for (; sva < eva; sva = pdnxt) {
+	for (; sva < eva; sva = va_next) {
 
 		if (pmap->pm_stats.resident_count == 0)
 			break;
 
+		pml4e = pmap_pml4e(pmap, sva);
+		if (pml4e == 0) {
+			va_next = (sva + NBPML4) & ~PML4MASK;
+			continue;
+		}
+
+		pdpe = pmap_pdpe(pmap, sva);
+		if (pdpe == 0) {
+			va_next = (sva + NBPDP) & ~PDPMASK;
+			continue;
+		}
+
 		/*
 		 * Calculate index for next page table.
 		 */
-		pdnxt = (sva + NBPDR) & ~PDRMASK;
+		va_next = (sva + NBPDR) & ~PDRMASK;
 
 		pde = pmap_pde(pmap, sva);
 		if (pde == 0)
@@ -1624,10 +1638,10 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 		 * by the current page table page, or to the end of the
 		 * range being removed.
 		 */
-		if (pdnxt > eva)
-			pdnxt = eva;
+		if (va_next > eva)
+			va_next = eva;
 
-		for (; sva != pdnxt; sva += PAGE_SIZE) {
+		for (; sva != va_next; sva += PAGE_SIZE) {
 			pte = pmap_pte(pmap, sva);
 			if (pte == NULL || *pte == 0)
 				continue;
@@ -1713,7 +1727,9 @@ pmap_remove_all(vm_page_t m)
 void
 pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 {
-	vm_offset_t pdnxt;
+	vm_offset_t va_next;
+	pml4_entry_t *pml4e;
+	pdp_entry_t *pdpe;
 	pd_entry_t ptpaddr, *pde;
 	int anychanged;
 
@@ -1730,9 +1746,21 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 
 	anychanged = 0;
 
-	for (; sva < eva; sva = pdnxt) {
+	for (; sva < eva; sva = va_next) {
 
-		pdnxt = (sva + NBPDR) & ~PDRMASK;
+		pml4e = pmap_pml4e(pmap, sva);
+		if (pml4e == 0) {
+			va_next = (sva + NBPML4) & ~PML4MASK;
+			continue;
+		}
+
+		pdpe = pmap_pdpe(pmap, sva);
+		if (pdpe == 0) {
+			va_next = (sva + NBPDP) & ~PDPMASK;
+			continue;
+		}
+
+		va_next = (sva + NBPDR) & ~PDRMASK;
 
 		pde = pmap_pde(pmap, sva);
 		if (pde == NULL)
@@ -1756,10 +1784,10 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 			continue;
 		}
 
-		if (pdnxt > eva)
-			pdnxt = eva;
+		if (va_next > eva)
+			va_next = eva;
 
-		for (; sva != pdnxt; sva += PAGE_SIZE) {
+		for (; sva != va_next; sva += PAGE_SIZE) {
 			pt_entry_t pbits;
 			pt_entry_t *pte;
 			vm_page_t m;
@@ -2195,7 +2223,7 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 {
 	vm_offset_t addr;
 	vm_offset_t end_addr = src_addr + len;
-	vm_offset_t pdnxt;
+	vm_offset_t va_next;
 	vm_page_t m;
 
 	if (dst_addr != src_addr)
@@ -2204,9 +2232,11 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 	if (!pmap_is_current(src_pmap))
 		return;
 
-	for (addr = src_addr; addr < end_addr; addr = pdnxt) {
+	for (addr = src_addr; addr < end_addr; addr = va_next) {
 		pt_entry_t *src_pte, *dst_pte;
 		vm_page_t dstmpte, srcmpte;
+		pml4_entry_t *pml4e;
+		pdp_entry_t *pdpe;
 		pd_entry_t srcptepaddr, *pde;
 		vm_pindex_t ptepindex;
 
@@ -2222,7 +2252,19 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 		    pv_entry_count > pv_entry_high_water)
 			break;
 		
-		pdnxt = (addr + NBPDR) & ~PDRMASK;
+		pml4e = pmap_pml4e(src_pmap, addr);
+		if (pml4e == 0) {
+			va_next = (addr + NBPML4) & ~PML4MASK;
+			continue;
+		}
+
+		pdpe = pmap_pdpe(src_pmap, addr);
+		if (pdpe == 0) {
+			va_next = (addr + NBPDP) & ~PDPMASK;
+			continue;
+		}
+
+		va_next = (addr + NBPDR) & ~PDRMASK;
 		ptepindex = pmap_pde_pindex(addr);
 
 		pde = pmap_pde(src_pmap, addr);
@@ -2254,11 +2296,11 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 		if (srcmpte->hold_count == 0 || (srcmpte->flags & PG_BUSY))
 			continue;
 
-		if (pdnxt > end_addr)
-			pdnxt = end_addr;
+		if (va_next > end_addr)
+			va_next = end_addr;
 
 		src_pte = vtopte(addr);
-		while (addr < pdnxt) {
+		while (addr < va_next) {
 			pt_entry_t ptetemp;
 			ptetemp = *src_pte;
 			/*
