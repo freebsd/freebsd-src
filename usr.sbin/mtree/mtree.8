@@ -45,6 +45,9 @@
 .Op Fl f Ar spec
 .Ek
 .Bk -words
+.Op Fl f Ar spec
+.Ek
+.Bk -words
 .Op Fl K Ar keywords
 .Ek
 .Bk -words
@@ -122,6 +125,16 @@ Don't descend below mount points in the file hierarchy.
 Read the specification from
 .Ar file  ,
 instead of from the standard input.
+.Pp
+If this option is specified twice, the two specifications are compared
+to each other rather than to the file hierarchy.
+The specifications be sorted like output generated using
+.Fl c .
+The output format in this case is somewhat remniscent of
+.Xr comm 1 ,
+having "in first spec only", "in second spec only", and "different"
+columns, prefixed by zero, one and two TAB characters respectively.
+Each entry in the "different" column occupies two lines, one from each specfication.
 .It Fl K Ar keywords
 Add the specified (whitespace or comma separated)
 .Ar keywords

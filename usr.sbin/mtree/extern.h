@@ -31,7 +31,9 @@
  */
 extern uint32_t crc_total;
 
+#ifdef _FTS_H_
 int	 compare(char *, NODE *, FTSENT *);
+#endif
 int	 crc(int, uint32_t *, off_t *);
 void	 cwalk(void);
 char	*flags_to_string(u_long);
@@ -41,7 +43,9 @@ u_int	 parsekey(char *, int *);
 char	*rlink(char *);
 NODE	*mtree_readspec(FILE *fi);
 int	mtree_verifyspec(FILE *fi);
+int	mtree_specspec(FILE *fi, FILE *fj);
 
 int	 check_excludes(const char *, const char *);
 void	 init_excludes(void);
 void	 read_excludes_file(const char *);
+const char * ftype(u_int type);
