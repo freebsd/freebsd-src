@@ -1,0 +1,12 @@
+/*
+ * Croatian calendar files
+ *
+ * $Id: calendar.croatian,v 1.2 1996/01/30 23:35:08 wosch Exp $
+ */
+
+#ifndef _calendar_croatian_
+#define _calendar_croatian_
+
+#include <hr_HR.ISO_8859-2/calendar.all>
+
+#endif /* !_calendar_croatian_ */
