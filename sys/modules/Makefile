@@ -205,6 +205,7 @@ SUBDIR=	${_3dfx} \
 	uart \
 	ubsa \
 	ubsec \
+	ubser \
 	ucom \
 	udav \
 	udbp \
