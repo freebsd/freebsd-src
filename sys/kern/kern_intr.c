@@ -159,7 +159,7 @@ ithread_update(struct ithd *ithd)
 		ithd->it_flags |= IT_ENTROPY;
 	else
 		ithd->it_flags &= ~IT_ENTROPY;
-	CTR2(KTR_INTR, "%s: updated %s\n", __func__, p->p_comm);
+	CTR2(KTR_INTR, "%s: updated %s", __func__, p->p_comm);
 }
 
 int
