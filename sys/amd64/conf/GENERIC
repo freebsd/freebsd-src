@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC,v 1.106 1998/02/16 00:29:05 msmith Exp $
+#	$Id: GENERIC,v 1.107 1998/02/16 23:57:03 msmith Exp $
 
 machine		"i386"
 cpu		"I386_CPU"
@@ -70,6 +70,7 @@ controller	ncr0
 controller	amd0
 controller	ahb0
 controller	ahc0
+controller	isp0
 
 controller	bt0	at isa? port "IO_BT0" bio irq ? vector bt_isa_intr
 controller	uha0	at isa? port "IO_UHA0" bio irq ? drq 5 vector uhaintr
