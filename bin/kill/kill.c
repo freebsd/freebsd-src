@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: kill.c,v 1.6 1997/02/22 14:03:45 peter Exp $
  */
 
 #ifndef lint
@@ -112,7 +112,7 @@ main(argc, argv)
 			numsig = strtol(*argv, &ep, 10);
 			if (!*argv || *ep)
 				errx(1, "illegal signal number: %s", *argv);
-			if (numsig < 0 || numsig > NSIG)
+			if (numsig < 0 || numsig >= NSIG)
 				nosig(*argv);
 		} else
 			nosig(*argv);
