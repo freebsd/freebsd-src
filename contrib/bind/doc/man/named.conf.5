@@ -1,4 +1,4 @@
-.\" Copyright (c) 1999 by Internet Software Consortium
+.\" Copyright (c) 1999-2000 by Internet Software Consortium
 .\"
 .\" Permission to use, copy, modify, and distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
@@ -826,6 +826,7 @@ options {
   [ fetch-glue \fIyes_or_no\fR; ]
   [ has-old-clients \fIyes_or_no\fR; ]
   [ host-statistics \fIyes_or_no\fR; ]
+  [ host-statistics-max \fInumber\fR; ]
   [ multiple-cnames \fIyes_or_no\fR; ]
   [ notify \fIyes_or_no\fR; ]
   [ recursion \fIyes_or_no\fR; ]
@@ -1070,15 +1071,20 @@ turning on
 .Ic host-statistics
 can consume huge amounts of memory.
 
+.It IC host-statistics-max
+The maximum number of host records that will be kept.
+When this limit is reached no new hosts will be added to the host statistics.
+If the set to zero then there is no limit set.
+The default value is zero.
+
 .It Ic maintain-ixfr-base
 If
 .Li yes ,
-statistics are kept for every host that the nameserver interacts with.  The default is
+a IXFR database file is kept for all dynamicaly updated zones.
+This enables the server to answer IXFR queries which can speed up
+zone transfers enormously.
+The default is
 .Li no .
-.Em Note:
-turning on 
-.Li host-statistics
-can consume huge amounts of memory.
 
 .It Ic multiple-cnames
 If
@@ -1287,12 +1293,7 @@ from all hosts.
 .Bl -tag -width 1 
 .It Ic allow-recursion
 Specifies which hosts are allowed to ask recursive questions.
-.Ic allow-recursion
-may also be specified in the
-.Ic zone
-statement, in which case it overrides the
-.Ic options allow-recursion 
-statement.  If not specified, the default is to allow recursive queries 
+If not specified, the default is to allow recursive queries 
 from all hosts.
 
 .It Ic allow-transfer
@@ -2141,6 +2142,11 @@ will prevent further queries to it.  The default value of
 .Ic bogus
 is
 .Li no .
+Marking a server as
+.Ic bogus
+will mark all other addresses for that server as
+.Ic bogus
+when a match is made when looking up a server's address by name.
 
 .Pp
 The server supports two zone transfer methods.  The first,
