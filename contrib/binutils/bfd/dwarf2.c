@@ -1431,7 +1431,8 @@ comp_unit_find_nearest_line (unit, addr,
 	  return false;
 	}
 
-      if (! scan_unit_for_functions (unit))
+      if (unit->first_child_die_ptr < unit->end_ptr
+          && ! scan_unit_for_functions (unit))
 	{
 	  unit->error = 1;
 	  return false;

@@ -1,6 +1,6 @@
 /* Header file for targets using CGEN: Cpu tools GENerator.
 
-Copyright (C) 1996, 1997, 1998, 1999, 2000 Free Software Foundation, Inc.
+Copyright 1996, 1997, 1998, 1999, 2000, 2001 Free Software Foundation, Inc.
 
 This file is part of GDB, the GNU debugger, and the GNU Binutils.
 
@@ -452,7 +452,7 @@ typedef struct {
 extern const CGEN_HW_ENTRY * cgen_hw_lookup_by_name
      PARAMS ((CGEN_CPU_DESC, const char *));
 extern const CGEN_HW_ENTRY * cgen_hw_lookup_by_num
-     PARAMS ((CGEN_CPU_DESC, int));
+     PARAMS ((CGEN_CPU_DESC, unsigned int));
 
 /* This struct is used to describe things like register names, etc.  */
 
@@ -735,18 +735,31 @@ typedef struct
    into the operand table.  The operand table doesn't exist in C, per se, as
    the data is recorded in the parse/insert/extract/print switch statements. */
 
-#ifndef CGEN_MAX_SYNTAX_BYTES
-#define CGEN_MAX_SYNTAX_BYTES 16
+/* This should be at least as large as necessary for any target. */
+#define CGEN_MAX_SYNTAX_BYTES 40
+
+/* A target may know its own precise maximum.  Assert that it falls below
+   the above limit. */
+#ifdef CGEN_ACTUAL_MAX_SYNTAX_BYTES
+#if CGEN_ACTUAL_MAX_SYNTAX_BYTES > CGEN_MAX_SYNTAX_BYTES
+#error "CGEN_ACTUAL_MAX_SYNTAX_BYTES too high - enlarge CGEN_MAX_SYNTAX_BYTES"
+#endif
+#endif
+
+#if !defined(MAX_OPERANDS) || MAX_OPERANDS <= 127
+typedef unsigned char CGEN_SYNTAX_CHAR_TYPE;
+#else
+typedef unsigned short CGEN_SYNTAX_CHAR_TYPE;
 #endif
 
 typedef struct
 {
-  unsigned char syntax[CGEN_MAX_SYNTAX_BYTES];
+  CGEN_SYNTAX_CHAR_TYPE syntax[CGEN_MAX_SYNTAX_BYTES];
 } CGEN_SYNTAX;
 
 #define CGEN_SYNTAX_STRING(syn) (syn->syntax)
 #define CGEN_SYNTAX_CHAR_P(c) ((c) < 128)
-#define CGEN_SYNTAX_CHAR(c) (c)
+#define CGEN_SYNTAX_CHAR(c) ((unsigned char)c)
 #define CGEN_SYNTAX_FIELD(c) ((c) - 128)
 #define CGEN_SYNTAX_MAKE_FIELD(c) ((c) + 128)
 
@@ -824,9 +837,17 @@ typedef struct {
 #define CGEN_IFMT_IFLD_IFLD(ii) ((ii)->ifld)
 } CGEN_IFMT_IFLD;
 
-#ifndef CGEN_MAX_IFMT_OPERANDS
-#define CGEN_MAX_IFMT_OPERANDS 1
+/* This should be at least as large as necessary for any target. */
+#define CGEN_MAX_IFMT_OPERANDS 16
+
+/* A target may know its own precise maximum.  Assert that it falls below
+   the above limit. */
+#ifdef CGEN_ACTUAL_MAX_IFMT_OPERANDS
+#if CGEN_ACTUAL_MAX_IFMT_OPERANDS > CGEN_MAX_IFMT_OPERANDS
+#error "CGEN_ACTUAL_MAX_IFMT_OPERANDS too high - enlarge CGEN_MAX_IFMT_OPERANDS"
 #endif
+#endif
+
 
 typedef struct
 {
