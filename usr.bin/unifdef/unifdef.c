@@ -34,19 +34,19 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
+
 #ifndef lint
 static const char copyright[] =
 "@(#) Copyright (c) 1985, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
-#endif /* not lint */
+#endif
 
 #ifndef lint
-#if 0
-static char sccsid[] = "@(#)unifdef.c	8.1 (Berkeley) 6/6/93";
+static const char sccsid[] = "@(#)unifdef.c	8.1 (Berkeley) 6/6/93";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
 
 /*
  * unifdef - remove ifdef'ed lines
@@ -76,8 +76,9 @@ FILE *input;
 #define NO  0
 #endif/*YES */
 typedef int Bool;
+typedef int Linetype;
 
-char *filename BSS;
+const char *filename BSS;
 char text BSS;          /* -t option in effect: this is a text file */
 char lnblank BSS;       /* -l option in effect: blank deleted lines */
 char complement BSS;    /* -c option in effect: complement the operation */
@@ -100,8 +101,8 @@ char incomment BSS;         /* inside C comment */
 char inquote BSS;           /* inside single or double quotes */
 
 int exitstat BSS;
-char *skipcomment ();
-char *skipquote ();
+char *skipcomment __P((char *));
+char *skipquote __P((char *, int));
 static void usage __P((void));
 void flushline __P((Bool));
 int getlin __P((char *, int, FILE *, int));
@@ -109,6 +110,7 @@ int error __P((int, int, int));
 void pfile __P((void));
 int doif __P((int, int, Reject_level, int));
 int findsym __P((char *));
+Linetype checkline __P((int *));
 
 int
 main (argc, argv)
@@ -116,8 +118,8 @@ int argc;
 char **argv;
 {
     char **curarg;
-    register char *cp;
-    register char *cp1;
+    char *cp;
+    char *cp1;
     char ignorethis;
 
     for (curarg = &argv[1]; --argc > 0; curarg++) {
@@ -133,7 +135,7 @@ char **argv;
 	       )
 	    && cp1[1] != '\0'
 	   ) {
-	    register int symind;
+	    int symind;
 
 	    if ((symind = findsym (&cp1[1])) < 0) {
 		if (nsyms >= MAXSYMS)
@@ -190,7 +192,6 @@ usage()
 }
 
 /* types of input lines: */
-typedef int Linetype;
 #define LT_PLAIN       0   /* ordinary line */
 #define LT_TRUE        1   /* a true  #ifdef of a symbol known to us */
 #define LT_FALSE       2   /* a false #ifdef of a symbol known to us */
@@ -199,7 +200,6 @@ typedef int Linetype;
 #define LT_ELSE        5   /* #else */
 #define LT_ENDIF       6   /* #endif */
 #define LT_LEOF        7   /* end of file */
-extern Linetype checkline ();
 
 Reject_level reject BSS;    /* 0 or 1: pass thru; 1 or 2: ignore comments */
 #define REJ_NO          0
@@ -208,7 +208,7 @@ Reject_level reject BSS;    /* 0 or 1: pass thru; 1 or 2: ignore comments */
 
 int linenum BSS;    /* current line number */
 int stqcline BSS;   /* start of current coment or quote */
-char *errs[] = {
+const char *errs[] = {
 #define NO_ERR      0
 			"",
 #define END_ERR     1
@@ -241,13 +241,13 @@ pfile ()
 
 int
 doif (thissym, inif, prevreject, depth)
-register int thissym;   /* index of the symbol who was last ifdef'ed */
+int thissym;   /* index of the symbol who was last ifdef'ed */
 int inif;               /* YES or NO we are inside an ifdef */
 Reject_level prevreject;/* previous value of reject */
 int depth;              /* depth of ifdef's */
 {
-    register Linetype lineval;
-    register Reject_level thisreject;
+    Linetype lineval;
+    Reject_level thisreject;
     int doret;          /* tmp return value of doif */
     int cursym;         /* index of the symbol returned by checkline */
     int stline;         /* line number when called this time */
@@ -321,8 +321,8 @@ int depth;              /* depth of ifdef's */
 	    return NO_ERR;
 
 	case LT_LEOF: {
-	    int err;
-	    err =   incomment
+	    int lerr;
+	    lerr =   incomment
 		  ? CEOF_ERR
 		  : inquote == QUOTE_SINGLE
 		  ? Q1EOF_ERR
@@ -330,11 +330,11 @@ int depth;              /* depth of ifdef's */
 		  ? Q2EOF_ERR
 		  : NO_ERR;
 	    if (inif != IN_NONE) {
-		if (err != NO_ERR)
-		    (void) error (err, stqcline, depth);
+		if (lerr != NO_ERR)
+		    (void) error (lerr, stqcline, depth);
 		return error (IEOF_ERR, stline, depth);
-	    } else if (err != NO_ERR)
-		return error (err, stqcline, depth);
+	    } else if (lerr != NO_ERR)
+		return error (lerr, stqcline, depth);
 	    else
 		return NO_ERR;
 	    }
@@ -351,8 +351,8 @@ Linetype
 checkline (cursym)
 int *cursym;    /* if LT_TRUE or LT_FALSE returned, set this to sym index */
 {
-    register char *cp;
-    register char *symp;
+    char *cp;
+    char *symp;
     char *scp;
     Linetype retval;
 #   define KWSIZE 8
@@ -433,7 +433,7 @@ int *cursym;    /* if LT_TRUE or LT_FALSE returned, set this to sym index */
  */
 char *
 skipcomment (cp)
-register char *cp;
+char *cp;
 {
     if (incomment)
 	goto inside;
@@ -470,10 +470,10 @@ register char *cp;
  */
 char *
 skipquote (cp, type)
-register char *cp;
-register int type;
+char *cp;
+int type;
 {
-    register char qchar;
+    char qchar;
 
     qchar = type == QUOTE_SINGLE ? '\'' : '"';
 
@@ -507,10 +507,10 @@ int
 findsym (str)
 char *str;
 {
-    register char *cp;
-    register char *symp;
-    register int symind;
-    register char chr;
+    char *cp;
+    char *symp;
+    int symind;
+    char chr;
 
     for (symind = 0; symind < nsyms; ++symind) {
 	if (insym[symind] == SYM_INACTIVE) {
@@ -533,14 +533,14 @@ char *str;
  */
 int
 getlin (line, maxline, inp, expandtabs)
-register char *line;
+char *line;
 int maxline;
 FILE *inp;
 int expandtabs;
 {
     int tmp;
-    register int num;
-    register int chr;
+    int num;
+    int chr;
 #ifdef  FFSPECIAL
     static char havechar = NO;  /* have leftover char from last time */
     static char svchar BSS;
@@ -608,9 +608,9 @@ flushline (keep)
 Bool keep;
 {
     if ((keep && reject != REJ_YES) ^ complement) {
-	register char *line = tline;
-	register FILE *out = stdout;
-	register char chr;
+	char *line = tline;
+	FILE *out = stdout;
+	char chr;
 
 	while ((chr = *line++))
 	    putc (chr, out);
@@ -619,19 +619,19 @@ Bool keep;
 }
 
 int
-error (err, line, depth)
-int err;        /* type of error & index into error string array */
+error (lerr, line, depth)
+int lerr;        /* type of error & index into error string array */
 int line;       /* line number */
 int depth;      /* how many ifdefs we are inside */
 {
-    if (err == END_ERR)
-	return err;
+    if (lerr == END_ERR)
+	return lerr;
 
 #ifndef TESTING
-    warnx("error in %s line %d: %s", filename, line, errs[err]);
+    warnx("error in %s line %d: %s", filename, line, errs[lerr]);
 #else/* TESTING */
     warnx("error in %s line %d: %s. ifdef depth: %d",
-			filename, line, errs[err], depth);
+			filename, line, errs[lerr], depth);
 #endif/*TESTING */
 
     exitstat = 2;
