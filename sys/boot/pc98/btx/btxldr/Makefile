@@ -19,5 +19,4 @@ btxldr.o: btxldr.s
 
 CLEANFILES+= btxldr btxldr.out btxldr.o
 
-.include <${.CURDIR}/../../Makefile.inc>
 .include <bsd.prog.mk>
