@@ -24,7 +24,7 @@
 
 SUBDIR=	${_csu} libcom_err libcrypt libkvm msun libmd libncurses \
 	libnetgraph libradius librpcsvc libsbuf libtacplus libutil \
-	${_libypclnt} ${_compat} libalias libarchive ${_libatm} ${_libbind} \
+	${_libypclnt} libalias libarchive ${_libatm} ${_libbind} \
 	${_libbluetooth} libbsnmp libbz2 libc ${_libc_r} \
 	libcalendar libcam libcompat libdevinfo libdevstat ${_libdisk} \
 	libedit libexpat libfetch libform libftpio libgeom ${_libio} libipsec \
@@ -57,7 +57,6 @@ _libsdp=	libsdp
 .endif
 
 .if ${MACHINE_ARCH} == "i386"
-_compat=	compat
 _libncp=	libncp
 _libsmb=	libsmb
 _libvgl=	libvgl
@@ -74,7 +73,6 @@ _libdisk=	libdisk
 
 .if ${MACHINE_ARCH} == "alpha"
 _libio=		libio
-_compat=	compat
 .endif
 
 .if !defined(NO_SENDMAIL)

@@ -961,22 +961,6 @@ DMenu MenuSubDistributions = {
 	NULL, distReset, NULL, NULL, ' ', ' ', ' ' },
       { " base",	"Binary base distribution (required)",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_BASE },
-#ifdef __i386__
-      { " compat1x",	"FreeBSD 1.x binary compatibility",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_COMPAT1X },
-      { " compat20",	"FreeBSD 2.0 binary compatibility",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_COMPAT20 },
-      { " compat21",	"FreeBSD 2.1 binary compatibility",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_COMPAT21 },
-      { " compat22",	"FreeBSD 2.2.x and 3.0 a.out binary compatibility",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_COMPAT22 },
-      { " compat3x",	"FreeBSD 3.x binary compatibility",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_COMPAT3X },
-#endif
-#if __FreeBSD__ >= 4 && (defined(__i386__) || defined(__alpha__))
-      { " compat4x",	"FreeBSD 4.x binary compatibility",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_COMPAT4X },
-#endif
       { " dict",	"Spelling checker dictionary files",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_DICT },
       { " doc",		"Miscellaneous FreeBSD online docs",
