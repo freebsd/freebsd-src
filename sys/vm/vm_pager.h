@@ -99,10 +99,7 @@ static __inline int vm_pager_get_pages(vm_object_t, vm_page_t *, int, int);
 static __inline boolean_t vm_pager_has_page(vm_object_t, vm_pindex_t, int *, int *);
 void vm_pager_init(void);
 vm_object_t vm_pager_object_lookup(struct pagerlst *, void *);
-vm_offset_t vm_pager_map_pages(vm_page_t *, int, boolean_t);
 vm_offset_t vm_pager_map_page(vm_page_t);
-void vm_pager_sync(void);
-void vm_pager_unmap_pages(vm_offset_t, int);
 void vm_pager_unmap_page(vm_offset_t);
 void vm_pager_strategy(vm_object_t object, struct bio *bp);
 

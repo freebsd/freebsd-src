@@ -289,25 +289,6 @@ vm_pager_strategy(vm_object_t object, struct bio *bp)
  * vm_pager_page_removed() - inline, see vm/vm_pager.h
  */
 
-#if 0
-/*
- *	vm_pager_sync:
- *
- *	Called by pageout daemon before going back to sleep.
- *	Gives pagers a chance to clean up any completed async pageing 
- *	operations.
- */
-void
-vm_pager_sync()
-{
-	struct pagerops **pgops;
-
-	for (pgops = pagertab; pgops < &pagertab[npagers]; pgops++)
-		if (pgops && ((*pgops)->pgo_sync != NULL))
-			(*(*pgops)->pgo_sync) ();
-}
-#endif
-
 vm_offset_t
 vm_pager_map_page(m)
 	vm_page_t m;
