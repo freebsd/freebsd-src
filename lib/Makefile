@@ -31,14 +31,14 @@ SUBDIR+= libcrypt
 .endif
 .endif
 
-.if !exists(${.CURDIR}/../eBones) || defined(NOSECURE) || !defined(MAKE_EBONES)
+.if !(exists(${.CURDIR}/../kerberosIV) && exists(${.CURDIR}/../crypto)) || defined(NOSECURE) || !defined(MAKE_KERBEROS4
 SUBDIR+= libtelnet
 .else
 .if defined(RELEASEDIR)
 # releases do need both libraries
 SUBDIR+= libtelnet
 .endif
-SUBDIR+= ../eBones/lib/libtelnet
+SUBDIR+= ../kerberosIV/lib/libtelnet
 .endif
 
 .if defined(WANT_CSRG_LIBM)
