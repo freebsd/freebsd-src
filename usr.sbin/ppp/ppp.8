@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.114 1998/08/07 18:42:50 brian Exp $
+.\" $Id: ppp.8,v 1.115 1998/08/09 17:17:10 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -158,6 +158,7 @@ It is possible to configure
 .Nm
 to open more than one physical connection to the peer, combining the
 bandwidth of all links for better throughput.
+.El
 .Sh PERMISSIONS
 .Nm Ppp
 is installed as user
