@@ -4,7 +4,7 @@
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
  *
  * generated from:
- *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.40 2003/01/17 18:39:49 shiba Exp 
+ *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.41 2003/01/18 01:13:39 shiba Exp 
  */
 /* $NetBSD: pcmciadevs,v 1.177 2002/09/15 17:43:48 bouyer Exp $ */
 /* $OpenBSD: pcmciadevs,v 1.93 2002/06/21 08:31:10 henning Exp $ */
@@ -229,6 +229,9 @@
 #define	PCMCIA_CIS_BUFFALO_WLI_PCM_S11	{ NULL, NULL, NULL, NULL }
 #define	PCMCIA_PRODUCT_BUFFALO_WLI_PCM_S11	0x0305
 #define	PCMCIA_STR_BUFFALO_WLI_PCM_S11	"BUFFALO AirStation 11Mbps WLAN"
+#define	PCMCIA_CIS_BUFFALO_LPC_CF_CLT	{ NULL, NULL, NULL, NULL }
+#define	PCMCIA_PRODUCT_BUFFALO_LPC_CF_CLT	0x0307
+#define	PCMCIA_STR_BUFFALO_LPC_CF_CLT	"BUFFALO LPC-CF-CLT"
 #define	PCMCIA_CIS_BUFFALO_LPC3_CLT	{ NULL, NULL, NULL, NULL }
 #define	PCMCIA_PRODUCT_BUFFALO_LPC3_CLT	0x030a
 #define	PCMCIA_STR_BUFFALO_LPC3_CLT	"BUFFALO LPC3-CLT Ethernet Adapter"
