@@ -54,6 +54,8 @@
  * derivative of this code cannot be changed.  i.e. this code cannot simply be
  * copied and put under another distribution licence
  * [including the GNU Public Licence.]
+ *
+ * $FreeBSD$
  */
 
 /* most of this code has been pilfered from my libdes speed.c program */
@@ -437,7 +439,11 @@ int MAIN(int argc, char **argv)
 #endif
 			if (strcmp(*argv,"openssl") == 0) 
 			{
+#ifdef RSAref
+			RSA_set_default_method(RSA_PKCS1_RSAref());
+#else
 			RSA_set_default_method(RSA_PKCS1_SSLeay());
+#endif
 			j--;
 			}
 		else
