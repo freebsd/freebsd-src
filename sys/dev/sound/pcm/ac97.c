@@ -443,16 +443,16 @@ ac97_setmixer(struct ac97_info *codec, unsigned channel, unsigned left, unsigned
 static void
 ac97_fix_auxout(struct ac97_info *codec)
 {
+	int keep_ogain;
+
 	/*
-	 * Determine if AUX_OUT is a valid control.
+	 * By default, The ac97 aux_out register (0x04) corresponds to OSS's
+	 * OGAIN setting.
 	 *
-	 * Control will read zero if not valid after a reset, other gain
-	 * controls read muted (0x8000).
+	 * We first check whether aux_out is a valid register.  If not
+	 * we may not want to keep ogain.
 	 */
-	if (ac97_rdcd(codec, AC97_MIX_AUXOUT) == 0) {
-		bzero(&codec->mix[SOUND_MIXER_OGAIN],
-		      sizeof(codec->mix[SOUND_MIXER_OGAIN]));
-	}
+	keep_ogain = ac97_rdcd(codec, AC97_MIX_AUXOUT) & 0x8000;
 
 	/*
 	 * Determine what AUX_OUT really means, it can be:
@@ -465,13 +465,13 @@ ac97_fix_auxout(struct ac97_info *codec)
 	 */
 	if (codec->extcaps & AC97_EXTCAP_SDAC &&
 	    ac97_rdcd(codec, AC97_MIXEXT_SURROUND) == 0x8080) {
-		codec->mix[SOUND_MIXER_VOLUME].reg = AC97_MIXEXT_SURROUND;
-	} else if (codec->caps & AC97_CAP_HEADPHONE) {
-		/* Headphone out present/selected AUX_OUT is effectively
-		 * master volume control. */
-		struct ac97mixtable_entry tmp = codec->mix[SOUND_MIXER_VOLUME];
-		codec->mix[SOUND_MIXER_VOLUME] = codec->mix[SOUND_MIXER_OGAIN];
-		codec->mix[SOUND_MIXER_OGAIN] = tmp;
+		codec->mix[SOUND_MIXER_OGAIN].reg = AC97_MIXEXT_SURROUND;
+		keep_ogain = 1;
+	}
+
+	if (keep_ogain == 0) {
+		bzero(&codec->mix[SOUND_MIXER_OGAIN],
+		      sizeof(codec->mix[SOUND_MIXER_OGAIN]));
 	}
 }
 
