@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.40 1996/05/11 04:27:23 bde Exp $
+#	$Id: Makefile,v 1.41 1996/07/09 02:28:15 julian Exp $
 #
 
 PROG=	boot
@@ -21,7 +21,7 @@ CFLAGS+=	-DBOOTSEG=${BOOTSEG} -DBOOTSTACK=${BOOTSTACK}
 #CFLAGS+=	-DFORCE_COMCONSOLE
 
 # Enable code to take the default boot string from a fixed location on the
-# disk.. see nextboot(8) and README.386BSD for more info
+# disk.  See nextboot(8) and README.386BSD for more info.
 #CFLAGS+=	-DNAMEBLOCK
 #CFLAGS+=	-DNAMEBLOCK_WRITEBACK
 
