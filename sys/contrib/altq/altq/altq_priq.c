@@ -1,3 +1,4 @@
+/*	$FreeBSD$	*/
 /*	$KAME: altq_priq.c,v 1.11 2003/09/17 14:23:25 kjc Exp $	*/
 /*
  * Copyright (C) 2000-2003
@@ -56,7 +57,9 @@
 
 #include <net/pfvar.h>
 #include <altq/altq.h>
+#ifdef ALTQ3_COMPAT
 #include <altq/altq_conf.h>
+#endif
 #include <altq/altq_priq.h>
 
 /*
@@ -256,6 +259,8 @@ priq_request(struct ifaltq *ifq, int req, void *arg)
 {
 	struct priq_if	*pif = (struct priq_if *)ifq->altq_disc;
 
+	IFQ_LOCK_ASSERT(ifq);
+
 	switch (req) {
 	case ALTRQ_PURGE:
 		priq_purge(pif);
@@ -301,8 +306,10 @@ priq_class_create(struct priq_if *pif, int pri, int qlimit, int flags, int qid)
 #else
 		s = splimp();
 #endif
+		IFQ_LOCK(cl->cl_pif->pif_ifq);
 		if (!qempty(cl->cl_q))
 			priq_purgeq(cl);
+		IFQ_UNLOCK(cl->cl_pif->pif_ifq);
 		splx(s);
 #ifdef ALTQ_RIO
 		if (q_is_rio(cl->cl_q))
@@ -406,6 +413,7 @@ priq_class_destroy(struct priq_class *cl)
 #else
 	s = splimp();
 #endif
+	IFQ_LOCK(cl->cl_pif->pif_ifq);
 
 #ifdef ALTQ3_CLFIER_COMPAT
 	/* delete filters referencing to this class */
@@ -426,6 +434,7 @@ priq_class_destroy(struct priq_class *cl)
 		if (pri < 0)
 			pif->pif_maxpri = -1;
 	}
+	IFQ_UNLOCK(cl->cl_pif->pif_ifq);
 	splx(s);
 
 	if (cl->cl_red != NULL) {
@@ -455,10 +464,13 @@ priq_enqueue(struct ifaltq *ifq, struct mbuf *m, struct altq_pktattr *pktattr)
 	struct m_tag *t;
 	int len;
 
+	IFQ_LOCK_ASSERT(ifq);
+
 	/* grab class set by classifier */
 	if ((m->m_flags & M_PKTHDR) == 0) {
 		/* should not happen */
-#if defined(__NetBSD__) || defined(__OpenBSD__)
+#if defined(__NetBSD__) || defined(__OpenBSD__)\
+    || (defined(__FreeBSD__) && __FreeBSD_version >= 501113)
 		printf("altq: packet for %s does not have pkthdr\n",
 		    ifq->altq_ifp->if_xname);
 #else
@@ -516,6 +528,8 @@ priq_dequeue(struct ifaltq *ifq, int op)
 	struct priq_class *cl;
 	struct mbuf *m;
 	int pri;
+
+	IFQ_LOCK_ASSERT(ifq);
 
 	if (IFQ_IS_EMPTY(ifq))
 		/* no packet in the queue */

@@ -1,3 +1,4 @@
+/*	$FreeBSD$	*/
 /*	$KAME: altq_rmclass.c,v 1.18 2003/11/06 06:32:53 kjc Exp $	*/
 
 /*
@@ -315,6 +316,7 @@ rmc_newclass(int pri, struct rm_ifdat *ifd, u_int nsecPerByte,
 #else
 	s = splimp();
 #endif
+	IFQ_LOCK(ifd->ifq_);
 	if ((peer = ifd->active_[pri]) != NULL) {
 		/* find the last class at this pri */
 		cl->peer_ = peer;
@@ -346,6 +348,7 @@ rmc_newclass(int pri, struct rm_ifdat *ifd, u_int nsecPerByte,
 		ifd->alloc_[pri] += cl->allotment_;
 		rmc_wrr_set_weights(ifd);
 	}
+	IFQ_UNLOCK(ifd->ifq_);
 	splx(s);
 	return (cl);
 }
@@ -366,6 +369,7 @@ rmc_modclass(struct rm_class *cl, u_int nsecPerByte, int maxq, u_int maxidle,
 #else
 	s = splimp();
 #endif
+	IFQ_LOCK(ifd->ifq_);
 	cl->allotment_ = RM_NS_PER_SEC / nsecPerByte; /* Bytes per sec */
 	cl->qthresh_ = 0;
 	cl->ns_per_byte_ = nsecPerByte;
@@ -399,6 +403,7 @@ rmc_modclass(struct rm_class *cl, u_int nsecPerByte, int maxq, u_int maxidle,
 		ifd->alloc_[cl->pri_] += cl->allotment_ - old_allotment;
 		rmc_wrr_set_weights(ifd);
 	}
+	IFQ_UNLOCK(ifd->ifq_);
 	splx(s);
 	return (0);
 }
@@ -564,6 +569,7 @@ rmc_delete_class(struct rm_ifdat *ifd, struct rm_class *cl)
 #else
 	s = splimp();
 #endif
+	IFQ_LOCK(ifd->ifq_);
 	/*
 	 * Free packets in the packet queue.
 	 * XXX - this may not be a desired behavior.  Packets should be
@@ -636,6 +642,7 @@ rmc_delete_class(struct rm_ifdat *ifd, struct rm_class *cl)
 	rmc_depth_recompute(ifd->root_);
 #endif
 
+	IFQ_UNLOCK(ifd->ifq_);
 	splx(s);
 
 	/*
@@ -1571,6 +1578,7 @@ rmc_restart(struct rm_class *cl)
 #else
 	s = splimp();
 #endif
+	IFQ_LOCK(ifd->ifq_);
 	if (cl->sleeping_) {
 		cl->sleeping_ = 0;
 		cl->undertime_.tv_sec = 0;
@@ -1580,6 +1588,7 @@ rmc_restart(struct rm_class *cl)
 			(ifd->restart)(ifd->ifq_);
 		}
 	}
+	IFQ_UNLOCK(ifd->ifq_);
 	splx(s);
 }
 

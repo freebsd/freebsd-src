@@ -1,3 +1,4 @@
+/*	$FreeBSD$	*/
 /*	$KAME: altq_rio.c,v 1.17 2003/07/10 12:07:49 kjc Exp $	*/
 
 /*
@@ -771,6 +772,8 @@ rio_request(ifq, req, arg)
 {
 	rio_queue_t *rqp = (rio_queue_t *)ifq->altq_disc;
 
+	IFQ_LOCK_ASSERT(ifq);
+
 	switch (req) {
 	case ALTRQ_PURGE:
 		_flushq(rqp->rq_q);
@@ -796,6 +799,8 @@ rio_enqueue(ifq, m, pktattr)
 	rio_queue_t *rqp = (rio_queue_t *)ifq->altq_disc;
 	int error = 0;
 
+	IFQ_LOCK_ASSERT(ifq);
+
 	if (rio_addq(rqp->rq_rio, rqp->rq_q, m, pktattr) == 0)
 		ifq->ifq_len++;
 	else
@@ -818,6 +823,8 @@ rio_dequeue(ifq, op)
 {
 	rio_queue_t *rqp = (rio_queue_t *)ifq->altq_disc;
 	struct mbuf *m = NULL;
+
+	IFQ_LOCK_ASSERT(ifq);
 
 	if (op == ALTDQ_POLL)
 		return qhead(rqp->rq_q);

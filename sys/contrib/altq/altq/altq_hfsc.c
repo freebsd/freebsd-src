@@ -1,3 +1,4 @@
+/*	$FreeBSD$	*/
 /*	$KAME: altq_hfsc.c,v 1.24 2003/12/05 05:40:46 kjc Exp $	*/
 
 /*
@@ -360,6 +361,8 @@ hfsc_request(struct ifaltq *ifq, int req, void *arg)
 {
 	struct hfsc_if	*hif = (struct hfsc_if *)ifq->altq_disc;
 
+	IFQ_LOCK_ASSERT(ifq);
+
 	switch (req) {
 	case ALTRQ_PURGE:
 		hfsc_purge(hif);
@@ -503,6 +506,7 @@ hfsc_class_create(struct hfsc_if *hif, struct service_curve *rsc,
 #else
 	s = splimp();
 #endif
+	IFQ_LOCK(hif->hif_ifq);
 	hif->hif_classes++;
 
 	/*
@@ -520,6 +524,7 @@ hfsc_class_create(struct hfsc_if *hif, struct service_curve *rsc,
 				break;
 			}
 		if (i == HFSC_MAX_CLASSES) {
+			IFQ_UNLOCK(hif->hif_ifq);
 			splx(s);
 			goto err_ret;
 		}
@@ -541,6 +546,7 @@ hfsc_class_create(struct hfsc_if *hif, struct service_curve *rsc,
 			p->cl_siblings = cl;
 		}
 	}
+	IFQ_UNLOCK(hif->hif_ifq);
 	splx(s);
 
 	return (cl);
@@ -586,6 +592,7 @@ hfsc_class_destroy(struct hfsc_class *cl)
 #else
 	s = splimp();
 #endif
+	IFQ_LOCK(cl->cl_hif->hif_ifq);
 
 #ifdef ALTQ3_COMPAT
 	/* delete filters referencing to this class */
@@ -618,6 +625,7 @@ hfsc_class_destroy(struct hfsc_class *cl)
 		}
 
 	cl->cl_hif->hif_classes--;
+	IFQ_UNLOCK(cl->cl_hif->hif_ifq);
 	splx(s);
 
 	actlist_destroy(cl->cl_actc);
@@ -633,10 +641,12 @@ hfsc_class_destroy(struct hfsc_class *cl)
 #endif
 	}
 
+	IFQ_LOCK(cl->cl_hif->hif_ifq);
 	if (cl == cl->cl_hif->hif_rootclass)
 		cl->cl_hif->hif_rootclass = NULL;
 	if (cl == cl->cl_hif->hif_defaultclass)
 		cl->cl_hif->hif_defaultclass = NULL;
+	IFQ_UNLOCK(cl->cl_hif->hif_ifq);
 
 	if (cl->cl_usc != NULL)
 		FREE(cl->cl_usc, M_DEVBUF);
@@ -686,10 +696,13 @@ hfsc_enqueue(struct ifaltq *ifq, struct mbuf *m, struct altq_pktattr *pktattr)
 	struct m_tag *t;
 	int len;
 
+	IFQ_LOCK_ASSERT(ifq);
+
 	/* grab class set by classifier */
 	if ((m->m_flags & M_PKTHDR) == 0) {
 		/* should not happen */
-#if defined(__NetBSD__) || defined(__OpenBSD__)
+#if defined(__NetBSD__) || defined(__OpenBSD__)\
+    || (defined(__FreeBSD__) && __FreeBSD_version >= 501113)
 		printf("altq: packet for %s does not have pkthdr\n",
 		    ifq->altq_ifp->if_xname);
 #else
@@ -753,6 +766,8 @@ hfsc_dequeue(struct ifaltq *ifq, int op)
 	int len, next_len;
 	int realtime = 0;
 	u_int64_t cur_time;
+
+	IFQ_LOCK_ASSERT(ifq);
 
 	if (hif->hif_packets == 0)
 		/* no packet in the tree */
@@ -1815,6 +1830,7 @@ hfsc_class_modify(cl, rsc, fsc, usc)
 #else
 	s = splimp();
 #endif
+	IFQ_LOCK(cl->cl_hif->hif_ifq);
 
 	if (rsc != NULL) {
 		if (rsc->m1 == 0 && rsc->m2 == 0) {
@@ -1879,6 +1895,7 @@ hfsc_class_modify(cl, rsc, fsc, usc)
 		/* is this enough? */
 	}
 
+	IFQ_UNLOCK(cl->cl_hif->hif_ifq);
 	splx(s);
 
 	return (0);
