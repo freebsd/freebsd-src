@@ -13,70 +13,44 @@
 #define _SYS_TIMETC_H_
 
 /*
- * Structure used to interface to the machine dependent hardware support
- * for timekeeping.
+ * Struct timecounter is the interface between the hardware which implements
+ * a timecounter and the MI code which uses this to keep track of time.
  *
- * A timecounter is a (hard or soft) binary counter which has two properties:
+ * A timecounter is a binary counter which has two properties:
  *    * it runs at a fixed, known frequency.
- *    * it must not roll over in less than (1 + delta)/HZ seconds.  "delta"
- *	is expected to be less than 20 msec, but no hard data has been 
- *      collected on this.  16 bit at 5 MHz (31 msec) is known to work.
+ *    * it has sufficient bits to not roll over in faster than approx
+ *	2 msec or 2/hz, whichever is faster.  (The value of 2 here is
+ *	really 1 + delta, for some indeterminate value of delta).
  *
- * get_timecount() reads the counter.
- *
- * counter_mask removes unimplemented bits from the count value.
- *
- * frequency is the counter frequency in hz.
- *
- * name is a short mnemonic name for this counter.
- *
- * cost is a measure of how long time it takes to read the counter.
- *
- * adjustment [PPM << 16] which means that the smallest unit of correction
- *     you can apply amounts to 481.5 usec/year.
- *
- * scale_micro [2^32 * usec/tick].
- * scale_nano_i [ns/tick].
- * scale_nano_f [(ns/2^32)/tick].
- *
- * offset_count is the contents of the counter which corresponds to the
- *     rest of the offset_* values.
- *
- * offset_sec [s].
- * offset_micro [usec].
- * offset_nano [ns/2^32] is misnamed, the real unit is .23283064365...
- *     attoseconds (10E-18) and before you ask: yes, they are in fact 
- *     called attoseconds, it comes from "atten" for 18 in Danish/Swedish.
- *
- * Each timecounter must supply an array of three timecounters, this is needed
- * to guarantee atomicity in the code.  Index zero is used to transport 
- * modifications, for instance done with sysctl, into the timecounter being 
- * used in a safe way.  Such changes may be adopted with a delay of up to 1/HZ,
- * index one & two are used alternately for the actual timekeeping.
- *
- * 'tc_avail' points to the next available (external) timecounter in a
- *      circular queue.  This is only valid for index 0.
- *
- * `tc_other' points to the next "work" timecounter in a circular queue,
- *      i.e., for index i > 0 it points to index 1 + (i - 1) % NTIMECOUNTER.
- *      We also use it to point from index 0 to index 1.
- *
- * `tc_tweak' points to index 0.
  */
 
 struct timecounter;
-typedef unsigned timecounter_get_t(struct timecounter *);
+typedef u_int timecounter_get_t(struct timecounter *);
 typedef void timecounter_pps_t(struct timecounter *);
 
 struct timecounter {
-	/* These fields must be initialized by the driver. */
 	timecounter_get_t	*tc_get_timecount;
+		/*
+		 * This function reads the counter.  It is not required to
+		 * mask any unimplemented bits out, as long as they are
+		 * constant.
+		 */
 	timecounter_pps_t	*tc_poll_pps;
-	unsigned 		tc_counter_mask;
+		/*
+		 * This function is optional, it will be called whenever the
+		 * timecounter is rewound, and is intended to check for PPS
+		 * events.  Most hardware do not need it.
+		 */
+	u_int 		tc_counter_mask;
+		/* This mask should mask off any unimplemnted bits. */
 	u_int32_t		tc_frequency;
+		/* Frequency of the counter in Hz. */
 	char			*tc_name;
+		/* Name of the counter. */
 	void			*tc_priv;
+		/* Pointer to the counters private parts. */
 	struct timecounter	*tc_next;
+		/* Initialize this to NUL */
 };
 
 #ifdef _KERNEL

@@ -107,7 +107,7 @@ struct timehands;
 struct timecounter;
 struct pps_state {
 	/* capture information */
-	struct timehands	*captc;
+	struct timehands	*capth;
 	u_int			capgen;
 	u_int			capcount;
 	/* state information */
