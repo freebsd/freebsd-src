@@ -35,6 +35,11 @@
 static char sccsid[] = "@(#)strtoq.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 
+#ifndef lint
+static const char rcsid[] =
+  "$FreeBSD$";
+#endif
+
 #include <sys/types.h>
 
 #include <limits.h>
@@ -43,21 +48,21 @@ static char sccsid[] = "@(#)strtoq.c	8.1 (Berkeley) 6/4/93";
 #include <stdlib.h>
 
 /*
- * Convert a string to a quad integer.
+ * Convert a string to a long long integer.
  *
  * Ignores `locale' stuff.  Assumes that the upper and lower case
  * alphabets and digits are each contiguous.
  */
-quad_t
-strtoq(nptr, endptr, base)
+long long
+strtoll(nptr, endptr, base)
 	const char *nptr;
 	char **endptr;
 	register int base;
 {
 	register const char *s;
-	register u_quad_t acc;
+	register unsigned long long acc;
 	register unsigned char c;
-	register u_quad_t qbase, cutoff;
+	register unsigned long long qbase, cutoff;
 	register int neg, any, cutlim;
 
 	/*
@@ -105,7 +110,8 @@ strtoq(nptr, endptr, base)
 	 * overflow.
 	 */
 	qbase = (unsigned)base;
-	cutoff = neg ? (u_quad_t)-(QUAD_MIN + QUAD_MAX) + QUAD_MAX : QUAD_MAX;
+	cutoff = neg ? (unsigned long long)-(LLONG_MIN + LLONG_MAX) + LLONG_MAX
+	    : LLONG_MAX;
 	cutlim = cutoff % qbase;
 	cutoff /= qbase;
 	for (acc = 0, any = 0;; c = *s++) {
@@ -128,7 +134,7 @@ strtoq(nptr, endptr, base)
 		}
 	}
 	if (any < 0) {
-		acc = neg ? QUAD_MIN : QUAD_MAX;
+		acc = neg ? LLONG_MIN : LLONG_MAX;
 		errno = ERANGE;
 	} else if (neg)
 		acc = -acc;
