@@ -287,17 +287,17 @@ g_stripe_done(struct bio *bp)
 	if (pbp->bio_error == 0)
 		pbp->bio_error = bp->bio_error;
 	pbp->bio_completed += bp->bio_completed;
-	if (bp->bio_cmd == BIO_READ && bp->bio_driver1 != NULL) {
-		g_stripe_copy(sc, bp->bio_data, bp->bio_driver1, bp->bio_offset,
+	if (bp->bio_cmd == BIO_READ && bp->bio_caller1 != NULL) {
+		g_stripe_copy(sc, bp->bio_data, bp->bio_caller1, bp->bio_offset,
 		    bp->bio_length, 1);
-		bp->bio_data = bp->bio_driver1;
-		bp->bio_driver1 = NULL;
+		bp->bio_data = bp->bio_caller1;
+		bp->bio_caller1 = NULL;
 	}
 	g_destroy_bio(bp);
 	pbp->bio_inbed++;
 	if (pbp->bio_children == pbp->bio_inbed) {
-		if (pbp->bio_caller1 != NULL)
-			uma_zfree(g_stripe_zone, pbp->bio_caller1);
+		if (pbp->bio_driver1 != NULL)
+			uma_zfree(g_stripe_zone, pbp->bio_driver1);
 		g_io_deliver(pbp, pbp->bio_error);
 	}
 }
@@ -330,9 +330,9 @@ g_stripe_start_fast(struct bio *bp, u_int no, off_t offset, off_t length)
 	cbp->bio_done = g_stripe_done;
 	cbp->bio_offset = offset;
 	cbp->bio_data = addr;
-	cbp->bio_driver1 = NULL;
+	cbp->bio_caller1 = NULL;
 	cbp->bio_length = length;
-	cbp->bio_driver2 = sc->sc_disks[no];
+	cbp->bio_caller2 = sc->sc_disks[no];
 
 	/* offset -= offset % stripesize; */
 	offset -= offset & (stripesize - 1);
@@ -356,8 +356,8 @@ g_stripe_start_fast(struct bio *bp, u_int no, off_t offset, off_t length)
 			 * (bp->bio_length % sc->sc_stripesize) != 0.
 			 */
 			cbp->bio_length += MIN(stripesize, length);
-			if (cbp->bio_driver1 == NULL) {
-				cbp->bio_driver1 = cbp->bio_data;
+			if (cbp->bio_caller1 == NULL) {
+				cbp->bio_caller1 = cbp->bio_data;
 				cbp->bio_data = NULL;
 				if (data == NULL) {
 					data = uma_zalloc(g_stripe_zone,
@@ -382,13 +382,13 @@ g_stripe_start_fast(struct bio *bp, u_int no, off_t offset, off_t length)
 			cbp->bio_done = g_stripe_done;
 			cbp->bio_offset = offset;
 			cbp->bio_data = addr;
-			cbp->bio_driver1 = NULL;
+			cbp->bio_caller1 = NULL;
 			/*
 			 * MIN() is in case when
 			 * (bp->bio_length % sc->sc_stripesize) != 0.
 			 */
 			cbp->bio_length = MIN(stripesize, length);
-			cbp->bio_driver2 = sc->sc_disks[no];
+			cbp->bio_caller2 = sc->sc_disks[no];
 		}
 	}
 	if (data != NULL)
@@ -400,13 +400,13 @@ g_stripe_start_fast(struct bio *bp, u_int no, off_t offset, off_t length)
 		struct g_consumer *cp;
 
 		TAILQ_REMOVE(&queue, cbp, bio_queue);
-		cp = cbp->bio_driver2;
-		cbp->bio_driver2 = NULL;
+		cp = cbp->bio_caller2;
+		cbp->bio_caller2 = NULL;
 		cbp->bio_to = cp->provider;
-		if (cbp->bio_driver1 != NULL) {
+		if (cbp->bio_caller1 != NULL) {
 			cbp->bio_data = data;
 			if (bp->bio_cmd == BIO_WRITE) {
-				g_stripe_copy(sc, cbp->bio_driver1, data,
+				g_stripe_copy(sc, cbp->bio_caller1, data,
 				    cbp->bio_offset, cbp->bio_length, 0);
 			}
 			data += cbp->bio_length;
@@ -420,9 +420,9 @@ failure:
 		uma_zfree(g_stripe_zone, data);
 	while ((cbp = TAILQ_FIRST(&queue)) != NULL) {
 		TAILQ_REMOVE(&queue, cbp, bio_queue);
-		if (cbp->bio_driver1 != NULL) {
-			cbp->bio_data = cbp->bio_driver1;
-			cbp->bio_driver1 = NULL;
+		if (cbp->bio_caller1 != NULL) {
+			cbp->bio_data = cbp->bio_caller1;
+			cbp->bio_caller1 = NULL;
 		}
 		bp->bio_children--;
 		g_destroy_bio(cbp);
@@ -458,7 +458,7 @@ g_stripe_start_economic(struct bio *bp, u_int no, off_t offset, off_t length)
 	cbp->bio_offset = offset;
 	cbp->bio_data = addr;
 	cbp->bio_length = length;
-	cbp->bio_driver2 = sc->sc_disks[no];
+	cbp->bio_caller2 = sc->sc_disks[no];
 
 	/* offset -= offset % stripesize; */
 	offset -= offset & (stripesize - 1);
@@ -488,7 +488,7 @@ g_stripe_start_economic(struct bio *bp, u_int no, off_t offset, off_t length)
 		 */
 		cbp->bio_length = MIN(stripesize, length);
 
-		cbp->bio_driver2 = sc->sc_disks[no];
+		cbp->bio_caller2 = sc->sc_disks[no];
 	}
 	/*
 	 * Fire off all allocated requests!
@@ -497,8 +497,8 @@ g_stripe_start_economic(struct bio *bp, u_int no, off_t offset, off_t length)
 		struct g_consumer *cp;
 
 		TAILQ_REMOVE(&queue, cbp, bio_queue);
-		cp = cbp->bio_driver2;
-		cbp->bio_driver2 = NULL;
+		cp = cbp->bio_caller2;
+		cbp->bio_caller2 = NULL;
 		cbp->bio_to = cp->provider;
 		G_STRIPE_LOGREQ(cbp, "Sending request.");
 		g_io_request(cbp, cp);
