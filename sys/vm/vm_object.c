@@ -458,9 +458,9 @@ vm_object_terminate(object)
 	/*
 	 * Remove the object from the global object list.
 	 */
-	mtx_enter(&vm_object_list_mtx, MTX_DEF);
+	mtx_lock(&vm_object_list_mtx);
 	TAILQ_REMOVE(&vm_object_list, object, object_list);
-	mtx_exit(&vm_object_list_mtx, MTX_DEF);
+	mtx_unlock(&vm_object_list_mtx);
 
 	wakeup(object);
 

@@ -86,7 +86,7 @@ interrupt(u_int64_t vector, struct trapframe *framep)
 	case 240:	/* clock interrupt */
 		CTR0(KTR_INTR, "clock interrupt");
 			
-		mtx_enter(&Giant, MTX_DEF);
+		mtx_lock(&Giant);
 		cnt.v_intr++;
 #ifdef EVCNT_COUNTERS
 		clock_intr_evcnt.ev_count++;
@@ -98,11 +98,11 @@ interrupt(u_int64_t vector, struct trapframe *framep)
 		/* divide hz (1024) by 8 to get stathz (128) */
 		if((++schedclk2 & 0x7) == 0)
 			statclock((struct clockframe *)framep);
-		mtx_exit(&Giant, MTX_DEF);
+		mtx_unlock(&Giant);
 		break;
 
 	default:
-		mtx_enter(&Giant, MTX_DEF);
+		mtx_lock(&Giant);
 		panic("unexpected interrupt: vec %ld\n", vector);
 		/* NOTREACHED */
 	}

@@ -844,8 +844,8 @@ struct an_softc	{
 	device_t		an_dev;
 };
 
-#define AN_LOCK(_sc)		mtx_enter(&(_sc)->an_mtx, MTX_DEF)
-#define AN_UNLOCK(_sc)		mtx_exit(&(_sc)->an_mtx, MTX_DEF)
+#define AN_LOCK(_sc)		mtx_lock(&(_sc)->an_mtx)
+#define AN_UNLOCK(_sc)		mtx_unlock(&(_sc)->an_mtx)
 
 void	an_release_resources	__P((device_t));
 int	an_alloc_port		__P((device_t, int, int));

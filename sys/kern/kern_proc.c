@@ -403,7 +403,7 @@ fill_kinfo_proc(p, kp)
 		kp->ki_sigignore = p->p_procsig->ps_sigignore;
 		kp->ki_sigcatch = p->p_procsig->ps_sigcatch;
 	}
-	mtx_enter(&sched_lock, MTX_SPIN);
+	mtx_lock_spin(&sched_lock);
 	if (p->p_stat != SIDL && p->p_stat != SZOMB && p->p_vmspace != NULL) {
 		struct vmspace *vm = p->p_vmspace;
 
@@ -449,7 +449,7 @@ fill_kinfo_proc(p, kp)
 	kp->ki_rqindex = p->p_rqindex;
 	kp->ki_oncpu = p->p_oncpu;
 	kp->ki_lastcpu = p->p_lastcpu;
-	mtx_exit(&sched_lock, MTX_SPIN);
+	mtx_unlock_spin(&sched_lock);
 	sp = NULL;
 	if (p->p_pgrp) {
 		kp->ki_pgid = p->p_pgrp->pg_id;

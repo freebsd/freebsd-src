@@ -233,12 +233,12 @@ msdosfs_close(ap)
 	struct denode *dep = VTODE(vp);
 	struct timespec ts;
 
-	mtx_enter(&vp->v_interlock, MTX_DEF);
+	mtx_lock(&vp->v_interlock);
 	if (vp->v_usecount > 1) {
 		getnanotime(&ts);
 		DETIMES(dep, &ts, &ts, &ts);
 	}
-	mtx_exit(&vp->v_interlock, MTX_DEF);
+	mtx_unlock(&vp->v_interlock);
 	return 0;
 }
 

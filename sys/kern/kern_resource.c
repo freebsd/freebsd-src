@@ -610,9 +610,9 @@ getrusage(p, uap)
 
 	case RUSAGE_SELF:
 		rup = &p->p_stats->p_ru;
-		mtx_enter(&sched_lock, MTX_SPIN);
+		mtx_lock_spin(&sched_lock);
 		calcru(p, &rup->ru_utime, &rup->ru_stime, NULL);
-		mtx_exit(&sched_lock, MTX_SPIN);
+		mtx_unlock_spin(&sched_lock);
 		break;
 
 	case RUSAGE_CHILDREN:
@@ -724,12 +724,12 @@ uifind(uid)
 {
 	struct	uidinfo *uip;
 
-	mtx_enter(&uihashtbl_mtx, MTX_DEF);
+	mtx_lock(&uihashtbl_mtx);
 	uip = uilookup(uid);
 	if (uip == NULL)
 		uip = uicreate(uid);
 	uihold(uip);
-	mtx_exit(&uihashtbl_mtx, MTX_DEF);
+	mtx_unlock(&uihashtbl_mtx);
 	return (uip);
 }
 
@@ -741,9 +741,9 @@ uihold(uip)
 	struct uidinfo *uip;
 {
 
-	mtx_enter(&uip->ui_mtx, MTX_DEF);
+	mtx_lock(&uip->ui_mtx);
 	uip->ui_ref++;
-	mtx_exit(&uip->ui_mtx, MTX_DEF);
+	mtx_unlock(&uip->ui_mtx);
 }
 
 /*-
@@ -767,18 +767,18 @@ uifree(uip)
 {
 
 	/* Prepare for optimal case. */
-	mtx_enter(&uip->ui_mtx, MTX_DEF);
+	mtx_lock(&uip->ui_mtx);
 
 	if (--uip->ui_ref != 0) {
-		mtx_exit(&uip->ui_mtx, MTX_DEF);
+		mtx_unlock(&uip->ui_mtx);
 		return;
 	}
 
 	/* Prepare for suboptimal case. */
 	uip->ui_ref++;
-	mtx_exit(&uip->ui_mtx, MTX_DEF);
-	mtx_enter(&uihashtbl_mtx, MTX_DEF);
-	mtx_enter(&uip->ui_mtx, MTX_DEF);
+	mtx_unlock(&uip->ui_mtx);
+	mtx_lock(&uihashtbl_mtx);
+	mtx_lock(&uip->ui_mtx);
 
 	/*
 	 * We must subtract one from the count again because we backed out
@@ -788,7 +788,7 @@ uifree(uip)
 	 */
 	if (--uip->ui_ref == 0) {
 		LIST_REMOVE(uip, ui_hash);
-		mtx_exit(&uihashtbl_mtx, MTX_DEF);
+		mtx_unlock(&uihashtbl_mtx);
 		if (uip->ui_sbsize != 0)
 			/* XXX no %qd in kernel.  Truncate. */
 			printf("freeing uidinfo: uid = %d, sbsize = %ld\n",
@@ -801,8 +801,8 @@ uifree(uip)
 		return;
 	}
 
-	mtx_exit(&uihashtbl_mtx, MTX_DEF);
-	mtx_exit(&uip->ui_mtx, MTX_DEF);
+	mtx_unlock(&uihashtbl_mtx);
+	mtx_unlock(&uip->ui_mtx);
 }
 
 /*
@@ -816,16 +816,16 @@ chgproccnt(uip, diff, max)
 	int	max;
 {
 
-	mtx_enter(&uip->ui_mtx, MTX_DEF);
+	mtx_lock(&uip->ui_mtx);
 	/* don't allow them to exceed max, but allow subtraction */
 	if (diff > 0 && uip->ui_proccnt + diff > max && max != 0) {
-		mtx_exit(&uip->ui_mtx, MTX_DEF);
+		mtx_unlock(&uip->ui_mtx);
 		return (0);
 	}
 	uip->ui_proccnt += diff;
 	if (uip->ui_proccnt < 0)
 		printf("negative proccnt for uid = %d\n", uip->ui_uid);
-	mtx_exit(&uip->ui_mtx, MTX_DEF);
+	mtx_unlock(&uip->ui_mtx);
 	return (1);
 }
 
@@ -843,12 +843,12 @@ chgsbsize(uip, hiwat, to, max)
 	int s;
 
 	s = splnet();
-	mtx_enter(&uip->ui_mtx, MTX_DEF);
+	mtx_lock(&uip->ui_mtx);
 	new = uip->ui_sbsize + to - *hiwat;
 	/* don't allow them to exceed max, but allow subtraction */
 	if (to > *hiwat && new > max) {
 		splx(s);
-		mtx_exit(&uip->ui_mtx, MTX_DEF);
+		mtx_unlock(&uip->ui_mtx);
 		return (0);
 	}
 	uip->ui_sbsize = new;
@@ -856,6 +856,6 @@ chgsbsize(uip, hiwat, to, max)
 	if (uip->ui_sbsize < 0)
 		printf("negative sbsize for uid = %d\n", uip->ui_uid);
 	splx(s);
-	mtx_exit(&uip->ui_mtx, MTX_DEF);
+	mtx_unlock(&uip->ui_mtx);
 	return (1);
 }

@@ -588,8 +588,8 @@ struct xl_softc {
 	struct mtx		xl_mtx;
 };
 
-#define XL_LOCK(_sc)		mtx_enter(&(_sc)->xl_mtx, MTX_DEF)
-#define XL_UNLOCK(_sc)		mtx_exit(&(_sc)->xl_mtx, MTX_DEF)
+#define XL_LOCK(_sc)		mtx_lock(&(_sc)->xl_mtx)
+#define XL_UNLOCK(_sc)		mtx_unlock(&(_sc)->xl_mtx)
 
 #define xl_rx_goodframes(x) \
 	((x.xl_upper_frames_ok & 0x03) << 8) | x.xl_rx_frames_ok

@@ -150,7 +150,7 @@ void
 smp_init_secondary(void)
 {
 
-	mtx_enter(&Giant, MTX_DEF);
+	mtx_lock(&Giant);
 
 	printf("smp_init_secondary: called\n");
 	CTR0(KTR_SMP, "smp_init_secondary");
@@ -163,7 +163,7 @@ smp_init_secondary(void)
 		mp_ncpus = PCPU_GET(cpuno) + 1;
 	spl0();
 
-	mtx_exit(&Giant, MTX_DEF);
+	mtx_unlock(&Giant);
 }
 
 extern void smp_init_secondary_glue(void);
@@ -379,7 +379,7 @@ smp_rendezvous(void (* setup_func)(void *),
 {
 
 	/* obtain rendezvous lock */
-	mtx_enter(&smp_rv_mtx, MTX_SPIN);
+	mtx_lock_spin(&smp_rv_mtx);
 
 	/* set static function pointers */
 	smp_rv_setup_func = setup_func;
@@ -393,7 +393,7 @@ smp_rendezvous(void (* setup_func)(void *),
 	smp_rendezvous_action();
 
 	/* release lock */
-	mtx_exit(&smp_rv_mtx, MTX_SPIN);
+	mtx_unlock_spin(&smp_rv_mtx);
 }
 
 static u_int64_t

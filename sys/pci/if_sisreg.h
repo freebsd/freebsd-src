@@ -399,8 +399,8 @@ struct sis_softc {
 	struct mtx		sis_mtx;
 };
 
-#define	SIS_LOCK(_sc)		mtx_enter(&(_sc)->sis_mtx, MTX_DEF)
-#define	SIS_UNLOCK(_sc)		mtx_exit(&(_sc)->sis_mtx, MTX_DEF)
+#define	SIS_LOCK(_sc)		mtx_lock(&(_sc)->sis_mtx)
+#define	SIS_UNLOCK(_sc)		mtx_unlock(&(_sc)->sis_mtx)
 
 /*
  * register space access macros

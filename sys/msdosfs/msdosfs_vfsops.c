@@ -862,7 +862,7 @@ msdosfs_sync(mp, waitfor, cred, p)
 	/*
 	 * Write back each (modified) denode.
 	 */
-	mtx_enter(&mntvnode_mtx, MTX_DEF);
+	mtx_lock(&mntvnode_mtx);
 loop:
 	for (vp = LIST_FIRST(&mp->mnt_vnodelist); vp != NULL; vp = nvp) {
 		/*
@@ -872,20 +872,20 @@ loop:
 		if (vp->v_mount != mp)
 			goto loop;
 
-		mtx_enter(&vp->v_interlock, MTX_DEF);
+		mtx_lock(&vp->v_interlock);
 		nvp = LIST_NEXT(vp, v_mntvnodes);
 		dep = VTODE(vp);
 		if (vp->v_type == VNON ||
 		    ((dep->de_flag &
 		    (DE_ACCESS | DE_CREATE | DE_UPDATE | DE_MODIFIED)) == 0 &&
 		    (TAILQ_EMPTY(&vp->v_dirtyblkhd) || waitfor == MNT_LAZY))) {
-			mtx_exit(&vp->v_interlock, MTX_DEF);
+			mtx_unlock(&vp->v_interlock);
 			continue;
 		}
-		mtx_exit(&mntvnode_mtx, MTX_DEF);
+		mtx_unlock(&mntvnode_mtx);
 		error = vget(vp, LK_EXCLUSIVE | LK_NOWAIT | LK_INTERLOCK, p);
 		if (error) {
-			mtx_enter(&mntvnode_mtx, MTX_DEF);
+			mtx_lock(&mntvnode_mtx);
 			if (error == ENOENT)
 				goto loop;
 			continue;
@@ -895,9 +895,9 @@ loop:
 			allerror = error;
 		VOP_UNLOCK(vp, 0, p);
 		vrele(vp);
-		mtx_enter(&mntvnode_mtx, MTX_DEF);
+		mtx_lock(&mntvnode_mtx);
 	}
-	mtx_exit(&mntvnode_mtx, MTX_DEF);
+	mtx_unlock(&mntvnode_mtx);
 
 	/*
 	 * Flush filesystem control info.

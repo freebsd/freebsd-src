@@ -170,17 +170,17 @@ hardclock(frame)
 		if (CLKF_USERMODE(frame) &&
 		    timevalisset(&pstats->p_timer[ITIMER_VIRTUAL].it_value) &&
 		    itimerdecr(&pstats->p_timer[ITIMER_VIRTUAL], tick) == 0) {
-			mtx_enter(&sched_lock, MTX_SPIN);
+			mtx_lock_spin(&sched_lock);
 			p->p_sflag |= PS_ALRMPEND;
 			aston();
-			mtx_exit(&sched_lock, MTX_SPIN);
+			mtx_unlock_spin(&sched_lock);
 		}
 		if (timevalisset(&pstats->p_timer[ITIMER_PROF].it_value) &&
 		    itimerdecr(&pstats->p_timer[ITIMER_PROF], tick) == 0) {
-			mtx_enter(&sched_lock, MTX_SPIN);
+			mtx_lock_spin(&sched_lock);
 			p->p_sflag |= PS_PROFPEND;
 			aston();
-			mtx_exit(&sched_lock, MTX_SPIN);
+			mtx_unlock_spin(&sched_lock);
 		}
 	}
 
@@ -200,13 +200,13 @@ hardclock(frame)
 	 * Process callouts at a very low cpu priority, so we don't keep the
 	 * relatively high clock interrupt priority any longer than necessary.
 	 */
-	mtx_enter(&callout_lock, MTX_SPIN);
+	mtx_lock_spin(&callout_lock);
 	ticks++;
 	if (TAILQ_FIRST(&callwheel[ticks & callwheelmask]) != NULL) {
 		need_softclock = 1;
 	} else if (softticks + 1 == ticks)
 		++softticks;
-	mtx_exit(&callout_lock, MTX_SPIN);
+	mtx_unlock_spin(&callout_lock);
 
 	/*
 	 * sched_swi acquires sched_lock, so we don't want to call it with
@@ -292,7 +292,7 @@ startprofclock(p)
 	 * it should be protected later on by a time_lock, which would
 	 * cover psdiv, etc. as well.
 	 */
-	mtx_enter(&sched_lock, MTX_SPIN);
+	mtx_lock_spin(&sched_lock);
 	if ((p->p_sflag & PS_PROFIL) == 0) {
 		p->p_sflag |= PS_PROFIL;
 		if (++profprocs == 1 && stathz != 0) {
@@ -302,7 +302,7 @@ startprofclock(p)
 			splx(s);
 		}
 	}
-	mtx_exit(&sched_lock, MTX_SPIN);
+	mtx_unlock_spin(&sched_lock);
 }
 
 /*
@@ -314,7 +314,7 @@ stopprofclock(p)
 {
 	int s;
 
-	mtx_enter(&sched_lock, MTX_SPIN);
+	mtx_lock_spin(&sched_lock);
 	if (p->p_sflag & PS_PROFIL) {
 		p->p_sflag &= ~PS_PROFIL;
 		if (--profprocs == 0 && stathz != 0) {
@@ -324,7 +324,7 @@ stopprofclock(p)
 			splx(s);
 		}
 	}
-	mtx_exit(&sched_lock, MTX_SPIN);
+	mtx_unlock_spin(&sched_lock);
 }
 
 /*
@@ -347,7 +347,7 @@ statclock(frame)
 	struct rusage *ru;
 	struct vmspace *vm;
 
-	mtx_enter(&sched_lock, MTX_SPIN);
+	mtx_lock_spin(&sched_lock);
 
 	if (CLKF_USERMODE(frame)) {
 		/*
@@ -362,7 +362,7 @@ statclock(frame)
 			forward_statclock(pscnt);
 #endif
 		if (--pscnt > 0) {
-			mtx_exit(&sched_lock, MTX_SPIN);
+			mtx_unlock_spin(&sched_lock);
 			return;
 		}
 		/*
@@ -392,7 +392,7 @@ statclock(frame)
 			forward_statclock(pscnt);
 #endif
 		if (--pscnt > 0) {
-			mtx_exit(&sched_lock, MTX_SPIN);
+			mtx_unlock_spin(&sched_lock);
 			return;
 		}
 		/*
@@ -435,7 +435,7 @@ statclock(frame)
 			ru->ru_maxrss = rss;
 	}
 
-	mtx_exit(&sched_lock, MTX_SPIN);
+	mtx_unlock_spin(&sched_lock);
 }
 
 /*

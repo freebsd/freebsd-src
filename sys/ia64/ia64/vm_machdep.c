@@ -303,8 +303,8 @@ cpu_exit(p)
 	ia64_fpstate_drop(p);
 
 	(void) splhigh();
-	mtx_enter(&sched_lock, MTX_SPIN);
-	mtx_exit(&Giant, MTX_DEF | MTX_NOSWITCH);
+	mtx_lock_spin(&sched_lock);
+	mtx_unlock_flags(&Giant, MTX_NOSWITCH);
 	mtx_assert(&Giant, MA_NOTOWNED);
 
 	/*

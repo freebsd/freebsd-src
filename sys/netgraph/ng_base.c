@@ -239,23 +239,23 @@ ng_alloc_hook(void)
 {
 	hook_p hook;
 	SLIST_ENTRY(ng_hook) temp;
-	mtx_enter(&ng_nodelist_mtx, MTX_DEF);
+	mtx_lock(&ng_nodelist_mtx);
 	hook = LIST_FIRST(&ng_freehooks);
 	if (hook) {
 		LIST_REMOVE(hook, hk_hooks);
 		bcopy(&hook->hk_all, &temp, sizeof(temp));
 		bzero(hook, sizeof(struct ng_hook));
 		bcopy(&temp, &hook->hk_all, sizeof(temp));
-		mtx_exit(&ng_nodelist_mtx, MTX_DEF);
+		mtx_unlock(&ng_nodelist_mtx);
 		hook->hk_magic = HK_MAGIC;
 	} else {
-		mtx_exit(&ng_nodelist_mtx, MTX_DEF);
+		mtx_unlock(&ng_nodelist_mtx);
 		_NG_ALLOC_HOOK(hook);
 		if (hook) {
 			hook->hk_magic = HK_MAGIC;
-			mtx_enter(&ng_nodelist_mtx, MTX_DEF);
+			mtx_lock(&ng_nodelist_mtx);
 			SLIST_INSERT_HEAD(&ng_allhooks, hook, hk_all);
-			mtx_exit(&ng_nodelist_mtx, MTX_DEF);
+			mtx_unlock(&ng_nodelist_mtx);
 		}
 	}
 	return (hook);
@@ -266,23 +266,23 @@ ng_alloc_node(void)
 {
 	node_p node;
 	SLIST_ENTRY(ng_node) temp;
-	mtx_enter(&ng_nodelist_mtx, MTX_DEF);
+	mtx_lock(&ng_nodelist_mtx);
 	node = LIST_FIRST(&ng_freenodes);
 	if (node) {
 		LIST_REMOVE(node, nd_nodes);
 		bcopy(&node->nd_all, &temp, sizeof(temp));
 		bzero(node, sizeof(struct ng_node));
 		bcopy(&temp, &node->nd_all, sizeof(temp));
-		mtx_exit(&ng_nodelist_mtx, MTX_DEF);
+		mtx_unlock(&ng_nodelist_mtx);
 		node->nd_magic = ND_MAGIC;
 	} else {
-		mtx_exit(&ng_nodelist_mtx, MTX_DEF);
+		mtx_unlock(&ng_nodelist_mtx);
 		_NG_ALLOC_NODE(node);
 		if (node) {
 			node->nd_magic = ND_MAGIC;
-			mtx_enter(&ng_nodelist_mtx, MTX_DEF);
+			mtx_lock(&ng_nodelist_mtx);
 			SLIST_INSERT_HEAD(&ng_allnodes, node, nd_all);
-			mtx_exit(&ng_nodelist_mtx, MTX_DEF);
+			mtx_unlock(&ng_nodelist_mtx);
 		}
 	}
 	return (node);
@@ -294,18 +294,18 @@ ng_alloc_node(void)
 
 #define NG_FREE_HOOK(hook)						\
 	do {								\
-		mtx_enter(&ng_nodelist_mtx, MTX_DEF);			\
+		mtx_lock(&ng_nodelist_mtx);			\
 		LIST_INSERT_HEAD(&ng_freehooks, hook, hk_hooks);	\
 		hook->hk_magic = 0;					\
-		mtx_exit(&ng_nodelist_mtx, MTX_DEF);			\
+		mtx_unlock(&ng_nodelist_mtx);			\
 	} while (0)
 
 #define NG_FREE_NODE(node)						\
 	do {								\
-		mtx_enter(&ng_nodelist_mtx, MTX_DEF);			\
+		mtx_lock(&ng_nodelist_mtx);			\
 		LIST_INSERT_HEAD(&ng_freenodes, node, nd_nodes);	\
 		node->nd_magic = 0;					\
-		mtx_exit(&ng_nodelist_mtx, MTX_DEF);			\
+		mtx_unlock(&ng_nodelist_mtx);			\
 	} while (0)
 
 #else /* NETGRAPH_DEBUG */ /*----------------------------------------------*/
@@ -625,13 +625,13 @@ ng_make_node_common(struct ng_type *type, node_p *nodepp)
 	LIST_INIT(&node->nd_hooks);
 
 	/* Link us into the node linked list */
-	mtx_enter(&ng_nodelist_mtx, MTX_DEF);
+	mtx_lock(&ng_nodelist_mtx);
 	LIST_INSERT_HEAD(&ng_nodelist, node, nd_nodes);
-	mtx_exit(&ng_nodelist_mtx, MTX_DEF);
+	mtx_unlock(&ng_nodelist_mtx);
 
 
 	/* get an ID and put us in the hash chain */
-	mtx_enter(&ng_idhash_mtx, MTX_DEF);
+	mtx_lock(&ng_idhash_mtx);
 	for (;;) { /* wrap protection, even if silly */
 		node_p node2 = NULL;
 		node->nd_ID = nextID++; /* 137/second for 1 year before wrap */
@@ -644,7 +644,7 @@ ng_make_node_common(struct ng_type *type, node_p *nodepp)
 	}
 	LIST_INSERT_HEAD(&ng_ID_hash[NG_IDHASH_FN(node->nd_ID)],
 							node, nd_idnodes);
-	mtx_exit(&ng_idhash_mtx, MTX_DEF);
+	mtx_unlock(&ng_idhash_mtx);
 
 	/* Done */
 	*nodepp = node;
@@ -757,14 +757,14 @@ ng_unref_node(node_p node)
 
 	if (v == 1) { /* we were the last */
 
-		mtx_enter(&ng_nodelist_mtx, MTX_DEF);
+		mtx_lock(&ng_nodelist_mtx);
 		node->nd_type->refs--; /* XXX maybe should get types lock? */
 		LIST_REMOVE(node, nd_nodes);
-		mtx_exit(&ng_nodelist_mtx, MTX_DEF);
+		mtx_unlock(&ng_nodelist_mtx);
 
-		mtx_enter(&ng_idhash_mtx, MTX_DEF);
+		mtx_lock(&ng_idhash_mtx);
 		LIST_REMOVE(node, nd_idnodes);
-		mtx_exit(&ng_idhash_mtx, MTX_DEF);
+		mtx_unlock(&ng_idhash_mtx);
 
 		mtx_destroy(&node->nd_input_queue.q_mtx);
 		NG_FREE_NODE(node);
@@ -778,11 +778,11 @@ static node_p
 ng_ID2noderef(ng_ID_t ID)
 {
 	node_p node;
-	mtx_enter(&ng_idhash_mtx, MTX_DEF);
+	mtx_lock(&ng_idhash_mtx);
 	NG_IDHASH_FIND(ID, node);
 	if(node)
 		NG_NODE_REF(node);
-	mtx_exit(&ng_idhash_mtx, MTX_DEF);
+	mtx_unlock(&ng_idhash_mtx);
 	return(node);
 }
 
@@ -859,7 +859,7 @@ ng_name2noderef(node_p here, const char *name)
 	}
 
 	/* Find node by name */
-	mtx_enter(&ng_nodelist_mtx, MTX_DEF);
+	mtx_lock(&ng_nodelist_mtx);
 	LIST_FOREACH(node, &ng_nodelist, nd_nodes) {
 		if (NG_NODE_IS_VALID(node)
 		&& NG_NODE_HAS_NAME(node)
@@ -869,7 +869,7 @@ ng_name2noderef(node_p here, const char *name)
 	}
 	if (node)
 		NG_NODE_REF(node);
-	mtx_exit(&ng_nodelist_mtx, MTX_DEF);
+	mtx_unlock(&ng_nodelist_mtx);
 	return (node);
 }
 
@@ -1148,10 +1148,10 @@ ng_newtype(struct ng_type *tp)
 
 
 	/* Link in new type */
-	mtx_enter(&ng_typelist_mtx, MTX_DEF);
+	mtx_lock(&ng_typelist_mtx);
 	LIST_INSERT_HEAD(&ng_typelist, tp, types);
 	tp->refs = 1;	/* first ref is linked list */
-	mtx_exit(&ng_typelist_mtx, MTX_DEF);
+	mtx_unlock(&ng_typelist_mtx);
 	return (0);
 }
 
@@ -1163,12 +1163,12 @@ ng_findtype(const char *typename)
 {
 	struct ng_type *type;
 
-	mtx_enter(&ng_typelist_mtx, MTX_DEF);
+	mtx_lock(&ng_typelist_mtx);
 	LIST_FOREACH(type, &ng_typelist, types) {
 		if (strcmp(type->name, typename) == 0)
 			break;
 	}
-	mtx_exit(&ng_typelist_mtx, MTX_DEF);
+	mtx_unlock(&ng_typelist_mtx);
 	return (type);
 }
 
@@ -1933,7 +1933,7 @@ ng_acquire_read(struct ng_queue *ngq, item_p item)
 	atomic_subtract_long(&ngq->q_flags, READER_INCREMENT);
 
 	/* ######### End Hack alert ######### */
-	mtx_enter((&ngq->q_mtx), MTX_SPIN);
+	mtx_lock_spin((&ngq->q_mtx));
 	/*
 	 * Try again. Another processor (or interrupt for that matter) may
 	 * have removed the last queued item that was stopping us from
@@ -1942,7 +1942,7 @@ ng_acquire_read(struct ng_queue *ngq, item_p item)
 	 */
 	if ((ngq->q_flags & NGQ_RMASK) == 0) {
 		atomic_add_long(&ngq->q_flags, READER_INCREMENT);
-		mtx_exit((&ngq->q_mtx), MTX_SPIN);
+		mtx_unlock_spin((&ngq->q_mtx));
 		return (item);
 	}
 
@@ -1957,7 +1957,7 @@ ng_acquire_read(struct ng_queue *ngq, item_p item)
 	 * see if we can dequeue something to run instead.
 	 */
 	item = ng_dequeue(ngq);
-	mtx_exit(&(ngq->q_mtx), MTX_SPIN);
+	mtx_unlock_spin(&(ngq->q_mtx));
 	return (item);
 }
 
@@ -1965,7 +1965,7 @@ static __inline item_p
 ng_acquire_write(struct ng_queue *ngq, item_p item)
 {
 restart:
-	mtx_enter(&(ngq->q_mtx), MTX_SPIN);
+	mtx_lock_spin(&(ngq->q_mtx));
 	/*
 	 * If there are no readers, no writer, and no pending packets, then
 	 * we can just go ahead. In all other situations we need to queue the
@@ -1973,7 +1973,7 @@ restart:
 	 */
 	if ((ngq->q_flags & NGQ_WMASK) == 0) {
 		atomic_add_long(&ngq->q_flags, WRITER_ACTIVE);
-		mtx_exit((&ngq->q_mtx), MTX_SPIN);
+		mtx_unlock_spin((&ngq->q_mtx));
 		if (ngq->q_flags & READER_MASK) {
 			/* Collision with fast-track reader */
 			atomic_subtract_long(&ngq->q_flags, WRITER_ACTIVE);
@@ -1993,7 +1993,7 @@ restart:
 	 * see if we can dequeue something to run instead.
 	 */
 	item = ng_dequeue(ngq);
-	mtx_exit(&(ngq->q_mtx), MTX_SPIN);
+	mtx_unlock_spin(&(ngq->q_mtx));
 	return (item);
 }
 
@@ -2014,7 +2014,7 @@ ng_flush_input_queue(struct ng_queue * ngq)
 {
 	item_p item;
 	u_int		add_arg;
-	mtx_enter(&ngq->q_mtx, MTX_SPIN);
+	mtx_lock_spin(&ngq->q_mtx);
 	for (;;) {
 		/* Now take a look at what's on the queue */
 		if (ngq->q_flags & READ_PENDING) {
@@ -2038,16 +2038,16 @@ ng_flush_input_queue(struct ng_queue * ngq)
 		}
 		atomic_add_long(&ngq->q_flags, add_arg);
 
-		mtx_exit(&ngq->q_mtx, MTX_SPIN);
+		mtx_lock_spin(&ngq->q_mtx);
 		NG_FREE_ITEM(item);
-		mtx_enter(&ngq->q_mtx, MTX_SPIN);
+		mtx_unlock_spin(&ngq->q_mtx);
 	}
 	/*
 	 * Take us off the work queue if we are there.
 	 * We definatly have no work to be done.
 	 */
 	ng_worklist_remove(ngq->q_node);
-	mtx_exit(&ngq->q_mtx, MTX_SPIN);
+	mtx_unlock_spin(&ngq->q_mtx);
 }
 
 /***********************************************************************
@@ -2167,7 +2167,7 @@ ng_snd_item(item_p item, int queue)
 #ifdef	NETGRAPH_DEBUG
         _ngi_check(item, __FILE__, __LINE__);
 #endif
-		mtx_enter(&(ngq->q_mtx), MTX_SPIN);
+		mtx_lock_spin(&(ngq->q_mtx));
 		ng_queue_rw(ngq, item, rw);
 		/*
 		 * If there are active elements then we can rely on
@@ -2180,7 +2180,7 @@ ng_snd_item(item_p item, int queue)
 		if (CAN_GET_WORK(ngq->q_flags)) {
 			ng_setisr(node);
 		}
-		mtx_exit(&(ngq->q_mtx), MTX_SPIN);
+		mtx_unlock_spin(&(ngq->q_mtx));
 		return (0);
 	}
 	/*
@@ -2234,13 +2234,13 @@ ng_snd_item(item_p item, int queue)
 		 * dequeue acquires and adjusts the input_queue as it dequeues
 		 * packets. It acquires the rw lock as needed.
 		 */
-		mtx_enter(&ngq->q_mtx, MTX_SPIN);
+		mtx_lock_spin(&ngq->q_mtx);
 		item = ng_dequeue(ngq); /* fixes worklist too*/
 		if (!item) {
-			mtx_exit(&ngq->q_mtx, MTX_SPIN);
+			mtx_unlock_spin(&ngq->q_mtx);
 			return (error);
 		}
-		mtx_exit(&ngq->q_mtx, MTX_SPIN);
+		mtx_unlock_spin(&ngq->q_mtx);
 
 		/*
 		 * We have the appropriate lock, so run the item.
@@ -2559,7 +2559,7 @@ ng_generic_msg(node_p here, item_p item, hook_p lasthook)
 		node_p node;
 		int num = 0;
 
-		mtx_enter(&ng_nodelist_mtx, MTX_DEF);
+		mtx_lock(&ng_nodelist_mtx);
 		/* Count number of nodes */
 		LIST_FOREACH(node, &ng_nodelist, nd_nodes) {
 			if (NG_NODE_IS_VALID(node)
@@ -2567,7 +2567,7 @@ ng_generic_msg(node_p here, item_p item, hook_p lasthook)
 				num++;
 			}
 		}
-		mtx_exit(&ng_nodelist_mtx, MTX_DEF);
+		mtx_unlock(&ng_nodelist_mtx);
 
 		/* Get response struct */
 		NG_MKRESPONSE(resp, msg, sizeof(*nl)
@@ -2580,7 +2580,7 @@ ng_generic_msg(node_p here, item_p item, hook_p lasthook)
 
 		/* Cycle through the linked list of nodes */
 		nl->numnames = 0;
-		mtx_enter(&ng_nodelist_mtx, MTX_DEF);
+		mtx_lock(&ng_nodelist_mtx);
 		LIST_FOREACH(node, &ng_nodelist, nd_nodes) {
 			struct nodeinfo *const np = &nl->nodeinfo[nl->numnames];
 
@@ -2600,7 +2600,7 @@ ng_generic_msg(node_p here, item_p item, hook_p lasthook)
 			np->hooks = node->nd_numhooks;
 			nl->numnames++;
 		}
-		mtx_exit(&ng_nodelist_mtx, MTX_DEF);
+		mtx_unlock(&ng_nodelist_mtx);
 		break;
 	    }
 
@@ -2610,12 +2610,12 @@ ng_generic_msg(node_p here, item_p item, hook_p lasthook)
 		struct ng_type *type;
 		int num = 0;
 
-		mtx_enter(&ng_typelist_mtx, MTX_DEF);
+		mtx_lock(&ng_typelist_mtx);
 		/* Count number of types */
 		LIST_FOREACH(type, &ng_typelist, types) {
 			num++;
 		}
-		mtx_exit(&ng_typelist_mtx, MTX_DEF);
+		mtx_unlock(&ng_typelist_mtx);
 
 		/* Get response struct */
 		NG_MKRESPONSE(resp, msg, sizeof(*tl)
@@ -2628,7 +2628,7 @@ ng_generic_msg(node_p here, item_p item, hook_p lasthook)
 
 		/* Cycle through the linked list of types */
 		tl->numtypes = 0;
-		mtx_enter(&ng_typelist_mtx, MTX_DEF);
+		mtx_lock(&ng_typelist_mtx);
 		LIST_FOREACH(type, &ng_typelist, types) {
 			struct typeinfo *const tp = &tl->typeinfo[tl->numtypes];
 
@@ -2641,7 +2641,7 @@ ng_generic_msg(node_p here, item_p item, hook_p lasthook)
 			tp->numnodes = type->refs - 1; /* don't count list */
 			tl->numtypes++;
 		}
-		mtx_exit(&ng_typelist_mtx, MTX_DEF);
+		mtx_unlock(&ng_typelist_mtx);
 		break;
 	    }
 
@@ -2868,10 +2868,10 @@ ng_mod_event(module_t mod, int event, void *data)
 		/* Call type specific code */
 		if (type->mod_event != NULL)
 			if ((error = (*type->mod_event)(mod, event, data))) {
-				mtx_enter(&ng_typelist_mtx, MTX_DEF);
+				mtx_lock(&ng_typelist_mtx);
 				type->refs--;	/* undo it */
 				LIST_REMOVE(type, types);
-				mtx_exit(&ng_typelist_mtx, MTX_DEF);
+				mtx_unlock(&ng_typelist_mtx);
 			}
 		splx(s);
 		break;
@@ -2893,9 +2893,9 @@ ng_mod_event(module_t mod, int event, void *data)
 					break;
 				}
 			}
-			mtx_enter(&ng_typelist_mtx, MTX_DEF);
+			mtx_lock(&ng_typelist_mtx);
 			LIST_REMOVE(type, types);
-			mtx_exit(&ng_typelist_mtx, MTX_DEF);
+			mtx_unlock(&ng_typelist_mtx);
 		}
 		splx(s);
 		break;
@@ -3238,15 +3238,15 @@ ngintr(void)
 	node_p  node = NULL;
 
 	for (;;) {
-		mtx_enter(&ng_worklist_mtx, MTX_SPIN);
+		mtx_lock_spin(&ng_worklist_mtx);
 		node = TAILQ_FIRST(&ng_worklist);
 		if (!node) {
-			mtx_exit(&ng_worklist_mtx, MTX_SPIN);
+			mtx_unlock_spin(&ng_worklist_mtx);
 			break;
 		}
 		node->nd_flags &= ~NG_WORKQ;	
 		TAILQ_REMOVE(&ng_worklist, node, nd_work);
-		mtx_exit(&ng_worklist_mtx, MTX_SPIN);
+		mtx_unlock_spin(&ng_worklist_mtx);
 		/*
 		 * We have the node. We also take over the reference
 		 * that the list had on it.
@@ -3261,14 +3261,14 @@ ngintr(void)
 		 * future.
 		 */
 		for (;;) {
-			mtx_enter(&node->nd_input_queue.q_mtx, MTX_SPIN);
+			mtx_lock_spin(&node->nd_input_queue.q_mtx);
 			item = ng_dequeue(&node->nd_input_queue);
 			if (item == NULL) {
-				mtx_exit(&node->nd_input_queue.q_mtx, MTX_SPIN);
+				mtx_unlock_spin(&node->nd_input_queue.q_mtx);
 				NG_NODE_UNREF(node);
 				break; /* go look for another node */
 			} else {
-				mtx_exit(&node->nd_input_queue.q_mtx, MTX_SPIN);
+				mtx_unlock_spin(&node->nd_input_queue.q_mtx);
 				ng_apply_item(item);
 			}
 		}
@@ -3278,19 +3278,19 @@ ngintr(void)
 static void
 ng_worklist_remove(node_p node)
 {
-	mtx_enter(&ng_worklist_mtx, MTX_SPIN);
+	mtx_lock_spin(&ng_worklist_mtx);
 	if (node->nd_flags & NG_WORKQ) {
 		TAILQ_REMOVE(&ng_worklist, node, nd_work);
 		NG_NODE_UNREF(node);
 	}
 	node->nd_flags &= ~NG_WORKQ;
-	mtx_exit(&ng_worklist_mtx, MTX_SPIN);
+	mtx_unlock_spin(&ng_worklist_mtx);
 }
 
 static void
 ng_setisr(node_p node)
 {
-	mtx_enter(&ng_worklist_mtx, MTX_SPIN);
+	mtx_lock_spin(&ng_worklist_mtx);
 	if ((node->nd_flags & NG_WORKQ) == 0) {
 		/*
 		 * If we are not already on the work queue,
@@ -3300,7 +3300,7 @@ ng_setisr(node_p node)
 		TAILQ_INSERT_TAIL(&ng_worklist, node, nd_work);
 		NG_NODE_REF(node);
 	}
-	mtx_exit(&ng_worklist_mtx, MTX_SPIN);
+	mtx_unlock_spin(&ng_worklist_mtx);
 	schednetisr(NETISR_NETGRAPH);
 }
 

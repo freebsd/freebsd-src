@@ -641,10 +641,10 @@ debug_vn_lock(vp, flags, p, filename, line)
 	
 	do {
 		if ((flags & LK_INTERLOCK) == 0)
-			mtx_enter(&vp->v_interlock, MTX_DEF);
+			mtx_lock(&vp->v_interlock);
 		if ((vp->v_flag & VXLOCK) && vp->v_vxproc != curproc) {
 			vp->v_flag |= VXWANT;
-			mtx_exit(&vp->v_interlock, MTX_DEF);
+			mtx_unlock(&vp->v_interlock);
 			tsleep((caddr_t)vp, PINOD, "vn_lock", 0);
 			error = ENOENT;
 		} else {
@@ -833,9 +833,9 @@ filt_vnattach(struct knote *kn)
 	if ((vp)->v_tag != VT_UFS)
 		return (EOPNOTSUPP);
 
-	mtx_enter(&vp->v_pollinfo.vpi_lock, MTX_DEF);
+	mtx_lock(&vp->v_pollinfo.vpi_lock);
 	SLIST_INSERT_HEAD(&vp->v_pollinfo.vpi_selinfo.si_note, kn, kn_selnext);
-	mtx_exit(&vp->v_pollinfo.vpi_lock, MTX_DEF);
+	mtx_unlock(&vp->v_pollinfo.vpi_lock);
 
 	return (0);
 }
@@ -845,10 +845,10 @@ filt_vndetach(struct knote *kn)
 {
 	struct vnode *vp = (struct vnode *)kn->kn_fp->f_data;
 
-	mtx_enter(&vp->v_pollinfo.vpi_lock, MTX_DEF);
+	mtx_lock(&vp->v_pollinfo.vpi_lock);
 	SLIST_REMOVE(&vp->v_pollinfo.vpi_selinfo.si_note,
 	    kn, knote, kn_selnext);
-	mtx_exit(&vp->v_pollinfo.vpi_lock, MTX_DEF);
+	mtx_unlock(&vp->v_pollinfo.vpi_lock);
 }
 
 static int

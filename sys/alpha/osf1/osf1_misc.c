@@ -1341,9 +1341,9 @@ osf1_getrusage(p, uap)
 	switch (uap->who) {
 	case RUSAGE_SELF:
 		rup = &p->p_stats->p_ru;
-		mtx_enter(&sched_lock, MTX_SPIN);
+		mtx_lock_spin(&sched_lock);
 		calcru(p, &rup->ru_utime, &rup->ru_stime, NULL);
-		mtx_exit(&sched_lock, MTX_SPIN);
+		mtx_unlock_spin(&sched_lock);
 		break;
 
 	case RUSAGE_CHILDREN:

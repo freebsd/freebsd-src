@@ -91,7 +91,7 @@ softclock(void *dummy)
 
 	steps = 0;
 	s = splhigh();
-	mtx_enter(&callout_lock, MTX_SPIN);
+	mtx_lock_spin(&callout_lock);
 	while (softticks != ticks) {
 		softticks++;
 		/*
@@ -108,10 +108,10 @@ softclock(void *dummy)
 				if (steps >= MAX_SOFTCLOCK_STEPS) {
 					nextsoftcheck = c;
 					/* Give interrupts a chance. */
-					mtx_exit(&callout_lock, MTX_SPIN);
+					mtx_unlock_spin(&callout_lock);
 					splx(s);
 					s = splhigh();
-					mtx_enter(&callout_lock, MTX_SPIN);
+					mtx_lock_spin(&callout_lock);
 					c = nextsoftcheck;
 					steps = 0;
 				}
@@ -134,22 +134,22 @@ softclock(void *dummy)
 					c->c_flags =
 					    (c->c_flags & ~CALLOUT_PENDING);
 				}
-				mtx_exit(&callout_lock, MTX_SPIN);
+				mtx_unlock_spin(&callout_lock);
 				if (!(c_flags & CALLOUT_MPSAFE))
-					mtx_enter(&Giant, MTX_DEF);
+					mtx_lock(&Giant);
 				splx(s);
 				c_func(c_arg);
 				s = splhigh();
 				if (!(c_flags & CALLOUT_MPSAFE))
-					mtx_exit(&Giant, MTX_DEF);
-				mtx_enter(&callout_lock, MTX_SPIN);
+					mtx_unlock(&Giant);
+				mtx_lock_spin(&callout_lock);
 				steps = 0;
 				c = nextsoftcheck;
 			}
 		}
 	}
 	nextsoftcheck = NULL;
-	mtx_exit(&callout_lock, MTX_SPIN);
+	mtx_unlock_spin(&callout_lock);
 	splx(s);
 }
 
@@ -180,7 +180,7 @@ timeout(ftn, arg, to_ticks)
 	struct callout_handle handle;
 
 	s = splhigh();
-	mtx_enter(&callout_lock, MTX_SPIN);
+	mtx_lock_spin(&callout_lock);
 
 	/* Fill in the next free callout structure. */
 	new = SLIST_FIRST(&callfree);
@@ -192,7 +192,7 @@ timeout(ftn, arg, to_ticks)
 	callout_reset(new, to_ticks, ftn, arg);
 
 	handle.callout = new;
-	mtx_exit(&callout_lock, MTX_SPIN);
+	mtx_unlock_spin(&callout_lock);
 	splx(s);
 	return (handle);
 }
@@ -214,10 +214,10 @@ untimeout(ftn, arg, handle)
 		return;
 
 	s = splhigh();
-	mtx_enter(&callout_lock, MTX_SPIN);
+	mtx_lock_spin(&callout_lock);
 	if (handle.callout->c_func == ftn && handle.callout->c_arg == arg)
 		callout_stop(handle.callout);
-	mtx_exit(&callout_lock, MTX_SPIN);
+	mtx_unlock_spin(&callout_lock);
 	splx(s);
 }
 
@@ -251,7 +251,7 @@ callout_reset(c, to_ticks, ftn, arg)
 	int	s;
 
 	s = splhigh();
-	mtx_enter(&callout_lock, MTX_SPIN);
+	mtx_lock_spin(&callout_lock);
 	if (c->c_flags & CALLOUT_PENDING)
 		callout_stop(c);
 
@@ -269,7 +269,7 @@ callout_reset(c, to_ticks, ftn, arg)
 	c->c_time = ticks + to_ticks;
 	TAILQ_INSERT_TAIL(&callwheel[c->c_time & callwheelmask], 
 			  c, c_links.tqe);
-	mtx_exit(&callout_lock, MTX_SPIN);
+	mtx_unlock_spin(&callout_lock);
 	splx(s);
 }
 
@@ -280,13 +280,13 @@ callout_stop(c)
 	int	s;
 
 	s = splhigh();
-	mtx_enter(&callout_lock, MTX_SPIN);
+	mtx_lock_spin(&callout_lock);
 	/*
 	 * Don't attempt to delete a callout that's not on the queue.
 	 */
 	if (!(c->c_flags & CALLOUT_PENDING)) {
 		c->c_flags &= ~CALLOUT_ACTIVE;
-		mtx_exit(&callout_lock, MTX_SPIN);
+		mtx_unlock_spin(&callout_lock);
 		splx(s);
 		return;
 	}
@@ -301,7 +301,7 @@ callout_stop(c)
 	if (c->c_flags & CALLOUT_LOCAL_ALLOC) {
 		SLIST_INSERT_HEAD(&callfree, c, c_links.sle);
 	}
-	mtx_exit(&callout_lock, MTX_SPIN);
+	mtx_unlock_spin(&callout_lock);
 	splx(s);
 }
 
@@ -366,7 +366,7 @@ adjust_timeout_calltodo(time_change)
 
 	/* don't collide with softclock() */
 	s = splhigh(); 
-	mtx_enter(&callout_lock, MTX_SPIN);
+	mtx_lock_spin(&callout_lock);
 	for (p = calltodo.c_next; p != NULL; p = p->c_next) {
 		p->c_time -= delta_ticks;
 
@@ -377,7 +377,7 @@ adjust_timeout_calltodo(time_change)
 		/* take back the ticks the timer didn't use (p->c_time <= 0) */
 		delta_ticks = -p->c_time;
 	}
-	mtx_exit(&callout_lock, MTX_SPIN);
+	mtx_unlock_spin(&callout_lock);
 	splx(s);
 
 	return;

@@ -72,9 +72,9 @@ vinum_daemon(void)
     PROC_LOCK(curproc);
     curproc->p_flag |= P_SYSTEM;			    /* we're a system process */
     PROC_UNLOCK(curproc);
-    mtx_enter(&sched_lock, MTX_SPIN);
+    mtx_lock_spin(&sched_lock);
     curproc->p_sflag |= PS_INMEM;
-    mtx_exit(&sched_lock, MTX_SPIN);
+    mtx_unlock_spin(&sched_lock);
     daemon_save_config();				    /* start by saving the configuration */
     daemonpid = curproc->p_pid;				    /* mark our territory */
     while (1) {

@@ -191,8 +191,8 @@ typedef void if_init_f_t __P((void *));
  * (defined above).  Entries are added to and deleted from these structures
  * by these macros, which should be called with ipl raised to splimp().
  */
-#define IF_LOCK(ifq)		mtx_enter(&(ifq)->ifq_mtx, MTX_DEF)
-#define IF_UNLOCK(ifq)		mtx_exit(&(ifq)->ifq_mtx, MTX_DEF)
+#define IF_LOCK(ifq)		mtx_lock(&(ifq)->ifq_mtx)
+#define IF_UNLOCK(ifq)		mtx_unlock(&(ifq)->ifq_mtx)
 #define	_IF_QFULL(ifq)		((ifq)->ifq_len >= (ifq)->ifq_maxlen)
 #define	_IF_DROP(ifq)		((ifq)->ifq_drops++)
 #define	_IF_QLEN(ifq)		((ifq)->ifq_len)

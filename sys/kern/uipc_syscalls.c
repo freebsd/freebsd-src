@@ -1418,7 +1418,7 @@ sf_buf_init(void *arg)
 	int i;
 
 	mtx_init(&sf_freelist.sf_lock, "sf_bufs list lock", MTX_DEF);
-	mtx_enter(&sf_freelist.sf_lock, MTX_DEF);
+	mtx_lock(&sf_freelist.sf_lock);
 	SLIST_INIT(&sf_freelist.sf_head);
 	sf_base = kmem_alloc_pageable(kernel_map, nsfbufs * PAGE_SIZE);
 	sf_bufs = malloc(nsfbufs * sizeof(struct sf_buf), M_TEMP,
@@ -1428,7 +1428,7 @@ sf_buf_init(void *arg)
 		SLIST_INSERT_HEAD(&sf_freelist.sf_head, &sf_bufs[i], free_list);
 	}
 	sf_buf_alloc_want = 0;
-	mtx_exit(&sf_freelist.sf_lock, MTX_DEF);
+	mtx_unlock(&sf_freelist.sf_lock);
 }
 
 /*
@@ -1439,13 +1439,13 @@ sf_buf_alloc()
 {
 	struct sf_buf *sf;
 
-	mtx_enter(&sf_freelist.sf_lock, MTX_DEF);
+	mtx_lock(&sf_freelist.sf_lock);
 	while ((sf = SLIST_FIRST(&sf_freelist.sf_head)) == NULL) {
 		sf_buf_alloc_want++;
 		msleep(&sf_freelist, &sf_freelist.sf_lock, PVM, "sfbufa", 0);
 	}
 	SLIST_REMOVE_HEAD(&sf_freelist.sf_head, free_list);
-	mtx_exit(&sf_freelist.sf_lock, MTX_DEF);
+	mtx_unlock(&sf_freelist.sf_lock);
 	return (sf);
 }
 
@@ -1475,13 +1475,13 @@ sf_buf_free(caddr_t addr, void *args)
 		vm_page_free(m);
 	splx(s);
 	sf->m = NULL;
-	mtx_enter(&sf_freelist.sf_lock, MTX_DEF);
+	mtx_lock(&sf_freelist.sf_lock);
 	SLIST_INSERT_HEAD(&sf_freelist.sf_head, sf, free_list);
 	if (sf_buf_alloc_want) {
 		sf_buf_alloc_want--;
 		wakeup_one(&sf_freelist);
 	}
-	mtx_exit(&sf_freelist.sf_lock, MTX_DEF);
+	mtx_unlock(&sf_freelist.sf_lock);
 }
 
 /*

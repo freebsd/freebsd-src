@@ -211,7 +211,7 @@ dead_lock(ap)
 	 * the interlock here.
 	 */
 	if (ap->a_flags & LK_INTERLOCK) {
-		mtx_exit(&vp->v_interlock, MTX_DEF);
+		mtx_unlock(&vp->v_interlock);
 		ap->a_flags &= ~LK_INTERLOCK;
 	}
 	if (!chkvnlock(vp))

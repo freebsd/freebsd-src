@@ -1025,13 +1025,13 @@ selrecord(selector, sip)
 	if (sip->si_pid == mypid)
 		return;
 	if (sip->si_pid && (p = pfind(sip->si_pid))) {
-		mtx_enter(&sched_lock, MTX_SPIN);
+		mtx_lock_spin(&sched_lock);
 	    	if (p->p_wchan == (caddr_t)&selwait) {
-			mtx_exit(&sched_lock, MTX_SPIN);
+			mtx_unlock_spin(&sched_lock);
 			sip->si_flags |= SI_COLL;
 			return;
 		}
-		mtx_exit(&sched_lock, MTX_SPIN);
+		mtx_unlock_spin(&sched_lock);
 	}
 	sip->si_pid = mypid;
 }
@@ -1055,15 +1055,15 @@ selwakeup(sip)
 	p = pfind(sip->si_pid);
 	sip->si_pid = 0;
 	if (p != NULL) {
-		mtx_enter(&sched_lock, MTX_SPIN);
+		mtx_lock_spin(&sched_lock);
 		if (p->p_wchan == (caddr_t)&selwait) {
 			if (p->p_stat == SSLEEP)
 				setrunnable(p);
 			else
 				unsleep(p);
-			mtx_exit(&sched_lock, MTX_SPIN);
+			mtx_unlock_spin(&sched_lock);
 		} else {
-			mtx_exit(&sched_lock, MTX_SPIN);
+			mtx_unlock_spin(&sched_lock);
 			PROC_LOCK(p);
 			p->p_flag &= ~P_SELECT;
 			PROC_UNLOCK(p);

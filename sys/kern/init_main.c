@@ -455,7 +455,7 @@ start_init(void *dummy)
 	char *ucp, **uap, *arg0, *arg1;
 	struct proc *p;
 
-	mtx_enter(&Giant, MTX_DEF);
+	mtx_lock(&Giant);
 
 	p = curproc;
 
@@ -555,7 +555,7 @@ start_init(void *dummy)
 		 * to user mode as init!
 		 */
 		if ((error = execve(p, &args)) == 0) {
-			mtx_exit(&Giant, MTX_DEF);
+			mtx_unlock(&Giant);
 			return;
 		}
 		if (error != ENOENT)
@@ -584,9 +584,9 @@ create_init(const void *udata __unused)
 	PROC_LOCK(initproc);
 	initproc->p_flag |= P_SYSTEM;
 	PROC_UNLOCK(initproc);
-	mtx_enter(&sched_lock, MTX_SPIN);
+	mtx_lock_spin(&sched_lock);
 	initproc->p_sflag |= PS_INMEM;
-	mtx_exit(&sched_lock, MTX_SPIN);
+	mtx_unlock_spin(&sched_lock);
 	cpu_set_fork_handler(initproc, start_init, NULL);
 }
 SYSINIT(init, SI_SUB_CREATE_INIT, SI_ORDER_FIRST, create_init, NULL)
@@ -598,9 +598,9 @@ static void
 kick_init(const void *udata __unused)
 {
 
-	mtx_enter(&sched_lock, MTX_SPIN);
+	mtx_lock_spin(&sched_lock);
 	initproc->p_stat = SRUN;
 	setrunqueue(initproc);
-	mtx_exit(&sched_lock, MTX_SPIN);
+	mtx_unlock_spin(&sched_lock);
 }
 SYSINIT(kickinit, SI_SUB_KTHREAD_INIT, SI_ORDER_FIRST, kick_init, NULL)

@@ -162,7 +162,7 @@ smp_init_secondary(void)
 	alpha_pal_wrent(XentUna, ALPHA_KENTRY_UNA);
 	alpha_pal_wrent(XentSys, ALPHA_KENTRY_SYS);
 
-	mtx_enter(&Giant, MTX_DEF);
+	mtx_lock(&Giant);
 
 	printf("smp_init_secondary: called\n");
 	CTR0(KTR_SMP, "smp_init_secondary");
@@ -176,7 +176,7 @@ smp_init_secondary(void)
 	spl0();
 	smp_ipi_all(0);
 
-	mtx_exit(&Giant, MTX_DEF);
+	mtx_unlock(&Giant);
 }
 
 extern void smp_init_secondary_glue(void);
@@ -657,14 +657,14 @@ forward_signal(struct proc *p)
 		return;
 	if (!forward_signal_enabled)
 		return;
-	mtx_enter(&sched_lock, MTX_SPIN);
+	mtx_lock_spin(&sched_lock);
 	while (1) {
 		if (p->p_stat != SRUN) {
-			mtx_exit(&sched_lock, MTX_SPIN);
+			mtx_unlock_spin(&sched_lock);
 			return;
 		}
 		id = p->p_oncpu;
-		mtx_exit(&sched_lock, MTX_SPIN);
+		mtx_unlock_spin(&sched_lock);
 		if (id == 0xff)
 			return;
 		map = (1<<id);
@@ -682,9 +682,9 @@ forward_signal(struct proc *p)
 				break;
 			}
 		}
-		mtx_enter(&sched_lock, MTX_SPIN);
+		mtx_lock_spin(&sched_lock);
 		if (id == p->p_oncpu) {
-			mtx_exit(&sched_lock, MTX_SPIN);
+			mtx_unlock_spin(&sched_lock);
 			return;
 		}
 	}
@@ -841,7 +841,7 @@ smp_rendezvous(void (* setup_func)(void *),
 {
 
 	/* obtain rendezvous lock */
-	mtx_enter(&smp_rv_mtx, MTX_SPIN);
+	mtx_lock_spin(&smp_rv_mtx);
 
 	/* set static function pointers */
 	smp_rv_setup_func = setup_func;
@@ -858,7 +858,7 @@ smp_rendezvous(void (* setup_func)(void *),
 	smp_rendezvous_action();
 
 	/* release lock */
-	mtx_exit(&smp_rv_mtx, MTX_SPIN);
+	mtx_unlock_spin(&smp_rv_mtx);
 }
 
 /*

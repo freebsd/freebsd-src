@@ -104,9 +104,9 @@ rman_init(struct rman *rm)
 		return ENOMEM;
 	mtx_init(rm->rm_mtx, "rman", MTX_DEF);
 
-	mtx_enter(&rman_mtx, MTX_DEF);
+	mtx_lock(&rman_mtx);
 	TAILQ_INSERT_TAIL(&rman_head, rm, rm_link);
-	mtx_exit(&rman_mtx, MTX_DEF);
+	mtx_unlock(&rman_mtx);
 	return 0;
 }
 
@@ -129,7 +129,7 @@ rman_manage_region(struct rman *rm, u_long start, u_long end)
 	r->r_dev = 0;
 	r->r_rm = rm;
 
-	mtx_enter(rm->rm_mtx, MTX_DEF);
+	mtx_lock(rm->rm_mtx);
 	for (s = TAILQ_FIRST(&rm->rm_list);	
 	     s && s->r_end < r->r_start;
 	     s = TAILQ_NEXT(s, r_link))
@@ -141,7 +141,7 @@ rman_manage_region(struct rman *rm, u_long start, u_long end)
 		TAILQ_INSERT_BEFORE(s, r, r_link);
 	}
 
-	mtx_exit(rm->rm_mtx, MTX_DEF);
+	mtx_unlock(rm->rm_mtx);
 	return 0;
 }
 
@@ -150,10 +150,10 @@ rman_fini(struct rman *rm)
 {
 	struct resource *r;
 
-	mtx_enter(rm->rm_mtx, MTX_DEF);
+	mtx_lock(rm->rm_mtx);
 	TAILQ_FOREACH(r, &rm->rm_list, r_link) {
 		if (r->r_flags & RF_ALLOCATED) {
-			mtx_exit(rm->rm_mtx, MTX_DEF);
+			mtx_unlock(rm->rm_mtx);
 			return EBUSY;
 		}
 	}
@@ -167,10 +167,10 @@ rman_fini(struct rman *rm)
 		TAILQ_REMOVE(&rm->rm_list, r, r_link);
 		free(r, M_RMAN);
 	}
-	mtx_exit(rm->rm_mtx, MTX_DEF);
-	mtx_enter(&rman_mtx, MTX_DEF);
+	mtx_unlock(rm->rm_mtx);
+	mtx_lock(&rman_mtx);
 	TAILQ_REMOVE(&rman_head, rm, rm_link);
-	mtx_exit(&rman_mtx, MTX_DEF);
+	mtx_unlock(&rman_mtx);
 	mtx_destroy(rm->rm_mtx);
 	free(rm->rm_mtx, M_RMAN);
 
@@ -193,7 +193,7 @@ rman_reserve_resource(struct rman *rm, u_long start, u_long end, u_long count,
 	want_activate = (flags & RF_ACTIVE);
 	flags &= ~RF_ACTIVE;
 
-	mtx_enter(rm->rm_mtx, MTX_DEF);
+	mtx_lock(rm->rm_mtx);
 
 	for (r = TAILQ_FIRST(&rm->rm_list); 
 	     r && r->r_end < start;
@@ -370,7 +370,7 @@ out:
 		}
 	}
 			
-	mtx_exit(rm->rm_mtx, MTX_DEF);
+	mtx_unlock(rm->rm_mtx);
 	return (rv);
 }
 
@@ -417,9 +417,9 @@ rman_activate_resource(struct resource *r)
 	struct rman *rm;
 
 	rm = r->r_rm;
-	mtx_enter(rm->rm_mtx, MTX_DEF);
+	mtx_lock(rm->rm_mtx);
 	rv = int_rman_activate_resource(rm, r, &whohas);
-	mtx_exit(rm->rm_mtx, MTX_DEF);
+	mtx_unlock(rm->rm_mtx);
 	return rv;
 }
 
@@ -432,7 +432,7 @@ rman_await_resource(struct resource *r, int pri, int timo)
 
 	rm = r->r_rm;
 	for (;;) {
-		mtx_enter(rm->rm_mtx, MTX_DEF);
+		mtx_lock(rm->rm_mtx);
 		rv = int_rman_activate_resource(rm, r, &whohas);
 		if (rv != EBUSY)
 			return (rv);	/* returns with mutex held */
@@ -441,19 +441,19 @@ rman_await_resource(struct resource *r, int pri, int timo)
 			panic("rman_await_resource");
 		/*
 		 * splhigh hopefully will prevent a race between
-		 * mtx_exit and tsleep where a process
+		 * mtx_unlock and tsleep where a process
 		 * could conceivably get in and release the resource
 		 * before we have a chance to sleep on it.
 		 */
 		s = splhigh();
 		whohas->r_flags |= RF_WANTED;
-		mtx_exit(rm->rm_mtx, MTX_DEF);
+		mtx_unlock(rm->rm_mtx);
 		rv = tsleep(r->r_sharehead, pri, "rmwait", timo);
 		if (rv) {
 			splx(s);
 			return rv;
 		}
-		mtx_enter(rm->rm_mtx, MTX_DEF);
+		mtx_lock(rm->rm_mtx);
 		splx(s);
 	}
 }
@@ -478,9 +478,9 @@ rman_deactivate_resource(struct resource *r)
 	struct	rman *rm;
 
 	rm = r->r_rm;
-	mtx_enter(rm->rm_mtx, MTX_DEF);
+	mtx_lock(rm->rm_mtx);
 	int_rman_deactivate_resource(r);
-	mtx_exit(rm->rm_mtx, MTX_DEF);
+	mtx_unlock(rm->rm_mtx);
 	return 0;
 }
 
@@ -576,9 +576,9 @@ rman_release_resource(struct resource *r)
 	int	rv;
 	struct	rman *rm = r->r_rm;
 
-	mtx_enter(rm->rm_mtx, MTX_DEF);
+	mtx_lock(rm->rm_mtx);
 	rv = int_rman_release_resource(rm, r);
-	mtx_exit(rm->rm_mtx, MTX_DEF);
+	mtx_unlock(rm->rm_mtx);
 	return (rv);
 }
 

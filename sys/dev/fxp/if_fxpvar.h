@@ -86,5 +86,5 @@ struct fxp_softc {
 
 #define	sc_if			arpcom.ac_if
 #define	FXP_UNIT(_sc)		(_sc)->arpcom.ac_if.if_unit
-#define	FXP_LOCK(_sc)		mtx_enter(&(_sc)->sc_mtx, MTX_DEF)
-#define	FXP_UNLOCK(_sc)		mtx_exit(&(_sc)->sc_mtx, MTX_DEF)
+#define	FXP_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
+#define	FXP_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
