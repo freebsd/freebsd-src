@@ -35,7 +35,7 @@
  */
 
 #ifndef _SYS_DISKLABEL_H_
-#define _SYS_DISKLABEL_H_
+#define	_SYS_DISKLABEL_H_
 
 /*
  * Disk description table, see disktab(5)
@@ -48,6 +48,12 @@
  * disk geometry, filesystem partitions, and drive specific information.
  * The label is in block 0 or 1, possibly offset from the beginning
  * to leave room for a bootstrap, etc.
+ */
+
+/*
+ * XXX the following will go away when conversion to the slice version is
+ * complete: OURPART, RAWPART, readMSPtolabel, readMBRtolabel, dkminor,
+ * the DOSified readdisklabel, DOS stuff in this file.
  */
 
 /* XXX these should be defined per controller (or drive) elsewhere, not here! */
@@ -88,6 +94,9 @@
 #define	MAXPARTITIONS	8
 #endif
 
+#define	LABEL_PART	2		/* partition containing label */
+#define	RAW_PART	2		/* partition containing whole disk */
+#define	SWAP_PART	1		/* partition normally containing swap */
 
 #ifndef LOCORE
 struct disklabel {
@@ -375,21 +384,55 @@ extern struct dos_partition dos_partitions[NDOSPART];
 
 #define DIOCSBAD	_IOW('d', 110, struct dkbad)	/* set kernel dkbad */
 
-#endif /* LOCORE */
+/*
+ * XXX encoding of disk minor numbers, should be elsewhere.
+ *
+ * See <sys/reboot.h> for a possibly better encoding.
+ *
+ * "cpio -H newc" can be used to back up device files with large minor
+ * numbers (but not ones >= 2^31).  Old cpio formats and all tar formats 
+ * don't have enough bits, and cpio and tar don't notice the lossage.
+ * There are also some sign extension bugs.
+ */
+#define	dkmakeminor(unit, slice, part) \
+				(((slice) << 16) | ((unit) << 3) | (part))
+#define	dkminor(unit, part)	dkmakeminor((unit), 0, (part))
+#define	dkmodpart(dev, part)	(((dev) & ~(dev_t)7) | (part))
+#define	dkmodslice(dev, slice)	(((dev) & ~(dev_t)0x1f0000) | ((slice) << 16))
+#define	dkpart(dev)		(minor(dev) & 7)
+#define	dkslice(dev)		((minor(dev) >> 16) & 0x1f)
+#define	dktype(dev)       	((minor(dev) >> 21) & 0x7ff)
+#define	dkunit(dev)		((minor(dev) >> 3) & 0x1f)
 
 #ifdef KERNEL
-struct dkbad;
+/*
+ * We're not ready to use <sys/disk.h>.
+ */
+#include <sys/conf.h>
 
-u_int	 dkcksum __P((struct disklabel *));
-int	writedisklabel __P((dev_t dev, void (*strat)(), struct disklabel *lp));
-char *	readdisklabel __P((dev_t dev, void (*strat)(), struct disklabel *lp, struct dos_partition *dp, struct dkbad *bdp));
-int	setdisklabel __P((struct disklabel *olp, struct disklabel *nlp, u_long openmask));
+char	*correct_readdisklabel __P((dev_t dev, d_strategy_t *strat,
+				    struct disklabel *lp));
+void	diskerr __P((struct buf *bp, char *dname, char *what, int pri,
+		     int blkdone, struct disklabel *lp));
 void	disksort __P((struct buf *ap, struct buf *bp));
-void	 diskerr __P((struct buf *, char *, char *, int, int, struct disklabel *));
-#ifdef __i386
-char *	readMBRtolabel __P(( dev_t dev , void (*strat)(), register struct disklabel *lp, struct dos_partition *dp, int *cyl));
+u_int	dkcksum __P((struct disklabel *lp));
+struct dkbad;
+char	*readdisklabel __P((dev_t dev, d_strategy_t *strat,
+			    struct disklabel *lp,
+			    struct dos_partition *dp, struct dkbad *bdp));
+#ifdef __i386__
+char	*readMBRtolabel __P((dev_t dev, d_strategy_t *strat,
+			     struct disklabel *lp, struct dos_partition *dp,
+			     int *cyl));
 #endif
-#endif
+int	setdisklabel __P((struct disklabel *olp, struct disklabel *nlp,
+			  u_long openmask));
+int	writedisklabel __P((dev_t dev, d_strategy_t *strat,
+			    struct disklabel *lp));
+
+#endif /* KERNEL */
+
+#endif /* LOCORE */
 
 #if !defined(KERNEL) && !defined(LOCORE)
 
@@ -401,13 +444,4 @@ __END_DECLS
 
 #endif
 
-#ifdef __i386
-/* encoding of disk minor numbers, should be elsewhere... */
-#define dkunit(dev)		(minor(dev) >> 3)
-#define dkpart(dev)		(minor(dev) & 07)
-#define dkminor(unit, part)	(((unit) << 3) | (part))
-#endif
-
-#endif
-
-
+#endif /* !_SYS_DISKLABEL_H_ */
