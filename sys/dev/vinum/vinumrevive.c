@@ -173,7 +173,7 @@ revive_block(int sdno)
 	bp->b_iocmd = BIO_READ;				    /* either way, read it */
 	bp->b_flags = 0;
 	vinumstart(bp, 1);
-	biowait(bp);
+	bufwait(bp);
     }
 
     if (bp->b_ioflags & BIO_ERROR)
@@ -189,7 +189,7 @@ revive_block(int sdno)
 	bp->b_resid = bp->b_bcount;
 	bp->b_blkno = sd->revived;			    /* write it to here */
 	sdio(bp);					    /* perform the I/O */
-	biowait(bp);
+	bufwait(bp);
 	if (bp->b_ioflags & BIO_ERROR)
 	    error = bp->b_error;
 	else {
@@ -317,7 +317,7 @@ parityops(struct vinum_ioctl_msg *data, enum parityop op)
 	    BUF_LOCKINIT(pbp);				    /* get a lock for the buffer */
 	    BUF_LOCK(pbp, LK_EXCLUSIVE);		    /* and lock it */
 	    sdio(pbp);					    /* perform the I/O */
-	    biowait(pbp);
+	    bufwait(pbp);
 	}
 	if (reply->error == EAGAIN) {			    /* still OK, */
 	    *pstripep += (pbp->b_bcount >> DEV_BSHIFT);	    /* moved this much further down */
@@ -444,7 +444,7 @@ parityrebuild(struct plex *plex,
      */
     for (sdno = 0; sdno < plex->subdisks; sdno++) {	    /* for each subdisk */
 	if ((sdno != psd) || check) {
-	    biowait(bpp[sdno]);
+	    bufwait(bpp[sdno]);
 	    if (bpp[sdno]->b_ioflags & BIO_ERROR)	    /* can't read, */
 		error = bpp[sdno]->b_error;
 	}
@@ -541,7 +541,7 @@ initsd(int sdno, int verify)
 	BUF_LOCK(bp, LK_EXCLUSIVE);			    /* and lock it */
 	bp->b_iocmd = BIO_WRITE;
 	sdio(bp);					    /* perform the I/O */
-	biowait(bp);
+	bufwait(bp);
 	if (bp->b_ioflags & BIO_ERROR)
 	    error = bp->b_error;
 	if (bp->b_qindex == 0) {			    /* not on a queue, */
@@ -565,7 +565,7 @@ initsd(int sdno, int verify)
 		BUF_LOCKINIT(bp);			    /* get a lock for the buffer */
 		BUF_LOCK(bp, LK_EXCLUSIVE);		    /* and lock it */
 		sdio(bp);
-		biowait(bp);
+		bufwait(bp);
 		/*
 		 * XXX Bug fix code.  This is hopefully no
 		 * longer needed (21 February 2000).

@@ -473,7 +473,7 @@ bread(struct vnode * vp, daddr_t blkno, int size, struct ucred * cred,
 		}
 		vfs_busy_pages(bp, 0);
 		VOP_STRATEGY(vp, bp);
-		return (biowait(bp));
+		return (bufwait(bp));
 	}
 	return (0);
 }
@@ -538,7 +538,7 @@ breadn(struct vnode * vp, daddr_t blkno, int size,
 	}
 
 	if (readwait) {
-		rv = biowait(bp);
+		rv = bufwait(bp);
 	}
 	return (rv);
 }
@@ -647,7 +647,7 @@ bwrite(struct buf * bp)
 	BUF_STRATEGY(bp);
 
 	if ((oldflags & B_ASYNC) == 0) {
-		int rtval = biowait(bp);
+		int rtval = bufwait(bp);
 		brelse(bp);
 		return (rtval);
 	}

@@ -3131,7 +3131,7 @@ nfs_writebp(bp, force, procp)
 	BUF_STRATEGY(bp);
 
 	if( (oldflags & B_ASYNC) == 0) {
-		int rtval = biowait(bp);
+		int rtval = bufwait(bp);
 
 		if (oldflags & B_DELWRI) {
 			s = splbio();

@@ -425,7 +425,7 @@ ext2_indirtrunc(ip, lbn, dbn, lastbn, level, countp)
 		bp->b_blkno = dbn;
 		vfs_busy_pages(bp, 0);
 		VOP_STRATEGY(vp, bp);
-		error = biowait(bp);
+		error = bufwait(bp);
 	}
 	if (error) {
 		brelse(bp);
