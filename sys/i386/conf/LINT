@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.489 1998/10/18 16:24:32 wpaul Exp $
+#	$Id: LINT,v 1.490 1998/10/22 12:23:04 bde Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -798,14 +798,14 @@ options		PPS_SYNC
 controller	pnp0
 
 # The pcvt console driver (vt220 compatible).
-device		vt0	at isa? port "IO_KBD" conflicts tty irq 1
+device		vt0	at isa? port IO_KBD conflicts tty irq 1
 options		XSERVER			# support for running an X server.
 options		FAT_CURSOR		# start with block cursor
 # This PCVT option is for keyboards such as those used on IBM ThinkPad laptops
 options		PCVT_SCANSET=2 		# IBM keyboards are non-std
 
 # The syscons console driver (sco color console compatible).
-device		sc0	at isa? port "IO_KBD" conflicts tty irq 1
+device		sc0	at isa? port IO_KBD conflicts tty irq 1
 options		MAXCONS=16		# number of virtual consoles
 options		SLOW_VGA		# do byte-wide i/o's to TS and GDC regs
 options		"STD8X16FONT"		# Compile font in
@@ -838,7 +838,7 @@ options		VESA			# needs VM86 defined too!!
 # buggy. If it is not configured then you *must* configure math emulation
 # (see above).  If both npx0 and emulation are configured, then only npx0
 # is used (provided it works).
-device		npx0	at isa? port "IO_NPX" iosiz 0x0 flags 0x0 irq 13
+device		npx0	at isa? port IO_NPX iosiz 0x0 flags 0x0 irq 13
 
 #
 # `flags' for npx0:
@@ -1024,7 +1024,7 @@ tape		ft0	at fdc0 drive 2
 device		lpt0	at isa? port? tty irq 7
 device		lpt1	at isa? port "IO_LPT3" tty irq 5
 device		mse0	at isa? port 0x23c tty irq 5
-device		psm0	at isa? port "IO_KBD" conflicts tty irq 12
+device		psm0	at isa? port IO_KBD conflicts tty irq 12
 
 # Options for psm:
 options		PSM_HOOKAPM		#hook the APM resume event, useful
@@ -1218,7 +1218,7 @@ device uart0 at isa? port 0x330 irq 5
 #device pcm0 at isa? port ? tty irq 10 drq 1 flags 0x0
 
 # Not controlled by `snd'
-device pca0 at isa? port IO_TIMER1 tty
+device pca0 at isa? port "IO_TIMER1" tty
 
 #
 # Miscellaneous hardware:
@@ -1337,7 +1337,7 @@ device		spigot0 at isa? port 0xad6 irq 15 iomem 0xee000
 device		apm0	at isa? 
 device		gp0	at isa? port 0x2c0 tty
 device		gsc0	at isa? port "IO_GSC1" tty drq 3
-device		joy0	at isa? port "IO_GAME"
+device		joy0	at isa? port IO_GAME
 device          alog0   at isa? port 0x260 tty irq 5
 device		cy0	at isa? tty irq 10 iomem 0xd4000 iosiz 0x2000
 device		dgb0	at isa? port 0x220 iomem 0xfc0000 iosiz ? tty
@@ -1348,7 +1348,7 @@ device          rp0     at isa? port 0x280 tty
 # the port and irq for tw0 are fictitious
 device          tw0     at isa? port 0x380 tty irq 11
 device		si0	at isa? iomem 0xd0000 tty irq 12
-device		asc0	at isa? port IO_ASC1 tty drq 3 irq 10
+device		asc0	at isa? port "IO_ASC1" tty drq 3 irq 10
 device		bqu0	at isa? port 0x150
 device		stl0	at isa? port 0x2a0 tty irq 10
 device		stli0	at isa? port 0x2a0 tty iomem 0xcc000 flags 23 iosiz 0x1000
