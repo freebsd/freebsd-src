@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: setjmp.h,v 1.1 1998/01/10 23:04:51 jb Exp $ */
 /*
  * Copyright (c) 1998 John Birrell <jb@cimlogic.com.au>.
  * All rights reserved.
@@ -33,3 +33,14 @@
  */
 
 #define	_JBLEN	8		/* Size of the jmp_buf on x86. */
+
+/*
+ * jmp_buf and sigjmp_buf are encapsulated in different structs to force
+ * compile-time diagnostics for mismatches.  The structs are the same
+ * internally to avoid some run-time errors for mismatches.
+ */
+#ifndef _ANSI_SOURCE
+typedef struct { int _sjb[_JBLEN + 1]; } sigjmp_buf[1];
+#endif /* not ANSI */
+
+typedef struct { int _jb[_JBLEN + 1]; } jmp_buf[1];
