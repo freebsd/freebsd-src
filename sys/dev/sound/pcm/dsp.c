@@ -82,6 +82,8 @@ dsp_open(snddev_info *d, int chan, int oflags, int devtype)
 
 	if (chan >= d->chancount) return ENODEV;
 	if ((d->flags & SD_F_SIMPLEX) && (d->ref[chan] > 0)) return EBUSY;
+	if (d->atype[chan] != 0 && d->atype[chan] != devtype) return EBUSY;
+
 	rdch = d->arec[chan];
 	wrch = d->aplay[chan];
 	if (oflags & FREAD) {
@@ -100,6 +102,7 @@ dsp_open(snddev_info *d, int chan, int oflags, int devtype)
 			}
 		} else return EBUSY;
 	}
+	d->atype[chan] = devtype;
 	d->aplay[chan] = wrch;
 	d->arec[chan] = rdch;
 	d->ref[chan]++;
@@ -161,6 +164,7 @@ dsp_close(snddev_info *d, int chan, int devtype)
 	}
 	d->aplay[chan] = NULL;
 	d->arec[chan] = NULL;
+	d->atype[chan] = 0;
 	return 0;
 }
 
