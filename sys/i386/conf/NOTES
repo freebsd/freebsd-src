@@ -508,7 +508,6 @@ device		aacp	# SCSI Passthrough interface (optional, CAM required)
 #
 # mcd: Mitsumi CD-ROM using proprietary (non-ATAPI) interface
 # scd: Sony CD-ROM using proprietary (non-ATAPI) interface
-# matcd: Matsushita/Panasonic CD-ROM using proprietary (non-ATAPI) interface
 # wt: Wangtek and Archive QIC-02/QIC-36 tape drives
 # ctx: Cortex-I frame grabber
 # apm: Laptop Advanced Power Management (experimental)
@@ -587,10 +586,6 @@ hint.mcd.0.irq="10"
 device		scd	1
 hint.scd.0.at="isa"
 hint.scd.0.port="0x230"
-# for the SoundBlaster 16 multicd - up to 4 devices
-device		matcd	1
-hint.matcd.0.at="isa"
-hint.matcd.0.port="0x230"
 device		wt	1
 hint.wt.0.at="isa"
 hint.wt.0.port="0x300"
