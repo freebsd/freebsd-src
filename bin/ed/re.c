@@ -86,7 +86,8 @@ optpat()
 	patlock = 0;
 	if (n = regcomp(exp, exps, 0)) {
 		regerror(n, exp, errmsg, sizeof errmsg);
-		return NULL;
+		free(exp);
+		return exp = NULL;
 	}
 	return exp;
 }
