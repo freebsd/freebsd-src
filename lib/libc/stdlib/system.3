@@ -75,15 +75,19 @@ is available, and zero if it is not.
 The
 .Fn system
 function
-returns the exit status of the shell, or \-1 if the
-.Xr wait 2
-for the shell failed.
+returns the exit status of the shell as returned by
+.Xr waitpid 2 ,
+or \-1 if an error occurred when invoking 
+.Xr fork 2
+or 
+.Xr waitpid 2 .
 A return value of 127 means the execution of the shell
 failed.
 .Sh SEE ALSO
 .Xr sh 1 ,
 .Xr execve 2 ,
-.Xr wait 2 ,
+.Xr fork 2 ,
+.Xr waitpid 2 ,
 .Xr popen 3
 .Sh STANDARDS
 The
