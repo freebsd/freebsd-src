@@ -269,7 +269,7 @@
     printf x ;							\
 } } while (0)
 
-#define RAY_DNET_DUMP(sc, s) do { if (RAY_DEBUG) {			\
+#define RAY_DNET_DUMP(sc, s) do { if (RAY_DEBUG > 15) {			\
     printf("ray%d: Current network parameters%s\n", (sc)->unit, (s));	\
     printf("  bss_id %6D\n", (sc)->sc_c.np_bss_id, ":");		\
     printf("  inited 0x%02x\n", (sc)->sc_c.np_inited);			\
