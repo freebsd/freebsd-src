@@ -21,7 +21,7 @@
 # FreeBSD, Twin, Wide, 2 command per target support, and other optimizations
 # provided by Justin T. Gibbs (gibbs@FreeBSD.org)
 #
-#	$Id$
+#	$Id: aic7xxx.seq,v 1.5 1995/01/16 16:31:21 gibbs Exp $
 
 VERSION AIC7XXX_SEQ_VERSION 1.5
 
@@ -202,6 +202,7 @@ ACTIVE_B	= 0x59
 #
 start:
 	test	FLAGS,SENSE	jnz start_sense
+start_nosense:
 	test	FLAGS,TWIN_BUS	jz start2	# Are we a twin channel device?
 # For fairness, we check the other bus first, since we just finished a 
 # transaction on the current channel.
@@ -210,7 +211,7 @@ start:
 	xor	SBLKCTL,0x08			# Toggle to the original bus
 start2:
 	test	SCSISIGI,0x4	jnz reselect	# BSYI
-	test	QINCNT,SCBMASK	jz start
+	test	QINCNT,SCBMASK	jz start_nosense
 
 # We have at least one queued SCB now.  Set the SCB pointer
 # from the FIFO so we see the right bank of SCB registers,
@@ -227,9 +228,8 @@ test	SCBARRAY+0,NEEDDMA	jz test_busy
 	clr	HCNT+1
 	mvi	HCNT+0,SCB_SIZEOF
 
-	mvi	A,4
 	mvi	DINDEX,HADDR
-	mvi	SCBARRAY+26	call bcopy
+	mvi	SCBARRAY+26	call bcopy_4
 
 	mvi	DFCNTRL,0xd			# HDMAEN|DIRECTION|FIFORESET
 
@@ -264,7 +264,6 @@ scb_load2:
 	mov	SCBARRAY+16, DFDAT
 	mov	SCBARRAY+17, DFDAT
 	mov	SCBARRAY+18, DFDAT
-	and	SCBARRAY+0, 0xf7
    
 # See if there is not already an active SCB for this target.  This code
 # locks out on a per target basis instead of target/lun.  Although this
@@ -292,7 +291,7 @@ start_sense:
 # Place the currently active back on the queue for later processing
 requeue:
 	mov	QINFIFO, SCBPTR
-	jmp	start
+	jmp	start_nosense
 
 test_a:
 	test	ACTIVE_A,A	jnz requeue
@@ -416,17 +415,14 @@ p_dataout:
 	call	assert
 	call	sg_load
 
-	mvi	A,3
-	mvi	DINDEX,HCNT
-	mvi	SCBARRAY+23	call bcopy
-
-	mvi	A,3
-	mvi	DINDEX,STCNT
-	mvi	SCBARRAY+23	call bcopy
-
-	mvi	A,4
 	mvi	DINDEX,HADDR
-	mvi	SCBARRAY+19	call bcopy
+	mvi	SCBARRAY+19	call bcopy_4
+
+#	mvi	DINDEX,HCNT	# implicit since HCNT is next to HADDR
+	mvi	SCBARRAY+23	call bcopy_3
+
+	mvi	DINDEX,STCNT
+	mvi	SCBARRAY+23	call bcopy_3
 
 	mvi	0x3d		call dma	# SCSIEN|SDMAEN|HDMAEN|
 						#   DIRECTION|FIFORESET
@@ -437,13 +433,11 @@ p_dataout:
 #  it's a reflection of how many bytes were transferred on the SCSI
 #  (as opposed to the host) bus.
 #
-	mvi	A,3
 	mvi	DINDEX,SCBARRAY+23
-	mvi	STCNT		call bcopy
+	mvi	STCNT		call bcopy_3
 
-	mvi	A,4
 	mvi	DINDEX,SCBARRAY+19
-	mvi	SHADDR		call bcopy
+	mvi	SHADDR		call bcopy_4
 
 	call	sg_advance
 	mov	SCBARRAY+18,SG_COUNT		# residual S/G count
@@ -455,27 +449,22 @@ p_datain:
 	call	assert
 	call	sg_load
 
-	mvi	A,3
-	mvi	DINDEX,HCNT
-	mvi	SCBARRAY+23	call bcopy
-
-	mvi	A,3
-	mvi	DINDEX,STCNT
-	mvi	SCBARRAY+23	call bcopy
-
-	mvi	A,4
 	mvi	DINDEX,HADDR
-	mvi	SCBARRAY+19	call bcopy
+	mvi	SCBARRAY+19	call bcopy_4
+
+#	mvi	DINDEX,HCNT	# implicit since HCNT is next to HADDR
+	mvi	SCBARRAY+23	call bcopy_3
+
+	mvi	DINDEX,STCNT
+	mvi	SCBARRAY+23	call bcopy_3
 
 	mvi	0x39		call dma	# SCSIEN|SDMAEN|HDMAEN|
 						#   !DIRECTION|FIFORESET
-	mvi	A,3
 	mvi	DINDEX,SCBARRAY+23
-	mvi	STCNT		call bcopy
+	mvi	STCNT		call bcopy_3
 
-	mvi	A,4
 	mvi	DINDEX,SCBARRAY+19
-	mvi	SHADDR		call bcopy
+	mvi	SHADDR		call bcopy_4
 
 	call	sg_advance
 	mov	SCBARRAY+18,SG_COUNT		# residual S/G count
@@ -490,17 +479,14 @@ p_command:
 	mvi	0x80		call scsisig	# CDO|!IOO|!MSGO
 	call	assert
 
-	mvi	A,3
-	mvi	DINDEX,HCNT
-	mvi	SCBARRAY+11	call bcopy
-
-	mvi	A,3
-	mvi	DINDEX,STCNT
-	mvi	SCBARRAY+11	call bcopy
-
-	mvi	A,4
 	mvi	DINDEX,HADDR
-	mvi	SCBARRAY+7	call bcopy
+	mvi	SCBARRAY+7	call bcopy_4
+
+#	mvi	DINDEX,HCNT	# implicit since HCNT is next to HADDR
+	mvi	SCBARRAY+11	call bcopy_3
+
+	mvi	DINDEX,STCNT
+	mvi	SCBARRAY+11	call bcopy_3
 
 	mvi	0x3d		call dma	# SCSIEN|SDMAEN|HDMAEN|
 						#   DIRECTION|FIFORESET
@@ -778,15 +764,24 @@ p_busfree:
 	clr	SIGSTATE
 	jmp	start
 
-#  Bcopy: number of bytes to transfer should be in A, DINDEX should
-#  contain the destination address, and SINDEX should contain the
-#  source address.  All input parameters are trashed on return.
-#
-bcopy:
+#  Instead of a generic bcopy routine that requires an argument, we unroll
+#  the two cases that are actually used, and call them explicitly.  This
+#  not only reduces the overhead of doing a bcopy by 2/3rds, but ends up
+#  saving space in the program since you don't have to put the argument 
+#  into the accumulator before the call.  Both functions expect DINDEX to
+#  contain the destination address and SINDEX to contain the source 
+#  address.
+bcopy_3:
 	mov	DINDIR,SINDIR
-	dec	A
-	cmp	ALLZEROS,A	jne bcopy
-	ret
+	mov	DINDIR,SINDIR
+	mov	DINDIR,SINDIR	ret
+
+bcopy_4:
+	mov	DINDIR,SINDIR
+	mov	DINDIR,SINDIR
+	mov	DINDIR,SINDIR
+	mov	DINDIR,SINDIR	ret
+	
 
 #  Locking the driver out, build a one-byte message passed in SINDEX
 #  if there is no active message already.  SINDEX is returned intact.
@@ -800,8 +795,7 @@ mk_mesg:
 	mov	MSG_START+0,SINDEX		# 1-byte message
 
 mk_mesg1:
-	mvi	SEQCTL,0x10			# !PAUSEDIS|FASTMODE
-	ret
+	mvi	SEQCTL,0x10	ret		# !PAUSEDIS|FASTMODE
 
 #  Input byte in Automatic PIO mode.  The address to store the byte
 #  in should be in SINDEX.  DINDEX will be used by this routine.
@@ -913,9 +907,8 @@ dma5:
 dma6:
 	test	DFCNTRL,0x38	jnz dma6	# SCSIENACK|SDMAENACK|HDMAENACK
 
-	mvi	A,3
 	mvi	DINDEX,SCBARRAY+15
-	mvi	STCNT		call bcopy
+	mvi	STCNT		call bcopy_3
 
 	ret
 
@@ -924,47 +917,24 @@ dma6:
 #  contents are stomped on return.
 #
 initialize:
-	and	SCSIID,0xf0,SINDEX		# target ID
-	test	SBLKCTL,0x08	jnz initialize_b
-	mvi	SINDEX,SCSICONF_A
-	test	FLAGS,WIDE_BUS	jnz initialize_wide
-	and	A,0x7,SCSICONF_A		# SCSI_ID_A[210]
-	jmp	initialize_2
-initialize_b:
-	and	A,0x7,SCSICONF_B		# SCSI_ID_B[210]
-	mvi	SCSICONF_B	 jmp	initialize_2
-
-initialize_wide:
-	and	A,0x0f,SCSICONF_B		# SCSI_ID_B[210]
-
-initialize_2:
-	or	SCSIID,A
+	and	SINDEX,0xf0		# Get target ID
+	and	A,0x0f,SCSIID
+	or	SINDEX,A
+	mov	SCSIID,SINDEX
 
 #  Esundry initialization.
 #
 	clr	DROPATN
 	clr	SIGSTATE
 
-#  Turn on Automatic PIO mode now, before we expect to see an REQ
+#  Turn on Automatic PIO mode now, before we expect to see a REQ
 #  from the target.  It shouldn't hurt anything to leave it on.  Set
 #  CLRCHN here before the target has entered a data transfer mode -
 #  with synchronous SCSI, if you do it later, you blow away some
 #  data in the SCSI FIFO that the target has already sent to you.
 #
-#  DFON is a 7870 bit enabling digital filtering of REQ and ACK signals.
-#
 	mvi	SXFRCTL0,0x8a			# DFON|SPIOEN|CLRCHN
 
-#  Set SCSI bus parity checking and the selection timeout value,
-#  and enable the hardware selection timer.  Set the SELTO interrupt
-#  to signal the driver.
-#
-#  STPWEN is 7870-specific, enabling an external termination power source.
-#
-	and	A,0x38,SINDIR			# PARITY_ENB|SEL_TIM[10]
-	or	SXFRCTL1,0x7,A			# ENSTIMER|ACTBEGEB|STPWEN
-	mvi	SIMODE1,0x84			# ENSELTIMO|ENSCSIPERR
-	
 #  Initialize scatter-gather pointers by setting up the working copy
 #  in scratch RAM.
 #
@@ -973,8 +943,7 @@ initialize_2:
 #  Initialize SCSIRATE with the appropriate value for this target.
 #
 	call	ndx_dtr
-	mov	SCSIRATE,SINDIR
-	ret
+	mov	SCSIRATE,SINDIR	ret
 
 #  Assert that if we've been reselected, then we've seen an IDENTIFY
 #  message.
@@ -1050,9 +1019,8 @@ findSCB2:
 sg_scb2ram:
 	mov	SG_COUNT,SCBARRAY+2
 
-	mvi	A,4
 	mvi	DINDEX,SG_NEXT
-	mvi	SCBARRAY+3	call bcopy
+	mvi	SCBARRAY+3	call bcopy_4
 
 	mvi	SG_NOLOAD,0x80
 	test	SCBARRAY+0,0x10	jnz sg_scb2ram1	# don't reload s/g?
@@ -1066,9 +1034,8 @@ sg_scb2ram1:
 sg_ram2scb:
 	mov	SCBARRAY+2,SG_COUNT
 
-	mvi	A,4
 	mvi	DINDEX,SCBARRAY+3
-	mvi	SG_NEXT		call bcopy
+	mvi	SG_NEXT		call bcopy_4
 
 	and	SCBARRAY+0,0xef,SCBARRAY+0
 	test	SG_NOLOAD,0x80	jz sg_ram2scb1	# reload s/g?
@@ -1091,9 +1058,8 @@ sg_load:
 	clr	HCNT+1
 	mvi	HCNT+0,SG_SIZEOF
 
-	mvi	A,4
 	mvi	DINDEX,HADDR
-	mvi	SG_NEXT		call bcopy
+	mvi	SG_NEXT		call bcopy_4
 
 	mvi	DFCNTRL,0xd			# HDMAEN|DIRECTION|FIFORESET
 
@@ -1166,9 +1132,7 @@ sg_advance:
 	add	SG_NEXT+0,SG_SIZEOF,SG_NEXT+0
 	adc	SG_NEXT+1,A,SG_NEXT+1
 	adc	SG_NEXT+2,A,SG_NEXT+2
-	adc	SG_NEXT+3,A,SG_NEXT+3
-
-	ret
+	adc	SG_NEXT+3,A,SG_NEXT+3	ret
 
 sg_advance1:
 	mvi	SG_NOLOAD,0x80			# don't reload s/g next time
@@ -1209,8 +1173,7 @@ mk_wdtr:
 	mvi	DINDIR,3			# WDTR code
 	mov	DINDIR,ARG_1			# bus width
 
-	add	MSG_LEN,-MSG_START+0,DINDEX	# update message length
-	ret
+	add	MSG_LEN,-MSG_START+0,DINDEX ret	# update message length
 	
 mk_sdtr:
 	mvi	DINDIR,1			# extended message
@@ -1220,8 +1183,7 @@ mk_sdtr:
 	mov	DINDIR,RETURN_1			# REQ/ACK transfer period
 	and	DINDIR,0xf,SINDIR		# Sync Offset
 
-	add	MSG_LEN,-MSG_START+0,DINDEX	# update message length
-	ret
+	add	MSG_LEN,-MSG_START+0,DINDEX ret	# update message length
 
 # Tag Message if Tag enabled in SCB control block.  Use SCBPTR as the tag
 # value
