@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: main.c,v 1.25 1998/06/09 14:02:03 dfr Exp $";
+	"$Id: main.c,v 1.26 1998/12/10 02:35:55 archie Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -86,10 +86,13 @@ main(argc, argv)
 	int ch;
 	char *p;
 
-	while ((ch = getopt(argc, argv, "gprn")) != -1)
+	debugging = 1;					    /* on by default */
+	while ((ch = getopt(argc, argv, "gprns")) != -1)
 		switch (ch) {
 		case 'g':
-			debugging++;
+			fprintf(stderr,
+				"Debugging is enabled by default, there is "
+				"no need to specify the -g option\n" );
 			break;
 		case 'p':
 			profiling++;
@@ -102,6 +105,9 @@ main(argc, argv)
 		case 'r':
 			no_config_clobber = FALSE;
 			break;
+		case 's':
+			debugging = 0;
+			break;
 		case '?':
 		default:
 			usage();
@@ -111,6 +117,14 @@ main(argc, argv)
 
 	if (argc != 1)
 		usage();
+
+	if (debugging)
+		printf("Building kernel with full debugging symbols.  Do\n"
+		       "\"config -s %s\" "
+		       "for historic partial symbolic support.\n"
+		       "To install the debugging kernel, do "
+		       "make install.debug\n",
+		       argv [0] );
 
 	if (freopen(PREFIX = *argv, "r", stdin) == NULL)
 		err(2, "%s", PREFIX);

@@ -1,7 +1,7 @@
 # Makefile.i386 -- with config changes.
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.i386,v 1.140 1999/03/01 09:54:51 dt Exp $
+#	$Id: Makefile.i386,v 1.141 1999/03/11 18:28:41 dg Exp $
 #
 # Makefile for FreeBSD
 #
@@ -17,7 +17,7 @@
 #
 
 # Which version of config(8) is required.
-%VERSREQ=	300009
+%VERSREQ=	300010
 
 KERNFORMAT?=	elf
 
@@ -123,8 +123,8 @@ ${SYSTEM_OBJS}: vnode_if.h ${BEFORE_DEPEND:M*.h}
 
 clean:
 	rm -f *.o *.so *.So *.ko *.s eddep errs genassym gensetdefs \
-	      kernel linterrs makelinks param.c setdef[01].c setdefs.h \
-	      symbols.exclude symbols.sort tags \
+	      ${KERNEL} ${FULLKERNEL} linterrs makelinks param.c \
+	      setdef[01].c setdefs.h symbols.exclude symbols.sort tags \
 	      vers.c vnode_if.c vnode_if.h ${CLEAN}
 
 #lint: /tmp param.c
@@ -204,13 +204,10 @@ links:
 tags:
 	@echo "see $S/kern/Makefile for tags"
 
-install:
-	@if [ ! -f kernel ] ; then \
-		echo "You must first build your kernel before trying to install." ; \
-		exit 1 ; \
-	fi
+.if defined(DEBUG)
+install:	${KERNEL}
 .if ${KERNFORMAT} == "elf" && !defined(FORCE)
-	@if [ -f /kernel -a "`file /kernel 2>/dev/null | grep ELF`" = "" ]; then \
+	@if [ -f /${KERNEL} -a "`file /${KERNEL} 2>/dev/null | grep ELF`" = "" ]; then \
 		echo "WARNING: You are about to install an ELF kernel for the first time!" ; \
 		echo "Please be sure you have upgraded your bootblocks and/or /boot/loader so" ; \
 		echo "that you can boot it.  Old bootblocks WILL NOT WORK!  Please read:" ; \
@@ -219,18 +216,51 @@ install:
 		exit 1 ; \
 	fi
 .endif
-.if exists(${DESTDIR}/kernel)
-	-chflags noschg ${DESTDIR}/kernel
-	mv ${DESTDIR}/kernel ${DESTDIR}/kernel.old
+.if exists(${DESTDIR}/${KERNEL})
+	-chflags noschg ${DESTDIR}/${KERNEL}
+	mv ${DESTDIR}/${KERNEL} ${DESTDIR}/${KERNEL}.old
 .endif
 	PATH=$${PATH}:/sbin:/usr/sbin; \
-	if [ `sysctl -n kern.bootfile` = ${DESTDIR}/kernel ] ; then \
-		sysctl -w kern.bootfile=${DESTDIR}/kernel.old ; \
+	if [ `sysctl -n kern.bootfile` = ${DESTDIR}/${KERNEL} ] ; then \
+		sysctl -w kern.bootfile=${DESTDIR}/${KERNEL}.old ; \
 		if [ -f /var/db/kvm_kernel.db ] ; then \
 			mv -f /var/db/kvm_kernel.db /var/db/kvm_kernel.old.db ; \
 		fi \
 	fi
-	install -c -m 555 -o root -g wheel -fschg kernel ${DESTDIR}/
+	install -c -m 555 -o root -g wheel -fschg ${KERNEL} ${DESTDIR}/
+
+${KERNEL}:  ${KERNEL}.debug
+	objcopy --strip-debug ${KERNEL}.debug ${KERNEL}
+
+.endif
+
+${INSTALL}:
+	@if [ ! -f ${FULLKERNEL} ] ; then \
+		echo "You must first build your kernel before trying to install." ; \
+		exit 1 ; \
+	fi
+.if ${KERNFORMAT} == "elf" && !defined(FORCE)
+	@if [ -f /${KERNEL} -a "`file /${KERNEL} 2>/dev/null | grep ELF`" = "" ]; then \
+		echo "WARNING: You are about to install an ELF kernel for the first time!" ; \
+		echo "Please be sure you have upgraded your bootblocks and/or /boot/loader so" ; \
+		echo "that you can boot it.  Old bootblocks WILL NOT WORK!  Please read:" ; \
+		echo "http://www.freebsd.org/~peter/elfday.html for information." ; \
+		echo "If you are satisfied you can boot an ELF kernel, type:  make -DFORCE install" ; \
+		exit 1 ; \
+	fi
+.endif
+.if exists(${DESTDIR}/${KERNEL})
+	-chflags noschg ${DESTDIR}/${KERNEL}
+	mv ${DESTDIR}/${KERNEL} ${DESTDIR}/${KERNEL}.old
+.endif
+	PATH=$${PATH}:/sbin:/usr/sbin; \
+	if [ `sysctl -n kern.bootfile` = ${DESTDIR}/${KERNEL} ] ; then \
+		sysctl -w kern.bootfile=${DESTDIR}/${KERNEL}.old ; \
+		if [ -f /var/db/kvm_kernel.db ] ; then \
+			mv -f /var/db/kvm_kernel.db /var/db/kvm_kernel.old.db ; \
+		fi \
+	fi
+	install -c -m 555 -o root -g wheel -fschg ${FULLKERNEL} ${DESTDIR}/${KERNEL}
 
 config.o:
 	${NORMAL_C}
