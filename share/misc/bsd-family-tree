@@ -49,7 +49,7 @@ Ninth Edition     |              / 2.10.1BSD
      |            |                \     |
      v            |                  2.11BSD
 Tenth Edition     |                      |
-                  |                  2.11BSD rev #366
+                  |                  2.11BSD rev #430
                4.3BSD NET/1              |
                   |                      v
                4.3BSD Reno
@@ -206,7 +206,7 @@ Tenth   Edition         1989-10-xx [QCU]
 2.10BSD			1987-04-xx [KKK]
 2.10.1BSD		1989-01-xx [SMS]
 2.11BSD			1992-02-xx [SMS]
-2.11BSD rev #366	1997-02-xx [SMS]
+2.11BSD rev #430	1999-12-13 [SMS]
 
 32V			1978-1[01]-xx [QCU]
 3BSD                    late 1979 [QCU]
