@@ -25,7 +25,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * dev_table.c,v 1.6 1994/10/01 02:16:31 swallace Exp
  */
 
 #define _DEV_TABLE_C_
@@ -53,6 +52,8 @@ sndtable_init (long mem_start)
   int             i, n = sizeof (snd_installed_cards) / sizeof (struct card_info);
   int             drv;
 
+  printk ("Sound initialization started\n");
+
   for (i = 0; i < (n - 1); i++)
     if (snd_installed_cards[i].enabled)
       if ((drv = snd_find_driver (snd_installed_cards[i].card_type)) == -1)
@@ -78,55 +79,20 @@ sndtable_init (long mem_start)
 	snd_installed_cards[i].enabled = 0;	/*
 						 * Mark as not detected
 						 */
+  printk ("Sound initialization complete\n");
   return mem_start;
 }
 
 int
 sndtable_probe (int unit, struct address_info *hw_config)
-  {
-    int             i, n = sizeof (snd_installed_cards) / sizeof (struct card_info);
+{
+  int             i, n = sizeof (snd_installed_cards) / sizeof (struct card_info);
 
-    if (!unit)
-      return TRUE;
+  if (!unit)
+    return TRUE;
 
-    for (i = 0; i < (n - 1); i++)
-      if (snd_installed_cards[i].enabled)
-	if (snd_installed_cards[i].card_type == unit)
-	  {
-	    int             drv;
-
-	    snd_installed_cards[i].config.io_base = hw_config->io_base;
-	    snd_installed_cards[i].config.irq = hw_config->irq;
-	    snd_installed_cards[i].config.dma = hw_config->dma;
-	    if ((drv = snd_find_driver (snd_installed_cards[i].card_type)) == -1)
-	      snd_installed_cards[i].enabled = 0;	/*
-							 * Mark as not
-							 * detected
-							 */
-	    else if (sound_drivers[drv].probe (hw_config))
-	      return 1;
-	    snd_installed_cards[i].enabled = 0;	/*
-						 * Mark as not detected
-						 */
-	    return 0;
-	  }
-
-    return FALSE;
-  }
-
-int
-sndtable_init_card (int unit, struct address_info *hw_config)
-  {
-    int             i, n = sizeof (snd_installed_cards) / sizeof (struct card_info);
-
-    if (!unit)
-      {
-	if (sndtable_init (0) != 0)
-	  panic ("snd: Invalid memory allocation");
-	return TRUE;
-      }
-
-    for (i = 0; i < (n - 1); i++)
+  for (i = 0; i < (n - 1); i++)
+    if (snd_installed_cards[i].enabled)
       if (snd_installed_cards[i].card_type == unit)
 	{
 	  int             drv;
@@ -134,18 +100,54 @@ sndtable_init_card (int unit, struct address_info *hw_config)
 	  snd_installed_cards[i].config.io_base = hw_config->io_base;
 	  snd_installed_cards[i].config.irq = hw_config->irq;
 	  snd_installed_cards[i].config.dma = hw_config->dma;
-
 	  if ((drv = snd_find_driver (snd_installed_cards[i].card_type)) == -1)
-	    snd_installed_cards[i].enabled = 0;	/*
+	    snd_installed_cards[i].enabled = 0;		/*
+							 * Mark as not
+							 * detected
+							 */
+	  else if (sound_drivers[drv].probe (hw_config))
+	    return 1;
+	  snd_installed_cards[i].enabled = 0;	/*
 						 * Mark as not detected
 						 */
-	  else if (sound_drivers[drv].attach (0, hw_config) != 0)
-	    panic ("snd#: Invalid memory allocation");
-	  return TRUE;
+	  return 0;
 	}
 
-    return FALSE;
-  }
+  return FALSE;
+}
+
+int
+sndtable_init_card (int unit, struct address_info *hw_config)
+{
+  int             i, n = sizeof (snd_installed_cards) / sizeof (struct card_info);
+
+  if (!unit)
+    {
+      if (sndtable_init (0) != 0)
+	panic ("snd: Invalid memory allocation\n");
+      return TRUE;
+    }
+
+  for (i = 0; i < (n - 1); i++)
+    if (snd_installed_cards[i].card_type == unit)
+      {
+	int             drv;
+
+	snd_installed_cards[i].config.io_base = hw_config->io_base;
+	snd_installed_cards[i].config.irq = hw_config->irq;
+	snd_installed_cards[i].config.dma = hw_config->dma;
+
+	if ((drv = snd_find_driver (snd_installed_cards[i].card_type)) == -1)
+	  snd_installed_cards[i].enabled = 0;	/*
+						 * Mark as not detected
+						 */
+	else if (sound_drivers[drv].attach (0, hw_config) != 0)
+	  panic ("snd#: Invalid memory allocation\n");
+	return TRUE;
+      }
+
+  return FALSE;
+}
 
 int
 sndtable_get_cardcount (void)
@@ -160,8 +162,8 @@ sound_setup (char *str, int *ints)
   int             i, n = sizeof (snd_installed_cards) / sizeof (struct card_info);
 
   /*
- * First disable all drivers
- */
+     * First disable all drivers
+   */
 
   for (i = 0; i < n; i++)
     snd_installed_cards[i].enabled = 0;
@@ -169,8 +171,8 @@ sound_setup (char *str, int *ints)
   if (ints[0] == 0 || ints[1] == 0)
     return;
   /*
- * Then enable them one by time
- */
+     * Then enable them one by time
+   */
 
   for (i = 1; i <= ints[0]; i++)
     {
