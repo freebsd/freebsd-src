@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.30.2.5 1995/06/05 10:18:59 jkh Exp $
+ * $Id: disks.c,v 1.30.2.6 1995/06/07 10:08:22 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -86,7 +86,7 @@ print_chunks(Disk *d)
     mvaddstr(0, 0, "Disk name:\t");
     clrtobot();
     attrset(A_REVERSE); addstr(d->name); attrset(A_NORMAL);
-    attrset(A_REVERSE); mvaddstr(0, 55, "Master Partition Editor"); attrset(A_NORMAL);
+    attrset(A_REVERSE); mvaddstr(0, 55, "FDISK Partition Editor"); attrset(A_NORMAL);
     mvprintw(1, 0,
 	     "BIOS Geometry:\t%lu cyls/%lu heads/%lu sectors",
 	     d->bios_cyl, d->bios_hd, d->bios_sect);
