@@ -58,14 +58,14 @@ struct harvest {
 
 void random_init(void);
 void random_deinit(void);
-void random_init_harvester(void (*)(u_int64_t, void *, u_int, u_int, u_int, enum esource), u_int (*)(void *, u_int));
+void random_init_harvester(void (*)(u_int64_t, void *, u_int, u_int, u_int, enum esource), int (*)(void *, int));
 void random_deinit_harvester(void);
 void random_set_wakeup_exit(void *);
 void random_process_event(struct harvest *event);
 void random_reseed(void);
 void random_unblock(void);
 
-u_int read_random_real(void *, u_int);
+int read_random_real(void *, int);
 
 /* If this was c++, this would be a template */
 #define RANDOM_CHECK_UINT(name, min, max)				\
@@ -73,10 +73,10 @@ static int								\
 random_check_uint_##name(SYSCTL_HANDLER_ARGS)				\
 {									\
 	if (oidp->oid_arg1 != NULL) {					\
-		 if (*(u_int *)(oidp->oid_arg1) < min)			\
-			*(u_int *)(oidp->oid_arg1) = min;		\
-		 else if (*(u_int *)(oidp->oid_arg1) > max)		\
-			*(u_int *)(oidp->oid_arg1) = max;		\
+		 if (*(u_int *)(oidp->oid_arg1) <= (min))		\
+			*(u_int *)(oidp->oid_arg1) = (min);		\
+		 else if (*(u_int *)(oidp->oid_arg1) > (max))		\
+			*(u_int *)(oidp->oid_arg1) = (max);		\
 	}								\
         return sysctl_handle_int(oidp, oidp->oid_arg1, oidp->oid_arg2,	\
 		req);							\

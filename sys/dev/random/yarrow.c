@@ -29,13 +29,10 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/libkern.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
-#include <sys/selinfo.h>
 #include <sys/random.h>
 #include <sys/sysctl.h>
-#include <sys/types.h>
 
 #include <crypto/rijndael/rijndael.h>
 
@@ -81,8 +78,9 @@ static struct mtx random_reseed_mtx;
 void
 random_process_event(struct harvest *event)
 {
-	u_int pl, src, overthreshhold[2];
+	u_int pl, overthreshhold[2];
 	struct source *source;
+	enum esource src;
 
 	/* Unpack the event into the appropriate source accumulator */
 	pl = random_state.which;
@@ -98,7 +96,7 @@ random_process_event(struct harvest *event)
 	/* Count the over-threshold sources in each pool */
 	for (pl = 0; pl < 2; pl++) {
 		overthreshhold[pl] = 0;
-		for (src = 0; src < ENTROPYSOURCE; src++) {
+		for (src = RANDOM_START; src < ENTROPYSOURCE; src++) {
 			if (random_state.pool[pl].source[src].bits
 				> random_state.pool[pl].thresh)
 				overthreshhold[pl]++;
@@ -160,7 +158,8 @@ reseed(u_int fastslow)
 	static struct yarrowhash context;
 	u_char hash[KEYSIZE];			/* h' */
 	u_char temp[KEYSIZE];
-	u_int i, j;
+	u_int i;
+	enum esource j;
 
 #ifdef DEBUG
 	mtx_lock(&Giant);
@@ -222,7 +221,7 @@ reseed(u_int fastslow)
 	/* 5. Reset entropy estimate accumulators to zero */
 
 	for (i = 0; i <= fastslow; i++) {
-		for (j = 0; j < ENTROPYSOURCE; j++) {
+		for (j = RANDOM_START; j < ENTROPYSOURCE; j++) {
 			random_state.pool[i].source[j].bits = 0;
 			random_state.pool[i].source[j].frac = 0;
 		}
@@ -253,14 +252,14 @@ reseed(u_int fastslow)
 /* Internal function to do return processed entropy from the
  * Yarrow PRNG
  */
-u_int
-read_random_real(void *buf, u_int count)
+int
+read_random_real(void *buf, int count)
 {
 	static int cur = 0;
 	static int gate = 1;
 	static u_char genval[KEYSIZE];
-	u_int i;
-	u_int retval;
+	int i;
+	int retval;
 
 	/* The reseed task must not be jumped on */
 	mtx_lock(&random_reseed_mtx);
@@ -270,9 +269,9 @@ read_random_real(void *buf, u_int count)
 		random_state.outputblocks = 0;
 		gate = 0;
 	}
-	if (count >= sizeof(random_state.counter)) {
+	if (count > 0 && (size_t)count >= sizeof(random_state.counter)) {
 		retval = 0;
-		for (i = 0; i < count; i += sizeof(random_state.counter)) {
+		for (i = 0; i < count; i += (int)sizeof(random_state.counter)) {
 			random_state.counter[0]++;
 			yarrow_encrypt(&random_state.key, random_state.counter,
 				genval);
@@ -283,7 +282,7 @@ read_random_real(void *buf, u_int count)
 				generator_gate();
 				random_state.outputblocks = 0;
 			}
-			retval += sizeof(random_state.counter);
+			retval += (int)sizeof(random_state.counter);
 		}
 	}
 	else {
@@ -291,8 +290,8 @@ read_random_real(void *buf, u_int count)
 			random_state.counter[0]++;
 			yarrow_encrypt(&random_state.key, random_state.counter,
 				genval);
-			memcpy(buf, genval, count);
-			cur = sizeof(random_state.counter) - count;
+			memcpy(buf, genval, (size_t)count);
+			cur = (int)sizeof(random_state.counter) - count;
 			if (++random_state.outputblocks >=
 				random_state.gengateinterval) {
 				generator_gate();
@@ -302,8 +301,9 @@ read_random_real(void *buf, u_int count)
 		}
 		else {
 			retval = cur < count ? cur : count;
-			memcpy(buf, &genval[sizeof(random_state.counter) - cur],
-				retval);
+			memcpy(buf,
+			    &genval[(int)sizeof(random_state.counter) - cur],
+			    (size_t)retval);
 			cur -= retval;
 		}
 	}
