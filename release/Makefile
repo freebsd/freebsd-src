@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.193.2.17 1995/10/04 10:31:52 jkh Exp $
+#	$Id: Makefile,v 1.193.2.18 1995/10/04 12:07:26 jkh Exp $
 #
 # How to roll a release:
 #
@@ -187,7 +187,8 @@ release.2:
 	install -m 444 -o bin -g bin libgcc.so.261.0 ${RD}/trees/bin/usr/lib
 	touch release.2
 
-# Make and install a couple of kernels we need.
+# Make and install a couple of kernels we need.  To keep BOOTMFS smaller,
+# we cull out certain options (see fgrep -v) before building it.
 release.3:
 	rm -rf ${RD}/kernels
 	mkdir -p ${RD}/kernels
@@ -195,11 +196,13 @@ release.3:
 	cd ${.CURDIR}/../sys/i386/conf && \
 		fgrep -v SYSV GENERIC | \
 		fgrep -v pty | \
+		fgrep -v PROCFS | \
 		sed 's/GENERIC/BOOTMFS/g' > BOOTMFS && \
 		echo "options  \"MFS_ROOT=${BOOTMFSSIZE}\"" >> BOOTMFS && \
 		echo "options  MFS" >> BOOTMFS && \
 		fgrep -v SYSV ATAPI | \
 		fgrep -v pty | \
+		fgrep -v PROCFS | \
 		sed 's/ATAPI/BOOTMFS/g' > BOOTMFS_A && \
 		echo "options  \"MFS_ROOT=${BOOTMFSSIZE}\"" >> BOOTMFS_A && \
 		echo "options  MFS" >> BOOTMFS_A
