@@ -169,7 +169,6 @@ struct sbp_ocb {
 #define SBP_RESOURCE_SHORTAGE 0x10
 
 struct sbp_login_res{
-#if FW_ENDIANSWAP == 0 && BYTE_ORDER == LITTLE_ENDIAN
 	u_int16_t	len;
 	u_int16_t	id;
 	u_int16_t	res0;
@@ -177,18 +176,8 @@ struct sbp_login_res{
 	u_int32_t	cmd_lo;
 	u_int16_t	res1;
 	u_int16_t	recon_hold;
-#else
-	u_int16_t	id;
-	u_int16_t	len;
-	u_int16_t	cmd_hi;
-	u_int16_t	res0;
-	u_int32_t	cmd_lo;
-	u_int16_t	recon_hold;
-	u_int16_t	res1;
-#endif
 };
 struct sbp_status{
-#if FW_ENDIANSWAP == 0 && BYTE_ORDER == LITTLE_ENDIAN
 	u_int8_t	len:3,
 			dead:1,
 			resp:2,
@@ -197,21 +186,10 @@ struct sbp_status{
 	u_int16_t	orb_hi;
 	u_int32_t	orb_lo;
 	u_int32_t	data[6];
-#else
-	u_int16_t	orb_hi;
-	u_int8_t	status:8;
-	u_int8_t	len:3,
-			dead:1,
-			resp:2,
-			src:2;
-	u_int32_t	orb_lo;
-	u_int32_t	data[6];
-#endif
 };
 struct sbp_cmd_status{
 #define SBP_SFMT_CURR 0
 #define SBP_SFMT_DEFER 1
-#if FW_ENDIANSWAP == 0 && BYTE_ORDER == LITTLE_ENDIAN
 	u_int8_t	status:6,
 			sfmt:2;
 	u_int8_t	s_key:4,
@@ -226,22 +204,6 @@ struct sbp_cmd_status{
 	u_int32_t	fru:8,
 			s_keydep:24;
 	u_int32_t	vend[2];
-#else
-	u_int8_t	s_qlfr;
-	u_int8_t	s_code;
-	u_int8_t	s_key:4,
-			ill_len:1,
-			eom:1,
-			mark:1,
-			valid:1;
-	u_int8_t	status:6,
-			sfmt:2;
-	u_int32_t	info;
-	u_int32_t	cdb;
-	u_int32_t	s_keydep:24,
-			fru:8;
-	u_int32_t	vend[2];
-#endif
 };
 
 struct sbp_dev{
