@@ -68,7 +68,7 @@ Write_Disk(const struct disk *d1)
 	int ret = 0;
 	char device[64];
 	u_char *mbr;
-	struct dos_partition *dp, work[NDOSPART];
+	struct pc98_partition *dp, work[NDOSPART];
 	int s[7];
 	int PC98_EntireDisk = 0;
 
@@ -91,7 +91,7 @@ Write_Disk(const struct disk *d1)
 
 	memset(s, 0, sizeof s);
 	mbr = read_block(fd, 1, d1->sector_size);
-	dp = (struct dos_partition *)(mbr + DOSPARTOFF);
+	dp = (struct pc98_partition *)(mbr + DOSPARTOFF);
 	memcpy(work, dp, sizeof work);
 	dp = work;
 	free(mbr);

@@ -83,7 +83,7 @@ struct mboot {
 	unsigned char padding[2]; /* force the longs to be long aligned */
 	unsigned char bootinst[510];
 	unsigned short int	signature;
-	struct	dos_partition parts[8];
+	struct	pc98_partition parts[8];
 	unsigned char large_sector_overflow[MAX_SEC_SIZE-MIN_SEC_SIZE];
 };
 #else /* PC98 */
@@ -219,7 +219,7 @@ main(int argc, char *argv[])
 	struct	stat sb;
 	int	c, i;
 	int	partition = -1;
-	struct	dos_partition *partp;
+	struct	pc98_partition *partp;
 
 #ifdef PC98
 	while ((c = getopt(argc, argv, "Ba:f:istuv12345678")) != -1)
@@ -319,7 +319,7 @@ main(int argc, char *argv[])
 #ifdef PC98
 		printf("Part  %11s %11s SID\n", "Start", "Size");
 		for (i = 0; i < NDOSPART; i++) {
-			partp = ((struct dos_partition *) &mboot.parts) + i;
+			partp = ((struct pc98_partition *) &mboot.parts) + i;
 			if (partp->dp_sid == 0)
 				continue;
 			printf("%4d: %11lu %11lu 0x%02x\n", i + 1,
@@ -437,17 +437,17 @@ print_s0(int which)
 		print_part(which);
 }
 
-static struct dos_partition mtpart;
+static struct pc98_partition mtpart;
 
 static void
 print_part(int i)
 {
-	struct	  dos_partition *partp;
+	struct	  pc98_partition *partp;
 	u_int64_t part_sz, part_mb;
 
-	partp = ((struct dos_partition *) &mboot.parts) + i - 1;
+	partp = ((struct pc98_partition *) &mboot.parts) + i - 1;
 
-	if (!bcmp(partp, &mtpart, sizeof (struct dos_partition))) {
+	if (!bcmp(partp, &mtpart, sizeof (struct pc98_partition))) {
 		printf("<UNUSED>\n");
 		return;
 	}
@@ -522,8 +522,8 @@ static void
 init_sector0(unsigned long start)
 {
 #ifdef PC98
-	struct dos_partition *partp =
-		(struct dos_partition *)(&mboot.parts[3]);
+	struct pc98_partition *partp =
+		(struct pc98_partition *)(&mboot.parts[3]);
 	unsigned long size = disksecs - start;
 
 	init_boot();
@@ -557,7 +557,8 @@ init_sector0(unsigned long start)
 static void
 change_part(int i)
 {
-	struct dos_partition *partp = ((struct dos_partition *) &mboot.parts) + i - 1;
+	struct pc98_partition *partp =
+		((struct pc98_partition *) &mboot.parts) + i - 1;
 
     printf("The data for partition %d is:\n", i);
     print_part(i);
@@ -566,7 +567,7 @@ change_part(int i)
 	int tmp;
 
 	if (i_flag) {
-		bzero((char *)partp, sizeof (struct dos_partition));
+		bzero((char *)partp, sizeof (struct pc98_partition));
 		if (i == 4) {
 			init_sector0(1);
 			printf("\nThe static data for the DOS partition 4 has been reinitialized to:\n");
@@ -669,7 +670,7 @@ static void
 change_active(int which)
 {
 #ifdef PC98
-	struct dos_partition *partp = ((struct dos_partition *) &mboot.parts);
+	struct pc98_partition *partp = ((struct pc98_partition *) &mboot.parts);
 	int active, i, tmp;
 
 	active = 8;
