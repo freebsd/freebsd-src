@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: atapi-cd.c,v 1.2 1998/10/08 06:41:44 sos Exp $
+ *	$Id: atapi-cd.c,v 1.3 1998/10/15 08:11:54 sos Exp $
  */
 
 #include "wdc.h"
@@ -262,9 +262,9 @@ acd_describe(struct acd *cdp)
     printf("acd%d: drive speed ", cdp->lun);
     if (cdp->cap.cur_speed != cdp->cap.max_speed)
         printf("%d - ", cdp->cap.cur_speed * 1000 / 1024);
-    printf("%dKb/sec", cdp->cap.max_speed * 1000 / 1024);
+    printf("%dKB/sec", cdp->cap.max_speed * 1000 / 1024);
     if (cdp->cap.buf_size)
-        printf(", %dKb cache\n", cdp->cap.buf_size);
+        printf(", %dKB cache\n", cdp->cap.buf_size);
 
     printf("acd%d: supported read  types:", cdp->lun);
     comma = 0;
