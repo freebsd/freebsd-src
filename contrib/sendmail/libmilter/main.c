@@ -9,7 +9,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: main.c,v 8.34.4.5 2000/07/14 06:16:57 msk Exp $";
+static char id[] = "@(#)$Id: main.c,v 8.34.4.9 2000/09/09 02:23:03 gshapiro Exp $";
 #endif /* ! lint */
 
 #if _FFR_MILTER
@@ -43,7 +43,7 @@ smfi_register(smfilter)
 		if (smfi == NULL)
 			return MI_FAILURE;
 	}
-	(void)memcpy(smfi, &smfilter, sizeof *smfi);
+	(void) memcpy(smfi, &smfilter, sizeof *smfi);
 	if (smfilter.xxfi_name == NULL)
 		smfilter.xxfi_name = "Unknown";
 
@@ -67,9 +67,27 @@ smfi_register(smfilter)
 	return MI_SUCCESS;
 }
 
+/*
+**  SMFI_STOP -- stop milter
+**
+**	Parameters:
+**		none.
+**
+**	Returns:
+**		success.
+*/
+
+int
+smfi_stop()
+{
+	mi_stop_milters(MILTER_STOP);
+	return MI_SUCCESS;
+}
+
 static int dbg = 0;
 static char *conn = NULL;
 static int timeout = MI_TIMEOUT;
+static int backlog= MI_SOMAXCONN;
 
 int
 smfi_setdbg(odbg)
@@ -104,6 +122,16 @@ smfi_setconn(oconn)
 }
 
 int
+smfi_setbacklog(obacklog)
+	int obacklog;
+{
+	if (obacklog <= 0)
+		return MI_FAILURE;
+	backlog = obacklog;
+	return MI_SUCCESS;
+}
+
+int
 smfi_main()
 {
 	signal(SIGPIPE, SIG_IGN);
@@ -124,7 +152,7 @@ smfi_main()
 	}
 
 	/* Startup the listener */
-	if (mi_listener(conn, dbg, smfi, timeout) != MI_SUCCESS)
+	if (mi_listener(conn, dbg, smfi, timeout, backlog) != MI_SUCCESS)
 		return MI_FAILURE;
 
 	return MI_SUCCESS;

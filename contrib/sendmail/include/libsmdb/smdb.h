@@ -6,7 +6,7 @@
 ** forth in the LICENSE file which can be found at the top level of
 ** the sendmail distribution.
 **
-** $Id: smdb.h,v 8.29.2.1 2000/04/08 20:40:42 ca Exp $
+** $Id: smdb.h,v 8.29.2.1.2.1 2000/08/24 17:08:00 gshapiro Exp $
 */
 
 #ifndef _SMDB_H_
@@ -189,6 +189,7 @@ typedef int (*db_set_owner_func) __P((SMDB_DATABASE *db, uid_t uid,
 typedef int (*db_cursor_func) __P((SMDB_DATABASE *db,
 			      SMDB_CURSOR **cursor, u_int flags));
 
+typedef int (*db_lockfd_func) __P((SMDB_DATABASE *db));
 
 struct database_struct
 {
@@ -200,6 +201,7 @@ struct database_struct
 	db_sync_func		smdb_sync;
 	db_set_owner_func	smdb_set_owner;
 	db_cursor_func		smdb_cursor;
+	db_lockfd_func		smdb_lockfd;
 	void			*smdb_impl;
 };
 
@@ -376,4 +378,6 @@ extern int		smdb_filechanged __P((char *, char *, int,
 					      struct stat *));
 extern void		smdb_print_available_types __P((void));
 extern char		*smdb_db_definition __P((SMDB_DBTYPE));
+extern int		smdb_lock_map __P((SMDB_DATABASE *, int));
+extern int		smdb_unlock_map __P((SMDB_DATABASE *));
 #endif /* ! _SMDB_H_ */

@@ -9,7 +9,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: listener.c,v 8.38.2.1.2.7 2000/05/25 21:44:26 gshapiro Exp $";
+static char id[] = "@(#)$Id: listener.c,v 8.38.2.1.2.11 2000/09/01 00:49:04 ca Exp $";
 #endif /* ! lint */
 
 #if _FFR_MILTER
@@ -35,14 +35,14 @@ static char id[] = "@(#)$Id: listener.c,v 8.38.2.1.2.7 2000/05/25 21:44:26 gshap
 **		socket upon success, error code otherwise.
 */
 
-static int
+static socket_t
 mi_milteropen(conn, backlog, socksize, name)
 	char *conn;
 	int backlog;
 	SOCKADDR_LEN_T *socksize;
 	char *name;
 {
-	int sock = 0;
+	socket_t sock;
 	int sockopt = 1;
 	char *p;
 	char *colon;
@@ -54,7 +54,7 @@ mi_milteropen(conn, backlog, socksize, name)
 	{
 		smi_log(SMI_LOG_ERR, "%s: empty or missing socket information",
 			name);
-		return MI_INVALID_SOCKET;
+		return INVALID_SOCKET;
 	}
 	(void) memset(&addr, '\0', sizeof addr);
 
@@ -86,7 +86,7 @@ mi_milteropen(conn, backlog, socksize, name)
 			smi_log(SMI_LOG_ERR,
 				"%s: no valid socket protocols available",
 				name);
-			return MI_INVALID_SOCKET;
+			return INVALID_SOCKET;
 #  endif /* NETINET6 */
 # endif /* NETINET */
 #endif /* NETUNIX */
@@ -117,7 +117,7 @@ mi_milteropen(conn, backlog, socksize, name)
 		{
 			smi_log(SMI_LOG_ERR, "%s: unknown socket type %s",
 				name, p);
-			return MI_INVALID_SOCKET;
+			return INVALID_SOCKET;
 		}
 		*colon++ = ':';
 	}
@@ -141,7 +141,7 @@ mi_milteropen(conn, backlog, socksize, name)
 #  else /* NETINET6 */
 		smi_log(SMI_LOG_ERR, "%s: unknown socket type %s",
 			name, p);
-		return MI_INVALID_SOCKET;
+		return INVALID_SOCKET;
 #  endif /* NETINET6 */
 # endif /* NETINET */
 #endif /* NETUNIX */
@@ -162,7 +162,7 @@ mi_milteropen(conn, backlog, socksize, name)
 			errno = EINVAL;
 			smi_log(SMI_LOG_ERR, "%s: UNIX socket name %s too long",
 				name, colon);
-			return MI_INVALID_SOCKET;
+			return INVALID_SOCKET;
 		}
 # if 0
 		errno = safefile(colon, RunAsUid, RunAsGid, RunAsUserName, sff,
@@ -174,7 +174,7 @@ mi_milteropen(conn, backlog, socksize, name)
 			smi_log(SMI_LOG_ERR,
 				"%s: UNIX socket name %s unsafe",
 				name, colon);
-			return MI_INVALID_SOCKET;
+			return INVALID_SOCKET;
 		}
 # endif /* 0 */
 
@@ -225,7 +225,7 @@ mi_milteropen(conn, backlog, socksize, name)
 # ifdef NO_GETSERVBYNAME
 			smi_log(SMI_LOG_ERR, "%s: invalid port number %s",
 				name, colon);
-			return MI_INVALID_SOCKET;
+			return INVALID_SOCKET;
 # else /* NO_GETSERVBYNAME */
 			register struct servent *sp;
 
@@ -235,7 +235,7 @@ mi_milteropen(conn, backlog, socksize, name)
 				smi_log(SMI_LOG_ERR,
 					"%s: unknown port name %s",
 					name, colon);
-				return MI_INVALID_SOCKET;
+				return INVALID_SOCKET;
 			}
 			port = sp->s_port;
 # endif /* NO_GETSERVBYNAME */
@@ -286,7 +286,7 @@ mi_milteropen(conn, backlog, socksize, name)
 						smi_log(SMI_LOG_ERR,
 							"%s: Invalid numeric domain spec \"%s\"",
 							name, at);
-						return MI_INVALID_SOCKET;
+						return INVALID_SOCKET;
 					}
 				}
 				else
@@ -294,7 +294,7 @@ mi_milteropen(conn, backlog, socksize, name)
 					smi_log(SMI_LOG_ERR,
 						"%s: Invalid numeric domain spec \"%s\"",
 						name, at);
-					return MI_INVALID_SOCKET;
+					return INVALID_SOCKET;
 				}
 			}
 			else
@@ -305,7 +305,7 @@ mi_milteropen(conn, backlog, socksize, name)
 					smi_log(SMI_LOG_ERR,
 						"%s: Unknown host name %s",
 						name, at);
-					return MI_INVALID_SOCKET;
+					return INVALID_SOCKET;
 				}
 				addr.sa.sa_family = hp->h_addrtype;
 				switch (hp->h_addrtype)
@@ -332,7 +332,7 @@ mi_milteropen(conn, backlog, socksize, name)
 					smi_log(SMI_LOG_ERR,
 						"%s: Unknown protocol for %s (%d)",
 						name, at, hp->h_addrtype);
-					return MI_INVALID_SOCKET;
+					return INVALID_SOCKET;
 				}
 			}
 		}
@@ -361,7 +361,7 @@ mi_milteropen(conn, backlog, socksize, name)
 		smi_log(SMI_LOG_ERR,
 			"%s: Unable to create new socket: %s",
 			name, strerror(errno));
-		return MI_INVALID_SOCKET;
+		return INVALID_SOCKET;
 	}
 
 	if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (void *) &sockopt,
@@ -370,7 +370,7 @@ mi_milteropen(conn, backlog, socksize, name)
 		smi_log(SMI_LOG_ERR,
 			"%s: Unable to setsockopt: %s", name, strerror(errno));
 		(void) close(sock);
-		return MI_INVALID_SOCKET;
+		return INVALID_SOCKET;
 	}
 
 	if (bind(sock, &addr.sa, *socksize) < 0)
@@ -379,7 +379,7 @@ mi_milteropen(conn, backlog, socksize, name)
 			"%s: Unable to bind to port %s: %s",
 			name, conn, strerror(errno));
 		(void) close(sock);
-		return MI_INVALID_SOCKET;
+		return INVALID_SOCKET;
 	}
 
 	if (listen(sock, backlog) < 0)
@@ -387,7 +387,7 @@ mi_milteropen(conn, backlog, socksize, name)
 		smi_log(SMI_LOG_ERR,
 			"%s: listen call failed: %s", name, strerror(errno));
 		(void) close(sock);
-		return MI_INVALID_SOCKET;
+		return INVALID_SOCKET;
 	}
 
 	return sock;
@@ -409,8 +409,30 @@ mi_thread_handle_wrapper(arg)
 	return (void *) mi_handle_session(arg);
 }
 
+static socket_t listenfd = INVALID_SOCKET;
+
 /*
-**  MI_MILTER_LISTENER -- Generic listener harness
+**  MI_CLOSENER -- close listen socket
+**
+**	Parameters:
+**		none.
+**
+**	Returns:
+**		none.
+*/
+
+void
+mi_closener()
+{
+	if (ValidSocket(listenfd))
+	{
+		(void) close(listenfd);
+		listenfd = INVALID_SOCKET;
+	}
+}
+
+/*
+**  MI_LISTENER -- Generic listener harness
 **
 **	Open up listen port
 **	Wait for connections
@@ -428,14 +450,14 @@ mi_thread_handle_wrapper(arg)
 */
 
 int
-mi_listener(conn, dbg, smfi, timeout)
+mi_listener(conn, dbg, smfi, timeout, backlog)
 	char *conn;
 	int dbg;
 	smfiDesc_ptr smfi;
 	time_t timeout;
+	int backlog;
 {
-	int connfd = -1;
-	int listenfd = -1;
+	socket_t connfd = INVALID_SOCKET;
 	int sockopt = 1;
 	int r;
 	int ret = MI_SUCCESS;
@@ -453,8 +475,8 @@ mi_listener(conn, dbg, smfi, timeout)
 		smi_log(SMI_LOG_DEBUG,
 			"%s: Opening listen socket on conn %s",
 			smfi->xxfi_name, conn);
-	if ((listenfd = mi_milteropen(conn, SOMAXCONN, &socksize,
-				      smfi->xxfi_name)) < 0)
+	listenfd = mi_milteropen(conn, backlog, &socksize, smfi->xxfi_name);
+	if (!ValidSocket(listenfd))
 	{
 		smi_log(SMI_LOG_FATAL,
 			"%s: Unable to create listening socket on conn %s",
@@ -498,7 +520,7 @@ mi_listener(conn, dbg, smfi, timeout)
 		connfd = accept(listenfd, (struct sockaddr *) &cliaddr,
 				&clilen);
 
-		if (connfd < 0)
+		if (!ValidSocket(connfd))
 		{
 			smi_log(SMI_LOG_ERR,
 				"%s: accept() returned invalid socket",
