@@ -601,13 +601,14 @@ static int xussr[] = {
 #define OFFSET	7.00
 static int australia[] = {
 	83,	(int)( 45.00 * FREQFACTOR),	0,
-	28,	(int)(520.00 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
-	14,	(int)(471.25 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
-	11,	(int)(214.50 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
-	10,	(int)(201.50 * FREQFACTOR),	(int)( 13.00 * FREQFACTOR),
-	 7,	(int)(174.00 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
-	 3,	(int)( 85.00 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
-	 2,	(int)( 56.00 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
+	28,	(int)(521.00 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
+	/* ch 14?? what's this, cable? Air channels are 0-11 and 28-69 */
+	14,	(int)(471.00 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
+	10,	(int)(203.00 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
+	 6,	(int)(169.00 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
+	 4,	(int)( 89.00 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
+	 3,	(int)( 80.00 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
+	 1,	(int)( 51.00 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
 	 0
 };
 #undef OFFSET
@@ -738,6 +739,9 @@ tv_freq( bktr_ptr_t bktr, int frequency, int type )
 	u_char			band;
 	int			N;
 	int			band_select = 0;
+#if defined( TEST_TUNER_AFC )
+	int			oldFrequency, afcDelta;
+#endif
 
 	tuner = bktr->card.tuner;
 	if ( tuner == NULL )
@@ -789,13 +793,24 @@ tv_freq( bktr_ptr_t bktr, int frequency, int type )
 
 #if defined( TUNER_AFC )
 		if ( bktr->tuner.afc == TRUE ) {
+#if defined( TEST_TUNER_AFC )
+			oldFrequency = frequency;
+#endif
 			if ( (N = do_afc( bktr, addr, N )) < 0 ) {
 			    /* AFC failed, restore requested frequency */
 			    N = frequency + TBL_IF;
+#if defined( TEST_TUNER_AFC )
+			    printf("do_afc: failed to lock\n");
+#endif
 			    i2cWrite( bktr, addr, (N>>8) & 0x7f, N & 0xff );
 			}
 			else
 			    frequency = N - TBL_IF;
+#if defined( TEST_TUNER_AFC )
+ printf("do_afc: returned freq %d (%d %% %d)\n", frequency, frequency / 16, frequency % 16);
+			    afcDelta = frequency - oldFrequency;
+ printf("changed by: %d clicks (%d mod %d)\n", afcDelta, afcDelta / 16, afcDelta % 16);
+#endif
 			}
 #endif /* TUNER_AFC */
 
@@ -825,8 +840,7 @@ tv_freq( bktr_ptr_t bktr, int frequency, int type )
 		if(!(band && control))		/* Don't try to set un-	*/
 		  return(-1);			/* supported modes.	*/
 	  
-/*		band |= bktr->tuner.radio_mode;*/
-						/* tuner.radio_mode is set in
+		band |= bktr->tuner.radio_mode; /* tuner.radio_mode is set in
 						 * the ioctls RADIO_SETMODE
 						 * and RADIO_GETMODE */
 
