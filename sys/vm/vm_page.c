@@ -1052,7 +1052,7 @@ vm_page_activate(vm_page_t m)
 {
 	int s;
 
-	GIANT_REQUIRED;
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	s = splvm();
 	if (m->queue != PQ_ACTIVE) {
 		if ((m->queue - m->pc) == PQ_CACHE)
