@@ -536,7 +536,6 @@ struct vop_bwrite_args;
 
 extern int	(*lease_check_hook) __P((struct vop_lease_args *));
 
-void	addalias __P((struct vnode *vp, dev_t nvp_rdev));
 struct	vnode *addaliasu __P((struct vnode *vp, udev_t nvp_rdev));
 int 	bdevvp __P((dev_t dev, struct vnode **vpp));
 /* cache_* may belong in namei.h. */
