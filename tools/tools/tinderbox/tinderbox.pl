@@ -480,7 +480,7 @@ MAIN:{
 	    $ENV{$key} = $userenv{$key};
 	}
     }
-    if ($verbose > 1) {
+    if ($verbose && $verbose > 1) {
 	foreach my $key (sort(keys(%ENV))) {
 	    message("$key=$ENV{$key}\n");
 	}
