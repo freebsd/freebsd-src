@@ -5,7 +5,7 @@ PROG=	init
 MAN8=	init.8
 BINMODE=500
 INSTALLFLAGS=-fschg
-CFLAGS+=-DDEBUGSHELL -DSECURE
+CFLAGS+=-DDEBUGSHELL -DSECURE -DLOGIN_CAP
 
 .if exists(../../secure) && !defined(NOCRYPT) && !defined(NOSECURE)
 DISTRIBUTION=des
