@@ -41,7 +41,11 @@ static const char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static const char sccsid[] = "@(#)col.c	8.5 (Berkeley) 5/4/95";
+#if 0
+static char sccsid[] = "@(#)col.c	8.5 (Berkeley) 5/4/95";
+#endif
+static const char rcsid[] =
+  "$FreeBSD$";
 #endif /* not lint */
 
 #include <ctype.h>
@@ -146,11 +150,8 @@ main(argc, argv)
 			compress_spaces = 1;
 			break;
 		case 'l':		/* buffered line count */
-			if ((max_bufd_lines = atoi(optarg)) <= 0) {
-				(void)fprintf(stderr,
-				    "col: bad -l argument %s.\n", optarg);
-				exit(1);
-			}
+			if ((max_bufd_lines = atoi(optarg)) <= 0)
+				errx(1, "bad -l argument %s", optarg);
 			break;
 		case 'x':		/* do not compress spaces into tabs */
 			compress_spaces = 0;
@@ -537,8 +538,7 @@ void
 wrerr()
 {
 
-	(void)fprintf(stderr, "col: write error.\n");
-	exit(1);
+	errx(1, "write error");
 }
 
 void
