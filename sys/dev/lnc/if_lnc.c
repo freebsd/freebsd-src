@@ -30,11 +30,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_lnc.c,v 1.50 1998/11/26 00:57:32 paul Exp $
+ * $Id: if_lnc.c,v 1.51 1999/01/12 00:36:30 eivind Exp $
  */
 
 /*
-#define LNC_MULTICAST
 #define DIAGNOSTIC
 #define DEBUG
  *
@@ -82,6 +81,7 @@
 #include <sys/syslog.h>
 
 #include <net/if.h>
+#include <net/if_dl.h>
 #include <net/if_types.h>
 #ifdef INET
 #include <netinet/in.h>
@@ -114,7 +114,7 @@ struct lnc_softc {
 	int next_to_send;
 	struct mbuf *mbufs;
 	int mbuf_count;
-	int initialised;
+	int flags;
 	int rap;
 	int rdp;
 	int bdp;
@@ -148,9 +148,7 @@ static char const * const ic_ident[] = {
 	"PCnet-FAST+",
 };
 
-#ifdef LNC_MULTICAST
 static void lnc_setladrf __P((struct lnc_softc *sc));
-#endif
 static void lnc_stop __P((struct lnc_softc *sc));
 static void lnc_reset __P((struct lnc_softc *sc));
 static void lnc_free_mbufs __P((struct lnc_softc *sc));
@@ -223,33 +221,28 @@ read_bcr(struct lnc_softc *sc, u_short port)
 	return (inw(sc->bdp));
 }
 
-#ifdef LNC_MULTICAST
 static __inline u_long
-ether_crc(u_char *ether_addr)
+ether_crc(const u_char *ether_addr)
 {
-#define POLYNOMIAL 0x04c11db6
-	u_long crc = 0xffffffffL;
-	int i, j, carry;
-	u_char b;
+#define POLYNOMIAL           0xEDB88320UL
+    u_char i, j, addr;
+    u_int crc = 0xFFFFFFFFUL;
 
-	for (i = ETHER_ADDR_LEN; --i >= 0;) {
-		b = *ether_addr++;
-		for (j = 8; --j >= 0;) {
-			carry  = ((crc & 0x80000000L) ? 1 : 0) ^ (b & 0x01);
-			crc <<= 1;
-			b >>= 1;
-			if (carry)
-				crc = ((crc ^ POLYNOMIAL) | carry);
-		}
+    for (i = 0; i < ETHER_ADDR_LEN; i++) {
+	addr = *ether_addr++;
+	for (j = 0; j < MULTICAST_FILTER_LEN; j++) {
+	    crc = (crc >> 1) ^ (((crc ^ addr) & 1) ? POLYNOMIAL : 0);   
+	    addr >>= 1;
 	}
-	return crc;
+    }
+    return crc;
 #undef POLYNOMIAL
 }
 
 /*
  * Set up the logical address filter for multicast packets
  */
-static void
+static __inline void
 lnc_setladrf(struct lnc_softc *sc)
 {
 	struct ifnet *ifp = &sc->arpcom.ac_if;
@@ -257,31 +250,30 @@ lnc_setladrf(struct lnc_softc *sc)
 	u_long index;
 	int i;
 
-	/* If promiscuous mode is set then all packets are accepted anyway */
-	if (ifp->if_flags & IFF_PROMISC) {
-		ifp->if_flags |= IFF_ALLMULTI;
-		for (i = 0; i < MULTICAST_FILTER_LEN; i++)
-			sc->init_block->ladrf[i] = 0xff;
-		return;
-	}   
+	if (sc->flags & IFF_ALLMULTI) {
+	    for (i=0; i < MULTICAST_FILTER_LEN; i++)
+		sc->init_block->ladrf[i] = 0xFF;
+	    return;
+	}
 
-/*
- * For each multicast address, calculate a crc for that address and
- * then use the high order 6 bits of the crc as a hash code where
- * bits 3-5 select the byte of the address filter and bits 0-2 select
- * the bit within that byte.
- */
+	/*
+	 * For each multicast address, calculate a crc for that address and
+	 * then use the high order 6 bits of the crc as a hash code where
+	 * bits 3-5 select the byte of the address filter and bits 0-2 select
+	 * the bit within that byte.
+	 */
 
 	bzero(sc->init_block->ladrf, MULTICAST_FILTER_LEN);
 	for (ifma = ifp->if_multiaddrs.lh_first; ifma;
 	     ifma = ifma->ifma_link.le_next) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
-		index = ether_crc(LLADDR((struct sockaddr_dl *)ifma->ifma_addr)) >> 26;
+
+		index = ether_crc(LLADDR((struct sockaddr_dl *)ifma->ifma_addr))
+				>> 26;
 		sc->init_block->ladrf[index >> 3] |= 1 << (index & 7);
 	}
 }
-#endif /* LNC_MULTICAST */
 
 static void
 lnc_stop(struct lnc_softc *sc)
@@ -1239,7 +1231,7 @@ lnc_attach_sc(struct lnc_softc *sc, int unit)
 	sc->arpcom.ac_if.if_name = lncdriver.name;
 	sc->arpcom.ac_if.if_unit = unit;
 	sc->arpcom.ac_if.if_mtu = ETHERMTU;
-	sc->arpcom.ac_if.if_flags = IFF_BROADCAST | IFF_SIMPLEX;
+	sc->arpcom.ac_if.if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	sc->arpcom.ac_if.if_timer = 0;
 	sc->arpcom.ac_if.if_output = ether_output;
 	sc->arpcom.ac_if.if_start = lnc_start;
@@ -1398,7 +1390,7 @@ lnc_init(struct lnc_softc *sc)
 		sc->mbuf_count = 0;
 
 		/* Free previously allocated mbufs */
-		if (sc->initialised)
+		if (sc->flags & LNC_INITIALISED)
 			lnc_free_mbufs(sc);
 
 
@@ -1445,12 +1437,7 @@ lnc_init(struct lnc_softc *sc)
 	for (i = 0; i < ETHER_ADDR_LEN; i++)
 		sc->init_block->padr[i] = sc->arpcom.ac_enaddr[i];
 
-#ifdef LNC_MULTICAST
-			lnc_setladrf(sc);
-#else
-	for (i = 0; i < MULTICAST_FILTER_LEN; i++)
-		sc->init_block->ladrf[i] = MULTI_INIT_ADDR;
-#endif
+	lnc_setladrf(sc);
 
 	sc->init_block->rdra = kvtop(sc->recv_ring->md);
 	sc->init_block->rlen = ((kvtop(sc->recv_ring->md) >> 16) & 0xff) | (sc->nrdre << 13);
@@ -1458,8 +1445,8 @@ lnc_init(struct lnc_softc *sc)
 	sc->init_block->tlen = ((kvtop(sc->trans_ring->md) >> 16) & 0xff) | (sc->ntdre << 13);
 
 
-	/* Set initialised to show that the memory area is valid */
-	sc->initialised = 1;
+	/* Set flags to show that the memory area is valid */
+	sc->flags |= LNC_INITIALISED;
 
 	sc->pending_transmits = 0;
 
@@ -1846,6 +1833,17 @@ lnc_ioctl(struct ifnet * ifp, u_long command, caddr_t data)
 			sc->nic.mode &= ~PROM;
 			lnc_init(sc);
 		}
+
+		if ((ifp->if_flags & IFF_ALLMULTI) &&
+		    !(sc->flags & LNC_ALLMULTI)) {
+			sc->flags |= LNC_ALLMULTI;
+			lnc_init(sc);
+		} else if (!(ifp->if_flags & IFF_ALLMULTI) &&
+			    (sc->flags & LNC_ALLMULTI)) {
+			sc->flags &= ~LNC_ALLMULTI;
+			lnc_init(sc);
+		}
+
 		if ((ifp->if_flags & IFF_UP) == 0 &&
 		    (ifp->if_flags & IFF_RUNNING) != 0) {
 			/*
@@ -1863,13 +1861,11 @@ lnc_ioctl(struct ifnet * ifp, u_long command, caddr_t data)
 			lnc_init(sc);
 		}
 		break;
-#ifdef LNC_MULTICAST
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
-		lnc_setladrf(sc);
+		lnc_init(sc);
 		error = 0;
 		break;
-#endif
 	case SIOCSIFMTU:
 		/*
 		 * Set the interface MTU.
