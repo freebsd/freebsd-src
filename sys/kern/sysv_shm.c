@@ -1,4 +1,4 @@
-/*	$Id: sysv_shm.c,v 1.30 1997/10/11 18:31:25 phk Exp $ */
+/*	$Id: sysv_shm.c,v 1.31 1997/10/12 20:24:03 phk Exp $ */
 /*	$NetBSD: sysv_shm.c,v 1.23 1994/07/04 23:25:12 glass Exp $	*/
 
 /*
@@ -56,13 +56,13 @@
 
 #ifndef _SYS_SYSPROTO_H_
 struct shmat_args;
-extern int shmat __P((struct proc *p, struct shmat_args *uap, int *retval));
+extern int shmat __P((struct proc *p, struct shmat_args *uap));
 struct shmctl_args;
-extern int shmctl __P((struct proc *p, struct shmctl_args *uap, int *retval));
+extern int shmctl __P((struct proc *p, struct shmctl_args *uap));
 struct shmdt_args;
-extern int shmdt __P((struct proc *p, struct shmdt_args *uap, int *retval));
+extern int shmdt __P((struct proc *p, struct shmdt_args *uap));
 struct shmget_args;
-extern int shmget __P((struct proc *p, struct shmget_args *uap, int *retval));
+extern int shmget __P((struct proc *p, struct shmget_args *uap));
 #endif
 
 static MALLOC_DEFINE(M_SHM, "shm", "SVID compatible shared memory segments");
@@ -71,9 +71,9 @@ static void shminit __P((void *));
 SYSINIT(sysv_shm, SI_SUB_SYSV_SHM, SI_ORDER_FIRST, shminit, NULL)
 
 struct oshmctl_args;
-static int oshmctl __P((struct proc *p, struct oshmctl_args *uap, int *retval));
-static int shmget_allocate_segment __P((struct proc *p, struct shmget_args *uap, int mode, int *retval));
-static int shmget_existing __P((struct proc *p, struct shmget_args *uap, int mode, int segnum, int *retval));
+static int oshmctl __P((struct proc *p, struct oshmctl_args *uap));
+static int shmget_allocate_segment __P((struct proc *p, struct shmget_args *uap, int mode));
+static int shmget_existing __P((struct proc *p, struct shmget_args *uap, int mode, int segnum));
 
 /* XXX casting to (sy_call_t *) is bogus, as usual. */
 sy_call_t *shmcalls[] = {
@@ -185,10 +185,9 @@ struct shmdt_args {
 #endif
 
 int
-shmdt(p, uap, retval)
+shmdt(p, uap)
 	struct proc *p;
 	struct shmdt_args *uap;
-	int *retval;
 {
 	struct shmmap_state *shmmap_s;
 	int i;
@@ -214,10 +213,9 @@ struct shmat_args {
 #endif
 
 int
-shmat(p, uap, retval)
+shmat(p, uap)
 	struct proc *p;
 	struct shmat_args *uap;
-	int *retval;
 {
 	int error, i, flags;
 	struct ucred *cred = p->p_ucred;
@@ -284,7 +282,7 @@ shmat(p, uap, retval)
 	shmseg->shm_lpid = p->p_pid;
 	shmseg->shm_atime = time.tv_sec;
 	shmseg->shm_nattch++;
-	*retval = attach_va;
+	p->p_retval[0] = attach_va;
 	return 0;
 }
 
@@ -307,10 +305,9 @@ struct oshmctl_args {
 };
 
 static int
-oshmctl(p, uap, retval)
+oshmctl(p, uap)
 	struct proc *p;
 	struct oshmctl_args *uap;
-	int *retval;
 {
 #ifdef COMPAT_43
 	int error;
@@ -341,7 +338,7 @@ oshmctl(p, uap, retval)
 		break;
 	default:
 		/* XXX casting to (sy_call_t *) is bogus, as usual. */
-		return ((sy_call_t *)shmctl)(p, uap, retval);
+		return ((sy_call_t *)shmctl)(p, uap);
 	}
 	return 0;
 #else
@@ -358,10 +355,9 @@ struct shmctl_args {
 #endif
 
 int
-shmctl(p, uap, retval)
+shmctl(p, uap)
 	struct proc *p;
 	struct shmctl_args *uap;
-	int *retval;
 {
 	int error;
 	struct ucred *cred = p->p_ucred;
@@ -424,12 +420,11 @@ struct shmget_args {
 #endif
 
 static int
-shmget_existing(p, uap, mode, segnum, retval)
+shmget_existing(p, uap, mode, segnum)
 	struct proc *p;
 	struct shmget_args *uap;
 	int mode;
 	int segnum;
-	int *retval;
 {
 	struct shmid_ds *shmseg;
 	struct ucred *cred = p->p_ucred;
@@ -455,16 +450,15 @@ shmget_existing(p, uap, mode, segnum, retval)
 		return EINVAL;
        if ((uap->shmflg & (IPC_CREAT | IPC_EXCL)) == (IPC_CREAT | IPC_EXCL))
 		return EEXIST;
-	*retval = IXSEQ_TO_IPCID(segnum, shmseg->shm_perm);
+	p->p_retval[0] = IXSEQ_TO_IPCID(segnum, shmseg->shm_perm);
 	return 0;
 }
 
 static int
-shmget_allocate_segment(p, uap, mode, retval)
+shmget_allocate_segment(p, uap, mode)
 	struct proc *p;
 	struct shmget_args *uap;
 	int mode;
-	int *retval;
 {
 	int i, segnum, shmid, size;
 	struct ucred *cred = p->p_ucred;
@@ -528,15 +522,14 @@ shmget_allocate_segment(p, uap, mode, retval)
 		shmseg->shm_perm.mode &= ~SHMSEG_WANTED;
 		wakeup((caddr_t)shmseg);
 	}
-	*retval = shmid;
+	p->p_retval[0] = shmid;
 	return 0;
 }
 
 int
-shmget(p, uap, retval)
+shmget(p, uap)
 	struct proc *p;
 	struct shmget_args *uap;
-	int *retval;
 {
 	int segnum, mode, error;
 
@@ -545,7 +538,7 @@ shmget(p, uap, retval)
 	again:
 		segnum = shm_find_segment_by_key(uap->key);
 		if (segnum >= 0) {
-			error = shmget_existing(p, uap, mode, segnum, retval);
+			error = shmget_existing(p, uap, mode, segnum);
 			if (error == EAGAIN)
 				goto again;
 			return error;
@@ -553,11 +546,11 @@ shmget(p, uap, retval)
 		if ((uap->shmflg & IPC_CREAT) == 0)
 			return ENOENT;
 	}
-	return shmget_allocate_segment(p, uap, mode, retval);
+	return shmget_allocate_segment(p, uap, mode);
 }
 
 int
-shmsys(p, uap, retval)
+shmsys(p, uap)
 	struct proc *p;
 	/* XXX actually varargs. */
 	struct shmsys_args /* {
@@ -566,12 +559,11 @@ shmsys(p, uap, retval)
 		int	a3;
 		int	a4;
 	} */ *uap;
-	int *retval;
 {
 
 	if (uap->which >= sizeof(shmcalls)/sizeof(shmcalls[0]))
 		return EINVAL;
-	return ((*shmcalls[uap->which])(p, &uap->a2, retval));
+	return ((*shmcalls[uap->which])(p, &uap->a2));
 }
 
 void

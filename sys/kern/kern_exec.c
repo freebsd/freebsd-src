@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.66 1997/09/21 04:22:50 dyson Exp $
+ *	$Id: kern_exec.c,v 1.67 1997/10/15 18:28:34 guido Exp $
  */
 
 #include <sys/param.h>
@@ -93,10 +93,9 @@ struct execve_args {
  * execve() system call.
  */
 int
-execve(p, uap, retval)
+execve(p, uap)
 	struct proc *p;
 	register struct execve_args *uap;
-	int *retval;
 {
 	struct nameidata nd, *ndp;
 	int *stack_base;

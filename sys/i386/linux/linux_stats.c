@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id$
+ *  $Id: linux_stats.c,v 1.8 1997/02/22 09:38:25 peter Exp $
  */
 
 #include <sys/param.h>
@@ -91,7 +91,7 @@ newstat_copyout(struct stat *buf, void *ubuf)
 }
 
 int
-linux_newstat(struct proc *p, struct linux_newstat_args *args, int *retval)
+linux_newstat(struct proc *p, struct linux_newstat_args *args)
 {
     struct stat buf;
     struct nameidata nd;
@@ -119,10 +119,9 @@ linux_newstat(struct proc *p, struct linux_newstat_args *args, int *retval)
  * Get file status; this version does not follow links.
  */
 int
-linux_newlstat(p, uap, retval)
+linux_newlstat(p, uap)
 	struct proc *p;
 	struct linux_newlstat_args *uap;
-	int *retval;
 {
 	int error;
 	struct vnode *vp, *dvp;
@@ -178,7 +177,7 @@ linux_newlstat(p, uap, retval)
 }
 
 int
-linux_newfstat(struct proc *p, struct linux_newfstat_args *args, int *retval)
+linux_newfstat(struct proc *p, struct linux_newfstat_args *args)
 {
     struct filedesc *fdp = p->p_fd;
     struct file *fp;
@@ -224,7 +223,7 @@ struct linux_statfs_buf {
 };
 
 int
-linux_statfs(struct proc *p, struct linux_statfs_args *args, int *retval)
+linux_statfs(struct proc *p, struct linux_statfs_args *args)
 {
 	struct mount *mp;
 	struct nameidata *ndp;
@@ -265,7 +264,7 @@ linux_statfs(struct proc *p, struct linux_statfs_args *args, int *retval)
 }
 
 int
-linux_fstatfs(struct proc *p, struct linux_fstatfs_args *args, int *retval)
+linux_fstatfs(struct proc *p, struct linux_fstatfs_args *args)
 {
 	struct file *fp;
 	struct mount *mp;

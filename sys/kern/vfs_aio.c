@@ -13,7 +13,7 @@
  * bad that happens because of using this software isn't the responsibility
  * of the author.  This software is distributed AS-IS.
  *
- * $Id: vfs_aio.c,v 1.7 1997/10/11 18:31:25 phk Exp $
+ * $Id: vfs_aio.c,v 1.8 1997/10/12 20:24:19 phk Exp $
  */
 
 /*
@@ -579,16 +579,15 @@ aio_startproc(void *uproc)
 static int
 aio_newproc() {
 	int error;
-	int rval[2];
 	struct rfork_args rfa;
 	struct proc *p;
 
 	rfa.flags = RFMEM | RFPROC | RFCFDG;
 
-	if (error = rfork(curproc, &rfa, &rval[0]))
+	p = curproc;
+	if (error = rfork(p, &rfa))
 		return error;
-
-	cpu_set_fork_handler(p = pfind(rval[0]), aio_startproc, curproc);
+	cpu_set_fork_handler(p = pfind(p->p_retval[0]), aio_startproc, curproc);
 
 #if DEBUGAIO > 0
 	if (debugaio > 2)
@@ -827,7 +826,7 @@ aio_aqueue(struct proc *p, struct aiocb *job, int type) {
  * Support the aio_return system call
  */
 int
-aio_return(struct proc *p, struct aio_return_args *uap, int *retval) {
+aio_return(struct proc *p, struct aio_return_args *uap) {
 	int jobref, status;
 	struct aiocblist *cb;
 	struct kaioinfo *ki;
@@ -852,7 +851,7 @@ aio_return(struct proc *p, struct aio_return_args *uap, int *retval) {
 		cb;
 		cb = TAILQ_NEXT(cb, plist)) {
 		if (((int) cb->uaiocb._aiocb_private.kernelinfo) == jobref) {
-			retval[0] = cb->uaiocb._aiocb_private.status;
+			p->p_retval[0] = cb->uaiocb._aiocb_private.status;
 			aio_free_entry(cb);
 			return 0;
 		}
@@ -906,7 +905,7 @@ aio_marksuspend(struct proc *p, int njobs, int *joblist, int set) {
  * completed.
  */
 int
-aio_suspend(struct proc *p, struct aio_suspend_args *uap, int *retval) {
+aio_suspend(struct proc *p, struct aio_suspend_args *uap) {
 	struct timeval atv, utv;
 	struct timespec ts;
 	struct aiocb *const *cbptr, *cbp;
@@ -1026,7 +1025,7 @@ aio_suspend(struct proc *p, struct aio_suspend_args *uap, int *retval) {
  * in kernel mode later on.
  */
 int
-aio_cancel(struct proc *p, struct aio_cancel_args *uap, int *retval) {
+aio_cancel(struct proc *p, struct aio_cancel_args *uap) {
 	return AIO_NOTCANCELLED;
 }
 
@@ -1036,7 +1035,7 @@ aio_cancel(struct proc *p, struct aio_cancel_args *uap, int *retval) {
  * best to do it in a userland subroutine.
  */
 int
-aio_error(struct proc *p, struct aio_error_args *uap, int *retval) {
+aio_error(struct proc *p, struct aio_error_args *uap) {
 	int activeflag, errorcode;
 	struct aiocblist *cb;
 	struct kaioinfo *ki;
@@ -1056,7 +1055,7 @@ aio_error(struct proc *p, struct aio_error_args *uap, int *retval) {
 		cb = TAILQ_NEXT(cb, plist)) {
 
 		if (((int) cb->uaiocb._aiocb_private.kernelinfo) == jobref) {
-			retval[0] = cb->uaiocb._aiocb_private.error;
+			p->p_retval[0] = cb->uaiocb._aiocb_private.error;
 			return 0;
 		}
 	}
@@ -1066,7 +1065,7 @@ aio_error(struct proc *p, struct aio_error_args *uap, int *retval) {
 		cb = TAILQ_NEXT(cb, plist)) {
 
 		if (((int) cb->uaiocb._aiocb_private.kernelinfo) == jobref) {
-			retval[0] = EINPROGRESS;
+			p->p_retval[0] = EINPROGRESS;
 			return 0;
 		}
 	}
@@ -1082,7 +1081,7 @@ aio_error(struct proc *p, struct aio_error_args *uap, int *retval) {
 }
 
 int
-aio_read(struct proc *p, struct aio_read_args *uap, int *retval) {
+aio_read(struct proc *p, struct aio_read_args *uap) {
 	struct filedesc *fdp;
 	struct file *fp;
 	struct uio auio;
@@ -1152,12 +1151,12 @@ aio_read(struct proc *p, struct aio_read_args *uap, int *retval) {
 		(error == ERESTART || error == EINTR || error == EWOULDBLOCK))
 			error = 0;
 	cnt -= auio.uio_resid;
-	*retval = cnt;
+	p->p_retval[0] = cnt;
 	return error;
 }
 
 int
-aio_write(struct proc *p, struct aio_write_args *uap, int *retval) {
+aio_write(struct proc *p, struct aio_write_args *uap) {
 	struct filedesc *fdp;
 	struct file *fp;
 	struct uio auio;
@@ -1225,12 +1224,12 @@ aio_write(struct proc *p, struct aio_write_args *uap, int *retval) {
 		}
 	}
 	cnt -= auio.uio_resid;
-	*retval = cnt;
+	p->p_retval[0] = cnt;
 	return error;
 }
 
 int
-lio_listio(struct proc *p, struct lio_listio_args *uap, int *retval) {
+lio_listio(struct proc *p, struct lio_listio_args *uap) {
 	int cnt, nent, nentqueued;
 	struct aiocb *iocb, * const *cbptr;
 	struct aiocblist *cb;

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_linker.c,v 1.1 1997/05/07 16:05:30 dfr Exp $
+ *	$Id: kern_linker.c,v 1.2 1997/08/02 14:31:28 bde Exp $
  */
 
 #include <sys/param.h>
@@ -78,7 +78,6 @@ linker_file_sysinit(linker_file_t lf)
     struct sysinit** sipp;
     struct sysinit** xipp;
     struct sysinit* save;
-    int rval[2];		/* SI_TYPE_KTHREAD support*/
 
     linker_current_file = lf;
 
@@ -129,9 +128,10 @@ linker_file_sysinit(linker_file_t lf)
 
 	case SI_TYPE_KTHREAD:
 	    /* kernel thread*/
-	    if (fork(&proc0, NULL, rval))
+	    if (fork(&proc0, NULL))
 		panic("fork kernel process");
-	    cpu_set_fork_handler(pfind(rval[0]), (*sipp)->func, (*sipp)->udata);
+	    cpu_set_fork_handler(pfind(proc0.p_retval[0]),
+		(*sipp)->func, (*sipp)->udata);
 	    break;
 
 	default:
@@ -383,13 +383,13 @@ linker_file_lookup_symbol(linker_file_t file, const char* name, int deps)
  */
 
 int
-kldload(struct proc* p, struct kldload_args* uap, int* retval)
+kldload(struct proc* p, struct kldload_args* uap)
 {
     char* filename = NULL;
     linker_file_t lf;
     int error = 0;
 
-    *retval = -1;
+    p->p_retval[0] = -1;
 
     if (securelevel > 0)
 	return EPERM;
@@ -405,7 +405,7 @@ kldload(struct proc* p, struct kldload_args* uap, int* retval)
 	goto out;
 
     lf->userrefs++;
-    *retval = lf->id;
+    p->p_retval[0] = lf->id;
     
 out:
     if (filename)
@@ -414,7 +414,7 @@ out:
 }
 
 int
-kldunload(struct proc* p, struct kldunload_args* uap, int* retval)
+kldunload(struct proc* p, struct kldunload_args* uap)
 {
     linker_file_t lf;
     int error = 0;
@@ -443,13 +443,13 @@ out:
 }
 
 int
-kldfind(struct proc* p, struct kldfind_args* uap, int* retval)
+kldfind(struct proc* p, struct kldfind_args* uap)
 {
     char* filename = NULL;
     linker_file_t lf;
     int error = 0;
 
-    *retval = -1;
+    p->p_retval[0] = -1;
 
     filename = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
     if (error = copyinstr(SCARG(uap, file), filename, MAXPATHLEN, NULL))
@@ -457,7 +457,7 @@ kldfind(struct proc* p, struct kldfind_args* uap, int* retval)
 
     lf = linker_find_file_by_name(filename);
     if (lf)
-	*retval = lf->id;
+	p->p_retval[0] = lf->id;
     else
 	error = ENOENT;
     
@@ -468,25 +468,25 @@ out:
 }
 
 int
-kldnext(struct proc* p, struct kldnext_args* uap, int* retval)
+kldnext(struct proc* p, struct kldnext_args* uap)
 {
     linker_file_t lf;
     int error = 0;
 
     if (SCARG(uap, fileid) == 0) {
 	if (TAILQ_FIRST(&files))
-	    *retval = TAILQ_FIRST(&files)->id;
+	    p->p_retval[0] = TAILQ_FIRST(&files)->id;
 	else
-	    *retval = 0;
+	    p->p_retval[0] = 0;
 	return 0;
     }
 	
     lf = linker_find_file_by_id(SCARG(uap, fileid));
     if (lf) {
 	if (TAILQ_NEXT(lf, link))
-	    *retval = TAILQ_NEXT(lf, link)->id;
+	    p->p_retval[0] = TAILQ_NEXT(lf, link)->id;
 	else
-	    *retval = 0;
+	    p->p_retval[0] = 0;
     } else
 	error = ENOENT;
 
@@ -494,7 +494,7 @@ kldnext(struct proc* p, struct kldnext_args* uap, int* retval)
 }
 
 int
-kldstat(struct proc* p, struct kldstat_args* uap, int* retval)
+kldstat(struct proc* p, struct kldstat_args* uap)
 {
     linker_file_t lf;
     int error = 0;
@@ -534,14 +534,14 @@ kldstat(struct proc* p, struct kldstat_args* uap, int* retval)
     if (error = copyout(&lf->size, &stat->size, sizeof(size_t)))
 	goto out;
 
-    *retval = 0;
+    p->p_retval[0] = 0;
 
 out:
     return error;
 }
 
 int
-kldfirstmod(struct proc* p, struct kldfirstmod_args* uap, int* retval)
+kldfirstmod(struct proc* p, struct kldfirstmod_args* uap)
 {
     linker_file_t lf;
     int error = 0;
@@ -549,9 +549,9 @@ kldfirstmod(struct proc* p, struct kldfirstmod_args* uap, int* retval)
     lf = linker_find_file_by_id(SCARG(uap, fileid));
     if (lf) {
 	if (TAILQ_FIRST(&lf->modules))
-	    *retval = module_getid(TAILQ_FIRST(&lf->modules));
+	    p->p_retval[0] = module_getid(TAILQ_FIRST(&lf->modules));
 	else
-	    *retval = 0;
+	    p->p_retval[0] = 0;
     } else
 	error = ENOENT;
 

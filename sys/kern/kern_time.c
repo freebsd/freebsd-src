@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_time.c	8.1 (Berkeley) 6/10/93
- * $Id: kern_time.c,v 1.37 1997/10/20 18:43:49 ache Exp $
+ * $Id: kern_time.c,v 1.38 1997/10/26 20:26:28 phk Exp $
  */
 
 #include <sys/param.h>
@@ -63,6 +63,7 @@ static int	nanosleep1 __P((struct proc *p, struct timespec *rqt,
 		    struct timespec *rmt));
 static int	settime __P((struct timeval *));
 static void	timevalfix __P((struct timeval *));
+static void	no_lease_updatetime __P((int));
 
 static void 
 no_lease_updatetime(deltat)
@@ -133,10 +134,9 @@ struct clock_gettime_args {
 
 /* ARGSUSED */
 int
-clock_gettime(p, uap, retval)
+clock_gettime(p, uap)
 	struct proc *p;
 	struct clock_gettime_args *uap;
-	register_t *retval;
 {
 	struct timeval atv;
 	struct timespec ats;
@@ -157,10 +157,9 @@ struct clock_settime_args {
 
 /* ARGSUSED */
 int
-clock_settime(p, uap, retval)
+clock_settime(p, uap)
 	struct proc *p;
 	struct clock_settime_args *uap;
-	register_t *retval;
 {
 	struct timeval atv;
 	struct timespec ats;
@@ -188,10 +187,9 @@ struct clock_getres_args {
 #endif
 
 int
-clock_getres(p, uap, retval)
+clock_getres(p, uap)
 	struct proc *p;
 	struct clock_getres_args *uap;
-	register_t *retval;
 {
 	struct timespec ts;
 	int error;
@@ -297,10 +295,9 @@ struct nanosleep_args {
 
 /* ARGSUSED */
 int
-nanosleep(p, uap, retval)
+nanosleep(p, uap)
 	struct proc *p;
 	struct nanosleep_args *uap;
-	register_t *retval;
 {
 	struct timespec rmt, rqt;
 	int error, error2;
@@ -330,10 +327,9 @@ struct signanosleep_args {
 
 /* ARGSUSED */
 int
-signanosleep(p, uap, retval)
+signanosleep(p, uap)
 	struct proc *p;
 	struct signanosleep_args *uap;
-	register_t *retval;
 {
 	struct timespec rmt, rqt;
 	int error, error2;
@@ -371,10 +367,9 @@ struct gettimeofday_args {
 #endif
 /* ARGSUSED */
 int
-gettimeofday(p, uap, retval)
+gettimeofday(p, uap)
 	struct proc *p;
 	register struct gettimeofday_args *uap;
-	int *retval;
 {
 	struct timeval atv;
 	int error = 0;
@@ -399,10 +394,9 @@ struct settimeofday_args {
 #endif
 /* ARGSUSED */
 int
-settimeofday(p, uap, retval)
+settimeofday(p, uap)
 	struct proc *p;
 	struct settimeofday_args *uap;
-	int *retval;
 {
 	struct timeval atv;
 	struct timezone atz;
@@ -440,10 +434,9 @@ struct adjtime_args {
 #endif
 /* ARGSUSED */
 int
-adjtime(p, uap, retval)
+adjtime(p, uap)
 	struct proc *p;
 	register struct adjtime_args *uap;
-	int *retval;
 {
 	struct timeval atv;
 	register long ndelta, ntickdelta, odelta;
@@ -521,10 +514,9 @@ struct getitimer_args {
 #endif
 /* ARGSUSED */
 int
-getitimer(p, uap, retval)
+getitimer(p, uap)
 	struct proc *p;
 	register struct getitimer_args *uap;
-	int *retval;
 {
 	struct itimerval aitv;
 	int s;
@@ -560,10 +552,9 @@ struct setitimer_args {
 #endif
 /* ARGSUSED */
 int
-setitimer(p, uap, retval)
+setitimer(p, uap)
 	struct proc *p;
 	register struct setitimer_args *uap;
-	int *retval;
 {
 	struct itimerval aitv;
 	register struct itimerval *itvp;
@@ -576,7 +567,7 @@ setitimer(p, uap, retval)
 	    sizeof(struct itimerval))))
 		return (error);
 	if ((uap->itv = uap->oitv) &&
-	    (error = getitimer(p, (struct getitimer_args *)uap, retval)))
+	    (error = getitimer(p, (struct getitimer_args *)uap)))
 		return (error);
 	if (itvp == 0)
 		return (0);

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_signal.c,v 1.8 1997/02/22 09:38:24 peter Exp $
+ *  $Id: linux_signal.c,v 1.9 1997/07/20 16:06:03 bde Exp $
  */
 
 #include <sys/param.h>
@@ -104,7 +104,7 @@ bsd_to_linux_sigaction(struct sigaction *bsa, linux_sigaction_t *lsa)
 }
 
 int
-linux_sigaction(struct proc *p, struct linux_sigaction_args *args, int *retval)
+linux_sigaction(struct proc *p, struct linux_sigaction_args *args)
 {
     linux_sigaction_t linux_sa;
     struct sigaction *nsa = NULL, *osa = NULL, bsd_sa;
@@ -131,7 +131,7 @@ linux_sigaction(struct proc *p, struct linux_sigaction_args *args, int *retval)
     sa.signum = linux_to_bsd_signal[args->sig];
     sa.nsa = nsa;
     sa.osa = osa;
-    if ((error = sigaction(p, &sa, retval)))
+    if ((error = sigaction(p, &sa)))
 	return error;
 
     if (args->osa) {
@@ -145,7 +145,7 @@ linux_sigaction(struct proc *p, struct linux_sigaction_args *args, int *retval)
 }
 
 int
-linux_signal(struct proc *p, struct linux_signal_args *args, int *retval)
+linux_signal(struct proc *p, struct linux_signal_args *args)
 {
     caddr_t sg;
     struct sigaction_args sa_args;
@@ -169,21 +169,20 @@ linux_signal(struct proc *p, struct linux_signal_args *args, int *retval)
     sa_args.signum = linux_to_bsd_signal[args->sig];
     sa_args.osa = osa;
     sa_args.nsa = nsa;
-    if ((error = sigaction(p, &sa_args, retval)))
+    if ((error = sigaction(p, &sa_args)))
 	return error;
 
     if ((error = copyin(osa, &tmpsa, sizeof *osa)))
 	return error;
 
-    *retval = (int)tmpsa.sa_handler;
+    p->p_retval[0] = (int)tmpsa.sa_handler;
 
     return 0;
 }
 
 
 int
-linux_sigprocmask(struct proc *p, struct linux_sigprocmask_args *args,
-		  int *retval)
+linux_sigprocmask(struct proc *p, struct linux_sigprocmask_args *args)
 {
     int error, s;
     sigset_t mask;
@@ -193,7 +192,7 @@ linux_sigprocmask(struct proc *p, struct linux_sigprocmask_args *args,
     printf("Linux-emul(%d): sigprocmask(%d, *, *)\n", p->p_pid, args->how);
 #endif
 
-    *retval = 0;
+    p->p_retval[0] = 0;
 
     if (args->omask != NULL) {
 	omask = bsd_to_linux_sigset(p->p_sigmask);
@@ -226,17 +225,17 @@ linux_sigprocmask(struct proc *p, struct linux_sigprocmask_args *args,
 }
 
 int
-linux_siggetmask(struct proc *p, struct linux_siggetmask_args *args, int *retval)
+linux_siggetmask(struct proc *p, struct linux_siggetmask_args *args)
 {
 #ifdef DEBUG
     printf("Linux-emul(%d): siggetmask()\n", p->p_pid);
 #endif
-    *retval = bsd_to_linux_sigset(p->p_sigmask);
+    p->p_retval[0] = bsd_to_linux_sigset(p->p_sigmask);
     return 0;
 }
 
 int
-linux_sigsetmask(struct proc *p, struct linux_sigsetmask_args *args,int *retval)
+linux_sigsetmask(struct proc *p, struct linux_sigsetmask_args *args)
 {
     int s;
     sigset_t mask;
@@ -244,7 +243,7 @@ linux_sigsetmask(struct proc *p, struct linux_sigsetmask_args *args,int *retval)
 #ifdef DEBUG
     printf("Linux-emul(%d): sigsetmask(%08x)\n", p->p_pid, args->mask);
 #endif
-    *retval = bsd_to_linux_sigset(p->p_sigmask);
+    p->p_retval[0] = bsd_to_linux_sigset(p->p_sigmask);
 
     mask = linux_to_bsd_sigset(args->mask);
     s = splhigh();
@@ -254,7 +253,7 @@ linux_sigsetmask(struct proc *p, struct linux_sigsetmask_args *args,int *retval)
 }
 
 int
-linux_sigpending(struct proc *p, struct linux_sigpending_args *args,int *retval)
+linux_sigpending(struct proc *p, struct linux_sigpending_args *args)
 {
     linux_sigset_t linux_sig;
 
@@ -271,7 +270,7 @@ linux_sigpending(struct proc *p, struct linux_sigpending_args *args,int *retval)
  * enables the signal to happen with a different register set.
  */
 int
-linux_sigsuspend(struct proc *p, struct linux_sigsuspend_args *args,int *retval)
+linux_sigsuspend(struct proc *p, struct linux_sigsuspend_args *args)
 {
     struct sigsuspend_args tmp;
 
@@ -279,11 +278,11 @@ linux_sigsuspend(struct proc *p, struct linux_sigsuspend_args *args,int *retval)
     printf("Linux-emul(%d): sigsuspend(%08x)\n", p->p_pid, args->mask);
 #endif
     tmp.mask = linux_to_bsd_sigset(args->mask);
-    return sigsuspend(p, &tmp , retval);
+    return sigsuspend(p, &tmp);
 }
 
 int
-linux_pause(struct proc *p, struct linux_pause_args *args,int *retval)
+linux_pause(struct proc *p, struct linux_pause_args *args)
 {
     struct sigsuspend_args tmp;
 
@@ -291,11 +290,11 @@ linux_pause(struct proc *p, struct linux_pause_args *args,int *retval)
     printf("Linux-emul(%d): pause()\n", p->p_pid);
 #endif
     tmp.mask = p->p_sigmask;
-    return sigsuspend(p, &tmp , retval);
+    return sigsuspend(p, &tmp);
 }
 
 int
-linux_kill(struct proc *p, struct linux_kill_args *args, int *retval)
+linux_kill(struct proc *p, struct linux_kill_args *args)
 {
     struct kill_args /* {
 	int pid;
@@ -308,5 +307,5 @@ linux_kill(struct proc *p, struct linux_kill_args *args, int *retval)
 #endif
     tmp.pid = args->pid;
     tmp.signum = linux_to_bsd_signal[args->signum];
-    return kill(p, &tmp, retval);
+    return kill(p, &tmp);
 }

@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ibcs2_xenix.c,v 1.12 1997/06/22 19:04:03 sef Exp $
+ *	$Id: ibcs2_xenix.c,v 1.13 1997/07/20 09:39:50 bde Exp $
  */
 
 #include <sys/param.h>
@@ -52,7 +52,7 @@
 extern struct sysent xenix_sysent[];
 
 int
-ibcs2_xenix(struct proc *p, struct ibcs2_xenix_args *uap, int *retval)
+ibcs2_xenix(struct proc *p, struct ibcs2_xenix_args *uap)
 {
 	struct trapframe *tf = p->p_md.md_regs;
         struct sysent *callp;
@@ -62,16 +62,15 @@ ibcs2_xenix(struct proc *p, struct ibcs2_xenix_args *uap, int *retval)
 	callp = &xenix_sysent[code];
 
 	if(code < IBCS2_XENIX_MAXSYSCALL)
-	  return((*callp->sy_call)(p, (void *)uap, retval));
+	  return((*callp->sy_call)(p, (void *)uap));
 	else
 	  return ENOSYS;
 }
 
 int
-xenix_rdchk(p, uap, retval)
+xenix_rdchk(p, uap)
 	struct proc *p;
 	struct xenix_rdchk_args *uap;
-	int *retval;
 {
 	int error;
 	struct ioctl_args sa;
@@ -81,17 +80,16 @@ xenix_rdchk(p, uap, retval)
 	SCARG(&sa, fd) = SCARG(uap, fd);
 	SCARG(&sa, com) = FIONREAD;
 	SCARG(&sa, data) = stackgap_alloc(&sg, sizeof(int));
-	if (error = ioctl(p, &sa, retval))
+	if (error = ioctl(p, &sa))
 		return error;
-	*retval = (*((int*)SCARG(&sa, data))) ? 1 : 0;
+	p->p_retval[0] = (*((int*)SCARG(&sa, data))) ? 1 : 0;
 	return 0;
 }
 
 int
-xenix_chsize(p, uap, retval)
+xenix_chsize(p, uap)
 	struct proc *p;
 	struct xenix_chsize_args *uap;
-	int *retval;
 {
 	struct ftruncate_args sa;
 
@@ -99,15 +97,14 @@ xenix_chsize(p, uap, retval)
 	SCARG(&sa, fd) = SCARG(uap, fd);
 	SCARG(&sa, pad) = 0;
 	SCARG(&sa, length) = SCARG(uap, size);
-	return ftruncate(p, &sa, retval);
+	return ftruncate(p, &sa);
 }
 
 
 int
-xenix_ftime(p, uap, retval)
+xenix_ftime(p, uap)
 	struct proc *p;
 	struct xenix_ftime_args *uap;
-	int *retval;
 {
 	struct timeval tv;
 	struct ibcs2_timeb {
@@ -129,7 +126,7 @@ xenix_ftime(p, uap, retval)
 }
 
 int
-xenix_nap(struct proc *p, struct xenix_nap_args *uap, int *retval)
+xenix_nap(struct proc *p, struct xenix_nap_args *uap)
 {
 	long period;
 
@@ -142,7 +139,7 @@ xenix_nap(struct proc *p, struct xenix_nap_args *uap, int *retval)
 }
 
 int
-xenix_utsname(struct proc *p, struct xenix_utsname_args *uap, int *retval)
+xenix_utsname(struct proc *p, struct xenix_utsname_args *uap)
 {
 	struct ibcs2_sco_utsname {
 		char sysname[9];
@@ -176,15 +173,15 @@ xenix_utsname(struct proc *p, struct xenix_utsname_args *uap, int *retval)
 }
 
 int
-xenix_scoinfo(struct proc *p, struct xenix_scoinfo_args *uap, int *retval)
+xenix_scoinfo(struct proc *p, struct xenix_scoinfo_args *uap)
 {
   /* scoinfo (not documented) */
-  *retval = 0;
+  p->p_retval[0] = 0;
   return 0;
 }
 
 int     
-xenix_eaccess(struct proc *p, struct xenix_eaccess_args *uap, int *retval)
+xenix_eaccess(struct proc *p, struct xenix_eaccess_args *uap)
 {
 	struct ucred *cred = p->p_ucred;
 	struct vnode *vp;

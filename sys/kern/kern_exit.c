@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_exit.c	8.7 (Berkeley) 2/12/94
- * $Id: kern_exit.c,v 1.57 1997/10/11 18:31:22 phk Exp $
+ * $Id: kern_exit.c,v 1.58 1997/10/12 20:23:47 phk Exp $
  */
 
 #include "opt_ktrace.h"
@@ -89,12 +89,11 @@ static ele_p exit_list;
  *	Death of process.
  */
 void
-exit(p, uap, retval)
+exit(p, uap)
 	struct proc *p;
 	struct rexit_args /* {
 		int	rval;
 	} */ *uap;
-	int *retval;
 {
 
 	exit1(p, W_EXITCODE(uap->rval, 0));
@@ -134,7 +133,7 @@ exit1(p, rv)
 		         * The interface for kill is better
 			 * than the internal signal
 			 */
-			kill(p, &killArgs, &rv);
+			kill(p, &killArgs);
 			nq = q;
 			q = q->p_peers;
 			/*
@@ -356,12 +355,11 @@ exit1(p, rv)
 #endif
 
 int
-owait(p, uap, retval)
+owait(p, uap)
 	struct proc *p;
 	register struct owait_args /* {
 		int     dummy;
 	} */ *uap;
-	int *retval;
 {
 	struct wait_args w;
 
@@ -379,18 +377,17 @@ owait(p, uap, retval)
 #endif
 	w.pid = WAIT_ANY;
 	w.status = NULL;
-	return (wait1(p, &w, retval, 1));
+	return (wait1(p, &w, p->p_retval, 1));
 }
 #endif /* COMPAT_43 */
 
 int
-wait4(p, uap, retval)
+wait4(p, uap)
 	struct proc *p;
 	struct wait_args *uap;
-	int *retval;
 {
 
-	return (wait1(p, uap, retval, 0));
+	return (wait1(p, uap, p->p_retval, 0));
 }
 
 static int
