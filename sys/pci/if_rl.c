@@ -1380,6 +1380,8 @@ rl_poll (struct ifnet *ifp, enum poll_cmd cmd, int count)
 		u_int16_t       status;
 
 		status = CSR_READ_2(sc, RL_ISR);
+		if (status == 0xffff)
+			goto done;
 		if (status)
 			CSR_WRITE_2(sc, RL_ISR, status);
 
@@ -1426,6 +1428,9 @@ static void rl_intr(arg)
 	for (;;) {
 
 		status = CSR_READ_2(sc, RL_ISR);
+		/* If the card has gone away the read returns 0xffff. */
+		if (status == 0xffff)
+			break;
 		if (status)
 			CSR_WRITE_2(sc, RL_ISR, status);
 
