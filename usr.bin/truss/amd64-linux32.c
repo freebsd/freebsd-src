@@ -57,7 +57,6 @@ static const char rcsid[] =
 #include <unistd.h>
 
 #include "truss.h"
-#include "extern.h"
 #include "syscall.h"
 
 static int fd = -1;
@@ -69,7 +68,15 @@ extern int Procfd;
 static int nsyscalls =
 	sizeof(linux_syscallnames) / sizeof(linux_syscallnames[0]);
 
-/* See the comment in i386-fbsd.c about this structure. */
+/*
+ * This is what this particular file uses to keep track of a system call.
+ * It is probably not quite sufficient -- I can probably use the same
+ * structure for the various syscall personalities, and I also probably
+ * need to nest system calls (for signal handlers).
+ *
+ * 'struct syscall' describes the system call; it may be NULL, however,
+ * if we don't know about this particular system call yet.
+ */
 static struct linux_syscall {
 	struct syscall *sc;
 	char *name;
@@ -77,19 +84,27 @@ static struct linux_syscall {
 	unsigned long args[5];
 	int nargs;	/* number of arguments -- *not* number of words! */
 	char **s_args;	/* the printable arguments */
-} lsc;
+} fsc;
 
+/* Clear up and free parts of the fsc structure. */
 static __inline void
-clear_lsc() {
-  if (lsc.s_args) {
+clear_fsc() {
+  if (fsc.s_args) {
     int i;
-    for (i = 0; i < lsc.nargs; i++)
-      if (lsc.s_args[i])
-	free(lsc.s_args[i]);
-    free(lsc.s_args);
+    for (i = 0; i < fsc.nargs; i++)
+      if (fsc.s_args[i])
+	free(fsc.s_args[i]);
+    free(fsc.s_args);
   }
-  memset(&lsc, 0, sizeof(lsc));
+  memset(&fsc, 0, sizeof(fsc));
 }
+
+/*
+ * Called when a process has entered a system call.  nargs is the
+ * number of words, not number of arguments (a necessary distinction
+ * in some cases).  Note that if the STOPEVENT() code in i386/i386/trap.c
+ * is ever changed these functions need to keep up.
+ */
 
 void
 i386_linux_syscall_entry(struct trussinfo *trussinfo, int nargs) {
@@ -109,21 +124,21 @@ i386_linux_syscall_entry(struct trussinfo *trussinfo, int nargs) {
     cpid = trussinfo->pid;
   }
 
-  clear_lsc();
+  clear_fsc();
   lseek(fd, 0L, 0);
   i = read(fd, &regs, sizeof(regs));
   syscall = regs.r_eax;
 
-  lsc.number = syscall;
-  lsc.name =
+  fsc.number = syscall;
+  fsc.name =
     (syscall < 0 || syscall > nsyscalls) ? NULL : linux_syscallnames[syscall];
-  if (!lsc.name) {
-    fprintf(trussinfo->outfile, "-- UNKNOWN SYSCALL %d\n", syscall);
+  if (!fsc.name) {
+    fprintf(trussinfo->outfile, "-- UNKNOWN SYSCALL %d --\n", syscall);
   }
 
-  if (lsc.name && (trussinfo->flags & FOLLOWFORKS)
-   && ((!strcmp(lsc.name, "linux_fork")
-    || !strcmp(lsc.name, "linux_vfork"))))
+  if (fsc.name && (trussinfo->flags & FOLLOWFORKS)
+   && ((!strcmp(fsc.name, "linux_fork")
+    || !strcmp(fsc.name, "linux_vfork"))))
   {
     trussinfo->in_fork = 1;
   }
@@ -139,69 +154,88 @@ i386_linux_syscall_entry(struct trussinfo *trussinfo, int nargs) {
    * that have more than five arguments?
    */
 
-  lsc.args[0] = regs.r_ebx;
-  lsc.args[1] = regs.r_ecx;
-  lsc.args[2] = regs.r_edx;
-  lsc.args[3] = regs.r_esi;
-  lsc.args[4] = regs.r_edi;
+  fsc.args[0] = regs.r_ebx;
+  fsc.args[1] = regs.r_ecx;
+  fsc.args[2] = regs.r_edx;
+  fsc.args[3] = regs.r_esi;
+  fsc.args[4] = regs.r_edi;
 
-  sc = get_syscall(lsc.name);
+  sc = get_syscall(fsc.name);
   if (sc) {
-    lsc.nargs = sc->nargs;
+    fsc.nargs = sc->nargs;
   } else {
-#ifdef DEBUG
+#if DEBUG
     fprintf(trussinfo->outfile, "unknown syscall %s -- setting args to %d\n",
-	    lsc.name, nargs);
+	   fsc.name, nargs);
 #endif
-    lsc.nargs = nargs;
+    fsc.nargs = nargs;
   }
 
-  lsc.s_args = malloc((1+lsc.nargs) * sizeof(char*));
-  memset(lsc.s_args, 0, lsc.nargs * sizeof(char*));
-  lsc.sc = sc;
+  fsc.s_args = malloc((1+fsc.nargs) * sizeof(char*));
+  memset(fsc.s_args, 0, fsc.nargs * sizeof(char*));
+  fsc.sc = sc;
 
-  if (lsc.name) {
+  /*
+   * At this point, we set up the system call arguments.
+   * We ignore any OUT ones, however -- those are arguments that
+   * are set by the system call, and so are probably meaningless
+   * now.  This doesn't currently support arguments that are
+   * passed in *and* out, however.
+   */
 
-#ifdef DEBUG
-    fprintf(stderr, "syscall %s(", lsc.name);
+  if (fsc.name) {
+
+#if DEBUG
+    fprintf(stderr, "syscall %s(", fsc.name);
 #endif
-    for (i = 0; i < lsc.nargs ; i++) {
-#ifdef DEBUG
+    for (i = 0; i < fsc.nargs; i++) {
+#if DEBUG
       fprintf(stderr, "0x%x%s",
-	      sc ?
-	      lsc.args[sc->args[i].offset]
-	      : lsc.args[i],
-	      i < (lsc.nargs - 1) ? "," : "");
+	      sc
+	      ? fsc.args[sc->args[i].offset]
+	      : fsc.args[i],
+	      i < (fsc.nargs - 1) ? "," : "");
 #endif
       if (sc && !(sc->args[i].type & OUT)) {
-	lsc.s_args[i] = print_arg(Procfd, &sc->args[i], lsc.args);
+	fsc.s_args[i] = print_arg(Procfd, &sc->args[i], fsc.args);
       }
     }
-#ifdef DEBUG
+#if DEBUG
     fprintf(stderr, ")\n");
 #endif
   }
 
-  if (!strcmp(lsc.name, "linux_execve") || !strcmp(lsc.name, "exit")) {
+#if DEBUG
+  fprintf(trussinfo->outfile, "\n");
+#endif
+
+  /*
+   * Some system calls should be printed out before they are done --
+   * execve() and exit(), for example, never return.  Possibly change
+   * this to work for any system call that doesn't have an OUT
+   * parameter?
+   */
+
+  if (!strcmp(fsc.name, "linux_execve") || !strcmp(fsc.name, "exit")) {
 
     /* XXX
      * This could be done in a more general
      * manner but it still wouldn't be very pretty.
      */
-    if (!strcmp(lsc.name, "linux_execve")) {
+    if (!strcmp(fsc.name, "linux_execve")) {
         if ((trussinfo->flags & EXECVEARGS) == 0)
-          if (lsc.s_args[1]) {
-            free(lsc.s_args[1]);
-            lsc.s_args[1] = NULL;
+          if (fsc.s_args[1]) {
+            free(fsc.s_args[1]);
+            fsc.s_args[1] = NULL;
           }
         if ((trussinfo->flags & EXECVEENVS) == 0)
-          if (lsc.s_args[2]) {
-            free(lsc.s_args[2]);
-            lsc.s_args[2] = NULL;
+          if (fsc.s_args[2]) {
+            free(fsc.s_args[2]);
+            fsc.s_args[2] = NULL;
           }
     }
 
-    print_syscall(trussinfo, lsc.name, lsc.nargs, lsc.s_args);
+    print_syscall(trussinfo, fsc.name, fsc.nargs, fsc.s_args);
     fprintf(trussinfo->outfile, "\n");
   }
 
@@ -250,34 +284,52 @@ i386_linux_syscall_exit(struct trussinfo *trussinfo, int syscall) {
   retval = regs.r_eax;
   errorp = !!(regs.r_eflags & PSL_C);
 
-  sc = lsc.sc;
+  /*
+   * This code, while simpler than the initial versions I used, could
+   * stand some significant cleaning.
+   */
+
+  sc = fsc.sc;
   if (!sc) {
-    for (i = 0; i < lsc.nargs; i++) {
-      lsc.s_args[i] = malloc(12);
-      sprintf(lsc.s_args[i], "0x%lx", lsc.args[i]);
+    for (i = 0; i < fsc.nargs; i++) {
+      fsc.s_args[i] = malloc(12);
+      sprintf(fsc.s_args[i], "0x%lx", fsc.args[i]);
     }
   } else {
+    /*
+     * Here, we only look for arguments that have OUT masked in --
+     * otherwise, they were handled in the syscall_entry function.
+     */
     for (i = 0; i < sc->nargs; i++) {
       char *temp;
       if (sc->args[i].type & OUT) {
+	/*
+	 * If an error occurred, than don't bothe getting the data;
+	 * it may not be valid.
+	 */
 	if (errorp) {
 	  temp = malloc(12);
-	  sprintf(temp, "0x%lx", lsc.args[sc->args[i].offset]);
+	  sprintf(temp, "0x%lx", fsc.args[sc->args[i].offset]);
 	} else {
-	  temp = print_arg(Procfd, &sc->args[i], lsc.args);
+	  temp = print_arg(Procfd, &sc->args[i], fsc.args);
 	}
-	lsc.s_args[i] = temp;
+	fsc.s_args[i] = temp;
       }
     }
   }
+
+  /*
+   * It would probably be a good idea to merge the error handling,
+   * but that complicates things considerably.
+   */
   if (errorp) {
     for (i = 0; i < sizeof(bsd_to_linux_errno) / sizeof(int); i++)
       if (retval == bsd_to_linux_errno[i])
       break;
   }
-  print_syscall_ret(trussinfo, lsc.name, lsc.nargs, lsc.s_args, errorp,
+  print_syscall_ret(trussinfo, fsc.name, fsc.nargs, fsc.s_args, errorp,
                     errorp ? i : retval);
-  clear_lsc();
+  clear_fsc();
 
   return (retval);
 }
