@@ -313,7 +313,6 @@ main( int argc, char *argv[] )
     mpfps_t	mpfps;
     int		defaultConfig;
 
-    extern int	optreset;
     int		ch;
 
     /* announce ourselves */
