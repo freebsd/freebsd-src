@@ -1,6 +1,6 @@
 #ifndef lint
 static const char rcsid[] =
-	"$Id: perform.c,v 1.37.2.4 1997/10/09 07:07:50 charnier Exp $";
+	"$Id: perform.c,v 1.37.2.5 1997/10/13 15:06:09 jkh Exp $";
 #endif
 
 /*
@@ -246,7 +246,7 @@ pkg_do(char *pkg)
 		    if (cp) {
 			if (Verbose)
 			    printf("Loading it from %s.\n", cp);
-			if (vsystem("pkg_add %s", cp)) {
+			if (vsystem("pkg_add %s%s", Verbose ? "-v " : "", cp)) {
 			    warnx("autoload of dependency `%s' failed%s",
 				cp, Force ? " (proceeding anyway)" : "!");
 			    if (!Force)

@@ -69,7 +69,11 @@ The following command line arguments are supported:
 .It Ar pkg-name [... pkg-name]
 The named packages are installed.  A package name of - will cause
 .Nm
-to read from stdin.
+to read from stdin. If the packages are not found in the current
+working directory, 
+.Nm
+will search them in each directory named by
+.Ev PKG_PATH .
 .It Fl v
 Turn on verbose output.
 .It Fl I
@@ -322,6 +326,14 @@ is installed, even if the user might change it with the
 .Fl p
 flag to
 .Cm pkg_add .
+.Sh ENVIRONMENT
+The value of the
+.Ev PKG_PATH
+is used if a given package can't be found.  The environment variable
+should be a series of entries seperated by colons.  Each entry
+consists of a directory name. The current directory may be indicated
+implicitly by an empty directory name, or explicitly by a single
+period.
 .Sh SEE ALSO
 .Xr pkg_create 1 ,
 .Xr pkg_delete 1 ,
