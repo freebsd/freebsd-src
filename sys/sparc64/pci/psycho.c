@@ -267,14 +267,14 @@ psycho_attach(device_t dev)
 	struct psycho_softc *sc;
 	struct psycho_softc *osc = NULL;
 	struct psycho_softc *asc;
-	struct ofw_nexus_reg *reg;
+	struct upa_regs *reg;
 	char compat[32];
 	char *model;
 	phandle_t node;
 	u_int64_t csr;
-	u_long pci_ctl;
+	u_long pci_ctl, mlen;
 	int psycho_br[2];
-	int n, i, nreg;
+	int n, i, nreg, rid;
 #if defined(PSYCHO_DEBUG) || defined(PSYCHO_STRAY)
 	u_long *map, *clr;
 #endif
@@ -287,7 +287,6 @@ psycho_attach(device_t dev)
 
 	sc->sc_node = node;
 	sc->sc_dev = dev;
-	sc->sc_bustag = nexus_get_bustag(dev);
 	sc->sc_dmatag = nexus_get_dmatag(dev);
 
 	/*
@@ -319,28 +318,34 @@ psycho_attach(device_t dev)
 	nreg = nexus_get_nreg(dev);
 	/* Register layouts are different.  stuupid. */
 	if (sc->sc_mode == PSYCHO_MODE_PSYCHO) {
-		sc->sc_basepaddr = (vm_offset_t)reg[2].or_paddr;
-
-		if (nreg <= 2) {
+		if (nreg <= 2)
 			panic("psycho_attach: %d not enough registers", nreg);
-		}
-		if (sparc64_bus_mem_map(UPA_BUS_SPACE, reg[2].or_paddr,
-		    reg[2].or_len, 0, NULL, (void **)&sc->sc_regs))
-			panic("psycho_attach: cannot map regs");
-		pci_ctl = reg[0].or_paddr;
+		sc->sc_basepaddr = (vm_offset_t)UPA_REG_PHYS(&reg[2]);
+		mlen = UPA_REG_SIZE(&reg[2]);
+		pci_ctl = UPA_REG_PHYS(&reg[0]);
 	} else {
-		sc->sc_basepaddr = (vm_offset_t)reg[0].or_paddr;
-
-		if (nreg <= 0) {
+		if (nreg <= 0)
 			panic("psycho_attach: %d not enough registers", nreg);
-		}
-		if (sparc64_bus_mem_map(UPA_BUS_SPACE, reg[0].or_paddr,
-		    reg[0].or_len, 0, NULL, (void **)&sc->sc_regs))
-			panic("psycho_attach: cannot map regs");
-		pci_ctl = reg[0].or_paddr +
+		sc->sc_basepaddr = (vm_offset_t)UPA_REG_PHYS(&reg[0]);
+		mlen = UPA_REG_SIZE(reg);
+		pci_ctl = sc->sc_basepaddr +
 		    offsetof(struct psychoreg, psy_pcictl[0]);
 	}
 
+	if (pci_ctl < sc->sc_basepaddr)
+		panic("psycho_attach: bogus pci control register location");
+	pci_ctl -= sc->sc_basepaddr;
+	rid = 0;
+	sc->sc_mem_res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
+	    sc->sc_basepaddr, sc->sc_basepaddr + mlen - 1, mlen, RF_ACTIVE);
+	if (sc->sc_mem_res == NULL ||
+	    rman_get_start(sc->sc_mem_res) != sc->sc_basepaddr)
+		panic("psycho_attach: could not allocate device memory");
+	sc->sc_bustag = rman_get_bustag(sc->sc_mem_res);
+	sc->sc_bushandle = rman_get_bushandle(sc->sc_mem_res);
+	if (sparc64_bus_mem_map(UPA_BUS_SPACE, sc->sc_basepaddr, mlen, 0, NULL,
+	    (void **)&sc->sc_regs))
+		panic("psycho_attach: cannot map regs");
 	csr = sc->sc_regs->psy_csr;
 	sc->sc_ign = 0x7c0; /* APB IGN is always 0x7c */
 	if (sc->sc_mode == PSYCHO_MODE_PSYCHO)
@@ -375,8 +380,8 @@ psycho_attach(device_t dev)
 	/*
 	 * Setup the PCI control register
 	 */
-	csr = bus_space_read_8(sc->sc_bustag,
-	    (bus_space_handle_t)pci_ctl, offsetof(struct pci_ctl, pci_csr));
+	csr = bus_space_read_8(sc->sc_bustag, sc->sc_bushandle,
+	    pci_ctl +  offsetof(struct pci_ctl, pci_csr));
 	csr |= PCICTL_MRLM |
 	    PCICTL_ARB_PARK |
 	    PCICTL_ERRINTEN |
@@ -385,9 +390,8 @@ psycho_attach(device_t dev)
 	    PCICTL_CPU_PRIO |
 	    PCICTL_ARB_PRIO |
 	    PCICTL_RTRYWAIT);
-	bus_space_write_8(sc->sc_bustag,
-	    (bus_space_handle_t)pci_ctl, offsetof(struct pci_ctl, pci_csr),
-	    csr);
+	bus_space_write_8(sc->sc_bustag, sc->sc_bushandle,
+	    pci_ctl +  offsetof(struct pci_ctl, pci_csr), csr);
 
 	/* grab the psycho ranges */
 	psycho_get_ranges(sc->sc_node, &sc->sc_range, &sc->sc_nrange);
@@ -590,11 +594,11 @@ psycho_set_intr(struct psycho_softc *sc, int index,
 {
 	int rid;
 
-	sc->sc_irq[index] = bus_alloc_resource(dev, SYS_RES_IRQ, &rid,
+	sc->sc_irq_res[index] = bus_alloc_resource(dev, SYS_RES_IRQ, &rid,
 	    INTVEC(*map), INTVEC(*map), 1, RF_ACTIVE);
-	if (sc->sc_irq[index] == NULL)
+	if (sc->sc_irq_res[index] == NULL)
 		panic("psycho_set_intr: failed to get interupt");
-	bus_setup_intr(dev, sc->sc_irq[index], INTR_TYPE_MISC | iflags,
+	bus_setup_intr(dev, sc->sc_irq_res[index], INTR_TYPE_MISC | iflags,
 	    handler, sc, &sc->sc_ihand[index]);
 	*map |= INTMAP_V;
 }

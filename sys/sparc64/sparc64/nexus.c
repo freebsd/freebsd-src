@@ -68,7 +68,9 @@
 #include <machine/frame.h>
 #include <machine/intr_machdep.h>
 #include <machine/nexusvar.h>
+#include <machine/ofw_upa.h>
 #include <machine/resource.h>
+#include <machine/upa.h>
 
 #include <sys/rman.h>
 
@@ -96,12 +98,17 @@ struct nexus_devinfo {
 	char		*ndi_name;
 	char		*ndi_device_type;
 	char		*ndi_model;
-	struct		ofw_nexus_reg *ndi_reg;
+	struct		upa_regs *ndi_reg;
 	int		ndi_nreg;
 	u_int		*ndi_interrupts;
 	int		ndi_ninterrupts;
 	bus_space_tag_t	ndi_bustag;
 	bus_dma_tag_t	ndi_dmatag;
+};
+
+struct nexus_softc {
+	struct rman	sc_intr_rman;
+	struct rman	sc_mem_rman;
 };
 
 static int nexus_probe(device_t);
@@ -148,7 +155,7 @@ static device_method_t nexus_methods[] = {
 static driver_t nexus_driver = {
 	"nexus",
 	nexus_methods,
-	1,			/* no softc */
+	sizeof(struct nexus_softc),
 };
 
 static devclass_t nexus_devclass;
@@ -171,7 +178,6 @@ static char *nexus_excl_type[] = {
 	NULL
 };
 
-struct rman intr_rman;
 extern struct bus_space_tag nexus_bustag;
 extern struct bus_dma_tag nexus_dmatag;
 
@@ -197,16 +203,22 @@ nexus_probe(device_t dev)
 	phandle_t child;
 	device_t cdev;
 	struct nexus_devinfo *dinfo;
+	struct nexus_softc *sc;
 	char *name, *type;
 
 	if ((root = OF_peer(0)) == -1)
 		panic("nexus_probe: OF_peer failed.");
 
-	intr_rman.rm_type = RMAN_ARRAY;
-	intr_rman.rm_descr = "Interrupts";
-	if (rman_init(&intr_rman) != 0 ||
-	    rman_manage_region(&intr_rman, 0, NIV - 1) != 0)
-		panic("nexus_probe: failed to set up rman");
+	sc = device_get_softc(dev);
+	sc->sc_intr_rman.rm_type = RMAN_ARRAY;
+	sc->sc_intr_rman.rm_descr = "Interrupts";
+	sc->sc_mem_rman.rm_type = RMAN_ARRAY;
+	sc->sc_mem_rman.rm_descr = "UPA Device Memory";
+	if (rman_init(&sc->sc_intr_rman) != 0 ||
+	    rman_init(&sc->sc_mem_rman) != 0 ||
+	    rman_manage_region(&sc->sc_intr_rman, 0, NIV - 1) != 0 ||
+	    rman_manage_region(&sc->sc_mem_rman, UPA_MEMSTART, UPA_MEMEND) != 0)
+		panic("nexus_probe: failed to set up rmans");
 	for (child = OF_child(root); child != 0; child = OF_peer(child)) {
 		if (child == -1)
 			panic("nexus_probe(): OF_child failed.");
@@ -218,7 +230,7 @@ nexus_probe(device_t dev)
 			if (type != NULL)
 				free(type, M_OFWPROP);
 			continue;
-		}	
+		}
 		cdev = device_add_child(dev, NULL, -1);
 		if (cdev != NULL) {
 			dinfo = malloc(sizeof(*dinfo), M_NEXUS, M_WAITOK);
@@ -254,7 +266,7 @@ nexus_probe_nomatch(device_t dev, device_t child)
 	    BUS_READ_IVAR(dev, child, NEXUS_IVAR_DEVICE_TYPE,
 	    (uintptr_t *)&type) != 0)
 		return;
-	
+
 	if (type == NULL)
 		type = "(unknown)";
 	device_printf(dev, "<%s>, type %s (no driver attached)\n",
@@ -293,9 +305,6 @@ nexus_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 	case NEXUS_IVAR_NINTERRUPTS:
 		*result = dinfo->ndi_ninterrupts;
 		break;
-	case NEXUS_IVAR_BUSTAG:
-		*result = (uintptr_t)dinfo->ndi_bustag;
-		break;
 	case NEXUS_IVAR_DMATAG:
 		*result = (uintptr_t)dinfo->ndi_dmatag;
 		break;
@@ -322,7 +331,6 @@ nexus_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
 	case NEXUS_IVAR_NREG:
 	case NEXUS_IVAR_INTERRUPTS:
 	case NEXUS_IVAR_NINTERRUPTS:
-	case NEXUS_IVAR_BUSTAG:
 	case NEXUS_IVAR_DMATAG:
 		return (EINVAL);
 	default:
@@ -336,7 +344,7 @@ nexus_setup_intr(device_t dev, device_t child, struct resource *res, int flags,
     driver_intr_t *intr, void *arg, void **cookiep)
 {
 	int error;
-	
+
 	if (res == NULL)
 		panic("nexus_setup_intr: NULL interrupt resource!");
 
@@ -372,6 +380,7 @@ static struct resource *
 nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
     u_long start, u_long end, u_long count, u_int flags)
 {
+	struct	nexus_softc *sc = device_get_softc(bus);
 	struct	resource *rv;
 	struct	rman *rm;
 	int needactivate = flags & RF_ACTIVE;
@@ -380,7 +389,10 @@ nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 
 	switch (type) {
 	case SYS_RES_IRQ:
-		rm = &intr_rman;
+		rm = &sc->sc_intr_rman;
+		break;
+	case SYS_RES_MEMORY:
+		rm = &sc->sc_mem_rman;
 		break;
 	default:
 		return (NULL);
@@ -389,7 +401,10 @@ nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	rv = rman_reserve_resource(rm, start, end, count, flags, child);
 	if (rv == NULL)
 		return (NULL);
-	/* XXX: no bus_space_tag/bus_handle yet... */
+	if (type == SYS_RES_MEMORY) {
+		rman_set_bustag(rv, &nexus_bustag);
+		rman_set_bushandle(rv, rman_get_start(rv));
+	}
 
 	if (needactivate) {
 		if (bus_activate_resource(child, type, *rid, rv)) {
@@ -397,7 +412,7 @@ nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 			return (NULL);
 		}
 	}
-	
+
 	return (rv);
 }
 
@@ -414,7 +429,7 @@ static int
 nexus_deactivate_resource(device_t bus, device_t child, int type, int rid,
     struct resource *r)
 {
-		
+
 	/* Not much to be done yet... */
 	return (rman_deactivate_resource(r));
 }
