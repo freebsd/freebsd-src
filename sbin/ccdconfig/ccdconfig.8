@@ -30,7 +30,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: ccdconfig.8,v 1.5 1998/06/04 06:41:26 charnier Exp $
+.\"	$Id: ccdconfig.8,v 1.6 1998/11/19 20:22:10 asami Exp $
 .\"
 .Dd July 17, 1995
 .Dt CCDCONFIG 8
@@ -138,6 +138,12 @@ argument is optional.
 ccd0            16      none    /dev/da2e /dev/da3e
 .Ed
 .Pp
+The component devices need to name partitions of type 
+.Li FS_BSDFFS
+(or
+.Dq 4.2BSD
+as shown by
+.Xr disklabel 8 ).
 .Sh EXAMPLE
 The following command, executed from the command line, would configure ccd0
 with 4 components (/dev/da2e, /dev/da3e, /dev/da4e, /dev/da5e), and an
