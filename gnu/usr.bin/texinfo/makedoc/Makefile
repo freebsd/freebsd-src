@@ -1,11 +1,11 @@
 #
 # Bmakefile for GNU info
 #
-# $id$
+# $Id$
 #
 
 PROG= makedoc 
-
+NOMAN=yes
 SRCS+= makedoc.c xmalloc.c
 
 CFLAGS+= -I${.CURDIR}/../info -I${.CURDIR}
