@@ -15,17 +15,12 @@ LANGS=	en_US.US-ASCII fr_FR.ISO8859-1 de_DE.ISO8859-1 pl_PL.ISO8859-2 \
 8859_15_LINKS = fr_FR de_DE
 ENUS_LINKS =	ISO8859-1 ISO8859-15
 
-FILES=	${LANGS:S/$/.ee.cat/}
-CLEANFILES+=	${FILES}
+NLSNAME=ee
 
 .for lang in ${LANGS}
-${lang}.ee.cat: ${.CURDIR}/nls/${lang}/ee.msg
-	gencat -new ${.TARGET} ${.ALLSRC}
-.endfor
-
-.for lang in ${LANGS}
-FILESDIR_${lang:S/$/.ee.cat/}=	${NLSDIR}/${lang}
-FILESNAME_${lang:S/$/.ee.cat/}=	ee.cat
+NLSSRCDIR_${lang}.msg=${.CURDIR}/nls/${lang}
+NLSSRCFILES_${lang}.msg=ee.msg
+NLS+=${lang}.msg
 .endfor
 
 .for link in ${ENUS_LINKS}
@@ -36,3 +31,4 @@ SYMLINKS+=	../${link}.ISO8859-1/ee.cat ${NLSDIR}/${link}.ISO8859-15/ee.cat
 .endfor
 
 .include <bsd.prog.mk>
+.include <bsd.nls.mk>
