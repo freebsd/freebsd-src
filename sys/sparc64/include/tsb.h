@@ -32,7 +32,7 @@
 #ifndef	_MACHINE_TSB_H_
 #define	_MACHINE_TSB_H_
 
-#define	TSB_PAGES_SHIFT			(1)
+#define	TSB_PAGES_SHIFT			(2)
 #define	TSB_PAGES			(1 << TSB_PAGES_SHIFT)
 #define	TSB_BSHIFT			(TSB_PAGES_SHIFT + PAGE_SHIFT)
 #define	TSB_BSIZE			(1UL << TSB_BSHIFT)
