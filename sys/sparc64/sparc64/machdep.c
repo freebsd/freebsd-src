@@ -42,46 +42,45 @@
 #include "opt_msgbuf.h"
 
 #include <sys/param.h>
+#include <sys/malloc.h>
+#include <sys/proc.h>
 #include <sys/systm.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/bus.h>
 #include <sys/cpu.h>
 #include <sys/cons.h>
+#include <sys/eventhandler.h>
+#include <sys/exec.h>
 #include <sys/imgact.h>
+#include <sys/interrupt.h>
 #include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/linker.h>
 #include <sys/lock.h>
-#include <sys/malloc.h>
 #include <sys/msgbuf.h>
 #include <sys/mutex.h>
 #include <sys/pcpu.h>
-#include <sys/proc.h>
-#include <sys/reboot.h>
-#include <sys/eventhandler.h>
-#include <sys/interrupt.h>
 #include <sys/ptrace.h>
+#include <sys/reboot.h>
 #include <sys/signalvar.h>
 #include <sys/smp.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
 #include <sys/timetc.h>
 #include <sys/ucontext.h>
-#include <sys/ucontext.h>
-#include <sys/exec.h>
 
 #include <dev/ofw/openfirm.h>
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
+#include <vm/vm_extern.h>
 #include <vm/vm_kern.h>
-#include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_map.h>
+#include <vm/vm_object.h>
 #include <vm/vm_pager.h>
-#include <vm/vm_extern.h>
+#include <vm/vm_param.h>
 
 #include <ddb/ddb.h>
 
@@ -97,11 +96,11 @@
 #include <machine/ofw_machdep.h>
 #include <machine/ofw_mem.h>
 #include <machine/pcb.h>
-#include <machine/smp.h>
 #include <machine/pmap.h>
 #include <machine/pstate.h>
 #include <machine/reg.h>
 #include <machine/sigframe.h>
+#include <machine/smp.h>
 #include <machine/tick.h>
 #include <machine/tlb.h>
 #include <machine/tstate.h>
