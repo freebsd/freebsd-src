@@ -3496,35 +3496,6 @@ handle_workitem_freefile(freefile)
 	WORKITEM_FREE(freefile, D_FREEFILE);
 }
 
-int
-softdep_disk_prewrite(struct buf *bp)
-{
-	int error;
-	struct vnode *vp = bp->b_vp;
-
-	KASSERT(bp->b_iocmd == BIO_WRITE,
-	    ("softdep_disk_prewrite on non-BIO_WRITE buffer"));
-	if ((bp->b_flags & B_VALIDSUSPWRT) == 0 &&
-	    bp->b_vp != NULL && bp->b_vp->v_mount != NULL &&
-	    (bp->b_vp->v_mount->mnt_kern_flag & MNTK_SUSPENDED) != 0)
-		panic("softdep_disk_prewrite: bad I/O");
-	bp->b_flags &= ~B_VALIDSUSPWRT;
-	if (LIST_FIRST(&bp->b_dep) != NULL)
-		buf_start(bp);
-	mp_fixme("This should require the vnode lock.");
-	if ((vp->v_vflag & VV_COPYONWRITE) &&
-	    vp->v_rdev->si_snapdata != NULL &&
-	    (error = (ffs_copyonwrite)(vp, bp)) != 0 &&
-	    error != EOPNOTSUPP) {
-		bp->b_error = error;
-		bp->b_ioflags |= BIO_ERROR;
-		bufdone(bp);
-		return (1);
-	}
-	return (0);
-}
-
-
 /*
  * Disk writes.
  * 

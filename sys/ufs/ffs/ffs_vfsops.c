@@ -1671,10 +1671,29 @@ ffs_bufwrite(struct buf *bp)
 static void
 ffs_geom_strategy(struct bufobj *bo, struct buf *bp)
 {
+	struct vnode *vp;
+	int error;
 
+	vp = bo->__bo_vnode;
+	if (bp->b_iocmd == BIO_WRITE) {
 #ifdef SOFTUPDATES
-	if (bp->b_iocmd == BIO_WRITE && softdep_disk_prewrite(bp))
-		return;
+		if (LIST_FIRST(&bp->b_dep) != NULL)
+			buf_start(bp);
 #endif
+		if ((bp->b_flags & B_VALIDSUSPWRT) == 0 &&
+		    bp->b_vp != NULL && bp->b_vp->v_mount != NULL &&
+		    (bp->b_vp->v_mount->mnt_kern_flag & MNTK_SUSPENDED) != 0)
+			panic("ffs_geom_strategy: bad I/O");
+		bp->b_flags &= ~B_VALIDSUSPWRT;
+		if ((vp->v_vflag & VV_COPYONWRITE) &&
+		    vp->v_rdev->si_snapdata != NULL &&
+		    (error = (ffs_copyonwrite)(vp, bp)) != 0 &&
+		    error != EOPNOTSUPP) {
+			bp->b_error = error;
+			bp->b_ioflags |= BIO_ERROR;
+			bufdone(bp);
+			return;
+		}
+	}
 	g_vfs_strategy(bo, bp);
 }
