@@ -182,18 +182,13 @@ static void pca_continue __P((void));
 static void pca_init __P((void));
 static void pca_pause __P((void));
 
-static __inline void
-conv(const void *table, void *buff, unsigned int n)
+static void
+conv(const unsigned char *table, unsigned char *buff, unsigned n)
 {
-  __asm__("1:\tmovb (%2), %3\n"
-          "\txlatb\n"
-          "\tmovb %3, (%2)\n"
-	  "\tinc %2\n"
-	  "\tdec %1\n"
-	  "\tjnz 1b\n"
-          : "=b" (table), "=c" (n), "=D" (buff), "=a" ((char)n) /*all dummies*/
-          : "0" (table), "1" (n), "2" (buff), "3" ((char)n)
-           /* clobber list covered by matching out/in registers */ );
+	unsigned i;
+
+	for (i = 0; i < n; i++)
+		buff[i] = table[buff[i]];
 }
 
 
