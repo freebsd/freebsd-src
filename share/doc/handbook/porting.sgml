@@ -1,4 +1,4 @@
-<!-- $Id: porting.sgml,v 1.46 1996/12/09 07:38:56 obrien Exp $ -->
+<!-- $Id: porting.sgml,v 1.47 1996/12/09 08:24:03 obrien Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect1><heading>Porting an existing piece of free software<label id="porting"></heading>
@@ -988,11 +988,21 @@ MAN8=      baz.8
 	  `<tt>&dollar;2</tt>' can be tested to determine which mode
 	  the script is being run in.
 	  The `<tt>PKG_PREFIX</tt>' environmental variable will be set to
-	  the package installation directory.
+	  the package installation directory.  See man <tt>pkg_add(1)</tt>
+	  for additional information.
 	  Note, that this script is not run automatically if you install
 	  the port with `<tt>make install</tt>'.  If you are depending
 	  on it being run, you will have to explicitly call it on your
 	  port's Makefile.
+
+      <sect3>
+	<heading>REQ package script</heading>
+	<p>If your needs to determine if it should install or not, you
+	  can create a pkg/REQ ``requirements'' script.  It will be invoked
+	  automatically at installation/deinstallation time to determine
+	  whether or not installation/deinstallation should proceed.
+	  See man <tt>pkg_create(1)</tt> and man <tt>pkg_add(1)</tt> for
+	  more information.
 
       <sect3>
 	<heading>Install additional documentation</heading>
