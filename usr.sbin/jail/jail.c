@@ -57,7 +57,7 @@ main(int argc, char **argv)
 	int ch, i, iflag, lflag, ngroups, uflag, Uflag;
 	char path[PATH_MAX], *username;
 	static char *cleanenv;
-	const char *shell, *p;
+	const char *shell, *p = NULL;
 
 	iflag = lflag = uflag = Uflag = 0;
 	username = cleanenv = NULL;
