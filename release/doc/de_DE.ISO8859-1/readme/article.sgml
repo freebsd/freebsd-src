@@ -1,7 +1,7 @@
 <!--
   The FreeBSD German Documentation Project
   The FreeBSD Documentation Project
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/readme/article.sgml,v 1.8 2002/05/26 17:27:52 mheinen Exp $
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/readme/article.sgml,v 1.10 2002/10/12 18:02:24 ue Exp $
   basiert auf: 1.17
 -->
 
@@ -12,7 +12,7 @@
 %authors;
 <!ENTITY % mlists PUBLIC "-//FreeBSD//ENTITIES DocBook Mailing List Entities//DE">
 %mlists;
-<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//DE">
+<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
 %release;
 <!ENTITY % misc PUBLIC  "-//FreeBSD//ENTITIES DocBook Miscellaneous FreeBSD Entities//EN">
 %misc;
@@ -69,7 +69,7 @@
         und UltraSPARC Systeme.  Versionen f&uuml;r die Plattformen IA64 und PowerPC
         sind ebenfalls in der Entwicklung.  &os;
         unterst&uuml;tzt viele verschiedene Ger&auml;te und Umgebungen
-        und f&uuml;r alle Anwendungen von der Software-Enwicklung bis
+        und f&uuml;r alle Anwendungen von der Software-Entwicklung bis
         zur Anbietung von Diensten im Internet genutzt werden.</para>
 
       <para>Diese Version von &os; stellt Ihnen alles zur
