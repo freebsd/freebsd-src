@@ -419,7 +419,7 @@ sb_callback(snddev_info *d, int reason)
 	break;
 
     case SND_CB_STOP :
-	/* sb_cmd(d->io_base, DSP_CMD_SPKOFF); /* speaker off */
+	/* XXX ??? sb_cmd(d->io_base, DSP_CMD_SPKOFF);*/ /* speaker off */
 	break ;
 
     }
