@@ -74,7 +74,7 @@ static OWNER owner;
 static char hostname[MAXHOSTNAMELEN + 1];	/* Hostname. */
 
 static void	client_cleanup(void);
-static void	set_auth(CLIENT *cl, struct ucred *ucred);
+static void	set_auth(CLIENT *cl, struct xucred *ucred);
 int	lock_request(LOCKD_MSG *);
 int	test_request(LOCKD_MSG *);
 void	show(LOCKD_MSG *);
@@ -238,17 +238,17 @@ err:
 }
 
 void
-set_auth(cl, ucred)
+set_auth(cl, xucred)
 	CLIENT *cl;
-	struct ucred *ucred;
+	struct xucred *xucred;
 {
         if (cl->cl_auth != NULL)
                 cl->cl_auth->ah_ops->ah_destroy(cl->cl_auth);
         cl->cl_auth = authunix_create(hostname,
-                        ucred->cr_uid,
-                        ucred->cr_groups[0],
-                        ucred->cr_ngroups-1,
-                        &ucred->cr_groups[1]);
+                        xucred->cr_uid,
+                        xucred->cr_groups[0],
+                        xucred->cr_ngroups - 1,
+                        &xucred->cr_groups[1]);
 }
 
 
