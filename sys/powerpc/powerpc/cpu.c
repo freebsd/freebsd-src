@@ -245,7 +245,7 @@ cpu_print_speed(void)
 	mtspr(SPR_MMCR0, SPR_MMCR0_FC);
 	mtspr(SPR_PMC1, 0);
 	mtspr(SPR_MMCR0, SPR_MMCR0_PMC1SEL(PMCN_CYCLES));
-	delay(100000);
+	DELAY(100000);
 	cps = (mfspr(SPR_PMC1) * 10) + 4999;
 	printf(", %lld.%02lld MHz", cps / 1000000, (cps / 10000) % 100);
 }
@@ -284,7 +284,7 @@ cpu_config_l2cr(u_int cpuid, uint16_t vers)
 		__asm __volatile("sync");
 
 		/* Wait for L2 clock to be stable (640 L2 clocks). */
-		delay(100);
+		DELAY(100);
 
 		/* Invalidate all L2 contents. */
 		mtspr(SPR_L2CR, l2cr | L2CR_L2I);
