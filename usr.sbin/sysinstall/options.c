@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: options.c,v 1.38 1996/06/08 09:08:45 jkh Exp $
+ * $Id: options.c,v 1.39 1996/06/14 14:33:58 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -98,7 +98,6 @@ mediaCheck(Option opt)
 #define BPKG_PROMPT	"Please specify the name of the HTML browser package:"
 #define BBIN_PROMPT	"Please specify a full pathname to the HTML browser binary:"
 #define EDITOR_PROMPT	"Please specify the name of the text editor you wish to use:"
-#define RETRY_PROMPT	"Please specify the number of times to retry an FTP request:"
 #define PKG_PROMPT	"Please specify a temporary directory with lots of free space:"
 
 static Option Options[] = {
@@ -110,10 +109,6 @@ static Option Options[] = {
       OPT_IS_VAR,	NULL,			VAR_DEBUG,		varCheck	},
 { "Yes to All",		"Assume \"Yes\" answers to all non-critical dialogs",
       OPT_IS_VAR,	NULL,			VAR_NO_CONFIRM,		varCheck	},
-{ "FTP OnError",	"What to do when FTP requests fail:  abort, retry, reselect.",
-      OPT_IS_FUNC,	mediaSetFtpOnError,	VAR_FTP_ONERROR,	varCheck	},
-{ "FTP Retries",	"If FTP OnError == retry, this is the number of times to try.",
-      OPT_IS_VAR,	RETRY_PROMPT,		VAR_FTP_RETRIES,	varCheck	},
 { "FTP username",	"Username and password to use instead of anonymous",
       OPT_IS_FUNC,	mediaSetFtpUserPass,	VAR_FTP_USER,		varCheck	},
 { "Editor",		"Which text editor to use during installation",
