@@ -433,7 +433,7 @@ loop:
 	MNT_VNODE_FOREACH(xvp, mp, nvp) {
 		VI_LOCK(xvp);
 		MNT_IUNLOCK(mp);
-		if ((xvp->v_iflag & VI_XLOCK) ||
+		if ((xvp->v_iflag & VI_DOOMED) ||
 		    xvp->v_usecount == 0 || xvp->v_type == VNON ||
 		    (VTOI(xvp)->i_flags & SF_SNAPSHOT)) {
 			VI_UNLOCK(xvp);
