@@ -348,10 +348,12 @@ pline(pw)
 void
 usage()
 {
-	(void)fprintf(stderr, "%s\n%s\n%s\n%s\n",
+	(void)fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n",
 		"usage: id [user]",
 		"       id -G [-n] [user]",
+		"       id -P [user]",
 		"       id -g [-nr] [user]",
+		"       id -p [user]",
 		"       id -u [-nr] [user]");
 	exit(1);
 }
