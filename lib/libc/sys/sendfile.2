@@ -1,4 +1,4 @@
-.\" Copyright (c) 1998, David Greenman
+.\" Copyright (c) 2003, David G. Lawrence
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -191,6 +191,10 @@ An error occurred while reading from
 .Fa fd .
 .It Bq Er EFAULT
 An invalid address was specified for an argument.
+.It Bq Er EINTR
+A signal interrupted sendfile before it could be completed. If specified, the number
+of bytes successfully sent will be returned in
+.Fa *sbytes .
 .It Bq Er EAGAIN
 The socket is marked for non-blocking I/O and not all data was sent due to the socket buffer being filled.
 If specified, the number of bytes successfully sent will be returned in
@@ -215,4 +219,4 @@ The
 .Fn sendfile
 system call
 and this manual page were written by
-.An David Greenman Aq dg@root.com .
+.An David G. Lawrence Aq dg@dglawrence.com .
