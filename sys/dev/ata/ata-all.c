@@ -287,41 +287,41 @@ ata_resume(device_t dev)
 static int
 ataioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
 {
+
+    struct ata_cmd *iocmd = (struct ata_cmd *)addr;
+    device_t device;
     int error = 0;
 
-    switch (cmd) {
+    if (cmd != IOCATA)
+	return ENOTTY;
+    
+    if (iocmd->channel >= devclass_get_maxunit(ata_devclass))
+	return ENXIO;
+
+    if (!(device = devclass_get_device(ata_devclass, iocmd->channel)))
+	return ENODEV;
+
+    switch (iocmd->cmd) {
 	case ATAATTACH: {
-	    device_t device = devclass_get_device(ata_devclass, *(int *)addr);
 	    /* should enable channel HW on controller that can SOS XXX */   
-	    if (!device)
-		error = ENXIO;
-	    if (!error)
-		error = ata_probe(device);
-	    if (!error)
+	    if (!(error = ata_probe(device)))
 		error = ata_attach(device);
 	    break;
 	}
 
 	case ATADETACH: {
-	    device_t device = devclass_get_device(ata_devclass, *(int *)addr);
-	    if (!device)
-		error = ENXIO;
-	    if (!error)
-		error = ata_detach(device);
+	    error = ata_detach(device);
 	    /* should disable channel HW on controller that can SOS XXX */   
 	    break;
 	}
 
 	case ATAREINIT: {
-	    device_t device = devclass_get_device(ata_devclass, *(int *)addr);
 	    struct ata_softc *scp;
 	    int s;
 
-	    if (!device)
-		return ENXIO;
 	    scp = device_get_softc(device);
 	    if (!scp)
-		return ENXIO;
+		return ENODEV;
 
 	    /* make sure channel is not busy SOS XXX */
 	    s = splbio();
@@ -333,69 +333,66 @@ ataioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
 	}
 
 	case ATAGMODE: {
-	    struct ata_modes *mode = (struct ata_modes *)addr;
-	    device_t device = devclass_get_device(ata_devclass, mode->channel);
 	    struct ata_softc *scp;
 
-	    if (!device)
-		return ENXIO;
 	    scp = device_get_softc(device);
 	    if (!scp)
-		return ENXIO;
+		return ENODEV;
 	    if (scp->dev_param[MASTER])
-		mode->mode[MASTER] = scp->mode[MASTER];
+		iocmd->u.mode.mode[MASTER] = scp->mode[MASTER];
+	    else
+		iocmd->u.mode.mode[MASTER] = -1;
 	    if (scp->dev_param[SLAVE])
-		mode->mode[SLAVE] = scp->mode[SLAVE];
+		iocmd->u.mode.mode[SLAVE] = scp->mode[SLAVE];
+	    else
+		iocmd->u.mode.mode[SLAVE] = -1;
 	    break;
 	}
 
 	case ATASMODE: {
-	    struct ata_modes *mode = (struct ata_modes *)addr;
-	    device_t device = devclass_get_device(ata_devclass, mode->channel);
 	    struct ata_softc *scp;
 
-	    if (!device)
-		return ENXIO;
 	    scp = device_get_softc(device);
 	    if (!scp)
-		return ENXIO;
-	    if (scp->dev_param[MASTER] && mode->mode[MASTER] >= 0) {
-		ata_change_mode(scp, ATA_MASTER, mode->mode[MASTER]);
-		mode->mode[MASTER] = scp->mode[MASTER];
+		return ENODEV;
+	    if (scp->dev_param[MASTER] && iocmd->u.mode.mode[MASTER] >= 0) {
+		ata_change_mode(scp, ATA_MASTER, iocmd->u.mode.mode[MASTER]);
+		iocmd->u.mode.mode[MASTER] = scp->mode[MASTER];
 	    }
-	    if (scp->dev_param[SLAVE] && mode->mode[SLAVE] >= 0) {
-		ata_change_mode(scp, ATA_SLAVE, mode->mode[SLAVE]);
-		mode->mode[SLAVE] = scp->mode[SLAVE];
+	    else
+		iocmd->u.mode.mode[MASTER] = -1;
+
+	    if (scp->dev_param[SLAVE] && iocmd->u.mode.mode[SLAVE] >= 0) {
+		ata_change_mode(scp, ATA_SLAVE, iocmd->u.mode.mode[SLAVE]);
+		iocmd->u.mode.mode[SLAVE] = scp->mode[SLAVE];
 	    }
+	    else
+		iocmd->u.mode.mode[SLAVE] = -1;
 	    break;
 	}
 
 	case ATAGPARM: {
-	    struct ata_param *parm = (struct ata_param *)addr;
-	    device_t device = devclass_get_device(ata_devclass, parm->channel);
 	    struct ata_softc *scp;
 
-	    if (!device)
-		return ENXIO;
 	    scp = device_get_softc(device);
 	    if (!scp)
-		return ENXIO;
+		return ENODEV;
 
-	    parm->type[MASTER] = 
+	    iocmd->u.param.type[MASTER] = 
 		scp->devices & (ATA_ATA_MASTER | ATA_ATAPI_MASTER);
-	    parm->type[SLAVE] =
+	    iocmd->u.param.type[SLAVE] =
 		scp->devices & (ATA_ATA_SLAVE | ATA_ATAPI_SLAVE);
 
 	    if (scp->dev_name[MASTER])
-		strcpy(parm->name[MASTER], scp->dev_name[MASTER]);
+		strcpy(iocmd->u.param.name[MASTER], scp->dev_name[MASTER]);
 	    if (scp->dev_name[SLAVE])
-		strcpy(parm->name[SLAVE], scp->dev_name[SLAVE]);
+		strcpy(iocmd->u.param.name[SLAVE], scp->dev_name[SLAVE]);
 
 	    if (scp->dev_param[MASTER])
-		bcopy(scp->dev_param[MASTER], &parm->params[MASTER],
+		bcopy(scp->dev_param[MASTER], &iocmd->u.param.params[MASTER],
 		      sizeof(struct ata_params));
 	    if (scp->dev_param[SLAVE])
-		bcopy(scp->dev_param[SLAVE], &parm->params[SLAVE],
+		bcopy(scp->dev_param[SLAVE], &iocmd->u.param.params[SLAVE],
 		      sizeof(struct ata_params));
 	    break;
 	}
