@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: devstat.c,v 1.2 1998/09/18 02:35:25 ken Exp $
+ *	$Id: devstat.c,v 1.3 1998/09/20 00:11:09 ken Exp $
  */
 
 #include <sys/types.h>
@@ -193,8 +193,10 @@ checkversion(void)
 			strncat(devstat_errbuf, tmpstr,
 				DEVSTAT_ERRBUF_SIZE - buflen - 1);
 			buflen += errlen;
-		} else
+		} else {
 			strncpy(devstat_errbuf, tmpstr, DEVSTAT_ERRBUF_SIZE);
+			devstat_errbuf[DEVSTAT_ERRBUF_SIZE - 1] = '\0';
+		}
 
                 if (version < DEVSTAT_VERSION)
 			snprintf(tmpstr, sizeof(tmpstr),
@@ -510,6 +512,7 @@ selectdevs(struct device_selection **dev_select, int *num_selected,
 			strncpy((*dev_select)[i].device_name,
 				devices[i].device_name,
 				DEVSTAT_NAME_LEN);
+			(*dev_select)[i].device_name[DEVSTAT_NAME_LEN - 1]='\0';
 			(*dev_select)[i].unit_number = devices[i].unit_number;
 			(*dev_select)[i].position = i;
 		}
@@ -531,7 +534,8 @@ selectdevs(struct device_selection **dev_select, int *num_selected,
 	for (i = 0; (i < *num_selections) && (num_dev_selections > 0); i++) {
 		char tmpstr[80];
 
-		sprintf(tmpstr, "%s%d", (*dev_select)[i].device_name,
+		snprintf(tmpstr, sizeof(tmpstr), "%s%d",
+			(*dev_select)[i].device_name,
 			(*dev_select)[i].unit_number);
 		for (j = 0; j < num_dev_selections; j++) {
 			if (strcmp(tmpstr, dev_selections[j]) == 0) {
@@ -998,7 +1002,7 @@ buildmatch(char *match_str, struct devstat_match **matches, int *num_matches)
 		 * or interface.
 		 */
 		if ((*matches)[*num_matches].num_match_categories != (i + 1)) {
-			sprintf(devstat_errbuf,
+			snprintf(devstat_errbuf, sizeof(devstat_errbuf),
 				"%s: unknown match item \"%s\"", func_name,
 				tstr[i]);
 			return(-1);
