@@ -1,27 +1,23 @@
 #!/bin/sh -
 #
-#	$Id$
+#	$Id: rc.i386,v 1.21 1997/02/23 09:21:03 peter Exp $
 #	Do i386 specific processing
 #
 
-echo -n 'enabling FreeBSD/i386 options:'
-
+echo -n 'Initial rc.i386 initialization:'
 # Start the SCO binary emulation if requested.
-if [ "X${ibcs2}" = X"YES" ]; then
-	echo -n ' ';		ibcs2
-	# XXX BOGUS - ibcs2 script shouldn't make any output on success
+if [ "X${ibcs2_enable}" = X"YES" ]; then
+	echo -n ' ibcs2';		ibcs2 > /dev/null 2>&1
 fi
 
 # Start the Linux binary emulation if requested.
-if [ "X${linux}" = X"YES" ]; then
-	echo -n ' ';		linux
-	# XXX BOGUS - Linux script shouldn't make any output on success
+if [ "X${linux_aout_enable}" = X"YES" ]; then
+	echo -n ' linux';		linux > /dev/null 2>&1
 fi
 
-if [ "X${xtend}" != X"NO" -a -x /usr/libexec/xtend ]; then
+if [ "X${xtend_enable}" = X"YES" ]; then
  	echo -n ' xtend';	/usr/libexec/xtend
 fi
-
 echo '.'
 
 ##########################################################################
@@ -32,7 +28,7 @@ echo '.'
 kbddev=/dev/ttyv0
 viddev=/dev/ttyv0
 
-echo -n "configuring syscons:"
+echo -n "rc.i386 configuring syscons:"
 
 # keymap
 if [ "X${keymap}" != X"NO" ]; then
@@ -102,14 +98,13 @@ if [ "X${mousedtype}" != XNO ] ; then
 	echo -n ' moused'
 	moused ${mousedflags} -p ${mousedport} -t ${mousedtype}
 fi
-
 echo '.'
 
 # interrupts for /dev/random device
 if [ "X${rand_irqs}" != X"NO" ] ; then
 	echo -n 'entropy source: '
 	rndcontrol ${rand_irqs}
+	echo '.'
 fi
 
-echo '.' # probably bogus
 
