@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: mbuf.c,v 1.10 1997/10/26 01:03:16 brian Exp $
+ * $Id: mbuf.c,v 1.11 1997/11/22 03:37:40 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -79,6 +79,7 @@ mballoc(int cnt, int type)
   bp->base = p;
   bp->size = bp->cnt = cnt;
   bp->type = type;
+  bp->pnext = NULL;
   return (bp);
 }
 
