@@ -283,7 +283,7 @@ static daddr_t swp_pager_meta_ctl(vm_object_t, vm_pindex_t, int);
  *	This routine must be called at splvm()
  */
 static void
-swp_sizecheck()
+swp_sizecheck(void)
 {
 	GIANT_REQUIRED;
 
@@ -336,7 +336,7 @@ swp_pager_hash(vm_object_t object, vm_pindex_t index)
  *	system has yet to be initialized at this point.
  */
 static void
-swap_pager_init()
+swap_pager_init(void)
 {
 	/*
 	 * Initialize object lists
@@ -361,7 +361,7 @@ swap_pager_init()
  *	its main loop.
  */
 void
-swap_pager_swap_init()
+swap_pager_swap_init(void)
 {
 	int n, n2;
 
@@ -505,8 +505,7 @@ swap_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
  *	The object must be locked or unreferenceable.
  */
 static void
-swap_pager_dealloc(object)
-	vm_object_t object;
+swap_pager_dealloc(vm_object_t object)
 {
 	int s;
 
@@ -561,8 +560,7 @@ swap_pager_dealloc(object)
  *	We allocate in round-robin fashion from the configured devices.
  */
 static daddr_t
-swp_pager_getswapspace(npages)
-	int npages;
+swp_pager_getswapspace(int npages)
 {
 	daddr_t blk;
 	struct swdevt *sp;
@@ -669,10 +667,7 @@ swp_pager_freeswapspace(daddr_t blk, int npages)
  *	in order to perform the metadata removal.
  */
 void
-swap_pager_freespace(object, start, size)
-	vm_object_t object;
-	vm_pindex_t start;
-	vm_size_t size;
+swap_pager_freespace(vm_object_t object, vm_pindex_t start, vm_size_t size)
 {
 	int s = splvm();
 
@@ -748,11 +743,8 @@ swap_pager_reserve(vm_object_t object, vm_pindex_t start, vm_size_t size)
  *	inaccessible (XXX are they ?)
  */
 void
-swap_pager_copy(srcobject, dstobject, offset, destroysource)
-	vm_object_t srcobject;
-	vm_object_t dstobject;
-	vm_pindex_t offset;
-	int destroysource;
+swap_pager_copy(vm_object_t srcobject, vm_object_t dstobject,
+    vm_pindex_t offset, int destroysource)
 {
 	vm_pindex_t i;
 	int s;
@@ -854,11 +846,7 @@ swap_pager_copy(srcobject, dstobject, offset, destroysource)
  *	doing here.
  */
 static boolean_t
-swap_pager_haspage(object, pindex, before, after)
-	vm_object_t object;
-	vm_pindex_t pindex;
-	int *before;
-	int *after;
+swap_pager_haspage(vm_object_t object, vm_pindex_t pindex, int *before, int *after)
 {
 	daddr_t blk0;
 	int s;
@@ -934,9 +922,9 @@ swap_pager_haspage(object, pindex, before, after)
  *	This routine must be called at splvm()
  */
 static void
-swap_pager_unswapped(m)
-	vm_page_t m;
+swap_pager_unswapped(vm_page_t m)
 {
+
 	swp_pager_meta_ctl(m->object, m->pindex, SWM_FREE);
 }
 
@@ -960,10 +948,7 @@ swap_pager_unswapped(m)
  *	left busy, but the others adjusted.
  */
 static int
-swap_pager_getpages(object, m, count, reqpage)
-	vm_object_t object;
-	vm_page_t *m;
-	int count, reqpage;
+swap_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 {
 	struct buf *bp;
 	vm_page_t mreq;
@@ -1160,12 +1145,8 @@ swap_pager_getpages(object, m, count, reqpage)
  *	We need to unbusy the rest on I/O completion.
  */
 void
-swap_pager_putpages(object, m, count, sync, rtvals)
-	vm_object_t object;
-	vm_page_t *m;
-	int count;
-	boolean_t sync;
-	int *rtvals;
+swap_pager_putpages(vm_object_t object, vm_page_t *m, int count,
+    boolean_t sync, int *rtvals)
 {
 	int i;
 	int n = 0;
@@ -1369,8 +1350,7 @@ swap_pager_putpages(object, m, count, sync, rtvals)
  *	This routine may not block.  This routine is called at splbio() or better.
  */
 static void
-swp_pager_sync_iodone(bp)
-	struct buf *bp;
+swp_pager_sync_iodone(struct buf *bp)
 {
 	bp->b_flags |= B_DONE;
 	bp->b_flags &= ~B_ASYNC;
@@ -1396,8 +1376,7 @@ swp_pager_sync_iodone(bp)
  *	calls.
  */
 static void
-swp_pager_async_iodone(bp)
-	struct buf *bp;
+swp_pager_async_iodone(struct buf *bp)
 {
 	int s;
 	int i;
@@ -1759,11 +1738,8 @@ restart:
  *	an OBJT_DEFAULT object into an OBJT_SWAP object.
  */
 static void
-swp_pager_meta_build(
-	vm_object_t object, 
-	vm_pindex_t pindex,
-	daddr_t swapblk
-) {
+swp_pager_meta_build(vm_object_t object, vm_pindex_t pindex, daddr_t swapblk)
+{
 	struct swblock *swap;
 	struct swblock **pswap;
 	int idx;
@@ -1959,11 +1935,8 @@ swp_pager_meta_free_all(vm_object_t object)
  *	SWM_POP		remove from meta data but do not free.. pop it out
  */
 static daddr_t
-swp_pager_meta_ctl(
-	vm_object_t object,
-	vm_pindex_t pindex,
-	int flags
-) {
+swp_pager_meta_ctl(vm_object_t object, vm_pindex_t pindex, int flags)
+{
 	struct swblock **pswap;
 	struct swblock *swap;
 	daddr_t r1;
@@ -2001,17 +1974,6 @@ swp_pager_meta_ctl(
 	}
 	return (r1);
 }
-
-/********************************************************
- *		CHAINING FUNCTIONS			*
- ********************************************************
- *
- *	These functions support recursion of I/O operations
- *	on bp's, typically by chaining one or more 'child' bp's
- *	to the parent.  Synchronous, asynchronous, and semi-synchronous
- *	chaining is possible.
- */
-
 
 /*
  *	swapdev_strategy:
@@ -2085,9 +2047,7 @@ struct swapon_args {
  */
 /* ARGSUSED */
 int
-swapon(td, uap)
-	struct thread *td;
-	struct swapon_args *uap;
+swapon(struct thread *td, struct swapon_args *uap)
 {
 	struct vattr attr;
 	struct vnode *vp;
@@ -2143,11 +2103,7 @@ done2:
 }
 
 static int
-swaponvp(td, vp, dev, nblks)
-	struct thread *td;
-	struct vnode *vp;
-	dev_t dev;
-	u_long nblks;
+swaponvp(struct thread *td, struct vnode *vp, dev_t dev, u_long nblks)
 {
 	struct swdevt *sp;
 	swblk_t dvbase;
@@ -2253,9 +2209,7 @@ struct swapoff_args {
  */
 /* ARGSUSED */
 int
-swapoff(td, uap)
-	struct thread *td;
-	struct swapoff_args *uap;
+swapoff(struct thread *td, struct swapoff_args *uap)
 {
 	struct vnode *vp;
 	struct nameidata nd;
