@@ -1223,8 +1223,8 @@ garcon		999/tcp
 applix		999/udp	       #Applix ac
 puprouter	999/tcp
 puprouter	999/udp
-cadlock		1000/tcp
-ock		1000/udp
+cadlock2	1000/tcp
+cadlock2	1000/udp
 #
 # REGISTERED PORT NUMBERS
 #
