@@ -269,8 +269,9 @@ installFixitCDROM(dialogMenuItem *self)
     (void)rmdir("/mnt2");
 
     while (1) {
-	msgConfirm("Please insert a FreeBSD live filesystem CD/DVD and press return");
-	if (DITEM_STATUS(mediaSetCDROM(NULL)) != DITEM_SUCCESS || !mediaDevice || !mediaDevice->init(mediaDevice)) {
+	msgConfirm("Please insert a FreeBSD live filesystem CDROM and press return");
+	if (DITEM_STATUS(mediaSetCDROM(NULL)) != DITEM_SUCCESS
+	    || !DEVICE_INIT(mediaDevice)) {
 	    /* If we can't initialize it, it's probably not a FreeBSD CDROM so punt on it */
 	    mediaClose();
 	    if (msgYesNo("Unable to mount the disc - do you want to try again?") != 0)
@@ -357,7 +358,7 @@ installFixitFloppy(dialogMenuItem *self)
     variable_set2(SYSTEM_STATE, "fixit", 0);
 
     while (1) {
-	if (!mediaDevice->init(mediaDevice)) {
+	if (!DEVICE_INIT(mediaDevice)) {
 	    if (msgYesNo("The attempt to mount the fixit floppy failed, bad floppy\n"
 			 "or unclean filesystem.  Do you want to try again?"))
 		return DITEM_FAILURE;
@@ -562,7 +563,7 @@ nodisks:
 	    Device *tmp = tcpDeviceSelect();
 
 	    if (tmp && !((DevInfo *)tmp->private)->use_dhcp && !msgYesNo("Would you like to bring the %s interface up right now?", tmp->name))
-		if (!tmp->init(tmp))
+		if (!DEVICE_INIT(tmp))
 		    msgConfirm("Initialization of %s device failed.", tmp->name);
 	}
 	dialog_clear_norefresh();
@@ -702,7 +703,7 @@ installCommit(dialogMenuItem *self)
 	return i;
 
 try_media:
-    if (!mediaDevice->init(mediaDevice)) {
+    if (!DEVICE_INIT(mediaDevice)) {
 	if (!msgYesNo("Unable to initialize selected media. Would you like to\n"
 		      "adjust your media configuration and try again?")) {
 	    mediaDevice = NULL;
