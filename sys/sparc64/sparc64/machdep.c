@@ -386,6 +386,11 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	intr_init2();
 
 	OF_getprop(root, "name", sparc64_model, sizeof(sparc64_model) - 1);
+
+#ifdef DDB
+	if (boothowto & RB_KDB)
+		Debugger("Boot flags requested debugger");
+#endif
 }
 
 void
