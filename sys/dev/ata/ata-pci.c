@@ -146,6 +146,9 @@ ata_pci_match(device_t dev)
     case 0x248b8086:
 	return "Intel ICH3 ATA100 controller";
 
+    case 0x24cb8086:
+	return "Intel ICH4 ATA100 controller";
+
     case 0x522910b9:
 	if (pci_get_revid(dev) >= 0xc4)
 	    return "AcerLabs Aladdin ATA100 controller";
