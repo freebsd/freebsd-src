@@ -48,6 +48,7 @@ o The ed0 (wd8xxxx, 3c503, NE2000, HP Lan+) Ethernet device's default IRQ
   has changed from IRQ 5 to IRQ 10.
   The ed1 Ethernet device has been removed.  Use the Userconfig utility
   to change ed0's values to match your network card's settings.
+  [MERGED: Both changes are in 2.2.6 and later releases on 2.2-STABLE branch]
 
 o Use the new if_multiaddrs list for multicast addresses rather than the
   previous hackery involving struct in_ifaddr and arpcom.  Get rid of the
@@ -256,6 +257,11 @@ to aid with this, see /usr/src/tools/3.0-upgrade.
 fdisk(8) now numbers disk slices from 1 to 4 rather than from 0 to 3.
 This brings it in line with the numbers used in the device names
 in /dev.
+
+The Amd automounter has been updated from the 1993 4.4BSD version to
+the latest current version of am-utils.  Map options have changed
+somewhat, and a new configuration file, /etc/amd.conf, is supported.
+See ``man 5 amd.conf''.
 
 The ``picobsd'' package for creating custom FreeBSD boot floppies
 and "mini systems" has been brought into /usr/src/release/picobsd.
