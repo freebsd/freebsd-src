@@ -173,6 +173,9 @@ struct callout_handle ipfr_slowtimer_ch;
 # include <sys/callout.h>
 struct callout ipfr_slowtimer_ch;
 #endif
+#if defined(__sgi) && defined(_KERNEL)
+toid_t ipfr_slowtimer_ch;
+#endif
 
 #if (_BSDI_VERSION >= 199510) && defined(_KERNEL)
 # include <sys/device.h>
@@ -322,7 +325,7 @@ pfil_error:
 	callout_init(&ipfr_slowtimer_ch);
 	callout_reset(&ipfr_slowtimer_ch, hz / 2, ipfr_slowtimer, NULL);
 # else
-#  if (__FreeBSD_version >= 300000) && defined(_KERNEL)
+#  if (__FreeBSD_version >= 300000) || defined(__sgi)
 	ipfr_slowtimer_ch = timeout(ipfr_slowtimer, NULL, hz/2);
 #  else
 	timeout(ipfr_slowtimer, NULL, hz/2);
@@ -353,7 +356,7 @@ int ipldetach()
 	untimeout(ipfr_slowtimer, NULL, ipfr_slowtimer_ch);
 #  else
 #  ifdef __sgi
-	untimeout(ipfr_slowtimer);
+	untimeout(ipfr_slowtimer_ch);
 #   else
 	untimeout(ipfr_slowtimer, NULL);
 #   endif
@@ -980,8 +983,10 @@ fr_info_t *fin;
 	if (m == NULL)
 		return -1;
 
-	if (tcp->th_flags & TH_SYN)
-		tlen = 1;
+	tlen = oip->ip_len - fin->fin_hlen - (tcp->th_off << 2) +
+			((tcp->th_flags & TH_SYN) ? 1 : 0) +
+			((tcp->th_flags & TH_FIN) ? 1 : 0);
+
 #ifdef	USE_INET6
 	hlen = (fin->fin_v == 6) ? sizeof(ip6_t) : sizeof(ip_t);
 #else
@@ -1002,11 +1007,16 @@ fr_info_t *fin;
 
 	tcp2->th_sport = tcp->th_dport;
 	tcp2->th_dport = tcp->th_sport;
-	tcp2->th_ack = ntohl(tcp->th_seq);
-	tcp2->th_ack += tlen;
-	tcp2->th_ack = htonl(tcp2->th_ack);
+	if (tcp->th_flags & TH_ACK) {
+		tcp2->th_seq = tcp->th_ack;
+		tcp2->th_flags = TH_RST;
+	} else {
+		tcp2->th_ack = ntohl(tcp->th_seq);
+		tcp2->th_ack += tlen;
+		tcp2->th_ack = htonl(tcp2->th_ack);
+		tcp2->th_flags = TH_RST|TH_ACK;
+	}
 	tcp2->th_off = sizeof(*tcp2) >> 2;
-	tcp2->th_flags = TH_RST|TH_ACK;
 # ifdef	USE_INET6
 	if (fin->fin_v == 6) {
 		ip6->ip6_plen = htons(sizeof(struct tcphdr));
@@ -1148,7 +1158,12 @@ int dst;
 			m_freem(m);
 			return ENOBUFS;
 		}
+# ifdef	M_TRAILINGSPACE
+		m->m_len = 0;
+		avail = M_TRAILINGSPACE(m);
+# else
 		avail = (m->m_flags & M_EXT) ? MCLBYTES : MHLEN;
+# endif
 		xtra = MIN(ntohs(oip6->ip6_plen) + sizeof(ip6_t),
 			   avail - hlen - sizeof(*icmp) - max_linkhdr);
 		if (dst == 0) {
@@ -1182,6 +1197,12 @@ int dst;
 	icmp->icmp_type = type;
 	icmp->icmp_code = fin->fin_icode;
 	icmp->icmp_cksum = 0;
+#ifdef	icmp_nextmtu
+	if (type == ICMP_UNREACH &&
+	    fin->fin_icode == ICMP_UNREACH_NEEDFRAG && ifp)
+		icmp->icmp_nextmtu = htons(((struct ifnet *) ifp)->if_mtu);
+#endif
+
 	if (avail) {
 		bcopy((char *)oip, (char *)&icmp->icmp_ip, MIN(ohlen, avail));
 		avail -= MIN(ohlen, avail);
