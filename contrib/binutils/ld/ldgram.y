@@ -1,6 +1,6 @@
 /* A YACC grammar to parse a superset of the AT&T linker scripting language.
    Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
-   2001, 2002 Free Software Foundation, Inc.
+   2001, 2002, 2003 Free Software Foundation, Inc.
    Written by Steve Chamberlain of Cygnus Support (steve@cygnus.com).
 
 This file is part of GNU ld.
@@ -29,7 +29,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "bfd.h"
 #include "sysdep.h"
 #include "bfdlink.h"
-#include "ld.h"    
+#include "ld.h"
 #include "ldexp.h"
 #include "ldver.h"
 #include "ldlang.h"
@@ -49,13 +49,13 @@ static enum section_type sectype;
 
 lang_memory_region_type *region;
 
-boolean ldgram_want_filename = true;
-FILE *  saved_script_handle = NULL;
-boolean force_make_executable = false;
+bfd_boolean ldgram_want_filename = TRUE;
+FILE *saved_script_handle = NULL;
+bfd_boolean force_make_executable = FALSE;
 
-boolean ldgram_in_script = false;
-boolean ldgram_had_equals = false;
-boolean ldgram_had_keep = false;
+bfd_boolean ldgram_in_script = FALSE;
+bfd_boolean ldgram_had_equals = FALSE;
+bfd_boolean ldgram_had_keep = FALSE;
 char *ldgram_vers_current_lang = NULL;
 
 #define ERROR_NAME_MAX 20
@@ -81,8 +81,8 @@ static int error_index;
   union etree_union *etree;
   struct phdr_info
     {
-      boolean filehdr;
-      boolean phdrs;
+      bfd_boolean filehdr;
+      bfd_boolean phdrs;
       union etree_union *at;
       union etree_union *flags;
     } phdr;
@@ -94,7 +94,7 @@ static int error_index;
 }
 
 %type <etree> exp opt_exp_with_type mustbe_exp opt_at phdr_type phdr_val
-%type <etree> opt_exp_without_type
+%type <etree> opt_exp_without_type opt_subalign
 %type <fill> fill_opt fill_exp
 %type <name_list> exclude_name_list
 %type <wildcard_list> file_NAME_list
@@ -102,7 +102,7 @@ static int error_index;
 %type <name> memspec_at_opt
 %type <cname> wildcard_name
 %type <wildcard> wildcard_spec
-%token <bigint> INT  
+%token <bigint> INT
 %token <name> NAME LNAME
 %type <integer> length
 %type <phdr> phdr_qualifiers
@@ -110,7 +110,7 @@ static int error_index;
 %type <section_phdr> phdr_opt
 %type <integer> opt_nocrossrefs
 
-%right <token> PLUSEQ MINUSEQ MULTEQ DIVEQ  '=' LSHIFTEQ RSHIFTEQ   ANDEQ OREQ 
+%right <token> PLUSEQ MINUSEQ MULTEQ DIVEQ  '=' LSHIFTEQ RSHIFTEQ   ANDEQ OREQ
 %right <token> '?' ':'
 %left <token> OROR
 %left <token>  ANDAND
@@ -125,7 +125,7 @@ static int error_index;
 %left  <token> '*' '/' '%'
 
 %right UNARY
-%token END 
+%token END
 %left <token> '('
 %token <token> ALIGN_K BLOCK BIND QUAD SQUAD LONG SHORT BYTE
 %token SECTIONS PHDRS SORT DATA_SEGMENT_ALIGN DATA_SEGMENT_END
@@ -142,7 +142,7 @@ static int error_index;
 %token STARTUP HLL SYSLIB FLOAT NOFLOAT NOCROSSREFS
 %token ORIGIN FILL
 %token LENGTH CREATE_OBJECT_SYMBOLS INPUT GROUP OUTPUT CONSTRUCTORS
-%token ALIGNMOD AT PROVIDE
+%token ALIGNMOD AT SUBALIGN PROVIDE
 %type <token> assign_op atype attributes_opt
 %type <name>  filename
 %token CHIP LIST SECT ABSOLUTE  LOAD NEWLINE ENDWORD ORDER NAMEWORD ASSERT_K
@@ -158,7 +158,7 @@ static int error_index;
 
 %%
 
-file:	
+file:
 		INPUT_SCRIPT script_file
 	|	INPUT_MRI_SCRIPT mri_script_file
 	|	INPUT_VERSION_SCRIPT version_script_file
@@ -178,7 +178,7 @@ defsym_expr:
 		}
 	;
 
-/* SYNTAX WITHIN AN MRI SCRIPT FILE */  
+/* SYNTAX WITHIN AN MRI SCRIPT FILE */
 mri_script_file:
 		{
 		  ldlex_mri_script ();
@@ -198,7 +198,7 @@ mri_script_lines:
 	;
 
 mri_script_command:
-		CHIP  exp 
+		CHIP  exp
 	|	CHIP  exp ',' exp
 	|	NAME 	{
 			einfo(_("%P%F: unrecognised keyword in MRI style script '%s'\n"),$1);
@@ -207,12 +207,12 @@ mri_script_command:
 			config.map_filename = "-";
 			}
         |       ORDER ordernamelist
-	|       ENDWORD 
+	|       ENDWORD
         |       PUBLIC NAME '=' exp
  			{ mri_public($2, $4); }
         |       PUBLIC NAME ',' exp
  			{ mri_public($2, $4); }
-        |       PUBLIC NAME  exp 
+        |       PUBLIC NAME  exp
  			{ mri_public($2, $3); }
 	| 	FORMAT NAME
 			{ mri_format($2); }
@@ -232,8 +232,8 @@ mri_script_command:
 			{ mri_alignmod($2,$4); }
 	|	ABSOLUTE mri_abs_name_list
 	|	LOAD	 mri_load_name_list
-	|       NAMEWORD NAME 
-			{ mri_name($2); }   
+	|       NAMEWORD NAME
+			{ mri_name($2); }
 	|	ALIAS NAME ',' NAME
 			{ mri_alias($2,$4,0);}
 	|	ALIAS NAME ',' INT
@@ -249,7 +249,7 @@ mri_script_command:
 		mri_script_lines END
 		{ ldlex_popstate (); }
 	|	START NAME
-		{ lang_add_entry ($2, false); }
+		{ lang_add_entry ($2, FALSE); }
         |
 	;
 
@@ -319,7 +319,7 @@ ifile_p1:
 	|	TARGET_K '(' NAME ')'
 		{ lang_add_target($3); }
 	|	SEARCH_DIR '(' filename ')'
-		{ ldfile_add_library_path ($3, false); }
+		{ ldfile_add_library_path ($3, FALSE); }
 	|	OUTPUT '(' filename ')'
 		{ lang_add_output($3, 1); }
         |	OUTPUT_FORMAT '(' NAME ')'
@@ -328,11 +328,11 @@ ifile_p1:
 	|	OUTPUT_FORMAT '(' NAME ',' NAME ',' NAME ')'
 		  { lang_add_output_format ($3, $5, $7, 1); }
         |	OUTPUT_ARCH '(' NAME ')'
-		  { ldfile_set_output_arch($3); }
+		  { ldfile_set_output_arch ($3, bfd_arch_unknown); }
 	|	FORCE_COMMON_ALLOCATION
-		{ command_line.force_common_definition = true ; }
+		{ command_line.force_common_definition = TRUE ; }
 	|	INHIBIT_COMMON_ALLOCATION
-		{ command_line.inhibit_common_definition = true ; }
+		{ command_line.inhibit_common_definition = TRUE ; }
 	|	INPUT '(' input_list ')'
 	|	GROUP
 		  { lang_enter_group (); }
@@ -340,7 +340,7 @@ ifile_p1:
 		  { lang_leave_group (); }
      	|	MAP '(' filename ')'
 		{ lang_add_map($3); }
-	|	INCLUDE filename 
+	|	INCLUDE filename
 		{ ldlex_script (); ldfile_open_command_file($2); }
 		ifile_list END
 		{ ldlex_popstate (); }
@@ -384,8 +384,11 @@ sec_or_group_p1:
 
 statement_anywhere:
 		ENTRY '(' NAME ')'
-		{ lang_add_entry ($3, false); }
+		{ lang_add_entry ($3, FALSE); }
 	|	assignment end
+	|	ASSERT_K  {ldlex_expression ();} '(' exp ',' NAME ')'
+		{ ldlex_popstate ();
+		  lang_add_assignment (exp_assert ($4, $6)); }
 	;
 
 /* The '*' and '?' cases are there because the lexer returns them as
@@ -409,25 +412,25 @@ wildcard_spec:
 		wildcard_name
 			{
 			  $$.name = $1;
-			  $$.sorted = false;
+			  $$.sorted = FALSE;
 			  $$.exclude_name_list = NULL;
 			}
 	| 	EXCLUDE_FILE '(' exclude_name_list ')' wildcard_name
 			{
 			  $$.name = $5;
-			  $$.sorted = false;
+			  $$.sorted = FALSE;
 			  $$.exclude_name_list = $3;
 			}
 	|	SORT '(' wildcard_name ')'
 			{
 			  $$.name = $3;
-			  $$.sorted = true;
+			  $$.sorted = TRUE;
 			  $$.exclude_name_list = NULL;
 			}
 	|	SORT '(' EXCLUDE_FILE '(' exclude_name_list ')' wildcard_name ')'
 			{
 			  $$.name = $7;
-			  $$.sorted = true;
+			  $$.sorted = TRUE;
 			  $$.exclude_name_list = $5;
 			}
 	;
@@ -439,7 +442,7 @@ exclude_name_list:
 			  tmp = (struct name_list *) xmalloc (sizeof *tmp);
 			  tmp->name = $2;
 			  tmp->next = $1;
-			  $$ = tmp;	
+			  $$ = tmp;
 			}
 	|
 		wildcard_name
@@ -478,7 +481,7 @@ input_section_spec_no_keep:
 			  struct wildcard_spec tmp;
 			  tmp.name = $1;
 			  tmp.exclude_name_list = NULL;
-			  tmp.sorted = false;
+			  tmp.sorted = FALSE;
 			  lang_add_wild (&tmp, NULL, ldgram_had_keep);
 			}
         |	'[' file_NAME_list ']'
@@ -494,26 +497,26 @@ input_section_spec_no_keep:
 input_section_spec:
 		input_section_spec_no_keep
 	|	KEEP '('
-			{ ldgram_had_keep = true; }
+			{ ldgram_had_keep = TRUE; }
 		input_section_spec_no_keep ')'
-			{ ldgram_had_keep = false; }
+			{ ldgram_had_keep = FALSE; }
 	;
 
 statement:
 	  	assignment end
 	|	CREATE_OBJECT_SYMBOLS
 		{
- 		lang_add_attribute(lang_object_symbols_statement_enum); 
+ 		lang_add_attribute(lang_object_symbols_statement_enum);
 	      	}
         |	';'
         |	CONSTRUCTORS
 		{
- 		
-		  lang_add_attribute(lang_constructors_statement_enum); 
+
+		  lang_add_attribute(lang_constructors_statement_enum);
 		}
 	| SORT '(' CONSTRUCTORS ')'
 		{
-		  constructors_sorted = true;
+		  constructors_sorted = TRUE;
 		  lang_add_attribute (lang_constructors_statement_enum);
 		}
 	| input_section_spec
@@ -521,7 +524,7 @@ statement:
         	        {
 			  lang_add_data ((int) $1, $3);
 			}
-  
+
 	| FILL '(' fill_exp ')'
 			{
 			  lang_add_fill ($3);
@@ -532,7 +535,7 @@ statement_list:
 		statement_list statement
   	|  	statement
 	;
-  
+
 statement_list_opt:
 		/* empty */
 	|	statement_list
@@ -627,7 +630,7 @@ memory_spec_list:
 
 
 memory_spec: 	NAME
-		{ region = lang_memory_region_lookup($1); }
+		{ region = lang_memory_region_lookup ($1, TRUE); }
 		attributes_opt ':'
 		origin_spec opt_comma length_spec
 		{}
@@ -697,11 +700,11 @@ low_level_library:
 
 floating_point_support:
 		FLOAT
-			{ lang_float(true); }
+			{ lang_float(TRUE); }
 	|	NOFLOAT
-			{ lang_float(false); }
+			{ lang_float(FALSE); }
 	;
-		
+
 nocrossref_list:
 		/* empty */
 		{
@@ -801,6 +804,8 @@ exp	:
 			{ $$ = exp_unop(ABSOLUTE, $3); }
 	|	ALIGN_K '(' exp ')'
 			{ $$ = exp_unop(ALIGN_K,$3); }
+	|	ALIGN_K '(' exp ',' exp ')'
+			{ $$ = exp_binop(ALIGN_K,$3,$5); }
 	|	DATA_SEGMENT_ALIGN '(' exp ',' exp ')'
 			{ $$ = exp_binop (DATA_SEGMENT_ALIGN, $3, $5); }
 	|	DATA_SEGMENT_END '(' exp ')'
@@ -828,31 +833,37 @@ opt_at:
 	|	{ $$ = 0; }
 	;
 
+opt_subalign:
+		SUBALIGN '(' exp ')' { $$ = $3; }
+	|	{ $$ = 0; }
+	;
+
 section:	NAME 		{ ldlex_expression(); }
-		opt_exp_with_type 
-		opt_at   	{ ldlex_popstate (); ldlex_script (); }
+		opt_exp_with_type
+		opt_at
+		opt_subalign	{ ldlex_popstate (); ldlex_script (); }
 		'{'
 			{
 			  lang_enter_output_section_statement($1, $3,
 							      sectype,
-							      0, 0, 0, $4);
+							      0, $5, $4);
 			}
-		statement_list_opt 	
+		statement_list_opt
  		'}' { ldlex_popstate (); ldlex_expression (); }
 		memspec_opt memspec_at_opt phdr_opt fill_opt
 		{
 		  ldlex_popstate ();
-		  lang_leave_output_section_statement ($14, $11, $13, $12);
+		  lang_leave_output_section_statement ($15, $12, $14, $13);
 		}
 		opt_comma
 		{}
 	|	OVERLAY
 			{ ldlex_expression (); }
-		opt_exp_without_type opt_nocrossrefs opt_at
+		opt_exp_without_type opt_nocrossrefs opt_at opt_subalign
 			{ ldlex_popstate (); ldlex_script (); }
-		'{' 
+		'{'
 			{
-			  lang_enter_overlay ($3);
+			  lang_enter_overlay ($3, $6);
 			}
 		overlay_section
 		'}'
@@ -861,7 +872,7 @@ section:	NAME 		{ ldlex_expression(); }
 			{
 			  ldlex_popstate ();
 			  lang_leave_overlay ($5, (int) $4,
-					      $15, $12, $14, $13);
+					      $16, $13, $15, $14);
 			}
 		opt_comma
 	|	/* The GROUP case is just enough to support the gcc
@@ -918,7 +929,7 @@ opt_nocrossrefs:
 memspec_opt:
 		'>' NAME
 		{ $$ = $2; }
-	|	{ $$ = "*default*"; }
+	|	{ $$ = DEFAULT_MEMORY_REGION; }
 	;
 
 phdr_opt:
@@ -933,7 +944,7 @@ phdr_opt:
 		  n = ((struct lang_output_section_phdr_list *)
 		       xmalloc (sizeof *n));
 		  n->name = $3;
-		  n->used = false;
+		  n->used = FALSE;
 		  n->next = $1;
 		  $$ = n;
 		}
@@ -990,7 +1001,7 @@ phdr_type:
 			{
 			  "PT_NULL", "PT_LOAD", "PT_DYNAMIC",
 			  "PT_INTERP", "PT_NOTE", "PT_SHLIB",
-			  "PT_PHDR"
+			  "PT_PHDR", "PT_TLS"
 			};
 
 		      s = $1->name.name;
@@ -1002,6 +1013,20 @@ phdr_type:
 			    $$ = exp_intop (i);
 			    break;
 			  }
+		      if (i == sizeof phdr_types / sizeof phdr_types[0])
+			{
+			  if (strcmp (s, "PT_GNU_EH_FRAME") == 0)
+			    $$ = exp_intop (0x6474e550);
+			  else if (strcmp (s, "PT_GNU_STACK") == 0)
+			    $$ = exp_intop (0x6474e551);
+			  else
+			    {
+			      einfo (_("\
+%X%P:%S: unknown phdr type `%s' (try integer literal)\n"),
+				     s);
+			      $$ = exp_intop (0);
+			    }
+			}
 		    }
 		}
 	;
@@ -1015,9 +1040,9 @@ phdr_qualifiers:
 		{
 		  $$ = $3;
 		  if (strcmp ($1, "FILEHDR") == 0 && $2 == NULL)
-		    $$.filehdr = true;
+		    $$.filehdr = TRUE;
 		  else if (strcmp ($1, "PHDRS") == 0 && $2 == NULL)
-		    $$.phdrs = true;
+		    $$.phdrs = TRUE;
 		  else if (strcmp ($1, "FLAGS") == 0 && $2 != NULL)
 		    $$.flags = $2;
 		  else
@@ -1130,23 +1155,38 @@ vers_defns:
 		{
 		  $$ = lang_new_vers_pattern ($1, $3, ldgram_vers_current_lang);
 		}
+	|	vers_defns ';' EXTERN NAME '{'
+			{
+			  $<name>$ = ldgram_vers_current_lang;
+			  ldgram_vers_current_lang = $4;
+			}
+		vers_defns opt_semicolon '}'
+			{
+			  $$ = $7;
+			  ldgram_vers_current_lang = $<name>6;
+			}
 	|	EXTERN NAME '{'
 			{
 			  $<name>$ = ldgram_vers_current_lang;
 			  ldgram_vers_current_lang = $2;
 			}
-		vers_defns '}'
+		vers_defns opt_semicolon '}'
 			{
 			  $$ = $5;
 			  ldgram_vers_current_lang = $<name>4;
 			}
 	;
 
+opt_semicolon:
+		/* empty */
+	|	';'
+	;
+
 %%
 void
-yyerror(arg) 
+yyerror(arg)
      const char *arg;
-{ 
+{
   if (ldfile_assumed_script)
     einfo (_("%P:%s: file format not recognized; treating as linker script\n"),
 	   ldfile_input_filename);

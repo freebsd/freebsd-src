@@ -25,54 +25,54 @@ struct hash_control;
 
 /* Create a hash table.  This return a control block.  */
 
-extern struct hash_control *hash_new PARAMS ((void));
+extern struct hash_control *hash_new (void);
 
 /* Delete a hash table, freeing all allocated memory.  */
 
-extern void hash_die PARAMS ((struct hash_control *));
+extern void hash_die (struct hash_control *);
 
 /* Insert an entry into a hash table.  This returns NULL on success.
    On error, it returns a printable string indicating the error.  It
    is considered to be an error if the entry already exists in the
    hash table.  */
 
-extern const char *hash_insert PARAMS ((struct hash_control *,
-					const char *key, PTR value));
+extern const char *hash_insert (struct hash_control *,
+				const char *key, PTR value);
 
 /* Insert or replace an entry in a hash table.  This returns NULL on
    success.  On error, it returns a printable string indicating the
    error.  If an entry already exists, its value is replaced.  */
 
-extern const char *hash_jam PARAMS ((struct hash_control *,
-				     const char *key, PTR value));
+extern const char *hash_jam (struct hash_control *,
+			     const char *key, PTR value);
 
 /* Replace an existing entry in a hash table.  This returns the old
    value stored for the entry.  If the entry is not found in the hash
    table, this does nothing and returns NULL.  */
 
-extern PTR hash_replace PARAMS ((struct hash_control *, const char *key,
-				 PTR value));
+extern PTR hash_replace (struct hash_control *, const char *key,
+			 PTR value);
 
 /* Find an entry in a hash table, returning its value.  Returns NULL
    if the entry is not found.  */
 
-extern PTR hash_find PARAMS ((struct hash_control *, const char *key));
+extern PTR hash_find (struct hash_control *, const char *key);
 
 /* Delete an entry from a hash table.  This returns the value stored
    for that entry, or NULL if there is no such entry.  */
 
-extern PTR hash_delete PARAMS ((struct hash_control *, const char *key));
+extern PTR hash_delete (struct hash_control *, const char *key);
 
 /* Traverse a hash table.  Call the function on every entry in the
    hash table.  */
 
-extern void hash_traverse PARAMS ((struct hash_control *,
-				   void (*pfn) (const char *key, PTR value)));
+extern void hash_traverse (struct hash_control *,
+			   void (*pfn) (const char *key, PTR value));
 
 /* Print hash table statistics on the specified file.  NAME is the
    name of the hash table, used for printing a header.  */
 
-extern void hash_print_statistics PARAMS ((FILE *, const char *name,
-					   struct hash_control *));
+extern void hash_print_statistics (FILE *, const char *name,
+				   struct hash_control *);
 
 #endif /* HASH_H */

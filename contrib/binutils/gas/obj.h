@@ -1,7 +1,7 @@
 /* obj.h - defines the object dependent hooks for all object
    format backends.
 
-   Copyright 1987, 1990, 1991, 1992, 1993, 1995, 1996, 1997, 1999, 2000
+   Copyright 1987, 1990, 1991, 1992, 1993, 1995, 1996, 1997, 1999, 2000, 2002
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -21,27 +21,27 @@
    Software Foundation, 59 Temple Place - Suite 330, Boston, MA
    02111-1307, USA.  */
 
-char *obj_default_output_file_name PARAMS ((void));
-void obj_emit_relocations PARAMS ((char **where, fixS * fixP,
-				   relax_addressT segment_address_in_file));
-void obj_emit_strings PARAMS ((char **where));
-void obj_emit_symbols PARAMS ((char **where, symbolS * symbols));
+char *obj_default_output_file_name (void);
+void obj_emit_relocations (char **where, fixS * fixP,
+			   relax_addressT segment_address_in_file);
+void obj_emit_strings (char **where);
+void obj_emit_symbols (char **where, symbolS * symbols);
 #ifndef obj_read_begin_hook
-void obj_read_begin_hook PARAMS ((void));
+void obj_read_begin_hook (void);
 #endif
 #ifndef BFD_ASSEMBLER
-void obj_crawl_symbol_chain PARAMS ((object_headers * headers));
-void obj_header_append PARAMS ((char **where, object_headers * headers));
+void obj_crawl_symbol_chain (object_headers * headers);
+void obj_header_append (char **where, object_headers * headers);
 #ifndef obj_pre_write_hook
-void obj_pre_write_hook PARAMS ((object_headers * headers));
+void obj_pre_write_hook (object_headers * headers);
 #endif
 #endif
 
 #ifndef obj_symbol_new_hook
-void obj_symbol_new_hook PARAMS ((symbolS * symbolP));
+void obj_symbol_new_hook (symbolS * symbolP);
 #endif
 
-void obj_symbol_to_chars PARAMS ((char **where, symbolS * symbolP));
+void obj_symbol_to_chars (char **where, symbolS * symbolP);
 
 extern const pseudo_typeS obj_pseudo_table[];
 
@@ -50,34 +50,35 @@ struct format_ops {
   int flavor;
   unsigned dfl_leading_underscore : 1;
   unsigned emit_section_symbols : 1;
-  void (*begin) PARAMS ((void));
-  void (*app_file) PARAMS ((const char *));
-  void (*frob_symbol) PARAMS ((symbolS *, int *));
-  void (*frob_file) PARAMS ((void));
-  void (*frob_file_before_adjust) PARAMS ((void));
-  void (*frob_file_after_relocs) PARAMS ((void));
-  bfd_vma (*s_get_size) PARAMS ((symbolS *));
-  void (*s_set_size) PARAMS ((symbolS *, bfd_vma));
-  bfd_vma (*s_get_align) PARAMS ((symbolS *));
-  void (*s_set_align) PARAMS ((symbolS *, bfd_vma));
-  int (*s_get_other) PARAMS ((symbolS *));
-  void (*s_set_other) PARAMS ((symbolS *, int));
-  int (*s_get_desc) PARAMS ((symbolS *));
-  void (*s_set_desc) PARAMS ((symbolS *, int));
-  int (*s_get_type) PARAMS ((symbolS *));
-  void (*s_set_type) PARAMS ((symbolS *, int));
-  void (*copy_symbol_attributes) PARAMS ((symbolS *, symbolS *));
-  void (*generate_asm_lineno) PARAMS ((void));
-  void (*process_stab) PARAMS ((segT, int, const char *, int, int, int));
-  int (*separate_stab_sections) PARAMS ((void));
-  void (*init_stab_section) PARAMS ((segT));
-  int (*sec_sym_ok_for_reloc) PARAMS ((asection *));
-  void (*pop_insert) PARAMS ((void));
+  void (*begin) (void);
+  void (*app_file) (const char *);
+  void (*frob_symbol) (symbolS *, int *);
+  void (*frob_file) (void);
+  void (*frob_file_before_adjust) (void);
+  void (*frob_file_before_fix) (void);
+  void (*frob_file_after_relocs) (void);
+  bfd_vma (*s_get_size) (symbolS *);
+  void (*s_set_size) (symbolS *, bfd_vma);
+  bfd_vma (*s_get_align) (symbolS *);
+  void (*s_set_align) (symbolS *, bfd_vma);
+  int (*s_get_other) (symbolS *);
+  void (*s_set_other) (symbolS *, int);
+  int (*s_get_desc) (symbolS *);
+  void (*s_set_desc) (symbolS *, int);
+  int (*s_get_type) (symbolS *);
+  void (*s_set_type) (symbolS *, int);
+  void (*copy_symbol_attributes) (symbolS *, symbolS *);
+  void (*generate_asm_lineno) (void);
+  void (*process_stab) (segT, int, const char *, int, int, int);
+  int (*separate_stab_sections) (void);
+  void (*init_stab_section) (segT);
+  int (*sec_sym_ok_for_reloc) (asection *);
+  void (*pop_insert) (void);
   /* For configurations using ECOFF_DEBUGGING, this callback is used.  */
-  void (*ecoff_set_ext) PARAMS ((symbolS *, struct ecoff_extr *));
+  void (*ecoff_set_ext) (symbolS *, struct ecoff_extr *);
 
-  void (*read_begin_hook) PARAMS ((void));
-  void (*symbol_new_hook) PARAMS ((symbolS *));
+  void (*read_begin_hook) (void);
+  void (*symbol_new_hook) (symbolS *);
 };
 
 extern const struct format_ops elf_format_ops;

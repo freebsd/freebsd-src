@@ -143,7 +143,7 @@ stack_pop (st)
 }
 
 /*
- * Maintain a list of the tagnames of the structres.
+ * Maintain a list of the tagnames of the structures.
  */
 
 static struct hash_control *tag_hash;
@@ -1147,7 +1147,9 @@ coff_obj_read_begin_hook ()
 }
 
 symbolS *coff_last_function;
+#ifndef OBJ_XCOFF
 static symbolS *coff_last_bf;
+#endif
 
 void
 coff_frob_symbol (symp, punt)
@@ -1465,12 +1467,14 @@ obj_coff_section (ignore)
 		{
 		case 'b': flags |= SEC_ALLOC; flags &=~ SEC_LOAD; break;
 		case 'n': flags &=~ SEC_LOAD; flags |= SEC_NEVER_LOAD; break;
+
+		case 's': flags |= SEC_SHARED; /* fall through */
 		case 'd': flags |= SEC_DATA | SEC_LOAD; /* fall through */
 		case 'w': flags &=~ SEC_READONLY; break;
-		case 'a': break; /* For compatability with ELF.  */
+
+		case 'a': break; /* For compatibility with ELF.  */
 		case 'x': flags |= SEC_CODE | SEC_LOAD; break;
-		case 'r': flags |= SEC_READONLY; break;
-		case 's': flags |= SEC_SHARED; break;
+		case 'r': flags |= SEC_DATA | SEC_LOAD | SEC_READONLY; break;
 
 		case 'i': /* STYP_INFO */
 		case 'l': /* STYP_LIB */
@@ -2034,7 +2038,7 @@ do_relocs_for (abfd, h, file_cursor)
 		      ext_ptr++;
 #if defined(TC_A29K)
 		      /* The 29k has a special kludge for the high 16 bit
-			 reloc.  Two relocations are emited, R_IHIHALF,
+			 reloc.  Two relocations are emitted, R_IHIHALF,
 			 and R_IHCONST. The second one doesn't contain a
 			 symbol, but uses the value for offset.  */
 		      if (intr.r_type == R_IHIHALF)
@@ -2048,7 +2052,7 @@ do_relocs_for (abfd, h, file_cursor)
 #endif
 #if defined(TC_OR32)
 		      /* The or32 has a special kludge for the high 16 bit
-			 reloc.  Two relocations are emited, R_IHIHALF,
+			 reloc.  Two relocations are emitted, R_IHIHALF,
 			 and R_IHCONST. The second one doesn't contain a
 			 symbol, but uses the value for offset.  */
 		      if (intr.r_type == R_IHIHALF)
@@ -2092,7 +2096,7 @@ do_relocs_for (abfd, h, file_cursor)
 }
 
 /* Run through a frag chain and write out the data to go with it, fill
-   in the scnhdrs with the info on the file postions.  */
+   in the scnhdrs with the info on the file positions.  */
 
 static void
 fill_section (abfd, h, file_cursor)
@@ -2960,7 +2964,7 @@ yank_symbols ()
 	      /* FIXME-SOON: where do dups come from?
 		 Maybe tag references before definitions? xoxorich.  */
 	      /* Move the debug data from the debug symbol to the
-		 real symbol. Do NOT do the oposite (i.e. move from
+		 real symbol. Do NOT do the opposite (i.e. move from
 		 real symbol to debug symbol and remove real symbol from the
 		 list.) Because some pointers refer to the real symbol
 		 whereas no pointers refer to the debug symbol.  */
@@ -3424,7 +3428,7 @@ int coff_flags;
 
 #ifndef SUB_SEGMENT_ALIGN
 #ifdef HANDLE_ALIGN
-/* The last subsegment gets an aligment corresponding to the alignment
+/* The last subsegment gets an alignment corresponding to the alignment
    of the section.  This allows proper nop-filling at the end of
    code-bearing sections.  */
 #define SUB_SEGMENT_ALIGN(SEG, FRCHAIN)					\
@@ -3627,7 +3631,7 @@ write_object_file ()
 #if 0
   /* Recent changes to write need this, but where it should
      go is up to Ken..  */
-  if (bfd_close_all_done (abfd) == false)
+  if (!bfd_close_all_done (abfd))
     as_fatal (_("Can't close %s: %s"), out_file_name,
 	      bfd_errmsg (bfd_get_error ()));
 #else
@@ -4098,8 +4102,8 @@ obj_coff_lcomm (ignore)
 
 static void
 fixup_mdeps (frags, h, this_segment)
-     fragS * frags;
-     object_headers * h;
+     fragS *frags;
+     object_headers *h ATTRIBUTE_UNUSED;
      segT this_segment;
 {
   subseg_change (this_segment, 0);
@@ -4623,8 +4627,8 @@ const pseudo_typeS coff_pseudo_table[] =
 #endif
   {"version", s_ignore, 0},
   {"ABORT", s_abort, 0},
-#ifdef TC_M88K
-  /* The m88k uses sdef instead of def.  */
+#if defined( TC_M88K ) || defined ( TC_TIC4X )
+  /* The m88k and tic4x uses sdef instead of def.  */
   {"sdef", obj_coff_def, 0},
 #endif
   {NULL, NULL, 0}		/* end sentinel */
@@ -4659,6 +4663,7 @@ const struct format_ops coff_format_ops =
   coff_frob_symbol,
   0,	/* frob_file */
   0,	/* frob_file_before_adjust */
+  0,	/* frob_file_before_fix */
   coff_frob_file_after_relocs,
   0,	/* s_get_size */
   0,	/* s_set_size */

@@ -1,6 +1,6 @@
 /* A.out "format 1" file handling code for BFD.
    Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 2000,
-   2001, 2002
+   2001, 2002, 2003
    Free Software Foundation, Inc.
    Written by Cygnus Support.
 
@@ -75,15 +75,24 @@ The name put into the target vector.
 #define sunos_write_object_contents aout_32_sunos4_write_object_contents
 #endif
 
-static boolean sunos_merge_private_bfd_data PARAMS ((bfd *, bfd *));
-static void sunos_set_arch_mach PARAMS ((bfd *, enum machine_type));
-static void choose_reloc_size PARAMS ((bfd *));
-static boolean sunos_write_object_contents PARAMS ((bfd *));
-static const bfd_target *sunos4_core_file_p PARAMS ((bfd *));
-static char *sunos4_core_file_failing_command PARAMS ((bfd *));
-static int sunos4_core_file_failing_signal PARAMS ((bfd *));
-static boolean sunos4_core_file_matches_executable_p PARAMS ((bfd *, bfd *));
-static boolean sunos4_set_sizes PARAMS ((bfd *));
+static bfd_boolean sunos_merge_private_bfd_data
+  PARAMS ((bfd *, bfd *));
+static void sunos_set_arch_mach
+  PARAMS ((bfd *, enum machine_type));
+static void choose_reloc_size
+  PARAMS ((bfd *));
+static bfd_boolean sunos_write_object_contents
+  PARAMS ((bfd *));
+static const bfd_target *sunos4_core_file_p
+  PARAMS ((bfd *));
+static char *sunos4_core_file_failing_command
+  PARAMS ((bfd *));
+static int sunos4_core_file_failing_signal
+  PARAMS ((bfd *));
+static bfd_boolean sunos4_core_file_matches_executable_p
+  PARAMS ((bfd *, bfd *));
+static bfd_boolean sunos4_set_sizes
+  PARAMS ((bfd *));
 
 /* Merge backend data into the output file.
    This is necessary on sparclet-aout where we want the resultant machine
@@ -91,13 +100,13 @@ static boolean sunos4_set_sizes PARAMS ((bfd *));
 
 #define MY_bfd_merge_private_bfd_data sunos_merge_private_bfd_data
 
-static boolean
+static bfd_boolean
 sunos_merge_private_bfd_data (ibfd, obfd)
      bfd *ibfd, *obfd;
 {
   if (bfd_get_flavour (ibfd) != bfd_target_aout_flavour
       || bfd_get_flavour (obfd) != bfd_target_aout_flavour)
-    return true;
+    return TRUE;
 
   if (bfd_get_arch (obfd) == bfd_arch_sparc)
     {
@@ -105,7 +114,7 @@ sunos_merge_private_bfd_data (ibfd, obfd)
 	bfd_set_arch_mach (obfd, bfd_arch_sparc, bfd_get_mach (ibfd));
     }
 
-  return true;
+  return TRUE;
 }
 
 /* This is either sunos_32_set_arch_mach or sunos_64_set_arch_mach,
@@ -207,7 +216,7 @@ choose_reloc_size (abfd)
    aout_64_sunos4_write_object_contents or
    aout_32_sunos4_write_object_contents, depending upon ARCH_SIZE.  */
 
-static boolean
+static bfd_boolean
 sunos_write_object_contents (abfd)
      bfd *abfd;
 {
@@ -264,7 +273,7 @@ sunos_write_object_contents (abfd)
 
   WRITE_HEADERS (abfd, execp);
 
-  return true;
+  return TRUE;
 }
 
 /* core files */
@@ -731,7 +740,7 @@ sunos4_core_file_failing_signal (abfd)
   return core_hdr (abfd)->hdr->c_signo;
 }
 
-static boolean
+static bfd_boolean
 sunos4_core_file_matches_executable_p (core_bfd, exec_bfd)
      bfd *core_bfd;
      bfd *exec_bfd;
@@ -739,12 +748,12 @@ sunos4_core_file_matches_executable_p (core_bfd, exec_bfd)
   if (core_bfd->xvec != exec_bfd->xvec)
     {
       bfd_set_error (bfd_error_system_call);
-      return false;
+      return FALSE;
     }
 
   /* Solaris core files do not include an aouthdr.  */
   if ((core_hdr (core_bfd)->hdr)->c_len == SOLARIS_BCP_CORE_LEN)
-    return true;
+    return TRUE;
 
   return (memcmp ((char *) &((core_hdr (core_bfd)->hdr)->c_aouthdr),
 		  (char *) exec_hdr (exec_bfd),
@@ -752,24 +761,24 @@ sunos4_core_file_matches_executable_p (core_bfd, exec_bfd)
 }
 
 #define MY_set_sizes sunos4_set_sizes
-static boolean
+static bfd_boolean
 sunos4_set_sizes (abfd)
      bfd *abfd;
 {
   switch (bfd_get_arch (abfd))
     {
     default:
-      return false;
+      return FALSE;
     case bfd_arch_sparc:
       adata (abfd).page_size = 0x2000;
       adata (abfd).segment_size = 0x2000;
       adata (abfd).exec_bytes_size = EXEC_BYTES_SIZE;
-      return true;
+      return TRUE;
     case bfd_arch_m68k:
       adata (abfd).page_size = 0x2000;
       adata (abfd).segment_size = 0x20000;
       adata (abfd).exec_bytes_size = EXEC_BYTES_SIZE;
-      return true;
+      return TRUE;
     }
 }
 
@@ -825,7 +834,7 @@ static const struct aout_backend_data sunos4_aout_backend =
 #define MY_bfd_debug_info_start		bfd_void
 #define MY_bfd_debug_info_end		bfd_void
 #define MY_bfd_debug_info_accumulate	\
-			(void (*) PARAMS ((bfd *, struct sec *))) bfd_void
+		(void (*) PARAMS ((bfd *, struct bfd_section *))) bfd_void
 #define MY_core_file_p			sunos4_core_file_p
 #define MY_write_object_contents	NAME(aout,sunos4_write_object_contents)
 #define MY_backend_data			&sunos4_aout_backend

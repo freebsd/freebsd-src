@@ -1,5 +1,5 @@
 /* H8300/h8500 ELF support for BFD.
-   Copyright 2001 Free Software Foundation, Inc.
+   Copyright 2001, 2003 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -92,5 +92,9 @@ END_RELOC_NUMBERS (R_H8_max)
 #define E_H8_MACH_H8300		0x00800000
 #define E_H8_MACH_H8300H	0x00810000
 #define E_H8_MACH_H8300S	0x00820000
+#define E_H8_MACH_H8300HN	0x00830000
+#define E_H8_MACH_H8300SN	0x00840000
+#define E_H8_MACH_H8300SX	0x00850000
+#define E_H8_MACH_H8300SXN	0x00860000
 
 #endif

@@ -55,12 +55,12 @@
  * about I/O errors. No I/O errors are fatal: an end-of-file may be faked.
  */
 
-char *input_file_give_next_buffer PARAMS ((char *where));
-char *input_file_push PARAMS ((void));
-unsigned int input_file_buffer_size PARAMS ((void));
-int input_file_is_open PARAMS ((void));
-void input_file_begin PARAMS ((void));
-void input_file_close PARAMS ((void));
-void input_file_end PARAMS ((void));
-void input_file_open PARAMS ((char *filename, int pre));
-void input_file_pop PARAMS ((char *arg));
+char *input_file_give_next_buffer (char *where);
+char *input_file_push (void);
+unsigned int input_file_buffer_size (void);
+int input_file_is_open (void);
+void input_file_begin (void);
+void input_file_close (void);
+void input_file_end (void);
+void input_file_open (char *filename, int pre);
+void input_file_pop (char *arg);

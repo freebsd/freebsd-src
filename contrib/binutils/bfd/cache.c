@@ -1,6 +1,8 @@
 /* BFD library -- caching of file descriptors.
-   Copyright 1990, 1991, 1992, 1993, 1994, 1996, 2000, 2001, 2002
-   Free Software Foundation, Inc.
+
+   Copyright 1990, 1991, 1992, 1993, 1994, 1996, 2000, 2001, 2002,
+   2003, 2004 Free Software Foundation, Inc.
+
    Hacked by Steve Chamberlain of Cygnus Support (steve@cygnus.com).
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -40,10 +42,7 @@ SECTION
 #include "sysdep.h"
 #include "libbfd.h"
 
-static void insert PARAMS ((bfd *));
-static void snip PARAMS ((bfd *));
-static boolean close_one PARAMS ((void));
-static boolean bfd_cache_delete PARAMS ((bfd *));
+static bfd_boolean bfd_cache_delete (bfd *);
 
 /*
 INTERNAL_FUNCTION
@@ -95,9 +94,8 @@ bfd *bfd_last_cache;
 
 /* Insert a BFD into the cache.  */
 
-static INLINE void
-insert (abfd)
-     bfd *abfd;
+static void
+insert (bfd *abfd)
 {
   if (bfd_last_cache == NULL)
     {
@@ -116,9 +114,8 @@ insert (abfd)
 
 /* Remove a BFD from the cache.  */
 
-static INLINE void
-snip (abfd)
-     bfd *abfd;
+static void
+snip (bfd *abfd)
 {
   abfd->lru_prev->lru_next = abfd->lru_next;
   abfd->lru_next->lru_prev = abfd->lru_prev;
@@ -133,8 +130,8 @@ snip (abfd)
 /* We need to open a new file, and the cache is full.  Find the least
    recently used cacheable BFD and close it.  */
 
-static boolean
-close_one ()
+static bfd_boolean
+close_one (void)
 {
   register bfd *kill;
 
@@ -157,27 +154,26 @@ close_one ()
   if (kill == NULL)
     {
       /* There are no open cacheable BFD's.  */
-      return true;
+      return TRUE;
     }
 
-  kill->where = ftell ((FILE *) kill->iostream);
+  kill->where = real_ftell ((FILE *) kill->iostream);
 
   return bfd_cache_delete (kill);
 }
 
 /* Close a BFD and remove it from the cache.  */
 
-static boolean
-bfd_cache_delete (abfd)
-     bfd *abfd;
+static bfd_boolean
+bfd_cache_delete (bfd *abfd)
 {
-  boolean ret;
+  bfd_boolean ret;
 
   if (fclose ((FILE *) abfd->iostream) == 0)
-    ret = true;
+    ret = TRUE;
   else
     {
-      ret = false;
+      ret = FALSE;
       bfd_set_error (bfd_error_system_call);
     }
 
@@ -194,25 +190,24 @@ INTERNAL_FUNCTION
 	bfd_cache_init
 
 SYNOPSIS
-	boolean bfd_cache_init (bfd *abfd);
+	bfd_boolean bfd_cache_init (bfd *abfd);
 
 DESCRIPTION
 	Add a newly opened BFD to the cache.
 */
 
-boolean
-bfd_cache_init (abfd)
-     bfd *abfd;
+bfd_boolean
+bfd_cache_init (bfd *abfd)
 {
   BFD_ASSERT (abfd->iostream != NULL);
   if (open_files >= BFD_CACHE_MAX_OPEN)
     {
       if (! close_one ())
-	return false;
+	return FALSE;
     }
   insert (abfd);
   ++open_files;
-  return true;
+  return TRUE;
 }
 
 /*
@@ -220,24 +215,23 @@ INTERNAL_FUNCTION
 	bfd_cache_close
 
 SYNOPSIS
-	boolean bfd_cache_close (bfd *abfd);
+	bfd_boolean bfd_cache_close (bfd *abfd);
 
 DESCRIPTION
 	Remove the BFD @var{abfd} from the cache. If the attached file is open,
 	then close it too.
 
 RETURNS
-	<<false>> is returned if closing the file fails, <<true>> is
+	<<FALSE>> is returned if closing the file fails, <<TRUE>> is
 	returned if all is well.
 */
 
-boolean
-bfd_cache_close (abfd)
-     bfd *abfd;
+bfd_boolean
+bfd_cache_close (bfd *abfd)
 {
   if (abfd->iostream == NULL
       || (abfd->flags & BFD_IN_MEMORY) != 0)
-    return true;
+    return TRUE;
 
   return bfd_cache_delete (abfd);
 }
@@ -247,7 +241,7 @@ INTERNAL_FUNCTION
 	bfd_open_file
 
 SYNOPSIS
-	FILE* bfd_open_file(bfd *abfd);
+	FILE* bfd_open_file (bfd *abfd);
 
 DESCRIPTION
 	Call the OS to open a file for @var{abfd}.  Return the <<FILE *>>
@@ -258,10 +252,9 @@ DESCRIPTION
 */
 
 FILE *
-bfd_open_file (abfd)
-     bfd *abfd;
+bfd_open_file (bfd *abfd)
 {
-  abfd->cacheable = true;	/* Allow it to be closed later.  */
+  abfd->cacheable = TRUE;	/* Allow it to be closed later.  */
 
   if (open_files >= BFD_CACHE_MAX_OPEN)
     {
@@ -312,7 +305,7 @@ bfd_open_file (abfd)
 	    unlink (abfd->filename);
 #endif
 	  abfd->iostream = (PTR) fopen (abfd->filename, FOPEN_WUB);
-	  abfd->opened_once = true;
+	  abfd->opened_once = TRUE;
 	}
       break;
     }
@@ -331,7 +324,7 @@ INTERNAL_FUNCTION
 	bfd_cache_lookup_worker
 
 SYNOPSIS
-	FILE *bfd_cache_lookup_worker(bfd *abfd);
+	FILE *bfd_cache_lookup_worker (bfd *abfd);
 
 DESCRIPTION
 	Called when the macro <<bfd_cache_lookup>> fails to find a
@@ -342,8 +335,7 @@ DESCRIPTION
 */
 
 FILE *
-bfd_cache_lookup_worker (abfd)
-     bfd *abfd;
+bfd_cache_lookup_worker (bfd *abfd)
 {
   if ((abfd->flags & BFD_IN_MEMORY) != 0)
     abort ();
@@ -366,7 +358,7 @@ bfd_cache_lookup_worker (abfd)
 	return NULL;
       if (abfd->where != (unsigned long) abfd->where)
 	return NULL;
-      if (fseek ((FILE *) abfd->iostream, (long) abfd->where, SEEK_SET) != 0)
+      if (real_fseek ((FILE *) abfd->iostream, abfd->where, SEEK_SET) != 0)
 	return NULL;
     }
 

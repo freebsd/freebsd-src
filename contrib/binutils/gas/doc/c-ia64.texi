@@ -44,7 +44,7 @@ flag in the ELF file header.
 This option instructs the assembler to mark the resulting object file
 as using the ``constant GP without function descriptor'' data model.
 This model is like the ``constant GP'' model, except that it
-additionaly does away with function descriptors.  What this means is
+additionally does away with function descriptors.  What this means is
 that the address of a function refers directly to the function's code
 entry-point.  Normally, such an address would refer to a function
 descriptor, which contains both the code entry-point and the GP-value
@@ -110,12 +110,12 @@ Reference Guide.
 @cindex IA-64 registers
 @cindex register names, IA-64
 
-The 128 integer registers are refered to as @samp{r@var{n}}.
-The 128 floating-point registers are refered to as @samp{f@var{n}}.
-The 128 application registers are refered to as @samp{ar@var{n}}.
-The 128 control registers are refered to as @samp{cr@var{n}}.
-The 64 one-bit predicate registers are refered to as @samp{p@var{n}}.
-The 8 branch registers are refered to as @samp{b@var{n}}.
+The 128 integer registers are referred to as @samp{r@var{n}}.
+The 128 floating-point registers are referred to as @samp{f@var{n}}.
+The 128 application registers are referred to as @samp{ar@var{n}}.
+The 128 control registers are referred to as @samp{cr@var{n}}.
+The 64 one-bit predicate registers are referred to as @samp{p@var{n}}.
+The 8 branch registers are referred to as @samp{b@var{n}}.
 In addition, the assembler defines a number of aliases:
 @samp{gp} (@samp{r1}), @samp{sp} (@samp{r12}), @samp{rp} (@samp{b0}),
 @samp{ret0} (@samp{r8}), @samp{ret1} (@samp{r9}), @samp{ret2} (@samp{r10}),

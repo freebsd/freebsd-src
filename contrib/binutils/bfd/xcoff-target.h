@@ -57,7 +57,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #undef CORE_FILE_P
 #define CORE_FILE_P rs6000coff_core_p
 extern const bfd_target * rs6000coff_core_p ();
-extern boolean rs6000coff_core_file_matches_executable_p ();
+extern bfd_boolean rs6000coff_core_file_matches_executable_p ();
 
 #undef	coff_core_file_matches_executable_p
 #define coff_core_file_matches_executable_p  \
@@ -78,8 +78,8 @@ extern int rs6000coff_core_file_failing_signal PARAMS ((bfd *abfd));
 #define CORE_FILE_P lynx_core_file_p
 extern const bfd_target *lynx_core_file_p PARAMS ((bfd *abfd));
 
-extern boolean lynx_core_file_matches_executable_p PARAMS ((bfd *core_bfd,
-							    bfd *exec_bfd));
+extern bfd_boolean lynx_core_file_matches_executable_p
+  PARAMS ((bfd *core_bfd, bfd *exec_bfd));
 #undef	coff_core_file_matches_executable_p
 #define coff_core_file_matches_executable_p lynx_core_file_matches_executable_p
 
@@ -106,7 +106,7 @@ extern int lynx_core_file_failing_signal PARAMS ((bfd *abfd));
 
 #define _bfd_xcoff_slurp_extended_name_table bfd_false
 #define _bfd_xcoff_construct_extended_name_table \
-  ((boolean (*) PARAMS ((bfd *, char **, bfd_size_type *, const char **))) \
+  ((bfd_boolean (*) PARAMS ((bfd *, char **, bfd_size_type *, const char **))) \
    bfd_false)
 #define _bfd_xcoff_truncate_arname bfd_dont_truncate_arname
 
@@ -118,22 +118,22 @@ extern int lynx_core_file_failing_signal PARAMS ((bfd *abfd));
 
 #define _bfd_xcoff_update_armap_timestamp bfd_true
 
-extern boolean _bfd_xcoff_mkobject PARAMS ((bfd *));
-extern boolean _bfd_xcoff_copy_private_bfd_data PARAMS ((bfd *, bfd *));
-extern boolean _bfd_xcoff_is_local_label_name PARAMS ((bfd *, const char *));
+extern bfd_boolean _bfd_xcoff_mkobject PARAMS ((bfd *));
+extern bfd_boolean _bfd_xcoff_copy_private_bfd_data PARAMS ((bfd *, bfd *));
+extern bfd_boolean _bfd_xcoff_is_local_label_name PARAMS ((bfd *, const char *));
 extern void _bfd_xcoff_rtype2howto
   PARAMS ((arelent *, struct internal_reloc *));
 extern reloc_howto_type *_bfd_xcoff_reloc_type_lookup
   PARAMS ((bfd *, bfd_reloc_code_real_type));
-extern boolean _bfd_xcoff_slurp_armap PARAMS ((bfd *));
+extern bfd_boolean _bfd_xcoff_slurp_armap PARAMS ((bfd *));
 extern const bfd_target *_bfd_xcoff_archive_p PARAMS ((bfd *));
 extern PTR _bfd_xcoff_read_ar_hdr PARAMS ((bfd *));
 extern bfd *_bfd_xcoff_openr_next_archived_file PARAMS ((bfd *, bfd *));
 extern int _bfd_xcoff_generic_stat_arch_elt PARAMS ((bfd *, struct stat *));
-extern boolean _bfd_xcoff_write_armap
+extern bfd_boolean _bfd_xcoff_write_armap
   PARAMS ((bfd *, unsigned int, struct orl *, unsigned int, int));
-extern boolean _bfd_xcoff_write_archive_contents PARAMS ((bfd *));
-extern int _bfd_xcoff_sizeof_headers PARAMS ((bfd *, boolean));
+extern bfd_boolean _bfd_xcoff_write_archive_contents PARAMS ((bfd *));
+extern int _bfd_xcoff_sizeof_headers PARAMS ((bfd *, bfd_boolean));
 extern void _bfd_xcoff_swap_sym_in PARAMS ((bfd *, PTR, PTR));
 extern unsigned int _bfd_xcoff_swap_sym_out PARAMS ((bfd *, PTR, PTR));
 extern void _bfd_xcoff_swap_aux_in PARAMS ((bfd *, PTR, int, int, int, int, PTR));

@@ -1,5 +1,5 @@
 /* BFD back-end definitions used by all NetBSD targets.
-   Copyright 1990, 1991, 1992, 1994, 1995, 1996, 1997, 1998, 2000
+   Copyright 1990, 1991, 1992, 1994, 1995, 1996, 1997, 1998, 2000, 2002
    Free Software Foundation, Inc.
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -64,7 +64,7 @@ USA.  */
 #define MY_entry_is_text_address 1
 
 #define MY_write_object_contents MY(write_object_contents)
-static boolean MY(write_object_contents) PARAMS ((bfd *abfd));
+static bfd_boolean MY(write_object_contents) PARAMS ((bfd *abfd));
 #define MY_text_includes_header 1
 
 #include "aout-target.h"
@@ -73,7 +73,7 @@ static boolean MY(write_object_contents) PARAMS ((bfd *abfd));
    Section contents have already been written.  We write the
    file header, symbols, and relocation.  */
 
-static boolean
+static bfd_boolean
 MY(write_object_contents) (abfd)
      bfd *abfd;
 {
@@ -114,5 +114,5 @@ MY(write_object_contents) (abfd)
 
   WRITE_HEADERS(abfd, execp);
 
-  return true;
+  return TRUE;
 }

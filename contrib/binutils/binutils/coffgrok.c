@@ -1,5 +1,5 @@
 /* coffgrok.c
-   Copyright 1994, 1995, 1997, 1998, 2000, 2001, 2002
+   Copyright 1994, 1995, 1997, 1998, 2000, 2001, 2002, 2003
    Free Software Foundation, Inc.
 
 This file is part of GNU Binutils.
@@ -56,30 +56,30 @@ static struct coff_ptr_struct *rawsyms;
 static int rawcount;
 static bfd *abfd;
 
-#define PTR_SIZE 	4
-#define SHORT_SIZE 	2
-#define INT_SIZE 	4
-#define LONG_SIZE 	4
-#define FLOAT_SIZE 	4
-#define DOUBLE_SIZE 	8
+#define PTR_SIZE	4
+#define SHORT_SIZE	2
+#define INT_SIZE	4
+#define LONG_SIZE	4
+#define FLOAT_SIZE	4
+#define DOUBLE_SIZE	8
 
 #define INDEXOF(p)  ((struct coff_ptr_struct *)(p)-(rawsyms))
 
-static struct coff_scope *empty_scope PARAMS ((void));
-static struct coff_symbol *empty_symbol PARAMS ((void));
-static void push_scope PARAMS ((int));
-static void pop_scope PARAMS ((void));
-static void do_sections_p1 PARAMS ((struct coff_ofile *));
-static void do_sections_p2 PARAMS ((struct coff_ofile *));
-static struct coff_where *do_where PARAMS ((int));
-static struct coff_line *do_lines PARAMS ((int, char *));
-static struct coff_type *do_type PARAMS ((int));
-static struct coff_visible *do_visible PARAMS ((int));
-static int do_define PARAMS ((int, struct coff_scope *));
-static struct coff_ofile *doit PARAMS ((void));
+static struct coff_scope *empty_scope (void);
+static struct coff_symbol *empty_symbol (void);
+static void push_scope (int);
+static void pop_scope (void);
+static void do_sections_p1 (struct coff_ofile *);
+static void do_sections_p2 (struct coff_ofile *);
+static struct coff_where *do_where (int);
+static struct coff_line *do_lines (int, char *);
+static struct coff_type *do_type (int);
+static struct coff_visible *do_visible (int);
+static int do_define (int, struct coff_scope *);
+static struct coff_ofile *doit (void);
 
 static struct coff_scope *
-empty_scope ()
+empty_scope (void)
 {
   struct coff_scope *l;
   l = (struct coff_scope *) (xcalloc (sizeof (struct coff_scope), 1));
@@ -87,15 +87,14 @@ empty_scope ()
 }
 
 static struct coff_symbol *
-empty_symbol ()
+empty_symbol (void)
 {
   return (struct coff_symbol *) (xcalloc (sizeof (struct coff_symbol), 1));
 }
 
 /*int l;*/
 static void
-push_scope (link)
-     int link;
+push_scope (int link)
 {
   struct coff_scope *n = empty_scope ();
   if (link)
@@ -119,14 +118,13 @@ push_scope (link)
 }
 
 static void
-pop_scope ()
+pop_scope (void)
 {
   top_scope = top_scope->parent;
 }
 
 static void
-do_sections_p1 (head)
-     struct coff_ofile *head;
+do_sections_p1 (struct coff_ofile *head)
 {
   asection *section;
   int idx;
@@ -175,8 +173,7 @@ do_sections_p1 (head)
 }
 
 static void
-do_sections_p2 (head)
-     struct coff_ofile *head;
+do_sections_p2 (struct coff_ofile *head)
 {
   asection *section;
   for (section = abfd->sections; section; section = section->next)
@@ -198,8 +195,7 @@ do_sections_p2 (head)
 }
 
 static struct coff_where *
-do_where (i)
-     int i;
+do_where (int i)
 {
   struct internal_syment *sym = &rawsyms[i].u.syment;
   struct coff_where *where =
@@ -258,9 +254,7 @@ do_where (i)
 
 static
 struct coff_line *
-do_lines (i, name)
-     int i;
-     char *name ATTRIBUTE_UNUSED;
+do_lines (int i, char *name ATTRIBUTE_UNUSED)
 {
   struct coff_line *res = (struct coff_line *) xcalloc (sizeof (struct coff_line), 1);
   asection *s;
@@ -307,8 +301,7 @@ do_lines (i, name)
 
 static
 struct coff_type *
-do_type (i)
-     int i;
+do_type (int i)
 {
   struct internal_syment *sym = &rawsyms[i].u.syment;
   union internal_auxent *aux = &rawsyms[i + 1].u.auxent;
@@ -377,7 +370,7 @@ do_type (i)
 	{
 	  if (aux->x_sym.x_tagndx.p)
 	    {
-	      /* Refering to a struct defined elsewhere */
+	      /* Referring to a struct defined elsewhere */
 	      res->type = coff_structref_type;
 	      res->u.astructref.ref = tindex[INDEXOF (aux->x_sym.x_tagndx.p)];
 	      res->size = res->u.astructref.ref ?
@@ -396,7 +389,7 @@ do_type (i)
 	}
       else
 	{
-	  /* No auxents - it's anonynmous */
+	  /* No auxents - it's anonymous */
 	  res->type = coff_structref_type;
 	  res->u.astructref.ref = 0;
 	  res->size = 0;
@@ -405,7 +398,7 @@ do_type (i)
     case T_ENUM:
       if (aux->x_sym.x_tagndx.p)
 	{
-	  /* Refering to a enum defined elsewhere */
+	  /* Referring to a enum defined elsewhere */
 	  res->type = coff_enumref_type;
 	  res->u.aenumref.ref = tindex[INDEXOF (aux->x_sym.x_tagndx.p)];
 	  res->size = res->u.aenumref.ref->type->size;
@@ -474,8 +467,7 @@ do_type (i)
 }
 
 static struct coff_visible *
-do_visible (i)
-     int i;
+do_visible (int i)
 {
   struct internal_syment *sym = &rawsyms[i].u.syment;
   struct coff_visible *visible =
@@ -539,9 +531,7 @@ do_visible (i)
 }
 
 static int
-do_define (i, b)
-     int i;
-     struct coff_scope *b;
+do_define (int i, struct coff_scope *b)
 {
   static int symbol_index;
   struct internal_syment *sym = &rawsyms[i].u.syment;
@@ -601,7 +591,7 @@ do_define (i, b)
 
 static
 struct coff_ofile *
-doit ()
+doit (void)
 {
   int i;
   int infile = 0;
@@ -728,8 +718,7 @@ doit ()
 }
 
 struct coff_ofile *
-coff_grok (inabfd)
-     bfd *inabfd;
+coff_grok (bfd *inabfd)
 {
   long storage;
   struct coff_ofile *p;

@@ -1,5 +1,6 @@
 /* resbin.c -- manipulate the Windows binary resource format.
-   Copyright 1997, 1998, 1999, 2002 Free Software Foundation, Inc.
+   Copyright 1997, 1998, 1999, 2002, 2003
+   Free Software Foundation, Inc.
    Written by Ian Lance Taylor, Cygnus Support.
 
    This file is part of GNU Binutils.
@@ -36,42 +37,43 @@
 
 /* Local functions.  */
 
-static void toosmall PARAMS ((const char *));
+static void toosmall (const char *);
+
 static unichar *get_unicode
-  PARAMS ((const unsigned char *, unsigned long, int, int *));
+  (const unsigned char *, unsigned long, int, int *);
 static int get_resid
-  PARAMS ((struct res_id *, const unsigned char *, unsigned long, int));
+  (struct res_id *, const unsigned char *, unsigned long, int);
 static struct res_resource *bin_to_res_generic
-  PARAMS ((enum res_type, const unsigned char *, unsigned long));
+  (enum res_type, const unsigned char *, unsigned long);
 static struct res_resource *bin_to_res_cursor
-  PARAMS ((const unsigned char *, unsigned long, int));
+  (const unsigned char *, unsigned long, int);
 static struct res_resource *bin_to_res_menu
-  PARAMS ((const unsigned char *, unsigned long, int));
+  (const unsigned char *, unsigned long, int);
 static struct menuitem *bin_to_res_menuitems
-  PARAMS ((const unsigned char *, unsigned long, int, int *));
+  (const unsigned char *, unsigned long, int, int *);
 static struct menuitem *bin_to_res_menuexitems
-  PARAMS ((const unsigned char *, unsigned long, int, int *));
+  (const unsigned char *, unsigned long, int, int *);
 static struct res_resource *bin_to_res_dialog
-  PARAMS ((const unsigned char *, unsigned long, int));
+  (const unsigned char *, unsigned long, int);
 static struct res_resource *bin_to_res_string
-  PARAMS ((const unsigned char *, unsigned long, int));
+  (const unsigned char *, unsigned long, int);
 static struct res_resource *bin_to_res_fontdir
-  PARAMS ((const unsigned char *, unsigned long, int));
+  (const unsigned char *, unsigned long, int);
 static struct res_resource *bin_to_res_accelerators
-  PARAMS ((const unsigned char *, unsigned long, int));
+  (const unsigned char *, unsigned long, int);
 static struct res_resource *bin_to_res_rcdata
-  PARAMS ((const unsigned char *, unsigned long, int));
+  (const unsigned char *, unsigned long, int);
 static struct res_resource *bin_to_res_group_cursor
-  PARAMS ((const unsigned char *, unsigned long, int));
+  (const unsigned char *, unsigned long, int);
 static struct res_resource *bin_to_res_group_icon
-  PARAMS ((const unsigned char *, unsigned long, int));
+  (const unsigned char *, unsigned long, int);
 static struct res_resource *bin_to_res_version
-  PARAMS ((const unsigned char *, unsigned long, int));
+  (const unsigned char *, unsigned long, int);
 static struct res_resource *bin_to_res_userdata
-  PARAMS ((const unsigned char *, unsigned long, int));
+  (const unsigned char *, unsigned long, int);
 static void get_version_header
-  PARAMS ((const unsigned char *, unsigned long, int, const char *,
-	   unichar **, int *, int *, int *, int *));
+  (const unsigned char *, unsigned long, int, const char *,
+   unichar **, int *, int *, int *, int *);
 
 /* Given a resource type ID, a pointer to data, a length, return a
    res_resource structure which represents that resource.  The caller
@@ -79,11 +81,8 @@ static void get_version_header
    of the returned structure.  */
 
 struct res_resource *
-bin_to_res (type, data, length, big_endian)
-     struct res_id type;
-     const unsigned char *data;
-     unsigned long length;
-     int big_endian;
+bin_to_res (struct res_id type, const unsigned char *data,
+	    unsigned long length, int big_endian)
 {
   if (type.named)
     return bin_to_res_userdata (data, length, big_endian);
@@ -128,8 +127,7 @@ bin_to_res (type, data, length, big_endian)
 /* Give an error if the binary data is too small.  */
 
 static void
-toosmall (msg)
-     const char *msg;
+toosmall (const char *msg)
 {
   fatal (_("%s: not enough binary data"), msg);
 }
@@ -137,11 +135,8 @@ toosmall (msg)
 /* Swap in a NULL terminated unicode string.  */
 
 static unichar *
-get_unicode (data, length, big_endian, retlen)
-     const unsigned char *data;
-     unsigned long length;
-     int big_endian;
-     int *retlen;
+get_unicode (const unsigned char *data, unsigned long length,
+	     int big_endian, int *retlen)
 {
   int c, i;
   unichar *ret;
@@ -171,11 +166,8 @@ get_unicode (data, length, big_endian, retlen)
 /* Get a resource identifier.  This returns the number of bytes used.  */
 
 static int
-get_resid (id, data, length, big_endian)
-     struct res_id *id;
-     const unsigned char *data;
-     unsigned long length;
-     int big_endian;
+get_resid (struct res_id *id, const unsigned char *data,
+	   unsigned long length, int big_endian)
 {
   int first;
 
@@ -203,10 +195,8 @@ get_resid (id, data, length, big_endian)
    binary.  */
 
 struct res_resource *
-bin_to_res_generic (type, data, length)
-     enum res_type type;
-     const unsigned char *data;
-     unsigned long length;
+bin_to_res_generic (enum res_type type, const unsigned char *data,
+		    unsigned long length)
 {
   struct res_resource *r;
 
@@ -221,10 +211,8 @@ bin_to_res_generic (type, data, length)
 /* Convert a cursor resource from binary.  */
 
 struct res_resource *
-bin_to_res_cursor (data, length, big_endian)
-     const unsigned char *data;
-     unsigned long length;
-     int big_endian;
+bin_to_res_cursor (const unsigned char *data, unsigned long length,
+		   int big_endian)
 {
   struct cursor *c;
   struct res_resource *r;
@@ -248,10 +236,8 @@ bin_to_res_cursor (data, length, big_endian)
 /* Convert a menu resource from binary.  */
 
 struct res_resource *
-bin_to_res_menu (data, length, big_endian)
-     const unsigned char *data;
-     unsigned long length;
-     int big_endian;
+bin_to_res_menu (const unsigned char *data, unsigned long length,
+		 int big_endian)
 {
   struct res_resource *r;
   struct menu *m;
@@ -300,11 +286,8 @@ bin_to_res_menu (data, length, big_endian)
 /* Convert menu items from binary.  */
 
 static struct menuitem *
-bin_to_res_menuitems (data, length, big_endian, read)
-     const unsigned char *data;
-     unsigned long length;
-     int big_endian;
-     int *read;
+bin_to_res_menuitems (const unsigned char *data, unsigned long length,
+		      int big_endian, int *read)
 {
   struct menuitem *first, **pp;
 
@@ -381,11 +364,8 @@ bin_to_res_menuitems (data, length, big_endian, read)
 /* Convert menuex items from binary.  */
 
 static struct menuitem *
-bin_to_res_menuexitems (data, length, big_endian, read)
-     const unsigned char *data;
-     unsigned long length;
-     int big_endian;
-     int *read;
+bin_to_res_menuexitems (const unsigned char *data, unsigned long length,
+			int big_endian, int *read)
 {
   struct menuitem *first, **pp;
 
@@ -459,10 +439,8 @@ bin_to_res_menuexitems (data, length, big_endian, read)
 /* Convert a dialog resource from binary.  */
 
 static struct res_resource *
-bin_to_res_dialog (data, length, big_endian)
-     const unsigned char *data;
-     unsigned long length;
-     int big_endian;
+bin_to_res_dialog (const unsigned char *data, unsigned long length,
+		   int big_endian)
 {
   int signature;
   struct dialog *d;
@@ -647,10 +625,8 @@ bin_to_res_dialog (data, length, big_endian)
 /* Convert a stringtable resource from binary.  */
 
 static struct res_resource *
-bin_to_res_string (data, length, big_endian)
-     const unsigned char *data;
-     unsigned long length;
-     int big_endian;
+bin_to_res_string (const unsigned char *data, unsigned long length,
+		   int big_endian)
 {
   struct stringtable *st;
   int i;
@@ -696,10 +672,8 @@ bin_to_res_string (data, length, big_endian)
 /* Convert a fontdir resource from binary.  */
 
 static struct res_resource *
-bin_to_res_fontdir (data, length, big_endian)
-     const unsigned char *data;
-     unsigned long length;
-     int big_endian;
+bin_to_res_fontdir (const unsigned char *data, unsigned long length,
+		    int big_endian)
 {
   int c, i;
   struct fontdir *first, **pp;
@@ -768,10 +742,8 @@ bin_to_res_fontdir (data, length, big_endian)
 /* Convert an accelerators resource from binary.  */
 
 static struct res_resource *
-bin_to_res_accelerators (data, length, big_endian)
-     const unsigned char *data;
-     unsigned long length;
-     int big_endian;
+bin_to_res_accelerators (const unsigned char *data, unsigned long length,
+			 int big_endian)
 {
   struct accelerator *first, **pp;
   struct res_resource *r;
@@ -813,10 +785,8 @@ bin_to_res_accelerators (data, length, big_endian)
 /* Convert an rcdata resource from binary.  */
 
 static struct res_resource *
-bin_to_res_rcdata (data, length, big_endian)
-     const unsigned char *data;
-     unsigned long length;
-     int big_endian ATTRIBUTE_UNUSED;
+bin_to_res_rcdata (const unsigned char *data, unsigned long length,
+		   int big_endian ATTRIBUTE_UNUSED)
 {
   struct rcdata_item *ri;
   struct res_resource *r;
@@ -838,10 +808,8 @@ bin_to_res_rcdata (data, length, big_endian)
 /* Convert a group cursor resource from binary.  */
 
 static struct res_resource *
-bin_to_res_group_cursor (data, length, big_endian)
-     const unsigned char *data;
-     unsigned long length;
-     int big_endian;
+bin_to_res_group_cursor (const unsigned char *data, unsigned long length,
+			 int big_endian)
 {
   int type, c, i;
   struct group_cursor *first, **pp;
@@ -896,10 +864,8 @@ bin_to_res_group_cursor (data, length, big_endian)
 /* Convert a group icon resource from binary.  */
 
 static struct res_resource *
-bin_to_res_group_icon (data, length, big_endian)
-     const unsigned char *data;
-     unsigned long length;
-     int big_endian;
+bin_to_res_group_icon (const unsigned char *data, unsigned long length,
+		       int big_endian)
 {
   int type, c, i;
   struct group_icon *first, **pp;
@@ -958,17 +924,9 @@ bin_to_res_group_icon (data, length, big_endian)
    to the type, and *OFF to the offset to the children.  */
 
 static void
-get_version_header (data, length, big_endian, key, pkey, len, vallen, type,
-		    off)
-     const unsigned char *data;
-     unsigned long length;
-     int big_endian;
-     const char *key;
-     unichar **pkey;
-     int *len;
-     int *vallen;
-     int *type;
-     int *off;
+get_version_header (const unsigned char *data, unsigned long length,
+		    int big_endian, const char *key, unichar **pkey,
+		    int *len, int *vallen, int *type, int *off)
 {
   if (length < 8)
     toosmall (key);
@@ -1015,10 +973,8 @@ get_version_header (data, length, big_endian, key, pkey, len, vallen, type,
 /* Convert a version resource from binary.  */
 
 static struct res_resource *
-bin_to_res_version (data, length, big_endian)
-     const unsigned char *data;
-     unsigned long length;
-     int big_endian;
+bin_to_res_version (const unsigned char *data, unsigned long length,
+		    int big_endian)
 {
   int verlen, vallen, type, off;
   struct fixed_versioninfo *fi;
@@ -1236,10 +1192,8 @@ bin_to_res_version (data, length, big_endian)
 /* Convert an arbitrary user defined resource from binary.  */
 
 static struct res_resource *
-bin_to_res_userdata (data, length, big_endian)
-     const unsigned char *data;
-     unsigned long length;
-     int big_endian ATTRIBUTE_UNUSED;
+bin_to_res_userdata (const unsigned char *data, unsigned long length,
+		     int big_endian ATTRIBUTE_UNUSED)
 {
   struct rcdata_item *ri;
   struct res_resource *r;
@@ -1266,43 +1220,41 @@ bin_to_res_userdata (data, length, big_endian)
 
 /* Local functions used to convert resources to binary format.  */
 
-static void dword_align_bin PARAMS ((struct bindata ***, unsigned long *));
-static struct bindata *resid_to_bin PARAMS ((struct res_id, int));
-static struct bindata *unicode_to_bin PARAMS ((const unichar *, int));
+static void dword_align_bin (struct bindata ***, unsigned long *);
+static struct bindata *resid_to_bin (struct res_id, int);
+static struct bindata *unicode_to_bin (const unichar *, int);
 static struct bindata *res_to_bin_accelerator
-  PARAMS ((const struct accelerator *, int));
+  (const struct accelerator *, int);
 static struct bindata *res_to_bin_cursor
-  PARAMS ((const struct cursor *, int));
+  (const struct cursor *, int);
 static struct bindata *res_to_bin_group_cursor
-  PARAMS ((const struct group_cursor *, int));
+  (const struct group_cursor *, int);
 static struct bindata *res_to_bin_dialog
-  PARAMS ((const struct dialog *, int));
+  (const struct dialog *, int);
 static struct bindata *res_to_bin_fontdir
-  PARAMS ((const struct fontdir *, int));
+  (const struct fontdir *, int);
 static struct bindata *res_to_bin_group_icon
-  PARAMS ((const struct group_icon *, int));
+  (const struct group_icon *, int);
 static struct bindata *res_to_bin_menu
-  PARAMS ((const struct menu *, int));
+  (const struct menu *, int);
 static struct bindata *res_to_bin_menuitems
-  PARAMS ((const struct menuitem *, int));
+  (const struct menuitem *, int);
 static struct bindata *res_to_bin_menuexitems
-  PARAMS ((const struct menuitem *, int));
+  (const struct menuitem *, int);
 static struct bindata *res_to_bin_rcdata
-  PARAMS ((const struct rcdata_item *, int));
+  (const struct rcdata_item *, int);
 static struct bindata *res_to_bin_stringtable
-  PARAMS ((const struct stringtable *, int));
-static struct bindata *string_to_unicode_bin PARAMS ((const char *, int));
+  (const struct stringtable *, int);
+static struct bindata *string_to_unicode_bin (const char *, int);
 static struct bindata *res_to_bin_versioninfo
-  PARAMS ((const struct versioninfo *, int));
+  (const struct versioninfo *, int);
 static struct bindata *res_to_bin_generic
-  PARAMS ((unsigned long, const unsigned char *));
+  (unsigned long, const unsigned char *);
 
 /* Convert a resource to binary.  */
 
 struct bindata *
-res_to_bin (res, big_endian)
-     const struct res_resource *res;
-     int big_endian;
+res_to_bin (const struct res_resource *res, int big_endian)
 {
   switch (res->type)
     {
@@ -1344,9 +1296,7 @@ res_to_bin (res, big_endian)
    boundary.  It updates *PPP and *LENGTH.  */
 
 static void
-dword_align_bin (ppp, length)
-     struct bindata ***ppp;
-     unsigned long *length;
+dword_align_bin (struct bindata ***ppp, unsigned long *length)
 {
   int add;
   struct bindata *d;
@@ -1372,9 +1322,7 @@ dword_align_bin (ppp, length)
    bindata structure.  */
 
 static struct bindata *
-resid_to_bin (id, big_endian)
-     struct res_id id;
-     int big_endian;
+resid_to_bin (struct res_id id, int big_endian)
 {
   struct bindata *d;
 
@@ -1407,9 +1355,7 @@ resid_to_bin (id, big_endian)
    returns exactly one bindata structure.  */
 
 static struct bindata *
-unicode_to_bin (str, big_endian)
-     const unichar *str;
-     int big_endian;
+unicode_to_bin (const unichar *str, int big_endian)
 {
   int len;
   struct bindata *d;
@@ -1447,9 +1393,8 @@ unicode_to_bin (str, big_endian)
 /* Convert an accelerator resource to binary.  */
 
 static struct bindata *
-res_to_bin_accelerator (accelerators, big_endian)
-     const struct accelerator *accelerators;
-     int big_endian;
+res_to_bin_accelerator (const struct accelerator *accelerators,
+			int big_endian)
 {
   struct bindata *first, **pp;
   const struct accelerator *a;
@@ -1483,9 +1428,7 @@ res_to_bin_accelerator (accelerators, big_endian)
 /* Convert a cursor resource to binary.  */
 
 static struct bindata *
-res_to_bin_cursor (c, big_endian)
-     const struct cursor *c;
-     int big_endian;
+res_to_bin_cursor (const struct cursor *c, int big_endian)
 {
   struct bindata *d;
 
@@ -1507,9 +1450,8 @@ res_to_bin_cursor (c, big_endian)
 /* Convert a group cursor resource to binary.  */
 
 static struct bindata *
-res_to_bin_group_cursor (group_cursors, big_endian)
-     const struct group_cursor *group_cursors;
-     int big_endian;
+res_to_bin_group_cursor (const struct group_cursor *group_cursors,
+			 int big_endian)
 {
   struct bindata *first, **pp;
   int c;
@@ -1556,9 +1498,7 @@ res_to_bin_group_cursor (group_cursors, big_endian)
 /* Convert a dialog resource to binary.  */
 
 static struct bindata *
-res_to_bin_dialog (dialog, big_endian)
-     const struct dialog *dialog;
-     int big_endian;
+res_to_bin_dialog (const struct dialog *dialog, int big_endian)
 {
   int dialogex;
   struct bindata *first, **pp;
@@ -1739,9 +1679,7 @@ res_to_bin_dialog (dialog, big_endian)
 /* Convert a fontdir resource to binary.  */
 
 static struct bindata *
-res_to_bin_fontdir (fontdirs, big_endian)
-     const struct fontdir *fontdirs;
-     int big_endian;
+res_to_bin_fontdir (const struct fontdir *fontdirs, int big_endian)
 {
   struct bindata *first, **pp;
   int c;
@@ -1787,9 +1725,7 @@ res_to_bin_fontdir (fontdirs, big_endian)
 /* Convert a group icon resource to binary.  */
 
 static struct bindata *
-res_to_bin_group_icon (group_icons, big_endian)
-     const struct group_icon *group_icons;
-     int big_endian;
+res_to_bin_group_icon (const struct group_icon *group_icons, int big_endian)
 {
   struct bindata *first, **pp;
   int c;
@@ -1838,9 +1774,7 @@ res_to_bin_group_icon (group_icons, big_endian)
 /* Convert a menu resource to binary.  */
 
 static struct bindata *
-res_to_bin_menu (menu, big_endian)
-     const struct menu *menu;
-     int big_endian;
+res_to_bin_menu (const struct menu *menu, int big_endian)
 {
   int menuex;
   struct bindata *d;
@@ -1873,9 +1807,7 @@ res_to_bin_menu (menu, big_endian)
 /* Convert menu items to binary.  */
 
 static struct bindata *
-res_to_bin_menuitems (items, big_endian)
-     const struct menuitem *items;
-     int big_endian;
+res_to_bin_menuitems (const struct menuitem *items, int big_endian)
 {
   struct bindata *first, **pp;
   const struct menuitem *mi;
@@ -1923,9 +1855,7 @@ res_to_bin_menuitems (items, big_endian)
 /* Convert menuex items to binary.  */
 
 static struct bindata *
-res_to_bin_menuexitems (items, big_endian)
-     const struct menuitem *items;
-     int big_endian;
+res_to_bin_menuexitems (const struct menuitem *items, int big_endian)
 {
   struct bindata *first, **pp;
   unsigned long length;
@@ -1997,9 +1927,7 @@ res_to_bin_menuexitems (items, big_endian)
    to binary.  */
 
 static struct bindata *
-res_to_bin_rcdata (items, big_endian)
-     const struct rcdata_item *items;
-     int big_endian;
+res_to_bin_rcdata (const struct rcdata_item *items, int big_endian)
 {
   struct bindata *first, **pp;
   const struct rcdata_item *ri;
@@ -2063,9 +1991,7 @@ res_to_bin_rcdata (items, big_endian)
 /* Convert a stringtable resource to binary.  */
 
 static struct bindata *
-res_to_bin_stringtable (st, big_endian)
-     const struct stringtable *st;
-     int big_endian;
+res_to_bin_stringtable (const struct stringtable *st, int big_endian)
 {
   struct bindata *first, **pp;
   int i;
@@ -2103,9 +2029,7 @@ res_to_bin_stringtable (st, big_endian)
    returns exactly one bindata structure.  */
 
 static struct bindata *
-string_to_unicode_bin (s, big_endian)
-     const char *s;
-     int big_endian;
+string_to_unicode_bin (const char *s, int big_endian)
 {
   size_t len, i;
   struct bindata *d;
@@ -2128,9 +2052,7 @@ string_to_unicode_bin (s, big_endian)
 /* Convert a versioninfo resource to binary.  */
 
 static struct bindata *
-res_to_bin_versioninfo (versioninfo, big_endian)
-     const struct versioninfo *versioninfo;
-     int big_endian;
+res_to_bin_versioninfo (const struct versioninfo *versioninfo, int big_endian)
 {
   struct bindata *first, **pp;
   unsigned long length;
@@ -2382,9 +2304,7 @@ res_to_bin_versioninfo (versioninfo, big_endian)
 /* Convert a generic resource to binary.  */
 
 static struct bindata *
-res_to_bin_generic (length, data)
-     unsigned long length;
-     const unsigned char *data;
+res_to_bin_generic (unsigned long length, const unsigned char *data)
 {
   struct bindata *d;
 

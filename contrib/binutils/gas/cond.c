@@ -55,20 +55,23 @@ struct conditional_frame {
   int macro_nest;
 };
 
-static void initialize_cframe PARAMS ((struct conditional_frame *cframe));
-static char *get_mri_string PARAMS ((int, int *));
+static void initialize_cframe (struct conditional_frame *cframe);
+static char *get_mri_string (int, int *);
 
 static struct conditional_frame *current_cframe = NULL;
 
+/* Performs the .ifdef (test_defined == 1) and
+   the .ifndef (test_defined == 0) pseudo op.  */
+
 void
-s_ifdef (arg)
-     int arg;
+s_ifdef (int test_defined)
 {
   /* Points to name of symbol.  */
-  register char *name;
+  char *name;
   /* Points to symbol.  */
-  register symbolS *symbolP;
+  symbolS *symbolP;
   struct conditional_frame cframe;
+  char c;
 
   /* Leading whitespace is part of operand.  */
   SKIP_WHITESPACE ();
@@ -79,34 +82,47 @@ s_ifdef (arg)
       as_bad (_("invalid identifier for \".ifdef\""));
       obstack_1grow (&cond_obstack, 0);
       ignore_rest_of_line ();
+      return;
     }
+
+  c = get_symbol_end ();
+  symbolP = symbol_find (name);
+  *input_line_pointer = c;
+
+  initialize_cframe (&cframe);
+  
+  if (cframe.dead_tree)
+    cframe.ignoring = 1;
   else
     {
-      char c;
+      int is_defined;
 
-      c = get_symbol_end ();
-      symbolP = symbol_find (name);
-      *input_line_pointer = c;
+      /* Use the same definition of 'defined' as .equiv so that a symbol
+	 which has been referenced but not yet given a value/address is
+	 considered to be undefined.  */
+      is_defined =
+	symbolP != NULL
+	&& S_IS_DEFINED (symbolP)
+	&& S_GET_SEGMENT (symbolP) != reg_section;
 
-      initialize_cframe (&cframe);
-      cframe.ignoring = cframe.dead_tree || !((symbolP != 0) ^ arg);
-      current_cframe = ((struct conditional_frame *)
-			obstack_copy (&cond_obstack, &cframe,
-				      sizeof (cframe)));
+      cframe.ignoring = ! (test_defined ^ is_defined);
+    }
 
-      if (LISTING_SKIP_COND ()
-	  && cframe.ignoring
-	  && (cframe.previous_cframe == NULL
-	      || ! cframe.previous_cframe->ignoring))
-	listing_list (2);
+  current_cframe = ((struct conditional_frame *)
+		    obstack_copy (&cond_obstack, &cframe,
+				  sizeof (cframe)));
 
-      demand_empty_rest_of_line ();
-    }				/* if a valid identifyer name */
+  if (LISTING_SKIP_COND ()
+      && cframe.ignoring
+      && (cframe.previous_cframe == NULL
+	  || ! cframe.previous_cframe->ignoring))
+    listing_list (2);
+
+  demand_empty_rest_of_line ();
 }
 
 void
-s_if (arg)
-     int arg;
+s_if (int arg)
 {
   expressionS operand;
   struct conditional_frame cframe;
@@ -168,9 +184,7 @@ s_if (arg)
 /* Get a string for the MRI IFC or IFNC pseudo-ops.  */
 
 static char *
-get_mri_string (terminator, len)
-     int terminator;
-     int *len;
+get_mri_string (int terminator, int *len)
 {
   char *ret;
   char *s;
@@ -210,8 +224,7 @@ get_mri_string (terminator, len)
 /* The MRI IFC and IFNC pseudo-ops.  */
 
 void
-s_ifc (arg)
-     int arg;
+s_ifc (int arg)
 {
   char *stop = NULL;
   char stopc;
@@ -252,8 +265,7 @@ s_ifc (arg)
 }
 
 void
-s_elseif (arg)
-     int arg;
+s_elseif (int arg)
 {
   if (current_cframe == NULL)
     {
@@ -328,8 +340,7 @@ s_elseif (arg)
 }
 
 void
-s_endif (arg)
-     int arg ATTRIBUTE_UNUSED;
+s_endif (int arg ATTRIBUTE_UNUSED)
 {
   struct conditional_frame *hold;
 
@@ -360,8 +371,7 @@ s_endif (arg)
 }
 
 void
-s_else (arg)
-     int arg ATTRIBUTE_UNUSED;
+s_else (int arg ATTRIBUTE_UNUSED)
 {
   if (current_cframe == NULL)
     {
@@ -408,8 +418,7 @@ s_else (arg)
 }
 
 void
-s_ifeqs (arg)
-     int arg;
+s_ifeqs (int arg)
 {
   char *s1, *s2;
   int len1, len2;
@@ -447,7 +456,7 @@ s_ifeqs (arg)
 }
 
 int
-ignore_input ()
+ignore_input (void)
 {
   char *s;
 
@@ -481,8 +490,7 @@ ignore_input ()
 }
 
 static void
-initialize_cframe (cframe)
-     struct conditional_frame *cframe;
+initialize_cframe (struct conditional_frame *cframe)
 {
   memset (cframe, 0, sizeof (*cframe));
   as_where (&cframe->if_file_line.file,
@@ -498,8 +506,7 @@ initialize_cframe (cframe)
    negative, we are being called at the of the input files.  */
 
 void
-cond_finish_check (nest)
-     int nest;
+cond_finish_check (int nest)
 {
   if (current_cframe != NULL && current_cframe->macro_nest >= nest)
     {
@@ -522,8 +529,7 @@ cond_finish_check (nest)
    nested, and just pop them off the stack.  */
 
 void
-cond_exit_macro (nest)
-     int nest;
+cond_exit_macro (int nest)
 {
   while (current_cframe != NULL && current_cframe->macro_nest >= nest)
     {

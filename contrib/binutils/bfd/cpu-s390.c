@@ -33,7 +33,7 @@ const bfd_arch_info_type bfd_s390_64_arch =
     "s390",
     "s390:64-bit",
     3, /* section alignment power */
-    true, /* the default */
+    TRUE, /* the default */
     bfd_default_compatible,
     bfd_default_scan,
     NULL
@@ -49,7 +49,7 @@ const bfd_arch_info_type bfd_s390_arch =
     "s390",
     "s390:31-bit",
     3, /* section alignment power */
-    true, /* the default */
+    TRUE, /* the default */
     bfd_default_compatible,
     bfd_default_scan,
     &bfd_s390_64_arch

@@ -22,9 +22,7 @@
 #include "as.h"
 
 void
-flonum_copy (in, out)
-     FLONUM_TYPE *in;
-     FLONUM_TYPE *out;
+flonum_copy (FLONUM_TYPE *in, FLONUM_TYPE *out)
 {
   unsigned int in_length;	/* 0 origin */
   unsigned int out_length;	/* 0 origin */

@@ -1,6 +1,6 @@
 /* `a.out' object-file definitions, including extensions to 64-bit fields
 
-   Copyright 2001 Free Software Foundation, Inc.
+   Copyright 2001, 2003 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,27 +19,31 @@
 #ifndef __A_OUT_64_H__
 #define __A_OUT_64_H__
 
-/* This is the layout on disk of the 32-bit or 64-bit exec header. */
+#ifndef BYTES_IN_WORD
+#define BYTES_IN_WORD 4
+#endif
+
+/* This is the layout on disk of the 32-bit or 64-bit exec header.  */
 
 #ifndef external_exec
 struct external_exec 
 {
-  bfd_byte e_info[4];		/* magic number and stuff		*/
-  bfd_byte e_text[BYTES_IN_WORD]; /* length of text section in bytes	*/
-  bfd_byte e_data[BYTES_IN_WORD]; /* length of data section in bytes	*/
-  bfd_byte e_bss[BYTES_IN_WORD]; /* length of bss area in bytes 		*/
-  bfd_byte e_syms[BYTES_IN_WORD]; /* length of symbol table in bytes 	*/
-  bfd_byte e_entry[BYTES_IN_WORD]; /* start address 			*/
-  bfd_byte e_trsize[BYTES_IN_WORD]; /* length of text relocation info	*/
-  bfd_byte e_drsize[BYTES_IN_WORD]; /* length of data relocation info 	*/
+  bfd_byte e_info[4];		    /* Magic number and stuff.  */
+  bfd_byte e_text[BYTES_IN_WORD];   /* Length of text section in bytes.  */
+  bfd_byte e_data[BYTES_IN_WORD];   /* Length of data section in bytes.  */
+  bfd_byte e_bss[BYTES_IN_WORD];    /* Length of bss area in bytes.  */
+  bfd_byte e_syms[BYTES_IN_WORD];   /* Length of symbol table in bytes.  */
+  bfd_byte e_entry[BYTES_IN_WORD];  /* Start address.  */
+  bfd_byte e_trsize[BYTES_IN_WORD]; /* Length of text relocation info.  */
+  bfd_byte e_drsize[BYTES_IN_WORD]; /* Length of data relocation info.  */
 };
 
 #define	EXEC_BYTES_SIZE	(4 + BYTES_IN_WORD * 7)
 
-/* Magic numbers for a.out files */
+/* Magic numbers for a.out files.  */
 
 #if ARCH_SIZE==64
-#define OMAGIC 0x1001		/* Code indicating object file  */
+#define OMAGIC 0x1001		/* Code indicating object file.  */
 #define ZMAGIC 0x1002		/* Code indicating demand-paged executable.  */
 #define NMAGIC 0x1003		/* Code indicating pure executable.  */
 
@@ -49,7 +53,7 @@ struct external_exec
 			&& N_MAGIC(x) != NMAGIC		\
   			&& N_MAGIC(x) != ZMAGIC)
 #else
-#define OMAGIC 0407		/* ...object file or impure executable.  */
+#define OMAGIC 0407		/* Object file or impure executable.  */
 #define NMAGIC 0410		/* Code indicating pure executable.  */
 #define ZMAGIC 0413		/* Code indicating demand-paged executable.  */
 #define BMAGIC 0415		/* Used by a b.out object.  */
@@ -125,8 +129,7 @@ struct external_exec
 
     * QMAGIC is always like a ZMAGIC for which N_HEADER_IN_TEXT is true,
     and for which the starting address is TARGET_PAGE_SIZE (or should this be
-    SEGMENT_SIZE?) (TEXT_START_ADDR only applies to ZMAGIC, not to QMAGIC).
-    */
+    SEGMENT_SIZE?) (TEXT_START_ADDR only applies to ZMAGIC, not to QMAGIC).  */
 
 /* This macro is only relevant for ZMAGIC files; QMAGIC always has the header
    in the text.  */
@@ -152,12 +155,12 @@ struct external_exec
 
 #ifndef N_TXTADDR
 #define N_TXTADDR(x) \
-    (/* The address of a QMAGIC file is always one page in, */		\
-     /* with the header in the text.  */				\
+    (/* The address of a QMAGIC file is always one page in,		\
+        with the header in the text.  */				\
      N_IS_QMAGIC (x)							\
      ? (bfd_vma) TARGET_PAGE_SIZE + EXEC_BYTES_SIZE			\
      : (N_MAGIC (x) != ZMAGIC						\
-	? (bfd_vma) 0	/* object file or NMAGIC */			\
+	? (bfd_vma) 0	/* Object file or NMAGIC.  */			\
 	: (N_SHARED_LIB (x)						\
 	   ? (bfd_vma) 0						\
 	   : (N_HEADER_IN_TEXT (x)					\
@@ -187,8 +190,8 @@ struct external_exec
      : (N_SHARED_LIB (x)						\
 	? 0								\
 	: (N_HEADER_IN_TEXT (x)						\
-	   ? EXEC_BYTES_SIZE		/* no padding */		\
-	   : ZMAGIC_DISK_BLOCK_SIZE	/* a page of padding */)))
+	   ? EXEC_BYTES_SIZE		/* No padding.  */		\
+	   : ZMAGIC_DISK_BLOCK_SIZE	/* A page of padding.  */)))
 #endif
 /* Size of the text section.  It's always as stated, except that we
    offset it to `undo' the adjustment to N_TXTADDR and N_TXTOFF
@@ -203,12 +206,12 @@ struct external_exec
    : ((N_MAGIC (x) != ZMAGIC || N_SHARED_LIB (x))			\
       ? (x).a_text							\
       : (N_HEADER_IN_TEXT (x)						\
-	 ? (x).a_text - EXEC_BYTES_SIZE	/* no padding */		\
-	 : (x).a_text			/* a page of padding */ )))
+	 ? (x).a_text - EXEC_BYTES_SIZE	/* No padding.  */		\
+	 : (x).a_text			/* A page of padding.  */ )))
 #endif
 /* The address of the data segment in virtual memory.
    It is the text segment address, plus text segment size, rounded
-   up to a N_SEGSIZE boundary for pure or pageable files. */
+   up to a N_SEGSIZE boundary for pure or pageable files.  */
 #ifndef N_DATADDR
 #define N_DATADDR(x) \
   (N_MAGIC (x) == OMAGIC						\
@@ -235,57 +238,59 @@ struct external_exec
    for NMAGIC.  */
 
 #ifndef N_DATOFF
-#define N_DATOFF(x)	( N_TXTOFF (x) + N_TXTSIZE (x) )
+#define N_DATOFF(x)	(N_TXTOFF (x) + N_TXTSIZE (x))
 #endif
 #ifndef N_TRELOFF
-#define N_TRELOFF(x)	( N_DATOFF (x) + (x).a_data )
+#define N_TRELOFF(x)	(N_DATOFF (x) + (x).a_data)
 #endif
 #ifndef N_DRELOFF
-#define N_DRELOFF(x)	( N_TRELOFF (x) + (x).a_trsize )
+#define N_DRELOFF(x)	(N_TRELOFF (x) + (x).a_trsize)
 #endif
 #ifndef N_SYMOFF
-#define N_SYMOFF(x)	( N_DRELOFF (x) + (x).a_drsize )
+#define N_SYMOFF(x)	(N_DRELOFF (x) + (x).a_drsize)
 #endif
 #ifndef N_STROFF
-#define N_STROFF(x)	( N_SYMOFF (x) + (x).a_syms )
+#define N_STROFF(x)	(N_SYMOFF (x) + (x).a_syms)
 #endif
 
 /* Symbols */
 #ifndef external_nlist
-struct external_nlist {
-  bfd_byte e_strx[BYTES_IN_WORD];	/* index into string table of name */
-  bfd_byte e_type[1];			/* type of symbol */
-  bfd_byte e_other[1];			/* misc info (usually empty) */
-  bfd_byte e_desc[2];			/* description field */
-  bfd_byte e_value[BYTES_IN_WORD];	/* value of symbol */
+struct external_nlist
+{
+  bfd_byte e_strx[BYTES_IN_WORD];	/* Index into string table of name.  */
+  bfd_byte e_type[1];			/* Type of symbol.  */
+  bfd_byte e_other[1];			/* Misc info (usually empty).  */
+  bfd_byte e_desc[2];			/* Description field.  */
+  bfd_byte e_value[BYTES_IN_WORD];	/* Value of symbol.  */
 };
 #define EXTERNAL_NLIST_SIZE (BYTES_IN_WORD+4+BYTES_IN_WORD)
 #endif
 
-struct internal_nlist {
-  unsigned long n_strx;			/* index into string table of name */
-  unsigned char n_type;			/* type of symbol */
-  unsigned char n_other;		/* misc info (usually empty) */
-  unsigned short n_desc;		/* description field */
-  bfd_vma n_value;			/* value of symbol */
+struct internal_nlist
+{
+  unsigned long n_strx;			/* Index into string table of name.  */
+  unsigned char n_type;			/* Type of symbol.  */
+  unsigned char n_other;		/* Misc info (usually empty).  */
+  unsigned short n_desc;		/* Description field.  */
+  bfd_vma n_value;			/* Value of symbol.  */
 };
 
 /* The n_type field is the symbol type, containing:  */
 
-#define N_UNDF	0	/* Undefined symbol */
-#define N_ABS 	2	/* Absolute symbol -- defined at particular addr */
-#define N_TEXT 	4	/* Text sym -- defined at offset in text seg */
-#define N_DATA 	6	/* Data sym -- defined at offset in data seg */
-#define N_BSS 	8	/* BSS  sym -- defined at offset in zero'd seg */
-#define	N_COMM	0x12	/* Common symbol (visible after shared lib dynlink) */
-#define N_FN	0x1f	/* File name of .o file */
-#define	N_FN_SEQ 0x0C	/* N_FN from Sequent compilers (sigh) */
+#define N_UNDF	0	/* Undefined symbol.  */
+#define N_ABS 	2	/* Absolute symbol -- defined at particular addr.  */
+#define N_TEXT 	4	/* Text sym -- defined at offset in text seg.  */
+#define N_DATA 	6	/* Data sym -- defined at offset in data seg.  */
+#define N_BSS 	8	/* BSS  sym -- defined at offset in zero'd seg.  */
+#define	N_COMM	0x12	/* Common symbol (visible after shared lib dynlink).  */
+#define N_FN	0x1f	/* File name of .o file.  */
+#define	N_FN_SEQ 0x0C	/* N_FN from Sequent compilers (sigh).  */
 /* Note: N_EXT can only be usefully OR-ed with N_UNDF, N_ABS, N_TEXT,
    N_DATA, or N_BSS.  When the low-order bit of other types is set,
    (e.g. N_WARNING versus N_FN), they are two different types.  */
-#define N_EXT 	1	/* External symbol (as opposed to local-to-this-file) */
+#define N_EXT 	1	/* External symbol (as opposed to local-to-this-file).  */
 #define N_TYPE  0x1e
-#define N_STAB 	0xe0	/* If any of these bits are on, it's a debug symbol */
+#define N_STAB 	0xe0	/* If any of these bits are on, it's a debug symbol.  */
 
 #define N_INDR 0x0a
 
@@ -301,10 +306,10 @@ struct internal_nlist {
    in that it can satisfy undefined external references.  */
 
 /* These appear as input to LD, in a .o file.  */
-#define	N_SETA	0x14		/* Absolute set element symbol */
-#define	N_SETT	0x16		/* Text set element symbol */
-#define	N_SETD	0x18		/* Data set element symbol */
-#define	N_SETB	0x1A		/* Bss set element symbol */
+#define	N_SETA	0x14		/* Absolute set element symbol.  */
+#define	N_SETT	0x16		/* Text set element symbol.  */
+#define	N_SETD	0x18		/* Data set element symbol.  */
+#define	N_SETB	0x1A		/* Bss set element symbol.  */
 
 /* This is output from LD.  */
 #define N_SETV	0x1C		/* Pointer to set vector in data area.  */
@@ -335,18 +340,18 @@ struct internal_nlist {
   instructions. Eg, on the 68k, each move instruction can reference
   the target with a displacement of 16 or 32 bits. On the sparc, move
   instructions use an offset of 14 bits, so the offset is stored in
-  the reloc field, and the data in the section is ignored.
-*/
+  the reloc field, and the data in the section is ignored.  */
 
 /* This structure describes a single relocation to be performed.
    The text-relocation section of the file is a vector of these structures,
    all of which apply to the text section.
    Likewise, the data-relocation section applies to the data section.  */
 
-struct reloc_std_external {
-  bfd_byte	r_address[BYTES_IN_WORD];	/* offset of of data to relocate 	*/
-  bfd_byte r_index[3];	/* symbol table index of symbol 	*/
-  bfd_byte r_type[1];	/* relocation type			*/
+struct reloc_std_external
+{
+  bfd_byte r_address[BYTES_IN_WORD];	/* Offset of of data to relocate.  */
+  bfd_byte r_index[3];			/* Symbol table index of symbol.  */
+  bfd_byte r_type[1];			/* Relocation type.  */
 };
 
 #define	RELOC_STD_BITS_PCREL_BIG	((unsigned int) 0x80)
@@ -369,7 +374,7 @@ struct reloc_std_external {
 #define	RELOC_STD_BITS_RELATIVE_BIG	((unsigned int) 0x02)
 #define	RELOC_STD_BITS_RELATIVE_LITTLE	((unsigned int) 0x40)
 
-#define	RELOC_STD_SIZE	(BYTES_IN_WORD + 3 + 1)		/* Bytes per relocation entry */
+#define	RELOC_STD_SIZE	(BYTES_IN_WORD + 3 + 1)		/* Bytes per relocation entry.  */
 
 struct reloc_std_internal
 {
@@ -392,21 +397,22 @@ struct reloc_std_internal
   unsigned int r_extern:1;
   /* The next three bits are for SunOS shared libraries, and seem to
      be undocumented.  */
-  unsigned int r_baserel:1;	/* Linkage table relative */
-  unsigned int r_jmptable:1;	/* pc-relative to jump table */
-  unsigned int r_relative:1;	/* "relative relocation" */
+  unsigned int r_baserel:1;	/* Linkage table relative.  */
+  unsigned int r_jmptable:1;	/* pc-relative to jump table.  */
+  unsigned int r_relative:1;	/* "relative relocation".  */
   /* unused */
-  unsigned int r_pad:1;		/* Padding -- set to zero */
+  unsigned int r_pad:1;		/* Padding -- set to zero.  */
 };
 
 
-/* EXTENDED RELOCS  */
+/* EXTENDED RELOCS.   */
 
-struct reloc_ext_external {
-  bfd_byte r_address[BYTES_IN_WORD];	/* offset of of data to relocate 	*/
-  bfd_byte r_index[3];	/* symbol table index of symbol 	*/
-  bfd_byte r_type[1];	/* relocation type			*/
-  bfd_byte r_addend[BYTES_IN_WORD];	/* datum addend				*/
+struct reloc_ext_external
+{
+  bfd_byte r_address[BYTES_IN_WORD];	/* Offset of of data to relocate.  */
+  bfd_byte r_index[3];			/* Symbol table index of symbol.  */
+  bfd_byte r_type[1];			/* Relocation type.  */
+  bfd_byte r_addend[BYTES_IN_WORD];	/* Datum addend.  */
 };
 
 #ifndef RELOC_EXT_BITS_EXTERN_BIG
@@ -433,20 +439,20 @@ struct reloc_ext_external {
 #define	RELOC_EXT_BITS_TYPE_SH_LITTLE	3
 #endif
 
-/* Bytes per relocation entry */
+/* Bytes per relocation entry.  */
 #define	RELOC_EXT_SIZE	(BYTES_IN_WORD + 3 + 1 + BYTES_IN_WORD)
 
 enum reloc_type
 {
-  /* simple relocations */
+  /* Simple relocations.  */
   RELOC_8,			/* data[0:7] = addend + sv 		*/
   RELOC_16,			/* data[0:15] = addend + sv 		*/
   RELOC_32,			/* data[0:31] = addend + sv 		*/
-  /* pc-rel displacement */
+  /* PC-rel displacement.  */
   RELOC_DISP8,			/* data[0:7] = addend - pc + sv 	*/
   RELOC_DISP16,			/* data[0:15] = addend - pc + sv 	*/
   RELOC_DISP32,			/* data[0:31] = addend - pc + sv 	*/
-  /* Special */
+  /* Special.  */
   RELOC_WDISP30,		/* data[0:29] = (addend + sv - pc)>>2 	*/
   RELOC_WDISP22,		/* data[0:21] = (addend + sv - pc)>>2 	*/
   RELOC_HI22,			/* data[0:21] = (addend + sv)>>10 	*/
@@ -455,16 +461,16 @@ enum reloc_type
   RELOC_LO10,			/* data[0:9] = (addend + sv)		*/
   RELOC_SFA_BASE,		
   RELOC_SFA_OFF13,
-  /* P.I.C. (base-relative) */
+  /* P.I.C. (base-relative).  */
   RELOC_BASE10,  		/* Not sure - maybe we can do this the */
   RELOC_BASE13,			/* right way now */
   RELOC_BASE22,
-  /* for some sort of pc-rel P.I.C. (?) */
+  /* For some sort of pc-rel P.I.C. (?)  */
   RELOC_PC10,
   RELOC_PC22,
-  /* P.I.C. jump table */
+  /* P.I.C. jump table.  */
   RELOC_JMP_TBL,
-  /* reputedly for shared libraries somehow */
+  /* Reputedly for shared libraries somehow.  */
   RELOC_SEGOFF16,
   RELOC_GLOB_DAT,
   RELOC_JMP_SLOT,
@@ -476,13 +482,12 @@ enum reloc_type
   RELOC_HHI22,			/* data[0:21] = (addend + sv) >> 42     */
   RELOC_HLO10,			/* data[0:9] = (addend + sv) >> 32      */
   
-  /* 29K relocation types */
+  /* 29K relocation types.  */
   RELOC_JUMPTARG,
   RELOC_CONST,
   RELOC_CONSTH,
   
-  /* All the new ones I can think of, for sparc v9 */
-
+  /* All the new ones I can think of, for sparc v9.  */
   RELOC_64,			/* data[0:63] = addend + sv 		*/
   RELOC_DISP64,			/* data[0:63] = addend - pc + sv 	*/
   RELOC_WDISP21,		/* data[0:20] = (addend + sv - pc)>>2 	*/
@@ -492,25 +497,23 @@ enum reloc_type
      What are the other ones,
      Since this is a clean slate, can we throw away the ones we dont
      understand ? Should we sort the values ? What about using a
-     microcode format like the 68k ?
-     */
+     microcode format like the 68k ?  */
   NO_RELOC
   };
 
 
-struct reloc_internal {
-  bfd_vma r_address;		/* offset of of data to relocate 	*/
-  long	r_index;		/* symbol table index of symbol 	*/
-  enum reloc_type r_type;	/* relocation type			*/
-  bfd_vma r_addend;		/* datum addend				*/
+struct reloc_internal
+{
+  bfd_vma r_address;		/* Offset of of data to relocate.  */
+  long	r_index;		/* Symbol table index of symbol.  */
+  enum reloc_type r_type;	/* Relocation type.  */
+  bfd_vma r_addend;		/* Datum addend.  */
 };
 
 /* Q.
    Should the length of the string table be 4 bytes or 8 bytes ?
 
    Q.
-   What about archive indexes ?
-
- */
+   What about archive indexes ?  */
 
 #endif				/* __A_OUT_64_H__ */

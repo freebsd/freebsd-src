@@ -18,7 +18,7 @@
    the Free Software Foundation, 59 Temple Place - Suite 330, Boston, MA
    02111-1307, USA.  */
 
-/* Added these, because if we don't know what we're targetting we may
+/* Added these, because if we don't know what we're targeting we may
    need an assembler version of libgcc, and that will use local
    labels.  */
 #define LOCAL_LABELS_DOLLAR 1

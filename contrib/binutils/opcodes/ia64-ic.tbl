@@ -3,7 +3,7 @@ all;	IC:predicatable-instructions, IC:unpredicatable-instructions
 branches;	IC:indirect-brs, IC:ip-rel-brs
 cfm-readers;	IC:fr-readers, IC:fr-writers, IC:gr-readers, IC:gr-writers, IC:mod-sched-brs, IC:predicatable-instructions, IC:pr-writers, alloc, br.call, brl.call, br.ret, cover, loadrs, rfi, IC:chk-a, invala.e
 chk-a;	chk.a.clr, chk.a.nc
-cmpxchg;	cmpxchg1, cmpxchg2, cmpxchg4, cmpxchg8
+cmpxchg;	cmpxchg1, cmpxchg2, cmpxchg4, cmpxchg8, cmp8xchg16
 czx;	czx1, czx2
 fcmp-s0;	fcmp[Field(sf)==s0]
 fcmp-s1;	fcmp[Field(sf)==s1]
@@ -20,7 +20,7 @@ fpcmp-s0;	fpcmp[Field(sf)==s0]
 fpcmp-s1;	fpcmp[Field(sf)==s1]
 fpcmp-s2;	fpcmp[Field(sf)==s2]
 fpcmp-s3;	fpcmp[Field(sf)==s3]
-fr-readers;	IC:fp-arith, IC:fp-non-arith, IC:pr-writers-fp, chk.s[Format in {M21}], getf
+fr-readers;	IC:fp-arith, IC:fp-non-arith, IC:pr-writers-fp, chk.s[Format in {M21}], getf, IC:mem-writers-fp
 fr-writers;	IC:fp-arith, IC:fp-non-arith\fclass, IC:mem-readers-fp, setf
 gr-readers;	IC:gr-readers-writers, IC:mem-readers, IC:mem-writers, chk.s, cmp, cmp4, fc, itc.i, itc.d, itr.i, itr.d, IC:mov-to-AR-gr, IC:mov-to-BR, IC:mov-to-CR, IC:mov-to-IND, IC:mov-from-IND, IC:mov-to-PR-allreg, IC:mov-to-PSR-l, IC:mov-to-PSR-um, IC:probe-all, ptc.e, ptc.g, ptc.ga, ptc.l, ptr.i, ptr.d, setf, tbit, tnat
 gr-readers-writers;	IC:mov-from-IND, add, addl, addp4, adds, and, andcm, IC:czx, dep\dep[Format in {I13}], extr, IC:mem-readers-int, IC:ld-all-postinc, IC:lfetch-postinc, IC:mix, IC:mux, or, IC:pack, IC:padd, IC:pavg, IC:pavgsub, IC:pcmp, IC:pmax, IC:pmin, IC:pmpy, IC:pmpyshr, popcnt, IC:probe-nofault, IC:psad, IC:pshl, IC:pshladd, IC:pshr, IC:pshradd, IC:psub, shl, shladd, shladdp4, shr, shrp, IC:st-postinc, sub, IC:sxt, tak, thash, tpa, ttag, IC:unpack, xor, IC:zxt
@@ -29,7 +29,7 @@ indirect-brp;	brp[Format in {B7}]
 indirect-brs;	br.call[Format in {B5}], br.cond[Format in {B4}], br.ia, br.ret
 invala-all;	invala[Format in {M24}], invala.e
 ip-rel-brs;	IC:mod-sched-brs, br.call[Format in {B3}], brl.call, brl.cond, br.cond[Format in {B1}], br.cloop
-ld;	ld1, ld2, ld4, ld8, ld8.fill
+ld;	ld1, ld2, ld4, ld8, ld8.fill, ld16
 ld-a;	ld1.a, ld2.a, ld4.a, ld8.a
 ld-all-postinc;	IC:ld[Format in {M2 M3}], IC:ldfp[Format in {M12}], IC:ldf[Format in {M7 M8}]
 ld-c;	IC:ld-c-nc, IC:ld-c-clr
@@ -71,8 +71,15 @@ mov-from-AR;	IC:mov-from-AR-M, IC:mov-from-AR-I, IC:mov-from-AR-IM
 mov-from-AR-BSP;	IC:mov-from-AR-M[Field(ar3) == BSP]
 mov-from-AR-BSPSTORE;	IC:mov-from-AR-M[Field(ar3) == BSPSTORE]
 mov-from-AR-CCV;	IC:mov-from-AR-M[Field(ar3) == CCV]
+mov-from-AR-CFLG;	IC:mov-from-AR-M[Field(ar3) == CFLG]
+mov-from-AR-CSD;	IC:mov-from-AR-M[Field(ar3) == CSD]
 mov-from-AR-EC;	IC:mov-from-AR-I[Field(ar3) == EC]
+mov-from-AR-EFLAG;	IC:mov-from-AR-M[Field(ar3) == EFLAG]
+mov-from-AR-FCR;	IC:mov-from-AR-M[Field(ar3) == FCR]
+mov-from-AR-FDR;	IC:mov-from-AR-M[Field(ar3) == FDR]
+mov-from-AR-FIR;	IC:mov-from-AR-M[Field(ar3) == FIR]
 mov-from-AR-FPSR;	IC:mov-from-AR-M[Field(ar3) == FPSR]
+mov-from-AR-FSR;	IC:mov-from-AR-M[Field(ar3) == FSR]
 mov-from-AR-I;	mov_ar[Format in {I28}]
 mov-from-AR-ig;	IC:mov-from-AR-IM[Field(ar3) in {48-63 112-127}]
 mov-from-AR-IM;	mov_ar[Format in {I28 M31}]
@@ -84,6 +91,7 @@ mov-from-AR-PFS;	IC:mov-from-AR-I[Field(ar3) == PFS]
 mov-from-AR-RNAT;	IC:mov-from-AR-M[Field(ar3) == RNAT]
 mov-from-AR-RSC;	IC:mov-from-AR-M[Field(ar3) == RSC]
 mov-from-AR-rv;	IC:none
+mov-from-AR-SSD;	IC:mov-from-AR-M[Field(ar3) == SSD]
 mov-from-AR-UNAT;	IC:mov-from-AR-M[Field(ar3) == UNAT]
 mov-from-BR;	mov_br[Format in {I22}]
 mov-from-CR;	mov_cr[Format in {M33}]
@@ -129,8 +137,15 @@ mov-to-AR;	IC:mov-to-AR-M, IC:mov-to-AR-I
 mov-to-AR-BSP;	IC:mov-to-AR-M[Field(ar3) == BSP]
 mov-to-AR-BSPSTORE;	IC:mov-to-AR-M[Field(ar3) == BSPSTORE]
 mov-to-AR-CCV;	IC:mov-to-AR-M[Field(ar3) == CCV]
+mov-to-AR-CFLG;	IC:mov-to-AR-M[Field(ar3) == CFLG]
+mov-to-AR-CSD;	IC:mov-to-AR-M[Field(ar3) == CSD]
 mov-to-AR-EC;	IC:mov-to-AR-I[Field(ar3) == EC]
+mov-to-AR-EFLAG;	IC:mov-to-AR-M[Field(ar3) == EFLAG]
+mov-to-AR-FCR;	IC:mov-to-AR-M[Field(ar3) == FCR]
+mov-to-AR-FDR;	IC:mov-to-AR-M[Field(ar3) == FDR]
+mov-to-AR-FIR;	IC:mov-to-AR-M[Field(ar3) == FIR]
 mov-to-AR-FPSR;	IC:mov-to-AR-M[Field(ar3) == FPSR]
+mov-to-AR-FSR;	IC:mov-to-AR-M[Field(ar3) == FSR]
 mov-to-AR-gr;	IC:mov-to-AR-M[Format in {M29}], IC:mov-to-AR-I[Format in {I26}]
 mov-to-AR-I;	mov_ar[Format in {I26 I27}]
 mov-to-AR-ig;	IC:mov-to-AR-IM[Field(ar3) in {48-63 112-127}]
@@ -142,6 +157,7 @@ mov-to-AR-M;	mov_ar[Format in {M29 M30}]
 mov-to-AR-PFS;	IC:mov-to-AR-I[Field(ar3) == PFS]
 mov-to-AR-RNAT;	IC:mov-to-AR-M[Field(ar3) == RNAT]
 mov-to-AR-RSC;	IC:mov-to-AR-M[Field(ar3) == RSC]
+mov-to-AR-SSD;	IC:mov-to-AR-M[Field(ar3) == SSD]
 mov-to-AR-UNAT;	IC:mov-to-AR-M[Field(ar3) == UNAT]
 mov-to-BR;	mov_br[Format in {I21}]
 mov-to-CR;	mov_cr[Format in {M32}]
@@ -200,8 +216,8 @@ pr-gen-writers-int;	cmp, cmp4, tbit, tnat
 pr-norm-writers-fp;	IC:pr-gen-writers-fp[Field(ctype)==]
 pr-norm-writers-int;	IC:pr-gen-writers-int[Field(ctype)==]
 pr-or-writers;	IC:pr-gen-writers-int[Field(ctype) in {or orcm}], IC:pr-gen-writers-int[Field(ctype) in {or.andcm and.orcm}]
-pr-readers-br;	br.call, br.cond, brl.call, brl.cond, br.ret, br.wexit, br.wtop, break.b, nop.b, IC:ReservedBQP
-pr-readers-nobr-nomovpr;	add, addl, addp4, adds, and, andcm, break.f, break.i, break.m, break.x, chk.s, IC:chk-a, cmp, cmp4, IC:cmpxchg, IC:czx, dep, extr, IC:fp-arith, IC:fp-non-arith, fc, fchkf, fclrf, fcmp, IC:fetchadd, fpcmp, fsetc, fwb, getf, IC:invala-all, itc.i, itc.d, itr.i, itr.d, IC:ld, IC:ldf, IC:ldfp, IC:lfetch-all, mf, IC:mix, IC:mov-from-AR-M, IC:mov-from-AR-IM, IC:mov-from-AR-I, IC:mov-to-AR-M, IC:mov-to-AR-I, IC:mov-to-AR-IM, IC:mov-to-BR, IC:mov-from-BR, IC:mov-to-CR, IC:mov-from-CR, IC:mov-to-IND, IC:mov-from-IND, IC:mov-ip, IC:mov-to-PSR-l, IC:mov-to-PSR-um, IC:mov-from-PSR, IC:mov-from-PSR-um, movl, IC:mux, nop.f, nop.i, nop.m, nop.x, or, IC:pack, IC:padd, IC:pavg, IC:pavgsub, IC:pcmp, IC:pmax, IC:pmin, IC:pmpy, IC:pmpyshr, popcnt, IC:probe-all, IC:psad, IC:pshl, IC:pshladd, IC:pshr, IC:pshradd, IC:psub, ptc.e, ptc.g, ptc.ga, ptc.l, ptr.d, ptr.i, IC:ReservedQP, rsm, setf, shl, shladd, shladdp4, shr, shrp, srlz.i, srlz.d, ssm, IC:st, IC:stf, sub, sum, IC:sxt, sync, tak, tbit, thash, tnat, tpa, ttag, IC:unpack, IC:xchg, xma, xmpy, xor, IC:zxt
+pr-readers-br;	br.call, br.cond, brl.call, brl.cond, br.ret, br.wexit, br.wtop, break.b, hint.b, nop.b, IC:ReservedBQP
+pr-readers-nobr-nomovpr;	add, addl, addp4, adds, and, andcm, break.f, break.i, break.m, break.x, chk.s, IC:chk-a, cmp, cmp4, IC:cmpxchg, IC:czx, dep, extr, IC:fp-arith, IC:fp-non-arith, fc, fchkf, fclrf, fcmp, IC:fetchadd, fpcmp, fsetc, fwb, getf, hint.f, hint.i, hint.m, hint.x, IC:invala-all, itc.i, itc.d, itr.i, itr.d, IC:ld, IC:ldf, IC:ldfp, IC:lfetch-all, mf, IC:mix, IC:mov-from-AR-M, IC:mov-from-AR-IM, IC:mov-from-AR-I, IC:mov-to-AR-M, IC:mov-to-AR-I, IC:mov-to-AR-IM, IC:mov-to-BR, IC:mov-from-BR, IC:mov-to-CR, IC:mov-from-CR, IC:mov-to-IND, IC:mov-from-IND, IC:mov-ip, IC:mov-to-PSR-l, IC:mov-to-PSR-um, IC:mov-from-PSR, IC:mov-from-PSR-um, movl, IC:mux, nop.f, nop.i, nop.m, nop.x, or, IC:pack, IC:padd, IC:pavg, IC:pavgsub, IC:pcmp, IC:pmax, IC:pmin, IC:pmpy, IC:pmpyshr, popcnt, IC:probe-all, IC:psad, IC:pshl, IC:pshladd, IC:pshr, IC:pshradd, IC:psub, ptc.e, ptc.g, ptc.ga, ptc.l, ptr.d, ptr.i, IC:ReservedQP, rsm, setf, shl, shladd, shladdp4, shr, shrp, srlz.i, srlz.d, ssm, IC:st, IC:stf, sub, sum, IC:sxt, sync, tak, tbit, thash, tnat, tpa, ttag, IC:unpack, IC:xchg, xma, xmpy, xor, IC:zxt
 pr-unc-writers-fp;	IC:pr-gen-writers-fp[Field(ctype)==unc]+11, fprcpa+11, fprsqrta+11, frcpa+11, frsqrta+11
 pr-unc-writers-int;	IC:pr-gen-writers-int[Field(ctype)==unc]+11
 pr-writers;	IC:pr-writers-int, IC:pr-writers-fp
@@ -222,7 +238,7 @@ ReservedBQP;	-+15
 ReservedQP;	-+16
 rse-readers;	alloc, br.call, br.ia, br.ret, brl.call, cover, flushrs, loadrs, IC:mov-from-AR-BSP, IC:mov-from-AR-BSPSTORE, IC:mov-to-AR-BSPSTORE, IC:mov-from-AR-RNAT, IC:mov-to-AR-RNAT, rfi
 rse-writers;	alloc, br.call, br.ia, br.ret, brl.call, cover, flushrs, loadrs, IC:mov-to-AR-BSPSTORE, rfi
-st;	st1, st2, st4, st8, st8.spill
+st;	st1, st2, st4, st8, st8.spill, st16
 st-postinc;	IC:stf[Format in {M10}], IC:st[Format in {M5}]
 stf;	stfs, stfd, stfe, stf8, stf.spill
 sxt;	sxt1, sxt2, sxt4

@@ -1,5 +1,5 @@
 /* BFD back-end for PPCbug boot records.
-   Copyright 1996, 1997, 1998, 1999, 2000, 2001, 2002
+   Copyright 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003
    Free Software Foundation, Inc.
    Written by Michael Meissner, Cygnus Support, <meissner@cygnus.com>
 
@@ -87,27 +87,27 @@ typedef struct ppcboot_data {
    a start symbol, an end symbol, and an absolute length symbol.  */
 #define PPCBOOT_SYMS 3
 
-static boolean ppcboot_mkobject PARAMS ((bfd *));
+static bfd_boolean ppcboot_mkobject PARAMS ((bfd *));
 static const bfd_target *ppcboot_object_p PARAMS ((bfd *));
-static boolean ppcboot_set_arch_mach
+static bfd_boolean ppcboot_set_arch_mach
   PARAMS ((bfd *, enum bfd_architecture, unsigned long));
-static boolean ppcboot_get_section_contents
+static bfd_boolean ppcboot_get_section_contents
   PARAMS ((bfd *, asection *, PTR, file_ptr, bfd_size_type));
 static long ppcboot_get_symtab_upper_bound PARAMS ((bfd *));
 static char *mangle_name PARAMS ((bfd *, char *));
-static long ppcboot_get_symtab PARAMS ((bfd *, asymbol **));
+static long ppcboot_canonicalize_symtab PARAMS ((bfd *, asymbol **));
 static void ppcboot_get_symbol_info PARAMS ((bfd *, asymbol *, symbol_info *));
-static boolean ppcboot_set_section_contents
-  PARAMS ((bfd *, asection *, PTR, file_ptr, bfd_size_type));
-static int ppcboot_sizeof_headers PARAMS ((bfd *, boolean));
-static boolean ppcboot_bfd_print_private_bfd_data PARAMS ((bfd *, PTR));
+static bfd_boolean ppcboot_set_section_contents
+  PARAMS ((bfd *, asection *, const PTR, file_ptr, bfd_size_type));
+static int ppcboot_sizeof_headers PARAMS ((bfd *, bfd_boolean));
+static bfd_boolean ppcboot_bfd_print_private_bfd_data PARAMS ((bfd *, PTR));
 
 #define ppcboot_set_tdata(abfd, ptr) ((abfd)->tdata.any = (PTR) (ptr))
 #define ppcboot_get_tdata(abfd) ((ppcboot_data_t *) ((abfd)->tdata.any))
 
 /* Create a ppcboot object.  Invoked via bfd_set_format.  */
 
-static boolean
+static bfd_boolean
 ppcboot_mkobject (abfd)
      bfd *abfd;
 {
@@ -117,12 +117,12 @@ ppcboot_mkobject (abfd)
       ppcboot_set_tdata (abfd, bfd_zalloc (abfd, amt));
     }
 
-  return true;
+  return TRUE;
 }
 
 
 /* Set the architecture to PowerPC */
-static boolean
+static bfd_boolean
 ppcboot_set_arch_mach (abfd, arch, machine)
      bfd *abfd;
      enum bfd_architecture arch;
@@ -132,7 +132,7 @@ ppcboot_set_arch_mach (abfd, arch, machine)
     arch = bfd_arch_powerpc;
 
   else if (arch != bfd_arch_powerpc)
-    return false;
+    return FALSE;
 
   return bfd_default_set_arch_mach (abfd, arch, machine);
 }
@@ -229,7 +229,7 @@ ppcboot_object_p (abfd)
 
 /* Get contents of the only section.  */
 
-static boolean
+static bfd_boolean
 ppcboot_get_section_contents (abfd, section, location, offset, count)
      bfd *abfd;
      asection *section ATTRIBUTE_UNUSED;
@@ -239,8 +239,8 @@ ppcboot_get_section_contents (abfd, section, location, offset, count)
 {
   if (bfd_seek (abfd, offset + (file_ptr) sizeof (ppcboot_hdr_t), SEEK_SET) != 0
       || bfd_bread (location, count, abfd) != count)
-    return false;
-  return true;
+    return FALSE;
+  return TRUE;
 }
 
 
@@ -287,7 +287,7 @@ mangle_name (abfd, suffix)
 /* Return the symbol table.  */
 
 static long
-ppcboot_get_symtab (abfd, alocation)
+ppcboot_canonicalize_symtab (abfd, alocation)
      bfd *abfd;
      asymbol **alocation;
 {
@@ -298,7 +298,7 @@ ppcboot_get_symtab (abfd, alocation)
 
   syms = (asymbol *) bfd_alloc (abfd, amt);
   if (syms == NULL)
-    return false;
+    return FALSE;
 
   /* Start symbol.  */
   syms[0].the_bfd = abfd;
@@ -360,11 +360,11 @@ ppcboot_get_symbol_info (ignore_abfd, symbol, ret)
 
 /* Write section contents of a ppcboot file.  */
 
-static boolean
+static bfd_boolean
 ppcboot_set_section_contents (abfd, sec, data, offset, size)
      bfd *abfd;
      asection *sec;
-     PTR data;
+     const PTR data;
      file_ptr offset;
      bfd_size_type size;
 {
@@ -384,7 +384,7 @@ ppcboot_set_section_contents (abfd, sec, data, offset, size)
       for (s = abfd->sections; s != NULL; s = s->next)
 	s->filepos = s->vma - low;
 
-      abfd->output_has_begun = true;
+      abfd->output_has_begun = TRUE;
     }
 
   return _bfd_generic_set_section_contents (abfd, sec, data, offset, size);
@@ -394,7 +394,7 @@ ppcboot_set_section_contents (abfd, sec, data, offset, size)
 static int
 ppcboot_sizeof_headers (abfd, exec)
      bfd *abfd ATTRIBUTE_UNUSED;
-     boolean exec ATTRIBUTE_UNUSED;
+     bfd_boolean exec ATTRIBUTE_UNUSED;
 {
   return sizeof (ppcboot_hdr_t);
 }
@@ -402,7 +402,7 @@ ppcboot_sizeof_headers (abfd, exec)
 
 /* Print out the program headers.  */
 
-static boolean
+static bfd_boolean
 ppcboot_bfd_print_private_bfd_data (abfd, farg)
      bfd *abfd;
      PTR farg;
@@ -460,7 +460,7 @@ ppcboot_bfd_print_private_bfd_data (abfd, farg)
     }
 
   fprintf (f, "\n");
-  return true;
+  return TRUE;
 }
 
 

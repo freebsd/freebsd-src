@@ -258,4 +258,19 @@ typedef struct
   unsigned char		si_flags[2];
 } Elf_External_Syminfo;
 
+
+/* This structure appears on the stack and in NT_AUXV core file notes.  */
+typedef struct
+{
+  unsigned char		a_type[4];
+  unsigned char		a_val[4];
+} Elf32_External_Auxv;
+
+typedef struct
+{
+  unsigned char		a_type[8];
+  unsigned char		a_val[8];
+} Elf64_External_Auxv;
+
+
 #endif /* _ELF_EXTERNAL_H */

@@ -19,8 +19,8 @@
    along with GAS; see the file COPYING.  If not, write to
    the Free Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
-void output_file_append PARAMS ((char *where, long length, char *filename));
-void output_file_close PARAMS ((char *filename));
-void output_file_create PARAMS ((char *name));
+void output_file_append (char *where, long length, char *filename);
+void output_file_close (char *filename);
+void output_file_create (char *name);
 
 /* end of output-file.h */
