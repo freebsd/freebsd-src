@@ -21,7 +21,11 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: util.c,v 1.58 97/05/09 14:52:17 leres Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/util.c,v 1.62 1999/12/15 06:58:03 fenner Exp $ (LBL)";
+#endif
+
+#ifdef HAVE_CONFIG_H
+#include "config.h"
 #endif
 
 #include <sys/types.h>
@@ -132,10 +136,57 @@ ts_print(register const struct timeval *tvp)
 		(void)printf("%02d:%02d:%02d.%06u ",
 		    s / 3600, (s % 3600) / 60, s % 60, (u_int32_t)tvp->tv_usec);
 	} else if (tflag < 0) {
-		/* Unix timeval style */
-		(void)printf("%u.%06u ",
-		    (u_int32_t)tvp->tv_sec, (u_int32_t)tvp->tv_usec);
+		if (tflag < -1) {
+			static unsigned b_sec;
+			static unsigned b_usec;
+			if (b_sec == 0) {
+				printf("000000 ");
+			} else {
+				int d_usec = tvp->tv_usec - b_usec;
+				int d_sec = tvp->tv_sec - b_sec;
+
+				while (d_usec < 0) {
+					d_usec += 1000000;
+					d_sec--;
+				}
+				if (d_sec)
+					printf("%d. ", d_sec);
+				printf("%06d ", d_usec);
+			}
+			b_sec = tvp->tv_sec;
+			b_usec = tvp->tv_usec;
+		} else {
+			/* Unix timeval style */
+			(void)printf("%u.%06u ",
+				     (u_int32_t)tvp->tv_sec, (u_int32_t)tvp->tv_usec);
+		}
 	}
+}
+
+/*
+ * Print a relative number of seconds (e.g. hold time, prune timer)
+ * in the form 5m1s.  This does no truncation, so 32230861 seconds
+ * is represented as 1y1w1d1h1m1s.
+ */
+void
+relts_print(int secs)
+{
+    static char *lengths[]={"y","w","d","h","m","s"};
+    static int seconds[]={31536000,604800,86400,3600,60,1};
+    char **l = lengths;
+    int *s = seconds;
+
+    if (secs == 0) {
+	(void)printf("0s");
+	return;
+    }
+    while (secs) {
+	if (secs >= *s) {
+	    (void)printf("%d%s", secs / *s, *l);
+	    secs -= (secs / *s) * *s;
+	}
+	s++; l++;
+    }
 }
 
 /*

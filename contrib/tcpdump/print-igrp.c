@@ -23,7 +23,11 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: print-igrp.c,v 1.8 97/05/28 12:52:47 leres Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-igrp.c,v 1.11 1999/11/21 09:36:53 fenner Exp $ (LBL)";
+#endif
+
+#ifdef HAVE_CONFIG_H
+#include "config.h"
 #endif
 
 #include <sys/param.h>
