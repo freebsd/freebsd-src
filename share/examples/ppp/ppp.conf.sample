@@ -503,9 +503,13 @@ sloop:
 #  we've authenticated ourselves.  When this has happened, we wait
 #  60 seconds for a RING.
 #
+#  Note, it's important that we tell ppp not to expect carrier, otherwise
+#  we'll drop out at the ``NO CARRIER'' stage.
+#
 dialback:
  set dial "ABORT BUSY ABORT NO\\sCARRIER TIMEOUT 5 \"\" ATZ OK-ATZ-OK \
            ATDT\\T TIMEOUT 60 CONNECT"
+ set cd off
  set login "TIMEOUT 5 ogin:--ogin: ppp word: ppp TIMEOUT 15 DIALBACK \
            \"\" NO\\sCARRIER \"\" TIMEOUT 60 RING ATA CONNECT"
 
