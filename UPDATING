@@ -17,6 +17,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 5.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20040225:
+	routed has been updated in the base system from the vendor
+	sources, routed v2.27, from rhyolite.com. This change means that
+	for users who use RIP's MD5 authentication feature, FreeBSD
+	-CURRENT's routed is now incompatible with previous versions
+	of FreeBSD; however it is now compatible with implementations
+	from Sun, Cisco and other vendors.
+
 20040224:
 	The tcpcb structure has changed and makes a recompile of libkvm
 	and related userland network utilities neccessary.
