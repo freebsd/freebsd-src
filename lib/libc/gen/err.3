@@ -97,7 +97,9 @@ In all cases, the last component of the program name, a colon character,
 and a space are output.
 If the
 .Fa fmt
-argument is not NULL, the formatted error message is output.
+argument is not NULL, the
+.Xr printf 3
+-like formatted error message is output.
 The output is terminated by a newline character.
 .Pp
 The
@@ -114,7 +116,7 @@ functions append an error message obtained from
 .Xr strerror 3
 based on a code or the global variable
 .Va errno ,
-preceeded by another colon and space unless the
+preceded by another colon and space unless the
 .Fa fmt
 argument is
 .Dv NULL .
@@ -205,6 +207,7 @@ if (error != 0)
 .Ed
 .Sh SEE ALSO
 .Xr exit 3 ,
+.Xr printf 3 ,
 .Xr strerror 3
 .Sh HISTORY
 The
