@@ -1,9 +1,10 @@
-#	$Id: Makefile,v 1.3 1998/10/09 17:19:51 rnordier Exp $
+#	$Id: Makefile,v 1.4 1998/10/13 18:29:18 rnordier Exp $
 
 PROG=		boot0
 NOMAN=
 STRIP=
 BINDIR?=	/boot
+BINMODE=	444
 
 M4?=	m4
 
