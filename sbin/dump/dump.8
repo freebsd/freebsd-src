@@ -381,7 +381,9 @@ Always start with a level 0 backup, for example:
 This should be done at set intervals, say once a month or once every two months,
 and on a set of fresh tapes that is saved forever.
 .It
-After a level 0, dumps of active file systems are taken on a daily basis,
+After a level 0, dumps of active file systems (file systems with files
+that change, depending on your partition layout some file systems may
+contain only data that does not change) are taken on a daily basis,
 using a modified Tower of Hanoi algorithm,
 with this sequence of dump levels:
 .Bd -literal -offset indent
@@ -435,7 +437,17 @@ Dump exits with zero status on success.
 Startup errors are indicated with an exit code of 1;
 abnormal termination is indicated with an exit code of 3.
 .Sh BUGS
-Fewer than 32 read errors on the file system are ignored.
+Fewer than 32 read errors on the file system are ignored, though all
+errors will generate a warning message.
+This is a bit of a compromise.
+In practice it is possible to generate read errors when doing dumps
+on mounted partitions if the file system is being modified while the
+dump is running.
+Since dumps are often done in an unattended fashion using
+.Xr cron 8
+jobs asking for Operator intervention would result in the dump dying.
+However there is nothing wrong with a dump tape written when this sort
+of read error occurs and there is no reason to terminate the dump.
 .Pp
 Each reel requires a new process, so parent processes for
 reels already written just hang around until the entire tape
