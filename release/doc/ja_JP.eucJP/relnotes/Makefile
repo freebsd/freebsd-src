@@ -1,9 +1,10 @@
 # $FreeBSD$
-# Original revision: 1.5
+# Original revision: 1.6
 
 RELN_ROOT?= ${.CURDIR}/../..
 
 SUBDIR = alpha
+SUBDIR+= amd64
 SUBDIR+= ia64
 SUBDIR+= i386
 SUBDIR+= pc98
