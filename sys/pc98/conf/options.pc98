@@ -1,4 +1,4 @@
-#	$Id: options.pc98,v 1.31 1997/07/14 12:33:06 kato Exp $
+#	$Id: options.pc98,v 1.32 1997/07/26 01:35:14 kato Exp $
 BOUNCEPAGES		opt_bounce.h
 USER_LDT
 MATH_EMULATE		opt_math_emulate.h
@@ -38,7 +38,6 @@ NCPU			opt_smp.h
 NBUS			opt_smp.h
 NAPIC			opt_smp.h
 NINTR			opt_smp.h
-SMP_TIMER_NC		opt_smp.h
 
 AHC_TAGENABLE		opt_aic7xxx.h
 AHC_SCBPAGING_ENABLE	opt_aic7xxx.h
