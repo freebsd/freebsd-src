@@ -93,6 +93,9 @@ SYSCTL_INT(_net_inet_ipf, OID_AUTO, fr_flags, CTLFLAG_RW, &fr_flags, 0, "");
 SYSCTL_INT(_net_inet_ipf, OID_AUTO, fr_pass, CTLFLAG_RW, &fr_pass, 0, "");
 SYSCTL_INT(_net_inet_ipf, OID_AUTO, fr_active, CTLFLAG_RD, &fr_active, 0, "");
 SYSCTL_INT(_net_inet_ipf, OID_AUTO, fr_chksrc, CTLFLAG_RW, &fr_chksrc, 0, "");
+SYSCTL_INT(_net_inet_ipf, OID_AUTO, fr_minttl, CTLFLAG_RW, &fr_minttl, 0, "");
+SYSCTL_INT(_net_inet_ipf, OID_AUTO, fr_minttllog, CTLFLAG_RW,
+	   &fr_minttllog, 0, "");
 SYSCTL_INT(_net_inet_ipf, OID_AUTO, fr_tcpidletimeout, CTLFLAG_RW,
 	   &fr_tcpidletimeout, 0, "");
 SYSCTL_INT(_net_inet_ipf, OID_AUTO, fr_tcphalfclosed, CTLFLAG_RW,
