@@ -8,7 +8,8 @@ MAN3=	scsi.3
 
 MLINKS+=scsi.3 scsireq_buff_decode.3 scsi.3 scsireq_build.3 \
 	scsi.3 scsireq_decode.3 scsi.3 scsireq_encode.3 \
-	scsi.3 scsireg_enter.3 scsi.3 SCSIREQ_ERROR.3 \
+	scsi.3 scsireq_enter.3 scsi.3 scsireq_new.3 \
+	scsi.3 scsireq_reset.3 scsi.3 SCSIREQ_ERROR.3 \
 	scsi.3 scsi_open.3 scsi.3 scsi_debug.3 \
 	scsi.3 scsi_debug_output.3
 
