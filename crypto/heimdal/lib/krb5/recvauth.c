@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: recvauth.c,v 1.13 2000/12/06 20:59:05 joda Exp $");
+RCSID("$Id: recvauth.c,v 1.15 2001/05/14 06:14:51 assar Exp $");
 
 /*
  * See `sendauth.c' for the format.
@@ -101,44 +101,61 @@ krb5_recvauth_match_version(krb5_context context,
 
   if(!(flags & KRB5_RECVAUTH_IGNORE_VERSION)) {
     n = krb5_net_read (context, p_fd, &len, 4);
-    if (n < 0)
-	return errno;
-    if (n == 0)
+    if (n < 0) {
+	ret = errno;
+	krb5_set_error_string (context, "read: %s", strerror(errno));
+	return ret;
+    }
+    if (n == 0) {
+	krb5_clear_error_string (context);
 	return KRB5_SENDAUTH_BADAUTHVERS;
+    }
     len = ntohl(len);
     if (len != sizeof(her_version)
 	|| krb5_net_read (context, p_fd, her_version, len) != len
 	|| strncmp (version, her_version, len)) {
       repl = 1;
       krb5_net_write (context, p_fd, &repl, 1);
+	krb5_clear_error_string (context);
       return KRB5_SENDAUTH_BADAUTHVERS;
     }
   }
 
   n = krb5_net_read (context, p_fd, &len, 4);
-  if (n < 0)
-      return errno;
-  if (n == 0)
+  if (n < 0) {
+      ret = errno;
+      krb5_set_error_string (context, "read: %s", strerror(errno));
+      return ret;
+  }
+  if (n == 0) {
+      krb5_clear_error_string (context);
       return KRB5_SENDAUTH_BADAPPLVERS;
+  }
   len = ntohl(len);
   her_appl_version = malloc (len);
   if (her_appl_version == NULL) {
       repl = 2;
       krb5_net_write (context, p_fd, &repl, 1);
+      krb5_set_error_string (context, "malloc: out of memory");
       return ENOMEM;
   }
   if (krb5_net_read (context, p_fd, her_appl_version, len) != len
       || !(*match_appl_version)(match_data, her_appl_version)) {
     repl = 2;
     krb5_net_write (context, p_fd, &repl, 1);
+    krb5_set_error_string (context, "wrong sendauth version (%s)",
+			   her_appl_version);
     free (her_appl_version);
     return KRB5_SENDAUTH_BADAPPLVERS;
   }
   free (her_appl_version);
 
   repl = 0;
-  if (krb5_net_write (context, p_fd, &repl, 1) != 1)
-    return errno;
+  if (krb5_net_write (context, p_fd, &repl, 1) != 1) {
+    ret = errno;
+    krb5_set_error_string (context, "write: %s", strerror(errno));
+    return ret;
+  }
 
   krb5_data_zero (&data);
   ret = krb5_read_message (context, p_fd, &data);
@@ -163,7 +180,8 @@ krb5_recvauth_match_version(krb5_context context,
 			    NULL,
 			    NULL,
 			    server,
-			    0,
+			    NULL,
+			    NULL,
 			    &error_data);
       if (ret2 == 0) {
 	  krb5_write_message (context, p_fd, &error_data);
@@ -173,8 +191,11 @@ krb5_recvauth_match_version(krb5_context context,
   }      
 
   len = 0;
-  if (krb5_net_write (context, p_fd, &len, 4) != 4)
-    return errno;
+  if (krb5_net_write (context, p_fd, &len, 4) != 4) {
+      ret = errno;
+      krb5_set_error_string (context, "write: %s", strerror(errno));
+      return ret;
+  }
 
   if (ap_options & AP_OPTS_MUTUAL_REQUIRED) {
     ret = krb5_mk_rep (context, *auth_context, &data);

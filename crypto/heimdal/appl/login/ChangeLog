@@ -1,3 +1,8 @@
+2001-02-08  Assar Westerlund  <assar@sics.se>
+
+	* utmp_login.c, utmpx_login.c: try to write a useful string as
+	host in utmp, using the same algoritm as telnetd
+
 2001-01-29  Assar Westerlund  <assar@sics.se>
 
 	* login.c: remove some krb5_free_context that might happen at

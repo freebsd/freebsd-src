@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -34,7 +34,7 @@
 #include "kadmin_locl.h"
 #include <kadm5/private.h>
 
-RCSID("$Id: load.c,v 1.40 2001/01/04 15:59:26 assar Exp $");
+RCSID("$Id: load.c,v 1.41 2001/02/20 01:44:49 assar Exp $");
 
 struct entry {
     char *principal;

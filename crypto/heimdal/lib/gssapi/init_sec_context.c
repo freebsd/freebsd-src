@@ -33,7 +33,7 @@
 
 #include "gssapi_locl.h"
 
-RCSID("$Id: init_sec_context.c,v 1.25 2001/01/30 22:49:56 assar Exp $");
+RCSID("$Id: init_sec_context.c,v 1.27 2001/05/11 09:16:46 assar Exp $");
 
 /*
  * copy the addresses from `input_chan_bindings' (if any) to
@@ -228,6 +228,7 @@ init_auth
     kret = krb5_auth_con_init (gssapi_krb5_context,
 			       &(*context_handle)->auth_context);
     if (kret) {
+	gssapi_krb5_set_error_string ();
 	*minor_status = kret;
 	ret = GSS_S_FAILURE;
 	goto failure;
@@ -259,6 +260,7 @@ init_auth
     if (initiator_cred_handle == GSS_C_NO_CREDENTIAL) {
 	kret = krb5_cc_default (gssapi_krb5_context, &ccache);
 	if (kret) {
+	    gssapi_krb5_set_error_string ();
 	    *minor_status = kret;
 	    ret = GSS_S_FAILURE;
 	    goto failure;
@@ -270,6 +272,7 @@ init_auth
 				  ccache,
 				  &(*context_handle)->source);
     if (kret) {
+	gssapi_krb5_set_error_string ();
 	*minor_status = kret;
 	ret = GSS_S_FAILURE;
 	goto failure;
@@ -279,6 +282,7 @@ init_auth
 				target_name,
 				&(*context_handle)->target);
     if (kret) {
+	gssapi_krb5_set_error_string ();
 	*minor_status = kret;
 	ret = GSS_S_FAILURE;
 	goto failure;
@@ -303,6 +307,7 @@ init_auth
 				 &cred);
 
     if (kret) {
+	gssapi_krb5_set_error_string ();
 	*minor_status = kret;
 	ret = GSS_S_FAILURE;
 	goto failure;
@@ -345,6 +350,7 @@ init_auth
 					     &cksum);
     krb5_data_free (&fwd_data);
     if (kret) {
+	gssapi_krb5_set_error_string ();
 	*minor_status = kret;
 	ret = GSS_S_FAILURE;
 	goto failure;
@@ -374,6 +380,7 @@ init_auth
 				     KRB5_KU_AP_REQ_AUTH);
 
     if (kret) {
+	gssapi_krb5_set_error_string ();
 	*minor_status = kret;
 	ret = GSS_S_FAILURE;
 	goto failure;
@@ -387,6 +394,7 @@ init_auth
 			      &outbuf);
 
     if (kret) {
+	gssapi_krb5_set_error_string ();
 	*minor_status = kret;
 	ret = GSS_S_FAILURE;
 	goto failure;
@@ -447,6 +455,7 @@ repl_mutual
     ret = gssapi_krb5_decapsulate (input_token, &indata, "\x02\x00");
     if (ret) {
 				/* XXX - Handle AP_ERROR */
+	*minor_status = 0;
 	return GSS_S_FAILURE;
     }
 
@@ -454,8 +463,11 @@ repl_mutual
 			(*context_handle)->auth_context,
 			&indata,
 			&repl);
-    if (kret)
+    if (kret) {
+	gssapi_krb5_set_error_string ();
+	*minor_status = kret;
 	return GSS_S_FAILURE;
+    }
     krb5_free_ap_rep_enc_part (gssapi_krb5_context,
 			       repl);
 

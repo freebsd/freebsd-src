@@ -1,0 +1,41 @@
+
+RXTERM(1)                    UNIX Reference Manual                   RXTERM(1)
+
+NNAAMMEE
+     rrxxtteerrmm - start a secure remote xterm
+
+SSYYNNOOPPSSIISS
+     rrxxtteerrmm [--ll _u_s_e_r_n_a_m_e] [--kk] [--rr _r_s_h___a_r_g_s] [--xx _x_t_e_r_m___a_r_g_s] [--ww
+            _t_e_r_m___e_m_u_l_a_t_o_r] _h_o_s_t [_p_o_r_t]
+
+DDEESSCCRRIIPPTTIIOONN
+     The rrxxtteerrmm program starts a xxtteerrmm window on host _h_o_s_t. From this window
+     you will also be able to run X clients that will be able to connect se-
+     curily to your X server. If _p_o_r_t is given, that port will be used instead
+     of the default.
+
+     The supported options are:
+
+     --ll      Log in on the remote host as user _u_s_e_r_n_a_m_e
+
+     --kk      Disable keep-alives
+
+     --rr      Send _r_s_h___a_r_g_s as arguments to rrsshh
+
+     --xx      Send _x_t_e_r_m___a_r_g_s as arguments to xxtteerrmm
+
+     --ww      Use _t_e_r_m___e_m_u_l_a_t_o_r instead of xterm.
+
+EEXXAAMMPPLLEE
+     To login from host _f_o_o (where your display is) to host _b_a_r, you might do
+     the following.
+
+     1.   On foo: rrxxtteerrmm _b_a_r
+
+     2.   You will get a new window running an xxtteerrmm on host _b_a_r. In this win-
+          dow you will be able to start X clients.
+
+SSEEEE AALLSSOO
+     rxtelnet(1),  tenletxr(1),  kx(1),  kxd(8),  rsh(1)
+
+ KTH_KRB                      September 27, 1996                             1

@@ -1,0 +1,103 @@
+
+HPROP(8)                 UNIX System Manager's Manual                 HPROP(8)
+
+NNAAMMEE
+     hhpprroopp - propagate the KDC database
+
+SSYYNNOOPPSSIISS
+     hhpprroopp [--mm _f_i_l_e | ----mmaasstteerr--kkeeyy==_f_i_l_e] [--dd _f_i_l_e | ----ddaattaabbaassee==_f_i_l_e]
+     [----ssoouurrccee==_h_e_i_m_d_a_l_|_m_i_t_-_d_u_m_p_|_k_r_b_4_-_d_b_|_k_r_b_4_-_d_u_m_p] [--44 | ----vv44--ddbb] [--KK |
+     ----kkaa--ddbb] [--cc _c_e_l_l | ----cceellll==_c_e_l_l] [--SS | ----kkaassppeecciiaallss] [--rr _s_t_r_i_n_g |
+     ----vv44--rreeaallmm==_s_t_r_i_n_g] [--kk _k_e_y_t_a_b | ----kkeeyyttaabb==_k_e_y_t_a_b] [--RR _s_t_r_i_n_g |
+     ----vv55--rreeaallmm==_s_t_r_i_n_g] [--DD | ----ddeeccrryypptt] [--EE | ----eennccrryypptt] [--nn | ----ssttddoouutt] [--vv
+     | ----vveerrbboossee] [----vveerrssiioonn] [--hh | ----hheellpp] _h_o_s_t[:_p_o_r_t] _._._.
+
+DDEESSCCRRIIPPTTIIOONN
+     hhpprroopp takes a principal database in a specified format and converts it
+     into a stream of Heimdal database records. This stream can either be
+     written to standard out, or (more commonly) be propagated to a hpropd(8)
+     server running on a different machine.
+
+     If propagating, it connects to all _h_o_s_t_s specified on the command by
+     opening a TCP connection to port 754 (service hprop) and sends the
+     database in encrypted form.
+
+     Supported options:
+
+     --mm _f_i_l_e, ----mmaasstteerr--kkeeyy==_f_i_l_e
+             Where to find the master key to encrypt or decrypt keys with.
+
+     --dd _f_i_l_e, ----ddaattaabbaassee==_f_i_l_e
+             The database to be propagated.
+
+     ----ssoouurrccee==_h_e_i_m_d_a_l_|_m_i_t_-_d_u_m_p_|_k_r_b_4_-_d_b_|_k_r_b_4_-_d_u_m_p
+             Specifies the type of the source database. Alternatives include:
+
+             heimdal    a Heimdal database
+
+             mit-dump   a MIT Kerberos 5 dump file
+
+             krb4-db    a Kerberos 4 database
+
+             krb4-dump  a Kerberos 4 dump file
+
+             kaserver   a Transarc kaserver database
+
+     --kk _k_e_y_t_a_b, ----kkeeyyttaabb==_k_e_y_t_a_b
+             The keytab to use for fetching the key to be used for authenti-
+             cating to the propagation daemon(s). The key _k_a_d_m_i_n_/_h_p_r_o_p is used
+             from this keytab.  The default is to fetch the key from the KDC
+             database.
+
+     --RR _s_t_r_i_n_g, ----vv55--rreeaallmm==_s_t_r_i_n_g
+             Local realm override.
+
+     --DD, ----ddeeccrryypptt
+             The encryption keys in the database can either be in clear, or
+             encrypted with a master key. This option thansmits the database
+             with unencrypted keys.
+
+     --EE, ----eennccrryypptt
+             This option thansmits the database with encrypted keys.
+
+     --nn, ----ssttddoouutt
+             Dump the database on stdout, in a format that can be fed to
+             hpropd.
+
+     The following options are only valid if hhpprroopp is compiled with support
+     for Kerberos 4 (kaserver).
+
+     --rr _s_t_r_i_n_g, ----vv44--rreeaallmm==_s_t_r_i_n_g
+             v4 realm to use
+
+     --cc _c_e_l_l, ----cceellll==_c_e_l_l
+             The AFS cell name, used if reading a kaserver database.
+
+     --SS, ----kkaassppeecciiaallss
+             Also dump the principals marked as special in the kaserver
+             database.
+
+     --44, ----vv44--ddbb
+             Deprecated, identical to `--source=krb4-db'.
+
+     --KK, ----kkaa--ddbb
+             Deprecated, identical to `--source=kaserver'.
+
+EEXXAAMMPPLLEESS
+     The following will propagate a database to another machine (which should
+     run hpropd(8):)
+
+           $ hprop slave-1 slave-2
+
+     Copy a Kerberos 4 database to a Kerberos 5 slave:
+
+           $ hprop --source=krb4-db -E krb5-slave
+
+     Convert a Kerberos 4 dump-file for use with a Heimdal KDC:
+
+           $ hprop -n --source=krb4-dump -d /var/kerberos/principal.dump -E | hpropd -n
+
+SSEEEE AALLSSOO
+     hpropd(8)
+
+ HEIMDAL                         June 19, 2000                               2

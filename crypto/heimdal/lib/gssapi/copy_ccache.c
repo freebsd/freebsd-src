@@ -33,7 +33,7 @@
 
 #include "gssapi_locl.h"
 
-RCSID("$Id: copy_ccache.c,v 1.1 2001/01/30 00:35:47 assar Exp $");
+RCSID("$Id: copy_ccache.c,v 1.2 2001/05/11 09:16:45 assar Exp $");
 
 OM_uint32
 gss_krb5_copy_ccache(OM_uint32 *minor,
@@ -50,6 +50,7 @@ gss_krb5_copy_ccache(OM_uint32 *minor,
     kret = krb5_cc_copy_cache(gssapi_krb5_context, cred->ccache, out);
     if (kret) {
 	*minor = kret;
+	gssapi_krb5_set_error_string ();
 	return GSS_S_FAILURE;
     }
     return GSS_S_COMPLETE;

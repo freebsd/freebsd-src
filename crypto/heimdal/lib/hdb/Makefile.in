@@ -1,6 +1,7 @@
-# Makefile.in generated automatically by automake 1.4a from Makefile.am
+# Makefile.in generated automatically by automake 1.4b from Makefile.am
 
-# Copyright (C) 1994, 1995-9, 2000 Free Software Foundation, Inc.
+# Copyright 1994, 1995, 1996, 1997, 1998, 1999, 2000
+# Free Software Foundation, Inc.
 # This Makefile.in is free software; the Free Software Foundation
 # gives unlimited permission to copy and/or distribute it,
 # with or without modifications, as long as this notice is preserved.
@@ -113,13 +114,13 @@ dpagaix_CFLAGS = @dpagaix_CFLAGS@
 dpagaix_LDADD = @dpagaix_LDADD@
 install_sh = @install_sh@
 
-# $Id: Makefile.am,v 1.43 2001/01/30 01:49:16 assar Exp $
+# $Id: Makefile.am,v 1.44 2001/05/16 23:50:57 assar Exp $
 
 
 # $Id: Makefile.am.common,v 1.3 1999/04/01 14:58:43 joda Exp $
 
 
-# $Id: Makefile.am.common,v 1.23 2000/12/05 09:11:09 joda Exp $
+# $Id: Makefile.am.common,v 1.26 2001/05/21 13:27:48 joda Exp $
 
 
 AUTOMAKE_OPTIONS = foreign no-dependencies
@@ -185,6 +186,8 @@ NROFF_MAN = groff -mandoc -Tascii
 @KRB5_TRUE@	$(top_builddir)/lib/asn1/libasn1.la
 @KRB5_TRUE@LIB_gssapi = @KRB5_TRUE@$(top_builddir)/lib/gssapi/libgssapi.la
 
+@DCE_TRUE@LIB_kdfs = @DCE_TRUE@$(top_builddir)/lib/kdfs/libkdfs.la
+
 CHECK_LOCAL = $(PROGRAMS)
 
 BUILT_SOURCES = asn1_Key.c asn1_Event.c asn1_HDBFlags.c asn1_hdb_entry.c \
@@ -206,7 +209,7 @@ LDADD = libhdb.la \
 
 
 lib_LTLIBRARIES = libhdb.la
-libhdb_la_LDFLAGS = -version-info 7:0:0
+libhdb_la_LDFLAGS = -version-info 7:1:0
 
 libhdb_la_SOURCES = \
 	common.c				\
@@ -272,7 +275,7 @@ OBJECTS = $(am_libhdb_la_OBJECTS) convert_db.$(OBJEXT)
 
 all: all-redirect
 .SUFFIXES:
-.SUFFIXES: .1 .3 .5 .8 .c .cat1 .cat3 .cat5 .cat8 .et .h .lo .o .obj .x
+.SUFFIXES: .et .h .1 .3 .5 .8 .cat1 .cat3 .cat5 .cat8 .x .c .lo .o .obj
 $(srcdir)/Makefile.in: Makefile.am $(top_srcdir)/configure.in $(ACLOCAL_M4) $(top_srcdir)/Makefile.am.common $(top_srcdir)/cf/Makefile.am.common
 	cd $(top_srcdir) && $(AUTOMAKE) --foreign lib/hdb/Makefile
 
@@ -392,6 +395,11 @@ TAGS:  $(HEADERS) $(SOURCES)  $(TAGS_DEPENDENCIES) \
 	test -z "$(ETAGS_ARGS)$$unique$(LISP)$$tags" \
 	  || etags $(ETAGS_ARGS) $$tags  $$unique $(LISP)
 
+GTAGS:
+	here=`CDPATH=: && cd $(top_builddir) && pwd` \
+	  && cd $(top_srcdir) \
+	  && gtags -i $$here
+
 mostlyclean-tags:
 
 clean-tags:
@@ -425,6 +433,9 @@ check-am: all-am
 check: check-am
 installcheck-am:
 installcheck: installcheck-am
+all-recursive-am: $(BUILT_SOURCES)
+	$(MAKE) $(AM_MAKEFLAGS) all-recursive
+
 install-exec-am: install-libLTLIBRARIES
 	@$(NORMAL_INSTALL)
 	$(MAKE) $(AM_MAKEFLAGS) install-exec-hook
@@ -496,11 +507,12 @@ distclean-noinstPROGRAMS clean-noinstPROGRAMS \
 maintainer-clean-noinstPROGRAMS uninstall-includeHEADERS \
 install-includeHEADERS tags mostlyclean-tags distclean-tags clean-tags \
 maintainer-clean-tags distdir info-am info dvi-am dvi check-local check \
-check-am installcheck-am installcheck install-exec-am install-exec \
-install-data-local install-data-am install-data install-am install \
-uninstall-am uninstall all-local all-redirect all-am all install-strip \
-installdirs mostlyclean-generic distclean-generic clean-generic \
-maintainer-clean-generic clean mostlyclean distclean maintainer-clean
+check-am installcheck-am installcheck all-recursive-am install-exec-am \
+install-exec install-data-local install-data-am install-data install-am \
+install uninstall-am uninstall all-local all-redirect all-am all \
+install-strip installdirs mostlyclean-generic distclean-generic \
+clean-generic maintainer-clean-generic clean mostlyclean distclean \
+maintainer-clean
 
 
 install-suid-programs:

@@ -1,0 +1,27 @@
+
+KGETCRED(1)                  UNIX Reference Manual                 KGETCRED(1)
+
+NNAAMMEE
+     kkggeettccrreedd - get a ticket for a particular service
+
+SSYYNNOOPPSSIISS
+     kkggeettccrreedd [--ee _e_n_c_t_y_p_e | ----eennccttyyppee==_e_n_c_t_y_p_e] [----vveerrssiioonn] [----hheellpp] _s_e_r_v_i_c_e
+
+DDEESSCCRRIIPPTTIIOONN
+     kkggeettccrreedd obtains a ticket for a service.  Usually tickets for services
+     are obtained automatically when needed but sometimes for some odd reason
+     you want to obtain a particular ticket or of a special type.
+
+     Supported options:
+
+     --ee _e_n_c_t_y_p_e, ----eennccttyyppee==_e_n_c_t_y_p_e
+             encryption type to use
+
+     ----vveerrssiioonn
+
+     ----hheellpp
+
+SSEEEE AALLSSOO
+     kinit(1),  klist(1)
+
+ HEIMDAL                         May 14, 1999                                1

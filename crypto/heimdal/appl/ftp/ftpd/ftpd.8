@@ -40,7 +40,7 @@
 .Nm ftpd
 .Nd Internet File Transfer Protocol server
 .Sh SYNOPSIS
-.Nm ftpd
+.Nm
 .Op Fl a Ar authmode
 .Op Fl dilv
 .Op Fl g Ar umask
@@ -48,6 +48,8 @@
 .Op Fl T Ar maxtimeout
 .Op Fl t Ar timeout
 .Op Fl u Ar default umask
+.Op Fl B | Fl -builtin-ls
+.Op Fl -good-chars= Ns Ar string
 .Sh DESCRIPTION
 .Nm Ftpd
 is the
@@ -128,6 +130,15 @@ seconds (the default is 15 minutes).
 Set the initial umask to something else than the default 027.
 .It Fl v
 Verbose mode.
+.It Xo
+.Fl B Ns ,
+.Fl -builtin-ls
+.Xc
+use built-in ls to list files
+.It Xo
+.Fl -good-chars= Ns Ar string
+.Xc
+allowed anonymous upload filename chars
 .El
 .Pp
 The file

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998, 1999, 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -32,19 +32,20 @@
  */
 
 #include "krb5_locl.h"
-RCSID("$Id: config_file.c,v 1.41 2000/08/16 07:40:36 assar Exp $");
+RCSID("$Id: config_file.c,v 1.42 2001/05/14 06:14:45 assar Exp $");
 
 #ifndef HAVE_NETINFO
 
-static int parse_section(char *p, krb5_config_section **s,
-			 krb5_config_section **res,
-			 char **error_message);
-static int parse_binding(FILE *f, unsigned *lineno, char *p,
-			 krb5_config_binding **b,
-			 krb5_config_binding **parent,
-			 char **error_message);
-static int parse_list(FILE *f, unsigned *lineno, krb5_config_binding **parent,
-		      char **error_message);
+static krb5_error_code parse_section(char *p, krb5_config_section **s,
+				     krb5_config_section **res,
+				     char **error_message);
+static krb5_error_code parse_binding(FILE *f, unsigned *lineno, char *p,
+				     krb5_config_binding **b,
+				     krb5_config_binding **parent,
+				     char **error_message);
+static krb5_error_code parse_list(FILE *f, unsigned *lineno,
+				  krb5_config_binding **parent,
+				  char **error_message);
 
 /*
  * Parse a section:
@@ -61,7 +62,7 @@ static int parse_list(FILE *f, unsigned *lineno, krb5_config_binding **parent,
  * Store the error message in `error_message'.
  */
 
-static int
+static krb5_error_code
 parse_section(char *p, krb5_config_section **s, krb5_config_section **parent,
 	      char **error_message)
 {
@@ -71,18 +72,18 @@ parse_section(char *p, krb5_config_section **s, krb5_config_section **parent,
     p1 = strchr (p + 1, ']');
     if (p1 == NULL) {
 	*error_message = "missing ]";
-	return -1;
+	return KRB5_CONFIG_BADFORMAT;
     }
     *p1 = '\0';
     tmp = malloc(sizeof(*tmp));
     if (tmp == NULL) {
 	*error_message = "out of memory";
-	return -1;
+	return KRB5_CONFIG_BADFORMAT;
     }
     tmp->name = strdup(p+1);
     if (tmp->name == NULL) {
 	*error_message = "out of memory";
-	return -1;
+	return KRB5_CONFIG_BADFORMAT;
     }
     tmp->type = krb5_config_list;
     tmp->u.list = NULL;
@@ -133,7 +134,7 @@ parse_list(FILE *f, unsigned *lineno, krb5_config_binding **parent,
     }
     *lineno = beg_lineno;
     *error_message = "unclosed {";
-    return -1;
+    return KRB5_CONFIG_BADFORMAT;
 }
 
 /*
@@ -154,14 +155,14 @@ parse_binding(FILE *f, unsigned *lineno, char *p,
 	++p;
     if (*p == '\0') {
 	*error_message = "no =";
-	return -1;
+	return KRB5_CONFIG_BADFORMAT;
     }
     p2 = p;
     while (isspace((unsigned char)*p))
 	++p;
     if (*p != '=') {
 	*error_message = "no =";
-	return -1;
+	return KRB5_CONFIG_BADFORMAT;
     }
     ++p;
     while(isspace((unsigned char)*p))
@@ -169,7 +170,7 @@ parse_binding(FILE *f, unsigned *lineno, char *p,
     tmp = malloc(sizeof(*tmp));
     if (tmp == NULL) {
 	*error_message = "out of memory";
-	return -1;
+	return KRB5_CONFIG_BADFORMAT;
     }
     *p2 = '\0';
     tmp->name = strdup(p1);
@@ -200,7 +201,7 @@ parse_binding(FILE *f, unsigned *lineno, char *p,
  * returning error messages in `error_message'
  */
 
-krb5_error_code
+static krb5_error_code
 krb5_config_parse_file_debug (const char *fname,
 			      krb5_config_section **res,
 			      unsigned *lineno,
@@ -210,7 +211,7 @@ krb5_config_parse_file_debug (const char *fname,
     krb5_config_section *s;
     krb5_config_binding *b;
     char buf[BUFSIZ];
-    int ret = 0;
+    krb5_error_code ret = 0;
 
     s = NULL;
     b = NULL;
@@ -240,7 +241,7 @@ krb5_config_parse_file_debug (const char *fname,
 	    b = NULL;
 	} else if (*p == '}') {
 	    *error_message = "unmatched }";
-	    ret = -1;
+	    ret = EINVAL;	/* XXX */
 	    goto out;
 	} else if(*p != '\0') {
 	    ret = parse_binding(f, lineno, p, &b, &s->u.list, error_message);
@@ -254,12 +255,20 @@ out:
 }
 
 krb5_error_code
-krb5_config_parse_file (const char *fname, krb5_config_section **res)
+krb5_config_parse_file (krb5_context context,
+			const char *fname,
+			krb5_config_section **res)
 {
-    char *foo;
+    char *str;
     unsigned lineno;
+    krb5_error_code ret;
 
-    return krb5_config_parse_file_debug (fname, res, &lineno, &foo);
+    ret = krb5_config_parse_file_debug (fname, res, &lineno, &str);
+    if (ret) {
+	krb5_set_error_string (context, "%s:%u: %s", fname, lineno, str);
+	return ret;
+    }
+    return 0;
 }
 
 #endif /* !HAVE_NETINFO */

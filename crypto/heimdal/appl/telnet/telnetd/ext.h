@@ -33,7 +33,7 @@
  *	@(#)ext.h	8.2 (Berkeley) 12/15/93
  */
 
-/* $Id: ext.h,v 1.20 2000/11/15 23:03:38 assar Exp $ */
+/* $Id: ext.h,v 1.22 2001/04/24 23:12:11 assar Exp $ */
 
 #ifndef __EXT_H__
 #define __EXT_H__
@@ -116,15 +116,15 @@ void tty_tspeed (int val);
 void tty_rspeed (int val);
 void getptyslave (void);
 int cleanopen (char *line);
-void startslave (char *host, int autologin, char *autoname);
+void startslave (const char *host, const char *, int autologin, char *autoname);
 void init_env (void);
-void start_login (char *host, int autologin, char *name);
+void start_login (const char *host, int autologin, char *name);
 void cleanup (int sig);
 int main (int argc, char **argv);
 int getterminaltype (char *name, size_t);
 void _gettermname (void);
 int terminaltypeok (char *s);
-void my_telnet (int f, int p, char*, int, char*);
+void my_telnet (int f, int p, const char*, const char *, int, char*);
 void interrupt (void);
 void sendbrk (void);
 void sendsusp (void);
@@ -141,6 +141,7 @@ void netflush (void);
 void writenet (unsigned char *ptr, int len);
 void fatal (int f, char *msg);
 void fatalperror (int f, const char *msg);
+void fatalperror_errno (int f, const char *msg, int error);
 void edithost (char *pat, char *host);
 void putstr (char *s);
 void putchr (int cc);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: send_to_kdc.c,v 1.40 2000/11/15 01:48:23 assar Exp $");
+RCSID("$Id: send_to_kdc.c,v 1.44 2001/05/14 22:49:56 assar Exp $");
 
 /*
  * send the data in `req' on the socket `fd' (which is datagram iff udp)
@@ -267,7 +267,7 @@ send_via_proxy (krb5_context context,
     ret = getaddrinfo (proxy, portstr, &hints, &ai);
     free (proxy2);
     if (ret)
-	return krb5_eai_to_heim_errno(ret);
+	return krb5_eai_to_heim_errno(ret, errno);
 
     for (a = ai; a != NULL; a = a->ai_next) {
 	s = socket (a->ai_family, a->ai_socktype, a->ai_protocol);
@@ -300,7 +300,7 @@ send_via_proxy (krb5_context context,
 }
 
 /*
- * Send the data `send' to one KDC in `realm' and get back the reply
+ * Send the data `send' to one hots in `hostlist' and get back the reply
  * in `receive'.
  */
 
@@ -316,7 +316,7 @@ krb5_sendto (krb5_context context,
      int fd;
      int i;
 
-     for (i = 0; i < context->max_retries; ++i)
+     for (i = 0; i < context->max_retries; ++i) {
 	 for (hp = hostlist; (p = *hp); ++hp) {
 	     char *colon;
 	     int http_flag = 0;
@@ -368,27 +368,25 @@ krb5_sendto (krb5_context context,
 		     close (fd);
 		     continue;
 		 }
-		 break;
+		 if(http_flag)
+		     ret = send_and_recv_http(fd, context->kdc_timeout,
+					      "", send, receive);
+		 else if(tcp_flag)
+		     ret = send_and_recv_tcp (fd, context->kdc_timeout,
+					      send, receive);
+		 else
+		     ret = send_and_recv_udp (fd, context->kdc_timeout,
+					      send, receive);
+		 close (fd);
+		 if(ret == 0 && receive->length != 0) {
+		     freeaddrinfo(ai);
+		     goto out;
+		 }
 	     }
-	     if (a == NULL) {
-		 freeaddrinfo (ai);
-		 continue;
-	     }
-	     freeaddrinfo (ai);
-
-	     if(http_flag)
-		 ret = send_and_recv_http(fd, context->kdc_timeout,
-					  "", send, receive);
-	     else if(tcp_flag)
-		 ret = send_and_recv_tcp (fd, context->kdc_timeout,
-					  send, receive);
-	     else
-		 ret = send_and_recv_udp (fd, context->kdc_timeout,
-					  send, receive);
-	     close (fd);
-	     if(ret == 0 && receive->length != 0)
-		 goto out;
+	     freeaddrinfo(ai);
 	 }
+     }
+     krb5_clear_error_string (context);
      ret = KRB5_KDC_UNREACH;
 out:
      return ret;
@@ -415,6 +413,9 @@ krb5_sendto_kdc2(krb5_context context,
 	return ret;
     ret = krb5_sendto(context, send, hostlist, port, receive);
     krb5_free_krbhst (context, hostlist);
+    if (ret == KRB5_KDC_UNREACH)
+	krb5_set_error_string(context,
+			      "unable to reach any KDC in realm %s", *realm);
     return ret;
 }
 

@@ -32,7 +32,7 @@
  */
 
 #include "rsh_locl.h"
-RCSID("$Id: rsh.c,v 1.57 2000/12/31 07:36:54 assar Exp $");
+RCSID("$Id: rsh.c,v 1.58 2001/02/20 01:44:47 assar Exp $");
 
 enum auth_method auth_method;
 int do_encrypt       = -1;
@@ -836,7 +836,7 @@ main(int argc, char **argv)
     if (setuid (uid) || (uid != 0 && setuid(0) == 0))
 	err (1, "setuid");
     
-    set_progname (argv[0]);
+    setprogname (argv[0]);
 
     if (argc >= 2 && argv[1][0] != '-') {
 	host = argv[host_index = 1];

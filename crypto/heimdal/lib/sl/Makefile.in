@@ -1,6 +1,7 @@
-# Makefile.in generated automatically by automake 1.4a from Makefile.am
+# Makefile.in generated automatically by automake 1.4b from Makefile.am
 
-# Copyright (C) 1994, 1995-9, 2000 Free Software Foundation, Inc.
+# Copyright 1994, 1995, 1996, 1997, 1998, 1999, 2000
+# Free Software Foundation, Inc.
 # This Makefile.in is free software; the Free Software Foundation
 # gives unlimited permission to copy and/or distribute it,
 # with or without modifications, as long as this notice is preserved.
@@ -113,20 +114,20 @@ dpagaix_CFLAGS = @dpagaix_CFLAGS@
 dpagaix_LDADD = @dpagaix_LDADD@
 install_sh = @install_sh@
 
-# $Id: Makefile.am,v 1.21 2001/01/26 15:00:09 joda Exp $
+# $Id: Makefile.am,v 1.24 2001/05/16 23:58:12 assar Exp $
 
 
 # $Id: Makefile.am.common,v 1.3 1999/04/01 14:58:43 joda Exp $
 
 
-# $Id: Makefile.am.common,v 1.23 2000/12/05 09:11:09 joda Exp $
+# $Id: Makefile.am.common,v 1.26 2001/05/21 13:27:48 joda Exp $
 
 
 AUTOMAKE_OPTIONS = foreign no-dependencies
 
 SUFFIXES = .et .h .1 .3 .5 .8 .cat1 .cat3 .cat5 .cat8 .x
 
-INCLUDES = -I$(top_builddir)/include $(INCLUDES_roken)
+INCLUDES = -I$(top_builddir)/include $(INCLUDES_roken) $(IS)
 
 AM_CFLAGS =  $(WFLAGS)
 
@@ -185,40 +186,37 @@ NROFF_MAN = groff -mandoc -Tascii
 @KRB5_TRUE@	$(top_builddir)/lib/asn1/libasn1.la
 @KRB5_TRUE@LIB_gssapi = @KRB5_TRUE@$(top_builddir)/lib/gssapi/libgssapi.la
 
+@DCE_TRUE@LIB_kdfs = @DCE_TRUE@$(top_builddir)/lib/kdfs/libkdfs.la
+
 CHECK_LOCAL = $(PROGRAMS)
+
+@do_roken_rename_TRUE@IS = @do_roken_rename_TRUE@-DROKEN_RENAME
+@do_roken_rename_TRUE@ES = @do_roken_rename_TRUE@strtok_r.c snprintf.c strdup.c strupr.c
 
 YFLAGS = -d
 
 include_HEADERS = sl.h
 
 lib_LTLIBRARIES = libsl.la libss.la
-libsl_la_LDFLAGS = -version-info 1:1:1
-libss_la_LDFLAGS = -version-info 1:3:1
+libsl_la_LDFLAGS = -version-info 1:2:1
+libss_la_LDFLAGS = -version-info 1:4:1
 
 libsl_la_LIBADD = @LIB_readline@
 libss_la_LIBADD = @LIB_readline@
 
-RENAME_SRC = roken_rename.h strtok_r.c snprintf.c
-
-libsl_la_SOURCES = sl_locl.h sl.c
+libsl_la_SOURCES = sl_locl.h sl.c $(ES)
 libss_la_SOURCES = $(libsl_la_SOURCES) ss.c ss.h
-
-EXTRA_libsl_la_SOURCES = strtok_r.c snprintf.c roken_rename.h
 
 # install these?
 
 bin_PROGRAMS = mk_cmds
 
-mk_cmds_SOURCES = make_cmds.c make_cmds.h parse.y lex.l
-
-RENAME_mk_cmds_SRC = roken_rename.h snprintf.c
-
-EXTRA_mk_cmds_SOURCES = snprintf.c roken_rename.h
+mk_cmds_SOURCES = make_cmds.c make_cmds.h parse.y lex.l $(ES)
 
 ssincludedir = $(includedir)/ss
 ssinclude_HEADERS = ss.h
 
-CLEANFILES = lex.c parse.c parse.h snprintf.c strtok_r.c
+CLEANFILES = lex.c parse.c parse.h snprintf.c strtok_r.c strdup.c strupr.c
 
 LDADD = \
 	$(LIB_roken)				\
@@ -239,15 +237,24 @@ X_LIBS = @X_LIBS@
 X_EXTRA_LIBS = @X_EXTRA_LIBS@
 X_PRE_LIBS = @X_PRE_LIBS@
 libsl_la_DEPENDENCIES = 
-am_libsl_la_OBJECTS =  sl.lo
+@do_roken_rename_FALSE@am_libsl_la_OBJECTS =  sl.lo
+@do_roken_rename_TRUE@am_libsl_la_OBJECTS =  sl.lo strtok_r.lo \
+@do_roken_rename_TRUE@snprintf.lo strdup.lo strupr.lo
 libsl_la_OBJECTS =  $(am_libsl_la_OBJECTS)
 libss_la_DEPENDENCIES = 
-am_libss_la_OBJECTS =  sl.lo ss.lo
+@do_roken_rename_FALSE@am_libss_la_OBJECTS =  sl.lo ss.lo
+@do_roken_rename_TRUE@am_libss_la_OBJECTS =  sl.lo strtok_r.lo \
+@do_roken_rename_TRUE@snprintf.lo strdup.lo strupr.lo ss.lo
 libss_la_OBJECTS =  $(am_libss_la_OBJECTS)
 bin_PROGRAMS =  mk_cmds$(EXEEXT)
 PROGRAMS =  $(bin_PROGRAMS)
 
-am_mk_cmds_OBJECTS =  make_cmds.$(OBJEXT) parse.$(OBJEXT) lex.$(OBJEXT)
+@do_roken_rename_FALSE@am_mk_cmds_OBJECTS =  make_cmds.$(OBJEXT) \
+@do_roken_rename_FALSE@parse.$(OBJEXT) lex.$(OBJEXT)
+@do_roken_rename_TRUE@am_mk_cmds_OBJECTS =  make_cmds.$(OBJEXT) \
+@do_roken_rename_TRUE@parse.$(OBJEXT) lex.$(OBJEXT) strtok_r.$(OBJEXT) \
+@do_roken_rename_TRUE@snprintf.$(OBJEXT) strdup.$(OBJEXT) \
+@do_roken_rename_TRUE@strupr.$(OBJEXT)
 mk_cmds_OBJECTS =  $(am_mk_cmds_OBJECTS)
 mk_cmds_LDADD = $(LDADD)
 mk_cmds_DEPENDENCIES = 
@@ -258,8 +265,8 @@ CFLAGS = @CFLAGS@
 LEX_OUTPUT_ROOT = @LEX_OUTPUT_ROOT@
 CCLD = $(CC)
 LINK = $(LIBTOOL) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
-DIST_SOURCES =  $(libsl_la_SOURCES) $(EXTRA_libsl_la_SOURCES) \
-$(libss_la_SOURCES) $(mk_cmds_SOURCES) $(EXTRA_mk_cmds_SOURCES)
+DIST_SOURCES =  $(libsl_la_SOURCES) $(libss_la_SOURCES) \
+$(mk_cmds_SOURCES)
 HEADERS =  $(include_HEADERS) $(ssinclude_HEADERS)
 
 depcomp = 
@@ -270,12 +277,12 @@ Makefile.am Makefile.in lex.c parse.c parse.h
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 
 GZIP_ENV = --best
-SOURCES = $(libsl_la_SOURCES) $(EXTRA_libsl_la_SOURCES) $(libss_la_SOURCES) $(mk_cmds_SOURCES) $(EXTRA_mk_cmds_SOURCES)
+SOURCES = $(libsl_la_SOURCES) $(libss_la_SOURCES) $(mk_cmds_SOURCES)
 OBJECTS = $(am_libsl_la_OBJECTS) $(am_libss_la_OBJECTS) $(am_mk_cmds_OBJECTS)
 
 all: all-redirect
 .SUFFIXES:
-.SUFFIXES: .1 .3 .5 .8 .c .cat1 .cat3 .cat5 .cat8 .et .h .l .lo .o .obj .x .y
+.SUFFIXES: .et .h .1 .3 .5 .8 .cat1 .cat3 .cat5 .cat8 .x .c .l .lo .o .obj .y
 $(srcdir)/Makefile.in: Makefile.am $(top_srcdir)/configure.in $(ACLOCAL_M4) $(top_srcdir)/Makefile.am.common $(top_srcdir)/cf/Makefile.am.common
 	cd $(top_srcdir) && $(AUTOMAKE) --foreign lib/sl/Makefile
 
@@ -444,6 +451,11 @@ TAGS:  $(HEADERS) $(SOURCES)  $(TAGS_DEPENDENCIES) \
 	test -z "$(ETAGS_ARGS)$$unique$(LISP)$$tags" \
 	  || etags $(ETAGS_ARGS) $$tags  $$unique $(LISP)
 
+GTAGS:
+	here=`CDPATH=: && cd $(top_builddir) && pwd` \
+	  && cd $(top_srcdir) \
+	  && gtags -i $$here
+
 mostlyclean-tags:
 
 clean-tags:
@@ -477,6 +489,8 @@ check-am: all-am
 check: check-am
 installcheck-am:
 installcheck: installcheck-am
+install-binPROGRAMS: install-libLTLIBRARIES
+
 install-exec-am: install-libLTLIBRARIES install-binPROGRAMS
 	@$(NORMAL_INSTALL)
 	$(MAKE) $(AM_MAKEFLAGS) install-exec-hook
@@ -693,6 +707,10 @@ strtok_r.c:
 	$(LN_S) $(srcdir)/../roken/strtok_r.c .
 snprintf.c:
 	$(LN_S) $(srcdir)/../roken/snprintf.c .
+strdup.c:
+	$(LN_S) $(srcdir)/../roken/strdup.c .
+strupr.c:
+	$(LN_S) $(srcdir)/../roken/strupr.c .
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.

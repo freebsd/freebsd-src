@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "kdc_locl.h"
 
-RCSID("$Id: connect.c,v 1.80 2000/10/08 21:36:29 assar Exp $");
+RCSID("$Id: connect.c,v 1.82 2001/05/14 06:18:11 assar Exp $");
 
 /*
  * a tuple describing on what to listen
@@ -242,7 +242,7 @@ init_socket(struct descr *d, krb5_address *a, int family, int type, int port)
 
     init_descr (d);
 
-    ret = krb5_addr2sockaddr (a, sa, &sa_size, port);
+    ret = krb5_addr2sockaddr (context, a, sa, &sa_size, port);
     if (ret) {
 	krb5_warn(context, ret, "krb5_addr2sockaddr");
 	close(d->s);
@@ -401,7 +401,7 @@ static void
 addr_to_string(struct sockaddr *addr, size_t addr_len, char *str, size_t len)
 {
     krb5_address a;
-    krb5_sockaddr2address(addr, &a);
+    krb5_sockaddr2address(context, addr, &a);
     if(krb5_print_address(&a, str, len, &len) == 0) {
 	krb5_free_address(context, &a);
 	return;
@@ -462,7 +462,7 @@ handle_udp(struct descr *d)
 
     buf = malloc(max_request);
     if(buf == NULL){
-	kdc_log(0, "Failed to allocate %u bytes", max_request);
+	kdc_log(0, "Failed to allocate %lu bytes", (unsigned long)max_request);
 	return;
     }
 
@@ -556,14 +556,15 @@ grow_descr (struct descr *d, size_t n)
 
 	d->size += max(1024, d->len + n);
 	if (d->size >= max_request) {
-	    kdc_log(0, "Request exceeds max request size (%u bytes).",
-		    d->size);
+	    kdc_log(0, "Request exceeds max request size (%lu bytes).",
+		    (unsigned long)d->size);
 	    clear_descr(d);
 	    return -1;
 	}
 	tmp = realloc (d->buf, d->size);
 	if (tmp == NULL) {
-	    kdc_log(0, "Failed to re-allocate %u bytes.", d->size);
+	    kdc_log(0, "Failed to re-allocate %lu bytes.",
+		    (unsigned long)d->size);
 	    clear_descr(d);
 	    return -1;
 	}
@@ -632,7 +633,8 @@ handle_http_tcp (struct descr *d)
     }
     data = malloc(strlen(t));
     if (data == NULL) {
-	kdc_log(0, "Failed to allocate %u bytes", strlen(t));
+	kdc_log(0, "Failed to allocate %lu bytes",
+		(unsigned long)strlen(t));
 	return -1;
     }
     if(*t == '/')
@@ -750,8 +752,8 @@ loop(void)
 	    if(d[i].s >= 0){
 		if(d[i].type == SOCK_STREAM && 
 		   d[i].timeout && d[i].timeout < time(NULL)) {
-		    kdc_log(1, "TCP-connection from %s expired after %u bytes",
-			    d[i].addr_string, d[i].len);
+		    kdc_log(1, "TCP-connection from %s expired after %lu bytes",
+			    d[i].addr_string, (unsigned long)d[i].len);
 		    clear_descr(&d[i]);
 		    continue;
 		}
