@@ -71,7 +71,8 @@
 #define KTR_VM		0x00100000		/* The virtual memory system */
 #define KTR_WITNESS	0x00200000
 #define	KTR_RUNQ	0x00400000		/* Run queue */
-#define	KTR_ALL		0x007fffff
+#define	KTR_CONTENTION	0x00800000		/* Lock contention */
+#define	KTR_ALL		0x00ffffff
 
 /*
  * Trace classes which can be assigned to particular use at compile time
