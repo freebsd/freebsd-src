@@ -56,8 +56,8 @@
  * before coming out to see if a child has finished. SEL_SEC is the number of
  * seconds and SEL_USEC is the number of micro-seconds
  */
-#define	SEL_SEC		0
-#define	SEL_USEC	100000
+#define	SEL_SEC		2
+#define	SEL_USEC	0
 #endif /* !USE_KQUEUE */
 
 
