@@ -108,6 +108,14 @@ param_print(struct ata_params *parm)
 void
 cap_print(struct ata_params *parm)
 {
+	u_int32_t lbasize = (u_int32_t)parm->lba_size_1 |
+				((u_int32_t)parm->lba_size_2 << 16);
+
+	u_int64_t lbasize48 = ((u_int64_t)parm->lba_size48_1) |
+				((u_int64_t)parm->lba_size48_2 << 16) |
+				((u_int64_t)parm->lba_size48_3 << 32) |
+				((u_int64_t)parm->lba_size48_4 << 48);
+ 
 	printf("\n");
 	printf("ATA/ATAPI revision    %d\n", version(parm->version_major));
 	printf("device model          %.40s\n", parm->model);
@@ -118,21 +126,24 @@ cap_print(struct ata_params *parm)
 	printf("sectors/track         %d\n", parm->sectors);	
 	
 	printf("lba%ssupported         ", parm->support_lba ? " " : " not ");
-	if (parm->lba_size)
-		printf("%d sectors\n", parm->lba_size);	
+	if (lbasize)
+		printf("%d sectors\n", lbasize);
 	else
 		printf("\n");
 
-	printf("lba48%ssupported         ", parm->support.address48 ? " " : " not ");
-	if (parm->lba_size48)
-		printf("%lld sectors\n", parm->lba_size48);	
+	printf("lba48%ssupported         ",
+		parm->support.address48 ? " " : " not ");
+	if (lbasize48)
+		printf("%lld sectors\n", lbasize48);	
 	else
 		printf("\n");
+
 	printf("dma%ssupported\n", parm->support_dma ? " " : " not");
 
 	printf("overlap%ssupported\n", parm->support_queueing ? " " : " not ");
   
-	printf("\nFeature                      Support  Enable    Value   Vendor\n");
+	printf("\nFeature                      "
+		"Support  Enable    Value   Vendor\n");
 
 	printf("write cache                    %s	%s\n",
 		parm->support.write_cache ? "yes" : "no",
@@ -168,7 +179,8 @@ cap_print(struct ata_params *parm)
 		parm->enabled.apm ? "yes" : "no",
 		parm->apm_value, parm->apm_value);
 
-	printf("automatic acoustic management  %s	%s	%d/%02X	%d/%02X\n",
+	printf("automatic acoustic management  %s	%s	"
+		"%d/%02X	%d/%02X\n",
 		parm->support.auto_acoustic ? "yes" : "no",
 		parm->enabled.auto_acoustic ? "yes" : "no",
 		parm->current_acoustic, parm->current_acoustic,
