@@ -1,5 +1,5 @@
 .\" manual page [] for ppp 0.94 beta2 + alpha
-.\" $Id: ppp.8,v 1.14 1996/03/08 09:03:08 ache Exp $
+.\" $Id: ppp.8,v 1.15 1996/03/09 08:18:41 ache Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -709,38 +709,43 @@ refers to three files: ppp.conf, ppp.linkup and ppp.secret.
 These files are placed in
 .Pa /etc/ppp ,
 but the user can create his own files under his $HOME directory as
-.ppp.conf,.ppp.linkup and .ppp.secret.
+.Pa .ppp.conf ,
+.Pa .ppp.linkup
+and
+.Pa .ppp.secret.
 .Nm
 will always try to consult the user's personal setup first.
 
 .Bl -tag -width flag
-.It $HOME/ppp/.ppp.[conf|linkup|secret]
+.Pa $HOME/ppp/.ppp.[conf|linkup|secret]
 User dependent configuration files.
 
-.It /etc/ppp/ppp.conf
+.Pa /etc/ppp/ppp.conf
 System default configuration file.
 
-.It /etc/ppp/ppp.secret
+.Pa /etc/ppp/ppp.secret
 An authorization file for each system.
 
-.It /etc/ppp/ppp.linkup
+.Pa /etc/ppp/ppp.linkup
 A file to check when
 .Nm
 establishes a network level connection.
 
-.It /var/log/ppp.log
+.Pa /var/log/ppp.log
 Logging and debugging information file.
 
-.It /var/spool/lock/Lck..* 
+.Pa /var/spool/lock/Lck..* 
 tty port locking file.
 
-.It /var/run/PPP.system
+.Pa /var/run/PPP.system
 Holds the pid for ppp -auto system.
 
-.It /etc/services
+.Pa /etc/services
 Get port number if port number is using service name.
 .El
-
+.Sh SEE ALSO
+.Xr chat 8 ,
+.Xr pppd 8
 .Sh HISTORY
 This program was submitted in FreeBSD-2.0.5 Atsushi Murai (amurai@spec.co.jp).
 
