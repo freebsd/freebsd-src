@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)hier.7	8.1 (Berkeley) 6/5/93
-.\"	$Id: hier.7,v 1.12 1997/03/08 15:54:56 wosch Exp $
+.\"	$Id: hier.7,v 1.13 1997/03/09 22:39:56 wosch Exp $
 .\"
 .Dd June 5, 1993
 .Dt HIER 7
@@ -280,7 +280,9 @@ see
 .It Li local/
 local executables, libraries, etc.
 .br
-Also used as the default destination for the FreeBSD ports framework.
+Also used as the default destination for the
+.Tn FreeBSD
+ports framework.
 Within local/, the general layout sketched out by
 .Xr hier 7
 should be used.  Exceptions are the man directory is directly under local/
@@ -292,7 +294,9 @@ see
 .It Li obj/
 architecture-specific target tree produced by building the /usr/src tree
 .It Li ports
-The FreeBSD ports collection (optional).
+The
+.Tn FreeBSD
+ports collection (optional).
 .It Li sbin/
 system daemons & system utilities (executed by users)
 .It Li share/
@@ -333,9 +337,10 @@ from the
 association)
 .Bl -tag -width Fl -compact
 .It Li FAQ/
- Frequently Asked Questions
+Frequently Asked Questions
 .It Li handbook/
- FreeBSD Handbook
+.Tn FreeBSD
+Handbook
 .It Li papers/
 UNIX Papers
 .It Li psd/
@@ -449,7 +454,9 @@ src for files in /usr/local
 .It Li lkm
 src for files in /lkm
 .It Li release
-Files required to produce a FreeBSD 
+Files required to produce a
+.Tn FreeBSD 
+release
 .It Li sbin/
 src for files in /sbin
 .It Li secure
