@@ -313,7 +313,6 @@ g_io_deliver(struct bio *bp, int error)
 
 	KASSERT(!(bp->bio_flags & BIO_ONQUEUE),
 	    ("Bio already on queue bp=%p", bp));
-	bp->bio_flags |= BIO_ONQUEUE;
 
 	/*
 	 * XXX: next two doesn't belong here
@@ -334,6 +333,7 @@ g_io_deliver(struct bio *bp, int error)
 	if (error != ENOMEM) {
 		bp->bio_error = error;
 		TAILQ_INSERT_TAIL(&g_bio_run_up.bio_queue, bp, bio_queue);
+		bp->bio_flags |= BIO_ONQUEUE;
 		g_bio_run_up.bio_queue_length++;
 		g_bioq_unlock(&g_bio_run_up);
 		wakeup(&g_wait_up);
