@@ -86,7 +86,7 @@ void dbg_dump_sptbl(struct fs *, const char *, struct cg *);
 #define DL_INFO	0x02
 extern int _dbg_lvl_;
 
-#define DBG_FUNC(N) char __FKT__[] = (N);
+#define DBG_FUNC(N) char __FKT__[] = {N};
 #define DBG_ENTER if(_dbg_lvl_ & DL_TRC) {                                    \
 	fprintf(stderr, "~>%s: %s\n", __FILE__, __FKT__ );                    \
 	}
