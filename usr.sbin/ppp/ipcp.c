@@ -924,8 +924,6 @@ ipcp_CleanInterface(struct ipcp *ipcp)
 {
   struct iface *iface = ipcp->fsm.bundle->iface;
 
-  route_Clean(ipcp->fsm.bundle, ipcp->route);
-
   if (iface->in_addrs && (Enabled(ipcp->fsm.bundle, OPT_PROXY) ||
                           Enabled(ipcp->fsm.bundle, OPT_PROXYALL))) {
     int s = ID0socket(AF_INET, SOCK_DGRAM, 0);
