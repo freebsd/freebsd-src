@@ -37,7 +37,7 @@
  *
  *      @(#)bpf_filter.c	8.1 (Berkeley) 6/10/93
  *
- * $Id: bpf_filter.c,v 1.9 1997/08/02 14:32:31 bde Exp $
+ * $Id: bpf_filter.c,v 1.10 1998/10/31 10:45:03 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -532,7 +532,7 @@ bpf_validate(f, len)
 		if ((BPF_CLASS(p->code) == BPF_ST ||
 		     (BPF_CLASS(p->code) == BPF_LD &&
 		      (p->code & 0xe0) == BPF_MEM)) &&
-		    (p->k >= BPF_MEMWORDS || p->k < 0))
+		    (p->k >= BPF_MEMWORDS))
 			return 0;
 		/*
 		 * Check for constant division by 0.
