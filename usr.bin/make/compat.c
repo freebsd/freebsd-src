@@ -230,8 +230,8 @@ Compat_RunCommand(void *cmdp, void *gnp)
     int	    	  argc;	    	/* Number of arguments in av or 0 if not
 				 * dynamically allocated */
     int		  internal;	/* Various values.. */
-    char	  *cmd = (char *)cmdp;
-    GNode	  *gn = (GNode *)gnp;
+    char	  *cmd = cmdp;
+    GNode	  *gn = gnp;
 
     /*
      * Avoid clobbered variable warnings by forcing the compiler
@@ -245,7 +245,7 @@ Compat_RunCommand(void *cmdp, void *gnp)
     errCheck = !(gn->type & OP_IGNORE);
     doit = FALSE;
 
-    cmdNode = Lst_Member(gn->commands, (void *)cmd);
+    cmdNode = Lst_Member(gn->commands, cmd);
     cmdStart = Var_Subst(NULL, cmd, gn, FALSE);
 
     /*
@@ -262,10 +262,10 @@ Compat_RunCommand(void *cmdp, void *gnp)
     } else {
 	cmd = cmdStart;
     }
-    Lst_Replace (cmdNode, (void *)cmdStart);
+    Lst_Replace (cmdNode, cmdStart);
 
     if ((gn->type & OP_SAVE_CMDS) && (gn != ENDNode)) {
-	Lst_AtEnd(ENDNode->commands, (void *)cmdStart);
+	Lst_AtEnd(ENDNode->commands, cmdStart);
 	return (0);
     } else if (strcmp(cmdStart, "...") == 0) {
 	gn->type |= OP_SAVE_CMDS;
@@ -333,7 +333,7 @@ Compat_RunCommand(void *cmdp, void *gnp)
 	shargv[0] = shellPath;
 	shargv[1] = (errCheck ? "-ec" : "-c");
 	shargv[2] = cmd;
-	shargv[3] = (char *)NULL;
+	shargv[3] = NULL;
 	av = shargv;
 	argc = 0;
     } else if ((internal = shellneed(cmd))) {
@@ -351,7 +351,7 @@ Compat_RunCommand(void *cmdp, void *gnp)
 	shargv[0] = shellPath;
 	shargv[1] = (errCheck ? "-ec" : "-c");
 	shargv[2] = cmd;
-	shargv[3] = (char *)NULL;
+	shargv[3] = NULL;
 	av = shargv;
 	argc = 0;
     } else {
@@ -464,8 +464,8 @@ Compat_RunCommand(void *cmdp, void *gnp)
 static int
 CompatMake(void *gnp, void *pgnp)
 {
-    GNode *gn = (GNode *)gnp;
-    GNode *pgn = (GNode *)pgnp;
+    GNode *gn = gnp;
+    GNode *pgn = pgnp;
 
     if (gn->type & OP_USE) {
 	Make_HandleUse(gn, pgn);
@@ -481,7 +481,7 @@ CompatMake(void *gnp, void *pgnp)
 	gn->make = TRUE;
 	gn->made = BEINGMADE;
 	Suff_FindDeps(gn);
-	Lst_ForEach(gn->children, CompatMake, (void *)gn);
+	Lst_ForEach(gn->children, CompatMake, gn);
 	if (!gn->make) {
 	    gn->made = ABORTED;
 	    pgn->make = FALSE;
@@ -708,7 +708,7 @@ Compat_Run(Lst targs)
     if (!queryFlag) {
 	gn = Targ_FindNode(".BEGIN", TARG_NOCREATE);
 	if (gn != NULL) {
-	    Lst_ForEach(gn->commands, Compat_RunCommand, (void *)gn);
+	    Lst_ForEach(gn->commands, Compat_RunCommand, gn);
             if (gn->made == ERROR) {
                 printf("\n\nStop.\n");
                 exit(1);
@@ -728,7 +728,7 @@ Compat_Run(Lst targs)
      */
     errors = 0;
     while (!Lst_IsEmpty(targs)) {
-	gn = (GNode *)Lst_DeQueue(targs);
+	gn = Lst_DeQueue(targs);
 	CompatMake(gn, gn);
 
 	if (gn->made == UPTODATE) {
@@ -743,6 +743,6 @@ Compat_Run(Lst targs)
      * If the user has defined a .END target, run its commands.
      */
     if (errors == 0) {
-	Lst_ForEach(ENDNode->commands, Compat_RunCommand, (void *)gn);
+	Lst_ForEach(ENDNode->commands, Compat_RunCommand, gn);
     }
 }

@@ -138,7 +138,7 @@ static int ArchSVR4Entry(Arch *, char *, size_t, FILE *);
 static void
 ArchFree(void *ap)
 {
-    Arch *a = (Arch *)ap;
+    Arch *a = ap;
     Hash_Search	  search;
     Hash_Entry	  *entry;
 
@@ -345,7 +345,7 @@ Arch_ParseArchive(char **linePtr, Lst nodeLst, GNode *ctxt)
 
 	    Dir_Expand(memName, dirSearchPath, members);
 	    while (!Lst_IsEmpty(members)) {
-		member = (char *)Lst_DeQueue(members);
+		member = Lst_DeQueue(members);
 		nsz = strlen(libName) + strlen(member) + 3;
 		if (nsz > sz) {
 			sz = nsz * 2;
@@ -389,7 +389,7 @@ Arch_ParseArchive(char **linePtr, Lst nodeLst, GNode *ctxt)
 		 * provided list.
 		 */
 		gn->type |= OP_ARCHV;
-		Lst_AtEnd(nodeLst, (void *)gn);
+		Lst_AtEnd(nodeLst, gn);
 	    }
 	}
 	if (doSubst) {
@@ -483,9 +483,9 @@ ArchStatMember(char *archive, char *member, Boolean hash)
     if ((cp != NULL) && (strcmp(member, RANLIBMAG) != 0))
 	member = cp + 1;
 
-    ln = Lst_Find(archives, (void *)archive, ArchFindArchive);
+    ln = Lst_Find(archives, archive, ArchFindArchive);
     if (ln != NULL) {
-	ar = (Arch *)Lst_Datum(ln);
+	ar = Lst_Datum(ln);
 
 	he = Hash_FindEntry(&ar->members, member);
 
@@ -502,7 +502,7 @@ ArchStatMember(char *archive, char *member, Boolean hash)
 		copy[AR_MAX_NAME_LEN] = '\0';
 	    }
 	    if ((he = Hash_FindEntry(&ar->members, copy)) != NULL)
-		return ((struct ar_hdr *)Hash_GetValue(he));
+		return (Hash_GetValue(he));
 	    return (NULL);
 	}
     }
@@ -546,14 +546,14 @@ ArchStatMember(char *archive, char *member, Boolean hash)
 	    return (NULL);
     }
 
-    ar = (Arch *)emalloc(sizeof(Arch));
+    ar = emalloc(sizeof(Arch));
     ar->name = estrdup(archive);
     ar->fnametab = NULL;
     ar->fnamesize = 0;
     Hash_InitTable(&ar->members, -1);
     memName[AR_MAX_NAME_LEN] = '\0';
 
-    while (fread((char *)&arh, sizeof(struct ar_hdr), 1, arch) == 1) {
+    while (fread(&arh, sizeof(struct ar_hdr), 1, arch) == 1) {
 	if (strncmp(arh.ar_fmag, ARFMAG, sizeof(arh.ar_fmag)) != 0) {
 	    /*
 	     * The header is bogus, so the archive is bad
@@ -625,16 +625,15 @@ ArchStatMember(char *archive, char *member, Boolean hash)
 #endif
 
 	    he = Hash_CreateEntry(&ar->members, memName, NULL);
-	    Hash_SetValue(he, (void *)emalloc (sizeof(struct ar_hdr)));
-	    memcpy(Hash_GetValue(he), &arh,
-		sizeof(struct ar_hdr));
+	    Hash_SetValue(he, emalloc(sizeof(struct ar_hdr)));
+	    memcpy(Hash_GetValue(he), &arh, sizeof(struct ar_hdr));
 	}
 	fseek(arch, (size + 1) & ~1, SEEK_CUR);
     }
 
     fclose(arch);
 
-    Lst_AtEnd(archives, (void *)ar);
+    Lst_AtEnd(archives, ar);
 
     /*
      * Now that the archive has been read and cached, we can look into
@@ -643,7 +642,7 @@ ArchStatMember(char *archive, char *member, Boolean hash)
     he = Hash_FindEntry(&ar->members, member);
 
     if (he != NULL) {
-	return ((struct ar_hdr *)Hash_GetValue (he));
+	return (Hash_GetValue (he));
     } else {
 	return (NULL);
     }
@@ -802,7 +801,7 @@ ArchFindMember(char *archive, char *member, struct ar_hdr *arhPtr, char *mode)
 	tlen = sizeof(arhPtr->ar_name);
     }
 
-    while (fread((char *)arhPtr, sizeof(struct ar_hdr), 1, arch) == 1) {
+    while (fread(arhPtr, sizeof(struct ar_hdr), 1, arch) == 1) {
 	if (strncmp(arhPtr->ar_fmag, ARFMAG, sizeof(arhPtr->ar_fmag) ) != 0) {
 	     /*
 	      * The header is bogus, so the archive is bad
@@ -921,7 +920,7 @@ Arch_Touch(GNode *gn)
     snprintf(arh.ar_date, sizeof(arh.ar_date), "%-12ld", (long)now);
 
     if (arch != NULL) {
-	fwrite((char *)&arh, sizeof(struct ar_hdr), 1, arch);
+	fwrite(&arh, sizeof(struct ar_hdr), 1, arch);
 	fclose(arch);
     }
 }
@@ -953,7 +952,7 @@ Arch_TouchLib(GNode *gn)
     snprintf(arh.ar_date, sizeof(arh.ar_date), "%-12ld", (long) now);
 
     if (arch != NULL) {
-	fwrite((char *)&arh, sizeof(struct ar_hdr), 1, arch);
+	fwrite(&arh, sizeof(struct ar_hdr), 1, arch);
 	fclose(arch);
 
 	times.actime = times.modtime = now;
@@ -1027,7 +1026,7 @@ Arch_MemMTime(GNode *gn)
 	return (0);
     }
     while ((ln = Lst_Next(gn->parents)) != NULL) {
-	pgn = (GNode *)Lst_Datum(ln);
+	pgn = Lst_Datum(ln);
 
 	if (pgn->type & OP_ARCHV) {
 	    /*
@@ -1086,7 +1085,7 @@ Arch_FindLib(GNode *gn, Lst path)
     size_t	    sz;
 
     sz = strlen(gn->name) + 4;
-    libName = (char *)emalloc(sz);
+    libName = emalloc(sz);
     snprintf(libName, sz, "lib%s.a", &gn->name[2]);
 
     gn->path = Dir_FindFile(libName, path);
@@ -1193,6 +1192,7 @@ Arch_LibOODate(GNode *gn)
 void
 Arch_Init(void)
 {
+
     archives = Lst_Init(FALSE);
 }
 
@@ -1212,5 +1212,6 @@ Arch_Init(void)
 void
 Arch_End(void)
 {
+
     Lst_Destroy(archives, ArchFree);
 }
