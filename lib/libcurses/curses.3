@@ -99,13 +99,14 @@ should be called before exiting.
 .It getstr(str)	get a string through
 .Em stdscr
 .It gettmode()	get tty modes
-.It getyx(win,y,x)	get (y,x) co-ordinates
+.It getyx(win,y,x)	get (y,x) co-ordinates for
+.Em win
 .It inch()	get char at current (y,x) co-ordinates
 .It initscr()	initialize screens
 .It insch(c)	insert a char
 .It insertln()	insert a line
 .It leaveok(win,boolf)	set leave flag for
-.Em stdscr
+.Em win
 .It longname(termbuf,name)	get long name from
 .Em termbuf
 .It move(y,x)	move to (y,x) on
@@ -117,8 +118,14 @@ should be called before exiting.
 .It noecho()	unset echo mode
 .It nonl()	unset newline mapping
 .It noraw()	unset raw mode
-.It overlay(win1,win2)	overlay win1 on win2
-.It overwrite(win1,win2)	overwrite win1 on top of win2
+.It overlay(win1,win2)	overlay
+.Em win1
+on
+.Em win2
+.It overwrite(win1,win2)	overwrite
+.Em win1
+on top of
+.Em win2
 .It printw(fmt,arg1,arg2,...)	printf on
 .Em stdscr
 .It raw()	set raw mode
@@ -131,17 +138,20 @@ should be called before exiting.
 .It scroll(win)	scroll
 .Em win
 one line
-.It scrollok(win,boolf)	set scroll flag
+.It scrollok(win,boolf)	set scroll flag for
+.Em win
 .It setterm(name)	set term variables for name
 .It standend()	end standout mode
 .It standout()	start standout mode
-.It subwin(win,lines,cols,begin_y,begin_x)\ 	create a subwindow
+.It subwin(win,lines,cols,begin_y,begin_x)\	create a subwindow of
+.Em win
 .It touchline(win,y,sx,ex)	mark line
 .Em y
 .Em sx
 through
 .Em sy
-as changed
+as changed on
+.Em win
 .It touchoverlap(win1,win2)	mark overlap of
 .Em win1
 on
