@@ -126,6 +126,7 @@ archive_write_open(struct archive *a, void *client_data,
 
 	ret = ARCHIVE_OK;
 	archive_check_magic(a, ARCHIVE_WRITE_MAGIC, ARCHIVE_STATE_NEW);
+	archive_string_empty(&a->error_string);
 	a->state = ARCHIVE_STATE_HEADER;
 	a->client_data = client_data;
 	a->client_writer = writer;
@@ -194,6 +195,7 @@ archive_write_header(struct archive *a, struct archive_entry *entry)
 
 	archive_check_magic(a, ARCHIVE_WRITE_MAGIC,
 	    ARCHIVE_STATE_HEADER | ARCHIVE_STATE_DATA);
+	archive_string_empty(&a->error_string);
 
 	/* Finish last entry. */
 	if (a->state & ARCHIVE_STATE_DATA)
@@ -221,6 +223,7 @@ archive_write_data(struct archive *a, const void *buff, size_t s)
 {
 	int ret;
 	archive_check_magic(a, ARCHIVE_WRITE_MAGIC, ARCHIVE_STATE_DATA);
+	archive_string_empty(&a->error_string);
 	ret = (a->format_write_data)(a, buff, s);
 	return (ret == ARCHIVE_OK ? (ssize_t)s : -1);
 }
