@@ -42,7 +42,7 @@
  * PC9801 port by KATO Takenor <kato@eclogite.eps.nagoya-u.ac.jp>
  */
 
-#include "opt_pc98.h"
+#include "compat_atdisk.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -81,8 +81,8 @@ static void extended __P((char *dname, dev_t dev, struct disklabel *lp,
 
 #ifdef PC98
 #define DPBLKNO(cyl,hd,sect) ((cyl)*(lp->d_secpercyl))
-#ifdef COMPAT_ATDISK
-int     atcompat_dsinit __P((char *dname, dev_t dev,
+#if	NCOMPAT_ATDISK > 0
+int     atcompat_dsinit __P((dev_t dev,
 		 struct disklabel *lp, struct diskslices **sspp));
 #endif
 #endif
@@ -312,7 +312,7 @@ reread_mbr:
 		ssp->dss_nslices = BASE_SLICE + 1;
 		goto done;
 	}
-#ifdef COMPAT_ATDISK
+#if NCOMPAT_ATDISK > 0
 	/* 
 	 * Check magic number of 'extended format' for PC-9801.
 	 * If no magic, it may be formatted on IBM-PC.
@@ -324,7 +324,7 @@ reread_mbr:
 		/* IBM-PC HDD */
 		bp->b_flags = B_INVAL | B_AGE;
 		brelse(bp);
-		return atcompat_dsinit(devtoname(bp->b_dev), dev, lp, sspp);
+		return atcompat_dsinit(dev, lp, sspp);
 	}
 #endif
 	dp0 = (struct dos_partition *)(cp + 512);
