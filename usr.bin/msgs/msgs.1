@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)msgs.1	8.2 (Berkeley) 4/28/95
-.\"	$Id$
+.\"	$Id: msgs.1,v 1.6 1999/07/12 20:23:47 nik Exp $
 .\"
 .Dd April 28, 1995
 .Dt MSGS 1
@@ -118,7 +118,16 @@ is incorrect it can be fixed by removing it;
 .Nm
 will make a new
 .Pa bounds
-file the next time it is run.
+file the next time it is run with the
+.Fl s
+option.
+If
+.Nm
+is run with any option other than
+.Fl s ,
+an error will be displayed if
+.Pa /var/msgs/bounds
+does not exist.
 .Pp
 The
 .Fl s
