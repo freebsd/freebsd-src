@@ -127,6 +127,7 @@ void
 gv_start_vol(struct gv_volume *v)
 {
 	struct gv_plex *p;
+	struct gv_sd *s;
 
 	KASSERT(v != NULL, ("gv_start_vol: NULL v"));
 
@@ -144,6 +145,11 @@ gv_start_vol(struct gv_volume *v)
 			case GV_PLEX_DEGRADED:  /* XXX not yet */
 			default:
 				return;
+			}
+		} else {
+			LIST_FOREACH(s, &p->subdisks, in_plex) {
+				gv_set_sd_state(s, GV_SD_UP,
+				    GV_SETSTATE_CONFIG);
 			}
 		}
 	} else
