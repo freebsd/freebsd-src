@@ -307,7 +307,10 @@ probe_sb16midi (struct address_info *hw_config)
   ok = reset_sb16midi ();
 
   sb16midi_detected = ok;
-  return ok;
+  if (ok)
+    return 2;
+  else
+    return 0;
 }
 
 #endif
