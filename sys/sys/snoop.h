@@ -30,8 +30,8 @@
  * detached from its current tty.
  */
 
-#define SNPSTTY       _IOW('T', 90, dev_t)
-#define SNPGTTY       _IOR('T', 89, dev_t)
+#define SNPSTTY       _IOW('T', 90, udev_t)
+#define SNPGTTY       _IOR('T', 89, udev_t)
 
 /*
  * These values would be returned by FIONREAD ioctl

@@ -544,7 +544,7 @@ snpioctl(dev, cmd, data, flags, td)
 		 * SNPGTTY happy, else we can't know what is device
 		 * major/minor for tty.
 		 */
-		*((dev_t *)data) = snp->snp_target;
+		*((udev_t *)data) = dev2udev(snp->snp_target);
 		break;
 
 	case FIONBIO:
