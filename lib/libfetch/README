@@ -1,0 +1,23 @@
+This is the new fetch(3) library, which is to replace the ftpio(3)
+library and provide a new, unified backend for all fetch(1),
+pkg_add(1) and sysinstall(8).
+
+Note that this is very much work in progress. It compiles (with a few
+warnings), but there is much left to be implemented. Amongst other
+items:
+
+  * The man page needs work. Really. I mean it. Now.
+
+  * ftp.c is not even half-written.
+
+  * HTTP authentication doesn't work. I'm not sure if I bungled http.c
+    or fubared base64.c (which was ripped from MIT fetch(1)).
+
+  * The library needs a decent interface for reporting errors. I've
+    started on something (sending back an error code in the url_t that
+    was sent in) but we're Not There (tm) yet.
+
+Comments, patches etc. of all kinds are welcome, but please don't
+commit anything without talking to me first.
+
+		-- Dag-Erling C. Smørgrav (des@FreeBSD.org)
