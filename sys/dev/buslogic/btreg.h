@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: btreg.h,v 1.5 1999/04/07 23:01:43 gibbs Exp $
+ *      $Id: btreg.h,v 1.6 1999/04/18 15:50:33 peter Exp $
  */
 
 #ifndef _BTREG_H_
@@ -629,8 +629,8 @@ struct bt_softc {
 	bus_dmamap_t		 mailbox_dmamap;
 	bus_dma_tag_t		 ccb_dmat;	/* dmat for our ccb array */
 	bus_dmamap_t		 ccb_dmamap;
-	bus_dma_tag_t		 sg_dmat;	/* dmat for our sg maps */
-	bus_dma_tag_t		 sense_dmat;	/* dmat for our sg maps */
+	bus_dma_tag_t		 sg_dmat;	/* dmat for our sg segments */
+	bus_dma_tag_t		 sense_dmat;	/* dmat for our sense buffers */
 	bus_dmamap_t		 sense_dmamap;
 	SLIST_HEAD(, sg_map_node) sg_maps;
 	bus_addr_t		 mailbox_physbase;
