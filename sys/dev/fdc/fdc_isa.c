@@ -211,8 +211,7 @@ fdc_isa_attach(device_t dev)
 	if (error == 0)
 		fdc->flags |= FDC_ISPNP;
 
-	if (error == 0)
-		error = fdc_isa_alloc_resources(dev, fdc);
+	error = fdc_isa_alloc_resources(dev, fdc);
 	if (error == 0)
 		error = fdc_attach(dev);
 	if (error == 0)
