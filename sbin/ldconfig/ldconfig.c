@@ -30,7 +30,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: ldconfig.c,v 1.25 1998/09/05 03:30:54 jdp Exp $";
+	"$Id: ldconfig.c,v 1.26 1998/09/05 16:20:15 jdp Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -169,12 +169,10 @@ char	*argv[];
 			if (stat(argv[i], &stbuf) == -1) {
 				warn("%s", argv[i]);
 				rval = -1;
-			}
-		        else if (!strcmp(argv[i], "/usr/lib")) {
+			} else if (strcmp(argv[i], "/usr/lib") == 0) {
 				warnx("WARNING! '%s' can not be used", argv[i]);
 				rval = -1;
-			}
-			else  {
+			} else {
 				/*
 				 * See if this is a directory-containing
 				 * file instead of a directory
@@ -573,7 +571,8 @@ static int
 readhints()
 {
 	int			fd;
-	caddr_t			addr;
+	void			*addr;
+	long			fsize;
 	long			msize;
 	struct hints_header	*hdr;
 	struct hints_bucket	*blist;
@@ -589,7 +588,7 @@ readhints()
 	msize = PAGE_SIZE;
 	addr = mmap(0, msize, PROT_READ, MAP_COPY, fd, 0);
 
-	if (addr == (caddr_t)-1) {
+	if (addr == MAP_FAILED) {
 		warn("%s", hints_file);
 		return -1;
 	}
@@ -608,13 +607,14 @@ readhints()
 	}
 
 	if (hdr->hh_ehints > msize) {
-		if (mmap(addr+msize, hdr->hh_ehints - msize,
-				PROT_READ, MAP_COPY|MAP_FIXED,
-				fd, msize) != (caddr_t)(addr+msize)) {
-
+		fsize = hdr->hh_ehints;
+		munmap(addr, msize);
+		addr = mmap(0, fsize, PROT_READ, MAP_COPY, fd, 0);
+		if (addr == MAP_FAILED) {
 			warn("%s", hints_file);
 			return -1;
 		}
+		hdr = (struct hints_header *)addr;
 	}
 	close(fd);
 
