@@ -639,7 +639,7 @@ snc_nec16_copyfrombuf(sc, dst, offset, size)
 
 	if (size > 3)  {
 		if (noffset & 3)  {
-			size_t asize = (~noffset & 3);
+			size_t asize = 4 - (noffset & 3);
 
 			bus_space_read_region_1(memt, memh, noffset,
 			    bptr, asize);
@@ -680,7 +680,7 @@ snc_nec16_copytobuf(sc, src, offset, size)
 
 	if (size > 3)  {
 		if (noffset & 3)  {
-			size_t asize = (~noffset & 3);
+			size_t asize = 4 - (noffset & 3);
 
 			bus_space_write_region_1(memt, memh, noffset,
 			    bptr, asize);
@@ -722,7 +722,7 @@ snc_nec16_zerobuf(sc, offset, size)
 
 	if (size > 3)  {
 		if (noffset & 3)  {
-			size_t asize = (~noffset & 3);
+			size_t asize = 4 - (noffset & 3);
 
 			bus_space_set_region_1(memt, memh, noffset, 0, asize);
 			noffset += asize;
