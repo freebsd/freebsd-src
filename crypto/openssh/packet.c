@@ -37,7 +37,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: packet.c,v 1.97 2002/07/04 08:12:15 deraadt Exp $");
+RCSID("$OpenBSD: packet.c,v 1.104 2003/04/01 10:22:21 markus Exp $");
 
 #include "xmalloc.h"
 #include "buffer.h"
@@ -564,7 +564,7 @@ set_newkeys(int mode)
 	CipherContext *cc;
 	int encrypt;
 
-	debug("newkeys: mode %d", mode);
+	debug2("set_newkeys: mode %d", mode);
 
 	if (mode == MODE_OUT) {
 		cc = &send_context;
@@ -574,7 +574,7 @@ set_newkeys(int mode)
 		encrypt = CIPHER_DECRYPT;
 	}
 	if (newkeys[mode] != NULL) {
-		debug("newkeys: rekeying");
+		debug("set_newkeys: rekeying");
 		cipher_cleanup(cc);
 		enc  = &newkeys[mode]->enc;
 		mac  = &newkeys[mode]->mac;
@@ -840,7 +840,7 @@ packet_read_poll1(void)
 	cp = buffer_ptr(&input);
 	len = GET_32BIT(cp);
 	if (len < 1 + 2 + 2 || len > 256 * 1024)
-		packet_disconnect("Bad packet length %d.", len);
+		packet_disconnect("Bad packet length %u.", len);
 	padded_len = (len + 8) & ~7;
 
 	/* Check if the packet has been entirely received. */
@@ -936,9 +936,9 @@ packet_read_poll2(u_int32_t *seqnr_p)
 		packet_length = GET_32BIT(cp);
 		if (packet_length < 1 + 4 || packet_length > 256 * 1024) {
 			buffer_dump(&incoming_packet);
-			packet_disconnect("Bad packet length %d.", packet_length);
+			packet_disconnect("Bad packet length %u.", packet_length);
 		}
-		DBG(debug("input: packet len %d", packet_length+4));
+		DBG(debug("input: packet len %u", packet_length+4));
 		buffer_consume(&input, block_size);
 	}
 	/* we have a partial packet of block_size bytes */
@@ -1226,6 +1226,9 @@ packet_disconnect(const char *fmt,...)
 	vsnprintf(buf, sizeof(buf), fmt, args);
 	va_end(args);
 
+	/* Display the error locally */
+	log("Disconnecting: %.100s", buf);
+
 	/* Send the disconnect message to the other side, and wait for it to get sent. */
 	if (compat20) {
 		packet_start(SSH2_MSG_DISCONNECT);
@@ -1245,8 +1248,6 @@ packet_disconnect(const char *fmt,...)
 	/* Close the connection. */
 	packet_close();
 
-	/* Display the error locally and exit. */
-	log("Disconnecting: %.100s", buf);
 	fatal_cleanup();
 }
 
@@ -1313,16 +1314,26 @@ packet_not_very_much_data_to_write(void)
 		return buffer_len(&output) < 128 * 1024;
 }
 
+static void
+packet_set_tos(int interactive)
+{
+	int tos = interactive ? IPTOS_LOWDELAY : IPTOS_THROUGHPUT;
+
+	if (!packet_connection_is_on_socket() ||
+	    !packet_connection_is_ipv4())
+		return;
+	if (setsockopt(connection_in, IPPROTO_IP, IP_TOS, &tos,
+	    sizeof(tos)) < 0)
+		error("setsockopt IP_TOS %d: %.100s:",
+		    tos, strerror(errno));
+}
+
 /* Informs that the current session is interactive.  Sets IP flags for that. */
 
 void
 packet_set_interactive(int interactive)
 {
 	static int called = 0;
-#if defined(IP_TOS) && !defined(IP_TOS_IS_BROKEN)
-	int lowdelay = IPTOS_LOWDELAY;
-	int throughput = IPTOS_THROUGHPUT;
-#endif
 
 	if (called)
 		return;
@@ -1333,35 +1344,12 @@ packet_set_interactive(int interactive)
 
 	/* Only set socket options if using a socket.  */
 	if (!packet_connection_is_on_socket())
-		return;
-	/*
-	 * IPTOS_LOWDELAY and IPTOS_THROUGHPUT are IPv4 only
-	 */
-	if (interactive) {
-		/*
-		 * Set IP options for an interactive connection.  Use
-		 * IPTOS_LOWDELAY and TCP_NODELAY.
-		 */
-#if defined(IP_TOS) && !defined(IP_TOS_IS_BROKEN)
-		if (packet_connection_is_ipv4()) {
-			if (setsockopt(connection_in, IPPROTO_IP, IP_TOS,
-			    &lowdelay, sizeof(lowdelay)) < 0)
-				error("setsockopt IPTOS_LOWDELAY: %.100s",
-				    strerror(errno));
-		}
-#endif
+	if (interactive)
 		set_nodelay(connection_in);
-	} else if (packet_connection_is_ipv4()) {
-		/*
-		 * Set IP options for a non-interactive connection.  Use
-		 * IPTOS_THROUGHPUT.
-		 */
 #if defined(IP_TOS) && !defined(IP_TOS_IS_BROKEN)
-		if (setsockopt(connection_in, IPPROTO_IP, IP_TOS, &throughput,
-		    sizeof(throughput)) < 0)
-			error("setsockopt IPTOS_THROUGHPUT: %.100s", strerror(errno));
+	packet_set_tos(interactive);
 #endif
-	}
+
 }
 
 /* Returns true if the current connection is interactive. */

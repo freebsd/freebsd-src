@@ -12,7 +12,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: ssh-keygen.c,v 1.101 2002/06/23 09:39:55 deraadt Exp $");
+RCSID("$OpenBSD: ssh-keygen.c,v 1.102 2002/11/26 00:45:03 wcobb Exp $");
 
 #include <openssl/evp.h>
 #include <openssl/pem.h>
@@ -109,7 +109,6 @@ ask_filename(struct passwd *pw, const char *prompt)
 
 	snprintf(identity_file, sizeof(identity_file), "%s/%s", pw->pw_dir, name);
 	fprintf(stderr, "%s (%s): ", prompt, identity_file);
-	fflush(stderr);
 	if (fgets(buf, sizeof(buf), stdin) == NULL)
 		exit(1);
 	if (strchr(buf, '\n'))

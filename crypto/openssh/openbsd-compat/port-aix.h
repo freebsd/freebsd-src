@@ -25,5 +25,16 @@
  */
 
 #ifdef _AIX
+
+/* AIX 4.2.x doesn't have nanosleep but does have nsleep which is equivalent */
+#if !defined(HAVE_NANOSLEEP) && defined(HAVE_NSLEEP)
+# define nanosleep(a,b) nsleep(a,b)
+#endif
+
+/* For struct timespec on AIX 4.2.x */
+#ifdef HAVE_SYS_TIMERS_H
+# include <sys/timers.h>
+#endif
+
 void aix_usrinfo(struct passwd *pw);
 #endif /* _AIX */

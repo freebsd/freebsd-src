@@ -31,7 +31,7 @@
 
 #include "includes.h"
 
-RCSID("$Id: bsd-cygwin_util.c,v 1.8 2002/04/15 22:00:52 stevesk Exp $");
+RCSID("$Id: bsd-cygwin_util.c,v 1.9 2002/11/09 15:59:29 mouring Exp $");
 
 #ifdef HAVE_CYGWIN
 
@@ -43,6 +43,7 @@ RCSID("$Id: bsd-cygwin_util.c,v 1.8 2002/04/15 22:00:52 stevesk Exp $");
 #define is_winnt       (GetVersion() < 0x80000000)
 
 #define ntsec_on(c)	((c) && strstr((c),"ntsec") && !strstr((c),"nontsec"))
+#define ntsec_off(c)	((c) && strstr((c),"nontsec"))
 #define ntea_on(c)	((c) && strstr((c),"ntea") && !strstr((c),"nontea"))
 
 #if defined(open) && open == binary_open
@@ -74,6 +75,56 @@ int binary_pipe(int fd[2])
 	return ret;
 }
 
+#define HAS_CREATE_TOKEN 1
+#define HAS_NTSEC_BY_DEFAULT 2
+
+static int has_capability(int what)
+{
+	/* has_capability() basically calls uname() and checks if
+	   specific capabilities of Cygwin can be evaluated from that.
+	   This simplifies the calling functions which only have to ask
+	   for a capability using has_capability() instead of having
+	   to figure that out by themselves. */
+	static int inited;
+	static int has_create_token;
+	static int has_ntsec_by_default;
+
+	if (!inited) {
+		struct utsname uts;
+		char *c;
+		
+		if (!uname(&uts)) {
+			int major_high = 0;
+			int major_low = 0;
+			int minor = 0;
+			int api_major_version = 0;
+			int api_minor_version = 0;
+			char *c;
+
+			sscanf(uts.release, "%d.%d.%d", &major_high,
+			       &major_low, &minor);
+			c = strchr(uts.release, '(');
+			if (c)
+				sscanf(c + 1, "%d.%d", &api_major_version,
+				       &api_minor_version);
+			if (major_high > 1 ||
+			    (major_high == 1 && (major_low > 3 ||
+			     (major_low == 3 && minor >= 2))))
+				has_create_token = 1;
+			if (api_major_version > 0 || api_minor_version >= 56)
+				has_ntsec_by_default = 1;
+			inited = 1;
+		}
+	}
+	switch (what) {
+	case HAS_CREATE_TOKEN:
+		return has_create_token;
+	case HAS_NTSEC_BY_DEFAULT:
+		return has_ntsec_by_default;
+	}
+	return 0;
+}
+
 int check_nt_auth(int pwd_authenticated, struct passwd *pw)
 {
 	/*
@@ -93,19 +144,14 @@ int check_nt_auth(int pwd_authenticated, struct passwd *pw)
 		return 0;
 	if (is_winnt) {
 		if (has_create_token < 0) {
-			struct utsname uts;
-		        int major_high = 0, major_low = 0, minor = 0;
 			char *cygwin = getenv("CYGWIN");
 
 			has_create_token = 0;
-			if (ntsec_on(cygwin) && !uname(&uts)) {
-				sscanf(uts.release, "%d.%d.%d",
-				       &major_high, &major_low, &minor);
-				if (major_high > 1 ||
-				    (major_high == 1 && (major_low > 3 ||
-				     (major_low == 3 && minor >= 2))))
-					has_create_token = 1;
-			}
+			if (has_capability(HAS_CREATE_TOKEN) &&
+			    (ntsec_on(cygwin) ||
+			     (has_capability(HAS_NTSEC_BY_DEFAULT) &&
+			      !ntsec_off(cygwin))))
+				has_create_token = 1;
 		}
 		if (has_create_token < 1 &&
 		    !pwd_authenticated && geteuid() != pw->pw_uid)
@@ -128,7 +174,9 @@ int check_ntsec(const char *filename)
 	/* Evaluate current CYGWIN settings. */
 	cygwin = getenv("CYGWIN");
 	allow_ntea = ntea_on(cygwin);
-	allow_ntsec = ntsec_on(cygwin);
+	allow_ntsec = ntsec_on(cygwin) ||
+		      (has_capability(HAS_NTSEC_BY_DEFAULT) &&
+		       !ntsec_off(cygwin));
 
 	/*
 	 * `ntea' is an emulation of POSIX attributes. It doesn't support

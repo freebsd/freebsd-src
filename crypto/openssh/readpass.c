@@ -23,7 +23,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: readpass.c,v 1.27 2002/03/26 15:58:46 markus Exp $");
+RCSID("$OpenBSD: readpass.c,v 1.28 2003/01/23 13:50:27 markus Exp $");
 
 #include "xmalloc.h"
 #include "readpass.h"
@@ -46,11 +46,11 @@ ssh_askpass(char *askpass, const char *msg)
 		fatal("internal error: askpass undefined");
 	if (pipe(p) < 0) {
 		error("ssh_askpass: pipe: %s", strerror(errno));
-		return xstrdup("");
+		return NULL;
 	}
 	if ((pid = fork()) < 0) {
 		error("ssh_askpass: fork: %s", strerror(errno));
-		return xstrdup("");
+		return NULL;
 	}
 	if (pid == 0) {
 		seteuid(getuid());
@@ -78,6 +78,11 @@ ssh_askpass(char *askpass, const char *msg)
 	while (waitpid(pid, &status, 0) < 0)
 		if (errno != EINTR)
 			break;
+
+	if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
+		memset(buf, 0, sizeof(buf));
+		return NULL;
+	}
 
 	buf[strcspn(buf, "\r\n")] = '\0';
 	pass = xstrdup(buf);
@@ -115,7 +120,10 @@ read_passphrase(const char *prompt, int flags)
 			askpass = getenv(SSH_ASKPASS_ENV);
 		else
 			askpass = _PATH_SSH_ASKPASS_DEFAULT;
-		return ssh_askpass(askpass, prompt);
+		if ((ret = ssh_askpass(askpass, prompt)) == NULL)
+			if (!(flags & RP_ALLOW_EOF))
+				return xstrdup("");
+		return ret;
 	}
 
 	if (readpassphrase(prompt, buf, sizeof buf, rppflags) == NULL) {
