@@ -64,11 +64,18 @@ struct pcb {
 	u_int32_t	pcb_es;
 	u_int32_t	pcb_fs;
 	u_int32_t	pcb_gs;
+	u_int64_t	pcb_dr0;
+	u_int64_t	pcb_dr1;
+	u_int64_t	pcb_dr2;
+	u_int64_t	pcb_dr3;
+	u_int64_t	pcb_dr6;
+	u_int64_t	pcb_dr7;
 
 	struct	savefpu	pcb_save;
 	u_long	pcb_flags;
-#define	PCB_FPUINITDONE	0x01	/* fpu state is initialized */
-#define	PCB_FULLCTX	0x02	/* full context restore on sysret */
+#define	PCB_DBREGS	0x02	/* process using debug registers */
+#define	PCB_FPUINITDONE	0x08	/* fpu state is initialized */
+#define	PCB_FULLCTX	0x80	/* full context restore on sysret */
 
 	caddr_t	pcb_onfault;	/* copyin/out fault recovery */
 };

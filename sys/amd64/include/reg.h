@@ -84,10 +84,23 @@ struct fpreg {
 	unsigned long	fpr_spare[12];
 };
 
+/*
+ * Register set accessible via /proc/$pid/dbregs.
+ */
 struct dbreg {
-	unsigned long grrr;
+	unsigned long  dr[16];	/* debug registers */
+				/* Index 0-3: debug address registers */
+				/* Index 4-5: reserved */
+				/* Index 6: debug status */
+				/* Index 7: debug control */
+				/* Index 8-15: reserved */
 };
 
+#define DBREG_DR7_EXEC      0x00      /* break on execute       */
+#define DBREG_DR7_WRONLY    0x01      /* break on write         */
+#define DBREG_DR7_RDWR      0x03      /* break on read or write */
+#define DBREG_DRX(d,x) ((d)->dr[(x)]) /* reference dr0 - dr15 by
+                                         register number */
 #ifdef _KERNEL
 /*
  * XXX these interfaces are MI, so they should be declared in a MI place.
