@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/exec.h>
+#include <sys/sysent.h>
 #include <machine/reg.h>
 #include <machine/cpu.h>
 
@@ -81,6 +82,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/machdep.h>
 #include <machine/metadata.h>
 #include <machine/armreg.h>
+#include <machine/md_var.h>
 
 #define MDROOT_ADDR 0xd0400000
 
@@ -107,6 +109,7 @@ sendsig(catcher, sig, mask, code)
 	u_long code;
 {
 	struct thread *td = curthread;
+	struct proc *p = td->td_proc;
 	struct trapframe *tf = td->td_frame;
 	struct sigframe *fp, frame;
 	struct sigacts *psp = td->td_proc->p_sigacts;
@@ -117,7 +120,7 @@ sendsig(catcher, sig, mask, code)
 	fp--;
 	
 	/* make the stack aligned */
-	fp = (struct sigframe *)_ALIGN(fp);
+	fp = (struct sigframe *)STACKALIGN(fp);
 	/* Populate the siginfo frame. */
 	frame.sf_si.si_signo = sig;
 	frame.sf_si.si_code = code;
@@ -125,6 +128,7 @@ sendsig(catcher, sig, mask, code)
 	frame.sf_uc.uc_link = NULL;
 	frame.sf_uc.uc_flags |= td->td_sigstk.ss_flags & SS_ONSTACK ?
 	    _UC_SETSTACK : _UC_CLRSTACK;
+	frame.sf_uc.uc_stack = td->td_sigstk;
 	memset(&frame.sf_uc.uc_stack, 0, sizeof(frame.sf_uc.uc_stack));
 	get_mcontext(td, &frame.sf_uc.uc_mcontext, 
 	    (uint32_t)&frame.sf_uc.uc_flags);
@@ -147,6 +151,7 @@ sendsig(catcher, sig, mask, code)
 	tf->tf_r5 = (int)&fp->sf_uc;
 	tf->tf_pc = (int)catcher;
 	tf->tf_usr_sp = (int)fp;
+	tf->tf_usr_lr = (int)(PS_STRINGS - *(p->p_sysent->sv_szsigcode));
 	if (onstack)
 		td->td_sigstk.ss_flags |= SS_ONSTACK;
 	PROC_LOCK(td->td_proc);
@@ -267,7 +272,6 @@ set_regs(struct thread *td, struct reg *regs)
 	tf->tf_pc = regs->r_pc;
 	tf->tf_spsr &=  ~PSR_FLAGS;
 	tf->tf_spsr |= regs->r_cpsr & PSR_FLAGS;
-	while(1);
 	return (0);								
 }
 
@@ -286,12 +290,6 @@ int
 set_dbregs(struct thread *td, struct dbreg *regs)
 {
 	return (0);
-}
-
-void
-cpu_halt(void)
-{
-	cpu_reset();
 }
 
 int
@@ -389,18 +387,6 @@ set_mcontext(struct thread *td, const mcontext_t *mcp)
 	return (0);
 }
 
-#ifdef COMPAT_FREEBSD4
-int
-freebsd4_sigreturn(td, uap)
-	struct thread *td;
-	struct freebsd4_sigreturn_args /* {
-		const ucontext4 *sigcntxp;
-	} */ *uap;
-{
-	return (0);
-}
-#endif
-
 /*
  * MPSAFE
  */
@@ -411,7 +397,63 @@ sigreturn(td, uap)
 		const __ucontext *sigcntxp;
 	} */ *uap;
 {
-	return (0);
+	struct proc *p = td->td_proc;
+	struct sigframe sf;
+	struct trapframe *tf;
+	int spsr;
+	
+	if (uap == NULL)
+		return (EFAULT);
+	if (copyin(uap->sigcntxp, &sf, sizeof(sf)))
+		return (EFAULT);
+	/*
+	 * Make sure the processor mode has not been tampered with and
+	 * interrupts have not been disabled.
+	 */
+	spsr = sf.sf_uc.uc_mcontext.__gregs[_REG_CPSR];
+	if ((spsr & PSR_MODE) != PSR_USR32_MODE ||
+	    (spsr & (I32_bit | F32_bit)) != 0)
+		return (EINVAL);
+		/* Restore register context. */
+	tf = td->td_frame;
+	memcpy((register_t *)tf + 1, &sf.sf_uc.uc_mcontext, sizeof(*tf) -
+	    4 * sizeof(register_t));
+#if 0
+	tf->tf_r0    = context.sc_r0;
+	tf->tf_r1    = context.sc_r1;
+	tf->tf_r2    = context.sc_r2;
+	tf->tf_r3    = context.sc_r3;
+	tf->tf_r4    = context.sc_r4;
+	tf->tf_r5    = context.sc_r5;
+	tf->tf_r6    = context.sc_r6;
+	tf->tf_r7    = context.sc_r7;
+	tf->tf_r8    = context.sc_r8;
+	tf->tf_r9    = context.sc_r9;
+	tf->tf_r10   = context.sc_r10;
+	tf->tf_r11   = context.sc_r11;
+	tf->tf_r12   = context.sc_r12;
+	tf->tf_usr_sp = context.sc_usr_sp;
+	tf->tf_usr_lr = context.sc_usr_lr;
+	tf->tf_svc_lr = context.sc_svc_lr;
+	tf->tf_pc    = context.sc_pc;
+#endif
+	tf->tf_pc = sf.sf_uc.uc_mcontext.__gregs[_REG_PC];
+	tf->tf_spsr = spsr;
+
+	/* Restore signal stack. */
+	if (sf.sf_uc.uc_flags & _UC_SETSTACK)
+		td->td_sigstk.ss_flags |= SS_ONSTACK;
+	else
+		td->td_sigstk.ss_flags &= ~SS_ONSTACK;
+
+	/* Restore signal mask. */
+	PROC_LOCK(p);
+	td->td_sigmask = sf.sf_uc.uc_sigmask;
+	SIG_CANTMASK(td->td_sigmask);
+	signotify(td);
+	PROC_UNLOCK(p);
+
+	return (EJUSTRETURN);
 }
 
 
