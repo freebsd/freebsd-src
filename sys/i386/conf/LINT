@@ -1455,10 +1455,10 @@ options 	PUC_FASTINTR
 # cm: Arcnet SMC COM90c26 / SMC COM90c56
 #     (and SMC COM90c66 in '56 compatibility mode) adapters.
 # cs: IBM Etherjet and other Crystal Semi CS89x0-based adapters
-# ctau: Cronyx/Tau sync dual port V.35/RS-232/RS-530/RS-449/X.21/G.703/E1
+# ctau: Cronyx Tau sync dual port V.35/RS-232/RS-530/RS-449/X.21/G.703/E1
 #       serial adaptor (requires sppp (default), or NETGRAPH if
 #       NETGRAPH_CRONYX is configured)
-# cx: Cronyx/Sigma multiport sync/async adapter (requires sppp (default),
+# cx: Cronyx Sigma multiport sync/async adapter (requires sppp (default),
 #     or NETGRAPH if NETGRAPH_CRONYX is configured)
 # ed: Western Digital and SMC 80xx; Novell NE1000 and NE2000; 3Com 3C503
 # el: 3Com 3C501 (slow!)
