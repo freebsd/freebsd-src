@@ -473,7 +473,7 @@ print_attr_string(register u_char *data, u_int length, u_short attr_code )
         break;
    }
 
-   for (i=0; i < length ; i++, data++)
+   for (i=0; *data && i < length ; i++, data++)
        printf("%c",(*data < 32 || *data > 128) ? '.' : *data );
 
    printf("}");
