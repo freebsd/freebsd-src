@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfsm_subs.h	8.2 (Berkeley) 3/30/95
- * $Id: nfsm_subs.h,v 1.23 1999/06/05 05:35:03 peter Exp $
+ * $Id: nfsm_subs.h,v 1.24 1999/06/23 04:44:14 julian Exp $
  */
 
 
@@ -419,24 +419,25 @@ struct mbuf *nfsm_rpchead __P((struct ucred *cr, int nmflag, int procid,
 		} }
 
 #define nfsm_srvmtofh(f) \
-	{ int fhlen = NFSX_V3FH; \
+	do { \
+		int fhlen; \
 		if (nfsd->nd_flag & ND_NFSV3) { \
 			nfsm_dissect(tl, u_int32_t *, NFSX_UNSIGNED); \
 			fhlen = fxdr_unsigned(int, *tl); \
-			if (fhlen == 0) { \
-				bzero((caddr_t)(f), NFSX_V3FH); \
-			} else if (fhlen != NFSX_V3FH) { \
+			if (fhlen != 0 && fhlen != NFSX_V3FH) { \
 				error = EBADRPC; \
 				nfsm_reply(0); \
 			} \
+		} else { \
+			fhlen = NFSX_V2FH; \
 		} \
 		if (fhlen != 0) { \
-			nfsm_dissect(tl, u_int32_t *, NFSX_V3FH); \
-			bcopy((caddr_t)tl, (caddr_t)(f), NFSX_V3FH); \
-			if ((nfsd->nd_flag & ND_NFSV3) == 0) \
-				nfsm_adv(NFSX_V2FH - NFSX_V3FH); \
+			nfsm_dissect(tl, u_int32_t *, fhlen); \
+			bcopy((caddr_t)tl, (caddr_t)(f), fhlen); \
+		} else {\
+			bzero((caddr_t)(f), NFSX_V3FH); \
 		} \
-	}
+	} while (0)
 
 #define	nfsm_clget \
 		if (bp >= be) { \
