@@ -38,7 +38,6 @@ char lmc_version[] = "BSD 1.1";
 #include <sys/errno.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
-#include <machine/clock.h>
 
 #include <net/if.h>
 #include <sys/syslog.h>

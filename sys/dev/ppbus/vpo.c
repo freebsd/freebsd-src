@@ -33,7 +33,6 @@
 #include <sys/malloc.h>
 #include <sys/devicestat.h>	/* for struct devstat */
 
-#include <machine/clock.h>
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>

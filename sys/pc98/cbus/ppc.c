@@ -36,7 +36,6 @@
   
 #include <vm/vm.h>
 #include <vm/pmap.h>
-#include <machine/clock.h>
 #include <machine/bus.h>
 #include <machine/resource.h>
 #include <machine/vmparam.h>

@@ -37,7 +37,6 @@
 #include <sys/module.h>
 #include <sys/select.h>
 
-#include <machine/clock.h>
 
 #include <pccard/i82365.h>
 #include <pccard/cardinfo.h>

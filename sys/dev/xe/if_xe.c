@@ -140,7 +140,6 @@
 #include <dev/xe/if_xereg.h>
 #include <dev/xe/if_xevar.h>
 
-#include <machine/clock.h>
 
 /*
  * MII command structure

@@ -48,7 +48,6 @@
 #include <net/if.h>
 
 #include <sys/mbuf.h>
-#include <machine/clock.h>
 
 #include <i4b/include/i4b_mbuf.h>
 

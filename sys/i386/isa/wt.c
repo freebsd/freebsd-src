@@ -69,7 +69,6 @@
 #include <sys/conf.h>
 #include <sys/bus.h>
 
-#include <machine/clock.h>
 
 #include <i386/isa/isa_device.h>
 #include <i386/isa/wtreg.h>

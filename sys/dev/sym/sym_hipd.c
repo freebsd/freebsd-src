@@ -116,7 +116,6 @@
 #include <machine/resource.h>
 #include <sys/rman.h>
 #endif
-#include <machine/clock.h>
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>

@@ -34,7 +34,6 @@
 #include <sys/conf.h>
 #include <sys/uio.h>
 #include <sys/select.h>
-#include <machine/clock.h>
 
 #include <sys/module.h>
 #include <sys/bus.h>

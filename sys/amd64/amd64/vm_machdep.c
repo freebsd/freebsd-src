@@ -61,7 +61,6 @@
 #include <sys/sysctl.h>
 #include <sys/unistd.h>
 
-#include <machine/clock.h>
 #include <machine/cpu.h>
 #include <machine/md_var.h>
 #include <machine/mutex.h>

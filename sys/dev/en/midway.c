@@ -157,7 +157,6 @@
 #define	vtophys(va)	alpha_XXX_dmamap((vm_offset_t)(va))
 #endif
 #elif defined(__FreeBSD__)
-#include <machine/clock.h>              /* for DELAY */
 #include <dev/en/midwayreg.h>
 #include <dev/en/midwayvar.h>
 #include <vm/pmap.h>			/* for vtophys proto */

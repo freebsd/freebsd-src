@@ -32,7 +32,6 @@
 #include <sys/module.h>
 #include <sys/bus.h>
 
-#include <machine/clock.h>
 
 #include <dev/ppbus/ppbconf.h>
   

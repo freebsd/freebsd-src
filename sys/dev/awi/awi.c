@@ -145,7 +145,6 @@
 #include <machine/intr.h>
 #endif
 #ifdef __FreeBSD__
-#include <machine/clock.h>
 #endif
 
 #ifdef __NetBSD__

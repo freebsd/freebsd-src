@@ -40,7 +40,6 @@
 #include <machine/bus_pio.h>
 #include <machine/bus.h>
 #include <machine/resource.h>
-#include <machine/clock.h>
 #include <sys/rman.h>
 #include <sys/malloc.h>
 

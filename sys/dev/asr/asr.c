@@ -202,7 +202,6 @@ static dpt_sig_S ASR_sig = {
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <machine/cputypes.h>
-#include <machine/clock.h>
 #include <i386/include/vmparam.h>
 
 #include <pci/pcivar.h>

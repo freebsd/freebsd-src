@@ -48,7 +48,6 @@
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/eventhandler.h>
-#include <machine/clock.h>
 #include <machine/bus.h>
 #include <machine/resource.h>
 #include <sys/bus.h>

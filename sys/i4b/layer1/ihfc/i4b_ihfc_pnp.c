@@ -49,7 +49,6 @@
 #include <sys/socket.h>
 #include <net/if.h>
 
-#include <machine/clock.h>
 
 #include <i4b/include/i4b_global.h>
 

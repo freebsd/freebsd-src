@@ -20,7 +20,6 @@
 #include <sys/disk.h>
 #include <sys/devicestat.h>
 #include <sys/module.h>
-#include <machine/clock.h>
 #include <machine/resource.h>
 
 #include <vm/vm.h>

@@ -52,7 +52,6 @@
 #include <sys/systm.h>
 #include <sys/mbuf.h>
 
-#include <machine/clock.h>      /* for DELAY */
 #include <machine/bus_pio.h> /* this device uses port accesses only */
 #include <machine/bus.h>
 #include <machine/resource.h>

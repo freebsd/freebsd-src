@@ -44,7 +44,6 @@
 #include <sys/domain.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
-#include <machine/clock.h>
 #include <net/if.h>
 #include <netatm/port.h>
 #include <netatm/queue.h>

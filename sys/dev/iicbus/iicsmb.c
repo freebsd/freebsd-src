@@ -52,7 +52,6 @@
 #include <sys/bus.h>
 #include <sys/uio.h>
 
-#include <machine/clock.h>
 
 #include <dev/iicbus/iiconf.h>
 #include <dev/iicbus/iicbus.h>
