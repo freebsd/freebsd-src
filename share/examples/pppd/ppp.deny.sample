@@ -18,6 +18,7 @@ smmsp
 mailnull
 bind
 proxy
+_pflogd
 ftp
 uucp
 pop
