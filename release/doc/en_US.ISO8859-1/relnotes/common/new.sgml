@@ -143,6 +143,12 @@
       and VLAN tag insertion/stripping are supported, as well as
       interrupt moderation.</para>
 
+      <para>The &man.de.4; driver now performs round-robin arbitration
+      between transmit and receive unit of the 21143, instead of
+      giving priority to the receive unit.  This gives a 10&ndash;15%
+      performance improvement in the forwarding rate under heavy
+      load.</para>
+
       <para>The dgm driver has been updated from &os; -CURRENT.</para>
 
       <para>The &man.xl.4; driver now supports send- and receive-side TCP/IP
