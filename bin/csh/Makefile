@@ -73,7 +73,7 @@ NLSSRCFILES_${catalog:C/.*://}!= cd ${NLSSRCDIR_${catalog:C/.*://}}; echo set[0-
 .endfor
 
 csh.1: tcsh.man
-	ln -sf ${.ALLSRC} ${.TARGET}
+	cat ${.ALLSRC} > ${.TARGET}
 
 build-tools: gethost
 

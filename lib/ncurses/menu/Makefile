@@ -42,7 +42,7 @@ MANx=	menu.3x menu_attributes.3x menu_cursor.3x \
 CLEANFILES+=${page:T:S/x$//g}
 MAN+=${page:T:S/x$//g}
 ${page:T:S/x$//g}: ${page}
-	ln -s ${.ALLSRC} ${.TARGET}
+	cat ${.ALLSRC} > ${.TARGET}
 .endfor
 
 MLINKS+=menu_attributes.3 menu_back.3 menu_attributes.3 menu_fore.3 \
