@@ -491,7 +491,7 @@ ngfrm_rmnode(node_p node)
 	ng_unname(node);
 	node->private = NULL;
 	FREE(sc, M_NETGRAPH);
-	ng_unref(sc->node);
+	ng_unref(node);
 	return (0);
 }
 
