@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)from: inetd.c	8.4 (Berkeley) 4/13/94";
 #endif
 static const char rcsid[] =
-	"$Id: inetd.c,v 1.38 1998/07/24 08:28:33 ache Exp $";
+	"$Id: inetd.c,v 1.39 1998/08/17 06:16:59 jb Exp $";
 #endif /* not lint */
 
 /*
@@ -1747,7 +1747,7 @@ print_service(action, sep)
 #ifdef LOGIN_CAP
 	    sep->se_class,
 #endif
-	    sep->se_bi, sep->se_server);
+	    (void *) sep->se_bi, sep->se_server);
 }
 
 /*
