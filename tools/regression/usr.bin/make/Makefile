@@ -44,6 +44,9 @@ all:
 	@echo "Running test arith_expr"
 	@${MAKE} arith_expr || ${MAKE} failure
 	@echo "PASS: Test arith_expr detected no regression."
+	@echo "Running test PATH_exists"
+	@${MAKE} PATH_exists || ${MAKE} failure
+	@echo "PASS: Test PATH_exists detected no regression."
 
 .if make(double)
 # Doubly-defined targets.  make(1) will warn, but use the "right" one.  If it
@@ -99,6 +102,14 @@ arith_expr:
 # The different spacing below is intentional.
 VALUE=	0
 .if (${VALUE} < 0)||(${VALUE}>0)
+.endif
+.endif
+
+.if make(PATH_exists)
+PATH_exists:
+.PATH: ${.CURDIR}
+.if !exists(${.CURDIR}/) || !exists(${.CURDIR}/.) || !exists(${.CURDIR}/..)
+.error exists() failed
 .endif
 .endif
 
