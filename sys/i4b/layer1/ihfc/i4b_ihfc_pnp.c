@@ -138,7 +138,7 @@ DRIVER_MODULE(ihfcpnp, isa, ihfc_pnp_driver, ihfc_devclass, 0, 0);
 /*---------------------------------------------------------------------------*
  *      probe for ISA "PnP" card
  *---------------------------------------------------------------------------*/
-int
+static int
 ihfc_pnp_probe(device_t dev)
 {
 	u_int 	       unit = device_get_unit(dev);	/* get unit	  */
@@ -237,7 +237,7 @@ ihfc_pnp_probe(device_t dev)
 /*---------------------------------------------------------------------------*
  *      probe for "ISA" cards
  *---------------------------------------------------------------------------*/
-int
+static int
 ihfc_isa_probe(device_t dev)
 {
 	u_int 	        unit = device_get_unit(dev);	/* get unit	  */
@@ -329,7 +329,7 @@ ihfc_isa_probe(device_t dev)
 /*---------------------------------------------------------------------------*
  *      attach ISA "PnP" card
  *---------------------------------------------------------------------------*/
-int
+static int
 ihfc_pnp_attach(device_t dev)
 {
 	u_int	   unit = device_get_unit(dev);		/* get unit	*/
@@ -357,7 +357,7 @@ ihfc_pnp_attach(device_t dev)
 /*---------------------------------------------------------------------------*
  *      shutdown for our ISA PnP card
  *---------------------------------------------------------------------------*/
-int
+static int
 ihfc_pnp_shutdown(device_t dev)
 {
 	u_int	   unit = device_get_unit(dev);		/* get unit	*/
@@ -387,7 +387,7 @@ ihfc_pnp_shutdown(device_t dev)
  *
  *	flag:	bit[0] set: teardown interrupt handler too
  *---------------------------------------------------------------------------*/
-int
+static int
 ihfc_pnp_detach (device_t dev, u_int flag)
 {
 	u_int	   unit = device_get_unit(dev);		/* get unit	*/

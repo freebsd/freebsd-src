@@ -382,7 +382,7 @@ i4b_l1_mph_command_req(int unit, int command, void * parm)
 /*---------------------------------------------------------------------------*
  *	L2 -> L1 data to be transmitted to hardware
  *---------------------------------------------------------------------------*/
-int
+static int
 i4b_l1_ph_data_req(int unit, struct mbuf *data, int flag)
 {
 	register int drv_unit = L0DRVR(l1drvunittab[unit]);
@@ -402,7 +402,7 @@ i4b_l1_ph_data_req(int unit, struct mbuf *data, int flag)
 /*---------------------------------------------------------------------------*
  *	L2 -> L1 activate request to hardware
  *---------------------------------------------------------------------------*/
-int
+static int
 i4b_l1_ph_activate_req(int unit)
 {
 	register int drv_unit = L0DRVR(l1drvunittab[unit]);
