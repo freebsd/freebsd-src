@@ -41,9 +41,12 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/sysctl.h>
 #include <sys/proc.h>
+#include <sys/mount.h>
 #include <sys/vnode.h>
 #include <sys/malloc.h>
+
 #include <miscfs/procfs/procfs.h>
 
 static struct pfsnode *pfshead;
@@ -159,6 +162,12 @@ loop:
 		break;
 
 	case Pfile:
+		pfs->pfs_mode = (VREAD|VEXEC) |
+				(VREAD|VEXEC) >> 3 |
+				(VREAD|VEXEC) >> 6;
+		vp->v_type = VLNK;
+		break;
+
 	case Pmem:
 		pfs->pfs_mode = (VREAD|VWRITE) |
 				(VREAD) >> 3;;
