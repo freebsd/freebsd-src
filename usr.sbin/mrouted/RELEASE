@@ -1,21 +1,188 @@
-Id: README-3.8.mrouted,v 3.8 1995/11/29 22:23:02 fenner Rel
+README-3.9-beta3.mrouted,v 1.1.2.1 1998/03/01 03:00:20 fenner Exp
 
 	IP Multicast Extensions for BSD-Derived Unix Systems
+	Multicast Routing Daemon
 
-	Release 3.8
-	November 29, 1995
+	Release 3.9-beta3
+	February 28, 1998
 
 	available from parcftp.xerox.com,
-	file pub/net-research/ipmulti/mrouted3.8.tar.Z
-	binaries pub/net-research/ipmulti/mrouted3.8-sparc-sunos41x.tar.Z
-	         pub/net-research/ipmulti/mrouted3.8-sparc-solaris2.tar.Z
-	         pub/net-research/ipmulti/mrouted3.8-i386-bsd.tar.Z
-	         pub/net-research/ipmulti/mrouted3.8-alpha-osf1.tar.Z
-	         pub/net-research/ipmulti/mrouted3.8-sgi-irix.tar.Z
-	         pub/net-research/ipmulti/mrouted3.8-hp-hpux.tar.Z
+	file pub/net-research/ipmulti/beta-test/mrouted3.9-beta3.tar.Z
+	binaries:
+	pub/net-research/ipmulti/beta-test/mrouted3.9-beta3-sparc-sunos41x.tar.Z
+	pub/net-research/ipmulti/beta-test/mrouted3.9-beta3-sparc-solaris2.tar.Z
+	pub/net-research/ipmulti/beta-test/mrouted3.9-beta3-i386-freebsd22.tar.Z
+	pub/net-research/ipmulti/beta-test/mrouted3.9-beta3-alpha-osf1.tar.Z
+	pub/net-research/ipmulti/beta-test/mrouted3.9-beta3-sgi-irix6.tar.Z
 
-Note: The 3.8 release is mrouted-only, and will run on top of a 3.5 kernel.
-It is a drop-in replacement for mrouted 3.5, 3.6 or 3.7 .
+Note: The 3.9 release is mrouted-only, and will run on top of a 3.5 kernel.
+It is a drop-in replacement for mrouted 3.5, 3.6, 3.7 or 3.8.
+
+NOTE WELL: This is a beta-test release of mrouted.  The basic
+functionality has been extensively tested in CAIRN and other
+testbeds, but it is expected to have bugs.  Please report bugs to Bill
+Fenner <fenner@parc.xerox.com>.
+
+
+The 3.9-beta3 release fixes the following bugs:
+  o There was a bug handling routing updates which caused random black
+    holes.
+
+  o There was a race condition in the timer handlers causing free'd memory
+    to sometimes get touched.
+
+  o "allow_nonpruners" wasn't allowed in the configuration file (and almost
+    nobody noticed! - probably a good sign)
+
+  o When a prune times out and the source has been active "recently",
+    mrouted now waits for further traffic instead of triggering a new
+    prune.
+
+  o mrouted now ignores unreachable routes when making a routing decision
+    (previously it would blackhole, now it can find a less-specific)
+
+The 3.9-beta3 release has the following new features:
+  o A "blaster" keyword for mrouted.conf, to turn on handling of routers
+    (mostly ciscos) which overwhelm the socket buffers by blasting the
+    whole routing table at once.
+
+  o A "notransit" keyword; routes learned on a "notransit" vif will not be
+    readvertised onto another "notransit" vif.
+
+  o The 500kbps default rate limit on tunnels has been removed.
+
+  o An ICMP listener which logs ICMP errors which appear to be in response to
+    tunnel packets that we sent.
+
+  o A tunnel traffic encapsulator, which encapsulates control traffic
+    inside the tunnel instead of unicasting it "beside" the tunnel.
+    This is turned off by default; use "beside off" to turn it on.
+
+  o A "force_leaf" flag to ignore any potential neighbors on a given interface.
+
+
+=========
+3.9-beta2
+June 11, 1997
+
+The 3.9-beta2 release fixes the following bugs:
+  o There was a bug in 3.9-beta1's raw socket buffer processing that
+    would cause an immediate lockup on startup on some systems.
+
+  o RSRR would not clear out the group membership information if
+    further notification of changes to this route entry was not possible.
+
+There is no need to upgrade to 3.9-beta2 if you are not experiencing
+one of the aforementioned bugs.
+
+=========
+3.9-beta1
+June 6, 1997
+
+The 3.9-beta1 release has the following known bugs:
+
+  o The startup message doesn't print properly if you have too many
+    interfaces.
+
+The 3.9-beta1 release fixes the following bugs:
+
+  o mrouted did not properly keep track of subordinates, and would not
+    time out subordinateness.  This caused 2 major problems:
+    1. pruning did not happen when there were equal-cost paths to
+       the same multi-access link
+    2. subordinateness which did not get cancelled by a non-poisoned
+       route (e.g. in the face of route filtering) did not time out,
+       causing traffic to continue to flow.
+
+  o mrouted's IGMPv2 processing when it is not the querier now
+    conforms to draft-ietf-idmr-igmp-v2-06.txt Thanks to Lorenzo
+    VICISANO <L.Vicisano@cs.ucl.ac.uk> for finding a problem.
+
+  o mrouted is much more careful about forgetting prunes; 3.8
+    would forget prunes whenever any route change ocurred.
+
+The 3.9-beta1 release has the following new features:
+
+  o Longer prune lifetimes (2 hours) by default.  Prune lifetimes may
+    be configured per-vif, with the "prune_lifetime N" mrouted.conf
+    configuration file entry (where N is in seconds).  This helps to
+    work around the black holes caused on restart when you have a Cisco
+    upstream which does not handle genid's; if this is your situation
+    the recommended value is 300.
+
+  o mrouted's behavior of flooding new routes by default at startup
+    in order to speed healing of paths during startup can be turned off
+    per-vif or globally with the "noflood" configuration option.
+    Turning this option off means you are likely to experience
+    black holes for a minute or two when you restart a router.  The
+    default is to flood for a minute or two until mrouted is able to
+    learn subordinate relationships.
+
+  o mrouted now retransmits prunes by default on point-to-point links.
+    prune retransmission can be turned on or off per vif via the
+    "rexmit_prunes [on|off]" mrouted.conf command.  Prune retransmission
+    helps on lossy links, and also helps when a router has forgotten
+    about a prune (e.g. if it is out of memory and needs to shed state,
+    or due to a bug).
+
+  o The new "passive" mode causes mrouted to not actively send probes
+    looking for neighbors.  This allows a dialup link to become quiescent
+    if there is no DVMRP neighbor on the other end.  Configuring
+    "passive" on both ends of a link will cause it to never come up.
+
+  o mrouted defaults to not peering with DVMRP routers that do not
+    prune.  Use the "allow_nonpruners" mrouted.conf option on a vif
+    on which you want to allow such peerings.
+
+  o mrouted now allows route filtering.  mrouted.conf syntax:
+	accept 13/8
+
+	accepts all routes matching 13/8 (e.g. accepts
+	13.2.116/22).  If you want to accept only exactly
+	13/8, use
+
+	accept 13/8 exact
+
+	deny 10/8 64/2 130/8 exact 172/8 exact
+
+	denies some common MBone martians
+
+      Only "accept" or "deny" is allowed, no combinations.
+
+      Add "bidir" to apply the filter to output too, otherwise
+      it's input only.
+
+    Expected usage:
+    - Providers filter routes that customers send them
+    - Martian removal
+    - Topology modification (e.g. don't let the existence of
+    private tunnel foo out into the world).
+
+
+  o mrouted now malloc's the buffer it uses for SIOCGIFCONF, to allow
+    for more interfaces.  Thanks to Danny Mitzel
+
+  o mrouted now ignores multiple entries for a single interface
+    name (temporary hack until mrouted understands interface aliases)
+
+  o mrouted's "-d" flag has been modified to accept the names of the
+    systems which you would like to debug.
+    packet, prunes, routes, peers, cache, timeout, interface,
+    membership, traceroute, igmp
+
+  o mrouted now times neighbors out fater, and fully detects and
+    ignores routes from one-way peerings.
+
+  o mrouted's route processing has been sped up, especially at startup.
+
+  o mrouted uses the biggest SO_RCVBUF the operating system allows
+    (up to 256Kbytes)
+
+  o mrouted uses TOS 0xc0 ("Internet Control") for DVMRP messages.
+
+===========
+Release 3.8
+November 29, 1995
 
 The 3.8 release fixes the following bugs:
 

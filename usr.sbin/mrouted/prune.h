@@ -7,7 +7,8 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id$
+ * $Id: prune.h,v 1.8 1997/02/22 16:07:04 peter Exp $
+ * prune.h,v 3.8.4.5 1998/02/27 22:45:43 fenner Exp
  */
 
 /*
@@ -32,11 +33,14 @@ struct gtable {
     vifbitmap_t	    gt_grpmems;		/* forw. vifs for src, grp          */
     int		    gt_prsent_timer;	/* prune timer for this group	    */
     int  	    gt_timer;		/* timer for this group entry	    */
-    time_t 	    gt_ctime;		/* time of entry creation         */
+    time_t 	    gt_ctime;		/* time of entry creation	    */
     u_char	    gt_grftsnt;		/* graft sent/retransmit timer	    */
+    nbrbitmap_t	    gt_prunes;		/* bitmap of neighbors who pruned   */
     struct stable  *gt_srctbl;		/* source table			    */
     struct ptable  *gt_pruntbl;		/* prune table			    */
     struct rtentry *gt_route;		/* parent route			    */
+    int		    gt_rexmit_timer;	/* timer for prune retransmission   */
+    int		    gt_prune_rexmit;	/* time til prune retransmission    */
 #ifdef RSRR
     struct rsrr_cache *gt_rsrr_cache;	/* RSRR cache                       */
 #endif /* RSRR */
@@ -52,6 +56,8 @@ struct stable
     struct stable  *st_next;       	/* pointer to the next entry        */
     u_int32	    st_origin;		/* host origin of multicasts        */
     u_long	    st_pktcnt;		/* packet count for src-grp entry   */
+    u_long	    st_savpkt;		/* saved pkt cnt when no krnl entry */
+    time_t	    st_ctime;		/* kernel entry creation time	    */
 };
 
 /*
@@ -62,8 +68,11 @@ struct ptable
     struct ptable  *pt_next;		/* pointer to the next entry	    */
     u_int32	    pt_router;		/* router that sent this prune	    */
     vifi_t	    pt_vifi;		/* vif prune received on	    */
+    int		    pt_index;		/* neighbor index of router	    */
     int		    pt_timer;		/* timer for prune		    */
 };
+
+#define MIN_PRUNE_LIFE	TIMER_INTERVAL	/* min prune lifetime to bother with */
 
 /*
  * The packet format for a traceroute request.
@@ -137,7 +146,7 @@ struct tr_resp {
 			};
 
 #define VAL_TO_MASK(x, i) { \
-			x = htonl(~((1 << (32 - (i))) - 1)); \
+			x = i ? htonl(~((1 << (32 - (i))) - 1)) : 0; \
 			};
 
 #define NBR_VERS(n)	(((n)->al_pv << 8) + (n)->al_mv)
