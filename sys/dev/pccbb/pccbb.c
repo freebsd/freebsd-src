@@ -1782,13 +1782,6 @@ cbb_pcic_alloc_resource(device_t brdev, device_t child, int type, int *rid,
 		if (align > (1 << RF_ALIGNMENT(flags)))
 			flags = (flags & ~RF_ALIGNMENT_MASK) | 
 			    rman_make_alignment_flags(align);
-		if (count < CBB_MEMALIGN)
-			align = CBB_MEMALIGN;
-		else
-			align = count;
-		if (align > (1 << RF_ALIGNMENT(flags)))
-			flags = (flags & ~RF_ALIGNMENT_MASK) | 
-			    rman_make_alignment_flags(align);
 		break;
 	case SYS_RES_IOPORT:
 		if (start < cbb_start_16_io)
