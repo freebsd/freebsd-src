@@ -14,10 +14,12 @@ you didn't get a copy, you may request one from <license@inner.net>.
 #include "opie_cfg.h"
 #include "opie.h"
 
+#include <md4.h>
+#include <md5.h>
+
 VOIDRET opiehashlen FUNCTION((algorithm, in, out, n), int algorithm AND VOIDPTR in AND VOIDPTR out AND int n)
 {
   UINT4 *results = (UINT4 *)out;
-  struct opiemdx_ctx mdx;
   UINT4 mdx_tmp[4];
 #if 0
   SHA_INFO sha;
@@ -33,19 +35,23 @@ VOIDRET opiehashlen FUNCTION((algorithm, in, out, n), int algorithm AND VOIDPTR 
       results[1] = sha.digest[1] ^ sha.digest[3] ^ sha.digest[5];
       break;
 #endif /* 0 */
-    case 4:
-      opiemd4init(&mdx);
-      opiemd4update(&mdx, (unsigned char *)in, n);
-      opiemd4final((unsigned char *)mdx_tmp, &mdx);
+    case 4: {
+      MD4_CTX mdx;
+      MD4Init(&mdx);
+      MD4Update(&mdx, (unsigned char *)in, n);
+      MD4Final((unsigned char *)mdx_tmp, &mdx);
       results[0] = mdx_tmp[0] ^ mdx_tmp[2];
       results[1] = mdx_tmp[1] ^ mdx_tmp[3];
       break;
-    case 5:
-      opiemd5init(&mdx);
-      opiemd5update(&mdx, (unsigned char *)in, n);
-      opiemd5final((unsigned char *)mdx_tmp, &mdx);
+    }
+    case 5: {
+      MD5_CTX mdx;
+      MD5Init(&mdx);
+      MD5Update(&mdx, (unsigned char *)in, n);
+      MD5Final((unsigned char *)mdx_tmp, &mdx);
       results[0] = mdx_tmp[0] ^ mdx_tmp[2];
       results[1] = mdx_tmp[1] ^ mdx_tmp[3];
       break;
+    }
   }
 }
