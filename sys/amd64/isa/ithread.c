@@ -327,7 +327,10 @@ intr_soft(void *dummy)
 			atomic_add_long(intr_countp[i], 1);
 			spending &= ~ (1 << i);
 			mtx_enter(&Giant, MTX_DEF);
-			(ihandlers[i])();
+			if (ihandlers[i] == swi_generic)
+				swi_dispatcher(i);
+			else
+				(ihandlers[i])();
 			mtx_exit(&Giant, MTX_DEF);
 		}
 		/*
