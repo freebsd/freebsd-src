@@ -61,23 +61,23 @@ static volatile int aps_ready = 0;
 
 static struct mtx ap_boot_mtx;
 
-u_int boot_cpu_id;
+u_int64_t boot_cpu_id;
 
 static void	release_aps(void *dummy);
 static int	smp_cpu_enabled(struct pcs *pcsp);
 extern void	smp_init_secondary_glue(void);
-static int	smp_send_secondary_command(const char *command, int cpuid);
-static int	smp_start_secondary(int cpuid);
+static int	smp_send_secondary_command(const char *command, int pal_id);
+static int	smp_start_secondary(int pal_id, int cpuid);
 
 /*
  * Communicate with a console running on a secondary processor.
  * Return 1 on failure.
  */
 static int
-smp_send_secondary_command(const char *command, int cpuid)
+smp_send_secondary_command(const char *command, int pal_id)
 {
-	u_int64_t mask = 1L << cpuid;
-	struct pcs *cpu = LOCATE_PCS(hwrpb, cpuid);
+	u_int64_t mask = 1L << pal_id;
+	struct pcs *cpu = LOCATE_PCS(hwrpb, pal_id);
 	int i, len;
 
 	/*
@@ -165,7 +165,7 @@ smp_init_secondary(void)
 	/*
 	 * Set flags in our per-CPU slot in the HWRPB.
 	 */
-	cpu = LOCATE_PCS(hwrpb, PCPU_GET(cpuid));
+	cpu = LOCATE_PCS(hwrpb, PCPU_GET(pal_id));
 	cpu->pcs_flags &= ~PCS_BIP;
 	cpu->pcs_flags |= PCS_RC;
 	alpha_mb();
@@ -216,9 +216,9 @@ smp_init_secondary(void)
 }
 
 static int
-smp_start_secondary(int cpuid)
+smp_start_secondary(int pal_id, int cpuid)
 {
-	struct pcs *cpu = LOCATE_PCS(hwrpb, cpuid);
+	struct pcs *cpu = LOCATE_PCS(hwrpb, pal_id);
 	struct pcs *bootcpu = LOCATE_PCS(hwrpb, boot_cpu_id);
 	struct alpha_pcb *pcb = (struct alpha_pcb *) cpu->pcs_hwpcb;
 	struct pcpu *pcpu;
@@ -226,12 +226,12 @@ smp_start_secondary(int cpuid)
 	size_t sz;
 
 	if ((cpu->pcs_flags & PCS_PV) == 0) {
-		printf("smp_start_secondary: cpu %d PALcode invalid\n", cpuid);
+		printf("smp_start_secondary: cpu %d PALcode invalid\n", pal_id);
 		return 0;
 	}
 
 	if (bootverbose)
-		printf("smp_start_secondary: starting cpu %d\n", cpuid);
+		printf("smp_start_secondary: starting cpu %d\n", pal_id);
 
 	sz = round_page((UAREA_PAGES + KSTACK_PAGES) * PAGE_SIZE);
 	pcpu = malloc(sz, M_TEMP, M_NOWAIT);
@@ -241,6 +241,7 @@ smp_start_secondary(int cpuid)
 	}
 	
 	pcpu_init(pcpu, cpuid, sz);
+	pcpu->pc_pal_id = pal_id;
 
 	/*
 	 * Copy the idle pcb and setup the address to start executing.
@@ -270,7 +271,7 @@ smp_start_secondary(int cpuid)
 	/*
 	 * Fire it up and hope for the best.
 	 */
-	if (!smp_send_secondary_command("START\r\n", cpuid)) {
+	if (!smp_send_secondary_command("START\r\n", pal_id)) {
 		printf("smp_start_secondary: can't send START command\n");
 		pcpu_destroy(pcpu);
 		free(pcpu, M_TEMP);
@@ -296,7 +297,7 @@ smp_start_secondary(int cpuid)
 	 * It worked (I think).
 	 */
 	if (bootverbose)
-		printf("smp_start_secondary: cpu %d started\n", cpuid);
+		printf("smp_start_secondary: cpu %d started\n", pal_id);
 	return 1;
 }
 
@@ -329,16 +330,18 @@ smp_cpu_enabled(struct pcs *pcsp)
 void
 cpu_mp_setmaxid(void)
 {
-	int i;
+	u_int64_t i;
 
 	mp_maxid = 0;
-	for (i = 0; i < hwrpb->rpb_pcs_cnt && i < MAXCPU; i++) {
-		if (i == PCPU_GET(cpuid))
+	for (i = 0; i < hwrpb->rpb_pcs_cnt; i++) {
+		if (i == PCPU_GET(pal_id))
 			continue;
 		if (!smp_cpu_enabled(LOCATE_PCS(hwrpb, i)))
 			continue;
-		mp_maxid = i;
+		mp_maxid++;
 	}
+	if (mp_maxid > MAXCPU)
+		mp_maxid = MAXCPU;
 }
 
 int
@@ -348,7 +351,7 @@ cpu_mp_probe(void)
 
 	/* XXX: Need to check for valid platforms here. */
 
-	boot_cpu_id = PCPU_GET(cpuid);
+	boot_cpu_id = PCPU_GET(pal_id);
 	KASSERT(boot_cpu_id == hwrpb->rpb_primary_cpu_id,
 	    ("cpu_mp_probe() called on non-primary CPU"));
 	all_cpus = PCPU_GET(cpumask);
@@ -358,11 +361,9 @@ cpu_mp_probe(void)
 	/* Make sure we have at least one secondary CPU. */
 	cpus = 0;
 	for (i = 0; i < hwrpb->rpb_pcs_cnt; i++) {
-		if (i == PCPU_GET(cpuid))
+		if (i == PCPU_GET(pal_id))
 			continue;
 		if (!smp_cpu_enabled(LOCATE_PCS(hwrpb, i)))
-			continue;
-		if (i > MAXCPU)
 			continue;
 		cpus++;
 	}
@@ -372,10 +373,11 @@ cpu_mp_probe(void)
 void
 cpu_mp_start(void)
 {
-	int i;
+	int i, cpuid;
 
 	mtx_init(&ap_boot_mtx, "ap boot", NULL, MTX_SPIN);
 
+	cpuid = 1;
 	for (i = 0; i < hwrpb->rpb_pcs_cnt; i++) {
 		struct pcs *pcsp;
 
@@ -410,22 +412,30 @@ cpu_mp_start(void)
 			printf("CPU %d disabled by loader.\n", i);
 			continue;
 		}
-		all_cpus |= (1 << i);
-		mp_ncpus++;
+		if (smp_start_secondary(i, cpuid)) {
+			all_cpus |= (1 << cpuid);
+			mp_ncpus++;
+			cpuid++;
+		}
 	}
 	PCPU_SET(other_cpus, all_cpus & ~PCPU_GET(cpumask));
-
-	for (i = 0; i < hwrpb->rpb_pcs_cnt; i++) {
-		if (i == boot_cpu_id)
-			continue;
-		if (!CPU_ABSENT(i))
-			smp_start_secondary(i);
-	}
 }
 
 void
 cpu_mp_announce(void)
 {
+	struct pcpu *pc;
+	int i;
+	
+	/* List CPUs */
+	printf(" cpu0 (BSP): PAL ID: %2lu\n", boot_cpu_id);
+	for (i = 1; i < MAXCPU; i++) {
+		if (CPU_ABSENT(i))
+			continue;
+		pc = pcpu_find(i);
+		MPASS(pc != NULL);
+		printf(" cpu%d (AP): PAL ID: %2lu\n", i, pc->pc_pal_id);
+	}
 }
 
 /*
@@ -446,8 +456,9 @@ ipi_selected(u_int32_t cpus, u_int64_t ipi)
 		if (pcpu) {
 			atomic_set_64(&pcpu->pc_pending_ipis, ipi);
 			alpha_mb();
-			CTR1(KTR_SMP, "calling alpha_pal_wripir(%d)", cpuid);
-			alpha_pal_wripir(cpuid);
+			CTR1(KTR_SMP, "calling alpha_pal_wripir(%d)",
+			    pcpu->pc_pal_id);
+			alpha_pal_wripir(pcpu->pc_pal_id);
 		}
 	}
 }
@@ -529,8 +540,8 @@ smp_handle_ipi(struct trapframe *frame)
 	 * requests to provide PALcode to secondaries and to start up new
 	 * secondaries that are added to the system on the fly.
 	 */
-	if (PCPU_GET(cpuid) == boot_cpu_id) {
-		u_int cpuid;
+	if (PCPU_GET(pal_id) == boot_cpu_id) {
+		u_int pal_id;
 		u_int64_t txrdy;
 #ifdef DIAGNOSTIC
 		struct pcs *cpu;
@@ -539,18 +550,18 @@ smp_handle_ipi(struct trapframe *frame)
 
 		alpha_mb();
 		while (hwrpb->rpb_txrdy != 0) {
-			cpuid = ffs(hwrpb->rpb_txrdy) - 1;
+			pal_id = ffs(hwrpb->rpb_txrdy) - 1;
 #ifdef DIAGNOSTIC
-			cpu = LOCATE_PCS(hwrpb, cpuid);
+			cpu = LOCATE_PCS(hwrpb, pal_id);
 			bcopy(&cpu->pcs_buffer.txbuf, buf,
 			    cpu->pcs_buffer.txlen);
 			buf[cpu->pcs_buffer.txlen] = '\0';
-			printf("SMP From CPU%d: %s\n", cpuid, buf);
+			printf("SMP From CPU%d: %s\n", pal_id, buf);
 #endif
 			do {
 				txrdy = hwrpb->rpb_txrdy;
 			} while (atomic_cmpset_64(&hwrpb->rpb_txrdy, txrdy,
-			    txrdy & ~(1 << cpuid)) == 0);
+			    txrdy & ~(1 << pal_id)) == 0);
 		}
 	}
 }
