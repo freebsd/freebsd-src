@@ -398,7 +398,9 @@ in this file.
 #ifdef SYS_FREEBSD
 #define HAVE_TERMIOS
 #define HAVE_UNAME
+#define HAVE_SYS_TIMEX_H
 #define NTP_SYSCALLS_LIBC
+#define KERNEL_PLL
 #endif
 
 /*
