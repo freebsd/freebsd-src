@@ -1476,6 +1476,12 @@ int * const		okayp;
 	*/
 	bits = TYPE_BIT(time_t) - 1;
 	/*
+	** If we have more than this, we will overflow tm_year for tmcomp().
+	** We should really return an error if we cannot represent it.
+	*/
+	if (bits > 56)
+		bits = 56;
+	/*
 	** If time_t is signed, then 0 is just above the median,
 	** assuming two's complement arithmetic.
 	** If time_t is unsigned, then (1 << bits) is just above the median.
