@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_prf.c	8.3 (Berkeley) 1/21/94
- * $Id: subr_prf.c,v 1.53 1999/06/06 02:41:55 archie Exp $
+ * $Id: subr_prf.c,v 1.54 1999/06/07 18:26:26 archie Exp $
  */
 
 #include <sys/param.h>
@@ -80,6 +80,7 @@ static void  logpri __P((int level));
 static void  msglogchar(int c, void *dummyarg);
 static void  putchar __P((int ch, void *arg));
 static char *ksprintn __P((char *nbuf, u_long num, int base, int *len));
+static char *ksprintqn __P((char *nbuf, u_quad_t num, int base, int *len));
 static void  snprintf_func __P((int ch, void *arg));
 
 static int consintr = 1;		/* Ok to handle console interrupts? */
@@ -408,6 +409,24 @@ ksprintn(nbuf, ul, base, lenp)
 		*lenp = p - nbuf;
 	return (p);
 }
+/* ksprintn, but for a quad_t */
+static char *
+ksprintqn(nbuf, uq, base, lenp)
+	char *nbuf;
+	register u_quad_t uq;
+	register int base, *lenp;
+{
+	register char *p;
+
+	p = nbuf;
+	*p = '\0';
+	do {
+		*++p = hex2ascii(uq % base);
+	} while (uq /= base);
+	if (lenp)
+		*lenp = p - nbuf;
+	return (p);
+}
 
 /*
  * Scaled down version of printf(3).
@@ -444,11 +463,14 @@ kvprintf(char const *fmt, void (*func)(int, void*), void *arg, int radix, va_lis
 	u_char *up;
 	int ch, n;
 	u_long ul;
-	int base, lflag, tmp, width, ladjust, sharpflag, neg, sign, dot;
+	u_quad_t uq;
+	int base, lflag, qflag, tmp, width, ladjust, sharpflag, neg, sign, dot;
 	int dwidth;
 	char padc;
 	int retval = 0;
 
+	ul = 0;
+	uq = 0;
 	if (!func)
 		d = (char *) arg;
 	else
@@ -468,7 +490,7 @@ kvprintf(char const *fmt, void (*func)(int, void*), void *arg, int radix, va_lis
 				return retval;
 			PCHAR(ch);
 		}
-		lflag = 0; ladjust = 0; sharpflag = 0; neg = 0;
+		qflag = 0; lflag = 0; ladjust = 0; sharpflag = 0; neg = 0;
 		sign = 0; dot = 0; dwidth = 0;
 reswitch:	switch (ch = (u_char)*fmt++) {
 		case '.':
@@ -556,7 +578,12 @@ reswitch:	switch (ch = (u_char)*fmt++) {
 			}
 			break;
 		case 'd':
-			ul = lflag ? va_arg(ap, long) : va_arg(ap, int);
+			if (qflag)
+				uq = va_arg(ap, quad_t);
+			else if (lflag)
+				ul = va_arg(ap, long);
+			else
+				ul = va_arg(ap, int);
 			sign = 1;
 			base = 10;
 			goto number;
@@ -564,7 +591,12 @@ reswitch:	switch (ch = (u_char)*fmt++) {
 			lflag = 1;
 			goto reswitch;
 		case 'o':
-			ul = lflag ? va_arg(ap, u_long) : va_arg(ap, u_int);
+			if (qflag)
+				uq = va_arg(ap, u_quad_t);
+			else if (lflag)
+				ul = va_arg(ap, u_long);
+			else
+				ul = va_arg(ap, u_int);
 			base = 8;
 			goto nosign;
 		case 'p':
@@ -572,10 +604,18 @@ reswitch:	switch (ch = (u_char)*fmt++) {
 			base = 16;
 			sharpflag = (width == 0);
 			goto nosign;
+		case 'q':
+			qflag = 1;
+			goto reswitch;
 		case 'n':
 		case 'r':
-			ul = lflag ? va_arg(ap, u_long) :
-			    sign ? (u_long)va_arg(ap, int) : va_arg(ap, u_int);
+			if (qflag)
+				uq = va_arg(ap, u_quad_t);
+			else if (lflag)
+				ul = va_arg(ap, u_long);
+			else
+				ul = sign ?
+				    (u_long)va_arg(ap, int) : va_arg(ap, u_int);
 			base = radix;
 			goto number;
 		case 's':
@@ -600,25 +640,49 @@ reswitch:	switch (ch = (u_char)*fmt++) {
 					PCHAR(padc);
 			break;
 		case 'u':
-			ul = lflag ? va_arg(ap, u_long) : va_arg(ap, u_int);
+			if (qflag)
+				uq = va_arg(ap, u_quad_t);
+			else if (lflag)
+				ul = va_arg(ap, u_long);
+			else
+				ul = va_arg(ap, u_int);
 			base = 10;
 			goto nosign;
 		case 'x':
-			ul = lflag ? va_arg(ap, u_long) : va_arg(ap, u_int);
+			if (qflag)
+				uq = va_arg(ap, u_quad_t);
+			else if (lflag)
+				ul = va_arg(ap, u_long);
+			else
+				ul = va_arg(ap, u_int);
 			base = 16;
 			goto nosign;
 		case 'z':
-			ul = lflag ? va_arg(ap, u_long) :
-			    sign ? (u_long)va_arg(ap, int) : va_arg(ap, u_int);
+			if (qflag)
+				uq = va_arg(ap, u_quad_t);
+			else if (lflag)
+				ul = va_arg(ap, u_long);
+			else
+				ul = sign ?
+				    (u_long)va_arg(ap, int) : va_arg(ap, u_int);
 			base = 16;
 			goto number;
 nosign:			sign = 0;
-number:			if (sign && (long)ul < 0L) {
-				neg = 1;
-				ul = -(long)ul;
+number:			
+			if (qflag) {
+				if (sign && (quad_t)uq < 0L) {
+					neg = 1;
+					uq = -(quad_t)uq;
+				}
+				p = ksprintqn(nbuf, uq, base, &tmp);
+			} else {
+				if (sign && (long)ul < 0L) {
+					neg = 1;
+					ul = -(long)ul;
+				}
+				p = ksprintn(nbuf, ul, base, &tmp);
 			}
-			p = ksprintn(nbuf, ul, base, &tmp);
-			if (sharpflag && ul != 0) {
+			if (sharpflag && qflag ? (uq != 0) : (ul != 0)) {
 				if (base == 8)
 					tmp++;
 				else if (base == 16)
@@ -632,7 +696,7 @@ number:			if (sign && (long)ul < 0L) {
 					PCHAR(padc);
 			if (neg)
 				PCHAR('-');
-			if (sharpflag && ul != 0) {
+			if (sharpflag && qflag ? (uq != 0) : (ul != 0)) {
 				if (base == 8) {
 					PCHAR('0');
 				} else if (base == 16) {
