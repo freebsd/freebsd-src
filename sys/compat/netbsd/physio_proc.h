@@ -56,7 +56,7 @@ physio_proc_enter(bp)
 
 	if (bp == NULL || (bp->b_flags & B_PHYS) == 0)
 		return NULL;	
-	if ((pp = physio_proc_freet.tqh_first) == NULL)
+	if ((pp = TAILQ_FIRST(&physio_proc_freet)) == NULL)
 		return NULL;
 
 	s = splstatclock();
