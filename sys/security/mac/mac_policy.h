@@ -241,6 +241,9 @@ struct mac_policy_ops {
 	int	(*mpo_fragment_match)(struct mbuf *fragment,
 		    struct label *fragmentlabel, struct ipq *ipq,
 		    struct label *ipqlabel);
+	void	(*mpo_reflect_mbuf_icmp)(struct mbuf *m,
+		    struct label *mlabel);
+	void	(*mpo_reflect_mbuf_tcp)(struct mbuf *m, struct label *mlabel);
 	void	(*mpo_relabel_ifnet)(struct ucred *cred, struct ifnet *ifnet,
 		    struct label *ifnetlabel, struct label *newlabel);
 	void	(*mpo_update_ipq)(struct mbuf *fragment,

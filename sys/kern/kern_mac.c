@@ -2398,6 +2398,25 @@ mac_fragment_match(struct mbuf *fragment, struct ipq *ipq)
 }
 
 void
+mac_reflect_mbuf_icmp(struct mbuf *m)
+{
+	struct label *label;
+
+	label = mbuf_to_label(m);
+
+	MAC_PERFORM(reflect_mbuf_icmp, m, label);
+}
+void
+mac_reflect_mbuf_tcp(struct mbuf *m)
+{
+	struct label *label;
+
+	label = mbuf_to_label(m);
+
+	MAC_PERFORM(reflect_mbuf_tcp, m, label);
+}
+
+void
 mac_update_ipq(struct mbuf *fragment, struct ipq *ipq)
 {
 	struct label *label;

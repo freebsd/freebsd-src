@@ -210,6 +210,8 @@ void	mac_create_mbuf_multicast_encap(struct mbuf *oldmbuf,
 	    struct ifnet *ifnet, struct mbuf *newmbuf);
 void	mac_create_mbuf_netlayer(struct mbuf *oldmbuf, struct mbuf *newmbuf);
 int	mac_fragment_match(struct mbuf *fragment, struct ipq *ipq);
+void	mac_reflect_mbuf_icmp(struct mbuf *m);
+void	mac_reflect_mbuf_tcp(struct mbuf *m);
 void	mac_update_ipq(struct mbuf *fragment, struct ipq *ipq);
 
 /*
