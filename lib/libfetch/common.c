@@ -406,6 +406,7 @@ _fetch_getln(conn_t *conn)
 	char *tmp;
 	size_t tmpsize;
 	char c;
+	int error;
 
 	if (conn->buf == NULL) {
 		if ((conn->buf = malloc(MIN_BUF_SIZE)) == NULL) {
@@ -419,8 +420,11 @@ _fetch_getln(conn_t *conn)
 	conn->buflen = 0;
 
 	do {
-		if (_fetch_read(conn, &c, 1) == -1)
+		error = _fetch_read(conn, &c, 1);
+		if (error == -1)
 			return (-1);
+		else if (error == 0)
+			break;
 		conn->buf[conn->buflen++] = c;
 		if (conn->buflen == conn->bufsize) {
 			tmp = conn->buf;
