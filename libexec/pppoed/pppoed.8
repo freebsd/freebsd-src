@@ -34,6 +34,7 @@
 .Sh SYNOPSIS
 .Nm pppoed
 .Op Fl Fd
+.Op Fl P Ar pidfile
 .Op Fl a Ar name
 .Op Fl e Ar exec
 .Op Fl p Ar provider
@@ -120,6 +121,12 @@ If the
 flag is given, additional diagnostics are provided (see the
 .Sx DIAGNOSTICS
 section below).
+.Pp
+If
+.Ar pidfile
+is given,
+.Nm
+will write its process ID to this file on startup.
 .Sh DIAGNOSTICS
 After creating the necessary
 .Xr netgraph 4
