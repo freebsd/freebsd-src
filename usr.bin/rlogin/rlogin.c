@@ -40,7 +40,7 @@ static const char copyright[] =
 #ifndef lint
 static const char sccsid[] = "@(#)rlogin.c	8.1 (Berkeley) 6/6/93";
 static const char rcsid[] =
-	"$Id: rlogin.c,v 1.18 1998/10/09 06:45:28 markm Exp $";
+	"$Id: rlogin.c,v 1.19 1999/05/25 11:14:33 peter Exp $";
 #endif /* not lint */
 
 /*
@@ -150,15 +150,14 @@ main(argc, argv)
 	struct sgttyb ttyb;
 	long omask;
 	int argoff, ch, dflag, Dflag, one, uid;
-	char *host, *p, *user, term[1024];
+	char *host, *localname, *p, *user, term[1024];
 #ifdef KERBEROS
 	char *k;
 #endif
-	char *localname = NULL;
 
 	argoff = dflag = Dflag = 0;
 	one = 1;
-	host = user = NULL;
+	host = localname = user = NULL;
 
 	if ((p = rindex(argv[0], '/')))
 		++p;
@@ -206,10 +205,8 @@ main(argc, argv)
 			escapechar = getescape(optarg);
 			break;
 		case 'i':
-			if (getuid() != 0) {
-				fprintf(stderr, "rlogin: -i user: permission denied\n");
-				exit(1);
-			}
+			if (getuid() != 0)
+				errx(1, "-i user: permission denied");
 			localname = optarg;
 			break;
 #ifdef KERBEROS
@@ -869,15 +866,15 @@ void
 usage()
 {
 	(void)fprintf(stderr,
-	    "usage: rlogin [ -%s]%s[-e char] [ -l username ] host\n",
+	"usage: rlogin [-%s]%s[-e char] [-i localname] [-l username] host\n",
 #ifdef KERBEROS
 #ifdef CRYPT
-	    "8DEKLx", " [-k realm] ");
+	    "8DEKLdx", " [-k realm] ");
 #else
-	    "8DEKL", " [-k realm] ");
+	    "8DEKLd", " [-k realm] ");
 #endif
 #else
-	    "8DEL", " ");
+	    "8DELd", " ");
 #endif
 	exit(1);
 }
