@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)param.h	8.3 (Berkeley) 4/4/95
- * $Id: param.h,v 1.44 1999/04/05 02:39:13 jdp Exp $
+ * $Id: param.h,v 1.45 1999/04/27 11:20:54 phk Exp $
  */
 
 #ifndef _SYS_PARAM_H_
@@ -123,6 +123,7 @@
 
 #define	CMASK	022		/* default file mask: S_IWGRP|S_IWOTH */
 #define	NODEV	(dev_t)(-1)	/* non-existent device */
+#define	NOMAJ	256		/* non-existent device */
 
 /*
  * Clustering of hardware pages on machines with ridiculously small
