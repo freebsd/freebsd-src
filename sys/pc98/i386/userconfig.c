@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.19 1996/12/17 13:29:05 kato Exp $
+ **      $Id: userconfig.c,v 1.20 1996/12/18 20:52:31 kato Exp $
  **/
 
 /**
@@ -223,7 +223,6 @@ static DEVCLASS_INFO devclass_names[] = {
 static DEV_INFO device_info[] = {
 /*---Name-----   ---Description---------------------------------------------- */
 #ifdef PC98
-{"sbic",        "PC-9801-55 SCSI Interface",		0,		CLS_STORAGE},
 {"bs",          "PC-9801-55 SCSI Interface",        0, CLS_STORAGE},
 {"ahc",         "Adaptec 274x/284x/294x SCSI controller",	0,	CLS_STORAGE},
 {"aic",         "Adaptec 152x SCSI and compatible sound cards",	0,      CLS_STORAGE},
@@ -2253,7 +2252,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.19 1996/12/17 13:29:05 kato Exp $
+ *      $Id: userconfig.c,v 1.20 1996/12/18 20:52:31 kato Exp $
  */
 
 #include "scbus.h"
