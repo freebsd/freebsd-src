@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_subr.c	8.2 (Berkeley) 5/24/95
- *	$Id: tcp_subr.c,v 1.44 1998/03/28 10:18:24 bde Exp $
+ *	$Id: tcp_subr.c,v 1.45 1998/05/15 20:11:35 wollman Exp $
  */
 
 #include "opt_compat.h"
@@ -162,8 +162,7 @@ tcp_template(tp)
 		m->m_len = sizeof (struct tcpiphdr);
 		n = mtod(m, struct tcpiphdr *);
 	}
-	n->ti_next = n->ti_prev = 0;
-	n->ti_x1 = 0;
+	bzero(n->ti_x1, sizeof(n->ti_x1));
 	n->ti_pr = IPPROTO_TCP;
 	n->ti_len = htons(sizeof (struct tcpiphdr) - sizeof (struct ip));
 	n->ti_src = inp->inp_laddr;
@@ -236,8 +235,8 @@ tcp_respond(tp, ti, m, ack, seq, flags)
 		m->m_len = sizeof (struct tcpiphdr);
 		tlen = 0;
 #define xchg(a,b,type) { type t; t=a; a=b; b=t; }
-		xchg(ti->ti_dst.s_addr, ti->ti_src.s_addr, u_long);
-		xchg(ti->ti_dport, ti->ti_sport, u_short);
+		xchg(ti->ti_dst.s_addr, ti->ti_src.s_addr, n_long);
+		xchg(ti->ti_dport, ti->ti_sport, n_short);
 #undef xchg
 	}
 	ti->ti_len = htons((u_short)(sizeof (struct tcphdr) + tlen));
@@ -245,8 +244,7 @@ tcp_respond(tp, ti, m, ack, seq, flags)
 	m->m_len = tlen;
 	m->m_pkthdr.len = tlen;
 	m->m_pkthdr.rcvif = (struct ifnet *) 0;
-	ti->ti_next = ti->ti_prev = 0;
-	ti->ti_x1 = 0;
+	bzero(ti->ti_x1, sizeof(ti->ti_x1));
 	ti->ti_seq = htonl(seq);
 	ti->ti_ack = htonl(ack);
 	ti->ti_x2 = 0;
@@ -287,7 +285,7 @@ tcp_newtcpcb(inp)
 	it = (struct inp_tp *)inp;
 	tp = &it->tcb;
 	bzero((char *) tp, sizeof(struct tcpcb));
-	tp->seg_next = tp->seg_prev = (struct tcpiphdr *)tp;
+	tp->t_segq = NULL;
 	tp->t_maxseg = tp->t_maxopd = tcp_mssdflt;
 
 	if (tcp_do_rfc1323)
@@ -345,7 +343,8 @@ struct tcpcb *
 tcp_close(tp)
 	register struct tcpcb *tp;
 {
-	register struct tcpiphdr *t;
+	register struct mbuf *q;
+	register struct mbuf *nq;
 	struct inpcb *inp = tp->t_inpcb;
 	struct socket *so = inp->inp_socket;
 	register struct mbuf *m;
@@ -433,12 +432,10 @@ tcp_close(tp)
 		}
 	}
 	/* free the reassembly queue, if any */
-	t = tp->seg_next;
-	while (t != (struct tcpiphdr *)tp) {
-		t = (struct tcpiphdr *)t->ti_next;
-		m = REASS_MBUF((struct tcpiphdr *)t->ti_prev);
-		remque(t->ti_prev);
-		m_freem(m);
+	for (q = tp->t_segq; q; q = nq) {
+		nq = q->m_nextpkt;
+		tp->t_segq = nq;
+		m_freem(q);
 	}
 	if (tp->t_template)
 		(void) m_free(dtom(tp->t_template));
