@@ -1,3 +1,5 @@
+/*	$NetBSD: mount_msdos.c,v 1.18 1997/09/16 12:24:18 lukem Exp $	*/
+
 /*
  * Copyright (c) 1994 Christopher G. Demetriou
  * All rights reserved.
@@ -30,7 +32,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: mount_msdos.c,v 1.9 1997/03/29 03:32:25 imp Exp $";
+	"$Id: mount_msdos.c,v 1.10 1997/08/25 20:23:16 bde Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -77,9 +79,24 @@ main(argc, argv)
 
 	mntflags = set_gid = set_uid = set_mask = 0;
 	(void)memset(&args, '\0', sizeof(args));
+	args.magic = MSDOSFS_ARGSMAGIC;
 
-	while ((c = getopt(argc, argv, "u:g:m:o:")) != -1) {
+	while ((c = getopt(argc, argv, "sl9u:g:m:o:")) != -1) {
 		switch (c) {
+#ifdef MSDOSFSMNT_GEMDOSFS
+		case 'G':
+			args.flags |= MSDOSFSMNT_GEMDOSFS;
+			break;
+#endif
+		case 's':
+			args.flags |= MSDOSFSMNT_SHORTNAME;
+			break;
+		case 'l':
+			args.flags |= MSDOSFSMNT_LONGNAME;
+			break;
+		case '9':
+			args.flags |= MSDOSFSMNT_NOWIN95;
+			break;
 		case 'u':
 			args.uid = a_uid(optarg);
 			set_uid = 1;
@@ -199,6 +216,7 @@ a_mask(s)
 	char *ep;
 
 	done = 0;
+	rv = -1;
 	if (*s >= '0' && *s <= '7') {
 		done = 1;
 		rv = strtol(optarg, &ep, 8);
@@ -211,6 +229,6 @@ a_mask(s)
 void
 usage()
 {
-	fprintf(stderr, "usage: mount_msdos [-F flags] [-u user] [-g group] [-m mask] bdev dir\n");
+	fprintf(stderr, "usage: mount_msdos [-o options] [-u user] [-g group] [-m mask] bdev dir\n");
 	exit(EX_USAGE);
 }
