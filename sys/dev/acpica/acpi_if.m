@@ -154,3 +154,33 @@ METHOD ACPI_STATUS scan_children {
 	acpi_scan_cb_t	user_fn;
 	void		*arg;
 };
+
+#
+# Read embedded controller (EC) address space
+#
+# device_t dev:  EC device
+# u_int addr:  Address to read from in EC space
+# ACPI_INTEGER *val:  Location to store read value
+# int width:  Size of area to read in bytes
+#
+METHOD int ec_read {
+	device_t	dev;
+	u_int		addr;
+	ACPI_INTEGER	*val;
+	int		width;
+};
+
+#
+# Write embedded controller (EC) address space
+#
+# device_t dev:  EC device
+# u_int addr:  Address to write to in EC space
+# ACPI_INTEGER val:  Value to write
+# int width:  Size of value to write in bytes
+#
+METHOD int ec_write {
+	device_t	dev;
+	u_int		addr;
+	ACPI_INTEGER	val;
+	int		width;
+};
