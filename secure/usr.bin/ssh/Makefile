@@ -3,9 +3,6 @@
 
 PROG=	ssh
 CFLAGS+=-I${SSHDIR}
-.if defined(ENABLE_SUID_SSH)
-BINMODE=4555
-.endif
 LINKS=	${BINDIR}/ssh ${BINDIR}/slogin
 MAN=	ssh.1 ssh_config.5
 MLINKS=	ssh.1 slogin.1
