@@ -1480,7 +1480,7 @@ bge_attach(dev)
 
 	rid = BGE_PCI_BAR0;
 	sc->bge_res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
-	    0, ~0, 1, RF_ACTIVE);
+	    0, ~0, 1, RF_ACTIVE|PCI_RF_DENSE);
 
 	if (sc->bge_res == NULL) {
 		printf ("bge%d: couldn't map memory\n", unit);
@@ -1491,22 +1491,6 @@ bge_attach(dev)
 	sc->bge_btag = rman_get_bustag(sc->bge_res);
 	sc->bge_bhandle = rman_get_bushandle(sc->bge_res);
 	sc->bge_vhandle = (vm_offset_t)rman_get_virtual(sc->bge_res);
-
-	/*
-	 * XXX FIXME: rman_get_virtual() on the alpha is currently
-	 * broken and returns a physical address instead of a kernel
-	 * virtual address. Consequently, we need to do a little
-	 * extra mangling of the vhandle on the alpha. This should
-	 * eventually be fixed! The whole idea here is to get rid
-	 * of platform dependencies.
-	 */
-#ifdef __alpha__
-	if (pci_cvt_to_bwx(sc->bge_vhandle))
-		sc->bge_vhandle = pci_cvt_to_bwx(sc->bge_vhandle);
-	else
-		sc->bge_vhandle = pci_cvt_to_dense(sc->bge_vhandle);
-	sc->bge_vhandle = ALPHA_PHYS_TO_K0SEG(sc->bge_vhandle);
-#endif
 
 	/* Allocate interrupt */
 	rid = 0;
