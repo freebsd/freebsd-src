@@ -27,6 +27,12 @@ cam/scsi/scsi_all.c	optional scbus
 cam/scsi/scsi_cd.c	optional cd
 cam/scsi/scsi_ch.c	optional ch
 cam/scsi/scsi_da.c	optional da
+cam/scsi/scsi_low.c	optional ncv
+cam/scsi/scsi_low.c	optional nsp
+cam/scsi/scsi_low.c	optional stg
+cam/scsi/scsi_low_pisa.c	optional ncv
+cam/scsi/scsi_low_pisa.c	optional nsp
+cam/scsi/scsi_low_pisa.c	optional stg
 cam/scsi/scsi_pass.c	optional pass
 cam/scsi/scsi_pt.c	optional pt
 cam/scsi/scsi_sa.c	optional sa
@@ -216,6 +222,10 @@ dev/lnc/if_lnc.c	count lnc
 dev/lnc/if_lnc_isa.c	optional lnc isa
 dev/lnc/if_lnc_pc98.c	optional lnc isa
 dev/lnc/if_lnc_pci.c	optional lnc pci
+dev/ncv/ncr53c500.c	optional ncv
+dev/ncv/ncr53c500_pccard.c	optional ncv card
+dev/nsp/nsp.c		optional nsp
+dev/nsp/nsp_pccard.c	optional nsp card
 dev/mca/mca_bus.c	optional mca
 dev/md/md.c		optional md
 dev/mii/amphy.c		optional miibus
@@ -339,6 +349,9 @@ dev/sound/pcm/mixer.c	optional pcm
 dev/sound/pcm/sound.c	optional pcm
 #dev/sound/usb/upcm.c	optional pcm usb
 dev/streams/streams.c	optional streams
+dev/stg/tmc18c30.c	optional stg
+dev/stg/tmc18c30_pccard.c	optional stg card
+dev/stg/tmc18c30_isa.c	optional stg isa
 dev/sym/sym_hipd.c	optional sym					\
 	dependency	"$S/dev/sym/sym_{conf,defs}.h"
 dev/tdfx/tdfx_pci.c	optional	tdfx
