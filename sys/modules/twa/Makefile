@@ -7,14 +7,14 @@
 # The size of the driver will increase significantly (to over 500KB)
 # if this option is selected.
 #
-FLASH_FIRMWARE=1
+TWA_FLASH_FIRMWARE?=0
 
 KMOD = twa
 .PATH:	${.CURDIR}/../../dev/${KMOD}
 SRCS = twa_freebsd.c twa_cam.c twa.c twa_globals.c \
       bus_if.h device_if.h pci_if.h opt_scsi.h opt_cam.h opt_twa.h
 
-.if defined(FLASH_FIRMWARE)
+.if $(TWA_FLASH_FIRMWARE) != 0
 CFLAGS+=-DTWA_FLASH_FIRMWARE
 SRCS += twa_fwimg.c
 .endif
