@@ -38,11 +38,7 @@ pseudo-device   splash \
 /' -e 's/sd\([0-9]\)/da\1/' -e 's/st\([0-9]\)/sa\1/' < ${KERN}.bkup > ${KERN}
 	fi
 
-	if [ -r /dev/wd0a ]; then
-		ROOTDEV=wd0
-	else
-		ROOTDEV=sd0
-	fi
+	ROOTDEV=`awk '$2~/\/$/{print substr($1, 6, 3)}' /etc/fstab`
 	echo -n "What is your boot device (e.g. wd0 or sd0)? [${ROOTDEV}] "
 	read answer
 	if [ -n "${answer}" ]; then
