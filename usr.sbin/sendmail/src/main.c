@@ -479,13 +479,7 @@ main(argc, argv, envp)
 			switch (j = *optarg)
 			{
 			  case MD_DAEMON:
-# ifdef DAEMON
-				if (RealUid != 0) {
-					usrerr("Permission denied");
-					exit (EX_USAGE);
-				}
-				(void) unsetenv("HOSTALIASES");
-# else
+# ifndef DAEMON
 				usrerr("Daemon mode not implemented");
 				ExitStat = EX_USAGE;
 				break;
@@ -792,6 +786,18 @@ main(argc, argv, envp)
 	switch (OpMode)
 	{
 	  case MD_DAEMON:
+		/* check for permissions */
+		if (RealUid != 0)
+		{
+#ifdef LOG
+			syslog(LOG_ALERT, "uid %d tried to start daemon mode",
+				RealUid);
+#endif
+			usrerr("Permission denied");
+			exit(EX_USAGE);
+		}
+		vendor_daemon_setup(CurEnv);
+
 		/* remove things that don't make sense in daemon mode */
 		FullName = NULL;
 		GrabTo = FALSE;
@@ -1697,6 +1703,15 @@ sighup()
 		syslog(LOG_INFO, "restarting %s on signal", SaveArgv[0]);
 #endif
 	releasesignal(SIGHUP);
+	if (setuid(RealUid) < 0 || setgid(RealGid) < 0)
+	{
+#ifdef LOG
+		if (LogLevel > 0)
+			syslog(LOG_ALERT, "could not set[ug]id(%d, %d): %m",
+				RealUid, RealGid);
+#endif
+		exit(EX_OSERR);
+	}
 	execv(SaveArgv[0], (ARGV_T) SaveArgv);
 #ifdef LOG
 	if (LogLevel > 0)
