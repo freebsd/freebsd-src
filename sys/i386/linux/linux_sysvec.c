@@ -339,7 +339,6 @@ linux_rt_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	regs->tf_ds = _udatasel;
 	regs->tf_es = _udatasel;
 	regs->tf_fs = _udatasel;
-	load_gs(_udatasel);
 	regs->tf_ss = _udatasel;
 }
 
@@ -473,7 +472,6 @@ linux_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	regs->tf_ds = _udatasel;
 	regs->tf_es = _udatasel;
 	regs->tf_fs = _udatasel;
-	load_gs(_udatasel);
 	regs->tf_ss = _udatasel;
 }
 
