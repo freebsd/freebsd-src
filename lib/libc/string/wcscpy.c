@@ -41,15 +41,11 @@ wcscpy(s1, s2)
 	wchar_t * __restrict s1;
 	const wchar_t * __restrict s2;
 {
-	wchar_t *p;
-	const wchar_t *q;
+	wchar_t *cp;
 
-	*s1 = '\0';
-	p = s1;
-	q = s2;
-	while (*q)
-		*p++ = *q++;
-	*p = '\0';
+	cp = s1;
+	while ((*cp++ = *s2++) != L'\0')
+		;
 
-	return s1;
+	return (s1);
 }
