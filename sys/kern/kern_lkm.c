@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_lkm.c,v 1.56 1998/09/07 05:42:15 bde Exp $
+ * $Id: kern_lkm.c,v 1.57 1998/10/16 03:55:00 peter Exp $
  */
 
 #include "opt_devfs.h"
@@ -250,7 +250,7 @@ lkmcioctl(dev, cmd, data, flag, p)
 
 #ifdef DEBUG
 		printf("LKM: LMRESERV (actual   = 0x%08lx)\n", curp->area);
-		printf("LKM: LMRESERV (adjusted = 0x%08x)\n",
+		printf("LKM: LMRESERV (adjusted = 0x%08lx)\n",
 		    trunc_page(curp->area));
 #endif	/* DEBUG */
 		lkm_state = LKMS_RESERVED;
@@ -828,10 +828,7 @@ _lkm_exec(lkmtp, cmd)
 	int cmd;
 {
 	struct lkm_exec *args = lkmtp->private.lkm_exec;
-	int i;
 	int err = 0;
-	const struct execsw **execsw =
-		(const struct execsw **)&execsw_set.ls_items[0];
 
 	switch(cmd) {
 	case LKM_E_LOAD:
@@ -846,7 +843,7 @@ _lkm_exec(lkmtp, cmd)
 		err = exec_register(args->lkm_exec);
 
 		/* done! */
-		args->lkm_offset = 0;	/* slot in execsw[] */
+		args->lkm_offset = 0;
 
 		break;
 

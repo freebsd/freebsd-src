@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: subr_bus.c,v 1.5 1998/09/05 13:24:39 bde Exp $
+ *	$Id: subr_bus.c,v 1.6 1998/10/03 08:55:29 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -258,7 +258,6 @@ devclass_get_devices(devclass_t dc, device_t **devlistp, int *devcountp)
 {
     int i;
     int count;
-    device_t dev;
     device_t *list;
     
     count = 0;
@@ -366,7 +365,6 @@ static device_t
 make_device(device_t parent, const char *name,
 	    int unit, void *ivars)
 {
-    driver_t *driver;
     device_t dev;
     devclass_t dc;
     int error;
@@ -515,7 +513,6 @@ device_probe_child(device_t dev, device_t child)
 {
     devclass_t dc;
     driver_t *driver;
-    void *softc;
 
     dc = dev->devclass;
     if (dc == NULL)
@@ -878,7 +875,6 @@ int
 bus_generic_attach(device_t dev)
 {
     device_t child;
-    int error;
 
     for (child = TAILQ_FIRST(&dev->children);
 	 child; child = TAILQ_NEXT(child, link))
@@ -891,7 +887,6 @@ int
 bus_generic_detach(device_t dev)
 {
     device_t child;
-    int error;
 
     if (dev->state != DS_ATTACHED)
 	return EBUSY;
@@ -1011,7 +1006,6 @@ void
 root_bus_configure()
 {
     device_t dev;
-    int error;
 
     for (dev = TAILQ_FIRST(&root_bus->children); dev;
 	 dev = TAILQ_NEXT(dev, link)) {

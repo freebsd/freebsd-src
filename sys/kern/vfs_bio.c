@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
  *
- * $Id: vfs_bio.c,v 1.178 1998/09/26 00:12:35 dillon Exp $
+ * $Id: vfs_bio.c,v 1.179 1998/10/13 08:24:40 dg Exp $
  */
 
 /*
@@ -68,7 +68,6 @@ SYSINIT_KT(update, SI_SUB_KTHREAD_UPDATE, SI_ORDER_FIRST, kproc_start, &up_kp)
 struct buf *buf;		/* buffer header pool */
 struct swqueue bswlist;
 
-static int count_lock_queue __P((void));
 static void vm_hold_free_pages(struct buf * bp, vm_offset_t from,
 		vm_offset_t to);
 static void vm_hold_load_pages(struct buf * bp, vm_offset_t from,
@@ -444,7 +443,6 @@ vfs_bio_need_satisfy(void) {
 void
 bdwrite(struct buf * bp)
 {
-	int s;
 	struct vnode *vp;
 
 #if !defined(MAX_PERF)
@@ -519,7 +517,6 @@ void
 bdirty(bp)
       struct buf *bp;
 {
-	int s;
 	
 	bp->b_flags &= ~(B_READ|B_RELBUF); /* XXX ??? check this */
 	if ((bp->b_flags & B_DELWRI) == 0) {
@@ -1401,7 +1398,6 @@ getblk(struct vnode * vp, daddr_t blkno, int size, int slpflag, int slptimeo)
 	int i, s;
 	struct bufhashhdr *bh;
 	int maxsize;
-	int generation;
 	int checksize;
 
 	if (vp->v_mount) {
@@ -1427,7 +1423,6 @@ loop:
 	}
 
 	if ((bp = gbincore(vp, blkno))) {
-loop1:
 		if (bp->b_flags & B_BUSY) {
 
 			bp->b_flags |= B_WANTED;
@@ -2054,20 +2049,6 @@ biodone(register struct buf * bp)
 	splx(s);
 }
 
-static int
-count_lock_queue()
-{
-	int count;
-	struct buf *bp;
-
-	count = 0;
-	for (bp = TAILQ_FIRST(&bufqueues[QUEUE_LOCKED]);
-	    bp != NULL;
-	    bp = TAILQ_NEXT(bp, b_freelist))
-		count++;
-	return (count);
-}
-
 #if 0	/* not with kirks code */
 static int vfs_update_interval = 30;
 
@@ -2106,7 +2087,7 @@ SYSCTL_PROC(_kern, KERN_UPDATEINTERVAL, update, CTLTYPE_INT|CTLFLAG_RW,
 void
 vfs_unbusy_pages(struct buf * bp)
 {
-	int i, s;
+	int i;
 
 	if (bp->b_flags & B_VMIO) {
 		struct vnode *vp = bp->b_vp;
@@ -2223,7 +2204,7 @@ vfs_page_set_valid(struct buf *bp, vm_ooffset_t off, int pageno, vm_page_t m)
 void
 vfs_busy_pages(struct buf * bp, int clear_modify)
 {
-	int i, s;
+	int i;
 
 	if (bp->b_flags & B_VMIO) {
 		struct vnode *vp = bp->b_vp;
@@ -2278,7 +2259,6 @@ vfs_clean_pages(struct buf * bp)
 	int i;
 
 	if (bp->b_flags & B_VMIO) {
-		struct vnode *vp = bp->b_vp;
 		vm_ooffset_t foff;
 		foff = bp->b_offset;
 

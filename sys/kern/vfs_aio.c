@@ -13,7 +13,7 @@
  * bad that happens because of using this software isn't the responsibility
  * of the author.  This software is distributed AS-IS.
  *
- * $Id: vfs_aio.c,v 1.32 1998/07/15 06:51:14 bde Exp $
+ * $Id: vfs_aio.c,v 1.33 1998/08/17 17:28:10 bde Exp $
  */
 
 /*
@@ -953,7 +953,6 @@ aio_qphysio(p, aiocbe)
 	struct aiocblist *aiocbe;
 {
 	int error;
-	caddr_t sa;
 	struct aiocb *cb;
 	struct file *fp;
 	struct buf *bp;
@@ -1388,11 +1387,10 @@ int
 aio_return(struct proc *p, struct aio_return_args *uap)
 {
 	int s;
-	int jobref, status;
+	int jobref;
 	struct aiocblist *cb, *ncb;
 	struct aiocb *ujob;
 	struct kaioinfo *ki;
-	struct proc *userp;
 
 	ki = p->p_aioinfo;
 	if (ki == NULL) {
@@ -1583,7 +1581,6 @@ aio_error(struct proc *p, struct aio_error_args *uap)
 	struct aiocblist *cb;
 	struct kaioinfo *ki;
 	int jobref;
-	int error, status;
 
 	ki = p->p_aioinfo;
 	if (ki == NULL)

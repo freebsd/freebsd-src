@@ -144,7 +144,6 @@ natm_usr_connect(struct socket *so, struct sockaddr *nam, struct proc *p)
     struct natmpcb *npcb;
     struct sockaddr_natm *snatm;
     struct atm_pseudoioctl api;
-    struct atm_pseudohdr *aph;
     struct ifnet *ifp;
     int error = 0;
     int s2, s = SPLSOFTNET();
@@ -226,13 +225,10 @@ static int
 natm_usr_disconnect(struct socket *so)
 {
     struct natmpcb *npcb;
-    struct sockaddr_natm *snatm;
     struct atm_pseudoioctl api;
-    struct atm_pseudohdr *aph;
     struct ifnet *ifp;
     int error = 0;
     int s2, s = SPLSOFTNET();
-    int proto = so->so_proto->pr_protocol;
 
     npcb = (struct natmpcb *) so->so_pcb;
     if (npcb == NULL) {
