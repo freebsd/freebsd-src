@@ -42,7 +42,7 @@ const char *chunk_n[] = {
 struct disk *
 Open_Disk(const char *name)
 {
-	return Int_Open_Disk(name,0);
+	return Int_Open_Disk(name, 0);
 }
 
 #ifndef PC98
@@ -70,37 +70,37 @@ Int_Open_Disk(const char *name, u_long size)
 #endif
 	u_long offset = 0;
 
-	strcpy(device,_PATH_DEV);
-	strcat(device,name);
+	strcpy(device, _PATH_DEV);
+	strcat(device, name);
 
 	d = (struct disk *)malloc(sizeof *d);
-	if(!d) barfout(1,"malloc failed");
-	memset(d,0,sizeof *d);
+	if(!d) barfout(1, "malloc failed");
+	memset(d, 0, sizeof *d);
 
-	fd = open(device,O_RDONLY);
+	fd = open(device, O_RDONLY);
 	if (fd < 0) {
 #ifdef DEBUG
-		warn("open(%s) failed",device);
+		warn("open(%s) failed", device);
 #endif
 		return 0;
 	}
 
-	memset(&dl,0,sizeof dl);
-	ioctl(fd,DIOCGDINFO,&dl);
-	i = ioctl(fd,DIOCGSLICEINFO,&ds);
+	memset(&dl, 0, sizeof dl);
+	ioctl(fd, DIOCGDINFO, &dl);
+	i = ioctl(fd, DIOCGSLICEINFO, &ds);
 	if (i < 0) {
 #ifdef DEBUG
-		warn("DIOCGSLICEINFO(%s) failed",device);
+		warn("DIOCGSLICEINFO(%s) failed", device);
 #endif
 		close(fd);
 		return 0;
 	}
 
 #ifdef DEBUG
-	for(i=0;i<ds.dss_nslices;i++)
+	for(i = 0; i < ds.dss_nslices; i++)
 		if(ds.dss_slices[i].ds_openmask)
 			printf("  open(%d)=0x%2x",
-				i,ds.dss_slices[i].ds_openmask);
+				i, ds.dss_slices[i].ds_openmask);
 	printf("\n");
 #endif
 
@@ -114,11 +114,11 @@ Int_Open_Disk(const char *name, u_long size)
 #endif
 
 #ifdef PC98
-	p = (unsigned char*)read_block(fd,1);
+	p = (unsigned char*)read_block(fd, 1);
 #else
-	p = read_block(fd,0);
-	dp = (struct dos_partition*)(p+DOSPARTOFF);
-	for (i=0; i < NDOSPART; i++) {
+	p = read_block(fd, 0);
+	dp = (struct dos_partition*)(p + DOSPARTOFF);
+	for (i = 0; i < NDOSPART; i++) {
 		if (Read_Int32(&dp->dp_start) >= size)
 		    continue;
 		if (Read_Int32(&dp->dp_start) + Read_Int32(&dp->dp_size) >= size)
@@ -142,7 +142,7 @@ Int_Open_Disk(const char *name, u_long size)
 
 
 	if (dl.d_ntracks && dl.d_nsectors)
-		d->bios_cyl = size/(dl.d_ntracks*dl.d_nsectors);
+		d->bios_cyl = size / (dl.d_ntracks * dl.d_nsectors);
 
 #ifdef PC98
 	if (Add_Chunk(d, -offset, size, name, whole, 0, 0, "-"))
@@ -174,10 +174,11 @@ Int_Open_Disk(const char *name, u_long size)
 		chunk_e ce;
 		u_long flags=0;
 		int subtype=0;
+
 		if (! ds.dss_slices[i].ds_size)
 			continue;
 		ds.dss_slices[i].ds_offset -= offset;
-		sprintf(sname,"%ss%d",name,i-1);
+		sprintf(sname, "%ss%d", name, i - 1);
 #ifdef PC98
 		subtype = ds.dss_slices[i].ds_type |
 			ds.dss_slices[i].ds_subtype << 8;
@@ -216,7 +217,7 @@ Int_Open_Disk(const char *name, u_long size)
 				break;
 		}
 #ifdef PC98
-		if (Add_Chunk(d,ds.dss_slices[i].ds_offset,
+		if (Add_Chunk(d, ds.dss_slices[i].ds_offset,
 			ds.dss_slices[i].ds_size, sname, ce, subtype, flags,
 			ds.dss_slices[i].ds_name))
 #else
@@ -238,35 +239,35 @@ Int_Open_Disk(const char *name, u_long size)
 		{
 		struct disklabel dl;
 		char pname[20];
-		int j,k;
+		int j, k;
 
-		strcpy(pname,_PATH_DEV);
-		strcat(pname,sname);
-		j = open(pname,O_RDONLY);
+		strcpy(pname, _PATH_DEV);
+		strcat(pname, sname);
+		j = open(pname, O_RDONLY);
 		if (j < 0) {
 #ifdef DEBUG
-			warn("open(%s)",pname);
+			warn("open(%s)", pname);
 #endif
 			continue;
 		}
-		k = ioctl(j,DIOCGDINFO,&dl);
+		k = ioctl(j, DIOCGDINFO, &dl);
 		if (k < 0) {
 #ifdef DEBUG
-			warn("ioctl(%s,DIOCGDINFO)",pname);
+			warn("ioctl(%s, DIOCGDINFO)", pname);
 #endif
 			close(j);
 			continue;
 		}
 		close(j);
 
-		for(j=0; j <= dl.d_npartitions; j++) {
+		for(j = 0; j <= dl.d_npartitions; j++) {
 			if (j == RAW_PART)
 				continue;
 			if (j == 3)
 				continue;
 			if (j == dl.d_npartitions) {
 				j = 3;
-				dl.d_npartitions=0;
+				dl.d_npartitions = 0;
 			}
 			if (!dl.d_partitions[j].p_size)
 				continue;
@@ -274,7 +275,7 @@ Int_Open_Disk(const char *name, u_long size)
 			    dl.d_partitions[j].p_offset >
 			    ds.dss_slices[i].ds_size)
 				continue;
-			sprintf(pname,"%s%c",sname,j+'a');
+			sprintf(pname, "%s%c", sname, j + 'a');
 			if (Add_Chunk(d,
 				dl.d_partitions[j].p_offset +
 				ds.dss_slices[i].ds_offset,
@@ -290,7 +291,7 @@ Int_Open_Disk(const char *name, u_long size)
 #ifdef DEBUG
 				warn(
 			"Failed to add chunk for partition %c [%lu,%lu]",
-			j + 'a',dl.d_partitions[j].p_offset,
+			j + 'a', dl.d_partitions[j].p_offset,
 			dl.d_partitions[j].p_size);
 #else
 				{}
@@ -305,19 +306,19 @@ Int_Open_Disk(const char *name, u_long size)
 		char pname[20];
 		int j,k;
 
-		strcpy(pname,_PATH_DEV);
-		strcat(pname,name);
-		j = open(pname,O_RDONLY);
+		strcpy(pname, _PATH_DEV);
+		strcat(pname, name);
+		j = open(pname, O_RDONLY);
 		if (j < 0) {
 #ifdef DEBUG
-			warn("open(%s)",pname);
+			warn("open(%s)", pname);
 #endif
 			goto nolabel;
 		}
-		k = ioctl(j,DIOCGDINFO,&dl);
+		k = ioctl(j, DIOCGDINFO, &dl);
 		if (k < 0) {
 #ifdef DEBUG
-			warn("ioctl(%s,DIOCGDINFO)",pname);
+			warn("ioctl(%s, DIOCGDINFO)", pname);
 #endif
 			close(j);
 			goto nolabel;
@@ -325,14 +326,14 @@ Int_Open_Disk(const char *name, u_long size)
 		close(j);
 		All_FreeBSD(d, 1);
 
-		for(j=0; j <= dl.d_npartitions; j++) {
+		for(j = 0; j <= dl.d_npartitions; j++) {
 			if (j == RAW_PART)
 				continue;
 			if (j == 3)
 				continue;
 			if (j == dl.d_npartitions) {
 				j = 3;
-				dl.d_npartitions=0;
+				dl.d_npartitions = 0;
 			}
 			if (!dl.d_partitions[j].p_size)
 				continue;
@@ -340,7 +341,7 @@ Int_Open_Disk(const char *name, u_long size)
 			    dl.d_partitions[j].p_offset >
 			    ds.dss_slices[WHOLE_DISK_SLICE].ds_size)
 				continue;
-			sprintf(pname,"%s%c",name,j+'a');
+			sprintf(pname, "%s%c", name, j + 'a');
 			if (Add_Chunk(d,
 				      dl.d_partitions[j].p_offset,
 				      dl.d_partitions[j].p_size,
@@ -350,7 +351,7 @@ Int_Open_Disk(const char *name, u_long size)
 #ifdef DEBUG
 				warn(
 					"Failed to add chunk for partition %c [%lu,%lu]",
-					j + 'a',dl.d_partitions[j].p_offset,
+					j + 'a', dl.d_partitions[j].p_offset,
 					dl.d_partitions[j].p_size);
 #else
 			{}
@@ -370,23 +371,23 @@ pc98_mo_done:
 void
 Debug_Disk(struct disk *d)
 {
-	printf("Debug_Disk(%s)",d->name);
-	printf("  flags=%lx",d->flags);
+	printf("Debug_Disk(%s)", d->name);
+	printf("  flags=%lx", d->flags);
 #if 0
-	printf("  real_geom=%lu/%lu/%lu",d->real_cyl,d->real_hd,d->real_sect);
+	printf("  real_geom=%lu/%lu/%lu", d->real_cyl, d->real_hd, d->real_sect);
 #endif
 	printf("  bios_geom=%lu/%lu/%lu = %lu\n",
-		d->bios_cyl,d->bios_hd,d->bios_sect,
-		d->bios_cyl*d->bios_hd*d->bios_sect);
+		d->bios_cyl, d->bios_hd, d->bios_sect,
+		d->bios_cyl * d->bios_hd * d->bios_sect);
 #if defined(PC98)
 	printf("  boot1=%p, boot2=%p, bootipl=%p, bootmenu=%p\n",
-		d->boot1,d->boot2,d->bootipl,d->bootmenu);
+		d->boot1, d->boot2, d->bootipl, d->bootmenu);
 #elif defined(__i386__)
 	printf("  boot1=%p, boot2=%p, bootmgr=%p\n",
-		d->boot1,d->boot2,d->bootmgr);
+		d->boot1, d->boot2, d->bootmgr);
 #elif defined(__alpha__)
 	printf("  boot1=%p, bootmgr=%p\n",
-		d->boot1,d->bootmgr);
+		d->boot1, d->bootmgr);
 #endif
 	Debug_Chunk(d->chunks);
 }
@@ -415,38 +416,38 @@ Clone_Disk(struct disk *d)
 	struct disk *d2;
 
 	d2 = (struct disk*) malloc(sizeof *d2);
-	if(!d2) barfout(1,"malloc failed");
+	if(!d2) barfout(1, "malloc failed");
 	*d2 = *d;
 	d2->name = strdup(d2->name);
 	d2->chunks = Clone_Chunk(d2->chunks);
 #ifdef PC98
 	if(d2->bootipl) {
 		d2->bootipl = malloc(d2->bootipl_size);
-		memcpy(d2->bootipl,d->bootipl,d2->bootipl_size);
+		memcpy(d2->bootipl, d->bootipl, d2->bootipl_size);
 	}
 	if(d2->bootmenu) {
 		d2->bootmenu = malloc(d2->bootmenu_size);
-		memcpy(d2->bootmenu,d->bootmenu,d2->bootmenu_size);
+		memcpy(d2->bootmenu, d->bootmenu, d2->bootmenu_size);
 	}
 #else
 	if(d2->bootmgr) {
 		d2->bootmgr = malloc(d2->bootmgr_size);
-		memcpy(d2->bootmgr,d->bootmgr,d2->bootmgr_size);
+		memcpy(d2->bootmgr, d->bootmgr, d2->bootmgr_size);
 	}
 #endif
 #if defined(__i386__)
 	if(d2->boot1) {
 		d2->boot1 = malloc(512);
-		memcpy(d2->boot1,d->boot1,512);
+		memcpy(d2->boot1, d->boot1, 512);
 	}
 	if(d2->boot2) {
-		d2->boot2 = malloc(512*15);
-		memcpy(d2->boot2,d->boot2,512*15);
+		d2->boot2 = malloc(512 * 15);
+		memcpy(d2->boot2, d->boot2, 512 * 15);
 	}
 #elif defined(__alpha__)
 	if(d2->boot1) {
-		d2->boot1 = malloc(512*15);
-		memcpy(d2->boot1,d->boot1,512*15);
+		d2->boot1 = malloc(512 * 15);
+		memcpy(d2->boot1, d->boot1, 512 * 15);
 	}
 #endif
 	return d2;
@@ -457,7 +458,7 @@ void
 Collapse_Disk(struct disk *d)
 {
 
-	while(Collapse_Chunk(d,d->chunks))
+	while(Collapse_Chunk(d, d->chunks))
 		;
 }
 #endif
@@ -540,8 +541,8 @@ Set_Boot_Mgr(struct disk *d, const u_char *b, const size_t s)
 	} else {
 		d->bootipl_size = bootipl_size;
 		d->bootipl = malloc(bootipl_size);
-		if(!d->bootipl) barfout(1,"malloc failed");
-		memcpy(d->bootipl,bootipl,bootipl_size);
+		if(!d->bootipl) barfout(1, "malloc failed");
+		memcpy(d->bootipl, bootipl, bootipl_size);
 	}
 
 	/* XXX - assumes sector size of 512 */
@@ -554,8 +555,8 @@ Set_Boot_Mgr(struct disk *d, const u_char *b, const size_t s)
 	} else {
 		d->bootmenu_size = bootmenu_size;
 		d->bootmenu = malloc(bootmenu_size);
-		if(!d->bootmenu) barfout(1,"malloc failed");
-		memcpy(d->bootmenu,bootmenu,bootmenu_size);
+		if(!d->bootmenu) barfout(1, "malloc failed");
+		memcpy(d->bootmenu, bootmenu, bootmenu_size);
 	}
 #else
 	/* XXX - assumes sector size of 512 */
@@ -568,8 +569,8 @@ Set_Boot_Mgr(struct disk *d, const u_char *b, const size_t s)
 	} else {
 		d->bootmgr_size = s;
 		d->bootmgr = malloc(s);
-		if(!d->bootmgr) barfout(1,"malloc failed");
-		memcpy(d->bootmgr,b,s);
+		if(!d->bootmgr) barfout(1, "malloc failed");
+		memcpy(d->bootmgr, b, s);
 	}
 #endif
 }
@@ -580,17 +581,17 @@ Set_Boot_Blocks(struct disk *d, const u_char *b1, const u_char *b2)
 #if defined(__i386__)
 	if (d->boot1) free(d->boot1);
 	d->boot1 = malloc(512);
-	if(!d->boot1) barfout(1,"malloc failed");
-	memcpy(d->boot1,b1,512);
+	if(!d->boot1) barfout(1, "malloc failed");
+	memcpy(d->boot1, b1, 512);
 	if (d->boot2) free(d->boot2);
-	d->boot2 = malloc(15*512);
-	if(!d->boot2) barfout(1,"malloc failed");
-	memcpy(d->boot2,b2,15*512);
+	d->boot2 = malloc(15 * 512);
+	if(!d->boot2) barfout(1, "malloc failed");
+	memcpy(d->boot2, b2, 15 * 512);
 #elif defined(__alpha__)
 	if (d->boot1) free(d->boot1);
-	d->boot1 = malloc(15*512);
-	if(!d->boot1) barfout(1,"malloc failed");
-	memcpy(d->boot1,b1,15*512);
+	d->boot1 = malloc(15 * 512);
+	if(!d->boot1) barfout(1, "malloc failed");
+	memcpy(d->boot1, b1, 15 * 512);
 #endif
 }
 
