@@ -329,7 +329,7 @@ prompt(void)
 	    ev = getenv(p + 2);
 	    
 	    if (ev != NULL)
-		printf(ev);
+		printf("%s", ev);
 	    p = cp + 1;
 	    continue;
 	}
