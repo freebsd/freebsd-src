@@ -134,6 +134,13 @@ fixup(struct asm_inst *i, mcontext_t *mc, uint64_t va)
 	uint64_t postinc;
 
 	switch (i->i_op) {
+	case ASM_OP_LD4:
+		copyin((void*)va, (void*)&buf.i, 4);
+		reg = greg_ptr(mc, (int)i->i_oper[1].o_value);
+		if (reg == NULL)
+			return (EINVAL);
+		wrreg(reg, buf.i & 0xffffffffU);
+		break;
 	case ASM_OP_LD8:
 		copyin((void*)va, (void*)&buf.i, 8);
 		reg = greg_ptr(mc, (int)i->i_oper[1].o_value);
@@ -178,19 +185,9 @@ unaligned_fixup(struct trapframe *tf, struct thread *td)
 	struct asm_bundle bundle;
 	int error, slot;
 
-	/* Sanity checks. */
-	if (!(tf->tf_special.isr & IA64_ISR_R) ||
-	    (tf->tf_special.isr & (IA64_ISR_W|IA64_ISR_X|IA64_ISR_NA))) {
-		printf("%s: unexpected cr.isr value\n", __func__);
-		return (SIGILL);
-	}
-
 	slot = ((tf->tf_special.psr & IA64_PSR_RI) == IA64_PSR_RI_0) ? 0 :
 	    ((tf->tf_special.psr & IA64_PSR_RI) == IA64_PSR_RI_1) ? 1 : 2;
 
-	/*
-	 * 
-	 */
 	if (ia64_unaligned_print) {
 		uprintf("pid %d (%s): unaligned access: va=0x%lx, pc=0x%lx\n",
 		    td->td_proc->p_pid, td->td_proc->p_comm,
