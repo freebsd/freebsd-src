@@ -38,7 +38,7 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)printenv.c	8.1 (Berkeley) 6/6/93";
+static char sccsid[] = "@(#)printenv.c	8.2 (Berkeley) 5/4/95";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -46,6 +46,7 @@ static char sccsid[] = "@(#)printenv.c	8.1 (Berkeley) 6/6/93";
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 
 void	usage __P((void));
 
@@ -65,7 +66,7 @@ main(argc, argv)
 	register size_t len;
 	int ch;
 
-	while ((ch = getopt(argc, argv, "")) !=  -1)
+	while ((ch = getopt(argc, argv, "")) != -1)
 		switch(ch) {
 		case '?':
 		default:

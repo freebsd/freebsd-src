@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)ranlib.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: ranlib.c,v 1.2.2.1 1997/08/05 06:39:14 charnier Exp $";
+	"$Id: ranlib.c,v 1.2.2.2 1997/08/29 05:29:44 imp Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -72,7 +72,7 @@ main(argc, argv)
 	int ch, eval, tflag;
 
 	tflag = 0;
-	while ((ch = getopt(argc, argv, "t")) !=  -1)
+	while ((ch = getopt(argc, argv, "t")) != -1)
 		switch(ch) {
 		case 't':
 			tflag = 1;

@@ -33,7 +33,7 @@
 
 #ifndef lint
 static char rcsid[] =
-	"$Id: rusers.c,v 1.2 1995/05/30 06:33:28 rgrimes Exp $";
+	"$Id: rusers.c,v 1.2.6.1 1997/08/11 07:11:24 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -176,6 +176,7 @@ onehost(char *host)
         CLIENT *rusers_clnt;
         struct sockaddr_in addr;
         struct hostent *hp;
+		struct timeval tv;
 
         hp = gethostbyname(host);
         if (hp == NULL)
@@ -186,7 +187,9 @@ onehost(char *host)
                 errx(1, "%s", clnt_spcreateerror(""));
 
 	bzero((char *)&up, sizeof(up));
-	if (clnt_call(rusers_clnt, RUSERSPROC_NAMES, xdr_void, NULL, xdr_utmpidlearr, &up, NULL) != RPC_SUCCESS)
+	tv.tv_sec = 15;		/* XXX ?? */
+	tv.tv_usec = 0;
+	if (clnt_call(rusers_clnt, RUSERSPROC_NAMES, xdr_void, NULL, xdr_utmpidlearr, &up, tv) != RPC_SUCCESS)
                 errx(1, "%s", clnt_sperror(rusers_clnt, ""));
         addr.sin_addr.s_addr = *(int *)hp->h_addr;
         rusers_reply((char *)&up, &addr);
@@ -201,7 +204,7 @@ allhosts()
 	bzero((char *)&up, sizeof(up));
 	clnt_stat = clnt_broadcast(RUSERSPROG, RUSERSVERS_IDLE, RUSERSPROC_NAMES,
 				   xdr_void, NULL,
-				   xdr_utmpidlearr, &up, rusers_reply);
+				   xdr_utmpidlearr, (char *)&up, rusers_reply);
 	if (clnt_stat != RPC_SUCCESS && clnt_stat != RPC_TIMEDOUT)
 		errx(1, "%s", clnt_sperrno(clnt_stat));
 }
