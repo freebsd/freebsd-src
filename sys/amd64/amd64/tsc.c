@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.112 1998/02/21 20:45:27 jkh Exp $
+ *	$Id: clock.c,v 1.113 1998/02/23 00:11:25 bde Exp $
  */
 
 /*
@@ -49,6 +49,7 @@
  */
 
 #include "opt_clock.h"
+#include "apm.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -633,9 +634,9 @@ calibrate_clocks(void)
 		tsc_freq = rdtsc();
 
 	if (bootverbose) {
-	        printf("i8254 clock: %u Hz\n", tot_count);
 		if (tsc_present)
 		        printf("TSC clock: %u Hz, ", tsc_freq);
+	        printf("i8254 clock: %u Hz\n", tot_count);
 	}
 	return (tot_count);
 
@@ -681,6 +682,9 @@ startrtclock()
 		tsc_present = 0;
 
 #ifdef SMP
+	tsc_present = 0;
+#endif
+#if NAPM > 0
 	tsc_present = 0;
 #endif
 	
