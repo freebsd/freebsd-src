@@ -25,9 +25,9 @@
 .\" OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Id$
+.\" $Id: ttcp.4,v 1.1 1995/02/15 22:07:28 wollman Exp $
 .\"
-.Dd February 15, 1995
+.Dd January 18, 1995
 .Dt TTCP 4
 .Os FreeBSD 2.1
 .Sh NAME
@@ -56,7 +56,8 @@ two-packet exchange, thus eliminating the extra round-trip delays
 inherent in a standard
 .Tn TCP
 connection.  The socket interface includes modifications to support
-.Tn T/TCP , detailed here for the specific case, and in the
+.Tn T/TCP ,
+detailed here for the specific case, and in the
 .Xr socket 2
 and
 .Xr send 2
@@ -74,7 +75,8 @@ recognize old, duplicate packets, which in turn reduces the amount of
 time the
 .Tn TCP
 protocol must maintain state after a connection closes.  The
-net.inet.tcp.rfc1644 MIB variable can be used to disable
+.Dq Li net.inet.tcp.rfc1644
+MIB variable can be used to disable
 .Tn T/TCP
 negotiation at run time; however, the protocol has been designed to
 ensure that attempts by non-T/TCP
@@ -104,6 +106,9 @@ single SYN PUSH FIN ACK segment with (different) options and data back
 to the client.  If not, then the connection degenerates into (almost)
 the usual case for
 .Tn TCP .
+The server then closes its socket.
+.It
+The client reads the reply and closes its socket.
 .El
 .Sh CLIENT SUPPORT
 Support on the client side is provided by extending the semantics of
@@ -187,9 +192,11 @@ be closed before any data is sent (unless the socket buffers fill up).
 The second option is preferable for new servers, and is sometimes easy
 enough to retrofit into older servers.  In this case, where the reply
 phase would ordinarily have included a call to
-.Xr write 2 ,
-one substitutes
-.Fn sendto sock reply_buf reply_len MSG_EOF "(struct sockaddr *)0" 0 .
+.Fn write ,
+one substitutes:
+.Pp
+.Dl "sendto(sock, buf, len, MSG_EOF, (struct sockaddr *)0, 0)"
+.Pp
 In this case, the reply is sent immediately, but as in the client
 case, the socket is no lnoger useful for anything and should be
 immediately closed.
@@ -197,10 +204,8 @@ immediately closed.
 The
 .Tn T/TCP
 extensions require the 
-.Dq net.inet.tcp.rfc1323
-and
-.Dq net.inet.tcp.rfc1644
-MIB variables to both be true in order for the appropriate
+.Dq Li net.inet.tcp.rfc1644
+MIB variable to be true in order for the appropriate
 .Tn TCP
 options to be sent.  See
 .Xr tcp 4
