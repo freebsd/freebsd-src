@@ -574,6 +574,26 @@ struct devobj_extension {
 
 typedef struct devobj_extension devobj_extension;
 
+/* Device object flags */
+
+#define DO_VERIFY_VOLUME		0x00000002      
+#define DO_BUFFERED_IO			0x00000004      
+#define DO_EXCLUSIVE			0x00000008      
+#define DO_DIRECT_IO			0x00000010      
+#define DO_MAP_IO_BUFFER		0x00000020      
+#define DO_DEVICE_HAS_NAME		0x00000040      
+#define DO_DEVICE_INITIALIZING		0x00000080      
+#define DO_SYSTEM_BOOT_PARTITION	0x00000100      
+#define DO_LONG_TERM_REQUESTS		0x00000200      
+#define DO_NEVER_LAST_DEVICE		0x00000400      
+#define DO_SHUTDOWN_REGISTERED		0x00000800      
+#define DO_BUS_ENUMERATED_DEVICE	0x00001000      
+#define DO_POWER_PAGABLE		0x00002000      
+#define DO_POWER_INRUSH			0x00004000      
+#define DO_LOW_PRIORITY_FILESYSTEM	0x00010000      
+
+/* Priority boosts */
+
 #define IO_NO_INCREMENT			0
 #define IO_CD_ROM_INCREMENT		1
 #define IO_DISK_INCREMENT		1
@@ -723,6 +743,15 @@ typedef struct devobj_extension devobj_extension;
 #define IRP_ALLOCATED_FIXED_SIZE        0x04
 #define IRP_LOOKASIDE_ALLOCATION        0x08
 
+/* I/O method types */
+
+#define METHOD_BUFFERED			0
+#define METHOD_IN_DIRECT		1
+#define METHOD_OUT_DIRECT		2
+#define METHOD_NEITHER			3
+
+#define IO_METHOD(x)			((x) & 0xFFFFFFFC)
+
 struct io_status_block {
 	union {
 		uint32_t		isb_status;
@@ -756,6 +785,8 @@ typedef struct kapc kapc;
 
 typedef __stdcall uint32_t (*completion_func)(device_object *,
 	struct irp *, void *);
+typedef __stdcall uint32_t (*cancel_func)(device_object *,
+	struct irp *);
 
 struct io_stack_location {
 	uint8_t			isl_major;
@@ -775,12 +806,28 @@ struct io_stack_location {
 
 	union {
 		struct {
+			uint32_t		isl_len;
+			uint32_t		*isl_key;
+			uint64_t		isl_byteoff;
+		} isl_read;
+		struct {
+			uint32_t		isl_len;
+			uint32_t		*isl_key;
+			uint64_t		isl_byteoff;
+		} isl_write;
+		struct {
+			uint32_t		isl_obuflen;
+			uint32_t		isl_ibuflen;
+			uint32_t		isl_iocode;
+			void			*isl_type3ibuf;
+		} isl_ioctl;
+		struct {
 			void			*isl_arg1;
 			void			*isl_arg2;
 			void			*isl_arg3;
 			void			*isl_arg4;
 		} isl_others;
-	} isl_parameters;
+	} isl_parameters __attribute__((packed));
 
 	void			*isl_devobj;
 	void			*isl_fileobj;
@@ -826,7 +873,7 @@ struct irp {
 		} irp_asyncparms;
 		uint64_t			irp_allocsz;
 	} irp_overlay;
-	void			*irp_cancelfunc;
+	cancel_func		irp_cancelfunc;
 	void			*irp_userbuf;
 
 	/* Windows kernel info */
@@ -860,9 +907,16 @@ struct irp {
 
 typedef struct irp irp;
 
+#define InterlockedExchangePointer(dst, val)				\
+	(void *)FASTCALL2(InterlockedExchange, (uint32_t *)(dst),	\
+	(uintptr_t)(val))
+
 #define IoSizeOfIrp(ssize)						\
 	((uint16_t) (sizeof(irp) + ((ssize) * (sizeof(io_stack_location)))))
 
+#define IoSetCancelRoutine(irp, func)					\
+	(cancel_func)InterlockedExchangePointer(			\
+	(void *)&(ip)->irp_cancelfunc, (void *)(func))
 
 #define IoGetCurrentIrpStackLocation(irp)				\
 	(irp)->irp_tail.irp_overlay.irp_csl
@@ -1104,6 +1158,8 @@ __stdcall extern uint32_t KeResetEvent(nt_kevent *);
 __fastcall extern void KefAcquireSpinLockAtDpcLevel(REGARGS1(kspin_lock *));
 __fastcall extern void KefReleaseSpinLockFromDpcLevel(REGARGS1(kspin_lock *));
 __stdcall extern void KeInitializeSpinLock(kspin_lock *);
+__fastcall extern uintptr_t InterlockedExchange(REGARGS2(volatile uint32_t *,
+	uintptr_t));
 __stdcall extern void *ExAllocatePoolWithTag(uint32_t, size_t, uint32_t);
 __stdcall extern void ExFreePool(void *);
 __stdcall extern uint32_t IoAllocateDriverObjectExtension(driver_object *,
@@ -1115,6 +1171,9 @@ __stdcall extern void IoDeleteDevice(device_object *);
 __stdcall extern device_object *IoGetAttachedDevice(device_object *);
 __fastcall extern uint32_t IofCallDriver(REGARGS2(device_object *, irp *));
 __fastcall extern void IofCompleteRequest(REGARGS2(irp *, uint8_t));
+__stdcall extern void IoAcquireCancelSpinLock(uint8_t *);
+__stdcall extern void IoReleaseCancelSpinLock(uint8_t);
+__stdcall extern uint8_t IoCancelIrp(irp *);
 __stdcall extern void IoDetachDevice(device_object *);
 __stdcall extern device_object *IoAttachDeviceToDeviceStack(device_object *,
 	device_object *);
