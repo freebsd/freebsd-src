@@ -1,4 +1,4 @@
-/*	$NetBSD: if_gre.c,v 1.42 2002/08/14 00:23:27 itojun Exp $ */
+/*	$NetBSD: if_gre.c,v 1.49 2003/12/11 00:22:29 itojun Exp $ */
 /*	 $FreeBSD$ */
 
 /*
@@ -212,8 +212,7 @@ gre_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 	struct gre_softc *sc = ifp->if_softc;
 	struct greip *gh;
 	struct ip *ip;
-	u_char osrc;
-	u_short etype = 0;
+	u_int16_t etype = 0;
 	struct mobile_h mob_h;
 
 	/*
@@ -237,7 +236,6 @@ gre_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 
 	gh = NULL;
 	ip = NULL;
-	osrc = 0;
 
 	if (ifp->if_bpf) {
 		u_int32_t af = dst->sa_family;
@@ -282,7 +280,7 @@ gre_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 				msiz = MOB_H_SIZ_L;
 			}
 			mob_h.proto = htons(mob_h.proto);
-			mob_h.hcrc = gre_in_cksum((u_short *)&mob_h, msiz);
+			mob_h.hcrc = gre_in_cksum((u_int16_t *)&mob_h, msiz);
 
 			if ((m->m_data - msiz) < m->m_pktdat) {
 				/* need new mbuf */
@@ -365,13 +363,14 @@ gre_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 		((struct ip*)gh)->ip_ttl = GRE_TTL;
 		((struct ip*)gh)->ip_tos = ip->ip_tos;
 		((struct ip*)gh)->ip_id = ip->ip_id;
-		gh->gi_len = m->m_pkthdr.len;
+		gh->gi_len = htons(m->m_pkthdr.len);
 	}
 
 	ifp->if_opackets++;
 	ifp->if_obytes += m->m_pkthdr.len;
 	/* send it off */
-	error = ip_output(m, NULL, &sc->route, 0, NULL, NULL);
+	error = ip_output(m, NULL, &sc->route, 0,
+	    (struct ip_moptions *)NULL, (struct inpcb *)NULL);
   end:
 	sc->called = 0;
 	if (error)
@@ -620,7 +619,7 @@ gre_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
  * which would be taken by ip_output(), as this one will loop back to
  * us. If the interface is p2p as  a--->b, then a routing entry exists
  * If we now send a packet to b (e.g. ping b), this will come down here
- * gets src=a, dst=b tacked on and would from ip_ouput() sent back to
+ * gets src=a, dst=b tacked on and would from ip_output() sent back to
  * if_gre.
  * Goal here is to compute a route to b that is less specific than
  * a-->b. We know that this one exists as in normal operation we have
@@ -656,7 +655,7 @@ gre_compute_route(struct gre_softc *sc)
 	}
 
 #ifdef DIAGNOSTIC
-	printf("%s: searching a route to %s", if_name(&sc->sc_if),
+	printf("%s: searching for a route to %s", if_name(&sc->sc_if),
 	    inet_ntoa(((struct sockaddr_in *)&ro->ro_dst)->sin_addr));
 #endif
 
@@ -696,10 +695,10 @@ gre_compute_route(struct gre_softc *sc)
  * do a checksum of a buffer - much like in_cksum, which operates on
  * mbufs.
  */
-u_short
-gre_in_cksum(u_short *p, u_int len)
+u_int16_t
+gre_in_cksum(u_int16_t *p, u_int len)
 {
-	u_int sum = 0;
+	u_int32_t sum = 0;
 	int nwords = len >> 1;
 
 	while (nwords-- != 0)
