@@ -142,8 +142,8 @@
 84	OBSOL	owait
 ; XXX implement
 85	OBSOL	oswapon
-; XXX implement
-86	OBSOL	ogetitimer
+86	STD	{ int freebsd32_getitimer(u_int which, \
+		    struct itimerval32 *itv); }
 87	OBSOL	ogethostname
 88	OBSOL	osethostname
 89	MNOPROTO { int getdtablesize(void); }
