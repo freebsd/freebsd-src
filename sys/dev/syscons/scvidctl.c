@@ -654,7 +654,7 @@ sc_vid_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag, struct thread *
 #endif /* SC_NO_MODE_CHANGE */
 
     case KDSETMODE:     	/* set current mode of this (virtual) console */
-	switch (*(int *)data) {
+	switch (*(intptr_t *)data) {
 	case KD_TEXT:   	/* switch to TEXT (known) mode */
 	    /*
 	     * If scp->mode is of graphics modes, we don't know which
@@ -783,7 +783,7 @@ sc_vid_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag, struct thread *
 	return 0;
 
     case KDSBORDER:     	/* set border color of this (virtual) console */
-	scp->border = *data;
+	scp->border = *(intptr_t *)data;
 	if (scp == scp->sc->cur_scp)
 	    sc_set_border(scp, scp->border);
 	return 0;
