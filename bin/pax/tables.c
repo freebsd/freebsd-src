@@ -130,11 +130,11 @@ lnk_start(void)
  */
 
 int
-chk_lnk(register ARCHD *arcn)
+chk_lnk(ARCHD *arcn)
 {
-	register HRDLNK *pt;
-	register HRDLNK **ppt;
-	register u_int indx;
+	HRDLNK *pt;
+	HRDLNK **ppt;
+	u_int indx;
 
 	if (ltab == NULL)
 		return(-1);
@@ -217,11 +217,11 @@ chk_lnk(register ARCHD *arcn)
  */
 
 void
-purg_lnk(register ARCHD *arcn)
+purg_lnk(ARCHD *arcn)
 {
-	register HRDLNK *pt;
-	register HRDLNK **ppt;
-	register u_int indx;
+	HRDLNK *pt;
+	HRDLNK **ppt;
+	u_int indx;
 
 	if (ltab == NULL)
 		return;
@@ -273,9 +273,9 @@ purg_lnk(register ARCHD *arcn)
 void
 lnk_end(void)
 {
-	register int i;
-	register HRDLNK *pt;
-	register HRDLNK *ppt;
+	int i;
+	HRDLNK *pt;
+	HRDLNK *ppt;
 
 	if (ltab == NULL)
 		return;
@@ -369,11 +369,11 @@ ftime_start(void)
  */
 
 int
-chk_ftime(register ARCHD *arcn)
+chk_ftime(ARCHD *arcn)
 {
-	register FTM *pt;
-	register int namelen;
-	register u_int indx;
+	FTM *pt;
+	int namelen;
+	u_int indx;
 	char ckname[PAXPATHLEN+1];
 
 	/*
@@ -509,10 +509,10 @@ name_start(void)
  */
 
 int
-add_name(register char *oname, int onamelen, char *nname)
+add_name(char *oname, int onamelen, char *nname)
 {
-	register NAMT *pt;
-	register u_int indx;
+	NAMT *pt;
+	u_int indx;
 
 	if (ntab == NULL) {
 		/*
@@ -577,10 +577,10 @@ add_name(register char *oname, int onamelen, char *nname)
  */
 
 void
-sub_name(register char *oname, int *onamelen, size_t onamesize)
+sub_name(char *oname, int *onamelen, size_t onamesize)
 {
-	register NAMT *pt;
-	register u_int indx;
+	NAMT *pt;
+	u_int indx;
 
 	if (ntab == NULL)
 		return;
@@ -683,7 +683,7 @@ dev_start(void)
  */
 
 int
-add_dev(register ARCHD *arcn)
+add_dev(ARCHD *arcn)
 {
 	if (chk_dev(arcn->sb.st_dev, 1) == NULL)
 		return(-1);
@@ -706,8 +706,8 @@ add_dev(register ARCHD *arcn)
 static DEVT *
 chk_dev(dev_t dev, int add)
 {
-	register DEVT *pt;
-	register u_int indx;
+	DEVT *pt;
+	u_int indx;
 
 	if (dtab == NULL)
 		return(NULL);
@@ -762,10 +762,10 @@ chk_dev(dev_t dev, int add)
  */
 
 int
-map_dev(register ARCHD *arcn, u_long dev_mask, u_long ino_mask)
+map_dev(ARCHD *arcn, u_long dev_mask, u_long ino_mask)
 {
-	register DEVT *pt;
-	register DLIST *dpt;
+	DEVT *pt;
+	DLIST *dpt;
 	static dev_t lastdev = 0;	/* next device number to try */
 	int trc_ino = 0;
 	int trc_dev = 0;
@@ -926,8 +926,8 @@ atdir_start(void)
 void
 atdir_end(void)
 {
-	register ATDIR *pt;
-	register int i;
+	ATDIR *pt;
+	int i;
 
 	if (atab == NULL)
 		return;
@@ -957,8 +957,8 @@ atdir_end(void)
 void
 add_atdir(char *fname, dev_t dev, ino_t ino, time_t mtime, time_t atime)
 {
-	register ATDIR *pt;
-	register u_int indx;
+	ATDIR *pt;
+	u_int indx;
 
 	if (atab == NULL)
 		return;
@@ -1019,9 +1019,9 @@ add_atdir(char *fname, dev_t dev, ino_t ino, time_t mtime, time_t atime)
 int
 get_atdir(dev_t dev, ino_t ino, time_t *mtime, time_t *atime)
 {
-	register ATDIR *pt;
-	register ATDIR **ppt;
-	register u_int indx;
+	ATDIR *pt;
+	ATDIR **ppt;
+	u_int indx;
 
 	if (atab == NULL)
 		return(-1);
@@ -1231,13 +1231,13 @@ proc_dir(void)
 u_int
 st_hash(char *name, int len, int tabsz)
 {
-	register char *pt;
-	register char *dest;
-	register char *end;
-	register int i;
-	register u_int key = 0;
-	register int steps;
-	register int res;
+	char *pt;
+	char *dest;
+	char *end;
+	int i;
+	u_int key = 0;
+	int steps;
+	int res;
 	u_int val;
 
 	/*

@@ -146,10 +146,10 @@ ftree_start(void)
  */
 
 int
-ftree_add(register char *str, int chflg)
+ftree_add(char *str, int chflg)
 {
-	register FTREE *ft;
-	register int len;
+	FTREE *ft;
+	int len;
 
 	/*
 	 * simple check for bad args
@@ -191,7 +191,7 @@ ftree_add(register char *str, int chflg)
  */
 
 void
-ftree_sel(register ARCHD *arcn)
+ftree_sel(ARCHD *arcn)
 {
 	/*
 	 * set reference bit for this pattern. This linked list is only used
@@ -226,8 +226,8 @@ ftree_sel(register ARCHD *arcn)
 void
 ftree_chk(void)
 {
-	register FTREE *ft;
-	register int wban = 0;
+	FTREE *ft;
+	int wban = 0;
 
 	/*
 	 * make sure all dir access times were reset.
@@ -263,7 +263,7 @@ ftree_chk(void)
 static int
 ftree_arg(void)
 {
-	register char *pt;
+	char *pt;
 
 	/*
 	 * close off the current file tree
@@ -335,9 +335,9 @@ ftree_arg(void)
  */
 
 int
-next_file(register ARCHD *arcn)
+next_file(ARCHD *arcn)
 {
-	register int cnt;
+	int cnt;
 	time_t atime;
 	time_t mtime;
 

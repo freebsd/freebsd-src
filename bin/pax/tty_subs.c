@@ -118,7 +118,7 @@ tty_prnt(const char *fmt, ...)
 int
 tty_read(char *str, int len)
 {
-	register char *pt;
+	char *pt;
 
 	if ((--len <= 0) || (ttyinf == NULL) || (fgets(str,len,ttyinf) == NULL))
 		return(-1);
