@@ -10,7 +10,7 @@
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
 .\" 3. All advertising materials mentioning features or use of this software
-.\"    must display the following acknowledgement:
+.\"    must display the following acknowledgment:
 .\"	This product includes software developed by the University of
 .\"	California, Berkeley and its contributors.
 .\" 4. Neither the name of the University nor the names of its contributors
@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)fsck.8	8.4 (Berkeley) 5/9/95
-.\"	$Id: fsck.8,v 1.9 1997/03/11 12:19:36 peter Exp $
+.\"	$Id: fsck.8,v 1.10 1997/03/12 16:35:26 bde Exp $
 .\"
 .Dd May 9, 1995
 .Dt FSCK 8
@@ -54,13 +54,13 @@
 .Ar ...
 .Sh DESCRIPTION
 The first form of
-.Nm fsck
+.Nm
 preens a standard set of filesystems or the specified filesystems.
 It is normally used in the script
 .Pa /etc/rc
 during automatic reboot.
 Here
-.Nm fsck
+.Nm
 reads the table
 .Pa /etc/fstab
 to determine which filesystems to check.
@@ -78,7 +78,7 @@ The clean flag of each filesystem's superblock is examined and only those filesy
 are not marked clean are checked.
 Filesystems are marked clean when they are unmounted,
 when they have been mounted read-only, or when
-.Nm fsck
+.Nm
 runs on them successfully.
 If the
 .Fl f
@@ -102,7 +102,7 @@ Counts in the super-block wrong
 .El
 .Pp
 These are the only inconsistencies that
-.Nm fsck
+.Nm
 with the
 .Fl p
 option will correct; if it encounters other inconsistencies, it exits
@@ -110,7 +110,7 @@ with an abnormal return status and an automatic reboot will then fail.
 For each corrected inconsistency one or more lines will be printed
 identifying the filesystem on which the correction will take place,
 and the nature of the correction.  After successfully correcting a filesystem,
-.Nm fsck
+.Nm
 will print the number of files on that filesystem,
 the number of used and free blocks,
 and the percentage of fragmentation.
@@ -118,7 +118,7 @@ and the percentage of fragmentation.
 If sent a
 .Dv QUIT
 signal,
-.Nm fsck
+.Nm
 will finish the filesystem checks, then exit with an abnormal
 return status that causes an automatic reboot to fail.
 This is useful when you want to finish the filesystem checks during an
@@ -128,7 +128,7 @@ but do not want the machine to come up multiuser after the checks complete.
 Without the
 .Fl p
 option,
-.Nm fsck
+.Nm
 audits and interactively repairs inconsistent conditions for filesystems. 
 If the filesystem is inconsistent the operator is prompted for concurrence
 before each correction is attempted.
@@ -144,7 +144,7 @@ is to wait for the operator to respond
 or
 .Li no .
 If the operator does not have write permission on the filesystem
-.Nm fsck
+.Nm
 will default to a 
 .Fl n
 action.
@@ -158,7 +158,7 @@ and
 combined.
 .Pp
 The following flags are interpreted by
-.Nm fsck .
+.Nm Ns .
 .Bl -tag -width indent
 .It Fl b
 Use the block specified immediately after the flag as
@@ -180,12 +180,12 @@ by all users on the system should use a more restrictive
 set of permissions such as 700.
 .It Fl y
 Assume a yes response to all questions asked by 
-.Nm fsck ;
+.Nm Ns ;
 this should be used with great caution as this is a free license
 to continue after essentially unlimited trouble has been encountered.
 .It Fl n
 Assume a no response to all questions asked by 
-.Nm fsck
+.Nm
 except for
 .Ql CONTINUE? ,
 which is assumed to be affirmative;
@@ -210,7 +210,7 @@ If maxcontig is equal to one, delete any existing segment maps.
 .El
 .Pp
 In interactive mode,
-.Nm fsck
+.Nm
 will list the conversion to be made
 and ask whether the conversion should be done.
 If a negative answer is given,
@@ -226,7 +226,7 @@ first line of output from
 .El
 .Pp
 If no filesystems are given to 
-.Nm fsck
+.Nm
 then a default list of filesystems is read from
 the file
 .Pa /etc/fstab .
@@ -296,7 +296,7 @@ contains default list of filesystems to check.
 .El
 .Sh DIAGNOSTICS
 The diagnostics produced by 
-.Nm fsck
+.Nm
 are fully enumerated and explained in Appendix A of
 .Rs
 .%T "Fsck \- The UNIX File System Check Program"
