@@ -297,6 +297,8 @@ filter(FILE *f)
 			maxcol = col;
 		continue;
 	}
+	if (ferror(f))
+		err(1, NULL);
 	if (maxcol)
 		flushln();
 }
