@@ -37,7 +37,7 @@ static int wdtest = 0;
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.27 1994/02/07 04:20:57 davidg Exp $
+ *	$Id: wd.c,v 1.28 1994/02/07 15:40:38 ache Exp $
  */
 
 /* TODO:
@@ -84,9 +84,7 @@ static int wdtest = 0;
 #include "syslog.h"
 #include "vm/vm.h"
 
-#ifndef WDCTIMEOUT
-#define WDCTIMEOUT	10000000  /* arbitrary timeout for drive ready waits */
-#endif
+#define	TIMEOUT		10000	/* XXX? WDCC_DIAGNOSE can take > 1.1 sec */
 
 #define	RETRIES		5	/* number of retries before giving up */
 #define RECOVERYTIME	500000	/* usec for controller to recover after err */
@@ -178,7 +176,7 @@ static int wdreset(struct disk *du);
 static void wdsleep(int ctrlr, char *wmesg);
 static void wdtimeout(caddr_t cdu, int ticks);
 static int wdunwedge(struct disk *du);
-static int wdwait(struct disk *du, u_char bits_wanted);
+static int wdwait(struct disk *du, u_char bits_wanted, int timeout);
 
 struct isa_driver wdcdriver = {
 	wdprobe, wdattach, "wdc",
@@ -212,7 +210,7 @@ wdprobe(struct isa_device *dvp)
 
 	/* execute a controller only command */
 	if (wdcommand(du, 0, 0, 0, 0, WDCC_DIAGNOSE) != 0
-	    || wdwait(du, 0) != 0)
+	    || wdwait(du, 0, TIMEOUT) != 0)
 		goto nodevice;
 
 	free(du, M_TEMP);
@@ -600,7 +598,7 @@ loop:
 		return;
 
 	/* Ready to send data? */
-	if (wdwait(du, WDCS_READY | WDCS_SEEKCMPLT | WDCS_DRQ) < 0) {
+	if (wdwait(du, WDCS_READY | WDCS_SEEKCMPLT | WDCS_DRQ, TIMEOUT) < 0) {
 		wderror(bp, du, "wdstart: timeout waiting for DRQ");
 		/*
 		 * XXX what do we do now?  If we've just issued the command,
@@ -644,7 +642,7 @@ wdintr(int unit)
 	du = wddrives[wdunit(bp->b_dev)];
 	du->dk_timeout = 0;
 
-	if (wdwait(du, 0) < 0) {
+	if (wdwait(du, 0, TIMEOUT) < 0) {
 		wderror(bp, du, "wdintr: timeout waiting for status");
 		du->dk_status |= WDCS_ERR;	/* XXX */
 	}
@@ -698,7 +696,7 @@ oops:
 		chk = min(DEV_BSIZE / sizeof(short), du->dk_bc / sizeof(short));
 
 		/* ready to receive data? */
-		if (wdwait(du, WDCS_READY | WDCS_SEEKCMPLT | WDCS_DRQ) != 0) {
+		if (wdwait(du, WDCS_READY | WDCS_SEEKCMPLT | WDCS_DRQ, TIMEOUT) != 0) {
 			wderror(bp, du, "wdintr: read error detected late");
 			goto oops;
 		}
@@ -995,7 +993,7 @@ wdcommand(struct disk *du, u_int cylinder, u_int head, u_int sector,
 {
 	u_int	wdc;
 
-	if (wdwait(du, 0) < 0)
+	if (wdwait(du, 0, TIMEOUT) < 0)
 		return (1);
 	wdc = du->dk_port;
 	outb(wdc + wd_precomp, du->dk_dd.d_precompcyl / 4);
@@ -1005,7 +1003,7 @@ wdcommand(struct disk *du, u_int cylinder, u_int head, u_int sector,
 	outb(wdc + wd_sector, sector + 1);
 	outb(wdc + wd_seccnt, count);
 	if (wdwait(du, command == WDCC_DIAGNOSE || command == WDCC_IDC
-		       ? 0 : WDCS_READY) < 0)
+		       ? 0 : WDCS_READY, TIMEOUT) < 0)
 		return (1);
 	outb(wdc + wd_command, command);
 	return (0);
@@ -1030,7 +1028,7 @@ wdsetctlr(struct disk *du)
 	}
 	if (wdcommand(du, du->dk_dd.d_ncylinders, du->dk_dd.d_ntracks - 1, 0,
 		      du->dk_dd.d_nsectors, WDCC_IDC) != 0
-	    || wdwait(du, WDCS_READY) != 0) {
+	    || wdwait(du, WDCS_READY, TIMEOUT) != 0) {
 		wderror((struct buf *)NULL, du, "wdsetctlr failed");
 		return (1);
 	}
@@ -1065,7 +1063,7 @@ wdgetctlr(struct disk *du)
 	struct wdparams *wp;
 
 	if (wdcommand(du, 0, 0, 0, 0, WDCC_READP) != 0
-	    || wdwait(du, WDCS_READY | WDCS_SEEKCMPLT | WDCS_DRQ) < 0) {
+	    || wdwait(du, WDCS_READY | WDCS_SEEKCMPLT | WDCS_DRQ, TIMEOUT) < 0) {
 		/* XXX need to check error status after final transfer. */
 		/*
 		 * Old drives don't support WDCC_READP.  Try a seek to 0.
@@ -1073,14 +1071,14 @@ wdgetctlr(struct disk *du)
 		 * attached, so first test that the drive can be selected.
 		 * This also avoids long waits for nonexistent drives.
 		 */
-		if (wdwait(du, 0) < 0)
+		if (wdwait(du, 0, TIMEOUT) < 0)
 			return (1);
 		outb(du->dk_port + wd_sdh, WDSD_IBM | (du->dk_unit << 4));
 		DELAY(5000);	/* usually unnecessary; drive select is fast */
 		if ((inb(du->dk_port + wd_status) & (WDCS_BUSY | WDCS_READY))
 		    != WDCS_READY
 		    || wdcommand(du, 0, 0, 0, 0, WDCC_RESTORE | WD_STEP) != 0
-		    || wdwait(du, WDCS_READY | WDCS_SEEKCMPLT) != 0)
+		    || wdwait(du, WDCS_READY | WDCS_SEEKCMPLT, TIMEOUT) != 0)
 			return (1);
 
 		/*
@@ -1404,7 +1402,7 @@ wddump(dev_t dev)
 	/* Recalibrate the drive. */
 	DELAY(5);		/* ATA spec XXX NOT */
 	if (wdcommand(du, 0, 0, 0, 0, WDCC_RESTORE | WD_STEP) != 0
-	    || wdwait(du, WDCS_READY | WDCS_SEEKCMPLT) != 0
+	    || wdwait(du, WDCS_READY | WDCS_SEEKCMPLT, TIMEOUT) != 0
 	    || wdsetctlr(du) != 0) {
 		wderror((struct buf *)NULL, du, "wddump: recalibrate failed");
 		return (EIO);
@@ -1507,7 +1505,7 @@ out:
 
 			/* Ready to send data? */
 			DELAY(5);	/* ATA spec */
-			if (wdwait(du, WDCS_READY | WDCS_SEEKCMPLT | WDCS_DRQ)
+			if (wdwait(du, WDCS_READY | WDCS_SEEKCMPLT | WDCS_DRQ, TIMEOUT)
 			    < 0) {
 				wderror((struct buf *)NULL, du,
 					"wddump: timeout waiting for DRQ");
@@ -1525,7 +1523,7 @@ out:
 
 		/* Wait for completion. */
 		DELAY(5);	/* ATA spec XXX NOT */
-		if (wdwait(du, WDCS_READY | WDCS_SEEKCMPLT) < 0) {
+		if (wdwait(du, WDCS_READY | WDCS_SEEKCMPLT, TIMEOUT) < 0) {
 			wderror((struct buf *)NULL, du,
 				"wddump: timeout waiting for status");
 			return (EIO);
@@ -1583,11 +1581,11 @@ wdreset(struct disk *du)
 	int	wdc;
 
 	wdc = du->dk_port;
-	(void)wdwait(du, 0);
+	(void)wdwait(du, 0, TIMEOUT);
 	outb(wdc + wd_ctlr, WDCTL_IDS | WDCTL_RST);
 	DELAY(10 * 1000);
 	outb(wdc + wd_ctlr, WDCTL_IDS);
-	if (wdwait(du, WDCS_READY | WDCS_SEEKCMPLT) != 0
+	if (wdwait(du, WDCS_READY | WDCS_SEEKCMPLT, TIMEOUT) != 0
 	    || (du->dk_error = inb(wdc + wd_error)) != 0x01)
 		return (1);
 	outb(wdc + wd_ctlr, WDCTL_4BIT);
@@ -1651,7 +1649,7 @@ wdunwedge(struct disk *du)
 		 * aren't prepared to have its state change.
 		 */
 		if (wdcommand(du, 0, 0, 0, 0, WDCC_RESTORE | WD_STEP) == 0
-		    && wdwait(du, WDCS_READY | WDCS_SEEKCMPLT) == 0
+		    && wdwait(du, WDCS_READY | WDCS_SEEKCMPLT, TIMEOUT) == 0
 		    && wdsetctlr(du) == 0)
 			return (0);
 	}
@@ -1674,22 +1672,20 @@ static int min_retries[NWDC];
 #endif
 
 static int
-wdwait(struct disk *du, u_char bits_wanted)
+wdwait(struct disk *du, u_char bits_wanted, int timeout)
 {
-	int	retries;
 	int	wdc;
 	u_char	status;
 
 #define	POLLING		1000
-#define	TIMEOUT		10000	/* XXX? WDCC_DIAGNOSE can take > 1.1 sec */
 
 	wdc = du->dk_port;
-	retries = POLLING + TIMEOUT;
+	timeout += POLLING;
 	do {
 #ifdef WD_COUNT_RETRIES
-		if (min_retries[du->dk_ctrlr] > retries
+		if (min_retries[du->dk_ctrlr] > timeout
 		    || min_retries[du->dk_ctrlr] == 0)
-			min_retries[du->dk_ctrlr] = retries;
+			min_retries[du->dk_ctrlr] = timeout;
 #endif
 		DELAY(5);	/* ATA spec XXX NOT */
 		du->dk_status = status = inb(wdc + wd_status);
@@ -1709,7 +1705,7 @@ wdwait(struct disk *du, u_char bits_wanted)
 			if ((status & bits_wanted) == bits_wanted)
 				return (status & WDCS_ERR);
 		}
-		if (retries < TIMEOUT)
+		if (timeout < TIMEOUT)
 			/*
 			 * Switch to a polling rate of about 1 KHz so that
 			 * the timeout is almost machine-independent.  The
@@ -1717,7 +1713,7 @@ wdwait(struct disk *du, u_char bits_wanted)
 			 * an extra msec won't matter.
 			 */
 			DELAY(1000);
-	} while (--retries != 0);
+	} while (--timeout != 0);
 	return (-1);
 }
 
