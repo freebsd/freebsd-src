@@ -83,6 +83,7 @@ CLEANDIR=	cleandir
 .endif
 
 CVS?=		cvs
+CVSFLAGS?=	-r RELENG_5 -P -d -I!
 SUP?=		/usr/local/bin/cvsup
 SUPFLAGS?=	-g -L 2 -P -
 .if defined(SUPHOST)
@@ -802,9 +803,9 @@ update:
 .endif
 .if defined(CVS_UPDATE)
 	@echo "--------------------------------------------------------------"
-	@echo ">>> Updating ${.CURDIR} from cvs repository" ${CVSROOT}
+	@echo ">>> Updating ${.CURDIR} from CVS repository" ${CVSROOT}
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}; ${CVS} -R -q update -rRELENG_5 -P -d
+	cd ${.CURDIR}; ${CVS} -R -q update ${CVSFLAGS}
 .endif
 
 #
