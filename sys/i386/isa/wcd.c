@@ -250,7 +250,7 @@ static void wcd_describe (struct wcd *t);
 static int wcd_open(dev_t dev, int rawflag);
 static int wcd_setchan (struct wcd *t,
 	u_char c0, u_char c1, u_char c2, u_char c3);
-static int wcd_eject (struct wcd *t);
+static int wcd_eject (struct wcd *t, int closeit);
 
 static struct kern_devconf cftemplate = {
 	0, 0, 0, "wcd", 0, { MDDT_DISK, 0 },
@@ -740,7 +740,12 @@ int wcdioctl (dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
 		 * by somebody (not us) in block mode. */
 		if ((t->flags & F_BOPEN) && t->refcnt)
 			return (EBUSY);
-		return wcd_eject (t);
+		return wcd_eject (t, 0);
+
+	case CDIOCCLOSE:
+		if ((t->flags & F_BOPEN) && t->refcnt)
+			return (0);
+		return wcd_eject (t, 1);
 
 	case CDIOREADTOCHEADER:
 		if (! t->toc.hdr.ending_track)
@@ -1068,7 +1073,7 @@ static int wcd_setchan (struct wcd *t,
 		0, (char*) &t->au, - sizeof (t->au));
 }
 
-static int wcd_eject (struct wcd *t)
+static int wcd_eject (struct wcd *t, int closeit)
 {
 	struct atapires result;
 
@@ -1081,12 +1086,16 @@ static int wcd_eject (struct wcd *t)
 	if (result.code == RES_ERR &&
 	    ((result.error & AER_SKEY) == AER_SK_NOT_READY ||
 	    (result.error & AER_SKEY) == AER_SK_UNIT_ATTENTION)) {
+		int err;
+
+		if (!closeit)
+			return (0);
 		/*
 		 * The disc was unloaded.
 		 * Load it (close tray).
 		 * Read the table of contents.
 		 */
-		int err = wcd_request_wait (t, ATAPI_START_STOP,
+		err = wcd_request_wait (t, ATAPI_START_STOP,
 			0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0);
 		if (err)
 			return (err);
@@ -1105,6 +1114,9 @@ static int wcd_eject (struct wcd *t)
 		wcd_error (t, result);
 		return (EIO);
 	}
+
+	if (closeit)
+		return (0);
 
 	/* Give it some time to stop spinning. */
 	tsleep ((caddr_t)&lbolt, PRIBIO, "wcdej1", 0);
