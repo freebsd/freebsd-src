@@ -89,6 +89,7 @@ __FBSDID("$FreeBSD$");
 #include    <stdlib.h>
 #include    "make.h"
 #include    "buf.h"
+#include    "var.h"
 
 /*
  * This is a harmless return value for Var_Parse that can be used by Var_Subst
@@ -129,64 +130,16 @@ static Lst	allVars;      /* List of all variables */
 #define	FIND_GLOBAL	0x2   /* look in VAR_GLOBAL as well */
 #define	FIND_ENV  	0x4   /* look in the environment also */
 
-typedef struct Var {
-    char          *name;	/* the variable's name */
-    Buffer	  val;	    	/* its value */
-    int	    	  flags;    	/* miscellaneous status flags */
-#define	VAR_IN_USE	1   	    /* Variable's value currently being used.
-				     * Used to avoid recursion */
-#define	VAR_FROM_ENV	2   	    /* Variable comes from the environment */
-#define	VAR_JUNK  	4   	    /* Variable is a junk variable that
-				     * should be destroyed when done with
-				     * it. Used by Var_Parse for undefined,
-				     * modified variables */
-}  Var;
-
-/* Var*Pattern flags */
-#define	VAR_SUB_GLOBAL	0x01	/* Apply substitution globally */
-#define	VAR_SUB_ONE	0x02	/* Apply substitution to one word */
-#define	VAR_SUB_MATCHED	0x04	/* There was a match */
-#define	VAR_MATCH_START	0x08	/* Match at start of word */
-#define	VAR_MATCH_END	0x10	/* Match at end of word */
-#define	VAR_NOSUBST	0x20	/* don't expand vars in VarGetPattern */
-
-typedef struct {
-    char    	  *lhs;	    /* String to match */
-    int	    	  leftLen;  /* Length of string */
-    char    	  *rhs;	    /* Replacement string (w/ &'s removed) */
-    int	    	  rightLen; /* Length of replacement */
-    int	    	  flags;
-} VarPattern;
-
-typedef struct { 
-    regex_t	   re; 
-    int		   nsub;
-    regmatch_t	  *matches;
-    char	  *replace;
-    int		   flags;
-} VarREPattern;
-
 static int VarCmp(void *, void *);
 static void VarPossiblyExpand(char **, GNode *);
 static Var *VarFind(char *, GNode *, int);
 static void VarAdd(char *, char *, GNode *);
 static void VarDelete(void *);
-static Boolean VarHead(char *, Boolean, Buffer, void *);
-static Boolean VarTail(char *, Boolean, Buffer, void *);
-static Boolean VarSuffix(char *, Boolean, Buffer, void *);
-static Boolean VarRoot(char *, Boolean, Buffer, void *);
-static Boolean VarMatch(char *, Boolean, Buffer, void *);
-#ifdef SYSVVARSUB
-static Boolean VarSYSVMatch(char *, Boolean, Buffer, void *);
-#endif
-static Boolean VarNoMatch(char *, Boolean, Buffer, void *);
-static void VarREError(int, regex_t *, const char *);
-static Boolean VarRESubstitute(char *, Boolean, Buffer, void *);
-static Boolean VarSubstitute(char *, Boolean, Buffer, void *);
 static char *VarGetPattern(GNode *, int, char **, int, int *, int *, 
 			   VarPattern *);
-static char *VarQuote(char *);
-static char *VarModify(char *, Boolean (*)(char *, Boolean, Buffer, void *),
+static char *VarQuote(const char *);
+static char *VarModify(char *,
+		       Boolean (*)(const char *, Boolean, Buffer, void *),
 		       void *);
 static int VarPrintVar(void *, void *);
 
@@ -616,567 +569,6 @@ Var_Value (char *name, GNode *ctxt, char **frp)
 
 /*-
  *-----------------------------------------------------------------------
- * VarHead --
- *	Remove the tail of the given word and place the result in the given
- *	buffer.
- *
- * Results:
- *	TRUE if characters were added to the buffer (a space needs to be
- *	added to the buffer before the next word).
- *
- * Side Effects:
- *	The trimmed word is added to the buffer.
- *
- *-----------------------------------------------------------------------
- */
-static Boolean
-VarHead (char *word, Boolean addSpace, Buffer buf, void *dummy __unused)
-{
-    char *slash;
-
-    slash = strrchr (word, '/');
-    if (slash != (char *)NULL) {
-	if (addSpace) {
-	    Buf_AddByte (buf, (Byte)' ');
-	}
-	*slash = '\0';
-	Buf_AddBytes (buf, strlen (word), (Byte *)word);
-	*slash = '/';
-	return (TRUE);
-    } else {
-	/*
-	 * If no directory part, give . (q.v. the POSIX standard)
-	 */
-	if (addSpace) {
-	    Buf_AddBytes(buf, 2, (Byte *)" .");
-	} else {
-	    Buf_AddByte(buf, (Byte)'.');
-	}
-    }
-    return (TRUE);
-}
-
-/*-
- *-----------------------------------------------------------------------
- * VarTail --
- *	Remove the head of the given word and place the result in the given
- *	buffer.
- *
- * Results:
- *	TRUE if characters were added to the buffer (a space needs to be
- *	added to the buffer before the next word).
- *
- * Side Effects:
- *	The trimmed word is added to the buffer.
- *
- *-----------------------------------------------------------------------
- */
-static Boolean
-VarTail (char *word, Boolean addSpace, Buffer buf, void *dummy __unused)
-{
-    char *slash;
-
-    if (addSpace) {
-	Buf_AddByte (buf, (Byte)' ');
-    }
-
-    slash = strrchr (word, '/');
-    if (slash != (char *)NULL) {
-	*slash++ = '\0';
-	Buf_AddBytes (buf, strlen(slash), (Byte *)slash);
-	slash[-1] = '/';
-    } else {
-	Buf_AddBytes (buf, strlen(word), (Byte *)word);
-    }
-    return (TRUE);
-}
-
-/*-
- *-----------------------------------------------------------------------
- * VarSuffix --
- *	Place the suffix of the given word in the given buffer.
- *
- * Results:
- *	TRUE if characters were added to the buffer (a space needs to be
- *	added to the buffer before the next word).
- *
- * Side Effects:
- *	The suffix from the word is placed in the buffer.
- *
- *-----------------------------------------------------------------------
- */
-static Boolean
-VarSuffix (char *word, Boolean addSpace, Buffer buf, void *dummy __unused)
-{
-    char *dot;
-
-    dot = strrchr (word, '.');
-    if (dot != (char *)NULL) {
-	if (addSpace) {
-	    Buf_AddByte (buf, (Byte)' ');
-	}
-	*dot++ = '\0';
-	Buf_AddBytes (buf, strlen (dot), (Byte *)dot);
-	dot[-1] = '.';
-	addSpace = TRUE;
-    }
-    return (addSpace);
-}
-
-/*-
- *-----------------------------------------------------------------------
- * VarRoot --
- *	Remove the suffix of the given word and place the result in the
- *	buffer.
- *
- * Results:
- *	TRUE if characters were added to the buffer (a space needs to be
- *	added to the buffer before the next word).
- *
- * Side Effects:
- *	The trimmed word is added to the buffer.
- *
- *-----------------------------------------------------------------------
- */
-static Boolean
-VarRoot (char *word, Boolean addSpace, Buffer buf, void *dummy __unused)
-{
-    char *dot;
-
-    if (addSpace) {
-	Buf_AddByte (buf, (Byte)' ');
-    }
-
-    dot = strrchr (word, '.');
-    if (dot != (char *)NULL) {
-	*dot = '\0';
-	Buf_AddBytes (buf, strlen (word), (Byte *)word);
-	*dot = '.';
-    } else {
-	Buf_AddBytes (buf, strlen(word), (Byte *)word);
-    }
-    return (TRUE);
-}
-
-/*-
- *-----------------------------------------------------------------------
- * VarMatch --
- *	Place the word in the buffer if it matches the given pattern.
- *	Callback function for VarModify to implement the :M modifier.
- *	A space will be added if requested.  A pattern is supplied
- *	which the word must match.
- *
- * Results:
- *	TRUE if a space should be placed in the buffer before the next
- *	word.
- *
- * Side Effects:
- *	The word may be copied to the buffer.
- *
- *-----------------------------------------------------------------------
- */
-static Boolean
-VarMatch (char *word, Boolean addSpace, Buffer buf, void *pattern)
-{
-    if (Str_Match(word, (char *) pattern)) {
-	if (addSpace) {
-	    Buf_AddByte(buf, (Byte)' ');
-	}
-	addSpace = TRUE;
-	Buf_AddBytes(buf, strlen(word), (Byte *)word);
-    }
-    return(addSpace);
-}
-
-#ifdef SYSVVARSUB
-/*-
- *-----------------------------------------------------------------------
- * VarSYSVMatch --
- *	Place the word in the buffer if it matches the given pattern.
- *	Callback function for VarModify to implement the System V %
- *	modifiers.  A space is added if requested.
- *
- * Results:
- *	TRUE if a space should be placed in the buffer before the next
- *	word.
- *
- * Side Effects:
- *	The word may be copied to the buffer.
- *
- *-----------------------------------------------------------------------
- */
-static Boolean
-VarSYSVMatch (char *word, Boolean addSpace, Buffer buf, void *patp)
-{
-    int len;
-    char *ptr;
-    VarPattern 	  *pat = (VarPattern *) patp;
-
-    if (addSpace)
-	Buf_AddByte(buf, (Byte)' ');
-
-    addSpace = TRUE;
-
-    if ((ptr = Str_SYSVMatch(word, pat->lhs, &len)) != NULL)
-	Str_SYSVSubst(buf, pat->rhs, ptr, len);
-    else
-	Buf_AddBytes(buf, strlen(word), (Byte *) word);
-
-    return(addSpace);
-}
-#endif
-
-
-/*-
- *-----------------------------------------------------------------------
- * VarNoMatch --
- *	Place the word in the buffer if it doesn't match the given pattern.
- *	Callback function for VarModify to implement the :N modifier.  A
- *	space is added if requested.
- *
- * Results:
- *	TRUE if a space should be placed in the buffer before the next
- *	word.
- *
- * Side Effects:
- *	The word may be copied to the buffer.
- *
- *-----------------------------------------------------------------------
- */
-static Boolean
-VarNoMatch (char *word, Boolean addSpace, Buffer buf, void *pattern)
-{
-    if (!Str_Match(word, (char *) pattern)) {
-	if (addSpace) {
-	    Buf_AddByte(buf, (Byte)' ');
-	}
-	addSpace = TRUE;
-	Buf_AddBytes(buf, strlen(word), (Byte *)word);
-    }
-    return(addSpace);
-}
-
-
-/*-
- *-----------------------------------------------------------------------
- * VarSubstitute --
- *	Perform a string-substitution on the given word, placing the
- *	result in the passed buffer.  A space is added if requested.
- *
- * Results:
- *	TRUE if a space is needed before more characters are added.
- *
- * Side Effects:
- *	None.
- *
- *-----------------------------------------------------------------------
- */
-static Boolean
-VarSubstitute (char *word, Boolean addSpace, Buffer buf, void *patternp)
-{
-    int		  	wordLen;    /* Length of word */
-    char	 	*cp;	    /* General pointer */
-    VarPattern	*pattern = (VarPattern *) patternp;
-
-    wordLen = strlen(word);
-    if (1) { /* substitute in each word of the variable */
-	/*
-	 * Break substitution down into simple anchored cases
-	 * and if none of them fits, perform the general substitution case.
-	 */
-	if ((pattern->flags & VAR_MATCH_START) &&
-	    (strncmp(word, pattern->lhs, pattern->leftLen) == 0)) {
-		/*
-		 * Anchored at start and beginning of word matches pattern
-		 */
-		if ((pattern->flags & VAR_MATCH_END) &&
-		    (wordLen == pattern->leftLen)) {
-			/*
-			 * Also anchored at end and matches to the end (word
-			 * is same length as pattern) add space and rhs only
-			 * if rhs is non-null.
-			 */
-			if (pattern->rightLen != 0) {
-			    if (addSpace) {
-				Buf_AddByte(buf, (Byte)' ');
-			    }
-			    addSpace = TRUE;
-			    Buf_AddBytes(buf, pattern->rightLen,
-					 (Byte *)pattern->rhs);
-			}
-		} else if (pattern->flags & VAR_MATCH_END) {
-		    /*
-		     * Doesn't match to end -- copy word wholesale
-		     */
-		    goto nosub;
-		} else {
-		    /*
-		     * Matches at start but need to copy in trailing characters
-		     */
-		    if ((pattern->rightLen + wordLen - pattern->leftLen) != 0){
-			if (addSpace) {
-			    Buf_AddByte(buf, (Byte)' ');
-			}
-			addSpace = TRUE;
-		    }
-		    Buf_AddBytes(buf, pattern->rightLen, (Byte *)pattern->rhs);
-		    Buf_AddBytes(buf, wordLen - pattern->leftLen,
-				 (Byte *)(word + pattern->leftLen));
-		}
-	} else if (pattern->flags & VAR_MATCH_START) {
-	    /*
-	     * Had to match at start of word and didn't -- copy whole word.
-	     */
-	    goto nosub;
-	} else if (pattern->flags & VAR_MATCH_END) {
-	    /*
-	     * Anchored at end, Find only place match could occur (leftLen
-	     * characters from the end of the word) and see if it does. Note
-	     * that because the $ will be left at the end of the lhs, we have
-	     * to use strncmp.
-	     */
-	    cp = word + (wordLen - pattern->leftLen);
-	    if ((cp >= word) &&
-		(strncmp(cp, pattern->lhs, pattern->leftLen) == 0)) {
-		/*
-		 * Match found. If we will place characters in the buffer,
-		 * add a space before hand as indicated by addSpace, then
-		 * stuff in the initial, unmatched part of the word followed
-		 * by the right-hand-side.
-		 */
-		if (((cp - word) + pattern->rightLen) != 0) {
-		    if (addSpace) {
-			Buf_AddByte(buf, (Byte)' ');
-		    }
-		    addSpace = TRUE;
-		}
-		Buf_AddBytes(buf, cp - word, (Byte *)word);
-		Buf_AddBytes(buf, pattern->rightLen, (Byte *)pattern->rhs);
-	    } else {
-		/*
-		 * Had to match at end and didn't. Copy entire word.
-		 */
-		goto nosub;
-	    }
-	} else {
-	    /*
-	     * Pattern is unanchored: search for the pattern in the word using
-	     * String_FindSubstring, copying unmatched portions and the
-	     * right-hand-side for each match found, handling non-global
-	     * substitutions correctly, etc. When the loop is done, any
-	     * remaining part of the word (word and wordLen are adjusted
-	     * accordingly through the loop) is copied straight into the
-	     * buffer.
-	     * addSpace is set FALSE as soon as a space is added to the
-	     * buffer.
-	     */
-	    Boolean done;
-	    int origSize;
-
-	    done = FALSE;
-	    origSize = Buf_Size(buf);
-	    while (!done) {
-		cp = Str_FindSubstring(word, pattern->lhs);
-		if (cp != (char *)NULL) {
-		    if (addSpace && (((cp - word) + pattern->rightLen) != 0)){
-			Buf_AddByte(buf, (Byte)' ');
-			addSpace = FALSE;
-		    }
-		    Buf_AddBytes(buf, cp-word, (Byte *)word);
-		    Buf_AddBytes(buf, pattern->rightLen, (Byte *)pattern->rhs);
-		    wordLen -= (cp - word) + pattern->leftLen;
-		    word = cp + pattern->leftLen;
-		    if (wordLen == 0 || (pattern->flags & VAR_SUB_GLOBAL) == 0){
-			done = TRUE;
-		    }
-		} else {
-		    done = TRUE;
-		}
-	    }
-	    if (wordLen != 0) {
-		if (addSpace) {
-		    Buf_AddByte(buf, (Byte)' ');
-		}
-		Buf_AddBytes(buf, wordLen, (Byte *)word);
-	    }
-	    /*
-	     * If added characters to the buffer, need to add a space
-	     * before we add any more. If we didn't add any, just return
-	     * the previous value of addSpace.
-	     */
-	    return ((Buf_Size(buf) != origSize) || addSpace);
-	}
-	/*
-	 * Common code for anchored substitutions:
-	 * addSpace was set TRUE if characters were added to the buffer.
-	 */
-	return (addSpace);
-    }
- nosub:
-    if (addSpace) {
-	Buf_AddByte(buf, (Byte)' ');
-    }
-    Buf_AddBytes(buf, wordLen, (Byte *)word);
-    return(TRUE);
-}
-
-/*-
- *-----------------------------------------------------------------------
- * VarREError --
- *	Print the error caused by a regcomp or regexec call.
- *
- * Results:
- *	None.
- *
- * Side Effects:
- *	An error gets printed.
- *
- *-----------------------------------------------------------------------
- */
-static void
-VarREError(int err, regex_t *pat, const char *str)
-{
-    char *errbuf;
-    int errlen;
-
-    errlen = regerror(err, pat, 0, 0);
-    errbuf = emalloc(errlen);
-    regerror(err, pat, errbuf, errlen);
-    Error("%s: %s", str, errbuf);
-    free(errbuf);
-}
-
-
-/*-
- *-----------------------------------------------------------------------
- * VarRESubstitute --
- *	Perform a regex substitution on the given word, placing the
- *	result in the passed buffer.  A space is added if requested.
- *
- * Results:
- *	TRUE if a space is needed before more characters are added.
- *
- * Side Effects:
- *	None.
- *
- *-----------------------------------------------------------------------
- */
-static Boolean
-VarRESubstitute(char *word, Boolean addSpace, Buffer buf, void *patternp)
-{
-    VarREPattern *pat;
-    int xrv;
-    char *wp;
-    char *rp;
-    int added;
-    int flags = 0;
-
-#define	MAYBE_ADD_SPACE()		\
-	if (addSpace && !added)		\
-	    Buf_AddByte(buf, ' ');	\
-	added = 1
-
-    added = 0;
-    wp = word;
-    pat = patternp;
-
-    if ((pat->flags & (VAR_SUB_ONE|VAR_SUB_MATCHED)) ==
-	(VAR_SUB_ONE|VAR_SUB_MATCHED))
-	xrv = REG_NOMATCH;
-    else {
-    tryagain:
-	xrv = regexec(&pat->re, wp, pat->nsub, pat->matches, flags);
-    }
-
-    switch (xrv) {
-    case 0:
-	pat->flags |= VAR_SUB_MATCHED;
-	if (pat->matches[0].rm_so > 0) {
-	    MAYBE_ADD_SPACE();
-	    Buf_AddBytes(buf, pat->matches[0].rm_so, wp);
-	}
-
-	for (rp = pat->replace; *rp; rp++) {
-	    if ((*rp == '\\') && ((rp[1] == '&') || (rp[1] == '\\'))) {
-		MAYBE_ADD_SPACE();
-		Buf_AddByte(buf,rp[1]);
-		rp++;
-	    }
-	    else if ((*rp == '&') ||
-		((*rp == '\\') && isdigit((unsigned char)rp[1]))) {
-		int n;
-		char *subbuf;
-		int sublen;
-		char errstr[3];
-
-		if (*rp == '&') {
-		    n = 0;
-		    errstr[0] = '&';
-		    errstr[1] = '\0';
-		} else {
-		    n = rp[1] - '0';
-		    errstr[0] = '\\';
-		    errstr[1] = rp[1];
-		    errstr[2] = '\0';
-		    rp++;
-		}
-
-		if (n > pat->nsub) {
-		    Error("No subexpression %s", &errstr[0]);
-		    subbuf = "";
-		    sublen = 0;
-		} else if ((pat->matches[n].rm_so == -1) &&
-			   (pat->matches[n].rm_eo == -1)) {
-		    Error("No match for subexpression %s", &errstr[0]);
-		    subbuf = "";
-		    sublen = 0;
-		} else {
-		    subbuf = wp + pat->matches[n].rm_so;
-		    sublen = pat->matches[n].rm_eo - pat->matches[n].rm_so;
-		}
-
-		if (sublen > 0) {
-		    MAYBE_ADD_SPACE();
-		    Buf_AddBytes(buf, sublen, subbuf);
-		}
-	    } else {
-		MAYBE_ADD_SPACE();
-		Buf_AddByte(buf, *rp);
-	    }
-	}
-	wp += pat->matches[0].rm_eo;
-	if (pat->flags & VAR_SUB_GLOBAL) {
-	    flags |= REG_NOTBOL;
-	    if (pat->matches[0].rm_so == 0 && pat->matches[0].rm_eo == 0) {
-		MAYBE_ADD_SPACE();
-		Buf_AddByte(buf, *wp);
-		wp++;
-
-	    }
-	    if (*wp)
-		goto tryagain;
-	}
-	if (*wp) {
-	    MAYBE_ADD_SPACE();
-	    Buf_AddBytes(buf, strlen(wp), wp);
-	}
-	break;
-    default:
-	VarREError(xrv, &pat->re, "Unexpected regex error");
-       /* fall through */
-    case REG_NOMATCH:
-	if (*wp) {
-	    MAYBE_ADD_SPACE();
-	    Buf_AddBytes(buf,strlen(wp),wp);
-	}
-	break;
-    }
-    return(addSpace||added);
-}
-
-
-/*-
- *-----------------------------------------------------------------------
  * VarModify --
  *	Modify each of the words of the passed string using the given
  *	function. Used to implement all modifiers.
@@ -1190,7 +582,7 @@ VarRESubstitute(char *word, Boolean addSpace, Buffer buf, void *patternp)
  *-----------------------------------------------------------------------
  */
 static char *
-VarModify (char *str, Boolean (*modProc)(char *, Boolean, Buffer, void *),
+VarModify (char *str, Boolean (*modProc)(const char *, Boolean, Buffer, void *),
     void *datum)
 {
     Buffer  	  buf;	    	    /* Buffer for the new string */
@@ -1351,12 +743,13 @@ VarGetPattern(GNode *ctxt, int err, char **tstr, int delim, int *flags,
  *-----------------------------------------------------------------------
  */
 static char *
-VarQuote(char *str)
+VarQuote(const char *str)
 {
 
     Buffer  	  buf;
     /* This should cover most shells :-( */
     static char meta[] = "\n \t'`\";&<>()|*?{}[]\\$!#^~";
+    char 	  *ret;
 
     buf = Buf_Init (MAKE_BSIZE);
     for (; *str; str++) {
@@ -1365,10 +758,37 @@ VarQuote(char *str)
 	Buf_AddByte(buf, (Byte)*str);
     }
     Buf_AddByte(buf, (Byte) '\0');
-    str = (char *)Buf_GetAll (buf, (int *)NULL);
+    ret = Buf_GetAll (buf, NULL);
     Buf_Destroy (buf, FALSE);
-    return str;
+    return ret;
 }
+
+/*-
+ *-----------------------------------------------------------------------
+ * VarREError --
+ *	Print the error caused by a regcomp or regexec call.
+ *
+ * Results:
+ *	None.
+ *
+ * Side Effects:
+ *	An error gets printed.
+ *
+ *-----------------------------------------------------------------------
+ */
+void
+VarREError(int err, regex_t *pat, const char *str)
+{
+    char *errbuf;
+    int errlen;
+
+    errlen = regerror(err, pat, 0, 0);
+    errbuf = emalloc(errlen);
+    regerror(err, pat, errbuf, errlen);
+    Error("%s: %s", str, errbuf);
+    free(errbuf);
+}
+
 
 /*-
  *-----------------------------------------------------------------------
