@@ -55,6 +55,7 @@ ${BASE}.sym: ${OBJS} ${LIBSTAND} ${LIBFICL} ${LIBALPHA} ${CRT} vers.o setdef0.o 
 	-L${DESTDIR}${LIBDIR} ${LIBSTAND} ${LIBALPHA} ${LIBFICL} ${LIBSTAND} \
 	>${.OBJDIR}/${BASE}.list
 
+CLEANFILES+=	${BASE}.help
 ${BASE}.help: help.common help.alpha
 	cat ${.ALLSRC} | awk -f ${.CURDIR}/../../common/merge_help.awk > ${.TARGET}
 
