@@ -1546,10 +1546,12 @@ sched_sync(void)
 	int last_work_seen;
 	int net_worklist_len;
 	int syncer_final_iter;
+	int first_printf;
 
 	mtx_lock(&Giant);
 	last_work_seen = 0;
 	syncer_final_iter = 0;
+	first_printf = 1;
 	syncer_state = SYNCER_RUNNING;
 	starttime = time_second;
 
@@ -1561,12 +1563,20 @@ sched_sync(void)
 		if (syncer_state == SYNCER_FINAL_DELAY &&
 		    syncer_final_iter == 0) {
 			mtx_unlock(&sync_mtx);
+			printf("done.\n");
 			kthread_suspend_check(td->td_proc);
 			mtx_lock(&sync_mtx);
 		}
 		net_worklist_len = syncer_worklist_len - sync_vnode_count;
-		if (syncer_state != SYNCER_RUNNING && starttime != time_second)
+		if (syncer_state != SYNCER_RUNNING &&
+		    starttime != time_second) {
+			if (first_printf) {
+				printf("Syncer syncing disks, "
+				    "buffers remaining... ");
+				first_printf = 0;
+			}
 			printf("%d ", net_worklist_len);
+		}
 		starttime = time_second;
 
 		/*
