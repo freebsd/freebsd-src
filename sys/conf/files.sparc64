@@ -26,7 +26,6 @@ sparc64/sparc64/identcpu.c	standard
 sparc64/sparc64/intr_machdep.c	standard
 sparc64/sparc64/machdep.c	standard
 sparc64/sparc64/pmap.c		standard
-sparc64/sparc64/procfs_machdep.c	standard
 sparc64/sparc64/pv.c		standard
 sparc64/sparc64/rwindow.c	standard
 sparc64/sparc64/support.s	standard

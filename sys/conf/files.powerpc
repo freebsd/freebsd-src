@@ -25,7 +25,6 @@ powerpc/powerpc/machdep.c	standard
 powerpc/powerpc/ofwmagic.s	standard
 powerpc/powerpc/ofw_machdep.c	standard
 powerpc/powerpc/pmap.c		standard
-powerpc/powerpc/procfs_machdep.c	standard
 powerpc/powerpc/subyte.c	standard
 powerpc/powerpc/suswintr.c	standard
 powerpc/powerpc/suword.c	standard

@@ -72,7 +72,6 @@ alpha/alpha/pal.s		standard
 alpha/alpha/perfmon.c		optional	perfmon	profiling-routine
 alpha/alpha/perfmon.c		optional	perfmon
 alpha/alpha/pmap.c		standard
-alpha/alpha/procfs_machdep.c	standard
 alpha/alpha/mp_machdep.c	optional	smp
 alpha/alpha/prom.c		standard
 alpha/alpha/promcons.c		standard
