@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: subr_rman.c,v 1.6 1999/04/11 02:27:06 eivind Exp $
+ *	$Id: subr_rman.c,v 1.7 1999/04/16 21:22:39 peter Exp $
  */
 
 /*
@@ -244,7 +244,7 @@ rman_reserve_resource(struct rman *rm, u_long start, u_long end, u_long count,
 				printf("candidate region is entire chunk\n");
 #endif /* RMAN_DEBUG */
 				rv = s;
-				rv->r_flags |= RF_ALLOCATED;
+				rv->r_flags |= RF_ALLOCATED | flags;
 				rv->r_dev = dev;
 				goto out;
 			}
