@@ -58,7 +58,6 @@
 
 #define TUNDEBUG	if (tundebug) printf
 #define	TUNNAME		"tun"
-#define	TUN_MAXUNIT	0x7fff	/* ifp->if_unit is only 15 bits */
 
 static MALLOC_DEFINE(M_TUN, TUNNAME, "Tunnel Interface");
 static int tundebug = 0;
@@ -106,7 +105,7 @@ tunclone(void *arg, char *name, int namelen, dev_t *dev)
 		return;
 
 	if (strcmp(name, TUNNAME) == 0) {
-		r = rman_reserve_resource(&tununits, 0, TUN_MAXUNIT, 1,
+		r = rman_reserve_resource(&tununits, 0, IF_MAXUNIT, 1,
 		    RF_ALLOCATED | RF_ACTIVE, NULL);
 		u = rman_get_start(r);
 		err = rman_release_resource(r);
@@ -153,7 +152,7 @@ tunmodevent(module_t mod, int type, void *data)
 			EVENTHANDLER_DEREGISTER(dev_clone, tag);
 			return (err);
 		}
-		err = rman_manage_region(&tununits, 0, TUN_MAXUNIT);
+		err = rman_manage_region(&tununits, 0, IF_MAXUNIT);
 		if (err != 0) {
 			printf("%s: tununits: rman_manage_region: Failed %d\n",
 			    TUNNAME, err);
@@ -257,7 +256,7 @@ tunopen(dev_t dev, int flag, int mode, struct thread *td)
 	int unit;
 
 	unit = dev2unit(dev);
-	if (unit > TUN_MAXUNIT)
+	if (unit > IF_MAXUNIT)
 		return (ENXIO);
 
 	r = rman_reserve_resource(&tununits, unit, unit, 1,
