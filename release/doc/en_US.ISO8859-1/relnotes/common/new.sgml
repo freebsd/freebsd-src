@@ -102,6 +102,10 @@
       synchronous serial adapters.
     </para>
 
+    <para arch="alpha">The &man.em.4; driver has been added to the kernel
+      on the installation media.
+    </para>
+
     <para>A bug in &man.mmap.2; that pages marked as <literal>PROT_NONE</literal>
       may become readable under certain circumstances, has been fixed.</para>
 
