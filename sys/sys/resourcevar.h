@@ -52,11 +52,10 @@ struct pstats {
 #define	pstat_startzero	p_ru
 	struct	rusage p_ru;		/* stats for this proc */
 	struct	rusage p_cru;		/* sum of stats for reaped children */
+	struct	itimerval p_timer[3];	/* virtual-time timers */
 #define	pstat_endzero	pstat_startcopy
 
-#define	pstat_startcopy	p_timer
-	struct	itimerval p_timer[3];	/* virtual-time timers */
-
+#define	pstat_startcopy	p_prof
 	struct uprof {			/* profile arguments */
 		caddr_t	pr_base;	/* buffer base */
 		u_long	pr_size;	/* buffer size */
