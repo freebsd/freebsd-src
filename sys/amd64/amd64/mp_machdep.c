@@ -131,6 +131,9 @@ struct cpu_info {
 } static cpu_info[MAXCPU];
 static int cpu_apic_ids[MAXCPU];
 
+/* Holds pending bitmap based IPIs per CPU */
+static volatile u_int cpu_ipi_pending[MAXCPU];
+
 static u_int boot_address;
 
 static void	set_logical_apic_ids(void);
@@ -296,25 +299,22 @@ cpu_mp_start(void)
 	int i;
 
 	/* Initialize the logical ID to APIC ID table. */
-	for (i = 0; i < MAXCPU; i++)
+	for (i = 0; i < MAXCPU; i++) {
 		cpu_apic_ids[i] = -1;
+		cpu_ipi_pending[i] = 0;
+	}
 
 	/* Install an inter-CPU IPI for TLB invalidation */
 	setidt(IPI_INVLTLB, IDTVEC(invltlb), SDT_SYSIGT, SEL_KPL, 0);
 	setidt(IPI_INVLPG, IDTVEC(invlpg), SDT_SYSIGT, SEL_KPL, 0);
 	setidt(IPI_INVLRNG, IDTVEC(invlrng), SDT_SYSIGT, SEL_KPL, 0);
-
-	/* Install an inter-CPU IPI for forwarding hardclock() */
-	setidt(IPI_HARDCLOCK, IDTVEC(hardclock), SDT_SYSIGT, SEL_KPL, 0);
-	
-	/* Install an inter-CPU IPI for forwarding statclock() */
-	setidt(IPI_STATCLOCK, IDTVEC(statclock), SDT_SYSIGT, SEL_KPL, 0);
 	
 	/* Install an inter-CPU IPI for all-CPU rendezvous */
 	setidt(IPI_RENDEZVOUS, IDTVEC(rendezvous), SDT_SYSIGT, SEL_KPL, 0);
 
-	/* Install an inter-CPU IPI for forcing an additional software trap */
-	setidt(IPI_AST, IDTVEC(cpuast), SDT_SYSIGT, SEL_KPL, 0);
+	/* Install generic inter-CPU IPI handler */
+	setidt(IPI_BITMAP_VECTOR, IDTVEC(ipi_intr_bitmap_handler),
+	       SDT_SYSIGT, SEL_KPL, 0);
 
 	/* Install an inter-CPU IPI for CPU stop/restart */
 	setidt(IPI_STOP, IDTVEC(cpustop), SDT_SYSIGT, SEL_KPL, 0);
@@ -876,20 +876,6 @@ smp_masked_invlpg_range(u_int mask, vm_offset_t addr1, vm_offset_t addr2)
  * For statclock, we send an IPI to all CPU's to have them call this
  * function.
  */
-void
-forwarded_statclock(struct clockframe frame)
-{
-	struct thread *td;
-
-	CTR0(KTR_SMP, "forwarded_statclock");
-	td = curthread;
-	td->td_intr_nesting_level++;
-	if (profprocs != 0)
-		profclock(&frame);
-	if (pscnt == psdiv)
-		statclock(&frame);
-	td->td_intr_nesting_level--;
-}
 
 void
 forward_statclock(void)
@@ -913,17 +899,6 @@ forward_statclock(void)
  * state and call hardclock_process() on the CPU receiving the clock interrupt
  * and then just use a simple IPI to handle any ast's if needed.
  */
-void
-forwarded_hardclock(struct clockframe frame)
-{
-	struct thread *td;
-
-	CTR0(KTR_SMP, "forwarded_hardclock");
-	td = curthread;
-	td->td_intr_nesting_level++;
-	hardclock_process(&frame);
-	td->td_intr_nesting_level--;
-}
 
 void 
 forward_hardclock(void)
@@ -940,6 +915,41 @@ forward_hardclock(void)
 		ipi_selected(map, IPI_HARDCLOCK);
 }
 
+void
+ipi_bitmap_handler(struct clockframe frame)
+{
+	int cpu = PCPU_GET(cpuid);
+	u_int ipi_bitmap;
+	struct thread *td;
+
+	ipi_bitmap = atomic_readandclear_int(&cpu_ipi_pending[cpu]);
+
+	critical_enter();
+
+	/* Nothing to do for AST */
+
+	if (ipi_bitmap & (1 << IPI_HARDCLOCK)) {
+		td = curthread;	
+		td->td_intr_nesting_level++;
+		hardclock_process(&frame);
+		td->td_intr_nesting_level--;	
+	}
+
+	if (ipi_bitmap & (1 << IPI_STATCLOCK)) {
+		CTR0(KTR_SMP, "forwarded_statclock");
+
+		td = curthread;
+		td->td_intr_nesting_level++;
+		if (profprocs != 0)
+			profclock(&frame);
+		if (pscnt == psdiv)
+			statclock(&frame);
+		td->td_intr_nesting_level--;
+	}
+
+	critical_exit();
+}
+
 /*
  * send an IPI to a set of cpus.
  */
@@ -947,15 +957,36 @@ void
 ipi_selected(u_int32_t cpus, u_int ipi)
 {
 	int cpu;
+	u_int bitmap = 0;
+	u_int old_pending;
+	u_int new_pending;
+
+	if (IPI_IS_BITMAPED(ipi)) { 
+		bitmap = 1 << ipi;
+		ipi = IPI_BITMAP_VECTOR;
+	}
 
 	CTR3(KTR_SMP, "%s: cpus: %x ipi: %x", __func__, cpus, ipi);
 	while ((cpu = ffs(cpus)) != 0) {
 		cpu--;
+		cpus &= ~(1 << cpu);
+
 		KASSERT(cpu_apic_ids[cpu] != -1,
 		    ("IPI to non-existent CPU %d", cpu));
+
+		if (bitmap) {
+			do {
+				old_pending = cpu_ipi_pending[cpu];
+				new_pending = old_pending | bitmap;
+			} while  (!atomic_cmpset_int(&cpu_ipi_pending[cpu],old_pending, new_pending));	
+
+			if (old_pending)
+				continue;
+		}
+
 		lapic_ipi_vectored(ipi, cpu_apic_ids[cpu]);
-		cpus &= ~(1 << cpu);
 	}
+
 }
 
 /*
