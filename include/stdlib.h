@@ -258,7 +258,7 @@ int	 cgetustr(char *, const char *, char **);
 
 int	 daemon(int, int);
 char	*devname(int, int);
-char 	*devname_r(int, int, char *buf, int len);
+char 	*devname_r(int, int, char *, int);
 int	 getloadavg(double [], int);
 __const char *
 	 getprogname(void);
