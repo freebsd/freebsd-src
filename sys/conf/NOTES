@@ -198,14 +198,14 @@ options 	MUTEX_WAKE_ALL
 #	  used to hold active lock queues.
 # WITNESS enables the witness code which detects deadlocks and cycles
 #         during locking operations.
-# WITNESS_DDB causes the witness code to drop into the kernel debugger if
+# WITNESS_KDB causes the witness code to drop into the kernel debugger if
 #	  a lock hierarchy violation occurs or if locks are held when going to
 #	  sleep.
 # WITNESS_SKIPSPIN disables the witness checks on spin mutexes.
 options 	FULL_PREEMPTION
 options 	MUTEX_DEBUG
 options 	WITNESS
-options 	WITNESS_DDB
+options 	WITNESS_KDB
 options 	WITNESS_SKIPSPIN
 
 # MUTEX_PROFILING - Profiling mutual exclusion locks (mutexes).  See
@@ -247,17 +247,26 @@ options 	SYSVMSG
 # DEBUGGING OPTIONS
 
 #
-# Enable the kernel debugger.
+# Compile with kernel debugger related code.
 #
-options 	DDB
+options 	KDB
 
 #
-# Use direct symbol lookup routines for ddb instead of the kernel linker
-# ones, so that symbols (mostly) work before the kernel linker has been
-# initialized.  This is not the default because it breaks ddb's lookup of
-# symbols in loaded modules.
+# Print a stack trace of the current thread on the console for a panic.
 #
-#!options 	DDB_NOKLDSYM
+options 	KDB_TRACE
+
+#
+# Don't enter the debugger for a panic. Intended for unattended operation
+# where you may want to enter the debugger from the console, but still want
+# the machine to recover from a panic.
+#
+options 	KDB_UNATTENDED
+
+#
+# Enable the ddb debugger backend.
+#
+options 	DDB
 
 #
 # Print the numerical value of symbols in addition to the symbolic
@@ -266,25 +275,9 @@ options 	DDB
 options 	DDB_NUMSYM
 
 #
-# Print a stack trace of the current thread out on the console for a panic.
+# Enable the remote gdb debugger backend.
 #
-options 	DDB_TRACE
-
-#
-# Don't drop into DDB for a panic. Intended for unattended operation
-# where you may want to drop to DDB from the console, but still want
-# the machine to recover from a panic
-#
-options 	DDB_UNATTENDED
-
-#
-# If using GDB remote mode to debug the kernel, there's a non-standard
-# extension to the remote protocol that can be used to use the serial
-# port as both the debugging port and the system console.  It's non-
-# standard and you're on your own if you enable it.  See also the
-# "remotechat" variables in the FreeBSD specific version of gdb.
-#
-options 	GDB_REMOTE_CHAT
+options 	GDB
 
 #
 # KTRACE enables the system-call tracing facility ktrace(2).  To be more
@@ -1194,7 +1187,7 @@ options 	MAXCONS=16		# number of virtual consoles
 options 	SC_ALT_MOUSE_IMAGE	# simplified mouse cursor in text mode
 options 	SC_DFLT_FONT		# compile font in
 makeoptions	SC_DFLT_FONT=cp850
-options 	SC_DISABLE_DDBKEY	# disable `debug' key
+options 	SC_DISABLE_KDBKEY	# disable `debug' key
 options 	SC_DISABLE_REBOOT	# disable reboot key sequence
 options 	SC_HISTORY_SIZE=200	# number of history buffer lines
 options 	SC_MOUSE_CHAR=0x3	# char code for text mode mouse cursor
