@@ -155,8 +155,8 @@ dbg_dump_fs(struct fs *sb, const char *comment)
 	    sb->fs_cgoffset);
 	fprintf(dbg_log, "cgmask        int32_t           0x%08x\n",
 	    sb->fs_cgmask);
-	fprintf(dbg_log, "time          time_t            %10lu\n",
-	    sb->fs_time);
+	fprintf(dbg_log, "time          time_t            %10u\n",
+	    (unsigned int)sb->fs_time);
 	fprintf(dbg_log, "size          int32_t           0x%08x\n",
 	    sb->fs_size);
 	fprintf(dbg_log, "dsize         int32_t           0x%08x\n",
@@ -330,7 +330,8 @@ dbg_dump_cg(const char *comment, struct cg *cgr)
 	indent++;
 
 	fprintf(dbg_log, "magic         int32_t    0x%08x\n", cgr->cg_magic);
-	fprintf(dbg_log, "time          time_t     %10lu\n", cgr->cg_time);
+	fprintf(dbg_log, "time          time_t     %10u\n", (unsigned int)
+	    cgr->cg_time);
 	fprintf(dbg_log, "cgx           int32_t    0x%08x\n", cgr->cg_cgx);
 	fprintf(dbg_log, "ncyl          int16_t    0x%04x\n", cgr->cg_ncyl);
 	fprintf(dbg_log, "niblk         int16_t    0x%04x\n", cgr->cg_niblk);
@@ -530,7 +531,7 @@ void
 dbg_dump_clsum(struct fs *sb, const char *comment, struct cg *cgr)
 {
 	int j;
-	long *lp;
+	int *ip;
 
 	if(!dbg_log) {
 		return;
@@ -540,9 +541,9 @@ dbg_dump_clsum(struct fs *sb, const char *comment, struct cg *cgr)
 	fprintf(dbg_log, "# %d@%lx: %s\n", indent, (unsigned long)cgr, comment);
 	indent++;
 
-	lp=(long *)cg_clustersum(cgr);
+	ip=(int *)cg_clustersum(cgr);
 	for(j=0; j<=sb->fs_contigsumsize; j++) {
-		fprintf(dbg_log, "%02d: %8ld\n", j, *lp++);
+		fprintf(dbg_log, "%02d: %8d\n", j, *ip++);
 	}
 
 	indent--;
@@ -559,7 +560,7 @@ void
 dbg_dump_sptbl(struct fs *sb, const char *comment, struct cg *cgr)
 {
 	int j,k;
-	long *lp;
+	int *ip;
 
 	if(!dbg_log) {
 		return;
@@ -570,9 +571,9 @@ dbg_dump_sptbl(struct fs *sb, const char *comment, struct cg *cgr)
 	fprintf(dbg_log, "# %d@%lx: %s\n", indent, (unsigned long)cgr, comment);
 	indent++;
 
-	lp=(long *)cg_blktot(cgr);
+	ip=(int *)cg_blktot(cgr);
 	for(j=0; j<sb->fs_cpg; j++) {
-		fprintf(dbg_log, "%2d: %5ld = ", j, *lp++);
+		fprintf(dbg_log, "%2d: %5d = ", j, *ip++);
 		for(k=0; k<sb->fs_nrpos; k++) {
 			fprintf(dbg_log, "%4d", cg_blks(sb, cgr, j)[k]);
 			if(k<sb->fs_nrpos-1) {

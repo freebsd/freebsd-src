@@ -94,7 +94,7 @@ static char	i3blk[MAXBSIZE];
 static struct csum	*fscs;
 
 /* ******************************************************** PROTOTYPES ***** */
-static void	rdfs(daddr_t, int, char *, int);
+static void	rdfs(daddr_t, size_t, void *, int);
 static void	usage(void);
 static struct disklabel	*get_disklabel(int);
 static struct dinode	*ginode(ino_t, int);
@@ -105,18 +105,18 @@ static void	dump_whole_inode(ino_t, int, int);
  * Here we read some block(s) from disk.
  */
 void
-rdfs(daddr_t bno, int size, char *bf, int fsi)
+rdfs(daddr_t bno, size_t size, void *bf, int fsi)
 {
 	DBG_FUNC("rdfs")
-	int	n;
+	ssize_t	n;
 
 	DBG_ENTER;
 
 	if (lseek(fsi, (off_t)bno * DEV_BSIZE, 0) < 0) {
 		err(33, "rdfs: seek error: %ld", (long)bno);
 	}
-	n = read(fsi, bf, (size_t)size);
-	if (n != size) {
+	n = read(fsi, bf, size);
+	if (n != (ssize_t)size) {
 		err(34, "rdfs: read error: %ld", (long)bno);
 	}
 
@@ -296,7 +296,7 @@ main(int argc, char **argv)
 	/*
 	 * Read the current superblock.
 	 */
-	rdfs((daddr_t)(SBOFF/DEV_BSIZE), SBSIZE, (char *)&(sblock), fsi);
+	rdfs((daddr_t)(SBOFF/DEV_BSIZE), (size_t)SBSIZE, (void *)&sblock, fsi);
 	if (sblock.fs_magic != FS_MAGIC) {
 		errx(1, "superblock not recognized");
 	}
@@ -326,7 +326,8 @@ main(int argc, char **argv)
 	}
 
 	if (cfg_lv & 0x004) {
-		fscs = (struct csum *)calloc(1, (size_t)sblock.fs_cssize);
+		fscs = (struct csum *)calloc((size_t)1,
+		    (size_t)sblock.fs_cssize);
 		if(fscs == NULL) {
 			errx(1, "calloc failed");
 		}
@@ -336,9 +337,9 @@ main(int argc, char **argv)
 		 */
 		for (i = 0; i < sblock.fs_cssize; i += sblock.fs_bsize) {
 			rdfs(fsbtodb(&sblock, sblock.fs_csaddr +
-			    numfrags(&sblock, i)), sblock.fs_cssize - i <
+			    numfrags(&sblock, i)), (size_t)(sblock.fs_cssize-i<
 			    sblock.fs_bsize ? sblock.fs_cssize - i :
-			    sblock.fs_bsize, ((char *)fscs) + i, fsi);
+			    sblock.fs_bsize), (void *)(((char *)fscs)+i), fsi);
 		}
 
 		dbg_csp=fscs;
@@ -346,8 +347,8 @@ main(int argc, char **argv)
 		 * ... and dump it.
 		 */
 		for(dbg_csc=0; dbg_csc<sblock.fs_ncg; dbg_csc++) {
-			snprintf(dbg_line, 80, "%d. csum in fscs",
-			    dbg_csc);
+			snprintf(dbg_line, sizeof(dbg_line),
+			    "%d. csum in fscs", dbg_csc);
 			DBG_DUMP_CSUM(&sblock,
 			    dbg_line,
 			    dbg_csp++);
@@ -358,21 +359,21 @@ main(int argc, char **argv)
 	 * For each requested cylinder group ...
 	 */
 	for(cylno=cg_start; cylno<cg_stop; cylno++) {
-		snprintf(dbg_line, 80, "cgr %d", cylno);
+		snprintf(dbg_line, sizeof(dbg_line), "cgr %d", cylno);
 		if(cfg_lv & 0x002) {
 			/*
 			 * ... dump the superblock copies ...
 			 */
 			rdfs(fsbtodb(&sblock, cgsblock(&sblock, cylno)),
-			    SBSIZE, (char *)&osblock, fsi);
+			    (size_t)SBSIZE, (void *)&osblock, fsi);
 			DBG_DUMP_FS(&osblock,
 			    dbg_line);
 		}
 		/*
 		 * ... read the cylinder group and dump whatever was requested.
 		 */
-		rdfs(fsbtodb(&sblock, cgtod(&sblock, cylno)), sblock.fs_cgsize,
-		    (char *)&acg, fsi);
+		rdfs(fsbtodb(&sblock, cgtod(&sblock, cylno)),
+		    (size_t)sblock.fs_cgsize, (void *)&acg, fsi);
 		if(cfg_lv & 0x008) {
 			DBG_DUMP_CG(&sblock,
 			    dbg_line,
@@ -452,7 +453,7 @@ dump_whole_inode(ino_t inode, int fsi, int level)
 	/*
 	 * Dump the main inode structure.
 	 */
-	snprintf(comment, 80, "Inode 0x%08x", inode);
+	snprintf(comment, sizeof(comment), "Inode 0x%08x", inode);
 	if (level & 0x100) {
 		DBG_DUMP_INO(&sblock,
 		    comment,
@@ -472,9 +473,10 @@ dump_whole_inode(ino_t inode, int fsi, int level)
 		/*
 		 * Dump single indirect block.
 		 */
-		rdfs(fsbtodb(&sblock, ino->di_ib[0]), sblock.fs_bsize, i1blk,
-		    fsi);
-		snprintf(comment, 80, "Inode 0x%08x: indirect 0", inode);
+		rdfs(fsbtodb(&sblock, ino->di_ib[0]), (size_t)sblock.fs_bsize,
+		    (void *)&i1blk, fsi);
+		snprintf(comment, sizeof(comment), "Inode 0x%08x: indirect 0",
+		    inode);
 		DBG_DUMP_IBLK(&sblock,
 		    comment,
 		    i1blk,
@@ -485,21 +487,22 @@ dump_whole_inode(ino_t inode, int fsi, int level)
 		/*
 		 * Dump double indirect blocks.
 		 */
-		rdfs(fsbtodb(&sblock, ino->di_ib[1]), sblock.fs_bsize, i2blk,
-		    fsi);
-		snprintf(comment, 80, "Inode 0x%08x: indirect 1", inode);
+		rdfs(fsbtodb(&sblock, ino->di_ib[1]), (size_t)sblock.fs_bsize,
+		    (void *)&i2blk, fsi);
+		snprintf(comment, sizeof(comment), "Inode 0x%08x: indirect 1",
+		    inode);
 		DBG_DUMP_IBLK(&sblock,
 		    comment,
 		    i2blk,
 		    howmany(rb, howmany(sblock.fs_bsize, sizeof(ufs_daddr_t))));
 		for(ind2ctr=0; ((ind2ctr < howmany(sblock.fs_bsize,
 		    sizeof(ufs_daddr_t)))&&(rb>0)); ind2ctr++) {
-			ind2ptr=&((ufs_daddr_t *)&i2blk)[ind2ctr];
+			ind2ptr=&((ufs_daddr_t *)(void *)&i2blk)[ind2ctr];
 
-			rdfs(fsbtodb(&sblock, *ind2ptr), sblock.fs_bsize,
-			    i1blk, fsi);
-			snprintf(comment, 80, "Inode 0x%08x: indirect 1->%d",
-			    inode, ind2ctr);
+			rdfs(fsbtodb(&sblock, *ind2ptr),
+			    (size_t)sblock.fs_bsize, (void *)&i1blk, fsi);
+			snprintf(comment, sizeof(comment),
+			    "Inode 0x%08x: indirect 1->%d", inode, ind2ctr);
 			DBG_DUMP_IBLK(&sblock,
 			    comment,
 			    i1blk,
@@ -511,9 +514,10 @@ dump_whole_inode(ino_t inode, int fsi, int level)
 		/*
 		 * Dump triple indirect blocks.
 		 */
-		rdfs(fsbtodb(&sblock, ino->di_ib[2]), sblock.fs_bsize, i3blk,
-		    fsi);
-		snprintf(comment, 80, "Inode 0x%08x: indirect 2", inode);
+		rdfs(fsbtodb(&sblock, ino->di_ib[2]), (size_t)sblock.fs_bsize,
+		    (void *)&i3blk, fsi);
+		snprintf(comment, sizeof(comment), "Inode 0x%08x: indirect 2",
+		    inode);
 #define SQUARE(a) ((a)*(a))
 		DBG_DUMP_IBLK(&sblock,
 		    comment,
@@ -523,12 +527,12 @@ dump_whole_inode(ino_t inode, int fsi, int level)
 #undef SQUARE
 		for(ind3ctr=0; ((ind3ctr < howmany(sblock.fs_bsize,
 		    sizeof(ufs_daddr_t)))&&(rb>0)); ind3ctr ++) {
-			ind3ptr=&((ufs_daddr_t *)&i3blk)[ind3ctr];
+			ind3ptr=&((ufs_daddr_t *)(void *)&i3blk)[ind3ctr];
 
-			rdfs(fsbtodb(&sblock, *ind3ptr), sblock.fs_bsize,
-			    i2blk, fsi);
-			snprintf(comment, 80, "Inode 0x%08x: indirect 2->%d",
-			    inode, ind3ctr);
+			rdfs(fsbtodb(&sblock, *ind3ptr),
+			    (size_t)sblock.fs_bsize, (void *)&i2blk, fsi);
+			snprintf(comment, sizeof(comment),
+			    "Inode 0x%08x: indirect 2->%d", inode, ind3ctr);
 			DBG_DUMP_IBLK(&sblock,
 			    comment,
 			    i2blk,
@@ -536,11 +540,12 @@ dump_whole_inode(ino_t inode, int fsi, int level)
 			      howmany(sblock.fs_bsize, sizeof(ufs_daddr_t))));
 			for(ind2ctr=0; ((ind2ctr < howmany(sblock.fs_bsize,
 			    sizeof(ufs_daddr_t)))&&(rb>0)); ind2ctr ++) {
-				ind2ptr=&((ufs_daddr_t *)&i2blk)[ind2ctr];
-	
+				ind2ptr=&((ufs_daddr_t *)(void *)&i2blk)
+				    [ind2ctr];
 				rdfs(fsbtodb(&sblock, *ind2ptr),
-				    sblock.fs_bsize, i1blk, fsi);
-				snprintf(comment, 80,
+				    (size_t)sblock.fs_bsize, (void *)&i1blk,
+				    fsi);
+				snprintf(comment, sizeof(comment),
 				    "Inode 0x%08x: indirect 2->%d->%d", inode,
 				    ind3ctr, ind3ctr);
 				DBG_DUMP_IBLK(&sblock,
@@ -621,7 +626,7 @@ ginode(ino_t inumber, int fsi)
 
 	DBG_ENTER;
 
-	pi=(struct dinode *)ablk;
+	pi=(struct dinode *)(void *)ablk;
 	if (startinum == 0 || inumber < startinum ||
 	    inumber >= startinum + INOPB(&sblock)) {
 		/*
@@ -629,8 +634,8 @@ ginode(ino_t inumber, int fsi)
 		 * disk now.
 		 */
 		iblk = ino_to_fsba(&sblock, inumber);
-		rdfs(fsbtodb(&sblock, iblk), sblock.fs_bsize, (char *)&ablk,
-		    fsi);
+		rdfs(fsbtodb(&sblock, iblk), (size_t)sblock.fs_bsize,
+		    (void *)&ablk, fsi);
 		startinum = (inumber / INOPB(&sblock)) * INOPB(&sblock);
 	}
 
