@@ -24,10 +24,6 @@ int	y, touched = 0;
 
 	if (win->_idlok && (delete_line != NULL)) {
 		wrefresh(win);
-		if (back_color_erase) {
-			T(("back_color_erase, turning attributes off"));
-			vidattr(curscr->_attrs = A_NORMAL);
-		}
 		putp(delete_line);
 		touched = 1;
 	}

@@ -147,7 +147,7 @@ sigaction_t act, oact;
 	
 	/* perhaps we should turn attributes off here */
 
-	if (!(curscr->_attrs & A_NORMAL))
+	if (curscr->_attrs != A_NORMAL)
 		vidattr(curscr->_attrs = A_NORMAL);
 
 	fflush(SP->_ofp);
@@ -179,7 +179,7 @@ int	i = 0, j = 0;
 int	lastNonBlank;
 	
 	T(("ClrUpdate(%x) called", scr));
-	if (back_color_erase) {
+	if (back_color_erase && curscr->_attrs != A_NORMAL) {
 		T(("back_color_erase, turning attributes off"));
 		vidattr(curscr->_attrs = A_NORMAL);
 	}
@@ -308,7 +308,7 @@ int	attrchanged = 0;
 		lastChar = columns - 1;
 		GoTo(lineno, firstChar);
 		if(clr_eol) {
-			if (back_color_erase) {
+			if (back_color_erase && curscr->_attrs != A_NORMAL) {
 				T(("back_color_erase, turning attributes off"));
 				vidattr(curscr->_attrs = A_NORMAL);
 			}
@@ -378,7 +378,7 @@ int	attrchanged = 0;
 	
 	if (attrchanged) {
 		GoTo(lineno, firstChar);
-		if (back_color_erase) {
+		if (back_color_erase && curscr->_attrs != A_NORMAL) {
 			T(("back_color_erase, turning attributes off"));
 			vidattr(curscr->_attrs = A_NORMAL);
 		}
@@ -412,7 +412,7 @@ int	attrchanged = 0;
 
 		if((nLastChar == firstChar) && clr_eol) {
 			GoTo(lineno, firstChar);
-			if (back_color_erase) {
+			if (back_color_erase && curscr->_attrs != A_NORMAL) {
 				T(("back_color_erase, turning attributes off"));
 				vidattr(curscr->_attrs = A_NORMAL);
 			}
@@ -558,7 +558,7 @@ static void DelChar(int count)
 {
 	T(("DelChar(%d) called", count));
 
-	if (back_color_erase) {
+	if (back_color_erase && curscr->_attrs != A_NORMAL) {
 		T(("back_color_erase, turning attributes off"));
 		vidattr(curscr->_attrs = A_NORMAL);
 	}
