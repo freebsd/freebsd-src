@@ -31,12 +31,13 @@
  * SUCH DAMAGE.
  *
  *	@(#)libkern.h	8.1 (Berkeley) 6/10/93
- * $Id: libkern.h,v 1.8 1995/11/09 20:20:00 phk Exp $
+ * $Id: libkern.h,v 1.9 1996/01/16 10:22:17 bde Exp $
  */
 
 #ifndef _SYS_LIBKERN_H_
 #define	_SYS_LIBKERN_H_
 
+#include <sys/cdefs.h>
 #include <sys/types.h>
 
 /* BCD conversions. */
