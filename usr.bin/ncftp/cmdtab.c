@@ -100,6 +100,8 @@ Examples:\n\
 #define QUITHELP "quits the program"
 #define QUITUSAGE EMPTYSTR
 
+#define	RESTRICTHELP "toggle restriction of data port range"
+
 #define RHELPHELP "asks the remote-server for help"
 #define RHELPUSAGE " [help-topic (i.e. FTP command)]"
 
@@ -218,6 +220,7 @@ struct cmd cmdtab[] = {
 	{ "remotehelp",	   1,  0,  rmthelp, RHELPHELP, RHELPUSAGE },
 	{ "reset",         0,  1,  unimpl, UNIMPLHELP, UNIMPLUSAGE },
 	{ "restart",       0,  1,  unimpl, UNIMPLHELP, UNIMPLUSAGE },
+	{ "restrict",	   0,  0,  setrestrict, RESTRICTHELP, EMPTYSTR },
 	{ "rm",			   1,  1,  do_delete, DELETEHELP, DELETEUSAGE },
 	{ "rstatus",   	   1,  0,  rmtstatus,
 		"asks the remote-server for it's status",

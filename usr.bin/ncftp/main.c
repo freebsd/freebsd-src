@@ -123,6 +123,7 @@ static char			tcbuf[2048];
 extern int			debug, verbose, mprompt, passivemode;
 extern int			options, cpend, data, connected, logged_in;
 extern int			curtype, macnum, remote_is_unix;
+extern int			restricted_data_ports;
 extern FILE			*cout;
 extern struct cmd	cmdtab[];
 extern str32		curtypename;
@@ -184,6 +185,7 @@ Re-compile, this time with -DZCAT=\\\"/path/to/zcat\\\".\n");
 	debug = dDEBUG;
 	verbose = dVERBOSE;
 	passivemode = dPASSIVE;
+	restricted_data_ports = dRESTRICT;
 	(void) Strncpy(vstr, short_verbose_msgs[verbose+1]);
 
 	(void) Strncpy(curtypename, dTYPESTR);
@@ -243,7 +245,7 @@ Re-compile, this time with -DZCAT=\\\"/path/to/zcat\\\".\n");
 
 	ignore_rc = 0;
 	(void) strcpy(oline, "open ");
-	while ((opt = Getopt(argc, argv, "D:V:INPRHaicmup:rd:g:")) >= 0) {
+	while ((opt = Getopt(argc, argv, "D:V:INPURHaicmup:rd:g:")) >= 0) {
 		switch(opt) {
 			case 'a':
 			case 'c':
@@ -283,6 +285,10 @@ Re-compile, this time with -DZCAT=\\\"/path/to/zcat\\\".\n");
 				passivemode = !passivemode;
 				break;
 
+			case 'U':
+				restricted_data_ports = !restricted_data_ports;
+				break;
+
 			case 'H':
 				(void) show_version(0, NULL);
 				exit (0);
@@ -296,6 +302,7 @@ Program Options:\n\
     -I     : Toggle interactive (mprompt) mode.\n\
     -N     : Toggle reading of the .netrc/.ncftprc.\n\
     -P     : Toggle passive mode ftp (for use behind firewalls).\n\
+    -U     : Toggle restricted data ports (for use behind firewalls).\n\
     -V x   : Set verbosity to level x (-1,0,1,2).\n\
 Open Options:\n\
     -a     : Open anonymously (this is the default).\n\
