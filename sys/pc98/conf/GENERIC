@@ -38,6 +38,7 @@ options 	FFS			#Berkeley Fast Filesystem
 options 	FFS_ROOT		#FFS usable as root device [keep this!]
 options 	SOFTUPDATES		#Enable FFS soft updates support
 options 	MFS			#Memory Filesystem
+#options 	DEVFS			#Device Filesystem
 options 	MD_ROOT			#MD is a potential root device
 options 	NFS			#Network Filesystem
 options 	NFS_ROOT		#NFS usable as root device, NFS required
@@ -96,6 +97,10 @@ device		bs	1
 
 # PC-9801-100
 device		aic
+
+device		ncv		# NCR 53C500
+device		nsp		# Workbit Ninja SCSI-3
+device		stg		# TMC 18C30/18C50
 
 # SCSI peripherals
 device		scbus		# SCSI bus (required)
@@ -156,6 +161,7 @@ device		vx		# 3Com 3c590, 3c595 (``Vortex'')
 device		wx		# Intel Gigabit Ethernet Card (``Wiseman'')
 
 # PCI Ethernet NICs that use the common MII bus controller code.
+# NOTE: Be sure to keep the 'device miibus' line in order to use these NICs!
 device		miibus		# MII bus support
 device		dc		# DEC/Intel 21143 and various workalikes
 device		pcn		# AMD Am79C79x PCI 10/100 NICs
@@ -251,6 +257,7 @@ device		bpf		# Berkeley packet filter
 #device		umass		# Disks/Mass storage - Requires scbus and da
 #device		ums		# Mouse
 #device		urio		# Diamond Rio 500 MP3 player
+#device		uscanner	# Scanners
 # USB Ethernet, requires mii
 #device		aue		# ADMtek USB ethernet
 #device		cue		# CATC USB ethernet
