@@ -1,5 +1,5 @@
-.\"
-.\" Copyright 1996 Massachusetts Institute of Technology
+.\" -*- Nroff -*-
+.\" Copyright 1996, 1997 Massachusetts Institute of Technology
 .\"
 .\" Permission to use, copy, modify, and distribute this software and
 .\" its documentation for any purpose and without fee is hereby
@@ -26,9 +26,9 @@
 .\" OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$FreeBSD$
-.Dd December 16, 1996
-.Os FreeBSD 2.2
+.\"	$Id: ifnet.9,v 1.3 1996/12/26 16:16:37 wosch Exp $
+.Dd January 15, 1997
+.Os FreeBSD 3.0
 .Dt IFNET 9
 .Sh NAME
 .Nm ifnet ,
@@ -41,6 +41,7 @@
 .Fd #include <sys/time.h>
 .Fd #include <sys/socket.h>
 .Fd #include <net/if.h>
+.Fd #include <net/if_var.h>
 .Fd #include <net/if_types.h>
 .\"
 .Ss "Interface manipulation functions"
@@ -52,6 +53,8 @@
 .Fn ifioctl "struct socket *so" "int cmd" "caddr_t data" "struct proc *p"
 .Ft int
 .Fn ifpromisc "struct ifnet *ifp" "int pswitch"
+.Ft int
+.Fn if_allmulti "struct ifnet *ifp" "int amswitch"
 .Ft "struct ifnet *"
 .Fn ifunit "char *name"
 .Ft void
@@ -71,6 +74,13 @@
 .Ft void \"macro
 .Fn IFAFREE "struct ifaddr *ifa"
 .\"
+.Ss "Interface multicast address functions"
+.Ft int
+.Fn if_addmulti "struct ifnet *ifp" "struct sockaddr *sa" "struct ifmultiaddr **ifmap"
+.Ft int
+.Fn if_delmulti "struct ifnet *ifp" "struct sockaddr *sa"
+.Ft "struct ifmultiaddr *"
+.Fn ifmaof_ifpforaddr "struct sockaddr *addr" "struct ifnet *ifp"
 .Ss "Output queue macros"
 .Ft void \"macro
 .Fn IF_ENQ_DROP "struct ifqueue *ifq" "struct mbuf *m"
@@ -98,6 +108,8 @@
 .Fn (*if_poll_slowinput) "struct ifnet *ifp" "struct mbuf *m"
 .Ft void
 .Fn (*if_init) "void *wtf_is_this"
+.Ft int
+.Fn (*if_resolvemulti) "struct ifnet *ifp" "struct sockaddr **retsa" "struct sockaddr *addr"
 .Ss "struct ifaddr member function"
 .Ft void
 .Fn (*ifa_rtrequest) "int cmd" "struct rtentry *rt" "struct sockaddr *dst"
@@ -111,12 +123,40 @@ The kernel mechanisms for handling network interfaces reside primarily
 in the
 .Li ifnet ,
 .Li if_data ,
+.Li ifaddr ,
 and
-.Li ifaddr
+.Li ifmultiaddr
 structures in
-.Aq Pa net/if.h ,
+.Aq Pa net/if.h 
+and
+.Aq Pa net/if_var.h
 and the functions named above and defined in
 .Pa /sys/net/if.c .
+Those interfaces which are intended to be used by user programs
+are defined in
+.Aq Pa net/if.h ;
+these include the interface flags, the
+.Li if_data
+structure, and the structures defining the appearance of
+interface-related messages on the
+.Xr route 4
+routing socket and in
+.Xr sysctl 3 .
+The header file
+.Aq Pa net/if_var.h
+defines the kernel-internal interfaces, including the
+.Li ifnet ,
+.Li ifaddr ,
+and
+.Li ifmultiaddr
+structures and the functions which manipulate them.
+(A few user programs will need
+.Aq Pa net/if_var.h
+because it is the prerequisite of some other header file like
+.Aq Pa netinet/if_ether.h .
+Most references to those two files in particular can be replaced by
+.Aq Pa net/ethernet.h . )
+.Pp
 The system keeps a linked list of interfaces using the
 .Li TAILQ
 macros defined in
@@ -151,6 +191,13 @@ describing the link layer implemented by the interface (if any).
 (Some trivial interfaces do not provide any link layer addresses;
 this structure, while still present, serves only to identify the
 interface name and index.)
+.Pp
+Finally, those interfaces supporting reception of multicast datagrams
+have a
+.Li LIST
+of multicast group memberships, described by
+.Li ifmultiaddr
+structures.  These memberships are reference-counted.
 .Pp
 Interfaces are also associated with an output queue, defined as a
 .Li "struct ifqueue" ;
@@ -315,6 +362,13 @@ expires.  Usually this will reset the interface.
 .\" section, below.
 .It Fn if_init
 XXX fill me in
+.It Fn if_resolvemulti
+Check the requested multicast group membership,
+.Ar addr ,
+for validity, and if necessary compute a link-layer group which
+corresponds to that address which is returned in
+.Ar \&*retsa .
+Returns zero on success, or an error code on failure.
 .El
 .Ss "Interface flags"
 Interface flags are used for a number of different purposes.  Some
@@ -637,6 +691,36 @@ manipulate interface addresses.  In addition to these functions, there
 may also be link-layer support routines which are used by a number of
 drivers implementing a specific link layer over different hardware;
 see the documentation for that link layer for more details.
+.Ss The ifmultiaddr structure
+Every multicast-capable interface is associated with a list of
+multicast group memberships, which indicate at a low level which
+link-layer multicast addresses (if any) should be accepted, and at a
+high level, in which network-layer multicast groups a user process has
+expressed interest.
+.Pp
+The elements of the structure are as follows:
+.Bl -tag -width ifma_refcount -offset indent
+.It Li ifma_link
+.Pq Li LIST_ENTRY(ifmultiaddr)
+.Xr queue 3
+macro glue.
+.It Li ifma_addr
+.Pq Li "struct sockaddr *"
+A pointer to the address which this record represents.  The
+memberships for various address families are stored in arbitrary
+order.
+.It Li ifma_lladdr
+.Pq Li "struct sockaddr *"
+A pointer to the link-layer multicast address, if any, to which the
+network-layter multicast address in
+.Li ifma_addr
+is mapped, else a null pointer.  If this element is non-nil, this
+membership also holds an invisible reference to another membership for
+that link-layer address.
+.It Li ifma_refcount
+.Pq Li u_int
+A reference count of requests for this particular membership.
+.El
 .Ss Interface manipulation functions
 .Bl -ohang -offset indent
 .It Fn if_attach
@@ -675,6 +759,12 @@ from zero to one and one to zero, set the
 flag appropriately and call
 .Fn if_ioctl
 to set up the interface in the desired mode.
+.It Fn if_allmulti
+As
+.Fn ifpromisc ,
+but for the all-multicasts
+.Pq Dv IFF_ALLMULTI
+flag instead of the promiscuous flag.
 .It Fn ifunit
 Return an 
 .Li ifnet
@@ -739,9 +829,11 @@ interface structure.
 .It Dv SIOCADDMULTI
 .It Dv SIOCDELMULTI
 Add or delete permanent multicast group memberships on the interface.
-Caller must have appropriate privilege.  The driver
-.Fn if_ioctl
-routine is called to perform the requested action.
+Caller must have appropriate privilege.  The
+.Fn if_addmulti
+or
+.Fn if_delmulti
+function is called to perform the operation; qq.v.
 .It Dv SIOCSIFDSTADDR
 .It Dv SIOCSIFADDR
 .It Dv SIOCSIFBRDADDR
@@ -802,6 +894,72 @@ will be returned.
 .Pp
 All of these functions return a null pointer if no such address can be
 found.
+.Ss "Interface multicast address functions"
+The
+.Fn if_addmulti ,
+.Fn if_delmulti ,
+and
+.Fn ifmaof_ifpforaddr
+functions provide support for requesting and relinquishing multicast
+group memberships, and for querying an interface's membership list,
+respectively.  The
+.Fn if_addmulti
+function takes a pointer to an interface,
+.Ar ifp ,
+and a generic address,
+.Ar sa .
+It also takes a pointer to a
+.Sq Li "struct ifmultiaddr *"
+which is filled in on successful return with the address of the
+group membership control block.  The
+.Fn if_addmulti
+function performs the following four-step process:
+.Bl -enum -offset indent
+.It
+Call the interface's
+.Fn if_resolvemulti
+entry point to determine the link-layer address, if any, corresponding
+to this membership request, and also to give the link layer an
+opportunity to veto this membership request should it so desire.
+.It
+Check the interface's group membership list for a pre-existing
+membership for this group.  If one is not found, allocate a new one;
+if one is, increment its reference count.
+.It
+If the
+.Fn if_resolvemulti
+routine returned a link-layer address corresponding to the group,
+repeat the previous step for that address as well.
+.It
+If the interface's multicast address filter needs to be changed
+because a new membership was added, call the interface's
+.Fn if_ioctl
+routine
+(with a
+.Ar cmd
+argument of
+.Dv SIOCADDMULTI )
+to request that it do so.
+.El
+.Pp
+The
+.Fn if_delmulti
+function, given an interface
+.Ar ifp
+and an address,
+.Ar sa ,
+reverses this process.  Both functions return zero on success, or a
+standard error number on failure.
+.Pp
+The
+.Fn ifmaof_ifpforaddr
+function examines the membership list of interface
+.Ar ifp
+for an address matching
+.Ar addr ,
+and returns a pointer to that
+.Li "struct ifmultiaddr"
+if one is found, else it returns a null pointer.
 .\" .Sh POLLING
 .\" XXX write me!
 .Sh SEE ALSO
@@ -824,4 +982,4 @@ found.
 .%O Addison-Wesley, ISBN 0-201-63354-X
 .Re
 .Sh AUTHOR
-This manual page was written by Garrett A. Wollman
+This manual page was written by Garrett A. Wollman.
