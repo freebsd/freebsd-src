@@ -35,18 +35,18 @@
 register struct globaldata *globalp __asm__("$8");
 
 #if 1
-#define GLOBALP	globalp
+#define	GLOBALP	globalp
 #else
-#define GLOBALP	((struct globaldata *) alpha_pal_rdval())
+#define	GLOBALP	((struct globaldata *) alpha_pal_rdval())
 #endif
 
-#define	PCPU_GET(name)		(GLOBALP->gd_##name)
-#define	PCPU_PTR(name)		(&GLOBALP->gd_##name)
-#define PCPU_SET(name,value)	(GLOBALP->gd_##name = (value))
+#define	PCPU_GET(member)	(GLOBALP->gd_ ## member)
+#define	PCPU_PTR(member)	(&GLOBALP->gd_ ## member)
+#define	PCPU_SET(member,value)	(GLOBALP->gd_ ## member = (value))
 
-#define	CURPROC		PCPU_GET(curproc)
-#define	CURTHD		PCPU_GET(curproc)	/* temporary */
-#define	curproc		PCPU_GET(curproc)
+#define	CURPROC			PCPU_GET(curproc)
+#define	CURTHD			PCPU_GET(curproc)	/* temporary */
+#define	curproc			PCPU_GET(curproc)
 
 #endif	/* _KERNEL */
 

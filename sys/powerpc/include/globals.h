@@ -35,9 +35,9 @@
 
 #define GLOBALP	((struct globaldata *) powerpc_get_globalp())
 
-#define	PCPU_GET(name)		(GLOBALP->gd_##name)
-#define	PCPU_PTR(name)		(&GLOBALP->gd_##name)
-#define PCPU_SET(name,value)	(GLOBALP->gd_##name = (value))
+#define	PCPU_GET(member)	(GLOBALP->gd_ ## member)
+#define	PCPU_PTR(member)	(&GLOBALP->gd_ ## member)
+#define	PCPU_SET(member,value)	(GLOBALP->gd_ ## member = (value))
 
 /*
  * The following set of macros works for UP kernel as well, but for maximum
@@ -45,14 +45,14 @@
  * other hand, kernel modules should always use these macros to maintain
  * portability between UP and SMP kernels.
  */
-#define	CURPROC		PCPU_GET(curproc)
-#define	CURTHD		PCPU_GET(curproc)	/* temporary */
-#define	curproc		PCPU_GET(curproc)
-#define	idleproc	PCPU_GET(idleproc)
-#define	curpcb		PCPU_GET(curpcb)
-#define	fpcurproc	PCPU_GET(fpcurproc)
-#define	switchtime	PCPU_GET(switchtime)
-#define	switchticks	PCPU_GET(switchticks)
+#define	CURPROC			PCPU_GET(curproc)
+#define	CURTHD			PCPU_GET(curproc)	/* temporary */
+#define	curproc			PCPU_GET(curproc)
+#define	idleproc		PCPU_GET(idleproc)
+#define	curpcb			PCPU_GET(curpcb)
+#define	fpcurproc		PCPU_GET(fpcurproc)
+#define	switchtime		PCPU_GET(switchtime)
+#define	switchticks		PCPU_GET(switchticks)
 #define	witness_spin_check	PCPU_GET(witness_spin_check)
 
 #endif	/* _KERNEL */
