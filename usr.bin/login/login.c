@@ -575,18 +575,6 @@ main(argc, argv)
 	if (!pflag)
 		environ = envinit;
 
-#ifdef USE_PAM
-	/*
-	 * Add any environmental variables that the
-	 * PAM modules may have set.
-	 */
-	if (pamh) {
-		environ_pam = pam_getenvlist(pamh);
-		if (environ_pam)
-			export_pam_environment();
-	}
-#endif /* USE_PAM */
-
 	/*
 	 * PAM modules might add supplementary groups during pam_setcred().
 	 */
@@ -604,6 +592,17 @@ main(argc, argv)
 		    != PAM_SUCCESS) {
 			syslog(LOG_ERR, "pam_setcred: %s",
 			    pam_strerror(pamh, e));
+		}
+
+	        /*
+	         * Add any environmental variables that the
+	         * PAM modules may have set.
+		 * Call *after* opening session!
+		 */
+		if (pamh) {
+		  environ_pam = pam_getenvlist(pamh);
+		  if (environ_pam)
+			export_pam_environment();
 		}
 
 		/*
