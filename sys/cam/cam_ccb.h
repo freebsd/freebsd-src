@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_ccb.h,v 1.4 1999/03/05 23:13:20 gibbs Exp $
+ *      $Id: cam_ccb.h,v 1.5 1999/05/06 20:15:57 ken Exp $
  */
 
 #ifndef _CAM_CAM_CCB_H
@@ -33,6 +33,7 @@
 
 #include <sys/queue.h>
 #include <sys/cdefs.h>
+#include <sys/time.h>
 #ifndef KERNEL
 #include <sys/callout.h>
 #endif
@@ -128,6 +129,10 @@ typedef enum {
 				/* Get EDT entries matching the given pattern */
 	XPT_DEBUG		= 0x0a,
 				/* Turn on debugging for a bus, target or lun */
+	XPT_PATH_STATS		= 0x0b,
+				/* Path statistics (error counts, etc.) */
+	XPT_GDEV_STATS		= 0x0c,
+				/* Device statistics (error counts, etc.) */
 /* SCSI Control Functions: 0x10->0x1F */
 	XPT_ABORT		= 0x10,
 				/* Abort the specified CCB */
@@ -243,6 +248,11 @@ struct ccb_getdev {
 	u_int8_t  serial_num[252];
 	u_int8_t  serial_num_len;
 	u_int8_t  pd_type;	/* returned peripheral device type */
+/*
+ * GARBAGE COLLECT
+ * Moved to ccb_getdevstats but left here for binary compatibility.
+ * Remove in next rev of CAM version.
+ */
 	int	  dev_openings;	/* Space left for more work on device*/	
 	int	  dev_active;	/* Transactions running on the device */
 	int	  devq_openings;/* Space left for more queued work */
@@ -258,6 +268,19 @@ struct ccb_getdev {
 	int	  mintags;
 };
 
+/* Device Statistics CCB */
+struct ccb_getdevstats {
+	struct	ccb_hdr	ccb_h;
+	int	dev_openings;	/* Space left for more work on device*/	
+	int	dev_active;	/* Transactions running on the device */
+	int	devq_openings;	/* Space left for more queued work */
+	int	devq_queued;	/* Transactions queued to be sent */
+	int	held;		/*
+				 * CCBs held by peripheral drivers
+				 * for this device
+				 */
+	struct	timeval last_reset;	/* Time of last bus reset/loop init */
+};
 
 typedef enum {
 	CAM_GDEVLIST_LAST_DEVICE,
@@ -486,6 +509,12 @@ struct ccb_pathinq {
 	u_int32_t   unit_number;	/* Unit number for SIM */
 	u_int32_t   bus_id;		/* Bus ID for SIM */
 	u_int32_t   base_transfer_speed;/* Base bus speed in KB/sec */
+};
+
+/* Path Statistics CCB */
+struct ccb_pathstats {
+	struct	ccb_hdr	ccb_h;
+	struct	timeval last_reset;	/* Time of last bus reset/loop init */
 };
 
 typedef union {
@@ -757,6 +786,8 @@ union ccb {
 	struct	ccb_relsim		crs;
 	struct	ccb_setasync		csa;
 	struct	ccb_setdev		csd;
+	struct	ccb_pathstats		cpis;
+	struct	ccb_getdevstats		cgds;
 	struct	ccb_dev_match		cdm;
 	struct	ccb_trans_settings	cts;
 	struct	ccb_calc_geometry	ccg;	
