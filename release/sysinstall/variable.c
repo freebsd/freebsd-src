@@ -188,7 +188,7 @@ variable_check(char *data)
 	}
 	else if ((cp3 = index(cp, ',')) != NULL)
 	    *cp3 = '\0';
-        cp2 = getenv(tmp);
+        cp2 = variable_get(tmp);
         if (cp2) {
 	    if (!*cp)
 		return TRUE;
@@ -199,7 +199,7 @@ variable_check(char *data)
             return FALSE;
     }
     else
-        return getenv(tmp) ? TRUE : FALSE;
+        return variable_get(tmp) ? TRUE : FALSE;
 } 
 
 int
