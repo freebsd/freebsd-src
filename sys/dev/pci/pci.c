@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pci.c,v 1.92 1999/01/12 01:44:42 eivind Exp $
+ * $Id: pci.c,v 1.93 1999/01/19 23:29:18 se Exp $
  *
  */
 
@@ -58,9 +58,9 @@
 #include <machine/smp.h>
 #endif /* APIC_IO */
 
-STAILQ_HEAD(devlist, pci_devinfo) pci_devq;
+static STAILQ_HEAD(devlist, pci_devinfo) pci_devq;
 u_int32_t pci_numdevs = 0;
-u_int32_t pci_generation = 0;
+static u_int32_t pci_generation = 0;
 
 /* return highest PCI bus number known to be used, or -1 if none */
 
