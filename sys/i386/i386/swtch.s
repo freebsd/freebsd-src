@@ -539,6 +539,9 @@ ENTRY(savectx)
 	movl	(%esp),%eax
 	movl	%eax,PCB_EIP(%ecx)
 
+	movl	%cr3,%eax
+	movl	%eax,PCB_CR3(%ecx)
+
 	movl	%ebx,PCB_EBX(%ecx)
 	movl	%esp,PCB_ESP(%ecx)
 	movl	%ebp,PCB_EBP(%ecx)
