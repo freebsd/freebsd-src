@@ -29,7 +29,7 @@
  *
  *	BSDI cwd.c,v 2.2 1996/04/08 19:32:25 bostic Exp
  *
- * $Id: cwd.c,v 1.1 1997/08/09 01:42:38 dyson Exp $
+ * $Id: cwd.c,v 1.2 1998/07/01 19:56:13 imp Exp $
  */
 
 #include <sys/types.h>
@@ -209,8 +209,6 @@ dos_makepath(u_char *where, u_char *newpath)
 	*newpath++ = ':';
     }
 
-printf("dos_makepath: Drive = %d\n", drive);
-    
     if (drive < 0 || drive >= MAX_DRIVE) {
 	debug(D_REDIR,"drive %c invalid\n", drntol(drive));
 	return (DISK_DRIVE_INVALID);
