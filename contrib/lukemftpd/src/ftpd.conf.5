@@ -1,4 +1,4 @@
-.\"	$NetBSD: ftpd.conf.5,v 1.24 2002/11/29 14:40:00 lukem Exp $
+.\"	$NetBSD: ftpd.conf.5,v 1.28 2003-06-27 18:59:54 wiz Exp $
 .\"
 .\" Copyright (c) 1997-2001 The NetBSD Foundation, Inc.
 .\" All rights reserved.
@@ -33,9 +33,6 @@
 .\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
-.\"
-.\"	$FreeBSD$
-.\"
 .\"
 .Dd November 30, 2002
 .Dt FTPD.CONF 5
@@ -103,7 +100,7 @@ A
 .Xr chroot 2
 is performed after login.
 .It Sy CHROOT
-.Xr chroot 2 ed
+.Xr chroot 2 Ns ed
 users (as per
 .Xr ftpchroot 5 ) .
 A
@@ -173,7 +170,7 @@ is not specified or
 .Ar class
 is
 .Dq none ,
-use the default behaviour (see below).
+use the default behavior (see below).
 Otherwise,
 .Ar pathformat
 is parsed to create a directory to create as the root directory with
@@ -314,7 +311,7 @@ is not specified or
 .Ar class
 is
 .Dq none ,
-use the default behaviour (see below).
+use the default behavior (see below).
 Otherwise,
 .Ar pathformat
 is parsed to create a directory to change into upon login, and to use
