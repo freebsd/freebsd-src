@@ -51,6 +51,7 @@ static char sccsid[] = "@(#)mkfs.c	8.11 (Berkeley) 5/3/95";
 #ifndef STANDALONE
 #include <a.out.h>
 #include <stdio.h>
+#include <stdlib.h>
 #endif
 
 /*
@@ -101,7 +102,9 @@ extern int	bbsize;		/* boot block size */
 extern int	sbsize;		/* superblock size */
 extern u_long	memleft;	/* virtual memory available */
 extern caddr_t	membase;	/* start address of memory based filesystem */
+#ifdef STANDALONE
 extern caddr_t	malloc(), calloc();
+#endif
 extern char *	filename;
 
 union {
@@ -119,11 +122,10 @@ union {
 
 struct dinode zino[MAXBSIZE / sizeof(struct dinode)];
 
-#ifdef FSIRAND
-long	fsi_random __P((void));
-#endif
-
 int	fsi, fso;
+#ifdef FSIRAND
+int     randinit;
+#endif
 daddr_t	alloc();
 static int charsperline();
 long	calcipg();
@@ -149,6 +151,13 @@ mkfs(pp, fsys, fi, fo)
 #ifndef STANDALONE
 	time(&utime);
 #endif
+#ifdef FSIRAND
+	if (!randinit) {
+		randinit = 1;
+		if (srandomdev() < 0)
+			srandom(utime ^ getpid());
+	}
+#endif
 	if (mfs) {
 		ppid = getpid();
 		(void) signal(SIGUSR1, started);
@@ -162,7 +171,11 @@ mkfs(pp, fsys, fi, fo)
 			exit(11);
 			/* NOTREACHED */
 		}
+#ifdef STANDALONE
 		(void)malloc(0);
+#else
+		raise_data_limit();
+#endif
 		if(filename) {
 			unsigned char buf[BUFSIZ];
 			unsigned long l,l1;
@@ -195,8 +208,10 @@ mkfs(pp, fsys, fi, fo)
 		} else {
 			if (fssize * sectorsize > memleft)
 				fssize = (memleft - 16384) / sectorsize;
-			if ((membase = malloc(fssize * sectorsize)) == 0)
-				exit(12);
+			if ((membase = malloc(fssize * sectorsize)) == 0) {
+				perror("malloc");
+				exit(13);
+			}
 		}
 	}
 	fsi = fi;
@@ -589,6 +604,10 @@ next:
 	for (sblock.fs_csshift = 0; i > 1; i >>= 1)
 		sblock.fs_csshift++;
 	fscs = (struct csum *)calloc(1, sblock.fs_cssize);
+	if (fscs == NULL) {
+		perror("calloc");
+		exit(31);
+	}
 	sblock.fs_magic = FS_MAGIC;
 	sblock.fs_rotdelay = rotdelay;
 	sblock.fs_minfree = minfree;
@@ -606,7 +625,7 @@ next:
 	sblock.fs_clean = 1;
 #ifdef FSIRAND
 	sblock.fs_id[0] = (long)utime;
-	sblock.fs_id[1] = fsi_random();
+	sblock.fs_id[1] = random();
 #endif
 
 	/*
@@ -759,7 +778,7 @@ initcg(cylno, utime)
 	for (i = 0; i < sblock.fs_ipg / INOPF(&sblock); i += sblock.fs_frag) {
 #ifdef FSIRAND
 		for (j = 0; j < sblock.fs_bsize / sizeof(struct dinode); j++)
-			zino[j].di_gen = fsi_random();
+			zino[j].di_gen = random();
 #endif
 		wtfs(fsbtodb(&sblock, cgimin(&sblock, cylno) + i),
 		    sblock.fs_bsize, (char *)zino);
@@ -1068,7 +1087,7 @@ iput(ip, ino)
 	int c;
 
 #ifdef FSIRAND
-	ip->di_gen = fsi_random();
+	ip->di_gen = random();
 #endif
 	c = ino_to_cg(&sblock, ino);
 	rdfs(fsbtodb(&sblock, cgtod(&sblock, 0)), sblock.fs_cgsize,
@@ -1103,6 +1122,7 @@ started()
 	exit(0);
 }
 
+#ifdef STANDALONE
 /*
  * Replace libc function with one suited to our needs.
  */
@@ -1176,6 +1196,21 @@ free(ptr)
 
 	/* do not worry about it for now */
 }
+
+#else   /* !STANDALONE */
+
+raise_data_limit()
+{
+	struct rlimit rlp;
+
+	if (getrlimit(RLIMIT_DATA, &rlp) < 0)
+		perror("getrlimit");
+	rlp.rlim_cur = rlp.rlim_max;
+	if (setrlimit(RLIMIT_DATA, &rlp) < 0)
+		perror("setrlimit");
+}
+
+#endif  /* STANDALONE */
 
 /*
  * read a block from the file system
@@ -1349,23 +1384,3 @@ charsperline()
 		columns = 80;	/* last resort */
 	return columns;
 }
-
-#ifdef FSIRAND
-long
-fsi_random(void) {
-	static int fd = -1;
-	long    ret;
- 
-	if (fd == -1) {
-		if ((fd = open("/dev/urandom", O_RDONLY)) == -1) { 
-			perror("open /dev/urandom");
-			exit(1);
-		}
-	}
-	if (read(fd, &ret, sizeof(ret)) != sizeof(ret)) {
-		perror("read /dev/urandom");
-		exit(1);
-	}
-	return(ret);
-}
-#endif
