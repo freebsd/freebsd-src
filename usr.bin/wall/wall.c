@@ -183,8 +183,10 @@ makemsg(fname)
 				putc('\r', fp);
 				putc('\n', fp);
 				cnt = 0;
-			} else if (  !isprint(ch) && !isspace(ch)
-				   && ch != '\007' && ch != '\010'
+			} else if (   (   (ch & 0x7F) < ' ' /* locale-independent */
+				       || (!isprint(ch) && !isspace(ch))
+				      )
+				   && strchr("\a\f\t\v\b\r\n", ch) == NULL
 				  ) {
 				if (ch & 0x80) {
 					ch &= 0x7F;
