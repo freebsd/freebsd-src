@@ -74,16 +74,13 @@ static void *
 greg_ptr(mcontext_t *mc, int gr)
 {
 	uint64_t *p;
-	int bias, nslots;
+	int nslots;
 
 	if (gr <= 0 || gr >= 32 + (mc->mc_special.cfm & 0x7f))
 		return (NULL);
 	if (gr >= 32) {
-		p = (void*)mc->mc_special.bspstore;
-		nslots = (mc->mc_special.cfm & 0x7f) - gr + 32;
-		bias = (0x1f8 - (mc->mc_special.bspstore & 0x1f8)) >> 3;
-		nslots += (nslots + bias) / 63;
-		p -= nslots;
+	 	nslots = IA64_CFM_SOF(mc->mc_special.cfm) - gr + 32;
+		p = (void *)ia64_bsp_adjust(mc->mc_special.bspstore, -nslots);
 		gr = 0;
 	} else if (gr >= 14) {
 		p = &mc->mc_scratch.gr14;
