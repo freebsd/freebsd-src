@@ -110,7 +110,8 @@ linux_ioctl_disk(struct proc *p, struct linux_ioctl_args *args)
 		error = fo_ioctl(fp, DIOCGDINFO, (caddr_t)&dl, p);
 		if (error)
 			return (error);
-		return copyout(&(dl.d_secperunit), (caddr_t)args->arg, sizeof(dl.d_secperunit));
+		return (copyout(&(dl.d_secperunit), (caddr_t)args->arg,
+		     sizeof(dl.d_secperunit)));
 		break;
 	}
 	return (ENOIOCTL);
@@ -204,14 +205,16 @@ bsd_to_linux_termios(struct termios *bios, struct linux_termios *lios)
 	int i;
 
 #ifdef DEBUG
-	printf("LINUX: BSD termios structure (input):\n");
-	printf("i=%08x o=%08x c=%08x l=%08x ispeed=%d ospeed=%d\n",
-	    bios->c_iflag, bios->c_oflag, bios->c_cflag, bios->c_lflag,
-	    bios->c_ispeed, bios->c_ospeed);
-	printf("c_cc ");
-	for (i=0; i<NCCS; i++)
-		printf("%02x ", bios->c_cc[i]);
-	printf("\n");
+	if (ldebug(ioctl)) {
+		printf("LINUX: BSD termios structure (input):\n");
+		printf("i=%08x o=%08x c=%08x l=%08x ispeed=%d ospeed=%d\n",
+		    bios->c_iflag, bios->c_oflag, bios->c_cflag, bios->c_lflag,
+		    bios->c_ispeed, bios->c_ospeed);
+		printf("c_cc ");
+		for (i=0; i<NCCS; i++)
+			printf("%02x ", bios->c_cc[i]);
+		printf("\n");
+	}
 #endif
 
 	lios->c_iflag = 0;
@@ -323,13 +326,16 @@ bsd_to_linux_termios(struct termios *bios, struct linux_termios *lios)
 	lios->c_line = 0;
 
 #ifdef DEBUG
-	printf("LINUX: LINUX termios structure (output):\n");
-	printf("i=%08x o=%08x c=%08x l=%08x line=%d\n", lios->c_iflag,
-	    lios->c_oflag, lios->c_cflag, lios->c_lflag, (int)lios->c_line);
-	printf("c_cc ");
-	for (i=0; i<LINUX_NCCS; i++) 
-		printf("%02x ", lios->c_cc[i]);
-	printf("\n");
+	if (ldebug(ioctl)) {
+		printf("LINUX: LINUX termios structure (output):\n");
+		printf("i=%08x o=%08x c=%08x l=%08x line=%d\n",
+		    lios->c_iflag, lios->c_oflag, lios->c_cflag,
+		    lios->c_lflag, (int)lios->c_line);
+		printf("c_cc ");
+		for (i=0; i<LINUX_NCCS; i++) 
+			printf("%02x ", lios->c_cc[i]);
+		printf("\n");
+	}
 #endif
 }
 
@@ -339,13 +345,16 @@ linux_to_bsd_termios(struct linux_termios *lios, struct termios *bios)
 	int i;
 
 #ifdef DEBUG
-	printf("LINUX: LINUX termios structure (input):\n");
-	printf("i=%08x o=%08x c=%08x l=%08x line=%d\n", lios->c_iflag,
-	    lios->c_oflag, lios->c_cflag, lios->c_lflag, (int)lios->c_line);
-	printf("c_cc ");
-	for (i=0; i<LINUX_NCCS; i++)
-		printf("%02x ", lios->c_cc[i]);
-	printf("\n");
+	if (ldebug(ioctl)) {
+		printf("LINUX: LINUX termios structure (input):\n");
+		printf("i=%08x o=%08x c=%08x l=%08x line=%d\n", 
+		    lios->c_iflag, lios->c_oflag, lios->c_cflag,
+		    lios->c_lflag, (int)lios->c_line);
+		printf("c_cc ");
+		for (i=0; i<LINUX_NCCS; i++)
+			printf("%02x ", lios->c_cc[i]);
+		printf("\n");
+	}
 #endif
 
 	bios->c_iflag = 0;
@@ -458,14 +467,16 @@ linux_to_bsd_termios(struct linux_termios *lios, struct termios *bios)
 	    linux_to_bsd_speed(lios->c_cflag & LINUX_CBAUD, sptab);
 
 #ifdef DEBUG
-	printf("LINUX: BSD termios structure (output):\n");
-	printf("i=%08x o=%08x c=%08x l=%08x ispeed=%d ospeed=%d\n",
-	    bios->c_iflag, bios->c_oflag, bios->c_cflag, bios->c_lflag,
-	    bios->c_ispeed, bios->c_ospeed);
-	printf("c_cc ");
-	for (i=0; i<NCCS; i++) 
-		printf("%02x ", bios->c_cc[i]);
-	printf("\n");
+	if (ldebug(ioctl)) {
+		printf("LINUX: BSD termios structure (output):\n");
+		printf("i=%08x o=%08x c=%08x l=%08x ispeed=%d ospeed=%d\n",
+		    bios->c_iflag, bios->c_oflag, bios->c_cflag, bios->c_lflag,
+		    bios->c_ispeed, bios->c_ospeed);
+		printf("c_cc ");
+		for (i=0; i<NCCS; i++) 
+			printf("%02x ", bios->c_cc[i]);
+		printf("\n");
+	}
 #endif
 }
 
@@ -1419,8 +1430,8 @@ linux_ioctl(struct proc *p, struct linux_ioctl_args *args)
 	int error, cmd;
 
 #ifdef DEBUG
-	printf("Linux-emul(%ld): ioctl(%d, %04lx, *)\n", (long)p->p_pid,
-	    args->fd, args->cmd);
+	if (ldebug(ioctl))
+		printf(ARGS(ioctl, "%d, %04lx, *"), args->fd, args->cmd);
 #endif
 
 	if ((unsigned)args->fd >= fdp->fd_nfiles)
@@ -1440,7 +1451,7 @@ linux_ioctl(struct proc *p, struct linux_ioctl_args *args)
 		}
 	}
 
-	printf("linux: 'ioctl' fd=%d, cmd=%x ('%c',%d) not implemented\n",
+	printf("linux: 'ioctl' fd=%d, cmd=0x%x ('%c',%d) not implemented\n",
 	    args->fd, (int)(args->cmd & 0xffff),
 	    (int)(args->cmd & 0xff00) >> 8, (int)(args->cmd & 0xff));
 
