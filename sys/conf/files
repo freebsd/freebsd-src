@@ -22,12 +22,12 @@ device_if.o			standard				\
 	no-implicit-rule local
 device_if.c			standard				\
 	dependency	"$S/kern/makedevops.pl $S/kern/device_if.m"	\
-	compile-with	"perl $S/kern/makedevops.pl -c $S/kern/device_if.m" \
+	compile-with	"perl5 $S/kern/makedevops.pl -c $S/kern/device_if.m" \
 	no-obj no-implicit-rule before-depend local			\
 	clean		"device_if.c"
 device_if.h			standard				\
 	dependency	"$S/kern/makedevops.pl $S/kern/device_if.m"	\
-	compile-with	"perl $S/kern/makedevops.pl -h $S/kern/device_if.m" \
+	compile-with	"perl5 $S/kern/makedevops.pl -h $S/kern/device_if.m" \
 	no-obj no-implicit-rule before-depend				\
 	clean		"device_if.h"
 bus_if.o			standard				\
@@ -36,12 +36,12 @@ bus_if.o			standard				\
 	no-implicit-rule local
 bus_if.c			standard				\
 	dependency	"$S/kern/makedevops.pl $S/kern/bus_if.m"	\
-	compile-with	"perl $S/kern/makedevops.pl -c $S/kern/bus_if.m"	\
+	compile-with	"perl5 $S/kern/makedevops.pl -c $S/kern/bus_if.m"	\
 	no-obj no-implicit-rule before-depend local			\
 	clean		"bus_if.c"
 bus_if.h			standard				\ 
 	dependency	"$S/kern/makedevops.pl $S/kern/bus_if.m"	\
-	compile-with	"perl $S/kern/makedevops.pl -h $S/kern/bus_if.m"	\
+	compile-with	"perl5 $S/kern/makedevops.pl -h $S/kern/bus_if.m"	\
 	no-obj no-implicit-rule before-depend				\
 	clean		"bus_if.h"
 coda/coda_namecache.c	optional vcoda
