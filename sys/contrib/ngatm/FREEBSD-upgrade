@@ -1,0 +1,14 @@
+$FreeBSD$
+
+This is the part of the NgATM stuff that is shared by kernel and user.
+Be careful to feed changes back to the maintainer <harti@freebsd.org>,
+because the code here is actually shared with other environments besides
+FreeBSD.
+
+Import should be done by:
+
+	cvs import \
+		-m "Virgin import of NgATM shared kernel/user part X.Y" \
+		src/sys/contrib/ngatm BEGEMOT NGATM_X_Y
+
+harti
