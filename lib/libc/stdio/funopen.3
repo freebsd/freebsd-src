@@ -44,7 +44,7 @@
 .Sh SYNOPSIS
 .Fd #include <stdio.h>
 .Ft FILE *
-.Fn funopen "void  *cookie" "int  (*readfn)(void *, char *, int)" "int (*writefn)(void *, const char *, int)" "fpos_t (*seekfn)(void *, fpos_t, int)" "int (*closefn)(void *)"
+.Fn funopen "const void *cookie" "int (*readfn)(void *, char *, int)" "int (*writefn)(void *, const char *, int)" "fpos_t (*seekfn)(void *, fpos_t, int)" "int (*closefn)(void *)"
 .Ft FILE *
 .Fn fropen "void  *cookie" "int  (*readfn)(void *, char *, int)"
 .Ft FILE *
