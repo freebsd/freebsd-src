@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.102 1999/01/21 08:29:12 dillon Exp $
+ *	$Id: vnode_pager.c,v 1.103 1999/01/24 02:32:15 dillon Exp $
  */
 
 /*
@@ -832,6 +832,25 @@ vnode_pager_putpages(object, m, count, sync, rtvals)
 	int rtval;
 	struct vnode *vp;
 	int bytes = count * PAGE_SIZE;
+
+	/*
+	 * Force synchronous operation if we are extremely low on memory
+	 * to prevent a low-memory deadlock.  VOP operations often need to
+	 * allocate more memory to initiate the I/O ( i.e. do a BMAP 
+	 * operation ).  The swapper handles the case by limiting the amount
+	 * of asynchronous I/O, but that sort of solution doesn't scale well
+	 * for the vnode pager without a lot of work.
+	 *
+	 * Also, the backing vnode's iodone routine may not wake the pageout
+	 * daemon up.  This should be probably be addressed XXX.
+	 */
+
+	if ((cnt.v_free_count + cnt.v_cache_count) < cnt.v_pageout_free_min)
+		sync |= OBJPC_SYNC;
+
+	/*
+	 * Call device-specific putpages function
+	 */
 
 	vp = object->handle;
 	rtval = VOP_PUTPAGES(vp, m, bytes, sync, rtvals, 0);
