@@ -184,7 +184,9 @@ systemInitialize(int argc, char **argv)
 	i = 0;
 	sysctlbyname("machdep.unaligned_print", NULL, 0, &i, sizeof(i));
 #endif
+#if 0
 	signal(SIGCHLD, reap_children);
+#endif
     }
     else {
 	char hname[256];
