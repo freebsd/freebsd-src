@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_file.c,v 1.2 1995/06/07 21:27:57 sos Exp $
+ *  $Id: linux_file.c,v 1.2 1995/08/28 00:50:08 swallace Exp $
  */
 
 #include <i386/linux/linux.h>
@@ -339,14 +339,15 @@ linux_readdir(struct proc *p, struct linux_readdir_args *args, int *retval)
     struct vattr va;
     off_t off;
     struct linux_dirent linux_dirent;
-    int buflen, error, eofflag, nbytes, justone;
+    int buflen, error, eofflag, nbytes, justone, blockoff;
 
 #ifdef DEBUG
     printf("Linux-emul(%d): readdir(%d, *, %d)\n",
 	   p->p_pid, args->fd, args->count);
 #endif
-    if ((error = getvnode(p->p_fd, args->fd, &fp)) != 0)
+    if ((error = getvnode(p->p_fd, args->fd, &fp)) != 0) {
 	return (error);
+}
 
     if ((fp->f_flag & FREAD) == 0)
 	return (EBADF);
@@ -356,8 +357,9 @@ linux_readdir(struct proc *p, struct linux_readdir_args *args, int *retval)
     if (vp->v_type != VDIR)
 	return (EINVAL);
 
-    if ((error = VOP_GETATTR(vp, &va, p->p_ucred, p)))
+    if ((error = VOP_GETATTR(vp, &va, p->p_ucred, p))) {
 	return error;
+      }
 
     nbytes = args->count;
     if (nbytes == 1) {
@@ -367,10 +369,11 @@ linux_readdir(struct proc *p, struct linux_readdir_args *args, int *retval)
     else
 	justone = 0;
 
-    buflen = max(va.va_blocksize, nbytes);
+    off = fp->f_offset;
+    blockoff = off % va.va_blocksize;
+    buflen = max(va.va_blocksize, (nbytes + blockoff));
     buf = malloc(buflen, M_TEMP, M_WAITOK);
     VOP_LOCK(vp);
-    off = fp->f_offset;
 again:
     aiov.iov_base = buf;
     aiov.iov_len = buflen;
@@ -380,26 +383,34 @@ again:
     auio.uio_segflg = UIO_SYSSPACE;
     auio.uio_procp = p;
     auio.uio_resid = buflen;
-    auio.uio_offset = off;
+    auio.uio_offset = off - (off_t)blockoff;
 
     error = VOP_READDIR(vp, &auio, fp->f_cred, &eofflag, (u_long *) 0, 0);
-    if (error)
+    if (error) {
 	goto out;
+}
 
     inp = buf;
+    inp += blockoff;
     outp = (caddr_t) args->dent;
     resid = nbytes;
-    if ((len = buflen - auio.uio_resid) == 0)
+    if ((len = buflen - auio.uio_resid - blockoff) == 0) {
 	goto eof;
+      }
 
     while (len > 0) {
-	reclen = ((struct dirent *) inp)->d_reclen;
-	if (reclen & 3)
-	    panic("linux_readdir");
-	off += reclen;
 	bdp = (struct dirent *) inp;
+	reclen = bdp->d_reclen;
+	if (reclen & 3) {
+	    printf("linux_readdir: reclen=%d\n", reclen);
+	    error = EFAULT;
+	    goto out;
+	}
+  
+	off += reclen;
 	if (bdp->d_fileno == 0) {
 	    inp += reclen;
+	    len -= reclen;
 	    continue;
 	}
 	linuxreclen = LINUX_RECLEN(&linux_dirent, bdp->d_namlen);
@@ -411,8 +422,9 @@ again:
 	linux_dirent.doff = (linux_off_t) linuxreclen;
 	linux_dirent.dreclen = (u_short) bdp->d_namlen;
 	strcpy(linux_dirent.dname, bdp->d_name);
-	if ((error = copyout((caddr_t)&linux_dirent, outp, linuxreclen)))
+	if ((error = copyout((caddr_t)&linux_dirent, outp, linuxreclen))) {
 	    goto out;
+	  }
 	inp += reclen;
 	outp += linuxreclen;
 	resid -= linuxreclen;
@@ -427,6 +439,7 @@ again:
 
     if (justone)
 	nbytes = resid + linuxreclen;
+
 eof:
     *retval = nbytes - resid;
 out:
