@@ -113,7 +113,7 @@ void	_mtx_lock_spin_flags(struct mtx *m, int opts, const char *file,
 	     int line);
 void	_mtx_unlock_spin_flags(struct mtx *m, int opts, const char *file,
 	     int line);
-#ifdef INVARIANT_SUPPORT
+#if defined(INVARIANTS) || defined(INVARIANT_SUPPORT)
 void	_mtx_assert(struct mtx *m, int what, const char *file, int line);
 #endif
 
@@ -404,12 +404,12 @@ struct mtx_args {
  * support as _mtx_assert() itself uses them and the latter implies that
  * _mtx_assert() must build.
  */
-#ifdef INVARIANT_SUPPORT
+#if defined(INVARIANTS) || defined(INVARIANT_SUPPORT)
 #define MA_OWNED	0x01
 #define MA_NOTOWNED	0x02
 #define MA_RECURSED	0x04
 #define MA_NOTRECURSED	0x08
-#endif /* INVARIANT_SUPPORT */
+#endif
 
 #ifdef INVARIANTS
 #define	mtx_assert(m, what)						\
