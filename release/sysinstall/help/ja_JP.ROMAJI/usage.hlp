@@ -43,3 +43,11 @@ scroll-back buffer wo motteimasu.  scroll-back surutameniha, "Scroll
 Lock" key wo oshitekara cursor key ya "Page Up" "Page Down" key wo
 shiyou shimasu.  kono kinou ha sub-shell ya sonohokano "wizard mode"
 nado, menu wo shiyou shinai baai ni benridesu.
+
+system no install ga shuuryou shi, "multi-user" de dousa shiteiru
+tokiha, douji ni ikutsukano session wo atsukaeru "kasou console" wo
+shiyou surukotoga dekimasu. console wo kirikaeruniha, ALT-F<n> wo
+shiyou shitekudasai.  'F<n>' ha mitai gamen ni taiousuru function key
+desu.  hyoujun deha 4tsuno kasou console ga shiyou dekimasuga, file
+/etc/ttys wo henshuu surukotode saidai 12ko made fuyasukotoga
+dekimasu.
