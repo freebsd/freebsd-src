@@ -1,9 +1,1441 @@
 			SENDMAIL RELEASE NOTES
-	     @(#)RELEASE_NOTES	8.6.12.1 (Berkeley) 3/28/95
+	     @(#)RELEASE_NOTES	8.7.2.1 (Berkeley) 11/19/95
+
 
 This listing shows the version of the sendmail binary, the version
 of the sendmail configuration files, the date of release, and a
 summary of the changes in that release.
+
+8.7.2/8.7.2	95/11/19
+	REALLY fix the backslash escapes in SmtpGreetingMessage,
+		OperatorChars, and UnixFromLine options.  They were not
+		properly repaired in 8.7.1.
+	Completely delete the Bcc: header if and only if there are other
+		valid recipient headers (To:, Cc: or Apparently-To:, the
+		last being a historic botch, of course).  If Bcc: is the
+		only recipient header in the message, it's value is tossed,
+		but the header name is kept.  The old behaviour (always keep
+		the header name and toss the value) allowed primary recipients
+		to see that a Bcc: went to _someone_.
+	Include queue id on ``Authentication-Warning: <host>: <user> set
+		sender to <addresss> using -f'' syslog messages.  Suggested
+		by Kari Hurtta.
+	If a sequence or switch map lookup entry gets a tempfail but then
+		continues on to another map type, but the name is not found,
+		return a temporary failure from the sequence or switch map.
+		For example, if hosts search ``dns files'' and DNS fails
+		with a tempfail, the hosts map will go on and search files,
+		but if it fails the whole thing should be a tempfail, not
+		a permanent (host unknown) failure, even though that is the
+		failure in the hosts.files map.  This error caused hard
+		bounces when it should have requeued.
+	Aliases to files such as /users/bar/foo/inbox, with /users/bar/foo
+		owned by bar mode 700 and inbox being setuid bar stopped
+		working properly due to excessive paranoia.  Pointed out by
+		John Hawkinson of Panix.
+	An SMTP RCPT command referencing a host that gave a nameserver
+		timeout would return a 451 command (8.6 accepted it and
+		queued it locally).  Revert to the 8.6 behaviour in order
+		to simplify queue management for clustered systems.  Suggested
+		by Gregory Neil Shapiro of WPI.  The same problem could break
+		MH, which assumes that the SMTP session will succeed (tsk, tsk
+		-- mail gets lost!); this was pointe dout by Stuart Pook of
+		Infobiogen.
+	Fix possible buffer overflow in munchstring().  This was not a security
+		problem because you couldn't specify any argument to this
+		without first giving up root privileges, but it is still a
+		good idea to avoid future problems.  Problem noted by John
+		Hawkinson and Sam Hartman of MIT.
+	``452 Out of disk space for temp file'' messages weren't being
+		printed.  Fix from David Perlin of Nanosoft.
+	Don't advertise the ESMTP DSN extension if the SendMIMEErrors option
+		is not set, since this is required to get the actual DSNs
+		created.  Problem pointed out by John Gardiner Myers of CMU.
+	Log permission problems that cause .forward and :include: files to
+		be untrusted or ignored on log level 12 and higher.  Suggestted
+		by Randy Martin of Clemson University.
+	Allow user ids in U= clauses of M lines to have hyphens and
+		underscores.
+	Fix overcounting of recipients -- only happened when sending to an
+		alias.  Pointed out by Mark Andrews of SGI and Jack Woolley
+		of Systems and Computer Technology Corporation.
+	If a message is sent to an address that fails, the error message that
+		is returned could show some extraneous "success" information
+		included even if the user did not request success notification,
+		which was confusing.  Pointed out by Allan Johannesen of WPI.
+	Config files that had no AliasFile definition were defaulting to
+		using /etc/aliases; this caused problems with nullclient
+		configurations.  Change it back to the 8.6 semantics of
+		having no local alias file unless it is declared.  Problem
+		noted by Charles Karney of Princeton University.
+	Fix compile problem if NOTUNIX is defined.  Pointed out by Bryan
+		Costales of ICSI.
+	Map lookups of class "userdb" maps were always case sensitive; they
+		should be controlled by the -f flag like other maps.  Pointed
+		out by Bjart Kvarme <bjart.kvarme@usit.uio.no>.
+	Fix problem that caused some addresses to be passed through ruleset 5
+		even when they were tagged as "sticky" by prefixing the
+		address with an "@".  Patch from Thomas Dwyer III of Michigan
+		Technological University.
+	When converting a message to Quoted-Printable, prevent any lines with
+		dots alone on a line by themselves.  This is because of the
+		preponderence of broken mailers that still get this wrong.
+		Code contributed by Per Hedeland of Ericsson.
+	Fix F{macro}/file construct -- it previously did nothing.  Pointed
+		out by Bjart Kvarme of USIT/UiO (Norway).
+	Announce whether a cached connection is SMTP or ESMTP (in -v mode).
+		Requested by Allan Johannesen.
+	Delete check for text format of alias files -- it should be legal
+		to have the database format of the alias files without the
+		text version.  Problem pointed out by Joe Rhett of Navigist,
+		Inc.
+	If "Ot" was specified with no value, the TZ variable was not properly
+		imported from the environment.  Pointed out by Frank Crawford
+		<frank@ansto.gov.au>.
+	Some architectures core dumped on "program" maps that didn't have
+		extra arguments.  Patch from Booker C. Bense of Stanford
+		University.
+	Queue run processes would re-spawn daemons when given a SIGHUP; only
+		the parent should do this.  Fix from Brian Coan of the
+		Association for Progressive Communications.
+	If MinQueueAge was set and a message was considered but not run
+		during a queue run and the Timeout.queuereturn interval was
+		reached, a "timed out" error message would be returned that
+		didn't include the failed address (and claimed to be a warning
+		even though it was fatal).  The fix is to not return such
+		messages until they are actually tried, i.e., in the next
+		MinQueueAge interval.  Problem noted by Rein Tollevik of
+		SINTEF RUNIT, Oslo.
+	Add HES_GETMAILHOST compile flag to support MIT Hesiod distributions
+		that have the hes_getmailhost() routine.  DEC Hesiod
+		distributions do not have this routine.  Based on a patch
+		from Betty Lee of Stanford University.
+	PORTABILITY FIXES:
+		Solaris: Change location of newaliases and mailq from
+			/usr/ucb to /usr/bin to match Sun settings.  From
+			James B. Davis of TCI.
+		DomainOS: Makefile.DomainOS doesn't require -ldbm.  From
+			Don Lewis of Silicon Systems.
+		HP-UX 10: rename Makefile.HP-UX.10 => Makefile.HP-UX.10.x
+			so that the makesendmail script will find it.  Pointed
+			out by Richard Allen of the University of Iceland.
+			Also, use -Aa -D_HPUX_SOURCE instead of -Ae, which
+			isn't supported on all compilers.
+		UXPDS: compilation fixes from Diego R. Lopez.
+	CONFIG: FAX mailer wasn't setting .FAX as a pseudo-domain unless
+		you also had a FAX_RELAY.  From Thomas.Tornblom@Hax.SE.
+	CONFIG: Minor glitch in S21 -- attachment of local domain name
+		didn't have trailing dot.  From Jim Hickstein of Teradyne.
+	CONFIG: Fix best_mx_is_local feature to allow nested addresses such as
+		user%host@thishost.  From Claude Scarpelli of Infobiogen
+		(France).
+	CONFIG: OSTYPE(hpux10) failed to define the location of the help file.
+		Pointed out by Hannu Martikka of Nokia Telecommunications.
+	CONFIG: Diagnose some inappropriate ordering in configuration files,
+		such as FEATURE(smrsh) listed after MAILER(local).  Based on
+		a bug report submitted by Paul Hoffman of Proper Publishing.
+	CONFIG: Make OSTYPE files consistently not override settings that
+		have already been set.  Previously it worked differently
+		for different files.
+	CONFIG: Change relay mailer to do masquerading like 8.6 did.  My take
+		is that this is wrong, but the change was causing problems
+		for some people.  From Per Hedeland of Ericsson.
+	CONTRIB: bitdomain.c patch from John Gardiner Myers <jgm+@CMU.EDU>;
+		portability changes for Posix environments (no functional
+		changes).
+
+8.7.1/8.7.1	95/10/01
+	Old macros that have become options (SmtpGreetingMessage,
+		OperatorChars, and UnixFromLine) didn't allow backslash
+		escapes in the options, where they previously had.  Bug
+		pointed out by John Hawkinson of MIT.
+	Fix strange case of an executable called by a program map that
+		returns a value but also a non-zero exit status; this
+		would give contradictory results in the higher level; in
+		particular, the default clause in the map lookup would be
+		ignored.  Change to ignore the value if the program returns
+		non-zero exit status.  From Tom Moore of AT&T GIS.
+	Shorten parameters passed to syslog() in some contexts to avoid a
+		bug in many vendors' implementations of that routine.  Although
+		this isn't really a bug in sendmail per se, and my solution
+		has to assume that syslog() has at least a 1K buffer size
+		internally (I know some vendors have shortened this
+		dramatically -- they're on their own), sendmail is a popular
+		target.  Also, limit the size of %s arguments in sprintf.
+		These both have possible security implications.  Solutions
+		suggested by Casper Dik of Sun's Network Security Group
+		(Holland), Mark Seiden, and others.
+	Fix a problem that might cause a non-standard -B (body type)
+		parameter to be passed to the next server with undefined
+		results.  This could have security implications.
+	If a filesystem was at > 100% utilization, the freediskspace()
+		routine incorrectly returned an error rather than zero.
+		Problem noted by G. Paul Ziemba of Alantec.
+	Change MX sort order so that local hostnames (those in $=w) always
+		sort first within a given preference.  This forces the bestmx
+		map to always return the local host first, if it is included
+		in the list of highest priority MX records.  From K. Robert
+		Elz.
+	Avoid some possible null pointer dereferences.  Fixes from Randy
+		Martin <WOLF@CLEMSON.EDU>
+	When sendmail starts up on systems that have no fully qualified
+		domain name (FQDN) anywhere in the first matching host map
+		(e.g., /etc/hosts if the hosts service searches "files dns"),
+		sendmail would sleep to try to find a FQDN, which it really
+		really needs.  This has been changed to fall through to the
+		next map type if it can't find a FQDN -- i.e., if the hosts
+		file doesn't have a FQDN, it will try dns even though the
+		short name was found in /etc/hosts.  This is probably a crock,
+		but many people have hosts files without FQDNs.  Remember:
+		domain names are your friends.
+	Log a high-priority message if you can't find your FQDN during startup.
+		Suggested by Simon Barnes of Schlumberger Limited.
+	When using Hesiod, initialize it early to improve error reporting.
+		Patch from Don Lewis of Silicon Systems, Inc.
+	Apparently at least some versions of Linux have a 90 !minute! TCP
+		connection timeout in the kernel.  Add a new "connect" timeout
+		to limit this time.  Defaults to zero (use whatever the
+		kernel provides).  Based on code contributed by J.R. Oldroyd
+		of TerraNet.
+	Under some circumstances, a failed message would not be properly
+		removed from the queue, causing tons of bogus error messages.
+		(This fix eliminates the problematic EF_KEEPQUEUE flag.)
+		Problem noted by Allan E Johannesen and Gregory Neil Shapiro
+		of WPI.
+	PORTABILITY FIXES:
+		On IRIX 5.x, there was an inconsistency in the setting
+			of sendmail.st location.  Change the Makefile to
+			install it in /var/sendmail.st to match the OSTYPE
+			file and SGI standards.  From Andre
+			<andre@curry.zfe.siemens.de>.
+		Support for Fujitsu/ICL UXP/DS (For the DS/90 Series)
+			from Diego R. Lopez <drlopez@cica.es>.
+		Linux compilation patches from J.R. Oldroyd of TerraNet, Inc.
+		LUNA 2 Mach patches from Motonori Nakamura.
+		SunOS Makefile was including -ldbm, which is for the old
+			dbm library.  The ndbm library is part of libc.
+	CONFIG: avoid bouncing ``user@host.'' (note trailing dot) with
+		``local configuration error'' in nullclient configuration.
+		Patch from Gregory Neil Shapiro of WPI.
+	CONFIG: don't allow an alias file in nullclient configurations --
+		since all addresses are relayed, they give errors during
+		rebuild.  Suggested by Per Hedeland of Ericsson.
+	CONFIG: local mailer on Solaris 2 should always get a -f flag because
+		otherwise the F=S causes the From_ line to imply that root is
+		the sender.  Problem pointed out by Claude Scarpelli of
+		Infobiogen (France).
+	NEW FILES:
+		cf/feature/use_ct_file.m4 (omitted from 8.7 by mistake)
+		src/Makefiles/Makefile.KSR (omitted from 8.7 by mistake)
+		src/Makefiles/Makefile.UXPDS
+
+8.7/8.7		95/09/16
+	Fix a problem that could cause sendmail to run out of file
+		descriptors due to a trashed data structure after a
+		vfork.  Fix from Brian Coan of the Institute for
+		Global Communications.
+	Change the VRFY response if you have disabled VRFY -- some
+		people seemed to think that it was too rude.
+	Avoid reference to uninitialized file descriptor if HASFLOCK
+		was not defined.  This was used "safely" in the sense
+		that it only did a stat, but it would have set the
+		map modification time improperly.  Problem pointed out
+		by Roy Mongiovi of Georgia Tech.
+	Clean up the Subject: line on warning messages and return
+		receipts so that they don't say "Returned mail:"; this
+		can be confusing.
+	Move ruleset entry/exit debugging from 21.2 to 21.1 -- this is
+		useful enough to make it worthwhile printing on "-d".
+	Avoid logging alias statistics every time you read the alias
+		file on systems with no database method compiled in.
+	If you have a name with a trailing dot, and you try looking it
+		up using gethostbyname without the dot (for /etc/hosts
+		compatibility), be sure to turn off RES_DEFNAMES and
+		RES_DNSRCH to avoid finding the wrong name accidently.
+		Problem noted by Charles Amos of the University of
+		Maryland.
+	Don't do timeouts in collect if you are not running SMTP.
+		There is nothing that says you can't have a long
+		running program piped into sendmail (possibly via
+		/bin/mail, which just execs sendmail).  Problem reported
+		by Don "Truck" Lewis of Silicon Systems.
+	Try gethostbyname() even if the DNS lookup fails iff option I
+		is not set.  This allows you to have hosts listed in
+		NIS or /etc/hosts that are not known to DNS.  It's normally
+		a bad idea, but can be useful on firewall machines.  This
+		should really be broken out on a separate flag, I suppose.
+	Avoid compile warnings against BIND 4.9.3, which uses function
+		prototypes.  From Don Lewis of Silicon Systems.
+	Avoid possible incorrect diagnosis of DNS-related errors caused
+		by things like attempts to resolve uucp names using
+		$[ ... $] -- the fix is to clear h_errno at appropriate
+		times.  From Kyle Jones of UUNET.
+	SECURITY: avoid denial-of-service attacks possible by destroying
+		the alias database file by setting resource limits low.
+		This involves adding two new compile-time options:
+		HASSETRLIMIT (indicating that setrlimit(2) support is
+		available) and HASULIMIT (indicating that ulimit(2) support
+		is available -- the Release 3 form is used).  The former
+		is assumed on BSD-based systems, the latter on System
+		V-based systems.  Attack noted by Phil Brandenberger of
+		Swarthmore University.
+	New syntaxes in test (-bt) mode:
+		``.Dmvalue'' will define macro "m" to "value".
+		``.Ccvalue'' will add "value" to class "c".
+		``=Sruleset'' will dump the contents of the indicated
+			ruleset.
+		``=M'' will display the known mailers.
+		``-ddebug-spec'' is equivalent to the command-line
+			-d debug flag.
+		``$m'' will print the value of macro $m.
+		``$=c'' will print the contents of class $=c.
+		``/mx host'' returns the MX records for ``host''.
+		``/parse address'' will parse address, returning the value of
+			crackaddr (essentially, the comment information)
+			and the parsed address (the same as -bv).
+		``/try mailer address'' will rewrite address into the form
+			it will have when presented to the indicated mailer.
+		``/tryflags flags'' will set flags used by parsing.  The
+			flags can be `H' for header or `E' for envelope,
+			and `S' for sender or `R' for recipient.  These
+			can be combined, so `HR' sets flags for header
+			recipients.
+		``/canon hostname'' will try to canonify hostname and
+			return the result.
+		``/map mapname key'' will look up `key' in the indicated
+			`mapname' and return the result.
+	Somewhat better handling of UNIX-domain socket addresses -- it
+		should show the pathname rather than hex bytes.
+	Restore ``-ba'' mode -- this reads a file from stdin and parses
+		the header for envelope sender information and uses
+		CR-LF as message terminators.  It was thought to be
+		obsolete (used only for Arpanet NCP protocols), but it
+		turns out that the UK ``Grey Book'' protocols require
+		that functionality.
+	Fix a fix in previous release -- if gethostname and gethostbyname
+		return a name without dots, and if an attempt to canonify
+		that name fails, wait one minute and try again.  This can
+		result in an extra 60 second delay on startup if your system
+		hostname (as returned by hostname(1)) has no dot and no names
+		listed in /etc/hosts or your NIS map have a dot.
+	Check for proper domain name on HELO and EHLO commands per
+		RFC 1123 section 5.2.5.  Problem noted by Thomas Dwyer III
+		of Michigan Technological University.
+	Relax chownsafe rules slightly -- old version said that if you
+		can't tell if _POSIX_CHOWN_RESTRICTED is set (that is,
+		if fpathconf returned EINVAL or ENOSYS), assume that
+		chown is not safe.  The new version falls back to whether
+		you are on a BSD system or not.  This is important for
+		SunOS, which apparently always returns one of those
+		error codes.  This impacts whether you can mail to files
+		or not.
+	Syntax errors such as unbalanced parentheses in the configuration
+		file could be omitted if you had "Oem" prior to the
+		syntax error in the config file.  Change to always print
+		the error message.  It was especially wierd because it
+		would cause a "warning" message to be sent to the Postmaster
+		for every message sent (but with no transcript).  Problem
+		noted by Gregory Paris of Motorola.
+	Rewrite collect and putbody to handle full 8-bit data, including
+		zero bytes.  These changes are internally extensive, but
+		should have minimal impact on external function.
+	Allow full words for option names -- if the option letter is
+		(apparently) a space, then take the word following -- e.g.,
+			O MatchGECOS=TRUE
+		The full list of old and new names is as follows:
+			7	SevenBitInput
+			8	EightBitMode
+			A	AliasFile
+			a	AliasWait
+			B	BlankSub
+			b	MinFreeBlocks/MaxMessageSize
+			C	CheckpointInterval
+			c	HoldExpensive
+			D	AutoRebuildAliases
+			d	DeliveryMode
+			E	ErrorHeader
+			e	ErrorMode
+			f	SaveFromLine
+			F	TempFileMode
+			G	MatchGECOS
+			H	HelpFile
+			h	MaxHopCount
+			i	IgnoreDots
+			I	ResolverOptions
+			J	ForwardPath
+			j	SendMimeErrors
+			k	ConnectionCacheSize
+			K	ConnectionCacheTimeout
+			L	LogLevel
+			l	UseErrorsTo
+			m	MeToo
+			n	CheckAliases
+			O	DaemonPortOptions
+			o	OldStyleHeaders
+			P	PostmasterCopy
+			p	PrivacyOptions
+			Q	QueueDirectory
+			q	QueueFactor
+			R	DontPruneRoutes
+			r, T	Timeout
+			S	StatusFile
+			s	SuperSafe
+			t	TimeZoneSpec
+			u	DefaultUser
+			U	UserDatabaseSpec
+			V	FallbackMXhost
+			v	Verbose
+			w	TryNullMXList
+			x	QueueLA
+			X	RefuseLA
+			Y	ForkEachJob
+			y	RecipientFactor
+			z	ClassFactor
+			Z	RetryFactor
+		The old macros that passed information into sendmail have
+		been changed to options; those correspondences are:
+			$e	SmtpGreetingMessage
+			$l	UnixFromLine
+			$o	OperatorChars
+			$q	(deleted -- not necessary)
+		To avoid possible problems with an older sendmail,
+		configuration level 6 is accepted by this version of
+		sendmail; any config file using the new names should
+		specify "V6" in the configuration.
+	Change address parsing to properly note that a phrase before a
+		colon and a trailing semicolon are essentially the same
+		as text outside of angle brackets (i.e., sendmail should
+		treat them as comments).  This is to handle the
+		``group name: addr1, addr2, ..., addrN;'' syntax (it will
+		assume that ``group name:'' is a comment on the first
+		address and the ``;'' is a comment on the last address).
+		This requires config file support to get right.  It does
+		understand that :: is NOT this syntax, and can be turned
+		off completely by setting the ColonOkInAddresses option.
+	Level 6 config files added with new mailer flags:
+		    A	Addresses are aliasable.
+		    i	Do udb rewriting on envelope as well as header
+			sender lines.  Applies to the from address mailer
+			flags rather than the recipient mailer flags.
+		    j	Do udb rewriting on header recipient addresses.
+			Applies to the sender mailer flags rather than the
+			recipient mailer flags.
+		    k	Disable check for loops when doing HELO command.
+		    o	Always run as the mail recipient, even on local
+			delivery.
+		    w	Check for an /etc/passwd entry for this user.
+		    5	Pass addresses through ruleset 5.
+		    :	Check for :include: on this address.
+		    |	Check for |program on this address.
+		    /	Check for /file on this address.
+		    @	Look up sender header addresses in the user
+			database.  Applies to the mailer flags for the
+			mailer corresponding to the envelope sender
+			address, rather than to recipient mailer flags.
+		Pre-level 6 configuration files set A, w, 5, :, |, /, and @
+		on the "local" mailer, the o flag on the "prog" and "*file*"
+		mailers, and the ColonOkInAddresses option.
+	Eight-to-seven bit MIME conversions.  This borrows ideas from
+		John Beck of Hewlett-Packard, who generously contributed
+		their implementation to me, which I then didn't use (see
+		mime.c for an explanation of why).  This adds the
+		EightBitMode option (a.k.a. `8') and an F=8 mailer flag
+		to control handling of 8-bit data.  These have to cope with
+		two types of 8-bit data: unlabelled 8-bit data (that is,
+		8-bit data that is entered without declaring it as 8-bit
+		MIME -- technically this is illegal according to the
+		specs) and labelled 8-bit data (that is, it was declared
+		as 8BITMIME in the ESMTP session or by using the
+		-B8BITMIME command line flag).  If the F=8 mailer flag is
+		set then 8-bit data is sent to non-8BITMIME machines
+		instead of converting to 7 bit (essentially using
+		just-send-8 semantics).  The values for EightBitMode are:
+		    m	convert unlabelled 8-bit input to 8BITMIME, and do
+			any necessary conversion of 8BITMIME to 7BIT
+			(essentially, the full MIME option).
+		    p	pass unlabelled 8-bit input, but convert labelled
+			8BITMIME input to 7BIT as required (default).
+		    s	strict adherence: reject unlabelled 8-bit input,
+			convert 8BITMIME to 7BIT as required.  The F=8
+			flag is ignored.
+		Unlabelled 8-bit data is rejected in mode `s' regardless of
+			the setting of F=8.
+	Add new internal class 'n', which is the set of MIME Content-Types
+		which can not be 8 to 7 bit encoded because of other
+		considerations.  Types "multipart/*" and "message/*" are
+		never directly encoded (although their components can be).
+	Add new internal class 's', which is the set of subtypes of the
+		MIME message/* content type that can be treated as though
+		they are an RFC822 message.  It is predefined to have
+		"rfc822".  Suggested By Kari Hurtta.
+	Add new internal class 'e'.  This is the set of MIME
+		Content-Transfer-Encodings that can be converted to
+		a seven bit format (Quoted-Printable or Base64).  It is
+		preinitialized to contain "7bit", "8bit", and "binary".
+	Add C=charset mailer parameter and the the DefaultCharSet option (no
+		short name) to set the default character set to use in the
+		Content-Type: header when doing encoding of an 8-bit message
+		which isn't marked as MIME into MIME format.  If the C=
+		parameter is set on the Envelope From address, use that as
+		the default encoding; else use the DefaultCharSet option.
+		If neither is set, it defaults to "unknown-8bit" as
+		suggested by RFC 1428 section 3.
+	Allow ``U=user:group'' field in mailer definition to set a default
+		user and group that a mailer will be executed as.  This
+		overrides the 'u' and 'g' options, and if the `F=S' flag is
+		also set, it is the uid/gid that will always be used (that
+		is, the controlling address is ignored).  The values may be
+		numeric or symbolic; if only a symbolic user is given (no
+		group) that user's default group in the passwd file is used
+		as the group.  Based on code donated by Chip Rosenthal of
+		Unicom.
+	Allow `u' option to also accept user:group as a value, in the same
+		fashion as the U= mailer option.
+	Add the symbolic time zone name in the Arpanet format dates (as
+		a comment).  This adds a new compile-time configuration
+		flag: TZ_TYPE can be set to TZ_TM_NAME (use the value
+		of (struct tm *)->tm_name), TZ_TM_ZONE (use the value
+		of (struct tm *)->tm_zone), TZ_TZNAME (use extern char
+		*tzname[(struct tm *)->tm_isdst]), TZ_TIMEZONE (use
+		timezone()), or TZ_NONE (don't include the comment).  Code
+		from Chip Rosenthal.
+	The "Timeout" option (formerly "r") is extended to allow suboptions.
+		For example,
+		    O Timeout.helo = 2m
+		There are also two new suboptions "queuereturn" and
+		"queuewarn"; these subsume the old T option.  Thus, to
+		set them both the preferred new syntax is
+		    O Timeout.queuereturn = 5d
+		    O Timeout.queuewarn = 4h
+	Sort queue by host name instead of by message priority if the
+		QueueSortOrder option (no short name) is set is set to
+		``host''.  This makes better use of the connection cache,
+		but may delay more ``interactive'' messages behind large
+		backlogs under some circumstances.  This is probably a
+		good option if you have high speed links or don't do lots
+		of ``batch'' messages, but less good if you are using
+		something like PPP on a 14.4 modem.  Based on code
+		contributed by Roy Mongiovi of Georgia Tech (my main
+		contribution was to make it configurable).
+	Save i-number of df file in qf file to simplify rebuilding of queue
+		after disasterous disk crash.  Suggested by Kyle Jones of
+		UUNET; closely based on code from KJS DECWRL code written
+		by Paul Vixie.  NOTA BENE: The qf files produced by 8.7
+		are NOT back compatible with 8.6 -- that is, you can convert
+		from 8.6 to 8.7, but not the other direction.
+	Add ``F=d'' mailer flag to disable all use of angle brackets in
+		route-addrs in envelopes; this is because in some cases
+		they can be sent to the shell, which interprets them as
+		I/O redirection.
+	Don't include error file (option E) with return-receipts; this
+		can be confusing.
+	Don't send "Warning: cannot send" messages to owner-* or
+		*-request addresses.  Suggested by Christophe Wolfhugel
+		of the Institut Pasteur, Paris.
+	Allow -O command line flag to set long form options.
+	Add "MinQueueAge" option to set the minimum time between attempts
+		to run the queue.  For example, if the queue interval
+		(-q value) is five minutes, but the minimum queue age
+		is fifteen minutes, jobs won't be tried more often than
+		once every fifteen minutes.  This can be used to give
+		you more responsiveness if your delivery mode is set to
+		queue-only.
+	Allow "fileopen" timeout (default: 60 seconds) for opening
+		:include: and .forward files.
+	Add "-k", "-v", and "-z" flags to map definitions; these set the
+		key field name, the value field name, and the field
+		delimiter.  The field delimiter can be a single character
+		or the sequence "\t" or "\n" for tab or newline.
+		These are for use by NIS+ and similar access methods.
+	Change maps to always strip quotes before lookups; the -q flag
+		turns off this behaviour.  Suggested by Motonori Nakamura.
+	Add "nisplus" map class.  Takes -k and -v flags to choose the
+		key and value field names respectively.  Code donated by
+		Sun Microsystems.
+	Add "hesiod" map class.  The "file name" is used as the
+		"HesiodNameType" parameter to hes_resolve(3).  Returns the
+		first value found for the match.  Code donated by Scott
+		Hutton of Indiana University.
+	Add "netinfo" (NeXT NetInfo) map class.  Maps can have a -k flag to
+		specify the name of the property that is searched as the
+		key and a -v flag to specify the name of the property that
+		is returned as the value (defaults to "members").  The
+		default map is "/aliases".  Some code based on code
+		contributed by Robert La Ferla of Hot Software.
+	Add "text" map class.  This does slow, linear searches through
+		text files.  The -z flag specifies a column delimiter
+		(defaults to any sequence of white space), the -k flag
+		sets the key column number, and the -v flag sets the
+		value column number.  Lines beginning with `#' are treated
+		as comments.
+	Add "program" map class to execute arbitrary programs.  The search
+		key is presented as the last argument; the output is one
+		line read from the programs standard output.  Exit statuses
+		are from sysexits.h.
+	Add "sequence" map class -- searches maps in sequence until it
+		finds a match.  For example, the declarations:
+		    Kmap1 ...
+		    Kmap2 ...
+		    Kmapseq sequence map1 map2
+		defines a map "mapseq" that first searches map1; if the
+		value is found it is returned immediately, otherwise
+		map2 is searched and the value returned.
+	Add "switch" map class.  This is much like "sequence" except that
+		the ordering is fetched from an external file, usually
+		the system service switch.  The parameter is the name of
+		the service to switch on, and the maps that it will use
+		are the name of the switch map followed by ".service_type".
+		For example, if the declaration of the map is
+		    Ksample switch hosts
+		and the system service switch specifies that hosts are
+		looked up using dns and nis in that order, then this is
+		equivalent to
+		    Ksample sequence sample.dns sample.nis
+		The subordinate maps (sample.*) must already be defined.
+	Add "user" map class -- looks up users using getpwnam.  Takes a
+		"-v field" flag on the definition that tells what passwd
+		entry to return -- legal values are name, passwd, uid, gid,
+		gecos, dir, and shell.  Generally expected to be used with
+		the -m (matchonly) flag.
+	Add "bestmx" map class -- returns the best MX value for the host
+		listed as the value.  If there are several "best" MX records
+		for this host, one will be chosen at random.
+	Add "userdb" map class -- looks up entries in the user database.
+		The "file name" is actually the tag that will be used,
+		typically "mailname".  If there are multiple entries
+		matching the name, the one chosen is undefined.
+	Add multiple queue timeouts (both return and warning).  These are
+		set by the Precedence: or Priority: header fields to one of
+		three values.  If a Priority: is set and has value "normal",
+		"urgent", or "non-urgent" the corresponding timeouts are 
+		used.  If no priority is set, the Precedence: is consulted;
+		if negative, non-urgent timeouts are used; if greater than
+		zero, urgent timeouts are used.  Otherwise, normal timeouts
+		are used.  The timeouts are set by setting the six timeouts
+		queue{warn,return}.{urgent,normal,non-urgent}.
+	Fix problem when a mail address is resolved to a $#error mailer
+		with a temporary failure indication; it works in SMTP,
+		but when delivering locally the mail is silently discarded.
+		This patch, from Kyle Jones of UUNET, bounces it instead
+		of queueing it (queueing is very hard).
+	When using /etc/hosts or NIS-style lookups, don't assume that
+		the first name in the list is the best one -- instead,
+		search for the first one with a dot.  For example, if
+		an /etc/hosts entry reads
+		    128.32.149.68	mammoth mammoth.CS.Berkeley.EDU
+		this change will use the second name as the canonical
+		machine name instead of the initial, unqualified name.
+	Change dequote map to replace spaces in quoted text with a value
+		indicated by the -s flag on the dequote map definition.
+		For example, ``Mdequote dequote -s_'' will change
+		"Foo Bar" into an unquoted Foo_Bar instead of leaving it
+		quoted (because of the space character).  Suggested by Dan
+		Oscarsson for use in X.400 addresses.
+	Implement long macro names as ${name}; long class names can
+		be similarly referenced as $={name} and $~{name}.
+		Definitions are (e.g.) ``D{name}value''.  Names that have
+		a leading lower case letter or punctuation characters are
+		reserved for internal use by sendmail; i.e., config files
+		should use names that begin with a capital letter.  Based
+		on code contributed by Dan Oscarsson.
+	Fix core dump if getgrgid returns a null group list (as opposed
+		to an empty group list, that is, a pointer to a list
+		with no members).  Fix from Andrew Chang of Sun Microsystems.
+	Fix possible core dump if malloc fails -- if the malloc in xalloc
+		failed, it called syserr which called newstr which called
+		xalloc....  The newstr is now avoided for "panic" messages.
+		Reported by Stuart Kemp of James Cook University.
+	Improve connection cache timeouts; previously, they were not even
+		checked if you were delivering to anything other than an
+		IPC-connected host, so a series of (say) local mail
+		deliveries could cause cached connections to be open
+		much longer than the specified timeout.
+	If an incoming message exceeds the maximum message size, stop
+		writing the incoming bytes to the queue data file, since
+		this can fill your mqueue partition -- this is a possible
+		denial-of-service attack.
+	Don't reject all numeric local user names unless HESIOD is
+		defined.  It turns out that Posix allows all-numeric
+		user names.  Fix from Tony Sanders of BSDI.
+	Add service switch support.  If the local OS has a service
+		switch (e.g., /etc/nsswitch.conf on Solaris or /etc/svc.conf
+		on DEC systems) that will be used; otherwise, it falls back
+		to using a local mechanism based on the ServiceSwitchFile
+		option (default: /etc/service.switch).  For example, if the
+		service switch lists "files" and "nis" for the aliases
+		service, that will be the default lookup order.  the "files"
+		("local" on DEC) service type expands to any alias files
+		you listed in the configuration file, even if they aren't
+		actually file lookups.
+	Option I (NameServerOptions) no longer sets the "UseNameServer"
+		variable which tells whether or not DNS should be considered
+		canonical.  This is now determined based on whether or not
+		"dns" is in the service list for "hosts".
+	Add preliminary support for the ESMTP "DSN" extension (Delivery
+		Status Notifications).  DSN notifications override
+		Return-Receipt-To: headers, which are bogus anyhow.
+	Add T=mts-name-type/address-type/diagnostic-type keyletter to mailer
+		definitions to define the types used in DSN returns for
+		MTA names, addresses, and diagnostics respectively.
+	Extend heuristic to force running in ESMTP mode to look for the
+		five-character string "ESMTP" anywhere in the 220 greeting
+		message (not just the second line).  This is to provide
+		better compatibility with other ESMTP servers.
+	Print sequence number of job when running the queue so you can
+		easily see how much progress you have made.  Suggested
+		by Peter Wemm of DIALix.
+	Map newlines to spaces in logged message-ids; some versions of
+		syslog truncate the rest of the line after newlines.
+		Suggested by Fletcher Mattox of U. Texas.
+	Move up forking for job runs so that if a message is split into
+		multiple envelopes you don't get "fork storms" -- this
+		also improves the connection cache utilization.
+	Accept "<<>>", "<<<>>>", and so forth as equivalent to "<>" for
+		the purposes of refusing to send error returns.  Suggested
+		by Motonori Nakamura of Ritsumeikan University.
+	Relax rules on when a file can be written when referenced from
+		the aliases file: use the default uid/gid instead of the
+		real uid/gid.  This allows you to create a file owned by
+		and writable only by the default uid/gid that will work
+		all the time (without having the setuid bit set).  Change
+		suggested by Shau-Ping Lo and Andrew Cheng of Sun
+		Microsystems.
+	Add "DialDelay" option (no short name) to provide an "extra"
+		delay for dial on demand systems.  If this is non-zero
+		and a connect fails, sendmail will wait this long and
+		then try again.  If it takes longer than the kernel
+		timeout interval to establish the connection, this
+		option can give the network software time to establish
+		the link.  The default units are seconds.
+	Move logging of sender information to be as early as possible;
+		previously, it could be delayed a while for SMTP mail
+		sent to aliases.  Suggested by Brad Knowles of the
+		Defense Information Systems Agency.
+	Call res_init() before setting RES_DEBUG; this is required by
+		BIND 4.9.3, or so I'm told.  From Douglas Anderson of
+		the National Computer Security Center.
+	Add xdelay= field in logs -- this is a transaction delay, telling
+		you how long it took to deliver to this address on the
+		last try.  It is intended to be used for sorting mailing
+		lists to favor "quick" addresses.  Provided for use by
+		the mailprio scripts (see below).
+	If a map cannot be opened, and that map is non-optional, and
+		an address requires that map for resolution, queue the
+		map instead of bouncing it.  This involves creating a
+		pseudo-class of maps called "bogus-map" -- if a required
+		map cannot be opened, the class is changed to bogus-map;
+		all queries against bogus-map return "tempfail".  The
+		bogus-map class is not directly accessible.  A sample
+		implementation was donated by Jem Taylor of Glasgow
+		University Computing Service.
+	Fix a possible core dump when mailing to a program that talks
+		SMTP on its standard input.  Fix from Keith Moore of
+		the University of Kentucky.
+	Make it possible to resolve filenames to $#local $: @ /filename;
+		previously, the "@" would cause it to not be recognized
+		as a file.  Problem noted by Brian Hill of U.C. Davis.
+	Accept a -1 signal to re-exec the daemon.  This only works if
+		argv[0] is a full path to sendmail.
+	Fix bug in "addr=..." field in O option on little-endian machines
+		-- the network number wasn't being converted to network
+		byte order.  Patch from Kurt Lidl of Pix Technologies
+		Corporation.
+	Pre-initialize the resolver early on; this is to avoid a bug with
+		BIND 4.9.3 that can cause the _res.retry field to get
+		reset to zero, causing all name server lookups to time
+		out.  Fix from Matt Day of Artisoft.
+	Restore T line (trusted users) in config file -- but instead of
+		locking out the -f flag, they just tell whether or not
+		an X-Authentication-Warning: will be added.  This really
+		just creates new entries in class 't', so "Ft/file/name"
+		can be used to read trusted user names from a file.
+		Trusted users are also allowed to execute programs even
+		if they have a shell that isn't in /etc/shells.
+	Improve NEWDB alias file rebuilding so it will create them
+		properly if they do not already exist.  This had been
+		a MAYBENEXTRELEASE feature in 8.6.9.
+	Check for @:@ entry in NIS maps before starting up to avoid
+		(but not prevent, sigh) race conditions.  This ought to
+		be handled properly in ypserv, but isn't.  Suggested by
+		Michael Beirne of Motorola.
+	Refuse connections if there isn't enough space on the filesystem
+		holding the queue.  Contributed by Robert Dana of Wolf
+		Communications.
+	Skip checking for directory permissions in the path to a file
+		when checking for file permissions iff setreuid()
+		succeeded -- it is unnecessary in that case.  This avoids
+		significant performance problems when looking for .forward
+		files.  Based on a suggestion by Win Bent of USC.
+	Allow symbolic ruleset names.  Syntax can be "Sname" to get an
+		arbitrary ruleset number assigned or "Sname = integer"
+		to assign a specific ruleset number.  Reference is
+		$>name_or_number.  Names can be composed of alphas, digits,
+		underscore, or hyphen (first character must be non-numeric).
+	Allow -o flag on AliasFile lines to make the alias file optional.
+		From Bryan Costales of ICSI.
+	Add NoRecipientAction option to handle the case where there is
+		no legal recipient header in the message.  It can take
+		on values:
+		  None			Leave the message as is.  The
+					message will be passed on even
+					though it is in technically
+					illegal syntax.
+		  Add-To		Add a To: header with any
+					recipients that it can find from
+					the envelope.  This risks exposing
+					Bcc: recipients.
+		  Add-Apparently-To	Add an Apparently-To: header.  This
+					has almost no redeeming social value,
+					and is provided only for back
+					compatibility.
+		  Add-To-Undisclosed	Add a header reading
+					To: undisclosed-recipients:;
+					which will have the effect of
+					making the message legal without
+					exposing Bcc: recipients.
+		  Add-Bcc		To add an empty Bcc: header.
+					There is a chance that mailers down
+					the line will delete this header,
+					which could cause exposure of Bcc:
+					recipients.
+		The default is NoRecipientAction=None.
+	Truncate (rather than delete) Bcc: lines in the header.  This
+		should prevent later sendmails (at least, those that don't
+		themselves delete Bcc:) from considering this message to
+		be non-conforming -- although it does imply that non-blind
+		recipients can see that a Bcc: was sent, albeit not to whom.
+	Add SafeFileEnvironment option.  If declared, files named as delivery
+		targets must be regular files in addition to the regular
+		checks.  Also, if the option is non-null then it is used as
+		the name of a directory that is used as a chroot(2)
+		environment for the delivery; the file names listed in an
+		alias or forward should include the name of this root.
+		For example, if you run with
+			O SafeFileEnvironment=/arch
+		then aliases should reference "/arch/rest/of/path".  If a
+		value is given, sendmail also won't try to save to
+		/usr/tmp/dead.letter (instead it just leaves the job in the
+		queue as Qfxxxxxx).  Inspired by *Hobbit*'s sendmail patch kit.
+	Support -A flag for alias files; this will comma concatenate like
+		entries.  For example, given the aliases:
+			list: member1
+			list: member2
+		and an alias file declared as:
+			OAhash:-A /etc/aliases
+		the final alias inserted will be "list: member1,member2";
+		without -A you will get an error on the second and subsequent
+		alias for "list".  Contributed by Bryan Costales of ICSI.
+	Line-buffer transcript file.  Suggested by Liudvikas Bukys.
+	Fix a problem that could cause very long addresses to core dump in
+		some special circumstances.  Problem pointed out by Allan
+		Johannesen.
+	(Internal change.)  Change interface to expand() (macro expansion)
+		to be simpler and more consistent.
+	Delete check for funny qf file names.  This didn't really give
+		any extra security and caused some people some problems.
+		(If you -really- want this, define PICKY_QF_NAME_CHECK
+		at compile time.)  Suggested by Kyle Jones of UUNET.
+	(Internal change.)  Change EF_NORETURN to EF_NO_BODY_RETN and
+		merge with DSN code; this is simpler and more consistent.
+		This may affect some people who have written their own
+		checkcompat() routine.
+	(Internal change.)  Eliminate `D' line in qf file.  The df file
+		is now assumed to be the same name as the qf file (with
+		the `q' changed to a `d', of course).
+	Avoid forking for delivery if all recipient mailers are marked as
+		"expensive" -- this can be a major cost on some systems.
+		Essentially, this forces sendmail into "queue only" mode
+		if all it is going to do is queue anyway.
+	Avoid sending a null message in some rather unusual circumstances
+		(specifically, the RCPT command returns a temporary
+		failure but the connection is lost before the DATA
+		command).  Fix from Scott Hammond of Secure Computing
+		Corporation.
+	Change makesendmail to use a somewhat more rational naming scheme:
+		Makefiles and obj directories are named $os.$rel.$arch,
+		where $os is the operating system (e.g., SunOS), $rel is
+		the release number (e.g., 5.3), and $arch is the machine
+		architecture (e.g., sun4).  Any of these can be omitted,
+		and anything after the first dot in a release number can
+		be replaced with "x" (e.g., SunOS.4.x.sun4).  The previous
+		version used $os.$arch.$rel and was rather less general.
+	Change makesendmail to do a "make depend" in the target directory
+		when it is being created.  This involves adding an empty
+		"depend:" entry in most Makefiles.
+	Ignore IDENT return value if the OSTYPE field returns "OTHER",
+		as indicated by RFC 1413.  Pointed out by Kari Hurtta
+		of the Finnish Meteorological Institute.
+	Fix problem that could cause multiple responses to DATA command
+		on header syntax errors (e.g., lines beginning with colons).
+		Problem noted by Jens Thomassen of the University of Oslo.
+	Don't let null bytes in headers cause truncation of the rest of
+		the header.
+	Log Authentication-Warning:s.  Suggested by Motonori Nakamura.
+	Increase timeouts on message data puts to allow time for receivers
+		to canonify addresses in headers on the fly.  This is still
+		a rather ugly heuristic.  From Motonori Nakamura.
+	Add "HasWildcardMX" suboption to ResolverOptions; if set, MX
+		records are not used when canonifying names, and when MX
+		lookups are done for addressing they must be fully
+		qualified.  This is useful if you have a wildcard MX record,
+		although it may cause other problems.  In general, don't use
+		wildcard MX records.  Patch from Motonori Nakamura.
+	Eliminate default two-line SMTP greeting message.  Instead of
+		adding an extra "ESMTP spoken here" line, the word "ESMTP"
+		is added between the first and second word of the first
+		line of the greeting message (i.e., immediately after the
+		host name).  This eliminates the need for the BROKEN_SMTP_PEERS
+		compile flag.  Old sendmails won't see the ESMTP, but that's
+		acceptable because SIZE was the only useful extension that
+		old sendmails understand.
+	Avoid gethostbyname calls on UNIX domain sockets during SIGUSR1
+		invoked state dumps.  From Masaharu Onishi.
+	Allow on-line comments in .forward and :include: files; they are
+		introduced by the string "<LWSP>#@#<LWSP>", where <LWSP>
+		is a space or a tab.  This is intended for native
+		representation of non-ASCII sets such as Japanese, where
+		existing encodings would be unreadable or would lose
+		data -- for example,
+		 <motonori@cs.ritsumei.ac.jp> NAKAMURA Motonori
+					(romanized/less information)
+		 <motonori@cs.ritsumei.ac.jp> =?ISO-2022-JP?B?GyRCQ2ZCPBsoQg==?=
+					      =?ISO-2022-JP?B?GyRCQUdFNRsoQg==?=
+					(with MIME encoding, not human readable)
+		 <motonori@cs.ritsumei.ac.jp> #@# ^[$BCfB<^[(B ^[$BAGE5^[(B
+					(native encoding with ISO-2022-JP)
+		The last form is human readable in the Japanese environment.
+		Based on a fix from (surprise!) Motonori Nakamura.
+	Don't make SMTP error returns on MAIL FROM: line be "sticky" for all
+		messages to that host; these are most frequently associated
+		with addresses rather than the host, with the exception of
+		421 (service shutting down).  The effect was to cause queues
+		to sometimes take an excessive time to flush.  Reported by
+		Robert Sargent of Southern Geographics Technologies and
+		Eric Prestemon of American University.
+	Add Nice=N mailer option to set the niceness at which a mailer will
+		run.  This is actually a relative niceness (that is, an
+		increment on the background value).
+	Log queue runs that are skipped due to high loads.  They are logged
+		at LOG_INFO priority iff the log level is > 8.  Contributed
+		by Bruce Nagel of Data General.
+	Allow the error mailer to accept a DSN-style error status code
+		instead of an sysexits status code in the host part.
+		Anything with a dot will be interpreted as a DSN-style code.
+	Add new mailer flag: F=3 will tell translations to Quoted-Printable
+		to encode characters that might be munged by an EBCDIC system
+		in addition to the set required by RFC 1521.  The additional
+		characters are !, ", #, $, @, [, \, ], ^, `, {, |, }, and ~.
+		(Think of "IBM 360" as the mnemonic for this flag.)
+	Change check for mailing to files to look for a pathname of [FILE]
+		rather than looking for the mailer named *file*.  The mapping
+		of leading slashes still goes to the *file* mailer.  This
+		allows you to implement the *file* mailer as a separate
+		program, for example, to insert a Content-Length: header
+		or do special security policy.  However, note that the usual
+		initial checking for the file permissions is still done, and
+		the program in question needs to be very careful about how
+		it does the file write to avoid security problems.
+	Be able to read ~root/.forward even if the path isn't accessible to
+		regular users.  This is disrecommended because sendmail
+		sometimes does not run as root (e.g., when an unsafe option
+		is specified on the command line), but should otherwise be
+		safe because .forward files must be owned by the user for
+		whom mail is being forwarded, and cannot be a symbolic link.
+		Suggested by Forrest Aldrich of Wang Laboratories.
+	Add new "HostsFile" option that is the pathname to the /etc/hosts
+		file.  This is used for canonifying hostnames when the
+		service type is "files".
+	Implement programs on F (read class from file) line.  The syntax is
+		Fc|/path/to/program to read the output from the program
+		into class "c".
+	Probe the network interfaces to find alternate names for this
+		host.  Requires the SIOCGIFCONF ioctl call.  Code
+		contributed by SunSoft.
+	Add "E" configuration line to set or propogate environment
+		variables into children.  "E<envar>" will propogate
+		the named variable from the environment when sendmail
+		was invoked into any children it calls; "E<envar>=<value>"
+		sets the named variable to the indicated value.  Any
+		variables not explicitly named will not be in the child
+		environment.  However, sendmail still forces an
+		"AGENT=sendmail" environment variable, in part to enforce
+		at least one environment variable, since many programs and
+		libraries die horribly if this is not guaranteed.
+	Change heuristic for rebuilding both NEWDB and NDBM versions of
+		alias databases -- new algorithm looks for the substring
+		"/yp/" in the file name.  This is more portable and involves
+		less overhead.  Suggested by Motonori Nakamura.
+	Dynamically allocate the queue work list so that you don't lose
+		jobs in large queue runs.  The old QUEUESIZE compile parameter
+		is replaced by QUEUESEGSIZE (the unit of allocation, which
+		should not need to be changed) and the MaxQueueRunSize option,
+		which is the absolute maximum number of jobs that will ever
+		be handled in a single queue run.  Based on code contributed
+		by Brian Coan of the Institute for Global Communications.
+	Log message when a message is dropped because it exceeds the maximum
+		message size.  Suggested by Leo Bicknell of Virginia Tech.
+	Allow trusted users (those on a T line or in $=t) to use -bs without
+		an X-Authentication-Warning: added.  Suggested by Mark Thomas
+		of Mark G. Thomas Consulting.
+	Announce state of compile flags on -d0.1 (-d0.10 throws in the
+		OS-dependent defines).  The old semantic of -d0.1 to not
+		run the daemon in background has been moved to -d99.100,
+		and the old 52.5 flag (to avoid disconnect() from closing
+		all output files) has been moved to 52.100.  This makes
+		things more consistent (flags below .100 don't change
+		semantics) and separates out the backgrounding so that
+		it doesn't happen automatically on other unrelated debugging
+		flags.
+	If -t is used but no addresses are found in the header, give an
+		error message rather than just doing nothing.  Fix from
+		Motonori Nakamura.
+	On systems (like SunOS) where the effective gid is not necessarily
+		included in the group list returned by getgroups(), the
+		`restrictmailq' option could sometimes cause an authorized
+		user to not be able to use `mailq'.  Fix from Charles Hannum
+		of MIT.
+	Allow symbolic service names for [IPC] mailers.  Suggested by
+		Gerry Magennis of Logica International.
+	Add DontExpandCnames option to prevent $[ ... $] from expanding CNAMEs
+		when running DNS.  For example, if the name FTP.Foo.ORG is
+		a CNAME for Cruft.Foo.ORG, then when sitting on a machine in
+		the Foo.ORG domain a lookup of "FTP" returns "Cruft.Foo.ORG"
+		if this option is not set, or "FTP.Foo.ORG" if it is set.
+		This is technically illegal under RFC 822 and 1123, but the
+		IETF is moving toward legalizing it.  Note that turning on
+		this option is not sufficient to guarantee that a downstream
+		neighbor won't rewrite the address for you.
+	Add "-m" flag to makesendmail script -- this tells you what object
+		directory and Makefile it will use, but doesn't actually do
+		the make.
+	Do some additional checking on the contents of the qf file to try
+		to detect attacks against the qf file.  In particular,
+		abort on any line beginning "From ", and add an "end of
+		file" line -- any data after that line is prohibited.
+	Always use /etc/sendmail.cf, regardless of the arbitrary vendor
+		choices.  This can be overridden in the Makefile by using
+		either -DUSE_VENDOR_CF_PATH to get the vendor location
+		(to the extent that we know it) or by defining
+		_PATH_SENDMAILCF (which is a "hard override").  This allows
+		sendmail 8 to have more consistent installation instructions.
+	Allow macros on `K' line in config file.  Suggested by Andrew Chang
+		of Sun Microsystems.
+	Improved symbol table hash function from Eric Wassenaar.  This one
+		is at least 50% faster.
+	Fix problem that didn't notice that timeout on file open was a
+		transient error.  Fix from Larry Parmelee of Cornell
+		University.
+	Allow comments (lines beginning with a `#') in files read for
+		classes.  Suggested by Motonori Nakamura.
+	Make SIGINT (usually ^C) in test mode return to the prompt instead
+		of dropping out entirely.  This makes testing some of the
+		name server lookups easier to deal with when there are
+		hung servers.  From Motonori Nakamura.
+	Add new ${opMode} macro that is set to the current operation mode
+		(e.g., `s' for -bs, `t' for -bt, etc.).  Suggested by
+		Claude Marinier <MARINIER@emp.ewd.dreo.dnd.ca>.
+	Add new delivery mode (Odd) that defers all map lookups to queue runs.
+		Kind of like queue-only mode (Odq) except it tries to avoid
+		any external service requests; for dial-on-demand hosts that
+		want to minimize DNS lookups when mail is being queued.  For
+		this to work you will also have to make sure that gethostbyname
+		of your local host name does not do a DNS lookup.
+	Improved handling of "out of space" conditions from John Myers of
+		Carnegie Mellon.
+	Improved security for mailing to files on systems that have fchmod(2)
+		support.
+	Improve "cannot send message for N days" message -- now says "could
+		not send for past N days".  Suggested by Tom Moore of AT&T
+		Global Information Solutions.
+	Less misleading Subject: line on messages sent to postmaster only.
+		From Motonori Nakamura.
+	Avoid duplicate error messages on bad command line flags.  From
+		Motonori Nakamura.
+	Better error message for case where ruleset 0 falls off the end
+		or otherwise does not resolve to a canonical triple.
+	Fix a problem that could cause multiple bounce messages if a bad
+		address was sent along with a good address to an SMTP
+		site where that SMTP site returned a 4yz code in response
+		to the final dot of the data.  Problem reported by David
+		James of British Telecom.
+	Add "volatile" declarations so that gcc -O2 will work.  Patches
+		from Alexander Dupuy of System Management ARTS.
+	Delete duplicates in MX lists -- believe it or not, there are sites
+		that list the same host twice in an MX list.  This deletion
+		only works on adjacent preferences, so an MX list that
+		had A=5, B=10, A=15 would leave both As, but one that had
+		A=5, A=10, B=15 would reduce to A, B.  This is intentional,
+		just in case there is something wierd I haven't thought of.
+		Suggested by Barry Shein of Software Tool & Die.
+	SECURITY: .forward files cannot be symbolic links.  If they are,
+		a bad guy can read your private files.
+	PORTABILITY FIXES:
+		Solaris 2 from Rob McMahon <cudcv@csv.warwick.ac.uk>.
+		System V Release 4 from Motonori Nakamura of Ritsumeikan
+			University.  This expands the disk size
+			checking to include all (?) SVR4 configurations.
+		System V Release 4 from Kimmo Suominen -- initgroups(3)
+			and setrlimit(2) are both available.
+		System V Release 4 from sob@sculley.ffg.com -- some versions
+			apparently "have EX_OK defined in other headerfiles."
+		Linux Makefile typo.
+		Linux getusershell(3) is broken in Slackware 2.0 --
+			from Andrew Pam of Xanadu Australia.
+		More Linux tweaking from John Kennedy of California State
+			University, Chico.
+		Cray changes from Eric Wassenaar:  ``On Cray, shorts,
+			ints, and longs are all 64 bits, and all structs
+			are multiples of 64 bits.  This means that the
+			sizeof operator returns only multiples of 8.
+			This requires adaptation of code that really
+			deals with 32 bit or 16 bit fields, such as IP
+			addresses or nameserver fields.''
+		DG/UX 5.4.3 from Mark T. Robinson <mtr@ornl.gov>.  To
+			get the old behaviour, use -DDGUX_5_4_2.
+		DG/UX hack: add _FORCE_MAIL_LOCAL_=yes environment
+			variable to fix bogus /bin/mail behaviour.
+		Tandem NonStop-UX from Rick McCarty <mccarty@mpd.tandem.com>.
+			This also cleans up some System V Release 4 compile
+			problems.
+		Solaris 2: sendmail.cw file should be in /etc/mail to
+			match all the other configuration files.  Fix
+			from Glenn Barry of Emory University.
+		Solaris 2.3: compile problem in conf.c.  Fix from Alain
+			Nissen of the University of Liege, Belgium.
+		Ultrix: freespace calculation was incorrect.  Fix from
+			Takashi Kizu of Osaka University.
+		SVR4: running in background gets a SIGTTOU because the
+			emulation code doesn't realize that "getpeername"
+			doesn't require reading the file.  Fix from Peter
+			Wemm of DIALix.
+		Solaris 2.3: due to an apparent bug in the socket emulation
+			library, sockets can get into a "wedged" state where
+			they just return EPROTO; closing and re-opening the
+			socket clears the problem.  Fix from Bob Manson
+			of Ohio State University.
+		Hitachi 3050R & 3050RX running HI-UX/WE2: portability
+			fixes from Akihiro Hashimoto ("Hash") of Chiba
+			University.
+		AIX changes to allow setproctitle to work from Rainer Schöpf
+			of Zentrum für Datenverarbeitung der Universität
+			Mainz.
+		AIX changes for load average from Ed Ravin of NASA/Goddard.
+		SCO Unix from Chip Rosenthal of Unicom (code was using the
+			wrong statfs call).
+		ANSI C fixes from Adam Glass (NetBSD project).
+		Stardent Titan/ANSI C fixes from Kate Hedstrom of Rutgers
+			University.
+		DG-UX fixes from Bruce Nagel of Data General.
+		IRIX64 updates from Mark Levinson of the University of
+			Rochester Medical Center.
+		Altos System V (``the first UNIX/XENIX merge the Altos
+			did for their Series 1000 & Series 2000 line;
+			their merged code was licenced back to AT&T and
+			Microsoft and became System V release 3.2'') from
+			Tim Rice <timr@crl.com>.
+		OSF/1 running on Intel Paragon from Jeff A. Earickson
+			<jeff@ssd.intel.com> of Intel Scalable Systems
+			Divison.
+		Amdahl UTS System V 2.1.5 (SVr3-based) from Janet Jackson
+			<janet@dialix.oz.au>.
+		System V Release 4 (statvfs semantic fix) from Alain
+			Durand of I.M.A.G.
+		HP-UX 10.x multiprocessor load average changes from
+			Scott Hutton and Jeff Sumler of Indiana University.
+		Cray CSOS from Scott Bolte of Cray Computer Corporation.
+		Unicos 8.0 from Douglas K. Rand of the University of North
+			Dakota, Scientific Computing Center.
+		Solaris 2.4 fixes from Sanjay Dani of Dani Communications.
+		ConvexOS 11.0 from Christophe Wolfhugel.
+		IRIX 4.0.5 from David Ashton-Reader of CADcentre.
+		ISC UNIX from J. J. Bailey.
+		HP-UX 9.xx on the 8xx series machines from Remy Giraud
+			of Meteo France.
+		HP-UX configuration from Tom Lane <tgl@sss.pgh.pa.us>.
+		IRIX 5.2 and 5.3 from Kari E. Hurtta.
+		FreeBSD 2.0 from Mike Hickey of Federal Data Corporation.
+		Sony NEWS-OS 4.2.1R and 6.0.3 from Motonori Nakamura.
+		Omron LUNA unios-b, mach from Motonori Nakamura.
+		NEC EWS-UX/V 4.2 from Motonori Nakamura.
+		NeXT 2.1 from Bryan Costales.
+		AUX patch thanks to Mike Erwin of Apple Computer.
+		HP-UX 10.0 from John Beck of Hewlett-Packard.
+		Ultrix: allow -DBROKEN_RES_SEARCH=0 if you are using a
+			non-DEC resolver.  Suggested by Allan Johannesen.
+		UnixWare 2.0 fixes from Petr Lampa of the Technical
+			University of Brno (Czech Republic).
+		KSR OS 1.2.2 support from Todd Miller of the University
+			of Colorado.
+		UX4800 support from Kazuhisa Shimizu of NEC.
+	MAKEMAP: allow -d flag to allow insertion of duplicate aliases
+		in type ``btree'' maps.  The semantics of this are undefined
+		for regular maps, but it can be useful for the user database.
+	MAKEMAP: lock database file while rebuilding to avoid sendmail
+		lookups while the rebuild is going on.  There is a race
+		condition between the open(... O_TRUNC ...) and the lock
+		on the file, but it should be quite small.
+	SMRSH: sendmail restricted shell added to the release.  This can
+		be used as an alternative to /bin/sh for the "prog" mailer,
+		giving the local administrator more control over what
+		programs can be run from sendmail.
+	MAIL.LOCAL: add this local mailer to the tape.  It is not really
+		part of the release proper, and isn't fully supported; in
+		particular, it does not run on System V based systems and
+		never will.
+	CONTRIB: a patch to rmail.c from Bill Gianopoulos of Raytheon
+		to allow rmail to compile on systems that don't have
+		function prototypes and systems that don't have snprintf.
+	CONTRIB: add the "mailprio" scripts that will help you sort mailing
+		lists by transaction delay times so that addresses that
+		respond quickly get sent first.  This is to prevent very
+		sluggish servers from delaying other peoples' mail.
+		Contributed by Tony Sanders of BSDI.
+	CONTRIB: add the "bsdi.mc" file as contributed by Tony Sanders
+		of BSDI.  This has a lot of comments to help people out.
+	CONFIG: Don't have .mc files include(../m4/cf.m4) -- instead,
+		put this on the m4 command line.  On GNU m4 (which
+		supports the __file__ primitive) you can run m4 in an
+		arbitrary directory -- use either:
+			m4 ${CFDIR}/m4/cf.m4 config.mc > config.cf
+		or
+			m4 -I${CFDIR} m4/cf.m4 config.mc > config.cf
+		On other versions of m4 that don't support __file__, you
+		can use:
+			m4 -D_CF_DIR_=${CFDIR}/ ${CFDIR}/m4/cf.m4 ...
+		(Note the trailing slash on the _CF_DIR_ definition.)
+		Old versions of m4 will default to _CF_DIR_=.. for back
+		compatibility.
+	CONFIG: fix mail from <> so it will properly convert to
+		MAILER-DAEMON on local addresses.
+	CONFIG: fix code that was supposed to catch colons in host
+		names.  Problem noted by John Gardiner Myers of CMU.
+	CONFIG: allow use of SMTP_MAILER_MAX in nullclient configuration.
+		From Paul Riddle of the University of Maryland, Baltimore
+		County.
+	CONFIG: Catch and reject "." as a host address.
+	CONFIG: Generalize domaintable to look up all domains, not
+		just unqualified ones.
+	CONFIG: Delete OLD_SENDMAIL support -- as near as I can tell, it
+		was never used and didn't work anyway.
+	CONFIG: Set flags A, w, 5, :, /, |, and @ on the "local" mailer
+		and d on all mailers in the UUCP class.
+	CONFIG: Allow "user+detail" to be aliased specially: it will first
+		look for an alias for "user+detail", then for "user+*", and
+		finally for "user".  This is intended for forwarding mail
+		for system aliases such as root and postmaster to a
+		centralized hub.
+	CONFIG: add confEIGHT_BIT_HANDLING to set option 8 (see above).
+	CONFIG: add smtp8 mailer; this has the F=8 (just-send-8) flag set.
+		The F=8 flag is also set on the "relay" mailer, since
+		this is expected to be another sendmail.
+	CONFIG: avoid qualifying all UUCP addresses sent via SMTP with
+		the name of the UUCP_RELAY -- in some cases, this is the
+		wrong value (e.g., when we have local UUCP connections),
+		and this can create unreplyable addresses.  From Chip
+		Rosenthal of Unicom.
+	CONFIG: add confRECEIVED_HEADER to change the format of the
+		Received: header inserted into all messages. Suggested by
+		Gary Mills of the University of Manitoba.
+	CONFIG: Make "notsticky" the default; use FEATURE(stickyhost)
+		to get the old behaviour.  I did this upon observing
+		that almost everyone needed this feature, and that the
+		concept I was trying to make happen didn't work with
+		some user agents anyway.  FEATURE(notsticky) still works,
+		but it is a no-op.
+	CONFIG: Add LUSER_RELAY -- the host to which unrecognized user
+		names are sent, rather than immediately diagnosing them
+		as User Unknown.
+	CONFIG: Add SMTP_MAILER_ARGS, ESMTP_MAILER_ARGS, SMTP8_MAILER_ARGS,
+		and RELAY_MAILER_ARGS to set the arguments for the
+		indicated mailers.  All default to "IPC $h".  Patch from
+		Larry Parmelee of Cornell University.
+	CONFIG: pop mailer needs F=n flag to avoid "annoying side effects
+		on the client side" and F=P to get an appropriate
+		return-path.  From Kimmo Suominen.
+	CONFIG: add FEATURE(local_procmail) to use the procmail program
+		as the local mailer.  For addresses of the form "user+detail"
+		the "detail" part is passed to procmail via the -a flag.
+		Contributed by Kimmo Suominen.
+	CONFIG: add MAILER(procmail) to add an interface to procmail for
+		use from mailertables.  This lets you execute arbitrary
+		procmail scripts.  Contributed by Kimmo Suominen.
+	CONFIG: add T= fields (MTS type) to local, smtp, and uucp mailers.
+	CONFIG: add OSTYPE(ptx2) for DYNIX/ptx 2.x from Sequent.  From
+		Paul Southworth of CICNet Systems Support.
+	CONFIG: use -a$g as default to UUCP mailers, instead of -a$f.
+		This causes the null return path to be rewritten as
+		MAILER-DAEMON; otherwise UUCP gets horribly confused.
+		From Michael Hohmuth of Technische Universitat Dresden.
+	CONFIG: Add FEATURE(bestmx_is_local) to cause any hosts that
+		list us as the best possible MX record to be treated as
+		though they were local (essentially, assume that they
+		are included in $=w).  This can cause additional DNS
+		traffic, but is easier to administer if this fits your
+		local model.  It does not work reliably if there are
+		multiple hosts that share the best MX preference.
+		Code contributed by John Oleynick of Rutgers.
+	CONFIG: Add FEATURE(smrsh) to use smrsh (the SendMail Restricted
+		SHell) instead of /bin/sh as the program used for delivery
+		to programs.  If an argument is included, it is used as
+		the path to smrsh; otherwise, /usr/local/etc/smrsh is
+		assumed.
+	CONFIG: Add LOCAL_MAILER_MAX and PROCMAILER_MAILER_MAX to limit the
+		size of messages to the local and procmail mailers
+		respectively.  Contributed by Brad Knowles of the Defense
+		Information Systems Agency.
+	CONFIG: Handle leading ``phrase:'' and trailing ``;'' as comments
+		(just like text outside of angle brackets) in order to
+		properly deal with ``group: addr1, ... addrN;'' syntax.
+	CONFIG: Require OSTYPE macro (the defaults really don't apply to
+		any real systems any more) and tweak the DOMAIN macro
+		so that it is less likely that users will accidently use
+		the Berkeley defaults.  Also, create some generic files
+		that really can be used in the real world.
+	CONFIG: Add new configuration macros to set character sets for
+		messages _arriving from_ various mailers: LOCAL_MAILER_CHARSET,
+		SMTP_MAILER_CHARSET, and UUCP_MAILER_CHARSET.
+	CONFIG: Change UUCP_MAX_SIZE to UUCP_MAILER_MAX for consistency.
+		The old name will still be accepted for a while at least.
+	CONFIG: Implement DECNET_RELAY as spec for host to which DECNET
+		mail (.DECNET pseudo-domain or node::user) will be sent.
+		As with all relays, it can be ``mailer:hostname''.  Suggested
+		by Scott Hutton.
+	CONFIG: Add MAILER(mail11) to get DECnet support.  Code contributed
+		by Barb Dijker of Labyrinth Computer Services.
+	CONFIG: change confCHECK_ALIASES to default to False -- it has poor
+		performance for large alias files, and this confused many
+		people.
+	CONFIG: Add confCF_VERSION to append local information to the
+		configuration version number displayed during SMTP startup.
+	CONFIG: fix some.newsgroup.usenet@local.host syntax (previously it
+		would only work when locally addressed.  Fix from
+		Edvard Tuinder of Cistron Internet Services.
+	CONFIG: use ${opMode} to avoid error on .REDIRECT addresses if option
+		"n" (CheckAlaises) is set when rebuilding alias database.
+		Based on code contributed by Claude Marinier.
+	CONFIG: Allow mailertable to have values of the form
+		``error:code message''.  The ``code'' is a status code
+		derived from the sysexits codes -- e.g., NOHOST or UNAVAILABLE.
+		Contributed by David James <dwj@agw.bt.co.uk>.
+	CONFIG: add MASQUERADE_DOMAIN(domain list) to extend the list of
+		sender domains that will be replaced with the masquerade name.
+		These domains will not be treated as local, but if mail passes
+		through with sender addresses in those domains they will be
+		replaced by the masquerade name.  These can also be specified
+		in a file using MASQUERADE_DOMAIN_FILE(filename).
+	CONFIG: add FEATURE(masquerade_envelope) to masquerade the envelope
+		as well as the header.  Substantial improvements to this
+		code were contributed by Per Hedeland.
+	CONFIG: add MAILER(phquery) to define a new "ph" mailer; this can be
+		accessed from a mailertable to do CCSO ph lookups.  Contributed
+		by Kimmo Suominen.
+	CONFIG: add MAILER(cyrus) to define a new Cyrus mailer; this can be
+		used to define cyrus and cyrusbb mailers (for IMAP support).
+		Contributed by John Gardiner Myers of Carnegie Mellon.
+	CONFIG: add confUUCP_MAILER to select default mailer to use for
+		UUCP addressing.  Suggested by Tom Moore of AT&T GIS.
+	NEW FILES:
+		cf/cf/cs-hpux10.mc
+		cf/cf/cs-solaris2.mc
+		cf/cf/cyrusproto.mc
+		cf/cf/generic-bsd4.4.mc
+		cf/cf/generic-hpux10.mc
+		cf/cf/generic-hpux9.mc
+		cf/cf/generic-osf1.mc
+		cf/cf/generic-solaris2.mc
+		cf/cf/generic-sunos4.1.mc
+		cf/cf/generic-ultrix4.mc
+		cf/cf/huginn.cs.mc
+		cf/domain/berkeley-only.m4
+		cf/domain/generic.m4
+		cf/feature/bestmx_is_local.m4
+		cf/feature/local_procmail.m4
+		cf/feature/masquerade_envelope.m4
+		cf/feature/smrsh.m4
+		cf/feature/stickyhost.m4
+		cf/feature/use_ct_file.m4
+		cf/m4/cfhead.m4
+		cf/mailer/cyrus.m4
+		cf/mailer/mail11.m4
+		cf/mailer/phquery.m4
+		cf/mailer/procmail.m4
+		cf/ostype/amdahl-uts.m4
+		cf/ostype/bsdi2.0.m4
+		cf/ostype/hpux10.m4
+		cf/ostype/irix5.m4
+		cf/ostype/isc4.1.m4
+		cf/ostype/ptx2.m4
+		cf/ostype/unknown.m4
+		contrib/bsdi.mc
+		contrib/mailprio
+		contrib/rmail.oldsys.patch
+		mail.local/mail.local.0
+		makemap/makemap.0
+		smrsh/README
+		smrsh/smrsh.0
+		smrsh/smrsh.8
+		smrsh/smrsh.c
+		src/Makefiles/Makefile.CSOS
+		src/Makefiles/Makefile.EWS-UX_V
+		src/Makefiles/Makefile.HP-UX.10
+		src/Makefiles/Makefile.IRIX.5.x
+		src/Makefiles/Makefile.IRIX64
+		src/Makefiles/Makefile.ISC
+		src/Makefiles/Makefile.KSR
+		src/Makefiles/Makefile.NEWS-OS.4.x
+		src/Makefiles/Makefile.NEWS-OS.6.x
+		src/Makefiles/Makefile.NEXTSTEP
+		src/Makefiles/Makefile.NonStop-UX
+		src/Makefiles/Makefile.Paragon
+		src/Makefiles/Makefile.SCO.3.2v4.2
+		src/Makefiles/Makefile.SunOS.5.3
+		src/Makefiles/Makefile.SunOS.5.4
+		src/Makefiles/Makefile.SunOS.5.5
+		src/Makefiles/Makefile.UNIX_SV.4.x.i386
+		src/Makefiles/Makefile.uts.systemV
+		src/Makefiles/Makefile.UX4800
+		src/aliases.0
+		src/mailq.0
+		src/mime.c
+		src/newaliases.0
+		src/sendmail.0
+		test/t_seteuid.c
+	RENAMED FILES:
+		cf/cf/alpha.mc =>		cf/cf/s2k-osf1.mc
+		cf/cf/chez.mc =>		cf/cf/chez.cs.mc
+		cf/cf/hpux-cs-exposed.mc =>	cf/cf/cs-hpux9.mc
+		cf/cf/osf1-cs-exposed.mc =>	cf/cf/cs-osf1.mc
+		cf/cf/s2k.mc =>			cf/cf/s2k-ultrix4.mc
+		cf/cf/sunos4.1-cs-exposed.mc =>	cf/cf/cs-sunos4.1.mc
+		cf/cf/ultrix4.1-cs-exposed.mc => cf/cf/cs-ultrix4.mc
+		cf/cf/vangogh.mc =>		cf/cf/vangogh.cs.mc
+		cf/domain/Berkeley.m4 =>	cf/domain/Berkeley.EDU.m4
+		cf/domain/cs-exposed.m4 =>	cf/domain/CS.Berkeley.EDU.m4
+		cf/domain/eecs-hidden.m4 =>	cf/domain/EECS.Berkeley.EDU.m4
+		cf/domain/s2k.m4 =>		cf/domain/S2K.Berkeley.EDU.m4
+		cf/ostype/hpux.m4 =>		cf/ostype/hpux9.m4
+		cf/ostype/irix.m4 =>		cf/ostype/irix4.m4
+		cf/ostype/ultrix4.1.m4 =>	cf/ostype/ultrix4.m4
+		src/Makefile.* =>		src/Makefiles/Makefile.*
+		src/Makefile.AUX =>		src/Makefiles/Makefile.A-UX
+		src/Makefile.BSDI =>		src/Makefiles/Makefile.BSD-OS
+		src/Makefile.DGUX =>		src/Makefiles/Makefile.dgux
+		src/Makefile.RISCos =>		src/Makefiles/Makefile.UMIPS
+		src/Makefile.SunOS.4.0.3 =>	src/Makefiles/Makefile.SunOS.4.0
+	OBSOLETED FILES:
+		cf/cf/cogsci.mc
+		cf/cf/cs-exposed.mc
+		cf/cf/cs-hidden.mc
+		cf/cf/hpux-cs-hidden.mc
+		cf/cf/knecht.mc
+		cf/cf/osf1-cs-hidden.mc
+		cf/cf/sunos3.5-cs-exposed.mc
+		cf/cf/sunos3.5-cs-hidden.mc
+		cf/cf/sunos4.1-cs-hidden.mc
+		cf/cf/ultrix4.1-cs-hidden.mc
+		cf/domain/cs-hidden.m4
+		contrib/rcpt-streaming
+		src/Makefiles/Makefile.SunOS.5.x
 
 8.6.12/8.6.12	95/03/28
 	Fix to IDENT code (it was getting the size of the reply buffer
@@ -161,7 +1593,7 @@ summary of the changes in that release.
 		and drops core for debugging.  This is an attempt to
 		track down a bug that I thought was long since gone.
 		If you see this, please forward the log fragment to
-		sendmail@CS.Berkeley.EDU.
+		sendmail@sendmail.ORG.
 	Change OLD_NEWDB from a #ifdef to a #if so it can be turned off
 		with -DOLD_NEWDB=0 on the command line.  From Christophe
 		Wolfhugel.
@@ -206,7 +1638,7 @@ summary of the changes in that release.
 			Newcastle upon Tyne.
 		IRIX from Dean Cookson and Bill Driscoll of Mitre
 			Corporation.
-		NCR 3000 from Kevin Darcy of Chrysler Corporation.
+		NCR 3000 from Kevin Darcy of Chrysler Financial Corporation.
 		SunOS (it has setsid() and setvbuf() calls) from
 			Jonathan Kamens of OpenVision Technologies.
 		HP-UX from Tor Lillqvist.
@@ -244,7 +1676,7 @@ summary of the changes in that release.
 		the sender instead of the recipient if the mail was
 		from a local user to another local user.  From
 		Motonori Nakamura of Kyoto University.
-	Fix "wildcard" on /etc/shell matching -- instead of looking
+	Fix "wildcard" on /etc/shells matching -- instead of looking
 		for "*", look for "/SENDMAIL/ANY/SHELL/".  From
 		Bryan Costales of ICSI.
 	Change the method used to declare the "statfs" availability;
@@ -603,9 +2035,10 @@ summary of the changes in that release.
 		included.
 	Remember to set $i during queue runs.  Reported by Stephen
 		Campbell of Dartmouth University.
-	If ${HOSTALIASES} is set, use it during canonification so that
-		headers are properly mapped.  Reported by Anne Bennett
-		of Concordia University.
+	If the environment variable HOSTALIASES is set, use it during
+		canonification as the name of a file with per-user host
+		translations so that headers are properly mapped.  Reported
+		by Anne Bennett of Concordia University.
 	Avoid printing misleading error message if SMTP mailer (not
 		using [IPC]) should die on a core dump.
 	Avoid incorrect diagnosis of "file 1 closed" when it is caused
@@ -794,82 +2227,6 @@ summary of the changes in that release.
 		Nakamura of Kyoto University.
 	CONFIG: handle <list:;> syntax correctly.  This isn't legal, but
 		it shouldn't fail miserably.  From Motonori Nakamura.
-
-8.6.3/8.6.3	93/10/24
-	IMPORTANT FIX: Fix several problems that caused open files to
-		be "lost" during queue runs; this overflowed the open
-		file table on large runs.  An assumption that fdopen
-		always succeeds sometimes resulted in core dumps when
-		this happens; sometimes the message is delivered twice,
-		sometimes (probably) infinite times.  This problem in
-		various form was reported by P{r (Pell) Emanuelsson and
-		Robert Campbell of U.C. Berkeley.
-	Special diagnosis of EMFILE error conditions -- it now prints
-		the known open file descriptors so you can figure out
-		what is consuming so much resources.
-	Fix a couple of problems caused by early address parsing
-		errors -- one caused it to return a "this is only a
-		warning" when it really wasn't, and the other started
-		parsing through a random pointer.  The first was
-		noted by Eric Wassenaar.
-	Fix an infinite loop problem caused by null components in the
-		host signature.  Problem noted by Jan Sorensen.
-	Be sure to reset the "current date" when sending an error
-		message -- PostMasterCopy messages were being sent
-		with an old Date: header.
-	Fix a problem that caused duplicated mail when sendmail was
-		(1) compiled without HASFLOCK, (2) you are sending to
-		an alias that has an owner-* alias, (3) you execute
-		sendmail with -t flag, (4) you run in -odb mode, and
-		(5) the sender specifies both the alias name and
-		another alias [i.e., the envelope is split], then
-		duplicate messages are sent.  The problem description
-		and one-line fix are from Motonori Nakamura of Kyoto
-		University.
-	Avoid a problem that causes error messages to be discarded
-		in some cases -- this was the result of a "fix" to
-		avoid duplicate error messages, but two are better
-		than zero.  Reported by Tim Rylance.
-	Fix a minor botch in checkfd012() -- fix from Dave Hill of
-		Computervision R&D Ltd.
-	Remove "X-Authentication-Warning: <user> set sender to <address>
-		using -f" entirely -- it is far too eager to include
-		this, and it is confusing folks.  I'll try to make it
-		work "right" in 8.7.  Problem noted by Yoshitaka
-		Tokugawa of dit Co., Ltd.
-	Fix a race condition with the errno value in tick() and
-		reapchild() -- this caused occasional misdiagnosis
-		of problems.  Kyle Jones of UUNET helped this along.
-	Repair rule loop-detection code.  From Michael Corrigan of
-		U.C. San Diego.
-	Fix a problem that caused sender domain addition (C mailer
-		flag to be ignored if you use -odq or use -odb with
-		a high load average.  Problem reported by Jim Murray
-		of Stratus.
-	Fix ident protocol on multi-homed machines.  It was not
-		always using the correct interface.  Fix from J.R.
-		Oldroyd of Opal.
-	Previously, sendmail assumed that any SMTP greeting message
-		that wasn't 2xx was a temporary failure -- it should
-		only take 4xx as a temporary failure, and return a
-		solid error message on anything else -- for example,
-		to allow you to reject connections on a workstation
-		that is MXed to a mail server.
-	Portability enhancements for 386BSD/FreeBSD/NetBSD from
-		Ollivier Robert.
-	CONFIG: FEATURE(always_add_domain) didn't always add the domain;
-		in particular, on local mail it modified the header sender
-		but not the header recipient address(es).  Reported by
-		Jeffrey Honig of Cornell University.  Also, strip
-		any host from envelope recipient address(es), since
-		local mailers don't understand host names -- this is
-		to help mailertable entries.  From Christopher Davis.
-	CONFIG: masquerading didn't apply to addresses that already
-		had a domain.  This change replaces a local hostname
-		by the masquerade name in the SMTP mailer (previously
-		it only added the masquerade name if it didn't already
-		have a domain name).  Several people complained about
-		this.
 
 8.6.2/8.6.2	93/10/15
 	Put a "successful delivery" message in the transcript for

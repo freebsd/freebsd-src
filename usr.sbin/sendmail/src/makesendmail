@@ -32,7 +32,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#       @(#)makesendmail	8.5 (Berkeley) 2/27/94
+#       @(#)makesendmail	8.29 (Berkeley) 8/1/95
 #
 
 #
@@ -40,8 +40,65 @@
 #  multiple architectures and Makefiles.
 #
 
-# determine machine architecture
-arch=`uname -m`
+if [ "x${1-""}" = "x-m" ]
+then
+	# show Makefile name only
+	mflag=1
+else
+	mflag=""
+fi
+
+#
+#  Do heuristic guesses !ONLY! for machines that do not have uname
+#
+if [ -d /LocalApps -a ! -f /bin/uname -a ! -f /usr/bin/uname ]
+then
+	# probably a NeXT box
+	arch=NeXT
+	os=Mach
+	rel=`strings /mach | grep 'Mach.*:' | sed -e 's/.* Mach //' -e 's/:.*//'`
+elif [ -f /usr/sony/bin/machine -a -f /etc/osversion ]
+then
+	# probably a Sony NEWS 4.x
+	os=NEWS-OS
+	rel=`awk '{ print $3}' /etc/osversion`
+	arch=`/usr/sony/bin/machine`
+elif [ -d /usr/omron -a -f /bin/luna ]
+then
+	# probably a Omron LUNA
+	os=LUNA
+	if [ -f /bin/luna1 ] && /bin/luna1
+	then
+		rel=unios-b
+		arch=luna1
+	elif [ -f /bin/luna2 ] && /bin/luna2
+	then
+		rel=Mach
+		arch=luna2
+	elif [ -f /bin/luna88k ] && /bin/luna88k
+	then
+		rel=Mach
+		arch=luna88k
+	fi
+fi
+
+if [ ! "$arch" -a ! "$os" -a ! "$rel" ]
+then
+	arch=`uname -m | sed -e 's/ //g'`
+	os=`uname -s | sed 's/\//-/g'`
+	rel=`uname -r`
+fi
+
+#
+#  Tweak the values we have already got.  PLEASE LIMIT THESE to
+#  tweaks that are absolutely necessary because your system uname
+#  routine doesn't return something sufficiently unique.  Don't do
+#  it just because you don't like the name that is returned.  You
+#  can combine the architecture name with the os name to create a
+#  unique Makefile name.
+#
+
+# tweak machine architecture
 case $arch
 in
   sun4*)	arch=sun4;;
@@ -49,65 +106,177 @@ in
   9000/*)	arch=`echo $arch | sed -e 's/9000.//' -e 's/..$/xx/'`;;
 esac
 
-# determine operating system type
-os=`uname -s`
+# tweak operating system type and release
+case $os
+in
+  DYNIX-ptx)	os=PTX;;
+  Paragon*)	os=Paragon;;
+  HP-UX)	rel=`echo $rel | sed -e 's/^[^.]*\.0*//'`;;
+  AIX)		rel=`uname -v`;;
+  BSD-386)	os=BSD-OS;;
+esac
 
-# determine operating system release
-rel=`uname -r`
-rbase=`echo $rel | sed 's/\..*//''`
+# get "base part" of operating system release
+rbase=`echo $rel | sed -e 's/\..*//'`
+
+# heuristic tweaks to clean up names -- PLEASE LIMIT THESE!
+if [ "$os" = "unix" ]
+then
+	# might be Altos System V
+	case $rel
+	in
+	  5.3*)		os=Altos;;
+	esac
+elif [ -r /unix -a -r /usr/lib/libseq.a -a -r /lib/cpp ]
+then
+	# might be a DYNIX/ptx 2.x system, which has a broken uname
+	if strings /lib/cpp | grep _SEQUENT_ > /dev/null
+	then
+		os=PTX
+	fi
+elif [ -d /usr/nec ]
+then
+	# NEC machine -- what is it running?
+	if [ "$os" = "UNIX_System_V" ]
+	then
+		os=EWS-UX_V
+	elif [ "$os" = "UNIX_SV" ]
+	then
+		os=UX4800
+	fi
+elif [ "$arch" = "mips" ]
+then
+	case $rel
+	in
+	  4_*)
+		if [ `uname -v` = "UMIPS" ]
+		then
+			os=RISCos
+		fi;;
+	esac
+fi
+
+# see if there is a "user suffix" specified
+if [ "${SENDMAIL_SUFFIX-}x" = "x" ]
+then
+	sfx=""
+else
+	sfx=".${SENDMAIL_SUFFIX}"
+fi
+
+echo "Configuration: os=$os, rel=$rel, rbase=$rbase, arch=$arch, sfx=$sfx"
 
 # now try to find a reasonable object directory
-if [ -r obj.$os.$arch.$rel ]; then
-	obj=obj.$os.$arch.$rel
-elif [ -r obj.$os.$arch.$rbase.x ]; then
-	obj=obj.$os.$arch.$rbase.x
-elif [ -r obj.$os.$rel ]; then
-	obj=obj.$os.$rel
-elif [ -r obj.$os.$rbase.x ]; then
-	obj=obj.$os.$rbase.x
-elif [ -r obj.$os.$arch ]; then
-	obj=obj.$os.$arch
-elif [ -r obj.$arch.$rel ]; then
-	obj=obj.$arch.$rel
-elif [ -r obj.$arch.$rbase.x ]; then
-	obj=obj.$arch.$rbase.x
-elif [ -r obj.$os ]; then
-	obj=obj.$os
-elif [ -r obj.$arch ]; then
-	obj=obj.$arch
-elif [ -r obj.$rel ]; then
-	obj=obj.$rel
+if [ -r obj.$os.$rel.$arch$sfx ]; then
+	obj=obj.$os.$rel.$arch$sfx
+elif [ -r obj.$os.$rbase.x.$arch$sfx ]; then
+	obj=obj.$os.$rbase.x.$arch$sfx
+elif [ -r obj.$os.$rel$sfx ]; then
+	obj=obj.$os.$rel$sfx
+elif [ -r obj.$os.$rbase.x$sfx ]; then
+	obj=obj.$os.$rbase.x$sfx
+elif [ -r obj.$os.$arch$sfx ]; then
+	obj=obj.$os.$arch$sfx
+elif [ -r obj.$rel.$arch$sfx ]; then
+	obj=obj.$rel.$arch$sfx
+elif [ -r obj.$rbase.x.$arch$sfx ]; then
+	obj=obj.$rbase.x.$arch$sfx
+elif [ -r obj.$os$sfx ]; then
+	obj=obj.$os$sfx
+elif [ -r obj.$arch$sfx ]; then
+	obj=obj.$arch$sfx
+elif [ -r obj.$rel$sfx ]; then
+	obj=obj.$rel$sfx
+elif [ -r obj$sfx ]; then
+	obj=obj$sfx
 else
 	# no existing obj directory -- try to create one if Makefile found
-	obj=obj.$os.$arch.$rel
-	if [ -r Makefile.$os.$arch.$rel ]; then
-		makefile=Makefile.$os.$arch.$rel
-	elif [ -r Makefile.$os.$arch.$rbase.x ]; then
-		makefile=Makefile.$os.$arch.$rbase.x
-	elif [ -r Makefile.$os.$rel ]; then
+	obj=obj.$os.$rel.$arch$sfx
+	if [ -r Makefiles/Makefile.$os.$rel.$arch$sfx ]; then
+		makefile=Makefile.$os.$rel.$arch$sfx
+	elif [ -r Makefiles/Makefile.$os.$rel.$arch ]; then
+		makefile=Makefile.$os.$rel.$arch
+	elif [ -r Makefiles/Makefile.$os.$rbase.x.$arch$sfx ]; then
+		makefile=Makefile.$os.$rbase.x.$arch$sfx
+	elif [ -r Makefiles/Makefile.$os.$rbase.x.$arch ]; then
+		makefile=Makefile.$os.$rbase.x.$arch
+	elif [ -r Makefiles/Makefile.$os.$rel$sfx ]; then
+		makefile=Makefile.$os.$rel$sfx
+	elif [ -r Makefiles/Makefile.$os.$rel ]; then
 		makefile=Makefile.$os.$rel
-	elif [ -r Makefile.$os.$rbase.x ]; then
+	elif [ -r Makefiles/Makefile.$os.$rbase.x$sfx ]; then
+		makefile=Makefile.$os.$rbase.x$sfx
+	elif [ -r Makefiles/Makefile.$os.$rbase.x ]; then
 		makefile=Makefile.$os.$rbase.x
-	elif [ -r Makefile.$os.$arch ]; then
+	elif [ -r Makefiles/Makefile.$os.$arch$sfx ]; then
+		makefile=Makefile.$os.$arch$sfx
+	elif [ -r Makefiles/Makefile.$os.$arch ]; then
 		makefile=Makefile.$os.$arch
-	elif [ -r Makefile.$arch.$rel ]; then
-		makefile=Makefile.$arch.$rel
-	elif [ -r Makefile.$arch.$rbase.x ]; then
-		makefile=Makefile.$arch.$rbase.x
-	elif [ -r Makefile.$os ]; then
+	elif [ -r Makefiles/Makefile.$rel.$arch$sfx ]; then
+		makefile=Makefile.$rel.$arch$sfx
+	elif [ -r Makefiles/Makefile.$rel.$arch ]; then
+		makefile=Makefile.$rel.$arch
+	elif [ -r Makefiles/Makefile.$rbase.x.$arch$sfx ]; then
+		makefile=Makefile.$rbase.x.$arch$sfx
+	elif [ -r Makefiles/Makefile.$rbase.x.$arch ]; then
+		makefile=Makefile.$rbase.x.$arch
+	elif [ -r Makefiles/Makefile.$os$sfx ]; then
+		makefile=Makefile.$os$sfx
+	elif [ -r Makefiles/Makefile.$os ]; then
 		makefile=Makefile.$os
-	elif [ -r Makefile.$arch ]; then
+	elif [ -r Makefiles/Makefile.$arch$sfx ]; then
+		makefile=Makefile.$arch$sfx
+	elif [ -r Makefiles/Makefile.$arch ]; then
 		makefile=Makefile.$arch
-	elif [ -r Makefile.$rel ]; then
+	elif [ -r Makefiles/Makefile.$rel$sfx ]; then
+		makefile=Makefile.$rel$sfx
+	elif [ -r Makefiles/Makefile.$rel ]; then
 		makefile=Makefile.$rel
+	elif [ -r Makefiles/Makefile.$rel$sfx ]; then
+		makefile=Makefile.$rel$sfx
 	else
 		echo "Cannot determine how to support $arch.$os.$rel"
 		exit 1
 	fi
+	if [ "$mflag" ]
+	then
+		echo "Will run in virgin $obj using $makefile"
+		exit 0
+	fi
 	echo "Creating $obj using $makefile"
 	mkdir $obj
-	(cd $obj; ln -s ../*.[ch158] ../sendmail.hf .; ln -s ../$makefile Makefile)
+	(cd $obj; ln -s ../*.[ch158] ../sendmail.hf .; ln -s ../Makefiles/$makefile Makefile)
+	echo "Making dependencies in $obj"
+	(cd $obj; ${MAKE-make} depend)
 fi
+
+if [ "$mflag" ]
+then
+	makefile=`ls -l $obj/Makefile | sed 's/.* //'`
+	if [ -z "$makefile" ]
+	then
+		echo "ERROR: $obj exists but has no Makefile"
+		exit 1
+	fi
+	case $makefile
+	in
+	  ../Makefiles/*)
+		makefile=`echo $makefile | sed 's/...Makefiles.//'`
+		echo "Will run in existing $obj using $makefile"
+		;;
+
+	  *)
+		echo "Will run in existing $obj using custom $makefile"
+		;;
+	esac
+	exit 0
+fi
+
 echo "Making in $obj"
 cd $obj
-exec make -f Makefile $*
+if [ $# = 0 ]
+then
+	exec ${MAKE-make}
+else
+	exec ${MAKE-make} "$@"
+fi
