@@ -58,8 +58,10 @@
 #include <vm/vm_param.h>
 #include <vm/vm_object.h>
 #include <vm/swap_pager.h>
-#include <sys/vmmeter.h>
+
 #include <sys/exec.h>
+#include <sys/user.h>
+#include <sys/vmmeter.h>
 
 #include <machine/clock.h>
 #include <machine/cputypes.h>
@@ -73,9 +75,10 @@
 #define T2J(x) (((x) * 100) / (stathz ? stathz : hz))	/* ticks to jiffies */
 #define T2S(x) ((x) / (stathz ? stathz : hz))		/* ticks to seconds */
 #define B2K(x) ((x) >> 10)				/* bytes to kbytes */
+#define B2P(x) ((x) >> PAGE_SHIFT)			/* bytes to pages */
 #define P2B(x) ((x) << PAGE_SHIFT)			/* pages to bytes */
 #define P2K(x) ((x) << (PAGE_SHIFT - 10))		/* pages to kbytes */
-
+ 
 int
 linprocfs_domeminfo(curp, p, pfs, uio)
 	struct proc *curp;
@@ -139,21 +142,21 @@ linprocfs_domeminfo(curp, p, pfs, uio)
 
 	ps = psbuf;
 	ps += sprintf(ps,
-		"        total:    used:    free:  shared: buffers:  cached:\n"
-		"Mem:  %lu %lu %lu %lu %lu %lu\n"
-		"Swap: %lu %lu %lu\n"
-		"MemTotal: %9lu kB\n"
-		"MemFree:  %9lu kB\n"
-		"MemShared:%9lu kB\n"
-		"Buffers:  %9lu kB\n"
-		"Cached:   %9lu kB\n"
-		"SwapTotal:%9lu kB\n"
-		"SwapFree: %9lu kB\n",
-		memtotal, memused, memfree, memshared, buffers, cached,
-		swaptotal, swapused, swapfree,
-		B2K(memtotal), B2K(memfree),
-		B2K(memshared), B2K(buffers), B2K(cached),
-		B2K(swaptotal), B2K(swapfree));
+	    "        total:    used:    free:  shared: buffers:  cached:\n"
+	    "Mem:  %lu %lu %lu %lu %lu %lu\n"
+	    "Swap: %lu %lu %lu\n"
+	    "MemTotal: %9lu kB\n"
+	    "MemFree:  %9lu kB\n"
+	    "MemShared:%9lu kB\n"
+	    "Buffers:  %9lu kB\n"
+	    "Cached:   %9lu kB\n"
+	    "SwapTotal:%9lu kB\n"
+	    "SwapFree: %9lu kB\n",
+	    memtotal, memused, memfree, memshared, buffers, cached,
+	    swaptotal, swapused, swapfree,
+	    B2K(memtotal), B2K(memfree),
+	    B2K(memshared), B2K(buffers), B2K(cached),
+	    B2K(swaptotal), B2K(swapfree));
 
 	xlen = ps - psbuf;
 	xlen -= uio->uio_offset;
@@ -172,16 +175,12 @@ linprocfs_docpuinfo(curp, p, pfs, uio)
 	char *ps;
 	int xlen;
 	char psbuf[512];		/* XXX - conservative */
-	int class;
-        int i;
-#if 0
-	extern char *cpu_model;		/* Yuck */
-#endif
-        /* We default the flags to include all non-conflicting flags,
-           and the Intel versions of conflicting flags.  Note the space
-           before each name; that is significant, and should be 
-           preserved. */
+	int class, i, fqmhz, fqkhz;
 
+	/*
+         * We default the flags to include all non-conflicting flags,
+         * and the Intel versions of conflicting flags.
+	 */
         static char *flags[] = {
 		"fpu",      "vme",     "de",       "pse",      "tsc",
 		"msr",      "pae",     "mce",      "cx8",      "apic",
@@ -218,15 +217,15 @@ linprocfs_docpuinfo(curp, p, pfs, uio)
 
 	ps = psbuf;
 	ps += sprintf(ps,
-			"processor\t: %d\n"
-			"vendor_id\t: %.20s\n"
-			"cpu family\t: %d\n"
-			"model\t\t: %d\n"
-			"stepping\t: %d\n",
-			0, cpu_vendor, class, cpu, cpu_id & 0xf);
+            "processor\t: %d\n"
+	    "vendor_id\t: %.20s\n"
+	    "cpu family\t: %d\n"
+	    "model\t\t: %d\n"
+	    "stepping\t: %d\n",
+	    0, cpu_vendor, class, cpu, cpu_id & 0xf);
 
         ps += sprintf(ps,
-                        "flags\t\t:");
+            "flags\t\t:");
 
         if (!strcmp(cpu_vendor, "AuthenticAMD") && (class < 6)) {
 		flags[16] = "fcmov";
@@ -239,13 +238,12 @@ linprocfs_docpuinfo(curp, p, pfs, uio)
 			ps += sprintf(ps, " %s", flags[i]);
 	ps += sprintf(ps, "\n");
         if (class >= 5) {
+		fqmhz = (tsc_freq + 4999) / 1000000;
+		fqkhz = ((tsc_freq + 4999) / 10000) % 100;
 		ps += sprintf(ps,
-			"cpu MHz\t\t: %d.%02d\n"
-			"bogomips\t: %d.%02d\n",
-                        (tsc_freq + 4999) / 1000000,
-                        ((tsc_freq + 4999) / 10000) % 100,
-                        (tsc_freq + 4999) / 1000000,
-                        ((tsc_freq + 4999) / 10000) % 100);
+		    "cpu MHz\t\t: %d.%02d\n"
+		    "bogomips\t: %d.%02d\n",
+		    fqmhz, fqkhz, fqmhz, fqkhz);
         }
         
 	xlen = ps - psbuf;
@@ -268,24 +266,24 @@ linprocfs_dostat(curp, p, pfs, uio)
 
 	ps = psbuf;
 	ps += sprintf(ps,
-		      "cpu %ld %ld %ld %ld\n"
-		      "disk 0 0 0 0\n"
-		      "page %u %u\n"
-		      "swap %u %u\n"
-		      "intr %u\n"
-		      "ctxt %u\n"
-		      "btime %ld\n",
-		      T2J(cp_time[CP_USER]),
-		      T2J(cp_time[CP_NICE]),
-		      T2J(cp_time[CP_SYS] /*+ cp_time[CP_INTR]*/),
-		      T2J(cp_time[CP_IDLE]),
-		      cnt.v_vnodepgsin,
-		      cnt.v_vnodepgsout,
-		      cnt.v_swappgsin,
-		      cnt.v_swappgsout,
-		      cnt.v_intr,
-		      cnt.v_swtch,
-		      boottime.tv_sec);
+	    "cpu %ld %ld %ld %ld\n"
+	    "disk 0 0 0 0\n"
+	    "page %u %u\n"
+	    "swap %u %u\n"
+	    "intr %u\n"
+	    "ctxt %u\n"
+	    "btime %ld\n",
+	    T2J(cp_time[CP_USER]),
+	    T2J(cp_time[CP_NICE]),
+	    T2J(cp_time[CP_SYS] /*+ cp_time[CP_INTR]*/),
+	    T2J(cp_time[CP_IDLE]),
+	    cnt.v_vnodepgsin,
+	    cnt.v_vnodepgsout,
+	    cnt.v_swappgsin,
+	    cnt.v_swappgsout,
+	    cnt.v_intr,
+	    cnt.v_swtch,
+	    boottime.tv_sec);
 	xlen = ps - psbuf;
 	xlen -= uio->uio_offset;
 	ps = psbuf + uio->uio_offset;
@@ -308,8 +306,8 @@ linprocfs_douptime(curp, p, pfs, uio)
 	getmicrouptime(&tv);
 	ps = psbuf;
 	ps += sprintf(ps, "%ld.%02ld %ld.%02ld\n",
-		      tv.tv_sec, tv.tv_usec / 10000,
-		      T2S(cp_time[CP_IDLE]), T2J(cp_time[CP_IDLE]) % 100);
+	    tv.tv_sec, tv.tv_usec / 10000,
+	    T2S(cp_time[CP_IDLE]), T2J(cp_time[CP_IDLE]) % 100);
 	xlen = ps - psbuf;
 	xlen -= uio->uio_offset;
 	ps = psbuf + uio->uio_offset;
@@ -344,9 +342,11 @@ linprocfs_doprocstat(curp, p, pfs, uio)
 	struct pfsnode *pfs;
 	struct uio *uio;
 {
+	struct eproc ep;
 	char *ps, psbuf[1024];
 	int xlen;
 
+	fill_eproc(p, &ep);
 	ps = psbuf;
 	ps += sprintf(ps, "%d", p->p_pid);
 #define PS_ADD(name, fmt, arg) ps += sprintf(ps, " " fmt, arg)
@@ -371,19 +371,23 @@ linprocfs_doprocstat(curp, p, pfs, uio)
 	PS_ADD("timeout",	"%u",	0); /* XXX */
 	PS_ADD("itrealvalue",	"%u",	0); /* XXX */
 	PS_ADD("starttime",	"%d",	0); /* XXX */
-	PS_ADD("vsize",		"%u",	0); /* XXX */
-	PS_ADD("rss",		"%u",	0); /* XXX */
+	PS_ADD("vsize",		"%u",	ep.e_vm.vm_map.size);
+	PS_ADD("rss",		"%u",	P2K(ep.e_vm.vm_rssize));
 	PS_ADD("rlim",		"%u",	0); /* XXX */
-	PS_ADD("startcode",	"%u",	0); /* XXX */
+	PS_ADD("startcode",	"%u",	(unsigned)ep.e_vm.vm_taddr);
 	PS_ADD("endcode",	"%u",	0); /* XXX */
 	PS_ADD("startstack",	"%u",	0); /* XXX */
-	PS_ADD("kstkesp",	"%u",	0); /* XXX */
-	PS_ADD("kstkeip",	"%u",	0); /* XXX */
+	PS_ADD("esp",		"%u",	0); /* XXX */
+	PS_ADD("eip",		"%u",	0); /* XXX */
 	PS_ADD("signal",	"%d",	0); /* XXX */
 	PS_ADD("blocked",	"%d",	0); /* XXX */
 	PS_ADD("sigignore",	"%d",	0); /* XXX */
 	PS_ADD("sigcatch",	"%d",	0); /* XXX */
 	PS_ADD("wchan",		"%u",	0); /* XXX */
+	PS_ADD("nswap",		"%lu",	(long unsigned)0); /* XXX */
+	PS_ADD("cnswap",	"%lu",	(long unsigned)0); /* XXX */
+	PS_ADD("exitsignal",	"%d",	0); /* XXX */
+	PS_ADD("processor",	"%d",	0); /* XXX */
 #undef PS_ADD
 	ps += sprintf(ps, "\n");
 	
@@ -416,9 +420,11 @@ linprocfs_doprocstatus(curp, p, pfs, uio)
 	struct pfsnode *pfs;
 	struct uio *uio;
 {
+	struct eproc ep;
 	char *ps, psbuf[1024];
 	char *state;
 	int i, xlen;
+	segsz_t lsize;
 
 	ps = psbuf;
 
@@ -429,6 +435,7 @@ linprocfs_doprocstatus(curp, p, pfs, uio)
 		state = state_str[(int)p->p_stat];
 	mtx_exit(&sched_lock, MTX_SPIN);
 
+	fill_eproc(p, &ep);
 #define PS_ADD ps += sprintf
 	PS_ADD(ps, "Name:\t%s\n",	  p->p_comm); /* XXX escape */
 	PS_ADD(ps, "State:\t%s\n",	  state);
@@ -455,15 +462,24 @@ linprocfs_doprocstatus(curp, p, pfs, uio)
 	
 	/*
 	 * Memory
+	 *
+	 * While our approximation of VmLib may not be accurate (I
+	 * don't know of a simple way to verify it, and I'm not sure
+	 * it has much meaning anyway), I believe it's good enough.
+	 *
+	 * The same code that could (I think) accurately compute VmLib
+	 * could also compute VmLck, but I don't really care enough to
+	 * implement it. Submissions are welcome.
 	 */
-	PS_ADD(ps, "VmSize:\t%8u kB\n",	  B2K(p->p_vmspace->vm_map.size));
+	PS_ADD(ps, "VmSize:\t%8u kB\n",	  B2K(ep.e_vm.vm_map.size));
 	PS_ADD(ps, "VmLck:\t%8u kB\n",    P2K(0)); /* XXX */
-	/* XXX vm_rssize seems to always be zero, how can this be? */
-	PS_ADD(ps, "VmRss:\t%8u kB\n",    P2K(p->p_vmspace->vm_rssize));
-	PS_ADD(ps, "VmData:\t%8u kB\n",   P2K(p->p_vmspace->vm_dsize));
-	PS_ADD(ps, "VmStk:\t%8u kB\n",    P2K(p->p_vmspace->vm_ssize));
-	PS_ADD(ps, "VmExe:\t%8u kB\n",    P2K(p->p_vmspace->vm_tsize));
-	PS_ADD(ps, "VmLib:\t%8u kB\n",    P2K(0)); /* XXX */
+	PS_ADD(ps, "VmRss:\t%8u kB\n",    P2K(ep.e_vm.vm_rssize));
+	PS_ADD(ps, "VmData:\t%8u kB\n",   P2K(ep.e_vm.vm_dsize));
+	PS_ADD(ps, "VmStk:\t%8u kB\n",    P2K(ep.e_vm.vm_ssize));
+	PS_ADD(ps, "VmExe:\t%8u kB\n",    P2K(ep.e_vm.vm_tsize));
+	lsize = B2P(ep.e_vm.vm_map.size) - ep.e_vm.vm_dsize -
+	    ep.e_vm.vm_ssize - ep.e_vm.vm_tsize - 1;
+	PS_ADD(ps, "VmLib:\t%8u kB\n",    P2K(lsize));
 
 	/*
 	 * Signal masks
@@ -477,6 +493,10 @@ linprocfs_doprocstatus(curp, p, pfs, uio)
 	 * running on anything but i386, so ignore that for now.
 	 */
 	PS_ADD(ps, "SigPnd:\t%08x\n",	  p->p_siglist.__bits[0]);
+	/*
+	 * I can't seem to find out where the signal mask is in
+	 * relation to struct proc, so SigBlk is left unimplemented.
+	 */
 	PS_ADD(ps, "SigBlk:\t%08x\n",	  0); /* XXX */
 	PS_ADD(ps, "SigIgn:\t%08x\n",	  p->p_sigignore.__bits[0]);
 	PS_ADD(ps, "SigCgt:\t%08x\n",	  p->p_sigcatch.__bits[0]);
