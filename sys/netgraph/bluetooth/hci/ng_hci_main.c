@@ -132,7 +132,7 @@ ng_hci_constructor(node_p node)
 	NG_HCI_BUFF_SCO_SET(unit->buffer, 1, 10, 1);
 
 	/* Init command queue & command timeout handler */
-	callout_handle_init(&unit->cmd_timo);
+	ng_callout_init(&unit->cmd_timo);
 	NG_BT_MBUFQ_INIT(&unit->cmdq, NG_HCI_CMD_QUEUE_LEN);
 
 	/* Init lists */

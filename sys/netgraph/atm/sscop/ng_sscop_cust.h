@@ -105,18 +105,17 @@
 /*
  * Timer support.
  */
-typedef struct callout_handle sscop_timer_t;
-#define	TIMER_INIT(S, T)	callout_handle_init(&(S)->t_##T)
+typedef struct callout sscop_timer_t;
+#define	TIMER_INIT(S, T)	ng_callout_init(&(S)->t_##T)
 #define	TIMER_STOP(S,T)	do {						\
-	ng_untimeout((S)->t_##T, (S)->aarg);				\
-	callout_handle_init(&(S)->t_##T);				\
+	ng_untimeout(&(S)->t_##T, (S)->aarg);				\
     } while (0)
 #define	TIMER_RESTART(S, T) do {					\
 	TIMER_STOP(S, T);						\
-	(S)->t_##T = ng_timeout((S)->aarg, NULL,			\
+	ng_timeout(&(S)->t_##T, (S)->aarg, NULL,			\
 	    hz * (S)->timer##T / 1000, T##_func, (S), 0);		\
     } while (0)
-#define	TIMER_ISACT(S, T) ((S)->t_##T.callout != NULL)
+#define	TIMER_ISACT(S, T) ((S)->t_##T.c_flags & (CALLOUT_PENDING))
 
 /*
  * This assumes, that the user argument is the node pointer.
@@ -127,7 +126,6 @@ T##_func(node_p node, hook_p hook, void *arg1, int arg2)		\
 {									\
 	struct sscop *sscop = arg1;					\
 									\
-	callout_handle_init(&sscop->t_##T);				\
 	VERBOSE(sscop, SSCOP_DBG_TIMER, (sscop, sscop->aarg,		\
 	    "timer_" #T " expired"));					\
 	sscop_signal(sscop, SIG_T_##N, NULL);				\

@@ -1074,10 +1074,11 @@ int	ng_rmtype(struct ng_type *tp);
 int	ng_snd_item(item_p item, int queue);
 int 	ng_send_fn(node_p node, hook_p hook, ng_item_fn *fn,
 	void *arg1, int arg2);
-int	ng_untimeout(struct callout_handle handle, node_p node);
-struct callout_handle
-	ng_timeout(node_p node, hook_p hook, int ticks,
+int	ng_untimeout(struct callout *c, node_p node);
+int	ng_timeout(struct callout *c, node_p node, hook_p hook, int ticks,
 	    ng_item_fn *fn, void * arg1, int arg2);
+/* We should mark callout mpsafe as soon as we mark netgraph ISR mpsafe */
+#define	ng_callout_init(c)	callout_init(c, 0)
 
 /*
  * prototypes the user should DEFINITELY not use directly

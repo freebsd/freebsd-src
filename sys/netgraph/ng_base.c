@@ -3595,17 +3595,15 @@ ng_timeout_trapoline(void *arg)
 }
 
 
-struct callout_handle
-ng_timeout(node_p node, hook_p hook, int ticks,
+int
+ng_timeout(struct callout *c, node_p node, hook_p hook, int ticks,
     ng_item_fn *fn, void * arg1, int arg2)
 {
 	item_p item;
 
-	if ((item = ng_getqblk()) == NULL) {
-		struct callout_handle handle;
-		handle.callout = NULL;
-		return (handle);
-	}
+	if ((item = ng_getqblk()) == NULL)
+		return (ENOMEM);
+
 	item->el_flags = NGQF_FN | NGQF_WRITER;
 	NG_NODE_REF(node);		/* and one for the item */
 	NGI_SET_NODE(item, node);
@@ -3616,33 +3614,38 @@ ng_timeout(node_p node, hook_p hook, int ticks,
 	NGI_FN(item) = fn;
 	NGI_ARG1(item) = arg1;
 	NGI_ARG2(item) = arg2;
-	return (timeout(&ng_timeout_trapoline, item, ticks));
+	callout_reset(c, ticks, &ng_timeout_trapoline, item);
+	return (0);
 }
 
 /* A special modified version of untimeout() */
 int 
-ng_untimeout(struct callout_handle handle, node_p node)
+ng_untimeout(struct callout *c, node_p node)
 {
 	item_p item;
+	int rval;
+	void *c_func;
 	
-	if (handle.callout == NULL)
+	if (c == NULL)
 		return (0);
+	/* there must be an official way to do this */
 	mtx_lock_spin(&callout_lock);
-	item = handle.callout->c_arg; /* should be an official way to do this */
-	if ((handle.callout->c_func == &ng_timeout_trapoline) &&
-	    (NGI_NODE(item) == node) &&
-	    (callout_stop(handle.callout))) {
+	c_func = c->c_func;
+	rval = callout_stop(c);
+	mtx_unlock_spin(&callout_lock);
+	item = c->c_arg;
+	/* Do an extra check */
+	if ((rval > 0) && (c_func == &ng_timeout_trapoline) &&
+	    (NGI_NODE(item) == node)) {
 		/*
 		 * We successfully removed it from the queue before it ran
 		 * So now we need to unreference everything that was 
 		 * given extra references. (NG_FREE_ITEM does this).
 		 */
-		mtx_unlock_spin(&callout_lock);
 		NG_FREE_ITEM(item);
-		return (1);
 	}
-	mtx_unlock_spin(&callout_lock);
-	return (0);
+
+	return (rval);
 }
 
 /*
