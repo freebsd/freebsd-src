@@ -117,7 +117,7 @@ add_bndlist(struct netconfig *nconf, struct netbuf *baddr)
 	newnconf = getnetconfigent(nconf->nc_netid);
 	if (newnconf == NULL)
 		return (-1);
-	fdl = (struct fdlist *)malloc((u_int)sizeof (struct fdlist));
+	fdl = malloc(sizeof (struct fdlist));
 	if (fdl == NULL) {
 		freenetconfigent(newnconf);
 		syslog(LOG_ERR, "no memory!");

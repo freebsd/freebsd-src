@@ -389,8 +389,7 @@ rpcbproc_getaddrlist_4_local(void *arg, struct svc_req *rqstp, SVCXPRT *transp,
 		/*
 		 * Add it to rlist.
 		 */
-		rp = (rpcb_entry_list_ptr)
-			malloc((u_int)sizeof (rpcb_entry_list));
+		rp = malloc(sizeof (rpcb_entry_list));
 		if (rp == NULL)
 			goto fail;
 		a = &rp->rpcb_entry_map;
