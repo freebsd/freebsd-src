@@ -44,7 +44,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)ftpd.c	8.4 (Berkeley) 4/16/94";
 #endif
 static const char rcsid[] =
-	"$Id: ftpd.c,v 1.49 1998/05/16 21:23:33 ache Exp $";
+	"$Id: ftpd.c,v 1.50 1998/05/25 03:45:35 steve Exp $";
 #endif /* not lint */
 
 /*
@@ -460,7 +460,7 @@ main(argc, argv, envp)
 
 	(void) signal(SIGCHLD, SIG_IGN);
 	(void) signal(SIGPIPE, lostconn);
-	if ((int)signal(SIGURG, myoob) < 0)
+	if (signal(SIGURG, myoob) == SIG_ERR)
 		syslog(LOG_ERR, "signal: %m");
 
 #ifdef SKEY
@@ -1140,7 +1140,7 @@ retrieve(cmd, name)
 	FILE *fin, *dout;
 	struct stat st;
 	int (*closefunc) __P((FILE *));
-	long start;
+	time_t start;
 
 	if (cmd == 0) {
 		fin = fopen(name, "r"), closefunc = fclose;
@@ -2297,7 +2297,7 @@ logxfer(name, size, start)
 {
 	char buf[1024];
 	char path[MAXPATHLEN + 1];
-	long now;
+	time_t now;
 
 	if (statfd >= 0 && getwd(path) != NULL) {
 		time(&now);
