@@ -432,7 +432,6 @@ acdstrategy(struct bio *bp)
         return;
     }
     
-    bp->bio_pblkno = bp->bio_blkno;
     bp->bio_resid = bp->bio_bcount;
 
     x = splbio();
@@ -479,11 +478,7 @@ acd_start(struct acd *cdp)
     }
 
     if (bp->bio_cmd == BIO_READ)
-#ifdef NOTYET
     	lba = bp->bio_offset / cdp->block_size;
-#else
-    	lba = bp->bio_blkno / (cdp->block_size / DEV_BSIZE);
-#endif
     else 
 	lba = cdp->next_writeable_lba + (bp->bio_offset / cdp->block_size);
     blocks = (bp->bio_bcount + (cdp->block_size - 1)) / cdp->block_size;
