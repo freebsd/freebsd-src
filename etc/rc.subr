@@ -463,6 +463,12 @@ run_rc_command()
 		err 3 'run_rc_command: $name is not set.'
 	fi
 
+	# Don't repeat the first argument when passing additional command-
+	# line arguments to the command subroutines.
+	#
+	shift 1
+	rc_extra_args="$*"
+
 	_rc_prefix=
 	case "$rc_arg" in
 	fast*)				# "fast" prefix; don't check pid
@@ -556,7 +562,7 @@ run_rc_command()
 					#
 			if [ -n "$_precmd" ]; then
 				debug "run_rc_command: evaluating ${_precmd}()."
-				eval $_precmd
+				eval $_precmd $rc_extra_args
 				_return=$?
 				[ $_return -ne 0 ] && [ -z "$rc_force" ] &&
 				    return 1
@@ -564,7 +570,7 @@ run_rc_command()
 
 			if [ -n "$_cmd" ]; then
 				debug "run_rc_command: evaluating ${_cmd}()."
-				eval $_cmd
+				eval $_cmd $rc_extra_args
 				_return=$?
 				[ $_return -ne 0 ] && [ -z "$rc_force" ] &&
 				    return 1
@@ -572,7 +578,7 @@ run_rc_command()
 
 			if [ -n "$_postcmd" ]; then
 				debug "run_rc_command: evaluating ${_postcmd}()."
-				 eval $_postcmd
+				 eval $_postcmd $rc_extra_args
 				_return=$?
 			fi
 			return $_return
@@ -751,7 +757,7 @@ $command $rc_flags $command_args"
 
 		restart)
 			if [ -n "$_precmd" ]; then
-				eval $_precmd
+				eval $_precmd $rc_extra_args
 				_return=$?
 				[ $_return -ne 0 ] && [ -z "$rc_force" ] &&
 				    return 1
@@ -764,11 +770,11 @@ $command $rc_flags $command_args"
 			fi
 			_rc_restart_done=true
 
-			( $0 ${_rc_prefix}stop )
-			$0 ${_rc_prefix}start
+			( $0 ${_rc_prefix}stop $rc_extra_args )
+			$0 ${_rc_prefix}start $rc_extra_args
 
 			if [ -n "$_postcmd" ]; then
-				eval $_postcmd
+				eval $_postcmd $rc_extra_args
 				_return=$?
 			fi
 			;;
