@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.60 1998/03/01 10:10:31 asami Exp $
+**  $Id: pcisupport.c,v 1.61 1998/03/01 17:29:25 sos Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -229,6 +229,10 @@ chipset_probe (pcici_t tag, pcidi_t type)
 	case 0x124b8086:
 		return ("Intel 82380FB mobile PCI to PCI bridge");
 	/* VLSI -- vendor 0x1004 */
+	case 0x00051004:
+		return ("VLSI 82C592 Host to PCI bridge");
+	case 0x00061004:
+		return ("VLSI 82C593 PCI to ISA bridge");
 	case 0x01011004:
 		return ("VLSI 82C532 Eagle II Peripheral Controller");
 	case 0x01021004:
