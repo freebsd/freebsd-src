@@ -651,6 +651,11 @@ ext2_mountfs(devvp, mp, td)
 	VOP_UNLOCK(devvp, 0, td);
 	if (error)
 		return (error);
+	if (devvp->v_rdev->si_iosize_max != 0)
+		mp->mnt_iosize_max = devvp->v_rdev->si_iosize_max;
+	if (mp->mnt_iosize_max > MAXPHYS)
+		mp->mnt_iosize_max = MAXPHYS;
+
 	bp = NULL;
 	ump = NULL;
 	if ((error = bread(devvp, SBLOCK, SBSIZE, NOCRED, &bp)) != 0)
