@@ -28,10 +28,9 @@
 
 #include <sys/types.h>
 
-#ifndef __FreeBSD__
+#ifdef __FreeBSD__
 #include <netinet/in.h>
 #endif
-#include <arpa/inet.h>
 
 #include <stdio.h>
 #include <stdlib.h>
