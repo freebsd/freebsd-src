@@ -251,7 +251,7 @@ get_bus_type(int bus)
 const char *
 get_adapter_name(const char *intf)
 {
-	int			buf_len;
+	size_t buf_len;
 	struct atminfreq	air;
 	struct air_cfg_rsp	*cfg;
 	static char		name[256];
@@ -268,7 +268,7 @@ get_adapter_name(const char *intf)
 	air.air_opcode = AIOCS_INF_CFG;
 	strcpy(air.air_cfg_intf, intf);
 	buf_len = do_info_ioctl(&air, sizeof(struct air_cfg_rsp));
-	if ((size_t)buf_len < sizeof(struct air_cfg_rsp))
+	if (buf_len < sizeof(struct air_cfg_rsp))
 		return("-");
 	cfg = (struct air_cfg_rsp *)(void *)air.air_buf_addr;
 
@@ -440,10 +440,10 @@ parse_ip_prefix(const char *cp, struct in_addr *op)
  *	length of compressed list
  *
  */
-int
-compress_prefix_list(struct in_addr *ipp, int ilen)
+size_t
+compress_prefix_list(struct in_addr *ipp, size_t ilen)
 {
-	int		i, j, n;
+	u_int		i, j, n;
 	struct in_addr	*ip1, *ip2, *m1, *m2;
 
 	/*
@@ -557,7 +557,7 @@ check_netif_name(const char *nif)
 	/*
 	 * Look up the name in the kernel
 	 */
-	rc = verify_nif_name(__DECONST(char *, nif));	/* XXX */
+	rc = verify_nif_name(nif);
 
 	/*
 	 * Check the result

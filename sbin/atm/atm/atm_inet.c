@@ -85,7 +85,7 @@ ip_pvcadd(int argc, char **argv, const struct cmd *cmdp,
 {
 	char	*cp;
 	char	nhelp[128];
-	int	netif_no;
+	u_int	netif_no;
 	u_int	i, netif_pref_len;
 
 	/*
@@ -109,30 +109,24 @@ ip_pvcadd(int argc, char **argv, const struct cmd *cmdp,
 	bzero(app->aar_pvc_intf, sizeof(app->aar_pvc_intf));
 	netif_pref_len = strlen(intp->anp_nif_pref);
 	cp = &argv[0][netif_pref_len];
-	netif_no = atoi(cp);
+	netif_no = (u_int)strtoul(cp, NULL, 10);
 	for (i = 0; i < strlen(cp); i++) {
 		if (cp[i] < '0' || cp[i] > '9') {
 			netif_no = -1;
 			break;
 		}
 	}
-	if ((strlen(argv[0]) > sizeof(app->aar_pvc_intf) - 1) ||
-			(netif_no < 0)) {
-		fprintf(stderr, "%s: Illegal network interface name\n",
-				prog);
-		exit(1);
-	}
+	if (strlen(argv[0]) > sizeof(app->aar_pvc_intf) - 1)
+		errx(1, "Illegal network interface name '%s'", argv[0]);
+
 	if (strncasecmp(intp->anp_nif_pref, argv[0], netif_pref_len) ||
-			strlen (argv[0]) <= netif_pref_len ||
-			netif_no > intp->anp_nif_cnt - 1) {
-		fprintf(stderr, "%s: network interface %s is not associated with interface %s\n",
-				prog,
-				argv[0],
-				intp->anp_intf);
-		exit(1);
-	}
+	    strlen(argv[0]) <= netif_pref_len || netif_no >= intp->anp_nif_cnt)
+		errx(1, "network interface %s is not associated with "
+		    "interface %s", argv[0], intp->anp_intf);
+
 	strcpy(app->aar_pvc_intf, argv[0]);
-	argc--; argv++;
+	argc--;
+	argv++;
 
 	/*
 	 * Set PVC destination address
