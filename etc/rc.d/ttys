@@ -5,7 +5,8 @@
 #
 
 # PROVIDE: tty
-# REQUIRE: root
+# REQUIRE: root mountcritremote
+# BEFORE:  SERVERS
 # KEYWORD: FreeBSD NetBSD
 
 . /etc/rc.subr
