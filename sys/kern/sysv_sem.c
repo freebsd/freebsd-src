@@ -815,8 +815,8 @@ semop(td, uap)
 	u_int nsops = uap->nsops;
 	struct sembuf *sops = NULL;
 	register struct semid_ds *semaptr;
-	register struct sembuf *sopptr;
-	register struct sem *semptr;
+	register struct sembuf *sopptr = 0;
+	register struct sem *semptr = 0;
 	struct sem_undo *suptr;
 	int i, j, error;
 	int do_wakeup, do_undos;
