@@ -523,6 +523,7 @@ diskLabel(char *str)
 	    clear_wins();
 	    break;
 
+	case '\020':	/* ^P */
 	case KEY_UP:
 	case '-':
 	    if (here != 0)
@@ -532,6 +533,7 @@ diskLabel(char *str)
 		    ++here;
 	    break;
 
+	case '\016':	/* ^N */
 	case KEY_DOWN:
 	case '+':
 	case '\r':
@@ -917,6 +919,7 @@ diskLabel(char *str)
 		msg = "A most prudent choice!";
 	    break;
 
+	case '\033':	/* ESC */
 	case 'Q':
 	    labeling = FALSE;
 	    break;
