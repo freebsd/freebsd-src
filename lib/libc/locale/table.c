@@ -193,3 +193,5 @@ _RuneLocale _DefaultRuneLocale = {
 _RuneLocale *_CurrentRuneLocale = &_DefaultRuneLocale;
 
 int __mb_cur_max = 1;
+
+char	*_PathLocale;
