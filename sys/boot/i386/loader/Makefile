@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.2 1998/09/14 18:27:06 msmith Exp $
+# $Id: Makefile,v 1.3 1998/09/17 23:52:15 msmith Exp $
 # from	$NetBSD: Makefile,v 1.12 1998/02/19 14:18:36 drochner Exp $
 
 BASE=		loader
@@ -47,10 +47,12 @@ vers.o:
 	${CC} -c vers.c
 
 ${BASE}: ${BASE}.bin ${BTXLDR} ${BTXKERN}
-	btxld -v -f aout -e 0x100000 -o ${.TARGET} -l ${BTXLDR} -b ${BTXKERN} ${BASE}.bin
+	btxld -v -f aout -e 0x100000 -o ${.TARGET} -l ${BTXLDR} -b ${BTXKERN} \
+		${BASE}.bin
 
 ${BASE}.bin: ${OBJS} ${LIBI386} vers.o setdef0.o setdef1.o
-	${LD} ${LDFLAGS} -o ${.TARGET} ${BTXCRT} setdef0.o ${OBJS} vers.o setdef1.o -lstand ${LIBI386}
+	${LD} ${LDFLAGS} -o ${.TARGET} ${BTXCRT} setdef0.o ${OBJS} vers.o \
+		setdef1.o -lstand ${LIBI386} -lstand
 
 setdef0.o:	setdefs.h
 
