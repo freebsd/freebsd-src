@@ -176,10 +176,10 @@ SYSCTL_INT(_hw_pci, OID_AUTO, enable_io_modes, CTLFLAG_RW,
 enable these bits correctly.  We'd like to do this all the time, but there\n\
 are some peripherals that this causes problems with.");
 
-static int pci_do_powerstate = 0;
+static int pci_do_powerstate = 1;
 TUNABLE_INT("hw.pci.do_powerstate", (int *)&pci_do_powerstate);
 SYSCTL_INT(_hw_pci, OID_AUTO, do_powerstate, CTLFLAG_RW,
-    &pci_do_powerstate, 0,
+    &pci_do_powerstate, 1,
     "Enable setting the power states of the PCI devices.  This means that we\n\
 set devices into D0 before probe/attach, and D3 if they fail to attach.  It\n\
 also means we set devices into D3 state before shutdown.");
