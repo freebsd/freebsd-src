@@ -29,16 +29,6 @@ Boston, MA 02111-1307, USA.  */
    This is a copy of LINK_SPEC from <i386/freebsd.h> tweaked for
    the x86-64 target.  */
 
-#undef  CC1_SPEC
-#define CC1_SPEC "%(cc1_cpu) %{profile:-p} \
-  %{gline:%{!g:%{!g0:%{!g1:%{!g2: -g1}}}}} \
-  %{maout: %{!mno-underscores: %{!munderscores: -munderscores }}}"
-
-#undef  ASM_SPEC
-#define ASM_SPEC	"%{v*: -v} %{maout: %{fpic:-k} %{fPIC:-k}} \
-			%{Qy:} %{!Qn:-Qy} %{n} %{T} %{Ym,*} %{Yd,*} \
-			%{Wa,*:%*} %{m32:--32}"
-
 #undef	LINK_SPEC
 #define LINK_SPEC "\
   %{!m32:-m elf_x86_64} \
