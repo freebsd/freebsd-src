@@ -29,7 +29,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Fri Jul 20 19:17:29 2001]
+ *      last edit-date: [Mon Dec 31 12:42:58 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -359,7 +359,7 @@ typedef struct cfg_entry {
 #define AUTH_RECHALLENGE 0x01
 #define AUTH_REQUIRED    0x02
 
-#define AUTHNAMELEN	32 /* AUTHNAMELEN must match in <machine/i4b_isppp.h> */
+#define AUTHNAMELEN	42 /* AUTHNAMELEN must match in <machine/i4b_isppp.h> */
 #define AUTHKEYLEN	16
 	char	ppp_expect_name[AUTHNAMELEN];	/* PPP PAP/CHAP login name */
 	char	ppp_send_name[AUTHNAMELEN];
