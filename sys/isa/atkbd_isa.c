@@ -26,10 +26,7 @@
  * $FreeBSD$
  */
 
-#include "atkbd.h"
 #include "opt_kbd.h"
-
-#if NATKBD > 0
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -124,5 +121,3 @@ atkbd_isa_intr(void *arg)
 }
 
 DRIVER_MODULE(atkbd, atkbdc, atkbd_driver, atkbd_devclass, 0, 0);
-
-#endif /* NATKBD > 0 */

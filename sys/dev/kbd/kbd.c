@@ -26,7 +26,6 @@
  * $FreeBSD$
  */
 
-#include "kbd.h"
 #include "opt_kbd.h"
 
 #include <sys/param.h>

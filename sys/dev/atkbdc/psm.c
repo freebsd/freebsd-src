@@ -61,10 +61,7 @@
  *    Vendor specific support routines.
  */
 
-#include "psm.h"
 #include "opt_psm.h"
-
-#if NPSM > 0
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -1107,10 +1104,6 @@ psmopen(dev_t dev, int flag, int fmt, struct proc *p)
     int command_byte;
     int err;
     int s;
-
-    /* Validate unit number */
-    if (unit >= NPSM)
-        return (ENXIO);
 
     /* Get device data */
     sc = PSM_SOFTC(unit);
@@ -2450,5 +2443,3 @@ psmresume(device_t dev)
 }
 
 DRIVER_MODULE(psm, atkbdc, psm_driver, psm_devclass, 0, 0);
-
-#endif /* NPSM > 0 */
