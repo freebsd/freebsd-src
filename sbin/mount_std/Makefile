@@ -5,7 +5,8 @@ PROG=	mount_std
 SRCS=	mount_std.c getmntopts.c
 MAN=	mount_std.8
 MLINKS=	mount_std.8 mount_fdesc.8 \
-	mount_std.8 mount_kernfs.8 mount_std.8 mount_linprocfs.8 \
+	mount_std.8 mount_kernfs.8 \
+	mount_std.8 mount_linprocfs.8 \
 	mount_std.8 mount_procfs.8
 
 MOUNT=	${.CURDIR}/../mount
