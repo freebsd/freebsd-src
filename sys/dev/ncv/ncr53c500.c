@@ -87,11 +87,6 @@
 #include <dev/ncv/ncr53c500var.h>
 
 #include <dev/ncv/ncr53c500hwtab.h>
-
-#if __FreeBSD_version < 400001
-#include "ncv.h"
-struct ncv_softc *ncvdata[NNCV];
-#endif
 #endif /* __FreeBSD__ */
 
 #define	NCV_MAX_DATA_SIZE	(64 * 1024)
