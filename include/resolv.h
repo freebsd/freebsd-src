@@ -94,6 +94,8 @@
 #define	RES_TIMEOUT		5	/* min. seconds between retries */
 #define	MAXRESOLVSORT		10	/* number of net to sort on */
 #define	RES_MAXNDOTS		15	/* should reflect bit field size */
+#define	RES_MAXRETRANS		30	/* only for resolv.conf/RES_OPTIONS */
+#define	RES_MAXRETRY		5	/* only for resolv.conf/RES_OPTIONS */
 
 struct __res_state {
 	int	retrans;	 	/* retransmition time interval */
