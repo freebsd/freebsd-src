@@ -25,7 +25,7 @@
  */
 
 /*
- * mdmfs (md/MFS) is a wrapper around mdconfig(8), disklabel(8),
+ * mdmfs (md/MFS) is a wrapper around mdconfig(8),
  * newfs(8), and mount(8) that mimics the command line option set of
  * the deprecated mount_mfs(8).
  */
@@ -75,7 +75,6 @@ static	size_t mdnamelen;	/* Length of mdname. */
 
 static void	 argappend(char **, const char *, ...) __printflike(2, 3);
 static void	 debugprintf(const char *, ...) __printflike(1, 2);
-static void	 do_disklabel(void);
 static void	 do_mdconfig_attach(const char *, const enum md_types);
 static void	 do_mdconfig_attach_au(const char *, const enum md_types);
 static void	 do_mdconfig_detach(void);
@@ -265,7 +264,6 @@ main(int argc, char **argv)
 		do_mdconfig_attach_au(mdconfig_arg, mdtype);
 	else
 		do_mdconfig_attach(mdconfig_arg, mdtype);
-	do_disklabel();
 	do_newfs(newfs_arg);
 	do_mount(mount_arg, mtpoint);
 	do_mtptsetup(mtpoint, &mi);
@@ -317,19 +315,6 @@ debugprintf(const char *fmt, ...)
 	va_end(ap);
 	fprintf(stderr, "\n");
 	fflush(stderr);
-}
-
-/*
- * Label the memory disk.
- */
-static void
-do_disklabel(void)
-{
-	int rv;
-
-	rv = run(NULL, "%s -r -w %s%d auto", PATH_DISKLABEL, mdname, unit);
-	if (rv)
-		errx(1, "disklabel exited with error code %d", rv);
 }
 
 /*
@@ -439,7 +424,7 @@ do_mount(const char *args, const char *mtpoint)
 {
 	int rv;
 
-	rv = run(NULL, "%s%s /dev/%s%dc %s", PATH_MOUNT, args,
+	rv = run(NULL, "%s%s /dev/%s%d %s", PATH_MOUNT, args,
 	    mdname, unit, mtpoint);
 	if (rv)
 		errx(1, "mount exited with error code %d", rv);
@@ -489,7 +474,7 @@ do_newfs(const char *args)
 {
 	int rv;
 
-	rv = run(NULL, "%s%s /dev/%s%dc", PATH_NEWFS, args, mdname, unit);
+	rv = run(NULL, "%s%s /dev/%s%d", PATH_NEWFS, args, mdname, unit);
 	if (rv)
 		errx(1, "newfs exited with error code %d", rv);
 }
