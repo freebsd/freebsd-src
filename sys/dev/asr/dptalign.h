@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /*
  * Copyright (c) 1996-1999 Distributed Processing Technology Corporation
  * All rights reserved.
@@ -21,6 +20,7 @@
  *
  * DPT Alignment Description File
  *
+ * $FreeBSD$
  */
 #if (!defined(__DPTALIGN_H))
 #define       __DPTALIGN_H

@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /****************************************************************
  * Copyright (c) 1996-2000 Distributed Processing Technology Corporation
  * Copyright (c) 2000 Adaptec Corporation.
@@ -76,6 +75,9 @@
  * header file at the I2O SIG Web site.  Furthermore, to become a Registered
  * Developer of the I2O SIG, sign up at the Web site or call 415.750.8352
  * (United States).
+ *
+ * $FreeBSD$
+ *
  ****************************************************************/
 
 #if !defined(I2O_BASE_SCSI_HDR)

@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /****************************************************************************
  *
  * Copyright (c) 1996-2000 Distributed Processing Technology Corporation
@@ -45,6 +44,8 @@
  * To develop other products based upon I2O definitions, it is necessary to
  * become a "Registered Developer" of the I2O SIG. This can be done by calling
  * 415-750-8352 in the US, or via http://www.i2osig.org.
+ *
+ * $FreeBSD$
  *
  **************************************************************************/
 
@@ -141,8 +142,8 @@ typedef long                   INT32;
 typedef long                   *pINT32;
 typedef unsigned long          UINT32;
 typedef unsigned long          *pUINT32;
-//typedef SCSI_REQUEST_BLOCK     OS_REQUEST_T;
-//typedef PSCSI_REQUEST_BLOCK    pOS_REQUEST_T;
+/* typedef SCSI_REQUEST_BLOCK     OS_REQUEST_T; */
+/* typedef PSCSI_REQUEST_BLOCK    pOS_REQUEST_T; */
 #define STATIC                 static
 #ifndef __NEAR__
 # if (defined(__BORLANDC__))
@@ -921,7 +922,7 @@ typedef unsigned long          *pUINT32;
                 getLU4((&(x)->Identifier),0)
 #define I2O_DPT_DEVICE_INFO_SCALAR_setIdentifier(x,y)\
                 setLU4((&(x)->Identifier),0,y)
-/*     U8          LunInfo[8]; // SCSI-2 8-bit scalar LUN goes into offset 1 */
+/*     U8         LunInfo[8]; *//* SCSI-2 8-bit scalar LUN goes into offset 1 */
 #define I2O_DPT_DEVICE_INFO_SCALAR_getLunInfo(x)\
                 getU1((&(x)->LunInfo[0]),1)
 #define I2O_DPT_DEVICE_INFO_SCALAR_setLunInfo(x,y)\
@@ -961,22 +962,23 @@ typedef unsigned long          *pUINT32;
                 getLU2((&(x)->OrganizationID),0)
 #define I2O_PRIVATE_MESSAGE_FRAME_setOrganizationID(x,y) \
                 setLU2((&(x)->OrganizationID),0,y)
-/* typedef struct _PRIVATE_SCSI_SCB_EXECUTE_MESSAGE {
- *     I2O_PRIVATE_MESSAGE_FRAME PRIVATE_SCSI_SCB_EXECUTE_MESSAGE;
- *     BF                        TID:16; // Upper four bits currently are zero
- *     // Command is interpreted by the host
- *     BF                        Interpret:1;
- *     // if TRUE, deal with Physical Firmware Array information
- *     BF                        Physical:1;
- *     BF                        Reserved1:14;
- *     U8                        CDBLength;
- *     U8                        Reserved;
- *     I2O_SCB_FLAGS             SCBFlags;
- *     U8                        CDB[  I2O_SCSI_CDB_LENGTH=16  ];
- *     U32                       ByteCount;
- *     I2O_SG_ELEMENT            SGL;
- * } PRIVATE_SCSI_SCB_EXECUTE_MESSAGE, * PPRIVATE_SCSI_SCB_EXECUTE_MESSAGE;
- */
+#if 0
+typedef struct _PRIVATE_SCSI_SCB_EXECUTE_MESSAGE {
+	I2O_PRIVATE_MESSAGE_FRAME PRIVATE_SCSI_SCB_EXECUTE_MESSAGE;
+	BF                        TID:16; /* Upper four bits currently are zero */
+	/* Command is interpreted by the host */
+	BF                        Interpret:1;
+	/* if TRUE, deal with Physical Firmware Array information */
+	BF                        Physical:1;
+	BF                        Reserved1:14;
+	U8                        CDBLength;
+	U8                        Reserved;
+	I2O_SCB_FLAGS             SCBFlags;
+	U8                        CDB[  I2O_SCSI_CDB_LENGTH=16  ];
+	U32                       ByteCount;
+	I2O_SG_ELEMENT            SGL;
+} PRIVATE_SCSI_SCB_EXECUTE_MESSAGE, * PPRIVATE_SCSI_SCB_EXECUTE_MESSAGE;
+#endif
 /*
  *       PRIVATE_SCSI_SCB_EXECUTE_MESSAGE
  */

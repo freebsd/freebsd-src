@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /*
  * Copyright (c) 1996-1999 Distributed Processing Technology Corporation
  * All rights reserved.
@@ -19,6 +18,7 @@
  * arising in any way out of the use of this driver software, even if advised
  * of the possibility of such damage.
  *
+ * $FreeBSD$
  */
 
 #ifndef		_OSD_DEFS_H
