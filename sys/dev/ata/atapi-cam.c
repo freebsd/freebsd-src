@@ -59,7 +59,7 @@ struct atapi_hcb {
     int			lun;
     union ccb		*ccb;
     int			flags;
-#define DOING_AUTOSENSE 1
+#define QUEUED		0x0001
 
     char		*dxfer_alloc;
     TAILQ_ENTRY(atapi_hcb) chain;
@@ -369,6 +369,7 @@ atapi_action(struct cam_sim *sim, union ccb *ccb)
 	struct ccb_scsiio *csio = &ccb->csio;
 	int tid = ccb_h->target_id, lid = ccb_h->target_lun;
 	struct ata_device *dev = get_ata_device(softc, tid);
+	int request_flags = ATA_R_QUIET | ATA_R_ATAPI;
 
 	CAM_DEBUG(ccb_h->path, CAM_DEBUG_SUBTRACE, ("XPT_SCSI_IO\n"));
 
@@ -397,8 +398,23 @@ atapi_action(struct cam_sim *sim, union ccb *ccb)
 	    /* scatter-gather not supported */
 	    xpt_print_path(ccb_h->path);
 	    printf("ATAPI/CAM does not support scatter-gather yet!\n");
-	    break;
+	    goto action_invalid;
 	}
+
+	switch (ccb_h->flags & CAM_DIR_MASK) {
+	case CAM_DIR_IN:
+	     request_flags |= ATA_R_READ;
+	     break;
+	case CAM_DIR_OUT:
+	     request_flags |= ATA_R_WRITE;
+	     break;
+	case CAM_DIR_NONE:
+	     request_flags |= ATA_R_CONTROL;
+	     break;
+	default:
+	     ata_prtdev(dev, "unknown IO operation\n");
+	     goto action_invalid;
+	 }
 
 	if ((hcb = allocate_hcb(softc, unit, bus, ccb)) == NULL) {
 	    printf("cannot allocate ATAPI/CAM hcb\n");
@@ -408,8 +424,6 @@ atapi_action(struct cam_sim *sim, union ccb *ccb)
 	    printf("cannot allocate ATAPI/CAM request\n");
 	    goto action_oom;
 	}
-
-	ccb_h->status |= CAM_SIM_QUEUED;
 
 	bcopy((ccb_h->flags & CAM_CDB_POINTER) ?
 	      csio->cdb_io.cdb_ptr : csio->cdb_io.cdb_bytes,
@@ -467,8 +481,8 @@ atapi_action(struct cam_sim *sim, union ccb *ccb)
 
 	if ((ccb_h->flags & CAM_DIR_MASK) == CAM_DIR_IN && (len & 1)) {
 	    /* ATA always transfers an even number of bytes */
-	    if (!(buf = hcb->dxfer_alloc = malloc(++len, M_ATACAM,
-						  M_NOWAIT | M_ZERO))) {
+	    if ((buf = hcb->dxfer_alloc
+                 = malloc(++len, M_ATACAM, M_NOWAIT | M_ZERO)) == NULL) {
 		printf("cannot allocate ATAPI/CAM buffer\n");
 		goto action_oom;
 	    }
@@ -481,23 +495,11 @@ atapi_action(struct cam_sim *sim, union ccb *ccb)
 	request->timeout = ccb_h->timeout;
 	request->retries = 2;
 	request->callback = &atapi_cb;
-	request->flags = (ATA_R_QUIET | ATA_R_ATAPI);
-	switch (ccb_h->flags & CAM_DIR_MASK) {
-	case CAM_DIR_IN:
-	     request->flags |= ATA_R_READ;
-	     break;
-	case CAM_DIR_OUT:
-	     request->flags |= ATA_R_WRITE;
-	     break;
-	case CAM_DIR_NONE:
-	     request->flags |= ATA_R_CONTROL;
-	     break;
-	default:
-	     ata_prtdev(dev, "unknown IO operation\n");
-	     goto action_invalid;
-	 }
+	request->flags = request_flags;
 
 	TAILQ_INSERT_TAIL(&softc->pending_hcbs, hcb, chain);
+	hcb->flags |= QUEUED;
+	ccb_h->status |= CAM_SIM_QUEUED;
 
 	ata_queue_request(request);
 	return;
@@ -508,6 +510,8 @@ atapi_action(struct cam_sim *sim, union ccb *ccb)
 		  ("unsupported function code 0x%02x\n", ccb_h->func_code));
 	goto action_invalid;
     }
+
+    /* NOTREACHED */
 
 action_oom:
     if (request != NULL)
@@ -523,9 +527,9 @@ action_oom:
     return;
 
 action_invalid:
-   ccb_h->status = CAM_REQ_INVALID;
-   xpt_done(ccb);
-   return;
+    ccb_h->status = CAM_REQ_INVALID;
+    xpt_done(ccb);
+    return;
 }
 
 static void
@@ -690,7 +694,8 @@ allocate_hcb(struct atapi_xpt_softc *softc, int unit, int bus, union ccb *ccb)
 static void
 free_hcb(struct atapi_hcb *hcb)
 {
-    TAILQ_REMOVE(&hcb->softc->pending_hcbs, hcb, chain);
+    if ((hcb->flags & QUEUED) != 0)
+	TAILQ_REMOVE(&hcb->softc->pending_hcbs, hcb, chain);
     if (hcb->dxfer_alloc != NULL)
 	free(hcb->dxfer_alloc, M_ATACAM);
     free(hcb, M_ATACAM);
