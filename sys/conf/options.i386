@@ -1,4 +1,4 @@
-#	$Id: options.i386,v 1.54 1997/08/02 05:20:14 msmith Exp $
+#	$Id: options.i386,v 1.55 1997/08/09 00:19:39 dyson Exp $
 
 BOUNCEPAGES		opt_bounce.h
 USER_LDT
@@ -65,10 +65,12 @@ CPU_SUSP_HLT			opt_cpu.h
 CPU_UPGRADE_HW_CACHE		opt_cpu.h
 CYRIX_CACHE_WORKS		opt_cpu.h
 CYRIX_CACHE_REALLY_WORKS	opt_cpu.h
-I386_CPU			opt_cpu.h
-I486_CPU			opt_cpu.h
-I586_CPU			opt_cpu.h
-I686_CPU			opt_cpu.h
+
+# The CPU type affects the endian conversion functions all over the kernel.
+I386_CPU		opt_global.h
+I486_CPU		opt_global.h
+I586_CPU		opt_global.h
+I686_CPU		opt_global.h
 
 SC_SPLASH_SCREEN	opt_syscons.h
 MAXCONS			opt_syscons.h

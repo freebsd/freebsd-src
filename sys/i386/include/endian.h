@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)endian.h	7.8 (Berkeley) 4/3/91
- *	$Id: endian.h,v 1.14 1997/03/17 00:51:51 nate Exp $
+ *	$Id: endian.h,v 1.15 1997/04/20 11:44:32 bde Exp $
  */
 
 #ifndef _MACHINE_ENDIAN_H_
@@ -57,10 +57,6 @@
 
 #ifndef KERNEL
 #include <sys/cdefs.h>
-#else
-#ifndef ACTUALLY_LKM_NOT_KERNEL
-#include "opt_cpu.h"
-#endif
 #endif
 
 __BEGIN_DECLS
