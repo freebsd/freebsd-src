@@ -1,7 +1,6 @@
 #	@(#)Makefile	8.1 (Berkeley) 5/31/93
-#	$FreeBSD$
+# $FreeBSD$
 
-NOOBJ=	noobj
 MAN6=	wargames.6
 
 beforeinstall:
