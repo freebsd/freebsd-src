@@ -138,6 +138,9 @@ int	ifmedia_ioctl(struct ifnet *ifp, struct ifreq *ifr,
 #define	IFM_1000_CX	15		/* 1000baseCX - 150ohm STP */
 #define	IFM_1000_T	16		/* 1000baseT - 4 pair cat 5 */
 #define	IFM_HPNA_1	17		/* HomePNA 1.0 (1Mb/s) */
+#define	IFM_10GBASE_SR	18		/* 10GBASE-SR 850nm Multi-mode Fiber */
+#define	IFM_10GBASE_LR	19		/* 10GBASE-LR 1310nm Single-mode Fiber */
+
 /* note 31 is the max! */
 
 #define	IFM_ETH_MASTER	0x00000100	/* master mode (1000baseT) */
@@ -316,6 +319,8 @@ struct ifmedia_description {
 	{ IFM_1000_T,	"1000baseTX" },					\
 	{ IFM_1000_T,	"1000baseT" },					\
 	{ IFM_HPNA_1,	"homePNA" },					\
+	{ IFM_10GBASE_SR, "10GBASE-SR" },				\
+	{ IFM_10GBASE_LR, "10GBASE-LR" },				\
 	{ 0, NULL },							\
 }
 
