@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 
 #include <rpc/rpc.h>
+#include <rpc/rpc_com.h>
 #include <rpc/pmap_clnt.h>
 #include <rpc/pmap_prot.h>
 #include <rpcsvc/mount.h>
@@ -273,6 +274,7 @@ main(argc, argv)
 	struct netconfig *udpconf, *tcpconf, *udp6conf, *tcp6conf;
 	int udpsock, tcpsock, udp6sock, tcp6sock;
 	int xcreated = 0, s;
+	int maxrec = RPC_MAXDATASIZE;
 	int one = 1;
 	int c;
 
@@ -354,6 +356,9 @@ main(argc, argv)
 	tcpsock  = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 	udpconf  = getnetconfigent("udp");
 	tcpconf  = getnetconfigent("tcp");
+
+	rpc_control(RPC_SVC_CONNMAXREC_SET, &maxrec);
+
 	if (!have_v6)
 		goto skip_v6;
 	udp6sock = socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP);
@@ -408,7 +413,7 @@ skip_v6:
 	if (tcpsock != -1 && tcpconf != NULL) {
 		bindresvport(tcpsock, NULL);
 		listen(tcpsock, SOMAXCONN);
-		tcptransp = svc_vc_create(tcpsock, 0, 0);
+		tcptransp = svc_vc_create(tcpsock, RPC_MAXDATASIZE, RPC_MAXDATASIZE);
 		if (tcptransp != NULL) {
 			if (!svc_reg(tcptransp, RPCPROG_MNT, RPCMNT_VER1,
 			    mntsrv, tcpconf))
@@ -449,7 +454,7 @@ skip_v6:
 	if (have_v6 && tcp6sock != -1 && tcp6conf != NULL) {
 		bindresvport(tcp6sock, NULL);
 		listen(tcp6sock, SOMAXCONN);
-		tcp6transp = svc_vc_create(tcp6sock, 0, 0);
+		tcp6transp = svc_vc_create(tcp6sock, RPC_MAXDATASIZE, RPC_MAXDATASIZE);
 		if (tcp6transp != NULL) {
 			if (!svc_reg(tcp6transp, RPCPROG_MNT, RPCMNT_VER1,
 			    mntsrv, tcp6conf))

@@ -1,4 +1,4 @@
-/*	$NetBSD: rpcbind.c,v 1.1 2000/06/02 23:15:42 fvdl Exp $	*/
+/*	$NetBSD: rpcbind.c,v 1.3 2002/11/08 00:16:40 fvdl Exp $	*/
 /*	$FreeBSD$ */
 
 /*
@@ -57,6 +57,7 @@ static	char sccsid[] = "@(#)rpcbind.c 1.35 89/04/21 Copyr 1984 Sun Micro";
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <rpc/rpc.h>
+#include <rpc/rpc_com.h>
 #ifdef PORTMAP
 #include <netinet/in.h>
 #endif
@@ -124,6 +125,7 @@ main(int argc, char *argv[])
 	struct netconfig *nconf;
 	void *nc_handle;	/* Net config handle */
 	struct rlimit rl;
+	int maxrec = RPC_MAXDATASIZE;
 
 	parseargs(argc, argv);
 
@@ -165,6 +167,9 @@ main(int argc, char *argv[])
 		syslog(LOG_ERR, "%s: can't find local transport\n", argv[0]);
 		exit(1);
 	}
+
+	rpc_control(RPC_SVC_CONNMAXREC_SET, &maxrec);
+
 	init_transport(nconf);
 
 	while ((nconf = getnetconfig(nc_handle))) {
@@ -431,7 +436,7 @@ init_transport(struct netconfig *nconf)
 				listen(fd, SOMAXCONN);
 
 			my_xprt = (SVCXPRT *)svc_tli_create(fd, nconf, &taddr,
-			    0, 0);
+			    RPC_MAXDATASIZE, RPC_MAXDATASIZE);
 			if (my_xprt == (SVCXPRT *)NULL) {
 				syslog(LOG_ERR, "%s: could not create service",
 					nconf->nc_netid);
@@ -491,7 +496,7 @@ init_transport(struct netconfig *nconf)
 		if (nconf->nc_semantics != NC_TPI_CLTS)
 			listen(fd, SOMAXCONN);
 
-		my_xprt = (SVCXPRT *)svc_tli_create(fd, nconf, &taddr, 0, 0);
+		my_xprt = (SVCXPRT *)svc_tli_create(fd, nconf, &taddr, RPC_MAXDATASIZE, RPC_MAXDATASIZE);
 		if (my_xprt == (SVCXPRT *)NULL) {
 			syslog(LOG_ERR, "%s: could not create service",
 					nconf->nc_netid);

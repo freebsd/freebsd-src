@@ -44,6 +44,7 @@ static const char rcsid[] =
 #include <stdio.h>
 #include <stdlib.h>
 #include <rpc/rpc.h>
+#include <rpc/rpc_com.h>
 #include <string.h>
 #include <syslog.h>
 #include <sys/types.h>
@@ -61,6 +62,7 @@ int
 main(int argc, char **argv)
 {
   struct sigaction sa;
+  int maxrec = RPC_MAXDATASIZE;
 
   if (argc > 1)
   {
@@ -70,6 +72,8 @@ main(int argc, char **argv)
   }
 
   (void)rpcb_unset(SM_PROG, SM_VERS, NULL);
+
+  rpc_control(RPC_SVC_CONNMAXREC_SET, &maxrec);
 
   if (!svc_create(sm_prog_1, SM_PROG, SM_VERS, "udp"))
     errx(1, "cannot create udp service");
