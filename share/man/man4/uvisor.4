@@ -36,19 +36,20 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 10, 2000
+.Dd September 12, 2004
 .Dt UVISOR 4
 .Os
 .Sh NAME
 .Nm uvisor
-.Nd USB support for the Handspring Visor, a Palmpilot compatible PDA
+.Nd "USB support for the PalmOS based PDAs"
 .Sh SYNOPSIS
 .Cd "device uvisor"
 .Cd "device ucom"
 .Sh DESCRIPTION
 The
 .Nm
-driver provides support for the Handspring Visor, a Palmpilot compatible PDA.
+driver provides support for USB based PalmOS PDAs, like Handspring
+Visor, Palm Mxxx series, and Sony Clie.
 .Pp
 The device is accessed through the
 .Xr ucom 4
@@ -60,7 +61,53 @@ own
 device.
 The attach message describes the purpose of each port.
 .Pp
-The usual Pilot tools can be used to access the Visor on the HotSync port.
+The usual Pilot tools can be used to access the attached device on the
+HotSync port.
+.Sh HARDWARE
+The
+.Nm
+driver supports the following devices:
+.Pp
+.Bl -bullet -compact
+.It
+Handspring Treo
+.It
+Handspring Treo 600
+.It
+Handspring Visor
+.It
+Palm I705
+.It
+Palm M125
+.It
+Palm M130
+.It
+Palm M500
+.It
+Palm M505
+.It
+Palm M515
+.It
+Palm Tungsten T
+.It
+Palm Tungsten Z
+.It
+Palm Zire
+.It
+Palm Zire 31
+.It
+Sony Clie 4.0
+.It
+Sony Clie 4.1
+.It
+Sony Clie 5.0
+.It
+Sony Clie PEG-S500C
+.It
+Sony Clie NX60
+.It
+Sony Clie S360
+.El
 .Sh BUGS
 The code to provide multiple
 .Xr ucom 4
