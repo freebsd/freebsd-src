@@ -17,8 +17,8 @@
 #undef DEBUG
 
 #include <sys/param.h>
-#include <systm.h>
-#include <kernel.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <sys/mbuf.h>
