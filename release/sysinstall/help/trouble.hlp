@@ -334,4 +334,33 @@ A: Configure DSA to use AHA-1540 emulation using EISA configuration utility.
    irq 11 and port 340. Under emulation mode system will use DSA RAID disks,
    but you cannot use DSA specific features such as watching RAID health.
 
-[ Please add more hardware tips to this Q&A section! ]
+
+Q: My Ethernet adapter is detected as an AMD PCnet-FAST (or similar) but
+   it doesn't work.  (Eg. onboard Ethernet on IBM Netfinity 5xxx or 7xxx)
+
+A: The 'lnc' driver is currently faulty, and will often not work correctly
+   with the PCnet-FAST and PCnet-FAST+.  You need to install a different
+   Ethernet adapter.
+
+
+Q: I have an IBM EtherJet PCI card, it is detected by the 'fxp' driver 
+   correctly, but the lights on the card don't come on and it doesn't
+   connect to the network.
+
+A: We don't understand why this happens.  Neither do IBM (we asked them).
+   The card is a standard Intel EtherExpress Pro/100 with an IBM label
+   on it, and these cards normally work just fine.  You may see these
+   symptoms only in some IBM Netfinity servers.  The only solution is to
+   install a different Ethernet adapter.
+
+
+Q: When I configure the network during installation on an IBM Netfinity
+   3500, the system freezes.
+
+A: There is a problem with the onboard Ethernet in the Netfinity 3500
+   which we have not been able to identify at this time.  It may be
+   related to the SMP features of the system being misconfigured.  You
+   will have to install another Ethernet adapter, and avoid attempting
+   to configure the onboard adapter at any time.
+
+[ Please send hardware tips for this Q&A section to jkh@freebsd.org ]
