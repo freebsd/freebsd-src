@@ -94,7 +94,9 @@ g_raid3_ctl_configure(struct gctl_req *req, struct g_class *mp)
 	struct g_raid3_disk *disk;
 	const char *name;
 	int *nargs, do_sync = 0;
-	int *autosync, *noautosync, *round_robin, *noround_robin;
+	int *autosync, *noautosync;
+	int *round_robin, *noround_robin;
+	int *verify, *noverify;
 	u_int n;
 
 	g_topology_assert();
@@ -144,7 +146,23 @@ g_raid3_ctl_configure(struct gctl_req *req, struct g_class *mp)
 		    "noround_robin");
 		return;
 	}
-	if (!*autosync && !*noautosync && !*round_robin && !*noround_robin) {
+	verify = gctl_get_paraml(req, "verify", sizeof(*verify));
+	if (verify == NULL) {
+		gctl_error(req, "No '%s' argument.", "verify");
+		return;
+	}
+	noverify = gctl_get_paraml(req, "noverify", sizeof(*noverify));
+	if (noverify == NULL) {
+		gctl_error(req, "No '%s' argument.", "noverify");
+		return;
+	}
+	if (*verify && *noverify) {
+		gctl_error(req, "'%s' and '%s' specified.", "verify",
+		    "noverify");
+		return;
+	}
+	if (!*autosync && !*noautosync && !*round_robin && !*noround_robin &&
+	    !*verify && !*noverify) {
 		gctl_error(req, "Nothing has changed.");
 		return;
 	}
@@ -157,12 +175,26 @@ g_raid3_ctl_configure(struct gctl_req *req, struct g_class *mp)
 		if (*noautosync)
 			sc->sc_flags |= G_RAID3_DEVICE_FLAG_NOAUTOSYNC;
 	}
+	if ((sc->sc_flags & G_RAID3_DEVICE_FLAG_VERIFY) != 0) {
+		if (*noverify)
+			sc->sc_flags &= ~G_RAID3_DEVICE_FLAG_VERIFY;
+	} else {
+		if (*verify)
+			sc->sc_flags |= G_RAID3_DEVICE_FLAG_VERIFY;
+	}
 	if ((sc->sc_flags & G_RAID3_DEVICE_FLAG_ROUND_ROBIN) != 0) {
 		if (*noround_robin)
 			sc->sc_flags &= ~G_RAID3_DEVICE_FLAG_ROUND_ROBIN;
 	} else {
 		if (*round_robin)
 			sc->sc_flags |= G_RAID3_DEVICE_FLAG_ROUND_ROBIN;
+	}
+	if ((sc->sc_flags & G_RAID3_DEVICE_FLAG_VERIFY) != 0 &&
+	    (sc->sc_flags & G_RAID3_DEVICE_FLAG_ROUND_ROBIN) != 0) {
+		/*
+		 * VERIFY and ROUND-ROBIN options are mutally exclusive.
+		 */
+		sc->sc_flags &= ~G_RAID3_DEVICE_FLAG_ROUND_ROBIN;
 	}
 	for (n = 0; n < sc->sc_ndisks; n++) {
 		disk = &sc->sc_disks[n];
