@@ -269,25 +269,23 @@ _pthread_mutex_destroy(pthread_mutex_t * mutex)
 static int
 init_static(pthread_mutex_t *mutex)
 {
+	int error = 0;
 	_SPINLOCK(&static_init_lock);
-	if (*mutex == PTHREAD_MUTEX_INITIALIZER) {
-		_SPINUNLOCK(&static_init_lock);
-		return(_pthread_mutex_init(mutex, NULL));
-	}
+	if (*mutex == PTHREAD_MUTEX_INITIALIZER)
+		error = _pthread_mutex_init(mutex, NULL);
 	_SPINUNLOCK(&static_init_lock);
-	return (0);
+	return (error);
 }
 
 static int
 init_static_private(pthread_mutex_t *mutex)
 {
+	int error = 0;
 	_SPINLOCK(&static_init_lock);
-	if (*mutex == PTHREAD_MUTEX_INITIALIZER) {
-		_SPINUNLOCK(&static_init_lock);
-		return (_pthread_mutex_init(mutex, &static_mattr));
-	}
+	if (*mutex == PTHREAD_MUTEX_INITIALIZER)
+		error = _pthread_mutex_init(mutex, &static_mattr);
 	_SPINUNLOCK(&static_init_lock);
-	return (0);
+	return (error);
 }
 
 int
