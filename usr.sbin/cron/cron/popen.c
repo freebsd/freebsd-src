@@ -24,7 +24,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: popen.c,v 1.5 1994/01/15 20:43:43 vixie Exp $";
+static char rcsid[] = "$Id: popen.c,v 1.1.1.1 1995/10/18 08:47:31 deraadt Exp $";
 static char sccsid[] = "@(#)popen.c	5.7 (Berkeley) 2/14/89";
 #endif /* not lint */
 
@@ -32,6 +32,7 @@ static char sccsid[] = "@(#)popen.c	5.7 (Berkeley) 2/14/89";
 #include <sys/signal.h>
 
 
+#define MAX_ARGS 100
 #define WANT_GLOBBING 0
 
 /*
@@ -50,7 +51,7 @@ cron_popen(program, type)
 	FILE *iop;
 	int argc, pdes[2];
 	PID_T pid;
-	char *argv[100];
+	char *argv[MAX_ARGS + 1];
 #if WANT_GLOBBING
 	char **pop, *vv[2];
 	int gargc;
@@ -72,7 +73,7 @@ cron_popen(program, type)
 		return(NULL);
 
 	/* break up string into pieces */
-	for (argc = 0, cp = program;; cp = NULL)
+	for (argc = 0, cp = program; argc < MAX_ARGS; cp = NULL)
 		if (!(argv[argc++] = strtok(cp, " \t\n")))
 			break;
 
