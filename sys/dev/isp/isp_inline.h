@@ -293,6 +293,9 @@ static INLINE void
 isp_get_gxn_id_response(struct ispsoftc *, sns_gxn_id_rsp_t *,
     sns_gxn_id_rsp_t *);
 static INLINE void
+isp_get_gff_id_response(struct ispsoftc *, sns_gff_id_rsp_t *,
+    sns_gff_id_rsp_t *);
+static INLINE void
 isp_get_ga_nxt_response(struct ispsoftc *, sns_ga_nxt_rsp_t *,
     sns_ga_nxt_rsp_t *);
 #ifdef	ISP_TARGET_MODE
@@ -822,6 +825,18 @@ isp_get_gxn_id_response(struct ispsoftc *isp, sns_gxn_id_rsp_t *src,
 	isp_get_ct_hdr(isp, &src->snscb_cthdr, &dst->snscb_cthdr);
 	for (i = 0; i < 8; i++)
 		ISP_IOXGET_8(isp, &src->snscb_wwn[i], dst->snscb_wwn[i]);
+}
+
+static INLINE void
+isp_get_gff_id_response(struct ispsoftc *isp, sns_gff_id_rsp_t *src,
+    sns_gff_id_rsp_t *dst)
+{
+	int i;
+	isp_get_ct_hdr(isp, &src->snscb_cthdr, &dst->snscb_cthdr);
+	for (i = 0; i < 32; i++) {
+		ISP_IOXGET_32(isp, &src->snscb_fc4_features[i],
+		    dst->snscb_fc4_features[i]);
+	}
 }
 
 static INLINE void
