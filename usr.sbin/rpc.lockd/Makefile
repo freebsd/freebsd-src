@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1.1.1 1996/02/17 15:11:28 peter Exp $
+#	$Id: Makefile,v 1.2 1996/04/01 05:29:57 peter Exp $
 
 PROG =	rpc.lockd
 SRCS =	nlm_prot_svc.c lockd.c procs.c
@@ -11,7 +11,7 @@ CFLAGS+= -I.
 
 CLEANFILES= nlm_prot_svc.c nlm_prot.h
 
-RPCSRC= ${.DESTDIR}/usr/include/rpcsvc/nlm_prot.x
+RPCSRC= ${DESTDIR}/usr/include/rpcsvc/nlm_prot.x
 RPCGEN= rpcgen -L -C
 
 nlm_prot_svc.c: ${RPCSRC} nlm_prot.h
