@@ -62,7 +62,7 @@ sed	\
 	-e 's/ident.*GENERIC/ident		BOOTMFS/g'
 
 # reset maxusers to something lower
-echo "maxusers	5"
+echo "maxusers	2"
 
 echo "options  NFS_NOSERVER" 
 echo "options  SCSI_NO_OP_STRINGS" 
