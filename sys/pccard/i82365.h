@@ -31,6 +31,8 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #define	PCIC_I82365	0		/* Intel chip */
@@ -59,10 +61,11 @@
  *	identify the port number, and the lower 6 bits
  *	select one of the 64 possible data registers.
  */
-#define PCIC_INDEX_0	0x3E0			/* index reg, chips 0 and 1 */
+#define PCIC_INDEX_0	0x3e0			/* index reg, chips 0 and 1 */
 #define PCIC_DATA_0	(PCIC_INDEX_0 + 1)	/* data reg, chips 0 and 1 */
 #define PCIC_INDEX_1	(PCIC_INDEX_0 + 2)	/* index reg, chips 2 and 3 */
 #define PCIC_DATA_1	(PCIC_INDEX_1 + 1)	/* data reg, chips 2 and 3 */
+
 /*
  *	Register index addresses.
  */
@@ -223,4 +226,6 @@
 #define	PCIC_IO_WIN	2
 #define	PCIC_MEM_WIN	5
 
-#define	PCIC_MAX_SLOTS	8
+#define	PCIC_CARD_SLOTS	4
+#define PCIC_MAX_CARDS	2
+#define PCIC_MAX_SLOTS (PCIC_MAX_CARDS * PCIC_CARD_SLOTS)
