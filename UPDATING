@@ -23,6 +23,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 6.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20041116:
+	Support for systems with an 80386 CPU has been removed.  Please
+	use FreeBSD 5.x or earlier on systems with an 80386.
+
 20041110:
 	We have had a hack which would mount the root filesystem
 	R/W if the device were named 'md*'.  As part of the vnode
