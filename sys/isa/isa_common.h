@@ -50,7 +50,6 @@ struct isa_config_entry {
  */
 struct isa_device {
 	struct resource_list	id_resources;
-	int			id_flags;
 	u_int32_t		id_vendorid; /* pnp vendor id */
 	u_int32_t		id_serial; /* pnp serial */
 	u_int32_t		id_logicalid; /* pnp logical device id */
