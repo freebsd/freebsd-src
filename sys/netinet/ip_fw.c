@@ -602,9 +602,9 @@ lookup_dyn_rule(struct ipfw_flow_id *pkt)
 	return NULL ;
     i = hash_packet( pkt );
     for (prev=NULL, q = ipfw_dyn_v[i] ; q != NULL ; ) {
-       switch (q->type) {
-       default:        /* bidirectional rule, no masks */
-           if ( pkt->proto == q->id.proto) {
+	switch (q->type) {
+        default:        /* bidirectional rule, no masks */
+            if ( pkt->proto == q->id.proto) {
 		if (pkt->src_ip == q->id.src_ip &&
 			pkt->dst_ip == q->id.dst_ip &&
 			pkt->src_port == q->id.src_port &&
@@ -615,11 +615,12 @@ lookup_dyn_rule(struct ipfw_flow_id *pkt)
 		if (pkt->src_ip == q->id.dst_ip &&
 			pkt->dst_ip == q->id.src_ip &&
 			pkt->src_port == q->id.dst_port &&
-			pkt->dst_port == q->id.src_port )
+			pkt->dst_port == q->id.src_port ) {
 		   dir = 0 ; /* reverse match */
 		   goto found ;
-           }
-           break ;
+		}
+	    }
+	    break ;
        }
        if (TIME_LEQ( q->expire , time_second ) ) {
            /* expire entry */
