@@ -67,7 +67,7 @@ void encode __P((void));
 void base64_encode __P((void));
 static void usage __P((void));
 
-FILE *output = stdout;
+FILE *output;
 int mode;
 char **av;
 
@@ -123,7 +123,8 @@ main(argc, argv)
 		output = fopen(outfile, "w+");
 		if (output == NULL)
 			err(1, "unable to open %s for output", outfile);
-	}
+	} else
+		output = stdout;
 	if (base64)
 		base64_encode();
 	else
