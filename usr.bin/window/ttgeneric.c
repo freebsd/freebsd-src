@@ -42,7 +42,6 @@ static char sccsid[] = "@(#)ttgeneric.c	8.1 (Berkeley) 6/6/93";
 #include "tt.h"
 
 char PC, *BC, *UP;
-short ospeed;
 
 	/* normal frame */
 short gen_frame[16] = {
@@ -393,7 +392,6 @@ tt_generic()
 {
 	gen_PC = tttgetstr("pc");
 	PC = gen_PC ? *gen_PC->ts_str : 0;
-	ospeed = wwospeed;
 
 	gen_CM = ttxgetstr("cm");		/* may not work */
 	gen_IM = ttxgetstr("im");
