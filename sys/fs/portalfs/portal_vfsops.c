@@ -87,7 +87,7 @@ portal_mount(mp, path, data, ndp, td)
 	struct socket *so;
 	struct vnode *rvp;
 	struct portalnode *pn;
-	u_int size;
+	size_t size;
 	int error;
 
 	/*
