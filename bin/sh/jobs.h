@@ -73,6 +73,7 @@ struct job {
 	char changed;		/* true if status has changed */
 #if JOBS
 	char jobctl;		/* job running under job control */
+	struct job *next;	/* job used after this one */
 #endif
 };
 
