@@ -9,7 +9,7 @@
  */
 #if !defined(lint) && defined(LIBC_SCCS)
 static	char	sccsid[] = "@(#)ip_nat.c	1.11 6/5/96 (C) 1995 Darren Reed";
-static	char	rcsid[] = "$Id: ip_nat.c,v 2.0.1.10 1997/02/08 06:38:49 darrenr Exp $";
+static	char	rcsid[] = "$Id: ip_nat.c,v 2.0.1.11 1997/02/16 06:26:47 darrenr Exp $";
 #endif
 
 #if !defined(_KERNEL) && !defined(KERNEL)
@@ -155,12 +155,13 @@ int cmd, mode;
 {
 	register ipnat_t *nat, *n = NULL, **np = NULL;
 	ipnat_t natd;
-	int error = 0, ret;
+	int error = 0, ret, s;
 
 	/*
 	 * For add/delete, look to see if the NAT entry is already present
 	 */
 	MUTEX_ENTER(&ipf_nat);
+	SPLNET(s);
 	if ((cmd == SIOCADNAT) || (cmd == SIOCRMNAT)) {
 		IRCOPY(data, (char *)&natd, sizeof(natd));
 		nat = &natd;
@@ -260,6 +261,7 @@ int cmd, mode;
 		IWCOPY((caddr_t)&ret, data, sizeof(ret));
 		break;
 	}
+	SPLX(s);
 	MUTEX_EXIT(&ipf_nat);
 	return error;
 }
@@ -857,11 +859,13 @@ fr_info_t *fin;
  */
 void ip_natunload()
 {
-	MUTEX_ENTER(&ipf_nat);
+	int s;
 
+	MUTEX_ENTER(&ipf_nat);
+	SPLNET(s);
 	(void) clear_natlist();
 	(void) flush_nattable();
-
+	SPLX(s)
 	MUTEX_EXIT(&ipf_nat);
 }
 
@@ -873,14 +877,19 @@ void ip_natunload()
 void ip_natexpire()
 {
 	register struct nat *nat, **natp;
+	int s;
 
 	MUTEX_ENTER(&ipf_nat);
-	for (natp = &nat_instances; (nat = *natp); natp = &nat->nat_next) {
-		if (--nat->nat_age)
+	SPLNET(s);
+	for (natp = &nat_instances; (nat = *natp); ) {
+		if (--nat->nat_age) {
+			natp = &nat->nat_next;
 			continue;
+		}
 		*natp = nat->nat_next;
 		nat_delete(nat);
 		nat_stats.ns_expire++;
 	}
+	SPLX(s);
 	MUTEX_EXIT(&ipf_nat);
 }
