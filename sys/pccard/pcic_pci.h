@@ -32,12 +32,12 @@
 /* Share the devid database with NEWCARD */
 #include <dev/pccbb/pccbbdevid.h>
 
-/* CL-PD6832 CardBus defines */
-#define	CLPD6832_SOCKET			0x004c
+/* CL-PD683x CardBus defines */
+#define	CLPD6833_CFG_MISC_1		0x98
 
 /* Configuration constants */
 #define	CLPD6832_BCR_MGMT_IRQ_ENA	0x0800
-#define	CLPD6832_BCR_ISA_IRQ		0x0080
+#define CLPD6833_CM1_MGMT_EXCA_ENA	0x0001	/* Set ExCA, Clr PCI */
 
 /* End of CL-PD6832 defines */
 /* Texas Instruments PCI-1130/1131 CardBus Controller */
