@@ -3,7 +3,7 @@
 # Makefile.i386 -- with config changes.
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.pc98,v 1.45 1998/11/16 08:09:16 kato Exp $
+#	$Id: Makefile.pc98,v 1.46 1998/12/08 08:19:45 kato Exp $
 #
 # Makefile for FreeBSD
 #
@@ -97,8 +97,8 @@ SYSTEM_LD_TAIL= @echo rearranging symbols; \
 	size -aout ${.TARGET} ; chmod 755 ${.TARGET}
 .endif
 .if ${KERNFORMAT} == elf
-SYSTEM_OBJS= locore.o setdef0.o vnode_if.o ${OBJS} ioconf.o param.o config.o \
-	setdef1.o hack.so
+SYSTEM_OBJS= locore.o vnode_if.o ${OBJS} ioconf.o param.o config.o \
+	setdef0.o setdef1.o hack.so
 SYSTEM_LD= @${LD} -elf -Bdynamic -T $S/i386/conf/kernel.script \
 	-export-dynamic -dynamic-linker /red/herring \
 	-o ${.TARGET} -X ${SYSTEM_OBJS} vers.o
