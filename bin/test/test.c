@@ -22,10 +22,40 @@ static const char rcsid[] =
 #include <err.h>
 #include <errno.h>
 #include <limits.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+
+#ifdef SHELL
+#define main testcmd
+#include "bltin/bltin.h"
+#else
+static void error(const char *, ...) __attribute__((__noreturn__));
+
+static void
+#ifdef __STDC__
+error(const char *msg, ...)
+#else
+error(va_alist)
+	va_dcl
+#endif
+{
+	va_list ap;
+#ifndef __STDC__
+	const char *msg;
+
+	va_start(ap);
+	msg = va_arg(ap, const char *);
+#else
+	va_start(ap, msg);
+#endif
+	verrx(2, msg, ap);
+	/*NOTREACHED*/
+	va_end(ap);
+}
+#endif
 
 /* test(1) accepts the following grammar:
 	oexpr	::= aexpr | aexpr "-o" oexpr ;
@@ -174,10 +204,14 @@ main(argc, argv)
 	else
 		p++;
 	if (strcmp(p, "[") == 0) {
-		if (strcmp(argv[--argc], "]"))
-			errx(2, "missing ]");
+		if (strcmp(argv[--argc], "]") != 0)
+			error("missing ]");
 		argv[argc] = NULL;
 	}
+
+	/* no expression => false */
+	if (--argc <= 0)
+		return 1;
 
 	/* XXX work around the absence of an eaccess(2) syscall */
 	(void)setgid(getegid());
@@ -199,9 +233,9 @@ syntax(op, msg)
 {
 
 	if (op && *op)
-		errx(2, "%s: %s", op, msg);
+		error("%s: %s", op, msg);
 	else
-		errx(2, "%s", msg);
+		error("%s", msg);
 }
 
 static int
@@ -436,13 +470,14 @@ getn(s)
 	r = strtol(s, &p, 10);
 
 	if (errno != 0)
-	  errx(2, "%s: out of range", s);
+		error((errno == EINVAL) ? "%s: bad number" :
+					  "%s: out of range", s);
 
 	while (isspace((unsigned char)*p))
-	  p++;
+		p++;
 
 	if (*p)
-	  errx(2, "%s: bad number", s);
+		error("%s: bad number", s);
 
 	return (int) r;
 }
@@ -459,13 +494,14 @@ getq(s)
 	r = strtoq(s, &p, 10);
 
 	if (errno != 0)
-	  errx(2, "%s: out of range", s);
+		error((errno == EINVAL) ? "%s: bad number" :
+					  "%s: out of range", s);
 
 	while (isspace((unsigned char)*p))
-	  p++;
+		p++;
 
 	if (*p)
-	  errx(2, "%s: bad number", s);
+		error("%s: bad number", s);
 
 	return r;
 }

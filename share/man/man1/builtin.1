@@ -60,6 +60,7 @@
 .Nm exec ,
 .Nm exit ,
 .Nm export ,
+.Nm false ,
 .Nm fc ,
 .Nm fg ,
 .Nm filetest ,
@@ -87,8 +88,8 @@
 .Nm notify ,
 .Nm onintr ,
 .Nm popd ,
-.Nm printf ,
 .Nm printenv ,
+.Nm printf ,
 .Nm pushd ,
 .Nm pwd ,
 .Nm read ,
@@ -107,9 +108,11 @@
 .Nm suspend ,
 .Nm switch ,
 .Nm telltc ,
+.Nm test ,
 .Nm then ,
 .Nm time ,
 .Nm trap ,
+.Nm true ,
 .Nm type ,
 .Nm ulimit ,
 .Nm umask ,
@@ -198,6 +201,7 @@ with the other shells.
 .It Ic exec Ta \&No Ta Yes Ta Yes
 .It Ic exit Ta \&No Ta Yes Ta Yes
 .It Ic export Ta \&No Ta \&No Ta Yes
+.It Ic false Ta Yes Ta \&No Ta Yes
 .It Ic fc Ta \&No Ta \&No Ta Yes
 .It Ic fg Ta \&No Ta Yes Ta Yes
 .It Ic filetest Ta \&No Ta Yes Ta \&No
@@ -245,9 +249,11 @@ with the other shells.
 .It Ic suspend Ta \&No Ta Yes Ta \&No
 .It Ic switch Ta \&No Ta Yes Ta \&No
 .It Ic telltc Ta \&No Ta Yes Ta \&No
+.It Ic test Ta Yes Ta \&No Ta Yes
 .It Ic then Ta \&No Ta \&No Ta Yes
 .It Ic time Ta Yes Ta Yes Ta \&No
 .It Ic trap Ta \&No Ta \&No Ta Yes
+.It Ic true Ta Yes Ta \&No Ta Yes
 .It Ic type Ta \&No Ta \&No Ta Yes
 .It Ic ulimit Ta \&No Ta \&No Ta Yes
 .It Ic umask Ta \&No Ta Yes Ta Yes
@@ -266,6 +272,7 @@ with the other shells.
 .Sh SEE ALSO
 .Xr csh 1 ,
 .Xr echo 1 ,
+.Xr false 1 ,
 .Xr kill 1 ,
 .Xr login 1 ,
 .Xr nice 1 ,
@@ -274,7 +281,9 @@ with the other shells.
 .Xr printf 1 ,
 .Xr pwd 1 ,
 .Xr sh 1 ,
+.Xr test 1 ,
 .Xr time 1 ,
+.Xr true 1 ,
 .Xr which 1
 .Sh HISTORY
 The
