@@ -835,9 +835,9 @@ npx_intr(dummy)
 		 *
 		 * Treat them like a true async interrupt.
 		 */
-		PROC_LOCK(p);
+		PROC_LOCK(curproc);
 		psignal(curproc, SIGFPE);
-		PROC_UNLOCK(p);
+		PROC_UNLOCK(curproc);
 	}
 	mtx_unlock(&Giant);
 }
