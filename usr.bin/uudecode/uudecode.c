@@ -140,7 +140,7 @@ decode2(flag)
 {
 	struct passwd *pw;
 	register int n;
-	register char ch, first, *p;
+	register char ch, *p;
 	int ignore, mode, n1;
 	char buf[MAXPATHLEN];
 	char buffn[MAXPATHLEN]; /* file name buffer */
