@@ -100,6 +100,20 @@ below.
 In addition to those mentioned above in
 .Fl F ,
 some extra attributes (setuid bit set, etc.) are also displayed.
+The colorization is dependent on a terminal type with the proper
+.Xr termcap 5
+capabilities.
+The default
+.Dq cons25
+console has the proper capabilities,
+however if you want to display the colors in an
+.Xr xterm 1
+for example,
+you need to set your
+.Ev TERM
+variable to
+.Dq xterm-color .
+Other terminal types may require similar adjustments.
 .It Fl H
 Symbolic links on the command line are followed.  This option is assumed if
 none of the
@@ -478,6 +492,10 @@ a dynamically sized column).  Not all
 columns have changeable widths.  The fields are,
 in order: inode, block count, number of links, user name,
 group name, flags, file size, file name.
+.It Ev TERM
+The
+.Fl G
+option depends on a terminal type with color capabilities.
 .It Ev TZ
 The timezone to use when displaying dates.
 See
@@ -492,6 +510,8 @@ specification.
 .Sh SEE ALSO
 .Xr chflags 1 ,
 .Xr chmod 1 ,
+.Xr xterm 1 ,
+.Xr termcap 5 ,
 .Xr symlink 7 ,
 .Xr sticky 8
 .Sh HISTORY
