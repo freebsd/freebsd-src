@@ -93,6 +93,7 @@ __weak_reference(__pthread_mutex_unlock, pthread_mutex_unlock);
 /* No difference between libc and application usage of these: */
 __weak_reference(_pthread_mutex_init, pthread_mutex_init);
 __weak_reference(_pthread_mutex_destroy, pthread_mutex_destroy);
+__weak_reference(_pthread_mutex_timedlock, pthread_mutex_timedlock);
 
 
 /*
@@ -553,6 +554,28 @@ _pthread_mutex_lock(pthread_mutex_t *mutex)
 		_thread_sigunblock();
 
 	return (ret);
+}
+
+int
+_pthread_mutex_timedlock(pthread_mutex_t *mutex, const struct timespec *abstime)
+{
+	int error;
+
+	error = 0;
+	if (_thread_initial == NULL)
+		_thread_init();
+
+	/*
+	 * Initialize it if it's a valid statically inited mutex.
+	 */
+	if (mutex == NULL)
+		error = EINVAL;
+	else if ((*mutex != PTHREAD_MUTEX_INITIALIZER) ||
+	    ((error = mutex_init(mutex, 0)) == 0))
+		error = mutex_lock_common(mutex, 0, abstime);
+
+	PTHREAD_ASSERT(error != EINTR, "According to SUSv3 this function shall not return an error code of EINTR");
+	return (error);
 }
 
 int
@@ -1416,6 +1439,15 @@ static int
 get_mcontested(pthread_mutex_t mutexp, const struct timespec *abstime)
 {
 	int error;
+
+	/*
+	 * If the timeout is invalid this thread is not allowed
+	 * to block;
+	 */
+	if (abstime != NULL) {
+		if (abstime->tv_nsec < 0 || abstime->tv_nsec >= 1000000000)
+			return (EINVAL);
+	}
 
 	/*
 	 * Put this thread on the mutex's list of waiting threads.
