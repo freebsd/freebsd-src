@@ -2,7 +2,7 @@
 /*
  * Lexical Analyzer for the Aic7xxx SCSI Host adapter sequencer assembler.
  *
- * Copyright (c) 1997-1998 Justin T. Gibbs.
+ * Copyright (c) 1997, 1998 Justin T. Gibbs.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -13,6 +13,9 @@
  *    without modification.
  * 2. The name of the author may not be used to endorse or promote products
  *    derived from this software without specific prior written permission.
+ *
+ * Alternatively, this software may be distributed under the terms of the
+ * GNU Public License ("GPL").
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -145,6 +148,7 @@ dec			{ return T_DEC; }
 stc			{ return T_STC;	}
 clc			{ return T_CLC; }
 cmp			{ return T_CMP;	}
+not			{ return T_NOT;	}
 xor			{ return T_XOR;	}
 test			{ return T_TEST;}
 and			{ return T_AND;	}

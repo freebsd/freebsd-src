@@ -90,10 +90,10 @@ static int
 aic7770_probe(device_t dev)
 {
 	const char *desc;
-	u_int32_t iobase;
-	u_int32_t irq;
-	u_int8_t intdef;
-	u_int8_t hcntrl;
+	uint32_t iobase;
+	uint32_t irq;
+	uint8_t intdef;
+	uint8_t hcntrl;
 	int shared;
 
 	desc = aic7770_match(eisa_get_id(dev));
@@ -138,7 +138,7 @@ aic7770_probe(device_t dev)
 static int
 aic7770_attach(device_t dev)
 {
-	ahc_chip chip;
+	struct ahc_probe_config probe_config;
 	bus_dma_tag_t parent_dmat;
 	struct ahc_softc *ahc;
 	struct resource *io;
@@ -147,20 +147,27 @@ aic7770_attach(device_t dev)
 	rid = 0;
 	io = NULL;
 	ahc = NULL;
+	ahc_init_probe_config(&probe_config);
 	switch (eisa_get_id(dev)) {
 	case EISA_DEVICE_ID_ADAPTEC_274x:
 	case EISA_DEVICE_ID_ADAPTEC_AIC7770:
-		chip = AHC_AIC7770|AHC_EISA;
+		probe_config.chip = AHC_AIC7770|AHC_EISA;
 		break;
 	case EISA_DEVICE_ID_ADAPTEC_284xB:
 	case EISA_DEVICE_ID_ADAPTEC_284x:
-		chip = AHC_AIC7770|AHC_VL;
+		probe_config.chip = AHC_AIC7770|AHC_VL;
 		break;
 	default: 
 		printf("aic7770_attach: Unknown device type!\n");
 		goto bad;
 	}
 
+	probe_config.description = aic7770_match(eisa_get_id(dev));
+	probe_config.channel = 'A';
+	probe_config.channel_b = 'B';
+	probe_config.features = AHC_AIC7770_FE;
+	probe_config.bugs |= AHC_TMODE_WIDEODD_BUG;
+	probe_config.flags |= AHC_PAGESCBS;
 	/* XXX Should be a child of the EISA bus dma tag */
 	error = bus_dma_tag_create(/*parent*/NULL, /*alignment*/1,
 				   /*boundary*/0,
@@ -186,14 +193,11 @@ aic7770_attach(device_t dev)
 	}
 
 	if (!(ahc = ahc_alloc(dev, io, SYS_RES_IOPORT, rid,
-			      parent_dmat, chip, AHC_AIC7770_FE, AHC_FNONE,
-			      NULL)))
+			      parent_dmat, &probe_config, NULL)))
 		goto bad;
 
 	io = NULL;
 	
-	ahc->channel = 'A';
-	ahc->channel_b = 'B';
 	if (ahc_reset(ahc) != 0) {
 		goto bad;
 	}
@@ -228,7 +232,7 @@ aic7770_attach(device_t dev)
 	 *
 	 * First, the aic7770 card specific setup.
 	 */
-	switch (chip & (AHC_EISA|AHC_VL)) {
+	switch (probe_config.chip & (AHC_EISA|AHC_VL)) {
 	case AHC_EISA:
 	{
 		u_int biosctrl;
@@ -299,8 +303,8 @@ aic7770_attach(device_t dev)
 	 */
 	{
 		char *id_string;
-		u_int8_t sblkctl;
-		u_int8_t sblkctl_orig;
+		uint8_t sblkctl;
+		uint8_t sblkctl_orig;
 
 		sblkctl_orig = ahc_inb(ahc, SBLKCTL);
 		sblkctl = sblkctl_orig ^ AUTOFLUSHDIS;
@@ -322,7 +326,7 @@ aic7770_attach(device_t dev)
 
 	/* Setup the FIFO threshold and the bus off time */
 	{
-		u_int8_t hostconf = ahc_inb(ahc, HOSTCONF);
+		uint8_t hostconf = ahc_inb(ahc, HOSTCONF);
 		ahc_outb(ahc, BUSSPD, hostconf & DFTHRSH);
 		ahc_outb(ahc, BUSTIME, (hostconf << 2) & BOFF);
 	}
@@ -366,8 +370,8 @@ aha2840_load_seeprom(struct ahc_softc *ahc)
 {
 	struct	  seeprom_descriptor sd;
 	struct	  seeprom_config sc;
-	u_int16_t checksum = 0;
-	u_int8_t  scsi_conf;
+	uint16_t checksum = 0;
+	uint8_t  scsi_conf;
 	int	  have_seeprom;
 
 	sd.sd_tag = ahc->tag;
@@ -386,7 +390,7 @@ aha2840_load_seeprom(struct ahc_softc *ahc)
 	if (bootverbose)
 		printf("%s: Reading SEEPROM...", ahc_name(ahc));
 	have_seeprom = read_seeprom(&sd,
-				    (u_int16_t *)&sc,
+				    (uint16_t *)&sc,
 				    /*start_addr*/0,
 				    sizeof(sc)/2);
 
@@ -394,7 +398,7 @@ aha2840_load_seeprom(struct ahc_softc *ahc)
 		/* Check checksum */
 		int i;
 		int maxaddr = (sizeof(sc)/2) - 1;
-		u_int16_t *scarray = (u_int16_t *)&sc;
+		uint16_t *scarray = (uint16_t *)&sc;
 
 		for (i = 0; i < maxaddr; i++)
 			checksum = checksum + scarray[i];
@@ -418,11 +422,11 @@ aha2840_load_seeprom(struct ahc_softc *ahc)
 		 */
 		int i;
 		int max_targ = (ahc->features & AHC_WIDE) != 0 ? 16 : 8;
-		u_int16_t discenable;
+		uint16_t discenable;
 
 		discenable = 0;
 		for (i = 0; i < max_targ; i++){
-	                u_int8_t target_settings;
+	                uint8_t target_settings;
 			target_settings = (sc.device_flags[i] & CFXFER) << 4;
 			if (sc.device_flags[i] & CFSYNCH)
 				target_settings |= SOFS;

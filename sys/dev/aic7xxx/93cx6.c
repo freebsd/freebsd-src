@@ -89,14 +89,14 @@ static struct seeprom_cmd {
 int
 read_seeprom(sd, buf, start_addr, count)
 	struct seeprom_descriptor *sd;
-	u_int16_t *buf;
+	uint16_t *buf;
 	bus_size_t start_addr;
 	bus_size_t count;
 {
 	int i = 0;
 	u_int k = 0;
-	u_int16_t v;
-	u_int8_t temp;
+	uint16_t v;
+	uint8_t temp;
 
 	/*
 	 * Read the requested registers of the seeprom.  The loop

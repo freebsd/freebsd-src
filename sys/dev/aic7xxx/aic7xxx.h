@@ -16,7 +16,7 @@
  *    derived from this software without specific prior written permission.
  *
  * Alternatively, this software may be distributed under the terms of the
- * the GNU Public License ("GPL").
+ * GNU Public License ("GPL").
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -37,6 +37,7 @@
 #define _AIC7XXX_H_
 
 #include "opt_aic7xxx.h"	/* for config options */
+#include "aic7xxx_reg.h"
 
 #include <sys/bus.h>		/* For device_t */
 
@@ -49,20 +50,37 @@
 #endif
 
 /*
+ * The maximum number of supported targets.
+ */
+#define AHC_NUM_TARGETS 16
+
+/*
+ * The maximum number of supported luns.
+ * Although the identify message only supports 64 luns in SPI3, you
+ * can have 2^64 luns when information unit transfers are enabled.
+ * The max we can do sanely given the 8bit nature of the RISC engine
+ * on these chips is 256.
+ */
+#define AHC_NUM_LUNS 256
+
+/*
  * The maximum transfer per S/G segment.
  */
 #define AHC_MAXTRANSFER_SIZE	 0x00ffffff	/* limited by 24bit counter */
 
 /*
- * The number of dma segments supported.  The current implementation limits
- * us to 255 S/G entries (this may change to be unlimited at some point).
- * To reduce the driver's memory consumption, we further limit the number
- * supported to be sufficient to handle the largest mapping supported by
- * the kernel, MAXPHYS.  Assuming the transfer is as fragmented as possible
- * and unaligned, this turns out to be the number of paged sized transfers
- * in MAXPHYS plus an extra element to handle any unaligned residual.
+ * The number of dma segments supported.  The sequencer can handle any number
+ * of physically contiguous S/G entrys.  To reduce the driver's memory
+ * consumption, we limit the number supported to be sufficient to handle
+ * the largest mapping supported by the kernel, MAXPHYS.  Assuming the
+ * transfer is as fragmented as possible and unaligned, this turns out to
+ * be the number of paged sized transfers in MAXPHYS plus an extra element
+ * to handle any unaligned residual.  The sequencer fetches SG elements
+ * in 128 byte chucks, so make the number per-transaction a nice multiple
+ * of 16 (8 byte S/G elements).
  */
-#define AHC_NSEG (MIN(btoc(MAXPHYS) + 1, 255))
+/* XXX Worth the space??? */
+#define AHC_NSEG (roundup(btoc(MAXPHYS) + 1, 16))
 
 #define AHC_SCB_MAX	255	/*
 				 * Up to 255 SCBs on some types of aic7xxx
@@ -79,11 +97,23 @@
 				* wrap point of an 8bit counter.
 				*/
 
+/*
+ * The aic7xxx chips only support a 24bit length.  We use the top
+ * byte of the length to store additional address bits as well
+ * as an indicator if this is the last SG segment in a transfer.
+ * This gives us an addressable range of 512GB on machines with
+ * 64bit PCI or with chips that can support dual address cycles
+ * on 32bit PCI busses.
+ */
 struct ahc_dma_seg {
-	u_int32_t	addr;
-	u_int32_t	len;
+	uint32_t	addr;
+	uint32_t	len;
+#define	AHC_DMA_LAST_SEG	0x80000000
+#define	AHC_SG_HIGH_ADDR_MASK	0x7F000000
+#define	AHC_SG_LEN_MASK		0x00FFFFFF
 };
 
+/* The chip order is from least sophisticated to most sophisticated */
 typedef enum {
 	AHC_NONE	= 0x0000,
 	AHC_CHIPID_MASK	= 0x00FF,
@@ -94,10 +124,10 @@ typedef enum {
 	AHC_AIC7860	= 0x0005,
 	AHC_AIC7870	= 0x0006,
 	AHC_AIC7880	= 0x0007,
-	AHC_AIC7890	= 0x0008,
-	AHC_AIC7892	= 0x0009,
-	AHC_AIC7895	= 0x000a,
-	AHC_AIC7896	= 0x000b,
+	AHC_AIC7895	= 0x0008,
+	AHC_AIC7890	= 0x0009,
+	AHC_AIC7896	= 0x000a,
+	AHC_AIC7892	= 0x000b,
 	AHC_AIC7899	= 0x000c,
 	AHC_VL		= 0x0100,	/* Bus type VL */
 	AHC_EISA	= 0x0200,	/* Bus type EISA */
@@ -123,24 +153,40 @@ typedef enum {
 	AHC_DT		= 0x0800,	/* Double Transition transfers */
 	AHC_NEW_TERMCTL	= 0x1000,
 	AHC_MULTI_FUNC	= 0x2000,	/* Multi-Function Twin Channel Device */
-	AHC_TARG_DMABUG	= 0x4000,	/* WideOdd Data-In bug in TMODE */
-	AHC_AIC7770_FE	= AHC_TARG_DMABUG,
-	AHC_AIC7850_FE	= AHC_TARG_DMABUG|AHC_SPIOCAP,
+	AHC_LARGE_SCBS	= 0x4000,	/* 64byte SCBs */
+	AHC_AIC7770_FE	= AHC_FENONE,
+	AHC_AIC7850_FE	= AHC_SPIOCAP,
 	AHC_AIC7855_FE	= AHC_AIC7850_FE,
 	AHC_AIC7859_FE	= AHC_AIC7850_FE|AHC_ULTRA,
 	AHC_AIC7860_FE	= AHC_AIC7859_FE,
-	AHC_AIC7870_FE	= AHC_TARG_DMABUG,
-	AHC_AIC7880_FE	= AHC_TARG_DMABUG|AHC_ULTRA,
+	AHC_AIC7870_FE	= AHC_FENONE,
+	AHC_AIC7880_FE	= AHC_ULTRA,
 	AHC_AIC7890_FE	= AHC_MORE_SRAM|AHC_CMD_CHAN|AHC_ULTRA2|AHC_QUEUE_REGS
 			  |AHC_SG_PRELOAD|AHC_MULTI_TID|AHC_HS_MAILBOX
-			  |AHC_NEW_TERMCTL,
+			  |AHC_NEW_TERMCTL|AHC_LARGE_SCBS,
 	AHC_AIC7892_FE	= AHC_AIC7890_FE|AHC_DT,
 	AHC_AIC7895_FE	= AHC_AIC7880_FE|AHC_MORE_SRAM
-			  |AHC_CMD_CHAN|AHC_MULTI_FUNC,
+			  |AHC_CMD_CHAN|AHC_MULTI_FUNC|AHC_LARGE_SCBS,
 	AHC_AIC7895C_FE	= AHC_AIC7895_FE|AHC_MULTI_TID,
 	AHC_AIC7896_FE	= AHC_AIC7890_FE|AHC_MULTI_FUNC,
 	AHC_AIC7899_FE	= AHC_AIC7892_FE|AHC_MULTI_FUNC
 } ahc_feature;
+
+typedef enum {
+	AHC_BUGNONE		= 0x00,
+	/*
+	 * On all chips prior to the U2 product line,
+	 * the WIDEODD S/G segment feature does not
+	 * work during scsi->HostBus transfers.
+	 */
+	AHC_TMODE_WIDEODD_BUG	= 0x01,
+	/*
+	 * On the aic7890/91 Rev 0 chips, the autoflush
+	 * feature does not work.  A manual flush of
+	 * the DMA FIFO is required.
+	 */
+	AHC_AUTOFLUSH_BUG	= 0x02
+} ahc_bug;
 
 typedef enum {
 	AHC_FNONE		= 0x000,
@@ -179,7 +225,22 @@ typedef enum {
 					   * Internal 50pin connector
 					   * sits behind an aic3860
 					   */
+	AHC_SCB_BTT		= 0x40000 /*
+					   * The busy targets table is
+					   * stored in SCB space rather
+					   * than SRAM.
+					   */
 } ahc_flag;
+
+struct ahc_probe_config {
+	const char	*description;
+	char		 channel;
+	char		 channel_b;
+	ahc_chip	 chip;
+	ahc_feature	 features;
+	ahc_bug		 bugs;
+	ahc_flag	 flags;
+};
 
 typedef enum {
 	SCB_FREE		= 0x0000,
@@ -194,6 +255,7 @@ typedef enum {
 	SCB_DEVICE_RESET	= 0x0004,
 	SCB_SENSE		= 0x0008,
 	SCB_RECOVERY_SCB	= 0x0040,
+	SCB_NEGOTIATE		= 0x0080,
 	SCB_ABORT		= 0x1000,
 	SCB_QUEUED_MSG		= 0x2000,
 	SCB_ACTIVE		= 0x4000,
@@ -204,57 +266,116 @@ typedef enum {
  * The driver keeps up to MAX_SCB scb structures per card in memory.  The SCB
  * consists of a "hardware SCB" mirroring the fields availible on the card
  * and additional information the kernel stores for each transaction.
+ *
+ * To minimize space utilization, a portion of the hardware scb stores
+ * different data during different portions of a SCSI transaction.
+ * As initialized by the host driver for the initiator role, this area
+ * contains the SCSI cdb (or pointer to the  cdb) to be executed.  After
+ * the cdb has been presented to the target, this area serves to store
+ * residual transfer information and the SCSI status byte.
+ * For the target role, the contents of this area do not change, but
+ * still serve a different purpose than for the initiator role.  See
+ * struct target_data for details.
  */
+
+struct status_pkt {
+	uint32_t	residual_datacnt;
+	uint32_t	residual_sg_ptr;
+	uint8_t	scsi_status;
+};
+
+struct target_data {
+	uint8_t	target_phases;
+	uint8_t	data_phase;
+	uint8_t	scsi_status;
+	uint8_t	initiator_tag;
+};
+
 struct hardware_scb {
-/*0*/   u_int8_t  control;
-/*1*/	u_int8_t  tcl;		/* 4/1/3 bits */
-/*2*/	u_int8_t  status;
-/*3*/	u_int8_t  SG_count;
-/*4*/	u_int32_t SG_pointer;
-/*8*/	u_int8_t  residual_SG_count;
-/*9*/	u_int8_t  residual_data_count[3];
-/*12*/	u_int32_t data;
-/*16*/	u_int32_t datalen;		/* Really only three bytes, but its
-					 * faster to treat it as a long on
-					 * a quad boundary.
+/*0*/   uint8_t  control;
+/*1*/	uint8_t  scsiid;	/* what to load in the SCSIID register */
+/*2*/	uint8_t  lun;
+/*3*/	uint8_t  cdb_len;
+/*4*/	union {
+		/*
+		 * 12 bytes of cdb information only
+		 * used on chips with 32byte SCBs.
+		 */
+		uint8_t	cdb[12];
+		uint32_t	cdb_ptr;
+		struct		status_pkt status;
+		struct		target_data tdata;
+	} shared_data;
+/*
+ * A word about residuals.  The scb is presented to the sequencer with
+ * the dataptr and datacnt fields initialized to the contents of the
+ * first S/G element to transfer.  The sgptr field is initialized to
+ * the bus address for the S/G element that follows the first in the
+ * in core S/G array or'ed with the SG_FULL_RESID flag.  Sgptr may point
+ * to an invalid S/G entry for this transfer.  If no transfer is to occur,
+ * sgptr is set to SG_LIST_NULL.  The SG_FULL_RESID flag insures that
+ * the residual will be correctly noted even if no data transfers occur.
+ * Once the data phase is entered, the residual sgptr and datacnt are
+ * loaded from the sgptr and the datacnt fields.  After each S/G element's
+ * dataptr and length are loaded into the hardware, the residual sgptr
+ * is advanced.  After each S/G element is expired, its datacnt field
+ * is checked to see if the LAST_SEG flag is set.  If so, SG_LIST_NULL
+ * is set in the residual sg ptr and the transfer is considered complete.
+ * If the sequencer determines that three is a residual in the tranfer,
+ * it will set the SG_RESID_VALID flag in sgptr and dma the scb back into
+ * host memory.  To sumarize:
+ *
+ * Sequencer:
+ *	o A residual has occurred if SG_FULL_RESID is set in sgptr,
+ *	  or residual_sgptr does not have SG_LIST_NULL set.
+ *
+ *	o We are transfering the last segment if residual_datacnt has
+ *	  the SG_LAST_SEG flag set.
+ *
+ * Host:
+ *	o A residual has occurred if a completed scb has the
+ *	  SG_RESID_VALID flag set.
+ *
+ *	o residual_sgptr and sgptr refer to the "next" sg entry
+ *	  and so may point beyond the last valid sg entry for the
+ *	  transfer.
+ */ 
+/*16*/	uint32_t dataptr;
+/*20*/	uint32_t datacnt;		/*
+					 * The highest address byte is
+					 * really the 5th. byte in the
+					 * dataptr.
 					 */
-/*20*/	u_int32_t cmdpointer;
-/*24*/	u_int8_t  cmdlen;
-/*25*/	u_int8_t  tag;			/* Index into our kernel SCB array.
+/*24*/	uint32_t sgptr;
+#define SG_PTR_MASK	0xFFFFFFF8
+/*28*/	uint8_t  tag;			/* Index into our kernel SCB array.
 					 * Also used as the tag for tagged I/O
 					 */
-/*26*/	u_int8_t  next;			/* Used for threading SCBs in the
+/*29*/	uint8_t  scsirate;		/* Value for SCSIRATE register */
+/*30*/	uint8_t  scsioffset;		/* Value for SCSIOFFSET register */
+/*31*/	uint8_t  next;			/* Used for threading SCBs in the
 					 * "Waiting for Selection" and
 					 * "Disconnected SCB" lists down
 					 * in the sequencer.
 					 */
-/*27*/	u_int8_t  scsirate;		/* Value for SCSIRATE register */
-/*28*/	u_int8_t  scsioffset;		/* Value for SCSIOFFSET register */
-/*29*/	u_int8_t  spare[3];		/*
-					 * Spare space available on
-					 * all controller types.
-					 */
-/*32*/	u_int8_t  cmdstore[16];		/*
+/*32*/	uint8_t  cdb32[32];		/*
 					 * CDB storage for controllers
 					 * supporting 64 byte SCBs.
-					 */
-/*48*/	u_int32_t cmdstore_busaddr;	/*
-					 * Address of command store for
-					 * 32byte SCB adapters
-					 */
-/*48*/	u_int8_t  spare_64[12];		/*
-					 * Pad to 64 bytes.
 					 */
 };
 
 struct scb {
 	struct	hardware_scb	*hscb;
-	SLIST_ENTRY(scb)	 links;	 /* for chaining */
+	union {
+		SLIST_ENTRY(scb)	 sle;
+		TAILQ_ENTRY(scb)	 tqe;
+	} links;
 	union ccb		*ccb;	 /* the ccb for this cmd */
 	scb_flag		 flags;
 	bus_dmamap_t		 dmamap;
 	struct	ahc_dma_seg 	*sg_list;
 	bus_addr_t		 sg_list_phys;
+	bus_addr_t		 cdb32_busaddr;
 	u_int			 sg_count;/* How full ahc_dma_seg is */
 };
 
@@ -267,12 +388,11 @@ struct scb {
  * which only has limited direct access to the DMA FIFO.
  */
 struct target_cmd {
-	u_int8_t initiator_channel;
-	u_int8_t targ_id;	/* Target ID we were selected at */
-	u_int8_t identify;	/* Identify message */
-	u_int8_t bytes[21];
-	u_int8_t cmd_valid;
-	u_int8_t pad[7];
+	uint8_t scsiid;
+	uint8_t identify;	/* Identify message */
+	uint8_t bytes[22];
+	uint8_t cmd_valid;
+	uint8_t pad[7];
 };
 
 /*
@@ -281,10 +401,10 @@ struct target_cmd {
  */
 #define AHC_TMODE_EVENT_BUFFER_SIZE 8
 struct ahc_tmode_event {
-	u_int8_t initiator_id;
-	u_int8_t event_type;	/* MSG type or EVENT_TYPE_BUS_RESET */
+	uint8_t initiator_id;
+	uint8_t event_type;	/* MSG type or EVENT_TYPE_BUS_RESET */
 #define	EVENT_TYPE_BUS_RESET 0xFF
-	u_int8_t event_arg;
+	uint8_t event_arg;
 };
 
 /*
@@ -296,8 +416,8 @@ struct tmode_lstate {
 	struct ccb_hdr_slist accept_tios;
 	struct ccb_hdr_slist immed_notifies;
 	struct ahc_tmode_event event_buffer[AHC_TMODE_EVENT_BUFFER_SIZE];
-	u_int8_t event_r_idx;
-	u_int8_t event_w_idx;
+	uint8_t event_r_idx;
+	uint8_t event_w_idx;
 };
 
 #define AHC_TRANS_CUR		0x01	/* Modify current neogtiation status */
@@ -306,14 +426,16 @@ struct tmode_lstate {
 #define AHC_TRANS_USER		0x08	/* Modify user negotiation settings */
 
 struct ahc_transinfo {
-	u_int8_t width;
-	u_int8_t period;
-	u_int8_t offset;
-	u_int8_t ppr_flags;
+	uint8_t protocol_version;
+	uint8_t transport_version;
+	uint8_t width;
+	uint8_t period;
+	uint8_t offset;
+	uint8_t ppr_options;
 };
 
 struct ahc_initiator_tinfo {
-	u_int8_t scsirate;
+	uint8_t scsirate;
 	struct ahc_transinfo current;
 	struct ahc_transinfo goal;
 	struct ahc_transinfo user;
@@ -326,15 +448,15 @@ struct ahc_initiator_tinfo {
  * are the initiator).
  */
 struct tmode_tstate {
-	struct tmode_lstate*		enabled_luns[8];
+	struct tmode_lstate*		enabled_luns[64];
 	struct ahc_initiator_tinfo	transinfo[16];
 
 	/*
 	 * Per initiator state bitmasks.
 	 */
-	u_int16_t		 ultraenb;	/* Using ultra sync rate  */
-	u_int16_t	 	 discenable;	/* Disconnection allowed  */
-	u_int16_t		 tagenable;	/* Tagged Queuing allowed */
+	uint16_t		 ultraenb;	/* Using ultra sync rate  */
+	uint16_t	 	 discenable;	/* Disconnection allowed  */
+	uint16_t		 tagenable;	/* Tagged Queuing allowed */
 };
 
 /*
@@ -345,7 +467,7 @@ struct seeprom_config {
 /*
  * SCSI ID Configuration Flags
  */
-	u_int16_t device_flags[16];	/* words 0-15 */
+	uint16_t device_flags[16];	/* words 0-15 */
 #define		CFXFER		0x0007	/* synchronous transfer rate */
 #define		CFSYNCH		0x0008	/* enable synchronous transfer */
 #define		CFDISC		0x0010	/* enable disconnection */
@@ -355,28 +477,29 @@ struct seeprom_config {
 #define		CFSTART		0x0100	/* send start unit SCSI command */
 #define		CFINCBIOS	0x0200	/* include in BIOS scan */
 #define		CFRNFOUND	0x0400	/* report even if not found */
-#define		CFMULTILUN	0x0800	/* Probe multiple luns in BIOS scan */
+#define		CFMULTILUNDEV	0x0800	/* Probe multiple luns in BIOS scan */
 #define		CFWBCACHEENB	0x4000	/* Enable W-Behind Cache on disks */
 #define		CFWBCACHENOP	0xc000	/* Don't touch W-Behind Cache */
 
 /*
  * BIOS Control Bits
  */
-	u_int16_t bios_control;		/* word 16 */
+	uint16_t bios_control;		/* word 16 */
 #define		CFSUPREM	0x0001	/* support all removeable drives */
 #define		CFSUPREMB	0x0002	/* support removeable boot drives */
 #define		CFBIOSEN	0x0004	/* BIOS enabled */
 /*		UNUSED		0x0008	*/
 #define		CFSM2DRV	0x0010	/* support more than two drives */
 #define		CF284XEXTEND	0x0020	/* extended translation (284x cards) */	
-/*		UNUSED		0x0040	*/
+#define		CFSTPWLEVEL	0x0010	/* Termination level control */
 #define		CFEXTEND	0x0080	/* extended translation enabled */
+#define		CFSCAMEN	0x0100	/* SCAM enable */
 /*		UNUSED		0xff00	*/
 
 /*
  * Host Adapter Control Bits
  */
-	u_int16_t adapter_control;	/* word 17 */	
+	uint16_t adapter_control;	/* word 17 */	
 #define		CFAUTOTERM	0x0001	/* Perform Auto termination */
 #define		CFULTRAEN	0x0002	/* Ultra SCSI speed enable */
 #define		CF284XSELTO     0x0003	/* Selection timeout (284x cards) */
@@ -385,16 +508,19 @@ struct seeprom_config {
 #define		CFWSTERM	0x0008	/* SCSI high byte termination */
 #define		CFSPARITY	0x0010	/* SCSI parity */
 #define		CF284XSTERM     0x0020	/* SCSI low byte term (284x cards) */	
+#define		CFMULTILUN	0x0020	/* SCSI low byte term (284x cards) */	
 #define		CFRESETB	0x0040	/* reset SCSI bus at boot */
+#define		CFCLUSTERENB	0x0080	/* Cluster Enable */
 #define		CFCHNLBPRIMARY	0x0100	/* aic7895 probe B channel first */
-#define		CFSEAUTOTERM	0x0400	/* aic7890 Perform SE Auto Termination*/
-#define		CFLVDSTERM	0x0800	/* aic7890 LVD Termination */
-/*		UNUSED		0xf280	*/
+#define		CFSEAUTOTERM	0x0400	/* Ultra2 Perform secondary Auto Term*/
+#define		CFSELOWTERM	0x0800	/* Ultra2 secondary low term */
+#define		CFSEHIGHTERM	0x1000	/* Ultra2 secondary high term */
+#define		CFDOMAINVAL	0x4000	/* Perform Domain Validation*/
 
 /*
  * Bus Release, Host Adapter ID
  */
-	u_int16_t brtime_id;		/* word 18 */
+	uint16_t brtime_id;		/* word 18 */
 #define		CFSCSIID	0x000f	/* host adapter SCSI ID */
 /*		UNUSED		0x00f0	*/
 #define		CFBRTIME	0xff00	/* bus release time */
@@ -402,20 +528,24 @@ struct seeprom_config {
 /*
  * Maximum targets
  */
-	u_int16_t max_targets;		/* word 19 */	
+	uint16_t max_targets;		/* word 19 */	
 #define		CFMAXTARG	0x00ff	/* maximum targets */
-/*		UNUSED		0xff00	*/
-	u_int16_t res_1[11];		/* words 20-30 */
-	u_int16_t checksum;		/* word 31 */
+#define		CFBOOTLUN	0x0f00	/* Lun to boot from */
+#define		CFBOOTID	0xf000	/* Target to boot from */
+	uint16_t res_1[10];		/* words 20-29 */
+	uint16_t signature;		/* Signature == 0x250 */
+#define		CFSIGNATURE	0x250
+	uint16_t checksum;		/* word 31 */
 };
 
 struct ahc_syncrate {
-	int sxfr_u2;
-	int sxfr;
+	u_int sxfr_u2;
+	u_int sxfr;
 	/* Rates in Ultra mode have bit 8 of sxfr set */
 #define		ULTRA_SXFR 0x100
-#define		ST_SXFR	   0x010
-	u_int8_t period; /* Period to send to SCSI target */
+#define		ST_SXFR	   0x010	/* Rate Single Transition Only */
+#define		DT_SXFR	   0x040	/* Rate Double Transition Only */
+	uint8_t period; /* Period to send to SCSI target */
 	char *rate;
 };
 
@@ -454,13 +584,15 @@ struct scb_data {
 	bus_addr_t	 sense_busaddr;
 	bus_dma_tag_t	 sg_dmat;	/* dmat for our sg segments */
 	SLIST_HEAD(, sg_map_node) sg_maps;
-	u_int8_t	numscbs;
-	u_int8_t	maxhscbs;	/* Number of SCBs on the card */
-	u_int8_t	init_level;	/*
+	uint8_t	numscbs;
+	uint8_t	maxhscbs;	/* Number of SCBs on the card */
+	uint8_t	init_level;	/*
 					 * How far we've initialized
 					 * this structure.
 					 */
 };
+
+TAILQ_HEAD(scb_tailq, scb);
 
 struct ahc_softc {
 	bus_space_tag_t		 tag;
@@ -472,6 +604,23 @@ struct ahc_softc {
 	 * CCBs that have been send to the controller
 	 */
 	LIST_HEAD(, ccb_hdr)	 pending_ccbs;
+
+	/*
+	 * Counting lock for deferring the release of additional
+	 * untagged transactions from the untagged_queues.  When
+	 * the lock is decremented to 0, all queues in the
+	 * untagged_queues array are run.
+	 */
+	u_int			 untagged_queue_lock;
+
+	/*
+	 * Per-target queue of untagged-transactions.  The
+	 * transaction at the head of the queue is the
+	 * currently pending untagged transaction for the
+	 * target.  The driver only allows a single untagged
+	 * transaction per target.
+	 */
+	struct scb_tailq	 untagged_queues[16];
 
 	/*
 	 * Target mode related state kept on a per enabled lun basis.
@@ -498,23 +647,18 @@ struct ahc_softc {
 	 */
 	ahc_chip		 chip;
 	ahc_feature		 features;
+	ahc_bug			 bugs;
 	ahc_flag		 flags;
 
 	/* Values to store in the SEQCTL register for pause and unpause */
-	u_int8_t		 unpause;
-	u_int8_t		 pause;
+	uint8_t		 unpause;
+	uint8_t		 pause;
 
 	/* Command Queues */
-	u_int8_t		 qoutfifonext;
-	u_int8_t		 qinfifonext;
-	u_int8_t		*qoutfifo;
-	u_int8_t		*qinfifo;
-
-	/*
-	 * 256 byte array storing the SCBID of outstanding
-	 * untagged SCBs indexed by TCL.
-	 */	
-	u_int8_t		 *untagged_scbs;
+	uint8_t		 qoutfifonext;
+	uint8_t		 qinfifonext;
+	uint8_t		*qoutfifo;
+	uint8_t		*qinfifo;
 
 	/*
 	 * Hooks into the XPT.
@@ -531,11 +675,11 @@ struct ahc_softc {
 	char			 channel_b;
 
 	/* Initiator Bus ID */
-	u_int8_t		 our_id;
-	u_int8_t		 our_id_b;
+	uint8_t		 our_id;
+	uint8_t		 our_id_b;
 
 	/* Targets that need negotiation messages */
-	u_int16_t		 targ_msg_req;
+	uint16_t		 targ_msg_req;
 
 	/*
 	 * PCI error detection and data for running the
@@ -548,15 +692,15 @@ struct ahc_softc {
 	 * Target incoming command FIFO.
 	 */
 	struct target_cmd	*targetcmds;
-	u_int8_t		 tqinfifonext;
+	uint8_t		 tqinfifonext;
 
 	/*
 	 * Incoming and outgoing message handling.
 	 */
-	u_int8_t		 send_msg_perror;
+	uint8_t		 send_msg_perror;
 	ahc_msg_type		 msg_type;
-	u_int8_t		 msgout_buf[8];	/* Message we are sending */
-	u_int8_t		 msgin_buf[8];	/* Message we are receiving */
+	uint8_t		 msgout_buf[8];	/* Message we are sending */
+	uint8_t		 msgin_buf[8];	/* Message we are receiving */
 	u_int			 msgout_len;	/* Length of message to send */
 	u_int			 msgout_index;	/* Current index in msgout */
 	u_int			 msgin_index;	/* Current index in msgin */
@@ -579,8 +723,8 @@ struct ahc_softc {
 	/* Initialization level of this data structure */
 	u_int			 init_level;
 
-	u_int16_t	 	 user_discenable;/* Disconnection allowed  */
-	u_int16_t		 user_tagenable;/* Tagged Queuing allowed */
+	uint16_t	 	 user_discenable;/* Disconnection allowed  */
+	uint16_t		 user_tagenable;/* Tagged Queuing allowed */
 };
 
 struct full_ahc_softc {
@@ -601,20 +745,6 @@ struct full_ahc_softc {
 extern int ahc_debug; /* Initialized in i386/scsi/aic7xxx.c */
 #endif
 
-char *ahc_name(struct ahc_softc *ahc);
-
-struct ahc_softc*
-	ahc_alloc(device_t dev, struct resource *regs, int regs_type,
-		  int regs_id, bus_dma_tag_t parent_dmat, ahc_chip chip,
-		  ahc_feature features, ahc_flag flags,
-		  struct scb_data *scb_data);
-int	ahc_reset(struct ahc_softc *ahc);
-void	ahc_free(struct ahc_softc *);
-int	ahc_probe_scbs(struct ahc_softc *);
-int	ahc_init(struct ahc_softc *);
-int	ahc_attach(struct ahc_softc *);
-void	ahc_intr(void *arg);
-
 #define ahc_inb(ahc, port)				\
 	bus_space_read_1((ahc)->tag, (ahc)->bsh, port)
 
@@ -626,5 +756,65 @@ void	ahc_intr(void *arg);
 
 #define ahc_insb(ahc, port, valp, count)		\
 	bus_space_read_multi_1((ahc)->tag, (ahc)->bsh, port, valp, count)
+
+char *ahc_name(struct ahc_softc *ahc);
+
+void	ahc_init_probe_config(struct ahc_probe_config *config);
+struct ahc_softc*
+	ahc_alloc(device_t dev, struct resource *regs, int regs_type,
+		  int regs_id, bus_dma_tag_t parent_dmat, 
+		  struct ahc_probe_config *config, struct scb_data *scb_data);
+int	ahc_reset(struct ahc_softc *ahc);
+void	ahc_free(struct ahc_softc *);
+int	ahc_probe_scbs(struct ahc_softc *);
+int	ahc_init(struct ahc_softc *);
+int	ahc_attach(struct ahc_softc *);
+void	ahc_intr(void *arg);
+static __inline int  sequencer_paused(struct ahc_softc *ahc);
+static __inline void ahc_pause_bug_fix(struct ahc_softc *ahc);
+static __inline void pause_sequencer(struct ahc_softc *ahc);
+static __inline void unpause_sequencer(struct ahc_softc *ahc);
+
+static __inline void
+ahc_pause_bug_fix(struct ahc_softc *ahc)
+{
+	/*
+	 * Clear the CIOBUS stretch signal by reading a register that will
+	 * set this signal and deassert it.  Without this workaround, if
+	 * the chip is paused, by an interrupt or manual pause, while
+	 * accessing scb ram, then accesses to certain registers will hang
+	 * the system (infinite pci retries).
+	 */
+	if ((ahc->features & AHC_ULTRA2) != 0)
+		(void)ahc_inb(ahc, CCSCBCTL);
+}
+
+static __inline int
+sequencer_paused(struct ahc_softc *ahc)
+{
+	return ((ahc_inb(ahc, HCNTRL) & PAUSE) != 0);
+}
+
+static __inline void
+pause_sequencer(struct ahc_softc *ahc)
+{
+	ahc_outb(ahc, HCNTRL, ahc->pause);
+
+	/*
+	 * Since the sequencer can disable pausing in a critical section, we
+	 * must loop until it actually stops.
+	 */
+	while (sequencer_paused(ahc) == 0)
+		;
+
+	ahc_pause_bug_fix(ahc);
+}
+
+static __inline void
+unpause_sequencer(struct ahc_softc *ahc)
+{
+	if ((ahc_inb(ahc, INTSTAT) & (SCSIINT | SEQINT | BRKADRINT)) == 0)
+		ahc_outb(ahc, HCNTRL, ahc->unpause);
+}
 
 #endif  /* _AIC7XXX_H_ */
