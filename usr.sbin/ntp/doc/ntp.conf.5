@@ -172,7 +172,8 @@ Note that local
 broadcast messages go only to the interface associated with the
 subnet specified, but multicast messages go to all interfaces.
 In broadcast mode the local server sends periodic broadcast
-messages to a client population at the <i><tt>address</tt></i>
+messages to a client population at the
+.Ar address
 specified, which is usually the broadcast address on (one of) the
 local network(s) or a multicast address assigned to NTP.
 The IANA
@@ -251,7 +252,7 @@ This is designed to speed the
 initial synchronization acquisition with the
 .Ic server
 command and s addresses and when
-.Nm
+.Xr ntpd 8
 is started
 with the
 .Fl q
@@ -323,7 +324,7 @@ authentication as described in
 This command enables reception of manycast client messages to
 the multicast group address(es) (type m) specified.
 At least one
-address is required, but The NTP multicast address 224.0.1.1
+address is required, but the NTP multicast address 224.0.1.1
 assigned by the IANA should NOT be used, unless specific means are
 taken to limit the span of the reply and avoid a possibly massive
 implosion at the original sender.
@@ -567,8 +568,7 @@ While this file is not used with the Autokey scheme, it is
 needed to authenticate some remote configuration commands used by
 the
 .Xr ntpdc 8 ,
-.Xr ntpq 8 ,
-.Xr ntpdc 8
+.Xr ntpq 8
 utilities.
 The
 .Pa ntpkey
@@ -876,7 +876,7 @@ arguments are 32-bit unsigned
 integers with values from 1 to 65,534.
 .El
 .Sh Monitoring Support
-.Xr ntpd 8   
+.Xr ntpd 8
 includes a comprehensive monitoring facility suitable
 for continuous, long term recording of server and client
 timekeeping performance.
@@ -952,7 +952,8 @@ form to the file generation set named clockstats:
 The first two fields show the date (Modified Julian Day) and
 time (seconds and fraction past UTC midnight).
 The next field shows
-the clock address in dotted-quad notation, The final field shows
+the clock address in dotted-quad notation.
+The final field shows
 the last timecode received from the clock in decoded ASCII format,
 where meaningful.
 In some clock drivers a good deal of additional
@@ -974,7 +975,8 @@ The first two fields show the date (Modified Julian Day) and
 time (seconds and fraction past UTC midnight).
 The next two fields
 show the remote peer or clock address followed by the local address
-in dotted-quad notation, The final four fields show the originate,
+in dotted-quad notation.
+The final four fields show the originate,
 receive, transmit and final NTP timestamps in order.
 The timestamp
 values are as received and before processing by the various data
@@ -1011,7 +1013,7 @@ This way, information stored in elements
 of a file set that are currently unused are available for
 administrational operations without the risk of disturbing the
 operation of
-.Xr ntpd 8  . 
+.Xr ntpd 8 . 
 (Most important: they can be removed to
 free space for new data produced.)
 Note that this command can be sent from the
@@ -1217,7 +1219,7 @@ for this purpose called the kiss-of-death packet.
 If the
 .Cm kod
 flag is set and either service is denied or the client
-limit is exceeded, the server it returns the packet and sets the
+limit is exceeded, the server returns the packet and sets the
 leap bits unsynchronized, stratum zero and the ASCII string "DENY"
 in the reference source identifier field.
 If the
@@ -1518,7 +1520,7 @@ The
 .Cm refid
 and
 .Cm stratum
-options control can be used to
+options can be used to
 override the defaults for the device.
 There are two optional
 device-dependent time offsets and four flags that can be included
@@ -1785,7 +1787,7 @@ Ordinarily,
 support for this routine is detected automatically when the NTP
 daemon is compiled, so it is not necessary for the user to worry
 about this flag.
-It flag is provided primarily so that this support
+It is provided primarily so that this support
 can be disabled during kernel development.
 The default for this
 flag is
