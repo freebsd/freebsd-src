@@ -2,9 +2,6 @@
 
 SUBDIR=	B DB_File Dumper Errno Fcntl IO SysV NDBM_File Opcode POSIX \
 	SDBM_File Socket attrs re
-.if defined(${PERL_THREADED}) && ${PERL_THREADED} == "yes"
-SUBDIR+=Thread
-.endif
 
 all:	man3pages
 	
