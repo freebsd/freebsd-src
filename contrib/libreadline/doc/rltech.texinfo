@@ -167,6 +167,13 @@ programs.  This section describes the various functions and variables
 defined within the Readline library which allow a user program to add
 customized functionality to Readline.
 
+Before declaring any functions that customize Readline's behavior, or
+using any functionality Readline provides in other code, an
+application writer should include the file @code{<readline/readline.h>}
+in any file that uses Readline's features.  Since some of the definitions
+in @code{readline.h} use the @code{stdio} library, the file
+@code{<stdio.h>} should be included before @code{readline.h}.
+
 @menu
 * The Function Type::	C declarations to make code readable.
 * Function Writing::	Variables and calling conventions.
@@ -241,7 +248,9 @@ These variables are available to function writers.
 
 @deftypevar {char *} rl_line_buffer
 This is the line gathered so far.  You are welcome to modify the
-contents of the line, but see @ref{Allowing Undoing}.
+contents of the line, but see @ref{Allowing Undoing}.  The
+function @code{rl_extend_line_buffer} is available to increase
+the memory allocated to @code{rl_line_buffer}.
 @end deftypevar
 
 @deftypevar int rl_point
@@ -280,6 +289,16 @@ the beginning of the newly-blank line.
 @deftypevar {char *} rl_prompt
 The prompt Readline uses.  This is set from the argument to
 @code{readline ()}, and should not be assigned to directly.
+@end deftypevar
+
+@deftypevar int rl_already_prompted
+If an application wishes to display the prompt itself, rather than have
+Readline do it the first time @code{readline()} is called, it should set
+this variable to a non-zero value after displaying the prompt.
+The prompt must also be passed as the argument to @code{readline()} so
+the redisplay functions can update the display properly.
+The calling application is responsible for managing the value; Readline
+never sets it.
 @end deftypevar
 
 @deftypevar {char *} rl_library_version
@@ -447,6 +466,13 @@ several internal keymaps: @code{emacs_standard_keymap},
 @code{emacs_standard_keymap} is the default, and the examples in
 this manual assume that.
 
+Since @code{readline} installs a set of default key bindings the first
+time it is called, there is always the danger that a custom binding
+installed before the first call to @code{readline} will be overridden.
+An alternate mechanism is to install custom key bindings in an
+initialization function assigned to the @code{rl_startup_hook} variable
+(@pxref{Readline Variables}).
+
 These functions manage key bindings.
 
 @deftypefun int rl_bind_key (int key, Function *function)
@@ -534,6 +560,12 @@ the list is formatted in such a way that it can be made part of an
 Print the names of all bindable Readline functions to @code{rl_outstream}.
 @end deftypefun
 
+@deftypefun {char **} rl_funmap_names ()
+Return a NULL terminated array of known function names.  The array is
+sorted.  The array itself is allocated, but not the strings inside.  You
+should free () the array when you done, but not the pointrs.
+@end deftypefun
+
 @node Allowing Undoing
 @subsection Allowing Undoing
 
@@ -615,8 +647,17 @@ Readline thinks the screen display is correct.
 @end deftypefun
 
 @deftypefun int rl_on_new_line ()
-Tell the update routines that we have moved onto a new (empty) line,
+Tell the update functions that we have moved onto a new (empty) line,
 usually after ouputting a newline.
+@end deftypefun
+
+@deftypefun int rl_on_new_line_with_prompt ()
+Tell the update functions that we have moved onto a new line, with
+@var{rl_prompt} already displayed.
+This could be used by applications that want to output the prompt string
+themselves, but still need Readline to know the prompt string length for
+redisplay.
+It should be used after setting @var{rl_already_prompted}.
 @end deftypefun
 
 @deftypefun int rl_reset_line_state ()
@@ -688,7 +729,7 @@ before Readline attempts to read characters from the terminal with
 @code{rl_read_key ()}.
 @end deftypefun
 
-@deftypefun rl_extend_line_buffer (int len)
+@deftypefun int rl_extend_line_buffer (int len)
 Ensure that @code{rl_line_buffer} has enough space to hold @var{len}
 characters, possibly reallocating it if necessary.
 @end deftypefun
@@ -700,6 +741,8 @@ Initialize or re-initialize Readline's internal state.
 @deftypefun int rl_reset_terminal (char *terminal_name)
 Reinitialize Readline's idea of the terminal settings using
 @var{terminal_name} as the terminal type (e.g., @code{vt100}).
+If @var{terminal_name} is NULL, the value of the @code{TERM}
+environment variable is used.
 @end deftypefun
 
 @deftypefun int alphabetic (int c)
@@ -1106,7 +1149,7 @@ for subsequent calls.
 
 @deftypevar {Function *} rl_completion_entry_function
 A pointer to the generator function for @code{completion_matches ()}.
-@code{NULL} means to use @code{filename_entry_function ()}, the default
+@code{NULL} means to use @code{filename_completion_function ()}, the default
 filename completer.
 @end deftypevar
 
