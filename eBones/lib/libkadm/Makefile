@@ -1,19 +1,10 @@
 #	From: @(#)Makefile	5.1 (Berkeley) 6/25/90
-#	$Id$
+#	$Id: Makefile,v 1.4 1995/09/13 17:23:51 markm Exp $
 
 LIB=	kadm
 
-SRCS=	kadm_err.c kadm_stream.c kadm_supp.c kadm_cli_wrap.c krb_err.h
-CFLAGS+=	-I. -I${.CURDIR} -I${.CURDIR}/../../include -DPOSIX -Wall
-CLEANFILES+=	kadm_err.c kadm_err.h krb_err.c krb_err.h
-
-kadm_err.c kadm_err.h:	kadm_err.et
-	test -e kadm_err.et || ln -s ${.CURDIR}/kadm_err.et .
-	compile_et kadm_err.et
-
-krb_err.h:
-	test -e krb_err.et || ln -s ${.CURDIR}/../libkrb/krb_err.et .
-	compile_et krb_err.et
+SRCS=	kadm_err.c kadm_stream.c kadm_supp.c kadm_cli_wrap.c
+CFLAGS+=	-I. -I{.CURDIR} -I${KRBOBJDIR} -DPOSIX
 
 beforeinstall:
 	-cd ${.CURDIR}; cmp -s kadm.h \
@@ -26,3 +17,6 @@ beforeinstall:
 	    ${DESTDIR}/usr/include/kerberosIV
 
 .include <bsd.lib.mk>
+
+kadm_cli_wrap.o: ${KRBOBJDIR}/krb_err.h
+kadm_err.c: ${KADMOBJDIR}/kadm_err.h

@@ -1,8 +1,8 @@
 #	From: @(#)Makefile	5.1 (Berkeley) 6/25/90
-#	$Id$
+#	$Id: Makefile,v 1.8 1995/09/13 17:23:55 markm Exp $
 
 LIB=	krb
-CFLAGS+=-DKERBEROS -DCRYPT -DDEBUG -I${.CURDIR}/../../include -DBSD42 -Wall
+CFLAGS+=-DKERBEROS -DCRYPT -DDEBUG -DBSD42
 SRCS=	krb_err.c create_auth_reply.c create_ciph.c \
 	create_death_packet.c create_ticket.c debug_decl.c decomp_ticket.c \
 	des_rw.c dest_tkt.c extract_ticket.c fgetst.c get_ad_tkt.c \
@@ -16,10 +16,6 @@ SRCS=	krb_err.c create_auth_reply.c create_ciph.c \
 	rd_priv.c rd_req.c rd_safe.c read_service_key.c recvauth.c \
 	save_credentials.c send_to_kdc.c sendauth.c stime.c tf_util.c \
 	tkt_string.c util.c
-
-krb_err.c krb_err.h: krb_err.et
-	test -e krb_err.et || ln -s ${.CURDIR}/krb_err.et .
-	compile_et krb_err.et
 
 LDADD+=	-lcom_err
 
@@ -52,3 +48,6 @@ MLINKS+=tf_util.3 tf_init.3 tf_util.3 tf_get_pname.3 \
 	tf_util.3 tf_close.3
 
 .include <bsd.lib.mk>
+
+krb_err.c: ${KRBOBJDIR}/krb_err.h
+
