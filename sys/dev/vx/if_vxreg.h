@@ -20,70 +20,12 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * $FreeBSD$
- *
- October 2, 1994
-
- Modified by: Andres Vega Garcia
-
- INRIA - Sophia Antipolis, France
- e-mail: avega@sophia.inria.fr
- finger: avega@pax.inria.fr
-
  */
 
 /*
  * Created from if_epreg.h by Fred Gray (fgray@rice.edu) to support the
  * 3c590 family.
  */
-
-/*
- *  Promiscuous mode added and interrupt logic slightly changed
- *  to reduce the number of adapter failures. Transceiver select
- *  logic changed to use value from EEPROM. Autoconfiguration
- *  features added.
- *  Done by:
- *          Serge Babkin
- *          Chelindbank (Chelyabinsk, Russia)
- *          babkin@hq.icb.chel.su
- */
-
-/*
- * Ethernet software status per interface.
- */
-struct vx_softc {
-    struct arpcom arpcom;	/* Ethernet common part		*/
-    int unit;			/* unit number */
-    bus_space_handle_t		vx_bhandle;
-    bus_space_tag_t		vx_btag;
-    void			*vx_intrhand;
-    struct resource		*vx_irq;
-    struct resource		*vx_res;
-#define MAX_MBS  8		/* # of mbufs we keep around	*/
-    struct mbuf *mb[MAX_MBS];	/* spare mbuf storage.		*/
-    int next_mb;		/* Which mbuf to use next. 	*/
-    int last_mb;		/* Last mbuf.			*/
-    char vx_connectors;		/* Connectors on this card.	*/
-    char vx_connector;		/* Connector to use.		*/
-    short tx_start_thresh;	/* Current TX_start_thresh.	*/
-    int	tx_succ_ok;		/* # packets sent in sequence	*/
-				/* w/o underrun			*/
-    struct callout_handle ch;	/* Callout handle for timeouts  */
-    int	buffill_pending;
-};
-
-#define CSR_WRITE_4(sc, reg, val)	\
-	bus_space_write_4(sc->vx_btag, sc->vx_bhandle, reg, val)
-#define CSR_WRITE_2(sc, reg, val)	\
-	bus_space_write_2(sc->vx_btag, sc->vx_bhandle, reg, val)
-#define CSR_WRITE_1(sc, reg, val)	\
-	bus_space_write_1(sc->vx_btag, sc->vx_bhandle, reg, val)
-
-#define CSR_READ_4(sc, reg)		\
-	bus_space_read_4(sc->vx_btag, sc->vx_bhandle, reg)
-#define CSR_READ_2(sc, reg)		\
-	bus_space_read_2(sc->vx_btag, sc->vx_bhandle, reg)
-#define CSR_READ_1(sc, reg)		\
-	bus_space_read_1(sc->vx_btag, sc->vx_bhandle, reg)
 
 /*
  * Some global constants
@@ -100,7 +42,6 @@ struct vx_softc {
 #define MAX_EEPROMBUSY  1000
 #define VX_LAST_TAG     0xd7
 #define VX_MAX_BOARDS   16
-#define VX_ID_PORT      0x100
 
 /*
  * Commands to read/write EEPROM trough EEPROM command register (Window 0,
@@ -112,10 +53,12 @@ struct vx_softc {
 #define EEPROM_CMD_EWEN  0x0030	/* Erase/Write Enable: No data required */
 
 #define EEPROM_BUSY		(1<<15)
+#define EEPROM_TST_MODE		(1<<14)
 
 /*
  * Some short functions, worth to let them be a macro
  */
+#define GO_WINDOW(x)	CSR_WRITE_2(sc, VX_COMMAND, WINDOW_SELECT|(x))
 
 /**************************************************************************
  *									  *
@@ -123,21 +66,47 @@ struct vx_softc {
  * function to verify the existence of the adapter after having sent
  * the ID_Sequence.
  *
- * There are others but only the ones we use are defined here.
- *
  **************************************************************************/
 
 #define EEPROM_NODE_ADDR_0	0x0	/* Word */
 #define EEPROM_NODE_ADDR_1	0x1	/* Word */
 #define EEPROM_NODE_ADDR_2	0x2	/* Word */
 #define EEPROM_PROD_ID		0x3	/* 0x9[0-f]50 */
+#define EEPROM_MFG_DATE         0x4	/* Manufacturing date */
+#define EEPROM_MFG_DIVSION      0x5	/* Manufacturing division */
+#define EEPROM_MFG_PRODUCT      0x6	/* Product code */
 #define EEPROM_MFG_ID		0x7	/* 0x6d50 */
 #define EEPROM_ADDR_CFG		0x8	/* Base addr */
+#define ADDR_CFG_EISA		0x1f
+#define ADDR_CFG_MASK		0x1f
 #define EEPROM_RESOURCE_CFG	0x9	/* IRQ. Bits 12-15 */
-#define EEPROM_OEM_ADDR_0	0xa	/* Word */
-#define EEPROM_OEM_ADDR_1	0xb	/* Word */
-#define EEPROM_OEM_ADDR_2	0xc	/* Word */
-#define EEPROM_SOFT_INFO_2	0xf     /* Software information 2 */
+#define EEPROM_OEM_ADDR0        0xa
+#define EEPROM_OEM_ADDR1        0xb
+#define EEPROM_OEM_ADDR2        0xc
+#define EEPROM_SOFTINFO         0xd
+#define EEPROM_COMPAT           0xe
+#define EEPROM_SOFTINFO2        0xf
+#define EEPROM_CAP              0x10
+#define CAP_ISA		0x2083
+#define CAP_PCMCIA		0x2082
+#define EEPROM_INT_CONFIG_0	0x12
+#define EEPROM_INT_CONFIG_1	0x13
+/* RAM Partition TX FIFO/RX FIFO */
+#define ICW1_RAM_PART_MASK	0x03
+#define ICW1_RAM_PART_35	0x00	/* 2:5 (only legal if RAM size == 000b
+					 * default power-up/reset */
+#define ICW1_RAM_PART_13	0x01	/* 1:3 (only legal if RAM size ==
+					 * 000b) */
+#define ICW1_RAM_PART_11	0x10	/* 1:1		 */
+#define ICW1_RAM_PART_RESV	0x11	/* Reserved	 */
+/* ISA Adapter Selection */
+#define ICW1_IAS_MASK		0x0c
+#define ICW1_IAS_DIS		0x00	/* Both mechanisms disabled (default) */
+#define ICW1_IAS_ISA		0x04	/* ISA contention only */
+#define ICW1_IAS_PNP		0x08	/* ISA Plug and Play only */
+#define ICW1_IAS_BOTH		0x0c	/* Both mechanisms enabled */
+
+#define EEPROM_CHECKSUM_EL3     0x17
 
 #define NO_RX_OVN_ANOMALY       (1<<5)
 
@@ -163,12 +132,11 @@ struct vx_softc {
 #define VX_W0_EEPROM_DATA	0x0c
 #define VX_W0_EEPROM_COMMAND	0x0a
 #define VX_W0_RESOURCE_CFG	0x08
-#define VX_W0_ADDRESS_CFG	0x06 
+#define VX_W0_ADDRESS_CFG	0x06
 #define VX_W0_CONFIG_CTRL	0x04
-        /* Read */
+	/* Read */
 #define VX_W0_PRODUCT_ID	0x02
 #define VX_W0_MFG_ID		0x00
-
 
 /*
  * Window 1 registers. Operating Set.
@@ -196,7 +164,7 @@ struct vx_softc {
 #define VX_W2_ADDR_0		0x00
 
 /*
- * Window 3 registers. FIFO Management.
+ * Window 3 registers.  FIFO Management.
  */
 /* Read */
 #define VX_W3_INTERNAL_CFG	0x00
@@ -335,7 +303,7 @@ struct vx_softc {
  * Window 0/Port 06
  */
 
-#define ACF_CONNECTOR_BITS	14  
+#define ACF_CONNECTOR_BITS	14
 #define ACF_CONNECTOR_UTP	0
 #define ACF_CONNECTOR_AUI	1
 #define ACF_CONNECTOR_BNC	3
@@ -449,7 +417,6 @@ struct vx_softc {
 #define ENABLE_DRQ_IRQ                  0x0001
 #define MFG_ID                          0x506d  /* `TCM' */
 #define PROD_ID                         0x5090
-#define GO_WINDOW(x)		CSR_WRITE_2(sc, VX_COMMAND, WINDOW_SELECT|(x))
 #define JABBER_GUARD_ENABLE	0x40
 #define LINKBEAT_ENABLE		0x80
 #define	ENABLE_UTP		(JABBER_GUARD_ENABLE | LINKBEAT_ENABLE)
@@ -460,10 +427,3 @@ struct vx_softc {
 #define	VX_IOSIZE	0x20
 
 #define VX_CONNECTORS 8
-
-extern u_long vx_count;
-extern void vxfree(struct vx_softc *);
-extern int vxattach(struct vx_softc *);
-extern void vxstop(struct vx_softc *);
-extern void vxintr(void *);
-extern int vxbusyeeprom(struct vx_softc *);

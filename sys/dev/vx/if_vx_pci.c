@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcireg.h>
 
 #include <dev/vx/if_vxreg.h>
+#include <dev/vx/if_vxvar.h>
 
 static void vx_pci_shutdown(device_t);
 static int vx_pci_probe(device_t);
@@ -136,8 +137,8 @@ vx_pci_attach(
     if (sc->vx_res == NULL)
 	goto bad;
 
-    sc->vx_btag = rman_get_bustag(sc->vx_res);
-    sc->vx_bhandle = rman_get_bushandle(sc->vx_res);
+    sc->bst = rman_get_bustag(sc->vx_res);
+    sc->bsh = rman_get_bushandle(sc->vx_res);
 
     rid = 0;
     sc->vx_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
@@ -160,7 +161,7 @@ vx_pci_attach(
 	if (vxbusyeeprom(sc))
 	    goto bad;
 	CSR_WRITE_2(sc, VX_W0_EEPROM_COMMAND,
-	    EEPROM_CMD_RD | EEPROM_SOFT_INFO_2);
+	    EEPROM_CMD_RD | EEPROM_SOFTINFO2);
 	if (vxbusyeeprom(sc))
 	    goto bad;
 	if (!(CSR_READ_2(sc, VX_W0_EEPROM_DATA) & NO_RX_OVN_ANOMALY)) {
