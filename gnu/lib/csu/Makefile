@@ -16,7 +16,6 @@ CFLAGS+=	-I${GCCDIR}/config -I${GCCDIR} -I. \
 		-I${CCDIR}/cc_tools
 CRTS_CFLAGS=	-DCRTSTUFFS_O ${PICFLAG}
 MKDEPCMD=	CC=${CC} MKDEP_CPP_OPTS="-M -DCRT_BEGIN" mkdep
-NOLIB=		true
 
 .if ${TARGET_ARCH} == "sparc64"
 .PATH: ${GCCDIR}/config/${GCC_CPU}
