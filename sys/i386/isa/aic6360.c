@@ -31,7 +31,7 @@
  */
 
 /*
- * $Id: aic6360.c,v 1.8 1995/04/12 20:47:35 wollman Exp $
+ * $Id: aic6360.c,v 1.9 1995/05/30 08:01:12 rgrimes Exp $
  *
  * Acknowledgements: Many of the algorithms used in this driver are
  * inspired by the work of Julian Elischer (julian@tfs.com) and
@@ -940,6 +940,7 @@ aicattach(parent, self, aux)
 #ifdef __FreeBSD__
 	int unit = dev->id_unit;
 	struct aic_data *aic = aicdata[unit];
+	struct scsibus_data *scbus;
 #else
 	struct isa_attach_args *ia = aux;
 	struct aic_softc *aic = (void *)self;
@@ -964,10 +965,19 @@ aicattach(parent, self, aux)
 
 #ifdef __FreeBSD__
 	/*
+	 * Prepare the scsibus_data area for the upperlevel
+	 * scsi code.
+	 */
+	scbus = scsi_alloc_bus();
+	if(!scbus)
+		return 0;
+	scbus->adapter_link = &aic->sc_link;
+
+	/*
 	 * ask the adapter what subunits are present
 	 */
 	kdc_aic[unit].kdc_state = DC_BUSY; /* host adapters are always busy */
-	scsi_attachdevs(&(aic->sc_link));
+	scsi_attachdevs(scbus);
 
 	return 1;
 #else

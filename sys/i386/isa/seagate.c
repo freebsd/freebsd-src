@@ -60,7 +60,7 @@
  *               that category, with the possible exception of scanners and
  *               some of the older MO drives.
  *
- * $Id: seagate.c,v 1.8 1995/05/30 08:03:04 rgrimes Exp $
+ * $Id: seagate.c,v 1.9 1995/07/13 15:01:38 jkh Exp $
  */
 
 /*
@@ -547,6 +547,7 @@ int sea_attach (struct isa_device *dev)
 {
 	int unit = dev->id_unit;
 	adapter_t *z = &seadata[unit];
+	struct scsibus_data *scbus;
 
 	sea_kdc[unit].kdc_state = DC_BUSY; /* host adapters are always busy */
 	sprintf (sea_description, "%s SCSI controller", z->name);
@@ -559,8 +560,17 @@ int sea_attach (struct isa_device *dev)
 	z->sc_link.adapter = &sea_switch;
 	z->sc_link.device = &sea_dev;
 
+	/*
+	 * Prepare the scsibus_data area for the upperlevel
+	 * scsi code.
+	 */
+	scbus = scsi_alloc_bus();
+	if(!scbus)
+		return 0;
+	scbus->adapter_link = &z->sc_link;
+
 	/* ask the adapter what subunits are present */
-	scsi_attachdevs (&(z->sc_link));
+	scsi_attachdevs (scbus);
 
 	return (1);
 }
