@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	5.20 (Berkeley) 6/12/93
-#	$Id: Makefile,v 1.121 1998/05/24 15:07:04 des Exp $
+#	$Id: Makefile,v 1.122 1998/07/19 13:40:59 rnordier Exp $
 
 # XXX MISSING:		mkproto
 SUBDIR= ac accton adduser amd arp bootparamd cdcontrol chkgrp chown chroot \
@@ -17,7 +17,7 @@ SUBDIR= ac accton adduser amd arp bootparamd cdcontrol chkgrp chown chroot \
 SUBDIR+=ipfstat ipftest ipmon ipnat ipresend ipsend iptest
 
 .if !defined(NO_SENDMAIL)
-SUBDIR+=sendmail
+SUBDIR+=mailstats makemap praliases sendmail
 .endif
 
 .if ${MACHINE_ARCH} == "i386"
