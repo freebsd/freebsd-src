@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: log.h,v 1.5 1996/01/11 17:48:51 phk Exp $
+ * $Id: log.h,v 1.6 1996/05/11 20:48:32 phk Exp $
  *
  *	TODO:
  */
@@ -62,6 +62,7 @@ extern int loglevel;
 
 extern void LogTimeStamp __P((void));
 extern int LogOpen __P((void));
+extern void LogReOpen __P((int));
 extern void DupLog __P((void));
 extern void LogClose __P((void));
 extern void logprintf __P((char *, ...)), LogPrintf __P((int, char *, ...));

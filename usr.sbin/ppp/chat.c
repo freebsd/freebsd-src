@@ -18,7 +18,7 @@
  *		Columbus, OH  43221
  *		(614)451-1883
  *
- * $Id: chat.c,v 1.11.2.3 1997/01/12 21:52:44 joerg Exp $
+ * $Id: chat.c,v 1.11.2.4 1997/02/22 17:59:06 joerg Exp $
  *
  *  TODO:
  *	o Support more UUCP compatible control sequences.
@@ -34,10 +34,11 @@
 #include <sys/time.h>
 #include <fcntl.h>
 #include <errno.h>
-#include "sig.h"
+#include <signal.h>
 #include <sys/wait.h>
 #include "timeout.h"
 #include "vars.h"
+#include "sig.h"
 
 #define	IBSIZE 200
 
@@ -402,10 +403,12 @@ char *command, *out;
   pipe(fids);
   pid = fork();
   if (pid == 0) {
-    pending_signal(SIGINT, SIG_DFL);
-    pending_signal(SIGQUIT, SIG_DFL);
-    pending_signal(SIGTERM, SIG_DFL);
-    pending_signal(SIGHUP, SIG_DFL);
+    TermTimerService();
+    signal(SIGINT, SIG_DFL);
+    signal(SIGQUIT, SIG_DFL);
+    signal(SIGTERM, SIG_DFL);
+    signal(SIGHUP, SIG_DFL);
+    signal(SIGALRM, SIG_DFL);
     close(fids[0]);
     dup2(fids[1], 1);
     close(fids[1]);
