@@ -36,7 +36,7 @@
 .\"     @(#)isspace.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd October 6, 2002
 .Dt ISSPACE 3
 .Os
 .Sh NAME
@@ -75,8 +75,20 @@ The
 .Fn isspace
 function returns zero if the character tests false and
 returns non-zero if the character tests true.
+.Sh COMPATIBILITY
+Although
+.Fn isspace
+accepts arguments outside of the range of the
+.Vt "unsigned char"
+type in locales with large character sets,
+this is a
+.Bx 4.4
+extension and the
+.Fn iswspace
+function should be used instead for maximum portability.
 .Sh SEE ALSO
 .Xr ctype 3 ,
+.Xr iswspace 3 ,
 .Xr multibyte 3 ,
 .Xr ascii 7
 .Sh STANDARDS
