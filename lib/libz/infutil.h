@@ -1,5 +1,5 @@
 /* infutil.h -- types and macros common to blocks and codes
- * Copyright (C) 1995-1996 Mark Adler
+ * Copyright (C) 1995-1998 Mark Adler
  * For conditions of distribution and use, see copyright notice in zlib.h 
  */
 
@@ -41,8 +41,6 @@ struct inflate_blocks_state {
       inflate_huft *tb;         /* bit length decoding tree */
     } trees;            /* if DTREE, decoding info for trees */
     struct {
-      inflate_huft *tl;
-      inflate_huft *td;         /* trees to free */
       inflate_codes_statef 
          *codes;
     } decode;           /* if CODES, current state */
@@ -52,6 +50,7 @@ struct inflate_blocks_state {
   /* mode independent information */
   uInt bitk;            /* bits in bit buffer */
   uLong bitb;           /* bit buffer */
+  inflate_huft *hufts;  /* single malloc for tree space */
   Bytef *window;        /* sliding window */
   Bytef *end;           /* one byte after sliding window */
   Bytef *read;          /* window read pointer */
