@@ -17,7 +17,7 @@ SRCS+=	auth_des.c authdes_prot.c auth_time.c des_soft.c des_crypt.c \
 
 CFLAGS+= -DBROKEN_DES
 
-CLEANFILES= crypt_clnt.c crypt_xdr.c crypt.h
+CLEANFILES+= crypt_clnt.c crypt_xdr.c crypt.h
 
 RPCDIR= ${DESTDIR}/usr/include/rpcsvc
 RPCGEN= rpcgen -C
