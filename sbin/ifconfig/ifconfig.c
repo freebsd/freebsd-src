@@ -46,7 +46,9 @@ static char sccsid[] = "@(#)ifconfig.c	8.2 (Berkeley) 2/16/94";
 #include <sys/ioctl.h>
 
 #include <net/if.h>
+#include <net/if_dl.h>
 #include <netinet/in.h>
+#include <netinet/in_var.h>
 #include <arpa/inet.h>
 
 #define	NSIP
@@ -66,6 +68,9 @@ static char sccsid[] = "@(#)ifconfig.c	8.2 (Berkeley) 2/16/94";
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <nlist.h> 
+#include <kvm.h>   
+#include <fcntl.h>
 
 struct	ifreq		ifr, ridreq;
 struct	ifaliasreq	addreq;
@@ -84,6 +89,7 @@ int	doalias;
 int	clearaddr;
 int	newaddr = 1;
 int	s;
+kvm_t	*kvmd;
 extern	int errno;
 
 int	setifflags(), setifaddr(), setifdstaddr(), setifnetmask();
@@ -140,6 +146,7 @@ struct	cmd {
 int	in_status(), in_getaddr();
 int	xns_status(), xns_getaddr();
 int	iso_status(), iso_getaddr();
+int	ether_status();
 
 /* Known address families */
 struct afswtch {
@@ -159,6 +166,7 @@ struct afswtch {
 	     SIOCDIFADDR, SIOCAIFADDR, C(ridreq), C(addreq) },
 	{ "iso", AF_ISO, iso_status, iso_getaddr,
 	     SIOCDIFADDR_ISO, SIOCAIFADDR_ISO, C(iso_ridreq), C(iso_addreq) },
+	{ "ether", AF_INET, ether_status, NULL },
 	{ 0,	0,	    0,		0 }
 };
 
@@ -199,6 +207,53 @@ main(argc, argv)
 		perror("ifconfig: socket");
 		exit(1);
 	}
+	if (!strcmp(name, "-a")) {
+		struct ifconf ifc;
+#define MAX_INTERFACES 50	/* Yeah right. */
+		char buffer[MAX_INTERFACES * sizeof(struct ifreq)];
+		struct ifreq *ifptr, *end;
+		int ifflags;
+
+		ifc.ifc_len = sizeof(buffer);
+		ifc.ifc_buf = buffer;
+		if (ioctl(s, SIOCGIFCONF, (char *) &ifc) < 0) {
+			perror("ifconfig (SIOCGIFCONF)");
+			exit (1);
+		}
+		ifflags = ifc.ifc_req->ifr_flags;
+		end = (struct ifreq *) (ifc.ifc_buf + ifc.ifc_len);
+		ifptr = ifc.ifc_req;
+		while (ifptr < end) {
+			sprintf(ifr.ifr_name,"%s",ifptr->ifr_name);
+			sprintf(name,"%s",ifptr->ifr_name);
+			close(s);
+			s = socket(af, SOCK_DGRAM, 0);
+			if (s < 0) {
+				perror("ifconfig: socket");
+				exit(1);
+			}
+			if (ifptr->ifr_flags == ifflags)
+				ifconfig(argc,argv,af,rafp);
+			if(ifptr->ifr_addr.sa_len)	/* Dohw! */
+				ifptr = (struct ifreq *) ((caddr_t) ifptr +
+				ifptr->ifr_addr.sa_len -
+				sizeof(struct sockaddr));
+			ifptr++;
+		}
+	} else
+		ifconfig(argc,argv,af,rafp);
+
+	exit (0);
+}
+
+
+
+ifconfig(argc,argv,af,rafp)
+	int argc;
+	char *argv[];
+	int af;
+	struct afswtch *rafp;
+{
 	if (ioctl(s, SIOCGIFFLAGS, (caddr_t)&ifr) < 0) {
 		Perror("ioctl (SIOCGIFFLAGS)");
 		exit(1);
@@ -213,9 +268,9 @@ main(argc, argv)
 		perror("ioctl (SIOCGIFMTU)");
 	else
 		mtu = ifr.ifr_mtu;
-	if (argc == 0) {
+	if (argc == 0) {	
 		status();
-		exit(0);
+		return(0);
 	}
 	while (argc > 0) {
 		register struct cmd *p;
@@ -264,7 +319,7 @@ main(argc, argv)
 		if (ioctl(s, rafp->af_aifaddr, rafp->af_addreq) < 0)
 			Perror("ioctl (SIOCAIFADDR)");
 	}
-	exit(0);
+	return(0);
 }
 #define RIDADDR 0
 #define ADDR	1
@@ -553,6 +608,90 @@ iso_status(force)
 	putchar('\n');
 }
 
+kread(addr, buf, size)
+        u_long addr;
+        char *buf;
+        int size;
+{
+
+        if (kvm_read(kvmd, addr, buf, size) != size)
+                return (-1);
+        return (0);
+}
+
+/* Unashamedly stolen from netstat -- maybe someday we can us sysctl() */
+ether_status()
+{
+	struct nlist nl[] = { { "_ifnet" } , "" };
+	u_long addr, addr2;
+	struct ifnet ifnet;
+	union {
+		struct ifaddr ifa;
+		struct in_ifaddr in;
+		struct ns_ifaddr ns;
+		struct iso_ifaddr iso;
+	} ifaddr;
+	char *cp;
+	struct sockaddr *sa;
+	struct sockaddr_dl *sdl;
+	int n,m;
+	char ifacename[IFNAMSIZ];
+
+	/*
+	 * If we fail here it probably means we don't have permission to
+	 * read /dev/kmem. Best to just silently bail out. If we have
+	 * an error *after* we succeed in opening /dev/kmem, then we
+	 * should report it.
+	 */
+	if ((kvmd = kvm_open(NULL,NULL,NULL,O_RDONLY,NULL)) == NULL)
+		return;
+	if (kvm_nlist(kvmd, nl) < 0 || nl[0].n_type == 0) {
+		perror("ifconfig: kvm_nlist()");
+		return;
+	}
+	if (kread(nl[0].n_value, (char *)&addr, sizeof(addr))) {
+		perror("_ifnet");
+		return;
+	}
+	addr2 = 0;
+	while (addr || addr2) {
+		if (addr2 == 0) {
+                        if (kread(addr, (char *)&ifnet, sizeof ifnet) ||
+                           kread((u_long)ifnet.if_name, ifacename, IFNAMSIZ)){
+					perror("ifconfig: kvm_read()");
+					return;
+			}
+			addr = (u_long)ifnet.if_next;
+			addr2 = (u_long)ifnet.if_addrlist;
+		}
+		if (kread(addr2, (char *)&ifaddr, sizeof ifaddr)) {
+			addr2 = 0;
+                        continue;
+                }
+		sprintf(ifacename,"%s%d",ifacename, ifnet.if_unit);
+		if (!strncmp(name, ifacename, strlen(name))) {
+#define CP(x) ((char *)(x))
+			cp = (CP(ifaddr.ifa.ifa_addr) - CP(addr2)) +
+				CP(&ifaddr); sa = (struct sockaddr *)cp;
+			if (sa->sa_family == AF_LINK) {
+				sdl = (struct sockaddr_dl *)sa;
+				cp = (char *)LLADDR(sdl);
+				if ((n = sdl->sdl_alen) > 0) {
+					printf ("\tether ");
+                               		while (--n >= 0)
+						m += printf("%02x%c",
+							*cp++ & 0xff,
+							n > 0 ? ':' : ' ');
+					putchar('\n');	
+				}
+				break;
+			}
+		}
+		addr2 = (u_long)ifaddr.ifa.ifa_next;
+	}
+	kvm_close(kvmd);
+}
+	
 Perror(cmd)
 	char *cmd;
 {

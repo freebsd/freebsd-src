@@ -2,5 +2,7 @@
 
 PROG=	ifconfig
 MAN8=	ifconfig.8
+LDADD=  -lkvm
+DPADD=  ${LIBKVM}
 
 .include <bsd.prog.mk>
