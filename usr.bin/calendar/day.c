@@ -140,6 +140,8 @@ void
 settime(now)
     	time_t now;
 {
+	char *oldl;
+
 	tp = localtime(&now);
 	if ( isleap(tp->tm_year + 1900) ) {
 		yrdays = 366;
@@ -152,9 +154,10 @@ settime(now)
 	offset = tp->tm_wday == 5 ? 3 : 1;
 	header[5].iov_base = dayname;
 
+	oldl = setlocale(LC_TIME, NULL);
 	(void) setlocale(LC_TIME, "C");
 	header[5].iov_len = strftime(dayname, sizeof(dayname), "%A", tp);
-	(void) setlocale(LC_TIME, "");
+	(void) setlocale(LC_TIME, oldl);
 
 	setnnames();
 }
