@@ -858,6 +858,9 @@ VarREError(int err, regex_t *pat, const char *str)
  * Side Effects:
  *	None.
  *
+ * Assumption:
+ *	It is assumed that Var_Parse() is called with str[0] == '$'.
+ *
  *-----------------------------------------------------------------------
  */
 char *
