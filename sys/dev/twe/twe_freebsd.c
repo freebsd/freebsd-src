@@ -1069,9 +1069,8 @@ twe_map_request(struct twe_request *tr)
 	 * Map the data buffer into bus space and build the s/g list.
 	 */
 	if (tr->tr_flags & TWE_CMD_IMMEDIATE) {
-	    bcopy(tr->tr_data, sc->twe_immediate, tr->tr_length);
 	    error = bus_dmamap_load(sc->twe_immediate_dmat, sc->twe_immediate_map, sc->twe_immediate,
-			    tr->tr_length, twe_setup_data_dmamap, tr, 0);
+			    tr->tr_length, twe_setup_data_dmamap, tr, BUS_DMA_NOWAIT);
 	} else {
 	    error = bus_dmamap_load(sc->twe_buffer_dmat, tr->tr_dmamap, tr->tr_data, tr->tr_length, 
 				    twe_setup_data_dmamap, tr, 0);
@@ -1127,7 +1126,6 @@ twe_unmap_request(struct twe_request *tr)
 	}
 
 	if (tr->tr_flags & TWE_CMD_IMMEDIATE) {
-	    bcopy(sc->twe_immediate, tr->tr_data, tr->tr_length);
 	    bus_dmamap_unload(sc->twe_immediate_dmat, sc->twe_immediate_map);
 	} else {
 	    bus_dmamap_unload(sc->twe_buffer_dmat, tr->tr_dmamap); 
