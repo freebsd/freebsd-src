@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *	$Id: aha1542.c,v 1.11 1993/10/15 09:43:51 rgrimes Exp $
+ *	$Id: aha1542.c,v 1.12 1993/10/16 12:27:20 rgrimes Exp $
  */
 
 /*
@@ -954,19 +954,19 @@ int	unit;
 			unit);
 	}
 	/*
-	 * If we are on a 1542C or 1542CF find out if the extended bios
-	 * is enabled, if it is disable it, or else it will screw us up later
+	 * If we are a 1542C or 1542CF disable the extended bios so that the
+	 * mailbox interface is unlocked.
+	 * No need to check the extended bios flags as some of the
+	 * extensions that cause us problems are not flagged in that byte.
 	 */
 	if ((inquire.boardid == 0x43) || (inquire.boardid == 0x44)) {
 		aha_cmd(unit, 0, sizeof(extbios), 0, &extbios, AHA_EXT_BIOS);
 #ifdef	AHADEBUG
 		printf("aha%d: extended bios flags %x\n", unit, extbios.flags);
 #endif	/* AHADEBUG */
-		if (extbios.flags & 0x8) {
-			printf("aha%d: disabling bios enhanced features\n");
-			aha_cmd(unit, 2, 0, 0, 0, AHA_MBX_ENABLE,
-				0, extbios.mailboxlock);
-		}
+		printf("aha%d: 1542C/CF detected, unlocking mailbox\n");
+		aha_cmd(unit, 2, 0, 0, 0, AHA_MBX_ENABLE,
+			0, extbios.mailboxlock);
 	}
 	/***********************************************\
 	* Setup dma channel from jumpers and save int	*
