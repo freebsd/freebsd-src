@@ -69,7 +69,7 @@ static struct cdevsw acd_cdevsw = {
 	/* maj */	117,
 	/* dump */	nodump,
 	/* psize */	nopsize,
-	/* flags */	D_DISK,
+	/* flags */	D_DISK | D_TRACKCLOSE,
 	/* bmaj */	31
 };
 
@@ -207,7 +207,6 @@ acd_init_lun(struct atapi_softc *atp, int32_t lun, struct devstat *stats)
     acd->lun = lun;
     acd->flags &= ~(F_WRITTEN|F_DISK_OPEN|F_TRACK_OPEN);
     acd->block_size = 2048;
-    acd->refcnt = 0;
     acd->slot = -1;
     acd->changer_info = NULL;
     acd->atp->flags |= ATAPI_F_MEDIA_CHANGED;
@@ -458,7 +457,7 @@ acdopen(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
 	    cdp->flags |= F_WRITING;
     }
 
-    if (!cdp->refcnt) {
+    if (!cdp->refcnt++) {
 	acd_prevent_allow(cdp, 1);
 	cdp->flags |= F_LOCKED;
 	if (!(flags & O_NONBLOCK) && !(flags & FWRITE))
@@ -466,7 +465,6 @@ acdopen(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
 	else
 	    atapi_test_ready(cdp->atp);
     }
-    cdp->refcnt++;
     return 0;
 }
 
@@ -475,10 +473,7 @@ acdclose(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
 {
     struct acd_softc *cdp = dev->si_drv1;
     
-    cdp->refcnt--;
-
-    /* are we the last open ?? */
-    if (!cdp->refcnt)
+    if (!--cdp->refcnt)
 	acd_prevent_allow(cdp, 0);
 
     cdp->flags &= ~(F_LOCKED | F_WRITING);
@@ -1396,8 +1391,6 @@ acd_report_key(struct acd_softc *cdp, struct dvd_authinfo *ai)
     int16_t length;
     int8_t ccb[16];
 
-    printf("dvd_report_key: format=0x%x\n", ai->format);
-
     switch (ai->format) {
     case DVD_REPORT_AGID:
     case DVD_REPORT_ASF:
@@ -1488,8 +1481,6 @@ acd_send_key(struct acd_softc *cdp, struct dvd_authinfo *ai)
     int16_t length;
     int8_t ccb[16];
 
-    printf("dvd_send_key: format=0x%x\n", ai->format);
-
     bzero(&d, sizeof(d));
 
     switch (ai->format) {
@@ -1531,8 +1522,6 @@ acd_read_structure(struct acd_softc *cdp, struct dvd_struct *s)
     u_int16_t length;
     int32_t error = 0;
     int8_t ccb[16];
-
-    printf("dvd_read_structure: format=0x%x\n", s->format);
 
     bzero(&d, sizeof(d));
 

@@ -255,40 +255,37 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 	/* we could set PIO mode timings, but we assume the BIOS did that */
 	break;
 
-    case 0x05711106:	/* VIA 82C571, 82C586, 82C596 & 82C686 */
-    case 0x74091022:	/* AMD 756 */
-	/* UDMA modes on 82C686 */
-	if (ata_find_dev(scp->dev, 0x06861106)) {
-	    if (udmamode >= 4) {
-		error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
-				    ATA_UDMA4, ATA_C_F_SETXFER, ATA_WAIT_READY);
-		if (bootverbose)
-		    ata_printf(scp, device, 
-		    	       "%s setting up UDMA4 mode on VIA chip\n",
-			       (error) ? "failed" : "success");
-		if (!error) {
-	            pci_write_config(scp->dev, 0x53 - devno, 0xe8, 1);
-		    scp->mode[ATA_DEV(device)] = ATA_UDMA4;
-		    return;
-		}
-	    }
-	    if (udmamode >= 2) {
-		error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
-				    ATA_UDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
-		if (bootverbose)
-		    ata_printf(scp, device,
-			       "%s setting up UDMA2 mode on VIA chip\n",
-			       (error) ? "failed" : "success");
-		if (!error) {
-	            pci_write_config(scp->dev, 0x53 - devno, 0xea, 1);
-		    scp->mode[ATA_DEV(device)] = ATA_UDMA2;
-		    return;
-		}
+    case 0x06861106:	/* VIA 82C686 */
+	if (udmamode >= 4) {
+	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
+				ATA_UDMA4, ATA_C_F_SETXFER, ATA_WAIT_READY);
+	    if (bootverbose)
+		ata_printf(scp, device, 
+			   "%s setting up UDMA4 mode on VIA chip\n",
+			   (error) ? "failed" : "success");
+	    if (!error) {
+		pci_write_config(scp->dev, 0x53 - devno, 0xe8, 1);
+		scp->mode[ATA_DEV(device)] = ATA_UDMA4;
+		return;
 	    }
 	}
+	if (udmamode >= 2) {
+	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
+				ATA_UDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
+	    if (bootverbose)
+		ata_printf(scp, device,
+			   "%s setting up UDMA2 mode on VIA chip\n",
+			   (error) ? "failed" : "success");
+	    if (!error) {
+		pci_write_config(scp->dev, 0x53 - devno, 0xea, 1);
+		scp->mode[ATA_DEV(device)] = ATA_UDMA2;
+		return;
+	    }
+	}
+	goto via_generic;
 
-	/* UDMA4 mode on AMD 756 */
-	if (udmamode >= 4 && scp->chiptype == 0x74091022) {
+    case 0x74091022:	/* AMD 756 */
+	if (udmamode >= 4) {
 	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
 				ATA_UDMA4, ATA_C_F_SETXFER, ATA_WAIT_READY);
 	    if (bootverbose)
@@ -301,11 +298,15 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 		return;
 	    }
 	}
+	/* FALLTHROUGH */
+
+    case 0x05961106:	/* VIA 82C596 */
+    case 0x05861106:	/* VIA 82C586 */
 
 	/* UDMA2 mode only on 82C586 > rev1, 82C596, AMD 756 */
-	if ((udmamode >= 2 && ata_find_dev(scp->dev, 0x05861106) &&
+	if ((udmamode >= 2 && scp->chiptype == 0x05861106 &&
 	     pci_read_config(scp->dev, 0x08, 1) >= 0x01) ||
-	    (udmamode >= 2 && ata_find_dev(scp->dev, 0x05961106)) ||
+	    (udmamode >= 2 && scp->chiptype == 0x05961106) ||
 	    (udmamode >= 2 && scp->chiptype == 0x74091022)) {
 	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
 				ATA_UDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
@@ -319,6 +320,10 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 		return;
 	    }
 	}
+	/* FALLTHROUGH */
+
+    case 0x05711106:	/* VIA 82C571 */
+via_generic:
 	if (wdmamode >= 2 && apiomode >= 4) {
 	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
 				ATA_WDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
@@ -382,7 +387,6 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 			   "%s setting up UDMA4 mode on Promise chip\n",
 			   (error) ? "failed" : "success");
 	    if (!error) {
-		outb(scp->bmaddr+0x11, inl(scp->bmaddr+0x11) | scp->unit ? 8:2);
 		promise_timing(scp, devno, ATA_UDMA4);
 		scp->mode[ATA_DEV(device)] = ATA_UDMA4;
 		return;
@@ -512,8 +516,16 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 	    }
 	}
     }
+    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
+			ata_pio2mode(apiomode), ATA_C_F_SETXFER,ATA_WAIT_READY);
     if (bootverbose)
-	ata_printf(scp, device, "using PIO mode set by BIOS\n");
+	ata_printf(scp, device, "%s setting up PIO%d mode on generic chip\n",
+		   (error) ? "failed" : "success", apiomode < 0 ? 0 : apiomode);
+    if (!error)
+        scp->mode[ATA_DEV(device)] = ata_pio2mode(apiomode);
+    else 
+	if (bootverbose)
+	    ata_printf(scp, device, "using PIO mode set by BIOS\n");
 }
 
 int32_t
@@ -586,17 +598,55 @@ ata_dmastatus(struct ata_softc *scp)
 static void
 promise_timing(struct ata_softc *scp, int32_t devno, int32_t mode)
 {
-    u_int32_t timing;
-    switch (mode) {
-    default:
-    case ATA_PIO0:	timing = 0x004ff329; break;
-    case ATA_PIO1:	timing = 0x004fec25; break;
-    case ATA_PIO2:	timing = 0x004fe823; break;
-    case ATA_PIO3:	timing = 0x004fe622; break;
-    case ATA_PIO4:	timing = 0x004fe421; break;
-    case ATA_WDMA2:	timing = 0x004367f3; break;
-    case ATA_UDMA2:	timing = 0x004127f3; break;
-    case ATA_UDMA4:	timing = 0x004127f3; break;
+    u_int32_t timing = 0;
+    struct promise_timing {
+	u_int8_t  pa:4;
+	u_int8_t  prefetch:1;
+	u_int8_t  iordy:1;
+	u_int8_t  errdy:1;
+	u_int8_t  syncin:1;
+	u_int8_t  pb:5;
+	u_int8_t  mb:3;
+	u_int8_t  mc:4;
+	u_int8_t  dmaw:1;
+	u_int8_t  dmar:1;
+	u_int8_t  iordyp:1;
+	u_int8_t  dmarqp:1;
+	u_int8_t  reserved:8;
+    } *t = (struct promise_timing*)&timing;
+
+    t->iordy = 1; t->iordyp = 1;
+    if (mode >= ATA_DMA) {
+	t->prefetch = 1; t->errdy = 1; t->syncin = 1;
+    }
+
+    switch (scp->chiptype) {
+    case 0x4d33105a:  /* Promise 33's */
+	switch (mode) {
+	default:
+	case ATA_PIO0:  t->pa =  9; t->pb = 19; t->mb = 7; t->mc = 15; break;
+	case ATA_PIO1:  t->pa =  5; t->pb = 12; t->mb = 7; t->mc = 15; break;
+	case ATA_PIO2:  t->pa =  3; t->pb =  8; t->mb = 7; t->mc = 15; break;
+	case ATA_PIO3:  t->pa =  2; t->pb =  6; t->mb = 7; t->mc = 15; break;
+	case ATA_PIO4:  t->pa =  1; t->pb =  4; t->mb = 7; t->mc = 15; break;
+	case ATA_WDMA2: t->pa =  3; t->pb =  7; t->mb = 3; t->mc =  3; break;
+	case ATA_UDMA2: t->pa =  3; t->pb =  7; t->mb = 1; t->mc =  1; break;
+	}
+	break;
+
+    case 0x4d38105a:  /* Promise 66's */
+	switch (mode) {
+	default:
+	case ATA_PIO0:  t->pa = 15; t->pb = 31; t->mb = 7; t->mc = 15; break;
+	case ATA_PIO1:  t->pa = 10; t->pb = 24; t->mb = 7; t->mc = 15; break;
+	case ATA_PIO2:  t->pa =  6; t->pb = 16; t->mb = 7; t->mc = 15; break;
+	case ATA_PIO3:  t->pa =  4; t->pb = 12; t->mb = 7; t->mc = 15; break;
+	case ATA_PIO4:  t->pa =  2; t->pb =  8; t->mb = 7; t->mc = 15; break;
+	case ATA_WDMA2: t->pa =  6; t->pb = 14; t->mb = 6; t->mc =  6; break;
+	case ATA_UDMA2: t->pa =  6; t->pb = 14; t->mb = 2; t->mc =  2; break;
+	case ATA_UDMA4: t->pa =  3; t->pb =  7; t->mb = 1; t->mc =  1; break;
+	}
+	break;
     }
     pci_write_config(scp->dev, 0x60 + (devno << 2), timing, 4);
 }
@@ -647,7 +697,7 @@ hpt366_timing(struct ata_softc *scp, int32_t devno, int32_t mode)
 	default:	timing = 0x0120d9d9;
 	}
     }
-    pci_write_config(scp->dev, 0x40 + (devno << 2) , timing, 4);
+    pci_write_config(scp->dev, 0x40 + (devno << 2) , (timing & ~0x80000000), 4);
 }
 
 #else /* NPCI > 0 */

@@ -459,10 +459,10 @@ ad_interrupt(struct ad_request *request)
 
     /* did any real errors happen ? */
     if ((adp->controller->status & ATA_S_ERROR) ||
-	(request->flags & AR_F_DMA_USED && dma_stat != ATA_BMSTAT_INTERRUPT)) {
+	((request->flags & AR_F_DMA_USED) && (dma_stat & ATA_BMSTAT_ERROR))) {
 oops:
 	printf("ad%d: %s %s ERROR blk# %d", adp->lun,
-	       (adp->controller->error & ATA_E_ICRC) ? "UDMA CRC" : "HARD",
+	       (adp->controller->error & ATA_E_ICRC) ? "UDMA ICRC" : "HARD",
 	       (request->flags & AR_F_READ) ? "READ" : "WRITE",
 	       request->blockaddr + (request->donecount / DEV_BSIZE)); 
 
