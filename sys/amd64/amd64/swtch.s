@@ -200,8 +200,8 @@ sw1b:
 	jmp	2f
 1:
 	/* update common_tss.tss_esp0 pointer */
-	/* esp points to base of usable stack */
-	movl	%edx, PCPU(COMMON_TSS) + TSS_ESP0 /* stack is below pcb */
+	leal	-16(%edx), %ebx			/* leave space for vm86 */
+	movl	%ebx, PCPU(COMMON_TSS) + TSS_ESP0 /* stack is below pcb */
 	btrl	%esi, private_tss
 	jae	3f
 	PCPU_ADDR(COMMON_TSSD, %edi)
