@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_elf.c,v 1.55 1999/02/20 23:52:34 jdp Exp $
+ *	$Id: imgact_elf.c,v 1.56 1999/05/09 16:04:08 peter Exp $
  */
 
 #include "opt_rlimit.h"
@@ -220,7 +220,7 @@ elf_load_section(struct proc *p, struct vmspace *vmspace, struct vnode *vp, vm_o
 				      map_addr + map_len,/* virtual end */
 				      prot,
 				      VM_PROT_ALL,
-				      MAP_COPY_NEEDED | MAP_COPY_ON_WRITE);
+				      MAP_COPY_ON_WRITE);
 		vm_map_unlock(&vmspace->vm_map);
 		if (rv != KERN_SUCCESS)
 			return EINVAL;
@@ -270,7 +270,7 @@ elf_load_section(struct proc *p, struct vmspace *vmspace, struct vnode *vp, vm_o
 				 TRUE,
 				 VM_PROT_READ,
 				 VM_PROT_ALL,
-				 MAP_COPY_ON_WRITE | MAP_COPY_NEEDED);
+				 MAP_COPY_ON_WRITE);
 		if (rv != KERN_SUCCESS) {
 			vm_object_deallocate(object);
 			return EINVAL;

@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id: vm_mmap.c,v 1.95 1999/05/06 00:46:19 luoqi Exp $
+ * $Id: vm_mmap.c,v 1.96 1999/05/06 22:06:45 peter Exp $
  */
 
 /*
@@ -1040,7 +1040,7 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 
 	docow = 0;
 	if ((flags & (MAP_ANON|MAP_SHARED)) == 0) {
-		docow = MAP_COPY_ON_WRITE | MAP_COPY_NEEDED;
+		docow = MAP_COPY_ON_WRITE;
 	}
 
 #if defined(VM_PROT_READ_IS_EXEC)
