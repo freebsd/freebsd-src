@@ -886,6 +886,22 @@ uhci_intr(arg)
 	int ack;
 	uhci_intr_info_t *ii;
 
+	/*
+	 * It can happen that an interrupt will be delivered to
+	 * us before the device has been fully attached and the
+	 * softc struct has been configured. Usually this happens
+	 * when kldloading the USB support as a module after the
+	 * system has been booted. If we detect this condition,
+	 * we need to squelch the unwanted interrupts until we're
+	 * ready for them.
+	 */
+	if (sc->sc_bus.bdev == NULL) {
+		UWRITE2(sc, UHCI_STS, 0xFFFF);	/* ack pending interrupts */
+		uhci_run(sc, 0);		/* stop the controller */
+		UWRITE2(sc, UHCI_INTR, 0);	/* disable interrupts */
+		return(0);
+	}
+
 #ifdef UHCI_DEBUG
 	if (uhcidebug > 15) {
 		DPRINTF(("%s: uhci_intr\n", USBDEVNAME(sc->sc_bus.bdev)));
@@ -1210,7 +1226,13 @@ uhci_run(sc, run)
 	run = run != 0;
 	s = splusb();
 	DPRINTF(("uhci_run: setting run=%d\n", run));
-	UHCICMD(sc, run ? UHCI_CMD_RS : 0);
+	/*
+	 * When activating the controller, set the MAXP bit.
+	 * Certain high speed devices such as network adapters
+	 * require this in order to avoid babble errors that
+	 * can cause an endpoint stall.
+	 */
+	UHCICMD(sc, run ? UHCI_CMD_RS|UHCI_CMD_MAXP : 0);
 	for(n = 0; n < 10; n++) {
 		running = !(UREAD2(sc, UHCI_STS) & UHCI_STS_HCH);
 		/* return when we've entered the state we want */
