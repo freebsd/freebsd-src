@@ -223,6 +223,7 @@ char path[MAXPATHLEN + 1];
 FILE *
 opencal()
 {
+	uid_t uid;
 	int fd, pdes[2];
 	struct stat sbuf;
 
@@ -256,8 +257,19 @@ opencal()
 			(void)close(pdes[1]);
 		}
 		(void)close(pdes[0]);
-		(void)setuid(geteuid());
-		(void)setgid(getegid());
+		uid = geteuid();
+		if (setuid(getuid()) < 0) {
+			fprintf(stderr, "calendar: first setuid failed\n");
+			_exit(1);
+		};
+		if (setgid(getegid()) < 0) {
+			fprintf(stderr, "calendar: setegid failed\n");
+			_exit(1);
+		}
+		if (setuid(uid) < 0) {
+			fprintf(stderr, "caelndar: setuid failed\n");
+			_exit(1);
+		}
 		execl(_PATH_CPP, "cpp", "-P", "-I.", _PATH_INCLUDE, NULL);
 		(void)fprintf(stderr,
 		    "calendar: execl: %s: %s.\n", _PATH_CPP, strerror(errno));
@@ -283,6 +295,7 @@ void
 closecal(fp)
 	FILE *fp;
 {
+	uid_t uid;
 	struct stat sbuf;
 	int nread, pdes[2], status;
 	char buf[1024];
@@ -307,8 +320,19 @@ closecal(fp)
 			(void)close(pdes[0]);
 		}
 		(void)close(pdes[1]);
-		(void)setuid(geteuid());
-		(void)setegid(getegid());
+		uid = geteuid();
+		if (setuid(getuid()) < 0) {
+			fprintf(stderr, "calendar: setuid failed\n");
+			_exit(1);
+		};
+		if (setgid(getegid()) < 0) {
+			fprintf(stderr, "calendar: setegid failed\n");
+			_exit(1);
+		}
+		if (setuid(uid) < 0) {
+			fprintf(stderr, "caelndar: setuid failed\n");
+			_exit(1);
+		}
 		execl(_PATH_SENDMAIL, "sendmail", "-i", "-t", "-F",
 		    "\"Reminder Service\"", "-f", "root", NULL);
 		(void)fprintf(stderr,
