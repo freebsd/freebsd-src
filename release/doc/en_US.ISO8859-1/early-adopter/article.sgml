@@ -27,7 +27,7 @@
       <year>2004</year>
       <year>2005</year>
       <holder role="mailto:re@FreeBSD.org">The &os; Release
-        Engineering Team</holder>
+	Engineering Team</holder>
     </copyright>
 
     <legalnotice id="trademarks" role="trademarks">
@@ -45,7 +45,7 @@
       <para>This article describes major differences between &os;
 	&release.4x; and &os; &release.current;, from the
 	viewpoint of a user or administrator upgrading an existing
-	system.  It provides a brief overview of &os; release
+	system.	 It provides a brief overview of &os; release
 	engineering.  It then describes some of the new features in
 	&os; &release.5x;, as well as some changes that might be of
 	particular interest to users accustomed to working with the
@@ -96,7 +96,7 @@
     <para>Most &os; releases are made from one of several
       <quote>STABLE</quote> branches.  Features are added to
       these branches only after some amount of testing in CURRENT.  For the
-      past two years, 
+      past two years,
       the only STABLE branch under active development
       was known as <quote>4-STABLE</quote>, and all of the
       &os; &release.4x; releases were based on
@@ -108,13 +108,13 @@
       (their branchpoints were 3.1 and 4.0, respectively).  In hindsight, this
       practice did not give sufficient time for either CURRENT
       to stabilize before the new branches were
-      created.  This in turn resulted in wasted effort porting bug
+      created.	This in turn resulted in wasted effort porting bug
       fixes between branches, as well as creating some architectural changes
       that could not be ported between branches at all.</para>
 
     <para>The &release.5x; releases have been handled slightly
       differently.
-      &os; 5.0, 5.1, and 5.2 were based on the CURRENT branch.  The
+      &os; 5.0, 5.1, and 5.2 were based on the CURRENT branch.	The
       first of these releases was made after over two years of development
       (prior to these, the
       last release from HEAD was &os; 4.0, in March 2000).</para>
@@ -138,7 +138,7 @@
       except as a last-resort solution to a critical problem.</para>
 
     <para>The next release from CURRENT will likely be 6.0-RELEASE,
-      created from CVS <literal>HEAD</literal>.  There is no firm date for 6.0, 
+      created from CVS <literal>HEAD</literal>.	 There is no firm date for 6.0,
       as of this writing, although it is
       expected sometime in the third quarter of 2005.  Future release
       engineering plans call for new major releases approximately
@@ -151,7 +151,7 @@
       this time, and any future work will likely be limited to bug
       fixes and security patches.  For especially
       conservative users, it may be reasonable to continue using the
-      &release.4x; releases for a time.  The
+      &release.4x; releases for a time.	 The
       &a.security-officer; will continue to support releases made from
       the 4-STABLE branch in accordance with their published policies,
       which can be found on the <ulink
@@ -181,22 +181,22 @@
 
     <itemizedlist>
       <listitem>
-        <para>SMPng: The <quote>next generation</quote> support for
- 	  Symmetric MultiProcessor (SMP) machines.
- 	  Ongoing work aims to perform fine-grained locking of various
- 	  kernel subsystems to increase the number of threads of
- 	  execution that can be running in the kernel.  Particular
- 	  attention has been paid to the performance of the network
- 	  stack and storage drivers.  More
- 	  information can be found on the
+	<para>SMPng: The <quote>next generation</quote> support for
+	  Symmetric MultiProcessor (SMP) machines.
+	  Ongoing work aims to perform fine-grained locking of various
+	  kernel subsystems to increase the number of threads of
+	  execution that can be running in the kernel.	Particular
+	  attention has been paid to the performance of the network
+	  stack and storage drivers.  More
+	  information can be found on the
 	  <ulink url="&url.base;/smp/index.html">FreeBSD SMP
- 	  Project</ulink> page.</para>
+	  Project</ulink> page.</para>
       </listitem>
 
       <listitem>
 	<para>KSE:  Kernel Scheduled Entities allow a single process
 	  to have multiple kernel-level threads, similar to Scheduler
-	  Activations.  The <filename>libpthread</filename>
+	  Activations.	The <filename>libpthread</filename>
 	  and <filename>libthr</filename> threading libraries make this
 	  feature available to multi-threaded userland programs,
 	  using the &man.pthread.3; API.
@@ -223,8 +223,8 @@
       </listitem>
 
       <listitem>
-        <para>GEOM:  A flexible, modular framework for transformation of disk
-	  I/O requests.  This system supports a number of features
+	<para>GEOM:  A flexible, modular framework for transformation of disk
+	  I/O requests.	 This system supports a number of features
 	  related to disks and volumes, such as:  recognition of disk
 	  partitions, the &man.gbde.4; disk encryption facility,
 	  various levels of RAID functionality, network export of disk
@@ -235,8 +235,8 @@
 
       <listitem>
 	<para>FFS: The FFS file system now supports background
-          &man.fsck.8; operations (for faster crash recovery) and
-          file system snapshots.</para>
+	  &man.fsck.8; operations (for faster crash recovery) and
+	  file system snapshots.</para>
       </listitem>
 
       <listitem>
@@ -248,7 +248,7 @@
       </listitem>
 
       <listitem>
-	<para>New networking features:  A number of new networking
+	<para>New networking features:	A number of new networking
 	  features have made their debut in &release.5x; releases,
 	  including support for TCP SACK (selective acknowledgements),
 	  the &man.pf.4; packet filter from OpenBSD, and the
@@ -256,9 +256,9 @@
       </listitem>
 
       <listitem>
-        <para>New hardware support: Support for more hardware devices,
+	<para>New hardware support: Support for more hardware devices,
 	  such as Cardbus, Bluetooth devices, and IEEE 802.11a/b/g
-	  network interfaces based on Atheros chipsets.  Also,
+	  network interfaces based on Atheros chipsets.	 Also,
 	  on the i386 architecture, some network devices not
 	  explicitly supported by &os; drivers may be supported using
 	  vendor drivers for &microsoft; &windows; and the
@@ -277,7 +277,7 @@
     <para>Some of the differences between &os; &release.4x; and
       &release.5x; deserve special mention because they involve
       major architectural changes, or break backwards compatibility in
-      some way.  While these changes are unlikely to cause a loss of
+      some way.	 While these changes are unlikely to cause a loss of
       data, they could cause some confusion for the unwary.  Some
       notable examples are:</para>
 
@@ -286,41 +286,41 @@
 <!-- General stuff -->
 
       <listitem>
-        <para>Several parts of &os;'s base system functionality have
-          been moved to the &os; Ports Collection, usually because
-          they are easier to maintain in that form or because they
-          were not really essential parts of the system.
-          The most noticeable example of this is
-          <application>Perl</application> (available in the &os; Ports
-          Collection as <filename
-          role="package">lang/perl5.8</filename>), whose former
-          location in the base system made upgrades problematic.
-          Utilities in the base system that formerly relied on
-          <application>Perl</application> have been either rewritten
-          (if still applicable) or removed (if obsolete).<para>
+	<para>Several parts of &os;'s base system functionality have
+	  been moved to the &os; Ports Collection, usually because
+	  they are easier to maintain in that form or because they
+	  were not really essential parts of the system.
+	  The most noticeable example of this is
+	  <application>Perl</application> (available in the &os; Ports
+	  Collection as <filename
+	  role="package">lang/perl5.8</filename>), whose former
+	  location in the base system made upgrades problematic.
+	  Utilities in the base system that formerly relied on
+	  <application>Perl</application> have been either rewritten
+	  (if still applicable) or removed (if obsolete).<para>
 
 	<para>Other examples include <application>UUCP</application>
-          (available in the Ports Collection as <filename
-          role="package">net/freebsd-uucp</filename>), the <command>doscmd</command>
-          utility (<filename
-          role="package">emulators/doscmd</filename>), and many of the
-          traditional games (<filename
-          role="package">games/freebsd-games</filename>).</para>
-          </listitem>
+	  (available in the Ports Collection as <filename
+	  role="package">net/freebsd-uucp</filename>), the <command>doscmd</command>
+	  utility (<filename
+	  role="package">emulators/doscmd</filename>), and many of the
+	  traditional games (<filename
+	  role="package">games/freebsd-games</filename>).</para>
+	  </listitem>
 
 <!-- Kernel ABI changes -->
 
       <listitem>
-        <para>Changes in kernel data structures and ABIs/APIs meant
+	<para>Changes in kernel data structures and ABIs/APIs meant
 	  many third-party binary device drivers had to be modified before they would
-          work correctly under &os; &release.5x;.
+	  work correctly under &os; &release.5x;.
 	  In
-          some (hopefully rare) cases, user-visible data structures
-          have changed, requiring recompilation of applications or
-          reinstallation of ports/packages.  As with the 
-          &release.4x; series, the &os; development team has
-          the goal of not allowing incompatible changes in future
-          releases on the &release.5x; branch.</para>
+	  some (hopefully rare) cases, user-visible data structures
+	  have changed, requiring recompilation of applications or
+	  reinstallation of ports/packages.  As with the
+	  &release.4x; series, the &os; development team has
+	  the goal of not allowing incompatible changes in future
+	  releases on the &release.5x; branch.</para>
       </listitem>
 
       <listitem>
@@ -331,9 +331,9 @@
 	  generation of <filename>a.out</filename>-style executables,
 	    <footnote>
 	      <para>Note that execution of <filename>a.out</filename>
-	        executables on the i386 and pc98 is still supported
-	        with the <literal>COMPAT_AOUT</literal> kernel
-	        option.  Some of the compilers in the Ports Collection
+		executables on the i386 and pc98 is still supported
+		with the <literal>COMPAT_AOUT</literal> kernel
+		option.	 Some of the compilers in the Ports Collection
 		(for example,
 		<filename role="package">lang/gcc28</filename>) are
 		still capable of generating <filename>a.out</filename>
@@ -374,7 +374,7 @@
 
       <listitem>
 	<para>UFS2 is the default on-disk format for file systems
-	  created using &man.newfs.8;.  For all platforms except pc98,
+	  created using &man.newfs.8;.	For all platforms except pc98,
 	  it is also the default for file systems created using the
 	  disk labeling screen within &man.sysinstall.8;.  Because
 	  &os; &release.4x; only understands UFS1 (not UFS2), disk
@@ -384,7 +384,7 @@
 	  &man.newfs.8;, or on the disk labeling screen in
 	  &man.sysinstall.8;.  This situation most often arises with a
 	  a single machine that dual-boots &os; &release.4x; and &os;
-	  &release.5x;.  Note that there is no way to convert file
+	  &release.5x;.	 Note that there is no way to convert file
 	  systems between the two on-disk formats (other than backing
 	  up, re-creating the file system, and restoring).</para>
       </listitem>
@@ -394,35 +394,35 @@
       <listitem>
 	<para>Due to the upgraded <application>GCC</application>
 	  compiler, C++ programs generally need to be recompiled and
-	  reinstalled.  This requirement comes from changes in the C++
+	  reinstalled.	This requirement comes from changes in the C++
 	  ABI.</para>
       </listitem>
 
       <listitem>
-        <para>Running executables compiled for &os; &release.4x; may
+	<para>Running executables compiled for &os; &release.4x; may
 	  be possible with the aid of the
 	  <filename>compat4x</filename> distribution (or the
 	  equivalent <filename role="package">misc/compat4x</filename>
 	  package/port).  However, if any of the ports or packages on
 	  a system require upgrading, rebuilding and reinstalling
 	  <emphasis>all</emphasis> of the installed ports on a system
-	  is generally advised.  This will prevent problems that can
+	  is generally advised.	 This will prevent problems that can
 	  occur with programs being linked against some combination of
 	  old and new libraries.  The
 	  <filename role="package">sysutils/portupgrade</filename>
 	  utility may be helpful in reinstalling ports.</para>
 
-        <para>Note that in any case, there are a number of known instances of backward
-          incompatibility.  For example, the <filename
-          role="package">devel/gnomevfs2</filename>, <filename
-          role="package">mail/postfix</filename>, and <filename
-          role="package">security/cfs</filename> ports need to be
-          recompiled due to changes in the <literal>statfs</literal>
-          structure.</para>
+	<para>Note that in any case, there are a number of known instances of backward
+	  incompatibility.  For example, the <filename
+	  role="package">devel/gnomevfs2</filename>, <filename
+	  role="package">mail/postfix</filename>, and <filename
+	  role="package">security/cfs</filename> ports need to be
+	  recompiled due to changes in the <literal>statfs</literal>
+	  structure.</para>
       </listitem>
 
       <listitem>
-        <para>The <filename>host.conf</filename> resolver services
+	<para>The <filename>host.conf</filename> resolver services
 	  configuration file has been replaced by the (much more
 	  general) &man.nsswitch.conf.5; name-service switch
 	  configuration mechanism.</para>
@@ -431,7 +431,7 @@
       <listitem>
 	<para><application>BIND</application> has been updated from
 	  version 8 to version 9.  There are numerous differences
-	  between BIND 8 and 9.  Users with critical &man.named.8;
+	  between BIND 8 and 9.	 Users with critical &man.named.8;
 	  installations should read the migration documentation in
 	  <filename>/usr/share/doc/bind9/misc/migration</filename>.
 	  There is also a new instruction manual in
@@ -463,10 +463,10 @@
 
       <listitem>
 	<para>Documentation (such as the &os; <ulink
-          url="&url.books.handbook;/index.html">Handbook</ulink>
-          and <ulink
-          url="&url.books.faq;/index.html">FAQ</ulink>)
-          is still being updated to reflect changes recently made to &os; &release.5x;.</para>
+	  url="&url.books.handbook;/index.html">Handbook</ulink>
+	  and <ulink
+	  url="&url.books.faq;/index.html">FAQ</ulink>)
+	  is still being updated to reflect changes recently made to &os; &release.5x;.</para>
       </listitem>
 
     </itemizedlist>
@@ -495,54 +495,54 @@
       <title>Binary Upgrades</title>
 
       <para>Probably the most straightforward approach is that of
-        <quote>backup everything, reformat, reinstall, and restore
-        user data</quote>.  This eliminates problems of incompatible
-        or obsolete executables and configuration files polluting the
-        new system.  It allows new file systems to be created to take
-        advantage of new functionality (most notably, the UFS2
-        defaults).</para>
+	<quote>backup everything, reformat, reinstall, and restore
+	user data</quote>.  This eliminates problems of incompatible
+	or obsolete executables and configuration files polluting the
+	new system.  It allows new file systems to be created to take
+	advantage of new functionality (most notably, the UFS2
+	defaults).</para>
 
       <para>As of this writing, the binary upgrade option in
-        &man.sysinstall.8; has not been well-tested for
-        cross-major-version upgrades.  Use of this feature is not
-        recommended.</para>
+	&man.sysinstall.8; has not been well-tested for
+	cross-major-version upgrades.  Use of this feature is not
+	recommended.</para>
 
       <para>Several changes may be of interest to those users
-        accustomed to the &os; &release.4x; boot media.
+	accustomed to the &os; &release.4x; boot media.
 	Installation floppies (on platforms that support them,
-        such as i386), are organized somewhat differently than
-        on prior releases.  On &release.4x; releases, the floppy set
-        contained a stripped-down kernel with just
-        enough functionality to install the system.  This arrangement
-        allowed the kernel to fit on a single floppy
-        disk, but it lacked the device drivers required by
-        certain hardware configurations.  Beginning with &os;
-        5.3-RELEASE, the installation floppies contain a standard
-        <literal>GENERIC</literal> kernel segmented across multiple
-        disks, with a much more complete set of drivers
-        and features.  The boot loader prompts for the insertion of
-        additional disks as required.  Users downloading floppy images
-        (perhaps to perform a network-based installation) should
-        note that the floppy disk set now includes three
-        disks: <filename>boot.flp</filename>,
-        <filename>kern1.flp</filename>, and
-        <filename>kern2.flp</filename>.</para>
+	such as i386), are organized somewhat differently than
+	on prior releases.  On &release.4x; releases, the floppy set
+	contained a stripped-down kernel with just
+	enough functionality to install the system.  This arrangement
+	allowed the kernel to fit on a single floppy
+	disk, but it lacked the device drivers required by
+	certain hardware configurations.  Beginning with &os;
+	5.3-RELEASE, the installation floppies contain a standard
+	<literal>GENERIC</literal> kernel segmented across multiple
+	disks, with a much more complete set of drivers
+	and features.  The boot loader prompts for the insertion of
+	additional disks as required.  Users downloading floppy images
+	(perhaps to perform a network-based installation) should
+	note that the floppy disk set now includes three
+	disks: <filename>boot.flp</filename>,
+	<filename>kern1.flp</filename>, and
+	<filename>kern2.flp</filename>.</para>
 
       <para>The installation CDROMs for the i386 architecture now use
-        a <quote>no-emulation</quote> boot loader.  This allows, among
-        other things, the use of a <literal>GENERIC</literal> kernel,
-        rather than the stripped-down kernels used on the floppy
-        images in previous versions.
-        Generally, any system capable of booting the &microsoft;
-        &windowsnt;&nbsp;4, &windows2k;, or &windowsxp; installation
+	a <quote>no-emulation</quote> boot loader.  This allows, among
+	other things, the use of a <literal>GENERIC</literal> kernel,
+	rather than the stripped-down kernels used on the floppy
+	images in previous versions.
+	Generally, any system capable of booting the &microsoft;
+	&windowsnt;&nbsp;4, &windows2k;, or &windowsxp; installation
 	CDROMs should be able to boot the &os; &release.5x; CDROMs.</para>
 
       <para>The layout of CDROMs has changed from the &release.4x;
-	series.  Beginning with 5.4-RELEASE, the installation image
+	series.	 Beginning with 5.4-RELEASE, the installation image
 	and the <quote>live filesystem</quote> are now contained on
 	the first disk on all architectures except for ia64 (ia64
 	releases use separate installation and live filesystem disks
-	due to disk space constraints).  Common packages are now
+	due to disk space constraints).	 Common packages are now
 	contained on the second and succeeding disks of a release.</para>
 
     </sect2>
@@ -567,13 +567,13 @@
 	  installation after backing up all data.</para>
       </note>
 
-      <para>A source-based upgrade procedure builds and 
+      <para>A source-based upgrade procedure builds and
 	installs a set of binaries compiled from source on the
-	local machine.  It is based on the
+	local machine.	It is based on the
 	<literal>buildworld</literal>/<literal>installworld</literal>
 	procedure often used by advanced &os; users to track changes
 	along a development branch (such as &os.stable; or
-	&os.current;).  In general, this procedure involves more
+	&os.current;).	In general, this procedure involves more
 	effort than the binary upgrade procedure,
 	but may be useful when a system's
 	configuration files are complex or have been highly
@@ -583,15 +583,15 @@
 	insert installation media).</para>
 
       <para>Reading <filename>src/UPDATING</filename> is absolutely
-        essential.  The section entitled <quote>To upgrade in-place from
-        4.x-stable to current</quote> contains a step-by-step update
-        procedure, which  must be followed exactly, without
-        making use of the <quote>shortcuts</quote> that some users
-        occasionally employ.  An annotated list of these steps is
-        presented below:</para>
+	essential.  The section entitled <quote>To upgrade in-place from
+	4.x-stable to current</quote> contains a step-by-step update
+	procedure, which  must be followed exactly, without
+	making use of the <quote>shortcuts</quote> that some users
+	occasionally employ.  An annotated list of these steps is
+	presented below:</para>
 
       <orderedlist>
-        <listitem>
+	<listitem>
 	  <para>Make backups.</para>
 
 	  <para>The importance of this step cannot be overstated.  It
@@ -599,7 +599,7 @@
 	    configuration files.  Level zero dumps with &man.dump.8;
 	    are an excellent way to do this, although there are of
 	    course many workable alternatives.</para>
-        </listitem>
+	</listitem>
 
 	<listitem>
 	  <para>Ensure that there is about 30MB of free disk space on
@@ -612,10 +612,10 @@
 	    this directory may help to free up needed space.</para>
 	</listitem>
 
-        <listitem>
+	<listitem>
 	  <para>Fix <filename>/etc/fstab</filename> if required.</para>
 
-	  <para>This item probably only affects older &os;/i386 systems.  
+	  <para>This item probably only affects older &os;/i386 systems.
 	    On systems that use MBR-style disk slices,
 	    &os; used to support <quote>compatibility
 	    slices</quote>, where disk partition names could take the
@@ -631,16 +631,16 @@
 	    2.2.6-RELEASE.  This item does not apply to &os;/alpha at
 	    all, or to systems using <quote>dangerously dediated</quote>
 	    mode.</para>
-        </listitem>
+	</listitem>
 
 	<listitem>
 	  <para>Using &man.cvs.1; or other means,
 	    obtain a copy of the &os; base system sources (the
-	    <filename>src/</filename> module).  To check out 5.4-RELEASE
+	    <filename>src/</filename> module).	To check out 5.4-RELEASE
 	    from the &os; CVS repository, use the
 	    <literal>RELENG_5_4_0_RELEASE</literal> tag.  For the 5.4
 	    release and errata branch, use the
-	    <literal>RELENG_5_4</literal> tag.  To track the &os;
+	    <literal>RELENG_5_4</literal> tag.	To track the &os;
 	    5-STABLE development branch, use the <literal>RELENG_5</literal> branch tag.
 	    When using CVS to
 	    check out the source tree, it is important to pass the
@@ -648,7 +648,7 @@
 	    empty directories.</para>
 	</listitem>
 
-        <listitem>
+	<listitem>
 	  <para>&os; &release.5x; requires some new entries in
 	    the system password and group files,
 	    corresponding to various system services.  They should be
@@ -667,9 +667,9 @@
 	    this change generates additional differences in
 	    <filename>/etc/passwd</filename>.</para>
 
-        </listitem>
+	</listitem>
 
-        <listitem>
+	<listitem>
 	  <para>Build the new userland using:</para>
 
 	  <screen>&prompt.root; <userinput>cd /usr/src</userinput>
@@ -692,9 +692,9 @@
 	    operation of &os;, such as
 	    <varname>NO_TOOLCHAIN</varname>.</para>
 
-        </listitem>
+	</listitem>
 
-        <listitem>
+	<listitem>
 	  <para>Build and install a new kernel using:</para>
 
 	  <screen>&prompt.root; <userinput>make buildkernel</userinput></screen>
@@ -718,9 +718,9 @@
 	    case, including the <literal>COMPAT_FREEBSD4</literal>
 	    kernel configuration option is crucial for a
 	    successful upgrade.</para>
-        </listitem>
+	</listitem>
 
-        <listitem>
+	<listitem>
 	  <para>Set up a device hints file for ISA devices with a
 	    variant of the following command.  Substitute the appropriate
 	    architecture name (e.g. <literal>i386</literal>) for
@@ -734,7 +734,7 @@
 	    for non-PNPBIOS systems, or for floppy disks to work
 	    correctly on PNPBIOS systems.</para>
 
-        </listitem>
+	</listitem>
 
 	<listitem>
 	  <para>Install the new kernel with:</para>
@@ -752,7 +752,7 @@
 
 	</listitem>
 
-        <listitem>
+	<listitem>
 	  <para>Install the &os; &release.5x; boot loader with:</para>
 
 	  <screen>&prompt.root; <userinput>cd /usr/src/sys/boot</userinput>
@@ -766,9 +766,9 @@
 	    modules (such as those for VMware) to prevent crashes
 	    caused by changes in kernel ABIs or other
 	    incompatibilities.</para>
-        </listitem>
+	</listitem>
 
-        <listitem>
+	<listitem>
 	  <para>Reboot to single-user mode.  Rebooting at this point
 	    is absolutely required because the new kernel must be running
 	    to install the new userland.  Being in
@@ -785,7 +785,7 @@
 &prompt.root; <userinput>mount -at ufs</userinput></screen>
 
 	  <para>Note that the &man.fsck.8; invocation is necessary to
-	    update certain fields in the file system superblocks for 
+	    update certain fields in the file system superblocks for
 	    &os; &release.5x;.
 	    If the system clock tracks local time rather than UTC
 	    time, also perform:</para>
@@ -799,9 +799,9 @@
 
 	  <para>This message can be safely ignored.</para>
 
-        </listitem>
+	</listitem>
 
-        <listitem>
+	<listitem>
 	  <para>Delete the C++ header files with:</para>
 
 	  <screen>&prompt.root; <userinput>rm -rf /usr/include/g++</userinput></screen>
@@ -809,14 +809,14 @@
 	  <para>This step keeps future compilations from
 	    accidentally picking up old header files from the
 	    <application>GCC</application> 2.95 C++ compiler.</para>
-        </listitem>
+	</listitem>
 
-        <listitem>
+	<listitem>
 	  <para>Install the new userland utilities with:</para>
 
 	  <screen>&prompt.root; <userinput>cd /usr/src</userinput>
 &prompt.root; <userinput>make installworld</userinput></screen>
-        </listitem>
+	</listitem>
 
 	<listitem>
 	  <para>On systems running &man.named.8;, its
@@ -857,7 +857,7 @@
 
 	  <para>After invoking &man.mergemaster.8;, it is a good idea
 	    to inspect (and possibly modify)
-	    <filename>/etc/rc.conf</filename>.  A number of default
+	    <filename>/etc/rc.conf</filename>.	A number of default
 	    values for the variables defined in this file have
 	    changed; in particular, some services that were enabled by
 	    default in &release.4x; are now disabled by default in
@@ -874,14 +874,14 @@
 &prompt.root; <userinput>rm /usr/sbin/named.restart /usr/sbin/ndc</userinput></screen>
 	</listitem>
 
-        <listitem>
+	<listitem>
 	  <para>Reboot.</para>
-        </listitem>
+	</listitem>
       </orderedlist>
 
-      <para>After upgrading the base system, 
+      <para>After upgrading the base system,
 	upgrades to some non-base-system components are generally
-	needed to restore normal functionality.  <application>Perl</application> is no longer a part
+	needed to restore normal functionality.	 <application>Perl</application> is no longer a part
 	of the base system and should be installed from the Ports
 	Collection (specifically, the <filename
 	role="package">lang/perl5.8</filename> port) or from a
@@ -896,8 +896,8 @@
 
       <para>As mentioned in a prior section,
 	<application>&xorg;</application> is the default
-	implementation of the X Window System.  The Ports Collection
-	(as well as packages) rely on this change to satisfy dependencies.  
+	implementation of the X Window System.	The Ports Collection
+	(as well as packages) rely on this change to satisfy dependencies.
 	To convert the installed windowing
 	system from <application>&xfree86;</application> to
 	<application>&xorg;</application>, refer to the <ulink
