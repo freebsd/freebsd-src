@@ -410,7 +410,7 @@ MAN+=	term.7
 CLEANFILES+=${page:T:S/x$//g}
 MAN+=${page:T:S/x$//g}
 ${page:T:S/x$//g}: ${page}
-	ln -sf ${.ALLSRC} ${.TARGET}
+	cat ${.ALLSRC} > ${.TARGET}
 .endfor
 
 MLINKS+=ncurses.3 curses.3

@@ -17,6 +17,6 @@ LDADD+=	${LIBCC_INT}
 CLEANFILES= cpp.1
 
 cpp.1: cccp.1
-	ln -sf ${.ALLSRC} ${.TARGET}
+	cat ${.ALLSRC} > ${.TARGET}
 
 .include <bsd.prog.mk>

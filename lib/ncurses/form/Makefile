@@ -45,7 +45,7 @@ MANx=	form.3x form_cursor.3x form_data.3x form_driver.3x \
 CLEANFILES+=${page:T:S/x$//g}
 MAN+=${page:T:S/x$//g}
 ${page:T:S/x$//g}: ${page}
-	ln -s ${.ALLSRC} ${.TARGET}
+	cat ${.ALLSRC} > ${.TARGET}
 .endfor
 
 MLINKS+=form_cursor.3 pos_form_cursor.3

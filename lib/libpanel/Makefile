@@ -32,7 +32,7 @@ ncurses_def.h:	MKncurses_def.sh ncurses_defs
 CLEANFILES+=	panel.3
 MAN=		panel.3
 panel.3: panel.3x
-	ln -s ${.ALLSRC} ${.TARGET}
+	cat ${.ALLSRC} > ${.TARGET}
 
 MLINKS+=panel.3 bottom_panel.3 panel.3 del_panel.3 panel.3 hide_panel.3 \
 	panel.3 move_panel.3 panel.3 new_panel.3 panel.3 panel_above.3 \
