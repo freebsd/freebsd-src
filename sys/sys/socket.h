@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)socket.h	8.4 (Berkeley) 2/21/94
- * $Id: socket.h,v 1.11 1996/05/09 20:15:21 wollman Exp $
+ * $Id: socket.h,v 1.12 1996/06/14 17:22:18 wollman Exp $
  */
 
 #ifndef _SYS_SOCKET_H_
@@ -179,7 +179,7 @@ struct sockproto {
 #define PF_RTIP		pseudo_AF_FTIP	/* same format as AF_INET */
 #define PF_PIP		pseudo_AF_PIP
 #define	PF_ISDN		AF_ISDN
-#define	PF_KEY		AF_KEY
+#define	PF_KEY		pseudo_AF_KEY
 
 #define	PF_MAX		AF_MAX
 
