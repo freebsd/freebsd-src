@@ -3,7 +3,7 @@
 .\"
 .\" Portions of this software were developed for the FreeBSD Project by
 .\" ThinkSec AS and NAI Labs, the Security Research Division of Network
-.\" Associates, Inc.  under DARPA/SPAWAR contract N66001-01-C-8035
+.\" Associates, Inc. under DARPA/SPAWAR contract N66001-01-C-8035
 .\" ("CBOSS"), as part of the DARPA CHATS research program.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -48,11 +48,11 @@
 The chroot service module for PAM chroots users into either a
 predetermined directory or one derived from their home directory.
 If a user's home directory as specified in the
-.Dv passwd
+.Vt passwd
 structure returned by
 .Xr getpwnam 3
 contains the string
-.Dq /./ ,
+.Dq Li /./ ,
 the portion of the directory name to the left of that string is used
 as the chroot directory, and the portion to the right will be the
 current working directory inside the chroot tree.
@@ -63,7 +63,7 @@ and
 options (see below) are used.
 .Bl -tag -width ".Cm also_root"
 .It Cm also_root
-Do not hold user id 0 exempt from the chroot requirement.
+Do not hold user ID 0 exempt from the chroot requirement.
 .It Cm always
 Report a failure if a chroot directory could not be derived from the
 user's home directory, and the
