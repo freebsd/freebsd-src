@@ -24,10 +24,10 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id: $
+.\" $Id: atkbd.4,v 1.1 1999/02/07 05:40:14 yokota Exp $
 .\"
-.Dd February 6, 1999
-.Dt ATKBD 4 i386
+.Dd February 9, 1999
+.Dt ATKBD 4
 .Os FreeBSD
 .Sh NAME
 .Nm atkbd
@@ -48,35 +48,40 @@ This driver is required for the console drivers
 and 
 .Xr pcvt 4 .
 .Pp
-There can be only one 
+There can be only one
 .Nm
-device in the system and the keyboard controller
+device defined in the kernel configuration file.  This device also
+requires the
 .Nm atkbdc
-must be configured in the kernel too.
+keyboard controller to be present.
+The
+.Em irq
+number must always be 1; there is no provision of changing the number.
 .Sh DRIVER CONFIGURATION
 .\".Ss Kernel Configuration Options
 .Ss Driver Flags
 The
 .Nm
-driver accepts the following driver flags. Set them in the 
-kernel configuration file or in the User Configuration Menu at
-the boot time 
+driver accepts the following driver flags.  They can be set either in the
+kernel configuration file
+.Pq see Xr config 8 ,
+or else in the User Configuration Menu at boot time
 .Pq see Xr boot 8 .
-.Bl -tag -width MOUSE
-.It bit 0 FAIL_IF_NO_KBD
+.Bl -tag -width FAIL
+.It bit 0 (FAIL_IF_NO_KBD)
 By default the
 .Nm
 driver will install even if a keyboard is not actually connected to the
 system.
-This option makes the driver not install in such situation.
-.It bit 1 NO_RESET
+This option prevents the driver from being installed in this situation.
+.It bit 1 (NO_RESET)
 When this option is given, the
 .Nm
 driver will not reset the keyboard when initializing it.
 It may be useful for laptop computers whose function keys
-have special features and these features are somewhat lost when the
+have special functions and these functions are forgotten when the
 keyboard is reset.
-.It bit 2 ALT_SCANCODESET
+.It bit 2 (ALT_SCANCODESET)
 Certain keyboards, such as those on some ThinkPad models, behave 
 like the old XT keyboard and require this option.
 .El
@@ -88,7 +93,10 @@ like the old XT keyboard and require this option.
 .Sh SEE ALSO
 .Xr atkbdc 4 ,
 .Xr pcvt 4 ,
-.Xr psm 4 .
+.Xr psm 4 ,
+.Xr syscons 4 ,
+.Xr boot 8 ,
+.Xr config 8 .
 .Sh HISTORY
 The
 .Nm
@@ -97,8 +105,9 @@ driver first appeared in
 .Sh AUTHORS
 The
 .Nm
-driver is based on keyboard I/O routines in the console driver
-code written by
-.An Søren Schmidt Aq sos@FreeBSD.org .
-This manual page was written by
+driver was written by
+.An Søren Schmidt Aq sos@FreeBSD.org
+and
 .An Kazutaka Yokota Aq yokota@FreeBSD.org .
+This manual page was written by
+.An Kazutaka Yokota .
