@@ -268,6 +268,9 @@ struct smb_vc {
 	int		vc_wxmax;	/* max writex data size */
 	struct smbiod *	vc_iod;
 	struct smb_slock vc_stlock;
+	u_int32_t	vc_seqno;	/* my next sequence number */
+	u_int8_t	*vc_mackey;	/* MAC key */
+	int		vc_mackeylen;	/* length of MAC key */
 };
 
 #define vc_maxmux	vc_sopt.sv_maxmux
