@@ -31,13 +31,13 @@
  * SUCH DAMAGE.
  */
 
+#if 0
 #ifndef lint
 static const char copyright[] =
 "@(#) Copyright (c) 1992, 1993, 1994\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif
 
-#if 0
 #ifndef lint
 static char sccsid[] = "@(#)chflags.c	8.5 (Berkeley) 4/1/94";
 #endif
