@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cluster.c	8.7 (Berkeley) 2/13/94
- * $Id: vfs_cluster.c,v 1.60 1998/03/19 22:48:13 dyson Exp $
+ * $Id: vfs_cluster.c,v 1.61 1998/05/01 16:29:27 bde Exp $
  */
 
 #include "opt_debug_cluster.h"
@@ -243,19 +243,15 @@ single_block_read:
 	 * handle the synchronous read
 	 */
 	if (bp) {
-		if (bp->b_flags & (B_DONE | B_DELWRI)) {
-			panic("cluster_read: DONE bp");
-		} else {
 #if defined(CLUSTERDEBUG)
-			if (rcluster)
-				printf("S(%d,%d,%d) ",
-					bp->b_lblkno, bp->b_bcount, seqcount);
+		if (rcluster)
+			printf("S(%d,%d,%d) ",
+				bp->b_lblkno, bp->b_bcount, seqcount);
 #endif
-			if ((bp->b_flags & B_CLUSTER) == 0)
-				vfs_busy_pages(bp, 0);
-			error = VOP_STRATEGY(bp);
-			curproc->p_stats->p_ru.ru_inblock++;
-		}
+		if ((bp->b_flags & B_CLUSTER) == 0)
+			vfs_busy_pages(bp, 0);
+		error = VOP_STRATEGY(bp);
+		curproc->p_stats->p_ru.ru_inblock++;
 	}
 
 	/*

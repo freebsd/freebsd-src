@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.14 (Berkeley) 5/21/95
- * $Id: spec_vnops.c,v 1.60 1998/03/08 09:57:36 julian Exp $
+ * $Id: spec_vnops.c,v 1.61 1998/04/19 23:32:26 julian Exp $
  */
 
 #include <sys/param.h>
@@ -551,7 +551,8 @@ spec_strategy(ap)
 	struct buf *bp;
 
 	bp = ap->a_bp;
-	if ((LIST_FIRST(&bp->b_dep)) != NULL && bioops.io_start)
+	if (((bp->b_flags & B_READ) == 0) &&
+		(LIST_FIRST(&bp->b_dep)) != NULL && bioops.io_start)
 		(*bioops.io_start)(bp);
 	(*bdevsw[major(bp->b_dev)]->d_strategy)(bp);
 	return (0);
