@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/tc.os.c,v 3.50 1998/10/25 15:10:35 christos Exp $ */
+/* $Header: /src/pub/tcsh/tc.os.c,v 3.52 2000/11/11 23:03:39 christos Exp $ */
 /*
  * tc.os.c: OS Dependent builtin functions
  */
@@ -36,7 +36,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: tc.os.c,v 3.50 1998/10/25 15:10:35 christos Exp $")
+RCSID("$Id: tc.os.c,v 3.52 2000/11/11 23:03:39 christos Exp $")
 
 #include "tw.h"
 #include "ed.h"
@@ -865,7 +865,7 @@ xmemmove(vdst, vsrc, len)
 #endif /* NEEDmemmove */
 
 
-#ifndef WINNT
+#ifndef WINNT_NATIVE
 #ifdef tcgetpgrp
 int
 xtcgetpgrp(fd)
@@ -893,7 +893,7 @@ xtcsetpgrp(fd, pgrp)
 }
 
 #endif	/* tcgetpgrp */
-#endif /* WINNT */
+#endif /* WINNT_NATIVE */
 
 
 #ifdef YPBUGS
@@ -1003,16 +1003,16 @@ xstrerror(i)
 #endif /* strerror */
     
 #ifdef gethostname
-# if !defined(_MINIX) && !defined(__EMX__) && !defined(WINNT)
+# if !defined(_MINIX) && !defined(__EMX__) && !defined(WINNT_NATIVE)
 #  include <sys/utsname.h>
-# endif /* !_MINIX && !__EMX__ && !WINNT */
+# endif /* !_MINIX && !__EMX__ && !WINNT_NATIVE */
 
 int
 xgethostname(name, namlen)
     char   *name;
     int     namlen;
 {
-# if !defined(_MINIX) && !defined(__EMX__) && !defined(WINNT)
+# if !defined(_MINIX) && !defined(__EMX__) && !defined(WINNT_NATIVE)
     int     i, retval;
     struct utsname uts;
 
@@ -1164,7 +1164,7 @@ fail:
 
 # else /* ! hp9000s500 */
 
-#  if (SYSVREL != 0 && !defined(d_fileno)) || defined(_VMS_POSIX) || defined(WINNT)
+#  if (SYSVREL != 0 && !defined(d_fileno)) || defined(_VMS_POSIX) || defined(WINNT) || defined(_MINIX_VMD)
 #   define d_fileno d_ino
 #  endif
 

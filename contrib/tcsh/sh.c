@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/sh.c,v 3.90 2000/01/14 22:57:27 christos Exp $ */
+/* $Header: /src/pub/tcsh/sh.c,v 3.92 2000/11/11 23:03:35 christos Exp $ */
 /*
  * sh.c: Main shell routines
  */
@@ -43,7 +43,7 @@ char    copyright[] =
  All rights reserved.\n";
 #endif /* not lint */
 
-RCSID("$Id: sh.c,v 3.90 2000/01/14 22:57:27 christos Exp $")
+RCSID("$Id: sh.c,v 3.92 2000/11/11 23:03:35 christos Exp $")
 
 #include "tc.h"
 #include "ed.h"
@@ -86,9 +86,9 @@ extern bool NoNLSRebind;
 jmp_buf_t reslab INIT_ZERO_STRUCT;
 
 static const char tcshstr[] = "tcsh";
-#ifdef WINNT
+#ifdef WINNT_NATIVE
 static const char tcshstr_nt[] = "tcsh.exe";
-#endif /* WINNT */
+#endif /* WINNT_NATIVE */
 
 signalfun_t parintr = 0;	/* Parents interrupt catch */
 signalfun_t parterm = 0;	/* Parents terminate catch */
@@ -124,6 +124,7 @@ time_t  t_period;
 Char  *ffile = NULL;
 bool	dolzero = 0;
 int	insource = 0;
+int	exitset = 0;
 static time_t  chktim;		/* Time mail last checked */
 char *progname;
 int tcsh;
@@ -190,9 +191,9 @@ main(argc, argv)
     sigvec_t osv;
 #endif /* BSDSIGS */
 
-#ifdef WINNT
+#ifdef WINNT_NATIVE
     nt_init();
-#endif /* WINNT */
+#endif /* WINNT_NATIVE */
 #if defined(NLS_CATALOGS) && defined(LC_MESSAGES)
     (void) setlocale(LC_MESSAGES, "");
 #endif /* NLS_CATALOGS && LC_MESSAGES */
@@ -248,13 +249,13 @@ main(argc, argv)
 	char *t;
 
 	t = strrchr(argv[0], '/');
-#ifdef WINNT
+#ifdef WINNT_NATIVE
 	{
 	    char *s = strrchr(argv[0], '\\');
 	    if (s)
 		t = s;
 	}
-#endif /* WINNT */
+#endif /* WINNT_NATIVE */
 	t = t ? t + 1 : argv[0];
 	if (*t == '-') t++;
 	progname = strsave((t && *t) ? t : tcshstr);    /* never want a null */
@@ -708,16 +709,16 @@ main(argc, argv)
 #endif /* COLOR_LS_F */
 
     doldol = putn((int) getpid());	/* For $$ */
-#ifdef WINNT
+#ifdef WINNT_NATIVE
     {
 	char *strtmp1, strtmp2[MAXPATHLEN];
 	if ((strtmp1 = getenv("TMP")) != NULL)
 	    wsprintf(strtmp2, "%s/%s", strtmp1, "sh");
 	shtemp = Strspl(SAVE(strtmp2), doldol);	/* For << */
     }
-#else /* !WINNT */
+#else /* !WINNT_NATIVE */
     shtemp = Strspl(STRtmpsh, doldol);	/* For << */
-#endif /* WINNT */
+#endif /* WINNT_NATIVE */
 
     /*
      * Record the interrupt states from the parent process. If the parent is
@@ -758,6 +759,24 @@ main(argc, argv)
     /* Enable process migration on ourselves and our progeny */
     (void) signal(SIGMIGRATE, SIG_DFL);
 #endif /* TCF */
+
+    /*
+     * dspkanji/dspmbyte autosetting
+     */
+    /* PATCH IDEA FROM Issei.Suzuki VERY THANKS */
+#if defined(DSPMBYTE)
+#if defined(NLS) && defined(LC_CTYPE)
+    if (((tcp = setlocale(LC_CTYPE, NULL)) != NULL || (tcp = getenv("LANG")) != NULL) && !adrof(CHECK_MBYTEVAR)) {
+#else
+    if ((tcp = getenv("LANG")) != NULL && !adrof(CHECK_MBYTEVAR)) {
+#endif
+	autoset_dspmbyte(str2short(tcp));
+    }
+#if defined(WINNT_NATIVE)
+    else if (!adrof(CHECK_MBYTEVAR))
+      nt_autoset_dspmbyte();
+#endif /* WINNT_NATIVE */
+#endif
 
     /*
      * Process the arguments.
@@ -1211,6 +1230,7 @@ main(argc, argv)
      * start-up scripts.
      */
     reenter = setexit();	/* PWP */
+    exitset++;
     haderr = 0;			/* In case second time through */
     if (!fast && reenter == 0) {
 	/* Will have varval(STRhome) here because set fast if don't */
@@ -1280,20 +1300,6 @@ main(argc, argv)
 	check_window_size(1);	/* mung environment */
 #endif				/* SIG_WINDOW */
     }
-
-    /*
-     * dspkanji/dspmbyte autosetting
-     */
-    /* PATCH IDEA FROM Issei.Suzuki VERY THANKS */
-#if defined(DSPMBYTE)
-    if ((tcp = getenv("LANG")) != NULL && !adrof(CHECK_MBYTEVAR)) {
-	autoset_dspmbyte(str2short(tcp));
-    }
-#if defined(WINNT)
-    else if (!adrof(CHECK_MBYTEVAR))
-      nt_autoset_dspmbyte();
-#endif /* WINNT */
-#endif
 
     /*
      * Now are ready for the -v and -x flags
@@ -1376,10 +1382,10 @@ importpath(cp)
 		else
 		    break;
 	    }
-#ifdef WINNT
+#ifdef WINNT_NATIVE
 	    else if (*dp == '\\')
 		*dp = '/';
-#endif /* WINNT */
+#endif /* WINNT_NATIVE */
 	    dp++;
 	}
     pv[i] = 0;
@@ -1400,13 +1406,13 @@ srccat(cp, dp)
 	char   *ptr;
 	int rv;
 
-#ifdef WINNT
+#ifdef WINNT_NATIVE
 	ep = cp;
 	while(*ep)
 	    ep++;
 	if (ep[-1] == '/' && dp[0] == '/') /* silly win95 */
 	    dp++;
-#endif /* WINNT */
+#endif /* WINNT_NATIVE */
 
 	ep = Strspl(cp, dp);
 	ptr = short2str(ep);
@@ -1850,9 +1856,9 @@ pintr1(wantnl)
     (void) sigrelse(SIGCHLD);
 #endif
     drainoline();
-#if !defined(_VMS_POSIX) && !defined(WINNT)
+#if !defined(_VMS_POSIX) && !defined(WINNT_NATIVE)
     (void) endpwent();
-#endif /* !_VMS_POSIX && !WINNT */
+#endif /* !_VMS_POSIX && !WINNT_NATIVE */
 
     /*
      * If we have an active "onintr" then we search for the label. Note that if
@@ -1998,7 +2004,7 @@ process(catch)
 	     * read fresh stuff. Otherwise, we are rereading input and don't
 	     * need or want to prompt.
 	     */
-	    if (fseekp == feobp && aret == F_SEEK)
+	    if (fseekp == feobp && aret == TCSH_F_SEEK)
 		printprompt(0, NULL);
 	    flush();
 	    setalarm(1);
@@ -2373,9 +2379,9 @@ xexit(i)
     if (child == 0)
 	(void) catclose(catd);
 #endif /* NLS_CATALOGS */
-#ifdef WINNT
+#ifdef WINNT_NATIVE
     nt_cleanup();
-#endif /* WINNT */
+#endif /* WINNT_NATIVE */
     _exit(i);
 }
 

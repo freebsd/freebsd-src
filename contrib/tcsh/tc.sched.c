@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/tc.sched.c,v 3.16 1998/10/25 15:10:40 christos Exp $ */
+/* $Header: /src/pub/tcsh/tc.sched.c,v 3.17 2000/07/04 19:46:23 christos Exp $ */
 /*
  * tc.sched.c: Scheduled command execution
  *
@@ -38,7 +38,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: tc.sched.c,v 3.16 1998/10/25 15:10:40 christos Exp $")
+RCSID("$Id: tc.sched.c,v 3.17 2000/07/04 19:46:23 christos Exp $")
 
 #include "ed.h"
 #include "tc.h"
@@ -77,11 +77,11 @@ dosched(v, c)
     USE(c);
 /* This is a major kludge because of a gcc linker  */
 /* Problem.  It may or may not be needed for you   */
-#ifdef _MINIX
+#if defined(_MINIX) && !defined(_MINIX_VMD)
     char kludge[10];
     extern char *sprintf();
     sprintf(kludge, CGETS(24, 1, "kludge"));
-#endif /* _MINIX */
+#endif /* _MINIX && !_MINIX_VMD */
 
     v++;
     cp = *v++;

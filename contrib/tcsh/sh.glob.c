@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/sh.glob.c,v 3.44 2000/01/14 22:57:28 christos Exp $ */
+/* $Header: /src/pub/tcsh/sh.glob.c,v 3.47 2000/11/11 23:03:37 christos Exp $ */
 /*
  * sh.glob.c: Regular expression expansion
  */
@@ -36,7 +36,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: sh.glob.c,v 3.44 2000/01/14 22:57:28 christos Exp $")
+RCSID("$Id: sh.glob.c,v 3.47 2000/11/11 23:03:37 christos Exp $")
 
 #include "tc.h"
 
@@ -452,8 +452,11 @@ globexpand(v)
      */
     if ( symlinks == SYM_EXPAND )
 	for (s = *vl; s; s = *++vl) {
-	    *vl = dnormalize(s, 1);
-	    xfree((ptr_t) s);
+	    char *path = short2str(s);
+	    if (strstr(path, "..") != NULL && access(path, F_OK) == 0) {
+		*vl = dnormalize(s, 1);
+		xfree((ptr_t) s);
+	    }
 	}
     vl = nv;
 
@@ -901,10 +904,10 @@ backeval(cp, literal)
 	    c = (*ip++ & TRIM);
 	    if (c == 0)
 		break;
-#ifdef WINNT
+#ifdef WINNT_NATIVE
 	    if (c == '\r')
 	    	c = ' ';
-#endif /* WINNT */
+#endif /* WINNT_NATIVE */
 	    if (c == '\n') {
 		/*
 		 * Continue around the loop one more time, so that we can eat
