@@ -39,9 +39,9 @@ __FBSDID("$FreeBSD$");
  
 #include <dev/aic/aicvar.h>
 #include <dev/pccard/pccardvar.h>
-#include "pccarddevs.h"
 
 #include "card_if.h"
+#include "pccarddevs.h"
 
 struct aic_pccard_softc {
 	struct	aic_softc sc_aic;

@@ -30,12 +30,10 @@ __FBSDID("$FreeBSD$");
 /* xe pccard interface driver */
 
 #include <sys/param.h>
-#include <sys/systm.h>
+#include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/socket.h>
-
-#include <sys/module.h>
-#include <sys/bus.h>
+#include <sys/systm.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -52,9 +50,10 @@ __FBSDID("$FreeBSD$");
 #include <dev/xe/if_xevar.h>
 
 #include <dev/pccard/pccardvar.h>
-#include "pccarddevs.h"
 #include <dev/pccard/pccard_cis.h>
+
 #include "card_if.h"
+#include "pccarddevs.h"
 
 /*
  * Debug logging levels - set with hw.xe.debug sysctl

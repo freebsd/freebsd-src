@@ -66,12 +66,13 @@ __FBSDID("$FreeBSD$");
 #include <net/if_types.h>
 #include <net/if_media.h>
 
-#include <dev/pccard/pccardvar.h>
-#include "pccarddevs.h"
-#include "card_if.h"
-
 #include <dev/an/if_aironet_ieee.h>
 #include <dev/an/if_anreg.h>
+
+#include <dev/pccard/pccardvar.h>
+
+#include "pccarddevs.h"
+#include "card_if.h"
 
 /*
  * Support for PCMCIA cards.

@@ -40,8 +40,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <dev/joy/joyvar.h>
 
-#include <dev/pccard/pccardreg.h>
 #include <dev/pccard/pccardvar.h>
+
 #include "pccarddevs.h"
 
 static int
