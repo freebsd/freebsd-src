@@ -122,6 +122,13 @@
     files (as documented in &man.login.conf.5;) has been disabled due
     to incorrect merging of local and global settings.  This problem
     will be fixed in future releases.</para>
+
+    <para>A local root vulnerability in
+      <application>UUCP</application> was corrected before the release
+      of &os; &release.prev; and documented in security advisory
+      FreeBSD-SA-01:62.  The release notes mentioned the correction,
+      but not the security advisory, which was issued after the
+      release date of &release.prev;.</para>
 ]]>
   </sect1>
 
