@@ -14,8 +14,8 @@ SUBDIR=	apply ar banner basename biff cal calendar \
 	fsplit fstat ftp gcore gprof head hexdump id indent \
 	join jot kdump ktrace lam last lastcomm leave locate \
 	lock logger login logname lorder m4 mail make mesg mkdep \
-	mkfifo mklocale mkstr more msgs mt netstat nfsstat nice nm nohup \
-	pagesize passwd paste pr printenv printf quota \
+	mkfifo mklocale mkstr modstat more msgs mt netstat nfsstat nice \
+	nm nohup pagesize passwd paste pr printenv printf quota \
 	ranlib rdist renice rev rlogin rs rsh ruptime rwho \
 	script sed shar showmount size soelim split \
 	strings strip su talk tcopy tee telnet tftp time tip \
