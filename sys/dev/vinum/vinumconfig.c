@@ -169,66 +169,6 @@ atoi(char *s)
 }
 
 /*
- * Find index of volume in vinum_conf.  Return the index
- * if found, or -1 if not
- */
-int 
-volume_index(struct volume *vol)
-{
-    int i;
-
-    for (i = 0; i < vinum_conf.volumes_used; i++)
-	if (&VOL[i] == vol)
-	    return i;
-    return -1;
-}
-
-/*
- * Find index of plex in vinum_conf.  Return the index
- * if found, or -1 if not
- */
-int 
-plex_index(struct plex *plex)
-{
-    int i;
-
-    for (i = 0; i < vinum_conf.plexes_used; i++)
-	if (&PLEX[i] == plex)
-	    return i;
-    return -1;
-}
-
-/*
- * Find index of subdisk in vinum_conf.  Return the index
- * if found, or -1 if not
- */
-int 
-sd_index(struct sd *sd)
-{
-    int i;
-
-    for (i = 0; i < vinum_conf.subdisks_used; i++)
-	if (&SD[i] == sd)
-	    return i;
-    return -1;
-}
-
-/*
- * Find index of drive in vinum_conf.  Return the index
- * if found, or -1 if not
- */
-int 
-drive_index(struct drive *drive)
-{
-    int i;
-
-    for (i = 0; i < vinum_conf.drives_used; i++)
-	if (&DRIVE[i] == drive)
-	    return i;
-    return -1;
-}
-
-/*
  * Check a volume to see if the plex is already assigned to it.
  * Return index in volume->plex, or -1 if not assigned
  */
@@ -528,18 +468,14 @@ get_empty_drive(void)
     struct drive *drive;
 
     /* first see if we have one which has been deallocated */
-    for (driveno = 0; driveno < vinum_conf.drives_used; driveno++) {
+    for (driveno = 0; driveno < vinum_conf.drives_allocated; driveno++) {
 	if (DRIVE[driveno].state == drive_unallocated)	    /* bingo */
 	    break;
     }
 
-    if (driveno >= vinum_conf.drives_used)
-	/* Couldn't find a deallocated drive.  Allocate a new one */
-    {
-	vinum_conf.drives_used++;
-	if (vinum_conf.drives_used > vinum_conf.drives_allocated) /* we've used all our allocation */
-	    EXPAND(DRIVE, struct drive, vinum_conf.drives_allocated, INITIAL_DRIVES);
-    }
+    if (driveno >= vinum_conf.drives_allocated)		    /* we've used all our allocation */
+	EXPAND(DRIVE, struct drive, vinum_conf.drives_allocated, INITIAL_DRIVES);
+
     /* got a drive entry.  Make it pretty */
     drive = &DRIVE[driveno];
     bzero(drive, sizeof(struct drive));
@@ -563,10 +499,11 @@ find_drive(const char *name, int create)
     struct drive *drive;
 
     if (name != NULL) {
-	for (driveno = 0; driveno < vinum_conf.drives_used; driveno++) {
+	for (driveno = 0; driveno < vinum_conf.drives_allocated; driveno++) {
 	    drive = &DRIVE[driveno];			    /* point to drive */
 	    if ((drive->label.name[0] != '\0')		    /* it has a name */
-	    &&(strcmp(drive->label.name, name) == 0))	    /* and it's this one: found */
+&&(strcmp(drive->label.name, name) == 0)		    /* and it's this one */
+	    &&(drive->state > drive_unallocated))	    /* and it's a real one: found */
 		return driveno;
 	}
     }
@@ -596,10 +533,10 @@ find_drive_by_dev(const char *devname, int create)
     int driveno;
     struct drive *drive;
 
-    for (driveno = 0; driveno < vinum_conf.drives_used; driveno++) {
+    for (driveno = 0; driveno < vinum_conf.drives_allocated; driveno++) {
 	drive = &DRIVE[driveno];			    /* point to drive */
-	if ((drive->label.name[0] != '\0')		    /* it has a name */
-	&&(strcmp(drive->devicename, devname) == 0))	    /* and it's this one: found */
+	if ((strcmp(drive->devicename, devname) == 0)	    /* it's this device */
+	&&(drive->state > drive_unallocated))		    /* and it's a real one: found */
 	    return driveno;
     }
 
@@ -625,16 +562,18 @@ get_empty_sd(void)
     struct sd *sd;
 
     /* first see if we have one which has been deallocated */
-    for (sdno = 0; sdno < vinum_conf.subdisks_used; sdno++) {
+    for (sdno = 0; sdno < vinum_conf.subdisks_allocated; sdno++) {
 	if (SD[sdno].state == sd_unallocated)		    /* bingo */
 	    break;
     }
+    if (sdno >= vinum_conf.subdisks_allocated)
+	/*
+	 * We've run out of space.  sdno is pointing
+	 * where we want it, but at the moment we
+	 * don't have the space.  Get it.
+	 */
+	EXPAND(SD, struct sd, vinum_conf.subdisks_allocated, INITIAL_SUBDISKS);
 
-    if (sdno >= vinum_conf.subdisks_used) {		    /* No unused sd found.  Allocate a new one */
-	vinum_conf.subdisks_used++;
-	if (vinum_conf.subdisks_used > vinum_conf.subdisks_allocated)
-	    EXPAND(SD, struct sd, vinum_conf.subdisks_allocated, INITIAL_SUBDISKS);
-    }
     /* initialize some things */
     sd = &SD[sdno];					    /* point to it */
     bzero(sd, sizeof(struct sd));			    /* initialize */
@@ -650,12 +589,13 @@ get_empty_sd(void)
 void 
 free_drive(struct drive *drive)
 {
-    lockdrive(drive);
-    if (drive->vp != NULL)				    /* device open */
-	vn_close(drive->vp, FREAD | FWRITE, FSCRED, drive->p);
-    bzero(drive, sizeof(struct drive));			    /* this also sets drive_unallocated */
-    vinum_conf.drives_used--;				    /* one less drive */
-    unlockdrive(drive);
+    if (drive->state > drive_referenced) {		    /* real drive */
+	lockdrive(drive);
+	if (drive->vp != NULL)				    /* device open */
+	    vn_close(drive->vp, FREAD | FWRITE, FSCRED, drive->p);
+	bzero(drive, sizeof(struct drive));		    /* this also sets drive_unallocated */
+	unlockdrive(drive);
+    }
 }
 
 /*
@@ -796,7 +736,6 @@ free_sd(int sdno)
 	    sd->sectors);
     bzero(sd, sizeof(struct sd));			    /* and clear it out */
     sd->state = sd_unallocated;
-    vinum_conf.subdisks_used--;				    /* one less sd */
 }
 
 /* Find an empty plex in the plex table */
@@ -807,17 +746,14 @@ get_empty_plex(void)
     struct plex *plex;					    /* if we allocate one */
 
     /* first see if we have one which has been deallocated */
-    for (plexno = 0; plexno < vinum_conf.plexes_used; plexno++) {
+    for (plexno = 0; plexno < vinum_conf.plexes_allocated; plexno++) {
 	if (PLEX[plexno].state == plex_unallocated)	    /* bingo */
 	    break;					    /* and get out of here */
     }
 
-    if (plexno >= vinum_conf.plexes_used) {
-	/* Couldn't find a deallocated plex.  Allocate a new one */
-	vinum_conf.plexes_used++;
-	if (vinum_conf.plexes_used > vinum_conf.plexes_allocated)
-	    EXPAND(PLEX, struct plex, vinum_conf.plexes_allocated, INITIAL_PLEXES);
-    }
+    if (plexno >= vinum_conf.plexes_allocated)
+	EXPAND(PLEX, struct plex, vinum_conf.plexes_allocated, INITIAL_PLEXES);
+
     /* Found a plex.  Give it an sd structure */
     plex = &PLEX[plexno];				    /* this one is ours */
     bzero(plex, sizeof(struct plex));			    /* polish it up */
@@ -876,7 +812,6 @@ free_plex(int plexno)
 	Free(plex->lock);
     bzero(plex, sizeof(struct plex));			    /* and clear it out */
     plex->state = plex_unallocated;
-    vinum_conf.plexes_used--;				    /* one less plex */
 }
 
 /* Find an empty volume in the volume table */
@@ -887,25 +822,19 @@ get_empty_volume(void)
     struct volume *vol;
 
     /* first see if we have one which has been deallocated */
-    for (volno = 0; volno < vinum_conf.volumes_used; volno++) {
+    for (volno = 0; volno < vinum_conf.volumes_allocated; volno++) {
 	if (VOL[volno].state == volume_unallocated)	    /* bingo */
 	    break;
     }
 
-    if (volno >= vinum_conf.volumes_used)
-	/* Couldn't find a deallocated volume.  Allocate a new one */
-    {
-	vinum_conf.volumes_used++;
-	if (vinum_conf.volumes_used > vinum_conf.volumes_allocated)
-	    EXPAND(VOL, struct volume, vinum_conf.volumes_allocated, INITIAL_VOLUMES);
-    }
+    if (volno >= vinum_conf.volumes_allocated)
+	EXPAND(VOL, struct volume, vinum_conf.volumes_allocated, INITIAL_VOLUMES);
+
     /* Now initialize fields */
     vol = &VOL[volno];
     bzero(vol, sizeof(struct volume));
-    vol->flags |= VF_NEWBORN;				    /* newly born volume */
-    vol->preferred_plex = -1;				    /* default to round robin */
+    vol->flags |= VF_NEWBORN | VF_CREATED;		    /* newly born volume */
     vol->preferred_plex = ROUND_ROBIN_READPOL;		    /* round robin */
-
     return volno;					    /* return the index */
 }
 
@@ -921,7 +850,7 @@ find_volume(const char *name, int create)
     int volno;
     struct volume *vol;
 
-    for (volno = 0; volno < vinum_conf.volumes_used; volno++) {
+    for (volno = 0; volno < vinum_conf.volumes_allocated; volno++) {
 	if (strcmp(VOL[volno].name, name) == 0)		    /* found it */
 	    return volno;
     }
@@ -950,7 +879,6 @@ free_volume(int volno)
     vol = &VOL[volno];
     bzero(vol, sizeof(struct volume));			    /* and clear it out */
     vol->state = volume_unallocated;
-    vinum_conf.volumes_used--;				    /* one less volume */
 }
 
 /*
@@ -1067,6 +995,7 @@ config_drive(int update)
 	drive->state = drive_unallocated;		    /* deallocate the drive */
 	throw_rude_remark(EINVAL, "No device name for %s", drive->label.name);
     }
+    vinum_conf.drives_used++;				    /* passed all hurdles: one more in use */
 }
 
 /*
@@ -1245,6 +1174,7 @@ config_subdisk(int update)
 	sd->state = sd_empty;				    /* must be empty */
     if (autosize == 0)					    /* no autoconfig, do the drive now */
 	give_sd_to_drive(sdno);
+    vinum_conf.subdisks_used++;				    /* one more in use */
 }
 
 /*
@@ -1400,6 +1330,7 @@ config_plex(int update)
     /* Note the last plex we configured */
     current_plex = plexno;
     plex->state = state;				    /* set whatever state we chose */
+    vinum_conf.plexes_used++;				    /* one more in use */
 }
 
 /*
@@ -1419,8 +1350,9 @@ config_volume(int update)
     current_volume = -1;				    /* forget the previous volume */
     volno = find_volume(token[1], 1);			    /* allocate a volume to initialize */
     vol = &VOL[volno];					    /* and get a pointer */
-    if (update && ((vol->flags & VF_NEWBORN) == 0))	    /* this volume exists already */
+    if (update && ((vol->flags & VF_CREATED) == 0))	    /* this volume exists already */
 	return;						    /* don't do anything */
+    vol->flags &= ~VF_CREATED;				    /* it exists now */
 
     for (parameter = 2; parameter < tokens; parameter++) {  /* look at all tokens */
 	switch (get_keyword(token[parameter], &keyword_set)) {
@@ -1526,6 +1458,7 @@ config_volume(int update)
     /* Find out how big our volume is */
     for (i = 0; i < vol->plexes; i++)
 	vol->size = max(vol->size, PLEX[vol->plex[i]].length);
+    vinum_conf.volumes_used++;				    /* one more in use */
 }
 
 /*
@@ -1645,7 +1578,7 @@ remove_drive_entry(int driveno, int force, int recurse)
 {
     struct drive *drive = &DRIVE[driveno];
 
-    if ((driveno > vinum_conf.drives_used)		    /* not a valid drive */
+    if ((driveno > vinum_conf.drives_allocated)		    /* not a valid drive */
     ||(drive->state == drive_unallocated)) {		    /* or nothing there */
 	ioctl_reply->error = EINVAL;
 	strcpy(ioctl_reply->msg, "No such drive");
@@ -1654,7 +1587,7 @@ remove_drive_entry(int driveno, int force, int recurse)
 	    int sdno;
 	    struct vinum_ioctl_msg sdmsg;
 
-	    for (sdno = 0; sdno < vinum_conf.subdisks_used; sdno++) {
+	    for (sdno = 0; sdno < vinum_conf.subdisks_allocated; sdno++) {
 		if ((SD[sdno].state != sd_unallocated)	    /* subdisk is allocated */
 		&&(SD[sdno].driveno == driveno)) {	    /* and it belongs to this drive */
 		    sdmsg.index = sdno;
@@ -1665,10 +1598,13 @@ remove_drive_entry(int driveno, int force, int recurse)
 		}
 	    }
 	    remove_drive(driveno);			    /* now remove it */
+	    vinum_conf.drives_used--;			    /* one less drive */
 	} else
 	    ioctl_reply->error = EBUSY;			    /* can't do that */
-    } else
+    } else {
 	remove_drive(driveno);				    /* just remove it */
+	vinum_conf.drives_used--;			    /* one less drive */
+    }
 }
 
 /* remove a subdisk */
@@ -1677,7 +1613,7 @@ remove_sd_entry(int sdno, int force, int recurse)
 {
     struct sd *sd = &SD[sdno];
 
-    if ((sdno > vinum_conf.subdisks_used)		    /* not a valid sd */
+    if ((sdno > vinum_conf.subdisks_allocated)		    /* not a valid sd */
     ||(sd->state == sd_unallocated)) {			    /* or nothing there */
 	ioctl_reply->error = EINVAL;
 	strcpy(ioctl_reply->msg, "No such subdisk");
@@ -1713,11 +1649,13 @@ remove_sd_entry(int sdno, int force, int recurse)
 		set_plex_state(plex->plexno, plex_faulty, setstate_force); /* need to reinitialize */
 	    log(LOG_INFO, "vinum: removing %s\n", sd->name);
 	    free_sd(sdno);
+	    vinum_conf.subdisks_used--;			    /* one less sd */
 	} else
 	    ioctl_reply->error = EBUSY;			    /* can't do that */
     } else {
 	log(LOG_INFO, "vinum: removing %s\n", sd->name);
 	free_sd(sdno);
+	vinum_conf.subdisks_used--;			    /* one less sd */
     }
 }
 
@@ -1728,7 +1666,7 @@ remove_plex_entry(int plexno, int force, int recurse)
     struct plex *plex = &PLEX[plexno];
     int sdno;
 
-    if ((plexno > vinum_conf.plexes_used)		    /* not a valid plex */
+    if ((plexno > vinum_conf.plexes_allocated)		    /* not a valid plex */
     ||(plex->state == plex_unallocated)) {		    /* or nothing there */
 	ioctl_reply->error = EINVAL;
 	strcpy(ioctl_reply->msg, "No such plex");
@@ -1739,8 +1677,10 @@ remove_plex_entry(int plexno, int force, int recurse)
     if (plex->subdisks) {
 	if (force) {					    /* do it anyway */
 	    if (recurse) {				    /* remove all below */
-		for (sdno = 0; sdno < plex->subdisks; sdno++)
+		for (sdno = 0; sdno < plex->subdisks; sdno++) {
 		    free_sd(plex->sdnos[sdno]);		    /* free all subdisks */
+		    vinum_conf.subdisks_used--;		    /* one less sd */
+		}
 	    } else {					    /* just tear them out */
 		for (sdno = 0; sdno < plex->subdisks; sdno++)
 		    SD[plex->sdnos[sdno]].plexno = -1;	    /* no plex any more */
@@ -1778,6 +1718,7 @@ remove_plex_entry(int plexno, int force, int recurse)
     }
     log(LOG_INFO, "vinum: removing %s\n", plex->name);
     free_plex(plexno);
+    vinum_conf.plexes_used--;				    /* one less plex */
 }
 
 /* remove a volume */
@@ -1787,7 +1728,7 @@ remove_volume_entry(int volno, int force, int recurse)
     struct volume *vol = &VOL[volno];
     int plexno;
 
-    if ((volno > vinum_conf.volumes_used)		    /* not a valid volume */
+    if ((volno > vinum_conf.volumes_allocated)		    /* not a valid volume */
     ||(vol->state == volume_unallocated)) {		    /* or nothing there */
 	ioctl_reply->error = EINVAL;
 	strcpy(ioctl_reply->msg, "No such volume");
@@ -1806,11 +1747,13 @@ remove_volume_entry(int volno, int force, int recurse)
 	    }
 	    log(LOG_INFO, "vinum: removing %s\n", vol->name);
 	    free_volume(volno);
+	    vinum_conf.volumes_used--;			    /* one less volume */
 	} else
 	    ioctl_reply->error = EBUSY;			    /* can't do that */
     } else {
 	log(LOG_INFO, "vinum: removing %s\n", vol->name);
 	free_volume(volno);
+	vinum_conf.volumes_used--;			    /* one less volume */
     }
 }
 
@@ -1968,13 +1911,15 @@ updateconfig(int diskconfig)
     int plexno;
     int volno;
 
-    for (plexno = 0; plexno < vinum_conf.plexes_used; plexno++)
+    for (plexno = 0; plexno < vinum_conf.plexes_allocated; plexno++)
 	update_plex_config(plexno, diskconfig);
 
-    for (volno = 0; volno < vinum_conf.volumes_used; volno++) {
-	VOL[volno].flags &= ~VF_CONFIG_SETUPSTATE;	    /* no more setupstate */
-	update_volume_state(volno);
-	update_volume_config(volno, diskconfig);
+    for (volno = 0; volno < vinum_conf.volumes_allocated; volno++) {
+	if (VOL[volno].state > volume_uninit) {
+	    VOL[volno].flags &= ~VF_CONFIG_SETUPSTATE;	    /* no more setupstate */
+	    update_volume_state(volno);
+	    update_volume_config(volno, diskconfig);
+	}
     }
     save_config();
 }
