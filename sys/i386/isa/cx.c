@@ -546,7 +546,7 @@ cxoproc (struct tty *tp)
 			tp->t_state &= ~TS_ASLEEP;
 			wakeup(TSA_OLOWAT(tp));
 		}
-		selwakeup(&tp->t_wsel);
+		selwakeuppri(&tp->t_wsel, TTOPRI);
 	}
 #endif
 	splx (s);

@@ -945,7 +945,7 @@ ugenintr(usbd_xfer_handle xfer, usbd_private_handle addr, usbd_status status)
 		DPRINTFN(5, ("ugen_intr: waking %p\n", sce));
 		wakeup(sce);
 	}
-	selwakeup(&sce->rsel);
+	selwakeuppri(&sce->rsel, PZERO);
 }
 
 Static void
@@ -1005,7 +1005,7 @@ ugen_isoc_rintr(usbd_xfer_handle xfer, usbd_private_handle addr,
 		DPRINTFN(5, ("ugen_isoc_rintr: waking %p\n", sce));
 		wakeup(sce);
 	}
-	selwakeup(&sce->rsel);
+	selwakeuppri(&sce->rsel, PZERO);
 }
 
 Static usbd_status

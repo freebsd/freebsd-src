@@ -426,7 +426,7 @@ random_unblock(void)
 {
 	if (!random_systat.seeded) {
 		random_systat.seeded = 1;
-		selwakeup(&random_systat.rsel);
+		selwakeuppri(&random_systat.rsel, PUSER);
 		wakeup(&random_systat);
 	}
 }

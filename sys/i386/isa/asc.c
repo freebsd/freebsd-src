@@ -525,7 +525,7 @@ ascintr(int unit)
 	    dma_restart(scu);
 	}
 	if (SEL_WAITING(&scu->selp)) {
-	    selwakeup(&scu->selp);
+	    selwakeuppri(&scu->selp, ASCPRI);
 	}
     }
 }

@@ -3375,7 +3375,7 @@ vn_pollevent(vp, events)
 		 */
 		vp->v_pollinfo->vpi_events = 0;	/* &= ~events ??? */
 		vp->v_pollinfo->vpi_revents |= events;
-		selwakeup(&vp->v_pollinfo->vpi_selinfo);
+		selwakeuppri(&vp->v_pollinfo->vpi_selinfo, PRIBIO);
 	}
 	mtx_unlock(&vp->v_pollinfo->vpi_lock);
 }
@@ -3394,7 +3394,7 @@ vn_pollgone(vp)
 	VN_KNOTE(vp, NOTE_REVOKE);
 	if (vp->v_pollinfo->vpi_events) {
 		vp->v_pollinfo->vpi_events = 0;
-		selwakeup(&vp->v_pollinfo->vpi_selinfo);
+		selwakeuppri(&vp->v_pollinfo->vpi_selinfo, PRIBIO);
 	}
 	mtx_unlock(&vp->v_pollinfo->vpi_lock);
 }

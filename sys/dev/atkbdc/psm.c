@@ -2371,7 +2371,7 @@ psmintr(void *arg)
             sc->state &= ~PSM_ASLP;
             wakeup( sc);
     	}
-        selwakeup(&sc->rsel);
+        selwakeuppri(&sc->rsel, PZERO);
     }
 }
 

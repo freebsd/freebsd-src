@@ -999,7 +999,7 @@ apm_record_event(struct apm_softc *sc, u_int event_type)
 	sc->event_ptr %= APM_NEVENTS;
 	evp->type = event_type;
 	evp->index = ++apm_evindex;
-	selwakeup(&sc->sc_rsel);
+	selwakeuppri(&sc->sc_rsel, PZERO);
 	return (sc->sc_flags & SCFLAG_OCTL) ? 0 : 1; /* user may handle */
 }
 

@@ -525,14 +525,21 @@ cv_signal(struct cv *cvp)
  * Should be called with the same mutex as was passed to cv_wait held.
  */
 void
-cv_broadcast(struct cv *cvp)
+cv_broadcastpri(struct cv *cvp, int pri)
 {
+	struct thread	*td;
 
 	KASSERT(cvp != NULL, ("%s: cvp NULL", __func__));
 	mtx_lock_spin(&sched_lock);
 	CV_SIGNAL_VALIDATE(cvp);
-	while (!TAILQ_EMPTY(&cvp->cv_waitq))
+	while (!TAILQ_EMPTY(&cvp->cv_waitq)) {
+		if (pri >= PRI_MIN && pri <= PRI_MAX) {
+			td = TAILQ_FIRST(&cvp->cv_waitq);
+			if (td->td_priority > pri)
+				td->td_priority = pri;
+		}
 		cv_wakeup(cvp);
+	}
 	mtx_unlock_spin(&sched_lock);
 }
 
