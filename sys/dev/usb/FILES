@@ -7,6 +7,7 @@ Makefile		to install .h files
 Makefile.usbdevs	to run devlist2h.awk
 TODO			just a list of things to do
 devlist2h.awk		script to generate usbdevs*.h
+dsbr100io.h		API for ufm.c
 files.usb		config include file
 hid.c			subroutines to parse and access HID data
 hid.h			API for hid.c
@@ -22,6 +23,7 @@ ohcireg.h		Hardware definitions for OHCI
 ohcivar.h		API for ohci.c
 uaudio.c		USB audio class driver
 uaudioreg.h		  and definitions for it
+ufm.c			USB fm radio driver
 [Merged] ugen.c		generic driver that can handle access to any USB device
 uhci.c			Host controller driver for UHCI
 uhcireg.h		Hardware definitions for UHCI

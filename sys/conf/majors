@@ -182,6 +182,7 @@ chrdev	name		comments
 164	iir		Intel Integrated RAID <boji.t.kannanthanam@intel.com>
 165	net		Network drivers <jlemon>
 166	ciss		Compaq SmartArray 5* adapter <msmith>
+167	ufm		USB Fm Radio
 200	??		entries from 200-252 are reserved for local use
 252	??		entries from 200-252 are reserved for local use
 254	internal	Used internally by the kernel

@@ -2853,6 +2853,8 @@ device		ums
 device		urio
 # USB scanners
 device		uscanner
+# USB Fm Radio
+device		ufm
 #
 # ADMtek USB ethernet. Supports the LinkSys USB100TX,
 # the Billionton USB100, the Melco LU-ATX, the D-Link DSB-650TX
