@@ -373,10 +373,18 @@ main(argc, argv)
 			}
 		}
 		/* Create original format password file entry */
-		if (makeold)
-			(void)fprintf(oldfp, "%s:*:%d:%d:%s:%s:%s\n",
-			    pwd.pw_name, pwd.pw_uid, pwd.pw_gid, pwd.pw_gecos,
-			    pwd.pw_dir, pwd.pw_shell);
+		if (makeold) {
+			char uidstr[20];
+			char gidstr[20];
+
+			snprintf(uidstr, sizeof(uidstr), "%d", pwd.pw_uid);
+			snprintf(gidstr, sizeof(gidstr), "%d", pwd.pw_gid);
+
+			(void)fprintf(oldfp, "%s:*:%s:%s:%s:%s:%s\n",
+			    pwd.pw_name, pwd.pw_fields & _PWF_UID ? uidstr : "",
+			    pwd.pw_fields & _PWF_GID ? gidstr : "",
+			    pwd.pw_gecos, pwd.pw_dir, pwd.pw_shell);
+		}
 	}
 	/* If YP enabled, set flag. */
 	if (yp_enabled) {
