@@ -1112,7 +1112,7 @@ static driver_t isa_driver = {
  */
 DRIVER_MODULE(isa, isab, isa_driver, isa_devclass, 0, 0);
 DRIVER_MODULE(isa, eisab, isa_driver, isa_devclass, 0, 0);
-#ifdef __i386__
+#if defined(__i386__) || defined(__amd64__)
 DRIVER_MODULE(isa, legacy, isa_driver, isa_devclass, 0, 0);
 #endif
 MODULE_VERSION(isa, 1);
