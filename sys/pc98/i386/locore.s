@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.7 1996/12/04 04:20:22 asami Exp $
+ *	$Id: locore.s,v 1.8 1997/01/11 07:14:35 kato Exp $
  *
  *		originally from: locore.s, by William F. Jolitz
  *
@@ -459,7 +459,7 @@ begin:
 #ifdef LOOP_EN
 	orb	$0x04, %al		# Loop Enable
 #endif
-#ifndef DISALBE_5X86_LSSER
+#ifndef DISABLE_5X86_LSSER
 	orb	$0x80, %al		# Reorder
 #endif
 	outb	%al,$0x23
