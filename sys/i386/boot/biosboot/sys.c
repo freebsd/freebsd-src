@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:36:34  rpd
- *	$Id: sys.c,v 1.6 1994/11/07 11:26:30 davidg Exp $
+ *	$Id: sys.c,v 1.7 1994/12/30 07:48:07 bde Exp $
  */
 
 #include "boot.h"
@@ -42,9 +42,11 @@ char buf[BUFSIZE], fsbuf[SBSIZE], iobuf[MAXBSIZE];
 #define MAPBUFSIZE BUFSIZE
 char buf[BUFSIZE], fsbuf[BUFSIZE], iobuf[BUFSIZE]; 
 
-int xread(addr, size)
-	char		* addr;
-	int		size;
+char mapbuf[MAPBUFSIZE];
+int mapblock;
+
+int
+xread(char *addr, int size)
 {
 	int count = BUFSIZE;
 	while (size > 0) {
@@ -57,9 +59,8 @@ int xread(addr, size)
 	}
 }
 
-read(buffer, count)
-	int count;
-	char *buffer;
+void
+read(char *buffer, int count)
 {
 	int logno, off, size;
 	int cnt2, bnum2;
@@ -91,8 +92,8 @@ read(buffer, count)
 	}
 }
 
-find(path)
-     char *path;
+int
+find(char *path)
 {
 	char *rest, ch;
 	int block, off, loc, ino = ROOTINO;
@@ -105,8 +106,8 @@ loop:	iodest = iobuf;
 	cnt = fs->fs_bsize;
 	bnum = fsbtodb(fs,ino_to_fsba(fs,ino)) + boff;
 	devread();
-	bcopy(&((struct dinode *)iodest)[ino % fs->fs_inopb],
-	      &inode.i_din,
+	bcopy((void *)&((struct dinode *)iodest)[ino % fs->fs_inopb],
+	      (void *)&inode.i_din,
 	      sizeof (struct dinode));
 	if (!*path)
 		return 1;
@@ -143,11 +144,9 @@ loop:	iodest = iobuf;
 	goto loop;
 }
 
-char mapbuf[MAPBUFSIZE];
-int mapblock;
 
-block_map(file_block)
-     int file_block;
+int
+block_map(int file_block)
 {
 	if (file_block < NDADDR)
 		return(inode.i_db[file_block]);
@@ -160,7 +159,9 @@ block_map(file_block)
 	return (((int *)mapbuf)[(file_block - NDADDR) % NINDIR(fs)]);
 }
 
-openrd()
+
+int
+openrd(void)
 {
 	char **devp, *cp = name;
 	int ret;
@@ -196,8 +197,8 @@ openrd()
 		 * will complain if the unit number is out of range.
 		 * Restricting the range here prevents the possibilty of using
 		 * BIOSes that support more than 2 units.
-	 * XXX Bad values may cause strange errors, need to check if
-	 * what happens when a value out of range is supplied.
+		 * XXX Bad values may cause strange errors, need to check if
+		 * what happens when a value out of range is supplied.
 		 */
 		if (*cp >= '0' && *cp <= '9')
 			unit = *cp++ - '0';

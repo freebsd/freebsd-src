@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:36:43  rpd
- *	$Id: table.c,v 1.4 1994/08/30 01:38:04 bde Exp $
+ *	$Id: table.c,v 1.5 1995/01/25 21:37:48 bde Exp $
  */
 
 /*
@@ -49,6 +49,8 @@ LOSS OF USE, DATA OR PROFITS, WHETHER IN ACTION OF CONTRACT,
 NEGLIGENCE, OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
 WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 */
+
+#include "boot.h"
 
 /*  Segment Descriptor
  *
