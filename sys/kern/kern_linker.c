@@ -697,7 +697,7 @@ kldload(struct thread* td, struct kldload_args* uap)
 
     mtx_lock(&Giant);
 
-    if ((error = suser_td(td)) != 0)
+    if ((error = suser_xxx(td->td_proc->p_ucred, NULL, 0)) != 0)
 	goto out;
 
     pathname = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
@@ -743,7 +743,7 @@ kldunload(struct thread* td, struct kldunload_args* uap)
 
     mtx_lock(&Giant);
 
-    if ((error = suser_td(td)) != 0)
+    if ((error = suser_xxx(td->td_proc->p_ucred, NULL, 0)) != 0)
 	goto out;
 
     lf = linker_find_file_by_id(SCARG(uap, fileid));
