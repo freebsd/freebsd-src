@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_descrip.c	8.6 (Berkeley) 4/19/94
- * $Id: kern_descrip.c,v 1.51 1998/02/15 04:16:59 dyson Exp $
+ * $Id: kern_descrip.c,v 1.52 1998/05/11 03:55:24 dyson Exp $
  */
 
 #include "opt_compat.h"
@@ -82,7 +82,7 @@ static struct cdevsw fildesc_cdevsw =
 	  noioc,	nostop,		nullreset,	nodevtotty,
 	  seltrue,	nommap,		nostrat };
 
-static int finishdup __P((struct filedesc *fdp, int old, int new, int *retval));
+static int finishdup __P((struct filedesc *fdp, int old, int new, register_t *retval));
 /*
  * Descriptor management.
  */
@@ -347,7 +347,8 @@ fcntl(p, uap)
 static int
 finishdup(fdp, old, new, retval)
 	register struct filedesc *fdp;
-	register int old, new, *retval;
+	register int old, new;
+	register_t *retval;
 {
 	register struct file *fp;
 
