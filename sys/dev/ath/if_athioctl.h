@@ -107,8 +107,8 @@ struct ath_diag {
 	(1 << IEEE80211_RADIOTAP_FLAGS)		| \
 	(1 << IEEE80211_RADIOTAP_RATE)		| \
 	(1 << IEEE80211_RADIOTAP_CHANNEL)	| \
-	(1 << IEEE80211_RADIOTAP_DB_ANTSIGNAL)	| \
 	(1 << IEEE80211_RADIOTAP_ANTENNA)	| \
+	(1 << IEEE80211_RADIOTAP_DB_ANTSIGNAL)	| \
 	0)
 
 struct ath_rx_radiotap_header {
@@ -117,14 +117,16 @@ struct ath_rx_radiotap_header {
 	u_int8_t	wr_rate;
 	u_int16_t	wr_chan_freq;
 	u_int16_t	wr_chan_flags;
-	u_int8_t	wr_antsignal;
 	u_int8_t	wr_antenna;
+	u_int8_t	wr_antsignal;
 };
 
 #define ATH_TX_RADIOTAP_PRESENT (		\
 	(1 << IEEE80211_RADIOTAP_FLAGS)		| \
 	(1 << IEEE80211_RADIOTAP_RATE)		| \
 	(1 << IEEE80211_RADIOTAP_CHANNEL)	| \
+	(1 << IEEE80211_RADIOTAP_DBM_TX_POWER)	| \
+	(1 << IEEE80211_RADIOTAP_ANTENNA)	| \
 	0)
 
 struct ath_tx_radiotap_header {
@@ -133,6 +135,8 @@ struct ath_tx_radiotap_header {
 	u_int8_t	wt_rate;
 	u_int16_t	wt_chan_freq;
 	u_int16_t	wt_chan_flags;
+	u_int8_t	wt_txpower;
+	u_int8_t	wt_antenna;
 };
 
 #endif /* _DEV_ATH_ATHIOCTL_H */
