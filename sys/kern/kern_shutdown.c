@@ -40,6 +40,8 @@
  */
 
 #include "opt_ddb.h"
+#include "opt_ddb_trace.h"
+#include "opt_ddb_unattended.h"
 #include "opt_hw_wdog.h"
 #include "opt_panic.h"
 #include "opt_show_busybufs.h"
@@ -91,6 +93,14 @@ int debugger_on_panic = 1;
 #endif
 SYSCTL_INT(_debug, OID_AUTO, debugger_on_panic, CTLFLAG_RW,
 	&debugger_on_panic, 0, "Run debugger on kernel panic");
+
+#ifdef DDB_TRACE
+int trace_on_panic = 1;
+#else
+int trace_on_panic = 0;
+#endif
+SYSCTL_INT(_debug, OID_AUTO, trace_on_panic, CTLFLAG_RW,
+	&trace_on_panic, 0, "Print stack trace on kernel panic");
 #endif
 
 int sync_on_panic = 1;
@@ -434,7 +444,7 @@ void
 panic(const char *fmt, ...)
 {
 	struct thread *td = curthread;
-	int bootopt;
+	int bootopt, newpanic;
 	va_list ap;
 	static char buf[256];
 
@@ -453,10 +463,13 @@ panic(const char *fmt, ...)
 #endif
 
 	bootopt = RB_AUTOBOOT | RB_DUMP;
+	newpanic = 0;
 	if (panicstr)
 		bootopt |= RB_NOSYNC;
-	else
+	else {
 		panicstr = fmt;
+		newpanic = 1;
+	}
 
 	va_start(ap, fmt);
 	(void)vsnprintf(buf, sizeof(buf), fmt, ap);
@@ -475,6 +488,8 @@ panic(const char *fmt, ...)
 #endif
 
 #if defined(DDB)
+	if (newpanic && trace_on_panic)
+		db_print_backtrace();
 	if (debugger_on_panic)
 		Debugger ("panic");
 #ifdef RESTARTABLE_PANICS
