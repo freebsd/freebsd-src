@@ -137,7 +137,7 @@ static int maxcpu;
  */
 struct uma_zctor_args {
 	char *name;
-	int size;
+	size_t size;
 	uma_ctor ctor;
 	uma_dtor dtor;
 	uma_init uminit;
@@ -1267,8 +1267,8 @@ uma_startup3(void)
 
 /* See uma.h */
 uma_zone_t  
-uma_zcreate(char *name, int size, uma_ctor ctor, uma_dtor dtor, uma_init uminit,
-		     uma_fini fini, int align, u_int16_t flags)
+uma_zcreate(char *name, size_t size, uma_ctor ctor, uma_dtor dtor,
+		uma_init uminit, uma_fini fini, int align, u_int16_t flags)
 		     
 {
 	struct uma_zctor_args args;
