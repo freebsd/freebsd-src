@@ -227,11 +227,11 @@
             ..
             lt_LN.ASCII
             ..
+            lt_LN.DIS_8859-15
+            ..
             lt_LN.ISO_8859-1
             ..
             lt_LN.ISO_8859-2
-            ..
-            lt_LN.DIS_8859-15
             ..
             nl_BE.ISO_8859-1
             ..

@@ -18,14 +18,6 @@
     etc
         defaults
         ..
-        periodic
-            daily
-            ..
-            weekly
-            ..
-            monthly
-            ..
-        ..
         gnats
         ..
         isdn            mode=0700
@@ -41,6 +33,14 @@
 # handle new user ids
 #                s        uname=bind gname=bind mode=0750
 #                ..
+        ..
+        periodic
+            daily
+            ..
+            monthly
+            ..
+            weekly
+            ..
         ..
         ppp
         ..
