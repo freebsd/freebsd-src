@@ -37,7 +37,7 @@
  *
  */
 
-#ifndef NO_RSA
+#if !defined(NO_RSA) && defined(PIC)
 #include <dlfcn.h>
 #include <stdio.h>
 
@@ -158,4 +158,4 @@ R_RandomUpdate_stub(void *randomStruct,
     return 0;
 }
 
-#endif	/* NO_RSA */
+#endif	/* !NO_RSA && PIC */
