@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 
 #include <ctype.h>
 #include <err.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -171,10 +172,10 @@ void
 set_profile(void)
 {
     FILE *f;
-    char        fname[BUFSIZ];
+    char fname[PATH_MAX];
     static char prof[] = ".indent.pro";
 
-    sprintf(fname, "%s/%s", getenv("HOME"), prof);
+    snprintf(fname, sizeof(fname), "%s/%s", getenv("HOME"), prof);
     if ((f = fopen(option_source = fname, "r")) != NULL) {
 	scan_profile(f);
 	(void) fclose(f);
@@ -288,10 +289,9 @@ found:
 	    if (*param_start == 0)
 		goto need_param;
 	    {
-		char *str = (char *) malloc(strlen(param_start) + 1);
+		char *str = strdup(param_start);
 		if (str == NULL)
 			err(1, NULL);
-		strcpy(str, param_start);
 		addkey(str, 4);
 	    }
 	    break;
