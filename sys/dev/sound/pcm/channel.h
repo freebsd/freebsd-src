@@ -34,6 +34,7 @@ int chn_flush(pcm_channel *c);
 int chn_poll(pcm_channel *c, int ev, struct proc *p);
 
 int chn_init(pcm_channel *c, void *devinfo, int dir);
+int chn_kill(pcm_channel *c);
 int chn_setdir(pcm_channel *c, int dir);
 int chn_reset(pcm_channel *c, u_int32_t fmt);
 int chn_setvolume(pcm_channel *c, int left, int right);
@@ -43,8 +44,10 @@ int chn_setblocksize(pcm_channel *c, int blkcnt, int blksz);
 int chn_trigger(pcm_channel *c, int go);
 int chn_getptr(pcm_channel *c);
 pcmchan_caps *chn_getcaps(pcm_channel *c);
+u_int32_t chn_getformats(pcm_channel *c);
 
 int chn_allocbuf(snd_dbuf *b, bus_dma_tag_t parent_dmat);
+void chn_freebuf(snd_dbuf *b);
 void chn_resetbuf(pcm_channel *c);
 void chn_intr(pcm_channel *c);
 void chn_checkunderflow(pcm_channel *c);
@@ -52,11 +55,10 @@ int chn_wrfeed(pcm_channel *c);
 int chn_rdfeed(pcm_channel *c);
 int chn_abort(pcm_channel *c);
 
+int fmtvalid(u_int32_t fmt, u_int32_t *fmtlist);
+
 void buf_isadma(snd_dbuf *b, int go);
 int buf_isadmaptr(snd_dbuf *b);
-int chn_feedchain(pcm_channel *c);
-
-extern pcm_feeder feeder_root;
 
 #define PCMDIR_PLAY 1
 #define PCMDIR_REC -1

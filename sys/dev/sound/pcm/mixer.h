@@ -26,13 +26,12 @@
  * $FreeBSD$
  */
 
-extern int mixer_init(snddev_info *d, snd_mixer *m, void *devinfo);
-extern int mixer_reinit(snddev_info *d);
-extern int mixer_set(snddev_info *d, unsigned dev, unsigned lev);
-extern int mixer_get(snddev_info *d, int dev);
-extern int mixer_setrecsrc(snddev_info *d, u_int32_t src);
-extern int mixer_getrecsrc(snddev_info *d);
+extern int mixer_init(device_t dev, snd_mixer *m, void *devinfo);
+extern int mixer_uninit(device_t dev);
+extern int mixer_reinit(device_t dev);
 extern int mixer_ioctl(snddev_info *d, u_long cmd, caddr_t arg);
+extern int mixer_busy(snddev_info *d, int busy);
+extern int mixer_isbusy(snddev_info *d);
 
 extern void change_bits(mixer_tab *t, u_char *regval, int dev, int chn, int newval);
 

@@ -72,6 +72,7 @@ struct ac97_info;
 
 struct ac97_info *ac97_create(device_t dev, void *devinfo, ac97_init *init,
 			      ac97_read *rd, ac97_write *wr);
+void ac97_destroy(struct ac97_info *codec);
 int ac97_setrate(struct ac97_info *codec, int which, int rate);
 int ac97_setextmode(struct ac97_info *codec, u_int16_t mode);
 
