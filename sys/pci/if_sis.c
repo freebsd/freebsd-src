@@ -428,9 +428,6 @@ static int sis_miibus_writereg(dev, phy, reg, data)
 	if (sc->sis_type == SIS_TYPE_900 && phy != 0)
 		return(0);
 
-	if (sc->sis_type == SIS_TYPE_900 && phy != 0)
-		return(0);
-
 	CSR_WRITE_4(sc, SIS_PHYCTL, (data << 16) | (phy << 11) |
 	    (reg << 6) | SIS_PHYOP_WRITE);
 	SIS_SETBIT(sc, SIS_PHYCTL, SIS_PHYCTL_ACCESS);
