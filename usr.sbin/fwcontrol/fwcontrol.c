@@ -277,14 +277,13 @@ get_crom(int fd, int node, void *crom_buf, int len)
 	}
 	if (i == data->info_len)
 		errx(1, "no such node %d.", node);
-	else if (i == 0)
-		errx(1, "node %d is myself.", node);
 	else
 		buf.eui = data->dev[i].eui;
 	free((void *)data);
 
 	buf.len = len;
 	buf.ptr = crom_buf;
+	bzero(crom_buf, len);
 	if ((error = ioctl(fd, FW_GCROM, &buf)) < 0) {
        		err(1, "ioctl");
 	}
