@@ -442,8 +442,7 @@ _getyppass(struct passwd *pw, const char *name, const char *map)
 	/* Don't even bother with this if we aren't root. */
 	if (!geteuid())
 		if (_havemaster(_pw_yp_domain)) {
-			sprintf(mastermap,"master.passwd.%s",
-				strstr(map,"byuid") ? "byuid" : "byname");
+			sprintf(mastermap,"master.%s", map);
 			gotmaster++;
 		}
 
