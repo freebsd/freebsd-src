@@ -69,14 +69,14 @@ Write_Int32(u_int32_t *p, u_int32_t v)
  * Special install-time configuration for the i386 boot0 boot manager.
  */
 static void
-Cfg_Boot_Mgr(u_char *mbr, int edd)
+Cfg_Boot_Mgr(u_char *mbrblk, int edd)
 {
 
-	if (mbr[0x1b0] == 0x66 && mbr[0x1b1] == 0xbb) {
+	if (mbrblk[0x1b0] == 0x66 && mbrblk[0x1b1] == 0xbb) {
 		if (edd)
-			mbr[0x1bb] |= 0x80;	/* Packet mode on */
+			mbrblk[0x1bb] |= 0x80;	/* Packet mode on */
 		else
-			mbr[0x1bb] &= 0x7f;	/* Packet mode off */
+			mbrblk[0x1bb] &= 0x7f;	/* Packet mode off */
 	}
 }
 
@@ -88,7 +88,7 @@ Write_Disk(const struct disk *d1)
 	struct chunk *c1;
 	int ret = 0;
 	char device[64];
-	u_char *mbr;
+	u_char *mbrblk;
 	struct dos_partition *dp,work[NDOSPART];
 	int s[4];
 	int need_edd = 0;	/* Need EDD (packet interface) */
@@ -101,11 +101,11 @@ Write_Disk(const struct disk *d1)
                 return 1;
 
 	memset(s, 0, sizeof s);
-	mbr = read_block(fd, 0, d1->sector_size);
-	dp = (struct dos_partition *)(mbr + DOSPARTOFF);
+	mbrblk = read_block(fd, 0, d1->sector_size);
+	dp = (struct dos_partition *)(mbrblk + DOSPARTOFF);
 	memcpy(work, dp, sizeof work);
 	dp = work;
-	free(mbr);
+	free(mbrblk);
 	for (c1 = d1->chunks->part; c1; c1 = c1->next) {
 		if (c1->type == unused)
 			continue;
@@ -178,15 +178,15 @@ Write_Disk(const struct disk *d1)
 			if (dp[i].dp_typ == 0xa5)
 				dp[i].dp_flag = 0x80;
 
-	mbr = read_block(fd, 0, d1->sector_size);
+	mbrblk = read_block(fd, 0, d1->sector_size);
 	if (d1->bootmgr) {
-		memcpy(mbr, d1->bootmgr, DOSPARTOFF);
-		Cfg_Boot_Mgr(mbr, need_edd);
+		memcpy(mbrblk, d1->bootmgr, DOSPARTOFF);
+		Cfg_Boot_Mgr(mbrblk, need_edd);
         }
-	memcpy(mbr + DOSPARTOFF, dp, sizeof *dp * NDOSPART);
-	mbr[512-2] = 0x55;
-	mbr[512-1] = 0xaa;
-	write_block(fd, 0, mbr, d1->sector_size);
+	memcpy(mbrblk + DOSPARTOFF, dp, sizeof *dp * NDOSPART);
+	mbrblk[512-2] = 0x55;
+	mbrblk[512-1] = 0xaa;
+	write_block(fd, 0, mbrblk, d1->sector_size);
 	if (d1->bootmgr && d1->bootmgr_size > d1->sector_size)
 		for (i = 1; i * d1->sector_size <= d1->bootmgr_size; i++)
 			write_block(fd, i, &d1->bootmgr[i * d1->sector_size],
