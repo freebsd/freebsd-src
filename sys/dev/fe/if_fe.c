@@ -21,7 +21,7 @@
  */
 
 /*
- * $Id: if_fe.c,v 1.29 1997/07/20 14:09:59 bde Exp $
+ * $Id: if_fe.c,v 1.31 1997/10/26 04:53:54 nate Exp $
  *
  * Device driver for Fujitsu MB86960A/MB86965A based Ethernet cards.
  * To be used with FreeBSD 2.x
@@ -336,6 +336,8 @@ static struct pccard_device fe_info = {
 				/* XXX - Should this also include net_imask? */
 };
 
+DATA_SET(pccarddrv_set, fe_info);
+
 /*
  *	Initialize the device - called from Slot manager.
  */
@@ -451,9 +453,6 @@ static struct fe_probe_list const fe_probe_list [] =
 static int
 fe_probe ( DEVICE * dev )
 {
-#if NCARD > 0
-	static int fe_already_init;
-#endif
 	struct fe_softc * sc;
 	int u;
 	int nports;
@@ -464,17 +463,6 @@ fe_probe ( DEVICE * dev )
 	/* Initialize "minimum" parts of our softc.  */
 	sc = &fe_softc[ dev->id_unit ];
 	sc->sc_unit = dev->id_unit;
-
-#if NCARD > 0
-	/*
-	 * If PC-Card probe required, then register driver with
-	 * slot manager.
-	 */
-	if (fe_already_init != 1) {
-		pccard_add_driver(&fe_info);
-		fe_already_init = 1;
-	}
-#endif
 
 	/* Probe each possibility, one at a time.  */
 	for ( list = fe_probe_list; list->probe != NULL; list++ ) {
