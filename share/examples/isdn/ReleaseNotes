@@ -1,7 +1,20 @@
 $FreeBSD$
 
-ReleaseNotes for isdn4bsd             last edit-date: [Mon Oct  9 17:55:27 2000]
+ReleaseNotes for isdn4bsd             last edit-date: [Fri May 25 14:12:55 2001]
 ================================================================================
+
+release 1.00
+--------------------------------------------------------------------------------
+
+ - CAPI interface driver and AVM B1/T1 driver added. Both were written and
+   contributed by Juha-Matti Liukkonen <jml@cubical.fi> of Cubical Solutions 
+   Ltd, Finnland. To support this, two new keywords were added to isdnd.rc:
+   "firmware" to be used in the controller section and "clone" to be used
+   in the entry section.
+
+
+beta release 0.96
+--------------------------------------------------------------------------------
 
  - it is now possible to mark an entry as valid for a specified day of week
    and a specific time range only to take advantage of some new tariff models.
@@ -12,6 +25,7 @@ ReleaseNotes for isdn4bsd             last edit-date: [Mon Oct  9 17:55:27 2000]
    entry section to write statistics information to a file
 
  - a driver for the Dynalink IS64PH is now available for FreeBSD 4.x and up
+
 
 beta release 0.95
 --------------------------------------------------------------------------------
