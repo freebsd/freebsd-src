@@ -21,6 +21,7 @@ typedef unsigned short unicode_t;
 typedef unsigned char byte;
 
 int udf_UncompressUnicode(int, byte *, unicode_t *);
+int udf_UncompressUnicodeByte(int, byte *, byte *);
 int udf_CompressUnicode(int, int, unicode_t *, byte *);
 unsigned short udf_cksum(unsigned char *, int);
 unsigned short udf_unicode_cksum(unsigned short *, int);
