@@ -35,9 +35,9 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id$
+ *	$Id: pmap.c,v 1.4 1993/09/30 23:16:17 rgrimes Exp $
  */
-static char rcsid[] = "$Id$";
+static char rcsid[] = "$Id: pmap.c,v 1.4 1993/09/30 23:16:17 rgrimes Exp $";
 
 /*
  * Derived from hp300 version by Mike Hibler, this version by William
@@ -179,7 +179,7 @@ vm_offset_t	virtual_avail;  /* VA of first avail page (after kernel bss)*/
 vm_offset_t	virtual_end;	/* VA of last avail page (end of kernel AS) */
 vm_offset_t	vm_first_phys;	/* PA of first managed page */
 vm_offset_t	vm_last_phys;	/* PA just past last managed page */
-int		i386pagesperpage;	/* PAGE_SIZE / I386_PAGE_SIZE */
+int		i386pagesperpage;	/* PAGE_SIZE / NBPG */
 boolean_t	pmap_initialized = FALSE;	/* Has pmap_init completed? */
 char		*pmap_attributes;	/* reference and modify bits */
 
@@ -206,7 +206,7 @@ struct msgbuf	*msgbufp;
  *	and just syncs the pmap module with what has already been done.
  *	[We can't call it easily with mapping off since the kernel is not
  *	mapped with PA == VA, hence we would have to relocate every address
- *	from the linked base (virtual) address 0xFE000000 to the actual
+ *	from the linked base (virtual) address KERNBASE to the actual
  *	(physical) address starting relative to 0]
  */
 struct pte *pmap_pte();
@@ -232,7 +232,7 @@ extern int IdlePTD;
 	mem_size = physmem << PG_SHIFT;
 	virtual_avail = (vm_offset_t)atdevbase + 0x100000 - 0xa0000 + 10*NBPG;
 	virtual_end = VM_MAX_KERNEL_ADDRESS;
-	i386pagesperpage = PAGE_SIZE / I386_PAGE_SIZE;
+	i386pagesperpage = PAGE_SIZE / NBPG;
 
 	/*
 	 * Initialize protection array.
@@ -265,7 +265,7 @@ extern int IdlePTD;
 		*(int *)pde = firstaddr + x*NBPG | PG_V | PG_KW;
 	}
 #else
-	kernel_pmap->pm_pdir = (pd_entry_t *)(0xfe000000 + IdlePTD);
+	kernel_pmap->pm_pdir = (pd_entry_t *)(KERNBASE + IdlePTD);
 #endif
 
 
@@ -277,7 +277,7 @@ extern int IdlePTD;
 	 * Allocate all the submaps we need
 	 */
 #define	SYSMAP(c, p, v, n)	\
-	v = (c)va; va += ((n)*I386_PAGE_SIZE); p = pte; pte += (n);
+	v = (c)va; va += ((n)*NBPG); p = pte; pte += (n);
 
 	va = virtual_avail;
 	pte = pmap_pte(kernel_pmap, va);
@@ -333,7 +333,7 @@ pmap_init(phys_start, phys_end)
 	(void) vm_map_find(kernel_map, NULL, (vm_offset_t) 0,
 			   &addr, (0x100000-0xa0000), FALSE);
 
-	addr = (vm_offset_t) 0xfe000000+KPTphys/* *NBPG */;
+	addr = (vm_offset_t) KERNBASE + KPTphys/* *NBPG */;
 	vm_object_reference(kernel_object);
 	(void) vm_map_find(kernel_map, kernel_object, addr,
 			   &addr, 2*NBPG, FALSE);
@@ -453,8 +453,7 @@ pmap_pinit(pmap)
 	pmap->pm_pdir = (pd_entry_t *) kmem_alloc(kernel_map, NBPG);
 
 	/* wire in kernel global address entries */
-	bcopy(PTD+KPTDI_FIRST, pmap->pm_pdir+KPTDI_FIRST,
-		(KPTDI_LAST-KPTDI_FIRST+1)*4);
+	bcopy(PTD+KPTDI_FIRST, pmap->pm_pdir+KPTDI_FIRST, NKPDE*4);
 
 	/* install self-referential address mapping entry */
 	*(int *)(pmap->pm_pdir+PTDPTDI) =
@@ -640,7 +639,7 @@ pmap_remove(pmap, sva, eva)
 		do {
 			bits |= *(int *)pte & (PG_U|PG_M);
 			*(int *)pte++ = 0;
-			/*TBIS(va + ix * I386_PAGE_SIZE);*/
+			/*TBIS(va + ix * NBPG);*/
 		} while (++ix != i386pagesperpage);
 		if (curproc && pmap == &curproc->p_vmspace->vm_pmap)
 			pmap_activate(pmap, (struct pcb *)curproc->p_addr);
@@ -843,7 +842,7 @@ pmap_protect(pmap, sva, eva, prot)
 		do {
 			/* clear VAC here if PG_RO? */
 			pmap_pte_set_prot(pte++, i386prot);
-			/*TBIS(va + ix * I386_PAGE_SIZE);*/
+			/*TBIS(va + ix * NBPG);*/
 		} while (++ix != i386pagesperpage);
 	}
 	if (curproc && pmap == &curproc->p_vmspace->vm_pmap)
@@ -1048,8 +1047,8 @@ validate:
 	do {
 		*(int *)pte++ = npte;
 		/*TBIS(va);*/
-		npte += I386_PAGE_SIZE;
-		va += I386_PAGE_SIZE;
+		npte += NBPG;
+		va += NBPG;
 	} while (++ix != i386pagesperpage);
 	pte--;
 #ifdef DEBUGx
@@ -1640,7 +1639,7 @@ pmap_changebit(pa, bit, setem)
 					*pte = npte;
 					/*TBIS(va);*/
 				}
-				va += I386_PAGE_SIZE;
+				va += NBPG;
 				pte++;
 			} while (++ix != i386pagesperpage);
 
@@ -1713,7 +1712,7 @@ pads(pm) pmap_t pm; {
 		if(pm->pm_pdir[i].pd_v)
 			for (j = 0; j < 1024 ; j++) {
 				va = (i<<22)+(j<<12);
-				if (pm == kernel_pmap && va < 0xfe000000)
+				if (pm == kernel_pmap && va < KERNBASE)
 						continue;
 				if (pm != kernel_pmap && va > UPT_MAX_ADDRESS)
 						continue;
