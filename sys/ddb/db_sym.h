@@ -23,11 +23,11 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_sym.h,v 1.7 1995/03/16 18:11:00 bde Exp $
+ *	$Id: db_sym.h,v 1.8 1995/05/30 07:57:11 rgrimes Exp $
  */
 
 #ifndef _DDB_DB_SYM_H_
-#define _DDB_DB_SYM_H_ 1
+#define	_DDB_DB_SYM_H_
 
 /*
  * 	Author: Alessandro Forin, Carnegie Mellon University
@@ -74,13 +74,13 @@ extern boolean_t	db_qualify_ambiguous_names;
 /*
  * Functions exported by the symtable module
  */
-extern void	db_add_symbol_table();
+void		db_add_symbol_table __P((char *, char *, char *, char *));
 					/* extend the list of symbol tables */
 
-extern db_sym_t	db_search_symbol(/* db_expr_t, db_strategy_t, int* */);
+db_sym_t	db_search_symbol __P((db_addr_t, db_strategy_t, db_expr_t *));
 					/* find symbol given value */
 
-extern void	db_symbol_values(/* db_sym_t, char**, db_expr_t* */);
+void		db_symbol_values __P((db_sym_t, char **, db_expr_t *));
 					/* return name and value of symbol */
 
 #define db_find_sym_and_offset(val,namep,offp)	\
@@ -91,13 +91,26 @@ extern void	db_symbol_values(/* db_sym_t, char**, db_expr_t* */);
 	db_symbol_values(db_search_symbol(val,DB_STGY_XTRN,offp),namep,0)
 					/* ditto, but no locals */
 
-extern int	db_eqname(/* char*, char*, char */);
+int		db_eqname __P((char *, char *, char));
 					/* strcmp, modulo leading char */
 
-extern void	db_printsym(/* db_expr_t, db_strategy_t */);
+void		db_printsym __P((db_expr_t, db_strategy_t));
 					/* print closest symbol to a value */
-extern boolean_t db_line_at_pc(db_sym_t, char **, int *, db_expr_t);
-extern int	db_sym_numargs(db_sym_t, int *, char **);
-extern int X_db_sym_numargs(db_symtab_t *, db_sym_t, int *, char **);
 
-#endif /* _DDB_DB_SYM_H_ */
+boolean_t	db_line_at_pc __P((db_sym_t, char **, int *, db_expr_t));
+int		db_sym_numargs __P((db_sym_t, int *, char **));
+
+boolean_t	X_db_line_at_pc __P((db_symtab_t *symtab, db_sym_t cursym,
+				     char **filename, int *linenum,
+				     db_expr_t off));
+db_sym_t	X_db_lookup __P((db_symtab_t *stab, char *symstr));
+db_sym_t	X_db_search_symbol __P((db_symtab_t *symtab, db_addr_t off,
+					db_strategy_t strategy,
+					db_expr_t *diffp));
+void		X_db_sym_init __P((int *symtab, char *esymtab, char *name));
+int		X_db_sym_numargs __P((db_symtab_t *, db_sym_t, int *,
+				      char **));
+void		X_db_symbol_values __P((db_sym_t sym, char **namep,
+					db_expr_t *valuep));
+
+#endif /* !_DDB_DB_SYM_H_ */
