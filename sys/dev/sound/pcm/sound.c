@@ -33,28 +33,6 @@
 
 SND_DECLARE_FILE("$FreeBSD$");
 
-#ifndef	PCM_DEBUG_MTX
-struct snddev_channel {
-	SLIST_ENTRY(snddev_channel) link;
-	struct pcm_channel *channel;
-};
-
-struct snddev_info {
-	SLIST_HEAD(, snddev_channel) channels;
-	struct pcm_channel *fakechan;
-	unsigned devcount, playcount, reccount, vchancount;
-	unsigned flags;
-	int inprog;
-	unsigned int bufsz;
-	void *devinfo;
-	device_t dev;
-	char status[SND_STATUSLEN];
-	struct sysctl_ctx_list sysctl_tree;
-	struct sysctl_oid *sysctl_tree_top;
-	struct mtx *lock;
-};
-#endif
-
 devclass_t pcm_devclass;
 
 int pcm_veto_load = 1;
@@ -475,6 +453,7 @@ pcm_chn_remove(struct snddev_info *d, struct pcm_channel *ch, int rmdev)
 {
     	struct snddev_channel *sce;
     	int unit = device_get_unit(d->dev);
+#if 0
 	int ourlock;
 
 	ourlock = 0;
@@ -482,13 +461,16 @@ pcm_chn_remove(struct snddev_info *d, struct pcm_channel *ch, int rmdev)
 		snd_mtxlock(d->lock);
 		ourlock = 1;
 	}
+#endif
 
 	SLIST_FOREACH(sce, &d->channels, link) {
 		if (sce->channel == ch)
 			goto gotit;
 	}
+#if 0
 	if (ourlock)
 		snd_mtxunlock(d->lock);
+#endif
 	return EINVAL;
 gotit:
 	SLIST_REMOVE(&d->channels, sce, snddev_channel, link);
@@ -505,8 +487,10 @@ gotit:
 	else
 		d->playcount--;
 
+#if 0
 	if (ourlock)
 		snd_mtxunlock(d->lock);
+#endif
 	free(sce, M_DEVBUF);
 
 	return 0;
@@ -554,9 +538,7 @@ pcm_killchan(device_t dev)
 	struct pcm_channel *ch;
 	int error = 0;
 
-	snd_mtxlock(d->lock);
 	sce = SLIST_FIRST(&d->channels);
-	snd_mtxunlock(d->lock);
 	ch = sce->channel;
 
 	error = pcm_chn_remove(d, sce->channel, SLIST_EMPTY(&ch->children));
@@ -652,6 +634,9 @@ pcm_register(device_t dev, void *devinfo, int numplay, int numrec)
 	d->vchancount = 0;
 	d->inprog = 0;
 
+	SLIST_INIT(&d->channels);
+	SLIST_INIT(&d->channels);
+
 	if (((numplay == 0) || (numrec == 0)) && (numplay != numrec))
 		d->flags |= SD_F_SIMPLEX;
 
@@ -725,8 +710,85 @@ pcm_unregister(device_t dev)
 	fkchan_kill(d->fakechan);
 
 	sndstat_unregister(dev);
+	snd_mtxunlock(d->lock);
 	snd_mtxfree(d->lock);
 	return 0;
+}
+
+int
+pcm_regdevt(dev_t dev, unsigned unit, unsigned type, unsigned channel)
+{
+    	struct snddev_info *d;
+	struct snddev_devt *dt;
+
+	d = devclass_get_softc(pcm_devclass, unit);
+	KASSERT((d != NULL), ("bad d"));
+	KASSERT((dev != NULL), ("bad dev"));
+
+	dt = malloc(sizeof(*dt), M_DEVBUF, M_ZERO | M_WAITOK);
+	if (dt == NULL)
+		return ENOMEM;
+	dt->dev = dev;
+	dt->type = type;
+	dt->channel = channel;
+
+	snd_mtxlock(d->lock);
+	SLIST_INSERT_HEAD(&d->devs, dt, link);
+	snd_mtxunlock(d->lock);
+
+	return 0;
+}
+
+dev_t
+pcm_getdevt(unsigned unit, unsigned type, unsigned channel)
+{
+    	struct snddev_info *d;
+	struct snddev_devt *dt;
+
+	d = devclass_get_softc(pcm_devclass, unit);
+	KASSERT((d != NULL), ("bad d"));
+
+#if 0
+	snd_mtxlock(d->lock);
+#endif
+	SLIST_FOREACH(dt, &d->devs, link) {
+		if ((dt->type == type) && (dt->channel == channel))
+			return dt->dev;
+	}
+#if 0
+	snd_mtxunlock(d->lock);
+#endif
+
+	return NULL;
+}
+
+int
+pcm_unregdevt(unsigned unit, unsigned type, unsigned channel)
+{
+    	struct snddev_info *d;
+	struct snddev_devt *dt;
+
+	d = devclass_get_softc(pcm_devclass, unit);
+	KASSERT((d != NULL), ("bad d"));
+
+#if 0
+       	snd_mtxlock(d->lock);
+#endif
+	SLIST_FOREACH(dt, &d->devs, link) {
+		if ((dt->type == type) && (dt->channel == channel)) {
+			SLIST_REMOVE(&d->devs, dt, snddev_devt, link);
+			free(dt, M_DEVBUF);
+#if 0
+			snd_mtxunlock(d->lock);
+#endif
+			return 0;
+		}
+	}
+#if 0
+	snd_mtxunlock(d->lock);
+#endif
+
+	return ENOENT;
 }
 
 /************************************************************************/
@@ -778,7 +840,7 @@ sndstat_prepare_pcm(struct sbuf *s, device_t dev, int verbose)
 			c = sce->channel;
 			sbuf_printf(s, "\n\t");
 
-			/* it would be bettet to indent child channels */
+			/* it would be better to indent child channels */
 			sbuf_printf(s, "%s[%s]: ", c->parentchannel? c->parentchannel->name : "", c->name);
 			sbuf_printf(s, "spd %d", c->speed);
 			if (c->speed != sndbuf_getspd(c->bufhard))

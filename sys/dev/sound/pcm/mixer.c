@@ -87,13 +87,11 @@ static eventhandler_tag mixer_ehtag;
 static dev_t
 mixer_get_devt(device_t dev)
 {
-	dev_t pdev;
-	int unit;
+	struct snddev_info *snddev;
 
-	unit = device_get_unit(dev);
-	pdev = makedev(SND_CDEV_MAJOR, PCMMKMINOR(unit, SND_DEV_CTL, 0));
+	snddev = device_get_softc(dev);
 
-	return pdev;
+	return snddev->mixer_dev;
 }
 
 #ifdef SND_DYNSYSCTL
@@ -187,6 +185,7 @@ mix_getdevinfo(struct snd_mixer *m)
 int
 mixer_init(device_t dev, kobj_class_t cls, void *devinfo)
 {
+	struct snddev_info *snddev;
 	struct snd_mixer *m;
 	u_int16_t v;
 	dev_t pdev;
@@ -213,6 +212,8 @@ mixer_init(device_t dev, kobj_class_t cls, void *devinfo)
 	pdev = make_dev(&mixer_cdevsw, PCMMKMINOR(unit, SND_DEV_CTL, 0),
 		 UID_ROOT, GID_WHEEL, 0666, "mixer%d", unit);
 	pdev->si_drv1 = m;
+	snddev = device_get_softc(dev);
+	snddev->mixer_dev = pdev;
 
 	return 0;
 
@@ -478,14 +479,14 @@ mixer_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct thread *td)
 static void
 mixer_clone(void *arg, char *name, int namelen, dev_t *dev)
 {
-	dev_t pdev;
+	struct snddev_info *sd;
 
 	if (*dev != NODEV)
 		return;
 	if (strcmp(name, "mixer") == 0) {
-		pdev = makedev(SND_CDEV_MAJOR, PCMMKMINOR(snd_unit, SND_DEV_CTL, 0));
-		if (pdev->si_flags & SI_NAMED)
-			*dev = pdev;
+		sd = devclass_get_softc(pcm_devclass, snd_unit);
+		if (sd != NULL)
+			*dev = sd->mixer_dev;
 	}
 }
 
