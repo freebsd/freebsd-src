@@ -60,7 +60,6 @@ clearSrc(dialogMenuItem *self)
     return DITEM_SUCCESS | DITEM_REDRAW;
 }
 
-#ifndef X_AS_PKG
 static int
 setX11Misc(dialogMenuItem *self)
 {
@@ -109,7 +108,6 @@ clearX11Fonts(dialogMenuItem *self)
     XF86FontDists = 0;
     return DITEM_SUCCESS | DITEM_REDRAW;
 }
-#endif /* !X_AS_PKG */
 
 #define _IS_SET(dist, set) (((dist) & (set)) == (set))
 
@@ -166,13 +164,9 @@ checkDistEverything(dialogMenuItem *self)
 {
     return Dists == DIST_ALL && CRYPTODists == DIST_CRYPTO_ALL &&
 	_IS_SET(SrcDists, DIST_SRC_ALL) &&
-#ifndef X_AS_PKG
 	_IS_SET(XF86Dists, DIST_XF86_ALL) &&
 	_IS_SET(XF86ServerDists, DIST_XF86_SERVER_ALL) &&
 	_IS_SET(XF86FontDists, DIST_XF86_FONTS_ALL);
-#else
-	1;
-#endif
 }
 
 static int
@@ -228,9 +222,7 @@ DMenu MenuIndex = {
       { " Dists, User",		"Select average user distribution.",	checkDistUser, distSetUser },
       { " Dists, X User",	"Select average X user distribution.",	checkDistXUser, distSetXUser },
       { " Distributions, Adding", "Installing additional distribution sets", NULL, distExtractAll },
-#ifndef X_AS_PKG
       { " Distributions, XFree86","XFree86 distribution menu.",		NULL, distSetXF86 },
-#endif
       { " Documentation",	"Installation instructions, README, etc.", NULL, dmenuSubmenu, NULL, &MenuDocumentation },
       { " Doc, README",		"The distribution README file.",	NULL, dmenuDisplayFile, NULL, "README" },
       { " Doc, Early Adopter's",		"Early Adopter's Guide to FreeBSD 5.0.",	NULL, dmenuDisplayFile, NULL, "EARLY" },
@@ -296,12 +288,10 @@ DMenu MenuIndex = {
       { " Upgrade",		"Upgrade an existing system.",		NULL, installUpgrade },
       { " Usage",		"Quick start - How to use this menu system.",	NULL, dmenuDisplayFile, NULL, "usage" },
       { " User Management",	"Add user and group information.",	NULL, dmenuSubmenu, NULL, &MenuUsermgmt },
-#ifndef X_AS_PKG
       { " XFree86, Fonts",	"XFree86 Font selection menu.",		NULL, dmenuSubmenu, NULL, &MenuXF86SelectFonts },
       { " XFree86, Server",	"XFree86 Server selection menu.",	NULL, dmenuSubmenu, NULL, &MenuXF86SelectServer },
-#if defined(__i386__) && defined(PC98)
+#if !defined(X_AS_PKG) && defined(__i386__) && defined(PC98)
       { " XFree86, PC98 Server",	"XFree86 PC98 Server selection menu.",	NULL, dmenuSubmenu, NULL, &MenuXF86SelectPC98Server },
-#endif
 #endif
       { NULL } },
 };
@@ -1006,11 +996,7 @@ DMenu MenuSubDistributions = {
       { " perl",	"The Perl distribution",
 	dmenuFlagCheck, dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_PERL },
       { " XFree86",	"The XFree86 distribution",
-#ifdef X_AS_PKG
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_XF86 },
-#else
 	x11FlagCheck,	distSetXF86 },
-#endif
       { NULL } },
 };
 
@@ -1122,7 +1108,6 @@ DMenu MenuXDesktops = {
       { NULL } },
 };
 
-#ifndef X_AS_PKG
 DMenu MenuXF86Select = {
     DMENU_NORMAL_TYPE,
     "XFree86 Distribution",
@@ -1137,6 +1122,87 @@ DMenu MenuXF86Select = {
       { NULL } },
 };
 
+#ifdef X_AS_PKG
+DMenu MenuXF86SelectCore = {
+    DMENU_CHECKLIST_TYPE | DMENU_SELECTION_RETURNS,
+    "XFree86 base distribution types",
+    "Please check off the basic XFree86 components you wish to install.\n"
+    "Bin, lib, and set are recommended for a minimum installaion.",
+    NULL,
+    NULL,
+    { { "X Exit",	"Exit this menu (returning to previous)",
+	checkTrue, dmenuExit, NULL, NULL, '<', '<', '<' },
+      { "All",		"Select all below",
+	NULL,		setX11Misc, NULL, NULL, ' ', ' ', ' ' },
+      { "Reset",	"Reset all below",
+	NULL,		clearX11Misc, NULL, NULL, ' ', ' ', ' ' },
+      { " bin", 	"Client applications",
+	dmenuFlagCheck, dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_CLIENTS },
+      { " lib",         "Shared libraries and data files needed at runtime",
+	dmenuFlagCheck, dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_LIB },
+      { " man",         "Manual pages",
+	dmenuFlagCheck, dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_MAN },
+      { " doc",         "Documentation",
+	dmenuFlagCheck, dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_DOC },
+      { " prog",        "Programming tools",
+	dmenuFlagCheck, dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_PROG },
+      { NULL } },
+};
+
+DMenu MenuXF86SelectFonts = {
+    DMENU_CHECKLIST_TYPE | DMENU_SELECTION_RETURNS,
+    "Font distribution selection.",
+    "Please check off the individual font distributions you wish to\n\
+install.  At the minimum, you should install the standard\n\
+75 DPI and misc fonts if you're also installing a server\n\
+(these are selected by default).",
+    NULL,
+    NULL,
+    { { "X Exit",	"Exit this menu (returning to previous)",
+	checkTrue, dmenuExit, NULL, NULL, '<', '<', '<' },
+      { "All",		"All fonts",
+	NULL,		setX11Fonts, NULL, NULL, ' ', ' ', ' ' },
+      { "Reset",	"Reset font selections",
+	NULL,		clearX11Fonts, NULL, NULL, ' ', ' ', ' ' },
+      { " fnts",	"Standard miscellaneous fonts",
+	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86FontDists, '[', 'X', ']', DIST_XF86_FONTS_BITMAPS },
+      { " f75",		"75 DPI fonts",
+	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86FontDists, '[', 'X', ']', DIST_XF86_FONTS_75 },
+      { " f100",	"100 DPI fonts",
+	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86FontDists, '[', 'X', ']', DIST_XF86_FONTS_100 },
+      { " fcyr",	"Cyrillic Fonts",
+	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86FontDists, '[', 'X', ']', DIST_XF86_FONTS_CYR },
+      { " fscl",	"Speedo and Type scalable fonts",
+	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86FontDists, '[', 'X', ']', DIST_XF86_FONTS_SCALE },
+      { " server",	"Font server",
+	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86FontDists, '[', 'X', ']', DIST_XF86_FONTS_SERVER },
+      { NULL } },
+};
+
+DMenu MenuXF86SelectServer = {
+    DMENU_CHECKLIST_TYPE | DMENU_SELECTION_RETURNS,
+    "X Server selection.",
+    "Please check off the types of X servers you wish to install.\n",
+    NULL,
+    NULL,
+    { { "X Exit",	"Exit this menu (returning to previous)",
+	checkTrue, dmenuExit, NULL, NULL, '<', '<', '<' },
+      { "All",		"Select all of the above",
+	NULL,		setX11Servers, NULL, NULL, ' ', ' ', ' ' },
+      { "Reset",	"Reset all of the above",
+	NULL,		clearX11Servers, NULL, NULL, ' ', ' ', ' ' },
+      { " srv",		"Standard Graphics Framebuffer",
+	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86ServerDists, '[', 'X', ']', DIST_XF86_SERVER_FB },
+      { " nest",	"Nested X Server",
+	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86ServerDists, '[', 'X', ']', DIST_XF86_SERVER_NEST },
+      { " prt", 	"X Print Server",
+	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86ServerDists, '[', 'X', ']', DIST_XF86_SERVER_PRINT },
+      { " vfb",		"Virtual Framebuffer",
+	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86ServerDists, '[', 'X', ']', DIST_XF86_SERVER_VFB },
+      { NULL } },
+};
+
+#else
 DMenu MenuXF86SelectCore = {
     DMENU_CHECKLIST_TYPE | DMENU_SELECTION_RETURNS,
     "XFree86 base distribution types",
