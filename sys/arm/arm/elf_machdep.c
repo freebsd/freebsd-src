@@ -155,13 +155,13 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 		case R_ARM_NONE:	/* none */
 			break;
 
-		case R_ARM_PC24:	/* S + A - P */
+		case R_ARM_ABS32:
 			addr = lookup(lf, symidx, 1);
 			if (addr == 0)
 				return -1;
-			addr += addend - (Elf_Addr)where;
 			if (*where != addr)
 				*where = addr;
+
 			break;
 
 		case R_ARM_COPY:	/* none */
@@ -173,14 +173,13 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 			return -1;
 			break;
 
-		case R_ARM_GLOB_DAT:	/* S */
+		case R_ARM_JUMP_SLOT:
 			addr = lookup(lf, symidx, 1);
-			if (addr == 0)
-				return -1;
-			if (*where != addr)
+			if (addr) {
 				*where = addr;
-			break;
-
+				return (0);
+			}
+			return (-1);
 		case R_ARM_RELATIVE:
 			break;
 
@@ -212,6 +211,8 @@ int
 elf_cpu_load_file(linker_file_t lf __unused)
 {
 
+	cpu_idcache_wbinv_all();
+	cpu_tlb_flushID();
 	return (0);
 }
 
