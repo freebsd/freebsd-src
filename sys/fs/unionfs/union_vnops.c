@@ -668,23 +668,25 @@ union_whiteout(ap)
 	struct union_node *un = VTOUNION(ap->a_dvp);
 	struct componentname *cnp = ap->a_cnp;
 	struct vnode *uppervp;
-	int error = EOPNOTSUPP;
+	int error;
 
 	switch (ap->a_flags) {
+	case CREATE:
+	case DELETE:
+		uppervp = union_lock_upper(un, cnp->cn_thread);
+		if (uppervp != NULLVP) {
+			error = VOP_WHITEOUT(un->un_uppervp, cnp, ap->a_flags);
+			union_unlock_upper(uppervp, cnp->cn_thread);
+		} else
+			error = EOPNOTSUPP;
+		break;
 	case LOOKUP:
 		error = EOPNOTSUPP;
 		break;
-	case CREATE:
-	case DELETE:
-		if ((uppervp=union_lock_upper(un,cnp->cn_thread)) != NULLVP) {
-			error = VOP_WHITEOUT(un->un_uppervp, cnp, ap->a_flags);
-			union_unlock_upper(uppervp, cnp->cn_thread);
-		}
-		break;
 	default:
 		panic("union_whiteout: unknown op");
-        }
-	return(error);
+	}
+	return (error);
 }
 
 /*
