@@ -15,9 +15,10 @@ CFLAGS+=	-I${X11BASE}/include -DFONTPATH=\"$(fontpath)\"
 SRCS+=		xditview.c Dvi.c draw.c font.c lex.c page.c parse.c \
 		XFontName.c DviChar.c device.c
 LDDESTDIR+=	-L${X11BASE}/lib
-LDADD+=		-lXaw -lXmu -lXt -lXext -lX11 -lm
+LDADD+=		-lXaw -lXmu -lXt -lSM -lICE -lXext -lX11 -lm
 DPADD+=		${X11BASE}/lib/libXaw.a ${X11BASE}/lib/libXmu.a \
-		${X11BASE}/lib/libXt.a ${X11BASE}/lib/libXext.a \
+		${X11BASE}/lib/libXt.a ${X11BASE}/lib/libSM.a \
+		${X11BASE}/lib/libICE.a ${X11BASE}/lib/libXext.a \
 		${X11BASE}/lib/libX11.a
 
 afterinstall:
