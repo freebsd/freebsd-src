@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vnode.h	8.7 (Berkeley) 2/4/94
- * $Id: vnode.h,v 1.86 1999/04/17 08:36:06 peter Exp $
+ * $Id: vnode.h,v 1.87 1999/05/11 19:55:01 phk Exp $
  */
 
 #ifndef _SYS_VNODE_H_
@@ -268,8 +268,10 @@ extern int		vttoif_tab[];
  */
 extern	struct vnode *rootvnode;	/* root (i.e. "/") vnode */
 extern	int desiredvnodes;		/* number of vnodes desired */
-extern	time_t syncdelay;		/* time to delay syncing vnodes */
-extern	int rushjob;		/* # of slots filesys_syncer should run ASAP */
+extern	time_t syncdelay;		/* max time to delay syncing data */
+extern	time_t filedelay;		/* time to delay syncing files */
+extern	time_t dirdelay;		/* time to delay syncing directories */
+extern	time_t metadelay;		/* time to delay syncing metadata */
 extern	struct vm_zone *namei_zone;
 extern	int prtactive;			/* nonzero to call vprint() */
 extern	struct vattr va_null;		/* predefined null vattr structure */
@@ -484,6 +486,7 @@ void	cvtnstat __P((struct stat *sb, struct nstat *nsb));
 int 	getnewvnode __P((enum vtagtype tag,
 	    struct mount *mp, vop_t **vops, struct vnode **vpp));
 int	lease_check __P((struct vop_lease_args *ap));
+int	speedup_syncer __P((void));
 void 	vattr_null __P((struct vattr *vap));
 int 	vcount __P((struct vnode *vp));
 void	vdrop __P((struct vnode *));
