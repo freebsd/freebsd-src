@@ -116,7 +116,7 @@ static void		 editlist_save(struct cam_device *device, int modepage,
 				       int timeout);
 static void		 nameentry_create(int pagenum, char *name);
 static struct pagename	*nameentry_lookup(int pagenum);
-static int		 load_format(char *pagedb_path, int page);
+static int		 load_format(const char *pagedb_path, int page);
 static int		 modepage_write(FILE *file, int editonly);
 static int		 modepage_read(FILE *file);
 static void		 modepage_edit(void);
@@ -124,11 +124,6 @@ static void		 modepage_dump(struct cam_device *device, int page,
 				       int page_control, int dbd, int retries,
 				       int timeout);
 static void		 cleanup_editfile(void);
-void			 mode_edit(struct cam_device *device, int page,
-				   int page_control, int dbd, int edit,
-				   int binary, int retry_count, int timeout);
-void			 mode_list(struct cam_device *device, int page_control,
-				   int dbd, int retry_count, int timeout);
 
 
 #define	returnerr(code) do {						\
@@ -145,7 +140,8 @@ void			 mode_list(struct cam_device *device, int page_control,
 
 
 static void
-editentry_create(void *hook, int letter, void *arg, int count, char *name)
+editentry_create(void *hook __unused, int letter, void *arg, int count,
+		 char *name)
 {
 	struct editentry *newentry;	/* Buffer to hold new entry. */
 
@@ -166,7 +162,8 @@ editentry_create(void *hook, int letter, void *arg, int count, char *name)
 }
 
 static void
-editentry_update(void *hook, int letter, void *arg, int count, char *name)
+editentry_update(void *hook __unused, int letter, void *arg, int count,
+		 char *name)
 {
 	struct editentry *dest;		/* Buffer to hold entry to update. */
 
@@ -193,7 +190,7 @@ editentry_update(void *hook, int letter, void *arg, int count, char *name)
 }
 
 static int
-editentry_save(void *hook, char *name)
+editentry_save(void *hook __unused, char *name)
 {
 	struct editentry *src;		/* Entry value to save. */
 
@@ -251,7 +248,7 @@ editentry_set(char *name, char *newvalue, int editonly)
  *     currently workaround it (even for int64's), so we have to kludge it.
  */
 #define	RESOLUTION_MAX(size) ((resolution * (size) == 32)? 		\
-	0xffffffff: (1 << (resolution * (size))) - 1)
+	(int)0xffffffff: (1 << (resolution * (size))) - 1)
 
 	assert(newvalue != NULL);
 	if (*newvalue == '\0')
@@ -290,13 +287,13 @@ editentry_set(char *name, char *newvalue, int editonly)
 		strncpy(cval, newvalue, dest->size);
 		if (dest->type == 'z') {
 			/* Convert trailing spaces to nulls. */
-			char *convertend;
+			char *convertend2;
 
-			for (convertend = cval + dest->size;
-			    convertend >= cval; convertend--) {
-				if (*convertend == ' ')
-					*convertend = '\0';
-				else if (*convertend != '\0')
+			for (convertend2 = cval + dest->size;
+			    convertend2 >= cval; convertend2--) {
+				if (*convertend2 == ' ')
+					*convertend2 = '\0';
+				else if (*convertend2 != '\0')
 					break;
 			}
 		}
@@ -355,7 +352,7 @@ nameentry_lookup(int pagenum) {
 }
 
 static int
-load_format(char *pagedb_path, int page)
+load_format(const char *pagedb_path, int page)
 {
 	FILE *pagedb;
 	char str_pagenum[MAX_PAGENUM_LEN];
@@ -717,7 +714,7 @@ modepage_read(FILE *file)
 static void
 modepage_edit(void)
 {
-	char *editor;
+	const char *editor;
 	char *commandline;
 	int fd;
 	int written;
@@ -784,7 +781,7 @@ modepage_dump(struct cam_device *device, int page, int page_control, int dbd,
 	u_int8_t *mode_pars;		/* Pointer to modepage params. */
 	struct scsi_mode_header_6 *mh;	/* Location of mode header. */
 	struct scsi_mode_page_header *mph;
-	int index;			/* Index for scanning mode params. */
+	int indx;			/* Index for scanning mode params. */
 
 	mode_sense(device, page, page_control, dbd, retries, timeout, data,
 		   sizeof(data));
@@ -794,9 +791,9 @@ modepage_dump(struct cam_device *device, int page, int page_control, int dbd,
 	mode_pars = MODE_PAGE_DATA(mph);
 
 	/* Print the raw mode page data with newlines each 8 bytes. */
-	for (index = 0; index < mph->page_length; index++) {
-		printf("%02x%c",mode_pars[index],
-		    (((index + 1) % 8) == 0) ? '\n' : ' ');
+	for (indx = 0; indx < mph->page_length; indx++) {
+		printf("%02x%c",mode_pars[indx],
+		    (((indx + 1) % 8) == 0) ? '\n' : ' ');
 	}
 	putchar('\n');
 }
@@ -815,7 +812,7 @@ void
 mode_edit(struct cam_device *device, int page, int page_control, int dbd,
 	  int edit, int binary, int retry_count, int timeout)
 {
-	char *pagedb_path;		/* Path to modepage database. */
+	const char *pagedb_path;	/* Path to modepage database. */
 
 	if (edit && binary)
 		errx(EX_USAGE, "cannot edit in binary mode.");
@@ -873,7 +870,7 @@ mode_list(struct cam_device *device, int page_control, int dbd,
 	struct scsi_mode_header_6 *mh;	/* Location of mode header. */
 	struct scsi_mode_page_header *mph;
 	struct pagename *nameentry;
-	char *pagedb_path;
+	const char *pagedb_path;
 	int len;
 
 	if ((pagedb_path = getenv("SCSI_MODES")) == NULL)

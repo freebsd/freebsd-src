@@ -107,7 +107,7 @@ cget(void *hook, char *name)
 /* arg_put: "put argument" callback
  */
 void
-arg_put(void *hook, int letter, void *arg, int count, char *name)
+arg_put(void *hook __unused, int letter, void *arg, int count, char *name)
 {
 	if (verbose && name && *name)
 		printf("%s:  ", name);
