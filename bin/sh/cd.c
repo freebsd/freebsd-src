@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cd.c,v 1.7 1996/12/14 06:19:09 steve Exp $
+ *	$Id: cd.c,v 1.8 1996/12/21 22:09:38 steve Exp $
  */
 
 #ifndef lint
@@ -235,11 +235,11 @@ pwdcmd(argc, argv)
 char *
 getpwd()
 {
-	char buf[_POSIX_PATH_MAX];
+	char *buf;
 
 	if (curdir)
 		return (curdir);
-	if (getcwd(buf, sizeof(buf)) == NULL)
+	if ((buf = getcwd(NULL, 0)) == NULL)
 		return (NULL);
 	return ((curdir = savestr(buf)));
 }
