@@ -2519,12 +2519,14 @@ pro350|decpro|dec pro console:\
 	:se=\E^N:so=\E^H:us=\E^D:ue=\E^C:\
 	:ae=\EG:as=\EF:
 #
-vt200|vt220|vt220am|vt200am|dec-vt220|dec-vt200|dec vt200 series with jump scroll:\
+vt200|vt220|vt220am|vt200am|dec-vt220|dec-vt200|dec vt2X0 series with jump scroll:\
 	:@7=\E[4~:kD=\E[3~:kI=\E[2~:kN=\E[6~:kP=\E[5~:kh=\E[1~:\
 	:k6=\E[17~:k7=\E[18~:k8=\E[19~:k9=\E[20~:k;=\E[21~:\
 	:k1=\E[11~:k2=\E[12~:k3=\E[13~:k4=\E[14~:k5=\E[15~:\
-	:ve=\E[?25h:vi=\E[?25l:k0@:im@:ei@:\
-	:F1=\E[23~:F2=\E[24~:ic=\E[@:IC=\E[%d@:ec=\E[%dX:tc=vt102:
+	:ve=\E[?25h:vi=\E[?25l:k0@:\
+	:F1=\E[23~:F2=\E[24~:ic=\E[@:IC=\E[%d@:ec=\E[%dX:\
+	:al=\E[L:dl=\E[M:dc=\E[P:\
+	:AL=\E[%dL:DL=\E[%dM:DC=\E[%dP:tc=vt100-np:
 vt220-pf|vt200-pf|dec-vt220-pf|dec-vt200-pf|dec vt200 with PF1-PF4:\
 	:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:\
 	:tc=vt220:
@@ -2608,23 +2610,24 @@ df|vt520nam|vt520-nam|v520n|DEC VT520 with no automargins:\
 	:am@:tc=vt520:
 
 #
-# For color-enabled terminal emulators
+# For ANSI color-enabled terminal emulators
 #
 vt100-color|vt100-co|vt100 emulator with ANSI colors:\
-	:pa#64:Co#8:AF=\E[3%dm:AB=\E[4%dm:op=\E[39;49;m:tc=vt100:
+	:pa#64:Co#8:AF=\E[3%dm:AB=\E[4%dm:op=\E[39;49m\E[m:tc=vt100:
 vt102-color|vt102-co|vt102 emulator with ANSI colors:\
-	:pa#64:Co#8:AF=\E[3%dm:AB=\E[4%dm:op=\E[39;49;m:tc=vt102:
+	:pa#64:Co#8:AF=\E[3%dm:AB=\E[4%dm:op=\E[39;49m\E[m:tc=vt102:
 vt220-color|vt220-co|vt220 emulator with ANSI colors:\
-	:pa#64:Co#8:AF=\E[3%dm:AB=\E[4%dm:op=\E[39;49;m:tc=vt220:
-# Attempt to save some of 1024 buf space
-vt320-co:\
-	:pa#64:Co#8:AF=\E[3%dm:AB=\E[4%dm:op=\E[39;49;m:tc=vt320:
-vt320-color:\
-	:pa#64:Co#8:AF=\E[3%dm:AB=\E[4%dm:op=\E[39;49;m:tc=vt320:
-vt340-co:\
-	:pa#64:Co#8:AF=\E[3%dm:AB=\E[4%dm:op=\E[39;49;m:tc=vt340:
-vt340-color:\
-	:pa#64:Co#8:AF=\E[3%dm:AB=\E[4%dm:op=\E[39;49;m:tc=vt340:
+	:pa#64:Co#8:AF=\E[3%dm:AB=\E[4%dm:op=\E[39;49m\E[m:tc=vt220:
+# Attempt to save some of 1024 buf space truncating description
+# and names list
+vt320-co|vt320 color:\
+	:pa#64:Co#8:AF=\E[3%dm:AB=\E[4%dm:op=\E[39;49m\E[m:tc=vt320:
+vt320-color|vt320 co:\
+	:pa#64:Co#8:AF=\E[3%dm:AB=\E[4%dm:op=\E[39;49m\E[m:tc=vt320:
+vt340-co|vt340 color:\
+	:pa#64:Co#8:AF=\E[3%dm:AB=\E[4%dm:op=\E[39;49m\E[m:tc=vt340:
+vt340-color|vt340 co:\
+	:pa#64:Co#8:AF=\E[3%dm:AB=\E[4%dm:op=\E[39;49m\E[m:tc=vt340:
 #
 # SC,SW names needed for screen(1)
 SC|screen|VT 100/ANSI X3.64 virtual terminal:\
