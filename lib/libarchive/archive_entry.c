@@ -384,6 +384,12 @@ archive_entry_fflags_text(struct archive_entry *entry)
 	return (f);
 }
 
+gid_t
+archive_entry_gid(struct archive_entry *entry)
+{
+	return (entry->ae_stat.st_gid);
+}
+
 const char *
 archive_entry_gname(struct archive_entry *entry)
 {
@@ -466,6 +472,12 @@ const char *
 archive_entry_symlink(struct archive_entry *entry)
 {
 	return (aes_get_mbs(&entry->ae_symlink));
+}
+
+uid_t
+archive_entry_uid(struct archive_entry *entry)
+{
+	return (entry->ae_stat.st_uid);
 }
 
 const char *
