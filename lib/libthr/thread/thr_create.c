@@ -97,19 +97,10 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 	}
 
 	/* Initialise the thread structure: */
-	memset(new_thread, 0, sizeof(struct pthread));
+	init_td_common(new_thread, pattr, 0);
 	new_thread->stack = stack;
 	new_thread->start_routine = start_routine;
 	new_thread->arg = arg;
-
-	new_thread->cancelflags = PTHREAD_CANCEL_ENABLE |
-	    PTHREAD_CANCEL_DEFERRED;
-
-	/*
-	 * Write a magic value to the thread structure
-	 * to help identify valid ones:
-	 */
-	new_thread->magic = PTHREAD_MAGIC;
 
 	/* Initialise the machine context: */
 	getcontext(&new_thread->ctx);
@@ -127,9 +118,6 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 		free(new_thread);
 		return (ret);
 	}
-
-	/* Copy the thread attributes: */
-	memcpy(&new_thread->attr, pattr, sizeof(struct pthread_attr));
 
 	/*
 	 * Check if this thread is to inherit the scheduling
@@ -152,17 +140,6 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 	}
 	new_thread->active_priority = new_thread->base_priority;
 	new_thread->inherited_priority = 0;
-
-	/* Initialize joiner to NULL (no joiner): */
-	new_thread->joiner = NULL;
-
-	/* Initialize the mutex queue: */
-	TAILQ_INIT(&new_thread->mutexq);
-
-	/* Initialise hooks in the thread structure: */
-	new_thread->specific = NULL;
-	new_thread->cleanup = NULL;
-	new_thread->flags = 0;
 
 	/*
 	 * Initialise the unique id which GDB uses to
