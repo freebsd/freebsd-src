@@ -84,6 +84,9 @@ static struct cdevsw acpi_cdevsw = {
     -1
 };
 
+static const char* sleep_state_names[] = {
+    "S0", "S1", "S2", "S3", "S4", "S4B", "S5" };
+
 static void	acpi_identify(driver_t *driver, device_t parent);
 static int	acpi_probe(device_t dev);
 static int	acpi_attach(device_t dev);
@@ -115,6 +118,7 @@ static void	acpi_set_debugging(void);
 
 static void	acpi_system_eventhandler_sleep(void *arg, int state);
 static void	acpi_system_eventhandler_wakeup(void *arg, int state);
+static int	acpi_sleep_state_sysctl(SYSCTL_HANDLER_ARGS);
 
 static device_method_t acpi_methods[] = {
     /* Device interface */
@@ -300,6 +304,25 @@ acpi_attach(device_t dev)
 	return_VALUE(ENXIO);
     }
 
+    /*
+     * Setup our sysctl tree.
+     *
+     * XXX: This doesn't check to make sure that none of these fail.
+     */
+    sysctl_ctx_init(&sc->acpi_sysctl_ctx);
+    sc->acpi_sysctl_tree = SYSCTL_ADD_NODE(&sc->acpi_sysctl_ctx,
+			       SYSCTL_STATIC_CHILDREN(_hw), OID_AUTO,
+			       device_get_name(dev), CTLFLAG_RD, 0, "");
+    SYSCTL_ADD_PROC(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
+	OID_AUTO, "power_button_state", CTLTYPE_STRING | CTLFLAG_RW,
+	&sc->acpi_power_button_sx, 0, acpi_sleep_state_sysctl, "A", "");
+    SYSCTL_ADD_PROC(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
+	OID_AUTO, "sleep_button_state", CTLTYPE_STRING | CTLFLAG_RW,
+	&sc->acpi_sleep_button_sx, 0, acpi_sleep_state_sysctl, "A", "");
+    SYSCTL_ADD_PROC(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
+	OID_AUTO, "lid_switch_state", CTLTYPE_STRING | CTLFLAG_RW,
+	&sc->acpi_lid_switch_sx, 0, acpi_sleep_state_sysctl, "A", "");
+    
     /*
      * Dispatch the default sleep state to devices.
      * TBD: should be configured from userland policy manager.
@@ -1191,6 +1214,33 @@ acpiioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
     }
 
 out:
+    return(error);
+}
+
+static int
+acpi_sleep_state_sysctl(SYSCTL_HANDLER_ARGS)
+{
+    char sleep_state[10];
+    int error;
+    u_int new_state, old_state;
+
+    old_state = *(u_int *)oidp->oid_arg1;
+    if (old_state > ACPI_STATE_S5)
+	strcpy(sleep_state, "unknown");
+    else
+	strncpy(sleep_state, sleep_state_names[old_state],
+	    sizeof(sleep_state_names[old_state]));
+    error = sysctl_handle_string(oidp, sleep_state, sizeof(sleep_state), req);
+    if (error == 0 && req->newptr != NULL) {
+	for (new_state = ACPI_STATE_S0; new_state <= ACPI_STATE_S5; new_state++)
+	    if (strncmp(sleep_state, sleep_state_names[new_state],
+		sizeof(sleep_state)) == 0)
+		break;
+	if (new_state != old_state && new_state <= ACPI_STATE_S5)
+	    *(u_int *)oidp->oid_arg1 = new_state;
+	else
+	    error = EINVAL;
+    }
     return(error);
 }
 
