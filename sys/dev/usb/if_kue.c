@@ -80,15 +80,8 @@
 
 #include <net/bpf.h>
 
-#include <vm/vm.h>              /* for vtophys */
-#include <vm/pmap.h>            /* for vtophys */
 #include <machine/clock.h>      /* for DELAY */
-#include <machine/bus_pio.h>
-#include <machine/bus_memio.h>
-#include <machine/bus.h>
-#include <machine/resource.h>
 #include <sys/bus.h>
-#include <sys/rman.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
@@ -96,6 +89,7 @@
 #include <dev/usb/usbdivar.h>
 #include <dev/usb/usbdevs.h>
 #include <dev/usb/usb_quirks.h>
+#include <dev/usb/usb_ethersubr.h>
 
 #include <dev/usb/if_kuereg.h>
 #include <dev/usb/kue_fw.h>
@@ -516,6 +510,7 @@ USB_ATTACH(kue)
 	if_attach(ifp);
 	ether_ifattach(ifp);
 	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
+	usb_register_netisr();
 
 	splx(s);
 	USB_ATTACH_SUCCESS_RETURN;
@@ -654,24 +649,17 @@ static void kue_rxeof(xfer, priv, status)
         struct ifnet		*ifp;
 	int			total_len = 0;
 	u_int16_t		len;
-	int			s;
-
-	s = splimp();
 
 	c = priv;
 	sc = c->kue_sc;
 	ifp = &sc->arpcom.ac_if;
 
-	if (!(ifp->if_flags & IFF_RUNNING)) {
+	if (!(ifp->if_flags & IFF_RUNNING))
 		return;
-		splx(s);
-	}
 
 	if (status != USBD_NORMAL_COMPLETION) {
-		if (status == USBD_NOT_STARTED || status == USBD_CANCELLED) {
-			splx(s);
+		if (status == USBD_NOT_STARTED || status == USBD_CANCELLED)
 			return;
-		}
 		printf("kue%d: usb error on rx: %s\n", sc->kue_unit,
 		    usbd_errstr(status));
 		if (status == USBD_STALLED)
@@ -715,9 +703,8 @@ static void kue_rxeof(xfer, priv, status)
 		}
 	}
 
-	/* Remove header from mbuf and pass it on. */
-	m_adj(m, sizeof(struct ether_header));
-	ether_input(ifp, eh, m);
+	/* Put the packet on the special USB input queue. */
+	usb_ether_input(m);
 
 done:
 
@@ -726,8 +713,6 @@ done:
 	    c, mtod(c->kue_mbuf, char *), KUE_BUFSZ, USBD_SHORT_XFER_OK,
 	    USBD_NO_TIMEOUT, kue_rxeof);
 	usbd_transfer(xfer);
-
-	splx(s);
 
 	return;
 }

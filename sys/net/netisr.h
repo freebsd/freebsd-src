@@ -64,6 +64,7 @@
 #define	NETISR_ATALK    16              /* same as AF_APPLETALK */
 #define	NETISR_ARP	18		/* same as AF_LINK */
 #define	NETISR_IPX	23		/* same as AF_IPX */
+#define NETISR_USB	25		/* USB soft interrupt */
 #define	NETISR_ISDN	26		/* same as AF_E164 */
 #define	NETISR_PPP	27		/* PPP soft interrupt */
 #define	NETISR_IPV6	28		/* same as AF_INET6 */
