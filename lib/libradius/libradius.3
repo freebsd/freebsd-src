@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 12, 2002
+.Dd April 27, 2004
 .Dt LIBRADIUS 3
 .Os
 .Sh NAME
@@ -67,6 +67,8 @@
 .Ft int
 .Fn rad_put_string "struct rad_handle *h" "int type" "const char *str"
 .Ft int
+.Fn rad_put_message_authentic "struct rad_handle *h"
+.Ft int
 .Fn rad_put_vendor_addr "struct rad_handle *h" "int vendor" "int type" "struct in_addr addr"
 .Ft int
 .Fn rad_put_vendor_attr "struct rad_handle *h" "int vendor" "int type" "const void *data" "size_t len"
@@ -80,6 +82,10 @@
 .Fn rad_send_request "struct rad_handle *h"
 .Ft "const char *"
 .Fn rad_server_secret "struct rad_handle *h"
+.Ft u_char *
+.Fn rad_demangle "struct rad_handle *h" "const void *mangled" "size_t mlen"
+.Ft u_char *
+.Fn rad_demangle_mppe_key "struct rad_handle *h" "const void *mangled" "size_t mlen" "size_t *len"
 .Ft "const char *"
 .Fn rad_strerror "struct rad_handle *h"
 .Sh DESCRIPTION
@@ -87,7 +93,7 @@ The
 .Nm
 library implements the client side of the Remote Authentication Dial
 In User Service (RADIUS).
-RADIUS, defined in RFCs 2138 and 2139,
+RADIUS, defined in RFCs 2865 and 2866,
 allows clients to perform authentication and accounting by means of
 network requests to remote servers.
 .Ss Initialization
@@ -231,6 +237,22 @@ The
 argument points to an array of bytes, and the
 .Fa len
 argument specifies its length.
+.Pp
+It is possible adding the Message-Authenticator to the request.
+This is an HMAC-MD5 hash of the entire Access-Request packet (see RFC 3579).
+This attribute must be present in any packet that includes an EAP-Message
+attribute.
+It can be added by using the
+.Fn rad_put_message_authentic
+function.
+The
+.Nm
+library
+calculates the HMAC-MD5 hash implicitly before sending the request.
+If the Message-Authenticator was found inside the response packet,
+then the packet is silently dropped, if the validation failed.
+In order to get this feature, the library should be compiled with
+OpenSSL support.
 .Pp
 The
 .Fn rad_put_X
@@ -395,6 +417,26 @@ The
 .Fn rad_server_secret
 returns the secret shared with the current RADIUS server according to the
 supplied rad_handle.
+.Pp
+The
+.Fn rad_demangle
+function demangles attributes containing passwords and MS-CHAPv1 MPPE-Keys.
+The return value is
+.Dv NULL
+on failure, or the plaintext attribute.
+This value should be freed using
+.Xr free 3
+when it is no longer needed.
+.Pp
+The
+.Fn rad_demangle_mppe_key
+function demangles the send- and recv-keys when using MPPE (see RFC 2548).
+The return value is
+.Dv NULL
+on failure, or the plaintext attribute.
+This value should be freed using
+.Xr free 3
+when it is no longer needed.
 .Ss Obtaining Error Messages
 Those functions which accept a
 .Vt "struct rad_handle *"
@@ -434,6 +476,8 @@ which can be retrieved using
 .It
 .Fn rad_put_string
 .It
+.Fn rad_put_message_authentic
+.It
 .Fn rad_init_send_request
 .It
 .Fn rad_continue_send_request
@@ -457,6 +501,20 @@ without recording an error message.
 .It
 .Fn rad_cvt_string
 .El
+.Pp
+The following functions return a
+.No non- Ns Dv NULL
+pointer on success.
+If they fail, they return
+.Dv NULL ,
+with recording an error message.
+.Pp
+.Bl -item -offset indent -compact
+.It
+.Fn rad_demangle
+.It
+.Fn rad_demangle_mppe_key
+.El
 .Sh FILES
 .Bl -tag -width indent
 .It Pa /etc/radius.conf
@@ -466,12 +524,22 @@ without recording an error message.
 .Rs
 .%A "C. Rigney, et al"
 .%T "Remote Authentication Dial In User Service (RADIUS)"
-.%O "RFC 2138"
+.%O "RFC 2865"
 .Re
 .Rs
 .%A "C. Rigney"
 .%T "RADIUS Accounting"
-.%O "RFC 2139"
+.%O "RFC 2866"
+.Re
+.Rs
+.%A G. Zorn
+.%T "Microsoft Vendor-specific RADIUS attributes"
+.%O RFC 2548
+.Re
+.Rs
+.%A C. Rigney, et al
+.%T "RADIUS extensions"
+.%O RFC 2869
 .Re
 .Sh AUTHORS
 .An -nosplit
@@ -483,3 +551,5 @@ project by Juniper Networks, Inc.
 .An Oleg Semyonov
 subsequently added the ability to perform RADIUS
 accounting.
+Later additions and changes by
+.An Michael Bretterklieber .

@@ -76,11 +76,14 @@ struct rad_handle {
 	int		 ident;		/* Current identifier value */
 	char		 errmsg[ERRSIZE];	/* Most recent error message */
 	unsigned char	 request[MSGSIZE];	/* Request to send */
+	char	 	 request_created; /* rad_create_request() called? */
 	int		 req_len;	/* Length of request */
 	char		 pass[PASSSIZE];	/* Cleartext password */
 	int		 pass_len;	/* Length of cleartext password */
 	int		 pass_pos;	/* Position of scrambled password */
 	char	 	 chap_pass;	/* Have we got a CHAP_PASSWORD ? */
+	int		 authentic_pos;	/* Position of message authenticator */
+	char		 eap_msg;	/* Are we an EAP Proxy? */
 	unsigned char	 response[MSGSIZE];	/* Response received */
 	int		 resp_len;	/* Length of response */
 	int		 resp_pos;	/* Current position scanning attrs */
