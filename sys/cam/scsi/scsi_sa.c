@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_sa.c,v 1.8 1998/12/17 18:56:23 mjacob Exp $
+ *      $Id: scsi_sa.c,v 1.9 1998/12/18 04:31:43 mjacob Exp $
  */
 
 #include <sys/param.h>
@@ -157,6 +157,13 @@ struct sa_softc {
 	int		buffer_mode;
 	int		filemarks;
 	union		ccb saved_ccb;
+	/*
+	 * Latched Error Info
+	 */
+	struct scsi_sense_data last_io_sense;
+	u_int32_t last_io_resid;
+	struct scsi_sense_data last_ctl_sense;
+	u_int32_t last_ctl_resid;
 };
 
 struct sa_quirk_entry {
@@ -384,7 +391,7 @@ saclose(dev_t dev, int flag, int fmt, struct proc *p)
 		/* FALLTHROUGH */
 	case SA_MODE_OFFLINE:
 		sarewind(periph);
-		saloadunload(periph, /*load*/FALSE);
+		saloadunload(periph, FALSE);
 		break;
 	case SA_MODE_REWIND:
 		sarewind(periph);
@@ -411,9 +418,10 @@ saclose(dev_t dev, int flag, int fmt, struct proc *p)
 	}
 
 	/*
-	 * We wish to note here that there are no filemarks written.
+	 * We wish to note here that there are no more filemarks to be written.
 	 */
 	softc->filemarks = 0;
+	softc->flags &= ~SA_FLAG_TAPE_WRITTEN;
 
 	/*
 	 * And we are no longer open for business.
@@ -573,10 +581,10 @@ saioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct proc *p)
 		struct mtget *g = (struct mtget *)arg;
 
 		CAM_DEBUG(periph->path, CAM_DEBUG_TRACE,
-			 ("saioctl: MTIOGET\n"));
+		    ("saioctl: MTIOGET\n"));
 
 		bzero(g, sizeof(struct mtget));
-		g->mt_type = MT_ISAR;	/* Don't ask */
+		g->mt_type = MT_ISAR;
 		g->mt_density = softc->media_density;
 		g->mt_blksiz = softc->media_blksize;
 		if (softc->flags & SA_FLAG_COMP_UNSUPP) {
@@ -606,6 +614,30 @@ saioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct proc *p)
 		g->mt_blksiz1 = softc->media_blksize;
 		g->mt_blksiz2 = softc->media_blksize;
 		g->mt_blksiz3 = softc->media_blksize;
+		error = 0;
+		break;
+	}
+	case MTIOCERRSTAT:
+	{
+		struct scsi_tape_errors *sep =
+		    &((union mterrstat *)arg)->scsi_errstat;
+
+		CAM_DEBUG(periph->path, CAM_DEBUG_TRACE,
+		    ("saioctl: MTIOCERRSTAT\n"));
+
+		bzero(sep, sizeof(*sep));
+		sep->io_resid = softc->last_io_resid;
+		sep->ctl_resid = softc->last_ctl_resid;
+		bcopy((caddr_t) &softc->last_io_sense, sep->io_sense,
+		    sizeof (sep->io_sense));
+		bcopy((caddr_t) &softc->last_ctl_sense, sep->ctl_sense,
+		    sizeof (sep->ctl_sense));
+		softc->last_io_resid = 0;
+		softc->last_ctl_resid = 0;
+		bzero((caddr_t) &softc->last_io_sense,
+		    sizeof (softc->last_io_sense));
+		bzero((caddr_t) &softc->last_ctl_sense,
+		    sizeof (softc->last_ctl_sense));
 		error = 0;
 		break;
 	}
@@ -1051,6 +1083,7 @@ sastart(struct cam_periph *periph, union ccb *start_ccb)
 
 	softc = (struct sa_softc *)periph->softc;
 
+	CAM_DEBUG(periph->path, CAM_DEBUG_INFO, ("sastart"));
 	
 	switch (softc->state) {
 	case SA_STATE_NORMAL:
@@ -1077,7 +1110,10 @@ sastart(struct cam_periph *periph, union ccb *start_ccb)
 			splx(s);
 			xpt_release_ccb(start_ccb);
 		} else if ((softc->flags & SA_FLAG_ERR_PENDING) != 0) {
-
+			struct buf *done_bp;
+			CAM_DEBUG(periph->path, CAM_DEBUG_INFO,
+			    ("sastart- coping with pending error %x\n",
+			    softc->flags & SA_FLAG_ERR_PENDING));
 			bufq_remove(&softc->buf_queue, bp);
 			bp->b_resid = bp->b_bcount;
 			bp->b_flags |= B_ERROR;
@@ -1085,13 +1121,17 @@ sastart(struct cam_periph *periph, union ccb *start_ccb)
 				if ((bp->b_flags & B_READ) == 0)
 					bp->b_error = ENOSPC;
 			}
+			if ((softc->flags & SA_FLAG_EOF_PENDING) != 0) {
+				bp->b_error = EIO;
+			}
 			if ((softc->flags & SA_FLAG_EIO_PENDING) != 0) {
 				bp->b_error = EIO;
 			}
 			softc->flags &= ~SA_FLAG_ERR_PENDING;
+			done_bp = bp;
 			bp = bufq_first(&softc->buf_queue);
 			splx(s);
-			biodone(bp);
+			biodone(done_bp);
 		} else {
 			u_int32_t length;
 
@@ -1145,7 +1185,7 @@ sastart(struct cam_periph *periph, union ccb *start_ccb)
 			 * records.
 			 */
 			scsi_sa_read_write(&start_ccb->csio,
-					   /*retries*/4,
+					   /* No Retries */0,
 					   sadone,
 					   MSG_SIMPLE_Q_TAG,
 					   bp->b_flags & B_READ,
@@ -1160,7 +1200,6 @@ sastart(struct cam_periph *periph, union ccb *start_ccb)
 			start_ccb->ccb_h.ccb_bp = bp;
 			bp = bufq_first(&softc->buf_queue);
 			splx(s);
-
 			xpt_action(start_ccb);
 		}
 		
@@ -1193,8 +1232,7 @@ sadone(struct cam_periph *periph, union ccb *done_ccb)
 		if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
 			if ((error = saerror(done_ccb, 0, 0)) == ERESTART) {
 				/*
-				 * A retry was scheuled, so
-				 * just return.
+				 * A retry was scheduled, so just return.
 				 */
 				return;
 			}
@@ -1252,7 +1290,6 @@ sadone(struct cam_periph *periph, union ccb *done_ccb)
 				  bp->b_resid, bp->b_bcount));
 		}
 #endif
-
 		devstat_end_transaction(&softc->device_stats,
 					bp->b_bcount - bp->b_resid,
 					done_ccb->csio.tag_action & 0xf,
@@ -1613,6 +1650,7 @@ saerror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 	struct	sa_softc *softc;
 	struct	ccb_scsiio *csio;
 	struct	scsi_sense_data *sense;
+	u_int32_t info, resid;
 	int	error_code, sense_key, asc, ascq;
 	int	error;
 
@@ -1622,18 +1660,7 @@ saerror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 	sense = &csio->sense_data;
 	scsi_extract_sense(sense, &error_code, &sense_key, &asc, &ascq);
 	error = 0;
-
-	if (((csio->ccb_h.status & CAM_STATUS_MASK) == CAM_SCSI_STATUS_ERROR)
-	 && ((sense->flags & (SSD_EOM|SSD_FILEMARK|SSD_ILI)) != 0)
-	 && ((sense_key == SSD_KEY_NO_SENSE)
-	  || (sense_key == SSD_KEY_BLANK_CHECK))) {
-		u_int32_t info;
-		u_int32_t resid;
-		int	defer_action;
-
-		/*
-		 * Filter out some sense codes of interest.
-		 */
+	if ((csio->ccb_h.status & CAM_STATUS_MASK) == CAM_SCSI_STATUS_ERROR) {
 		if ((sense->error_code & SSD_ERRCODE_VALID) != 0) {
 			info = scsi_4btoul(sense->info);
 			resid = info;
@@ -1647,13 +1674,31 @@ saerror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 					info /= softc->media_blksize;
 			}
 		}
+		if (csio->ccb_h.ccb_type == SA_CCB_BUFFER_IO) {
+			bcopy((caddr_t) sense, (caddr_t) &softc->last_io_sense,
+			    sizeof (struct scsi_sense_data));
+			softc->last_io_resid = resid;
+		} else {
+			bcopy((caddr_t) sense, (caddr_t) &softc->last_ctl_sense,
+			    sizeof (struct scsi_sense_data));
+			softc->last_ctl_resid = resid;
+		}
+	}
+
+	if (((csio->ccb_h.status & CAM_STATUS_MASK) == CAM_SCSI_STATUS_ERROR)
+	 && ((sense->flags & (SSD_EOM|SSD_FILEMARK|SSD_ILI)) != 0)
+	 && ((sense_key == SSD_KEY_NO_SENSE)
+	  || (sense_key == SSD_KEY_BLANK_CHECK))) {
+		int	defer_action;
+
 		CAM_DEBUG(periph->path, CAM_DEBUG_INFO,
 		    ("Key 0x%x ASC/ASCQ 0x%x 0x%x flags 0x%x resid %d "
 		    "dxfer_len %d\n", sense_key, asc, ascq,
-		    sense->flags & ~SSD_KEY_RESERVED, resid, csio->dxfer_len));
+		    sense->flags & ~SSD_KEY_RESERVED, resid,
+		    csio->dxfer_len));
 		 
-		if ((resid > 0 && resid < csio->dxfer_len)
-		 && (softc->flags & SA_FLAG_FIXED) != 0)
+		if (resid > 0 && resid < csio->dxfer_len &&
+		    (softc->flags & SA_FLAG_FIXED) != 0)
 			defer_action = TRUE;
 		else
 			defer_action = FALSE;
@@ -2055,6 +2100,7 @@ sasetparams(struct cam_periph *periph, sa_params params_to_set,
 		 */
 		params_to_set &= ~SA_PARAM_COMPRESSION;
 
+
 		/*
 		 * Should probably do something other than a printf...like
 		 * set a flag in the softc saying that this drive doesn't
@@ -2113,11 +2159,8 @@ sasetparams(struct cam_periph *periph, sa_params params_to_set,
 		xpt_release_ccb(ccb);
 	} else {
 		if ((ccb->ccb_h.status & CAM_DEV_QFRZN) != 0)
-			cam_release_devq(ccb->ccb_h.path,
-					 /*relsim_flags*/0,
-					 /*reduction*/0, 
-					 /*timeout*/0,
-					 /*getcount_only*/0);
+			cam_release_devq(ccb->ccb_h.path, 0, 0, 0, 0);
+
 		/*
 		 * If we were setting the blocksize, and that failed, we
 		 * want to set it to its original value.  If we weren't
@@ -2147,21 +2190,27 @@ sasetparams(struct cam_periph *periph, sa_params params_to_set,
 		 * changed that we care about, so reset it back to 1.
 		 */
 		ccb->ccb_h.retry_count = 1;
-		cam_periph_runccb(ccb, saerror, /*cam_flags*/ 0,
-				  /*sense_flags*/ 0, &softc->device_stats);
+		cam_periph_runccb(ccb, saerror, 0, 0, &softc->device_stats);
 
 		if ((ccb->ccb_h.status & CAM_DEV_QFRZN) != 0)
-			cam_release_devq(ccb->ccb_h.path,
-					 /*relsim_flags*/0,
-					 /*reduction*/0, 
-					 /*timeout*/0,
-					 /*getcount_only*/0);
+			cam_release_devq(ccb->ccb_h.path, 0, 0, 0, 0);
 
 		xpt_release_ccb(ccb);
 	}
 
-	if (params_to_set & SA_PARAM_COMPRESSION)
+	if (current_comp_page != NULL)
 		free(current_comp_page, M_TEMP);
+
+	if (params_to_set & SA_PARAM_COMPRESSION) {
+		if (error) {
+			softc->flags &= ~SA_FLAG_COMP_ENABLED;
+			softc->saved_comp_algorithm = softc->comp_algorithm;
+			softc->comp_algorithm = 0;
+		} else {
+			softc->flags |= SA_FLAG_COMP_ENABLED;
+			softc->comp_algorithm = comp_algorithm;
+		}
+	}
 
 	free(mode_buffer, M_TEMP);
 	return(error);
