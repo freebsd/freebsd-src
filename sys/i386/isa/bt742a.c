@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *	$Id: bt742a.c,v 1.13 93/08/26 21:12:24 julian Exp Locker: julian $
+ *	$Id: bt742a.c,v 1.7 1993/08/28 03:07:42 rgrimes Exp $
  */
 
 /*
@@ -342,7 +342,6 @@ extern physaddr	kvtophys();
 #endif MACH
 
 #ifdef        __386BSD__
-#define PHYSTOKV(x)   (x | 0xFE000000)
 #define KVTOPHYS(x)   vtophys(x)
 #endif        __386BSD__
 
