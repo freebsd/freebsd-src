@@ -557,7 +557,7 @@ sysctl_sysctl_next_ls(struct sysctl_oid_list *lsp, int *name, u_int namelen,
 			if (!sysctl_sysctl_next_ls(lsp, 0, 0, next+1, 
 				len, level+1, oidpp))
 				return 0;
-			goto next;
+			goto emptynode;
 		}
 
 		if (oidp->oid_number < *name)
@@ -586,6 +586,7 @@ sysctl_sysctl_next_ls(struct sysctl_oid_list *lsp, int *name, u_int namelen,
 			return (0);
 	next:
 		namelen = 1;
+	emptynode:
 		*len = level;
 	}
 	return 1;
