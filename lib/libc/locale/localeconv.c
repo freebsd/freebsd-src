@@ -41,8 +41,6 @@ static char rcsid[] =
 #endif /* LIBC_SCCS and not lint */
 
 #include <locale.h>
-#include <stdlib.h>
-#include <limits.h>
 #include "lmonetary.h"
 #include "lnumeric.h"
 
@@ -58,14 +56,6 @@ static char rcsid[] =
 int __mlocale_changed = 1;
 int __nlocale_changed = 1;
 
-static char
-cnv(char *str) {
-	int i = strtol(str, NULL, 10);
-	if (i == -1)
-		i = CHAR_MAX;
-	return (char)i;
-}
-
 /*
  * Return the current locale conversion.
  */
@@ -79,7 +69,7 @@ localeconv()
         struct lc_monetary_T * mptr; 
 
 #define M_ASSIGN_STR(NAME) (ret.NAME = (char*)mptr->NAME)
-#define M_ASSIGN_CHAR(NAME) (ret.NAME = cnv((char*)mptr->NAME))
+#define M_ASSIGN_CHAR(NAME) (ret.NAME = mptr->NAME[0])
 
 	mptr = __get_current_monetary_locale();
 	M_ASSIGN_STR(int_curr_symbol);
