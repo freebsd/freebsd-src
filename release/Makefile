@@ -1,10 +1,19 @@
-#	$Id: Makefile,v 1.17 1994/11/06 02:37:25 jkh Exp $
+#	$Id: Makefile,v 1.18 1994/11/06 04:07:38 jkh Exp $
 #
 
-FLOPPY=		fd0
+#For a 1.2MB boot floppy.
+#SMALL_FLOPPY=	yes
+
+.if defined(SMALL_FLOPPY)
 FDLABEL=	fd1200
-DDBS=		15k
 DDCOUNT=	80
+.else
+FDLABEL=	fd1440
+DDCOUNT=	96
+.endif
+
+FLOPPY=		fd0
+DDBS=		15k
 MNT=		/mnt
 
 CPIO1= cat chmod cp date dd df echo ed expr hostname kill ln ls mkdir
@@ -19,7 +28,7 @@ CPIO2=  etc/services
 
 # Somewhat on the rough side...
 CLEANFILES+=	*.o *.c *.cache *.mk *.lo ${CPIO1} *.flp *.gz 
-CLEANFILES+=	boot_flp cpio_flp_1
+CLEANFILES+=	boot_flp boot_${FDLABEL}.flp cpio_flp_1
 
 MTREE_DIR=	${.CURDIR}/../etc/mtree
 
@@ -37,7 +46,9 @@ kernel:	${.CURDIR}/../sys/i386/conf/GENERIC
 	(cd ${.CURDIR}/../sys/i386/conf; config GENERIC)
 	(cd ${.CURDIR}/../sys/compile/GENERIC; ${MAKE} depend; ${MAKE} all; )
 
-boot.flp:
+boot.flp: boot_${FDLABEL}.flp
+
+boot_${FDLABEL}.flp:
 	-umount ${MNT}
 	-umount /dev/${FLOPPY}
 	echo y | fdformat ${FLOPPY}
@@ -60,17 +71,21 @@ boot.flp:
 	ln ${MNT}/stand/sysinstall ${MNT}/stand/newfs
 	ln ${MNT}/stand/sysinstall ${MNT}/stand/gzip
 	install -m 500 -c ${.CURDIR}/bininst ${MNT}/stand/bininst
+.if !defined(SMALL_FLOPPY)
 	install -m 400 -c ${.CURDIR}/../COPYRIGHT ${MNT}/COPYRIGHT
+.endif
 	install -m 400 -c ${.CURDIR}/../README ${MNT}/README
+.if !defined(SMALL_FLOPPY)
 	install -m 400 -c ${.CURDIR}/../share/FAQ/DISKSPACE.FAQ \
 		${MNT}/DISKSPACE.FAQ
 	install -m 400 -c ${.CURDIR}/../share/FAQ/RELNOTES.FreeBSD \
 		${MNT}/RELNOTES.FreeBSD
+.endif
 	touch ${MNT}/this_is_boot_flp
 	-umount ${MNT}
 	fsck /dev/r${FLOPPY}
-	dd if=/dev/r${FLOPPY} bs=${DDBS} count=${DDCOUNT} of=boot.flp
-	gzip -9 -v < boot.flp > boot.flp.gz
+	dd if=/dev/r${FLOPPY} bs=${DDBS} count=${DDCOUNT} of=boot_${FDLABEL}.flp
+	gzip -9 -v < boot_${FDLABEL}.flp > boot_${FDLABEL}.flp.gz
 	ls -l boot.flp*
 
 cpio.flp:
@@ -85,6 +100,9 @@ crunch:
 	${MAKE} -f boot_flp.mk objs exe
 	crunchgen ${.CURDIR}/cpio_flp_1.conf
 	${MAKE} -f cpio_flp_1.mk objs exe
+
+small.floppies:
+	${MAKE} SMALL_FLOPPY=yes crunch boot.flp cpio.flp
 
 floppies: crunch boot.flp cpio.flp
 
