@@ -72,7 +72,7 @@ right (some protocols will put a link-layer address here), or some
 intermediate stop on the way to that destination (if the
 .Dv RTF_GATEWAY
 flag is set).
-.It Li "short rt_refcnt;"
+.It Li "long rt_refcnt;"
 Route entries are reference-counted; this field indicates the number
 of external (to the radix tree) references.  If the
 .Dv RTF_UP
