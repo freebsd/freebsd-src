@@ -200,7 +200,9 @@ version of
 includes the RAID-5 functionality.
 .Sh RUNNING VINUM
 .Nm
-is part of the base FreeBSD system.  It does not require installation.
+is part of the base
+.Fx
+system.  It does not require installation.
 To start it, start the
 .Nm vinum
 program, which will load the kld if it is not already present.
@@ -718,7 +720,9 @@ kernel and test with the kld module.
 Detection of differences between the version of the kernel and the kld is not
 yet implemented.
 .It
-The RAID-5 functionality is new in FreeBSD 3.3.  Some problems have been
+The RAID-5 functionality is new in
+.Fx 3.3 .
+Some problems have been
 reported with 
 .Nm
 in combination with soft updates, but these are not reproducible on all
@@ -1000,7 +1004,9 @@ If you have a panic, a stack trace as described above.
 .An Greg Lehey Aq grog@lemis.com .
 .Sh HISTORY
 .Nm vinum
-first appeared in FreeBSD 3.0.  The RAID-5 component of
+first appeared in
+.Fx 3.0 .
+The RAID-5 component of
 .Nm
 was developed by Cybernet Inc. 
 .Pa www.cybernet.com

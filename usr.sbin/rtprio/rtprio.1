@@ -185,14 +185,14 @@ There is no way to set/view the realtime priority of process 0
 .Xr ps 1 ) .
 .Pp
 There is in
-.Bx Free
+.Fx
 no way to ensure that a process page is present in memory therefore
 the process may be stopped for pagein (see
 .Xr mprotect 2 ,
 .Xr madvise 2 ) .
 .Pp
 Under
-.Bx Free
+.Fx
 system calls are currently never preempted, therefore non-realtime
 processes can starve realtime processes, or idletime processes can
 starve normal priority processes.
@@ -201,6 +201,6 @@ starve normal priority processes.
 is the original author.
 This
 implementation in
-.Bx Free
+.Fx
 was substantially rewritten by
 .An David Greenman .

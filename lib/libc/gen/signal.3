@@ -46,8 +46,10 @@
 .\" fix it.
 .Ft void \*(lp*
 .Fn signal "int sig" "void \*(lp*func\*(rp\*(lpint\*(rp\*(rp\*(rp\*(lpint"
-
-or in FreeBSD's equivalent but easier to read typedef'd version:
+.Pp
+or in
+.Fx Ns 's
+equivalent but easier to read typedef'd version:
 .Ft typedef "void \*(lp*sig_t\*(rp \*(lpint\*(rp"
 .Ft sig_t
 .Fn signal "int sig" "sig_t func"

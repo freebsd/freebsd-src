@@ -60,14 +60,14 @@ driver allows the disk to have two levels of partitioning.
 One layer, called the
 .Dq slice layer ,
 is used to separate the
-.Tn FreeBSD
+.Fx
 areas of the disk from areas used by other operating systems.
 The second layer is the native
 .Bx 4.4
 partitioning scheme,
 .Xr disklabel 5 ,
 which is used to subdivide the
-.Tn FreeBSD
+.Fx
 slices into areas for individual filesystems and swap spaces.
 For more information, see
 .Xr fdisk 8
@@ -77,10 +77,10 @@ respectively.
 .Pp
 If an uninitialized disk is opened, the slice table will be
 initialized with a fictitious
-.Tn FreeBSD
+.Fx
 slice spanning the entire disk.  Similarly, if an uninitialized
 (or
-.No non- Ns Tn FreeBSD )
+.No non- Ns Fx )
 slice is opened, its disklabel will be initialized with parameters returned
 by the drive and a single
 .Sq Li c
@@ -92,7 +92,7 @@ the caching control page.  Mode pages can be examined and modified
 via the
 .Xr camcontrol 8
 utility.
-
+.Pp
 The read cache is used to store data from device-initiated read ahead
 operations as well as frequently used data.  The read cache is transparent
 to the user and can be enabled without any adverse effect.  Most devices
@@ -100,7 +100,7 @@ with a read cache come from the factory with it enabled.  The read cache
 can be disabled by setting the
 .Tn RCD
 (Read Cache Disable) bit in the caching control mode page.
-
+.Pp
 The write cache can greatly decrease the latency of write operations
 and allows the device to reorganize writes to increase efficiency and
 performance.  This performance gain comes at a price.  Should the device
@@ -226,7 +226,7 @@ block mode
 disk unit
 .Ar u ,
 first
-.Tn FreeBSD
+.Fx
 slice, partition
 .Ar p
 .It Pa /dev/rda Ns Ar u Ns Ar p
@@ -235,7 +235,7 @@ raw mode
 disk unit
 .Ar u ,
 first
-.Tn FreeBSD
+.Fx
 slice, partition
 .Ar p
 .Sm off

@@ -41,19 +41,24 @@
 .Sh DESCRIPTION
 The IEEE POSIX.1e specification never left draft form, but the interfaces
 it describes are now widely used despite inherent limitations.  Currently,
-only a few of the interfaces and features are implemented in FreeBSD,
+only a few of the interfaces and features are implemented in
+.Fx ,
 although efforts are underway to complete the integration at this time.
 
 POSIX.1e describes five security extensions to the base POSIX.1 API:
 Access Control Lists (ACLs), Auditing, Capabilities, Mandatory Access
 Control, and Information Flow Labels.  Of these, the ACL interfaces are
-currently included with FreeBSD, Auditing, Capabilities, and Mandatory
+currently included with
+.Fx ,
+Auditing, Capabilities, and Mandatory
 Access Control are in the wings, and Information Flow Labels are not on
 the calendar.
 
 POSIX.1e defines both syntax and semantics for these features, but fairly
 substantial changes are required to implement these features in the 
-operating system.  As shipped, FreeBSD 4.0 permits file systems to export
+operating system.  As shipped,
+.Fx 4.0
+permits file systems to export
 Access Control Lists via the VFS, and provides a library for userland
 access to and manipulation of these ACLs, but support for ACLs is not
 provided by any file systems shipped in the base operating system.
@@ -72,7 +77,8 @@ TrustedBSD project:
 http://www.trustedbsd.org
 
 .Sh IMPLEMENTATION NOTES
-FreeBSD's support for POSIX.1e interfaces and features is still under
+.Fx Ns 's
+support for POSIX.1e interfaces and features is still under
 development at this time.
 .Sh ENVIRONMENT
 POSIX.1e assigns security labels to all objects, extending the security

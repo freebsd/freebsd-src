@@ -48,7 +48,9 @@ non-root user without a valid login class in
 A user with a uid of 0 without a valid login class will use the record
 "root" if it exists, or "default" if not.
 .Pp
-In FreeBSD, users may individually create a file called
+In
+.Fx ,
+users may individually create a file called
 .Pa .login_conf
 in their home directory using the same format, consisting of a single
 entry with a record id of "me".
@@ -205,7 +207,9 @@ ensure octal interpretation.
 .It passwd_format	string	md5	The encryption format that new or
 changed passwords will use.
 Valid values include "md5" and "des".
-NIS clients using a non-FreeBSD NIS server should probably use "des".
+NIS clients using a
+.No non- Ns Fx
+NIS server should probably use "des".
 .\" .It approve	program 	Program to approve login.
 .It mixpasswordcase	bool	true	Whether
 .Xr passwd 1
