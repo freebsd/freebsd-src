@@ -893,7 +893,7 @@ numvar:
 			}
 			break;
 		}
-		/* fall through */
+		/* FALLTHROUGH */
 	case '*':
 		if (ifsset() != 0)
 			sep = ifsval()[0];

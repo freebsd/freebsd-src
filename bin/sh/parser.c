@@ -193,7 +193,7 @@ list(int nlflag)
 		case TBACKGND:
 		case TSEMI:
 			tok = readtoken();
-			/* fall through */
+			/* FALLTHROUGH */
 		case TNL:
 			if (tok == TNL) {
 				parseheredoc();
