@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.h	8.6 (Berkeley) 1/21/94
- * $Id: tty.h,v 1.29 1995/07/31 21:02:00 bde Exp $
+ * $Id: tty.h,v 1.30 1995/07/31 22:48:46 bde Exp $
  */
 
 #ifndef _SYS_TTY_H_
@@ -90,11 +90,11 @@ struct tty {
 					/* Set hardware state. */
 	int	(*t_param) __P((struct tty *, struct termios *));
 	void	*t_sc;			/* XXX: net/if_sl.c:sl_softc. */
-	short	t_column;		/* Tty output column. */
-	short	t_rocount, t_rocol;	/* Tty. */
-	short	t_hiwat;		/* High water mark. */
-	short	t_lowat;		/* Low water mark. */
-	short	t_gen;			/* Generation number. */
+	int	t_column;		/* Tty output column. */
+	int	t_rocount, t_rocol;	/* Tty. */
+	int	t_hiwat;		/* High water mark. */
+	int	t_lowat;		/* Low water mark. */
+	int	t_gen;			/* Generation number. */
 };
 
 #define	t_cc		t_termios.c_cc
@@ -262,6 +262,10 @@ struct tty *ttymalloc __P((void));
 void     ttyfree __P((struct tty *));
 
 /* From tty_tty.c. */
+/*
+ * XXX misplaced - these are just the cdev functions for a particular
+ * driver.
+ */
 int	cttyioctl __P((dev_t dev, int cmd, caddr_t addr, int flag,
 		       struct proc *p));
 int	cttyopen __P((dev_t dev, int flag, int mode, struct proc *p));
