@@ -126,10 +126,8 @@ int
 compare(dest)
 	char *dest;
 {
-
-	if (options & AR_TR)
-		return (!strncmp(chdr.name, rname(dest), OLDARMAXNAME));
-	return (!strcmp(chdr.name, rname(dest)));
+	int maxname = (options & AR_TR) ? OLDARMAXNAME : MAXNAMLEN;
+	return (!strncmp(chdr.name, rname(dest), maxname));
 }
 
 void
