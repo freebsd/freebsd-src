@@ -58,4 +58,3 @@ METHOD int write {
 	int regno;
 	u_int32_t data;
 };
-
