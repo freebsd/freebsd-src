@@ -24,7 +24,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $Id: adduser.perl,v 1.18 1996/09/14 23:22:23 wosch Exp $
+# $Id: adduser.perl,v 1.19 1996/09/17 19:34:56 wosch Exp $
 
 
 # read variables
@@ -255,7 +255,7 @@ sub passwd_read {
 	print "User $p_username: illegal shell: ``$sh''\n"
 	    if ($verbose && $sh &&
 		!$shell{&basename($sh)} &&
-		$p_username !~ /^(bin|uucp|falcon|nobody)$/ &&
+		$p_username !~ /^(news|xten|bin|nobody|uucp)$/ &&
 		$sh !~ /\/(pppd|sliplogin)$/);
 	$uid{$p_uid} = $p_username;
 	$pwgid{$p_gid} = $p_username;
