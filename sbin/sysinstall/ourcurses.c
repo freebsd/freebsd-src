@@ -17,6 +17,7 @@ AskEm(WINDOW *w,char *prompt, char *answer, int len)
     int x,y;
     mvwprintw(w,23,0,prompt);
     getyx(w,y,x);
+    wclrtoeol(w);
     return line_edit(w,y,x,len,len+1,item_selected_attr,1,answer);
 }
 

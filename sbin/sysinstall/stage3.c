@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: stage3.c,v 1.8 1994/11/08 13:40:01 phk Exp $
+ * $Id: stage3.c,v 1.9.2.1 1994/11/21 03:12:18 phk Exp $
  *
  */
 
@@ -65,7 +65,7 @@ stage3()
 	TellEm("fsck -y %s",pbuf);
 	if (exec(0, "/stand/fsck",
 		 "/stand/fsck", "-y", pbuf, 0) == -1)
-	    Fatal(errmsg);
+	    Fatal("exec(fsck) failed");
 
 	MountUfs(p, fs->fs_file, 0, mountflags);
 	mountflags = 0;
