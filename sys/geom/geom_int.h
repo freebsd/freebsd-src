@@ -44,7 +44,7 @@ extern int g_debugflags;
  * 1	G_T_TOPOLOGY
  * 2	G_T_BIO
  * 4	G_T_ACCESS
- * 8	Enable sanity checks
+ * 8	(unused)
  * 16	Allow footshooting on rank#1 providers
  * 32	G_T_DETAILS
  */
@@ -68,8 +68,6 @@ void g_conftxt(void *, int flag);
 /* geom_event.c */
 void g_event_init(void);
 void g_run_events(void);
-void g_stall_events(void);
-void g_release_events(void);
 
 /* geom_subr.c */
 extern struct class_list_head g_classes;

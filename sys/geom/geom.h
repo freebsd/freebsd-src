@@ -221,12 +221,28 @@ int g_handleattr_off_t(struct bio *bp, const char *attribute, off_t val);
 struct g_consumer * g_new_consumer(struct g_geom *gp);
 struct g_geom * g_new_geomf(struct g_class *mp, const char *fmt, ...);
 struct g_provider * g_new_providerf(struct g_geom *gp, const char *fmt, ...);
-void g_sanity(void const *ptr);
 void g_spoil(struct g_provider *pp, struct g_consumer *cp);
 int g_std_access(struct g_provider *pp, int dr, int dw, int de);
 void g_std_done(struct bio *bp);
 void g_std_spoiled(struct g_consumer *cp);
 void g_wither_geom(struct g_geom *gp, int error);
+
+#ifdef DIAGNOSTIC
+int g_valid_obj(void const *ptr);
+#define G_VALID_CLASS(foo) \
+    KASSERT(g_valid_obj(foo) == 1, ("%p is not a g_class", foo))
+#define G_VALID_GEOM(foo) \
+    KASSERT(g_valid_obj(foo) == 2, ("%p is not a g_geom", foo))
+#define G_VALID_CONSUMER(foo) \
+    KASSERT(g_valid_obj(foo) == 3, ("%p is not a g_consumer", foo))
+#define G_VALID_PROVIDER(foo) \
+    KASSERT(g_valid_obj(foo) == 4, ("%p is not a g_provider", foo))
+#else
+#define G_VALID_CLASS(foo) do { } while (0)
+#define G_VALID_GEOM(foo) do { } while (0)
+#define G_VALID_CONSUMER(foo) do { } while (0)
+#define G_VALID_PROVIDER(foo) do { } while (0)
+#endif
 
 int g_modevent(module_t, int, void *);
 
@@ -258,16 +274,17 @@ g_malloc(int size, int flags)
 	void *p;
 
 	p = malloc(size, M_GEOM, flags);
-	g_sanity(p);
-	/* printf("malloc(%d, %x) -> %p\n", size, flags, p); */
 	return (p);
 }
 
 static __inline void
 g_free(void *ptr)
 {
-	g_sanity(ptr);
-	/* printf("free(%p)\n", ptr); */
+
+#ifdef DIAGNOSTIC
+	KASSERT(g_valid_obj(ptr) == 0,
+	    ("g_free(%p) of live object, type %d", ptr, g_valid_obj(ptr)));
+#endif
 	free(ptr, M_GEOM);
 }
 
@@ -281,19 +298,16 @@ extern struct sx topology_lock;
 
 #define g_topology_unlock()					\
 	do {							\
-		g_sanity(NULL);					\
 		sx_xunlock(&topology_lock);			\
 	} while (0)
 
 #define g_topology_assert()					\
 	do {							\
-		g_sanity(NULL);					\
 		sx_assert(&topology_lock, SX_XLOCKED);		\
 	} while (0)
 
 #define g_topology_assert_not()					\
 	do {							\
-		g_sanity(NULL);					\
 		sx_assert(&topology_lock, SX_UNLOCKED);		\
 	} while (0)
 
