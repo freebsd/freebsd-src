@@ -874,16 +874,6 @@ parse_file(FILE *cf, const char *cfname, struct conf_entry **work_p,
 				free(working->pid_file);
 				working->pid_file = NULL;
 			}
-		} else if (nosignal) {
-			/*
-			 * While this entry might usually signal some
-			 * process via the pid-file, newsyslog was run
-			 * with '-s', so quietly ignore the pid-file.
-			 */
-			if (working->pid_file != NULL) {
-				free(working->pid_file);
-				working->pid_file = NULL;
-			}
 		} else if (working->pid_file == NULL) {
 			/*
 			 * This entry did not specify the 'n' flag, which
@@ -1071,11 +1061,24 @@ dotrim(const struct conf_entry *ent, char *log, int numdays, int flags)
 		}
 	}
 
+	/*
+	 * Find out if there is a process to signal.  If nosignal (-s) was
+	 * specified, then do not signal any process.  Note that nosignal
+	 * will trigger a warning message if the rotated logfile needs to
+	 * be compressed, *unless* -R was specified.  This is because there
+	 * presumably still are process(es) writing to the old logfile, but
+	 * we assume that a -sR request comes from a process which writes 
+	 * to the logfile, and as such, that process has already made sure
+	 * that the logfile is not presently in use.
+	 */
 	pid = 0;
 	need_notification = notified = 0;
 	if (ent->pid_file != NULL) {
 		need_notification = 1;
-		pid = get_pid(ent->pid_file);
+		if (!nosignal)
+			pid = get_pid(ent->pid_file);	/* the normal case! */
+		else if (rotatereq)
+			need_notification = 0;
 	}
 	if (pid) {
 		if (noaction) {
