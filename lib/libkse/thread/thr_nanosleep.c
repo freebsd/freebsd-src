@@ -62,12 +62,10 @@ _nanosleep(const struct timespec *time_to_sleep,
 
 		THR_LOCK_SWITCH(curthread);
 		curthread->interrupted = 0;
-
 		THR_SET_STATE(curthread, PS_SLEEP_WAIT);
 
 		/* Reschedule the current thread to sleep: */
-		_thr_sched_switch(curthread);
-		THR_UNLOCK_SWITCH(curthread);
+		_thr_sched_switch_unlocked(curthread);
 
 		/* Calculate the remaining time to sleep: */
 		KSE_GET_TOD(curthread->kse, &ts1);
