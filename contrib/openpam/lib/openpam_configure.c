@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/openpam_configure.c#10 $
+ * $P4: //depot/projects/openpam/lib/openpam_configure.c#11 $
  */
 
 #include <ctype.h>
@@ -184,7 +184,6 @@ openpam_read_chain(pam_handle_t *pamh,
 			if ((name = dup_word(p)) == NULL)
 				goto syserr;
 			ret = openpam_load_chain(pamh, name, fclt);
-			fprintf(stderr, "include %s returned %d\n", name, ret);
 			FREE(name);
 			if (ret < 0)
 				goto fail;
