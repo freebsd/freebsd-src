@@ -106,8 +106,7 @@ struct ke_sched {
 #define	ke_assign	ke_procq.tqe_next
 
 #define	KEF_ASSIGNED	KEF_SCHED0	/* KSE is being migrated. */
-#define	KEF_PINNED	KEF_SCHED1	/* KSE is temporarily bound. */
-#define	KEF_BOUND	KEF_SCHED2	/* KSE can not migrate. */
+#define	KEF_BOUND	KEF_SCHED1	/* KSE can not migrate. */
 
 struct kg_sched {
 	int	skg_slptime;		/* Number of ticks we vol. slept */
@@ -267,7 +266,8 @@ static void kseq_notify(struct kse *ke, int cpu);
 static void kseq_assign(struct kseq *);
 static struct kse *kseq_steal(struct kseq *kseq);
 #define	KSE_CAN_MIGRATE(ke, class)					\
-    ((class) != PRI_ITHD && ((ke)->ke_flags & (KEF_BOUND|KEF_PINNED)) == 0)
+    ((class) != PRI_ITHD && (ke)->ke_thread->td_pinned == 0 &&		\
+    (ke)->ke_flags & KEF_BOUND) == 0)
 #endif
 
 void
@@ -1465,20 +1465,6 @@ sched_pctcpu(struct thread *td)
 	mtx_unlock_spin(&sched_lock);
 
 	return (pctcpu);
-}
-
-void
-sched_pin(struct thread *td)
-{
-	mtx_assert(&sched_lock, MA_OWNED);
-	td->td_kse->ke_flags |= KEF_PINNED;
-}
-
-void
-sched_unpin(struct thread *td)
-{
-	mtx_assert(&sched_lock, MA_OWNED);
-	td->td_kse->ke_flags &= ~KEF_PINNED;
 }
 
 void
