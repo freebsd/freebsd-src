@@ -23,6 +23,7 @@
  *
  * 16 Feb 93	Julian Elischer		ADDED for SCSI system
  * commenced: Sun Sep 27 18:14:01 PDT 1992
+ * slight mod to make work with 34F as well: Wed Jun  2 18:05:48 WST 1993
  */
  
 #include <sys/types.h>
@@ -319,7 +320,7 @@ uha_send_mbox(  int             unit
 		,struct mscp     *mscp)
 {
 	int     port = uha_data[unit].baseport;
-	int     spincount = FUDGE(delaycount) * 1; /* 1ms should be enough */
+	int     spincount = FUDGE(delaycount) * 1000; /* 1s should be enough */
 	int     s = splbio();
 		
 	while(      ((inb(port + UHA_LINT) & (UHA_LDIP))
