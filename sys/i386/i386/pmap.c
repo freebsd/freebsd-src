@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.47 1995/01/26 21:06:40 davidg Exp $
+ *	$Id: pmap.c,v 1.48 1995/02/02 08:45:14 davidg Exp $
  */
 
 /*
@@ -148,8 +148,6 @@ static inline void vm_put_pmap();
 static void i386_protection_init();
 static void pmap_alloc_pv_entry();
 static inline pv_entry_t get_pv_entry();
-inline void pmap_use_pt();
-inline void pmap_unuse_pt();
 int nkpt;
 
 
