@@ -311,6 +311,17 @@ printtrap(int vector, struct trapframe *framep, int isfatal, int user)
 	printf("\n");
 }
 
+static void
+trap_panic(int vector, struct trapframe *tf)
+{
+
+	printtrap(vector, tf, 1, TRAPF_USERMODE(tf));
+#ifdef DDB
+	kdb_trap(vector, tf);
+#endif
+	panic("trap");
+}
+
 /*
  *
  */
@@ -342,17 +353,10 @@ trap(int vector, struct trapframe *framep)
 	struct proc *p;
 	struct thread *td;
 	u_int64_t ucode;
-	int i, user;
+	int error, sig, user;
 	u_int sticks;
 
 	user = TRAPF_USERMODE(framep) ? 1 : 0;
-
-	/* Short-circuit break instruction based system calls. */
-	if (vector == IA64_VEC_BREAK && user &&
-	    framep->tf_special.ifa == 0x100000) {
-		break_syscall(framep);
-		return;
-	}
 
 	/* Sanitize the FP state in case the user has trashed it. */
 	ia64_set_fpsr(IA64_FPSR_DEFAULT);
@@ -374,132 +378,197 @@ trap(int vector, struct trapframe *framep)
 		    ("kernel trap doesn't have ucred"));
 	}
 
+	sig = 0;
 	switch (vector) {
-
-	case IA64_VEC_UNALIGNED_REFERENCE: {
+	case IA64_VEC_VHPT:
 		/*
-		 * If user-land, do whatever fixups, printing, and
-		 * signalling is appropriate (based on system-wide
-		 * and per-process unaligned-access-handling flags).
+		 * This one is tricky. We should hardwire the VHPT, but
+		 * don't at this time. I think we're mostly lucky that
+		 * the VHPT is mapped.
 		 */
+		trap_panic(vector, framep);
+		break;
+
+	case IA64_VEC_ITLB:
+	case IA64_VEC_DTLB:
+	case IA64_VEC_EXT_INTR:
+		/* We never call trap() with these vectors. */
+		trap_panic(vector, framep);
+		break;
+
+	case IA64_VEC_ALT_ITLB:
+	case IA64_VEC_ALT_DTLB:
+		/*
+		 * These should never happen, because regions 0-4 use the
+		 * VHPT. If we get one of these it means we didn't program
+		 * the region registers correctly.
+		 */
+		trap_panic(vector, framep);
+		break;
+
+	case IA64_VEC_NESTED_DTLB:
+		/*
+		 * We never call trap() with this vector. We may want to
+		 * do that in the future in case the nested TLB handler
+		 * could not find the translation it needs. In that case
+		 * we could switch to a special (hardwired) stack and
+		 * come here to produce a nice panic().
+		 */
+		trap_panic(vector, framep);
+		break;
+
+	case IA64_VEC_IKEY_MISS:
+	case IA64_VEC_DKEY_MISS:
+	case IA64_VEC_KEY_PERMISSION:
+		/*
+		 * We don't use protection keys, so we should never get
+		 * these faults.
+		 */
+		trap_panic(vector, framep);
+		break;
+
+	case IA64_VEC_DIRTY_BIT:
+	case IA64_VEC_INST_ACCESS:
+	case IA64_VEC_DATA_ACCESS:
+		/*
+		 * We get here if we read or write to a page of which the
+		 * PTE does not have the access bit or dirty bit set and
+		 * we can not find the PTE in our datastructures. This
+		 * either means we have a stale PTE in the TLB, or we lost
+		 * the PTE in our datastructures.
+		 */
+		trap_panic(vector, framep);
+		break;
+
+	case IA64_VEC_BREAK:
 		if (user) {
-			i = unaligned_fixup(framep, td);
-			if (i == 0)
-				goto out;
-			ucode = framep->tf_special.ifa;	/* VA */
-			break;
-		}
+			if (framep->tf_special.ifa == 0x100000) {
+				break_syscall(framep);
+				return;		/* do_ast() already called. */
+			} else if (framep->tf_special.ifa == 0x180000) {
+				mcontext_t mc;
 
-		/*
-		 * Unaligned access from kernel mode is always an error,
-		 * EVEN IF A COPY FAULT HANDLER IS SET!
-		 *
-		 * It's an error if a copy fault handler is set because
-		 * the various routines which do user-initiated copies
-		 * do so in a bcopy-like manner.  In other words, the
-		 * kernel never assumes that pointers provided by the
-		 * user are properly aligned, and so if the kernel
-		 * does cause an unaligned access it's a kernel bug.
-		 */
-		goto dopanic;
-	}
-
-	case IA64_VEC_FLOATING_POINT_FAULT:
-		/* FALLTHROUGH */
-
-	case IA64_VEC_FLOATING_POINT_TRAP: {
-		FP_STATE fp_state;
-		FPSWA_RET fpswa_ret;
-		FPSWA_BUNDLE bundle;
-
-		/* Always fatal in kernel. Should never happen. */
-		if (!user)
-			goto dopanic;
-
-		if (fpswa_interface == NULL) {
-			i = SIGFPE;
-			ucode = 0;
-			break;
-		}
-
-		i = copyin((void *)(framep->tf_special.iip), &bundle, 16);
-		if (i) {
-			i = SIGBUS;	/* EFAULT, basically */
-			ucode = 0;	/* exception summary */
-			break;
-		}
-
-		/* f6-f15 are saved in exception_save */
-		fp_state.bitmask_low64 = 0xffc0;	/* bits 6 - 15 */
-		fp_state.bitmask_high64 = 0x0;
-		fp_state.fp_low_preserved = NULL;
-		fp_state.fp_low_volatile = &framep->tf_scratch_fp.fr6;
-		fp_state.fp_high_preserved = NULL;
-		fp_state.fp_high_volatile = NULL;
-
-		/*
-		 * We have the high FP registers disabled while in the
-		 * kernel. Enable them for the FPSWA handler only.
-		 */
-		ia64_enable_highfp();
-
-		/* The docs are unclear.  Is Fpswa reentrant? */
-		fpswa_ret = fpswa_interface->Fpswa(1, &bundle,
-		    &framep->tf_special.psr, &framep->tf_special.fpsr,
-		    &framep->tf_special.isr, &framep->tf_special.pr,
-		    &framep->tf_special.cfm, &fp_state);
-
-		ia64_disable_highfp();
-
-		if (fpswa_ret.status == 0) {
-			/* fixed.  update ipsr and iip to next insn */
-			int ei;
-
-			ei = (framep->tf_special.isr >> 41) & 0x03;
-			if (ei == 0) {		/* no template for this case */
-				framep->tf_special.psr &= ~IA64_ISR_EI;
-				framep->tf_special.psr |= IA64_ISR_EI_1;
-			} else if (ei == 1) {	/* MFI or MFB */
-				framep->tf_special.psr &= ~IA64_ISR_EI;
-				framep->tf_special.psr |= IA64_ISR_EI_2;
-			} else if (ei == 2) {	/* MMF */
-				framep->tf_special.psr &= ~IA64_ISR_EI;
-				framep->tf_special.iip += 0x10;
+				error = copyin((void*)framep->tf_scratch.gr8,
+				    &mc, sizeof(mc));
+				if (!error) {
+					set_mcontext(td, &mc);
+					return;	/* Don't call do_ast()!!! */
+				}
+				ucode = framep->tf_scratch.gr8;
+				sig = SIGSEGV;
+			} else {
+				framep->tf_special.psr &= ~IA64_PSR_SS;
+				sig = SIGTRAP;
 			}
-			goto out;
-		} else if (fpswa_ret.status == -1) {
-			printf("FATAL: FPSWA err1 %lx, err2 %lx, err3 %lx\n",
-			    fpswa_ret.err1, fpswa_ret.err2, fpswa_ret.err3);
-			panic("fpswa fatal error on fp fault");
-		} else if (fpswa_ret.status > 0) {
-#if 0
-			if (fpswa_ret.status & 1) {
-				/*
-				 * New exception needs to be raised.
-				 * If set then the following bits also apply:
-				 * & 2 -> fault was converted to a trap
-				 * & 4 -> SIMD caused the exception
-				 */
-				i = SIGFPE;
-				ucode = 0;		/* exception summary */
-				break;
-			}
+		} else {
+#ifdef DDB
+			if (kdb_trap(vector, framep))
+				return;
+			panic("trap");
+#else
+			trap_panic(vector, framep);
 #endif
-			i = SIGFPE;
-			ucode = 0;			/* exception summary */
-			break;
-		} else
-			panic("bad fpswa return code %lx", fpswa_ret.status);
+		}
+		break;
+
+	case IA64_VEC_PAGE_NOT_PRESENT:
+	case IA64_VEC_INST_ACCESS_RIGHTS:
+	case IA64_VEC_DATA_ACCESS_RIGHTS: {
+		vm_offset_t va;
+		struct vmspace *vm;
+		vm_map_t map;
+		vm_prot_t ftype;
+		int rv;
+
+		rv = 0;
+		va = trunc_page(framep->tf_special.ifa);
+
+		if (va >= VM_MAX_ADDRESS) {
+			/*
+			 * Don't allow user-mode faults for kernel virtual
+			 * addresses, including the gateway page.
+			 */
+			if (user)
+				goto no_fault_in;
+			map = kernel_map;
+		} else {
+			vm = (p != NULL) ? p->p_vmspace : NULL;
+			if (vm == NULL)
+				goto no_fault_in;
+			map = &vm->vm_map;
+		}
+
+		if (framep->tf_special.isr & IA64_ISR_X)
+			ftype = VM_PROT_EXECUTE;
+		else if (framep->tf_special.isr & IA64_ISR_W)
+			ftype = VM_PROT_WRITE;
+		else
+			ftype = VM_PROT_READ;
+
+		if (map != kernel_map) {
+			/*
+			 * Keep swapout from messing with us during this
+			 * critical time.
+			 */
+			PROC_LOCK(p);
+			++p->p_lock;
+			PROC_UNLOCK(p);
+
+			/* Fault in the user page: */
+			rv = vm_fault(map, va, ftype, (ftype & VM_PROT_WRITE)
+			    ? VM_FAULT_DIRTY : VM_FAULT_NORMAL);
+
+			PROC_LOCK(p);
+			--p->p_lock;
+			PROC_UNLOCK(p);
+		} else {
+			/*
+			 * Don't have to worry about process locking or
+			 * stacks in the kernel.
+			 */
+			rv = vm_fault(map, va, ftype, VM_FAULT_NORMAL);
+		}
+
+		if (rv == KERN_SUCCESS)
+			goto out;
+
+	no_fault_in:
+		if (!user) {
+			/* Check for copyin/copyout fault. */
+			if (td != NULL && td->td_pcb->pcb_onfault != 0) {
+				framep->tf_special.iip =
+				    td->td_pcb->pcb_onfault;
+				framep->tf_special.psr &= ~IA64_PSR_RI;
+				td->td_pcb->pcb_onfault = 0;
+				goto out;
+			}
+			trap_panic(vector, framep);
+		}
+		ucode = va;
+		sig = (rv == KERN_PROTECTION_FAILURE) ? SIGBUS : SIGSEGV;
+		break;
 	}
 
-	case IA64_VEC_DISABLED_FP: {	/* High FP registers are disabled. */
+	case IA64_VEC_GENERAL_EXCEPTION:
+	case IA64_VEC_NAT_CONSUMPTION:
+	case IA64_VEC_SPECULATION:
+	case IA64_VEC_UNSUPP_DATA_REFERENCE:
+	case IA64_VEC_LOWER_PRIVILEGE_TRANSFER:
+		if (user) {
+			ucode = vector;
+			sig = SIGILL;
+		} else
+			trap_panic(vector, framep);
+		break;
+
+	case IA64_VEC_DISABLED_FP: {
 		struct pcpu *pcpu;
 		struct pcb *pcb;
 		struct thread *thr;
 
 		/* Always fatal in kernel. Should never happen. */
 		if (!user)
-			goto dopanic;
+			trap_panic(vector, framep);
 
 		pcb = td->td_pcb;
 		pcpu = pcb->pcb_fpcpu;
@@ -577,220 +646,198 @@ trap(int vector, struct trapframe *framep)
 		ia64_highfp_load(td);
 		framep->tf_special.psr &= ~IA64_PSR_DFH;
 		goto out;
-		break;
 	}
 
-	case IA64_VEC_PAGE_NOT_PRESENT:
-	case IA64_VEC_INST_ACCESS_RIGHTS:
-	case IA64_VEC_DATA_ACCESS_RIGHTS: {
-		vm_offset_t va;
-		struct vmspace *vm;
-		vm_map_t map;
-		vm_prot_t ftype;
-		int rv;
-
-		rv = 0;
-		va = trunc_page(framep->tf_special.ifa);
-
-		if (va >= VM_MAX_ADDRESS) {
-			/*
-			 * Don't allow user-mode faults for kernel virtual
-			 * addresses, including the gateway page.
-			 */
-			if (user)
-				goto no_fault_in;
-			map = kernel_map;
-		} else {
-			vm = (p != NULL) ? p->p_vmspace : NULL;
-			if (vm == NULL)
-				goto no_fault_in;
-			map = &vm->vm_map;
-		}
-
-		if (framep->tf_special.isr & IA64_ISR_X)
-			ftype = VM_PROT_EXECUTE;
-		else if (framep->tf_special.isr & IA64_ISR_W)
-			ftype = VM_PROT_WRITE;
-		else
-			ftype = VM_PROT_READ;
-
-		if (map != kernel_map) {
-			/*
-			 * Keep swapout from messing with us during this
-			 * critical time.
-			 */
-			PROC_LOCK(p);
-			++p->p_lock;
-			PROC_UNLOCK(p);
-
-			/* Fault in the user page: */
-			rv = vm_fault(map, va, ftype, (ftype & VM_PROT_WRITE)
-			    ? VM_FAULT_DIRTY : VM_FAULT_NORMAL);
-
-			PROC_LOCK(p);
-			--p->p_lock;
-			PROC_UNLOCK(p);
-		} else {
-			/*
-			 * Don't have to worry about process locking or
-			 * stacks in the kernel.
-			 */
-			rv = vm_fault(map, va, ftype, VM_FAULT_NORMAL);
-		}
-
-		if (rv == KERN_SUCCESS)
-			goto out;
-
-	no_fault_in:
-		if (!user) {
-			/* Check for copyin/copyout fault. */
-			if (td != NULL && td->td_pcb->pcb_onfault != 0) {
-				framep->tf_special.iip =
-				    td->td_pcb->pcb_onfault;
-				framep->tf_special.psr &= ~IA64_PSR_RI;
-				td->td_pcb->pcb_onfault = 0;
-				goto out;
-			}
-			goto dopanic;
-		}
-		ucode = va;
-		i = (rv == KERN_PROTECTION_FAILURE) ? SIGBUS : SIGSEGV;
-		break;
-	}
-
-	case IA64_VEC_BREAK:
 	case IA64_VEC_DEBUG:
+	case IA64_VEC_TAKEN_BRANCH_TRAP:
 	case IA64_VEC_SINGLE_STEP_TRAP:
-	case IA64_VEC_TAKEN_BRANCH_TRAP: {
 		framep->tf_special.psr &= ~IA64_PSR_SS;
-
-		/*
-		 * These are always fatal in kernel, and should never happen.
-		 */
 		if (!user) {
 #ifdef DDB
-			/*
-			 * ...unless, of course, DDB is configured.
-			 */
 			if (kdb_trap(vector, framep))
 				return;
-
-			/*
-			 * If we get here, DDB did _not_ handle the
-			 * trap, and we need to PANIC!
-			 */
+			panic("trap");
+#else
+			trap_panic(vector, framep);
 #endif
-			goto dopanic;
 		}
-		i = SIGTRAP;
+		sig = SIGTRAP;
 		break;
-	}
 
-	case IA64_VEC_GENERAL_EXCEPTION: {
+	case IA64_VEC_UNALIGNED_REFERENCE:
+		/*
+		 * If user-land, do whatever fixups, printing, and
+		 * signalling is appropriate (based on system-wide
+		 * and per-process unaligned-access-handling flags).
+		 */
 		if (user) {
-			ucode = vector;
-			i = SIGILL;
+			sig = unaligned_fixup(framep, td);
+			if (sig == 0)
+				goto out;
+			ucode = framep->tf_special.ifa;	/* VA */
+		} else
+			trap_panic(vector, framep);
+		break;
+
+	case IA64_VEC_FLOATING_POINT_FAULT:
+	case IA64_VEC_FLOATING_POINT_TRAP: {
+		FP_STATE fp_state;
+		FPSWA_RET fpswa_ret;
+		FPSWA_BUNDLE bundle;
+
+		/* Always fatal in kernel. Should never happen. */
+		if (!user)
+			trap_panic(vector, framep);
+
+		if (fpswa_interface == NULL) {
+			sig = SIGFPE;
+			ucode = 0;
 			break;
 		}
-		goto dopanic;
-	}
 
-	case IA64_VEC_UNSUPP_DATA_REFERENCE:
-	case IA64_VEC_LOWER_PRIVILEGE_TRANSFER: {
-		if (user) {
-			ucode = vector;
-			i = SIGBUS;
+		error = copyin((void *)(framep->tf_special.iip), &bundle, 16);
+		if (error) {
+			sig = SIGBUS;	/* EFAULT, basically */
+			ucode = 0;	/* exception summary */
 			break;
 		}
-		goto dopanic;
+
+		/* f6-f15 are saved in exception_save */
+		fp_state.bitmask_low64 = 0xffc0;	/* bits 6 - 15 */
+		fp_state.bitmask_high64 = 0x0;
+		fp_state.fp_low_preserved = NULL;
+		fp_state.fp_low_volatile = &framep->tf_scratch_fp.fr6;
+		fp_state.fp_high_preserved = NULL;
+		fp_state.fp_high_volatile = NULL;
+
+		/*
+		 * We have the high FP registers disabled while in the
+		 * kernel. Enable them for the FPSWA handler only.
+		 */
+		ia64_enable_highfp();
+
+		/* The docs are unclear.  Is Fpswa reentrant? */
+		fpswa_ret = fpswa_interface->Fpswa(1, &bundle,
+		    &framep->tf_special.psr, &framep->tf_special.fpsr,
+		    &framep->tf_special.isr, &framep->tf_special.pr,
+		    &framep->tf_special.cfm, &fp_state);
+
+		ia64_disable_highfp();
+
+		if (fpswa_ret.status == 0) {
+			/* fixed.  update ipsr and iip to next insn */
+			int ei;
+
+			ei = (framep->tf_special.isr >> 41) & 0x03;
+			if (ei == 0) {		/* no template for this case */
+				framep->tf_special.psr &= ~IA64_ISR_EI;
+				framep->tf_special.psr |= IA64_ISR_EI_1;
+			} else if (ei == 1) {	/* MFI or MFB */
+				framep->tf_special.psr &= ~IA64_ISR_EI;
+				framep->tf_special.psr |= IA64_ISR_EI_2;
+			} else if (ei == 2) {	/* MMF */
+				framep->tf_special.psr &= ~IA64_ISR_EI;
+				framep->tf_special.iip += 0x10;
+			}
+			goto out;
+		} else if (fpswa_ret.status == -1) {
+			printf("FATAL: FPSWA err1 %lx, err2 %lx, err3 %lx\n",
+			    fpswa_ret.err1, fpswa_ret.err2, fpswa_ret.err3);
+			panic("fpswa fatal error on fp fault");
+		} else if (fpswa_ret.status > 0) {
+#if 0
+			if (fpswa_ret.status & 1) {
+				/*
+				 * New exception needs to be raised.
+				 * If set then the following bits also apply:
+				 * & 2 -> fault was converted to a trap
+				 * & 4 -> SIMD caused the exception
+				 */
+				sig = SIGFPE;
+				ucode = 0;		/* exception summary */
+				break;
+			}
+#endif
+			sig = SIGFPE;
+			ucode = 0;			/* exception summary */
+			break;
+		} else
+			panic("bad fpswa return code %lx", fpswa_ret.status);
 	}
 
-	case IA64_VEC_IA32_EXCEPTION: {
-		u_int64_t isr = framep->tf_special.isr;
-
-		switch ((isr >> 16) & 0xffff) {
+	case IA64_VEC_IA32_EXCEPTION:
+		switch ((framep->tf_special.isr >> 16) & 0xffff) {
 		case IA32_EXCEPTION_DIVIDE:
 			ucode = FPE_INTDIV;
-			i = SIGFPE;
+			sig = SIGFPE;
 			break;
-
 		case IA32_EXCEPTION_DEBUG:
 		case IA32_EXCEPTION_BREAK:
-			i = SIGTRAP;
+			sig = SIGTRAP;
 			break;
-
 		case IA32_EXCEPTION_OVERFLOW:
 			ucode = FPE_INTOVF;
-			i = SIGFPE;
+			sig = SIGFPE;
 			break;
-
 		case IA32_EXCEPTION_BOUND:
 			ucode = FPE_FLTSUB;
-			i = SIGFPE;
+			sig = SIGFPE;
 			break;
-
 		case IA32_EXCEPTION_DNA:
 			ucode = 0;
-			i = SIGFPE;
+			sig = SIGFPE;
 			break;
-
 		case IA32_EXCEPTION_NOT_PRESENT:
 		case IA32_EXCEPTION_STACK_FAULT:
 		case IA32_EXCEPTION_GPFAULT:
-			ucode = (isr & 0xffff) + BUS_SEGM_FAULT;
-			i = SIGBUS;
+			ucode = (framep->tf_special.isr & 0xffff) +
+			    BUS_SEGM_FAULT;
+			sig = SIGBUS;
 			break;
-
 		case IA32_EXCEPTION_FPERROR:
-			ucode = 0; /* XXX */
-			i = SIGFPE;
+			ucode = 0;	/* XXX */
+			sig = SIGFPE;
 			break;
-			
 		case IA32_EXCEPTION_ALIGNMENT_CHECK:
 			ucode = framep->tf_special.ifa;	/* VA */
-			i = SIGBUS;
+			sig = SIGBUS;
 			break;
-			
 		case IA32_EXCEPTION_STREAMING_SIMD:
 			ucode = 0; /* XXX */
-			i = SIGFPE;
+			sig = SIGFPE;
 			break;
-
 		default:
-			goto dopanic;
+			trap_panic(vector, framep);
+			break;
 		}
 		break;
-	}
 
-	case IA64_VEC_IA32_INTERRUPT: {
-		/*
-		 * INT n instruction - probably a syscall.
-		 */
+	case IA64_VEC_IA32_INTERCEPT:
+		/* XXX Maybe need to emulate ia32 instruction. */
+		trap_panic(vector, framep);
+
+	case IA64_VEC_IA32_INTERRUPT:
+		/* INT n instruction - probably a syscall. */
 		if (((framep->tf_special.isr >> 16) & 0xffff) == 0x80) {
 			ia32_syscall(framep);
 			goto out;
-		} else {
-			ucode = (framep->tf_special.isr >> 16) & 0xffff;
-			i = SIGILL;
-			break;
 		}
-	}
-
-	case IA64_VEC_IA32_INTERCEPT: {
-		/*
-		 * Maybe need to emulate ia32 instruction.
-		 */
-		goto dopanic;
-	}
+		ucode = (framep->tf_special.isr >> 16) & 0xffff;
+		sig = SIGILL;
+		break;
 
 	default:
-		goto dopanic;
+		/* Reserved vectors get here. Should never happen of course. */
+		trap_panic(vector, framep);
+		break;
 	}
+
+	KASSERT(sig != 0, ("foo"));
 
 	if (print_usertrap)
 		printtrap(vector, framep, 1, user);
 
-	trapsignal(td, i, ucode);
+	trapsignal(td, sig, ucode);
 
 out:
 	if (user) {
@@ -802,13 +849,6 @@ out:
 		do_ast(framep);
 	}
 	return;
-
-dopanic:
-	printtrap(vector, framep, 1, user);
-#ifdef DDB
-	kdb_trap(vector, framep);
-#endif
-	panic("trap");
 }
 
 
