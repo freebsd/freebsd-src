@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ufs.c,v 1.1 1995/05/27 10:39:04 jkh Exp $
+ * $Id: ufs.c,v 1.2 1995/05/27 23:39:35 phk Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -44,17 +44,19 @@
  */
 
 #include "sysinstall.h"
+#include <sys/fcntl.h>
+#include <sys/param.h>
 
-Boolean
-mediaInitUFS(Device *dev)
-{
-    return TRUE;
-}
+/* No init or shutdown routines necessary - all done in mediaSetUFS() */
 
 int
 mediaGetUFS(char *file)
 {
-    return -1;
-}
+    char		buf[PATH_MAX];
 
-/* UFS has no Shutdown routine since this is handled at the device level */
+    snprintf(buf, PATH_MAX, "%s/%s", (char *)mediaDevice->private, file);
+    if (!access(buf, R_OK))
+	return open(buf, O_RDONLY);
+    snprintf(buf, PATH_MAX, "%s/dists/%s", (char *)mediaDevice->private, file);
+    return open(buf, O_RDONLY);
+}

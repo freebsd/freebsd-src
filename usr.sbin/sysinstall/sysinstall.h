@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.38 1995/05/28 03:05:03 jkh Exp $
+ * $Id: sysinstall.h,v 1.39 1995/05/28 09:31:39 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -160,6 +160,8 @@ typedef enum {
     DEVICE_TYPE_CDROM,
     DEVICE_TYPE_TAPE,
     DEVICE_TYPE_DOS,
+    DEVICE_TYPE_UFS,
+    DEVICE_TYPE_NFS,
     DEVICE_TYPE_ANY,
 } DeviceType;
 
@@ -378,10 +380,11 @@ extern int	mediaSetFloppy(char *str);
 extern int	mediaSetDOS(char *str);
 extern int	mediaSetTape(char *str);
 extern int	mediaSetFTP(char *str);
-extern int	mediaSetFS(char *str);
+extern int	mediaSetUFS(char *str);
+extern int	mediaSetNFS(char *str);
 extern Boolean	mediaGetType(void);
-extern Boolean	mediaExtractDist(char *distname, char *dir, int fd);
-extern Boolean	mediaExtractDistBegin(char *distname, char *dir, int *fd, int *zpid, int *cpic);
+extern Boolean	mediaExtractDist(char *dir, int fd);
+extern Boolean	mediaExtractDistBegin(char *dir, int *fd, int *zpid, int *cpic);
 extern Boolean	mediaExtractDistEnd(int zpid, int cpid);
 extern Boolean	mediaVerify(void);
 
@@ -403,6 +406,7 @@ extern int	Mount(char *, void *data);
 extern int	Mount_DOS(char *, void *data);
 
 /* msg.c */
+extern Boolean	isDebug(void);
 extern void	msgInfo(char *fmt, ...);
 extern void	msgYap(char *fmt, ...);
 extern void	msgWarn(char *fmt, ...);
@@ -419,6 +423,11 @@ extern char	*msgGetInput(char *buf, char *fmt, ...);
 extern Boolean	mediaInitNetwork(Device *dev);
 extern void	mediaShutdownNetwork(Device *dev);
 extern int	configRoutedFlags(char *str);
+
+/* nfs.c */
+extern Boolean	mediaInitNFS(Device *dev);
+extern int	mediaGetNFS(char *file);
+extern void	mediaShutdownNFS(Device *dev);
 
 /* system.c */
 extern void	systemInitialize(int argc, char **argv);
@@ -448,6 +457,7 @@ extern int	tcpDeviceSelect(char *str);
 extern int	set_termcap(void);
 
 /* ufs.c */
+extern void	mediaShutdownUFS(Device *dev);
 extern Boolean	mediaInitUFS(Device *dev);
 extern int	mediaGetUFS(char *file);
 
