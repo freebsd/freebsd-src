@@ -358,7 +358,7 @@ __bt_first(t, key, erval, exactp)
 	 * page) and return it.
 	 */
 	if ((ep = __bt_search(t, key, exactp)) == NULL)
-		return (NULL);
+		return (0);
 	if (*exactp) {
 		if (F_ISSET(t, B_NODUPS)) {
 			*erval = *ep;
