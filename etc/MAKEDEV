@@ -74,8 +74,9 @@
 #	speaker	pc speaker
 #	tw*	xten power controller
 #	snd*	various sound cards
+#	pcaudio PCM audio driver 
 #
-#	$Id: MAKEDEV,v 1.30 1994/04/03 04:39:54 ache Exp $
+#	$Id: MAKEDEV,v 1.31 1994/04/03 14:24:52 ache Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -89,7 +90,7 @@ all)
 	sh MAKEDEV wd0 wd1 fd0 fd1 ft0 wt0 sd0 sd1 st0 cd0 mcd0	# bdev
 	sh MAKEDEV pty0 tty0 tty1 pc0 lpt0 lpt1 lpt2            # cdev
 	sh MAKEDEV ch0 tw0 bpf0 dcf0 lpa0 lpa1 lpa2		# cdev
-	sh MAKEDEV speaker mse0 ttyd2 ttyd3                     # cdev
+	sh MAKEDEV speaker pcaudio mse0 ttyd2 ttyd3             # cdev
 	# NOTE: co0 and vty04 are not done by a "sh MAKEDEV all"
 	# these are for codrv and interfere with other devices! - rgrimes
 	;;
@@ -416,7 +417,7 @@ tw*)
 
 # hv 22-apr-93 use this to create the necessary video device for
 # pccons driver
-pc*)
+pc?)
 	chr=12
 	minor=0
  	name=ttyv0
@@ -524,6 +525,14 @@ mouse*)
 	fi
 	rm -f mouse
 	ln -s $name mouse
+	;;
+
+pcaudio)
+	rm -f /dev/pcaudio /dev/pcaudioctl
+	mknod /dev/pcaudio c 24 0
+	mknod /dev/pcaudioctl c 24 128
+	chown root.wheel /dev/pcaudio /dev/pcaudioctl
+	chmod 666 /dev/pcaudio /dev/pcaudioctl
 	;;
 
 
