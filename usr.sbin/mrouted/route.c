@@ -7,12 +7,17 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: route.c,v 1.8 1994/08/24 23:54:42 thyagara Exp $
+ * $Id: route.c,v 3.6 1995/06/25 19:20:19 fenner Exp $
  */
 
 
 #include "defs.h"
 
+
+/*
+ * This define statement saves a lot of space later
+ */
+#define RT_ADDR	(struct rtentry *)&routing_table
 
 /*
  * Exported variables.
@@ -22,19 +27,37 @@ int delay_change_reports;		/* 1=>postpone change reports  */
 
 
 /*
+ * The routing table is shared with prune.c , so must not be static.
+ */
+struct rtentry *routing_table;		/* pointer to list of route entries */
+
+/*
  * Private variables.
  */
-static struct rtentry *routing_table;	/* pointer to list of route entries */
 static struct rtentry *rtp;		/* pointer to a route entry         */
+static struct rtentry *rt_end;		/* pointer to last route entry      */
 unsigned int nroutes;			/* current number of route entries  */
 
+/*
+ * Private functions.
+ */
+static int init_children_and_leaves	__P((struct rtentry *r,
+						vifi_t parent));
+static int find_route		__P((u_int32 origin, u_int32 mask));
+static void create_route	__P((u_int32 origin, u_int32 mask));
+static void discard_route	__P((struct rtentry *prev_r));
+static int compare_rts		__P((const void *rt1, const void *rt2));
+static int report_chunk		__P((struct rtentry *start_rt, vifi_t vifi,
+						u_int32 dst));
 
 /*
  * Initialize the routing table and associated variables.
  */
-void init_routes()
+void
+init_routes()
 {
     routing_table        = NULL;
+    rt_end		 = RT_ADDR;
     nroutes		 = 0;
     routes_changed       = FALSE;
     delay_change_reports = FALSE;
@@ -47,7 +70,8 @@ void init_routes()
  * Return TRUE if this changes the value of either the children or
  * leaf bitmaps for 'r'.
  */
-static int init_children_and_leaves(r, parent)
+static int
+init_children_and_leaves(r, parent)
     register struct rtentry *r;
     register vifi_t parent;
 {
@@ -91,7 +115,8 @@ static int init_children_and_leaves(r, parent)
  * A new vif has come up -- update the children and leaf bitmaps in all route
  * entries to take that into account.
  */
-void add_vif_to_routes(vifi)
+void
+add_vif_to_routes(vifi)
     register vifi_t vifi;
 {
     register struct rtentry *r;
@@ -124,7 +149,8 @@ void add_vif_to_routes(vifi)
  * and update the children bitmaps in all other route entries to take into
  * account the failed vif.
  */
-void delete_vif_from_routes(vifi)
+void
+delete_vif_from_routes(vifi)
     register vifi_t vifi;
 {
     register struct rtentry *r;
@@ -158,8 +184,9 @@ void delete_vif_from_routes(vifi)
  * considered a dominant or subordinate router in any route entries,
  * take appropriate action.
  */
-void delete_neighbor_from_routes(addr, vifi)
-    register u_long addr;
+void
+delete_neighbor_from_routes(addr, vifi)
+    register u_int32 addr;
     register vifi_t vifi;
 {
     register struct rtentry *r;
@@ -213,9 +240,10 @@ void delete_neighbor_from_routes(addr, vifi)
  * a single message be in the same order as the route entries in the routing
  * table.
  */
-void start_route_updates()
+void
+start_route_updates()
 {
-    rtp = (struct rtentry *)&routing_table;
+    rtp = RT_ADDR;
 }
 
 
@@ -228,8 +256,9 @@ void start_route_updates()
  * This code is optimized for the normal case in which the first entry to
  * be examined is the matching entry.
  */
-static int find_route(origin, mask)
-    register u_long origin, mask;
+static int
+find_route(origin, mask)
+    register u_int32 origin, mask;
 {
     register struct rtentry *r;
 
@@ -239,9 +268,9 @@ static int find_route(origin, mask)
 	    rtp = r;
 	    return (TRUE);
 	}
-	if (ntohl(mask) > ntohl(r->rt_originmask) ||
+	if (ntohl(mask) < ntohl(r->rt_originmask) ||
 	    (mask == r->rt_originmask &&
-	     ntohl(origin) > ntohl(r->rt_origin))) {
+	     ntohl(origin) < ntohl(r->rt_origin))) {
 	    rtp = r;
 	    r = r->rt_next;
 	}
@@ -249,31 +278,6 @@ static int find_route(origin, mask)
     }
     return (FALSE);
 }
-
-
-/*
- * Search the entire routing table, looking for an entry which conflicts
- * with the given origin and mask, for example, an entry which has the same
- * origin under a different mask.  If a conflicting entry is found, return
- * a pointer to the entry preceding it (to facilitate deletion); if no
- * conflict is found, return NULL.
- */
-static struct rtentry *find_conflicting_route(origin, mask)
-    register u_long origin, mask;
-{
-    register struct rtentry *r, *prev_r;
-
-    for (prev_r = (struct rtentry *)&routing_table, r = routing_table;
-	 r != NULL;
-	 prev_r = r, r = r->rt_next ) {
-	if ((origin & r->rt_originmask) == r->rt_origin ||
-	    (r->rt_origin & mask) == origin) {
-	    return (prev_r);
-	}
-    }
-    return (NULL);
-}
-
 
 /*
  * Create a new routing table entry for the specified origin and link it into
@@ -285,13 +289,15 @@ static struct rtentry *find_conflicting_route(origin, mask)
  * in the new route entry; the caller is responsible for filling in the the
  * rest.
  */
-static void create_route(origin, mask)
-    u_long origin, mask;
+static void
+create_route(origin, mask)
+    u_int32 origin, mask;
 {
     register struct rtentry *r;
 
-    if ((r = (struct rtentry *) malloc(sizeof(struct rtentry)
-				       + (3 * numvifs * sizeof(u_long)))) == NULL) {
+    if ((r = (struct rtentry *) malloc(sizeof(struct rtentry) +
+				       (2 * numvifs * sizeof(u_int32)) +
+				       (numvifs * sizeof(u_int)))) == NULL) {
 	log(LOG_ERR, 0, "ran out of memory");	/* fatal */
     }
     r->rt_origin     = origin;
@@ -301,12 +307,18 @@ static void create_route(origin, mask)
     else if (((char *)&mask)[1] != 0) r->rt_originwidth = 2;
     else                              r->rt_originwidth = 1;
     r->rt_flags        = 0;
-    r->rt_dominants    = (u_long *)(r + 1);
-    r->rt_subordinates = (u_long *)(r->rt_dominants + numvifs);
-    r->rt_leaf_timers  = (u_long *)(r->rt_subordinates + numvifs);
+    r->rt_dominants    = (u_int32 *)(r + 1);
+    r->rt_subordinates = (u_int32 *)(r->rt_dominants + numvifs);
+    r->rt_leaf_timers  = (u_int *)(r->rt_subordinates + numvifs);
+    r->rt_groups       = NULL;
 
     r->rt_next = rtp->rt_next;
     rtp->rt_next = r;
+    r->rt_prev = rtp;
+    if (r->rt_next != NULL)
+      (r->rt_next)->rt_prev = r;
+    else 
+      rt_end = r;
     rtp = r;
     ++nroutes;
 }
@@ -315,13 +327,18 @@ static void create_route(origin, mask)
 /*
  * Discard the routing table entry following the one to which 'prev_r' points.
  */
-static void discard_route(prev_r)
+static void
+discard_route(prev_r)
     register struct rtentry *prev_r;
 {
     register struct rtentry *r;
 
     r = prev_r->rt_next;
     prev_r->rt_next = r->rt_next;
+    if (prev_r->rt_next != NULL)
+      (prev_r->rt_next)->rt_prev = prev_r;
+    else
+      rt_end = prev_r;
     free((char *)r);
     --nroutes;
 }
@@ -333,14 +350,14 @@ static void discard_route(prev_r)
  * address of a neighboring router from which the report arrived, or zero
  * to indicate a change of status of one of our own interfaces.
  */
-void update_route(origin, mask, metric, src, vifi)
-    u_long origin, mask;
+void
+update_route(origin, mask, metric, src, vifi)
+    u_int32 origin, mask;
     int metric;
-    u_long src;
+    u_int32 src;
     vifi_t vifi;
 {
     register struct rtentry *r;
-    struct rtentry *prev_r;
     int adj_metric;
 
     /*
@@ -377,37 +394,17 @@ void update_route(origin, mask, metric, src, vifi)
 	}
 
 	/*
-	 * If the new origin and mask are inconsistent with an entry
-	 * already in the routing table, either ignore this update
-	 * (if it came from another router), or delete the conflicting
-	 * entry (if the update is for a directly-connected subnet).
-	 */
-	if ((prev_r = find_conflicting_route(origin, mask)) != NULL ) {
-	    if (src != 0) {
-		log(LOG_INFO, 0,
-		    "%s reports a conflicting origin (%s) and mask (%08x)",
-		    inet_fmt(src, s1), inet_fmt(origin, s2), ntohl(mask));
-		return;
-	    }
-	    else {
-		r = prev_r->rt_next;
-		log(LOG_INFO, 0,
-		    "deleting route with conflicting origin (%s), mask (%08x)",
-		    inet_fmt(r->rt_origin, s1), ntohl(r->rt_originmask));
-
-		if (r->rt_metric != UNREACHABLE) {
-		    del_table_entry(r, 0, DEL_ALL_ROUTES);
-		}
-		discard_route(prev_r);
-		if (rtp == r) rtp = prev_r;
-	    }
-	}
-
-	/*
 	 * OK, create the new routing entry.  'rtp' will be left pointing
 	 * to the new entry.
 	 */
 	create_route(origin, mask);
+
+	/*
+	 * Now "steal away" any sources that belong under this route
+	 * by deleting any cache entries they might have created
+	 * and allowing the kernel to re-request them.
+	 */
+	steal_sources(rtp);
 
 	rtp->rt_metric = UNREACHABLE;	/* temporary; updated below */
     }
@@ -579,13 +576,14 @@ void update_route(origin, mask, metric, src, vifi)
 /*
  * On every timer interrupt, advance the timer in each routing entry.
  */
-void age_routes()
+void
+age_routes()
 {
     register struct rtentry *r;
     register struct rtentry *prev_r;
     register vifi_t vifi;
 
-    for (prev_r = (struct rtentry *)&routing_table, r = routing_table;
+    for (prev_r = RT_ADDR, r = routing_table;
 	 r != NULL;
 	 prev_r = r, r = r->rt_next) {
 
@@ -602,8 +600,19 @@ void age_routes()
 			 * Unlike other timers, leaf timers decrement.
 			 */
 			if ((r->rt_leaf_timers[vifi] -= TIMER_INTERVAL) == 0){
-			    VIFM_SET(vifi, r->rt_leaves);
-			    update_table_entry(r);
+#ifdef NOTYET
+			    /* If the vif is a physical leaf but has neighbors,
+			     * it is not a tree leaf.  If I am a leaf, then no
+			     * interface with neighbors is a tree leaf. */
+			    if (!(((uvifs[vifi].uv_flags & VIFF_LEAF) ||
+				   (vifs_with_neighbors == 1)) &&
+				  (uvifs[vifi].uv_neighbors != NULL))) {
+#endif
+				VIFM_SET(vifi, r->rt_leaves);
+				update_table_entry(r);
+#ifdef NOTYET
+			    }
+#endif
 			}
 			else {
 			    r->rt_flags |= RTF_LEAF_TIMING;
@@ -616,6 +625,7 @@ void age_routes()
 	    /*
 	     * Time to garbage-collect the route entry.
 	     */
+	    del_table_entry(r, 0, DEL_ALL_ROUTES);
 	    discard_route(prev_r);
 	    r = prev_r;
 	}
@@ -648,7 +658,8 @@ void age_routes()
  * on the kernel to do its own cleanup -- no point in making all those
  * expensive kernel calls now.
  */
-void expire_all_routes()
+void
+expire_all_routes()
 {
     register struct rtentry *r;
 
@@ -663,11 +674,12 @@ void expire_all_routes()
 /*
  * Delete all the routes in the routing table.
  */
-void free_all_routes()
+void
+free_all_routes()
 {
     register struct rtentry *r;
 
-    r = (struct rtentry *)&routing_table;
+    r = RT_ADDR;
 
     while (r->rt_next)
 	discard_route(r);
@@ -677,12 +689,13 @@ void free_all_routes()
 /*
  * Process an incoming neighbor probe message.
  */
-void accept_probe(src, dst, p, datalen, level)
-    u_long src;
-    u_long dst;
+void
+accept_probe(src, dst, p, datalen, level)
+    u_int32 src;
+    u_int32 dst;
     char *p;
     int datalen;
-    u_long level;
+    u_int32 level;
 {
     vifi_t vifi;
 
@@ -692,55 +705,56 @@ void accept_probe(src, dst, p, datalen, level)
 	return;
     }
 
-    if (!update_neighbor(vifi, src, DVMRP_PROBE, p, datalen, level))
-	return;
-
-    report(ALL_ROUTES, vifi, src);
+    update_neighbor(vifi, src, DVMRP_PROBE, p, datalen, level);
 }
 
 struct newrt {
-	u_long mask;
-	u_long origin;
+	u_int32 mask;
+	u_int32 origin;
 	int metric;
 	int pad;
 }; 
 
-int compare_rts(r1, r2)
-    register struct newrt *r1;
-    register struct newrt *r2;
+static int
+compare_rts(rt1, rt2)
+    const void *rt1;
+    const void *rt2;
 {
-    register unsigned long m1 = ntohl(r1->mask);
-    register unsigned long m2 = ntohl(r2->mask);
-    register unsigned long o1, o2;
+    register struct newrt *r1 = (struct newrt *)rt1;
+    register struct newrt *r2 = (struct newrt *)rt2;
+    register u_int32 m1 = ntohl(r1->mask);
+    register u_int32 m2 = ntohl(r2->mask);
+    register u_int32 o1, o2;
 
     if (m1 > m2)
-	return (1);
-    if (m1 < m2)
 	return (-1);
+    if (m1 < m2)
+	return (1);
 
     /* masks are equal */
     o1 = ntohl(r1->origin);
     o2 = ntohl(r2->origin);
     if (o1 > o2)
-	return (1);
-    if (o1 < o2)
 	return (-1);
+    if (o1 < o2)
+	return (1);
     return (0);
 }
 
 /*
  * Process an incoming route report message.
  */
-void accept_report(src, dst, p, datalen, level)
-    u_long src, dst, level;
+void
+accept_report(src, dst, p, datalen, level)
+    u_int32 src, dst, level;
     register char *p;
     register int datalen;
 {
     vifi_t vifi;
     register int width, i, nrt = 0;
     int metric;
-    u_long mask;
-    u_long origin;
+    u_int32 mask;
+    u_int32 origin;
     struct newrt rt[4096];
 
     if ((vifi = find_vif(src, dst)) == NO_VIF) {
@@ -767,10 +781,10 @@ void accept_report(src, dst, p, datalen, level)
 		inet_fmt(src, s1));
 	    return;
 	}
-	((char *)&mask)[0] = 0xff;            width = 1;
-	if ((((char *)&mask)[1] = *p++) != 0) width = 2;
-	if ((((char *)&mask)[2] = *p++) != 0) width = 3;
-	if ((((char *)&mask)[3] = *p++) != 0) width = 4;
+	((u_char *)&mask)[0] = 0xff;            width = 1;
+	if ((((u_char *)&mask)[1] = *p++) != 0) width = 2;
+	if ((((u_char *)&mask)[2] = *p++) != 0) width = 3;
+	if ((((u_char *)&mask)[3] = *p++) != 0) width = 4;
 	datalen -= 3;
 
 	do {			/* Loop through (origin, metric) pairs */
@@ -787,14 +801,22 @@ void accept_report(src, dst, p, datalen, level)
 	    datalen -= width + 1;
 	    rt[nrt].mask   = mask;
 	    rt[nrt].origin = origin;
-	    rt[nrt].metric = metric;
+	    rt[nrt].metric = (metric & 0x7f);
 	    ++nrt;
 	} while (!(metric & 0x80));
     }
     qsort((char*)rt, nrt, sizeof(rt[0]), compare_rts);
     start_route_updates();
+    /*
+     * If the last entry is default, change mask from 0xff000000 to 0
+     */
+    if (rt[nrt-1].origin == 0)
+	rt[nrt-1].mask = 0;
+
+    log(LOG_DEBUG, 0, "Updating %d routes from %s to %s", nrt,
+		inet_fmt(src, s1), inet_fmt(dst, s2));
     for (i = 0; i < nrt; ++i)
-	update_route(rt[i].origin, rt[i].mask, (rt[i].metric & 0x7f), 
+	update_route(rt[i].origin, rt[i].mask, rt[i].metric, 
 		     src, vifi);
 
     if (routes_changed && !delay_change_reports)
@@ -806,26 +828,43 @@ void accept_report(src, dst, p, datalen, level)
  * Send a route report message to destination 'dst', via virtual interface
  * 'vifi'.  'which_routes' specifies ALL_ROUTES or CHANGED_ROUTES.
  */
-void report(which_routes, vifi, dst)
+void
+report(which_routes, vifi, dst)
     int which_routes;
     vifi_t vifi;
-    u_long dst;
+    u_int32 dst;
 {
     register struct rtentry *r;
     register char *p;
     register int i;
-    int datalen;
-    int width;
-    u_long mask;
-    u_long src;
+    int datalen = 0;
+    int width = 0;
+    u_int32 mask = 0;
+    u_int32 src;
+    u_int32 nflags;
 
     src = uvifs[vifi].uv_lcl_addr;
 
     p = send_buf + MIN_IP_HEADER_LEN + IGMP_MINLEN;
-    datalen = 0;
-    mask = 0;
 
-    for (r = routing_table; r != NULL; r = r->rt_next) {
+#ifdef NOTYET
+    /* If I'm not a leaf, but the neighbor is a leaf, only advertise default */
+    if ((vifs_with_neighbors != 1) && (uvifs[vifi].uv_flags & VIFF_LEAF)) {
+      *p++ = 0;       /* 0xff000000 mask */
+      *p++ = 0;
+      *p++ = 0;
+      *p++ = 0;       /* class A net 0.0.0.0 == default */
+      *p++ = 0x81;    /*XXX metric 1, is this safe? */
+      datalen += 5;
+      send_igmp(src, dst, IGMP_DVMRP, DVMRP_REPORT,
+                htonl(MROUTED_LEVEL), datalen);
+      return;
+    }
+#endif
+
+    nflags = (uvifs[vifi].uv_flags & VIFF_LEAF) ? 0 : LEAF_FLAGS;
+
+    for (r = rt_end; r != RT_ADDR; r = r->rt_prev) {
 
 	if (which_routes == CHANGED_ROUTES && !(r->rt_flags & RTF_CHANGED))
 	    continue;
@@ -839,14 +878,14 @@ void report(which_routes, vifi, dst)
 		       (r->rt_originwidth + 4)) > MAX_DVMRP_DATA_LEN) {
 	    *(p-1) |= 0x80;
 	    send_igmp(src, dst, IGMP_DVMRP, DVMRP_REPORT,
-		      htonl(MROUTED_LEVEL), datalen);
+		      htonl(MROUTED_LEVEL | nflags), datalen);
 
 	    p = send_buf + MIN_IP_HEADER_LEN + IGMP_MINLEN;
 	    datalen = 0;
 	    mask = 0;
 	}
 
-	if(r->rt_originmask != mask) {
+	if (r->rt_originmask != mask || datalen == 0) {
 	    mask  = r->rt_originmask;
 	    width = r->rt_originwidth;
 	    if (datalen != 0) *(p-1) |= 0x80;
@@ -869,7 +908,7 @@ void report(which_routes, vifi, dst)
     if (datalen != 0) {
 	*(p-1) |= 0x80;
 	send_igmp(src, dst, IGMP_DVMRP, DVMRP_REPORT,
-		  htonl(MROUTED_LEVEL), datalen);
+		  htonl(MROUTED_LEVEL | nflags), datalen);
     }
 }
 
@@ -878,7 +917,8 @@ void report(which_routes, vifi, dst)
  * Send a route report message to all neighboring routers.
  * 'which_routes' specifies ALL_ROUTES or CHANGED_ROUTES.
  */
-void report_to_all_neighbors(which_routes)
+void
+report_to_all_neighbors(which_routes)
     int which_routes;
 {
     register vifi_t vifi;
@@ -926,26 +966,38 @@ void report_to_all_neighbors(which_routes)
  * Send a route report message to destination 'dst', via virtual interface
  * 'vifi'.  'which_routes' specifies ALL_ROUTES or CHANGED_ROUTES.
  */
-int report_chunk(start_rt, vifi, dst)
+static int
+report_chunk(start_rt, vifi, dst)
     register struct rtentry *start_rt;
     vifi_t vifi;
-    u_long dst;
+    u_int32 dst;
 {
     register struct rtentry *r;
     register char *p;
     register int i;
     register int nrt = 0;
-    int datalen;
-    int width;
-    u_long mask;
-    u_long src;
+    int datalen = 0;
+    int width = 0;
+    u_int32 mask = 0;
+    u_int32 src;
+    u_int32 nflags;
 
     src = uvifs[vifi].uv_lcl_addr;
     p = send_buf + MIN_IP_HEADER_LEN + IGMP_MINLEN;
-    datalen = 0;
-    mask = 0;
 
-    for (r = start_rt; r != NULL; r = r->rt_next) {
+    nflags = (uvifs[vifi].uv_flags & VIFF_LEAF) ? 0 : LEAF_FLAGS;
+
+    for (r = start_rt; r != RT_ADDR; r = r->rt_prev) {
+
+#ifdef NOTYET
+	/* Don't send poisoned routes back to parents if I am a leaf */
+	if ((vifs_with_neighbors == 1) && (r->rt_parent == vifi)
+		&& (r->rt_metric > 1)) {
+	    ++nrt;
+	    continue;
+	}
+#endif
+
 	/*
 	 * If there is no room for this route in the current message,
 	 * send it & return how many routes we sent.
@@ -955,10 +1007,10 @@ int report_chunk(start_rt, vifi, dst)
 		       (r->rt_originwidth + 4)) > MAX_DVMRP_DATA_LEN) {
 	    *(p-1) |= 0x80;
 	    send_igmp(src, dst, IGMP_DVMRP, DVMRP_REPORT,
-		      htonl(MROUTED_LEVEL), datalen);
+		      htonl(MROUTED_LEVEL | nflags), datalen);
 	    return (nrt);
 	}
-	if(r->rt_originmask != mask) {
+	if (r->rt_originmask != mask || datalen == 0) {
 	    mask  = r->rt_originmask;
 	    width = r->rt_originwidth;
 	    if (datalen != 0) *(p-1) |= 0x80;
@@ -979,21 +1031,22 @@ int report_chunk(start_rt, vifi, dst)
     if (datalen != 0) {
 	*(p-1) |= 0x80;
 	send_igmp(src, dst, IGMP_DVMRP, DVMRP_REPORT,
-		  htonl(MROUTED_LEVEL), datalen);
+		  htonl(MROUTED_LEVEL | nflags), datalen);
     }
     return (nrt);
 }
 
 /*
  * send the next chunk of our routing table to all neighbors.
+ * return the length of the smallest chunk we sent out.
  */
-int report_next_chunk()
+int
+report_next_chunk()
 {
     register vifi_t vifi;
     register struct uvif *v;
-    register struct rtentry *r;
     register struct rtentry *sr;
-    register int i, n = 0;
+    register int i, n = 0, min = 20000;
     static int start_rt;
 
     if (nroutes <= 0)
@@ -1002,24 +1055,36 @@ int report_next_chunk()
     /*
      * find this round's starting route.
      */
-    for (sr = routing_table, i = start_rt; --i >= 0; ) {
-	sr = sr->rt_next;
-	if (sr == NULL)
-	    sr = routing_table;
+    for (sr = rt_end, i = start_rt; --i >= 0; ) {
+	sr = sr->rt_prev;
+	if (sr == RT_ADDR)
+	    sr = rt_end;
     }
+
     /*
      * send one chunk of routes starting at this round's start to
      * all our neighbors.
      */
     for (vifi = 0, v = uvifs; vifi < numvifs; ++vifi, ++v) {
-	if (v->uv_neighbors != NULL) {
+	if ((v->uv_neighbors != NULL)
+#ifdef NOTYET
+	&& !(v->uv_flags & VIFF_LEAF)
+#endif
+		) {
 	    n = report_chunk(sr, vifi,
 			     (v->uv_flags & VIFF_TUNNEL) ? v->uv_rmt_addr
 			     : dvmrp_group);
+	    if (n < min)
+		min = n;
 	}
     }
-    if (debug)
-	printf("update %d starting at %d of %d\n", n, start_rt, nroutes);
+    if (min == 20000)
+	min = 0;	/* Neighborless router didn't send any routes */
+
+    n = min;
+    log(LOG_INFO, 0, "update %d starting at %d of %d",
+	n, (nroutes - start_rt), nroutes);
+
     start_rt = (start_rt + n) % nroutes;
     return (n);
 }
@@ -1028,28 +1093,29 @@ int report_next_chunk()
 /*
  * Print the contents of the routing table on file 'fp'.
  */
-void dump_routes(fp)
+void
+dump_routes(fp)
     FILE *fp;
 {
     register struct rtentry *r;
     register int i;
 
+
     fprintf(fp,
-	    "Multicast Routing Table (%u %s)\n%s",
+	    "Multicast Routing Table (%u %s)\n%s\n",
 	    nroutes, (nroutes == 1) ? "entry" : "entries",
-	    " Origin-Subnet   From-Gateway    Metric  In-Vif  Out-Vifs\n");
+	    " Origin-Subnet      From-Gateway    Metric Tmr In-Vif  Out-Vifs");
 
     for (r = routing_table; r != NULL; r = r->rt_next) {
 
-	fprintf(fp, " %-15s %-15s ",
+	fprintf(fp, " %-18s %-15s ",
 		inet_fmts(r->rt_origin, r->rt_originmask, s1),
 		(r->rt_gateway == 0) ? "" : inet_fmt(r->rt_gateway, s2));
 
 	fprintf(fp, (r->rt_metric == UNREACHABLE) ? "  NR " : "%4u ",
 		r->rt_metric);
 
-	fprintf(fp, "%7u   ",
-		r->rt_parent);
+	fprintf(fp, "  %3u %3u   ", r->rt_timer, r->rt_parent);
 
 	for (i = 0; i < numvifs; ++i) {
 	    if (VIFM_ISSET(i, r->rt_children)) {
@@ -1062,8 +1128,9 @@ void dump_routes(fp)
     fprintf(fp, "\n");
 }
 
-struct rtentry *determine_route(src)
-    u_long src;
+struct rtentry *
+determine_route(src)
+    u_int32 src;
 {
     struct rtentry *rt;
 
@@ -1073,4 +1140,3 @@ struct rtentry *determine_route(src)
     }
     return rt;
 }
-

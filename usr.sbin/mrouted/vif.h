@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: vif.h,v 1.6 1994/08/24 23:54:47 thyagara Exp $
+ * $Id: vif.h,v 3.6 1995/06/25 19:53:22 fenner Exp $
  */
 
 /*
@@ -22,15 +22,17 @@ struct uvif {
     u_char	     uv_metric;     /* cost of this vif                     */
     u_int	     uv_rate_limit; /* rate limit on this vif               */
     u_char	     uv_threshold;  /* min ttl required to forward on vif   */
-    u_long	     uv_lcl_addr;   /* local address of this vif            */
-    u_long	     uv_rmt_addr;   /* remote end-point addr (tunnels only) */
-    u_long	     uv_subnet;     /* subnet number         (phyints only) */
-    u_long	     uv_subnetmask; /* subnet mask           (phyints only) */
-    u_long	     uv_subnetbcast;/* subnet broadcast addr (phyints only) */
+    u_int32	     uv_lcl_addr;   /* local address of this vif            */
+    u_int32	     uv_rmt_addr;   /* remote end-point addr (tunnels only) */
+    u_int32	     uv_subnet;     /* subnet number         (phyints only) */
+    u_int32	     uv_subnetmask; /* subnet mask           (phyints only) */
+    u_int32	     uv_subnetbcast;/* subnet broadcast addr (phyints only) */
     char	     uv_name[IFNAMSIZ]; /* interface name                   */
     struct listaddr *uv_groups;     /* list of local groups  (phyints only) */
     struct listaddr *uv_neighbors;  /* list of neighboring routers          */
     struct vif_acl  *uv_acl;	    /* access control list of groups        */
+    int		     uv_leaf_timer; /* time until this vif is considrd leaf */
+    struct phaddr   *uv_addrs;	    /* Additional subnets on this vif       */
 };
 
 #define VIFF_KERNEL_FLAGS	(VIFF_TUNNEL|VIFF_SRCRT)
@@ -38,25 +40,39 @@ struct uvif {
 #define VIFF_DISABLED		0x0200	       /* administratively disabled */
 #define VIFF_QUERIER		0x0400	       /* I am the subnet's querier */
 #define VIFF_ONEWAY		0x0800         /* Maybe one way interface   */
+#define VIFF_LEAF		0x1000         /* all neighbors are leaves  */
+
+struct phaddr {
+    struct phaddr   *pa_next;
+    u_int32	     pa_subnet;		/* extra subnet			*/
+    u_int32	     pa_subnetmask;	/* netmask of extra subnet	*/
+    u_int32	     pa_subnetbcast;	/* broadcast of extra subnet	*/
+};
 
 struct vif_acl {
     struct vif_acl  *acl_next;	    /* next acl member         */
-    u_long	     acl_addr;	    /* Group address           */
-    u_long	     acl_mask;	    /* Group addr. mask        */
+    u_int32	     acl_addr;	    /* Group address           */
+    u_int32	     acl_mask;	    /* Group addr. mask        */
 };
 
 struct listaddr {
     struct listaddr *al_next;		/* link to next addr, MUST BE FIRST */
-    u_long	     al_addr;		/* local group or neighbor address  */
+    u_int32	     al_addr;		/* local group or neighbor address  */
     u_long	     al_timer;		/* for timing out group or neighbor */
-    u_long	     al_genid;		/* generation id for neighbor       */
+    time_t	     al_ctime;		/* neighbor creation time	    */
+    u_int32	     al_genid;		/* generation id for neighbor       */
     u_char	     al_pv;		/* router protocol version	    */
     u_char	     al_mv;		/* router mrouted version	    */
-    u_long           al_timerid;        /* returned by set timer */
-    u_long	     al_query;		/* second query in case of leave*/
-    u_short          al_old;            /* if old memberships are present */
-    u_short          al_last;		/* # of query's since last old rep */
+    u_long           al_timerid;        /* returned by set timer            */
+    u_long	     al_query;		/* second query in case of leave    */
+    u_short          al_old;            /* if old memberships are present   */
+    u_short          al_last;		/* # of query's since last old rep  */
+    u_char	     al_flags;		/* flags related to this neighbor   */
 };
 
+#define NF_LEAF			0x01	/* This neighbor is a leaf */
+#define NF_PRUNE		0x02	/* This neighbor understands prunes */
+#define NF_GENID		0x04	/* I supply genid & rtrlist in probe*/
+#define NF_MTRACE		0x08	/* I can understand mtrace requests */
 
 #define NO_VIF		((vifi_t)MAXVIFS)  /* An invalid vif index */

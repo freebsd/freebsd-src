@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: dvmrp.h,v 1.6 1994/08/24 23:53:30 thyagara Exp $
+ * $Id: dvmrp.h,v 3.6 1995/06/25 18:52:10 fenner Exp $
  */
 
 /*
@@ -102,9 +102,11 @@
  */
 #define DVMRP_NF_TUNNEL		0x01	/* neighbors reached via tunnel */
 #define DVMRP_NF_SRCRT		0x02	/* tunnel uses IP source routing */
+#define DVMRP_NF_PIM		0x04	/* neighbor is a PIM neighbor */
 #define DVMRP_NF_DOWN		0x10	/* kernel state of interface */
 #define DVMRP_NF_DISABLED	0x20	/* administratively disabled */
 #define DVMRP_NF_QUERIER	0x40	/* I am the subnet's querier */
+#define DVMRP_NF_LEAF		0x80	/* Neighbor reports that it is a leaf */
 
 /*
  * Limit on length of route data
@@ -119,7 +121,9 @@
  * Various protocol constants (all times in seconds)
  */
 				        /* address for multicast DVMRP msgs */
-#define INADDR_DVMRP_GROUP	(u_long)0xe0000004    /* 224.0.0.4 */
+#define INADDR_DVMRP_GROUP	(u_int32)0xe0000004     /* 224.0.0.4 */
+					/* address for multicast mtrace msg */
+#define INADDR_ALLRTRS_GROUP	(u_int32)0xe0000002	/* 224.0.0.2 */
 
 #define ROUTE_MAX_REPORT_DELAY	5	/* max delay for reporting changes  */
 					/*  (This is the timer interrupt    */
@@ -138,13 +142,18 @@
 
 #define GROUP_QUERY_INTERVAL	125	/* periodic group query interval    */
 #define GROUP_EXPIRE_TIME	270	/* time to consider group gone      */
+#define LEAVE_EXPIRE_TIME	3	/* " " after receiving a leave	    */
+/* Note: LEAVE_EXPIRE_TIME should ideally be shorter, but the resolution of
+ * the timer in mrouted doesn't allow us to follow the spec and make it any
+ * shorter. */
 
 #define UNREACHABLE		32	/* "infinity" metric, must be <= 64 */
 #define DEFAULT_METRIC		1	/* default subnet/tunnel metric     */
 #define DEFAULT_THRESHOLD	1	/* default subnet/tunnel threshold  */
 
-#define MAX_RATE_LIMIT      	100000 	/* max rate limit      */
-#define DEFAULT_RATE_LIMIT  	0 	/* default rate limit  */
+#define MAX_RATE_LIMIT      	100000 	/* max rate limit      	    	    */
+#define DEFAULT_PHY_RATE_LIMIT  0 	/* default phyint rate limit  	    */
+#define DEFAULT_TUN_RATE_LIMIT	500	/* default tunnel rate limit	    */
 
 #define DEFAULT_CACHE_LIFETIME 	300   	/* kernel route entry discard time  */
 #define GRAFT_TIMEOUT_VAL	5	/* retransmission time for grafts   */
