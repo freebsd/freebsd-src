@@ -131,6 +131,10 @@ umtx_wake(struct umtx *umtx, int nr_wakeup)
 		return (errno);
 	return (0);
 }
+#else
+
+struct umtx_q *umtxq_alloc(void);
+void umtxq_free(struct umtx_q *);
 
 #endif /* !_KERNEL */
 #endif /* !_SYS_UMTX_H_ */
