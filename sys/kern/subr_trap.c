@@ -135,6 +135,7 @@ ast(framep)
 #endif
 
 	KASSERT(TRAPF_USERMODE(framep), ("ast in kernel mode"));
+	KASSERT(td->td_ucred == NULL, ("leaked ucred"));
 #ifdef WITNESS
 	if (witness_list(td))
 		panic("Returning to user mode with mutex(s) held");
@@ -161,10 +162,13 @@ ast(framep)
 		if (flags & KEF_OWEUPC) {
 			prticks = p->p_stats->p_prof.pr_ticks;
 			p->p_stats->p_prof.pr_ticks = 0;
-			mtx_unlock_spin(&sched_lock);
+		}
+		mtx_unlock_spin(&sched_lock);
+		PROC_LOCK(p);
+		td->td_ucred = crhold(p->p_ucred);
+		PROC_UNLOCK(p);
+		if (flags & KEF_OWEUPC)
 			addupc_task(ke, p->p_stats->p_prof.pr_addr, prticks);
-		} else
-			mtx_unlock_spin(&sched_lock);
 		if (sflag & PS_ALRMPEND) {
 			PROC_LOCK(p);
 			psignal(p, SIGVTALRM);
@@ -187,6 +191,10 @@ ast(framep)
 		}
 
 		userret(td, framep, sticks);
+		mtx_lock(&Giant);
+		crfree(td->td_ucred);
+		mtx_unlock(&Giant);
+		td->td_ucred = NULL;
 		s = critical_enter();
 	}
 	mtx_assert(&Giant, MA_NOTOWNED);

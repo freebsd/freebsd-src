@@ -216,6 +216,17 @@ trap(frame)
 	eva = 0;
 	type = frame.tf_trapno;
 	code = frame.tf_err;
+	if (type == T_PAGEFLT) {
+		/*
+		 * For some Cyrix CPUs, %cr2 is clobbered by
+		 * interrupts.  This problem is worked around by using
+		 * an interrupt gate for the pagefault handler.  We
+		 * are finally ready to read %cr2 and then must
+		 * reenable interrupts.
+		 */
+		eva = rcr2();
+		enable_intr();
+	}
 
         if ((ISPL(frame.tf_cs) == SEL_UPL) ||
 	    ((frame.tf_eflags & PSL_VM) && !in_vm86call)) {
@@ -223,6 +234,10 @@ trap(frame)
 
 		sticks = td->td_kse->ke_sticks;
 		td->td_frame = &frame;
+		KASSERT(td->td_ucred == NULL, ("already have a ucred"));
+		PROC_LOCK(p);
+		td->td_ucred = crhold(p->p_ucred);
+		PROC_UNLOCK(p);
 
 		switch (type) {
 		case T_PRIVINFLT:	/* privileged instruction fault */
@@ -240,7 +255,7 @@ trap(frame)
 #ifdef DEV_NPX
 			ucode = npxtrap();
 			if (ucode == -1)
-				return;
+				goto userout;
 #else
 			ucode = code;
 #endif
@@ -273,15 +288,6 @@ trap(frame)
 			break;
 
 		case T_PAGEFLT:		/* page fault */
-			/*
-			 * For some Cyrix CPUs, %cr2 is clobbered by
-			 * interrupts.  This problem is worked around by using
-			 * an interrupt gate for the pagefault handler.  We
-			 * are finally ready to read %cr2 and then must
-			 * reenable interrupts.
-			 */
-			eva = rcr2();
-			enable_intr();
 			i = trap_pfault(&frame, TRUE, eva);
 #if defined(I586_CPU) && !defined(NO_F00F_HACK)
 			if (i == -2) {
@@ -299,7 +305,7 @@ trap(frame)
 			}
 #endif
 			if (i == -1)
-				goto out;
+				goto userout;
 			if (i == 0)
 				goto user;
 
@@ -324,7 +330,7 @@ trap(frame)
 				lastalert = time_second;
 			}
 			mtx_unlock(&Giant);
-			goto out;
+			goto userout;
 #else /* !POWERFAIL_NMI */
 			/* machine/parity/power fail/"kitchen sink" faults */
 			/* XXX Giant */
@@ -339,7 +345,7 @@ trap(frame)
 					kdb_trap (type, 0, &frame);
 				}
 #endif /* DDB */
-				goto out;
+				goto userout;
 			} else if (panic_on_nmi)
 				panic("NMI indicates hardware failure");
 			break;
@@ -360,7 +366,7 @@ trap(frame)
 #ifdef DEV_NPX
 			/* transparent fault (due to context switch "late") */
 			if (npxdna())
-				goto out;
+				goto userout;
 #endif
 			if (!pmath_emulate) {
 				i = SIGFPE;
@@ -372,7 +378,7 @@ trap(frame)
 			mtx_unlock(&Giant);
 			if (i == 0) {
 				if (!(frame.tf_eflags & PSL_T))
-					goto out;
+					goto userout;
 				frame.tf_eflags &= ~PSL_T;
 				i = SIGTRAP;
 			}
@@ -392,17 +398,10 @@ trap(frame)
 	} else {
 		/* kernel trap */
 
+		KASSERT(cold || td->td_ucred != NULL,
+		    ("kernel trap doesn't have ucred"));
 		switch (type) {
 		case T_PAGEFLT:			/* page fault */
-			/*
-			 * For some Cyrix CPUs, %cr2 is clobbered by
-			 * interrupts.  This problem is worked around by using
-			 * an interrupt gate for the pagefault handler.  We
-			 * are finally ready to read %cr2 and then must
-			 * reenable interrupts.
-			 */
-			eva = rcr2();
-			enable_intr();
 			(void) trap_pfault(&frame, FALSE, eva);
 			goto out;
 
@@ -622,8 +621,12 @@ trap(frame)
 
 user:
 	userret(td, &frame, sticks);
-	if (mtx_owned(&Giant))	/* XXX why would Giant be owned here? */
-		mtx_unlock(&Giant);
+	mtx_assert(&Giant, MA_NOTOWNED);
+userout:
+	mtx_lock(&Giant);
+	crfree(td->td_ucred);
+	mtx_unlock(&Giant);
+	td->td_ucred = NULL;
 out:
 	return;
 }
@@ -1046,6 +1049,10 @@ syscall(frame)
 
 	sticks = td->td_kse->ke_sticks;
 	td->td_frame = &frame;
+	KASSERT(td->td_ucred == NULL, ("already have a ucred"));
+	PROC_LOCK(p);
+	td->td_ucred = crhold(p->p_ucred);
+	PROC_UNLOCK(p);
 	params = (caddr_t)frame.tf_esp + sizeof(int);
 	code = frame.tf_eax;
 
@@ -1187,6 +1194,10 @@ bad:
 	 */
 	STOPEVENT(p, S_SCX, code);
 
+	mtx_lock(&Giant);
+	crfree(td->td_ucred);
+	mtx_unlock(&Giant);
+	td->td_ucred = NULL;
 #ifdef WITNESS
 	if (witness_list(td)) {
 		panic("system call %s returning with mutex(s) held\n",

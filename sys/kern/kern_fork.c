@@ -472,6 +472,7 @@ again:
 	 */
 	PROC_LOCK(p1);
 	p2->p_ucred = crhold(p1->p_ucred);
+	p2->p_thread.td_ucred = crhold(p2->p_ucred);	/* XXXKSE */
 
 	if (p2->p_args)
 		p2->p_args->ar_ref++;
@@ -797,6 +798,10 @@ fork_exit(callout, arg, frame)
 		kthread_exit(0);
 	}
 	PROC_UNLOCK(p);
+	mtx_lock(&Giant);
+	crfree(td->td_ucred);
+	mtx_unlock(&Giant);
+	td->td_ucred = NULL;
 	mtx_assert(&Giant, MA_NOTOWNED);
 }
 
