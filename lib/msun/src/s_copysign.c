@@ -24,9 +24,9 @@ static char rcsid[] = "$FreeBSD$";
 #include "math_private.h"
 
 #ifdef __STDC__
-	double copysign(double x, double y)
+	double __generic_copysign(double x, double y)
 #else
-	double copysign(x,y)
+	double __generic_copysign(x,y)
 	double x,y;
 #endif
 {

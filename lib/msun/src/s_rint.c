@@ -45,9 +45,9 @@ TWO52[2]={
 };
 
 #ifdef __STDC__
-	double rint(double x)
+	double __generic_rint(double x)
 #else
-	double rint(x)
+	double __generic_rint(x)
 	double x;
 #endif
 {
