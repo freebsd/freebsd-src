@@ -48,6 +48,7 @@ __RCSID("$NetBSD: lock_proc.c,v 1.7 2000/10/11 20:23:56 is Exp $");
 #include <stdio.h>
 #include <string.h>
 #include <syslog.h>
+#include <unistd.h>
 #include <netconfig.h>
 
 #include <rpc/rpc.h>
@@ -60,6 +61,8 @@ __RCSID("$NetBSD: lock_proc.c,v 1.7 2000/10/11 20:23:56 is Exp $");
 
 #define	CLIENT_CACHE_SIZE	64	/* No. of client sockets cached */
 #define	CLIENT_CACHE_LIFETIME	120	/* In seconds */
+
+#define	getrpcaddr(rqstp)	(struct sockaddr *)(svc_getrpccaller((rqstp)->rq_xprt)->buf)
 
 static void	log_from_addr(const char *, struct svc_req *);
 static void	log_netobj(netobj *obj);
@@ -193,7 +196,7 @@ get_client(host_addr, vers)
 {
 	CLIENT *client;
 	struct timeval retry_time, time_now;
-	int i;
+	int error, i;
 	const char *netid;
 	struct netconfig *nconf;
 	char host[NI_MAXHOST];
@@ -240,9 +243,11 @@ get_client(host_addr, vers)
 	 * Need a host string for clnt_tp_create. Use NI_NUMERICHOST
 	 * to avoid DNS lookups.
 	 */
-	if (getnameinfo(host_addr, host_addr->sa_len, host, sizeof host,
-	    NULL, 0, NI_NUMERICHOST) != 0) {
-		syslog(LOG_ERR, "unable to get name string for caller");
+	error = getnameinfo(host_addr, host_addr->sa_len, host, sizeof host,
+			    NULL, 0, NI_NUMERICHOST);
+	if (error != 0) {
+		syslog(LOG_ERR, "unable to get name string for caller: %s",
+		       gai_strerror(error));
 		return NULL;
 	}
 
@@ -561,8 +566,7 @@ nlm_lock_msg_1_svc(arg, rqstp)
 
 	res.cookie = arg->cookie;
 	res.stat.stat = getlock(&arg4, rqstp, LOCK_ASYNC | LOCK_MON);
-	transmit_result(NLM_LOCK_RES, &res,
-	    (struct sockaddr *)svc_getcaller(rqstp->rq_xprt));
+	transmit_result(NLM_LOCK_RES, &res, getrpcaddr(rqstp));
 
 	return (NULL);
 }
@@ -616,8 +620,7 @@ nlm_cancel_msg_1_svc(arg, rqstp)
 	 * a lock to cancel, so this call always fails.
 	 */
 	res.stat.stat = unlock(&arg4, LOCK_CANCEL);
-	transmit_result(NLM_CANCEL_RES, &res,
-	    (struct sockaddr *)svc_getcaller(rqstp->rq_xprt));
+	transmit_result(NLM_CANCEL_RES, &res, getrpcaddr(rqstp));
 	return (NULL);
 }
 
@@ -664,8 +667,7 @@ nlm_unlock_msg_1_svc(arg, rqstp)
 	res.stat.stat = unlock(&arg4, 0);
 	res.cookie = arg->cookie;
 
-	transmit_result(NLM_UNLOCK_RES, &res,
-	    (struct sockaddr *)svc_getcaller(rqstp->rq_xprt));
+	transmit_result(NLM_UNLOCK_RES, &res, getrpcaddr(rqstp));
 	return (NULL);
 }
 
@@ -722,8 +724,7 @@ nlm_granted_msg_1_svc(arg, rqstp)
 		nlm_granted, NULL, NLM_VERS) == 0 ?
 		nlm_granted : nlm_denied;
 
-	transmit_result(NLM_GRANTED_RES, &res,
-	    (struct sockaddr *)svc_getcaller(rqstp->rq_xprt));
+	transmit_result(NLM_GRANTED_RES, &res, getrpcaddr(rqstp));
 	return (NULL);
 }
 
@@ -1066,8 +1067,7 @@ nlm4_lock_msg_4_svc(arg, rqstp)
 
 	res.cookie = arg->cookie;
 	res.stat.stat = getlock(arg, rqstp, LOCK_MON | LOCK_ASYNC | LOCK_V4);
-	transmit4_result(NLM4_LOCK_RES, &res,
-	    (struct sockaddr *)svc_getcaller(rqstp->rq_xprt));
+	transmit4_result(NLM4_LOCK_RES, &res, getrpcaddr(rqstp));
 
 	return (NULL);
 }
@@ -1115,8 +1115,7 @@ nlm4_cancel_msg_4_svc(arg, rqstp)
 	 * a lock to cancel, so this call always fails.
 	 */
 	res.stat.stat = unlock(&arg->alock, LOCK_CANCEL | LOCK_V4);
-	transmit4_result(NLM4_CANCEL_RES, &res,
-	    (struct sockaddr *)svc_getcaller(rqstp->rq_xprt));
+	transmit4_result(NLM4_CANCEL_RES, &res, getrpcaddr(rqstp));
 	return (NULL);
 }
 
@@ -1157,8 +1156,7 @@ nlm4_unlock_msg_4_svc(arg, rqstp)
 	res.stat.stat = unlock(&arg->alock, LOCK_V4);
 	res.cookie = arg->cookie;
 
-	transmit4_result(NLM4_UNLOCK_RES, &res,
-	    (struct sockaddr *)svc_getcaller(rqstp->rq_xprt));
+	transmit4_result(NLM4_UNLOCK_RES, &res, getrpcaddr(rqstp));
 	return (NULL);
 }
 
@@ -1214,8 +1212,7 @@ nlm4_granted_msg_4_svc(arg, rqstp)
 	res.stat.stat = lock_answer(arg->alock.svid, &arg->cookie,
 		nlm4_granted, NULL, NLM_VERS4) == 0 ?
 		nlm4_granted : nlm4_denied;
-	transmit4_result(NLM4_GRANTED_RES, &res,
-	    (struct sockaddr *)svc_getrpccaller(rqstp->rq_xprt)->buf);
+	transmit4_result(NLM4_GRANTED_RES, &res, getrpcaddr(rqstp));
 	return (NULL);
 }
 
