@@ -1433,7 +1433,7 @@ hint.fd.1.drive="1"
 #
 # sio: serial ports (see sio(4)), including support for various
 #      PC Card devices, such as Modem and NICs (see etc/defaults/pccard.conf)
-
+#
 device		sio
 hint.sio.0.at="isa"
 hint.sio.0.port="0x3F8"
@@ -1441,12 +1441,12 @@ hint.sio.0.flags="0x10"
 hint.sio.0.irq="4"
 
 # Options for sio:
-options 	CONSPEED=115200		# speed for serial console
-					# (default 9600)
-options 	COM_ESP			#code for Hayes ESP
-options 	COM_MULTIPORT		#code for some cards with shared IRQs
+options 	COM_ESP			# Code for Hayes ESP.
+options 	COM_MULTIPORT		# Code for some cards with shared IRQs.
+options 	CONSPEED=115200		# Speed for serial console
+					# (default 9600).
 
-# `flags' specific to sio(4). See below for flags used by both sio(4) and
+# `flags' specific to sio(4).  See below for flags used by both sio(4) and
 # uart(4).
 #	0x20	force this unit to be the console (unless there is another
 #		higher priority console).  This replaces the COMCONSOLE option.
@@ -1460,38 +1460,40 @@ options 	COM_MULTIPORT		#code for some cards with shared IRQs
 #		ST16650A-compatible UARTs.
 
 #
-# uart: newbusified driver for serial interfaces. It consolidates the sio(4),
+# uart: newbusified driver for serial interfaces.  It consolidates the sio(4),
 #	sab(4) and zs(4) drivers.
-
+#
 device		uart
 
-# The following hint should only be used for pure ISA devices. It is not
-# needed otherwise. Use of hints is strongly discouraged.
+# The following hint should only be used for pure ISA devices.  It is not
+# needed otherwise.  Use of hints is strongly discouraged.
 hint.uart.0.at="isa"
 
-# The following 3 hints are used when the UART is a system device (ie console
-# or debug port), but only on platforms that don't have any other means to
-# pass the information to the kernel. The unit number of the hint is only used
-# to bundle the hints together. There's no relation to the unit number of the
-# probed UART.
+# The following 3 hints are used when the UART is a system device (i.e., a
+# console or debug port), but only on platforms that don't have any other
+# means to pass the information to the kernel.  The unit number of the hint
+# is only used to bundle the hints together.  There is no relation to the
+# unit number of the probed UART.
 hint.uart.0.port="0x3f8"
 hint.uart.0.flags="0x10"
 hint.uart.0.baud="115200"
 
 # `flags' for serial drivers that support consoles like sio(4) and uart(4):
-#	0x10	enable console support for this unit.  The other console flags
-#		are ignored unless this is set.  Enabling console support does
-#		not make the unit the preferred console - boot with -h or set
-#		the 0x20 flag for that.  Currently, at most one unit can have
-#		console support; the first one (in config file order) with
-#		this flag set is preferred.  Setting this flag for sio0 gives
-#		the old behaviour.
-#	0x80	use this port for serial line gdb support in ddb.
+#	0x10	enable console support for this unit.  Other console flags
+#		(if applicable) are ignored unless this is set.  Enabling
+#		console support does not make the unit the preferred console.
+#		Boot with -h or set boot_serial=YES in the loader.  For sio(4)
+#		specifically, the 0x20 flag can also be set (see above).
+#		Currently, at most one unit can have console support; the
+#		first one (in config file order) with this flag set is
+#		preferred.  Setting this flag for sio0 gives the old behaviour.
+#	0x80	use this port for serial line gdb support in ddb.  Also known
+#		as debug port.
 #
 
 # Options for serial drivers that support consoles:
-options 	BREAK_TO_DEBUGGER	#a BREAK on a comconsole goes to
-					#DDB, if available.
+options 	BREAK_TO_DEBUGGER	# A BREAK on a serial console goes to
+					# ddb, if available.
 
 # Solaris implements a new BREAK which is initiated by a character
 # sequence CR ~ ^b which is similar to a familiar pattern used on
