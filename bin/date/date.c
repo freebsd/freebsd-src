@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: date.c,v 1.3 1994/12/26 12:59:28 bde Exp $
+ *	$Id: date.c,v 1.4 1995/04/03 20:08:33 joerg Exp $
  */
 
 #ifndef lint
@@ -123,7 +123,7 @@ main(argc, argv)
 	if (!rflag && time(&tval) == -1)
 		err(1, "time");
 
-	format = "%a %b %e %H:%M:%S %Z %Y";
+	format = "%+";
 
 	/* allow the operands in any order */
 	if (*argv && **argv == '+') {
