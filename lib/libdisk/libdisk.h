@@ -174,7 +174,7 @@ CheckRules(const struct disk *);
  */
 
 char **
-Disk_Names();
+Disk_Names(void);
 /* Return char** with all disk's names (wd0, wd1 ...).  You must free
  * each pointer, as well as the array by hand
  */
@@ -246,6 +246,8 @@ ShowChunkFlags(struct chunk *c);
  * Implementation details  >>> DO NOT USE <<<
  */
 
+struct disklabel;
+void Fill_Disklabel(struct disklabel *dl, const struct disk *new, const struct disk *old, const struct chunk *c1);
 void Debug_Chunk(struct chunk *);
 void Free_Chunk(struct chunk *);
 struct chunk * Clone_Chunk(const struct chunk *);
@@ -253,7 +255,6 @@ int Add_Chunk(struct disk *, long, u_long, const char *, chunk_e, int, u_long, c
 void * read_block(int, daddr_t, u_long);
 int write_block(int, daddr_t, const void *, u_long);
 struct disklabel * read_disklabel(int, daddr_t, u_long);
-struct chunk * Find_Mother_Chunk(struct chunk *, u_long, u_long, chunk_e);
 struct disk * Int_Open_Disk(const char *name, u_long size);
 int Fixup_Names(struct disk *);
 int MakeDevChunk(const struct chunk *c1, const char *path);

@@ -402,7 +402,7 @@ assignToSlice(void *arg, XMLToken t, u_int *slice, u_int64_t v)
  * Callback to collect disk-related data.
  */
 static int
-assignToDisk(void *arg, XMLToken t, const u_int *slice, u_int64_t v)
+assignToDisk(void *arg, XMLToken t, u_int *slice, u_int64_t v)
 {
 	struct disklabel *dl = (struct disklabel *) arg;
 
