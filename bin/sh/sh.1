@@ -1334,7 +1334,11 @@ This is the default.
 A synonym for the
 .Ic cd
 builtin command.
-.It Ic echo Oo Fl en Oc Ar string
+.It Xo
+.Ic echo
+.Op Fl e | Fl n
+.Op Ar string
+.Xc
 Print
 .Ar string
 to the standard output with a newline appended.
@@ -1388,6 +1392,12 @@ $ echo -e a\e\e\e\eb
 a\eb
 .Ed
 .El
+.Pp
+Only one of the
+.Fl e
+and
+.Fl n
+options may be specified.
 .It Ic eval Ar string ...
 Concatenate all the arguments with spaces.
 Then re-parse and execute the command.
