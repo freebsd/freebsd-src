@@ -638,6 +638,9 @@ isp_pci_attach(pcici_t cfid, int unit)
 		isp->isp_confopts |= ISP_CFG_OWNWWN;
 	}
 	(void) getenv_int("isp_debug", &isp_debug);
+#ifdef	ISP_TARGET_MODE
+	(void) getenv_int("isp_tdebug", &isp_tdebug);
+#endif
 	ISP_LOCK(isp);
 	isp_reset(isp);
 	if (isp->isp_state != ISP_RESETSTATE) {
@@ -1078,11 +1081,24 @@ dma2_tgt(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 			cto->ct_scsi_status = scsi_status;
 			cto->ct_flags |= send_status;
 			ISP_TDQE(mp->isp, "last dma2_tgt", *mp->iptrp, cto);
+			if (isp_tdebug) {
+				printf("%s:CTIO lun %d->iid%d flgs 0x%x sts "
+				    "0x%x ssts 0x%x res %u\n",
+				    mp->isp->isp_name, csio->ccb_h.target_lun,
+				    cto->ct_iid, cto->ct_flags, cto->ct_status,
+				    cto->ct_scsi_status, cto->ct_resid);
+			}
 		} else {
 			ct_entry_t *octo = cto;
 			cto->ct_reserved = 0;
 			cto->ct_header.rqs_seqno = 0;
 			ISP_TDQE(mp->isp, "dma2_tgt", *mp->iptrp, cto);
+			if (isp_tdebug) {
+				printf("%s:CTIO lun %d->iid%d flgs 0x%x res"
+				    " %u\n", mp->isp->isp_name,
+				    csio->ccb_h.target_lun, cto->ct_iid,
+				    cto->ct_flags, cto->ct_resid);
+			}
 			cto = (ct_entry_t *)
 			    ISP_QUEUE_ENTRY(mp->isp->isp_rquest, *mp->iptrp);
 			*mp->iptrp =
@@ -1209,11 +1225,28 @@ dma2_tgt_fc(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 			cto->rsp.m0.ct_scsi_status = scsi_status;
 			cto->ct_flags |= send_status;
 			ISP_TDQE(mp->isp, "last dma2_tgt_fc", *mp->iptrp, cto);
+			if (isp_tdebug) {
+				printf("%s:CTIO2 RX_ID 0x%x lun %d->iid%d flgs "
+				    "0x%x sts 0x%x ssts 0x%x roff %u res "
+				    "%u\n", mp->isp->isp_name, cto->ct_rxid,
+				    csio->ccb_h.target_lun, cto->ct_iid,
+				    cto->ct_flags, cto->ct_status,
+				    cto->rsp.m0.ct_scsi_status,
+				    cto->ct_reloff, cto->ct_resid);
+			}
 		} else {
 			ct2_entry_t *octo = cto;
 			cto->ct_reserved = 0;
 			cto->ct_header.rqs_seqno = 0;
 			ISP_TDQE(mp->isp, "dma2_tgt_fc", *mp->iptrp, cto);
+			if (isp_tdebug) {
+				printf("%s:CTIO2 RX_ID 0x%x lun %d->iid%d flgs "
+				    "0x%x ro %u res %u\n",
+				    mp->isp->isp_name,
+				    cto->ct_rxid, csio->ccb_h.target_lun,
+				    cto->ct_iid, cto->ct_flags, cto->ct_reloff,
+				    cto->ct_resid);
+			}
 			cto = (ct2_entry_t *)
 			    ISP_QUEUE_ENTRY(mp->isp->isp_rquest, *mp->iptrp);
 			*mp->iptrp =
@@ -1391,6 +1424,38 @@ isp_pci_dmasetup(struct ispsoftc *isp, struct ccb_scsiio *csio, ispreq_t *rq,
 	mush_t mush, *mp;
 	void (*eptr) __P((void *, bus_dma_segment_t *, int, int));
 
+	/*
+	 * NB: if we need to do request queue entry swizzling,
+	 * NB: this is where it would need to be done for cmds
+	 * NB: that move no data. For commands that move data,
+	 * NB: swizzling would take place in those functions.
+	 */
+	if ((csio->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_NONE) {
+		rq->req_seg_count = 1;
+#ifdef	ISP_TARGET_MODE
+		if (isp_tdebug && csio->ccb_h.func_code == XPT_CONT_TARGET_IO) {
+			if (IS_FC(isp)) {
+				ct2_entry_t *cto = (ct2_entry_t *) rq;
+				printf("%s:CTIO2 RX_ID 0x%x lun %d->iid%d flgs "
+				    "0x%x sts 0x%x ssts 0x%x res %u\n",
+				    isp->isp_name, cto->ct_rxid,
+				    csio->ccb_h.target_lun, cto->ct_iid,
+				    cto->ct_flags, cto->ct_status,
+				    cto->rsp.m0.ct_scsi_status,
+				    cto->ct_resid);
+			} else {
+				ct_entry_t *cto = (ct_entry_t *) rq;
+				printf("%s:CTIO lun %d->iid%d flgs 0x%x sts "
+				    "0x%x ssts 0x%x res %u\n",
+				    isp->isp_name, csio->ccb_h.target_lun,
+				    cto->ct_iid, cto->ct_flags, cto->ct_status,
+				    cto->ct_scsi_status, cto->ct_resid);
+			}
+		}
+#endif
+		return (CMD_QUEUED);
+	}
+
 #ifdef	ISP_TARGET_MODE
 	if (csio->ccb_h.func_code == XPT_CONT_TARGET_IO) {
 		if (IS_FC(isp)) {
@@ -1402,16 +1467,6 @@ isp_pci_dmasetup(struct ispsoftc *isp, struct ccb_scsiio *csio, ispreq_t *rq,
 #endif
 	eptr = dma2;
 
-	/*
-	 * NB: if we need to do request queue entry swizzling,
-	 * NB: this is where it would need to be done for cmds
-	 * NB: that move no data. For commands that move data,
-	 * NB: swizzling would take place in those functions.
-	 */
-	if ((csio->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_NONE) {
-		rq->req_seg_count = 1;
-		return (CMD_QUEUED);
-	}
 
 	/*
 	 * Do a virtual grapevine step to collect info for
