@@ -28,7 +28,6 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
-#include <sys/gpt.h>
 
 #include <err.h>
 #include <stddef.h>
@@ -36,7 +35,6 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <uuid.h>
 
 #include "map.h"
 #include "gpt.h"
@@ -91,6 +89,7 @@ friendly(uuid_t *t)
 static void
 show(int fd __unused)
 {
+	uuid_t type;
 	off_t start;
 	map_t *m, *p;
 	struct mbr *mbr;
@@ -138,8 +137,9 @@ show(int fd __unused)
 			printf("MBR part ");
 			mbr = p->map_data;
 			for (i = 0; i < 4; i++) {
-				start = mbr->mbr_part[i].part_start_hi << 16;
-				start += mbr->mbr_part[i].part_start_lo;
+				start = le16toh(mbr->mbr_part[i].part_start_hi);
+				start = (start << 16) +
+				    le16toh(mbr->mbr_part[i].part_start_lo);
 				if (m->map_start == p->map_start + start)
 					break;
 			}
@@ -148,7 +148,8 @@ show(int fd __unused)
 		case MAP_TYPE_GPT_PART:
 			printf("GPT part ");
 			ent = m->map_data;
-			printf("- %s", friendly(&ent->ent_type));
+			le_uuid_dec(&ent->ent_type, &type);
+			printf("- %s", friendly(&type));
 			break;
 		case MAP_TYPE_PMBR:
 			printf("PMBR");

@@ -29,6 +29,14 @@
 #ifndef _GPT_H_
 #define	_GPT_H_
 
+#include <sys/endian.h>
+#include <sys/gpt.h>
+
+#include <uuid.h>
+
+void	le_uuid_dec(void const *, uuid_t *);
+void	le_uuid_enc(void *, uuid_t const *);
+
 struct mbr_part {
 	uint8_t		part_flag;		/* bootstrap flags */
 	uint8_t		part_shd;		/* starting head */

@@ -29,7 +29,6 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/disklabel.h>
-#include <sys/gpt.h>
 
 #include <err.h>
 #include <stddef.h>
@@ -37,7 +36,6 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <uuid.h>
 
 #include "map.h"
 #include "gpt.h"
@@ -74,31 +72,32 @@ migrate_disklabel(int fd, off_t start, struct gpt_ent *ent)
 	buf = gpt_read(fd, start + LABELSECTOR, 1);
 	dl = (void*)(buf + LABELOFFSET);
 
-	if (dl->d_magic != DISKMAGIC || dl->d_magic2 != DISKMAGIC) {
+	if (le32toh(dl->d_magic) != DISKMAGIC ||
+	    le32toh(dl->d_magic2) != DISKMAGIC) {
 		warnx("%s: warning: FreeBSD slice without disklabel",
 		    device_name);
 		return (ent);
 	}
 
-	for (i = 0; i < dl->d_npartitions; i++) {
+	for (i = 0; i < le16toh(dl->d_npartitions); i++) {
 		switch (dl->d_partitions[i].p_fstype) {
 		case FS_SWAP: {
 			uuid_t swap = GPT_ENT_TYPE_FREEBSD_SWAP;
-			ent->ent_type = swap;
+			le_uuid_enc(&ent->ent_type, &swap);
 			unicode16(ent->ent_name,
 			    L"FreeBSD swap partition", 36);
 			break;
 		}
 		case FS_BSDFFS: {
 			uuid_t ufs = GPT_ENT_TYPE_FREEBSD_UFS;
-			ent->ent_type = ufs;
+			le_uuid_enc(&ent->ent_type, &ufs);
 			unicode16(ent->ent_name,
 			    L"FreeBSD UFS partition", 36);
 			break;
 		}
 		case FS_VINUM: {
 			uuid_t vinum = GPT_ENT_TYPE_FREEBSD_VINUM;
-			ent->ent_type = vinum;
+			le_uuid_enc(&ent->ent_type, &vinum);
 			unicode16(ent->ent_name,
 			    L"FreeBSD vinum partition", 36);
 			break;
@@ -109,9 +108,10 @@ migrate_disklabel(int fd, off_t start, struct gpt_ent *ent)
 			continue;
 		}
 
-		ent->ent_lba_start = dl->d_partitions[i].p_offset;
-		ent->ent_lba_end = ent->ent_lba_start +
-		    dl->d_partitions[i].p_size - 1LL;
+		ent->ent_lba_start =
+		    htole64(le32toh(dl->d_partitions[i].p_offset));
+		ent->ent_lba_end = htole64(le64toh(ent->ent_lba_start) +
+		    le32toh(dl->d_partitions[i].p_size) - 1LL);
 		ent++;
 	}
 
@@ -121,6 +121,7 @@ migrate_disklabel(int fd, off_t start, struct gpt_ent *ent)
 static void
 migrate(int fd)
 {
+	uuid_t uuid;
 	off_t blocks, last;
 	map_t *gpt, *tpg;
 	map_t *tbl, *lbt;
@@ -196,33 +197,36 @@ migrate(int fd)
 
 	hdr = gpt->map_data;
 	memcpy(hdr->hdr_sig, GPT_HDR_SIG, sizeof(hdr->hdr_sig));
-	hdr->hdr_revision = GPT_HDR_REVISION;
+	hdr->hdr_revision = htole32(GPT_HDR_REVISION);
 	/*
 	 * XXX struct gpt_hdr is not a multiple of 8 bytes in size and thus
 	 * contains padding we must not include in the size.
 	 */
-	hdr->hdr_size = offsetof(struct gpt_hdr, padding);
-	hdr->hdr_lba_self = gpt->map_start;
-	hdr->hdr_lba_alt = tpg->map_start;
-	hdr->hdr_lba_start = tbl->map_start + blocks;
-	hdr->hdr_lba_end = lbt->map_start - 1LL;
-	uuid_create(&hdr->hdr_uuid, NULL);
-	hdr->hdr_lba_table = tbl->map_start;
-	hdr->hdr_entries = (blocks * secsz) / sizeof(struct gpt_ent);
-	if (hdr->hdr_entries > parts)
-		hdr->hdr_entries = parts;
-	hdr->hdr_entsz = sizeof(struct gpt_ent);
+	hdr->hdr_size = htole32(offsetof(struct gpt_hdr, padding));
+	hdr->hdr_lba_self = htole64(gpt->map_start);
+	hdr->hdr_lba_alt = htole64(tpg->map_start);
+	hdr->hdr_lba_start = htole64(tbl->map_start + blocks);
+	hdr->hdr_lba_end = htole64(lbt->map_start - 1LL);
+	uuid_create(&uuid, NULL);
+	le_uuid_enc(&hdr->hdr_uuid, &uuid);
+	hdr->hdr_lba_table = htole64(tbl->map_start);
+	hdr->hdr_entries = htole32((blocks * secsz) / sizeof(struct gpt_ent));
+	if (le32toh(hdr->hdr_entries) > parts)
+		hdr->hdr_entries = htole32(parts);
+	hdr->hdr_entsz = htole32(sizeof(struct gpt_ent));
 
 	ent = tbl->map_data;
-	for (i = 0; i < hdr->hdr_entries; i++)
-		uuid_create(&ent[i].ent_uuid, NULL);
+	for (i = 0; i < le32toh(hdr->hdr_entries); i++) {
+		uuid_create(&uuid, NULL);
+		le_uuid_enc(&ent[i].ent_uuid, &uuid);
+	}
 
 	/* Mirror partitions. */
 	for (i = 0; i < 4; i++) {
-		start = mbr->mbr_part[i].part_start_hi;
-		start = (start << 16) + mbr->mbr_part[i].part_start_lo;
-		size = mbr->mbr_part[i].part_size_hi;
-		size = (size << 16) + mbr->mbr_part[i].part_size_lo;
+		start = le16toh(mbr->mbr_part[i].part_start_hi);
+		start = (start << 16) + le16toh(mbr->mbr_part[i].part_start_lo);
+		size = le16toh(mbr->mbr_part[i].part_size_hi);
+		size = (size << 16) + le16toh(mbr->mbr_part[i].part_size_lo);
 
 		switch (mbr->mbr_part[i].part_typ) {
 		case 0:
@@ -230,9 +234,9 @@ migrate(int fd)
 		case 165: {	/* FreeBSD */
 			if (slice) {
 				uuid_t freebsd = GPT_ENT_TYPE_FREEBSD;
-				ent->ent_type = freebsd;
-				ent->ent_lba_start = start;
-				ent->ent_lba_end = start + size - 1LL;
+				le_uuid_enc(&ent->ent_type, &freebsd);
+				ent->ent_lba_start = htole64((uint64_t)start);
+				ent->ent_lba_end = htole64(start + size - 1LL);
 				unicode16(ent->ent_name,
 				    L"FreeBSD disklabel partition", 36);
 				ent++;
@@ -242,9 +246,9 @@ migrate(int fd)
 		}
 		case 239: {	/* EFI */
 			uuid_t efi_slice = GPT_ENT_TYPE_EFI;
-			ent->ent_type = efi_slice;
-			ent->ent_lba_start = start;
-			ent->ent_lba_end = start + size - 1LL;
+			le_uuid_enc(&ent->ent_type, &efi_slice);
+			ent->ent_lba_start = htole64((uint64_t)start);
+			ent->ent_lba_end = htole64(start + size - 1LL);
 			unicode16(ent->ent_name, L"EFI system partition", 36);
 			ent++;
 			break;
@@ -257,8 +261,9 @@ migrate(int fd)
 	}
 	ent = tbl->map_data;
 
-	hdr->hdr_crc_table = crc32(ent, hdr->hdr_entries * hdr->hdr_entsz);
-	hdr->hdr_crc_self = crc32(hdr, hdr->hdr_size);
+	hdr->hdr_crc_table = htole32(crc32(ent, le32toh(hdr->hdr_entries) *
+	    le32toh(hdr->hdr_entsz)));
+	hdr->hdr_crc_self = htole32(crc32(hdr, le32toh(hdr->hdr_size)));
 
 	gpt_write(fd, gpt);
 	gpt_write(fd, tbl);
@@ -268,11 +273,11 @@ migrate(int fd)
 	 */
 	memcpy(tpg->map_data, gpt->map_data, secsz);
 	hdr = tpg->map_data;
-	hdr->hdr_lba_self = tpg->map_start;
-	hdr->hdr_lba_alt = gpt->map_start;
-	hdr->hdr_lba_table = lbt->map_start;
+	hdr->hdr_lba_self = htole64(tpg->map_start);
+	hdr->hdr_lba_alt = htole64(gpt->map_start);
+	hdr->hdr_lba_table = htole64(lbt->map_start);
 	hdr->hdr_crc_self = 0;			/* Don't ever forget this! */
-	hdr->hdr_crc_self = crc32(hdr, hdr->hdr_size);
+	hdr->hdr_crc_self = htole32(crc32(hdr, le32toh(hdr->hdr_size)));
 
 	gpt_write(fd, lbt);
 	gpt_write(fd, tpg);
@@ -291,13 +296,13 @@ migrate(int fd)
 		mbr->mbr_part[0].part_ehd = 0xff;
 		mbr->mbr_part[0].part_esect = 0xff;
 		mbr->mbr_part[0].part_ecyl = 0xff;
-		mbr->mbr_part[0].part_start_lo = 1;
+		mbr->mbr_part[0].part_start_lo = htole16(1);
 		if (mediasz > 0xffffffff) {
-			mbr->mbr_part[0].part_size_lo = 0xffff;
-			mbr->mbr_part[0].part_size_hi = 0xffff;
+			mbr->mbr_part[0].part_size_lo = htole16(0xffff);
+			mbr->mbr_part[0].part_size_hi = htole16(0xffff);
 		} else {
-			mbr->mbr_part[0].part_size_lo = mediasz & 0xffff;
-			mbr->mbr_part[0].part_size_hi = mediasz >> 16;
+			mbr->mbr_part[0].part_size_lo = htole16(mediasz);
+			mbr->mbr_part[0].part_size_hi = htole16(mediasz >> 16);
 		}
 		gpt_write(fd, map);
 	}

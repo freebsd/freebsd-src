@@ -29,7 +29,6 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/disklabel.h>
-#include <sys/gpt.h>
 
 #include <err.h>
 #include <stddef.h>
@@ -37,7 +36,6 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <uuid.h>
 
 #include "map.h"
 #include "gpt.h"
@@ -88,15 +86,16 @@ add(int fd)
 	}
 
 	hdr = gpt->map_data;
-	if (entry > hdr->hdr_entries) {
+	if (entry > le32toh(hdr->hdr_entries)) {
 		warnx("%s: error: index %u out of range (%u max)", device_name,
-		    entry, hdr->hdr_entries);
+		    entry, le32toh(hdr->hdr_entries));
 		return;
 	}
 
 	if (entry > 0) {
 		i = entry - 1;
-		ent = (void*)((char*)tbl->map_data + i * hdr->hdr_entsz);
+		ent = (void*)((char*)tbl->map_data + i *
+		    le32toh(hdr->hdr_entsz));
 		if (!uuid_is_nil(&ent->ent_type, NULL)) {
 			warnx("%s: error: entry at index %u is not free",
 			    device_name, entry);
@@ -104,13 +103,13 @@ add(int fd)
 		}
 	} else {
 		/* Find empty slot in GPT table. */
-		for (i = 0; i < hdr->hdr_entries; i++) {
+		for (i = 0; i < le32toh(hdr->hdr_entries); i++) {
 			ent = (void*)((char*)tbl->map_data + i *
-			    hdr->hdr_entsz);
+			    le32toh(hdr->hdr_entsz));
 			if (uuid_is_nil(&ent->ent_type, NULL))
 				break;
 		}
-		if (i == hdr->hdr_entries) {
+		if (i == le32toh(hdr->hdr_entries)) {
 			warnx("%s: error: no available table entries",
 			    device_name);
 			return;
@@ -123,29 +122,29 @@ add(int fd)
 		return;
 	}
 
-	ent->ent_type = type;
-	ent->ent_lba_start = map->map_start;
-	ent->ent_lba_end = map->map_start + map->map_size - 1LL;
+	le_uuid_enc(&ent->ent_type, &type);
+	ent->ent_lba_start = htole64(map->map_start);
+	ent->ent_lba_end = htole64(map->map_start + map->map_size - 1LL);
 
-	hdr->hdr_crc_table = crc32(tbl->map_data,
-	    hdr->hdr_entries * hdr->hdr_entsz);
+	hdr->hdr_crc_table = htole32(crc32(tbl->map_data,
+	    le32toh(hdr->hdr_entries) * le32toh(hdr->hdr_entsz)));
 	hdr->hdr_crc_self = 0;
-	hdr->hdr_crc_self = crc32(hdr, hdr->hdr_size);
+	hdr->hdr_crc_self = htole32(crc32(hdr, le32toh(hdr->hdr_size)));
 
 	gpt_write(fd, gpt);
 	gpt_write(fd, tbl);
 
 	hdr = tpg->map_data;
-	ent = (void*)((char*)lbt->map_data + i * hdr->hdr_entsz);
+	ent = (void*)((char*)lbt->map_data + i * le32toh(hdr->hdr_entsz));
 
-	ent->ent_type = type;
-	ent->ent_lba_start = map->map_start;
-	ent->ent_lba_end = map->map_start + map->map_size - 1LL;
+	le_uuid_enc(&ent->ent_type, &type);
+	ent->ent_lba_start = htole64(map->map_start);
+	ent->ent_lba_end = htole64(map->map_start + map->map_size - 1LL);
 
-	hdr->hdr_crc_table = crc32(lbt->map_data,
-	    hdr->hdr_entries * hdr->hdr_entsz);
+	hdr->hdr_crc_table = htole32(crc32(lbt->map_data,
+	    le32toh(hdr->hdr_entries) * le32toh(hdr->hdr_entsz)));
 	hdr->hdr_crc_self = 0;
-	hdr->hdr_crc_self = crc32(hdr, hdr->hdr_size);
+	hdr->hdr_crc_self = htole32(crc32(hdr, le32toh(hdr->hdr_size)));
 
 	gpt_write(fd, lbt);
 	gpt_write(fd, tpg);
