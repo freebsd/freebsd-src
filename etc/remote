@@ -1,0 +1,40 @@
+#	@(#)remote	5.2 (Berkeley) 6/30/90
+#
+# remote -- remote host description file
+# see tip(1), remote(5)
+#
+# dv	device to use for the tty
+# el	EOL marks (default is NULL)
+# du	make a call flag (dial up)
+# pn	phone numbers (@ =>'s search phones file; possibly taken from
+#	PHONES environment variable)
+# at	ACU type
+# ie	input EOF marks (default is NULL)
+# oe	output EOF string (default is NULL)
+# cu	call unit (default is dv)
+# br	baud rate (defaults to 300)
+# fs	frame size (default is BUFSIZ) -- used in buffering writes on
+#	receive operations
+# tc	to continue a capability
+
+# UNIX system definitions
+unix1200|1200 Baud dial-out to another UNIX system:\
+	:el=^U^C^R^O^D^S^Q:ie=%$:oe=^D:tc=dial1200:
+unix300|300 Baud dial-out to another UNIX system:\
+	:el=^U^C^R^O^D^S^Q:ie=%$:oe=^D:tc=dial300:
+
+# General dialer definitions used below
+#
+# COURIER switch settings:
+# switch:	1 2 3 4 5 6 7 8 9 10
+# setting:	D U D U D D U D U U
+# Rackmount:	U U D U D U D D U D
+#
+dial2400|2400 Baud Hayes attributes:\
+        :dv=/dev/tty19:br#2400:cu=/dev/tty19:at=hayes:du:
+dial1200|1200 Baud Hayes attributes:\
+        :dv=/dev/tty19:br#1200:cu=/dev/tty19:at=hayes:du:
+
+# Hardwired line
+com1c|com1:dv=/dev/com1:br#9600:
+com1b:dv=/dev/com1:br#2400:

@@ -1,0 +1,494 @@
+#	fs: /usr
+#	by: bostic
+#
+#	@(#)BSD.usr.dist	5.5 (Berkeley) 5/9/91
+
+/set group=bin mode=0755 owner=bin type=file
+bin	type=dir owner=bin group=bin mode=0755
+..
+contrib	type=dir owner=bin group=bin mode=0755
+	X	type=dir owner=bin group=bin mode=0755
+		bin	type=dir owner=bin group=bin mode=0755
+		..
+		include	type=dir owner=bin group=bin mode=0755
+		..
+		man	type=dir owner=bin group=bin mode=0755
+		..
+	..
+	bin	type=dir owner=bin group=bin mode=0755
+	..	
+	lib	type=dir owner=bin group=bin mode=0755
+		emacs	type=dir owner=bin group=bin mode=0755
+			etc	type=dir owner=bin group=bin mode=0755
+			..	
+			info	type=dir owner=bin group=bin mode=0755
+			..	
+			lisp	type=dir owner=bin group=bin mode=0755
+				term	type=dir owner=bin group=bin mode=0755
+				..	
+			..	
+			lock	type=dir owner=bin group=bin mode=0777
+			..	
+		..	
+	..	
+	man	type=dir owner=bin group=bin mode=0755
+		cat1	type=dir owner=bin group=bin mode=0755
+		..
+		cat2	type=dir owner=bin group=bin mode=0755
+		..
+		cat3	type=dir owner=bin group=bin mode=0755
+		..
+		cat4	type=dir owner=bin group=bin mode=0755
+		..
+		cat5	type=dir owner=bin group=bin mode=0755
+		..
+		cat6	type=dir owner=bin group=bin mode=0755
+		..
+		cat7	type=dir owner=bin group=bin mode=0755
+		..
+		cat8	type=dir owner=bin group=bin mode=0755
+		..
+	..
+	mh	type=dir owner=bin group=bin mode=0755
+		bin	type=dir owner=bin group=bin mode=0755
+		..
+		include	type=dir owner=bin group=bin mode=0755
+		..
+		lib	type=dir owner=bin group=bin mode=0755
+		..
+		man	type=dir owner=bin group=bin mode=0755
+		..
+	..
+..
+
+/set group=bin mode=0700 owner=games type=file
+games	type=dir owner=bin mode=0755
+	hide	type=dir owner=games group=bin mode=0700
+	..
+..
+
+/set group=bin mode=0755 owner=bin type=file
+include	type=dir
+	X	type=dir owner=bin group=bin mode=0755
+	..
+
+/set group=bin mode=0755 owner=bin type=file
+	X11	type=dir
+		bitmaps	type=dir owner=bin group=bin mode=0755
+		..
+	..
+	arpa	type=dir owner=bin group=bin mode=0755
+	..
+	kerberosIV	type=dir owner=bin group=bin mode=0755
+	..
+	pascal	type=dir owner=bin group=bin mode=0755
+	..
+	protocols	type=dir owner=bin group=bin mode=0755
+	..
+	rpc	type=dir owner=bin group=bin mode=0755
+	..
+	xnscourier	type=dir owner=bin group=bin mode=0755
+	..
+..
+
+/set group=bin mode=0755 owner=bin type=file
+lib	type=dir
+
+/set group=bin mode=0755 owner=bin type=file
+	uucp	type=dir owner=uucp group=daemon mode=0755
+	..
+..
+
+/set group=bin mode=0755 owner=bin type=file
+libdata	type=dir
+	adb	type=dir owner=bin group=bin mode=0755
+	..
+
+/set group=bin mode=0755 owner=bin type=file
+	learn	type=dir
+		C	type=dir owner=bin mode=0755
+		..
+		bin	type=dir owner=bin mode=0755
+		..
+		editor	type=dir owner=bin mode=0755
+		..
+		eqn	type=dir owner=bin mode=0755
+		..
+		files	type=dir owner=bin mode=0755
+		..
+		macros	type=dir owner=bin mode=0755
+		..
+		morefiles	type=dir owner=bin mode=0755
+		..
+	..
+	lint	type=dir owner=bin mode=0755
+	..
+	pascal	type=dir owner=bin mode=0755
+	..
+	term	type=dir owner=bin mode=0755
+	..
+	troff_font	type=dir owner=bin mode=0755
+	..
+..
+
+/set group=bin mode=0755 owner=bin type=file
+libexec	type=dir
+	lpr	type=dir owner=bin group=bin mode=0755
+	..
+	pascal	type=dir owner=bin group=bin mode=0755
+	..
+	plot	type=dir owner=bin group=bin mode=0755
+	..
+..
+local	type=dir owner=bin group=bin mode=0755
+	bin	type=dir owner=bin group=bin  mode=0755
+	..
+	man	type=dir owner=bin group=bin  mode=0755
+		cat1	type=dir owner=bin group=bin  mode=0755
+		..
+		cat2	type=dir owner=bin group=bin  mode=0755
+		..
+		cat3	type=dir owner=bin group=bin  mode=0755
+		..
+		cat4	type=dir owner=bin group=bin  mode=0755
+		..
+		cat5	type=dir owner=bin group=bin  mode=0755
+		..
+		cat6	type=dir owner=bin group=bin  mode=0755
+		..
+		cat7	type=dir owner=bin group=bin  mode=0755
+		..
+		cat8	type=dir owner=bin group=bin  mode=0755
+		..
+	..
+..
+obj	type=dir owner=bin group=bin mode=0755
+..
+old	type=dir owner=bin group=bin mode=0755
+..
+sbin	type=dir owner=bin group=bin mode=0755
+..
+
+/set group=bin mode=0755 owner=bin type=file
+share	type=dir
+	calendar	type=dir owner=bin group=bin mode=0755
+	..
+
+/set group=bin mode=0755 owner=bin type=file
+	dict	type=dir
+		papers	type=dir owner=bin group=bin mode=0755
+		..
+		special	type=dir owner=bin group=bin mode=0755
+		..
+	..
+	doc	type=dir owner=bin group=bin mode=0755
+		ps1	type=dir owner=bin group=bin mode=0755
+			01.Clang	type=dir owner=bin group=bin mode=0755
+			..
+			02.f77	type=dir owner=bin group=bin mode=0755
+			..
+			03.f77io	type=dir owner=bin group=bin mode=0755
+			..
+			04.pascal	type=dir owner=bin group=bin mode=0755
+			..
+			05.as	type=dir owner=bin group=bin mode=0755
+			..
+			06.sysman	type=dir owner=bin group=bin mode=0755
+			..
+			07.ipctut	type=dir owner=bin group=bin mode=0755
+			..
+			08.ipc	type=dir owner=bin group=bin mode=0755
+			..
+			09.lint	type=dir owner=bin group=bin mode=0755
+			..
+			10.adb	type=dir owner=bin group=bin mode=0755
+			..
+			11.dbx	type=dir owner=bin group=bin mode=0755
+			..
+			12.make	type=dir owner=bin group=bin mode=0755
+			..
+			13.rcs	type=dir owner=bin group=bin mode=0755
+			..
+			14.sccs	type=dir owner=bin group=bin mode=0755
+			..
+			15.yacc	type=dir owner=bin group=bin mode=0755
+			..
+			16.lex	type=dir owner=bin group=bin mode=0755
+			..
+			17.m4	type=dir owner=bin group=bin mode=0755
+			..
+			18.curses	type=dir owner=bin group=bin mode=0755
+			..
+		..
+		ps2	type=dir owner=bin group=bin mode=0755
+			01.cacm	type=dir owner=bin group=bin mode=0755
+			..
+			02.summary	type=dir owner=bin group=bin mode=0755
+			..
+			03.uprog	type=dir owner=bin group=bin mode=0755
+			..
+			04.implement	type=dir owner=bin group=bin mode=0755
+			..
+			05.iosys	type=dir owner=bin group=bin mode=0755
+			..
+			07.fp	type=dir owner=bin group=bin mode=0755
+			..
+		..
+		smm	type=dir owner=bin group=bin mode=0755
+			01.setup	type=dir owner=bin group=bin mode=0755
+			..
+			02.config	type=dir owner=bin group=bin mode=0755
+			..
+			03.kdebug	type=dir owner=bin group=bin mode=0755
+			..
+			04.quotas	type=dir owner=bin group=bin mode=0755
+			..
+			05.fsck	type=dir owner=bin group=bin mode=0755
+			..
+			06.lpd	type=dir owner=bin group=bin mode=0755
+			..
+			07.sendmailop	type=dir owner=bin group=bin mode=0755
+			..
+			08.timedop	type=dir owner=bin group=bin mode=0755
+			..
+			09.uucpimpl	type=dir owner=bin group=bin mode=0755
+			..
+			10.newsop	type=dir owner=bin group=bin mode=0755
+			..
+			11.named	type=dir owner=bin group=bin mode=0755
+			..
+			12.uchanges	type=dir owner=bin group=bin mode=0755
+			..
+			13.kchanges	type=dir owner=bin group=bin mode=0755
+			..
+			14.fastfs	type=dir owner=bin group=bin mode=0755
+			..
+			15.net	type=dir owner=bin group=bin mode=0755
+			..
+			16.sendmail	type=dir owner=bin group=bin mode=0755
+			..
+			17.security	type=dir owner=bin group=bin mode=0755
+			..
+			18.password	type=dir owner=bin group=bin mode=0755
+			..
+			19.porttour	type=dir owner=bin group=bin mode=0755
+			..
+			20.termdesc	type=dir owner=bin group=bin mode=0755
+			..
+			21.uucpnet	type=dir owner=bin group=bin mode=0755
+			..
+			22.timed	type=dir owner=bin group=bin mode=0755
+			..
+		..
+		usd	type=dir owner=bin group=bin mode=0755
+			01.begin	type=dir owner=bin group=bin mode=0755
+			..
+			02.learn	type=dir owner=bin group=bin mode=0755
+			..
+			03.shell	type=dir owner=bin group=bin mode=0755
+			..
+			04.csh	type=dir owner=bin group=bin mode=0755
+			..
+			05.dc	type=dir owner=bin group=bin mode=0755
+			..
+			06.bc	type=dir owner=bin group=bin mode=0755
+			..
+			07.Mail	type=dir owner=bin group=bin mode=0755
+			..
+			08.mh	type=dir owner=bin group=bin mode=0755
+			..
+			09.newsread	type=dir owner=bin group=bin mode=0755
+			..
+			10.etiq	type=dir owner=bin group=bin mode=0755
+			..
+			11.notes	type=dir owner=bin group=bin mode=0755
+			..
+			12.edtut	type=dir owner=bin group=bin mode=0755
+			..
+			13.edadv	type=dir owner=bin group=bin mode=0755
+			..
+			14.edit	type=dir owner=bin group=bin mode=0755
+			..
+			15.vi	type=dir owner=bin group=bin mode=0755
+			..
+			16.ex	type=dir owner=bin group=bin mode=0755
+			..
+			17.jove	type=dir owner=bin group=bin mode=0755
+			..
+			18.sed	type=dir owner=bin group=bin mode=0755
+			..
+			19.awk	type=dir owner=bin group=bin mode=0755
+			..
+			20.msmacros	type=dir owner=bin group=bin mode=0755
+			..
+			21.msdiffs	type=dir owner=bin group=bin mode=0755
+			..
+			22.memacros	type=dir owner=bin group=bin mode=0755
+			..
+			23.meref	type=dir owner=bin group=bin mode=0755
+			..
+			24.troff	type=dir owner=bin group=bin mode=0755
+			..
+			25.trofftut	type=dir owner=bin group=bin mode=0755
+			..
+			26.eqn	type=dir owner=bin group=bin mode=0755
+			..
+			27.eqnguide	type=dir owner=bin group=bin mode=0755
+			..
+			28.tbl	type=dir owner=bin group=bin mode=0755
+			..
+			29.refer	type=dir owner=bin group=bin mode=0755
+			..
+			30.invert	type=dir owner=bin group=bin mode=0755
+			..
+			31.bib	type=dir owner=bin group=bin mode=0755
+			..
+			32.diction	type=dir owner=bin group=bin mode=0755
+			..
+			33.rogue	type=dir owner=bin group=bin mode=0755
+			..
+			34.trek	type=dir owner=bin group=bin mode=0755
+			..
+		..
+	..
+
+/set group=bin mode=0755 owner=games type=file
+	games	type=dir owner=bin
+		atc	type=dir owner=games group=bin mode=0755
+		..
+		ching	type=dir owner=games group=bin mode=0755
+		..
+		fortune	type=dir owner=games group=bin mode=0755
+		..
+		larn	type=dir owner=games group=bin mode=0755
+		..
+		quiz.db	type=dir owner=games group=bin mode=0755
+		..
+	..
+
+/set group=bin mode=0755 owner=bin type=file
+	man	type=dir
+		cat.old	type=dir owner=bin group=bin mode=0755
+		..
+		cat1	type=dir owner=bin group=bin mode=0755
+		..
+		cat2	type=dir owner=bin group=bin mode=0755
+		..
+		cat3	type=dir owner=bin group=bin mode=0755
+		..
+		cat3f	type=dir owner=bin group=bin mode=0755
+		..
+
+/set group=bin mode=0755 owner=bin type=file
+		cat4	type=dir
+			tahoe	type=dir owner=bin group=bin mode=0755
+			..
+			vax	type=dir owner=bin group=bin mode=0755
+			..
+			hp300	type=dir owner=bin group=bin mode=0755
+			..
+		..
+		cat5	type=dir owner=bin group=bin mode=0755
+		..
+
+/set group=bin mode=0755 owner=bin type=file
+		cat6	type=dir
+			tahoe	type=dir owner=bin group=bin mode=0755
+			..
+			vax	type=dir owner=bin group=bin mode=0755
+			..
+		..
+		cat7	type=dir owner=bin group=bin mode=0755
+		..
+
+/set group=bin mode=0755 owner=bin type=file
+		cat8	type=dir
+			tahoe	type=dir owner=bin group=bin mode=0755
+			..
+			vax	type=dir owner=bin group=bin mode=0755
+			..
+			hp300	type=dir owner=bin group=bin mode=0755
+			..
+		..
+		old	type=dir owner=bin group=bin mode=0755
+			cat1	type=dir owner=bin group=bin mode=0755
+			..
+			cat2	type=dir owner=bin group=bin mode=0755
+			..
+			cat3	type=dir owner=bin group=bin mode=0755
+			..
+			cat4	type=dir owner=bin group=bin mode=0755
+			..
+			cat5	type=dir owner=bin group=bin mode=0755
+			..
+			cat6	type=dir owner=bin group=bin mode=0755
+			..
+			cat7	type=dir owner=bin group=bin mode=0755
+			..
+			cat8	type=dir owner=bin group=bin mode=0755
+			..
+		..
+	..
+	me	type=dir owner=bin group=bin mode=0755
+	..
+	misc	type=dir owner=bin group=bin mode=0755
+	..
+	mk	type=dir owner=bin group=bin mode=0755
+	..
+	ms	type=dir owner=bin group=bin mode=0755
+	..
+	skel	type=dir owner=bin group=bin mode=0755
+	..
+	tabset	type=dir owner=bin group=bin mode=0755
+	..
+	tmac	type=dir owner=bin group=bin mode=0755
+	..
+	zoneinfo	type=dir owner=bin group=bin mode=0755
+		Australia	type=dir owner=bin group=bin mode=0555
+		..
+		Brazil	type=dir owner=bin group=bin mode=0555
+		..
+		Canada	type=dir owner=bin group=bin mode=0555
+		..
+		Chile	type=dir owner=bin group=bin mode=0555
+		..
+		Mexico	type=dir owner=bin group=bin mode=0555
+		..
+		SystemV	type=dir owner=bin group=bin mode=0555
+		..
+		US	type=dir owner=bin group=bin mode=0555
+		..
+	..
+..
+src	type=dir owner=bin group=bin mode=0755
+	bin	type=dir owner=bin group=bin mode=0755
+	..
+	contrib	type=dir owner=bin group=bin mode=0755
+	..
+	etc	type=dir owner=bin group=bin mode=0755
+	..
+	games	type=dir owner=bin group=bin mode=0755
+	..
+	include	type=dir owner=bin group=bin mode=0755
+	..
+	kerberosIV	type=dir owner=bin group=bin mode=0755
+	..
+	lib	type=dir owner=bin group=bin mode=0755
+	..
+	libexec	type=dir owner=bin group=bin mode=0755
+	..
+	old	type=dir owner=bin group=bin mode=0755
+	..
+	pgrm	type=dir owner=bin group=bin mode=0755
+	..
+	sbin	type=dir owner=bin group=bin mode=0755
+	..
+	share	type=dir owner=bin group=bin mode=0755
+	..
+	sys	type=dir owner=bin group=sys mode=0755
+	..
+	usr.bin	type=dir owner=bin group=bin mode=0755
+	..
+	usr.sbin	type=dir owner=bin group=bin mode=0755
+	..
+..
