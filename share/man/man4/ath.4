@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"/
-.Dd August 1, 2003
+.Dd September 18, 2003
 .Dt ATH 4
 .Os
 .Sh NAME
@@ -114,6 +114,7 @@ driver:
 D-Link DWL-AB650	AR5211	CardBus
 D-Link DWL-AG520	AR5212	PCI
 D-Link DWL-AG650	AR5212	CardBus
+D-Link DWL-G650	AR5212	CardBus
 I/O Data WN-AG/CB	AR5212	CardBus
 Linksys WMP55AG	AR5212	PCI
 Linksys WPC51AB	AR5211	CardBus
@@ -121,6 +122,9 @@ Linksys WPC55AG	AR5212	CardBus
 NEC PA-WL/54AG	AR5212	CardBus
 Netgear WAB501	AR5211	CardBus
 Netgear WAG511	AR5212	CardBus
+Netgear WG311	AR5212	CardBus
+Nortel 2201	AR5212	CardBus
+Orinoco 8480	AR5212	CardBus
 Proxim Skyline 4030	AR5210	CardBus
 .El
 .Sh EXAMPLES
@@ -279,17 +283,6 @@ for information on different regulatory domains.
 Different regulatory domains may not be able to communicate with each
 other with 802.11a as different regualtory domains do not necessarily
 have overlapping channels.
-.Pp
-802.11g support is little tested and may have interoperability problems.
-The software is known to function with an Atheros 11g access point but
-interoperability may be problematic until vendors update firmware in
-existing 11g products.
-If you encounter problems using an 11g access point you should be able
-to workaround incompatibilities by locking the driver to 11b mode.
-Alternatively, most 11g compatibility issues are in the 802.11 layer
-and you may be able to work around issues by modifying the
-.Xr wlan 4
-module.
 .Sh BUGS
 .Pp
 Performance in lossy environments is suboptimal.
