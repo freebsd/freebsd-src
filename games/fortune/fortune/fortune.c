@@ -282,7 +282,7 @@ fortlen()
 	char		line[BUFSIZ];
 
 	if (!(Fortfile->tbl.str_flags & (STR_RANDOM | STR_ORDERED)))
-		nchar = (Seekpts[1] - Seekpts[0] <= SLEN);
+		nchar = (int)(Seekpts[1] - Seekpts[0]);
 	else {
 		open_fp(Fortfile);
 		(void) fseek(Fortfile->inf, Seekpts[0], 0);
