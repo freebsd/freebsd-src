@@ -26,46 +26,52 @@ CPUTYPE = k7
 # after /etc/make.conf so it can react to the local value of CPUTYPE
 # defined therein.
 
-.if !defined(NO_CPU_CFLAGS)
+.if !defined(NO_CPU_CFLAGS) || !defined(NO_CPU_COPTFLAGS)
 . if ${MACHINE_ARCH} == "i386"
 .  if ${CPUTYPE} == "k7"
-CFLAGS += -march=k6	# gcc doesn't support athlon yet, but it will
+_CPUCFLAGS = -march=k6	# gcc doesn't support athlon yet, but it will
 .  elif ${CPUTYPE} == "k6-2"
-CFLAGS += -march=k6
+_CPUCFLAGS = -march=k6
 .  elif ${CPUTYPE} == "k6"
-CFLAGS += -march=k6
+_CPUCFLAGS = -march=k6
 .  elif ${CPUTYPE} == "k5"
-CFLAGS += -march=pentium
+_CPUCFLAGS = -march=pentium
 .  elif ${CPUTYPE} == "p4"
-CFLAGS += -march=pentiumpro
+_CPUCFLAGS = -march=pentiumpro
 .  elif ${CPUTYPE} == "p3"
-CFLAGS += -march=pentiumpro
+_CPUCFLAGS = -march=pentiumpro
 .  elif ${CPUTYPE} == "p2"
-CFLAGS += -march=pentiumpro
+_CPUCFLAGS = -march=pentiumpro
 .  elif ${CPUTYPE} == "i686"
-CFLAGS += -march=pentiumpro
+_CPUCFLAGS = -march=pentiumpro
 .  elif ${CPUTYPE} == "i586/mmx"
-CFLAGS += -march=pentium
+_CPUCFLAGS = -march=pentium
 .  elif ${CPUTYPE} == "i586"
-CFLAGS += -march=pentium
+_CPUCFLAGS = -march=pentium
 .  elif ${CPUTYPE} == "i486"
-CFLAGS += -m486
+_CPUCFLAGS = -m486
 .  endif
 . elif ${MACHINE_ARCH} == "alpha"
 .  if ${CPUTYPE} == "ev6"
-CFLAGS += -mcpu=ev6
+_CPUCFLAGS = -mcpu=ev6
 .  elif ${CPUTYPE} == "pca56"
-CFLAGS += -mcpu=pca56
+_CPUCFLAGS = -mcpu=pca56
 .  elif ${CPUTYPE} == "ev56"
-CFLAGS += -mcpu=ev56
+_CPUCFLAGS = -mcpu=ev56
 .  elif ${CPUTYPE} == "ev5"
-CFLAGS += -mcpu=ev5
+_CPUCFLAGS = -mcpu=ev5
 .  elif ${CPUTYPE} == "ev45"
-CFLAGS += -mcpu=ev4		# No -mcpu=ev45 for gcc
+_CPUCFLAGS = -mcpu=ev4		# No -mcpu=ev45 for gcc
 .  elif ${CPUTYPE} == "ev4"
-CFLAGS += -mcpu=ev4
+_CPUCFLAGS = -mcpu=ev4
 .  endif
 . endif
+.endif
+
+# NB: COPTFLAGS is handled in /usr/src/sys/conf/Makefile.<arch>
+
+.if !defined(NO_CPU_CFLAGS)
+CFLAGS += ${_CPUCFLAGS}
 .endif
 
 # Set up the list of CPU features based on the CPU type.  This is an
