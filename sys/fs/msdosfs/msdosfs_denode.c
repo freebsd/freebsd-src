@@ -371,7 +371,6 @@ deget(pmp, dirclust, diroffset, depp)
 		}
 	} else
 		nvp->v_type = VREG;
-	
 	ldep->de_modrev = init_va_filerev();
 	ldep->de_devvp = pmp->pm_devvp;
 	VREF(ldep->de_devvp);
