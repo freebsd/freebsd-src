@@ -214,6 +214,13 @@ main(argc, argv)
 			}
 #endif /* WHEELSU */
 		}
+		if (pwd->pw_expire && time(NULL) >= pwd->pw_expire) {
+			fprintf(stderr, "Sorry - account expired\n");
+			syslog(LOG_AUTH|LOG_WARNING,
+				"BAD SU %s to %s%s", username,
+				user, ontty());
+			exit(1);
+		}
 	    }
 	}
 
