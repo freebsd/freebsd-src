@@ -72,6 +72,7 @@ union_mount(mp, td)
 	struct vnode *lowerrootvp = NULLVP;
 	struct vnode *upperrootvp = NULLVP;
 	struct union_mount *um = 0;
+	struct vattr va;
 	struct ucred *cred = 0;
 	char *cp = 0, *target;
 	int op;
@@ -190,6 +191,12 @@ union_mount(mp, td)
 				M_UNIONFSMNT, M_WAITOK | M_ZERO);
 
 	um->um_op = op;
+
+	error = VOP_GETATTR(upperrootvp, &va, td->td_ucred, td);
+	if (error)
+		goto bad;
+
+	um->um_upperdev = va.va_fsid;
 
 	switch (um->um_op) {
 	case UNMNT_ABOVE:
