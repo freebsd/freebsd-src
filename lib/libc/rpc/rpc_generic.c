@@ -206,7 +206,7 @@ getnettype(nettype)
 {
 	int i;
 
-	if ((nettype == NULL) || (nettype[0] == NULL)) {
+	if ((nettype == NULL) || (nettype[0] == 0)) {
 		return (_RPC_NETPATH);	/* Default */
 	}
 
@@ -294,7 +294,7 @@ __rpc_getconfip(nettype)
 	else {
 		return (NULL);
 	}
-	if ((netid == NULL) || (netid[0] == NULL)) {
+	if ((netid == NULL) || (netid[0] == 0)) {
 		return (NULL);
 	}
 	dummy = getnetconfigent(netid);
