@@ -159,6 +159,7 @@ extern struct	pr_usrreqs rip_usrreqs;
 
 int	 ip_ctloutput(struct socket *, struct sockopt *sopt);
 void	 ip_drain(void);
+void	 ip_fini(void *xtp);
 int	 ip_fragment(struct ip *ip, struct mbuf **m_frag, int mtu,
 	    u_long if_hwassist_flags, int sw_csum);
 void	 ip_freemoptions(struct ip_moptions *);
