@@ -162,13 +162,11 @@ deget(pmp, dirclust, diroffset, depp)
 
 	error = vfs_hash_insert(nvp, hash, 0, curthread, &xvp);
 	if (error) {
-		vput(nvp);
 		*depp = NULL;
 		return (error);
 	}
 	if (xvp != NULL) {
 		/* XXX: Not sure this is right */
-		vput(nvp);
 		nvp = xvp;
 		ldep->de_vnode = nvp;
 	}

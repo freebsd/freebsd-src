@@ -117,10 +117,10 @@ vfs_hash_insert(struct vnode *vp, u_int hash, int flags, struct thread *td, stru
 			error = vget(vp2, flags | LK_INTERLOCK, td);
 			if (error == ENOENT)
 				break;
-			if (error)
-				return (error);
-			*vpp = vp2;
-			return (0);
+			vput(vp);
+			if (!error)
+				*vpp = vp2;
+			return (error);
 		}
 		if (vp2 == NULL)
 			break;
