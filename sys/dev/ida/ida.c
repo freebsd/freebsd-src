@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bio.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
+#include <sys/endian.h>
 
 #include <machine/bus_memio.h>
 #include <machine/bus_pio.h>
@@ -307,12 +308,12 @@ ida_setup_dmamap(void *arg, bus_dma_segment_t *segs, int nsegments, int error)
 	struct ida_hardware_qcb *hwqcb = (struct ida_hardware_qcb *)arg;
 	int i;
 
-	hwqcb->hdr.size = (sizeof(struct ida_req) + 
-	    sizeof(struct ida_sgb) * IDA_NSEG) >> 2;
+	hwqcb->hdr.size = htole16((sizeof(struct ida_req) + 
+	    sizeof(struct ida_sgb) * IDA_NSEG) >> 2);
 
 	for (i = 0; i < nsegments; i++) {
-		hwqcb->seg[i].addr = segs[i].ds_addr;
-		hwqcb->seg[i].length = segs[i].ds_len;
+		hwqcb->seg[i].addr = htole32(segs[i].ds_addr);
+		hwqcb->seg[i].length = htole32(segs[i].ds_len);
 	}
 	hwqcb->req.sgcount = nsegments;
 }
@@ -345,8 +346,8 @@ ida_command(struct ida_softc *ida, int command, void *data, int datasize,
 	bus_dmamap_sync(ida->buffer_dmat, qcb->dmamap, op);
 
 	hwqcb->hdr.drive = drive;
-	hwqcb->req.blkno = pblkno;
-	hwqcb->req.bcount = howmany(datasize, DEV_BSIZE);
+	hwqcb->req.blkno = htole32(pblkno);
+	hwqcb->req.bcount = htole16(howmany(datasize, DEV_BSIZE));
 	hwqcb->req.command = command;
 
 	qcb->flags = flags | IDA_COMMAND;
