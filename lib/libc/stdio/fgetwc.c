@@ -104,5 +104,6 @@ __fgetwc_nbf(FILE *fp)
 	while (n-- != 0)
 		__ungetc((unsigned char)buf[n], fp);
 	errno = EILSEQ;
+	fp->_flags |= __SERR;
 	return (WEOF);
 }
