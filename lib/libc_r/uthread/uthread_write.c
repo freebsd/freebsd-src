@@ -138,6 +138,8 @@ _write(int fd, const void *buf, size_t nbytes)
 					ret = num;
 				else
 					ret = n;
+				if (n == 0)
+					break;
 
 			/* Check if the write has completed: */
 			} else if (num >= nbytes)
