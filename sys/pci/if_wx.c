@@ -1,6 +1,7 @@
 /* $FreeBSD$ */
 /*
- * Copyright (c) 1999, Traakan Software
+ * Principal Author: Matthew Jacob
+ * Copyright (c) 1999, 2001 by Traakan Software
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,10 +26,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * Additional Copyright (c) 2001 by Parag Patel
+ * under same licence for MII PHY code.
  */
 
 /*
- * Intel Gigabit Ethernet (82452) Driver.
+ * Intel Gigabit Ethernet (82452/82453) Driver.
  * Inspired by fxp driver by David Greenman for FreeBSD, and by
  * Bill Paul's work in other FreeBSD network drivers.
  */
@@ -71,39 +74,48 @@
  * Function Prototpes, yadda yadda...
  */
 
-static int wx_intr		__P((void *));
-static void wx_handle_link_intr	__P((wx_softc_t *));
-static void wx_check_link	__P((wx_softc_t *));
-static void wx_handle_rxint	__P((wx_softc_t *));
-static void wx_gc		__P((wx_softc_t *));
-static void wx_start		__P((struct ifnet *));
-static int wx_ioctl		__P((struct ifnet *, IOCTL_CMD_TYPE, caddr_t));
-static int wx_ifmedia_upd	__P((struct ifnet *));
-static void wx_ifmedia_sts	__P((struct ifnet *, struct ifmediareq *));
-static int wx_init		__P((void *));
-static void wx_hw_stop		__P((wx_softc_t *));
-static void wx_set_addr		__P((wx_softc_t *, int, u_int8_t *));
-static int wx_hw_initialize	__P((wx_softc_t *));
-static void wx_stop		__P((wx_softc_t *));
-static void wx_txwatchdog	__P((struct ifnet *));
-static int wx_get_rbuf		__P((wx_softc_t *, rxpkt_t *));
-static void wx_rxdma_map	__P((wx_softc_t *, rxpkt_t *, struct mbuf *));
+static int wx_intr(void *);
+static void wx_handle_link_intr(wx_softc_t *);
+static void wx_check_link(wx_softc_t *);
+static void wx_handle_rxint(wx_softc_t *);
+static void wx_gc(wx_softc_t *);
+static void wx_start(struct ifnet *);
+static int wx_ioctl(struct ifnet *, IOCTL_CMD_TYPE, caddr_t);
+static int wx_ifmedia_upd(struct ifnet *);
+static void wx_ifmedia_sts(struct ifnet *, struct ifmediareq *);
+static int wx_init(void *);
+static void wx_hw_stop(wx_softc_t *);
+static void wx_set_addr(wx_softc_t *, int, u_int8_t *);
+static int wx_hw_initialize(wx_softc_t *);
+static void wx_stop(wx_softc_t *);
+static void wx_txwatchdog(struct ifnet *);
+static int wx_get_rbuf(wx_softc_t *, rxpkt_t *);
+static void wx_rxdma_map(wx_softc_t *, rxpkt_t *, struct mbuf *);
 
-static INLINE void wx_eeprom_raise_clk __P((wx_softc_t *, u_int32_t));
-static INLINE void wx_eeprom_lower_clk __P((wx_softc_t *, u_int32_t));
-static INLINE void wx_eeprom_sobits __P((wx_softc_t *, u_int16_t, u_int16_t));
-static INLINE u_int16_t wx_eeprom_sibits __P((wx_softc_t *));
-static INLINE void wx_eeprom_cleanup __P((wx_softc_t *));
-static INLINE u_int16_t wx_read_eeprom_word __P((wx_softc_t *, int));
-static void wx_read_eeprom __P((wx_softc_t *, u_int16_t *, int, int));
+static INLINE void wx_eeprom_raise_clk(wx_softc_t *, u_int32_t);
+static INLINE void wx_eeprom_lower_clk(wx_softc_t *, u_int32_t);
+static INLINE void wx_eeprom_sobits(wx_softc_t *, u_int16_t, u_int16_t);
+static INLINE u_int16_t wx_eeprom_sibits(wx_softc_t *);
+static INLINE void wx_eeprom_cleanup(wx_softc_t *);
+static INLINE u_int16_t wx_read_eeprom_word(wx_softc_t *, int);
+static void wx_read_eeprom(wx_softc_t *, u_int16_t *, int, int);
 
-static int wx_attach_common	__P((wx_softc_t *));
-static void wx_watchdog		__P((void *));
+static int wx_attach_common(wx_softc_t *);
+static void wx_watchdog(void *);
 
-static INLINE void wx_mwi_whackon	__P((wx_softc_t *));
-static INLINE void wx_mwi_unwhack	__P((wx_softc_t *));
-static int wx_dring_setup	__P((wx_softc_t *));
-static void wx_dring_teardown	__P((wx_softc_t *));
+static INLINE void wx_mwi_whackon(wx_softc_t *);
+static INLINE void wx_mwi_unwhack(wx_softc_t *);
+static int wx_dring_setup(wx_softc_t *);
+static void wx_dring_teardown(wx_softc_t *);
+
+static int wx_attach_phy(wx_softc_t *);
+static int wx_miibus_readreg(void *, int, int);
+static int wx_miibus_writereg(void *, int, int, int);
+static void wx_miibus_statchg(void *);
+static void wx_miibus_mediainit(void *);
+
+static u_int32_t wx_mii_shift_in(wx_softc_t *);
+static void wx_mii_shift_out(wx_softc_t *, u_int32_t, u_int32_t);
 
 #define	WX_DISABLE_INT(sc)	WRITE_CSR(sc, WXREG_IMCLR, WXDISABLE)
 #define	WX_ENABLE_INT(sc)	WRITE_CSR(sc, WXREG_IMASK, sc->wx_ienable)
@@ -115,6 +127,16 @@ static void wx_dring_teardown	__P((wx_softc_t *));
 #define	WX_MAXMTU	ETHERMTU
 #endif
 
+#define	DPRINTF(sc, x)	if (sc->wx_debug) printf x
+#define	IPRINTF(sc, x)	if (sc->wx_verbose) printf x
+
+static const char ldn[] = "%s: link down\n";
+static const char lup[] = "%s: link up\n";
+static const char sqe[] = "%s: receive sequence error\n";
+static const char ane[] = "%s: /C/ ordered sets seen- enabling ANE\n";
+static const char inane[] = "%s: no /C/ ordered sets seen- disabling ANE\n";
+
+
 #if defined(__NetBSD__) || defined(__OpenBSD__)
 #if defined(__BROKEN_INDIRECT_CONFIG) || defined(__OpenBSD__)
 #define	MATCHARG	void *
@@ -122,11 +144,11 @@ static void wx_dring_teardown	__P((wx_softc_t *));
 #define	MATCHARG	struct cfdata *
 #endif
 
-static int	wx_match	__P((struct device *, MATCHARG, void *));
-static void	wx_attach	__P((struct device *, struct device *, void *));
-static void	wx_shutdown	__P((void *));
-static int	wx_ether_ioctl	__P((struct ifnet *, IOCTL_CMD_TYPE, caddr_t));
-static int	wx_mc_setup	__P((wx_softc_t *));
+static int	wx_match(struct device *, MATCHARG, void *);
+static void	wx_attach(struct device *, struct device *, void *);
+static void	wx_shutdown(void *);
+static int	wx_ether_ioctl(struct ifnet *, IOCTL_CMD_TYPE, caddr_t);
+static int	wx_mc_setup(wx_softc_t *);
 #define		ether_ioctl	wx_ether_ioctl
 
 /*
@@ -135,27 +157,20 @@ static int	wx_mc_setup	__P((wx_softc_t *));
  * such that they cannot be used as part of a for loop, for example.
  */
 
-static INLINE u_int32_t _read_csr __P((struct wx_softc *, u_int32_t));
-static INLINE void _write_csr __P((struct wx_softc *, u_int32_t, u_int32_t));
+static INLINE u_int32_t _read_csr (wx_softc_t *, u_int32_t);
+static INLINE void _write_csr(wx_softc_t *, u_int32_t, u_int32_t);
 
-static INLINE u_int32_t _read_csr(sc, reg)
-	struct wx_softc *sc;
-	u_int32_t reg;
+static INLINE u_int32_t
+_read_csr(wx_softc_ *sc, u_int32_t reg)
 {
 	return bus_space_read_4(sc->w.st, sc->w.sh, reg);
 }
 
-static INLINE void _write_csr(sc, reg, val)
-	struct wx_softc *sc;
-	u_int32_t reg;
-	u_int32_t val;
+static INLINE void
+_write_csr(wx_softc_t *sc, u_int32_t reg, u_int32_t val)
 {
 	bus_space_write_4(sc->w.st, sc->w.sh, reg, val);
 }
-
-
-
-static wx_softc_t *wxlist;
 
 struct cfattach wx_ca = {
 	sizeof (wx_softc_t), wx_match, wx_attach
@@ -171,10 +186,7 @@ struct cfdriver wx_cd = {
  * Check if a device is an 82452.
  */
 static int
-wx_match(parent, match, aux)
-	struct device *parent;
-	MATCHARG match;
-	void *aux;
+wx_match(struct device *parent, MATCHARG match, void *aux)
 {
 	struct pci_attach_args *pa = aux;
 	if (PCI_VENDOR(pa->pa_id) != WX_VENDOR_INTEL) {
@@ -184,6 +196,7 @@ wx_match(parent, match, aux)
 	case WX_PRODUCT_82452:
 	case WX_PRODUCT_LIVENGOOD:
 	case WX_PRODUCT_82452_SC:
+	case WX_PRODUCT_82543:
 		break;
 	default:
 		return (0);
@@ -192,11 +205,9 @@ wx_match(parent, match, aux)
 }
 
 static void
-wx_attach(parent, self, aux)
-	struct device *parent, *self;
-	void *aux;
+wx_attach(struct device *parent, struct devuce *self, void *aux)
 {
-	wx_softc_t *tmp, *sc = (wx_softc_t *)self;
+	wx_softc_t *sc = (wx_softc_t *)self;
 	struct pci_attach_args *pa = aux;
 	pci_chipset_tag_t pc = pa->pa_pc;
 	pci_intr_handle_t ih;
@@ -248,6 +259,11 @@ wx_attach(parent, self, aux)
 	data |= (WX_CACHELINE_SIZE << PCI_CACHELINE_SHIFT);
 	pci_conf_write(pa->pa_pc, pa->pa_tag, PCI_BHLC_REG, data);
 
+#if	defined(__NetBSD__)
+	if (bootverbose)
+		sc->wx_verbose = 1;
+#endif
+
 	if (wx_attach_common(sc)) {
 		return;
 	}
@@ -284,15 +300,18 @@ wx_attach(parent, self, aux)
 	 * reboot before the driver initializes.
 	 */
 	shutdownhook_establish(wx_shutdown, sc);
+}
 
-	tmp = wxlist;
-	if (tmp) {
-		while (tmp->wx_next)
-			tmp = tmp->wx_next;
-		tmp->wx_next = sc;
-	} else {
-		wxlist = sc;
+static int
+wx_attach_phy(wx_softc_t *sc)
+{
+	if (mii_phy_probe(dev, &sc->wx_miibus, wx_ifmedia_upd,
+	    wx_ifmedia_sts)) {
+		printf("%s: no PHY probed!\n", sc->wx_name);
+		return (-1);
 	}
+	sc->wx_mii = device_get_softc(sc->w.miibus);
+	return 0;
 }
 
 /*
@@ -301,17 +320,13 @@ wx_attach(parent, self, aux)
  * kernel memory doesn't get clobbered during warmboot.
  */
 static void
-wx_shutdown(sc)
-	void *sc;
+wx_shutdown(void *sc)
 {
 	wx_hw_stop((wx_softc_t *) sc);
 }
 
 static int
-wx_ether_ioctl(ifp, cmd, data)
-	struct ifnet *ifp;
-	IOCTL_CMD_TYPE cmd;
-	caddr_t data;
+wx_ether_ioctl(struct ifnet *ifp, IOCTL_CMD_TYPE cmd, caddr_t data)
 {
 	struct ifaddr *ifa = (struct ifaddr *) data;
 	int error = 0;
@@ -368,8 +383,7 @@ wx_ether_ioctl(ifp, cmd, data)
  * This function must be called at splimp, but it may sleep.
  */
 static int
-wx_mc_setup(sc)
-	wx_softc_t *sc;
+wx_mc_setup(wx_softc_t *sc)
 {
 	struct ifnet *ifp = &sc->wx_if;
 	struct ether_multistep step;
@@ -411,8 +425,7 @@ wx_mc_setup(sc)
 }
 
 static INLINE void
-wx_mwi_whackon(sc)
-	wx_softc_t *sc;
+wx_mwi_whackon(wx_softc_t *sc)
 {
 	sc->wx_cmdw =
 	    pci_conf_read(sc->w.pci_pc, sc->w.pci_tag, PCI_COMMAND_STATUS_REG);
@@ -421,8 +434,7 @@ wx_mwi_whackon(sc)
 }
 
 static INLINE void
-wx_mwi_unwhack(sc)
-	wx_softc_t *sc;
+wx_mwi_unwhack(wx_softc_t *sc)
 {
 	if (sc->wx_cmdw & MWI) {
 		pci_conf_write(sc->w.pci_pc, sc->w.pci_tag,
@@ -431,8 +443,7 @@ wx_mwi_unwhack(sc)
 }
 
 static int
-wx_dring_setup(sc)
-	wx_softc_t *sc;
+wx_dring_setup(wx_softc_t *sc)
 {
 	size_t len;
 
@@ -449,7 +460,7 @@ wx_dring_setup(sc)
 		return (-1);
 	}
 
-	if (((u_long)sc->rdescriptors) & 0xfff) {
+	if (((intptr_t)sc->rdescriptors) & 0xfff) {
 		printf("%s: rcv descriptors not 4KB aligned\n", sc->wx_name);
 		return (-1);
 	}
@@ -467,7 +478,7 @@ wx_dring_setup(sc)
 		printf("%s: could not allocate xmt descriptors\n", sc->wx_name);
 		return (-1);
 	}
-	if (((u_long)sc->tdescriptors) & 0xfff) {
+	if (((intptr_t)sc->tdescriptors) & 0xfff) {
 		printf("%s: xmt descriptors not 4KB aligned\n", sc->wx_name);
 		return (-1);
 	}
@@ -476,8 +487,7 @@ wx_dring_setup(sc)
 }
 
 static void
-wx_dring_teardown(sc)
-	wx_softc_t *sc;
+wx_dring_teardown(wx_softc_t *sc)
 {
 	if (sc->rdescriptors) {
 		WXFREE(sc->rdescriptors);
@@ -490,15 +500,14 @@ wx_dring_teardown(sc)
 }
 
 #elif	defined(__FreeBSD__)
-static int	wx_mc_setup	__P((wx_softc_t *));
+static int wx_mc_setup(wx_softc_t *);
 /*
  * Program multicast addresses.
  *
  * This function must be called at splimp, but it may sleep.
  */
 static int
-wx_mc_setup(sc)
-	wx_softc_t *sc;
+wx_mc_setup(wx_softc_t *sc)
 {
 	struct ifnet *ifp = &sc->wx_if;
 	struct ifmultiaddr *ifma;
@@ -536,7 +545,6 @@ wx_mc_setup(sc)
 /*
  * Return identification string if this is device is ours.
  */
-static wx_softc_t *wxlist;
 static int
 wx_probe(device_t dev)
 {
@@ -545,12 +553,16 @@ wx_probe(device_t dev)
 	}
 	switch (pci_get_device(dev)) {
 	case WX_PRODUCT_82452:
-		device_set_desc(dev, "Intel GigaBit Ethernet (WISEMAN)");
+		device_set_desc(dev, "Intel PRO/1000 Gigabit (WISEMAN)");
 		break;
 	case WX_PRODUCT_LIVENGOOD:
-		device_set_desc(dev, "Intel GigaBit Ethernet (LIVENGOOD)");
+		device_set_desc(dev, "Intel PRO/1000 (LIVENGOOD)");
+		break;
 	case WX_PRODUCT_82452_SC:
-		device_set_desc(dev, "Intel GigaBit Ethernet (LIVENGOOD_SC)");
+		device_set_desc(dev, "Intel PRO/1000 F Gigabit Ethernet");
+		break;
+	case WX_PRODUCT_82543:
+		device_set_desc(dev, "Intel PRO/1000 T Gigabit Ethernet");
 		break;
 	default:
 		return (ENXIO);
@@ -562,9 +574,9 @@ static int
 wx_attach(device_t dev)
 {
 	int error = 0;
-	wx_softc_t *tmp, *sc = device_get_softc(dev);
+	wx_softc_t *sc = device_get_softc(dev);
 	struct ifnet *ifp;
-	u_long val;
+	u_int32_t val;
 	int rid;
 
 	bzero(sc, sizeof (wx_softc_t));
@@ -572,7 +584,10 @@ wx_attach(device_t dev)
 	callout_handle_init(&sc->w.sch);
 	sc->w.dev = dev;
 
-	if (getenv_int("wx_debug", &rid)) {
+	if (bootverbose)
+		sc->wx_verbose = 1;
+
+	if (getenv_int ("wx_debug", &rid)) {
 		if (rid & (1 << device_get_unit(dev))) {
 			sc->wx_debug = 1;
 		}
@@ -597,7 +612,7 @@ wx_attach(device_t dev)
 	}
 
 #ifdef	SMPNG
-	mtx_init(&sc->wx_mtx, device_get_nameunit(dev), MTX_DEF);
+	mtx_init(&sc->wx_mtx, device_get_nameunit(dev), MTX_DEF | MTX_RECURSE);
 #endif
 
 	WX_LOCK(sc);
@@ -675,17 +690,21 @@ wx_attach(device_t dev)
 	ifp->if_watchdog = wx_txwatchdog;
 	ifp->if_snd.ifq_maxlen = WX_MAX_TDESC - 1;
 	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
-	tmp = wxlist;
-	if (tmp) {
-		while (tmp->wx_next)
-			tmp = tmp->wx_next;
-		tmp->wx_next = sc;
-	} else {
-		wxlist = sc;
-	}
 out:
 	WX_UNLOCK(sc);
 	return (error);
+}
+
+static int
+wx_attach_phy(wx_softc_t *sc)
+{
+	if (mii_phy_probe(sc->w.dev, &sc->w.miibus, wx_ifmedia_upd,
+	    wx_ifmedia_sts)) {
+		printf("%s: no PHY probed!\n", sc->wx_name);
+		return (-1);
+	}
+	sc->wx_mii = device_get_softc(sc->w.miibus);
+	return 0;
 }
 
 static int
@@ -696,6 +715,10 @@ wx_detach(device_t dev)
 	WX_LOCK(sc);
 	ether_ifdetach(&sc->w.arpcom.ac_if, ETHER_BPF_SUPPORTED);
 	wx_stop(sc);
+
+	bus_generic_detach(dev);
+	device_delete_child(dev, sc->w.miibus);
+
 	bus_teardown_intr(dev, sc->w.irq, sc->w.ih);
 	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->w.irq);
 	bus_release_resource(dev, SYS_RES_MEMORY, WX_MMBA, sc->w.mem);
@@ -711,16 +734,14 @@ wx_shutdown(device_t dev)
 }
 
 static INLINE void
-wx_mwi_whackon(sc)
-	wx_softc_t *sc;
+wx_mwi_whackon(wx_softc_t *sc)
 {
 	sc->wx_cmdw = pci_read_config(sc->w.dev, PCIR_COMMAND, 2);
 	pci_write_config(sc->w.dev, PCIR_COMMAND, sc->wx_cmdw & ~MWI, 2);
 }
 
 static INLINE void
-wx_mwi_unwhack(sc)
-	wx_softc_t *sc;
+wx_mwi_unwhack(wx_softc_t *sc)
 {
 	if (sc->wx_cmdw & MWI) {
 		pci_write_config(sc->w.dev, PCIR_COMMAND, sc->wx_cmdw, 2);
@@ -728,8 +749,7 @@ wx_mwi_unwhack(sc)
 }
 
 static int
-wx_dring_setup(sc)
-	wx_softc_t *sc;
+wx_dring_setup(wx_softc_t *sc)
 {
 	size_t len;
 
@@ -740,7 +760,7 @@ wx_dring_setup(sc)
 		printf("%s: could not allocate rcv descriptors\n", sc->wx_name);
 		return (-1);
 	}
-	if (((u_long)sc->rdescriptors) & 0xfff) {
+	if (((intptr_t)sc->rdescriptors) & 0xfff) {
 		contigfree(sc->rdescriptors, len, M_DEVBUF);
 		sc->rdescriptors = NULL;
 		printf("%s: rcv descriptors not 4KB aligned\n", sc->wx_name);
@@ -758,7 +778,7 @@ wx_dring_setup(sc)
 		printf("%s: could not allocate xmt descriptors\n", sc->wx_name);
 		return (-1);
 	}
-	if (((u_long)sc->tdescriptors) & 0xfff) {
+	if (((intptr_t)sc->tdescriptors) & 0xfff) {
 		contigfree(sc->rdescriptors,
 		    sizeof (wxrd_t) * WX_MAX_RDESC, M_DEVBUF);
 		sc->rdescriptors = NULL;
@@ -770,8 +790,7 @@ wx_dring_setup(sc)
 }
 
 static void
-wx_dring_teardown(sc)
-	wx_softc_t *sc;
+wx_dring_teardown(wx_softc_t *sc)
 {
 	if (sc->rdescriptors) {
 		contigfree(sc->rdescriptors,
@@ -791,6 +810,17 @@ static device_method_t wx_methods[] = {
 	DEVMETHOD(device_attach,	wx_attach),
 	DEVMETHOD(device_detach,	wx_detach),
 	DEVMETHOD(device_shutdown,	wx_shutdown),
+
+	/* bus interface */
+	DEVMETHOD(bus_print_child,	bus_generic_print_child),
+	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
+
+	/* MII interface */
+	DEVMETHOD(miibus_readreg,	wx_miibus_readreg),
+	DEVMETHOD(miibus_writereg,	wx_miibus_writereg),
+	DEVMETHOD(miibus_statchg,	wx_miibus_statchg),
+	DEVMETHOD(miibus_mediainit,	wx_miibus_mediainit),
+
 	{ 0, 0 }
 };
 
@@ -799,7 +829,7 @@ static driver_t wx_driver = {
 };
 static devclass_t wx_devclass;
 DRIVER_MODULE(if_wx, pci, wx_driver, wx_devclass, 0, 0);
-
+DRIVER_MODULE(miibus, wx, miibus_driver, miibus_devclass, 0, 0);
 #endif
 
 /*
@@ -807,8 +837,7 @@ DRIVER_MODULE(if_wx, pci, wx_driver, wx_devclass, 0, 0);
  * and our interrupt registered.
  */
 static int
-wx_attach_common(sc)
-	wx_softc_t *sc;
+wx_attach_common(wx_softc_t *sc)
 {
 	size_t len;
 	u_int32_t tmp;
@@ -843,17 +872,52 @@ wx_attach_common(sc)
 	 * Fifth, establish some adapter parameters.
 	 */
 	sc->wx_txint_delay = 128;
-	ifmedia_init(&sc->wx_media, IFM_IMASK, wx_ifmedia_upd, wx_ifmedia_sts);
-	ifmedia_add(&sc->wx_media, IFM_ETHER|IFM_1000_SX, 0, NULL);
-	ifmedia_add(&sc->wx_media, IFM_ETHER|IFM_1000_SX|IFM_FDX, 0, NULL);
-	ifmedia_set(&sc->wx_media, IFM_ETHER|IFM_1000_SX|IFM_FDX);
-	sc->wx_media.ifm_media = sc->wx_media.ifm_cur->ifm_media;
-	ll += 1;
+	sc->wx_dcr = 0;
+
+	if (IS_LIVENGOOD_CU(sc)) {
+
+		/* settings to talk to PHY */
+		sc->wx_dcr |= WXDCR_FRCSPD | WXDCR_FRCDPX | WXDCR_SLU;
+		WRITE_CSR(sc, WXREG_DCR, sc->wx_dcr);
+
+		/*
+		 * Raise the PHY's reset line to make it operational.
+		 */
+		tmp = READ_CSR(sc, WXREG_EXCT);
+		tmp |= WXPHY_RESET_DIR4;
+		WRITE_CSR(sc, WXREG_EXCT, tmp);
+		DELAY(20*1000);
+
+		tmp = READ_CSR(sc, WXREG_EXCT);
+		tmp &= ~WXPHY_RESET4;
+		WRITE_CSR(sc, WXREG_EXCT, tmp);
+		DELAY(20*1000);
+
+		tmp = READ_CSR(sc, WXREG_EXCT);
+		tmp |= WXPHY_RESET4;
+		WRITE_CSR(sc, WXREG_EXCT, tmp);
+		DELAY(20*1000);
+
+		if (wx_attach_phy(sc)) {
+			goto fail;
+		}
+	} else {
+		ifmedia_init(&sc->wx_media, IFM_IMASK,
+		    wx_ifmedia_upd, wx_ifmedia_sts);
+
+		ifmedia_add(&sc->wx_media,
+		    IFM_ETHER|IFM_1000_SX, 0, NULL);
+		ifmedia_add(&sc->wx_media,
+		    IFM_ETHER|IFM_1000_SX|IFM_FDX, 0, NULL);
+		ifmedia_set(&sc->wx_media, IFM_ETHER|IFM_1000_SX|IFM_FDX);
+
+		sc->wx_media.ifm_media = sc->wx_media.ifm_cur->ifm_media;
+	}
 
 	/*
 	 * Sixth, establish a default device control register word.
 	 */
-	sc->wx_dcr = 0;
+	ll += 1;
 	if (sc->wx_cfg1 & WX_EEPROM_CTLR1_FD)
 		sc->wx_dcr |= WXDCR_FD;
 	if (sc->wx_cfg1 & WX_EEPROM_CTLR1_ILOS)
@@ -868,7 +932,6 @@ wx_attach_common(sc)
 		sc->wx_dcr |= WXDCR_ILOS;
 	if (sc->wx_no_flow == 0)
 		sc->wx_dcr |= WXDCR_RFCE | WXDCR_TFCE;
-
 
 	/*
 	 * Seventh, allocate various sw structures...
@@ -916,28 +979,21 @@ fail:
  */
 
 static INLINE void
-wx_eeprom_raise_clk(sc, regval)
-	wx_softc_t     *sc;
-	u_int32_t	regval;
+wx_eeprom_raise_clk(wx_softc_t *sc, u_int32_t regval)
 {
 	WRITE_CSR(sc, WXREG_EECDR, regval | WXEECD_SK);
 	DELAY(50);
 }
 
 static INLINE void
-wx_eeprom_lower_clk(sc, regval)
-	wx_softc_t     *sc;
-	u_int32_t	regval;
+wx_eeprom_lower_clk(wx_softc_t *sc, u_int32_t regval)
 {
 	WRITE_CSR(sc, WXREG_EECDR, regval & ~WXEECD_SK);
 	DELAY(50);
 }
 
 static INLINE void
-wx_eeprom_sobits(sc, data, count)
-	wx_softc_t     *sc;
-	u_int16_t	data;
-	u_int16_t	count;
+wx_eeprom_sobits(wx_softc_t *sc, u_int16_t data, u_int16_t count)
 {
 	u_int32_t regval, mask;
 
@@ -957,10 +1013,8 @@ wx_eeprom_sobits(sc, data, count)
 	WRITE_CSR(sc, WXREG_EECDR, regval & ~WXEECD_DI);
 }
 
-
 static INLINE u_int16_t
-wx_eeprom_sibits(sc)
-	wx_softc_t     *sc;
+wx_eeprom_sibits(wx_softc_t *sc)
 {
 	unsigned int regval, i;
 	u_int16_t data;
@@ -979,11 +1033,8 @@ wx_eeprom_sibits(sc)
 	return (data);
 }
 
-
-
 static INLINE void
-wx_eeprom_cleanup(sc)
-	wx_softc_t     *sc;
+wx_eeprom_cleanup(wx_softc_t *sc)
 {
 	u_int32_t regval;
 	regval = READ_CSR(sc, WXREG_EECDR) & ~(WXEECD_DI|WXEECD_CS);
@@ -993,9 +1044,7 @@ wx_eeprom_cleanup(sc)
 }
 
 static u_int16_t INLINE 
-wx_read_eeprom_word(sc, offset)
-	wx_softc_t     *sc;
-	int             offset;
+wx_read_eeprom_word(wx_softc_t *sc, int offset)
 {
 	u_int16_t       data;
 	WRITE_CSR(sc, WXREG_EECDR, WXEECD_CS);
@@ -1007,11 +1056,7 @@ wx_read_eeprom_word(sc, offset)
 }
 
 static void
-wx_read_eeprom(sc, data, offset, words)
-	wx_softc_t *sc;
-	u_int16_t *data;
-	int offset;
-	int words;
+wx_read_eeprom(wx_softc_t *sc, u_int16_t *data, int offset, int words)
 {
 	int i;
 	for (i = 0; i < words; i++) {
@@ -1025,13 +1070,13 @@ wx_read_eeprom(sc, data, offset, words)
  */
 
 static void
-wx_start(ifp)
-	struct ifnet *ifp;
+wx_start(struct ifnet *ifp)
 {
 	wx_softc_t *sc = SOFTC_IFP(ifp);
 	u_int16_t cidx, nactv;
 
 	WX_LOCK(sc);
+	DPRINTF(sc, ("%s: wx_start\n", sc->wx_name));
 	nactv = sc->tactive;
 	while (nactv < WX_MAX_TDESC) {
 		int ndesc;
@@ -1062,7 +1107,7 @@ wx_start(ifp)
 			m_freem(mb_head);
 			mb_head = m;
 		}
-again:
+	again:
 		cidx = sc->tnxtfree;
 		nactv = sc->tactive;
 
@@ -1153,7 +1198,11 @@ again:
 			sc->tnxtfree = cidx;
 			sc->tactive = nactv;
 			ifp->if_timer = 10;
-			WRITE_CSR(sc, WXREG_TDT, cidx);
+			if (IS_WISEMAN(sc)) {
+				WRITE_CSR(sc, WXREG_TDT, cidx);
+			} else {
+				WRITE_CSR(sc, WXREG_TDT_LIVENGOOD, cidx);
+			}
 			if (ifp->if_bpf)
 				bpf_mtap(WX_BPFTAP_ARG(ifp), mb_head);
 			continue;
@@ -1209,6 +1258,12 @@ again:
 		sc->wx_xmitblocked++;
 		ifp->if_flags |= IFF_OACTIVE;
 	}
+
+	/* used SW LED to indicate transmission active */
+	if (sc->tactive > 0 && sc->wx_mii) {
+		WRITE_CSR(sc, WXREG_DCR,
+		    READ_CSR(sc, WXREG_DCR) | (WXDCR_SWDPIO0|WXDCR_SWDPIN0));
+	}
 	WX_UNLOCK(sc);
 }
 
@@ -1216,8 +1271,7 @@ again:
  * Process interface interrupts.
  */
 static int
-wx_intr(arg)
-	void *arg;
+wx_intr(void *arg)
 {
 	wx_softc_t *sc = arg;
 	int claimed = 0;
@@ -1231,7 +1285,7 @@ wx_intr(arg)
 		claimed++;
 		WX_DISABLE_INT(sc);
 		sc->wx_intr++;
-		if (sc->wx_icr & (WXISR_LSC|WXISR_RXSEQ)) {
+		if (sc->wx_icr & (WXISR_LSC|WXISR_RXSEQ|WXISR_GPI_EN1)) {
 			wx_handle_link_intr(sc);
 		}
 		wx_handle_rxint(sc);
@@ -1248,14 +1302,33 @@ wx_intr(arg)
 }
 
 static void
-wx_handle_link_intr(sc)
-	wx_softc_t *sc;
+wx_handle_link_intr(wx_softc_t *sc)
 {
 	u_int32_t txcw, rxcw, dcr, dsr;
 
 	sc->wx_linkintr++;
 
 	dcr = READ_CSR(sc, WXREG_DCR);
+	DPRINTF(sc, ("%s: handle_link_intr: icr=%#x dcr=%#x\n",
+	    sc->wx_name, sc->wx_icr, dcr));
+	if (sc->wx_mii) {
+		mii_pollstat(sc->wx_mii);
+		if (sc->wx_mii->mii_media_status & IFM_ACTIVE) {
+			if (IFM_SUBTYPE(sc->wx_mii->mii_media_active) ==
+			    IFM_NONE) {
+				IPRINTF(sc, (ldn, sc->wx_name));
+				sc->linkup = 0;
+			} else {
+				IPRINTF(sc, (lup, sc->wx_name));
+				sc->linkup = 1;
+			}
+			WRITE_CSR(sc, WXREG_DCR, sc->wx_dcr);
+		} else if (sc->wx_icr & WXISR_RXSEQ) {
+			DPRINTF(sc, (sqe, sc->wx_name));
+		}
+		return;
+	}
+
 	txcw = READ_CSR(sc, WXREG_XMIT_CFGW);
 	rxcw = READ_CSR(sc, WXREG_RECV_CFGW);
 	dsr = READ_CSR(sc, WXREG_DSR);
@@ -1267,10 +1340,7 @@ wx_handle_link_intr(sc)
 
 	if (((dcr & WXDCR_SWDPIN1) || (rxcw & WXRXCW_C)) &&
 	    ((txcw & WXTXCW_ANE) == 0)) {
-		if (sc->wx_debug) {
-			printf("%s: /C/ ordered sets seen- enabling ANE\n",
-			    sc->wx_name);
-		}
+		DPRINTF(sc, (ane, sc->wx_name));
 		WRITE_CSR(sc, WXREG_XMIT_CFGW, WXTXCW_DEFAULT);
 		sc->wx_dcr &= ~WXDCR_SLU;
 		WRITE_CSR(sc, WXREG_DCR, sc->wx_dcr);
@@ -1279,27 +1349,29 @@ wx_handle_link_intr(sc)
 
 	if (sc->wx_icr & WXISR_LSC) {
 		if (READ_CSR(sc, WXREG_DSR) & WXDSR_LU) {
-			if (sc->wx_debug)
-				printf("%s: gigabit link up\n", sc->wx_name);
+			IPRINTF(sc, (lup, sc->wx_name));
 			sc->linkup = 1;
 			sc->wx_dcr |= (WXDCR_SWDPIO0|WXDCR_SWDPIN0);
 		} else {
-			if (sc->wx_debug)
-				printf("%s: gigabit link down\n", sc->wx_name);
+			IPRINTF(sc, (ldn, sc->wx_name));
 			sc->linkup = 0;
 			sc->wx_dcr &= ~(WXDCR_SWDPIO0|WXDCR_SWDPIN0);
 		}
 		WRITE_CSR(sc, WXREG_DCR, sc->wx_dcr);
 	} else {
-		printf("%s: receive sequence error\n", sc->wx_name);
+		DPRINTF(sc, (sqe, sc->wx_name));
 	}
 }
 
 static void
-wx_check_link(sc)
-	wx_softc_t *sc;
+wx_check_link(wx_softc_t *sc)
 {
 	u_int32_t rxcw, dcr, dsr;
+
+	if (sc->wx_mii) {
+		mii_pollstat(sc->wx_mii);
+		return;
+	}
 
 	rxcw = READ_CSR(sc, WXREG_RECV_CFGW);
 	dcr = READ_CSR(sc, WXREG_DCR);
@@ -1311,20 +1383,14 @@ wx_check_link(sc)
 			sc->ane_failed = 1;
 			return;
 		}
-		if (sc->wx_debug) {
-			printf("%s: no /C/ ordered sets seen- disabling ANE\n",
-			    sc->wx_name);
-		}
+		DPRINTF(sc, (inane, sc->wx_name));
 		WRITE_CSR(sc, WXREG_XMIT_CFGW, WXTXCW_DEFAULT & ~WXTXCW_ANE);
 		if (sc->wx_idnrev < WX_WISEMAN_2_1)
 			sc->wx_dcr &= ~WXDCR_TFCE;
 		sc->wx_dcr |= WXDCR_SLU;
      		WRITE_CSR(sc, WXREG_DCR, sc->wx_dcr);
 	} else if ((rxcw & WXRXCW_C) != 0 && (dcr & WXDCR_SLU) != 0) {
-		if (sc->wx_debug) {
-			printf("%s: /C/ ordered sets seen- enabling ANE\n",
-			    sc->wx_name);
-		}
+		DPRINTF(sc, (ane, sc->wx_name));
 		WRITE_CSR(sc, WXREG_XMIT_CFGW, WXTXCW_DEFAULT);
 		sc->wx_dcr &= ~WXDCR_SLU;
 		WRITE_CSR(sc, WXREG_DCR, sc->wx_dcr);
@@ -1332,13 +1398,14 @@ wx_check_link(sc)
 }
 
 static void
-wx_handle_rxint(sc)
-	wx_softc_t *sc;
+wx_handle_rxint(wx_softc_t *sc)
 {
 	struct ether_header *eh;
 	struct mbuf *m0, *mb, *pending[WX_MAX_RDESC];
 	struct ifnet *ifp = &sc->wx_if;
 	int npkts, ndesc, lidx, idx, tlen;
+
+	DPRINTF(sc, ("%s: wx_handle_rxint\n", sc->wx_name));
 
 	for (m0 = sc->rpending, tlen = ndesc = npkts = 0, idx = sc->rnxt,
 	    lidx = R_PREV_IDX(idx); ndesc < WX_MAX_RDESC;
@@ -1358,10 +1425,8 @@ wx_handle_rxint(sc)
 				}
 				m0 = NULL;
 			}
-			if (sc->wx_debug) {
-				printf("WXRX: ndesc %d idx %d lidx %d\n",
-				    ndesc, idx, lidx);
-			}
+			DPRINTF(sc, ("%s: WXRX: ndesc %d idx %d lidx %d\n",
+			    sc->wx_name, ndesc, idx, lidx));
 			break;
 		}
 
@@ -1457,10 +1522,8 @@ wx_handle_rxint(sc)
 			tlen += length;
 		}
 
-		if (sc->wx_debug) {
-			printf("%s: RDESC[%d] len %d off %d lastframe %d\n",
-			    sc->wx_name, idx, mb->m_len, offset, lastframe);
-		}
+		DPRINTF(sc, ("%s: RDESC[%d] len %d off %d lastframe %d\n",
+		    sc->wx_name, idx, mb->m_len, offset, lastframe));
 		if (m0 != mb)
 			m_cat(m0, mb);
 		if (lastframe == 0) {
@@ -1482,7 +1545,11 @@ wx_handle_rxint(sc)
 	}
 
 	if (ndesc) {
-		WRITE_CSR(sc, WXREG_RDT0, lidx);
+		if (IS_WISEMAN(sc)) {
+			WRITE_CSR(sc, WXREG_RDT0, lidx);
+		} else {
+			WRITE_CSR(sc, WXREG_RDT0_LIVENGOOD, lidx);
+		}
 		sc->rnxt = idx;
 	}
 
@@ -1492,14 +1559,14 @@ wx_handle_rxint(sc)
 
 	for (idx = 0; idx < npkts; idx++) {
 		mb = pending[idx];
+#if	NBPFILTER > 0
                 if (ifp->if_bpf) {
                         bpf_mtap(WX_BPFTAP_ARG(ifp), mb);
 		}
-                ifp->if_ipackets++;
-		if (sc->wx_debug) {
-			printf("%s: RECV packet length %d\n",
-			    sc->wx_name, mb->m_pkthdr.len);
-		}
+#endif
+		ifp->if_ipackets++;
+		DPRINTF(sc, ("%s: RECV packet length %d\n",
+		    sc->wx_name, mb->m_pkthdr.len));
 #if defined(__FreeBSD__) || defined(__OpenBSD__)
 		eh = mtod(mb, struct ether_header *);
 		m_adj(mb, sizeof (struct ether_header));
@@ -1511,8 +1578,7 @@ wx_handle_rxint(sc)
 }
 
 static void
-wx_gc(sc)
-	wx_softc_t *sc;
+wx_gc(wx_softc_t *sc)
 {
 	struct ifnet *ifp = &sc->wx_if;
 	txpkt_t *txpkt;
@@ -1520,7 +1586,11 @@ wx_gc(sc)
 
 	WX_LOCK(sc);
 	txpkt = sc->tbsyf;
-	tdh = READ_CSR(sc, WXREG_TDH);
+	if (IS_WISEMAN(sc)) {
+		tdh = READ_CSR(sc, WXREG_TDH);
+	} else {
+		tdh = READ_CSR(sc, WXREG_TDH_LIVENGOOD);
+	}
 	while (txpkt != NULL) {
 		u_int32_t end = txpkt->eidx, cidx = tdh;
 
@@ -1548,10 +1618,8 @@ wx_gc(sc)
 		 */
 
 		if (txpkt->sidx <= cidx && cidx < txpkt->eidx) {
-			if (sc->wx_debug) {
-				printf("%s: TXGC %d..%d TDH %d\n", sc->wx_name,
-				    txpkt->sidx, txpkt->eidx, tdh);
-			}
+			DPRINTF(sc, ("%s: TXGC %d..%d TDH %d\n", sc->wx_name,
+			    txpkt->sidx, txpkt->eidx, tdh));
 			break;
 		}
 		ifp->if_opackets++;
@@ -1569,24 +1637,20 @@ wx_gc(sc)
 
 			td = &sc->tdescriptors[cidx];
 			if (td->status & TXSTS_EC) {
-				if (sc->wx_debug)
-					printf("%s: excess collisions\n",
-					    sc->wx_name);
+				IPRINTF(sc, ("%s: excess collisions\n",
+				    sc->wx_name));
 				ifp->if_collisions++;
 				ifp->if_oerrors++;
 			}
 			if (td->status & TXSTS_LC) {
-				if (sc->wx_debug)
-					printf("%s: lost carrier\n",
-					    sc->wx_name);
+				IPRINTF(sc,
+				    ("%s: lost carrier\n", sc->wx_name));
 				ifp->if_oerrors++;
 			}
 			tmp = &sc->tbase[cidx];
-			if (sc->wx_debug) {
-				printf("%s: TXGC[%d] %p %d..%d done nact %d "
-				    "TDH %d\n", sc->wx_name, cidx, tmp->dptr,
-				    txpkt->sidx, txpkt->eidx, sc->tactive, tdh);
-			}
+			DPRINTF(sc, ("%s: TXGC[%d] %p %d..%d done nact %d "
+			    "TDH %d\n", sc->wx_name, cidx, tmp->dptr,
+			    txpkt->sidx, txpkt->eidx, sc->tactive, tdh));
 			tmp->dptr = NULL;
 			if (sc->tactive == 0) {
 				printf("%s: nactive < 0?\n", sc->wx_name);
@@ -1602,6 +1666,12 @@ wx_gc(sc)
 		ifp->if_timer = 0;
 		ifp->if_flags &= ~IFF_OACTIVE;
 	}
+
+	/* used SW LED to indicate transmission not active */
+	if (sc->tactive == 0 && sc->wx_mii) {
+		WRITE_CSR(sc, WXREG_DCR,
+		    READ_CSR(sc, WXREG_DCR) & ~(WXDCR_SWDPIO0|WXDCR_SWDPIN0));
+	}
 	WX_UNLOCK(sc);
 }
 
@@ -1611,8 +1681,7 @@ wx_gc(sc)
  * and to handle link status changes.
  */
 static void
-wx_watchdog(arg)
-	void *arg;
+wx_watchdog(void *arg)
 {
 	wx_softc_t *sc = arg;
 
@@ -1631,10 +1700,10 @@ wx_watchdog(arg)
  * Stop and reinitialize the hardware
  */
 static void
-wx_hw_stop(sc)
-	wx_softc_t *sc;
+wx_hw_stop(wx_softc_t *sc)
 {
 	u_int32_t icr;
+	DPRINTF(sc, ("%s: wx_hw_stop\n", sc->wx_name));
 	if (sc->wx_idnrev < WX_WISEMAN_2_1) {
 		wx_mwi_whackon(sc);
 	}
@@ -1649,12 +1718,10 @@ wx_hw_stop(sc)
 }
 
 static void
-wx_set_addr(sc, idx, mac)
-	wx_softc_t *sc;
-	int idx;
-	u_int8_t *mac;
+wx_set_addr(wx_softc_t *sc, int idx, u_int8_t *mac)
 {
 	u_int32_t t0, t1;
+	DPRINTF(sc, ("%s: wx_set_addr\n", sc->wx_name));
 	t0 = (mac[0]) | (mac[1] << 8) | (mac[2] << 16) | (mac[3] << 24);
 	t1 = (mac[4] << 0) | (mac[5] << 8);
 	t1 |= WX_RAL_AV;
@@ -1663,17 +1730,11 @@ wx_set_addr(sc, idx, mac)
 }
 
 static int
-wx_hw_initialize(sc)
-	wx_softc_t *sc;
+wx_hw_initialize(wx_softc_t *sc)
 {
 	int i;
 
-	if (IS_LIVENGOOD(sc)) {
-		if ((READ_CSR(sc, WXREG_DSR) & WXDSR_TBIMODE) == 0) {
-			printf("%s: no fibre mode detected\n", sc->wx_name);
-			return (-1);
-		}
-	}
+	DPRINTF(sc, ("%s: wx_hw_initialize\n", sc->wx_name));
 
 	WRITE_CSR(sc, WXREG_VET, 0);
 	for (i = 0; i < (WX_VLAN_TAB_SIZE << 2); i += 4) {
@@ -1717,15 +1778,33 @@ wx_hw_initialize(sc)
 		WRITE_CSR(sc, WXREG_MTA + (sizeof (u_int32_t) * 4), 0);
 	}
 
-	/*
-	 * Handle link control
-	 */
-	WRITE_CSR(sc, WXREG_DCR, sc->wx_dcr | WXDCR_LRST);
-	DELAY(50 * 1000);
+	if (IS_LIVENGOOD_CU(sc)) {
+		/*
+		 * has a PHY - raise its reset line to make it operational
+		 */
+		u_int32_t tmp = READ_CSR(sc, WXREG_EXCT);
+		tmp |= WXPHY_RESET_DIR4;
+		WRITE_CSR(sc, WXREG_EXCT, tmp);
+		DELAY(20*1000);
 
+		tmp = READ_CSR(sc, WXREG_EXCT);
+		tmp &= ~WXPHY_RESET4;
+		WRITE_CSR(sc, WXREG_EXCT, tmp);
+		DELAY(20*1000);
 
-	if (IS_LIVENGOOD(sc)) {
+		tmp = READ_CSR(sc, WXREG_EXCT);
+		tmp |= WXPHY_RESET4;
+		WRITE_CSR(sc, WXREG_EXCT, tmp);
+		DELAY(20*1000);
+	} else if (IS_LIVENGOOD(sc)) {
 		u_int16_t tew;
+
+		/*
+		 * Handle link control
+		 */
+		WRITE_CSR(sc, WXREG_DCR, sc->wx_dcr | WXDCR_LRST);
+		DELAY(50 * 1000);
+
 		wx_read_eeprom(sc, &tew, WX_EEPROM_CTLR2_OFF, 1);
 		tew = (tew & WX_EEPROM_CTLR2_SWDPIO) << WX_EEPROM_EXT_SHIFT;
 		WRITE_CSR(sc, WXREG_EXCT, (u_int32_t)tew);
@@ -1742,39 +1821,50 @@ wx_hw_initialize(sc)
 	}
 	WRITE_CSR(sc, WXREG_FLOW_XTIMER, WX_XTIMER_DFLT);
 
-	if (sc->wx_idnrev < WX_WISEMAN_2_1) {
-		WRITE_CSR(sc, WXREG_FLOW_RCV_HI, 0);
-		WRITE_CSR(sc, WXREG_FLOW_RCV_LO, 0);
-		sc->wx_dcr &= ~(WXDCR_RFCE|WXDCR_TFCE);
+	if (IS_WISEMAN(sc)) {
+		if (sc->wx_idnrev < WX_WISEMAN_2_1) {
+			WRITE_CSR(sc, WXREG_FLOW_RCV_HI, 0);
+			WRITE_CSR(sc, WXREG_FLOW_RCV_LO, 0);
+			sc->wx_dcr &= ~(WXDCR_RFCE|WXDCR_TFCE);
+		} else {
+			WRITE_CSR(sc, WXREG_FLOW_RCV_HI, WX_RCV_FLOW_HI_DFLT);
+			WRITE_CSR(sc, WXREG_FLOW_RCV_LO, WX_RCV_FLOW_LO_DFLT);
+		}
 	} else {
-		WRITE_CSR(sc, WXREG_FLOW_RCV_HI, WX_RCV_FLOW_HI_DFLT);
-		WRITE_CSR(sc, WXREG_FLOW_RCV_LO, WX_RCV_FLOW_LO_DFLT);
+		WRITE_CSR(sc, WXREG_FLOW_RCV_HI_LIVENGOOD, WX_RCV_FLOW_HI_DFLT);
+		WRITE_CSR(sc, WXREG_FLOW_RCV_LO_LIVENGOOD, WX_RCV_FLOW_LO_DFLT);
 	}
-	WRITE_CSR(sc, WXREG_XMIT_CFGW, WXTXCW_DEFAULT);
+
+	if (!IS_LIVENGOOD_CU(sc))
+		WRITE_CSR(sc, WXREG_XMIT_CFGW, WXTXCW_DEFAULT);
+
 	WRITE_CSR(sc, WXREG_DCR, sc->wx_dcr);
 	DELAY(50 * 1000);
 
-	/*
-	 * The pin stuff is all FM from the Linux driver.
-	 */
-	if ((READ_CSR(sc, WXREG_DCR) & WXDCR_SWDPIN1) == 0) {
-		for (i = 0; i < (WX_LINK_UP_TIMEOUT/10); i++) {
-			DELAY(10 * 1000);
-			if (READ_CSR(sc, WXREG_DSR) & WXDSR_LU) {
-				sc->linkup = 1;
-				break;
+	if (!IS_LIVENGOOD_CU(sc)) {
+		/*
+		 * The pin stuff is all FM from the Linux driver.
+		 */
+		if ((READ_CSR(sc, WXREG_DCR) & WXDCR_SWDPIN1) == 0) {
+			for (i = 0; i < (WX_LINK_UP_TIMEOUT/10); i++) {
+				DELAY(10 * 1000);
+				if (READ_CSR(sc, WXREG_DSR) & WXDSR_LU) {
+					sc->linkup = 1;
+					break;
+				}
 			}
+			if (sc->linkup == 0) {
+				sc->ane_failed = 1;
+				wx_check_link(sc);
+			}
+			sc->ane_failed = 0;
+		} else {
+			printf("%s: SWDPIO1 did not clear- check for reversed "
+				"or disconnected cable\n", sc->wx_name);
+			/* but return okay anyway */
 		}
-		if (sc->linkup == 0) {
-			sc->ane_failed = 1;
-			wx_check_link(sc);
-		}
-		sc->ane_failed = 0;
-	} else {
-		printf("%s: swdpio1 did not clear- check for reversed or "
-		    "disconnected cable\n", sc->wx_name);
-		/* but return okay anyway */
 	}
+
 	sc->wx_ienable = WXIENABLE_DEFAULT;
 	return (0);
 }
@@ -1783,13 +1873,13 @@ wx_hw_initialize(sc)
  * Stop the interface. Cancels the statistics updater and resets the interface.
  */
 static void
-wx_stop(sc)
-	wx_softc_t *sc;
+wx_stop(wx_softc_t *sc)
 {
 	txpkt_t *txp;
 	rxpkt_t *rxp;
 	struct ifnet *ifp = &sc->wx_if;
 
+	DPRINTF(sc, ("%s: wx_stop\n", sc->wx_name));
 	/*
 	 * Cancel stats updater.
 	 */
@@ -1837,8 +1927,7 @@ wx_stop(sc)
  * Transmit Watchdog
  */
 static void
-wx_txwatchdog(ifp)
-	struct ifnet *ifp;
+wx_txwatchdog(struct ifnet *ifp)
 {
 	wx_softc_t *sc = SOFTC_IFP(ifp);
 	printf("%s: device timeout\n", sc->wx_name);
@@ -1850,8 +1939,7 @@ wx_txwatchdog(ifp)
 }
 
 static int
-wx_init(xsc)
-	void *xsc;
+wx_init(void *xsc)
 {
 	struct ifmedia *ifm;
 	wx_softc_t *sc = xsc;
@@ -1861,6 +1949,7 @@ wx_init(xsc)
 	size_t len;
 	int i, bflags;
 
+	DPRINTF(sc, ("%s: wx_init\n", sc->wx_name));
 	WX_LOCK(sc);
 
 	/*
@@ -1875,6 +1964,7 @@ wx_init(xsc)
 	 */
 
 	if (wx_hw_initialize(sc)) {
+		DPRINTF(sc, ("%s: wx_hw_initialize failed\n", sc->wx_name));
 		WX_UNLOCK(sc);
 		return (EIO);
 	}
@@ -1906,20 +1996,30 @@ wx_init(xsc)
 	sc->tbsyf = sc->tbsyl = NULL;
 	WRITE_CSR(sc, WXREG_TCTL, 0);
 	DELAY(5 * 1000);
-	WRITE_CSR(sc, WXREG_TDBA_LO,
-		vtophys((vm_offset_t)&sc->tdescriptors[0]));
-	WRITE_CSR(sc, WXREG_TDBA_HI, 0);
-	WRITE_CSR(sc, WXREG_TDLEN, WX_MAX_TDESC * sizeof (wxtd_t));
-	WRITE_CSR(sc, WXREG_TDH, 0);
-	WRITE_CSR(sc, WXREG_TDT, 0);
-	WRITE_CSR(sc, WXREG_TQSA_HI, 0);
-	WRITE_CSR(sc, WXREG_TQSA_LO, 0);
 	if (IS_WISEMAN(sc)) {
+		WRITE_CSR(sc, WXREG_TDBA_LO,
+			vtophys((vm_offset_t)&sc->tdescriptors[0]));
+		WRITE_CSR(sc, WXREG_TDBA_HI, 0);
+		WRITE_CSR(sc, WXREG_TDLEN, WX_MAX_TDESC * sizeof (wxtd_t));
+		WRITE_CSR(sc, WXREG_TDH, 0);
+		WRITE_CSR(sc, WXREG_TDT, 0);
+		WRITE_CSR(sc, WXREG_TQSA_HI, 0);
+		WRITE_CSR(sc, WXREG_TQSA_LO, 0);
 		WRITE_CSR(sc, WXREG_TIPG, WX_WISEMAN_TIPG_DFLT);
+		WRITE_CSR(sc, WXREG_TIDV, sc->wx_txint_delay);
 	} else {
+		WRITE_CSR(sc, WXREG_TDBA_LO_LIVENGOOD,
+			vtophys((vm_offset_t)&sc->tdescriptors[0]));
+		WRITE_CSR(sc, WXREG_TDBA_HI_LIVENGOOD, 0);
+		WRITE_CSR(sc, WXREG_TDLEN_LIVENGOOD,
+			WX_MAX_TDESC * sizeof (wxtd_t));
+		WRITE_CSR(sc, WXREG_TDH_LIVENGOOD, 0);
+		WRITE_CSR(sc, WXREG_TDT_LIVENGOOD, 0);
+		WRITE_CSR(sc, WXREG_TQSA_HI, 0);
+		WRITE_CSR(sc, WXREG_TQSA_LO, 0);
 		WRITE_CSR(sc, WXREG_TIPG, WX_LIVENGOOD_TIPG_DFLT);
+		WRITE_CSR(sc, WXREG_TIDV_LIVENGOOD, sc->wx_txint_delay);
 	}
-	WRITE_CSR(sc, WXREG_TIDV, sc->wx_txint_delay);
 	WRITE_CSR(sc, WXREG_TCTL, (WXTCTL_CT(WX_COLLISION_THRESHOLD) |
 	    WXTCTL_COLD(WX_FDX_COLLISION_DX) | WXTCTL_EN));
 	/*
@@ -1929,13 +2029,24 @@ wx_init(xsc)
 	sc->rnxt = 0;
 	WRITE_CSR(sc, WXREG_RCTL, 0);
 	DELAY(5 * 1000);
-	WRITE_CSR(sc, WXREG_RDTR0, WXRDTR_FPD);
-	WRITE_CSR(sc, WXREG_RDBA0_LO,
-	    vtophys((vm_offset_t)&sc->rdescriptors[0]));
-	WRITE_CSR(sc, WXREG_RDBA0_HI, 0);
-	WRITE_CSR(sc, WXREG_RDLEN0, WX_MAX_RDESC * sizeof (wxrd_t));
-	WRITE_CSR(sc, WXREG_RDH0, 0);
-	WRITE_CSR(sc, WXREG_RDT0, (WX_MAX_RDESC - RXINCR));
+	if (IS_WISEMAN(sc)) {
+		WRITE_CSR(sc, WXREG_RDTR0, WXRDTR_FPD);
+		WRITE_CSR(sc, WXREG_RDBA0_LO,
+		    vtophys((vm_offset_t)&sc->rdescriptors[0]));
+		WRITE_CSR(sc, WXREG_RDBA0_HI, 0);
+		WRITE_CSR(sc, WXREG_RDLEN0, WX_MAX_RDESC * sizeof (wxrd_t));
+		WRITE_CSR(sc, WXREG_RDH0, 0);
+		WRITE_CSR(sc, WXREG_RDT0, (WX_MAX_RDESC - RXINCR));
+	} else {
+		WRITE_CSR(sc, WXREG_RDTR0_LIVENGOOD, WXRDTR_FPD);
+		WRITE_CSR(sc, WXREG_RDBA0_LO_LIVENGOOD,
+		    vtophys((vm_offset_t)&sc->rdescriptors[0]));
+		WRITE_CSR(sc, WXREG_RDBA0_HI_LIVENGOOD, 0);
+		WRITE_CSR(sc, WXREG_RDLEN0_LIVENGOOD,
+		    WX_MAX_RDESC * sizeof (wxrd_t));
+		WRITE_CSR(sc, WXREG_RDH0_LIVENGOOD, 0);
+		WRITE_CSR(sc, WXREG_RDT0_LIVENGOOD, (WX_MAX_RDESC - RXINCR));
+	}
 	WRITE_CSR(sc, WXREG_RDTR1, 0);
 	WRITE_CSR(sc, WXREG_RDBA1_LO, 0);
 	WRITE_CSR(sc, WXREG_RDBA1_HI, 0);
@@ -1965,11 +2076,16 @@ wx_init(xsc)
 	ifp->if_flags |= IFF_RUNNING;
 	ifp->if_flags &= ~IFF_OACTIVE;
 
-	ifm = &sc->wx_media;
-	i = ifm->ifm_media;
-	ifm->ifm_media = ifm->ifm_cur->ifm_media;
-	wx_ifmedia_upd(ifp);
-	ifm->ifm_media = i;
+	if (sc->wx_mii) {
+		mii_mediachg(sc->wx_mii);
+	} else {
+		ifm = &sc->wx_media;
+		i = ifm->ifm_media;
+		ifm->ifm_media = ifm->ifm_cur->ifm_media;
+		wx_ifmedia_upd(ifp);
+		ifm->ifm_media = i;
+	}
+
 	WX_UNLOCK(sc);
 
 	/*
@@ -1995,19 +2111,14 @@ wx_init(xsc)
  * alignment and we'll catch the alignment on the backend at interrupt time.
  */
 static void
-wx_rxdma_map(sc, rxpkt, mb)
-	wx_softc_t *sc;
-	rxpkt_t *rxpkt;
-	struct mbuf *mb;
+wx_rxdma_map(wx_softc_t *sc, rxpkt_t *rxpkt, struct mbuf *mb)
 {
 	rxpkt->dptr = mb;
 	rxpkt->dma_addr = vtophys(mtod(mb, vm_offset_t));
 }
 
 static int
-wx_get_rbuf(sc, rxpkt)
-	wx_softc_t *sc;
-	rxpkt_t *rxpkt;
+wx_get_rbuf(wx_softc_t *sc, rxpkt_t *rxpkt)
 {
 	struct mbuf *mb;
 	MGETHDR(mb, M_DONTWAIT, MT_DATA);
@@ -2026,10 +2137,7 @@ wx_get_rbuf(sc, rxpkt)
 }
 
 static int
-wx_ioctl(ifp, command, data)
-	struct ifnet *ifp;
-	IOCTL_CMD_TYPE command;
-	caddr_t data;
+wx_ioctl(struct ifnet *ifp, IOCTL_CMD_TYPE command, caddr_t data)
 {
 	wx_softc_t *sc = SOFTC_IFP(ifp);
 	struct ifreq *ifr = (struct ifreq *) data;
@@ -2095,7 +2203,15 @@ wx_ioctl(ifp, command, data)
 #ifdef	SIOCGIFMEDIA
 	case SIOCGIFMEDIA:
 	case SIOCSIFMEDIA:
-		error = ifmedia_ioctl(ifp, ifr, &sc->wx_media, command);
+		DPRINTF(sc, ("%s: ioctl SIOC[GS]IFMEDIA: command=%#lx\n",
+		    sc->wx_name, command));
+		if (sc->wx_mii) {
+			error = ifmedia_ioctl(ifp, ifr,
+			    &sc->wx_mii->mii_media, command);
+		} else {
+			error = ifmedia_ioctl(ifp, ifr, &sc->wx_media, command);
+		}
+
 		break;
 #endif
 	default:
@@ -2107,25 +2223,45 @@ wx_ioctl(ifp, command, data)
 }
 
 static int
-wx_ifmedia_upd(ifp)
-	struct ifnet *ifp;
+wx_ifmedia_upd(struct ifnet *ifp)
 {
 	struct wx_softc *sc = SOFTC_IFP(ifp);
-	struct ifmedia *ifm = &sc->wx_media;
+	struct ifmedia *ifm;
 
-	if (IFM_TYPE(ifm->ifm_media) != IFM_ETHER)
+	DPRINTF(sc, ("%s: ifmedia_upd\n", sc->wx_name));
+
+	if (sc->wx_mii) {
+		mii_mediachg(sc->wx_mii);
+		return 0;
+	}
+
+	ifm = &sc->wx_media;
+
+	if (IFM_TYPE(ifm->ifm_media) != IFM_ETHER) {
 		return (EINVAL);
+	}
+
 	return (0);
 }
 
 static void
-wx_ifmedia_sts(ifp, ifmr)
-	struct ifnet *ifp;
-	struct ifmediareq *ifmr;
+wx_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 {
 	u_int32_t dsr;
 	struct wx_softc *sc = SOFTC_IFP(ifp);
 
+	DPRINTF(sc, ("%s: ifmedia_sts: ", sc->wx_name));
+
+	if (sc->wx_mii) {
+		mii_pollstat(sc->wx_mii);
+		ifmr->ifm_active = sc->wx_mii->mii_media_active;
+		ifmr->ifm_status = sc->wx_mii->mii_media_status;
+		DPRINTF(sc, ("active=%#x status=%#x\n",
+		    ifmr->ifm_active, ifmr->ifm_status));
+		return;
+	}
+
+	DPRINTF(sc, ("\n"));
 	ifmr->ifm_status = IFM_AVALID;
 	ifmr->ifm_active = IFM_ETHER;
 
@@ -2136,7 +2272,12 @@ wx_ifmedia_sts(ifp, ifmr)
 	dsr = READ_CSR(sc, WXREG_DSR);
 	if (IS_LIVENGOOD(sc)) {
 		if (dsr &  WXDSR_1000BT) {
-			ifmr->ifm_status |= IFM_1000_SX;
+			if (IS_LIVENGOOD_CU(sc)) {
+				ifmr->ifm_status |= IFM_1000_TX;
+			}
+			else {
+				ifmr->ifm_status |= IFM_1000_SX;
+			}
 		} else if (dsr & WXDSR_100BT) {
 			ifmr->ifm_status |= IFM_100_FX;	/* ?? */
 		} else {
@@ -2148,4 +2289,174 @@ wx_ifmedia_sts(ifp, ifmr)
 	if (dsr & WXDSR_FD) {
 		ifmr->ifm_active |= IFM_FDX;
 	}
+}
+
+
+#define RAISE_CLOCK(sc, dcr)	\
+		WRITE_CSR(sc, WXREG_DCR, (dcr) | WXPHY_MDC), DELAY(2)
+
+#define LOWER_CLOCK(sc, dcr)	\
+		WRITE_CSR(sc, WXREG_DCR, (dcr) & ~WXPHY_MDC), DELAY(2)
+
+static u_int32_t
+wx_mii_shift_in(wx_softc_t *sc)
+{
+	u_int32_t dcr, i;
+	u_int32_t data = 0;
+
+	dcr = READ_CSR(sc, WXREG_DCR);
+	dcr &= ~(WXPHY_MDIO_DIR | WXPHY_MDIO);
+	WRITE_CSR(sc, WXREG_DCR, dcr);
+	RAISE_CLOCK(sc, dcr);
+	LOWER_CLOCK(sc, dcr);
+
+	for (i = 0; i < 16; i++) {
+		data <<= 1;
+		RAISE_CLOCK(sc, dcr);
+		dcr = READ_CSR(sc, WXREG_DCR);
+
+		if (dcr & WXPHY_MDIO)
+			data |= 1;
+		
+		LOWER_CLOCK(sc, dcr);
+	}
+
+	RAISE_CLOCK(sc, dcr);
+	LOWER_CLOCK(sc, dcr);
+	return (data);
+}
+
+static void
+wx_mii_shift_out(wx_softc_t *sc, u_int32_t data, u_int32_t count)
+{
+	u_int32_t dcr, mask;
+
+	dcr = READ_CSR(sc, WXREG_DCR);
+	dcr |= WXPHY_MDIO_DIR | WXPHY_MDC_DIR;
+
+	for (mask = (1 << (count - 1)); mask; mask >>= 1) {
+		if (data & mask)
+			dcr |= WXPHY_MDIO;
+		else
+			dcr &= ~WXPHY_MDIO;
+
+		WRITE_CSR(sc, WXREG_DCR, dcr);
+		DELAY(2);
+		RAISE_CLOCK(sc, dcr);
+		LOWER_CLOCK(sc, dcr);
+	}
+}
+
+static int
+wx_miibus_readreg(void *arg, int phy, int reg)
+{
+	wx_softc_t *sc = WX_SOFTC_FROM_MII_ARG(arg);
+	unsigned int data = 0;
+
+	if (!IS_LIVENGOOD_CU(sc)) {
+		return 0;
+	}
+	wx_mii_shift_out(sc, WXPHYC_PREAMBLE, WXPHYC_PREAMBLE_LEN);
+	wx_mii_shift_out(sc, reg | (phy << 5) | (WXPHYC_READ << 10) |
+	    (WXPHYC_SOF << 12), 14);
+	data = wx_mii_shift_in(sc);
+	return (data & WXMDIC_DATA_MASK);
+}
+
+static int
+wx_miibus_writereg(void *arg, int phy, int reg, int data)
+{
+	wx_softc_t *sc = WX_SOFTC_FROM_MII_ARG(arg);
+	if (!IS_LIVENGOOD_CU(sc)) {
+		return 0;
+	}
+	wx_mii_shift_out(sc, WXPHYC_PREAMBLE, WXPHYC_PREAMBLE_LEN);
+	wx_mii_shift_out(sc, (u_int32_t)data | (WXPHYC_TURNAROUND << 16) |
+	    (reg << 18) | (phy << 23) | (WXPHYC_WRITE << 28) |
+	    (WXPHYC_SOF << 30), 32);
+	return (0);
+}
+
+static void
+wx_miibus_statchg(void *arg)
+{
+	wx_softc_t *sc = WX_SOFTC_FROM_MII_ARG(arg);
+	mii_data_t *mii = sc->wx_mii;
+	u_int32_t dcr, tctl;
+
+	if (mii == NULL)
+		return;
+
+	dcr = sc->wx_dcr;
+	tctl = READ_CSR(sc, WXREG_TCTL);
+	DPRINTF(sc, ("%s: statchg dcr=%#x tctl=%#x", sc->wx_name, dcr, tctl));
+
+	dcr |= WXDCR_FRCSPD | WXDCR_FRCDPX | WXDCR_SLU;
+	dcr &= ~(WXDCR_SPEED_MASK | WXDCR_ASDE /* | WXDCR_ILOS */);
+
+	if (mii->mii_media_status & IFM_ACTIVE) {
+		if (IFM_SUBTYPE(mii->mii_media_active) == IFM_NONE) {
+			DPRINTF(sc, (" link-down\n"));
+			sc->linkup = 0;
+			return;
+		}
+
+		sc->linkup = 1;
+	}
+
+	if (IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_TX) {
+		DPRINTF(sc, (" 1000TX"));
+		dcr |= WXDCR_1000BT;
+	} else if (IFM_SUBTYPE(mii->mii_media_active) == IFM_100_TX) {
+		DPRINTF(sc, (" 100TX"));
+		dcr |= WXDCR_100BT;
+	} else	/* assume IFM_10_TX */ {
+		DPRINTF(sc, (" 10TX"));
+		dcr |= WXDCR_10BT;
+	}
+
+	if (mii->mii_media_active & IFM_FDX) {
+		DPRINTF(sc, ("-FD"));
+		tctl = WXTCTL_CT(WX_COLLISION_THRESHOLD) |
+		    WXTCTL_COLD(WX_FDX_COLLISION_DX) | WXTCTL_EN;
+		dcr |= WXDCR_FD;
+	} else {
+		DPRINTF(sc, ("-HD"));
+		tctl = WXTCTL_CT(WX_COLLISION_THRESHOLD) |
+		    WXTCTL_COLD(WX_HDX_COLLISION_DX) | WXTCTL_EN;
+		dcr &= ~WXDCR_FD;
+	}
+
+	/* FLAG0==rx-flow-control FLAG1==tx-flow-control */
+	if (mii->mii_media_active & IFM_FLAG0) {
+		dcr |= WXDCR_RFCE;
+	} else {
+		dcr &= ~WXDCR_RFCE;
+	}
+
+	if (mii->mii_media_active & IFM_FLAG1) {
+		dcr |= WXDCR_TFCE;
+	} else {
+		dcr &= ~WXDCR_TFCE;
+	}
+
+	if (dcr & (WXDCR_RFCE|WXDCR_TFCE)) {
+		WRITE_CSR(sc, WXREG_FCAL, FC_FRM_CONST_LO);
+		WRITE_CSR(sc, WXREG_FCAH, FC_FRM_CONST_HI);
+		WRITE_CSR(sc, WXREG_FCT, FC_TYP_CONST);
+	} else {
+		WRITE_CSR(sc, WXREG_FCAL, 0);
+		WRITE_CSR(sc, WXREG_FCAH, 0);
+		WRITE_CSR(sc, WXREG_FCT, 0);
+	}
+
+	DPRINTF(sc, (" dcr=%#x tctl=%#x\n", dcr, tctl));
+	WRITE_CSR(sc, WXREG_TCTL, tctl);
+	sc->wx_dcr = dcr;
+	WRITE_CSR(sc, WXREG_DCR, dcr);
+}
+
+static void
+wx_miibus_mediainit(void *arg)
+{
 }
