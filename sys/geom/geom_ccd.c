@@ -447,7 +447,7 @@ g_ccd_start(struct bio *bp)
 		err = ccdbuffer(cbp, cs, bp, bn, addr, bcount);
 		if (err) {
 			bp->bio_completed += bcount;
-			if (bp->bio_error != 0)
+			if (bp->bio_error == 0)
 				bp->bio_error = err;
 			if (bp->bio_completed == bp->bio_length)
 				g_io_deliver(bp, bp->bio_error);
