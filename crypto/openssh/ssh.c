@@ -13,7 +13,7 @@
  */
 
 #include "includes.h"
-RCSID("$Id: ssh.c,v 1.40 2000/02/20 20:05:19 markus Exp $");
+RCSID("$Id: ssh.c,v 1.41 2000/02/28 19:51:58 markus Exp $");
 
 #include "xmalloc.h"
 #include "ssh.h"
@@ -95,6 +95,7 @@ usage()
 	fprintf(stderr, "  -k          Disable Kerberos ticket and AFS token forwarding.\n");
 #endif				/* AFS */
 	fprintf(stderr, "  -x          Disable X11 connection forwarding.\n");
+	fprintf(stderr, "  -X          Enable X11 connection forwarding.\n");
 	fprintf(stderr, "  -i file     Identity for RSA authentication (default: ~/.ssh/identity).\n");
 	fprintf(stderr, "  -t          Tty; allocate a tty even if command is given.\n");
 	fprintf(stderr, "  -v          Verbose; display verbose debugging messages.\n");
