@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.174 1998/09/22 15:10:18 max Exp $
+#	$Id: Makefile,v 1.175 1998/09/23 08:06:30 jkh Exp $
 
 SUBDIR=	sendmail
 
@@ -42,7 +42,7 @@ etc:
 distribute:
 	cd ${.CURDIR} ; ${MAKE} distribution DESTDIR=${DISTDIR}/bin
 .if defined(OBJFORMAT)
-	echo OBJFORMAT=${OBJFORMAT} > ${DISTDIR}/bin/etc/objformat
+	echo OBJFORMAT=${OBJFORMAT} > ${DISTDIR}/etc/objformat
 .endif
 	@echo 
 
