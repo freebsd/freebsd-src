@@ -42,8 +42,10 @@
 #ifndef nonints_h_33c5dafb
 #define	nonints_h_33c5dafb
 
-/* main.c */
+struct Buffer;
+
 void Main_ParseArgLine(char *, int);
-char *Cmd_Exec(char *, const char **);
+Buffer *Cmd_Exec(char *, const char **);
+
 
 #endif /* nonints_h_33c5dafb */
