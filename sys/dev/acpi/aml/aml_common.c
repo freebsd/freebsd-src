@@ -42,6 +42,7 @@
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
+#include <machine/acpica_osd.h>
 #endif /* !_KERNEL */
 
 #include <dev/acpi/aml/aml_common.h>
@@ -276,6 +277,97 @@ aml_showtree(struct aml_name * aname, int lev)
 }
 
 /*
+ * Common Region I/O Stuff
+ */
+
+static __inline u_int64_t
+aml_adjust_bitmask(u_int32_t flags, u_int32_t bitlen)
+{
+	u_int64_t	bitmask;
+
+	switch (AML_FIELDFLAGS_ACCESSTYPE(flags)) {
+	case AML_FIELDFLAGS_ACCESS_ANYACC:
+		if (bitlen <= 8) {
+			bitmask = 0x000000ff;
+			break;
+		}
+		if (bitlen <= 16) {
+			bitmask = 0x0000ffff;
+			break;
+		}
+		bitmask = 0xffffffff;
+		break;
+	case AML_FIELDFLAGS_ACCESS_BYTEACC:
+		bitmask = 0x000000ff;
+		break;
+	case AML_FIELDFLAGS_ACCESS_WORDACC:
+		bitmask = 0x0000ffff;
+		break;
+	case AML_FIELDFLAGS_ACCESS_DWORDACC:
+	default:
+		bitmask = 0xffffffff;
+		break;
+	}
+
+	switch (bitlen) {
+	case 16:
+		bitmask |= 0x0000ffff;
+		break;
+	case 32:
+		bitmask |= 0xffffffff;
+		break;
+	}
+
+	return (bitmask);
+}
+
+u_int32_t
+aml_adjust_readvalue(u_int32_t flags, u_int32_t bitoffset, u_int32_t bitlen,
+    u_int32_t orgval)
+{
+	u_int32_t	offset, retval;
+	u_int64_t	bitmask;
+
+	offset = bitoffset;	/* XXX bitoffset may change in this function! */
+	bitmask = aml_adjust_bitmask(flags, bitlen);
+	retval = (orgval >> offset) & (~(bitmask << bitlen)) & bitmask;
+
+	return (retval);
+}
+
+u_int32_t
+aml_adjust_updatevalue(u_int32_t flags, u_int32_t bitoffset, u_int32_t bitlen,
+    u_int32_t orgval, u_int32_t value)
+{
+	u_int32_t	offset, retval;
+	u_int64_t	bitmask;
+
+	offset = bitoffset;	/* XXX bitoffset may change in this function! */
+	bitmask = aml_adjust_bitmask(flags, bitlen);
+	retval = orgval;
+	switch (AML_FIELDFLAGS_UPDATERULE(flags)) {
+	case AML_FIELDFLAGS_UPDATE_PRESERVE:
+		retval &= (~(((u_int64_t)1 << bitlen) - 1) << offset) |
+			  (~(bitmask << offset));
+		break;
+	case AML_FIELDFLAGS_UPDATE_WRITEASONES:
+		retval =  (~(((u_int64_t)1 << bitlen) - 1) << offset) |
+			  (~(bitmask << offset));
+		retval &= bitmask;	/* trim the upper bits */
+		break;
+	case AML_FIELDFLAGS_UPDATE_WRITEASZEROS:
+		retval = 0;
+		break;
+	default:
+		printf("illegal update rule: %d\n", flags);
+		return (orgval);
+	}
+
+	retval |= (value << (offset & bitmask));
+	return (retval);
+}
+
+/*
  * BufferField I/O
  */
 
@@ -293,8 +385,8 @@ aml_bufferfield_io(int io, u_int32_t *valuep, u_int8_t *origin,
 	u_int8_t	val, tmp, masklow, maskhigh;
 	u_int8_t	offsetlow, offsethigh;
 	u_int8_t	*addr;
-	int		value = *valuep, readval;
 	int		i;
+	u_int32_t	value, readval;
 	u_int32_t	byteoffset, bytelen;
 
 	masklow = maskhigh = 0xff;
@@ -304,6 +396,31 @@ aml_bufferfield_io(int io, u_int32_t *valuep, u_int8_t *origin,
 	byteoffset = bitoffset / 8;
 	bytelen = bitlen / 8 + ((bitlen % 8) ? 1 : 0);
 	addr = origin + byteoffset;
+
+	/* simple I/O ? */
+	if (bitlen <= 8 || bitlen == 16 || bitlen == 32) {
+		bcopy(addr, &readval, bytelen);
+		AML_DEBUGPRINT("\n\t[bufferfield:0x%x@%p:%d,%d]",
+		    readval, addr, bitoffset % 8, bitlen);
+		switch (io) {
+		case AML_BUFFER_INPUT:
+			value = aml_adjust_readvalue(AML_FIELDFLAGS_ACCESS_BYTEACC, 
+			    bitoffset % 8, bitlen, readval);
+			*valuep = value;
+			AML_DEBUGPRINT("\n[read(bufferfield, %p)&mask:0x%x]\n",
+			    addr, value);
+			break;
+		case AML_BUFFER_OUTPUT:
+			value = aml_adjust_updatevalue(AML_FIELDFLAGS_ACCESS_BYTEACC, 
+			    bitoffset % 8, bitlen, readval, value);
+			bcopy(&value, addr, bytelen);
+			AML_DEBUGPRINT("->[bufferfield:0x%x@%p:%d,%d]",
+			    value, addr, bitoffset % 8, bitlen);
+			break;
+		}
+		goto out;
+	}
+ 
 	offsetlow = bitoffset % 8;
 	if (bytelen > 1) {
 		offsethigh = (bitlen - (8 - offsetlow)) % 8;
@@ -378,7 +495,7 @@ aml_bufferfield_io(int io, u_int32_t *valuep, u_int8_t *origin,
 			*addr = tmp;
 		}
 	}
-
+out:
 	return (0);
 }
 
@@ -403,4 +520,210 @@ aml_bufferfield_write(u_int32_t value, u_int8_t *origin,
 	status = aml_bufferfield_io(AML_BUFFER_OUTPUT, &value,
 	    origin, bitoffset, bitlen);
 	return (status);
+}
+
+int
+aml_region_handle_alloc(struct aml_environ *env, int regtype, u_int32_t flags,
+    u_int32_t baseaddr, u_int32_t bitoffset, u_int32_t bitlen,
+    struct aml_region_handle *h)
+{
+	int	state;
+	struct	aml_name *pci_info;
+
+	state = 0;
+	pci_info = NULL;
+	bzero(h, sizeof(struct aml_region_handle));
+
+	h->env = env;
+	h->regtype = regtype;
+	h->flags = flags;
+	h->baseaddr = baseaddr;
+	h->bitoffset = bitoffset;
+	h->bitlen = bitlen;
+
+	switch (AML_FIELDFLAGS_ACCESSTYPE(flags)) {
+	case AML_FIELDFLAGS_ACCESS_ANYACC:
+		if (bitlen <= 8) {
+			h->unit = 1;
+			break;
+		}
+		if (bitlen <= 16) {
+			h->unit = 2;
+			break;
+		}
+		h->unit = 4;
+		break;
+	case AML_FIELDFLAGS_ACCESS_BYTEACC:
+		h->unit = 1;
+		break;
+	case AML_FIELDFLAGS_ACCESS_WORDACC:
+		h->unit = 2;
+		break;
+	case AML_FIELDFLAGS_ACCESS_DWORDACC:
+		h->unit = 4;
+		break;
+	default:
+		h->unit = 1;
+		break;
+	}
+
+	h->addr = baseaddr + h->unit * ((bitoffset / 8) / h->unit);
+	h->bytelen = baseaddr + ((bitoffset + bitlen) / 8) - h->addr +
+		     ((bitlen % 8) ? 1 : 0);
+
+#ifdef _KERNEL
+	switch (h->regtype) {
+	case AML_REGION_SYSMEM:
+		OsdMapMemory((void *)h->addr, h->bytelen, (void **)&h->vaddr);
+		break;
+
+	case AML_REGION_PCICFG:
+		/* Obtain PCI bus number */
+		pci_info = aml_search_name(env, "_BBN");
+		if (pci_info == NULL || pci_info->property->type != aml_t_num) {
+			AML_DEBUGPRINT("Cannot locate _BBN. Using default 0\n");
+			h->pci_bus = 0;
+		} else {
+			AML_DEBUGPRINT("found _BBN: %d\n",
+			    pci_info->property->num.number);
+			h->pci_bus = pci_info->property->num.number & 0xff;
+		}
+
+		/* Obtain device & function number */
+		pci_info = aml_search_name(env, "_ADR");
+		if (pci_info == NULL || pci_info->property->type != aml_t_num) {
+			printf("Cannot locate: _ADR\n");
+			state = -1;
+			goto out;
+		}
+		h->pci_devfunc = pci_info->property->num.number;
+
+		AML_DEBUGPRINT("[pci%d.%d]", h->pci_bus, h->pci_devfunc);
+		break;
+
+	default:
+		break;
+	}
+
+out:
+#endif	/* _KERNEL */
+	return (state);
+}
+
+void
+aml_region_handle_free(struct aml_region_handle *h)
+{
+#ifdef _KERNEL
+	switch (h->regtype) {
+	case AML_REGION_SYSMEM:
+		OsdUnMapMemory((void *)h->vaddr, h->bytelen);
+		break;
+
+	default:
+		break;
+	}
+#endif	/* _KERNEL */
+}
+
+static int
+aml_region_io_simple(struct aml_environ *env, int io, int regtype,
+    u_int32_t flags, u_int32_t *valuep, u_int32_t baseaddr,
+    u_int32_t bitoffset, u_int32_t bitlen)
+{
+	int		i, state;
+	u_int32_t	readval, value, offset, bytelen;
+	struct		aml_region_handle handle;
+
+	state = aml_region_handle_alloc(env, regtype, flags,
+            baseaddr, bitoffset, bitlen, &handle);
+	if (state == -1) {
+		goto out;
+	}
+
+	readval = 0;
+	offset = bitoffset % (handle.unit * 8);
+	/* limitation of 32 bits alignment */
+	bytelen = (handle.bytelen > 4) ? 4 : handle.bytelen;
+
+	if (io == AML_REGION_INPUT ||
+	    AML_FIELDFLAGS_UPDATERULE(flags) == AML_FIELDFLAGS_UPDATE_PRESERVE) {
+		for (i = 0; i < bytelen; i += handle.unit) {
+			state = aml_region_read_simple(&handle, i, &value);
+			if (state == -1) {
+				goto out;
+			}
+			readval |= (value << (i * 8));
+		}
+		AML_DEBUGPRINT("\t[%d:0x%x@0x%x:%d,%d]",
+		    regtype, readval, handle.addr, offset, bitlen);
+	}
+
+	switch (io) {
+	case AML_REGION_INPUT:
+		AML_DEBUGPRINT("\n");
+		readval = aml_adjust_readvalue(flags, offset, bitlen, readval);
+		value = readval;
+		value = aml_region_prompt_read(&handle, value);
+		state = aml_region_prompt_update_value(readval, value, &handle);
+		if (state == -1) {
+			goto out;
+		}
+
+		*valuep = value;
+		break;
+	case AML_REGION_OUTPUT:
+		value = *valuep;
+		value = aml_adjust_updatevalue(flags, offset,
+		    bitlen, readval, value);
+		value = aml_region_prompt_write(&handle, value);
+		AML_DEBUGPRINT("\t->[%d:0x%x@0x%x:%d,%d]\n", regtype, value,
+		    handle.addr, offset, bitlen);
+		for (i = 0; i < bytelen; i += handle.unit) {
+			state = aml_region_write_simple(&handle, i, value);
+			if (state == -1) {
+				goto out;
+			}
+			value = value >> (handle.unit * 8);
+		}
+		break;
+	}
+
+	aml_region_handle_free(&handle);
+out:
+	return (state);
+}
+
+int
+aml_region_io(struct aml_environ *env, int io, int regtype,
+    u_int32_t flags, u_int32_t *valuep, u_int32_t baseaddr,
+    u_int32_t bitoffset, u_int32_t bitlen)
+{
+	u_int32_t	unit, offset;
+	u_int32_t	offadj, bitadj;
+	u_int32_t	value, readval;
+	int		state, i;
+
+	readval = 0;
+	state = 0;
+	unit = 4;	/* limitation of 32 bits alignment */
+	offset = bitoffset % (unit * 8);
+	offadj = 0;
+	bitadj = 0;
+	if (offset + bitlen > unit * 8) {
+		bitadj = bitlen  - (unit * 8 - offset);
+	}
+	for (i = 0; i < offset + bitlen; i += unit * 8) {
+		value = (*valuep) >> offadj;
+		state = aml_region_io_simple(env, io, regtype, flags,
+		    &value, baseaddr, bitoffset + offadj, bitlen - bitadj);
+		if (state == -1) {
+			goto out;
+		}
+		readval |= value << offadj;
+		bitadj = offadj = bitlen - bitadj;
+	}
+	*valuep = readval;
+
+out:
+	return (state);
 }
