@@ -1,8 +1,11 @@
 .\" -*- nroff -*-
 .rn '' }`
-'\" $Header: /home/ncvs/src/gnu/usr.bin/patch/Attic/patch.1,v 1.5.2.1 1998/01/11 20:45:30 ache Exp $
+'\" $Header: /home/ncvs/src/gnu/usr.bin/patch/patch.1,v 1.7 1998/01/21 14:37:21 ache Exp $
 '\" 
 '\" $Log: patch.1,v $
+'\" Revision 1.7  1998/01/21 14:37:21  ache
+'\" Resurrect patch 2.1 without FreeBSD Index: hack
+'\"
 '\" Revision 1.5.2.1  1998/01/11 20:45:30  ache
 '\" Back out rev1.5 change, Index: precedence restored to historycal behaviour
 '\"
@@ -334,6 +337,11 @@ to ignore up to that many lines in looking for places to install a hunk.
 Note that a larger fuzz factor increases the odds of a faulty patch.
 The default fuzz factor is 2, and it may not be set to more than
 the number of lines of context in the context diff, ordinarily 3.
+.TP 5
+.B "\-I, \-\-index-first"
+forces
+.I patch
+to take ``Index:'' line precedence over context diff header.
 .TP 5
 .B "\-l, \-\-ignore\-whitespace"
 causes the pattern matching to be done loosely, in case the tabs and
