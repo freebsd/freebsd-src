@@ -62,7 +62,6 @@
 #define __GNUCLIKE___OFFSETOF 1
 #define __GNUCLIKE___SECTION 1
 
-#define __GNUCLIKE_ATTRIBUTE_PRINTF 1
 #define __GNUCLIKE_ATTRIBUTE_MODE_DI 1
 
 #ifndef __INTEL_COMPILER
@@ -102,8 +101,6 @@
 
 #define __CC_SUPPORTS___FUNC__ 1
 #define __CC_SUPPORTS_WARNING 1
-
-#define __CC_SUPPORTS_FORWARD_REFERENCE_CONSTRUCT 1
 
 #define __CC_SUPPORTS_VARADIC_XXX 1 /* see varargs.h */
 
