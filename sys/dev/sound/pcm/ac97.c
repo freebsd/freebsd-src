@@ -64,6 +64,7 @@ struct ac97mixtable_entry {
 };
 
 struct ac97_info {
+	device_t dev;
 	ac97_read *read;
 	ac97_write *write;
 	void *devinfo;
@@ -262,11 +263,12 @@ ac97_init(struct ac97_info *codec)
 	codec->write(codec->devinfo, AC97_MIX_MASTER, 0x00);
 
 	if (bootverbose) {
-		printf("ac97: codec id 0x%8x", id);
+		device_printf(codec->dev, "ac97 codec id 0x%8x", id);
 		for (i = 0; ac97codecid[i].id; i++) {
 			if (ac97codecid[i].id == id) printf(" (%s)", ac97codecid[i].name);
 		}
-		printf("\nac97: codec features ");
+		printf("\n");
+		device_printf(codec->dev, "ac97 codec features ");
 		for (i = j = 0; i < 10; i++) {
 			if (codec->caps & (1 << i)) {
 				printf("%s%s", j? ", " : "", ac97feature[i]);
@@ -278,17 +280,18 @@ ac97_init(struct ac97_info *codec)
 	}
 
 	if ((codec->read(codec->devinfo, AC97_REG_POWER) & 2) == 0)
-		printf("ac97: dac not ready\n");
+		device_printf(codec->dev, "ac97 codec reports dac not ready\n");
 	return 0;
 }
 
 struct ac97_info *
-ac97_create(void *devinfo, ac97_read *rd, ac97_write *wr)
+ac97_create(device_t dev, void *devinfo, ac97_read *rd, ac97_write *wr)
 {
 	struct ac97_info *codec;
 
 	codec = (struct ac97_info *)malloc(sizeof *codec, M_DEVBUF, M_NOWAIT);
 	if (codec != NULL) {
+		codec->dev = dev;
 		codec->read = rd;
 		codec->write = wr;
 		codec->devinfo = devinfo;
