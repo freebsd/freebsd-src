@@ -1923,7 +1923,7 @@ uhci_abort_xfer(usbd_xfer_handle xfer, usbd_status status)
 		std->td.td_status &= htole32(~(UHCI_TD_ACTIVE | UHCI_TD_IOC));
 	splx(s);
 
-	/* 
+	/*
 	 * Step 2: Wait until we know hardware has finished any possible
 	 * use of the xfer.  Also make sure the soft interrupt routine
 	 * has run.
@@ -1934,12 +1934,12 @@ uhci_abort_xfer(usbd_xfer_handle xfer, usbd_status status)
 	sc->sc_softwake = 1;
 #endif /* USB_USE_SOFTINTR */
 	usb_schedsoftintr(&sc->sc_bus);
-#ifdef USB_USE_SOFTINTR 
+#ifdef USB_USE_SOFTINTR
 	DPRINTFN(1,("uhci_abort_xfer: tsleep\n"));
 	tsleep(&sc->sc_softwake, PZERO, "uhciab", 0);
 #endif /* USB_USE_SOFTINTR */
 	splx(s);
-		
+
 	/*
 	 * Step 3: Execute callback.
 	 */
@@ -3372,7 +3372,7 @@ uhci_root_intr_transfer(usbd_xfer_handle xfer)
 	if (err)
 		return (err);
 
-	/* 
+	/*
 	 * Pipe isn't running (otherwise err would be USBD_INPROG),
 	 * so start it first.
 	 */

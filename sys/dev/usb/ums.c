@@ -85,7 +85,7 @@ SYSCTL_INT(_hw_usb_ums, OID_AUTO, debug, CTLFLAG_RW,
 
 #define UMSUNIT(s)	(minor(s)&0x1f)
 
-#define MS_TO_TICKS(ms) ((ms) * hz / 1000)                            
+#define MS_TO_TICKS(ms) ((ms) * hz / 1000)
 
 #define QUEUE_BUFSIZE	400	/* MUST be divisible by 5 _and_ 8 */
 
@@ -170,7 +170,7 @@ USB_MATCH(ums)
 	int size, ret;
 	void *desc;
 	usbd_status err;
-	
+
 	if (!uaa->iface)
 		return (UMATCH_NONE);
 	id = usbd_get_interface_descriptor(uaa->iface);
@@ -181,7 +181,7 @@ USB_MATCH(ums)
 	if (err)
 		return (UMATCH_NONE);
 
-	if (hid_is_collection(desc, size, 
+	if (hid_is_collection(desc, size,
 			      HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_MOUSE)))
 		ret = UMATCH_IFACECLASS;
 	else
@@ -204,7 +204,7 @@ USB_ATTACH(ums)
 	u_int32_t flags;
 	int i;
 	struct hid_location loc_btn;
-	
+
 	sc->sc_disconnected = 1;
 	sc->sc_iface = iface;
 	id = usbd_get_interface_descriptor(iface);
@@ -222,7 +222,7 @@ USB_ATTACH(ums)
 	DPRINTFN(10,("ums_attach: bLength=%d bDescriptorType=%d "
 		     "bEndpointAddress=%d-%s bmAttributes=%d wMaxPacketSize=%d"
 		     " bInterval=%d\n",
-		     ed->bLength, ed->bDescriptorType, 
+		     ed->bLength, ed->bDescriptorType,
 		     UE_GET_ADDR(ed->bEndpointAddress),
 		     UE_GET_DIR(ed->bEndpointAddress) == UE_DIR_IN ? "in":"out",
 		     UE_GET_XFERTYPE(ed->bmAttributes),
@@ -279,7 +279,7 @@ USB_ATTACH(ums)
 				hid_input, &loc_btn, 0))
 			break;
 	sc->nbuttons = i - 1;
-	sc->sc_loc_btn = malloc(sizeof(struct hid_location)*sc->nbuttons, 
+	sc->sc_loc_btn = malloc(sizeof(struct hid_location)*sc->nbuttons,
 				M_USBDEV, M_NOWAIT);
 	if (!sc->sc_loc_btn) {
 		printf("%s: no memory\n", USBDEVNAME(sc->sc_dev));
@@ -307,12 +307,12 @@ USB_ATTACH(ums)
 
 #ifdef USB_DEBUG
 	DPRINTF(("ums_attach: sc=%p\n", sc));
-	DPRINTF(("ums_attach: X\t%d/%d\n", 
+	DPRINTF(("ums_attach: X\t%d/%d\n",
 		 sc->sc_loc_x.pos, sc->sc_loc_x.size));
-	DPRINTF(("ums_attach: Y\t%d/%d\n", 
+	DPRINTF(("ums_attach: Y\t%d/%d\n",
 		 sc->sc_loc_y.pos, sc->sc_loc_y.size));
 	if (sc->flags & UMS_Z)
-		DPRINTF(("ums_attach: Z\t%d/%d\n", 
+		DPRINTF(("ums_attach: Z\t%d/%d\n",
 			 sc->sc_loc_z.pos, sc->sc_loc_z.size));
 	for (i = 1; i <= sc->nbuttons; i++) {
 		DPRINTF(("ums_attach: B%d\t%d/%d\n",
@@ -556,8 +556,8 @@ ums_enable(v)
 	callout_handle_init((struct callout_handle *)&sc->callout_handle);
 
 	/* Set up interrupt pipe. */
-	err = usbd_open_pipe_intr(sc->sc_iface, sc->sc_ep_addr, 
-				USBD_SHORT_XFER_OK, &sc->sc_intrpipe, sc, 
+	err = usbd_open_pipe_intr(sc->sc_iface, sc->sc_ep_addr,
+				USBD_SHORT_XFER_OK, &sc->sc_intrpipe, sc,
 				sc->sc_ibuf, sc->sc_isize, ums_intr,
 				USBD_DEFAULT_INTERVAL);
 	if (err) {
@@ -635,7 +635,7 @@ ums_read(dev_t dev, struct uio *uio, int flag)
 			splx(s);
 			return EWOULDBLOCK;
 		}
-		
+
 		sc->state |= UMS_ASLEEP;	/* blocking I/O */
 		error = tsleep(sc, PZERO | PCATCH, "umsrea", 0);
 		if (error) {
@@ -708,7 +708,7 @@ ums_poll(dev_t dev, int events, usb_proc_ptr p)
 
 	return revents;
 }
-	
+
 int
 ums_ioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, usb_proc_ptr p)
 {

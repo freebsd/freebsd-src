@@ -82,7 +82,7 @@ struct umct_softc {
 	void			*sc_swicookie;
 };
 
-Static void umct_intr(usbd_xfer_handle, usbd_private_handle, usbd_status); 
+Static void umct_intr(usbd_xfer_handle, usbd_private_handle, usbd_status);
 Static void umct_get_status(void *, int, u_char *, u_char *);
 Static void umct_set(void *, int, int, int);
 Static int  umct_param(void *, int, struct termios *);
@@ -224,7 +224,7 @@ USB_ATTACH(umct)
 		}
 
 		/*
-		 * The real bulk-in endpoint is also marked as an interrupt.  
+		 * The real bulk-in endpoint is also marked as an interrupt.
 		 * The only way to differentiate it from the real interrupt
                  * endpoint is to look at the wMaxPacketSize field.
 		 */
