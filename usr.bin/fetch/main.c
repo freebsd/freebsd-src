@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: main.c,v 1.50 1999/02/23 18:51:13 wollman Exp $ */
+/* $Id: main.c,v 1.49.2.1 1999/02/25 18:36:32 wollman Exp $ */
 
 #include <sys/types.h>
 
@@ -351,7 +351,7 @@ display(struct fetch_state *fs, off_t size, ssize_t n)
 	}
 	bytes -= bytestart;
 	d = t.tv_sec + t.tv_usec/1.e6 - t_start.tv_sec - t_start.tv_usec/1.e6;
-	fprintf (stderr, "\n%qd bytes transfered in %.1f seconds",
+	fprintf (stderr, "\n%qd bytes transferred in %.1f seconds",
 	    (long long)bytes, d); 
 	d = bytes/d;
 	if (d < 1000)
