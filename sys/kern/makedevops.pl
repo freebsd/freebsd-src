@@ -249,7 +249,7 @@ foreach $src ( @filenames ) {
             $lineno++
          }
          if ( $hfile ) {
-             print CFILE $header;
+             print HFILLE $header;
          }
       } elsif ( $line =~ m/^(STATIC|)METHOD/i ) {
          # Get the return type function name and delete that from
