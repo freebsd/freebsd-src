@@ -159,7 +159,6 @@ IDTVEC(vec_name) ;							\
 __CONCAT(Xresume,irq_num): ;						\
 	FAKE_MCOUNT(13*4(%esp)) ;		/* XXX avoid dbl cnt */ \
 	pushl	$irq_num;			/* pass the IRQ */	\
-	sti ;								\
 	call	sched_ithd ;						\
 	addl	$4, %esp ;		/* discard the parameter */	\
 ;									\
