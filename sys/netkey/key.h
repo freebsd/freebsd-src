@@ -137,20 +137,28 @@ Research Laboratory (NRL).
 struct key_secassoc {
 	u_int8_t        len;	/* Length of the data (for radix) */
 	u_int8_t        type;	/* Type of association */
+	u_int8_t        vers;	/* Version of association (AH/ESP) */
 	u_int8_t        state;	/* State of the association */
 	u_int8_t        label;	/* Sensitivity label (unused) */
 	u_int32_t       spi;	/* SPI */
 	u_int8_t        keylen;	/* Key length */
+	u_int8_t        ekeylen;/* Extra key length */
 	u_int8_t        ivlen;	/* Initialization vector length */
 	u_int8_t        algorithm;	/* Algorithm switch index */
 	u_int8_t        lifetype;	/* Type of lifetime */
 	caddr_t         iv;	/* Initialization vector */
 	caddr_t         key;	/* Key */
+	caddr_t		ekey;	/* Extra key */
 	u_int32_t       lifetime1;	/* Lifetime value 1 */
 	u_int32_t       lifetime2;	/* Lifetime value 2 */
 	struct sockaddr *src;	/* Source host address */
 	struct sockaddr *dst;	/* Destination host address */
 	struct sockaddr *from;	/* Originator of association */
+
+	int		antireplay;	/*anti replay flag*/
+	u_int32_t	sequence;	/*send: sequence number*/
+	u_int32_t	replayright;	/*receive: replay window, right*/
+	u_int64_t	replaywindow;	/*receive: replay window*/
 };
 
 /*
@@ -168,16 +176,20 @@ struct key_msghdr {
 	int             key_seq;/* message sequence number */
 	int             key_errno;	/* error code */
 	u_int8_t        type;	/* type of security association */
+	u_int8_t        vers;	/* version of security association (AH/ESP) */
 	u_int8_t        state;	/* state of security association */
 	u_int8_t        label;	/* sensitivity level */
 	u_int8_t        pad;	/* padding for allignment */
 	u_int32_t       spi;	/* spi value */
 	u_int8_t        keylen;	/* key length */
+	u_int8_t	ekeylen;/* extra key length */
 	u_int8_t        ivlen;	/* iv length */
 	u_int8_t        algorithm;	/* algorithm identifier */
 	u_int8_t        lifetype;	/* type of lifetime */
 	u_int32_t       lifetime1;	/* lifetime value 1 */
 	u_int32_t       lifetime2;	/* lifetime value 2 */
+
+	int		antireplay;	/* anti replay flag */
 };
 
 struct key_msgdata {
@@ -186,8 +198,10 @@ struct key_msgdata {
 	struct sockaddr *from;	/* originator of security association */
 	caddr_t         iv;	/* initialization vector */
 	caddr_t         key;	/* key */
+	caddr_t         ekey;	/* extra key */
 	int             ivlen;	/* key length */
 	int             keylen;	/* iv length */
+	int             ekeylen; /* extra key length */
 };
 
 struct policy_msghdr {
@@ -248,37 +262,39 @@ struct key_acquirelist {
 };
 
 struct keyso_cb {
-	int             ip4_count;	/* IPv4 */
+	int ip4_count;
 #ifdef INET6
-	int             ip6_count;	/* IPv6 */
-#endif				/* INET6 */
-	int             any_count;	/* Sum of above counters */
+	int ip6_count;
+#endif /*INET6*/
+	int any_count;	/* Sum of above counters */
 };
 
 #ifdef KERNEL
-int key_inittables __P((void));
-int key_secassoc2msghdr __P((struct key_secassoc *, struct key_msghdr *,
-			     struct key_msgdata *));
-int key_msghdr2secassoc __P((struct key_secassoc *, struct key_msghdr *,
-			     struct key_msgdata *));
-int key_add     __P((struct key_secassoc *));
-int key_delete  __P((struct key_secassoc *));
-int key_get     __P((u_int, struct sockaddr *, struct sockaddr *, u_int32_t,
-		     struct key_secassoc **));
-void key_flush  __P((void));
-int key_dump    __P((struct socket *));
-int key_getspi  __P((u_int, struct sockaddr *, struct sockaddr *, u_int32_t, 
-		     u_int32_t, u_int32_t *));
-int key_update  __P((struct key_secassoc *));
-int key_register __P((struct socket *, u_int));
-void key_unregister __P((struct socket *, u_int, int));
-int key_acquire __P((u_int, struct sockaddr *, struct sockaddr *));
-int getassocbyspi __P((u_int, struct sockaddr *, struct sockaddr *, u_int32_t,
-		       struct key_tblnode **));
-int getassocbysocket __P((u_int, struct sockaddr *, struct sockaddr *, 
+extern int key_secassoc2msghdr __P((struct key_secassoc *, struct key_msghdr *,
+				struct key_msgdata *));
+extern int key_msghdr2secassoc __P((struct key_secassoc *, struct key_msghdr *,
+				struct key_msgdata *));
+extern int key_inittables __P((void));
+extern void key_sodelete __P((struct socket *, int));
+extern int key_add __P((struct key_secassoc *));
+extern int key_delete __P((struct key_secassoc *));
+extern int key_get __P((u_int, struct sockaddr *, struct sockaddr *,
+			u_int32_t, struct key_secassoc **));
+extern void key_flush __P((void));
+extern int key_dump __P((struct socket *));
+extern int key_getspi __P((u_int, u_int, struct sockaddr *, struct sockaddr *,
+			u_int32_t, u_int32_t, u_int32_t *));
+extern int key_update __P((struct key_secassoc *));
+extern int key_register __P((struct socket *, u_int));
+extern void key_unregister __P((struct socket *, u_int, int));
+extern int key_acquire __P((u_int, struct sockaddr *, struct sockaddr *));
+extern int getassocbyspi __P((u_int, struct sockaddr *, struct sockaddr *,
+			u_int32_t, struct key_tblnode **));
+extern int getassocbysocket __P((u_int, struct sockaddr *, struct sockaddr *, 
 			  struct socket *, u_int, struct key_tblnode **));
-void key_free   __P((struct key_tblnode *));
-int key_parse   __P((struct key_msghdr ** km, struct socket * so, int *));
+extern void key_free __P((struct key_tblnode *));
+extern int key_parse __P((struct key_msghdr ** km, struct socket * so,
+			int *));
 #endif /* KERNEL */
 
 #endif /* _netkey_key_h */
