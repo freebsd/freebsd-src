@@ -16,7 +16,7 @@
  *
  * NEW command line interface for IP firewall facility
  *
- * $Id: ipfw.c,v 1.29 1996/07/10 19:44:07 julian Exp $
+ * $Id: ipfw.c,v 1.30 1996/08/05 02:38:51 alex Exp $
  *
  */
 
@@ -499,12 +499,12 @@ fill_port(cnt, ptr, off, arg, proto)
 		*s++ = '\0';
 		if (strchr(arg, ','))
 			errx(1, "port range must be first in list");
-		add_port(cnt, ptr, off, *arg ? atoi(arg) : 0x0000);
+		add_port(cnt, ptr, off, *arg ? atoi(arg) : 0x0000, proto);
 		arg = s;
 		s = strchr(arg,',');
 		if (s)
 			*s++ = '\0';
-		add_port(cnt, ptr, off, *arg ? atoi(arg) : 0xffff);
+		add_port(cnt, ptr, off, *arg ? atoi(arg) : 0xffff, proto);
 		arg = s;
 		initial_range = 1;
 	}
