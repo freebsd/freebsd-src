@@ -107,7 +107,7 @@ struct m_ext {
 	void	*ext_args;		/* optional argument pointer */
 	u_int	ext_size;		/* size of buffer, for ext_free */
 	union	mext_refcnt *ref_cnt;	/* pointer to ref count info */
-	short	ext_type;		/* type of external storage */
+	int	ext_type;		/* type of external storage */
 };
 
 struct mbuf {
@@ -157,6 +157,7 @@ struct mbuf {
 #define	EXT_CLUSTER	1	/* mbuf cluster */
 #define	EXT_SFBUF	2	/* sendfile(2)'s sf_bufs */
 #define	EXT_NET_DRV	100	/* custom ext_buf provided by net driver(s) */
+#define	EXT_MOD_TYPE	200	/* custom module's ext_buf type */
 
 /* flags copied when copying m_pkthdr */
 #define	M_COPYFLAGS	(M_PKTHDR|M_EOR|M_PROTO1|M_PROTO1|M_PROTO2|M_PROTO3 | \
