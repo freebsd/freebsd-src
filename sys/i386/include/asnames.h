@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: asnames.h,v 1.8 1997/09/13 16:00:30 peter Exp $
+ * $Id: asnames.h,v 1.9 1997/09/21 15:03:59 peter Exp $
  */
 
 #ifndef _MACHINE_ASNAMES_H_
@@ -182,6 +182,7 @@
 #define _bootinfo			bootinfo
 #define _bootstrap_gdt			bootstrap_gdt
 #define _bzero				bzero
+#define _cam_imask			cam_imask
 #define _clock_lock			clock_lock
 #define _cnt				cnt
 #define _common_tss			common_tss
