@@ -1,6 +1,6 @@
-TMACOWN?=	bin
-TMACGRP?=	bin
-TMACMODE?=	444
+TMACOWN?=	${BINOWN}
+TMACGRP?=	${BINGRP}
+TMACMODE?=	${NOBINMODE}
 TMACDIR?=	/usr/share/tmac
 
 FILES=		0.MT 5.MT 4.MT ms.cov se_ms.cov
