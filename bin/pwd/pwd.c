@@ -56,8 +56,6 @@ static const char rcsid[] =
 #include <unistd.h>
 #include <sys/param.h>
 
-extern char *__progname;
-
 static char *getcwd_logical(void);
 void usage(void);
 
@@ -69,7 +67,7 @@ main(int argc, char *argv[])
 	char *p;
 	char buf[PATH_MAX];
 
-	if (strcmp(__progname, "realpath") == 0) {
+	if (strcmp(getprogname(), "realpath") == 0) {
 		if (argc != 2)
 			usage();
 		if ((p = realpath(argv[1], buf)) == NULL)
@@ -109,7 +107,7 @@ void
 usage(void)
 {
 
-	if (strcmp(__progname, "realpath") == 0)
+	if (strcmp(getprogname(), "realpath") == 0)
 		(void)fprintf(stderr, "usage: realpath [path]\n");
 	else
 		(void)fprintf(stderr, "usage: pwd [-L | -P]\n");
