@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.66.4.1 1995/08/25 03:37:21 davidg Exp $
+#	$Id: rc,v 1.66.4.2 1995/09/14 23:16:33 jkh Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -298,14 +298,18 @@ fi
 
 # configure implementation specific stuff
 arch=`uname -m`
-if [ -f /etc/rc.$arch ]; then
-	. /etc/rc.$arch
+if [ -f /etc/rc.${arch} ]; then
+	. /etc/rc.${arch}
+fi
+
+if [ "X${local_startup}" != X"NO" -a -d ${local_startup} ]; then
+	for script in ${local_startup}/*.sh; do
+		[ -x ${script} ] && ${script} start
+	done
 fi
 
 # Do traditional (but rather obsolete) rc.local file if it exists.
-if [ -f /etc/rc.local ]; then
-	sh /etc/rc.local
-fi
+[ -x /etc/rc.local ] && /etc/rc.local
 
 date
 exit 0
