@@ -198,7 +198,7 @@ kvm_proclist(kd, what, arg, p, bp, maxcnt)
 		 * not exposed to userland.  For compatability, just install
 		 * an empty signal set.
 		 */
-		SIGEMPTYSET(proc.p_siglist);
+		SIGEMPTYSET(kp->ki_siglist);
 		if (proc.p_procsig != NULL) {
 			if (KREAD(kd, (u_long)proc.p_procsig, &procsig)) {
 				_kvm_err(kd, kd->program,
