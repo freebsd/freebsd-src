@@ -162,14 +162,6 @@ int	*semu;			/* undo structure pool */
  */
 void	semexit __P((struct proc *p));
 
-/*
- * Parameters to the semconfig system call
- */
-typedef enum {
-	SEM_CONFIG_FREEZE,	/* Freeze the semaphore facility. */
-	SEM_CONFIG_THAW		/* Thaw the semaphore facility. */
-} semconfig_ctl_t;
-
 void seminit __P((void));
 #endif /* KERNEL */
 
