@@ -58,7 +58,7 @@
 #endif
 
 #define	ISP_CORE_VERSION_MAJOR	1
-#define	ISP_CORE_VERSION_MINOR	13
+#define	ISP_CORE_VERSION_MINOR	14
 
 /*
  * Vector for bus specific code to provide specific services.
@@ -260,11 +260,11 @@ typedef struct {
 	 */
 	struct lportdb {
 		u_int
-					loopid	: 8,
-						: 4,
-					fabdev	: 1,
-					roles	: 2,
-					valid	: 1;
+					loopid		: 8,
+							: 4,
+					loggedin	: 1,
+					roles		: 2,
+					valid		: 1;
 		u_int32_t		portid;
 		u_int64_t		node_wwn;
 		u_int64_t		port_wwn;
