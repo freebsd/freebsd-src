@@ -7,6 +7,9 @@ STRIP=
 NEWVERSWHAT=	"bootstrap loader" i386
 BINDIR?=	/boot
 INSTALLFLAGS=	-b
+.if !defined(LOADER_NO_AOUT_SUPPORT)
+LOADER_AOUT_SUPPORT=	yes
+.endif
 
 # architecture-specific loader code
 SRCS=		main.c conf.c
