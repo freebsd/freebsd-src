@@ -1650,7 +1650,7 @@ vm_map_wire(vm_map_t map, vm_offset_t start, vm_offset_t end,
 				 */
 			}
 			vm_map_lock(map);
-			if (last_timestamp+1 != map->timestamp) {
+			if (last_timestamp + 1 != map->timestamp) {
 				/*
 				 * Look again for the entry because the map was
 				 * modified while it was unlocked.
@@ -1704,7 +1704,7 @@ vm_map_wire(vm_map_t map, vm_offset_t start, vm_offset_t end,
 			else
 				rv = vm_fault_wire(map, saved_start, saved_end);
 			vm_map_lock(map);
-			if (last_timestamp+1 != map->timestamp) {
+			if (last_timestamp + 1 != map->timestamp) {
 				/*
 				 * Look again for the entry because the map was
 				 * modified while it was unlocked.  The entry
@@ -1719,14 +1719,24 @@ vm_map_wire(vm_map_t map, vm_offset_t start, vm_offset_t end,
 				else
 					first_entry = NULL;
 				entry = tmp_entry;
-				while (entry->end < saved_end)
+				while (entry->end < saved_end) {
+					if (rv != KERN_SUCCESS) {
+						KASSERT(entry->wired_count == 1,
+						    ("vm_map_wire: bad count"));
+						entry->wired_count = -1;
+					}
 					entry = entry->next;
+				}
 			}
 			last_timestamp = map->timestamp;
 			if (rv != KERN_SUCCESS) {
+				KASSERT(entry->wired_count == 1,
+				    ("vm_map_wire: bad count"));
 				/*
-				 * XXX
+				 * Assign an out-of-range value to represent
+				 * the failure to wire this entry.
 				 */
+				entry->wired_count = -1;
 				end = entry->end;
 				goto done;
 			}
@@ -1757,6 +1767,12 @@ done:
 		if (rv == KERN_SUCCESS) {
 			if (user_wire)
 				entry->eflags |= MAP_ENTRY_USER_WIRED;
+		} else if (entry->wired_count == -1) {
+			/*
+			 * Wiring failed on this entry.  Thus, unwiring is
+			 * unnecessary.
+			 */
+			entry->wired_count = 0;
 		} else {
 			if (!user_wire || (entry->wired_count == 1 &&
 			    (entry->eflags & MAP_ENTRY_USER_WIRED) == 0))
