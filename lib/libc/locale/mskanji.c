@@ -29,9 +29,10 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY  
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF  
  * SUCH DAMAGE.  
+ *
+ * $FreeBSD$
  */  
 
-#ifdef XPG4
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)mskanji.c	1.0 (Phase One) 5/5/95";
 #endif /* LIBC_SCCS and not lint */
@@ -104,4 +105,3 @@ _MSKanji_sputrune(c, string, n, result)
 	}
 	return len;
 }
-#endif  /* XPG4 */

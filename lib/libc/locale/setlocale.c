@@ -96,10 +96,6 @@ static int      stub_load_locale __P((const char *));
 
 extern int __time_load_locale __P((const char *)); /* strftime.c */
 
-#ifdef XPG4
-extern int _xpg4_setrunelocale __P((char *));
-#endif
-
 char *
 setlocale(category, locale)
 	int category;
@@ -243,18 +239,10 @@ loadlocale(category)
 		return (old);
 
 	if (category == LC_CTYPE) {
-#ifdef XPG4
-		ret = _xpg4_setrunelocale(new) ? NULL : new;
-#else
 		ret = setrunelocale(new) ? NULL : new;
-#endif
-		if (!ret) {
-#ifdef XPG4
-			(void)_xpg4_setrunelocale(old);
-#else
+		if (!ret)
 			(void)setrunelocale(old);
-#endif
-		} else
+		else
 			(void)strcpy(old, new);
 		return (ret);
 	}
