@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_serv.c	8.3 (Berkeley) 1/12/94
- * $Id: nfs_serv.c,v 1.21 1995/08/03 12:14:16 dfr Exp $
+ * $Id: nfs_serv.c,v 1.22 1995/08/06 11:55:25 davidg Exp $
  */
 
 /*
@@ -2483,7 +2483,7 @@ nfsrv_readdir(nfsd, slp, procp, mrq)
 	int siz, cnt, fullsiz, eofflag, rdonly, cache, ncookies;
 	int v3 = (nfsd->nd_flag & ND_NFSV3);
 	u_quad_t frev, off, toff, verf;
-	u_long *cookies = NULL, *cookiep;
+	u_int *cookies = NULL, *cookiep;
 
 	fhp = &nfh.fh_generic;
 	nfsm_srvmtofh(fhp);
@@ -2755,7 +2755,7 @@ nfsrv_readdirplus(nfsd, slp, procp, mrq)
 	int len, nlen, rem, xfer, tsiz, i, error = 0, getret = 1;
 	int siz, cnt, fullsiz, eofflag, rdonly, cache, dirlen, ncookies;
 	u_quad_t frev, off, toff, verf;
-	u_long *cookies = NULL, *cookiep;
+	u_int *cookies = NULL, *cookiep;
 
 	fhp = &nfh.fh_generic;
 	nfsm_srvmtofh(fhp);

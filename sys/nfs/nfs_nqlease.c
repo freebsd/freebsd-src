@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_nqlease.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_nqlease.c,v 1.12 1995/06/27 11:06:36 dfr Exp $
+ * $Id: nfs_nqlease.c,v 1.13 1995/08/11 11:31:10 davidg Exp $
  */
 
 /*
@@ -530,7 +530,7 @@ nqsrv_send_eviction(vp, lp, slp, nam, cred)
 			m = nfsm_rpchead(cred, (NFSMNT_NFSV3 | NFSMNT_NQNFS),
 				NQNFSPROC_EVICTED,
 				RPCAUTH_UNIX, 5 * NFSX_UNSIGNED, (char *)0,
-				mreq, siz, &mheadend, &xid);
+				0, (char *)NULL, mreq, siz, &mheadend, &xid);
 			/*
 			 * For stream protocols, prepend a Sun RPC
 			 * Record Mark.
@@ -911,7 +911,7 @@ nqnfs_vacated(vp, cred)
 	}
 	m = nfsm_rpchead(cred, nmp->nm_flag, NQNFSPROC_VACATED,
 		RPCAUTH_UNIX, 5 * NFSX_UNSIGNED, (char *)0,
-		mreq, i, &mheadend, &xid);
+		0, (char *)NULL, mreq, i, &mheadend, &xid);
 	if (nmp->nm_sotype == SOCK_STREAM) {
 		M_PREPEND(m, NFSX_UNSIGNED, M_WAIT);
 		*mtod(m, u_long *) = htonl(0x80000000 | (m->m_pkthdr.len -
