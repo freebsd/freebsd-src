@@ -88,6 +88,7 @@ struct
     char	*desc;
 } mlx_identifiers[] = {
     {0x1069, 0x0002, MLX_IFTYPE_3, "Mylex version 3 RAID interface"},	/* Mylex v3 software interface */
+    {0x1069, 0x0010, MLX_IFTYPE_4, "Mylex version 4 RAID interface"},	/* Mylex v4 software interface */
     {0, 0, 0, 0}
 };
 

@@ -51,6 +51,65 @@
 #define MLX_STATUS_BUSY		0xffff	/* command is in controller */
 
 /*
+ * Accessor defines for the V3 interface.
+ */
+#define MLX_V3_MAILBOX		0x00
+#define	MLX_V3_STATUS_IDENT	0x0d
+#define MLX_V3_STATUS		0x0e
+#define MLX_V3_IDBR		0x40
+#define MLX_V3_ODBR		0x41
+#define MLX_V3_IER		0x43
+
+#define MLX_V3_PUT_MAILBOX(sc, idx, val) bus_space_write_1(sc->mlx_btag, sc->mlx_bhandle, MLX_V3_MAILBOX + idx, val)
+#define MLX_V3_GET_STATUS_IDENT(sc)	 bus_space_read_1 (sc->mlx_btag, sc->mlx_bhandle, MLX_V3_STATUS_IDENT)
+#define MLX_V3_GET_STATUS(sc)		 bus_space_read_2 (sc->mlx_btag, sc->mlx_bhandle, MLX_V3_STATUS)
+#define MLX_V3_GET_IDBR(sc)		 bus_space_read_1 (sc->mlx_btag, sc->mlx_bhandle, MLX_V3_IDBR)
+#define MLX_V3_PUT_IDBR(sc, val)	 bus_space_write_1(sc->mlx_btag, sc->mlx_bhandle, MLX_V3_IDBR, val)
+#define MLX_V3_GET_ODBR(sc)		 bus_space_read_1 (sc->mlx_btag, sc->mlx_bhandle, MLX_V3_ODBR)
+#define MLX_V3_PUT_ODBR(sc, val)	 bus_space_write_1(sc->mlx_btag, sc->mlx_bhandle, MLX_V3_ODBR, val)
+#define MLX_V3_PUT_IER(sc, val)		 bus_space_write_1(sc->mlx_btag, sc->mlx_bhandle, MLX_V3_IER, val)
+
+#define MLX_V3_IDB_FULL		(1<<0)		/* mailbox is full */
+#define MLX_V3_IDB_SACK		(1<<1)		/* acknowledge status read */
+
+#define MLX_V3_ODB_SAVAIL	(1<<0)		/* status is available */
+
+/*
+ * Accessor defines for the V4 interface.
+ */
+#define MLX_V4_MAILBOX		0x1000
+#define	MLX_V4_STATUS_IDENT	0x1018
+#define MLX_V4_STATUS		0x101a
+#define MLX_V4_IDBR		0x0020
+#define MLX_V4_ODBR		0x002c
+#define MLX_V4_IER		0x0034
+
+/* use longword access? */
+#define MLX_V4_PUT_MAILBOX(sc, idx, val) bus_space_write_1(sc->mlx_btag, sc->mlx_bhandle, MLX_V4_MAILBOX + idx, val)
+#define MLX_V4_GET_STATUS_IDENT(sc)	 bus_space_read_1 (sc->mlx_btag, sc->mlx_bhandle, MLX_V4_STATUS_IDENT)
+#define MLX_V4_GET_STATUS(sc)		 bus_space_read_2 (sc->mlx_btag, sc->mlx_bhandle, MLX_V4_STATUS)
+#define MLX_V4_GET_IDBR(sc)		 bus_space_read_4 (sc->mlx_btag, sc->mlx_bhandle, MLX_V4_IDBR)
+#define MLX_V4_PUT_IDBR(sc, val)	 bus_space_write_4(sc->mlx_btag, sc->mlx_bhandle, MLX_V4_IDBR, val)
+#define MLX_V4_GET_ODBR(sc)		 bus_space_read_4 (sc->mlx_btag, sc->mlx_bhandle, MLX_V4_ODBR)
+#define MLX_V4_PUT_ODBR(sc, val)	 bus_space_write_4(sc->mlx_btag, sc->mlx_bhandle, MLX_V4_ODBR, val)
+#define MLX_V4_PUT_IER(sc, val)		 bus_space_write_4(sc->mlx_btag, sc->mlx_bhandle, MLX_V4_IER, val)
+
+#define MLX_V4_IDB_FULL		(1<<0)		/* mailbox is full */
+
+#define MLX_V4_IDB_HWMBOX_CMD	(1<<0)		/* posted hardware mailbox command */
+#define MLX_V4_IDB_SACK		(1<<1)		/* acknowledge status read */
+#define MLX_V4_IDB_MEMMBOX_CMD	(1<<4)		/* posted memory mailbox command */
+
+#define MLX_V4_ODB_HWSAVAIL	(1<<0)		/* status is available for hardware mailbox */
+#define MLX_V4_ODB_MEMSAVAIL	(1<<1)		/* status is available for memory mailbox */
+
+#define MLX_V4_ODB_HWMBOX_ACK	(1<<0)		/* ack status read from hardware mailbox */
+#define MLX_V4_ODB_MEMMBOX_ACK	(1<<1)		/* ack status read from memory mailbox */
+
+#define MLX_V4_IER_MASK		0xfb		/* message unit interrupt mask */
+#define MLX_V4_IER_DISINT	(1<<2)		/* interrupt disable bit */
+
+/*
  * Scatter-gather list format, type 1, kind 00.
  */
 struct mlx_sgentry 
