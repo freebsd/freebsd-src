@@ -389,11 +389,11 @@ _ftp_closefn(void *v)
 	errno = EBADF;
 	return -1;
     }
-    io->err = _ftp_chkerr(io->csd);
+    close(io->dsd);
     io->dir = -1;
-    if (close(io->dsd) == -1)
-	return -1;
     io->dsd = -1;
+    DEBUG(fprintf(stderr, "Waiting for final status\n"));
+    io->err = _ftp_chkerr(io->csd);
     close(io->csd);
     io->csd = -1;
     return io->err ? -1 : 0;
