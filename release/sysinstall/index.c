@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: index.c,v 1.14 1995/10/21 14:06:44 jkh Exp $
+ * $Id: index.c,v 1.15 1995/10/22 01:32:44 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -456,6 +456,7 @@ index_menu(PkgNodePtr top, PkgNodePtr plist, int *pos, int *scroll)
 	}
     }
     if (!n && plist) {
+	dialog_clear();
 	msgConfirm("The %s menu is empty.", top->name);
 	return RET_DONE;
     }
@@ -539,8 +540,9 @@ index_menu(PkgNodePtr top, PkgNodePtr plist, int *pos, int *scroll)
 		    pos = scroll = 0;
 		    index_menu(menu, plist, &pos, &scroll);
 		}
-		else
+		else {
 		    msgConfirm("Search string: %s yielded no hits.", cp);
+		}
 	    }
 	}
 	else {
@@ -557,13 +559,8 @@ index_extract(Device *dev, PkgNodePtr plist)
     int status = RET_SUCCESS;
 
     for (tmp = plist->kids; tmp; tmp = tmp->next) {
-	if (package_extract(dev, tmp->name) != RET_SUCCESS) {
-	    if (variable_get(VAR_NO_CONFIRM))
-		msgNotify("Unable to locate package %s..", tmp->name);
-	    else
-		msgConfirm("Unable to locate package %s..", tmp->name);
+	if (package_extract(dev, tmp->name) != RET_SUCCESS)
 	    status = RET_FAIL;
-	}
     }
     return status;
 }

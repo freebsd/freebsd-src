@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installUpgrade.c,v 1.2 1995/10/19 18:37:46 jkh Exp $
+ * $Id: installUpgrade.c,v 1.5 1995/10/20 14:24:52 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -63,6 +63,7 @@ typedef struct _hitList {
 static void
 doByHand(HitList *h)
 {
+    dialog_clear();
     msgConfirm("/etc/%s is one of those files that this upgrade procedure just isn't\n"
 	       "smart enough to deal with right now.  You'll need to merge the old and\n"
 	       "new versions by hand when the option to do so is later presented.", h->name);
@@ -142,9 +143,11 @@ traverseHitlist(HitList *h)
 {
     while (h->name) {
 	if (!file_readable(h->name)) {
-	    if (!h->optional)
+	    if (!h->optional) {
+		dialog_clear();
 		msgConfirm("Unable to find an old /etc/%s file!  That is decidedly non-standard and\n"
 			   "your upgraded system may function a little strangely as a result.");
+	    }
 	}
 	else {
 	    if (h->action == JUST_COPY) {
@@ -154,8 +157,10 @@ traverseHitlist(HitList *h)
 		/* Copy the old one into its place */
 		msgNotify("Resurrecting %s..", h->name);
 		/* Do this with tar so that symlinks and such are preserved */
-		if (vsystem("tar cf - %s | tar xpf - -C /etc", h->name))
+		if (vsystem("tar cf - %s | tar xpf - -C /etc", h->name)) {
+		    dialog_clear();
 		    msgConfirm("Unable to resurrect your old /etc/%s!  Hmmmm.", h->name);
+		}
 	    }
 	    else /* call handler */
 		h->handler(h);
@@ -173,12 +178,14 @@ installUpgrade(char *str)
     pid_t child;
 
     if (!RunningAsInit) {
+	dialog_clear();
 	msgConfirm("You can only perform this procedure when booted off the installation\n"
 		   "floppy.");
 	return RET_FAIL;
     }
 
     if (!Dists) {
+	dialog_clear();
 	msgConfirm("You haven't specified any distributions yet.  The upgrade procedure\n"
 		   "will only upgrade those portions of the system for which a distribution\n"
 		   "has been selected.  In the next screen, we'll go to the Distributions\n"
@@ -211,6 +218,7 @@ installUpgrade(char *str)
     /* Note that we're now upgrading */
     variable_set2(SYSTEM_STATE, "upgrade");
 
+    dialog_clear();
     msgConfirm("OK.  First, we're going to go to the disk label editor.  In this editor\n"
 	       "you will be expected to *Mount* any partitions you're interested in\n"
 	       "upgrading.  Don't set the Newfs flag to Y on anything in the label editor\n"
@@ -221,6 +229,7 @@ installUpgrade(char *str)
 	       "step.\n");
 
     if (diskLabelEditor(NULL) == RET_FAIL) {
+	dialog_clear();
 	msgConfirm("The disk label editor failed to work properly!  Upgrade operation\n"
 		   "aborted.");
 	return RET_FAIL;
@@ -229,6 +238,7 @@ installUpgrade(char *str)
     /* Don't write out MBR info */
     variable_set2(DISK_PARTITIONED, "written");
     if (diskLabelCommit(NULL) == RET_FAIL) {
+	dialog_clear();
 	msgConfirm("Not all file systems were properly mounted.  Upgrade operation\n"
 		   "aborted.");
 	variable_unset(DISK_PARTITIONED);
@@ -236,6 +246,7 @@ installUpgrade(char *str)
     }
 
     if (chroot("/mnt") == RET_FAIL) {
+	dialog_clear();
 	msgConfirm("Unable to chroot to /mnt - something is wrong with the\n"
 		   "root partition or the way it's mounted if this doesn't work.");
 	variable_unset(DISK_PARTITIONED);
@@ -269,10 +280,12 @@ installUpgrade(char *str)
     msgNotify("Beginning extraction of distributions..");
     if (distExtractAll(NULL) == RET_FAIL) {
 	if (extractingBin && (Dists & DIST_BIN)) {
+	    dialog_clear();
 	    msgConfirm("Hmmmm.  We couldn't even extract the bin distribution.  This upgrade\n"
 		       "should be considered a failure and started from the beginning, sorry!\n");
 	    return RET_FAIL;
 	}
+	dialog_clear();
 	msgConfirm("The extraction process seems to have had some problems, but we got most\n"
 		   "of the essentials.  We'll treat this as a warning since it may have been\n"
 		   "only non-essential distributions which failed to load.");
@@ -283,27 +296,33 @@ installUpgrade(char *str)
 		  "/dev entries and such that a 2.1 system expects to see.  I'll also perform a\n"
 		  "few \"fixup\" operations to repair the effects of splatting a bin distribution\n"
 		  "on top of an existing system..");
-	if (installFixup("upgrade") == RET_FAIL)
+	if (installFixup("upgrade") == RET_FAIL) {
+	    dialog_clear();
 	    msgConfirm("Hmmmmm.  The fixups don't seem to have been very happy.\n"
 		       "You may wish to examine the system a little more closely when\n"
 		       "it comes time to merge your /etc customizations back.");
+	}
     }
     
     if (extractingBin)
 	configSysconfig();
 
-    if (installFinal("upgrade") == RET_FAIL)
+    if (installFinal("upgrade") == RET_FAIL) {
+	dialog_clear();
 	msgConfirm("Some of the final configuration stuff evidently failed, but\n"
 		   "the first stage of the upgrade should otherwise be considered\n"
 		   "a success!\n\n"
 		   "Next comes stage 2, where we attempt to resurrect your /etc\n"
 		   "directory!");
-    else
+    }
+    else {
+	dialog_clear();
 	msgConfirm("First stage of upgrade completed successfully!\n\n"
 		   "Next comes stage 2, where we attempt to resurrect your /etc\n"
 		   "directory!");
-
+    }
     if (chdir(saved_etc)) {
+	dialog_clear();
 	msgConfirm("Unable to go to your saved /etc directory in %s?!  Argh!\n"
 		   "Something went seriously wrong!  It's quite possible that\n"
 		   "your former /etc is toast.  I hope you didn't have any\n"
@@ -314,6 +333,7 @@ installUpgrade(char *str)
     /* Now try to resurrect the /etc files */
     traverseHitlist(etc_files);
 
+    dialog_clear();
     msgConfirm("OK!  At this stage, we've resurrected all the /etc files we could\n"
 	       "(and you may have been warned about some that you'll have to merge\n"
 	       "yourself, by hand) and we're going to drop you into a shell to do\n"
