@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.178 1998/01/22 17:29:30 dyson Exp $
+ *	$Id: pmap.c,v 1.179 1998/01/31 11:55:41 dyson Exp $
  */
 
 /*
@@ -67,6 +67,8 @@
  *	to which processors are currently using which maps,
  *	and to when physical maps must be made correct.
  */
+
+#include "opt_disable_pse.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
