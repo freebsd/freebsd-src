@@ -35,7 +35,7 @@
  *
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: diskslice_machdep.c,v 1.11 1997/12/02 21:06:50 phk Exp $
+ *	$Id: diskslice_machdep.c,v 1.12 1998/02/21 16:17:52 kato Exp $
  */
 
 /*
@@ -186,8 +186,8 @@ check_part(sname, dp, offset, nsectors, ntracks, mbr_offset )
 			error ? "" : ": OK");
 #else
 		printf("%s: type 0x%x, start %lu, end = %lu, size %lu %s\n",
-		       sname, dp->dp_typ, ssector1, esector1, dp->dp_size,
-		       error ? "" : ": OK");
+		       sname, dp->dp_typ, ssector1, esector1,
+		       (u_long)dp->dp_size, error ? "" : ": OK");
 #endif
 	if (ssector != ssector1 && bootverbose)
 		printf("%s: C/H/S start %d/%d/%d (%lu) != start %lu: invalid\n",
