@@ -1,4 +1,4 @@
-/* $Id: trap.c,v 1.7 1998/12/04 10:52:47 dfr Exp $ */
+/* $Id: trap.c,v 1.8 1998/12/04 22:54:42 archie Exp $ */
 /* $NetBSD: trap.c,v 1.31 1998/03/26 02:21:46 thorpej Exp $ */
 
 /*
@@ -419,7 +419,7 @@ trap(a0, a1, a2, entry, framep)
 				 * Grow the stack if necessary
 				 */
 				if ((caddr_t)va > vm->vm_maxsaddr
-				    && (caddr_t)va < (caddr_t)USRSTACK) {
+				    && va < USRSTACK) {
 					if (!grow(p, va)) {
 						rv = KERN_FAILURE;
 						--p->p_lock;
