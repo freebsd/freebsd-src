@@ -41,7 +41,6 @@ The
 driver supports PCI SCSI host adapters based on the Tekram TRM-S1040 SCSI ASIC.
 .Sh HARDWARE
 Supported SCSI controllers include:
-.Pp
 .Bl -item -offset indent
 .It
 .Tn Tekram DC-315
@@ -70,16 +69,19 @@ driver.
 .Xr da 4 ,
 .Xr intro 4 ,
 .Xr sa 4 ,
-.Xr scsi 4
+.Xr scsi 4 ,
 .Xr sym 4
 .Pp
 .Pa http://www.tekram.com/
 .Sh AUTHORS
+.An -nosplit
 The
 .Nm
 driver was originally written for
 .Fx 3.0 Ns /i386
-by Erich Chen of Tekram Technology,
+by
+.An Erich Chen
+of Tekram Technology,
 and ported to
 .Fx 5.0
 by
