@@ -370,6 +370,7 @@ extern DMenu		MenuFTPOptions;		/* FTP Installation options			*/
 extern DMenu		MenuIndex;		/* Index menu					*/
 extern DMenu		MenuOptions;		/* Installation options				*/
 extern DMenu		MenuOptionsLanguage;	/* Language options menu			*/
+extern DMenu		MenuKLD;		/* Prototype KLD menu				*/
 extern DMenu		MenuMedia;		/* Media type menu				*/
 extern DMenu		MenuMouse;		/* Mouse type menu				*/
 extern DMenu		MenuMediaCDROM;		/* CDROM media menu				*/
@@ -672,6 +673,7 @@ extern char	*sstrncpy(char *dst, const char *src, int size);
 
 /* modules.c */
 extern void	moduleInitialize(void);
+extern int	kldBrowser(dialogMenuItem *self);
 
 /* mouse.c */
 extern int	mousedTest(dialogMenuItem *self);
