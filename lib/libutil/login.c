@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -32,7 +32,12 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
+#if 0
 static char sccsid[] = "@(#)login.c	8.1 (Berkeley) 6/4/93";
+#else
+static const char rcsid[] =
+	"$Id$";
+#endif
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>
