@@ -133,7 +133,7 @@ struct da_softc {
 	int	 ordered_tag_count;
 	int	 outstanding_cmds;
 	struct	 disk_params params;
-	struct	 disk disk;
+	struct	 disk *disk;
 	union	 ccb saved_ccb;
 	struct task		sysctl_task;
 	struct sysctl_ctx_list	sysctl_ctx;
@@ -493,13 +493,13 @@ daopen(struct disk *dp)
 
 	if (error == 0) {
 
-		softc->disk.d_sectorsize = softc->params.secsize;
-		softc->disk.d_mediasize = softc->params.secsize * (off_t)softc->params.sectors;
+		softc->disk->d_sectorsize = softc->params.secsize;
+		softc->disk->d_mediasize = softc->params.secsize * (off_t)softc->params.sectors;
 		/* XXX: these are not actually "firmware" values, so they may be wrong */
-		softc->disk.d_fwsectors = softc->params.secs_per_track;
-		softc->disk.d_fwheads = softc->params.heads;
-		softc->disk.d_devstat->block_size = softc->params.secsize;
-		softc->disk.d_devstat->flags &= ~DEVSTAT_BS_UNAVAILABLE;
+		softc->disk->d_fwsectors = softc->params.secs_per_track;
+		softc->disk->d_fwheads = softc->params.heads;
+		softc->disk->d_devstat->block_size = softc->params.secsize;
+		softc->disk->d_devstat->flags &= ~DEVSTAT_BS_UNAVAILABLE;
 	}
 	
 	if (error == 0) {
@@ -547,7 +547,7 @@ daclose(struct disk *dp)
 
 		cam_periph_runccb(ccb, /*error_routine*/NULL, /*cam_flags*/0,
 				  /*sense_flags*/SF_RETRY_UA,
-				  softc->disk.d_devstat);
+				  softc->disk->d_devstat);
 
 		if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
 			if ((ccb->ccb_h.status & CAM_STATUS_MASK) ==
@@ -589,7 +589,7 @@ daclose(struct disk *dp)
 		 * unavailable, since it could change when new media is
 		 * inserted.
 		 */
-		softc->disk.d_devstat->flags |= DEVSTAT_BS_UNAVAILABLE;
+		softc->disk->d_devstat->flags |= DEVSTAT_BS_UNAVAILABLE;
 	}
 
 	softc->flags &= ~DA_FLAG_OPEN;
@@ -851,7 +851,7 @@ dacleanup(struct cam_periph *periph)
 		xpt_print_path(periph->path);
 		printf("can't remove sysctl context\n");
 	}
-	disk_destroy(&softc->disk);
+	disk_destroy(softc->disk);
 	free(softc, M_DEVBUF);
 }
 
@@ -1091,14 +1091,17 @@ daregister(struct cam_periph *periph, void *arg)
 	 * Register this media as a disk
 	 */
 
-	softc->disk.d_open = daopen;
-	softc->disk.d_close = daclose;
-	softc->disk.d_strategy = dastrategy;
-	softc->disk.d_dump = dadump;
-	softc->disk.d_name = "da";
-	softc->disk.d_drv1 = periph;
-	softc->disk.d_maxsize = DFLTPHYS; /* XXX: probably not arbitrary */
-	disk_create(periph->unit_number, &softc->disk, 0, NULL, NULL);
+	softc->disk = disk_alloc();
+	softc->disk->d_open = daopen;
+	softc->disk->d_close = daclose;
+	softc->disk->d_strategy = dastrategy;
+	softc->disk->d_dump = dadump;
+	softc->disk->d_name = "da";
+	softc->disk->d_drv1 = periph;
+	softc->disk->d_maxsize = DFLTPHYS; /* XXX: probably not arbitrary */
+	softc->disk->d_unit = periph->unit_number;
+	softc->disk->d_flags = DISKFLAG_NEEDSGIANT;
+	disk_create(softc->disk, DISK_VERSION);
 
 	/*
 	 * Add async callbacks for bus reset and
@@ -1666,7 +1669,7 @@ daprevent(struct cam_periph *periph, int action)
 		     5000);
 
 	error = cam_periph_runccb(ccb, /*error_routine*/NULL, CAM_RETRY_SELTO,
-				  SF_RETRY_UA, softc->disk.d_devstat);
+				  SF_RETRY_UA, softc->disk->d_devstat);
 
 	if (error == 0) {
 		if (action == PR_ALLOW)
@@ -1712,7 +1715,7 @@ dagetcapacity(struct cam_periph *periph)
 	error = cam_periph_runccb(ccb, daerror,
 				  /*cam_flags*/CAM_RETRY_SELTO,
 				  /*sense_flags*/SF_RETRY_UA,
-				  softc->disk.d_devstat);
+				  softc->disk->d_devstat);
 
 	if ((ccb->ccb_h.status & CAM_DEV_QFRZN) != 0)
 		cam_release_devq(ccb->ccb_h.path,
@@ -1747,7 +1750,7 @@ dagetcapacity(struct cam_periph *periph)
 	error = cam_periph_runccb(ccb, daerror,
 				  /*cam_flags*/CAM_RETRY_SELTO,
 				  /*sense_flags*/SF_RETRY_UA,
-				  softc->disk.d_devstat);
+				  softc->disk->d_devstat);
 
 	if ((ccb->ccb_h.status & CAM_DEV_QFRZN) != 0)
 		cam_release_devq(ccb->ccb_h.path,

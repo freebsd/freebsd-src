@@ -203,16 +203,19 @@ idad_attach(device_t dev)
 	    drv->secperunit / ((1024 * 1024) / drv->secsize),
 	    drv->secperunit, drv->secsize);
 
-	drv->disk.d_strategy = idad_strategy;
-	drv->disk.d_name = "idad";
-	drv->disk.d_dump = idad_dump;
-	drv->disk.d_sectorsize = drv->secsize;
-	drv->disk.d_mediasize = (off_t)drv->secperunit * drv->secsize;
-	drv->disk.d_fwsectors = drv->sectors;
-	drv->disk.d_fwheads = drv->heads;
-	drv->disk.d_drv1 = drv;
-	drv->disk.d_maxsize = DFLTPHYS;		/* XXX guess? */
-	disk_create(drv->unit, &drv->disk, 0, NULL, NULL);
+	drv->disk = disk_alloc();
+	drv->disk->d_strategy = idad_strategy;
+	drv->disk->d_name = "idad";
+	drv->disk->d_dump = idad_dump;
+	drv->disk->d_sectorsize = drv->secsize;
+	drv->disk->d_mediasize = (off_t)drv->secperunit * drv->secsize;
+	drv->disk->d_fwsectors = drv->sectors;
+	drv->disk->d_fwheads = drv->heads;
+	drv->disk->d_drv1 = drv;
+	drv->disk->d_maxsize = DFLTPHYS;		/* XXX guess? */
+	drv->disk->d_unit = drv->unit;
+	drv->disk->d_flags = DISKFLAG_NEEDSGIANT;
+	disk_create(drv->disk, DISK_VERSION);
 
 	return (0);
 }
@@ -223,6 +226,6 @@ idad_detach(device_t dev)
 	struct idad_softc *drv;
 
 	drv = (struct idad_softc *)device_get_softc(dev);
-	disk_destroy(&drv->disk);
+	disk_destroy(drv->disk);
 	return (0);
 }

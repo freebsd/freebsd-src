@@ -159,7 +159,7 @@ struct cd_softc {
 	struct sysctl_oid	*sysctl_tree;
 	STAILQ_HEAD(, cd_mode_params)	mode_queue;
 	struct cd_tocdata	toc;
-	struct disk		disk;
+	struct disk		*disk;
 };
 
 struct cd_page_sizes {
@@ -498,7 +498,7 @@ cdcleanup(struct cam_periph *periph)
 		free(softc->changer, M_DEVBUF);
 		num_changers--;
 	}
-	disk_destroy(&softc->disk);
+	disk_destroy(softc->disk);
 	free(softc, M_DEVBUF);
 	splx(s);
 }
@@ -736,18 +736,21 @@ cdregister(struct cam_periph *periph, void *arg)
 	 * WORM peripheral driver.  WORM drives will also have the WORM
 	 * driver attached to them.
 	 */
-	softc->disk.d_devstat = devstat_new_entry("cd", 
+	softc->disk = disk_alloc();
+	softc->disk->d_devstat = devstat_new_entry("cd", 
 			  periph->unit_number, 0,
 	  		  DEVSTAT_BS_UNAVAILABLE,
 			  DEVSTAT_TYPE_CDROM | DEVSTAT_TYPE_IF_SCSI,
 			  DEVSTAT_PRIORITY_CD);
-	softc->disk.d_open = cdopen;
-	softc->disk.d_close = cdclose;
-	softc->disk.d_strategy = cdstrategy;
-	softc->disk.d_ioctl = cdioctl;
-	softc->disk.d_name = "cd";
-	disk_create(periph->unit_number, &softc->disk, 0, NULL, NULL);
-	softc->disk.d_drv1 = periph;
+	softc->disk->d_open = cdopen;
+	softc->disk->d_close = cdclose;
+	softc->disk->d_strategy = cdstrategy;
+	softc->disk->d_ioctl = cdioctl;
+	softc->disk->d_name = "cd";
+	softc->disk->d_unit = periph->unit_number;
+	softc->disk->d_drv1 = periph;
+	softc->disk->d_flags = DISKFLAG_NEEDSGIANT;
+	disk_create(softc->disk, DISK_VERSION);
 
 	/*
 	 * Add an async callback so that we get
@@ -1059,7 +1062,7 @@ cdclose(struct disk *dp)
 	 * Since we're closing this CD, mark the blocksize as unavailable.
 	 * It will be marked as available when the CD is opened again.
 	 */
-	softc->disk.d_devstat->flags |= DEVSTAT_BS_UNAVAILABLE;
+	softc->disk->d_devstat->flags |= DEVSTAT_BS_UNAVAILABLE;
 
 	/*
 	 * We'll check the media and toc again at the next open().
@@ -1353,7 +1356,7 @@ cdrunccb(union ccb *ccb, int (*error_routine)(union ccb *ccb,
 	softc = (struct cd_softc *)periph->softc;
 
 	error = cam_periph_runccb(ccb, error_routine, cam_flags, sense_flags,
-				  softc->disk.d_devstat);
+				  softc->disk->d_devstat);
 
 	if (softc->flags & CD_FLAG_CHANGER)
 		cdchangerschedule(softc);
@@ -1509,7 +1512,7 @@ cdstart(struct cam_periph *periph, union ccb *start_ccb)
 		} else {
 			bioq_remove(&softc->bio_queue, bp);
 
-			devstat_start_transaction_bio(softc->disk.d_devstat, bp);
+			devstat_start_transaction_bio(softc->disk->d_devstat, bp);
 
 			scsi_read_write(&start_ccb->csio,
 					/*retries*/4,
@@ -1665,7 +1668,7 @@ cddone(struct cam_periph *periph, union ccb *done_ccb)
 		if (softc->flags & CD_FLAG_CHANGER)
 			cdchangerschedule(softc);
 
-		biofinish(bp, softc->disk.d_devstat, 0);
+		biofinish(bp, softc->disk->d_devstat, 0);
 		break;
 	}
 	case CD_CCB_PROBE:
@@ -2719,9 +2722,9 @@ cdcheckmedia(struct cam_periph *periph)
 	softc = (struct cd_softc *)periph->softc;
 
 	cdprevent(periph, PR_PREVENT);
-	softc->disk.d_maxsize = DFLTPHYS;
-	softc->disk.d_sectorsize = 0;
-	softc->disk.d_mediasize = 0;
+	softc->disk->d_maxsize = DFLTPHYS;
+	softc->disk->d_sectorsize = 0;
+	softc->disk->d_mediasize = 0;
 
 	/*
 	 * Get the disc size and block size.  If we can't get it, we don't
@@ -2821,9 +2824,9 @@ cdcheckmedia(struct cam_periph *periph)
 	}
 
 	softc->flags |= CD_FLAG_VALID_TOC;
-	softc->disk.d_maxsize = DFLTPHYS;
-	softc->disk.d_sectorsize = softc->params.blksize;
-	softc->disk.d_mediasize =
+	softc->disk->d_maxsize = DFLTPHYS;
+	softc->disk->d_sectorsize = softc->params.blksize;
+	softc->disk->d_mediasize =
 	    (off_t)softc->params.blksize * softc->params.disksize;
 
 bailout:
@@ -2835,9 +2838,9 @@ bailout:
 	 * XXX problems here if some slice or partition is still
 	 * open with the old size?
 	 */
-	if ((softc->disk.d_devstat->flags & DEVSTAT_BS_UNAVAILABLE) != 0)
-		softc->disk.d_devstat->flags &= ~DEVSTAT_BS_UNAVAILABLE;
-	softc->disk.d_devstat->block_size = softc->params.blksize;
+	if ((softc->disk->d_devstat->flags & DEVSTAT_BS_UNAVAILABLE) != 0)
+		softc->disk->d_devstat->flags &= ~DEVSTAT_BS_UNAVAILABLE;
+	softc->disk->d_devstat->block_size = softc->params.blksize;
 
 	return (error);
 }

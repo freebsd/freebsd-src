@@ -47,5 +47,5 @@ struct ad_softc {
 
     struct mtx			queue_mtx;	/* queue lock */
     struct bio_queue_head	queue;		/* head of request queue */
-    struct disk			disk;		/* disklabel/slice stuff */
+    struct disk			*disk;		/* disklabel/slice stuff */
 };

@@ -84,7 +84,7 @@ struct ssc_s {
 	int unit;
 	LIST_ENTRY(ssc_s) list;
 	struct bio_queue_head bio_queue;
-	struct disk disk;
+	struct disk *disk;
 	dev_t dev;
 	int busy;
 	int fd;
@@ -174,15 +174,18 @@ ssccreate(int unit)
 	sc->unit = unit;
 	bioq_init(&sc->bio_queue);
 
-	sc->disk.d_drv1 = sc;
-	sc->disk.d_fwheads = 0;
-	sc->disk.d_fwsectors = 0;
-	sc->disk.d_maxsize = DFLTPHYS;
-	sc->disk.d_mediasize = (off_t)SSC_NSECT * DEV_BSIZE;
-	sc->disk.d_name = "sscdisk";
-	sc->disk.d_sectorsize = DEV_BSIZE;
-	sc->disk.d_strategy = sscstrategy;
-	disk_create(sc->unit, &sc->disk, 0, NULL, NULL);
+	sc->disk = disk_alloc();
+	sc->disk->d_drv1 = sc;
+	sc->disk->d_fwheads = 0;
+	sc->disk->d_fwsectors = 0;
+	sc->disk->d_maxsize = DFLTPHYS;
+	sc->disk->d_mediasize = (off_t)SSC_NSECT * DEV_BSIZE;
+	sc->disk->d_name = "sscdisk";
+	sc->disk->d_sectorsize = DEV_BSIZE;
+	sc->disk->d_strategy = sscstrategy;
+	sc->disk->d_unit = sc->unit;
+	sc->disk->d_flags = DISKFLAG_NEEDSGIANT;
+	disk_create(sc->disk, DISK_VERSION);
 	sc->fd = fd;
 	if (sc->unit == 0) 
 		sscrootready = 1;

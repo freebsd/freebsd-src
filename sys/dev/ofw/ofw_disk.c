@@ -48,7 +48,7 @@ __FBSDID("$FreeBSD$");
 struct ofwd_softc
 {
 	device_t	ofwd_dev;
-	struct		disk ofwd_disk;
+	struct		disk *ofwd_disk;
 	phandle_t	ofwd_package;
 	ihandle_t	ofwd_instance;
 };
@@ -203,15 +203,18 @@ ofwd_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	sc->ofwd_disk.d_strategy = ofwd_strategy;
-	sc->ofwd_disk.d_name = "ofwd";
-	sc->ofwd_disk.d_sectorsize = OFWD_BLOCKSIZE;
-	sc->ofwd_disk.d_mediasize = (off_t)33554432 * OFWD_BLOCKSIZE;
-	sc->ofwd_disk.d_fwsectors = 0;
-	sc->ofwd_disk.d_fwheads = 0;
-	sc->ofwd_disk.d_drv1 = sc;
-	sc->ofwd_disk.d_maxsize = PAGE_SIZE;
-	disk_create(device_get_unit(dev), &sc->ofwd_disk, 0, NULL, NULL);
+	sc->ofwd_disk = disk_alloc();
+	sc->ofwd_disk->d_strategy = ofwd_strategy;
+	sc->ofwd_disk->d_name = "ofwd";
+	sc->ofwd_disk->d_sectorsize = OFWD_BLOCKSIZE;
+	sc->ofwd_disk->d_mediasize = (off_t)33554432 * OFWD_BLOCKSIZE;
+	sc->ofwd_disk->d_fwsectors = 0;
+	sc->ofwd_disk->d_fwheads = 0;
+	sc->ofwd_disk->d_drv1 = sc;
+	sc->ofwd_disk->d_maxsize = PAGE_SIZE;
+	sc->ofwd_disk->d_unit = device_get_unit(dev);
+	sc->ofwd_disk->d_flags = DISKFLAG_NEEDSGIANT;
+	disk_create(sc->ofwd_disk, DISK_VERSION);
 
 	return (0);
 }

@@ -122,25 +122,28 @@ static int ipsd_attach(device_t dev)
 	dsc->sc = device_get_softc(adapter);
 	dsc->unit = device_get_unit(dev);
 	dsc->disk_number = (uintptr_t) device_get_ivars(dev);
-	dsc->ipsd_disk.d_drv1 = dsc;
-	dsc->ipsd_disk.d_name = "ipsd";
-	dsc->ipsd_disk.d_maxsize = IPS_MAX_IO_SIZE;
-	dsc->ipsd_disk.d_open = ipsd_open;
-	dsc->ipsd_disk.d_close = ipsd_close;
-	dsc->ipsd_disk.d_strategy = ipsd_strategy;
+	dsc->ipsd_disk = disk_alloc();
+	dsc->ipsd_disk->d_drv1 = dsc;
+	dsc->ipsd_disk->d_name = "ipsd";
+	dsc->ipsd_disk->d_maxsize = IPS_MAX_IO_SIZE;
+	dsc->ipsd_disk->d_open = ipsd_open;
+	dsc->ipsd_disk->d_close = ipsd_close;
+	dsc->ipsd_disk->d_strategy = ipsd_strategy;
 
 	totalsectors = dsc->sc->drives[dsc->disk_number].sector_count;
    	if ((totalsectors > 0x400000) &&
        			((dsc->sc->adapter_info.miscflags & 0x8) == 0)) {
-      		dsc->ipsd_disk.d_fwheads = IPS_NORM_HEADS;
-      		dsc->ipsd_disk.d_fwsectors = IPS_NORM_SECTORS;
+      		dsc->ipsd_disk->d_fwheads = IPS_NORM_HEADS;
+      		dsc->ipsd_disk->d_fwsectors = IPS_NORM_SECTORS;
    	} else {
-      		dsc->ipsd_disk.d_fwheads = IPS_COMP_HEADS;
-      		dsc->ipsd_disk.d_fwsectors = IPS_COMP_SECTORS;
+      		dsc->ipsd_disk->d_fwheads = IPS_COMP_HEADS;
+      		dsc->ipsd_disk->d_fwsectors = IPS_COMP_SECTORS;
    	}
-	dsc->ipsd_disk.d_sectorsize = IPS_BLKSIZE;
-	dsc->ipsd_disk.d_mediasize = (off_t)totalsectors * IPS_BLKSIZE;
-	disk_create(dsc->unit, &dsc->ipsd_disk, 0, NULL, NULL);
+	dsc->ipsd_disk->d_sectorsize = IPS_BLKSIZE;
+	dsc->ipsd_disk->d_mediasize = (off_t)totalsectors * IPS_BLKSIZE;
+	dsc->ipsd_disk->d_unit = dsc->unit;
+	dsc->ipsd_disk->d_flags = DISKFLAG_NEEDSGIANT;
+	disk_create(dsc->ipsd_disk, DISK_VERSION);
 
 	device_printf(dev, "Logical Drive  (%dMB)\n",
 		      dsc->sc->drives[dsc->disk_number].sector_count >> 11);
@@ -155,7 +158,7 @@ static int ipsd_detach(device_t dev)
 	dsc = (ipsdisk_softc_t *)device_get_softc(dev);
 	if(dsc->state & IPS_DEV_OPEN)
 		return (EBUSY);
-	disk_destroy(&dsc->ipsd_disk);
+	disk_destroy(dsc->ipsd_disk);
 	return 0;
 }
 

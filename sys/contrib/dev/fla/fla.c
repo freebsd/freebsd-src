@@ -78,7 +78,7 @@ static struct fla_s {
 	unsigned nsect;
 	struct doc2k_stat ds;
 	struct bio_queue_head bio_queue;
-	struct disk disk;
+	struct disk *disk;
 	dev_t dev;
 } softc[8];
 
@@ -99,10 +99,10 @@ flaopen(struct disk *dp)
 	}
 
 	error = doc2k_size(sc->unit, &spu, &ncyl, &nt, &ns);
-	sc->disk.d_sectorsize = DEV_BSIZE;
-	sc->disk.d_mediasize = (off_t)spu * DEV_BSIZE;
-	sc->disk.d_fwsectors = ns;
-	sc->disk.d_fwheads = nt;
+	sc->disk->d_sectorsize = DEV_BSIZE;
+	sc->disk->d_mediasize = (off_t)spu * DEV_BSIZE;
+	sc->disk->d_fwsectors = ns;
+	sc->disk->d_fwheads = nt;
 
 	return (0);
 }
@@ -255,14 +255,17 @@ flaattach (device_t dev)
 
 	bioq_init(&sc->bio_queue);
 
-	sc->disk.d_open = flaopen;
-	sc->disk.d_close = flaclose;
-	sc->disk.d_strategy = flastrategy;
-	sc->disk.d_drv1 = sc;
-	sc->disk.d_name = "fla";
-	sc->disk.d_maxsize = MAXPHYS;
+	sc->disk = disk_alloc();
+	sc->disk->d_open = flaopen;
+	sc->disk->d_close = flaclose;
+	sc->disk->d_strategy = flastrategy;
+	sc->disk->d_drv1 = sc;
+	sc->disk->d_name = "fla";
+	sc->disk->d_maxsize = MAXPHYS;
 	sc->unit = unit;
-	disk_create(unit, &sc->disk, DISKFLAG_CANDELETE, NULL, NULL);
+	sc->disk->d_unit = unit;
+	sc->disk->d_flags = DISKFLAG_CANDELETE | DISKFLAG_NEEDSGIANT;
+	disk_create(sc->disk, DISK_VERSION);
 
 	return (0);
 }

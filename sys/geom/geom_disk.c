@@ -87,17 +87,15 @@ DECLARE_GEOM_CLASS(g_disk_class, g_disk);
 static void __inline
 g_disk_lock_giant(struct disk *dp)
 {
-	if (dp->d_flags & DISKFLAG_NOGIANT)
-		return;
-	mtx_lock(&Giant);
+	if (dp->d_flags & DISKFLAG_NEEDSGIANT)
+		mtx_lock(&Giant);
 }
 
 static void __inline
 g_disk_unlock_giant(struct disk *dp)
 {
-	if (dp->d_flags & DISKFLAG_NOGIANT)
-		return;
-	mtx_unlock(&Giant);
+	if (dp->d_flags & DISKFLAG_NEEDSGIANT)
+		mtx_unlock(&Giant);
 }
 
 static int
@@ -110,15 +108,14 @@ g_disk_access(struct g_provider *pp, int r, int w, int e)
 	    pp->name, r, w, e);
 	g_topology_assert();
 	dp = pp->geom->softc;
-	if (dp == NULL) {
+	if (dp == NULL || dp->d_destroyed) {
 		/*
 		 * Allow decreasing access count even if disk is not
 		 * avaliable anymore.
 		 */
 		if (r <= 0 && w <= 0 && e <= 0)
 			return (0);
-		else
-			return (ENXIO);
+		return (ENXIO);
 	}
 	r += pp->acr;
 	w += pp->acw;
@@ -233,7 +230,7 @@ g_disk_start(struct bio *bp)
 	off_t off;
 
 	dp = bp->bio_to->geom->softc;
-	if (dp == NULL)
+	if (dp == NULL || dp->d_destroyed)
 		g_io_deliver(bp, ENXIO);
 	error = EJUSTRETURN;
 	switch(bp->bio_cmd) {
@@ -358,20 +355,37 @@ g_disk_create(void *arg, int flag)
 static void
 g_disk_destroy(void *ptr, int flag)
 {
+	struct disk *dp;
 	struct g_geom *gp;
 
 	g_topology_assert();
-	gp = ptr;
+	dp = ptr;
+	gp = dp->d_geom;
 	gp->softc = NULL;
 	g_wither_geom(gp, ENXIO);
+	g_free(dp);
+}
+
+struct disk *
+disk_alloc()
+{
+	struct disk *dp;
+
+	dp = g_malloc(sizeof *dp, M_WAITOK | M_ZERO);
+	return (dp);
 }
 
 void
-disk_create(int unit, struct disk *dp, int flags, void *unused __unused, void * unused2 __unused)
+disk_create(struct disk *dp, int version)
 {
-
-	dp->d_unit = unit;
-	dp->d_flags = flags;
+	if (version != DISK_VERSION_00) {
+		printf("WARNING: Attempt to add disk %s%d %s",
+		    dp->d_name, dp->d_unit,
+		    " using incompatible ABI version of disk(9)\n");
+		printf("WARNING: Ignoring disk %s%d\n",
+		    dp->d_name, dp->d_unit);
+		return;
+	}
 	KASSERT(dp->d_strategy != NULL, ("disk_create need d_strategy"));
 	KASSERT(dp->d_name != NULL, ("disk_create need d_name"));
 	KASSERT(*dp->d_name != 0, ("disk_create need d_name"));
@@ -387,16 +401,10 @@ disk_create(int unit, struct disk *dp, int flags, void *unused __unused, void * 
 void
 disk_destroy(struct disk *dp)
 {
-	struct g_geom *gp;
 
 	g_cancel_event(dp);
-	gp = dp->d_geom;
-	if (gp == NULL)
-		return;
-	gp->softc = NULL;
-	devstat_remove_entry(dp->d_devstat);
-	g_waitfor_event(g_disk_destroy, gp, M_WAITOK, NULL, NULL);
-	dp->d_geom = NULL;
+	dp->d_destroyed = 1;
+	g_post_event(g_disk_destroy, dp, M_WAITOK, NULL, NULL);
 }
 
 static void

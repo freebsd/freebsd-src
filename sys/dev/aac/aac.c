@@ -2875,7 +2875,7 @@ aac_query_disk(struct aac_softc *sc, caddr_t uptr)
 		query_disk.Lun = 0;
 		query_disk.UnMapped = 0;
 		sprintf(&query_disk.diskDeviceName[0], "%s%d",
-		        disk->ad_disk.d_name, disk->ad_disk.d_unit);
+		        disk->ad_disk->d_name, disk->ad_disk->d_unit);
 	}
 	AAC_LOCK_RELEASE(&sc->aac_container_lock);
 

@@ -56,7 +56,7 @@ struct pst_softc {
     struct iop_softc		*iop;
     struct i2o_lct_entry	*lct;
     struct i2o_bsa_device	*info;
-    struct disk			disk;
+    struct disk			*disk;
     struct bio_queue_head	queue;
 };
 
@@ -149,16 +149,19 @@ pst_attach(device_t dev)
 
     bioq_init(&psc->queue);
 
-    psc->disk.d_name = "pst";
-    psc->disk.d_strategy = pststrategy;
-    psc->disk.d_maxsize = 64 * 1024; /*I2O_SGL_MAX_SEGS * PAGE_SIZE;*/
-    psc->disk.d_drv1 = psc;
-    disk_create(lun, &psc->disk, DISKFLAG_NOGIANT, NULL, NULL);
+    psc->disk = disk_alloc();
+    psc->disk->d_name = "pst";
+    psc->disk->d_strategy = pststrategy;
+    psc->disk->d_maxsize = 64 * 1024; /*I2O_SGL_MAX_SEGS * PAGE_SIZE;*/
+    psc->disk->d_drv1 = psc;
+    psc->disk->d_unit = lun;
 
-    psc->disk.d_sectorsize = psc->info->block_size;
-    psc->disk.d_mediasize = psc->info->capacity;
-    psc->disk.d_fwsectors = 63;
-    psc->disk.d_fwheads = 255;
+    psc->disk->d_sectorsize = psc->info->block_size;
+    psc->disk->d_mediasize = psc->info->capacity;
+    psc->disk->d_fwsectors = 63;
+    psc->disk->d_fwheads = 255;
+
+    disk_create(psc->disk, DISK_VERSION);
 
     printf("pst%d: %lluMB <%.40s> [%lld/%d/%d] on %.16s\n", lun,
 	   (unsigned long long)psc->info->capacity / (1024 * 1024),

@@ -357,18 +357,20 @@ aac_disk_attach(device_t dev)
 
 	/* attach a generic disk device to ourselves */
 	sc->unit = device_get_unit(dev);
-	sc->ad_disk.d_drv1 = sc;
-	sc->ad_disk.d_name = "aacd";
-	sc->ad_disk.d_maxsize = aac_iosize_max;
-	sc->ad_disk.d_open = aac_disk_open;
-	sc->ad_disk.d_close = aac_disk_close;
-	sc->ad_disk.d_strategy = aac_disk_strategy;
-	sc->ad_disk.d_dump = aac_disk_dump;
-	sc->ad_disk.d_sectorsize = AAC_BLOCK_SIZE;
-	sc->ad_disk.d_mediasize = (off_t)sc->ad_size * AAC_BLOCK_SIZE;
-	sc->ad_disk.d_fwsectors = sc->ad_sectors;
-	sc->ad_disk.d_fwheads = sc->ad_heads;
-	disk_create(sc->unit, &sc->ad_disk, DISKFLAG_NOGIANT, NULL, NULL);
+	sc->ad_disk = disk_alloc();
+	sc->ad_disk->d_drv1 = sc;
+	sc->ad_disk->d_name = "aacd";
+	sc->ad_disk->d_maxsize = aac_iosize_max;
+	sc->ad_disk->d_open = aac_disk_open;
+	sc->ad_disk->d_close = aac_disk_close;
+	sc->ad_disk->d_strategy = aac_disk_strategy;
+	sc->ad_disk->d_dump = aac_disk_dump;
+	sc->ad_disk->d_sectorsize = AAC_BLOCK_SIZE;
+	sc->ad_disk->d_mediasize = (off_t)sc->ad_size * AAC_BLOCK_SIZE;
+	sc->ad_disk->d_fwsectors = sc->ad_sectors;
+	sc->ad_disk->d_fwheads = sc->ad_heads;
+	sc->ad_disk->d_unit = sc->unit;
+	disk_create(sc->ad_disk, DISK_VERSION);
 
 	return (0);
 }
@@ -388,7 +390,7 @@ aac_disk_detach(device_t dev)
 	if (sc->ad_flags & AAC_DISK_OPEN)
 		return(EBUSY);
 
-	disk_destroy(&sc->ad_disk);
+	disk_destroy(sc->ad_disk);
 
 	return(0);
 }
