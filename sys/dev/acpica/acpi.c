@@ -451,8 +451,6 @@ acpi_attach(device_t dev)
 	freeenv(debugpoint);
     }
 #endif
-    if (!acpi_disabled("bus"))
-	acpi_probe_children(dev);
 
     /*
      * Register our shutdown handlers
@@ -501,6 +499,9 @@ acpi_attach(device_t dev)
 
     /* Register ACPI again to pass the correct argument of pm_func. */
     power_pm_register(POWER_PM_TYPE_ACPI, acpi_pm_func, sc);
+
+    if (!acpi_disabled("bus"))
+	acpi_probe_children(dev);
 
     error = 0;
 
