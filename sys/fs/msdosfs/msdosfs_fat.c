@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_fat.c,v 1.8 1995/10/29 15:31:49 phk Exp $ */
+/*	$Id: msdosfs_fat.c,v 1.9 1995/11/07 14:06:42 phk Exp $ */
 /*	$NetBSD: msdosfs_fat.c,v 1.12 1994/08/21 18:44:04 ws Exp $	*/
 
 /*-
@@ -69,7 +69,6 @@
 #include <msdosfs/denode.h>
 #include <msdosfs/fat.h>
 
-static void fc_lookup __P((struct denode *dep, u_long findcn, u_long *frcnp, u_long *fsrcnp));
 /*
  * Fat cache stats.
  */
@@ -85,6 +84,22 @@ int fc_largedistance;		/* off by more than LMMAX		 */
 
 /* Byte offset in FAT on filesystem pmp, cluster cn */
 #define	FATOFS(pmp, cn)	(FAT12(pmp) ? (cn) * 3 / 2 : (cn) * 2)
+
+static int	chainalloc __P((struct msdosfsmount *pmp, u_long start,
+				u_long count, u_long fillwith,
+				u_long *retcluster, u_long *got));
+static int	chainlength __P((struct msdosfsmount *pmp, u_long start,
+				 u_long count));
+static void	fatblock __P((struct msdosfsmount *pmp, u_long ofs,
+			      u_long *bnp, u_long *sizep, u_long *bop));
+static int	fatchain __P((struct msdosfsmount *pmp, u_long start,
+			      u_long count, u_long fillwith));
+static void	fc_lookup __P((struct denode *dep, u_long findcn,
+			       u_long *frcnp, u_long *fsrcnp));
+static void	updatefats __P((struct msdosfsmount *pmp, struct buf *bp,
+				u_long fatbn));
+static void	usemap_alloc __P((struct msdosfsmount *pmp, u_long cn));
+static void	usemap_free __P((struct msdosfsmount *pmp, u_long cn));
 
 static void
 fatblock(pmp, ofs, bnp, sizep, bop)
