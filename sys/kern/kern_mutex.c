@@ -34,6 +34,7 @@
  * Machine independent bits of mutex implementation.
  */
 
+#include "opt_adaptive_mutexes.h"
 #include "opt_ddb.h"
 
 #include <sys/param.h>
@@ -459,6 +460,9 @@ void
 _mtx_lock_sleep(struct mtx *m, int opts, const char *file, int line)
 {
 	struct thread *td = curthread;
+#if defined(SMP) && defined(ADAPTIVE_MUTEXES)
+	struct thread *owner;
+#endif
 
 	if ((m->mtx_lock & MTX_FLAGMASK) == (uintptr_t)td) {
 		m->mtx_recurse++;
@@ -513,6 +517,19 @@ _mtx_lock_sleep(struct mtx *m, int opts, const char *file, int line)
 			mtx_unlock_spin(&sched_lock);
 			continue;
 		}
+
+#if defined(SMP) && defined(ADAPTIVE_MUTEXES)
+		/*
+		 * If the current owner of the lock is executing on another
+		 * CPU, spin instead of blocking.
+		 */
+		owner = (struct thread *)(v & MTX_FLAGMASK);
+		if (m != &Giant && owner->td_kse != NULL &&
+		    owner->td_kse->ke_oncpu != NOCPU) {
+			mtx_unlock_spin(&sched_lock);
+			continue;
+		}
+#endif	/* SMP && ADAPTIVE_MUTEXES */
 
 		/*
 		 * We definitely must sleep for this lock.
@@ -651,6 +668,15 @@ _mtx_unlock_sleep(struct mtx *m, int opts, const char *file, int line)
 		CTR1(KTR_LOCK, "_mtx_unlock_sleep: %p contested", m);
 
 	td1 = TAILQ_FIRST(&m->mtx_blocked);
+#if defined(SMP) && defined(ADAPTIVE_MUTEXES)
+	if (td1 == NULL) {
+		_release_lock_quick(m);
+		if (LOCK_LOG_TEST(&m->mtx_object, opts))
+			CTR1(KTR_LOCK, "_mtx_unlock_sleep: %p no sleepers", m);
+		mtx_unlock_spin(&sched_lock);
+		return;
+	}
+#endif
 	MPASS(td->td_proc->p_magic == P_MAGIC);
 	MPASS(td1->td_proc->p_magic == P_MAGIC);
 
