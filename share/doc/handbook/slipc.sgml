@@ -1,4 +1,4 @@
-<!-- $Id: slipc.sgml,v 1.5 1995/12/04 17:58:51 jfieber Exp $ -->
+<!-- $Id: slipc.sgml,v 1.6 1996/05/16 23:18:18 mpp Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>Setting up a SLIP client<label id="slipc"></heading>
@@ -161,7 +161,7 @@ tripped over so far:
   person)
 
 <item>Using "s10" instead of "sl0" (might be hard to see the difference on
-  some fonts.
+  some fonts).
 
 <item>Try "ifconfig sl0" to see your interface status.  I get:
 <verb>
