@@ -5,6 +5,12 @@
  *	     able to read and write the binary as well, but haven't
  *	     mastered this yet.
  */
+
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
 #include <stdio.h>
 
 #if !defined(SYS_VAX) && !defined(SYS_BSD)
@@ -45,6 +51,7 @@ main(int argc, char ** argv)
 }
 #else /* not Linux... kmem tweaking: */
 
+#include <err.h>
 #include <sys/types.h>
 #ifndef SYS_BSD
 #include <sys/file.h>
@@ -86,7 +93,6 @@ main(int argc, char ** argv)
 #define	KMEM	"/dev/kmem"
 #define	STREQ(a, b)	(*(a) == *(b) && strcmp((a), (b)) == 0)
 
-char *progname;
 int debug;
 
 int dokmem = 1;
@@ -107,10 +113,17 @@ static	int	openfile	P((char *, int));
 static	void	writevar	P((int, unsigned long, int));
 static	void	readvar		P((int, unsigned long, int *));
 
+static void
+usage()
+{
+	fprintf(stderr, "usage: tickadj [-Adkpqs] [-a newadj] [-t newtick]\n");
+	exit(2);
+}
+
 /*
  * main - parse arguments and handle options
  */
-void
+int
 main(argc, argv)
 int argc;
 char *argv[];
@@ -135,7 +148,6 @@ char *argv[];
 	void readvar();
 	void writevar();
 
-	progname = argv[0];
 	while ((c = ntp_getopt(argc, argv, "a:Adkqpst:")) != EOF)
 		switch (c) {
 		case 'd':
@@ -153,9 +165,8 @@ char *argv[];
 		case 'a':
 			writetickadj = atoi(ntp_optarg);
 			if (writetickadj <= 0) {
-				(void) fprintf(stderr,
-				    "%s: unlikely value for tickadj: %s\n",
-				    progname, ntp_optarg);
+				warnx("unlikely value for tickadj: %s",
+				    ntp_optarg);
 				errflg++;
 			}
 			break;
@@ -168,9 +179,8 @@ char *argv[];
 		case 't':
 			writetick = atoi(ntp_optarg);
 			if (writetick <= 0) {
-				(void) fprintf(stderr,
-				    "%s: unlikely value for tick: %s\n",
-				    progname, ntp_optarg);
+				warnx("unlikely value for tick: %s",
+				    ntp_optarg);
 				errflg++;
 			}
 			break;
@@ -178,11 +188,8 @@ char *argv[];
 			errflg++;
 			break;
 		}
-	if (errflg || ntp_optind != argc) {
-		(void) fprintf(stderr,
-		    "usage: %s [-Aqsp] [-a newadj] [-t newtick]\n", progname);
-		exit(2);
-	}
+	if (errflg || ntp_optind != argc)
+		usage();
 	kernel = getoffsets(kernel, &tick_offset,
 	    &tickadj_offset, &dosync_offset, &noprintf_offset);
 
@@ -194,26 +201,22 @@ char *argv[];
 	}
 
 	if (setnoprintf && (noprintf_offset == 0)) {
-		(void) fprintf(stderr,
-			       "No noprintf kernal variable\n");
+		warnx("no noprintf kernel variable");
 		errflg++;
 	}
 
 	if (unsetdosync && (dosync_offset == 0)) {
-		(void) fprintf(stderr,
-			       "No dosynctodr kernal variable\n");
+		warnx("no dosynctodr kernel variable");
 		errflg++;
 	}
 
 	if (writeopttickadj && (tickadj_offset == 0)) {
-		(void) fprintf(stderr,
-			       "No tickadj kernal variable\n");
+		warnx("no tickadj kernel variable");
 		errflg++;
 	}
 
 	if (writetick && (tick_offset == 0)) {
-		(void) fprintf(stderr,
-			       "No tick kernal variable\n");
+		warnx("no tick kernel variable");
 		errflg++;
 	}
 
@@ -233,11 +236,8 @@ char *argv[];
 		readvar(fd, noprintf_offset, &noprintf);
 	(void) close(fd);
 
-	if (unsetdosync && dosync_offset == 0) {
-		(void) fprintf(stderr,
-		    "%s: can't find dosynctodr in namelist\n", progname);
-		exit(1);
-	}
+	if (unsetdosync && dosync_offset == 0)
+		errx(1, "can't find dosynctodr in namelist");
 
 	if (!quiet) {
 		(void) printf("tick = %d us",tick);
@@ -250,11 +250,8 @@ char *argv[];
 			(void) printf("kernel level printf's: %s\n", noprintf ? "off" : "on");
 	}
 
-	if (tick <= 0) {
-		(void) fprintf(stderr, "%s: the value of tick is silly!\n",
-			progname);
-		exit(1);
-	}
+	if (tick <= 0)
+		errx(1, "the value of tick is silly!");
 
 	hz = (int)(1000000L / (long)tick);
 	hz_hundredths = (int)((100000000L / (long)tick) - ((long)hz * 100L));
@@ -458,12 +455,8 @@ getoffsets(filex, tick_off, tickadj_off, dosync_off, noprintf_off)
 			break;
 	}
 #endif
-	if (*kname == NULL) {
-		(void) fprintf(stderr,
-		    "%s: nlist fails: can't find/read /vmunix or /unix\n",
-		    progname);
-		exit(1);
-	}
+	if (*kname == NULL)
+		errx(1, "nlist fails: can't find/read kernel boot file name");
 
 	if (dokmem)
 		file = kmem;
@@ -521,11 +514,8 @@ openfile(name, mode)
 	int fd;
 
 	fd = open(name, mode);
-	if (fd < 0) {
-		(void) fprintf(stderr, "%s: open %s: ", progname, name);
-		perror("");
-		exit(1);
-	}
+	if (fd < 0)
+		err(1, "open %s", name);
 	return fd;
 }
 
@@ -540,16 +530,10 @@ writevar(fd, off, var)
 	int var;
 {
 
-	if (lseek(fd, off, L_SET) == -1) {
-		(void) fprintf(stderr, "%s: lseek fails: ", progname);
-		perror("");
-		exit(1);
-	}
-	if (write(fd, (char *)&var, sizeof(int)) != sizeof(int)) {
-		(void) fprintf(stderr, "%s: write fails: ", progname);
-		perror("");
-		exit(1);
-	}
+	if (lseek(fd, off, L_SET) == -1)
+		err(1, "lseek fails");
+	if (write(fd, (char *)&var, sizeof(int)) != sizeof(int))
+		err(1, "write fails");
 }
 
 
@@ -564,21 +548,12 @@ readvar(fd, off, var)
 {
 	int i;
 
-	if (lseek(fd, off, L_SET) == -1) {
-		(void) fprintf(stderr, "%s: lseek fails: ", progname);
-		perror("");
-		exit(1);
-	}
+	if (lseek(fd, off, L_SET) == -1)
+		err(1, "lseek fails");
 	i = read(fd, (char *)var, sizeof(int));
-	if (i < 0) {
-		(void) fprintf(stderr, "%s: read fails: ", progname);
-		perror("");
-		exit(1);
-	}
-	if (i != sizeof(int)) {
-		(void) fprintf(stderr, "%s: read expected %d, got %d\n",
-		    progname, (int)sizeof(int), i);
-		exit(1);
-	}
+	if (i < 0)
+		err(1, "read fails");
+	if (i != sizeof(int))
+		errx(1, "read expected %d, got %d", (int)sizeof(int), i);
 }
 #endif /* not Linux */
