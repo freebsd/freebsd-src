@@ -28,7 +28,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id$
+.\"	$Id: vx.4,v 1.4 1997/03/07 02:49:59 jmg Exp $
 .\"
 .Dd January 15, 1996
 .Dt VX 4 i386
@@ -43,7 +43,19 @@ PCI Ethernet device driver
 The
 .Nm vx
 driver provides support for the 3Com 3c590 and 3c595 EtherLink III and Fast
-EtherLink III PCI Ethernet cards in 10 Mbps mode.
+EtherLink III PCI Ethernet cards in 10 Mbps mode.  The medium selection
+can be influenced by the following link flags to the
+.Xr ifconfig 8
+command:
+.Pp
+.Bl -tag -width LINK0X -compact
+.It Em link0
+Use the AUI port.
+.It Em link1
+Use the BNC port.
+.It Em link2
+Use the UTP port.
+.El
 .Sh DIAGNOSTICS
 .Bl -diag
 .It "vx%d: not configured; kernel is built for only %d devices."
