@@ -30,7 +30,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)xdr_float.c 1.12 87/08/11 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)xdr_float.c	2.1 88/07/29 4.0 RPCSRC";*/
-static char *rcsid = "$Id: xdr_float.c,v 1.1 1994/08/07 18:39:32 wollman Exp $";
+static char *rcsid = "$Id: xdr_float.c,v 1.2 1995/05/30 05:42:04 rgrimes Exp $";
 #endif
 
 /*
@@ -51,10 +51,13 @@ static char *rcsid = "$Id: xdr_float.c,v 1.1 1994/08/07 18:39:32 wollman Exp $";
 
 /*
  * NB: Not portable.
- * This routine works on Suns (Sky / 68000's), i386's, MIPS, NS32k and Vaxen.
+ * This routine works on machines with IEEE754 FP and Vaxen.
  */
 
-#if defined(mc68000)||defined(sparc)||defined(i386)||defined(mips)||defined(ns32000)
+#if defined(__m68k__) || defined(__sparc__) || defined(__i386__) || \
+    defined(__mips__) || defined(__ns32k__) || defined(__alpha__) || \
+    defined(__arm32__) || defined(__ppc__)
+#include <machine/endian.h>
 #define IEEEFP
 #endif
 
@@ -94,7 +97,10 @@ xdr_float(xdrs, fp)
 	register XDR *xdrs;
 	register float *fp;
 {
-#ifndef IEEEFP
+#ifdef IEEEFP
+	bool_t rv;
+	long tmpl;
+#else
 	struct ieee_single is;
 	struct vax_single vs, *vsp;
 	struct sgl_limits *lim;
@@ -104,7 +110,8 @@ xdr_float(xdrs, fp)
 
 	case XDR_ENCODE:
 #ifdef IEEEFP
-		return (XDR_PUTLONG(xdrs, (long *)fp));
+		tmpl = *(int32_t *)fp;
+		return (XDR_PUTLONG(xdrs, &tmpl));
 #else
 		vs = *((struct vax_single *)fp);
 		for (i = 0, lim = sgl_limits;
@@ -126,7 +133,9 @@ xdr_float(xdrs, fp)
 
 	case XDR_DECODE:
 #ifdef IEEEFP
-		return (XDR_GETLONG(xdrs, (long *)fp));
+		rv = XDR_GETLONG(xdrs, &tmpl);
+		*(int32_t *)fp = tmpl;
+		return (rv);
 #else
 		vsp = (struct vax_single *)fp;
 		if (!XDR_GETLONG(xdrs, (long *)&is))
@@ -153,10 +162,6 @@ xdr_float(xdrs, fp)
 	}
 	return (FALSE);
 }
-
-/*
- * This routine works on Suns (Sky / 68000's), i386's, MIPS and Vaxen.
- */
 
 #ifdef vax
 /* What IEEE double precision floating point looks like on a Vax */
@@ -199,8 +204,12 @@ xdr_double(xdrs, dp)
 	register XDR *xdrs;
 	double *dp;
 {
+#ifdef IEEEFP
+	register int32_t *i32p;
+	bool_t rv;
+	long tmpl;
+#else
 	register long *lp;
-#ifndef IEEEFP
 	struct	ieee_double id;
 	struct	vax_double vd;
 	register struct dbl_limits *lim;
@@ -211,12 +220,23 @@ xdr_double(xdrs, dp)
 
 	case XDR_ENCODE:
 #ifdef IEEEFP
-		lp = (long *)dp;
+		i32p = (int32_t *)dp;
 #if BYTE_ORDER == BIG_ENDIAN
-		return (XDR_PUTLONG(xdrs, lp++) && XDR_PUTLONG(xdrs, lp));
+		tmpl = *i32p++;
+		rv = XDR_PUTLONG(xdrs, &tmpl);
+		if (!rv)
+			return (rv);
+		tmpl = *i32p;
+		rv = XDR_PUTLONG(xdrs, &tmpl);
 #else
-		return (XDR_PUTLONG(xdrs, lp+1) && XDR_PUTLONG(xdrs, lp));
+		tmpl = *(i32p+1);
+		rv = XDR_PUTLONG(xdrs, &tmpl);
+		if (!rv)
+			return (rv);
+		tmpl = *i32p;
+		rv = XDR_PUTLONG(xdrs, &tmpl);
 #endif
+		return (rv);
 #else
 		vd = *((struct vax_double *)dp);
 		for (i = 0, lim = dbl_limits;
@@ -244,12 +264,23 @@ xdr_double(xdrs, dp)
 
 	case XDR_DECODE:
 #ifdef IEEEFP
-		lp = (long *)dp;
+		i32p = (int32_t *)dp;
 #if BYTE_ORDER == BIG_ENDIAN
-		return (XDR_GETLONG(xdrs, lp++) && XDR_GETLONG(xdrs, lp));
+		rv = XDR_GETLONG(xdrs, &tmpl);
+		*i32p++ = tmpl;
+		if (!rv)
+			return (rv);
+		rv = XDR_GETLONG(xdrs, &tmpl);
+		*i32p = tmpl;
 #else
-		return (XDR_GETLONG(xdrs, lp+1) && XDR_GETLONG(xdrs, lp));
+		rv = XDR_GETLONG(xdrs, &tmpl);
+		*(i32p+1) = tmpl;
+		if (!rv)
+			return (rv);
+		rv = XDR_GETLONG(xdrs, &tmpl);
+		*i32p = tmpl;
 #endif
+		return (rv);
 #else
 		lp = (long *)&id;
 		if (!XDR_GETLONG(xdrs, lp++) || !XDR_GETLONG(xdrs, lp))
