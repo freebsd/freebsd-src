@@ -51,6 +51,8 @@
 #include <string.h>
 #endif
 
+#include <ctype.h>
+
 #include "ansidecl.h"
 #include "libiberty.h"
 #include "dyn-string.h"
@@ -833,8 +835,8 @@ demangling_new (name, style)
       return NULL;
     }
   dm->style = style;
-  dm->is_constructor = 0;
-  dm->is_destructor = 0;
+  dm->is_constructor = (enum gnu_v3_ctor_kinds) 0;
+  dm->is_destructor = (enum gnu_v3_dtor_kinds) 0;
 
   return dm;
 }
@@ -972,7 +974,7 @@ demangle_char (dm, c)
   else
     {
       if (error_message == NULL)
-	error_message = strdup ("Expected ?");
+	error_message = (char *) strdup ("Expected ?");
       error_message[9] = c;
       return error_message;
     }
@@ -1466,9 +1468,45 @@ demangle_identifier (dm, length, identifier)
 
   while (length-- > 0)
     {
+      int ch;
       if (end_of_name_p (dm))
 	return "Unexpected end of name in <identifier>.";
-      if (!dyn_string_append_char (identifier, next_char (dm)))
+      ch = next_char (dm);
+
+      /* Handle extended Unicode characters.  We encode them as __U{hex}_,
+         where {hex} omits leading 0's.  For instance, '$' is encoded as
+         "__U24_".  */
+      if (ch == '_'
+	  && peek_char (dm) == '_'
+	  && peek_char_next (dm) == 'U')
+	{
+	  char buf[10];
+	  int pos = 0;
+	  advance_char (dm); advance_char (dm); length -= 2;
+	  while (length-- > 0)
+	    {
+	      ch = next_char (dm);
+	      if (!isxdigit (ch))
+		break;
+	      buf[pos++] = ch;
+	    }
+	  if (ch != '_' || length < 0)
+	    return STATUS_ERROR;
+	  if (pos == 0)
+	    {
+	      /* __U_ just means __U.  */
+	      if (!dyn_string_append_cstr (identifier, "__U"))
+		return STATUS_ALLOCATION_FAILED;
+	      continue;
+	    }
+	  else
+	    {
+	      buf[pos] = '\0';
+	      ch = strtol (buf, 0, 16);
+	    }
+	}
+
+      if (!dyn_string_append_char (identifier, ch))
 	return STATUS_ALLOCATION_FAILED;
     }
 
@@ -3360,7 +3398,7 @@ demangle_substitution (dm, template_p)
 	    }
 	  else
 	    {
-	      RETURN_IF_ERROR (result_add (dm, "std::basic_istream<char, std::char_traints<char> >"));
+	      RETURN_IF_ERROR (result_add (dm, "std::basic_istream<char, std::char_traits<char> >"));
 	      new_last_source_name = "basic_istream";
 	    }
 	  *template_p = 0;
@@ -3880,6 +3918,7 @@ java_demangle_v3 (mangled)
 #endif /* IN_LIBGCC2 || IN_GLIBCPP_V3 */
 
 
+#ifndef IN_GLIBCPP_V3
 /* Demangle NAME in the G++ V3 ABI demangling style, and return either
    zero, indicating that some error occurred, or a demangling_t
    holding the results.  */
@@ -3917,7 +3956,6 @@ demangle_v3_with_details (name)
 }
 
 
-#ifndef IN_GLIBCPP_V3
 /* Return non-zero iff NAME is the mangled form of a constructor name
    in the G++ V3 ABI demangling style.  Specifically, return:
    - '1' if NAME is a complete object constructor,
@@ -3936,7 +3974,7 @@ is_gnu_v3_mangled_ctor (name)
       return result;
     }
   else
-    return 0;
+    return (enum gnu_v3_ctor_kinds) 0;
 }
 
 
@@ -3958,7 +3996,7 @@ is_gnu_v3_mangled_dtor (name)
       return result;
     }
   else
-    return 0;
+    return (enum gnu_v3_dtor_kinds) 0;
 }
 #endif /* IN_GLIBCPP_V3 */
 

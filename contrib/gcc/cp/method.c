@@ -27,7 +27,6 @@ Boston, MA 02111-1307, USA.  */
 #include "system.h"
 #include "tree.h"
 #include "cp-tree.h"
-#include "obstack.h"
 #include "rtl.h"
 #include "expr.h"
 #include "output.h"
@@ -35,6 +34,7 @@ Boston, MA 02111-1307, USA.  */
 #include "toplev.h"
 #include "ggc.h"
 #include "tm_p.h"
+#include "target.h"
 
 /* Various flags to control the mangling process.  */
 
@@ -53,9 +53,6 @@ enum mangling_flags
 };
 
 typedef enum mangling_flags mangling_flags;
-
-#define obstack_chunk_alloc xmalloc
-#define obstack_chunk_free free
 
 static void do_build_assign_ref PARAMS ((tree));
 static void do_build_copy_constructor PARAMS ((tree));
@@ -165,12 +162,26 @@ hack_identifier (value, name)
 	  return error_mark_node;
 	}
       TREE_USED (current_class_ptr) = 1;
+      if (processing_template_decl)
+	value = build_min_nt (COMPONENT_REF, current_class_ref, name);
+      else
+	{
+	  tree access_type = current_class_type;
+	  
+	  while (!DERIVED_FROM_P (context_for_name_lookup (value), 
+				  access_type))
+	    {
+	      access_type = TYPE_CONTEXT (access_type);
+	      while (DECL_P (access_type))
+		access_type = DECL_CONTEXT (access_type);
+	    }
 
-      /* Mark so that if we are in a constructor, and then find that
-	 this field was initialized by a base initializer,
-	 we can emit an error message.  */
-      TREE_USED (value) = 1;
-      value = build_component_ref (current_class_ref, name, NULL_TREE, 1);
+	  enforce_access (access_type, value);
+	  value 
+	    = build_class_member_access_expr (current_class_ref, value,
+					      /*access_path=*/NULL_TREE,
+					      /*preserve_reference=*/false);
+	}
     }
   else if ((TREE_CODE (value) == FUNCTION_DECL
 	    && DECL_FUNCTION_MEMBER_P (value))
@@ -183,7 +194,7 @@ hack_identifier (value, name)
 	value = OVL_CURRENT (value);
 
       decl = maybe_dummy_object (DECL_CONTEXT (value), 0);
-      value = build_component_ref (decl, name, NULL_TREE, 1);
+      value = finish_class_member_access_expr (decl, name);
     }
   else if (really_overloaded_fn (value))
     ;
@@ -267,9 +278,10 @@ make_thunk (function, delta, vcall_index)
 {
   tree thunk_id;
   tree thunk;
-  tree func_decl;
   tree vcall_offset;
   HOST_WIDE_INT d;
+
+  my_friendly_assert (TREE_CODE (function) == FUNCTION_DECL, 20021025);
 
   /* Scale the VCALL_INDEX to be in terms of bytes.  */
   if (vcall_index)
@@ -283,64 +295,66 @@ make_thunk (function, delta, vcall_index)
 
   d = tree_low_cst (delta, 0);
 
-  if (TREE_CODE (function) != ADDR_EXPR)
-    abort ();
-  func_decl = TREE_OPERAND (function, 0);
-  if (TREE_CODE (func_decl) != FUNCTION_DECL)
-    abort ();
+  /* See if we already have the thunk in question.  */
+  for (thunk = DECL_THUNKS (function); thunk; thunk = TREE_CHAIN (thunk))
+    if (THUNK_DELTA (thunk) == d
+	&& ((THUNK_VCALL_OFFSET (thunk) != NULL_TREE)
+	    == (vcall_offset != NULL_TREE))
+	&& (THUNK_VCALL_OFFSET (thunk)
+	    ? tree_int_cst_equal (THUNK_VCALL_OFFSET (thunk), 
+				  vcall_offset)
+	    : true))
+      return thunk;
 
-  thunk_id = mangle_thunk (TREE_OPERAND (function, 0), 
-			   delta, vcall_offset);
-  thunk = IDENTIFIER_GLOBAL_VALUE (thunk_id);
-  if (thunk && !DECL_THUNK_P (thunk))
-    {
-      error ("implementation-reserved name `%D' used", thunk_id);
-      thunk = NULL_TREE;
-      SET_IDENTIFIER_GLOBAL_VALUE (thunk_id, thunk);
-    }
-  if (thunk == NULL_TREE)
-    {
-      thunk = build_decl (FUNCTION_DECL, thunk_id, TREE_TYPE (func_decl));
-      DECL_LANG_SPECIFIC (thunk) = DECL_LANG_SPECIFIC (func_decl);
-      copy_lang_decl (func_decl);
-      SET_DECL_ASSEMBLER_NAME (thunk, thunk_id);
-      DECL_CONTEXT (thunk) = DECL_CONTEXT (func_decl);
-      TREE_READONLY (thunk) = TREE_READONLY (func_decl);
-      TREE_THIS_VOLATILE (thunk) = TREE_THIS_VOLATILE (func_decl);
-      TREE_PUBLIC (thunk) = TREE_PUBLIC (func_decl);
-      if (flag_weak)
-	comdat_linkage (thunk);
-      SET_DECL_THUNK_P (thunk);
-      DECL_INITIAL (thunk) = function;
-      THUNK_DELTA (thunk) = d;
-      THUNK_VCALL_OFFSET (thunk) = vcall_offset;
-      /* The thunk itself is not a constructor or destructor, even if
-         the thing it is thunking to is.  */
-      DECL_INTERFACE_KNOWN (thunk) = 1;
-      DECL_NOT_REALLY_EXTERN (thunk) = 1;
-      DECL_SAVED_FUNCTION_DATA (thunk) = NULL;
-      DECL_DESTRUCTOR_P (thunk) = 0;
-      DECL_CONSTRUCTOR_P (thunk) = 0;
-      /* And neither is it a clone.  */
-      DECL_CLONED_FUNCTION (thunk) = NULL_TREE;
-      DECL_EXTERNAL (thunk) = 1;
-      DECL_ARTIFICIAL (thunk) = 1;
-      /* Even if this thunk is a member of a local class, we don't
-	 need a static chain.  */
-      DECL_NO_STATIC_CHAIN (thunk) = 1;
-      /* The THUNK is not a pending inline, even if the FUNC_DECL is.  */
-      DECL_PENDING_INLINE_P (thunk) = 0;
-      /* Nor has it been deferred.  */
-      DECL_DEFERRED_FN (thunk) = 0;
-      /* So that finish_file can write out any thunks that need to be: */
-      pushdecl_top_level (thunk);
-      SET_IDENTIFIER_GLOBAL_VALUE (thunk_id, thunk);
-    }
+  /* All thunks must be created before FUNCTION is actually emitted;
+     the ABI requires that all thunks be emitted together with the
+     function to which they transfer control.  */
+  my_friendly_assert (!TREE_ASM_WRITTEN (function), 20021025);
+
+  thunk_id = mangle_thunk (function, delta, vcall_offset);
+  thunk = build_decl (FUNCTION_DECL, thunk_id, TREE_TYPE (function));
+  DECL_LANG_SPECIFIC (thunk) = DECL_LANG_SPECIFIC (function);
+  cxx_dup_lang_specific_decl (function);
+  SET_DECL_ASSEMBLER_NAME (thunk, thunk_id);
+  DECL_CONTEXT (thunk) = DECL_CONTEXT (function);
+  TREE_READONLY (thunk) = TREE_READONLY (function);
+  TREE_THIS_VOLATILE (thunk) = TREE_THIS_VOLATILE (function);
+  TREE_PUBLIC (thunk) = TREE_PUBLIC (function);
+  if (flag_weak)
+    comdat_linkage (thunk);
+  SET_DECL_THUNK_P (thunk);
+  DECL_INITIAL (thunk) = build1 (ADDR_EXPR, vfunc_ptr_type_node, function);
+  THUNK_DELTA (thunk) = d;
+  THUNK_VCALL_OFFSET (thunk) = vcall_offset;
+  /* The thunk itself is not a constructor or destructor, even if
+     the thing it is thunking to is.  */
+  DECL_INTERFACE_KNOWN (thunk) = 1;
+  DECL_NOT_REALLY_EXTERN (thunk) = 1;
+  DECL_SAVED_FUNCTION_DATA (thunk) = NULL;
+  DECL_DESTRUCTOR_P (thunk) = 0;
+  DECL_CONSTRUCTOR_P (thunk) = 0;
+  /* And neither is it a clone.  */
+  DECL_CLONED_FUNCTION (thunk) = NULL_TREE;
+  DECL_EXTERNAL (thunk) = 1;
+  DECL_ARTIFICIAL (thunk) = 1;
+  /* Even if this thunk is a member of a local class, we don't
+     need a static chain.  */
+  DECL_NO_STATIC_CHAIN (thunk) = 1;
+  /* The THUNK is not a pending inline, even if the FUNCTION is.  */
+  DECL_PENDING_INLINE_P (thunk) = 0;
+  DECL_INLINE (thunk) = 0;
+  DECL_DECLARED_INLINE_P (thunk) = 0;
+  /* Nor has it been deferred.  */
+  DECL_DEFERRED_FN (thunk) = 0;
+  /* Add it to the list of thunks associated with FUNCTION.  */
+  TREE_CHAIN (thunk) = DECL_THUNKS (function);
+  DECL_THUNKS (function) = thunk;
+
   return thunk;
 }
 
 /* Emit the definition of a C++ multiple inheritance vtable thunk.  If
-   EMIT_P is non-zero, the thunk is emitted immediately.  */
+   EMIT_P is nonzero, the thunk is emitted immediately.  */
 
 void
 use_thunk (thunk_fndecl, emit_p)
@@ -350,7 +364,7 @@ use_thunk (thunk_fndecl, emit_p)
   tree fnaddr;
   tree function;
   tree vcall_offset;
-  HOST_WIDE_INT delta;
+  HOST_WIDE_INT delta, vcall_value;
 
   if (TREE_ASM_WRITTEN (thunk_fndecl))
     return;
@@ -376,6 +390,17 @@ use_thunk (thunk_fndecl, emit_p)
   delta = THUNK_DELTA (thunk_fndecl);
   vcall_offset = THUNK_VCALL_OFFSET (thunk_fndecl);
 
+  if (vcall_offset)
+    {
+      vcall_value = tree_low_cst (vcall_offset, /*pos=*/0);
+
+      /* It is expected that a value of zero means no vcall.  */
+      if (!vcall_value)
+	abort ();
+    }
+  else
+    vcall_value = 0;
+
   /* And, if we need to emit the thunk, it's used.  */
   mark_used (thunk_fndecl);
   /* This thunk is actually defined.  */
@@ -398,8 +423,8 @@ use_thunk (thunk_fndecl, emit_p)
   BLOCK_VARS (DECL_INITIAL (thunk_fndecl)) 
     = DECL_ARGUMENTS (thunk_fndecl);
 
-#ifdef ASM_OUTPUT_MI_THUNK
-  if (!vcall_offset)
+  if (targetm.asm_out.can_output_mi_thunk (thunk_fndecl, delta,
+					   vcall_value, function))
     {
       const char *fnname;
       current_function_decl = thunk_fndecl;
@@ -409,18 +434,23 @@ use_thunk (thunk_fndecl, emit_p)
       init_function_start (thunk_fndecl, input_filename, lineno);
       current_function_is_thunk = 1;
       assemble_start_function (thunk_fndecl, fnname);
-      ASM_OUTPUT_MI_THUNK (asm_out_file, thunk_fndecl, delta, function);
+
+      targetm.asm_out.output_mi_thunk (asm_out_file, thunk_fndecl, delta,
+				       vcall_value, function);
+
       assemble_end_function (thunk_fndecl, fnname);
       current_function_decl = 0;
       cfun = 0;
+      /* Because init_function_start increments this, we must
+	 decrement it.  */
+      immediate_size_expand--;
       TREE_ASM_WRITTEN (thunk_fndecl) = 1;
     }
   else
-#endif /* ASM_OUTPUT_MI_THUNK */
     {
-      /* If we don't have the necessary macro for efficient thunks, generate
-	 a thunk function that just makes a call to the real function.
-	 Unfortunately, this doesn't work for varargs.  */
+      /* If we don't have the necessary code for efficient thunks,
+	 generate a thunk function that just makes a call to the real
+	 function.  Unfortunately, this doesn't work for varargs.  */
 
       tree a, t;
 
@@ -526,7 +556,6 @@ do_build_copy_constructor (fndecl)
       int n_bases = CLASSTYPE_N_BASECLASSES (current_class_type);
       tree binfos = TYPE_BINFO_BASETYPES (current_class_type);
       tree member_init_list = NULL_TREE;
-      tree base_init_list = NULL_TREE;
       int cvquals = cp_type_quals (TREE_TYPE (parm));
       int i;
 
@@ -540,10 +569,12 @@ do_build_copy_constructor (fndecl)
 	{
 	  tree binfo = TREE_VALUE (t);
 	  
-	  base_init_list = tree_cons (binfo,
-				      build_base_path (PLUS_EXPR, parm,
-						       binfo, 1),
-				      base_init_list);
+	  member_init_list 
+	    = tree_cons (binfo,
+			 build_tree_list (NULL_TREE,
+					  build_base_path (PLUS_EXPR, parm,
+							   binfo, 1)),
+			 member_init_list);
 	}
 
       for (i = 0; i < n_bases; ++i)
@@ -552,10 +583,12 @@ do_build_copy_constructor (fndecl)
 	  if (TREE_VIA_VIRTUAL (binfo))
 	    continue; 
 
-	  base_init_list = tree_cons (binfo,
-				      build_base_path (PLUS_EXPR, parm,
-						       binfo, 1),
-				      base_init_list);
+	  member_init_list 
+	    = tree_cons (binfo,
+			 build_tree_list (NULL_TREE,
+					  build_base_path (PLUS_EXPR, parm,
+							   binfo, 1)),
+			 member_init_list);
 	}
 
       for (; fields; fields = TREE_CHAIN (fields))
@@ -599,9 +632,7 @@ do_build_copy_constructor (fndecl)
 	  member_init_list
 	    = tree_cons (field, init, member_init_list);
 	}
-      member_init_list = nreverse (member_init_list);
-      base_init_list = nreverse (base_init_list);
-      emit_base_init (member_init_list, base_init_list);
+      finish_mem_initializers (member_init_list);
     }
 }
 
@@ -626,33 +657,39 @@ do_build_assign_ref (fndecl)
     }
   else
     {
-      tree fields = TYPE_FIELDS (current_class_type);
-      int n_bases = CLASSTYPE_N_BASECLASSES (current_class_type);
-      tree binfos = TYPE_BINFO_BASETYPES (current_class_type);
+      tree fields;
       int cvquals = cp_type_quals (TREE_TYPE (parm));
       int i;
 
-      for (i = 0; i < n_bases; ++i)
+      /* Assign to each of thedirect base classes.  */
+      for (i = 0; i < CLASSTYPE_N_BASECLASSES (current_class_type); ++i)
 	{
-	  /* We must deal with the binfo's directly as a direct base
-	     might be inaccessible due to ambiguity.  */
-	  tree binfo = TREE_VEC_ELT (binfos, i);
-	  tree src = build_base_path (PLUS_EXPR, parm, binfo, 1);
-	  tree dst = build_base_path (PLUS_EXPR, current_class_ref, binfo, 1);
+	  tree binfo;
+	  tree converted_parm;
 
-	  tree expr = build_method_call (dst,
-					 ansi_assopname (NOP_EXPR),
-					 build_tree_list (NULL_TREE, src),
-					 binfo,
-					 LOOKUP_NORMAL | LOOKUP_NONVIRTUAL);
-	  finish_expr_stmt (expr);
+	  binfo = BINFO_BASETYPE (TYPE_BINFO (current_class_type), i);
+	  /* We must convert PARM directly to the base class
+	     explicitly since the base class may be ambiguous.  */
+	  converted_parm = build_base_path (PLUS_EXPR, parm, binfo, 1);
+	  /* Call the base class assignment operator.  */
+	  finish_expr_stmt 
+	    (build_special_member_call (current_class_ref, 
+					ansi_assopname (NOP_EXPR),
+					build_tree_list (NULL_TREE, 
+							 converted_parm),
+					binfo,
+					LOOKUP_NORMAL | LOOKUP_NONVIRTUAL));
 	}
-      for (; fields; fields = TREE_CHAIN (fields))
+
+      /* Assign to each of the non-static data members.  */
+      for (fields = TYPE_FIELDS (current_class_type); 
+	   fields; 
+	   fields = TREE_CHAIN (fields))
 	{
 	  tree comp, init, t;
 	  tree field = fields;
 
-	  if (TREE_CODE (field) != FIELD_DECL)
+	  if (TREE_CODE (field) != FIELD_DECL || DECL_ARTIFICIAL (field))
 	    continue;
 
 	  if (CP_TYPE_CONST_P (TREE_TYPE (field)))
@@ -733,7 +770,7 @@ synthesize_method (fndecl)
      during the generation of the implicit body points at the place
      where the attempt to generate the function occurs, giving the
      user a hint as to why we are attempting to generate the
-     function. */
+     function.  */
   DECL_SOURCE_LINE (fndecl) = lineno;
   DECL_SOURCE_FILE (fndecl) = input_filename;
 
@@ -808,7 +845,7 @@ synthesize_exception_spec (type, extractor, client)
       tree type = TREE_TYPE (fields);
       tree fn;
       
-      if (TREE_CODE (fields) != FIELD_DECL)
+      if (TREE_CODE (fields) != FIELD_DECL || DECL_ARTIFICIAL (fields))
         continue;
       while (TREE_CODE (type) == ARRAY_TYPE)
   	type = TREE_TYPE (type);

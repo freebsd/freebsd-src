@@ -23,6 +23,13 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 #ifndef GCC_DEFAULTS_H
 #define GCC_DEFAULTS_H
 
+#ifndef GET_ENVIRONMENT
+#define GET_ENVIRONMENT(VALUE, NAME) do { (VALUE) = getenv (NAME); } while (0)
+#endif
+
+#define obstack_chunk_alloc xmalloc
+#define obstack_chunk_free free
+
 /* Define default standard character escape sequences.  */
 #ifndef TARGET_BELL
 #  define TARGET_BELL 007
@@ -33,6 +40,18 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 #  define TARGET_FF 014
 #  define TARGET_CR 015
 #  define TARGET_ESC 033
+#endif
+
+/* When removal of CPP_PREDEFINES is complete, TARGET_CPU_CPP_BULITINS
+   can also be removed from here.  */
+#ifndef TARGET_OS_CPP_BUILTINS
+# define TARGET_OS_CPP_BUILTINS()
+#endif
+#ifndef TARGET_CPU_CPP_BUILTINS
+# define TARGET_CPU_CPP_BUILTINS()
+#endif
+#ifndef CPP_PREDEFINES
+# define CPP_PREDEFINES ""
 #endif
 
 /* Store in OUTPUT a string (made with alloca) containing
@@ -66,12 +85,6 @@ do { fputs (integer_asm_op (POINTER_SIZE / UNITS_PER_WORD, TRUE), FILE); \
      ASM_OUTPUT_INTERNAL_LABEL (FILE, "L", (VALUE));			\
      fputc ('\n', FILE);						\
    } while (0)
-#endif
-
-/* Provide default for ASM_OUTPUT_ALTERNATE_LABEL_NAME.  */
-#ifndef ASM_OUTPUT_ALTERNATE_LABEL_NAME
-#define ASM_OUTPUT_ALTERNATE_LABEL_NAME(FILE,INSN) \
-do { ASM_OUTPUT_LABEL(FILE,LABEL_ALTERNATE_NAME (INSN)); } while (0)
 #endif
 
 /* choose a reasonable default for ASM_OUTPUT_ASCII.  */
@@ -127,6 +140,14 @@ do { ASM_OUTPUT_LABEL(FILE,LABEL_ALTERNATE_NAME (INSN)); } while (0)
 #endif
 #endif
 
+/* This is how to output the definition of a user-level label named
+   NAME, such as the label on a static function or variable NAME.  */
+
+#ifndef ASM_OUTPUT_LABEL
+#define ASM_OUTPUT_LABEL(FILE,NAME) \
+  do { assemble_name ((FILE), (NAME)); fputs (":\n", (FILE)); } while (0)
+#endif
+
 /* This is how to output a reference to a user-level label named NAME.  */
 
 #ifndef ASM_OUTPUT_LABELREF
@@ -156,6 +177,51 @@ do { ASM_OUTPUT_LABEL(FILE,LABEL_ALTERNATE_NAME (INSN)); } while (0)
 #endif
 #endif
 
+/* How to emit a .type directive.  */
+#ifndef ASM_OUTPUT_TYPE_DIRECTIVE
+#if defined TYPE_ASM_OP && defined TYPE_OPERAND_FMT
+#define ASM_OUTPUT_TYPE_DIRECTIVE(STREAM, NAME, TYPE)	\
+  do							\
+    {							\
+      fputs (TYPE_ASM_OP, STREAM);			\
+      assemble_name (STREAM, NAME);			\
+      fputs (", ", STREAM);				\
+      fprintf (STREAM, TYPE_OPERAND_FMT, TYPE);		\
+      putc ('\n', STREAM);				\
+    }							\
+  while (0)
+#endif
+#endif
+
+/* How to emit a .size directive.  */
+#ifndef ASM_OUTPUT_SIZE_DIRECTIVE
+#ifdef SIZE_ASM_OP
+#define ASM_OUTPUT_SIZE_DIRECTIVE(STREAM, NAME, SIZE)	\
+  do							\
+    {							\
+      HOST_WIDE_INT size_ = (SIZE);			\
+      fputs (SIZE_ASM_OP, STREAM);			\
+      assemble_name (STREAM, NAME);			\
+      fputs (", ", STREAM);				\
+      fprintf (STREAM, HOST_WIDE_INT_PRINT_DEC, size_);	\
+      putc ('\n', STREAM);				\
+    }							\
+  while (0)
+
+#define ASM_OUTPUT_MEASURED_SIZE(STREAM, NAME)		\
+  do							\
+    {							\
+      fputs (SIZE_ASM_OP, STREAM);			\
+      assemble_name (STREAM, NAME);			\
+      fputs (", .-", STREAM);				\
+      assemble_name (STREAM, NAME);			\
+      putc ('\n', STREAM);				\
+    }							\
+  while (0)
+
+#endif
+#endif
+
 /* This determines whether or not we support weak symbols.  */
 #ifndef SUPPORTS_WEAK
 #if defined (ASM_WEAKEN_LABEL) || defined (ASM_WEAKEN_DECL)
@@ -172,6 +238,11 @@ do { ASM_OUTPUT_LABEL(FILE,LABEL_ALTERNATE_NAME (INSN)); } while (0)
 #else
 #define SUPPORTS_ONE_ONLY 0
 #endif
+#endif
+
+/* By default, there is no prefix on user-defined symbols.  */
+#ifndef USER_LABEL_PREFIX
+#define USER_LABEL_PREFIX ""
 #endif
 
 /* If the target supports weak symbols, define TARGET_ATTRIBUTE_WEAK to
@@ -211,7 +282,8 @@ do { ASM_OUTPUT_LABEL(FILE,LABEL_ALTERNATE_NAME (INSN)); } while (0)
 
 /* If we have named sections, and we're using crtstuff to run ctors,
    use them for registering eh frame information.  */
-#if defined (TARGET_ASM_NAMED_SECTION) && !defined(EH_FRAME_IN_DATA_SECTION)
+#if defined (TARGET_ASM_NAMED_SECTION) && DWARF2_UNWIND_INFO \
+    && !defined(EH_FRAME_IN_DATA_SECTION)
 #ifndef EH_FRAME_SECTION_NAME
 #define EH_FRAME_SECTION_NAME ".eh_frame"
 #endif
@@ -224,28 +296,6 @@ do { ASM_OUTPUT_LABEL(FILE,LABEL_ALTERNATE_NAME (INSN)); } while (0)
 #ifndef JCR_SECTION_NAME
 #define JCR_SECTION_NAME ".jcr"
 #endif
-#endif
-
-/* If we have no definition for UNIQUE_SECTION, but do have the 
-   ability to generate arbitrary sections, construct something
-   reasonable.  */
-#ifndef UNIQUE_SECTION
-#define UNIQUE_SECTION(DECL,RELOC)				\
-do {								\
-  int len;							\
-  const char *name;						\
-  char *string;							\
-								\
-  name = IDENTIFIER_POINTER (DECL_ASSEMBLER_NAME (DECL));	\
-  /* Strip off any encoding in name.  */			\
-  STRIP_NAME_ENCODING (name, name);				\
-								\
-  len = strlen (name) + 1;					\
-  string = alloca (len + 1);					\
-  sprintf (string, ".%s", name);				\
-								\
-  DECL_SECTION_NAME (DECL) = build_string (len, string);	\
-} while (0)
 #endif
 
 /* By default, we generate a label at the beginning and end of the
@@ -281,6 +331,14 @@ do {								\
    your target, you should override these values by defining the
    appropriate symbols in your tm.h file.  */
 
+#ifndef BITS_PER_UNIT
+#define BITS_PER_UNIT 8
+#endif
+
+#ifndef BITS_PER_WORD
+#define BITS_PER_WORD (BITS_PER_UNIT * UNITS_PER_WORD)
+#endif
+
 #ifndef CHAR_TYPE_SIZE
 #define CHAR_TYPE_SIZE BITS_PER_UNIT
 #endif
@@ -310,10 +368,6 @@ do {								\
 #define WCHAR_TYPE_SIZE INT_TYPE_SIZE
 #endif
 
-#ifndef WCHAR_UNSIGNED
-#define WCHAR_UNSIGNED 0
-#endif
-
 #ifndef FLOAT_TYPE_SIZE
 #define FLOAT_TYPE_SIZE BITS_PER_WORD
 #endif
@@ -324,6 +378,11 @@ do {								\
 
 #ifndef LONG_DOUBLE_TYPE_SIZE
 #define LONG_DOUBLE_TYPE_SIZE (BITS_PER_WORD * 2)
+#endif
+
+/* Width in bits of a pointer.  Mind the value of the macro `Pmode'.  */
+#ifndef POINTER_SIZE
+#define POINTER_SIZE BITS_PER_WORD
 #endif
 
 #ifndef BUILD_VA_LIST_TYPE
@@ -371,13 +430,29 @@ do {								\
 #endif
 
 /* By default, the C++ compiler will use function addresses in the
-   vtable entries.  Setting this non-zero tells the compiler to use
+   vtable entries.  Setting this nonzero tells the compiler to use
    function descriptors instead.  The value of this macro says how
    many words wide the descriptor is (normally 2).  It is assumed 
    that the address of a function descriptor may be treated as a
    pointer to a function.  */
 #ifndef TARGET_VTABLE_USES_DESCRIPTORS
 #define TARGET_VTABLE_USES_DESCRIPTORS 0
+#endif
+
+/* By default, the vtable entries are void pointers, the so the alignment
+   is the same as pointer alignment.  The value of this macro specifies
+   the alignment of the vtable entry in bits.  It should be defined only
+   when special alignment is necessary.  */
+#ifndef TARGET_VTABLE_ENTRY_ALIGN
+#define TARGET_VTABLE_ENTRY_ALIGN POINTER_SIZE
+#endif
+
+/* There are a few non-descriptor entries in the vtable at offsets below
+   zero.  If these entries must be padded (say, to preserve the alignment
+   specified by TARGET_VTABLE_ENTRY_ALIGN), set this to the number of
+   words in each data entry.  */
+#ifndef TARGET_VTABLE_DATA_ENTRY_DISTANCE
+#define TARGET_VTABLE_DATA_ENTRY_DISTANCE 1
 #endif
 
 /* Select a format to encode pointers in exception handling data.  We
@@ -396,13 +471,6 @@ do {								\
 #define TARGET_PTRMEMFUNC_VBIT_LOCATION \
   (FUNCTION_BOUNDARY >= 2 * BITS_PER_UNIT \
    ? ptrmemfunc_vbit_in_pfn : ptrmemfunc_vbit_in_delta)
-#endif
-
-/* True if it is possible to profile code that does not have a frame
-   pointer.  */
-
-#ifndef TARGET_ALLOWS_PROFILING_WITHOUT_FRAME_POINTER
-#define TARGET_ALLOWS_PROFILING_WITHOUT_FRAME_POINTER true
 #endif
 
 #ifndef DEFAULT_GDB_EXTENSIONS
@@ -445,14 +513,16 @@ You Lose!  You must define PREFERRED_DEBUGGING_TYPE!
 #define PREFERRED_DEBUGGING_TYPE NO_DEBUG
 #endif
 
-/* This is set to 1 if BYTES_BIG_ENDIAN is defined but the target uses a
-   little-endian method of passing and returning structures in registers.
-   On the HP-UX IA64 and PA64 platforms structures are aligned differently
-   then integral values and setting this value to 1 will allow for the
-   special handling of structure arguments and return values in regs.  */
+/* Define codes for all the float formats that we know of.  */
+#define UNKNOWN_FLOAT_FORMAT 0
+#define IEEE_FLOAT_FORMAT 1
+#define VAX_FLOAT_FORMAT 2
+#define IBM_FLOAT_FORMAT 3
+#define C4X_FLOAT_FORMAT 4
 
-#ifndef FUNCTION_ARG_REG_LITTLE_ENDIAN
-#define FUNCTION_ARG_REG_LITTLE_ENDIAN 0
+/* Default to IEEE float if not specified.  Nearly all machines use it.  */
+#ifndef TARGET_FLOAT_FORMAT
+#define	TARGET_FLOAT_FORMAT	IEEE_FLOAT_FORMAT
 #endif
 
 /* Determine the register class for registers suitable to be the base
@@ -462,10 +532,79 @@ You Lose!  You must define PREFERRED_DEBUGGING_TYPE!
 #define MODE_BASE_REG_CLASS(MODE) BASE_REG_CLASS
 #endif
 
+#ifndef LARGEST_EXPONENT_IS_NORMAL
+#define LARGEST_EXPONENT_IS_NORMAL(SIZE) 0
+#endif
+
+#ifndef ROUND_TOWARDS_ZERO
+#define ROUND_TOWARDS_ZERO 0
+#endif
+
+#ifndef MODE_HAS_NANS
+#define MODE_HAS_NANS(MODE)					\
+  (FLOAT_MODE_P (MODE)						\
+   && TARGET_FLOAT_FORMAT == IEEE_FLOAT_FORMAT			\
+   && !LARGEST_EXPONENT_IS_NORMAL (GET_MODE_BITSIZE (MODE)))
+#endif
+
+#ifndef MODE_HAS_INFINITIES
+#define MODE_HAS_INFINITIES(MODE)				\
+  (FLOAT_MODE_P (MODE)						\
+   && TARGET_FLOAT_FORMAT == IEEE_FLOAT_FORMAT			\
+   && !LARGEST_EXPONENT_IS_NORMAL (GET_MODE_BITSIZE (MODE)))
+#endif
+
+#ifndef MODE_HAS_SIGNED_ZEROS
+#define MODE_HAS_SIGNED_ZEROS(MODE) \
+  (FLOAT_MODE_P (MODE) && TARGET_FLOAT_FORMAT == IEEE_FLOAT_FORMAT)
+#endif
+
+#ifndef MODE_HAS_SIGN_DEPENDENT_ROUNDING
+#define MODE_HAS_SIGN_DEPENDENT_ROUNDING(MODE)			\
+  (FLOAT_MODE_P (MODE)						\
+   && TARGET_FLOAT_FORMAT == IEEE_FLOAT_FORMAT			\
+   && !ROUND_TOWARDS_ZERO)
+#endif
+
+/* If FLOAT_WORDS_BIG_ENDIAN and HOST_FLOAT_WORDS_BIG_ENDIAN are not defined
+   in the header files, then this implies the word-endianness is the same as
+   for integers.  */
+#ifndef FLOAT_WORDS_BIG_ENDIAN
+#define FLOAT_WORDS_BIG_ENDIAN WORDS_BIG_ENDIAN
+#endif
+
+#ifndef TARGET_FLT_EVAL_METHOD
+#define TARGET_FLT_EVAL_METHOD 0
+#endif
+
+#ifndef HOT_TEXT_SECTION_NAME
+#define HOT_TEXT_SECTION_NAME "text.hot"
+#endif
+
+#ifndef UNLIKELY_EXECUTED_TEXT_SECTION_NAME
+#define UNLIKELY_EXECUTED_TEXT_SECTION_NAME "text.unlikely"
+#endif
+
+#ifndef VECTOR_MODE_SUPPORTED_P
+#define VECTOR_MODE_SUPPORTED_P(MODE) 0
+#endif
+
 /* Determine whether __cxa_atexit, rather than atexit, is used to
-   register C++ destructors for local statics and global objects. */
+   register C++ destructors for local statics and global objects.  */
 #ifndef DEFAULT_USE_CXA_ATEXIT
 #define DEFAULT_USE_CXA_ATEXIT 0
+#endif
+
+/* Determine whether extra constraint letter should be handled
+   via address reload (like 'o').  */
+#ifndef EXTRA_MEMORY_CONSTRAINT
+#define EXTRA_MEMORY_CONSTRAINT(C) 0
+#endif
+
+/* Determine whether extra constraint letter should be handled
+   as an address (like 'p').  */
+#ifndef EXTRA_ADDRESS_CONSTRAINT
+#define EXTRA_ADDRESS_CONSTRAINT(C) 0
 #endif
 
 #endif  /* ! GCC_DEFAULTS_H */

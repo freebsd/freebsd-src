@@ -1,5 +1,6 @@
 /* Target definitions for GNU compiler for Intel 80386 using ELF
-   Copyright (C) 1988, 1991, 1995, 2000, 2001 Free Software Foundation, Inc.
+   Copyright (C) 1988, 1991, 1995, 2000, 2001, 2002
+   Free Software Foundation, Inc.
 
    Derived from sysv4.h written by Ron Guilmette (rfg@netcom.com).
 
@@ -24,7 +25,6 @@ Boston, MA 02111-1307, USA.  */
 #undef  PREFERRED_DEBUGGING_TYPE
 #define PREFERRED_DEBUGGING_TYPE DBX_DEBUG
 
-#undef TARGET_VERSION
 #define TARGET_VERSION fprintf (stderr, " (i386 bare ELF target)");
 
 /* By default, target has a 80387, uses IEEE compatible arithmetic,
@@ -40,12 +40,8 @@ Boston, MA 02111-1307, USA.  */
   (TYPE_MODE (TYPE) == BLKmode \
    || (VECTOR_MODE_P (TYPE_MODE (TYPE)) && int_size_in_bytes (TYPE) == 8))
 
-/* This used to define X86, but james@bigtex.cactus.org says that
-   is supposed to be defined optionally by user programs--not by default.  */
-#define CPP_PREDEFINES ""
-
 #undef CPP_SPEC
-#define CPP_SPEC "%(cpp_cpu)"
+#define CPP_SPEC ""
 
 #define ENDFILE_SPEC "crtend.o%s"
 

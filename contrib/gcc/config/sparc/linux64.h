@@ -44,7 +44,6 @@ Boston, MA 02111-1307, USA.  */
 
 #undef CPP_ARCH32_SPEC
 #define CPP_ARCH32_SPEC "%{mlong-double-128:-D__LONG_DOUBLE_128__} \
--D__SIZE_TYPE__=unsigned\\ int -D__PTRDIFF_TYPE__=int \
 -D__GCC_NEW_VARARGS__ -Acpu=sparc -Amachine=sparc"
 
 #endif
@@ -57,8 +56,7 @@ Boston, MA 02111-1307, USA.  */
 #undef  STARTFILE_SPEC
 
 #define STARTFILE_SPEC \
-  "%{!shared: \
-     %{pg:gcrt1.o%s} %{!pg:%{p:gcrt1.o%s} %{!p:crt1.o%s}}}\
+  "%{!shared:%{pg:gcrt1.o%s} %{!pg:%{p:gcrt1.o%s} %{!p:crt1.o%s}}}\
    crti.o%s %{static:crtbeginT.o%s}\
    %{!static:%{!shared:crtbegin.o%s} %{shared:crtbeginS.o%s}}"
 
@@ -96,8 +94,8 @@ Boston, MA 02111-1307, USA.  */
 #undef WCHAR_TYPE_SIZE
 #define WCHAR_TYPE_SIZE 32
 
-/* Define for support of TFmode long double and REAL_ARITHMETIC.
-   Sparc ABI says that long double is 4 words.  */
+/* Define for support of TFmode long double.
+   SPARC ABI says that long double is 4 words.  */
 #undef LONG_DOUBLE_TYPE_SIZE
 #define LONG_DOUBLE_TYPE_SIZE (TARGET_LONG_DOUBLE_128 ? 128 : 64)
 
@@ -126,9 +124,9 @@ Boston, MA 02111-1307, USA.  */
 
 #undef LIB_SPEC
 #define LIB_SPEC \
-  "%{shared: -lc} \
-   %{!shared: %{mieee-fp:-lieee} %{pthread:-lpthread} \
-     %{profile:-lc_p} %{!profile: -lc}}"
+  "%{pthread:-lpthread} \
+   %{shared:-lc} \
+   %{!shared: %{mieee-fp:-lieee} %{profile:-lc_p}%{!profile:-lc}}"
 
 /* Provide a LINK_SPEC appropriate for GNU/Linux.  Here we provide support
    for the special GCC options -static and -shared, which allow us to
@@ -259,11 +257,9 @@ Boston, MA 02111-1307, USA.  */
 /* System V Release 4 uses DWARF debugging info.  Buf DWARF1 doesn't do
    64-bit anything, so we use DWARF2.  */
 
-#undef DWARF2_DEBUGGING_INFO
 #undef DWARF_DEBUGGING_INFO
-#undef DBX_DEBUGGING_INFO
-#define DWARF2_DEBUGGING_INFO
-#define DBX_DEBUGGING_INFO
+#define DWARF2_DEBUGGING_INFO 1
+#define DBX_DEBUGGING_INFO 1
 
 #undef ASM_OUTPUT_ALIGNED_LOCAL
 #define ASM_OUTPUT_ALIGNED_LOCAL(FILE, NAME, SIZE, ALIGN)		\
@@ -328,7 +324,7 @@ do {									\
 
 /* Handle multilib correctly.  */
 #if defined(__arch64__)
-/* 64-bit Sparc version */
+/* 64-bit SPARC version */
 #define MD_FALLBACK_FRAME_STATE_FOR(CONTEXT, FS, SUCCESS)		\
   do {									\
     unsigned int *pc_ = (CONTEXT)->ra;					\
@@ -379,7 +375,7 @@ do {									\
     goto SUCCESS;							\
   } while (0)
 #else
-/* 32-bit Sparc version */
+/* 32-bit SPARC version */
 #define MD_FALLBACK_FRAME_STATE_FOR(CONTEXT, FS, SUCCESS)		\
   do {									\
     unsigned int *pc_ = (CONTEXT)->ra;					\

@@ -1,5 +1,5 @@
 /* Configuration for an i386 running VSTa micro-kernel.
-   Copyright (C) 1994 Free Software Foundation, Inc.
+   Copyright (C) 1994, 2002 Free Software Foundation, Inc.
    Contributed by Rob Savoye (rob@cygnus.com).
 
 This file is part of GNU CC.
@@ -19,11 +19,14 @@ along with GNU CC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
-#define YES_UNDERSCORES
+#define TARGET_VERSION fprintf (stderr, " (80386, BSD syntax)"); 
 
-#include "i386/gas.h"
-
-#ifdef CPP_PREDEFINES
-#undef CPP_PREDEFINES
-#endif
-#define CPP_PREDEFINES "-Dunix -DVSTA -Asystem=unix -Asystem=vsta"
+#define TARGET_OS_CPP_BUILTINS()		\
+  do						\
+    {						\
+	builtin_define_std ("unix");		\
+	builtin_define ("VSTA");		\
+	builtin_assert ("system=unix");		\
+	builtin_assert ("system=vsta");		\
+    }						\
+  while (0)

@@ -1,5 +1,5 @@
 /* Functions for generic Darwin as target machine for GNU C compiler.
-   Copyright (C) 1989, 1990, 1991, 1992, 1993, 2000, 2001
+   Copyright (C) 1989, 1990, 1991, 1992, 1993, 2000, 2001, 2002
    Free Software Foundation, Inc.
    Contributed by Apple Computer Inc.
 
@@ -38,13 +38,9 @@ Boston, MA 02111-1307, USA.  */
 #include "function.h"
 #include "ggc.h"
 #include "langhooks.h"
-
-#include "darwin-protos.h"
-
-extern void machopic_output_stub PARAMS ((FILE *, const char *, const char *));
+#include "tm_p.h"
 
 static int machopic_data_defined_p PARAMS ((const char *));
-static int func_name_maybe_scoped PARAMS ((const char *));
 static void update_non_lazy_ptrs PARAMS ((const char *));
 static void update_stubs PARAMS ((const char *));
 
@@ -67,7 +63,7 @@ name_needs_quotes (name)
 /* This module assumes that (const (symbol_ref "foo")) is a legal pic
    reference, which will not be changed.  */
 
-static tree machopic_defined_list;
+static GTY(()) tree machopic_defined_list;
 
 enum machopic_addr_class
 machopic_classify_ident (ident)
@@ -221,13 +217,13 @@ machopic_define_name (name)
 }
 
 /* This is a static to make inline functions work.  The rtx
-   representing the PIC base symbol always points to here. */
+   representing the PIC base symbol always points to here.  */
 
 static char function_base[32];
 
 static int current_pic_label_num;
 
-char *
+const char *
 machopic_function_base_name ()
 {
   static const char *name = NULL;
@@ -257,17 +253,17 @@ machopic_function_base_name ()
   return function_base;
 }
 
-static tree machopic_non_lazy_pointers = NULL;
+static GTY(()) tree machopic_non_lazy_pointers;
 
 /* Return a non-lazy pointer name corresponding to the given name,
    either by finding it in our list of pointer names, or by generating
    a new one.  */
 
-char * 
+const char * 
 machopic_non_lazy_ptr_name (name)
      const char *name;
 {
-  char *temp_name;
+  const char *temp_name;
   tree temp, ident = get_identifier (name);
   
   for (temp = machopic_non_lazy_pointers;
@@ -278,7 +274,7 @@ machopic_non_lazy_ptr_name (name)
 	return IDENTIFIER_POINTER (TREE_PURPOSE (temp));
     }
 
-  STRIP_NAME_ENCODING (name, name);
+  name = darwin_strip_name_encoding (name);
 
   /* Try again, but comparing names this time.  */
   for (temp = machopic_non_lazy_pointers;
@@ -288,7 +284,7 @@ machopic_non_lazy_ptr_name (name)
       if (TREE_VALUE (temp))
 	{
 	  temp_name = IDENTIFIER_POINTER (TREE_VALUE (temp));
-	  STRIP_NAME_ENCODING (temp_name, temp_name);
+	  temp_name = darwin_strip_name_encoding (temp_name);
 	  if (strcmp (name, temp_name) == 0)
 	    return IDENTIFIER_POINTER (TREE_PURPOSE (temp));
 	}
@@ -321,22 +317,12 @@ machopic_non_lazy_ptr_name (name)
   }
 }
 
-static tree machopic_stubs = 0;
-
-/* Make sure the GC knows about our homemade lists.  */
-
-void
-machopic_add_gc_roots ()
-{
-  ggc_add_tree_root (&machopic_defined_list, 1);
-  ggc_add_tree_root (&machopic_non_lazy_pointers, 1);
-  ggc_add_tree_root (&machopic_stubs, 1);
-}
+static GTY(()) tree machopic_stubs;
 
 /* Return the name of the stub corresponding to the given name,
    generating a new stub name if necessary.  */
 
-char * 
+const char * 
 machopic_stub_name (name)
      const char *name;
 {
@@ -360,7 +346,7 @@ machopic_stub_name (name)
 	return IDENTIFIER_POINTER (TREE_PURPOSE (temp));
     }
 
-  STRIP_NAME_ENCODING (name, name);
+  name = darwin_strip_name_encoding (name);
 
   {
     char *buffer;
@@ -401,7 +387,7 @@ machopic_validate_stub_or_non_lazy_ptr (name, validate_stub)
      const char *name;
      int validate_stub;
 {
-  char *real_name;
+  const char *real_name;
   tree temp, ident = get_identifier (name), id2;
 
     for (temp = (validate_stub ? machopic_stubs : machopic_non_lazy_pointers);
@@ -414,7 +400,8 @@ machopic_validate_stub_or_non_lazy_ptr (name, validate_stub)
           TREE_USED (temp) = 1;
 	  if (TREE_CODE (TREE_VALUE (temp)) == IDENTIFIER_NODE)
 	    TREE_SYMBOL_REFERENCED (TREE_VALUE (temp)) = 1;
-	  STRIP_NAME_ENCODING (real_name, IDENTIFIER_POINTER (TREE_VALUE (temp)));
+	  real_name = IDENTIFIER_POINTER (TREE_VALUE (temp));
+	  real_name = darwin_strip_name_encoding (real_name);
 	  id2 = maybe_get_identifier (real_name);
 	  if (id2)
 	    TREE_SYMBOL_REFERENCED (id2) = 1;
@@ -439,10 +426,12 @@ machopic_indirect_data_reference (orig, reg)
 
       if (machopic_data_defined_p (name))
 	{
+#if defined (TARGET_TOC) || defined (HAVE_lo_sum)
 	  rtx pic_base = gen_rtx (SYMBOL_REF, Pmode, 
 				  machopic_function_base_name ());
 	  rtx offset = gen_rtx (CONST, Pmode,
 				gen_rtx (MINUS, Pmode, orig, pic_base));
+#endif
 
 #if defined (TARGET_TOC) /* i.e., PowerPC */
 	  rtx hi_sum_reg = reg;
@@ -501,9 +490,6 @@ machopic_indirect_data_reference (orig, reg)
 	result = plus_constant (base, INTVAL (orig));
       else
 	result = gen_rtx (PLUS, Pmode, base, orig);
-
-      if (RTX_UNCHANGING_P (base) && RTX_UNCHANGING_P (orig))
-	RTX_UNCHANGING_P (result) = 1;
 
       if (MACHOPIC_JUST_INDIRECT && GET_CODE (base) == MEM)
 	{
@@ -676,10 +662,10 @@ machopic_legitimize_pic_address (orig, mode, reg)
 	    }
 	  
 #if !defined (TARGET_TOC)
-	  RTX_UNCHANGING_P (pic_ref) = 1;
 	  emit_move_insn (reg, pic_ref);
 	  pic_ref = gen_rtx (MEM, GET_MODE (orig), reg);
 #endif
+	  RTX_UNCHANGING_P (pic_ref) = 1;
 	}
       else
 	{
@@ -711,6 +697,7 @@ machopic_legitimize_pic_address (orig, mode, reg)
 				  gen_rtx (LO_SUM, Pmode,
 					   hi_sum_reg, offset)));
 	      pic_ref = reg;
+	      RTX_UNCHANGING_P (pic_ref) = 1;
 #else
 	      emit_insn (gen_rtx (SET, VOIDmode, reg,
 				  gen_rtx (HIGH, Pmode, offset)));
@@ -718,6 +705,7 @@ machopic_legitimize_pic_address (orig, mode, reg)
 				  gen_rtx (LO_SUM, Pmode, reg, offset)));
 	      pic_ref = gen_rtx (PLUS, Pmode,
 				 pic_offset_table_rtx, reg);
+	      RTX_UNCHANGING_P (pic_ref) = 1;
 #endif
 	    }
 	  else
@@ -747,8 +735,6 @@ machopic_legitimize_pic_address (orig, mode, reg)
 		}
 	    }
 	}
-
-      RTX_UNCHANGING_P (pic_ref) = 1;
 
       if (GET_CODE (pic_ref) != REG)
         {
@@ -846,7 +832,7 @@ machopic_finish (asm_out_file)
       if (sym_name[0] == '!' && sym_name[1] == 'T')
 	continue;
 
-      STRIP_NAME_ENCODING (sym_name, sym_name);
+      sym_name = darwin_strip_name_encoding (sym_name);
 
       sym = alloca (strlen (sym_name) + 2);
       if (sym_name[0] == '*' || sym_name[0] == '&')
@@ -869,20 +855,13 @@ machopic_finish (asm_out_file)
        temp != NULL_TREE; 
        temp = TREE_CHAIN (temp))
     {
-      char *sym_name = IDENTIFIER_POINTER (TREE_VALUE (temp));
-      char *lazy_name = IDENTIFIER_POINTER (TREE_PURPOSE (temp));
-#if 0
-      tree decl = lookup_name_darwin (TREE_VALUE (temp));
-#endif
+      const char *const sym_name = IDENTIFIER_POINTER (TREE_VALUE (temp));
+      const char *const lazy_name = IDENTIFIER_POINTER (TREE_PURPOSE (temp));
 
       if (! TREE_USED (temp))
 	continue;
 
-      if (machopic_ident_defined_p (TREE_VALUE (temp))
-#if 0 /* add back when we have private externs */
-          || (decl && DECL_PRIVATE_EXTERN (decl))
-#endif
-	  )
+      if (machopic_ident_defined_p (TREE_VALUE (temp)))
 	{
 	  data_section ();
 	  assemble_align (GET_MODE_ALIGNMENT (Pmode));
@@ -932,18 +911,6 @@ machopic_operand_p (op)
       && machopic_name_defined_p (XSTR (XEXP (op, 1), 0)))
       return 1;
 
-#if 0 /*def TARGET_TOC*/ /* i.e., PowerPC */
-  /* Without this statement, the compiler crashes while compiling enquire.c
-     when targetting PowerPC.  It is not known why this code is not needed
-     when targetting other processors.  */
-  else if (GET_CODE (op) == SYMBOL_REF
-	   && (machopic_classify_name (XSTR (op, 0))
-	       == MACHOPIC_DEFINED_FUNCTION))
-    {
-      return 1;
-    }
-#endif
-
   return 0;
 }
 
@@ -952,8 +919,9 @@ machopic_operand_p (op)
    use later.  */
 
 void
-darwin_encode_section_info (decl)
+darwin_encode_section_info (decl, first)
      tree decl;
+     int first ATTRIBUTE_UNUSED;
 {
   char code = '\0';
   int defined = 0;
@@ -1014,6 +982,15 @@ darwin_encode_section_info (decl)
     update_stubs (XSTR (sym_ref, 0));
 }
 
+/* Undo the effects of the above.  */
+
+const char *
+darwin_strip_name_encoding (str)
+     const char *str;
+{
+  return str[0] == '!' ? str + 4 : str;
+}
+
 /* Scan the list of non-lazy pointers and update any recorded names whose
    stripped name matches the argument.  */
 
@@ -1024,17 +1001,17 @@ update_non_lazy_ptrs (name)
   const char *name1, *name2;
   tree temp;
 
-  STRIP_NAME_ENCODING (name1, name);
+  name1 = darwin_strip_name_encoding (name);
 
   for (temp = machopic_non_lazy_pointers;
        temp != NULL_TREE; 
        temp = TREE_CHAIN (temp))
     {
-      char *sym_name = IDENTIFIER_POINTER (TREE_VALUE (temp));
+      const char *sym_name = IDENTIFIER_POINTER (TREE_VALUE (temp));
 
       if (*sym_name == '!')
 	{
-	  STRIP_NAME_ENCODING (name2, sym_name);
+	  name2 = darwin_strip_name_encoding (sym_name);
 	  if (strcmp (name1, name2) == 0)
 	    {
 	      IDENTIFIER_POINTER (TREE_VALUE (temp)) = name;
@@ -1046,7 +1023,7 @@ update_non_lazy_ptrs (name)
 
 /* Function NAME is being defined, and its label has just been output.
    If there's already a reference to a stub for this function, we can
-   just emit the stub label now and we don't bother emitting the stub later. */
+   just emit the stub label now and we don't bother emitting the stub later.  */
 
 void
 machopic_output_possible_stub_label (file, name)
@@ -1088,17 +1065,17 @@ update_stubs (name)
   const char *name1, *name2;
   tree temp;
 
-  STRIP_NAME_ENCODING (name1, name);
+  name1 = darwin_strip_name_encoding (name);
 
   for (temp = machopic_stubs;
        temp != NULL_TREE; 
        temp = TREE_CHAIN (temp))
     {
-      char *sym_name = IDENTIFIER_POINTER (TREE_VALUE (temp));
+      const char *sym_name = IDENTIFIER_POINTER (TREE_VALUE (temp));
 
       if (*sym_name == '!')
 	{
-	  STRIP_NAME_ENCODING (name2, sym_name);
+	  name2 = darwin_strip_name_encoding (sym_name);
 	  if (strcmp (name1, name2) == 0)
 	    {
 	      IDENTIFIER_POINTER (TREE_VALUE (temp)) = name;
@@ -1106,6 +1083,153 @@ update_stubs (name)
 	    }
 	}
     }
+}
+
+void
+machopic_select_section (exp, reloc, align)
+     tree exp;
+     int reloc;
+     unsigned HOST_WIDE_INT align ATTRIBUTE_UNUSED;
+{
+  if (TREE_CODE (exp) == STRING_CST)
+    {
+      if (flag_writable_strings)
+	data_section ();
+      else if (TREE_STRING_LENGTH (exp) !=
+	       strlen (TREE_STRING_POINTER (exp)) + 1)
+	readonly_data_section ();
+      else
+	cstring_section ();
+    }
+  else if (TREE_CODE (exp) == INTEGER_CST
+	   || TREE_CODE (exp) == REAL_CST)
+    {
+      tree size = TYPE_SIZE (TREE_TYPE (exp));
+
+      if (TREE_CODE (size) == INTEGER_CST &&
+	  TREE_INT_CST_LOW (size) == 4 &&
+	  TREE_INT_CST_HIGH (size) == 0)
+	literal4_section ();
+      else if (TREE_CODE (size) == INTEGER_CST &&
+	       TREE_INT_CST_LOW (size) == 8 &&
+	       TREE_INT_CST_HIGH (size) == 0)
+	literal8_section ();
+      else
+	readonly_data_section ();
+    }
+  else if (TREE_CODE (exp) == CONSTRUCTOR
+	   && TREE_TYPE (exp)
+	   && TREE_CODE (TREE_TYPE (exp)) == RECORD_TYPE
+	   && TYPE_NAME (TREE_TYPE (exp)))
+    {
+      tree name = TYPE_NAME (TREE_TYPE (exp));
+      if (TREE_CODE (name) == TYPE_DECL)
+	name = DECL_NAME (name);
+      if (!strcmp (IDENTIFIER_POINTER (name), "NSConstantString"))
+	objc_constant_string_object_section ();
+      else if (!strcmp (IDENTIFIER_POINTER (name), "NXConstantString"))
+	objc_string_object_section ();
+      else if (TREE_READONLY (exp) || TREE_CONSTANT (exp))
+	{
+	  if (TREE_SIDE_EFFECTS (exp) || (flag_pic && reloc))
+	    const_data_section ();
+	  else
+	    readonly_data_section ();
+	}
+      else
+	data_section ();
+    }
+  else if (TREE_CODE (exp) == VAR_DECL &&
+	   DECL_NAME (exp) &&
+	   TREE_CODE (DECL_NAME (exp)) == IDENTIFIER_NODE &&
+	   IDENTIFIER_POINTER (DECL_NAME (exp)) &&
+	   !strncmp (IDENTIFIER_POINTER (DECL_NAME (exp)), "_OBJC_", 6))
+    {
+      const char *name = IDENTIFIER_POINTER (DECL_NAME (exp));
+
+      if (!strncmp (name, "_OBJC_CLASS_METHODS_", 20))
+	objc_cls_meth_section ();
+      else if (!strncmp (name, "_OBJC_INSTANCE_METHODS_", 23))
+	objc_inst_meth_section ();
+      else if (!strncmp (name, "_OBJC_CATEGORY_CLASS_METHODS_", 20))
+	objc_cat_cls_meth_section ();
+      else if (!strncmp (name, "_OBJC_CATEGORY_INSTANCE_METHODS_", 23))
+	objc_cat_inst_meth_section ();
+      else if (!strncmp (name, "_OBJC_CLASS_VARIABLES_", 22))
+	objc_class_vars_section ();
+      else if (!strncmp (name, "_OBJC_INSTANCE_VARIABLES_", 25))
+	objc_instance_vars_section ();
+      else if (!strncmp (name, "_OBJC_CLASS_PROTOCOLS_", 22))
+	objc_cat_cls_meth_section ();
+      else if (!strncmp (name, "_OBJC_CLASS_NAME_", 17))
+	objc_class_names_section ();
+      else if (!strncmp (name, "_OBJC_METH_VAR_NAME_", 20))
+	objc_meth_var_names_section ();
+      else if (!strncmp (name, "_OBJC_METH_VAR_TYPE_", 20))
+	objc_meth_var_types_section ();
+      else if (!strncmp (name, "_OBJC_CLASS_REFERENCES", 22))
+	objc_cls_refs_section ();
+      else if (!strncmp (name, "_OBJC_CLASS_", 12))
+	objc_class_section ();
+      else if (!strncmp (name, "_OBJC_METACLASS_", 16))
+	objc_meta_class_section ();
+      else if (!strncmp (name, "_OBJC_CATEGORY_", 15))
+	objc_category_section ();
+      else if (!strncmp (name, "_OBJC_SELECTOR_REFERENCES", 25))
+	objc_selector_refs_section ();
+      else if (!strncmp (name, "_OBJC_SELECTOR_FIXUP", 20))
+	objc_selector_fixup_section ();
+      else if (!strncmp (name, "_OBJC_SYMBOLS", 13))
+	objc_symbols_section ();
+      else if (!strncmp (name, "_OBJC_MODULES", 13))
+	objc_module_info_section ();
+      else if (!strncmp (name, "_OBJC_PROTOCOL_INSTANCE_METHODS_", 32))
+	objc_cat_inst_meth_section ();
+      else if (!strncmp (name, "_OBJC_PROTOCOL_CLASS_METHODS_", 29))
+	objc_cat_cls_meth_section ();
+      else if (!strncmp (name, "_OBJC_PROTOCOL_REFS_", 20))
+	objc_cat_cls_meth_section ();
+      else if (!strncmp (name, "_OBJC_PROTOCOL_", 15))
+	objc_protocol_section ();
+      else if ((TREE_READONLY (exp) || TREE_CONSTANT (exp))
+	       && !TREE_SIDE_EFFECTS (exp))
+	{
+	  if (flag_pic && reloc)
+	    const_data_section ();
+	  else
+	    readonly_data_section ();
+	}
+      else
+	data_section ();
+    }
+  else if (TREE_READONLY (exp) || TREE_CONSTANT (exp))
+    {
+      if (TREE_SIDE_EFFECTS (exp) || (flag_pic && reloc))
+	const_data_section ();
+      else
+	readonly_data_section ();
+    }
+  else
+    data_section ();
+}
+
+/* This can be called with address expressions as "rtx".
+   They must go in "const".  */
+
+void
+machopic_select_rtx_section (mode, x, align)
+     enum machine_mode mode;
+     rtx x;
+     unsigned HOST_WIDE_INT align ATTRIBUTE_UNUSED;
+{
+  if (GET_MODE_SIZE (mode) == 8)
+    literal8_section ();
+  else if (GET_MODE_SIZE (mode) == 4
+	   && (GET_CODE (x) == CONST_INT
+	       || GET_CODE (x) == CONST_DOUBLE))
+    literal4_section ();
+  else
+    const_section ();
 }
 
 void
@@ -1139,3 +1263,44 @@ machopic_asm_out_destructor (symbol, priority)
   if (!flag_pic)
     fprintf (asm_out_file, ".reference .destructors_used\n");
 }
+
+void
+darwin_globalize_label (stream, name)
+     FILE *stream;
+     const char *name;
+{
+  if (!!strncmp (name, "_OBJC_", 6))
+    default_globalize_label (stream, name);
+}
+
+/* Output a difference of two labels that will be an assembly time
+   constant if the two labels are local.  (.long lab1-lab2 will be
+   very different if lab1 is at the boundary between two sections; it
+   will be relocated according to the second section, not the first,
+   so one ends up with a difference between labels in different
+   sections, which is bad in the dwarf2 eh context for instance.)  */
+
+static int darwin_dwarf_label_counter;
+
+void
+darwin_asm_output_dwarf_delta (file, size, lab1, lab2)
+     FILE *file;
+     int size ATTRIBUTE_UNUSED;
+     const char *lab1, *lab2;
+{
+  const char *p = lab1 + (lab1[0] == '*');
+  int islocaldiff = (p[0] == 'L');
+
+  if (islocaldiff)
+    fprintf (file, "\t.set L$set$%d,", darwin_dwarf_label_counter);
+  else
+    fprintf (file, "\t%s\t", ".long");
+  assemble_name (file, lab1);
+  fprintf (file, "-");
+  assemble_name (file, lab2);
+  if (islocaldiff)
+    fprintf (file, "\n\t.long L$set$%d", darwin_dwarf_label_counter++);
+}
+
+#include "gt-darwin.h"
+

@@ -33,7 +33,6 @@ Boston, MA 02111-1307, USA.  */
 	  fputs ("\t.intel_syntax\n", FILE);				\
   } while (0)
 
-#undef TARGET_VERSION
 #define TARGET_VERSION fprintf (stderr, " (i386 Linux/ELF)");
 
 /* The svr4 ABI for the i386 says that records and unions are returned
@@ -54,23 +53,14 @@ Boston, MA 02111-1307, USA.  */
 
 #define NO_PROFILE_COUNTERS
 
-#undef FUNCTION_PROFILER
-#define FUNCTION_PROFILER(FILE, LABELNO)  \
-{									\
-  if (flag_pic)								\
-    fprintf (FILE, "\tcall\t*mcount@GOT(%%ebx)\n");			\
-  else									\
-    fprintf (FILE, "\tcall\tmcount\n");					\
-}
+#undef MCOUNT_NAME
+#define MCOUNT_NAME "mcount"
 
-/* True if it is possible to profile code that does not have a frame
-   pointer.  
-
-   The GLIBC version of mcount for the x86 assumes that there is a
+/* The GLIBC version of mcount for the x86 assumes that there is a
    frame, so we cannot allow profiling without a frame pointer.  */
 
-#undef TARGET_ALLOWS_PROFILING_WITHOUT_FRAME_POINTER
-#define TARGET_ALLOWS_PROFILING_WITHOUT_FRAME_POINTER false
+#undef SUBTARGET_FRAME_POINTER_REQUIRED
+#define SUBTARGET_FRAME_POINTER_REQUIRED current_function_profile
 
 #undef SIZE_TYPE
 #define SIZE_TYPE "unsigned int"
@@ -84,14 +74,27 @@ Boston, MA 02111-1307, USA.  */
 #undef WCHAR_TYPE_SIZE
 #define WCHAR_TYPE_SIZE BITS_PER_WORD
     
-#undef CPP_PREDEFINES
-#define CPP_PREDEFINES "-D__ELF__ -Dunix -D__gnu_linux__ -Dlinux -Asystem=posix"
+#define TARGET_OS_CPP_BUILTINS()		\
+  do						\
+    {						\
+	builtin_define_std ("linux");		\
+	builtin_define_std ("unix");		\
+	builtin_define ("__ELF__");		\
+	builtin_define ("__gnu_linux__");	\
+	builtin_assert ("system=posix");	\
+	if (flag_pic)				\
+	  {					\
+	    builtin_define ("__PIC__");		\
+	    builtin_define ("__pic__");		\
+	  }					\
+    }						\
+  while (0)
 
 #undef CPP_SPEC
 #ifdef USE_GNULIBC_1
-#define CPP_SPEC "%(cpp_cpu) %{fPIC:-D__PIC__ -D__pic__} %{fpic:-D__PIC__ -D__pic__} %{posix:-D_POSIX_SOURCE}"
+#define CPP_SPEC "%{posix:-D_POSIX_SOURCE}"
 #else
-#define CPP_SPEC "%(cpp_cpu) %{fPIC:-D__PIC__ -D__pic__} %{fpic:-D__PIC__ -D__pic__} %{posix:-D_POSIX_SOURCE} %{pthread:-D_REENTRANT}"
+#define CPP_SPEC "%{posix:-D_POSIX_SOURCE} %{pthread:-D_REENTRANT}"
 #endif
 
 #undef CC1_SPEC
@@ -221,9 +224,13 @@ Boston, MA 02111-1307, USA.  */
    state data appropriately.  See unwind-dw2.c for the structs.  */
 
 #ifdef IN_LIBGCC2
+/* There's no sys/ucontext.h for some (all?) libc1, so no
+   signal-turned-exceptions for them.  There's also no configure-run for
+   the target, so we can't check on (e.g.) HAVE_SYS_UCONTEXT_H.  Using the
+   target libc1 macro should be enough.  */
+#ifndef USE_GNULIBC_1
 #include <signal.h>
 #include <sys/ucontext.h>
-#endif
 
 #define MD_FALLBACK_FRAME_STATE_FOR(CONTEXT, FS, SUCCESS)		\
   do {									\
@@ -278,3 +285,5 @@ Boston, MA 02111-1307, USA.  */
     (FS)->retaddr_column = 8;						\
     goto SUCCESS;							\
   } while (0)
+#endif /* not USE_GNULIBC_1 */
+#endif /* IN_LIBGCC2 */

@@ -22,8 +22,23 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #ifndef GCC_HOOKS_H
 #define GCC_HOOKS_H
 
-bool hook_void_bool_false PARAMS ((void));
+bool hook_bool_void_false PARAMS ((void));
+bool hook_bool_tree_false PARAMS ((tree));
+bool hook_bool_tree_hwi_hwi_tree_false
+  PARAMS ((tree, HOST_WIDE_INT, HOST_WIDE_INT, tree));
+bool hook_bool_tree_hwi_hwi_tree_true
+  PARAMS ((tree, HOST_WIDE_INT, HOST_WIDE_INT, tree));
+bool hook_bool_rtx_false PARAMS ((rtx));
+
+void hook_void_tree_int PARAMS ((tree, int));
 void hook_void_void PARAMS ((void));
-bool hook_tree_bool_false PARAMS ((tree));
+void hook_void_FILEptr_constcharptr PARAMS ((FILE *, const char *));
+void hook_void_tree PARAMS ((tree));
+void hook_void_tree_treeptr PARAMS ((tree, tree *));
+
+int hook_int_tree_tree_1 PARAMS ((tree, tree));
+
+bool default_can_output_mi_thunk_no_vcall
+  PARAMS ((tree, HOST_WIDE_INT, HOST_WIDE_INT, tree));
 
 #endif

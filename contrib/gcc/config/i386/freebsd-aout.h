@@ -1,8 +1,9 @@
 /* Definitions of target machine for GNU compiler for Intel 80386
    running FreeBSD.
-   Copyright (C) 1988, 1992, 1994, 1996, 1997, 1999, 2000, 2002 Free Software
-   Foundation, Inc.
+   Copyright (C) 1988, 1992, 1994, 1996, 1997, 1999, 2000, 2002, 2003
+   Free Software Foundation, Inc.
    Contributed by Poul-Henning Kamp <phk@login.dkuug.dk>
+   Continued development by David O'Brien <obrien@NUXI.org>
 
 This file is part of GNU CC.
 
@@ -21,13 +22,8 @@ along with GNU CC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
-/* This is tested by i386gas.h.  */
-#define YES_UNDERSCORES
-
 /* Don't assume anything about the header files.  */
 #define NO_IMPLICIT_EXTERN_C
-
-#include "i386/gstabs.h"
 
 /* This goes away when the math-emulator is fixed */
 #undef TARGET_SUBTARGET_DEFAULT
@@ -41,9 +37,16 @@ Boston, MA 02111-1307, USA.  */
    defaults.h works.  */
 #undef ASM_PREFERRED_EH_DATA_FORMAT
 
-#undef CPP_PREDEFINES
-#define CPP_PREDEFINES "-Dunix -D__FreeBSD__\
- -Asystem=unix -Asystem=bsd -Asystem=FreeBSD"
+#define TARGET_OS_CPP_BUILTINS()		\
+  do						\
+    {						\
+	builtin_define_std ("unix");		\
+	builtin_define ("__FreeBSD__");		\
+	builtin_assert ("system=unix");		\
+	builtin_assert ("system=bsd");		\
+	builtin_assert ("system=FreeBSD");	\
+    }						\
+  while (0)
 
 /* Like the default, except no -lg.  */
 #define LIB_SPEC "%{!shared:%{!pg:-lc}%{pg:-lc_p}}"
@@ -56,8 +59,6 @@ Boston, MA 02111-1307, USA.  */
 
 #undef WCHAR_TYPE
 #define WCHAR_TYPE "int"
-
-#define WCHAR_UNSIGNED 0
 
 #undef WCHAR_TYPE_SIZE
 #define WCHAR_TYPE_SIZE BITS_PER_WORD
@@ -93,22 +94,13 @@ Boston, MA 02111-1307, USA.  */
 
 /* Profiling routines, partially copied from i386/osfrose.h.  */
 
-/* Redefine this to use %eax instead of %edx.  */
-#undef FUNCTION_PROFILER
-#define FUNCTION_PROFILER(FILE, LABELNO)  \
-{									\
-  if (flag_pic)								\
-    {									\
-      fprintf (FILE, "\tleal %sP%d@GOTOFF(%%ebx),%%eax\n",		\
-	       LPREFIX, (LABELNO));					\
-      fprintf (FILE, "\tcall *mcount@GOT(%%ebx)\n");			\
-    }									\
-  else									\
-    {									\
-      fprintf (FILE, "\tmovl $%sP%d,%%eax\n", LPREFIX, (LABELNO));	\
-      fprintf (FILE, "\tcall mcount\n");				\
-    }									\
-}
+/* Tell final.c that we don't need a label passed to mcount.  */
+#define NO_PROFILE_COUNTERS 1
+
+#undef MCOUNT_NAME
+#define MCOUNT_NAME "mcount"
+#undef PROFILE_COUNT_REGISTER
+#define PROFILE_COUNT_REGISTER "eax"
 
 /*
  * Some imports from svr4.h in support of shared libraries.
@@ -123,6 +115,7 @@ Boston, MA 02111-1307, USA.  */
 
 #define TYPE_ASM_OP	"\t.type\t"
 #define SIZE_ASM_OP	"\t.size\t"
+#define SET_ASM_OP	"\t.set\t"
 
 /* The following macro defines the format used to output the second
    operand of the .type assembler directive.  Different svr4 assemblers
@@ -131,6 +124,12 @@ Boston, MA 02111-1307, USA.  */
    specific tm.h file (depending upon the particulars of your assembler).  */
 
 #define TYPE_OPERAND_FMT	"@%s"
+
+#define HANDLE_SYSV_PRAGMA	1
+
+#define ASM_WEAKEN_LABEL(FILE,NAME) \
+	do { fputs ("\t.weak\t", FILE); assemble_name (FILE, NAME); \
+	fputc ('\n', FILE); } while (0)
 
 /* Write the extra assembler code needed to declare a function's result.
    Most svr4 assemblers don't require any special declaration of the
@@ -149,36 +148,36 @@ Boston, MA 02111-1307, USA.  */
    Some svr4 assemblers need to also have something extra said about the
    function's return value.  We allow for that here.  */
 
-#define ASM_DECLARE_FUNCTION_NAME(FILE, NAME, DECL)			\
-  do {									\
-    fprintf (FILE, "%s", TYPE_ASM_OP);					\
-    assemble_name (FILE, NAME);						\
-    putc (',', FILE);							\
-    fprintf (FILE, TYPE_OPERAND_FMT, "function");			\
-    putc ('\n', FILE);							\
-    ASM_DECLARE_RESULT (FILE, DECL_RESULT (DECL));			\
-    ASM_OUTPUT_LABEL(FILE, NAME);					\
-  } while (0)
+#define ASM_DECLARE_FUNCTION_NAME(FILE, NAME, DECL)		\
+  do								\
+    {								\
+      ASM_OUTPUT_TYPE_DIRECTIVE (FILE, NAME, "function");	\
+      ASM_DECLARE_RESULT (FILE, DECL_RESULT (DECL));		\
+      ASM_OUTPUT_LABEL (FILE, NAME);				\
+    }								\
+  while (0)
 
 /* Write the extra assembler code needed to declare an object properly.  */
 
-#define ASM_DECLARE_OBJECT_NAME(FILE, NAME, DECL)			\
-  do {									\
-    fprintf (FILE, "%s", TYPE_ASM_OP);					\
-    assemble_name (FILE, NAME);						\
-    putc (',', FILE);							\
-    fprintf (FILE, TYPE_OPERAND_FMT, "object");				\
-    putc ('\n', FILE);							\
-    size_directive_output = 0;						\
-    if (!flag_inhibit_size_directive && DECL_SIZE (DECL))		\
-      {									\
-        size_directive_output = 1;					\
-	fprintf (FILE, "%s", SIZE_ASM_OP);				\
-	assemble_name (FILE, NAME);					\
-	fprintf (FILE, ",%d\n",  int_size_in_bytes (TREE_TYPE (DECL)));	\
-      }									\
-    ASM_OUTPUT_LABEL(FILE, NAME);					\
-  } while (0)
+#define ASM_DECLARE_OBJECT_NAME(FILE, NAME, DECL)		\
+  do								\
+    {								\
+      HOST_WIDE_INT size;					\
+								\
+      ASM_OUTPUT_TYPE_DIRECTIVE (FILE, NAME, "object");		\
+								\
+      size_directive_output = 0;				\
+      if (!flag_inhibit_size_directive				\
+	  && (DECL) && DECL_SIZE (DECL))			\
+	{							\
+	  size_directive_output = 1;				\
+	  size = int_size_in_bytes (TREE_TYPE (DECL));		\
+	  ASM_OUTPUT_SIZE_DIRECTIVE (FILE, NAME, size);		\
+	}							\
+								\
+      ASM_OUTPUT_LABEL (FILE, NAME);				\
+    }								\
+  while (0)
 
 /* Output the size directive for a decl in rest_of_decl_compilation
    in the case where we did not do so before the initializer.
@@ -189,37 +188,24 @@ Boston, MA 02111-1307, USA.  */
 #define ASM_FINISH_DECLARE_OBJECT(FILE, DECL, TOP_LEVEL, AT_END)        \
 do {                                                                    \
      const char *name = XSTR (XEXP (DECL_RTL (DECL), 0), 0);            \
+     HOST_WIDE_INT size;						\
      if (!flag_inhibit_size_directive && DECL_SIZE (DECL)	        \
          && ! AT_END && TOP_LEVEL                                       \
          && DECL_INITIAL (DECL) == error_mark_node                      \
          && !size_directive_output)                                     \
        {                                                                \
-         fprintf (FILE, "%s", SIZE_ASM_OP);                             \
-	 assemble_name (FILE, name);                                    \
-	 fprintf (FILE, ",%d\n",  int_size_in_bytes (TREE_TYPE (DECL)));\
-	}								\
+	 size_directive_output = 1;					\
+	 size = int_size_in_bytes (TREE_TYPE (DECL));			\
+	 ASM_OUTPUT_SIZE_DIRECTIVE (FILE, name, size);			\
+       }								\
    } while (0)
-
 
 /* This is how to declare the size of a function.  */
 
 #define ASM_DECLARE_FUNCTION_SIZE(FILE, FNAME, DECL)			\
   do {									\
     if (!flag_inhibit_size_directive)					\
-      {									\
-        char label[256];						\
-	static int labelno;						\
-	labelno++;							\
-	ASM_GENERATE_INTERNAL_LABEL (label, "Lfe", labelno);		\
-	ASM_OUTPUT_INTERNAL_LABEL (FILE, "Lfe", labelno);		\
-	fprintf (FILE, "%s", SIZE_ASM_OP);				\
-	assemble_name (FILE, (FNAME));					\
-        fprintf (FILE, ",");						\
-	assemble_name (FILE, label);					\
-        fprintf (FILE, "-");						\
-	assemble_name (FILE, (FNAME));					\
-	putc ('\n', FILE);						\
-      }									\
+      ASM_OUTPUT_MEASURED_SIZE (FILE, FNAME);				\
   } while (0)
 
 #define ASM_SPEC   " %| %{fpic:-k} %{fPIC:-k}"

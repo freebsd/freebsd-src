@@ -48,9 +48,9 @@ Boston, MA 02111-1307, USA.  */
 
 /* Now we define the strings used to build the spec file.  */
 #define LIB_SPEC \
-  "%{shared: -lc} \
-   %{!shared: %{pthread:-lpthread} \
-   %{profile:-lc_p} %{!profile: -lc}}"
+  "%{pthread:-lpthread} \
+   %{shared:-lc} \
+   %{!shared:%{profile:-lc_p}%{!profile:-lc}}"
 
 #define LIBGCC_SPEC "%{msoft-float:-lfloat} -lgcc"
 
@@ -89,13 +89,15 @@ Boston, MA 02111-1307, USA.  */
    %{mbig-endian:-EB}" \
    SUBTARGET_EXTRA_LINK_SPEC
 
-#undef  CPP_PREDEFINES
-#define CPP_PREDEFINES \
-"-Dunix -D__gnu_linux__ -Dlinux -D__ELF__ \
--Asystem=unix -Asystem=posix"
-
-/* Allow #sccs in preprocessor.  */
-#define SCCS_DIRECTIVE
+#define TARGET_OS_CPP_BUILTINS()		\
+    do {					\
+	builtin_define_std ("unix");		\
+	builtin_define_std ("linux");		\
+	builtin_define ("__gnu_linux__");	\
+	builtin_define ("__ELF__");		\
+	builtin_assert ("system=unix");		\
+	builtin_assert ("system=posix");	\
+    } while (0)
 
 /* This is how we tell the assembler that two symbols have the same value.  */
 #define ASM_OUTPUT_DEF(FILE, NAME1, NAME2) \

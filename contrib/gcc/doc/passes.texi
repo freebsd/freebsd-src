@@ -109,6 +109,7 @@ The files
 @file{c-common.c},
 @file{c-common.def},
 @file{c-format.c},
+@file{c-opts.c},
 @file{c-pragma.c},
 @file{c-semantics.c},
 and
@@ -116,7 +117,6 @@ and
 along with header files
 @file{c-common.h},
 @file{c-dump.h},
-@file{c-lex.h},
 and
 @file{c-pragma.h},
 are also used for all of the above languages.
@@ -206,7 +206,7 @@ the input file name.
 
 @cindex sibling call optimization
 @item
-Sibiling call optimization.   This pass performs tail recursion
+Sibling call optimization.   This pass performs tail recursion
 elimination, and tail and sibling call optimizations.  The purpose of
 these optimizations is to reduce the overhead of function calls,
 whenever possible.
@@ -458,13 +458,20 @@ The option @option{-dS} causes a debugging dump of the RTL code after this
 pass is run for the first time.  The dump file's name is made by
 appending @samp{.sched} to the input file name.
 
+@cindex register allocation
+@item
+Register allocation.  These passes make sure that all occurrences of pseudo
+registers are eliminated, either by allocating them to a hard register,
+replacing them by an equivalent expression (e.g.@: a constant) or by placing
+them on the stack.  This is done in several subpasses:
+
+@itemize @bullet
 @cindex register class preference pass
 @item
 Register class preferencing.  The RTL code is scanned to find out
 which register class is best for each pseudo register.  The source
 file is @file{regclass.c}.
 
-@cindex register allocation
 @cindex local register allocation
 @item
 Local register allocation (@file{local-alloc.c}).  This pass allocates
@@ -482,6 +489,17 @@ the input file name.
 Global register allocation (@file{global.c}).  This pass
 allocates hard registers for the remaining pseudo registers (those
 whose life spans are not contained in one basic block).
+
+@cindex graph coloring register allocation
+@opindex fnew-ra
+@opindex dl
+@item
+Graph coloring register allocator.  The files @file{ra.c}, @file{ra-build.c},
+@file{ra-colorize.c}, @file{ra-debug.c}, @file{ra-rewrite.c} together with
+the header @file{ra.h} contain another register allocator, which is used
+when the option @option{-fnew-ra} is given.  In that case it is run instead
+of the above mentioned local and global register allocation passes, and the
+option @option{-dl} causes a debugging dump of its work.
 
 @cindex reloading
 @item
@@ -504,6 +522,7 @@ Source files are @file{reload.c} and @file{reload1.c}, plus the header
 The option @option{-dg} causes a debugging dump of the RTL code after
 this pass.  This dump file's name is made by appending @samp{.greg} to
 the input file name.
+@end itemize
 
 @cindex instruction scheduling
 @cindex scheduling, instruction
@@ -530,17 +549,6 @@ various prediction routines are in @file{predict.c}.
 The option @option{-dB} causes a debugging dump of the RTL code after
 this pass.  This dump file's name is made by appending @samp{.bbro} to
 the input file name.
-
-@cindex cross-jumping
-@cindex no-op move instructions
-@item
-Jump optimization is repeated, this time including cross-jumping
-and deletion of no-op move instructions.
-
-@opindex dJ
-The option @option{-dJ} causes a debugging dump of the RTL code after
-this pass.  This dump file's name is made by appending @samp{.jump2}
-to the input file name.
 
 @cindex delayed branch scheduling
 @cindex scheduling, delayed branch
@@ -653,6 +661,8 @@ Several passes use instruction attributes.  A definition of the
 attributes defined for a particular machine is in file
 @file{insn-attr.h}, which is generated from the machine description by
 the program @file{genattr}.  The file @file{insn-attrtab.c} contains
-subroutines to obtain the attribute values for insns.  It is generated
-from the machine description by the program @file{genattrtab}.
+subroutines to obtain the attribute values for insns and information
+about processor pipeline characteristics for the instruction
+scheduler.  It is generated from the machine description by the
+program @file{genattrtab}.
 @end itemize

@@ -38,14 +38,15 @@ Boston, MA 02111-1307, USA.  */
    A few optabs, such as move_optab and cmp_optab, are used
    by special code.  */
 
-typedef struct optab
+struct optab GTY(())
 {
   enum rtx_code code;
-  struct {
+  struct optab_handlers {
     enum insn_code insn_code;
     rtx libfunc;
   } handlers [NUM_MACHINE_MODES];
-} * optab;
+};
+typedef struct optab * optab;
 
 /* Given an enum insn_code, access the function to construct
    the body of that kind of insn.  */
@@ -130,6 +131,10 @@ enum optab_index
   OTI_sin,
   /* Cosine */
   OTI_cos,
+  /* Exponential */
+  OTI_exp,
+  /* Natural Logarithm */
+  OTI_log,
 
   /* Compare insn; two operands.  */
   OTI_cmp,
@@ -152,7 +157,7 @@ enum optab_index
   OTI_MAX
 };
 
-extern optab optab_table[OTI_MAX];
+extern GTY(()) optab optab_table[OTI_MAX];
 
 #define add_optab (optab_table[OTI_add])
 #define sub_optab (optab_table[OTI_sub])
@@ -197,6 +202,8 @@ extern optab optab_table[OTI_MAX];
 #define sqrt_optab (optab_table[OTI_sqrt])
 #define sin_optab (optab_table[OTI_sin])
 #define cos_optab (optab_table[OTI_cos])
+#define exp_optab (optab_table[OTI_exp])
+#define log_optab (optab_table[OTI_log])
 
 #define cmp_optab (optab_table[OTI_cmp])
 #define ucmp_optab (optab_table[OTI_ucmp])

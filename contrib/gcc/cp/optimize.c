@@ -1,5 +1,5 @@
 /* Perform optimizations on tree structure.
-   Copyright (C) 1998, 1999, 2000, 2001 Free Software Foundation, Inc.
+   Copyright (C) 1998, 1999, 2000, 2001, 2002 Free Software Foundation, Inc.
    Written by Mark Michell (mark@codesourcery.com).
 
 This file is part of GNU CC.
@@ -41,7 +41,7 @@ static tree calls_setjmp_r PARAMS ((tree *, int *, void *));
 static void update_cloned_parm PARAMS ((tree, tree));
 static void dump_function PARAMS ((enum tree_dump_index, tree));
 
-/* Optimize the body of FN. */
+/* Optimize the body of FN.  */
 
 void
 optimize_function (fn)
@@ -64,7 +64,7 @@ optimize_function (fn)
       /* We do not inline thunks, as (a) the backend tries to optimize
          the call to the thunkee, (b) tree based inlining breaks that
          optimization, (c) virtual functions are rarely inlineable,
-         and (d) ASM_OUTPUT_MI_THUNK is there to DTRT anyway.  */
+         and (d) TARGET_ASM_OUTPUT_MI_THUNK is there to DTRT anyway.  */
       && !DECL_THUNK_P (fn))
     {
       optimize_inline_calls (fn);
@@ -93,9 +93,9 @@ calls_setjmp_r (tp, walk_subtrees, data)
   return setjmp_call_p (*tp) ? *tp : NULL_TREE;
 }
 
-/* Returns non-zero if FN calls `setjmp' or some other function that
+/* Returns nonzero if FN calls `setjmp' or some other function that
    can return more than once.  This function is conservative; it may
-   occasionally return a non-zero value even when FN does not actually
+   occasionally return a nonzero value even when FN does not actually
    call `setjmp'.  */
 
 int
@@ -119,22 +119,21 @@ update_cloned_parm (parm, cloned_parm)
 {
   DECL_ABSTRACT_ORIGIN (cloned_parm) = parm;
 
-  /* We may have taken its address. */
+  /* We may have taken its address.  */
   TREE_ADDRESSABLE (cloned_parm) = TREE_ADDRESSABLE (parm);
 
-  /* The definition might have different constness. */
+  /* The definition might have different constness.  */
   TREE_READONLY (cloned_parm) = TREE_READONLY (parm);
   
   TREE_USED (cloned_parm) = TREE_USED (parm);
   
-  /* The name may have changed from the declaration. */
+  /* The name may have changed from the declaration.  */
   DECL_NAME (cloned_parm) = DECL_NAME (parm);
-  DECL_SOURCE_FILE (cloned_parm) = DECL_SOURCE_FILE (parm);
-  DECL_SOURCE_LINE (cloned_parm) = DECL_SOURCE_LINE (parm);
+  DECL_SOURCE_LOCATION (cloned_parm) = DECL_SOURCE_LOCATION (parm);
 }
 
 /* FN is a function that has a complete body.  Clone the body as
-   necessary.  Returns non-zero if there's no longer any need to
+   necessary.  Returns nonzero if there's no longer any need to
    process the main body.  */
 
 int
@@ -164,9 +163,9 @@ maybe_clone_body (fn)
       splay_tree decl_map;
 
       /* Update CLONE's source position information to match FN's.  */
-      DECL_SOURCE_FILE (clone) = DECL_SOURCE_FILE (fn);
-      DECL_SOURCE_LINE (clone) = DECL_SOURCE_LINE (fn);
+      DECL_SOURCE_LOCATION (clone) = DECL_SOURCE_LOCATION (fn);
       DECL_INLINE (clone) = DECL_INLINE (fn);
+      DID_INLINE_FUNC (clone) = DID_INLINE_FUNC (fn);
       DECL_DECLARED_INLINE_P (clone) = DECL_DECLARED_INLINE_P (fn);
       DECL_COMDAT (clone) = DECL_COMDAT (fn);
       DECL_WEAK (clone) = DECL_WEAK (fn);
@@ -178,7 +177,7 @@ maybe_clone_body (fn)
       DECL_NOT_REALLY_EXTERN (clone) = DECL_NOT_REALLY_EXTERN (fn);
       TREE_PUBLIC (clone) = TREE_PUBLIC (fn);
 
-      /* Adjust the parameter names and locations. */
+      /* Adjust the parameter names and locations.  */
       parm = DECL_ARGUMENTS (fn);
       clone_parm = DECL_ARGUMENTS (clone);
       /* Update the `this' parameter, which is always first.  */
@@ -196,7 +195,7 @@ maybe_clone_body (fn)
 	{
 	  /* Update this parameter.  */
 	  update_cloned_parm (parm, clone_parm);
-	  /* We should only give unused information for one clone. */
+	  /* We should only give unused information for one clone.  */
 	  if (!first)
 	    TREE_USED (clone_parm) = 1;
 	}
@@ -266,6 +265,9 @@ maybe_clone_body (fn)
       /* Clean up.  */
       splay_tree_delete (decl_map);
 
+      /* The clone can throw iff the original function can throw.  */
+      cp_function_chain->can_throw = !TREE_NOTHROW (fn);
+
       /* Now, expand this function into RTL, if appropriate.  */
       finish_function (0);
       BLOCK_ABSTRACT_ORIGIN (DECL_INITIAL (clone)) = DECL_INITIAL (fn);
@@ -277,7 +279,7 @@ maybe_clone_body (fn)
   return 1;
 }
 
-/* Dump FUNCTION_DECL FN as tree dump PHASE. */
+/* Dump FUNCTION_DECL FN as tree dump PHASE.  */
 
 static void
 dump_function (phase, fn)

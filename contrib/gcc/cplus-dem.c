@@ -11,6 +11,15 @@ modify it under the terms of the GNU Library General Public
 License as published by the Free Software Foundation; either
 version 2 of the License, or (at your option) any later version.
 
+In addition to the permissions in the GNU Library General Public
+License, the Free Software Foundation gives you unlimited permission
+to link the compiled version of this file into combinations with other
+programs, and to distribute those combinations without any restriction
+coming from the use of this file.  (The Library Public License
+restrictions do apply in other respects; for example, they cover
+modification of the file, and distribution when not linked into a
+combined executable.)
+
 Libiberty is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
@@ -305,8 +314,6 @@ const struct demangler_engine libiberty_demanglers[] =
 };
 
 #define STRING_EMPTY(str)	((str) -> b == (str) -> p)
-#define PREPEND_BLANK(str)	{if (!STRING_EMPTY(str)) \
-    string_prepend(str, " ");}
 #define APPEND_BLANK(str)	{if (!STRING_EMPTY(str)) \
     string_append(str, " ");}
 #define LEN_STRING(str)         ( (STRING_EMPTY(str))?0:((str)->p - (str)->b))
@@ -516,7 +523,7 @@ recursively_demangle PARAMS ((struct work_stuff *, const char **, string *,
 			      int));
 
 static void
-grow_vect PARAMS ((void **, size_t *, size_t, int));
+grow_vect PARAMS ((char **, size_t *, size_t, int));
 
 /* Translate count to integer, consuming tokens in the process.
    Conversion terminates on the first non-digit character.
@@ -938,7 +945,7 @@ cplus_demangle (mangled, options)
 
 static void
 grow_vect (old_vect, size, min_size, element_size)
-     void **old_vect;
+     char **old_vect;
      size_t *size;
      size_t min_size;
      int element_size;
@@ -948,7 +955,7 @@ grow_vect (old_vect, size, min_size, element_size)
       *size *= 2;
       if (*size < min_size)
 	*size = min_size;
-      *old_vect = xrealloc (*old_vect, *size * element_size);
+      *old_vect = (void *) xrealloc (*old_vect, *size * element_size);
     }
 }
 
@@ -971,8 +978,7 @@ ada_demangle (mangled, option)
   char *demangled = NULL;
   int at_start_name;
   int changed;
-  char *demangling_buffer = NULL;
-  size_t demangling_buffer_size = 0;
+  size_t demangled_size = 0;
   
   changed = 0;
 
@@ -1000,10 +1006,9 @@ ada_demangle (mangled, option)
     }
   
   /* Make demangled big enough for possible expansion by operator name.  */
-  grow_vect ((void **) &(demangling_buffer),
-	     &demangling_buffer_size,  2 * len0 + 1,
+  grow_vect (&demangled,
+	     &demangled_size,  2 * len0 + 1,
 	     sizeof (char));
-  demangled = demangling_buffer;
   
   if (ISDIGIT ((unsigned char) mangled[len0 - 1])) {
     for (i = len0 - 2; i >= 0 && ISDIGIT ((unsigned char) mangled[i]); i -= 1)
@@ -1053,10 +1058,10 @@ ada_demangle (mangled, option)
     return demangled;
   
  Suppress:
-  grow_vect ((void **) &(demangling_buffer),
-	     &demangling_buffer_size,  strlen (mangled) + 3,
+  grow_vect (&demangled,
+	     &demangled_size,  strlen (mangled) + 3,
 	     sizeof (char));
-  demangled = demangling_buffer;
+
   if (mangled[0] == '<')
      strcpy (demangled, mangled);
   else
@@ -1208,7 +1213,7 @@ work_stuff_copy_to_from (to, from)
 
   if (from->ntmpl_args)
     to->tmpl_argvec
-      = xmalloc (from->ntmpl_args * sizeof (to->tmpl_argvec[0]));
+      = (char **) xmalloc (from->ntmpl_args * sizeof (to->tmpl_argvec[0]));
 
   for (i = 0; i < from->ntmpl_args; i++)
     {
@@ -4880,337 +4885,3 @@ string_append_template_idx (s, idx)
   sprintf(buf, "T%d", idx);
   string_append (s, buf);
 }
-
-/* To generate a standalone demangler program for testing purposes,
-   just compile and link this file with -DMAIN and libiberty.a.  When
-   run, it demangles each command line arg, or each stdin string, and
-   prints the result on stdout.  */
-
-#ifdef MAIN
-
-#include "getopt.h"
-
-static const char *program_name;
-static const char *program_version = VERSION;
-static int flags = DMGL_PARAMS | DMGL_ANSI | DMGL_VERBOSE;
-
-static void demangle_it PARAMS ((char *));
-static void usage PARAMS ((FILE *, int)) ATTRIBUTE_NORETURN;
-static void fatal PARAMS ((const char *)) ATTRIBUTE_NORETURN;
-static void print_demangler_list PARAMS ((FILE *));
-
-static void
-demangle_it (mangled_name)
-     char *mangled_name;
-{
-  char *result;
-
-  /* For command line args, also try to demangle type encodings.  */
-  result = cplus_demangle (mangled_name, flags | DMGL_TYPES);
-  if (result == NULL)
-    {
-      printf ("%s\n", mangled_name);
-    }
-  else
-    {
-      printf ("%s\n", result);
-      free (result);
-    }
-}
-
-static void 
-print_demangler_list (stream)
-     FILE *stream;
-{
-  const struct demangler_engine *demangler; 
-
-  fprintf (stream, "{%s", libiberty_demanglers->demangling_style_name);
-  
-  for (demangler = libiberty_demanglers + 1;
-       demangler->demangling_style != unknown_demangling;
-       ++demangler)
-    fprintf (stream, ",%s", demangler->demangling_style_name);
-
-  fprintf (stream, "}");
-}
-
-static void
-usage (stream, status)
-     FILE *stream;
-     int status;
-{
-  fprintf (stream, "\
-Usage: %s [-_] [-n] [--strip-underscores] [--no-strip-underscores] \n",
-	   program_name);
-
-  fprintf (stream, "\
-       [-s ");
-  print_demangler_list (stream);
-  fprintf (stream, "]\n");
-
-  fprintf (stream, "\
-       [--format ");
-  print_demangler_list (stream);
-  fprintf (stream, "]\n");
-
-  fprintf (stream, "\
-       [--help] [--version] [arg...]\n");
-  exit (status);
-}
-
-#define MBUF_SIZE 32767
-char mbuffer[MBUF_SIZE];
-
-/* Defined in the automatically-generated underscore.c.  */
-extern int prepends_underscore;
-
-int strip_underscore = 0;
-
-static const struct option long_options[] = {
-  {"strip-underscores", no_argument, 0, '_'},
-  {"format", required_argument, 0, 's'},
-  {"help", no_argument, 0, 'h'},
-  {"no-strip-underscores", no_argument, 0, 'n'},
-  {"version", no_argument, 0, 'v'},
-  {0, no_argument, 0, 0}
-};
-
-/* More 'friendly' abort that prints the line and file.
-   config.h can #define abort fancy_abort if you like that sort of thing.  */
-
-void
-fancy_abort ()
-{
-  fatal ("Internal gcc abort.");
-}
-
-
-static const char *
-standard_symbol_characters PARAMS ((void));
-
-static const char *
-hp_symbol_characters PARAMS ((void));
-
-static const char *
-gnu_v3_symbol_characters PARAMS ((void));
-
-/* Return the string of non-alnum characters that may occur 
-   as a valid symbol component, in the standard assembler symbol
-   syntax.  */
-
-static const char *
-standard_symbol_characters ()
-{
-  return "_$.";
-}
-
-
-/* Return the string of non-alnum characters that may occur
-   as a valid symbol name component in an HP object file.
-
-   Note that, since HP's compiler generates object code straight from
-   C++ source, without going through an assembler, its mangled
-   identifiers can use all sorts of characters that no assembler would
-   tolerate, so the alphabet this function creates is a little odd.
-   Here are some sample mangled identifiers offered by HP:
-
-	typeid*__XT24AddressIndExpClassMember_
-	[Vftptr]key:__dt__32OrdinaryCompareIndExpClassMemberFv
-	__ct__Q2_9Elf64_Dyn18{unnamed.union.#1}Fv
-
-   This still seems really weird to me, since nowhere else in this
-   file is there anything to recognize curly brackets, parens, etc.
-   I've talked with Srikanth <srikanth@cup.hp.com>, and he assures me
-   this is right, but I still strongly suspect that there's a
-   misunderstanding here.
-
-   If we decide it's better for c++filt to use HP's assembler syntax
-   to scrape identifiers out of its input, here's the definition of
-   the symbol name syntax from the HP assembler manual:
-
-       Symbols are composed of uppercase and lowercase letters, decimal
-       digits, dollar symbol, period (.), ampersand (&), pound sign(#) and
-       underscore (_). A symbol can begin with a letter, digit underscore or
-       dollar sign. If a symbol begins with a digit, it must contain a
-       non-digit character.
-
-   So have fun.  */
-static const char *
-hp_symbol_characters ()
-{
-  return "_$.<>#,*&[]:(){}";
-}
-
-
-/* Return the string of non-alnum characters that may occur 
-   as a valid symbol component in the GNU C++ V3 ABI mangling
-   scheme.  */
-
-static const char *
-gnu_v3_symbol_characters ()
-{
-  return "_$.";
-}
-
-
-extern int main PARAMS ((int, char **));
-
-int
-main (argc, argv)
-     int argc;
-     char **argv;
-{
-  char *result;
-  int c;
-  const char *valid_symbols;
-  enum demangling_styles style = auto_demangling;
-
-  program_name = argv[0];
-
-  strip_underscore = prepends_underscore;
-
-  while ((c = getopt_long (argc, argv, "_ns:", long_options, (int *) 0)) != EOF)
-    {
-      switch (c)
-	{
-	case '?':
-	  usage (stderr, 1);
-	  break;
-	case 'h':
-	  usage (stdout, 0);
-	case 'n':
-	  strip_underscore = 0;
-	  break;
-	case 'v':
-	  printf ("GNU %s (C++ demangler), version %s\n", program_name, program_version);
-	  return (0);
-	case '_':
-	  strip_underscore = 1;
-	  break;
-	case 's':
-	  {
-	    style = cplus_demangle_name_to_style (optarg);
-	    if (style == unknown_demangling)
-	      {
-		fprintf (stderr, "%s: unknown demangling style `%s'\n",
-			 program_name, optarg);
-		return (1);
-	      }
-	    else
-	      cplus_demangle_set_style (style);
-	  }
-	  break;
-	}
-    }
-
-  if (optind < argc)
-    {
-      for ( ; optind < argc; optind++)
-	{
-	  demangle_it (argv[optind]);
-	}
-    }
-  else
-    {
-      switch (current_demangling_style)
-	{
-	case gnu_demangling:
-	case lucid_demangling:
-	case arm_demangling:
-	case java_demangling:
-	case edg_demangling:
-	case gnat_demangling:
-	case auto_demangling:
-	  valid_symbols = standard_symbol_characters ();
-	  break;
-	case hp_demangling:
-	  valid_symbols = hp_symbol_characters ();
-	  break;
-	case gnu_v3_demangling:
-	  valid_symbols = gnu_v3_symbol_characters ();
-	  break;
-	default:
-	  /* Folks should explicitly indicate the appropriate alphabet for
-	     each demangling.  Providing a default would allow the
-	     question to go unconsidered.  */
-	  abort ();
-	}
-
-      for (;;)
-	{
-	  int i = 0;
-	  c = getchar ();
-	  /* Try to read a label.  */
-	  while (c != EOF && (ISALNUM (c) || strchr (valid_symbols, c)))
-	    {
-	      if (i >= MBUF_SIZE-1)
-		break;
-	      mbuffer[i++] = c;
-	      c = getchar ();
-	    }
-	  if (i > 0)
-	    {
-	      int skip_first = 0;
-
-	      if (mbuffer[0] == '.' || mbuffer[0] == '$')
-		++skip_first;
-	      if (strip_underscore && mbuffer[skip_first] == '_')
-		++skip_first;
-
-	      if (skip_first > i)
-		skip_first = i;
-
-	      mbuffer[i] = 0;
-	      flags |= (int) style;
-	      result = cplus_demangle (mbuffer + skip_first, flags);
-	      if (result)
-		{
-		  if (mbuffer[0] == '.')
-		    putc ('.', stdout);
-		  fputs (result, stdout);
-		  free (result);
-		}
-	      else
-		fputs (mbuffer, stdout);
-
-	      fflush (stdout);
-	    }
-	  if (c == EOF)
-	    break;
-	  putchar (c);
-	  fflush (stdout);
-	}
-    }
-
-  return (0);
-}
-
-static void
-fatal (str)
-     const char *str;
-{
-  fprintf (stderr, "%s: %s\n", program_name, str);
-  exit (1);
-}
-
-PTR
-xmalloc (size)
-  size_t size;
-{
-  register PTR value = (PTR) malloc (size);
-  if (value == 0)
-    fatal ("virtual memory exhausted");
-  return value;
-}
-
-PTR
-xrealloc (ptr, size)
-  PTR ptr;
-  size_t size;
-{
-  register PTR value = (PTR) realloc (ptr, size);
-  if (value == 0)
-    fatal ("virtual memory exhausted");
-  return value;
-}
-#endif	/* main */

@@ -47,7 +47,7 @@ Boston, MA 02111-1307, USA.  */
 #undef  PREFERRED_DEBUGGING_TYPE
 #define PREFERRED_DEBUGGING_TYPE DWARF2_DEBUG
 
-/* Return a non-zero value if DECL has a section attribute.  */
+/* Return a nonzero value if DECL has a section attribute.  */
 #define IN_NAMED_SECTION(DECL)						\
   ((TREE_CODE (DECL) == FUNCTION_DECL || TREE_CODE (DECL) == VAR_DECL)	\
    && DECL_SECTION_NAME (DECL) != NULL_TREE)
@@ -61,7 +61,7 @@ Boston, MA 02111-1307, USA.  */
       else								\
 	bss_section ();							\
       									\
-      ASM_GLOBALIZE_LABEL (FILE, NAME);					\
+      (*targetm.asm_out.globalize_label) (FILE, NAME);			\
       									\
       ASM_OUTPUT_ALIGN (FILE, floor_log2 (ALIGN / BITS_PER_UNIT));	\
 									\
@@ -82,13 +82,9 @@ Boston, MA 02111-1307, USA.  */
 									\
       ASM_OUTPUT_ALIGN (FILE, floor_log2 (ALIGN / BITS_PER_UNIT));	\
       ASM_OUTPUT_LABEL (FILE, NAME);					\
-      fprintf (FILE, "\t.space\t%d\n", SIZE);				\
+      fprintf (FILE, "\t.space\t%d\n", SIZE ? SIZE : 1);		\
     }									\
   while (0)
-
-#ifndef CPP_PREDEFINES
-#define CPP_PREDEFINES "-D__ELF__"
-#endif
 
 #ifndef CPP_APCS_PC_DEFAULT_SPEC
 #define CPP_APCS_PC_DEFAULT_SPEC	"-D__APCS_32__"

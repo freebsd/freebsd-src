@@ -262,7 +262,7 @@ Fri Dec 24 12:34:26 1999  Richard Kenner  <kenner@vlsi1.ultra.nyu.edu>
 
 Thu Dec 23 23:15:22 1999  J"orn Rennecke <amylaar@cygnus.co.uk>
 
-	* reload1.c (emit_input_reload_insns): Restore old behaviour
+	* reload1.c (emit_input_reload_insns): Restore old behavior
 	wrt. 'special' reloads.
 
 1999-12-23  Zack Weinberg  <zack@wolery.cumb.org>
@@ -1531,7 +1531,7 @@ Thu Dec  2 18:59:48 1999  J"orn Rennecke <amylaar@cygnus.co.uk>
 
 1999-12-02  Nick Clifton  <nickc@cygnus.com>
 
-	* config/fp-bit.c: Initialise all fields of the NAN
+	* config/fp-bit.c: Initialize all fields of the NAN
 	constants.
 
 	* c-lex.c (check_newline): Pass pragma_getc and pragma_ungetc
@@ -2434,10 +2434,10 @@ Thu Nov 18 11:10:03 1999  Jan Hubicka  <hubicka@freesoft.cz>
 
 1999-11-18  Nick Clifton  <nickc@cygnus.com>
 
-	* toplev.c (main): Correctly detect an unrecognised option.
+	* toplev.c (main): Correctly detect an unrecognized option.
 
 	* cppinit.c (cpp_handle_option): Do not claim to have consumed
-	a -f option if it has not been recognised.
+	a -f option if it has not been recognized.
 
 Thu Nov 18 00:59:11 1999  Michael Gschwind  <mikeg@alagoas.watson.ibm.com>
 
@@ -3184,13 +3184,13 @@ Wed Nov  3 15:11:27 1999  David S. Miller  <davem@redhat.com>
 
 	* config/sparc/sparc.md: Remove insn type fpsqrt, add fpsqrts
 	and fpsqrtd.  Use them and create fdiv function unit to more
-	accurately represent fpu sqrt pipeline semantics on UltraSparc.
+	accurately represent fpu sqrt pipeline semantics on UltraSPARC.
 	* config/sparc/sparc.c: Account for fpsqrt{s,d} changes.
 
 Wed Nov  3 15:11:27 1999  Matteo Frigo <athena@fftw.org>
 
 	* config/sparc/sparc.md: Adjust FADD/FMUL result latencies to
-	3 on UltraSparc.
+	3 on UltraSPARC.
 	* config/sparc/sparc.c (ultra_schedule_insn): Insert launched
 	insn into ready list, do not use just a raw swap.
 
@@ -3567,7 +3567,7 @@ Sat Oct 30 14:31:48 1999  Richard Henderson  <rth@cygnus.com>
 	(ggc_alloc_obj): Likewise.  Use a different pattern than poison_pages.
 	(ggc_collect): Poison before sweeping.
 	* ggc-simple.c: Update pre-function commentary.
-	(ggc_alloc_obj): Poison non-zeroed memory.
+	(ggc_alloc_obj): Poison nonzeroed memory.
 
 Sat Oct 30 14:28:52 1999  Mark Mitchell  <mark@codesourcery.com>
 
@@ -4002,7 +4002,7 @@ Mon Oct 18 21:16:06 1999  Fred Fish  <fnf@be.com>
 
 Thu Oct 28 10:00:48 1999  Nick Clifton  <nickc@cygnus.com>
 
-	* config/arm/arm.c: Initialise arm_structure_size_boundary to
+	* config/arm/arm.c: Initialize arm_structure_size_boundary to
 	DEFAULT_STRUCTURE_SIZE_BOUNDARY.
 	* config/arm/arm.h (DEFAULT_STRUCTURE_SIZE_BOUNDARY): Define
 	to the value 32 if it has not already been defined.
@@ -4782,7 +4782,7 @@ Tue Oct 19 15:26:11 1999  Richard Earnshaw  (rearnsha@arm.com)
 Tue Oct 19 14:01:34 1999  Nick Clifton  <nickc@cygnus.com>
 
 	* toplev.c (main): Do not generate an error message if an
-	unrecognised command line switch is recognisable by another
+	unrecognized command line switch is recognisable by another
 	language.  If extra_warnings are enabled, then generate a
 	warning message instead.
 
@@ -4960,7 +4960,7 @@ Sat Oct 16 13:42:29 1999  Michael Hayes  <m.hayes@elec.canterbury.ac.nz>
 
 Sat Oct 16 13:37:46 1999  Michael Hayes  <m.hayes@elec.canterbury.ac.nz>
 
-	* config/c4x/c4x.md (movstrqi_small): Utilise parallel move
+	* config/c4x/c4x.md (movstrqi_small): Utilize parallel move
 	instructions.
 
 Sat Oct 16 13:26:47 1999  Michael Hayes  <m.hayes@elec.canterbury.ac.nz>
@@ -6509,15 +6509,15 @@ Sat Sep 25 09:03:17 1999  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
 Sat Sep 25 13:42:15 1999  Nick Clifton  <nickc@cygnus.com>
 
 	* varasm.c (asm_emit_uninitialised): New function: Generate
-	the assembler statements necessary to declare an uninitialised
+	the assembler statements necessary to declare an uninitialized
 	variable.
-	(ASM_EMIT_LOCAL): New macro: Emit a local, uninitialised
+	(ASM_EMIT_LOCAL): New macro: Emit a local, uninitialized
 	variable.
 	(ASM_EMIT_BSS): New macro: Emit an entry in the bss section.
 	(ASM_EMIT_COMMON): New macro: Emit an entry in the common
 	section.
 	(assemble_variable): Use asm_emit_uninitialised to emit an
-	uninitialised variable.
+	uninitialized variable.
 
 Fri Sep 24 17:10:56 1999  Nick Clifton  <nickc@cygnus.com>
 
@@ -8316,7 +8316,7 @@ Thu Sep  9 13:46:06 1999  Geoffrey Keating  <geoffk@cygnus.com>
 	* cppexp.c (cpp_lex): Handle `defined (xxx)' for poisoned xxx.
 	Include cpphash.h.
 	* cpphash.c (special_symbol): Handle plain `xxx' for poisoned xxx.
-	* cpplib.c (do_define): Generalise to handle poisoned definitions,
+	* cpplib.c (do_define): Generalize to handle poisoned definitions,
 	redefining poisoned identifiers, etc.
 	(do_undef): Don't allow poisoned identifiers to be undefined.
 	(do_pragma): Add #pragma poison.
@@ -8325,7 +8325,7 @@ Thu Sep  9 13:46:06 1999  Geoffrey Keating  <geoffk@cygnus.com>
 	* cccp.c: Add T_POISON node type.
 	(special_symbol): Handle `defined(xxx)' and plain `xxx' for
 	poisoned xxx.
-	(do_define): Generalise to handle poisoned definitions,
+	(do_define): Generalize to handle poisoned definitions,
 	redefining poisoned identifiers, etc.
 	(do_undef): Don't allow poisoned identifiers to be undefined.
 	(do_pragma): Add #pragma poison.
@@ -9759,7 +9759,7 @@ Sun Aug 29 04:30:52 1999  John Wehle  (john@feith.com)
 	All uses updated.
 	(prescan_loop, strength_reduce): New argument loop_info.  All callers
 	updated.
-	(scan_loop): New variable loop_info, initialise to address of
+	(scan_loop): New variable loop_info, initialize to address of
 	this_loop_info.
 	(prescan_loop): Set loop_info->vtop if find NOTE_INSN_LOOP_VTOP.
 	Delete variable loop_has_multiple_exit targets and replace with
@@ -14093,7 +14093,7 @@ Wed Jun  2 12:25:55 1999  Richard Henderson  <rth@cygnus.com>
 
 Wed Jun  2 08:42:55 1999  Nick Clifton  <nickc@cygnus.com>
 
-	* config/arm/tcoff.h (USER_LABEL_PREFIX): Synchronise with
+	* config/arm/tcoff.h (USER_LABEL_PREFIX): Synchronize with
 	definition in config/arm/coff.h
 	* config/arm/coff.h: Add comment about USER_LABEL_PREFIX.
 

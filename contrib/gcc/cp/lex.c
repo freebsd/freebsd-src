@@ -23,16 +23,12 @@ Boston, MA 02111-1307, USA.  */
 
 /* This file is the lexical analyzer for GNU C++.  */
 
-/* Cause the `yydebug' variable to be defined.  */
-#define YYDEBUG 1
-
 #include "config.h"
 #include "system.h"
 #include "input.h"
 #include "tree.h"
 #include "cp-tree.h"
 #include "cpplib.h"
-#include "c-lex.h"
 #include "lex.h"
 #include "parse.h"
 #include "flags.h"
@@ -84,11 +80,6 @@ static void copy_lang_type PARAMS ((tree));
 extern int yychar;		/*  the lookahead symbol		*/
 extern YYSTYPE yylval;		/*  the semantic value of the		*/
 				/*  lookahead symbol			*/
-
-/* These flags are used by c-lex.c.  In C++, they're always off and on,
-   respectively.  */
-int warn_traditional = 0;
-int flag_digraphs = 1;
 
 /* the declaration found for the last IDENTIFIER token read in.  yylex
    must look this up to detect typedefs, which get token type
@@ -206,37 +197,6 @@ int interface_only;		/* whether or not current file is only for
 int interface_unknown;		/* whether or not we know this class
 				   to behave according to #pragma interface.  */
 
-/* Tree code classes. */
-
-#define DEFTREECODE(SYM, NAME, TYPE, LENGTH) TYPE,
-
-static const char cplus_tree_code_type[] = {
-  'x',
-#include "cp-tree.def"
-};
-#undef DEFTREECODE
-
-/* Table indexed by tree code giving number of expression
-   operands beyond the fixed part of the node structure.
-   Not used for types or decls.  */
-
-#define DEFTREECODE(SYM, NAME, TYPE, LENGTH) LENGTH,
-
-static const int cplus_tree_code_length[] = {
-  0,
-#include "cp-tree.def"
-};
-#undef DEFTREECODE
-
-/* Names of tree components.
-   Used for printing out the tree and error messages.  */
-#define DEFTREECODE(SYM, NAME, TYPE, LEN) NAME,
-
-static const char *const cplus_tree_code_name[] = {
-  "@@dummy",
-#include "cp-tree.def"
-};
-#undef DEFTREECODE
 
 /* Initialization before switch parsing.  */
 void
@@ -303,7 +263,8 @@ init_operators ()
 	 : &operator_name_info[(int) CODE]);				    \
   oni->identifier = identifier;						    \
   oni->name = NAME;							    \
-  oni->mangled_name = MANGLING;
+  oni->mangled_name = MANGLING;                                             \
+  oni->arity = ARITY;
 
 #include "operators.def"
 #undef DEF_OPERATOR
@@ -363,7 +324,6 @@ struct resword
    _true_.  */
 #define D_EXT		0x01	/* GCC extension */
 #define D_ASM		0x02	/* in C99, but has a switch to turn it off */
-#define D_OPNAME	0x04	/* operator names */
 
 CONSTRAINT(ridbits_fit, RID_LAST_MODIFIER < sizeof(unsigned long) * CHAR_BIT);
 
@@ -397,23 +357,19 @@ static const struct resword reswords[] =
   { "__restrict__",	RID_RESTRICT,	0 },
   { "__signed",		RID_SIGNED,	0 },
   { "__signed__",	RID_SIGNED,	0 },
+  { "__thread",		RID_THREAD,	0 },
   { "__typeof",		RID_TYPEOF,	0 },
   { "__typeof__",	RID_TYPEOF,	0 },
   { "__volatile",	RID_VOLATILE,	0 },
   { "__volatile__",	RID_VOLATILE,	0 },
   { "asm",		RID_ASM,	D_ASM },
-  { "and",		RID_AND,	D_OPNAME },
-  { "and_eq",		RID_AND_EQ,	D_OPNAME },
   { "auto",		RID_AUTO,	0 },
-  { "bitand",		RID_BITAND,	D_OPNAME },
-  { "bitor",		RID_BITOR,	D_OPNAME },
   { "bool",		RID_BOOL,	0 },
   { "break",		RID_BREAK,	0 },
   { "case",		RID_CASE,	0 },
   { "catch",		RID_CATCH,	0 },
   { "char",		RID_CHAR,	0 },
   { "class",		RID_CLASS,	0 },
-  { "compl",		RID_COMPL,	D_OPNAME },
   { "const",		RID_CONST,	0 },
   { "const_cast",	RID_CONSTCAST,	0 },
   { "continue",		RID_CONTINUE,	0 },
@@ -439,11 +395,7 @@ static const struct resword reswords[] =
   { "mutable",		RID_MUTABLE,	0 },
   { "namespace",	RID_NAMESPACE,	0 },
   { "new",		RID_NEW,	0 },
-  { "not",		RID_NOT,	D_OPNAME },
-  { "not_eq",		RID_NOT_EQ,	D_OPNAME },
   { "operator",		RID_OPERATOR,	0 },
-  { "or",		RID_OR,		D_OPNAME },
-  { "or_eq",		RID_OR_EQ,	D_OPNAME },
   { "private",		RID_PRIVATE,	0 },
   { "protected",	RID_PROTECTED,	0 },
   { "public",		RID_PUBLIC,	0 },
@@ -474,11 +426,8 @@ static const struct resword reswords[] =
   { "volatile",		RID_VOLATILE,	0 },
   { "wchar_t",          RID_WCHAR,	0 },
   { "while",		RID_WHILE,	0 },
-  { "xor",		RID_XOR,	D_OPNAME },
-  { "xor_eq",		RID_XOR_EQ,	D_OPNAME },
 
 };
-#define N_reswords (sizeof reswords / sizeof (struct resword))
 
 /* Table mapping from RID_* constants to yacc token numbers.
    Unfortunately we have to have entries for all the keywords in all
@@ -503,6 +452,7 @@ const short rid_to_yy[RID_MAX] =
   /* RID_BOUNDED */	0,
   /* RID_UNBOUNDED */	0,
   /* RID_COMPLEX */	TYPESPEC,
+  /* RID_THREAD */	SCSPEC,
 
   /* C++ */
   /* RID_FRIEND */	SCSPEC,
@@ -591,20 +541,7 @@ const short rid_to_yy[RID_MAX] =
   /* RID_REINTCAST */	REINTERPRET_CAST,
   /* RID_STATCAST */	STATIC_CAST,
 
-  /* alternate spellings */
-  /* RID_AND */		ANDAND,
-  /* RID_AND_EQ */	ASSIGN,
-  /* RID_NOT */		'!',
-  /* RID_NOT_EQ */	EQCOMPARE,
-  /* RID_OR */		OROR,
-  /* RID_OR_EQ */	ASSIGN,
-  /* RID_XOR */		'^',
-  /* RID_XOR_EQ */	ASSIGN,
-  /* RID_BITAND */	'&',
-  /* RID_BITOR */	'|',
-  /* RID_COMPL */	'~',
-
-  /* Objective C */
+  /* Objective-C */
   /* RID_ID */			0,
   /* RID_AT_ENCODE */		0,
   /* RID_AT_END */		0,
@@ -625,15 +562,14 @@ init_reswords ()
 {
   unsigned int i;
   tree id;
-  int mask = ((flag_operator_names ? 0 : D_OPNAME)
-	      | (flag_no_asm ? D_ASM : 0)
+  int mask = ((flag_no_asm ? D_ASM : 0)
 	      | (flag_no_gnu_keywords ? D_EXT : 0));
 
   /* It is not necessary to register ridpointers as a GC root, because
      all the trees it points to are permanently interned in the
      get_identifier hash anyway.  */
   ridpointers = (tree *) xcalloc ((int) RID_MAX, sizeof (tree));
-  for (i = 0; i < N_reswords; i++)
+  for (i = 0; i < ARRAY_SIZE (reswords); i++)
     {
       id = get_identifier (reswords[i].word);
       C_RID_CODE (id) = reswords[i].rid;
@@ -668,27 +604,12 @@ const char *
 cxx_init (filename)
      const char *filename;
 {
-  decl_printable_name = lang_printable_name;
   input_filename = "<internal>";
 
   init_reswords ();
   init_spew ();
   init_tree ();
-  init_cplus_expand ();
   init_cp_semantics ();
-
-  add_c_tree_codes ();
-
-  memcpy (tree_code_type + (int) LAST_C_TREE_CODE,
-	  cplus_tree_code_type,
-	  (int)LAST_CPLUS_TREE_CODE - (int)LAST_C_TREE_CODE);
-  memcpy (tree_code_length + (int) LAST_C_TREE_CODE,
-	  cplus_tree_code_length,
-	  (LAST_CPLUS_TREE_CODE - (int)LAST_C_TREE_CODE) * sizeof (int));
-  memcpy (tree_code_name + (int) LAST_C_TREE_CODE,
-	  cplus_tree_code_name,
-	  (LAST_CPLUS_TREE_CODE - (int)LAST_C_TREE_CODE) * sizeof (char *));
-
   init_operators ();
   init_method ();
   init_error ();
@@ -715,13 +636,15 @@ cxx_init (filename)
 
   /* Create the built-in __null node.  */
   null_node = build_int_2 (0, 0);
-  TREE_TYPE (null_node) = type_for_size (POINTER_SIZE, 0);
+  TREE_TYPE (null_node) = c_common_type_for_size (POINTER_SIZE, 0);
   ridpointers[RID_NULL] = null_node;
 
   token_count = init_cpp_parse ();
   interface_unknown = 1;
 
   filename = c_common_init (filename);
+  if (filename == NULL)
+    return NULL;
 
   init_cp_pragma ();
 
@@ -806,8 +729,8 @@ static int *reduce_count;
 int *token_count;
 
 #if 0
-#define REDUCE_LENGTH (sizeof (yyr2) / sizeof (yyr2[0]))
-#define TOKEN_LENGTH (256 + sizeof (yytname) / sizeof (yytname[0]))
+#define REDUCE_LENGTH ARRAY_SIZE (yyr2)
+#define TOKEN_LENGTH (256 + ARRAY_SIZE (yytname))
 #endif
 
 #ifdef GATHER_STATISTICS
@@ -882,22 +805,6 @@ print_parse_statistics ()
   fprintf (stderr, "\n");
 #endif
 #endif
-#endif
-}
-
-/* Sets the value of the 'yydebug' variable to VALUE.
-   This is a function so we don't have to have YYDEBUG defined
-   in order to build the compiler.  */
-
-void
-cxx_set_yydebug (value)
-     int value;
-{
-#if YYDEBUG != 0
-  extern int yydebug;
-  yydebug = value;
-#else
-  warning ("YYDEBUG not defined");
 #endif
 }
 
@@ -1167,7 +1074,7 @@ do_pending_lang_change ()
     pop_lang_context ();
 }
 
-/* Return true if d is in a global scope. */
+/* Return true if d is in a global scope.  */
 
 static int
 is_global (d)
@@ -1188,6 +1095,40 @@ is_global (d)
       }
 }
 
+/* Issue an error message indicating that the lookup of NAME (an
+   IDENTIFIER_NODE) failed.  */
+
+void
+unqualified_name_lookup_error (tree name)
+{
+  if (IDENTIFIER_OPNAME_P (name))
+    {
+      if (name != ansi_opname (ERROR_MARK))
+	error ("`%D' not defined", name);
+    }
+  else if (current_function_decl == 0)
+    error ("`%D' was not declared in this scope", name);
+  else
+    {
+      if (IDENTIFIER_NAMESPACE_VALUE (name) != error_mark_node
+	  || IDENTIFIER_ERROR_LOCUS (name) != current_function_decl)
+	{
+	  static int undeclared_variable_notice;
+
+	  error ("`%D' undeclared (first use this function)", name);
+
+	  if (! undeclared_variable_notice)
+	    {
+	      error ("(Each undeclared identifier is reported only once for each function it appears in.)");
+	      undeclared_variable_notice = 1;
+	    }
+	}
+      /* Prevent repeated error messages.  */
+      SET_IDENTIFIER_NAMESPACE_VALUE (name, error_mark_node);
+      SET_IDENTIFIER_ERROR_LOCUS (name, current_function_decl);
+    }
+}
+
 tree
 do_identifier (token, parsing, args)
      register tree token;
@@ -1197,6 +1138,7 @@ do_identifier (token, parsing, args)
   register tree id;
   int lexing = (parsing == 1 || parsing == 3);
 
+  timevar_push (TV_NAME_LOOKUP);
   if (! lexing)
     id = lookup_name (token, 0);
   else
@@ -1227,86 +1169,27 @@ do_identifier (token, parsing, args)
 	 being used as a declarator.  So we call it again to get the error
 	 message.  */
       id = lookup_name (token, 0);
-      return error_mark_node;
+      POP_TIMEVAR_AND_RETURN (TV_NAME_LOOKUP, error_mark_node);
     }
 
   if (!id || (TREE_CODE (id) == FUNCTION_DECL
 	      && DECL_ANTICIPATED (id)))
     {
       if (current_template_parms)
-	return build_min_nt (LOOKUP_EXPR, token);
-      else if (IDENTIFIER_OPNAME_P (token))
-	{
-	  if (token != ansi_opname (ERROR_MARK))
-	    error ("`%D' not defined", token);
-	  id = error_mark_node;
-	}
-      else if (current_function_decl == 0)
-	{
-	  error ("`%D' was not declared in this scope", token);
-	  id = error_mark_node;
-	}
+	POP_TIMEVAR_AND_RETURN (TV_NAME_LOOKUP,
+                                build_min_nt (LOOKUP_EXPR, token));
+      else if (IDENTIFIER_TYPENAME_P (token))
+	/* A templated conversion operator might exist.  */
+        POP_TIMEVAR_AND_RETURN (TV_NAME_LOOKUP, token);
       else
 	{
-	  if (IDENTIFIER_NAMESPACE_VALUE (token) != error_mark_node
-	      || IDENTIFIER_ERROR_LOCUS (token) != current_function_decl)
-	    {
-	      static int undeclared_variable_notice;
-
-	      error ("`%D' undeclared (first use this function)", token);
-
-	      if (! undeclared_variable_notice)
-		{
-		  error ("(Each undeclared identifier is reported only once for each function it appears in.)");
-		  undeclared_variable_notice = 1;
-		}
-	    }
-	  id = error_mark_node;
-	  /* Prevent repeated error messages.  */
-	  SET_IDENTIFIER_NAMESPACE_VALUE (token, error_mark_node);
-	  SET_IDENTIFIER_ERROR_LOCUS (token, current_function_decl);
+	  unqualified_name_lookup_error (token);
+	  POP_TIMEVAR_AND_RETURN (TV_NAME_LOOKUP, error_mark_node);
 	}
     }
 
-  if (TREE_CODE (id) == VAR_DECL && DECL_DEAD_FOR_LOCAL (id))
-    {
-      tree shadowed = DECL_SHADOWED_FOR_VAR (id);
-      while (shadowed != NULL_TREE && TREE_CODE (shadowed) == VAR_DECL
-	     && DECL_DEAD_FOR_LOCAL (shadowed))
-	shadowed = DECL_SHADOWED_FOR_VAR (shadowed);
-      if (!shadowed)
-	shadowed = IDENTIFIER_NAMESPACE_VALUE (DECL_NAME (id));
-      if (shadowed)
-	{
-	  if (!DECL_ERROR_REPORTED (id))
-	    {
-	      warning ("name lookup of `%s' changed",
-		       IDENTIFIER_POINTER (token));
-	      cp_warning_at ("  matches this `%D' under ISO standard rules",
-			     shadowed);
-	      cp_warning_at ("  matches this `%D' under old rules", id);
-	      DECL_ERROR_REPORTED (id) = 1;
-	    }
-	  id = shadowed;
-	}
-      else if (!DECL_ERROR_REPORTED (id))
-	{
-	  DECL_ERROR_REPORTED (id) = 1;
-	  if (TYPE_HAS_NONTRIVIAL_DESTRUCTOR (TREE_TYPE (id)))
-	    {
-	      error ("name lookup of `%s' changed for new ISO `for' scoping",
-		     IDENTIFIER_POINTER (token));
-	      cp_error_at ("  cannot use obsolete binding at `%D' because it has a destructor", id);
-	      id = error_mark_node;
-	    }
-	  else
-	    {
-	      pedwarn ("name lookup of `%s' changed for new ISO `for' scoping",
-		       IDENTIFIER_POINTER (token));
-	      cp_pedwarn_at ("  using obsolete binding at `%D'", id);
-	    }
-	}
-    }
+  id = check_for_out_of_scope_variable (id);
+
   /* TREE_USED is set in `hack_identifier'.  */
   if (TREE_CODE (id) == CONST_DECL)
     {
@@ -1337,28 +1220,15 @@ do_identifier (token, parsing, args)
 	  || TREE_CODE (id) == USING_DECL))
     id = build_min_nt (LOOKUP_EXPR, token);
 
-  return id;
+  POP_TIMEVAR_AND_RETURN (TV_NAME_LOOKUP, id);
 }
 
 tree
-do_scoped_id (token, parsing)
+do_scoped_id (token, id)
      tree token;
-     int parsing;
+     tree id;
 {
-  tree id;
-  /* during parsing, this is ::name. Otherwise, it is black magic. */
-  if (parsing)
-    {
-      id = make_node (CPLUS_BINDING);
-      if (!qualified_lookup_using_namespace (token, global_namespace, id, 0))
-	id = NULL_TREE;
-      else
-	id = BINDING_VALUE (id);
-    }
-  else
-    id = IDENTIFIER_GLOBAL_VALUE (token);
-  if (parsing && yychar == YYEMPTY)
-    yychar = yylex ();
+  timevar_push (TV_NAME_LOOKUP);
   if (!id || (TREE_CODE (id) == FUNCTION_DECL
 	      && DECL_ANTICIPATED (id)))
     {
@@ -1366,7 +1236,7 @@ do_scoped_id (token, parsing)
 	{
 	  id = build_min_nt (LOOKUP_EXPR, token);
 	  LOOKUP_EXPR_GLOBAL (id) = 1;
-	  return id;
+	  POP_TIMEVAR_AND_RETURN (TV_NAME_LOOKUP, id);
 	}
       if (IDENTIFIER_NAMESPACE_VALUE (token) != error_mark_node)
         error ("`::%D' undeclared (first use here)", token);
@@ -1397,11 +1267,11 @@ do_scoped_id (token, parsing)
 	{
 	  id = build_min_nt (LOOKUP_EXPR, token);
 	  LOOKUP_EXPR_GLOBAL (id) = 1;
-	  return id;
+	  POP_TIMEVAR_AND_RETURN (TV_NAME_LOOKUP, id);
 	}
       /* else just use the decl */
     }
-  return convert_from_reference (id);
+  POP_TIMEVAR_AND_RETURN (TV_NAME_LOOKUP, convert_from_reference (id));
 }
 
 tree
@@ -1495,6 +1365,12 @@ retrofit_lang_decl (t)
 
   ld = (struct lang_decl *) ggc_alloc_cleared (size);
 
+  ld->decl_flags.can_be_full = CAN_HAVE_FULL_LANG_DECL_P (t) ? 1 : 0;
+  ld->decl_flags.u1sel = TREE_CODE (t) == NAMESPACE_DECL ? 1 : 0;
+  ld->decl_flags.u2sel = 0;
+  if (ld->decl_flags.can_be_full)
+    ld->u.f.u3sel = TREE_CODE (t) == FUNCTION_DECL ? 1 : 0;
+
   DECL_LANG_SPECIFIC (t) = ld;
   if (current_lang_name == lang_name_cplusplus)
     SET_DECL_LANGUAGE (t, lang_cplusplus);
@@ -1511,7 +1387,7 @@ retrofit_lang_decl (t)
 }
 
 void
-copy_lang_decl (node)
+cxx_dup_lang_specific_decl (node)
      tree node;
 {
   int size;
@@ -1543,7 +1419,7 @@ copy_decl (decl)
   tree copy;
 
   copy = copy_node (decl);
-  copy_lang_decl (copy);
+  cxx_dup_lang_specific_decl (copy);
   return copy;
 }
 
@@ -1559,7 +1435,10 @@ copy_lang_type (node)
   if (! TYPE_LANG_SPECIFIC (node))
     return;
 
-  size = sizeof (struct lang_type);
+  if (TYPE_LANG_SPECIFIC (node)->u.h.is_lang_type_class)
+    size = sizeof (struct lang_type);
+  else
+    size = sizeof (struct lang_type_ptrmem);
   lt = (struct lang_type *) ggc_alloc (size);
   memcpy (lt, TYPE_LANG_SPECIFIC (node), size);
   TYPE_LANG_SPECIFIC (node) = lt;
@@ -1584,7 +1463,7 @@ copy_type (type)
 }
 
 tree
-cp_make_lang_type (code)
+cxx_make_type (code)
      enum tree_code code;
 {
   register tree t = make_node (code);
@@ -1599,6 +1478,7 @@ cp_make_lang_type (code)
 	    ggc_alloc_cleared (sizeof (struct lang_type)));
 
       TYPE_LANG_SPECIFIC (t) = pi;
+      pi->u.c.h.is_lang_type_class = 1;
 
 #ifdef GATHER_STATISTICS
       tree_node_counts[(int)lang_type] += 1;
@@ -1639,26 +1519,12 @@ tree
 make_aggr_type (code)
      enum tree_code code;
 {
-  tree t = cp_make_lang_type (code);
+  tree t = cxx_make_type (code);
 
   if (IS_AGGR_TYPE_CODE (code))
     SET_IS_AGGR_TYPE (t, 1);
 
   return t;
-}
-
-void
-compiler_error VPARAMS ((const char *msg, ...))
-{
-  char buf[1024];
-
-  VA_OPEN (ap, msg);
-  VA_FIXEDARG (ap, const char *, msg);
-
-  vsprintf (buf, msg, ap);
-  VA_CLOSE (ap);
-
-  error_with_file_and_line (input_filename, lineno, "%s (compiler error)", buf);
 }
 
 /* Return the type-qualifier corresponding to the identifier given by

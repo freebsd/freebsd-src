@@ -14,7 +14,6 @@
 @cindex X3.159-1989
 @cindex ISO C standard
 @cindex ISO C
-@cindex ISO C89
 @cindex ISO C90
 @cindex ISO/IEC 9899
 @cindex ISO 9899
@@ -80,7 +79,7 @@ as @dfn{AMD1}; the amended standard is sometimes known as @dfn{C94} or
 A new edition of the ISO C standard was published in 1999 as ISO/IEC
 9899:1999, and is commonly known as @dfn{C99}.  GCC has incomplete
 support for this standard version; see
-@uref{http://gcc.gnu.org/gcc-3.1/c99status.html} for details.  To select this
+@uref{http://gcc.gnu.org/gcc-3.3/c99status.html} for details.  To select this
 standard, use @option{-std=c99} or @option{-std=iso9899:1999}.  (While in
 development, drafts of this standard version were referred to as
 @dfn{C9X}.)
@@ -88,13 +87,6 @@ development, drafts of this standard version were referred to as
 Errors in the 1999 ISO C standard were corrected in a Technical
 Corrigendum published in 2001.  GCC does not support the uncorrected
 version.
-
-@opindex traditional
-GCC also has some limited support for traditional (pre-ISO) C with the
-@option{-traditional} option.  This support may be of use for compiling
-some very old programs that have not been updated to ISO C, but should
-not be used for new programs.  It will not work with some modern C
-libraries such as the GNU C library.
 
 By default, GCC provides some extensions to the C language that on
 rare occasions conflict with the C standard.  @xref{C
@@ -182,6 +174,13 @@ is an older example
 has additional useful information
 @end itemize
 
+@cindex treelang
+There is no standard for treelang, which is a sample language front end
+for GCC. Its only purpose is as a sample for people wishing to write a
+new language for GCC. The language is documented in
+@file{gcc/treelang/treelang.texi} which can be turned into info or
+HTML format.
+
 @xref{Top, GNAT Reference Manual, About This Guide, gnat_rm,
 GNAT Reference Manual}, for information on standard
 conformance and compatibility of the Ada compiler.
@@ -190,4 +189,4 @@ conformance and compatibility of the Ada compiler.
 Fortran}, for details of the Fortran language supported by GCC@.
 
 @xref{Compatibility,,Compatibility with the Java Platform, gcj, GNU gcj},
-for details of compatibility between @code{gcj} and the Java Platform.
+for details of compatibility between @command{gcj} and the Java Platform.

@@ -19,23 +19,42 @@ along with GCC; see the file COPYING.  If not, write to the Free
 Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 02111-1307, USA.  */
 
+/* As a special exception, if you link this library with other files,
+   some of which are compiled with GCC, to produce an executable,
+   this library does not by itself cause the resulting executable
+   to be covered by the GNU General Public License.
+   This exception does not however invalidate any other reasons why
+   the executable file might be covered by the GNU General Public
+   License.  */
+
 #ifndef GCC_GCOV_IO_H
 #define GCC_GCOV_IO_H
 #include <stdio.h>
 #include <sys/types.h>
 
-static int __fetch_long	PARAMS ((long *, char *, size_t)) ATTRIBUTE_UNUSED;
-static int __read_long  PARAMS ((long *, FILE *, size_t)) ATTRIBUTE_UNUSED;
-static int __write_long PARAMS ((long, FILE *, size_t)) ATTRIBUTE_UNUSED;
-static int __fetch_gcov_type PARAMS ((gcov_type *, char *, size_t)) ATTRIBUTE_UNUSED;
-static int __store_gcov_type PARAMS ((gcov_type, char *, size_t)) ATTRIBUTE_UNUSED;
-static int __read_gcov_type  PARAMS ((gcov_type *, FILE *, size_t)) ATTRIBUTE_UNUSED;
-static int __write_gcov_type PARAMS ((gcov_type, FILE *, size_t)) ATTRIBUTE_UNUSED;
+static int __fetch_long	PARAMS ((long *, char *, size_t))
+	ATTRIBUTE_UNUSED;
+static int __read_long  PARAMS ((long *, FILE *, size_t))
+	ATTRIBUTE_UNUSED;
+static int __write_long PARAMS ((long, FILE *, size_t))
+	ATTRIBUTE_UNUSED;
+static int __fetch_gcov_type PARAMS ((gcov_type *, char *, size_t))
+	ATTRIBUTE_UNUSED;
+static int __store_gcov_type PARAMS ((gcov_type, char *, size_t))
+	ATTRIBUTE_UNUSED;
+static int __read_gcov_type  PARAMS ((gcov_type *, FILE *, size_t))
+	ATTRIBUTE_UNUSED;
+static int __write_gcov_type PARAMS ((gcov_type, FILE *, size_t))
+	ATTRIBUTE_UNUSED;
+static int __write_gcov_string PARAMS ((const char *, size_t, FILE*, long))
+	ATTRIBUTE_UNUSED;
+static int __read_gcov_string PARAMS ((char *, size_t, FILE*, long))
+	ATTRIBUTE_UNUSED;
 
 /* These routines only work for signed values.  */
 
 /* Store a portable representation of VALUE in DEST using BYTES*8-1 bits.
-   Return a non-zero value if VALUE requires more than BYTES*8-1 bits
+   Return a nonzero value if VALUE requires more than BYTES*8-1 bits
    to store.  */
 
 static int
@@ -63,14 +82,14 @@ __store_gcov_type (value, dest, bytes)
   if (value && value != -1)
     return 1;
 
-  for(; i < bytes ; i++) 
+  for(; i < bytes ; i++)
     dest[i] = 0;
   dest[bytes - 1] |= upper_bit;
   return 0;
 }
 
 /* Retrieve a quantity containing BYTES*8-1 bits from SOURCE and store
-   the result in DEST. Returns a non-zero value if the value in SOURCE
+   the result in DEST. Returns a nonzero value if the value in SOURCE
    will not fit in DEST.  */
 
 static int
@@ -119,7 +138,7 @@ __fetch_long (dest, source, bytes)
   return 0;
 }
 
-/* Write a BYTES*8-bit quantity to FILE, portably. Returns a non-zero
+/* Write a BYTES*8-bit quantity to FILE, portably. Returns a nonzero
    value if the write fails, or if VALUE can't be stored in BYTES*8
    bits.
 
@@ -157,7 +176,7 @@ __write_long (value, file, bytes)
 }
 
 /* Read a quantity containing BYTES bytes from FILE, portably. Return
-   a non-zero value if the read fails or if the value will not fit
+   a nonzero value if the read fails or if the value will not fit
    in DEST.
 
    Note that DEST may not be large enough to hold all of the requested
@@ -192,5 +211,95 @@ __read_long (dest, file, bytes)
   else
     return __fetch_long (dest, c, bytes);
 }
+
+
+/* Writes string in gcov format.  */
+
+static int
+__write_gcov_string (string, length, file, delim)
+     const char *string;
+     size_t length;
+     FILE *file;
+     long delim;
+{
+  size_t temp = length + 1;
+
+  /* delimiter */
+  if (__write_long (delim, file, 4) != 0)
+    return 1;
+
+  if (__write_long (length, file, 4) != 0)
+    return 1;
+
+  if (fwrite (string, temp, 1, file) != 1)
+    return 1;
+
+  temp &= 3;
+
+  if (temp)
+    {
+      char c[4];
+
+      c[0] = c[1] = c[2] = c[3] = 0;
+
+      if (fwrite (c, sizeof (char), 4 - temp, file) != 4 - temp)
+	return 1;
+    }
+
+  if (__write_long (delim, file, 4) != 0)
+    return 1;
+
+  return 0;
+}
+
+/* Reads string in gcov format.  */
+
+
+static int
+__read_gcov_string (string, max_length, file, delim)
+     char *string;
+     size_t max_length;
+     FILE *file;
+     long delim;
+{
+  long delim_from_file;
+  long length;
+  long read_length;
+  long tmp;
+
+  if (__read_long (&delim_from_file, file, 4) != 0)
+    return 1;
+
+  if (delim_from_file != delim)
+    return 1;
+
+  if (__read_long (&length, file, 4) != 0)
+    return 1;
+
+  if (length > (long) max_length)
+    read_length = max_length;
+  else
+    read_length = length;
+
+  tmp = (((length + 1) - 1) / 4 + 1) * 4;
+  /* This is the size occupied by the string in the file */
+
+  if (fread (string, read_length, 1, file) != 1)
+    return 1;
+
+  string[read_length] = 0;
+
+  if (fseek (file, tmp - read_length, SEEK_CUR) < 0)
+    return 1;
+
+  if (__read_long (&delim_from_file, file, 4) != 0)
+    return 1;
+
+  if (delim_from_file != delim)
+    return 1;
+
+  return 0;
+}
+
 
 #endif /* ! GCC_GCOV_IO_H */

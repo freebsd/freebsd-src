@@ -1,6 +1,6 @@
 /* Optimize jump instructions, for GNU compiler.
    Copyright (C) 1987, 1988, 1989, 1991, 1992, 1993, 1994, 1995, 1996, 1997
-   1998, 1999, 2000, 2001, 2002, 2003 Free Software Foundation, Inc.
+   1998, 1999, 2000, 2001, 2002, 2003  Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -328,8 +328,6 @@ duplicate_loop_exit_test (loop_start)
 	 is a CODE_LABEL
 	 has a REG_RETVAL or REG_LIBCALL note (hard to adjust)
 	 is a NOTE_INSN_LOOP_BEG because this means we have a nested loop
-	 is a NOTE_INSN_BLOCK_{BEG,END} because duplicating these notes
-	      is not valid.
 
      We also do not do this if we find an insn with ASM_OPERANDS.  While
      this restriction should not be necessary, copying an insn with
@@ -349,18 +347,6 @@ duplicate_loop_exit_test (loop_start)
 	case CALL_INSN:
 	  return 0;
 	case NOTE:
-	  /* We could be in front of the wrong NOTE_INSN_LOOP_END if there is
-	     a jump immediately after the loop start that branches outside
-	     the loop but within an outer loop, near the exit test.
-	     If we copied this exit test and created a phony
-	     NOTE_INSN_LOOP_VTOP, this could make instructions immediately
-	     before the exit test look like these could be safely moved
-	     out of the loop even if they actually may be never executed.
-	     This can be avoided by checking here for NOTE_INSN_LOOP_CONT.  */
-
-	  if (NOTE_LINE_NUMBER (insn) == NOTE_INSN_LOOP_BEG
-	      || NOTE_LINE_NUMBER (insn) == NOTE_INSN_LOOP_CONT)
-	    return 0;
 
 	  if (optimize < 2
 	      && (NOTE_LINE_NUMBER (insn) == NOTE_INSN_BLOCK_BEG
@@ -446,6 +432,7 @@ duplicate_loop_exit_test (loop_start)
 	    replace_regs (PATTERN (copy), reg_map, max_reg, 1);
 
 	  mark_jump_label (PATTERN (copy), copy, 0);
+	  INSN_SCOPE (copy) = INSN_SCOPE (insn);
 
 	  /* Copy all REG_NOTES except REG_LABEL since mark_jump_label will
 	     make them.  */
@@ -471,6 +458,7 @@ duplicate_loop_exit_test (loop_start)
 	case JUMP_INSN:
 	  copy = emit_jump_insn_before (copy_insn (PATTERN (insn)),
 					loop_start);
+	  INSN_SCOPE (copy) = INSN_SCOPE (insn);
 	  if (reg_map)
 	    replace_regs (PATTERN (copy), reg_map, max_reg, 1);
 	  mark_jump_label (PATTERN (copy), copy, 0);
@@ -720,11 +708,6 @@ reversed_comparison_code_parts (code, arg0, arg1, insn)
       break;
     }
 
-  /* In case we give up IEEE compatibility, all comparisons are reversible.  */
-  if (TARGET_FLOAT_FORMAT != IEEE_FLOAT_FORMAT
-      || flag_unsafe_math_optimizations)
-    return reverse_condition (code);
-
   if (GET_MODE_CLASS (mode) == MODE_CC
 #ifdef HAVE_cc0
       || arg0 == cc0_rtx
@@ -773,11 +756,12 @@ reversed_comparison_code_parts (code, arg0, arg1, insn)
 	}
     }
 
-  /* An integer condition.  */
+  /* Test for an integer condition, or a floating-point comparison
+     in which NaNs can be ignored.  */
   if (GET_CODE (arg0) == CONST_INT
       || (GET_MODE (arg0) != VOIDmode
 	  && GET_MODE_CLASS (mode) != MODE_CC
-	  && ! FLOAT_MODE_P (mode)))
+	  && !HONOR_NANS (mode)))
     return reverse_condition (code);
 
   return UNKNOWN;
@@ -856,10 +840,6 @@ enum rtx_code
 reverse_condition_maybe_unordered (code)
      enum rtx_code code;
 {
-  /* Non-IEEE formats don't have unordered conditions.  */
-  if (TARGET_FLOAT_FORMAT != IEEE_FLOAT_FORMAT)
-    return reverse_condition (code);
-
   switch (code)
     {
     case EQ:
@@ -1005,7 +985,7 @@ signed_condition (code)
     }
 }
 
-/* Return non-zero if CODE1 is more strict than CODE2, i.e., if the
+/* Return nonzero if CODE1 is more strict than CODE2, i.e., if the
    truth of CODE1 implies the truth of CODE2.  */
 
 int
@@ -1099,6 +1079,7 @@ simplejump_p (insn)
 	  && GET_CODE (SET_DEST (PATTERN (insn))) == PC
 	  && GET_CODE (SET_SRC (PATTERN (insn))) == LABEL_REF);
 }
+
 /* Return 1 if INSN is an tablejump.  */
 
 int
@@ -1107,12 +1088,12 @@ tablejump_p (insn)
 {
   rtx table;
   return (GET_CODE (insn) == JUMP_INSN
-	  && JUMP_LABEL (insn)
-	  && NEXT_INSN (JUMP_LABEL (insn))
-	  && (table = next_active_insn (JUMP_LABEL (insn)))
-	  && GET_CODE (table) == JUMP_INSN
-	  && (GET_CODE (PATTERN (table)) == ADDR_VEC
-	      || GET_CODE (PATTERN (table)) == ADDR_DIFF_VEC));
+          && JUMP_LABEL (insn)
+          && NEXT_INSN (JUMP_LABEL (insn))
+          && (table = next_active_insn (JUMP_LABEL (insn)))
+          && GET_CODE (table) == JUMP_INSN
+          && (GET_CODE (PATTERN (table)) == ADDR_VEC
+              || GET_CODE (PATTERN (table)) == ADDR_DIFF_VEC));
 }
 
 /* Return nonzero if INSN is a (possibly) conditional jump
@@ -1313,7 +1294,7 @@ onlyjump_p (insn)
 
 #ifdef HAVE_cc0
 
-/* Return non-zero if X is an RTX that only sets the condition codes
+/* Return nonzero if X is an RTX that only sets the condition codes
    and has no side effects.  */
 
 int
@@ -1455,7 +1436,6 @@ mark_jump_label (x, insn, in_mem)
     case PC:
     case CC0:
     case REG:
-    case SUBREG:
     case CONST_INT:
     case CONST_DOUBLE:
     case CLOBBER:
@@ -1598,7 +1578,9 @@ delete_prior_computation (note, insn)
 	break;
 
       /* If we reach a SEQUENCE, it is too complex to try to
-	 do anything with it, so give up.  */
+	 do anything with it, so give up.  We can be run during
+	 and after reorg, so SEQUENCE rtl can legitimately show
+	 up here.  */
       if (GET_CODE (pat) == SEQUENCE)
 	break;
 
@@ -1934,14 +1916,14 @@ delete_for_peephole (from, to)
      is also an unconditional jump in that case.  */
 }
 
-/* We have determined that INSN is never reached, and are about to
-   delete it.  Print a warning if the user asked for one.
+/* We have determined that AVOIDED_INSN is never reached, and are
+   about to delete it.  If the insn chain between AVOIDED_INSN and
+   FINISH contains more than one line from the current function, and
+   contains at least one operation, print a warning if the user asked
+   for it.  If FINISH is NULL, look between AVOIDED_INSN and a LABEL.
 
-   To try to make this warning more useful, this should only be called
-   once per basic block not reached, and it only warns when the basic
-   block contains more than one line from the current function, and
-   contains at least one operation.  CSE and inlining can duplicate insns,
-   so it's possible to get spurious warnings from this.  */
+   CSE and inlining can duplicate insns, so it's possible to get
+   spurious warnings from this.  */
 
 void
 never_reached_warning (avoided_insn, finish)
@@ -1951,15 +1933,29 @@ never_reached_warning (avoided_insn, finish)
   rtx a_line_note = NULL;
   int two_avoided_lines = 0, contains_insn = 0, reached_end = 0;
 
-  if (! warn_notreached)
+  if (!warn_notreached)
     return;
 
-  /* Scan forwards, looking at LINE_NUMBER notes, until
-     we hit a LABEL or we run out of insns.  */
-
-  for (insn = avoided_insn; insn != NULL; insn = NEXT_INSN (insn))
+  /* Back up to the first of any NOTEs preceding avoided_insn; flow passes
+     us the head of a block, a NOTE_INSN_BASIC_BLOCK, which often follows
+     the line note.  */
+  insn = avoided_insn;
+  while (1)
     {
-      if (finish == NULL && GET_CODE (insn) == CODE_LABEL)
+      rtx prev = PREV_INSN (insn);
+      if (prev == NULL_RTX
+	  || GET_CODE (prev) != NOTE)
+	break;
+      insn = prev;
+    }
+
+  /* Scan forwards, looking at LINE_NUMBER notes, until we hit a LABEL
+     in case FINISH is NULL, otherwise until we run out of insns.  */
+
+  for (; insn != NULL; insn = NEXT_INSN (insn))
+    {
+      if ((finish == NULL && GET_CODE (insn) == CODE_LABEL)
+	  || GET_CODE (insn) == BARRIER)
 	break;
 
       if (GET_CODE (insn) == NOTE		/* A line number note?  */

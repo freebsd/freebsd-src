@@ -45,7 +45,6 @@ Boston, MA 02111-1307, USA.  */
 #include "rtl.h"
 #include "expr.h"
 #include "c-tree.h"
-#include "c-lex.h"
 #include "c-common.h"
 #include "flags.h"
 #include "objc-act.h"
@@ -55,9 +54,9 @@ Boston, MA 02111-1307, USA.  */
 #include "output.h"
 #include "toplev.h"
 #include "ggc.h"
-#include "cpplib.h"
 #include "debug.h"
 #include "target.h"
+#include "diagnostic.h"
 
 /* This is the default way of generating a method name.  */
 /* I am not sure it is really correct.
@@ -86,47 +85,10 @@ Boston, MA 02111-1307, USA.  */
 #define OBJC_FORWARDING_MIN_OFFSET 0
 #endif
 
-/* Define the special tree codes that we use.  */
-
-/* Table indexed by tree code giving a string containing a character
-   classifying the tree code.  */
-
-#define DEFTREECODE(SYM, NAME, TYPE, LENGTH) TYPE,
-
-static const char objc_tree_code_type[] = {
-  'x',
-#include "objc-tree.def"
-};
-#undef DEFTREECODE
-
-/* Table indexed by tree code giving number of expression
-   operands beyond the fixed part of the node structure.
-   Not used for types or decls.  */
-
-#define DEFTREECODE(SYM, NAME, TYPE, LENGTH) LENGTH,
-
-static const int objc_tree_code_length[] = {
-  0,
-#include "objc-tree.def"
-};
-#undef DEFTREECODE
-
-/* Names of tree components.
-   Used for printing out the tree and error messages.  */
-#define DEFTREECODE(SYM, NAME, TYPE, LEN) NAME,
-
-static const char * const objc_tree_code_name[] = {
-  "@@dummy",
-#include "objc-tree.def"
-};
-#undef DEFTREECODE
 
 /* Set up for use of obstacks.  */
 
 #include "obstack.h"
-
-#define obstack_chunk_alloc xmalloc
-#define obstack_chunk_free free
 
 /* This obstack is used to accumulate the encoding of a data type.  */
 static struct obstack util_obstack;
@@ -166,7 +128,6 @@ static tree build_objc_method_call		PARAMS ((int, tree, tree,
 static void generate_strings			PARAMS ((void));
 static tree get_proto_encoding 			PARAMS ((tree));
 static void build_selector_translation_table	PARAMS ((void));
-static tree build_ivar_chain			PARAMS ((tree, int));
 
 static tree objc_add_static_instance		PARAMS ((tree, tree));
 
@@ -199,7 +160,6 @@ static int check_methods_accessible		PARAMS ((tree, tree,
 static void encode_aggregate_within		PARAMS ((tree, int, int,
 					               int, int));
 static const char *objc_demangle		PARAMS ((const char *));
-static const char *objc_printable_name		PARAMS ((tree, int));
 static void objc_expand_function_end            PARAMS ((void));
 
 /* Hash tables to manage the global pool of method prototypes.  */
@@ -270,7 +230,6 @@ static void dump_interface			PARAMS ((FILE *, tree));
 
 /* Everything else.  */
 
-static void add_objc_tree_codes			PARAMS ((void));
 static tree define_decl				PARAMS ((tree, tree));
 static tree lookup_method_in_protocol_list	PARAMS ((tree, tree, int));
 static tree lookup_protocol_in_reflist		PARAMS ((tree, tree));
@@ -289,7 +248,6 @@ static tree build_typed_selector_reference     	PARAMS ((tree, tree));
 static tree build_selector_reference		PARAMS ((tree));
 static tree build_class_reference_decl		PARAMS ((void));
 static void add_class_reference			PARAMS ((tree));
-static tree objc_copy_list			PARAMS ((tree, tree *));
 static tree build_protocol_template		PARAMS ((void));
 static tree build_descriptor_table_initializer	PARAMS ((tree, tree));
 static tree build_method_prototype_list_template PARAMS ((tree, int));
@@ -332,9 +290,7 @@ static void generate_classref_translation_entry	PARAMS ((tree));
 static void handle_class_ref			PARAMS ((tree));
 static void generate_struct_by_value_array	PARAMS ((void))
      ATTRIBUTE_NORETURN;
-static void objc_act_parse_init			PARAMS ((void));
-static void ggc_mark_imp_list			PARAMS ((void *));
-static void ggc_mark_hash_table			PARAMS ((void *));
+static void encode_complete_bitfield		PARAMS ((int, tree, int));
 
 /*** Private Interface (data) ***/
 
@@ -353,13 +309,11 @@ static void ggc_mark_hash_table			PARAMS ((void *));
 #define UTAG_METHOD_LIST	"_objc_method_list"
 #define UTAG_CATEGORY		"_objc_category"
 #define UTAG_MODULE		"_objc_module"
-#define UTAG_STATICS		"_objc_statics"
 #define UTAG_SYMTAB		"_objc_symtab"
 #define UTAG_SUPER		"_objc_super"
 #define UTAG_SELECTOR		"_objc_selector"
 
 #define UTAG_PROTOCOL		"_objc_protocol"
-#define UTAG_PROTOCOL_LIST	"_objc_protocol_list"
 #define UTAG_METHOD_PROTOTYPE	"_objc_method_prototype"
 #define UTAG_METHOD_PROTOTYPE_LIST "_objc__method_prototype_list"
 
@@ -368,8 +322,6 @@ static void ggc_mark_hash_table			PARAMS ((void *));
 #define STRING_OBJECT_GLOBAL_NAME "_NSConstantStringClassReference"
 
 #define PROTOCOL_OBJECT_CLASS_NAME "Protocol"
-
-static const char *constant_string_class_name = NULL;
 
 static const char *TAG_GETCLASS;
 static const char *TAG_GETMETACLASS;
@@ -380,8 +332,6 @@ static const char *default_constant_string_class_name;
 
 /* The OCTI_... enumeration itself is in objc/objc-act.h.  */
 tree objc_global_trees[OCTI_MAX];
-
-int objc_receiver_context;
 
 static void handle_impent			PARAMS ((struct imp_entry *));
 
@@ -403,32 +353,9 @@ extern enum debug_info_type write_symbols;
 
 extern const char *dump_base_name;
 
-/* Generate code for GNU or NeXT runtime environment.  */
-
-#ifdef NEXT_OBJC_RUNTIME
-int flag_next_runtime = 1;
-#else
-int flag_next_runtime = 0;
-#endif
-
-int flag_typed_selectors;
-
-/* Open and close the file for outputting class declarations, if requested.  */
-
-int flag_gen_declaration = 0;
+static int flag_typed_selectors;
 
 FILE *gen_declaration_file;
-
-/* Warn if multiple methods are seen for the same selector, but with
-   different argument types.  */
-
-int warn_selector = 0;
-
-/* Warn if methods required by a protocol are not implemented in the 
-   class adopting it.  When turned off, methods inherited to that
-   class are also considered implemented */
-
-int flag_warn_protocol = 1;
 
 /* Tells "encode_pointer/encode_aggregate" whether we are generating
    type descriptors for instance variables (as opposed to methods).
@@ -436,12 +363,6 @@ int flag_warn_protocol = 1;
    than methods (for static typing and embedded structures).  */
 
 static int generating_instance_variables = 0;
-
-/* Tells the compiler that this is a special run.  Do not perform any
-   compiling, instead we are to test some platform dependent features
-   and output a C header file with appropriate definitions.  */
-
-static int print_struct_values = 0;
 
 /* Some platforms pass small structures through registers versus
    through an invisible pointer.  Determine at what size structure is
@@ -511,9 +432,8 @@ objc_init (filename)
      const char *filename;
 {
   filename = c_objc_common_init (filename);
-  add_objc_tree_codes ();
-
-  decl_printable_name = objc_printable_name;
+  if (filename == NULL)
+    return filename;
 
   /* Force the line number back to 0; check_newline will have
      raised it to 1, which will make the builtin functions appear
@@ -557,8 +477,6 @@ objc_init (filename)
   if (print_struct_values)
     generate_struct_by_value_array ();
 
-  objc_act_parse_init ();
-
   return filename;
 }
 
@@ -567,52 +485,14 @@ finish_file ()
 {
   c_objc_common_finish_file ();
 
-  finish_objc ();		/* Objective-C finalization */
+  /* Finalize Objective-C runtime data.  No need to generate tables
+     and code if only checking syntax.  */
+  if (!flag_syntax_only)
+    finish_objc ();
 
   if (gen_declaration_file)
     fclose (gen_declaration_file);
 }
-
-int
-objc_decode_option (argc, argv)
-     int argc;
-     char **argv;
-{
-  const char *p = argv[0];
-
-  if (!strcmp (p, "-gen-decls"))
-    flag_gen_declaration = 1;
-  else if (!strcmp (p, "-Wselector"))
-    warn_selector = 1;
-  else if (!strcmp (p, "-Wno-selector"))
-    warn_selector = 0;
-  else if (!strcmp (p, "-Wprotocol"))
-    flag_warn_protocol = 1;
-  else if (!strcmp (p, "-Wno-protocol"))
-    flag_warn_protocol = 0;
-  else if (!strcmp (p, "-fgnu-runtime"))
-    flag_next_runtime = 0;
-  else if (!strcmp (p, "-fno-next-runtime"))
-    flag_next_runtime = 0;
-  else if (!strcmp (p, "-fno-gnu-runtime"))
-    flag_next_runtime = 1;
-  else if (!strcmp (p, "-fnext-runtime"))
-    flag_next_runtime = 1;
-  else if (!strcmp (p, "-print-objc-runtime-info"))
-    print_struct_values = 1;
-#define CSTSTRCLASS "-fconstant-string-class="
-  else if (!strncmp (p, CSTSTRCLASS, sizeof(CSTSTRCLASS) - 2)) {
-    if (strlen (argv[0]) <= strlen (CSTSTRCLASS))
-      error ("no class name specified as argument to -fconstant-string-class");
-    constant_string_class_name = xstrdup(argv[0] + sizeof(CSTSTRCLASS) - 1);
-  }
-#undef CSTSTRCLASS
-  else
-    return c_decode_option (argc, argv);
-
-  return 1;
-}
-
 
 static tree
 define_decl (declarator, declspecs)
@@ -635,14 +515,6 @@ define_decl (declarator, declspecs)
    `a' is of type "id",
    `a' and `b' are the same class type, or
    `a' and `b' are of class types A and B such that B is a descendant of A.  */
-
-int
-maybe_objc_comptypes (lhs, rhs, reflexive)
-     tree lhs, rhs;
-     int reflexive;
-{
-  return objc_comptypes (lhs, rhs, reflexive);
-}
 
 static tree
 lookup_method_in_protocol_list (rproto_list, sel_name, class_meth)
@@ -715,10 +587,24 @@ lookup_protocol_in_reflist (rproto_list, lproto)
   return 0;
 }
 
-/* Return 1 if LHS and RHS are compatible types for assignment
-   or various other operations.  Return 0 if they are incompatible,
-   and return -1 if we choose to not decide.  When the operation
-   is REFLEXIVE, check for compatibility in either direction.  */
+/* Return 1 if LHS and RHS are compatible types for assignment or
+   various other operations.  Return 0 if they are incompatible, and
+   return -1 if we choose to not decide (because the types are really
+   just C types, not ObjC specific ones).  When the operation is
+   REFLEXIVE (typically comparisons), check for compatibility in
+   either direction; when it's not (typically assignments), don't.
+
+   This function is called in two cases: when both lhs and rhs are
+   pointers to records (in which case we check protocols too), and
+   when both lhs and rhs are records (in which case we check class
+   inheritance only).
+
+   Warnings about classes/protocols not implementing a protocol are
+   emitted here (multiple of those warnings might be emitted for a
+   single line!); generic warnings about incompatible assignments and
+   lacks of casts in comparisons are/must be emitted by the caller if
+   we return 0.
+*/
 
 int
 objc_comptypes (lhs, rhs, reflexive)
@@ -728,6 +614,8 @@ objc_comptypes (lhs, rhs, reflexive)
 {
   /* New clause for protocols.  */
 
+  /* Here we manage the case of a POINTER_TYPE = POINTER_TYPE.  We only
+     manage the ObjC ones, and leave the rest to the C code.  */
   if (TREE_CODE (lhs) == POINTER_TYPE
       && TREE_CODE (TREE_TYPE (lhs)) == RECORD_TYPE
       && TREE_CODE (rhs) == POINTER_TYPE
@@ -742,29 +630,75 @@ objc_comptypes (lhs, rhs, reflexive)
 	  tree rproto, rproto_list;
 	  tree p;
 
+	  /* <Protocol> = <Protocol>  */
 	  if (rhs_is_proto)
 	    {
 	      rproto_list = TYPE_PROTOCOL_LIST (rhs);
-
-	      /* Make sure the protocol is supported by the object
-		 on the rhs.  */
-	      for (lproto = lproto_list; lproto; lproto = TREE_CHAIN (lproto))
+	      
+	      if (!reflexive)
 		{
-		  p = TREE_VALUE (lproto);
-		  rproto = lookup_protocol_in_reflist (rproto_list, p);
+		  /* An assignment between objects of type 'id
+		     <Protocol>'; make sure the protocol on the lhs is
+		     supported by the object on the rhs.  */
+		  for (lproto = lproto_list; lproto; 
+		       lproto = TREE_CHAIN (lproto))
+		    {
+		      p = TREE_VALUE (lproto);
+		      rproto = lookup_protocol_in_reflist (rproto_list, p);
 
-		  if (!rproto)
-		    warning ("object does not conform to the `%s' protocol",
-			     IDENTIFIER_POINTER (PROTOCOL_NAME (p)));
+		      if (!rproto)
+			warning 
+			  ("object does not conform to the `%s' protocol",
+			   IDENTIFIER_POINTER (PROTOCOL_NAME (p)));
+		    }
+		  return 1;
+		}
+	      else
+		{
+		  /* Obscure case - a comparison between two objects
+		     of type 'id <Protocol>'.  Check that either the
+		     protocol on the lhs is supported by the object on
+		     the rhs, or viceversa.  */
+		  
+		  /* Check if the protocol on the lhs is supported by the
+		     object on the rhs.  */
+		  for (lproto = lproto_list; lproto; 
+		       lproto = TREE_CHAIN (lproto))
+		    {
+		      p = TREE_VALUE (lproto);
+		      rproto = lookup_protocol_in_reflist (rproto_list, p);
+		      
+		      if (!rproto)
+			{
+			  /* Check failed - check if the protocol on the rhs
+			     is supported by the object on the lhs.  */
+			  for (rproto = rproto_list; rproto; 
+			       rproto = TREE_CHAIN (rproto))
+			    {
+			      p = TREE_VALUE (rproto);
+			      lproto = lookup_protocol_in_reflist (lproto_list,
+								   p);
+
+			      if (!lproto)
+				{
+				  /* This check failed too: incompatible  */
+				  return 0;
+				}
+			    }
+			  return 1;
+			}
+		    }
+		  return 1;
 		}
 	    }
+	  /* <Protocol> = <class> *  */
 	  else if (TYPED_OBJECT (TREE_TYPE (rhs)))
 	    {
 	      tree rname = TYPE_NAME (TREE_TYPE (rhs));
 	      tree rinter;
 
-	      /* Make sure the protocol is supported by the object
-		 on the rhs.  */
+	      /* Make sure the protocol is supported by the object on
+		 the rhs.  */
 	      for (lproto = lproto_list; lproto; lproto = TREE_CHAIN (lproto))
 		{
 		  p = TREE_VALUE (lproto);
@@ -776,13 +710,16 @@ objc_comptypes (lhs, rhs, reflexive)
 		      tree cat;
 
 		      rproto_list = CLASS_PROTOCOL_LIST (rinter);
-		      /* If the underlying ObjC class does not have
-			 protocols attached to it, perhaps there are
-			 "one-off" protocols attached to the rhs?
-			 E.g., 'id<MyProt> foo;'.  */
-		      if (!rproto_list)
-			rproto_list = TYPE_PROTOCOL_LIST (TREE_TYPE (rhs));
 		      rproto = lookup_protocol_in_reflist (rproto_list, p);
+		      /* If the underlying ObjC class does not have
+			 the protocol we're looking for, check for "one-off"
+			 protocols (e.g., `NSObject<MyProt> *foo;') attached
+			 to the rhs.  */
+		      if (!rproto)
+			{
+			  rproto_list = TYPE_PROTOCOL_LIST (TREE_TYPE (rhs));
+			  rproto = lookup_protocol_in_reflist (rproto_list, p);
+			}
 
 		      /* Check for protocols adopted by categories.  */
 		      cat = CLASS_CATEGORY_LIST (rinter);
@@ -790,7 +727,6 @@ objc_comptypes (lhs, rhs, reflexive)
 			{
 			  rproto_list = CLASS_PROTOCOL_LIST (cat);
 			  rproto = lookup_protocol_in_reflist (rproto_list, p);
-
 			  cat = CLASS_CATEGORY_LIST (cat);
 			}
 
@@ -799,31 +735,127 @@ objc_comptypes (lhs, rhs, reflexive)
 
 		  if (!rproto)
 		    warning ("class `%s' does not implement the `%s' protocol",
-	                     IDENTIFIER_POINTER (TYPE_NAME (TREE_TYPE (rhs))),
-		             IDENTIFIER_POINTER (PROTOCOL_NAME (p)));
+			     IDENTIFIER_POINTER (TYPE_NAME (TREE_TYPE (rhs))),
+			     IDENTIFIER_POINTER (PROTOCOL_NAME (p)));
 		}
+	      return 1;
 	    }
-
-	  /* May change...based on whether there was any mismatch */
-          return 1;
+	  /* <Protocol> = id */
+	  else if (TYPE_NAME (TREE_TYPE (rhs)) == objc_object_id)
+	    {
+	      return 1;
+	    }
+	  /* <Protocol> = Class */
+	  else if (TYPE_NAME (TREE_TYPE (rhs)) == objc_class_id)
+	    {
+	      return 0;
+	    }
+	  /* <Protocol> = ?? : let comptypes decide.  */
+          return -1;
         }
       else if (rhs_is_proto)
-	/* Lhs is not a protocol...warn if it is statically typed */
-	return (TYPED_OBJECT (TREE_TYPE (lhs)) != 0);
+	{
+	  /* <class> * = <Protocol> */
+	  if (TYPED_OBJECT (TREE_TYPE (lhs)))
+	    {
+	      if (reflexive)
+		{
+		  tree rname = TYPE_NAME (TREE_TYPE (lhs));
+		  tree rinter;
+		  tree rproto, rproto_list = TYPE_PROTOCOL_LIST (rhs);
+		  
+		  /* Make sure the protocol is supported by the object on
+		     the lhs.  */
+		  for (rproto = rproto_list; rproto; 
+		       rproto = TREE_CHAIN (rproto))
+		    {
+		      tree p = TREE_VALUE (rproto);
+		      tree lproto = 0;
+		      rinter = lookup_interface (rname);
 
+		      while (rinter && !lproto)
+			{
+			  tree cat;
+
+			  tree lproto_list = CLASS_PROTOCOL_LIST (rinter);
+			  lproto = lookup_protocol_in_reflist (lproto_list, p);
+			  /* If the underlying ObjC class does not
+			     have the protocol we're looking for,
+			     check for "one-off" protocols (e.g.,
+			     `NSObject<MyProt> *foo;') attached to the
+			     lhs.  */
+			  if (!lproto)
+			    {
+			      lproto_list = TYPE_PROTOCOL_LIST 
+				(TREE_TYPE (lhs));
+			      lproto = lookup_protocol_in_reflist 
+				(lproto_list, p);
+			    }
+
+			  /* Check for protocols adopted by categories.  */
+			  cat = CLASS_CATEGORY_LIST (rinter);
+			  while (cat && !lproto)
+			    {
+			      lproto_list = CLASS_PROTOCOL_LIST (cat);
+			      lproto = lookup_protocol_in_reflist (lproto_list,
+								   p);
+			      cat = CLASS_CATEGORY_LIST (cat);
+			    }
+			  
+			  rinter = lookup_interface (CLASS_SUPER_NAME 
+						     (rinter));
+			}
+		      
+		      if (!lproto)
+			warning ("class `%s' does not implement the `%s' protocol",
+				 IDENTIFIER_POINTER (TYPE_NAME 
+						     (TREE_TYPE (lhs))),
+				 IDENTIFIER_POINTER (PROTOCOL_NAME (p)));
+		    }
+		  return 1;
+		}
+	      else
+		return 0;
+	    }
+	  /* id = <Protocol> */
+	  else if (TYPE_NAME (TREE_TYPE (lhs)) == objc_object_id)
+	    {
+	      return 1;
+	    }
+	  /* Class = <Protocol> */
+	  else if (TYPE_NAME (TREE_TYPE (lhs)) == objc_class_id)
+	    {
+	      return 0;
+	    }
+	  /* ??? = <Protocol> : let comptypes decide */
+	  else
+	    {
+	      return -1;
+	    }
+	}
       else
-	/* Defer to comptypes.  */
-	return -1;
+	{
+	  /* Attention: we shouldn't defer to comptypes here.  One bad
+	     side effect would be that we might loose the REFLEXIVE
+	     information.
+	  */
+	  lhs = TREE_TYPE (lhs);
+	  rhs = TREE_TYPE (rhs);
+	}
     }
 
-  else if (TREE_CODE (lhs) == RECORD_TYPE && TREE_CODE (rhs) == RECORD_TYPE)
-    ; /* Fall thru.  This is the case we have been handling all along */
-  else
-    /* Defer to comptypes.  */
-    return -1;
+  if (TREE_CODE (lhs) != RECORD_TYPE || TREE_CODE (rhs) != RECORD_TYPE)
+    {
+      /* Nothing to do with ObjC - let immediately comptypes take
+	 responsibility for checking.  */
+      return -1;
+    }
 
-  /* `id' = `<class> *', `<class> *' = `id' */
-
+  /* `id' = `<class> *' `<class> *' = `id': always allow it.
+     Please note that 
+     'Object *o = [[Object alloc] init]; falls
+     in the case <class> * = `id'.
+  */
   if ((TYPE_NAME (lhs) == objc_object_id && TYPED_OBJECT (rhs))
       || (TYPE_NAME (rhs) == objc_object_id && TYPED_OBJECT (lhs)))
     return 1;
@@ -864,7 +896,7 @@ objc_comptypes (lhs, rhs, reflexive)
       return 0;
     }
   else
-    /* Defer to comptypes.  */
+    /* Not an ObjC type - let comptypes do the check.  */
     return -1;
 }
 
@@ -882,13 +914,6 @@ objc_check_decl (decl)
     error_with_decl (decl, "`%s' cannot be statically allocated");
 }
 
-void
-maybe_objc_check_decl (decl)
-     tree decl;
-{
-  objc_check_decl (decl);
-}
-
 /* Implement static typing.  At this point, we know we have an interface.  */
 
 tree
@@ -903,7 +928,6 @@ get_static_reference (interface, protocols)
       tree t, m = TYPE_MAIN_VARIANT (type);
 
       t = copy_node (type);
-      TYPE_BINFO (t) = make_tree_vec (2);
 
       /* Add this type to the chain of variants of TYPE.  */
       TYPE_NEXT_VARIANT (t) = TYPE_NEXT_VARIANT (m);
@@ -954,7 +978,6 @@ get_object_reference (protocols)
       tree t, m = TYPE_MAIN_VARIANT (type);
 
       t = copy_node (type);
-      TYPE_BINFO (t) = make_tree_vec (2);
 
       /* Add this type to the chain of variants of TYPE.  */
       TYPE_NEXT_VARIANT (t) = TYPE_NEXT_VARIANT (m);
@@ -1131,14 +1154,12 @@ synth_module_prologue ()
       DECL_INLINE (umsg_decl) = 1;
       DECL_ARTIFICIAL (umsg_decl) = 1;
 
-      if (flag_traditional && TAG_MSGSEND[0] != '_')
-	DECL_BUILT_IN_NONANSI (umsg_decl) = 1;
-
       make_decl_rtl (umsg_decl, NULL);
       pushdecl (umsg_decl);
     }
   else
-    umsg_decl = builtin_function (TAG_MSGSEND, temp_type, 0, NOT_BUILT_IN, 0);
+    umsg_decl = builtin_function (TAG_MSGSEND, temp_type, 0, NOT_BUILT_IN,
+				  NULL, NULL_TREE);
 
   /* id objc_msgSendSuper (struct objc_super *, SEL, ...); */
 
@@ -1149,7 +1170,8 @@ synth_module_prologue ()
 						 NULL_TREE)));
 
   umsg_super_decl = builtin_function (TAG_MSGSENDSUPER,
-				     temp_type, 0, NOT_BUILT_IN, 0);
+				      temp_type, 0, NOT_BUILT_IN,
+				      NULL, NULL_TREE);
 
   /* id objc_getClass (const char *); */
 
@@ -1160,12 +1182,14 @@ synth_module_prologue ()
 					      NULL_TREE)));
 
   objc_get_class_decl
-    = builtin_function (TAG_GETCLASS, temp_type, 0, NOT_BUILT_IN, 0);
+    = builtin_function (TAG_GETCLASS, temp_type, 0, NOT_BUILT_IN,
+			NULL, NULL_TREE);
 
   /* id objc_getMetaClass (const char *); */
 
   objc_get_meta_class_decl
-    = builtin_function (TAG_GETMETACLASS, temp_type, 0, NOT_BUILT_IN, 0);
+    = builtin_function (TAG_GETMETACLASS, temp_type, 0, NOT_BUILT_IN,
+			NULL, NULL_TREE);
 
   /* static SEL _OBJC_SELECTOR_TABLE[]; */
 
@@ -1176,7 +1200,7 @@ synth_module_prologue ()
 	  /* Suppress outputting debug symbols, because
 	     dbxout_init hasn'r been called yet.  */
 	  enum debug_info_type save_write_symbols = write_symbols;
-	  struct gcc_debug_hooks *save_hooks = debug_hooks;
+	  const struct gcc_debug_hooks *const save_hooks = debug_hooks;
 	  write_symbols = NO_DEBUG;
 	  debug_hooks = &do_nothing_debug_hooks;
 
@@ -1243,21 +1267,7 @@ my_build_string (len, str)
      int len;
      const char *str;
 {
-  int wide_flag = 0;
-  tree a_string = build_string (len, str);
-
-  /* Some code from combine_strings, which is local to c-parse.y.  */
-  if (TREE_TYPE (a_string) == int_array_type_node)
-    wide_flag = 1;
-
-  TREE_TYPE (a_string)
-    = build_array_type (wide_flag ? integer_type_node : char_type_node,
-			build_index_type (build_int_2 (len - 1, 0)));
-
-  TREE_CONSTANT (a_string) = 1;	/* Puts string in the readonly segment */
-  TREE_STATIC (a_string) = 1;
-
-  return a_string;
+  return fix_string_type (build_string (len, str));
 }
 
 /* Given a chain of STRING_CST's, build a static instance of
@@ -1283,7 +1293,21 @@ build_objc_string_object (strings)
 
   add_class_reference (constant_string_id);
 
-  string = combine_strings (strings);
+  if (TREE_CHAIN (strings))
+    {
+      varray_type vstrings;
+      VARRAY_TREE_INIT (vstrings, 32, "strings");
+
+      for (; strings ; strings = TREE_CHAIN (strings))
+	VARRAY_PUSH_TREE (vstrings, strings);
+
+      string = combine_strings (vstrings);
+    }
+  else
+    string = strings;
+
+  string = fix_string_type (string);
+
   TREE_SET_CODE (string, STRING_CST);
   length = TREE_STRING_LENGTH (string) - 1;
 
@@ -1390,7 +1414,7 @@ build_constructor (type, elts)
   else
     {
       f = TYPE_FIELDS (type);
-      for (e = elts; e ; e = TREE_CHAIN (e), f = TREE_CHAIN (f))
+      for (e = elts; e && f; e = TREE_CHAIN (e), f = TREE_CHAIN (f))
 	if (TREE_CODE (TREE_TYPE (f)) == POINTER_TYPE
 	    || TREE_CODE (TREE_TYPE (f)) == INTEGER_TYPE)
 	  TREE_VALUE (e) = convert (TREE_TYPE (f), TREE_VALUE (e));
@@ -1813,7 +1837,7 @@ get_objc_string_decl (ident, section)
   else
     abort ();
 
-  for (; chain != 0; chain = TREE_VALUE (chain))
+  for (; chain != 0; chain = TREE_CHAIN (chain))
     if (TREE_VALUE (chain) == ident)
       return (TREE_PURPOSE (chain));
 
@@ -2003,6 +2027,32 @@ build_selector_translation_table ()
     {
       tree expr;
 
+      if (warn_selector && objc_implementation_context)
+      {
+        tree method_chain;
+        bool found = false;
+        for (method_chain = meth_var_names_chain;
+             method_chain;
+             method_chain = TREE_CHAIN (method_chain))
+          {
+            if (TREE_VALUE (method_chain) == TREE_VALUE (chain))
+              {
+                found = true;
+                break;
+              }
+          }
+        if (!found)
+          {
+            /* Adjust line number for warning message.  */
+            int save_lineno = lineno;
+            if (flag_next_runtime && TREE_PURPOSE (chain))
+              lineno = DECL_SOURCE_LINE (TREE_PURPOSE (chain));
+            warning ("creating selector for non existant method %s",
+                     IDENTIFIER_POINTER (TREE_VALUE (chain)));
+            lineno = save_lineno;
+          }
+      }
+
       expr = build_selector (TREE_VALUE (chain));
 
       if (flag_next_runtime)
@@ -2086,8 +2136,8 @@ get_proto_encoding (proto)
    identifier_node that represent the selector.  */
 
 static tree
-build_typed_selector_reference (ident, proto)
-     tree ident, proto;
+build_typed_selector_reference (ident, prototype)
+     tree ident, prototype;
 {
   tree *chain = &sel_ref_chain;
   tree expr;
@@ -2095,14 +2145,14 @@ build_typed_selector_reference (ident, proto)
 
   while (*chain)
     {
-      if (TREE_PURPOSE (*chain) == ident && TREE_VALUE (*chain) == proto)
+      if (TREE_PURPOSE (*chain) == prototype && TREE_VALUE (*chain) == ident)
 	goto return_at_index;
 
       index++;
       chain = &TREE_CHAIN (*chain);
     }
 
-  *chain = tree_cons (proto, ident, NULL_TREE);
+  *chain = tree_cons (prototype, ident, NULL_TREE);
 
  return_at_index:
   expr = build_unary_op (ADDR_EXPR,
@@ -2370,6 +2420,17 @@ is_class_name (ident)
 }
 
 tree
+objc_is_id (ident)
+     tree ident;
+{
+  /* NB: This function may be called before the ObjC front-end
+     has been initialized, in which case ID_TYPE will be NULL. */
+  return (id_type && ident && TYPE_P (ident) && IS_ID (ident)) 
+	  ? id_type 
+	  : NULL_TREE;
+}
+
+tree
 lookup_interface (ident)
      tree ident;
 {
@@ -2383,51 +2444,23 @@ lookup_interface (ident)
   return NULL_TREE;
 }
 
-static tree
-objc_copy_list (list, head)
-     tree list;
-     tree *head;
-{
-  tree newlist = NULL_TREE, tail = NULL_TREE;
+/* Used by: build_private_template, continue_class,
+   and for @defs constructs.  */
 
-  while (list)
-    {
-      tail = copy_node (list);
-
-      /* The following statement fixes a bug when inheriting instance
-	 variables that are declared to be bitfields. finish_struct
-	 expects to find the width of the bitfield in DECL_INITIAL.  */
-      if (DECL_BIT_FIELD (tail) && DECL_INITIAL (tail) == 0)
-	DECL_INITIAL (tail) = DECL_SIZE (tail);
-
-      newlist = chainon (newlist, tail);
-      list = TREE_CHAIN (list);
-    }
-
-  *head = newlist;
-  return tail;
-}
-
-/* Used by: build_private_template, get_class_ivars, and
-   continue_class.  COPY is 1 when called from @defs.  In this case
-   copy all fields.  Otherwise don't copy leaf ivars since we rely on
-   them being side-effected exactly once by finish_struct.  */
-
-static tree
-build_ivar_chain (interface, copy)
+tree
+get_class_ivars (interface)
      tree interface;
-     int copy;
 {
   tree my_name, super_name, ivar_chain;
 
   my_name = CLASS_NAME (interface);
   super_name = CLASS_SUPER_NAME (interface);
+  ivar_chain = CLASS_IVARS (interface);
 
-  /* Possibly copy leaf ivars.  */
-  if (copy)
-    objc_copy_list (CLASS_IVARS (interface), &ivar_chain);
-  else
-    ivar_chain = CLASS_IVARS (interface);
+  /* Save off a pristine copy of the leaf ivars (i.e, those not
+     inherited from a super class).  */
+  if (!CLASS_OWN_IVARS (interface))
+    CLASS_OWN_IVARS (interface) = copy_list (ivar_chain);
 
   while (super_name)
     {
@@ -2451,14 +2484,14 @@ build_ivar_chain (interface, copy)
       my_name = CLASS_NAME (interface);
       super_name = CLASS_SUPER_NAME (interface);
 
-      op1 = CLASS_IVARS (interface);
+      op1 = CLASS_OWN_IVARS (interface);
       if (op1)
         {
-	  tree head, tail = objc_copy_list (op1, &head);
+	  tree head = copy_list (op1);
 
 	  /* Prepend super class ivars...make a copy of the list, we
 	     do not want to alter the original.  */
-	  TREE_CHAIN (tail) = ivar_chain;
+	  chainon (head, ivar_chain);
 	  ivar_chain = head;
         }
     }
@@ -2485,7 +2518,7 @@ build_private_template (class)
     {
       uprivate_record = start_struct (RECORD_TYPE, CLASS_NAME (class));
 
-      ivar_context = build_ivar_chain (class, 0);
+      ivar_context = get_class_ivars (class);
 
       finish_struct (uprivate_record, ivar_context, NULL_TREE);
 
@@ -3003,6 +3036,43 @@ generate_protocol_references (plist)
     }
 }
 
+/* For each protocol which was referenced either from a @protocol()
+   expression, or because a class/category implements it (then a
+   pointer to the protocol is stored in the struct describing the
+   class/category), we create a statically allocated instance of the
+   Protocol class.  The code is written in such a way as to generate
+   as few Protocol objects as possible; we generate a unique Protocol
+   instance for each protocol, and we don't generate a Protocol
+   instance if the protocol is never referenced (either from a
+   @protocol() or from a class/category implementation).  These
+   statically allocated objects can be referred to via the static
+   (that is, private to this module) symbols _OBJC_PROTOCOL_n.
+   
+   The statically allocated Protocol objects that we generate here
+   need to be fixed up at runtime in order to be used: the 'isa'
+  pointer of the objects need to be set up to point to the 'Protocol'
+   class, as known at runtime.
+
+   The NeXT runtime fixes up all protocols at program startup time,
+   before main() is entered.  It uses a low-level trick to look up all
+   those symbols, then loops on them and fixes them up.
+
+   The GNU runtime as well fixes up all protocols before user code
+   from the module is executed; it requires pointers to those symbols
+   to be put in the objc_symtab (which is then passed as argument to
+   the function __objc_exec_class() which the compiler sets up to be
+   executed automatically when the module is loaded); setup of those
+   Protocol objects happen in two ways in the GNU runtime: all
+   Protocol objects referred to by a class or category implementation
+   are fixed up when the class/category is loaded; all Protocol
+   objects referred to by a @protocol() expression are added by the
+   compiler to the list of statically allocated instances to fixup
+   (the same list holding the statically allocated constant string
+   objects).  Because, as explained above, the compiler generates as
+   few Protocol objects as possible, some Protocol object might end up
+   being referenced multiple times when compiled with the GNU runtime,
+   and end up being fixed up multiple times at runtime inizialization.
+   But that doesn't hurt, it's just a little inefficient.  */
 static void
 generate_protocols ()
 {
@@ -3464,9 +3534,9 @@ error_with_ivar (message, decl, rawdecl)
      tree decl;
      tree rawdecl;
 {
-  count_error (0);
+  diagnostic_count_diagnostic (global_dc, DK_ERROR);
 
-  report_error_function (DECL_SOURCE_FILE (decl));
+  diagnostic_report_current_function (global_dc);
 
   error_with_file_and_line (DECL_SOURCE_FILE (decl),
 			    DECL_SOURCE_LINE (decl),
@@ -3474,10 +3544,6 @@ error_with_ivar (message, decl, rawdecl)
 			    message, gen_declaration (rawdecl, errbuf));
 
 }
-
-#define USERTYPE(t) \
- (TREE_CODE (t) == RECORD_TYPE || TREE_CODE (t) == UNION_TYPE \
-  ||  TREE_CODE (t) == ENUMERAL_TYPE)
 
 static void
 check_ivars (inter, imp)
@@ -4508,6 +4574,10 @@ adjust_type_for_id_default (type)
        chain;
        chain = TREE_CHAIN (chain))
     {
+      if (TYPED_OBJECT (TREE_VALUE (chain))
+          && !(TREE_VALUE (type) 
+               && TREE_CODE (TREE_VALUE (type)) == INDIRECT_REF))
+        error ("can not use an object as parameter to a method\n");
       if (!is_objc_type_qualifier (TREE_VALUE (chain)))
 	return type;
     }
@@ -4778,12 +4848,12 @@ receiver_is_class_object (receiver)
    the identifier of the selector of the message.  This is
    used when printing warnings about argument mismatches.  */
 
-static tree building_objc_message_expr = 0;
+static tree current_objc_message_selector = 0;
 
 tree
-maybe_building_objc_message_expr ()
+objc_message_selector ()
 {
-  return building_objc_message_expr;
+  return current_objc_message_selector;
 }
 
 /* Construct an expression for sending a message.
@@ -4924,7 +4994,7 @@ finish_message_expr (receiver, sel_name, method_params)
       if (iface)
 	method_prototype = lookup_instance_method_static (iface, sel_name);
 
-      if (! method_prototype && TYPE_PROTOCOL_LIST (ctype))
+      if (! method_prototype && ctype && TYPE_PROTOCOL_LIST (ctype))
 	method_prototype
 	  = lookup_method_in_protocol_list (TYPE_PROTOCOL_LIST (ctype),
 					    sel_name, 0);
@@ -5059,7 +5129,7 @@ finish_message_expr (receiver, sel_name, method_params)
     }
 
   /* Save the selector name for printing error messages.  */
-  building_objc_message_expr = sel_name;
+  current_objc_message_selector = sel_name;
 
   /* Build the parameters list for looking up the method.
      These are the object itself and the selector.  */
@@ -5073,7 +5143,7 @@ finish_message_expr (receiver, sel_name, method_params)
 				   receiver, self_object,
 				   selector, method_params);
 
-  building_objc_message_expr = 0;
+  current_objc_message_selector = 0;
 
   return retval;
 }
@@ -5217,6 +5287,8 @@ build_protocol_reference (p)
   PROTOCOL_FORWARD_DECL (p) = decl;
 }
 
+/* This function is called by the parser when (and only when) a
+   @protocol() expression is found, in order to compile it.  */
 tree
 build_protocol_expr (protoname)
      tree protoname;
@@ -5238,9 +5310,56 @@ build_protocol_expr (protoname)
 
   TREE_TYPE (expr) = protocol_type;
 
+  /* The @protocol() expression is being compiled into a pointer to a
+     statically allocated instance of the Protocol class.  To become
+     usable at runtime, the 'isa' pointer of the instance need to be
+     fixed up at runtime by the runtime library, to point to the
+     actual 'Protocol' class.  */
+
+  /* For the GNU runtime, put the static Protocol instance in the list
+     of statically allocated instances, so that we make sure that its
+     'isa' pointer is fixed up at runtime by the GNU runtime library
+     to point to the Protocol class (at runtime, when loading the
+     module, the GNU runtime library loops on the statically allocated
+     instances (as found in the defs field in objc_symtab) and fixups
+     all the 'isa' pointers of those objects).  */
+  if (! flag_next_runtime)
+    {
+      /* This type is a struct containing the fields of a Protocol
+        object.  (Cfr. protocol_type instead is the type of a pointer
+        to such a struct).  */
+      tree protocol_struct_type = xref_tag 
+       (RECORD_TYPE, get_identifier (PROTOCOL_OBJECT_CLASS_NAME));
+      tree *chain;
+      
+      /* Look for the list of Protocol statically allocated instances
+        to fixup at runtime.  Create a new list to hold Protocol
+        statically allocated instances, if the list is not found.  At
+        present there is only another list, holding NSConstantString
+        static instances to be fixed up at runtime.  */
+      for (chain = &objc_static_instances;
+	   *chain && TREE_VALUE (*chain) != protocol_struct_type;
+	   chain = &TREE_CHAIN (*chain));
+      if (!*chain)
+	{
+         *chain = tree_cons (NULL_TREE, protocol_struct_type, NULL_TREE);
+         add_objc_string (TYPE_NAME (protocol_struct_type),
+                          class_names);
+       }
+      
+      /* Add this statically allocated instance to the Protocol list.  */
+      TREE_PURPOSE (*chain) = tree_cons (NULL_TREE, 
+					 PROTOCOL_FORWARD_DECL (p),
+					 TREE_PURPOSE (*chain));
+    }
+  
+
   return expr;
 }
 
+/* This function is called by the parser when a @selector() expression
+   is found, in order to compile it.  It is only called by the parser
+   and only to compile a @selector().  */
 tree
 build_selector_expr (selnamelist)
      tree selnamelist;
@@ -5255,6 +5374,32 @@ build_selector_expr (selnamelist)
     selname = build_keyword_selector (selnamelist);
   else
     abort ();
+
+  /* If we are required to check @selector() expressions as they
+     are found, check that the selector has been declared.  */
+  if (warn_undeclared_selector)
+    {
+      /* Look the selector up in the list of all known class and
+         instance methods (up to this line) to check that the selector
+         exists.  */
+      hash hsh;
+
+      /* First try with instance methods.  */
+      hsh = hash_lookup (nst_method_hash_list, selname);
+      
+      /* If not found, try with class methods.  */
+      if (!hsh)
+	{
+	  hsh = hash_lookup (cls_method_hash_list, selname);
+	}
+      
+      /* If still not found, print out a warning.  */
+      if (!hsh)
+	{
+	  warning ("undeclared selector `%s'", IDENTIFIER_POINTER (selname));
+	}
+    }
+  
 
   if (flag_typed_selectors)
     return build_typed_selector_reference (selname, 0);
@@ -5321,8 +5466,8 @@ hash_func (sel_name)
 static void
 hash_init ()
 {
-  nst_method_hash_list = (hash *) xcalloc (SIZEHASHTABLE, sizeof (hash));
-  cls_method_hash_list = (hash *) xcalloc (SIZEHASHTABLE, sizeof (hash));
+  nst_method_hash_list = (hash *) ggc_calloc (SIZEHASHTABLE, sizeof (hash));
+  cls_method_hash_list = (hash *) ggc_calloc (SIZEHASHTABLE, sizeof (hash));
 }
 
 /* WARNING!!!!  hash_enter is called with a method, and will peek
@@ -5335,18 +5480,10 @@ hash_enter (hashlist, method)
      hash *hashlist;
      tree method;
 {
-  static hash 	hash_alloc_list = 0;
-  static int	hash_alloc_index = 0;
   hash obj;
   int slot = hash_func (METHOD_SEL_NAME (method)) % SIZEHASHTABLE;
 
-  if (! hash_alloc_list || hash_alloc_index >= HASH_ALLOC_LIST_SIZE)
-    {
-      hash_alloc_index = 0;
-      hash_alloc_list = (hash) xmalloc (sizeof (struct hashed_entry)
-					* HASH_ALLOC_LIST_SIZE);
-    }
-  obj = &hash_alloc_list[hash_alloc_index++];
+  obj = (hash) ggc_alloc (sizeof (struct hashed_entry));
   obj->list = 0;
   obj->next = hashlist[slot];
   obj->key = method;
@@ -5378,17 +5515,9 @@ hash_add_attr (entry, value)
      hash entry;
      tree value;
 {
-  static attr 	attr_alloc_list = 0;
-  static int	attr_alloc_index = 0;
   attr obj;
 
-  if (! attr_alloc_list || attr_alloc_index >= ATTR_ALLOC_LIST_SIZE)
-    {
-      attr_alloc_index = 0;
-      attr_alloc_list = (attr) xmalloc (sizeof (struct hashed_attribute)
-					* ATTR_ALLOC_LIST_SIZE);
-    }
-  obj = &attr_alloc_list[attr_alloc_index++];
+  obj = (attr) ggc_alloc (sizeof (struct hashed_attribute));
   obj->next = entry->list;
   obj->value = value;
 
@@ -5411,6 +5540,7 @@ lookup_method (mchain, method)
     {
       if (METHOD_SEL_NAME (mchain) == key)
 	return mchain;
+
       mchain = TREE_CHAIN (mchain);
     }
   return NULL_TREE;
@@ -5782,18 +5912,6 @@ is_public (expr, identifier)
 
   return 1;
 }
-
-/* Implement @defs (<classname>) within struct bodies.  */
-
-tree
-get_class_ivars (interface)
-     tree interface;
-{
-  /* Make sure we copy the leaf ivars in case @defs is used in a local
-     context.  Otherwise finish_struct will overwrite the layout info
-     using temporary storage.  */
-  return build_ivar_chain (interface, 1);
-}
 
 /* Make sure all entries in CHAIN are also in LIST.  */
 
@@ -5940,7 +6058,7 @@ check_protocol (p, type, name)
       int f1, f2;
 
       /* Ensure that all protocols have bodies!  */
-      if (flag_warn_protocol)
+      if (warn_protocol)
 	{
 	  f1 = check_methods (PROTOCOL_CLS_METHODS (p),
 			      CLASS_CLS_METHODS (objc_implementation_context),
@@ -6025,7 +6143,7 @@ start_class (code, class_name, super_name, protocol_list)
     }
 
   class = make_node (code);
-  TYPE_BINFO (class) = make_tree_vec (5);
+  TYPE_BINFO (class) = make_tree_vec (6);
 
   CLASS_NAME (class) = class_name;
   CLASS_SUPER_NAME (class) = super_name;
@@ -6189,7 +6307,7 @@ continue_class (class)
       if (!objc_class_template)
 	build_class_template ();
 
-      imp_entry = (struct imp_entry *) xmalloc (sizeof (struct imp_entry));
+      imp_entry = (struct imp_entry *) ggc_alloc (sizeof (struct imp_entry));
 
       imp_entry->next = imp_list;
       imp_entry->imp_context = class;
@@ -6215,7 +6333,7 @@ continue_class (class)
 
       if (!TYPE_FIELDS (record))
 	{
-	  finish_struct (record, build_ivar_chain (class, 0), NULL_TREE);
+	  finish_struct (record, get_class_ivars (class), NULL_TREE);
 	  CLASS_STATIC_TEMPLATE (class) = record;
 
 	  /* Mark this record as a class template for static typing.  */
@@ -6766,7 +6884,10 @@ encode_type (type, curtype, format)
 }
 
 static void
-encode_complete_bitfield (int position, tree type, int size)
+encode_complete_bitfield (position, type, size)
+     int position;
+     tree type;
+     int size;
 {
   enum tree_code code = TREE_CODE (type);
   char buffer[40];
@@ -6836,14 +6957,14 @@ encode_field_decl (field_decl, curtype, format)
      the bitfield typing information.  */
   if (flag_next_runtime)
     {
-      if (DECL_BIT_FIELD (field_decl))
+      if (DECL_BIT_FIELD_TYPE (field_decl))
 	encode_bitfield (tree_low_cst (DECL_SIZE (field_decl), 1));
       else
 	encode_type (TREE_TYPE (field_decl), curtype, format);
     }
   else
     {
-      if (DECL_BIT_FIELD (field_decl))
+      if (DECL_BIT_FIELD_TYPE (field_decl))
 	encode_complete_bitfield (int_bit_position (field_decl),
 				  DECL_BIT_FIELD_TYPE (field_decl),
 				  tree_low_cst (DECL_SIZE (field_decl), 1));
@@ -6959,10 +7080,10 @@ warn_with_method (message, mtype, method)
      int mtype;
      tree method;
 {
-  if (count_error (1) == 0)
+  if (!diagnostic_count_diagnostic (global_dc, DK_WARNING))
     return;
 
-  report_error_function (DECL_SOURCE_FILE (method));
+  diagnostic_report_current_function (global_dc);
 
   /* Add a readable method name to the warning.  */
   warning_with_file_and_line (DECL_SOURCE_FILE (method),
@@ -7203,9 +7324,13 @@ get_super_receiver ()
 	    {
 	      super_class = get_class_reference (super_name);
 	      if (TREE_CODE (objc_method_context) == CLASS_METHOD_DECL)
+		/* Cast the super class to 'id', since the user may not have
+		   included <objc/objc-class.h>, leaving 'struct objc_class'
+		   an incomplete type.  */
 		super_class
-		  = build_component_ref (build_indirect_ref (super_class, "->"),
-					 get_identifier ("isa"));
+		  = build_component_ref (build_indirect_ref 
+					 (build_c_cast (id_type, super_class), "->"),
+					  get_identifier ("isa"));
 	    }
 	  else
 	    {
@@ -7963,12 +8088,21 @@ gen_method_decl (method, buf)
 
 /* Debug info.  */
 
+
+/* Dump an @interface declaration of the supplied class CHAIN to the
+   supplied file FP.  Used to implement the -gen-decls option (which
+   prints out an @interface declaration of all classes compiled in
+   this run); potentially useful for debugging the compiler too.  */
 static void
 dump_interface (fp, chain)
      FILE *fp;
      tree chain;
 {
-  char *buf = (char *) xmalloc (256);
+  /* FIXME: A heap overflow here whenever a method (or ivar)
+     declaration is so long that it doesn't fit in the buffer.  The
+     code and all the related functions should be rewritten to avoid
+     using fixed size buffers.  */
+  char *buf = (char *) xmalloc (1024 * 10);
   const char *my_name = IDENTIFIER_POINTER (CLASS_NAME (chain));
   tree ivar_decls = CLASS_RAW_IVARS (chain);
   tree nst_methods = CLASS_NST_METHODS (chain);
@@ -7976,14 +8110,26 @@ dump_interface (fp, chain)
 
   fprintf (fp, "\n@interface %s", my_name);
 
+  /* CLASS_SUPER_NAME is used to store the superclass name for 
+     classes, and the category name for categories.  */
   if (CLASS_SUPER_NAME (chain))
     {
-      const char *super_name = IDENTIFIER_POINTER (CLASS_SUPER_NAME (chain));
-      fprintf (fp, " : %s\n", super_name);
+      const char *name = IDENTIFIER_POINTER (CLASS_SUPER_NAME (chain));
+      
+      if (TREE_CODE (chain) == CATEGORY_IMPLEMENTATION_TYPE 
+	  || TREE_CODE (chain) == CATEGORY_INTERFACE_TYPE)
+	{
+	  fprintf (fp, " (%s)\n", name);
+	}
+      else
+	{
+	  fprintf (fp, " : %s\n", name);
+	}
     }
   else
     fprintf (fp, "\n");
 
+  /* FIXME - the following doesn't seem to work at the moment.  */
   if (ivar_decls)
     {
       fprintf (fp, "{\n");
@@ -8007,7 +8153,8 @@ dump_interface (fp, chain)
       fprintf (fp, "+ %s;\n", gen_method_decl (cls_methods, buf));
       cls_methods = TREE_CHAIN (cls_methods);
     }
-  fprintf (fp, "\n@end");
+
+  fprintf (fp, "@end\n");
 }
 
 /* Demangle function for Objective-C */
@@ -8067,28 +8214,12 @@ objc_demangle (mangled)
     return mangled;             /* not an objc mangled name */
 }
 
-static const char *
+const char *
 objc_printable_name (decl, kind)
      tree decl;
      int kind ATTRIBUTE_UNUSED;
 {
   return objc_demangle (IDENTIFIER_POINTER (DECL_NAME (decl)));
-}
-
-/* Adds the tree codes specific to the ObjC/ObjC++ front end to the
-   list of all tree codes.  */
-
-static void
-add_objc_tree_codes ()
-{
-  int add = (int) LAST_OBJC_TREE_CODE - (int) LAST_BASE_TREE_CODE;
-
-  memcpy (tree_code_type + (int) LAST_BASE_TREE_CODE,
-	  objc_tree_code_type, add);
-  memcpy (tree_code_length + (int) LAST_BASE_TREE_CODE,
-	  objc_tree_code_length, add * sizeof (int));
-  memcpy (tree_code_name + (int) LAST_BASE_TREE_CODE,
-	  objc_tree_code_name, add * sizeof (char *));
 }
 
 static void
@@ -8143,7 +8274,16 @@ finish_objc ()
 
       UOBJC_CLASS_decl = impent->class_decl;
       UOBJC_METACLASS_decl = impent->meta_decl;
-
+      
+      /* Dump the @interface of each class as we compile it, if the
+	 -gen-decls option is in use.  TODO: Dump the classes in the
+         order they were found, rather than in reverse order as we
+         are doing now.  */
+      if (flag_gen_declaration)
+	{
+	  dump_interface (gen_declaration_file, objc_implementation_context);
+	}
+      
       if (TREE_CODE (objc_implementation_context) == CLASS_IMPLEMENTATION_TYPE)
 	{
 	  /* all of the following reference the string pool...  */
@@ -8193,12 +8333,6 @@ finish_objc ()
   /* Dump the string table last.  */
 
   generate_strings ();
-
-  if (flag_gen_declaration)
-    {
-      add_class (objc_implementation_context);
-      dump_interface (gen_declaration_file, objc_implementation_context);
-    }
 
   if (warn_selector)
     {
@@ -8364,7 +8498,7 @@ handle_impent (impent)
       tree decl, init;
 
       init = build_int_2 (0, 0);
-      TREE_TYPE (init) = type_for_size (BITS_PER_WORD, 1);
+      TREE_TYPE (init) = c_common_type_for_size (BITS_PER_WORD, 1);
       decl = build_decl (VAR_DECL, get_identifier (string), TREE_TYPE (init));
       TREE_PUBLIC (decl) = 1;
       TREE_READONLY (decl) = 1;
@@ -8377,51 +8511,6 @@ handle_impent (impent)
     }
 }
 
-static void
-ggc_mark_imp_list (arg)
-     void *arg;
-{
-  struct imp_entry *impent;
-
-  for (impent = *(struct imp_entry **)arg; impent; impent = impent->next)
-    {
-      ggc_mark_tree (impent->imp_context);
-      ggc_mark_tree (impent->imp_template);
-      ggc_mark_tree (impent->class_decl);
-      ggc_mark_tree (impent->meta_decl);
-    }
-}
-
-static void
-ggc_mark_hash_table (arg)
-     void *arg;
-{
-  hash *hash_table = *(hash **)arg;
-  hash hst;
-  attr list;
-  int i;
-
-  if (hash_table == NULL)
-    return;
-  for (i = 0; i < SIZEHASHTABLE; i++)
-    for (hst = hash_table [i]; hst; hst = hst->next)
-      {
-	ggc_mark_tree (hst->key);
-	for (list = hst->list; list; list = list->next)
-	  ggc_mark_tree (list->value);
-      }
-}
-
-/* Add GC roots for variables local to this file.  */
-static void
-objc_act_parse_init ()
-{
-  ggc_add_tree_root (objc_global_trees, OCTI_MAX);
-  ggc_add_root (&imp_list, 1, sizeof imp_list, ggc_mark_imp_list);
-  ggc_add_root (&nst_method_hash_list, 1, sizeof nst_method_hash_list, ggc_mark_hash_table);
-  ggc_add_root (&cls_method_hash_list, 1, sizeof cls_method_hash_list, ggc_mark_hash_table);
-}
-
 /* Look up ID as an instance variable.  */
 tree
 lookup_objc_ivar (id)
@@ -8429,8 +8518,8 @@ lookup_objc_ivar (id)
 {
   tree decl;
 
-  if (objc_receiver_context && !strcmp (IDENTIFIER_POINTER (id), "super"))
-    /* we have a message to super */
+  if (objc_method_context && !strcmp (IDENTIFIER_POINTER (id), "super"))
+    /* We have a message to super.  */
     return get_super_receiver ();
   else if (objc_method_context && (decl = is_ivar (objc_ivar_chain, id)))
     {
@@ -8442,3 +8531,5 @@ lookup_objc_ivar (id)
   else
     return 0;
 }
+
+#include "gtype-objc.h"

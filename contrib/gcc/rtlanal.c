@@ -25,13 +25,21 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 #include "toplev.h"
 #include "rtl.h"
 #include "hard-reg-set.h"
+#include "insn-config.h"
+#include "recog.h"
 #include "tm_p.h"
+#include "flags.h"
+#include "basic-block.h"
+#include "real.h"
 
 /* Forward declarations */
+static int global_reg_mentioned_p_1 PARAMS ((rtx *, void *));
 static void set_of_1		PARAMS ((rtx, rtx, void *));
 static void insn_dependent_p_1	PARAMS ((rtx, rtx, void *));
 static int computed_jump_p_1	PARAMS ((rtx));
 static void parms_set 		PARAMS ((rtx, rtx, void *));
+static bool hoist_test_store		PARAMS ((rtx, rtx, regset));
+static void hoist_update_store		PARAMS ((rtx, rtx *, rtx, rtx));
 
 /* Bit flags that specify the machine subtype we are compiling for.
    Bits are tested using macros TARGET_... defined in the tm.h file
@@ -172,7 +180,7 @@ rtx_varies_p (x, for_alias)
 	 during alias analysis.  */
       return (! for_alias && rtx_varies_p (XEXP (x, 0), for_alias))
 	     || rtx_varies_p (XEXP (x, 1), for_alias);
-      
+
     case ASM_OPERANDS:
       if (MEM_VOLATILE_P (x))
 	return 1;
@@ -261,9 +269,9 @@ rtx_addr_can_trap_p (x)
   return 1;
 }
 
-/* Return 1 if X refers to a memory location whose address 
+/* Return 1 if X refers to a memory location whose address
    cannot be compared reliably with constant addresses,
-   or if X refers to a BLKmode memory object. 
+   or if X refers to a BLKmode memory object.
    FOR_ALIAS is nonzero if we are called from alias analysis; if it is
    zero, we are slightly more conservative.  */
 
@@ -345,7 +353,7 @@ get_related_value (x)
    into the jump table.  If the offset cannot be determined, then return
    NULL_RTX.
 
-   If EARLIEST is non-zero, it is a pointer to a place where the earliest
+   If EARLIEST is nonzero, it is a pointer to a place where the earliest
    insn used in locating the offset was found.  */
 
 rtx
@@ -481,6 +489,82 @@ get_jump_table_offset (insn, earliest)
   return x;
 }
 
+/* A subroutine of global_reg_mentioned_p, returns 1 if *LOC mentions
+   a global register.  */
+
+static int
+global_reg_mentioned_p_1 (loc, data)
+     rtx *loc;
+     void *data ATTRIBUTE_UNUSED;
+{
+  int regno;
+  rtx x = *loc;
+
+  if (! x)
+    return 0;
+
+  switch (GET_CODE (x))
+    {
+    case SUBREG:
+      if (GET_CODE (SUBREG_REG (x)) == REG)
+	{
+	  if (REGNO (SUBREG_REG (x)) < FIRST_PSEUDO_REGISTER
+	      && global_regs[subreg_regno (x)])
+	    return 1;
+	  return 0;
+	}
+      break;
+
+    case REG:
+      regno = REGNO (x);
+      if (regno < FIRST_PSEUDO_REGISTER && global_regs[regno])
+	return 1;
+      return 0;
+
+    case SCRATCH:
+    case PC:
+    case CC0:
+    case CONST_INT:
+    case CONST_DOUBLE:
+    case CONST:
+    case LABEL_REF:
+      return 0;
+
+    case CALL:
+      /* A non-constant call might use a global register.  */
+      return 1;
+
+    default:
+      break;
+    }
+
+  return 0;
+}
+
+/* Returns nonzero if X mentions a global register.  */
+
+int
+global_reg_mentioned_p (x)
+     rtx x;
+{
+
+  if (INSN_P (x))
+    {
+      if (GET_CODE (x) == CALL_INSN)
+	{
+	  if (! CONST_OR_PURE_CALL_P (x))
+	    return 1;
+	  x = CALL_INSN_FUNCTION_USAGE (x);
+	  if (x == 0)
+	    return 0;
+	}
+      else
+	x = PATTERN (x);
+    }
+
+  return for_each_rtx (&x, global_reg_mentioned_p_1, NULL);
+}
+
 /* Return the number of places FIND appears within X.  If COUNT_DEST is
    zero, we do not count occurrences inside the destination of a SET.  */
 
@@ -588,7 +672,7 @@ reg_mentioned_p (reg, in)
     case CONST_DOUBLE:
       /* These are kept unique for a given value.  */
       return 0;
-      
+
     default:
       break;
     }
@@ -728,7 +812,7 @@ reg_referenced_p (x, body)
 	if (reg_referenced_p (x, XVECEXP (body, 0, i)))
 	  return 1;
       return 0;
-      
+
     case CLOBBER:
       if (GET_CODE (XEXP (body, 0)) == MEM)
 	if (reg_overlap_mentioned_p (x, XEXP (XEXP (body, 0), 0)))
@@ -843,7 +927,7 @@ regs_set_between_p (x, start, end)
 
     case REG:
       return reg_set_between_p (x, start, end);
-      
+
     default:
       break;
     }
@@ -899,7 +983,7 @@ modified_between_p (x, start, end)
 
     case REG:
       return reg_set_between_p (x, start, end);
-      
+
     default:
       break;
     }
@@ -1110,7 +1194,7 @@ multiple_sets (insn)
 {
   int found;
   int i;
-  
+
   /* INSN must be an insn.  */
   if (! INSN_P (insn))
     return 0;
@@ -1128,7 +1212,7 @@ multiple_sets (insn)
 	      found = 1;
 	  }
     }
-  
+
   /* Either zero or one SET.  */
   return 0;
 }
@@ -1260,14 +1344,14 @@ find_last_value (x, pinsn, valid_to, allow_hwreg)
 		return src;
 	      }
 	  }
-	  
+
 	/* If set in non-simple way, we don't have a value.  */
 	if (reg_set_p (x, p))
 	  break;
       }
 
   return x;
-}     
+}
 
 /* Return nonzero if register in range [REGNO, ENDREGNO)
    appears either explicitly or implicitly in X
@@ -1312,7 +1396,7 @@ refers_to_regno_p (regno, endregno, x, loc)
 	return 1;
 
       return (endregno > x_regno
-	      && regno < x_regno + (x_regno < FIRST_PSEUDO_REGISTER 
+	      && regno < x_regno + (x_regno < FIRST_PSEUDO_REGISTER
 				    ? HARD_REGNO_NREGS (x_regno, GET_MODE (x))
 			      : 1));
 
@@ -1397,7 +1481,9 @@ reg_overlap_mentioned_p (x, in)
   unsigned int regno, endregno;
 
   /* Overly conservative.  */
-  if (GET_CODE (x) == STRICT_LOW_PART)
+  if (GET_CODE (x) == STRICT_LOW_PART
+      || GET_CODE (x) == ZERO_EXTRACT
+      || GET_CODE (x) == SIGN_EXTRACT)
     x = XEXP (x, 0);
 
   /* If either argument is a constant, then modifying X can not affect IN.  */
@@ -1517,7 +1603,7 @@ reg_set_last (x, insn)
 
   If the item being stored in or clobbered is a SUBREG of a hard register,
   the SUBREG will be passed.  */
-     
+
 void
 note_stores (x, fun, data)
      rtx x;
@@ -1714,8 +1800,8 @@ dead_or_set_regno_p (insn, test_regno)
 
   if (GET_CODE (pattern) == SET)
     {
-      rtx dest = SET_DEST (PATTERN (insn));
- 
+      rtx dest = SET_DEST (pattern);
+
       /* A value is totally replaced if it is the destination or the
 	 destination is a SUBREG of REGNO that does not change the number of
 	 words in it.  */
@@ -1866,11 +1952,11 @@ find_reg_fusage (insn, code, datum)
       rtx link;
 
       for (link = CALL_INSN_FUNCTION_USAGE (insn);
-           link;
+	   link;
 	   link = XEXP (link, 1))
-        if (GET_CODE (XEXP (link, 0)) == code
+	if (GET_CODE (XEXP (link, 0)) == code
 	    && rtx_equal_p (datum, XEXP (XEXP (link, 0), 0)))
-          return 1;
+	  return 1;
     }
   else
     {
@@ -1880,7 +1966,7 @@ find_reg_fusage (insn, code, datum)
 	 to pseudo registers, so don't bother checking.  */
 
       if (regno < FIRST_PSEUDO_REGISTER)
-        {
+	{
 	  unsigned int end_regno
 	    = regno + HARD_REGNO_NREGS (regno, GET_MODE (datum));
 	  unsigned int i;
@@ -1888,7 +1974,7 @@ find_reg_fusage (insn, code, datum)
 	  for (i = regno; i < end_regno; i++)
 	    if (find_regno_fusage (insn, code, i))
 	      return 1;
-        }
+	}
     }
 
   return 0;
@@ -2078,7 +2164,7 @@ volatile_insn_p (x)
   {
     const char *fmt = GET_RTX_FORMAT (code);
     int i;
-    
+
     for (i = GET_RTX_LENGTH (code) - 1; i >= 0; i--)
       {
 	if (fmt[i] == 'e')
@@ -2125,9 +2211,7 @@ volatile_refs_p (x)
     case ADDR_DIFF_VEC:
       return 0;
 
-    case CALL:
     case UNSPEC_VOLATILE:
- /* case TRAP_IF: This isn't clear yet.  */
       return 1;
 
     case MEM:
@@ -2145,7 +2229,7 @@ volatile_refs_p (x)
   {
     const char *fmt = GET_RTX_FORMAT (code);
     int i;
-    
+
     for (i = GET_RTX_LENGTH (code) - 1; i >= 0; i--)
       {
 	if (fmt[i] == 'e')
@@ -2223,7 +2307,7 @@ side_effects_p (x)
   {
     const char *fmt = GET_RTX_FORMAT (code);
     int i;
-    
+
     for (i = GET_RTX_LENGTH (code) - 1; i >= 0; i--)
       {
 	if (fmt[i] == 'e')
@@ -2281,6 +2365,8 @@ may_trap_p (x)
 
       /* Memory ref can trap unless it's a static var or a stack slot.  */
     case MEM:
+      if (MEM_NOTRAP_P (x))
+	return 0;
       return rtx_addr_can_trap_p (XEXP (x, 0));
 
       /* Division by a non-constant might trap.  */
@@ -2288,8 +2374,11 @@ may_trap_p (x)
     case MOD:
     case UDIV:
     case UMOD:
+      if (HONOR_SNANS (GET_MODE (x)))
+	return 1;
       if (! CONSTANT_P (XEXP (x, 1))
-	  || GET_MODE_CLASS (GET_MODE (x)) == MODE_FLOAT)
+	  || (GET_MODE_CLASS (GET_MODE (x)) == MODE_FLOAT
+	      && flag_trapping_math))
 	return 1;
       /* This was const0_rtx, but by not using that,
 	 we can link this file into other programs.  */
@@ -2308,16 +2397,34 @@ may_trap_p (x)
     case LT:
     case COMPARE:
       /* Some floating point comparisons may trap.  */
+      if (!flag_trapping_math)
+	break;
       /* ??? There is no machine independent way to check for tests that trap
 	 when COMPARE is used, though many targets do make this distinction.
 	 For instance, sparc uses CCFPE for compares which generate exceptions
 	 and CCFP for compares which do not generate exceptions.  */
-      if (GET_MODE_CLASS (GET_MODE (x)) == MODE_FLOAT)
+      if (HONOR_NANS (GET_MODE (x)))
 	return 1;
       /* But often the compare has some CC mode, so check operand
 	 modes as well.  */
-      if (GET_MODE_CLASS (GET_MODE (XEXP (x, 0))) == MODE_FLOAT
-	  || GET_MODE_CLASS (GET_MODE (XEXP (x, 1))) == MODE_FLOAT)
+      if (HONOR_NANS (GET_MODE (XEXP (x, 0)))
+	  || HONOR_NANS (GET_MODE (XEXP (x, 1))))
+	return 1;
+      break;
+
+    case EQ:
+    case NE:
+      if (HONOR_SNANS (GET_MODE (x)))
+	return 1;
+      /* Often comparison is CC mode, so check operand modes.  */
+      if (HONOR_SNANS (GET_MODE (XEXP (x, 0)))
+	  || HONOR_SNANS (GET_MODE (XEXP (x, 1))))
+	return 1;
+      break;
+
+    case FIX:
+      /* Conversion of floating point might trap.  */
+      if (flag_trapping_math && HONOR_NANS (GET_MODE (XEXP (x, 0))))
 	return 1;
       break;
 
@@ -2328,7 +2435,8 @@ may_trap_p (x)
 
     default:
       /* Any floating arithmetic may trap.  */
-      if (GET_MODE_CLASS (GET_MODE (x)) == MODE_FLOAT)
+      if (GET_MODE_CLASS (GET_MODE (x)) == MODE_FLOAT
+	  && flag_trapping_math)
 	return 1;
     }
 
@@ -2385,7 +2493,7 @@ inequality_comparisons_p (x)
     case GE:
     case GEU:
       return 1;
-      
+
     default:
       break;
     }
@@ -2408,7 +2516,7 @@ inequality_comparisons_p (x)
 	      return 1;
 	}
     }
-	    
+
   return 0;
 }
 
@@ -2482,12 +2590,12 @@ replace_rtx (x, from, to)
     }
 
   return x;
-}  
+}
 
 /* Throughout the rtx X, replace many registers according to REG_MAP.
    Return the replacement for X (which may be X with altered contents).
    REG_MAP[R] is the replacement for register R, or 0 for don't replace.
-   NREGS is the length of REG_MAP; regs >= NREGS are not mapped.  
+   NREGS is the length of REG_MAP; regs >= NREGS are not mapped.
 
    We only support REG_MAP entries of REG or SUBREG.  Also, hard registers
    should not be mapped to pseudos or vice versa since validate_change
@@ -2545,7 +2653,7 @@ replace_regs (x, reg_map, nregs, replace_dest)
 	{
 	  rtx map_val = reg_map[REGNO (SUBREG_REG (x))];
 	  return simplify_gen_subreg (GET_MODE (x), map_val,
-				      GET_MODE (SUBREG_REG (x)), 
+				      GET_MODE (SUBREG_REG (x)),
 				      SUBREG_BYTE (x));
 	}
       break;
@@ -2567,7 +2675,7 @@ replace_regs (x, reg_map, nregs, replace_dest)
 
       SET_SRC (x) = replace_regs (SET_SRC (x), reg_map, nregs, 0);
       return x;
-      
+
     default:
       break;
     }
@@ -2688,7 +2796,7 @@ computed_jump_p (insn)
    sub-expression (including X itself).  F is also passed the DATA.
    If F returns -1, do not traverse sub-expressions, but continue
    traversing the rest of the tree.  If F ever returns any other
-   non-zero value, stop the traversal, and return the value returned
+   nonzero value, stop the traversal, and return the value returned
    by F.  Otherwise, return 0.  This function does not traverse inside
    tree structure that contains RTX_EXPRs, or into sub-expressions
    whose format code is `0' since it is not known whether or not those
@@ -2724,9 +2832,9 @@ for_each_rtx (x, f, data)
   length = GET_RTX_LENGTH (GET_CODE (*x));
   format = GET_RTX_FORMAT (GET_CODE (*x));
 
-  for (i = 0; i < length; ++i) 
+  for (i = 0; i < length; ++i)
     {
-      switch (format[i]) 
+      switch (format[i])
 	{
 	case 'e':
 	  result = for_each_rtx (&XEXP (*x, i), f, data);
@@ -2736,7 +2844,7 @@ for_each_rtx (x, f, data)
 
 	case 'V':
 	case 'E':
-	  if (XVEC (*x, i) != 0) 
+	  if (XVEC (*x, i) != 0)
 	    {
 	      int j;
 	      for (j = 0; j < XVECLEN (*x, i); ++j)
@@ -2746,7 +2854,7 @@ for_each_rtx (x, f, data)
 		    return result;
 		}
 	    }
-	  break; 
+	  break;
 
 	default:
 	  /* Nothing to do.  */
@@ -2866,8 +2974,8 @@ auto_inc_p (x)
    to and including TO is safe to move.  If NEW_TO is non-NULL, and
    the sequence is not already safe to move, but can be easily
    extended to a sequence which is safe, then NEW_TO will point to the
-   end of the extended sequence.  
- 
+   end of the extended sequence.
+
    For now, this function only checks that the region contains whole
    exception regions, but it could be extended to check additional
    conditions as well.  */
@@ -2922,7 +3030,7 @@ insns_safe_to_move_p (from, to, new_to)
 	    /* It's OK to move the sequence if there were matched sets of
 	       exception region notes.  */
 	    return eh_region_count == 0;
-	  
+
 	  past_to_p = 1;
 	}
 
@@ -2937,11 +3045,11 @@ insns_safe_to_move_p (from, to, new_to)
       /* Go to the next instruction.  */
       r = NEXT_INSN (r);
     }
-  
+
   return 0;
 }
 
-/* Return non-zero if IN contains a piece of rtl that has the address LOC */
+/* Return nonzero if IN contains a piece of rtl that has the address LOC */
 int
 loc_mentioned_in_p (loc, in)
      rtx *loc, in;
@@ -3032,9 +3140,19 @@ subreg_regno_offset (xregno, xmode, offset, ymode)
 
   nregs_xmode = HARD_REGNO_NREGS (xregno, xmode);
   nregs_ymode = HARD_REGNO_NREGS (xregno, ymode);
+
+  /* If this is a big endian paradoxical subreg, which uses more actual
+     hard registers than the original register, we must return a negative
+     offset so that we find the proper highpart of the register.  */
+  if (offset == 0
+      && nregs_ymode > nregs_xmode
+      && (GET_MODE_SIZE (ymode) > UNITS_PER_WORD
+	  ? WORDS_BIG_ENDIAN : BYTES_BIG_ENDIAN))
+    return nregs_xmode - nregs_ymode;
+
   if (offset == 0 || nregs_xmode == nregs_ymode)
     return 0;
-  
+
   /* size of ymode must not be greater than the size of xmode.  */
   mode_multiple = GET_MODE_SIZE (xmode) / GET_MODE_SIZE (ymode);
   if (mode_multiple == 0)
@@ -3045,8 +3163,76 @@ subreg_regno_offset (xregno, xmode, offset, ymode)
   return (y_offset / (mode_multiple / nregs_multiple)) * nregs_ymode;
 }
 
+/* This function returns true when the offset is representable via
+   subreg_offset in the given regno.
+   xregno - A regno of an inner hard subreg_reg (or what will become one).
+   xmode  - The mode of xregno.
+   offset - The byte offset.
+   ymode  - The mode of a top level SUBREG (or what may become one).
+   RETURN - The regno offset which would be used.  */
+bool
+subreg_offset_representable_p (xregno, xmode, offset, ymode)
+     unsigned int xregno;
+     enum machine_mode xmode;
+     unsigned int offset;
+     enum machine_mode ymode;
+{
+  int nregs_xmode, nregs_ymode;
+  int mode_multiple, nregs_multiple;
+  int y_offset;
+
+  if (xregno >= FIRST_PSEUDO_REGISTER)
+    abort ();
+
+  nregs_xmode = HARD_REGNO_NREGS (xregno, xmode);
+  nregs_ymode = HARD_REGNO_NREGS (xregno, ymode);
+
+  /* paradoxical subregs are always valid.  */
+  if (offset == 0
+      && nregs_ymode > nregs_xmode
+      && (GET_MODE_SIZE (ymode) > UNITS_PER_WORD
+	  ? WORDS_BIG_ENDIAN : BYTES_BIG_ENDIAN))
+    return true;
+
+  /* Lowpart subregs are always valid.  */
+  if (offset == subreg_lowpart_offset (ymode, xmode))
+    return true;
+
+#ifdef ENABLE_CHECKING
+  /* This should always pass, otherwise we don't know how to verify the
+     constraint.  These conditions may be relaxed but subreg_offset would
+     need to be redesigned.  */
+  if (GET_MODE_SIZE (xmode) % GET_MODE_SIZE (ymode)
+      || GET_MODE_SIZE (ymode) % nregs_ymode
+      || nregs_xmode % nregs_ymode)
+    abort ();
+#endif
+
+  /* The XMODE value can be seen as an vector of NREGS_XMODE
+     values.  The subreg must represent an lowpart of given field.
+     Compute what field it is.  */
+  offset -= subreg_lowpart_offset (ymode, 
+		  		   mode_for_size (GET_MODE_BITSIZE (xmode)
+			  			  / nregs_xmode,
+						  MODE_INT, 0));
+
+  /* size of ymode must not be greater than the size of xmode.  */
+  mode_multiple = GET_MODE_SIZE (xmode) / GET_MODE_SIZE (ymode);
+  if (mode_multiple == 0)
+    abort ();
+
+  y_offset = offset / GET_MODE_SIZE (ymode);
+  nregs_multiple =  nregs_xmode / nregs_ymode;
+#ifdef ENABLE_CHECKING
+  if (offset % GET_MODE_SIZE (ymode)
+      || mode_multiple % nregs_multiple)
+    abort ();
+#endif
+  return (!(y_offset % (mode_multiple / nregs_multiple)));
+}
+
 /* Return the final regno that a subreg expression refers to.  */
-unsigned int 
+unsigned int
 subreg_regno (x)
      rtx x;
 {
@@ -3054,8 +3240,8 @@ subreg_regno (x)
   rtx subreg = SUBREG_REG (x);
   int regno = REGNO (subreg);
 
-  ret = regno + subreg_regno_offset (regno, 
-				     GET_MODE (subreg), 
+  ret = regno + subreg_regno_offset (regno,
+				     GET_MODE (subreg),
 				     SUBREG_BYTE (x),
 				     GET_MODE (x));
   return ret;
@@ -3082,7 +3268,7 @@ parms_set (x, pat, data)
     }
 }
 
-/* Look backward for first parameter to be loaded.  
+/* Look backward for first parameter to be loaded.
    Do not skip BOUNDARY.  */
 rtx
 find_first_parameter_load (call_insn, boundary)
@@ -3135,7 +3321,304 @@ find_first_parameter_load (call_insn, boundary)
 	}
 
       if (INSN_P (before))
-        note_stores (PATTERN (before), parms_set, &parm);
+	note_stores (PATTERN (before), parms_set, &parm);
     }
   return before;
+}
+
+/* Return true if we should avoid inserting code between INSN and preceeding
+   call instruction.  */
+
+bool
+keep_with_call_p (insn)
+     rtx insn;
+{
+  rtx set;
+
+  if (INSN_P (insn) && (set = single_set (insn)) != NULL)
+    {
+      if (GET_CODE (SET_DEST (set)) == REG
+	  && REGNO (SET_DEST (set)) < FIRST_PSEUDO_REGISTER
+	  && fixed_regs[REGNO (SET_DEST (set))]
+	  && general_operand (SET_SRC (set), VOIDmode))
+	return true;
+      if (GET_CODE (SET_SRC (set)) == REG
+	  && FUNCTION_VALUE_REGNO_P (REGNO (SET_SRC (set)))
+	  && GET_CODE (SET_DEST (set)) == REG
+	  && REGNO (SET_DEST (set)) >= FIRST_PSEUDO_REGISTER)
+	return true;
+      /* There may be a stack pop just after the call and before the store
+	 of the return register.  Search for the actual store when deciding
+	 if we can break or not.  */
+      if (SET_DEST (set) == stack_pointer_rtx)
+	{
+	  rtx i2 = next_nonnote_insn (insn);
+	  if (i2 && keep_with_call_p (i2))
+	    return true;
+	}
+    }
+  return false;
+}
+
+/* Return true when store to register X can be hoisted to the place
+   with LIVE registers (can be NULL).  Value VAL contains destination
+   whose value will be used.  */
+
+static bool
+hoist_test_store (x, val, live)
+     rtx x, val;
+     regset live;
+{
+  if (GET_CODE (x) == SCRATCH)
+    return true;
+
+  if (rtx_equal_p (x, val))
+    return true;
+
+  /* Allow subreg of X in case it is not writting just part of multireg pseudo.
+     Then we would need to update all users to care hoisting the store too.
+     Caller may represent that by specifying whole subreg as val.  */
+
+  if (GET_CODE (x) == SUBREG && rtx_equal_p (SUBREG_REG (x), val))
+    {
+      if (GET_MODE_SIZE (GET_MODE (SUBREG_REG (x))) > UNITS_PER_WORD
+	  && GET_MODE_BITSIZE (GET_MODE (x)) <
+	  GET_MODE_BITSIZE (GET_MODE (SUBREG_REG (x))))
+	return false;
+      return true;
+    }
+  if (GET_CODE (x) == SUBREG)
+    x = SUBREG_REG (x);
+
+  /* Anything except register store is not hoistable.  This includes the
+     partial stores to registers.  */
+
+  if (!REG_P (x))
+    return false;
+
+  /* Pseudo registers can be allways replaced by another pseudo to avoid
+     the side effect, for hard register we must ensure that they are dead.
+     Eventually we may want to add code to try turn pseudos to hards, but it
+     is unlikely usefull.  */
+
+  if (REGNO (x) < FIRST_PSEUDO_REGISTER)
+    {
+      int regno = REGNO (x);
+      int n = HARD_REGNO_NREGS (regno, GET_MODE (x));
+
+      if (!live)
+	return false;
+      if (REGNO_REG_SET_P (live, regno))
+	return false;
+      while (--n > 0)
+	if (REGNO_REG_SET_P (live, regno + n))
+	  return false;
+    }
+  return true;
+}
+
+
+/* Return true if INSN can be hoisted to place with LIVE hard registers
+   (LIVE can be NULL when unknown).  VAL is expected to be stored by the insn
+   and used by the hoisting pass.  */
+
+bool
+can_hoist_insn_p (insn, val, live)
+     rtx insn, val;
+     regset live;
+{
+  rtx pat = PATTERN (insn);
+  int i;
+
+  /* It probably does not worth the complexity to handle multiple
+     set stores.  */
+  if (!single_set (insn))
+    return false;
+  /* We can move CALL_INSN, but we need to check that all caller clobbered
+     regs are dead.  */
+  if (GET_CODE (insn) == CALL_INSN)
+    return false;
+  /* In future we will handle hoisting of libcall sequences, but
+     give up for now.  */
+  if (find_reg_note (insn, REG_RETVAL, NULL_RTX))
+    return false;
+  switch (GET_CODE (pat))
+    {
+    case SET:
+      if (!hoist_test_store (SET_DEST (pat), val, live))
+	return false;
+      break;
+    case USE:
+      /* USES do have sick semantics, so do not move them.  */
+      return false;
+      break;
+    case CLOBBER:
+      if (!hoist_test_store (XEXP (pat, 0), val, live))
+	return false;
+      break;
+    case PARALLEL:
+      for (i = 0; i < XVECLEN (pat, 0); i++)
+	{
+	  rtx x = XVECEXP (pat, 0, i);
+	  switch (GET_CODE (x))
+	    {
+	    case SET:
+	      if (!hoist_test_store (SET_DEST (x), val, live))
+		return false;
+	      break;
+	    case USE:
+	      /* We need to fix callers to really ensure availability
+	         of all values inisn uses, but for now it is safe to prohibit
+		 hoisting of any insn having such a hiden uses.  */
+	      return false;
+	      break;
+	    case CLOBBER:
+	      if (!hoist_test_store (SET_DEST (x), val, live))
+		return false;
+	      break;
+	    default:
+	      break;
+	    }
+	}
+      break;
+    default:
+      abort ();
+    }
+  return true;
+}
+
+/* Update store after hoisting - replace all stores to pseudo registers
+   by new ones to avoid clobbering of values except for store to VAL that will
+   be updated to NEW.  */
+
+static void
+hoist_update_store (insn, xp, val, new)
+     rtx insn, *xp, val, new;
+{
+  rtx x = *xp;
+
+  if (GET_CODE (x) == SCRATCH)
+    return;
+
+  if (GET_CODE (x) == SUBREG && SUBREG_REG (x) == val)
+    validate_change (insn, xp,
+		     simplify_gen_subreg (GET_MODE (x), new, GET_MODE (new),
+					  SUBREG_BYTE (x)), 1);
+  if (rtx_equal_p (x, val))
+    {
+      validate_change (insn, xp, new, 1);
+      return;
+    }
+  if (GET_CODE (x) == SUBREG)
+    {
+      xp = &SUBREG_REG (x);
+      x = *xp;
+    }
+
+  if (!REG_P (x))
+    abort ();
+
+  /* We've verified that hard registers are dead, so we may keep the side
+     effect.  Otherwise replace it by new pseudo.  */
+  if (REGNO (x) >= FIRST_PSEUDO_REGISTER)
+    validate_change (insn, xp, gen_reg_rtx (GET_MODE (x)), 1);
+  REG_NOTES (insn)
+    = alloc_EXPR_LIST (REG_UNUSED, *xp, REG_NOTES (insn));
+}
+
+/* Create a copy of INSN after AFTER replacing store of VAL to NEW
+   and each other side effect to pseudo register by new pseudo register.  */
+
+rtx
+hoist_insn_after (insn, after, val, new)
+     rtx insn, after, val, new;
+{
+  rtx pat;
+  int i;
+  rtx note;
+
+  insn = emit_copy_of_insn_after (insn, after);
+  pat = PATTERN (insn);
+
+  /* Remove REG_UNUSED notes as we will re-emit them.  */
+  while ((note = find_reg_note (insn, REG_UNUSED, NULL_RTX)))
+    remove_note (insn, note);
+
+  /* To get this working callers must ensure to move everything referenced
+     by REG_EQUAL/REG_EQUIV notes too.  Lets remove them, it is probably
+     easier.  */
+  while ((note = find_reg_note (insn, REG_EQUAL, NULL_RTX)))
+    remove_note (insn, note);
+  while ((note = find_reg_note (insn, REG_EQUIV, NULL_RTX)))
+    remove_note (insn, note);
+
+  /* Remove REG_DEAD notes as they might not be valid anymore in case
+     we create redundancy.  */
+  while ((note = find_reg_note (insn, REG_DEAD, NULL_RTX)))
+    remove_note (insn, note);
+  switch (GET_CODE (pat))
+    {
+    case SET:
+      hoist_update_store (insn, &SET_DEST (pat), val, new);
+      break;
+    case USE:
+      break;
+    case CLOBBER:
+      hoist_update_store (insn, &XEXP (pat, 0), val, new);
+      break;
+    case PARALLEL:
+      for (i = 0; i < XVECLEN (pat, 0); i++)
+	{
+	  rtx x = XVECEXP (pat, 0, i);
+	  switch (GET_CODE (x))
+	    {
+	    case SET:
+	      hoist_update_store (insn, &SET_DEST (x), val, new);
+	      break;
+	    case USE:
+	      break;
+	    case CLOBBER:
+	      hoist_update_store (insn, &SET_DEST (x), val, new);
+	      break;
+	    default:
+	      break;
+	    }
+	}
+      break;
+    default:
+      abort ();
+    }
+  if (!apply_change_group ())
+    abort ();
+
+  return insn;
+}
+
+rtx
+hoist_insn_to_edge (insn, e, val, new)
+     rtx insn, val, new;
+     edge e;
+{
+  rtx new_insn;
+
+  /* We cannot insert instructions on an abnormal critical edge.
+     It will be easier to find the culprit if we die now.  */
+  if ((e->flags & EDGE_ABNORMAL) && EDGE_CRITICAL_P (e))
+    abort ();
+
+  /* Do not use emit_insn_on_edge as we want to preserve notes and similar
+     stuff.  We also emit CALL_INSNS and firends.  */
+  if (e->insns == NULL_RTX)
+    {
+      start_sequence ();
+      emit_note (NULL, NOTE_INSN_DELETED);
+    }
+  else
+    push_to_sequence (e->insns);
+
+  new_insn = hoist_insn_after (insn, get_last_insn (), val, new);
+
+  e->insns = get_insns ();
+  end_sequence ();
+  return new_insn;
 }

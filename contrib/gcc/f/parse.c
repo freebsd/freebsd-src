@@ -26,17 +26,16 @@ the Free Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 #include "version.h"
 #include "flags.h"
 
-#define NAME_OF_STDIN "<stdin>"
-
 extern FILE *finput;
 
-int
-yyparse ()
+void
+ffe_parse_file (set_yydebug)
+     int set_yydebug ATTRIBUTE_UNUSED;
 {
   ffewhereFile wf;
 
   if (ffe_is_version ())
-    fprintf (stderr, "GNU Fortran Front End version %s\n", ffe_version_string);
+    fprintf (stderr, "GNU Fortran Front End version %s\n", version_string);
 
   if (!ffe_is_pedantic ())
     ffe_set_is_pedantic (pedantic);
@@ -46,6 +45,4 @@ yyparse ()
   ffe_file (wf, finput);
 
   ffecom_finish_compile ();
-
-  return 0;
 }

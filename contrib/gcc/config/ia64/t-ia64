@@ -19,24 +19,30 @@ LIB1ASMFUNCS  = __divtf3 __divdf3 __divsf3 \
 
 SHLIB_MAPFILES += $(srcdir)/config/ia64/libgcc-ia64.ver
 
-# For svr4 we build crtbegin.o and crtend.o which serve to add begin and
-# end labels to the .ctors and .dtors section when we link using gcc.
-
-EXTRA_PARTS=crtbegin.o crtend.o crtbeginS.o crtendS.o crtfastmath.o
-
 # Effectively disable the crtbegin/end rules using crtstuff.c
 T = disable
 
 # Assemble startup files.
 crtbegin.o: $(srcdir)/config/ia64/crtbegin.asm $(GCC_PASSES)
-	$(GCC_FOR_TARGET) -c -o crtbegin.o -x assembler-with-cpp $(srcdir)/config/ia64/crtbegin.asm
+	$(GCC_FOR_TARGET) -I. -c -o crtbegin.o -x assembler-with-cpp \
+		$(srcdir)/config/ia64/crtbegin.asm
 crtend.o: $(srcdir)/config/ia64/crtend.asm $(GCC_PASSES)
-	$(GCC_FOR_TARGET) -c -o crtend.o -x assembler-with-cpp $(srcdir)/config/ia64/crtend.asm
+	$(GCC_FOR_TARGET) -I. -c -o crtend.o -x assembler-with-cpp \
+		$(srcdir)/config/ia64/crtend.asm
 crtbeginS.o: $(srcdir)/config/ia64/crtbegin.asm $(GCC_PASSES)
-	$(GCC_FOR_TARGET) -DSHARED -c -o crtbeginS.o -x assembler-with-cpp $(srcdir)/config/ia64/crtbegin.asm
+	$(GCC_FOR_TARGET) -I. -DSHARED -c -o crtbeginS.o \
+		-x assembler-with-cpp \
+		$(srcdir)/config/ia64/crtbegin.asm
 crtendS.o: $(srcdir)/config/ia64/crtend.asm $(GCC_PASSES)
-	$(GCC_FOR_TARGET) -DSHARED -c -o crtendS.o -x assembler-with-cpp $(srcdir)/config/ia64/crtend.asm
+	$(GCC_FOR_TARGET) -I. -DSHARED -c -o crtendS.o -x assembler-with-cpp \
+		$(srcdir)/config/ia64/crtend.asm
 crtfastmath.o: $(srcdir)/config/ia64/crtfastmath.c $(GCC_PASSES)
-	$(GCC_FOR_TARGET) $(LIBGCC2_CFLAGS) -c -o crtfastmath.o $(srcdir)/config/ia64/crtfastmath.c
+	$(GCC_FOR_TARGET) $(LIBGCC2_CFLAGS) -c -o crtfastmath.o \
+		$(srcdir)/config/ia64/crtfastmath.c
 
-LIB2ADDEH = $(srcdir)/config/ia64/unwind-ia64.c $(srcdir)/unwind-sjlj.c
+LIB2ADDEH = $(srcdir)/config/ia64/unwind-ia64.c $(srcdir)/unwind-sjlj.c \
+  $(srcdir)/unwind-c.c
+
+ia64-c.o: $(srcdir)/config/ia64/ia64-c.c $(CONFIG_H) $(SYSTEM_H) \
+    $(TREE_H) $(CPPLIB_H) $(C_COMMON_H) c-pragma.h toplev.h
+	$(CC) -c $(ALL_CFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) $<
