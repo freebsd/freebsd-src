@@ -32,28 +32,46 @@
 #ifdef _KERNEL
 
 /*
- * Normal and alternate %g7 point to per-cpu data.
+ * Normal and alternate %g6 point to the pcb of the current process.  Normal,
+ & alternate and interrupt %g7 point to per-cpu data.
  */
+#define	PCB_REG		%g6
 #define	PCPU_REG	%g7
 
 /*
- * Alternate %g5 points to a per-cpu stack for temporarily saving alternate
- * globals, alternate %g6 points to the pcb of the current process.
+ * Alternate %g5 points to a per-cpu panic stack, which is used as a last
+ * resort, and for temporarily saving alternate globals.
  */
 #define	ASP_REG		%g5
-#define	PCB_REG		%g6
-
-/*
- * Interrupt %g6 points to a per-cpu interrupt queue, %g7 points to the
- * interrupt vector table.
- */
-#define	IQ_REG		%g6
-#define	IV_REG		%g7
 
 /*
  * MMU %g7 points to the user tsb.
  */
 #define	TSB_REG		%g7
+
+#ifdef LOCORE
+
+/*
+ * Atomically decrement an integer in memory.
+ */
+#define	ATOMIC_DEC_INT(r1, r2, r3) \
+	lduw	[r1], r2 ; \
+9:	sub	r2, 1, r3 ; \
+	casa	[r1] ASI_N, r2, r3 ; \
+	cmp	r2, r3 ; \
+	bne,pn	%xcc, 9b ; \
+	 mov	r3, r2
+
+/*
+ * Atomically increment an integer in memory.
+ */
+#define	ATOMIC_INC_INT(r1, r2, r3) \
+	lduw	[r1], r2 ; \
+9:	add	r2, 1, r3 ; \
+	casa	[r1] ASI_N, r2, r3 ; \
+	cmp	r2, r3 ; \
+	bne,pn	%xcc, 9b ; \
+	 mov	r3, r2
 
 #define	PCPU(member)	%g7 + PC_ ## member
 #define	PCPU_ADDR(member, reg) add %g7, PC_ ## member, reg
@@ -68,6 +86,16 @@
 	call	panic ; \
 	 nop
 
+#ifdef INVARIANTS
+#define	KASSERT(r1, msg) \
+	brnz	r1, 8f ; \
+	 nop ; \
+	PANIC(msg, r1) ; \
+8:
+#else
+#define	KASSERT(r1, msg)
+#endif
+
 #define	PUTS(msg, r1) \
 	.sect	.rodata ; \
 9:	.asciz	msg ; \
@@ -76,7 +104,21 @@
 	call	printf ; \
 	 nop
 
+/*
+ * If the kernel can be located above 4G, setx needs to be used to load
+ * symbol values, otherwise set is sufficient.
+ */
+#ifdef HIGH_KERNEL
+#define	SET(sym, tmp, dst) \
+	setx	sym, tmp, dst
+#else
+#define	SET(sym, tmp, dst) \
+	set	sym, dst
 #endif
+
+#endif /* LOCORE */
+
+#endif /* _KERNEL */
 
 #define	DATA(name) \
 	.data ; \
@@ -95,17 +137,5 @@ name ## :
 
 #define	END(name) \
 	.size	name, . - name
-
-/*
- * If the kernel can be located above 4G, setx needs to be used to load
- * symbol values, otherwise set is sufficient.
- */
-#ifdef HIGH_KERNEL
-#define	SET(sym, tmp, dst) \
-	setx sym, tmp, dst
-#else
-#define	SET(sym, tmp, dst) \
-	set sym, dst
-#endif
 
 #endif /* !_MACHINE_ASMACROS_H_ */
