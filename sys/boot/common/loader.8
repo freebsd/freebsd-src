@@ -114,8 +114,9 @@ will be set and
 .Nm
 will engage interactive mode.
 .Sh BUILTIN COMMANDS
-.Nm Loader Ns 's
-builtin commands take its parameters from the command line.
+In
+.Nm Ns ,
+builtin commands take parameters from the command line.
 Presently,
 the only way to call them from a script is by using
 .Pa evaluate
@@ -585,7 +586,7 @@ virtual machine library that can be called by C functions and vice
 versa.
 .Pp
 In
-.Nm ,
+.Nm Ns ,
 each line read interactively is then fed to
 .Tn FICL ,
 which may call
@@ -860,11 +861,13 @@ from the Programming-Tools extension word set, Providing the
 Search-Order extensions word set.
 .Ef
 .Sh HISTORY
+The
 .Nm
 first appeared in
 .Fx 3.1 .
 .Sh AUTHORS
 .An -nosplit
+The
 .Nm
 was written by
 .An Michael Smith Aq msmith@FreeBSD.org .
