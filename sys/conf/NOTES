@@ -418,7 +418,7 @@ device		token			#Generic TokenRing
 device		fddi			#Generic FDDI
 device		arcnet			#Generic Arcnet
 device		sppp			#Generic Synchronous PPP
-device		loop	1		#Network loopback device
+device		loop			#Network loopback device
 device		bpf			#Berkeley packet filter
 device		disc			#Discard device (ds0, ds1, etc)
 device		tap			#Virtual Ethernet driver
