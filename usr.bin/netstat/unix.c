@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)unix.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: unix.c,v 1.4 1997/07/29 06:51:41 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -106,19 +106,17 @@ unixdomainpr(so, soaddr)
 	caddr_t soaddr;
 {
 	struct unpcb unpcb, *unp = &unpcb;
-	struct mbuf mbuf, *m;
-	struct sockaddr_un *sa = NULL;
+	struct sockaddr_un s_un, *sa = NULL;
 	static int first = 1;
 
 	if (kread((u_long)so->so_pcb, (char *)unp, sizeof (*unp)))
 		return;
 	if (unp->unp_addr) {
-		m = &mbuf;
-		if (kread((u_long)unp->unp_addr, (char *)m, sizeof (*m)))
-			m = (struct mbuf *)0;
-		sa = (struct sockaddr_un *)(m->m_dat);
+		sa = &s_un;
+		if (kread((u_long)unp->unp_addr, (char *)sa, sizeof *sa))
+			sa = (struct sockaddr_un *)0;
 	} else
-		m = (struct mbuf *)0;
+		sa = (struct sockaddr_un *)0;
 	if (first) {
 		printf("Active UNIX domain sockets\n");
 		printf(
@@ -131,9 +129,7 @@ unixdomainpr(so, soaddr)
 	    (int)soaddr, socktype[so->so_type], so->so_rcv.sb_cc, so->so_snd.sb_cc,
 	    (int)unp->unp_vnode, (int)unp->unp_conn,
 	    (int)unp->unp_refs, (int)unp->unp_nextref);
-	if (m)
-		printf(" %.*s",
-		    m->m_len - (int)(sizeof(*sa) - sizeof(sa->sun_path)),
-		    sa->sun_path);
+	if (sa)
+		printf(" %.*s", sa->sun_len, sa->sun_path);
 	putchar('\n');
 }
