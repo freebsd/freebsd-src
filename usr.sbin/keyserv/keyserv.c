@@ -764,10 +764,10 @@ root_auth(trans, rqstp)
 	struct svc_req *rqstp;
 {
 	uid_t uid;
-	struct sockaddr_in *remote;
+	struct sockaddr *remote;
 
-	remote = svc_getcaller(trans);
-	if (remote->sin_family == AF_INET) {
+	remote = svc_getrpccaller(trans)->buf;
+	if (remote->sa_family != AF_UNIX) {
 		if (debugging)
 			fprintf(stderr, "client didn't use AF_UNIX\n");
 		return (0);
