@@ -35,7 +35,7 @@ SPECIAL FEATURES:
 =================
 
 It is also possible to select a menu item by typing the first
-character of its name, if unique.  Such "accellerator" characters will
+character of its name, if unique.  Such "accelerator" characters will
 be specially highlighted in the item name.
 
 The console driver also contains a scroll-back buffer for reviewing
