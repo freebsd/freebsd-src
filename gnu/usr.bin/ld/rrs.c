@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: rrs.c,v 1.3 1993/11/17 01:33:24 ache Exp $
+ *	$Id: rrs.c,v 1.4 1993/11/22 19:04:44 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -180,27 +180,31 @@ struct file_entry	*entry;
 }
 
 void
-alloc_rrs_reloc(sp)
+alloc_rrs_reloc(entry, sp)
+struct file_entry	*entry;
 symbol *sp;
 {
 #ifdef DEBUG
-printf("alloc_rrs_reloc: %s\n", sp->name);
+printf("alloc_rrs_reloc: %s in %s\n", sp->name, get_file_name(entry));
 #endif
 	reserved_rrs_relocs++;
 }
 
 void
-alloc_rrs_segment_reloc(r)
+alloc_rrs_segment_reloc(entry, r)
+struct file_entry	*entry;
 struct relocation_info	*r;
 {
 #ifdef DEBUG
-printf("alloc_rrs_segment_reloc at %#x\n", r->r_address);
+printf("alloc_rrs_segment_reloc at %#x in %s\n",
+	r->r_address, get_file_name(entry));
 #endif
 	reserved_rrs_relocs++;
 }
 
 void
-alloc_rrs_jmpslot(sp)
+alloc_rrs_jmpslot(entry, sp)
+struct file_entry	*entry;
 symbol *sp;
 {
 	if (sp->jmpslot_offset == -1) {
@@ -214,7 +218,8 @@ symbol *sp;
 }
 
 void
-alloc_rrs_gotslot(r, lsp)
+alloc_rrs_gotslot(entry, r, lsp)
+struct file_entry	*entry;
 struct relocation_info	*r;
 struct localsymbol	*lsp;
 {
@@ -222,8 +227,11 @@ struct localsymbol	*lsp;
 
 	if (!RELOC_EXTERN_P(r)) {
 
-		if (sp != NULL)
-			fatal("internal error: lsp->symbol not NULL");
+		if (sp != NULL) {
+			error("%s: relocation for internal symbol expected at %#x",
+				get_file_name(entry), RELOC_ADDRESS(r));
+			return;
+		}
 
 		if (!RELOC_STATICS_THROUGH_GOT_P(r))
 			/* No need for a GOT slot */
@@ -242,10 +250,19 @@ struct localsymbol	*lsp;
 				reserved_rrs_relocs++;
 		}
 
-	} else if (sp->gotslot_offset == -1) {
+	} else {
+
+		if (sp == NULL) {
+			error("%s: relocation must refer to global symbol at %#x",
+				get_file_name(entry), RELOC_ADDRESS(r));
+			return;
+		}
 
 		if (sp->alias)
 			sp = sp->alias;
+
+		if (sp->gotslot_offset != -1)
+			return;
 
 		/*
 		 * External symbols always get a relocation entry
@@ -259,13 +276,14 @@ struct localsymbol	*lsp;
 }
 
 void
-alloc_rrs_cpy_reloc(sp)
+alloc_rrs_cpy_reloc(entry, sp)
+struct file_entry	*entry;
 symbol *sp;
 {
 	if (sp->cpyreloc_reserved)
 		return;
 #ifdef DEBUG
-printf("alloc_rrs_copy: %s\n", sp->name);
+printf("alloc_rrs_copy: %s in %s\n", sp->name, get_file_name(entry));
 #endif
 	sp->cpyreloc_reserved = 1;
 	reserved_rrs_relocs++;
@@ -292,7 +310,8 @@ rrs_next_reloc()
  * written to a.out.
  */
 int
-claim_rrs_reloc(rp, sp, relocation)
+claim_rrs_reloc(entry, rp, sp, relocation)
+struct file_entry	*entry;
 struct relocation_info	*rp;
 symbol	*sp;
 long	*relocation;
@@ -300,18 +319,19 @@ long	*relocation;
 	struct relocation_info	*r = rrs_next_reloc();
 
 	if (rp->r_address < text_start + text_size)
-		error("RRS text relocation at %#x (symbol %s)",
-				rp->r_address, sp->name);
+		error("%s: RRS text relocation at %#x for \"%s\"",
+			get_file_name(entry), rp->r_address, sp->name);
 
 #ifdef DEBUG
-printf("claim_rrs_reloc: %s\n", sp->name);
+printf("claim_rrs_reloc: %s in %s\n", sp->name, get_file_name(entry));
 #endif
 	r->r_address = rp->r_address;
 	r->r_symbolnum = sp->rrs_symbolnum;
 
 	if (link_mode & SYMBOLIC) {
 		if (!sp->defined)
-			error("Cannot reduce symbol %s", sp->name);
+			error("Cannot reduce symbol \"%s\" in %s",
+					sp->name, get_file_name(entry));
 		RELOC_EXTERN_P(r) = 0;
 		*relocation += sp->value;
 		(void) md_make_reloc(rp, r, RELTYPE_RELATIVE);
@@ -326,7 +346,8 @@ printf("claim_rrs_reloc: %s\n", sp->name);
  * Claim a jmpslot. Setup RRS relocation if claimed for the first time.
  */
 long
-claim_rrs_jmpslot(rp, sp, addend)
+claim_rrs_jmpslot(entry, rp, sp, addend)
+struct file_entry	*entry;
 struct relocation_info	*rp;
 symbol			*sp;
 long			addend;
@@ -337,18 +358,21 @@ long			addend;
 		return rrs_dyn2.ld_plt + sp->jmpslot_offset;
 
 #ifdef DEBUG
-printf("claim_rrs_jmpslot: %s(%d) -> offset %x (textreloc %#x)\n",
+printf("claim_rrs_jmpslot: %s: %s(%d) -> offset %x (textreloc %#x)\n",
+	get_file_name(entry),
 	sp->name, sp->rrs_symbolnum, sp->jmpslot_offset, text_relocation);
 #endif
 
 	if (sp->jmpslot_offset == -1)
 		fatal(
-		"internal error: claim_rrs_jmpslot: %s: jmpslot_offset == -1\n",
+		"internal error: %s: claim_rrs_jmpslot: %s: jmpslot_offset == -1\n",
+		get_file_name(entry),
 		sp->name);
 
 	if ((link_mode & SYMBOLIC) || rrs_section_type == RRS_PARTIAL) {
 		if (!sp->defined)
-			error("Cannot reduce symbol %s", sp->name);
+			error("Cannot reduce symbol \"%s\" in %s",
+				sp->name, get_file_name(entry));
 
 		md_fix_jmpslot( rrs_plt + sp->jmpslot_offset/sizeof(jmpslot_t),
 				rrs_dyn2.ld_plt + sp->jmpslot_offset,
@@ -393,7 +417,8 @@ printf("claim_rrs_jmpslot: %s(%d) -> offset %x (textreloc %#x)\n",
  * Return offset into the GOT allocated to this symbol.
  */
 long
-claim_rrs_gotslot(rp, lsp, addend)
+claim_rrs_gotslot(entry, rp, lsp, addend)
+struct file_entry	*entry;
 struct relocation_info	*rp;
 struct localsymbol	*lsp;
 long			addend;
@@ -401,6 +426,10 @@ long			addend;
 	struct relocation_info	*r;
 	symbol	*sp = lsp->symbol;
 	int	reloc_type = 0;
+
+	if (sp == NULL) {
+		return 0;
+	}
 
 	if (sp->alias)
 		sp = sp->alias;
@@ -411,8 +440,8 @@ printf("claim_rrs_gotslot: %s(%d) slot offset %#x, addend %#x\n",
 #endif
 	if (sp->gotslot_offset == -1)
 		fatal(
-		"internal error: claim_rrs_gotslot: %s: gotslot_offset == -1\n",
-		sp->name);
+		"internal error: %s: claim_rrs_gotslot: %s: gotslot_offset == -1\n",
+			get_file_name(entry), sp->name);
 
 	if (sp->gotslot_claimed)
 		/* This symbol already passed here before. */
@@ -435,7 +464,8 @@ printf("claim_rrs_gotslot: %s(%d) slot offset %#x, addend %#x\n",
 		 * RRS_PARTIAL: we don't link against shared objects,
 		 * so again all symbols must be known.
 		 */
-		error("Cannot reduce symbol %s", sp->name);
+		error("Cannot reduce symbol \"%s\" in %s",
+				sp->name, get_file_name(entry));
 
 	} else {
 
@@ -453,7 +483,8 @@ printf("claim_rrs_gotslot: %s(%d) slot offset %#x, addend %#x\n",
 		 * NOTE: RRS_PARTIAL implies !SHAREABLE.
 		 */
 		if (!sp->defined)
-			error("Cannot reduce symbol %s", sp->name);
+			error("Cannot reduce symbol \"%s\" in %s",
+					sp->name, get_file_name(entry));
 		return sp->gotslot_offset;
 	}
 
@@ -496,13 +527,14 @@ long			addend;
 		return addend - rrs_dyn2.ld_got;
 
 #ifdef DEBUG
-printf("claim_rrsinternal__gotslot: slot offset %#x, addend = %#x\n",
-	lsp->gotslot_offset, addend);
+printf("claim_rrs_internal_gotslot: %s: slot offset %#x, addend = %#x\n",
+	get_file_name(entry), lsp->gotslot_offset, addend);
 #endif
 
 	if (lsp->gotslot_offset == -1)
 		fatal(
-		"internal error: claim_rrs_internal_gotslot: slot_offset == -1\n");
+		"internal error: %s: claim_rrs_internal_gotslot at %#x: slot_offset == -1\n",
+			get_file_name(entry), RELOC_ADDRESS(rp));
 
 	if (lsp->gotslot_claimed)
 		/* Already done */
@@ -525,7 +557,8 @@ printf("claim_rrsinternal__gotslot: slot offset %#x, addend = %#x\n",
 }
 
 void
-claim_rrs_cpy_reloc(rp, sp)
+claim_rrs_cpy_reloc(entry, rp, sp)
+struct file_entry	*entry;
 struct relocation_info	*rp;
 symbol *sp;
 {
@@ -535,11 +568,12 @@ symbol *sp;
 		return;
 
 	if (!sp->cpyreloc_reserved)
-		fatal("internal error: claim_cpy_reloc: %s: no reservation\n",
-				sp->name);
+		fatal("internal error: %s: claim_cpy_reloc: %s: no reservation\n",
+			get_file_name(entry), sp->name);
 
 #ifdef DEBUG
-printf("claim_rrs_copy: %s -> %x\n", sp->name, sp->so_defined);
+printf("claim_rrs_copy: %s: %s -> %x\n",
+	get_file_name(entry), sp->name, sp->so_defined);
 #endif
 
 	r = rrs_next_reloc();
@@ -551,13 +585,15 @@ printf("claim_rrs_copy: %s -> %x\n", sp->name, sp->so_defined);
 }
 
 void
-claim_rrs_segment_reloc(rp)
+claim_rrs_segment_reloc(entry, rp)
+struct file_entry	*entry;
 struct relocation_info	*rp;
 {
 	struct relocation_info	*r = rrs_next_reloc();
 
 #ifdef DEBUG
-printf("claim_rrs_segment_reloc: %x\n", rp->r_address);
+printf("claim_rrs_segment_reloc: %s at %#x\n",
+	get_file_name(entry), rp->r_address);
 #endif
 	r->r_address = rp->r_address;
 	RELOC_TYPE(r) = RELOC_TYPE(rp);
@@ -1023,8 +1059,9 @@ write_rrs_text()
 	for (i = 0, shp = rrs_shobjs; shp; i++, shp = shp->next) {
 		char	*name = shp->entry->local_sym_name;
 
-		if (shp == NULL)
-			fatal("internal error: shp == NULL");
+		if (i >= number_of_shobjs)
+			fatal("internal error: # of link objects exceeds %d",
+				number_of_shobjs);
 
 		lo[i].lo_name = pos;
 		lo[i].lo_major = shp->entry->lib_major;
@@ -1039,10 +1076,11 @@ write_rrs_text()
 		pos += 1 + strlen(name);
 		lo[i].lo_next = (i == number_of_shobjs - 1) ? 0 :
 			(rrs_dyn2.ld_need + (i+1)*sizeof(struct link_object));
-
 	}
-	if (shp != NULL)
-		fatal("internal error: shp != NULL");
+
+	if (i < number_of_shobjs)
+		fatal("internal error: # of link objects less then expected %d",
+				number_of_shobjs);
 
 	md_swapout_link_object(lo, number_of_shobjs);
 	mywrite(lo, number_of_shobjs, sizeof(struct link_object), outdesc);
