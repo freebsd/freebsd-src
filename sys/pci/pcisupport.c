@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.33 1996/04/07 17:32:36 bde Exp $
+**  $Id: pcisupport.c,v 1.34 1996/09/02 21:23:06 se Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -807,7 +807,7 @@ extern unsigned pciroots;
 static void
 config_orion (pcici_t tag)
 {
-    if (pci_conf_read (tag, 0x4A) > 0) {
+    if (((pci_conf_read (tag, 0x48) >> 16) & 0xff) > 0) {
 	pciroots++;
     }
 }
