@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.10 1995/05/07 23:37:33 jkh Exp $
+ * $Id: command.c,v 1.1 1995/05/08 06:08:27 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -113,12 +113,14 @@ command_sort(void)
 void
 command_execute(void)
 {
-    int i, j;
+    int i, j, ret;
 
     for (i = 0; i < numCommands; i++) {
 	for (j = 0; j < commandStack[i]->ncmds; j++) {
 	    msgNotify("Executing command: %s", commandStack[i]->cmds[j]);
-	    (void)vsystem(commandStack[i]->cmds[j]);
+	    ret = system(commandStack[i]->cmds[j]);
+	    msgDebug("Command: %s returns status %d\n",
+		     commandStack[i]->cmds[j], ret);
 	}
     }
 }

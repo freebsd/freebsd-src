@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.8 1995/05/08 06:06:29 jkh Exp $
+ * $Id: system.c,v 1.9 1995/05/10 18:59:51 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -140,6 +140,7 @@ systemShellEscape(void)
 	msgWarn("No shell available, sorry!");
 	return 1;
     }
+    setenv("PATH", "/stand", 1);
     setenv("PS1", "freebsd% ", 1);
     dialog_clear();
     dialog_update();
