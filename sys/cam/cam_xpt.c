@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_xpt.c,v 1.54 1999/04/23 23:25:48 gibbs Exp $
+ *      $Id: cam_xpt.c,v 1.55 1999/05/06 20:16:00 ken Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -467,6 +467,16 @@ static struct xpt_quirk_entry xpt_quirk_table[] =
 			" TDC 3600", "U07:"
 		},
 		CAM_QUIRK_NOSERIAL, /*mintags*/0, /*maxtags*/0
+	},
+	{
+		/*
+		 * Would repond to all LUNs if asked for.
+		 */
+		{
+			T_SEQUENTIAL, SIP_MEDIA_REMOVABLE, "CALIPER",
+			"CP150", "*"
+		},
+		CAM_QUIRK_NOLUNS, /*mintags*/0, /*maxtags*/0
 	},
 	{
 		/* Default tagged queuing parameters for all devices */
