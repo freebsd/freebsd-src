@@ -14,7 +14,7 @@
  * Turned inside out. Now returns xfers as new file ids, not as a special
  * `state' of FTP_t
  *
- * $Id: ftpio.c,v 1.11 1996/08/21 01:23:33 jkh Exp $
+ * $Id: ftpio.c,v 1.12 1996/08/24 09:51:59 jkh Exp $
  *
  */
 
@@ -185,6 +185,8 @@ ftpGetSize(FILE *fp, char *name)
 
     check_passive(fp);
     sprintf(p, "SIZE %s\r\n", name);
+    if (ftp->is_verbose)
+	fprintf(stderr, "Sending %s", p);
     i = writes(ftp->fd_ctrl, p);
     if (i)
 	return (size_t)-1;
@@ -205,6 +207,8 @@ ftpGetModtime(FILE *fp, char *name)
 
     check_passive(fp);
     sprintf(p, "MDTM %s\r\n", name);
+    if (ftp->is_verbose)
+	fprintf(stderr, "Sending %s", p);
     i = writes(ftp->fd_ctrl, p);
     if (i)
 	return (time_t)0;
@@ -292,17 +296,33 @@ ftpGetURL(char *url, char *user, char *passwd)
 {
     char host[255], name[255];
     int port;
-    static FILE *fp = NULL;
     FILE *fp2;
+    static FILE *fp = NULL;
+    static char *prev_host;
 
-    if (fp) {	/* Close previous managed connection */
-	fclose(fp);
-	fp = NULL;
-    }
     if (get_url_info(url, host, &port, name) == SUCCESS) {
+	if (prev_host) {
+	    if (!strcmp(prev_host, host)) {
+		/* Try to use cached connection */
+		fp2 = ftpGet(fp, name, NULL);
+		if (!fp2) {
+		    /* Connection timed out or was no longer valid */
+		    fclose(fp);
+		    free(prev_host);
+		}
+		else
+		    return fp2;
+	    }
+	    else {
+		/* It's a different host now, flush old */
+		free(prev_host);
+		fclose(fp);
+	    }
+	}
 	fp = ftpLogin(host, user, passwd, port, 0);
 	if (fp) {
 	    fp2 = ftpGet(fp, name, NULL);
+	    prev_host = strdup(host);
 	    return fp2;
 	}
     }
@@ -553,6 +573,8 @@ cmd(FTP_t ftp, const char *fmt, ...)
 	return botch("cmd", "open");
 
     strcat(p, "\r\n");
+    if (ftp->is_verbose)
+	fprintf(stderr, "Sending: %s", p);
     i = writes(ftp->fd_ctrl, p);
     if (i)
 	return FAILURE;
@@ -643,6 +665,8 @@ ftp_file_op(FTP_t ftp, char *operation, char *file, FILE **fp, char *mode, int *
 	return FAILURE;
 
     if (ftp->is_passive) {
+        if (ftp->is_verbose)
+	    fprintf(stderr, "Sending PASV\n");
 	if (writes(ftp->fd_ctrl, "PASV\r\n")) {
 	    ftp_close(ftp);
 	    return FAILURE;
@@ -672,15 +696,13 @@ ftp_file_op(FTP_t ftp, char *operation, char *file, FILE **fp, char *mode, int *
 	    return FAILURE;
 	}
 	if (seekto && *seekto) {
-	    i = cmd(ftp, "RETR %d", *seekto);
+	    i = cmd(ftp, "REST %d", *seekto);
 	    if (i < 0 || FTP_TIMEOUT(i)) {
 		close(s);
 		ftp->errno = i;
 		*seekto = 0;
 		return i;
 	    }
-	    else if (i == 350)
-		*seekto = 0;
 	}
 	i = cmd(ftp, "%s %s", operation, file);
 	if (i < 0 || i > 299) {
@@ -719,7 +741,7 @@ ftp_file_op(FTP_t ftp, char *operation, char *file, FILE **fp, char *mode, int *
 	    return i;
 	}
 	if (seekto && *seekto) {
-	    i = cmd(ftp, "RETR %d", *seekto);
+	    i = cmd(ftp, "REST %d", *seekto);
 	    if (i < 0 || FTP_TIMEOUT(i)) {
 		close(s);
 		ftp->errno = i;
