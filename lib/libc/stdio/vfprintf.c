@@ -507,7 +507,6 @@ reswitch:	switch (ch) {
 			prec = (prec == -1) ?
 				DEFPREC + 1 : prec + 1;
 			/* FALLTHROUGH */
-			goto fp_begin;
 		case 'f':		/* always print trailing zeroes */
 			if (prec != 0)
 				flags |= ALT;
