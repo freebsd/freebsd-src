@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ethersubr.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ethersubr.c,v 1.9.2.1 1996/06/02 00:00:43 gpalmer Exp $
+ * $Id: if_ethersubr.c,v 1.9.2.3 1996/06/05 19:49:24 nate Exp $
  */
 
 #include <sys/param.h>
@@ -110,7 +110,6 @@ ether_output(ifp, m0, dst, rt0)
 
 	if ((ifp->if_flags & (IFF_UP|IFF_RUNNING)) != (IFF_UP|IFF_RUNNING))
 		senderr(ENETDOWN);
-	ifp->if_lastchange = time;
 	if (rt = rt0) {
 		if ((rt->rt_flags & RTF_UP) == 0) {
 			if (rt0 = rt = rtalloc1(dst, 1, 0UL))
@@ -318,7 +317,6 @@ ether_input(ifp, eh, m)
 		m_freem(m);
 		return;
 	}
-	ifp->if_lastchange = time;
 	ifp->if_ibytes += m->m_pkthdr.len + sizeof (*eh);
 	if (bcmp((caddr_t)etherbroadcastaddr, (caddr_t)eh->ether_dhost,
 	    sizeof(etherbroadcastaddr)) == 0)
@@ -525,7 +523,7 @@ ether_addmulti(ifr, ac)
 	struct sockaddr_in *sin;
 	u_char addrlo[6];
 	u_char addrhi[6];
-      int set_allmulti = 0;
+        int set_allmulti = 0;
 	int s = splimp();
 
 	switch (ifr->ifr_addr.sa_family) {
@@ -596,8 +594,8 @@ ether_addmulti(ifr, ac)
 	ac->ac_multiaddrs = enm;
 	ac->ac_multicnt++;
 	splx(s);
-      if (set_allmulti)
-              ac->ac_if.if_flags |= IFF_ALLMULTI;
+        if (set_allmulti)
+        	ac->ac_if.if_flags |= IFF_ALLMULTI;
 
 	/*
 	 * Return ENETRESET to inform the driver that the list has changed
