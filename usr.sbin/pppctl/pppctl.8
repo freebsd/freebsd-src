@@ -1,4 +1,4 @@
-.\" $Id: pppctl.8,v 1.3 1997/09/29 19:11:45 wosch Exp $
+.\" $Id: pppctl.8,v 1.4 1997/10/05 14:21:30 brian Exp $
 .Dd 26 June 1997
 .Os FreeBSD
 .Dt PPPCTL 8
@@ -12,39 +12,62 @@ PPP control program
 .Op Fl t Ar n
 .Op Fl p Ar passwd
 .Ar [host:]Port | LocalSocket
-.Ar command
-.Op Ar ;command
-.Ar ...
+.Op command[;command]...
 .Sh DESCRIPTION
 This program provides command line control of the
-.Nm ppp
+.Xr ppp 8
 daemon.  Its primary use is to facilitate simple scripts that
 control a running daemon.
 
 .Nm Pppctl
-expects at least two arguments.  The first is interpreted as the
-socket on which the
+is passed at least one argument, specifying the socket on which
 .Nm ppp
-daemon is listening.  If the socket contains a leading '/', it
-is taken as an AF_LOCAL socket.  If it contains a colon, it is
-treated as a host:port pair, otherwise it is treated as just a
-port specification on the local machine (127.0.0.1).  Both the
-host and port may be specified numerically if you wish to avoid
-a DNS lookup or don't have an entry for the given port in
+is listening.  Refer to the
+.Sq set server
+command of
+.Nm ppp
+for details.  If the socket contains a leading '/', it
+is taken as an
+.Dv AF_LOCAL
+socket.  If it contains a colon, it is treated as a
+.Ar host:port
+pair, otherwise it is treated as a TCP port specification on the
+local machine (127.0.0.1).  Both the
+.Ar host
+and
+.Ar port
+may be specified numerically if you wish to avoid a DNS lookup
+or don't have an entry for the given port in
 .Pa /etc/services .
 
 .Pp
-All remaining arguments are concatenated to form the command(s) that
-will be sent to the
+All remaining arguments are concatenated to form the
+.Ar command(s)
+that will be sent to the
 .Nm ppp
-daemon.  If any semi-colon characters are found, they are treated
-as command delimiters, allowing more than one command in a given
-"session".  For example;
+daemon.  If any semi-colon characters are found, they are treated as
+.Ar command
+delimiters, allowing more than one
+.Ar command
+in a given "session".  For example:
 
   pppctl 3000 set timeout 300\\; show timeout
 
 Don't forget to escape or quote the ';' as it is a special character
 for most shells.
+
+If no
+.Ar command
+arguments are given,
+.Nm
+enters interactive mode, where commands are read from standard input.
+When in interactive mode, the
+.Fl v
+option is assumed.  Any password negotiation due to the
+.Fl p
+option is done prior to enabling the
+.Fl v
+option.
 
 The following command line options are available:
 .Bl -tag -width Ds
