@@ -2,7 +2,7 @@
 /* $NetBSD: kftxx.c,v 1.9 1998/05/14 00:01:32 thorpej Exp $ */
 
 /*
- * Copyright (c) 1997 by Matthew Jacob
+ * Copyright (c) 1997, 2000 by Matthew Jacob
  * NASA AMES Research Center.
  * All rights reserved.
  *
@@ -15,8 +15,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -74,9 +72,9 @@ static devclass_t kft_devclass;
 /*
  * Device methods
  */
-static int kft_probe(device_t dev);
-static int kft_print_child(device_t dev, device_t child);
-static int kft_read_ivar(device_t dev, device_t child, int which, u_long *result);;
+static int kft_probe(device_t);
+static int kft_print_child(device_t, device_t);
+static int kft_read_ivar(device_t, device_t, int, u_long *);
 
 static device_method_t kft_methods[] = {
 	/* Device interface */
@@ -104,10 +102,11 @@ static driver_t kft_driver = {
 static int
 kft_probe(device_t dev)
 {
-	device_t child;
+	static int dun;
+	device_t cd;
 	struct kft_softc *sc = (struct kft_softc *) device_get_softc(dev);
-	struct kft_device* kd;
-	int hoseno;
+	struct kft_device *kd;
+	int hose;
 
 	if (!TLDEV_ISIOPORT(tlsb_get_dtype(dev)))
 		return ENXIO;
@@ -115,39 +114,41 @@ kft_probe(device_t dev)
 	sc->sc_node = tlsb_get_node(dev);
 	sc->sc_dtype = tlsb_get_dtype(dev);
 
-	for (hoseno = 0; hoseno < MAXHOSE; hoseno++) {
+	for (hose = 0; hose < MAXHOSE; hose++) {
 		u_int32_t value =
-			TLSB_GET_NODEREG(sc->sc_node, KFT_IDPNSEX(hoseno));
+			TLSB_GET_NODEREG(sc->sc_node, KFT_IDPNSEX(hose));
 		if (value & 0x0E000000) {
-			printf("%s%d: Hose %d IDPNSE has %x\n",
-			       device_get_name(dev), device_get_unit(dev),
-			       hoseno, value);
+			printf("%s: Hose %d IDPNSE has %x\n",
+			       device_get_nameunit(dev),
+			       hose, value);
 			continue;
 		}
 		if ((value & 0x1) != 0x0) {
-			printf("%s%d: Hose %d has a Bad Cable (0x%x)\n",
-			       device_get_name(dev), device_get_unit(dev),
-			       hoseno, value);
+			printf("%s: Hose %d has a Bad Cable (0x%x)\n",
+			       device_get_nameunit(dev),
+			       hose, value);
 			continue;
 		}
 		if ((value & 0x6) != 0x6) {
 			if (value)
-				printf("%s%d: Hose %d is missing PWROK (0x%x)\n",
-				       device_get_name(dev), device_get_unit(dev),
-				       hoseno, value);
+				printf("%s: Hose %d is missing PWROK (0x%x)\n",
+				       device_get_nameunit(dev),
+				       hose, value);
 			continue;
 		}
 
-		kd = (struct kft_device*) malloc(sizeof(struct kft_device),
-						 M_DEVBUF, M_NOWAIT);
-		if (!kd) continue;
+		kd = (struct kft_device *)
+		    malloc(sizeof(struct kft_device), M_DEVBUF, M_NOWAIT);
+
+		if (kd == NULL)
+			continue;
 
 		kd->kd_name = "dwlpx";
 		kd->kd_node = sc->sc_node;
 		kd->kd_dtype = sc->sc_dtype;
-		kd->kd_hosenum = hoseno;
-		child = device_add_child(dev, kd->kd_name, -1);
-		device_set_ivars(child, kd);
+		kd->kd_hosenum = hose;
+		cd = device_add_child_ordered(dev, hose, kd->kd_name, dun++);
+		device_set_ivars(cd, kd);
 	}
 
 	return 0;
