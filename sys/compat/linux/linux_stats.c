@@ -383,8 +383,8 @@ linux_ustat(p, uap)
 	 * dev_t returned from previous syscalls. Just return a bzeroed
 	 * ustat in that case.
 	 */
-	dev = makebdev(uap->dev >> 8, uap->dev & 0xFF);
-	if (vfinddev(dev, VBLK, &vp)) {
+	dev = makedev(uap->dev >> 8, uap->dev & 0xFF);
+	if (vfinddev(dev, VCHR, &vp)) {
 		if (vp->v_mount == NULL)
 			return (EINVAL);
 		stat = &(vp->v_mount->mnt_stat);
