@@ -44,7 +44,7 @@ rc=0
 case "$daily_status_security_ip6fwlimit_enable" in
     [Yy][Ee][Ss])
 	IP6FW_LOG_LIMIT=`sysctl -n net.inet6.ip6.fw.verbose_limit 2> /dev/null`
-	if [ $? -eq 0 -a "${IP6FW_LOG_LIMIT}" -ne 0 ]; then
+	if [ $? -eq 0 ] && [ "${IP6FW_LOG_LIMIT}" -ne 0 ]; then
 	    ip6fw -a l | grep " log " | perl -n -e \
 		'/^\d+\s+(\d+)/; print if ($1 >= '$IP6FW_LOG_LIMIT')' > ${TMP}
 	    if [ -s "${TMP}" ]; then
