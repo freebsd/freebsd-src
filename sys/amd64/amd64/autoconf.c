@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.25 1995/04/23 09:12:39 julian Exp $
+ *	$Id: autoconf.c,v 1.26 1995/04/23 09:17:24 julian Exp $
  */
 
 /*
@@ -76,6 +76,14 @@ int nfs_mountroot __P((void));
 #endif
 #ifdef CD9660
 int cd9660_mountroot __P((void));
+#endif
+#ifdef MSDOSFS
+int msdosfs_mountroot __P((void));
+#endif
+#ifdef MFS_ROOT
+int mfs_initminiroot __P((u_char *));
+u_char mfs_root[MFS_ROOT*1024] = "MFS Filesystem goes here";
+u_char end_mfs_root[] = "MFS Filesystem had better STOP here";
 #endif
 
 #include "eisa.h"
@@ -163,6 +171,10 @@ configure()
 #endif
 
 	configure_finish();
+
+#ifdef MFS_ROOT
+	mfs_initminiroot(mfs_root);
+#endif /* MFS_ROOT */
 
 #ifdef CD9660
 	if ((boothowto & RB_CDROM) && !mountroot)
