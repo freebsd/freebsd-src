@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: vpoio.c,v 1.3 1998/09/20 14:41:54 nsouch Exp $
+ *	$Id: vpoio.c,v 1.4 1998/12/07 21:58:16 archie Exp $
  *
  */
 
@@ -40,6 +40,8 @@
 #ifdef	KERNEL
 #include <sys/kernel.h>
 #endif /*KERNEL */
+
+#include "opt_vpo.h"
 
 #include <dev/ppbus/ppbconf.h>
 #include <dev/ppbus/ppb_msq.h>
@@ -284,8 +286,13 @@ vpoio_connect(struct vpoio_data *vpo, int how)
 	int error;
 	int ret;
 
-	if ((error = ppb_request_bus(&vpo->vpo_dev, how)))
+	if ((error = ppb_request_bus(&vpo->vpo_dev, how))) {
+
+#ifdef VP0_DEBUG
+		printf("%s: can't request bus!\n", __FUNCTION__);
+#endif
 		return error;
+	}
 
 	if (PPB_IN_EPP_MODE(&vpo->vpo_dev))
 		ppb_MS_microseq(&vpo->vpo_dev, connect_epp_microseq, &ret);
@@ -437,8 +444,8 @@ vpoio_outstr(struct vpoio_data *vpo, char *buffer, int size)
 			ppb_wctr(&vpo->vpo_dev,
 				H_AUTO | H_nSELIN | H_INIT | H_STROBE);
 		}
-		/* ppb_ecp_sync(&vpo->vpo_dev); */
 #endif
+	ppb_ecp_sync(&vpo->vpo_dev);
 
 	return (error);
 }
@@ -476,8 +483,8 @@ vpoio_instr(struct vpoio_data *vpo, char *buffer, int size)
 			ppb_wctr(&vpo->vpo_dev, PCD |
 				H_AUTO | H_nSELIN | H_INIT | H_STROBE);
 		}
-		/* ppb_ecp_sync(&vpo->vpo_dev); */
 #endif
+	ppb_ecp_sync(&vpo->vpo_dev);
 
 	return (error);
 }
@@ -701,6 +708,10 @@ vpoio_reset_bus(struct vpoio_data *vpo)
 {
 	/* first, connect to the drive */
 	if (vpoio_connect(vpo, PPB_WAIT|PPB_INTR) || !vpoio_in_disk_mode(vpo)) {
+
+#ifdef VP0_DEBUG
+		printf("%s: not in disk mode!\n", __FUNCTION__);
+#endif
 		/* release ppbus */
 		vpoio_disconnect(vpo);
 		return (1);

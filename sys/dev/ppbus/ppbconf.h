@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppbconf.h,v 1.8 1998/09/13 18:26:26 nsouch Exp $
+ *	$Id: ppbconf.h,v 1.9 1998/09/20 14:41:54 nsouch Exp $
  *
  */
 #ifndef __PPBCONF_H
@@ -47,7 +47,12 @@
 #define PPB_EPP		0x4	/* EPP mode, 32 bit */
 #define PPB_ECP		0x8	/* ECP mode */
 
-#define PPB_SPP PPB_NIBBLE|PPB_PS2
+/* mode aliases */
+#define PPB_SPP		PPB_NIBBLE|PPB_PS2
+#define PPB_BYTE	PPB_PS2
+
+#define PPB_MASK		0x0f
+#define PPB_OPTIONS_MASK	0xf0
 
 #define PPB_IS_EPP(mode) (mode & PPB_EPP)
 #define PPB_IN_EPP_MODE(dev) (PPB_IS_EPP (ppb_get_mode (dev)))
@@ -103,6 +108,8 @@ struct ppb_status {
 #define PPB_NOINTR	0
 #define PPB_WAIT	0x1
 #define PPB_INTR	0x2
+#define PPB_POLL	0x4
+#define PPB_FOREVER	-1
 
 /*
  * Microsequence stuff.
@@ -144,14 +151,14 @@ struct ppb_context {
 	struct microseq *curmsq;	/* currently executed microseqence */
 };
 
-
 struct ppb_device {
 
 	int id_unit;			/* unit of the device */
 	char *name;			/* name of the device */
 
 	ushort mode;			/* current mode of the device */
-	ushort avm;			/* available modes of the device */
+	ushort avm;			/* available IEEE1284 modes of 
+					 * the device */
 
 	struct ppb_context ctx;		/* context of the device */
 
@@ -184,6 +191,8 @@ struct ppb_adapter {
 	int (*exec_microseq)(int, struct ppb_microseq **);
 
 	int (*setmode)(int, int);
+	int (*read)(int, char *, int, int);
+	int (*write)(int, char *, int, int);
 
 	void (*outsb_epp)(int, char *, int);
 	void (*outsw_epp)(int, char *, int);
@@ -230,7 +239,7 @@ struct ppb_link {
 /*
  * Maximum size of the PnP info string
  */
-#define PPB_PnP_STRING_SIZE	128			/* XXX */
+#define PPB_PnP_STRING_SIZE	256			/* XXX */
 
 /*
  * Parallel Port Bus structure.
@@ -250,10 +259,11 @@ struct ppb_data {
 #define PPB_PnP_UNKNOWN	10
 	int	class_id;	/* not a PnP device if class_id < 0 */
 
+	int state;				/* current IEEE1284 state */
+	int error;				/* last IEEE1284 error */
+
 	ushort mode;				/* IEEE 1284-1994 mode
 						 * NIBBLE, PS2, EPP or ECP */
-	ushort avm;				/* IEEE 1284-1994 available
-						 * modes */
 
 	struct ppb_link *ppb_link;		/* link to the adapter */
 	struct ppb_device *ppb_owner;		/* device which owns the bus */
@@ -294,6 +304,7 @@ extern int ppb_ecp_sync(struct ppb_device *);
 extern int ppb_get_status(struct ppb_device *, struct ppb_status *);
 
 extern int ppb_set_mode(struct ppb_device *, int);
+extern int ppb_write(struct ppb_device *, char *, int, int);
 
 /*
  * These are defined as macros for speedup.

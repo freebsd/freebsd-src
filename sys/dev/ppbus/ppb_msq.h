@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppb_msq.h,v 1.1.2.7 1998/06/20 19:03:47 son Exp $
+ *	$Id: ppb_msq.h,v 1.2 1998/09/13 18:26:26 nsouch Exp $
  *
  */
 #ifndef __PPB_MSQ_H
@@ -34,7 +34,7 @@
  */
 
 /* microsequence parameter descriptor */
-#define MS_INS_MASK	0x00ff	/* mask to retrieve the instruction position */
+#define MS_INS_MASK	0x00ff	/* mask to retrieve the instruction position < 256	XXX */
 #define MS_ARG_MASK	0x0f00	/* mask to retrieve the argument number */
 #define MS_TYP_MASK	0xf000	/* mask to retrieve the type of the param */
 
