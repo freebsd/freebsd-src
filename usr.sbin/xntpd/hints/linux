@@ -1,9 +1,0 @@
-
-Requirements:	kernel 0.99.14y or newer, libc 4.5.21 or newer
-------------
-
-	With this configuration, xntp should build an run right out of the box
-(see generic hints for how-to). If you really need to run xntp on any earlier
-versions of the kernel or libc, or have any other question not covered in the
-READMEs / hint files (sorry, necessary comment in the Linux community ;-) feel
-free to ask me (duwe@informatik.uni-erlangen.de)
