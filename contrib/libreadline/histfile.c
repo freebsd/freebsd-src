@@ -246,7 +246,7 @@ history_truncate_file (fname, lines)
 
   /* Write only if there are more lines in the file than we want to
      truncate to. */
-  if (i && ((file = open (filename, O_WRONLY|O_TRUNC|O_BINARY, 0666)) != -1))
+  if (i && ((file = open (filename, O_WRONLY|O_TRUNC|O_BINARY, 0600)) != -1))
     {
       write (file, buffer + i, finfo.st_size - i);
       close (file);
@@ -275,7 +275,7 @@ history_do_write (filename, nelements, overwrite)
   mode = overwrite ? O_WRONLY|O_CREAT|O_TRUNC|O_BINARY : O_WRONLY|O_APPEND|O_BINARY;
   output = history_filename (filename);
 
-  if ((file = open (output, mode, 0666)) == -1)
+  if ((file = open (output, mode, 0600)) == -1)
     {
       FREE (output);
       return (errno);
