@@ -32,11 +32,7 @@
  */
 
 #ifndef lint
-#if 0
 static const char sccsid[] = "@(#)preen.c	8.5 (Berkeley) 4/28/95";
-#endif
-static const char rcsid[] =
-	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -46,7 +42,7 @@ static const char rcsid[] =
 #include <ufs/ufs/dinode.h>
 
 #include <ctype.h>
-#include <err.h>
+#include <errno.h>
 #include <fstab.h>
 #include <string.h>
 
@@ -93,7 +89,8 @@ checkfstab(preen, maxrun, docheck, chkit)
 	sumstatus = 0;
 	for (passno = 1; passno <= 2; passno++) {
 		if (setfsent() == 0) {
-			warnx("can't open checklist file: %s", _PATH_FSTAB);
+			fprintf(stderr, "Can't open checklist file: %s\n",
+			    _PATH_FSTAB);
 			return (8);
 		}
 		while ((fsp = getfsent()) != 0) {
@@ -222,11 +219,15 @@ finddisk(name)
 		    dk->name[len] == 0)
 			return (dk);
 	}
-	if ((*dkp = (struct disk *)malloc(sizeof(struct disk))) == NULL)
-		errx(8, "out of memory");
+	if ((*dkp = (struct disk *)malloc(sizeof(struct disk))) == NULL) {
+		fprintf(stderr, "out of memory");
+		exit (8);
+	}
 	dk = *dkp;
-	if ((dk->name = malloc(len + 1)) == NULL)
-		errx(8, "out of memory");
+	if ((dk->name = malloc(len + 1)) == NULL) {
+		fprintf(stderr, "out of memory");
+		exit (8);
+	}
 	(void)strncpy(dk->name, name, len);
 	dk->name[len] = '\0';
 	dk->part = NULL;
@@ -249,14 +250,20 @@ addpart(name, fsname, auxdata)
 			printf("%s in fstab more than once!\n", name);
 			return;
 		}
-	if ((*ppt = (struct part *)malloc(sizeof(struct part))) == NULL)
-		errx(8, "out of memory");
+	if ((*ppt = (struct part *)malloc(sizeof(struct part))) == NULL) {
+		fprintf(stderr, "out of memory");
+		exit (8);
+	}
 	pt = *ppt;
-	if ((pt->name = malloc(strlen(name) + 1)) == NULL)
-		errx(8, "out of memory");
+	if ((pt->name = malloc(strlen(name) + 1)) == NULL) {
+		fprintf(stderr, "out of memory");
+		exit (8);
+	}
 	(void)strcpy(pt->name, name);
-	if ((pt->fsname = malloc(strlen(fsname) + 1)) == NULL)
-		errx(8, "out of memory");
+	if ((pt->fsname = malloc(strlen(fsname) + 1)) == NULL) {
+		fprintf(stderr, "out of memory");
+		exit (8);
+	}
 	(void)strcpy(pt->fsname, fsname);
 	pt->next = NULL;
 	pt->auxdata = auxdata;
@@ -271,7 +278,7 @@ startdisk(dk, checkit)
 
 	dk->pid = fork();
 	if (dk->pid < 0) {
-		warn("fork");
+		perror("fork");
 		return (8);
 	}
 	if (dk->pid == 0)
@@ -287,19 +294,17 @@ blockcheck(origname)
 	struct stat stslash, stblock, stchar;
 	char *newname, *raw;
 	struct fstab *fsinfo;
-	int retried = 0, l;
+	int retried = 0, len;
 
 	hotroot = 0;
 	if (stat("/", &stslash) < 0) {
-		warn("/");
-		printf("Can't stat root\n");
+		printf("Can't stat /: %s\n", strerror(errno));
 		return (origname);
 	}
 	newname = origname;
 retry:
 	if (stat(newname, &stblock) < 0) {
-		warn("%s", newname);
-		printf("Can't stat %s\n", newname);
+		printf("Can't stat %s: %s\n", newname, strerror(errno));
 		return (origname);
 	}
 	if ((stblock.st_mode & S_IFMT) == S_IFBLK) {
@@ -307,8 +312,7 @@ retry:
 			hotroot++;
 		raw = rawname(newname);
 		if (stat(raw, &stchar) < 0) {
-			warn("%s", raw);
-			printf("Can't stat %s\n", raw);
+			printf("Can't stat %s: %s\n", raw, strerror(errno));
 			return (origname);
 		}
 		if ((stchar.st_mode & S_IFMT) == S_IFCHR) {
@@ -318,15 +322,15 @@ retry:
 			return (origname);
 		}
 	} else if ((stblock.st_mode & S_IFMT) == S_IFCHR && !retried) {
-		newname = unrawname(origname);
+		newname = unrawname(newname);
 		retried++;
 		goto retry;
 	} else if ((stblock.st_mode & S_IFMT) == S_IFDIR && !retried) {
-		l = strlen(origname) - 1;
-		if (l > 0 && origname[l] == '/')
+		len = strlen(origname) - 1;
+		if (len > 0 && origname[len] == '/')
 			/* remove trailing slash */
-			origname[l] = '\0';
-		if(!(fsinfo=getfsfile(origname))) {
+			origname[len] = '\0';
+		if ((fsinfo = getfsfile(origname)) == NULL) {
 			printf("Can't resolve %s to character special device",
 			    origname);
 			return (0);

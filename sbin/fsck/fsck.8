@@ -1,3 +1,4 @@
+.\"
 .\" Copyright (c) 1980, 1989, 1991, 1993
 .\"	The Regents of the University of California.  All rights reserved.
 .\"
@@ -10,7 +11,7 @@
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
 .\" 3. All advertising materials mentioning features or use of this software
-.\"    must display the following acknowledgment:
+.\"    must display the following acknowledgement:
 .\"	This product includes software developed by the University of
 .\"	California, Berkeley and its contributors.
 .\" 4. Neither the name of the University nor the names of its contributors
@@ -30,9 +31,8 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)fsck.8	8.4 (Berkeley) 5/9/95
-.\"	$Id: fsck.8,v 1.10 1997/03/12 16:35:26 bde Exp $
 .\"
-.Dd May 9, 1995
+.Dd November 15, 1996
 .Dt FSCK 8
 .Os BSD 4
 .Sh NAME
@@ -43,24 +43,25 @@
 .Fl p
 .Op Fl f
 .Op Fl m Ar mode
+.Op Ar filesystem
+.Ar ...
 .Nm fsck
+.Op Fl ny
 .Op Fl b Ar block#
 .Op Fl c Ar level
 .Op Fl l Ar maxparallel
-.Op Fl y
-.Op Fl n
 .Op Fl m Ar mode
 .Op Ar filesystem
 .Ar ...
 .Sh DESCRIPTION
 The first form of
-.Nm
+.Nm fsck
 preens a standard set of filesystems or the specified filesystems.
 It is normally used in the script
 .Pa /etc/rc
 during automatic reboot.
 Here
-.Nm
+.Nm fsck
 reads the table
 .Pa /etc/fstab
 to determine which filesystems to check.
@@ -73,22 +74,18 @@ running one process per disk drive.
 The disk drive containing each filesystem is inferred from the longest prefix
 of the device name that ends in a digit; the remaining characters are assumed
 to be the partition designator.
-.Pp
-The clean flag of each filesystem's superblock is examined and only those filesystems that
-are not marked clean are checked.
+In preening mode,
+filesystems that are marked clean are skipped.
 Filesystems are marked clean when they are unmounted,
 when they have been mounted read-only, or when
-.Nm
+.Nm fsck
 runs on them successfully.
-If the
-.Fl f
-option is specified, the filesystems
-will be checked regardless of the state of their clean flag.
 .Pp
 The kernel takes care that only a restricted class of innocuous filesystem
 inconsistencies can happen unless hardware or software failures intervene.
 These are limited to the following:
-.Bl -item -compact
+.Pp
+.Bl -item -compact -offset indent
 .It
 Unreferenced inodes
 .It
@@ -102,7 +99,7 @@ Counts in the super-block wrong
 .El
 .Pp
 These are the only inconsistencies that
-.Nm
+.Nm fsck
 with the
 .Fl p
 option will correct; if it encounters other inconsistencies, it exits
@@ -110,7 +107,7 @@ with an abnormal return status and an automatic reboot will then fail.
 For each corrected inconsistency one or more lines will be printed
 identifying the filesystem on which the correction will take place,
 and the nature of the correction.  After successfully correcting a filesystem,
-.Nm
+.Nm fsck
 will print the number of files on that filesystem,
 the number of used and free blocks,
 and the percentage of fragmentation.
@@ -118,7 +115,7 @@ and the percentage of fragmentation.
 If sent a
 .Dv QUIT
 signal,
-.Nm
+.Nm fsck
 will finish the filesystem checks, then exit with an abnormal
 return status that causes an automatic reboot to fail.
 This is useful when you want to finish the filesystem checks during an
@@ -128,7 +125,7 @@ but do not want the machine to come up multiuser after the checks complete.
 Without the
 .Fl p
 option,
-.Nm
+.Nm fsck
 audits and interactively repairs inconsistent conditions for filesystems. 
 If the filesystem is inconsistent the operator is prompted for concurrence
 before each correction is attempted.
@@ -144,7 +141,7 @@ is to wait for the operator to respond
 or
 .Li no .
 If the operator does not have write permission on the filesystem
-.Nm
+.Nm fsck
 will default to a 
 .Fl n
 action.
@@ -158,38 +155,12 @@ and
 combined.
 .Pp
 The following flags are interpreted by
-.Nm Ns .
+.Nm fsck .
 .Bl -tag -width indent
 .It Fl b
 Use the block specified immediately after the flag as
 the super block for the filesystem.  Block 32 is usually
 an alternate super block.
-.It Fl l
-Limit the number of parallel checks to the number specified in the following
-argument.
-By default, the limit is the number of disks, running one process per disk.
-If a smaller limit is given, the disks are checked round-robin, one filesystem
-at a time.
-.It Fl m
-Use the mode specified in octal immediately after the flag as the
-permission bits to use when creating the
-.Pa lost+found
-directory rather than the default 1777.
-In particular, systems that do not wish to have lost files accessible
-by all users on the system should use a more restrictive
-set of permissions such as 700.
-.It Fl y
-Assume a yes response to all questions asked by 
-.Nm Ns ;
-this should be used with great caution as this is a free license
-to continue after essentially unlimited trouble has been encountered.
-.It Fl n
-Assume a no response to all questions asked by 
-.Nm
-except for
-.Ql CONTINUE? ,
-which is assumed to be affirmative;
-do not open the filesystem for writing.
 .It Fl c
 Convert the filesystem to the specified level.
 Note that the level of a filesystem can only be raised.
@@ -210,7 +181,7 @@ If maxcontig is equal to one, delete any existing segment maps.
 .El
 .Pp
 In interactive mode,
-.Nm
+.Nm fsck
 will list the conversion to be made
 and ask whether the conversion should be done.
 If a negative answer is given,
@@ -223,10 +194,44 @@ are being converted at once.
 The format of a filesystem can be determined from the
 first line of output from 
 .Xr dumpfs 8 .
+.It Fl f
+Force
+.Nm fsck
+to check
+.Sq clean
+filesystems when preening.
+.It Fl l
+Limit the number of parallel checks to the number specified in the following
+argument.
+By default, the limit is the number of disks, running one process per disk.
+If a smaller limit is given, the disks are checked round-robin, one filesystem
+at a time.
+.It Fl m
+Use the mode specified in octal immediately after the flag as the
+permission bits to use when creating the
+.Pa lost+found
+directory rather than the default 1777.
+In particular, systems that do not wish to have lost files accessible
+by all users on the system should use a more restrictive
+set of permissions such as 700.
+.It Fl n
+Assume a no response to all questions asked by 
+.Nm fsck
+except for
+.Ql CONTINUE? ,
+which is assumed to be affirmative;
+do not open the filesystem for writing.
+.It Fl p
+Preen filesystems (see above).
+.It Fl y
+Assume a yes response to all questions asked by 
+.Nm fsck ;
+this should be used with great caution as this is a free license
+to continue after essentially unlimited trouble has been encountered.
 .El
 .Pp
 If no filesystems are given to 
-.Nm
+.Nm fsck
 then a default list of filesystems is read from
 the file
 .Pa /etc/fstab .
@@ -259,7 +264,7 @@ File pointing to unallocated inode.
 .It
 Inode number out of range.
 .It
-Holes in directories.
+Directories with unallocated blocks (holes).
 .It
 Dot or dot-dot not the first two entries of a directory
 or having the wrong inode number.
@@ -296,14 +301,13 @@ contains default list of filesystems to check.
 .El
 .Sh DIAGNOSTICS
 The diagnostics produced by 
-.Nm
+.Nm fsck
 are fully enumerated and explained in Appendix A of
 .Rs
 .%T "Fsck \- The UNIX File System Check Program"
 .Re
 .Sh SEE ALSO
-.Xr fs 5 ,
 .Xr fstab 5 ,
-.Xr fsdb 8 ,
+.Xr fs 5 ,
 .Xr newfs 8 ,
 .Xr reboot 8
