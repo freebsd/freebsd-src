@@ -33,7 +33,7 @@
  *
  *	@(#)ipxip.h
  *
- * $Id: ipx_ip.h,v 1.10 1997/05/10 09:58:53 jhay Exp $
+ * $Id: ipx_ip.h,v 1.11 1997/06/26 19:35:50 jhay Exp $
  */
 
 #ifndef _NETIPX_IPXIP_H_
@@ -53,7 +53,7 @@ struct ifnet_en {
 
 void	ipxip_ctlinput __P((int cmd, struct sockaddr *sa, void *arg));
 void	ipxip_input __P((struct mbuf *m, int hlen));
-int	ipxip_route __P((struct socket *so, struct mbuf *m, struct proc *p));
+int	ipxip_route __P((struct socket *so, struct sockopt *sopt));
 
 #endif /* KERNEL */
 

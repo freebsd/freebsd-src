@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_proto.c	8.2 (Berkeley) 2/9/95
- *	$Id: in_proto.c,v 1.45 1997/12/15 20:31:11 eivind Exp $
+ *	$Id: in_proto.c,v 1.46 1998/03/21 11:33:57 peter Exp $
  */
 
 #include "opt_ipdivert.h"
@@ -70,15 +70,6 @@
 #include <netns/ns.h>
 #include <netns/ns_if.h>
 #endif
-
-#ifdef TPIP
-void	tpip_input(), tpip_ctlinput(), tp_init(), tp_slowtimo(), tp_drain();
-int	tp_ctloutput(), tp_usrreq();
-#endif
-
-#ifdef EON
-void	eoninput(), eonctlinput(), eonprotoinit();
-#endif /* EON */
 
 extern	struct domain inetdomain;
 static	struct pr_usrreqs nousrreqs;

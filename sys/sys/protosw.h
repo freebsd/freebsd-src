@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)protosw.h	8.1 (Berkeley) 6/2/93
- *	$Id: protosw.h,v 1.23 1998/02/01 20:08:37 bde Exp $
+ *	$Id: protosw.h,v 1.24 1998/06/07 17:13:03 dfr Exp $
  */
 
 #ifndef _SYS_PROTOSW_H_
@@ -42,6 +42,7 @@ struct mbuf;
 struct proc;
 struct sockaddr;
 struct socket;
+struct sockopt;
 
 /*#ifdef KERNEL*/
 /*
@@ -58,13 +59,13 @@ struct socket;
  *
  * Protocols pass data between themselves as chains of mbufs using
  * the pr_input and pr_output hooks.  Pr_input passes data up (towards
- * UNIX) and pr_output passes it down (towards the imps); control
+ * the users) and pr_output passes it down (towards the interfaces); control
  * information passes up and down on pr_ctlinput and pr_ctloutput.
  * The protocol is responsible for the space occupied by any the
  * arguments to these entries and must dispose it.
  *
- * The userreq routine interfaces protocols to the system and is
- * described below.
+ * In retrospect, it would be a lot nicer to use an interface
+ * similar to the vnode VOP interface.
  */
 struct protosw {
 	short	pr_type;		/* socket type used for */
@@ -78,8 +79,7 @@ struct protosw {
 					/* output to protocol (from above) */
 	void	(*pr_ctlinput)__P((int, struct sockaddr *, void *));
 					/* control input (from below) */
-	int	(*pr_ctloutput)__P((int, struct socket *, int, int,
-				    struct mbuf **, struct proc *));
+	int	(*pr_ctloutput)__P((struct socket *, struct sockopt *));
 					/* control output (from above) */
 /* user-protocol hook */
 	void	*pr_ousrreq;
