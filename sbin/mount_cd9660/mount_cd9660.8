@@ -42,7 +42,7 @@
 .Nd mount an ISO-9660 filesystem
 .Sh SYNOPSIS
 .Nm mount_cd9660
-.Op Fl egrv
+.Op Fl egjrv
 .Op Fl o Ar options
 .Op Fl s Ar startsector
 .Ar special | node
@@ -76,6 +76,21 @@ flag followed by a comma separated string of options.
 See the
 .Xr mount 8
 man page for possible options and their meanings.
+The following cd9660 specific options are available:
+.Bl -tag -width indent
+.It extatt
+Same as
+.Fl e .
+.It gens
+Same as
+.Fl g .
+.It joliet
+Same as
+.Fl j .
+.It rrip
+Same as
+.Fl r .
+.El
 .It Fl r
 Do not use any Rockridge extensions included in the filesystem.
 .It Fl s Ar startsector
