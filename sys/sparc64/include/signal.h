@@ -44,7 +44,7 @@ typedef	long sig_atomic_t;
 
 #define	MINSIGSTKSZ	(1024 * 4)
 
-typedef	u_int osigset_t;
+typedef	int osigset_t;
 
 struct osigcontext {
 };
