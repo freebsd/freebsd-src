@@ -89,13 +89,13 @@
 .Nm matcd
 .Nd Matsushita (Panasonic) CD-ROM driver
 .Sh SYNOPSIS
-.sp
+.Pp
 .Cd "controller matcd[0-4] at isa? port [?| addr]"
 .br
 .Cd "/dev/[r]matcd[0-15][a|c]
 .br
 .Cd "/dev/[r]matcdl[0-15][a|c]
-.sp
+.Pp
 .Sh DESCRIPTION
 The
 .Nm matcd
@@ -286,7 +286,7 @@ accepts numerous
 .Fn ioctl
 commands, including disk and functions related to CD-ROM audio and tray
 control features.  The commands are:
-.sp
+.Pp
 .Bl -tag -width CDIOCREADSUBCHANNELXXX -compact -offset indent
 .It DIOCGDINFO
 get disklabel.

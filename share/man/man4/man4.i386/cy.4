@@ -47,18 +47,16 @@ Cyclades Cyclom-8Y and Cyclom-16Y serial driver
 .Sh SYNOPSIS
 .Cd "device cy0 at isa? tty irq 10 iomem 0xd4000 iosiz 0x2000 vector cyintr
 .Cd "device cy1 at isa? tty irq 11 iomem 0xd6000 iosiz 0x2000 vector cyintr
-.sp
+.Pp
 Minor numbering:
-.br
+..Pp
+.Bd -literal
 0b\fIOLIMMMMM\fR
-.br
   call\fBO\fRut
-.br
    \fBL\fRock
-.br
     \fBI\fRnitial
-.br
      \fBMMMMMM\fRinor
+.Ed
 .Sh DESCRIPTION
 The
 .Nm cy
@@ -120,7 +118,7 @@ Use
 .Xr stty 1
 in the normal way on the initial-state devices to program
 initial termios states suitable for your setup.
-.sp
+.Pp
 The lock termios state acts as flags to disable changing
 the termios state.  E.g., to lock a flag variable such as
 CRTSCTS, use
@@ -128,7 +126,7 @@ CRTSCTS, use
 on the lock-state device.  Speeds and special characters
 may be locked by setting the corresponding value in the lock-state
 device to any nonzero value.
-.sp
+.Pp
 Correct programs talking to correctly wired external devices
 work with almost arbitrary initial states and almost no locking,
 but other setups may benefit from changing some of the default
@@ -154,7 +152,7 @@ for callin ports
 .It Pa /dev/ttyic?
 .It Pa /dev/ttylc?
 corresponding callin initial-state and lock-state devices
-.sp
+.Pp
 .\" XXX more cloning: s/a/c/g.  No consistency :-(.
 .It Pa /dev/cuac?
 for callout ports
@@ -162,7 +160,7 @@ for callout ports
 .It Pa /dev/cualc?
 corresponding callout initial-state and lock-state devices
 .El
-.sp
+.Pp
 .Bl -tag -width /etc/rc.serial -compact
 .It Pa /etc/rc.serial
 examples of setting the initial-state and lock-state devices

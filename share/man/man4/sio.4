@@ -49,24 +49,24 @@ For standard ports:
 .Cd "device sio1 at isa? port" \&"IO_COM2\&" tty irq 3 vector siointr
 .Cd "device sio2 at isa? port" \&"IO_COM3\&" tty irq 5 vector siointr
 .Cd "device sio3 at isa? port" \&"IO_COM4\&" tty irq 9 vector siointr
-.sp
+.Pp
 For AST compatible multiport cards with 4 ports:
 .Cd "options" \&"COM_MULTIPORT\&"
 .Cd "device sio4 at isa? port 0x2a0 tty flags 0x701"
 .Cd "device sio5 at isa? port 0x2a8 tty flags 0x701"
 .Cd "device sio6 at isa? port 0x2b0 tty flags 0x701"
 .Cd "device sio7 at isa? port 0x2b8 tty flags 0x701 irq 12 vector siointr"
-.sp
+.Pp
 For Boca Board compatible multiport cards with 8 ports:
 .Cd "options" \&"COM_MULTIPORT\&"
 .Cd "device sio4 at isa? port 0x100 tty flags 0xb05"
 .Cd "..."
 .Cd "device sio11 at isa? port 0x138 tty flags 0xb05 irq 12 vector siointr"
-.sp
+.Pp
 For Hayes ESP cards:
 .Cd "options" \&"COM_ESP\&"
 .Cd "..."
-.sp
+.Pp
 Meaning of \fBflags\fR:
 .br
 \fB0x0001\fR shared IRQs
@@ -80,7 +80,7 @@ Meaning of \fBflags\fR:
 \fB0x0080\fR enable diagnostics in probe
 .br
 \fB0x\fI??\fB00\fR minor number of master port
-.sp
+.Pp
 Minor numbering:
 .br
 0b\fIOLIMMMMM\fR
@@ -116,7 +116,7 @@ Frequently 4 ports share 1 IRQ; some 8 port cards have 2 groups of 4 ports,
 thus using 2 IRQs.
 Some cards allow the first 2 serial ports to have seperate IRQs per port
 (as per DOS PC standard).
-.sp
+.Pp
 Some cards have an IRQ control register for each group.
 Some cards require special initialization related to such registers.
 Only AST/4 compatible IRQ control registers are supported.
@@ -128,7 +128,7 @@ of a port in the group.
 Such a port is called a
 .Nm master
 port.
-.sp
+.Pp
 The
 .Nm flags
 keyword may be used on each
@@ -140,7 +140,7 @@ or to disable the FIFO on 16550A UARTs
 Disabling the FIFO should rarely be necessary
 since the driver automatically adjusts the receiver
 FIFO trigger level for low latency and high efficiency.
-.sp
+.Pp
 The
 .Nm flags
 keyword
@@ -152,7 +152,7 @@ require AST/4 compatible initialization.
 The minor number of the device corresponding a master port
 for the group is encoded as a bitfield in the high byte.
 The same master port must be specified for all ports in a group.
-.sp
+.Pp
 The
 .Nm irq
 and
@@ -166,7 +166,7 @@ In the synopsis,
 means that the 8th port (sio7) is the master
 port, and that the port is on a multiport card with shared IRQs
 and an AST/4 compatible IRQ control register.
-.sp
+.Pp
 .Nm flags 0xb05
 means that the 12th port (sio11) is the master
 port, and that the port is on a multiport card with shared IRQs
@@ -214,7 +214,7 @@ Use
 .Xr stty 1
 in the normal way on the initial-state devices to program
 initial termios states suitable for your setup.
-.sp
+.Pp
 The lock termios state acts as flags to disable changing
 the termios state.  E.g., to lock a flag variable such as
 CRTSCTS, use
@@ -222,7 +222,7 @@ CRTSCTS, use
 on the lock-state device.  Speeds and special characters
 may be locked by setting the corresponding value in the lock-state
 device to any nonzero value.
-.sp
+.Pp
 Correct programs talking to correctly wired external devices
 work with almost arbitrary initial states and almost no locking,
 but other setups may benefit from changing some of the default
@@ -247,14 +247,14 @@ for callin ports
 .It Pa /dev/ttyid?
 .It Pa /dev/ttyld?
 corresponding callin initial-state and lock-state devices
-.sp
+.Pp
 .It Pa /dev/cuaa?
 for callout ports
 .It Pa /dev/cuaia?
 .It Pa /dev/cuala?
 corresponding callout initial-state and lock-state devices
 .El
-.sp
+.Pp
 .Bl -tag -width /etc/rc.serial -compact
 .It Pa /etc/rc.serial
 examples of setting the initial-state and lock-state devices

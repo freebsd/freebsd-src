@@ -17,16 +17,16 @@ Generic NCR-5380/NCR-53C400 SCSI adapter driver
 .Sh SYNOPSIS
 Trantor 130, with IRQ:
 .Cd "controller nca0 at isa? port 0x350 bio irq 5 vector ncaintr
-.sp
+.Pp
 Trantor 130, without IRQ:
 .Cd "controller nca0 at isa? port 0x350
-.sp
+.Pp
 ProAudioSpectrum-16, with IRQ:
 .Cd "controller nca0 at isa? port 0x1f88 bio irq 5 vector ncaintr
 .Cd "controller nca1 at isa? port 0x1f84 bio irq 5 vector ncaintr
 .Cd "controller nca2 at isa? port 0x1f8c bio irq 5 vector ncaintr
 .Cd "controller nca3 at isa? port 0x1e88 bio irq 5 vector ncaintr
-.sp
+.Pp
 ProAudioSpectrum-16, without IRQ:
 .Cd "controller nca0 at isa? port 0x1f88
 .Cd "controller nca1 at isa? port 0x1f84
@@ -35,19 +35,19 @@ ProAudioSpectrum-16, without IRQ:
 .Sh DESCRIPTION
 This driver provides access to SCSI devices connected to
 NCR-5380/NCR-53C400 SCSI adapter.
-.sp
+.Pp
 It's possible to use the adapter without IRQ line.
 The data rate then slightly decreases (by 20-30%).
-.sp
+.Pp
 The \fBflags\fP keyword in the configuration file can be used to set
 some adapter driver parameters:
-.sp
+.Pp
 Bits    Description
 .br
 ------------------------------------------
 .br
 0x01    Disable SCSI bus parity check.
-.sp
+.Pp
 Tested on the following hardware:
 .br
   Adapter: Trantor T130

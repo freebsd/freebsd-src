@@ -84,7 +84,7 @@
 lists, tail queues, and circular queues
 .Sh SYNOPSIS
 .Fd #include <sys/queue.h>
-.sp
+.\"
 .Fn SLIST_EMPTY "SLIST_HEAD *head"
 .Fn SLIST_ENTRY "TYPE"
 .Fn SLIST_FIRST "SLIST_HEAD *head"
@@ -95,7 +95,7 @@ lists, tail queues, and circular queues
 .Fn SLIST_NEXT "TYPE *elm" "SLIST_ENTRY NAME"
 .Fn SLIST_REMOVE_HEAD "SLIST_HEAD *head" "SLIST_ENTRY NAME"
 .Fn SLIST_REMOVE "SLIST_HEAD *head" "TYPE *elm" "TYPE" "SLIST_ENTRY NAME"
-.sp
+.\"
 .Fn STAILQ_ENTRY "TYPE"
 .Fn STAILQ_HEAD "HEADNAME" "TYPE"
 .Fn STAILQ_INIT "STAILQ_HEAD *head"
@@ -104,7 +104,7 @@ lists, tail queues, and circular queues
 .Fn STAILQ_INSERT_TAIL "STAILQ_HEAD *head" "TYPE *elm" "STAILQ_ENTRY NAME"
 .Fn STAILQ_REMOVE_HEAD "STAILQ_HEAD *head" "TYPE *elm" "STAILQ_ENTRY NAME"
 .Fn STAILQ_REMOVE "STAILQ_HEAD *head" "TYPE *elm" "TYPE" "STAILQ_ENTRY NAME"
-.sp
+.\"
 .Fn LIST_ENTRY "TYPE"
 .Fn LIST_HEAD "HEADNAME" "TYPE"
 .Fn LIST_INIT "LIST_HEAD *head"
@@ -112,7 +112,7 @@ lists, tail queues, and circular queues
 .Fn LIST_INSERT_BEFORE "TYPE *listelm" "TYPE *elm" "LIST_ENTRY NAME"
 .Fn LIST_INSERT_HEAD "LIST_HEAD *head" "TYPE *elm" "LIST_ENTRY NAME"
 .Fn LIST_REMOVE "TYPE *elm" "LIST_ENTRY NAME"
-.sp
+.\"
 .Fn TAILQ_EMPTY "TAILQ_HEAD *head"
 .Fn TAILQ_ENTRY "TYPE"
 .Fn TAILQ_FIRST "TAILQ_HEAD *head"
@@ -125,7 +125,7 @@ lists, tail queues, and circular queues
 .Fn TAILQ_LAST "TAILQ_HEAD *head"
 .Fn TAILQ_NEXT "TYPE *elm" "TAILQ_ENTRY NAME"
 .Fn TAILQ_REMOVE "TAILQ_HEAD *head" "TYPE *elm" "TAILQ_ENTRY NAME"
-.sp
+.\"
 .Fn CIRCLEQ_ENTRY "TYPE"
 .Fn CIRCLEQ_HEAD "HEADNAME" "TYPE"
 .Fn CIRCLEQ_INIT "CIRCLEQ_HEAD *head"
@@ -274,7 +274,7 @@ structure is declared as follows:
 .Bd -literal -offset indent
 SLIST_HEAD(HEADNAME, TYPE) head;
 .Ed
-.sp
+.Pp
 where
 .Fa HEADNAME
 is the name of the structure to be defined, and
@@ -284,7 +284,7 @@ A pointer to the head of the list can later be declared as:
 .Bd -literal -offset indent
 struct HEADNAME *headp;
 .Ed
-.sp
+.Pp
 (The names
 .Li head
 and
@@ -383,7 +383,7 @@ structure is declared as follows:
 .Bd -literal -offset indent
 STAILQ_HEAD(HEADNAME, TYPE) head;
 .Ed
-.sp
+.Pp
 where
 .Li HEADNAME
 is the name of the structure to be defined, and
@@ -393,7 +393,7 @@ A pointer to the head of the tail queue can later be declared as:
 .Bd -literal -offset indent
 struct HEADNAME *headp;
 .Ed
-.sp
+.Pp
 (The names
 .Li head
 and
@@ -509,7 +509,7 @@ structure is declared as follows:
 .Bd -literal -offset indent
 LIST_HEAD(HEADNAME, TYPE) head;
 .Ed
-.sp
+.Pp
 where
 .Fa HEADNAME
 is the name of the structure to be defined, and
@@ -519,7 +519,7 @@ A pointer to the head of the list can later be declared as:
 .Bd -literal -offset indent
 struct HEADNAME *headp;
 .Ed
-.sp
+.Pp
 (The names
 .Li head
 and
@@ -622,7 +622,7 @@ structure is declared as follows:
 .Bd -literal -offset indent
 TAILQ_HEAD(HEADNAME, TYPE) head;
 .Ed
-.sp
+.Pp
 where
 .Li HEADNAME
 is the name of the structure to be defined, and
@@ -632,7 +632,7 @@ A pointer to the head of the tail queue can later be declared as:
 .Bd -literal -offset indent
 struct HEADNAME *headp;
 .Ed
-.sp
+.Pp
 (The names
 .Li head
 and
@@ -761,7 +761,7 @@ structure is declared as follows:
 .Bd -literal -offset indent
 CIRCLEQ_HEAD(HEADNAME, TYPE) head;
 .Ed
-.sp
+.Pp
 where
 .Li HEADNAME
 is the name of the structure to be defined, and
@@ -771,7 +771,7 @@ A pointer to the head of the circular queue can later be declared as:
 .Bd -literal -offset indent
 struct HEADNAME *headp;
 .Ed
-.sp
+.Pp
 (The names
 .Li head
 and

@@ -18,55 +18,55 @@ Seagate ST01/ST02, Future Domain TMC-885, TMC-950 SCSI adapter driver
 .Sh SYNOPSIS
 With explicit memory and IRQ parameters:
 .Cd "controller sea0 at isa? bio irq 5 iomem 0xc8000 vector seaintr
-.sp
+.Pp
 With automatic memory address detection and no IRQ:
 .Cd "controller sea0 at isa?
-.sp
+.Pp
 .Cd "controller scbus0
-.sp
+.Pp
 For each connected disk:
 .Cd "device sd0
-.sp
+.Pp
 For each connected tape device:
 .Cd "device st0
-.sp
+.Pp
 For one or more cdroms:
 .Cd "device cd0
 .Sh DESCRIPTION
 This driver provides access to SCSI devices connected to Seagate ST01/ST02 or
 Future Domain TMC-885, TMC-950 SCSI adapter.
-.sp
+.Pp
 It's possible to use the Seagate ST01/ST02 adapter without IRQ line.
 The data rate then slightly decreases (by 20-30%).
-.sp
+.Pp
 The \fBflags\fP keyword in the configuration file can be used to set
 some adapter driver parameters:
-.sp
+.Pp
 Bits    Description
 .br
 ------------------------------------------
 .br
 0x01    Disable SCSI bus parity check.
-.sp
+.Pp
 The original Seagate ST02
 BIOS cannot coexist with IDE or any other disk controller
 because it does not share BIOS disk drive numbers (80h, 81h)
 with others.  The probing code  of the driver allows using ST02 controller
 without BIOS: just unplug the ST02 BIOS chip from the board.
-.sp
+.Pp
 Another problem is the floppy adapter on ST02 which could not be
 disabled by jumpers.  The ST02 adapter it the best as a cheap solution
 for atttaching the tape and CD-ROM drives, and an extra floppy controller
 is just a headache.  There exist a simple workaround: cutting off
 the AEN signal (A11 contact on ISA connector).  AEN then goes high and
 disables the floppy adapter port address decoder.
-.sp
+.Pp
 Some motherboards also have a problem with ST02 conflicting with IDE during
 IDE data write phase.  It seems than ST02 makes some noise
 on /IOW line.  The /IOW line is used only for floppy controller
 part of ST02, and because it's rarely needed, cutting off the /IOW
 (contact B13) will help.
-.sp
+.Pp
 Tested on the following hardware:
 .br
   Adapter: Seagate ST02
@@ -76,7 +76,7 @@ Tested on the following hardware:
 Streamers: Archive Viper 150, Wangtek 5525
 .br
   CD-ROMs: Toshiba XM-3401, NEC CDR-25
-.sp
+.Pp
 Maximum data rate is about 270-280 kbytes/sec (on 386DX/40).
 .Sh FILES
 .Bl -tag -width Pa -compact

@@ -48,7 +48,7 @@ DigiBoard intelligent serial cards driver
 .Cd "options" \&"NDGBPORTS=8\&"
 .Cd "device dgb0 at isa? tty port 0x220 iomem 0xfc0000 iosiz ? flags 0x0
 All values are just examples.
-.sp
+.Pp
 The \fBNDGBPORTS\fR option defines the total number of ports on all cards
 installed in the system. When not defined the number is computed:
 
@@ -59,13 +59,13 @@ If it is less than the actual number of ports
 the system will be able to use only the
 first \fBNDGBPORTS\fR ports. If it is greater then all ports will be usable
 but some memory will be wasted.
-.sp
+.Pp
 Meaning of \fBflags\fR:
 .br
 \fB0x0001\fR use alternate pinout (exchange DCD and DSR lines)
 .br
 \fB0x0002\fR don't use 8K window mode of PC/Xe
-.sp
+.Pp
 Device numbering:
 .br
 0b\fICC\fRmmmmmmmm\fIOLIPPPPP\fR
@@ -103,12 +103,12 @@ DigiBoard cards have large input and output buffers (more than 1Kbyte per
 port) and hardware that allows efficiently finding the port that needs
 attention. The only problem seen with this policy is slower 
 SLIP and PPP response.
-.sp
+.Pp
 Each line in the kernel configuration file describes one card, not one port 
 as in the
 .Nm sio
 driver.
-.sp
+.Pp
 The
 .Nm flags
 keyword may be used on each
@@ -120,7 +120,7 @@ which can work with an 8K memory window in compatibility mode
 that using 8K memory window doesn't mean shorter input/output buffers, it means
 only that all buffers will be mapped to the same memory address and switched as
 needed.
-.sp
+.Pp
 The
 .Nm port
 value must be the same
@@ -140,7 +140,7 @@ write the address you want as the
 .Nm iomem
 value in kernel config file and the card will be programmed 
 to use this address.
-.sp
+.Pp
 The same range of memory addresses may be used
 for all the DigiBoards installed
 (but not for any other card or real memory). DigiBoards
@@ -192,7 +192,7 @@ Use
 .Xr stty 1
 in the normal way on the initial-state devices to program
 initial termios states suitable for your setup.
-.sp
+.Pp
 The lock termios state acts as flags to disable changing
 the termios state.  E.g., to lock a flag variable such as
 CRTSCTS, use
@@ -200,7 +200,7 @@ CRTSCTS, use
 on the lock-state device.  Speeds and special characters
 may be locked by setting the corresponding value in the lock-state
 device to any nonzero value.
-.sp
+.Pp
 Correct programs talking to correctly wired external devices
 .\" XXX change next line in other man pages too, and rewrite this paragraph.
 work with almost arbitrary initial states and no locking,
@@ -226,14 +226,14 @@ for callin ports
 .It Pa /dev/ttyiD??
 .It Pa /dev/ttylD??
 corresponding callin initial-state and lock-state devices
-.sp
+.Pp
 .It Pa /dev/cuaD??
 for callout ports
 .It Pa /dev/cuaiD??
 .It Pa /dev/cualD??
 corresponding callout initial-state and lock-state devices
 .El
-.sp
+.Pp
 .Bl -tag -width /etc/rc.serial -compact
 .It Pa /etc/rc.serial
 examples of setting the initial-state and lock-state devices
