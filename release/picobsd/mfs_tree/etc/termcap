@@ -156,3 +156,7 @@ pc3|ibmpc3|IBM PC 386BSD Console:\
 	:ti=\E[m:\
 	:up=\E[A:\
 	:ut:
+du|dialup:\
+	:tc=unknown:
+dumb|un|unknown:\
+	:am:co#80:do=^J:
