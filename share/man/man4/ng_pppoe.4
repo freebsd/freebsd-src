@@ -220,7 +220,7 @@ setup(char *ethername, char *service, char *sessname,
 	struct nodeinfo *peer;
 	/****message to connect pppoe session*****/
 	struct {
-		struct ngPPPoE_init_data idata;
+		struct ngpppoe_init_data idata;
 		char            service[100];
 	}               message;
 	/********tracking our little graph ********/
