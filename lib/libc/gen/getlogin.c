@@ -64,11 +64,7 @@ getlogin_basic(int *status)
 	static char logname[MAXLOGNAME];
 
 	if (_logname_valid == 0) {
-#ifdef __NETBSD_SYSCALLS
-		if (_getlogin(logname, sizeof(logname) - 1) < 0) {
-#else
 		if (_getlogin(logname, sizeof(logname)) < 0) {
-#endif
 			*status = errno;
 			return (NULL);
 		}

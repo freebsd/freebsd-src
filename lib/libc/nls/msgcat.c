@@ -111,11 +111,7 @@ catopen(name, type)
 		pcode = cptr;
 	}
 
-	if ((nlspath = getenv("NLSPATH")) == NULL
-#ifndef __NETBSD_SYSCALLS
-	    || issetugid()
-#endif
-	   )
+	if ((nlspath = getenv("NLSPATH")) == NULL || issetugid())
 		nlspath = _DEFAULT_NLS_PATH;
 
 	if ((base = cptr = strdup(nlspath)) == NULL) {
