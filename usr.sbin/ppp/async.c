@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id:$
+ * $Id: async.c,v 1.2 1995/02/26 12:17:11 amurai Exp $
  * 
  */
 #include "fsm.h"
@@ -78,7 +78,7 @@ int proto;
     *wp++ = HDLC_ESC;
     c ^= HDLC_XOR;
   }
-  if (EscMap[32] && EscMap[c >> 3] & (c&7)) {
+  if (EscMap[32] && EscMap[c >> 3] &  (1 << (c&7))) {
     *wp++ = HDLC_ESC;
     c ^= HDLC_XOR;
   }
