@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.180 1998/11/20 23:20:00 jdp Exp $
+#	$Id: Makefile,v 1.181 1998/12/10 05:34:11 jb Exp $
 
 SUBDIR=	sendmail
 
@@ -167,6 +167,7 @@ _etc_missing+=$(_f)
 #
 install:
 .if (${_etc_missing} != "")
+	cd ${.CURDIR}; \
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 ${_etc_missing} \
 	    ${DESTDIR}/etc
 .endif
