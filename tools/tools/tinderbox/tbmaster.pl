@@ -121,6 +121,37 @@ sub readconf($) {
 }
 
 ###
+### Record a tinderbox result in the history file
+###
+sub history($$$) {
+    my $start = shift;
+    my $end = shift;
+    my $success = shift;
+
+    my $history = strftime("%Y-%m-%d %H:%M:%S\t", localtime($start));
+    $history .= strftime("%Y-%m-%d %H:%M:%S\t", localtime($end));
+    $history .= expand('ARCH') . "\t";
+    $history .= expand('MACHINE') . "\t";
+    my $date = expand('DATE');
+    if ($date) {
+	$date =~ s/\s+/\t/g;
+	$history .= expand('BRANCH') . ":" . expand('DATE') . "\t";
+    } else {
+	$history .= expand('BRANCH') . "\t";
+    }
+    $history .= $success ? "OK\n" : "FAIL\n";
+
+    my $fn = expand('LOGDIR') . "/history";
+    local *HISTORY;
+    if (sysopen(HISTORY, $fn, O_WRONLY|O_APPEND|O_CREAT, 0644)) {
+	syswrite(HISTORY, $history, length($history));
+	close(HISTORY);
+    } else {
+	print(STDERR "failed to record result to history file:\n$history\n");
+    }
+}
+
+###
 ### Report a tinderbox failure
 ###
 sub report($$$$) {
@@ -152,6 +183,8 @@ sub tinderbox($$$) {
     my $branch = shift;
     my $arch = shift;
     my $machine = shift;
+
+    my $start = time();
 
     $CONFIG{'BRANCH'} = $branch;
     $CONFIG{'ARCH'} = $arch;
@@ -267,6 +300,11 @@ sub tinderbox($$$) {
     }
     close(BRIEF);
     close(FULL);
+
+    my $end = time();
+
+    # Record result in history file
+    history($start, $end, !$error);
 
     # Mail out error reports
     if ($error && $CONFIG{'RECIPIENT'}) {
