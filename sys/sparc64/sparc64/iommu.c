@@ -115,6 +115,27 @@
  * is to be loaded for is not possible with the current busdma code.
  * The code is structured so that the IOMMUs can be easily divorced when that
  * is fixed.
+ *
+ * TODO:
+ * - As soon as there is a newbus way to get a parent dma tag, divorce the
+ *   IOTSBs.
+ * - Support sub-page boundaries.
+ * - Fix alignment handling for small allocations (the possible page offset
+ *   of malloc()ed memory is not handled at all). Revise interaction of
+ *   alignment with the load_mbuf and load_uio functions.
+ * - Handle lowaddr and highaddr in some way, and try to work out a way
+ *   for filter callbacks to work. Currently, only lowaddr is honored
+ *   in that no addresses above it are considered at all.
+ * - Implement BUS_DMA_ALLOCNOW in bus_dma_tag_create as far as possible.
+ * - Check the possible return values and callback error arguments;
+ *   the callback currently gets called in error conditions where it should
+ *   not be.
+ * - When running out of DVMA space, return EINPROGRESS in the non-
+ *   BUS_DMA_NOWAIT case and delay the callback until sufficient space
+ *   becomes available.
+ * - Use the streaming cache unless BUS_DMA_COHERENT is specified; do not
+ *   flush the streaming cache when coherent mappings are synced.
+ * - Add bounce buffers to support machines with more than 16GB of RAM.
  */
 #include "opt_iommu.h"
 
@@ -408,6 +429,8 @@ iommu_enter(struct iommu_state *is, vm_offset_t va, vm_paddr_t pa, int flags)
 
 	KASSERT(va >= is->is_dvmabase,
 	    ("iommu_enter: va %#lx not in DVMA space", va));
+	KASSERT(pa < IOMMU_MAXADDR,
+	    ("iommu_enter: XXX: physical address too large (%#lx)", pa));
 
 	tte = MAKEIOTTE(pa, !(flags & BUS_DMA_NOWRITE),
 	    !(flags & BUS_DMA_NOCACHE), (flags & BUS_DMA_STREAMING));
@@ -714,8 +737,6 @@ iommu_dvmamap_create(bus_dma_tag_t dt, int flags, bus_dmamap_t *mapp)
 
 	if ((error = sparc64_dma_alloc_map(dt, mapp)) != 0)
 		return (error);
-	KASSERT(SLIST_EMPTY(&(*mapp)->dm_reslist),
-	    ("iommu_dvmamap_create: hierarchy botched"));
 	iommu_map_insq(*mapp);
 	/*
 	 * Preallocate DVMA space; if this fails now, it is retried at load
@@ -768,7 +789,7 @@ iommu_dvmamap_load_buffer(bus_dma_tag_t dt, struct iommu_state *is,
     bus_size_t buflen, struct thread *td, int flags, int *segp, int align)
 {
 	bus_addr_t amask, dvmaddr;
-	bus_size_t sgsize;
+	bus_size_t sgsize, esize;
 	vm_offset_t vaddr, voffs;
 	vm_paddr_t curaddr;
 	int error, sgcnt, firstpg;
@@ -809,15 +830,24 @@ iommu_dvmamap_load_buffer(bus_dma_tag_t dt, struct iommu_state *is,
 		if (buflen < sgsize)
 			sgsize = buflen;
 
+		buflen -= sgsize;
+		vaddr += sgsize;
+
 		iommu_enter(is, trunc_io_page(dvmaddr), trunc_io_page(curaddr),
 		    flags);
 
-		if (firstpg || sgs[sgcnt].ds_len + sgsize > dt->dt_maxsegsz) {
-			if (sgsize > dt->dt_maxsegsz) {
-				/* XXX: add fixup */
-				panic("iommu_dvmamap_load_buffer: magsegsz too "
-				    "small\n");
-			}
+		/*
+		 * Chop the chunk up into segments of at most maxsegsz, but try
+		 * to fill each segment as well as possible.
+		 */
+		if (!firstpg) {
+			esize = ulmin(sgsize,
+			    dt->dt_maxsegsz - sgs[sgcnt].ds_len);
+			sgs[sgcnt].ds_len += esize;
+			sgsize -= esize;
+			dvmaddr += esize;
+		}
+		while (sgsize > 0) {
 			sgcnt++;
 			if (sgcnt >= dt->dt_nsegments ||
 			    sgcnt >= BUS_DMAMAP_NSEGS)
@@ -826,15 +856,16 @@ iommu_dvmamap_load_buffer(bus_dma_tag_t dt, struct iommu_state *is,
 			 * No extra alignment here - the common practice in the
 			 * busdma code seems to be that only the first segment
 			 * needs to satisfy the alignment constraints (and that
-			 * only for bus_dmamem_alloc()ed maps).
+			 * only for bus_dmamem_alloc()ed maps). It is assumed
+			 * that such tags have maxsegsize >= maxsize.
 			 */
+			esize = ulmin(sgsize, dt->dt_maxsegsz);
 			sgs[sgcnt].ds_addr = dvmaddr;
-			sgs[sgcnt].ds_len = sgsize;
-		} else
-			sgs[sgcnt].ds_len += sgsize;
-		dvmaddr += sgsize;
-		vaddr += sgsize;
-		buflen -= sgsize;
+			sgs[sgcnt].ds_len = esize;
+			sgsize -= esize;
+			dvmaddr += esize;
+		}
+
 		firstpg = 0;
 	}
 	*segp = sgcnt;
