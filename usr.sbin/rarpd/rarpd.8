@@ -26,7 +26,7 @@ rarpd \- Reverse ARP Daemon
 .na
 .B rarpd 
 [
-.B \-afv
+.B \-afsv
 ]
 [
 .I interface
@@ -49,7 +49,7 @@ databases.
 If a host does not exist in both databases, the translation cannot
 proceed and a reply will not be sent.
 
-Additionally, a request is honored only if the server
+By default, a request is honored only if the server
 (i.e., the host that rarpd is running on)
 can "boot" the target; that is, a file or directory matching the glob
 /tftpboot/\fIipaddr\fP*
@@ -57,6 +57,9 @@ exists, where \fIipaddr\fP is the target IP address in hex.
 For example, the IP address 204.216.27.18 will be replied to if any of
 /tftpboot/CCD81B12, /tftpboot/CCD81B12.SUN3, or /tftpboot/CCD81B12-boot
 exist.
+This requirement can be overridden with the
+.B \-s
+flag (see below).
 
 In normal operation, 
 .I rarpd
@@ -73,6 +76,11 @@ If `-a' is omitted, an interface must be specified.
 .TP
 .B \-f
 Run in the foreground.
+.TP
+.B \-s
+Supply a response to any RARP request for which an ethernet to IP address
+mapping exists; do not depend on the existence of
+/tftpboot/\fIipaddr\fP*.
 .TP
 .B \-v
 Enable verbose sysloging.
