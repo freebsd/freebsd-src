@@ -594,7 +594,7 @@ kvm_uread(kd, p, uva, buf, len)
 
 	
 	while (len > 0) {
-		if (lseek(fd, uva, 0) == -1 && errno != 0) {
+		if (lseek(fd, (off_t)uva, 0) == -1 && errno != 0) {
 			_kvm_err(kd, kd->program, "invalid address (%x) in %s", uva, procfile);
 			break;
 		}
