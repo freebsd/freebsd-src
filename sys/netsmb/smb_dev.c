@@ -70,7 +70,7 @@ static d_open_t	 nsmb_dev_open;
 static d_close_t nsmb_dev_close;
 static d_ioctl_t nsmb_dev_ioctl;
 
-MODULE_DEPEND(netsmb, libiconv, 1, 1, 1);
+MODULE_DEPEND(netsmb, libiconv, 1, 1, 2);
 MODULE_VERSION(netsmb, NSMB_VERSION);
 
 static int smb_version = NSMB_VERSION;

@@ -43,6 +43,7 @@
 .Op Fl u Ar uid
 .Op Fl g Ar gid
 .Op Fl m Ar mask
+.Op Fl C Ar charset
 .Op Fl W Ar u2wtable
 .Pa special
 .Pa node
@@ -81,6 +82,12 @@ on which the file system is being mounted.
 .It Fl m Ar mask
 Specify the maximum file permissions for files
 in the file system.
+.It Fl C Ar charset
+Specify local
+.Ar charset
+to convert Unicode file names.
+Currently only reading is supported, thus the file system is to be
+mounted read-only.
 .It Fl W Ar u2wtable
 Specify
 .Ux
@@ -90,6 +97,9 @@ translation table.
 See
 .Xr mount_msdosfs 8
 for the description of this option.
+This option is remained for backward compatibility purpose, so
+please do not use this option. This option will be removed in
+the future.
 .El
 .Sh FEATURES
 NTFS file attributes are accessed in following way:
@@ -120,11 +130,19 @@ To read directory raw data:
 .Bd -literal -offset indent
 # cat /mnt/foodir:\\$INDEX_ROOT:\\$I30
 .Ed
+.Pp
+To mount a
+.Pa Japanese
+ntfs volume located in /dev/ad0s1:
+.Bd -literal -offset indent
+# mount_ntfs -C eucJP /dev/ad0s1 /mnt
+.Ed
 .Sh WRITING
 There is limited writing ability.
 Limitations: file must be nonresident
 and must not contain any sparces (uninitialized areas); compressed
 files are also not supported.
+The file name must not contain multibyte characters.
 .Sh SEE ALSO
 .Xr mount 2 ,
 .Xr unmount 2 ,
@@ -141,6 +159,10 @@ The
 .Nm
 utility first appeared in
 .Fx 3.0 .
+.Pp
+The unicode conversion routine was added by
+.An Ryuichiro Imura Aq imura@ryu16.org
+at 2003.
 .Sh AUTHORS
 The NTFS kernel implementation,
 .Nm

@@ -135,7 +135,7 @@ CRUNCH_PROGS_sbin+= ipf ipfs ipfstat ipmon ipnat
 # CRUNCH_PROGS+= devd
 
 CRUNCH_LIBS+= -lalias -lbsdxml -lcam -lcurses -ldevstat -lipsec -lipx \
-	-lgeom -lmd -lreadline -lsbuf -lufs -lz 
+	-lgeom -lkiconv -lmd -lreadline -lsbuf -lufs -lz 
 
 .if ${MACHINE_ARCH} == "i386"
 CRUNCH_PROGS_sbin+= cxconfig fdisk

@@ -25,6 +25,7 @@ SUBDIR=	accf_data \
 	bridge \
 	cam \
 	cd9660 \
+	cd9660_iconv \
 	coda \
 	coda5 \
 	${_crypto} \
@@ -85,12 +86,14 @@ SUBDIR=	accf_data \
 	mlx \
 	mpt \
 	msdosfs \
+	msdosfs_iconv \
 	my \
 	nfsclient \
 	nfsserver \
 	nge \
 	nmdm \
 	ntfs \
+	ntfs_iconv \
 	nullfs \
 	patm \
 	pcn \

@@ -350,14 +350,14 @@ ntfs_mountfs(devvp, mp, argsp, td)
 	ntmp->ntm_flag = argsp->flag;
 
 	/* Copy in the 8-bit to Unicode conversion table */
-	if (argsp->flag & NTFSMNT_U2WTABLE) {
-		ntfs_82u_init(ntmp, argsp->u2w);
-	} else {
-		ntfs_82u_init(ntmp, NULL);
-	}
-
 	/* Initialize Unicode to 8-bit table from 8toU table */
-	ntfs_u28_init(ntmp, ntmp->ntm_82u);
+	if (argsp->flag & NTFS_MFLAG_KICONV) {
+		ntfs_82u_init(ntmp, argsp->cs_local, argsp->cs_ntfs);
+		ntfs_u28_init(ntmp, NULL, argsp->cs_local, argsp->cs_ntfs);
+	} else {
+		ntfs_82u_init(ntmp, NULL, NULL);
+		ntfs_u28_init(ntmp, ntmp->ntm_82u, NULL, NULL);
+	}
 
 	mp->mnt_data = (qaddr_t)ntmp;
 
@@ -794,3 +794,4 @@ static struct vfsops ntfs_vfsops = {
 	.vfs_vptofh =	ntfs_vptofh,
 };
 VFS_SET(ntfs_vfsops, ntfs, 0);
+MODULE_VERSION(ntfs, 1);

@@ -61,13 +61,14 @@
 #include <sys/fcntl.h>
 #include <sys/malloc.h>
 #include <sys/stat.h> 				/* defines ALLPERMS */
+#include <sys/iconv.h>
 #include <sys/mutex.h>
 
 #include <fs/msdosfs/bpb.h>
 #include <fs/msdosfs/bootsect.h>
+#include <fs/msdosfs/msdosfsmount.h>
 #include <fs/msdosfs/direntry.h>
 #include <fs/msdosfs/denode.h>
-#include <fs/msdosfs/msdosfsmount.h>
 #include <fs/msdosfs/fat.h>
 
 #define MSDOSFS_DFLTBSIZE       4096
@@ -85,6 +86,8 @@
 
 MALLOC_DEFINE(M_MSDOSFSMNT, "MSDOSFS mount", "MSDOSFS mount structure");
 static MALLOC_DEFINE(M_MSDOSFSFAT, "MSDOSFS FAT", "MSDOSFS file allocation table");
+
+struct iconv_functions *msdosfs_iconv = NULL;
 
 static int	update_mp(struct mount *mp, struct msdosfs_args *argp);
 static int	mountmsdosfs(struct vnode *devvp, struct mount *mp,
@@ -110,14 +113,16 @@ update_mp(mp, argp)
 	pmp->pm_mask = argp->mask & ALLPERMS;
 	pmp->pm_dirmask = argp->dirmask & ALLPERMS;
 	pmp->pm_flags |= argp->flags & MSDOSFSMNT_MNTOPT;
-	if (pmp->pm_flags & MSDOSFSMNT_U2WTABLE) {
-		bcopy(argp->u2w, pmp->pm_u2w, sizeof(pmp->pm_u2w));
-		bcopy(argp->d2u, pmp->pm_d2u, sizeof(pmp->pm_d2u));
-		bcopy(argp->u2d, pmp->pm_u2d, sizeof(pmp->pm_u2d));
-	}
-	if (pmp->pm_flags & MSDOSFSMNT_ULTABLE) {
-		bcopy(argp->ul, pmp->pm_ul, sizeof(pmp->pm_ul));
-		bcopy(argp->lu, pmp->pm_lu, sizeof(pmp->pm_lu));
+	if (pmp->pm_flags & MSDOSFSMNT_KICONV && msdosfs_iconv) {
+		msdosfs_iconv->open(argp->cs_win, argp->cs_local , &pmp->pm_u2w);
+		msdosfs_iconv->open(argp->cs_local, argp->cs_win , &pmp->pm_w2u);
+		msdosfs_iconv->open(argp->cs_dos, argp->cs_local , &pmp->pm_u2d);
+		msdosfs_iconv->open(argp->cs_local, argp->cs_dos , &pmp->pm_d2u);
+	} else {
+		pmp->pm_w2u = NULL;
+		pmp->pm_u2w = NULL;
+		pmp->pm_d2u = NULL;
+		pmp->pm_u2d = NULL;
 	}
 
 	if (pmp->pm_flags & MSDOSFSMNT_NOWIN95)
@@ -651,6 +656,16 @@ msdosfs_unmount(mp, mntflags, td)
 	if (error)
 		return error;
 	pmp = VFSTOMSDOSFS(mp);
+	if (pmp->pm_flags & MSDOSFSMNT_KICONV && msdosfs_iconv) {
+		if (pmp->pm_w2u)
+			msdosfs_iconv->close(pmp->pm_w2u);
+		if (pmp->pm_u2w)
+			msdosfs_iconv->close(pmp->pm_u2w);
+		if (pmp->pm_d2u)
+			msdosfs_iconv->close(pmp->pm_d2u);
+		if (pmp->pm_u2d)
+			msdosfs_iconv->close(pmp->pm_u2d);
+	}
 	pmp->pm_devvp->v_rdev->si_mountpoint = NULL;
 #ifdef MSDOSFS_DEBUG
 	{
@@ -864,3 +879,4 @@ static struct vfsops msdosfs_vfsops = {
 };
 
 VFS_SET(msdosfs_vfsops, msdosfs, 0);
+MODULE_VERSION(msdosfs, 1);

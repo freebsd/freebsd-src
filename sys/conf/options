@@ -198,6 +198,11 @@ FFS		opt_ffs_broken_fixme.h
 NFSCLIENT	opt_nfs.h
 NFSSERVER	opt_nfs.h
 
+# filesystems and libiconv bridge
+CD9660_ICONV	opt_dontuse.h
+MSDOSFS_ICONV	opt_dontuse.h
+NTFS_ICONV	opt_dontuse.h
+
 # If you are following the conditions in the copyright,
 # you can enable soft-updates which will speed up a lot of thigs
 # and make the system safer from crashes at the same time.

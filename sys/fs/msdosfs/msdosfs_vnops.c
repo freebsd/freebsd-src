@@ -71,9 +71,9 @@
 #include <machine/mutex.h>
 
 #include <fs/msdosfs/bpb.h>
+#include <fs/msdosfs/msdosfsmount.h>
 #include <fs/msdosfs/direntry.h>
 #include <fs/msdosfs/denode.h>
-#include <fs/msdosfs/msdosfsmount.h>
 #include <fs/msdosfs/fat.h>
 
 #define	DOS_FILESIZE_MAX	0xffffffff
@@ -1554,6 +1554,7 @@ msdosfs_readdir(ap)
 		}
 	}
 
+	mbnambuf_init();
 	off = offset;
 	while (uio->uio_resid > 0) {
 		lbn = de_cluster(pmp, offset - bias);
@@ -1600,6 +1601,7 @@ msdosfs_readdir(ap)
 			 */
 			if (dentp->deName[0] == SLOT_DELETED) {
 				chksum = -1;
+				mbnambuf_init();
 				continue;
 			}
 
@@ -1610,9 +1612,7 @@ msdosfs_readdir(ap)
 				if (pmp->pm_flags & MSDOSFSMNT_SHORTNAME)
 					continue;
 				chksum = win2unixfn((struct winentry *)dentp,
-					&dirbuf, chksum,
-					pmp->pm_flags & MSDOSFSMNT_U2WTABLE,
-					pmp->pm_u2w);
+					chksum, pmp);
 				continue;
 			}
 
@@ -1621,6 +1621,7 @@ msdosfs_readdir(ap)
 			 */
 			if (dentp->deAttributes & ATTR_VOLUME) {
 				chksum = -1;
+				mbnambuf_init();
 				continue;
 			}
 			/*
@@ -1648,18 +1649,16 @@ msdosfs_readdir(ap)
 				dirbuf.d_fileno = offset / sizeof(struct direntry);
 				dirbuf.d_type = DT_REG;
 			}
-			if (chksum != winChksum(dentp->deName))
+			if (chksum != winChksum(dentp->deName)) {
 				dirbuf.d_namlen = dos2unixfn(dentp->deName,
 				    (u_char *)dirbuf.d_name,
 				    dentp->deLowerCase |
 					((pmp->pm_flags & MSDOSFSMNT_SHORTNAME) ?
 					(LCASE_BASE | LCASE_EXT) : 0),
-				    pmp->pm_flags & MSDOSFSMNT_U2WTABLE,
-				    pmp->pm_d2u,
-				    pmp->pm_flags & MSDOSFSMNT_ULTABLE,
-				    pmp->pm_ul);
-			else
-				dirbuf.d_name[dirbuf.d_namlen] = 0;
+				    pmp);
+				mbnambuf_init();
+			} else
+				mbnambuf_flush(&dirbuf);
 			chksum = -1;
 			dirbuf.d_reclen = GENERIC_DIRSIZ(&dirbuf);
 			if (uio->uio_resid < dirbuf.d_reclen) {

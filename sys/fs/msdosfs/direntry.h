@@ -98,6 +98,11 @@ struct winentry {
 #define	WIN_CHARS	13	/* Number of chars per winentry */
 
 /*
+ * Maximum number of winentries for a filename
+ */
+#define WIN_MAXSUBENTRIES 20
+
+/*
  * Maximum filename length in Win95
  * Note: Must be < sizeof(dirent.d_name)
  */
@@ -132,12 +137,15 @@ struct dirent;
 void unix2dostime(struct timespec *tsp, u_int16_t *ddp, 
 	     u_int16_t *dtp, u_int8_t *dhp);
 void dos2unixtime(u_int dd, u_int dt, u_int dh, struct timespec *tsp);
-int dos2unixfn(u_char dn[11], u_char *un, int lower, int d2u_loaded, u_int8_t *d2u, int ul_loaded, u_int8_t *ul);
-int unix2dosfn(const u_char *un, u_char dn[12], int unlen, u_int gen, int u2d_loaded, u_int8_t *u2d, int lu_loaded, u_int8_t *lu);
-int unix2winfn(const u_char *un, int unlen, struct winentry *wep, int cnt, int chksum, int table_loaded, u_int16_t *u2w);
-int winChkName(const u_char *un, int unlen, struct winentry *wep, int chksum, int u2w_loaded, u_int16_t *u2w, int ul_loaded, u_int8_t *ul);
-int win2unixfn(struct winentry *wep, struct dirent *dp, int chksum, int table_loaded, u_int16_t *u2w);
+int dos2unixfn(u_char dn[11], u_char *un, int lower, struct msdosfsmount *pmp);
+int unix2dosfn(const u_char *un, u_char dn[12], int unlen, u_int gen, struct msdosfsmount *pmp);
+int unix2winfn(const u_char *un, int unlen, struct winentry *wep, int cnt, int chksum, struct msdosfsmount *pmp);
+int winChkName(const u_char *un, int unlen, int chksum, struct msdosfsmount *pmp);
+int win2unixfn(struct winentry *wep, int chksum, struct msdosfsmount *pmp);
 u_int8_t winChksum(u_int8_t *name);
-int winSlotCnt(const u_char *un, int unlen);
+int winSlotCnt(const u_char *un, int unlen, struct msdosfsmount *);
 int winLenFixup(const u_char *un, int unlen);
+void mbnambuf_init(void);
+void mbnambuf_write(char *name, int id);
+char * mbnambuf_flush(struct dirent *dp);
 #endif	/* _KERNEL */
