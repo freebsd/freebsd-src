@@ -36,9 +36,7 @@
 #ifndef _MPOOL_H_
 #define _MPOOL_H_
 
-#include <sys/types.h>
 #include <sys/queue.h>
-#include <db.h>
 
 /*
  * The memory pool scheme is a simple one.  Each in-memory page is referenced

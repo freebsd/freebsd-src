@@ -36,9 +36,6 @@
 #ifndef	_FTS_H_
 #define	_FTS_H_
 
-#include <sys/types.h>
-#include <nlist.h>
-
 typedef struct {
 	struct _ftsent *fts_cur;	/* current node */
 	struct _ftsent *fts_child;	/* linked list of children */

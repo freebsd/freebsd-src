@@ -28,7 +28,7 @@
  *
  *	from: @(#)auth.h 1.17 88/02/08 SMI
  *	from: @(#)auth.h	2.3 88/08/07 4.0 RPCSRC
- *	$Id: auth.h,v 1.9 1997/05/07 00:58:23 bde Exp $
+ *	$Id: auth.h,v 1.10 1997/05/07 02:27:00 eivind Exp $
  */
 
 /*
@@ -44,8 +44,6 @@
 #ifndef _RPC_AUTH_H
 #define _RPC_AUTH_H
 #include <sys/cdefs.h>
-#include <rpc/types.h>
-#include <rpc/xdr.h>
 
 #define MAX_AUTH_BYTES	400
 #define MAXNETNAMELEN	255	/* maximum length of network user's name */
