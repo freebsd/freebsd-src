@@ -7,6 +7,7 @@ CLEANFILES+=	tmp.c tst01 tst01.o data.c
 VPATH=		${.CURDIR}/../../sbin/disklabel
 NOPROFILE=	yes
 NOSHARED=	yes
+NOPIC=		yes
 
 .include <bsd.lib.mk>
 
