@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.119 1997/12/29 16:54:03 dyson Exp $
+ * $Id: vfs_subr.c,v 1.120 1998/01/06 05:16:18 dyson Exp $
  */
 
 /*
@@ -107,7 +107,7 @@ SYSCTL_INT(_debug, OID_AUTO, wantfreevnodes, CTLFLAG_RW, &wantfreevnodes, 0, "")
 static u_long freevnodes = 0;
 SYSCTL_INT(_debug, OID_AUTO, freevnodes, CTLFLAG_RD, &freevnodes, 0, "");
 
-int vfs_ioopt = 1;
+int vfs_ioopt = 0;
 SYSCTL_INT(_vfs, OID_AUTO, ioopt, CTLFLAG_RW, &vfs_ioopt, 0, "");
 
 struct mntlist mountlist;	/* mounted filesystem list */
