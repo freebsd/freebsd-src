@@ -83,7 +83,6 @@ nfs_dolock(struct vop_advlock_args *ap)
 	LOCKD_MSG msg;
 	struct nameidata nd;
 	struct thread *td;
-	uid_t	saved_uid;
 	struct vnode *vp, *wvp;
 	int error, error1;
 	struct flock *fl;
@@ -156,21 +155,8 @@ nfs_dolock(struct vop_advlock_args *ap)
 	 */
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, _PATH_LCKFIFO, td);
 
-	/*
-	 * XXX Hack to temporarily allow this process (regardless of it's creds)
-	 * to open the fifo we need to write to. vn_open() really should
-	 * take a ucred (and once it does, this code should be fixed to use
-	 * proc0's ucred.
-	 *
-	 * XXX: This introduces an exploitable race condition allowing
-	 * a local attacker to gain root privilege.
-	 */
-	saved_uid = p->p_ucred->cr_uid;
-	p->p_ucred->cr_uid = 0;		/* temporarly run the vn_open as root */
-
 	fmode = FFLAGS(O_WRONLY);
-	error = vn_open(&nd, &fmode, 0);
-	p->p_ucred->cr_uid = saved_uid;
+	error = vn_open_cred(&nd, &fmode, 0, proc0.p_ucred);
 	if (error != 0) {
 		return (error == ENOENT ? EOPNOTSUPP : error);
 	}
