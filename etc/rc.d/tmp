@@ -29,6 +29,13 @@
 
 # PROVIDE: diskless
 # REQUIRE: initdiskless mountcritlocal
+
+#   $1 = size
+#   $2 = mount point
+	/sbin/newfs /dev/md$3c
+#   $4 = (optional) bytes-per-inode
+mount_md()
+{
 	if [ -n "$4" ]; then
 		bpi="-i $4"
 	fi
@@ -39,7 +46,7 @@
 }
 
 echo "+++ mfs_mount of /var"
-mount_mfs -s ${varsize:=65536} -T qp120at dummy /var
+mount_md ${varsize:=65536} /var 2
 if [ -r /etc/rc.subr ]; then
         . /etc/rc.subr
         load_rc_config $name
@@ -65,7 +72,7 @@ fi
 # extract a list of device entries, then copy them to a writable partition
 (cd /; find -x dev | cpio -o -H newc) > /tmp/dev.tmp
 echo "+++ mount_mfs of /dev"
-mount_mfs -s 4096 -i 512 -T qp120at dummy /dev
+mount_md 4096 /dev 3
 (cd /; cpio -i -H newc -d < /tmp/dev.tmp)
 	# extract a list of device entries, then copy them to a writable fs
 	(cd /; find -x dev | cpio -o -H newc) > /tmp/dev.tmp
