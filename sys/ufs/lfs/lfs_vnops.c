@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_vnops.c	8.5 (Berkeley) 12/30/93
- * $Id$
+ * $Id: lfs_vnops.c,v 1.19 1997/02/22 09:47:26 peter Exp $
  */
 
 #include <sys/param.h>
@@ -244,8 +244,8 @@ lfs_fsync(ap)
 {
 	struct timeval tv;
 	int error;
-	tv = time;
 
+	gettime(&tv);
 	error = (VOP_UPDATE(ap->a_vp, &tv, &tv,
 	    ap->a_waitfor == MNT_WAIT ? LFS_SYNC : 0));
 	if(ap->a_waitfor == MNT_WAIT && ap->a_vp->v_dirtyblkhd.lh_first != NULL)

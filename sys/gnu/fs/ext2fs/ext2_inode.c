@@ -125,7 +125,7 @@ ext2_update(ap)
 	}
 	if (ip->i_flag & IN_CHANGE) {
 #if !defined(__FreeBSD__)
-		get_time(&time);
+		gettime(&time);
 #endif
 		ip->i_ctime = time.tv_sec;
 	}
@@ -192,11 +192,7 @@ printf("ext2_truncate called %d to %d\n", VTOI(ovp)->i_number, ap->a_length);
 	    return EFBIG;
 
 	oip = VTOI(ovp);
-#if defined(__FreeBSD__)
-	tv = time;
-#else
-	get_time(&tv);
-#endif
+	gettime(&tv);
 	if (ovp->v_type == VLNK &&
 	    oip->i_size < ovp->v_mount->mnt_maxsymlinklen) {
 #if DIAGNOSTIC

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_alloc.c	8.18 (Berkeley) 5/26/95
- * $Id: ffs_alloc.c,v 1.30 1997/02/22 09:47:00 peter Exp $
+ * $Id: ffs_alloc.c,v 1.31 1997/03/09 06:00:40 mpp Exp $
  */
 
 #include "opt_quota.h"
@@ -487,7 +487,7 @@ ffs_reallocblks(ap)
 	} else {
 		ip->i_flag |= IN_CHANGE | IN_UPDATE;
 		if (!doasyncfree) {
-			tv = time;
+			gettime(&tv);
 			VOP_UPDATE(vp, &tv, &tv, 1);
 		}
 	}

@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id$
+**  $Id: ncr.c,v 1.95 1997/02/22 09:44:08 peter Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -1263,7 +1263,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id$\n";
+	"\n$Id: ncr.c,v 1.95 1997/02/22 09:44:08 peter Exp $\n";
 
 static const u_long	ncr_version = NCR_VERSION	* 11
 	+ (u_long) sizeof (struct ncb)	*  7
@@ -3708,7 +3708,7 @@ static int32_t ncr_start (struct scsi_xfer * xp)
 	*/
 
 	bzero (&cp->phys.header.stamp, sizeof (struct tstamp));
-	cp->phys.header.stamp.start = time;
+	gettime(&cp->phys.header.stamp.start);
 
 	/*----------------------------------------------------
 	**
@@ -5078,7 +5078,7 @@ void ncr_exception (ncb_p np)
 
 	if (time.tv_sec - np->regtime.tv_sec>10) {
 		int i;
-		np->regtime = time;
+		gettime(&np->regtime);
 		for (i=0; i<sizeof(np->regdump); i++)
 			((char*)&np->regdump)[i] = ((volatile char*)np->reg)[i];
 		np->regdump.nc_dstat = dstat;
@@ -6685,7 +6685,7 @@ static	void ncb_profile (ncb_p np, ccb_p cp)
 	int co, da, st, en, di, se, post,work,disc;
 	u_long diff;
 
-	PROFILE.end = time;
+	gettime(&PROFILE.end);
 
 	st = ncr_delta (&PROFILE.start,&PROFILE.status);
 	if (st<0) return;	/* status  not reached  */

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_inode.c	8.5 (Berkeley) 12/30/93
- * $Id$
+ * $Id: lfs_inode.c,v 1.15 1997/02/22 09:47:21 peter Exp $
  */
 
 #include "opt_quota.h"
@@ -190,7 +190,7 @@ lfs_truncate(ap)
 	int e1, e2, depth, lastseg, num, offset, seg, size;
 
 	ip = VTOI(vp);
-	tv = time;
+	gettime(&tv);
 	if (vp->v_type == VLNK && vp->v_mount->mnt_maxsymlinklen > 0) {
 #ifdef DIAGNOSTIC
 		if (length != 0)

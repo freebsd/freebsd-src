@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id$
+ * $Id: tty.c,v 1.91 1997/02/22 09:39:23 peter Exp $
  */
 
 /*-
@@ -1513,9 +1513,7 @@ loop:
 				goto sleep;
 			if (qp->c_cc >= m)
 				goto read;
-			x = splclock();
-			timecopy = time;
-			splx(x);
+			gettime(&timecopy);
 			if (!has_stime) {
 				/* first character, start timer */
 				has_stime = 1;
@@ -1535,9 +1533,7 @@ loop:
 		} else {	/* m == 0 */
 			if (qp->c_cc > 0)
 				goto read;
-			x = splclock();
-			timecopy = time;
-			splx(x);
+			gettime(&timecopy);
 			if (!has_stime) {
 				has_stime = 1;
 				stime = timecopy;

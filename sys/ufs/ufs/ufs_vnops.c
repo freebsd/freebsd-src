@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.27 (Berkeley) 5/27/95
- * $Id: ufs_vnops.c,v 1.46 1997/02/22 09:47:53 peter Exp $
+ * $Id: ufs_vnops.c,v 1.47 1997/03/09 06:10:36 mpp Exp $
  */
 
 #include "opt_quota.h"
@@ -746,7 +746,7 @@ ufs_link(ap)
 	}
 	ip->i_nlink++;
 	ip->i_flag |= IN_CHANGE;
-	tv = time;
+	gettime(&tv);
 	error = VOP_UPDATE(vp, &tv, &tv, 1);
 	if (!error) {
 #ifdef EXT2FS
@@ -1004,7 +1004,7 @@ abortit:
 	 */
 	ip->i_nlink++;
 	ip->i_flag |= IN_CHANGE;
-	tv = time;
+	gettime(&tv);
 	if (error = VOP_UPDATE(fvp, &tv, &tv, 1)) {
 		VOP_UNLOCK(fvp, 0, p);
 		goto bad;
@@ -1378,7 +1378,7 @@ ufs_mkdir(ap)
 	ip->i_nlink = 2;
 	if (cnp->cn_flags & ISWHITEOUT)
 		ip->i_flags |= UF_OPAQUE;
-	tv = time;
+	gettime(&tv);
 	error = VOP_UPDATE(tvp, &tv, &tv, 1);
 
 	/*
@@ -2156,7 +2156,7 @@ ufs_makeinode(mode, dvp, vpp, cnp)
 	/*
 	 * Make sure inode goes to disk before directory entry.
 	 */
-	tv = time;
+	gettime(&tv);
 	error = VOP_UPDATE(tvp, &tv, &tv, 1);
 	if (error)
 		goto bad;
