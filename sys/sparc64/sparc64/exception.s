@@ -2660,7 +2660,8 @@ ENTRY(tl1_trap)
 	rdpr	%tpc, %l1
 	rdpr	%tnpc, %l2
 	rdpr	%pil, %l3
-	rdpr	%wstate, %l4
+	rd	%y, %l4
+	rdpr	%wstate, %l5
 
 #if KTR_COMPILE & KTR_TRAP
 	CATR(KTR_TRAP, "tl1_trap: td=%p type=%#lx pil=%#lx pc=%#lx sp=%#lx"
@@ -2677,13 +2678,14 @@ ENTRY(tl1_trap)
 
 	wrpr	%g0, 1, %tl
 
-	and	%l4, WSTATE_OTHER_MASK, %l4
-	wrpr	%l4, WSTATE_KERNEL, %wstate
+	and	%l5, WSTATE_OTHER_MASK, %l5
+	wrpr	%l5, WSTATE_KERNEL, %wstate
 
 	stx	%l0, [%sp + SPOFF + CCFSZ + TF_TSTATE]
 	stx	%l1, [%sp + SPOFF + CCFSZ + TF_TPC]
 	stx	%l2, [%sp + SPOFF + CCFSZ + TF_TNPC]
 	stb	%l3, [%sp + SPOFF + CCFSZ + TF_PIL]
+	stw	%l4, [%sp + SPOFF + CCFSZ + TF_Y]
 
 	stw	%o0, [%sp + SPOFF + CCFSZ + TF_TYPE]
 	stx	%o3, [%sp + SPOFF + CCFSZ + TF_TAR]
@@ -2714,6 +2716,7 @@ ENTRY(tl1_trap)
 	ldx	[%sp + SPOFF + CCFSZ + TF_TPC], %l1
 	ldx	[%sp + SPOFF + CCFSZ + TF_TNPC], %l2
 	ldub	[%sp + SPOFF + CCFSZ + TF_PIL], %l3
+	lduw	[%sp + SPOFF + CCFSZ + TF_Y], %l4
 
 	ldx	[%sp + SPOFF + CCFSZ + TF_G1], %g1
 	ldx	[%sp + SPOFF + CCFSZ + TF_G2], %g2
@@ -2728,6 +2731,7 @@ ENTRY(tl1_trap)
 	mov	%l2, %g3
 
 	wrpr	%l3, 0, %pil
+	wr	%l4, 0, %y
 
 	restore
 
@@ -2766,7 +2770,8 @@ ENTRY(tl1_intr)
 	rdpr	%tpc, %l1
 	rdpr	%tnpc, %l2
 	rdpr	%pil, %l3
-	rdpr	%wstate, %l4
+	rd	%y, %l4
+	rdpr	%wstate, %l5
 
 #if KTR_COMPILE & KTR_INTR
 	CATR(KTR_INTR,
@@ -2786,13 +2791,14 @@ ENTRY(tl1_intr)
 
 	wrpr	%g0, 1, %tl
 
-	and	%l4, WSTATE_OTHER_MASK, %l4
-	wrpr	%l4, WSTATE_KERNEL, %wstate
+	and	%l5, WSTATE_OTHER_MASK, %l5
+	wrpr	%l5, WSTATE_KERNEL, %wstate
 
 	stx	%l0, [%sp + SPOFF + CCFSZ + TF_TSTATE]
 	stx	%l1, [%sp + SPOFF + CCFSZ + TF_TPC]
 	stx	%l2, [%sp + SPOFF + CCFSZ + TF_TNPC]
 	stb	%l3, [%sp + SPOFF + CCFSZ + TF_PIL]
+	stw	%l4, [%sp + SPOFF + CCFSZ + TF_Y]
 
 	mov	%o0, %l7
 	mov	T_INTERRUPT | T_KERNEL, %o1
@@ -2833,6 +2839,8 @@ ENTRY(tl1_intr)
 	call	critical_exit
 	 nop
 
+	lduw	[%sp + SPOFF + CCFSZ + TF_Y], %l4
+
 	ldx	[%sp + SPOFF + CCFSZ + TF_G1], %g1
 	ldx	[%sp + SPOFF + CCFSZ + TF_G2], %g2
 	ldx	[%sp + SPOFF + CCFSZ + TF_G3], %g3
@@ -2845,6 +2853,7 @@ ENTRY(tl1_intr)
 	mov	%l1, %g2
 	mov	%l2, %g3
 	wrpr	%l3, 0, %pil
+	wr	%l4, 0, %y
 
 	restore
 
