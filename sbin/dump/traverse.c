@@ -558,7 +558,8 @@ bread(blkno, buf, size)
 	extern int errno;
 
 loop:
-	if ((int)lseek(diskfd, ((off_t)blkno << dev_bshift), 0) < 0)
+	if (lseek(diskfd, ((off_t)blkno << dev_bshift), 0) !=
+						((off_t)blkno << dev_bshift))
 		msg("bread: lseek fails\n");
 	if ((cnt = read(diskfd, buf, size)) == size)
 		return;
@@ -598,7 +599,8 @@ loop:
 	 */
 	bzero(buf, size);
 	for (i = 0; i < size; i += dev_bsize, buf += dev_bsize, blkno++) {
-		if ((int)lseek(diskfd, ((off_t)blkno << dev_bshift), 0) < 0)
+		if (lseek(diskfd, ((off_t)blkno << dev_bshift), 0) !=
+						((off_t)blkno << dev_bshift))
 			msg("bread: lseek2 fails!\n");
 		if ((cnt = read(diskfd, buf, (int)dev_bsize)) == dev_bsize)
 			continue;
