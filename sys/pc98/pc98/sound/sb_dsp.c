@@ -33,12 +33,12 @@
  *      Code added for MV ProSonic/Jazz 16 in 16 bit mode
  */
 
-#include "sound_config.h"
+#include <i386/isa/sound/sound_config.h>
 
 #if defined(CONFIGURE_SOUNDCARD) && !defined(EXCLUDE_SB)
 
-#include "sb.h"
-#include "sb_mixer.h"
+#include <i386/isa/sound/sb.h>
+#include <i386/isa/sound/sb_mixer.h>
 #undef SB_TEST_IRQ
 
 int             sbc_base = 0;
@@ -901,7 +901,7 @@ static int
 initialize_smw (void)
 {
 #ifdef SMW_MIDI0001_INCLUDED
-#include "smw-midi0001.h"
+#include <i386/isa/sound/smw-midi0001.h>
 #else
   unsigned char   smw_ucode[1];
   int             smw_ucodeLen = 0;

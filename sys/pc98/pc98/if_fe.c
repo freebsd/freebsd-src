@@ -21,7 +21,7 @@
  */
 
 /*
- * $Id: if_fe.c,v 1.6 1996/09/07 02:13:52 asami Exp $
+ * $Id: if_fe.c,v 1.7 1996/09/10 09:38:08 asami Exp $
  *
  * Device driver for Fujitsu MB86960A/MB86965A based Ethernet cards.
  * To be used with FreeBSD 2.x
@@ -238,7 +238,6 @@ static struct fe_softc {
 
 }       fe_softc[NFE];
 
-/* Frequently accessed members in arpcom and kdc.  */
 #define sc_if		arpcom.ac_if
 #define sc_unit		arpcom.ac_if.if_unit
 #define sc_enaddr	arpcom.ac_enaddr

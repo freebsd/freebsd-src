@@ -33,12 +33,12 @@
 #define USE_SEQ_MACROS
 #define USE_SIMPLE_MACROS
 
-#include "sound_config.h"
+#include <i386/isa/sound/sound_config.h>
 
 #ifdef CONFIGURE_SOUNDCARD
 
 #if (!defined(EXCLUDE_MPU401) || !defined(EXCLUDE_MPU_EMU)) && !defined(EXCLUDE_MIDI)
-#include "coproc.h"
+#include <i386/isa/sound/coproc.h>
 
 static int      init_sequence[20];	/* NOTE! pos 0 = len, start pos 1. */
 static int      timer_mode = TMR_INTERNAL, timer_caps = TMR_INTERNAL;
@@ -937,7 +937,7 @@ mpu_synth_close (int dev)
 
 #define MIDI_SYNTH_NAME	"MPU-401 UART Midi"
 #define MIDI_SYNTH_CAPS	SYNTH_CAP_INPUT
-#include "midi_synth.h"
+#include <i386/isa/sound/midi_synth.h>
 
 static struct synth_operations mpu401_synth_proto =
 {

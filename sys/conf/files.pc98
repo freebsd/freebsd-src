@@ -1,8 +1,9 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-# modified for PC-9801 after:
-#	$Id: files.pc98,v 1.5 1996/09/04 09:52:08 asami Exp $
+# modified for PC-9801
+#
+#	$Id: files.i386,v 1.140 1996/09/11 19:53:30 phk Exp $
 #
 aic7xxx_asm			optional	ahc	device-driver	   \
 	dependency 	"$S/dev/aic7xxx/aic7xxx_asm.c"			   \
@@ -60,7 +61,7 @@ i386/i386/support.s		standard
 i386/i386/swtch.s		standard
 i386/i386/sys_machdep.c		standard
 pc98/i386/trap.c		standard
-pc98/i386/userconfig.c		standard
+pc98/i386/userconfig.c		optional	userconfig
 pc98/i386/vm_machdep.c		standard
 i386/ibcs2/ibcs2_fcntl.c	optional 	ibcs2
 i386/ibcs2/ibcs2_stat.c		optional 	ibcs2

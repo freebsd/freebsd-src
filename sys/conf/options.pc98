@@ -1,4 +1,4 @@
-#	$Id: options.pc98,v 1.2 1996/07/23 07:45:51 asami Exp $
+#	$Id: options.pc98,v 1.3 1996/09/10 09:37:14 asami Exp $
 BOUNCEPAGES		opt_bounce.h
 USER_LDT
 MATH_EMULATE		opt_math_emulate.h
@@ -9,7 +9,6 @@ COMPAT_LINUX		opt_dontuse.h
 
 SHOW_BUSYBUFS		opt_machdep.h
 PANIC_REBOOT_WAIT_TIME	opt_machdep.h
-LARGEMEM		opt_machdep.h
 MAXMEM			opt_machdep.h
 PERFMON			opt_perfmon.h
 AUTO_EOI_1		opt_auto_eoi.h
@@ -28,7 +27,13 @@ CLK_CALIBRATION_LOOP	  opt_clock.h
 CLK_USE_I8254_CALIBRATION opt_clock.h
 CLK_USE_I586_CALIBRATION  opt_clock.h
 
-SC_KEYBOARD_PROBE_WORKS	opt_syscons.h
+SC_KBD_PROBE_WORKS	opt_syscons.h
+MAXCONS			opt_syscons.h
+SLOW_VGA		opt_syscons.h
+XT_KEYBOARD		opt_syscons.h
 
 ATAPI			opt_atapi.h
 ATAPI_STATIC		opt_atapi.h
+
+USERCONFIG		opt_userconfig.h
+VISUAL_USERCONFIG	opt_userconfig.h

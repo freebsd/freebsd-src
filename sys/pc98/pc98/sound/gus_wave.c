@@ -27,9 +27,9 @@
  *
  */
 
-#include "sound_config.h"
+#include <i386/isa/sound/sound_config.h>
 #include <machine/ultrasound.h>
-#include "gus_hw.h"
+#include <i386/isa/sound/gus_hw.h>
 
 static unsigned char gus_look8 __P((int reg));
 static unsigned short gus_read16 __P((int reg));

@@ -5,7 +5,7 @@
  *
  * Permission to use, copy, modify and distribute this software and its
  * documentation is hereby granted, provided that both the copyright
- * notice and this permission notice appear in all copies of the
+e* notice and this permission notice appear in all copies of the
  * software, derivative works or modified versions, and any portions
  * thereof, and that both notices appear in supporting documentation.
  *
@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:36:34  rpd
- *	$Id: sys.c,v 1.1.1.1 1996/06/14 10:04:37 asami Exp $
+ *	$Id: sys.c,v 1.2 1996/08/31 15:06:24 asami Exp $
  */
 
 /*
@@ -51,6 +51,10 @@ char buf[BUFSIZE], fsbuf[BUFSIZE], iobuf[BUFSIZE];
 char mapbuf[MAPBUFSIZE];
 int mapblock;
 
+#ifdef RAWBOOT
+#define STARTBYTE	8192	/* Where on the media the kernel starts */
+#endif
+
 void
 xread(char *addr, int size)
 {
@@ -65,6 +69,7 @@ xread(char *addr, int size)
 	}
 }
 
+#ifndef RAWBOOT
 void
 read(char *buffer, int count)
 {
@@ -76,43 +81,67 @@ read(char *buffer, int count)
 		logno = lblkno(fs, poff);
 		cnt2 = size = blksize(fs, &inode, logno);
 		bnum2 = fsbtodb(fs, block_map(logno)) + boff;
-		cnt = cnt2;
-		bnum = bnum2;
-		if (	(!off)  && (size <= count))
-		{
-			iodest = buffer;
-			devread();
-		}
-		else
-		{
-			iodest = iobuf;
+		if (	(!off)  && (size <= count)) {
+			devread(buffer, bnum2, cnt2);
+		} else {
 			size -= off;
 			if (size > count)
 				size = count;
-			devread();
-			bcopy(iodest+off,buffer,size);
+			devread(iobuf, bnum2, cnt2);
+			bcopy(iobuf+off, buffer, size);
 		}
 		buffer += size;
 		count -= size;
 		poff += size;
 	}
 }
+#else
+void
+read(char *buffer, int count)
+{
+	int cnt, bnum, off, size;
 
+	off = STARTBYTE + poff;
+	poff += count;
+
+	/* Read any unaligned bit at the front */
+	cnt = off & 511;
+	if (cnt) {
+		size = 512-cnt;
+		if (count < size)
+			size = count;
+		devread(iobuf, off >> 9, 512);
+		bcopy(iobuf+cnt, buffer, size);
+		count -= size;
+		off += size;
+		buffer += size;
+	}
+	size = count & (~511);
+	if (size && (off & (~511))) {
+		devread(buffer, off >> 9, size);
+		off += size;
+		count -= size;
+		buffer += size;
+	}
+	if (count) {
+		devread(iobuf, off >> 9, 512);
+		bcopy(iobuf, buffer, count);
+	}
+}
+
+#endif
 int
 find(char *path)
 {
 	char *rest, ch;
 	int block, off, loc, ino = ROOTINO;
 	struct direct *dp;
-	int list_only = 0;
+	char list_only;
 
-	if (strcmp("?", path) == 0)
-		list_only = 1;
-loop:	iodest = iobuf;
-	cnt = fs->fs_bsize;
-	bnum = fsbtodb(fs,ino_to_fsba(fs,ino)) + boff;
-	devread();
-	bcopy((void *)&((struct dinode *)iodest)[ino % fs->fs_inopb],
+	list_only = (path[0] == '?' && path[1] == '\0');
+loop:
+	devread(iobuf, fsbtodb(fs, ino_to_fsba(fs, ino)) + boff, fs->fs_bsize);
+	bcopy((void *)&((struct dinode *)iobuf)[ino % fs->fs_inopb],
 	      (void *)&inode.i_din,
 	      sizeof (struct dinode));
 	if (!*path)
@@ -127,7 +156,7 @@ loop:	iodest = iobuf;
 	do {
 		if (loc >= inode.i_size) {
 			if (list_only) {
-				printf("\n");
+				putchar('\n');
 				return -1;
 			} else {
 				return 0;
@@ -135,12 +164,10 @@ loop:	iodest = iobuf;
 		}
 		if (!(off = blkoff(fs, loc))) {
 			block = lblkno(fs, loc);
-			cnt = blksize(fs, &inode, block);
-			bnum = fsbtodb(fs, block_map(block)) + boff;
-			iodest = iobuf;
-			devread();
+			devread(iobuf, fsbtodb(fs, block_map(block)) + boff,
+				blksize(fs, &inode, block));
 		}
-		dp = (struct direct *)(iodest + off);
+		dp = (struct direct *)(iobuf + off);
 		loc += dp->d_reclen;
 		if (dp->d_ino && list_only)
 			printf("%s ", dp->d_name);
@@ -154,12 +181,11 @@ loop:	iodest = iobuf;
 int
 block_map(int file_block)
 {
+	int bnum;
 	if (file_block < NDADDR)
 		return(inode.i_db[file_block]);
 	if ((bnum=fsbtodb(fs, inode.i_ib[0])+boff) != mapblock) {
-		iodest = mapbuf;
-		cnt = fs->fs_bsize;
-		devread();
+		devread(mapbuf, bnum, fs->fs_bsize);
 		mapblock = bnum;
 	}
 	return (((int *)mapbuf)[(file_block - NDADDR) % NINDIR(fs)]);
@@ -192,11 +218,11 @@ openrd(void)
 		 * Look for a BIOS drive number (a leading digit followed
 		 * by a colon).
 		 */
+		biosdrivedigit = '\0';
 		if (*(name + 1) == ':' && *name >= '0' && *name <= '9') {
 			biosdrivedigit = *name;
 			name += 2;
-		} else
-			biosdrivedigit = '\0';
+		}
 
 		if (cp++ != name)
 		{
@@ -232,9 +258,8 @@ openrd(void)
 		if (!*cp)
 			return 1;
 	}
-	if (biosdrivedigit != '\0')
-		biosdrive = biosdrivedigit - '0';
-	else {
+	biosdrive = biosdrivedigit - '0';
+	if (biosdrivedigit == '\0') {
 		biosdrive = unit;
 #if BOOT_HD_BIAS > 0
 		/* XXX */
@@ -269,7 +294,6 @@ openrd(void)
 	}
 	printf("dosdev = %x, biosdrive = %d, unit = %d, maj = %d\n",
 		dosdev, biosdrive, unit, maj);
-	inode.i_dev = dosdev;
 
 	/***********************************************\
 	* Now we know the disk unit and part,		*
@@ -278,20 +302,21 @@ openrd(void)
 	if (devopen())
 		return 1;
 
+#ifndef RAWBOOT
 	/***********************************************\
 	* Load Filesystem info (mount the device)	*
 	\***********************************************/
-	iodest = (char *)(fs = (struct fs *)fsbuf);
-	cnt = SBSIZE;
-	bnum = SBLOCK + boff;
-	devread();
+	devread((char *)(fs = (struct fs *)fsbuf), SBLOCK + boff, SBSIZE);
 	/***********************************************\
 	* Find the actual FILE on the mounted device	*
 	\***********************************************/
 	ret = find(cp);
-	if (ret <= 0)
-		return (ret == 0) ? 1 : -1;
+	if (ret == 0)
+		return 1;
+	if (ret < 0)
+		return -1;
 	poff = 0;
 	name = cp;
+#endif /* RAWBOOT */
 	return 0;
 }

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cpufunc.h,v 1.53 1996/07/23 07:45:19 asami Exp $
+ *	$Id: cpufunc.h,v 1.54 1996/08/01 20:29:28 wollman Exp $
  */
 
 /*
@@ -262,54 +262,6 @@ outw(u_int port, u_short data)
 	__asm __volatile("outw %0,%%dx" : : "a" (data), "d" (port));
 }
 
-#ifdef PC98
-#include <machine/spl.h>
-
-static inline u_char
-epson_inb(u_int port)
-{
-	u_char	data;
-
-	outb(0x43f, 0x42);
-	data = inb(port);
-	outb(0x43f, 0x40);
-	return (data);
-}
-
-static inline void
-epson_outb(u_int port, u_char data)
-{
-	outb(0x43f, 0x42);
-	outb(port,data);
-	outb(0x43f, 0x40);
-}
-
-static inline void
-epson_insw(u_int port, void *addr, size_t cnt)
-{
-	int	s;
-
-	s = splbio();
-	outb(0x43f, 0x42);
-	disable_intr();
-	insw((u_int)port, (void *)addr, (size_t)cnt);
-	outb(0x43f, 0x40);
-	splx(s);
-}
-
-static inline void
-epson_outsw(u_int port, void *addr, size_t cnt)
-{
-	int	s;
-
-	s = splbio();
-	outb(0x43f, 0x42);
-	disable_intr();
-	outsw((u_int)port, (void *)addr, (size_t)cnt);
-	outb(0x43f, 0x40);
-	splx(s);
-}
-#endif /* PC98 */
 
 static __inline void
 pmap_update(void)

@@ -12,7 +12,7 @@
  *
  * Aug, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm_bios.h,v 1.9 1996/03/13 00:41:45 nate Exp $
+ *	$Id: apm_bios.h,v 1.10 1996/04/23 16:02:53 nate Exp $
  */
 
 #ifndef _MACHINE_APM_BIOS_H_
@@ -21,8 +21,13 @@
 #ifdef KERNEL
 
 /* BIOS id */
+#ifdef PC98
+#define APM_BIOS		0x9a
+#define SYSTEM_BIOS		0x1f
+#else
 #define APM_BIOS		0x53
 #define SYSTEM_BIOS		0x15
+#endif
 
 /* APM flags */
 #define APM_16BIT_SUPPORT	0x01

@@ -138,12 +138,11 @@ struct atapidrv atapi_drvtab[4];
 int atapi_ndrv;
 struct atapi *atapi_tab;
 
-int atapi_attach (int ctlr, int unit, int port, struct kern_devconf *parent)
+int atapi_attach (int ctlr, int unit, int port)
 {
 	atapi_drvtab[atapi_ndrv].ctlr     = ctlr;
 	atapi_drvtab[atapi_ndrv].unit     = unit;
 	atapi_drvtab[atapi_ndrv].port     = port;
-	atapi_drvtab[atapi_ndrv].parent   = parent;
 	atapi_drvtab[atapi_ndrv].attached = 0;
 	++atapi_ndrv;
 	return (1);
@@ -1011,7 +1010,7 @@ static int atapi_load (struct lkm_table *lkmtp, int cmd)
 			tsleep (&atapi_locked, PRIBIO, "atach", 0);
 
 		/* Probe the drive. */
-		if (atapi_attach (d->ctlr, d->unit, d->port, d->parent)) {
+		if (atapi_attach (d->ctlr, d->unit, d->port)) {
 			d->attached = 1;
 			++n;
 		}

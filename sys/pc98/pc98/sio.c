@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.5 1996/09/07 02:14:23 asami Exp $
+ *	$Id: sio.c,v 1.6 1996/09/10 09:38:34 asami Exp $
  */
 
 #include "opt_comconsole.h"
@@ -141,18 +141,17 @@
 #include <i386/isa/icu.h>
 #include <i386/isa/isa_device.h>
 #include <pc98/pc98/sioreg.h>
-#include <pc98/pc98/ic/i8251.h>
-#include <pc98/pc98/ic/ns16550.h>
+#include <i386/isa/ic/i8251.h>
 #else
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/sioreg.h>
+#endif
 
 #ifdef COM_ESP
 #include <i386/isa/ic/esp.h>
 #endif
 #include <i386/isa/ic/ns16550.h>
-#endif
 
 #include "crd.h"
 #if NCRD > 0

@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:49  rpd
- *	$Id: disk.c,v 1.1.1.1 1996/06/14 10:04:37 asami Exp $
+ *	$Id: disk.c,v 1.2 1996/07/23 07:45:36 asami Exp $
  */
 
 /*
@@ -63,14 +63,11 @@ int bsize;
 
 int spt, spc;
 
-char *iodest;
 struct fs *fs;
 struct inode inode;
-int dosdev, unit, slice, part, maj, boff, poff, bnum, cnt;
+int dosdev, unit, slice, part, maj, boff, poff;
 
 /*#define EMBEDDED_DISKLABEL 1*/
-
-#define I_ADDR		((void *) 0)	/* XXX where all reads go */
 
 /* Read ahead buffer large enough for one track on a 1440K floppy.  For
  * reading from floppies, the bootstrap has to be loaded on a 64K boundary
@@ -88,14 +85,13 @@ devopen(void)
 {
 	struct dos_partition *dptr;
 	struct disklabel *dl;
-	int dosdev = inode.i_dev;
+	char *p;
 	int i, sector = 0, di;
-#if 0   /* Save space, already have hard error for cyl > 1023 in Bread */
-	u_long bend;
-#endif
 
 	di = get_diskinfo(dosdev);
 	spc = (spt = SPT(di)) * HEADS(di);
+
+#ifndef RAWBOOT
 	if ((dosdev & 0xf0) == 0x90)
 	{
 		boff = 0;
@@ -107,7 +103,7 @@ devopen(void)
 		dl = &disklabel;
 #else	EMBEDDED_DISKLABEL
 #ifdef PC98
-		Bread(dosdev, 1);
+		p = Bread(dosdev, 1);
 		dptr = (struct dos_partition *)0;
 		slice = WHOLE_DISK_SLICE;
 		for (i = 0; i < NDOSPART; i++, dptr++)
@@ -120,8 +116,8 @@ devopen(void)
 		dl=((struct disklabel *)0);
 		disklabel = *dl;	/* structure copy (maybe useful later)*/
 #else
-		Bread(dosdev, 0);
-		dptr = (struct dos_partition *)(((char *)0)+DOSPARTOFF);
+		p = Bread(dosdev, 0);
+		dptr = (struct dos_partition *)(p+DOSPARTOFF);
 		slice = WHOLE_DISK_SLICE;
 		for (i = 0; i < NDOSPART; i++, dptr++)
 			if (dptr->dp_typ == DOSPTYP_386BSD) {
@@ -129,8 +125,8 @@ devopen(void)
 				sector = dptr->dp_start;
 				break;
 			}
-		Bread(dosdev, sector + LABELSECTOR);
-		dl=((struct disklabel *)0);
+		p = Bread(dosdev, sector + LABELSECTOR);
+		dl=((struct disklabel *)p);
 		disklabel = *dl;	/* structure copy (maybe useful later)*/
 #endif /* PC98 */
 #endif	EMBEDDED_DISKLABEL
@@ -156,11 +152,6 @@ devopen(void)
 #ifndef PC98
 		/* This is a good idea for all disks */
 		bsize = dl->d_partitions[part].p_size;
-#if 0   /* Save space, already have hard error for cyl > 1023 in Bread */
-		bend = boff + bsize - 1 ;
-		if (bend / spc >= 1024) {
-			printf("boot partition end >= cyl 1024, BIOS can't load kernel stored beyond this limit\n");
-#endif
 #endif
 
 #ifdef DO_BAD144
@@ -193,8 +184,8 @@ devopen(void)
 		    do_bad144 = 0;
 		    do {
 			/* XXX: what if the "DOS sector" < 512 bytes ??? */
-			Bread(dosdev, dkbbnum + i);
-			dkbptr = (struct dkbad *) 0;
+			p = Bread(dosdev, dkbbnum + i);
+			dkbptr = (struct dkbad *) p;
 /* XXX why is this not in <sys/dkbad.h> ??? */
 #define DKBAD_MAGIC 0x4321
 			if (dkbptr->bt_mbz == 0 &&
@@ -210,24 +201,31 @@ devopen(void)
 		    else
 		      printf("Using bad sector table at %d\n", dkbbnum+i);
 		}
-#endif DO_BAD144
+#endif /* DO_BAD144 */
 	}
+#endif /* RAWBOOT */
 	return 0;
 }
 
+
+/*
+ * Be aware that cnt is rounded up to N*BPS
+ */
 void
-devread(void)
+devread(char *iodest, int sector, int cnt)
 {
-	int offset, sector = bnum;
-	int dosdev = inode.i_dev;
+	int offset;
+	char *p;
+
 	for (offset = 0; offset < cnt; offset += BPS)
 	{
-		Bread(dosdev, badsect(dosdev, sector++));
-		bcopy(0, iodest+offset, BPS);
+		p = Bread(dosdev, badsect(dosdev, sector++));
+		bcopy(p, iodest+offset, BPS);
 	}
 }
 
-void
+
+char *
 Bread(int dosdev, int sector)
 {
 	if (dosdev != ra_dev || sector < ra_first || sector >= ra_end)
@@ -260,14 +258,14 @@ Bread(int dosdev, int sector)
 		ra_first = sector;
 		ra_end = sector + nsec;
 	}
-	bcopy(ra_buf + (sector - ra_first) * BPS, I_ADDR, BPS);
+	return (ra_buf + (sector - ra_first) * BPS);
 }
 
 int
 badsect(int dosdev, int sector)
 {
+#if defined(DO_BAD144) && !defined(RAWBOOT)
 	int i;
-#ifdef DO_BAD144
 	if (do_bad144) {
 		u_short cyl;
 		u_short head;
@@ -316,7 +314,7 @@ badsect(int dosdev, int sector)
 		newsec -= dl->d_nsectors + i + 1;
 		return newsec;
 	}
-#endif DO_BAD144
   no_remap:
+#endif 
 	return sector;
 }
