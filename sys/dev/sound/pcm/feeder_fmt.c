@@ -209,7 +209,7 @@ FEEDER_DECLARE(feeder_8to16le, 0, NULL);
 static int
 feed_16to8_init(struct pcm_feeder *f)
 {
-	f->data = malloc(FEEDBUFSZ, M_FMTFEEDER, M_WAITOK | M_ZERO);
+	f->data = malloc(FEEDBUFSZ, M_FMTFEEDER, M_NOWAIT | M_ZERO);
 	return (f->data)? 0 : ENOMEM;
 }
 
@@ -318,7 +318,7 @@ FEEDER_DECLARE(feeder_monotostereo16, 0, NULL);
 static int
 feed_stereotomono8_init(struct pcm_feeder *f)
 {
-	f->data = malloc(FEEDBUFSZ, M_FMTFEEDER, M_WAITOK | M_ZERO);
+	f->data = malloc(FEEDBUFSZ, M_FMTFEEDER, M_NOWAIT | M_ZERO);
 	return (f->data)? 0 : ENOMEM;
 }
 
@@ -363,7 +363,7 @@ FEEDER_DECLARE(feeder_stereotomono8, 1, NULL);
 static int
 feed_stereotomono16_init(struct pcm_feeder *f)
 {
-	f->data = malloc(FEEDBUFSZ, M_FMTFEEDER, M_WAITOK | M_ZERO);
+	f->data = malloc(FEEDBUFSZ, M_FMTFEEDER, M_NOWAIT | M_ZERO);
 	return (f->data)? 0 : ENOMEM;
 }
 

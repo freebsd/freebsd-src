@@ -237,15 +237,8 @@ vchan_create(struct pcm_channel *parent)
 	struct pcm_channel *child;
 	int err, first;
 
-	CHN_LOCK(parent);
-	if (!(parent->flags & CHN_F_BUSY)) {
-		CHN_UNLOCK(parent);
-		return EBUSY;
-	}
-
 	pce = malloc(sizeof(*pce), M_DEVBUF, M_WAITOK | M_ZERO);
 	if (!pce) {
-		CHN_UNLOCK(parent);
 		return ENOMEM;
 	}
 
@@ -253,8 +246,13 @@ vchan_create(struct pcm_channel *parent)
 	child = pcm_chn_create(d, parent, &vchan_class, PCMDIR_VIRTUAL, parent);
 	if (!child) {
 		free(pce, M_DEVBUF);
-		CHN_UNLOCK(parent);
 		return ENODEV;
+	}
+
+   	CHN_LOCK(parent);
+	if (!(parent->flags & CHN_F_BUSY)) {
+		CHN_UNLOCK(parent);
+		return EBUSY;
 	}
 
 	first = SLIST_EMPTY(&parent->children);
@@ -270,7 +268,7 @@ vchan_create(struct pcm_channel *parent)
 		free(pce, M_DEVBUF);
 	}
 
-	/* XXX gross ugly hack, kill murder death */
+	/* XXX gross ugly hack, murder death kill */
 	if (first && !err) {
 		err = chn_reset(parent, AFMT_STEREO | AFMT_S16_LE);
 		if (err)
