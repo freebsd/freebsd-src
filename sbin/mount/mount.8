@@ -41,6 +41,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl adfpruvw
+.Op Fl F Ar fstab
 .Op Fl t Ar ufs | external_type
 .Nm
 .Op Fl dfpruvw
@@ -93,6 +94,10 @@ flag to
 determine what the
 .Nm
 command is trying to do.
+.It Fl F Ar fstab
+Specify the
+.Pa fstab
+file to use.
 .It Fl f
 Forces the revocation of write access when trying to downgrade
 a file system mount status from read-write to read-only.
@@ -406,6 +411,13 @@ Note that
 support for a particular file system might be provided either on a static
 (kernel compile-time), or dynamic basis (loaded as a kernel module by
 .Xr kldload 8 ) .
+.Sh ENVIRONMENT
+.Bl -tag -width PATH_FSTAB
+.It Pa PATH_FSTAB
+If the environment variable
+.Pa PATH_FSTAB
+is set all operations are performed against the specified file.
+.El
 .Sh FILES
 .Bl -tag -width /etc/fstab -compact
 .It Pa /etc/fstab

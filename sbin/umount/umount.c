@@ -100,13 +100,16 @@ main(int argc, char *argv[])
 	sync();
 
 	all = errs = 0;
-	while ((ch = getopt(argc, argv, "Aafh:t:v")) != -1)
+	while ((ch = getopt(argc, argv, "AaF:fh:t:v")) != -1)
 		switch (ch) {
 		case 'A':
 			all = 2;
 			break;
 		case 'a':
 			all = 1;
+			break;
+		case 'F':
+			setfstab(optarg);
 			break;
 		case 'f':
 			fflag = MNT_FORCE;
@@ -184,7 +187,7 @@ main(int argc, char *argv[])
 		break;
 	case 1:
 		if (setfsent() == 0)
-			err(1, "%s", _PATH_FSTAB);
+			err(1, "%s", getfstab());
 		errs = umountall(typelist);
 		break;
 	case 0:
@@ -751,6 +754,6 @@ usage()
 
 	(void)fprintf(stderr, "%s\n%s\n",
 	    "usage: umount [-fv] special | node",
-	    "       umount -a | -A [-fv] [-h host] [-t type]");
+	    "       umount -a | -A [ -F fstab] [-fv] [-h host] [-t type]");
 	exit(1);
 }
