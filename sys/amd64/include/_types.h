@@ -96,7 +96,11 @@ typedef	__uint64_t	__vm_size_t;
 /*
  * Unusual type definitions.
  */
+#if defined(__GNUC__)
 typedef	__builtin_va_list	__va_list;	/* internally known to gcc */
+#elif defined(lint)
+typedef	char *			__va_list;	/* pretend */
+#endif
 #if defined __GNUC__ && !defined(__GNUC_VA_LIST) && !defined(__NO_GNUC_VA_LIST)
 #define	__GNUC_VA_LIST
 typedef	__va_list	__gnuc_va_list;		/* compatibility w/GNU headers*/
