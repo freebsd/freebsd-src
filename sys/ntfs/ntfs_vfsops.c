@@ -197,7 +197,7 @@ ntfs_mountroot()
 	}
 
 	mtx_enter(&mountlist_mtx, MTX_DEF);
-	CIRCLEQ_INSERT_TAIL(&mountlist, mp, mnt_list);
+	TAILQ_INSERT_TAIL(&mountlist, mp, mnt_list);
 	mtx_exit(&mountlist_mtx, MTX_DEF);
 	(void)ntfs_statfs(mp, &mp->mnt_stat, p);
 	vfs_unbusy(mp);
