@@ -370,7 +370,7 @@
    register C++ destructors for local statics and global objects.
    This is essential for fully standards-compliant handling of
    destructors, but requires __cxa_atexit in libc. */
-/* #undef DEFAULT_USE_CXA_ATEXIT */
+#define DEFAULT_USE_CXA_ATEXIT 1
 
 /* Define if you want the C and C++ compilers to support multibyte
    character sets for source code. */
