@@ -1,6 +1,6 @@
 /*
  * By John G. Myers, jgm+@cmu.edu
- * Version 1.1
+ * Version 1.2
  *
  * Process a BITNET "internet.listing" file, producing output
  * suitable for input to makemap.
@@ -154,7 +154,7 @@ char *domainlen;
 	     * if "domain" doesn't have a domain expansion already.
 	     */
 	    p = lookup(domain);
-	    if (!p || !index(p, '.')) remember(domain, otherdomain);
+	    if (!p || !strchr(p, '.')) remember(domain, otherdomain);
 	}
     }
     else {
@@ -167,7 +167,7 @@ char *domainlen;
 		 * have a domain expansion, give it the expansion "domain".
 		 */
 		p = lookup(otherdomain);
-		if (!p || !index(p, '.')) remember(otherdomain, domain);
+		if (!p || !strchr(p, '.')) remember(otherdomain, domain);
 	    }
 	}
 	else {

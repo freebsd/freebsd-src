@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1983 Eric P. Allman
+ * Copyright (c) 1983, 1995 Eric P. Allman
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -39,17 +39,15 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)main.c	8.55.1.7 (Berkeley) 3/5/95";
+static char sccsid[] = "@(#)main.c	8.162 (Berkeley) 11/18/95";
 #endif /* not lint */
 
 #define	_DEFINE
 
 #include "sendmail.h"
 #if NAMED_BIND
-#include <arpa/nameser.h>
 #include <resolv.h>
 #endif
-#include <pwd.h>
 
 # ifdef lint
 char	edata, end;
@@ -94,21 +92,9 @@ ENVELOPE	BlankEnvelope;	/* a "blank" envelope */
 ENVELOPE	MainEnvelope;	/* the envelope around the basic letter */
 ADDRESS		NullAddress =	/* a null address */
 		{ "", "", NULL, "" };
-char		*UserEnviron[MAXUSERENVIRON + 2];
-				/* saved user environment */
-char		RealUserName[256];	/* the actual user id on this host */
 char		*CommandLineArgs;	/* command line args for pid file */
 bool		Warn_Q_option = FALSE;	/* warn about Q option use */
-
-/*
-**  Pointers for setproctitle.
-**	This allows "ps" listings to give more useful information.
-*/
-
-# ifdef SETPROCTITLE
-char		**Argv = NULL;		/* pointer to argument vector */
-char		*LastArgv = NULL;	/* end of argv */
-# endif /* SETPROCTITLE */
+char		**SaveArgv;	/* argument vector for re-execing */
 
 static void	obsolete();
 
@@ -118,8 +104,9 @@ ERROR %%%%   Cannot have daemon mode without SMTP   %%%% ERROR
 #endif /* SMTP */
 #endif /* DAEMON */
 
-#define MAXCONFIGLEVEL	5	/* highest config version level known */
+#define MAXCONFIGLEVEL	6	/* highest config version level known */
 
+int
 main(argc, argv, envp)
 	int argc;
 	char **argv;
@@ -127,7 +114,6 @@ main(argc, argv, envp)
 {
 	register char *p;
 	char **av;
-	extern int finis();
 	extern char Version[];
 	char *ep, *from;
 	typedef int (*fnptr)();
@@ -139,22 +125,25 @@ main(argc, argv, envp)
 	bool warn_C_flag = FALSE;
 	char warn_f_flag = '\0';
 	static bool reenter = FALSE;
-	char *argv0 = argv[0];
 	struct passwd *pw;
 	struct stat stb;
+	struct hostent *hp;
 	char jbuf[MAXHOSTNAMELEN];	/* holds MyHostName */
+	static char rnamebuf[MAXNAME];	/* holds RealUserName */
 	extern int DtableSize;
 	extern int optind;
+	extern int opterr;
 	extern time_t convtime();
-	extern putheader(), putbody();
 	extern void intsig();
-	extern char **myhostname();
+	extern struct hostent *myhostname();
 	extern char *arpadate();
 	extern char *getauthinfo();
 	extern char *getcfname();
 	extern char *optarg;
 	extern char **environ;
 	extern void sigusr1();
+	extern void sighup();
+	extern void initmacros __P((ENVELOPE *));
 
 	/*
 	**  Check to see if we reentered.
@@ -172,8 +161,8 @@ main(argc, argv, envp)
 	/* do machine-dependent initializations */
 	init_md(argc, argv);
 
-	/* arrange to dump state on signal */
 #ifdef SIGUSR1
+	/* arrange to dump state on user-1 signal */
 	setsignal(SIGUSR1, sigusr1);
 #endif
 
@@ -211,7 +200,9 @@ main(argc, argv, envp)
 # else
 	openlog("sendmail", LOG_PID);
 # endif
-#endif
+#endif 
+
+	tTsetup(tTdvect, sizeof tTdvect, "0-99.1");
 
 	/* set up the blank envelope */
 	BlankEnvelope.e_puthdr = putheader;
@@ -231,25 +222,29 @@ main(argc, argv, envp)
 	RealUid = getuid();
 	RealGid = getgid();
 
-	pw = getpwuid(RealUid);
+	pw = sm_getpwuid(RealUid);
 	if (pw != NULL)
-		(void) strcpy(RealUserName, pw->pw_name);
+		(void) strcpy(rnamebuf, pw->pw_name);
 	else
-		(void) sprintf(RealUserName, "Unknown UID %d", RealUid);
+		(void) sprintf(rnamebuf, "Unknown UID %d", RealUid);
+	RealUserName = rnamebuf;
 
 	/* save command line arguments */
 	i = 0;
 	for (av = argv; *av != NULL; )
 		i += strlen(*av++) + 1;
+	SaveArgv = (char **) xalloc(sizeof (char *) * (argc + 1));
 	CommandLineArgs = xalloc(i);
 	p = CommandLineArgs;
-	for (av = argv; *av != NULL; )
+	for (av = argv, i = 0; *av != NULL; )
 	{
+		SaveArgv[i++] = newstr(*av);
 		if (av != argv)
 			*p++ = ' ';
 		strcpy(p, *av++);
 		p += strlen(p);
 	}
+	SaveArgv[i] = NULL;
 
 	/* Handle any non-getoptable constructions. */
 	obsolete(argv);
@@ -259,63 +254,98 @@ main(argc, argv, envp)
 	*/
 
 #if defined(__osf__) || defined(_AIX3)
-# define OPTIONS	"B:b:C:cd:e:F:f:h:Iimno:p:q:r:sTtvX:x"
+# define OPTIONS	"B:b:C:cd:e:F:f:h:IiM:mnO:o:p:q:r:sTtvX:x"
 #endif
-#if defined(ultrix)
-# define OPTIONS	"B:b:C:cd:e:F:f:h:IiM:mno:p:q:r:sTtvX:"
-#endif
-#if defined(NeXT)
-# define OPTIONS	"B:b:C:cd:e:F:f:h:IimnOo:p:q:r:sTtvX:"
+#if defined(sony_news)
+# define OPTIONS	"B:b:C:cd:E:e:F:f:h:IiJ:M:mnO:o:p:q:r:sTtvX:"
 #endif
 #ifndef OPTIONS
-# define OPTIONS	"B:b:C:cd:e:F:f:h:Iimno:p:q:r:sTtvX:"
+# define OPTIONS	"B:b:C:cd:e:F:f:h:IiM:mnO:o:p:q:r:sTtvX:"
 #endif
+	opterr = 0;
 	while ((j = getopt(argc, argv, OPTIONS)) != EOF)
 	{
 		switch (j)
 		{
 		  case 'd':
-			tTsetup(tTdvect, sizeof tTdvect, "0-99.1");
 			tTflag(optarg);
 			setbuf(stdout, (char *) NULL);
-			printf("Version %s\n", Version);
 			break;
 		}
+	}
+	opterr = 1;
+
+	if (tTd(0, 1))
+	{
+		int ll;
+		extern char *CompileOptions[];
+
+		printf("Version %s\n Compiled with:", Version);
+		av = CompileOptions;
+		ll = 7;
+		while (*av != NULL)
+		{
+			if (ll + strlen(*av) > 63)
+			{
+				putchar('\n');
+				ll = 0;
+			}
+			if (ll == 0)
+			{
+				putchar('\t');
+				putchar('\t');
+			}
+			else
+				putchar(' ');
+			printf("%s", *av);
+			ll += strlen(*av++) + 1;
+		}
+		putchar('\n');
+	}
+	if (tTd(0, 10))
+	{
+		int ll;
+		extern char *OsCompileOptions[];
+
+		printf("    OS Defines:", Version);
+		av = OsCompileOptions;
+		ll = 7;
+		while (*av != NULL)
+		{
+			if (ll + strlen(*av) > 63)
+			{
+				putchar('\n');
+				ll = 0;
+			}
+			if (ll == 0)
+			{
+				putchar('\t');
+				putchar('\t');
+			}
+			else
+				putchar(' ');
+			printf("%s", *av);
+			ll += strlen(*av++) + 1;
+		}
+		putchar('\n');
+#ifdef _PATH_UNIX
+		printf("Kernel symbols:\t%s\n", _PATH_UNIX);
+#endif
+		printf("   Config file:\t%s\n", getcfname());
+		printf("      Pid file:\t%s\n", PidFile);
 	}
 
 	InChannel = stdin;
 	OutChannel = stdout;
 
-	/*
-	**  Move the environment so setproctitle can use the space at
-	**  the top of memory.
-	*/
+	/* initialize for setproctitle */
+	initsetproctitle(argc, argv, envp);
 
-	for (i = j = 0; j < MAXUSERENVIRON && (p = envp[i]) != NULL; i++)
-	{
-		if (strncmp(p, "IFS=", 4) == 0 || strncmp(p, "LD_", 3) == 0)
-			continue;
-		UserEnviron[j++] = newstr(p);
-	}
-	UserEnviron[j] = NULL;
-	environ = UserEnviron;
-
-# ifdef SETPROCTITLE
-	/*
-	**  Save start and extent of argv for setproctitle.
-	*/
-
-	Argv = argv;
-	if (i > 0)
-		LastArgv = envp[i - 1] + strlen(envp[i - 1]);
-	else
-		LastArgv = argv[argc - 1] + strlen(argv[argc - 1]);
-# endif /* SETPROCTITLE */
+	/* prime the child environment */
+	setuserenv("AGENT", "sendmail");
 
 	if (setsignal(SIGINT, SIG_IGN) != SIG_IGN)
 		(void) setsignal(SIGINT, intsig);
-	if (setsignal(SIGHUP, SIG_IGN) != SIG_IGN)
-		(void) setsignal(SIGHUP, intsig);
 	(void) setsignal(SIGTERM, intsig);
 	(void) setsignal(SIGPIPE, SIG_IGN);
 	OldUmask = umask(022);
@@ -335,12 +365,13 @@ main(argc, argv, envp)
 
 	/* initialize some macros, etc. */
 	initmacros(CurEnv);
+	init_vendor_macros(CurEnv);
 
 	/* version */
 	define('v', Version, CurEnv);
 
 	/* hostname */
-	av = myhostname(jbuf, sizeof jbuf);
+	hp = myhostname(jbuf, sizeof jbuf);
 	if (jbuf[0] != '\0')
 	{
 		struct	utsname	utsname;
@@ -357,7 +388,6 @@ main(argc, argv, envp)
 			if (p[1] != '\0')
 			{
 				define('m', newstr(&p[1]), CurEnv);
-				setclass('m', &p[1]);
 			}
 			while (p != NULL && strchr(&p[1], '.') != NULL)
 			{
@@ -378,18 +408,41 @@ main(argc, argv, envp)
 			p = jbuf;
 		}
 		if (tTd(0, 4))
-			printf("UUCP nodename: %s\n", p);
+			printf(" UUCP nodename: %s\n", p);
 		p = newstr(p);
 		define('k', p, CurEnv);
 		setclass('k', p);
 		setclass('w', p);
 	}
-	while (av != NULL && *av != NULL)
+	if (hp != NULL)
 	{
-		if (tTd(0, 4))
-			printf("\ta.k.a.: %s\n", *av);
-		setclass('w', *av++);
+		for (av = hp->h_aliases; av != NULL && *av != NULL; av++)
+		{
+			if (tTd(0, 4))
+				printf("\ta.k.a.: %s\n", *av);
+			setclass('w', *av);
+		}
+#if NETINET
+		if (hp->h_addrtype == AF_INET && hp->h_length == INADDRSZ)
+		{
+			register int i;
+
+			for (i = 0; hp->h_addr_list[i] != NULL; i++)
+			{
+				char ipbuf[103];
+
+				sprintf(ipbuf, "[%.100s]",
+					inet_ntoa(*((struct in_addr *) hp->h_addr_list[i])));
+				if (tTd(0, 4))
+					printf("\ta.k.a.: %s\n", ipbuf);
+				setclass('w', ipbuf);
+			}
+		}
+#endif
 	}
+
+	/* probe interfaces and locate any additional names */
+	load_if_names();
 
 	/* current time */
 	define('b', arpadate((char *) NULL), CurEnv);
@@ -447,9 +500,7 @@ main(argc, argv, envp)
 			  case MD_TEST:
 			  case MD_INITALIAS:
 			  case MD_PRINT:
-#ifdef MAYBE_NEXT_RELEASE
 			  case MD_ARPAFTP:
-#endif
 				OpMode = j;
 				break;
 
@@ -466,17 +517,14 @@ main(argc, argv, envp)
 			break;
 
 		  case 'B':	/* body type */
-			if (strcasecmp(optarg, "7bit") == 0 ||
-			    strcasecmp(optarg, "8bitmime") == 0)
-				CurEnv->e_bodytype = newstr(optarg);
-			else
-				usrerr("Illegal body type %s", optarg);
+			CurEnv->e_bodytype = optarg;
 			break;
 
 		  case 'C':	/* select configuration file (already done) */
 			if (RealUid != 0)
 				warn_C_flag = TRUE;
 			ConfFile = optarg;
+			endpwent();
 			(void) setgid(RealGid);
 			(void) setuid(RealUid);
 			safecf = FALSE;
@@ -518,6 +566,10 @@ main(argc, argv, envp)
 
 		  case 'o':	/* set option */
 			setoption(*optarg, optarg + 1, FALSE, TRUE, CurEnv);
+			break;
+
+		  case 'O':	/* set option (long form) */
+			setoption(' ', optarg, FALSE, TRUE, CurEnv);
 			break;
 
 		  case 'p':	/* set protocol */
@@ -574,6 +626,7 @@ main(argc, argv, envp)
 			break;
 
 		  case 'X':	/* traffic log file */
+			endpwent();
 			setgid(RealGid);
 			setuid(RealUid);
 			TrafficLogFile = fopen(optarg, "a");
@@ -599,9 +652,7 @@ main(argc, argv, envp)
 			break;
 
 		  case 'e':	/* error message disposition */
-# if defined(ultrix)
 		  case 'M':	/* define macro */
-# endif
 			setoption(j, optarg, FALSE, TRUE, CurEnv);
 			break;
 
@@ -619,8 +670,10 @@ main(argc, argv, envp)
 		  case 'x':	/* random flag that OSF/1 & AIX mailx passes */
 			break;
 # endif
-# if defined(NeXT)
-		  case 'O':	/* random flag that NeXT Mail.app passes */
+# if defined(sony_news)
+		  case 'E':
+		  case 'J':	/* ignore flags for Japanese code conversion
+				   impremented on Sony NEWS */
 			break;
 # endif
 
@@ -638,23 +691,42 @@ main(argc, argv, envp)
 	**	Extract special fields for local use.
 	*/
 
-#ifdef XDEBUG
+	/* set up ${opMode} for use in config file */
+	{
+		char mbuf[2];
+
+		mbuf[0] = OpMode;
+		mbuf[1] = '\0';
+		define(MID_OPMODE, newstr(mbuf), CurEnv);
+	}
+
+#if XDEBUG
 	checkfd012("before readcf");
 #endif
+	vendor_pre_defaults(CurEnv);
 	readcf(getcfname(), safecf, CurEnv);
+	vendor_post_defaults(CurEnv);
+
+	/* suppress error printing if errors mailed back or whatever */
+	if (CurEnv->e_errormode != EM_PRINT)
+		HoldErrs = TRUE;
+
+	/* set up the $=m class now, after .cf has a chance to redefine $m */
+	expand("\201m", jbuf, sizeof jbuf, CurEnv);
+	setclass('m', jbuf);
 
 	if (tTd(0, 1))
 	{
-		printf("SYSTEM IDENTITY (after readcf):");
-		printf("\n\t    (short domain name) $w = ");
+		printf("\n============ SYSTEM IDENTITY (after readcf) ============");
+		printf("\n      (short domain name) $w = ");
 		xputs(macvalue('w', CurEnv));
-		printf("\n\t(canonical domain name) $j = ");
+		printf("\n  (canonical domain name) $j = ");
 		xputs(macvalue('j', CurEnv));
-		printf("\n\t       (subdomain name) $m = ");
+		printf("\n         (subdomain name) $m = ");
 		xputs(macvalue('m', CurEnv));
-		printf("\n\t            (node name) $k = ");
+		printf("\n              (node name) $k = ");
 		xputs(macvalue('k', CurEnv));
-		printf("\n");
+		printf("\n========================================================\n\n");
 	}
 
 	/*
@@ -662,47 +734,48 @@ main(argc, argv, envp)
 	*/
 
 #if NAMED_BIND
-	if (!bitset(RES_INIT, _res.options))
+	if (UseNameServer && !bitset(RES_INIT, _res.options))
 		res_init();
+# ifdef RES_NOALIASES
+	_res.options |= RES_NOALIASES;
+# endif
 #endif
 
 	/*
-	**  Process authorization warnings from command line.
+	**  Do more command line checking -- these are things that
+	**  have to modify the results of reading the config file.
 	*/
 
+	/* process authorization warnings from command line */
 	if (warn_C_flag)
 		auth_warning(CurEnv, "Processed by %s with -C %s",
 			RealUserName, ConfFile);
-/*
-	if (warn_f_flag != '\0')
-		auth_warning(CurEnv, "%s set sender to %s using -%c",
-			RealUserName, from, warn_f_flag);
-*/
 	if (Warn_Q_option)
 		auth_warning(CurEnv, "Processed from queue %s", QueueDir);
+
+	/* check body type for legality */
+	if (CurEnv->e_bodytype == NULL)
+		/* nothing */ ;
+	else if (strcasecmp(CurEnv->e_bodytype, "7BIT") == 0)
+		SevenBitInput = TRUE;
+	else if (strcasecmp(CurEnv->e_bodytype, "8BITMIME") == 0)
+		SevenBitInput = FALSE;
+	else
+	{
+		usrerr("Illegal body type %s", CurEnv->e_bodytype);
+		CurEnv->e_bodytype = NULL;
+	}
 
 	/* Enforce use of local time (null string overrides this) */
 	if (TimeZoneSpec == NULL)
 		unsetenv("TZ");
 	else if (TimeZoneSpec[0] != '\0')
-	{
-		char **evp = UserEnviron;
-		char tzbuf[100];
+		setuserenv("TZ", TimeZoneSpec);
+	else
+		setuserenv("TZ", NULL);
+	tzset();
 
-		strcpy(tzbuf, "TZ=");
-		strcpy(&tzbuf[3], TimeZoneSpec);
-
-		while (*evp != NULL && strncmp(*evp, "TZ=", 3) != 0)
-			evp++;
-		if (*evp == NULL)
-		{
-			*evp++ = newstr(tzbuf);
-			*evp = NULL;
-		}
-		else
-			*evp++ = newstr(tzbuf);
-	}
-
+	/* check for sane configuration level */
 	if (ConfigLevel > MAXCONFIGLEVEL)
 	{
 		syserr("Warning: .cf version level (%d) exceeds program functionality (%d)",
@@ -712,32 +785,24 @@ main(argc, argv, envp)
 	if (MeToo)
 		BlankEnvelope.e_flags |= EF_METOO;
 
-# ifdef QUEUE
-	if (queuemode && RealUid != 0 && bitset(PRIV_RESTRICTQRUN, PrivacyFlags))
-	{
-		struct stat stbuf;
-
-		/* check to see if we own the queue directory */
-		if (stat(QueueDir, &stbuf) < 0)
-			syserr("main: cannot stat %s", QueueDir);
-		if (stbuf.st_uid != RealUid)
-		{
-			/* nope, really a botch */
-			usrerr("You do not have permission to process the queue");
-			exit (EX_NOPERM);
-		}
-	}
-# endif /* QUEUE */
-
 	switch (OpMode)
 	{
-	  case MD_INITALIAS:
-		Verbose = TRUE;
-		break;
-
 	  case MD_DAEMON:
 		/* remove things that don't make sense in daemon mode */
 		FullName = NULL;
+		GrabTo = FALSE;
+
+		/* arrange to restart on hangup signal */
+		setsignal(SIGHUP, sighup);
+		break;
+
+	  case MD_INITALIAS:
+		Verbose = TRUE;
+		/* fall through... */
+
+	  default:
+		/* arrange to exit cleanly on hangup signal */
+		setsignal(SIGHUP, intsig);
 		break;
 	}
 
@@ -760,31 +825,56 @@ main(argc, argv, envp)
 		UseErrorsTo = TRUE;
 	}
 
+	/* set options that were previous macros */
+	if (SmtpGreeting == NULL)
+	{
+		if (ConfigLevel < 7 && (p = macvalue('e', CurEnv)) != NULL)
+			SmtpGreeting = newstr(p);
+		else
+			SmtpGreeting = "\201j Sendmail \201v ready at \201b";
+	}
+	if (UnixFromLine == NULL)
+	{
+		if (ConfigLevel < 7 && (p = macvalue('l', CurEnv)) != NULL)
+			UnixFromLine = newstr(p);
+		else
+			UnixFromLine = "From \201g  \201d";
+	}
+
 	/* our name for SMTP codes */
-	expand("\201j", jbuf, &jbuf[sizeof jbuf - 1], CurEnv);
+	expand("\201j", jbuf, sizeof jbuf, CurEnv);
 	MyHostName = jbuf;
+	if (strchr(jbuf, '.') == NULL)
+		message("WARNING: local host name (%s) is not qualified; fix $j in config file",
+			jbuf);
 
 	/* make certain that this name is part of the $=w class */
 	setclass('w', MyHostName);
 
 	/* the indices of built-in mailers */
 	st = stab("local", ST_MAILER, ST_FIND);
-	if (st == NULL)
-		syserr("No local mailer defined");
-	else
+	if (st != NULL)
 		LocalMailer = st->s_mailer;
+	else if (OpMode != MD_TEST || !warn_C_flag)
+		syserr("No local mailer defined");
 
 	st = stab("prog", ST_MAILER, ST_FIND);
 	if (st == NULL)
 		syserr("No prog mailer defined");
 	else
+	{
 		ProgMailer = st->s_mailer;
+		clrbitn(M_MUSER, ProgMailer->m_flags);
+	}
 
 	st = stab("*file*", ST_MAILER, ST_FIND);
 	if (st == NULL)
 		syserr("No *file* mailer defined");
 	else
+	{
 		FileMailer = st->s_mailer;
+		clrbitn(M_MUSER, FileMailer->m_flags);
+	}
 
 	st = stab("*include*", ST_MAILER, ST_FIND);
 	if (st == NULL)
@@ -792,6 +882,39 @@ main(argc, argv, envp)
 	else
 		InclMailer = st->s_mailer;
 
+	if (ConfigLevel < 6)
+	{
+		/* heuristic tweaking of local mailer for back compat */
+		if (LocalMailer != NULL)
+		{
+			setbitn(M_ALIASABLE, LocalMailer->m_flags);
+			setbitn(M_HASPWENT, LocalMailer->m_flags);
+			setbitn(M_TRYRULESET5, LocalMailer->m_flags);
+			setbitn(M_CHECKINCLUDE, LocalMailer->m_flags);
+			setbitn(M_CHECKPROG, LocalMailer->m_flags);
+			setbitn(M_CHECKFILE, LocalMailer->m_flags);
+			setbitn(M_CHECKUDB, LocalMailer->m_flags);
+		}
+		if (ProgMailer != NULL)
+			setbitn(M_RUNASRCPT, ProgMailer->m_flags);
+		if (FileMailer != NULL)
+			setbitn(M_RUNASRCPT, FileMailer->m_flags);
+
+		/* propogate some envariables into children */
+		setuserenv("ISP", NULL);
+		setuserenv("SYSTYPE", NULL);
+	}
+
+	/* MIME Content-Types that cannot be transfer encoded */
+	setclass('n', "multipart/signed");
+
+	/* MIME message/* subtypes that can be treated as messages */
+	setclass('s', "rfc822");
+
+	/* MIME Content-Transfer-Encodings that can be encoded */
+	setclass('e', "7bit");
+	setclass('e', "8bit");
+	setclass('e', "binary");
 
 	/* operate in queue directory */
 	if (OpMode != MD_TEST && chdir(QueueDir) < 0)
@@ -800,14 +923,32 @@ main(argc, argv, envp)
 		ExitStat = EX_SOFTWARE;
 	}
 
+# ifdef QUEUE
+	if (queuemode && RealUid != 0 && bitset(PRIV_RESTRICTQRUN, PrivacyFlags))
+	{
+		struct stat stbuf;
+
+		/* check to see if we own the queue directory */
+		if (stat(".", &stbuf) < 0)
+			syserr("main: cannot stat %s", QueueDir);
+		if (stbuf.st_uid != RealUid)
+		{
+			/* nope, really a botch */
+			usrerr("You do not have permission to process the queue");
+			exit (EX_NOPERM);
+		}
+	}
+# endif /* QUEUE */
+
 	/* if we've had errors so far, exit now */
 	if (ExitStat != EX_OK && OpMode != MD_TEST)
 	{
+		endpwent();
 		setuid(RealUid);
 		exit(ExitStat);
 	}
 
-#ifdef XDEBUG
+#if XDEBUG
 	checkfd012("before main() initmaps");
 #endif
 
@@ -822,6 +963,7 @@ main(argc, argv, envp)
 #ifdef QUEUE
 		dropenvelope(CurEnv);
 		printqueue();
+		endpwent();
 		setuid(RealUid);
 		exit(EX_OK);
 #else /* QUEUE */
@@ -832,10 +974,12 @@ main(argc, argv, envp)
 	  case MD_INITALIAS:
 		/* initialize alias database */
 		initmaps(TRUE, CurEnv);
+		endpwent();
 		setuid(RealUid);
 		exit(EX_OK);
 
 	  case MD_DAEMON:
+	  case MD_SMTP:
 		/* don't open alias database -- done in srvrsmtp */
 		break;
 
@@ -848,35 +992,12 @@ main(argc, argv, envp)
 	if (tTd(0, 15))
 	{
 		/* print configuration table (or at least part of it) */
-		printrules();
+		if (tTd(0, 90))
+			printrules();
 		for (i = 0; i < MAXMAILERS; i++)
 		{
-			register struct mailer *m = Mailer[i];
-			int j;
-
-			if (m == NULL)
-				continue;
-			printf("mailer %d (%s): P=%s S=%d/%d R=%d/%d M=%ld F=", i, m->m_name,
-				m->m_mailer, m->m_se_rwset, m->m_sh_rwset,
-				m->m_re_rwset, m->m_rh_rwset, m->m_maxsize);
-			for (j = '\0'; j <= '\177'; j++)
-				if (bitnset(j, m->m_flags))
-					(void) putchar(j);
-			printf(" E=");
-			xputs(m->m_eol);
-			if (m->m_argv != NULL)
-			{
-				char **a = m->m_argv;
-
-				printf(" A=");
-				while (*a != NULL)
-				{
-					if (a != m->m_argv)
-						printf(" ");
-					xputs(*a++);
-				}
-			}
-			printf("\n");
+			if (Mailer[i] != NULL)
+				printmailer(Mailer[i]);
 		}
 	}
 
@@ -894,6 +1015,7 @@ main(argc, argv, envp)
 	if (OpMode == MD_TEST)
 	{
 		char buf[MAXLINE];
+		void intindebug();
 
 		if (isatty(fileno(stdin)))
 			Verbose = TRUE;
@@ -903,69 +1025,24 @@ main(argc, argv, envp)
 			printf("ADDRESS TEST MODE (ruleset 3 NOT automatically invoked)\n");
 			printf("Enter <ruleset> <address>\n");
 		}
+		if (setjmp(TopFrame) > 0)
+			printf("\n");
+		(void) setsignal(SIGINT, intindebug);
 		for (;;)
 		{
-			register char **pvp;
-			char *q;
-			auto char *delimptr;
-			extern bool invalidaddr();
-			extern char *crackaddr();
+			extern void testmodeline __P((char *, ENVELOPE *));
 
 			if (Verbose)
 				printf("> ");
 			(void) fflush(stdout);
 			if (fgets(buf, sizeof buf, stdin) == NULL)
 				finis();
+			p = strchr(buf, '\n');
+			if (p != NULL)
+				*p = '\0';
 			if (!Verbose)
-				printf("> %s", buf);
-			switch (buf[0])
-			{
-			  case '#':
-				continue;
-
-#ifdef MAYBENEXTRELEASE
-			  case 'C':		/* try crackaddr */
-			  	q = crackaddr(&buf[1]);
-			  	xputs(q);
-			  	printf("\n");
-			  	continue;
-#endif
-			}
-
-			for (p = buf; isascii(*p) && isspace(*p); p++)
-				continue;
-			q = p;
-			while (*p != '\0' && !(isascii(*p) && isspace(*p)))
-				p++;
-			if (*p == '\0')
-			{
-				printf("No address!\n");
-				continue;
-			}
-			*p = '\0';
-			if (invalidaddr(p + 1, NULL))
-				continue;
-			do
-			{
-				char pvpbuf[PSBUFSIZE];
-
-				pvp = prescan(++p, ',', pvpbuf, sizeof pvpbuf,
-					      &delimptr);
-				if (pvp == NULL)
-					continue;
-				p = q;
-				while (*p != '\0')
-				{
-					int stat;
-
-					stat = rewrite(pvp, atoi(p), 0, CurEnv);
-					if (stat != EX_OK)
-						printf("== Ruleset %s status %d\n",
-							p, stat);
-					while (*p != '\0' && *p++ != ',')
-						continue;
-				}
-			} while (*(p = delimptr) != '\0');
+				printf("> %s\n", buf);
+			testmodeline(buf, CurEnv);
 		}
 	}
 
@@ -976,6 +1053,7 @@ main(argc, argv, envp)
 
 	if (queuemode && OpMode != MD_DAEMON && QueueIntvl == 0)
 	{
+		(void) unsetenv("HOSTALIASES");
 		runqueue(FALSE);
 		finis();
 	}
@@ -994,7 +1072,7 @@ main(argc, argv, envp)
 	{
 		char dtype[200];
 
-		if (!tTd(0, 1))
+		if (!tTd(99, 100))
 		{
 			/* put us in background */
 			i = fork();
@@ -1066,11 +1144,12 @@ main(argc, argv, envp)
 	{
 		CurEnv->e_sendmode = SM_VERIFY;
 		CurEnv->e_errormode = EM_QUIET;
+		PostMasterCopy = NULL;
 	}
 	else
 	{
 		/* interactive -- all errors are global */
-		CurEnv->e_flags |= EF_GLOBALERRS;
+		CurEnv->e_flags |= EF_GLOBALERRS|EF_LOGSENDER;
 	}
 
 	/*
@@ -1078,6 +1157,9 @@ main(argc, argv, envp)
 	*/
 
 	initsys(CurEnv);
+	if (warn_f_flag != '\0' && !wordinclass(RealUserName, 't'))
+		auth_warning(CurEnv, "%s set sender to %s using -%c",
+			RealUserName, from, warn_f_flag);
 	setsender(from, CurEnv, NULL, FALSE);
 	if (macvalue('s', CurEnv) == NULL)
 		define('s', RealHostName, CurEnv);
@@ -1089,7 +1171,7 @@ main(argc, argv, envp)
 
 		/* collect body for UUCP return */
 		if (OpMode != MD_VERIFY)
-			collect(FALSE, FALSE, CurEnv);
+			collect(InChannel, FALSE, FALSE, NULL, CurEnv);
 		finis();
 	}
 
@@ -1111,7 +1193,7 @@ main(argc, argv, envp)
 	if (OpMode != MD_VERIFY || GrabTo)
 	{
 		CurEnv->e_flags |= EF_GLOBALERRS;
-		collect(FALSE, FALSE, CurEnv);
+		collect(InChannel, FALSE, FALSE, NULL, CurEnv);
 	}
 	errno = 0;
 
@@ -1139,6 +1221,15 @@ main(argc, argv, envp)
 
 	finis();
 }
+
+
+void
+intindebug()
+{
+	longjmp(TopFrame, 1);
+}
+
+
 /*
 **  FINIS -- Clean up and exit.
 **
@@ -1152,12 +1243,18 @@ main(argc, argv, envp)
 **		exits sendmail
 */
 
+void
 finis()
 {
 	if (tTd(2, 1))
-		printf("\n====finis: stat %d e_flags %o, e_id=%s\n",
-			ExitStat, CurEnv->e_flags,
+	{
+		extern void printenvflags();
+
+		printf("\n====finis: stat %d e_id=%s e_flags=",
+			ExitStat,
 			CurEnv->e_id == NULL ? "NOQUEUE" : CurEnv->e_id);
+		printenvflags(CurEnv);
+	}
 	if (tTd(2, 9))
 		printopenfds(FALSE);
 
@@ -1178,10 +1275,11 @@ finis()
 	if (LogLevel > 78)
 		syslog(LOG_DEBUG, "finis, pid=%d", getpid());
 # endif /* LOG */
-	if (ExitStat == EX_TEMPFAIL)
+	if (ExitStat == EX_TEMPFAIL || CurEnv->e_errormode == EM_BERKNET)
 		ExitStat = EX_OK;
 
 	/* reset uid for process accounting */
+	endpwent();
 	setuid(RealUid);
 
 	exit(ExitStat);
@@ -1212,6 +1310,7 @@ intsig()
 #endif
 
 	/* reset uid for process accounting */
+	endpwent();
 	setuid(RealUid);
 
 	exit(EX_OK);
@@ -1255,12 +1354,18 @@ struct metamac	MetaMacros[] =
 	'\0'
 };
 
+#define MACBINDING(name, mid) \
+		stab(name, ST_MACRO, ST_ENTER)->s_macro = mid; \
+		MacroName[mid] = name;
+
+void
 initmacros(e)
 	register ENVELOPE *e;
 {
 	register struct metamac *m;
-	char buf[5];
 	register int c;
+	char buf[5];
+	extern char *MacroName[256];
 
 	for (m = MetaMacros; m->metaname != '\0'; m++)
 	{
@@ -1277,11 +1382,11 @@ initmacros(e)
 	}
 
 	/* set defaults for some macros sendmail will use later */
-	define('e', "\201j Sendmail \201v ready at \201b", e);
-	define('l', "From \201g  \201d", e);
 	define('n', "MAILER-DAEMON", e);
-	define('o', ".:@[]", e);
-	define('q', "<\201g>", e);
+
+	/* set up external names for some internal macros */
+	MACBINDING("opMode", MID_OPMODE);
+	/*XXX should probably add equivalents for all short macros here XXX*/
 }
 /*
 **  DISCONNECT -- remove our connection with any foreground process
@@ -1303,6 +1408,7 @@ initmacros(e)
 **		the controlling tty.
 */
 
+void
 disconnect(droplev, e)
 	int droplev;
 	register ENVELOPE *e;
@@ -1312,14 +1418,13 @@ disconnect(droplev, e)
 	if (tTd(52, 1))
 		printf("disconnect: In %d Out %d, e=%x\n",
 			fileno(InChannel), fileno(OutChannel), e);
-	if (tTd(52, 5))
+	if (tTd(52, 100))
 	{
 		printf("don't\n");
 		return;
 	}
 
 	/* be sure we don't get nasty signals */
-	(void) setsignal(SIGHUP, SIG_IGN);
 	(void) setsignal(SIGINT, SIG_IGN);
 	(void) setsignal(SIGQUIT, SIG_IGN);
 
@@ -1363,7 +1468,7 @@ disconnect(droplev, e)
 		errno = 0;
 	}
 
-#ifdef XDEBUG
+#if XDEBUG
 	checkfd012("disconnect");
 #endif
 
@@ -1391,7 +1496,11 @@ obsolete(argv)
 		/* skip over options that do have a value */
 		op = strchr(OPTIONS, ap[1]);
 		if (op != NULL && *++op == ':' && ap[2] == '\0' &&
-		    ap[1] != 'd' && argv[1] != NULL && argv[1][0] != '-')
+		    ap[1] != 'd' &&
+#if defined(sony_news)
+		    ap[1] != 'E' && ap[1] != 'J' &&
+#endif
+		    argv[1] != NULL && argv[1][0] != '-')
 		{
 			argv++;
 			continue;
@@ -1414,6 +1523,16 @@ obsolete(argv)
 		/* if -d doesn't have an argument, use 0-99.1 */
 		if (ap[1] == 'd' && ap[2] == '\0')
 			*argv = "-d0-99.1";
+
+# if defined(sony_news)
+		/* if -E doesn't have an argument, use -EC */
+		if (ap[1] == 'E' && ap[2] == '\0')
+			*argv = "-EC";
+
+		/* if -J doesn't have an argument, use -JJ */
+		if (ap[1] == 'J' && ap[2] == '\0')
+			*argv = "-JJ";
+# endif
 	}
 }
 /*
@@ -1445,7 +1564,7 @@ auth_warning(e, msg, va_alist)
 	{
 		register char *p;
 		static char hostbuf[48];
-		extern char **myhostname();
+		extern struct hostent *myhostname();
 
 		if (hostbuf[0] == '\0')
 			(void) myhostname(hostbuf, sizeof hostbuf);
@@ -1453,10 +1572,67 @@ auth_warning(e, msg, va_alist)
 		(void) sprintf(buf, "%s: ", hostbuf);
 		p = &buf[strlen(buf)];
 		VA_START(msg);
-		vsprintf(p, msg, ap);
+		vsnprintf(p, sizeof buf - (p - buf), msg, ap);
 		VA_END;
-		addheader("X-Authentication-Warning", buf, e);
+		addheader("X-Authentication-Warning", buf, &e->e_header);
+#ifdef LOG
+		if (LogLevel > 3)
+			syslog(LOG_INFO, "%s: Authentication-Warning: %.400s",
+				e->e_id == NULL ? "[NOQUEUE]" : e->e_id, buf);
+#endif
 	}
+}
+/*
+**  SETUSERENV -- set an environment in the propogated environment
+**
+**	Parameters:
+**		envar -- the name of the environment variable.
+**		value -- the value to which it should be set.  If
+**			null, this is extracted from the incoming
+**			environment.  If that is not set, the call
+**			to setuserenv is ignored.
+**
+**	Returns:
+**		none.
+*/
+
+void
+setuserenv(envar, value)
+	const char *envar;
+	const char *value;
+{
+	int i;
+	char **evp = UserEnviron;
+	char *p;
+
+	if (value == NULL)
+	{
+		value = getenv(envar);
+		if (value == NULL)
+			return;
+	}
+
+	i = strlen(envar);
+	p = (char *) xalloc(strlen(value) + i + 2);
+	strcpy(p, envar);
+	p[i++] = '=';
+	strcpy(&p[i], value);
+
+	while (*evp != NULL && strncmp(*evp, p, i) != 0)
+		evp++;
+	if (*evp != NULL)
+	{
+		*evp++ = p;
+	}
+	else if (evp < &UserEnviron[MAXUSERENVIRON])
+	{
+		*evp++ = p;
+		*evp = NULL;
+	}
+
+	/* make sure it is in our environment as well */
+	if (putenv(p) < 0)
+		syserr("setuserenv: putenv(%s) failed", p);
 }
 /*
 **  DUMPSTATE -- dump state
@@ -1470,17 +1646,16 @@ dumpstate(when)
 {
 #ifdef LOG
 	register char *j = macvalue('j', CurEnv);
-	register STAB *s;
 
 	syslog(LOG_DEBUG, "--- dumping state on %s: $j = %s ---",
 		when,
 		j == NULL ? "<NULL>" : j);
 	if (j != NULL)
 	{
-		s = stab(j, ST_CLASS, ST_FIND);
-		if (s == NULL || !bitnset('w', s->s_class))
+		if (!wordinclass(j, 'w'))
 			syslog(LOG_DEBUG, "*** $j not in $=w ***");
 	}
+	syslog(LOG_DEBUG, "CurChildren = %d", CurChildren);
 	syslog(LOG_DEBUG, "--- open file descriptors: ---");
 	printopenfds(TRUE);
 	syslog(LOG_DEBUG, "--- connection cache: ---");
@@ -1507,4 +1682,432 @@ void
 sigusr1()
 {
 	dumpstate("user signal");
+}
+
+
+void
+sighup()
+{
+#ifdef LOG
+	if (LogLevel > 3)
+		syslog(LOG_INFO, "restarting %s on signal", SaveArgv[0]);
+#endif
+	releasesignal(SIGHUP);
+	execv(SaveArgv[0], (ARGV_T) SaveArgv);
+#ifdef LOG
+	if (LogLevel > 0)
+		syslog(LOG_ALERT, "could not exec %s: %m", SaveArgv[0]);
+#endif
+	exit(EX_OSFILE);
+}
+/*
+**  TESTMODELINE -- process a test mode input line
+**
+**	Parameters:
+**		line -- the input line.
+**		e -- the current environment.
+**	Syntax:
+**		#  a comment
+**		.X process X as a configuration line
+**		=X dump a configuration item (such as mailers)
+**		$X dump a macro or class
+**		/X try an activity
+**		X  normal process through rule set X
+*/
+
+void
+testmodeline(line, e)
+	char *line;
+	ENVELOPE *e;
+{
+	register char *p;
+	char *q;
+	auto char *delimptr;
+	int mid;
+	int i, rs;
+	STAB *map;
+	char **s;
+	struct rewrite *rw;
+	ADDRESS a;
+	static int tryflags = RF_COPYNONE;
+	char exbuf[MAXLINE];
+	extern bool invalidaddr __P((char *, char *));
+	extern char *crackaddr __P((char *));
+	extern void dump_class __P((STAB *, int));
+	extern void translate_dollars __P((char *));
+
+	switch (line[0])
+	{
+	  case '#':
+	  case 0:
+		return;
+
+	  case '?':
+		help("-bt");
+		return;
+
+	  case '.':		/* config-style settings */
+		switch (line[1])
+		{
+		  case 'D':
+			mid = macid(&line[2], &delimptr);
+			if (mid == '\0')
+				return;
+			translate_dollars(delimptr);
+			define(mid, newstr(delimptr), e);
+			break;
+
+		  case 'C':
+			if (line[2] == '\0')	/* not to call syserr() */
+				return;
+
+			mid = macid(&line[2], &delimptr);
+			if (mid == '\0')
+				return;
+			translate_dollars(delimptr);
+			expand(delimptr, exbuf, sizeof exbuf, e);
+			p = exbuf;
+			while (*p != '\0')
+			{
+				register char *wd;
+				char delim;
+
+				while (*p != '\0' && isascii(*p) && isspace(*p))
+					p++;
+				wd = p;
+				while (*p != '\0' && !(isascii(*p) && isspace(*p)))
+					p++;
+				delim = *p;
+				*p = '\0';
+				if (wd[0] != '\0')
+					setclass(mid, wd);
+				*p = delim;
+			}
+			break;
+
+		  case '\0':
+			printf("Usage: .[DC]macro value(s)\n");
+			break;
+
+		  default:
+			printf("Unknown \".\" command %s\n", line);
+			break;
+		}
+		return;
+
+	  case '=':		/* config-style settings */
+		switch (line[1])
+		{
+		  case 'S':		/* dump rule set */
+			rs = strtorwset(&line[2], NULL, ST_FIND);
+			if (rs < 0)
+				return;
+			rw = RewriteRules[rs];
+			if (rw == NULL)
+				return;
+			do
+			{
+				putchar('R');
+				s = rw->r_lhs;
+				while (*s != NULL)
+				{
+					xputs(*s++);
+					putchar(' ');
+				}
+				putchar('\t');
+				putchar('\t');
+				s = rw->r_rhs;
+				while (*s != NULL)
+				{
+					xputs(*s++);
+					putchar(' ');
+				}
+				putchar('\n');
+			} while (rw = rw->r_next);
+			break;
+
+		  case 'M':
+			for (i = 0; i < MAXMAILERS; i++)
+			{
+				if (Mailer[i] != NULL)
+					printmailer(Mailer[i]);
+			}
+			break;
+
+		  case '\0':
+			printf("Usage: =Sruleset or =M\n");
+			break;
+
+		  default:
+			printf("Unknown \"=\" command %s\n", line);
+			break;
+		}
+		return;
+
+	  case '-':		/* set command-line-like opts */
+		switch (line[1])
+		{
+		  case 'd':
+			tTflag(&line[2]);
+			break;
+
+		  case '\0':
+			printf("Usage: -d{debug arguments}\n");
+			break;
+
+		  default:
+			printf("Unknown \"-\" command %s\n", line);
+			break;
+		}
+		return;
+
+	  case '$':
+		if (line[1] == '=')
+		{
+			mid = macid(&line[2], NULL);
+			if (mid != '\0')
+				stabapply(dump_class, mid);
+			return;
+		}
+		mid = macid(&line[1], NULL);
+		if (mid == '\0')
+			return;
+		p = macvalue(mid, e);
+		if (p == NULL)
+			printf("Undefined\n");
+		else
+		{
+			xputs(p);
+			printf("\n");
+		}
+		return;
+
+	  case '/':		/* miscellaneous commands */
+		p = &line[strlen(line)];
+		while (--p >= line && isascii(*p) && isspace(*p))
+			*p = '\0';
+		p = strpbrk(line, " \t");
+		if (p != NULL)
+		{
+			while (isascii(*p) && isspace(*p))
+				*p++ = '\0';
+		}
+		else
+			p = "";
+		if (line[1] == '\0')
+		{
+			printf("Usage: /[canon|map|mx|parse|try|tryflags]\n");
+			return;
+		}
+		if (strcasecmp(&line[1], "mx") == 0)
+		{
+#if NAMED_BIND
+			/* look up MX records */
+			int nmx;
+			auto int rcode;
+			char *mxhosts[MAXMXHOSTS + 1];
+
+			if (*p == '\0')
+			{
+				printf("Usage: /mx address\n");
+				return;
+			}
+			nmx = getmxrr(p, mxhosts, FALSE, &rcode);
+			printf("getmxrr(%s) returns %d value(s):\n", p, nmx);
+			for (i = 0; i < nmx; i++)
+				printf("\t%s\n", mxhosts[i]);
+#else
+			printf("No MX code compiled in\n");
+#endif
+		}
+		else if (strcasecmp(&line[1], "canon") == 0)
+		{
+			auto int rcode = EX_OK;
+			char host[MAXHOSTNAMELEN];
+
+			if (*p == '\0')
+			{
+				printf("Usage: /canon address\n");
+				return;
+			}
+			strcpy(host, p);
+			getcanonname(host, sizeof(host), HasWildcardMX, &rcode);
+			printf("getcanonname(%s) returns %s (%d)\n",
+				p, host, rcode);
+		}
+		else if (strcasecmp(&line[1], "map") == 0)
+		{
+			auto int rcode = EX_OK;
+
+			if (*p == '\0')
+			{
+				printf("Usage: /map mapname key\n");
+				return;
+			}
+			for (q = p; *q != '\0' && !isspace(*q); q++)
+				continue;
+			if (*q == '\0')
+			{
+				printf("No key specified\n");
+				return;
+			}
+			*q++ = '\0';
+			map = stab(p, ST_MAP, ST_FIND);
+			if (map == NULL)
+			{
+				printf("Map named \"%s\" not found\n", p);
+				return;
+			}
+			printf("map_lookup: %s (%s) ", p, q);
+			p = (*map->s_map.map_class->map_lookup)
+					(&map->s_map, q, NULL, &rcode);
+			if (p == NULL)
+				printf("no match (%d)\n", rcode);
+			else
+				printf("returns %s (%d)\n", p, rcode);
+		}
+		else if (strcasecmp(&line[1], "try") == 0)
+		{
+			MAILER *m;
+			STAB *s;
+			auto int rcode = EX_OK;
+
+			q = strpbrk(p, " \t");
+			if (q != NULL)
+			{
+				while (isascii(*q) && isspace(*q))
+					*q++ = '\0';
+			}
+			if (q == NULL || *q == '\0')
+			{
+				printf("Usage: /try mailer address\n");
+				return;
+			}
+			s = stab(p, ST_MAILER, ST_FIND);
+			if (s == NULL)
+			{
+				printf("Unknown mailer %s\n", p);
+				return;
+			}
+			m = s->s_mailer;
+			printf("Trying %s %s address %s for mailer %s\n",
+				bitset(RF_HEADERADDR, tryflags) ? "header" : "envelope",
+				bitset(RF_SENDERADDR, tryflags) ? "sender" : "recipient",
+				q, p);
+			p = remotename(q, m, tryflags, &rcode, CurEnv);
+			printf("Rcode = %d, addr = %s\n",
+				rcode, p == NULL ? "<NULL>" : p);
+		}
+		else if (strcasecmp(&line[1], "tryflags") == 0)
+		{
+			if (*p == '\0')
+			{
+				printf("Usage: /tryflags [Hh|Ee][Ss|Rr]\n");
+				return;
+			}
+			for (; *p != '\0'; p++)
+			{
+				switch (*p)
+				{
+				  case 'H':
+				  case 'h':
+					tryflags |= RF_HEADERADDR;
+					break;
+
+				  case 'E':
+				  case 'e':
+					tryflags &= ~RF_HEADERADDR;
+					break;
+
+				  case 'S':
+				  case 's':
+					tryflags |= RF_SENDERADDR;
+					break;
+
+				  case 'R':
+				  case 'r':
+					tryflags &= ~RF_SENDERADDR;
+					break;
+				}
+			}
+		}
+		else if (strcasecmp(&line[1], "parse") == 0)
+		{
+			if (*p == '\0')
+			{
+				printf("Usage: /parse address\n");
+				return;
+			}
+			q = crackaddr(p);
+			printf("Cracked address = ");
+			xputs(q);
+			printf("\nParsing %s %s address\n",
+				bitset(RF_HEADERADDR, tryflags) ? "header" : "envelope",
+				bitset(RF_SENDERADDR, tryflags) ? "sender" : "recipient");
+			if (parseaddr(p, &a, tryflags, '\0', NULL, e) == NULL)
+				printf("Cannot parse\n");
+			else if (a.q_host != NULL && a.q_host[0] != '\0')
+				printf("mailer %s, host %s, user %s\n",
+					a.q_mailer->m_name, a.q_host, a.q_user);
+			else
+				printf("mailer %s, user %s\n",
+					a.q_mailer->m_name, a.q_user);
+		}
+		else
+		{
+			printf("Unknown \"/\" command %s\n", line);
+		}
+		return;
+	}
+
+	for (p = line; isascii(*p) && isspace(*p); p++)
+		continue;
+	q = p;
+	while (*p != '\0' && !(isascii(*p) && isspace(*p)))
+		p++;
+	if (*p == '\0')
+	{
+		printf("No address!\n");
+		return;
+	}
+	*p = '\0';
+	if (invalidaddr(p + 1, NULL))
+		return;
+	do
+	{
+		register char **pvp;
+		char pvpbuf[PSBUFSIZE];
+
+		pvp = prescan(++p, ',', pvpbuf, sizeof pvpbuf,
+			      &delimptr, NULL);
+		if (pvp == NULL)
+			continue;
+		p = q;
+		while (*p != '\0')
+		{
+			int stat;
+			int rs = strtorwset(p, NULL, ST_FIND);
+
+			if (rs < 0)
+				break;
+			stat = rewrite(pvp, rs, 0, e);
+			if (stat != EX_OK)
+				printf("== Ruleset %s (%d) status %d\n",
+					p, rs, stat);
+			while (*p != '\0' && *p++ != ',')
+				continue;
+		}
+	} while (*(p = delimptr) != '\0');
+}
+
+
+void
+dump_class(s, id)
+	register STAB *s;
+	int id;
+{
+	if (s->s_type != ST_CLASS)
+		return;
+	if (bitnset(id & 0xff, s->s_class))
+		printf("%s\n", s->s_name);
 }
