@@ -37,14 +37,13 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_mib.c,v 1.1 1996/04/07 13:03:05 phk Exp $
+ * $Id: kern_mib.c,v 1.2 1996/07/25 18:02:40 wollman Exp $
  */
 
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/sysctl.h>
-#include <sys/conf.h>
 #include <sys/proc.h>
 #include <sys/unistd.h>
 
@@ -78,10 +77,10 @@ SYSCTL_STRING(_kern, KERN_OSTYPE, ostype, CTLFLAG_RD, ostype, 0, "");
 extern int osreldate;
 SYSCTL_INT(_kern, KERN_OSRELDATE, osreldate, CTLFLAG_RD, &osreldate, 0, "");
 
-SYSCTL_INT(_kern, KERN_MAXPROC, maxproc, CTLFLAG_RD, &maxproc, 0, "");
+SYSCTL_INT(_kern, KERN_MAXPROC, maxproc, CTLFLAG_RW, &maxproc, 0, "");
 
 SYSCTL_INT(_kern, KERN_MAXPROCPERUID, maxprocperuid,
-	CTLFLAG_RD, &maxprocperuid, 0, "");
+	CTLFLAG_RW, &maxprocperuid, 0, "");
 
 SYSCTL_INT(_kern, KERN_ARGMAX, argmax, CTLFLAG_RD, 0, ARG_MAX, "");
 
@@ -146,25 +145,23 @@ SYSCTL_INT(_kern, KERN_HOSTID, hostid, CTLFLAG_RW, &hostid, 0, "");
  * which I'm not quite sure is a good idea anyway, but in order for 
  * getnext and friends to actually work, we define dummies here.
  */
-
-SYSCTL_STRING(_user, USER_CS_PATH, cs_path, CTLFLAG_RW, "", 0, "");
-SYSCTL_INT(_user, USER_BC_BASE_MAX, bc_base_max, CTLFLAG_RW, 0, 0, "");
-SYSCTL_INT(_user, USER_BC_DIM_MAX, bc_dim_max, CTLFLAG_RW, 0, 0, "");
-SYSCTL_INT(_user, USER_BC_SCALE_MAX, bc_scale_max, CTLFLAG_RW, 0, 0, "");
-SYSCTL_INT(_user, USER_BC_STRING_MAX, bc_string_max, CTLFLAG_RW, 0, 0, "");
-SYSCTL_INT(_user, USER_COLL_WEIGHTS_MAX, coll_weights_max, CTLFLAG_RW, 0, 0, "");
-SYSCTL_INT(_user, USER_EXPR_NEST_MAX, expr_nest_max, CTLFLAG_RW, 0, 0, "");
-SYSCTL_INT(_user, USER_LINE_MAX, line_max, CTLFLAG_RW, 0, 0, "");
-SYSCTL_INT(_user, USER_RE_DUP_MAX, re_dup_max, CTLFLAG_RW, 0, 0, "");
-SYSCTL_INT(_user, USER_POSIX2_VERSION, posix2_version, CTLFLAG_RW, 0, 0, "");
-SYSCTL_INT(_user, USER_POSIX2_C_BIND, posix2_c_bind, CTLFLAG_RW, 0, 0, "");
-SYSCTL_INT(_user, USER_POSIX2_C_DEV, posix2_c_dev, CTLFLAG_RW, 0, 0, "");
-SYSCTL_INT(_user, USER_POSIX2_CHAR_TERM, posix2_char_term, CTLFLAG_RW, 0, 0, "");
-SYSCTL_INT(_user, USER_POSIX2_FORT_DEV, posix2_fort_dev, CTLFLAG_RW, 0, 0, "");
-SYSCTL_INT(_user, USER_POSIX2_FORT_RUN, posix2_fort_run, CTLFLAG_RW, 0, 0, "");
-SYSCTL_INT(_user, USER_POSIX2_LOCALEDEF, posix2_localedef, CTLFLAG_RW, 0, 0, "");
-SYSCTL_INT(_user, USER_POSIX2_SW_DEV, posix2_sw_dev, CTLFLAG_RW, 0, 0, "");
-SYSCTL_INT(_user, USER_POSIX2_UPE, posix2_upe, CTLFLAG_RW, 0, 0, "");
-SYSCTL_INT(_user, USER_STREAM_MAX, stream_max, CTLFLAG_RW, 0, 0, "");
-SYSCTL_INT(_user, USER_TZNAME_MAX, tzname_max, CTLFLAG_RW, 0, 0, "");
-
+SYSCTL_STRING(_user, USER_CS_PATH, cs_path, CTLFLAG_RO, "", 0, "");
+SYSCTL_INT(_user, USER_BC_BASE_MAX, bc_base_max, CTLFLAG_RO, 0, 0, "");
+SYSCTL_INT(_user, USER_BC_DIM_MAX, bc_dim_max, CTLFLAG_RO, 0, 0, "");
+SYSCTL_INT(_user, USER_BC_SCALE_MAX, bc_scale_max, CTLFLAG_RO, 0, 0, "");
+SYSCTL_INT(_user, USER_BC_STRING_MAX, bc_string_max, CTLFLAG_RO, 0, 0, "");
+SYSCTL_INT(_user, USER_COLL_WEIGHTS_MAX, coll_weights_max, CTLFLAG_RO, 0, 0, "");
+SYSCTL_INT(_user, USER_EXPR_NEST_MAX, expr_nest_max, CTLFLAG_RO, 0, 0, "");
+SYSCTL_INT(_user, USER_LINE_MAX, line_max, CTLFLAG_RO, 0, 0, "");
+SYSCTL_INT(_user, USER_RE_DUP_MAX, re_dup_max, CTLFLAG_RO, 0, 0, "");
+SYSCTL_INT(_user, USER_POSIX2_VERSION, posix2_version, CTLFLAG_RO, 0, 0, "");
+SYSCTL_INT(_user, USER_POSIX2_C_BIND, posix2_c_bind, CTLFLAG_RO, 0, 0, "");
+SYSCTL_INT(_user, USER_POSIX2_C_DEV, posix2_c_dev, CTLFLAG_RO, 0, 0, "");
+SYSCTL_INT(_user, USER_POSIX2_CHAR_TERM, posix2_char_term, CTLFLAG_RO, 0, 0, "");
+SYSCTL_INT(_user, USER_POSIX2_FORT_DEV, posix2_fort_dev, CTLFLAG_RO, 0, 0, "");
+SYSCTL_INT(_user, USER_POSIX2_FORT_RUN, posix2_fort_run, CTLFLAG_RO, 0, 0, "");
+SYSCTL_INT(_user, USER_POSIX2_LOCALEDEF, posix2_localedef, CTLFLAG_RO, 0, 0, "");
+SYSCTL_INT(_user, USER_POSIX2_SW_DEV, posix2_sw_dev, CTLFLAG_RO, 0, 0, "");
+SYSCTL_INT(_user, USER_POSIX2_UPE, posix2_upe, CTLFLAG_RO, 0, 0, "");
+SYSCTL_INT(_user, USER_STREAM_MAX, stream_max, CTLFLAG_RO, 0, 0, "");
+SYSCTL_INT(_user, USER_TZNAME_MAX, tzname_max, CTLFLAG_RO, 0, 0, "");
