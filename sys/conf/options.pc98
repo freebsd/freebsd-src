@@ -1,4 +1,4 @@
-#	$Id: options.pc98,v 1.33 1997/07/26 13:53:27 kato Exp $
+#	$Id: options.pc98,v 1.34 1997/08/02 06:58:07 kato Exp $
 BOUNCEPAGES		opt_bounce.h
 USER_LDT
 MATH_EMULATE		opt_math_emulate.h
@@ -21,13 +21,13 @@ CONUNIT			opt_defunct.h
 COM_ESP			opt_sio.h
 COM_MULTIPORT		opt_sio.h
 DSI_SOFT_MODEM		opt_sio.h
-WLDEBUG			opt_wavelan.h
-WLCACHE			opt_wavelan.h
 I586_CTR_GUPROF		opt_i586_guprof.h
 I586_PMC_GUPROF		opt_i586_guprof.h
 FAT_CURSOR		opt_pcvt.h
 PCVT_FREEBSD		opt_pcvt.h
 PCVT_SCANSET		opt_pcvt.h
+WLCACHE			opt_wavelan.h
+WLDEBUG			opt_wavelan.h
 XSERVER			opt_pcvt.h
 
 # These two SMP options have dramatic implications all over the kernel
