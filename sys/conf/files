@@ -877,6 +877,7 @@ dev/usb/ulpt.c		optional ulpt
 dev/usb/ukbd.c		optional ukbd
 dev/usb/umass.c		optional umass
 dev/usb/uhub.c		optional usb
+dev/usb/if_aue.c	optional aue
 isa_if.o		optional isa					\
 	dependency	"isa_if.c isa_if.h"				\
 	compile-with	"${NORMAL_C}"					\

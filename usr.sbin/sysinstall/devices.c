@@ -85,6 +85,7 @@ static struct _devname {
     { DEVICE_TYPE_DISK, 	"ramrd%d",	"AMI MegaRAID drive",	133, 65538, 8, 4, 'c'			},
     { DEVICE_TYPE_FLOPPY,	"fd%d",		"floppy drive unit A",	2, 0, 64, 4, 'b'			},
     { DEVICE_TYPE_FLOPPY,	"worm%d",	"SCSI optical disk / CDR",	23, 0, 1, 4, 'b'		},
+    { DEVICE_TYPE_NETWORK,	"aue",		"ADMtek USB ethernet adapter"					},
     { DEVICE_TYPE_NETWORK,	"fpa",		"DEC DEFPA PCI FDDI card"					},
     { DEVICE_TYPE_NETWORK,	"sr",		"SDL T1/E1 sync serial PCI card"				},
     { DEVICE_TYPE_NETWORK,	"cc3i",		"SDL HSSI sync serial PCI card"					},
