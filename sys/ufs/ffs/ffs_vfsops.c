@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.31 (Berkeley) 5/20/95
- * $Id: ffs_vfsops.c,v 1.70 1998/02/06 12:14:15 eivind Exp $
+ * $Id: ffs_vfsops.c,v 1.71 1998/02/09 06:11:06 eivind Exp $
  */
 
 #include "opt_quota.h"
@@ -142,7 +142,8 @@ ffs_mount( mp, path, data, ndp, p)
 	struct ufs_args args;
 	struct ufsmount *ump = 0;
 	register struct fs *fs;
-	int flags;
+	int error, flags;
+	mode_t accessmode;
 
 	/*
 	 * Use NULL path to flag a root mount
@@ -219,6 +220,22 @@ ffs_mount( mp, path, data, ndp, p)
 					goto error_1;
 				}
 			}
+
+			/*
+			 * If upgrade to read-write by non-root, then verify
+			 * that user has necessary permissions on the device.
+			 */
+			if (p->p_ucred->cr_uid != 0) {
+				devvp = ump->um_devvp;
+				vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, p);
+				if (error = VOP_ACCESS(devvp, VREAD | VWRITE,
+				    p->p_ucred, p)) {
+					VOP_UNLOCK(devvp, 0, p);
+					return (error);
+				}
+				VOP_UNLOCK(devvp, 0, p);
+			}
+
 			fs->fs_ronly = 0;
 		}
 		if (fs->fs_ronly == 0) {
@@ -257,6 +274,23 @@ ffs_mount( mp, path, data, ndp, p)
 		err = ENXIO;
 		goto error_2;
 	}
+
+	/*
+	 * If mount by non-root, then verify that user has necessary
+	 * permissions on the device.
+	 */
+	if (p->p_ucred->cr_uid != 0) {
+		accessmode = VREAD;
+		if ((mp->mnt_flag & MNT_RDONLY) == 0)
+			accessmode |= VWRITE;
+		vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, p);
+		if (error = VOP_ACCESS(devvp, accessmode, p->p_ucred, p)) {
+			vput(devvp);
+			return (error);
+		}
+		VOP_UNLOCK(devvp, 0, p);
+	}
+
 	if (mp->mnt_flag & MNT_UPDATE) {
 		/*
 		 ********************
