@@ -459,16 +459,13 @@ hpfs_vget(
 	struct vnode *vp;
 	struct hpfsnode *hp;
 	struct buf *bp;
-	struct thread *td = curthread;	/* XXX */
 	int error;
 
 	dprintf(("hpfs_vget(0x%x): ",ino));
 
 	error = vfs_hash_get(mp, ino, flags, curthread, vpp);
-	if (error)
+	if (error || *vpp != NULL)
 		return (error);
-	if (*vpp != NULL)
-		return (0);
 
 	*vpp = NULL;
 	hp = NULL;
@@ -516,28 +513,10 @@ hpfs_vget(
 	hp->h_mode = hpmp->hpm_mode;
 	hp->h_devvp = hpmp->hpm_devvp;
 
-	/*
-	 * Exclusively lock the vnode before adding to hash. Note, that we
-	 * must not release nor downgrade the lock (despite flags argument
-	 * says) till it is fully initialized.
-	 */
-	lockmgr(vp->v_vnlock, LK_EXCLUSIVE, (struct mtx *)0, td);
-
-	/*
-	 * Atomicaly (in terms of vfs_hash operations) check the hash for
-	 * duplicate of vnode being created and add it to the hash. If a
-	 * duplicate vnode was found, it will be vget()ed from hash for us.
-	 */
-	if ((error = vfs_hash_insert(vp, ino, flags, curthread, vpp)) != 0) {
+	error = vfs_hash_insert(vp, ino, flags, curthread, vpp);
+	if (error || *vpp) {
 		vput(vp);
-		*vpp = NULL;
 		return (error);
-	}
-
-	/* We lost the race, then throw away our vnode and return existing */
-	if (*vpp != NULL) {
-		vput(vp);
-		return (0);
 	}
 
 	VREF(hp->h_devvp);

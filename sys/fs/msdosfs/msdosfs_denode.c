@@ -98,7 +98,6 @@ deget(pmp, dirclust, diroffset, depp)
 	struct denode *ldep;
 	struct vnode *nvp, *xvp;
 	struct buf *bp;
-	struct thread *td = curthread;	/* XXX */
 
 	hash = DEHASH(dirclust, diroffset);
 
@@ -160,15 +159,6 @@ deget(pmp, dirclust, diroffset, depp)
 	ldep->de_dirclust = dirclust;
 	ldep->de_diroffset = diroffset;
 	fc_purge(ldep, 0);	/* init the fat cache for this denode */
-
-	/*
-	 * Lock the denode so that it can't be accessed until we've read
-	 * it in and have done what we need to it.  Do this here instead
-	 * of at the start of msdosfs_hashins() so that reinsert() can
-	 * call msdosfs_hashins() with a locked denode.
-	 */
-	if (VOP_LOCK(nvp, LK_EXCLUSIVE, td) != 0)
-		panic("deget: unexpected lock failure");
 
 	error = vfs_hash_insert(nvp, hash, 0, curthread, &xvp);
 	if (error) {
