@@ -167,7 +167,8 @@ package_extract(Device *dev, char *name, Boolean depended)
 	pid = fork();
 	if (!pid) {
 	    dup2(pfd[0], 0); close(pfd[0]);
-	    dup2(DebugFD, 1);
+	    if (!PkgInteractive)
+		dup2(DebugFD, 1);
 	    close(2);
 	    close(pfd[1]);
 	    if (isDebug())

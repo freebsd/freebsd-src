@@ -901,8 +901,9 @@ diskLabel(Device *dev)
 
 		sprintf(osize, "%d", sz);
 		val = msgGetInput(osize,
-				  "Please specify the partition size in blocks or append a trailing M for\n"
-				  "megabytes or C for cylinders.  %d blocks (%dMB) are free.",
+				  "Please specify the partition size in blocks or append a trailing G for\n"
+				  "gigabytes, M for megabytes, or C for cylinders.\n"
+				  "%d blocks (%dMB) are free.",
 				  sz, sz / ONE_MEG);
 		if (!val || (size = strtol(val, &cp, 0)) <= 0) {
 		    clear_wins();
@@ -912,6 +913,8 @@ diskLabel(Device *dev)
 		if (*cp) {
 		    if (toupper(*cp) == 'M')
 			size *= ONE_MEG;
+		    else if (toupper(*cp) == 'G')
+			size *= ONE_GIG;
 		    else if (toupper(*cp) == 'C')
 			size *= (label_chunk_info[here].c->disk->bios_hd * label_chunk_info[here].c->disk->bios_sect);
 		}
