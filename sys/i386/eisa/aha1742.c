@@ -14,7 +14,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aha1742.c,v 1.48 1996/01/14 02:19:42 gibbs Exp $
+ *      $Id: aha1742.c,v 1.49 1996/01/29 03:13:14 gibbs Exp $
  */
 
 #include <sys/types.h>
@@ -476,6 +476,7 @@ ahbprobe(void)
 		iobase = (e_dev->ioconf.slot * EISA_SLOT_SIZE) +
 			 AHB_EISA_SLOT_OFFSET;
                         
+		eisa_registerdev(e_dev, &ahb_eisa_driver, &kdc_ahb);
 		eisa_add_iospace(e_dev, iobase, AHB_EISA_IOSIZE, RESVADDR_NONE);
 		intdef = inb(INTDEF + iobase);
 		switch (intdef & 0x7) {
@@ -504,7 +505,6 @@ ahbprobe(void)
                                 continue;
 		}               
 		eisa_add_intr(e_dev, irq);
-		eisa_registerdev(e_dev, &ahb_eisa_driver, &kdc_ahb);
 		count++;        
 	}               
 	return count;   
