@@ -37,7 +37,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aic7xxx.c#147 $
+ * $Id: //depot/aic7xxx/aic7xxx/aic7xxx.c#148 $
  */
 
 #ifdef __linux__
@@ -5525,7 +5525,7 @@ ahc_search_qinfifo(struct ahc_softc *ahc, int target, char channel,
 				if (cstat != CAM_REQ_CMP)
 					aic_freeze_scb(scb);
 				if ((scb->flags & SCB_ACTIVE) == 0)
-					printf("Inactive SCB in Waiting List\n");
+					printf("Inactive SCB in Wait List\n");
 				ahc_done(ahc, scb);
 				/* FALLTHROUGH */
 			}
@@ -5631,8 +5631,6 @@ ahc_search_untagged_queues(struct ahc_softc *ahc, aic_io_ctx_t ctx,
 				cstat = aic_get_transaction_status(scb);
 				if (cstat != CAM_REQ_CMP)
 					aic_freeze_scb(scb);
-				if ((scb->flags & SCB_ACTIVE) == 0)
-					printf("Inactive SCB in untaggedQ\n");
 				ahc_done(ahc, scb);
 				break;
 			}
