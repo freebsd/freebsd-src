@@ -1,7 +1,6 @@
 # $FreeBSD$
 
 PROG=	stat
-MAN=	stat.1
 WARNS?=	2
 
 LINKS=	${BINDIR}/stat ${BINDIR}/readlink

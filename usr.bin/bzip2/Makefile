@@ -4,7 +4,6 @@ BZ2DIR=	${.CURDIR}/../../contrib/bzip2
 .PATH: ${BZ2DIR}
 
 PROG=	bzip2
-MAN=	bzip2.1
 CFLAGS+= -D_FILE_OFFSET_BITS=64
 
 SUBDIR+= doc

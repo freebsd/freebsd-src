@@ -3,7 +3,6 @@
 
 PROG=		bt3cfw
 MAN=		bt3cfw.8
-SRCS=		bt3cfw.c
 WARNS?=		2
 
 DPADD=		${LIBNETGRAPH}

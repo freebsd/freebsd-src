@@ -3,7 +3,6 @@
 
 PROG=		hcseriald
 MAN=		hcseriald.8
-SRCS=		hcseriald.c
 WARNS?=		2
 
 DPADD=		${LIBNETGRAPH}

@@ -3,7 +3,6 @@
 
 PROG=		l2ping
 MAN=		l2ping.8
-SRCS=		l2ping.c
 WARNS?=		2
 
 DPADD=		${LIBBLUETOOTH}

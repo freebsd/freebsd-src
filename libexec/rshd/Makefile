@@ -2,7 +2,6 @@
 # $FreeBSD$
 
 PROG=	rshd
-SRCS=	rshd.c
 MAN=	rshd.8
 
 WFORMAT=0
