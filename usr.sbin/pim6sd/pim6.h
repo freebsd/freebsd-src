@@ -25,8 +25,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 /*
  *  Questions concerning this software should be directed to
@@ -34,20 +32,21 @@
  *
  */
 /*
- * This program has been derived from pim6dd.
+ * This program has been derived from pim6dd.        
  * The pim6dd program is covered by the license in the accompanying file
  * named "LICENSE.pim6dd".
  */
 /*
- * This program has been derived from pimd.
+ * This program has been derived from pimd.        
  * The pimd program is covered by the license in the accompanying file
  * named "LICENSE.pimd".
  *
+ * $FreeBSD$
  */
 
 
 #ifndef PIM6_H
-#define	PIM6_H
+#define PIM6_H
 
 #include <sys/param.h>
 #include <sys/types.h>
@@ -61,9 +60,9 @@ extern struct sockaddr_in6 allpim6routers_group;
 extern char *pim6_send_buf;
 extern int 	pim6_socket;
 
-void init_pim6();
+void init_pim6 __P((void));
 extern void send_pim6        __P((char *buf, struct sockaddr_in6 *src,
-                         struct sockaddr_in6 *dst, int type,
+                         struct sockaddr_in6 *dst, int type, 
                          int datalen));
 
 

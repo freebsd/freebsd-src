@@ -11,7 +11,7 @@
 # 3. Neither the name of the project nor the names of its contributors
 #    may be used to endorse or promote products derived from this software
 #    without specific prior written permission.
-#
+# 
 # THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
 # ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 # IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -35,15 +35,15 @@
 # documentation, and that any documentation, advertising materials,
 # and other materials related to such distribution and use acknowledge
 # that the software was developed by the University of Oregon.
-# The name of the University of Oregon may not be used to endorse or
-# promote products derived from this software without specific prior
+# The name of the University of Oregon may not be used to endorse or 
+# promote products derived from this software without specific prior 
 # written permission.
 #
 # THE UNIVERSITY OF OREGON DOES NOT MAKE ANY REPRESENTATIONS
 # ABOUT THE SUITABILITY OF THIS SOFTWARE FOR ANY PURPOSE.  THIS SOFTWARE IS
 # PROVIDED "AS IS" AND WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES,
 # INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
-# MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND
+# MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND 
 # NON-INFRINGEMENT.
 #
 # IN NO EVENT SHALL UO, OR ANY OTHER CONTRIBUTOR BE LIABLE FOR ANY
@@ -55,17 +55,17 @@
 # noted when applicable.
 #
 #
-# Questions concerning this software should be directed to
+# Questions concerning this software should be directed to 
 # Kurt Windisch (kurtw@antc.uoregon.edu)
 #
-# $Id: Makefile,v 1.2 1999/09/13 01:23:22 jinmei Exp $
+# $Id: Makefile,v 1.3 2000/02/25 06:35:42 itojun Exp $
 # $FreeBSD$
 #
 #
 #Part of this program has been derived from PIM sparse-mode pimd.
 #The pimd program is covered by the license in the accompanying file
 #named "LICENSE.pimd".
-#
+# 
 #The pimd program is COPYRIGHT 1998 by University of Southern California.
 #
 #Part of this program has been derived from mrouted.
@@ -78,9 +78,8 @@
 PROG=	mtrace6
 
 CFLAGS+=-Wall
-CFLAGS+= -I$(.CURDIR)/..
+CFLAGS+= -I$(.CURDIR)/.. -DHAVE_GETIFADDRS
 
 MAN8=	mtrace6.8
 
 .include <bsd.prog.mk>
-

@@ -53,8 +53,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 /*
  *  Questions concerning this software should be directed to
@@ -62,15 +60,16 @@
  *
  */
 /*
- * This program has been derived from pim6dd.
+ * This program has been derived from pim6dd.        
  * The pim6dd program is covered by the license in the accompanying file
  * named "LICENSE.pim6dd".
  */
 /*
- * This program has been derived from pimd.
+ * This program has been derived from pimd.        
  * The pimd program is covered by the license in the accompanying file
  * named "LICENSE.pimd".
  *
+ * $FreeBSD$
  */
 
 #include <sys/param.h>
@@ -106,11 +105,13 @@ static struct iovec sndiovpim[2];
 static struct iovec rcviovpim[2];
 static struct msghdr 	sndmhpim,
 			rcvmhpim;
-static u_char sndcmsgbufpim[CMSG_SPACE(sizeof(struct in6_pktinfo))];
-static u_char rcvcmsgbufpim[CMSG_SPACE(sizeof(struct in6_pktinfo))];
+static u_char *sndcmsgbufpim = NULL;
+static int sndcmsglen;
+static u_char *rcvcmsgbufpim = NULL;
+static int rcvcmsglen;
 
 
-/*
+/*    
  * Local function definitions.
  */
 static void pim6_read   __P((int f, fd_set *rfd));
@@ -120,7 +121,8 @@ static int pim6_cksum __P((u_short *, struct in6_addr *,
 
 
 
-void init_pim6()
+void
+init_pim6()
 {
 	struct cmsghdr *cmsgp;
 	int on;
@@ -162,7 +164,7 @@ void init_pim6()
 	if (setsockopt(pim6_socket, IPPROTO_IPV6, IPV6_PKTINFO, &on,
 		       sizeof(on)) < 0)
 		log(LOG_ERR, errno, "setsockopt(IPV6_PKTINFO)");
-#endif
+#endif 
 
 	/* initialize msghdr for receiving packets */
 	rcviovpim[0].iov_base = (caddr_t) pim6_recv_buf;
@@ -171,21 +173,28 @@ void init_pim6()
 	rcvmhpim.msg_namelen = sizeof (from);
 	rcvmhpim.msg_iov = rcviovpim;
 	rcvmhpim.msg_iovlen = 1;
+	rcvcmsglen = CMSG_SPACE(sizeof(struct in6_pktinfo));
+	if (rcvcmsgbufpim == NULL &&
+	    (rcvcmsgbufpim = malloc(rcvcmsglen)) == NULL)
+		log(LOG_ERR, 0, "malloc failed");
 	rcvmhpim.msg_control = (caddr_t ) rcvcmsgbufpim;
-	rcvmhpim.msg_controllen = sizeof (rcvcmsgbufpim);
-
+	rcvmhpim.msg_controllen = rcvcmsglen;
 
 	sndmhpim.msg_namelen=sizeof(struct sockaddr_in6);
 	sndmhpim.msg_iov=sndiovpim;
 	sndmhpim.msg_iovlen=1;
-	sndmhpim.msg_control=(caddr_t)sndcmsgbufpim;
-	sndmhpim.msg_controllen=sizeof(sndcmsgbufpim);
+	sndcmsglen = CMSG_SPACE(sizeof(struct in6_pktinfo));
+	if (sndcmsgbufpim == NULL &&
+	    (sndcmsgbufpim = malloc(sndcmsglen)) == NULL)
+		log(LOG_ERR, 0, "malloc failed");
+	sndmhpim.msg_control = (caddr_t)sndcmsgbufpim;
+	sndmhpim.msg_controllen = sndcmsglen;
 	cmsgp=(struct cmsghdr *)sndcmsgbufpim;
-	cmsgp->cmsg_len=CMSG_SPACE(sizeof(struct in6_pktinfo));
-	cmsgp->cmsg_level=IPPROTO_IPV6;
-	cmsgp->cmsg_type=IPV6_PKTINFO;
+	cmsgp->cmsg_len = CMSG_LEN(sizeof(struct in6_pktinfo));
+	cmsgp->cmsg_level = IPPROTO_IPV6;
+	cmsgp->cmsg_type = IPV6_PKTINFO;
 
-	if ( register_input_handler(pim6_socket, pim6_read) <0)
+	if ( register_input_handler(pim6_socket, pim6_read) <0) 
 		log(LOG_ERR,0,"Registering pim6 socket");
 
 	/* Initialize the building Join/Prune messages working area */
@@ -238,12 +247,12 @@ pim6_read(f, rfd)
 static void
 accept_pim6(pimlen)
     int pimlen;
-{
+{   
     register struct pim *pim;
     struct sockaddr_in6 dst;
     struct in6_pktinfo *pi=NULL;
     struct sockaddr_in6 *src = (struct sockaddr_in6 *)rcvmhpim.msg_name;
-    struct cmsghdr *cm;
+    struct cmsghdr *cm;	
     int ifindex=0;
 
     /* sanity check */
@@ -273,15 +282,15 @@ accept_pim6(pimlen)
 		    else
 			    dst.sin6_scope_id = 0;
 	    }
-    }
+    }   
 
     if(pi==NULL)
 	    log(LOG_ERR,0,"pim6_socket : unable to get destination packet");
 
     if(ifindex==0)
 	    log(LOG_ERR,0,"pim6_socket : unable to get ifindex");
-
-#define	NOSUCHDEF
+		
+#define NOSUCHDEF 
 #ifdef NOSUCHDEF   /* TODO: delete. Too noisy */
     IF_DEBUG(DEBUG_PIM_DETAIL) {
         IF_DEBUG(DEBUG_PIM) {
@@ -291,10 +300,10 @@ accept_pim6(pimlen)
         }
     }
 #endif /* NOSUCHDEF */
-
+    
 
     /* Check of PIM version is already done in the kernel */
-
+ 
     /*
      * TODO: check the dest. is ALL_PIM_ROUTERS (if multicast address)
      *   is it necessary?
@@ -306,10 +315,10 @@ accept_pim6(pimlen)
          receive_pim6_hello(src, (char *)(pim), pimlen);
          break;
      case PIM_REGISTER:
-       	receive_pim6_register(src, &dst, (char *)(pim), pimlen);
+       	receive_pim6_register(src, &dst, (char *)(pim), pimlen);  
 		break;
      case PIM_REGISTER_STOP:
-       	 receive_pim6_register_stop(src, &dst, (char *)(pim), pimlen);
+       	 receive_pim6_register_stop(src, &dst, (char *)(pim), pimlen);  
          break;
      case PIM_JOIN_PRUNE:
          receive_pim6_join_prune(src, &dst, (char *)(pim), pimlen);
@@ -342,7 +351,7 @@ accept_pim6(pimlen)
              inet6_fmt(&src->sin6_addr));
          break;
     }
-}
+}   
 
 void
 send_pim6(char *buf, struct sockaddr_in6 *src,
@@ -370,7 +379,7 @@ send_pim6(char *buf, struct sockaddr_in6 *src,
 	if(pim->pim_type == PIM_REGISTER)
 	{
 		sendlen = sizeof(struct pim)+sizeof(pim_register_t);
-
+		
 	}
 
 	pim->pim_cksum = pim6_cksum((u_int16 *)pim,
@@ -405,24 +414,26 @@ send_pim6(char *buf, struct sockaddr_in6 *src,
 	}
 	else
 	{
-		sndmhpim.msg_control=(caddr_t)sndcmsgbufpim;
-		sndmhpim.msg_controllen=sizeof(sndcmsgbufpim);
+		sndmhpim.msg_control = (caddr_t)sndcmsgbufpim;
+		sndmhpim.msg_controllen = sndcmsglen;
 		sndpktinfo->ipi6_ifindex=src->sin6_scope_id;
 		memcpy(&sndpktinfo->ipi6_addr, &src->sin6_addr,
 		       sizeof(sndpktinfo->ipi6_addr));
 	}
-	if( sendmsg(pim6_socket, &sndmhpim, 0) <0 )
-        if (errno == ENETDOWN)
-            check_vif_state();
-        else
-            log(LOG_WARNING, errno, "sendmsg from %s to %s",
-                inet6_fmt(&src->sin6_addr),
-                inet6_fmt(&dst->sin6_addr));
+	if (sendmsg(pim6_socket, &sndmhpim, 0) < 0) {
+		if (errno == ENETDOWN)
+			check_vif_state();
+		else {
+			log(LOG_WARNING, errno, "sendmsg from %s to %s",
+			    inet6_fmt(&src->sin6_addr),
+			    inet6_fmt(&dst->sin6_addr));
+		}
+	}
 
 	if(setloop)
 		k_set_loop(pim6_socket, FALSE);
 
-	return;
+	return;	
 }
 
 /* ============================== */
@@ -434,37 +445,37 @@ send_pim6(char *buf, struct sockaddr_in6 *src,
  * code and should be modified for each CPU to be as fast as possible.
  */
 
-#define	ADDCARRY(x)  (x > 65535 ? x -= 65535 : x)
-#define	REDUCE {l_util.l = sum; sum = l_util.s[0] + l_util.s[1]; ADDCARRY(sum);}
-
-static union {
-    u_short phs[4];
+#define ADDCARRY(x)  (x > 65535 ? x -= 65535 : x)
+#define REDUCE {l_util.l = sum; sum = l_util.s[0] + l_util.s[1]; ADDCARRY(sum);}
+    
+static union { 
+    u_short phs[4]; 
     struct {
-        u_long  ph_len;
+        u_long  ph_len; 
         u_char  ph_zero[3];
-        u_char  ph_nxt;
-    } ph;
+        u_char  ph_nxt; 
+    } ph;   
 } uph;
-
-/*
+    
+/*  
  * Our algorithm is simple, using a 32 bit accumulator (sum), we add
- * sequential 16 bit words to it, and at the end, fold back all the
+ * sequential 16 bit words to it, and at the end, fold back all the 
  * carry bits from the top 16 bits into the lower 16 bits.
- */
+ */ 
 int pim6_cksum(u_short *addr, struct in6_addr *src ,struct in6_addr *dst , int len )
-{
+{   
     register int nleft = len;
     register u_short *w;
     register int sum = 0;
     u_short answer = 0;
-
+    
     /*
      * First create IP6 pseudo header and calculate a summary.
-     */
+     */      
     w = (u_short *)src;
     uph.ph.ph_len = htonl(len);
     uph.ph.ph_nxt = IPPROTO_PIM;
-
+    
     /* IPv6 source address */
     sum += w[0];
     /* XXX: necessary? */
@@ -483,7 +494,7 @@ int pim6_cksum(u_short *addr, struct in6_addr *src ,struct in6_addr *dst , int l
     /* Payload length and upper layer identifier */
     sum += uph.phs[0];  sum += uph.phs[1];
     sum += uph.phs[2];  sum += uph.phs[3];
-
+    
     /*
      * Secondly calculate a summary of the first mbuf excluding offset.
      */
@@ -492,16 +503,16 @@ int pim6_cksum(u_short *addr, struct in6_addr *src ,struct in6_addr *dst , int l
         sum += *w++;
         nleft -= 2;
     }
-
+    
     /* mop up an odd byte, if necessary */
     if (nleft == 1) {
         *(u_char *)(&answer) = *(u_char *)w ;
         sum += answer;
     }
-
+    
     /* add back carry outs from top 16 bits to low 16 bits */
     sum = (sum >> 16) + (sum & 0xffff); /* add hi 16 to low 16 */
     sum += (sum >> 16);         /* add carry */
     answer = ~sum;              /* truncate to 16 bits */
     return(answer);
-}
+}   
