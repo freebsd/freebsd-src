@@ -587,8 +587,8 @@ ia64_init()
 
 	/* Setup curproc so that mutexes work */
 	PCPU_SET(curproc, &proc0);
+	PCPU_SET(spinlocks, NULL);
 
-	LIST_INIT(&proc0.p_heldmtx);
 	LIST_INIT(&proc0.p_contested);
 
 	/*

@@ -31,8 +31,9 @@
  */
 
 /*
- * Machine independent bits of mutex implementation and implementation of
- * `witness' structure & related debugging routines.
+ * Implementation of the `witness' lock verifier.  Originally implemented for
+ * mutexes in BSD/OS.  Extended to handle generic lock objects and lock
+ * classes in FreeBSD.
  */
 
 /*
@@ -61,837 +62,89 @@
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
+#include <sys/ktr.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
-#include <sys/vmmeter.h>
-#include <sys/ktr.h>
-
-#include <machine/atomic.h>
-#include <machine/bus.h>
-#include <machine/clock.h>
-#include <machine/cpu.h>
 
 #include <ddb/ddb.h>
 
-#include <vm/vm.h>
-#include <vm/vm_extern.h>
-
-#include <sys/mutex.h>
-
-/*
- * The WITNESS-enabled mutex debug structure.
- */
-#ifdef WITNESS
-struct mtx_debug {
-	struct witness	*mtxd_witness;
-	LIST_ENTRY(mtx)	mtxd_held;
-	const char	*mtxd_file;
-	int		mtxd_line;
-};
-
-#define mtx_held	mtx_debug->mtxd_held
-#define	mtx_file	mtx_debug->mtxd_file
-#define	mtx_line	mtx_debug->mtxd_line
-#define	mtx_witness	mtx_debug->mtxd_witness
-#endif	/* WITNESS */
-
-/*
- * Internal utility macros.
- */
-#define mtx_unowned(m)	((m)->mtx_lock == MTX_UNOWNED)
-
-#define mtx_owner(m)	(mtx_unowned((m)) ? NULL \
-	: (struct proc *)((m)->mtx_lock & MTX_FLAGMASK))
-
-#define SET_PRIO(p, pri)	(p)->p_pri.pri_level = (pri)
-
-/*
- * Early WITNESS-enabled declarations.
- */
-#ifdef WITNESS
-
-/*
- * Internal WITNESS routines which must be prototyped early.
- *
- * XXX: When/if witness code is cleaned up, it would be wise to place all
- *	witness prototyping early in this file.
- */ 
-static void witness_init(struct mtx *, int flag);
-static void witness_destroy(struct mtx *);
-static void witness_display(void(*)(const char *fmt, ...));
-
-MALLOC_DEFINE(M_WITNESS, "witness", "witness mtx_debug structure");
-
-/* All mutexes in system (used for debug/panic) */
-static struct mtx_debug all_mtx_debug = { NULL, {NULL, NULL}, NULL, 0 };
-
-/*
- * This global is set to 0 once it becomes safe to use the witness code.
- */
-static int witness_cold = 1;
-
-#else	/* WITNESS */
-
-/* XXX XXX XXX
- * flag++ is sleazoid way of shuting up warning
- */
-#define witness_init(m, flag) flag++
-#define witness_destroy(m)
-#define witness_try_enter(m, t, f, l)
-#endif	/* WITNESS */
-
-/*
- * All mutex locks in system are kept on the all_mtx list.
- */
-static struct mtx all_mtx = { MTX_UNOWNED, 0, 0, 0, "All mutexes queue head",
-	TAILQ_HEAD_INITIALIZER(all_mtx.mtx_blocked),
-	{ NULL, NULL }, &all_mtx, &all_mtx,
-#ifdef WITNESS
-	&all_mtx_debug
-#else
-	NULL
-#endif
-	 };
-
-/*
- * Global variables for book keeping.
- */
-static int	mtx_cur_cnt;
-static int	mtx_max_cnt;
-
-/*
- * Couple of strings for KTR_LOCK tracing in order to avoid duplicates.
- */
-char	STR_mtx_lock_slp[] = "GOT (sleep) %s [%p] r=%d at %s:%d";
-char	STR_mtx_unlock_slp[] = "REL (sleep) %s [%p] r=%d at %s:%d";
-char	STR_mtx_lock_spn[] = "GOT (spin) %s [%p] r=%d at %s:%d";
-char	STR_mtx_unlock_spn[] = "REL (spin) %s [%p] r=%d at %s:%d";
-
-/*
- * Prototypes for non-exported routines.
- *
- * NOTE: Prototypes for witness routines are placed at the bottom of the file. 
- */
-static void	propagate_priority(struct proc *);
-
-static void
-propagate_priority(struct proc *p)
-{
-	int pri = p->p_pri.pri_level;
-	struct mtx *m = p->p_blocked;
-
-	mtx_assert(&sched_lock, MA_OWNED);
-	for (;;) {
-		struct proc *p1;
-
-		p = mtx_owner(m);
-
-		if (p == NULL) {
-			/*
-			 * This really isn't quite right. Really
-			 * ought to bump priority of process that
-			 * next acquires the mutex.
-			 */
-			MPASS(m->mtx_lock == MTX_CONTESTED);
-			return;
-		}
-
-		MPASS(p->p_magic == P_MAGIC);
-		KASSERT(p->p_stat != SSLEEP, ("sleeping process owns a mutex"));
-		if (p->p_pri.pri_level <= pri)
-			return;
-
-		/*
-		 * Bump this process' priority.
-		 */
-		SET_PRIO(p, pri);
-
-		/*
-		 * If lock holder is actually running, just bump priority.
-		 */
-		if (p->p_oncpu != NOCPU) {
-			MPASS(p->p_stat == SRUN || p->p_stat == SZOMB);
-			return;
-		}
-
-#ifndef SMP
-		/*
-		 * For UP, we check to see if p is curproc (this shouldn't
-		 * ever happen however as it would mean we are in a deadlock.)
-		 */
-		KASSERT(p != curproc, ("Deadlock detected"));
-#endif
-
-		/*
-		 * If on run queue move to new run queue, and
-		 * quit.
-		 */
-		if (p->p_stat == SRUN) {
-			MPASS(p->p_blocked == NULL);
-			remrunqueue(p);
-			setrunqueue(p);
-			return;
-		}
-
-		/*
-		 * If we aren't blocked on a mutex, we should be.
-		 */
-		KASSERT(p->p_stat == SMTX, (
-		    "process %d(%s):%d holds %s but isn't blocked on a mutex\n",
-		    p->p_pid, p->p_comm, p->p_stat,
-		    m->mtx_description));
-
-		/*
-		 * Pick up the mutex that p is blocked on.
-		 */
-		m = p->p_blocked;
-		MPASS(m != NULL);
-
-		/*
-		 * Check if the proc needs to be moved up on
-		 * the blocked chain
-		 */
-		if (p == TAILQ_FIRST(&m->mtx_blocked)) {
-			continue;
-		}
-
-		p1 = TAILQ_PREV(p, procqueue, p_procq);
-		if (p1->p_pri.pri_level <= pri) {
-			continue;
-		}
-
-		/*
-		 * Remove proc from blocked chain and determine where
-		 * it should be moved up to.  Since we know that p1 has
-		 * a lower priority than p, we know that at least one
-		 * process in the chain has a lower priority and that
-		 * p1 will thus not be NULL after the loop.
-		 */
-		TAILQ_REMOVE(&m->mtx_blocked, p, p_procq);
-		TAILQ_FOREACH(p1, &m->mtx_blocked, p_procq) {
-			MPASS(p1->p_magic == P_MAGIC);
-			if (p1->p_pri.pri_level > pri)
-				break;
-		}
-
-		MPASS(p1 != NULL);
-		TAILQ_INSERT_BEFORE(p1, p, p_procq);
-		CTR4(KTR_LOCK,
-		    "propagate_priority: p %p moved before %p on [%p] %s",
-		    p, p1, m, m->mtx_description);
-	}
-}
-
-/*
- * Function versions of the inlined __mtx_* macros.  These are used by
- * modules and can also be called from assembly language if needed.
- */
-void
-_mtx_lock_flags(struct mtx *m, int opts, const char *file, int line)
-{
-
-	__mtx_lock_flags(m, opts, file, line);
-}
-
-void
-_mtx_unlock_flags(struct mtx *m, int opts, const char *file, int line)
-{
-
-	__mtx_unlock_flags(m, opts, file, line);
-}
-
-void
-_mtx_lock_spin_flags(struct mtx *m, int opts, const char *file, int line)
-{
-
-	__mtx_lock_spin_flags(m, opts, file, line);
-}
-
-void
-_mtx_unlock_spin_flags(struct mtx *m, int opts, const char *file, int line)
-{
-
-	__mtx_unlock_spin_flags(m, opts, file, line);
-}
-
-/*
- * The important part of mtx_trylock{,_flags}()
- * Tries to acquire lock `m.' We do NOT handle recursion here; we assume that
- * if we're called, it's because we know we don't already own this lock.
- */
-int
-_mtx_trylock(struct mtx *m, int opts, const char *file, int line)
-{
-	int rval;
-
-	MPASS(curproc != NULL);
-
-	/*
-	 * _mtx_trylock does not accept MTX_NOSWITCH option.
-	 */
-	KASSERT((opts & MTX_NOSWITCH) == 0,
-	    ("mtx_trylock() called with invalid option flag(s) %d", opts));
-
-	rval = _obtain_lock(m, curproc);
-
-#ifdef WITNESS
-	if (rval && m->mtx_witness != NULL) {
-		/*
-		 * We do not handle recursion in _mtx_trylock; see the
-		 * note at the top of the routine.
-		 */
-		KASSERT(!mtx_recursed(m),
-		    ("mtx_trylock() called on a recursed mutex"));
-		witness_try_enter(m, (opts | m->mtx_flags), file, line);
-	}
-#endif	/* WITNESS */
-
-	if ((opts & MTX_QUIET) == 0)
-		CTR5(KTR_LOCK, "TRY_LOCK %s [%p] result=%d at %s:%d",
-		    m->mtx_description, m, rval, file, line);
-
-	return rval;
-}
-
-/*
- * _mtx_lock_sleep: the tougher part of acquiring an MTX_DEF lock.
- *
- * We call this if the lock is either contested (i.e. we need to go to
- * sleep waiting for it), or if we need to recurse on it.
- */
-void
-_mtx_lock_sleep(struct mtx *m, int opts, const char *file, int line)
-{
-	struct proc *p = curproc;
-
-	if ((m->mtx_lock & MTX_FLAGMASK) == (uintptr_t)p) {
-		m->mtx_recurse++;
-		atomic_set_ptr(&m->mtx_lock, MTX_RECURSED);
-		if ((opts & MTX_QUIET) == 0)
-			CTR1(KTR_LOCK, "_mtx_lock_sleep: %p recursing", m);
-		return;
-	}
-
-	if ((opts & MTX_QUIET) == 0)
-		CTR4(KTR_LOCK,
-		    "_mtx_lock_sleep: %s contested (lock=%p) at %s:%d",
-		    m->mtx_description, (void *)m->mtx_lock, file, line);
-
-	while (!_obtain_lock(m, p)) {
-		uintptr_t v;
-		struct proc *p1;
-
-		mtx_lock_spin(&sched_lock);
-		/*
-		 * Check if the lock has been released while spinning for
-		 * the sched_lock.
-		 */
-		if ((v = m->mtx_lock) == MTX_UNOWNED) {
-			mtx_unlock_spin(&sched_lock);
-			continue;
-		}
-
-		/*
-		 * The mutex was marked contested on release. This means that
-		 * there are processes blocked on it.
-		 */
-		if (v == MTX_CONTESTED) {
-			p1 = TAILQ_FIRST(&m->mtx_blocked);
-			MPASS(p1 != NULL);
-			m->mtx_lock = (uintptr_t)p | MTX_CONTESTED;
-
-			if (p1->p_pri.pri_level < p->p_pri.pri_level)
-				SET_PRIO(p, p1->p_pri.pri_level); 
-			mtx_unlock_spin(&sched_lock);
-			return;
-		}
-
-		/*
-		 * If the mutex isn't already contested and a failure occurs
-		 * setting the contested bit, the mutex was either released
-		 * or the state of the MTX_RECURSED bit changed.
-		 */
-		if ((v & MTX_CONTESTED) == 0 &&
-		    !atomic_cmpset_ptr(&m->mtx_lock, (void *)v,
-			(void *)(v | MTX_CONTESTED))) {
-			mtx_unlock_spin(&sched_lock);
-			continue;
-		}
-
-		/*
-		 * We deffinately must sleep for this lock.
-		 */
-		mtx_assert(m, MA_NOTOWNED);
-
-#ifdef notyet
-		/*
-		 * If we're borrowing an interrupted thread's VM context, we
-		 * must clean up before going to sleep.
-		 */
-		if (p->p_ithd != NULL) {
-			struct ithd *it = p->p_ithd;
-
-			if (it->it_interrupted) {
-				if ((opts & MTX_QUIET) == 0)
-					CTR2(KTR_LOCK,
-				    "_mtx_lock_sleep: %p interrupted %p",
-					    it, it->it_interrupted);
-				intr_thd_fixup(it);
-			}
-		}
-#endif
-
-		/*
-		 * Put us on the list of threads blocked on this mutex.
-		 */
-		if (TAILQ_EMPTY(&m->mtx_blocked)) {
-			p1 = (struct proc *)(m->mtx_lock & MTX_FLAGMASK);
-			LIST_INSERT_HEAD(&p1->p_contested, m, mtx_contested);
-			TAILQ_INSERT_TAIL(&m->mtx_blocked, p, p_procq);
-		} else {
-			TAILQ_FOREACH(p1, &m->mtx_blocked, p_procq)
-				if (p1->p_pri.pri_level > p->p_pri.pri_level)
-					break;
-			if (p1)
-				TAILQ_INSERT_BEFORE(p1, p, p_procq);
-			else
-				TAILQ_INSERT_TAIL(&m->mtx_blocked, p, p_procq);
-		}
-
-		/*
-		 * Save who we're blocked on.
-		 */
-		p->p_blocked = m;
-		p->p_mtxname = m->mtx_description;
-		p->p_stat = SMTX;
-		propagate_priority(p);
-
-		if ((opts & MTX_QUIET) == 0)
-			CTR3(KTR_LOCK,
-			    "_mtx_lock_sleep: p %p blocked on [%p] %s", p, m,
-			    m->mtx_description);
-
-		mi_switch();
-
-		if ((opts & MTX_QUIET) == 0)
-			CTR3(KTR_LOCK,
-			  "_mtx_lock_sleep: p %p free from blocked on [%p] %s",
-			  p, m, m->mtx_description);
-
-		mtx_unlock_spin(&sched_lock);
-	}
-
-	return;
-}
-
-/*
- * _mtx_lock_spin: the tougher part of acquiring an MTX_SPIN lock.
- *
- * This is only called if we need to actually spin for the lock. Recursion
- * is handled inline.
- */
-void
-_mtx_lock_spin(struct mtx *m, int opts, critical_t mtx_crit, const char *file,
-	       int line)
-{
-	int i = 0;
-
-	if ((opts & MTX_QUIET) == 0)
-		CTR1(KTR_LOCK, "_mtx_lock_spin: %p spinning", m);
-
-	for (;;) {
-		if (_obtain_lock(m, curproc))
-			break;
-
-		while (m->mtx_lock != MTX_UNOWNED) {
-			if (i++ < 1000000)
-				continue;
-			if (i++ < 6000000)
-				DELAY(1);
-#ifdef DDB
-			else if (!db_active)
-#else
-			else
-#endif
-			panic("spin lock %s held by %p for > 5 seconds",
-			    m->mtx_description, (void *)m->mtx_lock);
-		}
-	}
-
-	m->mtx_savecrit = mtx_crit;
-	if ((opts & MTX_QUIET) == 0)
-		CTR1(KTR_LOCK, "_mtx_lock_spin: %p spin done", m);
-
-	return;
-}
-
-/*
- * _mtx_unlock_sleep: the tougher part of releasing an MTX_DEF lock.
- *
- * We are only called here if the lock is recursed or contested (i.e. we
- * need to wake up a blocked thread).
- */
-void
-_mtx_unlock_sleep(struct mtx *m, int opts, const char *file, int line)
-{
-	struct proc *p, *p1;
-	struct mtx *m1;
-	int pri;
-
-	p = curproc;
-
-	if (mtx_recursed(m)) {
-		if (--(m->mtx_recurse) == 0)
-			atomic_clear_ptr(&m->mtx_lock, MTX_RECURSED);
-		if ((opts & MTX_QUIET) == 0)
-			CTR1(KTR_LOCK, "_mtx_unlock_sleep: %p unrecurse", m);
-		return;
-	}
-
-	mtx_lock_spin(&sched_lock);
-	if ((opts & MTX_QUIET) == 0)
-		CTR1(KTR_LOCK, "_mtx_unlock_sleep: %p contested", m);
-
-	p1 = TAILQ_FIRST(&m->mtx_blocked);
-	MPASS(p->p_magic == P_MAGIC);
-	MPASS(p1->p_magic == P_MAGIC);
-
-	TAILQ_REMOVE(&m->mtx_blocked, p1, p_procq);
-
-	if (TAILQ_EMPTY(&m->mtx_blocked)) {
-		LIST_REMOVE(m, mtx_contested);
-		_release_lock_quick(m);
-		if ((opts & MTX_QUIET) == 0)
-			CTR1(KTR_LOCK, "_mtx_unlock_sleep: %p not held", m);
-	} else
-		atomic_store_rel_ptr(&m->mtx_lock, (void *)MTX_CONTESTED);
-
-	pri = PRI_MAX;
-	LIST_FOREACH(m1, &p->p_contested, mtx_contested) {
-		int cp = TAILQ_FIRST(&m1->mtx_blocked)->p_pri.pri_level;
-		if (cp < pri)
-			pri = cp;
-	}
-
-	if (pri > p->p_pri.pri_native)
-		pri = p->p_pri.pri_native;
-	SET_PRIO(p, pri);
-
-	if ((opts & MTX_QUIET) == 0)
-		CTR2(KTR_LOCK, "_mtx_unlock_sleep: %p contested setrunqueue %p",
-		    m, p1);
-
-	p1->p_blocked = NULL;
-	p1->p_stat = SRUN;
-	setrunqueue(p1);
-
-	if ((opts & MTX_NOSWITCH) == 0 && p1->p_pri.pri_level < pri) {
-#ifdef notyet
-		if (p->p_ithd != NULL) {
-			struct ithd *it = p->p_ithd;
-
-			if (it->it_interrupted) {
-				if ((opts & MTX_QUIET) == 0)
-					CTR2(KTR_LOCK,
-				    "_mtx_unlock_sleep: %p interrupted %p",
-					    it, it->it_interrupted);
-				intr_thd_fixup(it);
-			}
-		}
-#endif
-		setrunqueue(p);
-		if ((opts & MTX_QUIET) == 0)
-			CTR2(KTR_LOCK,
-			    "_mtx_unlock_sleep: %p switching out lock=%p", m,
-			    (void *)m->mtx_lock);
-
-		mi_switch();
-		if ((opts & MTX_QUIET) == 0)
-			CTR2(KTR_LOCK, "_mtx_unlock_sleep: %p resuming lock=%p",
-			    m, (void *)m->mtx_lock);
-	}
-
-	mtx_unlock_spin(&sched_lock);
-
-	return;
-}
-
-/*
- * All the unlocking of MTX_SPIN locks is done inline.
- * See the _rel_spin_lock() macro for the details. 
- */
-
-/*
- * The backing function for the INVARIANTS-enabled mtx_assert()
- */
-#ifdef INVARIANT_SUPPORT
-void
-_mtx_assert(struct mtx *m, int what, const char *file, int line)
-{
-	switch (what) {
-	case MA_OWNED:
-	case MA_OWNED | MA_RECURSED:
-	case MA_OWNED | MA_NOTRECURSED:
-		if (!mtx_owned(m))
-			panic("mutex %s not owned at %s:%d",
-			    m->mtx_description, file, line);
-		if (mtx_recursed(m)) {
-			if ((what & MA_NOTRECURSED) != 0)
-				panic("mutex %s recursed at %s:%d",
-				    m->mtx_description, file, line);
-		} else if ((what & MA_RECURSED) != 0) {
-			panic("mutex %s unrecursed at %s:%d",
-			    m->mtx_description, file, line);
-		}
-		break;
-	case MA_NOTOWNED:
-		if (mtx_owned(m))
-			panic("mutex %s owned at %s:%d",
-			    m->mtx_description, file, line);
-		break;
-	default:
-		panic("unknown mtx_assert at %s:%d", file, line);
-	}
-}
-#endif
-
-/*
- * The MUTEX_DEBUG-enabled mtx_validate()
- */
-#define MV_DESTROY	0	/* validate before destory */
-#define MV_INIT		1	/* validate before init */
-
-#ifdef MUTEX_DEBUG
-
-int mtx_validate __P((struct mtx *, int));
-
-int
-mtx_validate(struct mtx *m, int when)
-{
-	struct mtx *mp;
-	int i;
-	int retval = 0;
-
-#ifdef WITNESS
-	if (witness_cold)
-		return 0;
-#endif
-	if (m == &all_mtx || cold)
-		return 0;
-
-	mtx_lock(&all_mtx);
-/*
- * XXX - When kernacc() is fixed on the alpha to handle K0_SEG memory properly
- * we can re-enable the kernacc() checks.
- */
-#ifndef __alpha__
-	MPASS(kernacc((caddr_t)all_mtx.mtx_next, sizeof(uintptr_t),
-	    VM_PROT_READ) == 1);
-#endif
-	MPASS(all_mtx.mtx_next->mtx_prev == &all_mtx);
-	for (i = 0, mp = all_mtx.mtx_next; mp != &all_mtx; mp = mp->mtx_next) {
-#ifndef __alpha__
-		if (kernacc((caddr_t)mp->mtx_next, sizeof(uintptr_t),
-		    VM_PROT_READ) != 1) {
-			panic("mtx_validate: mp=%p mp->mtx_next=%p",
-			    mp, mp->mtx_next);
-		}
-#endif
-		i++;
-		if (i > mtx_cur_cnt) {
-			panic("mtx_validate: too many in chain, known=%d\n",
-			    mtx_cur_cnt);
-		}
-	}
-	MPASS(i == mtx_cur_cnt); 
-	switch (when) {
-	case MV_DESTROY:
-		for (mp = all_mtx.mtx_next; mp != &all_mtx; mp = mp->mtx_next)
-			if (mp == m)
-				break;
-		MPASS(mp == m);
-		break;
-	case MV_INIT:
-		for (mp = all_mtx.mtx_next; mp != &all_mtx; mp = mp->mtx_next)
-		if (mp == m) {
-			/*
-			 * Not good. This mutex already exists.
-			 */
-			printf("re-initing existing mutex %s\n",
-			    m->mtx_description);
-			MPASS(m->mtx_lock == MTX_UNOWNED);
-			retval = 1;
-		}
-	}
-	mtx_unlock(&all_mtx);
-	return (retval);
-}
-#endif
-
-/*
- * Mutex initialization routine; initialize lock `m' of type contained in
- * `opts' with options contained in `opts' and description `description.'
- * Place on "all_mtx" queue.
- */ 
-void
-mtx_init(struct mtx *m, const char *description, int opts)
-{
-
-	if ((opts & MTX_QUIET) == 0)
-		CTR2(KTR_LOCK, "mtx_init %p (%s)", m, description);
-
-#ifdef MUTEX_DEBUG
-	/* Diagnostic and error correction */
-	if (mtx_validate(m, MV_INIT))
-		return;
-#endif
-
-	bzero((void *)m, sizeof *m);
-	TAILQ_INIT(&m->mtx_blocked);
-
-#ifdef WITNESS
-	if (!witness_cold) {
-		m->mtx_debug = malloc(sizeof(struct mtx_debug),
-		    M_WITNESS, M_NOWAIT | M_ZERO);
-		MPASS(m->mtx_debug != NULL);
-	}
-#endif
-
-	m->mtx_description = description;
-	m->mtx_flags = opts;
-	m->mtx_lock = MTX_UNOWNED;
-
-	/* Put on all mutex queue */
-	mtx_lock(&all_mtx);
-	m->mtx_next = &all_mtx;
-	m->mtx_prev = all_mtx.mtx_prev;
-	m->mtx_prev->mtx_next = m;
-	all_mtx.mtx_prev = m;
-	if (++mtx_cur_cnt > mtx_max_cnt)
-		mtx_max_cnt = mtx_cur_cnt;
-	mtx_unlock(&all_mtx);
-
-#ifdef WITNESS
-	if (!witness_cold)
-		witness_init(m, opts);
-#endif
-}
-
-/*
- * Remove lock `m' from all_mtx queue.
- */
-void
-mtx_destroy(struct mtx *m)
-{
-
-#ifdef WITNESS
-	KASSERT(!witness_cold, ("%s: Cannot destroy while still cold\n",
-	    __FUNCTION__));
-#endif
-
-	CTR2(KTR_LOCK, "mtx_destroy %p (%s)", m, m->mtx_description);
-
-#ifdef MUTEX_DEBUG
-	if (m->mtx_next == NULL)
-		panic("mtx_destroy: %p (%s) already destroyed",
-		    m, m->mtx_description);
-
-	if (!mtx_owned(m)) {
-		MPASS(m->mtx_lock == MTX_UNOWNED);
-	} else {
-		MPASS((m->mtx_lock & (MTX_RECURSED|MTX_CONTESTED)) == 0);
-	}
-
-	/* diagnostic */
-	mtx_validate(m, MV_DESTROY);
-#endif
-
-#ifdef WITNESS
-	if (m->mtx_witness)
-		witness_destroy(m);
-#endif /* WITNESS */
-
-	/* Remove from the all mutex queue */
-	mtx_lock(&all_mtx);
-	m->mtx_next->mtx_prev = m->mtx_prev;
-	m->mtx_prev->mtx_next = m->mtx_next;
-
-#ifdef MUTEX_DEBUG
-	m->mtx_next = m->mtx_prev = NULL;
-#endif
-
-#ifdef WITNESS
-	free(m->mtx_debug, M_WITNESS);
-	m->mtx_debug = NULL;
-#endif
-
-	mtx_cur_cnt--;
-	mtx_unlock(&all_mtx);
-}
-
-
-/*
- * The WITNESS-enabled diagnostic code.
- */
-#ifdef WITNESS
-static void
-witness_fixup(void *dummy __unused)
-{
-	struct mtx *mp;
-
-	/*
-	 * We have to release Giant before initializing its witness
-	 * structure so that WITNESS doesn't get confused.
-	 */
-	mtx_unlock(&Giant);
-	mtx_assert(&Giant, MA_NOTOWNED);
-
-	mtx_lock(&all_mtx);
-
-	/* Iterate through all mutexes and finish up mutex initialization. */
-	for (mp = all_mtx.mtx_next; mp != &all_mtx; mp = mp->mtx_next) {
-
-		mp->mtx_debug = malloc(sizeof(struct mtx_debug),
-		    M_WITNESS, M_NOWAIT | M_ZERO);
-		MPASS(mp->mtx_debug != NULL);
-
-		witness_init(mp, mp->mtx_flags);
-	}
-	mtx_unlock(&all_mtx);
-
-	/* Mark the witness code as being ready for use. */
-	atomic_store_rel_int(&witness_cold, 0);
-
-	mtx_lock(&Giant);
-}
-SYSINIT(wtnsfxup, SI_SUB_MUTEX, SI_ORDER_FIRST, witness_fixup, NULL)
-
 #define WITNESS_COUNT 200
-#define	WITNESS_NCHILDREN 2
+#define WITNESS_CHILDCOUNT (WITNESS_COUNT * 4)
+/*
+ * XXX: This is somewhat bogus, as we assume here that at most 1024 processes
+ * will hold LOCK_NCHILDREN * 2 locks.  We handle failure ok, and we should
+ * probably be safe for the most part, but it's still a SWAG.
+ */
+#define LOCK_CHILDCOUNT (MAXCPU + 1024) * 2
 
-int witness_watch = 1;
+#define	WITNESS_NCHILDREN 6
+
+struct witness_child_list_entry;
 
 struct witness {
-	struct witness	*w_next;
-	const char	*w_description;
-	const char	*w_file;
-	int		 w_line;
-	struct witness	*w_morechildren;
-	u_char		 w_childcnt;
-	u_char		 w_Giant_squawked:1;
-	u_char		 w_other_squawked:1;
-	u_char		 w_same_squawked:1;
-	u_char		 w_spin:1;	/* MTX_SPIN type mutex. */
-	u_int		 w_level;
-	struct witness	*w_children[WITNESS_NCHILDREN];
+	const	char *w_name;
+	struct	lock_class *w_class;
+	STAILQ_ENTRY(witness) w_list;		/* List of all witnesses. */
+	STAILQ_ENTRY(witness) w_typelist;	/* Witnesses of a type. */
+	struct	witness_child_list_entry *w_children;	/* Great evilness... */
+	const	char *w_file;
+	int	w_line;
+	u_int	w_level;
+	u_int	w_refcount;
+	u_char	w_Giant_squawked:1;
+	u_char	w_other_squawked:1;
+	u_char	w_same_squawked:1;
 };
 
-struct witness_blessed {
-	char 	*b_lock1;
-	char	*b_lock2;
+struct witness_child_list_entry {
+	struct	witness_child_list_entry *wcl_next;
+	struct	witness *wcl_children[WITNESS_NCHILDREN];
+	u_int	wcl_count;
 };
+
+STAILQ_HEAD(witness_list, witness);
+
+struct witness_blessed {
+	const	char *b_lock1;
+	const	char *b_lock2;
+};
+
+struct witness_order_list_entry {
+	const	char *w_name;
+	struct	lock_class *w_class;
+};
+
+static struct	witness *enroll(const char *description,
+				struct lock_class *lock_class);
+static int	itismychild(struct witness *parent, struct witness *child);
+static void	removechild(struct witness *parent, struct witness *child);
+static int	isitmychild(struct witness *parent, struct witness *child);
+static int	isitmydescendant(struct witness *parent, struct witness *child);
+static int	dup_ok(struct witness *);
+static int	blessed(struct witness *, struct witness *);
+static void	witness_display_list(void(*prnt)(const char *fmt, ...),
+				     struct witness_list *list);
+static void	witness_displaydescendants(void(*)(const char *fmt, ...),
+					   struct witness *);
+static void	witness_leveldescendents(struct witness *parent, int level);
+static void	witness_levelall(void);
+static struct	witness *witness_get(void);
+static void	witness_free(struct witness *m);
+static struct	witness_child_list_entry *witness_child_get(void);
+static void	witness_child_free(struct witness_child_list_entry *wcl);
+static struct	lock_list_entry *witness_lock_list_get(void);
+static void	witness_lock_list_free(struct lock_list_entry *lle);
+static void	witness_display(void(*)(const char *fmt, ...));
+
+MALLOC_DEFINE(M_WITNESS, "witness", "witness structure");
+
+static int witness_watch;
+TUNABLE_INT_DECL("debug.witness_watch", 1, witness_watch);
+SYSCTL_INT(_debug, OID_AUTO, witness_watch, CTLFLAG_RD, &witness_watch, 0, "");
 
 #ifdef DDB
 /*
@@ -918,82 +171,59 @@ TUNABLE_INT_DECL("debug.witness_skipspin", 0, witness_skipspin);
 SYSCTL_INT(_debug, OID_AUTO, witness_skipspin, CTLFLAG_RD, &witness_skipspin, 0,
     "");
 
-/*
- * Witness-enabled globals
- */
-static struct mtx	w_mtx;
-static struct witness	*w_free;
-static struct witness	*w_all;
-static int		 w_inited;
-static int		 witness_dead;	/* fatal error, probably no memory */
+static struct mtx w_mtx;
+static struct witness_list w_free = STAILQ_HEAD_INITIALIZER(w_free);
+static struct witness_list w_all = STAILQ_HEAD_INITIALIZER(w_all);
+static struct witness_list w_spin = STAILQ_HEAD_INITIALIZER(w_spin);
+static struct witness_list w_sleep = STAILQ_HEAD_INITIALIZER(w_sleep);
+static struct witness_child_list_entry *w_child_free = NULL;
+static struct lock_list_entry *w_lock_list_free = NULL;
+static int witness_dead;	/* fatal error, probably no memory */
 
-static struct witness	 w_data[WITNESS_COUNT];
+static struct witness w_data[WITNESS_COUNT];
+static struct witness_child_list_entry w_childdata[WITNESS_CHILDCOUNT];
+static struct lock_list_entry w_locklistdata[LOCK_CHILDCOUNT];
 
-/*
- * Internal witness routine prototypes
- */
-static struct witness *enroll(const char *description, int flag);
-static int itismychild(struct witness *parent, struct witness *child);
-static void removechild(struct witness *parent, struct witness *child);
-static int isitmychild(struct witness *parent, struct witness *child);
-static int isitmydescendant(struct witness *parent, struct witness *child);
-static int dup_ok(struct witness *);
-static int blessed(struct witness *, struct witness *);
-static void
-    witness_displaydescendants(void(*)(const char *fmt, ...), struct witness *);
-static void witness_leveldescendents(struct witness *parent, int level);
-static void witness_levelall(void);
-static struct witness * witness_get(void);
-static void witness_free(struct witness *m);
-
-static char *ignore_list[] = {
-	"witness lock",
-	NULL
-};
-
-static char *spin_order_list[] = {
+static struct witness_order_list_entry order_lists[] = {
+	{ "Giant", &lock_class_mtx_sleep },
+	{ "proctree", &lock_class_sx },
+	{ "allproc", &lock_class_sx },
+	{ "process lock", &lock_class_mtx_sleep },
+	{ "uidinfo hash", &lock_class_mtx_sleep },
+	{ "uidinfo struct", &lock_class_mtx_sleep },
+	{ NULL, NULL },
 #if defined(__i386__) && defined (SMP)
-	"com",
+	{ "com", &lock_class_mtx_spin },
 #endif
-	"sio",
+	{ "sio", &lock_class_mtx_spin },
 #ifdef __i386__
-	"cy",
+	{ "cy", &lock_class_mtx_spin },
 #endif
-	"ng_node",
-	"ng_worklist",
-	"ithread table lock",
-	"ithread list lock",
-	"sched lock",
+	{ "ng_node", &lock_class_mtx_spin },
+	{ "ng_worklist", &lock_class_mtx_spin },
+	{ "ithread table lock", &lock_class_mtx_spin },
+	{ "ithread list lock", &lock_class_mtx_spin },
+	{ "sched lock", &lock_class_mtx_spin },
 #ifdef __i386__
-	"clk",
+	{ "clk", &lock_class_mtx_spin },
 #endif
-	"callout",
+	{ "callout", &lock_class_mtx_spin },
 	/*
 	 * leaf locks
 	 */
 #ifdef SMP
 #ifdef __i386__
-	"ap boot",
-	"imen",
+	{ "ap boot", &lock_class_mtx_spin },
+	{ "imen", &lock_class_mtx_spin },
 #endif
-	"smp rendezvous",
+	{ "smp rendezvous", &lock_class_mtx_spin },
 #endif
-	NULL
+	{ NULL, NULL },
+	{ NULL, NULL }
 };
 
-static char *order_list[] = {
-	"Giant", "proctree", "allproc", "process lock", "uidinfo hash",
-	    "uidinfo struct", NULL,
-	NULL
-};
-
-static char *dup_list[] = {
+static const char *dup_list[] = {
 	"process lock",
-	NULL
-};
-
-static char *sleep_list[] = {
-	"Giant",
 	NULL
 };
 
@@ -1006,165 +236,272 @@ static struct witness_blessed blessed_list[] = {
 static int blessed_count =
 	sizeof(blessed_list) / sizeof(struct witness_blessed);
 
-static void
-witness_init(struct mtx *m, int flag)
-{
-	m->mtx_witness = enroll(m->mtx_description, flag);
-}
+/*
+ * List of all locks in the system.
+ */
+STAILQ_HEAD(, lock_object) all_locks = STAILQ_HEAD_INITIALIZER(all_locks);
 
-static void
-witness_destroy(struct mtx *m)
-{
-	struct mtx *m1;
-	struct proc *p;
-	p = curproc;
-	LIST_FOREACH(m1, &p->p_heldmtx, mtx_held) {
-		if (m1 == m) {
-			LIST_REMOVE(m, mtx_held);
-			break;
-		}
-	}
-	return;
+static struct mtx all_mtx = {
+	{ &lock_class_mtx_sleep,	/* mtx_object.lo_class */
+	  "All locks list",		/* mtx_object.lo_name */
+	  NULL,				/* mtx_object.lo_file */
+	  0,				/* mtx_object.lo_line */
+	  LO_INITIALIZED,		/* mtx_object.lo_flags */
+	  { NULL },			/* mtx_object.lo_list */
+	  NULL },			/* mtx_object.lo_witness */
+	MTX_UNOWNED, 0,			/* mtx_lock, mtx_recurse */
+	0,				/* mtx_savecrit */
+	TAILQ_HEAD_INITIALIZER(all_mtx.mtx_blocked),
+	{ NULL, NULL }			/* mtx_contested */
+};
 
-}
+/*
+ * This global is set to 0 once it becomes safe to use the witness code.
+ */
+static int witness_cold = 1;
 
+/*
+ * Global variables for book keeping.
+ */
+static int lock_cur_cnt;
+static int lock_max_cnt;
+
+/*
+ * The WITNESS-enabled diagnostic code.
+ */
 static void
-witness_display(void(*prnt)(const char *fmt, ...))
+witness_initialize(void *dummy __unused)
 {
+	struct lock_object *lock;
+	struct witness_order_list_entry *order;
 	struct witness *w, *w1;
-	int level, found;
-
-	KASSERT(!witness_cold, ("%s: witness_cold\n", __FUNCTION__));
-	witness_levelall();
+	int i;
 
 	/*
-	 * First, handle sleep mutexes which have been acquired at least
-	 * once.
+	 * We have to release Giant before initializing its witness
+	 * structure so that WITNESS doesn't get confused.
 	 */
-	prnt("Sleep mutexes:\n");
-	for (w = w_all; w; w = w->w_next) {
-		if (w->w_file == NULL || w->w_spin)
-			continue;
-		for (w1 = w_all; w1; w1 = w1->w_next) {
-			if (isitmychild(w1, w))
-				break;
+	mtx_unlock(&Giant);
+	mtx_assert(&Giant, MA_NOTOWNED);
+
+	STAILQ_INSERT_HEAD(&all_locks, &all_mtx.mtx_object, lo_list);
+	mtx_init(&w_mtx, "witness lock", MTX_SPIN | MTX_QUIET | MTX_NOWITNESS);
+	for (i = 0; i < WITNESS_COUNT; i++)
+		witness_free(&w_data[i]);
+	for (i = 0; i < WITNESS_CHILDCOUNT; i++)
+		witness_child_free(&w_childdata[i]);
+	for (i = 0; i < LOCK_CHILDCOUNT; i++)
+		witness_lock_list_free(&w_locklistdata[i]);
+
+	/* First add in all the specified order lists. */
+	for (order = order_lists; order->w_name != NULL; order++) {
+		w = enroll(order->w_name, order->w_class);
+		w->w_file = "order list";
+		for (order++; order->w_name != NULL; order++) {
+			w1 = enroll(order->w_name, order->w_class);
+			w1->w_file = "order list";
+			itismychild(w, w1);
+			w = w1;
 		}
-		if (w1 != NULL)
+	}
+
+	/* Iterate through all locks and add them to witness. */
+	mtx_lock(&all_mtx);
+	STAILQ_FOREACH(lock, &all_locks, lo_list) {
+		if (lock->lo_flags & LO_WITNESS)
+			lock->lo_witness = enroll(lock->lo_name,
+			    lock->lo_class);
+		else
+			lock->lo_witness = NULL;
+	}
+	mtx_unlock(&all_mtx);
+
+	/* Mark the witness code as being ready for use. */
+	atomic_store_rel_int(&witness_cold, 0);
+
+	mtx_lock(&Giant);
+}
+SYSINIT(witness_init, SI_SUB_WITNESS, SI_ORDER_FIRST, witness_initialize, NULL)
+
+void
+witness_init(struct lock_object *lock)
+{
+	struct lock_class *class;
+
+	class = lock->lo_class;
+	if (lock->lo_flags & LO_INITIALIZED)
+		panic("%s: lock (%s) %s is already initialized!\n", __func__,
+		    class->lc_name, lock->lo_name);
+
+	if ((lock->lo_flags & LO_RECURSABLE) != 0 &&
+	    (class->lc_flags & LC_RECURSABLE) == 0)
+		panic("%s: lock (%s) %s can not be recursable!\n", __func__,
+		    class->lc_name, lock->lo_name);
+	
+	if ((lock->lo_flags & LO_SLEEPABLE) != 0 &&
+	    (class->lc_flags & LC_SLEEPABLE) == 0)
+		panic("%s: lock (%s) %s can not be sleepable!\n", __func__,
+		    class->lc_name, lock->lo_name);
+	
+	mtx_lock(&all_mtx);
+	STAILQ_INSERT_TAIL(&all_locks, lock, lo_list);
+	lock->lo_flags |= LO_INITIALIZED;
+	lock_cur_cnt++;
+	if (lock_cur_cnt > lock_max_cnt)
+		lock_max_cnt = lock_cur_cnt;
+	mtx_unlock(&all_mtx);
+	if (!witness_cold && !witness_dead &&
+	    (lock->lo_flags & LO_WITNESS) != 0)
+		lock->lo_witness = enroll(lock->lo_name, class);
+	else
+		lock->lo_witness = NULL;
+}
+
+void
+witness_destroy(struct lock_object *lock)
+{
+
+	if (witness_cold)
+		panic("lock (%s) %s destroyed while witness_cold",
+		    lock->lo_class->lc_name, lock->lo_name);
+
+	if ((lock->lo_flags & LO_INITIALIZED) == 0)
+		panic("%s: lock (%s) %s is not initialized!\n", __func__,
+		    lock->lo_class->lc_name, lock->lo_name);
+
+	if (lock->lo_flags & LO_LOCKED)
+		panic("lock (%s) %s destroyed while held",
+		    lock->lo_class->lc_name, lock->lo_name);
+
+	mtx_lock(&all_mtx);
+	lock_cur_cnt--;
+	STAILQ_REMOVE(&all_locks, lock, lock_object, lo_list);
+	lock->lo_flags &= LO_INITIALIZED;
+	mtx_unlock(&all_mtx);
+}
+
+static void
+witness_display_list(void(*prnt)(const char *fmt, ...),
+		     struct witness_list *list)
+{
+	struct witness *w, *w1;
+	int found;
+
+	STAILQ_FOREACH(w, list, w_typelist) {
+		if (w->w_file == NULL)
+			continue;
+		found = 0;
+		STAILQ_FOREACH(w1, list, w_typelist) {
+			if (isitmychild(w1, w)) {
+				found++;
+				break;
+			}
+		}
+		if (found)
 			continue;
 		/*
 		 * This lock has no anscestors, display its descendants. 
 		 */
 		witness_displaydescendants(prnt, w);
 	}
+}
+	
+static void
+witness_display(void(*prnt)(const char *fmt, ...))
+{
+	struct witness *w;
+
+	KASSERT(!witness_cold, ("%s: witness_cold\n", __func__));
+	witness_levelall();
+
+	/*
+	 * First, handle sleep mutexes which have been acquired at least
+	 * once.
+	 */
+	prnt("Sleep locks:\n");
+	witness_display_list(prnt, &w_sleep);
 	
 	/*
 	 * Now do spin mutexes which have been acquired at least once.
 	 */
-	prnt("\nSpin mutexes:\n");
-	level = 0;
-	while (level < sizeof(spin_order_list) / sizeof(char *)) {
-		found = 0;
-		for (w = w_all; w; w = w->w_next) {
-			if (w->w_file == NULL || !w->w_spin)
-				continue;
-			if (w->w_level == 1 << level) {
-				witness_displaydescendants(prnt, w);
-				level++;
-				found = 1;
-			}
-		}
-		if (found == 0)
-			level++;
-	}
+	prnt("\nSpin locks:\n");
+	witness_display_list(prnt, &w_spin);
 	
 	/*
 	 * Finally, any mutexes which have not been acquired yet.
 	 */
-	prnt("\nMutexes which were never acquired:\n");
-	for (w = w_all; w; w = w->w_next) {
+	prnt("\nLocks which were never acquired:\n");
+	STAILQ_FOREACH(w, &w_all, w_list) {
 		if (w->w_file != NULL)
 			continue;
-		prnt("%s\n", w->w_description);
+		prnt("%s\n", w->w_name);
 	}
 }
 
 void
-witness_enter(struct mtx *m, int flags, const char *file, int line)
+witness_lock(struct lock_object *lock, int flags, const char *file, int line)
 {
+	struct lock_list_entry **lock_list, *lle;
+	struct lock_object *lock1, *lock2;
+	struct lock_class *class;
 	struct witness *w, *w1;
-	struct mtx *m1;
 	struct proc *p;
-	int i;
+	int i, j;
 #ifdef DDB
 	int go_into_ddb = 0;
 #endif /* DDB */
 
-	if (witness_cold || m->mtx_witness == NULL || panicstr)
+	if (witness_cold || witness_dead || lock->lo_witness == NULL ||
+	    panicstr)
 		return;
-	w = m->mtx_witness;
+	w = lock->lo_witness;
+	class = lock->lo_class;
 	p = curproc;
 
-	if (flags & MTX_SPIN) {
-		if ((m->mtx_flags & MTX_SPIN) == 0)
-			panic("mutex_enter: MTX_SPIN on MTX_DEF mutex %s @"
-			    " %s:%d", m->mtx_description, file, line);
-		if (mtx_recursed(m)) {
-			if ((m->mtx_flags & MTX_RECURSE) == 0)
-				panic("mutex_enter: recursion on non-recursive"
-				    " mutex %s @ %s:%d", m->mtx_description,
-				    file, line);
-			return;
-		}
-		mtx_lock_spin_flags(&w_mtx, MTX_QUIET);
-		i = PCPU_GET(witness_spin_check);
-		if (i != 0 && w->w_level < i) {
-			mtx_unlock_spin_flags(&w_mtx, MTX_QUIET);
-			panic("mutex_enter(%s:%x, MTX_SPIN) out of order @"
-			    " %s:%d already holding %s:%x",
-			    m->mtx_description, w->w_level, file, line,
-			    spin_order_list[ffs(i)-1], i);
-		}
-		PCPU_SET(witness_spin_check, i | w->w_level);
-		mtx_unlock_spin_flags(&w_mtx, MTX_QUIET);
-		p->p_spinlocks++;
-		MPASS(p->p_spinlocks > 0);
-		w->w_file = file;
-		w->w_line = line;
-		m->mtx_line = line;
-		m->mtx_file = file;
+	if ((lock->lo_flags & LO_LOCKED) == 0)
+		panic("%s: lock (%s) %s is not locked @ %s:%d", __func__,
+		    class->lc_name, lock->lo_name, file, line);
+
+	if ((lock->lo_flags & LO_RECURSED) != 0) {
+		if ((lock->lo_flags & LO_RECURSABLE) == 0)
+			panic(
+			"%s: recursed on non-recursive lock (%s) %s @ %s:%d",
+			    __func__, class->lc_name, lock->lo_name, file,
+			    line);
 		return;
 	}
-	if ((m->mtx_flags & MTX_SPIN) != 0)
-		panic("mutex_enter: MTX_DEF on MTX_SPIN mutex %s @ %s:%d",
-		    m->mtx_description, file, line);
-
-	if (mtx_recursed(m)) {
-		if ((m->mtx_flags & MTX_RECURSE) == 0)
-			panic("mutex_enter: recursion on non-recursive"
-			    " mutex %s @ %s:%d", m->mtx_description,
-			    file, line);
-		return;
+	
+	lock_list = PCPU_PTR(spinlocks);
+	if (class->lc_flags & LC_SLEEPLOCK) {
+		if (*lock_list != NULL)
+			panic("blockable sleep lock (%s) %s @ %s:%d",
+			    class->lc_name, lock->lo_name, file, line);
+		lock_list = &p->p_sleeplocks;
 	}
-	if (witness_dead)
-		goto out;
-	if (cold)
+
+	if (flags & LOP_TRYLOCK)
 		goto out;
 
-	if (p->p_spinlocks != 0)
-		panic("blockable mtx_lock() of %s when not legal @ %s:%d",
-			    m->mtx_description, file, line);
 	/*
-	 * Is this the first mutex acquired 
+	 * Is this the first lock acquired?  If so, then no order checking
+	 * is needed.
 	 */
-	if ((m1 = LIST_FIRST(&p->p_heldmtx)) == NULL)
+	if (*lock_list == NULL)
 		goto out;
 
-	if ((w1 = m1->mtx_witness) == w) {
+	/*
+	 * Check for duplicate locks of the same type.  Note that we only
+	 * have to check for this on the last lock we just acquired.  Any
+	 * other cases will be caught as lock order violations.
+	 */
+	lock1 = (*lock_list)->ll_children[(*lock_list)->ll_count - 1];
+	w1 = lock1->lo_witness;
+	if (w1 == w) {
 		if (w->w_same_squawked || dup_ok(w))
 			goto out;
 		w->w_same_squawked = 1;
 		printf("acquring duplicate lock of same type: \"%s\"\n", 
-			m->mtx_description);
+			lock->lo_name);
 		printf(" 1st @ %s:%d\n", w->w_file, w->w_line);
 		printf(" 2nd @ %s:%d\n", file, line);
 #ifdef DDB
@@ -1173,27 +510,44 @@ witness_enter(struct mtx *m, int flags, const char *file, int line)
 		goto out;
 	}
 	MPASS(!mtx_owned(&w_mtx));
-	mtx_lock_spin_flags(&w_mtx, MTX_QUIET);
+	mtx_lock_spin(&w_mtx);
 	/*
 	 * If we have a known higher number just say ok
 	 */
 	if (witness_watch > 1 && w->w_level > w1->w_level) {
-		mtx_unlock_spin_flags(&w_mtx, MTX_QUIET);
+		mtx_unlock_spin(&w_mtx);
 		goto out;
 	}
-	if (isitmydescendant(m1->mtx_witness, w)) {
-		mtx_unlock_spin_flags(&w_mtx, MTX_QUIET);
+	if (isitmydescendant(w1, w)) {
+		mtx_unlock_spin(&w_mtx);
 		goto out;
 	}
-	for (i = 0; m1 != NULL; m1 = LIST_NEXT(m1, mtx_held), i++) {
+	for (j = 0, lle = *lock_list; lle != NULL; lle = lle->ll_next) {
+		for (i = lle->ll_count - 1; i >= 0; i--, j++) {
 
-		MPASS(i < 200);
-		w1 = m1->mtx_witness;
-		if (isitmydescendant(w, w1)) {
-			mtx_unlock_spin_flags(&w_mtx, MTX_QUIET);
+			MPASS(j < WITNESS_COUNT);
+			lock1 = lle->ll_children[i];
+			w1 = lock1->lo_witness;
+
+			/*
+			 * If this lock doesn't undergo witness checking,
+			 * then skip it.
+			 */
+			if (w1 == NULL) {
+				KASSERT((lock1->lo_flags & LO_WITNESS) == 0,
+				    ("lock missing witness structure"));
+				continue;
+			}
+			if (!isitmydescendant(w, w1))
+				continue;
+			/*
+			 * We have a lock order violation, check to see if it
+			 * is allowed or has already been yelled about.
+			 */
+			mtx_unlock_spin(&w_mtx);
 			if (blessed(w, w1))
 				goto out;
-			if (m1 == &Giant) {
+			if (lock1 == &Giant.mtx_object) {
 				if (w1->w_Giant_squawked)
 					goto out;
 				else
@@ -1204,22 +558,50 @@ witness_enter(struct mtx *m, int flags, const char *file, int line)
 				else
 					w1->w_other_squawked = 1;
 			}
+			/*
+			 * Ok, yell about it.
+			 */
 			printf("lock order reversal\n");
-			printf(" 1st %s last acquired @ %s:%d\n",
-			    w->w_description, w->w_file, w->w_line);
+			/*
+			 * Try to locate an earlier lock with
+			 * witness w in our list.
+			 */
+			do {
+				lock2 = lle->ll_children[i];
+				MPASS(lock2 != NULL);
+				if (lock2->lo_witness == w)
+					break;
+				i--;
+				if (i == 0 && lle->ll_next != NULL) {
+					lle = lle->ll_next;
+					i = lle->ll_count - 1;
+					MPASS(i != 0);
+				}
+			} while (i >= 0);
+			if (i < 0)
+				/*
+				 * We are very likely bogus in this case.
+				 */
+				printf(" 1st %s last acquired @ %s:%d\n",
+				    w->w_name, w->w_file, w->w_line);
+			else
+				printf(" 1st %p %s @ %s:%d\n", lock2,
+				    lock2->lo_name, lock2->lo_file,
+				    lock2->lo_line);
 			printf(" 2nd %p %s @ %s:%d\n",
-			    m1, w1->w_description, w1->w_file, w1->w_line);
+			    lock1, lock1->lo_name, lock1->lo_file,
+			    lock1->lo_line);
 			printf(" 3rd %p %s @ %s:%d\n",
-			    m, w->w_description, file, line);
+			    lock, lock->lo_name, file, line);
 #ifdef DDB
 			go_into_ddb = 1;
 #endif /* DDB */
 			goto out;
 		}
 	}
-	m1 = LIST_FIRST(&p->p_heldmtx);
-	if (!itismychild(m1->mtx_witness, w))
-		mtx_unlock_spin_flags(&w_mtx, MTX_QUIET);
+	lock1 = (*lock_list)->ll_children[(*lock_list)->ll_count - 1];
+	if (!itismychild(lock1->lo_witness, w))
+		mtx_unlock_spin(&w_mtx);
 
 out:
 #ifdef DDB
@@ -1228,212 +610,162 @@ out:
 #endif /* DDB */
 	w->w_file = file;
 	w->w_line = line;
-	m->mtx_line = line;
-	m->mtx_file = file;
-
-	/*
-	 * If this pays off it likely means that a mutex being witnessed
-	 * is acquired in hardclock. Put it in the ignore list. It is
-	 * likely not the mutex this assert fails on.
-	 */
-	MPASS(m->mtx_held.le_prev == NULL);
-	LIST_INSERT_HEAD(&p->p_heldmtx, (struct mtx*)m, mtx_held);
+	lock->lo_line = line;
+	lock->lo_file = file;
+	
+	lle = *lock_list;
+	if (lle == NULL || lle->ll_count == LOCK_CHILDCOUNT) {
+		*lock_list = witness_lock_list_get();
+		if (*lock_list == NULL)
+			return;
+		(*lock_list)->ll_next = lle;
+		lle = *lock_list;
+	}
+	lle->ll_children[lle->ll_count++] = lock;
 }
 
 void
-witness_try_enter(struct mtx *m, int flags, const char *file, int line)
+witness_unlock(struct lock_object *lock, int flags, const char *file, int line)
 {
+	struct lock_list_entry **lock_list, *lle;
+	struct lock_class *class;
 	struct proc *p;
-	struct witness *w = m->mtx_witness;
+	int i, j;
 
-	if (witness_cold)
+	if (witness_cold || witness_dead || lock->lo_witness == NULL ||
+	    panicstr)
 		return;
-	if (panicstr)
-		return;
-	if (flags & MTX_SPIN) {
-		if ((m->mtx_flags & MTX_SPIN) == 0)
-			panic("mutex_try_enter: "
-			    "MTX_SPIN on MTX_DEF mutex %s @ %s:%d",
-			    m->mtx_description, file, line);
-		if (mtx_recursed(m)) {
-			if ((m->mtx_flags & MTX_RECURSE) == 0)
-				panic("mutex_try_enter: recursion on"
-				    " non-recursive mutex %s @ %s:%d",
-				    m->mtx_description, file, line);
-			return;
-		}
-		mtx_lock_spin_flags(&w_mtx, MTX_QUIET);
-		PCPU_SET(witness_spin_check,
-		    PCPU_GET(witness_spin_check) | w->w_level);
-		mtx_unlock_spin_flags(&w_mtx, MTX_QUIET);
-		w->w_file = file;
-		w->w_line = line;
-		m->mtx_line = line;
-		m->mtx_file = file;
-		return;
-	}
+	p = curproc;
+	class = lock->lo_class;
 
-	if ((m->mtx_flags & MTX_SPIN) != 0)
-		panic("mutex_try_enter: MTX_DEF on MTX_SPIN mutex %s @ %s:%d",
-		    m->mtx_description, file, line);
-
-	if (mtx_recursed(m)) {
-		if ((m->mtx_flags & MTX_RECURSE) == 0)
-			panic("mutex_try_enter: recursion on non-recursive"
-			    " mutex %s @ %s:%d", m->mtx_description, file,
+	if (lock->lo_flags & LO_RECURSED) {
+		if ((lock->lo_flags & LO_LOCKED) == 0)
+			panic("%s: recursed lock (%s) %s is not locked @ %s:%d",
+			    __func__, class->lc_name, lock->lo_name, file,
 			    line);
 		return;
 	}
-	w->w_file = file;
-	w->w_line = line;
-	m->mtx_line = line;
-	m->mtx_file = file;
-	p = curproc;
-	MPASS(m->mtx_held.le_prev == NULL);
-	LIST_INSERT_HEAD(&p->p_heldmtx, (struct mtx*)m, mtx_held);
+
+	/*
+	 * We don't need to protect this PCPU_GET() here against preemption
+	 * because if we hold any spinlocks then we are already protected,
+	 * and if we don't we will get NULL if we hold no spinlocks even if
+	 * we switch CPU's while reading it.
+	 */
+	if (class->lc_flags & LC_SLEEPLOCK) {
+		if ((flags & LOP_NOSWITCH) == 0 && PCPU_GET(spinlocks) != NULL)
+			panic("switchable sleep unlock (%s) %s @ %s:%d",
+			    class->lc_name, lock->lo_name, file, line);
+		lock_list = &p->p_sleeplocks;
+	} else
+		lock_list = PCPU_PTR(spinlocks);
+
+	for (; *lock_list != NULL; lock_list = &(*lock_list)->ll_next)
+		for (i = 0; i < (*lock_list)->ll_count; i++)
+			if ((*lock_list)->ll_children[i] == lock) {
+				(*lock_list)->ll_count--;
+				for (j = i; j < (*lock_list)->ll_count; j++)
+					(*lock_list)->ll_children[j] =
+					    (*lock_list)->ll_children[j + 1];
+				if ((*lock_list)->ll_count == 0) {
+					lle = *lock_list;
+					*lock_list = lle->ll_next;
+					witness_lock_list_free(lle);
+				}
+				return;
+			}
 }
 
-void
-witness_exit(struct mtx *m, int flags, const char *file, int line)
-{
-	struct witness *w;
-	struct proc *p;
-
-	if (witness_cold || m->mtx_witness == NULL || panicstr)
-		return;
-	w = m->mtx_witness;
-	p = curproc;
-
-	if (flags & MTX_SPIN) {
-		if ((m->mtx_flags & MTX_SPIN) == 0)
-			panic("mutex_exit: MTX_SPIN on MTX_DEF mutex %s @"
-			    " %s:%d", m->mtx_description, file, line);
-		if (mtx_recursed(m)) {
-			if ((m->mtx_flags & MTX_RECURSE) == 0)
-				panic("mutex_exit: recursion on non-recursive"
-				    " mutex %s @ %s:%d", m->mtx_description,
-				    file, line); 
-			return;
-		}
-		mtx_lock_spin_flags(&w_mtx, MTX_QUIET);
-		PCPU_SET(witness_spin_check,
-		    PCPU_GET(witness_spin_check) & ~w->w_level);
-		mtx_unlock_spin_flags(&w_mtx, MTX_QUIET);
-		MPASS(p->p_spinlocks > 0);
-		p->p_spinlocks--;
-		return;
-	}
-	if ((m->mtx_flags & MTX_SPIN) != 0)
-		panic("mutex_exit: MTX_DEF on MTX_SPIN mutex %s @ %s:%d",
-		    m->mtx_description, file, line);
-
-	if (mtx_recursed(m)) {
-		if ((m->mtx_flags & MTX_RECURSE) == 0)
-			panic("mutex_exit: recursion on non-recursive"
-			    " mutex %s @ %s:%d", m->mtx_description,
-			    file, line); 
-		return;
-	}
-
-	if ((flags & MTX_NOSWITCH) == 0 && p->p_spinlocks != 0 && !cold)
-		panic("switchable mtx_unlock() of %s when not legal @ %s:%d",
-			    m->mtx_description, file, line);
-	LIST_REMOVE(m, mtx_held);
-	m->mtx_held.le_prev = NULL;
-}
-
+/*
+ * Warn if any held locks are not sleepable.  Note that Giant and the lock
+ * passed in are both special cases since they are both released during the
+ * sleep process and aren't actually held while the process is asleep.
+ */
 int
-witness_sleep(int check_only, struct mtx *mtx, const char *file, int line)
+witness_sleep(int check_only, struct lock_object *lock, const char *file,
+	      int line)
 {
-	struct mtx *m;
+	struct lock_list_entry **lock_list, *lle;
+	struct lock_object *lock1;
 	struct proc *p;
-	char **sleep;
-	int n = 0;
+	critical_t savecrit;
+	int i, n;
 
-	KASSERT(!witness_cold, ("%s: witness_cold\n", __FUNCTION__));
+	if (witness_dead || panicstr)
+		return (0);
+	KASSERT(!witness_cold, ("%s: witness_cold\n", __func__));
+	n = 0;
+	/*
+	 * Preemption bad because we need PCPU_PTR(spinlocks) to not change.
+	 */
+	savecrit = critical_enter();	
 	p = curproc;
-	LIST_FOREACH(m, &p->p_heldmtx, mtx_held) {
-		if (m == mtx)
-			continue;
-		for (sleep = sleep_list; *sleep!= NULL; sleep++)
-			if (strcmp(m->mtx_description, *sleep) == 0)
-				goto next;
-		if (n == 0)
-			printf("Whee!\n");
-		printf("%s:%d: %s with \"%s\" locked from %s:%d\n",
-			file, line, check_only ? "could sleep" : "sleeping",
-			m->mtx_description,
-			m->mtx_witness->w_file, m->mtx_witness->w_line);
-		n++;
-	next:
+	lock_list = &p->p_sleeplocks;
+again:
+	for (lle = *lock_list; lle != NULL; lle = lle->ll_next)
+		for (i = lle->ll_count - 1; i >= 0; i--) {
+			lock1 = lle->ll_children[i];
+			if (lock1 == lock || lock1 == &Giant.mtx_object ||
+			    (lock1->lo_flags & LO_SLEEPABLE))
+				continue;
+			n++;
+			printf("%s:%d: %s with \"%s\" locked from %s:%d\n",
+			    file, line, check_only ? "could sleep" : "sleeping",
+			    lock1->lo_name, lock1->lo_file, lock1->lo_line);
+		}
+	if (lock_list == &p->p_sleeplocks) {
+		lock_list = PCPU_PTR(spinlocks);
+		goto again;
 	}
 #ifdef DDB
 	if (witness_ddb && n)
 		Debugger("witness_sleep");
 #endif /* DDB */
+	critical_exit(savecrit);
 	return (n);
 }
 
 static struct witness *
-enroll(const char *description, int flag)
+enroll(const char *description, struct lock_class *lock_class)
 {
-	int i;
-	struct witness *w, *w1;
-	char **ignore;
-	char **order;
+	struct witness *w;
 
 	if (!witness_watch)
 		return (NULL);
-	for (ignore = ignore_list; *ignore != NULL; ignore++)
-		if (strcmp(description, *ignore) == 0)
-			return (NULL);
 
-	if (w_inited == 0) {
-		mtx_init(&w_mtx, "witness lock", MTX_SPIN);
-		for (i = 0; i < WITNESS_COUNT; i++) {
-			w = &w_data[i];
-			witness_free(w);
-		}
-		w_inited = 1;
-		for (order = order_list; *order != NULL; order++) {
-			w = enroll(*order, MTX_DEF);
-			w->w_file = "order list";
-			for (order++; *order != NULL; order++) {
-				w1 = enroll(*order, MTX_DEF);
-				w1->w_file = "order list";
-				itismychild(w, w1);
-				w = w1;
-    	    	    	}
-		}
-	}
-	if ((flag & MTX_SPIN) && witness_skipspin)
+	if ((lock_class->lc_flags & LC_SPINLOCK) && witness_skipspin)
 		return (NULL);
-	mtx_lock_spin_flags(&w_mtx, MTX_QUIET);
-	for (w = w_all; w; w = w->w_next) {
-		if (strcmp(description, w->w_description) == 0) {
-			mtx_unlock_spin_flags(&w_mtx, MTX_QUIET);
+	mtx_lock_spin(&w_mtx);
+	STAILQ_FOREACH(w, &w_all, w_list) {
+		if (strcmp(description, w->w_name) == 0) {
+			mtx_unlock_spin(&w_mtx);
+			if (lock_class != w->w_class)
+				panic(
+				"lock (%s) %s does not match earlier (%s) lock",
+				    description, lock_class->lc_name,
+				    w->w_class->lc_name);
 			return (w);
 		}
 	}
+	/*
+	 * This isn't quite right, as witness_cold is still 0 while we
+	 * enroll all the locks initialized before witness_initialize().
+	 */
+	if ((lock_class->lc_flags & LC_SPINLOCK) && !witness_cold)
+		panic("spin lock %s not in order list", description);
 	if ((w = witness_get()) == NULL)
 		return (NULL);
-	w->w_next = w_all;
-	w_all = w;
-	w->w_description = description;
-	mtx_unlock_spin_flags(&w_mtx, MTX_QUIET);
-	if (flag & MTX_SPIN) {
-		w->w_spin = 1;
-	
-		i = 1;
-		for (order = spin_order_list; *order != NULL; order++) {
-			if (strcmp(description, *order) == 0)
-				break;
-			i <<= 1;
-		}
-		if (*order == NULL)
-			panic("spin lock %s not in order list", description);
-		w->w_level = i; 
-	}
+	w->w_name = description;
+	w->w_class = lock_class;
+	STAILQ_INSERT_HEAD(&w_all, w, w_list);
+	if (lock_class->lc_flags & LC_SPINLOCK)
+		STAILQ_INSERT_HEAD(&w_spin, w, w_typelist);
+	else if (lock_class->lc_flags & LC_SLEEPLOCK)
+		STAILQ_INSERT_HEAD(&w_sleep, w, w_typelist);
+	else
+		panic("lock class %s is not sleep or spin",
+		    lock_class->lc_name);
+	mtx_unlock_spin(&w_mtx);
 
 	return (w);
 }
@@ -1442,29 +774,46 @@ static int
 itismychild(struct witness *parent, struct witness *child)
 {
 	static int recursed;
+	struct witness_child_list_entry **wcl;
+	struct witness_list *list;
+
+	MPASS(child != NULL && parent != NULL);
+	if ((parent->w_class->lc_flags & (LC_SLEEPLOCK | LC_SPINLOCK)) !=
+	    (child->w_class->lc_flags & (LC_SLEEPLOCK | LC_SPINLOCK)))
+		panic(
+		"%s: parent (%s) and child (%s) are not the same lock type",
+		    __func__, parent->w_class->lc_name,
+		    child->w_class->lc_name);
 
 	/*
 	 * Insert "child" after "parent"
 	 */
-	while (parent->w_morechildren)
-		parent = parent->w_morechildren;
+	wcl = &parent->w_children;
+	while (*wcl != NULL && (*wcl)->wcl_count == WITNESS_NCHILDREN)
+		wcl = &(*wcl)->wcl_next;
 
-	if (parent->w_childcnt == WITNESS_NCHILDREN) {
-		if ((parent->w_morechildren = witness_get()) == NULL)
+	if (*wcl == NULL) {
+		*wcl = witness_child_get();
+		if (*wcl == NULL)
 			return (1);
-		parent = parent->w_morechildren;
 	}
-	MPASS(child != NULL);
-	parent->w_children[parent->w_childcnt++] = child;
+
+	(*wcl)->wcl_children[(*wcl)->wcl_count++] = child;
+
 	/*
-	 * now prune whole tree
+	 * Now prune whole tree.  We look for cases where a lock is now
+	 * both a descendant and a direct child of a given lock.  In that
+	 * case, we want to remove the direct child link from the tree.
 	 */
 	if (recursed)
 		return (0);
 	recursed = 1;
-	for (child = w_all; child != NULL; child = child->w_next) {
-		for (parent = w_all; parent != NULL;
-		    parent = parent->w_next) {
+	if (parent->w_class->lc_flags & LC_SLEEPLOCK)
+		list = &w_sleep;
+	else
+		list = &w_spin;
+	STAILQ_FOREACH(child, list, w_typelist) {
+		STAILQ_FOREACH(parent, list, w_typelist) {
 			if (!isitmychild(parent, child))
 				continue;
 			removechild(parent, child);
@@ -1481,40 +830,38 @@ itismychild(struct witness *parent, struct witness *child)
 static void
 removechild(struct witness *parent, struct witness *child)
 {
-	struct witness *w, *w1;
+	struct witness_child_list_entry **wcl, *wcl1;
 	int i;
 
-	for (w = parent; w != NULL; w = w->w_morechildren)
-		for (i = 0; i < w->w_childcnt; i++)
-			if (w->w_children[i] == child)
+	for (wcl = &parent->w_children; *wcl != NULL; wcl = &(*wcl)->wcl_next)
+		for (i = 0; i < (*wcl)->wcl_count; i++)
+			if ((*wcl)->wcl_children[i] == child)
 				goto found;
 	return;
 found:
-	for (w1 = w; w1->w_morechildren != NULL; w1 = w1->w_morechildren)
-		continue;
-	w->w_children[i] = w1->w_children[--w1->w_childcnt];
-	MPASS(w->w_children[i] != NULL);
+	(*wcl)->wcl_count--;
+	if ((*wcl)->wcl_count > i)
+		(*wcl)->wcl_children[i] =
+		    (*wcl)->wcl_children[(*wcl)->wcl_count];
+	MPASS((*wcl)->wcl_children[i] != NULL);
 
-	if (w1->w_childcnt != 0)
+	if ((*wcl)->wcl_count != 0)
 		return;
 
-	if (w1 == parent)
-		return;
-	for (w = parent; w->w_morechildren != w1; w = w->w_morechildren)
-		continue;
-	w->w_morechildren = 0;
-	witness_free(w1);
+	wcl1 = *wcl;
+	*wcl = wcl1->wcl_next;
+	witness_child_free(wcl1);
 }
 
 static int
 isitmychild(struct witness *parent, struct witness *child)
 {
-	struct witness *w;
+	struct witness_child_list_entry *wcl;
 	int i;
 
-	for (w = parent; w != NULL; w = w->w_morechildren) {
-		for (i = 0; i < w->w_childcnt; i++) {
-			if (w->w_children[i] == child)
+	for (wcl = parent->w_children; wcl != NULL; wcl = wcl->wcl_next) {
+		for (i = 0; i < wcl->wcl_count; i++) {
+			if (wcl->wcl_children[i] == child)
 				return (1);
 		}
 	}
@@ -1524,20 +871,19 @@ isitmychild(struct witness *parent, struct witness *child)
 static int
 isitmydescendant(struct witness *parent, struct witness *child)
 {
-	struct witness *w;
-	int i;
-	int j;
+	struct witness_child_list_entry *wcl;
+	int i, j;
 
-	for (j = 0, w = parent; w != NULL; w = w->w_morechildren, j++) {
+	if (isitmychild(parent, child))
+		return (1);
+	j = 0;
+	for (wcl = parent->w_children; wcl != NULL; wcl = wcl->wcl_next) {
 		MPASS(j < 1000);
-		for (i = 0; i < w->w_childcnt; i++) {
-			if (w->w_children[i] == child)
+		for (i = 0; i < wcl->wcl_count; i++) {
+			if (isitmydescendant(wcl->wcl_children[i], child))
 				return (1);
 		}
-		for (i = 0; i < w->w_childcnt; i++) {
-			if (isitmydescendant(w->w_children[i], child))
-				return (1);
-		}
+		j++;
 	}
 	return (0);
 }
@@ -1545,70 +891,81 @@ isitmydescendant(struct witness *parent, struct witness *child)
 void
 witness_levelall (void)
 {
+	struct witness_list *list;
 	struct witness *w, *w1;
 
-	for (w = w_all; w; w = w->w_next)
-		if (!(w->w_spin))
-			w->w_level = 0;
-	for (w = w_all; w; w = w->w_next) {
-		if (w->w_spin)
-			continue;
-		for (w1 = w_all; w1; w1 = w1->w_next) {
+	/*
+	 * First clear all levels.
+	 */
+	STAILQ_FOREACH(w, &w_all, w_list) {
+		w->w_level = 0;
+	}
+
+	/*
+	 * Look for locks with no parent and level all their descendants.
+	 */
+	STAILQ_FOREACH(w, &w_all, w_list) {
+		/*
+		 * This is just an optimization, technically we could get
+		 * away just walking the all list each time.
+		 */
+		if (w->w_class->lc_flags & LC_SLEEPLOCK)
+			list = &w_sleep;
+		else
+			list = &w_spin;
+		STAILQ_FOREACH(w1, list, w_typelist) {
 			if (isitmychild(w1, w))
-				break;
+				goto skip;
 		}
-		if (w1 != NULL)
-			continue;
 		witness_leveldescendents(w, 0);
+	skip:
 	}
 }
 
 static void
 witness_leveldescendents(struct witness *parent, int level)
 {
+	struct witness_child_list_entry *wcl;
 	int i;
-	struct witness *w;
 
 	if (parent->w_level < level)
 		parent->w_level = level;
 	level++;
-	for (w = parent; w != NULL; w = w->w_morechildren)
-		for (i = 0; i < w->w_childcnt; i++)
-			witness_leveldescendents(w->w_children[i], level);
+	for (wcl = parent->w_children; wcl != NULL; wcl = wcl->wcl_next)
+		for (i = 0; i < wcl->wcl_count; i++)
+			witness_leveldescendents(wcl->wcl_children[i], level);
 }
 
 static void
 witness_displaydescendants(void(*prnt)(const char *fmt, ...),
 			   struct witness *parent)
 {
-	struct witness *w;
-	int i;
-	int level;
+	struct witness_child_list_entry *wcl;
+	int i, level;
 
-	level = parent->w_spin ? ffs(parent->w_level) : parent->w_level;
+	level =  parent->w_level;
 
-	prnt("%d", level);
-	if (level < 10)
-		prnt(" ");
+	prnt("%-2d", level);
 	for (i = 0; i < level; i++)
 		prnt(" ");
-	prnt("%s", parent->w_description);
+	prnt("%s", parent->w_name);
 	if (parent->w_file != NULL)
 		prnt(" -- last acquired @ %s:%d\n", parent->w_file,
 		    parent->w_line);
 
-	for (w = parent; w != NULL; w = w->w_morechildren)
-		for (i = 0; i < w->w_childcnt; i++)
-			    witness_displaydescendants(prnt, w->w_children[i]);
-    }
+	for (wcl = parent->w_children; wcl != NULL; wcl = wcl->wcl_next)
+		for (i = 0; i < wcl->wcl_count; i++)
+			    witness_displaydescendants(prnt,
+				wcl->wcl_children[i]);
+}
 
 static int
 dup_ok(struct witness *w)
 {
-	char **dup;
+	const char **dup;
 	
-	for (dup = dup_list; *dup!= NULL; dup++)
-		if (strcmp(w->w_description, *dup) == 0)
+	for (dup = dup_list; *dup != NULL; dup++)
+		if (strcmp(w->w_name, *dup) == 0)
 			return (1);
 	return (0);
 }
@@ -1621,30 +978,31 @@ blessed(struct witness *w1, struct witness *w2)
 
 	for (i = 0; i < blessed_count; i++) {
 		b = &blessed_list[i];
-		if (strcmp(w1->w_description, b->b_lock1) == 0) {
-			if (strcmp(w2->w_description, b->b_lock2) == 0)
+		if (strcmp(w1->w_name, b->b_lock1) == 0) {
+			if (strcmp(w2->w_name, b->b_lock2) == 0)
 				return (1);
 			continue;
 		}
-		if (strcmp(w1->w_description, b->b_lock2) == 0)
-			if (strcmp(w2->w_description, b->b_lock1) == 0)
+		if (strcmp(w1->w_name, b->b_lock2) == 0)
+			if (strcmp(w2->w_name, b->b_lock1) == 0)
 				return (1);
 	}
 	return (0);
 }
 
 static struct witness *
-witness_get()
+witness_get(void)
 {
 	struct witness *w;
 
-	if ((w = w_free) == NULL) {
+	if (STAILQ_EMPTY(&w_free)) {
 		witness_dead = 1;
-		mtx_unlock_spin_flags(&w_mtx, MTX_QUIET);
-		printf("witness exhausted\n");
+		mtx_unlock_spin(&w_mtx);
+		printf("%s: witness exhausted\n", __func__);
 		return (NULL);
 	}
-	w_free = w->w_next;
+	w = STAILQ_FIRST(&w_free);
+	STAILQ_REMOVE_HEAD(&w_free, w_list);
 	bzero(w, sizeof(*w));
 	return (w);
 }
@@ -1652,26 +1010,131 @@ witness_get()
 static void
 witness_free(struct witness *w)
 {
-	w->w_next = w_free;
-	w_free = w;
+
+	STAILQ_INSERT_HEAD(&w_free, w, w_list);
 }
 
+static struct witness_child_list_entry *
+witness_child_get(void)
+{
+	struct witness_child_list_entry *wcl;
+
+	wcl = w_child_free;
+	if (wcl == NULL) {
+		witness_dead = 1;
+		mtx_unlock_spin(&w_mtx);
+		printf("%s: witness exhausted\n", __func__);
+		return (NULL);
+	}
+	w_child_free = wcl->wcl_next;
+	bzero(wcl, sizeof(*wcl));
+	return (wcl);
+}
+
+static void
+witness_child_free(struct witness_child_list_entry *wcl)
+{
+
+	wcl->wcl_next = w_child_free;
+	w_child_free = wcl;
+}
+
+static struct lock_list_entry *
+witness_lock_list_get(void)
+{
+	struct lock_list_entry *lle;
+
+	mtx_lock_spin(&w_mtx);
+	lle = w_lock_list_free;
+	if (lle == NULL) {
+		witness_dead = 1;
+		mtx_unlock_spin(&w_mtx);
+		printf("%s: witness exhausted\n", __func__);
+		return (NULL);
+	}
+	w_lock_list_free = lle->ll_next;
+	mtx_unlock_spin(&w_mtx);
+	bzero(lle, sizeof(*lle));
+	return (lle);
+}
+		
+static void
+witness_lock_list_free(struct lock_list_entry *lle)
+{
+
+	mtx_lock_spin(&w_mtx);
+	lle->ll_next = w_lock_list_free;
+	w_lock_list_free = lle;
+	mtx_unlock_spin(&w_mtx);
+}
+
+/*
+ * Calling this on p != curproc is bad unless we are in ddb.
+ */
 int
 witness_list(struct proc *p)
 {
-	struct mtx *m;
-	int nheld;
+	struct lock_list_entry **lock_list, *lle;
+	struct lock_object *lock;
+	critical_t savecrit;
+	int i, nheld;
 
-	KASSERT(!witness_cold, ("%s: witness_cold\n", __FUNCTION__));
+	KASSERT(p == curproc || db_active,
+	    ("%s: p != curproc and we aren't in the debugger", __func__));
+	KASSERT(!witness_cold, ("%s: witness_cold", __func__));
 	nheld = 0;
-	LIST_FOREACH(m, &p->p_heldmtx, mtx_held) {
-		printf("\t\"%s\" (%p) locked at %s:%d\n",
-		    m->mtx_description, m,
-		    m->mtx_witness->w_file, m->mtx_witness->w_line);
-		nheld++;
+	/*
+	 * Preemption bad because we need PCPU_PTR(spinlocks) to not change.
+	 */
+	savecrit = critical_enter();
+	lock_list = &p->p_sleeplocks;
+again:
+	for (lle = *lock_list; lle != NULL; lle = lle->ll_next)
+		for (i = lle->ll_count - 1; i >= 0; i--) {
+			lock = lle->ll_children[i];
+			printf("\t(%s) %s (%p) locked at %s:%d\n",
+			    lock->lo_class->lc_name, lock->lo_name, lock,
+			    lock->lo_file, lock->lo_line);
+			nheld++;
+		}
+	/*
+	 * We only handle spinlocks if p == curproc.  This is somewhat broken
+	 * if p is currently executing on some other CPU and holds spin locks
+	 * as we won't display those locks.
+	 */
+	if (lock_list == &p->p_sleeplocks && p == curproc) {
+		lock_list = PCPU_PTR(spinlocks);
+		goto again;
 	}
+	critical_exit(savecrit);
 
 	return (nheld);
+}
+
+void
+witness_save(struct lock_object *lock, const char **filep, int *linep)
+{
+
+	KASSERT(!witness_cold, ("%s: witness_cold\n", __func__));
+	if (lock->lo_witness == NULL)
+		return;
+
+	*filep = lock->lo_file;
+	*linep = lock->lo_line;
+}
+
+void
+witness_restore(struct lock_object *lock, const char *file, int line)
+{
+
+	KASSERT(!witness_cold, ("%s: witness_cold\n", __func__));
+	if (lock->lo_witness == NULL)
+		return;
+
+	lock->lo_witness->w_file = file;
+	lock->lo_witness->w_line = line;
+	lock->lo_file = file;
+	lock->lo_line = line;
 }
 
 #ifdef DDB
@@ -1688,29 +1151,3 @@ DB_SHOW_COMMAND(witness, db_witness_display)
 	witness_display(db_printf);
 }
 #endif
-
-void
-witness_save(struct mtx *m, const char **filep, int *linep)
-{
-
-	KASSERT(!witness_cold, ("%s: witness_cold\n", __FUNCTION__));
-	if (m->mtx_witness == NULL)
-		return;
-
-	*filep = m->mtx_witness->w_file;
-	*linep = m->mtx_witness->w_line;
-}
-
-void
-witness_restore(struct mtx *m, const char *file, int line)
-{
-
-	KASSERT(!witness_cold, ("%s: witness_cold\n", __FUNCTION__));
-	if (m->mtx_witness == NULL)
-		return;
-
-	m->mtx_witness->w_file = file;
-	m->mtx_witness->w_line = line;
-}
-
-#endif	/* WITNESS */

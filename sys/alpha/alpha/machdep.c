@@ -988,7 +988,6 @@ alpha_init(pfn, ptb, bim, bip, biv)
 	    (u_int64_t)proc0paddr + USPACE - sizeof(struct trapframe);
 	proc0.p_md.md_tf =
 	    (struct trapframe *)proc0paddr->u_pcb.pcb_hw.apcb_ksp;
-	PCPU_SET(curproc, &proc0);
 
 	/*
 	 * Get the right value for the boot cpu's idle ptbr.
@@ -1003,8 +1002,8 @@ alpha_init(pfn, ptb, bim, bip, biv)
 
 	/* Setup curproc so that mutexes work */
 	PCPU_SET(curproc, &proc0);
+	PCPU_SET(spinlocks, NULL);
 
-	LIST_INIT(&proc0.p_heldmtx);
 	LIST_INIT(&proc0.p_contested);
 
 	/*
