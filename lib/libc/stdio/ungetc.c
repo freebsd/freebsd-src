@@ -99,6 +99,7 @@ ungetc(int c, FILE *fp)
 	if (!__sdidinit)
 		__sinit();
 	FLOCKFILE(fp);
+	ORIENT(fp, -1);
 	ret = __ungetc(c, fp);
 	FUNLOCKFILE(fp);
 	return (ret);
@@ -110,8 +111,6 @@ ungetc(int c, FILE *fp)
 int
 __ungetc(int c, FILE *fp)
 {
-
-	ORIENT(fp, -1);
 
 	if (c == EOF)
 		return (EOF);
