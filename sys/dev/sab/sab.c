@@ -161,11 +161,12 @@ static void sabttystop(struct tty *tp, int rw);
 static int sabttyparam(struct tty *tp, struct termios *t);
 
 static struct cdevsw sabtty_cdevsw = {
+	.d_version =	D_VERSION,
 	.d_open =	sabttyopen,
 	.d_close =	sabttyclose,
 	.d_ioctl =	sabttyioctl,
 	.d_name =	"sabtty",
-	.d_flags =	D_TTY,
+	.d_flags =	D_TTY | D_NEEDGIANT,
 };
 
 static device_method_t sab_methods[] = {

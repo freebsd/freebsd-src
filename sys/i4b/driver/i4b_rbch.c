@@ -112,6 +112,8 @@ static 	d_poll_t	i4brbchpoll;
 
 
 static struct cdevsw i4brbch_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_open =	i4brbchopen,
 	.d_close =	i4brbchclose,
 	.d_read =	i4brbchread,

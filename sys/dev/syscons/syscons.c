@@ -194,8 +194,6 @@ static int update_kbd_state(scr_stat *scp, int state, int mask);
 static int update_kbd_leds(scr_stat *scp, int which);
 static timeout_t blink_screen;
 
-#define	CDEV_MAJOR	12
-
 static cn_probe_t	sccnprobe;
 static cn_init_t	sccninit;
 static cn_getc_t	sccngetc;
@@ -218,14 +216,14 @@ static	d_ioctl_t	scioctl;
 static	d_mmap_t	scmmap;
 
 static struct cdevsw sc_cdevsw = {
+	.d_version =	D_VERSION,
 	.d_open =	scopen,
 	.d_close =	scclose,
 	.d_read =	scread,
 	.d_ioctl =	scioctl,
 	.d_mmap =	scmmap,
 	.d_name =	"sc",
-	.d_maj =	CDEV_MAJOR,
-	.d_flags =	D_TTY,
+	.d_flags =	D_TTY | D_NEEDGIANT,
 };
 
 int

@@ -215,6 +215,8 @@ d_close_t	raidctlclose;
 d_ioctl_t	raidctlioctl;
 
 static struct cdevsw raidctl_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_open =	raidctlopen,
 	.d_close =	raidctlclose,
 	.d_ioctl =	raidctlioctl,

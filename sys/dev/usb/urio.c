@@ -117,6 +117,8 @@ d_ioctl_t urioioctl;
 
 
 Static struct cdevsw urio_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_open =	urioopen,
 	.d_close =	urioclose,
 	.d_read =	urioread,

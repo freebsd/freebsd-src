@@ -151,6 +151,8 @@ d_poll_t  ugenpoll;
 
 
 Static struct cdevsw ugen_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_open =	ugenopen,
 	.d_close =	ugenclose,
 	.d_read =	ugenread,

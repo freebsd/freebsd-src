@@ -572,12 +572,13 @@ static	d_write_t	rpwrite;
 static	d_ioctl_t	rpioctl;
 
 struct cdevsw rp_cdevsw = {
+	.d_version =	D_VERSION,
 	.d_open =	rpopen,
 	.d_close =	rpclose,
 	.d_write =	rpwrite,
 	.d_ioctl =	rpioctl,
 	.d_name =	"rp",
-	.d_flags =	D_TTY,
+	.d_flags =	D_TTY | D_NEEDGIANT,
 };
 
 static int	rp_num_ports_open = 0;

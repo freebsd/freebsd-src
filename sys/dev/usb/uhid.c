@@ -156,6 +156,8 @@ d_poll_t	uhidpoll;
 
 
 Static struct cdevsw uhid_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_open =	uhidopen,
 	.d_close =	uhidclose,
 	.d_read =	uhidread,

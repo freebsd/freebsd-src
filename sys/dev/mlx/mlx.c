@@ -53,8 +53,9 @@
 #include <dev/mlx/mlxvar.h>
 #include <dev/mlx/mlxreg.h>
 
-
 static struct cdevsw mlx_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_open =	mlx_open,
 	.d_close =	mlx_close,
 	.d_ioctl =	mlx_ioctl,

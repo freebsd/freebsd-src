@@ -53,6 +53,8 @@ static void isp_action(struct cam_sim *, union ccb *);
 
 
 static struct cdevsw isp_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_ioctl =	ispioctl,
 	.d_name =	"isp",
 };

@@ -363,6 +363,8 @@ static d_mmap_t		fbmmap;
 
 
 static struct cdevsw fb_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_open =	fbopen,
 	.d_close =	fbclose,
 	.d_read =	fbread,

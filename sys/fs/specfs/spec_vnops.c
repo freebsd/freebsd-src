@@ -194,7 +194,7 @@ spec_open(ap)
 		vp->v_vflag |= VV_ISTTY;
 
 	VOP_UNLOCK(vp, 0, td);
-	if(dsw->d_flags & D_NOGIANT) {
+	if(!(dsw->d_flags & D_NEEDGIANT)) {
 		DROP_GIANT();
 		if (dsw->d_fdopen != NULL)
 			error = dsw->d_fdopen(dev, ap->a_mode, td, ap->a_fdidx);
@@ -267,7 +267,7 @@ spec_read(ap)
 
 	dsw = devsw(dev);
 	VOP_UNLOCK(vp, 0, td);
-	if (dsw->d_flags & D_NOGIANT) {
+	if (!(dsw->d_flags & D_NEEDGIANT)) {
 		DROP_GIANT();
 		error = dsw->d_read(dev, uio, ap->a_ioflag);
 		PICKUP_GIANT();
@@ -307,7 +307,7 @@ spec_write(ap)
 	resid = uio->uio_resid;
 
 	VOP_UNLOCK(vp, 0, td);
-	if (dsw->d_flags & D_NOGIANT) {
+	if (!(dsw->d_flags & D_NEEDGIANT)) {
 		DROP_GIANT();
 		error = dsw->d_write(dev, uio, ap->a_ioflag);
 		PICKUP_GIANT();
@@ -342,7 +342,7 @@ spec_ioctl(ap)
 
 	dev = ap->a_vp->v_rdev;
 	dsw = devsw(dev);
-	if (dsw->d_flags & D_NOGIANT) {
+	if (!(dsw->d_flags & D_NEEDGIANT)) {
 		DROP_GIANT();
 		error = dsw->d_ioctl(dev, ap->a_command,
 		    ap->a_data, ap->a_fflag, ap->a_td);
@@ -371,7 +371,7 @@ spec_poll(ap)
 
 	dev = ap->a_vp->v_rdev;
 	dsw = devsw(dev);
-	if (dsw->d_flags & D_NOGIANT) {
+	if (!(dsw->d_flags & D_NEEDGIANT)) {
 		DROP_GIANT();
 		error = dsw->d_poll(dev, ap->a_events, ap->a_td);
 		PICKUP_GIANT();
@@ -394,7 +394,7 @@ spec_kqfilter(ap)
 
 	dev = ap->a_vp->v_rdev;
 	dsw = devsw(dev);
-	if (dsw->d_flags & D_NOGIANT) {
+	if (!(dsw->d_flags & D_NEEDGIANT)) {
 		DROP_GIANT();
 		error = dsw->d_kqfilter(dev, ap->a_kn);
 		PICKUP_GIANT();
@@ -509,7 +509,7 @@ spec_xstrategy(struct vnode *vp, struct buf *bp)
 	   ("No strategy on dev %s responsible for buffer %p\n",
 	   devtoname(bp->b_dev), bp));
 	
-	if (dsw->d_flags & D_NOGIANT) {
+	if (!(dsw->d_flags & D_NEEDGIANT)) {
 		/* XXX: notyet DROP_GIANT(); */
 		DEV_STRATEGY(bp);
 		/* XXX: notyet PICKUP_GIANT(); */
@@ -631,7 +631,7 @@ spec_close(ap)
 		return (0);
 	}
 	VI_UNLOCK(vp);
-	if (dsw->d_flags & D_NOGIANT) {
+	if (!(dsw->d_flags & D_NEEDGIANT)) {
 		DROP_GIANT();
 		error = dsw->d_close(dev, ap->a_fflag, S_IFCHR, td);
 		PICKUP_GIANT();

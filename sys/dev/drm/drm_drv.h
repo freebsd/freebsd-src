@@ -212,6 +212,7 @@ const char *DRM(find_description)(int vendor, int device);
 
 #ifdef __FreeBSD__
 static struct cdevsw DRM(cdevsw) = {
+	.d_version =	D_VERSION,
 	.d_open =	DRM( open ),
 	.d_close =	DRM( close ),
 	.d_read =	DRM( read ),
@@ -219,7 +220,7 @@ static struct cdevsw DRM(cdevsw) = {
 	.d_poll =	DRM( poll ),
 	.d_mmap =	DRM( mmap ),
 	.d_name =	DRIVER_NAME,
-	.d_flags =	D_TRACKCLOSE,
+	.d_flags =	D_TRACKCLOSE | D_NEEDGIANT,
 #if __FreeBSD_version < 500000
 	.d_bmaj =	-1
 #endif

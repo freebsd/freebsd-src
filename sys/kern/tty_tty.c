@@ -38,10 +38,11 @@ static	d_open_t	cttyopen;
 #define	CDEV_MAJOR	1
 
 static struct cdevsw ctty_cdevsw = {
+	.d_version =	D_VERSION,
 	.d_open =	cttyopen,
 	.d_name =	"ctty",
 	.d_maj =	CDEV_MAJOR,
-	.d_flags =	D_TTY,
+	.d_flags =	D_TTY | D_NEEDGIANT,
 };
 
 static dev_t ctty;

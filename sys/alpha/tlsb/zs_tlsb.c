@@ -71,11 +71,12 @@ static	d_close_t	zsclose;
 static	d_ioctl_t	zsioctl;
 
 static struct cdevsw zs_cdevsw = {
+	.d_version =	D_VERSION,
 	.d_open =	zsopen,
 	.d_close =	zsclose,
 	.d_ioctl =	zsioctl,
 	.d_name =	"zs",
-	.d_flags =	D_TTY,
+	.d_flags =	D_TTY | D_NEEDGIANT,
 };
 
 static void	zsstart(struct tty *);

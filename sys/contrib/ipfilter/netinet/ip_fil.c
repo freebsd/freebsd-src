@@ -206,6 +206,8 @@ toid_t ipfr_slowtimer_ch;
     defined(_KERNEL)
 # include <sys/conf.h>
 const struct cdevsw ipl_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	iplopen, iplclose, iplread, nowrite, iplioctl,
 	nostop, notty, nopoll, nommap,
 };

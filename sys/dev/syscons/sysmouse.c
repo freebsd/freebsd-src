@@ -49,11 +49,12 @@ static d_close_t	smclose;
 static d_ioctl_t	smioctl;
 
 static struct cdevsw sm_cdevsw = {
+	.d_version =	D_VERSION,
 	.d_open =	smopen,
 	.d_close =	smclose,
 	.d_ioctl =	smioctl,
 	.d_name =	"sysmouse",
-	.d_flags =	D_TTY,
+	.d_flags =	D_TTY | D_NEEDGIANT,
 };
 
 /* local variables */

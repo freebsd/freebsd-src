@@ -578,6 +578,8 @@ DATA_SET (mode0_pciset, mode0_pcidev);
  */
 #define	CDEV_MAJOR 154	 /* preferred default character major */
 STATIC struct cdevsw asr_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_open =	asr_open,
 	.d_close =	asr_close,
 	.d_ioctl =	asr_ioctl,

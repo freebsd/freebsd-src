@@ -258,6 +258,8 @@ static	d_mmap_t	bktr_mmap;
 static	d_poll_t	bktr_poll;
 
 static struct cdevsw bktr_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_open =	bktr_open,
 	.d_close =	bktr_close,
 	.d_read =	bktr_read,

@@ -100,6 +100,8 @@ static struct gfb_type tga_devs[] = {
 #ifdef FB_INSTALL_CDEV
 
 static struct cdevsw tga_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_open =	pcigfb_open,
 	.d_close =	pcigfb_close,
 	.d_read =	pcigfb_read,

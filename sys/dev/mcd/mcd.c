@@ -160,15 +160,15 @@ static d_close_t	mcdclose;
 static d_ioctl_t	mcdioctl;
 static d_strategy_t	mcdstrategy;
 
-
 static struct cdevsw mcd_cdevsw = {
+	.d_version =	D_VERSION,
 	.d_open =	mcdopen,
 	.d_close =	mcdclose,
 	.d_read =	physread,
 	.d_ioctl =	mcdioctl,
 	.d_strategy =	mcdstrategy,
 	.d_name =	"mcd",
-	.d_flags =	D_DISK,
+	.d_flags =	D_DISK | D_NEEDGIANT,
 };
 
 #define MCD_RETRYS	5

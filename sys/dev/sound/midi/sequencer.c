@@ -135,6 +135,8 @@ static d_poll_t seqpoll;
 
 #define CDEV_MAJOR SEQ_CDEV_MAJOR
 static struct cdevsw seq_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_open =	seqopen,
 	.d_close =	seqclose,
 	.d_read =	seqread,

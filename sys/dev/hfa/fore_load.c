@@ -505,6 +505,8 @@ fore_reset(fup)
  * Driver entry points
  */
 static struct cdevsw fore_cdev = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_maj =	-1,
 };
 

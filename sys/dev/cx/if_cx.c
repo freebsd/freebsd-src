@@ -2550,6 +2550,7 @@ static struct cdevsw cx_cdevsw = {
 };
 #else /* __FreeBSD_version > 501000 */
 static struct cdevsw cx_cdevsw = {
+	.d_version =	D_VERSION,
 	.d_open     = cx_open,
 	.d_close    = cx_close,
 	.d_read     = cx_read,
@@ -2557,7 +2558,7 @@ static struct cdevsw cx_cdevsw = {
 	.d_ioctl    = cx_ioctl,
 	.d_name     = "cx",
 	.d_maj      = CDEV_MAJOR,
-	.d_flags    = D_TTY,
+	.d_flags    = D_TTY | D_NEEDGIANT,
 };
 #endif
 

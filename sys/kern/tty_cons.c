@@ -78,6 +78,7 @@ static	d_kqfilter_t	cnkqfilter;
  * XXX: kern_conf.c knows what to do when it sees 256.
  */
 static struct cdevsw cn_cdevsw = {
+	.d_version =	D_VERSION,
 	.d_open =	cnopen,
 	.d_close =	cnclose,
 	.d_read =	cnread,
@@ -86,7 +87,7 @@ static struct cdevsw cn_cdevsw = {
 	.d_poll =	cnpoll,
 	.d_name =	"console",
 	.d_maj =	256,
-	.d_flags =	D_TTY,
+	.d_flags =	D_TTY | D_NEEDGIANT,
 	.d_kqfilter =	cnkqfilter,
 };
 

@@ -51,13 +51,13 @@ static d_open_t		ofw_dev_open;
 static d_close_t	ofw_dev_close;
 static d_ioctl_t	ofw_dev_ioctl;
 
-
 static struct cdevsw ofw_cdevsw = {
+	.d_version =	D_VERSION,
 	.d_open =	ofw_dev_open,
 	.d_close =	ofw_dev_close,
 	.d_ioctl =	ofw_dev_ioctl,
 	.d_name =	"ofw",
-	.d_flags =	D_TTY,
+	.d_flags =	D_TTY | D_NEEDGIANT,
 };
 
 static struct tty		*ofw_tp = NULL;

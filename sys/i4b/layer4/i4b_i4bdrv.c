@@ -78,6 +78,8 @@ static	d_poll_t	i4bpoll;
 
 
 static struct cdevsw i4b_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_open =	i4bopen,
 	.d_close =	i4bclose,
 	.d_read =	i4bread,

@@ -327,6 +327,8 @@ static d_ioctl_t elan_ioctl;
 static d_mmap_t elan_mmap;
 
 static struct cdevsw elan_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_ioctl =	elan_ioctl,
 	.d_mmap =	elan_mmap,
 	.d_name =	"elan",

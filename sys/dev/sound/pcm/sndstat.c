@@ -41,6 +41,8 @@ static d_close_t sndstat_close;
 static d_read_t sndstat_read;
 
 static struct cdevsw sndstat_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_open =	sndstat_open,
 	.d_close =	sndstat_close,
 	.d_read =	sndstat_read,

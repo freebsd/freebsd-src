@@ -34,6 +34,8 @@ static	d_write_t	spkrwrite;
 static	d_ioctl_t	spkrioctl;
 
 static struct cdevsw spkr_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_open =	spkropen,
 	.d_close =	spkrclose,
 	.d_write =	spkrwrite,

@@ -67,6 +67,8 @@ static d_close_t	acpiclose;
 static d_ioctl_t	acpiioctl;
 
 static struct cdevsw acpi_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_open =	acpiopen,
 	.d_close =	acpiclose,
 	.d_ioctl =	acpiioctl,

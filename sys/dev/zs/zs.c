@@ -152,11 +152,12 @@ static void zsttystop(struct tty *tp, int rw);
 static int zsttyparam(struct tty *tp, struct termios *t);
 
 static struct cdevsw zstty_cdevsw = {
+	.d_version =	D_VERSION,
 	.d_open =	zsttyopen,
 	.d_close =	zsttyclose,
 	.d_ioctl =	zsttyioctl,
 	.d_name =	"zstty",
-	.d_flags =	D_TTY,
+	.d_flags =	D_TTY | D_NEEDGIANT,
 };
 
 static struct zstty_softc *zstty_cons;

@@ -66,6 +66,8 @@ __FBSDID("$FreeBSD$");
 #define VC_DEV_NO      93
 
 static struct cdevsw codadevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_open =	vc_nb_open,
 	.d_close =	vc_nb_close,
 	.d_read =	vc_nb_read,

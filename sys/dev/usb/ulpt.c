@@ -147,6 +147,8 @@ Static d_ioctl_t ulptioctl;
 
 
 Static struct cdevsw ulpt_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_open =	ulptopen,
 	.d_close =	ulptclose,
 	.d_write =	ulptwrite,

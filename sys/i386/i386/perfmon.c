@@ -72,6 +72,8 @@ static void perfmon_init_dev(void *);
 SYSINIT(cpu, SI_SUB_DRIVERS, SI_ORDER_ANY, perfmon_init_dev, NULL);
 
 static struct cdevsw perfmon_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_open =	perfmon_open,
 	.d_close =	perfmon_close,
 	.d_ioctl =	perfmon_ioctl,
