@@ -29,10 +29,8 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * Various setup functions for truss.  Not the cleanest-written code,
@@ -45,7 +43,6 @@ static const char rcsid[] =
 #include <sys/wait.h>
 
 #include <err.h>
-#include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
 #include <stdio.h>
@@ -115,7 +112,7 @@ setup_and_wait(char *command[]) {
   if (ioctl(fd, PIOCWAIT, &pfs) == -1)
     err(6, "PIOCWAIT");
   if (pfs.why == S_EXIT) {
-    fprintf(stderr, "process exited before exec'ing\n");
+    warnx("process exited before exec'ing");
     ioctl(fd, PIOCCONT, 0);
     wait(0);
     exit(7);

@@ -29,10 +29,8 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * The main module for truss.  Suprisingly simple, but, then, the other
@@ -129,7 +127,7 @@ set_etype(struct trussinfo *trussinfo) {
 
   if (funcs->type == NULL) {
     funcs = &ex_types[0];
-    warn("Execution type %s is not supported -- using %s\n",
+    warn("execution type %s is not supported -- using %s",
       progt, funcs->type);
   }
   return funcs;
