@@ -128,6 +128,11 @@ fr.iso.acc.kbd:pt:Francês ISO-8859-1 (com acentos)
 fr.iso.acc.kbd:es:Francés ISO-8859-1 (con acentos)
 fr.iso.acc.kbd:uk:æÒÁÎÃÕÚØËÁ ISO-8859-1 (accent keys)
 
+fr.dvorak.kbd:en:French Dvorak-like
+fr.dvorak.kbd:de:Französisch Dvorak
+fr.dvorak.kbd:es:Francés Dvorak
+fr.dvorak.kbd:uk:French Dvorak-like
+
 fr_CA.iso.acc.kbd:en:French Canadian ISO-8859-1 (accent keys)
 fr_CA.iso.acc.kbd:de:Französisch Kanada ISO-8859-1 (mit Akzenten)
 fr_CA.iso.acc.kbd:es:Francocanadiense ISO-8859-1 (con acentos)
