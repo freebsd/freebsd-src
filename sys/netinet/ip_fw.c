@@ -390,7 +390,7 @@ iptos_match(struct ip *ip, struct ip_fw *f)
 	u_int flags = (ip->ip_tos & 0x1f);
 	u_char opts, nopts, nopts_sve;
 
-	opts = f->fw_iptos;
+	opts = (f->fw_iptos & 0x1f);
 	nopts = nopts_sve = f->fw_ipntos;
 
 	while (flags != 0) {
@@ -1306,6 +1306,9 @@ again:
 		if (f->fw_ipflg & IP_FW_IF_IPLEN && f->fw_iplen != ip_len)
 			continue;
 		if (f->fw_ipflg & IP_FW_IF_IPID && f->fw_ipid != ntohs(ip->ip_id))
+			continue;
+		if (f->fw_ipflg & IP_FW_IF_IPPRE &&
+		     (f->fw_iptos & 0xe0) != (ip->ip_tos & 0xe0))
 			continue;
 		if (f->fw_ipflg & IP_FW_IF_IPTOS && !iptos_match(ip, f))
 			continue;
