@@ -135,6 +135,13 @@ ASSYM(PCB_DS, offsetof(struct pcb, pcb_ds));
 ASSYM(PCB_ES, offsetof(struct pcb, pcb_es));
 ASSYM(PCB_FS, offsetof(struct pcb, pcb_fs));
 ASSYM(PCB_GS, offsetof(struct pcb, pcb_gs));
+ASSYM(PCB_DR0, offsetof(struct pcb, pcb_dr0));
+ASSYM(PCB_DR1, offsetof(struct pcb, pcb_dr1));
+ASSYM(PCB_DR2, offsetof(struct pcb, pcb_dr2));
+ASSYM(PCB_DR3, offsetof(struct pcb, pcb_dr3));
+ASSYM(PCB_DR6, offsetof(struct pcb, pcb_dr6));
+ASSYM(PCB_DR7, offsetof(struct pcb, pcb_dr7));
+ASSYM(PCB_DBREGS, PCB_DBREGS);
 
 ASSYM(PCB_FLAGS, offsetof(struct pcb, pcb_flags));
 ASSYM(PCB_FULLCTX, PCB_FULLCTX);
@@ -205,11 +212,6 @@ ASSYM(KUCSEL, GSEL(GUCODE_SEL, SEL_UPL));
 ASSYM(KUDSEL, GSEL(GUDATA_SEL, SEL_UPL));
 ASSYM(KUC32SEL, GSEL(GUCODE32_SEL, SEL_UPL));
 ASSYM(SEL_RPL_MASK, SEL_RPL_MASK);
-
-ASSYM(MSR_FSBASE, MSR_FSBASE);
-ASSYM(MSR_GSBASE, MSR_GSBASE);
-ASSYM(MSR_KGSBASE, MSR_KGSBASE);
-ASSYM(GPROC0_SEL, GPROC0_SEL);
 
 ASSYM(MTX_LOCK, offsetof(struct mtx, mtx_lock));
 ASSYM(MTX_RECURSECNT, offsetof(struct mtx, mtx_recurse));
