@@ -107,15 +107,22 @@ int
 dumpfs(name)
 	char *name;
 {
+	ssize_t n;
 	int fd, c, i, j, k, size;
 
 	if ((fd = open(name, O_RDONLY, 0)) < 0)
 		goto err;
 	if (lseek(fd, (off_t)SBOFF, SEEK_SET) == (off_t)-1)
 		goto err;
-	if (read(fd, &afs, SBSIZE) != SBSIZE)
+	if ((n = read(fd, &afs, SBSIZE)) == -1)
 		goto err;
 
+	if (n != SBSIZE) {
+		warnx("%s: non-existent or truncated superblock, skipped",
+		    name);
+		(void)close(fd);
+ 		return (1);
+	}
  	if (afs.fs_magic != FS_MAGIC) {
 		warnx("%s: superblock has bad magic number, skipped", name);
 		(void)close(fd);
