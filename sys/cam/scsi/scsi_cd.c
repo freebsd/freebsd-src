@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/devicestat.h>
 #include <sys/sysctl.h>
 #include <sys/taskqueue.h>
+#include <geom/geom_disk.h>
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
@@ -146,15 +147,10 @@ struct cd_softc {
 	struct cd_params	params;
 	union ccb		saved_ccb;
 	cd_quirks		quirks;
-	struct devstat		*device_stats;
 	STAILQ_ENTRY(cd_softc)	changer_links;
 	struct cdchanger	*changer;
 	int			bufs_left;
 	struct cam_periph	*periph;
-	dev_t			dev;
-#ifdef GONE_IN_5
-	eventhandler_tag	clonetag;
-#endif
 	int			minimum_command_size;
 	int			outstanding_cmds;
 	struct task		sysctl_task;
@@ -162,6 +158,7 @@ struct cd_softc {
 	struct sysctl_oid	*sysctl_tree;
 	STAILQ_HEAD(, cd_mode_params)	mode_queue;
 	struct cd_tocdata	toc;
+	struct disk		disk;
 };
 
 struct cd_page_sizes {
@@ -217,12 +214,10 @@ static struct cd_quirk_entry cd_quirk_table[] =
 	}
 };
 
-#define CD_CDEV_MAJOR 15
-
-static	d_open_t	cdopen;
-static	d_close_t	cdclose;
-static	d_ioctl_t	cdioctl;
-static	d_strategy_t	cdstrategy;
+static	disk_open_t	cdopen;
+static	disk_close_t	cdclose;
+static	disk_ioctl_t	cdioctl;
+static	disk_strategy_t	cdstrategy;
 
 static	periph_init_t	cdinit;
 static	periph_ctor_t	cdregister;
@@ -294,17 +289,6 @@ static struct periph_driver cddriver =
 
 PERIPHDRIVER_DECLARE(cd, cddriver);
 
-static struct cdevsw cd_cdevsw = {
-	.d_open =	cdopen,
-	.d_close =	cdclose,
-	.d_read =	physread,
-	.d_write =	physwrite,
-	.d_ioctl =	cdioctl,
-	.d_strategy =	cdstrategy,
-	.d_name =	"cd",
-	.d_maj =	CD_CDEV_MAJOR,
-	.d_flags =	D_DISK,
-};
 
 static int num_changers;
 
@@ -343,27 +327,6 @@ struct cdchanger {
 
 static STAILQ_HEAD(changerlist, cdchanger) changerq;
 
-#ifdef GONE_IN_5
-static void
-cdclone(void *arg, char *name, int namelen, dev_t *dev)
-{
-	struct cd_softc *softc;
-	const char *p;
-	int l;
-
-	softc = arg;
-	p = devtoname(softc->dev);
-	l = strlen(p);
-	if (bcmp(name, p, l))
-		return;
-	if (name[l] != 'a' && name[l] != 'c')
-		return;
-	if (name[l + 1] != '\0')
-		return;
-	*dev = softc->dev;
-	return;
-}
-#endif
 
 static void
 cdinit(void)
@@ -533,11 +496,6 @@ cdcleanup(struct cam_periph *periph)
 		free(softc->changer, M_DEVBUF);
 		num_changers--;
 	}
-	devstat_remove_entry(softc->device_stats);
-	destroy_dev(softc->dev);
-#ifdef GONE_IN_5
-	EVENTHANDLER_DEREGISTER(dev_clone, softc->clonetag);
-#endif
 	free(softc, M_DEVBUF);
 	splx(s);
 }
@@ -774,18 +732,18 @@ cdregister(struct cam_periph *periph, void *arg)
 	 * WORM peripheral driver.  WORM drives will also have the WORM
 	 * driver attached to them.
 	 */
-	softc->device_stats = devstat_new_entry("cd", 
+	softc->disk.d_devstat = devstat_new_entry("cd", 
 			  periph->unit_number, 0,
 	  		  DEVSTAT_BS_UNAVAILABLE,
 			  DEVSTAT_TYPE_CDROM | DEVSTAT_TYPE_IF_SCSI,
 			  DEVSTAT_PRIORITY_CD);
-	softc->dev = make_dev(&cd_cdevsw, periph->unit_number,
-		UID_ROOT, GID_OPERATOR, 0640, "cd%d", periph->unit_number);
-	softc->dev->si_drv1 = periph;
-#ifdef GONE_IN_5
-	softc->clonetag =
-	    EVENTHANDLER_REGISTER(dev_clone, cdclone, softc, 1000);
-#endif
+	softc->disk.d_open = cdopen;
+	softc->disk.d_close = cdclose;
+	softc->disk.d_strategy = cdstrategy;
+	softc->disk.d_ioctl = cdioctl;
+	softc->disk.d_name = "cd";
+	disk_create(periph->unit_number, &softc->disk, 0, NULL, NULL);
+	softc->disk.d_drv1 = periph;
 
 	/*
 	 * Add an async callback so that we get
@@ -1028,14 +986,14 @@ cdregisterexit:
 }
 
 static int
-cdopen(dev_t dev, int flags, int fmt, struct thread *td)
+cdopen(struct disk *dp)
 {
 	struct cam_periph *periph;
 	struct cd_softc *softc;
 	int error;
 	int s;
 
-	periph = (struct cam_periph *)dev->si_drv1;
+	periph = (struct cam_periph *)dp->d_drv1;
 	if (periph == NULL)
 		return (ENXIO);
 
@@ -1075,13 +1033,13 @@ cdopen(dev_t dev, int flags, int fmt, struct thread *td)
 }
 
 static int
-cdclose(dev_t dev, int flag, int fmt, struct thread *td)
+cdclose(struct disk *dp)
 {
 	struct 	cam_periph *periph;
 	struct	cd_softc *softc;
 	int	error;
 
-	periph = (struct cam_periph *)dev->si_drv1;
+	periph = (struct cam_periph *)dp->d_drv1;
 	if (periph == NULL)
 		return (ENXIO);	
 
@@ -1097,7 +1055,7 @@ cdclose(dev_t dev, int flag, int fmt, struct thread *td)
 	 * Since we're closing this CD, mark the blocksize as unavailable.
 	 * It will be marked as available when the CD is opened again.
 	 */
-	softc->device_stats->flags |= DEVSTAT_BS_UNAVAILABLE;
+	softc->disk.d_devstat->flags |= DEVSTAT_BS_UNAVAILABLE;
 
 	/*
 	 * We'll check the media and toc again at the next open().
@@ -1391,7 +1349,7 @@ cdrunccb(union ccb *ccb, int (*error_routine)(union ccb *ccb,
 	softc = (struct cd_softc *)periph->softc;
 
 	error = cam_periph_runccb(ccb, error_routine, cam_flags, sense_flags,
-				  softc->device_stats);
+				  softc->disk.d_devstat);
 
 	if (softc->flags & CD_FLAG_CHANGER)
 		cdchangerschedule(softc);
@@ -1453,7 +1411,7 @@ cdstrategy(struct bio *bp)
 	struct cd_softc *softc;
 	int    s;
 
-	periph = (struct cam_periph *)bp->bio_dev->si_drv1;
+	periph = (struct cam_periph *)bp->bio_disk->d_drv1;
 	if (periph == NULL) {
 		biofinish(bp, NULL, ENXIO);
 		return;
@@ -1547,7 +1505,7 @@ cdstart(struct cam_periph *periph, union ccb *start_ccb)
 		} else {
 			bioq_remove(&softc->bio_queue, bp);
 
-			devstat_start_transaction_bio(softc->device_stats, bp);
+			devstat_start_transaction_bio(softc->disk.d_devstat, bp);
 
 			scsi_read_write(&start_ccb->csio,
 					/*retries*/4,
@@ -1703,7 +1661,7 @@ cddone(struct cam_periph *periph, union ccb *done_ccb)
 		if (softc->flags & CD_FLAG_CHANGER)
 			cdchangerschedule(softc);
 
-		biofinish(bp, softc->device_stats, 0);
+		biofinish(bp, softc->disk.d_devstat, 0);
 		break;
 	}
 	case CD_CCB_PROBE:
@@ -1939,14 +1897,14 @@ cdgetpagesize(int page_num)
 }
 
 static int
-cdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
+cdioctl(struct disk *dp, u_long cmd, void *addr, int flag, struct thread *td)
 {
 
 	struct 	cam_periph *periph;
 	struct	cd_softc *softc;
 	int	error;
 
-	periph = (struct cam_periph *)dev->si_drv1;
+	periph = (struct cam_periph *)dp->d_drv1;
 	if (periph == NULL)
 		return(ENXIO);	
 
@@ -1976,14 +1934,6 @@ cdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 	}
 
 	switch (cmd) {
-
-	case DIOCGMEDIASIZE:
-		*(off_t *)addr =
-		    (off_t)softc->params.blksize * softc->params.disksize;
-		break;
-	case DIOCGSECTORSIZE:
-		*(u_int *)addr = softc->params.blksize;
-		break;
 
 	case CDIOCPLAYTRACKS:
 		{
@@ -2749,6 +2699,10 @@ cdprevent(struct cam_periph *periph, int action)
 	}
 }
 
+/*
+ * XXX: the disk media and sector size is only really able to change
+ * XXX: while the device is closed.
+ */
 static int
 cdcheckmedia(struct cam_periph *periph)
 {
@@ -2761,6 +2715,9 @@ cdcheckmedia(struct cam_periph *periph)
 	softc = (struct cd_softc *)periph->softc;
 
 	cdprevent(periph, PR_PREVENT);
+	softc->disk.d_maxsize = DFLTPHYS;
+	softc->disk.d_sectorsize = 0;
+	softc->disk.d_mediasize = 0;
 
 	/*
 	 * Get the disc size and block size.  If we can't get it, we don't
@@ -2860,6 +2817,10 @@ cdcheckmedia(struct cam_periph *periph)
 	}
 
 	softc->flags |= CD_FLAG_VALID_TOC;
+	softc->disk.d_maxsize = DFLTPHYS;
+	softc->disk.d_sectorsize = softc->params.blksize;
+	softc->disk.d_mediasize =
+	    (off_t)softc->params.blksize * softc->params.disksize;
 
 bailout:
 
@@ -2870,9 +2831,9 @@ bailout:
 	 * XXX problems here if some slice or partition is still
 	 * open with the old size?
 	 */
-	if ((softc->device_stats->flags & DEVSTAT_BS_UNAVAILABLE) != 0)
-		softc->device_stats->flags &= ~DEVSTAT_BS_UNAVAILABLE;
-	softc->device_stats->block_size = softc->params.blksize;
+	if ((softc->disk.d_devstat->flags & DEVSTAT_BS_UNAVAILABLE) != 0)
+		softc->disk.d_devstat->flags &= ~DEVSTAT_BS_UNAVAILABLE;
+	softc->disk.d_devstat->block_size = softc->params.blksize;
 
 	return (error);
 }
