@@ -306,6 +306,10 @@ SEND-PR: Please consult the send-pr man page `send-pr(1)' or the Texinfo
 SEND-PR: manual if you are not sure how to fill out a problem report.
 SEND-PR: Note that the Synopsis field is mandatory.
 SEND-PR:
+SEND-PR: Please note that (unless you state otherwise) if your report 
+SEND-PR: includes a patch then it will be taken under the same license as 
+SEND-PR: the one on the file(s) you want to change.
+SEND-PR:
 SEND-PR: Choose from the following categories:
 SEND-PR:
 __EOF__
