@@ -54,7 +54,7 @@
  * from: Utah Hdr: vn.c 1.13 94/04/02
  *
  *	from: @(#)vn.c	8.6 (Berkeley) 4/1/94
- * From: src/sys/dev/vn/vn.c,v 1.122 2000/12/16 16:06:03 
+ * From: src/sys/dev/vn/vn.c,v 1.122 2000/12/16 16:06:03
  */
 
 #include "opt_md.h"
@@ -231,69 +231,69 @@ mdstart_malloc(struct md_s *sc, struct bio *bp)
 	u_char *secp, **secpp, *dst;
 	unsigned secno, nsec, secval, uc;
 
-		if (bp->bio_cmd == BIO_DELETE)
-			dop = DEVSTAT_NO_DATA;
-		else if (bp->bio_cmd == BIO_READ)
-			dop = DEVSTAT_READ;
-		else
-			dop = DEVSTAT_WRITE;
+	if (bp->bio_cmd == BIO_DELETE)
+		dop = DEVSTAT_NO_DATA;
+	else if (bp->bio_cmd == BIO_READ)
+		dop = DEVSTAT_READ;
+	else
+		dop = DEVSTAT_WRITE;
 
-		nsec = bp->bio_bcount / sc->secsize;
-		secno = bp->bio_pblkno;
-		dst = bp->bio_data;
-		while (nsec--) {
-			secpp = &sc->secp[secno];
-			if ((uintptr_t)*secpp > 255) {
-				secp = *secpp;
-				secval = 0;
-			} else {
-				secp = NULL;
-				secval = (uintptr_t) *secpp;
-			}
-
-			if (md_debug > 2)
-				printf("%x %p %p %d\n", 
-				    bp->bio_flags, secpp, secp, secval);
-
-			if (bp->bio_cmd == BIO_DELETE) {
-				if (!(sc->flags & MD_RESERVE) && secp != NULL) {
-					FREE(secp, M_MDSECT);
-					*secpp = 0;
-				}
-			} else if (bp->bio_cmd == BIO_READ) {
-				if (secp != NULL) {
-					bcopy(secp, dst, sc->secsize);
-				} else if (secval) {
-					for (i = 0; i < sc->secsize; i++)
-						dst[i] = secval;
-				} else {
-					bzero(dst, sc->secsize);
-				}
-			} else {
-				if (sc->flags & MD_COMPRESS) {
-					uc = dst[0];
-					for (i = 1; i < sc->secsize; i++) 
-						if (dst[i] != uc)
-							break;
-				} else {
-					i = 0;
-					uc = 0;
-				}
-				if (i == sc->secsize) {
-					if (secp)
-						FREE(secp, M_MDSECT);
-					*secpp = (u_char *)(uintptr_t)uc;
-				} else {
-					if (secp == NULL) 
-						MALLOC(secp, u_char *, sc->secsize, M_MDSECT, M_WAITOK);
-					bcopy(dst, secp, sc->secsize);
-					*secpp = secp;
-				}
-			}
-			secno++;
-			dst += sc->secsize;
+	nsec = bp->bio_bcount / sc->secsize;
+	secno = bp->bio_pblkno;
+	dst = bp->bio_data;
+	while (nsec--) {
+		secpp = &sc->secp[secno];
+		if ((uintptr_t)*secpp > 255) {
+			secp = *secpp;
+			secval = 0;
+		} else {
+			secp = NULL;
+			secval = (uintptr_t) *secpp;
 		}
-		bp->bio_resid = 0;
+
+		if (md_debug > 2)
+			printf("%x %p %p %d\n",
+			    bp->bio_flags, secpp, secp, secval);
+
+		if (bp->bio_cmd == BIO_DELETE) {
+			if (!(sc->flags & MD_RESERVE) && secp != NULL) {
+				FREE(secp, M_MDSECT);
+				*secpp = 0;
+			}
+		} else if (bp->bio_cmd == BIO_READ) {
+			if (secp != NULL) {
+				bcopy(secp, dst, sc->secsize);
+			} else if (secval) {
+				for (i = 0; i < sc->secsize; i++)
+					dst[i] = secval;
+			} else {
+				bzero(dst, sc->secsize);
+			}
+		} else {
+			if (sc->flags & MD_COMPRESS) {
+				uc = dst[0];
+				for (i = 1; i < sc->secsize; i++)
+					if (dst[i] != uc)
+						break;
+			} else {
+				i = 0;
+				uc = 0;
+			}
+			if (i == sc->secsize) {
+				if (secp)
+					FREE(secp, M_MDSECT);
+				*secpp = (u_char *)(uintptr_t)uc;
+			} else {
+				if (secp == NULL)
+					MALLOC(secp, u_char *, sc->secsize, M_MDSECT, M_WAITOK);
+				bcopy(dst, secp, sc->secsize);
+				*secpp = secp;
+			}
+		}
+		secno++;
+		dst += sc->secsize;
+	}
+	bp->bio_resid = 0;
 	return (0);
 }
 
@@ -303,16 +303,16 @@ mdstart_preload(struct md_s *sc, struct bio *bp)
 {
 	devstat_trans_flags dop;
 
-		if (bp->bio_cmd == BIO_DELETE) {
-			dop = DEVSTAT_NO_DATA;
-		} else if (bp->bio_cmd == BIO_READ) {
-			dop = DEVSTAT_READ;
-			bcopy(sc->pl_ptr + (bp->bio_pblkno << DEV_BSHIFT), bp->bio_data, bp->bio_bcount);
-		} else {
-			dop = DEVSTAT_WRITE;
-			bcopy(bp->bio_data, sc->pl_ptr + (bp->bio_pblkno << DEV_BSHIFT), bp->bio_bcount);
-		}
-		bp->bio_resid = 0;
+	if (bp->bio_cmd == BIO_DELETE) {
+		dop = DEVSTAT_NO_DATA;
+	} else if (bp->bio_cmd == BIO_READ) {
+		dop = DEVSTAT_READ;
+		bcopy(sc->pl_ptr + (bp->bio_pblkno << DEV_BSHIFT), bp->bio_data, bp->bio_bcount);
+	} else {
+		dop = DEVSTAT_WRITE;
+		bcopy(bp->bio_data, sc->pl_ptr + (bp->bio_pblkno << DEV_BSHIFT), bp->bio_bcount);
+	}
+	bp->bio_resid = 0;
 	return (0);
 }
 
@@ -327,41 +327,41 @@ mdstart_vnode(struct md_s *sc, struct bio *bp)
 	/*
 	 * VNODE I/O
 	 *
-	 * If an error occurs, we set BIO_ERROR but we do not set 
-	 * B_INVAL because (for a write anyway), the buffer is 
+	 * If an error occurs, we set BIO_ERROR but we do not set
+	 * B_INVAL because (for a write anyway), the buffer is
 	 * still valid.
 	 */
 
-		bzero(&auio, sizeof(auio));
+	bzero(&auio, sizeof(auio));
 
-		aiov.iov_base = bp->bio_data;
-		aiov.iov_len = bp->bio_bcount;
-		auio.uio_iov = &aiov;
-		auio.uio_iovcnt = 1;
-		auio.uio_offset = (vm_ooffset_t)bp->bio_pblkno * sc->secsize;
-		auio.uio_segflg = UIO_SYSSPACE;
-		if(bp->bio_cmd == BIO_READ)
-			auio.uio_rw = UIO_READ;
-		else
-			auio.uio_rw = UIO_WRITE;
-		auio.uio_resid = bp->bio_bcount;
-		auio.uio_td = curthread;
-		/*
-		 * When reading set IO_DIRECT to try to avoid double-caching
-		 * the data.  When writing IO_DIRECT is not optimal, but we
-		 * must set IO_NOWDRAIN to avoid a wdrain deadlock.
-		 */
-		if (bp->bio_cmd == BIO_READ) {
-			vn_lock(sc->vnode, LK_EXCLUSIVE | LK_RETRY, curthread);
-			error = VOP_READ(sc->vnode, &auio, IO_DIRECT, sc->cred);
-		} else {
-			(void) vn_start_write(sc->vnode, &mp, V_WAIT);
-			vn_lock(sc->vnode, LK_EXCLUSIVE | LK_RETRY, curthread);
-			error = VOP_WRITE(sc->vnode, &auio, IO_NOWDRAIN, sc->cred);
-			vn_finished_write(mp);
-		}
-		VOP_UNLOCK(sc->vnode, 0, curthread);
-		bp->bio_resid = auio.uio_resid;
+	aiov.iov_base = bp->bio_data;
+	aiov.iov_len = bp->bio_bcount;
+	auio.uio_iov = &aiov;
+	auio.uio_iovcnt = 1;
+	auio.uio_offset = (vm_ooffset_t)bp->bio_pblkno * sc->secsize;
+	auio.uio_segflg = UIO_SYSSPACE;
+	if(bp->bio_cmd == BIO_READ)
+		auio.uio_rw = UIO_READ;
+	else
+		auio.uio_rw = UIO_WRITE;
+	auio.uio_resid = bp->bio_bcount;
+	auio.uio_td = curthread;
+	/*
+	 * When reading set IO_DIRECT to try to avoid double-caching
+	 * the data.  When writing IO_DIRECT is not optimal, but we
+	 * must set IO_NOWDRAIN to avoid a wdrain deadlock.
+	 */
+	if (bp->bio_cmd == BIO_READ) {
+		vn_lock(sc->vnode, LK_EXCLUSIVE | LK_RETRY, curthread);
+		error = VOP_READ(sc->vnode, &auio, IO_DIRECT, sc->cred);
+	} else {
+		(void) vn_start_write(sc->vnode, &mp, V_WAIT);
+		vn_lock(sc->vnode, LK_EXCLUSIVE | LK_RETRY, curthread);
+		error = VOP_WRITE(sc->vnode, &auio, IO_NOWDRAIN, sc->cred);
+		vn_finished_write(mp);
+	}
+	VOP_UNLOCK(sc->vnode, 0, curthread);
+	bp->bio_resid = auio.uio_resid;
 	return (error);
 }
 
@@ -369,10 +369,10 @@ static int
 mdstart_swap(struct md_s *sc, struct bio *bp)
 {
 
-		if ((bp->bio_cmd == BIO_DELETE) && (sc->flags & MD_RESERVE)) 
-			biodone(bp);
-		else
-			vm_pager_strategy(sc->object, bp);
+	if ((bp->bio_cmd == BIO_DELETE) && (sc->flags & MD_RESERVE))
+		biodone(bp);
+	else
+		vm_pager_strategy(sc->object, bp);
 	return (-1);
 }
 
@@ -384,7 +384,7 @@ mdstrategy(struct bio *bp)
 
 	if (md_debug > 1)
 		printf("mdstrategy(%p) %s %x, %d, %ld, %p)\n",
-		    bp, devtoname(bp->bio_dev), bp->bio_flags, bp->bio_blkno, 
+		    bp, devtoname(bp->bio_dev), bp->bio_flags, bp->bio_blkno,
 		    bp->bio_bcount / DEV_BSIZE, bp->bio_data);
 
 	sc = bp->bio_dev->si_drv1;
@@ -406,25 +406,25 @@ mdstrategy(struct bio *bp)
 			break;
 
 
-	switch (sc->type) {
-	case MD_MALLOC:
+		switch (sc->type) {
+		case MD_MALLOC:
 			devstat_start_transaction(&sc->stats);
 			error = mdstart_malloc(sc, bp);
-		break;
-	case MD_PRELOAD:
+			break;
+		case MD_PRELOAD:
 			devstat_start_transaction(&sc->stats);
 			error = mdstart_preload(sc, bp);
-		break;
-	case MD_VNODE:
+			break;
+		case MD_VNODE:
 			devstat_start_transaction(&sc->stats);
 			error = mdstart_vnode(sc, bp);
-		break;
-	case MD_SWAP:
+			break;
+		case MD_SWAP:
 			error = mdstart_swap(sc, bp);
-		break;
-	default:
-		panic("Impossible md(type)");
-		break;
+			break;
+		default:
+			panic("Impossible md(type)");
+			break;
 		}
 
 		if (error != -1)
@@ -479,7 +479,7 @@ mdinit(struct md_s *sc)
 
 	bioq_init(&sc->bio_queue);
 	devstat_add_entry(&sc->stats, MD_NAME, sc->unit, sc->secsize,
-		DEVSTAT_NO_ORDERED_TAGS, 
+		DEVSTAT_NO_ORDERED_TAGS,
 		DEVSTAT_TYPE_DIRECT | DEVSTAT_TYPE_IF_OTHER,
 		DEVSTAT_PRIORITY_OTHER);
 	sc->dev = disk_create(sc->unit, &sc->disk, 0, &md_cdevsw, &mddisk_cdevsw);
@@ -611,7 +611,7 @@ mdcreate_vnode(struct md_ioctl *mdio, struct thread *td)
 	int error, flags;
 
 	if (mdio->md_options & MD_AUTOUNIT) {
-		sc = mdnew(-1); 
+		sc = mdnew(-1);
 		mdio->md_unit = sc->unit;
 	} else {
 		sc = mdnew(mdio->md_unit);
@@ -686,7 +686,7 @@ mddestroy(struct md_s *sc, struct thread *td)
 		vm_pager_deallocate(sc->object);
 	}
 	if (sc->secp != NULL) {
-		for (u = 0; u < sc->nsect; u++) 
+		for (u = 0; u < sc->nsect; u++)
 			if ((uintptr_t)sc->secp[u] > 255)
 				FREE(sc->secp[u], M_MDSECT);
 		FREE(sc->secp, M_MD);
@@ -841,7 +841,7 @@ mdctlioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 		case MD_VNODE:
 			mdio->md_size = sc->nsect;
 			/* XXX fill this in */
-			mdio->md_file = NULL; 
+			mdio->md_file = NULL;
 			break;
 		}
 		return (0);
@@ -864,7 +864,7 @@ md_preloaded(u_char *image, unsigned length)
 	sc->nsect = length / DEV_BSIZE;
 	sc->pl_ptr = image;
 	sc->pl_len = length;
-	if (sc->unit == 0) 
+	if (sc->unit == 0)
 		mdrootready = 1;
 	mdinit(sc);
 }
@@ -898,7 +898,7 @@ md_drvinit(void *unused)
 		printf("%s%d: Preloaded image <%s> %d bytes at %p\n",
 		    MD_NAME, mdunits, name, len, ptr);
 		md_preloaded(ptr, len);
-	} 
+	}
 	status_dev = make_dev(&mdctl_cdevsw, 0xffff00ff, UID_ROOT, GID_WHEEL,
 	    0600, MDCTL_NAME);
 }
