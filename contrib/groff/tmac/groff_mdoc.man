@@ -3925,14 +3925,15 @@ displayed with a
 device like
 .Sq latin1
 or
-.Sq unicode
+.Sq unicode ,
 to make the manual more efficient for viewing on-line.
 This behaviour can be changed (e.g.\& to create a hardcopy of the
 .Tn TTY
 output) by setting the register
 .Ql cR
 to zero while calling
-.Xr groff :
+.Xr groff 1 ,
+resulting in multiple pages instead of a single, very long page:
 .Pp
 .Dl groff -Tlatin1 -rcR=0 -mdoc foo.man > foo.txt
 .Pp
