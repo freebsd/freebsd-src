@@ -204,10 +204,10 @@ cpu_fork(p1, p2, flags)
 		 */
 		up->u_pcb.pcb_hw.apcb_ksp = (u_int64_t)p2tf;	
 		up->u_pcb.pcb_context[0] =
-		    (u_int64_t)fork_return;		/* s0: pc */
+		    (u_int64_t)fork_return;		/* s0: a0 */
 		up->u_pcb.pcb_context[1] =
 		    (u_int64_t)exception_return;	/* s1: ra */
-		up->u_pcb.pcb_context[2] = (u_long) p2;	/* s2: a0 */
+		up->u_pcb.pcb_context[2] = (u_long) p2;	/* s2: a1 */
 		up->u_pcb.pcb_context[7] =
 		    (u_int64_t)switch_trampoline;	/* ra: assembly magic */
 
