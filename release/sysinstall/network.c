@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: network.c,v 1.7 1995/06/11 19:30:07 rgrimes Exp $
+ * $Id: network.c,v 1.7.2.1 1995/07/21 10:54:04 rgrimes Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -57,6 +57,7 @@ mediaInitNetwork(Device *dev)
 {
     int i;
     char *rp;
+    char *cp, ifconfig[64];
 
     if (!RunningAsInit || networkInitialized || (dev->flags & OPT_LEAVE_NETWORK_UP))
 	return TRUE;
@@ -82,30 +83,25 @@ mediaInitNetwork(Device *dev)
 		return FALSE;
 	    else
 		strcpy(attach, val);
-	    if (!vsystem(attach)) {
+	    if (!vsystem(attach))
 		dev->private = NULL;
-		return TRUE;
-	    }
 	    else {
 		msgConfirm("slattach returned a bad status!  Please verify that\nthe command is correct and try again.");
 		return FALSE;
 	    }
 	}
     }
-    else {
-	char *cp, ifconfig[64];
 
-	snprintf(ifconfig, 64, "%s%s", VAR_IFCONFIG, dev->name);
-	cp = getenv(ifconfig);
-	if (!cp) {
-	    msgConfirm("The %s device is not configured.  You will need to do so\nin the Networking configuration menu before proceeding.");
-	    return FALSE;
-	}
-	i = vsystem("ifconfig %s %s", dev->name, cp);
-	if (i) {
-	    msgConfirm("Unable to configure the %s interface!\nThis installation method cannot be used.", dev->name);
-	    return FALSE;
-	}
+    snprintf(ifconfig, 64, "%s%s", VAR_IFCONFIG, dev->name);
+    cp = getenv(ifconfig);
+    if (!cp) {
+	msgConfirm("The %s device is not configured.  You will need to do so\nin the Networking configuration menu before proceeding.");
+	return FALSE;
+    }
+    i = vsystem("ifconfig %s %s", dev->name, cp);
+    if (i) {
+	msgConfirm("Unable to configure the %s interface!\nThis installation method cannot be used.", dev->name);
+	return FALSE;
     }
 
     rp = getenv(VAR_GATEWAY);
