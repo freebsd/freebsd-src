@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	from: if_ethersubr.c,v 1.5 1994/12/13 22:31:45 wollman Exp
- * $Id: if_fddisubr.c,v 1.27 1998/03/30 09:51:44 phk Exp $
+ * $Id: if_fddisubr.c,v 1.28 1998/05/19 14:04:04 dg Exp $
  */
 
 #include "opt_atalk.h"
@@ -533,7 +533,7 @@ fddi_input(ifp, fh, m)
 		switch (type) {
 #ifdef INET
 		case ETHERTYPE_IP:
-			if (ipflow(fastforward(m))
+			if (ipflow(fastforward(m)))
 				return;
 			schednetisr(NETISR_IP);
 			inq = &ipintrq;
