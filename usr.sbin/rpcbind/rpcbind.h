@@ -102,7 +102,7 @@ void *rpcbproc_set_com __P((void *, struct svc_req *, SVCXPRT *, rpcvers_t));
 void *rpcbproc_unset_com __P((void *, struct svc_req *, SVCXPRT *, rpcvers_t));
 bool_t map_set __P((RPCB *, char *));
 bool_t map_unset __P((RPCB *, char *));
-void delete_prog __P((int));
+void delete_prog __P((unsigned int));
 void *rpcbproc_getaddr_com __P((RPCB *, struct svc_req *, SVCXPRT *, rpcvers_t,
 				 rpcvers_t));
 void *rpcbproc_gettime_com __P((void *, struct svc_req *, SVCXPRT *,
@@ -120,7 +120,7 @@ void rpcbind_abort __P((void));
 void reap __P((int));
 void toggle_verboselog __P((int));
 
-int check_access __P((SVCXPRT *, rpcproc_t, void *, int));
+int check_access __P((SVCXPRT *, rpcproc_t, void *, unsigned int));
 int check_callit __P((SVCXPRT *, struct r_rmtcall_args *, int));
 void logit __P((int, struct sockaddr *, rpcproc_t, rpcprog_t, const char *));
 int is_loopback __P((struct netbuf *));
