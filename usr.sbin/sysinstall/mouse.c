@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: mouse.c,v 1.2 1998/03/10 13:42:05 jkh Exp $
+ * $Id: mouse.c,v 1.3 1998/03/23 05:59:18 jkh Exp $
  */
 
 #include "sysinstall.h"
@@ -57,8 +57,8 @@ mousedTest(dialogMenuItem *self)
 	ret = msgYesNo("Now move the mouse and see if it works.\n"
 	      "(Note that buttons don't have any effect for now.)\n\n"
 	      "         Is the mouse cursor moving?\n");
+	systemExecute("vidcontrol -m off");
 	if (ret) {
-		systemExecute("vidcontrol -m off");
 		if (file_readable("/var/run/moused.pid"))
 		    vsystem("kill `cat /var/run/moused.pid`");
 		variable_set2(VAR_MOUSED, "NO");
@@ -67,5 +67,17 @@ mousedTest(dialogMenuItem *self)
 		vsystem("ln -fs /dev/sysmouse /dev/mouse"); /* backwards compat */
 	}
 
+	return DITEM_SUCCESS;
+}
+
+int
+mousedDisable(dialogMenuItem *self)
+{
+	if (file_readable("/var/run/moused.pid"))
+	    vsystem("kill `cat /var/run/moused.pid`");
+	variable_set2(VAR_MOUSED, "NO");
+	variable_set2(VAR_MOUSED_TYPE, "NO");
+	variable_unset(VAR_MOUSED_PORT);
+	msgConfirm("The mouse daemon is disabled.");
 	return DITEM_SUCCESS;
 }
