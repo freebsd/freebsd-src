@@ -1317,7 +1317,11 @@ Execute the specified builtin command,
 .Ar cmd .
 This is useful when the user wishes to override a shell function
 with the same name as a builtin command.
-.It Ic cd Op Ar directory
+.It Xo
+.Ic cd
+.Op Fl LP
+.Op Ar directory
+.Xc
 Switch to the specified
 .Ar directory ,
 or to the directory specified in the
@@ -1351,6 +1355,20 @@ if this is different from the name that the user gave.
 These may be different either because the
 .Ev CDPATH
 mechanism was used or because a symbolic link was crossed.
+.Pp
+If the
+.Fl P
+option is specified,
+.Dq \&..
+is handled physically and symbolic links are resolved before
+.Dq \&..
+components are processed.
+If the
+.Fl L
+option is specified,
+.Dq \&..
+is handled logically.
+This is the default.
 .It Ic chdir
 A synonym for the
 .Ic cd
@@ -1622,7 +1640,10 @@ argument is omitted, use the current job.
 .It Ic jobs
 This command lists out all the background processes
 which are children of the current shell process.
-.It Ic pwd
+.It Xo
+.Ic pwd
+.Op Fl LP
+.Xc
 Print the path of the current directory.  The builtin command may
 differ from the program of the same name because the
 builtin command remembers what the current directory
@@ -1632,6 +1653,15 @@ renamed,
 the builtin version of
 .Xr pwd 1
 will continue to print the old name for the directory.
+.Pp
+If the
+.Fl P
+option is specified, symbolic links are resolved.
+If the
+.Fl L
+option is specified, the shell's notion of the current directory
+is printed (symbolic links are not resolved).
+This is the default.
 .It Xo
 .Ic read
 .Op Fl p Ar prompt
