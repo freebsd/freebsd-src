@@ -131,7 +131,7 @@ device and use
 to encrypt data on a floppy.
 .Pp
 .Bd -literal -offset indent
-ggatel -u 5 /dev/fd0
+ggatel create -u 5 /dev/fd0
 gbde init /dev/ggate5
 gbde attach ggate5
 newfs /dev/ggate5.bde
@@ -139,6 +139,7 @@ mount /dev/ggate5.bde /secret
 cp /private/foo /secret/
 umount /secret
 gbde detach ggate5
+ggatel destroy -u 5
 .Ed
 .Pp
 .Sh DIAGNOSTICS
