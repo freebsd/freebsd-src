@@ -738,7 +738,7 @@ identblue(void)
 	setidt(6, bluetrap6, SDT_SYS386TGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
 
 	/*
-	 * Certain BIOS disables cpuid instructnion of Cyrix 6x86MX CPU.
+	 * Certain BIOS disables cpuid instruction of Cyrix 6x86MX CPU.
 	 * In this case, rdmsr generates general protection fault, and
 	 * exception will be trapped by bluetrap13().
 	 */
