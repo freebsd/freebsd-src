@@ -72,43 +72,43 @@ load (module_t mod, int cmd, void *arg)
 		printf("TREE		ROOT		  NAME\n");
 		a_root = SYSCTL_ADD_NODE(&clist,
 			SYSCTL_STATIC_CHILDREN(/* top of sysctl tree */),
-			OID_AUTO, dyn_sysctl, CTLFLAG_RW, 0,
+			OID_AUTO, "dyn_sysctl", CTLFLAG_RW, 0,
 			"dyn_sysctl root node");
 		a_root = SYSCTL_ADD_NODE(&clist1,
 			SYSCTL_STATIC_CHILDREN(/* top of sysctl tree */),
-			OID_AUTO, dyn_sysctl, CTLFLAG_RW, 0,
+			OID_AUTO, "dyn_sysctl", CTLFLAG_RW, 0,
 			"dyn_sysctl root node");
 		if(a_root == NULL) {
 			printf("SYSCTL_ADD_NODE failed!\n");
 			return (EINVAL);
 		}
 		SYSCTL_ADD_LONG(&clist, SYSCTL_CHILDREN(a_root),
-		 OID_AUTO, long_a, CTLFLAG_RW, &a, "just to try");
+		 OID_AUTO, "long_a", CTLFLAG_RW, &a, "just to try");
 		SYSCTL_ADD_INT(&clist, SYSCTL_CHILDREN(a_root),
-		 OID_AUTO, int_b, CTLFLAG_RW, &b, 0, "just to try 1");
+		 OID_AUTO, "int_b", CTLFLAG_RW, &b, 0, "just to try 1");
 		a_root1=SYSCTL_ADD_NODE(&clist, SYSCTL_CHILDREN(a_root),
-		 OID_AUTO, nextlevel, CTLFLAG_RD, 0, "one level down");
+		 OID_AUTO, "nextlevel", CTLFLAG_RD, 0, "one level down");
 		SYSCTL_ADD_STRING(&clist, SYSCTL_CHILDREN(a_root1),
-		 OID_AUTO, string_c, CTLFLAG_RD, c, 0, "just to try 2");
+		 OID_AUTO, "string_c", CTLFLAG_RD, c, 0, "just to try 2");
 		printf("1. (%p)	/		  dyn_sysctl\n", &clist);
 
 		/* Add a subtree under already existing category */
 		a_root1 = SYSCTL_ADD_NODE(&clist, SYSCTL_STATIC_CHILDREN(_kern),
-		 OID_AUTO, dyn_sysctl, CTLFLAG_RW, 0, "dyn_sysctl root node");
+		 OID_AUTO, "dyn_sysctl", CTLFLAG_RW, 0, "dyn_sysctl root node");
 		if(a_root1 == NULL) {
 			printf("SYSCTL_ADD_NODE failed!\n");
 			return (EINVAL);
 		}
 		SYSCTL_ADD_PROC(&clist, SYSCTL_CHILDREN(a_root1),
-		 OID_AUTO, procedure, CTLFLAG_RD, 0, 0,
+		 OID_AUTO, "procedure", CTLFLAG_RD, 0, 0,
 		 sysctl_dyn_sysctl_test, "A", "I can be here, too");
 		printf("   (%p)	/kern		  dyn_sysctl\n", &clist);
 
 		/* Overlap second tree with the first. */
 		b_root = SYSCTL_ADD_NODE(&clist1, SYSCTL_CHILDREN(a_root),
-		 OID_AUTO, nextlevel, CTLFLAG_RD, 0, "one level down");
+		 OID_AUTO, "nextlevel", CTLFLAG_RD, 0, "one level down");
 		SYSCTL_ADD_STRING(&clist1, SYSCTL_CHILDREN(b_root),
-		 OID_AUTO, string_c1, CTLFLAG_RD, c, 0, "just to try 2");
+		 OID_AUTO, "string_c1", CTLFLAG_RD, c, 0, "just to try 2");
 		printf("2. (%p)	/		  dyn_sysctl	(overlapping #1)\n", &clist1);
 
 		/*
@@ -117,9 +117,9 @@ load (module_t mod, int cmd, void *arg)
 		 * WARNING: this is an example of WRONG use of dynamic sysctls.
 		 */
 		b_root=SYSCTL_ADD_NODE(&clist2, SYSCTL_CHILDREN(a_root1),
-		 OID_AUTO, bad, CTLFLAG_RW, 0, "dependent node");
+		 OID_AUTO, "bad", CTLFLAG_RW, 0, "dependent node");
 		SYSCTL_ADD_STRING(&clist2, SYSCTL_CHILDREN(b_root),
-		 OID_AUTO, string_c, CTLFLAG_RD, c, 0, "shouldn't panic");
+		 OID_AUTO, "string_c", CTLFLAG_RD, c, 0, "shouldn't panic");
 		printf("3. (%p)	/kern/dyn_sysctl  bad		(WRONG!)\n", &clist2);
 		break;
 	case MOD_UNLOAD :
