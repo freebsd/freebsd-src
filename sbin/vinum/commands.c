@@ -622,7 +622,7 @@ vinum_start(int argc, char *argv[], char *arg0[])
 					SSize <<= DEV_BSHIFT;
 				    message->blocksize = SSize;
 				} else
-				    message->blocksize = 0;
+				    message->blocksize = DEFAULT_REVIVE_BLOCKSIZE;
 				ioctl(superdev, VINUM_SETSTATE, message);
 				if (reply.error != 0) {
 				    if (reply.error == EAGAIN) /* we're reviving */
@@ -2355,6 +2355,7 @@ vinum_setstate(int argc, char *argv[], char *argv0[])
 void
 vinum_checkparity(int argc, char *argv[], char *argv0[])
 {
+    Verbose = vflag;					    /* accept -v for verbose */
     if (argc == 0)					    /* no parameters? */
 	fprintf(stderr, "Usage: checkparity object [object...]\n");
     else
@@ -2375,6 +2376,7 @@ vinum_rebuildparity(int argc, char *argv[], char *argv0[])
  * We bend the meanings of some flags here:
  *
  * -v: Report incorrect parity on rebuild.
+ * -V: Show running count of position being checked.
  * -f: Start from beginning of the plex.
  */
 void
