@@ -94,11 +94,7 @@ reg char	*av[]; {
 	leaveok(Score, TRUE);
 	leaveok(Miles, TRUE);
 	clearok(curscr, TRUE);
-# ifndef PROF
-	srandom(getpid());
-# else
-	srandom(0);
-# endif
+	srandomdev();
 	crmode();
 	noecho();
 	signal(SIGINT, rub);
