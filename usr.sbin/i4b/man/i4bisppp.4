@@ -22,12 +22,13 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: i4bisppp.4,v 1.9 1998/12/22 19:16:57 hm Exp $
+.\"	$Id: i4bisppp.4,v 1.1 1998/12/27 21:47:13 phk Exp $
 .\"
 .\"	last edit-date: [Tue Dec 22 20:15:08 1998]
 .\"
 .Dd December 22, 1998
-.Dt i4bisppp 4
+.Dt I4BISPPP 4
+.Os
 .Sh NAME
 .Nm i4bisppp
 .Nd isdn4bsd synchronous PPP over ISDN B-channel network driver
@@ -94,14 +95,18 @@ See
 for a more detailed discussion of the flags,
 .Pp
 .Sh SEE ALSO
-.Xr isdnd 8
-.Xr isdnd.rc 5
+.Xr tcpdump 1 ,
+.Xr bpf 4 ,
+.Xr sppp 4 ,
+.Xr isdnd.rc 5 ,
+.Xr isdnd 8 ,
 .Xr spppcontrol 8
-.Xr sppp 4
-.Xr bpf 4
-.Xr tcpdump 1
-.Sh AUTHOR
+.Sh AUTHORS
 The
 .Nm
-device driver was written by Joerg Wunsch and then added to ISDN4BSD by Gary Jennejohn.
-This manpage was written by Hellmuth Michaelis. He can be contacted at hm@kts.org.
+device driver was written by
+.An Joerg Wunsch
+and then added to ISDN4BSD by
+.An Gary Jennejohn .
+This manpage was written by
+.An Hellmuth Michaelis Aq hm@kts.org

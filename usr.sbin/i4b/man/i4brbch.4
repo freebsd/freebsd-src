@@ -22,12 +22,13 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: i4brbch.4,v 1.5 1998/12/05 18:06:11 hm Exp $
+.\"	$Id: i4brbch.4,v 1.1 1998/12/27 21:47:14 phk Exp $
 .\"
 .\"	last edit-date: [Sat Dec  5 18:39:19 1998]
 .\"
 .Dd February 3, 1998
-.Dt i4brbch 4
+.Dt I4BRBCH 4
+.Os
 .Sh NAME
 .Nm i4brbch
 .Nd isdn4bsd ISDN Raw B-CHannel access driver
@@ -41,10 +42,10 @@ The
 driver provides an interface to the raw untranslated B-channel. It is
 part of the isdn4bsd package.
 .Sh SEE ALSO
+.Xr isdnd.rc 5 ,
 .Xr isdnd 8
-.Xr isdnd.rc 5
-.Sh AUTHOR
+.Sh AUTHORS
 The
 .Nm
-device driver and this manpage were written by Hellmuth Michaelis. He can be
-contacted at hm@kts.org.
+device driver and this manpage were written by
+.An Hellmuth Michaelis Aq hm@kts.org
