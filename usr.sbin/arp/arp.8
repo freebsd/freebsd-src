@@ -88,7 +88,7 @@ with the
 flag.
 It the
 .Cm pub
-keyword is specified, only
+keyword is specified, only the
 .Dq published
 .Tn ARP
 entry
@@ -139,7 +139,7 @@ keyword is also specified, this will create a
 entry.
 This type of entry is created automatically if
 .Nm
-detects that the routing table entry for
+detects that a routing table entry for
 .Ar hostname
 already exists.
 .It Fl S Ar hostname ether_addr
@@ -148,7 +148,7 @@ Is just like
 except any existing
 .Tn ARP
 entry for this host will be deleted first.
-.It Fl f
+.It Fl f Ar filename
 Causes the file
 .Ar filename
 to be read and multiple entries to be set in the
