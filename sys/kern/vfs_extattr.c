@@ -365,14 +365,8 @@ update:
 		mp->mnt_flag |= MNT_RDONLY;
 	else if (mp->mnt_flag & MNT_RDONLY)
 		mp->mnt_kern_flag |= MNTK_WANTRDWR;
-	mp->mnt_flag &=~ (MNT_NOSUID | MNT_NOEXEC | MNT_NODEV |
-	    MNT_SYNCHRONOUS | MNT_UNION | MNT_ASYNC | MNT_NOATIME |
-	    MNT_NOSYMFOLLOW | MNT_IGNORE |
-	    MNT_NOCLUSTERR | MNT_NOCLUSTERW | MNT_SUIDDIR);
-	mp->mnt_flag |= fsflags & (MNT_NOSUID | MNT_NOEXEC |
-	    MNT_NODEV | MNT_SYNCHRONOUS | MNT_UNION | MNT_ASYNC | MNT_FORCE |
-	    MNT_NOSYMFOLLOW | MNT_IGNORE |
-	    MNT_NOATIME | MNT_NOCLUSTERR | MNT_NOCLUSTERW | MNT_SUIDDIR);
+	mp->mnt_flag &=~ MNT_UPDATEMASK;
+	mp->mnt_flag |= fsflags & (MNT_UPDATEMASK | MNT_FORCE);
 	/*
 	 * Mount the filesystem.
 	 * XXX The final recipients of VFS_MOUNT just overwrite the ndp they
