@@ -332,7 +332,7 @@ bpfopen(dev, flags, fmt, td)
 	 * Each minor can be opened by only one process.  If the requested
 	 * minor is in use, return EBUSY.
 	 */
-	if (d) {
+	if (d != NULL) {
 		mtx_unlock(&bpf_mtx);
 		return (EBUSY);
 	}
@@ -387,7 +387,7 @@ bpfclose(dev, flags, fmt, td)
 #endif /* MAC */
 	knlist_destroy(&d->bd_sel.si_note);
 	bpf_freed(d);
-	dev->si_drv1 = 0;
+	dev->si_drv1 = NULL;
 	free(d, M_BPF);
 
 	return (0);
@@ -404,7 +404,7 @@ bpfclose(dev, flags, fmt, td)
 	(d)->bd_hlen = (d)->bd_slen; \
 	(d)->bd_sbuf = (d)->bd_fbuf; \
 	(d)->bd_slen = 0; \
-	(d)->bd_fbuf = 0;
+	(d)->bd_fbuf = NULL;
 /*
  *  bpfread - read next chunk of packets from buffers
  */
