@@ -139,7 +139,7 @@ static char	*aac_describe_code(struct aac_code_lookup *table, u_int32_t code);
 static d_open_t		aac_open;
 static d_close_t	aac_close;
 static d_ioctl_t	aac_ioctl;
-static int		aac_ioctl_sendfib(struct aac_softc *sc, caddr_t ufib);
+static int		aac_ioctl_sendfib(struct aac_softc *sc, caddr_t ufib) __unused; 
 static void		aac_handle_aif(struct aac_softc *sc, struct aac_aif_command *aif);
 #ifdef AAC_COMPAT_LINUX
 static int		aac_linux_rev_check(struct aac_softc *sc, caddr_t udata);
