@@ -68,6 +68,7 @@ embedded LAN-on-motherboard applications.
 .Pp
 The 8169, 8169S and 8110S also support jumbo frames, which can be configured
 via the interface MTU setting.
+The MTU is limited to 7422, since the chip cannot transmit larger frames.
 Selecting an MTU larger than 1500 bytes with the
 .Xr ifconfig 8
 utility configures the adapter to receive and transmit jumbo frames.
