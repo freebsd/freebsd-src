@@ -1,4 +1,4 @@
-/* $Id: brooktree848.c,v 1.74 1999/05/09 17:06:40 peter Exp $ */
+/* $Id: brooktree848.c,v 1.75 1999/05/10 10:10:13 roger Exp $ */
 /* BT848 Driver for Brooktree's Bt848, Bt849, Bt878 and Bt 879 based cards.
    The Brooktree  BT848 Driver driver is based upon Mark Tinguely and
    Jim Lowe's driver for the Matrox Meteor PCI card . The 
@@ -4654,7 +4654,7 @@ static int oformat_meteor_to_bt( u_long format )
 
 		if (( pf1->type        == pf2->type        ) &&
 		    ( pf1->Bpp         == pf2->Bpp         ) &&
-		    !memcmp( pf1->masks, pf2->masks, sizeof( pf1->masks )) &&
+		    !bcmp( pf1->masks, pf2->masks, sizeof( pf1->masks )) &&
 		    ( pf1->swap_bytes  == pf2->swap_bytes  ) &&
 		    ( pf1->swap_shorts == pf2->swap_shorts )) 
 			break;
