@@ -38,7 +38,7 @@
 .Nm mkdep
 .Nd construct Makefile dependency list
 .Sh SYNOPSIS
-.Nm mkdep
+.Nm
 .Op Fl ap
 .Op Fl f Ar file
 .Op Ar flags
@@ -73,7 +73,7 @@ Write the include file dependencies to
 instead of the default ``.depend''.
 .It Fl p
 Cause
-.Nm mkdep
+.Nm
 to produce dependencies of the form:
 .Bd -literal -offset indent
 program: program.c
@@ -98,6 +98,6 @@ File containing list of dependencies.
 .El
 .Sh HISTORY
 The
-.Nm mkdep
+.Nm
 command appeared in
 .Bx 4.3 Tahoe .
