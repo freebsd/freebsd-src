@@ -20,9 +20,9 @@
    documentation and/or software.
  */
 
-#include "md2.h"
-#include <string.h>
 #include <sys/types.h>
+#include <string.h>
+#include "md2.h"
 
 
 typedef unsigned char *POINTER;

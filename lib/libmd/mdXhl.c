@@ -11,6 +11,7 @@
  */
 
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
 
@@ -43,19 +44,40 @@ MDXEnd(MDX_CTX *ctx, char *buf)
 char *
 MDXFile(const char *filename, char *buf)
 {
+    return MDXFileChunk(filename, buf, 0, 0);
+}
+
+char *
+MDXFileChunk(const char *filename, char *buf, off_t ofs, off_t len)
+{
     unsigned char buffer[BUFSIZ];
     MDX_CTX ctx;
-    int f,i,j;
+    struct stat stbuf;
+    int f, i, e;
+    off_t n;
 
     MDXInit(&ctx);
-    f = open(filename,O_RDONLY);
+    f = open(filename, O_RDONLY);
     if (f < 0) return 0;
-    while ((i = read(f,buffer,sizeof buffer)) > 0) {
-	MDXUpdate(&ctx,buffer,i);
-    }
-    j = errno;
+    if (fstat(f, &stbuf) < 0) return 0;
+    if (ofs > stbuf.st_size)
+	ofs = stbuf.st_size;
+    if ((len == 0) || (len > stbuf.st_size - ofs))
+	len = stbuf.st_size - ofs;
+    if (lseek(f, ofs, SEEK_SET) < 0) return 0;
+    n = len;
+    while (n > 0) {
+	if (n > sizeof(buffer))
+	    i = read(f, buffer, sizeof(buffer));
+	else
+	    i = read(f, buffer, n);
+	if (i < 0) break;
+	MDXUpdate(&ctx, buffer, i);
+	n -= i;
+    } 
+    e = errno;
     close(f);
-    errno = j;
+    errno = e;
     if (i < 0) return 0;
     return MDXEnd(&ctx, buf);
 }

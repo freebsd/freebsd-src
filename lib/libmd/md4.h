@@ -41,6 +41,7 @@ void   MD4Pad(MD4_CTX *);
 void   MD4Final(unsigned char [16], MD4_CTX *);
 char * MD4End(MD4_CTX *, char *);
 char * MD4File(const char *, char *);
+char * MD4FileChunk(const char *, char *, off_t, off_t);
 char * MD4Data(const unsigned char *, unsigned int, char *);
 __END_DECLS
 

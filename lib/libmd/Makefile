@@ -8,18 +8,24 @@ INCS=	md2.h md4.h md5.h ripemd.h sha.h
 
 MAN3+=  md2.3 md4.3 md5.3 ripemd.3 sha.3
 MLINKS+=md2.3 MD2Init.3 md2.3 MD2Update.3 md2.3 MD2Final.3
-MLINKS+=md2.3 MD2End.3  md2.3 MD2File.3   md2.3 MD2Data.3
+MLINKS+=md2.3 MD2End.3  md2.3 MD2File.3   md2.3 MD2FileChunk.3
+MLINKS+=md2.3 MD2Data.3
 MLINKS+=md4.3 MD4Init.3 md4.3 MD4Update.3 md4.3 MD4Final.3
-MLINKS+=md4.3 MD4End.3  md4.3 MD4File.3   md4.3 MD4Data.3
+MLINKS+=md4.3 MD4End.3  md4.3 MD4File.3   md4.3 MD4FileChunk.3
+MLINKS+=md4.3 MD4Data.3
 MLINKS+=md5.3 MD5Init.3 md5.3 MD5Update.3 md5.3 MD5Final.3
-MLINKS+=md5.3 MD5End.3  md5.3 MD5File.3   md5.3 MD5Data.3
+MLINKS+=md5.3 MD5End.3  md5.3 MD5File.3   md5.3 MD5FileChunk.3
+MLINKS+=md5.3 MD5Data.3
 MLINKS+=ripemd.3 RIPEMD160_Init.3  ripemd.3 RIPEMD160_Update.3
 MLINKS+=ripemd.3 RIPEMD160_Final.3 ripemd.3 RIPEMD160_Data.3
 MLINKS+=ripemd.3 RIPEMD160_End.3   ripemd.3 RIPEMD160_File.3
+MLINKS+=ripemd.3 RIPEMD160_FileChunk.3
 MLINKS+=sha.3 SHA_Init.3  sha.3 SHA_Update.3  sha.3 SHA_Final.3
-MLINKS+=sha.3 SHA_End.3   sha.3 SHA_File.3    sha.3 SHA_Data.3
+MLINKS+=sha.3 SHA_End.3   sha.3 SHA_File.3    sha.3 SHA_FileChunk.3
+MLINKS+=sha.3 SHA_Data.3
 MLINKS+=sha.3 SHA1_Init.3 sha.3 SHA1_Update.3 sha.3 SHA1_Final.3
-MLINKS+=sha.3 SHA1_End.3  sha.3 SHA1_File.3   sha.3 SHA1_Data.3
+MLINKS+=sha.3 SHA1_End.3  sha.3 SHA1_File.3   sha.3 SHA1_FileChunk.3
+MLINKS+=sha.3 SHA1_Data.3
 CLEANFILES+=	md[245]hl.c md[245].ref md[245].3 mddriver \
 		rmd160.ref rmd160hl.c rmddriver \
 		sha0.ref sha0hl.c sha1.ref sha1hl.c shadriver

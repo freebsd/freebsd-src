@@ -42,6 +42,7 @@ void   MD5Pad (MD5_CTX *);
 void   MD5Final (unsigned char [16], MD5_CTX *);
 char * MD5End(MD5_CTX *, char *);
 char * MD5File(const char *, char *);
+char * MD5FileChunk(const char *, char *, off_t, off_t);
 char * MD5Data(const unsigned char *, unsigned int, char *);
 #ifdef _KERNEL
 void MD5Transform __P((u_int32_t [4], const unsigned char [64]));
