@@ -37,7 +37,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aic79xx.c#191 $
+ * $Id: //depot/aic7xxx/aic7xxx/aic79xx.c#192 $
  *
  * $FreeBSD$
  */
@@ -5722,6 +5722,7 @@ ahd_alloc_scbs(struct ahd_softc *ahd)
 		next_scb->sg_list = segs;
 		next_scb->sense_data = sense_data;
 		next_scb->sense_busaddr = sense_busaddr;
+		memset(hscb, 0, sizeof(*hscb));
 		next_scb->hscb = hscb;
 		hscb->hscb_busaddr = ahd_htole32(hscb_busaddr);
 
@@ -8279,8 +8280,6 @@ ahd_loadseq(struct ahd_softc *ahd)
 	download_consts[PKT_OVERRUN_BUFOFFSET] =
 		(ahd->overrun_buf - (uint8_t *)ahd->qoutfifo) / 256;
 	download_consts[SCB_TRANSFER_SIZE] = SCB_TRANSFER_SIZE_1BYTE_LUN;
-	if ((ahd->bugs & AHD_PKT_LUN_BUG) != 0)
-		download_consts[SCB_TRANSFER_SIZE] = SCB_TRANSFER_SIZE_FULL_LUN;
 	cur_patch = patches;
 	downloaded = 0;
 	skip_addr = 0;
