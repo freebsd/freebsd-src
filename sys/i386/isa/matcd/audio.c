@@ -274,7 +274,7 @@ static int matcd_stop(int ldrive, int cdrive, int controller)
 -----------------------------------------------------------------------------*/
 
 static int matcd_level(int ldrive, int cdrive, int controller,
-		       struct ioc_vol * level, int action)
+		       struct ioc_vol * level, unsigned long action)
 {
 	struct	matcd_data *cd;
 	int	i,z,port;
@@ -351,7 +351,7 @@ static int matcd_level(int ldrive, int cdrive, int controller,
 -----------------------------------------------------------------------------*/
 
 static int matcd_route(int ldrive, int cdrive, int controller,
-		       int command)
+		       unsigned long command)
 {
 	struct	matcd_data *cd;
 	int	i,port;
