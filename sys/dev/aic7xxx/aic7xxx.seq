@@ -1,7 +1,7 @@
 /*
  * Adaptec 274x/284x/294x device driver firmware for Linux and FreeBSD.
  *
- * Copyright (c) 1994-1998 Justin Gibbs.
+ * Copyright (c) 1994-1999 Justin Gibbs.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7xxx.seq,v 1.82 1998/12/15 08:22:42 gibbs Exp $
+ *	$Id: aic7xxx.seq,v 1.83 1998/12/17 00:06:52 gibbs Exp $
  */
 
 #include <dev/aic7xxx/aic7xxx.reg>
@@ -215,22 +215,14 @@ select_in:
 		if ((ahc->flags & AHC_INITIATORMODE) != 0) {
 			test	SSTAT0, TARGET	jz initiator_reselect;
 		}
+
 		/*
 		 * We've just been selected.  Assert BSY and
 		 * setup the phase for receiving messages
 		 * from the target.
 		 */
-		
 		mvi	SCSISIGO, P_MESGOUT|BSYO;
 		mvi	CLRSINT1, CLRBUSFREE;
-
-		/*
-		 * LAST_MSG gives an indication to the host of what
-		 * went wrong should we need to terminate this selection
-		 * before doing real work.  Initialize it to SCB_LIST_NULL to
-		 * indicate an improper initiator selection.
-		 */
-		mvi	LAST_MSG, SCB_LIST_NULL;
 
 		/*
 		 * Setup the DMA for sending the identify and
@@ -273,6 +265,9 @@ select_in:
 			}
 		}
 
+		/* No tag yet */
+		mvi	INITIATOR_TAG, SCB_LIST_NULL;
+
 		/*
 		 * If ATN isn't asserted, the target isn't interested
 		 * in talking to us.  Go directly to bus free.
@@ -291,7 +286,7 @@ select_in:
 		 * BUS_DEVICE_RESET.
 		 */
 		/* XXX May need to be more lax here for older initiators... */
-		test	DINDEX, MSG_IDENTIFYFLAG jz more_first_messages;
+		test	DINDEX, MSG_IDENTIFYFLAG jz host_target_message_loop;
 		/* Store for host */
 		if ((ahc->features & AHC_CMD_CHAN) != 0) {
 			mov	CCSCBRAM, DINDEX;
@@ -329,6 +324,7 @@ select_in:
 		 * free.
 		 */
 		test	SCSISIGI, ATNI	jz	target_busfree;
+
 		/*
 		 * Store the tag for the host.
 		 */
@@ -338,16 +334,12 @@ select_in:
 		} else {
 			mov	DFDAT, DINDEX;
 		}
+		mov	INITIATOR_TAG, DINDEX;
 		jmp	ident_messages_done;
 
 		/*
 		 * Pushed message loop to allow the kernel to
-		 * run it's own message state engine.  To avoid an
-		 * extra nop instruction after signaling the kernel,
-		 * we perform the phase_lock before checking to see
-		 * if we should exit the loop and skip the phase_lock
-		 * in the ITloop.  Performing back to back phase_locks
-		 * shouldn't hurt, but why do it twice...
+		 * run it's own target mode message state engine.
 		 */
 host_target_message_loop:
 		mvi	INTSTAT, HOST_MSG_LOOP;
@@ -356,27 +348,14 @@ host_target_message_loop:
 		test	SSTAT0, SPIORDY jz .;
 		jmp	host_target_message_loop;
 
-more_first_messages:
-		/*
-		 * Hmm.  Now we're down to only accepting
-		 * either an ABORT or BDR. 
-		 */
-		cmp	DINDEX, MSG_ABORT		je . + 2;
-		cmp	DINDEX, MSG_BUS_DEV_RESET	jne target_busfree;
-
-		/* Record the event and notify the host */
-		mov	LAST_MSG,  DINDEX;
-		jmp	target_busfree;
-
 ident_messages_done:
-		mvi	LAST_MSG, MSG_NOOP;	/* We are so far successful */
 		/* Terminate the ident list */
 		if ((ahc->features & AHC_CMD_CHAN) != 0) {
 			mvi	CCSCBRAM, SCB_LIST_NULL;
 		} else {
 			mvi	DFDAT, SCB_LIST_NULL;
 		}
-		or	SEQ_FLAGS, TARG_CMD_PENDING;
+		or	SEQ_FLAGS, TARG_CMD_PENDING|IDENTIFY_SEEN;
 		test	SCSISIGI, ATNI	jnz target_mesgout_pending_msg;
 		jmp	target_ITloop;
 		
@@ -458,13 +437,15 @@ select_out:
 		 */
 		test	SCB_CONTROL, TAG_ENB	jz . + 3;
 		mvi	MSG_SIMPLE_Q_TAG call target_outb;
-		mov	SCB_TAG call target_outb;
+		mov	SCB_INITIATOR_TAG call target_outb;
+		mov	INITIATOR_TAG, SCB_INITIATOR_TAG;
 target_synccmd:
 		/*
 		 * Now determine what phases the host wants us
 		 * to go through.
 		 */
 		mov	SEQ_FLAGS, SCB_TARGET_PHASES;
+		
 
 target_ITloop:
 		/*
@@ -507,8 +488,6 @@ target_disconnect:
 target_busfree:
 		clr	SCSISIGO;
 		call	complete_target_cmd;
-		cmp	LAST_MSG, MSG_NOOP	je . + 2;
-		mvi	INTSTAT, TARGET_MSG_HELP;
 		call	clear_target_state;
 		jmp	poll_for_work;
 
@@ -558,13 +537,13 @@ target_dphase:
 		 * Data direction flags are from the
 		 * perspective of the initiator.
 		 */
-		mov	ALLZEROS call initialize_channel;
 		test	SCB_TARGET_PHASES[1], TARGET_DATA_IN jz . + 4;
 		mvi	LASTPHASE, P_DATAOUT;
 		mvi	P_DATAIN|BSYO call change_phase;
-		jmp	p_data;
+		jmp	. + 3;
 		mvi	LASTPHASE, P_DATAIN;
 		mvi	P_DATAOUT|BSYO call change_phase;
+		mov	ALLZEROS call initialize_channel;
 		jmp	p_data;
 
 target_sphase:
@@ -685,6 +664,7 @@ data_phase_reinit:
 		mvi	DINDEX, STCNT;
 		mvi	SCB_RESID_DCNT	call bcopy_3;
 	}
+	and	DATA_COUNT_ODD, 0x1, SCB_RESID_DCNT[0];
 	jmp	data_phase_loop;
 
 p_data:
@@ -719,6 +699,7 @@ p_data:
 		mvi	DINDEX, HADDR;
 		mvi	SCB_DATAPTR	call bcopy_7;
 	}
+	and	DATA_COUNT_ODD, 0x1, SCB_DATACNT[0];
 
 	if ((ahc->features & AHC_ULTRA2) == 0) {
 		if ((ahc->features & AHC_CMD_CHAN) != 0) {
@@ -845,6 +826,10 @@ prefetched_segs_avail:
 		mvi	HADDR	call dfdat_in_7;
 	}
 
+	/* Track odd'ness */
+	test	HCNT[0], 0x1 jz . + 2;
+	xor	DATA_COUNT_ODD, 0x1;
+
 	if ((ahc->features & AHC_ULTRA2) == 0) {
 		/* Load STCNT as well.  It is a mirror of HCNT */
 		if ((ahc->features & AHC_CMD_CHAN) != 0) {
@@ -895,6 +880,12 @@ data_phase_finish:
 	if ((ahc->flags & AHC_TARGETMODE) != 0) {
 		test	SEQ_FLAGS, DPHASE_PENDING jz ITloop;
 		and	SEQ_FLAGS, ~DPHASE_PENDING;
+		/*
+		 * For data-in phases, wait for any pending acks from the
+		 * initiator before changing phase.
+		 */
+		test	DFCNTRL, DIRECTION jz target_ITloop;
+		test	SSTAT1, REQINIT	jnz .;
 		jmp	target_ITloop;
 	}
 	jmp	ITloop;
