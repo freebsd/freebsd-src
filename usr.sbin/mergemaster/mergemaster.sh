@@ -446,7 +446,7 @@ case "${RERUN}" in
       ;;
     esac
     make DESTDIR=${TEMPROOT} distrib-dirs &&
-    make DESTDIR=${TEMPROOT} -DNO_MAKEDEV distribution;} ||
+    make DESTDIR=${TEMPROOT} -DNO_MAKEDEV_RUN distribution;} ||
   { echo '';
     echo "  *** FATAL ERROR: Cannot 'cd' to ${SOURCEDIR} and install files to the";
     echo "      temproot environment";
