@@ -277,7 +277,7 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
                         dl->name, dl->cfg.dial.max - dl->dial.tries,
                         dl->cfg.dial.max);
           } else
-            datalink_LoginDone(dl);
+            datalink_NewState(dl, DATALINK_CARRIER);
           return datalink_UpdateSet(d, r, w, e, n);
         } else {
           if (!(dl->physical->type & (PHYS_DDIAL|PHYS_DEDICATED)) &&
@@ -316,14 +316,20 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
           return 0;	/* A device timer is running to wake us up again */
 
         case CARRIER_OK:
-          datalink_NewState(dl, DATALINK_LOGIN);
-          chat_Init(&dl->chat, dl->physical, dl->cfg.script.login, 0, NULL);
+          if (dl->script.run) {
+            datalink_NewState(dl, DATALINK_LOGIN);
+            chat_Init(&dl->chat, dl->physical, dl->cfg.script.login, 0, NULL);
+          } else
+            datalink_LoginDone(dl);
           return datalink_UpdateSet(d, r, w, e, n);
 
         case CARRIER_LOST:
-          datalink_NewState(dl, DATALINK_HANGUP);
           physical_Offline(dl->physical);	/* Is this required ? */
-          chat_Init(&dl->chat, dl->physical, dl->cfg.script.hangup, 1, NULL);
+          if (dl->script.run) { 
+            datalink_NewState(dl, DATALINK_HANGUP);
+            chat_Init(&dl->chat, dl->physical, dl->cfg.script.hangup, 1, NULL);
+          } else
+            datalink_HangupDone(dl);
           return datalink_UpdateSet(d, r, w, e, n);
       }
 
