@@ -1074,18 +1074,16 @@ shadowlookup:
 		 * page queues to mess with.  Things can break if we mess
 		 * with pages in any of the below states.
 		 */
-		if (
-		    m->hold_count ||
+		vm_page_lock_queues();
+		if (m->hold_count ||
 		    m->wire_count ||
 		    (m->flags & PG_UNMANAGED) ||
-		    m->valid != VM_PAGE_BITS_ALL
-		) {
+		    m->valid != VM_PAGE_BITS_ALL) {
+			vm_page_unlock_queues();
 			continue;
 		}
-
- 		if (vm_page_sleep_busy(m, TRUE, "madvpo"))
+ 		if (vm_page_sleep_if_busy(m, TRUE, "madvpo"))
   			goto relookup;
-		vm_page_lock_queues();
 		if (advise == MADV_WILLNEED) {
 			vm_page_activate(m);
 		} else if (advise == MADV_DONTNEED) {
@@ -1736,6 +1734,7 @@ vm_object_page_remove(vm_object_t object, vm_pindex_t start, vm_pindex_t end, bo
 
 	vm_object_pip_add(object, 1);
 again:
+	vm_page_lock_queues();
 	size = end - start;
 	if (all || size > object->resident_page_count / 4) {
 		for (p = TAILQ_FIRST(&object->memq); p != NULL; p = next) {
@@ -1752,7 +1751,7 @@ again:
 				 * The busy flags are only cleared at
 				 * interrupt -- minimize the spl transitions
 				 */
- 				if (vm_page_sleep_busy(p, TRUE, "vmopar"))
+ 				if (vm_page_sleep_if_busy(p, TRUE, "vmopar"))
  					goto again;
 
 				if (clean_only && p->valid) {
@@ -1760,17 +1759,14 @@ again:
 					if (p->valid & p->dirty)
 						continue;
 				}
-				vm_page_lock_queues();
 				vm_page_busy(p);
 				vm_page_protect(p, VM_PROT_NONE);
 				vm_page_free(p);
-				vm_page_unlock_queues();
 			}
 		}
 	} else {
 		while (size > 0) {
-			if ((p = vm_page_lookup(object, start)) != 0) {
-
+			if ((p = vm_page_lookup(object, start)) != NULL) {
 				if (p->wire_count != 0) {
 					vm_page_protect(p, VM_PROT_NONE);
 					if (!clean_only)
@@ -1784,7 +1780,7 @@ again:
 				 * The busy flags are only cleared at
 				 * interrupt -- minimize the spl transitions
 				 */
- 				if (vm_page_sleep_busy(p, TRUE, "vmopar"))
+				if (vm_page_sleep_if_busy(p, TRUE, "vmopar"))
 					goto again;
 
 				if (clean_only && p->valid) {
@@ -1795,16 +1791,15 @@ again:
 						continue;
 					}
 				}
-				vm_page_lock_queues();
 				vm_page_busy(p);
 				vm_page_protect(p, VM_PROT_NONE);
 				vm_page_free(p);
-				vm_page_unlock_queues();
 			}
 			start += 1;
 			size -= 1;
 		}
 	}
+	vm_page_unlock_queues();
 	vm_object_pip_wakeup(object);
 	mtx_unlock(&Giant);
 }
