@@ -83,6 +83,7 @@ Author: Martin Renters
 #define RFC1048_COOKIE		{ 99, 130, 83, 99 }
 #define RFC1048_PAD		0
 #define RFC1048_NETMASK		1
+#define RFC1048_GATEWAY		3
 #define RFC1048_HOSTNAME	12
 #define RFC1048_END		255
 #define BOOTP_VENDOR_LEN	64
