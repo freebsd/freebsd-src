@@ -34,43 +34,46 @@
 .\"
 .Dd November 17, 1999
 .Dt WHOIS 1
-.Os BSD 4.3
+.Os
 .Sh NAME
 .Nm whois
-.Nd Internet domain name and network number directory service
+.Nd "Internet domain name and network number directory service"
 .Sh SYNOPSIS
 .Nm
 .Op Fl adgimpQrR6
 .Op Fl h Ar host
 .Ar name ...
 .Sh DESCRIPTION
-.Nm Whois
+.Nm
 looks up records in the databases maintained by several
 Network Information Centers
 .Pq Tn NICs .
 .Pp
 The options are as follows:
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Fl a
 Use the American Registry for Internet Numbers
 .Pq Tn ARIN
-database.  It contains network numbers used in those parts of the world
-covered neither by
-.Tn APNIC nor by
+database.
+It contains network numbers used in those parts of the world covered neither by
+.Tn APNIC
+nor by
 .Tn RIPE .
-Contact (handle) information should be looked up by appending "-ARIN" to the
-NIC handle:
+Contact (handle) information should be looked up by appending
+.Qq Li -ARIN
+to the NIC handle:
 .Pp
-.D1 Ic $ whois -a foo3-ARIN
+.Dl "$ whois -a foo3-ARIN"
 .Pp
 .It Fl d
 Use the US Department of Defense
-database.  It contains points of contact for subdomains of
-.Tn \&.MIL .
+database.
+It contains points of contact for subdomains of
+.Pa .MIL .
 .It Fl g
 Use the US non-military federal government database, which contains points of
 contact for subdomains of
-.Tn \&.GOV .
+.Pa .GOV .
 .It Fl h Ar host
 Use the specified host instead of the default variant.
 Either a host name or an IP address may be specified.
@@ -79,34 +82,42 @@ By default
 .Nm
 construct the name of a whois server to use from the top-level domain
 .Pq Tn TLD
-of the supplied (single) argument, and appending ".whois-servers.net".
+of the supplied (single) argument, and appending
+.Qq Li .whois-servers.net .
 This effectively allows a suitable whois server to be selected
 automatically for a large number of TLDs.
-If no required whois-servers.net subdomain found, fallback
-to whois.crsnic.net provided.
+If no required
+.Pa whois-servers.net
+subdomain found, fallback to
+.Pa whois.crsnic.net
+provided.
 .It Fl i
 Use the Network Solutions Registry for Internet Numbers
-.Pq Tn whois.networksolutions.com
-database.  It contains network numbers and domain contact information
-for most of
-.Tn \&.COM ,
-.Tn \&.NET ,
-.Tn \&.ORG
+.Pq Pa whois.networksolutions.com
+database.
+It contains network numbers and domain contact information for most of
+.Pa .COM , .NET , .ORG
 and
-.Tn \&.EDU
+.Pa .EDU
 domains.
-NOTE! The registration of these domains is now done by a number of
-independent and competing registrars and this database holds no information
-on the domains registered by organizations other than Network Solutions, Inc. 
-Also, note that the InterNIC database
-.Pq Tn whois.internic.net
-is no longer handled by Network Solutions, Inc.
-For details, see:
-http://www.internic.net/.
-Contact (handle) information should be looked up by prefixing "handle " to the
-NIC handle in the querry:
 .Pp
-.D1 Ic $ whois -i 'handle foo3'
+.Sy NOTE !
+The registration of these domains is now done by a number of
+independent and competing registrars and this database holds no information
+on the domains registered by organizations other than Network Solutions, Inc.
+Also, note that the
+.Tn InterNIC
+database
+.Pq Pa whois.internic.net
+is no longer handled by Network Solutions, Inc.
+For details, see
+.Pa http://www.internic.net/ .
+.Pp
+Contact (handle) information should be looked up by prefixing
+.Qq Li "handle "
+to the NIC handle in the querry:
+.Pp
+.Dl "$ whois -i 'handle foo3'"
 .Pp
 .It Fl m
 Use the Route Arbiter Database
@@ -117,29 +128,35 @@ number of operators' networks.
 .It Fl p
 Use the Asia/Pacific Network Information Center
 .Pq Tn APNIC
-database.  It contains network numbers used in East Asia, Australia,
+database.
+It contains network numbers used in East Asia, Australia,
 New Zealand, and the Pacific islands.
 .It Fl Q
-Do a quick lookup.  This means that
+Do a quick lookup.
+This means that
 .Nm
 will not attempt to lookup the name in the authoritative whois
 server (if one is listed) nor will it contact InterNic if a lookup
-fails.  This flag has no effect when combined with any other flag.
+fails.
+This flag has no effect when combined with any other flag.
 .It Fl r
 Use the R\(aaeseaux IP Europ\(aaeens
 .Pq Tn RIPE
-database.  It contains network numbers and domain contact information
+database.
+It contains network numbers and domain contact information
 for Europe.
 .It Fl R
 Use the Russia Network Information Center
 .Pq Tn RIPN
-database.  It contains network numbers and domain contact information
+database.
+It contains network numbers and domain contact information
 for subdomains of
-.Tn \&.RU .
+.Pa .RU .
 .It Fl 6
 Use the IPv6 Resource Center
 .Pq Tn 6bone
-database.  It contains network names and addresses for the IPv6 network.
+database.
+It contains network names and addresses for the IPv6 network.
 .El
 .Pp
 The operands specified to
@@ -159,7 +176,7 @@ For more information as to what
 .Ar name
 operands have special meaning, and how to guide the search, use
 the special name
-.Dq Ar help .
+.Dq Li help .
 .Sh SEE ALSO
 .Rs
 .%A Ken Harrenstien
