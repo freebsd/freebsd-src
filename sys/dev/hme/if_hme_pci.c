@@ -120,16 +120,14 @@ hme_pci_attach(device_t dev)
 {
 	struct hme_pci_softc *hsc = device_get_softc(dev);
 	struct hme_softc *sc = &hsc->hsc_hme;
-	u_int16_t csr;
 	int error;
 
 	/*
-	 * enable io/memory-space accesses.  this is kinda of gross; but
-	 * the hme comes up with neither IO space enabled, or memory space.
+	 * Enable memory-space and bus master accesses.  This is kinda of
+	 * gross; but the hme comes up with neither enabled.
 	 */
-	csr = pci_read_config(dev, PCIR_COMMAND, 2);
-	csr |= PCIM_CMD_PORTEN | PCIM_CMD_MEMEN | PCIM_CMD_BUSMASTEREN;
-	pci_write_config(dev, PCIR_COMMAND, csr, 2);
+	pci_enable_busmaster(dev);
+	pci_enable_io(dev, SYS_RES_MEMORY);
 
 	sc->sc_pci = 1; /* XXXXX should all be done in bus_dma. */
 	sc->sc_dev = dev;
