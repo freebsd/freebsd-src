@@ -4615,7 +4615,7 @@ softdep_fsync(vp)
 		 * doing a UFS_UPDATE. Pagedeps contained in indirect blocks
 		 * may require a complete sync'ing of the directory. So, we
 		 * try the cheap and fast UFS_UPDATE first, and if that fails,
-		 * then we do the slower VOP_FSYNC of the directory.
+		 * then we do the slower ffs_syncvnode of the directory.
 		 */
 		if (flushparent) {
 			if ((error = UFS_UPDATE(pvp, 1)) != 0) {
@@ -4623,7 +4623,7 @@ softdep_fsync(vp)
 				return (error);
 			}
 			if ((pagedep->pd_state & NEWBLOCK) &&
-			    (error = VOP_FSYNC(pvp, MNT_WAIT, td))) {
+			    (error = ffs_syncvnode(pvp, MNT_WAIT))) {
 				vput(pvp);
 				return (error);
 			}
@@ -4707,15 +4707,8 @@ softdep_fsync_mountdev(vp)
  * associated with the file. If any I/O errors occur, they are returned.
  */
 int
-softdep_sync_metadata(ap)
-	struct vop_fsync_args /* {
-		struct vnode *a_vp;
-		struct ucred *a_cred;
-		int a_waitfor;
-		struct thread *a_td;
-	} */ *ap;
+softdep_sync_metadata(struct vnode *vp)
 {
-	struct vnode *vp = ap->a_vp;
 	struct pagedep *pagedep;
 	struct allocdirect *adp;
 	struct allocindir *aip;
@@ -5051,7 +5044,6 @@ flush_pagedep_deps(pvp, mp, diraddhdp)
 	struct mount *mp;
 	struct diraddhd *diraddhdp;
 {
-	struct thread *td = curthread;
 	struct inodedep *inodedep;
 	struct ufsmount *ump;
 	struct diradd *dap;
@@ -5083,7 +5075,7 @@ flush_pagedep_deps(pvp, mp, diraddhdp)
 		 * A newly allocated directory must have its "." and
 		 * ".." entries written out before its name can be
 		 * committed in its parent. We do not want or need
-		 * the full semantics of a synchronous VOP_FSYNC as
+		 * the full semantics of a synchronous ffs_syncvnode as
 		 * that may end up here again, once for each directory
 		 * level in the filesystem. Instead, we push the blocks
 		 * and wait for them to clear. We have to fsync twice
@@ -5096,8 +5088,8 @@ flush_pagedep_deps(pvp, mp, diraddhdp)
 			FREE_LOCK(&lk);
 			if ((error = VFS_VGET(mp, inum, LK_EXCLUSIVE, &vp)))
 				break;
-			if ((error=VOP_FSYNC(vp, MNT_NOWAIT, td)) ||
-			    (error=VOP_FSYNC(vp, MNT_NOWAIT, td))) {
+			if ((error=ffs_syncvnode(vp, MNT_NOWAIT)) ||
+			    (error=ffs_syncvnode(vp, MNT_NOWAIT))) {
 				vput(vp);
 				break;
 			}
@@ -5379,7 +5371,7 @@ clear_remove(td)
 				ACQUIRE_LOCK(&lk);
 				return;
 			}
-			if ((error = VOP_FSYNC(vp, MNT_NOWAIT, td)))
+			if ((error = ffs_syncvnode(vp, MNT_NOWAIT)))
 				softdep_error("clear_remove: fsync", error);
 			VI_LOCK(vp);
 			drain_output(vp);
@@ -5456,10 +5448,10 @@ clear_inodedeps(td)
 			return;
 		}
 		if (ino == lastino) {
-			if ((error = VOP_FSYNC(vp, MNT_WAIT, td)))
+			if ((error = ffs_syncvnode(vp, MNT_WAIT)))
 				softdep_error("clear_inodedeps: fsync1", error);
 		} else {
-			if ((error = VOP_FSYNC(vp, MNT_NOWAIT, td)))
+			if ((error = ffs_syncvnode(vp, MNT_NOWAIT)))
 				softdep_error("clear_inodedeps: fsync2", error);
 			VI_LOCK(vp);
 			drain_output(vp);
