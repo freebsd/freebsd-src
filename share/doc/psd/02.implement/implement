@@ -40,6 +40,10 @@
 .\"	@(#)implement	8.1 (Berkeley) 6/8/93
 .\"
 .\" $FreeBSD$
+.R1
+database ref.bib
+accumulate
+.R2
 .EH 'PSD:2-%''UNIX Implementation'
 .OH 'UNIX Implementation''PSD:2-%'
 .de P1
@@ -281,9 +285,9 @@ all the data associated with a process
 may be accessed
 starting from the process table entry.
 .KF
-.in .375i
+.if t .in .375i
 .so fig1.pic
-.in -.375i
+.if t .in -.375i
 .sp 2v
 .ce
 Fig. 1\(emProcess control data structure.
@@ -1023,9 +1027,9 @@ away,
 the table entry is copied back to the
 secondary store i-list and the table entry is freed.
 .KF
-.in .25i
+.if t .in .25i
 .so fig2.pic
-.in -.25i
+.if t .in -.25i
 .sp 2v
 .ce
 Fig. 2\(emFile system data structure.
