@@ -237,22 +237,35 @@ found:
 	npr->pr_domain = dp;
 	fpr = NULL;
 
+	/*
+	 * Protect us against races when two protocol registrations for
+	 * the same protocol happen at the same time.
+	 */
+	mtx_lock(&Giant);
+
 	/* The new protocol must not yet exist. */
 	for (pr = dp->dom_protosw; pr < dp->dom_protoswNPROTOSW; pr++) {
 		if ((pr->pr_type == npr->pr_type) &&
-		    (pr->pr_protocol == npr->pr_protocol))
+		    (pr->pr_protocol == npr->pr_protocol)) {
+			mtx_unlock(&Giant);
 			return (EEXIST);	/* XXX: Check only protocol? */
+		}
 		/* While here, remember the first free spacer. */
 		if ((fpr == NULL) && (pr->pr_protocol == PROTO_SPACER))
 			fpr = pr;
 	}
 
 	/* If no free spacer is found we can't add the new protocol. */
-	if (fpr == NULL)
+	if (fpr == NULL) {
+		mtx_unlock(&Giant);
 		return (ENOMEM);
+	}
 
 	/* Copy the new struct protosw over the spacer. */
 	bcopy(npr, fpr, sizeof(*fpr));
+
+	/* Job is done, no more protection required. */
+	mtx_unlock(&Giant);
 
 	/* Initialize and activate the protocol. */
 	if (fpr->pr_init)
@@ -291,19 +304,25 @@ pf_proto_unregister(family, protocol, type)
 found:
 	dpr = NULL;
 
+	/* Lock out everyone else while we are manipulating the protosw. */
+	mtx_lock(&Giant);
+
 	/* The protocol must exist and only once. */
 	for (pr = dp->dom_protosw; pr < dp->dom_protoswNPROTOSW; pr++) {
 		if ((pr->pr_type == type) && (pr->pr_protocol == protocol)) {
-			if (dpr != NULL)
+			if (dpr != NULL) {
+				mtx_unlock(&Giant);
 				return (EMLINK);   /* Should not happen! */
-			else
+			} else
 				dpr = pr;
 		}
 	}
 
 	/* Protocol does not exist. */
-	if (dpr == NULL)
+	if (dpr == NULL) {
+		mtx_unlock(&Giant);
 		return (EPROTONOSUPPORT);
+	}
 
 	/* De-orbit the protocol and make the slot available again. */
 	dpr->pr_type = 0;
@@ -320,6 +339,9 @@ found:
 	dpr->pr_slowtimo = NULL;
 	dpr->pr_drain = NULL;
 	dpr->pr_usrreqs = &nousrreqs;
+
+	/* Job is done, not more protection required. */
+	mtx_unlock(&Giant);
 
 	return (0);
 }
