@@ -53,7 +53,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)ffs_softdep.c	9.40 (McKusick) 6/15/99
- *	$Id: ffs_softdep.c,v 1.31 1999/06/16 23:27:55 mckusick Exp $
+ *	$Id: ffs_softdep.c,v 1.32 1999/06/26 02:46:35 mckusick Exp $
  */
 
 /*
@@ -67,13 +67,13 @@
 #endif
 
 #include <sys/param.h>
-#include <sys/buf.h>
 #include <sys/kernel.h>
+#include <sys/systm.h>
+#include <sys/buf.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/proc.h>
 #include <sys/syslog.h>
-#include <sys/systm.h>
 #include <sys/vnode.h>
 #include <miscfs/specfs/specdev.h>
 #include <ufs/ufs/dir.h>
