@@ -20,7 +20,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: aic7xxx.h,v 1.3 1995/02/03 17:15:12 gibbs Exp $
+ *	$Id: aic7xxx.h,v 1.4 1995/02/22 01:43:25 gibbs Exp $
  */
 
 #ifndef _AIC7XXX_H_
@@ -46,11 +46,13 @@ struct ahc_dma_seg {
 };
  
 typedef u_char ahc_type;
+#define	AHC_NONE	0x00
 #define	AHC_WIDE	0x02	/* Wide Channel */
 #define AHC_TWIN	0x08	/* Twin Channel */
 #define	AHC_274		0x10	/* EISA Based Controller */
 #define	AHC_284		0x20	/* VL/ISA Based Controller */
-#define	AHC_294		0x40	/* PCI Based Controller */
+#define	AHC_AIC7870	0x40	/* PCI Based Controller */
+#define	AHC_294		0xc0	/* PCI Based Controller */
 
 /*
  * The driver keeps up to MAX_SCB scb structures per card in memory.  Only the
@@ -135,7 +137,8 @@ struct ahc_data {
 	u_short	tagenable;		/* Targets that can handle tagqueing */
 	int	numscbs;
 	u_char	maxscbs;
-	int	unpause;
+	u_char	unpause;
+	u_char	pause;
 };
 
 extern struct ahc_data *ahcdata[NAHC];

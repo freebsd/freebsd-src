@@ -24,7 +24,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aic7xxx.c,v 1.16 1995/03/07 08:59:28 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.17 1995/03/17 23:58:27 gibbs Exp $
  */
 /*
  * TODO:
@@ -333,9 +333,6 @@ struct scsi_device ahc_dev =
 #define		PAUSE		0x04
 #define		INTEN		0x02
 #define		CHIPRST		0x01
-#define		REQ_PAUSE	IRQMS | PAUSE | INTEN
-#define		UNPAUSE_274X	IRQMS | INTEN
-#define		UNPAUSE_284X	INTEN
 
 /*
  * SCB Pointer (p. 3-49)
@@ -357,11 +354,12 @@ struct scsi_device ahc_dev =
 #define			MSG_WDTR	0x50
 #define			MSG_REJECT	0x60
 #define			BAD_STATUS	0x70
+#define			RESIDUAL	0x80
 #define 	BRKADRINT 0x08
 #define		SCSIINT	  0x04
 #define		CMDCMPLT  0x02
 #define		SEQINT    0x01
-#define		INT_PEND  (SEQINT | SCSIINT | CMDCMPLT)  /* For polling */
+#define		INT_PEND  (BRKADRINT | SEQINT | SCSIINT | CMDCMPLT)
 
 /*
  * Hard Error (p. 3-53)
@@ -380,7 +378,7 @@ struct scsi_device ahc_dev =
  */
 #define CLRINT			0xc92ul
 #define		CLRBRKADRINT	0x08
-#define		CLRINTSTAT     0x04   /* UNDOCUMENTED - must be unpaused */
+#define		CLRSCSIINT      0x04
 #define		CLRCMDINT 	0x02
 #define		CLRSEQINT 	0x01
 
@@ -467,6 +465,7 @@ struct scsi_device ahc_dev =
 
 #define HA_SCBCOUNT		0xc52ul
 #define HA_FLAGS		0xc53ul
+#define		SINGLE_BUS	0x00
 #define		TWIN_BUS	0x01
 #define		WIDE_BUS	0x02
 #define		SENSE		0x10
@@ -493,7 +492,7 @@ struct scsi_device ahc_dev =
  * XXX Should add a timeout in here??
  */     
 #define PAUSE_SEQUENCER(ahc)      \
-        outb(HCNTRL + ahc->baseport, REQ_PAUSE);   \
+        outb(HCNTRL + ahc->baseport, ahc->pause);   \
 				\
         while ((inb(HCNTRL + ahc->baseport) & PAUSE) == 0)             \
                         ;                                               
@@ -755,22 +754,14 @@ ahcintr(unit)
 	struct scb *scb = NULL;
 	struct scsi_xfer *xs = NULL; 
 
-	/*
-	 * Check that we are in the "running" state, and should be 
-	 * receiving interrupts.  The reason for doing this is that 
-	 * we have a choice of edge or level sensitive interrupts, 
-	 * and if we have the wrong type set, we'll get spurrious 
-	 * interrupts.  Toggle to the other type if need be.
-	 */
-	if(ahc->flags != AHC_RUNNING){
-		printf("ahc%d: Switching interrupt type\n", unit);
-                ahc->unpause ^= 0x8;
-                outb(HCNTRL + iobase, inb(HCNTRL + iobase) ^ 0x8);
-                return 1;
-	}
-	
         intstat = inb(INTSTAT + iobase);
  
+	/*
+	 * Is this interrupt for me? or for
+	 * someone who is sharing my interrupt
+	 */
+	if (!(intstat & INT_PEND))
+		return 0;
         if (intstat & BRKADRINT) { 
 		/* We upset the sequencer :-( */
 
@@ -779,11 +770,10 @@ ahcintr(unit)
 		int num_errors =  sizeof(hard_error)/sizeof(hard_error[0]);
 		for(i = 0; error != 1 && i < num_errors; i++)
 			error >>= 1;
-                panic("ahc%d: brkadrint, %s at seqaddr = 0x%lx\n",
+                panic("ahc%d: brkadrint, %s at seqaddr = 0x%x\n",
 		      unit, hard_error[i].errmesg, 
 		      (inb(SEQADDR1 + iobase) << 8) | 
 		      inb(SEQADDR0 + iobase));
-
         }
         if (intstat & SEQINT) { 
                 unsigned char transfer;
@@ -997,8 +987,8 @@ ahcintr(unit)
 					 */
 #ifdef AHC_DEBUG
 					if(ahc_debug & AHC_SHOWMISC)
-						printf("Ignored message "
-							"reject!!\n");
+						printf("Message reject -- "
+						       "ignored\n");
 #endif
 					break;
 				}
@@ -1036,9 +1026,6 @@ ahcintr(unit)
 				ahc_print_scb(scb);
 #endif
 			xs->status = scb->target_status;
-			xs->resid = ((scb->residual_data_count[2] << 16) |
-				(scb->residual_data_count[1] << 8)  |
-				scb->residual_data_count[0]);
 			switch(scb->target_status){
 			    case SCSI_OK:
 				printf("ahc%d: Interrupted for staus of"
@@ -1111,12 +1098,11 @@ ahcintr(unit)
 			    case SCSI_BUSY:
 				xs->error = XS_BUSY;
 				printf("ahc%d: Target Busy\n", unit);
-					break;
+				break;
 			    case SCSI_QUEUE_FULL:
 				/*
-				 * Stick this command into the "waiting"
-				 * slot to be retarted on the next command
-				 * complete
+				 * The upper level SCSI code will eventually
+				 * handle this properly.
 				 */
 				printf("ahc%d: Queue Full\n", unit);
 				xs->error = XS_BUSY;
@@ -1127,6 +1113,22 @@ ahcintr(unit)
 				xs->error = XS_DRIVER_STUFFUP;
 				break;
 			}
+			break;
+		  }
+		  case RESIDUAL:
+		  {
+			int   scb_index;
+			scb_index = inb(SCBPTR + iobase);
+			scb = ahc->scbarray[scb_index];
+			/*
+			 * Don't clobber valid resid info with
+			 * a resid coming from a check sense
+			 * operation.
+			 */
+			if(!(scb->flags & SCB_SENSE))
+			    scb->xs->resid = (inb(iobase+SCBARRAY+17) << 16) |
+					     (inb(iobase+SCBARRAY+16) << 8) |
+					      inb(iobase+SCBARRAY+15);
 			break;
 		  }
 		  default:  
@@ -1163,7 +1165,7 @@ clear:
 				unit, status, scb_index);
                         outb(CLRSINT1 + iobase, status);
                         UNPAUSE_SEQUENCER(ahc);
-                        outb(CLRINT + iobase, CLRINTSTAT);
+                        outb(CLRINT + iobase, CLRSCSIINT);
 			scb = NULL;
 			goto cmdcomplete;
                 }
@@ -1195,13 +1197,14 @@ clear:
 
                         RESTART_SEQUENCER(ahc);
                          
-                        outb(CLRINT + iobase, CLRINTSTAT);
+                        outb(CLRINT + iobase, CLRSCSIINT);
                 }       
                         
                 if (status & SCSIPERR) { 
-                        printf("ahc%d: parity error on channel A "
+                        printf("ahc%d: parity error on channel %c "
 			       "target %d, lun %d\n",
 			       unit,
+			       ((u_long)xs->sc_link->fordriver & 0x08)? 'B':'A',
                                xs->sc_link->target,
                                xs->sc_link->lun);
                         xs->error = XS_DRIVER_STUFFUP;
@@ -1209,7 +1212,7 @@ clear:
                         outb(CLRSINT1 + iobase, CLRSCSIPERR);
                         UNPAUSE_SEQUENCER(ahc);
                          
-                        outb(CLRINT + iobase, CLRINTSTAT);
+                        outb(CLRINT + iobase, CLRSCSIINT);
 			scb = NULL;
                 }       
                 if (status & BUSFREE) {
@@ -1228,7 +1231,7 @@ clear:
 			     unit, status);
                       outb(CLRSINT1 + iobase, status);
                       UNPAUSE_SEQUENCER(ahc);
-                      outb(CLRINT + iobase, CLRINTSTAT);
+                      outb(CLRINT + iobase, CLRSCSIINT);
 		      scb = NULL;
                 }
 		if(scb != NULL) {
@@ -1327,7 +1330,7 @@ ahc_init(unit)
 	struct  ahc_data *ahc = ahcdata[unit];
 	u_long	iobase = ahc->baseport;
 	u_char	scsi_conf, sblkctl;
-	int     intdef, i;
+	int     intdef, i, max_targ = 16, wait;
 
 	/*
 	 * Assume we have a board at this stage
@@ -1341,21 +1344,39 @@ ahc_init(unit)
 #endif /* AHC_DEBUG */
 	printf("ahc%d: reading board settings\n", unit);
 
+	/* Save the IRQ type before we do a chip reset */
+
+	ahc->unpause = (inb(HCNTRL + iobase) & IRQMS) | INTEN;
+	ahc->pause = (inb(HCNTRL + iobase) & IRQMS) | INTEN | PAUSE;
 	outb(HCNTRL + iobase, CHIPRST);
+	/*
+	 * Ensure that the reset has finished
+	 */
+	wait = 1000;
+	while (wait--) {
+		DELAY(1000);
+		if(!(inb(HCNTRL + iobase) & CHIPRST))
+			break;
+	}
+	if(wait == 0) {
+		printf("ahc%d: Failed chip reset - probe failed!\n", unit);
+		return(1);
+	}
 	switch( ahc->type ) {
 	   case AHC_274:
 		printf("ahc%d: 274x ", unit);
- 		ahc->unpause = UNPAUSE_274X;
 		ahc->maxscbs = 0x4;
 		break;
 	   case AHC_284:
 		printf("ahc%d: 284x ", unit);
-		ahc->unpause = UNPAUSE_284X;
 		ahc->maxscbs = 0x4;
 		break;
+	   case AHC_AIC7870:
 	   case AHC_294:
-		printf("ahc%d: 294x ", unit);
-		ahc->unpause = UNPAUSE_274X;
+		if( ahc->type == AHC_AIC7870)
+			printf("ahc%d: aic7870 ", unit);
+		else
+			printf("ahc%d: 294x ", unit);
 		ahc->maxscbs = 0x10;
 		#define DFTHRESH        3
 		outb(DSPCISTATUS + iobase, DFTHRESH << 6);
@@ -1372,6 +1393,7 @@ ahc_init(unit)
             case 0:
 		ahc->our_id = (inb(HA_SCSICONF + iobase) & HSCSIID);
                 printf("Single Channel, SCSI Id=%d, ", ahc->our_id);
+		outb(HA_FLAGS + iobase, SINGLE_BUS);
                 break;
             case 2:
 		ahc->our_id = (inb(HA_SCSICONF + 1 + iobase) & HWSCSIID);
@@ -1399,13 +1421,13 @@ ahc_init(unit)
 	 * Number of SCBs that will be used. Rev E aic7770s and
 	 * aic7870s have 16.  The rest have 4.
 	 */
-	if(!(ahc->type & AHC_294))
+	if(!(ahc->type & AHC_AIC7870))
 	{
 		/* 
 		 * See if we have a Rev E or higher
 		 * aic7770.  If so, use 16 SCBs.
 		 * Anything below a Rev E will have a
-		 * R/O autoflush diable configuration bit.
+		 * R/O autoflush disable configuration bit.
 		 */
 		u_char sblkctl_orig;
 		sblkctl_orig = inb(SBLKCTL + iobase);
@@ -1428,7 +1450,7 @@ ahc_init(unit)
 	else
 		printf("aic7870, ");
 	printf("%d SCBs\n", ahc->maxscbs);
-	if(!(ahc->type & AHC_294)){
+	if(!(ahc->type & AHC_AIC7870)){
 	/* 
 	 * The 294x cards are PCI, so we get their interrupt from the PCI
 	 * BIOS. 
@@ -1490,12 +1512,15 @@ ahc_init(unit)
 	 */
 	ahc->needsdtr_orig = 0;
 	ahc->needwdtr_orig = 0;
-	for(i = 0; i < 16; i++){
+	if(!(ahc->type & AHC_WIDE))
+		max_targ = 8;
+
+	for(i = 0; i < max_targ; i++){
 		u_char target_settings = inb(HA_TARG_SCRATCH + i + iobase);
 		if(target_settings & 0x0f){
 			ahc->needsdtr_orig |= (0x01 << i);
-			/* Default to a syncronous offset of 15 */
-			target_settings |= 0x0f;
+			/* Default to a asyncronous transfers (0 offset) */
+			target_settings &= 0xf0;
 		}
 		if(target_settings & 0x80){
 			ahc->needwdtr_orig |= (0x01 << i);
@@ -1547,7 +1572,7 @@ ahc_init(unit)
 	printf("Done\n");
 
         outb(SEQCTL + iobase, FASTMODE);
-	if (!(ahc->type & AHC_294))
+	if (!(ahc->type & AHC_AIC7870))
 		outb(BCTL + iobase, ENABLE); 
 
 	/* Reset the bus */
@@ -1601,16 +1626,6 @@ ahc_scsi_cmd(xs)
         struct ahc_data *ahc = ahcdata[unit];
         int     s;
 
-	/*
-	 * Set a flag that states, yes, we can receive interrupts
-	 * the reason for doing this is that we have a choice of
-	 * edge or level sensitive interrupts, and if we have the
-	 * wrong type, we'll get spurrious interrupts.  We check
-	 * this flag in the interrupt handler and toggle to the
-	 * other type if need be.
-	 */
-	ahc->flags = AHC_RUNNING;
-
         SC_DEBUG(xs->sc_link, SDEV_DB2, ("ahc_scsi_cmd\n"));
         /* 
          * get an scb to use. If the transfer
@@ -1642,23 +1657,24 @@ ahc_scsi_cmd(xs)
          * Put all the arguments for the xfer in the scb
          */     
 
+	if(ahc->tagenable & mask)
+		scb->control |= SCB_TE;
 	if((ahc->needwdtr & mask) && !(ahc->wdtrpending & mask))     
 	{
 		scb->control |= SCB_NEEDWDTR;
 		ahc->wdtrpending |= mask;
 	}
-	else if((ahc->needsdtr & mask) && !(ahc->sdtrpending & mask))
+	if((ahc->needsdtr & mask) && !(ahc->sdtrpending & mask))
 	{
 		scb->control |= SCB_NEEDSDTR;
 		ahc->sdtrpending |= mask;
 	}
-	else if(ahc->tagenable & mask)
-		scb->control |= SCB_TE;
 	scb->target_channel_lun = ((xs->sc_link->target << 4) & 0xF0) | 
 				  ((u_long)xs->sc_link->fordriver & 0x08) |
 				  (xs->sc_link->lun & 0x07);
         scb->cmdlen = xs->cmdlen;
 	scb->cmdpointer = KVTOPHYS(xs->cmd);
+	xs->resid = 0;
         if (xs->datalen) {      /* should use S/G only if not zero length */
                 scb->SG_list_pointer = KVTOPHYS(scb->ahc_dma); 
                 sg = scb->ahc_dma;
@@ -1919,14 +1935,14 @@ ahc_poll(int unit, int wait)
         u_long	stport = INTSTAT + iobase;  
 
         while (--wait) {
-                DELAY(10000);
+                DELAY(1000);
                 if (inb(stport) & INT_PEND)
                         break;
         } if (wait == 0) {
                 printf("ahc%d: board not responding\n", unit);
                 return (EIO);
         }
-        ahcintr(unit);          
+	ahcintr(unit);
         return (0);
 }
 
