@@ -1541,7 +1541,7 @@ set filter
 .Op estab
 .Op syn
 .Op finrst
-.Oc
+.Oc Op timeout Ar secs
 .Bl -enum
 .It
 .Ar Name
@@ -1644,6 +1644,15 @@ flags are only allowed when
 is set to
 .Sq tcp ,
 and represent the TH_ACK, TH_SYN and TH_FIN or TH_RST TCP flags respectively.
+.It
+The timeout value adjusts the current idle timeout to at least
+.Ar secs
+seconds.
+If a timeout is given in the alive filter as well as in the in/out
+filter, the in/out value is used.  If no timeout is given, the default
+timeout (set using
+.Ic set timeout
+and defaulting to 180 seconds) is used.
 .El
 .Pp
 .It
@@ -1651,8 +1660,9 @@ Each filter can hold up to 40 rules, starting from rule 0.
 The entire rule set is not effective until rule 0 is defined,
 i.e., the default is to allow everything through.
 .It
-If no rule is matched to a packet, that packet will be discarded
-(blocked).
+If no rule in a defined set of rules matches a packet, that packet will
+be discarded (blocked).
+If there are no rules in a given filter, the packet will be permitted.
 .It
 It's possible to filter based on the payload of UDP frames where those
 frames contain a
@@ -4385,7 +4395,7 @@ as they travel across the link.
 .Op estab
 .Op syn
 .Op finrst
-.Oc
+.Oc Op timeout Ar secs
 .Xc
 .Nm
 supports four filter sets.
@@ -4410,7 +4420,7 @@ filter specifies packets that are allowed out of the machine.
 Filtering is done prior to any IP alterations that might be done by the
 NAT engine on outgoing packets and after any IP alterations that might
 be done by the NAT engine on incoming packets.
-By default all filter sets allow all packets to pass.
+By default all empty filter sets allow all packets to pass.
 Rules are processed in order according to
 .Ar rule-no
 (unless skipped by specifying a rule number as the
@@ -4425,8 +4435,12 @@ and
 filters, this means that the packet is dropped.
 In the case of
 .Em alive
-filters it means that the packet will not reset the idle timer and in
-the case of
+filters it means that the packet will not reset the idle timer (even if
+the
+.Ar in Ns No / Ns Ar out
+filter has a
+.Dq timeout
+value) and in the case of
 .Em dial
 filters it means that the packet will not trigger a dial.
 A packet failing to trigger a dial will be dropped rather than queued.
