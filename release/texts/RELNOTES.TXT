@@ -80,6 +80,11 @@ ethernet adapters.
 Driver support has been added for Adaptec Duralink PCI ethernet adapters
 based on the Adaptec AIC-6915 fast ethernet controller.
 
+Driver support has been added for PCI fast ethernet adapters based on
+the Sundance Technologies ST201 controller, including the D-Link DFE-550TX.
+
+Driver support has been added for the 3Com 3c905C-TX. [MERGED]
+
 1.2. SECURITY FIXES
 -------------------
 A new jail(2) system call and admin command (jail(8)) have been added for
@@ -282,7 +287,11 @@ Winbond W89C840F fast ethernet NICs including the following:
 VIA Technologies VT3043 "Rhine I" and VT86C100A "Rhine II" fast ethernet
 NICs including the following:
   Hawking Technologies PN102TX
-  D-Link DFE530TX
+  D-Link DFE-530TX
+
+Sundance Technologies ST201 PCI fast ethernet NICs including
+the following:
+  D-Link DFE-550TX
 
 SysKonnect SK-984x PCI gigabit ethernet cards including the following:
   SK-9841 1000baseLX single mode fiber, single port
@@ -333,8 +342,8 @@ Winbond W89C940, Surecom NE-34, VIA VT86C926.
 
 3Com 3C507 Etherlink 16/TP
 
-3Com 3C509, 3C579, 3C589 (PCMCIA), 3C590/592/595/900/905/905B PCI and EISA
-(Fast) Etherlink III / (Fast) Etherlink XL
+3Com 3C509, 3C579, 3C589 (PCMCIA), 3C590/592/595/900/905/905B/905C PCI
+and EISA (Fast) Etherlink III / (Fast) Etherlink XL
 
 3Com 3c980 Fast Etherlink XL server adapter
 
