@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,9 @@
  *	i4b_l1.h - isdn4bsd layer 1 header file
  *	---------------------------------------
  *
- *	$Id: i4b_isic_ext.h,v 1.3 2000/06/02 16:14:36 hm Exp $ 
- *
  * $FreeBSD$
  *
- *      last edit-date: [Fri Jun  2 14:43:57 2000]
+ *      last edit-date: [Wed Jan 24 09:11:12 2001]
  *
  *---------------------------------------------------------------------------*/
 

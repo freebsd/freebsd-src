@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,9 @@
  *	isic - I4B Siemens ISDN Chipset Driver for Creatix/Teles PnP
  *	============================================================
  *
- *	$Id: i4b_ctx_s0P.c,v 1.4 2000/08/22 11:30:04 hm Exp $ 
- *
  * $FreeBSD$
  *
- *	last edit-date: [Fri Oct 13 15:59:45 2000]
+ *	last edit-date: [Wed Jan 24 09:07:22 2001]
  *
  *	Note: this driver works for the Creatix ISDN S0-16 P+P and
  *	      for the Teles S0/16.3 PnP card. Although they are not
@@ -50,13 +48,12 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/socket.h>
-
-
 #include <net/if.h>
 
 #include <machine/i4b_ioctl.h>
+#include <machine/i4b_trace.h>
 
-
+#include <i4b/layer1/i4b_l1.h>
 #include <i4b/layer1/isic/i4b_isic.h>
 #include <i4b/layer1/isic/i4b_hscx.h>
 

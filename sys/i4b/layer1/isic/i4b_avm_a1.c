@@ -1,7 +1,7 @@
 /*
  *   Copyright (c) 1996 Andrew Gordon. All rights reserved.
  *
- *   Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
+ *   Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
  *
  *   Redistribution and use in source and binary forms, with or without
  *   modification, are permitted provided that the following conditions
@@ -35,11 +35,9 @@
  *	i4b_avm_a1.c - AVM A1/Fritz passive card driver for isdn4bsd
  *	------------------------------------------------------------
  *
- *	$Id: i4b_avm_a1.c,v 1.3 2000/05/29 15:41:41 hm Exp $ 
- *
  * $FreeBSD$
  *
- *      last edit-date: [Mon May 29 16:42:06 2000]
+ *      last edit-date: [Wed Jan 24 09:25:23 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -51,13 +49,12 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/socket.h>
-
 #include <net/if.h>
 
-
 #include <machine/i4b_ioctl.h>
+#include <machine/i4b_trace.h>
 
-
+#include <i4b/layer1/i4b_l1.h>
 #include <i4b/layer1/isic/i4b_isic.h>
 #include <i4b/layer1/isic/i4b_hscx.h>
 
@@ -182,7 +179,6 @@ isic_probe_avma1(device_t dev)
 
 	sc = &l1_sc[unit];			/* get pointer to softc */
 	sc->sc_unit = unit;			/* set unit */
-	sc->sc_flags = FLAG_AVM_A1;		/* set flags */
 
 	/* see if an io base was supplied */
 	
