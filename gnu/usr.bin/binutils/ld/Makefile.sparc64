@@ -24,13 +24,13 @@ SRCS+=		eelf32_sparc.c
 CLEANFILES+=	eelf32_sparc.c
 
 eelf64_sparc.c:	emulparams/elf64_sparc.sh emultempl/elf32.em \
-		scripttempl/elf.sc genscripts.sh emultempl/stringify.sed
+		scripttempl/elf.sc genscripts.sh stringify.sed
 	sh ${.CURDIR}/genscripts.sh ${SRCDIR}/ld ${_sparc_path} \
 	    ${HOST} sparc64-unknown-freebsd sparc64-unknown-freebsd \
 	    elf64_sparc "" elf64_sparc sparc64-unknown-freebsd
 
 eelf32_sparc.c:	emulparams/elf32_sparc.sh emultempl/elf32.em \
-		scripttempl/elf.sc genscripts.sh emultempl/stringify.sed
+		scripttempl/elf.sc genscripts.sh stringify.sed
 	sh ${.CURDIR}/genscripts.sh ${SRCDIR}/ld ${_sparc_path} \
 	    ${HOST} sparc64-unknown-freebsd sparc64-unknown-freebsd \
 	    elf32_sparc "" elf32_sparc sparc64-unknown-freebsd
