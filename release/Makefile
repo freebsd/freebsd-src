@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.484 1999/05/13 02:49:23 jkh Exp $
+#	$Id: Makefile,v 1.485 1999/05/15 11:51:39 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -636,7 +636,7 @@ doKERNEL:
 	@cd ${.CURDIR}/../sys/compile/${KERNEL} && \
 			make  depend && \
 			make  ${KERNEL} && \
-			cp kernel ${RD}/kernels/${KERNEL}
+			cp ${KERNEL} ${RD}/kernels/${KERNEL}
 
 #
 # --==## Put a filesystem into a BOOTMFS kernel ##==--
