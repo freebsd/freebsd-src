@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.88 1997/06/25 20:59:58 fsmp Exp $
+ *	$Id: clock.c,v 1.89 1997/07/13 01:18:47 fsmp Exp $
  */
 
 /*
@@ -961,11 +961,13 @@ cpu_initclocks()
 	writertc(RTC_STATUSB, rtc_statusb);
 
 #ifdef APIC_IO
-	printf("Enabled INTs: ");
-	for (x = 0; x < 24; ++x)
-		if ((imen & (1 << x)) == 0)
-	        	printf("%d, ", x);
-	printf("imen: 0x%08x\n", imen);
+	if (bootverbose) {
+		printf("SMP: enabled INTs: ");
+		for (x = 0; x < 24; ++x)
+			if ((imen & (1 << x)) == 0)
+	        		printf("%d, ", x);
+		printf("imen: 0x%08x\n", imen);
+	}
 #endif /* APIC_IO */
 }
 
