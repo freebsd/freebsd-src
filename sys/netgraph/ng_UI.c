@@ -67,11 +67,11 @@
 #define HDLC_UI	0x03
 
 /* Node private data */
-struct private {
+struct ng_UI_private {
 	hook_p  downlink;
 	hook_p  uplink;
 };
-typedef struct private *priv_p;
+typedef struct ng_UI_private *priv_p;
 
 /* Netgraph node methods */
 static ng_constructor_t	ng_UI_constructor;
