@@ -405,6 +405,7 @@ tcpOpenDialog(Device *devp)
 	    Mkdir("/var/db");
 	    Mkdir("/var/run");
 	    Mkdir("/tmp");
+	    vsystem("dhclient -r %s", devp->name);
 	    msgNotify("Scanning for DHCP servers...");
 	    if (0 == vsystem("dhclient -1 %s", devp->name)) {
 		dhcpGetInfo(devp);
