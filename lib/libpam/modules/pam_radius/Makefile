@@ -26,16 +26,15 @@
 
 PAMDIR=		${.CURDIR}/../../../../contrib/libpam
 
-PROG=		pam_radius.so
+LIB=		pam_radius
+SHLIB_NAME=	pam_radius.so
 SRCS=		pam_radius.c
-CFLAGS+=	-fpic
 CFLAGS+=	-Wall
 CFLAGS+=	-I${PAMDIR}/libpam/include
 CFLAGS+=	-I${.CURDIR}/../../libpam
-LDFLAGS+=	-shared
-LDFLAGS+=	-L../../libpam
 DPADD+=		${LIBRADIUS} ${LIBGCC_PIC}
-LDADD+=		-lpam -lradius -lgcc_pic
-NOMAN=		true
+LDADD+=		-lradius -lgcc_pic
+INTERNALLIB=	yes
+INTERNALSTATICLIB=yes
 
-.include <bsd.prog.mk>
+.include <bsd.lib.mk>

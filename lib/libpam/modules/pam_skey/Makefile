@@ -26,16 +26,15 @@
 
 PAMDIR=		${.CURDIR}/../../../../contrib/libpam
 
-PROG=		pam_skey.so
+LIB=		pam_skey
+SHLIB_NAME=	pam_skey.so
 SRCS=		pam_skey.c
-CFLAGS+=	-fpic
 CFLAGS+=	-Wall
 CFLAGS+=	-I${PAMDIR}/libpam/include
 CFLAGS+=	-I${.CURDIR}/../../libpam
-LDFLAGS+=	-shared
-LDFLAGS+=	-L../../libpam
 DPADD+=		${LIBSKEY} ${LIBGCC_PIC}
-LDADD+=		-lpam -lskey -lgcc_pic
-NOMAN=		true
+LDADD+=		-lskey -lgcc_pic
+INTERNALLIB=	yes
+INTERNALSTATICLIB=yes
 
-.include <bsd.prog.mk>
+.include <bsd.lib.mk>

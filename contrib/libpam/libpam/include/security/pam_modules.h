@@ -28,6 +28,21 @@
 #ifndef _SECURITY_PAM_MODULES_H
 #define _SECURITY_PAM_MODULES_H
 
+/*
+ * Define either PAM_STATIC or PAM_DYNAMIC, based on whether PIC
+ * compilation is being used.
+ */
+#if !defined(PIC) && !defined(PAM_STATIC)
+#define PAM_STATIC
+#endif
+#ifndef PAM_STATIC
+#define PAM_DYNAMIC
+#endif
+
+#ifdef PAM_STATIC
+#include <linker_set.h>
+#endif
+
 #include <security/_pam_types.h>      /* Linux-PAM common defined types */
 
 /* these defines are used by pam_set_item() and pam_get_item() and are
@@ -71,9 +86,50 @@ struct pam_module {
 			    int argc, const char **argv);
 };
 
+#ifdef PAM_SM_AUTH
+#define PAM_SM_AUTH_ENTRY	pam_sm_authenticate
+#define PAM_SM_SETCRED_ENTRY	pam_sm_setcred
+#else
+#define PAM_SM_AUTH_ENTRY	NULL
+#define PAM_SM_SETCRED_ENTRY	NULL
+#endif
+
+#ifdef PAM_SM_ACCOUNT
+#define PAM_SM_ACCOUNT_ENTRY	pam_sm_acct_mgmt
+#else
+#define PAM_SM_ACCOUNT_ENTRY	NULL
+#endif
+
+#ifdef PAM_SM_SESSION
+#define PAM_SM_OPEN_SESSION_ENTRY	pam_sm_open_session
+#define PAM_SM_CLOSE_SESSION_ENTRY	pam_sm_close_session
+#else
+#define PAM_SM_OPEN_SESSION_ENTRY	NULL
+#define PAM_SM_CLOSE_SESSION_ENTRY	NULL
+#endif
+
+#ifdef PAM_SM_PASSWORD
+#define PAM_SM_PASSWORD_ENTRY	pam_sm_chauthtok
+#else
+#define PAM_SM_PASSWORD_ENTRY	NULL
+#endif
+
+#define PAM_MODULE_ENTRY(name)			\
+    static struct pam_module _pam_modstruct = {	\
+	name,					\
+	PAM_SM_AUTH_ENTRY,			\
+	PAM_SM_SETCRED_ENTRY,			\
+	PAM_SM_ACCOUNT_ENTRY,			\
+	PAM_SM_OPEN_SESSION_ENTRY,		\
+	PAM_SM_CLOSE_SESSION_ENTRY,		\
+	PAM_SM_PASSWORD_ENTRY			\
+    };						\
+    DATA_SET(_pam_static_modules, _pam_modstruct)
+
 #else /* !PAM_STATIC */
 
 #define PAM_EXTERN extern
+#define PAM_MODULE_ENTRY(name)
 
 #endif /* PAM_STATIC */
 	
