@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: asnames.h,v 1.3 1997/05/25 16:58:03 fsmp Exp $
+ * $Id: asnames.h,v 1.4 1997/06/22 16:03:47 peter Exp $
  */
 
 #ifndef _MACHINE_ASNAMES_H_
@@ -57,6 +57,7 @@
 #define _APTmap				APTmap
 #define _CONST_QNaN			CONST_QNaN
 #define _IdlePTD			IdlePTD
+#define _KPTphys			KPTphys
 #define _MP_GDT				MP_GDT
 #define _MPgetlock			MPgetlock
 #define _MPrellock			MPrellock
@@ -64,9 +65,12 @@
 #define _PTD				PTD
 #define _PTDpde				PTDpde
 #define _PTmap				PTmap
+#define _SMP_ioapic			SMP_ioapic
+#define _SMP_prvpt			SMP_prvpt
 #define _Xalign				Xalign
 #define _Xbnd				Xbnd
 #define _Xbpt				Xbpt
+#define _Xcpustop			Xcpustop
 #define _Xdbg				Xdbg
 #define _Xdiv				Xdiv
 #define _Xdna				Xdna
@@ -132,6 +136,7 @@
 #define _Xpage				Xpage
 #define _Xprot				Xprot
 #define _Xrsvd				Xrsvd
+#define _Xspuriousint			Xspuriousint
 #define _Xstk				Xstk
 #define _Xsyscall			Xsyscall
 #define _Xtss				Xtss
@@ -139,8 +144,11 @@
 #define __ucodesel			_ucodesel
 #define __udatasel			_udatasel
 #define _alltraps			alltraps
+#define _ap_init			ap_init
 #define _apic_base			apic_base
 #define _apic_id_to_logical		apic_id_to_logical
+#define _apic_imen			apic_imen
+#define _apic_pin_trigger		apic_pin_trigger
 #define _apm_addr			apm_addr
 #define _apm_bios_call			apm_bios_call
 #define _apm_cs16_base			apm_cs16_base
@@ -168,6 +176,7 @@
 #define _bootMP				bootMP
 #define _bootMP_size			bootMP_size
 #define _bootPTD			bootPTD
+#define _boot_get_mplock		boot_get_mplock
 #define _bootdev			bootdev
 #define _boothowto			boothowto
 #define _bootinfo			bootinfo
@@ -178,6 +187,7 @@
 #define _copyin_vector			copyin_vector
 #define _copyout_vector			copyout_vector
 #define _cpl				cpl
+#define _cpl_lock			cpl_lock
 #define _cpu				cpu
 #define _cpu0prvpage			cpu0prvpage
 #define _cpu0prvpt			cpu0prvpt
@@ -186,7 +196,9 @@
 #define _cpu_feature			cpu_feature
 #define _cpu_high			cpu_high
 #define _cpu_id				cpu_id
+#define _cpu_switch			cpu_switch
 #define _cpu_vendor			cpu_vendor
+#define _cpuid				cpuid
 #define _curpcb				curpcb
 #define _curproc			curproc
 #define _currentldt			currentldt
@@ -196,23 +208,30 @@
 #define _div_small			div_small
 #define _divide_by_zero			divide_by_zero
 #define _divide_kernel			divide_kernel
+#define _do_page_zero_idle		do_page_zero_idle
 #define _edata				edata
 #define _eintrcnt			eintrcnt
 #define _eintrnames			eintrnames
 #define _end				end
 #define _etext				etext
 #define _exception			exception
+#define _fast_intr_lock			fast_intr_lock
 #define _fastmove			fastmove
 #define _generic_bcopy			generic_bcopy
 #define _generic_bzero			generic_bzero
 #define _generic_copyin			generic_copyin
 #define _generic_copyout		generic_copyout
+#define _get_align_lock			get_align_lock
+#define _get_altsyscall_lock		get_altsyscall_lock
+#define _get_fpu_lock			get_fpu_lock
 #define _get_mplock			get_mplock
+#define _get_syscall_lock		get_syscall_lock
 #define _i586_ctr_bias			i586_ctr_bias
 #define _i586_ctr_freq			i586_ctr_freq
 #define _i586_ctr_multiplier		i586_ctr_multiplier
 #define _idqs				idqs
 #define _imen				imen
+#define _imen_lock			imen_lock
 #define _init386			init386
 #define _init_secondary			init_secondary
 #define _intr_countp			intr_countp
@@ -222,10 +241,13 @@
 #define _intr_unit			intr_unit
 #define _intrcnt			intrcnt
 #define _intrnames			intrnames
+#define _ioapic				ioapic
 #define _ipending			ipending
+#define _isr_lock			isr_lock
 #define _ivectors			ivectors
 #define _kernelname			kernelname
 #define _kstack				kstack
+#define _lapic				lapic
 #define _linux_sigcode			linux_sigcode
 #define _linux_szsigcode		linux_szsigcode
 #define _main				main
@@ -236,6 +258,7 @@
 #define _mp_lock			mp_lock
 #define _mp_ncpus			mp_ncpus
 #define _mul64				mul64
+#define _my_idlePTD			my_idlePTD
 #define _net_imask			net_imask
 #define _netisr				netisr
 #define _netisrs			netisrs
@@ -248,6 +271,7 @@
 #define _npxintr			npxintr
 #define _npxproc			npxproc
 #define _npxsave			npxsave
+#define _other_cpus			other_cpus
 #define _ovbcopy_vector			ovbcopy_vector
 #define _panic				panic
 #define _poly_div16			poly_div16
@@ -257,6 +281,12 @@
 #define _probeintr			probeintr
 #define _probetrap			probetrap
 #define _proc0paddr			proc0paddr
+#define _prv_CMAP1			prv_CMAP1
+#define _prv_CMAP2			prv_CMAP2
+#define _prv_CMAP3			prv_CMAP3
+#define _prv_CPAGE1			prv_CPAGE1
+#define _prv_CPAGE2			prv_CPAGE2
+#define _prv_CPAGE3			prv_CPAGE3
 #define _qs				qs
 #define _rcpoll				rcpoll
 #define _real_2op_NaN			real_2op_NaN
@@ -269,6 +299,8 @@
 #define _round_reg			round_reg
 #define _rtqs				rtqs
 #define _runtime			runtime
+#define _s_lock				s_lock
+#define _s_unlock			s_unlock
 #define _secondary_main			secondary_main
 #define _set_precision_flag_down	set_precision_flag_down
 #define _set_precision_flag_up		set_precision_flag_up
@@ -279,7 +311,12 @@
 #define _siopoll			siopoll
 #define _smp_active			smp_active
 #define _softclock			softclock
+#define _spl0				spl0
 #define _splz				splz
+#define _ss_lock			ss_lock
+#define _ss_unlock			ss_unlock
+#define _started_cpus			started_cpus
+#define _stopped_cpus			stopped_cpus
 #define _syscall			syscall
 #define _szsigcode			szsigcode
 #define _time				time
