@@ -116,7 +116,8 @@ struct vnode {
 	enum	vtagtype v_tag;			/* type of underlying data */
 	void 	*v_data;			/* private data for fs */
 	LIST_HEAD(, namecache) v_cache_src;	/* Cache entries from us */
-	TAILQ_HEAD(, namecache) v_cache_dst;	/* Cache entries to us */
+	TAILQ_HEAD(cdst, namecache) v_cache_dst;	/* Cache entries to us */
+	int     v_cache_dst_count;			/* number of cache entries pointing to us */
 	struct	vnode *v_dd;			/* .. vnode */
 	u_long	v_ddid;				/* .. capability identifier */
 	struct	{
