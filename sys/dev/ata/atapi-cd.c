@@ -45,6 +45,7 @@
 #include <sys/fcntl.h>
 #include <sys/conf.h>
 #include <sys/ctype.h>
+#include <machine/bus.h>
 #include <dev/ata/ata-all.h>
 #include <dev/ata/atapi-all.h>
 #include <dev/ata/atapi-cd.h>
@@ -223,6 +224,7 @@ acddetach(struct ata_device *atadev)
 	free(entry, M_ACD);
     }
     destroy_dev(cdp->dev);
+    EVENTHANDLER_DEREGISTER(dev_clone, cdp->clone_evh);
     devstat_remove_entry(cdp->stats);
     free(cdp->stats, M_ACD);
     ata_free_name(atadev);
@@ -253,6 +255,28 @@ acd_init_lun(struct ata_device *atadev)
     return cdp;
 }
 
+/*
+ * Handle dev_clone events, so that acd can be used as root device.
+ */
+static void
+acd_clone(void *arg, char *name, int namelen, dev_t *dev)
+{
+    struct acd_softc *cdp;
+    char *p;
+    int unit;
+
+    cdp = arg;
+    if (*dev != NODEV)
+	return;
+    if (!dev_stdclone(name, &p, "acd", &unit))
+	return;
+    /* Handle compatability slices. */
+    if (*p != '\0' && strcmp(p, "a") != 0 && strcmp(p, "c") != 0)
+	return;
+    if (unit == cdp->lun)
+	*dev = makedev(acd_cdevsw.d_maj, dkmakeminor(cdp->lun, 0, 0));
+}
+
 static void
 acd_make_dev(struct acd_softc *cdp)
 {
@@ -267,6 +291,7 @@ acd_make_dev(struct acd_softc *cdp)
     dev->si_bsize_phys = 2048; /* XXX SOS */
     cdp->dev = dev;
     cdp->device->flags |= ATA_D_MEDIA_CHANGED;
+    cdp->clone_evh = EVENTHANDLER_REGISTER(dev_clone, acd_clone, cdp, 1000);
 }
 
 static void 

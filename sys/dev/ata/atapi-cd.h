@@ -76,11 +76,6 @@ struct audiopage {
     } port[4];
 };
 
-/* CDROM Capabilities and Mechanical Status Page */
-struct cappage {
-    /* mode page data header */
-    u_int16_t	data_length;
-    u_int8_t	medium_type;
 #define MST_TYPE_MASK_LOW	0x0f
 #define MST_FMT_NONE		0x00
 #define MST_DATA_120		0x01
@@ -101,15 +96,35 @@ struct cappage {
 #define MST_DOOR_OPEN		0x71
 #define MST_FMT_ERROR		0x72
 
+#define MST_MECH_CADDY		0
+#define MST_MECH_TRAY		1
+#define MST_MECH_POPUP		2
+#define MST_MECH_CHANGER	4
+#define MST_MECH_CARTRIDGE	5
+
+#define MST_DLEN_32		0
+#define MST_DLEN_16		1
+#define MST_DLEN_24		2
+#define MST_DLEN_24_I2S		3
+
+#define ATAPI_CDROM_CAP_PAGE	0x2a
+
+/* CDROM Capabilities and Mechanical Status Page */
+struct cappage {
+    /* mode page data header */
+    u_int16_t	data_length;
+    u_int8_t	medium_type;
+
     u_int8_t	dev_spec;
     u_int8_t	unused[2];
     u_int16_t	blk_desc_len;
 
     /* capabilities page */
     u_int8_t	page_code;
-#define ATAPI_CDROM_CAP_PAGE	0x2a
 
     u_int8_t	param_len;
+
+#if BYTE_ORDER == LITTLE_ENDIAN
     u_int8_t	read_cdr	:1;	/* supports CD-R read */
     u_int8_t	read_cdrw	:1;	/* supports CD-RW read */
     u_int8_t	read_packet	:1;	/* supports reading packet tracks */
@@ -117,6 +132,7 @@ struct cappage {
     u_int8_t	read_dvdr	:1;	/* supports DVD-R read */
     u_int8_t	read_dvdram	:1;	/* supports DVD-RAM read */
     u_int8_t	reserved2_67	:2;
+
     u_int8_t	write_cdr	:1;	/* supports CD-R write */
     u_int8_t	write_cdrw	:1;	/* supports CD-RW write */
     u_int8_t	test_write	:1;	/* supports test writing */
@@ -124,6 +140,7 @@ struct cappage {
     u_int8_t	write_dvdr	:1;	/* supports DVD-R write */
     u_int8_t	write_dvdram	:1;	/* supports DVD-RAM write */
     u_int8_t	reserved3_67	:2;
+
     u_int8_t	audio_play	:1;	/* audio play supported */
     u_int8_t	composite	:1;	/* composite audio/video supported */
     u_int8_t	dport1		:1;	/* digital audio on port 1 */
@@ -132,6 +149,7 @@ struct cappage {
     u_int8_t	mode2_form2	:1;	/* mode 2 form 2 format */
     u_int8_t	multisession	:1;	/* multi-session photo-CD */
     u_int8_t	burnproof	:1;	/* supports burnproof */
+
     u_int8_t	cd_da		:1;	/* audio-CD read supported */
     u_int8_t	cd_da_stream	:1;	/* CD-DA streaming */
     u_int8_t	rw		:1;	/* combined R-W subchannels */
@@ -140,21 +158,64 @@ struct cappage {
     u_int8_t	isrc		:1;	/* can return the ISRC info */
     u_int8_t	upc		:1;	/* can return the catalog number UPC */
     u_int8_t			:1;
+
     u_int8_t	lock		:1;	/* can be locked */
     u_int8_t	locked		:1;	/* current lock state */
     u_int8_t	prevent		:1;	/* prevent jumper installed */
     u_int8_t	eject		:1;	/* can eject */
     u_int8_t			:1;
     u_int8_t	mech		:3;	/* loading mechanism type */
-#define MST_MECH_CADDY		0
-#define MST_MECH_TRAY		1
-#define MST_MECH_POPUP		2
-#define MST_MECH_CHANGER	4
-#define MST_MECH_CARTRIDGE	5
 
     u_int8_t	sep_vol		:1;	/* independent volume of channels */
     u_int8_t	sep_mute	:1;	/* independent mute of channels */
     u_int8_t:6;
+#else
+    /* This is read using 16-bit stream transfers */
+    u_int8_t	reserved2_67	:2;
+    u_int8_t	read_dvdram	:1;	/* supports DVD-RAM read */
+    u_int8_t	read_dvdr	:1;	/* supports DVD-R read */
+    u_int8_t	read_dvdrom	:1;	/* supports DVD-ROM read */
+    u_int8_t	read_packet	:1;	/* supports reading packet tracks */
+    u_int8_t	read_cdrw	:1;	/* supports CD-RW read */
+    u_int8_t	read_cdr	:1;	/* supports CD-R read */
+
+    u_int8_t	reserved3_67	:2;
+    u_int8_t	write_dvdram	:1;	/* supports DVD-RAM write */
+    u_int8_t	write_dvdr	:1;	/* supports DVD-R write */
+    u_int8_t	reserved3_3	:1;
+    u_int8_t	test_write	:1;	/* supports test writing */
+    u_int8_t	write_cdrw	:1;	/* supports CD-RW write */
+    u_int8_t	write_cdr	:1;	/* supports CD-R write */
+	
+    u_int8_t	burnproof	:1;	/* supports burnproof */
+    u_int8_t	multisession	:1;	/* multi-session photo-CD */
+    u_int8_t	mode2_form2	:1;	/* mode 2 form 2 format */
+    u_int8_t	mode2_form1	:1;	/* mode 2 form 1 (XA) read */
+    u_int8_t	dport2		:1;	/* digital audio on port 2 */
+    u_int8_t	dport1		:1;	/* digital audio on port 1 */
+    u_int8_t	composite	:1;	/* composite audio/video supported */
+    u_int8_t	audio_play	:1;	/* audio play supported */
+
+    u_int8_t			:1;
+    u_int8_t	upc		:1;	/* can return the catalog number UPC */
+    u_int8_t	isrc		:1;	/* can return the ISRC info */
+    u_int8_t	c2		:1;	/* C2 error pointers supported */
+    u_int8_t	rw_corr		:1;	/* R-W subchannel data corrected */
+    u_int8_t	rw		:1;	/* combined R-W subchannels */
+    u_int8_t	cd_da_stream	:1;	/* CD-DA streaming */
+    u_int8_t	cd_da		:1;	/* audio-CD read supported */
+
+    u_int8_t	mech		:3;	/* loading mechanism type */
+    u_int8_t			:1;
+    u_int8_t	eject		:1;	/* can eject */
+    u_int8_t	prevent		:1;	/* prevent jumper installed */
+    u_int8_t	locked		:1;	/* current lock state */
+    u_int8_t	lock		:1;	/* can be locked */
+
+    u_int8_t:6;
+    u_int8_t	sep_mute	:1;	/* independent mute of channels */
+    u_int8_t	sep_vol		:1;	/* independent volume of channels */
+#endif
 
     u_int16_t	max_read_speed;		/* max raw data rate in bytes/1000 */
     u_int16_t	max_vol_levels;		/* number of discrete volume levels */
@@ -162,39 +223,47 @@ struct cappage {
     u_int16_t	cur_read_speed;		/* current data rate in bytes/1000  */
 
     u_int8_t	reserved3;
+#if BYTE_ORDER == LITTLE_ENDIAN
     u_int8_t	bckf		:1;	/* data valid on failing edge of BCK */
     u_int8_t	rch		:1;	/* high LRCK indicates left channel */
     u_int8_t	lsbf		:1;	/* set if LSB first */
     u_int8_t	dlen		:2;
-#define MST_DLEN_32		0
-#define MST_DLEN_16		1
-#define MST_DLEN_24		2
-#define MST_DLEN_24_I2S		3
 
     u_int8_t			:3;
+#else
+    u_int8_t			:3;
+
+    u_int8_t	dlen		:2;
+    u_int8_t	lsbf		:1;	/* set if LSB first */
+    u_int8_t	rch		:1;	/* high LRCK indicates left channel */
+    u_int8_t	bckf		:1;	/* data valid on failing edge of BCK */
+#endif
+
     u_int16_t	max_write_speed;	/* max raw data rate in bytes/1000 */
     u_int16_t	cur_write_speed;	/* current data rate in bytes/1000  */
     u_int16_t	copy_protect_rev;
     u_int16_t	reserved4;
 };
 
-/* CDROM Changer mechanism status structure */
-struct changer {
-    u_int8_t	current_slot	:5;	/* active changer slot */
-    u_int8_t	mech_state	:2;	/* current changer state */
 #define CH_READY		0
 #define CH_LOADING		1
 #define CH_UNLOADING		2
 #define CH_INITIALIZING		3
 
-    u_int8_t	fault		:1;	/* fault in last operation */
-    u_int8_t	reserved0	:5;
-    u_int8_t	cd_state	:3;	/* current mechanism state */
 #define CD_IDLE			0
 #define CD_AUDIO_ACTIVE		1
 #define CD_AUDIO_SCAN		2
 #define CD_HOST_ACTIVE		3
 #define CD_NO_STATE		7
+
+/* CDROM Changer mechanism status structure */
+struct changer {
+    u_int8_t	current_slot	:5;	/* active changer slot */
+    u_int8_t	mech_state	:2;	/* current changer state */
+
+    u_int8_t	fault		:1;	/* fault in last operation */
+    u_int8_t	reserved0	:5;
+    u_int8_t	cd_state	:3;	/* current mechanism state */
 
     u_int8_t	current_lba[3];		/* current LBA */
     u_int8_t	slots;			/* number of available slots */
@@ -326,4 +395,5 @@ struct acd_softc {
     struct disklabel		disklabel;	/* fake disk label */
     struct devstat		*stats;		/* devstat entry */
     dev_t			dev;		/* device place holders */
+    eventhandler_tag		clone_evh;
 };
