@@ -28,7 +28,7 @@
  */
 
 #ifndef LINT
-static char rcsid[] = "$Id: ypbind.c,v 1.4 1995/02/26 04:42:48 wpaul Exp $";
+static char rcsid[] = "$Id: ypbind.c,v 1.5 1995/04/02 03:10:55 wpaul Exp $";
 #endif
 
 #include <sys/param.h>
@@ -671,6 +671,16 @@ int force;
 		if( strcmp(ypdb->dom_domain, dom) == 0)
 			break;
 
+	if (ypdb != NULL && ypdb->dom_vers == YPVERS && ypdb->dom_alive == 1 &&
+	    ypdb->dom_server_addr.sin_addr.s_addr != raddrp->sin_addr.s_addr)
+		/* 
+		 * We're received a second response to one of our broadcasts
+		 * from another server, and we've already bound: drop
+		 * the response on the floor. No sense changing servers
+		 * for no reason.
+		 */
+		return;
+
 	if(ypdb==NULL) {
 		if(force==0)
 			return;
@@ -713,15 +723,15 @@ int force;
 	sprintf(path, "%s/%s.%d", BINDINGDIR,
 		ypdb->dom_domain, ypdb->dom_vers);
 #ifdef O_SHLOCK
-	if( (fd=open(path, O_CREAT|O_SHLOCK|O_RDWR|O_TRUNC, 0644)) < 0) {
+	if( (fd=open(path, O_CREAT|O_SHLOCK|O_RDWR|O_TRUNC, 0644)) == -1) {
 		(void)mkdir(BINDINGDIR, 0755);
-		if( (fd=open(path, O_CREAT|O_SHLOCK|O_RDWR|O_TRUNC, 0644)) < 0)
+		if( (fd=open(path, O_CREAT|O_SHLOCK|O_RDWR|O_TRUNC, 0644)) == -1)
 			return;
 	}
 #else
-	if( (fd=open(path, O_CREAT|O_RDWR|O_TRUNC, 0644)) < 0) {
+	if( (fd=open(path, O_CREAT|O_RDWR|O_TRUNC, 0644)) == -1) {
 		(void)mkdir(BINDINGDIR, 0755);
-		if( (fd=open(path, O_CREAT|O_RDWR|O_TRUNC, 0644)) < 0)
+		if( (fd=open(path, O_CREAT|O_RDWR|O_TRUNC, 0644)) == -1)
 			return;
 	}
 	flock(fd, LOCK_SH);
