@@ -1,5 +1,5 @@
 #	from: @(#)sys.mk	8.2 (Berkeley) 3/21/94
-#	$Id: sys.mk,v 1.22 1997/02/22 13:56:15 peter Exp $
+#	$Id: sys.mk,v 1.23 1997/04/13 06:44:25 jkh Exp $
 
 unix		?=	We run FreeBSD, not UNIX.
 
@@ -97,6 +97,9 @@ YFLAGS		?=	-d
 # For tags rule.
 GTAGSFLAGS=	-se
 HTAGSFLAGS=
+
+# Binary file format
+BINFORMAT?=	aout
 
 .if defined(%POSIX)
 # Posix 1003.2 mandated rules
