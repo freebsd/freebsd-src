@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.43 1997/07/02 11:00:20 kato Exp $
+ *  $Id: syscons.c,v 1.44 1997/07/07 12:47:36 kato Exp $
  */
 
 #include "sc.h"
@@ -908,9 +908,11 @@ scclose(dev_t dev, int flag, int mode, struct proc *p)
 	    free(scp->scr_buf, M_DEVBUF);
 #ifdef PC98
 	    free(scp->atr_buf, M_DEVBUF);
+	    if (scp->his_atr != NULL)
 	    free(scp->his_atr, M_DEVBUF);
 #endif
-	    free(scp->history, M_DEVBUF);
+	    if (scp->history != NULL)
+		free(scp->history, M_DEVBUF);
 	    free(scp, M_DEVBUF);
 	    console[minor(dev)] = NULL;
 	}
@@ -1100,8 +1102,10 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 
     case CONS_HISTORY:  	/* set history size */
 	if (*data) {
-	    free(scp->history, M_DEVBUF);
+	    if (scp->history != NULL)
+		free(scp->history, M_DEVBUF);
 #ifdef PC98
+	    if (scp->his_atr != NULL)
 	    free(scp->his_atr, M_DEVBUF);
 #endif
 	    scp->history_size = *(int*)data;
