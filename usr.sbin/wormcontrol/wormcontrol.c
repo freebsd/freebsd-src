@@ -32,7 +32,7 @@
  * USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  *
- * $Id: wormcontrol.c,v 1.4 1997/02/22 16:14:12 peter Exp $
+ * $Id: wormcontrol.c,v 1.5 1997/03/31 05:11:40 imp Exp $
  *
  */
 
@@ -89,16 +89,7 @@ main(int argc, char **argv)
 	if ((fd = open(devname, O_RDONLY | O_NONBLOCK, 0)) == -1)
 		err(EX_NOINPUT, "open(%s)", devname);
 
-	if (eq(argv[0], "select")) {
-		struct wormio_quirk_select q;
-		if (argc != 3)
-			errx(EX_USAGE, "wrong params for \"select\"");
-		q.vendor = argv[1];
-		q.model = argv[2];
-		if (ioctl(fd, WORMIOCQUIRKSELECT, &q) == -1)
-			err(EX_IOERR, "ioctl(WORMIOCQUIRKSELECT)");
-	}
-	else if (eq(argv[0], "prepdisk")) {
+	if (eq(argv[0], "prepdisk")) {
 		struct wormio_prepare_disk d;
 		d.dummy = 0;
 		d.speed = -1;
@@ -120,15 +111,17 @@ main(int argc, char **argv)
 			err(EX_IOERR, "ioctl(WORMIOCPREPDISK)");
 	}
 	else if (eq(argv[0], "track")) {
-		struct wormio_prepare_track t;		
+		struct wormio_prepare_track t;
+		bzero(&t, sizeof (t));
 		t.audio = -1;
 		t.preemp = 0;
 		for (i = 1; i < argc; i++) {
 			if (eq(argv[i], "audio"))
 				t.audio = 1;
-			else if (eq(argv[i], "data"))
+			else if (eq(argv[i], "data")) {
 				t.audio = 0;
-			else if (eq(argv[i], "preemp"))
+				t.track_type = BLOCK_MODE_1;
+			} else if (eq(argv[i], "preemp"))
 				t.preemp = 1;
 			else
 				errx(EX_USAGE,
