@@ -50,8 +50,7 @@ options 	KTRACE			#ktrace(1) support
 options 	SYSVSHM			#SYSV-style shared memory
 options 	SYSVMSG			#SYSV-style message queues
 options 	SYSVSEM			#SYSV-style semaphores
-options 	P1003_1B		#Posix P1003_1B real-time extensions
-options 	_KPOSIX_PRIORITY_SCHEDULING
+options 	_KPOSIX_PRIORITY_SCHEDULING #Posix P1003_1B real-time extensions
 options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
 options 	AHC_REG_PRETTY_PRINT	# Print register bitfields in debug
 					# output.  Adds ~128k to driver.
