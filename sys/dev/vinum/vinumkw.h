@@ -49,7 +49,10 @@
  * Our complete vocabulary.  The names of the commands are
  * the same as the identifier without the kw_ at the beginning
  * (i.e. kw_create defines the "create" keyword).  Preprocessor
- * magic in parser.c does the rest. 
+ * magic in parser.c does the rest.
+ *
+ * To add a new word: put it in the table below and one of the
+ * lists in vinumparser.c (probably keywords).
  */
 enum keyword {
     kw_create,
@@ -85,6 +88,7 @@ enum keyword {
     kw_plexoffset,
     kw_len,
     kw_length = kw_len,
+    kw_size = kw_len,
     kw_state,
     kw_setupstate,
     kw_d,						    /* flag names */
@@ -106,6 +110,7 @@ enum keyword {
     kw_detach,
     kw_rename,
     kw_printconfig,
+    kw_saveconfig,
     kw_replace,
     kw_detached,
 #ifdef VINUMDEBUG
@@ -113,6 +118,7 @@ enum keyword {
 #endif
     kw_info,
     kw_quit,
+    kw_max,
     kw_invalid_keyword = -1
 };
 
