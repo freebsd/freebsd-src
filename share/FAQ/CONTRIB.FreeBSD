@@ -85,6 +85,7 @@ Andreas Klemm <andreas@knobel.GUN.de>
 Andrew Herbert <andrew@werple.apana.org.au>
 Andrew Moore <alm@FreeBSD.org>
 Atsushi Murai <amurai@spec.co.jp>
+Bill Paul <wpaul@FreeBSD.org>
 Bob Wilcox <bob@obiwan.uucp>
 Bruce Evans <bde@kralizec.zeta.org.au>
 Charles Hannum <mycroft@ai.mit.edu>
@@ -241,4 +242,4 @@ Last, but not least, the release engineer would like to thank:
 	His Wife, for chocolate chip cookies, and some other things.
 	The DGB project @ TFS, for patience and tolerance.
 
-$Id: CONTRIB.FreeBSD,v 1.20 1995/02/22 22:57:20 pst Exp $
+$Id: CONTRIB.FreeBSD,v 1.21 1995/02/23 20:34:09 joerg Exp $
