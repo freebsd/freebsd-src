@@ -33,6 +33,7 @@
 #include <netinet/in.h>
 
 #include "radlib.h"
+#include "radlib_vs.h"
 
 /* Handle types */
 #define RADIUS_AUTH		0   /* RADIUS authentication, default */
@@ -87,6 +88,13 @@ struct rad_handle {
 	int		 try;		/* How many requests we've sent */
 	int		 srv;		/* Server number we did last */
 	int		 type;		/* Handle type */
+};
+
+struct vendor_attribute {
+	u_int32_t vendor_value;
+	u_char attrib_type;
+	u_char attrib_len;
+	u_char attrib_data[1];
 };
 
 #endif
