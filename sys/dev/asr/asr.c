@@ -376,43 +376,6 @@ typedef struct Asr_softc {
 
 	/* Links into other parents and HBAs */
 	struct Asr_softc      * ha_next;       /* HBA list */
-
-#ifdef ASR_MEASURE_PERFORMANCE
-#define	MAX_TIMEQ_SIZE	256	/* assumes MAX 256 scsi commands sent */
-	asr_perf_t		ha_performance;
-	u_int32_t		ha_submitted_ccbs_count;
-
-	/* Queueing macros for a circular queue */
-#define	TIMEQ_FREE_LIST_EMPTY(head, tail) (-1 == (head) && -1 == (tail))
-#define	TIMEQ_FREE_LIST_FULL(head, tail) ((((tail) + 1) % MAX_TIMEQ_SIZE) == (head))
-#define	ENQ_TIMEQ_FREE_LIST(item, Q, head, tail) \
-	if (!TIMEQ_FREE_LIST_FULL((head), (tail))) { \
-		if TIMEQ_FREE_LIST_EMPTY((head),(tail)) { \
-			(head) = (tail) = 0; \
-		} \
-		else (tail) = ((tail) + 1) % MAX_TIMEQ_SIZE; \
-		Q[(tail)] = (item); \
-	} \
-	else { \
-		debug_asr_printf("asr: Enqueueing when TimeQ Free List is full... This should not happen!\n"); \
-	}
-#define	DEQ_TIMEQ_FREE_LIST(item, Q, head, tail) \
-	if (!TIMEQ_FREE_LIST_EMPTY((head), (tail))) { \
-		item  = Q[(head)]; \
-		if ((head) == (tail)) { (head) = (tail) = -1; } \
-		else (head) = ((head) + 1) % MAX_TIMEQ_SIZE; \
-	} \
-	else { \
-		(item) = -1; \
-		debug_asr_printf("asr: Dequeueing when TimeQ Free List is empty... This should not happen!\n"); \
-	}
-
-	/* Circular queue of time stamps */
-	struct timeval		ha_timeQ[MAX_TIMEQ_SIZE];
-	u_int32_t		ha_timeQFreeList[MAX_TIMEQ_SIZE];
-	int			ha_timeQFreeHead;
-	int			ha_timeQFreeTail;
-#endif
 } Asr_softc_t;
 
 STATIC Asr_softc_t * Asr_softc;
@@ -541,11 +504,6 @@ STATIC struct cdevsw asr_cdevsw = {
 	.d_name =	"asr",
 	.d_maj =	CDEV_MAJOR,
 };
-
-#ifdef ASR_MEASURE_PERFORMANCE
-STATIC u_int32_t	 asr_time_delta(IN struct timeval start,
-					     IN struct timeval end);
-#endif
 
 /* I2O support routines */
 #define	defAlignLong(STRUCT,NAME) char NAME[sizeof(STRUCT)]
@@ -1560,32 +1518,6 @@ ASR_queue(
 	  I2O_MESSAGE_FRAME_getInitiatorContext64(Message);
 
 	if ((MessageOffset = ASR_getMessage(sc->ha_Virt)) != EMPTY_QUEUE) {
-#ifdef ASR_MEASURE_PERFORMANCE
-		int	startTimeIndex;
-
-		if (ccb) {
-			++sc->ha_performance.command_count[
-			  (int) ccb->csio.cdb_io.cdb_bytes[0]];
-			DEQ_TIMEQ_FREE_LIST(startTimeIndex,
-			  sc->ha_timeQFreeList,
-			  sc->ha_timeQFreeHead,
-			  sc->ha_timeQFreeTail);
-			if (-1 != startTimeIndex) {
-				microtime(&(sc->ha_timeQ[startTimeIndex]));
-			}
-			/* Time stamp the command before we send it out */
-			((PRIVATE_SCSI_SCB_EXECUTE_MESSAGE *) Message)->
-			  PrivateMessageFrame.TransactionContext
-			    = (I2O_TRANSACTION_CONTEXT) startTimeIndex;
-
-			++sc->ha_submitted_ccbs_count;
-			if (sc->ha_performance.max_submit_count
-			  < sc->ha_submitted_ccbs_count) {
-				sc->ha_performance.max_submit_count
-				  = sc->ha_submitted_ccbs_count;
-			}
-		}
-#endif
 		bcopy (Message, sc->ha_Fvirt + MessageOffset,
 		  I2O_MESSAGE_FRAME_getMessageSize(Message) << 2);
 		if (ccb) {
@@ -2573,18 +2505,6 @@ asr_attach (ATTACH_ARGS)
 	 *	Initialize the software structure
 	 */
 	LIST_INIT(&(sc->ha_ccb));
-#	ifdef ASR_MEASURE_PERFORMANCE
-		{
-			u_int32_t i;
-
-			/* initialize free list for timeQ */
-			sc->ha_timeQFreeHead = 0;
-			sc->ha_timeQFreeTail = MAX_TIMEQ_SIZE - 1;
-			for (i = 0; i < MAX_TIMEQ_SIZE; i++) {
-				sc->ha_timeQFreeList[i] = i;
-			}
-		}
-#	endif
 	/* Link us into the HA list */
 	{
 		Asr_softc_t **ha;
@@ -2956,9 +2876,6 @@ asr_action(
 			debug_asr_cmd1_printf (" q");
 
 			if (ASR_queue (sc, Message_Ptr) == EMPTY_QUEUE) {
-#ifdef ASR_MEASURE_PERFORMANCE
-				++sc->ha_performance.command_too_busy;
-#endif
 				ccb->ccb_h.status &= ~CAM_STATUS_MASK;
 				ccb->ccb_h.status |= CAM_REQUEUE_REQ;
 				debug_asr_cmd_printf (" E\n");
@@ -3099,61 +3016,6 @@ asr_action(
 	}
 } /* asr_action */
 
-#ifdef ASR_MEASURE_PERFORMANCE
-#define	WRITE_OP 1
-#define	READ_OP 2
-#define	min_submitR	sc->ha_performance.read_by_size_min_time[index]
-#define	max_submitR	sc->ha_performance.read_by_size_max_time[index]
-#define	min_submitW	sc->ha_performance.write_by_size_min_time[index]
-#define	max_submitW	sc->ha_performance.write_by_size_max_time[index]
-
-STATIC INLINE void
-asr_IObySize(
-	IN Asr_softc_t * sc,
-	IN u_int32_t	 submitted_time,
-	IN int		 op,
-	IN int		 index)
-{
-	struct timeval	 submitted_timeval;
-
-	submitted_timeval.tv_sec = 0;
-	submitted_timeval.tv_usec = submitted_time;
-
-	if ( op == READ_OP ) {
-		++sc->ha_performance.read_by_size_count[index];
-
-		if ( submitted_time != 0xffffffff ) {
-			timevaladd(
-			  &(sc->ha_performance.read_by_size_total_time[index]),
-			  &submitted_timeval);
-			if ( (min_submitR == 0)
-			  || (submitted_time < min_submitR) ) {
-				min_submitR = submitted_time;
-			}
-
-			if ( submitted_time > max_submitR ) {
-				max_submitR = submitted_time;
-			}
-		}
-	} else {
-		++sc->ha_performance.write_by_size_count[index];
-		if ( submitted_time != 0xffffffff ) {
-			timevaladd(
-			  &(sc->ha_performance.write_by_size_total_time[index]),
-			  &submitted_timeval);
-			if ( (submitted_time < min_submitW)
-			  || (min_submitW == 0) ) {
-				min_submitW = submitted_time;
-			}
-
-			if ( submitted_time > max_submitW ) {
-				max_submitW = submitted_time;
-			}
-		}
-	}
-} /* asr_IObySize */
-#endif
-
 /*
  * Handle processing of current CCB as pointed to by the Status.
  */
@@ -3162,13 +3024,6 @@ asr_intr (
 	IN Asr_softc_t * sc)
 {
 	OUT int		 processed;
-
-#ifdef ASR_MEASURE_PERFORMANCE
-	struct timeval junk;
-
-	microtime(&junk);
-	sc->ha_performance.intr_started = junk;
-#endif
 
 	for (processed = 0;
 	  sc->ha_Virt->Status & Mask_InterruptsDisabled;
@@ -3322,154 +3177,6 @@ asr_intr (
 			    Reply);
 		}
 
-#ifdef ASR_MEASURE_PERFORMANCE
-		{
-			struct timeval	endTime;
-			u_int32_t	submitted_time;
-			u_int32_t	size;
-			int		op_type;
-			int		startTimeIndex;
-
-			--sc->ha_submitted_ccbs_count;
-			startTimeIndex
-			  = (int)Reply->StdReplyFrame.TransactionContext;
-			if (-1 != startTimeIndex) {
-				/* Compute the time spent in device/adapter */
-				microtime(&endTime);
-				submitted_time = asr_time_delta(sc->ha_timeQ[
-				  startTimeIndex], endTime);
-				/* put the startTimeIndex back on free list */
-				ENQ_TIMEQ_FREE_LIST(startTimeIndex,
-				  sc->ha_timeQFreeList,
-				  sc->ha_timeQFreeHead,
-				  sc->ha_timeQFreeTail);
-			} else {
-				submitted_time = 0xffffffff;
-			}
-
-#define	maxctime sc->ha_performance.max_command_time[ccb->csio.cdb_io.cdb_bytes[0]]
-#define	minctime sc->ha_performance.min_command_time[ccb->csio.cdb_io.cdb_bytes[0]]
-			if (submitted_time != 0xffffffff) {
-				if ( maxctime < submitted_time ) {
-					maxctime = submitted_time;
-				}
-				if ( (minctime == 0)
-				  || (minctime > submitted_time) ) {
-					minctime = submitted_time;
-				}
-
-				if ( sc->ha_performance.max_submit_time
-				  < submitted_time ) {
-					sc->ha_performance.max_submit_time
-					  = submitted_time;
-				}
-				if ( sc->ha_performance.min_submit_time == 0
-				  || sc->ha_performance.min_submit_time
-				    > submitted_time) {
-					sc->ha_performance.min_submit_time
-					  = submitted_time;
-				}
-
-				switch ( ccb->csio.cdb_io.cdb_bytes[0] ) {
-
-				case 0xa8:	/* 12-byte READ */
-					/* FALLTHRU */
-				case 0x08:	/* 6-byte READ	*/
-					/* FALLTHRU */
-				case 0x28:	/* 10-byte READ */
-					op_type = READ_OP;
-					break;
-
-				case 0x0a:	/* 6-byte WRITE */
-					/* FALLTHRU */
-				case 0xaa:	/* 12-byte WRITE */
-					/* FALLTHRU */
-				case 0x2a:	/* 10-byte WRITE */
-					op_type = WRITE_OP;
-					break;
-
-				default:
-					op_type = 0;
-					break;
-				}
-
-				if ( op_type != 0 ) {
-					struct scsi_rw_big * cmd;
-
-					cmd = (struct scsi_rw_big *)
-					  &(ccb->csio.cdb_io);
-
-					size = (((u_int32_t) cmd->length2 << 8)
-					  | ((u_int32_t) cmd->length1)) << 9;
-
-					switch ( size ) {
-
-					case 512:
-						asr_IObySize(sc,
-						  submitted_time, op_type,
-						  SIZE_512);
-						break;
-
-					case 1024:
-						asr_IObySize(sc,
-						  submitted_time, op_type,
-						  SIZE_1K);
-						break;
-
-					case 2048:
-						asr_IObySize(sc,
-						  submitted_time, op_type,
-						  SIZE_2K);
-						break;
-
-					case 4096:
-						asr_IObySize(sc,
-						  submitted_time, op_type,
-						  SIZE_4K);
-						break;
-
-					case 8192:
-						asr_IObySize(sc,
-						  submitted_time, op_type,
-						  SIZE_8K);
-						break;
-
-					case 16384:
-						asr_IObySize(sc,
-						  submitted_time, op_type,
-						  SIZE_16K);
-						break;
-
-					case 32768:
-						asr_IObySize(sc,
-						  submitted_time, op_type,
-						  SIZE_32K);
-						break;
-
-					case 65536:
-						asr_IObySize(sc,
-						  submitted_time, op_type,
-						  SIZE_64K);
-						break;
-
-					default:
-						if ( size > (1 << 16) ) {
-							asr_IObySize(sc,
-							  submitted_time,
-							  op_type,
-							  SIZE_BIGGER);
-						} else {
-							asr_IObySize(sc,
-							  submitted_time,
-							  op_type,
-							  SIZE_OTHER);
-						}
-						break;
-					}
-				}
-			}
-		}
-#endif
 		/* Sense data in reply packet */
 		if (ccb->ccb_h.status & CAM_AUTOSNS_VALID) {
 			u_int16_t size = I2O_SCSI_ERROR_REPLY_MESSAGE_FRAME_getAutoSenseTransferCount(Reply);
@@ -3502,25 +3209,6 @@ asr_intr (
 			wakeup (ccb);
 		}
 	}
-#ifdef ASR_MEASURE_PERFORMANCE
-	{
-		u_int32_t result;
-
-		microtime(&junk);
-		result = asr_time_delta(sc->ha_performance.intr_started, junk);
-
-		if (result != 0xffffffff) {
-			if ( sc->ha_performance.max_intr_time < result ) {
-				sc->ha_performance.max_intr_time = result;
-			}
-
-			if ( (sc->ha_performance.min_intr_time == 0)
-			  || (sc->ha_performance.min_intr_time > result) ) {
-				sc->ha_performance.min_intr_time = result;
-			}
-		}
-	}
-#endif
 	return (processed);
 } /* asr_intr */
 
@@ -4329,14 +4017,6 @@ asr_ioctl(
 		}
 		break;
 
-		/* Get performance metrics */
-#ifdef ASR_MEASURE_PERFORMANCE
-	case DPT_PERF_INFO:
-		bcopy((caddr_t) &(sc->ha_performance), data,
-		  sizeof(sc->ha_performance));
-		return (0);
-#endif
-
 		/* Send an I2O command */
 	case I2OUSRCMD:
 		return (ASR_queue_i (sc, *((PI2O_MESSAGE_FRAME *)data)));
@@ -4351,37 +4031,3 @@ asr_ioctl(
 	}
 	return (EINVAL);
 } /* asr_ioctl */
-
-#ifdef ASR_MEASURE_PERFORMANCE
-/*
- * This function subtracts one timeval structure from another,
- * Returning the result in usec.
- * It assumes that less than 4 billion usecs passed form start to end.
- * If times are sensless, 0xffffffff is returned.
- */
-
-STATIC u_int32_t
-asr_time_delta(
-	IN struct timeval start,
-	IN struct timeval end)
-{
-	OUT u_int32_t	  result;
-
-	if (start.tv_sec > end.tv_sec) {
-		result = 0xffffffff;
-	}
-	else {
-		if (start.tv_sec == end.tv_sec) {
-			if (start.tv_usec > end.tv_usec) {
-				result = 0xffffffff;
-			} else {
-				return (end.tv_usec - start.tv_usec);
-			}
-		} else {
-			return (end.tv_sec - start.tv_sec) * 1000000 +
-				end.tv_usec + (1000000 - start.tv_usec);
-		}
-	}
-	return(result);
-} /* asr_time_delta */
-#endif
