@@ -26,18 +26,19 @@
 .\" OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id$
-.Dd April 13, 1995
+.\"	$Id: devmenu.1,v 1.1 1995/04/13 21:10:58 wollman Exp $
+.Dd April 14, 1995
 .Dt DEVMENU 1
 .Os FreeBSD 2.1
 .Sh NAME
 .Nm devmenu
 .Nd present a menu of available devices
 .Sh SYNOPSIS
-.Nm lsdev
+.Nm devmenu
 .Op Fl c Ar class
 .Op Fl f Ar outfile
 .Op Fl h Ar helpfile
+.Op Fl s Ar state
 .Op Fl t Ar title
 .Op Fl nid
 .Op Ar name ...
@@ -52,7 +53,7 @@ criteria.  The list of devices is obtained using the
 device configuration database
 .Pq Dq devconf ,
 and intersected with the list of
-.Ar name s
+.No Ar name Ns s
 if one was specified on the command line.  The following command-line
 flags are supported:
 .Bl -tag -width mhmhelpfile
@@ -62,7 +63,8 @@ choices.  Multiple
 .Fl c
 options can be specified, in which case the union of the specified
 classes is used.  The following classes are currently supported:
-.Bl -tag -width parallel
+.Pp
+.Bl -tag -compact -width parallel
 .It Li cpu
 a processor
 .It Li bus
@@ -83,6 +85,32 @@ a network interface
 everything else
 .El
 .Pp
+.It Fl s Ar state
+specifies a required state or set of states to further restrict the
+list of devices.  States are specified using the following letters:
+.Pp
+.Bl -tag -compact -width "! or ~"
+.It Li \&! or Li \&~
+at the beginning of a string requests the complement of the specified
+states.
+.It Li \&?
+requests devices with state
+.Dv DC_UNKNOWN .
+.It Li \&u
+requests devices with state
+.Dv DC_UNCONFIGURED .
+.It Li \&i
+requests devices with state
+.Dv DC_IDLE .
+.It Li \&b
+requests devices with state
+.Dv DC_BUSY .
+.El
+.Pp
+Multiple
+.Fl s
+options can be specified, in which case the union of all the requested
+states is taken.
 .It Fl f Ar outfile
 specifies the name a file where the name of the selected device is
 written.  If no file is specified, the name is written on the standard
