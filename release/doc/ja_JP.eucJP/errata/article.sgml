@@ -2,7 +2,7 @@
     FreeBSD Japanese Documentation Project
 
     $FreeBSD$
-    Original revision: 1.57
+    Original revision: 1.59
 -->
 
 <!-- 
@@ -242,6 +242,28 @@
       &os; &release.current; に含まれている
       <filename>src/sys/rpc/rpcclnt.c</filename> のリビジョン
       1.4 で修正されました。</para>
+
+    <para>(2004 年 1 月 11 日)
+      <filename>nss_ldap</filename> などのサードパーティ製 NSS
+      モジュールを使い、大量のメンバリストを含むグループが存在する場合、
+      問題が発生することがあります。この問題は
+      &os; &release.current; に含まれる
+      <filename>src/include/nss.h</filename> のリビジョン 1.2,
+      <filename>src/lib/libc/net/nss_compat.c</filename> のリビジョン 1.2 で
+      修正されました。</para>
+
+    <para>(2004 年 1 月 13 日)
+      &os; &release.current; のリリースノートには、含まれている
+      <application>GCC</application> が post-release GCC 3.3.3 snapshot
+      と記載されていました。これは、<emphasis>pre-release</emphasis> GCC 3.3.3
+      snapshot の誤りです。</para>
+
+    <para>(2004 年 1 月 13 日)
+      <filename role="package">sysutils/kdeadmin3</filename> port/package には、
+      <application>KUser</application> を使うとシステムパスワードファイルに
+      ある <username>root</username> ユーザが削除されてしまう可能性のある
+      バグが含まれています。この port/package を使っている場合は、
+      ぜひバージョン 3.1.4_1 へアップグレードするようお願いします。</para>
 ]]>
 
   <sect1 id="late-news">
