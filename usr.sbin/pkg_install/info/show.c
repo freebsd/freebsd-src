@@ -27,6 +27,9 @@ static const char rcsid[] =
 #include "info.h"
 
 #include <err.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 void
 show_file(char *title, char *fname)
@@ -195,7 +198,61 @@ show_files(char *title, Package *plist)
 	case PLIST_IGNORE:
 	    ign = TRUE;
 	    break;
+
+        /* Silence GCC in the -Wall mode */
+	default:
+	    break;
 	}
 	p = p->next;
     }
+}
+
+/* Calculate and show size of all installed package files (except ignored ones) */
+void
+show_size(char *title, Package *plist)
+{
+    PackingList p;
+    Boolean ign = FALSE;
+    char *dir = ".";
+    struct stat sb;
+    char tmp[FILENAME_MAX];
+    unsigned long size = 0;
+    long blksize;
+    int headerlen;
+    char *descr;
+
+    descr = getbsize(&headerlen, &blksize);
+    if (!Quiet)
+	printf("%s%s", InfoPrefix, title);
+    for (p = plist->head; p != NULL; p = p->next) {
+	switch (p->type) {
+	case PLIST_FILE:
+	    if (!ign) {
+		snprintf(tmp, FILENAME_MAX, "%s/%s", dir, p->name);
+		if (!lstat(tmp, &sb)) {
+		    size += sb.st_size;
+		    if (Verbose)
+			printf("%lu\t%s\n", (unsigned long) howmany(sb.st_size, blksize), tmp);
+		}
+	    }
+	    ign = FALSE;
+	    break;
+
+	case PLIST_CWD:
+	    dir = p->name;
+	    break;
+
+	case PLIST_IGNORE:
+	    ign = TRUE;
+	    break;
+
+	/* Silence GCC in the -Wall mode */	    
+	default:
+	    break;
+	}
+    }
+    if (!Quiet)
+	printf("%lu\t(%s)\n", howmany(size, blksize), descr);
+    else
+	printf("%lu\n", size);
 }
