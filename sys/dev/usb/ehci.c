@@ -2634,7 +2634,7 @@ ehci_abort_xfer(usbd_xfer_handle xfer, usbd_status status)
 	}
 	ehci_add_qh(sqh, psqh);
 	/*
-	 * Step 4: Execute callback.
+	 * Step 5: Execute callback.
 	 */
 #ifdef DIAGNOSTIC
 	exfer->isdone = 1;
