@@ -47,7 +47,6 @@
 #endif
 
 #define NFS4DEV_NAME "nfs4"
-#define CDEV_MAJOR 29 /* XXX where are these numbers assigned!?!?  */
 #define CDEV_MINOR 1
 
 MALLOC_DEFINE(M_NFS4DEV, "NFS4 dev", "NFS4 device");
@@ -99,8 +98,7 @@ static struct cdevsw nfs4dev_cdevsw = {
 	.d_close =  nfs4dev_close,
 	.d_ioctl =  nfs4dev_ioctl,
 	.d_poll =   nfs4dev_poll,
-	.d_name =   NFS4DEV_NAME,
-	.d_maj =    CDEV_MAJOR
+	.d_name =   NFS4DEV_NAME
 };
 
 static int nfs4dev_reply(caddr_t);
