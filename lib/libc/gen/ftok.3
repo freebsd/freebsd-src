@@ -23,7 +23,7 @@
 .\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 .\" ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: ftok.3,v 1.7 1997/02/22 15:06:08 peter Exp $
+.\"	$Id: ftok.3,v 1.8 1997/03/19 00:58:07 bde Exp $
 .Dd June 24, 1994
 .Os
 .Dt ftok 3
@@ -72,10 +72,8 @@ The
 .Fn ftok
 function originates with System V and is typically used by programs
 that use the System V IPC routines.
-.Sh AUTHOR
-.Bl -tag
-Thorsten Lockert <tholo@sigmasoft.com>
-.El
+.Sh AUTHORS
+.An Thorsten Lockert Aq tholo@sigmasoft.com
 .Sh BUGS
 The returned key is computed based on the device minor number and inode of the
 specified
