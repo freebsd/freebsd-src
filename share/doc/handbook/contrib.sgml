@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.154 1996/11/18 06:38:50 max Exp $ -->
+<!-- $Id: contrib.sgml,v 1.155 1996/11/18 07:39:16 max Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!-- Please try to keep the file 'avail' (from CVSROOT) 
@@ -308,6 +308,7 @@
 	  <item>Robert Withrow &lt;witr@rwwa.com&gt;
 	  <item>Ronald Kuehn &lt;kuehn@rz.tu-clausthal.de&gt;
 	  <item>Sascha Wildner &lt;swildner@channelz.GUN.de&gt;
+	  <item>Sander Vesik &lt;sander@haldjas.folklore.ee&gt;
 	  <item>Scott Blachowicz &lt;scott@sabami.seaslug.org&gt;
 	  <item>Serge V. Vakulenko &lt;vak@zebub.msk.su&gt;
 	  <item>Soren Dayton &lt;csdayton@midway.uchicago.edu&gt;
