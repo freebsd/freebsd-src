@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     $Id: rc.conf.5,v 1.1.2.4 1998/01/20 04:01:31 yokota Exp $
+.\"     $Id: rc.conf.5,v 1.1.2.5 1998/02/23 20:21:21 guido Exp $
 .\"
 .Dd April 26, 1997
 .Dt RC.CONF 5
@@ -190,6 +190,11 @@ these are the flags to pass to
 run the
 .Xr named 8
 daemon.
+.It Ar named_program
+(str) path to
+.Xr named 8
+(default
+.Pa /usr/sbin/named ) .
 .It Ar named_flags
 (str) if
 .Ar named_enable
@@ -202,6 +207,26 @@ these are the flags to pass to
 .Ar YES
 if you want to run a Kerberos authentication server
 at boot time.
+.It Ar kadmind_server_enable
+.Ar YES
+if you want to run
+.Xr kadmind 8
+the Kerberos Administration Daemon); set to
+.Ar NO
+on a slave server.
+.It Ar kerberos_stash
+(str)
+If
+.Ar YES ,
+instruct the Kerberos servers to use the stashed master key instead of
+prompting for it (only if
+.Ar kerberos_server_enable
+is set to
+.Ar YES ,
+and is used for both
+.Xr kerberos 1
+and
+.Xr kadmind 8 ).
 .It Ar rwhod_enable
 (bool) If set to
 .Ar YES ,
@@ -581,11 +606,18 @@ seconds.
 (str) If not set to
 .Ar NO ,
 this is the actual screen saver to use (blank, snake, daemon, etc).
+.It Ar moused_enable
+(str) If set to
+.Ar YES ,
+the
+.Xr moused 8
+daemon is started for doing cut/paste selection on the console.
 .It Ar moused_type
-(str) If not set to
-.Ar NO ,
-this is the type of mouse you would like to use for doing
-cut/paste selection on the console.
+(str) This is the protocol type of mouse you would like to use.
+This variable must be set if 
+.Ar moused_enable
+is set to
+.Ar YES .
 The
 .Xr moused 8
 daemon
@@ -625,8 +657,10 @@ If the client program does not support the sysmouse type,
 specify the mousesystems type. It is the second prefered type.
 .It Ar moused_port
 (str) If
-.Ar moused_type
-is set, this is the actual port the mouse is on.
+.Ar moused_enable
+is set to
+.Ar YES ,
+this is the actual port the mouse is on.
 It might be
 .Pa /dev/cuaa0
 for a COM1 serial mouse,
@@ -713,31 +747,56 @@ boot time.
 (str) Set to the list of IRQs to monitor for random number creation
 (see the man page for
 .Xr rndcontrol 8 ).
+.It Ar clear_tmp_enable
+(bool) Set to
+.Ar YES
+if you want
+.Pa /tmp
+to be cleaned at startup.
+.It Ar ldconfig_paths
+(str) Set to the list of shared library paths to use with
+.Xr ldconfig 8 .
+NOTE:
+.Pa /usr/lib
+will always be added first, so it need not appear in this list.
 
 .Sh SEE ALSO
+.Xr gdb 1 ,
+.Xr info 1 ,
+.Xr exports 5 ,
 .Xr accton 8 ,
 .Xr amd 8 ,
-.Xr exports 5 ,
+.Xr apm 8 ,
+.Xr cron 8 ,
 .Xr gated 8 ,
-.Xr gdb 1 ,
 .Xr ifconfig 8 ,
-.Xr info 1 ,
+.Xr inetd 8 ,
+.Xr lpd 8 ,
 .Xr moused 8 ,
+.Xr mrouted 8 ,
 .Xr named 8 ,
+.Xr nfsd 8 ,
+.Xr nfsiod 8 ,
 .Xr ntpdate 8 ,
 .Xr pcnfsd 8 ,
+.Xr portmap 8 ,
 .Xr quotacheck 8 ,
 .Xr rc 8 ,
 .Xr rndcontrol 8 ,
 .Xr route 8 ,
 .Xr routed 8 ,
+.Xr rpc.lockd 8 ,
+.Xr rpc.statd 8 ,
 .Xr rwhod 8 ,
 .Xr sendmail 8 ,
+.Xr syslogd 8 ,
 .Xr swapon 8 ,
+.Xr tickadj 8 ,
 .Xr timed 8 ,
 .Xr vnconfig 8 ,
 .Xr xntpd 8 ,
 .Xr xtend 8 ,
+.Xr ypbind 8 ,
 .Xr ypserv 8 ,
 .Xr ypset 8
 .Sh HISTORY
