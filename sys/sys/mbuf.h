@@ -228,20 +228,6 @@ struct mbstat {
 	u_long	m_minclsize;	/* min length of data to allocate a cluster */
 	u_long	m_mlen;		/* length of data in an mbuf */
 	u_long	m_mhlen;	/* length of data in a header mbuf */
-
-	u_quad_t m_exthdrget;	/* # of calls to IP6_EXTHDR_GET */
-	u_quad_t m_exthdrget0;	/* # of calls to IP6_EXTHDR_GET0 */
-	u_quad_t m_pulldowns;	/* # of calls to m_pulldown */
-	u_quad_t m_pulldown_copy; /* # of mbuf copies in m_pulldown */
-	u_quad_t m_pulldown_alloc; /* # of mbuf allocs in m_pulldown */
-	u_quad_t m_pullups;	/* # of calls to m_pullup */
-	u_quad_t m_pullup_copy;	/* # of possible m_pullup copies */
-	u_quad_t m_pullup_alloc; /* # of possible m_pullup mallocs */
-	u_quad_t m_pullup_fail;	/* # of possible m_pullup failures */
-	u_quad_t m_pullup2;	/* # of calls to m_pullup2 */
-	u_quad_t m_pullup2_copy; /* # of possible m_pullup2 copies */
-	u_quad_t m_pullup2_alloc; /* # of possible m_pullup2 mallocs */
-	u_quad_t m_pullup2_fail; /* # of possible m_pullup2 failures */
 };
 
 /* flags to m_get/MGET */
