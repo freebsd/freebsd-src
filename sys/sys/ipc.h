@@ -41,7 +41,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ipc.h	8.3 (Berkeley) 1/21/94
- * $Id$
+ * $Id: ipc.h,v 1.2 1994/08/02 07:53:06 davidg Exp $
  */
 
 /*
@@ -65,6 +65,7 @@ struct ipc_perm {
 /* common mode bits */
 #define	IPC_R		00400	/* read permission */
 #define	IPC_W		00200	/* write/alter permission */
+#define	IPC_M		10000	/* permission to change control info */
 
 /* SVID required constants (same values as system 5) */
 #define	IPC_CREAT	01000	/* create entry if key does not exist */
@@ -76,5 +77,12 @@ struct ipc_perm {
 #define	IPC_RMID	0	/* remove identifier */
 #define	IPC_SET		1	/* set options */
 #define	IPC_STAT	2	/* get options */
+
+#ifdef KERNEL
+/* Macros to convert between ipc ids and array indices or sequence ids */
+#define	IPCID_TO_IX(id)		((id) & 0xffff)
+#define	IPCID_TO_SEQ(id)	(((id) >> 16) & 0xffff)
+#define	IXSEQ_TO_IPCID(ix,perm)	(((perm.seq) << 16) | (ix & 0xffff))
+#endif /* KERNEL */
 
 #endif /* !_SYS_IPC_H_ */
