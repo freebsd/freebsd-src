@@ -200,15 +200,9 @@ in these classes, see
 .Xr ctype 3
 and related manual pages.
 .It [=equiv=]
-Represents all characters or collating (sorting) elements belonging to
-the same equivalence class as
-.Ar equiv .
-If
-there is a secondary ordering within the equivalence class, the characters
-are ordered in ascending sequence.
-Otherwise, they are ordered after their encoded values.
-An example of an equivalence class might be ``c'' and ``ch'' in Spanish;
-English has no equivalence classes.
+Represents all characters belonging to the same equivalence class as
+.Ar equiv ,
+ordered by their encoded values.
 .It [#*n]
 Represents
 .Ar n
@@ -228,6 +222,17 @@ If
 has a leading zero, it is interpreted as an octal value, otherwise,
 it's interpreted as a decimal value.
 .El
+.Sh ENVIRONMENT
+The
+.Ev LANG ,
+.Ev LC_ALL ,
+.Ev LC_CTYPE
+and
+.Ev LC_COLLATE
+environment variables affect the execution of
+.Nm
+as described in
+.Xr environ 7 .
 .Sh DIAGNOSTICS
 .Ex -std
 .Sh EXAMPLES
@@ -245,6 +250,11 @@ Translate the contents of file1 to upper-case.
 Strip out non-printable characters from file1.
 .Pp
 .D1 Li "tr -cd \*q[:print:]\*q < file1"
+.Pp
+Remove diacritical marks from all accented variants of the letter
+.Sq e :
+.Pp
+.Dl "tr \*q[=e=]\*q \*qe\*q"
 .Sh COMPATIBILITY
 System V has historically implemented character ranges using the syntax
 ``[c-c]'' instead of the ``c-c'' used by historic

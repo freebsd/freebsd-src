@@ -125,20 +125,25 @@ bracket(s)
 
 	switch (s->str[1]) {
 	case ':':				/* "[:class:]" */
-		if ((p = strstr(s->str + 2, ":]")) == NULL)
+		if ((p = strchr(s->str + 2, ']')) == NULL)
 			return (0);
-		*p = '\0';
+		if (*(p - 1) != ':' || p - s->str < 4)
+			goto repeat;
+		*(p - 1) = '\0';
 		s->str += 2;
 		genclass(s);
-		s->str = p + 2;
+		s->str = p + 1;
 		return (1);
 	case '=':				/* "[=equiv=]" */
-		if ((p = strstr(s->str + 2, "=]")) == NULL)
+		if ((p = strchr(s->str + 2, ']')) == NULL)
 			return (0);
+		if (*(p - 1) != '=' || p - s->str < 4)
+			goto repeat;
 		s->str += 2;
 		genequiv(s);
 		return (1);
 	default:				/* "[\###*n]" or "[#*n]" */
+	repeat:
 		if ((p = strpbrk(s->str + 2, "*]")) == NULL)
 			return (0);
 		if (p[0] != '*' || index(p, ']') == NULL)
@@ -197,7 +202,7 @@ genclass(s)
 		errx(1, "unknown class %s", s->str);
 
 	if ((cp->set = p = malloc((NCHARS + 1) * sizeof(int))) == NULL)
-		errx(1, "malloc");
+		err(1, "malloc");
 	bzero(p, (NCHARS + 1) * sizeof(int));
 	for (cnt = 0, func = cp->func; cnt < NCHARS; ++cnt)
 		if ((func)(cnt))
@@ -216,24 +221,46 @@ c_class(a, b)
 	return (strcmp(((const CLASS *)a)->name, ((const CLASS *)b)->name));
 }
 
-/*
- * English doesn't have any equivalence classes, so for now
- * we just syntax check and grab the character.
- */
 static void
 genequiv(s)
 	STR *s;
 {
+	int i, p, pri;
+	char src[2], dst[3];
+
 	if (*s->str == '\\') {
 		s->equiv[0] = backslash(s);
 		if (*s->str != '=')
 			errx(1, "misplaced equivalence equals sign");
+		s->str += 2;
 	} else {
 		s->equiv[0] = s->str[0];
 		if (s->str[1] != '=')
 			errx(1, "misplaced equivalence equals sign");
+		s->str += 3;
 	}
-	s->str += 2;
+
+	/*
+	 * Calculate the set of all characters in the same equivalence class
+	 * as the specified character (they will have the same primary
+	 * collation weights).
+	 * XXX Knows too much about how strxfrm() is implemented. Assumes
+	 * it fills the string with primary collation weight bytes. Only one-
+	 * to-one mappings are supported.
+	 */
+	src[0] = s->equiv[0];
+	src[1] = '\0';
+	if (strxfrm(dst, src, sizeof(dst)) == 1) {
+		pri = (unsigned char)*dst;
+		for (p = 1, i = 1; i < NCHARS; i++) {
+			*src = i;
+			if (strxfrm(dst, src, sizeof(dst)) == 1 && pri &&
+			    pri == (unsigned char)*dst)
+				s->equiv[p++] = i;
+		}
+		s->equiv[p] = OOBCH;
+	}
+
 	s->cnt = 0;
 	s->state = SET;
 	s->set = s->equiv;
