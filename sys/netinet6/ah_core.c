@@ -189,6 +189,10 @@ static const struct ah_algorithm ah_algorithms[] = {
 		"aes-xcbc-mac",
 		ah_aes_xcbc_mac_init, ah_aes_xcbc_mac_loop,
 		ah_aes_xcbc_mac_result, },
+	{ ah_sumsiz_1216, ah_none_mature, 1, 80, /* TCP_KEYLEN_MIN/MAX */
+		"TCP-MD5",
+		ah_none_init, ah_none_loop,
+		ah_none_result, },
 };
 
 const struct ah_algorithm *
@@ -217,6 +221,8 @@ ah_algorithm_lookup(idx)
 		return &ah_algorithms[8];
 	case SADB_X_AALG_AES_XCBC_MAC:
 		return &ah_algorithms[9];
+	case SADB_X_AALG_TCP_MD5:
+		return &ah_algorithms[10];
 	default:
 		return NULL;
 	}
