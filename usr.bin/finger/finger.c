@@ -78,6 +78,7 @@ static char sccsid[] = "@(#)finger.c	8.2 (Berkeley) 9/30/93";
 #include <stdlib.h>
 #include <string.h>
 #include <db.h>
+#include <locale.h>
 #include "finger.h"
 
 DB *db;
@@ -133,6 +134,8 @@ main(argc, argv)
 {
 	int ch, envargc, argcnt;
 	char *envargv[3];
+
+	(void) setlocale(LC_TIME|LC_CTYPE, "");
 
 				/* remove this line to get remote host */
 	oflag = 1;		/* default to old "office" behavior */
