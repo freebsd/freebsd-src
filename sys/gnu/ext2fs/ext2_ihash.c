@@ -73,13 +73,8 @@ ext2_ihashinit()
 void
 ext2_ihashuninit()
 {
-	struct ihashhead *hp;
 
-	for (hp = ihashtbl; hp < &ihashtbl[ihash]; hp++)
-		if (!LIST_EMPTY(hp))
-			panic("ext2_ihashuninit: ihash not empty");
-	free(ihashtbl, M_EXT2IHASH);
-	ihashtbl = NULL;
+	hashdestroy(ihashtbl, M_EXT2IHASH, ihash);
 	mtx_destroy(&ext2_ihash_mtx);
 }
 
