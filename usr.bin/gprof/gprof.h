@@ -53,28 +53,9 @@
 #if __powerpc__
 #   include "powerpc.h"
 #endif
-#if vax
-#   include "vax.h"
-#endif
-#if sparc
-#   include "sparc.h"
-#endif
-#if tahoe
-#   include "tahoe.h"
-#endif
-#if hp300
-#   include "hp300.h"
-#endif
-#if luna68k
-#   include "luna68k.h"
-#endif
 #if __i386__
 #   include "i386.h"
 #endif
-#if mips
-#   include "mips.h"
-#endif
-
 
     /*
      * booleans

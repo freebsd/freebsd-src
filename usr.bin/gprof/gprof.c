@@ -85,7 +85,7 @@ main(argc, argv)
 	    cyclethreshold = atoi( *++argv );
 	    break;
 	case 'c':
-#if defined(vax) || defined(tahoe)
+#if 0
 	    cflag = TRUE;
 #else
 	    errx(1, "-c isn't supported on this architecture yet");
