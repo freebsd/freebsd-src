@@ -22,9 +22,10 @@ SECTIONS
   . = ALIGN(4096);
   .data :
   {
-    *(.rodata)
-    *(.rodata1)
-    *(.set.*)
+    *(.rodata*)
+    __start_set_Xcommand_set = .;
+    *(set_Xcommand_set)
+    __stop_set_Xcommand_set = .;
     *(.ctors)
     *(.data)
     *(.data1)
