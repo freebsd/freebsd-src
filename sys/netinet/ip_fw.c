@@ -12,7 +12,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.80 1998/03/30 09:52:50 phk Exp $
+ *	$Id: ip_fw.c,v 1.81 1998/04/15 17:46:51 bde Exp $
  */
 
 /*
@@ -408,13 +408,15 @@ ip_fw_chk(struct ip **pip, int hlen,
 	for (chain=LIST_FIRST(&ip_fw_chain); chain; chain = LIST_NEXT(chain, chain)) {
 		register struct ip_fw *const f = chain->rule;
 
-		/* Check direction inbound */
-		if (!oif && !(f->fw_flg & IP_FW_F_IN))
-			continue;
-
-		/* Check direction outbound */
-		if (oif && !(f->fw_flg & IP_FW_F_OUT))
-			continue;
+		if (oif) {
+			/* Check direction outbound */
+			if (!(f->fw_flg & IP_FW_F_OUT))
+				continue;
+		} else {
+			/* Check direction inbound */
+			if (!(f->fw_flg & IP_FW_F_IN))
+				continue;
+		}
 
 		/* Fragments */
 		if ((f->fw_flg & IP_FW_F_FRAG) && !(ip->ip_off & IP_OFFMASK))
@@ -959,14 +961,39 @@ ip_fw_ctl(int stage, struct mbuf **mm)
 	struct mbuf *m;
 
 	if (stage == IP_FW_GET) {
+		/* 
+	 	 * If we have any number of rules, then it's worth while
+		 * using clusters for this. The smaller case is rare.
+		 * Note that using clusters for setsockopt is only in
+		 * 3.0 at this time.
+		 */
 		struct ip_fw_chain *fcp = LIST_FIRST(&ip_fw_chain);
 		*mm = m = m_get(M_WAIT, MT_SOOPTS);
+		if (m == NULL)  
+			return (ENOBUFS);
+		MCLGET(m, M_WAIT);
+		if(!(m->m_flags & M_EXT)) {
+abort:			m_freem(*mm);
+			*mm = NULL;
+			return (ENOBUFS);
+		}
+		m->m_len = 0;
 		for (; fcp; fcp = LIST_NEXT(fcp, chain)) {
-			memcpy(m->m_data, fcp->rule, sizeof *(fcp->rule));
-			m->m_len = sizeof *(fcp->rule);
-			m->m_next = m_get(M_WAIT, MT_SOOPTS);
-			m = m->m_next;
-			m->m_len = 0;
+			/* Will we need a new cluster? */
+			if((m->m_len + sizeof *(fcp->rule)) > MCLBYTES) {
+				m = m->m_next = m_get(M_WAIT, MT_SOOPTS);
+				if (m == NULL) {
+					goto abort;
+				}
+				MCLGET(m, M_WAIT);
+				if (!(m->m_flags & M_EXT)) {
+					goto abort;
+				}
+				m->m_len = 0;
+			}
+			memcpy(m->m_data + m->m_len, fcp->rule,
+					sizeof *(fcp->rule));
+			m->m_len += sizeof *(fcp->rule);
 		}
 		return (0);
 	}
