@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 1996 - 2002 FreeBSD Project
  * Copyright (c) 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -52,7 +53,11 @@ static char sccsid[] = "@(#)setlocale.c	8.1 (Berkeley) 7/4/93";
 #include <string.h>
 #include <unistd.h>
 #include "collate.h"
+#include "lmonetary.h"	/* for __monetary_load_locale() */
+#include "lnumeric.h"	/* for __numeric_load_locale() */
+#include "lmessages.h"	/* for __messages_load_locale() */
 #include "setlocale.h"
+#include "../stdtime/timelocal.h" /* for __time_load_locale() */
 
 /*
  * Category names for getenv()
@@ -90,9 +95,6 @@ static char current_locale_string[_LC_LAST * (ENCODING_LEN + 1/*"/"*/ + 1)];
 
 static char	*currentlocale __P((void));
 static char	*loadlocale __P((int));
-static int      stub_load_locale __P((const char *));
-
-extern int __time_load_locale __P((const char *)); /* strftime.c */
 
 char *
 setlocale(category, locale)
@@ -171,7 +173,7 @@ setlocale(category, locale)
 		}
 	}
 
-	if (category)
+	if (category != LC_ALL)
 		return (loadlocale(category));
 
 	for (i = 1; i < _LC_LAST; ++i) {
@@ -245,63 +247,23 @@ loadlocale(category)
 		return (ret);
 	}
 
-	if (category == LC_COLLATE) {
-		ret = (__collate_load_tables(new) < 0) ? NULL : new;
-		if (!ret)
-			(void)__collate_load_tables(old);
-		else
-			(void)strcpy(old, new);
-		return (ret);
+#define LOAD_CATEGORY(CAT, FUNC)			\
+	if (category == CAT) {				\
+		ret = (FUNC(new) < 0) ? NULL : new;	\
+		if (!ret)				\
+			(void)FUNC(old);		\
+		else					\
+			(void)strcpy(old, new);		\
+		return (ret);				\
 	}
 
-	if (category == LC_TIME) {
-		ret = (__time_load_locale(new) < 0) ? NULL : new;
-		if (!ret)
-			(void)__time_load_locale(old);
-		else
-			(void)strcpy(old, new);
-		return (ret);
-	}
-
-	if (category == LC_MONETARY ||
-	    category == LC_MESSAGES ||
-	    category == LC_NUMERIC) {
-		ret = stub_load_locale(new) ? NULL : new;
-		if (!ret)
-			(void)stub_load_locale(old);
-		else
-			(void)strcpy(old, new);
-		return (ret);
-	}
+	LOAD_CATEGORY(LC_COLLATE, __collate_load_tables);
+	LOAD_CATEGORY(LC_TIME, __time_load_locale);
+	LOAD_CATEGORY(LC_NUMERIC, __numeric_load_locale);
+	LOAD_CATEGORY(LC_MONETARY, __monetary_load_locale);
+	LOAD_CATEGORY(LC_MESSAGES, __messages_load_locale);
 
 	/* Just in case...*/
 	return (NULL);
 }
 
-static int
-stub_load_locale(encoding)
-const char *encoding;
-{
-	char name[PATH_MAX];
-	struct stat st;
-
-	if (!encoding)
-		return(1);
-	/*
-	 * The "C" and "POSIX" locale are always here.
-	 */
-	if (!strcmp(encoding, "C") || !strcmp(encoding, "POSIX"))
-		return(0);
-	if (!_PathLocale)
-		return(1);
-	/* Range checking not needed, encoding has fixed size */
-	strcpy(name, _PathLocale);
-	strcat(name, "/");
-	strcat(name, encoding);
-#if 0
-	/*
-	 * Some day we will actually look at this file.
-	 */
-#endif
-	return (stat(name, &st) != 0 || !S_ISDIR(st.st_mode));
-}
