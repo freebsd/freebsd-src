@@ -99,12 +99,13 @@ static int pipe_read(struct file *fp, struct uio *uio,
 static int pipe_write(struct file *fp, struct uio *uio, 
 		struct ucred *active_cred, int flags, struct thread *td);
 static int pipe_close(struct file *fp, struct thread *td);
-static int pipe_poll(struct file *fp, int events, struct ucred *cred,
+static int pipe_poll(struct file *fp, int events, struct ucred *active_cred,
 		struct thread *td);
 static int pipe_kqfilter(struct file *fp, struct knote *kn);
-static int pipe_stat(struct file *fp, struct stat *sb, struct thread *td);
+static int pipe_stat(struct file *fp, struct stat *sb,
+		struct ucred *active_cred,  struct thread *td);
 static int pipe_ioctl(struct file *fp, u_long cmd, void *data,
-    struct thread *td);
+		struct thread *td);
 
 static struct fileops pipeops = {
 	pipe_read, pipe_write, pipe_ioctl, pipe_poll, pipe_kqfilter,
@@ -1215,10 +1216,10 @@ pipe_ioctl(fp, cmd, data, td)
 }
 
 int
-pipe_poll(fp, events, cred, td)
+pipe_poll(fp, events, active_cred, td)
 	struct file *fp;
 	int events;
-	struct ucred *cred;
+	struct ucred *active_cred;
 	struct thread *td;
 {
 	struct pipe *rpipe = (struct pipe *)fp->f_data;
@@ -1231,7 +1232,7 @@ pipe_poll(fp, events, cred, td)
 	wpipe = rpipe->pipe_peer;
 	PIPE_LOCK(rpipe);
 #ifdef MAC
-	error = mac_check_pipe_op(td->td_ucred, rpipe, MAC_OP_PIPE_POLL);
+	error = mac_check_pipe_op(active_cred, rpipe, MAC_OP_PIPE_POLL);
 	if (error)
 		goto locked_error;
 #endif
@@ -1276,9 +1277,10 @@ locked_error:
  * be a natural race.
  */
 static int
-pipe_stat(fp, ub, td)
+pipe_stat(fp, ub, active_cred, td)
 	struct file *fp;
 	struct stat *ub;
+	struct ucred *active_cred;
 	struct thread *td;
 {
 	struct pipe *pipe = (struct pipe *)fp->f_data;
@@ -1286,7 +1288,7 @@ pipe_stat(fp, ub, td)
 	int error;
 
 	/* XXXMAC: Pipe should be locked for this check. */
-	error = mac_check_pipe_op(td->td_ucred, pipe, MAC_OP_PIPE_STAT);
+	error = mac_check_pipe_op(active_cred, pipe, MAC_OP_PIPE_STAT);
 	if (error)
 		return (error);
 #endif
