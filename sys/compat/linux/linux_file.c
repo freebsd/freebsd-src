@@ -732,9 +732,10 @@ linux_mount(struct thread *td, struct linux_mount_args *args)
 	struct ufs_args ufs;
 	char fstypename[MFSNAMELEN];
 	char mntonname[MNAMELEN], mntfromname[MNAMELEN];
+	struct uio auio;
+	struct iovec iov[4];
 	int error;
 	int fsflags;
-	const char *fstype;
 	void *fsdata;
 
 	error = copyinstr(args->filesystemtype, fstypename, MFSNAMELEN - 1,
@@ -755,7 +756,7 @@ linux_mount(struct thread *td, struct linux_mount_args *args)
 #endif
 
 	if (strcmp(fstypename, "ext2") == 0) {
-		fstype = "ext2fs";
+		strcpy(fstypename, "ext2fs");
 		fsdata = &ufs;
 		ufs.fspec = mntfromname;
 #define DEFAULT_ROOTID		-2
@@ -763,7 +764,7 @@ linux_mount(struct thread *td, struct linux_mount_args *args)
 		ufs.export.ex_flags =
 		    args->rwflag & LINUX_MS_RDONLY ? MNT_EXRDONLY : 0;
 	} else if (strcmp(fstypename, "proc") == 0) {
-		fstype = "linprocfs";
+		strcpy(fstypename, "linprocfs");
 		fsdata = NULL;
 	} else {
 		return (ENODEV);
@@ -788,7 +789,23 @@ linux_mount(struct thread *td, struct linux_mount_args *args)
 			fsflags |= MNT_UPDATE;
 	}
 
-	return (vfs_mount(td, fstype, mntonname, fsflags, fsdata));
+	if (strcmp(fstypename, "linprocfs") == 0) {
+		bzero(&auio, sizeof(auio));
+		auio.uio_iov = iov;
+		auio.uio_iovcnt = sizeof(iov) / sizeof(*iov);
+		auio.uio_segflg = UIO_SYSSPACE;
+		iov[0].iov_base = "fstype";
+		iov[0].iov_len = sizeof("fstype");
+		iov[1].iov_base = fstypename;
+		iov[1].iov_len = strlen(fstypename) + 1;
+		iov[2].iov_base = "fspath";
+		iov[2].iov_len = sizeof("fspath");
+		iov[3].iov_base = mntonname;
+		iov[3].iov_len = strlen(mntonname) + 1;
+		error = vfs_nmount(td, fsflags, &auio);
+	} else
+		error = vfs_mount(td, fstypename, mntonname, fsflags, fsdata);
+	return (error);
 }
 
 int
