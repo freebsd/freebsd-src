@@ -286,7 +286,6 @@ g_concat_check_and_run(struct g_concat_softc *sc)
 		    disk->d_consumer->provider->mediasize;
 		if (sc->sc_type == G_CONCAT_TYPE_AUTOMATIC)
 			disk->d_end -= disk->d_consumer->provider->sectorsize;
-		disk->d_length = disk->d_end - disk->d_start;
 		start = disk->d_end;
 	}
 	/* We have sc->sc_disks[sc->sc_ndisks - 1].d_end in 'start'. */
@@ -383,7 +382,6 @@ g_concat_add_disk(struct g_concat_softc *sc, struct g_provider *pp, u_int no)
 	disk->d_softc = sc;
 	disk->d_start = 0;	/* not yet */
 	disk->d_end = 0;	/* not yet */
-	disk->d_length = 0;	/* not yet */
 	disk->d_valid = 1;
 
 	G_CONCAT_DEBUG(0, "Disk %s attached to %s.", pp->name, gp->name);
