@@ -1220,8 +1220,8 @@ en_open_vcc(struct en_softc *sc, struct atmio_openvcc *op)
 	slot->vcc = vc;
 
 	KASSERT (_IF_QLEN(&slot->indma) == 0 && _IF_QLEN(&slot->q) == 0,
-	    ("en_rxctl: left over mbufs on enable slot=%u",
-	    vc->rxslot - sc->rxslot));
+	    ("en_rxctl: left over mbufs on enable slot=%ld",
+	    (long)(vc->rxslot - sc->rxslot)));
 
 	vc->txspeed = 0;
 	vc->txslot = sc->txslot;
