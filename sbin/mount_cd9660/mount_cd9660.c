@@ -75,9 +75,8 @@ main(argc, argv)
 {
 	struct iso_args args;
 	int ch, mntflags, opts;
-	char *dev, *dir, *options;
+	char *dev, *dir;
 
-	options = NULL;
 	mntflags = opts = 0;
 	while ((ch = getopt(argc, argv, "ego:r")) != EOF)
 		switch (ch) {
@@ -88,7 +87,7 @@ main(argc, argv)
 			opts |= ISOFSMNT_GENS;
 			break;
 		case 'o':
-			getmntopts(options, mopts, &mntflags);
+			getmntopts(optarg, mopts, &mntflags);
 			break;
 		case 'r':
 			opts |= ISOFSMNT_NORRIP;
