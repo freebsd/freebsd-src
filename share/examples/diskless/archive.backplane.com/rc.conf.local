@@ -1,0 +1,19 @@
+#!/bin/sh
+#
+
+network_interfaces="lo0 ed1"
+ifconfig_ed1="inet 192.157.86.7 netmask 255.255.255.192"
+
+# use external resolver
+#
+named_enable="NO"
+portmap_enable="NO"
+
+##############################################################
+###  Miscellaneous administrative options  ###################
+##############################################################
+
+sendmail_enable="YES"
+sendmail_flags="-q5m"
+dumpdev="/dev/sd0b"	# Device name to crashdump to (if enabled).
+

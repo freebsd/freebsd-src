@@ -1,0 +1,20 @@
+
+    kernel, rc.local, and xdm-config are typically softlinks.  Plus other
+    files, of course, depending on how you setup your system.
+
+    rc.local and xdm-config might be softlinks into HT.DISKLESS, allowing
+    you to ease system administration when managing many diskless
+    workstations.  You can also play other tricks, such as I play in 
+    rc.conf.local by having it source ../HT.DISKLESS/rc.conf.local to get
+    class-based defaults.
+
+total 6
+drwxr-xr-x  3 root  wheel  512 Jan 26 10:56 .
+drwxr-xr-x  7 root  wheel  512 Jan 26 10:58 ..
+drwxr-xr-x  2 root  wheel  512 Jan 26 10:56 CVS
+lrwxr-xr-x  1 root  wheel   17 Jan 25 10:26 kernel -> /kernel.diskless2
+-rw-r--r--  1 root  wheel  146 Jan 25 01:21 rc.conf.local
+lrwxr-xr-x  1 root  wheel   23 Jan 25 10:26 rc.local -> ../HT.DISKLESS/rc.local
+-rw-------  1 root  wheel  539 Jan 17 15:29 ssh_host_key
+-rw-r--r--  1 root  wheel  343 Jan 17 15:29 ssh_host_key.pub
+lrwxr-xr-x  1 root  wheel   25 Jan 25 10:26 xdm-config -> ../HT.DISKLESS/xdm-config

@@ -1,0 +1,19 @@
+#!/bin/sh
+
+. /etc/rc.conf
+
+cat >> /var/spool/lpd/ljet4.ps << EOF
+#!/bin/sh
+# 
+ 
+gs -q -dSAFER -dNOPAUSE -sDEVICE=ljet4 -r600x600 -dBitsPerPixel=1 \
+    -sOutputFile=- -
+EOF
+chmod 755 /var/spool/lpd/ljet4.ps
+mkdir /var/spool/ljet4
+chown daemon /var/spool/ljet4
+
+if [ "X$start_xdm" = "XYES" ]; then
+	( sleep 10; xdm -config $conf_dir/xdm-config ) > /dev/null 2>&1 &
+fi
+
