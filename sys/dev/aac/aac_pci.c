@@ -132,6 +132,8 @@ struct aac_ident
 	 "Dell CERC SATA RAID 2"},
 	{0x9005, 0x0285, 0x9005, 0x0292, AAC_HWIF_I960RX, AAC_FLAGS_NO4GB,
 	 "Adaptec SCSI RAID 2810SA"},
+	{0x9005, 0x0286, 0x9005, 0x028d, AAC_HWIF_RKT, 0,
+	 "Adaptec SCSI RAID 2130S"},
 	{0, 0, 0, 0, 0, 0, 0}
 };
 
@@ -265,7 +267,6 @@ aac_pci_attach(device_t dev)
 	 * Detect the hardware interface version, set up the bus interface
 	 * indirection.
 	 */
-	sc->aac_hwif = AAC_HWIF_UNKNOWN;
 	for (i = 0; aac_identifiers[i].vendor != 0; i++) {
 		if ((aac_identifiers[i].vendor == pci_get_vendor(dev)) &&
 		    (aac_identifiers[i].device == pci_get_device(dev)) &&
@@ -277,7 +278,6 @@ aac_pci_attach(device_t dev)
 				debug(2, "set hardware up for i960Rx");
 				sc->aac_if = aac_rx_interface;
 				break;
-
 			case AAC_HWIF_STRONGARM:
 				debug(2, "set hardware up for StrongARM");
 				sc->aac_if = aac_sa_interface;
@@ -285,6 +285,13 @@ aac_pci_attach(device_t dev)
 			case AAC_HWIF_FALCON:
 				debug(2, "set hardware up for Falcon/PPC");
 				sc->aac_if = aac_fa_interface;
+				break;
+			case AAC_HWIF_RKT:
+				debug(2, "setu hardware up for Rocket/MIPS");
+				sc->aac_if = aac_rkt_interface;
+				break;
+			default:
+				sc->aac_hwif = AAC_HWIF_UNKNOWN;
 				break;
 			}
 

@@ -232,6 +232,7 @@ struct aac_interface
 extern struct aac_interface	aac_rx_interface;
 extern struct aac_interface	aac_sa_interface;
 extern struct aac_interface	aac_fa_interface;
+extern struct aac_interface	aac_rkt_interface;
 
 #define AAC_GET_FWSTATUS(sc)		((sc)->aac_if.aif_get_fwstatus((sc)))
 #define AAC_QNOTIFY(sc, qbit)		((sc)->aac_if.aif_qnotify((sc), (qbit)))
@@ -293,7 +294,8 @@ struct aac_softc
 	int			aac_hwif;
 #define AAC_HWIF_I960RX		0
 #define AAC_HWIF_STRONGARM	1
-#define	AAC_HWIF_FALCON		2
+#define AAC_HWIF_FALCON		2
+#define AAC_HWIF_RKT		3
 #define AAC_HWIF_UNKNOWN	-1
 	bus_dma_tag_t		aac_common_dmat;	/* common structure
 							 * DMA tag */
