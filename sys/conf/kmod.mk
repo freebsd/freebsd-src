@@ -167,16 +167,9 @@ ${KMOD}.kld: ${OBJS}
 .endif
 
 
-.if !target(all-man)
-all-man: _SUBDIR
-.endif
-.if !target(maninstall)
-maninstall: _SUBDIR
-.endif
-
 _ILINKS=@ machine
 
-all: objwarn ${PROG} _SUBDIR
+all: objwarn ${PROG}
 
 beforedepend: ${_ILINKS}
 	@rm -f .depend
@@ -225,11 +218,11 @@ _INSTALLFLAGS:=	${INSTALLFLAGS}
 _INSTALLFLAGS:=	${_INSTALLFLAGS${ie}}
 .endfor
 
-install.debug: _SUBDIR
+install.debug:
 	${INSTALL} ${COPY} -o ${KMODOWN} -g ${KMODGRP} -m ${KMODMODE} \
 	    ${_INSTALLFLAGS} ${FULLPROG} ${DESTDIR}${KMODDIR}/
 
-realinstall: _SUBDIR
+realinstall:
 	${INSTALL} ${COPY} -o ${KMODOWN} -g ${KMODGRP} -m ${KMODMODE} \
 	    ${_INSTALLFLAGS} ${PROG} ${DESTDIR}${KMODDIR}/
 .if defined(LINKS) && !empty(LINKS)
@@ -258,14 +251,14 @@ realinstall: _SUBDIR
 	-kldxref ${DESTDIR}${KMODDIR}
 .endif
 
-install: afterinstall _SUBDIR
+install: afterinstall
 afterinstall: realinstall
 realinstall: beforeinstall
 .endif
 
 DISTRIBUTION?=	bin
 .if !target(distribute)
-distribute: _SUBDIR
+distribute:
 .for dist in ${DISTRIBUTION}
 	cd ${.CURDIR} ; $(MAKE) install DESTDIR=${DISTDIR}/${dist} SHARED=copies
 .endfor

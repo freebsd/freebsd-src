@@ -72,9 +72,6 @@
 #	install:
 #		Install the info files.
 #
-#	maninstall:
-#		Dummy target, do nothing.
-#
 #
 # bsd.obj.mk: cleandir and obj
 
@@ -137,10 +134,10 @@ CLEANFILES+=	${IFILENS}
 .if !defined(NOINFOCOMPRESS)
 CLEANFILES+=	${IFILENS:S/$/${ICOMPRESS_EXT}/}
 IFILES=	${IFILENS:S/$/${ICOMPRESS_EXT}/:S/.html${ICOMPRESS_EXT}/.html/}
-all: ${IFILES} _SUBDIR
+all: ${IFILES}
 .else
 IFILES=	${IFILENS}
-all: ${IFILES} _SUBDIR
+all: ${IFILES}
 .endif
 .else
 all:
@@ -165,7 +162,7 @@ ${x:S/$/-install/}: ${DESTDIR}${INFODIR}/${INFODIRFILE}
 DISTRIBUTION?=	bin
 
 .if !target(distribute)
-distribute: _SUBDIR
+distribute:
 .for dist in ${DISTRIBUTION}
 	cd ${.CURDIR} ; $(MAKE) install DESTDIR=${DISTDIR}/${dist} SHARED=copies
 .endfor
@@ -190,7 +187,7 @@ CLEANFILES+=	${INFO:S/$/.info.*.html/} ${INFO:S/$/.info/}
 .endif
 
 .if !defined(NOINFO) && defined(INFO)
-install: ${INSTALLINFODIRS} _SUBDIR
+install: ${INSTALLINFODIRS}
 .if ${IFILES:N*.html}
 	${INSTALL} ${COPY} -o ${INFOOWN} -g ${INFOGRP} -m ${INFOMODE} \
 		${IFILES:N*.html} ${DESTDIR}${INFODIR}
@@ -206,18 +203,6 @@ install: ${INSTALLINFODIRS} _SUBDIR
 # is no source file named __null_install.sh.
 install: __null_install
 __null_install:
-.endif
-
-.if !target(all-man)
-all-man: _SUBDIR
-.endif
-
-.if !target(maninstall)
-maninstall: _SUBDIR
-.endif
-
-.if !target(regress)
-regress:
 .endif
 
 .include <bsd.obj.mk>
