@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.169 1998/09/09 05:09:55 danny Exp $
+ * $Id: menus.c,v 1.170 1998/09/30 11:49:35 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -1208,7 +1208,7 @@ DMenu MenuNetworking = {
       { "Gateway",	"This machine will route packets between interfaces",
 	dmenuVarCheck,	dmenuToggleVariable, NULL, "gateway_enable=YES" },
       { "Ntpdate",	"Select a clock-synchronization server",
-	dmenuVarCheck,	dmenuSubmenu, NULL, &MenuNTP, '[', 'X', ']', (int)"ntpdate_enable=YES" },
+	dmenuVarCheck,	dmenuSubmenu, NULL, &MenuNTP, '[', 'X', ']', "ntpdate_enable=YES" },
       { "router",	"Select routing daemon (default: routed)",
 	dmenuVarCheck, configRouter, NULL, "router" },
       { "Rwhod",	"This machine wants to run the rwho daemon",
