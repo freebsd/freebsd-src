@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999 Hellmuth Michaelis
+ * Copyright (c) 1999, 2000 Hellmuth Michaelis
  *
  * Copyright (c) 1992, 1995 Hellmuth Michaelis and Joerg Wunsch.
  *
@@ -42,7 +42,7 @@
  *	pcvt_vtf.c	VT220 Terminal Emulator Functions
  *	-------------------------------------------------
  *
- *	Last Edit-Date: [Mon Dec 27 14:13:33 1999]
+ *	Last Edit-Date: [Sun Mar 26 10:38:52 2000]
  *
  * $FreeBSD$
  *
@@ -1428,7 +1428,7 @@ vt_mc(struct video_state *svsp)
  *
  *---------------------------------------------------------------------------*/
 void
-vt_dcsentry(U_char ch, struct video_state *svsp)
+vt_dcsentry(int ch, struct video_state *svsp)
 {
 	switch(svsp->dcs_state)
 	{
@@ -1928,9 +1928,6 @@ vt_sed(struct video_state *svsp)
 void
 roll_up(struct video_state *svsp, int n)
 {
-
-#if (PCVT_NOFASTSCROLL==0)
-
 	if(svsp->scrr_beg == 0 &&	/* if scroll region is whole screen */
            svsp->scrr_len == svsp->screen_rows &&
 	   (svsp != vsp ||		/* and either running in memory */
@@ -1938,13 +1935,11 @@ roll_up(struct video_state *svsp, int n)
 	     adaptor_type != MDA_ADAPTOR)))	/* and not on MDA/Hercules */
 	{
 		u_short *Memory =
-
-#if PCVT_USL_VT_COMPAT
+#ifdef XSERVER
 		    (vsp != svsp || (vsp->vt_status & VT_GRAFX)) ?
 #else
 		    (vsp != svsp) ?
 #endif
-
 				svsp->Memory : Crtat;
 
 		if(svsp->Crtat > (Memory + (svsp->screen_rows - n) *
@@ -1959,13 +1954,11 @@ roll_up(struct video_state *svsp, int n)
 		{
 			svsp->Crtat += n * svsp->maxcol;
 		}
-
-#if PCVT_USL_VT_COMPAT
+#ifdef XSERVER
 		if(vsp == svsp && !(vsp->vt_status & VT_GRAFX))
 #else
 		if(vsp == svsp)
 #endif
-
 		{
 			outb(addr_6845, CRTC_STARTADRH);
 			outb(addr_6845+1, (svsp->Crtat - Crtat) >> 8);
@@ -1974,13 +1967,11 @@ roll_up(struct video_state *svsp, int n)
 		}
 	}
 	else
-#endif
 	{
 		bcopy(	svsp->Crtat + ((svsp->scrr_beg + n) * svsp->maxcol),
 			svsp->Crtat + (svsp->scrr_beg * svsp->maxcol),
 			svsp->maxcol * (svsp->scrr_len - n) * CHR );
 	}
-
 	fillw(	user_attr | ' ',
 		svsp->Crtat + ((svsp->scrr_end - n + 1) * svsp->maxcol),
 		n * svsp->maxcol);
@@ -1995,9 +1986,6 @@ roll_up(struct video_state *svsp, int n)
 static void
 roll_down(struct video_state *svsp, int n)
 {
-
-#if (PCVT_NOFASTSCROLL==0)
-
 	if(svsp->scrr_beg == 0 &&	/* if scroll region is whole screen */
            svsp->scrr_len == svsp->screen_rows &&
 	   (svsp != vsp ||		/* and either running in memory */
@@ -2005,8 +1993,7 @@ roll_down(struct video_state *svsp, int n)
 	     adaptor_type != MDA_ADAPTOR)))	/* and not on MDA/Hercules */
 	{
 		u_short *Memory =
-
-#if PCVT_USL_VT_COMPAT
+#ifdef XSERVER
 		    (vsp != svsp || (vsp->vt_status & VT_GRAFX)) ?
 #else
 		    (vsp != svsp) ?
@@ -2025,13 +2012,11 @@ roll_down(struct video_state *svsp, int n)
 		{
 			svsp->Crtat -= n * svsp->maxcol;
 		}
-
-#if PCVT_USL_VT_COMPAT
+#ifdef XSERVER
 		if(vsp == svsp && !(vsp->vt_status & VT_GRAFX))
 #else
 		if(vsp == svsp)
 #endif
-
 		{
 			outb(addr_6845, CRTC_STARTADRH);
 			outb(addr_6845+1, (svsp->Crtat - Crtat) >> 8);
@@ -2040,13 +2025,11 @@ roll_down(struct video_state *svsp, int n)
 		}
 	}
 	else
-#endif
 	{
 		bcopy(  svsp->Crtat + (svsp->scrr_beg * svsp->maxcol),
 			svsp->Crtat + ((svsp->scrr_beg + n) * svsp->maxcol),
 			svsp->maxcol * (svsp->scrr_len - n) * CHR );
 	}
-
 	fillw(	user_attr | ' ',
 		svsp->Crtat + (svsp->scrr_beg * svsp->maxcol),
 		n * svsp->maxcol);

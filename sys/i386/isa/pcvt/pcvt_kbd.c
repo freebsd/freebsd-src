@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999 Hellmuth Michaelis
+ * Copyright (c) 1999, 2000 Hellmuth Michaelis
  *
  * Copyright (c) 1992, 1995 Hellmuth Michaelis and Joerg Wunsch.
  *
@@ -45,7 +45,7 @@
  *	pcvt_kbd.c	VT220 Driver Keyboard Interface Code
  *	----------------------------------------------------
  *
- *	Last Edit-Date: [Mon Dec 27 14:01:50 1999]
+ *	Last Edit-Date: [Sun Mar 26 10:54:07 2000]
  *
  * $FreeBSD$
  *
@@ -72,34 +72,51 @@ static void cfkey1(void), cfkey2(void),  cfkey3(void),  cfkey4(void);
 static void cfkey5(void), cfkey6(void),  cfkey7(void),  cfkey8(void);
 static void cfkey9(void), cfkey10(void), cfkey11(void), cfkey12(void);
 
+#include <i386/isa/pcvt/pcvt_kbd.h>	/* tables etc */
+
 static void	doreset ( void );
 static void	ovlinit ( int force );
 static void 	settpmrate ( int rate );
 static void	setlockkeys ( int snc );
-#ifndef _DEV_KBD_KBDREG_H_
-static int	kbc_8042cmd ( int val );
-#endif /* !_DEV_KBD_KBDREG_H_ */
 static int	getokeydef ( unsigned key, struct kbd_ovlkey *thisdef );
 static int 	getckeydef ( unsigned key, struct kbd_ovlkey *thisdef );
 static int	rmkeydef ( int key );
+static void	scrollback_save_screen ( void );
+static void	scrollback_restore_screen ( void );
 static int	setkeydef ( struct kbd_ovlkey *data );
-static u_char *	xlatkey2ascii( U_short key );
+static u_char	*xlatkey2ascii( int key );
 
 static int	ledstate  = LEDSTATE_UPDATE_PENDING;	/* keyboard led's */
 static int	tpmrate   = KBD_TPD500|KBD_TPM100;
 static u_char	altkpflag = 0;
 static u_short	altkpval  = 0;
-
-static u_short *scrollback_savedscreen = (u_short *)0;
-static size_t scrnsv_size = (size_t)-1;
-static void scrollback_save_screen ( void );
-static void scrollback_restore_screen ( void );
+static u_short	*scrollback_savedscreen = (u_short *)0;
+static size_t	scrnsv_size = (size_t)-1;
+static int	lost_intr_timeout_queued = 0;
+static struct	callout_handle lost_intr_ch =
+			CALLOUT_HANDLE_INITIALIZER(&lost_intr_ch);
 
 #if PCVT_SHOWKEYS
 u_char rawkeybuf[80];
 #endif
 
-#include <i386/isa/pcvt/pcvt_kbd.h>	/* tables etc */
+#if PCVT_USEKBDSEC		/* security enabled */
+
+#  if PCVT_SCANSET == 2
+#    define KBDINITCMD 0
+#  else /* PCVT_SCANSET != 2 */
+#    define KBDINITCMD KBD_TRANSLATION
+#  endif /* PCVT_SCANSET == 2 */
+
+#else /* ! PCVT_USEKBDSEC */	/* security disabled */
+
+#  if PCVT_SCANSET == 2
+#    define KBDINITCMD KBD_OVERRIDE_KBD_LOCK
+#  else /* PCVT_SCANSET != 2 */
+#    define KBDINITCMD KBD_TRANSLATION | KBD_OVERRIDE_KBD_LOCK
+#  endif /* PCVT_SCANSET == 2 */
+
+#endif /* PCVT_USEKBDSEC */
 
 #if PCVT_SHOWKEYS
 /*---------------------------------------------------------------------------*
@@ -146,64 +163,18 @@ do_vgapage(int page)
 		vgapage(page);		/* no, switch now */
 }
 
-
-/*
- * This code from Lon Willett enclosed in #if PCVT_UPDLED_LOSES_INTR is
- * abled because it crashes FreeBSD 1.1.5.1 at boot time.
- * The cause is obviously that the timeout queue is not yet initialized
- * timeout is called from here the first time.
- * Anyway it is a pointer in the right direction so it is included for
- * reference here.
- */
-
-#define PCVT_UPDLED_LOSES_INTR	0	/* disabled for now */
-
-#if PCVT_UPDLED_LOSES_INTR || defined(_DEV_KBD_KBDREG_H_)
-
 /*---------------------------------------------------------------------------*
  *	check for lost keyboard interrupts
  *---------------------------------------------------------------------------*/
-
-/*
- * The two commands to change the LEDs generate two KEYB_R_ACK responses
- * from the keyboard, which aren't explicitly checked for (maybe they
- * should be?).  However, when a lot of other I/O is happening, one of
- * the interrupts sometimes gets lost (I'm not sure of the details of
- * how and why and what hardware this happens with).
- *
- * This may have had something to do with spltty() previously not being
- * called before the kbd_cmd() calls in update_led().
- *
- * This is a real problem, because normally the keyboard is only polled
- * by pcrint(), and no more interrupts will be generated until the ACK
- * has been read.  So the keyboard is hung.  This code polls a little
- * while after changing the LEDs to make sure that this hasn't happened.
- *
- * XXX Quite possibly we should poll the kbd on a regular basis anyway,
- * in the interest of robustness.  It may be possible that interrupts
- * get lost other times as well.
- */
-
-static int lost_intr_timeout_queued = 0;
-static struct callout_handle lost_intr_ch =
-    CALLOUT_HANDLE_INITIALIZER(&lost_intr_ch);
-
 static void
-check_for_lost_intr (void *arg)
+check_for_lost_intr(void *arg)
 {
-#ifndef _DEV_KBD_KBDREG_H_
-	lost_intr_timeout_queued = 0;
-	if (inb(CONTROLLER_CTRL) & STATUS_OUTPBF)
-	{
-		int opri = spltty ();
-		pcrint ();
-		splx (opri);
-	}
-#else
 	int opri;
 
 	lost_intr_timeout_queued = 0;
-	if (kbd && (*kbdsw[kbd->kb_index]->lock)(kbd, TRUE)) {
+
+	if (kbd && (*kbdsw[kbd->kb_index]->lock)(kbd, TRUE))
+	{
 		opri = spltty ();
 		(*kbdsw[kbd->kb_index]->lock)(kbd, FALSE);
 		if ((*kbdsw[kbd->kb_index]->check)(kbd))
@@ -213,10 +184,7 @@ check_for_lost_intr (void *arg)
 
 	lost_intr_ch = timeout(check_for_lost_intr, (void *)NULL, hz);
 	lost_intr_timeout_queued = 1;
-#endif /* !_DEV_KBD_KBDREG_H_ */
 }
-
-#endif /* PCVT_UPDLED_LOSES_INTR || defined(_DEV_KBD_KBDREG_H_) */
 
 /*---------------------------------------------------------------------------*
  *	update keyboard led's
@@ -231,95 +199,27 @@ update_led(void)
 	int opri, new_ledstate;
 
 	opri = spltty();
-#ifndef _DEV_KBD_KBDREG_H_
-	new_ledstate = (vsp->scroll_lock) |
-		       (vsp->num_lock * 2) |
-		       (vsp->caps_lock * 4);
-#else
+
 	new_ledstate = ((vsp->scroll_lock) ? LED_SCR : 0) |
 		       ((vsp->num_lock) ? LED_NUM : 0) |
 		       ((vsp->caps_lock) ? LED_CAP : 0);
-#endif /* _DEV_KBD_KBDREG_H_ */
 
 	if (new_ledstate != ledstate)
 	{
-#ifndef _DEV_KBD_KBDREG_H_
-		int response1, response2;
-
-		ledstate = LEDSTATE_UPDATE_PENDING;
-
-		if(kbd_cmd(KEYB_C_LEDS) != 0)
+		if (kbd == NULL)
 		{
-			printf("Keyboard LED command timeout\n");
-			splx(opri);
-			return;
-		}
-
-		/*
-		 * For some keyboards or keyboard controllers, it is an
-		 * error to issue a command without waiting long enough
-		 * for an ACK for the previous command.  The keyboard
-		 * gets confused, and responds with KEYB_R_RESEND, but
-		 * we ignore that.  Wait for the ACK here.  The busy
-		 * waiting doesn't matter much, since we lose anyway by
-		 * busy waiting to send the command.
-		 *
-		 * XXX actually wait for any response, since we can't
-		 * handle normal scancodes here.
-		 *
-		 * XXX all this should be interrupt driven.  Issue only
-		 * one command at a time wait for a ACK before proceeding.
-		 * Retry after a timeout or on receipt of a KEYB_R_RESEND.
-		 * KEYB_R_RESENDs seem to be guaranteed by working
-		 * keyboard controllers with broken (or disconnected)
-		 * keyboards.  There is another code for keyboard
-		 * reconnects.  The keyboard hardware is very simple and
-		 * well designed :-).
-		 */
-		response1 = kbd_response();
-
-		if(kbd_cmd(new_ledstate) != 0) {
-			printf("Keyboard LED data timeout\n");
-			splx(opri);
-			return;
-		}
-		response2 = kbd_response();
-
-		if (response1 == KEYB_R_ACK && response2 == KEYB_R_ACK)
 			ledstate = new_ledstate;
+			splx(opri);
+		}
 		else
-			printf(
-			"Keyboard LED command not ACKed (responses %#x %#x)\n",
-			       response1, response2);
-#else /* _DEV_KBD_KBDREG_H_ */
-
-		if (kbd == NULL) {
-			ledstate = new_ledstate;
-			splx(opri);
-		} else {
+		{
 			ledstate = LEDSTATE_UPDATE_PENDING;
 			splx(opri);
 			if ((*kbdsw[kbd->kb_index]->ioctl)(kbd, KDSETLED,
 					(caddr_t)&new_ledstate) == 0) 
 				ledstate = new_ledstate;
 		}
-
-#endif /* !_DEV_KBD_KBDREG_H_ */
-
-#if PCVT_UPDLED_LOSES_INTR
-		if (lost_intr_timeout_queued)
-			untimeout(check_for_lost_intr, NULL, lost_intr_ch);
-
-		lost_intr_ch = timeout(check_for_lost_intr, NULL, hz);
-		lost_intr_timeout_queued = 1;
-#endif /* PCVT_UPDLED_LOSES_INTR */
-
 	}
-
-#ifndef _DEV_KBD_KBDREG_H_
-	splx(opri);
-#endif 
-
 #endif /* !PCVT_NO_LED_UPDATE */
 }
 
@@ -329,84 +229,12 @@ update_led(void)
 static void
 settpmrate(int rate)
 {
-#ifndef _DEV_KBD_KBDREG_H_
-	tpmrate = rate & 0x7f;
-	if(kbd_cmd(KEYB_C_TYPEM) != 0)
-		printf("Keyboard TYPEMATIC command timeout\n");
-	else if(kbd_cmd(tpmrate) != 0)
-		printf("Keyboard TYPEMATIC data timeout\n");
-#else
 	if (kbd == NULL)
 		return;
 	tpmrate = rate & 0x7f;
 	if ((*kbdsw[kbd->kb_index]->ioctl)(kbd, KDSETRAD, (caddr_t)&tpmrate))
 		printf("pcvt: failed to set keyboard TYPEMATIC.\n");
-#endif /* !_DEV_KBD_KBDREG_H_ */
 }
-
-#ifndef _DEV_KBD_KBDREG_H_
-/*---------------------------------------------------------------------------*
- *	Pass command to keyboard controller (8042)
- *---------------------------------------------------------------------------*/
-static int
-kbc_8042cmd(int val)
-{
-	unsigned timeo;
-
-	timeo = 100000; 	/* > 100 msec */
-	while (inb(CONTROLLER_CTRL) & STATUS_INPBF)
-		if (--timeo == 0)
-			return (-1);
-	outb(CONTROLLER_CTRL, val);
-	return (0);
-}
-
-/*---------------------------------------------------------------------------*
- *	Pass command to keyboard itself
- *---------------------------------------------------------------------------*/
-int
-kbd_cmd(int val)
-{
-	unsigned timeo;
-
-	timeo = 100000; 	/* > 100 msec */
-	while (inb(CONTROLLER_CTRL) & STATUS_INPBF)
-		if (--timeo == 0)
-			return (-1);
-	outb(CONTROLLER_DATA, val);
-
-#if PCVT_SHOWKEYS
-	showkey ('>', val);
-#endif	/* PCVT_SHOWKEYS */
-
-	return (0);
-}
-
-/*---------------------------------------------------------------------------*
- *	Read response from keyboard
- *	NB: make sure to call spltty() before kbd_cmd(), kbd_response().
- *---------------------------------------------------------------------------*/
-int
-kbd_response(void)
-{
-	u_char ch;
-	unsigned timeo;
-
-	timeo = 500000; 	/* > 500 msec (KEYB_R_SELFOK requires 87) */
-	while (!(inb(CONTROLLER_CTRL) & STATUS_OUTPBF))
-		if (--timeo == 0)
-			return (-1);
-
-	PCVT_KBD_DELAY();		/* 7 us delay */
-	ch = inb(CONTROLLER_DATA);
-
-#if PCVT_SHOWKEYS
-	showkey ('<', ch);
-#endif	/* PCVT_SHOWKEYS */
-
-	return ch;
-}
-#endif /* _DEV_KBD_KBDREG_H_ */
 
 #if PCVT_SCANSET > 1
 /*---------------------------------------------------------------------------*
@@ -415,35 +243,10 @@ kbd_response(void)
 void
 kbd_emulate_pc(int do_emulation)
 {
-#ifndef _DEV_KBD_KBDREG_H_
-	int cmd, timeo = 10000;
-
-	cmd = COMMAND_SYSFLG|COMMAND_IRQEN; /* common base cmd */
-
-#if !PCVT_USEKBDSEC
-	cmd |= COMMAND_INHOVR;
-#endif
-
-	if(do_emulation)
-		cmd |= COMMAND_PCSCAN;
-
-	kbc_8042cmd(CONTR_WRITE);
-	while (inb(CONTROLLER_CTRL) & STATUS_INPBF)
-		if (--timeo == 0)
-			break;
-	outb(CONTROLLER_DATA, cmd);
-#else
 	set_controller_command_byte(*(KBDC *)kbd->kb_data, KBD_TRANSLATION, 
 		(do_emulation) ? KBD_TRANSLATION : 0);
-#endif /* !_DEV_KBD_KBDREG_H_ */
 }
-
 #endif /* PCVT_SCANSET > 1 */
-
-
-#ifndef PCVT_NONRESP_KEYB_TRY
-#define PCVT_NONRESP_KEYB_TRY	25	/* no of times to try to detect	*/
-#endif					/* a nonresponding keyboard	*/
 
 /*---------------------------------------------------------------------------*
  *	try to force keyboard into a known state ..
@@ -451,229 +254,48 @@ kbd_emulate_pc(int do_emulation)
 static
 void doreset(void)
 {
-#ifndef _DEV_KBD_KBDREG_H_
-	int again = 0;
-	int once = 0;
-	int response, opri;
-
-	/* Enable interrupts and keyboard, etc. */
-	if (kbc_8042cmd(CONTR_WRITE) != 0)
-		printf("pcvt: doreset() - timeout controller write command\n");
-
-#if PCVT_USEKBDSEC		/* security enabled */
-
-#  if PCVT_SCANSET == 2
-#    define KBDINITCMD COMMAND_SYSFLG|COMMAND_IRQEN
-#  else /* PCVT_SCANSET != 2 */
-#    define KBDINITCMD COMMAND_PCSCAN|COMMAND_SYSFLG|COMMAND_IRQEN
-#  endif /* PCVT_SCANSET == 2 */
-
-#else /* ! PCVT_USEKBDSEC */	/* security disabled */
-
-#  if PCVT_SCANSET == 2
-#    define KBDINITCMD COMMAND_INHOVR|COMMAND_SYSFLG|COMMAND_IRQEN
-#  else /* PCVT_SCANSET != 2 */
-#    define KBDINITCMD COMMAND_PCSCAN|COMMAND_INHOVR|COMMAND_SYSFLG\
-	|COMMAND_IRQEN
-#  endif /* PCVT_SCANSET == 2 */
-
-#endif /* PCVT_USEKBDSEC */
-
-	if (kbd_cmd(KBDINITCMD) != 0)
-		printf("pcvt: doreset() - timeout writing keyboard init command\n");
-
-	/*
-	 * Discard any stale keyboard activity.  The 0.1 boot code isn't
-	 * very careful and sometimes leaves a KEYB_R_RESEND.  Versions
-	 * between 1992 and Oct 1996 didn't have the delay and sometimes
-	 * left a KEYB_R_RESEND.
-	 */
-	while (1) {
-		if (inb(CONTROLLER_CTRL) & STATUS_OUTPBF)
-			kbd_response();
-		else {
-			DELAY(10000);
-			if (!(inb(CONTROLLER_CTRL) & STATUS_OUTPBF))
-				break;
-		}
-	}
-
-	/* Start keyboard reset */
-
-	opri = spltty ();
-
-	if (kbd_cmd(KEYB_C_RESET) != 0)
-	{
-		printf("pcvt: doreset() - timeout for keyboard reset command\n");
-		outb(CONTROLLER_DATA, KEYB_C_RESET);	/* force */
-	}
-
-	/* Wait for the first response to reset and handle retries */
-	while ((response = kbd_response()) != KEYB_R_ACK)
-	{
-		if (response < 0)
-		{
-			if(!again)	/* print message only once ! */
-				printf("pcvt: doreset() - response != ack and response < 0 [one time only msg]\n");
-			response = KEYB_R_RESEND;
-		}
-		else if (response == KEYB_R_RESEND)
-		{
-			if(!again)	/* print message only once ! */
-				printf("pcvt: doreset() - got KEYB_R_RESEND response ... [one time only msg]\n");
-		}
-		if (response == KEYB_R_RESEND)
-		{
-			if(++again > PCVT_NONRESP_KEYB_TRY)
-			{
-				printf("pcvt: doreset() - Caution - no PC keyboard detected!\n");
-				keyboard_type = KB_UNKNOWN;
-				splx(opri);
-				return;
-			}
-
-			if((kbd_cmd(KEYB_C_RESET) != 0) && (once == 0))
-			{
-				once++;		/* print message only once ! */
-				printf("pcvt: doreset() - timeout for loop keyboard reset command [one time only msg]\n");
-				outb(CONTROLLER_DATA, KEYB_C_RESET);	/* force */
-			}
-		}
-	}
-
-	/* Wait for the second response to reset */
-
-	while ((response = kbd_response()) != KEYB_R_SELFOK)
-	{
-		if (response < 0)
-		{
-			printf("pcvt: doreset() - response != OK and resonse < 0\n");
-			/*
-			 * If KEYB_R_SELFOK never arrives, the loop will
-			 * finish here unless the keyboard babbles or
-			 * STATUS_OUTPBF gets stuck.
-			 */
-			break;
-		}
-	}
-
-	splx (opri);
-
-#if PCVT_KEYBDID
-
-	opri = spltty ();
-
-	if(kbd_cmd(KEYB_C_ID) != 0)
-	{
-		printf("pcvt: doreset() - timeout for keyboard ID command\n");
-		keyboard_type = KB_UNKNOWN;
-	}
-	else
-	{
-
-r_entry:
-
-		if((response = kbd_response()) == KEYB_R_MF2ID1)
-		{
-			if((response = kbd_response()) == KEYB_R_MF2ID2)
-			{
-				keyboard_type = KB_MFII;
-			}
-			else if(response == KEYB_R_MF2ID2HP)
-			{
-				keyboard_type = KB_MFII;
-			}
-			else
-			{
-				printf("\npcvt: doreset() - kbdid, response 2 = [%d]\n",
-				       response);
-				keyboard_type = KB_UNKNOWN;
-			}
-		}
-		else if (response == KEYB_R_ACK)
-		{
-			goto r_entry;
-		}
-		else if (response == -1)
-		{
-			keyboard_type = KB_AT;
-		}
-		else
-		{
-			printf("\npcvt: doreset() - kbdid, response 1 = [%d]\n", response);
-		}
-	}
-
-	splx (opri);
-
-#else /* PCVT_KEYBDID */
-
-	keyboard_type = KB_MFII;	/* force it .. */
-
-#endif /* PCVT_KEYBDID */
-
-#else /* _DEV_KBD_KBDREG_H_ */
 	int type;
 
 	if (!reset_keyboard)	/* no, we are not ready to reset */
 		return;
 
-	if (lost_intr_timeout_queued) {
+	if (lost_intr_timeout_queued)
+	{
 		untimeout(check_for_lost_intr, (void *)NULL, lost_intr_ch);
 		lost_intr_timeout_queued = 0;
 	}
 
 	if (kbd == NULL)
 		return;		/* shouldn't happen */
+
 	kbd_configure(0);
 
 	ledstate = LEDSTATE_UPDATE_PENDING;
 
-#if PCVT_USEKBDSEC		/* security enabled */
-
-#  if PCVT_SCANSET == 2
-#    define KBDINITCMD 0
-#  else /* PCVT_SCANSET != 2 */
-#    define KBDINITCMD KBD_TRANSLATION
-#  endif /* PCVT_SCANSET == 2 */
-
-#else /* ! PCVT_USEKBDSEC */	/* security disabled */
-
-#  if PCVT_SCANSET == 2
-#    define KBDINITCMD KBD_OVERRIDE_KBD_LOCK
-#  else /* PCVT_SCANSET != 2 */
-#    define KBDINITCMD KBD_TRANSLATION | KBD_OVERRIDE_KBD_LOCK
-#  endif /* PCVT_SCANSET == 2 */
-
-#endif /* PCVT_USEKBDSEC */
-
 	set_controller_command_byte(*(KBDC *)kbd->kb_data,
 		KBD_OVERRIDE_KBD_LOCK | KBD_TRANSLATION, KBDINITCMD);
 
-	keyboard_type = KB_MFII;	/* force it .. */
-#if PCVT_KEYBDID
 	type = KB_101;
+
 	(*kbdsw[kbd->kb_index]->ioctl)(kbd, KDGKBTYPE, (caddr_t)&type);
+
 	switch (type)
 	{
-	case KB_84:
-		keyboard_type = KB_AT;
-		break;
-	case KB_101:
-		keyboard_type = KB_MFII;
-		break;
-	default:
-		keyboard_type = KB_UNKNOWN;
-		break;
+		case KB_84:
+			keyboard_type = KB_AT;
+			break;
+		case KB_101:
+			keyboard_type = KB_MFII;
+			break;
+		default:
+			keyboard_type = KB_UNKNOWN;
+			break;
 	}
-#endif /* PCVT_KEYBDID */
 
 	update_led();
 
 	lost_intr_ch = timeout(check_for_lost_intr, (void *)NULL, hz);
 	lost_intr_timeout_queued = 1;
-
-#endif /* !_DEV_KBD_KBDREG_H_ */
 }
 
 /*---------------------------------------------------------------------------*
@@ -821,7 +443,7 @@ getckeydef(unsigned key, Ovl_tbl *thisdef)
  *	if key is bound to a function, executes it, and ret empty ptr
  *---------------------------------------------------------------------------*/
 static u_char *
-xlatkey2ascii(U_short key)
+xlatkey2ascii(int key)
 {
 	static u_char	capchar[2] = {0, 0};
 #if PCVT_META_ESC
@@ -1060,13 +682,6 @@ xlatkey2ascii(U_short key)
  *	if noblock = 0, wait until a key is pressed.
  *	else return NULL if no characters present.
  *---------------------------------------------------------------------------*/
-
-#if PCVT_KBD_FIFO
-extern	u_char	pcvt_kbd_fifo[];
-extern	int	pcvt_kbd_rptr;
-extern	short	pcvt_kbd_count;
-#endif
-
 u_char *
 sgetc(int noblock)
 {
@@ -1074,10 +689,15 @@ sgetc(int noblock)
 	u_char		dt = 0;
 	u_char		key = 0;
 	u_short		type;
-
-#if PCVT_KBD_FIFO && PCVT_SLOW_INTERRUPT
+	int 		c;
+	
+#if PCVT_SLOW_INTERRUPT
 	int		s;
 #endif
+
+#ifdef XSERVER
+	static char	keybuf[2] = {0}; /* the second 0 is a delimiter! */
+#endif /* XSERVER */
 
 	static u_char	kbd_lastkey = 0; /* last keystroke */
 
@@ -1091,17 +711,9 @@ sgetc(int noblock)
 		u_char sysrq: 1;	/* sysrq pressed */
 	} kbd_status = {0};
 
-#ifdef XSERVER
-	static char	keybuf[2] = {0}; /* the second 0 is a delimiter! */
-#endif /* XSERVER */
-
-#ifdef _DEV_KBD_KBDREG_H_
-	int 		c;
-#endif /* _DEV_KBD_KBDREG_H_ */
-
 loop:
 
-	if(noblock == 31337)
+	if(noblock == SCROLLBACK_COOKIE)
 	{
 		vsp->scrolling = 1;
 		goto scroll_reset;
@@ -1109,415 +721,68 @@ loop:
 
 #ifdef XSERVER
 
-#ifndef _DEV_KBD_KBDREG_H_
-
-#if PCVT_KBD_FIFO
-
-	/* see if there is data from the keyboard available either from */
-	/* the keyboard fifo or from the 8042 keyboard controller	*/
-
-	if (pcvt_kbd_count || (inb(CONTROLLER_CTRL) & STATUS_OUTPBF))
+	if (pcvt_kbd_count)
 	{
-		if (!pcvt_kbd_count)	/* source = 8042 */
-		{
-			PCVT_KBD_DELAY();	/* 7 us delay */
-			dt = inb(CONTROLLER_DATA);	/* get from obuf */
-		}
-		else			/* source = keyboard fifo */
-		{
-			dt = pcvt_kbd_fifo[pcvt_kbd_rptr++];
-			PCVT_DISABLE_INTR();
-			pcvt_kbd_count--;
-			PCVT_ENABLE_INTR();
-			if (pcvt_kbd_rptr >= PCVT_KBD_FIFO_SZ)
-				pcvt_kbd_rptr = 0;
-		}
-
-#else /* !PCVT_KB_FIFO */
-
-	/* see if there is data from the keyboard available from the 8042 */
-
-	if (inb(CONTROLLER_CTRL) & STATUS_OUTPBF)
-	{
-		PCVT_KBD_DELAY();		/* 7 us delay */
-		dt = inb(CONTROLLER_DATA);	/* yes, get data */
-
-#endif /* !PCVT_KBD_FIFO */
-
-#else /* _DEV_KBD_KBDREG_H_ */
-
-#if PCVT_KBD_FIFO
-	if (pcvt_kbd_count) {
 		dt = pcvt_kbd_fifo[pcvt_kbd_rptr++];
 		PCVT_DISABLE_INTR();
 		pcvt_kbd_count--;
 		PCVT_ENABLE_INTR();
 		if (pcvt_kbd_rptr >= PCVT_KBD_FIFO_SZ)
 			pcvt_kbd_rptr = 0;
-	} else
-#endif /* PCVT_KBD_FIFO */
-	if (!noblock) {
+	}
+	else if (!noblock)
+	{
 		while ((c = (*kbdsw[kbd->kb_index]->read)(kbd, TRUE)) == -1)
 			;
 		dt = c;
-	} else {
+	}
+	else
+	{
 		if ((c = (*kbdsw[kbd->kb_index]->read)(kbd, FALSE)) == -1)
 			return NULL;
 		dt = c;
 	}
 
+	/*
+	 * If x mode is active, only care for locking keys, then
+	 * return the scan code instead of any key translation.
+	 * Additionally, this prevents us from any attempts to
+	 * execute pcvt internal functions caused by keys (such
+	 * as screen flipping).
+	 */
+	if (pcvt_kbd_raw)
 	{
+		keybuf[0] = dt;
 
-#endif /* !_DEV_KBD_KBDREG_H_ */
+		add_keyboard_randomness(dt);
 
-		/*
-		 * If x mode is active, only care for locking keys, then
-		 * return the scan code instead of any key translation.
-		 * Additionally, this prevents us from any attempts to
-		 * execute pcvt internal functions caused by keys (such
-		 * as screen flipping).
-		 * XXX For now, only the default locking key definitions
-		 * are recognized (i.e. if you have overloaded you "A" key
-		 * as NUMLOCK, that wont effect X mode:-)
-		 * Changing this would be nice, but would require modifi-
-		 * cations to the X server. After having this, X will
-		 * deal with the LEDs itself, so we are committed.
-		 */
-		/*
-		 * Iff PCVT_USL_VT_COMPAT is defined, the behaviour has
-		 * been fixed. We need not care about any keys here, since
-		 * there are ioctls that deal with the lock key / LED stuff.
-		 */
-		if (pcvt_kbd_raw)
-		{
-			keybuf[0] = dt;
-
-#if PCVT_FREEBSD > 210
-			add_keyboard_randomness(dt);
-#endif	/* PCVT_FREEBSD > 210 */
-
-#if !PCVT_USL_VT_COMPAT
-			if ((dt & 0x80) == 0)
-				/* key make */
-				switch(dt)
-				{
-				case 0x45:
-					/* XXX on which virt screen? */					vsp->num_lock ^= 1;
-					update_led();
-					break;
-
-				case 0x3a:
-					vsp->caps_lock ^= 1;
-					update_led();
-					break;
-
-				case 0x46:
-					vsp->scroll_lock ^= 1;
-					update_led();
-					break;
-				}
-#endif /* !PCVT_USL_VT_COMPAT */
-
-#if PCVT_EMU_MOUSE
-			/*
-			 * The (mouse systems) mouse emulator. The mouse
-			 * device allocates the first device node that is
-			 * not used by a virtual terminal. (E.g., you have
-			 * eight vtys, /dev/ttyv0 thru /dev/ttyv7, so the
-			 * mouse emulator were /dev/ttyv8.)
-			 * Currently the emulator only works if the keyboard
-			 * is in raw (PC scan code) mode. This is the typic-
-			 * al case when running the X server.
-			 * It is activated if the num locks LED is active
-			 * for the current vty, and if the mouse device
-			 * has been opened by at least one process. It
-			 * grabs the numerical keypad events (but only
-			 * the "non-extended", so the separate arrow keys
-			 * continue to work), and three keys for the "mouse
-			 * buttons", preferrably F1 thru F3. Any of the
-			 * eight directions (N, NE, E, SE, S, SW, W, NW)
-			 * is supported, and frequent key presses (less
-			 * than e.g. half a second between key presses)
-			 * cause the emulator to accelerate the pointer
-			 * movement by 6, while single presses result in
-			 * single moves, so each point can be reached.
-			 */
-			/*
-			 * NB: the following code is spagghetti.
-			 * Only eat it with lotta tomato ketchup and
-			 * Parmesan cheese:-)
-			 */
-			/*
-			 * look whether we will have to steal the keys
-			 * and cook them into mouse events
-			 */
-			if(vsp->num_lock && mouse.opened)
-			{
-				int button, accel, i;
-				enum mouse_dir
-				{
-					MOUSE_NW, MOUSE_N, MOUSE_NE,
-					MOUSE_W,  MOUSE_0, MOUSE_E,
-					MOUSE_SW, MOUSE_S, MOUSE_SE
-				}
-				move;
-				struct timeval now;
-				dev_t dummy = makedev(0, mouse.minor);
-				struct tty *mousetty = get_pccons(dummy);
-				/*
-				 * strings to send for each mouse event,
-				 * indexed by the movement direction and
-				 * the "accelerator" value (TRUE for frequent
-				 * key presses); note that the first byte
-				 * of each string is actually overwritten
-				 * by the current button value before sending
-				 * the string
-				 */
-				static u_char mousestrings[2][MOUSE_SE+1][5] =
-				{
-				{
-					/* first, the non-accelerated strings*/
-					{0x87,  -1,   1,   0,   0}, /* NW */
-					{0x87,   0,   1,   0,   0}, /* N */
-					{0x87,   1,   1,   0,   0}, /* NE */
-					{0x87,  -1,   0,   0,   0}, /* W */
-					{0x87,   0,   0,   0,   0}, /* 0 */
-					{0x87,   1,   0,   0,   0}, /* E */
-					{0x87,  -1,  -1,   0,   0}, /* SW */
-					{0x87,   0,  -1,   0,   0}, /* S */
-					{0x87,   1,  -1,   0,   0}  /* SE */
-				},
-				{
-					/* now, 6 steps at once */
-					{0x87,  -4,   4,   0,   0}, /* NW */
-					{0x87,   0,   6,   0,   0}, /* N */
-					{0x87,   4,   4,   0,   0}, /* NE */
-					{0x87,  -6,   0,   0,   0}, /* W */
-					{0x87,   0,   0,   0,   0}, /* 0 */
-					{0x87,   6,   0,   0,   0}, /* E */
-					{0x87,  -4,  -4,   0,   0}, /* SW */
-					{0x87,   0,  -6,   0,   0}, /* S */
-					{0x87,   4,  -4,   0,   0}  /* SE */
-				}
-				};
-
-				if(dt == 0xe0)
-				{
-					/* ignore extended scan codes */
-					mouse.extendedseen = 1;
-					goto no_mouse_event;
-				}
-				if(mouse.extendedseen)
-				{
-					mouse.extendedseen = 0;
-					goto no_mouse_event;
-				}
-				mouse.extendedseen = 0;
-
-				/*
-				 * Note that we cannot use a switch here
-				 * since we want to have the keycodes in
-				 * a variable
-				 */
-				if((dt & 0x7f) == mousedef.leftbutton) {
-					button = 4;
-					goto do_button;
-				}
-				else if((dt & 0x7f) == mousedef.middlebutton) {
-					button = 2;
-					goto do_button;
-				}
-				else if((dt & 0x7f) == mousedef.rightbutton) {
-					button = 1;
-				do_button:
-
-					/*
-					 * i would really like to give
-					 * some acustical support
-					 * (pling/plong); i am not sure
-					 * whether it is safe to call
-					 * sysbeep from within an intr
-					 * service, since it calls
-					 * timeout in turn which mani-
-					 * pulates the spl mask - jw
-					 */
-
-# define PLING sysbeep(PCVT_SYSBEEPF / 1500, 2)
-# define PLONG sysbeep(PCVT_SYSBEEPF / 1200, 2)
-
-					if(mousedef.stickybuttons)
-					{
-						if(dt & 0x80) {
-							mouse.breakseen = 1;
-							return (u_char *)0;
-						}
-						else if(mouse.buttons == button
-							&& !mouse.breakseen) {
-							/* ignore repeats */
-							return (u_char *)0;
-						}
-						else
-							mouse.breakseen = 0;
-						if(mouse.buttons == button) {
-							/* release it */
-							mouse.buttons = 0;
-							PLONG;
-						} else {
-							/*
-							 * eventually, release
-							 * any other button,
-							 * and stick this one
-							 */
-							mouse.buttons = button;
-							PLING;
-						}
-					}
-					else
-					{
-						if(dt & 0x80) {
-							mouse.buttons &=
-								~button;
-							PLONG;
-						}
-						else if((mouse.buttons
-							& button) == 0) {
-							mouse.buttons |=
-								button;
-							PLING;
-						}
-						/*else: ignore same btn press*/
-					}
-					move = MOUSE_0;
-					accel = 0;
-				}
-# undef PLING
-# undef PLONG
-				else switch(dt & 0x7f)
-				{
-				/* the arrow keys - KP 1 thru KP 9 */
-				case 0x47:	move = MOUSE_NW; goto do_move;
-				case 0x48:	move = MOUSE_N; goto do_move;
-				case 0x49:	move = MOUSE_NE; goto do_move;
-				case 0x4b:	move = MOUSE_W; goto do_move;
-				case 0x4c:	move = MOUSE_0; goto do_move;
-				case 0x4d:	move = MOUSE_E; goto do_move;
-				case 0x4f:	move = MOUSE_SW; goto do_move;
-				case 0x50:	move = MOUSE_S; goto do_move;
-				case 0x51:	move = MOUSE_SE;
-				do_move:
-					if(dt & 0x80)
-						/*
-						 * arrow key break events are
-						 * of no importance for us
-						 */
-						return (u_char *)0;
-					/*
-					 * see whether the last move did
-					 * happen "recently", i.e. before
-					 * less than half a second
-					 */
-					getmicrotime(&now);
-					timevalsub(&now, &mouse.lastmove);
-					getmicrotime(&mouse.lastmove);
-					accel = (now.tv_sec == 0
-						 && now.tv_usec
-						 < mousedef.acceltime);
-					break;
-
-				default: /* not a mouse-emulating key */
-					goto no_mouse_event;
-				}
-				mousestrings[accel][move][0] =
-					0x80 + (~mouse.buttons & 7);
-				/* finally, send the string */
-				for(i = 0; i < 5; i++)
-					(*linesw[mousetty->t_line].l_rint)
-						(mousestrings[accel][move][i],
-						 mousetty);
-				return (u_char *)0; /* not a kbd event */
-			}
-no_mouse_event:
-
-#endif /* PCVT_EMU_MOUSE */
-
-			return ((u_char *)keybuf);
-		}
+		return ((u_char *)keybuf);
 	}
 
 #else /* !XSERVER */
 
-#ifndef  _DEV_KBD_KBDREG_H_
-
-#  if PCVT_KBD_FIFO
-
-	/* see if there is data from the keyboard available either from */
-	/* the keyboard fifo or from the 8042 keyboard controller	*/
-
-	if (pcvt_kbd_count || (inb(CONTROLLER_CTRL) & STATUS_OUTPBF))
+	if (pcvt_kbd_count)
 	{
-		if (!noblock || kbd_polling)	/* source = 8042 */
-		{
-			PCVT_KBD_DELAY();	/* 7 us delay */
-			dt = inb(CONTROLLER_DATA);
-		}
-		else			/* source = keyboard fifo */
-		{
-			dt = pcvt_kbd_fifo[pcvt_kbd_rptr++]; /* yes, get it ! */
-			PCVT_DISABLE_INTR();
-			pcvt_kbd_count--;
-			PCVT_ENABLE_INTR();
-			if (pcvt_kbd_rptr >= PCVT_KBD_FIFO_SZ)
-				pcvt_kbd_rptr = 0;
-		}
-	}
-
-#else /* !PCVT_KBD_FIFO */
-
-	/* see if there is data from the keyboard available from the 8042 */
-
-	if(inb(CONTROLLER_CTRL) & STATUS_OUTPBF)
-	{
-		PCVT_KBD_DELAY();		/* 7 us delay */
-		dt = inb(CONTROLLER_DATA);	/* yes, get data ! */
-	}
-
-#endif /* !PCVT_KBD_FIFO */
-
-#else /* _DEV_KBD_KBDREG_H_ */
-
-#if PCVT_KBD_FIFO
-	if (pcvt_kbd_count) {
 		dt = pcvt_kbd_fifo[pcvt_kbd_rptr++];
 		PCVT_DISABLE_INTR();
 		pcvt_kbd_count--;
 		PCVT_ENABLE_INTR();
 		if (pcvt_kbd_rptr >= PCVT_KBD_FIFO_SZ)
 			pcvt_kbd_rptr = 0;
-	} else
-#endif /* PCVT_KBD_FIFO */
-	if (!noblock) {
+	}
+	else if (!noblock)
+	{
 		while ((c = (*kbdsw[kbd->kb_index]->read)(kbd, TRUE)) == -1)
 			;
 		dt = c;
-	} else {
+	}
+	else
+	{
 		if ((c = (*kbdsw[kbd->kb_index]->read)(kbd, FALSE)) == -1)
 			return NULL;
 		dt = c;
 	}
-
-#endif /* !_DEV_KBD_KBDREG_H_ */
-
 #endif /* !XSERVER */
-
-#ifndef _DEV_KBD_KBDREG_H_
-	else
-	{
-		if(noblock)
-			return NULL;
-		else
-			goto loop;
-	}
-#endif /* !_DEV_KBD_KBDREG_H_ */
 
 #if PCVT_SHOWKEYS
 	showkey (' ', dt);
@@ -1565,9 +830,7 @@ no_mouse_event:
 	/* got a normal scan key */
 regular:
 
-#if PCVT_FREEBSD > 210
 	add_keyboard_randomness(dt);
-#endif	/* PCVT_FREEBSD > 210 */
 
 #if PCVT_SCANSET == 1
 	kbd_status.breakseen = dt & 0x80 ? 1 : 0;
@@ -1660,7 +923,7 @@ scroll_reset:
 			}
 		}
 
-		if (noblock == 31337)
+		if (noblock == SCROLLBACK_COOKIE)
 			return NULL;
 
 		if (key != 86)
@@ -1685,11 +948,7 @@ scroll_reset:
 		shutdown_nice();
 #endif /* PCVT_CTRL_ALT_DEL */
 
-#if !(PCVT_NETBSD || PCVT_FREEBSD >= 200)
-#include "ddb.h"
-#endif /* !(PCVT_NETBSD || PCVT_FREEBSD >= 200) */
-
-#if NDDB > 0 || defined(DDB)		 /*   Check for cntl-alt-esc	*/
+#if defined(DDB)		 /*   Check for cntl-alt-esc	*/
 
   	if((key == 110) && ctrl_down && (meta_down || altgr_down))
  	{
@@ -1698,12 +957,10 @@ scroll_reset:
  		if(!in_Debugger)
  		{
  			in_Debugger = 1;
-#if PCVT_FREEBSD
+
 			/* the string is actually not used... */
 			Debugger("kbd");
-#else
- 			Debugger();
-#endif
+
  			in_Debugger = 0;
  			if(noblock)
  				return NULL;
@@ -1711,7 +968,7 @@ scroll_reset:
  				goto loop;
  		}
  	}
-#endif /* NDDB > 0 || defined(DDB) */
+#endif /* defined(DDB) */
 
 	/* look for keys with special handling */
 	if(key == 128)
@@ -1945,7 +1202,7 @@ setkeydef(Ovl_tbl *data)
  *	keyboard ioctl's entry
  *---------------------------------------------------------------------------*/
 int
-kbdioctl(Dev_t dev, int cmd, caddr_t data, int flag)
+kbdioctl(dev_t dev, int cmd, caddr_t data, int flag)
 {
 	int key;
 
@@ -2019,33 +1276,7 @@ kbdioctl(Dev_t dev, int cmd, caddr_t data, int flag)
 	return 0;
 }
 
-#if PCVT_EMU_MOUSE
-/*--------------------------------------------------------------------------*
- *	mouse emulator ioctl
- *--------------------------------------------------------------------------*/
-int
-mouse_ioctl(Dev_t dev, int cmd, caddr_t data)
-{
-	struct mousedefs *def = (struct mousedefs *)data;
-
-	switch(cmd)
-	{
-		case KBDMOUSEGET:
-			*def = mousedef;
-			break;
-
-		case KBDMOUSESET:
-			mousedef = *def;
-			break;
-
-		default:
-			return -1;
-	}
-	return 0;
-}
-#endif	/* PCVT_EMU_MOUSE */
-
-#if PCVT_USL_VT_COMPAT
+#ifdef XSERVER
 /*---------------------------------------------------------------------------*
  *	convert ISO-8859 style keycode into IBM 437
  *---------------------------------------------------------------------------*/
@@ -2139,8 +1370,7 @@ get_usl_keymap(keymap_t *map)
 		}
 	}
 }
-
-#endif /* PCVT_USL_VT_COMPAT */
+#endif /* XSERVER */
 
 /*---------------------------------------------------------------------------*
  *	switch keypad to numeric mode
