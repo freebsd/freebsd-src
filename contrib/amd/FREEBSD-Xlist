@@ -3,8 +3,10 @@ $FreeBSD$
 *Makefile.*
 *README.autofs
 *ac*.m4
+*.old
 *acconfig.h
 *aux
+*autom4te.cache*
 *buildall
 *config*
 *depcomp
@@ -15,6 +17,8 @@ $FreeBSD$
 *stamp-h.in
 *amd/Makefile.*
 *amq/Makefile.*
+*commit
+*cvs-server.txt
 *conf/checkmount/checkmount_aix.c
 *conf/checkmount/checkmount_default.c
 *conf/checkmount/checkmount_osf.c
