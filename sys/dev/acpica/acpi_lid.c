@@ -108,6 +108,7 @@ acpi_lid_attach(device_t dev)
     AcpiInstallNotifyHandler(sc->lid_handle, ACPI_DEVICE_NOTIFY,
 			     acpi_lid_notify_handler, sc);
     acpi_device_enable_wake_capability(sc->lid_handle, 1);
+    acpi_device_enable_wake_event(sc->lid_handle);
 
     return_VALUE (0);
 }
@@ -115,10 +116,11 @@ acpi_lid_attach(device_t dev)
 static int
 acpi_lid_suspend(device_t dev)
 {
+#if 0
     struct acpi_lid_softc	*sc;
 
     sc = device_get_softc(dev);
-    acpi_device_enable_wake_event(sc->lid_handle);
+#endif
     return (0);
 }
 

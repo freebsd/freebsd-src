@@ -155,6 +155,7 @@ acpi_button_attach(device_t dev)
 	return_VALUE (ENXIO);
     }
     acpi_device_enable_wake_capability(sc->button_handle, 1);
+    acpi_device_enable_wake_event(sc->button_handle);
 
     return_VALUE (0);
 }
@@ -162,10 +163,11 @@ acpi_button_attach(device_t dev)
 static int
 acpi_button_suspend(device_t dev)
 {
+#if 0
     struct acpi_button_softc	*sc;
 
     sc = device_get_softc(dev);
-    acpi_device_enable_wake_event(sc->button_handle);
+#endif
     return (0);
 }
 
