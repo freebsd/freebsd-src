@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_time.c	8.1 (Berkeley) 6/10/93
- * $Id: kern_time.c,v 1.14 1995/12/26 01:07:20 bde Exp $
+ * $Id: kern_time.c,v 1.15 1996/04/07 17:38:57 bde Exp $
  */
 
 #include <sys/param.h>
@@ -116,10 +116,22 @@ settimeofday(p, uap, retval)
 	if (uap->tv) {
 		/* WHAT DO WE DO ABOUT PENDING REAL-TIME TIMEOUTS??? */
 		s = splclock();
-		/* nb. delta.tv_usec may be < 0, but this is OK here */
+		/*
+		 * Calculate delta directly to minimize clock interrupt
+		 * latency.  Fix it after the ipl has been lowered.
+		 */
 		delta.tv_sec = atv.tv_sec - time.tv_sec;
 		delta.tv_usec = atv.tv_usec - time.tv_usec;
-		time = atv;	/* XXX should avoid skew in tv_usec */
+		time = atv;
+		/*
+		 * XXX should arrange for microtime() to agree with atv if
+		 * it is called now.  As it is, it may add up to about
+		 * `tick' unwanted usec.
+		 * Another problem is that clock interrupts may occur at
+		 * other than multiples of `tick'.  It's not worth fixing
+		 * this here, since the problem is also caused by tick
+		 * adjustments.
+		 */
 		(void) splsoftclock();
 		timevalfix(&delta);
 		timevaladd(&boottime, &delta);
