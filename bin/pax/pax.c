@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pax.c,v 1.3 1995/05/30 00:07:00 rgrimes Exp $
+ *	$Id: pax.c,v 1.4 1995/10/23 21:23:19 ache Exp $
  */
 
 #ifndef lint
@@ -228,7 +228,7 @@ main(argc, argv)
 	char **argv;
 #endif
 {
-	(void) setlocale(LC_TIME, "");
+	(void) setlocale(LC_ALL, "");
 	/*
 	 * parse options, determine operational mode, general init
 	 */
