@@ -40,7 +40,7 @@ static void
 usage(void)
 {
     fprintf(stderr, "usage: kldunload [-v] -i id\n");
-    fprintf(stderr, "       kldunload [-v] -n name\n");
+    fprintf(stderr, "       kldunload [-v] [-n] name\n");
     exit(1);
 }
 
