@@ -1160,9 +1160,6 @@ options 	TDFX_LINUX		# Enable Linuxulator support
 #      Qlogic ISP 2300 and ISP 2312 2Gb Fibre Channel host adapters.
 # ispfw: Firmware module for Qlogic host adapters
 # ncr: NCR 53C810, 53C825 self-contained SCSI host adapters.
-# ncv: NCR 53C500 based SCSI host adapters.
-# nsp: Workbit Ninja SCSI-3 based PC Card SCSI host adapters.
-# stg: TMC 18C30, 18C50 based SCSI host adapters.
 # sym: Symbios/Logic 53C8XX family of PCI-SCSI I/O processors:
 #      53C810, 53C810A, 53C815, 53C825,  53C825A, 53C860, 53C875, 
 #      53C876, 53C885,  53C895, 53C895A, 53C896,  53C897, 53C1510D, 
@@ -1205,13 +1202,7 @@ hint.isp.0.portwnn="w50000000aaaa0000"
 hint.isp.0.nodewnn="w50000000aaaa0001"
 device		ispfw
 device		ncr
-device		ncv
-device		nsp
 device		sym
-device		stg
-hint.stg.0.at="isa"
-hint.stg.0.port="0x140"
-hint.stg.0.port="11"
 device		wds
 hint.wds.0.at="isa"
 hint.wds.0.port="0x350"

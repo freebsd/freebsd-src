@@ -474,6 +474,20 @@ device		pca
 hint.pca.0.at="isa"
 hint.pca.0.port="0x040"
 
+# 
+# SCSI host adapters:
+# 
+# ncv: NCR 53C500 based SCSI host adapters.
+# nsp: Workbit Ninja SCSI-3 based PC Card SCSI host adapters.
+# stg: TMC 18C30, 18C50 based SCSI host adapters.
+
+device          ncv
+device          nsp
+device          stg
+hint.stg.0.at="isa"
+hint.stg.0.port="0x140"
+hint.stg.0.port="11"
+
 #
 # Miscellaneous hardware:
 #
