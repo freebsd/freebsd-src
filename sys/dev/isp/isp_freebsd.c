@@ -196,11 +196,13 @@ static void destroy_lun_state(struct ispsoftc *, tstate_t *);
 static void isp_en_lun(struct ispsoftc *, union ccb *);
 static cam_status isp_abort_tgt_ccb(struct ispsoftc *, union ccb *);
 static cam_status isp_target_start_ctio(struct ispsoftc *, union ccb *);
-
+static cam_status isp_target_putback_atio(struct ispsoftc *, union ccb *);
+static timeout_t isp_refire_putback_atio;
 
 static int isp_handle_platform_atio(struct ispsoftc *, at_entry_t *);
 static int isp_handle_platform_atio2(struct ispsoftc *, at2_entry_t *);
 static int isp_handle_platform_ctio(struct ispsoftc *, void *);
+static void isp_handle_platform_ctio_part2(struct ispsoftc *, union ccb *);
 
 static __inline int
 is_lun_enabled(struct ispsoftc *isp, lun_id_t lun)
@@ -404,7 +406,7 @@ isp_en_lun(struct ispsoftc *isp, union ccb *ccb)
 	struct ccb_en_lun *cel = &ccb->cel;
 	tstate_t *tptr;
 	u_int16_t rstat;
-	int bus, s;
+	int bus;
 	lun_id_t lun;
 	target_id_t tgt;
 
@@ -698,6 +700,7 @@ isp_target_start_ctio(struct ispsoftc *isp, union ccb *ccb)
 	u_int32_t *hp, save_handle;
 	u_int16_t iptr, optr;
 
+
 	if (isp_getrqentry(isp, &iptr, &optr, &qe)) {
 		xpt_print_path(ccb->ccb_h.path);
 		printf("Request Queue Overflow in isp_target_start_ctio\n");
@@ -710,8 +713,8 @@ isp_target_start_ctio(struct ispsoftc *isp, union ccb *ccb)
 	 */
 
 	if (IS_FC(isp)) {
+		struct ccb_accept_tio *atiop;
 		ct2_entry_t *cto = qe;
-		u_int16_t *ssptr = NULL;
 
 		cto->ct_header.rqs_entry_type = RQSTYPE_CTIO2;
 		cto->ct_header.rqs_entry_count = 1;
@@ -719,15 +722,29 @@ isp_target_start_ctio(struct ispsoftc *isp, union ccb *ccb)
 		if (isp->isp_maxluns <= 16) {
 			cto->ct_lun = ccb->ccb_h.target_lun;
 		}
+		/*
+		 * Start with a residual based on what the original datalength
+		 * was supposed to be. Basically, we ignore what CAM has set
+		 * for residuals. The data transfer routines will knock off
+		 * the residual for each byte actually moved- and also will
+		 * be responsible for setting the underrun flag.
+		 */
+		/* HACK! HACK! */
+		if ((atiop = ccb->ccb_h.periph_priv.entries[1].ptr) != NULL) {
+			cto->ct_resid = atiop->ccb_h.spriv_field0;
+		}
+
+		/*
+		 * We always have to use the tag_id- it has the RX_ID
+		 * for this exchage.
+		 */
 		cto->ct_rxid = cso->tag_id;
-		cto->ct_flags = CT2_CCINCR;
 		if (cso->dxfer_len == 0) {
 			cto->ct_flags |= CT2_FLAG_MODE1 | CT2_NO_DATA;
-			KASSERT(ccb->ccb_h.flags & CAM_SEND_STATUS,
-			    ("a CTIO with no data and no status?"));
-			cto->ct_flags |= CT2_SENDSTATUS;
-			ssptr = &cto->rsp.m1.ct_scsi_status;
-			*ssptr = cso->scsi_status;
+			if (ccb->ccb_h.flags & CAM_SEND_STATUS) {
+				cto->ct_flags |= CT2_SENDSTATUS;
+				cto->rsp.m1.ct_scsi_status = cso->scsi_status;
+			}
 			if ((ccb->ccb_h.flags & CAM_SEND_SENSE) != 0) {
 				int m = min(cso->sense_len, MAXRESPLEN);
 				bcopy(&cso->sense_data, cto->rsp.m1.ct_resp, m);
@@ -742,24 +759,19 @@ isp_target_start_ctio(struct ispsoftc *isp, union ccb *ccb)
 				cto->ct_flags |= CT2_DATA_OUT;
 			}
 			if ((ccb->ccb_h.flags & CAM_SEND_STATUS) != 0) {
-				ssptr = &cto->rsp.m0.ct_scsi_status;
 				cto->ct_flags |= CT2_SENDSTATUS;
 				cto->rsp.m0.ct_scsi_status = cso->scsi_status;
 			}
+			/*
+			 * If we're sending data and status back together,
+			 * we can't also send back sense data as well.
+			 */
 			ccb->ccb_h.flags &= ~CAM_SEND_SENSE;
 		}
-		if (ssptr && cso->resid) {
-			cto->ct_resid = cso->resid;
-			if (cso->resid < 0)
-				*ssptr |= CT2_DATA_OVER;
-			else
-				*ssptr |= CT2_DATA_UNDER;
-		}
-		if (isp_tdebug > 1 && ssptr &&
-		    (cso->scsi_status != SCSI_STATUS_OK || cso->resid)) {
+		if (isp_tdebug > 1 && (cto->ct_flags & CAM_SEND_STATUS)) {
 			printf("%s:CTIO2 RX_ID 0x%x SCSI STATUS 0x%x "
-			    "resid %d\n", isp->isp_name, cto->ct_rxid,
-			    cso->scsi_status, cso->resid);
+			    "datalength %u\n", isp->isp_name, cto->ct_rxid,
+			    cso->scsi_status, cto->ct_resid);
 		}
 		hp = &cto->ct_reserved;
 	} else {
@@ -770,23 +782,30 @@ isp_target_start_ctio(struct ispsoftc *isp, union ccb *ccb)
 		cto->ct_iid = cso->init_id;
 		cto->ct_tgt = ccb->ccb_h.target_id;
 		cto->ct_lun = ccb->ccb_h.target_lun;
-		cto->ct_tag_type = cso->tag_action;
-		cto->ct_tag_val = cso->tag_id;
-		cto->ct_flags = CT_CCINCR;
-		if (cso->dxfer_len) {
+		if (cso->tag_id && cso->tag_action) {
+			/*
+			 * We don't specify a tag type for regular SCSI.
+			 * Just the tag value and set the flag.
+			 */
+			cto->ct_tag_val = cso->tag_id;
+			cto->ct_flags |= CT_TQAE;
+		}
+		if (ccb->ccb_h.flags & CAM_DIS_DISCONNECT) {
+			cto->ct_flags |= CT_NODISC;
+		}
+		if (cso->dxfer_len == 0) {
 			cto->ct_flags |= CT_NO_DATA;
 		} else if ((cso->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN) {
 			cto->ct_flags |= CT_DATA_IN;
 		} else {
 			cto->ct_flags |= CT_DATA_OUT;
 		}
-		if ((ccb->ccb_h.flags & CAM_SEND_STATUS) != 0) {
+		if (ccb->ccb_h.flags & CAM_SEND_STATUS) {
 			cto->ct_flags |= CT_SENDSTATUS;
 			cto->ct_scsi_status = cso->scsi_status;
 			cto->ct_resid = cso->resid;
 		}
-		if (isp_tdebug > 1 &&
-		    (cso->scsi_status != SCSI_STATUS_OK || cso->resid)) {
+		if (isp_tdebug > 1 && (cto->ct_flags & CAM_SEND_STATUS)) {
 			printf("%s:CTIO SCSI STATUS 0x%x resid %d\n",
 			    isp->isp_name, cso->scsi_status, cso->resid);
 		}
@@ -826,6 +845,65 @@ isp_target_start_ctio(struct ispsoftc *isp, union ccb *ccb)
 		isp_destroy_handle(isp, save_handle);
 		return (XS_ERR(ccb));
 	}
+}
+
+static cam_status
+isp_target_putback_atio(struct ispsoftc *isp, union ccb *ccb)
+{
+	void *qe;
+	struct ccb_accept_tio *atiop;
+	u_int16_t iptr, optr;
+
+	if (isp_getrqentry(isp, &iptr, &optr, &qe)) {
+		xpt_print_path(ccb->ccb_h.path);
+		printf("Request Queue Overflow in isp_target_putback_atio\n");
+		return (CAM_RESRC_UNAVAIL);
+	}
+	bzero(qe, QENTRY_LEN);
+	atiop = (struct ccb_accept_tio *) ccb;
+	if (IS_FC(isp)) {
+		at2_entry_t *at = qe;
+		at->at_header.rqs_entry_type = RQSTYPE_ATIO2;
+		at->at_header.rqs_entry_count = 1;
+		if (isp->isp_maxluns > 16) {
+			at->at_scclun = (uint16_t) atiop->ccb_h.target_lun;
+		} else {
+			at->at_lun = (uint8_t) atiop->ccb_h.target_lun;
+		}
+		at->at_status = CT_OK;
+		at->at_rxid = atiop->tag_id;
+		ISP_SWIZ_ATIO2(isp, qe, qe);
+	} else {
+		at_entry_t *at = qe;
+		at->at_header.rqs_entry_type = RQSTYPE_ATIO;
+		at->at_header.rqs_entry_count = 1;
+		at->at_iid = atiop->init_id;
+		at->at_tgt = atiop->ccb_h.target_id;
+		at->at_lun = atiop->ccb_h.target_lun;
+		at->at_status = CT_OK;
+		if (atiop->ccb_h.status & CAM_TAG_ACTION_VALID) {
+			at->at_tag_type = atiop->tag_action;
+		}
+		at->at_tag_val = atiop->tag_id;
+		ISP_SWIZ_ATIO(isp, qe, qe);
+	}
+	ISP_TDQE(isp, "isp_target_putback_atio", (int) optr, qe);
+	MemoryBarrier();
+	ISP_ADD_REQUEST(isp, iptr);
+	return (CAM_REQ_CMP);
+}
+
+static void
+isp_refire_putback_atio(void *arg)
+{
+	union ccb *ccb = arg;
+	int s = splcam();
+	if (isp_target_putback_atio(XS_ISP(ccb), ccb) != CAM_REQ_CMP) {
+		(void) timeout(isp_refire_putback_atio, ccb, 10);
+	} else {
+		isp_handle_platform_ctio_part2(XS_ISP(ccb), ccb);
+	}
+	splx(s);
 }
 
 /*
@@ -914,24 +992,33 @@ isp_handle_platform_atio(struct ispsoftc *isp, at_entry_t *aep)
 		atiop->ccb_h.target_lun = aep->at_lun;
 	}
 	if (aep->at_flags & AT_NODISC) {
-		xpt_print_path(tptr->owner);
-		printf("incoming command that cannot disconnect\n");
+		atiop->ccb_h.flags = CAM_DIS_DISCONNECT;
+	} else {
+		atiop->ccb_h.flags = 0;
 	}
 
+	if (status & QLTM_SVALID) {
+		size_t amt = imin(QLTM_SENSELEN, sizeof (atiop->sense_data));
+		atiop->sense_len = amt;
+		MEMCPY(&atiop->sense_data, aep->at_sense, amt);
+	} else {
+		atiop->sense_len = 0;
+	}
 
 	atiop->init_id = aep->at_iid;
 	atiop->cdb_len = aep->at_cdblen;
 	MEMCPY(atiop->cdb_io.cdb_bytes, aep->at_cdb, aep->at_cdblen);
 	atiop->ccb_h.status = CAM_CDB_RECVD;
+	atiop->tag_id = aep->at_tag_val;
 	if ((atiop->tag_action = aep->at_tag_type) != 0) {
-		atiop->tag_id = aep->at_tag_val;
 		atiop->ccb_h.status |= CAM_TAG_ACTION_VALID;
 	}
 	xpt_done((union ccb*)atiop);
 	if (isp_tdebug > 1) {
-		printf("%s:ATIO CDB=0x%x iid%d->lun%d tag 0x%x ttype 0x%x\n",
+		printf("%s:ATIO CDB=0x%x iid%d->lun%d tag 0x%x ttype 0x%x %s",
 		    isp->isp_name, aep->at_cdb[0] & 0xff, aep->at_iid,
-		    aep->at_lun, aep->at_tag_val & 0xff, aep->at_tag_type);
+		    aep->at_lun, aep->at_tag_val & 0xff, aep->at_tag_type,
+		    (aep->at_flags & AT_NODISC)? "nondisc\n" : "\n");
 	}
 	rls_lun_statep(isp, tptr);
 	return (0);
@@ -1028,11 +1115,20 @@ isp_handle_platform_atio2(struct ispsoftc *isp, at2_entry_t *aep)
 		return (0);
 	}
 	SLIST_REMOVE_HEAD(&tptr->atios, sim_links.sle);
+
 	if (tptr == &isp->isp_osinfo.tsdflt) {
 		atiop->ccb_h.target_id =
 			((fcparam *)isp->isp_param)->isp_loopid;
 		atiop->ccb_h.target_lun = lun;
 	}
+	if (aep->at_status & QLTM_SVALID) {
+		size_t amt = imin(QLTM_SENSELEN, sizeof (atiop->sense_data));
+		atiop->sense_len = amt;
+		MEMCPY(&atiop->sense_data, aep->at_sense, amt);
+	} else {
+		atiop->sense_len = 0;
+	}
+
 	atiop->init_id = aep->at_iid;
 	atiop->cdb_len = ATIO2_CDBLEN;
 	MEMCPY(atiop->cdb_io.cdb_bytes, aep->at_cdb, ATIO2_CDBLEN);
@@ -1057,21 +1153,28 @@ isp_handle_platform_atio2(struct ispsoftc *isp, at2_entry_t *aep)
 	if (atiop->tag_action != 0) {
 		atiop->ccb_h.status |= CAM_TAG_ACTION_VALID;
 	}
+
+	/*
+	 * Preserve overall command datalength in private field.
+	 */
+	atiop->ccb_h.spriv_field0 = aep->at_datalen;
+
 	xpt_done((union ccb*)atiop);
 	if (isp_tdebug > 1) {
-		printf("%s:ATIO2 RX_ID 0x%x CDB=0x%x iid%d->lun%d tattr 0x%x\n",
+		printf("%s:ATIO2 RX_ID 0x%x CDB=0x%x iid%d->lun%d tattr 0x%x "
+		    "datalen %u\n",
 		    isp->isp_name, aep->at_rxid & 0xffff, aep->at_cdb[0] & 0xff,
-		    aep->at_iid, lun, aep->at_taskflags);
+		    aep->at_iid, lun, aep->at_taskflags, aep->at_datalen);
 	}
 	rls_lun_statep(isp, tptr);
 	return (0);
 }
 
 static int
-isp_handle_platform_ctio(struct ispsoftc *isp, void * arg)
+isp_handle_platform_ctio(struct ispsoftc *isp, void *arg)
 {
 	union ccb *ccb;
-	int sentstatus, ok;
+	int sentstatus, ok, notify_cam;
 
 	/*
 	 * CTIO and CTIO2 are close enough....
@@ -1085,7 +1188,7 @@ isp_handle_platform_ctio(struct ispsoftc *isp, void * arg)
 		ct2_entry_t *ct = arg;
 		sentstatus = ct->ct_flags & CT2_SENDSTATUS;
 		ok = (ct->ct_status & ~QLTM_SVALID) == CT_OK;
-		if (ok && ccb->ccb_h.flags & CAM_SEND_SENSE) {
+		if (ok && (ccb->ccb_h.flags & CAM_SEND_SENSE)) {
 			ccb->ccb_h.status |= CAM_SENT_SENSE;
 		}
 		if (isp_tdebug > 1) {
@@ -1094,6 +1197,7 @@ isp_handle_platform_ctio(struct ispsoftc *isp, void * arg)
 			    ct->ct_status, ct->ct_flags,
 			    (ccb->ccb_h.status & CAM_SENT_SENSE) != 0);
 		}
+		notify_cam = ct->ct_header.rqs_seqno;
 	} else {
 		ct_entry_t *ct = arg;
 		sentstatus = ct->ct_flags & CT_SENDSTATUS;
@@ -1103,6 +1207,7 @@ isp_handle_platform_ctio(struct ispsoftc *isp, void * arg)
 			    isp->isp_name, ct->ct_tag_val, ct->ct_status,
 			    ct->ct_flags);
 		}
+		notify_cam = ct->ct_header.rqs_seqno;
 	}
 
 	/*
@@ -1113,7 +1218,8 @@ isp_handle_platform_ctio(struct ispsoftc *isp, void * arg)
 	 *
 	 * In any case, for this platform, the upper layers figure out
 	 * what to do next, so all we do here is collect status and
-	 * pass information along.
+	 * pass information along. The exception is that we clear
+	 * the notion of handling a non-disconnecting command here.
 	 */
 
 	if (sentstatus) {
@@ -1127,7 +1233,26 @@ isp_handle_platform_ctio(struct ispsoftc *isp, void * arg)
 		}
 	}
 
+	if (notify_cam == 0) {
+		if (isp_tdebug > 1) {
+			printf("%s:Intermediate CTIO done\n", isp->isp_name);
+		}
+		return (0);
+	}
+	if (isp_tdebug > 1) {
+		printf("%s:Final CTIO done\n", isp->isp_name);
+	}
+	if (isp_target_putback_atio(isp, ccb) != CAM_REQ_CMP) {
+		(void) timeout(isp_refire_putback_atio, ccb, 10);
+	} else {
+		isp_handle_platform_ctio_part2(isp, ccb);
+	}
+	return (0);
+}
 
+static void
+isp_handle_platform_ctio_part2(struct ispsoftc *isp, union ccb *ccb)
+{
 	if ((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_INPROG) {
 		ccb->ccb_h.status |= CAM_REQ_CMP;
 	}
@@ -1149,7 +1274,6 @@ isp_handle_platform_ctio(struct ispsoftc *isp, void * arg)
 		}
 	}
 	xpt_done(ccb);
-	return (0);
 }
 #endif
 
@@ -1428,8 +1552,13 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			xpt_done(ccb);
 			break;
 		}
+		ccb->ccb_h.sim_priv.entries[0].field = 0;
+		ccb->ccb_h.sim_priv.entries[1].ptr = isp;
 		ISP_LOCK(isp);
 		if (ccb->ccb_h.func_code == XPT_ACCEPT_TARGET_IO) {
+#if	0
+			(void) isp_target_putback_atio(isp, ccb);
+#endif
 			SLIST_INSERT_HEAD(&tptr->atios,
 			    &ccb->ccb_h, sim_links.sle);
 		} else {
