@@ -1,5 +1,5 @@
-.ig \"-*- nroff -*-
-Copyright (C) 1989-2000 Free Software Foundation, Inc.
+.ig
+Copyright (C) 1989-2000, 2001 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -490,3 +490,7 @@ The actual version can be found at
 .BR groff_ms (@MAN7EXT@),
 .BR groff_me (@MAN7EXT@),
 .BR groff_char (@MAN7EXT@)
+.
+.\" Local Variables:
+.\" mode: nroff
+.\" End:
