@@ -35,7 +35,7 @@
  *
  *	from: @(#)pccons.c	5.11 (Berkeley) 5/21/91
  *	from: @(#)syscons.c	1.1 931021
- *	$Id: syscons.c,v 1.18 1993/10/31 00:19:01 jkh Exp $
+ *	$Id: syscons.c,v 1.19 1993/11/23 18:20:52 chmr Exp $
  *
  * Heavily modified by Søren Schmidt (sos@login.dkuug.dk) to provide:
  *
@@ -221,13 +221,13 @@ int pcread(dev_t dev, struct uio *uio, int flag);
 int pcwrite(dev_t dev, struct uio *uio, int flag);
 int pcparam(struct tty *tp, struct termios *t);
 int pcioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p);
-int pcxint(dev_t dev);
-int pcstart(struct tty *tp);
+void pcxint(dev_t dev);
+void pcstart(struct tty *tp);
 int pccnprobe(struct consdev *cp);
 int pccninit(struct consdev *cp);
-int pccnputc(dev_t dev, char c);
+void pccnputc(dev_t dev, char c);
 int pccngetc(dev_t dev);
-int scintr(dev_t dev, int irq, int cpl);
+void scintr(dev_t dev, int irq, int cpl);
 int pcmmap(dev_t dev, int offset, int nprot);
 u_int sgetc(int noblock);
 int getchar(void);
@@ -238,7 +238,7 @@ static scr_stat *get_scr_stat(dev_t dev);
 static int get_scr_num(scr_stat *scp);
 static void cursor_shape(int start, int end);
 static void get_cursor_shape(int *start, int *end);
-static void cursor_pos(void);
+static int cursor_pos(void);
 static void clear_screen(scr_stat *scp);
 static switch_scr(u_int next_scr);
 static void exchange_scr(void);
@@ -250,15 +250,15 @@ static void ansi_put(scr_stat *scp, u_char c);
 static void scinit(void);
 static void sput(u_char c);
 static u_char *get_fstr(u_int c, u_int *len);
-static update_leds(int which);
+static void update_leds(int which);
 static void kbd_wait(void);
 static void kbd_cmd(u_char command);
 static void set_mode(scr_stat *scp);
 static void set_border(int color);
-static load_font(int segment, int size, char* font);
+static void load_font(int segment, int size, char* font);
 static void save_palette(void);
 static void load_palette(void);
-static change_winsize(struct tty *tp, int x, int y);
+static void change_winsize(struct tty *tp, int x, int y);
 
 struct	isa_driver scdriver = {
 	pcprobe, pcattach, "sc",
@@ -361,6 +361,7 @@ int pcattach(struct isa_device *dev)
                      console[0].cursor_end);
 #endif
 	cursor_pos();
+	return (1);
 }
 
 
@@ -398,6 +399,7 @@ static int get_scr_num(scr_stat *scp)	/* allways call with legal scp !! */
 	return i;
 }
 
+int
 pcopen(dev_t dev, int flag, int mode, struct proc *p)
 {
 	struct tty *tp = get_tty_ptr(dev);
@@ -422,10 +424,11 @@ pcopen(dev_t dev, int flag, int mode, struct proc *p)
 	} else if (tp->t_state&TS_XCLUDE && p->p_ucred->cr_uid != 0)
 		return(EBUSY);
 	tp->t_state |= TS_CARR_ON;
-	return((*linesw[tp->t_line].l_open)(dev, tp));
+	return((*linesw[tp->t_line].l_open)(dev, tp, 0));
 }
 
 
+int
 pcclose(dev_t dev, int flag, int mode, struct proc *p)
 {
 	struct tty *tp = get_tty_ptr(dev);
@@ -443,6 +446,7 @@ pcclose(dev_t dev, int flag, int mode, struct proc *p)
 }
 
 
+int
 pcread(dev_t dev, struct uio *uio, int flag)
 {
 	struct tty *tp = get_tty_ptr(dev);
@@ -453,6 +457,7 @@ pcread(dev_t dev, struct uio *uio, int flag)
 }
 
 
+int
 pcwrite(dev_t dev, struct uio *uio, int flag)
 {
 	struct tty *tp = get_tty_ptr(dev);
@@ -467,6 +472,7 @@ pcwrite(dev_t dev, struct uio *uio, int flag)
  * Got a console interrupt, keyboard action !
  * Catch the character, and see who it goes to.
  */
+void
 scintr(dev_t dev, int irq, int cpl)
 {
 	int c, len;
@@ -507,6 +513,7 @@ scintr(dev_t dev, int irq, int cpl)
 /*
  * Set line parameters
  */
+int
 pcparam(struct tty *tp, struct termios *t)
 {
 	int cflag = t->c_cflag;
@@ -527,6 +534,7 @@ pcparam(struct tty *tp, struct termios *t)
 #define eflags		sf_eflags
 #endif
 
+int
 pcioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 {
 	int i, error;
@@ -953,6 +961,7 @@ pcioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 }
 
 
+void
 pcxint(dev_t dev)
 {
 	int unit = minor(dev);
@@ -975,6 +984,7 @@ pcxint(dev_t dev)
 }
 
 
+void
 pcstart(struct tty *tp)
 {
 #if defined(NetBSD)
@@ -1044,13 +1054,14 @@ pcstart(struct tty *tp)
 }
 
 
+int
 pccnprobe(struct consdev *cp)
 {
 	int maj;
 
 	/* locate the major number */
 	for (maj = 0; maj < nchrdev; maj++)
-		if (cdevsw[maj].d_open == pcopen)
+		if ((void*) cdevsw[maj].d_open == (void*) pcopen)
 			break;
 
 	/* initialize required fields */
@@ -1059,15 +1070,19 @@ pccnprobe(struct consdev *cp)
 	cp->cn_tp = &pccons[0];
 #endif
 	cp->cn_pri = CN_INTERNAL;
+	return (1);
 }
 
 
+int
 pccninit(struct consdev *cp)
 {
 	scinit();
+	return (1);
 }
 
 
+void
 pccnputc(dev_t dev, char c)
 {
 	int pos;
@@ -1088,6 +1103,7 @@ pccnputc(dev_t dev, char c)
 }
 
 
+int
 pccngetc(dev_t dev)
 {
 	int c, s;
@@ -1121,7 +1137,7 @@ static void scrn_saver(int test)
 
 static u_long 	rand_next = 1;
 
-static rand()
+static int rand()
 {
 	return ((rand_next = rand_next * 1103515245 + 12345) & 0x7FFFFFFF);
 }
@@ -1264,12 +1280,12 @@ static void get_cursor_shape(int *start, int *end)
 }
 
 
-static void cursor_pos(void)
+int cursor_pos(void)
 {
 	int pos;
 
 	if (cur_console->status & UNKNOWN_MODE) 
-		return;
+		return (0);
 	if (scrn_blank_time && (time.tv_sec > scrn_time_stamp+scrn_blank_time))
 		scrn_saver(1);
 	pos = cur_console->crtat - cur_console->crt_base;
@@ -1280,7 +1296,8 @@ static void cursor_pos(void)
 		outb(crtc_addr, 15);
 		outb(crtc_addr+1, pos&0xff);
 	}
-	timeout((timeout_t)cursor_pos, 0, hz/20);
+	timeout((timeout_func_t)cursor_pos, 0, hz/20);
+	return (0);
 }
 
 
@@ -1292,7 +1309,7 @@ static void clear_screen(scr_stat *scp)
 }
 
 
-static switch_scr(u_int next_scr)
+static int switch_scr(u_int next_scr)
 {
 	if (in_putc) {		/* don't switch if in putc */
 		nx_scr = next_scr+1;
@@ -1980,7 +1997,7 @@ static u_char *get_fstr(u_int c, u_int *len)
 }
 
 
-static update_leds(int which)
+static void update_leds(int which)
 {
 	u_char xlate_leds[8] = { 0, 4, 2, 6, 1, 5, 3, 7 };
 	
@@ -2328,13 +2345,13 @@ next_code:
 
 int getchar(void)
 {
-	char thechar;
+	u_char thechar;
 	int s;
 
 	polling = 1;
 	s = splhigh();
 	sput('>');
-	thechar = (char) sgetc(0);
+	thechar = (u_char) sgetc(0);
 	polling = 0;
 	splx(s);
 	switch (thechar) {
@@ -2433,7 +2450,7 @@ static void set_border(int color)
  	outb(ATC, 0x20);			/* enable Palette */
 }
 
-static load_font(int segment, int size, char* font)
+static void load_font(int segment, int size, char* font)
 {
   	int ch, line, s;
 	u_char val;
@@ -2498,7 +2515,7 @@ static void save_palette(void)
 }
 
 
-static change_winsize(struct tty *tp, int x, int y)
+static void change_winsize(struct tty *tp, int x, int y)
 {
 	if (tp->t_winsize.ws_col != x || tp->t_winsize.ws_row != y) {
 		tp->t_winsize.ws_col = x;
