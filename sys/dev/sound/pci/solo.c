@@ -215,18 +215,14 @@ ess_dspwr(struct ess_info *sc, u_char val)
 static int
 ess_cmd(struct ess_info *sc, u_char val)
 {
-#if 0
-	printf("ess_cmd: %x\n", val);
-#endif
+	DEB(printf("ess_cmd: %x\n", val));
     	return ess_dspwr(sc, val);
 }
 
 static int
 ess_cmd1(struct ess_info *sc, u_char cmd, int val)
 {
-#if 0
-    	printf("ess_cmd1: %x, %x\n", cmd, val);
-#endif
+    	DEB(printf("ess_cmd1: %x, %x\n", cmd, val));
     	if (ess_dspwr(sc, cmd)) {
 		return ess_dspwr(sc, val & 0xff);
     	} else return 0;
@@ -291,12 +287,15 @@ ess_read(struct ess_info *sc, u_char reg)
 static int
 ess_reset_dsp(struct ess_info *sc)
 {
+	DEB(printf("ess_reset_dsp\n"));
     	ess_wr(sc, SBDSP_RST, 3);
     	DELAY(100);
     	ess_wr(sc, SBDSP_RST, 0);
     	if (ess_get_byte(sc) != 0xAA) {
-        	DEB(printf("ess_reset_dsp 0x%lx failed\n",
+        	DEB(printf("ess_reset_dsp failed\n"));
+/*
 			   rman_get_start(d->io_base)));
+*/
 		return ENXIO;	/* Sorry */
     	}
     	ess_cmd(sc, 0xc6);
@@ -317,6 +316,8 @@ ess_intr(void *arg)
 
 	pirq = (src & sc->pch.hwch)? 1 : 0;
 	rirq = (src & sc->rch.hwch)? 1 : 0;
+
+	DEB(printf("ess_intr: pirq:%d rirq:%d\n",pirq,rirq));
 
 	if (pirq) {
 		if (sc->pch.stopping) {
@@ -409,6 +410,7 @@ ess_setupch(struct ess_info *sc, int ch, int dir, int spd, u_int32_t fmt, int le
 	u_int8_t spdval, fmtval;
 
 
+	DEB(printf("ess_setupch\n"));
 	spdval = (sc->newspeed)? ess_calcspeed9(&spd) : ess_calcspeed8(&spd);
 
 	if (ch == 1) {
@@ -419,7 +421,7 @@ ess_setupch(struct ess_info *sc, int ch, int dir, int spd, u_int32_t fmt, int le
 		/* transfer length high */
 		ess_write(sc, 0xa5, (len & 0xff00) >> 8);
 		/* autoinit, dma dir */
-		ess_write(sc, 0xb8, 0x04 | (play? 0x00 : 0x08));
+		ess_write(sc, 0xb8, 0x04 | (play? 0x00 : 0x0a));
 		/* mono/stereo */
 		ess_write(sc, 0xa8, (ess_read(sc, 0xa8) & ~0x03) | (stereo? 0x01 : 0x02));
 		/* demand mode, 4 bytes/xfer */
@@ -438,7 +440,7 @@ ess_setupch(struct ess_info *sc, int ch, int dir, int spd, u_int32_t fmt, int le
 		ess_write(sc, 0xb7, 0x51 | (unsign? 0x00 : 0x20));
 		*/
 		/* setup fifo */
-		ess_write(sc, 0xb7, 0x90 | (unsign? 0x00 : 0x20) |
+		ess_write(sc, 0xb7, 0x91 | (unsign? 0x00 : 0x20) |
 					   (b16? 0x04 : 0x00) |
 					   (stereo? 0x08 : 0x40));
 		/* irq control */
@@ -473,6 +475,7 @@ ess_start(struct ess_chinfo *ch)
 {
 	struct ess_info *sc = ch->parent;
 
+	DEB(printf("ess_start\n"););
 	ess_setupch(sc, ch->hwch, ch->dir, ch->spd, ch->fmt, ch->buffer->dl);
 	ch->stopping = 0;
 	if (ch->hwch == 1) {
@@ -491,17 +494,13 @@ ess_stop(struct ess_chinfo *ch)
 {
 	struct ess_info *sc = ch->parent;
 
+	DEB(printf("ess_stop\n"));
 	ch->stopping = 1;
 	if (ch->hwch == 1)
 		ess_write(sc, 0xb8, ess_read(sc, 0xb8) & ~0x04);
-#if 0
-		if (ch->dir == PCMDIR_PLAY) {
-			DELAY(25000); /* 25 ms */
-			ess_cmd(sc, 0xd3);
-		}
-#endif
 	else
 		ess_setmixer(sc, 0x78, ess_getmixer(sc, 0x78) & ~0x10);
+	DEB(printf("done with stop\n"));
 	return 0;
 }
 
@@ -512,6 +511,7 @@ esschan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 	struct ess_info *sc = devinfo;
 	struct ess_chinfo *ch = (dir == PCMDIR_PLAY)? &sc->pch : &sc->rch;
 
+	DEB(printf("esschan_init\n"));
 	ch->parent = sc;
 	ch->channel = c;
 	ch->buffer = b;
@@ -568,6 +568,7 @@ esschan_trigger(void *data, int go)
 	struct ess_chinfo *ch = data;
 	struct ess_info *sc = ch->parent;
 
+	DEB(printf("esschan_trigger: %d\n",go));
 	if (go == PCMTRIG_EMLDMAWR || go == PCMTRIG_EMLDMARD)
 		return 0;
 
@@ -727,7 +728,7 @@ ess_dmasetup(struct ess_info *sc, int ch, u_int32_t base, u_int16_t cnt, int dir
 		port_wr(sc->vc, 0xf, 0x01, 1); /* mask */
 		port_wr(sc->vc, 0xb, dir == PCMDIR_PLAY? 0x58 : 0x54, 1); /* mode */
 		port_wr(sc->vc, 0x0, base, 4);
-		port_wr(sc->vc, 0x4, cnt - 1, 2);
+		port_wr(sc->vc, 0x4, cnt-1, 2);
 
 	} else if (ch == 2) {
 		port_wr(sc->io, 0x6, 0x08, 1); /* autoinit */
