@@ -68,7 +68,6 @@ struct	buf_ops buf_ops_bio = {
  * carnal knowledge of buffers.  This knowledge should be moved to vfs_bio.c.
  */
 struct buf *buf;		/* buffer header pool */
-struct mtx buftimelock;		/* Interlock on setting prio and timo */
 
 static void vm_hold_free_pages(struct buf * bp, vm_offset_t from,
 		vm_offset_t to);
@@ -519,7 +518,6 @@ bufinit(void)
 #ifdef USE_BUFHASH
 	LIST_INIT(&invalhash);
 #endif
-	mtx_init(&buftimelock, "buftime lock", NULL, MTX_DEF);
 	mtx_init(&bqlock, "buf queue lock", NULL, MTX_DEF);
 	mtx_init(&rbreqlock, "runningbufspace lock", NULL, MTX_DEF);
 	mtx_init(&nblock, "needsbuffer lock", NULL, MTX_DEF);
@@ -967,7 +965,7 @@ vfs_backgroundwritedone(bp)
 	 * queue if it currently resides there.
 	 */
 	origbp->b_flags &= ~B_LOCKED;
-	if (BUF_LOCK(origbp, LK_EXCLUSIVE | LK_NOWAIT) == 0) {
+	if (BUF_LOCK(origbp, LK_EXCLUSIVE | LK_NOWAIT, NULL) == 0) {
 		bremfree(origbp);
 		bqrelse(origbp);
 	}
@@ -1630,7 +1628,7 @@ vfs_bio_clcheck(struct vnode *vp, int size, daddr_t lblkno, daddr_t blkno)
 		return (0);
 
 	/* If the buf is busy we don't want to wait for it */
-	if (BUF_LOCK(bpa, LK_EXCLUSIVE | LK_NOWAIT) != 0)
+	if (BUF_LOCK(bpa, LK_EXCLUSIVE | LK_NOWAIT, NULL) != 0)
 		return (0);
 
 	/* Only cluster with valid clusterable delayed write buffers */
@@ -1710,7 +1708,7 @@ vfs_bio_awrite(struct buf * bp)
 		}
 	}
 
-	BUF_LOCK(bp, LK_EXCLUSIVE);
+	BUF_LOCK(bp, LK_EXCLUSIVE, NULL);
 	bremfree(bp);
 	bp->b_flags |= B_ASYNC;
 
@@ -1870,7 +1868,7 @@ restart:
 		 * remains valid only for QUEUE_EMPTY[KVA] bp's.
 		 */
 
-		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT) != 0)
+		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT, NULL) != 0)
 			panic("getnewbuf: locked buf");
 		bremfreel(bp);
 		mtx_unlock(&bqlock);
@@ -2147,7 +2145,7 @@ flushbufqueues(void)
 		if ((bp->b_xflags & BX_BKGRDINPROG) != 0)
 			continue;
 		if (bp->b_flags & B_INVAL) {
-			if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT) != 0)
+			if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT, NULL) != 0)
 				panic("flushbufqueues: locked buf");
 			bremfreel(bp);
 			mtx_unlock(&bqlock);
@@ -2182,7 +2180,7 @@ flushbufqueues(void)
 		if ((bp->b_xflags & BX_BKGRDINPROG) != 0)
 			continue;
 		if (bp->b_flags & B_INVAL) {
-			if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT) != 0)
+			if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT, NULL) != 0)
 				panic("flushbufqueues: locked buf");
 			bremfreel(bp);
 			mtx_unlock(&bqlock);
@@ -2407,6 +2405,7 @@ getblk(struct vnode * vp, daddr_t blkno, int size, int slpflag, int slptimeo)
 {
 	struct buf *bp;
 	int s;
+	int error;
 #ifdef USE_BUFHASH
 	struct bufhashhdr *bh;
 #endif
@@ -2437,19 +2436,24 @@ loop:
 
 	VI_LOCK(vp);
 	if ((bp = gbincore(vp, blkno))) {
-		VI_UNLOCK(vp);
 		/*
 		 * Buffer is in-core.  If the buffer is not busy, it must
 		 * be on a queue.
 		 */
 
-		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT)) {
-			if (BUF_TIMELOCK(bp, LK_EXCLUSIVE | LK_SLEEPFAIL,
-			    "getblk", slpflag, slptimeo) == ENOLCK)
-				goto loop;
-			splx(s);
-			return (struct buf *) NULL;
-		}
+		error = BUF_TIMELOCK(bp,
+		    LK_EXCLUSIVE | LK_SLEEPFAIL | LK_INTERLOCK,
+		    VI_MTX(vp), "getblk", slpflag, slptimeo);
+
+		/*
+		 * If we slept and got the lock we have to restart in case
+		 * the buffer changed identities.
+		 */
+		if (error == ENOLCK)
+			goto loop;
+		/* We timed out or were interrupted. */
+		else if (error)
+			return (NULL);
 
 		/*
 		 * The buffer is locked.  B_CACHE is cleared if the buffer is 

@@ -2658,10 +2658,11 @@ again:
 		for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp; bp = nbp) {
 			if (bvecpos >= bvecsize)
 				break;
-			VI_UNLOCK(vp);
 			if ((bp->b_flags & (B_DELWRI | B_NEEDCOMMIT)) !=
 			    (B_DELWRI | B_NEEDCOMMIT) ||
-			    BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT)) {
+			    BUF_LOCK(bp,
+			    LK_EXCLUSIVE | LK_NOWAIT | LK_INTERLOCK,
+			    VI_MTX(vp))) {
 				VI_LOCK(vp);
 				nbp = TAILQ_NEXT(bp, b_vnbufs);
 				continue;
@@ -2785,14 +2786,13 @@ loop:
 	VI_LOCK(vp);
 	for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp; bp = nbp) {
 		nbp = TAILQ_NEXT(bp, b_vnbufs);
-		VI_UNLOCK(vp);
-		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT)) {
-			if (waitfor != MNT_WAIT || passone) {
-				VI_LOCK(vp);
+		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT, NULL)) {
+			if (waitfor != MNT_WAIT || passone)
 				continue;
-			}
-			error = BUF_TIMELOCK(bp, LK_EXCLUSIVE | LK_SLEEPFAIL,
-			    "nfsfsync", slpflag, slptimeo);
+
+			error = BUF_TIMELOCK(bp,
+			    LK_EXCLUSIVE | LK_SLEEPFAIL | LK_INTERLOCK,
+			    VI_MTX(vp), "nfsfsync", slpflag, slptimeo);
 			splx(s);
 			if (error == 0)
 				panic("nfs_fsync: inconsistent lock");

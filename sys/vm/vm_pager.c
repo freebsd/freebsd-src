@@ -345,7 +345,7 @@ initpbuf(struct buf *bp)
 	bp->b_error = 0;
 	bp->b_magic = B_MAGIC_BIO;
 	bp->b_op = &buf_ops_bio;
-	BUF_LOCK(bp, LK_EXCLUSIVE);
+	BUF_LOCK(bp, LK_EXCLUSIVE, NULL);
 }
 
 /*

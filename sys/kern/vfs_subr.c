@@ -1218,17 +1218,15 @@ flushbuflist(blist, flags, vp, slpflag, slptimeo, errorp)
 
 	for (found = 0, bp = blist; bp; bp = nbp) {
 		nbp = TAILQ_NEXT(bp, b_vnbufs);
-		VI_UNLOCK(vp);
 		if (((flags & V_NORMAL) && (bp->b_xflags & BX_ALTDATA)) ||
 		    ((flags & V_ALT) && (bp->b_xflags & BX_ALTDATA) == 0)) {
-			VI_LOCK(vp);
 			continue;
 		}
 		found += 1;
-		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT)) {
-			error = BUF_TIMELOCK(bp,
-			    LK_EXCLUSIVE | LK_SLEEPFAIL,
-			    "flushbuf", slpflag, slptimeo);
+		error = BUF_TIMELOCK(bp,
+		    LK_EXCLUSIVE | LK_SLEEPFAIL | LK_INTERLOCK, VI_MTX(vp),
+		    "flushbuf", slpflag, slptimeo);
+		if (error) {
 			if (error != ENOLCK)
 				*errorp = error;
 			goto done;
@@ -1303,50 +1301,48 @@ restart:
 		anyfreed = 0;
 		for (bp = TAILQ_FIRST(&vp->v_cleanblkhd); bp; bp = nbp) {
 			nbp = TAILQ_NEXT(bp, b_vnbufs);
-			VI_UNLOCK(vp);
 			if (bp->b_lblkno >= trunclbn) {
-				if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT)) {
-					BUF_LOCK(bp, LK_EXCLUSIVE|LK_SLEEPFAIL);
+				if (BUF_LOCK(bp,
+				    LK_EXCLUSIVE | LK_SLEEPFAIL | LK_INTERLOCK,
+				    VI_MTX(vp)) == ENOLCK)
 					goto restart;
-				} else {
-					bremfree(bp);
-					bp->b_flags |= (B_INVAL | B_RELBUF);
-					bp->b_flags &= ~B_ASYNC;
-					brelse(bp);
-					anyfreed = 1;
-				}
+
+				bremfree(bp);
+				bp->b_flags |= (B_INVAL | B_RELBUF);
+				bp->b_flags &= ~B_ASYNC;
+				brelse(bp);
+				anyfreed = 1;
+
 				if (nbp &&
 				    (((nbp->b_xflags & BX_VNCLEAN) == 0) ||
 				    (nbp->b_vp != vp) ||
 				    (nbp->b_flags & B_DELWRI))) {
 					goto restart;
 				}
+				VI_LOCK(vp);
 			}
-			VI_LOCK(vp);
 		}
 
 		for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp; bp = nbp) {
 			nbp = TAILQ_NEXT(bp, b_vnbufs);
-			VI_UNLOCK(vp);
 			if (bp->b_lblkno >= trunclbn) {
-				if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT)) {
-					BUF_LOCK(bp, LK_EXCLUSIVE|LK_SLEEPFAIL);
+				if (BUF_LOCK(bp,
+				    LK_EXCLUSIVE | LK_SLEEPFAIL | LK_INTERLOCK,
+				    VI_MTX(vp)) == ENOLCK)
 					goto restart;
-				} else {
-					bremfree(bp);
-					bp->b_flags |= (B_INVAL | B_RELBUF);
-					bp->b_flags &= ~B_ASYNC;
-					brelse(bp);
-					anyfreed = 1;
-				}
+				bremfree(bp);
+				bp->b_flags |= (B_INVAL | B_RELBUF);
+				bp->b_flags &= ~B_ASYNC;
+				brelse(bp);
+				anyfreed = 1;
 				if (nbp &&
 				    (((nbp->b_xflags & BX_VNDIRTY) == 0) ||
 				    (nbp->b_vp != vp) ||
 				    (nbp->b_flags & B_DELWRI) == 0)) {
 					goto restart;
 				}
+				VI_LOCK(vp);
 			}
-			VI_LOCK(vp);
 		}
 	}
 
@@ -1354,24 +1350,21 @@ restart:
 restartsync:
 		for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp; bp = nbp) {
 			nbp = TAILQ_NEXT(bp, b_vnbufs);
-			VI_UNLOCK(vp);
 			if ((bp->b_flags & B_DELWRI) && (bp->b_lblkno < 0)) {
-				if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT)) {
-					BUF_LOCK(bp, LK_EXCLUSIVE|LK_SLEEPFAIL);
+				if (BUF_LOCK(bp,
+				    LK_EXCLUSIVE | LK_SLEEPFAIL | LK_INTERLOCK,
+				    VI_MTX(vp)) == ENOLCK)
 					goto restart;
-				} else {
-					bremfree(bp);
-					if (bp->b_vp == vp) {
-						bp->b_flags |= B_ASYNC;
-					} else {
-						bp->b_flags &= ~B_ASYNC;
-					}
-					BUF_WRITE(bp);
-				}
+				bremfree(bp);
+				if (bp->b_vp == vp)
+					bp->b_flags |= B_ASYNC;
+				else
+					bp->b_flags &= ~B_ASYNC;
+				
+				BUF_WRITE(bp);
 				VI_LOCK(vp);
 				goto restartsync;
 			}
-			VI_LOCK(vp);
 		}
 	}
 	
