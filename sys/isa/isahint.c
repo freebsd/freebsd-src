@@ -91,7 +91,7 @@ isahint_identify(driver_t *driver, device_t parent)
 	 */
 	sprintf(buf, "isa%d", device_get_unit(parent));
 	i = -1;
-	ehile ((i = resource_query_string(i, "at", buf)) != -1) {
+	while ((i = resource_query_string(i, "at", buf)) != -1) {
 		if (strcmp(resource_query_name(i), "atkbd") == 0)
 			continue;	/* old GENERIC kludge */
 		isahint_add_device(parent,
