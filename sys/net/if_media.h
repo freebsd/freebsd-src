@@ -461,7 +461,7 @@ struct ifmedia_description {
 	{ IFM_ATM_MM_155,	"Multi-mode/155MBit" },			\
 	{ IFM_ATM_SM_155,	"Single-mode/155MBit" },		\
 	{ IFM_ATM_UTP_155,	"UTP/155MBit" },			\
-	{ IFM_ATM_MM_622,	"Mult-imode/622MBit" },			\
+	{ IFM_ATM_MM_622,	"Multi-mode/622MBit" },			\
 	{ IFM_ATM_SM_622,	"Single-mode/622MBit" },		\
 	{ 0, NULL },							\
 }
