@@ -754,14 +754,6 @@ fb_commonioctl(video_adapter_t *adp, u_long cmd, caddr_t arg)
 	case FBIO_FINDMODE:	/* find a matching video mode */
 		error = (*vidsw[adp->va_index]->query_mode)(adp, 
 				(video_info_t *)arg); 
-		if (error < 0) {
-			error = EINVAL;
-		} else {
-			error = (*vidsw[adp->va_index]->get_info)(adp, 
-					error, (video_info_t *)arg); 
-			if (error)
-				error = ENODEV;	/* shouldn't happen */
-		}
 		break;
 
 	case FBIO_GETMODE:	/* get video mode */
