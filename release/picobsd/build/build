@@ -1,0 +1,347 @@
+#!/bin/sh -
+
+#
+#	$Id: build,v 1.8 1998/08/10 19:06:48 abial Exp $
+#
+
+# You can set the SRC variable which points to your source tree. It's
+# /usr/src by default (most people shouldn't change it).
+SRC=/usr/src
+
+# Default MFS sizes for different types of the floppy. Again, most people
+# shouldn't change them unless they know what they are doing.
+
+DIAL_DFLT_SIZE=1600
+ROUTER_DFLT_SIZE=820
+NET_DFLT_SIZE=2100
+ISP_DFLT_SIZE=2100
+
+# SET THIS if you're building on 2.2.x system
+#
+# RELENG_2_2=yes
+
+# Path to srcdirs of special program for init(8) (standard if empty)
+INIT=
+
+# --------- YOU SHOULD NOT NEED TO CHANGE ANYTHING BELOW -----------
+# The "build" script will ask you for parameters. Just run it... :-)
+# --------- YOU SHOULD NOT NEED TO CHANGE ANYTHING BELOW -----------
+
+set -e
+
+# Build kernel with previously set parameters.
+
+build_kernel() {
+	echo ""
+	echo "-> We must make the PICOBSD${suffix}.${SIZE} kernel first..."
+	pwd=`pwd`
+	cat ../${TYPE}/conf/PICOBSD | grep -v "MFS_ROOT">${CONF}/PICOBSD${suffix}.${SIZE}
+	echo "options	\"MFS_ROOT=${SIZE}\"" >>${CONF}/PICOBSD${suffix}.${SIZE}
+	cd ${CONF}
+	config PICOBSD${suffix}.${SIZE}
+	cd ../../compile/PICOBSD${suffix}.${SIZE}
+	make depend && make
+	cd ${pwd}
+}
+
+# Main build procedure. It calls other scripts (stage1-3 and populate)
+main() {
+
+if [ "${TYPE}" = "dial" ]
+then
+	suffix="-D"
+fi
+if [ "${TYPE}" = "net" ]
+then
+	suffix="-N"
+fi
+if [ "${TYPE}" = "isp" ]
+then
+	suffix="-I"
+fi
+if [ "${TYPE}" = "router" ]
+then
+	suffix="-R"
+fi
+
+CONF="${SRC}/sys/i386/conf"
+
+clear
+echo "-> Building with following parameters:"
+echo -n "	Type:     ${TYPE}"
+if [ "X${INIT}" != "X" ]
+then
+	echo " (using ${INIT} as init(8))"
+else
+	echo ""
+fi
+echo "	MFS size: ${SIZE} kB"
+echo "	Language: ${LANGUAGE}"
+echo ""
+echo "-> We'll use the sources living in ${SRC}"
+echo ""
+echo "-> I hope you have checked the ../${TYPE}/conf/PICOBSD config file..."
+echo ""
+echo ""
+sleep 2
+
+# Now check if we must build the kernel first
+
+if [ ! -f ${SRC}/sys/i386/conf/PICOBSD${suffix}.${SIZE} ]
+then
+	build_kernel
+elif [ ! -f ${SRC}/sys/compile/PICOBSD${suffix}.${SIZE}/kernel ]
+then
+	build_kernel
+fi
+
+export SIZE LANGUAGE TYPE SRC RELENG_2_2 INIT
+
+for i in stage1 populate stage2 stage3
+do
+	echo "====================== ${i} started ====================="
+	./${i}
+	if [ "X$?" != "X0" ]
+	then
+		echo ""
+		echo "-> ERROR in \"${i}\" script. Aborting the build process."
+		echo -n "-> Cleaning temporary files... "
+		umount -f /mnt
+		vnconfig -u /dev/rvn0
+		./clean ${TYPE}
+		echo "Done."
+		exit 10
+	else
+	echo "==================== ${i} completed ====================="
+	fi
+done
+}
+
+# Set the LANGUAGE variable
+
+set_lang() {
+	clear
+	echo "                    Language setup"
+	echo ""
+	echo "Language can be either 'en' (English - default) or 'pl' (Polish)"
+	echo ""
+	read -p "Enter the LANGUAGE (en, pl): " LANGUAGE
+	if [ "X${LANGUAGE}" = "X" ]
+	then
+		LANGUAGE=en
+	fi
+}
+
+# Set the INIT variable
+
+set_init() {
+	clear
+	echo "                Choose your init(8) program"
+	echo ""
+	echo "You can choose either standard init(8) (which requires getty), or"
+	echo "you can choose 'oinit' from TinyWare collection."
+	echo ""
+	read -p "Enter the INIT (init, oinit): " INIT
+	if [ "X${INIT}" = "Xinit" ]
+	then
+		unset INIT
+	fi
+}
+
+# Set the default MFS size depending on the type of setup
+
+set_dflt_size() {
+	echo ""
+	if [ "X${TYPE}" = "X" ]
+	then
+		TYPE=dial
+	fi
+	echo "Setting default MFS size for \"${TYPE}\" type floppy."
+	if [ "X${TYPE}" = "Xdial" ]
+	then
+		SIZE=$DIAL_DFLT_SIZE
+	elif [ "X${TYPE}" = "Xnet" ]
+	then
+		SIZE=$NET_DFLT_SIZE
+	elif [ "X${TYPE}" = "Xrouter" ]
+	then
+		SIZE=$ROUTER_DFLT_SIZE
+	elif [ "X${TYPE}" = "Xisp" ]
+	then
+		SIZE=$ISP_DFLT_SIZE
+	else
+		echo "Unknown type of setup: \"${TYPE}\". Aborting..."
+		exit 10
+	fi
+}
+
+# Set MFS size interactively
+
+set_size() {
+	clear
+	echo "            Memory Filesystem (MFS) Size setup"
+	echo ""
+	echo " Size can be anything decent (usually 1700 or 2500) in kB."
+	echo " NOTE1: you can also use other numbers (e.g. 1500, 1456, 1789 ...)"
+	echo " even much bigger (like 4567), but keep in mind that this memory is"
+	echo " totally lost to other programs. Usually you want to keep this as small as"
+	echo " possible."
+	echo ""
+	echo " NOTE2: for pre-canned setups there are specific requirements:"
+	echo "	dial   - requires at least SIZE=$DIAL_DFLT_SIZE"
+	echo "	router - requires at least SIZE=$ROUTER_DFLT_SIZE (500kB less without SNMP)"
+	echo "	net    - requires at least SIZE=$NET_DFLT_SIZE (500kB less without SNMP)"
+	echo "	isp    - requires at least SIZE=$ISP_DFLT_SIZE (500kB less without SNMP)"
+	echo ""
+	echo " The last two configurations are not likely to run reliably on machines"
+	echo " with less than 10MB of RAM, while the 'dial' is tested and proved to run"
+	echo " as many as ~30 processes on 10 consoles with only 8MB RAM. YMMV."
+	echo ""
+	read -p "Enter the SIZE in kB: " SIZE
+	if [ "X${SIZE}" = "X" ]
+	then
+		set_dflt_size
+	fi
+}
+
+# Set type of floppy interactively
+
+set_type() {
+	clear
+	echo "               Setup the type of configuration"
+	echo ""
+
+	echo " Type can be either 'dial', 'router', 'net' or 'isp'. There are four"
+	echo " sets of configuration files in subdirs ../dial, ../router, ../net"
+	echo " and ../isp respectively - the contents of the floppy is constructed"
+	echo " basing on the Makefiles and scripts in them."
+	echo ""
+	echo " E.g. if you define TYPE=dial, you'll end up having a floppy which is"
+	echo " suitable for dialup access and not much else. If you define TYPE=net,"
+	echo " you'll have a small router-fixit-like floppy, which lacks most"
+	echo " interactive tools. TYPE=isp gives you a dialin server floppy."
+	echo ""
+	read -p "Enter the TYPE of the floppy (dial, net, router, isp): " TYPE
+	if [ "X${TYPE}" = "X" ]
+	then
+		TYPE=dial
+	fi
+	if [ "X${TYPE}" = "Xrouter" ]
+	then
+		INIT=oinit
+	fi
+	if [ "X${TYPE}" = "Xdial" -a "X${INIT}" = "X" ]
+	then
+		set_init
+	fi
+	
+	set_dflt_size
+}
+
+put_title() {
+	clear
+	echo "                     Building the PicoBSD v. 0.4 floppy"
+	echo "============================================================================"
+	echo ""
+}
+
+
+#-------------------------------------------------------------------
+# Main entry of the script
+
+# If $1="package", it creates a neat set of floppies
+
+if [ X"$1" = X"package" ]
+then
+	touch build.status
+	echo "##############################################" >>build.status
+	echo "## `date` ">>build.status
+	echo "##############################################" >>build.status
+	./clean dial
+	for y in en pl
+	do
+		for z in dial router net isp
+		do
+			TYPE=${z}
+			LANGUAGE=${y}
+			set_dflt_size
+			echo "---------------------------------------------">>build.status
+			echo "Building TYPE=${z}, LANGUAGE=${y}, SIZE=${SIZE}" >>build.status
+			export TYPE SIZE LANGUAGE SRC RELENG_2_2 INIT
+			main
+			if [ "X$?" != "X0" ]
+			then
+				echo "	** FAILED! **">>build.status
+			else
+				echo "	(ok)">>build.status
+			fi
+			mv picobsd.bin pb_${y}${suffix}.bin
+			echo "Calling ./clean for ${TYPE}, ${LANGUAGE}, ${SIZE}">>build.status
+			./clean ${TYPE}
+		done
+	done
+	exit 0
+fi
+
+# Set build parameters interactively
+
+TYPE=dial
+LANGUAGE=en
+set_dflt_size
+while [ "X${ans}" != "Xn" ]
+do
+	put_title
+	echo "Current build parameters are as follows:"
+	echo ""
+	echo "	1.	Type:     ${TYPE}"
+	if [ "X${INIT}" != "X" ]
+	then
+		echo "		a. (using ${INIT} as init(8))"
+	else
+		echo "		a. (using stock init as init(8))"
+	fi
+	echo ""
+	echo "	2.	MFS size: ${SIZE} kB"
+	echo "	3.	Language: ${LANGUAGE}"
+	echo ""
+	echo "Which parameter would you like to change?"
+	read -p "(1, a, 2, 3; n -no change, build it ; q -quit): " ans
+	case ${ans} in
+	1)	set_type
+		clear
+		;;
+	a)	set_init
+		clear
+		;;
+	2)	set_size
+		clear
+		;;
+	3)	set_lang
+		clear
+		;;
+	q)	echo ""
+		echo "Hey! Don't give up so quickly. Quitting for now..."
+		echo ""
+		exit 0
+		;;
+	n)	;;
+	*)	echo "Unknown option \"${ans}\". Try again."
+		sleep 2
+		clear
+		;;
+	esac
+done
+# Export the parameters
+export LANGUAGE SIZE TYPE SRC RELENG_2_2 INIT
+# Call the build procedure
+main
+# Install if it's ok.
+echo ""
+if [ "X$?" = "X0" ]
+then
+	echo "The build process was completed successfuly."
+	echo ""
+	echo "Now we are going to install the image on the floppy."
+	./install
+fi
+exit 0

@@ -1,0 +1,47 @@
+1998.06.29
+
+What is it?
+-----------
+
+This utility is taken almost in its entirety from /stand/sysinstall. It allows
+to gather device configuration which possibly was changed in userconfig (-c)
+session, and to save it to /kernel.config file on startup floppy, so that when
+user boots next time, the settings will automatically be changed.
+
+How can I use it?
+-----------------
+
+The best way is to call it from /etc/rc in such phase when the startup floppy
+is mounted, and redirect its output to /kernel.config on the floppy.
+
+NOTE: You need first to create symbols' list, using 'dumpnlist' utility, and
+place it in /stand/symbols.
+
+Usage is straightforward:
+
+	kget -incore|kernel_name output_filename [vanilla]
+
+In simplest form you can do
+
+	kget -incore -
+
+to list current in core parameters, or
+
+	kget kernel_file -
+
+to see settings of another kernel.
+
+or
+
+	kget -incore - /stand/vanilla
+
+to produce list of changes from 'vanilla' configuration. You can redirect this
+list to /kernel.config file with no changes - it already contains required
+keywords.
+
+Credits go to Jordan K. Hubbard for 95% of this code. The rest is mine :-)
+
+Andrzej Bialecki
+<abial@nask.pl>
+
+$Id: README,v 1.2 1998/08/11 06:53:21 abial Exp $

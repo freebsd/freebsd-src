@@ -1,0 +1,34 @@
+#! /bin/sh -
+
+#
+#	$Id: clean,v 1.7 1998/08/19 07:05:23 abial Exp $
+#
+set -e
+
+if [ $# -lt 1 ]
+then
+	echo "What to clean? Possible targets are 'dial', 'net', 'isp', 'router' or 'all'"
+	exit 1
+fi
+
+if [ "$1" = "all" ]
+then
+	list="dial net isp router"
+else
+	list=$1
+fi
+
+rm -f kernel kernel.kz fs.PICOBSD picobsd.bin *.o *core *.db
+rm -f picobsd.bin
+rm -f build.status
+cd ..
+for j in $list
+do
+	echo "===================== $0 $j started ======================"
+	for i in `ls -d tinyware/[a-z]*` tools/write_mfs_in_kernel tools/dumpnlist ${j}/crunch1
+	do
+		(cd ${i} && make clean && rm -f .depend)
+	done
+
+	echo "=============== $0 $j completed successfuly =============="
+done

@@ -1,0 +1,18 @@
+#!/bin/sh
+# $Id: rc.en,v 1.2 1998/08/10 19:17:54 abial Exp $
+### Special setup for one floppy PICOBSD ###
+ifconfig lo0 inet 127.0.0.1 netmask 0xffffff00
+hostname pico
+echo ""
+echo ""
+echo '+----------- PicoBSD 0.4 (ROUTER) -------------+'
+echo '|                                              |'
+echo '| This version of PicoBSD is fully under       |'
+echo '| BSD license. For more details see            |'
+echo '| http://www.freebsd.org/~picobsd, or contact  |'
+echo '| the author.                                  |'
+echo '|                                              |'
+echo '|                     abial@nask.pl            |'
+echo '|                                              |'
+echo '+----------------------------------------------+'
+echo ""

@@ -1,0 +1,10 @@
+# $Id: update.en,v 1.2 1998/08/10 19:17:55 abial Exp $
+echo -n "Updating /etc contents on startup floppy...  "
+mount /dev/fd0a /start_floppy
+cd /etc
+cp -Rp . /start_floppy/etc/
+echo " Done."
+echo -n "Updating kernel parameters...  "
+kget -incore /start_floppy/kernel.config /stand/vanilla
+umount /dev/fd0a
+echo " Done."
