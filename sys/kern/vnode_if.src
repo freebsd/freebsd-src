@@ -31,7 +31,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)vnode_if.src	8.3 (Berkeley) 2/3/94
-# $Id: vnode_if.src,v 1.6 1995/08/01 18:50:41 davidg Exp $
+# $Id: vnode_if.src,v 1.7 1995/09/04 00:20:19 dyson Exp $
 #
 vop_lookup {
 	IN struct vnode *dvp;
@@ -300,6 +300,7 @@ vop_getpages {
 	IN vm_page_t *m;
 	IN int count;
 	IN int reqpage;
+	IN vm_offset_t offset;
 };
 
 vop_putpages {
@@ -308,7 +309,9 @@ vop_putpages {
 	IN int count;
 	IN int sync;
 	IN int *rtvals;
+	IN vm_offset_t offset;
 };
+
 # Needs work: no vp?
 #vop_bwrite {
 #	IN struct buf *bp;
