@@ -1780,8 +1780,10 @@ restart:
 			}
 			BO_UNLOCK(bp->b_bufobj);
 		}
-		CTR3(KTR_BUF, "getnewbuf(%p) vp %p flags %X (recycling)",
-		    bp, bp->b_vp, bp->b_flags);
+		CTR6(KTR_BUF,
+		    "getnewbuf(%p) vp %p flags %X kvasize %d bufsize %d "
+		    "queue %d (recycling)", bp, bp->b_vp, bp->b_flags,
+		    bp->b_kvasize, bp->b_bufsize, qindex);
 
 		/*
 		 * Sanity Checks
