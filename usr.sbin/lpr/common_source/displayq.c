@@ -284,8 +284,9 @@ inform(pp, cf)
 	const struct printer *pp;
 	char *cf;
 {
-	register int j;
-	FILE *cfp;
+	register int copycnt;
+	char	 savedname[MAXPATHLEN+1];
+	FILE	*cfp;
 
 	/*
 	 * There's a chance the control file has gone away
@@ -300,7 +301,21 @@ inform(pp, cf)
 		rank = 0;
 	if (pp->remote || garbage || strcmp(cf, current))
 		rank++;
-	j = 0;
+
+	/*
+	 * The cf-file may include commands to print more than one datafile
+	 * from the user.  For each datafile, the cf-file contains at least
+	 * one line which starts with some format-specifier ('a'-'z'), and
+	 * a second line ('N'ame) which indicates the original name the user
+	 * specified for that file.  There can be multiple format-spec lines
+	 * for a single Name-line, if the user requested multiple copies of
+	 * that file.  Standard lpr puts the format-spec line(s) before the
+	 * Name-line, while lprNG puts the Name-line before the format-spec
+	 * line(s).  This section needs to handle the lines in either order.
+	 */
+	copycnt = 0;
+	file[0] = '\0';
+	savedname[0] = '\0';
 	while (getline(cfp)) {
 		switch (line[0]) {
 		case 'P': /* Was this file specified in the user's list? */
@@ -325,20 +340,40 @@ inform(pp, cf)
 			continue;
 		default: /* some format specifer and file name? */
 			if (line[0] < 'a' || line[0] > 'z')
-				continue;
-			if (j == 0 || strcmp(file, line+1) != 0) {
-				(void) strncpy(file, line+1, sizeof(file) - 1);
+				break;
+			if (copycnt == 0 || strcmp(file, line+1) != 0) {
+				strncpy(file, line + 1, sizeof(file) - 1);
 				file[sizeof(file) - 1] = '\0';
 			}
-			j++;
+			copycnt++;
+			/*
+			 * deliberately 'continue' to another getline(), so
+			 * all format-spec lines for this datafile are read
+			 * in and counted before calling show()
+			 */
 			continue;
 		case 'N':
-			show(line+1, file, j);
+			strncpy(savedname, line + 1, sizeof(savedname) - 1);
+			savedname[sizeof(savedname) - 1] = '\0';
+			break;
+		}
+		if ((file[0] != '\0') && (savedname[0] != '\0')) {
+			show(savedname, file, copycnt);
+			copycnt = 0;
 			file[0] = '\0';
-			j = 0;
+			savedname[0] = '\0';
 		}
 	}
 	fclose(cfp);
+	/* check for a file which hasn't been shown yet */
+	if (file[0] != '\0') {
+		if (savedname[0] == '\0') {
+			/* a safeguard in case the N-ame line is missing */
+			strncpy(savedname, file, sizeof(savedname) - 1);
+			savedname[sizeof(savedname) - 1] = '\0';
+		}
+		show(savedname, file, copycnt);
+	}
 	if (!lflag) {
 		blankfill(SIZCOL);
 		printf("%ld bytes\n", totsize);
