@@ -294,7 +294,9 @@ _mount_smbfs=	mount_smbfs
 _mptable=	mptable
 _ndiscvt=	ndiscvt
 _pccard=	pccard
+.if ${MACHINE} == "i386"
 _pcvt=		pcvt
+.endif
 _pnpinfo=	pnpinfo
 .if !defined(NO_LIBPTHREAD)
 _pppctl=	pppctl
