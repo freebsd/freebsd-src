@@ -309,7 +309,7 @@ mmap(td, uap)
 		 */
 		if (fp->f_flag & FPOSIXSHM)
 			flags |= MAP_NOSYNC;
-		vp = (struct vnode *) fp->f_data;
+		vp = fp->un_data.vnode;
 		error = vget(vp, LK_EXCLUSIVE, td);
 		if (error)
 			goto done;

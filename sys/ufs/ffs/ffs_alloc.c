@@ -2184,7 +2184,7 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 		return (ERPCMISMATCH);
 	if ((error = getvnode(curproc->p_fd, cmd.handle, &fp)) != 0)
 		return (error);
-	vn_start_write((struct vnode *)fp->f_data, &mp, V_WAIT);
+	vn_start_write(fp->un_data.vnode, &mp, V_WAIT);
 	if (mp == 0 || strncmp(mp->mnt_stat.f_fstypename, "ufs", MFSNAMELEN)) {
 		vn_finished_write(mp);
 		fdrop(fp, curthread);
