@@ -433,6 +433,8 @@ TRACE(("expecting DO got %s %s\n", tokname[got], got == TWORD ? wordtext : ""));
 			*cpp = cp = (union node *)stalloc(sizeof (struct nclist));
 			cp->type = NCLIST;
 			app = &cp->nclist.pattern;
+			if (lasttoken == TLP)
+				readtoken();
 			for (;;) {
 				*app = ap = (union node *)stalloc(sizeof (struct narg));
 				ap->type = NARG;
