@@ -134,6 +134,7 @@ static const char *const usg[] =
     "        -w           Make checked-out files read-write (default)\n",
     "        -l           Turn History logging off\n",
     "        -n           Do not execute anything that will change the disk\n",
+    "        -R           Assume repository is read-only, such as CDROM\n",
     "        -t           Show trace of program execution -- Try with -n\n",
     "        -v           CVS version and copyright\n",
     "        -b bindir    Find RCS programs in 'bindir'\n",
@@ -435,7 +436,7 @@ main (argc, argv)
     opterr = 1;
 
     while ((c = getopt_long
-            (argc, argv, "+Qqrwtnlvb:T:e:d:Hfz:s:x", long_options, &option_index))
+            (argc, argv, "+QqrwtnRlvb:T:e:d:Hfz:s:x", long_options, &option_index))
            != EOF)
       {
 	switch (c)
@@ -462,6 +463,10 @@ main (argc, argv)
 		break;
 	    case 't':
 		trace = TRUE;
+		break;
+	    case 'R':
+		readonlyfs = TRUE;
+		logoff = TRUE;
 		break;
 	    case 'n':
 		noexec = TRUE;
