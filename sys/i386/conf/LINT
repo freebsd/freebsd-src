@@ -366,6 +366,7 @@ options 	ROOTDEVNAME=\"da0s2e\"
 #  value.
 #
 options 	INET			#Internet communications protocols
+options 	INET6			#IPv6 communications protocols
 
 options 	IPX			#IPX/SPX communications protocols
 options 	IPXIP			#IPX in IP encapsulation (not available)
