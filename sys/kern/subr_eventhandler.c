@@ -84,8 +84,8 @@ eventhandler_register(struct eventhandler_list *list, char *name,
 
 	/* Do we need to create the list? */
 	if (list == NULL) {
-	    if ((list = malloc(sizeof(struct eventhandler_list) + strlen(name) + 1, 
-			       M_EVENTHANDLER, M_NOWAIT)) == NULL) {
+	    if ((list = malloc(sizeof(struct eventhandler_list) + strlen(name)
+		    + 1, M_EVENTHANDLER, M_NOWAIT)) == NULL) {
 		mtx_unlock(&eventhandler_mutex);
 		return(NULL);
 	    }
