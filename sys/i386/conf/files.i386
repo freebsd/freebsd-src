@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.78 1995/02/06 23:19:49 jkh Exp $
+#	$Id: files.i386,v 1.79 1995/02/09 09:47:11 jkh Exp $
 #
 i386/apm/apm.c			optional	apm	device-driver
 i386/apm/apm_setup.s		optional	apm
@@ -95,7 +95,6 @@ i386/isa/syscons.c		optional	sc	device-driver
 i386/isa/pcaudio.c		optional	pca	device-driver
 i386/isa/pcd.c			optional	pcd	device-driver
 i386/isa/psm.c			optional	psm	device-driver
-i386/isa/sb.c			optional	sb	device-driver
 i386/isa/seagate.c		optional	sea	device-driver
 i386/isa/sio.c			optional	sio	device-driver
 i386/isa/sound/ad1848.c		optional	snd	device-driver
