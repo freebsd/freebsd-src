@@ -4,7 +4,7 @@
 
 KMOD=	if_ppp
 SRCS=	if_ppp.c ppp_tty.c slcompress.c \
-	opt_inet.h opt_ipx.h opt_mac.h opt_ppp.h vnode_if.h
+	opt_inet.h opt_ipx.h opt_mac.h opt_ppp.h
 
 PPP_BSDCOMP?=	1	# 0/1
 PPP_DEFLATE?=	1	# 0/1

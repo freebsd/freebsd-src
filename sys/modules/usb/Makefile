@@ -8,7 +8,6 @@ S=	${.CURDIR}/../..
 
 KMOD=	usb
 SRCS=	bus_if.h device_if.h usb_if.h usb_if.c \
-	vnode_if.h \
 	opt_usb.h \
 	hid.c hid.h usbhid.h \
 	uhub.c \
