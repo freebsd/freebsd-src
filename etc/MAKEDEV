@@ -161,7 +161,7 @@
 if [ -n "$MAKEDEVPATH" ]; then
 	PATH="$MAKEDEVPATH"
 else
-	PATH=/sbin:/bin
+	PATH=/sbin:/bin:/usr/bin
 fi
 umask 77
 
