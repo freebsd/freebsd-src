@@ -2951,7 +2951,6 @@ sysctl_vnode(SYSCTL_HANDLER_ARGS)
 			case VREG:
 			case VDIR:
 			case VLNK:
-				xvn[n].xv_dev = vp->v_cachedfs;
 				xvn[n].xv_ino = vp->v_cachedid;
 				break;
 			case VBLK:
