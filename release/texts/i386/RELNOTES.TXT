@@ -87,7 +87,7 @@ are now available with the GENERIC kernel. [MERGED]
 
 A driver for AGP hardware has been added. [MERGED]
 
-ipfilter has been updated to 3.4.16.
+ipfilter has been updated to 3.4.16. [MERGED]
 
 Various fixes and improvements to the IPv6 code have been merged in
 from the KAME project, including significantly-improved IPSEC
@@ -346,8 +346,8 @@ version.)
 
 bridge(4) and dummynet(4) have received some enhancements and bug fixes.
 
-ipfw(8) has a new feature that allows for packet matching on
-interfaces with dynamically-changing IP addressess.
+ipfw(8) has a new feature ("me") that allows for packet matching on
+interfaces with dynamically-changing IP addresses. [MERGED]
 
 The isp(4) driver has been updated. [MERGED]
 
@@ -442,6 +442,12 @@ connection limits) an attack that can lead to guessing the server key
 (not host key) by regenerating the server key when an RSA failure is
 detected (see security advisory FreeBSD-SA-01:24). [MERGED]
 
+A number of programs have had output formatting strings corrected so
+as to reduce the risk of vulnerabilities. [MERGED]
+
+A number of programs that use temporary files now do so more
+securely. [MERGED]
+
 
 1.3. USERLAND CHANGES
 ---------------------
@@ -455,6 +461,10 @@ when creating and verifying prototypes.  This makes it easier to use
 mtree as a part of an intrusion-detection system.  [MERGED]
 
 OpenSSL has been upgraded to 0.9.6. [MERGED]
+
+OpenSSL now has support for machine-dependent ASM optimizations,
+activated by the new MACHINE_CPU Makefile variable.  make(1) will
+attempt to set reasonable defaults for this variable.
 
 The OPIE one-time-password suite has been updated to 2.32. [MERGED]
 
@@ -535,6 +545,9 @@ sendmail. [MERGED]
 
 The sendmail(8) configuration building tools are installed in
 /usr/share/sendmail/cf/. [MERGED]
+
+sysinstall(8) now properly preserves /etc/mail during a binary
+upgrade. [MERGED]
 
 awk has been upgraded from gawk-3.0.4 to gawk-3.0.6.  This fixes a number
 of non-critical bugs and includes a few performance tweaks. [MERGED]
@@ -640,7 +653,7 @@ mount(8) and mount_*(8)).
 
 ncurses has been updated to ncurses-5.1-20001009. [MERGED]
 
-gperf has been updated to 2.7.2.
+gperf has been updated to 2.7.2. [MERGED]
 
 style.perl.7, a style guide for Perl code in the FreeBSD base system,
 has been added.
@@ -717,7 +730,8 @@ current phase number and progress information relevant to the current
 phase. [MERGED]
 
 Catching up with most other network utilities in the base system,
-lpd(1), lpd(8), syslogd(8), and logger(1) are now all IPv6-capable.
+lpr(1), lpd(8), syslogd(8), and logger(1) are now all IPv6-capable.
+[MERGED]
 
 libdisk can now do install-time configuration of the i386 boot0 boot
 loader. [MERGED]
@@ -800,8 +814,10 @@ have been errors into actual fatal errors with an exit code.  This
 ensures that that 'make buildkernel' doesn't quietly ignore them and
 build a bogus kernel without a human to read the errors. [MERGED]
 
-pkg_create(1) and pkg_install(1) can now work with packages that have
-been compressed using bzip2(1). [MERGED]
+pkg_create(1) and pkg_add(1) can now work with packages that have
+been compressed using bzip2(1).  pkg_add(1) will use the
+PACKAGEROOT environment variable to determine a mirror site for new
+packages. [MERGED]
 
 pkg_info(1) can now accept a -g flag for verifying an installed
 package against its recorded checksums (to see if it's been modified
@@ -839,6 +855,14 @@ A compat4x distribution has been added for compatibility with FreeBSD
 
 The compat3x distribution has been updated to include libraries
 present in FreeBSD 3.5.1-RELEASE. [MERGED]
+
+savecore(8) now supports a -k option to prevent clearing a crash dump
+after saving it.  It also attempts to avoid writing large stretches of
+zeros to crash dump files to save space and time.
+
+When requested to delete multiple packages, pkg_delete(1) will now
+attempt to remove them in dependency order rather than the order
+specified on the command line. [MERGED]
 
 
 2. Supported Configurations
