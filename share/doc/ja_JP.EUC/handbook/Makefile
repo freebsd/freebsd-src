@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.7 1997/02/22 13:00:33 peter Exp $
+# $Id: Makefile,v 1.8 1997/02/25 04:53:50 hanai Exp $
 # Original revision: 1.22
 # The FreeBSD Japanese Documentation Project
 
@@ -16,10 +16,10 @@ SRCS+= kerberos.sgml kernelconfig.sgml kerneldebug.sgml kernelopts.sgml
 SRCS+= lists.sgml mail.sgml memoryuse.sgml
 SRCS+= mirrors.sgml nfs.sgml nutshell.sgml pgpkeys.sgml policies.sgml
 SRCS+= porting.sgml ports.sgml ppp.sgml printing.sgml
-SRCS+= quotas.sgml relnotes.sgml routing.sgml
+SRCS+= quotas.sgml relnotes.sgml routing.sgml russian.sgml
 SRCS+= serial.sgml scsi.sgml sections.sgml sio.sgml skey.sgml slipc.sgml 
 SRCS+= slips.sgml stable.sgml submitters.sgml sup.sgml synching.sgml 
-SRCS+= term.sgml troubleshooting.sgml userppp.sgml uart.sgml linuxemu.sgml
+SRCS+= term.sgml userppp.sgml uart.sgml linuxemu.sgml
 SRCS+= jcontrib.sgml jmembers.sgml
 
 .include <bsd.sgml.mk>
