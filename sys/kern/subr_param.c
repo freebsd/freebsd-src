@@ -116,9 +116,13 @@ init_param(void)
 	/* Cannot be changed after boot */
 	nbuf = NBUF;
 	TUNABLE_INT_FETCH("kern.nbuf", &nbuf);
+#ifdef VM_SWZONE_SIZE_MAX
 	maxswzone = VM_SWZONE_SIZE_MAX;
+#endif
 	TUNABLE_INT_FETCH("kern.maxswzone", &maxswzone);
+#ifdef VM_BCACHE_SIZE_MAX
 	maxbcache = VM_BCACHE_SIZE_MAX;
+#endif
 	TUNABLE_INT_FETCH("kern.maxbcache", &maxbcache);
 	ncallout = 16 + maxproc + maxfiles;
 	TUNABLE_INT_FETCH("kern.ncallout", &ncallout);
