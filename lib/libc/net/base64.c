@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996 by Internet Software Consortium.
+ * Copyright (c) 1996, 1998 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -40,9 +40,14 @@
  * IF IBM IS APPRISED OF THE POSSIBILITY OF SUCH DAMAGES.
  */
 
+#if !defined(LINT) && !defined(CODECENTER)
+static char rcsid[] = "$Id: base64.c,v 8.5 1998/03/27 00:17:46 halley Exp $";
+#endif /* not lint */
+
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/socket.h>
+
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <arpa/nameser.h>
@@ -50,13 +55,8 @@
 #include <ctype.h>
 #include <resolv.h>
 #include <stdio.h>
-
-#if defined(BSD) && (BSD >= 199103) && defined(AF_INET6)
-# include <stdlib.h>
-# include <string.h>
-#else
-# include "../conf/portability.h"
-#endif
+#include <stdlib.h>
+#include <string.h>
 
 #define Assert(Cond) if (!(Cond)) abort()
 
@@ -128,16 +128,11 @@ static const char Pad64 = '=';
    */
 
 int
-b64_ntop(src, srclength, target, targsize)
-	u_char const *src;
-	size_t srclength;
-	char *target;
-	size_t targsize;
-{
+b64_ntop(u_char const *src, size_t srclength, char *target, size_t targsize) {
 	size_t datalength = 0;
 	u_char input[3];
 	u_char output[4];
-	int i;
+	size_t i;
 
 	while (2 < srclength) {
 		input[0] = *src++;
@@ -224,7 +219,7 @@ b64_pton(src, target, targsize)
 		switch (state) {
 		case 0:
 			if (target) {
-				if (tarindex >= targsize)
+				if ((size_t)tarindex >= targsize)
 					return (-1);
 				target[tarindex] = (pos - Base64) << 2;
 			}
@@ -232,7 +227,7 @@ b64_pton(src, target, targsize)
 			break;
 		case 1:
 			if (target) {
-				if (tarindex + 1 >= targsize)
+				if ((size_t)tarindex + 1 >= targsize)
 					return (-1);
 				target[tarindex]   |=  (pos - Base64) >> 4;
 				target[tarindex+1]  = ((pos - Base64) & 0x0f)
@@ -243,7 +238,7 @@ b64_pton(src, target, targsize)
 			break;
 		case 2:
 			if (target) {
-				if (tarindex + 1 >= targsize)
+				if ((size_t)tarindex + 1 >= targsize)
 					return (-1);
 				target[tarindex]   |=  (pos - Base64) >> 2;
 				target[tarindex+1]  = ((pos - Base64) & 0x03)
@@ -254,7 +249,7 @@ b64_pton(src, target, targsize)
 			break;
 		case 3:
 			if (target) {
-				if (tarindex >= targsize)
+				if ((size_t)tarindex >= targsize)
 					return (-1);
 				target[tarindex] |= (pos - Base64);
 			}
@@ -280,7 +275,7 @@ b64_pton(src, target, targsize)
 
 		case 2:		/* Valid, means one byte of info */
 			/* Skip any number of spaces. */
-			for (NULL; ch != '\0'; ch = *src++)
+			for ((void)NULL; ch != '\0'; ch = *src++)
 				if (!isspace(ch))
 					break;
 			/* Make sure there is another trailing = sign. */
@@ -295,7 +290,7 @@ b64_pton(src, target, targsize)
 			 * We know this char is an =.  Is there anything but
 			 * whitespace after it?
 			 */
-			for (NULL; ch != '\0'; ch = *src++)
+			for ((void)NULL; ch != '\0'; ch = *src++)
 				if (!isspace(ch))
 					return (-1);
 

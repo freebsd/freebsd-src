@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: res_stubs.c,v 1.5 1997/02/22 15:00:36 peter Exp $
+ * $Id: res_stubs.c,v 1.6 1997/06/27 08:35:13 peter Exp $
  */
 
 /*
@@ -41,6 +41,21 @@
 #include <sys/types.h>
 #include <sys/cdefs.h>
 
+__weak_reference(__inet_addr, inet_addr);
+__weak_reference(__inet_aton, inet_aton);
+__weak_reference(__inet_lnaof, inet_lnaof);
+__weak_reference(__inet_makeaddr, inet_makeaddr);
+__weak_reference(__inet_neta, inet_neta);
+__weak_reference(__inet_netof, inet_netof);
+__weak_reference(__inet_network, inet_network);
+__weak_reference(__inet_net_ntop, inet_net_ntop);
+__weak_reference(__inet_net_pton, inet_net_pton);
+__weak_reference(__inet_ntoa, inet_ntoa);
+__weak_reference(__inet_pton, inet_pton);
+__weak_reference(__inet_ntop, inet_ntop);
+__weak_reference(__inet_nsap_addr, inet_nsap_addr);
+__weak_reference(__inet_nsap_ntoa, inet_nsap_ntoa);
+
 __weak_reference(__sym_ston, sym_ston);
 __weak_reference(__sym_ntos, sym_ntos);
 __weak_reference(__sym_ntop, sym_ntop);
@@ -51,7 +66,6 @@ __weak_reference(__p_secstodate, p_secstodate);
 __weak_reference(__dn_count_labels, dn_count_labels);
 __weak_reference(__dn_comp, dn_comp);
 __weak_reference(__res_close, _res_close);
-#ifdef BIND_RES_POSIX3
 __weak_reference(__dn_expand, dn_expand);
 __weak_reference(__res_init, res_init);
 __weak_reference(__res_query, res_query);
@@ -59,6 +73,3 @@ __weak_reference(__res_search, res_search);
 __weak_reference(__res_querydomain, res_querydomain);
 __weak_reference(__res_mkquery, res_mkquery);
 __weak_reference(__res_send, res_send);
-#else
-__weak_reference(res_send, __res_send);
-#endif

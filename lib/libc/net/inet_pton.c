@@ -15,7 +15,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char rcsid[] = "$Id$";
+static char rcsid[] = "$Id: inet_pton.c,v 1.3 1997/02/22 15:00:22 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -81,7 +81,7 @@ inet_pton4(src, dst)
 {
 	static const char digits[] = "0123456789";
 	int saw_digit, octets, ch;
-	u_char tmp[INADDRSZ], *tp;
+	u_char tmp[NS_INADDRSZ], *tp;
 
 	saw_digit = 0;
 	octets = 0;
@@ -111,7 +111,7 @@ inet_pton4(src, dst)
 	if (octets < 4)
 		return (0);
 
-	memcpy(dst, tmp, INADDRSZ);
+	memcpy(dst, tmp, NS_INADDRSZ);
 	return (1);
 }
 
@@ -135,13 +135,13 @@ inet_pton6(src, dst)
 {
 	static const char xdigits_l[] = "0123456789abcdef",
 			  xdigits_u[] = "0123456789ABCDEF";
-	u_char tmp[IN6ADDRSZ], *tp, *endp, *colonp;
+	u_char tmp[NS_IN6ADDRSZ], *tp, *endp, *colonp;
 	const char *xdigits, *curtok;
 	int ch, saw_xdigit;
 	u_int val;
 
-	memset((tp = tmp), '\0', IN6ADDRSZ);
-	endp = tp + IN6ADDRSZ;
+	memset((tp = tmp), '\0', NS_IN6ADDRSZ);
+	endp = tp + NS_IN6ADDRSZ;
 	colonp = NULL;
 	/* Leading :: requires some special handling. */
 	if (*src == ':')
@@ -171,7 +171,7 @@ inet_pton6(src, dst)
 				colonp = tp;
 				continue;
 			}
-			if (tp + INT16SZ > endp)
+			if (tp + NS_INT16SZ > endp)
 				return (0);
 			*tp++ = (u_char) (val >> 8) & 0xff;
 			*tp++ = (u_char) val & 0xff;
@@ -179,16 +179,16 @@ inet_pton6(src, dst)
 			val = 0;
 			continue;
 		}
-		if (ch == '.' && ((tp + INADDRSZ) <= endp) &&
+		if (ch == '.' && ((tp + NS_INADDRSZ) <= endp) &&
 		    inet_pton4(curtok, tp) > 0) {
-			tp += INADDRSZ;
+			tp += NS_INADDRSZ;
 			saw_xdigit = 0;
 			break;	/* '\0' was seen by inet_pton4(). */
 		}
 		return (0);
 	}
 	if (saw_xdigit) {
-		if (tp + INT16SZ > endp)
+		if (tp + NS_INT16SZ > endp)
 			return (0);
 		*tp++ = (u_char) (val >> 8) & 0xff;
 		*tp++ = (u_char) val & 0xff;
@@ -209,6 +209,6 @@ inet_pton6(src, dst)
 	}
 	if (tp != endp)
 		return (0);
-	memcpy(dst, tmp, IN6ADDRSZ);
+	memcpy(dst, tmp, NS_IN6ADDRSZ);
 	return (1);
 }

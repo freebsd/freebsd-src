@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996 by Internet Software Consortium.
+ * Copyright (c) 1996, 1998 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -16,13 +16,14 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char rcsid[] = "$Id$";
+static char rcsid[] = "$Id: nsap_addr.c,v 1.4 1997/02/22 15:00:27 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
 #include <arpa/nameser.h>
 #include <ctype.h>
 #include <resolv.h>
@@ -40,10 +41,10 @@ inet_nsap_addr(ascii, binary, maxlen)
 	u_char *binary;
 	int maxlen;
 {
-	register u_char c, nib;
+	u_char c, nib;
 	u_int len = 0;
 
-	while ((c = *ascii++) != '\0' && len < maxlen) {
+	while ((c = *ascii++) != '\0' && len < (u_int)maxlen) {
 		if (c == '.' || c == '+' || c == '/')
 			continue;
 		if (!isascii(c))
@@ -52,7 +53,8 @@ inet_nsap_addr(ascii, binary, maxlen)
 			c = toupper(c);
 		if (isxdigit(c)) {
 			nib = xtob(c);
-			if ((c = *ascii++) != '\0') {
+			c = *ascii++;
+			if (c != '\0') {
 				c = toupper(c);
 				if (isxdigit(c)) {
 					*binary++ = (nib << 4) | xtob(c);
