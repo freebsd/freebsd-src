@@ -225,7 +225,7 @@ boot(howto)
 	 */
 	if (!cold && (howto & RB_NOSYNC) == 0 && waittime < 0) {
 		register struct buf *bp;
-		int iter, nbusy;
+		int iter, nbusy, pbusy;
 
 		waittime = 0;
 		printf("\nsyncing disks... ");
@@ -237,7 +237,7 @@ boot(howto)
 		 * written will be remarked as dirty until other
 		 * buffers are written.
 		 */
-		for (iter = 0; iter < 20; iter++) {
+		for (iter = pbusy = 0; iter < 20; iter++) {
 			nbusy = 0;
 			for (bp = &buf[nbuf]; --bp >= buf; ) {
 				if ((bp->b_flags & B_INVAL) == 0 &&
@@ -252,6 +252,9 @@ boot(howto)
 			if (nbusy == 0)
 				break;
 			printf("%d ", nbusy);
+			if (nbusy < pbusy)
+				iter = 0;
+			pbusy = nbusy;
 			sync(&proc0, NULL);
 			DELAY(50000 * iter);
 		}
