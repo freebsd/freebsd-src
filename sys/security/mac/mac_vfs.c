@@ -216,8 +216,8 @@ static int	mac_policy_register(struct mac_policy_conf *mpc);
 static int	mac_policy_unregister(struct mac_policy_conf *mpc);
 
 static int	mac_stdcreatevnode_ea(struct vnode *vp);
-static void	mac_cred_mmapped_drop_perms(struct thread *td,
-		    struct ucred *cred);
+static void	mac_check_vnode_mmap_downgrade(struct ucred *cred,
+		    struct vnode *vp, int *prot);
 static void	mac_cred_mmapped_drop_perms_recurse(struct thread *td,
 		    struct ucred *cred, struct vm_map *map);
 
@@ -813,8 +813,16 @@ mac_policy_register(struct mac_policy_conf *mpc)
 			mpc->mpc_ops->mpo_check_vnode_lookup =
 			    mpe->mpe_function;
 			break;
-		case MAC_CHECK_VNODE_MMAP_PERMS:
-			mpc->mpc_ops->mpo_check_vnode_mmap_perms =
+		case MAC_CHECK_VNODE_MMAP:
+			mpc->mpc_ops->mpo_check_vnode_mmap =
+			    mpe->mpe_function;
+			break;
+		case MAC_CHECK_VNODE_MMAP_DOWNGRADE:
+			mpc->mpc_ops->mpo_check_vnode_mmap_downgrade =
+			    mpe->mpe_function;
+			break;
+		case MAC_CHECK_VNODE_MPROTECT:
+			mpc->mpc_ops->mpo_check_vnode_mprotect =
 			    mpe->mpe_function;
 			break;
 		case MAC_CHECK_VNODE_OPEN:
@@ -1940,21 +1948,56 @@ mac_check_vnode_lookup(struct ucred *cred, struct vnode *dvp,
 	return (error);
 }
 
-vm_prot_t
-mac_check_vnode_mmap_prot(struct ucred *cred, struct vnode *vp, int newmapping)
+int
+mac_check_vnode_mmap(struct ucred *cred, struct vnode *vp, int prot)
 {
-	vm_prot_t result = VM_PROT_ALL;
+	int error;
 
-	if (!mac_enforce_vm)
-		return (result);
+	ASSERT_VOP_LOCKED(vp, "mac_check_vnode_mmap");
 
-	/*
-	 * This should be some sort of MAC_BITWISE, maybe :)
-	 */
-	ASSERT_VOP_LOCKED(vp, "mac_check_vnode_mmap_perms");
-	MAC_BOOLEAN(check_vnode_mmap_perms, &, cred, vp, &vp->v_label,
-	    newmapping);
-	return (result);
+	if (!mac_enforce_fs || !mac_enforce_vm)
+		return (0);
+
+	error = vn_refreshlabel(vp, cred);
+	if (error)
+		return (error);
+
+	MAC_CHECK(check_vnode_mmap, cred, vp, &vp->v_label, prot);
+	return (error);
+}
+
+void
+mac_check_vnode_mmap_downgrade(struct ucred *cred, struct vnode *vp, int *prot)
+{
+	int result = *prot;
+
+	ASSERT_VOP_LOCKED(vp, "mac_check_vnode_mmap_downgrade");
+
+	if (!mac_enforce_fs || !mac_enforce_vm)
+		return;
+
+	MAC_PERFORM(check_vnode_mmap_downgrade, cred, vp, &vp->v_label,
+	    &result);
+
+	*prot = result;
+}
+
+int
+mac_check_vnode_mprotect(struct ucred *cred, struct vnode *vp, int prot)
+{
+	int error;
+
+	ASSERT_VOP_LOCKED(vp, "mac_check_vnode_mprotect");
+
+	if (!mac_enforce_fs || !mac_enforce_vm)
+		return (0);
+
+	error = vn_refreshlabel(vp, cred);
+	if (error)
+		return (error);
+
+	MAC_CHECK(check_vnode_mprotect, cred, vp, &vp->v_label, prot);
+	return (error);
 }
 
 int
@@ -2337,7 +2380,8 @@ mac_cred_mmapped_drop_perms_recurse(struct thread *td, struct ucred *cred,
     struct vm_map *map)
 {
 	struct vm_map_entry *vme;
-	vm_prot_t result, revokeperms;
+	int result;
+	vm_prot_t revokeperms;
 	vm_object_t object;
 	vm_ooffset_t offset;
 	struct vnode *vp;
@@ -2378,7 +2422,8 @@ mac_cred_mmapped_drop_perms_recurse(struct thread *td, struct ucred *cred,
 			continue;
 		vp = (struct vnode *)object->handle;
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
-		result = mac_check_vnode_mmap_prot(cred, vp, 0);
+		result = vme->max_protection;
+		mac_check_vnode_mmap_downgrade(cred, vp, &result);
 		VOP_UNLOCK(vp, 0, td);
 		/*
 		 * Find out what maximum protection we may be allowing
