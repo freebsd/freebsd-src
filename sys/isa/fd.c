@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.91 1996/07/23 21:51:33 phk Exp $
+ *	$Id: fd.c,v 1.92 1996/09/06 23:07:18 phk Exp $
  *
  */
 
@@ -83,8 +83,6 @@
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif
-
-#define	b_cylin	b_resid		/* XXX now spelled b_cylinder elsewhere */
 
 /* misuse a flag to identify format operation */
 #define B_FORMAT B_XXX
@@ -1013,7 +1011,7 @@ fdclose(dev_t dev, int flags, int mode, struct proc *p)
 void
 fdstrategy(struct buf *bp)
 {
-	long nblocks, blknum;
+	unsigned nblocks, blknum, cando;
  	int	s;
  	fdcu_t	fdcu;
  	fdu_t	fdu;
@@ -1060,18 +1058,30 @@ fdstrategy(struct buf *bp)
 	/*
 	 * Set up block calculations.
 	 */
-	blknum = (unsigned long) bp->b_blkno * DEV_BSIZE/fdblk;
- 	nblocks = fd->ft->size;
-	if (blknum + (bp->b_bcount / fdblk) > nblocks) {
-		if (blknum == nblocks) {
-			bp->b_resid = bp->b_bcount;
-		} else {
-			bp->b_error = ENOSPC;
-			bp->b_flags |= B_ERROR;
-		}
+	if (bp->b_blkno > 20000000) {
+		/*
+		 * Reject unreasonably high block number, prevent the
+		 * multiplication below from overflowing.
+		 */
+		bp->b_error = EINVAL;
+		bp->b_flags |= B_ERROR;
 		goto bad;
 	}
- 	bp->b_cylin = blknum / (fd->ft->sectrac * fd->ft->heads);
+	blknum = (unsigned) bp->b_blkno * DEV_BSIZE/fdblk;
+ 	nblocks = fd->ft->size;
+	bp->b_resid = 0;
+	if (blknum + (bp->b_bcount / fdblk) > nblocks) {
+		if (blknum <= nblocks) {
+			cando = (nblocks - blknum) * fdblk;
+			bp->b_resid = bp->b_bcount - cando;
+			if (cando == 0)
+				goto bad;	/* not actually bad but EOF */
+		} else {
+			bp->b_error = EINVAL;
+			bp->b_flags |= B_ERROR;
+			goto bad;
+		}
+	}
  	bp->b_pblkno = bp->b_blkno;
 	s = splbio();
 	tqdisksort(&fdc->head, bp);
@@ -1195,7 +1205,7 @@ static int
 fdstate(fdcu_t fdcu, fdc_p fdc)
 {
 	int read, format, head, sec = 0, sectrac, st0, cyl, st3;
-	unsigned long blknum;
+	unsigned blknum = 0, b_cylinder = 0;
 	fdu_t fdu = fdc->fdu;
 	fd_p fd;
 	register struct buf *bp;
@@ -1228,8 +1238,16 @@ fdstate(fdcu_t fdcu, fdc_p fdc)
 	}
 	read = bp->b_flags & B_READ;
 	format = bp->b_flags & B_FORMAT;
-	if(format)
+	if(format) {
 		finfo = (struct fd_formb *)bp->b_un.b_addr;
+		fd->skip = (char *)&(finfo->fd_formb_cylno(0))
+			- (char *)finfo;
+	}
+	if (fdc->state == DOSEEK || fdc->state == SEEKCOMPLETE) {
+		blknum = (unsigned) bp->b_blkno * DEV_BSIZE/fdblk +
+			fd->skip/fdblk;
+		b_cylinder = blknum / (fd->ft->sectrac * fd->ft->heads);
+	}
 	TRACE1("fd%d", fdu);
 	TRACE1("[%s]", fdstates[fdc->state]);
 	TRACE1("(0x%x)", fd->flags);
@@ -1270,13 +1288,13 @@ fdstate(fdcu_t fdcu, fdc_p fdc)
 		fdc->state = DOSEEK;
 		break;
 	case DOSEEK:
-		if (bp->b_cylin == fd->track)
+		if (b_cylinder == (unsigned)fd->track)
 		{
 			fdc->state = SEEKCOMPLETE;
 			break;
 		}
 		if (fd_cmd(fdcu, 3, NE7CMD_SEEK,
-			   fd->fdsu, bp->b_cylin * fd->ft->steptrac,
+			   fd->fdsu, b_cylinder * fd->ft->steptrac,
 			   0))
 		{
 			/*
@@ -1298,7 +1316,7 @@ fdstate(fdcu_t fdcu, fdc_p fdc)
 		/* Make sure seek really happened*/
 		if(fd->track == FD_NO_TRACK)
 		{
-			int descyl = bp->b_cylin * fd->ft->steptrac;
+			int descyl = b_cylinder * fd->ft->steptrac;
 			do {
 				/*
 				 * This might be a "ready changed" interrupt,
@@ -1362,14 +1380,9 @@ fdstate(fdcu_t fdcu, fdc_p fdc)
 			}
 		}
 
-		fd->track = bp->b_cylin;
-		if(format)
-			fd->skip = (char *)&(finfo->fd_formb_cylno(0))
-				- (char *)finfo;
+		fd->track = b_cylinder;
 		isa_dmastart(bp->b_flags, bp->b_un.b_addr+fd->skip,
 			format ? bp->b_bcount : fdblk, fdc->dmachan);
-		blknum = (unsigned long)bp->b_blkno*DEV_BSIZE/fdblk
-			+ fd->skip/fdblk;
 		sectrac = fd->ft->sectrac;
 		sec = blknum %  (sectrac * fd->ft->heads);
 		head = sec / sectrac;
@@ -1487,20 +1500,15 @@ fdstate(fdcu_t fdcu, fdc_p fdc)
 		}
 		/* All OK */
 		fd->skip += fdblk;
-		if (!format && fd->skip < bp->b_bcount)
+		if (!format && fd->skip < bp->b_bcount - bp->b_resid)
 		{
 			/* set up next transfer */
-			blknum = (unsigned long)bp->b_blkno*DEV_BSIZE/fdblk
-				+ fd->skip/fdblk;
-			bp->b_cylin =
-				(blknum / (fd->ft->sectrac * fd->ft->heads));
 			fdc->state = DOSEEK;
 		}
 		else
 		{
 			/* ALL DONE */
 			fd->skip = 0;
-			bp->b_resid = 0;
 			TAILQ_REMOVE(&fdc->head, bp, b_act);
 			biodone(bp);
 			fdc->fd = (fd_p) 0;
@@ -1654,7 +1662,7 @@ retrier(fdcu)
 		}
 		bp->b_flags |= B_ERROR;
 		bp->b_error = EIO;
-		bp->b_resid = bp->b_bcount - fdc->fd->skip;
+		bp->b_resid += bp->b_bcount - fdc->fd->skip;
 		TAILQ_REMOVE(&fdc->head, bp, b_act);
 		fdc->fd->skip = 0;
 		biodone(bp);
