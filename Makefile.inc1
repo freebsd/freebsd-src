@@ -129,6 +129,7 @@ WORLDTMP=	${OBJTREE}${.CURDIR}/${BUILD_ARCH}
 # /usr/games added for fortune which depend on strfile
 STRICTTMPPATH=	${WORLDTMP}/usr/sbin:${WORLDTMP}/usr/bin:${WORLDTMP}/usr/games
 TMPPATH=	${STRICTTMPPATH}:${PATH}
+OBJFORMAT_PATH?=	/usr/libexec
 
 TMPDIR?=	/tmp
 TMPPID!=	echo $$$$
@@ -199,6 +200,10 @@ WMAKE=		${WMAKEENV} ${MAKE} -f Makefile.inc1
 IMAKEENV=	${CROSSENV} \
 		PATH=${STRICTTMPPATH}:${INSTALLTMP}
 IMAKE=		${IMAKEENV} ${MAKE} -f Makefile.inc1
+
+# kernel stage
+KMAKEENV=	${WMAKEENV} \
+		OBJFORMAT_PATH=${WORLDTMP}/usr/libexec:${OBJFORMAT_PATH}
 
 USRDIRS=	usr/bin usr/lib/compat/aout usr/games usr/libdata/ldscripts \
 		usr/libexec/${OBJFORMAT} usr/sbin usr/share/misc
@@ -408,10 +413,10 @@ buildkernel:
 		    ${MAKE} -f ${KRNLSRCDIR}/dev/aic7xxx/aicasm/Makefile
 .if !defined(NO_KERNELDEPEND)
 	cd ${KRNLOBJDIR}/${_kernel}; \
-	    ${WMAKEENV} MACHINE=${MACHINE} ${MAKE} KERNEL=${INSTKERNNAME} depend
+	    ${KMAKEENV} MACHINE=${MACHINE} ${MAKE} KERNEL=${INSTKERNNAME} depend
 .endif
 	cd ${KRNLOBJDIR}/${_kernel}; \
-	    ${WMAKEENV} MACHINE=${MACHINE} ${MAKE} KERNEL=${INSTKERNNAME} all
+	    ${KMAKEENV} MACHINE=${MACHINE} ${MAKE} KERNEL=${INSTKERNNAME} all
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Kernel build for ${_kernel} completed on `LC_TIME=C date`"
 	@echo "--------------------------------------------------------------"
