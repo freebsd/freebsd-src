@@ -145,7 +145,7 @@ ether_output(ifp, m, dst, rt0)
 	struct rtentry *rt;
 	struct ether_header *eh;
 	int loop_copy = 0;
-	int hlen;	/* link layer header lenght */
+	int hlen;	/* link layer header length */
 	struct arpcom *ac = IFP2AC(ifp);
 
 #ifdef MAC
