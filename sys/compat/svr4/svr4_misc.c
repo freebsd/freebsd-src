@@ -46,6 +46,7 @@
 #include <sys/time.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
+#include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/mman.h>
 #include <sys/mount.h>
@@ -53,6 +54,7 @@
 #include <sys/resourcevar.h>
 #include <sys/vnode.h>
 #include <sys/uio.h>
+#include <sys/user.h>
 #include <sys/wait.h>
 #include <sys/times.h>
 #include <sys/fcntl.h>
@@ -1344,7 +1346,7 @@ loop:
 			PROC_LOCK(q);
 			if (--q->p_procsig->ps_refcnt == 0) {
 				if (q->p_sigacts != &q->p_addr->u_sigacts)
-					FREE(p->q_sigacts, M_SUBPROC);
+					FREE(q->p_sigacts, M_SUBPROC);
 				FREE(q->p_procsig, M_SUBPROC);
 				q->p_procsig = NULL;
 			}
