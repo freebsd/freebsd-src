@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: mv.c,v 1.3 1995/10/07 10:42:48 bde Exp $
  */
 
 #ifndef lint
@@ -116,10 +116,16 @@ endarg:	argc -= optind;
 	*endp++ = '/';
 	++baselen;
 	for (rval = 0; --argc; ++argv) {
-		if ((p = strrchr(*argv, '/')) == NULL)
-			p = *argv;
-		else
-			++p;
+		/*
+		 * Find the last component of the source pathname.  It
+		 * may have trailing slashes.
+		 */
+		p = *argv + strlen(*argv);
+		while (p != *argv && p[-1] == '/')
+			--p;
+		while (p != *argv && p[-1] != '/')
+			--p;
+
 		if ((baselen + (len = strlen(p))) >= MAXPATHLEN) {
 			warnx("%s: destination pathname too long", *argv);
 			rval = 1;
