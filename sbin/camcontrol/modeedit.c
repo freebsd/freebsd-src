@@ -571,32 +571,32 @@ editlist_save(struct cam_device *device, int modepage, int page_control,
 		return;
 
 	/*
-         * Preload the CDB buffer with the current mode page data.
+	 * Preload the CDB buffer with the current mode page data.
 	 * XXX If buff_encode_visit would return the number of bytes encoded
 	 *     we *should* use that to build a header from scratch. As it is
 	 *     now, we need mode_sense to find out the page length.
 	 */
-        mode_sense(device, modepage, page_control, dbd, retries, timeout, data,
-                   sizeof(data));
+	mode_sense(device, modepage, page_control, dbd, retries, timeout, data,
+		   sizeof(data));
 
 	/* Initial headers & offsets. */
 	mh = (struct scsi_mode_header_6 *)data;
-        mph = MODE_PAGE_HEADER(mh);
-        mode_pars = MODE_PAGE_DATA(mph);
+	mph = MODE_PAGE_HEADER(mh);
+	mode_pars = MODE_PAGE_DATA(mph);
 
-        /* Encode the value data to be passed back to the device. */
-        buff_encode_visit(mode_pars, mh->data_length, format,
+	/* Encode the value data to be passed back to the device. */
+	buff_encode_visit(mode_pars, mh->data_length, format);
 	    editentry_save, 0);
 
-        /* Eliminate block descriptors. */
-        bcopy(mph, ((u_int8_t *)mh) + sizeof(*mh),
-            sizeof(*mph) + mph->page_length);
+	/* Eliminate block descriptors. */
+	bcopy(mph, ((u_int8_t *)mh) + sizeof(*mh),
+	    sizeof(*mph) + mph->page_length);
 
 	/* Recalculate headers & offsets. */
 	mh->blk_desc_len = 0;		/* No block descriptors. */
 	mh->dev_spec = 0;		/* Clear device-specific parameters. */
-        mph = MODE_PAGE_HEADER(mh);
-        mode_pars = MODE_PAGE_DATA(mph);
+	mph = MODE_PAGE_HEADER(mh);
+	mode_pars = MODE_PAGE_DATA(mph);
 
 	mph->page_code &= SMS_PAGE_CODE;/* Isolate just the page code. */
 	mh->data_length = 0;		/* Reserved for MODE SELECT command. */
