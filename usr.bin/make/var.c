@@ -1524,157 +1524,29 @@ ParseModifier(const char input[], const char tstr[],
 	}
 }
 
-/*
- * Check if brackets contain a variable name.
- */
 static char *
-VarParseLong(const char input[], GNode *ctxt, Boolean err, size_t *lengthPtr,
-	Boolean *freePtr)
+ParseRestModifier(const char input[], const char ptr[], char startc, char endc, Buffer *buf, GNode *ctxt, Boolean err, size_t *lengthPtr, Boolean *freePtr)
 {
-	Buffer		*buf;
-	char		endc;	/* Ending character when variable in parens
-				 * or braces */
-	char		startc;	/* Starting character when variable in parens
-				 * or braces */
-	const char	*ptr;
 	const char	*vname;
-	size_t		vlen;	/* length of variable name, after embedded
-				 * variable expansion */
-
-	buf = Buf_Init(MAKE_BSIZE);
-
-	/*
-	 * Skip to the end character or a colon, whichever comes first,
-	 * replacing embedded variables as we go.
-	 */
-	startc = input[0];
-	endc = (startc == OPEN_PAREN) ? CLOSE_PAREN : CLOSE_BRACE;
-	ptr = input + 1;
-
-	while (*ptr != endc && *ptr != ':') {
-		if (*ptr == '\0') {
-			/*
-			 * If we did not find the end character,
-			 * return var_Error right now, setting the
-			 * length to be the distance to the end of
-			 * the string, since that's what make does.
-			 */
-			*freePtr = FALSE;
-			*lengthPtr += ptr - input;
-			Buf_Destroy(buf, TRUE);
-			return (var_Error);
-
-		} else if (*ptr == '$') {
-			size_t	rlen;
-			Boolean	rfree;
-			char	*rval;
-
-			rlen = 0;
-			rval = Var_Parse(ptr, ctxt, err, &rlen, &rfree);
-			if (rval == var_Error) {
-				Fatal("Error expanding embedded variable.");
-			}
-			Buf_Append(buf, rval);
-			if (rfree)
-				free(rval);
-			ptr += rlen - 1;
-		} else {
-			Buf_AddByte(buf, (Byte)*ptr);
-		}
-		ptr++;
-	}
-
-	vname = Buf_GetAll(buf, &vlen);
-    {
-	const char	*const tstr = ptr;
-	size_t	consumed = tstr - (input - 1) + 1;
-
-	Var	*v;		/* Variable in invocation */
-	Boolean	haveModifier;	/* TRUE if have modifiers for the variable */
+	size_t		vlen;
+	Var		*v;
 	Boolean	dynamic;	/* TRUE if the variable is local and we're
 				 * expanding it in a non-local context. This
 				 * is done to support dynamic sources. The
 				 * result is just the invocation, unaltered */
 
-	input--;
-	haveModifier = (*tstr == ':');
+	vname = Buf_GetAll(buf, &vlen);
+
 	dynamic = FALSE;
 
 	v = VarFind(vname, ctxt, FIND_ENV | FIND_GLOBAL | FIND_CMD);
 	if (v != NULL) {
-		Buf_Destroy(buf, TRUE);
-
-		if (haveModifier) {
-			return (ParseModifier(input, tstr,
-					startc, endc, dynamic, v,
-					ctxt, err, lengthPtr, freePtr));
-		} else {
-			char	*result;
-
-			result = VarExpand(v, ctxt, err);
-
-			if (v->flags & VAR_FROM_ENV) {
-				VarDestroy(v, TRUE);
-			}
-
-			*freePtr = TRUE;
-			*lengthPtr = consumed;
-			return (result);
-		}
+		return (ParseModifier(input, ptr,
+				startc, endc, dynamic, v,
+				ctxt, err, lengthPtr, freePtr));
 	}
 
-	if ((ctxt != VAR_CMD) && (ctxt != VAR_GLOBAL)) {
-		/*
-		 * Check for D and F forms of local variables since we're in
-		 * a local context and the name is the right length.
-		 */
-		if ((vlen == 2) &&
-		    (vname[1] == 'F' || vname[1] == 'D') &&
-		    (strchr("!%*<>@", vname[0]) != NULL)) {
-			char	name[2];
-			char	*val;
-
-			/*
-			 * Well, it's local -- go look for it.
-			 */
-			name[0] = vname[0];
-			name[1] = '\0';
-
-			v = VarFind(name, ctxt, 0);
-			if (v != NULL) {
-				if (haveModifier) {
-					Buf_Destroy(buf, TRUE);
-					return (ParseModifier(input, tstr,
-							startc, endc, dynamic, v,
-							ctxt, err, lengthPtr, freePtr));
-				} else {
-					/*
-					 * No need for nested expansion or
-					 * anything, as we're the only one
-					 * who sets these things and we sure
-					 * don't put nested invocations in
-					 * them...
-					 */
-					val = (char *)Buf_GetAll(v->val, (size_t *) NULL);
-
-					if (vname[1] == 'D') {
-						val = VarModify(val, VarHead, (void *)NULL);
-					} else {
-						val = VarModify(val, VarTail, (void *)NULL);
-					}
-					/*
-					 * Resulting string is dynamically
-					 * allocated, so tell caller to free
-					 * it.
-					 */
-					*freePtr = TRUE;
-					*lengthPtr = consumed;
-					Buf_Destroy(buf, TRUE);
-					return (val);
-				}
-			}
-		}
-	} else {
+	if ((ctxt == VAR_CMD) || (ctxt == VAR_GLOBAL)) {
 		if (((vlen == 1)) ||
 		    ((vlen == 2) && (vname[1] == 'F' || vname[1] == 'D'))) {
 			/*
@@ -1701,56 +1573,229 @@ VarParseLong(const char input[], GNode *ctxt, Boolean err, size_t *lengthPtr,
 				dynamic = TRUE;
 			}
 		}
-	}
-
-	if (haveModifier) {
 		/*
 		 * Still need to get to the end of the variable
 		 * specification, so kludge up a Var structure for
 		 * the modifications
 		 */
 		v = VarCreate(vname, NULL, VAR_JUNK);
-
-		Buf_Destroy(buf, TRUE);
-		return (ParseModifier(input, tstr,
+		return (ParseModifier(input, ptr,
 				      startc, endc, dynamic, v,
 				    ctxt, err, lengthPtr, freePtr));
 	} else {
 		/*
-		 * No modifiers -- have specification length so we
-		 * can return now.
+		 * Check for D and F forms of local variables since we're in
+		 * a local context and the name is the right length.
 		 */
-		if (dynamic) {
-			char   *result;
+		if ((vlen == 2) &&
+		    (vname[1] == 'F' || vname[1] == 'D') &&
+		    (strchr("!%*<>@", vname[0]) != NULL)) {
+			char	name[2];
 
-			result = emalloc(consumed + 1);
-			strncpy(result, input, consumed);
-			result[consumed] = '\0';
+			/*
+			 * Well, it's local -- go look for it.
+			 */
+			name[0] = vname[0];
+			name[1] = '\0';
 
-			*freePtr = TRUE;
-			*lengthPtr = consumed;
-
-			Buf_Destroy(buf, TRUE);
-			return (result);
-		} else {
-			*freePtr = FALSE;
-			*lengthPtr = consumed;
-
-			Buf_Destroy(buf, TRUE);
-			return (err ? var_Error : varNoError);
+			v = VarFind(name, ctxt, 0);
+			if (v != NULL) {
+				return (ParseModifier(input, ptr,
+						startc, endc, dynamic, v,
+						ctxt, err, lengthPtr, freePtr));
+			}
 		}
+
+		/*
+		 * Still need to get to the end of the variable
+		 * specification, so kludge up a Var structure for
+		 * the modifications
+		 */
+		v = VarCreate(vname, NULL, VAR_JUNK);
+		return (ParseModifier(input, ptr,
+				      startc, endc, dynamic, v,
+				    ctxt, err, lengthPtr, freePtr));
 	}
-    }
+}
+
+static char *
+ParseRestEnd(const char input[], Buffer *buf, GNode *ctxt, Boolean err, size_t *lengthPtr, Boolean *freePtr)
+{
+	const char	*vname;
+	size_t		vlen;
+	Var		*v;
+	char		*result;
+
+	vname = Buf_GetAll(buf, &vlen);
+
+	v = VarFind(vname, ctxt, FIND_ENV | FIND_GLOBAL | FIND_CMD);
+	if (v != NULL) {
+		result = VarExpand(v, ctxt, err);
+
+		if (v->flags & VAR_FROM_ENV) {
+			VarDestroy(v, TRUE);
+		}
+
+		*freePtr = TRUE;
+		return (result);
+	}
+
+	if ((ctxt == VAR_CMD) || (ctxt == VAR_GLOBAL)) {
+		/*
+		 * If substituting a local variable in a non-local
+		 * context, assume it's for dynamic source stuff. We
+		 * have to handle this specially and return the
+		 * longhand for the variable with the dollar sign
+		 * escaped so it makes it back to the caller. Only
+		 * four of the local variables are treated specially
+		 * as they are the only four that will be set when
+		 * dynamic sources are expanded.
+		 */
+		if (((vlen == 1)) ||
+		    ((vlen == 2) && (vname[1] == 'F' || vname[1] == 'D'))) {
+			if (strchr("!%*@", vname[0]) != NULL) {
+				result = emalloc(*lengthPtr + 1);
+				strncpy(result, input, *lengthPtr);
+				result[*lengthPtr] = '\0';
+
+				*freePtr = TRUE;
+				return (result);
+			}
+		}
+		if ((vlen > 2) &&
+		    (vname[0] == '.') &&
+		    isupper((unsigned char)vname[1])) {
+			if ((strncmp(vname, ".TARGET", vlen - 1) == 0) ||
+			    (strncmp(vname, ".ARCHIVE", vlen - 1) == 0) ||
+			    (strncmp(vname, ".PREFIX", vlen - 1) == 0) ||
+			    (strncmp(vname, ".MEMBER", vlen - 1) == 0)) {
+				result = emalloc(*lengthPtr + 1);
+				strncpy(result, input, *lengthPtr);
+				result[*lengthPtr] = '\0';
+
+				*freePtr = TRUE;
+				return (result);
+			}
+		}
+
+		*freePtr = FALSE;
+		return (err ? var_Error : varNoError);
+	} else {
+		/*
+		 * Check for D and F forms of local variables since we're in
+		 * a local context and the name is the right length.
+		 */
+		if ((vlen == 2) &&
+		    (vname[1] == 'F' || vname[1] == 'D') &&
+		    (strchr("!%*<>@", vname[0]) != NULL)) {
+			char	name[2];
+
+			name[0] = vname[0];
+			name[1] = '\0';
+
+			v = VarFind(name, ctxt, 0);
+			if (v != NULL) {
+				char	*val;
+				/*
+				 * No need for nested expansion or
+				 * anything, as we're the only one
+				 * who sets these things and we sure
+				 * don't put nested invocations in
+				 * them...
+				 */
+				val = (char *)Buf_GetAll(v->val, NULL);
+
+				if (vname[1] == 'D') {
+					val = VarModify(val, VarHead, NULL);
+				} else {
+					val = VarModify(val, VarTail, NULL);
+				}
+
+				*freePtr = TRUE;
+				return (val);
+			}
+		}
+
+		*freePtr = FALSE;
+		return (err ? var_Error : varNoError);
+	}
 }
 
 /**
- * If it's not bounded by braces of some sort, life is much simpler.
- * We just need to check for the first character and return the value
- * if it exists.
+ * Parse a multi letter variable name, and return it's value.
+ */
+static char *
+VarParseLong(const char input[], GNode *ctxt, Boolean err,
+	size_t *consumed, Boolean *freePtr)
+{
+	Buffer		*buf;
+	char		endc;	/* Ending character when variable in parens
+				 * or braces */
+	char		startc;	/* Starting character when variable in parens
+				 * or braces */
+	const char	*ptr;
+	char		*result;
+
+	buf = Buf_Init(MAKE_BSIZE);
+
+	/*
+	 * Process characters until we reach an end character or a
+	 * colon, replacing embedded variables as we go.
+	 */
+	startc = input[0];
+	endc = (startc == OPEN_PAREN) ? CLOSE_PAREN : CLOSE_BRACE;
+	ptr = input + 1;
+
+	while (*ptr != endc && *ptr != ':') {
+		if (*ptr == '\0') {
+			/*
+			 * If we did not find the end character,
+			 * return var_Error right now, setting the
+			 * length to be the distance to the end of
+			 * the string, since that's what make does.
+			 */
+			*freePtr = FALSE;
+			*consumed += ptr - input;
+			Buf_Destroy(buf, TRUE);
+			return (var_Error);
+
+		} else if (*ptr == '$') {
+			size_t	rlen;
+			Boolean	rfree;
+			char	*rval;
+
+			rlen = 0;
+			rval = Var_Parse(ptr, ctxt, err, &rlen, &rfree);
+			if (rval == var_Error) {
+				Fatal("Error expanding embedded variable.");
+			}
+			Buf_Append(buf, rval);
+			if (rfree)
+				free(rval);
+			ptr += rlen - 1;
+		} else {
+			Buf_AddByte(buf, (Byte)*ptr);
+		}
+		ptr++;
+	}
+
+	if (*ptr == ':') {
+		result = ParseRestModifier(input - 1, ptr, startc, endc, buf, ctxt, err, consumed, freePtr);
+	} else {
+		*consumed = ptr - (input - 1) + 1;
+		result = ParseRestEnd(input - 1, buf, ctxt, err, consumed, freePtr);
+	}
+
+	Buf_Destroy(buf, TRUE);
+	return (result);
+}
+
+/**
+ * Parse a single letter variable name, and return it's value.
  */
 static char *
 VarParseShort(const char input[], GNode *ctxt, Boolean err,
-	size_t *lengthPtr, Boolean *freePtr)
+	size_t *consumed, Boolean *freePtr)
 {
 	char	name[2];
 	Var	*v;
@@ -1759,7 +1804,7 @@ VarParseShort(const char input[], GNode *ctxt, Boolean err,
 	name[1] = '\0';
 
 	/* consume character */
-	*lengthPtr += 1;
+	*consumed += 1;
 
 	v = VarFind(name, ctxt, FIND_ENV | FIND_GLOBAL | FIND_CMD);
 	if (v != NULL) {
@@ -1805,6 +1850,9 @@ VarParseShort(const char input[], GNode *ctxt, Boolean err,
 		}
 	}
 
+	/*
+	 * Variable name was not found.
+	 */
 	*freePtr = FALSE;
 	return (err ? var_Error : varNoError);
 }
@@ -1818,11 +1866,12 @@ VarParseShort(const char input[], GNode *ctxt, Boolean err,
  *
  * Results:
  *	The value of the variable or var_Error if the specification
- *	is invalid.  The length of the specification is placed in
- *	*lengthPtr (for invalid specifications, this is just 2 to
- *	skip the '$' and the following letter, or 1 if '$' was the
- *	last character in the string).  A Boolean in *freePtr telling
- *	whether the returned string should be freed by the caller.
+ *	is invalid.  The number of characters in the specification
+ *	is placed in the variable pointed to by consumed.  (for
+ *	invalid specifications, this is just 2 to skip the '$' and
+ *	the following letter, or 1 if '$' was the last character
+ *	in the string).  A Boolean in *freePtr telling whether the
+ *	returned string should be freed by the caller.
  *
  * Side Effects:
  *	None.
@@ -1834,13 +1883,13 @@ VarParseShort(const char input[], GNode *ctxt, Boolean err,
  */
 char *
 Var_Parse(const char input[], GNode *ctxt, Boolean err,
-	size_t *lengthPtr, Boolean *freePtr)
+	size_t *consumed, Boolean *freePtr)
 {
 	/* assert(input[0] == '$'); */
 
 	/* consume '$' */
+	*consumed += 1;
 	input += 1;
-	*lengthPtr += 1;
 
 	if (input[0] == '\0') {
 		/* Error, there is only a dollar sign in the input string. */
@@ -1849,11 +1898,11 @@ Var_Parse(const char input[], GNode *ctxt, Boolean err,
 
 	} else if (input[0] == OPEN_PAREN || input[0] == OPEN_BRACE) {
 		/* multi letter variable name */
-		return (VarParseLong(input, ctxt, err, lengthPtr, freePtr));
+		return (VarParseLong(input, ctxt, err, consumed, freePtr));
 
 	} else {
 		/* single letter variable name */
-		return (VarParseShort(input, ctxt, err, lengthPtr, freePtr));
+		return (VarParseShort(input, ctxt, err, consumed, freePtr));
 	}
 }
 
