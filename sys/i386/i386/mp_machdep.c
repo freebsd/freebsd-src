@@ -1067,15 +1067,6 @@ fix_mp_table(void)
 			}
 		}
 	}
-	/* sanity check if more than 1 PCI bus */
-	else if (num_pci_bus > 1) {
-		for (x = 0; x < mp_nbusses; ++x) {
-			if (bus_data[x].bus_type != PCI)
-				continue;
-			if (bus_data[x].bus_id >= num_pci_bus)
-				panic("bad PCI bus numbering");
-		}
-	}
 }
 
 
