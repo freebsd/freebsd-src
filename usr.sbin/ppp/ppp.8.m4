@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.44 1997/07/01 21:31:28 brian Exp $
+.\" $Id: ppp.8,v 1.45 1997/07/14 01:41:31 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -1929,7 +1929,7 @@ A file to check when
 .Nm
 closes a network level connection.
 
-.Pa /var/log/ppp.tun0.log
+.Pa /var/log/ppp.log
 Logging and debugging information file.
 
 .Pa /var/spool/lock/LCK..* 
