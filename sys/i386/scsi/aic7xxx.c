@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx.c,v 1.29.2.29 1997/02/18 04:27:05 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.29.2.30 1997/02/18 19:53:23 gibbs Exp $
  */
 /*
  * TODO:
@@ -1545,13 +1545,6 @@ ahc_handle_scsiint(ahc, intstat)
 						ahc_run_done_queue(ahc);
 						scb = NULL;
 						printerror = 0;
-						/*
-						 * We only send these for
-						 * error recovery, so if it
-						 * worked, we're no longer in
-						 * a timeout.
-						 */
-						ahc->in_timeout = 0;
 					}
 				}
 			}
@@ -1727,7 +1720,6 @@ ahc_handle_devreset(ahc, scb)
 				 XS_NOERROR);
 	sc_print_addr(scb->xs->sc_link);
 	printf("Bus Device Reset delivered. %d SCBs aborted\n", found);
-	ahc->in_timeout = FALSE;
 	ahc_run_done_queue(ahc);
 }
 
@@ -1754,7 +1746,8 @@ ahc_done(ahc, scb)
 		xs->error = XS_TIMEOUT;
 	} else if (scb->flags & SCB_SENSE)
 		xs->error = XS_SENSE;
-	if (scb->flags & SCB_SENTORDEREDTAG)
+
+	if (scb->flags & SCB_RECOVERY_SCB)
 		ahc->in_timeout = FALSE;
 #if defined(__FreeBSD__)
 	if ((xs->flags & SCSI_ERR_OK) && !(xs->error == XS_SENSE)) {
@@ -2454,7 +2447,12 @@ ahc_run_waiting_queue(ahc)
 {
 	struct scb *scb;
 
-	pause_sequencer(ahc);
+	/*
+	 * On aic78X0 chips, we rely on Auto Access Pause (AAP)
+	 * instead of doing an explicit pause/unpause.
+	 */
+	if ((ahc->type & AHC_AIC78X0) == 0)
+		pause_sequencer(ahc);
 
 	while ((scb = ahc->waiting_scbs.stqh_first) != NULL) {
 
@@ -2475,7 +2473,8 @@ ahc_run_waiting_queue(ahc)
 			 */
 			ahc->curqincnt++;
 	}
-	unpause_sequencer(ahc, /*Unpause always*/FALSE);
+	if ((ahc->type & AHC_AIC78X0) == 0)
+		unpause_sequencer(ahc, /*Unpause always*/FALSE);
 }
 
 /*
@@ -2781,7 +2780,7 @@ ahc_timeout(arg)
 	/* Decide our course of action */
 
 	channel = (scb->hscb->tcl & SELBUSB) ? 'B': 'A';	
-	if (scb->flags & SCB_RECOVERY_SCB) {
+	if (scb->flags & SCB_ABORT) {
 		/*
 		 * Been down this road before.
 		 * Do a full bus reset.
@@ -2790,7 +2789,6 @@ ahc_timeout(arg)
 					  /*Initiate Reset*/TRUE);
 		printf("%s: Issued Channel %c Bus Reset. "
 		       "%d SCBs aborted\n", ahc_name(ahc), channel, found);
-		ahc->in_timeout = FALSE;
 	} else if ((scb->hscb->control & TAG_ENB) != 0
 		&& (scb->flags & SCB_SENTORDEREDTAG) == 0) {
 		/*
@@ -2898,7 +2896,7 @@ ahc_timeout(arg)
 				STAILQ_INSERT_HEAD(&ahc->waiting_scbs, scb,
 						   links);
 				timeout(ahc_timeout, (caddr_t)scb,
-					(100 * hz) / 1000);
+					(200 * hz) / 1000);
 				ahc_run_waiting_queue(ahc);
 			}
 			ahc_outb(ahc, SCBPTR, saved_scbptr);
@@ -2968,7 +2966,8 @@ ahc_search_qinfifo(ahc, target, channel, tag, flags, xs_error, requeue)
 			if (requeue) {
 				STAILQ_INSERT_TAIL(&removed_scbs, scbp, links);
 			} else {
-				scbp->flags = flags;
+				scbp->flags |= flags;
+				scbp->flags &= ~SCB_ACTIVE;
 				scbp->xs->error = xs_error;
 				untimeout(ahc_timeout, (caddr_t)scbp);
 			}
@@ -3028,8 +3027,16 @@ ahc_reset_device(ahc, target, channel, tag, xs_error)
 		prev = SCB_LIST_NULL;
 
 		while (next != SCB_LIST_NULL) {
+			u_int8_t scb_index;
+
 			ahc_outb(ahc, SCBPTR, next);
-			scbp = ahc->scb_data->scbarray[ahc_inb(ahc, SCB_TAG)];
+			scb_index = ahc_inb(ahc, SCB_TAG);
+			if (scb_index >= ahc->scb_data->numscbs) {
+				panic("Waiting List inconsistency. "
+				      "SCB index == 0x%d, yet numscbs = 0x%d",
+				      scb_index, ahc->scb_data->numscbs);
+			}
+			scbp = ahc->scb_data->scbarray[scb_index];
 			if (ahc_match_scb(scbp, target, channel, tag)) {
 				next = ahc_abort_wscb(ahc, scbp, next, prev,
 						      xs_error);
@@ -3054,7 +3061,8 @@ ahc_reset_device(ahc, target, channel, tag, xs_error)
 			ahc_unbusy_target(ahc, target,
 					  (scbp->hscb->tcl & SELBUSB) ?
 					  'B' : 'A');
-			scbp->flags = SCB_ABORTED|SCB_QUEUED_FOR_DONE;
+			scbp->flags |= SCB_ABORTED|SCB_QUEUED_FOR_DONE;
+			scbp->flags &= ~SCB_ACTIVE;
 			scbp->xs->error = xs_error;
 			untimeout(ahc_timeout, (caddr_t)scbp);
 			found++;
@@ -3072,7 +3080,15 @@ ahc_reset_device(ahc, target, channel, tag, xs_error)
 		prev = SCB_LIST_NULL;
 
 		while (next != SCB_LIST_NULL) {
+			u_int8_t scb_index;
+
 			ahc_outb(ahc, SCBPTR, next);
+			scb_index = ahc_inb(ahc, SCB_TAG);
+			if (scb_index >= ahc->scb_data->numscbs) {
+				panic("Disconnected List inconsistency. "
+				      "SCB index == 0x%d, yet numscbs = 0x%d",
+				      scb_index, ahc->scb_data->numscbs);
+			}
 			scbp = ahc->scb_data->scbarray[ahc_inb(ahc, SCB_TAG)];
 			if (ahc_match_scb(scbp, target, channel, tag)) {
 				u_int8_t curpos;
@@ -3086,13 +3102,13 @@ ahc_reset_device(ahc, target, channel, tag, xs_error)
 					 ahc_inb(ahc, FREE_SCBH));
 				ahc_outb(ahc, FREE_SCBH, curpos);
 
-				if (prev != NULL) {
+				if (prev != SCB_LIST_NULL) {
 					ahc_outb(ahc, SCBPTR, prev);
 					ahc_outb(ahc, SCB_NEXT, next);
 				} else
 					ahc_outb(ahc, DISCONNECTED_SCBH, next);
 
-				if (next != NULL) {
+				if (next != SCB_LIST_NULL) {
 					ahc_outb(ahc, SCBPTR, next);
 					ahc_outb(ahc, SCB_NEXT, prev);
 				}
@@ -3157,7 +3173,8 @@ ahc_abort_wscb (ahc, scbp, scbpos, prev, xs_error)
 	 * has been aborted.
 	 */
 	ahc_outb(ahc, SCBPTR, curscb);
-	scbp->flags = SCB_ABORTED|SCB_QUEUED_FOR_DONE;
+	scbp->flags |= SCB_ABORTED|SCB_QUEUED_FOR_DONE;
+	scbp->flags &= ~SCB_ACTIVE;
 	scbp->xs->error = xs_error;
 	untimeout(ahc_timeout, (caddr_t)scbp);
 	return next;
