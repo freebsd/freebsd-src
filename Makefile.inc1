@@ -386,7 +386,8 @@ installcheck:
 #
 distributeworld installworld: installcheck
 	mkdir -p ${INSTALLTMP}
-	for prog in [ awk cat chflags chmod chown date echo egrep find grep \
+	for prog in [ awk cat cap_mkdb chflags chmod chown \
+	    date echo egrep find grep \
 	    ln make mkdir mtree mv pwd_mkdb rm sed sh sysctl \
 	    test true uname wc zic; do \
 		cp `which $$prog` ${INSTALLTMP}; \
