@@ -1,5 +1,5 @@
 /*-
- *	$Id$
+ *	$Id: dgm.c,v 1.2 1998/08/05 20:19:03 brian Exp $
  *
  *  This driver and the associated header files support the ISA PC/Xem
  *  Digiboards.  Its evolutionary roots are described below.
@@ -31,6 +31,9 @@
  *	David L. Nugent <davidn@blaze.net.au>
  */
 
+#include "opt_compat.h"
+#include "opt_devfs.h"
+
 #include "dgm.h"
 
 #if NDGM > 0 
@@ -49,17 +52,13 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/reboot.h>
 #include <sys/tty.h>
 #include <sys/proc.h>
 #include <sys/conf.h>
 #include <sys/dkstat.h>
 #include <sys/fcntl.h>
-#include <sys/uio.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
-#include <sys/malloc.h>
-#include <sys/syslog.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif
@@ -67,7 +66,6 @@
 #include <machine/clock.h>
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
 #include <vm/pmap.h>
 
 #include <i386/isa/isa_device.h>
@@ -75,12 +73,6 @@
 #include <gnu/i386/isa/dgmfep.h>
 #include <gnu/i386/isa/dgmbios.h>
 #include <gnu/i386/isa/dgmreg.h>
-
-/* This avoids warnings: we're an isa device only
- * so it does not matter...
- */
-#undef outb
-#define outb outbv
 
 #define	CALLOUT_MASK		0x40000
 #define	CONTROL_MASK		0xC0
@@ -177,8 +169,8 @@ struct dgm_softc {
 	u_char unit;	/* unit number */
 	u_char type;	/* type of card: PCXE, PCXI, PCXEVE */
 	u_char altpin;	/* do we need alternate pin setting ? */
-	ushort numports;	/* number of ports on card */
-	ushort port;	/* I/O port */
+	int numports;	/* number of ports on card */
+	int port;	/* I/O port */
 	u_char *vmem; /* virtual memory address */
 	long pmem; /* physical memory address */
 	int mem_seg;  /* internal memory segment */
@@ -201,7 +193,6 @@ int fi(void);
 
 /* Interrupt handling entry points. */
 static void	dgmpoll		__P((void *unit_c));
-/*static void	dgmintr		__P((int unit));*/
 
 /* Device switch entry points. */
 #define	dgmreset	noreset
@@ -318,18 +309,17 @@ dgmflags(struct dbgflagtbl *tbl, tcflag_t input)
 }
 
 static int dgmdebug=0;
-SYSCTL_INT(_debug, OID_AUTO, dgm_debug, CTLFLAG_RW,
-	&dgmdebug, 0, "");
+SYSCTL_INT(_debug, OID_AUTO, dgm_debug, CTLFLAG_RW, &dgmdebug, 0, "");
 
-static int setwin __P((struct dgm_softc *sc, unsigned addr));
-static void hidewin __P((struct dgm_softc *sc));
-static void towin __P((struct dgm_softc *sc, int win));
+static __inline int setwin __P((struct dgm_softc *sc, unsigned addr));
+static __inline void hidewin __P((struct dgm_softc *sc));
+static __inline void towin __P((struct dgm_softc *sc, int win));
 
 /*Helg: to allow recursive dgm...() calls */
 typedef struct
   {                 /* If we were called and don't want to disturb we need: */
-	short port,       /* write to this port */
-	      data;       /* this data on exit */
+	int port;		/* write to this port */
+	u_char data;		/* this data on exit */
 	                  /* or DATA_WINOFF  to close memory window on entry */
   } BoardMemWinState; /* so several channels and even boards can coexist */
 #define DATA_WINOFF 0
@@ -404,7 +394,7 @@ dgmprobe(dev)
 	/* left 24 bits only (ISA address) */
 	sc->pmem=((long)dev->id_maddr & 0xFFFFFF); 
 	
-	DPRINT4(DB_INFO,"dgm%d: port 0x%x mem 0x%x\n",unit,sc->port,sc->pmem);
+	DPRINT4(DB_INFO,"dgm%d: port 0x%x mem 0x%lx\n",unit,sc->port,sc->pmem);
 
 	outb(sc->port, FEPRST);
 	sc->status=DISABLED;
@@ -719,32 +709,32 @@ dgmattach(dev)
 		port->it_out = port->it_in;
 #ifdef	DEVFS
 		port->devfs_token.tty = 
-			devfs_add_devswf(&dgb_cdevsw, (unit*65536)+i,
+			devfs_add_devswf(&dgm_cdevsw, (unit*65536)+i,
 					 DV_CHR, UID_ROOT, GID_WHEEL, 0600,
 					 "ttyM%d%x", unit, i + 0xa0);
 
 		port->devfs_token.ttyi = 
-			devfs_add_devswf(&dgb_cdevsw, (unit*65536)+i+64,
+			devfs_add_devswf(&dgm_cdevsw, (unit*65536)+i+64,
 					 DV_CHR, UID_ROOT, GID_WHEEL, 0600,
 					 "ttyiM%d%x", unit, i + 0xa0);
 
 		port->devfs_token.ttyl = 
-			devfs_add_devswf(&dgb_cdevsw, (unit*65536)+i+128,
+			devfs_add_devswf(&dgm_cdevsw, (unit*65536)+i+128,
 					 DV_CHR, UID_ROOT, GID_WHEEL, 0600,
 					 "ttylM%d%x", unit, i + 0xa0);
 
 		port->devfs_token.cua = 
-			devfs_add_devswf(&dgb_cdevsw, (unit*65536)+i+262144,
+			devfs_add_devswf(&dgm_cdevsw, (unit*65536)+i+262144,
 					 DV_CHR, UID_UUCP, GID_DIALER, 0660,
 					 "cuaM%d%x", unit, i + 0xa0);
 
 		port->devfs_token.cuai = 
-			devfs_add_devswf(&dgb_cdevsw, (unit*65536)+i+262208,
+			devfs_add_devswf(&dgm_cdevsw, (unit*65536)+i+262208,
 					 DV_CHR, UID_UUCP, GID_DIALER, 0660,
 					 "cuaiM%d%x", unit, i + 0xa0);
 
 		port->devfs_token.cual = 
-			devfs_add_devswf(&dgb_cdevsw, (unit*65536)+i+262272,
+			devfs_add_devswf(&dgm_cdevsw, (unit*65536)+i+262272,
 					 DV_CHR, UID_UUCP, GID_DIALER, 0660,
 					 "cualM%d%x", unit, i + 0xa0);
 #endif
@@ -1206,7 +1196,7 @@ dgmpoll(unit_c)
 					ttwakeup(tp);
 					setwin(sc,0);
 				}
-			end_of_data:
+			end_of_data: ;
 			}
 
 			if(event & MODEMCHG_IND) {
@@ -1325,7 +1315,7 @@ dgmpoll(unit_c)
 				        setwin(sc,0);
 				        }
 			        }
-			end_of_buffer:
+			end_of_buffer: ;
 			}
 			bc->idata=1;   /* require event on incoming data */ 
 
@@ -1345,15 +1335,6 @@ dgmpoll(unit_c)
 
 	timeout(dgmpoll, unit_c, hz/POLLSPERSEC);
 }
-
-
-#if 0
-static void
-dgmintr(unit)
-	int	unit;
-{
-}
-#endif
 
 static	int
 dgmioctl(dev, cmd, data, flag, p)
@@ -1480,13 +1461,13 @@ dgmioctl(dev, cmd, data, flag, p)
 		port->mustdrain=1;
 
 	error = linesw[tp->t_line].l_ioctl(tp, cmd, data, flag, p);
-	if (error >= 0)
+	if (error != ENOIOCTL)
 		return error;
 	s = spltty();
 	error = ttioctl(tp, cmd, data, flag);
 	disc_optim(tp,&tp->t_termios);
 	port->mustdrain=0;
-	if (error >= 0) {
+	if (error != ENOIOCTL) {
 		splx(s);
 		if (cmd == TIOCSETA || cmd == TIOCSETAW || cmd == TIOCSETAF) {
 			DPRINT6(DB_PARAM,"dgm%d: port%d: dgmioctl-RES c=0x%x i=0x%x l=0x%x\n",unit,pnum,tp->t_cflag,tp->t_iflag,tp->t_lflag);
@@ -1826,9 +1807,8 @@ dgmparam(tp, t)
 
 		if(cflag!=port->fepcflag) {
 			port->fepcflag=cflag;
-			DPRINT6(DB_PARAM,"dgm%d: port%d: set cflag=0x%x c=0x%x\n",
-					unit,pnum,cflag&(FEP_CBAUD|FEP_FASTBAUD),cflag,
-					t->c_cflag&~CRTSCTS);
+			DPRINT5(DB_PARAM,"dgm%d: port%d: set cflag=0x%x c=0x%x\n",
+					unit,pnum,cflag,t->c_cflag&~CRTSCTS);
 			fepcmd(port, SETCTRLFLAGS, (unsigned)cflag, 0, 0, 0);
 		}
 		mval= port->omodem | (DTR|RTS);
@@ -1999,14 +1979,14 @@ dgmstop(tp, rw)
 
 	BoardMemWinState ws=bmws_get();
 
-	DPRINT3(DB_WR,"dgm%d: port%d: stop\n",port->unit, port->pnum);
-
 	unit=MINOR_TO_UNIT(minor(tp->t_dev));
 	pnum=MINOR_TO_PORT(minor(tp->t_dev));
 
 	sc=&dgm_softc[unit];
 	port=&sc->ports[pnum];
 	bc=port->brdchan;
+
+	DPRINT3(DB_WR,"dgm%d: port%d: stop\n",port->unit, port->pnum);
 
 	s = spltty();
 	setwin(sc,0);
@@ -2106,11 +2086,6 @@ disc_optim(tp, t)
 	struct tty	*tp;
 	struct termios	*t;
 {
-	/*
-	 * XXX can skip a lot more cases if Smarts.  Maybe
-	 * (IGNCR | ISTRIP | IXON) in c_iflag.  But perhaps we
-	 * shouldn't skip if (TS_CNTTB | TS_LNCH) is set in t_state.
-	 */
 	if (!(t->c_iflag & (ICRNL | IGNCR | IMAXBEL | INLCR | ISTRIP | IXON))
 	    && (!(t->c_iflag & BRKINT) || (t->c_iflag & IGNBRK))
 	    && (!(t->c_iflag & PARMRK)
