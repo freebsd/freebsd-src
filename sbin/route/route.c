@@ -43,7 +43,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)route.c	8.3 (Berkeley) 3/19/94";
 */
 static const char rcsid[] =
-	"$Id: route.c,v 1.10 1996/07/23 01:18:47 julian Exp $";
+	"$Id: route.c,v 1.11 1996/07/23 22:00:14 julian Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -827,6 +827,48 @@ getaddr(which, s, hpp)
 		break;
 	case RTA_GATEWAY:
 		su = &so_gate;
+		if (iflag) {
+			#define MAX_IFACES	400
+			int			sock;
+			struct ifreq		iflist[MAX_IFACES];
+			struct ifconf		ifconf;
+			struct ifreq		*ifr, *ifr_end;
+			struct sockaddr_dl	*dl, *sdl = NULL;
+
+			/* Get socket */
+			if ((sock = socket(PF_INET, SOCK_DGRAM, 0)) < 0)
+				err(1, "socket");
+
+			/* Get interface list */
+			ifconf.ifc_req = iflist;
+			ifconf.ifc_len = sizeof(iflist);
+			if (ioctl(sock, SIOCGIFCONF, &ifconf) < 0)
+				err(1, "ioctl(SIOCGIFCONF)");
+			close(sock);
+
+			/* Look for this interface in the list */
+			for (ifr = ifconf.ifc_req,
+			    ifr_end = (struct ifreq *)
+				(ifconf.ifc_buf + ifconf.ifc_len);
+			    ifr < ifr_end;
+			    ifr = (struct ifreq *) ((char *) &ifr->ifr_addr
+						    + ifr->ifr_addr.sa_len)) {
+				dl = (struct sockaddr_dl *)&ifr->ifr_addr;
+				if (ifr->ifr_addr.sa_family == AF_LINK
+				    && (ifr->ifr_flags & IFF_POINTOPOINT)
+				    && !strncmp(s, dl->sdl_data, dl->sdl_nlen)
+				    && s[dl->sdl_nlen] == 0) {
+					sdl = dl;
+					break;
+				}
+			}
+
+			/* If we found it, then use it */
+			if (sdl) {
+				su->sdl = *sdl;
+				return(1);
+			}
+		}
 		su->sa.sa_family = af;
 		break;
 	case RTA_NETMASK:
