@@ -555,7 +555,7 @@ pccard_mfc_adjust_iobase(struct pccard_function *pf, bus_addr_t addr,
 	iosize--;
 
 	DEVPRINTF((pf->dev, "MFC: I/O base 0x%jx IOSIZE %jd\n",
-	  (uintmax_t) pf->pf_mfc_iobase, (uintmax_t) iosize));
+	    (uintmax_t)pf->pf_mfc_iobase, (uintmax_t)iosize));
 	pccard_ccr_write(pf, PCCARD_CCR_IOBASE0,
 	    pf->pf_mfc_iobase & 0xff);
 	pccard_ccr_write(pf, PCCARD_CCR_IOBASE1,
