@@ -40,6 +40,7 @@ static char sccsid[] = "@(#)getgrent.c	8.2 (Berkeley) 3/21/94";
 #include <stdlib.h>
 #include <string.h>
 #include <grp.h>
+#include <syslog.h>
 
 static FILE *_gr_fp;
 static struct group _gr_group;
@@ -235,8 +236,11 @@ grscan(search, gid, name)
 				;
 			continue;
 		}
-		if ((_gr_group.gr_name = strsep(&bp, ":\n")) == NULL)
-			break;
+		if ((_gr_group.gr_name = strsep(&bp, ":\n")) == NULL) {
+			/* this may be benign - eg. empty line at end of file */
+		/*	syslog(LOG_ALERT, "/etc/group is corrupt: group field is empty"); */
+			continue;
+		}
 #ifdef YP
 		/*
 		 * XXX   We need to be careful to avoid proceeding
@@ -281,13 +285,17 @@ grscan(search, gid, name)
 		if ((cp = strsep(&bp, ":\n")) == NULL)
 			if (_ypfound)
 				return(1);
-			else
-				break;
+			else {
+				syslog(LOG_ALERT, "/etc/group corrupt: invalid field");
+				continue;
+			}
 		if (strlen(cp) || !_ypfound)
 			_gr_group.gr_passwd = cp;
 #else
-		if ((_gr_group.gr_passwd = strsep(&bp, ":\n")) == NULL)
-			break;
+		if ((_gr_group.gr_passwd = strsep(&bp, ":\n")) == NULL) {
+			syslog(LOG_ALERT, "/etc/group corrupt: invalid field");
+			continue;
+		}
 #endif
 		if (!(cp = strsep(&bp, ":\n")))
 #ifdef YP
@@ -307,11 +315,12 @@ grscan(search, gid, name)
 		if (search && name == NULL && _gr_group.gr_gid != gid)
 			continue;
 		cp = NULL;
-		if (bp == NULL) /* !!! Must check for this! */
-			break;
+		if (bp == NULL) {  /* !!! Must check for this! */
+			continue;
+		}
 #ifdef YP
 		if ((cp = strsep(&bp, ":\n")) == NULL)
-			break;
+			continue;
 
 		if (!strlen(cp) && _ypfound)
 			return(1);
