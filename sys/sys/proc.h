@@ -470,6 +470,7 @@ struct proc {
 #define	P_JAILED	0x1000000 /* Process is in jail. */
 #define	P_OLDMASK	0x2000000 /* Need to restore mask after suspend. */
 #define	P_ALTSTACK	0x4000000 /* Have alternate signal stack. */
+#define	P_INEXEC	0x8000000 /* Process is in execve(). */
 
 /* These flags are kept in p_sflag and are protected with sched_lock. */
 #define	PS_INMEM	0x00001	/* Loaded into memory. */
