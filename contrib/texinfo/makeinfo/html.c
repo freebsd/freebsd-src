@@ -1,5 +1,5 @@
 /* html.c -- html-related utilities.
-   $Id: html.c,v 1.19 2002/02/23 19:12:15 karl Exp $
+   $Id: html.c,v 1.26 2002/03/23 20:39:49 karl Exp $
 
    Copyright (C) 1999, 2000, 01, 02 Free Software Foundation, Inc.
 
@@ -56,7 +56,19 @@ html_output_head ()
   add_word_args ("<meta name=description content=\"%s\">\n",
                  document_description);
   add_word_args ("<meta name=generator content=\"makeinfo %s\">\n", VERSION);
-  add_word ("<link href=\"http://texinfo.org/\" rel=generator-home>\n");
+  add_word ("<link href=\"http://www.gnu.org/software/texinfo/\" rel=generator-home>\n");
+
+  if (copying_text)
+    { /* copying_text has already been fully expanded in
+         begin_insertion (by full_expansion), so use insert_ rather than
+         add_.  It is not ideal that we include the html markup here within
+         <head>, but the alternative is to have yet more and different
+         expansions of the copying text.  Yuck.  */
+      insert_string ("<!--\n");
+      insert_string (copying_text);
+      insert_string ("-->\n");
+    }
+
   add_word ("</head>\n<body>\n");
 
   if (title && !html_title_written)

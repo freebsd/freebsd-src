@@ -1,7 +1,7 @@
 /* indices.c -- deal with an Info file index.
-   $Id: indices.c,v 1.14 1999/09/25 16:10:04 karl Exp $
+   $Id: indices.c,v 1.15 2002/03/11 13:43:52 karl Exp $
 
-   Copyright (C) 1993, 97, 98, 99 Free Software Foundation, Inc.
+   Copyright (C) 1993, 97, 98, 99, 2002 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -61,7 +61,7 @@ add_index_to_index_nodenames (array, node)
   register int i, last;
   INDEX_NAME_ASSOC *assoc;
 
-  for (last = 0; array[last]; last++);
+  for (last = 0; array[last + 1]; last++);
   assoc = (INDEX_NAME_ASSOC *)xmalloc (sizeof (INDEX_NAME_ASSOC));
   assoc->name = xstrdup (node->nodename);
 

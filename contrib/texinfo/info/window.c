@@ -1,5 +1,5 @@
 /* window.c -- windows in Info.
-   $Id: window.c,v 1.15 2002/01/19 01:08:20 karl Exp $
+   $Id: window.c,v 1.16 2002/03/08 21:41:44 karl Exp $
 
    Copyright (C) 1993, 97, 98, 2001, 02 Free Software Foundation, Inc.
 
@@ -758,7 +758,20 @@ string_width (string, hpos)
 
   for (width = 0, i = 0; string[i]; i++)
     {
-      this_char_width = character_width (string[i], hpos);
+      /* Support ANSI escape sequences for -R.  */
+      if (raw_escapes_p
+	  && string[i] == '\033'
+	  && string[i+1] == '['
+	  && isdigit (string[i+2])
+	  && (string[i+3] == 'm'
+	      || (isdigit (string[i+3]) && string[i+4] == 'm')))
+	{
+	  while (string[i] != 'm')
+	    i++;
+	  this_char_width = 0;
+	}
+      else
+	this_char_width = character_width (string[i], hpos);
       width += this_char_width;
       hpos += this_char_width;
     }
@@ -830,7 +843,29 @@ calculate_line_starts (window)
 	     could be passed as negative integers to character_width
 	     and wreak havoc on some naive implementations of iscntrl.  */
           c = (unsigned char) node->contents[i];
-          cwidth = character_width (c, hpos);
+
+	  /* Support ANSI escape sequences for -R.  */
+	  if (raw_escapes_p
+	      && c == '\033'
+	      && node->contents[i+1] == '['
+	      && isdigit (node->contents[i+2]))
+	    {
+	      if (node->contents[i+3] == 'm')
+		{
+		  i += 3;
+		  cwidth = 0;
+		}
+	      else if (isdigit (node->contents[i+3])
+		       && node->contents[i+4] == 'm')
+		{
+		  i += 4;
+		  cwidth = 0;
+		}
+	      else
+		cwidth = character_width (c, hpos);
+	    }
+	  else
+	    cwidth = character_width (c, hpos);
 
           /* If this character fits within this line, just do the next one. */
           if ((hpos + cwidth) < window->width)
@@ -1009,7 +1044,23 @@ window_get_cursor_column (window)
   end = window->point - (line - window->node->contents);
 
   for (hpos = 0, i = 0; i < end; i++)
-    hpos += character_width (line[i], hpos);
+    {
+      /* Support ANSI escape sequences for -R.  */
+      if (raw_escapes_p
+	  && line[i] == '\033'
+	  && line[i+1] == '['
+	  && isdigit (line[i+2]))
+	{
+	  if (line[i+3] == 'm')
+	    i += 3;
+	  else if (isdigit (line[i+3]) && line[i+4] == 'm')
+	    i += 4;
+	  else
+	    hpos += character_width (line[i], hpos);
+	}
+      else
+	hpos += character_width (line[i], hpos);
+    }
 
   return (hpos);
 }
@@ -1025,8 +1076,17 @@ window_chars_to_goal (line, goal)
 
   for (hpos = 0, i = 0; line[i] != '\n'; i++)
     {
-
-      check = hpos + character_width (line[i], hpos);
+      /* Support ANSI escape sequences for -R.  */
+      if (raw_escapes_p
+	  && line[i] == '\033'
+	  && line[i+1] == '['
+	  && isdigit (line[i+2])
+	  && (line[i+3] == 'm'
+	      || (isdigit (line[i+3]) && line[i+4] == 'm')))
+	while (line[i] != 'm')
+	  i++;
+      else
+	check = hpos + character_width (line[i], hpos);
 
       if (check > goal)
         break;
