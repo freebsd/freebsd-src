@@ -80,6 +80,17 @@ typedef	struct ng_item *item_p;
 typedef struct ng_node *node_p;
 typedef struct ng_hook *hook_p;
 
+/* node method definitions */
+typedef	int	ng_constructor_t(node_p node);
+typedef	int	ng_shutdown_t(node_p node);
+typedef	int	ng_newhook_t(node_p node, hook_p hook, const char *name);
+typedef	hook_p	ng_findhook_t(node_p node, const char *name);
+typedef	int	ng_connect_t(hook_p hook);
+typedef	int	ng_rcvmsg_t(node_p node, item_p item, hook_p lasthook);
+typedef	int	ng_rcvdata_t(hook_p hook, item_p item);
+typedef	int	ng_disconnect_t(hook_p hook);
+typedef	int	ng_rcvitem (node_p node, hook_p hook, item_p item);
+
 /***********************************************************************
  ***************** Hook Structure and Methods **************************
  ***********************************************************************
@@ -94,6 +105,8 @@ struct ng_hook {
 	struct	ng_hook *hk_peer;	/* the other end of this link */
 	struct	ng_node *hk_node;	/* The node this hook is attached to */
 	LIST_ENTRY(ng_hook) hk_hooks;	/* linked list of all hooks on node */
+	ng_rcvmsg_t	*hk_rcvmsg;	/* control messages come here */
+	ng_rcvdata_t	*hk_rcvdata;	/* data comes here */
 #ifdef	NETGRAPH_DEBUG /*----------------------------------------------*/
 #define HK_MAGIC 0x78573011
 	int	hk_magic;
@@ -117,6 +130,8 @@ void ng_unref_hook(hook_p hook); /* don't move this */
 #define _NG_HOOK_NAME(hook)	((hook)->hk_name)
 #define _NG_HOOK_UNREF(hook)	ng_unref_hook(hook)
 #define	_NG_HOOK_SET_PRIVATE(hook, val)	do {(hook)->hk_private = val;} while (0)
+#define	_NG_HOOK_SET_RCVMSG(hook, val)	do {(hook)->hk_rcvmsg = val;} while (0)
+#define	_NG_HOOK_SET_RCVDATA(hook, val)	do {(hook)->hk_rcvdata = val;} while (0)
 #define	_NG_HOOK_PRIVATE(hook)	((hook)->hk_private)
 #define _NG_HOOK_NOT_VALID(hook)	((hook)->hk_flags & HK_INVALID)
 #define _NG_HOOK_IS_VALID(hook)	(!(hook)->hk_flags & HK_INVALID)
@@ -139,7 +154,11 @@ static __inline void	_ng_hook_ref(hook_p hook, char * file, int line);
 static __inline char *	_ng_hook_name(hook_p hook, char * file, int line);
 static __inline void	_ng_hook_unref(hook_p hook, char * file, int line);
 static __inline void	_ng_hook_set_private(hook_p hook,
-					void * val, char * file, int line);
+				void * val, char * file, int line);
+static __inline void	_ng_hook_set_rcvmsg(hook_p hook,
+				ng_rcvmsg_t *val, char * file, int line);
+static __inline void	_ng_hook_set_rcvdata(hook_p hook,
+				ng_rcvdata_t *val, char * file, int line);
 static __inline void *	_ng_hook_private(hook_p hook, char * file, int line);
 static __inline int	_ng_hook_not_valid(hook_p hook, char * file, int line);
 static __inline int	_ng_hook_is_valid(hook_p hook, char * file, int line);
@@ -186,6 +205,20 @@ _ng_hook_set_private(hook_p hook, void *val, char * file, int line)
 {
 	_chkhook(hook, file, line);
 	_NG_HOOK_SET_PRIVATE(hook, val);
+} 
+
+static __inline void
+_ng_hook_set_rcvmsg(hook_p hook, ng_rcvmsg_t *val, char * file, int line)
+{
+	_chkhook(hook, file, line);
+	_NG_HOOK_SET_RCVMSG(hook, val);
+} 
+
+static __inline void
+_ng_hook_set_rcvdata(hook_p hook, ng_rcvdata_t *val, char * file, int line)
+{
+	_chkhook(hook, file, line);
+	_NG_HOOK_SET_RCVDATA(hook, val);
 } 
 
 static __inline void *
@@ -242,6 +275,8 @@ _ng_hook_force_queue(hook_p hook, char * file, int line)
 #define NG_HOOK_NAME(hook)		_ng_hook_name(hook, _NN_)
 #define NG_HOOK_UNREF(hook)		_ng_hook_unref(hook, _NN_)
 #define	NG_HOOK_SET_PRIVATE(hook, val)	_ng_hook_set_private(hook, val, _NN_)
+#define	NG_HOOK_SET_RCVMSG(hook, val)	_ng_hook_set_rcvmsg(hook, val, _NN_)
+#define	NG_HOOK_SET_RCVDATA(hook, val)	_ng_hook_set_rcvdata(hook, val, _NN_)
 #define	NG_HOOK_PRIVATE(hook)		_ng_hook_private(hook, _NN_)
 #define NG_HOOK_NOT_VALID(hook)		_ng_hook_not_valid(hook, _NN_)
 #define NG_HOOK_IS_VALID(hook)		_ng_hook_is_valid(hook, _NN_)
@@ -256,6 +291,8 @@ _ng_hook_force_queue(hook_p hook, char * file, int line)
 #define NG_HOOK_NAME(hook)		_NG_HOOK_NAME(hook)
 #define NG_HOOK_UNREF(hook)		_NG_HOOK_UNREF(hook)
 #define	NG_HOOK_SET_PRIVATE(hook, val)	_NG_HOOK_SET_PRIVATE(hook, val)
+#define	NG_HOOK_SET_RCVMSG(hook, val)	_NG_HOOK_SET_RCVMSG(hook, val)
+#define	NG_HOOK_SET_RCVDATA(hook, val)	_NG_HOOK_SET_RCVDATA(hook, val)
 #define	NG_HOOK_PRIVATE(hook)		_NG_HOOK_PRIVATE(hook)
 #define NG_HOOK_NOT_VALID(hook)		_NG_HOOK_NOT_VALID(hook)
 #define NG_HOOK_IS_VALID(hook)		_NG_HOOK_IS_VALID(hook)
@@ -1007,16 +1044,6 @@ _ngi_hook(item_p item, char *file, int line)
  * type.
  */
 
-/* node method definitions */
-typedef	int	ng_constructor_t(node_p node);
-typedef	int	ng_rcvmsg_t(node_p node, item_p item, hook_p lasthook);
-typedef	int	ng_shutdown_t(node_p node);
-typedef	int	ng_newhook_t(node_p node, hook_p hook, const char *name);
-typedef	hook_p	ng_findhook_t(node_p node, const char *name);
-typedef	int	ng_connect_t(hook_p hook);
-typedef	int	ng_rcvdata_t(hook_p hook, item_p item);
-typedef	int	ng_disconnect_t(hook_p hook);
-typedef	int	ng_rcvitem (node_p node, hook_p hook, item_p item);
 /*
  * Command list -- each node type specifies the command that it knows
  * how to convert between ASCII and binary using an array of these.
