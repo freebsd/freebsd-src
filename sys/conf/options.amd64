@@ -12,6 +12,7 @@ PMAP_SHPGPERPROC	opt_pmap.h
 # (see src/sys/conf/options), except for broken debugging options.
 #IBCS2			opt_dontuse.h
 #COMPAT_LINUX		opt_dontuse.h
+COMPAT_LINUX32		opt_compat.h
 #COMPAT_SVR4		opt_dontuse.h
 #DEBUG_SVR4		opt_svr4.h
 #NDISAPI		opt_dontuse.h
