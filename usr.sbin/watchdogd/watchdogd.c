@@ -34,7 +34,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/rtprio.h>
 #include <sys/stat.h>
 #include <sys/time.h>
-#include <sys/mman.h>
 #include <sys/watchdog.h>
 
 #include <err.h>
@@ -87,9 +86,6 @@ main(int argc, char *argv[])
 	rtp.prio = 0;
 	if (rtprio(RTP_SET, 0, &rtp) == -1)
 		err(EX_OSERR, "rtprio");
-
-	if (mlockall(MCL_CURRENT | MCL_FUTURE) == -1)
-		err(EX_OSERR, "mlockall");
 
 	if (watchdog_init() == -1)
 		errx(EX_SOFTWARE, "unable to initialize watchdog");
