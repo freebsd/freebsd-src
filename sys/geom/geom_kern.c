@@ -129,7 +129,7 @@ static struct proc *g_event_proc;
 static void
 g_event_procbody(void)
 {
-	struct proc *p = g_down_proc;
+	struct proc *p = g_event_proc;
 	struct thread *tp = FIRST_THREAD_IN_PROC(p);
 
 	tp->td_base_pri = PRIBIO;
