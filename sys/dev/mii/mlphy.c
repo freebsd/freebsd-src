@@ -218,6 +218,7 @@ mlphy_service(xsc, mii, cmd)
 			break;
 		}
 	}
+	free(devlist, M_TEMP);
 
 	switch (cmd) {
 	case MII_POLLSTAT:
@@ -431,6 +432,7 @@ static void mlphy_status(sc)
 			break;
 		}
 	}
+	free(devlist, M_TEMP);
 
 	if (other == NULL)
 		return;
