@@ -13,7 +13,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: kzip.c,v 1.10 1997/07/18 06:40:46 charnier Exp $";
+	"$Id: kzip.c,v 1.11 1998/06/01 18:34:19 jhay Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -194,6 +194,7 @@ main(int argc, char **argv)
 	if (!Pld) {
 		execlp("ld",
 			"ld",
+			"-aout",
 			"-Bstatic",
 			"-Z",
 			"-T",
