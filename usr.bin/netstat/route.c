@@ -36,7 +36,7 @@
 static char sccsid[] = "From: @(#)route.c	8.6 (Berkeley) 4/28/95";
 #endif
 static const char rcsid[] =
-	"$Id: route.c,v 1.21 1996/10/28 18:56:44 wollman Exp $";
+	"$Id: route.c,v 1.22 1996/12/10 17:11:53 wollman Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -45,11 +45,10 @@ static const char rcsid[] =
 #include <sys/time.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
-#define  KERNEL
 #include <net/route.h>
-#undef KERNEL
 
 #include <netinet/in.h>
 #include <netipx/ipx.h>
