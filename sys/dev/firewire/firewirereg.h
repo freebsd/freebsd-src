@@ -362,3 +362,5 @@ extern devclass_t firewire_devclass;
 #undef vtophys
 #define vtophys(va)	alpha_XXX_dmamap((vm_offset_t)(va))
 #endif /* __alpha__ */
+
+MALLOC_DECLARE(M_FW);
