@@ -50,7 +50,7 @@
 
 #include <sys/kernel.h>
 #include <sys/malloc.h>
-#include <sys/buf.h>
+#include <sys/bio.h>
 #define b_actf	bio_queue.tqe_next
 #include <sys/dataacq.h>
 #include <sys/conf.h>

@@ -45,6 +45,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/proc.h>
 #include <sys/mount.h>

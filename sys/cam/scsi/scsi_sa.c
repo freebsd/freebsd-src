@@ -36,7 +36,7 @@
 #include <sys/kernel.h>
 #endif
 #include <sys/types.h>
-#include <sys/buf.h>
+#include <sys/bio.h>
 #include <sys/malloc.h>
 #include <sys/mtio.h>
 #include <sys/conf.h>

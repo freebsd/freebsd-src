@@ -68,6 +68,7 @@ void		usb_freemem  __P((usbd_bus_handle, usb_dma_t *));
 #include <sys/systm.h>
 #include <sys/queue.h>
 #include <sys/proc.h>
+#include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>

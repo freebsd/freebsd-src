@@ -45,6 +45,7 @@
 #include <sys/systm.h>
 #include <sys/lock.h>
 #include <sys/vnode.h>
+#include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/ucred.h>
 

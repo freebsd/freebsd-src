@@ -70,48 +70,6 @@ extern struct bio_ops {
 	int	(*io_countdeps) __P((struct buf *, int));
 } bioops;
 
-struct iodone_chain {
-	long	ic_prev_flags;
-	void	(*ic_prev_iodone) __P((struct bio *));
-	void	*ic_prev_iodone_chain;
-	struct {
-		long	ia_long;
-		void	*ia_ptr;
-	}	ic_args[5];
-};
-
-/*
- * The bio structure describes an I/O operation in the kernel.
- */
-struct bio {
-	u_int	bio_cmd;		/* I/O operation. */
-	dev_t	bio_dev;		/* Device to do I/O on. */
-	daddr_t	bio_blkno;		/* Underlying physical block number. */
-	off_t	bio_offset;		/* Offset into file. */
-	long	bio_bcount;		/* Valid bytes in buffer. */
-	caddr_t	bio_data;		/* Memory, superblocks, indirect etc. */
-	u_int	bio_flags;		/* BIO_ flags. */
-	struct buf	*_bio_buf;	/* Parent buffer. */
-	int	bio_error;		/* Errno for BIO_ERROR. */
-	long	bio_resid;		/* Remaining I/0 in bytes. */
-	void	(*bio_done) __P((struct bio *));
-	void	*bio_driver1;		/* Private use by the callee. */
-	void	*bio_driver2;		/* Private use by the callee. */
-	void	*bio_caller1;		/* Private use by the caller. */
-	void	*bio_caller2;		/* Private use by the caller. */
-	TAILQ_ENTRY(bio) bio_queue;	/* Disksort queue. */
-
-	/* XXX: these go away when bio chaining is introduced */
-	daddr_t	bio_pblkno;               /* physical block number */
-	struct	iodone_chain *bio_done_chain;
-};
-
-static __inline__ void
-biodone(struct bio *bp)
-{
-	bp->bio_done(bp);
-}
-
 /*
  * The buffer header describes an I/O operation in the kernel.
  *
@@ -220,16 +178,6 @@ struct buf {
  *			always at least DEV_BSIZE aligned, though ).
  *	
  */
-
-#define BIO_READ	1
-#define BIO_WRITE	2
-#define BIO_DELETE	4
-#define BIO_FORMAT	8
-
-#define BIO_ERROR	0x00000001	/* I/O error occurred. */
-#define BIO_ORDERED	0x00000002	/* Must guarantee I/O ordering */
-#define BIO_FLAG2	0x40000000	/* Available for local hacks */
-#define BIO_FLAG1	0x80000000	/* Available for local hacks */
 
 #define	B_AGE		0x00000001	/* Move to age queue when I/O done. */
 #define	B_NEEDCOMMIT	0x00000002	/* Append-write in progress. */
@@ -392,13 +340,6 @@ struct buf_queue_head {
 	struct	buf *switch_point;
 };
 
-struct bio_queue_head {
-	TAILQ_HEAD(bio_queue, bio) queue;
-	daddr_t	last_pblkno;
-	struct	bio *insert_point;
-	struct	bio *switch_point;
-};
-
 /*
  * This structure describes a clustered I/O.  It is stored in the b_saveaddr
  * field of the buffer on which I/O is done.  At I/O completion, cluster
@@ -415,29 +356,14 @@ struct cluster_save {
 
 #ifdef _KERNEL
 static __inline void bufq_init __P((struct buf_queue_head *head));
-static __inline void bioq_init __P((struct bio_queue_head *head));
 static __inline void bufq_insert_tail __P((struct buf_queue_head *head,
 					   struct buf *bp));
-static __inline void bioq_insert_tail __P((struct bio_queue_head *head,
-					   struct bio *bp));
 static __inline void bufq_remove __P((struct buf_queue_head *head,
 				      struct buf *bp));
-static __inline void bioq_remove __P((struct bio_queue_head *head,
-				      struct bio *bp));
 static __inline struct buf *bufq_first __P((struct buf_queue_head *head));
-static __inline struct bio *bioq_first __P((struct bio_queue_head *head));
 
 static __inline void
 bufq_init(struct buf_queue_head *head)
-{
-	TAILQ_INIT(&head->queue);
-	head->last_pblkno = 0;
-	head->insert_point = NULL;
-	head->switch_point = NULL;
-}
-
-static __inline void
-bioq_init(struct bio_queue_head *head)
 {
 	TAILQ_INIT(&head->queue);
 	head->last_pblkno = 0;
@@ -456,16 +382,6 @@ bufq_insert_tail(struct buf_queue_head *head, struct buf *bp)
 }
 
 static __inline void
-bioq_insert_tail(struct bio_queue_head *head, struct bio *bp)
-{
-	if ((bp->bio_flags & BIO_ORDERED) != 0) {
-		head->insert_point = bp;
-		head->switch_point = NULL;
-	}
-	TAILQ_INSERT_TAIL(&head->queue, bp, bio_queue);
-}
-
-static __inline void
 bufq_remove(struct buf_queue_head *head, struct buf *bp)
 {
 	if (bp == head->switch_point)
@@ -481,30 +397,8 @@ bufq_remove(struct buf_queue_head *head, struct buf *bp)
 		head->switch_point = NULL;
 }
 
-static __inline void
-bioq_remove(struct bio_queue_head *head, struct bio *bp)
-{
-	if (bp == head->switch_point)
-		head->switch_point = TAILQ_NEXT(bp, bio_queue);
-	if (bp == head->insert_point) {
-		head->insert_point = TAILQ_PREV(bp, bio_queue, bio_queue);
-		if (head->insert_point == NULL)
-			head->last_pblkno = 0;
-	} else if (bp == TAILQ_FIRST(&head->queue))
-		head->last_pblkno = bp->bio_pblkno;
-	TAILQ_REMOVE(&head->queue, bp, bio_queue);
-	if (TAILQ_FIRST(&head->queue) == head->switch_point)
-		head->switch_point = NULL;
-}
-
 static __inline struct buf *
 bufq_first(struct buf_queue_head *head)
-{
-	return (TAILQ_FIRST(&head->queue));
-}
-
-static __inline struct bio *
-bioq_first(struct bio_queue_head *head)
 {
 	return (TAILQ_FIRST(&head->queue));
 }
@@ -532,14 +426,6 @@ bioq_first(struct bio_queue_head *head)
 #define	clrbuf(bp) {							\
 	bzero((bp)->b_data, (u_int)(bp)->b_bcount);			\
 	(bp)->b_resid = 0;						\
-}
-
-/*
- * Zero out the bio's data area.
- */
-#define	clrbio(bp) {							\
-	bzero((bp)->bio_data, (u_int)(bp)->bio_bcount);			\
-	(bp)->bio_resid = 0;						\
 }
 
 /* Flags to low-level allocation routines. */
@@ -591,9 +477,6 @@ int	cluster_read __P((struct vnode *, u_quad_t, daddr_t, long,
 	    struct ucred *, long, int, struct buf **));
 int	cluster_wbuild __P((struct vnode *, long, daddr_t, int));
 void	cluster_write __P((struct buf *, u_quad_t, int));
-int	physio __P((dev_t dev, struct uio *uio, int ioflag));
-#define physread physio
-#define physwrite physio
 void	vfs_bio_set_validclean __P((struct buf *, int base, int size));
 void	vfs_bio_clrbuf __P((struct buf *));
 void	vfs_busy_pages __P((struct buf *, int clear_modify));

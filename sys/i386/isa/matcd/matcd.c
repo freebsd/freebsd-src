@@ -348,7 +348,7 @@ static char	MATCDCOPYRIGHT[] = "Matsushita CD-ROM driver, Copr. 1994,1995 Frank 
 #include	<sys/param.h>
 #include	<sys/systm.h>
 
-#include	<sys/buf.h>
+#include <sys/bio.h>
 #include	<sys/cdio.h>
 #include	<sys/disklabel.h>
 #include	<sys/fcntl.h>
