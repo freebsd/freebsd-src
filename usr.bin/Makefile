@@ -217,9 +217,10 @@ SUBDIR=	alias \
 	ypwhich
 
 .if defined(RELEASEDIR) || \
-    (!exists(${.CURDIR}/../kerberosIV) && !exists(${.CURDIR}/../secure)) || \
-    defined(NOCRYPT) || (defined(NOSECURE) && !defined(MAKE_KERBEROS4))
-# Releases need both this non-crypt telnet and the crypt telnet.
+    (!exists(${.CURDIR}/../secure) && !exists(${.CURDIR}/../kerberos5)) || \
+    defined(NOCRYPT) || \
+    (defined(NOSECURE) && !defined(MAKE_KERBEROS5))
+# make release needs both
 SUBDIR+=telnet
 .endif
 

@@ -38,10 +38,10 @@ SUBDIR+=named-xfer
 SUBDIR+=mail.local smrsh
 .endif
 
-
 .if defined(RELEASEDIR) || \
-    (!exists(${.CURDIR}/../secure) && !exists(${.CURDIR}/../kerberosIV)) || \
-    defined(NOCRYPT) || (defined(NOSECURE) && !defined(MAKE_KERBEROS4))
+    (!exists(${.CURDIR}/../secure) && !exists(${.CURDIR}/../kerberos5)) || \
+    defined(NOCRYPT) || \
+    (defined(NOSECURE) && !defined(MAKE_KERBEROS5))
 # make release needs both
 SUBDIR+=telnetd
 .endif
