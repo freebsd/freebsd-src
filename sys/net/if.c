@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.c	8.3 (Berkeley) 1/4/94
- * $Id: if.c,v 1.2 1994/08/02 07:46:05 davidg Exp $
+ * $Id: if.c,v 1.3 1994/08/08 10:49:18 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -520,6 +520,8 @@ ifioctl(so, cmd, data, p)
 			return (error);
 		if (ifp->if_ioctl == NULL)
 			return (EOPNOTSUPP);
+		if (ifr->ifr_mtu < 1 || ifr->ifr_mtu > 65535)
+			return (EINVAL);
 		return ((*ifp->if_ioctl)(ifp, cmd, data));
 
 	case SIOCADDMULTI:
