@@ -26,6 +26,7 @@
 #include <sys/snoop.h>
 #include <sys/vnode.h>
 
+static	l_write_t	snplwrite;
 static	d_open_t	snpopen;
 static	d_close_t	snpclose;
 static	d_read_t	snpread;
@@ -50,36 +51,47 @@ static struct cdevsw snp_cdevsw = {
 	/* flags */	0,
 };
 
+static struct linesw snpdisc = {
+	ttyopen,	ttylclose,	ttread,		snplwrite,
+	l_nullioctl,	ttyinput,	ttstart,	ttymodem
+};
 
 static MALLOC_DEFINE(M_SNP, "snp", "Snoop device data");
-
-#define ttytosnp(t) (struct snoop *)(t)->t_sc
-static struct tty	*snpdevtotty __P((dev_t dev));
-static int		snp_detach __P((struct snoop *snp));
-
 /*
  * The number of the "snoop" line discipline.  This gets determined at
  * module load time.
  */
-static int mylinedisc;
+static int snooplinedisc;
+
+static struct tty	*snpdevtotty __P((dev_t dev));
+static void		snp_clone __P((void *arg, char *name,
+			    int namelen, dev_t *dev));
+static int		snp_detach __P((struct snoop *snp));
+static int		snp_down __P((struct snoop *snp));
+static int		snp_in __P((struct snoop *snp, char *buf, int n));
+static int		snp_modevent __P((module_t mod, int what, void *arg));
 
 static int
-dsnwrite(struct tty *tp, struct uio *uio, int flag)
+snplwrite(tp, uio, flag)
+	struct tty *tp;
+	struct uio *uio;
+	int flag;
 {
-	struct snoop *snp = ttytosnp(tp);
-	int error = 0;
-	char ibuf[512];
-	int ilen;
 	struct iovec iov;
 	struct uio uio2;
+	struct snoop *snp;
+	int error, ilen;
+	char ibuf[512];
 
+	snp = tp->t_sc;
+	error = 0;
 	while (uio->uio_resid > 0) {
 		ilen = imin(sizeof(ibuf), uio->uio_resid);
 		error = uiomove(ibuf, ilen, uio);
-		if (error)
+		if (error != 0)
 			break;
-		snpin(snp, ibuf, ilen);
-		/* Hackish, but I think it's the least of all evils. */
+		snp_in(snp, ibuf, ilen);
+		/* Hackish, but probably the least of all evils. */
 		iov.iov_base = ibuf;
 		iov.iov_len = ilen;
 		uio2.uio_iov = &iov;
@@ -90,21 +102,17 @@ dsnwrite(struct tty *tp, struct uio *uio, int flag)
 		uio2.uio_rw = UIO_WRITE;
 		uio2.uio_procp = uio->uio_procp;
 		error = ttwrite(tp, &uio2, flag);
-		if (error)
+		if (error != 0)
 			break;
 	}
 	return (error);
 }
 
-static struct linesw snpdisc = {
-	ttyopen,	ttylclose,	ttread,		dsnwrite,
-	l_nullioctl,	ttyinput,	ttstart,	ttymodem };
-
 static struct tty *
-snpdevtotty (dev)
-	dev_t		dev;
+snpdevtotty(dev)
+	dev_t dev;
 {
-	struct cdevsw	*cdp;
+	struct cdevsw *cdp;
 
 	cdp = devsw(dev);
 	if (cdp == NULL || (cdp->d_flags & D_TTY) == 0)
@@ -117,24 +125,23 @@ snpdevtotty (dev)
 				 * length for function keys...
 				 */
 
-static	int
+static int
 snpwrite(dev, uio, flag)
-	dev_t           dev;
-	struct uio     *uio;
-	int             flag;
+	dev_t dev;
+	struct uio *uio;
+	int flag;
 {
-	int             len, i, error;
-	struct snoop   *snp = dev->si_drv1;
-	struct tty     *tp;
-	char		c[SNP_INPUT_BUF];
+	struct snoop *snp;
+	struct tty *tp;
+	int error, i, len;
+	char c[SNP_INPUT_BUF];
 
-	if (snp->snp_tty == NULL)
-		return (EIO);
-
+	snp = dev->si_drv1;
 	tp = snp->snp_tty;
-
+	if (tp == NULL)
+		return (EIO);
 	if ((tp->t_sc == snp) && (tp->t_state & TS_SNOOP) &&
-	    tp->t_line == mylinedisc)
+	    tp->t_line == snooplinedisc)
 		goto tty_input;
 
 	printf("Snoop: attempt to write to bad tty.\n");
@@ -153,22 +160,22 @@ tty_input:
 				return (EIO);
 		}
 	}
-	return 0;
-
+	return (0);
 }
 
 
-static	int
+static int
 snpread(dev, uio, flag)
-	dev_t           dev;
-	struct uio     *uio;
-	int             flag;
+	dev_t dev;
+	struct uio *uio;
+	int flag;
 {
-	struct snoop   *snp = dev->si_drv1; 
-	int             len, n, nblen, s, error = 0;
-	caddr_t         from;
-	char           *nbuf;
+	struct snoop *snp;
+	int error, len, n, nblen, s;
+	caddr_t from;
+	char *nbuf;
 
+	snp = dev->si_drv1;
 	KASSERT(snp->snp_len + snp->snp_base <= snp->snp_blen,
 	    ("snoop buffer error"));
 
@@ -188,6 +195,7 @@ snpread(dev, uio, flag)
 
 	n = snp->snp_len;
 
+	error = 0;
 	while (snp->snp_len > 0 && uio->uio_resid > 0 && error == 0) {
 		len = min((unsigned)uio->uio_resid, snp->snp_len);
 		from = (caddr_t)(snp->snp_buf + snp->snp_base);
@@ -204,7 +212,7 @@ snpread(dev, uio, flag)
 	s = spltty();
 	nblen = snp->snp_blen;
 	if (((nblen / 2) >= SNOOP_MINLEN) && (nblen / 2) >= snp->snp_len) {
-		while (((nblen / 2) >= snp->snp_len) && ((nblen / 2) >= SNOOP_MINLEN))
+		while (nblen / 2 >= snp->snp_len && nblen / 2 >= SNOOP_MINLEN)
 			nblen = nblen / 2;
 		if ((nbuf = malloc(nblen, M_SNP, M_NOWAIT)) != NULL) {
 			bcopy(snp->snp_buf + snp->snp_base, nbuf, snp->snp_len);
@@ -216,28 +224,28 @@ snpread(dev, uio, flag)
 	}
 	splx(s);
 
-	return error;
+	return (error);
 }
 
-int
-snpin(snp, buf, n)
-	struct snoop   *snp;
-	char           *buf;
-	int             n;
+static int
+snp_in(snp, buf, n)
+	struct snoop *snp;
+	char *buf;
+	int n;
 {
-	int             s_free, s_tail;
-	int             s, len, nblen;
-	caddr_t         from, to;
-	char           *nbuf;
+	int s_free, s_tail;
+	int s, len, nblen;
+	caddr_t from, to;
+	char *nbuf;
 
 	KASSERT(n >= 0, ("negative snoop char count"));
 
 	if (n == 0)
-		return 0;
+		return (0);
 
 	if (snp->snp_flags & SNOOP_DOWN) {
 		printf("Snoop: more data to down interface.\n");
-		return 0;
+		return (0);
 	}
 
 	if (snp->snp_flags & SNOOP_OFLOW) {
@@ -249,7 +257,7 @@ snpin(snp, buf, n)
 		 * snooping and retry...
 		 */
 
-		return (snpdown(snp));
+		return (snp_down(snp));
 	}
 	s_tail = snp->snp_blen - (snp->snp_len + snp->snp_base);
 	s_free = snp->snp_blen - snp->snp_len;
@@ -275,7 +283,7 @@ snpin(snp, buf, n)
 				wakeup((caddr_t)snp);
 			}
 			splx(s);
-			return 0;
+			return (0);
 		}
 		splx(s);
 	}
@@ -297,16 +305,16 @@ snpin(snp, buf, n)
 	selwakeup(&snp->snp_sel);
 	snp->snp_sel.si_pid = 0;
 
-	return n;
+	return (n);
 }
 
-static	int
+static int
 snpopen(dev, flag, mode, p)
-	dev_t           dev;
-	int             flag, mode;
-	struct proc    *p;
+	dev_t dev;
+	int flag, mode;
+	struct proc *p;
 {
-	struct snoop   *snp;
+	struct snoop *snp;
 	int error;
 
 	if ((error = suser(p)) != 0)
@@ -316,7 +324,8 @@ snpopen(dev, flag, mode, p)
 		if (!(dev->si_flags & SI_NAMED))
 			make_dev(&snp_cdevsw, minor(dev), UID_ROOT, GID_WHEEL,
 			    0600, "snp%d", dev2unit(dev));
-		dev->si_drv1 = snp = malloc(sizeof(*snp), M_SNP, M_WAITOK|M_ZERO);
+		dev->si_drv1 = snp = malloc(sizeof(*snp), M_SNP,
+		    M_WAITOK | M_ZERO);
 	} else
 		return (EBUSY);
 
@@ -342,9 +351,9 @@ snpopen(dev, flag, mode, p)
 
 static int
 snp_detach(snp)
-	struct snoop   *snp;
+	struct snoop *snp;
 {
-	struct tty     *tp;
+	struct tty *tp;
 
 	snp->snp_base = 0;
 	snp->snp_len = 0;
@@ -353,14 +362,12 @@ snp_detach(snp)
 	 * If line disc. changed we do not touch this pointer, SLIP/PPP will
 	 * change it anyway.
 	 */
-
-	if (snp->snp_tty == NULL)
+	tp = snp->snp_tty;
+	if (tp == NULL)
 		goto detach_notty;
 
-	tp = snp->snp_tty;
-
 	if (tp && (tp->t_sc == snp) && (tp->t_state & TS_SNOOP) &&
-	    tp->t_line == mylinedisc) {
+	    tp->t_line == snooplinedisc) {
 		tp->t_sc = NULL;
 		tp->t_state &= ~TS_SNOOP;
 		tp->t_line = snp->snp_olddisc;
@@ -379,15 +386,16 @@ detach_notty:
 	return (0);
 }
 
-static	int
+static int
 snpclose(dev, flags, fmt, p)
-	dev_t           dev;
-	int             flags;
-	int             fmt;
-	struct proc    *p;
+	dev_t dev;
+	int flags;
+	int fmt;
+	struct proc *p;
 {
-	struct snoop   *snp = dev->si_drv1;
+	struct snoop *snp;
 
+	snp = dev->si_drv1;
 	snp->snp_blen = 0;
 	free(snp->snp_buf, M_SNP);
 	snp->snp_flags &= ~SNOOP_OPEN;
@@ -397,9 +405,9 @@ snpclose(dev, flags, fmt, p)
 	return (snp_detach(snp));
 }
 
-int
-snpdown(snp)
-	struct snoop	*snp;
+static int
+snp_down(snp)
+	struct snoop *snp;
 {
 
 	if (snp->snp_blen != SNOOP_MINLEN) {
@@ -412,25 +420,25 @@ snpdown(snp)
 	return (snp_detach(snp));
 }
 
-
-static	int
+static int
 snpioctl(dev, cmd, data, flags, p)
-	dev_t           dev;
-	u_long          cmd;
-	caddr_t         data;
-	int             flags;
-	struct proc    *p;
+	dev_t dev;
+	u_long cmd;
+	caddr_t data;
+	int flags;
+	struct proc *p;
 {
-	dev_t		tdev;
-	struct snoop   *snp = dev->si_drv1;
-	struct tty     *tp, *tpo;
+	struct snoop *snp;
+	struct tty *tp, *tpo;
+	dev_t tdev;
 	int s;
 
+	snp = dev->si_drv1;
 	switch (cmd) {
 	case SNPSTTY:
 		tdev = udev2dev(*((udev_t *)data), 0);
 		if (tdev == NODEV)
-			return (snpdown(snp));
+			return (snp_down(snp));
 
 		tp = snpdevtotty(tdev);
 		if (!tp)
@@ -447,7 +455,7 @@ snpioctl(dev, cmd, data, flags, p)
 		tp->t_sc = (caddr_t)snp;
 		tp->t_state |= TS_SNOOP;
 		snp->snp_olddisc = tp->t_line;
-		tp->t_line = mylinedisc;
+		tp->t_line = snooplinedisc;
 		snp->snp_tty = tp;
 		snp->snp_target = tdev;
 
@@ -501,17 +509,17 @@ snpioctl(dev, cmd, data, flags, p)
 	return (0);
 }
 
-
-static	int
+static int
 snppoll(dev, events, p)
-	dev_t           dev;
-	int             events;
-	struct proc    *p;
+	dev_t dev;
+	int events;
+	struct proc *p;
 {
-	struct snoop   *snp = dev->si_drv1;
-	int		revents = 0;
+	struct snoop *snp;
+	int revents;
 
-
+	snp = dev->si_drv1;
+	revents = 0;
 	/*
 	 * If snoop is down, we don't want to poll() forever so we return 1.
 	 * Caller should see if we down via FIONREAD ioctl().  The last should
@@ -527,7 +535,11 @@ snppoll(dev, events, p)
 }
 
 static void
-snp_clone(void *arg, char *name, int namelen, dev_t *dev)
+snp_clone(arg, name, namelen, dev)
+	void *arg;
+	char *name;
+	int namelen;
+	dev_t *dev;
 {
 	int u;
 
@@ -537,29 +549,33 @@ snp_clone(void *arg, char *name, int namelen, dev_t *dev)
 		return;
 	*dev = make_dev(&snp_cdevsw, unit2minor(u), UID_ROOT, GID_WHEEL, 0600,
 	    "snp%d", u);
-	return;
 }
 
 static int
-snp_modevent(module_t mod, int type, void *data)
+snp_modevent(mod, type, data)
+	module_t mod;
+	int type;
+	void *data;
 {
-	static eventhandler_tag eh_tag = NULL;
+	static eventhandler_tag eh_tag;
 
 	switch (type) {
 	case MOD_LOAD:
+		/* XXX error checking. */
 		eh_tag = EVENTHANDLER_REGISTER(dev_clone, snp_clone, 0, 1000);
-		mylinedisc = ldisc_register(LDISC_LOAD, &snpdisc);
+		snooplinedisc = ldisc_register(LDISC_LOAD, &snpdisc);
 		cdevsw_add(&snp_cdevsw);
 		break;
 	case MOD_UNLOAD:
+		/* XXX don't unload if busy. */
 		EVENTHANDLER_DEREGISTER(dev_clone, eh_tag);
-		ldisc_deregister(mylinedisc);
+		ldisc_deregister(snooplinedisc);
 		cdevsw_remove(&snp_cdevsw);
 		break;
 	default:
 		break;
 	}
-	return 0;
+	return (0);
 }
 
 static moduledata_t snp_mod = {
@@ -567,4 +583,4 @@ static moduledata_t snp_mod = {
         snp_modevent,
         NULL
 };
-DECLARE_MODULE(snp, snp_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE+CDEV_MAJOR);
+DECLARE_MODULE(snp, snp_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE + CDEV_MAJOR);
