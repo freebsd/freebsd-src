@@ -295,6 +295,8 @@ make_dev(struct cdevsw *devsw, int minor, uid_t uid, gid_t gid, int perms, const
 		devsw->d_maj = i;
 		reserved_majors[i] = i;
 	} else {
+		if (devsw->d_maj == 256)	/* XXX: tty_cons.c is magic */
+			devsw->d_maj = 0;	
 		KASSERT(devsw->d_maj >= 0 && devsw->d_maj < 256,
 		    ("Invalid major (%d) in make_dev", devsw->d_maj));
 		if (reserved_majors[devsw->d_maj] != devsw->d_maj) {
