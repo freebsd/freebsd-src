@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pc98gdc.c,v 1.8 1999/05/09 04:56:42 kato Exp $
+ *	$Id: pc98gdc.c,v 1.9 1999/05/30 16:53:20 phk Exp $
  */
 
 #include "gdc.h"
@@ -72,7 +72,7 @@ typedef struct gdc_softc {
 #define GDC_SOFTC(unit)	\
 	((gdc_softc_t *)devclass_get_softc(gdc_devclass, unit))
 
-devclass_t		gdc_devclass;
+static devclass_t	gdc_devclass;
 
 static int		gdcprobe(device_t dev);
 static int		gdc_attach(device_t dev);
@@ -99,13 +99,15 @@ static int		gdc_attach_unit(int unit, gdc_softc_t *sc, int flags);
 static d_open_t		gdcopen;
 static d_close_t	gdcclose;
 static d_read_t		gdcread;
+static d_write_t	gdcwrite;
 static d_ioctl_t	gdcioctl;
+static d_mmap_t		gdcmmap;
 
 static struct cdevsw vga_cdevsw = {
 	/* open */	gdcopen,
 	/* close */	gdcclose,
-	/* read */	noread,
-	/* write */	nowrite,
+	/* read */	gdcread,
+	/* write */	gdcwrite,
 	/* ioctl */	gdcioctl,
 	/* stop */	nostop,
 	/* reset */	noreset,
@@ -139,9 +141,24 @@ static int
 gdc_attach(device_t dev)
 {
 	gdc_softc_t *sc;
+	int error;
 
 	sc = device_get_softc(dev);
-	return gdc_attach_unit(device_get_unit(dev), sc, isa_get_flags(dev));
+	error = gdc_attach_unit(device_get_unit(dev), sc, isa_get_flags(dev));
+	if (error)
+		return error;
+
+#ifdef FB_INSTALL_CDEV
+	/* attach a virtual frame buffer device */
+	error = fb_attach(makedev(0, GDC_MKMINOR(unit)), sc->adp, &gdc_cdevsw);
+	if (error)
+		return error;
+#endif /* FB_INSTALL_CDEV */
+
+	if (bootverbose)
+		(*vidsw[sc->adp->va_index]->diag)(sc->adp, bootverbose);
+
+	return 0;
 }
 
 static int
@@ -152,7 +169,7 @@ gdc_probe_unit(int unit, gdc_softc_t *sc, int flags)
 	bzero(sc, sizeof(*sc));
 	sw = vid_get_switch(DRIVER_NAME);
 	if (sw == NULL)
-		return 0;
+		return ENXIO;
 	return (*sw->probe)(unit, &sc->adp, NULL, flags);
 }
 
@@ -160,29 +177,77 @@ static int
 gdc_attach_unit(int unit, gdc_softc_t *sc, int flags)
 {
 	video_switch_t *sw;
-	int error;
 
 	sw = vid_get_switch(DRIVER_NAME);
 	if (sw == NULL)
 		return ENXIO;
+	return (*sw->init)(unit, sc->adp, flags);
+}
 
-	error = (*sw->init)(unit, sc->adp, flags);
-	if (error)
-		return ENXIO;
+/* cdev driver functions */
 
 #ifdef FB_INSTALL_CDEV
-	/* attach a virtual frame buffer device */
-	error = fb_attach(makedev(0, GDC_MKMINOR(unit)), scp->adp,
-			  &vga_cdevsw);
-	if (error)
-		return error;
-#endif /* FB_INSTALL_CDEV */
 
-	if (bootverbose)
-		(*sw->diag)(sc->adp, bootverbose);
+static int
+gdcopen(dev_t dev, int flag, int mode, struct proc *p)
+{
+    gdc_softc_t *sc;
 
-	return 0;
+    sc = GDC_SOFTC(GDC_UNIT(dev));
+    if (sc == NULL)
+	return ENXIO;
+    if (mode & (O_CREAT | O_APPEND | O_TRUNC))
+	return ENODEV;
+
+    return genfbopen(&sc->gensc, sc->adp, flag, mode, p);
 }
+
+static int
+gdcclose(dev_t dev, int flag, int mode, struct proc *p)
+{
+    gdc_softc_t *sc;
+
+    sc = GDC_SOFTC(GDC_UNIT(dev));
+    return genfbclose(&sc->gensc, sc->adp, flag, mode, p);
+}
+
+static int
+gdcread(dev_t dev, struct uio *uio, int flag)
+{
+    gdc_softc_t *sc;
+
+    sc = GDC_SOFTC(GDC_UNIT(dev));
+    return genfbread(&sc->gensc, sc->adp, uio, flag);
+}
+
+static int
+gdcwrite(dev_t dev, struct uio *uio, int flag)
+{
+    gdc_softc_t *sc;
+
+    sc = GDC_SOFTC(GDC_UNIT(dev));
+    return genfbread(&sc->gensc, sc->adp, uio, flag);
+}
+
+static int
+gdcioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct proc *p)
+{
+    gdc_softc_t *sc;
+
+    sc = GDC_SOFTC(GDC_UNIT(dev));
+    return genfbioctl(&sc->gensc, sc->adp, cmd, arg, flag, p);
+}
+
+static int
+gdcmmap(dev_t dev, vm_offset_t offset, int prot)
+{
+    gdc_softc_t *sc;
+
+    sc = GDC_SOFTC(GDC_UNIT(dev));
+    return genfbmmap(&sc->gensc, sc->adp, offset, prot);
+}
+
+#endif /* FB_INSTALL_CDEV */
 
 /* LOW-LEVEL */
 
@@ -213,7 +278,7 @@ static video_adapter_t adapter_init_value[] = {
       V_ADP_COLOR | V_ADP_MODECHANGE | V_ADP_BORDER, 
       IO_GDC1, 16, TEXT_GDC,		/* va_io*, XXX */
       VIDEO_BUF_BASE, VIDEO_BUF_SIZE,	/* va_mem* */
-      TEXT_BUF_BASE, TEXT_BUF_SIZE, TEXT_BUF_SIZE, /* va_window* */
+      TEXT_BUF_BASE, TEXT_BUF_SIZE, TEXT_BUF_SIZE, 0, /* va_window* */
       0, 0, 				/* va_buffer, va_buffer_size */
       0, M_PC98_80x25, 0, 		/* va_*mode* */
     },
@@ -224,6 +289,7 @@ static video_adapter_t	biosadapter[1];
 /* video driver declarations */
 static int			gdc_configure(int flags);
 static int			gdc_nop(void);
+static int			gdc_err(video_adapter_t *adp, ...);
 static vi_probe_t		gdc_probe;
 static vi_init_t		gdc_init;
 static vi_get_info_t		gdc_get_info;
@@ -235,10 +301,10 @@ static vi_load_state_t		gdc_load_state;
 static vi_read_hw_cursor_t	gdc_read_hw_cursor;
 static vi_set_hw_cursor_t	gdc_set_hw_cursor;
 static vi_set_hw_cursor_shape_t	gdc_set_hw_cursor_shape;
-static vi_mmap_t		gdc_mmap;
+static vi_blank_display_t	gdc_blank_display;
+static vi_mmap_t		gdc_mmap_buf;
+static vi_ioctl_t		gdc_dev_ioctl;
 static vi_diag_t		gdc_diag;
-
-static int			gdc_err(video_adapter_t *adp, ...);
 
 static video_switch_t gdcvidsw = {
 	gdc_probe,
@@ -258,8 +324,14 @@ static video_switch_t gdcvidsw = {
 	gdc_read_hw_cursor,
 	gdc_set_hw_cursor,
 	gdc_set_hw_cursor_shape,
-	(vi_blank_display_t *)gdc_nop,
-	gdc_mmap,
+	gdc_blank_display,
+	gdc_mmap_buf,
+	gdc_dev_ioctl,
+	(vi_clear_t *)gdc_err,
+	(vi_fill_rect_t *)gdc_err,
+	(vi_bitblt_t *)gdc_err,
+	(int (*)(void))gdc_err,
+	(int (*)(void))gdc_err,
 	gdc_diag,
 };
 
@@ -271,15 +343,15 @@ VIDEO_DRIVER(gdc, gdcvidsw, gdc_configure);
 
 static video_info_t bios_vmode[] = {
     { M_PC98_80x25, V_INFO_COLOR, 80, 25, 8, 16, 4, 1,
-      TEXT_BUF_BASE, TEXT_BUF_SIZE, TEXT_BUF_SIZE, 0, 0 },
+      TEXT_BUF_BASE, TEXT_BUF_SIZE, TEXT_BUF_SIZE, 0, 0, V_INFO_MM_TEXT },
 #ifdef LINE30
     { M_PC98_80x30, V_INFO_COLOR, 80, 30, 8, 16, 4, 1,
-      TEXT_BUF_BASE, TEXT_BUF_SIZE, TEXT_BUF_SIZE, 0, 0 },
+      TEXT_BUF_BASE, TEXT_BUF_SIZE, TEXT_BUF_SIZE, 0, 0, V_INFO_MM_TEXT },
 #endif
     { EOT },
 };
 
-static int		init_done = FALSE;
+static int		gdc_init_done = FALSE;
 
 /* local functions */
 static int map_gen_mode_num(int type, int color, int mode);
@@ -287,7 +359,7 @@ static int probe_adapters(void);
 static void dump_buffer(u_char *buf, size_t len);
 
 #define	prologue(adp, flag, err)			\
-	if (!init_done || !((adp)->va_flags & (flag)))	\
+	if (!gdc_init_done || !((adp)->va_flags & (flag)))	\
 	    return (err)
 
 /* a backdoor for the console driver */
@@ -336,9 +408,9 @@ probe_adapters(void)
     video_info_t info;
 
     /* do this test only once */
-    if (init_done)
+    if (gdc_init_done)
 	return 1;
-    init_done = TRUE;
+    gdc_init_done = TRUE;
 
     biosadapter[0] = adapter_init_value[0];
     biosadapter[0].va_flags |= V_ADP_PROBED;
@@ -547,6 +619,12 @@ gdc_nop(void)
 }
 
 static int
+gdc_err(video_adapter_t *adp, ...)
+{
+    return ENODEV;
+}
+
+static int
 gdc_probe(int unit, video_adapter_t **adpp, void *arg, int flags)
 {
     probe_adapters();
@@ -587,8 +665,8 @@ gdc_get_info(video_adapter_t *adp, int mode, video_info_t *info)
 {
     int i;
 
-    if (!init_done)
-	return 1;
+    if (!gdc_init_done)
+	return ENXIO;
 
     mode = map_gen_mode_num(adp->va_type, adp->va_flags & V_ADP_COLOR, mode);
     for (i = 0; bios_vmode[i].vi_mode != EOT; ++i) {
@@ -596,10 +674,11 @@ gdc_get_info(video_adapter_t *adp, int mode, video_info_t *info)
 	    continue;
 	if (mode == bios_vmode[i].vi_mode) {
 	    *info = bios_vmode[i];
+	    info->vi_buffer_size = info->vi_window_size*info->vi_planes;
 	    return 0;
 	}
     }
-    return 1;
+    return EINVAL;
 }
 
 /*
@@ -614,7 +693,7 @@ gdc_query_mode(video_adapter_t *adp, video_info_t *info)
     video_info_t buf;
     int i;
 
-    if (!init_done)
+    if (!gdc_init_done)
 	return -1;
 
     for (i = 0; bios_vmode[i].vi_mode != EOT; ++i) {
@@ -661,16 +740,16 @@ gdc_set_mode(video_adapter_t *adp, int mode)
 {
     video_info_t info;
 
-    prologue(adp, V_ADP_MODECHANGE, 1);
+    prologue(adp, V_ADP_MODECHANGE, ENODEV);
 
     mode = map_gen_mode_num(adp->va_type, 
 			    adp->va_flags & V_ADP_COLOR, mode);
     if (gdc_get_info(adp, mode, &info))
-	return 1;
+	return EINVAL;
 
 #ifdef LINE30
     switch (info.vi_mode) {
-       	case M_PC98_80x25:	/* VGA TEXT MODES */
+       	case M_PC98_80x25:	/* GDC TEXT MODES */
 		initialize_gdc(T25_G400);
 		break;
 	case M_PC98_80x30:
@@ -744,7 +823,7 @@ gdc_set_border(video_adapter_t *adp, int color)
 static int
 gdc_save_state(video_adapter_t *adp, void *p, size_t size)
 {
-    return 1;
+    return ENODEV;
 }
 
 /*
@@ -754,7 +833,7 @@ gdc_save_state(video_adapter_t *adp, void *p, size_t size)
 static int
 gdc_load_state(video_adapter_t *adp, void *p)
 {
-    return 1;
+    return ENODEV;
 }
 
 /*
@@ -767,11 +846,11 @@ gdc_read_hw_cursor(video_adapter_t *adp, int *col, int *row)
     u_int16_t off;
     int s;
 
-    if (!init_done)
-	return 1;
+    if (!gdc_init_done)
+	return ENXIO;
 
     if (adp->va_info.vi_flags & V_INFO_GRAPHICS)
-	return 1;
+	return ENODEV;
 
     s = spltty();
     master_gdc_cmd(0xe0);	/* _GDC_CSRR */
@@ -802,14 +881,30 @@ gdc_set_hw_cursor(video_adapter_t *adp, int col, int row)
     u_int16_t off;
     int s;
 
-    if (!init_done)
-	return 1;
+    if (!gdc_init_done)
+	return ENXIO;
 
     if ((col == -1) && (row == -1)) {
 	off = -1;
+	/* XXX */
+	if (epson_machine_id == 0x20) {
+	    s = spltty();
+	    outb(0x43f, 0x42);
+	    outb(0x0c17, inb(0xc17) & ~0x08);
+	    outb(0x43f, 0x40);
+	    splx(s);
+	}
     } else {
 	if (adp->va_info.vi_flags & V_INFO_GRAPHICS)
-	    return 1;
+	    return ENODEV;
+	/* XXX */
+	if (epson_machine_id == 0x20) {
+	    s = spltty();
+	    outb(0x43f, 0x42);
+	    outb(0x0c17, inb(0xc17) | 0x08);
+	    outb(0x43f, 0x40);
+	    splx(s);
+	}
 	off = row*adp->va_info.vi_width + col;
     }
 
@@ -834,6 +929,9 @@ gdc_set_hw_cursor_shape(video_adapter_t *adp, int base, int height,
     int end;
     int s;
 
+    if (!gdc_init_done)
+	return ENXIO;
+
     start = celsize - (base + height);
     end = celsize - base - 1;
     /*
@@ -846,16 +944,123 @@ gdc_set_hw_cursor_shape(video_adapter_t *adp, int base, int height,
 	--end;
 
     s = spltty();
+    if (epson_machine_id == 0x20) {		/* XXX */
+	outb(0x43f, 0x42);
+	if (height > 0)
+	    outb(0x0c17, inb(0xc17) | 0x08);
+	else
+	    outb(0x0c17, inb(0xc17) & ~0x08);
+	outb(0x43f, 0x40);
+    }
     master_gdc_cmd(0x4b);			/* _GDC_CSRFORM */
     master_gdc_prm(((height > 0) ? 0x80 : 0)	/* cursor on/off */
-	| (celsize - 1) & 0x1f);		/* cel size */
+	| ((celsize - 1) & 0x1f));		/* cel size */
     master_gdc_word_prm(((end & 0x1f) << 11)	/* end line */
 	| (12 << 6)				/* blink rate */
 	| (blink ? 0x20 : 0)			/* blink on/off */
 	| (start & 0x1f));			/* start line */
     splx(s);
 
-    return 1;
+    return 0;
+}
+
+/*
+ * blank_display()
+ * Put the display in power save/power off mode.
+ */
+static int
+gdc_blank_display(video_adapter_t *adp, int mode)
+{
+    int s;
+
+    if (!gdc_init_done)
+	return ENXIO;
+
+    s = splhigh();
+    switch (mode) {
+    case V_DISPLAY_SUSPEND:
+    case V_DISPLAY_STAND_BY:
+	/*
+	 * FIXME: I don't know how to put the display into `suspend'
+	 * or `stand-by' mode via GDC... 
+	 */
+	/* FALL THROUGH */
+
+    case V_DISPLAY_BLANK:
+	if (epson_machine_id == 0x20) {		/* XXX */
+	    outb(0x43f, 0x42);
+	    outb(0xc17, inb(0xc17) & ~0x08);
+	    outb(0xc16, inb(0xc16) & ~0x02);
+	    outb(0x43f, 0x40);
+	} else {
+	    while (!(inb(TEXT_GDC) & 0x20))	/* V-SYNC wait */
+		;
+	    outb(TEXT_GDC + 2, 0xc);		/* text off */
+	}
+	break;
+
+    case V_DISPLAY_ON:
+	if (epson_machine_id == 0x20) {		/* XXX */
+	    outb(0x43f, 0x42);
+	    outb(0xc17, inb(0xc17) | 0x08);
+	    outb(0xc16, inb(0xc16) | 0x02);
+	    outb(0x43f, 0x40);
+	} else {
+	    while (!(inb(TEXT_GDC) & 0x20))	/* V-SYNC wait */
+		;
+	    outb(TEXT_GDC + 2, 0xd);		/* text on */
+	}
+	break;
+    }
+    splx(s);
+    return 0;
+}
+
+/*
+ * mmap():
+ * Mmap frame buffer.
+ */
+static int
+gdc_mmap_buf(video_adapter_t *adp, vm_offset_t offset, int prot)
+{
+    /* FIXME: is this correct? XXX */
+    if (offset > VIDEO_BUF_SIZE - PAGE_SIZE)
+	return -1;
+    return i386_btop(adp->va_info.vi_window + offset);
+}
+
+static int
+gdc_dev_ioctl(video_adapter_t *adp, u_long cmd, caddr_t arg)
+{
+    switch (cmd) {
+    case FBIO_GETWINORG:	/* get frame buffer window origin */
+	*(u_int *)arg = 0;
+	return 0;
+
+    case FBIO_SETWINORG:	/* set frame buffer window origin */
+    case FBIO_SETDISPSTART:	/* set display start address */
+    case FBIO_SETLINEWIDTH:	/* set scan line length in pixel */
+    case FBIO_GETPALETTE:	/* get color palette */
+    case FBIO_SETPALETTE:	/* set color palette */
+    case FBIOGETCMAP:		/* get color palette */
+    case FBIOPUTCMAP:		/* set color palette */
+	return ENODEV;
+
+    case FBIOGTYPE:		/* get frame buffer type info. */
+	((struct fbtype *)arg)->fb_type = fb_type(adp->va_type);
+	((struct fbtype *)arg)->fb_height = adp->va_info.vi_height;
+	((struct fbtype *)arg)->fb_width = adp->va_info.vi_width;
+	((struct fbtype *)arg)->fb_depth = adp->va_info.vi_depth;
+	if ((adp->va_info.vi_depth <= 1) || (adp->va_info.vi_depth > 8))
+	    ((struct fbtype *)arg)->fb_cmsize = 0;
+	else
+	    ((struct fbtype *)arg)->fb_cmsize = 1 << adp->va_info.vi_depth;
+	((struct fbtype *)arg)->fb_size = adp->va_buffer_size;
+	return 0;
+
+    default:
+	return fb_commonioctl(adp, cmd, arg);
+    }
 }
 
 static void
@@ -871,18 +1076,6 @@ dump_buffer(u_char *buf, size_t len)
 }
 
 /*
- * mmap():
- * Mmap frame buffer.
- */
-static int
-gdc_mmap(video_adapter_t *adp, vm_offset_t offset)
-{
-    if (offset > 0x48000 - PAGE_SIZE)
-	return -1;
-    return i386_btop((VIDEO_BUF_BASE + offset));
-}
-
-/*
  * diag():
  * Print some information about the video adapter and video modes,
  * with requested level of details.
@@ -894,8 +1087,8 @@ gdc_diag(video_adapter_t *adp, int level)
     int i;
 #endif
 
-    if (!init_done)
-	return 1;
+    if (!gdc_init_done)
+	return ENXIO;
 
     fb_dump_adp_info(DRIVER_NAME, adp, level);
 
@@ -910,12 +1103,6 @@ gdc_diag(video_adapter_t *adp, int level)
 #endif
 
     return 0;
-}
-
-static int
-gdc_err(video_adapter_t *adp, ...)
-{
-	return 0;
 }
 
 #endif /* NGDC > 0 */
