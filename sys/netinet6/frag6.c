@@ -89,7 +89,9 @@ frag6_init()
 	 * as initialization during bootstrap time occur in fixed order.
 	 */
 	microtime(&tv);
+#ifndef RANDOM_IP_ID
 	ip6_id = random() ^ tv.tv_usec;
+#endif
 	ip6q.ip6q_next = ip6q.ip6q_prev = &ip6q;
 }
 
