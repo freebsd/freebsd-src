@@ -750,7 +750,9 @@ pmap_activate(struct thread *td)
 
 	/*
 	 * XXX: Address this again later?
+	 * NetBSD only change the segment registers on return to userland.
 	 */
+#if 0
 	critical_enter();
 
 	for (i = 0; i < 16; i++) {
@@ -759,6 +761,16 @@ pmap_activate(struct thread *td)
 	__asm __volatile("sync; isync");
 
 	critical_exit();
+#endif
+}
+
+void
+pmap_deactivate(struct thread *td)
+{
+	pmap_t	pm;
+
+	pm = &td->td_proc->p_vmspace->vm_pmap;
+	pm->pm_active &= ~(PCPU_GET(cpumask));
 }
 
 vm_offset_t
