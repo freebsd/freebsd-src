@@ -16,6 +16,7 @@ powerpc/powerpc/busdma_machdep.c standard
 powerpc/powerpc/clock.c		standard
 powerpc/powerpc/copyinout.c	standard
 powerpc/powerpc/copystr.c	standard
+powerpc/powerpc/cpu.c		standard
 powerpc/powerpc/critical.c	standard
 powerpc/powerpc/elf_machdep.c	standard
 powerpc/powerpc/fpu.c		standard
