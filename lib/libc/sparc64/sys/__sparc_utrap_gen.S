@@ -35,18 +35,21 @@
 	.register	%g7, #ignore
 
 #include <machine/asm.h>
+#include <machine/tstate.h>
 #include <machine/utrap.h>
 
 #include "assym.s"
 
 ENTRY(__sparc_utrap_gen)
-	sub	%fp, CCFSZ + UF_SIZEOF, %sp
+	sub	%sp, UF_SIZEOF, %sp
 
 	stx	%o0, [%sp + SPOFF + CCFSZ + UF_TYPE]
 	stx	%o3, [%sp + SPOFF + CCFSZ + UF_TAR]
 	stx	%o4, [%sp + SPOFF + CCFSZ + UF_SFAR]
 	stx	%o5, [%sp + SPOFF + CCFSZ + UF_SFSR]
 
+	stx	%l4, [%sp + SPOFF + CCFSZ + UF_FSR]
+	stx	%l5, [%sp + SPOFF + CCFSZ + UF_STATE]
 	stx	%l6, [%sp + SPOFF + CCFSZ + UF_PC]
 	stx	%l7, [%sp + SPOFF + CCFSZ + UF_NPC]
 
@@ -87,6 +90,14 @@ ENTRY(__sparc_utrap_gen)
 	ldx	[%sp + SPOFF + CCFSZ + UF_O6], %i6
 	ldx	[%sp + SPOFF + CCFSZ + UF_O7], %i7
 
+	ldx	[%sp + SPOFF + CCFSZ + UF_STATE], %l5
+	! Restore %asi and %ccr from the passed tstate
+	srlx	%l5, TSTATE_CCR_SHIFT, %l4
+	and	%l4, CCR_MASK, %l4
+	wr	%l4, 0, %ccr
+	srlx	%l5, TSTATE_ASI_SHIFT, %l4
+	and	%l4, ASI_MASK, %l4
+	wr	%l4, 0, %asi
 	ldx	[%sp + SPOFF + CCFSZ + UF_PC], %l6
 	ldx	[%sp + SPOFF + CCFSZ + UF_NPC], %l7
 
