@@ -82,14 +82,10 @@ void	sched_rem(struct thread *td);
  * hold a thread on a particular CPU.
  */
 void	sched_bind(struct thread *td, int cpu);
+static __inline void sched_pin(void);
 void	sched_unbind(struct thread *td);
+static __inline void sched_unpin(void);
 
-/* these only work for curthread */
-void	sched_pin(void);
-void	sched_unpin(void);
-#ifdef INVARIANTS
-int	sched_ispinned(void);
-#endif
 
 /*
  * These procedures tell the process data structure allocation code how
@@ -98,6 +94,18 @@ int	sched_ispinned(void);
 int	sched_sizeof_ksegrp(void);
 int	sched_sizeof_proc(void);
 int	sched_sizeof_thread(void);
+
+static __inline void
+sched_pin(void)
+{
+	curthread->td_pinned++;
+}
+
+static __inline void
+sched_unpin(void)
+{
+	curthread->td_pinned--;
+}
 
 /* temporarily here */
 void schedinit(void);
