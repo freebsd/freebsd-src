@@ -13,7 +13,7 @@
 # your name on top after doing something trivial like reindenting it, just
 # to make it look like you wrote it!).
 #
-# $Id: bininst,v 1.21 1994/11/09 02:49:04 jkh Exp $
+# $Id: bininst,v 1.22 1994/11/09 20:16:09 jkh Exp $
 
 # Some useful constants.
 PATH=/usr/bin:/usr/sbin:/bin:/sbin:/stand
@@ -29,22 +29,23 @@ export HOME
 
 # Set the initial state of the system.
 set_defaults() {
-	media_type="" ;
-	media_device="" ;
-	ipaddr="" ;
-	hostname="" ;
-	ether_intr="" ;
-	domain="" ;
-	netmask="0xffffff00" ;
-	ifconfig_flags="" ;
-	remote_hostip="" ;
-	tmp_dir="/usr/tmp" ;
-	ftp_path="ftp://ftp.freebsd.org/pub/FreeBSD/2.0-ALPHA/bindist" ;
-	nfs_path="" ;
-	cdrom_path="" ;
-	serial_interface="/dev/tty00" ;
-	serial_speed="38400" ;
-	installing=1 ;
+	media_type=""
+	media_device=""
+	clear="--clear"
+	ipaddr=""
+	hostname=""
+	ether_intr=""
+	domain=""
+	netmask="0xffffff00"
+	ifconfig_flags=""
+	remote_hostip=""
+	tmp_dir="/usr/tmp"
+	ftp_path="ftp://ftp.freebsd.org/pub/FreeBSD/2.0-ALPHA/bindist"
+	nfs_path=""
+	cdrom_path=""
+	serial_interface="/dev/tty00"
+	serial_speed="38400"
+	installing=1
 	mkdir -p ${TMP}
 	cp /stand/etc/* /etc
 }
@@ -88,9 +89,18 @@ installation tools.  Barring some sort of fatal accident, we do \
 expect it to be in the release.  Please press RETURN to go on." 10 60
 }
 
+network_dialog()
+{
+	dialog --title "Network Information" $clear \
+	--inputbox "$*" 10 60 "$default_value" 2> ${TMP}/inputbox.tmp.$$
+	if ! handle_rval $?; then return 1; fi
+	answer=`cat ${TMP}/inputbox.tmp.$$`
+	rm -f ${TMP}/inputbox.tmp.$$
+}
+
 # Print welcome banner.
 welcome() {
-	dialog --title "Welcome to FreeBSD" --clear \
+	dialog --title "Welcome to FreeBSD" $clear \
 --msgbox " We're now ready to install one or more packed distribution
 sets onto your machine.  At the minimum, you need a bindist
 distribution, though a secrdist is also useful if you want your
@@ -111,7 +121,7 @@ highly recommended!" 18 72
 choose_media() {
 	while [ "$media_device" = "" ]; do
 
-	dialog --clear --title "Installation From" \
+	dialog $clear --title "Installation From" \
 --menu "Before installing a distribution, you need to chose \n\
 and/or configure your method of installation.  Please pick from \n\
 one of the following options.  If none of the listed options works \n\
@@ -132,7 +142,7 @@ finished with installation, select cancel to go on.\n\n\
 
 	case $choice in
 	Tape)
-		dialog --clear --title "Chose Tape Type" \
+		dialog $clear --title "Chose Tape Type" \
 --menu "Which type of tape drive do you have attached to your \n\
 system?  FreeBSD supports the following types:\n\n\
 		Choose one of the following:" 20 72 2 \
@@ -154,7 +164,7 @@ system?  FreeBSD supports the following types:\n\n\
 		esac
 	;;
 	CDROM)
-		dialog --clear --title "Chose CDROM Type" \
+		dialog $clear --title "Chose CDROM Type" \
 --menu "Which type of CDROM drive do you have attached to your \n\
 system?  FreeBSD supports the following types:\n\n\
 		Choose one of the following:" 15 72 2 \
@@ -180,7 +190,7 @@ system?  FreeBSD supports the following types:\n\n\
 	;;
 	FTP)
 		if ! setup_network; then continue; fi
-		dialog --title "FTP Installation Information" --clear \
+		dialog --title "FTP Installation Information" $clear \
 --inputbox "Please specify the machine and directory location of the
 distribution you wish to load.  This should be either a \"URL style\"
 specification (e.g. ftp://ftp.freeBSD.org/pub/FreeBSD/...) or simply
@@ -195,7 +205,7 @@ the files yourself.\n\n" \ 16 72 "$ftp_path" 2> ${TMP}/inputbox.tmp.$$
 	;;
 	NFS)
 		if ! setup_network; then continue; fi
-		dialog --title "NFS Installation Information" --clear \
+		dialog --title "NFS Installation Information" $clear \
 --inputbox "Please specify the machine and directory location of the
 distribution you wish to load.  This must be in machine:dir
 format (e.g. zooey:/a/FreeBSD/bindist).  The remote directory
@@ -218,7 +228,7 @@ work!\n\n" \ 14 72 "$nfs_path" 2> ${TMP}/inputbox.tmp.$$
 # Set the location of our temporary unpacking directory.
 set_tmpdir()
 {
-	dialog --title "Chose temporary directory" --clear \
+	dialog --title "Chose temporary directory" $clear \
 --inputbox "Please specify the name of a directory containing enough
 free space to hold the temporary files for this distribution.
 At minimum, a binary distribution will require around 21MB of
@@ -245,7 +255,7 @@ cd_tmpdir()
 
 rm_tmpdir()
 {
-	if dialog --title "Delete contents?" --clear \
+	if dialog --title "Delete contents?" $clear \
         --yesno "Do you wish to delete the contents of ${tmp_dir}?" 5 72; then
 		rm -rf $tmp_dir/*
 	fi
@@ -253,7 +263,7 @@ rm_tmpdir()
 
 setup_network_ether()
 {
-	dialog --clear --title "Ethernet Interface Name" \
+	dialog $clear --title "Ethernet Interface Name" \
 	--menu "Please select the type of ethernet interface you have:\n\n" \
 	 20 76 6 \
 	"ed0" "WD80x3, SMC, Novell NE[21]000 or 3C503 generic NIC at 0x280/5" \
@@ -272,6 +282,7 @@ setup_network_ether()
 
 setup_network_slip()
 {
+	clear=""
 	default_value=""
 	if ! network_dialog "What is the IP number for the remote host"; then return 1; fi
 	remote_hostip=$answer
@@ -284,6 +295,7 @@ setup_network_slip()
 	default_value=$serial_speed
 	if ! network_dialog "What speed is the serial interface"; then return 1; fi
 	serial_speed=$answer
+	clear="--clear"
 }
 
 setup_network_plip()
@@ -294,20 +306,12 @@ setup_network_plip()
 	interface=lp0
 }
 
-network_dialog()
-{
-	dialog --title "Network Information" --clear \
-	--inputbox "$*" 10 60 "$default_value" 2> ${TMP}/inputbox.tmp.$$
-	if ! handle_rval $?; then return 1; fi
-	answer=`cat ${TMP}/inputbox.tmp.$$`
-	rm -f ${TMP}/inputbox.tmp.$$
-}
-
 setup_network()
 {
 	done=0
+	clear="--clear"
 	while [ "$interface" = "" ]; do
-		dialog --clear --title "Set up network interface" \
+		dialog $clear --title "Set up network interface" \
 		--menu "Please select the type of network connection you have:\n\n" \
 		20 72 3 \
 		"ether" "A supported ethernet card" \
@@ -334,6 +338,7 @@ setup_network()
 	esac	
 	if [ "$interface" = "" ]; then	continue; fi
 
+	clear=""
 	default_value=""
 	if ! network_dialog "What is the fully qualified name of this host"; then return 1; fi
 	hostname=$answer
@@ -346,7 +351,7 @@ setup_network()
 	fi
 
 	default_value=""
-	if ! network_dialog "What is the IP address of this host"; then return 1; fi
+	if ! network_dialog "What is the IP address of this host"; then clear="--clear"; return 1; fi
 	ipaddr=$answer
 
         echo "$ipaddr    $hostname `echo $hostname | sed -e s/\.$domain//`" \
@@ -391,6 +396,7 @@ setup_network()
 		fi
 	fi
 	done
+	clear="--clear"
 }
 
 extract_dist()
@@ -410,7 +416,7 @@ install_set()
 		if ! set_tmpdir; then return; fi
 		if ! cd_tmpdir; then return; fi
 		confirm "Please mount tape for ${media_device}."
-		dialog --title "Results of tape extract" --clear \
+		dialog --title "Results of tape extract" $clear \
 			--prgbox "$TAR $TAR_FLAGS $media_device" 10 72
 		extract_dist
 		rm_tmpdir
@@ -420,7 +426,7 @@ install_set()
 		if ! mount $media_device /mnt > /dev/ttyv1 2>&1; then
 			error "Unable to mount $media_device on /mnt"
 		else
-			dialog --title "CDROM Information" --clear \
+			dialog --title "CDROM Information" $clear \
 			--inputbox "Directory on CD containing distribution" \
 			10 60 "$cdrom_path" 2> ${TMP}/inputbox.tmp.$$
 			if ! handle_rval $?; then return; fi
