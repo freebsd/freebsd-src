@@ -40,7 +40,6 @@
  */
 
 #include "labpc.h"
-#include "aio.h"
 
 #include <sys/types.h>
 #include <sys/param.h>
@@ -53,6 +52,8 @@
 #include <sys/malloc.h>
 #include <sys/errno.h>
 #include <sys/buf.h>
+#include <sys/dataacq.h>
+
 #include <machine/devconf.h>
 #include <machine/clock.h>
 
