@@ -73,10 +73,10 @@
 IDTVEC(vec_name) ;							\
 	PUSH_FRAME ;							\
 	movl	$KDSEL, %eax ;	/* reload with kernel's data segment */	\
-	mov	%ax, %ds ;						\
-	mov	%ax, %es ;						\
+	movl	%eax, %ds ;						\
+	movl	%eax, %es ;						\
 	movl	$KPSEL, %eax ;	/* reload with per-CPU data segment */	\
-	mov	%ax, %fs ;						\
+	movl	%eax, %fs ;						\
 	FAKE_MCOUNT(13*4(%esp)) ;					\
 	movl	lapic, %edx ;	/* pointer to local APIC */		\
 	movl	LA_ISR + 16 * (index)(%edx), %eax ;	/* load ISR */	\
@@ -127,12 +127,12 @@ IDTVEC(invltlb)
 	pushl	%eax
 	pushl	%ds
 	movl	$KDSEL, %eax		/* Kernel data selector */
-	mov	%ax, %ds
+	movl	%eax, %ds
 
 #ifdef COUNT_XINVLTLB_HITS
 	pushl	%fs
 	movl	$KPSEL, %eax		/* Private space selector */
-	mov	%ax, %fs
+	movl	%eax, %fs
 	movl	PCPU(CPUID), %eax
 	popl	%fs
 	incl	xhits_gbl(,%eax,4)
@@ -160,12 +160,12 @@ IDTVEC(invlpg)
 	pushl	%eax
 	pushl	%ds
 	movl	$KDSEL, %eax		/* Kernel data selector */
-	mov	%ax, %ds
+	movl	%eax, %ds
 
 #ifdef COUNT_XINVLTLB_HITS
 	pushl	%fs
 	movl	$KPSEL, %eax		/* Private space selector */
-	mov	%ax, %fs
+	movl	%eax, %fs
 	movl	PCPU(CPUID), %eax
 	popl	%fs
 	incl	xhits_pg(,%eax,4)
@@ -194,12 +194,12 @@ IDTVEC(invlrng)
 	pushl	%edx
 	pushl	%ds
 	movl	$KDSEL, %eax		/* Kernel data selector */
-	mov	%ax, %ds
+	movl	%eax, %ds
 
 #ifdef COUNT_XINVLTLB_HITS
 	pushl	%fs
 	movl	$KPSEL, %eax		/* Private space selector */
-	mov	%ax, %fs
+	movl	%eax, %fs
 	movl	PCPU(CPUID), %eax
 	popl	%fs
 	incl	xhits_rng(,%eax,4)
@@ -232,10 +232,10 @@ IDTVEC(invlrng)
 IDTVEC(hardclock)
 	PUSH_FRAME
 	movl	$KDSEL, %eax	/* reload with kernel's data segment */
-	mov	%ax, %ds
-	mov	%ax, %es
+	movl	%eax, %ds
+	movl	%eax, %es
 	movl	$KPSEL, %eax
-	mov	%ax, %fs
+	movl	%eax, %fs
 
 	movl	lapic, %edx
 	movl	$0, LA_EOI(%edx)	/* End Of Interrupt to APIC */
@@ -255,10 +255,10 @@ IDTVEC(hardclock)
 IDTVEC(statclock)
 	PUSH_FRAME
 	movl	$KDSEL, %eax	/* reload with kernel's data segment */
-	mov	%ax, %ds
-	mov	%ax, %es
+	movl	%eax, %ds
+	movl	%eax, %es
 	movl	$KPSEL, %eax
-	mov	%ax, %fs
+	movl	%eax, %fs
 
 	movl	lapic, %edx
 	movl	$0, LA_EOI(%edx)	/* End Of Interrupt to APIC */
@@ -284,10 +284,10 @@ IDTVEC(statclock)
 IDTVEC(cpuast)
 	PUSH_FRAME
 	movl	$KDSEL, %eax
-	mov	%ax, %ds		/* use KERNEL data segment */
-	mov	%ax, %es
+	movl	%eax, %ds		/* use KERNEL data segment */
+	movl	%eax, %es
 	movl	$KPSEL, %eax
-	mov	%ax, %fs
+	movl	%eax, %fs
 
 	movl	lapic, %edx
 	movl	$0, LA_EOI(%edx)	/* End Of Interrupt to APIC */
@@ -317,10 +317,10 @@ IDTVEC(cpustop)
 	pushl	%fs
 
 	movl	$KDSEL, %eax
-	mov	%ax, %ds		/* use KERNEL data segment */
-	mov	%ax, %es
+	movl	%eax, %ds		/* use KERNEL data segment */
+	movl	%eax, %es
 	movl	$KPSEL, %eax
-	mov	%ax, %fs
+	movl	%eax, %fs
 
 	movl	lapic, %eax
 	movl	$0, LA_EOI(%eax)	/* End Of Interrupt to APIC */
@@ -375,10 +375,10 @@ IDTVEC(cpustop)
 IDTVEC(rendezvous)
 	PUSH_FRAME
 	movl	$KDSEL, %eax
-	mov	%ax, %ds		/* use KERNEL data segment */
-	mov	%ax, %es
+	movl	%eax, %ds		/* use KERNEL data segment */
+	movl	%eax, %es
 	movl	$KPSEL, %eax
-	mov	%ax, %fs
+	movl	%eax, %fs
 
 	call	smp_rendezvous_action
 
@@ -395,10 +395,10 @@ IDTVEC(rendezvous)
 IDTVEC(lazypmap)
 	PUSH_FRAME
 	movl	$KDSEL, %eax
-	mov	%ax, %ds		/* use KERNEL data segment */
-	mov	%ax, %es
+	movl	%eax, %ds		/* use KERNEL data segment */
+	movl	%eax, %es
 	movl	$KPSEL, %eax
-	mov	%ax, %fs
+	movl	%eax, %fs
 
 	call	pmap_lazyfix_action
 
