@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.57 1995/05/29 23:50:55 rgrimes Exp $
+#	$Id: Makefile,v 1.58 1995/08/04 12:06:51 asami Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include and MOST of /usr/lib
@@ -304,12 +304,14 @@ libraries:
 
 tools:
 	@echo "--------------------------------------------------------------"
-	@echo " Rebuilding ${DESTDIR} Compiler and Make"
+	@echo " Rebuilding ${DESTDIR} C compiler, make, and zic(8)"
 	@echo "--------------------------------------------------------------"
 	@echo
 	cd ${.CURDIR}/gnu/usr.bin/cc && \
 		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
 	cd ${.CURDIR}/usr.bin/make && \
+		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
+	cd ${.CURDIR}/usr.sbin/zic && \
 		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
 
 .include <bsd.subdir.mk>
