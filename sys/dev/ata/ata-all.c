@@ -123,10 +123,10 @@ ata_attach(device_t dev)
     TAILQ_INIT(&ch->ata_queue);
 
     /* initialise device(s) on this channel */
-    while (ATA_LOCKING(device_get_parent(dev), dev, ATA_LF_LOCK) != ch->unit)
+    while (ATA_LOCKING(dev, ATA_LF_LOCK) != ch->unit)
 	tsleep(&error, PRIBIO, "ataatch", 1);
     ch->hw.reset(ch);
-    ATA_LOCKING(device_get_parent(dev), dev, ATA_LF_UNLOCK);
+    ATA_LOCKING(dev, ATA_LF_UNLOCK);
 
     /* setup interrupt delivery */
     rid = ATA_IRQ_RID;
@@ -197,7 +197,7 @@ ata_reinit(device_t dev)
 	device_printf(dev, "reiniting channel ..\n");
 
     /* poll for locking the channel */
-    while (ATA_LOCKING(device_get_parent(dev), dev, ATA_LF_LOCK) != ch->unit)
+    while (ATA_LOCKING(dev, ATA_LF_LOCK) != ch->unit)
 	tsleep(&dev, PRIBIO, "atarini", 1);
 
     /* grap the channel lock */
@@ -234,7 +234,7 @@ ata_reinit(device_t dev)
     mtx_lock(&ch->state_mtx);
     ch->state = ATA_IDLE;
     mtx_unlock(&ch->state_mtx);
-    ATA_LOCKING(device_get_parent(dev), dev, ATA_LF_UNLOCK);
+    ATA_LOCKING(dev, ATA_LF_UNLOCK);
 
     if (bootverbose)
 	device_printf(dev, "reinit done ..\n");
@@ -263,7 +263,7 @@ ata_suspend(device_t dev)
 	mtx_unlock(&ch->state_mtx);
 	tsleep(ch, PRIBIO, "atasusp", hz/10);
     }
-    ATA_LOCKING(device_get_parent(dev), dev, ATA_LF_UNLOCK);
+    ATA_LOCKING(dev, ATA_LF_UNLOCK);
     return 0;
 }
 
@@ -324,7 +324,7 @@ ata_interrupt(void *data)
 	    if (ch->state == ATA_ACTIVE)
 		ch->state = ATA_IDLE;
 	    mtx_unlock(&ch->state_mtx);
-	    ATA_LOCKING(device_get_parent(ch->dev), ch->dev, ATA_LF_UNLOCK);
+	    ATA_LOCKING(ch->dev, ATA_LF_UNLOCK);
 	    ata_finish(request);
 	    return;
 	}
@@ -426,12 +426,12 @@ ata_ioctl(struct cdev *dev, u_long cmd, caddr_t addr,
 
 		    if (atadev->unit == ATA_MASTER) {
 			atadev->mode = iocmd->u.mode.mode[0];
-			ATA_SETMODE(device_get_parent(device), children[i]);
+			ATA_SETMODE(device, children[i]);
 			iocmd->u.mode.mode[0] = atadev->mode;
 		    }
 		    if (atadev->unit == ATA_SLAVE) {
 			atadev->mode = iocmd->u.mode.mode[1];
-			ATA_SETMODE(device_get_parent(device), children[i]);
+			ATA_SETMODE(device, children[i]);
 			iocmd->u.mode.mode[1] = atadev->mode;
 		    }
 		}
@@ -622,7 +622,7 @@ ata_identify(driver_t *driver, device_t parent, int type, const char *name)
     slave->unit = ATA_SLAVE;
 
     /* wait for the channel to be IDLE then grab it before touching HW */
-    while (ATA_LOCKING(device_get_parent(parent),parent,ATA_LF_LOCK)!=ch->unit)
+    while (ATA_LOCKING(parent, ATA_LF_LOCK) != ch->unit)
 	tsleep(ch, PRIBIO, "ataidnt2", 1);
     while (1) {
 	mtx_lock(&ch->state_mtx);
@@ -665,7 +665,7 @@ ata_identify(driver_t *driver, device_t parent, int type, const char *name)
     mtx_lock(&ch->state_mtx);
     ch->state = ATA_IDLE;
     mtx_unlock(&ch->state_mtx);
-    ATA_LOCKING(device_get_parent(parent), parent, ATA_LF_UNLOCK);
+    ATA_LOCKING(parent, ATA_LF_UNLOCK);
 }
 
 void

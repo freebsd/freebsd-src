@@ -305,8 +305,7 @@ ata_acard_intr(void *data)
 	if (!(ch = ctlr->interrupt[unit].argument))
 	    continue;
 	if (ctlr->chip->cfg1 == ATPOLD &&
-	    ATA_LOCKING(device_get_parent(ch->dev),
-			ch->dev, ATA_LF_WHICH) != unit)
+	    ATA_LOCKING(ch->dev, ATA_LF_WHICH) != unit)
 	    continue;
 	if (ch->dma && (ch->dma->flags & ATA_DMA_ACTIVE)) {
 	    int bmstat = ATA_IDX_INB(ch, ATA_BMSTAT_PORT) & ATA_BMSTAT_MASK;

@@ -88,7 +88,7 @@ afd_attach(device_t dev)
 	return ENOMEM;
     }
     device_set_ivars(dev, fdp);
-    ATA_SETMODE(GRANDPARENT(dev), dev);
+    ATA_SETMODE(device_get_parent(dev), dev);
 
     if (afd_sense(dev)) {
 	device_set_ivars(dev, NULL);
@@ -161,7 +161,7 @@ afd_reinit(device_t dev)
 	free(fdp, M_AFD);
 	return 1;
     }
-    ATA_SETMODE(GRANDPARENT(dev), dev);
+    ATA_SETMODE(device_get_parent(dev), dev);
     return 0;
 }
 
@@ -415,7 +415,7 @@ static device_method_t afd_methods[] = {
 static driver_t afd_driver = {
     "afd",
     afd_methods,
-    sizeof(struct afd_softc)
+    0,
 };
 
 static devclass_t afd_devclass;

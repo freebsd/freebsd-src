@@ -41,24 +41,17 @@
 INTERFACE ata;
 
 CODE {
-	static int ata_null_locking(device_t parent, device_t dev, int mode)
+	static int ata_null_locking(device_t dev, int mode)
 	{
 	    struct ata_channel *ch = device_get_softc(dev);
 	
 	    return ch->unit;
 	}
 };
-METHOD void setmode {
-    device_t    parent;
-    device_t    dev;
-};
-
 METHOD int locking {
-    device_t    parent;
-    device_t    dev;
+    device_t    channel;
     int         mode;
 } DEFAULT ata_null_locking;
-
 HEADER {
 #define         ATA_LF_LOCK             0x0001
 #define         ATA_LF_UNLOCK           0x0002
@@ -66,10 +59,16 @@ HEADER {
 };
 
 METHOD void reset {
-    device_t    parent;
+    device_t    channel;
+};
+
+METHOD void setmode {
+    device_t    channel;
     device_t    dev;
 };
 
 METHOD int reinit {
     device_t    dev;
 };
+
+

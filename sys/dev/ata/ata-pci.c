@@ -391,14 +391,12 @@ ata_pci_allocate(device_t dev, struct ata_channel *ch)
     int i, rid;
 
     rid = ATA_IOADDR_RID;
-    io = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
-			    0, ~0, ATA_IOSIZE, RF_ACTIVE);
+    io = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &rid, RF_ACTIVE);
     if (!io)
 	return ENXIO;
 
     rid = ATA_ALTADDR_RID;
-    altio = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
-			       0, ~0, ATA_ALTIOSIZE, RF_ACTIVE);
+    altio = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &rid, RF_ACTIVE);
     if (!altio) {
 	bus_release_resource(dev, SYS_RES_IOPORT, ATA_IOADDR_RID, io);
 	return ENXIO;
@@ -422,40 +420,6 @@ ata_pci_allocate(device_t dev, struct ata_channel *ch)
     ata_generic_hw(ch);
 
     return 0;
-}
-
-static void
-ata_pci_setmode(device_t parent, device_t dev)
-{
-    struct ata_pci_controller *ctlr = device_get_softc(parent);
-    struct ata_device *atadev = device_get_softc(dev);
-    int mode = atadev->mode;
-
-    ctlr->setmode(atadev, ATA_PIO_MAX);
-    if (mode >= ATA_DMA)
-	ctlr->setmode(atadev, mode);
-}
-
-static int
-ata_pci_locking(device_t parent, device_t dev, int mode)
-{
-    struct ata_pci_controller *ctlr = device_get_softc(parent);
-    struct ata_channel *ch = device_get_softc(dev);
-
-    if (ctlr->locking)
-	return ctlr->locking(ch, mode);
-    else
-	return ch->unit;
-}
-
-static void
-ata_pci_reset(device_t parent, device_t dev)
-{
-    struct ata_pci_controller *ctlr = device_get_softc(parent);
-    struct ata_channel *ch = device_get_softc(dev);
-
-    if (ctlr->reset)
-	ctlr->reset(ch);
 }
 
 static int
@@ -512,10 +476,6 @@ static device_method_t ata_pci_methods[] = {
     DEVMETHOD(bus_setup_intr,           ata_pci_setup_intr),
     DEVMETHOD(bus_teardown_intr,        ata_pci_teardown_intr),
 
-    /* ATA methods */
-    DEVMETHOD(ata_setmode,              ata_pci_setmode),
-    DEVMETHOD(ata_locking,              ata_pci_locking),
-    DEVMETHOD(ata_reset,                ata_pci_reset),
     { 0, 0 }
 };
 
@@ -532,7 +492,7 @@ MODULE_VERSION(atapci, 1);
 MODULE_DEPEND(atapci, ata, 1, 1, 1);
 
 static int
-ata_channel_probe(device_t dev)
+ata_pcichannel_probe(device_t dev)
 {
     struct ata_channel *ch = device_get_softc(dev);
     device_t *children;
@@ -557,7 +517,7 @@ ata_channel_probe(device_t dev)
 }
 
 static int
-ata_channel_attach(device_t dev)
+ata_pcichannel_attach(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
@@ -575,7 +535,7 @@ ata_channel_attach(device_t dev)
 }
 
 static int
-ata_channel_detach(device_t dev)
+ata_pcichannel_detach(device_t dev)
 {
     struct ata_channel *ch = device_get_softc(dev);
     int error;
@@ -589,21 +549,61 @@ ata_channel_detach(device_t dev)
     return 0;
 }
 
-static device_method_t ata_channel_methods[] = {
+static int
+ata_pcichannel_locking(device_t dev, int mode)
+{
+    struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
+    struct ata_channel *ch = device_get_softc(dev);
+
+    if (ctlr->locking)
+	return ctlr->locking(ch, mode);
+    else
+	return ch->unit;
+}
+
+static void
+ata_pcichannel_reset(device_t dev)
+{
+    struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
+    struct ata_channel *ch = device_get_softc(dev);
+
+    if (ctlr->reset)
+	ctlr->reset(ch);
+}
+
+static void
+ata_pcichannel_setmode(device_t parent, device_t dev)
+{
+    struct ata_pci_controller *ctlr = device_get_softc(GRANDPARENT(dev));
+    struct ata_device *atadev = device_get_softc(dev);
+    int mode = atadev->mode;
+
+    ctlr->setmode(atadev, ATA_PIO_MAX);
+    if (mode >= ATA_DMA)
+	ctlr->setmode(atadev, mode);
+}
+
+static device_method_t ata_pcichannel_methods[] = {
     /* device interface */
-    DEVMETHOD(device_probe,     ata_channel_probe),
-    DEVMETHOD(device_attach,    ata_channel_attach),
-    DEVMETHOD(device_detach,    ata_channel_detach),
+    DEVMETHOD(device_probe,     ata_pcichannel_probe),
+    DEVMETHOD(device_attach,    ata_pcichannel_attach),
+    DEVMETHOD(device_detach,    ata_pcichannel_detach),
     DEVMETHOD(device_shutdown,  bus_generic_shutdown),
     DEVMETHOD(device_suspend,   bus_generic_suspend),
     DEVMETHOD(device_resume,    bus_generic_resume),
+
+    /* ATA methods */
+    DEVMETHOD(ata_setmode,      ata_pcichannel_setmode),
+    DEVMETHOD(ata_locking,      ata_pcichannel_locking),
+    DEVMETHOD(ata_reset,        ata_pcichannel_reset),
+
     { 0, 0 }
 };
 
-driver_t ata_channel_driver = {
+driver_t ata_pcichannel_driver = {
     "ata",
-    ata_channel_methods,
+    ata_pcichannel_methods,
     sizeof(struct ata_channel),
 };
 
-DRIVER_MODULE(ata, atapci, ata_channel_driver, ata_devclass, 0, 0);
+DRIVER_MODULE(ata, atapci, ata_pcichannel_driver, ata_devclass, 0, 0);

@@ -115,7 +115,7 @@ ast_attach(device_t dev)
 	return ENOMEM;
     }
     device_set_ivars(dev, stp);
-    ATA_SETMODE(GRANDPARENT(dev), dev);
+    ATA_SETMODE(device_get_parent(dev), dev);
 
     if (ast_sense(dev)) {
 	device_set_ivars(dev, NULL);
@@ -213,7 +213,7 @@ ast_reinit(device_t dev)
 	free(stp, M_AST);
 	return 1;
     }
-    ATA_SETMODE(GRANDPARENT(dev), dev);
+    ATA_SETMODE(device_get_parent(dev), dev);
     return 0;
 }
 
@@ -767,7 +767,7 @@ static device_method_t ast_methods[] = {
 static driver_t ast_driver = {
     "ast",
     ast_methods,
-    sizeof(struct ast_softc)
+    0,
 };
 
 static devclass_t ast_devclass;

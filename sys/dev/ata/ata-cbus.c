@@ -67,7 +67,7 @@ struct ata_cbus_controller {
 
 /* local prototypes */
 static void ata_cbus_intr(void *);
-static int ata_cbus_banking(device_t parent, device_t dev, int flags);
+static int ata_cbuschannel_banking(device_t dev, int flags);
 
 static int
 ata_cbus_probe(device_t dev)
@@ -229,16 +229,69 @@ ata_cbus_intr(void *data)
     for (unit = 0; unit < 2; unit++) {
 	if (!(ch = ctlr->interrupt[unit].argument))
 	    continue;
-	if (ata_cbus_banking(device_get_parent(ch->dev), ch->dev,
-			     ATA_LF_WHICH) == unit)
+	if (ata_cbuschannel_banking(ch->dev, ATA_LF_WHICH) == unit)
 	    ctlr->interrupt[unit].function(ch);
     }
 }
 
+static device_method_t ata_cbus_methods[] = {
+    /* device interface */
+    DEVMETHOD(device_probe,             ata_cbus_probe),
+    DEVMETHOD(device_attach,            ata_cbus_attach),
+//  DEVMETHOD(device_detach,            ata_cbus_detach),
+
+    /* bus methods */
+    DEVMETHOD(bus_alloc_resource,       ata_cbus_alloc_resource),
+    DEVMETHOD(bus_setup_intr,           ata_cbus_setup_intr),
+    DEVMETHOD(bus_print_child,          ata_cbus_print_child),
+
+    { 0, 0 }
+};
+
+static driver_t ata_cbus_driver = {
+    "atacbus",
+    ata_cbus_methods,
+    sizeof(struct ata_cbus_controller),
+};
+
+static devclass_t ata_cbus_devclass;
+
+DRIVER_MODULE(atacbus, isa, ata_cbus_driver, ata_cbus_devclass, 0, 0);
+
 static int
-ata_cbus_banking(device_t parent, device_t dev, int flags)
+ata_cbuschannel_probe(device_t dev)
 {
-    struct ata_cbus_controller *ctlr = device_get_softc(parent);
+    struct ata_cbus_controller *ctlr = device_get_softc(device_get_parent(dev));
+    struct ata_channel *ch = device_get_softc(dev);
+    device_t *children;
+    int count, i;
+
+    /* find channel number on this controller */
+    device_get_children(device_get_parent(dev), &children, &count);
+    for (i = 0; i < count; i++) {
+	if (children[i] == dev) 
+	    ch->unit = i;
+    }
+    free(children, M_TEMP);
+
+    /* setup the resource vectors */
+    for (i = ATA_DATA; i <= ATA_STATUS; i ++) {
+	ch->r_io[i].res = ctlr->io;
+	ch->r_io[i].offset = i << 1;
+    }
+    ch->r_io[ATA_ALTSTAT].res = ctlr->altio;
+    ch->r_io[ATA_ALTSTAT].offset = 0;
+
+    /* initialize softc for this channel */
+    ch->flags |= ATA_USE_16BIT;
+    ata_generic_hw(ch);
+    return ata_probe(dev);
+}
+
+static int
+ata_cbuschannel_banking(device_t dev, int flags)
+{
+    struct ata_cbus_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
     int res;
 
@@ -277,77 +330,25 @@ ata_cbus_banking(device_t parent, device_t dev, int flags)
     return res;
 }
 
-static device_method_t ata_cbus_methods[] = {
+static device_method_t ata_cbuschannel_methods[] = {
     /* device interface */
-    DEVMETHOD(device_probe,             ata_cbus_probe),
-    DEVMETHOD(device_attach,            ata_cbus_attach),
-//  DEVMETHOD(device_detach,            ata_cbus_detach),
-
-    /* bus methods */
-    DEVMETHOD(bus_alloc_resource,       ata_cbus_alloc_resource),
-    DEVMETHOD(bus_setup_intr,           ata_cbus_setup_intr),
-    DEVMETHOD(bus_print_child,          ata_cbus_print_child),
-
-    /* ATA methods */
-    DEVMETHOD(ata_locking,              ata_cbus_banking),
-    { 0, 0 }
-};
-
-static driver_t ata_cbus_driver = {
-    "atacbus",
-    ata_cbus_methods,
-    sizeof(struct ata_cbus_controller),
-};
-
-static devclass_t ata_cbus_devclass;
-
-DRIVER_MODULE(atacbus, isa, ata_cbus_driver, ata_cbus_devclass, 0, 0);
-
-static int
-ata_cbussub_probe(device_t dev)
-{
-    struct ata_cbus_controller *ctlr = device_get_softc(device_get_parent(dev));
-    struct ata_channel *ch = device_get_softc(dev);
-    device_t *children;
-    int count, i;
-
-    /* find channel number on this controller */
-    device_get_children(device_get_parent(dev), &children, &count);
-    for (i = 0; i < count; i++) {
-	if (children[i] == dev) 
-	    ch->unit = i;
-    }
-    free(children, M_TEMP);
-
-    /* setup the resource vectors */
-    for (i = ATA_DATA; i <= ATA_STATUS; i ++) {
-	ch->r_io[i].res = ctlr->io;
-	ch->r_io[i].offset = i << 1;
-    }
-    ch->r_io[ATA_ALTSTAT].res = ctlr->altio;
-    ch->r_io[ATA_ALTSTAT].offset = 0;
-
-    /* initialize softc for this channel */
-    ch->flags |= ATA_USE_16BIT;
-    ata_generic_hw(ch);
-    return ata_probe(dev);
-}
-
-static device_method_t ata_cbussub_methods[] = {
-    /* device interface */
-    DEVMETHOD(device_probe,     ata_cbussub_probe),
+    DEVMETHOD(device_probe,     ata_cbuschannel_probe),
     DEVMETHOD(device_attach,    ata_attach),
     DEVMETHOD(device_detach,    ata_detach),
     DEVMETHOD(device_suspend,   ata_suspend),
     DEVMETHOD(device_resume,    ata_resume),
+
+    /* ATA methods */
+    DEVMETHOD(ata_locking,      ata_cbuschannel_banking),
+
     { 0, 0 }
 };
 
-static driver_t ata_cbussub_driver = {
+static driver_t ata_cbuschannel_driver = {
     "ata",
-    ata_cbussub_methods,
+    ata_cbuschannel_methods,
     sizeof(struct ata_channel),
 };
 
-DRIVER_MODULE(ata, atacbus, ata_cbussub_driver, ata_devclass, 0, 0);
+DRIVER_MODULE(ata, atacbus, ata_cbuschannel_driver, ata_devclass, 0, 0);
 MODULE_DEPEND(ata, ata, 1, 1, 1);
