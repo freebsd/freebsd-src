@@ -1,25 +1,36 @@
-#	$Id: bsd.dep.mk,v 1.1 1994/08/04 21:10:07 wollman Exp $
+#	$Id: bsd.dep.mk,v 1.5 1996/03/31 20:04:08 wosch Exp $
+
+MKDEPCMD?=	mkdep
+DEPENDFILE?=	.depend
 
 # some of the rules involve .h sources, so remove them from mkdep line
 .if !target(depend)
-depend: beforedepend .depend afterdepend ${_DEPSUBDIR}
+depend: beforedepend ${DEPENDFILE} afterdepend ${_DEPSUBDIR}
 .if defined(SRCS)
-.depend: ${SRCS}
-	rm -f .depend
-	files="${.ALLSRC:M*.[sS]}"; \
-	if [ "$$files" != "" ]; then \
-	  mkdep -a ${MKDEP} ${CFLAGS:M-[ID]*} ${AINC} $$files; \
-	fi
-	files="${.ALLSRC:M*.c}"; \
-	if [ "$$files" != "" ]; then \
-	  mkdep -a ${MKDEP} ${CFLAGS:M-[ID]*} $$files; \
-	fi
-	files="${.ALLSRC:M*.cc} ${.ALLSRC:M*.C} ${.ALLSRC:M*.cxx}"; \
-	if [ "$$files" != "  " ]; then \
-	  mkdep -a ${MKDEP} ${CXXFLAGS:M-nostd*} ${CXXFLAGS:M-[ID]*} $$files; \
-	fi
+
+# .if defined ${SRCS:M*.[sS]} does not work
+__depend_s=	${SRCS:M*.[sS]}
+__depend_c=	${SRCS:M*.c}
+__depend_cc=	${SRCS:M*.cc} ${SRCS:M*.C} ${SRCS:M*.cxx}
+
+${DEPENDFILE}: ${SRCS}
+	rm -f ${DEPENDFILE}
+.if defined(__depend_s) && !empty(__depend_s)
+	${MKDEPCMD} -f ${DEPENDFILE} -a ${MKDEP} ${CFLAGS:M-[ID]*} ${AINC} \
+		${.ALLSRC:M*.[sS]}
+.endif
+.if defined(__depend_c) && !empty(__depend_c)
+	${MKDEPCMD} -f ${DEPENDFILE} -a ${MKDEP} ${CFLAGS:M-[ID]*} \
+		${.ALLSRC:M*.c}
+.endif
+.if defined(__depend_cc) && !empty(__depend_cc)
+	${MKDEPCMD} -f ${DEPENDFILE} -a ${MKDEP} \
+		${CXXFLAGS:M-nostd*} ${CXXFLAGS:M-[ID]*} \
+		${.ALLSRC:M*.cc} ${.ALLSRC:M*.C} ${.ALLSRC:M*.cxx}
+.endif
+
 .else
-.depend: ${_DEPSUBDIR}
+${DEPENDFILE}: ${_DEPSUBDIR}
 .endif
 .if !target(beforedepend)
 beforedepend:
@@ -43,5 +54,5 @@ tags:
 clean:
 cleandir: cleandepend
 cleandepend:
-	rm -f .depend ${.CURDIR}/tags
+	rm -f ${DEPENDFILE} ${.CURDIR}/tags
 .endif
