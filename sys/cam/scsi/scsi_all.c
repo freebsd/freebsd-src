@@ -2453,10 +2453,12 @@ scsi_mode_sense(struct ccb_scsiio *csio, u_int32_t retries,
 		u_int8_t page, u_int8_t *param_buf, u_int32_t param_len,
 		u_int8_t sense_len, u_int32_t timeout)
 {
-	return(scsi_mode_sense_len(csio, retries, cbfcnp, tag_action, dbd,
-				   page_code, page, param_buf, param_len, 0,
-				   sense_len, timeout));
+
+	scsi_mode_sense_len(csio, retries, cbfcnp, tag_action, dbd,
+			    page_code, page, param_buf, param_len, 0,
+			    sense_len, timeout);
 }
+
 void
 scsi_mode_sense_len(struct ccb_scsiio *csio, u_int32_t retries,
 		    void (*cbfcnp)(struct cam_periph *, union ccb *),
@@ -2518,9 +2520,9 @@ scsi_mode_select(struct ccb_scsiio *csio, u_int32_t retries,
 		 u_int8_t *param_buf, u_int32_t param_len, u_int8_t sense_len,
 		 u_int32_t timeout)
 {
-	return(scsi_mode_select_len(csio, retries, cbfcnp, tag_action,
-				    scsi_page_fmt, save_pages, param_buf,
-				    param_len, 0, sense_len, timeout));
+	scsi_mode_select_len(csio, retries, cbfcnp, tag_action,
+			     scsi_page_fmt, save_pages, param_buf,
+			     param_len, 0, sense_len, timeout);
 }
 
 void
