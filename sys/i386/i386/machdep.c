@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.116 1995/04/06 07:55:42 rgrimes Exp $
+ *	$Id: machdep.c,v 1.117 1995/04/12 20:47:28 wollman Exp $
  */
 
 #include "npx.h"
@@ -466,6 +466,7 @@ identifycpu()
 				break;
 			case 0x480:
 				strcat(cpu_model, "DX4"); break;
+#ifdef I586_CPU
 			case 0x510: 
 				if (pentium_mhz == 60) {
 					strcat(cpu_model, "510\\60");
@@ -484,6 +485,7 @@ identifycpu()
 					strcat(cpu_model,"735\\90 or 815\\100");
 				}
 				break;
+#endif
 			}
 		}
 	}
