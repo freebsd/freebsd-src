@@ -193,10 +193,14 @@ kdb_trap(a0, a1, a2, entry, regs)
 
 	s = critical_enter();
 
-#if 0
+#ifdef SMP
+#ifdef DIAGNOSTIC
 	db_printf("stopping %x\n", PCPU_GET(other_cpus));
+#endif
 	stop_cpus(PCPU_GET(other_cpus));
+#ifdef DIAGNOSTIC
 	db_printf("stopped_cpus=%x\n", stopped_cpus);
+#endif
 #endif
 
 	db_active++;
@@ -210,7 +214,7 @@ kdb_trap(a0, a1, a2, entry, regs)
 
 	db_active--;
 
-#if 0
+#ifdef SMP 
 	restart_cpus(stopped_cpus);
 #endif
 
@@ -564,4 +568,50 @@ db_branch_taken(ins, pc, regs)
 	}
 
 	return (newpc);
+}
+
+DB_SHOW_COMMAND(pcpu, db_show_pcpu)
+{
+	struct globaldata *gd;
+	int id;
+
+	if (have_addr)
+		id = ((addr >> 4) % 16) * 10 + (addr % 16);
+	else
+		id = PCPU_GET(cpuid);
+	SLIST_FOREACH(gd, &cpuhead, gd_allcpu) {
+		if (gd->gd_cpuid == id)
+			break;
+	}
+	if (gd == NULL)
+		db_printf("CPU %d not found\n", id);
+	else {
+		db_printf("cpuid     = %d\n", gd->gd_cpuid);
+		db_printf("ipis      = %lx\n", gd->gd_pending_ipis);
+		db_printf("next ASN  = %d\n", gd->gd_next_asn);
+		db_printf("curproc   = ");
+		if (gd->gd_curproc != NULL)
+			db_printf("%p: pid %d \"%s\"\n", gd->gd_curproc,
+			    gd->gd_curproc->p_pid, gd->gd_curproc->p_comm);
+		else
+			db_printf("none\n");
+		db_printf("curpcb    = %p\n", gd->gd_curpcb);
+		db_printf("fpcurproc = ");
+		if (gd->gd_fpcurproc != NULL)
+			db_printf("%p: pid %d \"%s\"\n", gd->gd_fpcurproc,
+			    gd->gd_fpcurproc->p_pid, gd->gd_fpcurproc->p_comm);
+		else
+			db_printf("none\n");
+		db_printf("idleproc  = ");
+		if (gd->gd_idleproc != NULL)
+			db_printf("%p: pid %d \"%s\"\n", gd->gd_idleproc,
+			    gd->gd_idleproc->p_pid, gd->gd_idleproc->p_comm);
+		else
+			db_printf("none\n");
+		
+#ifdef WITNESS
+		db_printf("spin locks held:\n");
+		witness_list_locks(&gd->gd_spinlocks);
+#endif
+	}
 }
