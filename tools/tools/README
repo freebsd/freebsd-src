@@ -6,3 +6,5 @@ other categories.
 Please make a subdir per program, and add a brief description to this file.
 
 kernxref	Shellscript to cross reference symbols in the LINT kernel.
+ifinfo		Uses the interface MIB to print out all the information
+		an interface exports in an ugly form.
