@@ -606,6 +606,10 @@ ich_pci_probe(device_t dev)
 		device_set_desc(dev, "SiS 7012");
 		return 0;
 
+	case 0x01b110de:
+		device_set_desc(dev, "Nvidia nForce AC97 controller");
+		return 0;
+
 	default:
 		return ENXIO;
 	}
