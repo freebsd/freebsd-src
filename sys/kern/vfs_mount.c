@@ -111,8 +111,6 @@ static int	vfs_donmount(struct thread *td, int fsflags,
 static int	usermount = 0;
 SYSCTL_INT(_vfs, OID_AUTO, usermount, CTLFLAG_RW, &usermount, 0,
     "Unprivileged users may mount and unmount file systems");
-static int	mount_root_delay = 5;
-TUNABLE_INT("vfs.root.mountdelay", &mount_root_delay);
 
 MALLOC_DEFINE(M_MOUNT, "mount", "vfs mount structure");
 
@@ -1204,81 +1202,73 @@ void
 vfs_mountroot(void)
 {
 	char *cp;
-	int asked, error, i, nrootdevs;
+	int error, i, asked = 0;
 
-	asked = 0;
-	error = EDOOFUS;
-	nrootdevs = sizeof(rootdevnames) / sizeof(rootdevnames[0]);
-	if (mount_root_delay <= 0)
-		mount_root_delay = 1;
-	for (; mount_root_delay > 0; mount_root_delay--) {
-		/*
-		 * Wait for GEOM to settle down
-		 */
-		g_waitidle();
 
-		/*
-		 * We are booted with instructions to prompt for the root filesystem.
-		 */
-		if (boothowto & RB_ASKNAME) {
-			if (!vfs_mountroot_ask())
-				return;
-			asked = 1;
-		}
+	/*
+	 * Wait for GEOM to settle down
+	 */
+	g_waitidle();
 
-		/*
-		 * The root filesystem information is compiled in, and we are
-		 * booted with instructions to use it.
-		 */
-		if (ctrootdevname != NULL && (boothowto & RB_DFLTROOT)) {
-			if ((error = vfs_mountroot_try(ctrootdevname)) == 0)
-				return;
-			ctrootdevname = NULL;
-		}
+	/*
+	 * We are booted with instructions to prompt for the root filesystem.
+	 */
+	if (boothowto & RB_ASKNAME) {
+		if (!vfs_mountroot_ask())
+			return;
+		asked = 1;
+	}
 
-		/*
-		 * We've been given the generic "use CDROM as root" flag.  This is
-		 * necessary because one media may be used in many different
-		 * devices, so we need to search for them.
-		 */
-		if (boothowto & RB_CDROM) {
-			for (i = 0; cdrom_rootdevnames[i] != NULL; i++) {
-				error = vfs_mountroot_try(cdrom_rootdevnames[i]);
-				if (error == 0)
-					return;
-			}
-		}
+	/*
+	 * The root filesystem information is compiled in, and we are
+	 * booted with instructions to use it.
+	 */
+	if (ctrootdevname != NULL && (boothowto & RB_DFLTROOT)) {
+		if (!vfs_mountroot_try(ctrootdevname))
+			return;
+		ctrootdevname = NULL;
+	}
 
-		/*
-		 * Try to use the value read by the loader from /etc/fstab, or
-		 * supplied via some other means.  This is the preferred
-		 * mechanism.
-		 */
-		cp = getenv("vfs.root.mountfrom");
-		if (cp != NULL) {
-			error = vfs_mountroot_try(cp);
-			freeenv(cp);
-			if (error == 0)
+	/*
+	 * We've been given the generic "use CDROM as root" flag.  This is
+	 * necessary because one media may be used in many different
+	 * devices, so we need to search for them.
+	 */
+	if (boothowto & RB_CDROM) {
+		for (i = 0; cdrom_rootdevnames[i] != NULL; i++) {
+			if (!vfs_mountroot_try(cdrom_rootdevnames[i]))
 				return;
 		}
+	}
 
-		/*
-		 * Try values that may have been computed by code during boot
-		 */
-		for (i = 0; i < nrootdevs; i++) {
-			if ((error = vfs_mountroot_try(rootdevnames[i])) == 0)
-				return;
-		}
+	/*
+	 * Try to use the value read by the loader from /etc/fstab, or
+	 * supplied via some other means.  This is the preferred
+	 * mechanism.
+	 */
+	cp = getenv("vfs.root.mountfrom");
+	if (cp != NULL) {
+		error = vfs_mountroot_try(cp);
+		freeenv(cp);
+		if (!error)
+			return;
+	}
 
-		/*
-		 * If we (still) have a compiled-in default, try it.
-		 */
-		if ((error = vfs_mountroot_try(ctrootdevname)) == 0)
+	/*
+	 * Try values that may have been computed by code during boot
+	 */
+	if (!vfs_mountroot_try(rootdevnames[0]))
+		return;
+	if (!vfs_mountroot_try(rootdevnames[1]))
+		return;
+
+	/*
+	 * If we (still) have a compiled-in default, try it.
+	 */
+	if (ctrootdevname != NULL)
+		if (!vfs_mountroot_try(ctrootdevname))
 			return;
 
-		tsleep(&mount_root_delay, PRIBIO, "mroot", hz);
-	}
-	printf("Root mount failed: %d.\n", error);
 	/*
 	 * Everything so far has failed, prompt on the console if we haven't
 	 * already tried that.
@@ -1300,6 +1290,7 @@ vfs_mountroot_try(const char *mountfrom)
 	const char	*devname;
 	int		error;
 	char		patt[32];
+	int		s;
 
 	vfsname = NULL;
 	path    = NULL;
@@ -1309,13 +1300,9 @@ vfs_mountroot_try(const char *mountfrom)
 	if (mountfrom == NULL)
 		return (error);		/* don't complain */
 
-	if (bootverbose) {
-		int s;
-
-		s = splcam();		/* Overkill, but annoying without it */
-		printf("Trying to mount root from %s\n", mountfrom);
-		splx(s);
-	}
+	s = splcam();			/* Overkill, but annoying without it */
+	printf("Mounting root from %s\n", mountfrom);
+	splx(s);
 
 	/* parse vfs name and path */
 	vfsname = malloc(MFSNAMELEN, M_MOUNT, M_WAITOK);
@@ -1343,6 +1330,8 @@ vfs_mountroot_try(const char *mountfrom)
 		diskdev = getdiskbyname(path);
 		if (diskdev != NULL)
 			rootdev = diskdev;
+		else
+			printf("setrootbyname failed\n");
 	}
 
 	/* If the root device is a type "memory disk", mount RW */
@@ -1362,7 +1351,9 @@ done:
 	if (error != 0) {
 		if (mp != NULL)
 			vfs_mount_destroy(mp, curthread);
+		printf("Root mount failed: %d\n", error);
 	} else {
+
 		/* register with list of mounted filesystems */
 		mtx_lock(&mountlist_mtx);
 		TAILQ_INSERT_HEAD(&mountlist, mp, mnt_list);
@@ -1372,8 +1363,6 @@ done:
 		inittodr(mp->mnt_time);
 		vfs_unbusy(mp, curthread);
 		error = VFS_START(mp, 0, curthread);
-		if (error == 0)
-			printf("Mounted root from %s.\n", mountfrom);
 	}
 	return (error);
 }
@@ -1385,7 +1374,6 @@ static int
 vfs_mountroot_ask(void)
 {
 	char name[128];
-	int error;
 
 	for(;;) {
 		printf("\nManual root filesystem specification:\n");
@@ -1406,10 +1394,8 @@ vfs_mountroot_ask(void)
 			g_dev_print();
 			continue;
 		}
-		if ((error = vfs_mountroot_try(name)) == 0)
+		if (!vfs_mountroot_try(name))
 			return (0);
-		else
-			printf("Root mount failed: %d\n", error);
 	}
 }
 
