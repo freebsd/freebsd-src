@@ -1,8 +1,7 @@
-/* $Id$
- *
+/*
  * ----------------------------------------------------------------------------
  * "THE BEER-WARE LICENSE" (Revision 42):
- * <phk@login.dkuug.dk> wrote this file.  As long as you retain this notice you
+ * <phk@login.dknet.dk> wrote this file.  As long as you retain this notice you
  * can do whatever you want with this stuff. If we meet some day, and you think
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
@@ -19,6 +18,7 @@
  * -B <file>		Backup to tar-file.
  * -c			Check it out, "ma non troppo"
  * -d <int>		Debug TBD.
+ * -F      		Force
  * -m <mail-addr>	Email me instead.
  * -p			Less paranoid.
  * -P			Paranoid.
@@ -27,13 +27,6 @@
  * -R <file>		Read list of files to reconstruct.
  * -T <tmpdir>.		Temporary files.
  * -v 			Tell about each file.
- *
- * Exit-codes, bitmap, logical or of:
- * 1	Couldn't do something we wanted to, not fatal.
- * 2	Couldn't do something we wanted to, fatal.
- * 4	Input file corrupt.
- * 8	Cannot apply input file.
- * 16   Corruption while applying input file.
  *
  */
 
@@ -46,7 +39,7 @@ int
 main(int argc, char **argv) 
 {
     int stat=0;
-    int i,j,c;
+    int c;
     extern int optopt,optind;
     extern char * optarg;
     
@@ -55,13 +48,14 @@ main(int argc, char **argv)
     setbuf(stderr,0);
     setbuf(stdout,0);
     
-    while((c=getopt(argc,argv,"ab:B:cd:m:pPqr:R:T:Vv")) != -1) {
+    while((c=getopt(argc,argv,"ab:B:cd:Fm:pPqr:R:T:Vv")) != -1) {
 	switch (c) {
-	    case 'p': Paranoid--; break; /* Less Paranoid */
-	    case 'P': Paranoid++; break; /* More Paranoid */
-	    case 'q': Verbose--;    break; /* Quiet */
-	    case 'v': Verbose++;    break; /* Verbose */
-	    case 'T': TmpDir = optarg; break;
+	    case 'p': Paranoid--;	break; /* Less Paranoid */
+	    case 'P': Paranoid++;	break; /* More Paranoid */
+	    case 'q': Verbose--;	break; /* Quiet */
+	    case 'v': Verbose++;	break; /* Verbose */
+	    case 'T': TmpDir = optarg;	break;
+	    case 'F': Force = 1;	break;
 	    case ':':
 		fprintf(stderr,"Option '%c' requires an argument.\n",optopt);
 		stat++;
@@ -78,7 +72,7 @@ main(int argc, char **argv)
 
     if(stat) {
 	fprintf(stderr,"%d errors during option processing\n",stat);
-	exit(1);
+	exit(2);
     }
     stat = 0;
     argc -= optind;
@@ -87,7 +81,7 @@ main(int argc, char **argv)
     if(!argc)
 	stat |= Proc("-");
 
-    while(argc--)
+    while(argc-- && !stat)
 	stat |= Proc(*argv++);
 
     return stat;
@@ -125,14 +119,14 @@ Proc(char *filename)
 
     /* If we cannot seek, we're doomed, so copy to a tmp-file in that case */
     if(!p &&  -1 == fseek(f,0,SEEK_END)) {
-	char *fn = tempnam(NULL,"CMTclient");
+	char *fn = tempnam(TmpDir,"CMTclient");
 	FILE *f2 = fopen(fn,"w+");
 	int i;
 
 	if(!f2) {
 	    perror(fn);
 	    fclose(f);
-	    return 2;
+	    return 4;
 	}
 	unlink(fn);
 	fprintf(stderr,"Writing tmp-file \"%s\"\n",fn);
@@ -144,28 +138,36 @@ Proc(char *filename)
 
     if(!p)
 	rewind(f);
+
     if((i=Pass1(f)))
 	return i;
+
     if(!p) {
         rewind(f);
     } else {
 	pclose(f);
 	f = popen(p,"r");
     }
+
     if((i=Pass2(f)))
 	return i;
+
     if(!p) {
         rewind(f);
     } else {
 	pclose(f);
 	f = popen(p,"r");
     }
+
     if((i=Pass3(f)))
 	return i;
+
     if(!p) {
         fclose(f);
     } else {
 	pclose(f);
+	Free(p);
     }
+
     return 0;
 }
