@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.146.2.3 1999/05/05 13:26:39 markm Exp $
+#	$Id: BSD.usr.dist,v 1.146.2.4 1999/06/05 03:15:39 julian Exp $
 #
 
 /set type=dir uname=root gname=wheel mode=0755
@@ -547,7 +547,7 @@
 	    ..
 	    zh_CN.EUC
             ..
-	    zh_TW.BIG5
+	    zh_TW.Big5
             ..
         ..
         man
@@ -814,3 +814,4 @@
     src             mode=0755 nochange
     ..
 ..
+
