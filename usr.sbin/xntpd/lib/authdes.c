@@ -1,4 +1,4 @@
-/* authdes.c,v 3.1 1993/07/06 01:07:45 jbj Exp
+/*
  * authdes.c - an implementation of the DES cipher algorithm for NTP
  */
 #include "ntp_stdlib.h"

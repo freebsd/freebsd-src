@@ -1,4 +1,4 @@
-/* ntp.h,v 3.1 1993/07/06 01:06:47 jbj Exp
+/*
  * ntp.h - NTP definitions for the masses
  */
 
@@ -32,18 +32,20 @@ typedef signed char s_char;
 #define	NTP_MAXSKEW	1	/* 1 sec, skew after NTP_MAXAGE w/o updates */
 #define	NTP_SKEWINC	49170	/* skew increment for clock updates (l_f) */
 #define	NTP_SKEWFACTOR	16	/* approximation of factor for peer calcs */
-#define	NTP_MAXDISTANCE (1*FP_SECOND) /* max. rootdelay for synchr. */
-#define NTP_MINDPOLL	6	/* default min poll (64 sec) */
-#define	NTP_MINPOLL	4	/* absolute min poll (16 sec) */
-#define	NTP_MAXPOLL	10	/* actually 1<<10, or 1024 sec */
+#define	NTP_MAXDISTANCE (1 * FP_SECOND) /* max. rootdelay for synchr. */
+#define NTP_MINDPOLL	6	/* log2 default min poll interval (64 s) */
+#define NTP_MAXDPOLL	10	/* log2 default max poll interval (~17 m) */
+#define	NTP_MINPOLL	4	/* log2 min poll interval (16 s) */
+#define	NTP_MAXPOLL	14	/* log2 max poll interval (~4.5 h) */
 #define	NTP_MINCLOCK	3	/* minimum for outlyer detection */
 #define	NTP_MAXCLOCK	10	/* maximum select list size */
-#define	NTP_MINDISPERSE	0x28f	/* 0.01 sec in fp format */
-#define	NTP_MAXDISPERSE	(16*FP_SECOND)	/* maximum dispersion (fp 16) */
-#define	NTP_DISPFACTOR	20	/* MAXDISPERSE as a shift */
+#define	NTP_MINDISPERSE	(FP_SECOND / 100) /* min dispersion (u_fp 10 ms) */
+#define	NTP_MAXDISPERSE	(FP_SECOND * 16) /* max dispersion (u_fp 16 s) */
+#define	NTP_DISPFACTOR	20	/* MAXDISPERSE as a shift (u_fp 16 s) */
 #define	NTP_WINDOW	8	/* reachability register size */
 #define	NTP_SHIFT	8	/* 8 suitable for crystal time base */
 #define	NTP_MAXKEY	65535	/* maximum authentication key number */
+#define NTP_MAXD	3	/* log2 estimated error averaging factor */
 
 /*
  * Loop filter parameters.  See section 5.1 of the specification.
@@ -62,27 +64,23 @@ typedef signed char s_char;
 #define	CLOCK_DSCALE	20	/* skew reg. scale: unit is 2**-20 ~= 1 ppm */
 #define	CLOCK_FREQ	16	/* log2 frequency weight (65536) */
 #define	CLOCK_PHASE	6	/* log2 phase weight (64) */
-#define CLOCK_WEIGHTTC	5	/* log2 time constant weight (32) */
-#define CLOCK_HOLDTC	128	/* time constant hold (sec) */
+#define CLOCK_LIMIT	30	/* time constant adjust threshold */
+#define CLOCK_G		2	/* log2 frequency averaging factor */
+#define CLOCK_MAXSEC	800	/* max update interval for pll */
 
-#define	CLOCK_MAX_F	0x20c49ba6	/* 128 ms, in time stamp format */
-#define	CLOCK_MAX_I	0x0	/* both fractional and integral parts */
+#define CLOCK_MAX_FP	0x000020c5 /* max clock offset (s_fp 128 ms) */
+#define	CLOCK_MAX_F	0x20c49ba6 /* max clock offset (l_fp 128 ms) */
+#define	CLOCK_MAX_I	0x00000000 /* both fractional and integral parts */
 
 #define	CLOCK_WAYTOOBIG	1000	/* if clock 1000 sec off, forget it */
-
-/*
- * Unspecified default.  sys.precision defaults to -6 unless otherwise
- * adjusted.
- */
-#define	DEFAULT_SYS_PRECISION	(-6)
 
 /*
  * Event timers are actually implemented as a sorted queue of expiry
  * times.  The queue is slotted, with each slot holding timers which
  * expire in a 2**(NTP_MINPOLL-1) (8) second period.  The timers in
  * each slot are sorted by increasing expiry time.  The number of
- * slots is 2**(NTP_MAXPOLL-(NTP_MINPOLL-1)), or 128, to cover a time
- * period of 2**NTP_MAXPOLL (1024) seconds into the future before
+ * slots is 2**(NTP_MAXPOLL-(NTP_MINPOLL-1)), or 512, to cover a time
+ * period of 2**NTP_MAXPOLL (16384) seconds into the future before
  * wrapping.
  */
 #define	EVENT_TIMEOUT	CLOCK_ADJ
@@ -92,7 +90,7 @@ struct event {
 	struct event *prev;		/* previous in chain */
 	struct peer *peer;		/* peer this counter belongs to */
 	void (*event_handler)();	/* routine to call to handle event */
-	U_LONG event_time;		/* expiry time of counter */
+	u_long event_time;		/* expiry time of counter */
 };
 
 #define	TIMER_SLOTTIME	(1<<(NTP_MINPOLL-1))
@@ -162,9 +160,10 @@ struct interface {
 	struct sockaddr_in mask;	/* interface mask */
 	char name[8];		/* name of interface */
 	int flags;		/* interface flags */
-	LONG received;		/* number of incoming packets */
-	LONG sent;		/* number of outgoing packets */
-	LONG notsent;		/* number of send failures */
+	int last_ttl;		/* last TTL specified */
+	long received;		/* number of incoming packets */
+	long sent;		/* number of outgoing packets */
+	long notsent;		/* number of send failures */
 };
 
 /*
@@ -200,6 +199,7 @@ struct peer {
 	struct peer *ass_next;		/* link pointer in associd hash */
 	struct sockaddr_in srcadr;	/* address of remote host */
 	struct interface *dstadr;	/* pointer to address on local host */
+	struct refclockproc *procptr;	/* pointer to reference clock sutuff */
 	u_char leap;			/* leap indicator */
 	u_char hmode;			/* association mode with this peer */
 	u_char pmode;			/* peer's association mode */
@@ -211,6 +211,7 @@ struct peer {
 	u_char maxpoll;			/* max local host poll interval */
 	u_char version;			/* version number */
 	u_char flags;			/* peer flags */
+	u_char cast_flags;		/* flags MDF_?CAST */
 	u_char flash;			/* peer flashers (for maint) */
 	u_char refclktype;		/* reference clock type */
 	u_char refclkunit;		/* reference clock unit number */
@@ -242,33 +243,30 @@ struct peer {
 	u_char filter_order[NTP_SHIFT]; /* we keep the filter sorted here */
 #define	end_clear_to_zero	filter_order[0]
 	u_fp filter_error[NTP_SHIFT];	/* error part of shift register */
-	LONG update;			/* base sys_clock for skew calc.s */
+	long update;			/* base sys_clock for skew calc.s */
 	s_fp delay;			/* filter estimated delay */
 	u_fp dispersion;		/* filter estimated dispersion */
 	l_fp offset;			/* filter estimated clock offset */
 	s_fp soffset;			/* fp version of above */
 	s_fp synch;			/* synch distance from above */
 	u_fp selectdisp;		/* select dispersion */
-	U_LONG estbdelay;		/* broadcast delay, as a ts fraction */
+	s_fp estbdelay;			/* broadcast offset */
 
 	/*
 	 * statistic counters
 	 */
-	U_LONG timereset;		/* time stat counters were reset */
-	U_LONG sent;			/* number of updates sent */
-	U_LONG received;		/* number of frames received */
-	U_LONG timereceived;		/* last time a frame received */
-	U_LONG timereachable;		/* last reachable/unreachable event */
-	U_LONG processed;		/* processed by the protocol */
-	U_LONG badauth;			/* bad credentials detected */
-	U_LONG bogusorg;		/* rejected due to bogus origin */
-	U_LONG bogusrec;		/* rejected due to bogus receive */
-	U_LONG bogusdelay;		/* rejected due to bogus delay */
-	U_LONG disttoolarge;		/* rejected due to large distance */
-	U_LONG oldpkt;			/* rejected as duplicate packet */
-	U_LONG seldisptoolarge;		/* too much dispersion for selection */
-	U_LONG selbroken;		/* broken NTP detected in selection */
-	U_LONG seltooold;		/* too LONG since sync in selection */
+	u_long timereset;		/* time stat counters were reset */
+	u_long sent;			/* number of updates sent */
+	u_long received;		/* number of frames received */
+	u_long timereceived;		/* last time a frame received */
+	u_long timereachable;		/* last reachable/unreachable event */
+	u_long processed;		/* processed by the protocol */
+	u_long badauth;			/* bad credentials detected */
+	u_long bogusorg;		/* rejected due to bogus origin */
+	u_long oldpkt;			/* rejected as duplicate packet */
+	u_long seldisptoolarge;		/* too much dispersion for selection */
+	u_long selbroken;		/* broken NTP detected in selection */
+	u_long seltooold;		/* too long since sync in selection */
 	u_char candidate;		/* position after candidate selection */
 	u_char select;			/* position at end of falseticker sel */
 	u_char was_sane;		/* set to 1 if it passed sanity check */
@@ -298,7 +296,7 @@ struct peer {
 #define	MODE_PRIVATE	7	/* implementation defined function */
 
 #define	MODE_BCLIENT	8	/* a pseudo mode, used internally */
-
+#define MODE_MCLIENT	9	/* multicast mode, used internally */
 
 /*
  * Values for peer.stratum, sys_stratum
@@ -315,8 +313,8 @@ struct peer {
  */
 #define	FLAG_CONFIG		0x1	/* association was configured */
 #define	FLAG_AUTHENABLE		0x2	/* this guy needs authentication */
-#define	FLAG_UNUSED		0x4	/* (not used) */
-#define	FLAG_DEFBDELAY		0x8	/* using default bdelay */
+#define	FLAG_MCAST1		0x4	/* multicast client/server mode */
+#define	FLAG_MCAST2		0x8	/* multicast client mode */
 #define	FLAG_AUTHENTIC		0x10	/* last message was authentic */
 #define	FLAG_REFCLOCK		0x20	/* this is actually a reference clock */
 #define	FLAG_SYSPEER		0x40	/* this is one of the selected peers */
@@ -334,13 +332,13 @@ struct peer {
 /*
  * Reference clock identifiers (for pps signal)
  */
-#define PPSREFID "PPS "			/* used when pps controls stratum > 1 */
+#define PPSREFID (U_LONG)"PPS "		/* used when pps controls stratum > 1 */
 
 /*
  * Reference clock types.  Added as necessary.
  */
 #define	REFCLK_NONE		0	/* unknown or missing */
-#define	REFCLK_LOCALCLOCK	1	/* external (e.g., ACTS) */
+#define	REFCLK_LOCALCLOCK	1	/* external (e.g., lockclock) */
 #define	REFCLK_GPS_TRAK		2	/* TRAK 8810 GPS Receiver */
 #define	REFCLK_WWV_PST		3	/* PST/Traconex 1020 WWV/H */
 #define	REFCLK_WWVB_SPECTRACOM	4	/* Spectracom 8170/Netclock WWVB */
@@ -353,8 +351,16 @@ struct peer {
 #define	REFCLK_OMEGA_TRUETIME	11	/* TrueTime OM-DC OMEGA */
 #define REFCLK_IRIG_TPRO	12	/* KSI/Odetics TPRO-S IRIG */
 #define REFCLK_ATOM_LEITCH	13	/* Leitch CSD 5300 Master Clock */
-#define REFCLK_MSF_EES		14	/* MSF EES M201, UK */
-#define	REFCLK_GPSTM_TRUETIME	15	/* TrueTime GPS/TM-TMD */
+#define REFCLK_MSF_EES		14	/* EES M201 MSF Receiver */
+#define	REFCLK_GPSTM_TRUETIME	15	/* TrueTime GPS/TM-TMD Receiver */
+#define REFCLK_IRIG_BANCOMM	16	/* Bancomm GPS/IRIG Interface */
+#define REFCLK_GPS_DATUM	17	/* Datum Programmable Time System */
+#define REFCLK_NIST_ACTS	18	/* NIST Auto Computer Time Service */
+#define REFCLK_WWV_HEATH	19	/* Heath GC1000 WWV/WWVH Receiver */
+#define REFCLK_GPS_NMEA		20	/* NMEA based GPS clock */
+#define REFCLK_GPS_MOTO		21	/* Motorola GPS clock */
+#define REFCLK_ATOM_PPS		22	/* 1-PPS Clock Discipline */
+#define REFCLK_MAX		24	/* maximum index (room to expand) */
 
 /*
  * We tell reference clocks from real peers by giving the reference
@@ -474,6 +480,7 @@ struct recvbuf {
 #define	recv_srcclock	X_from_where.X_recv_srcclock
 	struct sockaddr_in srcadr;	/* where packet came from */
 	struct interface *dstadr;	/* interface datagram arrived thru */
+	int fd;				/* fd on which it was received */
 	l_fp recv_time;			/* time of arrival */
 	void (*receiver)();		/* routine to receive buffer */
 	int recv_length;		/* number of octets received */
@@ -576,6 +583,10 @@ struct recvbuf {
 #define	PROTO_AUTHDELAY		5
 #define PROTO_MULTICAST_ADD	6
 #define PROTO_MULTICAST_DEL	7
+#define PROTO_PLL		8
+#define PROTO_PPS		9
+#define PROTO_MONITOR		10
+#define PROTO_FILEGEN		11
 
 /*
  * Configuration items for the loop filter
@@ -596,28 +607,37 @@ struct recvbuf {
 /*
  * Default parameters.  We use these in the absense of something better.
  */
-#define	DEFPRECISION	(-5)		/* conservatively low */
-#define	DEFBROADDELAY	(0x020c49ba)	/* 8 ms.  This is round trip delay */
+#define	DEFPRECISION	(-7)		/* default precision (~10 ms) */
+#define	DEFBROADDELAY	0x00000100	/* default broadcast offset */
+					/* (~4 ms as s_fp) */
+#define DEFAUTHDELAY	0x00080000	/* default authentcation delay */
+					/* (~100 us as l_fp.u_f) */
 #define INADDR_NTP	0xe0000101	/* NTP multicast address 224.0.1.1 */
 /*
  * Structure used optionally for monitoring when this is turned on.
  */
 struct mon_data {
 	struct mon_data *hash_next;	/* next structure in hash list */
-	struct mon_data *hash_prev;	/* previous structure in hash list */
 	struct mon_data *mru_next;	/* next structure in MRU list */
 	struct mon_data *mru_prev;	/* previous structure in MRU list */
 	struct mon_data *fifo_next;	/* next structure in FIFO list */
 	struct mon_data *fifo_prev;	/* previous structure in FIFO list */
-	U_LONG lastdrop;		/* last time dropped due to RES_LIMIT*/
-	U_LONG lasttime;		/* last time data updated */
-	U_LONG firsttime;		/* time structure initialized */
-	U_LONG count;			/* count we have seen */
+	u_long lastdrop;		/* last time dropped due to RES_LIMIT*/
+	u_long lasttime;		/* last time data updated */
+	u_long firsttime;		/* time structure initialized */
+	u_long count;			/* count we have seen */
 	U_LONG rmtadr;			/* address of remote host */
+	struct interface *interface;	/* interface on which this arrived */
 	u_short rmtport;		/* remote port last came from */
 	u_char mode;			/* mode of incoming packet */
 	u_char version;			/* version of incoming packet */
+	u_char cast_flags;		/* flags MDF_?CAST */
 };
+
+#define	MDF_UCAST	1		/* unicast packet */
+#define	MDF_MCAST	2		/* multicast packet */
+#define	MDF_BCAST	4		/* broadcast packet */
+#define	MDF_LCAST	8		/* local packet */
 
 /*
  * Values used with mon_enabled to indicate reason for enabling monitoring
@@ -632,7 +652,7 @@ struct restrictlist {
 	struct restrictlist *next;	/* link to next entry */
 	U_LONG addr;			/* host address (host byte order) */
 	U_LONG mask;			/* mask for address (host byte order) */
-	U_LONG count;			/* number of packets matched */
+	u_long count;			/* number of packets matched */
 	u_short flags;			/* accesslist flags */
 	u_short mflags;			/* match flags */
 };

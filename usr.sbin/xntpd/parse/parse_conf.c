@@ -46,8 +46,12 @@ extern clockformat_t clock_meinberg[];
 extern clockformat_t clock_rawdcf;
 #endif
 
-#ifdef CLOCK_TRIMSV6
-extern clockformat_t clock_trimsv6;
+#ifdef CLOCK_TRIMTAIP
+extern clockformat_t clock_trimtaip;
+#endif
+
+#ifdef CLOCK_TRIMTSIP
+extern clockformat_t clock_trimtsip;
 #endif
 
 /*
@@ -69,8 +73,11 @@ clockformat_t *clockformats[] =
 #ifdef CLOCK_RAWDCF
   &clock_rawdcf,
 #endif
-#ifdef CLOCK_TRIMSV6
-  &clock_trimsv6,
+#ifdef CLOCK_TRIMTAIP
+  &clock_trimtaip,
+#endif
+#ifdef CLOCK_TRIMTSIP
+  &clock_trimtsip,
 #endif
 0};
 

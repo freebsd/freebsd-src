@@ -1,4 +1,4 @@
-/* ntp_intres.c,v 3.1 1993/07/06 01:11:16 jbj Exp
+/*
  * ripped off from ../xnptres/xntpres.c by Greg Troxel 4/2/92
  * routine callable from xntpd, rather than separate program
  * also, key info passed in via a global, so no key file needed.
@@ -118,7 +118,7 @@ static	int sockfd = -1;
 
 /* stuff to be filled in by caller */
 
-U_LONG req_keyid;	/* request keyid */
+u_long req_keyid;	/* request keyid */
 char *req_file;		/* name of the file with configuration info */
 
 /* end stuff to be filled in */
@@ -130,7 +130,7 @@ extern int errno;
 static	RETSIGTYPE bong		P((int));
 static	void	checkparent	P((void));
 static	void	removeentry	P((struct conf_entry *));
-static	void	addentry	P((char *, int, int, int, int, int, int, U_LONG));
+static	void	addentry	P((char *, int, int, int, int, int, int, u_long));
 static	int	findhostaddr	P((struct conf_entry *));
 static	void	openntp		P((void));
 static	int	request	P((struct conf_peer *));
@@ -147,9 +147,10 @@ ntp_intres()
 {
 	FILE *in;
 
+#ifdef DEBUG
 	if ( debug )
-	  syslog(LOG_INFO, "ntp_intres running");
-
+		syslog(LOG_INFO, "ntp_intres running");
+#endif
 
 	/* check out auth stuff */
 	if (!authhavekey(req_keyid)) {
@@ -171,7 +172,7 @@ ntp_intres()
 	readconf(in, req_file);
 	(void) fclose(in);
 
-	if ( ! debug )
+	if (!debug )
 		(void) unlink(req_file);
 
 	/*
@@ -289,7 +290,7 @@ addentry(name, mode, version, minpoll, maxpoll, flags, ttl, keyid)
 	int maxpoll;
 	int flags;
 	int ttl;
-	U_LONG keyid;
+	u_long keyid;
 {
 	register char *cp;
 	register struct conf_entry *ce;
@@ -308,7 +309,7 @@ addentry(name, mode, version, minpoll, maxpoll, flags, ttl, keyid)
 	ce->ce_maxpoll = (u_char)maxpoll;
 	ce->ce_flags = (u_char)flags;
 	ce->ce_ttl = (u_char)ttl;
-	ce->ce_keyid = htonl(keyid);
+	ce->ce_keyid = keyid;
 	ce->ce_next = NULL;
 
 	if (confentries == NULL) {
@@ -466,7 +467,7 @@ request(conf)
 
 	auth1crypt(req_keyid, (U_LONG *)&reqpkt, REQ_LEN_NOMAC);
 	gettstamp(&ts);
-	M_ADDUF(ts.l_ui, ts.l_uf, SKEWTIME);
+	L_ADDUF(&ts, SKEWTIME);
 	HTONL_FP(&ts, &reqpkt.tstamp);
 	n = auth2crypt(req_keyid, (U_LONG *)&reqpkt, REQ_LEN_NOMAC);
 
@@ -683,7 +684,7 @@ readconf(fp, name)
 {
 	register int i;
 	char *token[NUMTOK];
-	U_LONG intval[NUMTOK];
+	u_long intval[NUMTOK];
 	int flags;
 	char buf[MAXLINESIZE];
 	char *bp;

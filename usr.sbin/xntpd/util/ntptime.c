@@ -17,6 +17,7 @@
 
 #include "ntp_fp.h"
 #include "ntp_unixtime.h"
+#include "sys/timex.h"
 #include "ntp_stdlib.h"
 
 #ifndef	SYS_DECOSF1
@@ -24,11 +25,9 @@
 #endif /* SYS_DECOSF1 */
 
 #ifdef KERNEL_PLL
-#include <sys/timex.h>
 #define ntp_gettime(t)  syscall(SYS_ntp_gettime, (t))
 #define ntp_adjtime(t)  syscall(SYS_ntp_adjtime, (t))
 #else /* KERNEL_PLL */
-#include "ntp_timex.h"
 #define	SYS_ntp_adjtime NTP_SYSCALL_ADJ
 #define	SYS_ntp_gettime NTP_SYSCALL_GET
 #endif /* KERNEL_PLL */
@@ -147,14 +146,16 @@ main(argc, argv)
 #endif
 
 	if (cost) {
-		for (c=0; c< sizeof times / sizeof times[0]; c++) {
+		for (c = 0; c < sizeof times / sizeof times[0]; c++) {
 			(void)ntp_gettime(&ntv);
-			if (pll_control < 0) break;
+			if (pll_control < 0)
+				break;
 			times[c] = ntv.time.tv_usec;
 		}
 		if (pll_control >= 0) {
 			printf("[ us %06d:", times[0]);
-			for (c=1; c< sizeof times / sizeof times[0]; c++) printf(" %d", times[c] - times[c-1]);
+			for (c = 1; c < sizeof times / sizeof times[0]; c++)
+				printf(" %d", times[c] - times[c - 1]);
 			printf(" ]\n");
 		}
 	}
@@ -169,7 +170,8 @@ main(argc, argv)
 	/*
 	 * Fetch timekeeping data and display.
 	 */
-	if ((status = ntp_gettime(&ntv)) < 0)
+	status = ntp_gettime(&ntv);
+	if (status < 0)
 		perror("ntp_gettime() call fails");
 	else {
 		printf("ntp_gettime() returns code %d\n", status);
@@ -182,13 +184,14 @@ main(argc, argv)
 		printf("  maximum error %ld us, estimated error %ld us.\n",
 		    ntv.maxerror, ntv.esterror);
 		if (rawtime) printf("  ntptime=%x.%x unixtime=%x.%06d %s",
-			ts.l_ui, ts.l_uf,
-			ntv.time.tv_sec, ntv.time.tv_usec,
-			ctime(&ntv.time.tv_sec));
+		    ts.l_ui, ts.l_uf, ntv.time.tv_sec, ntv.time.tv_usec,
+		    ctime(&ntv.time.tv_sec));
 	}
-	if ((status = ntp_adjtime(&ntx)) < 0) perror((errno == EPERM) ? 
-		">> Must be root to set kernel values\n>> ntp_adjtime() call fails" :
-		">> ntp_adjtime() call fails");
+	status = ntp_adjtime(&ntx);
+	if (status < 0)
+		perror((errno == EPERM) ? 
+		"Must be root to set kernel values\nntp_adjtime() call fails" :
+		"ntp_adjtime() call fails");
 	else {
 		printf("ntp_adjtime() returns code %d\n", status);
 		ftemp = ntx.freq;

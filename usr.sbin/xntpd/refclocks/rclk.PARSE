@@ -15,7 +15,8 @@ if check "$DEFS" '$0 ~ /HAVE_SYSV_TTYS|STREAM|HAVE_TERMIOS/'; then
 	echo "				Raw DCF77 signal (100/200ms pulses)"
 	echo "			  GPS:"
 	echo "				Meinberg GPS 166"
-	echo "				Trimble GPS SV6"
+	echo "				Trimble GPS (TAIP Protocol)"
+	echo "				Trimble GPS (TSIP Protocol)"
 	;;
     check)
 	if check "$RCONFIG" '$0 ~ /PARSE/ && $0 ~ /CLOCK/'; then
@@ -24,7 +25,8 @@ if check "$DEFS" '$0 ~ /HAVE_SYSV_TTYS|STREAM|HAVE_TERMIOS/'; then
 	  if check "$RCONFIG" '$0 ~ /CLOCK_MEINBERG/'; then echon ",MEINBERG"; fi
 	  if check "$RCONFIG" '$0 ~ /CLOCK_SCHMID/'; then echon ",SCHMID"; fi
 	  if check "$RCONFIG" '$0 ~ /CLOCK_DCF7000/'; then echon ",DCF7000"; fi
-	  if check "$RCONFIG" '$0 ~ /CLOCK_TRIMSV6/'; then echon ",Trimble SV6"; fi
+	  if check "$RCONFIG" '$0 ~ /CLOCK_TRIMTAIP/'; then echon ",Trimble GPS (TAIP)"; fi
+	  if check "$RCONFIG" '$0 ~ /CLOCK_TRIMTSIP/'; then echon ",Trimble GPS (TSIP)"; fi
 	  if check "$RCONFIG" '$0 ~ /CLOCK_RAWDCF/'; then echon ",Raw DCF77 pulses"; fi
 	  echo
 	fi
@@ -40,8 +42,10 @@ if check "$DEFS" '$0 ~ /HAVE_SYSV_TTYS|STREAM|HAVE_TERMIOS/'; then
 	     ( [ ! "$REFCONF" ] && query "	Include support for Schmid DCF77 clock" y); then echo "-DCLOCK_SCHMID" >> $RCONFIG; fi
 	  if check "$REFCONF" '$0 ~ /DCF7000|ELV/' ||
 	     ( [ ! "$REFCONF" ] && query "	Include support for ELV/DCF7000 clock" y); then echo "-DCLOCK_DCF7000" >> $RCONFIG; fi
-	  if check "$REFCONF" '$0 ~ /TRIMBLE/' ||
-	     ( [ ! "$REFCONF" ] && query "	Include support for Trimble SV6 GPS receiver" y); then echo "-DCLOCK_TRIMSV6" >> $RCONFIG; fi
+	  if check "$REFCONF" '$0 ~ /TRIMTAIP/' ||
+	     ( [ ! "$REFCONF" ] && query "	Include support for Trimble GPS receiver (TAIP Protocol)" y); then echo "-DCLOCK_TRIMTAIP" >> $RCONFIG; fi
+	  if check "$REFCONF" '$0 ~ /TRIMTSIP/' ||
+	     ( [ ! "$REFCONF" ] && query "	Include support for Trimble GPS receiver (TSIP Protocol)" y); then echo "-DCLOCK_TRIMTSIP" >> $RCONFIG; fi
 	  if check "$REFCONF" '$0 ~ /RAWDCF/' ||
 	     ( [ ! "$REFCONF" ] && query "	Include support for raw DCF77 time code" y); then echo "-DCLOCK_RAWDCF" >> $RCONFIG; fi
 	fi

@@ -1,4 +1,4 @@
-/* ntp_unixtime.h,v 3.1 1993/07/06 01:07:02 jbj Exp
+/*
  * ntp_unixtime.h - contains constants and macros for converting between
  *		    NTP time stamps (l_fp) and Unix times (struct timeval)
  */
@@ -34,9 +34,9 @@
  * Convert usec to a time stamp fraction.  If you use this the program
  * must include the following declarations:
  */
-extern U_LONG ustotslo[];
-extern U_LONG ustotsmid[];
-extern U_LONG ustotshi[];
+extern u_long ustotslo[];
+extern u_long ustotsmid[];
+extern u_long ustotshi[];
 
 #define	TVUTOTSF(tvu, tsf) \
 	(tsf) = ustotslo[(tvu) & 0xff] \
@@ -48,14 +48,14 @@ extern U_LONG ustotshi[];
  */
 #define TVTOTS(tv, ts) \
 	do { \
-		(ts)->l_ui = (unsigned LONG)(tv)->tv_sec; \
+		(ts)->l_ui = (u_long)(tv)->tv_sec; \
 		TVUTOTSF((tv)->tv_usec, (ts)->l_uf); \
 	} while(0)
 
 #define sTVTOTS(tv, ts) \
 	do { \
 		int isneg = 0; \
-		LONG usec; \
+		long usec; \
 		(ts)->l_ui = (tv)->tv_sec; \
 		usec = (tv)->tv_usec; \
 		if (((tv)->tv_sec < 0) || ((tv)->tv_usec < 0)) { \
@@ -81,9 +81,9 @@ extern U_LONG ustotshi[];
  * Convert a time stamp fraction to microseconds.  The time stamp
  * fraction is assumed to be unsigned.  To use this in a program, declare:
  */
-extern LONG tstouslo[];
-extern LONG tstousmid[];
-extern LONG tstoushi[];
+extern long tstouslo[];
+extern long tstousmid[];
+extern long tstoushi[];
 
 #define	TSFTOTVU(tsf, tvu) \
 	(tvu) = (tstoushi[((tsf) >> 24) & 0xff] \
@@ -109,8 +109,8 @@ extern LONG tstoushi[];
  * here, but it is convenient since the guys who use the definition will
  * often be including this file anyway.
  */
-extern U_LONG msutotsflo[];
-extern U_LONG msutotsfhi[];
+extern u_long msutotsflo[];
+extern u_long msutotsfhi[];
 
 #define	MSUTOTSF(msu, tsf) \
 	(tsf) = msutotsfhi[((msu) >> 5) & 0x1f] + msutotsflo[(msu) & 0x1f]

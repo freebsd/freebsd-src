@@ -1,4 +1,4 @@
-/* uglydate.c,v 3.1 1993/07/06 01:08:53 jbj Exp
+/*
  * uglydate - convert a time stamp to something barely readable
  *	      The string returned is 37 characters long.
  */
@@ -19,17 +19,15 @@ uglydate(ts)
 	char *bp;
 	char *timep;
 	struct tm *tm;
-	U_LONG sec;
-	U_LONG msec;
+	time_t sec;
+	long msec;
 	int year;
 
 	timep = ulfptoa(ts, 6);		/* returns max 17 characters */
-
 	LIB_GETBUF(bp);
-	
 	sec = ts->l_ui - JAN_1970;
 	msec = ts->l_uf / 4294967;	/* fract / (2**32/1000) */
-	tm = gmtime((LONG *)&sec);
+	tm = gmtime(&sec);
 	if (ts->l_ui == 0) {
 		/*
 		 * Probably not a real good thing to do.  Oh, well.
@@ -44,10 +42,8 @@ uglydate(ts)
 		while (year >= 100)
 			year -= 100;
 	}
-
-	(void) sprintf(bp, "%17s %02d:%03d:%02d:%02d:%02d.%03d",
+	(void) sprintf(bp, "%17s %02d:%03d:%02d:%02d:%02d.%03ld",
 	    timep, year, tm->tm_yday, tm->tm_hour, tm->tm_min,
 	    tm->tm_sec, msec);
-
 	return bp;
 }

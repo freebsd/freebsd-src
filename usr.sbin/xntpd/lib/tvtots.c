@@ -1,4 +1,4 @@
-/* tvtots.c,v 3.1 1993/07/06 01:08:51 jbj Exp
+/*
  * tvtots - tables for converting from Unix struct timeval's to
  *	    NTP time stamp format.
  */
@@ -17,7 +17,7 @@
  * +- 1.5 low order bits.
  */
 
-U_LONG ustotslo[256] = {
+u_long ustotslo[256] = {
 	0x00000000, 0x000010c7, 0x0000218e, 0x00003255,
 	0x0000431c, 0x000053e3, 0x000064aa, 0x00007571,
 	0x00008638, 0x000096ff, 0x0000a7c6, 0x0000b88d,
@@ -84,7 +84,7 @@ U_LONG ustotslo[256] = {
 	0x001083dc, 0x001094a3, 0x0010a56a, 0x0010b631,
 };
 
-U_LONG ustotsmid[256] = {
+u_long ustotsmid[256] = {
 	0x00000000, 0x0010c6f8, 0x00218def, 0x003254e7,
 	0x00431bde, 0x0053e2d6, 0x0064a9ce, 0x007570c5,
 	0x008637bd, 0x0096feb4, 0x00a7c5ac, 0x00b88ca4,
@@ -151,7 +151,7 @@ U_LONG ustotsmid[256] = {
 	0x1083dbbc, 0x1094a2b4, 0x10a569ab, 0x10b630a3,
 };
 
-U_LONG ustotshi[16] = {
+u_long ustotshi[16] = {
 	0x00000000, 0x10c6f79a, 0x218def35, 0x3254e6cf,
 	0x431bde6a, 0x53e2d604, 0x64a9cd9f, 0x7570c539,
 	0x8637bcd3, 0x96feb46e, 0xa7c5ac08, 0xb88ca3a3,

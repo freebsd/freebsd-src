@@ -1,4 +1,4 @@
-/* ntpdc_ops.c,v 3.1 1993/07/06 01:12:02 jbj Exp
+/*
  * ntpdc_ops.c - subroutines which are called to perform operations by xntpdc
  */
 #include <stdio.h>
@@ -6,6 +6,10 @@
 #include <sys/types.h>
 #include <sys/time.h>
 #include <netdb.h>
+#ifndef __bsdi__
+#include <netinet/in.h>
+#endif
+#include <arpa/inet.h>
 
 #include "ntpdc.h"
 #include "ntp_control.h"
@@ -49,8 +53,6 @@ static	void	monitor		P((struct parse *, FILE *));
 static	void	reset		P((struct parse *, FILE *));
 static	void	preset		P((struct parse *, FILE *));
 static	void	readkeys	P((struct parse *, FILE *));
-static	void	dodirty		P((struct parse *, FILE *));
-static	void	dontdirty	P((struct parse *, FILE *));
 static	void	trustkey	P((struct parse *, FILE *));
 static	void	untrustkey	P((struct parse *, FILE *));
 static	void	do_trustkey	P((struct parse *, FILE *, int));
@@ -89,7 +91,7 @@ struct xcmd opcmds[] = {
 	{ "pstats",	peerstats,	{ ADD, OPT|ADD, OPT|ADD, OPT|ADD },
 		{ "peer_address", "peer2_addr", "peer3_addr", "peer4_addr" },
 			"display statistical information for one or more peers" },
-	{ "loopinfo",	loopinfo,	{ OPT|STR, NO, NO, NO },
+	{ "loopinfo",	loopinfo,	{ OPT|NTP_STR, NO, NO, NO },
 					{ "oneline|multiline", "", "", "" },
 			"display loop filter information" },
 	{ "sysinfo",	sysinfo,	{ NO, NO, NO, NO },
@@ -107,47 +109,47 @@ struct xcmd opcmds[] = {
 	{ "timerstats",	timerstats,	{ NO, NO, NO, NO },
 					{ "", "", "", "" },
 			"display event timer subsystem statistics" },
-	{ "addpeer",	addpeer,	{ ADD, OPT|UINT, OPT|UINT, OPT|STR },
+	{ "addpeer",	addpeer,	{ ADD, OPT|UINT, OPT|UINT, OPT|NTP_STR },
 				{ "addr", "keyid", "version", "minpoll|prefer" },
 			"configure a new peer association" },
-	{ "addserver",	addserver,	{ ADD, OPT|UINT, OPT|UINT, OPT|STR },
+	{ "addserver",	addserver,	{ ADD, OPT|UINT, OPT|UINT, OPT|NTP_STR },
 				{ "addr", "keyid", "version", "minpoll|prefer" },
 			"configure a new server" },
-	{ "broadcast",	broadcast,	{ ADD, OPT|UINT, OPT|UINT, OPT|STR },
+	{ "broadcast",	broadcast,	{ ADD, OPT|UINT, OPT|UINT, OPT|NTP_STR },
 				{ "addr", "keyid", "version", "minpoll" },
 			"configure broadcasting time service" },
 	{ "unconfig",	unconfig,	{ ADD, OPT|ADD, OPT|ADD, OPT|ADD },
 		{ "peer_address", "peer2_addr", "peer3_addr", "peer4_addr" },
 			"unconfigure existing peer assocations" },
-	{ "set",	set,		{ STR, OPT|STR, OPT|STR, OPT|STR },
-					{ "bclient|mclient|auth", "...", "...", "..." },
-			"set a system flag (bclient, mclient, auth)" },
-        { "clear",      sys_clear,      { STR, OPT|STR, OPT|STR, OPT|STR },
-					{ "bclient|mclient|auth", "...", "...", "..." },
-			"clear a system flag (bclient, mclient, auth)" },
+	{ "enable",	set,		{ NTP_STR, OPT|NTP_STR, OPT|NTP_STR, OPT|NTP_STR },
+					{ "auth|bclient|pll|pps|monitor|stats", "...", "...", "..." },
+			"set a system flag (auth, bclient, pll, pps, monitor, stats)" },
+        { "disable",	sys_clear,      { NTP_STR, OPT|NTP_STR, OPT|NTP_STR, OPT|NTP_STR },
+					{ "auth|bclient|pll|pps|monitor|stats", "...", "...", "..." },
+			"clear a system flag (auth, bclient, pll, pps, monitor, stats)" },
 	{ "reslist",	reslist,	{ NO, NO, NO, NO },
 					{ "", "", "", "" },
 			"display the server's restrict list" },
-	{ "restrict",	restrict,	{ ADD, ADD, STR, OPT|STR },
+	{ "restrict",	restrict,	{ ADD, ADD, NTP_STR, OPT|NTP_STR },
 		{ "address", "mask",
 		"ntpport|ignore|noserve|notrust|noquery|nomodify|nopeer",
 		"..." },
 			"create restrict entry/add flags to entry" },
-	{ "unrestrict", unrestrict,	{ ADD, ADD, STR, OPT|STR },
+	{ "unrestrict", unrestrict,	{ ADD, ADD, NTP_STR, OPT|NTP_STR },
 		{ "address", "mask",
 		"ntpport|ignore|noserve|notrust|noquery|nomodify|nopeer",
 		"..." },
 			"remove flags from a restrict entry" },
-	{ "delrestrict", delrestrict,	{ ADD, ADD, OPT|STR, NO },
+	{ "delrestrict", delrestrict,	{ ADD, ADD, OPT|NTP_STR, NO },
 					{ "address", "mask", "ntpport", "" },
 			"delete a restrict entry" },
-	{ "monlist",	monlist,	{ NO, NO, NO, NO },
-					{ "", "", "", "" },
+	{ "monlist",	monlist,	{ OPT|INT, NO, NO, NO },
+					{ "version", "", "", "" },
 		"display data the server's monitor routines have collected" },
-	{ "monitor",	monitor,	{ STR, NO, NO, NO },
+	{ "monitor",	monitor,	{ NTP_STR, NO, NO, NO },
 					{ "on|off", "", "", "" },
 		"turn the server's monitoring facility on or off" },
-	{ "reset",	reset,		{ STR, OPT|STR, OPT|STR, OPT|STR },
+	{ "reset",	reset,		{ NTP_STR, OPT|NTP_STR, OPT|NTP_STR, OPT|NTP_STR },
 		{ "io|sys|mem|timer|auth|allpeers", "...", "...", "..." },
 			"reset various subsystem statistics counters" },
 	{ "preset",	preset,		{ ADD, OPT|ADD, OPT|ADD, OPT|ADD },
@@ -155,13 +157,7 @@ struct xcmd opcmds[] = {
 		"reset stat counters associated with particular peer(s)" },
 	{ "readkeys",	readkeys,	{ NO, NO, NO, NO },
 					{ "", "", "", "" },
-	"request a reread of the `keys' file and re-init of system keys" },
-	{ "dodirty",	dodirty,	{ NO, NO, NO, NO },
-					{ "", "", "", "" },
-			"placeholder, historical interest only" },
-	{ "dontdirty",	dontdirty,	{ NO, NO, NO, NO },
-					{ "", "", "", "" },
-			"placeholder, historical interest only" },
+	"request a reread of the keys file and re-init of system keys" },
 	{ "trustkey",	trustkey,	{ UINT, OPT|UINT, OPT|UINT, OPT|UINT },
 					{ "keyid", "keyid", "keyid", "keyid" },
 			"add one or more key ID's to the trusted list" },
@@ -195,7 +191,7 @@ struct xcmd opcmds[] = {
 	{ "clockstat",	clockstat,	{ ADD, OPT|ADD, OPT|ADD, OPT|ADD },
 				{ "address", "address", "address", "address" },
 			"display clock status information" },
-	{ "fudge",	fudge,		{ ADD, STR, STR, NO },
+	{ "fudge",	fudge,		{ ADD, NTP_STR, NTP_STR, NO },
 		{ "address", "time1|time2|val1|val2|flags", "value", "" },
 			"set/change one of a clock's fudge factors" },
 	{ "clkbug",	clkbug,		{ ADD, OPT|ADD, OPT|ADD, OPT|ADD },
@@ -297,7 +293,7 @@ peerlist(pcmd, fp)
 	int res;
 
 	res = doquery(IMPL_XNTPD, REQ_PEER_LIST, 0, 0, 0, (char *)NULL, &items,
-	    &itemsize, (char **)&plist);
+	    &itemsize, (char **)&plist, 0);
 	
 	if (res != 0 && items == 0)
 		return;
@@ -359,7 +355,7 @@ dopeers(pcmd, fp, dmstyle)
 	l_fp tempts;
 
 	res = doquery(IMPL_XNTPD, REQ_PEER_LIST_SUM, 0, 0, 0, (char *)NULL,
-	    &items, &itemsize, (char **)&plist);
+	    &items, &itemsize, (char **)&plist, 0);
 	
 	if (res != 0 && items == 0)
 		return;
@@ -417,6 +413,21 @@ dopeers(pcmd, fp, dmstyle)
 	}
 }
 
+/* Convert a refid & stratum (in host order) to a string */
+static char*
+refid_string(refid, stratum)
+	u_long refid;
+	int stratum;
+{
+	if (stratum <= 1) {
+		static char junk[5];
+		junk[4] = 0;
+		memmove(junk, (char *)&refid, 4);
+		return junk;
+	}
+
+	return numtoa(refid);
+}
 
 /*
  * printpeer - print detail information for a peer
@@ -427,7 +438,6 @@ printpeer(pp, fp)
 	FILE *fp;
 {
 	register int i;
-	char junk[5];
 	char *str;
 	l_fp tempts;
 
@@ -438,32 +448,25 @@ printpeer(pp, fp)
 	    modetoa(pp->hmode), modetoa(pp->pmode),
 	    pp->stratum, pp->precision);
 	
-	if (pp->stratum <= 1) {
-		junk[4] = 0;
-		memmove(junk, (char *)&pp->refid, 4);
-		str = junk;
-	} else {
-		str = numtoa(pp->refid);
-	}
 	(void) fprintf(fp,
 	    "leap %c%c, refid [%s], rootdistance %s, rootdispersion %s\n",
 	    pp->leap & 0x2 ? '1' : '0',
 	    pp->leap & 0x1 ? '1' : '0',
-	    str, ufptoa(HTONS_FP(pp->rootdelay), 5),
-	    ufptoa(HTONS_FP(pp->rootdispersion), 5));
+	    refid_string(pp->refid, pp->stratum), fptoa(NTOHS_FP(pp->rootdelay), 5),
+	    ufptoa(NTOHS_FP(pp->rootdispersion), 5));
 	
 	(void) fprintf(fp,
-	    "ppoll %d, hpoll %d, keyid %u, version %d, association %u\n",
-	    pp->ppoll, pp->hpoll, pp->keyid, pp->version, ntohs(pp->associd));
+	    "ppoll %d, hpoll %d, keyid %lu, version %d, association %u\n",
+	    pp->ppoll, pp->hpoll, (u_long)pp->keyid, pp->version, ntohs(pp->associd));
 
 	(void) fprintf(fp,
 	    "valid %d, reach %03o, unreach %d, flash %03o, ",
 	    pp->valid, pp->reach, pp->unreach, pp->flash);
 
-	(void) fprintf(fp, "estbdelay %s, ttl %d\n",
-	    mfptoa(0, ntohl(pp->estbdelay), 5), pp->ttl);
+	(void) fprintf(fp, "boffset %s, ttl %d\n",
+	    fptoa(NTOHS_FP(pp->estbdelay), 5), pp->ttl);
 	
-	(void) fprintf(fp, "timer %ds, flags", ntohl(pp->timer));
+	(void) fprintf(fp, "timer %lds, flags", (long)ntohl(pp->timer));
 	if (pp->flags == 0) {
 		(void) fprintf(fp, " none\n");
 	} else {
@@ -473,44 +476,44 @@ printpeer(pp, fp)
 			str = ",";
 		}
 		if (pp->flags & INFO_FLAG_CONFIG) {
-			(void) fprintf(fp, "%s configured", str);
-			str = ",";
-		}
-		if (pp->flags & INFO_FLAG_MINPOLL) {
-			(void) fprintf(fp, "%s minpoll", str);
-			str = ",";
-		}
-		if (pp->flags & INFO_FLAG_AUTHENABLE) {
-			(void) fprintf(fp, "%s authenable", str);
+			(void) fprintf(fp, "%s config", str);
 			str = ",";
 		}
 		if (pp->flags & INFO_FLAG_REFCLOCK) {
-			(void) fprintf(fp, "%s reference_clock", str);
+			(void) fprintf(fp, "%s refclock", str);
+			str = ",";
+		}
+		if (pp->flags & INFO_FLAG_AUTHENABLE) {
+			(void) fprintf(fp, "%s auth", str);
+			str = ",";
+		}
+		if (pp->flags & INFO_FLAG_BCLIENT) {
+			(void) fprintf(fp, "%s bclient", str);
 			str = ",";
 		}
 		if (pp->flags & INFO_FLAG_PREFER) {
-			(void) fprintf(fp, "%s preferred_peer", str);
+			(void) fprintf(fp, "%s prefer", str);
 		}
 		(void) fprintf(fp, "\n");
 	}
 
-	HTONL_FP(&pp->reftime, &tempts);
+	NTOHL_FP(&pp->reftime, &tempts);
 	(void) fprintf(fp, "reference time:      %s\n",
 	    prettydate(&tempts));
-	HTONL_FP(&pp->org, &tempts);
+	NTOHL_FP(&pp->org, &tempts);
 	(void) fprintf(fp, "originate timestamp: %s\n",
 	    prettydate(&tempts));
-	HTONL_FP(&pp->rec, &tempts);
+	NTOHL_FP(&pp->rec, &tempts);
 	(void) fprintf(fp, "receive timestamp:   %s\n",
 	    prettydate(&tempts));
-	HTONL_FP(&pp->xmt, &tempts);
+	NTOHL_FP(&pp->xmt, &tempts);
 	(void) fprintf(fp, "transmit timestamp:  %s\n",
 	    prettydate(&tempts));
 	
 	(void) fprintf(fp, "filter delay: ");
 	for (i = 0; i < NTP_SHIFT; i++) {
 		(void) fprintf(fp, " %-8.8s",
-		    fptoa(HTONS_FP(pp->filtdelay[i]), 5));
+		    fptoa(NTOHS_FP(pp->filtdelay[i]), 5));
 		if (i == (NTP_SHIFT>>1)-1)
 			(void) fprintf(fp, "\n              ");
 	}
@@ -518,7 +521,7 @@ printpeer(pp, fp)
 
 	(void) fprintf(fp, "filter offset:");
 	for (i = 0; i < NTP_SHIFT; i++) {
-		HTONL_FP(&pp->filtoffset[i], &tempts);
+		NTOHL_FP(&pp->filtoffset[i], &tempts);
 		(void) fprintf(fp, " %-8.8s", lfptoa(&tempts, 6));
 		if (i == (NTP_SHIFT>>1)-1)
 			(void) fprintf(fp, "\n              ");
@@ -534,12 +537,12 @@ printpeer(pp, fp)
 	(void) fprintf(fp, "\n");
 	
 
-	HTONL_FP(&pp->offset, &tempts);
+	NTOHL_FP(&pp->offset, &tempts);
 	(void) fprintf(fp,
 	    "offset %s, delay %s, dispersion %s, selectdisp %s\n",
-	    lfptoa(&tempts, 6), fptoa(HTONS_FP(pp->delay), 5),
-	    ufptoa(HTONS_FP(pp->dispersion), 5),
-	    ufptoa(HTONS_FP(pp->selectdisp), 5));
+	    lfptoa(&tempts, 6), fptoa(NTOHS_FP(pp->delay), 5),
+	    ufptoa(NTOHS_FP(pp->dispersion), 5),
+	    ufptoa(NTOHS_FP(pp->selectdisp), 5));
 }
 
 
@@ -567,7 +570,7 @@ showpeer(pcmd, fp)
 
 	res = doquery(IMPL_XNTPD, REQ_PEER_INFO, 0, qitems,
 	    sizeof(struct info_peer_list), (char *)plist, &items,
-	    &itemsize, (char **)&pp);
+	    &itemsize, (char **)&pp, 0);
 	
 	if (res != 0 && items == 0)
 		return;
@@ -611,7 +614,7 @@ peerstats(pcmd, fp)
 
 	res = doquery(IMPL_XNTPD, REQ_PEER_STATS, 0, qitems,
 	    sizeof(struct info_peer_list), (char *)plist, &items,
-	    &itemsize, (char **)&pp);
+	    &itemsize, (char **)&pp, 0);
 	
 	if (res != 0 && items == 0)
 		return;
@@ -627,44 +630,28 @@ peerstats(pcmd, fp)
 		    nntohost(pp->srcadr));
 		(void) fprintf(fp, "local interface:      %s\n",
 		    numtoa(pp->dstadr));
-		(void) fprintf(fp, "time last received:   %ds\n",
-		    ntohl(pp->timereceived));
-		(void) fprintf(fp, "time until next send: %ds\n",
-		    ntohl(pp->timetosend));
-		(void) fprintf(fp, "reachability change:  %ds\n",
-		    ntohl(pp->timereachable));
-		(void) fprintf(fp, "packets sent:         %d\n",
-		    ntohl(pp->sent));
-		(void) fprintf(fp, "packets received:     %d\n",
-		    ntohl(pp->received));
-		(void) fprintf(fp, "packets processed:    %d\n",
-		    ntohl(pp->processed));
-		(void) fprintf(fp, "bad length packets:   %d\n",
-		    ntohl(pp->badlength));
-		(void) fprintf(fp, "bad auth packets:     %d\n",
-		    ntohl(pp->badauth));
-		(void) fprintf(fp, "bogus origin packets: %d\n",
-		    ntohl(pp->bogusorg));
-		(void) fprintf(fp, "duplicate packets:    %d\n",
-		    ntohl(pp->oldpkt));
-		(void) fprintf(fp, "bad delay rejections: %d\n",
-		    ntohl(pp->baddelay));
-		(void) fprintf(fp, "select delay rejects: %d\n",
-		    ntohl(pp->seldelay));
-		(void) fprintf(fp, "select disp rejects:  %d\n",
-		    ntohl(pp->seldisp));
-		(void) fprintf(fp, "select finds broken:  %d\n",
-		    ntohl(pp->selbroken));
-		(void) fprintf(fp, "too old for select:   %d\n",
-		    ntohl(pp->selold));
-		(void) fprintf(fp, "sel candidate order:  %d\n",
+		(void) fprintf(fp, "time last received:   %lds\n",
+		    (long)ntohl(pp->timereceived));
+		(void) fprintf(fp, "time until next send: %lds\n",
+		    (long)ntohl(pp->timetosend));
+		(void) fprintf(fp, "reachability change:  %lds\n",
+		    (long)ntohl(pp->timereachable));
+		(void) fprintf(fp, "packets sent:         %ld\n",
+		    (long)ntohl(pp->sent));
+		(void) fprintf(fp, "packets received:     %ld\n",
+		    (long)ntohl(pp->processed));
+		(void) fprintf(fp, "bad authentication:   %ld\n",
+		    (long)ntohl(pp->badauth));
+		(void) fprintf(fp, "bogus origin:         %ld\n",
+		    (long)ntohl(pp->bogusorg));
+		(void) fprintf(fp, "duplicate:            %ld\n",
+		    (long)ntohl(pp->oldpkt));
+		(void) fprintf(fp, "bad dispersion:       %ld\n",
+		    (long)ntohl(pp->seldisp));
+		(void) fprintf(fp, "bad reference time:   %ld\n",
+		    (long)ntohl(pp->selbroken));
+		(void) fprintf(fp, "candidate order:      %d\n",
 		    (int)pp->candidate);
-		(void) fprintf(fp, "falseticker order:    %d\n",
-		    (int)pp->falseticker);
-		(void) fprintf(fp, "select order:         %d\n",
-		    (int)pp->select);
-		(void) fprintf(fp, "select total:         %d\n",
-		    (int)pp->select_total);
 		if (items > 0)
 			(void) fprintf(fp, "\n");
 		pp++;
@@ -699,7 +686,7 @@ loopinfo(pcmd, fp)
 	}
 
 	res = doquery(IMPL_XNTPD, REQ_LOOP_INFO, 0, 0, 0, (char *)NULL,
-	    &items, &itemsize, (char **)&il);
+	    &items, &itemsize, (char **)&il, 0);
 	
 	if (res != 0 && items == 0)
 		return;
@@ -713,26 +700,26 @@ loopinfo(pcmd, fp)
 	if (oneline) {
 		l_fp temp2ts;
 
-		HTONL_FP(&il->last_offset, &tempts);
-		HTONL_FP(&il->drift_comp, &temp2ts);
+		NTOHL_FP(&il->last_offset, &tempts);
+		NTOHL_FP(&il->drift_comp, &temp2ts);
 
 		(void) fprintf(fp,
-		    "offset %s, drift %s, compliance %d, timer %d seconds\n",
-		    lfptoa(&tempts, 7),
-		    lfptoa(&temp2ts, 7),
-		    ntohl(il->compliance),
-		    ntohl(il->watchdog_timer));
+		    "offset %s, frequency %s, time_const %ld, watchdog %ld\n",
+		    lfptoa(&tempts, 6),
+		    lfptoa(&temp2ts, 3),
+		    (u_long)ntohl(il->compliance),
+		    (u_long)ntohl(il->watchdog_timer));
 	} else {
-		HTONL_FP(&il->last_offset, &tempts);
-		(void) fprintf(fp, "offset:     %s seconds\n",
-		    lfptoa(&tempts, 7));
-		HTONL_FP(&il->drift_comp, &tempts);
-		(void) fprintf(fp, "frequency:  %s seconds\n",
-		    lfptoa(&tempts, 7));
-		(void) fprintf(fp, "compliance: %d seconds\n",
-		    ntohl(il->compliance));
-		(void) fprintf(fp, "timer:      %d seconds\n",
-		    ntohl(il->watchdog_timer));
+		NTOHL_FP(&il->last_offset, &tempts);
+		(void) fprintf(fp, "offset:               %s s\n",
+		    lfptoa(&tempts, 6));
+		NTOHL_FP(&il->drift_comp, &tempts);
+		(void) fprintf(fp, "frequency:            %s ppm\n",
+		    lfptoa(&tempts, 3));
+		(void) fprintf(fp, "poll adjust:          %ld\n",
+		    (u_long)ntohl(il->compliance));
+		(void) fprintf(fp, "watchdog timer:       %ld s\n",
+		    (u_long)ntohl(il->watchdog_timer));
 	}
 }
 
@@ -750,12 +737,10 @@ sysinfo(pcmd, fp)
 	int items;
 	int itemsize;
 	int res;
-	char junk[5];
-	char *str;
 	l_fp tempts;
 
 	res = doquery(IMPL_XNTPD, REQ_SYS_INFO, 0, 0, 0, (char *)NULL,
-	    &items, &itemsize, (char **)&is);
+	    &items, &itemsize, (char **)&is, 0);
 	
 	if (res != 0 && items == 0)
 		return;
@@ -766,54 +751,54 @@ sysinfo(pcmd, fp)
 	if (!checkitemsize(itemsize, sizeof(struct info_sys)))
 		return;
 
-	(void) fprintf(fp, "system peer:      %s\n", nntohost(is->peer));
-	(void) fprintf(fp, "system peer mode: %s\n", modetoa(is->peer_mode));
-	(void) fprintf(fp, "leap indicator:   %c%c\n",
+	(void) fprintf(fp, "system peer:          %s\n", nntohost(is->peer));
+	(void) fprintf(fp, "system peer mode:     %s\n", modetoa(is->peer_mode));
+	(void) fprintf(fp, "leap indicator:       %c%c\n",
 	    is->leap & 0x2 ? '1' : '0',
 	    is->leap & 0x1 ? '1' : '0');
-	(void) fprintf(fp, "stratum:          %d\n", (int)is->stratum);
-	(void) fprintf(fp, "precision:        %d\n", (int)is->precision);
-	(void) fprintf(fp, "sync distance:    %s\n",
+	(void) fprintf(fp, "stratum:              %d\n", (int)is->stratum);
+	(void) fprintf(fp, "precision:            %d\n", (int)is->precision);
+	(void) fprintf(fp, "root distance:        %s s\n",
 	    fptoa(NTOHS_FP(is->rootdelay), 5));
-	(void) fprintf(fp, "sync dispersion:  %s\n",
+	(void) fprintf(fp, "root dispersion:      %s s\n",
 	    ufptoa(NTOHS_FP(is->rootdispersion), 5));
-	if (is->stratum <= 1) {
-		junk[4] = 0;
-		memmove(junk, (char *)&is->refid, 4);
-		str = junk;
-	} else {
-		str = numtoa(is->refid);
-	}
-	(void) fprintf(fp, "reference ID:     [%s]\n", str);
+	(void) fprintf(fp, "reference ID:         [%s]\n",
+	    refid_string(is->refid, is->stratum));
+	NTOHL_FP(&is->reftime, &tempts);
+	(void) fprintf(fp, "reference time:       %s\n", prettydate(&tempts));
 
-	HTONL_FP(&is->reftime, &tempts);
-	(void) fprintf(fp, "reference time:   %s\n", prettydate(&tempts));
-
-	(void) fprintf(fp, "system flags:     ");
-	if ((is->flags & (INFO_FLAG_BCLIENT | INFO_FLAG_MCLIENT |
-	    INFO_FLAG_AUTHENABLE)) == 0) {
+	(void) fprintf(fp, "system flags:         ");
+	if ((is->flags & (INFO_FLAG_BCLIENT | INFO_FLAG_AUTHENABLE |
+	    INFO_FLAG_PLL | INFO_FLAG_PPS | INFO_FLAG_PLL_SYNC |
+	    INFO_FLAG_PPS_SYNC | INFO_FLAG_MONITOR | INFO_FLAG_FILEGEN)) == 0) {
 		(void) fprintf(fp, "none\n");
 	} else {
-		res = 0;
-		if (is->flags & INFO_FLAG_BCLIENT) {
-			(void) fprintf(fp, "bclient");
-			res = 1;
-		}
-		if (is->flags & INFO_FLAG_MCLIENT) {
-			(void) fprintf(fp, "mclient");
-			res = 1;
-		}
+		if (is->flags & INFO_FLAG_BCLIENT)
+			(void) fprintf(fp, "bclient ");
 		if (is->flags & INFO_FLAG_AUTHENABLE)
-			(void) fprintf(fp, "%sauthenticate",
-			    res ? ", " : "");
+			(void) fprintf(fp, "auth ");
+		if (is->flags & INFO_FLAG_PLL)
+			(void) fprintf(fp, "pll ");
+		if (is->flags & INFO_FLAG_PPS)
+			(void) fprintf(fp, "pps ");
+		if (is->flags & INFO_FLAG_PLL_SYNC)
+			(void) fprintf(fp, "kernel_sync ");
+		if (is->flags & INFO_FLAG_PPS_SYNC)
+			(void) fprintf(fp, "pps_sync ");
+		if (is->flags & INFO_FLAG_MONITOR)
+			(void) fprintf(fp, "monitor ");
+		if (is->flags & INFO_FLAG_FILEGEN)
+			(void) fprintf(fp, "stats ");
 		(void) fprintf(fp, "\n");
 	}
-
-	HTONL_FP(&is->bdelay, &tempts);
-	(void) fprintf(fp, "broadcast delay:  %s\n", lfptoa(&tempts, 7));
-
-	HTONL_FP(&is->authdelay, &tempts);
-	(void) fprintf(fp, "encryption delay: %s\n", lfptoa(&tempts, 7));
+	(void) fprintf(fp, "frequency:            %s ppm\n",
+	    fptoa(ntohl(is->frequency), 3));
+	(void) fprintf(fp, "stability:            %s ppm\n",
+	    ufptoa(ntohl(is->stability), 3));
+	(void) fprintf(fp, "broadcastdelay:       %s s\n",
+	    fptoa(NTOHS_FP(is->bdelay), 6));
+	NTOHL_FP(&is->authdelay, &tempts);
+	(void) fprintf(fp, "authdelay:            %s s\n", lfptoa(&tempts, 6));
 }
 
 
@@ -832,7 +817,7 @@ sysstats(pcmd, fp)
 	int res;
 
 	res = doquery(IMPL_XNTPD, REQ_SYS_STATS, 0, 0, 0, (char *)NULL,
-	    &items, &itemsize, (char **)&ss);
+	    &items, &itemsize, (char **)&ss, 0);
 	
 	if (res != 0 && items == 0)
 		return;
@@ -847,29 +832,29 @@ sysstats(pcmd, fp)
 		return;
 	}
 
-	(void) fprintf(fp, "system uptime:          %d\n",
-	    ntohl(ss->timeup));
-	(void) fprintf(fp, "time since reset:       %d\n",
-	    ntohl(ss->timereset));
-	(void) fprintf(fp, "bad stratum in packet:  %d\n",
-	    ntohl(ss->badstratum));
-	(void) fprintf(fp, "old version packets:    %d\n",
-	    ntohl(ss->oldversionpkt));
-	(void) fprintf(fp, "new version packets:    %d\n",
-	    ntohl(ss->newversionpkt));
-	(void) fprintf(fp, "unknown version number: %d\n",
-	    ntohl(ss->unknownversion));
-	(void) fprintf(fp, "bad packet length:      %d\n",
-	    ntohl(ss->badlength));
-	(void) fprintf(fp, "packets processed:      %d\n",
-	    ntohl(ss->processed));
-	(void) fprintf(fp, "bad authentication:     %d\n",
-	    ntohl(ss->badauth));
+	(void) fprintf(fp, "system uptime:          %ld\n",
+	    (u_long)ntohl(ss->timeup));
+	(void) fprintf(fp, "time since reset:       %ld\n",
+	    (u_long)ntohl(ss->timereset));
+	(void) fprintf(fp, "bad stratum in packet:  %ld\n",
+	    (u_long)ntohl(ss->badstratum));
+	(void) fprintf(fp, "old version packets:    %ld\n",
+	    (u_long)ntohl(ss->oldversionpkt));
+	(void) fprintf(fp, "new version packets:    %ld\n",
+	    (u_long)ntohl(ss->newversionpkt));
+	(void) fprintf(fp, "unknown version number: %ld\n",
+	    (u_long)ntohl(ss->unknownversion));
+	(void) fprintf(fp, "bad packet length:      %ld\n",
+	    (u_long)ntohl(ss->badlength));
+	(void) fprintf(fp, "packets processed:      %ld\n",
+	    (u_long)ntohl(ss->processed));
+	(void) fprintf(fp, "bad authentication:     %ld\n",
+	    (u_long)ntohl(ss->badauth));
 	if (itemsize != sizeof(struct info_sys_stats))
 		return;
 	
-	(void) fprintf(fp, "limitation rejects:     %d\n",
-	    ntohl(ss->limitrejected));
+	(void) fprintf(fp, "limitation rejects:     %ld\n",
+	    (u_long)ntohl(ss->limitrejected));
 }
 
 
@@ -889,7 +874,7 @@ iostats(pcmd, fp)
 	int res;
 
 	res = doquery(IMPL_XNTPD, REQ_IO_STATS, 0, 0, 0, (char *)NULL,
-	    &items, &itemsize, (char **)&io);
+	    &items, &itemsize, (char **)&io, 0);
 	
 	if (res != 0 && items == 0)
 		return;
@@ -900,32 +885,31 @@ iostats(pcmd, fp)
 	if (!checkitemsize(itemsize, sizeof(struct info_io_stats)))
 		return;
 
-	(void) fprintf(fp, "time since reset:      %d\n",
-	    ntohl(io->timereset));
-	(void) fprintf(fp, "total receive buffers: %d\n",
-	    (int)ntohs(io->totalrecvbufs));
-	(void) fprintf(fp, "free receive buffers:  %d\n",
-	    (int)ntohs(io->freerecvbufs));
-	(void) fprintf(fp, "used receive buffers:  %d\n",
-	    (int)ntohs(io->fullrecvbufs));
-	(void) fprintf(fp, "low water refills:     %d\n",
-	    (int)ntohs(io->lowwater));
-	(void) fprintf(fp, "dropped packets:       %d\n",
-	    ntohl(io->dropped));
-	(void) fprintf(fp, "ignored packets:       %d\n",
-	    ntohl(io->ignored));
-	(void) fprintf(fp, "received packets:      %d\n",
-	    ntohl(io->received));
-	(void) fprintf(fp, "packets sent:          %d\n",
-	    ntohl(io->sent));
-	(void) fprintf(fp, "packets not sent:      %d\n",
-	    ntohl(io->notsent));
-	(void) fprintf(fp, "interrupts handled:    %d\n",
-	    ntohl(io->interrupts));
-	(void) fprintf(fp, "received by interrupt: %d\n",
-	    ntohl(io->int_received));
+	(void) fprintf(fp, "time since reset:      %ld\n",
+	    (u_long)ntohl(io->timereset));
+	(void) fprintf(fp, "receive buffers:      %d\n",
+	    ntohs(io->totalrecvbufs));
+	(void) fprintf(fp, "free receive buffers: %d\n",
+	    ntohs(io->freerecvbufs));
+	(void) fprintf(fp, "used receive buffers: %d\n",
+	    ntohs(io->fullrecvbufs));
+	(void) fprintf(fp, "low water refills:    %d\n",
+	    ntohs(io->lowwater));
+	(void) fprintf(fp, "dropped packets:      %ld\n",
+	    (u_long)ntohl(io->dropped));
+	(void) fprintf(fp, "ignored packets:      %ld\n",
+	    (u_long)ntohl(io->ignored));
+	(void) fprintf(fp, "received packets:     %ld\n",
+	    (u_long)ntohl(io->received));
+	(void) fprintf(fp, "packets sent:         %ld\n",
+	    (u_long)ntohl(io->sent));
+	(void) fprintf(fp, "packets not sent:     %ld\n",
+	    (u_long)ntohl(io->notsent));
+	(void) fprintf(fp, "interrupts handled:   %ld\n",
+	    (u_long)ntohl(io->interrupts));
+	(void) fprintf(fp, "received by int:      %ld\n",
+	    (u_long)ntohl(io->int_received));
 }
-
 
 
 /*
@@ -944,7 +928,7 @@ memstats(pcmd, fp)
 	int res;
 
 	res = doquery(IMPL_XNTPD, REQ_MEM_STATS, 0, 0, 0, (char *)NULL,
-	    &items, &itemsize, (char **)&mem);
+	    &items, &itemsize, (char **)&mem, 0);
 	
 	if (res != 0 && items == 0)
 		return;
@@ -955,18 +939,18 @@ memstats(pcmd, fp)
 	if (!checkitemsize(itemsize, sizeof(struct info_mem_stats)))
 		return;
 
-	(void) fprintf(fp, "time since reset:     %d\n",
-	    ntohl(mem->timereset));
+	(void) fprintf(fp, "time since reset:     %ld\n",
+	    (u_long)ntohl(mem->timereset));
 	(void) fprintf(fp, "total peer memory:    %d\n",
-	    (int)ntohs(mem->totalpeermem));
+	    ntohs(mem->totalpeermem));
 	(void) fprintf(fp, "free peer memory:     %d\n",
-	    (int)ntohs(mem->freepeermem));
-	(void) fprintf(fp, "calls to findpeer:    %d\n",
-	    ntohl(mem->findpeer_calls));
-	(void) fprintf(fp, "new peer allocations: %d\n",
-	    ntohl(mem->allocations));
-	(void) fprintf(fp, "peer demobilizations: %d\n",
-	    ntohl(mem->demobilizations));
+	    ntohs(mem->freepeermem));
+	(void) fprintf(fp, "calls to findpeer:    %ld\n",
+	    (u_long)ntohl(mem->findpeer_calls));
+	(void) fprintf(fp, "new peer allocations: %ld\n",
+	    (u_long)ntohl(mem->allocations));
+	(void) fprintf(fp, "peer demobilizations: %ld\n",
+	    (u_long)ntohl(mem->demobilizations));
 
 	(void) fprintf(fp, "hash table counts:   ");
 	for (i = 0; i < HASH_SIZE; i++) {
@@ -995,7 +979,7 @@ timerstats(pcmd, fp)
 	int res;
 
 	res = doquery(IMPL_XNTPD, REQ_TIMER_STATS, 0, 0, 0, (char *)NULL,
-	    &items, &itemsize, (char **)&tim);
+	    &items, &itemsize, (char **)&tim, 0);
 	
 	if (res != 0 && items == 0)
 		return;
@@ -1006,14 +990,14 @@ timerstats(pcmd, fp)
 	if (!checkitemsize(itemsize, sizeof(struct info_timer_stats)))
 		return;
 
-	(void) fprintf(fp, "time since reset:  %d\n",
-	    ntohl(tim->timereset));
-	(void) fprintf(fp, "alarms handled:    %d\n",
-	    ntohl(tim->alarms));
-	(void) fprintf(fp, "alarm overruns:    %d\n",
-	    ntohl(tim->overflows));
-	(void) fprintf(fp, "calls to transmit: %d\n",
-	    ntohl(tim->xmtcalls));
+	(void) fprintf(fp, "time since reset:  %ld\n",
+	    (u_long)ntohl(tim->timereset));
+	(void) fprintf(fp, "alarms handled:    %ld\n",
+	    (u_long)ntohl(tim->alarms));
+	(void) fprintf(fp, "alarm overruns:    %ld\n",
+	    (u_long)ntohl(tim->overflows));
+	(void) fprintf(fp, "calls to transmit: %ld\n",
+	    (u_long)ntohl(tim->xmtcalls));
 }
 
 
@@ -1065,7 +1049,7 @@ doconfig(pcmd, fp, mode)
 	int items;
 	int itemsize;
 	char *dummy;
-	U_LONG keyid;
+	u_long keyid;
 	u_int version;
 	u_int flags;
 	int res;
@@ -1092,19 +1076,14 @@ doconfig(pcmd, fp, mode)
 			items = 3;
 			while (pcmd->nargs > items) {
 				if (STREQ(pcmd->argval[items].string,
-				    "minpoll")) {
-					flags |= CONF_FLAG_MINPOLL;
-				} else {
-				        if (STREQ(pcmd->argval[items].string,
-				            "prefer")) {
-				    	        flags |= CONF_FLAG_PREFER;
-				        } else {
-					        (void) fprintf(fp,
-					            "`%s' not understood\n",
-					            pcmd->argval[3].string);
-					        res++;
+				    "prefer"))
+					flags |= CONF_FLAG_PREFER;
+				else {
+				 	(void) fprintf(fp,
+					    "%s not understood\n",
+					    pcmd->argval[3].string);
+						res++;
 						break;
-				        }
 				}
 			        items++;
 			}
@@ -1124,7 +1103,7 @@ doconfig(pcmd, fp, mode)
 
 	res = doquery(IMPL_XNTPD, REQ_CONFIG, 1, 1,
 	    sizeof(struct conf_peer), (char *)&cpeer, &items,
-	    &itemsize, &dummy);
+	    &itemsize, &dummy, 0);
 	
 	if (res == 0)
 		(void) fprintf(fp, "done!\n");
@@ -1154,7 +1133,7 @@ unconfig(pcmd, fp)
 
 	res = doquery(IMPL_XNTPD, REQ_UNCONFIG, 1, qitems,
 	    sizeof(struct conf_unpeer), (char *)plist, &items,
-	    &itemsize, &dummy);
+	    &itemsize, &dummy, 0);
 	
 	if (res == 0)
 		(void) fprintf(fp, "done!\n");
@@ -1206,12 +1185,18 @@ doset(pcmd, fp, req)
 	for (items = 0; items < pcmd->nargs; items++) {
 		if (STREQ(pcmd->argval[items].string, "bclient"))
 			sys.flags |= SYS_FLAG_BCLIENT;
-		else if (STREQ(pcmd->argval[items].string, "mclient"))
-			sys.flags |= SYS_FLAG_MCLIENT;
 		else if (STREQ(pcmd->argval[items].string, "auth"))
 			sys.flags |= SYS_FLAG_AUTHENTICATE;
+		else if (STREQ(pcmd->argval[items].string, "pll"))
+			sys.flags |= SYS_FLAG_PLL;
+		else if (STREQ(pcmd->argval[items].string, "pps"))
+			sys.flags |= SYS_FLAG_PPS;
+		else if (STREQ(pcmd->argval[items].string, "monitor"))
+			sys.flags |= SYS_FLAG_MONITOR;
+		else if (STREQ(pcmd->argval[items].string, "stats"))
+			sys.flags |= SYS_FLAG_FILEGEN;
 		else {
-			(void) fprintf(fp, "unknown flag %s\n",
+			(void) fprintf(fp, "Unknown flag %s\n",
 			    pcmd->argval[items].string);
 			res = 1;
 		}
@@ -1222,7 +1207,7 @@ doset(pcmd, fp, req)
 
 	res = doquery(IMPL_XNTPD, req, 1, 1,
 	    sizeof(struct conf_sys_flags), (char *)&sys, &items,
-	    &itemsize, &dummy);
+	    &itemsize, &dummy, 0);
 	
 	if (res == 0)
 		(void) fprintf(fp, "done!\n");
@@ -1273,14 +1258,14 @@ reslist(pcmd, fp)
 	char *addr;
 	char *mask;
 	struct resflags *rf;
-	U_LONG count;
+	u_long count;
 	u_short flags;
 	u_short mflags;
 	char flagstr[300];
 	static char *comma = ", ";
 
 	res = doquery(IMPL_XNTPD, REQ_GET_RESTRICT, 0, 0, 0, (char *)NULL,
-	    &items, &itemsize, (char **)&rl);
+	    &items, &itemsize, (char **)&rl, 0);
 	
 	if (res != 0 && items == 0)
 		return;
@@ -1296,7 +1281,10 @@ reslist(pcmd, fp)
 	(void) fprintf(fp,
     "=====================================================================\n");
 	while (items > 0) {
-		addr = numtoa(rl->addr);
+		if ((rl->mask == (U_LONG)0xffffffff))
+			addr = numtohost(rl->addr);
+		else
+			addr = numtoa( rl->addr );
 		mask = numtoa(rl->mask);
 		count = ntohl(rl->count);
 		flags = ntohs(rl->flags);
@@ -1329,7 +1317,7 @@ reslist(pcmd, fp)
 		if (flagstr[0] == '\0')
 			(void) strcpy(flagstr, "none");
 
-		(void) fprintf(fp, "%-15.15s %-15.15s %9d  %s\n",
+		(void) fprintf(fp, "%-15.15s %-15.15s %9ld  %s\n",
 		    addr, mask, count, flagstr);
 		rl++;
 		items--;
@@ -1387,8 +1375,8 @@ do_restrict(pcmd, fp, req_code)
 	int items;
 	int itemsize;
 	char *dummy;
-	U_LONG num;
-	U_LONG bit;
+	u_long num;
+	u_long bit;
 	int i;
 	int res;
 	int err;
@@ -1411,7 +1399,7 @@ do_restrict(pcmd, fp, req_code)
 				cres.flags |= resflags[i].bit;
 				if (req_code == REQ_UNRESTRICT) {
 					(void) fprintf(fp,
-					    "Flag `%s' inappropriate\n",
+					    "Flag %s inappropriate\n",
 					    resflags[i].str);
 					err++;
 				}
@@ -1449,7 +1437,7 @@ do_restrict(pcmd, fp, req_code)
 
 	res = doquery(IMPL_XNTPD, req_code, 1, 1,
 	    sizeof(struct conf_restrict), (char *)&cres, &items,
-	    &itemsize, &dummy);
+	    &itemsize, &dummy, 0);
 	
 	if (res == 0)
 		(void) fprintf(fp, "done!\n");
@@ -1466,14 +1454,26 @@ monlist(pcmd, fp)
 	struct parse *pcmd;
 	FILE *fp;
 {
-	struct info_monitor *ml;
-	struct old_info_monitor *oml;
+	char *struct_star;
+	struct in_addr addr;
 	int items;
 	int itemsize;
 	int res;
+	int version = -1;
 
-	res = doquery(IMPL_XNTPD, REQ_MON_GETLIST, 0, 0, 0, (char *)NULL,
-	    &items, &itemsize, (char **)&ml);
+	if (pcmd->nargs > 0) {
+		version = pcmd->argval[0].ival;
+	}
+
+	res = doquery(IMPL_XNTPD,
+	    (version == 1 || version == -1) ? REQ_MON_GETLIST_1 :
+	    REQ_MON_GETLIST, 0, 0, 0, (char *)NULL,
+	    &items, &itemsize, &struct_star,
+	    (version < 0) ? (1 << INFO_ERR_REQ) : 0);
+
+	if (res == INFO_ERR_REQ && version < 0) 
+	  res = doquery(IMPL_XNTPD, REQ_MON_GETLIST, 0, 0, 0, (char *)NULL,
+	    &items, &itemsize, &struct_star, 0);
 	
 	if (res != 0 && items == 0)
 		return;
@@ -1481,49 +1481,72 @@ monlist(pcmd, fp)
 	if (!checkitems(items, fp))
 		return;
 
-	if (itemsize == sizeof(struct info_monitor)) {
+	if (itemsize == sizeof(struct info_monitor_1)) {
+		struct info_monitor_1 *ml = (struct info_monitor_1 *) struct_star;
 
 		(void) fprintf(fp,
-			       "     address          port     count  mode version  lastdrop lasttime firsttime\n");
+			       "remote address          port local address      count m ver drop   last   first\n");
 		(void) fprintf(fp,
 			       "===============================================================================\n");
 		while (items > 0) {
-			(void) fprintf(fp, "%-20.20s %5d %9d %4d   %3d %9u %9u %9u\n",
+			addr.s_addr = ml->daddr;
+			(void) fprintf(fp, 
+				"%-22.22s %5d %-15s %8ld %1d %1d %6lu %6lu %7lu\n",
 				       nntohost(ml->addr),
 				       ntohs(ml->port),
-				       ntohl(ml->count),
+				       inet_ntoa(addr),
+				       (u_long)ntohl(ml->count),
 				       ml->mode,
 				       ml->version,
-				       ntohl(ml->lastdrop),
-				       ntohl(ml->lasttime),
-				       ntohl(ml->firsttime));
+				       (u_long)ntohl(ml->lastdrop),
+				       (u_long)ntohl(ml->lasttime),
+				       (u_long)ntohl(ml->firsttime));
 			ml++;
 			items--;
 		}
-	} else {
-		if (itemsize != sizeof(struct old_info_monitor)) {
-			/* issue warning according to new info_monitor size */
-			checkitemsize(itemsize, sizeof(struct info_monitor));
-			return;
-		}
+	} else if (itemsize == sizeof(struct info_monitor)) {
+		struct info_monitor *ml = (struct info_monitor *) struct_star;
 
-		oml = (struct old_info_monitor *)ml;
+		(void) fprintf(fp,
+			       "     address               port     count mode ver lastdrop  lasttime firsttime\n");
+		(void) fprintf(fp,
+			       "===============================================================================\n");
+		while (items > 0) {
+			addr.s_addr = ml->lastdrop;
+			(void) fprintf(fp,
+				"%-25.25s %5d %9ld %4d %2d %9lu %9lu %9lu\n",
+				       nntohost(ml->addr),
+				       ntohs(ml->port),
+				       (u_long)ntohl(ml->count),
+				       ml->mode,
+				       ml->version,
+				       (u_long)ntohl(ml->lastdrop),
+				       (u_long)ntohl(ml->lasttime),
+				       (u_long)ntohl(ml->firsttime));
+			ml++;
+			items--;
+		}
+	} else if (itemsize == sizeof(struct old_info_monitor)) {
+		struct old_info_monitor *oml = (struct old_info_monitor *)struct_star;
 		(void) fprintf(fp,
 			       "     address          port     count  mode version  lasttime firsttime\n");
 		(void) fprintf(fp,
 			       "======================================================================\n");
 		while (items > 0) {
-			(void) fprintf(fp, "%-20.20s %5d %9d %4d   %3d %9u %9u\n",
+			(void) fprintf(fp, "%-20.20s %5d %9ld %4d   %3d %9lu %9lu\n",
 				       nntohost(oml->addr),
 				       ntohs(oml->port),
-				       ntohl(oml->count),
+				       (u_long)ntohl(oml->count),
 				       oml->mode,
 				       oml->version,
-				       ntohl(oml->lasttime),
-				       ntohl(oml->firsttime));
+				       (u_long)ntohl(oml->lasttime),
+				       (u_long)ntohl(oml->firsttime));
 			oml++;
 			items--;
 		}
+	} else {
+		/* issue warning according to new info_monitor size */
+		checkitemsize(itemsize, sizeof(struct info_monitor));
 	}
 }
 
@@ -1552,7 +1575,7 @@ monitor(pcmd, fp)
 	}
 
 	res = doquery(IMPL_XNTPD, req_code, 1, 0, 0, (char *)0,
-	    &items, &itemsize, &dummy);
+	    &items, &itemsize, &dummy, 0);
 	
 	if (res == 0)
 		(void) fprintf(fp, "done!\n");
@@ -1601,7 +1624,7 @@ reset(pcmd, fp)
 				break;
 		}
 		if (sreset[i].flag == 0) {
-			(void) fprintf(fp, "Flag `%s' unknown\n",
+			(void) fprintf(fp, "Flag %s unknown\n",
 			    pcmd->argval[res].string);
 			err++;
 		} else {
@@ -1616,7 +1639,7 @@ reset(pcmd, fp)
 
 	res = doquery(IMPL_XNTPD, REQ_RESET_STATS, 1, 1,
 	    sizeof(struct reset_flags), (char *)&rflags, &items,
-	    &itemsize, &dummy);
+	    &itemsize, &dummy, 0);
 	
 	if (res == 0)
 		(void) fprintf(fp, "done!\n");
@@ -1647,7 +1670,7 @@ preset(pcmd, fp)
 
 	res = doquery(IMPL_XNTPD, REQ_RESET_PEER, 1, qitems,
 	    sizeof(struct conf_unpeer), (char *)plist, &items,
-	    &itemsize, &dummy);
+	    &itemsize, &dummy, 0);
 	
 	if (res == 0)
 		(void) fprintf(fp, "done!\n");
@@ -1669,53 +1692,7 @@ readkeys(pcmd, fp)
 	int res;
 
 	res = doquery(IMPL_XNTPD, REQ_REREAD_KEYS, 1, 0, 0, (char *)0,
-	    &items, &itemsize, &dummy);
-	
-	if (res == 0)
-		(void) fprintf(fp, "done!\n");
-	return;
-}
-
-
-/*
- * dodirty - request the server to do something dirty
- */
-/*ARGSUSED*/
-static void
-dodirty(pcmd, fp)
-	struct parse *pcmd;
-	FILE *fp;
-{
-	int items;
-	int itemsize;
-	char *dummy;
-	int res;
-
-	res = doquery(IMPL_XNTPD, REQ_DO_DIRTY_HACK, 1, 0, 0, (char *)0,
-	    &items, &itemsize, &dummy);
-	
-	if (res == 0)
-		(void) fprintf(fp, "done!\n");
-	return;
-}
-
-
-/*
- * dontdirty - request the server to not do something dirty
- */
-/*ARGSUSED*/
-static void
-dontdirty(pcmd, fp)
-	struct parse *pcmd;
-	FILE *fp;
-{
-	int items;
-	int itemsize;
-	char *dummy;
-	int res;
-
-	res = doquery(IMPL_XNTPD, REQ_DONT_DIRTY_HACK, 1, 0, 0, (char *)0,
-	    &items, &itemsize, &dummy);
+	    &items, &itemsize, &dummy, 0);
 	
 	if (res == 0)
 		(void) fprintf(fp, "done!\n");
@@ -1756,7 +1733,7 @@ do_trustkey(pcmd, fp, req)
 	FILE *fp;
 	int req;
 {
-	U_LONG keyids[MAXARGS];
+	u_long keyids[MAXARGS];
 	int i;
 	int items;
 	int itemsize;
@@ -1769,8 +1746,8 @@ do_trustkey(pcmd, fp, req)
 		keyids[ritems++] = pcmd->argval[i].uval;
 	}
 
-	res = doquery(IMPL_XNTPD, req, 1, ritems, sizeof(U_LONG),
-	    (char *)keyids, &items, &itemsize, &dummy);
+	res = doquery(IMPL_XNTPD, req, 1, ritems, sizeof(u_long),
+	    (char *)keyids, &items, &itemsize, &dummy, 0);
 	
 	if (res == 0)
 		(void) fprintf(fp, "done!\n");
@@ -1794,7 +1771,7 @@ authinfo(pcmd, fp)
 	int res;
 
 	res = doquery(IMPL_XNTPD, REQ_AUTHINFO, 0, 0, 0, (char *)NULL,
-	    &items, &itemsize, (char **)&ia);
+	    &items, &itemsize, (char **)&ia, 0);
 	
 	if (res != 0 && items == 0)
 		return;
@@ -1805,20 +1782,18 @@ authinfo(pcmd, fp)
 	if (!checkitemsize(itemsize, sizeof(struct info_auth)))
 		return;
 
-	(void) fprintf(fp, "time since reset:       %d\n",
-	    ntohl(ia->timereset));
-	(void) fprintf(fp, "key lookups:            %d\n",
-	    ntohl(ia->keylookups));
-	(void) fprintf(fp, "keys not found:         %d\n",
-	    ntohl(ia->keynotfound));
-	(void) fprintf(fp, "encryptions:            %d\n",
-	    ntohl(ia->encryptions));
-	(void) fprintf(fp, "decryptions:            %d\n",
-	    ntohl(ia->decryptions));
-	(void) fprintf(fp, "successful decryptions: %d\n",
-	    ntohl(ia->decryptions));
-	(void) fprintf(fp, "uncached keys:          %d\n",
-	    ntohl(ia->keyuncached));
+	(void) fprintf(fp, "time since reset:     %ld\n",
+	    (u_long)ntohl(ia->timereset));
+	(void) fprintf(fp, "key lookups:          %ld\n",
+	    (u_long)ntohl(ia->keylookups));
+	(void) fprintf(fp, "keys not found:       %ld\n",
+	    (u_long)ntohl(ia->keynotfound));
+	(void) fprintf(fp, "uncached keys:        %ld\n",
+	    (u_long)ntohl(ia->keyuncached));
+	(void) fprintf(fp, "encryptions:          %ld\n",
+	    (u_long)ntohl(ia->encryptions));
+	(void) fprintf(fp, "decryptions:          %ld\n",
+	    (u_long)ntohl(ia->decryptions));
 }
 
 
@@ -1839,7 +1814,7 @@ traps(pcmd, fp)
 	int res;
 
 	res = doquery(IMPL_XNTPD, REQ_TRAPS, 0, 0, 0, (char *)NULL,
-	    &items, &itemsize, (char **)&it);
+	    &items, &itemsize, (char **)&it, 0);
 	
 	if (res != 0 && items == 0)
 		return;
@@ -1865,10 +1840,10 @@ traps(pcmd, fp)
 		else
 			(void) fprintf(fp, "normal priority\n");
 		
-		(void) fprintf(fp, "set for %d secs, last set %d secs ago\n",
-		    it->origtime, it->settime);
-		(void) fprintf(fp, "sequence %d, number of resets %d\n",
-		    it->sequence, it->resets);
+		(void) fprintf(fp, "set for %ld secs, last set %ld secs ago\n",
+		    (long)it->origtime, (long)it->settime);
+		(void) fprintf(fp, "sequence %d, number of resets %ld\n",
+		    it->sequence, (long)it->resets);
 	}
 }
 
@@ -1925,7 +1900,7 @@ do_addclr_trap(pcmd, fp, req)
 	}
 
 	res = doquery(IMPL_XNTPD, req, 1, 1, sizeof(struct conf_trap),
-	    (char *)&ctrap, &items, &itemsize, &dummy);
+	    (char *)&ctrap, &items, &itemsize, &dummy, 0);
 	
 	if (res == 0)
 		(void) fprintf(fp, "done!\n");
@@ -1968,7 +1943,7 @@ do_changekey(pcmd, fp, req)
 	FILE *fp;
 	int req;
 {
-	U_LONG key;
+	u_long key;
 	int items;
 	int itemsize;
 	char *dummy;
@@ -1977,8 +1952,8 @@ do_changekey(pcmd, fp, req)
 
 	key = htonl(pcmd->argval[0].uval);
 
-	res = doquery(IMPL_XNTPD, req, 1, 1, sizeof(U_LONG),
-	    (char *)&key, &items, &itemsize, &dummy);
+	res = doquery(IMPL_XNTPD, req, 1, 1, sizeof(u_long),
+	    (char *)&key, &items, &itemsize, &dummy, 0);
 	
 	if (res == 0)
 		(void) fprintf(fp, "done!\n");
@@ -2002,7 +1977,7 @@ ctlstats(pcmd, fp)
 	int res;
 
 	res = doquery(IMPL_XNTPD, REQ_GET_CTLSTATS, 0, 0, 0, (char *)NULL,
-	    &items, &itemsize, (char **)&ic);
+	    &items, &itemsize, (char **)&ic, 0);
 	
 	if (res != 0 && items == 0)
 		return;
@@ -2013,36 +1988,36 @@ ctlstats(pcmd, fp)
 	if (!checkitemsize(itemsize, sizeof(struct info_control)))
 		return;
 
-	(void) fprintf(fp, "time since reset:       %d\n",
-	    ntohl(ic->ctltimereset));
-	(void) fprintf(fp, "requests received:      %d\n",
-	    ntohl(ic->numctlreq));
-	(void) fprintf(fp, "responses sent:         %d\n",
-	    ntohl(ic->numctlresponses));
-	(void) fprintf(fp, "fragments sent:         %d\n",
-	    ntohl(ic->numctlfrags));
-	(void) fprintf(fp, "async messages sent:    %d\n",
-	    ntohl(ic->numasyncmsgs));
-	(void) fprintf(fp, "error msgs sent:        %d\n",
-	    ntohl(ic->numctlerrors));
-	(void) fprintf(fp, "total bad pkts:         %d\n",
-	    ntohl(ic->numctlbadpkts));
-	(void) fprintf(fp, "packet too short:       %d\n",
-	    ntohl(ic->numctltooshort));
-	(void) fprintf(fp, "response on input:      %d\n",
-	    ntohl(ic->numctlinputresp));
-	(void) fprintf(fp, "fragment on input:      %d\n",
-	    ntohl(ic->numctlinputfrag));
-	(void) fprintf(fp, "error set on input:     %d\n",
-	    ntohl(ic->numctlinputerr));
-	(void) fprintf(fp, "bad offset on input:    %d\n",
-	    ntohl(ic->numctlbadoffset));
-	(void) fprintf(fp, "bad version packets:    %d\n",
-	    ntohl(ic->numctlbadversion));
-	(void) fprintf(fp, "data in pkt too short:  %d\n",
-	    ntohl(ic->numctldatatooshort));
-	(void) fprintf(fp, "unknown op codes:       %d\n",
-	    ntohl(ic->numctlbadop));
+	(void) fprintf(fp, "time since reset:       %ld\n",
+	    (u_long)ntohl(ic->ctltimereset));
+	(void) fprintf(fp, "requests received:      %ld\n",
+	    (u_long)ntohl(ic->numctlreq));
+	(void) fprintf(fp, "responses sent:         %ld\n",
+	    (u_long)ntohl(ic->numctlresponses));
+	(void) fprintf(fp, "fragments sent:         %ld\n",
+	    (u_long)ntohl(ic->numctlfrags));
+	(void) fprintf(fp, "async messages sent:    %ld\n",
+	    (u_long)ntohl(ic->numasyncmsgs));
+	(void) fprintf(fp, "error msgs sent:        %ld\n",
+	    (u_long)ntohl(ic->numctlerrors));
+	(void) fprintf(fp, "total bad pkts:         %ld\n",
+	    (u_long)ntohl(ic->numctlbadpkts));
+	(void) fprintf(fp, "packet too short:       %ld\n",
+	    (u_long)ntohl(ic->numctltooshort));
+	(void) fprintf(fp, "response on input:      %ld\n",
+	    (u_long)ntohl(ic->numctlinputresp));
+	(void) fprintf(fp, "fragment on input:      %ld\n",
+	    (u_long)ntohl(ic->numctlinputfrag));
+	(void) fprintf(fp, "error set on input:     %ld\n",
+	    (u_long)ntohl(ic->numctlinputerr));
+	(void) fprintf(fp, "bad offset on input:    %ld\n",
+	    (u_long)ntohl(ic->numctlbadoffset));
+	(void) fprintf(fp, "bad version packets:    %ld\n",
+	    (u_long)ntohl(ic->numctlbadversion));
+	(void) fprintf(fp, "data in pkt too short:  %ld\n",
+	    (u_long)ntohl(ic->numctldatatooshort));
+	(void) fprintf(fp, "unknown op codes:       %ld\n",
+	    (u_long)ntohl(ic->numctlbadop));
 }
 
 
@@ -2080,7 +2055,7 @@ leapinfo(pcmd, fp)
 	l_fp ts;
 
 	res = doquery(IMPL_XNTPD, REQ_GET_LEAPINFO, 0, 0, 0, (char *)NULL,
-	    &items, &itemsize, (char **)&il);
+	    &items, &itemsize, (char **)&il, 0);
 	
 	if (res != 0 && items == 0)
 		return;
@@ -2103,23 +2078,23 @@ leapinfo(pcmd, fp)
 		(void) fprintf(fp, "Leap overide option in effect\n");
  	if (il->leap_bits & INFO_LEAP_SEENSTRATUM1)
  		(void) fprintf(fp, "Stratum 1 restrictions in effect\n");
-	(void) fprintf(fp, "time to next leap interrupt: %d seconds\n",
-	    ntohl(il->leap_timer));
+	(void) fprintf(fp, "time to next leap interrupt: %ld s\n",
+	    (u_long)ntohl(il->leap_timer));
 	gettstamp(&ts);
 	(void) fprintf(fp, "date of next leap interrupt: %s\n",
 	    humandate(ts.l_ui + ntohl(il->leap_timer)));
-	(void) fprintf(fp, "calls to leap process: %u\n",
-	    ntohl(il->leap_processcalls));
-	(void) fprintf(fp, "leap more than month away: %u\n",
-	    ntohl(il->leap_notclose));
-	(void) fprintf(fp, "leap less than month away: %u\n",
-	    ntohl(il->leap_monthofleap));
-	(void) fprintf(fp, "leap less than day away:   %u\n",
-	    ntohl(il->leap_dayofleap));
-	(void) fprintf(fp, "leap in less than 2 hours: %u\n",
-	    ntohl(il->leap_hoursfromleap));
-	(void) fprintf(fp, "leap happened:             %u\n",
-	    ntohl(il->leap_happened));
+	(void) fprintf(fp, "calls to leap process: %lu\n",
+	    (u_long)ntohl(il->leap_processcalls));
+	(void) fprintf(fp, "leap more than month away: %lu\n",
+	    (u_long)ntohl(il->leap_notclose));
+	(void) fprintf(fp, "leap less than month away: %lu\n",
+	    (u_long)ntohl(il->leap_monthofleap));
+	(void) fprintf(fp, "leap less than day away:   %lu\n",
+	    (u_long)ntohl(il->leap_dayofleap));
+	(void) fprintf(fp, "leap in less than 2 hours: %lu\n",
+	    (u_long)ntohl(il->leap_hoursfromleap));
+	(void) fprintf(fp, "leap happened:             %lu\n",
+	    (u_long)ntohl(il->leap_happened));
 }
 
 
@@ -2134,20 +2109,21 @@ clockstat(pcmd, fp)
         extern struct clktype clktypes[];
 	struct info_clock *cl;
 	/* 8 is the maximum number of clocks which will fit in a packet */
-	U_LONG clist[min(MAXARGS, 8)];
+	u_long clist[min(MAXARGS, 8)];
 	int qitems;
 	int items;
 	int itemsize;
 	int res;
 	l_fp ts;
 	struct clktype *clk;
+	u_long ltemp;
 
 	for (qitems = 0; qitems < min(pcmd->nargs, 8); qitems++)
 		clist[qitems] = pcmd->argval[qitems].netnum;
 
 	res = doquery(IMPL_XNTPD, REQ_GET_CLOCKINFO, 0, qitems,
 	    sizeof(U_LONG), (char *)clist, &items,
-	    &itemsize, (char **)&cl);
+	    &itemsize, (char **)&cl, 0);
 	
 	if (res != 0 && items == 0)
 		return;
@@ -2165,35 +2141,36 @@ clockstat(pcmd, fp)
 			if (clk->code == cl->type)
 				break;
 		if (clk->code >= 0)
-			(void) fprintf(fp, "clock type:   %s\n",
+			(void) fprintf(fp, "clock type:           %s\n",
 			    clk->clocktype);
 		else
-			(void) fprintf(fp, "clock type:   unknown type (%d)\n",
+			(void) fprintf(fp, "clock type:           unknown type (%d)\n",
 			    cl->type);
 		(void) fprintf(fp, "last event:           %d\n",
 		    cl->lastevent);
 		(void) fprintf(fp, "current status:       %d\n",
 		    cl->currentstatus);
-		(void) fprintf(fp, "number of polls:      %u\n",
-		    ntohl(cl->polls));
-		(void) fprintf(fp, "no response to poll:  %u\n",
-		    ntohl(cl->noresponse));
-		(void) fprintf(fp, "bad format responses: %u\n",
-		    ntohl(cl->badformat));
-		(void) fprintf(fp, "bad data responses:   %u\n",
-		    ntohl(cl->baddata));
-		(void) fprintf(fp, "running time:         %u\n",
-		    ntohl(cl->timestarted));
+		(void) fprintf(fp, "number of polls:      %lu\n",
+		    (u_long)ntohl(cl->polls));
+		(void) fprintf(fp, "no response to poll:  %lu\n",
+		    (u_long)ntohl(cl->noresponse));
+		(void) fprintf(fp, "bad format responses: %lu\n",
+		    (u_long)ntohl(cl->badformat));
+		(void) fprintf(fp, "bad data responses:   %lu\n",
+		    (u_long)ntohl(cl->baddata));
+		(void) fprintf(fp, "running time:         %lu\n",
+		    (u_long)ntohl(cl->timestarted));
 		NTOHL_FP(&cl->fudgetime1, &ts);
 		(void) fprintf(fp, "fudge time 1:         %s\n",
-		    lfptoa(&ts, 7));
+		    lfptoa(&ts, 6));
 		NTOHL_FP(&cl->fudgetime2, &ts);
 		(void) fprintf(fp, "fudge time 2:         %s\n",
-		    lfptoa(&ts, 7));
-		(void) fprintf(fp, "fudge value 1:        %ld\n",
-		    ntohl(cl->fudgeval1));
-		(void) fprintf(fp, "fudge value 2:        %ld\n",
-		    ntohl(cl->fudgeval2));
+		    lfptoa(&ts, 6));
+		(void) fprintf(fp, "stratum:              %ld\n",
+		    (u_long)ntohl(cl->fudgeval1));
+		ltemp = ntohl(cl->fudgeval2);
+		(void) fprintf(fp, "reference ID:         %s\n",
+		    (char *)&ltemp);
 		(void) fprintf(fp, "fudge flags:          0x%x\n",
 		    cl->flags);
 
@@ -2218,7 +2195,7 @@ fudge(pcmd, fp)
 	char *dummy;
 	l_fp ts;
 	int res;
-	LONG val;
+	long val;
 	int err;
 
 
@@ -2231,13 +2208,13 @@ fudge(pcmd, fp)
 		if (!atolfp(pcmd->argval[2].string, &ts))
 			err = 1;
 		else
-			HTONL_FP(&ts, &fudgedata.fudgetime);
+			NTOHL_FP(&ts, &fudgedata.fudgetime);
 	} else if (STREQ(pcmd->argval[1].string, "time2")) {
 		fudgedata.which = htonl(FUDGE_TIME2);
 		if (!atolfp(pcmd->argval[2].string, &ts))
 			err = 1;
 		else
-			HTONL_FP(&ts, &fudgedata.fudgetime);
+			NTOHL_FP(&ts, &fudgedata.fudgetime);
 	} else if (STREQ(pcmd->argval[1].string, "val1")) {
 		fudgedata.which = htonl(FUDGE_VAL1);
 		if (!atoint(pcmd->argval[2].string, &val))
@@ -2257,13 +2234,13 @@ fudge(pcmd, fp)
 		else
 			fudgedata.fudgeval_flags = htonl(val & 0xf);
 	} else {
-		(void) fprintf(stderr, "What fudge is `%s'?\n",
+		(void) fprintf(stderr, "What fudge is %s?\n",
 		    pcmd->argval[1].string);
 		return;
 	}
 
 	if (err) {
-		(void) fprintf(stderr, "Can't decode the value `%s'\n",
+		(void) fprintf(stderr, "Unknown fudge parameter %s\n",
 		    pcmd->argval[2].string);
 		return;
 	}
@@ -2271,7 +2248,7 @@ fudge(pcmd, fp)
 
 	res = doquery(IMPL_XNTPD, REQ_SET_CLKFUDGE, 1, 1,
 	    sizeof(struct conf_fudge), (char *)&fudgedata, &items,
-	    &itemsize, &dummy);
+	    &itemsize, &dummy, 0);
 
 	if (res == 0)
 		(void) fprintf(fp, "done!\n");
@@ -2288,10 +2265,11 @@ clkbug(pcmd, fp)
 {
 	register int i;
 	register int n;
-	register U_LONG s;
+	register u_long s;
 	struct info_clkbug *cl;
 	/* 8 is the maximum number of clocks which will fit in a packet */
-	U_LONG clist[min(MAXARGS, 8)];
+	u_long clist[min(MAXARGS, 8)];
+	u_long ltemp;
 	int qitems;
 	int items;
 	int itemsize;
@@ -2303,7 +2281,7 @@ clkbug(pcmd, fp)
 
 	res = doquery(IMPL_XNTPD, REQ_GET_CLKBUGINFO, 0, qitems,
 	    sizeof(U_LONG), (char *)clist, &items,
-	    &itemsize, (char **)&cl);
+	    &itemsize, (char **)&cl, 0);
 	
 	if (res != 0 && items == 0)
 		return;
@@ -2319,19 +2297,18 @@ clkbug(pcmd, fp)
 		    numtoa(cl->clockadr));
 		n = (int)cl->nvalues;
 		(void) fprintf(fp, "values: %d", n);
-		s = (U_LONG)ntohs(cl->svalues);
+		s = ntohs(cl->svalues);
 		if (n > NUMCBUGVALUES)
 			n = NUMCBUGVALUES;
 		for (i = 0; i < n; i++) {
+			ltemp = (u_long)ntohl(cl->values[i]);
+			ltemp &= 0xffffffff;
 			if ((i & 0x3) == 0)
 				(void) fprintf(fp, "\n");
-			if (s & (1<<i)) {
-				(void) fprintf(fp, "%12ld",
-				    (LONG)ntohl(cl->values[i]));
-			} else {
-				(void) fprintf(fp, "%12lu",
-				    ntohl(cl->values[i]));
-			}
+			if (s & (1 << i))
+				(void) fprintf(fp, "%12ld", ltemp);
+			else
+				(void) fprintf(fp, "%12lu", ltemp);
 		}
 		(void) fprintf(fp, "\n");
 
@@ -2348,8 +2325,8 @@ clkbug(pcmd, fp)
 				for (;needsp > 0; needsp--)
 					putc(' ', fp);
 			}
-			HTONL_FP(&cl->times[i], &ts);
-			if (s & (1<<i)) {
+			NTOHL_FP(&cl->times[i], &ts);
+			if (s & (1 << i)) {
 				(void) fprintf(fp, "%17s",
 				    lfptoa(&ts, 6));
 				needsp = 22;
@@ -2376,7 +2353,7 @@ setprecision(pcmd, fp)
 	struct parse *pcmd;
 	FILE *fp;
 {
-	LONG precision;
+	long precision;
 	int items;
 	int itemsize;
 	char *dummy;
@@ -2384,8 +2361,8 @@ setprecision(pcmd, fp)
 
 	precision = htonl(pcmd->argval[0].ival);
 
-	res = doquery(IMPL_XNTPD, REQ_SET_PRECISION, 1, 1, sizeof(LONG),
-	    (char *)&precision, &items, &itemsize, &dummy);
+	res = doquery(IMPL_XNTPD, REQ_SET_PRECISION, 1, 1, sizeof(long),
+	    (char *)&precision, &items, &itemsize, &dummy, 0);
 	
 	if (res == 0)
 		(void) fprintf(fp, "done!\n");
@@ -2407,7 +2384,7 @@ kerninfo(pcmd, fp)
 	int res;
 
 	res = doquery(IMPL_XNTPD, REQ_GET_KERNEL, 0, 0, 0, (char *)NULL,
-	    &items, &itemsize, (char **)&ik);
+	    &items, &itemsize, (char **)&ik, 0);
 	if (res != 0 && items == 0)
 	    return;
 	if (!check1item(items, fp))
@@ -2418,20 +2395,20 @@ kerninfo(pcmd, fp)
 	/*
 	 * pll variables
 	 */
-	(void)fprintf(fp, "pll offset:           %d us\n",
-	    ntohl(ik->offset));
+	(void)fprintf(fp, "pll offset:           %ld us\n",
+	    (u_long)ntohl(ik->offset));
 	(void)fprintf(fp, "pll frequency:        %s ppm\n",
 	    fptoa((s_fp)ntohl(ik->freq), 3));
-	(void)fprintf(fp, "maximum error:        %d us\n",
-	    ntohl(ik->maxerror));
-	(void)fprintf(fp, "estimated error:      %d us\n",
-	    ntohl(ik->esterror));
+	(void)fprintf(fp, "maximum error:        %ld us\n",
+	    (u_long)ntohl(ik->maxerror));
+	(void)fprintf(fp, "estimated error:      %ld us\n",
+	    (u_long)ntohl(ik->esterror));
 	(void)fprintf(fp, "status:               %04x\n",
 	    ntohs(ik->status & 0xffff));
-	(void)fprintf(fp, "pll time constant:    %d\n",
-	    ntohl(ik->constant));
-	(void)fprintf(fp, "precision:            %d us\n",
-            ntohl(ik->precision));
+	(void)fprintf(fp, "pll time constant:    %ld\n",
+	    (u_long)ntohl(ik->constant));
+	(void)fprintf(fp, "precision:            %ld us\n",
+            (u_long)ntohl(ik->precision));
 	(void)fprintf(fp, "frequency tolerance:  %s ppm\n",
             fptoa((s_fp)ntohl(ik->tolerance), 0));
 
@@ -2449,16 +2426,16 @@ kerninfo(pcmd, fp)
             fptoa((s_fp)ntohl(ik->ppsfreq), 3));
 	(void)fprintf(fp, "pps stability:        %s ppm\n",
 	    fptoa((s_fp)ntohl(ik->stabil), 3));
-	(void)fprintf(fp, "pps jitter:           %d us\n",
-            ntohl(ik->jitter));
+	(void)fprintf(fp, "pps jitter:           %ld us\n",
+            (u_long)ntohl(ik->jitter));
 	(void)fprintf(fp, "calibration interval: %d s\n",
 	    1 << ntohs(ik->shift));
-	(void)fprintf(fp, "calibration cycles:   %d\n",
-	    ntohl(ik->calcnt));
-	(void)fprintf(fp, "jitter exceeded:      %d\n",
-	    ntohl(ik->jitcnt));
-	(void)fprintf(fp, "stability exceeded:   %d\n",
-	    ntohl(ik->stbcnt));
-	(void)fprintf(fp, "calibration errors:   %d\n",
-	    ntohl(ik->errcnt));
+	(void)fprintf(fp, "calibration cycles:   %ld\n",
+	    (u_long)ntohl(ik->calcnt));
+	(void)fprintf(fp, "jitter exceeded:      %ld\n",
+	    (u_long)ntohl(ik->jitcnt));
+	(void)fprintf(fp, "stability exceeded:   %ld\n",
+	    (u_long)ntohl(ik->stbcnt));
+	(void)fprintf(fp, "calibration errors:   %ld\n",
+	    (u_long)ntohl(ik->errcnt));
 }

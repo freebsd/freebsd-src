@@ -1,4 +1,4 @@
-/* caljulian.c,v 3.1 1993/07/06 01:08:00 jbj Exp
+/*
  * caljulian - determine the Julian date from an NTP time.
  */
 #include <sys/types.h>
@@ -37,11 +37,11 @@ static u_short caldaytab[YEARSPERCYCLE] = {
 
 void
 caljulian(ntptime, jt)
-	U_LONG ntptime;
+	u_long ntptime;
 	register struct calendar *jt;
 {
 	register int i;
-	register U_LONG nt;
+	register u_long nt;
 	register u_short snt;
 	register int cyear;
 

@@ -1,4 +1,4 @@
-/* dofptoa.c,v 3.1 1993/07/06 01:08:12 jbj Exp
+/*
  * dofptoa - do the grunge work to convert an fp number to ascii
  */
 #include <stdio.h>
@@ -16,7 +16,7 @@ dofptoa(fpv, neg, ndec, msec)
 	int msec;
 {
 	register u_char *cp, *cpend;
-	register U_LONG val;
+	register u_long val;
 	register short dec;
 	u_char cbuf[12];
 	u_char *cpdec;

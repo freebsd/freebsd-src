@@ -1,4 +1,4 @@
-/* mkrandkeys.c,v 3.1 1993/07/06 01:05:08 jbj Exp
+/*
  * mkrandkeys - make a key file for xntpd with some quite random keys
  */
 #include <stdio.h>
@@ -12,12 +12,12 @@
 char *progname;
 int debug;
 
-U_LONG keydata[2];
+u_long keydata[2];
 
 int std = 1;		/* DES standard key format */
 u_char dokey[16] = { 0 };
 
-static	void	rand_data	P((U_LONG *));
+static	void	rand_data	P((u_long *));
 
 /*
  * main - parse arguments and handle options
@@ -32,7 +32,7 @@ char *argv[];
 	int j;
 	int errflg = 0;
 	int numkeys;
-	U_LONG tmp;
+	u_long tmp;
 	char *passwd;
 	extern int ntp_optind;
 	extern char *ntp_optarg;
@@ -89,7 +89,7 @@ char *argv[];
 
 	keydata[0] = keydata[1] = 0;
 	for (i = 0; i < 8 && *passwd != '\0'; i++) {
-		keydata[i/4] |= ((((U_LONG)(*passwd))&0xff)<<(1+((3-(i%4))*8)));
+		keydata[i/4] |= ((((u_long)(*passwd))&0xff)<<(1+((3-(i%4))*8)));
 		passwd++;
 	}
 
@@ -139,18 +139,18 @@ char *volatile_file[] = {
 
 static void
 rand_data(data)
-	U_LONG *data;
+	u_long *data;
 {
 	register i;
 	struct stat buf;
-	extern LONG time();
+	extern long time();
 	char ekeys[128], dkeys[128];
 
 	*data ^= 0x9662f394;
 	*(data+1) ^= 0x9f17c55f;
 	DESauth_subkeys(data, ekeys, dkeys);
 	*data ^= NEXT(getpid() + (getuid() << 16));
-	*(data+1) ^= NEXT(time((LONG *)0));
+	*(data+1) ^= NEXT(time((long *)0));
 	DESauth_des(data, ekeys);
 	for (i = 0; strlen(volatile_file[i]); i++) {
 		if (stat(volatile_file[i], &buf) == -1)

@@ -54,6 +54,7 @@
  *		P (last phone update failed)
  */
 #define MAXUNITS 1		/* max number of LEITCH units */
+#define LEITCHREFID	"ATOM"	/* reference id */
 #define LEITCH_DESCRIPTION "Leitch: CSD 5300 Master Clock System Driver"
 #define LEITCH232 "/dev/leitch%d"	/* name of radio device */
 #define SPEED232 B300		/* uart speed (300 baud) */ 
@@ -106,17 +107,17 @@ struct leitchunit {
 	l_fp codetime1;
 	l_fp codetime2;
 	l_fp codetime3;
-	U_LONG yearstart;
+	u_long yearstart;
 };
 
 /*
  * Function prototypes
  */
 static	void	leitch_init	P((void));
-static	int	leitch_start	P((u_int, struct peer *));
-static	void	leitch_shutdown	P((int));
+static	int	leitch_start	P((int, struct peer *));
+static	void	leitch_shutdown	P((int, struct peer *));
 static	void	leitch_poll	P((int, struct peer *));
-static	void	leitch_control	P((u_int, struct refclockstat *, struct refclockstat *));
+static	void	leitch_control	P((int, struct refclockstat *, struct refclockstat *));
 #define	leitch_buginfo	noentry
 static	void	leitch_receive	P((struct recvbuf *));
 static	void	leitch_process	P((struct leitchunit *));
@@ -127,6 +128,8 @@ static	int	dysize		P((int));
 
 static struct leitchunit leitchunits[MAXUNITS];
 static u_char unitinuse[MAXUNITS];
+static u_char stratumtouse[MAXUNITS];
+static U_LONG refid[MAXUNITS];
 
 static	char days_in_month [] = { 31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
 
@@ -144,16 +147,21 @@ struct	refclock refclock_leitch = {
 static void
 leitch_init()
 {
+	int i;
+
 	memset((char*)leitchunits, 0, sizeof(leitchunits));
 	memset((char*)unitinuse, 0, sizeof(unitinuse));
+	for (i = 0; i < MAXUNITS; i++)
+		memcpy((char *)&refid[i], LEITCHREFID, 4);
 }
 
 /*
  * leitch_shutdown - shut down a LEITCH clock
  */
 static void
-leitch_shutdown(unit)
-int unit;
+leitch_shutdown(unit, peer)
+	int unit;
+	struct peer *peer;
 {
 #ifdef DEBUG
 	if (debug)
@@ -196,40 +204,38 @@ leitch_poll(unit, peer)
 
 static void
 leitch_control(unit, in, out)
-	u_int unit;
+	int unit;
 	struct refclockstat *in;
 	struct refclockstat *out;
 {
-#if debug
-	if (debug)
-	    fprintf(stderr, "leitch_control()\n");
-#endif
 	if (unit >= MAXUNITS) {
 		syslog(LOG_ERR,
 		    "leitch_control: unit %d invalid", unit);
 		return;
 	}
+
 	if (in) {
-		/* WE DONT SET ANY THING */
+		if (in->haveflags & CLK_HAVEVAL1)
+			stratumtouse[unit] = (u_char)(in->fudgeval1);
+		if (in->haveflags & CLK_HAVEVAL2)
+			refid[unit] = in->fudgeval2;
+		if (unitinuse[unit]) {
+			struct peer *peer;
+
+			peer = (&leitchunits[unit])->peer;
+			peer->stratum = stratumtouse[unit];
+			peer->refid = refid[unit];
+		}
 	}
+
 	if (out) {
+		memset((char *)out, 0, sizeof (struct refclockstat));
 		out->type = REFCLK_ATOM_LEITCH;
-		out->flags = 0;
-		out->haveflags = 0;
-		out->lencode = 0;
+		out->haveflags = CLK_HAVEVAL1 | CLK_HAVEVAL2;
+		out->fudgeval1 = (LONG)stratumtouse[unit];
+		out->fudgeval2 = refid[unit];
 		out->lastcode = "";
-		out->polls = 0;
-		out->noresponse = 0;
-		out->badformat = 0;
-		out->baddata = 0;
-		out->timereset = 0;
 		out->clockdesc = LEITCH_DESCRIPTION;
-		out->fudgetime1.l_uf = 0;
-		out->fudgetime1.l_ui = 0;
-		out->fudgetime2.l_uf = 0;
-		out->fudgetime2.l_ui = 0;
-		out->currentstatus = 0;
-		out->lastevent = 0;
 	}
 }
 
@@ -238,7 +244,7 @@ leitch_control(unit, in, out)
  */
 static int
 leitch_start(unit, peer)
-	u_int unit;
+	int unit;
 	struct peer *peer;
 {
 	struct leitchunit *leitch;
@@ -413,8 +419,8 @@ leitch_start(unit, peer)
 	peer->precision = 0;
 	peer->rootdelay = 0;
 	peer->rootdispersion = 0;
-	peer->stratum = 0;
-	peer->refid = htonl(0x41544f4d); /* ATOM */
+	peer->stratum = stratumtouse[unit];
+	peer->refid = refid[unit];
 	unitinuse[unit] = 1;
 	return(1);
 
