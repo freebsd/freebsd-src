@@ -118,67 +118,8 @@
 ]]>
 
 <![ %release.type.snapshot [
-    <para>The vulnerability documented in security advisory
-    FreeBSD-SA-01:39 was fixed in &os; &release.prev;.  The release
-    notes mentioned the fix, but made no mention of the security
-    advisory.</para>
-
-    <para>A vulnerability in the &man.fts.3; routines (used by
-    applications for recursively traversing a filesystem) could allow
-    a program to operate on files outside the intended directory
-    hierarchy.  This bug, as well as a fix, is described in security
-    advisory FreeBSD-SA-01:40.</para>
-
-    <para>A flaw allowed some signal handlers to remain in effect in a
-    child process after being exec-ed from its parent.  This allowed
-    an attacker to execute arbitrary code in the context of a setuid
-    binary.  More details, as well as a fix, are described in security
-    advisory FreeBSD-SA-01:42.</para>
-
-    <para>A remote buffer overflow in &man.tcpdump.1; could be
-    triggered by sending certain packets at a target machine.  More
-    details, as well as a fix, can be found in security advisory
-    FreeBSD-SA-01:48.</para>
-
-    <para>A remote buffer overflow in &man.telnetd.8; could result in
-    arbitrary code running on a target machine.  More details, as well
-    as a fix, can be found in security advisory
-    FreeBSD-SA-01:49.</para>
-
-    <para>A vulnerability whereby a remote attacker could exhaust a
-    target's pool of network buffers has been closed.  More details,
-    as well as a fix, can be found in security advisory
-    FreeBSD-SA-01:52.</para>
-
-    <para>A flaw existed in &man.ipfw.8;, in which 
-    <literal>me</literal> filter rules would
-    match the remote IP address of a point-to-point interface in
-    addition to the intended local IP address.  More details, as well
-    as a fix, can be found in security advisory FreeBSD-SA-01:53.</para>
-
-    <para>A vulnerability in &man.procfs.5; could allow a
-    process to read sensitive information from another process's
-    memory space.  For more details, as well as
-    information on patches, see security advisory FreeBSD-SA-01:55.</para>
-
-    <para><literal>PARANOID</literal> hostname checking in
-    <application>tcp_wrappers</application> did not work correctly.
-    For more details and information on patches, see security advisory
-    FreeBSD-SA-01:56.</para>
-
-    <para>&man.sendmail.8; has a local root vulnerability.  For more
-    details and patch information, see security advisory
-    FreeBSD-SA-01:57.</para>
-
-    <para>&man.lpd.8; contained a remotely-exploitable buffer
-    overflow.  For more details, and a fix for this problem, see
-    security advisory FreeBSD-SA-01:58.</para>
-
-    <para>&man.rmuser.8; had a race condition that briefly exposed a
-    world-readable <filename>/etc/master.passwd</filename>.  For more
-    details, as well as workarounds and solutions, see security
-    advisory FreeBSD-SA-01:59.</para>
-  ]]>
+    <para>No active security advisories.</para>
+]]>
   </sect1>
 
   <sect1>
@@ -189,18 +130,12 @@
 ]]>
 
 <![ %release.type.snapshot [
-    <para>The release note entry for the ESS Maestro-3/Allegro sound
-    driver gave an incorrect command for loading the driver via
-    <filename>/boot/loader.conf</filename>.  The correct command is:</para>
-
-    <programlisting>snd_maestro3_load="YES"</programlisting>
-
-    <para>&man.ssh.1; is no longer SUID <username>root</username>.
-    The primary manifestation of this change is that
-    <filename>.shosts</filename> authentication may not work
-    <quote>out of the box</quote>.  Both temporary and permanent fixes
-    are described in <ulink
-    url="http://www.FreeBSD.org/doc/en_US.ISO_8859-1/books/faq/admin.html#SSH-SHOSTS">an item in the FAQ</ulink>.</para>
+    <para>The handling of some types of comments in &man.printcap.5;
+      files is faulty.  If a comment line ends in
+      <literal>:\</literal> (the characters normally used to indicate
+      the continuation of a printer definition), the line following
+      the comment will be parsed as a part of the previous printer
+      definition.</para>
 ]]>
   </sect1>
 </article>
