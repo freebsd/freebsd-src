@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.48 1994/11/17 15:19:59 jkh Exp $
+#	$Id: Makefile,v 1.49 1994/11/18 01:05:05 phk Exp $
 #
 
 # Evil floppies are, of course, 1.2MB floppies.
@@ -54,6 +54,8 @@ kernel:	${.CURDIR}/../sys/i386/conf/GENERIC
 	(cd ${.CURDIR}/../sys/compile/GENERIC; ${MAKE} depend; ${MAKE} all; )
 
 boot.flp: 
+	crunchgen ${.CURDIR}/boot_flp.conf
+	${MAKE} -f boot_flp.mk objs exe
 	-umount ${MNT}
 	-umount /dev/${FLOPPY}
 	# echo y | fdformat ${FLOPPY}
@@ -146,7 +148,8 @@ bar:
 			DESTDIR=${RELEASEDIR}/filesys \
 			SHARED=copies )
 
-DISTRIBUTIONS=	bindist des games manpages proflibs dict
+EXTRADISTRIBUTIONS=	des games manpages proflibs dict
+DISTRIBUTIONS=	bindist ${EXTRADISTRIBUTIONS}
 MTREEFILES=	${.CURDIR}/../etc/mtree
 
 distribute: 
@@ -164,5 +167,27 @@ distribute:
 		${MAKE} kernel DESTDIR=${RELEASEDIR}/filesys )
 	install ${COPY} -m 644 ${.CURDIR}/../sys/compile/GENERIC/kernel \
 		${RELEASEDIR}/bindist/kernel
+
+tarballs:
+	rm -rf ${RELEASEDIR}/manpages/usr/share/man
+	mv ${RELEASEDIR}/bindist/usr/share/man \
+		${RELEASEDIR}/manpages/usr/share/man
+	rm -rf ${RELEASEDIR}/dict/usr/share/dict
+	mv ${RELEASEDIR}/bindist/usr/share/dict \
+		${RELEASEDIR}/dict/usr/share/dict
+	mv ${RELEASEDIR}/bindist/usr/lib/*_p.a \
+		${RELEASEDIR}/proflibs/usr/lib
+	-cd ${RELEASEDIR} ; \
+	find ${EXTRADISTRIBUTIONS} -depth -type d -print | xargs rmdir
+	rm -rf ${RELEASEDIR}/tarballs
+	mkdir ${RELEASEDIR}/tarballs
+	for i in ${DISTRIBUTIONS} ; \
+	do \
+		mkdir ${RELEASEDIR}/tarballs/$${i} ; \
+		( cd ${RELEASEDIR}/$${i}; \
+			tar cf - . | \
+			${ZIPNSPLIT} ${RELEASEDIR}/tarballs/$$i/$${i}_tgz.) ; \
+	( cd ${RELEASEDIR}/tarballs/$${i}; sh -e ${.CURDIR}/mkchecksums.sh ) ; \
+	done
 
 .include <bsd.prog.mk>
