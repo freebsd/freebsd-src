@@ -657,6 +657,7 @@ struct pthread {
 	 */
 	sigset_t		sigmask;
 	sigset_t		sigpend;
+	sigset_t		*oldsigmask;
 	volatile int		check_pending;
 	int			refcount;
 

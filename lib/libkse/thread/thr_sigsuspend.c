@@ -44,7 +44,7 @@ int
 _sigsuspend(const sigset_t *set)
 {
 	struct pthread	*curthread = _get_curthread();
-	sigset_t	oldmask, newmask;
+	sigset_t	oldmask, newmask, tempset;
 	int             ret = -1;
 
 	if (curthread->attr.flags & PTHREAD_SCOPE_SYSTEM)
@@ -54,32 +54,29 @@ _sigsuspend(const sigset_t *set)
 	if (set != NULL) {
 		newmask = *set;
 		SIG_CANTMASK(newmask);
-
 		THR_LOCK_SWITCH(curthread);
 
-		/* Save current sigmask */
-		memcpy(&oldmask, &curthread->sigmask, sizeof(sigset_t));
+		/* Save current sigmask: */
+		oldmask = curthread->sigmask;
+		curthread->oldsigmask = &oldmask;
 
 		/* Change the caller's mask: */
-		memcpy(&curthread->sigmask, &newmask, sizeof(sigset_t));
-
-		THR_SET_STATE(curthread, PS_SIGSUSPEND);
-
-		/* Wait for a signal: */
-		_thr_sched_switch_unlocked(curthread);
-
+		curthread->sigmask = newmask;
+		tempset = curthread->sigpend;
+		SIGSETNAND(tempset, newmask);
+		if (SIGISEMPTY(tempset)) {
+			THR_SET_STATE(curthread, PS_SIGSUSPEND);
+			/* Wait for a signal: */
+			_thr_sched_switch_unlocked(curthread);
+		} else {
+			THR_UNLOCK_SWITCH(curthread);
+			/* check pending signal I can handle: */
+			_thr_sig_check_pending(curthread);
+		}
+		THR_ASSERT(curthread->oldsigmask == NULL,
+		           "oldsigmask is not cleared");
 		/* Always return an interrupted error: */
 		errno = EINTR;
-
-		THR_SCHED_LOCK(curthread, curthread);
-		/* Restore the signal mask: */
-		memcpy(&curthread->sigmask, &oldmask, sizeof(sigset_t));
-		THR_SCHED_UNLOCK(curthread, curthread);
-		/*
-		 * signal mask is reloaded, need to check if there is
-		 * pending proc signal I can handle.
-		 */
-		_thr_sig_check_pending(curthread);
 	} else {
 		/* Return an invalid argument error: */
 		errno = EINVAL;
