@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: command.c,v 1.5 1995/05/18 02:42:31 jkh Exp $
+ * $Id: command.c,v 1.6 1995/05/18 09:01:44 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -107,7 +107,7 @@ command_shell_add(char *key, char *fmt, ...)
     commandStack[numCommands]->ncmds = 1;
     commandStack[numCommands]->cmds[0].type = CMD_SHELL;
     commandStack[numCommands]->cmds[0].ptr = (void *)cmd;
-    commandStack[numCommands]->cmds[0].data = NULL;
+    commandStack[numCommands++]->cmds[0].data = NULL;
 }
 
 /* Add a shell command under a given key */
