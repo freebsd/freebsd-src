@@ -1,4 +1,4 @@
-<!-- $Id: authors.sgml,v 1.64 1997/04/30 09:05:32 max Exp $ -->
+<!-- $Id: authors.sgml,v 1.65 1997/05/08 15:30:28 joerg Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!-- 
@@ -95,6 +95,10 @@ Please keep this list in alphabetical order by entity names.
 <!ENTITY a.dima  "Dima Ruban
   <tt><htmlurl url='mailto:dima@FreeBSD.ORG'
   name='&lt;dima@FreeBSD.ORG&gt;'></tt>">
+
+<!ENTITY a.dirkvangulik  "Dirk-Willem van Gulik
+  <tt><htmlurl url='mailto:Dirk.vanGulik@jrc.it'
+  name='&lt;Dirk.vanGulik@jrc.it&gt;'></tt>">
 
 <!ENTITY a.dufault "Peter Dufault 
   <tt><htmlurl url='mailto:dufault@FreeBSD.ORG' 
@@ -351,6 +355,10 @@ Please keep this list in alphabetical order by entity names.
 <!ENTITY a.phk "Poul-Henning Kamp 
   <tt><htmlurl url='mailto:phk@FreeBSD.ORG' 
   name='&lt;phk@FreeBSD.ORG&gt;'></tt>">
+
+<!ENTITY a.pjc "Peter Childs
+  <tt><htmlurl url='mailto:pjchilds@imforei.apana.org.au'
+  name='&lt;pjchilds@imforei.apana.org.au&gt;'></tt>">
 
 <!ENTITY a.proven  "Chris Provenzano
   <tt><htmlurl url='mailto:proven@FreeBSD.ORG'
