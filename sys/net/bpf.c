@@ -1558,10 +1558,10 @@ bpf_setdlt(d, dlt)
 	}
 	mtx_unlock(&bpf_mtx);
 	if (bp != NULL) {
-		BPFD_LOCK(d);
 		opromisc = d->bd_promisc;
 		bpf_detachd(d);
 		bpf_attachd(d, bp);
+		BPFD_LOCK(d);
 		reset_d(d);
 		BPFD_UNLOCK(d);
 		if (opromisc) {
