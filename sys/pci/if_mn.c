@@ -55,6 +55,7 @@ struct mn_control	{
 #include <sys/conf.h>
 #include <sys/mbuf.h>
 #include <sys/kernel.h>
+#include <sys/sysctl.h>
 #include <sys/malloc.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
@@ -67,6 +68,14 @@ struct mn_control	{
 #include <netgraph/ng_message.h>
 #include <netgraph/ng_sample.h>
 #include <netgraph/netgraph.h>  
+
+static int mn_maxlatency = 1000;
+SYSCTL_INT(_debug, OID_AUTO, mn_maxlatency, CTLFLAG_RW, 
+    &mn_maxlatency, 0, 
+	"The number of milliseconds a packet is allowed to spend in the output queue.  "
+	"If the output queue is longer than this number of milliseconds when the packet "
+	"arrives for output, the packet will be dropped."
+);
 
 #ifndef NMN
 /* Most machines don't support more than 4 busmaster PCI slots, if even that many */
@@ -175,7 +184,7 @@ static	int	mn_reset(struct softc *sc);
 static	struct trxd * mn_alloc_desc(void);
 static	void	mn_free_desc(struct trxd *dp);
 static	void	mn_intr(void *xsc);
-static	u_int32_t mn_parse_ts(const char *s);
+static	u_int32_t mn_parse_ts(const char *s, int *nbit);
 #ifdef notyet
 static	void	m32_dump(struct softc *sc);
 static	void	f54_dump(struct softc *sc);
@@ -237,6 +246,9 @@ struct schan {
 
 	int		last_error;
 	int		prev_error;
+
+	u_long		tx_pending;
+	u_long		tx_limit;
 };
 
 static struct softc {
@@ -380,21 +392,23 @@ ngmn_newhook(node_p node, hook_p hook, const char *name)
 {
 	u_int32_t ts, chan;
 	struct softc *sc;
+	int nbit;
 
 	sc = node->private;
 
 	if (name[0] != 't' || name[1] != 's')
 		return (EINVAL);
 
-	ts = mn_parse_ts(name + 2);
+	ts = mn_parse_ts(name + 2, &nbit);
 	if (ts == 0)
 		return (EINVAL);
 	chan = ffs(ts) - 1;
 	if (sc->ch[chan]) 
 		return (EBUSY);
-	mn_create_channel(sc, chan);	/* Create the first channel */
+	mn_create_channel(sc, chan);
 	sc->ch[chan]->ts = ts;
 	sc->ch[chan]->hook = hook;
+	sc->ch[chan]->tx_limit = nbit * 8;
 	hook->private = sc->ch[chan];
 	return(0);
 }
@@ -423,7 +437,7 @@ mn_free_desc(struct trxd *dp)
 }
 
 static u_int32_t
-mn_parse_ts(const char *s)
+mn_parse_ts(const char *s, int *nbit)
 {
 	unsigned r;
 	int i, j;
@@ -431,15 +445,18 @@ mn_parse_ts(const char *s)
 
 	r = 0;
 	j = 0;
+	*nbit = 0;
 	while(*s) {
 		i = strtol(s, &p, 0);
 		if (i < 1 || i > 31)
 			return (0);
 		while (j && j < i) {
 			r |= 1 << j++;
+			(*nbit)++;
 		}
 		j = 0;
 		r |= 1 << i;
+		(*nbit)++;
 		if (*p == ',') {
 			s = p + 1;
 			continue;
@@ -500,7 +517,11 @@ ngmn_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 	sc = sch->sc;
 	chan = sch->chan;
 
-	if (sc->ch[chan]->state != UP) {
+	if (sch->state != UP) {
+		NG_FREE_DATA(m, meta);
+		return (0);
+	}
+	if (sch->tx_pending + m->m_pkthdr.len > sch->tx_limit * mn_maxlatency) {
 		NG_FREE_DATA(m, meta);
 		return (0);
 	}
@@ -545,6 +566,8 @@ ngmn_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 	if (pitch)
 		printf("%s%d: Short on mem, pitched %d packets\n", 
 		    sc->name, chan, pitch);
+	else
+		sch->tx_pending += m->m_pkthdr.len;
 	return (0);
 }
 
@@ -982,8 +1005,10 @@ mn_tx_intr(struct softc *sc, u_int32_t vector)
 		if (vtophys(dp) == sc->m32_mem.ctxd[chan]) 
 			return;
 		m = dp->m;
-		if (m)
+		if (m) {
+			sc->ch[chan]->tx_pending -= m->m_pkthdr.len;
 			m_freem(m);
+		}
 		sc->ch[chan]->last_xmit = time_second;
 		sc->ch[chan]->x1 = dp->vnext;
 		mn_free_desc(dp);
