@@ -2,6 +2,6 @@
 
 PROG=	elfdump
 NOMAN=
-WARNS?=	1
+WARNS?=	5
 
 .include <bsd.prog.mk>
