@@ -42,6 +42,8 @@
 #ifndef _MACHINE_SETJMP_H_
 #define	_MACHINE_SETJMP_H_
 
+#include <sys/cdefs.h>
+
 /*
  * IA64 assembler doesn't like C style comments.  This also means we can't
  * include other include files to get things like the roundup2() macro.
@@ -52,9 +54,14 @@
  * of an individual item saved in jmp_buf.
  */
 
+#if __BSD_VISIBLE
 #define	our_roundup(x, y)	(((x)+((y)-1))&(~((y)-1)))
+#endif
 
-#define	JMPBUF_ALIGNMENT	0x10
+#define	_JMPBUF_ALIGNMENT	0x10
+
+#if __BSD_VISIBLE
+#define	JMPBUF_ALIGNMENT	_JMPBUF_ALIGNMENT
 #define	JMPBUF_ADDR_OF(buf, item) \
     ((size_t)((our_roundup((size_t)buf, JMPBUF_ALIGNMENT)) + item))
 
@@ -100,22 +107,35 @@
 #define	J_SIG0		0x1d8
 #define	J_SIG1		0x1e0
 #define	J_SIGMASK	0x1e8
-#define	J_END		0x1f0
+#endif /* __BSD_VISIBLE */
 
+#define	_J_END		0x1f0
+#if __BSD_VISIBLE
+#define	J_END		_J_END
+#endif
+
+/*
+ * XXX this check is wrong, since LOCORE is in the application namespace and
+ * applications shouldn't be able to affect the implementation.  One workaround
+ * would be to only check LOCORE if _KERNEL is defined, but unfortunately
+ * LOCORE is used outside of the kernel.  The best solution would be to rename
+ * LOCORE to _LOCORE, so that it can be used in userland to safely affect the
+ * implementation.
+ */
 #ifndef LOCORE
 /*
  * jmp_buf and sigjmp_buf are encapsulated in different structs to force
  * compile-time diagnostics for mismatches.  The structs are the same
  * internally to avoid some run-time errors for mismatches.
  */
-#ifndef _ANSI_SOURCE
+#if __BSD_VISIBLE || __POSIX_VISIBLE || __XSI_VISIBLE
 typedef	struct _sigjmp_buf {
-	char	Buffer[J_END + JMPBUF_ALIGNMENT];
+	char	_Buffer[_J_END + _JMPBUF_ALIGNMENT];
 } sigjmp_buf[1];
 #endif
 
 typedef	struct _jmp_buf {
-	char	Buffer[J_END + JMPBUF_ALIGNMENT];
+    char	_Buffer[ _J_END + _JMPBUF_ALIGNMENT ];
 } jmp_buf[1];
 #endif
 
