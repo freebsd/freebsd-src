@@ -79,6 +79,7 @@ static void		acpi_alloc_wakeup_handler(void);
 extern int		acpi_savecpu(void);
 extern int		acpi_restorecpu(void);
 
+#ifdef __GNUC__
 __asm__("				\n\
 	.text				\n\
 	.p2align 2, 0x90		\n\
@@ -145,6 +146,7 @@ acpi_savecpu:				\n\
 	movl	$1,%eax			\n\
 	ret				\n\
 ");
+#endif /* __GNUC__ */
 
 static void
 acpi_printcpu(void)
