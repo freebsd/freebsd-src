@@ -479,7 +479,7 @@ uartsio_readport(sc_p scp, int off)
 static void
 uartsio_writeport(sc_p scp, int off, u_int8_t value)
 {
-	return bus_space_write_1(rman_get_bustag(scp->io), rman_get_bushandle(scp->io), off, value);
+	bus_space_write_1(rman_get_bustag(scp->io), rman_get_bushandle(scp->io), off, value);
 }
 
 /* Allocates resources other than IO ports. */
