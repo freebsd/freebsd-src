@@ -36,6 +36,7 @@
 #include <sys/proc.h>
 #include <sys/resource.h>
 #include <sys/resourcevar.h>
+#include <sys/stdint.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysproto.h>
 #include <sys/unistd.h>
@@ -422,8 +423,8 @@ linux_mmap(struct thread *td, struct linux_mmap_args *args)
 #ifdef DEBUG
 	if (ldebug(mmap))
 		printf(ARGS(mmap, "%p, %d, %d, 0x%08x, %d, %d"),
-		    (void *)linux_args->addr, linux_args->len, linux_args->prot,
-		    linux_args->flags, linux_args->fd, linux_args->pos);
+		    (void *)linux_args.addr, linux_args.len, linux_args.prot,
+		    linux_args.flags, linux_args.fd, linux_args.pos);
 #endif
 
 	return (linux_mmap_common(td, &linux_args));
@@ -815,7 +816,8 @@ linux_ftruncate64(struct thread *td, struct linux_ftruncate64_args *args)
 
 #ifdef DEBUG
 	if (ldebug(ftruncate64))
-		printf(ARGS(ftruncate64, "%d, %d"), args->fd, args->length);
+		printf(ARGS(ftruncate64, "%u, %jd"), args->fd,
+		    (intmax_t)args->length);
 #endif
 
 	sa.fd = args->fd;
