@@ -144,23 +144,11 @@ static int mib_info[RAY_MIB_MAX+1][3] = RAY_MIB_INFO;
     ((size_t)(&((type *)0)->member))
 #endif /* offsetof */
 
-#if RAY_NEED_CM_REMAPPING
-
-#define ATTR_READ_1(sc, off) \
-    ray_attr_read_1((sc), (off))
-
-#define ATTR_WRITE_1(sc, off, val) \
-    ray_attr_write_1((sc), (off), (val))
-
-#else
-
 #define ATTR_READ_1(sc, off) \
     ((u_int8_t)bus_space_read_1((sc)->am_bst, (sc)->am_bsh, (off)))
 
 #define ATTR_WRITE_1(sc, off, val) \
     bus_space_write_1((sc)->am_bst, (sc)->am_bsh, (off), (val))
-
-#endif /* RAY_NEED_CM_REMAPPING */
 
 #define	SRAM_READ_1(sc, off) \
     ((u_int8_t)bus_space_read_1((sc)->cm_bst, (sc)->cm_bsh, (off)))
@@ -296,15 +284,6 @@ static int mib_info[RAY_MIB_MAX+1][3] = RAY_MIB_INFO;
 } } while (0)
 #endif /* RAY_RECERR */
 
-/*
- * The driver assumes that the common memory is always mapped in,
- * for the moment we ensure this with the following macro at the
- * head of each function and by using functions to access attribute
- * memory. Hysterical raisins led to the non-"reflexive" approach.
- * Roll on NEWCARD and it can all die...
- */
-#if RAY_NEED_CM_REMAPPING
-#define	RAY_MAP_CM(sc)		ray_attr_mapcm(sc)
-#else
+#ifndef RAY_MAP_CM
 #define RAY_MAP_CM(sc)
-#endif /* RAY_NEED_CM_REMAPPING */
+#endif /* RAY_MAP_CM */
