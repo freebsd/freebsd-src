@@ -56,13 +56,22 @@ as specified by the
 operand.
 .Pp
 The options are as follows:
-.Bl -tag -width Ds
+.Bl -tag -width indent
+.It Fl f
+Do not display a diagnostic message if
+.Nm
+could not modify the mode for
+.Va file ,
+nor modify the exit status to reflect such failures.
 .It Fl H
 If the
 .Fl R
 option is specified, symbolic links on the command line are followed.
 (Symbolic links encountered in the tree traversal are not followed by
 default.)
+.It Fl h
+If the file is a symbolic link, change the mode of the link itself
+rather than the file that the link points to.
 .It Fl L
 If the
 .Fl R
@@ -75,14 +84,6 @@ This is the default.
 .It Fl R
 Change the modes of the file hierarchies rooted in the files
 instead of just the files themselves.
-.It Fl f
-Do not display a diagnostic message if
-.Nm
-could not modify the mode for
-.Va file .
-.It Fl h
-If the file is a symbolic link, change the mode of the link itself
-rather than the file that the link points to.
 .It Fl v
 Cause
 .Nm
@@ -115,22 +116,24 @@ one or more of the following values:
 .Pp
 .Bl -tag -width 6n -compact -offset indent
 .It Li 4000
-(the set-user-ID-on-execution bit) Executable files with this bit set
+(the setuid bit).
+Executable files with this bit set
 will run with effective uid set to the uid of the file owner.
-Directories with the set-user-id bit set will force all files and
+Directories with this bit set will force all files and
 sub-directories created in them to be owned by the directory owner
 and not by the uid of the creating process, if the underlying file
 system supports this feature: see
 .Xr chmod 2
 and the
-.Ar suiddir
+.Cm suiddir
 option to
 .Xr mount 8 .
 .It Li 2000
-(the set-group-ID-on-execution bit) Executable files with this bit set
+(the setgid bit).
+Executable files with this bit set
 will run with effective gid set to the gid of the file owner.
 .It Li 1000
-(the sticky bit)
+(the sticky bit).
 See
 .Xr chmod 2
 and
