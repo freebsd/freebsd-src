@@ -72,6 +72,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_dl.h>
 #include <net/if_media.h>
 
+#include <machine/atomic.h>
 #include <machine/bus_memio.h>
 #include <machine/bus_pio.h>
 #include <machine/bus.h>
@@ -1780,9 +1781,7 @@ __stdcall static uint32_t
 ndis_interlock_inc(addend)
 	uint32_t		*addend;
 {
-	mtx_lock(&ndis_interlock);
-	(*addend)++;
-	mtx_unlock(&ndis_interlock);
+	atomic_add_long((u_long *)addend, 1);
 	return(*addend);
 }
 
@@ -1790,9 +1789,7 @@ __stdcall static uint32_t
 ndis_interlock_dec(addend)
 	uint32_t		*addend;
 {
-	mtx_lock(&ndis_interlock);
-	(*addend)--;
-	mtx_unlock(&ndis_interlock);
+	atomic_subtract_long((u_long *)addend, 1);
 	return(*addend);
 }
 
