@@ -4,7 +4,7 @@
 #
 #	This kernel is NOT MEANT to be runnable!
 #
-#	$Id: LINT,v 1.102 1994/10/28 15:09:37 jkh Exp $
+#	$Id: LINT,v 1.103 1994/10/30 20:57:07 joerg Exp $
 #
 
 #
@@ -40,12 +40,6 @@ maxusers	10
 options		MATH_EMULATE		#Support for x87 emulation
 #options        GPL_MATH_EMULATE        #Support for x87 emualtion via
                                         #new math emulator 
-
-# Enable the following (IPFIREWALL_VERBOSE optional) to enable the IP firewall
-# code.  This is used in conjunction with the ipfw(1) command.  See the
-# man page for more details.
-options         IPFIREWALL              #firewall test
-options         IPFIREWALL_VERBOSE      #print information about dropped packets
 
 #
 # This directive defines a number of things:
@@ -129,6 +123,8 @@ options		INET			#Internet communications protocols
 options		ISO
 options		CCITT			#X.25 network layer
 options		NS			#Xerox NS communications protocols
+options		TPIP			#ISO TP class 4 over IP
+options		TPCONS			#ISO TP class 0 over X.25
 
 #
 # Network interfaces:
@@ -138,15 +134,19 @@ options		NS			#Xerox NS communications protocols
 #  configured.
 #  The `sl' pseudo-device implements the Serial Line IP (SLIP) service.
 #  The `ppp' pseudo-device implements the Point-to-Point Protocol.
+#  The `bpfilter' pseudo-device enables the Berkeley Packet Filter.  Be
+#  aware of the legal and administrative consequences of enabling this
+#  option.  The number of devices determines the maximum number of
+#  simultaneous BPF clients programs runnable.
 #
 pseudo-device	ether			#Generic Ethernet
 pseudo-device	loop			#Network loop back device
 pseudo-device	sl	2		#Serial Line IP
 pseudo-device	ppp	2		#Point-to-point protocol
+pseudo-device	bpfilter	4	#Berkeley packet filter
+
 options		NSIP			#XNS over IP
 options		EON			#ISO CLNP over IP
-options		TPIP			#ISO TP class 4 over IP
-options		TPCONS			#ISO TP class 0 over X.25
 options		LLC			#X.25 link layer for Ethernets
 options		HDLC			#X.25 link layer for serial lines
 
@@ -163,15 +163,21 @@ options		HDLC			#X.25 link layer for serial lines
 # MROUTING enables the kernel multicast packet forwarder, which works
 # with mrouted(8).
 #
-# The `bpfilter' pseudo-device enables the Berkeley Packet Filter.  Be
-# aware of the legal and administrative consequences of enabling this
-# option.  The number of devices determines the maximum number of
-# simultaneous BPF clients programs runnable.
+# IPFIREWALL enables support for IP firewall construction, in
+# conjunction with the `ipfw' program.  IPFIREWALL_VERBOSE does
+# the obvious thing.
+#
+# ARP_PROXYALL enables global proxy ARP.  Beware!  This can burn
+# your house down!  See netinet/if_ether.c for the gory details.
+# (Eventually there will be a better management interface.)
 #
 options		"TCP_COMPAT_42"		#emulate 4.2BSD TCP bugs
 options		GATEWAY			#internetwork gateway
 options		MROUTING		# Multicast routing
-pseudo-device	bpfilter	4	#berkeley packet filter
+options         IPFIREWALL              #firewall
+options         IPFIREWALL_VERBOSE      #print information about
+					# dropped packets
+options		ARP_PROXYALL		# global proxy ARP
 
 
 #####################################################################
@@ -370,19 +376,15 @@ disk		fd1	at fdc0 drive 1
 tape		ft0	at fdc0 drive 2
 
 #
-# options for the fd driver
+# Options for `fd':
 #
-# options	"FDSEEKWAIT=16"
+# FDSEEKWAIT selects a non-default head-settle time (i.e., the time to
+# wait after a seek is performed).  The default value (1/32 s) is
+# usually sufficient.  The units are inverse seconds, so a value of 16
+# here means to wait 1/16th of a second; you should choose a power of
+# two.
 #
-# makes you override the default head-settle time after a seek has been
-# performed. This value has been 32 in FreeBSD-1.1.5.1, but various
-# people have reported about problems (unexpected CRC errors).
-# The value is actually the divisor, the time to wait is
-# 1 s / FDSEEKWAIT.
-# For performance reasons (elimination of the division), the values
-# should be a power of two.
-
-
+options	FDSEEKWAIT="16"
 
 #
 # Other standard PC hardware: `lpt', `mse', `psm', `sio'
