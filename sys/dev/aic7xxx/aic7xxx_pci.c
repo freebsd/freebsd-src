@@ -1711,7 +1711,7 @@ ahc_aic7880_setup(ahc_dev_softc_t pci, struct ahc_probe_config *probe_config)
 	if (rev >= 1) {
 		probe_config->bugs |= AHC_PCI_2_1_RETRY_BUG;
 	} else {
-		probe_config->bugs |= AHC_CACHETHEN_BUG;
+		probe_config->bugs |= AHC_CACHETHEN_BUG|AHC_PCI_MWI_BUG;
 	}
 	return (0);
 }
