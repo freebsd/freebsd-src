@@ -66,7 +66,6 @@
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
 #include "opt_pfil_hooks.h"
-#include "opt_random_ip_id.h"
 
 #include <sys/param.h>
 #include <sys/malloc.h>
@@ -1036,11 +1035,7 @@ skip_ipsec2:;
 	} else {
 		struct mbuf **mnext, *m_frgpart;
 		struct ip6_frag *ip6f;
-#ifdef RANDOM_IP_ID
 		u_int32_t id = htonl(ip6_randomid());
-#else
-		u_int32_t id = htonl(ip6_id++);
-#endif
 		u_char nextproto;
 		struct ip6ctlparam ip6cp;
 		u_int32_t mtu32;

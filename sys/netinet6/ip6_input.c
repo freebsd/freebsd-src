@@ -66,7 +66,6 @@
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
 #include "opt_pfil_hooks.h"
-#include "opt_random_ip_id.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -197,9 +196,6 @@ ip6_init()
 	addrsel_policy_init();
 	nd6_init();
 	frag6_init();
-#ifndef RANDOM_IP_ID
-	ip6_flow_seq = arc4random();
-#endif
 	ip6_desync_factor = arc4random() % MAX_TEMP_DESYNC_FACTOR;
 }
 
