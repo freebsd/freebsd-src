@@ -39,7 +39,6 @@
 
 #define STATIC static
 
-#include <sys/reboot.h>					    /* XXX */
 #include <dev/vinum/vinumhdr.h>
 #include <dev/vinum/request.h>
 
@@ -208,7 +207,7 @@ give_plex_to_volume(int volno, int plexno, int preferme)
 	volplexno = vol->plexes - 1;			    /* number of plex in volume */
     }
     if (preferme) {
-	if (vol->preferred_plex > 0)			    /* already had a facourite, */
+	if (vol->preferred_plex >= 0)			    /* already had a facourite, */
 	    printf("vinum: changing preferred plex for %s from %s to %s\n",
 		vol->name,
 		PLEX[vol->plex[vol->preferred_plex]].name,
@@ -321,6 +320,7 @@ give_sd_to_drive(int sdno)
 	update_sd_state(sdno);				    /* that crashes the subdisk */
 	return;
     }
+    sd->sectorsize = drive->sectorsize;			    /* get sector size from drive */
     if (drive->flags & VF_HOTSPARE)			    /* the drive is a hot spare, */
 	throw_rude_remark(ENOSPC,
 	    "Can't place %s on hot spare drive %s",
@@ -1555,7 +1555,7 @@ config_volume(int update)
 	    /*
 	     * XXX experimental ideas.  These are not
 	     * documented, and will not be until I
-	     * decide they're worth keeping
+	     * decide they're worth keeping.
 	     */
 	case kw_writethrough:				    /* set writethrough mode */
 	    vol->flags |= VF_WRITETHROUGH;
@@ -1990,6 +1990,16 @@ update_plex_config(int plexno, int diskconfig)
 	size += sd->sectors;
 	if (added_plex)					    /* we were added later */
 	    sd->state = sd_stale;			    /* stale until proven otherwise */
+	if (plex->sectorsize != 0) {
+	    if (sd->sectorsize != plex->sectorsize)	    /* incompatible sector sizes? */
+		printf("vinum: incompatible sector sizes.  "
+		    "%s has %d bytes, %s has %d bytes.  Ignored.\n",
+		    sd->name,
+		    sd->sectorsize,
+		    plex->name,
+		    plex->sectorsize);
+	} else						    /* not set yet, */
+	    plex->sectorsize = sd->sectorsize;
     }
 
     if (plex->subdisks) {				    /* plex has subdisks, calculate size */
@@ -2034,18 +2044,30 @@ update_volume_config(int volno, int diskconfig)
 	    plex = &PLEX[vol->plex[plexno]];
 	    vol->size = max(plex->length, vol->size);	    /* maximum size */
 	    plex->volplexno = plexno;			    /* note it in the plex */
+	    if (vol->sectorsize != 0) {
+		if (plex->sectorsize != vol->sectorsize)    /* incompatible sector sizes? */
+		    printf("vinum: incompatible sector sizes.  "
+			"%s has %d, %s has %d.  Ignored.\n",
+			plex->name,
+			plex->sectorsize,
+			vol->name,
+			vol->sectorsize);
+	    } else					    /* not set yet, */
+		vol->sectorsize = plex->sectorsize;
 	}
     }
     vol->flags &= ~VF_NEWBORN;				    /* no longer newly born */
 }
 
 /*
- * Update the global configuration.
+ * Update the global configuration.  This is
+ * called after configuration changes.
+ *
  * diskconfig is != 0 if we're reading in a config
- * from disk.  In this case, we don't try to
- * bring the devices up, though we will bring
- * them down if there's some error which got
- * missed when writing to disk.
+ * from disk.  In this case, we don't try to bring
+ * the devices up, though we will bring them down
+ * if there's some error which got missed when
+ * writing to disk.
  */
 void
 updateconfig(int diskconfig)
