@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yppasswdd_main.c,v 1.13 1996/06/23 22:24:42 wpaul Exp $
+ *	$Id: yppasswdd_main.c,v 1.4 1996/06/23 22:44:04 wpaul Exp $
  */
 
 #include "yppasswd.h"
@@ -72,7 +72,7 @@ struct dom_binding {};
 
 #define	_RPCSVC_CLOSEDOWN 120
 #ifndef lint
-static const char rcsid[] = "$Id: yppasswdd_main.c,v 1.13 1996/06/23 22:24:42 wpaul Exp $";
+static const char rcsid[] = "$Id: yppasswdd_main.c,v 1.4 1996/06/23 22:44:04 wpaul Exp $";
 #endif /* not lint */
 int _rpcpmstart = 0;		/* Started by a port monitor ? */
 static int _rpcfdtype;
@@ -212,7 +212,7 @@ main(argc, argv)
 
 	debug = 1;
 
-	while ((ch = getopt(argc, argv, "t:d:p:sfamivh")) != EOF) {
+	while ((ch = getopt(argc, argv, "t:d:p:sfamuivh")) != EOF) {
 		switch(ch) {
 		case 't':
 			passfile_default = optarg;
@@ -297,30 +297,12 @@ name isn't set -- aborting");
 		proto = 0;
 		openlog(progname, LOG_PID, LOG_DAEMON);
 	} else {
-#ifndef RPC_SVC_FG
-		int size;
-		int pid, i;
-
-		pid = fork();
-		if (pid < 0) {
-			perror("cannot fork");
-			exit(1);
-		}
-		if (pid)
-			exit(0);
-		size = getdtablesize();
-		for (i = 0; i < size; i++)
-			(void) close(i);
-		i = open("/dev/console", 2);
-		(void) dup2(i, 1);
-		(void) dup2(i, 2);
-		i = open("/dev/tty", 2);
-		if (i >= 0) {
-			(void) ioctl(i, TIOCNOTTY, (char *)NULL);
-			(void) close(i);
+		if (!debug) {
+			if (daemon(0,0)) {
+				err(1,"cannot fork");
+			}
 		}
 		openlog(progname, LOG_PID, LOG_DAEMON);
-#endif
 		sock = RPC_ANYSOCK;
 		(void) pmap_unset(YPPASSWDPROG, YPPASSWDVERS);
 	}
