@@ -114,7 +114,6 @@ i386/eisa/adv_eisa.c		optional	adv
 i386/eisa/ahb.c			optional	ahb
 i386/eisa/ahc_eisa.c		optional	eisa ahc    \
 	dependency	"aic7xxx_reg.h $S/i386/eisa/ahc_eisa.c"
-i386/eisa/bt_eisa.c		optional	bt
 i386/eisa/eisaconf.c		optional	eisa
 i386/eisa/if_fea.c		optional	fea
 i386/eisa/if_vx_eisa.c		optional	vx
