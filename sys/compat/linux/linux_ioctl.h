@@ -627,6 +627,7 @@
  * This doesn't really belong here, but I can't think of a better
  * place to put it.
  */
+struct ifnet;
 int		 linux_ifname(struct ifnet *, char *, size_t);
 
 #endif /* !_LINUX_IOCTL_H_ */
