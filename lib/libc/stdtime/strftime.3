@@ -97,9 +97,13 @@ the first three characters.
 is replaced by (year / 100) as decimal number; single
 digits are preceded by a zero.
 .It Cm %c
-is replaced by national representation of time and date
-(the format is similar with produced by
-.Xr asctime 3 ) .
+is replaced by national representation of time and date.
+The format is similar with produced by
+.Xr asctime 3
+and should be
+equivalent to "%a %Ef %T %Y" in fields order and sizes, it
+implies the
+"3+1+6+1+8+1+4" format of output.
 .It Cm \&%D
 is equivalent to
 .Dq Li %m/%d/%y .
