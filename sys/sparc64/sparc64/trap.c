@@ -150,7 +150,6 @@ trap(struct trapframe *tf)
 	error = 0;
 	type = tf->tf_type;
 	ucode = type;	/* XXX */
-	sticks = 0;
 
 	CTR5(KTR_TRAP, "trap: %s type=%s (%s) ws=%#lx ow=%#lx",
 	    p->p_comm, trap_msg[type & ~T_KERNEL],
@@ -160,6 +159,14 @@ trap(struct trapframe *tf)
 	if ((type & T_KERNEL) == 0) {
 		sticks = td->td_kse->ke_sticks;
 		td->td_frame = tf;
+		KASSERT(td->td_ucred == NULL, ("already have a ucred"));
+		PROC_LOCK(p);
+		td->td_ucred = crhold(p->p_ucred);
+		PROC_UNLOCK(p);
+ 	} else {
+ 		sticks = 0;
+		KASSERT(cold || td->td_ucred != NULL,
+		    ("kernel trap doesn't have ucred"));
 	}
 
 	switch (type) {
@@ -206,14 +213,14 @@ trap(struct trapframe *tf)
 			sigexit(td, SIGILL);
 			/* Not reached. */
 		}
-		goto out;
+		goto userout;
 	case T_FILL_RET:
 		if (rwindow_load(td, tf, 1)) {
 			PROC_LOCK(p);
 			sigexit(td, SIGILL);
 			/* Not reached. */
 		}
-		goto out;
+		goto userout;
 	case T_INSN_ILLEGAL:
 		sig = SIGILL;
 		goto trapsig;
@@ -230,7 +237,7 @@ trap(struct trapframe *tf)
 			sigexit(td, SIGILL);
 			/* Not reached. */
 		}
-		goto out;
+		goto userout;
 	case T_TAG_OVFLW:
 		sig = SIGEMT;
 		goto trapsig;
@@ -322,6 +329,12 @@ trapsig:
 	trapsignal(p, sig, ucode);
 user:
 	userret(td, tf, sticks);
+userout:
+	mtx_assert(&Giant, MA_NOTOWNED);
+	mtx_lock(&Giant);
+	crfree(td->td_ucred);
+	mtx_unlock(&Giant);
+	td->td_ucred = NULL;
 out:
 	CTR1(KTR_TRAP, "trap: td=%p return", td);
 	return;
@@ -496,6 +509,10 @@ syscall(struct trapframe *tf)
 
 	sticks = td->td_kse->ke_sticks;
 	td->td_frame = tf;
+	KASSERT(td->td_ucred == NULL, ("already have a ucred"));
+	PROC_LOCK(p);
+	td->td_ucred = crhold(p->p_ucred);
+	PROC_UNLOCK(p);	
 	code = tf->tf_global[1];
 
 	/*
@@ -631,6 +648,10 @@ bad:
 	 */
 	STOPEVENT(p, S_SCX, code);
 
+	mtx_lock(&Giant);
+	crfree(td->td_ucred);
+	mtx_unlock(&Giant);
+	td->td_ucred = NULL;
 #ifdef WITNESS
 	if (witness_list(td)) {
 		panic("system call %s returning with mutex(s) held\n",

@@ -266,6 +266,7 @@ struct thread {
 	register_t 	td_retval[2];	/* (k) Syscall aux returns. */
 #define	td_endcopy td_pcb
 
+	struct ucred	*td_ucred;	/* (k) Reference to credentials. */
 	struct pcb	*td_pcb;	/* (k) Kernel VA of pcb and kstack. */
 	struct callout	td_slpcallout;	/* (h) Callout for sleep. */
 	struct trapframe *td_frame;	/* (k) */
