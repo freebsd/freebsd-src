@@ -156,8 +156,8 @@ draw:
     /* draw a box around the menu items */
     draw_box(dialog, box_y, box_x, menu_height+2, menu_width+2, menubox_border_attr, menubox_attr);
     
-    tag_x = (menu_width - tag_x) / 2;
-    item_x = tag_x + item_x + 2;
+    tag_x = menu_width > tag_x + 1 ? (menu_width - tag_x) / 2 : 1;
+    item_x = menu_width > item_x + 4 ? tag_x + item_x + 2 : menu_width - 3;
     
     /* Print the menu */
     for (i = 0; i < max_choice; i++)
@@ -422,7 +422,9 @@ draw:
 			   DREF(ditems, scroll + i));
 	    }
 	    wnoutrefresh(menu);
+	    getyx(dialog, cur_y, cur_x);    /* Save cursor position */
 	    print_arrows(dialog, scroll, menu_height, item_no, box_x, box_y, tag_x, cur_x, cur_y);
+	    wmove(dialog, cur_y, cur_x);  /* Restore cursor to previous position */
 	    wrefresh(dialog);
 	    redraw_menu = FALSE;
 	}
@@ -450,10 +452,10 @@ print_item(WINDOW *win, unsigned char *tag, unsigned char *item, int choice, int
     wattrset(win, selected ? tag_key_selected_attr : tag_key_attr);
     waddch(win, tag[0]);
     wattrset(win, selected ? tag_selected_attr : tag_attr);
-    waddstr(win, tag + 1);
+    waddnstr(win, tag + 1, item_x - tag_x - 3);
     wmove(win, choice, item_x);
     wattrset(win, selected ? item_selected_attr : item_attr);
-    waddstr(win, item);
+    waddnstr(win, item, menu_width - item_x - 1);
     /* If have a selection handler for this, call it */
     if (me && me->selected) {
 	wrefresh(win);
