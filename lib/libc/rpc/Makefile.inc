@@ -16,7 +16,7 @@ SRCS+=	auth_none.c auth_unix.c  authunix_prot.c bindresvport.c \
 # Paul.
 #
 
-MAN1+= rpc/rstat.1  
+# MAN1+= rpc/rstat.1  
 MAN3+= rpc/bindresvport.3 rpc/getrpcent.3 rpc/getrpcport.3 rpc/rpc.3
 MAN5+= rpc/rpc.5
 MAN8+= rpc/rstat_svc.8
