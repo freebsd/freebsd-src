@@ -69,7 +69,7 @@ feeder_register(void *p)
 
 	i = 0;
 	while ((feedercnt < MAXFEEDERS) && (fc->desc[i].type > 0)) {
-		printf("adding feeder %s, %x -> %x\n", fc->name, fc->desc[i].in, fc->desc[i].out);
+		/* printf("adding feeder %s, %x -> %x\n", fc->name, fc->desc[i].in, fc->desc[i].out); */
 		fte = malloc(sizeof(*fte), M_FEEDER, M_WAITOK | M_ZERO);
 		fte->feederclass = fc;
 		fte->desc = &fc->desc[i];
