@@ -27,9 +27,11 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/param.h>
 #include <sys/errno.h>
 #include <sys/time.h>
@@ -37,25 +39,32 @@
 
 #include <security/mac_bsdextended/mac_bsdextended.h>
 
+#include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <ugidfw.h>
 
+void add_rule(int argc, char *argv[]);
+void list_rules(void);
+void remove_rule(int argc, char *argv[]);
+void set_rule(int argc, char *argv[]);
+void usage(void);
+
 void
 usage(void)
 {
 
-	fprintf(stderr, "ugidfw add [subject [not] [uid uid] [gid gid]]"
+	fprintf(stderr, "usage: ugidfw add [subject [not] [uid uid] [gid gid]]"
 	    " [object [not] [uid uid] \\\n");
 	fprintf(stderr, "    [gid gid]] mode arswxn\n");
-	fprintf(stderr, "ugidfw list\n");
-	fprintf(stderr, "ugidfw set rulenum [subject [not] [uid uid] [gid gid]]"
+	fprintf(stderr, "       ugidfw list\n");
+	fprintf(stderr, "       ugidfw set rulenum [subject [not] [uid uid] [gid gid]]"
 	    " [object [not] \\\n");
 	fprintf(stderr, "    [uid uid] [gid gid]] mode arswxn\n");
-	fprintf(stderr, "ugidfw remove rulenum\n");
+	fprintf(stderr, "       ugidfw remove rulenum\n");
 
-	exit(-1);
+	exit(1);
 }
 
 void
@@ -63,19 +72,17 @@ add_rule(int argc, char *argv[])
 {
 	char errstr[BUFSIZ];
 	struct mac_bsdextended_rule rule;
-	long value;
 	int error, rulenum;
-	char *endp;
 
 	error = bsde_parse_rule(argc, argv, &rule, BUFSIZ, errstr);
 	if (error) {
-		fprintf(stderr, "%s\n", errstr);
+		warnx("%s", errstr);
 		return;
 	}
 
 	error = bsde_add_rule(&rulenum, &rule, BUFSIZ, errstr);
 	if (error) {
-		fprintf(stderr, "%s\n", errstr);
+		warnx("%s", errstr);
 		return;
 	}
 	printf("Added rule %d\n", rulenum);
@@ -90,17 +97,14 @@ list_rules(void)
 
 	rule_slots = bsde_get_rule_slots(BUFSIZ, errstr);
 	if (rule_slots == -1) {
-		fprintf(stderr, "Unable to get rule slots; mac_bsdextended.ko "
-		    "may not be loaded.\n");
-		fprintf(stderr, "bsde_get_rule_slots: %s\n", errstr);
-		exit (-1);
+		warnx("unable to get rule slots; mac_bsdextended.ko "
+		    "may not be loaded");
+		errx(1, "bsde_get_rule_slots: %s", errstr);
 	}
 
 	rule_count = bsde_get_rule_count(BUFSIZ, errstr);
-	if (rule_count == -1) {
-		fprintf(stderr, "bsde_get_rule_count: %s\n", errstr);
-		exit (-1);
-	}
+	if (rule_count == -1)
+		errx(1, "bsde_get_rule_count: %s", errstr);
 
 	printf("%d slots, %d rules\n", rule_slots, rule_count);
 
@@ -110,15 +114,14 @@ list_rules(void)
 		case -2:
 			continue;
 		case -1:
-			fprintf(stderr, "rule %d: %s\n", i, errstr);
+			warnx("rule %d: %s", i, errstr);
 			continue;
 		case 0:
 			break;
 		}
 
 		if (bsde_rule_to_string(&rule, charstr, BUFSIZ) == -1)
-			fprintf(stderr,
-			    "Unable to translate rule %d to string\n", i);
+			warnx("unable to translate rule %d to string", i);
 		else
 			printf("%d %s\n", i, charstr);
 	}
@@ -147,13 +150,13 @@ set_rule(int argc, char *argv[])
 
 	error = bsde_parse_rule(argc - 1, argv + 1, &rule, BUFSIZ, errstr);
 	if (error) {
-		fprintf(stderr, "%s\n", errstr);
+		warnx("%s", errstr);
 		return;
 	}
 
 	error = bsde_set_rule(rulenum, &rule, BUFSIZ, errstr);
 	if (error) {
-		fprintf(stderr, "%s\n", errstr);
+		warnx("%s", errstr);
 		return;
 	}
 }
@@ -180,7 +183,7 @@ remove_rule(int argc, char *argv[])
 
 	error = bsde_delete_rule(rulenum, BUFSIZ, errstr);
 	if (error)
-		fprintf(stderr, "%s\n", errstr);
+		warnx("%s", errstr);
 }
 
 int
