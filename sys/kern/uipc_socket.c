@@ -1148,8 +1148,11 @@ dontblock:
 			if (flags & MSG_PEEK)
 				moff += len;
 			else {
-				if (mp != NULL)
+				if (mp != NULL) {
+					SOCKBUF_UNLOCK(&so->so_rcv);
 					*mp = m_copym(m, 0, len, M_TRYWAIT);
+					SOCKBUF_LOCK(&so->so_rcv);
+				}
 				m->m_data += len;
 				m->m_len -= len;
 				so->so_rcv.sb_cc -= len;
