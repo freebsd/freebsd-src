@@ -1,5 +1,5 @@
 .\"	$FreeBSD$
-.\"	$KAME: ipsec.4,v 1.13 2000/06/15 04:08:54 itojun Exp $
+.\"	$KAME: ipsec.4,v 1.15 2001/04/05 01:00:45 itojun Exp $
 .\"
 .\" Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
 .\" All rights reserved.
@@ -213,7 +213,7 @@ The variable configures the kernel behavior on IPv4 IPsec tunnel encapsulation.
 If set to 0, DF bit on the outer IPv4 header will be cleared.
 1 means that the outer DF bit is set regardless from the inner DF bit.
 2 means that the DF bit is copied from the inner header to the outer.
-The variable is supplied to conform to RFC2403 chapter 6.1.
+The variable is supplied to conform to RFC2401 chapter 6.1.
 .It Li ipsec.ecn
 If set to non-zero, IPv4 IPsec tunnel encapsulation/decapsulation behavior will
 be friendly to ECN

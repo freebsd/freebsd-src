@@ -383,6 +383,10 @@ struct cmsgcred {
 #define	CMSG_SPACE(l)		(_ALIGN(sizeof(struct cmsghdr)) + _ALIGN(l))
 #define	CMSG_LEN(l)		(_ALIGN(sizeof(struct cmsghdr)) + (l))
 
+#ifdef _KERNEL
+#define	CMSG_ALIGN(n)	_ALIGN(n)
+#endif
+
 /* "Socket"-level control message types: */
 #define	SCM_RIGHTS	0x01		/* access rights (array of int) */
 #define	SCM_TIMESTAMP	0x02		/* timestamp (struct timeval) */

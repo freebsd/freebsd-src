@@ -1,4 +1,4 @@
-/*	$KAME$	*/
+/*	$KAME: config.h,v 1.3 2000/05/16 13:34:13 itojun Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, 1998, and 1999 WIDE Project.

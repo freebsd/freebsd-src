@@ -1,4 +1,4 @@
-/*	$KAME$	*/
+/*	$KAME: probe.c,v 1.10 2000/08/13 06:14:59 itojun Exp $	*/
 
 /*
  * Copyright (C) 1998 WIDE Project.

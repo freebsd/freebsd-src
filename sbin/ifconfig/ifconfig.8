@@ -253,6 +253,19 @@ list of available options.
 .It Fl mediaopt Ar opts
 If the driver supports the media selection system, disable the
 specified media options on the interface.
+.It Cm tunnel Ar src_addr Ar dest_addr
+(IP tunnel devices only)
+Configure the physical source and destination address for IP tunnel
+interfaces (gif).  The arguments
+.Ar src_addr
+and
+.Ar dest_addr
+are interpreted as the outer source/destination for the encapsulating
+IPv4/IPv6 header.
+.It Cm deletetunnel
+Unconfigure the physical source and destination address for IP tunnel
+interfaces previously configured with
+.Cm tunnel .
 .It Cm vlan Ar vlan_tag
 If the interface is a vlan pseudo interface, set the vlan tag value
 to

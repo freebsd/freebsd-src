@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: in6_prefix.c,v 1.30 2000/06/12 14:53:17 jinmei Exp $	*/
+/*	$KAME: in6_prefix.c,v 1.47 2001/03/25 08:41:39 itojun Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -87,6 +87,8 @@ static MALLOC_DEFINE(M_IP6RR, "ip6rr", "IPv6 Router Renumbering Prefix");
 static MALLOC_DEFINE(M_RR_ADDR, "rp_addr", "IPv6 Router Renumbering Ifid");
 
 struct rr_prhead rr_prefix;
+
+struct callout in6_rr_timer_ch;
 
 #include <net/net_osdep.h>
 
@@ -399,7 +401,7 @@ assign_ra_entry(struct rr_prefix *rpp, int iilen, struct in6_ifaddr *ia)
 		 sizeof(*IA6_IN6(ia)) << 3, rpp->rp_plen, iilen);
 	/* link to ia, and put into list */
 	rap->ra_addr = ia;
-	rap->ra_addr->ia_ifa.ifa_refcnt++;
+	IFAREF(&rap->ra_addr->ia_ifa);
 #if 0 /* Can't do this now, because rpp may be on th stack. should fix it? */
 	ia->ia6_ifpr = rp2ifpr(rpp);
 #endif
@@ -465,7 +467,7 @@ in6_prefix_add_ifid(int iilen, struct in6_ifaddr *ia)
 	if (ifpr == NULL) {
 		struct rr_prefix rp;
 		struct socket so;
-		int pplen = (plen == 128) ? 64 : plen;
+		int pplen = (plen == 128) ? 64 : plen; /* XXX hardcoded 64 is bad */
 
 		/* allocate a prefix for ia, with default properties */
 
@@ -514,11 +516,11 @@ in6_prefix_add_ifid(int iilen, struct in6_ifaddr *ia)
 	if (rap != NULL) {
 		if (rap->ra_addr == NULL) {
 			rap->ra_addr = ia;
-			rap->ra_addr->ia_ifa.ifa_refcnt++;
+			IFAREF(&rap->ra_addr->ia_ifa);
 		} else if (rap->ra_addr != ia) {
 			/* There may be some inconsistencies between addrs. */
 			log(LOG_ERR, "ip6_prefix.c: addr %s/%d matched prefix"
-			    "has already another ia %p(%s) on its ifid list\n",
+			    " already has another ia %p(%s) on its ifid list\n",
 			    ip6_sprintf(IA6_IN6(ia)), plen,
 			    rap->ra_addr,
 			    ip6_sprintf(IA6_IN6(rap->ra_addr)));
@@ -599,6 +601,14 @@ add_each_addr(struct socket *so, struct rr_prefix *rpp, struct rp_addr *rap)
 	in6_prefixlen2mask(&ifra.ifra_prefixmask.sin6_addr, rpp->rp_plen);
 	/* don't care ifra_flags for now */
 
+	/*
+	 * XXX: if we did this with finite lifetime values, the lifetimes would
+	 *      decrese in time and never incremented.
+	 *      we should need more clarifications on the prefix mechanism...
+	 */
+	ifra.ifra_lifetime.ia6t_vltime = rpp->rp_vltime;
+	ifra.ifra_lifetime.ia6t_pltime = rpp->rp_pltime;
+
 	ia6 = in6ifa_ifpwithaddr(rpp->rp_ifp, &ifra.ifra_addr.sin6_addr);
 	if (ia6 != NULL) {
 		if (ia6->ia6_ifpr == NULL) {
@@ -606,7 +616,7 @@ add_each_addr(struct socket *so, struct rr_prefix *rpp, struct rp_addr *rap)
 			if (rap->ra_addr)
 				IFAFREE(&rap->ra_addr->ia_ifa);
 			rap->ra_addr = ia6;
-			rap->ra_addr->ia_ifa.ifa_refcnt++;
+			IFAREF(&rap->ra_addr->ia_ifa);
 			ia6->ia6_ifpr = rp2ifpr(rpp);
 			return;
 		}
@@ -614,7 +624,7 @@ add_each_addr(struct socket *so, struct rr_prefix *rpp, struct rp_addr *rap)
 			if (rap->ra_addr)
 				IFAFREE(&rap->ra_addr->ia_ifa);
 			rap->ra_addr = ia6;
-			rap->ra_addr->ia_ifa.ifa_refcnt++;
+			IFAREF(&rap->ra_addr->ia_ifa);
 			return;
 		}
 		/*
@@ -627,24 +637,26 @@ add_each_addr(struct socket *so, struct rr_prefix *rpp, struct rp_addr *rap)
 		 *      Or, completely duplicated prefixes?
 		 * log it and return.
 		 */
-		log(LOG_ERR, "in6_prefix.c: add_each_addr: addition of an addr"
-		    "%s/%d failed because there is already another addr %s/%d\n",
+		log(LOG_ERR,
+		    "in6_prefix.c: add_each_addr: addition of an addr %s/%d "
+		    "failed because there is already another addr %s/%d\n",
 		    ip6_sprintf(&ifra.ifra_addr.sin6_addr), rpp->rp_plen,
 		    ip6_sprintf(IA6_IN6(ia6)),
-		    in6_mask2len(&ia6->ia_prefixmask.sin6_addr));
+		    in6_mask2len(&ia6->ia_prefixmask.sin6_addr, NULL));
 		return;
 	}
 	/* propagate ANYCAST flag if it is set for ancestor addr */
 	if (rap->ra_flags.anycast != 0)
 		ifra.ifra_flags |= IN6_IFF_ANYCAST;
 	error = in6_control(so, SIOCAIFADDR_IN6, (caddr_t)&ifra, rpp->rp_ifp,
-	    curproc);
-	if (error != 0)
+			    curproc);
+	if (error != 0) {
 		log(LOG_ERR, "in6_prefix.c: add_each_addr: addition of an addr"
 		    "%s/%d failed because in6_control failed for error %d\n",
 		    ip6_sprintf(&ifra.ifra_addr.sin6_addr), rpp->rp_plen,
 		    error);
 		return;
+	}
 
 	/*
 	 * link beween this addr and the prefix will be done
@@ -957,8 +969,10 @@ delete_each_prefix(struct rr_prefix *rpp, u_char origin)
 
 		s = splnet();
 		rap = LIST_FIRST(&rpp->rp_addrhead);
-		if (rap == NULL)
+		if (rap == NULL) {
+			splx(s);
 			break;
+		}
 		LIST_REMOVE(rap, ra_entry);
 		splx(s);
 		if (rap->ra_addr == NULL) {
@@ -967,7 +981,7 @@ delete_each_prefix(struct rr_prefix *rpp, u_char origin)
 		}
 		rap->ra_addr->ia6_ifpr = NULL;
 
-		in6_purgeaddr(&rap->ra_addr->ia_ifa, rpp->rp_ifp);
+		in6_purgeaddr(&rap->ra_addr->ia_ifa);
 		IFAFREE(&rap->ra_addr->ia_ifa);
 		free(rap, M_RR_ADDR);
 	}
@@ -1166,7 +1180,8 @@ in6_rr_timer(void *ignored_arg)
 	int s;
 	struct rr_prefix *rpp;
 
-	timeout(in6_rr_timer, (caddr_t)0, ip6_rr_prune * hz);
+	callout_reset(&in6_rr_timer_ch, ip6_rr_prune * hz,
+	    in6_rr_timer, NULL);
 
 	s = splnet();
 	/* expire */

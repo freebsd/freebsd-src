@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: in6_var.h,v 1.33 2000/05/17 05:07:26 jinmei Exp $	*/
+/*	$KAME: in6_var.h,v 1.56 2001/03/29 05:34:31 itojun Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -102,8 +102,12 @@ struct	in6_ifaddr {
 	struct	in6_ifaddr *ia_next;	/* next in6 list of IP6 addresses */
 	int	ia6_flags;
 
-	struct in6_addrlifetime ia6_lifetime;	/* NULL = infty */
+	struct in6_addrlifetime ia6_lifetime;
 	struct ifprefix *ia6_ifpr; /* back pointer to ifprefix */
+
+	struct nd_prefix *ia6_ndpr; /* back pointer to the ND prefix
+				     * (for autoconfigured addresses only)
+				     */
 };
 
 /*
@@ -380,7 +384,10 @@ struct	in6_rrenumreq {
 
 #define SIOCGDRLST_IN6		_IOWR('i', 74, struct in6_drlist)
 #define SIOCGPRLST_IN6		_IOWR('i', 75, struct in6_prlist)
-#define SIOCGIFINFO_IN6		_IOWR('i', 76, struct in6_ndireq)
+#ifdef _KERNEL
+#define OSIOCGIFINFO_IN6	_IOWR('i', 76, struct in6_ondireq)
+#endif
+#define SIOCGIFINFO_IN6		_IOWR('i', 108, struct in6_ndireq)
 #define SIOCSNDFLUSH_IN6	_IOWR('i', 77, struct in6_ifreq)
 #define SIOCGNBRINFO_IN6	_IOWR('i', 78, struct in6_nbrinfo)
 #define SIOCSPFXFLUSH_IN6	_IOWR('i', 79, struct in6_ifreq)
@@ -419,6 +426,14 @@ struct	in6_rrenumreq {
 #define IN6_IFF_DUPLICATED	0x04	/* DAD detected duplicate */
 #define IN6_IFF_DETACHED	0x08	/* may be detached from the link */
 #define IN6_IFF_DEPRECATED	0x10	/* deprecated address */
+#define IN6_IFF_NODAD		0x20	/* don't perform DAD on this address
+					 * (used only at first SIOC* call)
+					 */
+#define IN6_IFF_AUTOCONF	0x40	/* autoconfigurable address. */
+#define IN6_IFF_TEMPORARY	0x80	/* temporary (anonymous) address. */
+#define IN6_IFF_NOPFX		0x8000	/* skip kernel prefix management.
+					 * XXX: this should be temporary.
+					 */
 
 /* do not input/output */
 #define IN6_IFF_NOTREADY (IN6_IFF_TENTATIVE|IN6_IFF_DUPLICATED)
@@ -516,7 +531,7 @@ struct	in6_multistep {
 /* struct ifnet *ifp; */					\
 /* struct in6_multi *in6m; */					\
 do { \
-	register struct ifmultiaddr *ifma; \
+	struct ifmultiaddr *ifma; \
 	for (ifma = (ifp)->if_multiaddrs.lh_first; ifma; \
 	     ifma = ifma->ifma_link.le_next) { \
 		if (ifma->ifma_addr->sa_family == AF_INET6 \
@@ -550,18 +565,19 @@ do { \
 		IN6_NEXT_MULTI((step), (in6m)); \
 } while(0)
 
-int	in6_ifinit __P((struct ifnet *,
-			struct in6_ifaddr *, struct sockaddr_in6 *, int));
 struct	in6_multi *in6_addmulti __P((struct in6_addr *, struct ifnet *,
 				     int *));
 void	in6_delmulti __P((struct in6_multi *));
-void	in6_ifscrub __P((struct ifnet *, struct in6_ifaddr *));
 extern int in6_ifindex2scopeid __P((int));
-extern int in6_mask2len __P((struct in6_addr *));
+extern int in6_mask2len __P((struct in6_addr *, u_char *));
 extern void in6_len2mask __P((struct in6_addr *, int));
 int	in6_control __P((struct socket *,
 			 u_long, caddr_t, struct ifnet *, struct proc *));
-void	in6_purgeaddr __P((struct ifaddr *, struct ifnet *));
+int	in6_update_ifa __P((struct ifnet *, struct in6_aliasreq *,
+			    struct in6_ifaddr *));
+void	in6_purgeaddr __P((struct ifaddr *));
+int	in6if_do_dad __P((struct ifnet *));
+void	in6_purgeif __P((struct ifnet *));
 void	in6_savemkludge __P((struct in6_ifaddr *));
 void	in6_setmaxmtu   __P((void));
 void	in6_restoremkludge __P((struct in6_ifaddr *, struct ifnet *));
@@ -569,7 +585,7 @@ void	in6_purgemkludge __P((struct ifnet *));
 struct in6_ifaddr *in6ifa_ifpforlinklocal __P((struct ifnet *, int));
 struct in6_ifaddr *in6ifa_ifpwithaddr __P((struct ifnet *,
 					     struct in6_addr *));
-char	*ip6_sprintf __P((struct in6_addr *));
+char	*ip6_sprintf __P((const struct in6_addr *));
 int	in6_addr2scopeid __P((struct ifnet *, struct in6_addr *));
 int	in6_matchlen __P((struct in6_addr *, struct in6_addr *));
 int	in6_are_prefix_equal __P((struct in6_addr *p1, struct in6_addr *p2,
@@ -580,6 +596,14 @@ int	in6_prefix_ioctl __P((struct socket *so, u_long cmd, caddr_t data,
 int	in6_prefix_add_ifid __P((int iilen, struct in6_ifaddr *ia));
 void	in6_prefix_remove_ifid __P((int iilen, struct in6_ifaddr *ia));
 void	in6_purgeprefix __P((struct ifnet *));
+
+int	in6_is_addr_deprecated __P((struct sockaddr_in6 *));
+struct inpcb;
+int in6_embedscope __P((struct in6_addr *, const struct sockaddr_in6 *,
+	struct inpcb *, struct ifnet **));
+int in6_recoverscope __P((struct sockaddr_in6 *, const struct in6_addr *,
+	struct ifnet *));
+void in6_clearscope __P((struct in6_addr *));
 #endif /* _KERNEL */
 
 #endif /* _NETINET6_IN6_VAR_H_ */

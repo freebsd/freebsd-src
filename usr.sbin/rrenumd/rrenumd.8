@@ -1,4 +1,4 @@
-.\"	$KAME$
+.\"	$KAME: rrenumd.8,v 1.6 2001/01/22 02:06:24 itojun Exp $
 .\"
 .\" Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
 .\" All rights reserved.
@@ -37,13 +37,19 @@
 .Nd router renumbering daemon
 .Sh SYNOPSIS
 .Nm
+.Op Fl df
 .Oo
 .Fl c Ar conf_file | Fl s
 .Oc
-.Op Fl df
 .Sh DESCRIPTION
-.Nm Rrenumd
-assigns prefixes to subnets inside the site, or renumbers them.
+.Nm
+transmits router renumbering request packets,
+to renumber the routers in the site network.
+.Pp
+On KAME-based systems,
+router renumbering requests are received and processed by
+.Xr rtadvd 8 .
+For other systems, refer to relevant documents.
 .Pp
 The program will daemonize itself on invocation.
 It reads configuration information from standard input if
@@ -78,8 +84,16 @@ Specify a configuration file where configuration information is kept.
 .Sh RETURN VALUES
 The program exits with 0 on success, and non-zero on failures.
 .Sh SEE ALSO
-.Xr daemon 3 ,
-.Xr rrenumd.conf 5
+.Xr rrenumd.conf 5 ,
+.Xr rtadvd 8
+.Sh STANDARDS
+.Rs
+.%A Matt Crawford
+.%R RFC
+.%N 2894
+.%D August 2000
+.%T "Router Renumbering for IPv6"
+.Re
 .Sh HISTORY
 The
 .Nm

@@ -443,7 +443,10 @@ tcp_respond(tp, ipgen, th, m, ack, seq, flags)
 		tcp_trace(TA_OUTPUT, 0, tp, mtod(m, void *), th, 0);
 #endif
 #ifdef IPSEC
-	ipsec_setsocket(m, tp ? tp->t_inpcb->inp_socket : NULL);
+	if (ipsec_setsocket(m, tp ? tp->t_inpcb->inp_socket : NULL) != 0) {
+		m_freem(m);
+		return;
+	}
 #endif
 #ifdef INET6
 	if (isipv6) {
@@ -1011,13 +1014,17 @@ tcp6_ctlinput(cmd, sa, d)
 	struct sockaddr *sa;
 	void *d;
 {
-	register struct tcphdr *thp;
 	struct tcphdr th;
 	void (*notify) __P((struct inpcb *, int)) = tcp_notify;
-	struct sockaddr_in6 sa6;
 	struct ip6_hdr *ip6;
 	struct mbuf *m;
+	struct ip6ctlparam *ip6cp = NULL;
+	const struct sockaddr_in6 *sa6_src = NULL;
 	int off;
+	struct tcp_portonly {
+		u_int16_t th_sport;
+		u_int16_t th_dport;
+	} *thp;
 
 	if (sa->sa_family != AF_INET6 ||
 	    sa->sa_len != sizeof(struct sockaddr_in6))
@@ -1033,56 +1040,36 @@ tcp6_ctlinput(cmd, sa, d)
 
 	/* if the parameter is from icmp6, decode it. */
 	if (d != NULL) {
-		struct ip6ctlparam *ip6cp = (struct ip6ctlparam *)d;
+		ip6cp = (struct ip6ctlparam *)d;
 		m = ip6cp->ip6c_m;
 		ip6 = ip6cp->ip6c_ip6;
 		off = ip6cp->ip6c_off;
+		sa6_src = ip6cp->ip6c_src;
 	} else {
 		m = NULL;
 		ip6 = NULL;
 		off = 0;	/* fool gcc */
+		sa6_src = &sa6_any;
 	}
-
-	/*
-	 * Translate addresses into internal form.
-	 * Sa check if it is AF_INET6 is done at the top of this funciton.
-	 */
-	sa6 = *(struct sockaddr_in6 *)sa;
-	if (IN6_IS_ADDR_LINKLOCAL(&sa6.sin6_addr) != 0 && m != NULL &&
-	    m->m_pkthdr.rcvif != NULL)
-		sa6.sin6_addr.s6_addr16[1] = htons(m->m_pkthdr.rcvif->if_index);
 
 	if (ip6) {
 		/*
 		 * XXX: We assume that when IPV6 is non NULL,
 		 * M and OFF are valid.
 		 */
-		struct in6_addr s;
-
-		/* translate addresses into internal form */
-		memcpy(&s, &ip6->ip6_src, sizeof(s));
-		if (IN6_IS_ADDR_LINKLOCAL(&s) != 0 && m != NULL &&
-		    m->m_pkthdr.rcvif != NULL)
-			s.s6_addr16[1] = htons(m->m_pkthdr.rcvif->if_index);
 
 		/* check if we can safely examine src and dst ports */
-		if (m->m_pkthdr.len < off + sizeof(th))
+		if (m->m_pkthdr.len < off + sizeof(*thp))
 			return;
 
-		if (m->m_len < off + sizeof(th)) {
-			/*
-			 * this should be rare case
-			 * because now MINCLSIZE is "(MHLEN + 1)",
-			 * so we compromise on this copy...
-			 */
-			m_copydata(m, off, sizeof(th), (caddr_t)&th);
-			thp = &th;
-		} else
-			thp = (struct tcphdr *)(mtod(m, caddr_t) + off);
-		in6_pcbnotify(&tcb, (struct sockaddr *)&sa6, thp->th_dport,
-			      &s, thp->th_sport, cmd, notify);
+		bzero(&th, sizeof(th));
+		m_copydata(m, off, sizeof(*thp), (caddr_t)&th);
+
+		in6_pcbnotify(&tcb, sa, th.th_dport,
+		    (struct sockaddr *)ip6cp->ip6c_src,
+		    th.th_sport, cmd, notify);
 	} else
-		in6_pcbnotify(&tcb, (struct sockaddr *)&sa6, 0, &zeroin6_addr,
+		in6_pcbnotify(&tcb, sa, 0, (struct sockaddr *)sa6_src,
 			      0, cmd, notify);
 }
 #endif /* INET6 */
@@ -1314,9 +1301,12 @@ tcp_rtlookup6(inp)
 	if (rt == NULL || !(rt->rt_flags & RTF_UP)) {
 		/* No route yet, so try to acquire one */
 		if (!IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_faddr)) {
-			ro6->ro_dst.sin6_family = AF_INET6;
-			ro6->ro_dst.sin6_len = sizeof(ro6->ro_dst);
-			ro6->ro_dst.sin6_addr = inp->in6p_faddr;
+			struct sockaddr_in6 *dst6;
+
+			dst6 = (struct sockaddr_in6 *)&ro6->ro_dst;
+			dst6->sin6_family = AF_INET6;
+			dst6->sin6_len = sizeof(ro6->ro_dst);
+			dst6->sin6_addr = inp->in6p_faddr;
 			rtalloc((struct route *)ro6);
 			rt = ro6->ro_rt;
 		}
@@ -1367,6 +1357,7 @@ ipsec_hdrsiz_tcp(tp)
 	      sizeof(struct ip));
 	bcopy((caddr_t)&tp->t_template->tt_t, (caddr_t)th,
 	      sizeof(struct tcphdr));
+	ip->ip_vhl = IP_VHL_BORING;
 	hdrsiz = ipsec4_hdrsiz(m, IPSEC_DIR_OUTBOUND, inp);
       }
 

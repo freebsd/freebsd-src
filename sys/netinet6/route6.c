@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: route6.c,v 1.15 2000/06/23 16:18:20 itojun Exp $	*/
+/*	$KAME: route6.c,v 1.24 2001/03/14 03:07:05 itojun Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -37,6 +37,7 @@
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/systm.h>
+#include <sys/queue.h>
 
 #include <net/if.h>
 
@@ -55,10 +56,22 @@ route6_input(mp, offp, proto)
 	struct mbuf **mp;
 	int *offp, proto;	/* proto is unused */
 {
-	register struct ip6_hdr *ip6;
-	register struct mbuf *m = *mp;
-	register struct ip6_rthdr *rh;
+	struct ip6_hdr *ip6;
+	struct mbuf *m = *mp;
+	struct ip6_rthdr *rh;
 	int off = *offp, rhlen;
+	struct mbuf *n;
+
+	n = ip6_findaux(m);
+	if (n) {
+		struct ip6aux *ip6a = mtod(n, struct ip6aux *);
+		/* XXX reject home-address option before rthdr */
+		if (ip6a->ip6a_flags & IP6A_SWAP) {
+			ip6stat.ip6s_badoptions++;
+			m_freem(m);
+			return IPPROTO_DONE;
+		}
+	}
 
 #ifndef PULLDOWN_TEST
 	IP6_EXTHDR_CHECK(m, off, sizeof(*rh), IPPROTO_DONE);
@@ -119,6 +132,9 @@ route6_input(mp, offp, proto)
 
 /*
  * Type0 routing header processing
+ *
+ * RFC2292 backward compatibility warning: no support for strict/loose bitmap,
+ * as it was dropped between RFC1883 and RFC2460.
  */
 static int
 ip6_rthdr0(m, ip6, rh0)
@@ -176,7 +192,7 @@ ip6_rthdr0(m, ip6, rh0)
 	if (IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst) ||
 	    IN6_IS_ADDR_UNSPECIFIED(&ip6->ip6_dst) ||
 	    IN6_IS_ADDR_V4MAPPED(&ip6->ip6_dst) ||
-	    IN6_IS_ADDR_V4COMPAT(nextaddr)) {
+	    IN6_IS_ADDR_V4COMPAT(&ip6->ip6_dst)) {
 		ip6stat.ip6s_badoptions++;
 		m_freem(m);
 		return(-1);

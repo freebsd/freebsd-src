@@ -572,9 +572,6 @@ rt_msg1(type, rtinfo)
 	register struct sockaddr *sa;
 	int len, dlen;
 
-	m = m_gethdr(M_DONTWAIT, MT_DATA);
-	if (m == 0)
-		return (m);
 	switch (type) {
 
 	case RTM_DELADDR:
@@ -594,8 +591,18 @@ rt_msg1(type, rtinfo)
 	default:
 		len = sizeof(struct rt_msghdr);
 	}
-	if (len > MHLEN)
+	if (len > MCLBYTES)
 		panic("rt_msg1");
+	m = m_gethdr(M_DONTWAIT, MT_DATA);
+	if (m && len > MHLEN) {
+		MCLGET(m, M_DONTWAIT);
+		if ((m->m_flags & M_EXT) == 0) {
+			m_free(m);
+			m = NULL;
+		}
+	}
+	if (m == 0)
+		return (m);
 	m->m_pkthdr.len = m->m_len = len;
 	m->m_pkthdr.rcvif = 0;
 	rtm = mtod(m, struct rt_msghdr *);

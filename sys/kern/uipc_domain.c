@@ -203,6 +203,32 @@ pfctlinput(cmd, sa)
 				(*pr->pr_ctlinput)(cmd, sa, (void *)0);
 }
 
+void
+pfctlinput2(cmd, sa, ctlparam)
+	int cmd;
+	struct sockaddr *sa;
+	void *ctlparam;
+{
+	struct domain *dp;
+	struct protosw *pr;
+
+	if (!sa)
+		return;
+	for (dp = domains; dp; dp = dp->dom_next) {
+		/*
+		 * the check must be made by xx_ctlinput() anyways, to
+		 * make sure we use data item pointed to by ctlparam in
+		 * correct way.  the following check is made just for safety.
+		 */
+		if (dp->dom_family != sa->sa_family)
+			continue;
+
+		for (pr = dp->dom_protosw; pr < dp->dom_protoswNPROTOSW; pr++)
+			if (pr->pr_ctlinput)
+				(*pr->pr_ctlinput)(cmd, sa, ctlparam);
+	}
+}
+
 static void
 pfslowtimo(arg)
 	void *arg;

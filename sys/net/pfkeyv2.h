@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: pfkeyv2.h,v 1.17 2000/06/22 08:38:33 sakane Exp $	*/
+/*	$KAME: pfkeyv2.h,v 1.25 2001/03/12 08:34:06 itojun Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -73,7 +73,7 @@ you leave this credit intact on any copies of this file.
 #define SADB_X_SPDDUMP    18
 #define SADB_X_SPDFLUSH   19
 #define SADB_X_SPDSETIDX  20
-#define SADB_X_SPDEXPIRE  21	/* not yet */
+#define SADB_X_SPDEXPIRE  21
 #define SADB_X_SPDDELETE2 22	/* by policy id */
 #define SADB_MAX          22
 
@@ -298,22 +298,32 @@ struct sadb_x_ipsecrequest {
 
 #define SADB_SAFLAGS_PFS      1
 
-#define SADB_AALG_NONE          0
-#define SADB_AALG_MD5HMAC       1	/* 2 */
-#define SADB_AALG_SHA1HMAC      2	/* 3 */
-#define SADB_AALG_MD5           3       /* Keyed MD5 */
-#define SADB_AALG_SHA           4       /* Keyed SHA */
-#define SADB_AALG_NULL          5       /* null authentication */
-#define SADB_AALG_MAX           6
+/* RFC2367 numbers - meets RFC2407 */
+#define SADB_AALG_NONE		0
+#define SADB_AALG_MD5HMAC	1	/*2*/
+#define SADB_AALG_SHA1HMAC	2	/*3*/
+#define SADB_AALG_MAX		8
+/* private allocations - based on RFC2407/IANA assignment */
+#define SADB_X_AALG_SHA2_256	6	/*5*/
+#define SADB_X_AALG_SHA2_384	7	/*6*/
+#define SADB_X_AALG_SHA2_512	8	/*7*/
+/* private allocations should use 249-255 (RFC2407) */
+#define SADB_X_AALG_MD5		3	/*249*/	/* Keyed MD5 */
+#define SADB_X_AALG_SHA		4	/*250*/	/* Keyed SHA */
+#define SADB_X_AALG_NULL	5	/*251*/	/* null authentication */
 
-#define SADB_EALG_NONE          0
-#define SADB_EALG_DESCBC        1	/* 2 */
-#define SADB_EALG_3DESCBC       2	/* 3 */
-#define SADB_EALG_NULL          3	/* 11 */
-#define SADB_EALG_BLOWFISHCBC   4
-#define SADB_EALG_CAST128CBC    5
-#define SADB_EALG_RC5CBC        6
-#define SADB_EALG_MAX           7
+/* RFC2367 numbers - meets RFC2407 */
+#define SADB_EALG_NONE		0
+#define SADB_EALG_DESCBC	1	/*2*/
+#define SADB_EALG_3DESCBC	2	/*3*/
+#define SADB_EALG_NULL		3	/*11*/
+#define SADB_EALG_MAX		12
+/* private allocations - based on RFC2407/IANA assignment */
+#define SADB_X_EALG_CAST128CBC	5	/*6*/
+#define SADB_X_EALG_BLOWFISHCBC	4	/*7*/
+#define SADB_X_EALG_RIJNDAELCBC	12
+#define SADB_X_EALG_AES		12
+/* private allocations should use 249-255 (RFC2407) */
 
 #if 1	/*nonstandard */
 #define SADB_X_CALG_NONE	0

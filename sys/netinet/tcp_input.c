@@ -305,6 +305,7 @@ tcp6_input(mp, offp, proto)
 	int *offp, proto;
 {
 	register struct mbuf *m = *mp;
+	struct in6_ifaddr *ia6;
 
 	IP6_EXTHDR_CHECK(m, *offp, sizeof(struct tcphdr), IPPROTO_DONE);
 
@@ -312,7 +313,8 @@ tcp6_input(mp, offp, proto)
 	 * draft-itojun-ipv6-tcp-to-anycast
 	 * better place to put this in?
 	 */
-	if (m->m_flags & M_ANYCAST6) {
+	ia6 = ip6_getdstifaddr(m);
+	if (ia6 && (ia6->ia6_flags & IN6_IFF_ANYCAST)) {		
 		struct ip6_hdr *ip6;
 
 		ip6 = mtod(m, struct ip6_hdr *);
@@ -379,6 +381,19 @@ tcp_input(m, off0, proto)
 			goto drop;
 		}
 		th = (struct tcphdr *)((caddr_t)ip6 + off0);
+
+		/*
+		 * Be proactive about unspecified IPv6 address in source.
+		 * As we use all-zero to indicate unbounded/unconnected pcb,
+		 * unspecified IPv6 address can be used to confuse us.
+		 *
+		 * Note that packets with unspecified IPv6 destination is
+		 * already dropped in ip6_input.
+		 */
+		if (IN6_IS_ADDR_UNSPECIFIED(&ip6->ip6_src)) {
+			/* XXX stat */
+			goto drop;
+		}
 	} else
 #endif /* INET6 */
       {
@@ -627,18 +642,6 @@ findpcb:
 	else
 		tiwin = th->th_win;
 
-#ifdef INET6
-	/* save packet options if user wanted */
-	if (isipv6 && inp->in6p_flags & INP_CONTROLOPTS) {
-		if (inp->in6p_options) {
-			m_freem(inp->in6p_options);
-			inp->in6p_options = 0;
-		}
-		ip6_savecontrol(inp, &inp->in6p_options, ip6, m);
-	}
-        /* else, should also do ip_srcroute() here? */
-#endif /* INET6 */
-
 	so = inp->inp_socket;
 	if (so->so_options & (SO_DEBUG|SO_ACCEPTCONN)) {
 #ifdef TCPDEBUG
@@ -683,6 +686,50 @@ findpcb:
 				goto drop;
 			}
 #endif
+
+#ifdef INET6
+			/*
+			 * If deprecated address is forbidden,
+			 * we do not accept SYN to deprecated interface
+			 * address to prevent any new inbound connection from
+			 * getting established.
+			 * When we do not accept SYN, we send a TCP RST,
+			 * with deprecated source address (instead of dropping
+			 * it).  We compromise it as it is much better for peer
+			 * to send a RST, and RST will be the final packet
+			 * for the exchange.
+			 *
+			 * If we do not forbid deprecated addresses, we accept
+			 * the SYN packet.  RFC2462 does not suggest dropping
+			 * SYN in this case.
+			 * If we decipher RFC2462 5.5.4, it says like this:
+			 * 1. use of deprecated addr with existing
+			 *    communication is okay - "SHOULD continue to be
+			 *    used"
+			 * 2. use of it with new communication:
+			 *   (2a) "SHOULD NOT be used if alternate address
+			 *        with sufficient scope is available"
+			 *   (2b) nothing mentioned otherwise.
+			 * Here we fall into (2b) case as we have no choice in
+			 * our source address selection - we must obey the peer.
+			 *
+			 * The wording in RFC2462 is confusing, and there are
+			 * multiple description text for deprecated address
+			 * handling - worse, they are not exactly the same.
+			 * I believe 5.5.4 is the best one, so we follow 5.5.4.
+			 */
+			if (isipv6 && !ip6_use_deprecated) {
+				struct in6_ifaddr *ia6;
+
+				if ((ia6 = ip6_getdstifaddr(m)) &&
+				    (ia6->ia6_flags & IN6_IFF_DEPRECATED)) {
+					tp = NULL;
+					rstreason = BANDLIM_RST_OPENPORT;
+					goto dropwithreset;
+				}
+			}
+#endif
+
 			so2 = sonewconn(so, 0);
 			if (so2 == 0) {
 				tcpstat.tcps_listendrop++;
@@ -718,10 +765,8 @@ findpcb:
 			if (isipv6)
 				inp->in6p_laddr = ip6->ip6_dst;
 			else {
-				if (ip6_mapped_addr_on) {
-					inp->inp_vflag &= ~INP_IPV6;
-					inp->inp_vflag |= INP_IPV4;
-				}
+				inp->inp_vflag &= ~INP_IPV6;
+				inp->inp_vflag |= INP_IPV4;
 #endif /* INET6 */
 			inp->inp_laddr = ip->ip_dst;
 #ifdef INET6
@@ -766,21 +811,25 @@ findpcb:
 #endif
 #ifdef INET6
 			if (isipv6) {
-				/*
-				 * inherit socket options from the listening
-				 * socket.
-				 */
+  				/*
+ 				 * Inherit socket options from the listening
+  				 * socket.
+ 				 * Note that in6p_inputopts are not (even
+ 				 * should not be) copied, since it stores
+				 * previously received options and is used to
+ 				 * detect if each new option is different than
+ 				 * the previous one and hence should be passed
+ 				 * to a user.
+ 				 * If we copied in6p_inputopts, a user would
+ 				 * not be able to receive options just after
+ 				 * calling the accept system call.
+ 				 */
 				inp->inp_flags |=
 					oinp->inp_flags & INP_CONTROLOPTS;
-				if (inp->inp_flags & INP_CONTROLOPTS) {
-					if (inp->in6p_options) {
-						m_freem(inp->in6p_options);
-						inp->in6p_options = 0;
-					}
-					ip6_savecontrol(inp,
-							&inp->in6p_options,
-							ip6, m);
-				}
+ 				if (oinp->in6p_outputopts)
+ 					inp->in6p_outputopts =
+ 						ip6_copypktopts(oinp->in6p_outputopts,
+ 								M_NOWAIT);
 			} else
 #endif /* INET6 */
 			inp->inp_options = ip_srcroute();

@@ -392,8 +392,7 @@ udp_input(m, off, proto)
 #endif
 		ip_savecontrol(inp, &opts, ip, m);
 	}
-	iphlen += sizeof(struct udphdr);
-	m_adj(m, iphlen);
+ 	m_adj(m, iphlen + sizeof(struct udphdr));
 #ifdef INET6
 	if (inp->inp_vflag & INP_IPV6) {
 		in6_sin_2_v4mapsin6(&udp_in, &udp_in6.uin6_sin);
@@ -737,7 +736,10 @@ udp_output(inp, m, addr, control, p)
 	udpstat.udps_opackets++;
 
 #ifdef IPSEC
-	ipsec_setsocket(m, inp->inp_socket);
+	if (ipsec_setsocket(m, inp->inp_socket) != 0) {
+		error = ENOBUFS;
+		goto release;
+	}
 #endif /*IPSEC*/
 	error = ip_output(m, inp->inp_options, &inp->inp_route,
 	    (inp->inp_socket->so_options & (SO_DONTROUTE | SO_BROADCAST)),

@@ -748,7 +748,7 @@ network_gif_setup() {
 				continue
 				;;
 			*)
-				gifconfig $i ${peers}
+				ifconfig $i tunnel ${peers}
 				;;
 			esac
 		done

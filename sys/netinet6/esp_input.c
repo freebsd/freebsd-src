@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: esp_input.c,v 1.25 2000/05/08 08:04:30 itojun Exp $	*/
+/*	$KAME: esp_input.c,v 1.55 2001/03/23 08:08:47 itojun Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -64,8 +64,10 @@
 
 #ifdef INET6
 #include <netinet/ip6.h>
+#include <netinet6/in6_pcb.h>
 #include <netinet6/ip6_var.h>
 #include <netinet/icmp6.h>
+#include <netinet6/ip6protosw.h>
 #endif
 
 #include <netinet6/ipsec.h>
@@ -82,11 +84,7 @@
 #endif
 #include <netkey/key.h>
 #include <netkey/keydb.h>
-#ifdef IPSEC_DEBUG
 #include <netkey/key_debug.h>
-#else
-#define KEYDEBUG(lev,arg)
-#endif
 
 #include <machine/stdarg.h>
 
@@ -94,13 +92,13 @@
 
 #define IPLEN_FLIPPED
 
-#ifdef INET
-#include <netinet/ipprotosw.h>
-extern struct ipprotosw inetsw[];
-
 #define ESPMAXLEN \
 	(sizeof(struct esp) < sizeof(struct newesp) \
 		? sizeof(struct newesp) : sizeof(struct esp))
+
+#ifdef INET
+#include <netinet/ipprotosw.h>
+extern struct ipprotosw inetsw[];
 
 void
 #if __STDC__
@@ -118,7 +116,7 @@ esp4_input(m, va_alist)
 	struct secasvar *sav = NULL;
 	size_t taillen;
 	u_int16_t nxt;
-	struct esp_algorithm *algo;
+	const struct esp_algorithm *algo;
 	int ivlen;
 	size_t hlen;
 	size_t esplen;
@@ -179,15 +177,14 @@ esp4_input(m, va_alist)
 		ipsecstat.in_badspi++;
 		goto bad;
 	}
-	if (sav->alg_enc == SADB_EALG_NONE) {
+	algo = esp_algorithm_lookup(sav->alg_enc);
+	if (!algo) {
 		ipseclog((LOG_DEBUG, "IPv4 ESP input: "
-		    "unspecified encryption algorithm for spi %u\n",
+		    "unsupported encryption algorithm for spi %u\n",
 		    (u_int32_t)ntohl(spi)));
 		ipsecstat.in_badspi++;
 		goto bad;
 	}
-
-	algo = &esp_algorithms[sav->alg_enc];	/*XXX*/
 
 	/* check if we have proper ivlen information */
 	ivlen = sav->ivlen;
@@ -202,7 +199,8 @@ esp4_input(m, va_alist)
 	 && (sav->alg_auth && sav->key_auth)))
 		goto noreplaycheck;
 
-	if (sav->alg_auth == SADB_AALG_NULL)
+	if (sav->alg_auth == SADB_X_AALG_NULL ||
+	    sav->alg_auth == SADB_AALG_NONE)
 		goto noreplaycheck;
 
 	/*
@@ -222,10 +220,12 @@ esp4_input(m, va_alist)
     {
 	u_char sum0[AH_MAXSUMSIZE];
 	u_char sum[AH_MAXSUMSIZE];
-	struct ah_algorithm *sumalgo;
+	const struct ah_algorithm *sumalgo;
 	size_t siz;
 
-	sumalgo = &ah_algorithms[sav->alg_auth];
+	sumalgo = ah_algorithm_lookup(sav->alg_auth);
+	if (!sumalgo)
+		goto noreplaycheck;
 	siz = (((*sumalgo->sumsiz)(sav) + 3) & ~(4 - 1));
 	if (AH_MAXSUMSIZE < siz) {
 		ipseclog((LOG_DEBUG,
@@ -304,22 +304,30 @@ noreplaycheck:
 		}
 	}
 
-    {
+	/*
+	 * pre-compute and cache intermediate key
+	 */
+	if (esp_schedule(algo, sav) != 0) {
+		ipsecstat.in_inval++;
+		goto bad;
+	}
+
 	/*
 	 * decrypt the packet.
 	 */
 	if (!algo->decrypt)
 		panic("internal error: no decrypt function");
 	if ((*algo->decrypt)(m, off, sav, algo, ivlen)) {
-		ipseclog((LOG_ERR, "decrypt fail in IPv4 ESP input: %s %s\n",
-		    ipsec4_logpacketstr(ip, spi), ipsec_logsastr(sav)));
+		/* m is already freed */
+		m = NULL;
+		ipseclog((LOG_ERR, "decrypt fail in IPv4 ESP input: %s\n",
+		    ipsec_logsastr(sav)));
 		ipsecstat.in_inval++;
 		goto bad;
 	}
 	ipsecstat.in_esphist[sav->alg_enc]++;
 
 	m->m_flags |= M_DECRYPTED;
-    }
 
 	/*
 	 * find the trailer of the ESP.
@@ -348,7 +356,7 @@ noreplaycheck:
 #endif
 
 	/* was it transmitted over the IPsec tunnel SA? */
-	if (ipsec4_tunnel_validate(ip, nxt, sav)) {
+	if (ipsec4_tunnel_validate(m, off + esplen + ivlen, nxt, sav)) {
 		/*
 		 * strip off all the headers that precedes ESP header.
 		 *	IP4 xx ESP IP4' payload -> IP4' payload
@@ -388,6 +396,11 @@ noreplaycheck:
 #endif
 
 		key_sa_recordxfer(sav, m);
+		if (ipsec_addhist(m, IPPROTO_ESP, spi) != 0 ||
+		    ipsec_addhist(m, IPPROTO_IPV4, 0) != 0) {
+			ipsecstat.in_nomem++;
+			goto bad;
+		}
 
 		s = splimp();
 		if (IF_QFULL(&ipintrq)) {
@@ -425,10 +438,19 @@ noreplaycheck:
 		ip->ip_p = nxt;
 
 		key_sa_recordxfer(sav, m);
+		if (ipsec_addhist(m, IPPROTO_ESP, spi) != 0) {
+			ipsecstat.in_nomem++;
+			goto bad;
+		}
 
-		if (nxt != IPPROTO_DONE)
+		if (nxt != IPPROTO_DONE) {
+			if ((inetsw[ip_protox[nxt]].pr_flags & PR_LASTHDR) != 0 &&
+			    ipsec4_in_reject(m, NULL)) {
+				ipsecstat.in_polvio++;
+				goto bad;
+			}
 			(*inetsw[ip_protox[nxt]].pr_input)(m, off, nxt);
-		else
+		} else
 			m_freem(m);
 		m = NULL;
 	}
@@ -468,7 +490,7 @@ esp6_input(mp, offp, proto)
 	struct secasvar *sav = NULL;
 	size_t taillen;
 	u_int16_t nxt;
-	struct esp_algorithm *algo;
+	const struct esp_algorithm *algo;
 	int ivlen;
 	size_t esplen;
 	int s;
@@ -522,15 +544,14 @@ esp6_input(mp, offp, proto)
 		ipsec6stat.in_badspi++;
 		goto bad;
 	}
-	if (sav->alg_enc == SADB_EALG_NONE) {
+	algo = esp_algorithm_lookup(sav->alg_enc);
+	if (!algo) {
 		ipseclog((LOG_DEBUG, "IPv6 ESP input: "
-		    "unspecified encryption algorithm for spi %u\n",
+		    "unsupported encryption algorithm for spi %u\n",
 		    (u_int32_t)ntohl(spi)));
 		ipsec6stat.in_badspi++;
 		goto bad;
 	}
-
-	algo = &esp_algorithms[sav->alg_enc];	/*XXX*/
 
 	/* check if we have proper ivlen information */
 	ivlen = sav->ivlen;
@@ -545,7 +566,8 @@ esp6_input(mp, offp, proto)
 	 && (sav->alg_auth && sav->key_auth)))
 		goto noreplaycheck;
 
-	if (sav->alg_auth == SADB_AALG_NULL)
+	if (sav->alg_auth == SADB_X_AALG_NULL ||
+	    sav->alg_auth == SADB_AALG_NONE)
 		goto noreplaycheck;
 
 	/*
@@ -565,10 +587,12 @@ esp6_input(mp, offp, proto)
     {
 	u_char sum0[AH_MAXSUMSIZE];
 	u_char sum[AH_MAXSUMSIZE];
-	struct ah_algorithm *sumalgo;
+	const struct ah_algorithm *sumalgo;
 	size_t siz;
 
-	sumalgo = &ah_algorithms[sav->alg_auth];
+	sumalgo = ah_algorithm_lookup(sav->alg_auth);
+	if (!sumalgo)
+		goto noreplaycheck;
 	siz = (((*sumalgo->sumsiz)(sav) + 3) & ~(4 - 1));
 	if (AH_MAXSUMSIZE < siz) {
 		ipseclog((LOG_DEBUG,
@@ -647,13 +671,23 @@ noreplaycheck:
 	ip6 = mtod(m, struct ip6_hdr *);	/*set it again just in case*/
 
 	/*
+	 * pre-compute and cache intermediate key
+	 */
+	if (esp_schedule(algo, sav) != 0) {
+		ipsec6stat.in_inval++;
+		goto bad;
+	}
+
+	/*
 	 * decrypt the packet.
 	 */
 	if (!algo->decrypt)
 		panic("internal error: no decrypt function");
 	if ((*algo->decrypt)(m, off, sav, algo, ivlen)) {
-		ipseclog((LOG_ERR, "decrypt fail in IPv6 ESP input: %s %s\n",
-		    ipsec6_logpacketstr(ip6, spi), ipsec_logsastr(sav)));
+		/* m is already freed */
+		m = NULL;
+		ipseclog((LOG_ERR, "decrypt fail in IPv6 ESP input: %s\n",
+		    ipsec_logsastr(sav)));
 		ipsec6stat.in_inval++;
 		goto bad;
 	}
@@ -684,7 +718,7 @@ noreplaycheck:
 	ip6->ip6_plen = htons(ntohs(ip6->ip6_plen) - taillen);
 
 	/* was it transmitted over the IPsec tunnel SA? */
-	if (ipsec6_tunnel_validate(ip6, nxt, sav)) {
+	if (ipsec6_tunnel_validate(m, off + esplen + ivlen, nxt, sav)) {
 		/*
 		 * strip off all the headers that precedes ESP header.
 		 *	IP6 xx ESP IP6' payload -> IP6' payload
@@ -732,6 +766,11 @@ noreplaycheck:
 #endif
 
 		key_sa_recordxfer(sav, m);
+		if (ipsec_addhist(m, IPPROTO_ESP, spi) != 0 || 
+		    ipsec_addhist(m, IPPROTO_IPV6, 0) != 0) {
+			ipsec6stat.in_nomem++;
+			goto bad;
+		}
 
 		s = splimp();
 		if (IF_QFULL(&ip6intrq)) {
@@ -785,10 +824,60 @@ noreplaycheck:
 			m->m_pkthdr.len += n->m_pkthdr.len;
 		}
 
+#ifndef PULLDOWN_TEST
+		/*
+		 * KAME requires that the packet to be contiguous on the
+		 * mbuf.  We need to make that sure.
+		 * this kind of code should be avoided.
+		 * XXX other conditions to avoid running this part?
+		 */
+		if (m->m_len != m->m_pkthdr.len) {
+			struct mbuf *n = NULL;
+			int maxlen;
+
+			MGETHDR(n, M_DONTWAIT, MT_HEADER);
+			maxlen = MHLEN;
+			if (n)
+				M_COPY_PKTHDR(n, m);
+			if (n && m->m_pkthdr.len > maxlen) {
+				MCLGET(n, M_DONTWAIT);
+				maxlen = MCLBYTES;
+				if ((n->m_flags & M_EXT) == 0) {
+					m_free(n);
+					n = NULL;
+				}
+			}
+			if (!n) {
+				printf("esp6_input: mbuf allocation failed\n");
+				goto bad;
+			}
+
+			if (m->m_pkthdr.len <= maxlen) {
+				m_copydata(m, 0, m->m_pkthdr.len, mtod(n, caddr_t));
+				n->m_len = m->m_pkthdr.len;
+				n->m_pkthdr.len = m->m_pkthdr.len;
+				n->m_next = NULL;
+				m_freem(m);
+			} else {
+				m_copydata(m, 0, maxlen, mtod(n, caddr_t));
+				m_adj(m, maxlen);
+				n->m_len = maxlen;
+				n->m_pkthdr.len = m->m_pkthdr.len;
+				n->m_next = m;
+				m->m_flags &= ~M_PKTHDR;
+			}
+			m = n;
+		}
+#endif
+
 		ip6 = mtod(m, struct ip6_hdr *);
 		ip6->ip6_plen = htons(ntohs(ip6->ip6_plen) - stripsiz);
 
 		key_sa_recordxfer(sav, m);
+		if (ipsec_addhist(m, IPPROTO_ESP, spi) != 0) {
+			ipsec6stat.in_nomem++;
+			goto bad;
+		}
 	}
 
 	*offp = off;
@@ -811,5 +900,109 @@ bad:
 	if (m)
 		m_freem(m);
 	return IPPROTO_DONE;
+}
+
+void
+esp6_ctlinput(cmd, sa, d)
+	int cmd;
+	struct sockaddr *sa;
+	void *d;
+{
+	const struct newesp *espp;
+	struct newesp esp;
+	struct ip6ctlparam *ip6cp = NULL, ip6cp1;
+	struct secasvar *sav;
+	struct ip6_hdr *ip6;
+	struct mbuf *m;
+	int off;
+	struct sockaddr_in6 sa6_src, sa6_dst;
+
+	if (sa->sa_family != AF_INET6 ||
+	    sa->sa_len != sizeof(struct sockaddr_in6))
+		return;
+	if ((unsigned)cmd >= PRC_NCMDS)
+		return;
+
+	/* if the parameter is from icmp6, decode it. */
+	if (d != NULL) {
+		ip6cp = (struct ip6ctlparam *)d;
+		m = ip6cp->ip6c_m;
+		ip6 = ip6cp->ip6c_ip6;
+		off = ip6cp->ip6c_off;
+	} else {
+		m = NULL;
+		ip6 = NULL;
+	}
+
+	if (ip6) {
+		/*
+		 * Notify the error to all possible sockets via pfctlinput2.
+		 * Since the upper layer information (such as protocol type,
+		 * source and destination ports) is embedded in the encrypted
+		 * data and might have been cut, we can't directly call
+		 * an upper layer ctlinput function. However, the pcbnotify
+		 * function will consider source and destination addresses
+		 * as well as the flow info value, and may be able to find
+		 * some PCB that should be notified.
+		 * Although pfctlinput2 will call esp6_ctlinput(), there is
+		 * no possibility of an infinite loop of function calls,
+		 * because we don't pass the inner IPv6 header.
+		 */
+		bzero(&ip6cp1, sizeof(ip6cp1));
+		ip6cp1.ip6c_src = ip6cp->ip6c_src;
+		pfctlinput2(cmd, sa, (void *)&ip6cp1);
+
+		/*
+		 * Then go to special cases that need ESP header information.
+		 * XXX: We assume that when ip6 is non NULL,
+		 * M and OFF are valid.
+		 */
+
+		/* check if we can safely examine src and dst ports */
+		if (m->m_pkthdr.len < off + sizeof(esp))
+			return;
+
+		if (m->m_len < off + sizeof(esp)) {
+			/*
+			 * this should be rare case,
+			 * so we compromise on this copy...
+			 */
+			m_copydata(m, off, sizeof(esp), (caddr_t)&esp);
+			espp = &esp;
+		} else
+			espp = (struct newesp*)(mtod(m, caddr_t) + off);
+
+		if (cmd == PRC_MSGSIZE) {
+			int valid = 0;
+
+			/*
+			 * Check to see if we have a valid SA corresponding to
+			 * the address in the ICMP message payload.
+			 */
+			sav = key_allocsa(AF_INET6,
+					  (caddr_t)&sa6_src.sin6_addr,
+					  (caddr_t)&sa6_dst, IPPROTO_ESP,
+					  espp->esp_spi);
+			if (sav) {
+				if (sav->state == SADB_SASTATE_MATURE ||
+				    sav->state == SADB_SASTATE_DYING)
+					valid++;
+				key_freesav(sav);
+			}
+
+			/* XXX Further validation? */
+
+			/*
+			 * Depending on the value of "valid" and routing table
+			 * size (mtudisc_{hi,lo}wat), we will:
+			 * - recalcurate the new MTU and create the
+			 *   corresponding routing entry, or
+			 * - ignore the MTU change notification.
+			 */
+			icmp6_mtudisc_update((struct ip6ctlparam *)d, valid);
+		}
+	} else {
+		/* we normally notify any pcb here */
+	}
 }
 #endif /* INET6 */

@@ -591,15 +591,6 @@ m_freem(m)
 	if (m == NULL)
 		return;
 	do {
-		/*
-		 * we do need to check non-first mbuf, since some of existing
-		 * code does not call M_PREPEND properly.
-		 * (example: call to bpf_mtap from drivers)
-		 */
-		if ((m->m_flags & M_PKTHDR) != 0 && m->m_pkthdr.aux) {
-			m_freem(m->m_pkthdr.aux);
-			m->m_pkthdr.aux = NULL;
-		}
 		MFREE(m, n);
 		m = n;
 	} while (m);

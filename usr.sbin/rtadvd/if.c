@@ -1,4 +1,4 @@
-/*	$KAME: if.c,v 1.14 2000/10/25 04:28:34 jinmei Exp $	*/
+/*	$KAME: if.c,v 1.17 2001/01/21 15:27:30 itojun Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -260,17 +260,6 @@ rtbuf_len()
 	return(len);
 }
 
-int
-get_rtinfo(char *buf, size_t *len)
-{
-	int mib[6] = {CTL_NET, AF_ROUTE, 0, AF_INET6, NET_RT_DUMP, 0};
-
-	if (sysctl(mib, 6, buf, len, NULL, 0) < 0)
-		return(-1);
-
-	return(0);
-}
-
 #define FILTER_MATCH(type, filter) ((0x1 << type) & filter)
 #define SIN6(s) ((struct sockaddr_in6 *)(s))
 #define SDL(s) ((struct sockaddr_dl *)(s))
@@ -358,7 +347,7 @@ get_next_msg(char *buf, char *lim, int ifindex, size_t *lenp, int filter)
 
 	return (char *)rtm;
 }
-#undef FILTER_MATCH(type, filter)
+#undef FILTER_MATCH
 
 struct in6_addr *
 get_addr(char *buf)

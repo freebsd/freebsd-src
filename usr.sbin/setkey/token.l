@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: token.l,v 1.13 2000/06/07 00:29:14 itojun Exp $	*/
+/*	$KAME: token.l,v 1.21 2001/05/18 05:35:01 sakane Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, 1998, and 1999 WIDE Project.
@@ -47,7 +47,11 @@
 #include <unistd.h>
 #include <errno.h>
 #include "vchar.h"
+#ifdef __NetBSD__
+#include "parse.h"
+#else
 #include "y.tab.h"
+#endif
 
 #define DECHO \
 	if (f_debug) {printf("<%d>", yy_start); ECHO ; printf("\n"); }
@@ -121,6 +125,7 @@ hostname	{name}(({dot}{name})+{dot}?)?
 
 add		{ PREPROC; return(ADD); }
 delete		{ PREPROC; return(DELETE); }
+deleteall	{ PREPROC; return(DELETEALL); }
 get		{ PREPROC; return(GET); }
 flush		{ PREPROC; return(FLUSH); }
 dump		{ PREPROC; return(DUMP); }
@@ -160,20 +165,23 @@ ipcomp		{ PREPROC; yylval.num = 0; return(PR_IPCOMP); }
 {hyphen}A	{ PREPROC; return(F_AUTH); }
 hmac-md5	{ PREPROC; yylval.num = SADB_AALG_MD5HMAC; return(ALG_AUTH); }
 hmac-sha1	{ PREPROC; yylval.num = SADB_AALG_SHA1HMAC; return(ALG_AUTH); }
-keyed-md5	{ PREPROC; yylval.num = SADB_AALG_MD5; return(ALG_AUTH); }
-keyed-sha1	{ PREPROC; yylval.num = SADB_AALG_SHA; return(ALG_AUTH); }
-null		{ PREPROC; yylval.num = SADB_AALG_NULL; return(ALG_AUTH); }
+keyed-md5	{ PREPROC; yylval.num = SADB_X_AALG_MD5; return(ALG_AUTH); }
+keyed-sha1	{ PREPROC; yylval.num = SADB_X_AALG_SHA; return(ALG_AUTH); }
+hmac-sha2-256	{ PREPROC; yylval.num = SADB_X_AALG_SHA2_256; return(ALG_AUTH); }
+hmac-sha2-384	{ PREPROC; yylval.num = SADB_X_AALG_SHA2_384; return(ALG_AUTH); }
+hmac-sha2-512	{ PREPROC; yylval.num = SADB_X_AALG_SHA2_512; return(ALG_AUTH); }
+null		{ PREPROC; yylval.num = SADB_X_AALG_NULL; return(ALG_AUTH); }
 
 	/* encryption alogorithm */
 {hyphen}E	{ PREPROC; return(F_ENC); }
 des-cbc		{ PREPROC; yylval.num = SADB_EALG_DESCBC; return(ALG_ENC); }
 3des-cbc	{ PREPROC; yylval.num = SADB_EALG_3DESCBC; return(ALG_ENC); }
 simple		{ PREPROC; yylval.num = SADB_EALG_NULL; return(ALG_ENC); }
-blowfish-cbc	{ PREPROC; yylval.num = SADB_EALG_BLOWFISHCBC; return(ALG_ENC); }
-cast128-cbc	{ PREPROC; yylval.num = SADB_EALG_CAST128CBC; return(ALG_ENC); }
-rc5-cbc		{ PREPROC; yylval.num = SADB_EALG_RC5CBC; return(ALG_ENC); }
+blowfish-cbc	{ PREPROC; yylval.num = SADB_X_EALG_BLOWFISHCBC; return(ALG_ENC); }
+cast128-cbc	{ PREPROC; yylval.num = SADB_X_EALG_CAST128CBC; return(ALG_ENC); }
 des-deriv	{ PREPROC; yylval.num = SADB_EALG_DESCBC; return(ALG_ENC_DESDERIV); }
 des-32iv	{ PREPROC; yylval.num = SADB_EALG_DESCBC; return(ALG_ENC_DES32IV); }
+rijndael-cbc	{ PREPROC; yylval.num = SADB_X_EALG_RIJNDAELCBC; return(ALG_ENC); }
 
 	/* compression algorithms */
 {hyphen}C	{ PREPROC; return(F_COMP); }
@@ -195,14 +203,6 @@ nocyclic-seq	{ PREPROC; return(NOCYCLICSEQ); }
 {hyphen}r	{ PREPROC; return(F_REPLAY); }
 {hyphen}lh	{ PREPROC; return(F_LIFETIME_HARD); }
 {hyphen}ls	{ PREPROC; return(F_LIFETIME_SOFT); }
-
-
-	/* upper layer protocols */
-icmp		{ PREPROC; yylval.num = IPPROTO_ICMP; return(UP_PROTO); }
-icmp6		{ PREPROC; yylval.num = IPPROTO_ICMPV6; return(UP_PROTO); }
-ip4		{ PREPROC; yylval.num = IPPROTO_IPV4; return(UP_PROTO); }
-tcp		{ PREPROC; yylval.num = IPPROTO_TCP; return(UP_PROTO); }
-udp		{ PREPROC; yylval.num = IPPROTO_UDP; return(UP_PROTO); }
 
 	/* ... */
 any		{ PREPROC; return(ANY); }
@@ -275,6 +275,12 @@ any		{ PREPROC; return(ANY); }
 			yylval.val.buf = strdup(yytext);
 
 			return(QUOTEDSTRING);
+		}
+
+[a-z0-9.\-]*	{
+			yylval.val.len = yyleng;
+			yylval.val.buf = strdup(yytext);
+			return(STRING);
 		}
 
 .		{

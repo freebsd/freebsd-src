@@ -1,4 +1,4 @@
-/*	$KAME$	*/
+/*	$KAME: dump.h,v 1.1 2000/05/23 11:31:26 itojun Exp $	*/
 
 /*
  * Copyright (C) 1998 WIDE Project.

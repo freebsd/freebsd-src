@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: ah.h,v 1.10 2000/07/02 13:23:33 itojun Exp $	*/
+/*	$KAME: ah.h,v 1.13 2000/10/18 21:28:00 itojun Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -44,7 +44,9 @@ extern int ah6_input __P((struct mbuf **, int *, int));
 extern int ah6_output __P((struct mbuf *, u_char *, struct mbuf *,
 	struct ipsecrequest *));
 extern int ah6_calccksum __P((struct mbuf *, caddr_t, size_t,
-	struct ah_algorithm *, struct secasvar *));
+	const struct ah_algorithm *, struct secasvar *));
+
+extern void ah6_ctlinput __P((int, struct sockaddr *, void *));
 #endif
 
 #endif /*_NETINET6_AH6_H_*/

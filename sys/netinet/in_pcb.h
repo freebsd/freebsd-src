@@ -226,25 +226,27 @@ struct inpcbinfo {		/* XXX documentation, prefixes */
 #define	INP_RECVIF		0x80	/* receive incoming interface */
 #define	INP_MTUDISC		0x100	/* user can do MTU discovery */
 #define	INP_FAITH		0x200	/* accept FAITH'ed connections */
-#define	IN6P_PKTINFO		0x010000
-#define	IN6P_HOPLIMIT		0x020000
-#define	IN6P_NEXTHOP		0x040000
-#define	IN6P_HOPOPTS		0x080000
-#define	IN6P_DSTOPTS		0x100000
-#define	IN6P_RTHDR		0x200000
-#define	IN6P_BINDV6ONLY		0x400000
+
+#define IN6P_IPV6_V6ONLY	0x008000 /* restrict AF_INET6 socket for v6 */
+
+#define	IN6P_PKTINFO		0x010000 /* receive IP6 dst and I/F */
+#define	IN6P_HOPLIMIT		0x020000 /* receive hoplimit */
+#define	IN6P_HOPOPTS		0x040000 /* receive hop-by-hop options */
+#define	IN6P_DSTOPTS		0x080000 /* receive dst options after rthdr */
+#define	IN6P_RTHDR		0x100000 /* receive routing header */
+#define	IN6P_RTHDRDSTOPTS	0x200000 /* receive dstoptions before rthdr */
+#define IN6P_AUTOFLOWLABEL	0x800000 /* attach flowlabel automatically */
+#define	IN6P_BINDV6ONLY		0x10000000 /* do not grab IPv4 traffic */
+
 #define	INP_CONTROLOPTS		(INP_RECVOPTS|INP_RECVRETOPTS|INP_RECVDSTADDR|\
 					INP_RECVIF|\
-				 IN6P_PKTINFO|IN6P_HOPLIMIT|IN6P_NEXTHOP|\
-				 IN6P_HOPOPTS|IN6P_DSTOPTS|IN6P_RTHDR)
-
-#define	INP_UNMAPPABLEOPTS	(IN6P_HOPOPTS|IN6P_DSTOPTS|IN6P_RTHDR)
+				 IN6P_PKTINFO|IN6P_HOPLIMIT|IN6P_HOPOPTS|\
+				 IN6P_DSTOPTS|IN6P_RTHDR|IN6P_RTHDRDSTOPTS|\
+				 IN6P_AUTOFLOWLABEL)
+#define	INP_UNMAPPABLEOPTS	(IN6P_HOPOPTS|IN6P_DSTOPTS|IN6P_RTHDR|\
+				 IN6P_AUTOFLOWLABEL)
 
  /* for KAME src sync over BSD*'s */
-#define	IN6P_RECVOPTS		INP_RECVOPTS
-#define	IN6P_RECVRETOPTS	INP_RECVRETOPTS
-#define	IN6P_RECVDSTADDR	INP_RECVDSTADDR
-#define	IN6P_HDRINCL		INP_HDRINCL
 #define	IN6P_HIGHPORT		INP_HIGHPORT
 #define	IN6P_LOWPORT		INP_LOWPORT
 #define	IN6P_ANONPORT		INP_ANONPORT

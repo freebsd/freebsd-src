@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: ipcomp.h,v 1.7 2000/05/18 12:45:13 sumikawa Exp $	*/
+/*	$KAME: ipcomp.h,v 1.8 2000/09/26 07:55:14 itojun Exp $	*/
 
 /*
  * Copyright (C) 1999 WIDE Project.
