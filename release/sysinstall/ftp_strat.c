@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp_strat.c,v 1.7.2.22 1995/10/22 01:32:43 jkh Exp $
+ * $Id: ftp_strat.c,v 1.7.2.24 1995/10/22 08:33:14 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -72,19 +72,21 @@ get_new_host(Device *dev, Boolean tentative)
      */
     ++reselectCount;
 
+    msgConfirm("One of the distributions or packages your specified failed to load from\n"
+	       "the FTP site you selected.  Please select another one from the FTP menu.");
     MenuMediaFTP.title = "Request failed - please select another site";
     i = mediaSetFTP(NULL);
     MenuMediaFTP.title = oldTitle;
-    if (i == RET_SUCCESS) {
+    if (i != RET_FAIL) {
 	char *cp = variable_get(VAR_FTP_USER);
 
 	if (cp && *cp)
 	    (void)mediaSetFtpUserPass(NULL);
 	/* Bounce the link */
 	dev->shutdown(dev);
-	i = dev->init(dev);
+	i = dev->init(dev) ? RET_SUCCESS : RET_FAIL;
     }
-    return i == RET_SUCCESS ? TRUE : FALSE;
+    return (i != RET_FAIL) ? TRUE : FALSE;
 }
 
 /* Should we throw in the towel? */
@@ -92,29 +94,31 @@ static int
 ftpShouldAbort(Device *dev, int retries)
 {
     char *cp;
+    Boolean shut = FALSE;
+    int rval = 0;
 
     if (reselectCount > 3) {
-	reselectCount = 0;
 	if (!msgYesNo("This doesn't seem to be working.  Your network card may be\n"
 		      "misconfigured, the information you entered in the network setup\n"
 		      "screen may be wrong or your network connection may just simply be\n"
 		      "having a bad day.  Would you like to end this travesty?")) {
-	    dev->shutdown(dev);
-	    return -1;
+	    shut = TRUE;
+	    rval = -1;
 	}
     }
-
-    if (retries >= MAX_FTP_RETRIES)
-	return 1;
-
-    cp = variable_get(VAR_FTP_ONERROR);
-    if (cp && !strcmp(cp, "abort")) {
+    else {
+	cp = variable_get(VAR_FTP_ONERROR);
+	if (retries >= MAX_FTP_RETRIES || (cp && !strcmp(cp, "abort"))) {
+	    shut = TRUE;
+	    rval = 1;
+	}
+    }
+    if (shut) {
 	msgDebug("Aborting FTP connection.\n");
 	dev->shutdown(dev);
 	reselectCount = 0;
-	return 1;
     }
-    return 0;
+    return rval;
 }
 
 Boolean
@@ -235,11 +239,13 @@ mediaGetFTP(Device *dev, char *file, Boolean tentative)
     fp = file;
     nretries = 0;
 
+    if (!dev->init(dev))
+	return -2;
+
     while ((fd = FtpGet(ftp, fp)) < 0) {
 	/* If a hard fail, try to "bounce" the ftp server to clear it */
 	if (fd == -2) {
 	    dev->shutdown(dev);
-	    dev->init(dev);
 	    return -2;
 	}
 	else if (tentative)
