@@ -469,7 +469,7 @@ ng_ksocket_parse(const struct ng_ksocket_alias *aliases,
 	const char *s, int family)
 {
 	int k, val;
-	const char *eptr;
+	char *eptr;
 
 	/* Try aliases */
 	for (k = 0; aliases[k].name != NULL; k++) {

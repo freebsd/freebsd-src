@@ -2764,7 +2764,7 @@ static int
 parse_args(const char *cmd, CmdParm *parms)
 {
     while (1) {
-	const char *ptr;
+	char *ptr;
 
 	if (*cmd == ' ' || *cmd == '\t') {
 	    ++cmd;
@@ -2960,7 +2960,7 @@ set_pnp_parms(CmdParm *parms)
 {   
     u_long idx, val, ldn, csn;
     int i;
-    const char *q;
+    char *q;
     const char *p = parms[0].parm.u.sparm;
     struct pnp_cinfo d;
 

@@ -83,7 +83,7 @@
 #define	CT_CCL		1	/* %[...] conversion */
 #define	CT_STRING	2	/* %s conversion */
 #define	CT_INT		3	/* integer, i.e., strtoq or strtouq */
-typedef u_quad_t (*ccfntype)(const char *, const char **, int);
+typedef u_quad_t (*ccfntype)(const char *, char **, int);
 
 static const u_char *__sccl(char *, const u_char *);
 
@@ -508,7 +508,7 @@ literal:
 				u_quad_t res;
 
 				*p = 0;
-				res = (*ccfn)(buf, (const char **)NULL, base);
+				res = (*ccfn)(buf, (char **)NULL, base);
 				if (flags & POINTER)
 					*va_arg(ap, void **) =
 						(void *)(uintptr_t)res;

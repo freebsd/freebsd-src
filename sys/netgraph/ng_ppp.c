@@ -276,7 +276,8 @@ ng_ppp_newhook(node_p node, hook_p hook, const char *name)
 	/* Figure out which hook it is */
 	if (strncmp(name, NG_PPP_HOOK_LINK_PREFIX,	/* a link hook? */
 	    strlen(NG_PPP_HOOK_LINK_PREFIX)) == 0) {
-		const char *cp, *eptr;
+		const char *cp;
+		char *eptr;
 
 		cp = name + strlen(NG_PPP_HOOK_LINK_PREFIX);
 		if (!isdigit(*cp) || (cp[0] == '0' && cp[1] != '\0'))

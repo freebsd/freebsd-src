@@ -247,9 +247,10 @@ static int
 ngfrm_newhook(node_p node, hook_p hook, const char *name)
 {
 	const sc_p  sc = node->private;
-	const char *cp, *eptr;
-	int	    dlci = 0;
-	int	    ctxnum;
+	const char *cp;
+	char *eptr;
+	int dlci = 0;
+	int ctxnum;
 
 	/* Check if it's our friend the control hook */
 	if (strcmp(name, NG_FRAMERELAY_HOOK_DEBUG) == 0) {

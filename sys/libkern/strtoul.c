@@ -52,7 +52,7 @@
 unsigned long
 strtoul(nptr, endptr, base)
 	const char *nptr;
-	const char **endptr;
+	char **endptr;
 	int base;
 {
 	const char *s = nptr;
@@ -106,6 +106,6 @@ strtoul(nptr, endptr, base)
 	} else if (neg)
 		acc = -acc;
 	if (endptr != 0)
-		*endptr = (const char *)(any ? s - 1 : nptr);
+		*endptr = (char *)(any ? s - 1 : nptr);
 	return (acc);
 }
