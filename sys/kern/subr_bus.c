@@ -361,7 +361,7 @@ devclass_alloc_unit(devclass_t dc, int *unitp)
 	if (unit != -1) {
 		if (unit >= 0 && unit < dc->maxunit &&
 		    dc->devices[unit] != NULL) {
-			printf("%s-: %s%d already exists, skipping it\n",
+			printf("%s: %s%d already exists; skipping it\n",
 			    dc->name, dc->name, *unitp);
 			return (EEXIST);
 		}
@@ -1280,7 +1280,7 @@ resource_list_print_type(struct resource_list *rl, const char *name, int type,
 			}
 		}
 	}
-	return retval;
+	return (retval);
 }
 
 /*
@@ -1641,8 +1641,8 @@ int
 bus_set_resource(device_t dev, int type, int rid,
     u_long start, u_long count)
 {
-	return BUS_SET_RESOURCE(device_get_parent(dev), dev, type, rid,
-	    start, count);
+	return (BUS_SET_RESOURCE(device_get_parent(dev), dev, type, rid,
+	    start, count));
 }
 
 int
