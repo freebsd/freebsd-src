@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ip.c,v 1.5 1995/09/17 16:14:46 amurai Exp $
+ * $Id: ip.c,v 1.4.4.1 1995/10/06 11:24:37 davidg Exp $
  *
  *	TODO:
  *		o Return ICMP message for filterd packet
@@ -31,11 +31,11 @@
 #include <netinet/ip_icmp.h>
 #include <netinet/udp.h>
 #include <netinet/tcp.h>
+#include <arpa/inet.h>
 #include "vars.h"
 #include "filter.h"
 
 extern void SendPppFrame();
-extern int PacketCheck();
 extern void LcpClose();
 
 static struct pppTimer IdleTimer;
@@ -80,11 +80,12 @@ RestartIdleTimer()
   }
 }
 
-static u_short interactive_ports[8] = {
-  0, 513, 0, 0, 0, 21, 0, 23,
+static u_short interactive_ports[32] = {
+  544, 513, 514,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,  21,  22,  23,   0,   0,   0,   0,   0,   0,   0, 543,
 };
 
-#define	INTERACTIVE(p)	(interactive_ports[(p) & 7] == (p))
+#define	INTERACTIVE(p)	(interactive_ports[(p) & 0x1F] == (p))
 
 static char *TcpFlags[] = {
   "FIN", "SYN", "RST", "PSH", "ACK", "URG",
@@ -133,7 +134,7 @@ int direction;
       if (fp->action) {
          /* permit fragments on in and out filter */
          if ((direction == FL_IN || direction == FL_OUT) &&
-             (pip->ip_off & IP_OFFMASK) != 0) {
+             (ntohs(pip->ip_off) & IP_OFFMASK) != 0) {
               return(A_PERMIT);
          }
 #ifdef DEBUG
@@ -200,7 +201,6 @@ direction, cproto, fp->opt.srcop, fp->opt.dstop, estab);
       }
       fp++;
     }
-drop:
     return(A_DENY);	/* No rule is mached. Deny this packet */
   }
   return(A_PERMIT);	/* No rule is given. Permit this packet */
@@ -217,7 +217,7 @@ int code;
   if (pip->ip_p != IPPROTO_ICMP) {
     bp = mballoc(cnt, MB_IPIN);
     bcopy(ptr, MBUF_CTOP(bp), cnt);
-    SendPppFrame(PRI_URGENT, bp);
+    SendPppFrame(bp);
     RestartIdleTimer();
     ipOutOctets += cnt;
   }
@@ -269,7 +269,7 @@ int direction;
     th = (struct tcphdr *)ptop;
     if (pip->ip_tos == IPTOS_LOWDELAY)
       pri = PRI_FAST;
-    else if (pip->ip_off == 0) {
+    else if ((ntohs(pip->ip_off) & IP_OFFMASK) == 0) {
       if (INTERACTIVE(ntohs(th->th_sport)) || INTERACTIVE(ntohs(th->th_dport)))
 	 pri = PRI_FAST;
     }
@@ -297,8 +297,8 @@ int direction;
     }
     break;
   }
-  pri = FilterCheck(pip, direction);
-  if (pri & A_DENY) {
+  
+  if ((FilterCheck(pip, direction) & A_DENY)) {
 #ifdef DEBUG
     logprintf("blocked.\n");
 #endif
@@ -342,34 +342,13 @@ struct mbuf *bp;		/* IN: Pointer to IP pakcet */
    */
   nw = write(tun_out, tunbuff, nb);
   if (nw != nb)
-    fprintf(stderr, "wrote %d, got %d\r\n");
+    fprintf(stderr, "wrote %d, got %d\r\n", nb, nw);
   pfree(bp);
 
   RestartIdleTimer();
 }
 
-void
-IpOutput(ptr, cnt)
-u_char *ptr;			/* IN: Pointer to IP packet */
-int cnt;			/* IN: Length of packet */
-{
-  struct mbuf *bp;
-  int pri;
-
-  if (IpcpFsm.state != ST_OPENED)
-    return;
-
-  pri = PacketCheck(ptr, cnt, FL_OUT);
-  if (pri >= 0) {
-    bp = mballoc(cnt, MB_IPIN);
-    bcopy(ptr, MBUF_CTOP(bp), cnt);
-    SendPppFrame(pri, bp);
-    RestartIdleTimer();
-    ipOutOctets += cnt;
-  }
-}
-
-static struct mqueue IpOutputQueues[PRI_URGENT+1];
+static struct mqueue IpOutputQueues[PRI_FAST+1];
 
 void
 IpEnqueue(pri, ptr, count)
@@ -389,7 +368,7 @@ IsIpEnqueued()
 {
   struct mqueue *queue;
   int    exist = FALSE;
-  for (queue = &IpOutputQueues[PRI_URGENT]; queue >= IpOutputQueues; queue--) {
+  for (queue = &IpOutputQueues[PRI_FAST]; queue >= IpOutputQueues; queue--) {
      if ( queue->qlen > 0 ) {
        exist = TRUE;
        break;
@@ -407,15 +386,16 @@ IpStartOutput()
 
   if (IpcpFsm.state != ST_OPENED)
     return;
-  pri = PRI_URGENT;
-  for (queue = &IpOutputQueues[PRI_URGENT]; queue >= IpOutputQueues; queue--) {
+  pri = PRI_FAST;
+  for (queue = &IpOutputQueues[PRI_FAST]; queue >= IpOutputQueues; queue--) {
     if (queue->top) {
       bp = Dequeue(queue);
       if (bp) {
 	cnt = plength(bp);
-	SendPppFrame(pri, bp);
+	SendPppFrame(bp);
 	RestartIdleTimer();
 	ipOutOctets += cnt;
+	break;
        }
     }
     pri--;

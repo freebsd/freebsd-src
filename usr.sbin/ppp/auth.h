@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: auth.h,v 1.1 1995/02/27 03:17:51 amurai Exp $
+ * $Id: auth.h,v 1.2 1995/05/30 03:50:26 rgrimes Exp $
  *
  *	TODO:
  */
@@ -39,4 +39,6 @@ extern void SendPapChallenge __P((int));
 extern void SendChapChallenge __P((int));
 extern void StopAuthTimer __P((struct authinfo *));
 extern void StartAuthChallenge __P((struct authinfo *));
+extern LOCAL_AUTH_VALID LocalAuthInit __P((void));
+extern int AuthValidate __P((char *, char *, char *));
 #endif

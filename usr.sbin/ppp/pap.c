@@ -18,7 +18,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: pap.c,v 1.2 1995/02/26 12:17:51 amurai Exp $
+ * $Id: pap.c,v 1.3 1995/05/30 03:50:53 rgrimes Exp $
  *
  *	TODO:
  */
@@ -67,7 +67,7 @@ int papid;
   *cp++ = keylen;
   bcopy(VarAuthKey, cp, keylen);
 
-  HdlcOutput(PRI_NORMAL, PROTO_PAP, bp);
+  HdlcOutput(PRI_LINK, PROTO_PAP, bp);
 }
 
 static void
@@ -92,7 +92,7 @@ int code;
   *cp++ = mlen;
   bcopy(message, cp, mlen);
   LogPrintf(LOG_PHASE, "PapOutput: %s\n", papcodes[code]);
-  HdlcOutput(PRI_NORMAL, PROTO_PAP, bp);
+  HdlcOutput(PRI_LINK, PROTO_PAP, bp);
 }
 
 /*

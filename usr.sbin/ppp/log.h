@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: log.h,v 1.2 1995/02/26 12:17:38 amurai Exp $
+ * $Id: log.h,v 1.4 1995/02/27 03:18:16 amurai Exp $
  *
  *	TODO:
  */
@@ -51,4 +51,5 @@ extern void LogClose __P((void));
 extern void logprintf __P((char *, ...)), LogPrintf __P((int, char *, ...));
 extern void LogDumpBp __P((int level, char *header, struct mbuf *bp));
 extern void LogDumpBuff __P((int level, char *header, u_char *ptr, int cnt));
+extern void ListLog __P((void));
 #endif

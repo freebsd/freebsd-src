@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: hdlc.c,v 1.3.4.1 1995/07/30 18:22:43 davidg Exp $
+ * $Id: hdlc.c,v 1.3.4.2 1995/08/26 12:11:39 davidg Exp $
  *
  *	TODO:
  */
@@ -27,6 +27,9 @@
 #include "lcp.h"
 #include "lqr.h"
 #include "vars.h"
+#include "pred.h"
+#include "modem.h"
+#include "ccp.h"
 
 struct hdlcstat {
   int	badfcs;
@@ -57,7 +60,7 @@ struct protostat {
   { 0,			"Others" },
 };
 
-static u_short fcstab[256] = {
+static u_short const fcstab[256] = {
 /* 00 */    0x0000, 0x1189, 0x2312, 0x329b, 0x4624, 0x57ad, 0x6536, 0x74bf,
 /* 08 */    0x8c48, 0x9dc1, 0xaf5a, 0xbed3, 0xca6c, 0xdbe5, 0xe97e, 0xf8f7,
 /* 10 */    0x1081, 0x0108, 0x3393, 0x221a, 0x56a5, 0x472c, 0x75b7, 0x643e,
@@ -104,7 +107,7 @@ HdlcInit()
  *  HDLC FCS computation. Read RFC 1171 Appendix B and CCITT X.25 section
  *  2.27 for further details.
  */
-u_short
+inline u_short 
 HdlcFcs(fcs, cp, len)
 u_short fcs;
 u_char *cp;
@@ -196,6 +199,7 @@ HdlcOutput(int pri, u_short proto, struct mbuf *bp)
     AsyncOutput(pri, mhp, proto);
 }
 
+void
 DecodePacket(proto, bp)
 u_short proto;
 struct mbuf *bp;
@@ -263,7 +267,7 @@ ReportProtStatus()
   printf("    Protocol     in        out      Protocol      in       out\n");
   do {
     statp++;
-    printf("   %-9s: %8u, %8u",
+    printf("   %-9s: %8lu, %8lu",
       statp->name, statp->in_count, statp->out_count);
     if (++cnt == 2) {
       printf("\n");

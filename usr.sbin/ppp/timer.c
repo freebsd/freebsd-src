@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: timer.c,v 1.3 1995/03/11 15:18:51 amurai Exp $
+ * $Id: timer.c,v 1.4 1995/05/30 03:50:59 rgrimes Exp $
  *
  *  TODO:
  */
@@ -146,7 +146,8 @@ TimerService()
 #ifdef DEBUG
   ShowTimers();
 #endif
-  if (tp = TimerList) {
+  tp = TimerList;
+  if (tp) {
     tp->rest--;
     if (tp->rest == 0) {
       /*
@@ -204,7 +205,8 @@ ShowTimers()
 }
 
 #ifdef SIGALRM
-u_int sleep( u_int sec )
+u_int
+sleep( u_int sec )
 {
   struct timeval  to,st,et;
   long sld, nwd, std;
@@ -231,6 +233,7 @@ u_int sleep( u_int sec )
        to.tv_usec = sld % 1000000;
     }
   }
+  return (0L);
 }
 
 void usleep( u_int usec)

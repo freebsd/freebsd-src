@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.10 1995/09/18 12:41:52 bde Exp $
+ * $Id: main.c,v 1.5.4.2 1995/10/06 11:24:42 davidg Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -25,6 +25,7 @@
  */
 #include "fsm.h"
 #include <fcntl.h>
+#include <paths.h>
 #include <sys/time.h>
 #include <termios.h>
 #include <signal.h>
@@ -36,11 +37,14 @@
 #include "modem.h"
 #include "os.h"
 #include "hdlc.h"
+#include "ccp.h"
 #include "lcp.h"
 #include "ipcp.h"
 #include "vars.h"
 #include "auth.h"
 #include "filter.h"
+#include "systems.h"
+#include "ip.h"
 
 #define LAUTH_M1 "Warning: No password entry for this host in ppp.secret\n"
 #define LAUTH_M2 "Warning: All manipulation is allowed by anyone in the world\n"
@@ -64,8 +68,9 @@ static void TerminalStop();
 static struct termios oldtio;		/* Original tty mode */
 static struct termios comtio;		/* Command level tty mode */
 static int TermMode;
-static int server, update;
+static int server;
 struct sockaddr_in ifsin;
+char pid_filename[128];
 
 static void
 TtyInit()
@@ -143,13 +148,14 @@ void
 Cleanup(excode)
 int excode;
 {
-  int stat;
 
   OsLinkdown();
   OsCloseLink(1);
   sleep(1);
-  if (mode & MODE_AUTO)
+  if (mode & MODE_AUTO) {
     DeleteIfRoutes(1);
+    unlink(pid_filename);
+  }
   OsInterfaceDown(1);
   LogPrintf(LOG_PHASE, "PPP Terminated.\n");
   LogClose();
@@ -247,7 +253,6 @@ int argc;
 char **argv;
 {
   int tunno;
-  int on = 1;
 
   argc--; argv++;
 
@@ -366,8 +371,22 @@ char **argv;
 
     DupLog();
     if (!(mode & MODE_DIRECT)) {
+      int fd;
+      char pid[32];
+
       if (fork())
         exit(0);
+
+      snprintf(pid_filename, sizeof (pid_filename), "%s/PPP.%s",
+		  _PATH_VARRUN, dstsystem);
+      unlink(pid_filename);
+      sprintf(pid, "%lu\n", getpid());
+
+      if ((fd = open(pid_filename, O_RDWR|O_CREAT, 0666)) != -1)
+      {
+	  write(fd, pid, strlen(pid));
+	  close(fd);
+      }
     }
     LogPrintf(LOG_PHASE, "Listening at %d.\n", port);
 #ifdef DOTTYINIT
@@ -549,7 +568,8 @@ int n;
     fp = *hp;
     if (DEV_IS_SYNC)
       fp++;
-    if (ptr = strstr((char *)cp, fp))
+    ptr = strstr((char *)cp, fp);
+    if (ptr)
       break;
   }
   return((u_char *)ptr);
@@ -567,12 +587,20 @@ RedialTimeout()
 static void
 StartRedialTimer()
 {
-  LogPrintf(LOG_PHASE, "Enter pause for redialing.\n");
   StopTimer(&RedialTimer);
-  RedialTimer.state = TIMER_STOPPED;
-  RedialTimer.load = REDIAL_PERIOD * SECTICKS;
-  RedialTimer.func = RedialTimeout;
-  StartTimer(&RedialTimer);
+
+  if (VarRedialTimeout) {
+    LogPrintf(LOG_PHASE, "Enter pause for redialing.\n");
+    RedialTimer.state = TIMER_STOPPED;
+
+    if (VarRedialTimeout > 0)
+	RedialTimer.load = VarRedialTimeout * SECTICKS;
+    else
+	RedialTimer.load = (random() % REDIAL_PERIOD) * SECTICKS;
+
+    RedialTimer.func = RedialTimeout;
+    StartTimer(&RedialTimer);
+  }
 }
 
 
@@ -587,6 +615,7 @@ DoLoop()
   u_char *cp;
   u_char rbuff[MAX_MRU];
   int dial_up;
+  int tries;
   int qlen;
   pid_t pgroup;
 
@@ -603,16 +632,12 @@ DoLoop()
 
   fflush(stdout);
 
-#ifdef SIGALRM
   timeout.tv_sec = 0;
-#else
   timeout.tv_usec = 0;
-#endif
 
   dial_up = FALSE;			/* XXXX */
+  tries = 0;
   for (;;) {
-    if ( modem )
-	IpStartOutput();
     FD_ZERO(&rfds); FD_ZERO(&wfds); FD_ZERO(&efds);
 
    /*
@@ -623,24 +648,38 @@ DoLoop()
 #ifdef DEBUG
       logprintf("going to dial: modem = %d\n", modem);
 #endif
-       modem = OpenModem(mode);
-       if (modem < 0) {
-         modem = 0;	       /* Set intial value for next OpenModem */
-         StartRedialTimer();
-       } else {
-         if (DialModem()) {
-           sleep(1);	       /* little pause to allow peer starts */
-           ModemTimeout();
-           PacketMode();
-           dial_up = FALSE;
-         } else {
-           CloseModem();
-           /* Dial failed. Keep quite during redial wait period. */
-           StartRedialTimer();
-         }
-       }
+      modem = OpenModem(mode);
+      if (modem < 0) {
+	modem = 0;	       /* Set intial value for next OpenModem */
+	StartRedialTimer();
+      } else {
+	tries++;
+	LogPrintf(LOG_CHAT, "Dial attempt %u\n", tries);
+	if (DialModem()) {
+	  sleep(1);	       /* little pause to allow peer starts */
+	  ModemTimeout();
+	  PacketMode();
+	  dial_up = FALSE;
+	  tries = 0;
+	} else {
+	  CloseModem();
+	  /* Dial failed. Keep quite during redial wait period. */
+	  StartRedialTimer();
+
+	  if (VarDialTries && tries >= VarDialTries) {
+	      dial_up = FALSE;
+	      tries = 0;
+	  }
+	}
+      }
     }
     qlen = ModemQlen();
+
+    if (qlen == 0) {
+      IpStartOutput();
+      qlen = ModemQlen();
+    }
+
     if (modem) {
       FD_SET(modem, &rfds);
       FD_SET(modem, &efds);
@@ -682,9 +721,11 @@ DoLoop()
     /*
      * When SIGALRM timer is running, a select function will be
      * return -1 and EINTR after a Time Service signal hundler
-     * is done.
+     * is done.  If the redial timer is not running and we are
+     * trying to dial, poll with a 0 value timer.
      */
-    i = select(tun_in+10, &rfds, &wfds, &efds, NULL);
+    tp = (dial_up && RedialTimer.state != TIMER_RUNNING) ? &timeout : NULL;
+    i = select(tun_in+10, &rfds, &wfds, &efds, tp);
 #endif
     if ( i == 0 ) {
         continue;
@@ -692,7 +733,7 @@ DoLoop()
 
     if ( i < 0 ) {
        if ( errno == EINTR ) {
-          continue;            /* Got SIGALRM, Do check a queue for dailing */
+          continue;            /* Got SIGALRM, Do check a queue for dialing */
        }
        perror("select");
        break;

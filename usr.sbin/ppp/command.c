@@ -17,16 +17,20 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.9 1995/09/02 17:20:50 amurai Exp $
+ * $Id: command.c,v 1.5.4.2 1995/10/06 11:24:32 davidg Exp $
  *
  */
+#include <sys/types.h>
 #include <ctype.h>
 #include <termios.h>
+#include <sys/wait.h>
+#include <time.h>
 #include "fsm.h"
 #include "phase.h"
 #include "lcp.h"
 #include "ipcp.h"
 #include "modem.h"
+#include "filter.h"
 #include "command.h"
 #include "hdlc.h"
 #include "vars.h"
@@ -114,6 +118,8 @@ struct cmdtab *cmdlist;
 int argc;
 char **argv;
 {
+  int tries;
+
   if (LcpFsm.state > ST_CLOSED) {
     printf("LCP state is [%s]\n", StateNames[LcpFsm.state]);
     return(1);
@@ -126,17 +132,22 @@ char **argv;
       return(1);
     }
   }
-  modem = OpenModem(mode);
-  if (modem < 0) {
-    printf("failed to open modem.\n");
-    modem = 0;
-    return(1);
-  }
-  if (DialModem()) {
-    sleep(1);
-    ModemTimeout();
-    PacketMode();
-  }
+  tries = 0;
+  do {
+    printf("Dial attempt %u\n", ++tries);
+    modem = OpenModem(mode);
+    if (modem < 0) {
+      printf("failed to open modem.\n");
+      modem = 0;
+      break;
+    }
+    if (DialModem()) {
+      sleep(1);
+      ModemTimeout();
+      PacketMode();
+      break;
+    }
+  } while (VarDialTries == 0 || tries < VarDialTries);
   return(1);
 }
 
@@ -204,7 +215,7 @@ static char StrOption[] = "option ..";
 static char StrRemote[] = "[remote]";
 char StrNull[] = "";
 
-struct cmdtab Commands[] = {
+struct cmdtab const Commands[] = {
   { "accept",  NULL,    AcceptCommand,	LOCAL_AUTH,
   	"accept option request",	StrOption},
   { "add",     NULL,	AddCommand,	LOCAL_AUTH,
@@ -308,8 +319,8 @@ static int ShowAuthKey()
 
 static int ShowVersion()
 {
-  extern char *VarVersion[];
-  extern char *VarLocalVersion[];
+  extern char VarVersion[];
+  extern char VarLocalVersion[];
 
   printf("%s - %s \n", VarVersion, VarLocalVersion);
   return(1);
@@ -321,9 +332,29 @@ static int ShowLogList()
   return(1);
 }
 
+static int ShowRedial()
+{
+  printf(" Redial Timer: ");
+
+  if (VarRedialTimeout >= 0) {
+    printf(" %d seconds, ", VarRedialTimeout);
+  }
+  else {
+    printf(" Random 0 - %d seconds, ", REDIAL_PERIOD);
+  }
+
+  if (VarDialTries)
+      printf("%d dial tries", VarDialTries);
+
+  printf("\n");
+
+  return(1);
+}
+
+
 extern int ShowIfilter(), ShowOfilter(), ShowDfilter(), ShowAfilter();
 
-struct cmdtab ShowCommands[] = {
+struct cmdtab const ShowCommands[] = {
   { "afilter",  NULL,     ShowAfilter,		LOCAL_AUTH,
 	"Show keep Alive filters", StrOption},
   { "auth",     NULL,     ShowAuthKey,		LOCAL_AUTH,
@@ -360,6 +391,8 @@ struct cmdtab ShowCommands[] = {
 	"Show routing table", StrNull},
   { "timeout",  NULL,	  ShowTimeout,		LOCAL_AUTH,
 	"Show Idle timeout value", StrNull},
+  { "redial",   NULL,	  ShowRedial,		LOCAL_AUTH,
+	"Show Redial timeout value", StrNull},
   { "version",  NULL,	  ShowVersion,		LOCAL_NO_AUTH | LOCAL_AUTH,
 	"Show version string", StrNull},
   { "help",     "?",      HelpCommand,		LOCAL_NO_AUTH | LOCAL_AUTH,
@@ -556,6 +589,49 @@ char **argv;
   return(1);
 }
 
+static int SetRedialTimeout(list, argc, argv)
+struct cmdtab *list;
+int argc;
+char **argv;
+{
+  int timeout;
+  int tries;
+
+  if (argc == 1 || argc == 2 ) {
+    if (strcasecmp(argv[0], "random") == 0) {
+      VarRedialTimeout = -1;
+      printf("Using random redial timeout.\n");
+      srandom(time(0));
+    }
+    else {
+      timeout = atoi(argv[0]);
+
+      if (timeout >= 0) {
+	VarRedialTimeout = timeout;
+      }
+      else {
+	printf("invalid redial timeout\n");
+	printf("Usage: %s %s\n", list->name, list->syntax);
+      }
+    }
+    if (argc == 2) {
+      tries = atoi(argv[1]);
+
+      if (tries >= 0) {
+	  VarDialTries = tries;
+      }
+      else {
+	printf("invalid retry value\n");
+	printf("Usage: %s %s\n", list->name, list->syntax);
+      }
+    }
+  }
+  else {
+    printf("Usage: %s %s\n", list->name, list->syntax);
+  }
+  return(1);
+}
+
 static int SetModemParity(list, argc, argv)
 struct cmdtab *list;
 int argc;
@@ -684,7 +760,6 @@ struct cmdtab *list;
 int argc;
 char **argv;
 {
-  int width;
 
   DefMyAddress.ipaddr.s_addr = DefHisAddress.ipaddr.s_addr = 0L;
   if (argc > 0) {
@@ -759,7 +834,7 @@ int param;
       strncpy(VarDevice, *argv, sizeof(VarDevice)-1);
       break;
     case VAR_ACCMAP:
-      sscanf(*argv, "%x", &map);
+      sscanf(*argv, "%lx", &map);
       VarAccmap = map;
       break;
     case VAR_PHONE:
@@ -791,7 +866,7 @@ static char StrValue[] = "value";
 
 extern int SetIfilter(), SetOfilter(), SetDfilter(), SetAfilter();
 
-struct cmdtab SetCommands[] = {
+struct cmdtab const SetCommands[] = {
   { "accmap",   NULL,	  SetVariable,		LOCAL_AUTH,
 	"Set accmap value", "hex-value", (void *)VAR_ACCMAP},
   { "afilter",  NULL,     SetAfilter, 		LOCAL_AUTH,
@@ -830,6 +905,8 @@ struct cmdtab SetCommands[] = {
 	"Set modem speed", "speed"},
   { "timeout",  NULL,     SetIdleTimeout,	LOCAL_AUTH,
 	"Set Idle timeout", StrValue},
+  { "redial",   NULL,     SetRedialTimeout,	LOCAL_AUTH,
+	"Set Redial timeout", "value|random [dial_attempts]"},
   { "help",     "?",      HelpCommand,		LOCAL_AUTH | LOCAL_NO_AUTH,
 	"Display this message", StrNull, (void *)SetCommands},
   { NULL,       NULL,     NULL },
