@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mv.c,v 1.6 1996/02/19 05:51:13 pst Exp $
+ *	$Id: mv.c,v 1.7 1996/02/20 23:27:57 wosch Exp $
  */
 
 #ifndef lint
@@ -79,7 +79,7 @@ main(argc, argv)
 	int ch;
 	char path[MAXPATHLEN + 1];
 
-	while ((ch = getopt(argc, argv, "if")) != EOF)
+	while ((ch = getopt(argc, argv, "fi")) != EOF)
 		switch (ch) {
 		case 'i':
 			iflg = 1;
@@ -92,7 +92,7 @@ main(argc, argv)
 		default:
 			usage();
 		}
-endarg:	argc -= optind;
+	argc -= optind;
 	argv += optind;
 
 	if (argc < 2)
@@ -154,8 +154,8 @@ do_move(from, to)
 
 		/* prompt only if source exist */
 	        if (lstat(from, &sb) == -1) {
-		    warn("%s", from);
-		    return (1);
+			warn("%s", from);
+			return (1);
 		}
 		    
 		ask = 0;
@@ -308,9 +308,8 @@ copy(from, to)
 void
 usage()
 {
-	(void)fprintf(stderr, 
-"\
-usage: mv [-i | -f] src target;\n\
-   or: mv [-i | -f] src1 ... srcN directory\n");
+	(void)fprintf(stderr, "%s\n%s\n",
+		      "usage: mv [-f | -i] src target",
+		      "       mv [-f | -i] src1 ... srcN directory");
 	exit(1);
 }
