@@ -266,15 +266,18 @@ ngt_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 		}
 
 		/* Copy meta info */
-		MALLOC(meta2, meta_p,
-		    meta->used_len, M_NETGRAPH, M_NOWAIT);
-		if (meta2 == NULL) {
-			m_freem(m2);
-			NG_FREE_DATA(m, meta);
-			return (ENOMEM);
-		}
-		meta2->allocated_len = meta->used_len;
-		bcopy(meta, meta2, meta->used_len);
+		if (meta != NULL) {
+			MALLOC(meta2, meta_p,
+			    meta->used_len, M_NETGRAPH, M_NOWAIT);
+			if (meta2 == NULL) {
+				m_freem(m2);
+				NG_FREE_DATA(m, meta);
+				return (ENOMEM);
+			}
+			bcopy(meta, meta2, meta->used_len);
+			meta2->allocated_len = meta->used_len;
+		} else
+			meta2 = NULL;
 
 		/* Deliver duplicate */
 		dup->stats.outOctets += m->m_pkthdr.len;
