@@ -319,10 +319,12 @@ ed_attach(device_t dev)
 #endif
 			printf("%s ", sc->isa16bit ? "(16 bit)" : "(8 bit)");
 
+#if defined(ED_HPP) || defined(ED_3C503)
 		printf("%s\n", (((sc->vendor == ED_VENDOR_3COM) ||
 				    (sc->vendor == ED_VENDOR_HP)) &&
 			   (ifp->if_flags & IFF_ALTPHYS)) ?
 		    " tranceiver disabled" : "");
+#endif
 	}
 	return (0);
 }
@@ -561,6 +563,7 @@ ed_init(void *xsc)
 	 */
 	ed_nic_outb(sc, ED_P0_TCR, 0);
 
+#ifdef ED_3C503
 	/*
 	 * If this is a 3Com board, the tranceiver must be software enabled
 	 * (there is no settable hardware default).
@@ -572,7 +575,7 @@ ed_init(void *xsc)
 			ed_asic_outb(sc, ED_3COM_CR, ED_3COM_CR_XSEL);
 		}
 	}
-
+#endif
 #ifndef ED_NO_MIIBUS
 	if (sc->miibus != NULL) {
 		struct mii_data *mii;
@@ -719,6 +722,7 @@ outloop:
 		 */
 		if (sc->isa16bit) {
 			switch (sc->vendor) {
+#ifdef ED_3C503
 				/*
 				 * For 16bit 3Com boards (which have 16k of
 				 * memory), we have the xmit buffers in a
@@ -729,10 +733,12 @@ outloop:
 				ed_asic_outb(sc, ED_3COM_GACFR,
 					     ED_3COM_GACFR_RSEL);
 				break;
-
+#endif
 				/*
 				 * Enable 16bit access to shared memory on
 				 * WD/SMC boards.
+				 *
+				 * XXX - same as ed_enable_16bit_access()
 				 */
 			case ED_VENDOR_WD_SMC:
 				ed_asic_outb(sc, ED_WD_LAAR,
@@ -757,11 +763,14 @@ outloop:
 		 */
 		if (sc->isa16bit) {
 			switch (sc->vendor) {
+#ifdef ED_3C503
 			case ED_VENDOR_3COM:
 				ed_asic_outb(sc, ED_3COM_GACFR,
 				    ED_3COM_GACFR_RSEL | ED_3COM_GACFR_MBS0);
 				break;
+#endif
 			case ED_VENDOR_WD_SMC:
+				/* XXX - same as ed_disable_16bit_access() */
 				if (sc->chip_type == ED_CHIP_TYPE_WD790)
 					ed_asic_outb(sc, ED_WD_MSR, 0x00);
 				ed_asic_outb(sc, ED_WD_LAAR,
@@ -1228,9 +1237,12 @@ ed_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 
 		/*
 		 * An unfortunate hack to provide the (required) software
-		 * control of the tranceiver for 3Com boards. The ALTPHYS flag
-		 * disables the tranceiver if set.
+		 * control of the tranceiver for 3Com/HP boards.
+		 * The ALTPHYS flag disables the tranceiver if set.
+		 *
+		 * XXX - should use ifmedia.
 		 */
+#ifdef ED_3C503
 		if (sc->vendor == ED_VENDOR_3COM) {
 			if (ifp->if_flags & IFF_ALTPHYS) {
 				ed_asic_outb(sc, ED_3COM_CR, 0);
@@ -1238,8 +1250,9 @@ ed_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 				ed_asic_outb(sc, ED_3COM_CR, ED_3COM_CR_XSEL);
 			}
 		}
+#endif
 #ifdef ED_HPP
-		else if (sc->vendor == ED_VENDOR_HP) 
+		if (sc->vendor == ED_VENDOR_HP) 
 			ed_hpp_set_physical_link(sc);
 #endif
 		break;
