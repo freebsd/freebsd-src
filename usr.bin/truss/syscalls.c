@@ -418,13 +418,13 @@ print_syscall(struct trussinfo *trussinfo, const char *name, int nargs, char **s
   if (trussinfo->flags & ABSOLUTETIMESTAMPS) {
     timespecsubt(&trussinfo->after, &trussinfo->start_time, &timediff);
     len += fprintf(trussinfo->outfile, "%ld.%09ld ",
-		   (long)timediff.tv_sec, (long)timediff.tv_nsec);
+		   (long)timediff.tv_sec, timediff.tv_nsec);
   }
 
   if (trussinfo->flags & RELATIVETIMESTAMPS) {
     timespecsubt(&trussinfo->after, &trussinfo->before, &timediff);
     len += fprintf(trussinfo->outfile, "%ld.%09ld ",
-		   (long)timediff.tv_sec, (long)timediff.tv_nsec);
+		   (long)timediff.tv_sec, timediff.tv_nsec);
   }
 
   len += fprintf(trussinfo->outfile, "%s(", name);
