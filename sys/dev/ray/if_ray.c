@@ -207,7 +207,6 @@
 #define XXX_NETBSDTX	0
 #define XXX_PROM	0
 #define XXX_IOCTL	0
-#define XXX_NETBSD_SJ_NET 1
 
 /*
  * XXX build options - move to LINT
@@ -225,7 +224,7 @@
  *	51	MBUFs dumped/packet types reported
  */
 #ifndef RAY_DEBUG
-#define RAY_DEBUG		16
+#define RAY_DEBUG		6
 #endif
 
 #define RAY_CCS_TIMEOUT		(hz/2)	/* Timeout for CCS commands */
@@ -281,7 +280,10 @@
     printf("  encrypt 0x%02x\n", (sc)->sc_c.np_encrypt);		\
     printf("  net_type 0x%02x\n", (sc)->sc_c.np_net_type);		\
     printf("  ssid \"%.32s\"\n", (sc)->sc_c.np_ssid);			\
-    printf("  ssid %32D\n", (sc)->sc_c.np_ssid, " ");			\
+    printf("       %8D\n", (sc)->sc_c.np_ssid, " ");			\
+    printf("       %8D\n", (sc)->sc_c.np_ssid+8, " ");			\
+    printf("       %8D\n", (sc)->sc_c.np_ssid+16, " ");			\
+    printf("       %8D\n", (sc)->sc_c.np_ssid+24, " ");			\
     printf("  priv_start 0x%02x\n", (sc)->sc_c.np_priv_start);		\
     printf("  priv_join 0x%02x\n", (sc)->sc_c.np_priv_join);		\
     printf("ray%d: Desired network parameters%s\n", (sc)->unit, (s));	\
@@ -291,7 +293,10 @@
     printf("  encrypt 0x%02x\n", (sc)->sc_d.np_encrypt);		\
     printf("  net_type 0x%02x\n", (sc)->sc_d.np_net_type);		\
     printf("  ssid \"%.32s\"\n", (sc)->sc_d.np_ssid);			\
-    printf("  ssid %32D\n", (sc)->sc_d.np_ssid, " ");			\
+    printf("       %8D\n", (sc)->sc_c.np_ssid, " ");			\
+    printf("       %8D\n", (sc)->sc_c.np_ssid+8, " ");			\
+    printf("       %8D\n", (sc)->sc_c.np_ssid+16, " ");			\
+    printf("       %8D\n", (sc)->sc_c.np_ssid+24, " ");			\
     printf("  priv_start 0x%02x\n", (sc)->sc_d.np_priv_start);		\
     printf("  priv_join 0x%02x\n", (sc)->sc_d.np_priv_join);		\
 } } while (0)
@@ -2956,10 +2961,6 @@ static void
 ray_download_done (sc)
     struct ray_softc	*sc;
 {
-#if XXX_NETBSD_SJ_NET == 0
-    size_t ccs;
-    int cmd;
-#endif /* XXX_NETBSD_SJ_NET */
 
     RAY_DPRINTFN(5, ("ray%d: ray_download_done\n", sc->unit));
     RAY_MAP_CM(sc);
@@ -2974,46 +2975,7 @@ ray_download_done (sc)
     sc->sc_c.np_net_type = sc->sc_d.np_net_type;
     bcopy(sc->sc_d.np_ssid, sc->sc_c.np_ssid, IEEE80211_NWID_LEN);
 	
-    /* XXX use start_join_net when included? this will allow us to change
-     * network parameters with ioctl before we ifconfig the card up and
-     * also for the bss to stay when re-initing the card for some reason
-     * i.e. a change of IP address
-     */
-
-#if XXX_NETBSD_SJ_NET
-printf("using start_join_net\n");
     ray_start_join_net(sc);
-#else
-printf("not using start_join_net\n");
-    /*
-     * Join the network - don't bother updating the network parameters as
-     * we've just downloaded them. Issue the start/join command and we
-     * get interrupted back.
-     */
-    ray_cmd_cancel(sc, SCP_UPD_STARTJOIN);
-
-    if (sc->sc_d.np_net_type == RAY_MIB_NET_TYPE_ADHOC)
-	    cmd = RAY_CMD_START_NET;
-    else
-	    cmd = RAY_CMD_JOIN_NET;
-
-    if (!ray_alloc_ccs(sc, &ccs, cmd, SCP_UPD_STARTJOIN)) {
-    	printf("ray%d: ray_download_done can't get a CCS to start/join net\n",
-		sc->unit);
-	ray_reset(sc);
-    }
-    SRAM_WRITE_FIELD_1(sc, ccs, ray_cmd_net, c_upd_param, 0);
-    if (!ray_issue_cmd(sc, ccs, SCP_UPD_STARTJOIN)) {
-    	printf("ray%d: ray_download_done can't issue start/join\n", sc->unit);
-	ray_reset(sc);
-    }
-#endif /* XXX_NETBSD_SJ_NET */
-    RAY_DPRINTFN(15, ("ray%d: Start-join awaiting interrupt\n",
-	    sc->unit));
-
-#if RAY_NEED_STARTJOIN_TIMO
-    sc->sj_timerh = timeout(ray_start_join_timo, sc, RAY_SJ_TIMEOUT);
-#endif /* RAY_NEED_STARTJOIN_TIMO */
 }
 
 /*
@@ -3022,16 +2984,14 @@ printf("not using start_join_net\n");
 static void
 ray_start_join_net(struct ray_softc *sc)
 {
-#if XXX_NETBSD_SJ_NET
 	struct ray_net_params np;
 	struct ifnet *ifp;
 	size_t ccs;
 	int cmd, update;
-#endif /* XXX_NETBSD_SJ_NET */
+
 
 	RAY_DPRINTFN(5, ("ray%d: ray_start_join_net\n", sc->unit));
 	RAY_MAP_CM(sc);
-#if XXX_NETBSD_SJ_NET
 
 	ifp = &sc->arpcom.ac_if;
 
@@ -3086,7 +3046,6 @@ ray_start_join_net(struct ray_softc *sc)
 #if RAY_NEED_STARTJOIN_TIMO
 	sc->sj_timerh = timeout(ray_start_join_timo, sc, RAY_SJ_TIMEOUT);
 #endif /* RAY_NEED_STARTJOIN_TIMO */
-#endif /* XXX_NETBSD_SJ_NET */
 }
 
 #if RAY_NEED_STARTJOIN_TIMO
