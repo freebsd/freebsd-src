@@ -41,7 +41,7 @@ additional interfaces.
 Each of them is capable to send or receive only
 one predefined frame type.
 .Pp
-Names for the new interfaces created by adding
+Names for the new interfaces are created by adding a
 .Ar fN
 suffix to an existing device name.
 Where
@@ -63,7 +63,7 @@ will be populated with four devices:
 and
 .Ar ed0f3 .
 .Pp
-After that, each device can be configured as usually:
+After that, each device can be configured as usual:
 .Dl # ifconfig ed0f1 ipx 0x105
 This will configure IPX protocol with network number
 .Ar 0x105
@@ -71,27 +71,27 @@ and
 .Ar Ethernet_802.3
 frame type.
 .Pp
-Please note that it is impossible to configure IPX protocol on the parent
+Please note that it is impossible to configure the IPX protocol on the parent
 .Ar ed0
-device after
+device after the
 .Ar if_ef.ko
-driver loaded.
+driver has been loaded.
 .Pp
-If parent interface do not configured for any other protocol (IP for example),
-subinterfaces will not function.
-To avoid that, parent interface should be
+If the parent interface is not configured for any other protocol
+(IP for example), subinterfaces will not function.
+To avoid that, the parent interface should be
 manually marked as
 .Dq up :
 .Dl # ifconfig ed0 up
 .Sh EXAMPLES
 The
 .Nm
-driver can be loaded via
+driver can be loaded via the
 .Xr loader.conf 5
 file:
 .Dl if_ef_load="YES"
 .Pp
-In this case an ordinary interface configuration commands can be used
+In this case, ordinary interface configuration commands can be used
 in the
 .Xr rc.conf 5
 file:
@@ -101,7 +101,7 @@ file:
 .Sh DIAGNOSTICS
 None.
 .Sh CAVEATS
-Avoid to configuring parent ethernet device for IPX protocol after
+Avoid to configure the parent ethernet device for the IPX protocol, after the
 .Nm
 driver is loaded.
 .Sh SEE ALSO
