@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_linker.c,v 1.25 1999/01/27 23:45:39 dillon Exp $
+ *	$Id: kern_linker.c,v 1.26 1999/02/16 10:49:48 dfr Exp $
  */
 
 #include "opt_ddb.h"
@@ -689,6 +689,8 @@ kldload(struct proc* p, struct kldload_args* uap)
     modulename = rindex(filename, '/');
     if (modulename == NULL)
 	modulename = filename;
+    else
+	modulename++;
     if (linker_find_file_by_name(modulename)) {
 	error = EEXIST;
 	goto out;
