@@ -306,7 +306,7 @@ fi
 if [ "X${accounting}" = X"YES" -a -d /var/account ]; then
 	echo 'turning on accounting'
 	if [ ! -e /var/account/acct ]; then
-		touch /var/account/acct
+		touch /var/account/acct && chmod 600 /var/account/acct
 	fi
 	accton /var/account/acct
 fi
