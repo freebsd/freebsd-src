@@ -1,7 +1,7 @@
 /*
  * top - a top users display for Unix
  *
- * SYNOPSIS:  For FreeBSD-2.x system
+ * SYNOPSIS:  For FreeBSD-2.x and later
  *
  * DESCRIPTION:
  * Originally written for BSD4.4 system by Christos Zoulas.
@@ -11,7 +11,7 @@
  *
  * This is the machine-dependent module for FreeBSD 2.2
  * Works for:
- *	FreeBSD 2.2, and probably FreeBSD 2.1.x
+ *	FreeBSD 2.2.x, 3.x, 4.x, and probably FreeBSD 2.1.x
  *
  * LIBS: -lkvm
  *
@@ -19,7 +19,7 @@
  *          Steven Wallace  <swallace@freebsd.org>
  *          Wolfram Schneider <wosch@FreeBSD.org>
  *
- * $Id: machine.c,v 1.24 1999/04/22 14:34:53 jhay Exp $
+ * $Id: machine.c,v 1.25 1999/05/11 14:32:15 peter Exp $
  */
 
 
