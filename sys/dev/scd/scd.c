@@ -41,7 +41,7 @@
  */
 
 
-/* $Id: scd.c,v 1.13 1995/12/08 11:15:01 julian Exp $ */
+/* $Id: scd.c,v 1.14 1995/12/08 23:20:39 phk Exp $ */
 
 /* Please send any comments to micke@dynas.se */
 
@@ -201,7 +201,7 @@ static	d_strategy_t	scdstrategy;
 extern	struct cdevsw scd_cdevsw;
 static struct bdevsw scd_bdevsw = 
 	{ scdopen,	scdclose,	scdstrategy,	scdioctl,	/*16*/
-	  nxdump,	scdsize,	0, "scd",	&scd_cdevsw,	-1 };
+	  nodump,	scdsize,	0, "scd",	&scd_cdevsw,	-1 };
 
 static struct cdevsw scd_cdevsw = 
 	{ scdopen,	scdclose,	rawread,	nowrite,	/*45*/
