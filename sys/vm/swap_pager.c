@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.71 1996/09/08 20:44:33 dyson Exp $
+ * $Id: swap_pager.c,v 1.72 1996/10/12 20:09:44 bde Exp $
  */
 
 /*
@@ -1077,7 +1077,9 @@ swap_pager_getpages(object, m, count, reqpage)
 			pagedaemon_wakeup();
 		swap_pager_needflags &= ~(SWAP_FREE_NEEDED|SWAP_FREE_NEEDED_BY_PAGEOUT);
 		if (rv == VM_PAGER_OK) {
+#if notneeded
 			pmap_clear_modify(VM_PAGE_TO_PHYS(m[reqpage]));
+#endif
 			m[reqpage]->valid = VM_PAGE_BITS_ALL;
 			m[reqpage]->dirty = 0;
 		}
@@ -1091,7 +1093,9 @@ swap_pager_getpages(object, m, count, reqpage)
 		 */
 		if (rv == VM_PAGER_OK) {
 			for (i = 0; i < count; i++) {
+#if notneeded
 				pmap_clear_modify(VM_PAGE_TO_PHYS(m[i]));
+#endif
 				m[i]->dirty = 0;
 				m[i]->flags &= ~PG_ZERO;
 				if (i != reqpage) {
@@ -1476,7 +1480,7 @@ retryfree:
 				 */
 				if ((m[i]->queue != PQ_ACTIVE) &&
 				    ((m[i]->flags & (PG_WANTED|PG_REFERENCED)) ||
-				    pmap_is_referenced(VM_PAGE_TO_PHYS(m[i])))) {
+				    pmap_ts_referenced(VM_PAGE_TO_PHYS(m[i])))) {
 					vm_page_activate(m[i]);
 				}
 			}
@@ -1583,7 +1587,7 @@ swap_pager_finish(spc)
 			pmap_clear_modify(VM_PAGE_TO_PHYS(spc->spc_m[i]));
 			spc->spc_m[i]->dirty = 0;
 			if ((spc->spc_m[i]->queue != PQ_ACTIVE) &&
-			    ((spc->spc_m[i]->flags & PG_WANTED) || pmap_is_referenced(VM_PAGE_TO_PHYS(spc->spc_m[i]))))
+			    ((spc->spc_m[i]->flags & PG_WANTED) || pmap_ts_referenced(VM_PAGE_TO_PHYS(spc->spc_m[i]))))
 				vm_page_activate(spc->spc_m[i]);
 		}
 	}
