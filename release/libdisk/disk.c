@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: disk.c,v 1.14 1995/05/03 17:37:58 jkh Exp $
+ * $Id: disk.c,v 1.15 1995/05/03 22:36:51 phk Exp $
  *
  */
 
@@ -137,7 +137,6 @@ Int_Open_Disk(char *name, u_long size)
 				ce = unknown;
 				break;
 		}	
-		flags |= CHUNK_ALIGN;
 		if (Add_Chunk(d,ds.dss_slices[i].ds_offset,
 			ds.dss_slices[i].ds_size, sname,ce,subtype,flags))
 			warn("failed to add chunk for slice %d",i - 1);

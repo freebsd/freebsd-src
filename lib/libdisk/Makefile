@@ -3,7 +3,7 @@ SRCS=	blocks.c disklabel.c dkcksum.c chunk.c disk.c change.c \
 	create_chunk.c rules.c write_disk.c data.c
 
 CFLAGS+= 	-Wall -g
-CLEANFILES+=	tmp.c tst01 tst01.o
+CLEANFILES+=	tmp.c tst01 tst01.o data.c
 VPATH=		${.CURDIR}/../../sbin/disklabel
 NOPROFILE=	yes
 NOSHARED=	yes

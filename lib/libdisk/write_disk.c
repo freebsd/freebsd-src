@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: write_disk.c,v 1.4 1995/04/30 11:04:16 phk Exp $
+ * $Id: write_disk.c,v 1.6 1995/05/01 04:05:27 phk Exp $
  *
  */
 
@@ -163,8 +163,10 @@ Write_Disk(struct disk *d1)
 			dp[j].dp_ssect |= i >> 2;
 		}
 
+#ifdef DEBUG
 		printf("S:%lu = (%x/%x/%x)", 
 			c1->offset,dp[j].dp_scyl,dp[j].dp_shd,dp[j].dp_ssect);
+#endif
 
 		i = c1->end;
 		dp[j].dp_esect = i % d1->bios_sect;
@@ -178,10 +180,16 @@ Write_Disk(struct disk *d1)
 		i -= dp[j].dp_ecyl;
 		dp[j].dp_esect |= i >> 2;
 
+#ifdef DEBUG
 		printf("  E:%lu = (%x/%x/%x)\n", 
 			c1->end,dp[j].dp_ecyl,dp[j].dp_ehd,dp[j].dp_esect);
+#endif
 
 		dp[j].dp_typ = c1->subtype;
+		if (c1->flags & CHUNK_ACTIVE)
+			dp[j].dp_flag = 0x80;
+		else
+			dp[j].dp_flag = 0;
 	}
 	for(i=0;i<NDOSPART;i++)
 		if (!s[i])
