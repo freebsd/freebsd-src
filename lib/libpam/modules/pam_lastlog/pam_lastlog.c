@@ -155,18 +155,6 @@ pam_sm_open_session(pam_handle_t *pamh, int flags, int argc, const char **argv)
 	}
 
 	/*
-	 * Record session in utmp(5) and wtmp(5).
-	 */
-	bzero(&utmp, sizeof(utmp));
-	time(&utmp.ut_time);
-	/* note: does not need to be NUL-terminated */
-	strncpy(utmp.ut_name, user, sizeof(utmp.ut_name));
-	if (rhost != NULL)
-		strncpy(utmp.ut_host, rhost, sizeof(utmp.ut_host));
-	(void)strncpy(utmp.ut_line, tty, sizeof(utmp.ut_line));
-	login(&utmp);
-	
-	/*
 	 * Record session in lastlog(5).
 	 */
 	llpos = (off_t)(pwd->pw_uid * sizeof(ll));
@@ -209,6 +197,19 @@ pam_sm_open_session(pam_handle_t *pamh, int flags, int argc, const char **argv)
 		goto file_err;
 
 	PAM_LOG("Login recorded in %s", _PATH_LASTLOG);
+	
+	/*
+	 * Record session in utmp(5) and wtmp(5).
+	 */
+	bzero(&utmp, sizeof(utmp));
+	time(&utmp.ut_time);
+	/* note: does not need to be NUL-terminated */
+	strncpy(utmp.ut_name, user, sizeof(utmp.ut_name));
+	if (rhost != NULL)
+		strncpy(utmp.ut_host, rhost, sizeof(utmp.ut_host));
+	(void)strncpy(utmp.ut_line, tty, sizeof(utmp.ut_line));
+	login(&utmp);
+	
 	PAM_RETURN(PAM_IGNORE);
 	
  file_err:
@@ -221,19 +222,11 @@ PAM_EXTERN int
 pam_sm_close_session(pam_handle_t *pamh, int flags, int argc, const char **argv)
 {
 	struct options options;
-	const char *tty;
-	int pam_err;
 
 	pam_std_option(&options, NULL, argc, argv);
 
 	PAM_LOG("Options processed");
 
-	pam_err = pam_get_item(pamh, PAM_TTY, (const void **)&tty);
-	if (pam_err != PAM_SUCCESS)
-		PAM_RETURN(pam_err);
-	if (tty != NULL)
-		logout(tty);
-	
 	PAM_RETURN(PAM_SUCCESS);
 }
 
