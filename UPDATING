@@ -17,6 +17,9 @@ minimal number of processes, if possible, for that patch.  For those
 updates that don't have an advisory, or to be safe, you can do a full
 build and install as described in the COMMON ITEMS section.
 
+20030804:	p11	FreeBSD-SA-03:08.realpath
+	Correct a single byte buffer overflow in realpath(3).
+
 20030329:	p10	FreeBSD-SA-03:07.sendmail
 	sendmail address parsing buffer overflow.
 
