@@ -1,4 +1,4 @@
-.\"	$KAME: rtsold.8,v 1.14 2000/08/13 18:06:39 itojun Exp $
+.\"	$KAME: rtsold.8,v 1.16 2000/10/15 13:19:05 itojun Exp $
 .\"
 .\" Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
 .\" All rights reserved.
@@ -31,7 +31,7 @@
 .\"
 .Dd May 17, 1998
 .Dt RTSOLD 8
-.Os KAME
+.Os
 .\"
 .Sh NAME
 .Nm rtsold
@@ -62,8 +62,8 @@ all-routers multicast address to discover new routers
 and to get non link-local addresses.
 .Pp
 .Nm
-should be used on IPv6 host
-.Pq non-router node
+should be used on IPv6 hosts
+.Pq non-router nodes
 only.
 .Pp
 If you invoke the program as
@@ -106,9 +106,9 @@ Every 60 seconds if the
 option is specified and the
 .Nm
 daemon cannot get the interface status.
-This feature does not conform to IPv6 neighbor discovery
+This feature does not conform to the IPv6 neighbor discovery
 specification, but is provided for mobile stations.
-Default interval for router advertisements, which is on the order of 10
+The default interval for router advertisements, which is on the order of 10
 minutes, is slightly long for mobile stations.
 This feature is provided
 for such stations so that they can find new routers as soon as possible
@@ -117,14 +117,14 @@ when they attach to another link.
 .Lp
 Once
 .Nm
-sends a Router Solicitation, and receives a valid Router Advertisement,
+has sent a Router Solicitation, and has received a valid Router Advertisement,
 it refrains from sending additional solicitations on that interface, until
 the next time one of the above events occurs.
 .Lp
 When sending a Router Solicitation on an interface,
 .Nm
 includes a Source Link-layer address option if the interface
-has its link-layer address.
+has a link-layer address.
 .Pp
 Upon receipt of signal
 .Dv SIGUSR1 ,
@@ -137,7 +137,7 @@ will dump the current internal state into
 .It Fl a
 Autoprobe outgoing interface.
 .Nm
-will try to find a non-loopback, non-p2p and IPv6-capable, interface.
+will try to find a non-loopback, non-point-to-point, IPv6-capable interface.
 If
 .Nm
 finds multiple interfaces,
@@ -147,13 +147,13 @@ will exit with error.
 .It Fl d
 Enable debugging.
 .It Fl D
-Enable more debugging including to print internal timer information.
+Enable more debugging including the printing of internal timer information.
 .It Fl f
 .Fl f
 prevents
 .Nm
 from becoming a daemon (foreground mode).
-Warning messages are generated to standard error output,
+Warning messages are generated to standard error
 instead of
 .Xr syslog 3 .
 .It Fl m
@@ -170,11 +170,15 @@ periodically sends Router Solicitation on an interface that does not support
 ioctl.
 .It Fl 1
 Perform only one probe.
-Transmit Router Solicitation packet until valid Router Advertisement packet
-arrives all the interfaces more than once, then exit.
+Transmit Router Solicitation packets until at least one valid Router
+Advertisement packet has arrived on each
+.Ar interface ,
+then exit.
 .El
 .Sh RETURN VALUES
-The program exits with 0 on success, non-zero on failures.
+The
+.Nm
+program exits 0 on success, and >0 on failures.
 .\"
 .Sh FILES
 .Bl -tag -width /var/run/rtsold.dump -compact
@@ -204,7 +208,7 @@ In some operating systems, when a PCMCIA network card is removed
 and reinserted, the corresponding interface index is changed.
 However,
 .Nm
-does not assume such changes, and always uses the index that
+assumes such changes will not occur, and always uses the index that
 it got at invocation. As a result,
 .Nm
 may not work if you reinsert a network card.
@@ -212,11 +216,11 @@ In such a case,
 .Nm
 should be killed and restarted.
 .Pp
-IPv6 autoconfiguration specification assumes single interface host.
-You may see kernel error message if you try to autoconfigure a host with
+The IPv6 autoconfiguration specification assumes a single-interface host.
+You may see kernel error messages if you try to autoconfigure a host with
 multiple interfaces.
 Also, it seems contradictory for
 .Nm
 to accept multiple
-.Ar interfaces
-in argument.
+.Ar interface
+arguments.

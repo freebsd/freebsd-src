@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: scope6.c,v 1.9 2000/05/18 15:03:26 jinmei Exp $	*/
+/*	$KAME: scope6.c,v 1.10 2000/07/24 13:29:31 itojun Exp $	*/
 
 /*
  * Copyright (C) 2000 WIDE Project.
@@ -35,6 +35,7 @@
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/systm.h>
+#include <sys/queue.h>
 
 #include <net/route.h>
 #include <net/if.h>

@@ -1,4 +1,4 @@
-/*	$KAME$	*/
+/*	$KAME: rrenumd.h,v 1.2 2000/07/03 02:54:09 itojun Exp $	*/
 
 /*
  * Copyright (C) 1998 WIDE Project.

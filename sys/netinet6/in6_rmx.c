@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: in6_rmx.c,v 1.7 2000/04/06 08:30:43 sumikawa Exp $	*/
+/*	$KAME: in6_rmx.c,v 1.10 2001/05/24 05:44:58 itojun Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -145,23 +145,6 @@ in6_addroute(void *v_arg, void *n_arg, struct radix_node_head *head,
 			rt->rt_flags |= RTF_LOCAL;
 		}
 	}
-
-	/*
-	 * We also specify a send and receive pipe size for every
-	 * route added, to help TCP a bit.  TCP doesn't actually
-	 * want a true pipe size, which would be prohibitive in memory
-	 * costs and is hard to compute anyway; it simply uses these
-	 * values to size its buffers.  So, we fill them in with the
-	 * same values that TCP would have used anyway, and allow the
-	 * installing program or the link layer to override these values
-	 * as it sees fit.  This will hopefully allow TCP more
-	 * opportunities to save its ssthresh value.
-	 */
-	if (!rt->rt_rmx.rmx_sendpipe && !(rt->rt_rmx.rmx_locks & RTV_SPIPE))
-		rt->rt_rmx.rmx_sendpipe = tcp_sendspace;
-
-	if (!rt->rt_rmx.rmx_recvpipe && !(rt->rt_rmx.rmx_locks & RTV_RPIPE))
-		rt->rt_rmx.rmx_recvpipe = tcp_recvspace;
 
 	if (!rt->rt_rmx.rmx_mtu && !(rt->rt_rmx.rmx_locks & RTV_MTU)
 	    && rt->rt_ifp)

@@ -232,11 +232,13 @@ pr_family(af)
 #ifndef INET6
 #define	WID_DST(af) 	18	/* width of destination column */
 #define	WID_GW(af)	18	/* width of gateway column */
+#define	WID_IF(af)	6	/* width of netif column */
 #else
 #define	WID_DST(af) \
 	((af) == AF_INET6 ? (lflag ? 39 : (nflag ? 33: 18)) : 18)
 #define	WID_GW(af) \
 	((af) == AF_INET6 ? (lflag ? 31 : (nflag ? 29 : 18)) : 18)
+#define	WID_IF(af)	((af) == AF_INET6 ? 8 : 6)
 #endif /*INET6*/
 
 /*
@@ -250,10 +252,18 @@ pr_rthdr(af)
 	if (Aflag)
 		printf("%-8.8s ","Address");
 	if (af == AF_INET || lflag)
-		printf("%-*.*s %-*.*s %-6.6s  %6.6s%8.8s  %8.8s %6s\n",
-			WID_DST(af), WID_DST(af), "Destination",
-			WID_GW(af), WID_GW(af), "Gateway",
-			"Flags", "Refs", "Use", "Netif", "Expire");
+		if (lflag)
+			printf("%-*.*s %-*.*s %-6.6s %6.6s %8.8s %6.6s %*.*s %6s\n",
+				WID_DST(af), WID_DST(af), "Destination",
+				WID_GW(af), WID_GW(af), "Gateway",
+				"Flags", "Refs", "Use", "Mtu",
+				WID_IF(af), WID_IF(af), "Netif", "Expire");
+		else
+			printf("%-*.*s %-*.*s %-6.6s %6.6s %8.8s %*.*s %6s\n",
+				WID_DST(af), WID_DST(af), "Destination",
+				WID_GW(af), WID_GW(af), "Gateway",
+				"Flags", "Refs", "Use",
+				WID_IF(af), WID_IF(af), "Netif", "Expire");
 	else
 		printf("%-*.*s %-*.*s %-6.6s  %8.8s %6s\n",
 			WID_DST(af), WID_DST(af), "Destination",
@@ -608,8 +618,15 @@ p_rtentry(rt)
 	p_sockaddr(kgetsa(rt->rt_gateway), NULL, RTF_HOST,
 	    WID_GW(addr.u_sa.sa_family));
 	p_flags(rt->rt_flags, "%-6.6s ");
-	if (addr.u_sa.sa_family == AF_INET || lflag)
+	if (addr.u_sa.sa_family == AF_INET || lflag) {
 		printf("%6ld %8ld ", rt->rt_refcnt, rt->rt_use);
+		if (lflag) {
+			if (rt->rt_rmx.rmx_mtu != 0)
+				printf("%6lu ", rt->rt_rmx.rmx_mtu);
+			else
+				printf("%6s ", "");
+		}
+	}
 	if (rt->rt_ifp) {
 		if (rt->rt_ifp != lastif) {
 			kget(rt->rt_ifp, ifnet);
@@ -618,7 +635,8 @@ p_rtentry(rt)
 			snprintf(prettyname, sizeof prettyname,
 				 "%s%d", name, ifnet.if_unit);
 		}
-		printf("%8.8s", prettyname);
+		printf("%*.*s", WID_IF(addr.u_sa.sa_family),
+		    WID_IF(addr.u_sa.sa_family), prettyname);
 		if (rt->rt_rmx.rmx_expire) {
 			time_t expire_time;
 

@@ -1,4 +1,4 @@
-/*	$KAME$	*/
+/*	$KAME: tcp.c,v 1.5 2000/09/29 03:48:31 sakane Exp $	*/
 
 /*
  * Copyright (C) 1997 and 1998 WIDE Project.
@@ -93,9 +93,9 @@ sig_child(int sig)
 	pid_t pid;
 
 	pid = wait3(&status, WNOHANG, (struct rusage *)0);
-	if (pid && status)
+	if (pid && WEXITSTATUS(status))
 		syslog(LOG_WARNING, "child %d exit status 0x%x", pid, status);
-	exit_failure("terminate connection due to child termination");
+	exit_success("terminate connection due to child termination");
 }
 
 static void
@@ -195,7 +195,8 @@ relay(int s_rcv, int s_snd, const char *service, int direction)
 	FD_ZERO(&exceptfds);
 	fcntl(s_snd, F_SETFD, O_NONBLOCK);
 	oreadfds = readfds; owritefds = writefds; oexceptfds = exceptfds;
-	FD_SET(s_rcv, &readfds); FD_SET(s_rcv, &exceptfds);
+	FD_SET(s_rcv, &readfds);
+	FD_SET(s_rcv, &exceptfds);
 	oob_exists = 0;
 	maxfd = (s_rcv > s_snd) ? s_rcv : s_snd;
 

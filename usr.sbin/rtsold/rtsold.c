@@ -1,4 +1,4 @@
-/*	$KAME: rtsold.c,v 1.26 2000/08/13 18:17:15 itojun Exp $	*/
+/*	$KAME: rtsold.c,v 1.31 2001/05/22 06:03:06 jinmei Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -110,7 +110,7 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	int s, ch;
+	int s, rtsock, maxfd, ch;
 	int once = 0;
 	struct timeval *timeout;
 	struct fd_set fdset;
@@ -223,6 +223,13 @@ main(argc, argv)
 		errx(1, "failed to open a socket");
 		/*NOTREACHED*/
 	}
+	maxfd = s;
+	if ((rtsock = rtsock_open()) < 0) {
+		errx(1, "failed to open a socket");
+		/*NOTREACHED*/
+	}
+	if (rtsock > maxfd)
+		maxfd = rtsock;
 
 	/* configuration per interface */
 	if (ifinit()) {
@@ -263,6 +270,7 @@ main(argc, argv)
 
 	FD_ZERO(&fdset);
 	FD_SET(s, &fdset);
+	FD_SET(rtsock, &fdset);
 	while (1) {		/* main loop */
 		int e;
 		struct fd_set select_fd = fdset;
@@ -289,8 +297,8 @@ main(argc, argv)
 			if (ifi == NULL)
 				break;
 		}
-
-		if ((e = select(s + 1, &select_fd, NULL, NULL, timeout)) < 1) {
+		e = select(maxfd + 1, &select_fd, NULL, NULL, timeout);
+		if (e < 1) {
 			if (e < 0 && errno != EINTR) {
 				warnmsg(LOG_ERR, __FUNCTION__, "select: %s",
 				       strerror(errno));
@@ -299,7 +307,9 @@ main(argc, argv)
 		}
 
 		/* packet reception */
-		if (FD_ISSET(s, &fdset))
+		if (FD_ISSET(rtsock, &select_fd))
+			rtsock_input(rtsock);
+		if (FD_ISSET(s, &select_fd))
 			rtsol_input(s);
 	}
 	/* NOTREACHED */
@@ -597,7 +607,18 @@ rtsol_timer_update(struct ifinfo *ifinfo)
 		ifinfo->timer.tv_usec = interval % MILLION;
 		break;
 	case IFS_PROBE:
-		ifinfo->timer.tv_sec = RTR_SOLICITATION_INTERVAL;
+		if (ifinfo->probes < MAX_RTR_SOLICITATIONS)
+			ifinfo->timer.tv_sec = RTR_SOLICITATION_INTERVAL;
+		else {
+			/*
+			 * After sending MAX_RTR_SOLICITATIONS solicitations,
+			 * we're just waiting for possible replies; there
+			 * will be no more solicatation.  Thus, we change
+			 * the timer value to MAX_RTR_SOLICITATION_DELAY based
+			 * on RFC 2461, Section 6.3.7.
+			 */
+			ifinfo->timer.tv_sec = MAX_RTR_SOLICITATION_DELAY;
+		}
 		break;
 	default:
 		warnmsg(LOG_ERR, __FUNCTION__,

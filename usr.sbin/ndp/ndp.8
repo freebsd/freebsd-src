@@ -1,5 +1,5 @@
 .\"	$FreeBSD$
-.\"	$KAME: ndp.8,v 1.12 2000/06/20 21:50:17 itojun Exp $
+.\"	$KAME: ndp.8,v 1.15 2001/02/08 07:17:03 itojun Exp $
 .\"
 .\" Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
 .\" All rights reserved.
@@ -30,7 +30,7 @@
 .\"
 .Dd May 17, 1998
 .Dt NDP 8
-.Os KAME
+.Os
 .\"
 .Sh NAME
 .Nm ndp
@@ -39,10 +39,10 @@
 .Sh SYNOPSIS
 .Nm
 .Fl a
-.Op Fl ntl
+.Op Fl nt
 .Nm
 .Fl A Ar wait
-.Op Fl ntl
+.Op Fl nt
 .Nm
 .Fl c
 .Op Fl nt
@@ -106,7 +106,8 @@ Harmonize consistency between the routing table and the default router
 list; install the top entry of the list into the kernel routing table.
 .It Fl I Op Cm delete | Ar interface
 Shows or specifies the default interface used as the default route when
-there is no default router. If no argument is given to the option,
+there is no default router.
+If no argument is given to the option,
 the current default interface will be shown.
 If an
 .Ar interface
@@ -121,7 +122,8 @@ If additional arguments
 are given,
 .Nm
 sets or clears the specified flags for the interface.
-Possible flags are as follows. All of the flags can begin with the
+Possible flags are as follows.
+All of the flags can begin with the
 special character
 .Ql - ,
 which means the flag should be cleared.
@@ -131,10 +133,9 @@ which means the flag should be cleared.
 .Ic nud
 .Xc
 turn on or off NUD (Neighbor Unreachability Detection) on the
-interface. NUD is usually turned on by default.
+interface.
+NUD is usually turned on by default.
 .El
-.It Fl l
-Do not truncate numeric IPv6 address.
 .It Fl n
 Do not try to resolve numeric address to hostname.
 .It Fl p
@@ -146,7 +147,7 @@ Show default router list.
 .It Fl R
 Flush all the entries in the default router list.
 .It Fl s
-Register a NDP entry for a node.
+Register an NDP entry for a node.
 The entry will be permanent unless the word
 .Li temp
 is given in the command.

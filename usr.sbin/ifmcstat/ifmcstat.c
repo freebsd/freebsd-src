@@ -39,6 +39,8 @@
 
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/queue.h>
+
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/if_types.h>
@@ -234,6 +236,10 @@ if6_addrlist(ifap)
 		KREAD(ifap0, &ifa, struct ifaddr);
 
 		nam = strdup(ifname(ifa.ifa_ifp));
+		if (!nam) {
+			fprintf(stderr, "ifmcstat: not enough core\n");
+			exit(1);
+		}
 
 		for (mkp = in6_mk.lh_first; mkp; mkp = mk.mk_entry.le_next) {
 			KREAD(mkp, &mk, struct multi6_kludge);

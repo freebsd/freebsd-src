@@ -72,11 +72,7 @@ static const char rcsid[] =
 #include <string.h>
 #include <sysexits.h>
 #include <unistd.h>
-
-/* wrapper for KAME-special getnameinfo() */
-#ifndef NI_WITHSCOPEID
-#define	NI_WITHSCOPEID	0
-#endif
+#include <ifaddrs.h>
 
 struct keytab {
 	char	*kt_cp;
@@ -98,6 +94,7 @@ union	sockunion {
 	struct	sockaddr_ns sns;
 #endif
 	struct	sockaddr_dl sdl;
+	struct	sockaddr_storage ss; /* added to avoid memory overrun */
 } so_dst, so_gate, so_mask, so_genmask, so_ifa, so_ifp;
 
 typedef union sockunion *sup;
@@ -110,10 +107,7 @@ struct	rt_metrics rt_metrics;
 u_long  rtm_inits;
 int	atalk_aton __P((const char *, struct at_addr *));
 char	*atalk_ntoa __P((struct at_addr));
-#ifdef INET6
-char	*inet6_ntoa __P((struct sockaddr *sa));
-#endif
-char	*routename(), *netname();
+const char	*routename(), *netname();
 void	flushroutes(), newroute(), monitor(), sockaddr(), sodump(), bprintf();
 void	print_getmsg(), print_rtmsg(), pmsg_common(), pmsg_addrs(), mask_addr();
 int	getaddr(), rtmsg(), x25_makemask();
@@ -121,10 +115,6 @@ int	prefixlen();
 extern	char *iso_ntoa();
 
 void usage __P((const char *)) __dead2;
-
-#ifdef INET6
-char name_buf[MAXHOSTNAMELEN * 2 + 1];	/*for getnameinfo()*/
-#endif
 
 void
 usage(cp)
@@ -304,14 +294,14 @@ bad:			usage(*argv);
 			struct sockaddr *sa = (struct sockaddr *)(rtm + 1);
 			(void) printf("%-20.20s ", rtm->rtm_flags & RTF_HOST ?
 			    routename(sa) : netname(sa));
-			sa = (struct sockaddr *)(sa->sa_len + (char *)sa);
+			sa = (struct sockaddr *)(ROUNDUP(sa->sa_len) + (char *)sa);
 			(void) printf("%-20.20s ", routename(sa));
 			(void) printf("done\n");
 		}
 	}
 }
 
-char *
+const char *
 routename(sa)
 	struct sockaddr *sa;
 {
@@ -370,8 +360,36 @@ routename(sa)
 
 #ifdef INET6
 	case AF_INET6:
-		(void) snprintf(line, sizeof(line), "%s", inet6_ntoa(sa));
-		break;
+	{
+		struct sockaddr_in6 sin6; /* use static var for safety */
+		int niflags = 0;
+#ifdef NI_WITHSCOPEID
+		niflags = NI_WITHSCOPEID;
+#endif
+
+		memset(&sin6, 0, sizeof(sin6));
+		memcpy(&sin6, sa, sa->sa_len);
+		sin6.sin6_len = sizeof(struct sockaddr_in6);
+		sin6.sin6_family = AF_INET6;
+#ifdef __KAME__
+		if (sa->sa_len == sizeof(struct sockaddr_in6) &&
+		    (IN6_IS_ADDR_LINKLOCAL(&sin6.sin6_addr) ||
+		     IN6_IS_ADDR_MC_LINKLOCAL(&sin6.sin6_addr)) &&
+		    sin6.sin6_scope_id == 0) {
+			sin6.sin6_scope_id =
+			    ntohs(*(u_int16_t *)&sin6.sin6_addr.s6_addr[2]);
+			sin6.sin6_addr.s6_addr[2] = 0;
+			sin6.sin6_addr.s6_addr[3] = 0;
+		}
+#endif
+		if (nflag)
+			niflags |= NI_NUMERICHOST;
+		if (getnameinfo((struct sockaddr *)&sin6, sin6.sin6_len,
+		    line, sizeof(line), NULL, 0, niflags) != 0)
+			strncpy(line, "invalid", sizeof(line));
+
+		return(line);
+	}
 #endif
 
 	case AF_APPLETALK:
@@ -405,7 +423,7 @@ routename(sa)
  * Return the name of the network whose address is given.
  * The address is assumed to be that of a net or subnet, not a host.
  */
-char *
+const char *
 netname(sa)
 	struct sockaddr *sa;
 {
@@ -473,8 +491,36 @@ netname(sa)
 
 #ifdef INET6
 	case AF_INET6:
-		(void) snprintf(line, sizeof(line), "%s", inet6_ntoa(sa));
-		break;
+	{
+		struct sockaddr_in6 sin6; /* use static var for safety */
+		int niflags = 0;
+#ifdef NI_WITHSCOPEID
+		niflags = NI_WITHSCOPEID;
+#endif
+
+		memset(&sin6, 0, sizeof(sin6));
+		memcpy(&sin6, sa, sa->sa_len);
+		sin6.sin6_len = sizeof(struct sockaddr_in6);
+		sin6.sin6_family = AF_INET6;
+#ifdef __KAME__
+		if (sa->sa_len == sizeof(struct sockaddr_in6) &&
+		    (IN6_IS_ADDR_LINKLOCAL(&sin6.sin6_addr) ||
+		     IN6_IS_ADDR_MC_LINKLOCAL(&sin6.sin6_addr)) &&
+		    sin6.sin6_scope_id == 0) {
+			sin6.sin6_scope_id =
+			    ntohs(*(u_int16_t *)&sin6.sin6_addr.s6_addr[2]);
+			sin6.sin6_addr.s6_addr[2] = 0;
+			sin6.sin6_addr.s6_addr[3] = 0;
+		}
+#endif
+		if (nflag)
+			niflags |= NI_NUMERICHOST;
+		if (getnameinfo((struct sockaddr *)&sin6, sin6.sin6_len,
+		    line, sizeof(line), NULL, 0, niflags) != 0)
+			strncpy(line, "invalid", sizeof(line));
+
+		return(line);
+	}
 #endif
 
 	case AF_APPLETALK:
@@ -827,47 +873,34 @@ getaddr(which, s, hpp)
 	case RTA_GATEWAY:
 		su = &so_gate;
 		if (iflag) {
-			#define MAX_IFACES	400
-			int			sock;
-			struct ifreq		iflist[MAX_IFACES];
-			struct ifconf		ifconf;
-			struct ifreq		*ifr, *ifr_end;
-			struct sockaddr_dl	*dl, *sdl = NULL;
+			struct ifaddrs *ifap, *ifa;
+			struct sockaddr_dl *sdl = NULL;
 
-			/* Get socket */
-			if ((sock = socket(PF_INET, SOCK_DGRAM, 0)) < 0)
-				err(1, "socket");
+			if (getifaddrs(&ifap))
+				err(1, "getifaddrs");
 
-			/* Get interface list */
-			ifconf.ifc_req = iflist;
-			ifconf.ifc_len = sizeof(iflist);
-			if (ioctl(sock, SIOCGIFCONF, &ifconf) < 0)
-				err(1, "ioctl(SIOCGIFCONF)");
-			close(sock);
+			for (ifa = ifap; ifa; ifa = ifa->ifa_next) {
+				if (ifa->ifa_addr->sa_family != AF_LINK)
+					continue;
 
-			/* Look for this interface in the list */
-			for (ifr = ifconf.ifc_req,
-			    ifr_end = (struct ifreq *)
-				(ifconf.ifc_buf + ifconf.ifc_len);
-			    ifr < ifr_end;
-			    ifr = (struct ifreq *) ((char *) &ifr->ifr_addr
-				    + MAX(ifr->ifr_addr.sa_len,
-					sizeof(ifr->ifr_addr)))) {
-				dl = (struct sockaddr_dl *)&ifr->ifr_addr;
-				if (ifr->ifr_addr.sa_family == AF_LINK
-				    && (ifr->ifr_flags & IFF_POINTOPOINT)
-				    && !strncmp(s, dl->sdl_data, dl->sdl_nlen)
-				    && s[dl->sdl_nlen] == 0) {
-					sdl = dl;
-					break;
-				}
+				if (strcmp(s, ifa->ifa_name))
+					continue;
+
+				sdl = (struct sockaddr_dl *)ifa->ifa_addr;
 			}
-
 			/* If we found it, then use it */
 			if (sdl) {
-				su->sdl = *sdl;
-				return(1);
+				/*
+				 * Copy is safe since we have a
+				 * sockaddr_storage member in sockunion{}.
+				 * Note that we need to copy before calling
+				 * freeifaddrs().
+				 */
+				memcpy(&su->sdl, sdl, sdl->sdl_len);
 			}
+			freeifaddrs(ifap);
+			if (sdl)
+				return(1);
 		}
 		break;
 	case RTA_NETMASK:
@@ -908,31 +941,33 @@ getaddr(which, s, hpp)
 	switch (afamily) {
 #ifdef INET6
 	case AF_INET6:
-	  {
+	{
 		struct addrinfo hints, *res;
-		int error;
 
-		bzero(&hints, sizeof(struct addrinfo));
-		hints.ai_family = AF_INET6;
-
-		error = getaddrinfo(s, NULL, &hints, &res);
-		if (error != 0) {
-			(void) fprintf(stderr, "%s: bad value\n",
-				       gai_strerror(error));
-			if (error == EAI_SYSTEM)
-				(void) fprintf(stderr, "%s\n",
-					       strerror(errno));
+		memset(&hints, 0, sizeof(hints));
+		hints.ai_family = afamily;	/*AF_INET6*/
+		hints.ai_flags = AI_NUMERICHOST;
+		hints.ai_socktype = SOCK_DGRAM;		/*dummy*/
+		if (getaddrinfo(s, "0", &hints, &res) != 0 ||
+		    res->ai_family != AF_INET6 ||
+		    res->ai_addrlen != sizeof(su->sin6)) {
+			(void) fprintf(stderr, "%s: bad value\n", s);
 			exit(1);
 		}
-		bcopy(res->ai_addr, &su->sa, res->ai_addrlen);
-		/* XXX: embedded link local addr check */
-		if (IN6_IS_ADDR_LINKLOCAL(&su->sin6.sin6_addr))
-			*(u_short *)&su->sin6.sin6_addr.s6_addr[2] =
-				ntohs(su->sin6.sin6_scope_id);
-		su->sin6.sin6_scope_id = 0;
-		return 0;
-	  }
+		memcpy(&su->sin6, res->ai_addr, sizeof(su->sin6));
+#ifdef __KAME__
+		if ((IN6_IS_ADDR_LINKLOCAL(&su->sin6.sin6_addr) ||
+		     IN6_IS_ADDR_LINKLOCAL(&su->sin6.sin6_addr)) &&
+		    su->sin6.sin6_scope_id) {
+			*(u_int16_t *)&su->sin6.sin6_addr.s6_addr[2] =
+				htons(su->sin6.sin6_scope_id);
+			su->sin6.sin6_scope_id = 0;
+		}
 #endif
+		freeaddrinfo(res);
+		return (0);
+	}
+#endif /* INET6 */
 
 #ifdef NS
 	case AF_NS:
@@ -1624,45 +1659,3 @@ atalk_ntoa(struct at_addr at)
 	(void) snprintf(buf, sizeof(buf), "%u.%u", ntohs(at.s_net), at.s_node);
 	return(buf);
 }
-
-#ifdef INET6
-char *
-inet6_ntoa(struct sockaddr *sa)
-{
-	char *cp;
-	struct sockaddr_in6 *sin6;
-	int error = -1, gap;
-
-	cp = NULL;
-	sin6 = (struct sockaddr_in6 *)sa;
-	gap = sizeof(struct sockaddr_in6) - sin6->sin6_len;
-	if (gap > 0)
-		bzero((char *)(sin6) + sin6->sin6_len, gap);
-
-	/* XXX: embedded link local addr check */
-	if (IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr) &&
-	    *(u_short *)&sin6->sin6_addr.s6_addr[2] != 0) {
-		u_short index;
-
-		index = *(u_short *)&sin6->sin6_addr.s6_addr[2];
-		*(u_short *)&sin6->sin6_addr.s6_addr[2] = 0;
-		if (sin6->sin6_scope_id == 0)
-			sin6->sin6_scope_id = ntohs(index);
-	}
-
-	if (IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr) || sa->sa_len < 4)
-		cp = "default";
-	if (cp == 0 && !nflag)
-		error = getnameinfo(sa, sa->sa_len, name_buf, sizeof(name_buf),
-				    NULL, 0, NI_NAMEREQD);
-	if (error != 0)
-		error = getnameinfo(sa, sa->sa_len, name_buf,
-				    sizeof(name_buf), NULL, 0,
-				    NI_NUMERICHOST|NI_WITHSCOPEID);
-	if (error != 0)
-		inet_ntop(AF_INET6, &sin6->sin6_addr, name_buf,
-			  sizeof(name_buf));
-
-	return (cp != NULL) ? cp : name_buf;
-}
-#endif

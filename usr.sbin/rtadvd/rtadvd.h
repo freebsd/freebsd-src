@@ -1,4 +1,4 @@
-/*	$KAME: rtadvd.h,v 1.8 2000/05/16 13:34:14 itojun Exp $	*/
+/*	$KAME: rtadvd.h,v 1.16 2001/04/10 15:08:31 suz Exp $	*/
 
 /*
  * Copyright (C) 1998 WIDE Project.
@@ -32,7 +32,8 @@
  */
 
 #define ALLNODES "ff02::1"
-#define ALLROUTERS "ff02::2"
+#define ALLROUTERS_LINK "ff02::2"
+#define ALLROUTERS_SITE "ff05::2"
 #define ANY "::"
 #define RTSOLLEN 8
 
@@ -75,7 +76,9 @@ struct prefix {
 	struct prefix *prev;	/* previous link */
 
 	u_int32_t validlifetime; /* AdvValidLifetime */
+	long	vltimeexpire;	/* expiration of vltime; decrement case only */
 	u_int32_t preflifetime;	/* AdvPreferredLifetime */
+	long	pltimeexpire;	/* expiration of pltime; decrement case only */
 	u_int onlinkflg;	/* bool: AdvOnLinkFlag */
 	u_int autoconfflg;	/* bool: AdvAutonomousFlag */
 #ifdef MIP6
@@ -83,6 +86,16 @@ struct prefix {
 #endif
 	int prefixlen;
 	int origin;		/* from kernel or cofig */
+	struct in6_addr prefix;
+};
+
+struct rtinfo {
+	struct rtinfo *prev;	/* previous link */
+	struct rtinfo *next;	/* forward link */
+
+	u_int32_t ltime;	/* route lifetime */
+	u_int rtpref;		/* router preference */
+	int prefixlen;
 	struct in6_addr prefix;
 };
 
@@ -117,17 +130,21 @@ struct	rainfo {
 #ifdef MIP6
 	int	haflg;		/* HAFlag */
 #endif
+	int	rtpref;		/* router preference */
 	u_int32_t linkmtu;	/* AdvLinkMTU */
 	u_int32_t reachabletime; /* AdvReachableTime */
 	u_int32_t retranstimer;	/* AdvRetransTimer */
 	u_int	hoplimit;	/* AdvCurHopLimit */
 	struct prefix prefix;	/* AdvPrefixList(link head) */
 	int	pfxs;		/* number of prefixes */
+	long	clockskew;	/* used for consisitency check of lifetimes */
 
 #ifdef MIP6
 	u_short	hapref;		/* Home Agent Preference */
 	u_short	hatime;		/* Home Agent Lifetime */
 #endif
+	struct rtinfo route;	/* route information option (link head) */
+	int	routes;		/* number of route information options */
 
 	/* actual RA packet data and its length */
 	size_t ra_datalen;
@@ -146,6 +163,10 @@ struct	rainfo {
 void ra_timeout __P((void *));
 void ra_timer_update __P((void *, struct timeval *));
 
+int prefix_match __P((struct in6_addr *, int, struct in6_addr *, int));
+struct rainfo *if_indextorainfo __P((int));
+
+extern struct in6_addr in6a_site_allrouters;
 #ifdef MIP6
 extern int mobileip6;
 #endif

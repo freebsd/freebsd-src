@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: ipsec.h,v 1.33 2000/06/19 14:31:49 sakane Exp $	*/
+/*	$KAME: ipsec.h,v 1.44 2001/03/23 08:08:47 itojun Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -48,6 +48,7 @@ extern int ip6_esp_net_deflev;
 extern int ip6_ah_trans_deflev;
 extern int ip6_ah_net_deflev;
 extern int ip6_ipsec_ecn;
+extern int ip6_esp_randpad;
 
 extern struct secpolicy *ipsec6_getpolicybysock
 	__P((struct mbuf *, u_int, struct socket *, int *));
@@ -64,6 +65,8 @@ extern int ipsec6_get_policy
 	__P((struct inpcb *inp, caddr_t request, size_t len, struct mbuf **mp));
 extern int ipsec6_in_reject __P((struct mbuf *, struct inpcb *));
 
+struct tcp6cb;
+
 extern size_t ipsec6_hdrsiz __P((struct mbuf *, u_int, struct inpcb *));
 
 struct ip6_hdr;
@@ -73,7 +76,7 @@ extern int ipsec6_output_trans __P((struct ipsec_output_state *, u_char *,
 	struct mbuf *, struct secpolicy *, int, int *));
 extern int ipsec6_output_tunnel __P((struct ipsec_output_state *,
 	struct secpolicy *, int));
-extern int ipsec6_tunnel_validate __P((struct ip6_hdr *, u_int,
+extern int ipsec6_tunnel_validate __P((struct mbuf *, int, u_int,
 	struct secasvar *));
 #endif /*_KERNEL*/
 

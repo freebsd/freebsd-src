@@ -1,4 +1,4 @@
-/*	$KAME: timer.c,v 1.3 2000/05/22 22:23:07 itojun Exp $	*/
+/*	$KAME: timer.c,v 1.4 2000/05/27 11:30:43 jinmei Exp $	*/
 
 /*
  * Copyright (C) 1998 WIDE Project.

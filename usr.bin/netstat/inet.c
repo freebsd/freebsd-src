@@ -552,6 +552,7 @@ ip_stats(off, name)
 	p(ips_ofragments, "\t%lu fragment%s created\n");
 	p(ips_cantfrag, "\t%lu datagram%s that can't be fragmented\n");
 	p(ips_nogif, "\t%lu tunneling packet%s that can't find gif\n");
+	p(ips_badaddr, "\t%lu datagram%s with bad address in header\n");
 #undef p
 #undef p1a
 }

@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: in6_proto.c,v 1.64 2000/06/20 16:20:27 itojun Exp $	*/
+/*	$KAME: in6_proto.c,v 1.91 2001/05/27 13:28:35 itojun Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -99,25 +99,31 @@
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
 #include <netinet6/tcp6_var.h>
-
+#include <netinet6/raw_ip6.h>
 #include <netinet6/udp6_var.h>
-
 #include <netinet6/pim6_var.h>
-
 #include <netinet6/nd6.h>
 #include <netinet6/in6_prefix.h>
 
 #ifdef IPSEC
 #include <netinet6/ipsec.h>
+#ifdef INET6
 #include <netinet6/ipsec6.h>
+#endif
 #include <netinet6/ah.h>
+#ifdef INET6
 #include <netinet6/ah6.h>
+#endif
 #ifdef IPSEC_ESP
 #include <netinet6/esp.h>
+#ifdef INET6
 #include <netinet6/esp6.h>
 #endif
+#endif
 #include <netinet6/ipcomp.h>
+#ifdef INET6
 #include <netinet6/ipcomp6.h>
+#endif
 #endif /*IPSEC*/
 
 #include <netinet6/ip6protosw.h>
@@ -136,6 +142,9 @@
 extern	struct domain inet6domain;
 static struct pr_usrreqs nousrreqs;
 
+#define PR_LISTEN	0
+#define PR_ABRTACPTDIS	0
+
 struct ip6protosw inet6sw[] = {
 { 0,		&inet6domain,	IPPROTO_IPV6,	0,
   0,		0,		0,		0,
@@ -143,30 +152,30 @@ struct ip6protosw inet6sw[] = {
   ip6_init,	0,		frag6_slowtimo,	frag6_drain,
   &nousrreqs,
 },
-{ SOCK_DGRAM,	&inet6domain,	IPPROTO_UDP,	PR_ATOMIC | PR_ADDR,
+{ SOCK_DGRAM,	&inet6domain,	IPPROTO_UDP,	PR_ATOMIC|PR_ADDR,
   udp6_input,	0,		udp6_ctlinput,	ip6_ctloutput,
   0,
   0,		0,		0,		0,
   &udp6_usrreqs,
 },
-{ SOCK_STREAM,	&inet6domain,	IPPROTO_TCP,	PR_CONNREQUIRED | PR_WANTRCVD,
+{ SOCK_STREAM,	&inet6domain,	IPPROTO_TCP,	PR_CONNREQUIRED|PR_WANTRCVD|PR_LISTEN,
   tcp6_input,	0,		tcp6_ctlinput,	tcp_ctloutput,
   0,
-#ifdef INET	/* don't call timeout routines twice */
-  tcp_init,	0,		0,		tcp_drain,
+#ifdef INET	/* don't call initialization and timeout routines twice */
+  0,		0,		0,		tcp_drain,
 #else
   tcp_init,	tcp_fasttimo,	tcp_slowtimo,	tcp_drain,
 #endif
   &tcp6_usrreqs,
 },
-{ SOCK_RAW,	&inet6domain,	IPPROTO_RAW,	PR_ATOMIC | PR_ADDR,
+{ SOCK_RAW,	&inet6domain,	IPPROTO_RAW,	PR_ATOMIC|PR_ADDR,
   rip6_input,	rip6_output,	rip6_ctlinput,	rip6_ctloutput,
   0,
   0,		0,		0,		0,
   &rip6_usrreqs
 },
-{ SOCK_RAW,	&inet6domain,	IPPROTO_ICMPV6,	PR_ATOMIC | PR_ADDR,
-  icmp6_input,	rip6_output,	0,		rip6_ctloutput,
+{ SOCK_RAW,	&inet6domain,	IPPROTO_ICMPV6,	PR_ATOMIC|PR_ADDR|PR_LASTHDR,
+  icmp6_input,	rip6_output,	rip6_ctlinput,	rip6_ctloutput,
   0,
   icmp6_init,	icmp6_fasttimo,	0,		0,
   &rip6_usrreqs
@@ -191,15 +200,17 @@ struct ip6protosw inet6sw[] = {
 },
 #ifdef IPSEC
 { SOCK_RAW,	&inet6domain,	IPPROTO_AH,	PR_ATOMIC|PR_ADDR,
-  ah6_input,	0,	 	0,		0,
+  ah6_input,	0,		0,		0,
   0,	
   0,		0,		0,		0,
   &nousrreqs,
 },
 #ifdef IPSEC_ESP
 { SOCK_RAW,	&inet6domain,	IPPROTO_ESP,	PR_ATOMIC|PR_ADDR,
-  esp6_input,	0,	 	0,		0,
-  0,	
+  esp6_input,	0,
+  esp6_ctlinput,
+  0,
+  0,
   0,		0,		0,		0,
   &nousrreqs,
 },
@@ -212,34 +223,30 @@ struct ip6protosw inet6sw[] = {
 },
 #endif /* IPSEC */
 #ifdef INET
-{ SOCK_RAW,	&inet6domain,	IPPROTO_IPV4,	PR_ATOMIC|PR_ADDR,
+{ SOCK_RAW,	&inet6domain,	IPPROTO_IPV4,	PR_ATOMIC|PR_ADDR|PR_LASTHDR,
   encap6_input,	rip6_output, 	0,		rip6_ctloutput,
   0,
-  0,		0,		0,		0,
+  encap_init,	0,		0,		0,
   &rip6_usrreqs
 },
 #endif /*INET*/
-{ SOCK_RAW,	&inet6domain,	IPPROTO_IPV6,	PR_ATOMIC|PR_ADDR,
-  encap6_input, rip6_output,	 0,	rip6_ctloutput,
+{ SOCK_RAW,	&inet6domain,	IPPROTO_IPV6,	PR_ATOMIC|PR_ADDR|PR_LASTHDR,
+  encap6_input, rip6_output,	0,		rip6_ctloutput,
   0,
-#ifndef INET
   encap_init,	0,		0,		0,
-#else
-  0,		0,		0,		0,
-#endif
   &rip6_usrreqs
 },
-{ SOCK_RAW,     &inet6domain,	IPPROTO_PIM,	PR_ATOMIC|PR_ADDR,
-  pim6_input,    rip6_output,	0,              rip6_ctloutput,
+{ SOCK_RAW,     &inet6domain,	IPPROTO_PIM,	PR_ATOMIC|PR_ADDR|PR_LASTHDR,
+  pim6_input,	rip6_output,	0,              rip6_ctloutput,
   0,
   0,            0,              0,              0,
   &rip6_usrreqs
 },
 /* raw wildcard */
-{ SOCK_RAW,	&inet6domain,	0,		PR_ATOMIC | PR_ADDR,
+{ SOCK_RAW,	&inet6domain,	0,		PR_ATOMIC|PR_ADDR,
   rip6_input,	rip6_output,	0,		rip6_ctloutput,
-  0, 0,
-  0,		0,		0,
+  0,
+  0,		0,		0,		0,
   &rip6_usrreqs
 },
 };
@@ -300,7 +307,7 @@ int	ip6_gif_hlim = 0;
 int	ip6_use_deprecated = 1;	/* allow deprecated addr (RFC2462 5.5.4) */
 int	ip6_rr_prune = 5;	/* router renumbering prefix
 				 * walk list every 5 sec.    */
-int	ip6_mapped_addr_on = 1;
+int	ip6_v6only = 0;
 
 u_int32_t ip6_id = 0UL;
 int	ip6_keepfaith = 0;
@@ -328,84 +335,8 @@ u_long	rip6_recvspace = RIPV6RCVQ;
 /* ICMPV6 parameters */
 int	icmp6_rediraccept = 1;		/* accept and process redirects */
 int	icmp6_redirtimeout = 10 * 60;	/* 10 minutes */
-struct timeval icmp6errratelim = { 0, 0 };	/* no ratelimit */
 int	icmp6errppslim = 100;		/* 100pps */
-int	icmp6_nodeinfo = 1;		/* enable/disable NI response */
-
-#ifdef TCP6
-/* TCP on IP6 parameters */
-int	tcp6_sendspace = 1024 * 8;
-int	tcp6_recvspace = 1024 * 8;
-int 	tcp6_mssdflt = TCP6_MSS;
-int 	tcp6_rttdflt = TCP6TV_SRTTDFLT / PR_SLOWHZ;
-int	tcp6_do_rfc1323 = 1;
-int	tcp6_conntimeo = TCP6TV_KEEP_INIT;	/* initial connection timeout */
-int	tcp6_43maxseg = 0;
-int	tcp6_pmtu = 0;
-
-/*
- * Parameters for keepalive option.
- * Connections for which SO_KEEPALIVE is set will be probed
- * after being idle for a time of tcp6_keepidle (in units of PR_SLOWHZ).
- * Starting at that time, the connection is probed at intervals
- * of tcp6_keepintvl (same units) until a response is received
- * or until tcp6_keepcnt probes have been made, at which time
- * the connection is dropped.  Note that a tcp6_keepidle value
- * under 2 hours is nonconformant with RFC-1122, Internet Host Requirements.
- */
-int	tcp6_keepidle = TCP6TV_KEEP_IDLE;	/* time before probing idle */
-int	tcp6_keepintvl = TCP6TV_KEEPINTVL;	/* interval betwn idle probes */
-int	tcp6_keepcnt = TCP6TV_KEEPCNT;		/* max idle probes */
-int	tcp6_maxpersistidle = TCP6TV_KEEP_IDLE;	/* max idle time in persist */
-
-#ifndef INET_SERVER
-#define	TCP6_LISTEN_HASH_SIZE	17
-#define	TCP6_CONN_HASH_SIZE	97
-#define	TCP6_SYN_HASH_SIZE	293
-#define	TCP6_SYN_BUCKET_SIZE	35
-#else
-#define	TCP6_LISTEN_HASH_SIZE	97
-#define	TCP6_CONN_HASH_SIZE	9973
-#define	TCP6_SYN_HASH_SIZE	997
-#define	TCP6_SYN_BUCKET_SIZE	35
-#endif
-int	tcp6_listen_hash_size = TCP6_LISTEN_HASH_SIZE;
-int	tcp6_conn_hash_size = TCP6_CONN_HASH_SIZE;
-struct	tcp6_hash_list tcp6_listen_hash[TCP6_LISTEN_HASH_SIZE],
-	tcp6_conn_hash[TCP6_CONN_HASH_SIZE];
-
-int	tcp6_syn_cache_size = TCP6_SYN_HASH_SIZE;
-int	tcp6_syn_cache_limit = TCP6_SYN_HASH_SIZE*TCP6_SYN_BUCKET_SIZE;
-int	tcp6_syn_bucket_limit = 3*TCP6_SYN_BUCKET_SIZE;
-struct	syn_cache_head6 tcp6_syn_cache[TCP6_SYN_HASH_SIZE];
-struct	syn_cache_head6 *tcp6_syn_cache_first;
-int	tcp6_syn_cache_interval = 8;	/* runs timer every 4 seconds */
-int	tcp6_syn_cache_timeo = TCP6TV_KEEP_INIT;
-
-/*
- * Parameters for computing a desirable data segment size
- * given an upper bound (either interface MTU, or peer's MSS option)_.
- * As applications tend to use a buffer size that is a multiple
- * of kilobytes, try for something that divides evenly. However,
- * do not round down too much.
- *
- * Round segment size down to a multiple of TCP6_ROUNDSIZE if this
- * does not result in lowering by more than (size/TCP6_ROUNDFRAC).
- * For example, round 536 to 512.  Older versions of the system
- * effectively used MCLBYTES (1K or 2K) as TCP6_ROUNDSIZE, with
- * a value of 1 for TCP6_ROUNDFRAC (eliminating its effect).
- * We round to a multiple of 256 for SLIP.
- */
-#ifndef	TCP6_ROUNDSIZE
-#define	TCP6_ROUNDSIZE	256	/* round to multiple of 256 */
-#endif
-#ifndef	TCP6_ROUNDFRAC
-#define	TCP6_ROUNDFRAC	10	/* round down at most N/10, or 10% */
-#endif
-
-int	tcp6_roundsize = TCP6_ROUNDSIZE;
-int	tcp6_roundfrac = TCP6_ROUNDFRAC;
-#endif /*TCP6*/
+int	icmp6_nodeinfo = 3;		/* enable/disable NI response */
 
 /* UDP on IP6 parameters */
 int	udp6_sendspace = 9216;		/* really max datagram size */
@@ -429,76 +360,44 @@ SYSCTL_NODE(_net_inet6,	IPPROTO_ESP,	ipsec6,	CTLFLAG_RW, 0,	"IPSEC6");
 
 /* net.inet6.ip6 */
 static int
-sysctl_ip6_forwarding(SYSCTL_HANDLER_ARGS)
+sysctl_ip6_temppltime(SYSCTL_HANDLER_ARGS)
 {
 	int error = 0;
-	int old_ip6_forwarding;
-	int changed;
+	int old;
 
 	error = SYSCTL_OUT(req, arg1, sizeof(int));
 	if (error || !req->newptr)
 		return (error);
-	old_ip6_forwarding = ip6_forwarding;
+	old = ip6_temp_preferred_lifetime;
 	error = SYSCTL_IN(req, arg1, sizeof(int));
-	if (error != 0)
-		return (error);
-	changed = (ip6_forwarding ? 1 : 0) ^ (old_ip6_forwarding ? 1 : 0);
-	if (changed == 0)
-		return (error);
-	/*
-	 * XXX while host->router removes prefix got from RA,
-	 * router->host case nukes all the prefixes managed by in6_prefix.c
-	 * (both RR and static).  therefore, switching from host->router->host
-	 * will remove statically configured addresses/prefixes.
-	 * not sure if it is intended behavior or not.
-	 */
-	if (ip6_forwarding != 0) {	/* host becomes router */
-		int s = splnet();
-		struct nd_prefix *pr, *next;
-
-		for (pr = nd_prefix.lh_first; pr; pr = next) {
-			next = pr->ndpr_next;
-			if (!IN6_IS_ADDR_UNSPECIFIED(&pr->ndpr_addr))
-				in6_ifdel(pr->ndpr_ifp, &pr->ndpr_addr);
-			prelist_remove(pr);
-		}
-		splx(s);
-	} else {			/* router becomes host */
-		while(!LIST_EMPTY(&rr_prefix))
-			delete_each_prefix(LIST_FIRST(&rr_prefix),
-					   PR_ORIG_KERNEL);
+	if (ip6_temp_preferred_lifetime <
+	    ip6_desync_factor + ip6_temp_regen_advance) {
+		ip6_temp_preferred_lifetime = old;
+		return(EINVAL);
 	}
-
-	return (error);
+	return(error);
 }
 
 static int
-sysctl_icmp6_ratelimit(SYSCTL_HANDLER_ARGS)
+sysctl_ip6_tempvltime(SYSCTL_HANDLER_ARGS)
 {
-	int rate_usec, error, s;
+	int error = 0;
+	int old;
 
-	/*
-	 * The sysctl specifies the rate in usec-between-icmp,
-	 * so we must convert from/to a timeval.
-	 */
-	rate_usec = (icmp6errratelim.tv_sec * 1000000) +
-	    icmp6errratelim.tv_usec;
-	error = sysctl_handle_int(oidp, &rate_usec, 0, req);
-	if (error)
+	error = SYSCTL_OUT(req, arg1, sizeof(int));
+	if (error || !req->newptr)
 		return (error);
-	if (rate_usec < 0)
-		return (EINVAL);
-	s = splnet();
-	icmp6errratelim.tv_sec = rate_usec / 1000000;
-	icmp6errratelim.tv_usec = rate_usec % 1000000;
-	splx(s);
-
-	return (0);
+	old = ip6_temp_valid_lifetime;
+	error = SYSCTL_IN(req, arg1, sizeof(int));
+	if (ip6_temp_valid_lifetime < ip6_temp_preferred_lifetime) {
+		ip6_temp_preferred_lifetime = old;
+		return(EINVAL);
+	}
+	return(error);
 }
 
-SYSCTL_OID(_net_inet6_ip6, IPV6CTL_FORWARDING, forwarding,
-	   CTLTYPE_INT|CTLFLAG_RW, &ip6_forwarding, 0, sysctl_ip6_forwarding,
-	   "I", "");
+SYSCTL_INT(_net_inet6_ip6, IPV6CTL_FORWARDING,
+	forwarding, CTLFLAG_RW, 	&ip6_forwarding,	0, "");
 SYSCTL_INT(_net_inet6_ip6, IPV6CTL_SENDREDIRECTS,
 	redirect, CTLFLAG_RW,		&ip6_sendredirects,	0, "");
 SYSCTL_INT(_net_inet6_ip6, IPV6CTL_DEFHLIM,
@@ -527,8 +426,20 @@ SYSCTL_INT(_net_inet6_ip6, IPV6CTL_USE_DEPRECATED,
 	use_deprecated, CTLFLAG_RW,	&ip6_use_deprecated,	0, "");
 SYSCTL_INT(_net_inet6_ip6, IPV6CTL_RR_PRUNE,
 	rr_prune, CTLFLAG_RW,	&ip6_rr_prune,			0, "");
-SYSCTL_INT(_net_inet6_ip6, IPV6CTL_MAPPED_ADDR,
-	mapped_addr, CTLFLAG_RW,	&ip6_mapped_addr_on,	0, "");
+SYSCTL_INT(_net_inet6_ip6, IPV6CTL_USETEMPADDR,
+	use_tempaddr, CTLFLAG_RW, &ip6_use_tempaddr,		0, "");
+SYSCTL_OID(_net_inet6_ip6, IPV6CTL_TEMPPLTIME, temppltime,
+	   CTLTYPE_INT|CTLFLAG_RW, &ip6_temp_preferred_lifetime, 0,
+	   sysctl_ip6_temppltime, "I", "");
+SYSCTL_OID(_net_inet6_ip6, IPV6CTL_TEMPVLTIME, tempvltime,
+	   CTLTYPE_INT|CTLFLAG_RW, &ip6_temp_valid_lifetime, 0,
+	   sysctl_ip6_tempvltime, "I", "");
+SYSCTL_INT(_net_inet6_ip6, IPV6CTL_V6ONLY,
+	v6only,	CTLFLAG_RW,	&ip6_v6only,			0, "");
+SYSCTL_INT(_net_inet6_ip6, IPV6CTL_AUTO_LINKLOCAL,
+	auto_linklocal, CTLFLAG_RW, &ip6_auto_linklocal,	0, "");
+SYSCTL_STRUCT(_net_inet6_ip6, IPV6CTL_RIP6STATS, rip6stats, CTLFLAG_RD,
+	&rip6stat, rip6stat, "");
 
 /* net.inet6.icmp6 */
 SYSCTL_INT(_net_inet6_icmp6, ICMPV6CTL_REDIRACCEPT,
@@ -537,9 +448,6 @@ SYSCTL_INT(_net_inet6_icmp6, ICMPV6CTL_REDIRTIMEOUT,
 	redirtimeout, CTLFLAG_RW,	&icmp6_redirtimeout,	0, "");
 SYSCTL_STRUCT(_net_inet6_icmp6, ICMPV6CTL_STATS, stats, CTLFLAG_RD,
 	&icmp6stat, icmp6stat, "");
-SYSCTL_PROC(_net_inet6_icmp6, ICMPV6CTL_ERRRATELIMIT,
-	errratelimit, CTLTYPE_INT|CTLFLAG_RW,
-	0, sizeof(int), sysctl_icmp6_ratelimit, "I", "");
 SYSCTL_INT(_net_inet6_icmp6, ICMPV6CTL_ND6_PRUNE,
 	nd6_prune, CTLFLAG_RW,		&nd6_prune,	0, "");
 SYSCTL_INT(_net_inet6_icmp6, ICMPV6CTL_ND6_DELAY,
@@ -556,3 +464,5 @@ SYSCTL_INT(_net_inet6_icmp6, ICMPV6CTL_ERRPPSLIMIT,
 	errppslimit, CTLFLAG_RW,	&icmp6errppslim,	0, "");
 SYSCTL_INT(_net_inet6_icmp6, ICMPV6CTL_ND6_MAXNUDHINT,
 	nd6_maxnudhint, CTLFLAG_RW,	&nd6_maxnudhint, 0, "");
+SYSCTL_INT(_net_inet6_icmp6, ICMPV6CTL_ND6_DEBUG,
+	nd6_debug, CTLFLAG_RW,	&nd6_debug,		0, "");

@@ -1,4 +1,4 @@
-/*	$KAME: rrenum.c,v 1.3 2000/05/16 13:34:14 itojun Exp $	*/
+/*	$KAME: rrenum.c,v 1.10 2001/01/21 15:32:16 itojun Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -30,7 +30,7 @@
  *
  * $FreeBSD$
  */
-
+#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
@@ -51,6 +51,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <syslog.h>
+#include "rtadvd.h"
 #include "rrenum.h"
 #include "if.h"
 
@@ -139,13 +140,17 @@ rr_pco_check(int len, struct rr_pco_match *rpm)
 }
 
 static void
-do_use_prefix(int len, struct rr_pco_match *rpm, struct in6_rrenumreq *irr) {
+do_use_prefix(int len, struct rr_pco_match *rpm,
+	      struct in6_rrenumreq *irr, int ifindex)
+{
 	struct rr_pco_use *rpu, *rpulim;
+	struct rainfo *rai;
+	struct prefix *pp;
 
 	rpu = (struct rr_pco_use *)(rpm + 1);
 	rpulim = (struct rr_pco_use *)((char *)rpm + len);
 
-	if (rpu == rpulim) {
+	if (rpu == rpulim) {	/* no use prefix */
 		if (rpm->rpm_code == RPM_PCO_ADD)
 			return;
 
@@ -177,16 +182,16 @@ do_use_prefix(int len, struct rr_pco_match *rpm, struct in6_rrenumreq *irr) {
 			(rpu->rpu_ramask & ICMP6_RR_PCOUSE_RAFLAGS_ONLINK);
 		irr->irr_raf_mask_auto =
 			(rpu->rpu_ramask & ICMP6_RR_PCOUSE_RAFLAGS_AUTO);
-		irr->irr_vltime = rpu->rpu_vltime;
-		irr->irr_pltime = rpu->rpu_pltime;
+		irr->irr_vltime = ntohl(rpu->rpu_vltime);
+		irr->irr_pltime = ntohl(rpu->rpu_pltime);
 		irr->irr_raf_onlink =
-			(rpu->rpu_raflags & ICMP6_RR_PCOUSE_RAFLAGS_ONLINK);
+			(rpu->rpu_raflags & ICMP6_RR_PCOUSE_RAFLAGS_ONLINK) == 0 ? 0 : 1;
 		irr->irr_raf_auto =
-			(rpu->rpu_raflags & ICMP6_RR_PCOUSE_RAFLAGS_AUTO);
+			(rpu->rpu_raflags & ICMP6_RR_PCOUSE_RAFLAGS_AUTO) == 0 ? 0 : 1;
 		irr->irr_rrf_decrvalid =
-			(rpu->rpu_flags & ICMP6_RR_PCOUSE_FLAGS_DECRVLTIME);
+			(rpu->rpu_flags & ICMP6_RR_PCOUSE_FLAGS_DECRVLTIME) == 0 ? 0 : 1;
 		irr->irr_rrf_decrprefd =
-			(rpu->rpu_flags & ICMP6_RR_PCOUSE_FLAGS_DECRPLTIME);
+			(rpu->rpu_flags & ICMP6_RR_PCOUSE_FLAGS_DECRPLTIME) == 0 ? 0 : 1;
 		irr->irr_useprefix.sin6_len = sizeof(irr->irr_useprefix);
 		irr->irr_useprefix.sin6_family = AF_INET6;
 		irr->irr_useprefix.sin6_addr = rpu->rpu_prefix;
@@ -195,6 +200,40 @@ do_use_prefix(int len, struct rr_pco_match *rpm, struct in6_rrenumreq *irr) {
 		    errno != EADDRNOTAVAIL)
 			syslog(LOG_ERR, "<%s> ioctl: %s", __FUNCTION__,
 			       strerror(errno));
+
+		/* very adhoc: should be rewritten */
+		if (rpm->rpm_code == RPM_PCO_CHANGE &&
+		    IN6_ARE_ADDR_EQUAL(&rpm->rpm_prefix, &rpu->rpu_prefix) &&
+		    rpm->rpm_matchlen == rpu->rpu_uselen &&
+		    rpu->rpu_uselen == rpu->rpu_keeplen) {
+			if ((rai = if_indextorainfo(ifindex)) == NULL)
+				continue; /* non-advertising IF */
+
+			for (pp = rai->prefix.next; pp != &rai->prefix;
+			     pp = pp->next) {
+				struct timeval now;
+
+				if (prefix_match(&pp->prefix, pp->prefixlen,
+						 &rpm->rpm_prefix,
+						 rpm->rpm_matchlen)) {
+					/* change parameters */
+					pp->validlifetime = ntohl(rpu->rpu_vltime);
+					pp->preflifetime = ntohl(rpu->rpu_pltime);
+					if (irr->irr_rrf_decrvalid) {
+						gettimeofday(&now, 0);
+						pp->vltimeexpire =
+							now.tv_sec + pp->validlifetime;
+					} else
+						pp->vltimeexpire = 0;
+					if (irr->irr_rrf_decrprefd) {
+						gettimeofday(&now, 0);
+						pp->pltimeexpire =
+							now.tv_sec + pp->preflifetime;
+					} else
+						pp->pltimeexpire = 0;
+				}
+			}
+		}
 	}
 }
 
@@ -235,7 +274,7 @@ do_pco(struct icmp6_router_renum *rr, int len, struct rr_pco_match *rpm)
 		    (iflist[ifindex]->ifm_flags & IFF_UP) == 0)
 			continue;
 		/* TODO: interface scope check */
-		do_use_prefix(len, rpm, &irr);
+		do_use_prefix(len, rpm, &irr, ifindex);
 	}
 	if (errno == ENXIO)
 		return 0;
@@ -393,9 +432,40 @@ rr_input(int len, struct icmp6_router_renum *rr, struct in6_pktinfo *pi,
 	       inet_ntop(AF_INET6, &dst, ntopbuf[1], INET6_ADDRSTRLEN),
 	       if_indextoname(pi->ipi6_ifindex, ifnamebuf));
 
-	rr_rcvifindex = pi->ipi6_ifindex;
+	/* packet validation based on Section 4.1 of RFC2894 */
+	if (len < sizeof(struct icmp6_router_renum)) {
+		syslog(LOG_NOTICE,
+		       "<%s>: RR short message (size %d) from %s to %s on %s",
+		       __FUNCTION__, len,
+		       inet_ntop(AF_INET6, &from->sin6_addr,
+				 ntopbuf[0], INET6_ADDRSTRLEN),
+		       inet_ntop(AF_INET6, &dst, ntopbuf[1], INET6_ADDRSTRLEN),
+		       if_indextoname(pi->ipi6_ifindex, ifnamebuf));
+		return;
+	}
 
-	/* TODO: some consistency check. */
+	/*
+	 * If the IPv6 destination address is neither an All Routers multicast
+	 * address [AARCH] nor one of the receiving router's unicast addresses,
+	 * the message MUST be discarded and SHOULD be logged to network
+	 * management.
+	 * We rely on the kernel input routine for unicast addresses, and thus
+	 * check multicast destinations only.
+	 */
+	if (IN6_IS_ADDR_MULTICAST(&pi->ipi6_addr) &&
+	    !IN6_ARE_ADDR_EQUAL(&in6a_site_allrouters, &pi->ipi6_addr)) {
+		syslog(LOG_NOTICE,
+		       "<%s>: RR message with invalid destination (%s) "
+		       "from %s on %s",
+		       __FUNCTION__,
+		       inet_ntop(AF_INET6, &dst, ntopbuf[0], INET6_ADDRSTRLEN),
+		       inet_ntop(AF_INET6, &from->sin6_addr,
+				 ntopbuf[1], INET6_ADDRSTRLEN),
+		       if_indextoname(pi->ipi6_ifindex, ifnamebuf));
+		return;
+	}
+
+	rr_rcvifindex = pi->ipi6_ifindex;
 
 	switch (rr->rr_code) {
 	case ICMP6_ROUTER_RENUMBERING_COMMAND:

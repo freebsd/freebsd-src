@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: keydb.h,v 1.11 2000/06/15 12:20:50 sakane Exp $	*/
+/*	$KAME: keydb.h,v 1.14 2000/08/02 17:58:26 sakane Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -82,14 +82,11 @@ struct secasvar {
 	struct sadb_key *key_enc;	/* Key for Encryption */
 	caddr_t iv;			/* Initilization Vector */
 	u_int ivlen;			/* length of IV */
-#if 0
-	caddr_t misc1;
-	caddr_t misc2;
-	caddr_t misc3;
-#endif
+	void *sched;			/* intermediate encryption key */
+	size_t schedlen;
 
 	struct secreplay *replay;	/* replay prevention */
-	u_int32_t tick;			/* for lifetime */
+	long created;			/* for lifetime */
 
 	struct sadb_lifetime *lft_c;	/* CURRENT lifetime, it's constant. */
 	struct sadb_lifetime *lft_h;	/* HARD lifetime */
@@ -126,7 +123,7 @@ struct secacq {
 	struct secasindex saidx;
 
 	u_int32_t seq;		/* sequence number */
-	u_int32_t tick;		/* for lifetime */
+	long created;		/* for lifetime */
 	int count;		/* for lifetime */
 };
 #endif

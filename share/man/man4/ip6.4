@@ -1,6 +1,8 @@
+.\"	$KAME: ip6.4,v 1.14 2001/02/26 09:31:39 itojun Exp $
+.\"
 .\" Copyright (C) 1999 WIDE Project.
 .\" All rights reserved.
-.\" 
+.\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
 .\" are met:
@@ -12,7 +14,7 @@
 .\" 3. Neither the name of the project nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
-.\" 
+.\"
 .\" THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
 .\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 .\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -56,7 +58,6 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	KAME $Id: ip6.4,v 1.7 2000/01/06 06:00:30 itojun Exp $
 .\" $FreeBSD$
 .\"
 .Dd March 13, 2000
@@ -241,14 +242,14 @@ int range = IPV6_PORTRANGE_LOW;       /* see <netinet/in.h> */
 setsockopt(s, IPPROTO_IPV6, IPV6_PORTRANGE, &range, sizeof(range));
 .Ed
 .Pp
-.Dv IPV6_BINDV6ONLY
+.Dv IPV6_V6ONLY
 controls behavior of
 .Dv AF_INET6
 wildcard listening socket.
 The following example sets the option to 1:
 .Bd -literal -offset indent
 int on = 1;
-setsockopt(s, IPPROTO_IPV6, IPV6_BINDV6ONLY, &on, sizeof(on));
+setsockopt(s, IPPROTO_IPV6, IPV6_V6ONLY, &on, sizeof(on));
 .Ed
 .Pp
 If set to 1,
@@ -258,21 +259,20 @@ If set to 0, it will accept IPv4 traffic as well,
 as if it was from IPv4 mapped address like
 .Li ::ffff:10.1.1.1 .
 .\" RFC2553 defines the behavior when the variable is set to 0.
-Note that if you set this to 0,
-you need to care IPv4 access control also on the AF_INET6 socket.
+Note that if you set it this to 0,
+IPv4 access control gets much more complicated.
 For example, even if you have no listening
 .Dv AF_INET
 listening socket on port
 .Li X ,
-you will be accepting IPv4 traffic by
+you will end up accepting IPv4 traffic by
 .Dv AF_INET6
 listening socket on the same port.
-.\"(net.inet6.ip6.bindv6only is not implemented yet.)
-.\"The default value for this flag is copied at socket instantiation time,
-.\"from
-.\".Li net.inet6.ip6.bindv6only
-.\".Xr sysctl 3
-.\"variable.
+The default value for this flag is copied at socket instantiation time,
+from
+.Li net.inet6.ip6.v6only
+.Xr sysctl 3
+variable.
 The option affects
 .Tn TCP
 and
@@ -344,7 +344,7 @@ and
 .Dv IPV6_DSTOPTS .
 Similarly,
 .Xr inet6_rthdr_space 3
-and friends will help you parse ancillary data items for 
+and friends will help you parse ancillary data items for
 .Dv IPV6_RTHDR .
 .Pp
 .Dv IPV6_HOPOPTS
@@ -686,12 +686,14 @@ The ancillary data items were improperly formed, or option name was unknown.
 .Sh STANDARDS
 Most of the socket options are defined in
 RFC2292 and/or RFC2553.
-.Dv IPV6_PORTRANGE ,
-.Dv IPV6_BINDV6ONLY
+.Pp
+.Dv IPV6_V6ONLY
+socket option is defined in draft-ietf-ipngwg-rfc2553bis-03.
+.Dv IPV6_PORTRANGE
+socket option
 and
 conflict resolution rule
 are not defined in the RFCs and should be considered implementation dependent.
-However, KAME/NetBSD also supports them.
 .\"
 .Sh HISTORY
 The implementation is based on KAME stack

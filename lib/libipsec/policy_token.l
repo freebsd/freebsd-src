@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: policy_token.l,v 1.9 2000/05/07 05:25:03 itojun Exp $	*/
+/*	$KAME: policy_token.l,v 1.11 2000/12/01 10:08:29 sakane Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, 1998, and 1999 WIDE Project.
@@ -37,7 +37,6 @@
 #include <net/route.h>
 #include <net/pfkeyv2.h>
 #include <netkey/keydb.h>
-#include <netkey/key_debug.h>
 #include <netinet/in.h>
 #include <netinet6/ipsec.h>
 
@@ -58,6 +57,7 @@ int yylex __P((void));
 %}
 
 %option noyywrap
+%option nounput
 
 /* common section */
 nl		\n

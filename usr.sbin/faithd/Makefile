@@ -14,7 +14,7 @@
 # $FreeBSD$
 
 PROG=	faithd
-SRCS=	faithd.c tcp.c ftp.c rsh.c
+SRCS=	faithd.c tcp.c ftp.c rsh.c prefix.c
 MAN=	faithd.8
 #CFLAGS+= -DFAITH4
 CFLAGS+= -Wall

@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: bf_skey.c,v 1.3 2000/03/27 04:36:27 sumikawa Exp $	*/
+/*	$KAME: bf_skey.c,v 1.5 2000/11/06 13:58:08 itojun Exp $	*/
 
 /* crypto/bf/bf_skey.c */
 /* Copyright (C) 1995-1997 Eric Young (eay@mincom.oz.au)
@@ -66,58 +66,55 @@
 #include <crypto/blowfish/bf_locl.h>
 #include <crypto/blowfish/bf_pi.h>
 
-void BF_set_key(key,len,data)
-BF_KEY *key;
-int len;
-unsigned char *data;
-	{
+void
+BF_set_key(key, len, data)
+	BF_KEY *key;
+	int len;
+	unsigned char *data;
+{
 	int i;
-	BF_LONG *p,ri,in[2];
-	unsigned char *d,*end;
+	BF_LONG *p, ri, in[2];
+	unsigned char *d, *end;
 
+	memcpy((char *)key, (char *)&bf_init, sizeof(BF_KEY));
+	p = key->P;
 
-	memcpy((char *)key,(char *)&bf_init,sizeof(BF_KEY));
-	p=key->P;
+	if (len > ((BF_ROUNDS + 2) * 4))
+		len = (BF_ROUNDS + 2) * 4;
 
-	if (len > ((BF_ROUNDS+2)*4)) len=(BF_ROUNDS+2)*4;
-
-	d=data;
+	d = data;
 	end= &(data[len]);
-	for (i=0; i<(BF_ROUNDS+2); i++)
-		{
-		ri= *(d++);
-		if (d >= end) d=data;
+	for (i = 0; i < BF_ROUNDS + 2; i++) {
+		ri = *(d++);
+		if (d >= end) d = data;
 
-		ri<<=8;
-		ri|= *(d++);
-		if (d >= end) d=data;
+		ri <<= 8;
+		ri |= *(d++);
+		if (d >= end) d = data;
 
-		ri<<=8;
-		ri|= *(d++);
-		if (d >= end) d=data;
+		ri <<= 8;
+		ri |= *(d++);
+		if (d >= end) d = data;
 
-		ri<<=8;
-		ri|= *(d++);
-		if (d >= end) d=data;
+		ri <<= 8;
+		ri |= *(d++);
+		if (d >= end) d = data;
 
-		p[i]^=ri;
-		}
-
-	in[0]=0L;
-	in[1]=0L;
-	for (i=0; i<(BF_ROUNDS+2); i+=2)
-		{
-		BF_encrypt(in,key,BF_ENCRYPT);
-		p[i  ]=in[0];
-		p[i+1]=in[1];
-		}
-
-	p=key->S;
-	for (i=0; i<4*256; i+=2)
-		{
-		BF_encrypt(in,key,BF_ENCRYPT);
-		p[i  ]=in[0];
-		p[i+1]=in[1];
-		}
+		p[i] ^= ri;
 	}
 
+	in[0] = 0L;
+	in[1] = 0L;
+	for (i = 0; i < BF_ROUNDS + 2; i += 2) {
+		BF_encrypt(in, key, BF_ENCRYPT);
+		p[i  ] = in[0];
+		p[i+1] = in[1];
+	}
+
+	p = key->S;
+	for (i = 0; i < 4 * 256; i += 2) {
+		BF_encrypt(in, key, BF_ENCRYPT);
+		p[i  ] = in[0];
+		p[i+1] = in[1];
+	}
+}

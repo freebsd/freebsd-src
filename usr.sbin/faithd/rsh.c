@@ -1,4 +1,4 @@
-/*	$KAME$	*/
+/*	$KAME: rsh.c,v 1.5 2001/02/15 17:28:04 itojun Exp $	*/
 
 /*
  * Copyright (C) 1997 and 1998 WIDE Project.

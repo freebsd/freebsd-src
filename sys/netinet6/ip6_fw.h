@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: ip6_fw.h,v 1.3 2000/04/06 08:30:44 sumikawa Exp $	*/
+/*	$KAME: ip6_fw.h,v 1.7 2001/01/24 01:25:33 itojun Exp $	*/
 
 /*
  * Copyright (c) 1993 Daniel Boulet

@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: route6d.h,v 1.3 2000/02/25 06:15:06 itojun Exp $	*/
+/*	$KAME: route6d.h,v 1.4 2001/01/15 03:50:54 inoue Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -41,6 +41,8 @@
 
 #define	RIP6_REQUEST	1
 #define	RIP6_RESPONSE	2
+
+#define	IFC_CHANGED	1
 
 struct netinfo6 {
 	struct	in6_addr	rip6_dest;

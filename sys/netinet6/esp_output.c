@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: esp_output.c,v 1.22 2000/07/03 13:23:28 itojun Exp $	*/
+/*	$KAME: esp_output.c,v 1.43 2001/03/01 07:10:45 itojun Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -90,7 +90,8 @@ esp_hdrsiz(isr)
 	struct ipsecrequest *isr;
 {
 	struct secasvar *sav;
-	struct esp_algorithm *algo;
+	const struct esp_algorithm *algo;
+	const struct ah_algorithm *aalgo;
 	size_t ivlen;
 	size_t authlen;
 	size_t hdrsiz;
@@ -111,7 +112,7 @@ esp_hdrsiz(isr)
 		goto estimate;
 
 	/* we need transport mode ESP. */
-	algo = &esp_algorithms[sav->alg_enc];
+	algo = esp_algorithm_lookup(sav->alg_enc);
 	if (!algo)
 		goto estimate;
 	ivlen = sav->ivlen;
@@ -130,8 +131,9 @@ esp_hdrsiz(isr)
 		hdrsiz = sizeof(struct esp) + ivlen + 9;
 	} else {
 		/* RFC 2406 */
-		if (sav->replay && sav->alg_auth && sav->key_auth)
-			authlen = (*ah_algorithms[sav->alg_auth].sumsiz)(sav);
+		aalgo = ah_algorithm_lookup(sav->alg_auth);
+		if (aalgo && sav->replay && sav->key_auth)
+			authlen = (aalgo->sumsiz)(sav);
 		else
 			authlen = 0;
 		hdrsiz = sizeof(struct newesp) + ivlen + 9 + authlen;
@@ -143,12 +145,12 @@ esp_hdrsiz(isr)
 	/*
 	 * ASSUMING:
 	 *	sizeof(struct newesp) > sizeof(struct esp).
-	 *	8 = ivlen for CBC mode (RFC2451).
+	 *	esp_max_ivlen() = max ivlen for CBC mode
 	 *	9 = (maximum padding length without random padding length)
 	 *	   + (Pad Length field) + (Next Header field).
 	 *	16 = maximum ICV we support.
 	 */
-	return sizeof(struct newesp) + 8 + 9 + 16;
+	return sizeof(struct newesp) + esp_max_ivlen() + 9 + 16;
 }
 
 /*
@@ -184,7 +186,7 @@ esp_output(m, nexthdrp, md, isr, af)
 	struct esp *esp;
 	struct esptail *esptail;
 	struct secasvar *sav = isr->sav;
-	struct esp_algorithm *algo;
+	const struct esp_algorithm *algo;
 	u_int32_t spi;
 	u_int8_t nxt = 0;
 	size_t plen;	/*payload length to be encrypted*/
@@ -193,16 +195,19 @@ esp_output(m, nexthdrp, md, isr, af)
 	int afnumber;
 	size_t extendsiz;
 	int error = 0;
+	struct ipsecstat *stat;
 
 	switch (af) {
 #ifdef INET
 	case AF_INET:
 		afnumber = 4;
+		stat = &ipsecstat;
 		break;
 #endif
 #ifdef INET6
 	case AF_INET6:
 		afnumber = 6;
+		stat = &ipsec6stat;
 		break;
 #endif
 	default:
@@ -225,28 +230,31 @@ esp_output(m, nexthdrp, md, isr, af)
 				(u_int32_t)ntohl(ip->ip_dst.s_addr),
 				(u_int32_t)ntohl(sav->spi)));
 			ipsecstat.out_inval++;
-			m_freem(m);
-			return EINVAL;
+			break;
 		    }
 #endif /*INET*/
 #ifdef INET6
 		case AF_INET6:
-		    {
-			struct ip6_hdr *ip6;
-
-			ip6 = mtod(m, struct ip6_hdr *);
 			ipseclog((LOG_DEBUG, "esp6_output: internal error: "
 				"sav->replay is null: SPI=%u\n",
 				(u_int32_t)ntohl(sav->spi)));
 			ipsec6stat.out_inval++;
-			m_freem(m);
-			return EINVAL;
-		    }
+			break;
 #endif /*INET6*/
+		default:
+			panic("esp_output: should not reach here");
 		}
+		m_freem(m);
+		return EINVAL;
 	}
 
-	algo = &esp_algorithms[sav->alg_enc];	/*XXX*/
+	algo = esp_algorithm_lookup(sav->alg_enc);
+	if (!algo) {
+		ipseclog((LOG_ERR, "esp_output: unsupported algorithm: "
+		    "SPI=%u\n", (u_int32_t)ntohl(sav->spi)));
+		m_freem(m);
+		return EINVAL;
+	}
 	spi = sav->spi;
 	ivlen = sav->ivlen;
 	/* should be okey */
@@ -331,7 +339,7 @@ esp_output(m, nexthdrp, md, isr, af)
 	 * before: IP ... payload
 	 * after:  IP ... ESP IV payload
 	 */
-	if (M_LEADINGSPACE(md) < esphlen) {
+	if (M_LEADINGSPACE(md) < esphlen || (md->m_flags & M_EXT) != 0) {
 		MGET(n, M_DONTWAIT, MT_DATA);
 		if (!n) {
 			m_freem(m);
@@ -386,7 +394,7 @@ esp_output(m, nexthdrp, md, isr, af)
 				ipseclog((LOG_WARNING,
 				    "replay counter overflowed. %s\n",
 				    ipsec_logsastr(sav)));
-				ipsecstat.out_inval++;
+				stat->out_inval++;
 				m_freem(m);
 				return EINVAL;
 			}
@@ -402,7 +410,6 @@ esp_output(m, nexthdrp, md, isr, af)
     {
 	/*
 	 * find the last mbuf. make some room for ESP trailer.
-	 * XXX new-esp authentication data
 	 */
 #ifdef INET
 	struct ip *ip = NULL;
@@ -410,6 +417,7 @@ esp_output(m, nexthdrp, md, isr, af)
 	size_t padbound;
 	u_char *extend;
 	int i;
+	int randpadmax;
 
 	if (algo->padbound)
 		padbound = algo->padbound;
@@ -423,13 +431,62 @@ esp_output(m, nexthdrp, md, isr, af)
 	if (extendsiz == 1)
 		extendsiz = padbound + 1;
 
+	/* random padding */
+	switch (af) {
+#ifdef INET
+	case AF_INET:
+		randpadmax = ip4_esp_randpad;
+		break;
+#endif
+#ifdef INET6
+	case AF_INET6:
+		randpadmax = ip6_esp_randpad;
+		break;
+#endif
+	default:
+		randpadmax = -1;
+		break;
+	}
+	if (randpadmax < 0 || plen + extendsiz >= randpadmax)
+		;
+	else {
+		int n;
+
+		/* round */
+		randpadmax = (randpadmax / padbound) * padbound;
+		n = (randpadmax - plen + extendsiz) / padbound;
+
+		if (n > 0)
+			n = (random() % n) * padbound;
+		else
+			n = 0;
+
+		/*
+		 * make sure we do not pad too much.
+		 * MLEN limitation comes from the trailer attachment
+		 * code below.
+		 * 256 limitation comes from sequential padding.
+		 * also, the 1-octet length field in ESP trailer imposes
+		 * limitation (but is less strict than sequential padding
+		 * as length field do not count the last 2 octets).
+		 */
+		if (extendsiz + n <= MLEN && extendsiz + n < 256)
+			extendsiz += n;
+	}
+
+#ifdef DIAGNOSTIC
+	if (extendsiz > MLEN || extendsiz >= 256)
+		panic("extendsiz too big in esp_output");
+#endif
+
 	n = m;
 	while (n->m_next)
 		n = n->m_next;
 
 	/*
-	 * if M_EXT, the external part may be shared among
-	 * two consequtive TCP packets.
+	 * if M_EXT, the external mbuf data may be shared among
+	 * two consequtive TCP packets, and it may be unsafe to use the
+	 * trailing space.
 	 */
 	if (!(n->m_flags & M_EXT) && extendsiz < M_TRAILINGSPACE(n)) {
 		extend = mtod(n, u_char *) + n->m_len;
@@ -455,8 +512,7 @@ esp_output(m, nexthdrp, md, isr, af)
 	}
 	switch (sav->flags & SADB_X_EXT_PMASK) {
 	case SADB_X_EXT_PRAND:
-		for (i = 0; i < extendsiz; i++)
-			extend[i] = random() & 0xff;
+		key_randomfill(extend, extendsiz);
 		break;
 	case SADB_X_EXT_PZERO:
 		bzero(extend, extendsiz);
@@ -499,26 +555,25 @@ esp_output(m, nexthdrp, md, isr, af)
     }
 
 	/*
+	 * pre-compute and cache intermediate key
+	 */
+	error = esp_schedule(algo, sav);
+	if (error) {
+		m_freem(m);
+		stat->out_inval++;
+		goto fail;
+	}
+
+	/*
 	 * encrypt the packet, based on security association
 	 * and the algorithm specified.
 	 */
 	if (!algo->encrypt)
 		panic("internal error: no encrypt function");
 	if ((*algo->encrypt)(m, espoff, plen + extendsiz, sav, algo, ivlen)) {
+		/* m is already freed */
 		ipseclog((LOG_ERR, "packet encryption failure\n"));
-		m_freem(m);
-		switch (af) {
-#ifdef INET
-		case AF_INET:
-			ipsecstat.out_inval++;
-			break;
-#endif
-#ifdef INET6
-		case AF_INET6:
-			ipsec6stat.out_inval++;
-			break;
-#endif
-		}
+		stat->out_inval++;
 		error = EINVAL;
 		goto fail;
 	}
@@ -530,16 +585,23 @@ esp_output(m, nexthdrp, md, isr, af)
 		goto noantireplay;
 	if (!sav->key_auth)
 		goto noantireplay;
-	if (!sav->alg_auth)
+	if (sav->key_auth == SADB_AALG_NONE)
 		goto noantireplay;
+
     {
+	const struct ah_algorithm *aalgo;
 	u_char authbuf[AH_MAXSUMSIZE];
 	struct mbuf *n;
 	u_char *p;
 	size_t siz;
+#ifdef INET
 	struct ip *ip;
+#endif
 
-	siz = (((*ah_algorithms[sav->alg_auth].sumsiz)(sav) + 3) & ~(4 - 1));
+	aalgo = ah_algorithm_lookup(sav->alg_auth);
+	if (!aalgo)
+		goto noantireplay;
+	siz = ((aalgo->sumsiz)(sav) + 3) & ~(4 - 1);
 	if (AH_MAXSUMSIZE < siz)
 		panic("assertion failed for AH_MAXSUMSIZE");
 
@@ -547,18 +609,7 @@ esp_output(m, nexthdrp, md, isr, af)
 		ipseclog((LOG_ERR, "ESP checksum generation failure\n"));
 		m_freem(m);
 		error = EINVAL;
-		switch (af) {
-#ifdef INET
-		case AF_INET:
-			ipsecstat.out_inval++;
-			break;
-#endif
-#ifdef INET6
-		case AF_INET6:
-			ipsec6stat.out_inval++;
-			break;
-#endif
-		}
+		stat->out_inval++;
 		goto fail;
 	}
 
@@ -619,32 +670,9 @@ noantireplay:
 	if (!m) {
 		ipseclog((LOG_ERR,
 		    "NULL mbuf after encryption in esp%d_output", afnumber));
-	} else {
-		switch (af) {
-#ifdef INET
-		case AF_INET:
-			ipsecstat.out_success++;
-			break;
-#endif
-#ifdef INET6
-		case AF_INET6:
-			ipsec6stat.out_success++;
-			break;
-#endif
-		}
-	}
-	switch (af) {
-#ifdef INET
-	case AF_INET:
-		ipsecstat.out_esphist[sav->alg_enc]++;
-		break;
-#endif
-#ifdef INET6
-	case AF_INET6:
-		ipsec6stat.out_esphist[sav->alg_enc]++;
-		break;
-#endif
-	}
+	} else
+		stat->out_success++;
+	stat->out_esphist[sav->alg_enc]++;
 	key_sa_recordxfer(sav, m);
 	return 0;
 
