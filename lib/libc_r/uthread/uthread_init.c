@@ -340,7 +340,7 @@ _thread_init(void)
 		_thread_initial->poll_data.fds = NULL;
 		_thread_initial->sig_defer_count = 0;
 		_thread_initial->yield_on_sig_undefer = 0;
-		_thread_initial->specific_data = NULL;
+		_thread_initial->specific = NULL;
 		_thread_initial->cleanup = NULL;
 		_thread_initial->flags = 0;
 		_thread_initial->error = 0;
