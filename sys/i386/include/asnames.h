@@ -195,6 +195,7 @@
 #define _cpu_fxsr			cpu_fxsr
 #define _cpu_high			cpu_high
 #define _cpu_id				cpu_id
+#define _cpu_idle			cpu_idle
 #define _cpu_num_to_apic_id		cpu_num_to_apic_id
 #define _cpu_switch			cpu_switch
 #define _cpu_vendor			cpu_vendor
