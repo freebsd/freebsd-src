@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_lnc.c,v 1.49 1998/11/26 00:53:45 paul Exp $
+ * $Id: if_lnc.c,v 1.50 1998/11/26 00:57:32 paul Exp $
  */
 
 /*
@@ -184,8 +184,8 @@ static void lnc_start __P((struct ifnet *ifp));
 static int lnc_ioctl __P((struct ifnet *ifp, u_long command, caddr_t data));
 static void lnc_watchdog __P((struct ifnet *ifp));
 #ifdef DEBUG
-static void lnc_dump_state __P((struct lnc_softc *sc));
-static void mbuf_dump_chain __P((struct mbuf *m));
+void lnc_dump_state __P((struct lnc_softc *sc));
+void mbuf_dump_chain __P((struct mbuf *m));
 #endif
 
 #if NPCI > 0
@@ -1896,7 +1896,7 @@ lnc_watchdog(struct ifnet *ifp)
 }
 
 #ifdef DEBUG
-static void
+void
 lnc_dump_state(struct lnc_softc *sc)
 {
 	int             i;
@@ -1951,7 +1951,7 @@ lnc_dump_state(struct lnc_softc *sc)
 	outw(sc->rap, CSR0);
 }
 
-static void
+void
 mbuf_dump_chain(struct mbuf * m)
 {
 

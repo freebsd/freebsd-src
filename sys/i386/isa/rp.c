@@ -768,7 +768,7 @@ void sDisInterrupts(CHANNEL_T *ChP,Word_t Flags)
 static int rpprobe __P((struct isa_device *));
 static int rpattach __P((struct isa_device *));
 
-static char* rp_pciprobe(pcici_t tag, pcidi_t type);
+static const char* rp_pciprobe(pcici_t tag, pcidi_t type);
 static void rp_pciattach(pcici_t tag, int unit);
 static u_long	rp_pcicount;
 
@@ -1007,7 +1007,7 @@ static void rp_do_poll(void *not_used)
 		timeout(rp_do_poll, (void *)NULL, POLL_INTERVAL);
 }
 
-static char*
+static const char*
 rp_pciprobe(pcici_t tag, pcidi_t type)
 {
 	int	vendor_id;
