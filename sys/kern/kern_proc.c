@@ -457,15 +457,12 @@ fill_kinfo_proc(p, kp)
 		kp->ki_childtime.tv_usec = p->p_stats->p_cru.ru_utime.tv_usec +
 		    p->p_stats->p_cru.ru_stime.tv_usec;
 	}
-	if (p->p_wmesg) {
+	if (p->p_wmesg != NULL)
 		strncpy(kp->ki_wmesg, p->p_wmesg, sizeof(kp->ki_wmesg) - 1);
-		kp->ki_wmesg[sizeof(kp->ki_wmesg) - 1] = '\0';
-	}
 	if (p->p_stat == SMTX) {
 		kp->ki_kiflag |= KI_MTXBLOCK;
 		strncpy(kp->ki_mtxname, p->p_mtxname,
 		    sizeof(kp->ki_mtxname) - 1);
-		kp->ki_mtxname[sizeof(kp->ki_mtxname) - 1] = '\0';
 	}
 	kp->ki_stat = p->p_stat;
 	kp->ki_sflag = p->p_sflag;
@@ -493,8 +490,6 @@ fill_kinfo_proc(p, kp)
 			kp->ki_sid = sp->s_sid;
 			strncpy(kp->ki_login, sp->s_login,
 			    sizeof(kp->ki_login) - 1);
-			kp->ki_login[sizeof(kp->ki_login) - 1] = '\0';
-			
 			if (sp->s_ttyvp)
 				kp->ki_kiflag = KI_CTTY;
 			if (SESS_LEADER(p))
@@ -510,9 +505,7 @@ fill_kinfo_proc(p, kp)
 		kp->ki_tdev = NOUDEV;
 	if (p->p_comm[0] != '\0') {
 		strncpy(kp->ki_comm, p->p_comm, sizeof(kp->ki_comm) - 1);
-		kp->ki_comm[sizeof(kp->ki_comm) - 1] = '\0';
 		strncpy(kp->ki_ocomm, p->p_comm, sizeof(kp->ki_ocomm) - 1);
-		kp->ki_ocomm[sizeof(kp->ki_ocomm) - 1] = '\0';
 	}
 	kp->ki_siglist = p->p_siglist;
 	kp->ki_sigmask = p->p_sigmask;
