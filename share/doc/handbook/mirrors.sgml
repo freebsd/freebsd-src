@@ -351,6 +351,12 @@ for this domain.
 	Contact: <url url="mailto:ftp@ftp.kiae.su"
 	name="ftp@ftp.kiae.su">.
 
+<item>
+<url url="ftp://ftp3.ru.freebsd.org/pub/FreeBSD"
+	name="ftp://ftp3.ru.freebsd.org/pub/FreeBSD"><newline>
+	Contact: <url url="mailto:ivt@ftp3.ru.freebsd.org"
+	name="ivt@ftp3.ru.freebsd.org">.
+
 </itemize>
 
 <tag><label id="mirrors-za">South Africa</tag>
