@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.5 (Berkeley) 2/13/94
- * $Id: nfs_vnops.c,v 1.36.2.5 1997/05/28 18:26:45 dfr Exp $
+ * $Id: nfs_vnops.c,v 1.36.2.6 1998/05/13 05:48:45 peter Exp $
  */
 
 /*
@@ -1755,17 +1755,8 @@ nfs_link(ap)
 		struct componentname *a_cnp;
 	} */ *ap;
 {
-#if defined(__NetBSD__)
-	/*
-	 * Since the args are reversed in the VOP_LINK() calls,
-	 * switch them back. Argh!
-	 */
-	register struct vnode *vp = ap->a_tdvp;
-	register struct vnode *tdvp = ap->a_vp;
-#else
 	register struct vnode *vp = ap->a_vp;
 	register struct vnode *tdvp = ap->a_tdvp;
-#endif
 	register struct componentname *cnp = ap->a_cnp;
 	register u_long *tl;
 	register caddr_t cp;
@@ -1776,11 +1767,8 @@ nfs_link(ap)
 	int v3 = NFS_ISV3(vp);
 
 	if (vp->v_mount != tdvp->v_mount) {
-		VOP_ABORTOP(vp, cnp);
-		if (tdvp == vp)
-			vrele(tdvp);
-		else
-			vput(tdvp);
+		VOP_ABORTOP(tdvp, cnp);
+		vput(tdvp);
 		return (EXDEV);
 	}
 
