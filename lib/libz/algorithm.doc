@@ -1,0 +1,105 @@
+1. Compression algorithm (deflate)
+
+The deflation algorithm used by zlib (also zip and gzip) is a variation of
+LZ77 (Lempel-Ziv 1977, see reference below). It finds duplicated strings in
+the input data.  The second occurrence of a string is replaced by a
+pointer to the previous string, in the form of a pair (distance,
+length).  Distances are limited to 32K bytes, and lengths are limited
+to 258 bytes. When a string does not occur anywhere in the previous
+32K bytes, it is emitted as a sequence of literal bytes.  (In this
+description, `string' must be taken as an arbitrary sequence of bytes,
+and is not restricted to printable characters.)
+
+Literals or match lengths are compressed with one Huffman tree, and
+match distances are compressed with another tree. The trees are stored
+in a compact form at the start of each block. The blocks can have any
+size (except that the compressed data for one block must fit in
+available memory). A block is terminated when deflate() determines that
+it would be useful to start another block with fresh trees. (This is
+somewhat similar to the behavior of LZW-based _compress_.)
+
+Duplicated strings are found using a hash table. All input strings of
+length 3 are inserted in the hash table. A hash index is computed for
+the next 3 bytes. If the hash chain for this index is not empty, all
+strings in the chain are compared with the current input string, and
+the longest match is selected.
+
+The hash chains are searched starting with the most recent strings, to
+favor small distances and thus take advantage of the Huffman encoding.
+The hash chains are singly linked. There are no deletions from the
+hash chains, the algorithm simply discards matches that are too old.
+
+To avoid a worst-case situation, very long hash chains are arbitrarily
+truncated at a certain length, determined by a runtime option (level
+parameter of deflateInit). So deflate() does not always find the longest
+possible match but generally finds a match which is long enough.
+
+deflate() also defers the selection of matches with a lazy evaluation
+mechanism. After a match of length N has been found, deflate() searches for a
+longer match at the next input byte. If a longer match is found, the
+previous match is truncated to a length of one (thus producing a single
+literal byte) and the longer match is emitted afterwards.  Otherwise,
+the original match is kept, and the next match search is attempted only
+N steps later.
+
+The lazy match evaluation is also subject to a runtime parameter. If
+the current match is long enough, deflate() reduces the search for a longer
+match, thus speeding up the whole process. If compression ratio is more
+important than speed, deflate() attempts a complete second search even if
+the first match is already long enough.
+
+The lazy match evaluation is not performed for the fastest compression
+modes (level parameter 1 to 3). For these fast modes, new strings
+are inserted in the hash table only when no match was found, or
+when the match is not too long. This degrades the compression ratio
+but saves time since there are both fewer insertions and fewer searches.
+
+
+2. Decompression algorithm (inflate)
+
+The real question is, given a Huffman tree, how to decode fast.  The most
+important realization is that shorter codes are much more common than
+longer codes, so pay attention to decoding the short codes fast, and let
+the long codes take longer to decode.
+
+inflate() sets up a first level table that covers some number of bits of
+input less than the length of longest code.  It gets that many bits from the
+stream, and looks it up in the table.  The table will tell if the next
+code is that many bits or less and how many, and if it is, it will tell
+the value, else it will point to the next level table for which inflate()
+grabs more bits and tries to decode a longer code.
+
+How many bits to make the first lookup is a tradeoff between the time it
+takes to decode and the time it takes to build the table.  If building the
+table took no time (and if you had infinite memory), then there would only
+be a first level table to cover all the way to the longest code.  However,
+building the table ends up taking a lot longer for more bits since short
+codes are replicated many times in such a table.  What inflate() does is
+simply to make the number of bits in the first table a variable, and set it
+for the maximum speed.
+
+inflate() sends new trees relatively often, so it is possibly set for a
+smaller first level table than an application that has only one tree for
+all the data.  For inflate, which has 286 possible codes for the
+literal/length tree, the size of the first table is nine bits.  Also the
+distance trees have 30 possible values, and the size of the first table is
+six bits.  Note that for each of those cases, the table ended up one bit
+longer than the ``average'' code length, i.e. the code length of an
+approximately flat code which would be a little more than eight bits for
+286 symbols and a little less than five bits for 30 symbols.  It would be
+interesting to see if optimizing the first level table for other
+applications gave values within a bit or two of the flat code size.
+
+
+Jean-loup Gailly        Mark Adler
+gzip@prep.ai.mit.edu    madler@alumni.caltech.edu
+
+
+References:
+
+[LZ77] Ziv J., Lempel A., ``A Universal Algorithm for Sequential Data
+Compression,'' IEEE Transactions on Information Theory, Vol. 23, No. 3,
+pp. 337-343.
+
+``DEFLATE Compressed Data Format Specification'' available in
+ftp://ds.internic.net/rfc/rfc1951.txt
