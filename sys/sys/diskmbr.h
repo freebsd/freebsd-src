@@ -66,10 +66,12 @@ struct dos_partition {
 CTASSERT(sizeof (struct dos_partition) == 16);
 #endif
 
+void dos_partition_dec(void const *pp, struct dos_partition *d);
+void dos_partition_enc(void *pp, struct dos_partition *d);
+
 #define	DPSECT(s) ((s) & 0x3f)		/* isolate relevant bits of sector */
 #define	DPCYL(c, s) ((c) + (((s) & 0xc0)<<2)) /* and those that are cylinder */
 
 #define DIOCSMBR 	_IOW('M', 129, u_char[512])
-
 
 #endif /* !_SYS_DISKMBR_H_ */
