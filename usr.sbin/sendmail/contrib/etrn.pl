@@ -70,6 +70,7 @@ $debug = $opt_d;
 $server = shift(@ARGV);
 @hosts = @ARGV;
 die $usage unless $server;
+@cwfiles = ();
 
 if (!@hosts) {
 	push(@hosts,$hostname);
@@ -82,6 +83,12 @@ if (!@hosts) {
 			chop($cwfile);
 			$optional = /^Fw-o/;
 			$cwfile =~ s,^Fw[^/]*,,;	# extract the file name
+
+			if (-r $cwfile) {
+			    push (@cwfiles, $cwfile);
+			} else {
+			    die "$cwfile is not readable" unless $optional;
+			}
 		}
 		if (/^Cw(.*)$/){		# look for a line starting with "Cw"
 			@cws = split (' ', $1);
@@ -93,17 +100,18 @@ if (!@hosts) {
 	}
 	close(CF);
 
-	if ($cwfile){
+	for $cwfile (@cwfiles) {
 		$0 = "$av0 - reading $cwfile";
 		if (open(CW, "<$cwfile")){
 			while (<CW>){
+			        next if /^\#/;
 				$thishost = $_;
 				chop($thishost);
 				push(@hosts, $thishost) unless $thishost =~ $hostname;
 			}
 			close(CW);
 		} else {
-			die "open $cwfile: $!" unless $optional;
+			die "open $cwfile: $!";
 		}
 	}
 }

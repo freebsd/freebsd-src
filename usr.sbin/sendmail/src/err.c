@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)err.c	8.62 (Berkeley) 6/5/97";
+static char sccsid[] = "@(#)err.c	8.64 (Berkeley) 7/25/97";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -112,7 +112,7 @@ syserr(fmt, va_alist)
 	puterrmsg(MsgBuf);
 
 	/* save this message for mailq printing */
-	if (!panic)
+	if (!panic && CurEnv != NULL)
 	{
 		if (CurEnv->e_message != NULL)
 			free(CurEnv->e_message);
@@ -140,9 +140,10 @@ syserr(fmt, va_alist)
 	}
 
 	if (LogLevel > 0)
-		sm_syslog(panic ? LOG_ALERT : LOG_CRIT, CurEnv->e_id,
-			"SYSERR(%s): %.900s",
-			uname, &MsgBuf[4]);
+		sm_syslog(panic ? LOG_ALERT : LOG_CRIT,
+			  CurEnv == NULL ? NOQID : CurEnv->e_id,
+			  "SYSERR(%s): %.900s",
+			  uname, &MsgBuf[4]);
 	switch (olderrno)
 	{
 	  case EBADF:
@@ -178,7 +179,7 @@ syserr(fmt, va_alist)
 		exit(EX_OSERR);
 	}
 	errno = 0;
-	if (QuickAbort || (OnlyOneError && !HoldErrs))
+	if (QuickAbort)
 		longjmp(TopFrame, 2);
 }
 /*
@@ -254,7 +255,7 @@ usrerr(fmt, va_alist)
 			"%.900s",
 			&MsgBuf[4]);
 
-	if (QuickAbort || (OnlyOneError && !HoldErrs))
+	if (QuickAbort)
 		longjmp(TopFrame, 1);
 }
 /*
@@ -397,7 +398,8 @@ putoutmsg(msg, holdmsg, heldmsg)
 		msg[0] = '4';
 
 	/* output to transcript if serious */
-	if (!heldmsg && CurEnv->e_xfp != NULL && strchr("45", msg[0]) != NULL)
+	if (!heldmsg && CurEnv != NULL && CurEnv->e_xfp != NULL &&
+	    strchr("45", msg[0]) != NULL)
 		fprintf(CurEnv->e_xfp, "%s\n", msg);
 
 	if (LogLevel >= 15 && (OpMode == MD_SMTP || OpMode == MD_DAEMON))
@@ -421,6 +423,9 @@ putoutmsg(msg, holdmsg, heldmsg)
 
 	(void) fflush(stdout);
 
+	if (OutChannel == NULL)
+		return;
+	
 	/* if DisConnected, OutChannel now points to the transcript */
 	if (!DisConnected &&
 	    (OpMode == MD_SMTP || OpMode == MD_DAEMON || OpMode == MD_ARPAFTP))
@@ -441,7 +446,8 @@ putoutmsg(msg, holdmsg, heldmsg)
 	**	rude servers don't read result.
 	*/
 
-	if (feof(InChannel) || ferror(InChannel) || strncmp(msg, "221", 3) == 0)
+	if (InChannel == NULL || feof(InChannel) || ferror(InChannel) ||
+	    strncmp(msg, "221", 3) == 0)
 		return;
 
 	/* can't call syserr, 'cause we are using MsgBuf */
@@ -474,8 +480,16 @@ puterrmsg(msg)
 	/* output the message as usual */
 	putoutmsg(msg, HoldErrs, FALSE);
 
+	/* be careful about multiple error messages */
+	if (OnlyOneError)
+		HoldErrs = TRUE;
+
 	/* signal the error */
 	Errors++;
+
+	if (CurEnv == NULL)
+		return;
+	
 	if (msgcode == '6')
 	{
 		/* notify the postmaster */

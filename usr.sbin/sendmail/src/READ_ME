@@ -30,7 +30,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	@(#)READ_ME	8.142 (Berkeley) 6/3/97
+#	@(#)READ_ME	8.148 (Berkeley) 8/1/97
 #
 
 This directory contains the source files for sendmail.
@@ -149,7 +149,7 @@ The options are:
 NEWDB		The new Berkeley DB package.  Some systems (e.g., BSD/OS and
 		Digital UNIX 4.0) have this package pre-installed.  If your
 		system does not have NEWDB installed, get the latest version
-		from FTP://ftp.sleepycat.com/db/packages/db.1.85.tar.gz.
+		from http://www.sleepycat.com/packages/db.1.85.tar.gz.
 		DO NOT use the version from the Net2 distribution.  If you are
 		still running BSD/386 1.x, you will also need to define
 		OLD_NEWDB.
@@ -295,6 +295,8 @@ HASULIMIT	Define this if you have the ulimit(2) syscall (System V
 HASWAITPID	Define this if you have the waitpid(2) syscall.
 HASGETDTABLESIZE
 		Define this if you have the getdtablesize(2) syscall.
+HAS_ST_GEN	Define this to 1 if your system has the st_gen field in
+		the stat structure (see stat(2)).
 USESTRERROR	Define this if you have the libc strerror function (which
 		should be declared in <errno.h>), and it should be used
 		instead of sys_errlist.
@@ -339,6 +341,12 @@ SLEEP_T		The type returned by the system sleep() function.
 ARBPTR_T	The type of an arbitrary pointer -- defaults to "void *".
 		If you are an very old compiler you may need to define
 		this to be "char *".
+SOCKADDR_LEN_T	The type used for the third parameter to accept(2),
+		getsockname(2), and getpeername(2), representing the
+		length of a struct sockaddr.  Defaults to int.
+SOCKOPT_LEN_T	The type used for the fifth parameter to getsockopt(2)
+		and setsockopt(2), representing the length of the option
+		buffer.  Defaults to int.
 LA_TYPE		The type of load average your kernel supports.  These
 		can be one of:
 		 LA_ZERO (1) -- it always returns the load average as
@@ -457,6 +465,14 @@ SAFENFSPATHCONF	Set this to 1 if and only if you have verified that a
 		assumption!  The test/t_pathconf.c program will try this
 		for you -- you have to run it in a directory that is
 		mounted from a server that allows file giveaway.
+SIOCGIFCONF_IS_BROKEN
+		Set this if your system has an SIOCGIFCONF ioctl defined,
+		but it doesn't behave the same way as "most" systems (BSD,
+		Solaris, SunOS, HP-UX, etc.)
+SIOCGIFNUM_IS_BROKEN
+		Set this if your system has an SIOCGIFNUM ioctl defined,
+		but it doesn't behave the same way as "most" systems
+		(Solaris, HP-UX).
 
 
 
@@ -632,6 +648,12 @@ GCC 2.7.x problems
 	Apparently GCC 2.7.0 on the Pentium processor has optimization
 	problems.  I recommend against using -O on that architecture.  This
 	has been seen on FreeBSD 2.0.5 RELEASE.
+
+GDBM	GDBM does not work with sendmail 8.8 because the additional
+	security checks and file locking cause problems.  Unfortunately,
+	gdbm does not provide a compile flag in its version of ndbm.h so
+	the code can adapt.  We expect this to be fixed in 8.9, but
+	probably at the cost of a new command line compile flag.
 
 Configuration file location
 	Up to 8.6, sendmail tried to find the sendmail.cf file in the same
@@ -960,6 +982,7 @@ A/UX
 	then re-compile sendmail with "-lgdbm", "-DNDBM", and using the
 	ndbm.h header file that comes with the gnu-package. This makes
 	things behave properly.
+	  [NOTE: see comment above about GDBM]
 
 	I suppose porting the New Berkeley db package is another route,
 	however, I made a quick attempt at it, and found it difficult
@@ -1416,4 +1439,4 @@ version.c	The version number and information about this
 
 Eric Allman
 
-(Version 8.142, last update 6/3/97 11:34:09)
+(Version 8.148, last update 8/1/97 16:41:54)
