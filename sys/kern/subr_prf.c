@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_prf.c	8.3 (Berkeley) 1/21/94
- * $Id: subr_prf.c,v 1.25 1996/01/19 21:05:52 phk Exp $
+ * $Id: subr_prf.c,v 1.26 1996/01/22 13:21:33 phk Exp $
  */
 
 #include "opt_ddb.h"
@@ -107,7 +107,8 @@ panic(const char *fmt, ...)
 		panicstr = fmt;
 
 	va_start(ap, fmt);
-	printf("panic: %r\n", fmt, ap);
+	printf("panic: ");
+	vprintf(fmt, ap);
 	va_end(ap);
 
 #ifdef KGDB
@@ -406,25 +407,16 @@ ksprintn(ul, base, lenp)
  *
  *	reg=3<BITTWO,BITONE>
  *
- * The format %r passes an additional format string and argument list
- * recursively.  Its usage is:
- *
- * fn(char *fmt, ...)
- * {
- *	va_list ap;
- *	va_start(ap, fmt);
- *	printf("prefix: %r: suffix\n", fmt, ap);
- *	va_end(ap);
- * }
- *
- * Space or zero padding and a field width are supported for the numeric
- * formats only.
+ * XXX:  %D  -- Hexdump, takes pointer and separator string:
+ *		("%6D", ptr, ":")   -> XX:XX:XX:XX:XX:XX
+ *		("%*D", len, ptr, " " -> XX XX XX XX ...
  */
 int
 kvprintf(char const *fmt, void (*func)(int, void*), void *arg, int radix, va_list ap)
 {
 #define PCHAR(c) {int cc=(c); if (func) (*func)(cc,arg); else *d++ = cc; retval++; }
 	char *p, *q, *d;
+	u_char *up;
 	int ch, n;
 	u_long ul;
 	int base, lflag, tmp, width, ladjust, sharpflag, neg, sign, dot;
@@ -440,7 +432,7 @@ kvprintf(char const *fmt, void (*func)(int, void*), void *arg, int radix, va_lis
 	if (fmt == NULL)
 		fmt = "(fmt null)\n";
 
-	if (radix < 8 || radix > 16)
+	if (radix < 2 || radix > 36)
 		radix = 10;
 
 	for (;;) {
@@ -524,6 +516,20 @@ reswitch:	switch (ch = *(u_char *)fmt++) {
 		case 'c':
 			PCHAR(va_arg(ap, int));
 			break;
+		case 'D':
+			up = va_arg(ap, u_char *);
+			p = va_arg(ap, char *);
+			if (!width)
+				width = 16;
+			while(width--) {
+				PCHAR(hex2ascii(*up >> 4));
+				PCHAR(hex2ascii(*up & 0x0f));
+				up++;
+				if (width)
+					for (q=p;*q;q++)
+						PCHAR(*q);
+			}
+			break;
 		case 'd':
 			ul = lflag ? va_arg(ap, long) : va_arg(ap, int);
 			sign = 1;
@@ -546,16 +552,6 @@ reswitch:	switch (ch = *(u_char *)fmt++) {
 			PCHAR('0');
 			PCHAR('x');
 			goto number;
-		case 'r':
-			p = va_arg(ap, char *);
-			if (!func) {
-				n = kvprintf(p, func, d, radix, ap);
-				d += n;
-			} else {
-				n = kvprintf(p, func, arg, radix, ap);
-			}
-			retval += n;
-			break;
 		case 's':
 			p = va_arg(ap, char *);
 			if (p == NULL)
