@@ -61,7 +61,7 @@ ASSYM(PC_CURPCB, offsetof(struct pcpu, pc_curpcb));
 ASSYM(PC_CURPMAP, offsetof(struct pcpu, pc_curpmap));
 ASSYM(PC_TEMPSAVE, offsetof(struct pcpu, pc_tempsave));
 ASSYM(PC_DISISAVE, offsetof(struct pcpu, pc_disisave));
-ASSYM(PC_DDBSAVE, offsetof(struct pcpu, pc_ddbsave));
+ASSYM(PC_DBSAVE, offsetof(struct pcpu, pc_dbsave));
 
 ASSYM(CPUSAVE_R28,CPUSAVE_R28*4);
 ASSYM(CPUSAVE_R29,CPUSAVE_R29*4);
