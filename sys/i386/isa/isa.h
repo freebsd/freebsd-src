@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.h	5.7 (Berkeley) 5/9/91
- *	$Id$
+ *	$Id: isa.h,v 1.21 1997/02/22 09:36:41 peter Exp $
  */
 
 #ifdef PC98
@@ -147,7 +147,7 @@
 #define	IO_ISASIZES
 
 #define	IO_ASCSIZE	5		/* AmiScan GI1904-based hand scanner */
-#define	IO_CGASIZE	16		/* CGA controllers */
+#define	IO_CGASIZE	12		/* CGA controllers */
 #define	IO_COMSIZE	8		/* 8250, 16x50 com controllers */
 #define	IO_DMASIZE	16		/* 8237 DMA controllers */
 #define	IO_DPGSIZE	32		/* 74LS612 DMA page registers */
@@ -158,9 +158,10 @@
 #define	IO_ICUSIZE	16		/* 8259A interrupt controllers */
 #define	IO_KBDSIZE	16		/* 8042 Keyboard controllers */
 #define	IO_LPTSIZE	8		/* LPT controllers, some use only 4 */
-#define	IO_MDASIZE	16		/* Monochrome display controllers */
+#define	IO_MDASIZE	12		/* Monochrome display controllers */
 #define	IO_NPXSIZE	16		/* 80387/80487 NPX registers */
 #define	IO_PMPSIZE	2		/* 82347 power management peripheral */
+#define	IO_PSMSIZE	5		/* 8042 Keyboard controllers */
 #define	IO_RTCSIZE	16		/* CMOS real time clock, NMI control */
 #define	IO_TMRSIZE	16		/* 8253 programmable timers */
 #define	IO_VGASIZE	16		/* VGA controllers */
