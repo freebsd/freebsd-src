@@ -96,7 +96,7 @@ void	rpc_received __P((char *, struct sockaddr_in *, int ));
 void	broadcast __P((struct _dom_binding *));
 int	ping __P((struct _dom_binding *));
 int	tell_parent __P((char *, struct sockaddr_in *));
-void	handle_children __P(( int ));
+void	handle_children __P(( struct _dom_binding * ));
 void	reaper __P((int));
 void	terminate __P((int));
 
@@ -461,7 +461,7 @@ char **argv;
 		default:
 			for(ypdb=ypbindlist; ypdb; ypdb=ypdb->dom_pnext) {
 				if (READFD > 0 && FD_ISSET(READFD, &fdsr)) {
-					handle_children(READFD);
+					handle_children(ypdb);
 					children--;
 					if (children == (MAX_CHILDREN - 1))
 						checkwork();
@@ -486,22 +486,29 @@ checkwork()
 
 /*
  * Receive results from broadcaster. Don't worry about passing
- * bogus info to rpc_received() -- it can handle it.
+ * bogus info to rpc_received() -- it can handle it. Note that we
+ * must be sure to invalidate the dom_pipe_fds descriptors here:
+ * since descriptors can be re-used, we have to make sure we
+ * don't mistake one of the RPC descriptors for one of the pipes.
+ * What's weird is that forgetting to invalidate the pipe descriptors
+ * doesn't always result in an error (otherwise I would have caught
+ * the mistake much sooner), even though logically it should.
  */
-void handle_children(i)
-int i;
+void handle_children(ypdb)
+struct _dom_binding *ypdb;
 {
 	char buf[YPMAXDOMAIN + 1];
 	struct sockaddr_in addr;
 
-	if (read(i, &buf, sizeof(buf)) < 0)
+	if (read(READFD, &buf, sizeof(buf)) < 0)
 		syslog(LOG_WARNING, "could not read from child: %s", strerror(errno));
-	if (read(i, &addr, sizeof(struct sockaddr_in)) < 0)
+	if (read(READFD, &addr, sizeof(struct sockaddr_in)) < 0)
 		syslog(LOG_WARNING, "could not read from child: %s", strerror(errno));
 
-	close(i);
-	FD_CLR(i, &fdsr);
-	FD_CLR(i, &svc_fdset);
+	close(READFD);
+	FD_CLR(READFD, &fdsr);
+	FD_CLR(READFD, &svc_fdset);
+	READFD = WRITEFD = -1;
 	rpc_received((char *)&buf, &addr, 0);
 }
 
@@ -704,6 +711,9 @@ int force;
 		if (ypdb->dom_broadcast_pid) {
 			kill(ypdb->dom_broadcast_pid, SIGINT);
 			close(READFD);
+			FD_CLR(READFD, &fdsr);
+			FD_CLR(READFD, &svc_fdset);
+			READFD = WRITEFD = -1;
 		}
 	}
 
