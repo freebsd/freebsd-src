@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: main.c,v 1.21 1998/02/19 00:45:33 eivind Exp $";
+	"$Id: main.c,v 1.22 1998/03/16 11:19:10 eivind Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -353,11 +353,11 @@ configfile()
 		err(2, "%s", p);
 	fprintf(fo,"#include \"opt_config.h\"\n");
 	fprintf(fo,"#ifdef INCLUDE_CONFIG_FILE \n");
-	fprintf(fo,"static char *config = \"\n");
-	fprintf(fo,"START CONFIG FILE %s\n___",PREFIX);
+	fprintf(fo,"static char *config = \"\\\n");
+	fprintf(fo,"START CONFIG FILE %s\\n\\\n___",PREFIX);
 	while (EOF != (i=getc(fi))) {
 		if(i == '\n') {
-			fprintf(fo,"\n___");
+			fprintf(fo,"\\n\\\n___");
 		} else if(i == '\"') {
 			fprintf(fo,"\\\"");
 		} else if(i == '\\') {
@@ -366,7 +366,7 @@ configfile()
 			putc(i,fo);
 		}
 	}
-	fprintf(fo,"\nEND CONFIG FILE %s\n",PREFIX);
+	fprintf(fo,"\\n\\\nEND CONFIG FILE %s\\n\\\n",PREFIX);
 	fprintf(fo,"\";\n");
 	fprintf(fo,"\n#endif /* INCLUDE_CONFIG_FILE */\n");
 	fclose(fi);
