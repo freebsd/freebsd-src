@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxpreg.h,v 1.8 1997/03/21 08:00:13 davidg Exp $
+ *	$Id$
  */
 
 #define FXP_VENDORID_INTEL	0x8086
@@ -33,19 +33,26 @@
 #define FXP_PCI_MMBA	0x10
 #define FXP_PCI_IOBA	0x14
 
-struct fxp_csr {
-	volatile u_int8_t	:2,
-				scb_rus:4,
-				scb_cus:2;
-	volatile u_int8_t	scb_statack;
-	volatile u_int8_t	scb_command;
-	volatile u_int8_t	scb_intrcntl;
-	volatile u_int32_t	scb_general;
-	volatile u_int32_t	port;
-	volatile u_int16_t	flash_control;
-	volatile u_int16_t	eeprom_control;
-	volatile u_int32_t	mdi_control;
-};
+/*
+ * Control/status registers.
+ */
+#define	FXP_CSR_SCB_RUSCUS	0	/* scb_rus/scb_cus (1 byte) */
+#define	FXP_CSR_SCB_STATACK	1	/* scb_statack (1 byte) */
+#define	FXP_CSR_SCB_COMMAND	2	/* scb_command (1 byte) */
+#define	FXP_CSR_SCB_INTRCNTL	3	/* scb_intrcntl (1 byte) */
+#define	FXP_CSR_SCB_GENERAL	4	/* scb_general (4 bytes) */
+#define	FXP_CSR_PORT		8	/* port (4 bytes) */
+#define	FXP_CSR_FLASHCONTROL	12	/* flash control (2 bytes) */
+#define	FXP_CSR_EEPROMCONTROL	14	/* eeprom control (2 bytes) */
+#define	FXP_CSR_MDICONTROL	16	/* mdi control (4 bytes) */
+
+/*
+ * FOR REFERENCE ONLY, the old definition of FXP_CSR_SCB_RUSCUS:
+ *
+ *	volatile u_int8_t	:2,
+ *				scb_rus:4,
+ *				scb_cus:2;
+ */
 
 #define FXP_PORT_SOFTWARE_RESET		0
 #define FXP_PORT_SELFTEST		1
