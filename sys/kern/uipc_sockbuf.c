@@ -205,7 +205,7 @@ sonewconn(head, connstatus)
 #endif
 	if (soreserve(so, head->so_snd.sb_hiwat, head->so_rcv.sb_hiwat) ||
 	    (*so->so_proto->pr_usrreqs->pru_attach)(so, 0, NULL)) {
-		sotryfree(so);
+		sodealloc(so);
 		return ((struct socket *)0);
 	}
 
