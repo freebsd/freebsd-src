@@ -799,10 +799,13 @@ static int dc_miibus_readreg(dev, phy, reg)
 
 	frame.mii_phyaddr = phy;
 	frame.mii_regaddr = reg;
-	phy_reg = CSR_READ_4(sc, DC_NETCFG);
-	CSR_WRITE_4(sc, DC_NETCFG, phy_reg & ~DC_NETCFG_PORTSEL);
+	if (sc->dc_type == DC_TYPE_98713) {
+		phy_reg = CSR_READ_4(sc, DC_NETCFG);
+		CSR_WRITE_4(sc, DC_NETCFG, phy_reg & ~DC_NETCFG_PORTSEL);
+	}
 	dc_mii_readreg(sc, &frame);
-	CSR_WRITE_4(sc, DC_NETCFG, phy_reg);
+	if (sc->dc_type == DC_TYPE_98713)
+		CSR_WRITE_4(sc, DC_NETCFG, phy_reg);
 
 	return(frame.mii_data);
 }
@@ -869,10 +872,13 @@ static int dc_miibus_writereg(dev, phy, reg, data)
 	frame.mii_regaddr = reg;
 	frame.mii_data = data;
 
-	phy_reg = CSR_READ_4(sc, DC_NETCFG);
-	CSR_WRITE_4(sc, DC_NETCFG, phy_reg & ~DC_NETCFG_PORTSEL);
+	if (sc->dc_type == DC_TYPE_98713) {
+		phy_reg = CSR_READ_4(sc, DC_NETCFG);
+		CSR_WRITE_4(sc, DC_NETCFG, phy_reg & ~DC_NETCFG_PORTSEL);
+	}
 	dc_mii_writereg(sc, &frame);
-	CSR_WRITE_4(sc, DC_NETCFG, phy_reg);
+	if (sc->dc_type == DC_TYPE_98713)
+		CSR_WRITE_4(sc, DC_NETCFG, phy_reg);
 
 	return(0);
 }
