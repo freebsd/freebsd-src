@@ -404,7 +404,7 @@ acpi_tz_monitor(void *Context)
     sc->tz_tmp_updating = 1;
 
     /* Get the current temperature. */
-    status = acpi_EvaluateInteger(sc->tz_handle, "_TMP", &temp);
+    status = acpi_GetInteger(sc->tz_handle, "_TMP", &temp);
     if (ACPI_FAILURE(status)) {
 	ACPI_VPRINT(sc->tz_dev, acpi_device_get_parent_softc(sc->tz_dev),
 	    "error fetching current temperature -- %s\n",
@@ -661,7 +661,7 @@ acpi_tz_getparam(struct acpi_tz_softc *sc, char *node, int *data)
 
     ACPI_ASSERTLOCK;
 
-    if (ACPI_FAILURE(acpi_EvaluateInteger(sc->tz_handle, node, data))) {
+    if (ACPI_FAILURE(acpi_GetInteger(sc->tz_handle, node, data))) {
 	*data = -1;
     } else {
 	ACPI_DEBUG_PRINT((ACPI_DB_VALUES, "%s.%s = %d\n",
@@ -783,8 +783,6 @@ acpi_tz_timeout(struct acpi_tz_softc *sc)
 static void
 acpi_tz_power_profile(void *arg)
 {
-    ACPI_OBJECT_LIST		args;
-    ACPI_OBJECT			obj;
     ACPI_STATUS			status;
     struct acpi_tz_softc	*sc = (struct acpi_tz_softc *)arg;
     int				state;
@@ -800,11 +798,8 @@ acpi_tz_power_profile(void *arg)
     if ((sc->tz_flags & TZ_FLAG_NO_SCP) == 0) {
 
 	/* Call _SCP to set the new profile */
-	obj.Type = ACPI_TYPE_INTEGER;
-	obj.Integer.Value = (state == POWER_PROFILE_PERFORMANCE) ? 0 : 1;
-	args.Count = 1;
-	args.Pointer = &obj;
-	status = AcpiEvaluateObject(sc->tz_handle, "_SCP", &args, NULL);
+	status = acpi_SetInteger(sc->tz_handle, "_SCP", 
+	    (state == POWER_PROFILE_PERFORMANCE) ? 0 : 1);
 	if (ACPI_FAILURE(status)) {
 	    if (status != AE_NOT_FOUND)
 		ACPI_VPRINT(sc->tz_dev,

@@ -572,7 +572,7 @@ acpi_pwr_switch_power(void)
 	}
 
 	/* We could cache this if we trusted it not to change under us */
-	status = acpi_EvaluateInteger(rp->ap_resource, "_STA", &cur);
+	status = acpi_GetInteger(rp->ap_resource, "_STA", &cur);
 	if (ACPI_FAILURE(status)) {
 	    ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "can't get status of %s - %d\n",
 			      acpi_name(rp->ap_resource), status));
@@ -615,7 +615,7 @@ acpi_pwr_switch_power(void)
 	}
 
 	/* We could cache this if we trusted it not to change under us */
-	status = acpi_EvaluateInteger(rp->ap_resource, "_STA", &cur);
+	status = acpi_GetInteger(rp->ap_resource, "_STA", &cur);
 	if (ACPI_FAILURE(status)) {
 	    ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "can't get status of %s - %d\n",
 			      acpi_name(rp->ap_resource), status));

@@ -158,7 +158,7 @@ acpi_pcib_acpi_attach(device_t dev)
      *     if _BBN is zero and pcib0 already exists, we try to read our
      *     bus number from the configuration registers at address _ADR.
      */
-    status = acpi_EvaluateInteger(sc->ap_handle, "_BBN", &sc->ap_bus);
+    status = acpi_GetInteger(sc->ap_handle, "_BBN", &sc->ap_bus);
     if (ACPI_FAILURE(status)) {
 	if (status != AE_NOT_FOUND) {
 	    device_printf(dev, "could not evaluate _BBN - %s\n",
@@ -177,7 +177,7 @@ acpi_pcib_acpi_attach(device_t dev)
     busok = 1;
     if (sc->ap_bus == 0 && devclass_get_device(pcib_devclass, 0) != dev) {
 	busok = 0;
-	status = acpi_EvaluateInteger(sc->ap_handle, "_ADR", &addr);
+	status = acpi_GetInteger(sc->ap_handle, "_ADR", &addr);
 	if (ACPI_FAILURE(status)) {
 	    if (status != AE_NOT_FOUND) {
 		device_printf(dev, "could not evaluate _ADR - %s\n",
@@ -216,7 +216,7 @@ acpi_pcib_acpi_attach(device_t dev)
      * Get our segment number by evaluating _SEG
      * It's OK for this to not exist.
      */
-    if (ACPI_FAILURE(status = acpi_EvaluateInteger(sc->ap_handle, "_SEG", &sc->ap_segment))) {
+    if (ACPI_FAILURE(status = acpi_GetInteger(sc->ap_handle, "_SEG", &sc->ap_segment))) {
 	if (status != AE_NOT_FOUND) {
 	    device_printf(dev, "could not evaluate _SEG - %s\n", AcpiFormatException(status));
 	    return_VALUE(ENXIO);
