@@ -1,10 +1,11 @@
 #!/bin/sh
 #
-# $NetBSD: savecore,v 1.2 2000/05/13 08:45:09 lukem Exp $
+# $NetBSD: savecore,v 1.4 2002/03/22 04:16:39 lukem Exp $
 #
 
 # PROVIDE: savecore
 # REQUIRE: syslogd
+# BEFORE:  SERVERS
 
 . /etc/rc.subr
 
@@ -20,7 +21,7 @@ savecore_start()
 	#
 	if [ -d /var/crash/. ]; then
 		echo "Checking for core dump..."
-		savecore $savecore_flags /var/crash
+		savecore $rc_flags /var/crash
 	else
 		warn "No /var/crash directory; savecore not run."
 	fi

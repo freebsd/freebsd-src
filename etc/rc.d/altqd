@@ -1,0 +1,21 @@
+#!/bin/sh
+#
+# $NetBSD: altqd,v 1.1 2001/04/05 23:55:00 thorpej Exp $
+#
+
+# PROVIDE: altqd
+# REQUIRE: network mountcritlocal dhclient
+# BEFORE:  NETWORKING
+# KEYWORD: shutdown
+
+. /etc/rc.subr
+
+name="altqd"
+rcvar=$name
+command="/usr/sbin/${name}"
+pidfile="/var/run/${name}.pid"
+required_files="/etc/altq.conf"
+extra_commands="reload"
+
+load_rc_config $name
+run_rc_command "$1"

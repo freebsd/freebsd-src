@@ -1,10 +1,11 @@
 #!/bin/sh
 #
-# $NetBSD: ipsec,v 1.5 2000/07/21 01:16:07 lukem Exp $
+# $NetBSD: ipsec,v 1.6 2000/09/19 13:04:38 lukem Exp $
 #
 
 # PROVIDE: ipsec
 # REQUIRE: root beforenetlkm mountcritlocal tty
+# BEFORE:  DAEMON
 
 #	it does not really require beforenetlkm.
 

@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $NetBSD$
+# $NetBSD: fsck,v 1.1 2000/08/21 23:38:07 lukem Exp $
 #
 
 # PROVIDE: fsck
@@ -27,11 +27,11 @@ fsck_start()
 {
 	if [ -e /fastboot ]; then
 		echo "Fast boot: skipping disk checks."
-	elif [ "$autoboot" = yes ]; then
+	else
 					# During fsck ignore SIGQUIT
 		trap : 3
 
-		echo "Automatic boot in progress: starting file system checks."
+		echo "Starting file system checks:"
 		fsck -p
 		case $? in
 		0)

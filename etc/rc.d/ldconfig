@@ -1,22 +1,24 @@
 #!/bin/sh
 #
-# $NetBSD: ldconfig,v 1.2 2000/05/13 08:45:07 lukem Exp $
+# $NetBSD: ldconfig,v 1.4 2001/04/25 13:00:17 lukem Exp $
 #
 
 # PROVIDE: ldconfig
 # REQUIRE: mountall
+# BEFORE:  DAEMON
 
 . /etc/rc.subr
 
 name="ldconfig"
+ldconfig_command="/sbin/ldconfig"
 start_cmd="ldconfig_start"
 stop_cmd=":"
 
 ldconfig_start()
 {
-	if [ -f /sbin/ldconfig ]; then
+	if [ -f ${ldconfig_command} ]; then
 		echo "Creating a.out runtime link editor directory cache."
-		ldconfig
+		${ldconfig_command}
 	fi
 }
 

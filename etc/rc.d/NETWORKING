@@ -1,0 +1,9 @@
+#!/bin/sh
+#
+# $NetBSD: NETWORKING,v 1.1 2002/01/31 01:26:05 lukem Exp $
+#
+
+# PROVIDE: NETWORKING NETWORK
+
+#	This is a dummy dependency, for services which require networking
+#	to be operational before starting.

@@ -1,19 +1,26 @@
 #!/bin/sh
 #
-# $NetBSD: mountcritremote,v 1.2 2000/05/13 08:45:07 lukem Exp $
+# $NetBSD: mountcritremote,v 1.6 2002/03/27 08:53:42 lukem Exp $
 #
 
 # PROVIDE: mountcritremote
-# REQUIRE: NETWORK root mountcritlocal
+# REQUIRE: NETWORKING root mountcritlocal
 
 . /etc/rc.subr
 
-#	mount critical remote filesystems
-#	(as specified in $critical_filesystems)
-#
 name="mountcritremote"
-start_cmd="mount_critical_filesystems remote"
+start_cmd="mountcritremote_start"
 stop_cmd=":"
+
+mountcritremote_start()
+{
+	#	Mount critical filesystems that may be `remote'.
+	#	(as specified in $critical_filesystems_remote)
+	#	This usually includes /usr.
+	#
+	mount_critical_filesystems remote
+
+}
 
 load_rc_config $name
 run_rc_command "$1"

@@ -1,15 +1,14 @@
 #!/bin/sh
 #
-# $NetBSD: timed,v 1.4 2000/09/19 13:04:39 lukem Exp $
+# $NetBSD:  $
 #
 
-# PROVIDE: timed
+# PROVIDE: moused
 # REQUIRE: DAEMON
-# BEFORE:  LOGIN
 
 . /etc/rc.subr
 
-name="timed"
+name="moused"
 rcvar=$name
 command="/usr/sbin/${name}"
 
