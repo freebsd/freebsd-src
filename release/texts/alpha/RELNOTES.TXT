@@ -163,6 +163,8 @@ and /etc/periodic.conf. [MERGED]
 logger(1) can now send messages directly to a remote syslog. [MERGED]
 
 which(1) and killall(1) are now C programs, rather than Perl scripts.
+As a result, killall's -m option now uses the regular expression
+syntax of regex(3), rather than that of perl(1).
 
 finger(1) now has the ability to support fingering aliases, via the
 finger.conf(5) file. [MERGED]
