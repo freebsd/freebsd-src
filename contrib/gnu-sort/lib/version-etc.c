@@ -63,6 +63,9 @@ version_etc_va (FILE *stream,
     n_authors = 0;
     while (va_arg (tmp_authors, const char *) != NULL)
       ++n_authors;
+#ifdef va_copy
+    va_end (tmp_authors);
+#endif
   }
 
   if (command_name)
