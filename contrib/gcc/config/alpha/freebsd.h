@@ -22,19 +22,26 @@ Boston, MA 02111-1307, USA.  */
 
 /* $FreeBSD$ */
 
-
-/* Provide a CPP_SPEC appropriate for FreeBSD/alpha.  Besides the dealing with
+/* Provide a FBSD_TARGET_CPU_CPP_BUILTINS and CPP_SPEC appropriate for
+   FreeBSD/alpha.  Besides the dealing with
    the GCC option `-posix', and PIC issues as on all FreeBSD platforms, we must
    deal with the Alpha's FP issues.  */
 
-#undef  CPP_SPEC
-#define CPP_SPEC "%(cpp_cpu) %(cpp_subtarget) -D__ELF__			\
-  %{fPIC:-D__PIC__ -D__pic__} %{fpic:-D__PIC__ -D__pic__}		\
-  %{posix:-D_POSIX_SOURCE}						\
-  %{mieee:-D_IEEE_FP}							\
-  %{mieee-with-inexact:-D_IEEE_FP -D_IEEE_FP_INEXACT}"
+#undef FBSD_TARGET_CPU_CPP_BUILTINS
+#define FBSD_TARGET_CPU_CPP_BUILTINS()		\
+  do						\
+    {						\
+      if (flag_pic)				\
+	{					\
+	  builtin_define ("__PIC__");		\
+	  builtin_define ("__pic__");		\
+	}					\
+    }						\
+  while (0)
 
-#undef  LINK_SPEC
+#undef  CPP_SPEC
+#define CPP_SPEC "%(cpp_subtarget) %{posix:-D_POSIX_SOURCE}"
+
 #define LINK_SPEC "%{G*} %{relax:-relax}				\
   %{p:%e`-p' not supported; use `-pg' and gprof(1)}			\
   %{Wl,*:%*}								\
@@ -65,9 +72,6 @@ Boston, MA 02111-1307, USA.  */
 
 /* alpha.h gets this wrong for FreeBSD.  We use the GCC defaults instead.  */
 #undef WCHAR_TYPE
-
-#undef  WCHAR_UNSIGNED
-#define WCHAR_UNSIGNED	0
 
 #undef  WCHAR_TYPE_SIZE
 #define WCHAR_TYPE_SIZE	32
