@@ -23,12 +23,20 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: interp_forth.c,v 1.2 1998/11/04 03:41:09 msmith Exp $
+ *	$Id: interp_forth.c,v 1.3 1998/11/05 08:39:38 jkh Exp $
  */
 
 #include <stand.h>
 #include "bootstrap.h"
 #include "ficl.h"
+
+#define BFORTH_DEBUG
+
+#ifdef BFORTH_DEBUG
+# define DEBUG(fmt, args...)	printf("%s: " fmt "\n" , __FUNCTION__ , ## args)
+#else
+# define DEBUG(fmt, args...)
+#endif
 
 /*
  * BootForth   Interface to Ficl Forth interpreter.
@@ -43,10 +51,10 @@ static FICL_VM	*bf_vm;
 static void
 bf_command(FICL_VM *vm)
 {
+    char			*name, *line, *tail, *cp;
+    int				len;
     struct bootblk_command	**cmdp;
     bootblk_cmd_t		*cmd;
-    char			*name, *line;
-    FICL_STRING			*tail = (FICL_STRING *)vm->pad;
     int				argc, result;
     char			**argv;
 
@@ -54,6 +62,7 @@ bf_command(FICL_VM *vm)
     name = vm->runningWord->name;
     
     /* Find our command structure */
+    cmd == NULL;
     SET_FOREACH(cmdp, Xcommand_set) {
 	if (((*cmdp)->c_name != NULL) && !strcmp(name, (*cmdp)->c_name))
 	    cmd = (*cmdp)->c_fn;
@@ -62,11 +71,16 @@ bf_command(FICL_VM *vm)
 	panic("callout for unknown command '%s'", name);
     
     /* Get remainder of invocation */
-    vmGetString(vm, tail, '\n');
+    tail = vmGetInBuf(vm);
+    for (cp = tail, len = 0; *cp != 0 && *cp != '\n'; cp++, len++)
+	;
     
-    /* XXX This is grostic */
-    line = malloc(strlen(name) + strlen(tail->text) + 2);
-    sprintf(line, "%s %s", name, tail->text);
+    line = malloc(strlen(name) + len + 2);
+    strcpy(line, name);
+    if (len > 0)
+	strncat(line, tail, len);
+    DEBUG("cmd '%s'", line);
+    
     command_errmsg = command_errbuf;
     command_errbuf[0] = 0;
     if (!parse(&argc, &argv, line)) {
@@ -109,6 +123,8 @@ bf_run(char *line)
     int		result;
     
     result = ficlExec(bf_vm, line);
+    DEBUG("ficlExec '%s' = %d", line, result);
+    
     if (result == VM_USEREXIT)
 	panic("interpreter exit");
 }
