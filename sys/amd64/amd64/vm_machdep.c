@@ -49,7 +49,7 @@
 /*
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
  */
-static char rcsid[] = "$Header: /a/cvs/386BSD/src/sys/i386/i386/vm_machdep.c,v 1.3 1993/07/27 10:52:21 davidg Exp $";
+static char rcsid[] = "$Header: /usr/chroot/CVS/386BSD/src/sys/i386/i386/vm_machdep.c,v 1.3 1993/07/27 10:52:21 davidg Exp $";
 
 #include "param.h"
 #include "systm.h"
@@ -169,7 +169,7 @@ cpu_exit(p)
 	/* NOTREACHED */
 }
 #else
-volatile void
+void
 cpu_exit(p)
 	register struct proc *p;
 {
@@ -179,8 +179,12 @@ cpu_exit(p)
 #endif
 	splclock();
 	swtch();
-	/*NOTREACHED*/
-	for(;;);
+	/* 
+	 * This is to shutup the compiler, and if swtch() failed I suppose
+	 * this would be a good thing.  This keeps gcc happy because panic
+	 * is a volatile void function as well.
+	 */
+	panic("cpu_exit");
 }
 
 cpu_wait(p) struct proc *p; {
