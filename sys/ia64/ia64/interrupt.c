@@ -52,6 +52,7 @@
 
 #include <machine/clock.h>
 #include <machine/cpu.h>
+#include <machine/fpu.h>
 #include <machine/frame.h>
 #include <machine/intr.h>
 #include <machine/md_var.h>
@@ -131,6 +132,8 @@ interrupt(u_int64_t vector, struct trapframe *tf)
 	uint64_t adj, clk, itc;
 	int64_t delta;
 	int count;
+
+	ia64_set_fpsr(IA64_FPSR_DEFAULT);
 
 	td = curthread;
 	atomic_add_int(&td->td_intr_nesting_level, 1);
