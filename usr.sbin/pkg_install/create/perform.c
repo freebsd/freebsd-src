@@ -163,6 +163,13 @@ pkg_perform(char **pkgs)
     if (find_plist(&plist, PLIST_NAME) == NULL)
 	add_plist_top(&plist, PLIST_NAME, basename(pkg));
 
+    if (asprintf(&cp, "PKG_FORMAT_REVISION:%d.%d", PLIST_FMT_VER_MAJOR,
+		 PLIST_FMT_VER_MINOR) == -1) {
+	errx(2, "%s: asprintf() failed", __FUNCTION__);
+    }
+    add_plist_top(&plist, PLIST_COMMENT, cp);
+    free(cp);
+
     /*
      * We're just here for to dump out a revised plist for the FreeBSD ports
      * hack.  It's not a real create in progress.

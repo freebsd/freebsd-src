@@ -48,6 +48,7 @@
 #define SHOW_SIZE	0x1000
 #define SHOW_ORIGIN	0x2000
 #define SHOW_CKSUM	0x4000
+#define SHOW_FMTREV	0x8000
 
 struct which_entry {
     TAILQ_ENTRY(which_entry) next;
@@ -72,5 +73,6 @@ extern void	show_index(const char *, const char *);
 extern void	show_size(const char *, Package *);
 extern void	show_cksum(const char *, Package *);
 extern void	show_origin(const char *, Package *);
+extern void	show_fmtrev(const char *, Package *);
 
 #endif	/* _INST_INFO_H_INCLUDE */
