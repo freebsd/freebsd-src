@@ -63,8 +63,8 @@ struct sysentvec osf1_sysvec = {
 	OSF1_SYS_MAXSYSCALL,
 	osf1_sysent,
         0x0,
-	NSIG,
-	bsd_to_osf1_sig,
+	0,
+	0,
 	0,
 	0,
 	0,			/* trap-to-signal translation function */
