@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.286.2.43 1998/02/11 15:37:32 jkh Exp $
+#	$Id: LINT,v 1.286.2.44 1998/02/18 20:15:43 dima Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -400,11 +400,12 @@ options		"CD9660"		#ISO 9660 filesystem
 options		FDESC			#File descriptor filesystem
 options		KERNFS			#Kernel filesystem
 options		LFS			#Log filesystem
-options		MFS			#Memory File System
-options		MSDOSFS			#MS DOS File System
+options		MFS			#Memory filesystem
+options		MSDOSFS			#MS DOS filesystem
 options		NULLFS			#NULL filesystem
 options		PORTAL			#Portal filesystem
 options		PROCFS			#Process filesystem
+options		CFS			#CODA filesystem.
 options		UMAPFS			#UID map filesystem
 options		UNION			#Union filesystem
 # This DEVFS is experimental but seems to work
@@ -545,6 +546,7 @@ options		OD_AUTO_TURNOFF
 # then `gzip' becomes mandatory too.
 #
 pseudo-device	pty	16	#Pseudo ttys - can go as high as 256
+pseudo-device	vcfs	4	#coda minicache <-> venus comm.
 pseudo-device	speaker		#Play IBM BASIC-style noises out your speaker
 pseudo-device	log		#Kernel syslog interface (/dev/klog)
 pseudo-device	gzip		#Exec gzipped a.out's
