@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vars.h,v 1.6 1996/03/08 13:22:23 ache Exp $
+ * $Id: vars.h,v 1.8 1996/12/22 17:09:17 jkh Exp $
  *
  *	TODO:
  */
@@ -58,6 +58,7 @@ struct pppvars {
   int    var_accmap;		/* Initial ACCMAP value */
   int    modem_speed;		/* Current modem speed */
   int    modem_parity;		/* Parity setting */
+  int    modem_ctsrts;		/* Use CTS/RTS on modem port? (boolean) */
   int    idle_timeout;		/* Idle timeout value */
   int	 lqr_timeout;		/* LQR timeout value */
   int    retry_timeout;		/* Retry timeout value */
@@ -85,6 +86,7 @@ struct pppvars {
 #define	VarDevice	pppVars.modem_dev
 #define	VarSpeed	pppVars.modem_speed
 #define	VarParity	pppVars.modem_parity
+#define	VarCtsRts	pppVars.modem_ctsrts
 #define	VarOpenMode	pppVars.open_mode
 #define	VarLocalAuth	pppVars.lauth
 #define	VarDialScript	pppVars.dial_script

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.23 1996/03/29 15:24:04 ache Exp $
+ * $Id: modem.c,v 1.26 1996/12/22 17:29:32 jkh Exp $
  *
  *  TODO:
  */
@@ -39,7 +39,6 @@
 #define O_NONBLOCK O_NDELAY
 #endif
 #endif
-#define USE_CTSRTS
 
 extern int DoChat();
 
@@ -448,12 +447,12 @@ int mode;
     rstio.c_iflag, rstio.c_oflag, rstio.c_cflag);
 #endif
     cfmakeraw(&rstio);
-#ifdef USE_CTSRTS
-    rstio.c_cflag |= CLOCAL | CCTS_OFLOW|CRTS_IFLOW;
-#else
-    rstio.c_cflag |= CLOCAL;
-    rstio.c_iflag |= IXOFF;
-#endif
+    if (VarCtsRts)
+	rstio.c_cflag |= CLOCAL | CCTS_OFLOW|CRTS_IFLOW;
+    else {
+	rstio.c_cflag |= CLOCAL;
+	rstio.c_iflag |= IXOFF;
+    }
     rstio.c_iflag |= IXON;
     if (!(mode & MODE_DEDICATED))
       rstio.c_cflag |= HUPCL;
@@ -516,11 +515,11 @@ int modem;
   }
   tcgetattr(modem, &rstio);
   cfmakeraw(&rstio);
-#ifdef USE_CTSRTS
-    rstio.c_cflag |= CLOCAL | CCTS_OFLOW|CRTS_IFLOW;
-#else
-    rstio.c_cflag |= CLOCAL;
-#endif
+  if (VarCtsRts)
+      rstio.c_cflag |= CLOCAL | CCTS_OFLOW|CRTS_IFLOW;
+  else
+      rstio.c_cflag |= CLOCAL;
+
   if (!(mode & MODE_DEDICATED))
     rstio.c_cflag |= HUPCL;
   tcsetattr(modem, TCSADRAIN, &rstio);
@@ -725,6 +724,7 @@ int
 DialModem()
 {
   char ScriptBuffer[200];
+  int excode = 0;
 
   strcpy(ScriptBuffer, VarDialScript);
   if (DoChat(ScriptBuffer) > 0) {
@@ -736,16 +736,25 @@ DialModem()
 	fprintf(stderr, "login OK!\n");
       return(1);
     } else {
-      if ((mode & (MODE_INTER|MODE_AUTO)) == MODE_INTER)
+      if ((mode & (MODE_INTER|MODE_AUTO)) == MODE_INTER) {
 	fprintf(stderr, "login failed.\n");
+        excode = EX_NOLOGIN;
+      }
     }
     ModemTimeout();	/* Dummy call to check modem status */
   }
   else {
-    if ((mode & (MODE_INTER|MODE_AUTO)) == MODE_INTER)
+    if ((mode & (MODE_INTER|MODE_AUTO)) == MODE_INTER) {
       fprintf(stderr, "dial failed.\n");
+      excode = EX_NODIAL;
+    }
   }
   HangupModem(0);
+  if (mode & MODE_BACKGROUND) {
+      extern void Cleanup();
+      CloseModem();
+      Cleanup(excode);
+  } 
   return(0);
 }
 
@@ -772,11 +781,14 @@ ShowModemStatus()
   }
   if (VarParity & PARENB) {
     if (VarParity & PARODD)
-      printf("odd parity\n");
+      printf("odd parity, ");
     else
-      printf("even parity\n");
+      printf("even parity, ");
   } else
-    printf("none parity\n");
+    printf("no parity, ");
+
+  printf("CTS/RTS %s.\n", (VarCtsRts? "on" : "off"));
+
 #ifdef DEBUG
   printf("fd = %d, modem control = %o\n", modem, mbits);
 #endif

@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: defs.h,v 1.4 1995/10/08 14:57:28 amurai Exp $
+ * $Id: defs.h,v 1.8 1996/12/22 17:29:31 jkh Exp $
  *
  *	TODO:
  */
@@ -45,6 +45,7 @@
 #define MODEM_SPEED	B38400			/* tty speed */
 #define	SERVER_PORT	3000			/* Base server port no. */
 
+#define	MODEM_CTSRTS	TRUE		/* Default (true): use CTS/RTS signals */
 #define	REDIAL_PERIOD	30			/* Default Hold time to redial */
 
 #define	CONFFILE 	"ppp.conf"
@@ -61,6 +62,8 @@
 #define	MODE_DEDICATED	8	/* Dedicated line mode */
 #define	MODE_DDIAL	16	/* Dedicated dialing line mode */
 #define	MODE_ALIAS	32	/* Packet aliasing (masquerading) */
+#define MODE_BACKGROUND 64	/* Background mode. */
+
 
 #define	EX_NORMAL	0
 #define	EX_START	1
@@ -73,8 +76,11 @@
 #define	EX_ERRDEAD	8
 #define	EX_HANGUP	10
 #define	EX_TERM		11
+#define EX_NODIAL	12
+#define EX_NOLOGIN	13
 
 int mode;
+int BGFiledes[2];
 
 int modem;
 int tun_in, tun_out;
