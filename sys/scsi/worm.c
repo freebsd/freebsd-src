@@ -43,7 +43,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: worm.c,v 1.29.2.3 1997/04/04 22:13:36 jkh Exp $
+ *      $Id: worm.c,v 1.29.2.4 1997/05/05 13:35:51 joerg Exp $
  */
 
 #include "opt_bounce.h"
@@ -355,7 +355,14 @@ wormstart(unit, flags)
 		lba = bp->b_blkno / (worm->blk_size / DEV_BSIZE);
 		tl = bp->b_bcount / worm->blk_size;
 
-		scsi_uto4b(lba, &cmd.addr_3);
+		if (bp->b_flags & B_READ)
+		    /*
+		     * Leave the LBA as 0 for write operations, it
+		     * is reserved in this case (and wouldn't make
+		     * any sense to set it at all, since CD-R write
+		     * operations are in `streaming' mode anyway.
+		     */
+		    scsi_uto4b(lba, &cmd.addr_3);
 		scsi_uto2b(tl, &cmd.length2);
 
 		/*
@@ -386,7 +393,7 @@ wormstart(unit, flags)
 			}
 		}
 	} /* go back and see if we can cram more work in.. */
-badnews:
+badnews: ;
 }
 
 static void
@@ -531,7 +538,6 @@ worm_open(dev_t dev, int flags, int fmt, struct proc *p,
 			     (sc_link, worm->audio, worm->preemp)) != 0) {
 				SC_DEBUG(sc_link, SDEV_DB3,
 					 ("rezero, get size, or prepare_track failed\n"));
-				scsi_stop_unit(sc_link, 0, SCSI_SILENT);
 				scsi_prevent(sc_link, PR_ALLOW, SCSI_SILENT);
 				worm->worm_flags &= ~WORMFL_TRACK_PREPED;
 				sc_link->flags &= ~SDEV_OPEN;
@@ -541,7 +547,6 @@ worm_open(dev_t dev, int flags, int fmt, struct proc *p,
 			if ((error = worm_size(sc_link, 0)) != 0) {
 				SC_DEBUG(sc_link, SDEV_DB3,
 					 ("get size failed\n"));
-				scsi_stop_unit(sc_link, 0, SCSI_SILENT);
 				scsi_prevent(sc_link, PR_ALLOW, SCSI_SILENT);
 				worm->worm_flags &= ~WORMFL_TRACK_PREPED;
 				sc_link->flags &= ~SDEV_OPEN;
@@ -563,7 +568,6 @@ worm_close(dev_t dev, int flags, int fmt, struct proc *p,
 	error = 0;
 
 	if ((worm->worm_flags & WORMFL_IOCTL_ONLY) == 0) {
-		scsi_stop_unit(sc_link, 0, SCSI_SILENT);
 		scsi_prevent(sc_link, PR_ALLOW, SCSI_SILENT);
 
 		sc_link->flags &= ~SDEV_OPEN;
@@ -1099,6 +1103,7 @@ static errval
 rf4100_finalize_track(struct scsi_link *sc_link)
 {
 	struct scsi_synchronize_cache cmd;
+	int error;
 	
 	SC_DEBUG(sc_link, SDEV_DB2, ("rf4100_finalize_track"));
 
@@ -1107,7 +1112,7 @@ rf4100_finalize_track(struct scsi_link *sc_link)
 	 */
 	bzero(&cmd, sizeof(cmd));
 	cmd.op_code = SYNCHRONIZE_CACHE;
-	return scsi_scsi_cmd(sc_link,
+	error = scsi_scsi_cmd(sc_link,
 			     (struct scsi_generic *) &cmd,
 			     sizeof(cmd),
 			     0,	/* no data transfer */
@@ -1116,6 +1121,10 @@ rf4100_finalize_track(struct scsi_link *sc_link)
 			     60000, /* this may take a while */
 			     NULL,
 			     0);
+	if (!error)
+	    error = rf4100_prepare_track(sc_link, 0, 0);
+
+	return error;
 }
 
 
@@ -1333,6 +1342,7 @@ static errval
 hp4020i_finalize_track(struct scsi_link *sc_link)
 {
 	struct scsi_synchronize_cache cmd;
+	int error;
 	
 	SC_DEBUG(sc_link, SDEV_DB2, ("hp4020i_finalize_track"));
 
@@ -1341,7 +1351,7 @@ hp4020i_finalize_track(struct scsi_link *sc_link)
 	 */
 	bzero(&cmd, sizeof(cmd));
 	cmd.op_code = SYNCHRONIZE_CACHE;
-	return scsi_scsi_cmd(sc_link,
+	error = scsi_scsi_cmd(sc_link,
 			     (struct scsi_generic *) &cmd,
 			     sizeof(cmd),
 			     0,	/* no data transfer */
@@ -1350,6 +1360,10 @@ hp4020i_finalize_track(struct scsi_link *sc_link)
 			     60000, /* this may take a while */
 			     NULL,
 			     0);
+	if (!error) 
+	    error = rf4100_prepare_track(sc_link, 0, 0);
+
+	return error;
 }
 
 
