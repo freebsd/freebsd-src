@@ -48,15 +48,15 @@
 .Fd #include <sys/socket.h>
 .Fd #include <net/ethernet.h>
 .Ft int
-.Fn ether_line "char *l" "struct ether_addr *e" "char *hostname"
+.Fn ether_line "const char *l" "struct ether_addr *e" "char *hostname"
 .Ft struct ether_addr *
-.Fn ether_aton "char *a"
+.Fn ether_aton "const char *a"
 .Ft char *
-.Fn ether_ntoa "struct ether_addr *n"
+.Fn ether_ntoa "const struct ether_addr *n"
 .Ft int
-.Fn ether_ntohost "char *hostname" "struct ether_addr *e"
+.Fn ether_ntohost "char *hostname" "const struct ether_addr *e"
 .Ft int
-.Fn ether_hostton "char *hostname" "struct ether_addr *e"
+.Fn ether_hostton "const char *hostname" "struct ether_addr *e"
 .Sh DESCRIPTION
 These functions operate on ethernet addresses using an
 .Ar ether_addr
