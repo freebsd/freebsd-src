@@ -18,6 +18,12 @@ if [ "x$pccard_ifconfig" != "xNO" ] ; then
 			rm /var/run/dhclient.pid
 		    fi
 		    /usr/local/sbin/dhclient
+		elif [ -f /usr/local/sbin/dhcpc ] ; then
+		    if [ -s /var/run/dhcpc.pid ] ; then
+		        kill `cat /var/run/dhcpc.pid`
+		        rm /var/run/dhcpc.pid
+		    fi
+		    /usr/local/sbin/dhcpc $* 
 		else
 		    echo "DHCP client software not available (isc-dhcp2)"
 		fi
