@@ -1124,10 +1124,11 @@ vm_fault_copy_entry(dst_map, src_map, dst_entry, src_entry)
 	vm_map_entry_t dst_entry;
 	vm_map_entry_t src_entry;
 {
-	vm_object_t dst_object;
+	vm_object_t backing_object, dst_object, object;
 	vm_object_t src_object;
 	vm_ooffset_t dst_offset;
 	vm_ooffset_t src_offset;
+	vm_pindex_t pindex;
 	vm_prot_t prot;
 	vm_offset_t vaddr;
 	vm_page_t dst_m;
@@ -1181,12 +1182,24 @@ vm_fault_copy_entry(dst_map, src_map, dst_entry, src_entry)
 		 * memory.)
 		 */
 		VM_OBJECT_LOCK(src_object);
-		src_m = vm_page_lookup(src_object,
-			OFF_TO_IDX(dst_offset + src_offset));
+		object = src_object;
+		pindex = 0;
+		while ((src_m = vm_page_lookup(object, pindex +
+		    OFF_TO_IDX(dst_offset + src_offset))) == NULL &&
+		    (src_entry->protection & VM_PROT_WRITE) == 0 &&
+		    (backing_object = object->backing_object) != NULL) {
+			/*
+			 * Allow fallback to backing objects if we are reading.
+			 */
+			VM_OBJECT_LOCK(backing_object);
+			pindex += OFF_TO_IDX(object->backing_object_offset);
+			VM_OBJECT_UNLOCK(object);
+			object = backing_object;
+		}
 		if (src_m == NULL)
 			panic("vm_fault_copy_wired: page missing");
 		pmap_copy_page(src_m, dst_m);
-		VM_OBJECT_UNLOCK(src_object);
+		VM_OBJECT_UNLOCK(object);
 		dst_m->valid = VM_PAGE_BITS_ALL;
 		VM_OBJECT_UNLOCK(dst_object);
 
@@ -1196,7 +1209,8 @@ vm_fault_copy_entry(dst_map, src_map, dst_entry, src_entry)
 		pmap_enter(dst_map->pmap, vaddr, dst_m, prot, FALSE);
 		VM_OBJECT_LOCK(dst_object);
 		vm_page_lock_queues();
-		vm_page_flag_set(dst_m, PG_WRITEABLE);
+		if ((prot & VM_PROT_WRITE) != 0)
+			vm_page_flag_set(dst_m, PG_WRITEABLE);
 
 		/*
 		 * Mark it no longer busy, and put it on the active list.
