@@ -142,7 +142,7 @@ jail_start()
 		if checkyesno jail_mount; then
 			info "Mounting fstab for jail ${_jail} (${jail_fstab})"
 			if [ ! -f "${jail_fstab}" ]; then
-				err 3 "$name: ${jail_fstab} doest not exist"
+				err 3 "$name: ${jail_fstab} does not exist"
 			fi
 			mount -a -F "${jail_fstab}"
 		fi
