@@ -32,7 +32,11 @@
  */
 
 #ifndef lint
+#if 0
 static const char sccsid[] = "@(#)state.c	8.5 (Berkeley) 5/30/95";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include "telnetd.h"
@@ -358,7 +362,7 @@ gotiac:			switch (c) {
 			continue;
 
 		default:
-			syslog(LOG_ERR, "telnetd: panic state=%d\n", state);
+			syslog(LOG_ERR, "panic state=%d", state);
 			printf("telnetd: panic state=%d\n", state);
 			exit(1);
 		}
