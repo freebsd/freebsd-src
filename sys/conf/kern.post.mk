@@ -115,7 +115,7 @@ assym.s: $S/kern/genassym.sh genassym.o
 # XXX used to force -elf after CFLAGS to work around breakage of cc -aout
 # (genassym.sh makes some assumptions and cc stopped satisfying them).
 genassym.o: $S/$M/$M/genassym.c
-	${CC} -c ${CFLAGS:N-fno-common} $S/$M/$M/genassym.c
+	${CC} -c ${CFLAGS:N-fno-common} -Wno-inline $S/$M/$M/genassym.c
 
 ${SYSTEM_OBJS} genassym.o vers.o: opt_global.h
 
