@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncrcontrol.c,v 1.16 1997/02/22 16:08:15 peter Exp $
+**  $Id: ncrcontrol.c,v 1.17 1997/07/25 20:46:39 se Exp $
 **
 **  Utility for NCR 53C810 device driver.
 **
@@ -920,7 +920,7 @@ static const char * sn (u_long a)
 	if ((d=a-offsetof(struct script, start))<m) m=d, s="<start>";
 	if ((d=a-offsetof(struct script, start1))<m) m=d, s="<start1>";
 	if ((d=a-offsetof(struct script, startpos))<m) m=d, s="<startpos>";
-	if ((d=a-offsetof(struct script, tryloop))<m) m=d, s="<tryloop>";
+	if ((d=a-offsetof(struct scripth, tryloop))<m) m=d, s="<tryloop>";
 	if ((d=a-offsetof(struct script, trysel))<m) m=d, s="<trysel>";
 	if ((d=a-offsetof(struct script, skip))<m) m=d, s="<skip>";
 	if ((d=a-offsetof(struct script, skip2))<m) m=d, s="<skip2>";
@@ -937,10 +937,10 @@ static const char * sn (u_long a)
 	if ((d=a-offsetof(struct script, status))<m) m=d, s="<status>";
 	if ((d=a-offsetof(struct script, msg_in))<m) m=d, s="<msg_in>";
 	if ((d=a-offsetof(struct script, msg_bad))<m) m=d, s="<msg_bad>";
-	if ((d=a-offsetof(struct script, msg_parity))<m) m=d, s="<msg_parity>";
-	if ((d=a-offsetof(struct script, msg_reject))<m) m=d, s="<msg_reject>";
-	if ((d=a-offsetof(struct script, msg_extended))<m) m=d, s="<msg_extended>";
-	if ((d=a-offsetof(struct script, msg_sdtr))<m) m=d, s="<msg_sdtr>";
+	if ((d=a-offsetof(struct scripth, msg_parity))<m) m=d, s="<msg_parity>";
+	if ((d=a-offsetof(struct scripth, msg_reject))<m) m=d, s="<msg_reject>";
+	if ((d=a-offsetof(struct scripth, msg_extended))<m) m=d, s="<msg_extended>";
+	if ((d=a-offsetof(struct scripth, msg_sdtr))<m) m=d, s="<msg_sdtr>";
 	if ((d=a-offsetof(struct script, complete))<m) m=d, s="<complete>";
 	if ((d=a-offsetof(struct script, cleanup))<m) m=d, s="<cleanup>";
 	if ((d=a-offsetof(struct script, cleanup0))<m) m=d, s="<cleanup>";
@@ -950,10 +950,10 @@ static const char * sn (u_long a)
 	if ((d=a-offsetof(struct script, disconnect))<m) m=d, s="<disconnect>";
 	if ((d=a-offsetof(struct script, msg_out))<m) m=d, s="<msg_out>";
 	if ((d=a-offsetof(struct script, msg_out_done))<m) m=d, s="<msg_out_done>";
-	if ((d=a-offsetof(struct script, msg_out_abort))<m) m=d, s="<msg_out_abort>";
-	if ((d=a-offsetof(struct script, getcc))<m) m=d, s="<getcc>";
-	if ((d=a-offsetof(struct script, getcc1))<m) m=d, s="<getcc1>";
-	if ((d=a-offsetof(struct script, getcc2))<m) m=d, s="<getcc2>";
+	if ((d=a-offsetof(struct scripth, msg_out_abort))<m) m=d, s="<msg_out_abort>";
+	if ((d=a-offsetof(struct scripth, getcc))<m) m=d, s="<getcc>";
+	if ((d=a-offsetof(struct scripth, getcc1))<m) m=d, s="<getcc1>";
+	if ((d=a-offsetof(struct scripth, getcc2))<m) m=d, s="<getcc2>";
 	if ((d=a-offsetof(struct script, badgetcc))<m) m=d, s="<badgetcc>";
 	if ((d=a-offsetof(struct script, reselect))<m) m=d, s="<reselect>";
 	if ((d=a-offsetof(struct script, reselect2))<m) m=d, s="<reselect2>";
@@ -963,8 +963,8 @@ static const char * sn (u_long a)
 	if ((d=a-offsetof(struct script, data_in))<m) m=d, s="<data_in>";
 	if ((d=a-offsetof(struct script, data_out))<m) m=d, s="<data_out>";
 	if ((d=a-offsetof(struct script, no_data))<m) m=d, s="<no_data>";
-	if ((d=a-offsetof(struct script, aborttag))<m) m=d, s="<aborttag>";
-	if ((d=a-offsetof(struct script, abort))<m) m=d, s="<abort>";
+	if ((d=a-offsetof(struct scripth, aborttag))<m) m=d, s="<aborttag>";
+	if ((d=a-offsetof(struct scripth, abort))<m) m=d, s="<abort>";
 
 	if (!*s) return s;
 
@@ -1390,7 +1390,7 @@ static void dump_ncr (void)
 
 		printf ("    startpos: %x\n", startpos);
 		printf ("        slot: %d\n", (startpos-
-			(ncr.p_script+offsetof(struct script, tryloop)))/20);
+			(ncr.p_script+offsetof(struct scripth, tryloop)))/20);
 		printf ("    squeuput: %d\n", ncr.squeueput);
 		for (i=0; i<MAX_START; i++)
 			printf ("%12d: %08x %s\n", i,
