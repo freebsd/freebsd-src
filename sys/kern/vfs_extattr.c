@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.37 1995/11/05 21:01:01 dyson Exp $
+ * $Id: vfs_syscalls.c,v 1.38 1995/11/12 06:43:07 bde Exp $
  */
 
 #include <sys/param.h>
@@ -1068,7 +1068,7 @@ olseek(p, uap, retval)
 	nuap.fd = uap->fd;
 	nuap.offset = uap->offset;
 	nuap.whence = uap->whence;
-	error = lseek(p, &nuap, &qret);
+	error = lseek(p, &nuap, (int *)&qret);
 	*(long *)retval = qret;
 	return (error);
 }
@@ -2312,8 +2312,8 @@ out:
 int
 getvnode(fdp, fd, fpp)
 	struct filedesc *fdp;
-	struct file **fpp;
 	int fd;
+	struct file **fpp;
 {
 	struct file *fp;
 
