@@ -66,6 +66,8 @@ OSFpal()
 		return;
 	}
 	switch_palcode();
+	bcopy(&p->pcs_palrevisions[PALvar_OSF1], &p->pcs_pal_rev,
+	      sizeof(p->pcs_pal_rev));
 	printf("Switch to OSF PAL code succeeded.\n");
 }
 
