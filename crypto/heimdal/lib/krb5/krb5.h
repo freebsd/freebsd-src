@@ -31,7 +31,7 @@
  * SUCH DAMAGE. 
  */
 
-/* $Id: krb5.h,v 1.209.2.1 2003/09/18 20:50:40 lha Exp $ */
+/* $Id: krb5.h,v 1.209.2.2 2004/06/21 08:32:00 lha Exp $ */
 
 #ifndef __KRB5_H__
 #define __KRB5_H__
@@ -638,11 +638,17 @@ extern const krb5_kt_ops krb4_fkt_ops;
 extern const krb5_kt_ops krb5_srvtab_fkt_ops;
 extern const krb5_kt_ops krb5_any_ops;
 
+#define KRB5_KPASSWD_VERS_CHANGEPW      1
+#define KRB5_KPASSWD_VERS_SETPW         0xff80
+
 #define KRB5_KPASSWD_SUCCESS	0
 #define KRB5_KPASSWD_MALFORMED	1
 #define KRB5_KPASSWD_HARDERROR	2
 #define KRB5_KPASSWD_AUTHERROR	3
 #define KRB5_KPASSWD_SOFTERROR	4
+#define KRB5_KPASSWD_ACCESSDENIED 5
+#define KRB5_KPASSWD_BAD_VERSION 6
+#define KRB5_KPASSWD_INITIAL_FLAG_NEEDED 7
 
 #define KPASSWD_PORT 464
 

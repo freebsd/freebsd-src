@@ -1,3 +1,20 @@
+Changes in release 0.6.3
+
+ * fix vulnerabilities in ftpd
+
+ * support for linux AFS /proc "syscalls"
+
+ * support for RFC3244 (Windows 2000 Kerberos Change/Set Password) in
+   kpasswdd
+
+ * fix possible KDC denial of service
+
+ * bug fixes
+
+Changes in release 0.6.2
+
+ * Fix possible buffer overrun in v4 kadmin (which now defaults to off)
+
 Changes in release 0.6.1
 
  * Fixed ARCFOUR suppport

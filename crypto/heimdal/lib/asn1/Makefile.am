@@ -1,4 +1,4 @@
-# $Id: Makefile.am,v 1.69.2.2 2003/10/14 16:13:13 joda Exp $
+# $Id: Makefile.am,v 1.69.2.3 2004/06/21 08:26:44 lha Exp $
 
 include $(top_srcdir)/Makefile.am.common
 
@@ -23,6 +23,7 @@ gen_files =					\
 	asn1_Authenticator.x			\
 	asn1_AuthorizationData.x		\
 	asn1_CKSUMTYPE.x			\
+	asn1_ChangePasswdDataMS.x		\
 	asn1_Checksum.x				\
 	asn1_ENCTYPE.x				\
 	asn1_ETYPE_INFO.x			\

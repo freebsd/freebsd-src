@@ -53,7 +53,7 @@
 
 #include <config.h>
 
-RCSID("$Id: kerberos5.c,v 1.53 2002/09/20 14:37:46 joda Exp $");
+RCSID("$Id: kerberos5.c,v 1.53.2.1 2004/06/21 08:21:07 lha Exp $");
 
 #ifdef	KRB5
 
@@ -97,8 +97,7 @@ int forwardable(int);
 
 void kerberos5_forward (Authenticator *);
 
-static unsigned char str_data[1024] = { IAC, SB, TELOPT_AUTHENTICATION, 0,
-			  		AUTHTYPE_KERBEROS_V5, };
+static unsigned char str_data[4] = { IAC, SB, TELOPT_AUTHENTICATION, 0 };
 
 #define	KRB_AUTH		0	/* Authentication data follows */
 #define	KRB_REJECT		1	/* Rejected (reason might follow) */
@@ -118,12 +117,25 @@ static krb5_auth_context auth_context;
 static int
 Data(Authenticator *ap, int type, void *d, int c)
 {
-    unsigned char *p = str_data + 4;
     unsigned char *cd = (unsigned char *)d;
+    unsigned char *p0, *p;
+    size_t len = sizeof(str_data) + 3 + 2;
+    int ret;
 
     if (c == -1)
 	c = strlen((char*)cd);
 
+    for (p = cd; p - cd < c; p++, len++)
+	if (*p == IAC)
+	    len++;
+
+    p0 = malloc(len);
+    if (p0 == NULL)
+	return 0;
+    
+    memcpy(p0, str_data, sizeof(str_data));
+    p = p0 + sizeof(str_data);
+	
     if (auth_debug_mode) {
 	printf("%s:%d: [%d] (%d)",
 	       str_data[3] == TELQUAL_IS ? ">>>IS" : ">>>REPLY",
@@ -142,8 +154,10 @@ Data(Authenticator *ap, int type, void *d, int c)
     *p++ = IAC;
     *p++ = SE;
     if (str_data[3] == TELQUAL_IS)
-	printsub('>', &str_data[2], p - &str_data[2]);
-    return(telnet_net_write(str_data, p - str_data));
+	printsub('>', &p0[2], len - 2);
+    ret = telnet_net_write(p0, len);
+    free(p0);
+    return ret;
 }
 
 int

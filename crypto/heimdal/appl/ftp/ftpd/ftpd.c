@@ -38,7 +38,7 @@
 #endif
 #include "getarg.h"
 
-RCSID("$Id: ftpd.c,v 1.166.2.2 2004/03/14 17:16:39 lha Exp $");
+RCSID("$Id: ftpd.c,v 1.166.2.3 2004/08/20 15:16:37 lha Exp $");
 
 static char version[] = "Version 6.00";
 
@@ -61,8 +61,6 @@ struct  sockaddr_storage pasv_addr_ss;
 struct  sockaddr *pasv_addr = (struct sockaddr *)&pasv_addr_ss;
 
 int	data;
-jmp_buf	errcatch, urgcatch;
-int	oobflag;
 int	logged_in;
 struct	passwd *pw;
 int	debug = 0;
@@ -78,7 +76,9 @@ int	stru;			/* avoid C keyword */
 int	mode;
 int	usedefault = 1;		/* for data transfers */
 int	pdata = -1;		/* for passive mode */
-int	transflag;
+int	allow_insecure_oob = 1;
+static int transflag;
+static int urgflag;
 off_t	file_size;
 off_t	byte_count;
 #if !defined(CMASK) || CMASK == 0
@@ -134,6 +134,7 @@ char	proctitle[BUFSIZ];	/* initial part of title */
 
 static void	 ack (char *);
 static void	 myoob (int);
+static int	 handleoobcmd(void);
 static int	 checkuser (char *, char *);
 static int	 checkaccess (char *);
 static FILE	*dataconn (const char *, off_t, const char *);
@@ -223,6 +224,7 @@ struct getargs args[] = {
     { NULL, 'v', arg_flag, &debug, "enable debugging" },
     { "builtin-ls", 'B', arg_flag, &use_builtin_ls, "use built-in ls to list files" },
     { "good-chars", 0, arg_string, &good_chars, "allowed anonymous upload filename chars" },
+    { "insecure-oob", 'I', arg_negative_flag, &allow_insecure_oob, "don't allow insecure OOB ABOR/STAT" },
 #ifdef KRB5    
     { "gss-bindings", 0,  arg_flag, &ftp_do_gss_bindings, "Require GSS-API bindings", NULL},
 #endif
@@ -429,7 +431,6 @@ main(int argc, char **argv)
 #endif
 	  );
 
-    setjmp(errcatch);
     for (;;)
 	yyparse();
     /* NOTREACHED */
@@ -1364,15 +1365,13 @@ send_data(FILE *instr, FILE *outstr)
 	static char *buf;
 	static size_t bufsize;
 
-	transflag++;
-	if (setjmp(urgcatch)) {
-		transflag = 0;
-		return;
-	}
+	transflag = 1;
 	switch (type) {
 
 	case TYPE_A:
 	    while ((c = getc(instr)) != EOF) {
+		if (urgflag && handleoobcmd())
+		    return;
 		byte_count++;
 		if(c == '\n')
 		    sec_putc('\r', outstr);
@@ -1380,6 +1379,7 @@ send_data(FILE *instr, FILE *outstr)
 	    }
 	    sec_fflush(outstr);
 	    transflag = 0;
+	    urgflag = 0;
 	    if (ferror(instr))
 		goto file_err;
 	    if (ferror(outstr))
@@ -1389,6 +1389,7 @@ send_data(FILE *instr, FILE *outstr)
 		
 	case TYPE_I:
 	case TYPE_L:
+#if 0 /* XXX handle urg flag */
 #if defined(HAVE_MMAP) && !defined(NO_MMAP)
 #ifndef MAP_FAILED
 #define MAP_FAILED (-1)
@@ -1412,9 +1413,11 @@ send_data(FILE *instr, FILE *outstr)
 			sec_fflush(outstr);
 			byte_count = cnt;
 			transflag = 0;
+			urgflag = 0;
 		    }
 		}
 	    }
+#endif
 #endif
 	if(transflag) {
 	    struct stat st;
@@ -1425,14 +1428,19 @@ send_data(FILE *instr, FILE *outstr)
 				fstat(filefd, &st) >= 0 ? &st : NULL);
 	    if (buf == NULL) {
 		transflag = 0;
+		urgflag = 0;
 		perror_reply(451, "Local resource failure: malloc");
 		return;
 	    }
 	    while ((cnt = read(filefd, buf, bufsize)) > 0 &&
-		   sec_write(netfd, buf, cnt) == cnt)
+		   sec_write(netfd, buf, cnt) == cnt) {
 		byte_count += cnt;
+		if (urgflag && handleoobcmd())
+		    return;
+	    }
 	    sec_fflush(outstr); /* to end an encrypted stream */
 	    transflag = 0;
+	    urgflag = 0;
 	    if (cnt != 0) {
 		if (cnt < 0)
 		    goto file_err;
@@ -1443,17 +1451,20 @@ send_data(FILE *instr, FILE *outstr)
 	return;
 	default:
 	    transflag = 0;
+	    urgflag = 0;
 	    reply(550, "Unimplemented TYPE %d in send_data", type);
 	    return;
 	}
 
 data_err:
 	transflag = 0;
+	urgflag = 0;
 	perror_reply(426, "Data connection");
 	return;
 
 file_err:
 	transflag = 0;
+	urgflag = 0;
 	perror_reply(551, "Error on input file");
 }
 
@@ -1471,16 +1482,13 @@ receive_data(FILE *instr, FILE *outstr)
     static size_t bufsize;
     struct stat st;
 
-    transflag++;
-    if (setjmp(urgcatch)) {
-	transflag = 0;
-	return (-1);
-    }
+    transflag = 1;
 
     buf = alloc_buffer (buf, &bufsize,
 			fstat(fileno(outstr), &st) >= 0 ? &st : NULL);
     if (buf == NULL) {
 	transflag = 0;
+	urgflag = 0;
 	perror_reply(451, "Local resource failure: malloc");
 	return -1;
     }
@@ -1493,15 +1501,19 @@ receive_data(FILE *instr, FILE *outstr)
 	    if (write(fileno(outstr), buf, cnt) != cnt)
 		goto file_err;
 	    byte_count += cnt;
+	    if (urgflag && handleoobcmd())
+		return (-1);
 	}
 	if (cnt < 0)
 	    goto data_err;
 	transflag = 0;
+	urgflag = 0;
 	return (0);
 
     case TYPE_E:
 	reply(553, "TYPE E not implemented.");
 	transflag = 0;
+	urgflag = 0;
 	return (-1);
 
     case TYPE_A:
@@ -1511,6 +1523,8 @@ receive_data(FILE *instr, FILE *outstr)
 	while ((cnt = sec_read(fileno(instr),
 				buf + cr_flag, 
 				bufsize - cr_flag)) > 0){
+	    if (urgflag && handleoobcmd())
+		return (-1);
 	    byte_count += cnt;
 	    cnt += cr_flag;
 	    cr_flag = 0;
@@ -1542,6 +1556,7 @@ receive_data(FILE *instr, FILE *outstr)
 	if (ferror(outstr))
 	    goto file_err;
 	transflag = 0;
+	urgflag = 0;
 	if (bare_lfs) {
 	    lreply(226, "WARNING! %d bare linefeeds received in ASCII mode\r\n"
 		   "    File may not have transferred correctly.\r\n",
@@ -1552,16 +1567,19 @@ receive_data(FILE *instr, FILE *outstr)
     default:
 	reply(550, "Unimplemented TYPE %d in receive_data", type);
 	transflag = 0;
+	urgflag = 0;
 	return (-1);
     }
 	
 data_err:
     transflag = 0;
+    urgflag = 0;
     perror_reply(426, "Data Connection");
     return (-1);
 	
 file_err:
     transflag = 0;
+    urgflag = 0;
     perror_reply(452, "Error writing file");
     return (-1);
 }
@@ -1731,17 +1749,6 @@ nack(char *s)
 	reply(502, "%s command not implemented.", s);
 }
 
-/* ARGSUSED */
-void
-yyerror(char *s)
-{
-	char *cp;
-
-	if ((cp = strchr(cbuf,'\n')))
-		*cp = '\0';
-	reply(500, "'%s': command not understood.", cbuf);
-}
-
 void
 do_delete(char *name)
 {
@@ -1880,6 +1887,7 @@ void
 dologout(int status)
 {
     transflag = 0;
+    urgflag = 0;
     if (logged_in) {
 	seteuid((uid_t)0);
 	ftpd_logwtmp(ttyline, "", "");
@@ -1897,51 +1905,72 @@ dologout(int status)
 
 void abor(void)
 {
+    if (!transflag)
+	return;
+    reply(426, "Transfer aborted. Data connection closed.");
+    reply(226, "Abort successful");
+    transflag = 0;
 }
 
 static void
 myoob(int signo)
 {
-#if 0
+    urgflag = 1;
+}
+
+static char *
+mec_space(char *p)
+{
+    while(isspace(*(unsigned char *)p))
+	  p++;
+    return p;
+}
+
+static int
+handleoobcmd(void)
+{
 	char *cp;
-#endif
 
 	/* only process if transfer occurring */
 	if (!transflag)
-		return;
+		return 0;
 
-	/* This is all XXX */
-	oobflag = 1;
-	/* if the command resulted in a new command, 
-	   parse that as well */
-	do{
-	    yyparse();
-	} while(ftp_command);
-	oobflag = 0;
+	urgflag = 0;
 
-#if 0 
 	cp = tmpline;
-	if (ftpd_getline(cp, 7) == NULL) {
+	if (ftpd_getline(cp, sizeof(tmpline)) == NULL) {
 		reply(221, "You could at least say goodbye.");
 		dologout(0);
 	}
-	upper(cp);
-	if (strcmp(cp, "ABOR\r\n") == 0) {
-		tmpline[0] = '\0';
-		reply(426, "Transfer aborted. Data connection closed.");
-		reply(226, "Abort successful");
-		longjmp(urgcatch, 1);
+
+	if (strncasecmp("MIC", cp, 3) == 0) {
+	    mec(mec_space(cp + 3), prot_safe);
+	} else if (strncasecmp("CONF", cp, 4) == 0) {
+	    mec(mec_space(cp + 4), prot_confidential);
+	} else if (strncasecmp("ENC", cp, 3) == 0) {
+	    mec(mec_space(cp + 3), prot_private);
+	} else if (!allow_insecure_oob) {
+	    reply(533, "Command protection level denied "
+		  "for paranoid reasons.");
+	    goto out;
 	}
-	if (strcmp(cp, "STAT\r\n") == 0) {
+
+	if (secure_command())
+	    cp = ftp_command;
+
+	if (strcasecmp(cp, "ABOR\r\n") == 0) {
+		abor();
+	} else if (strcasecmp(cp, "STAT\r\n") == 0) {
 		if (file_size != (off_t) -1)
 			reply(213, "Status: %ld of %ld bytes transferred",
 			      (long)byte_count,
 			      (long)file_size);
 		else
-			reply(213, "Status: %ld bytes transferred"
+			reply(213, "Status: %ld bytes transferred",
 			      (long)byte_count);
 	}
-#endif
+out:
+	return (transflag == 0);
 }
 
 /*
@@ -2184,139 +2213,136 @@ list_file(char *file)
 void
 send_file_list(char *whichf)
 {
-  struct stat st;
-  DIR *dirp = NULL;
-  struct dirent *dir;
-  FILE *dout = NULL;
-  char **dirlist, *dirname;
-  int simple = 0;
-  int freeglob = 0;
-  glob_t gl;
-  char buf[MaxPathLen];
+    struct stat st;
+    DIR *dirp = NULL;
+    struct dirent *dir;
+    FILE *dout = NULL;
+    char **dirlist, *dirname;
+    int simple = 0;
+    int freeglob = 0;
+    glob_t gl;
+    char buf[MaxPathLen];
 
-  if (strpbrk(whichf, "~{[*?") != NULL) {
-    int flags = GLOB_BRACE|GLOB_NOCHECK|GLOB_QUOTE|GLOB_TILDE|
+    if (strpbrk(whichf, "~{[*?") != NULL) {
+	int flags = GLOB_BRACE|GLOB_NOCHECK|GLOB_QUOTE|GLOB_TILDE|
 #ifdef GLOB_MAXPATH
-	GLOB_MAXPATH
+	    GLOB_MAXPATH
 #else
-	GLOB_LIMIT
+	    GLOB_LIMIT
 #endif
-	;
+	    ;
 
-    memset(&gl, 0, sizeof(gl));
-    freeglob = 1;
-    if (glob(whichf, flags, 0, &gl)) {
-      reply(550, "not found");
-      goto out;
-    } else if (gl.gl_pathc == 0) {
-      errno = ENOENT;
-      perror_reply(550, whichf);
-      goto out;
-    }
-    dirlist = gl.gl_pathv;
-  } else {
-    onefile[0] = whichf;
-    dirlist = onefile;
-    simple = 1;
-  }
-
-  if (setjmp(urgcatch)) {
-    transflag = 0;
-    goto out;
-  }
-  while ((dirname = *dirlist++)) {
-    if (stat(dirname, &st) < 0) {
-      /*
-       * If user typed "ls -l", etc, and the client
-       * used NLST, do what the user meant.
-       */
-      if (dirname[0] == '-' && *dirlist == NULL &&
-	  transflag == 0) {
-	  list_file(dirname);
-	  goto out;
-      }
-      perror_reply(550, whichf);
-      if (dout != NULL) {
-	fclose(dout);
-	transflag = 0;
-	data = -1;
-	pdata = -1;
-      }
-      goto out;
-    }
-
-    if (S_ISREG(st.st_mode)) {
-      if (dout == NULL) {
-	dout = dataconn("file list", (off_t)-1, "w");
-	if (dout == NULL)
-	  goto out;
-	transflag++;
-      }
-      snprintf(buf, sizeof(buf), "%s%s\n", dirname,
-	      type == TYPE_A ? "\r" : "");
-      sec_write(fileno(dout), buf, strlen(buf));
-      byte_count += strlen(dirname) + 1;
-      continue;
-    } else if (!S_ISDIR(st.st_mode))
-      continue;
-
-    if ((dirp = opendir(dirname)) == NULL)
-      continue;
-
-    while ((dir = readdir(dirp)) != NULL) {
-      char nbuf[MaxPathLen];
-
-      if (!strcmp(dir->d_name, "."))
-	continue;
-      if (!strcmp(dir->d_name, ".."))
-	continue;
-
-      snprintf(nbuf, sizeof(nbuf), "%s/%s", dirname, dir->d_name);
-
-      /*
-       * We have to do a stat to insure it's
-       * not a directory or special file.
-       */
-      if (simple || (stat(nbuf, &st) == 0 &&
-		     S_ISREG(st.st_mode))) {
-	if (dout == NULL) {
-	  dout = dataconn("file list", (off_t)-1, "w");
-	  if (dout == NULL)
+	memset(&gl, 0, sizeof(gl));
+	freeglob = 1;
+	if (glob(whichf, flags, 0, &gl)) {
+	    reply(550, "not found");
 	    goto out;
-	  transflag++;
+	} else if (gl.gl_pathc == 0) {
+	    errno = ENOENT;
+	    perror_reply(550, whichf);
+	    goto out;
 	}
-	if(strncmp(nbuf, "./", 2) == 0)
-	  snprintf(buf, sizeof(buf), "%s%s\n", nbuf +2,
-		   type == TYPE_A ? "\r" : "");
-	else
-	  snprintf(buf, sizeof(buf), "%s%s\n", nbuf,
-		   type == TYPE_A ? "\r" : "");
-	sec_write(fileno(dout), buf, strlen(buf));
-	byte_count += strlen(nbuf) + 1;
-      }
+	dirlist = gl.gl_pathv;
+    } else {
+	onefile[0] = whichf;
+	dirlist = onefile;
+	simple = 1;
     }
-    closedir(dirp);
-  }
-  if (dout == NULL)
-    reply(550, "No files found.");
-  else if (ferror(dout) != 0)
-    perror_reply(550, "Data connection");
-  else
-    reply(226, "Transfer complete.");
 
-  transflag = 0;
-  if (dout != NULL){
-    sec_write(fileno(dout), buf, 0); /* XXX flush */
-	    
-    fclose(dout);
-  }
-  data = -1;
-  pdata = -1;
+    while ((dirname = *dirlist++)) {
+
+	if (urgflag && handleoobcmd())
+	    goto out;
+
+	if (stat(dirname, &st) < 0) {
+	    /*
+	     * If user typed "ls -l", etc, and the client
+	     * used NLST, do what the user meant.
+	     */
+	    if (dirname[0] == '-' && *dirlist == NULL &&
+		transflag == 0) {
+		list_file(dirname);
+		goto out;
+	    }
+	    perror_reply(550, whichf);
+	    goto out;
+	}
+
+	if (S_ISREG(st.st_mode)) {
+	    if (dout == NULL) {
+		dout = dataconn("file list", (off_t)-1, "w");
+		if (dout == NULL)
+		    goto out;
+		transflag = 1;
+	    }
+	    snprintf(buf, sizeof(buf), "%s%s\n", dirname,
+		     type == TYPE_A ? "\r" : "");
+	    sec_write(fileno(dout), buf, strlen(buf));
+	    byte_count += strlen(dirname) + 1;
+	    continue;
+	} else if (!S_ISDIR(st.st_mode))
+	    continue;
+
+	if ((dirp = opendir(dirname)) == NULL)
+	    continue;
+
+	while ((dir = readdir(dirp)) != NULL) {
+	    char nbuf[MaxPathLen];
+
+	    if (urgflag && handleoobcmd())
+		goto out;
+
+	    if (!strcmp(dir->d_name, "."))
+		continue;
+	    if (!strcmp(dir->d_name, ".."))
+		continue;
+
+	    snprintf(nbuf, sizeof(nbuf), "%s/%s", dirname, dir->d_name);
+
+	    /*
+	     * We have to do a stat to insure it's
+	     * not a directory or special file.
+	     */
+	    if (simple || (stat(nbuf, &st) == 0 &&
+			   S_ISREG(st.st_mode))) {
+		if (dout == NULL) {
+		    dout = dataconn("file list", (off_t)-1, "w");
+		    if (dout == NULL)
+			goto out;
+		    transflag = 1;
+		}
+		if(strncmp(nbuf, "./", 2) == 0)
+		    snprintf(buf, sizeof(buf), "%s%s\n", nbuf +2,
+			     type == TYPE_A ? "\r" : "");
+		else
+		    snprintf(buf, sizeof(buf), "%s%s\n", nbuf,
+			     type == TYPE_A ? "\r" : "");
+		sec_write(fileno(dout), buf, strlen(buf));
+		byte_count += strlen(nbuf) + 1;
+	    }
+	}
+	closedir(dirp);
+    }
+    if (dout == NULL)
+	reply(550, "No files found.");
+    else if (ferror(dout) != 0)
+	perror_reply(550, "Data connection");
+    else
+	reply(226, "Transfer complete.");
+
 out:
-  if (freeglob) {
-    freeglob = 0;
-    globfree(&gl);
-  }
+    transflag = 0;
+    if (dout != NULL){
+	sec_write(fileno(dout), buf, 0); /* XXX flush */
+	    
+	fclose(dout);
+    }
+    data = -1;
+    pdata = -1;
+    if (freeglob) {
+	freeglob = 0;
+	globfree(&gl);
+    }
 }
 
 
