@@ -283,7 +283,7 @@ isic:	isdn4bsd Siemens ISDN Chipset driver
 joy:    Joystick
 labpc:  National Instrument's Lab-PC and Lab-PC+
 meteor: Matrox Meteor frame-grabber card
-bktr:   Brooktree Bt848 based frame-grabber cards.
+bktr:   Brooktree Bt848 / Bt 878 based frame-grabber cards.
 mpu:    Roland MPU-401 stand-alone card
 mse:    Microsoft, Logitech, ATI bus mouse ports
 mss:    Microsoft Sound System
@@ -502,6 +502,8 @@ Isolan AT 4141-0 (16 bit)
 Isolink 4110     (8 bit)
 
 Novell NE1000, NE2000, and NE2100 ethernet interface.
+PCI network cards emulating the NE2000: RealTek 8029, NetVin 5000,
+Winbond W89C940, Surecom NE-34, VIA VT86C926.
 
 3Com 3C501 cards
 
@@ -676,7 +678,7 @@ Connectix QuickCam
 Matrox Meteor Video frame grabber
 Creative Labs Video Spigot frame grabber
 Cortex1 frame grabber
-Various Frame grabbers based on Brooktree Bt848 chip.
+Various Frame grabbers based on Brooktree Bt848 and Bt878 chip.
 
 HP4020, HP6020, Philips CDD2000/CDD2660 and Plasmon CD-R drives.
 
