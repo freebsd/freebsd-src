@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: imgact_shell.c,v 1.8 1995/10/08 00:05:58 swallace Exp $
+ *	$Id: imgact_shell.c,v 1.9 1995/11/06 12:52:31 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -48,11 +48,13 @@
 
 #define MAXSHELLCMDLEN	64
 
+static int	exec_shell_imgact __P((struct image_params *imgp));
+
 /*
  * Shell interpreter image activator. A interpreter name beginning
  *	at imgp->stringbase is the minimal successful exit requirement.
  */
-int
+static int
 exec_shell_imgact(imgp)
 	struct image_params *imgp;
 {
