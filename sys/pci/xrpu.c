@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: xrpu.c,v 1.3 1998/10/24 19:47:42 phk Exp $
+ * $Id: xrpu.c,v 1.4 1998/11/08 12:39:06 dfr Exp $
  *
  * A very simple device driver for PCI cards based on Xilinx 6200 series
  * FPGA/RPU devices.  Current Functionality is to allow you to open and
@@ -29,7 +29,7 @@
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
 
-static	char*	xrpu_probe  (pcici_t tag, pcidi_t type);
+static	const char*	xrpu_probe  (pcici_t tag, pcidi_t type);
 static	void	xrpu_attach (pcici_t tag, int unit);
 static	u_long	xrpu_count;
 
@@ -225,7 +225,7 @@ static struct pci_device xrpu_device = {
 
 DATA_SET (pcidevice_set, xrpu_device);
 
-static char* 
+static const char* 
 xrpu_probe (pcici_t tag, pcidi_t typea)
 {
 	int data = pci_conf_read(tag, PCI_CLASS_REG);

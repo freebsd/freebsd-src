@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_xl.c,v 1.62 1998/12/10 00:55:04 wpaul Exp $
+ *	$Id: if_xl.c,v 1.20 1998/12/10 16:18:42 wpaul Exp $
  */
 
 /*
@@ -147,7 +147,7 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-	"$Id: if_xl.c,v 1.62 1998/12/10 00:55:04 wpaul Exp $";
+	"$Id: if_xl.c,v 1.20 1998/12/10 16:18:42 wpaul Exp $";
 #endif
 
 /*
@@ -194,7 +194,7 @@ static struct xl_type xl_phys[] = {
 };
 
 static unsigned long xl_count = 0;
-static char *xl_probe		__P((pcici_t, pcidi_t));
+static const char *xl_probe	__P((pcici_t, pcidi_t));
 static void xl_attach		__P((pcici_t, int));
 
 static int xl_newbuf		__P((struct xl_softc *,
@@ -1185,7 +1185,7 @@ static void xl_reset(sc)
  * Probe for a 3Com Etherlink XL chip. Check the PCI vendor and device
  * IDs against our list and return a device name if we find a match.
  */
-static char *
+static const char *
 xl_probe(config_id, device_id)
 	pcici_t			config_id;
 	pcidi_t			device_id;

@@ -129,7 +129,7 @@ static struct ispmdvec mdvec_2100 = {
 #define MEM_MAP_REG	0x14
 
 
-static char *isp_pci_probe __P((pcici_t tag, pcidi_t type));
+static const char *isp_pci_probe __P((pcici_t tag, pcidi_t type));
 static void isp_pci_attach __P((pcici_t config_d, int unit));
 
 /* This distinguishing define is not right, but it does work */
@@ -196,7 +196,7 @@ struct pci_device isp_pci_driver = {
 DATA_SET (pcidevice_set, isp_pci_driver);
 
 
-static char *
+static const char *
 isp_pci_probe(tag, type)
 	pcici_t tag;
 	pcidi_t type;

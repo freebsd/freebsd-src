@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_mx.c,v 1.3 1998/12/05 02:21:43 wpaul Exp $
+ *	$Id: if_mx.c,v 1.4 1998/12/07 21:58:46 archie Exp $
  */
 
 /*
@@ -94,7 +94,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_mx.c,v 1.3 1998/12/05 02:21:43 wpaul Exp $";
+	"$Id: if_mx.c,v 1.4 1998/12/07 21:58:46 archie Exp $";
 #endif
 
 /*
@@ -129,7 +129,7 @@ static struct mx_type mx_phys[] = {
 };
 
 static unsigned long mx_count = 0;
-static char *mx_probe		__P((pcici_t, pcidi_t));
+static const char *mx_probe	__P((pcici_t, pcidi_t));
 static void mx_attach		__P((pcici_t, int));
 
 static int mx_newbuf		__P((struct mx_softc *,
@@ -1225,7 +1225,7 @@ static void mx_reset(sc)
  * lets us tell the user exactly what type of device they have
  * in the probe output.
  */
-static char *
+static const char *
 mx_probe(config_id, device_id)
 	pcici_t			config_id;
 	pcidi_t			device_id;

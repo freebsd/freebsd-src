@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cy_pci.c,v 1.5 1997/02/22 09:44:00 peter Exp $
+ *	$Id: cy_pci.c,v 1.6 1997/09/02 20:06:24 bde Exp $
  */
 
 /*
@@ -44,7 +44,7 @@
 
 #include <pci/cy_pcireg.h>
 
-static char *cy_probe		__P((pcici_t, pcidi_t));
+static const char *cy_probe		__P((pcici_t, pcidi_t));
 static void cy_attach		__P((pcici_t, int));
 
 extern int cyattach_common(void *, int); /* Not exactly correct */
@@ -61,7 +61,7 @@ static struct pci_device cy_device = {
 };
 DATA_SET(pcidevice_set, cy_device);
 
-static char *
+static const char *
 cy_probe(config_id, device_id)
 	pcici_t config_id;
 	pcidi_t device_id;

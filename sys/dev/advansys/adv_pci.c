@@ -47,7 +47,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: adv_pci.c,v 1.1 1998/09/15 07:03:43 gibbs Exp $
+ *	$Id: adv_pci.c,v 1.2 1998/12/07 21:58:45 archie Exp $
  */
 
 #include <pci.h>
@@ -76,7 +76,7 @@
 #define ADV_PCI_MAX_DMA_ADDR    (0xFFFFFFFFL)
 #define ADV_PCI_MAX_DMA_COUNT   (0xFFFFFFFFL)
 
-static char* advpciprobe(pcici_t tag, pcidi_t type);
+static const char* advpciprobe(pcici_t tag, pcidi_t type);
 static void advpciattach(pcici_t config_id, int unit);
 
 /* 
@@ -97,7 +97,7 @@ static struct  pci_device adv_pci_driver = {
 
 DATA_SET (pcidevice_set, adv_pci_driver);
 
-static  char*
+static const char*
 advpciprobe(pcici_t tag, pcidi_t type)
 {
 	int rev = pci_conf_read(tag, PCI_CLASS_REG) & 0xff;
