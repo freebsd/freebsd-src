@@ -41,7 +41,10 @@ etc-examples:
 .endif
 
 .if ${SHARED} != "symlinks"
-SUBDIR=	ipfilter smbfs
+SUBDIR=	smbfs
+.if !defined(NO_IPFILTER)
+SUBDIR+=ipfilter
+.endif
 .endif
 
 .include <bsd.subdir.mk>
