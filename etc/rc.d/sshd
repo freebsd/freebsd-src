@@ -12,12 +12,16 @@
 
 name="sshd"
 rcvar=`set_rcvar`
-command="/usr/sbin/${name}"
 keygen_cmd="sshd_keygen"
 start_precmd="sshd_precmd"
 pidfile="/var/run/${name}.pid"
-required_files="/etc/ssh/sshd_config"
 extra_commands="keygen reload"
+case ${OSTYPE} in
+NetBSD)
+	command="/usr/sbin/${name}"
+	required_files="/etc/ssh/sshd_config"
+	;;
+esac
 
 sshd_keygen()
 {
