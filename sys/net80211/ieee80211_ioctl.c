@@ -1972,7 +1972,8 @@ ieee80211_ioctl_set80211(struct ieee80211com *ic, u_long cmd, struct ieee80211re
 		break;
 	case IEEE80211_IOC_WEPTXKEY:
 		kid = (u_int) ireq->i_val;
-		if (kid >= IEEE80211_WEP_NKID)
+		if (kid >= IEEE80211_WEP_NKID &&
+		    (u_int16_t) kid != IEEE80211_KEYIX_NONE)
 			return EINVAL;
 		ic->ic_def_txkey = kid;
 		error = ENETRESET;	/* push to hardware */
