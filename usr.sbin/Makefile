@@ -26,7 +26,6 @@ SUBDIR=	IPXrouted \
 	devinfo \
 	digictl \
 	edquota \
-	elf2aout \
 	extattr \
 	extattrctl \
 	faithd \
