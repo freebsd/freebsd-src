@@ -957,6 +957,9 @@ getasciilabel(FILE *f, struct disklabel *lp)
 	int lineno = 0, errors = 0;
 	int i;
 
+	bzero(&part_set, sizeof(part_set));
+	bzero(&part_size_type, sizeof(part_size_type));
+	bzero(&part_offset_type, sizeof(part_offset_type));
 	lp->d_bbsize = BBSIZE;				/* XXX */
 	lp->d_sbsize = 0;				/* XXX */
 	while (fgets(line, sizeof(line) - 1, f)) {
