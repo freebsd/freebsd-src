@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_xe.c,v 1.19 1999/04/15 22:15:53 scott Exp $
+ *	$Id: if_xe.c,v 1.20 1999/06/13 19:17:40 scott Exp $
  */
 
 /*
@@ -63,7 +63,9 @@
  * FreeBSD device driver for Xircom CreditCard PCMCIA Ethernet adapters.  The
  * following cards are currently known to work with the driver:
  *   Xircom CreditCard 10/100 (CE3)
+ *   Xircom CreditCard Ethernet + Modem 28 (CEM28)
  *   Xircom CreditCard Ethernet 10/100 + Modem 56 (CEM56)
+ *   Xircom RealPort Ethernet 10
  *   Xircom RealPort Ethernet 10/100
  *   Xircom RealPort Ethernet 10/100 + Modem 56 (REM56, REM56G)
  *   Intel EtherExpress Pro/100 PC Card Mobile Adapter 16 (Pro/100 M16A)
@@ -96,7 +98,7 @@
  */
 
 
-#define XE_DEBUG 1
+#define XE_DEBUG 1	/* Increase for more voluminous output! */
 
 #include "xe.h"
 #include "card.h"
@@ -151,8 +153,8 @@
 struct xe_softc {
   struct arpcom arpcom;
   struct ifmedia ifmedia;
-  struct callout_handle chand;
   struct ifmib_iso_8802_3 mibdata;
+  struct callout_handle chand;
   struct isa_device *dev;
   struct pccard_devinfo *crd;
   struct ifnet *ifp;
@@ -162,14 +164,16 @@ struct xe_softc {
   int unit;		/* Unit number, from dev->id_unit */
   int srev;     	/* Silicon revision */
   int tx_queued;	/* Packets currently waiting to transmit */
-  int tx_ptr;		/* Last value of PTR reg on card */
+  int tx_tpr;		/* Last value of TPR reg on card */
   int tx_collisions;	/* Collisions since last successful send */
   int tx_timeouts;	/* Count of transmit timeouts */
   int autoneg_status;	/* Autonegotiation progress state */
   int media;		/* Private media word */
-  u_char modem;		/* 1 = Multifunction card with modem */
-  u_char ce3;      	/* 1 = CE3 class (100Mbit) adapter */
-  u_char cem56;    	/* 1 = CEM56 class (CE3 + 56Kbps modem) adapter */
+  u_char version;	/* Bonding Version register from card */
+  u_char modem;		/* 1 = Card has a modem */
+  u_char ce2;		/* 1 = Card has CE2 silicon */
+  u_char mohawk;      	/* 1 = Card has Mohawk (CE3) silicon */
+  u_char dingo;    	/* 1 = Card has Dingo (CEM56) silicon */
   u_char phy_ok;	/* 1 = MII-compliant PHY found and initialised */
   u_char gone;		/* 1 = Card bailed out */
 #if NAPM > 0
@@ -179,7 +183,6 @@ struct xe_softc {
 };
 
 static struct xe_softc *sca[MAXSLOT];
-static int iob[MAXSLOT];	/* XXX - very gross */
 
 
 /*
@@ -201,7 +204,7 @@ struct xe_mii_frame {
 #define XE_INW(r)         inw(scp->dev->id_iobase+(r))
 #define XE_OUTB(r, b)     outb(scp->dev->id_iobase+(r), (b))
 #define XE_OUTW(r, w)     outw(scp->dev->id_iobase+(r), (w))
-#define XE_SELECT_PAGE(p) XE_OUTB(XE_PSR, (p))
+#define XE_SELECT_PAGE(p) XE_OUTB(XE_PR, (p))
 
 /*
  * Horrid stuff for accessing CIS tuples
@@ -245,6 +248,8 @@ static void      xe_setmulti		(struct xe_softc *scp);
 static void      xe_setaddrs		(struct xe_softc *scp);
 static int       xe_pio_write_packet	(struct xe_softc *scp, struct mbuf *mbp);
 static void      xe_card_unload		(struct pccard_devinfo *devi);
+static u_int32_t xe_compute_crc		(u_int8_t *data, int len);
+static int       xe_compute_hashbit	(u_int32_t crc);
 
 /*
  * MII functions
@@ -318,10 +323,9 @@ struct isa_driver xedriver = {
 static int
 xe_probe (struct isa_device *dev) {
 #ifdef XE_DEBUG
-  printf("xe%d: probe, iobase = %#x\n", dev->id_unit, dev->id_iobase);
+  printf("xe%d: probe\n", dev->id_unit);
 #endif
   bzero(sca, MAXSLOT * sizeof(sca[0]));
-  iob[dev->id_unit] = dev->id_iobase;
   return 0;
 }
 
@@ -395,23 +399,31 @@ xe_cem56fix(struct xe_softc *scp)
   /* allocate a new I/O slot for the ethernet */
   /* XXX: ctrl->mapio() always appears to return 0 (success), so
    *      this may cause problems if another device is listening
-   *	  on 0x300 already
+   *	  on 0x300 already.  In this case, you should choose a
+   *      known free I/O port address in the kernel config line
+   *      for the driver.  It will be picked up here and used
+   *      instead of the autodetected value.
    */
   slt->io[1].window = 1;
   slt->io[1].flags = IODF_WS|IODF_16BIT|IODF_ZEROWS|IODF_ACTIVE;
   slt->io[1].size = 0x10;
-  if (iob[scp->unit] == -1) {
-    for (ioport = 0x300; ioport < 0x400; ioport += 0x10) {
-      slt->io[1].start = ioport;
-      if ((fail = ctrl->mapio( slt, 1 )) == 0)
-	break;
-    }
-  }
-  else {
-    ioport = iob[scp->unit];
+
+#ifdef	XE_IOBASE
+
+  printf( "xe%d: user requested ioport 0x%x\n", scp->unit, XE_IOBASE );
+  ioport = XE_IOBASE;
+  slt->io[1].start = ioport;
+  fail = ctrl->mapio(slt, 1);
+
+#else
+
+  for (ioport = 0x300; ioport < 0x400; ioport += 0x10) {
     slt->io[1].start = ioport;
-    fail = ctrl->mapio(slt, 1);
+    if ((fail = ctrl->mapio( slt, 1 )) == 0)
+      break;
   }
+
+#endif
 
   /* did we find one? */
   if (fail) {
@@ -421,22 +433,23 @@ xe_cem56fix(struct xe_softc *scp)
 
 
   /* munge the id_iobase entry for use by the rest of the driver */
-#ifdef XE_DEBUG
+#if XE_DEBUG > 1
   printf( "xe%d: using 0x%x for RealPort ethernet\n", scp->unit, ioport );
 #endif
   scp->dev->id_iobase = ioport;
   scp->dev->id_alive  = 0x10;
 
   /* magic to set up the ethernet */
-  xe_memwrite( devi, 0x800, 0x47 );
-  xe_memwrite( devi, 0x80a, ioport & 0xff );
-  xe_memwrite( devi, 0x80c, (ioport >> 8) & 0xff );
+  xe_memwrite( devi, DINGO_ECOR, DINGO_ECOR_IRQ_LEVEL|DINGO_ECOR_INT_ENABLE|
+	       DINGO_ECOR_IOB_ENABLE|DINGO_ECOR_ETH_ENABLE );
+  xe_memwrite( devi, DINGO_EBAR0, ioport & 0xff );
+  xe_memwrite( devi, DINGO_EBAR1, (ioport >> 8) & 0xff );
 
-  xe_memwrite( devi, 0x820, 0x01 );
-  xe_memwrite( devi, 0x822, 0x0c );
-  xe_memwrite( devi, 0x824, 0x00 );
-  xe_memwrite( devi, 0x826, 0x00 );
-  xe_memwrite( devi, 0x828, 0x00 );
+  xe_memwrite( devi, DINGO_DCOR0, DINGO_DCOR0_SF_INT );
+  xe_memwrite( devi, DINGO_DCOR1, DINGO_DCOR1_INT_LEVEL|DINGO_DCOR1_EEDIO );
+  xe_memwrite( devi, DINGO_DCOR2, 0x00 );
+  xe_memwrite( devi, DINGO_DCOR3, 0x00 );
+  xe_memwrite( devi, DINGO_DCOR4, 0x00 );
 
   /* success! */
   return 0;
@@ -470,13 +483,13 @@ xe_card_init(struct pccard_devinfo *devi)
 
   /* Check that unit number is OK */
   if (unit > MAXSLOT) {
-    printf("xe: bad unit (%d)\n", unit);
+    printf("xe%d: bad unit\n", unit);
     return (ENODEV);
   }
 
   /* Don't attach an active device */
   if (scp && !scp->gone) {
-    printf("xe: unit already attached (%d)\n", unit);
+    printf("xe%d: already attached\n", unit);
     return (EBUSY);
   }
 
@@ -503,17 +516,16 @@ xe_card_init(struct pccard_devinfo *devi)
 
     /*
      * Read tuples one at a time into buf.  Sucks, but it only happens once.
-     * XXX - If the stuff we need isn't in attribute memory, or (worse yet)
-     * XXX - attribute memory isn't mapped, we're FUBAR.  Maybe need to do an
-     * XXX - ioctl on the card device and follow links?
-     * XXX - Not really the driver's problem, PCCARD should handle all this!
+     * XXX - This assumes that attribute has been mapped by pccardd, which
+     * XXX - seems to be the default situation.  If not, we're well and truly
+     * XXX - FUBAR.  This is a general PCCARD problem, not our fault :)
      */
     if ((rc = xe_memread( devi, offs, buf, CISTPL_BUFSIZE )) == 0) {
 
       switch (CISTPL_TYPE(buf)) {
 
        case 0x15:	/* Grab version string (needed to ID some weird CE2's) */
-#ifdef XE_DEBUG
+#if XE_DEBUG > 1
 	printf("xe%d: Got version string (0x15)\n", unit);
 #endif
 	for (i = 0; i < CISTPL_LEN(buf); ver_str[i] = CISTPL_DATA(buf, i++));
@@ -523,7 +535,7 @@ xe_card_init(struct pccard_devinfo *devi)
 	break;
 
        case 0x20:	/* Figure out what type of card we have */
-#ifdef XE_DEBUG
+#if XE_DEBUG > 1
 	printf("xe%d: Got card ID (0x20)\n", unit);
 #endif
 	vendor = CISTPL_DATA(buf, 0) + (CISTPL_DATA(buf, 1) << 8);
@@ -544,14 +556,14 @@ xe_card_init(struct pccard_devinfo *devi)
 	}
 
 	if (!((prod & 0x40) && (media & 0x01))) {
-#ifdef XE_DEBUG
+#if XE_DEBUG > 1
 	printf("xe%d: Not a PCMCIA Ethernet card!\n", unit);
 #endif
 	  rc = ENODEV;		/* Not a PCMCIA Ethernet device */
 	}
 	else {
 	  if (media & 0x10) {	/* Ethernet/modem cards */
-#ifdef XE_DEBUG
+#if XE_DEBUG > 1
 	printf("xe%d: Card is Ethernet/modem combo\n", unit);
 #endif
 	    scp->modem = 1;
@@ -559,34 +571,38 @@ xe_card_init(struct pccard_devinfo *devi)
 	     case 1:
 	      scp->card_type = "CEM"; break;
 	     case 2:
+	      scp->ce2 = 1;
 	      scp->card_type = "CEM2"; break;
 	     case 3:
+	      scp->ce2 = 1;
 	      scp->card_type = "CEM3"; break;
 	     case 4:
+	      scp->ce2 = 1;
 	      scp->card_type = "CEM33"; break;
 	     case 5:
-	      scp->ce3 = 1;
+	      scp->mohawk = 1;
 	      scp->card_type = "CEM56M"; break;
 	     case 6:
 	     case 7:		/* Some kind of RealPort card */
-	      scp->ce3 = 1;
-	      scp->cem56 = 1;
+	      scp->mohawk = 1;
+	      scp->dingo = 1;
 	      scp->card_type = "CEM56"; break;
 	     default:
 	      rc = ENODEV;
 	    }
 	  }
 	  else {		/* Ethernet-only cards */
-#ifdef XE_DEBUG
+#if XE_DEBUG > 1
 	printf("xe%d: Card is Ethernet only\n", unit);
 #endif
 	    switch (prod & 0x0f) {
 	     case 1:
 	      scp->card_type = "CE"; break;
 	     case 2:
+	      scp->ce2 = 1;
 	      scp->card_type = "CE2"; break;
 	     case 3:
-	      scp->ce3 = 1;
+	      scp->mohawk = 1;
 	      scp->card_type = "CE3"; break;
 	     default:
 	      rc = ENODEV;
@@ -597,12 +613,12 @@ xe_card_init(struct pccard_devinfo *devi)
 	break;
 
        case 0x22:	/* Get MAC address */
-#ifdef XE_DEBUG
-	printf("xe%d: Got MAC address (0x22)\n", unit);
-#endif
 	if ((CISTPL_LEN(buf) == 8) &&
 	    (CISTPL_DATA(buf, 0) == 0x04) &&
 	    (CISTPL_DATA(buf, 1) == ETHER_ADDR_LEN)) {
+#if XE_DEBUG > 1
+	  printf("xe%d: Got MAC address (0x22)\n", unit);
+#endif
 	  for (i = 0; i < ETHER_ADDR_LEN; scp->arpcom.ac_enaddr[i] = CISTPL_DATA(buf, i+2), i++);
 	}
 	success++;
@@ -626,7 +642,7 @@ xe_card_init(struct pccard_devinfo *devi)
   /* Check for certain strange CE2's that look like CE's */
   if (strcmp(scp->card_type, "CE") == 0) {
     u_char *str = ver_str;
-#ifdef XE_DEBUG
+#if XE_DEBUG > 1
     printf("xe%d: Checking for weird CE2 string\n", unit);
 #endif
     str += strlen(str) + 1;			/* Skip forward to 3rd version string */
@@ -656,12 +672,16 @@ xe_card_init(struct pccard_devinfo *devi)
   scp->autoneg_status = 0;
 
   /* Hack RealPorts into submission */
-  if (scp->cem56 && xe_cem56fix(scp) < 0) {
+  if (scp->dingo && xe_cem56fix(scp) < 0) {
     printf( "xe%d: Unable to fix your RealPort\n", unit );
     sca[unit] = 0;
     free(scp, M_DEVBUF);
     return ENODEV;
   }
+
+  /* Hopefully safe to read this here */
+  XE_SELECT_PAGE(4);
+  scp->version = XE_INB(XE_BOV);
 
   /* Attempt to attach the device */
   if (!xe_attach(scp->dev)) {
@@ -729,7 +749,7 @@ xe_attach (struct isa_device *dev) {
    * operation, but this driver doesn't, yet.  Therefore we leave those modes
    * out of the list.  We support some form of autoselection in all cases.
    */
-  if (scp->ce3) {
+  if (scp->mohawk) {
     ifmedia_add(scp->ifm, IFM_ETHER|IFM_100_TX, 0, NULL);
     ifmedia_add(scp->ifm, IFM_ETHER|IFM_10_T, 0, NULL);
   }
@@ -743,12 +763,30 @@ xe_attach (struct isa_device *dev) {
   ifmedia_set(scp->ifm, IFM_ETHER|IFM_AUTO);
 
   /* Print some useful information */
-  printf("\nxe%d: %s %s%s%s\n",
+  printf("\n");
+  printf("xe%d: %s %s, bonding version %#x%s%s\n",
 	 scp->unit,
 	 scp->vendor,
 	 scp->card_type,
-	 scp->ce3 ?   ", 100Mbps capable" : "",
-	 scp->cem56 ? ", with modem"      : "");
+	 scp->version,
+	 scp->mohawk ? ", 100Mbps capable" : "",
+	 scp->modem ?  ", with modem"      : "");
+  if (scp->mohawk) {
+    XE_SELECT_PAGE(0x10);
+    printf("xe%d: DingoID = %#x, RevisionID = %#x, VendorID = %#x\n",
+	   scp->unit,
+	   XE_INW(XE_DINGOID),
+	   XE_INW(XE_RevID),
+	   XE_INW(XE_VendorID));
+  }
+  if (scp->ce2) {
+    XE_SELECT_PAGE(0x45);
+    printf("xe%d: CE2 version = %#x\n",
+	   scp->unit,
+	   XE_INB(XE_REV));
+  }
+
+  /* Print MAC address */
   printf("xe%d: Ethernet address %02x", scp->unit, scp->arpcom.ac_enaddr[0]);
   for (i = 1; i < ETHER_ADDR_LEN; i++) {
     printf(":%02x", scp->arpcom.ac_enaddr[i]);
@@ -761,7 +799,7 @@ xe_attach (struct isa_device *dev) {
 
 #if NBPFILTER > 0
   /* If BPF is in the kernel, call the attach for it */
-#ifdef XE_DEBUG
+#if XE_DEBUG > 1
   printf("xe%d: BPF listener attached\n", scp->unit);
 #endif
   bpfattach(scp->ifp, DLT_EN10MB, sizeof(struct ether_header));
@@ -792,7 +830,7 @@ xe_init(void *xscp) {
 
   /* Reset transmitter flags */
   scp->tx_queued = 0;
-  scp->tx_ptr = 0;
+  scp->tx_tpr = 0;
   scp->tx_collisions = 0;
   scp->ifp->if_timer = 0;
 
@@ -816,19 +854,19 @@ xe_init(void *xscp) {
 
   /* Fix the data offset register -- reset leaves it off-by-one */
   XE_SELECT_PAGE(0);
-  XE_OUTW(XE_DOR, 0x2000);
+  XE_OUTW(XE_DO, 0x2000);
 
   /*
    * Set MAC interrupt masks and clear status regs.  The bit names are direct
    * from the Linux code; I have no idea what most of them do.
    */
   XE_SELECT_PAGE(0x40);		/* Bit 7..0 */
-  XE_OUTB(XE_RXM0, 0xff);	/* ROK, RAB, rsv, RO,  CRC, AE,  PTL, MP  */
-  XE_OUTB(XE_TXM0, 0xff);	/* TOK, TAB, SQE, LL,  TU,  JAB, EXC, CRS */
-  XE_OUTB(XE_TXM1, 0xb0);	/* rsv, rsv, PTD, EXT, rsv, rsv, rsv, rsv */
-  XE_OUTB(XE_RXS0, 0x00);	/* ROK, RAB, REN, RO,  CRC, AE,  PTL, MP  */
-  XE_OUTB(XE_TXS0, 0x00);	/* TOK, TAB, SQE, LL,  TU,  JAB, EXC, CRS */
-  XE_OUTB(XE_TXS1, 0x00);	/* TEN, rsv, PTD, EXT, retry_counter:4    */
+  XE_OUTB(XE_RX0Msk, 0xff);	/* ROK, RAB, rsv, RO,  CRC, AE,  PTL, MP  */
+  XE_OUTB(XE_TX0Msk, 0xff);	/* TOK, TAB, SQE, LL,  TU,  JAB, EXC, CRS */
+  XE_OUTB(XE_TX0Msk+1, 0xb0);	/* rsv, rsv, PTD, EXT, rsv, rsv, rsv, rsv */
+  XE_OUTB(XE_RST0, 0x00);	/* ROK, RAB, REN, RO,  CRC, AE,  PTL, MP  */
+  XE_OUTB(XE_TXST0, 0x00);	/* TOK, TAB, SQE, LL,  TU,  JAB, EXC, CRS */
+  XE_OUTB(XE_TXST1, 0x00);	/* TEN, rsv, PTD, EXT, retry_counter:4    */
 
   /*
    * Check for an in-progress autonegotiation.  If one is active, just set
@@ -841,7 +879,7 @@ xe_init(void *xscp) {
   else {
     /* Enable receiver, put MAC online */
     XE_SELECT_PAGE(0x40);
-    XE_OUTB(XE_OCR, XE_OCR_RX_ENABLE|XE_OCR_ONLINE);
+    XE_OUTB(XE_CMD0, XE_CMD0_RX_ENABLE|XE_CMD0_ONLINE);
 
     /* Set up IMR, enable interrupts */
     xe_enable_intr(scp);
@@ -1021,11 +1059,11 @@ xe_card_intr(struct pccard_devinfo *devi) {
   if (scp->gone)
     return 0;
 
-  if (scp->ce3) {
+  if (scp->mohawk) {
     XE_OUTB(XE_CR, 0);		/* Disable interrupts */
   }
 
-  psr = XE_INB(XE_PSR);		/* Stash the current register page */
+  psr = XE_INB(XE_PR);		/* Stash the current register page */
 
   /*
    * Read ISR to see what caused this interrupt.  Note that this clears the
@@ -1036,31 +1074,31 @@ xe_card_intr(struct pccard_devinfo *devi) {
     result = 1;			/* This device did generate an int */
     esr = XE_INB(XE_ESR);	/* Read the other status registers */
     XE_SELECT_PAGE(0x40);
-    rxs = XE_INB(XE_RXS0);
-    XE_OUTB(XE_RXS0, ~rxs & 0xff);
-    txs = XE_INB(XE_TXS0);
-    txs |= XE_INB(XE_TXS1) << 8;
-    XE_OUTB(XE_TXS0, 0);
-    XE_OUTB(XE_TXS1, 0);
+    rxs = XE_INB(XE_RST0);
+    XE_OUTB(XE_RST0, ~rxs & 0xff);
+    txs = XE_INB(XE_TXST0);
+    txs |= XE_INB(XE_TXST1) << 8;
+    XE_OUTB(XE_TXST0, 0);
+    XE_OUTB(XE_TXST1, 0);
     XE_SELECT_PAGE(0);
 
-#if XE_DEBUG > 3
-    printf("xe%d: ISR=%#2.2x ESR=%#2.2x RXS=%#2.2x TXS=%#4.4x\n", unit, isr, esr, rxs, txs);
+#if XE_DEBUG > 2
+    printf("xe%d: ISR=%#2.2x ESR=%#2.2x RST=%#2.2x TXST=%#4.4x\n", unit, isr, esr, rxs, txs);
 #endif
 
     /*
      * Handle transmit interrupts
      */
     if (isr & XE_ISR_TX_PACKET) {
-      u_int8_t new_ptr, sent;
+      u_int8_t new_tpr, sent;
       
-      if ((new_ptr = XE_INB(XE_PTR)) < scp->tx_ptr)	/* Update packet count */
-	sent = (0xff - scp->tx_ptr) + new_ptr;		/* PTR rolled over */
+      if ((new_tpr = XE_INB(XE_TPR)) < scp->tx_tpr)	/* Update packet count */
+	sent = (0xff - scp->tx_tpr) + new_tpr;		/* TPR rolled over */
       else
-	sent = new_ptr - scp->tx_ptr;
+	sent = new_tpr - scp->tx_tpr;
 
       if (sent > 0) {				/* Packets sent since last interrupt */
-	scp->tx_ptr = new_ptr;
+	scp->tx_tpr = new_tpr;
 	scp->tx_queued -= sent;
 	ifp->if_opackets += sent;
 	ifp->if_collisions += scp->tx_collisions;
@@ -1117,7 +1155,7 @@ xe_card_intr(struct pccard_devinfo *devi) {
     /*
      * Handle receive interrupts 
      */
-    while ((esr = XE_INB(XE_ESR)) & XE_ESR_FULL_PKT_RX) {
+    while ((esr = XE_INB(XE_ESR)) & XE_ESR_FULL_PACKET_RX) {
 
       if ((rsr = XE_INB(XE_RSR)) & XE_RSR_RX_OK) {
 	struct ether_header *ehp;
@@ -1138,7 +1176,7 @@ xe_card_intr(struct pccard_devinfo *devi) {
 	if ((rx_bytes += len) > 22000) {
 	  ifp->if_iqdrops++;
 	  scp->mibData.dot3StatsMissedFrames++;
-	  XE_OUTW(XE_DOR, 0x8000);
+	  XE_OUTW(XE_DO, 0x8000);
 	  continue;
 	}
 #endif
@@ -1185,7 +1223,7 @@ xe_card_intr(struct pccard_devinfo *devi) {
 	    u_short rhs;
 
 	    XE_SELECT_PAGE(5);
-	    rhs = XE_INW(XE_RHS);
+	    rhs = XE_INW(XE_RHSA);
 	    XE_SELECT_PAGE(0);
 
 	    rhs += 3;			 /* Skip control info */
@@ -1235,7 +1273,7 @@ xe_card_intr(struct pccard_devinfo *devi) {
 	     */
 	    if ((ifp->if_flags & IFF_PROMISC) &&
 		bcmp(ehp->ether_dhost, scp->arpcom.ac_enaddr, sizeof(ehp->ether_dhost)) != 0 &&
-		(rsr & XE_RSR_PHYS_PKT)) {
+		(rsr & XE_RSR_PHYS_PACKET)) {
 	      m_freem(mbp);
 	      mbp = NULL;
 	    }
@@ -1248,18 +1286,18 @@ xe_card_intr(struct pccard_devinfo *devi) {
 	    ether_input(ifp, ehp, mbp);		/* Send the packet on its way */
 	    ifp->if_ipackets++;			/* Success! */
 	  }
-	  XE_OUTW(XE_DOR, 0x8000);		/* skip_rx_packet command */
+	  XE_OUTW(XE_DO, 0x8000);		/* skip_rx_packet command */
 	}
       }
-      else if (rsr & XE_RSR_LONG_PKT) {		/* Packet length >1518 bytes */
+      else if (rsr & XE_RSR_LONG_PACKET) {	/* Packet length >1518 bytes */
 	scp->mibdata.dot3StatsFrameTooLongs++;
 	ifp->if_ierrors++;
       }
-      else if (rsr & XE_RSR_CRC_ERR) {		/* Bad checksum on packet */
+      else if (rsr & XE_RSR_CRC_ERROR) {	/* Bad checksum on packet */
 	scp->mibdata.dot3StatsFCSErrors++;
 	ifp->if_ierrors++;
       }
-      else if (rsr & XE_RSR_ALIGN_ERR) {	/* Packet alignment error */
+      else if (rsr & XE_RSR_ALIGN_ERROR) {	/* Packet alignment error */
 	scp->mibdata.dot3StatsAlignmentErrors++;
 	ifp->if_ierrors++;
       }
@@ -1274,8 +1312,8 @@ xe_card_intr(struct pccard_devinfo *devi) {
   XE_SELECT_PAGE(psr);				/* Restore saved page */
   XE_OUTB(XE_CR, XE_CR_ENABLE_INTR);		/* Re-enable interrupts */
 
-  /* XXX - Could force an int here, instead of dropping packets?     */
-  /* XXX - XE_OUTB(XE_CR, XE_CR_ENABLE_INTR|XE_CE_FORCE_INTR); */
+  /* Could force an int here, instead of dropping packets? */
+  /* XE_OUTB(XE_CR, XE_CR_ENABLE_INTR|XE_CE_FORCE_INTR); */
 
   return result;
 }
@@ -1400,7 +1438,7 @@ static void xe_setmedia(void *xscp) {
     switch (scp->autoneg_status) {
 
      case XE_AUTONEG_NONE:
-#ifdef XE_DEBUG
+#if XE_DEBUG > 1
       printf("xe%d: Waiting for idle transmitter\n", scp->unit);
 #endif
       scp->arpcom.ac_if.if_flags |= IFF_OACTIVE;
@@ -1411,7 +1449,7 @@ static void xe_setmedia(void *xscp) {
      case XE_AUTONEG_WAITING:
       xe_soft_reset(scp);
       if (scp->phy_ok) {
-#ifdef XE_DEBUG
+#if XE_DEBUG > 1
 	printf("xe%d: Starting autonegotiation\n", scp->unit);
 #endif
 	bmcr = xe_phy_readreg(scp, PHY_BMCR);
@@ -1436,7 +1474,7 @@ static void xe_setmedia(void *xscp) {
       bmsr = xe_phy_readreg(scp, PHY_BMSR);
       lpar = xe_phy_readreg(scp, PHY_LPAR);
       if (bmsr & (PHY_BMSR_AUTONEGCOMP|PHY_BMSR_LINKSTAT)) {
-#ifdef XE_DEBUG
+#if XE_DEBUG > 1
 	printf("xe%d: Autonegotiation complete!\n", scp->unit);
 #endif
 	/*
@@ -1475,7 +1513,7 @@ static void xe_setmedia(void *xscp) {
 	}
       }
       else {
-#ifdef XE_DEBUG
+#if XE_DEBUG > 1
 	printf("xe%d: Autonegotiation failed; trying 100baseTX\n", scp->unit);
 #endif
 	XE_MII_DUMP(scp);
@@ -1496,7 +1534,7 @@ static void xe_setmedia(void *xscp) {
       (void)xe_phy_readreg(scp, PHY_BMSR);
       bmsr = xe_phy_readreg(scp, PHY_BMSR);
       if (bmsr & PHY_BMSR_LINKSTAT) {
-#ifdef XE_DEBUG
+#if XE_DEBUG > 1
 	printf("xe%d: Got 100baseTX link!\n", scp->unit);
 #endif
 	XE_MII_DUMP(scp);
@@ -1506,7 +1544,7 @@ static void xe_setmedia(void *xscp) {
 	scp->autoneg_status = XE_AUTONEG_NONE;
       }
       else {
-#ifdef XE_DEBUG
+#if XE_DEBUG > 1
 	printf("xe%d: Autonegotiation failed; disabling PHY\n", scp->unit);
 #endif
 	XE_MII_DUMP(scp);
@@ -1526,10 +1564,10 @@ static void xe_setmedia(void *xscp) {
      * already by the big switch above.
      */
     if (scp->autoneg_status == XE_AUTONEG_FAIL) {
-#ifdef XE_DEBUG
+#if XE_DEBUG > 1
       printf("xe%d: Selecting 10baseX\n", scp->unit);
 #endif
-      if (scp->ce3) {
+      if (scp->mohawk) {
 	XE_SELECT_PAGE(0x42);
 	XE_OUTB(XE_SWC1, 0x80);
 	scp->media = IFM_ETHER|IFM_10_T;
@@ -1556,7 +1594,7 @@ static void xe_setmedia(void *xscp) {
    case IFM_100_TX:	/* Force 100baseTX */
     xe_soft_reset(scp);
     if (scp->phy_ok) {
-#ifdef XE_DEBUG
+#if XE_DEBUG > 1
       printf("xe%d: Selecting 100baseTX\n", scp->unit);
 #endif
       XE_SELECT_PAGE(0x42);
@@ -1571,7 +1609,7 @@ static void xe_setmedia(void *xscp) {
 
    case IFM_10_T:	/* Force 10baseT */
     xe_soft_reset(scp);
-#ifdef XE_DEBUG	
+#if XE_DEBUG > 1
     printf("xe%d: Selecting 10baseT\n", scp->unit);
 #endif
     if (scp->phy_ok) {
@@ -1586,7 +1624,7 @@ static void xe_setmedia(void *xscp) {
 
    case IFM_10_2:
     xe_soft_reset(scp);
-#ifdef XE_DEBUG
+#if XE_DEBUG > 1
     printf("xe%d: Selecting 10base2\n", scp->unit);
 #endif
     XE_SELECT_PAGE(0x42);
@@ -1600,7 +1638,7 @@ static void xe_setmedia(void *xscp) {
    * Finally, the LEDs are set to match whatever media was chosen and the
    * transmitter is unblocked. 
    */
-#ifdef XE_DEBUG
+#if XE_DEBUG > 1
   printf("xe%d: Setting LEDs\n", scp->unit);
 #endif
   XE_SELECT_PAGE(2);
@@ -1608,7 +1646,7 @@ static void xe_setmedia(void *xscp) {
    case IFM_100_TX:
    case IFM_10_T:
     XE_OUTB(XE_LED, 0x3b);
-    if (scp->cem56)
+    if (scp->dingo)
       XE_OUTB(0x0b, 0x04);	/* 100Mbit LED */
     break;
 
@@ -1645,7 +1683,7 @@ xe_hard_reset(struct xe_softc *scp) {
   XE_OUTB(XE_GPR1, 0);		/* Power off */
   DELAY(40000);
 
-  if (scp->ce3)
+  if (scp->mohawk)
     XE_OUTB(XE_GPR1, 1);	/* And back on again */
   else
     XE_OUTB(XE_GPR1, 5);	/* Also set AIC bit, whatever that is */
@@ -1684,7 +1722,7 @@ xe_soft_reset(struct xe_softc *scp) {
   XE_OUTB(XE_CR, 0);
   DELAY(40000);
 
-  if (scp->ce3) {
+  if (scp->mohawk) {
     /*
      * set GP1 and GP2 as outputs (bits 2 & 3)
      * set GP1 low to power on the ML6692 (bit 0)
@@ -1703,7 +1741,7 @@ xe_soft_reset(struct xe_softc *scp) {
    * Get silicon revision number.
    */
   XE_SELECT_PAGE(4);
-  if (scp->ce3)
+  if (scp->mohawk)
     scp->srev = (XE_INB(XE_BOV) & 0x70) >> 4;
   else
     scp->srev = (XE_INB(XE_BOV) & 0x30) >> 4;
@@ -1719,7 +1757,7 @@ xe_soft_reset(struct xe_softc *scp) {
   /*
    * Check for PHY.
    */
-  if (scp->ce3) {
+  if (scp->mohawk) {
     scp->phy_ok = xe_mii_init(scp);
   }
 
@@ -1785,7 +1823,7 @@ xe_enable_intr(struct xe_softc *scp) {
 
   XE_SELECT_PAGE(0);
   XE_OUTB(XE_CR, XE_CR_ENABLE_INTR);	/* Enable interrupts */
-  if (scp->modem && !scp->cem56) {	/* This bit is just magic */
+  if (scp->modem && !scp->dingo) {	/* This bit is just magic */
     if (!(XE_INB(0x10) & 0x01)) {
       XE_OUTB(0x10, 0x11);		/* Unmask master int enable bit */
     }
@@ -1804,7 +1842,7 @@ xe_disable_intr(struct xe_softc *scp) {
 
   XE_SELECT_PAGE(0);
   XE_OUTB(XE_CR, 0);			/* Disable interrupts */
-  if (scp->modem && !scp->cem56) {	/* More magic (does this work?) */
+  if (scp->modem && !scp->dingo) {	/* More magic (does this work?) */
     XE_OUTB(0x10, 0x10);		/* Mask the master int enable bit */
   }
 
@@ -1846,12 +1884,12 @@ xe_setmulti(struct xe_softc *scp) {
     XE_SELECT_PAGE(0x42);
     XE_OUTB(XE_SWC1, 0x01);
     XE_SELECT_PAGE(0x40);
-    XE_OUTB(XE_OCR, XE_OCR_OFFLINE);
+    XE_OUTB(XE_CMD0, XE_CMD0_OFFLINE);
     /*xe_reg_dump(scp);*/
     xe_setaddrs(scp);
     /*xe_reg_dump(scp);*/
     XE_SELECT_PAGE(0x40);
-    XE_OUTB(XE_OCR, XE_OCR_RX_ENABLE|XE_OCR_ONLINE);
+    XE_OUTB(XE_CMD0, XE_CMD0_RX_ENABLE|XE_CMD0_ONLINE);
   }
   else {
     /*
@@ -1871,8 +1909,6 @@ xe_setmulti(struct xe_softc *scp) {
  * XXX - This doesn't work right, but I'm not sure why yet.  We seem to be
  * XXX - doing much the same as the Linux code, which is weird enough that
  * XXX - it's probably right (despite my earlier comments to the contrary).
- * XXX - I wonder if this thing has a multicast hash filter like most other
- * XXX - Ethernet hardware seems to?
  */
 static void
 xe_setaddrs(struct xe_softc *scp) {
@@ -1898,7 +1934,7 @@ xe_setaddrs(struct xe_softc *scp) {
     }
 
     for (i = 0; i < 6; i++, byte++) {
-#if XE_DEBUG > 1
+#if XE_DEBUG > 2
       if (i)
 	printf(":%x", addr[i]);
       else
@@ -1911,12 +1947,12 @@ xe_setaddrs(struct xe_softc *scp) {
 	XE_SELECT_PAGE(page);
       }
 
-      if (scp->ce3)
+      if (scp->mohawk)
 	XE_OUTB(byte, addr[5 - i]);
       else
 	XE_OUTB(byte, addr[i]);
     }
-#if XE_DEBUG > 1
+#if XE_DEBUG > 2
     printf("\n");
 #endif
   }
@@ -1992,7 +2028,7 @@ xe_pio_write_packet(struct xe_softc *scp, struct mbuf *mbp) {
    * short packets with random cruft.  Otherwise, write nonsense words to fill 
    * out the packet.  I guess it is then sent automatically (?)
    */
-  if (scp->ce3)
+  if (scp->mohawk)
     XE_OUTB(XE_CR, XE_CR_TX_PACKET|XE_CR_ENABLE_INTR);
   else
     while (pad > 0) {
@@ -2033,6 +2069,60 @@ xe_card_unload(struct pccard_devinfo *devi) {
 }
 
 
+/*
+ * Compute the 32-bit Ethernet CRC for the given buffer.
+ */
+static u_int32_t
+xe_compute_crc(u_int8_t *data, int len) {
+  u_int32_t crc = 0xffffffff;
+  u_int32_t poly = 0x04c11db6;
+  u_int8_t current, crc31, bit;
+  int i, k;
+
+  for (i = 0; i < len; i++) {
+    current = data[i];
+    for (k = 1; k <= 8; k++) {
+      if (crc & 0x80000000) {
+	crc31 = 0x01;
+      }
+      else {
+	crc31 = 0;
+      }
+      bit = crc31 ^ (current & 0x01);
+      crc <<= 1;
+      current >>= 1;
+      if (bit) {
+	crc = (crc ^ poly)|1;
+      }
+    }
+  }
+  return crc;
+}
+
+
+/*
+ * Convert a CRC into an index into the multicast hash table.  What we do is
+ * take the most-significant 6 bits of the CRC, reverse them, and use that as
+ * the bit number in the hash table.  Bits 5:3 of the result give the byte
+ * within the table (0-7); bits 2:0 give the bit number within that byte (also 
+ * 0-7), ie. the number of shifts needed to get it into the lsb position.
+ */
+static int
+xe_compute_hashbit(u_int32_t crc) {
+  u_int8_t hashbit = 0;
+  int i;
+
+  for (i = 0; i < 6; i++) {
+    hashbit >>= 1;
+    if (crc & 0x80000000) {
+      hashbit &= 0x80;
+    }
+    crc <<= 1;
+  }
+  return (hashbit >> 2);
+}
+
+
 
 /**************************************************************
  *                                                            *
@@ -2043,6 +2133,9 @@ xe_card_unload(struct pccard_devinfo *devi) {
 /*
  * Alternative MII/PHY handling code adapted from the xl driver.  It doesn't
  * seem to work any better than the xirc2_ps stuff, but it's cleaner code.
+ * XXX - this stuff shouldn't be here.  It should all be abstracted off to
+ * XXX - some kind of common MII-handling code, shared by all drivers.  But
+ * XXX - that's a whole other mission.
  */
 #define XE_MII_SET(x)	XE_OUTB(XE_GPR2, (XE_INB(XE_GPR2) | 0x04) | (x))
 #define XE_MII_CLR(x)	XE_OUTB(XE_GPR2, (XE_INB(XE_GPR2) | 0x04) & ~(x))
@@ -2076,13 +2169,13 @@ xe_mii_init(struct xe_softc *scp) {
 
   status = xe_phy_readreg(scp, PHY_BMSR);
   if ((status & 0xff00) != 0x7800) {
-#ifdef XE_DEBUG
+#if XE_DEBUG > 1
     printf("xe%d: no PHY found, %0x\n", scp->unit, status);
 #endif
     return 0;
   }
   else {
-#ifdef XE_DEBUG
+#if XE_DEBUG > 1
     printf("xe%d: PHY OK!\n", scp->unit);
 #endif
 
