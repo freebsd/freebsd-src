@@ -676,6 +676,8 @@ void	remrunqueue __P((struct thread *));
 void	resetpriority __P((struct ksegrp *));
 int	roundrobin_interval __P((void));
 void	schedclock __P((struct thread *));
+int	securelevel_ge __P((struct ucred *cr, int level));
+int	securelevel_gt __P((struct ucred *cr, int level));
 void	setrunnable __P((struct thread *));
 void	setrunqueue __P((struct thread *));
 void	setsugid __P((struct proc *p));
