@@ -179,7 +179,9 @@ To quit the session, type CR + '~' + '.' in the console port.
 Using gdb port is almost the same as remote gdb over serial line except
 using TCP/IP instead of /dev/cu*. See 
 "On-line Kernel Debugging Using Remote GDB"
-section of The FreeBSD Developers Handbook.
+section of The FreeBSD Developers Handbook and
+.Xr gdb 4
+for detail. 
 .Bd -literal -offset indent
 % gdb -k kernel.debug
 (kgdb) target remote :12345
@@ -200,8 +202,8 @@ If you want access to the console using telnet, try the following:
 .Ed
 .Pp
 You may want to keep logging console output of several machines. Conserve-com
-in the ports collection should help you. Insert the following lines
-in the conserver.cf
+in the ports collection may help you. Insert the following lines
+in the conserver.cf.
 .Bd -literal -offset indent
 console local {
 	master localhost;
@@ -229,6 +231,7 @@ console remote {
 .Xr ddb 4 ,
 .Xr firewire 4 ,
 .Xr fwohci 4 ,
+.Xr gdb 4 ,
 .Xr fwcontrol 8
 .Sh AUTHORS
 .An Hidetoshi Shimokawa Aq simokawa@FreeBSD.org
