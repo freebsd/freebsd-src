@@ -514,7 +514,7 @@ udp_append(last, ip, n, off)
  * Notify a udp user of an asynchronous error;
  * just wake up so that he can collect error status.
  */
-void
+struct inpcb *
 udp_notify(inp, errno)
 	register struct inpcb *inp;
 	int errno;
@@ -522,6 +522,7 @@ udp_notify(inp, errno)
 	inp->inp_socket->so_error = errno;
 	sorwakeup(inp->inp_socket);
 	sowwakeup(inp->inp_socket);
+	return inp;
 }
 
 void
@@ -532,7 +533,7 @@ udp_ctlinput(cmd, sa, vip)
 {
 	struct ip *ip = vip;
 	struct udphdr *uh;
-	void (*notify)(struct inpcb *, int) = udp_notify;
+	struct inpcb *(*notify)(struct inpcb *, int) = udp_notify;
         struct in_addr faddr;
 	struct inpcb *inp;
 	int s;

@@ -768,7 +768,7 @@ in6_pcbnotify(head, dst, fport_arg, src, lport_arg, cmd, notify)
 	const struct sockaddr *src;
 	u_int fport_arg, lport_arg;
 	int cmd;
-	void (*notify) __P((struct inpcb *, int));
+	struct inpcb *(*notify) __P((struct inpcb *, int));
 {
 	struct inpcb *inp, *ninp;
 	struct sockaddr_in6 sa6_src, *sa6_dst;
@@ -1006,7 +1006,7 @@ in6_losing(in6p)
  * After a routing change, flush old routing
  * and allocate a (hopefully) better one.
  */
-void
+struct inpcb *
 in6_rtchange(inp, errno)
 	struct inpcb *inp;
 	int errno;
@@ -1019,6 +1019,7 @@ in6_rtchange(inp, errno)
 		 * output is attempted.
 		 */
 	}
+	return inp;
 }
 
 /*
