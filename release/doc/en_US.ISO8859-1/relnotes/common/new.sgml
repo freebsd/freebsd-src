@@ -238,11 +238,35 @@
     <para>The &man.locale.1; utility has been re-implemented and is
       now POSIX-compliant.</para>
 
+    <para>The &man.mount.nwfs.8;, &man.mount.portalfs.8;, and
+      &man.mount.smbfs.8; utilities have been moved from
+      <filename>/sbin</filename> to <filename>/usr/sbin</filename>.
+
     <para>The &man.pam.guest.8; PAM module has been added to allow
       guest logins.  It replaces the pam_ftp(8) module.</para>
 
     <para>&man.ps.1; now supports a <option>-H</option> to display all
       kernel-visible threads in each process.</para>
+
+    <para>A number of utilities available in <filename>/bin</filename>
+      and <filename>/sbin</filename> are now available as a
+      statically-linked <quote>crunched</quote> binary that lives in
+      <filename>/rescue</filename>.  This functionality is similar to
+      the <filename>/stand</filename> directory installed by
+      &man.sysinstall.8;, but it <filename>/rescue</filename> includes
+      more functionality and is updated by as part of
+      buildworld/installworld operations.  More details can be found in
+      &man.rescue.7;.
+
+      <note>
+        <para>Due to some cross-build interactions,
+        <filename>/rescue</filename> is currently disabled by default
+        and only included in buildworld/installworld operations if the
+        <varname>RESCUE</varname> Makefile variable is set.</para>
+      </note>
+
+      </para>
+
   </sect2>
 
   <sect2 id="contrib">
@@ -252,7 +276,7 @@
       to 8.3.6.</para>
 
     <para><application>lukemftp</application> has been updated from
-      1.6beta2 to a 15 June 2003 snapshot from NetBSD.</para>
+      1.6beta2 to a 30 June 2003 snapshot from NetBSD.</para>
 
     <para><application>OpenPAM</application> has been updated from the
       <quote>Dianthus</quote> release to the
