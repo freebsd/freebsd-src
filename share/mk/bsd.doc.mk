@@ -155,16 +155,4 @@ ${DFILE}: ${SRCS} _stamp.extraobjs
 .endif
 .endif
 
-.if !target(all-man)
-all-man:
-.endif
-
-.if !target(maninstall)
-maninstall:
-.endif
-
-.if !target(regress)
-regress:
-.endif
-
 .include <bsd.obj.mk>

@@ -181,10 +181,10 @@ LINTLIB=llib-l${LIB}.ln
 _LIBS+=${LINTLIB}
 .endif
 
+all: objwarn ${_LIBS}
+
 .if !defined(NOMAN)
-all: objwarn ${_LIBS} all-man _SUBDIR
-.else
-all: objwarn ${_LIBS} _SUBDIR
+all: all-man
 .endif
 
 OBJS+=	${SRCS:N*.h:R:S/$/.o/g}
@@ -240,7 +240,7 @@ ${LINTLIB}: ${LINTOBJS}
 .endif
 
 .if !target(clean)
-clean:	_SUBDIR
+clean:
 	rm -f a.out ${OBJS} ${STATICOBJS} ${OBJS:S/$/.tmp/} ${CLEANFILES}
 	rm -f lib${LIB}.a
 	rm -f ${POBJS} ${POBJS:S/$/.tmp/} lib${LIB}_p.a
@@ -298,6 +298,8 @@ _SHLINSTALLFLAGS:=	${_SHLINSTALLFLAGS${ie}}
 .endfor
 
 realinstall: beforeinstall
+realinstall: _libinstall
+_libinstall:
 .if !defined(INTERNALLIB)
 	${INSTALL} -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${_INSTALLFLAGS} lib${LIB}.a ${DESTDIR}${LIBDIR}
@@ -345,40 +347,28 @@ realinstall: beforeinstall
 	    ${_INSTALLFLAGS} ${LINTLIB} ${DESTDIR}${LINTLIBDIR}
 .endif
 
-install: afterinstall _SUBDIR
-.if !defined(NOMAN)
-afterinstall: realinstall maninstall
-.else
+install: afterinstall
 afterinstall: realinstall
+.if !defined(NOMAN)
+afterinstall: maninstall
 .endif
-.endif
-
-.if !target(regress)
-regress:
 .endif
 
 DISTRIBUTION?=	bin
 .if !target(distribute)
-distribute:	_SUBDIR
+distribute:
 .for dist in ${DISTRIBUTION}
 	cd ${.CURDIR} ; $(MAKE) install DESTDIR=${DISTDIR}/${dist} SHARED=copies
 .endfor
 .endif
 
 .if !target(lint)
-lint: ${SRCS:M*.c} _SUBDIR
+lint: ${SRCS:M*.c}
 	${LINT} ${LINTOBJFLAGS} ${CFLAGS:M-[DIU]*} ${.ALLSRC}
 .endif
 
 .if !defined(NOMAN)
 .include <bsd.man.mk>
-.else
-.if !target(all-man)
-all-man:
-.endif
-.if !target(maninstall)
-maninstall:
-.endif
 .endif
 
 .include <bsd.dep.mk>
