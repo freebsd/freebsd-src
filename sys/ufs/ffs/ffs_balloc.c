@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_balloc.c	8.8 (Berkeley) 6/16/95
- * $Id: ffs_balloc.c,v 1.19 1998/02/06 12:14:14 eivind Exp $
+ * $Id: ffs_balloc.c,v 1.20 1998/03/08 09:58:47 julian Exp $
  */
 
 #include <sys/param.h>
@@ -72,7 +72,7 @@ ffs_balloc(ap)
 	struct fs *fs;
 	ufs_daddr_t nb;
 	struct buf *bp, *nbp;
-	struct vnode *vp = ITOV(ip);
+	struct vnode *vp;
 	struct indir indirs[NIADDR + 2];
 	ufs_daddr_t newb, *bap, pref;
 	int deallocated, osize, nsize, num, i, error;
