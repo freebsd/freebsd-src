@@ -9,7 +9,7 @@ SRCS =	bootarea.c editor.c exec.c dkcksum.c label.c main.c mbr.c \
 	termcap.c utils.c makedevs.c ourcurses.c
 
 CFLAGS += -Wall -g -static -I${.CURDIR}/../../sys/
-LDADD =  -ldialog -lncurses -lmytinfo -lforms
+LDADD =  -ldialog -lncurses -lmytinfo
 DPADD = ${LIBDIALOG} ${LIBNCURSES} ${LIBMYTINFO}
 
 makedevs.c:	dev2c.sh
