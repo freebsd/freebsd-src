@@ -80,6 +80,7 @@ struct fdc_data
 	u_int	status[7];	/* copy of the registers */
 	enum	fdc_type fdct;	/* chip version of FDC */
 	int	fdc_errs;	/* number of logged errors */
+	int	dma_overruns;	/* number of DMA overruns */
 	struct	bio_queue_head head;
 	struct	bio *bp;	/* active buffer */
 	struct	resource *res_ioport, *res_ctl, *res_irq, *res_drq;
