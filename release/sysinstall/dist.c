@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.35.2.21 1995/06/04 23:12:18 jkh Exp $
+ * $Id: dist.c,v 1.35.2.22 1995/06/05 04:00:50 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -168,8 +168,11 @@ int
 distSetXDeveloper(char *str)
 {
     distReset(NULL);
-    Dists = _DIST_DEVELOPER;
+    Dists = _DIST_DEVELOPER | DIST_XF86;
     SrcDists = DIST_SRC_ALL;
+    XF86Dists = DIST_XF86_BIN | DIST_XF86_LIB | DIST_XF86_MAN | DIST_XF86_SERVER | DIST_XF86_FONTS;
+    XF86ServerDists = DIST_XF86_SERVER_SVGA;
+    XF86ServerDists = DIST_XF86_FONTS_MISC;
     distSetXF86(NULL);
     return 0;
 }
@@ -196,6 +199,9 @@ distSetXUser(char *str)
 {
     distReset(NULL);
     Dists = _DIST_USER;
+    XF86Dists = DIST_XF86_BIN | DIST_XF86_LIB | DIST_XF86_MAN | DIST_XF86_SERVER | DIST_XF86_FONTS;
+    XF86ServerDists = DIST_XF86_SERVER_SVGA;
+    XF86ServerDists = DIST_XF86_FONTS_MISC;
     distSetXF86(NULL);
     return 0;
 }
