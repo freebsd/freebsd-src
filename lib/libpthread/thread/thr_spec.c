@@ -88,7 +88,7 @@ pthread_key_delete(pthread_key_t key)
 void 
 _thread_cleanupspecific(void)
 {
-	void           *data;
+	void           *data = NULL;
 	int             key;
 	int             itr;
 	void		(*destructor)( void *);
