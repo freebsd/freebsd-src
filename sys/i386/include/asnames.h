@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: asnames.h,v 1.15 1998/01/26 04:41:23 peter Exp $
+ * $Id: asnames.h,v 1.16 1998/01/26 04:44:32 peter Exp $
  */
 
 #ifndef _MACHINE_ASNAMES_H_
@@ -100,6 +100,7 @@
 #define _Xfastintr7			Xfastintr7
 #define _Xfastintr8			Xfastintr8
 #define _Xfastintr9			Xfastintr9
+#define _Xforward_irq			Xforward_irq
 #define _Xfpu				Xfpu
 #define _Xfpusegm			Xfpusegm
 #define _Xill				Xill
@@ -150,6 +151,7 @@
 #define _apic_base			apic_base
 #define _apic_id_to_logical		apic_id_to_logical
 #define _apic_imen			apic_imen
+#define _apic_isrbit_location		apic_isrbit_location
 #define _apic_pin_trigger		apic_pin_trigger
 #define _apm_addr			apm_addr
 #define _apm_bios_call			apm_bios_call
@@ -208,6 +210,7 @@
 #define _cpu_feature			cpu_feature
 #define _cpu_high			cpu_high
 #define _cpu_id				cpu_id
+#define _cpu_num_to_apic_id		cpu_num_to_apic_id
 #define _cpu_switch			cpu_switch
 #define _cpu_vendor			cpu_vendor
 #define _cpuid				cpuid
@@ -253,6 +256,7 @@
 #define _intr_unit			intr_unit
 #define _intrcnt			intrcnt
 #define _intrnames			intrnames
+#define _invltlb_ok			invltlb_ok
 #define _ioapic				ioapic
 #define _ipending			ipending
 #define _isr_lock			isr_lock
