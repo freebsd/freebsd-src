@@ -39,7 +39,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-static const size_t CAP_MAX_BUF_LEN = 1024;
+/*
+ * this one is in sys/capability.h now:
+ * static const size_t CAP_MAX_BUF_LEN = 1024;
+ */
 static const size_t CAP_MAX_SMALL_BUF_LEN = 64;
 
 static const char *CAP_FLAGS[8] = {
