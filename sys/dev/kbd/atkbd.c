@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: atkbd.c,v 1.2 1999/01/13 11:19:19 yokota Exp $
+ * $Id: atkbd.c,v 1.3 1999/01/19 11:31:14 yokota Exp $
  */
 
 #include "atkbd.h"
@@ -701,6 +701,9 @@ next_code:
 		case 0x38:	/* right alt key (alt gr) */
 	    		keycode = 0x5D;
 	    		break;
+		case 0x46:	/* ctrl-pause/break on AT 101 (see below) */
+			keycode = 0x68;
+	    		break;
 		case 0x47:	/* grey home key */
 	    		keycode = 0x5E;
 	    		break;
@@ -746,6 +749,12 @@ next_code:
 		}
 		break;
     	case 0xE1:	/* 0xE1 prefix */
+		/* 
+		 * The pause/break key on the 101 keyboard produces:
+		 * E1-1D-45 E1-9D-C5
+		 * Ctrl-pause/break produces:
+		 * E0-46 E0-C6 (See above.)
+		 */
 		state->ks_prefix = 0;
 		if (keycode == 0x1D)
 	    		state->ks_prefix = 0x1D;
@@ -754,9 +763,37 @@ next_code:
     	case 0x1D:	/* pause / break */
 		state->ks_prefix = 0;
 		if (keycode != 0x45)
-	    		goto next_code;
+			goto next_code;
 		keycode = 0x68;
 		break;
+	}
+
+	if (kbd->kb_type == KB_84) {
+		switch (keycode) {
+		case 0x37:	/* *(numpad)/print screen */
+			if (state->ks_flags & SHIFTS)
+	    			keycode = 0x5c;	/* print screen */
+			break;
+		case 0x45:	/* num lock/pause */
+			if (state->ks_flags & CTLS)
+				keycode = 0x68;	/* pause */
+			break;
+		case 0x46:	/* scroll lock/break */
+			if (state->ks_flags & CTLS)
+				keycode = 0x6c;	/* break */
+			break;
+		}
+	} else if (kbd->kb_type == KB_101) {
+		switch (keycode) {
+		case 0x5c:	/* print screen */
+			if (state->ks_flags & ALTS)
+				keycode = 0x54;	/* sysrq */
+			break;
+		case 0x68:	/* pause/break */
+			if (state->ks_flags & CTLS)
+				keycode = 0x6c;	/* break */
+			break;
+		}
 	}
 
 	/* return the key code in the K_CODE mode */
