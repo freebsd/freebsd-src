@@ -32,7 +32,7 @@
 #
 #   Email: Wolfram Schneider <wosch@cs.tu-berlin.de>
 #
-# $Id: adduser.perl,v 1.4 1995/03/08 22:44:37 ache Exp $
+# $Id: adduser.perl,v 1.5 1995/04/09 03:34:10 ache Exp $
 #
 
 # read variables
@@ -306,6 +306,10 @@ sub new_users_name {
 
     while(1) {
 	$name = &confirm_list("Enter username", 1, "a-z0-9", "");
+	if (length($name) > 8) {
+	    warn "Username is longer than 8 chars\a\n";
+	    next;
+	}
 	last if (&new_users_name_valid($name) eq $name);
     }
     return $name;
