@@ -1023,16 +1023,15 @@ static void lge_rxeof(sc, cnt)
 			m->m_pkthdr.csum_flags |= CSUM_IP_CHECKED;
 		if (!(rxsts & LGE_RXSTS_IPCSUMERR))
 			m->m_pkthdr.csum_flags |= CSUM_IP_VALID;
-#ifdef notyet
 		if ((rxsts & LGE_RXSTS_ISTCP &&
 		    !(rxsts & LGE_RXSTS_TCPCSUMERR)) ||
 		    (rxsts & LGE_RXSTS_ISUDP &&
 		    !(rxsts & LGE_RXSTS_UDPCSUMERR))) {
 			m->m_pkthdr.csum_flags |=
 			    CSUM_DATA_VALID|CSUM_PSEUDO_HDR;
-			m->m_pkthdr.csum_data = 0;
+			m->m_pkthdr.csum_data = 0xffff;
 		}
-#endif
+
 		ether_input(ifp, eh, m);
 	}
 
