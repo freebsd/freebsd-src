@@ -2191,7 +2191,7 @@ hifn_freesession(void *arg, u_int64_t tid)
 {
 	struct hifn_softc *sc = arg;
 	int session;
-	u_int32_t sid = ((u_int32_t) tid) & 0xffffffff;
+	u_int32_t sid = CRYPTO_SESID2LID(tid);
 
 	KASSERT(sc != NULL, ("hifn_freesession: null softc"));
 	if (sc == NULL)
