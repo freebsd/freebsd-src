@@ -1,6 +1,6 @@
                              INSTALLATION NOTES
                                   FreeBSD
-                                Release 1.0
+                                Release 1.1
 
 These notes have been prepared from those written originally for NetBSD
 0.9. The conversion was done by someone who has had experience with
@@ -15,10 +15,10 @@ seen before (perhaps 386BSD), but the installation procedures are quite
 different.
 
 
-FreeBSD 1.0 Release Contents:
+FreeBSD Release Contents:
 ------- --- ------- --------
 
-The FreeBSD 1.0 Release consists of the following elements:
+The FreeBSD Release consists of the following elements:
 
 Bootable Kernel-copy floppies
 
@@ -127,7 +127,7 @@ FreeBSD distribution sets
 System Requirements and Supported Devices:
 ------ ------------ --- --------- -------
 
-FreeBSD 1.0 runs on ISA (AT-Bus) and EISA systems, with 386 and 486
+FreeBSD runs on ISA (AT-Bus) and EISA systems, with 386 and 486
 processors, with or without math coprocessors.  It does NOT support
 Micro-channel systems, such as some IBM PS/2 systems.  The minimal
 configuration includes 4Meg of RAM, and an 80Meg hard disk, but to
@@ -287,7 +287,7 @@ or 1.44M) handy, on which you will put the kernel-copy image and the
 install (or upgrade) floppy images.
 
 The images are available from the directory "floppies", under the root
-of the FreeBSD/FreeBSD-1.0 tree at your favorite archive site.
+of the FreeBSD/FreeBSD-1.1 tree at your favorite archive site.
 They're available both as raw disk images, and gzipped, to save time
 downloading.
 
@@ -1052,4 +1052,4 @@ THANKS FOR USING THIS; that's what makes it all worthwhile.
  as they will end up in our personal mail spools.  We will be
  happy to make other arrangements]
 
-This is $Id: install_notes,v 1.10 1993/10/16 12:05:51 rgrimes Exp $
+This is $Id: install_notes,v 1.11 1993/10/19 17:33:38 rgrimes Exp $
