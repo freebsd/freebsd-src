@@ -38,14 +38,14 @@ Compatibility with the earlier versions
 This version is backward compatible with the version 2.X. All programs
 compiled with sys/soundcard.h of v2.X should work without problems.
 PROGRAMS COMPILED WITH THE sys/soundcard.h OF THIS VERSION WILL NOT
-WORK WITH v2.X DRIVER. BE CAREFULL WHEN DISTRIBUTING BINARIES COMPILED 
+WORK WITH v2.X DRIVER. BE CAREFUL WHEN DISTRIBUTING BINARIES COMPILED 
 FOR THIS VERSION.
 
 Contributors
 ------------
 
 This driver contains code by several contributors. In addition several other
-persons have given usefull suggestions. The following is a list of major
+persons have given useful suggestions. The following is a list of major
 contributors. (I could have forgotten some names.)
 
 	Craig Metz	1/2 of the PAS16 Mixer and PCM support
@@ -74,7 +74,13 @@ Hannu Savolainen
 hannu@voxware.pp.fi
 
 Snail mail:	Hannu Savolainen
-		Pallaksentie 4 A 2
-		00970 Helsinki
+		Hiekkalaiturintie 3 A 8
+		00980 Helsinki
 		Finland
-FAX:		+358 0 395 1968 (usually not connected)
+FAX:		+358 0 341 6272 (answers if I have my machine (mgetty) on).
+
+NOTE!	I probably don't answer to Snail mail or FAX messages. Sending answer
+	to each of them is simply too expensive and time consuming. However I
+	try to reply every email message I get (within a week). If you don't
+	get response, please check how your address is written in the message
+	header. I can't answer if I don't have a valid reply address.

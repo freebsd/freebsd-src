@@ -1,6 +1,3 @@
-/*
- * $Id: pas.h,v 1.5 1994/10/01 02:16:54 swallace Exp $
- */
 /* 																*/
 /*	Port addresses and bit fields for the Media Vision Pro AudioSpectrum second generation sound cards.			*/
 /* 																*/
@@ -83,7 +80,7 @@
 
 #define OPERATION_MODE_1		0xEF8B		/* R	Control								*/
 	#define	O_M_1_CDROM_TYPE	0x03		/* R	CD-ROM		3=SCSI, 2=Sony, 0=no CD-ROM interface		*/
-	#define O_M_1_FM_TYPE		0x04		/* R	FM		1=sterero, 0=mono FM chip			*/
+	#define O_M_1_FM_TYPE		0x04		/* R	FM		1=stereo, 0=mono FM chip			*/
 	#define O_M_1_PCM_TYPE 		0x08		/* R	PCM		1=16-bit Codec, 0=8-bit DAC			*/
 #define OPERATION_MODE_2		0xFF8B		/* R	Control								*/
 	#define O_M_2_PCS_ENABLED	0x02		/* R	PC speaker	PC speaker emulation 1=enabled, 0=disabled	*/
@@ -131,7 +128,6 @@
 	#define F_F_PCM_RATE_COUNTER	0x40		/* R W	PCM		1=enable, 0=disable sample rate counter		*/
 	#define F_F_PCM_BUFFER_COUNTER	0x80		/* R W 	PCM		1=enable, 0=disable sample buffer counter	*/
 
-#define	CHIP_REV			0xFF88		/* R	Control		0=PAS, 1=PAS+, 2=CDPC, 3=PAS16C, 4=PAS16D	*/
 #define PAS_NONE	0
 #define PAS_PLUS	1
 #define PAS_CDPC	2

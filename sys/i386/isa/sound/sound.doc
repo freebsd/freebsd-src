@@ -1,0 +1,87 @@
+Instructions on using audio on a FreeBSD 2.1 (or 2.0-current) system.
+See also /sys/i386/conf/LINT.
+
+You may add one or more of the following depending on what you do and don't
+want compiled into your kernel.  Note:  Excluding things with EXCLUDE_... 
+is NOT recommended unless you really know what you're doing.
+
+      options         "AUDIO_MPU401"          # INCLUDE MPU401 support
+      options         AUDIO_GUS               # INCLUDE GUS support
+      options         AUDIO_SBPRO             # INCLUDE SB Pro support
+      options         "AUDIO_SB16"            # INCLUDE SB 16 support
+      options         "AUDIO_YM3812"          # INCLUDE AdLib support
+      options         AUDIO_PAS               # INCLUDE Pro Audio Studio support
+      options         AUDIO_SB                # INCLUDE SB support
+      options         AUDIO_MSS               # INCLUDE MSS support
+      options         EXCLUDE_AUDIO           # NO digital audio support
+      options         EXCLUDE_SEQUENCER       # NO sequencer support
+      options         EXCLUDE_GUS_IODETECT    # NO GUS io detection
+      options         EXCLUDE_SB_EMULATION    # NO PAS SB emulation support
+      options         "EXCLUDE_OPL3"          # NO OPL3 chip support
+      options         EXCLUDE_PRO_MIDI        # NO PAS MIDI support
+      options         EXCLUDE_CHIP_MIDI       # NO MIDI chip support
+      options	      EXCLUDE_MIDI	      # NO MIDI support whatsoever
+
+To enable sound card support, you need to uncomment and add one or more of 
+the following lines to your kernel configuration file according to the
+directions below:
+
+#device snd5 at isa? port 0x330 irq 6 vector mpuintr
+#device snd4 at isa? port 0x220 irq 15 drq 6 vector gusintr
+#device snd3 at isa? port 0x388 irq 10 drq 6 vector pasintr
+#device snd2 at isa? port 0x220 irq 7 drq 1 vector sbintr
+#device snd6 at isa? port 0x220 irq 7 drq 5 vector sbintr
+#device snd10 at isa? port 0x530 irq 10 drq 1 vector adintr
+#device snd7 at isa? port 0x300
+#device snd1 at isa? port 0x388
+
+Note for PAS user: you should change snd1 line to
+#device snd1 at isa? port 0x38a
+(next stereo port) to avoid conflict with snd3
+
+       Unit numbers are:
+                 1 for Yamaha FM synth
+                 2 for SB/SB Pro DSP
+                 3 for PAS PCM and Midi
+                 4 for GUS
+                 5 for MPU-401 (there is separate driver for the SB16)
+                 6 for SB16 (DSP)
+                 7 for SB16 Midi (MPU-401 emulation)
+                 10 for Microsoft Windows Sound System (AD1846)
+
+       If you have ProAudioSpectrum, uncomment units 3, 2 and 1
+       If you have SoundBlaster 1.0 to 2.0 or SB Pro, uncomment 2 and 1.
+       If you have SoundBlaster 16, uncomment 2, 1, 6 and 7.
+       (use the same IRQ for the cards 2, 6 and 7. The DMA of the
+       card 2 is the 8 bit one and the DMA of the card 6 is the 16 bit one.
+       the port address of the card 7 is the Midi I/O address of the SB16.
+       If you have GravisUltrasound, uncomment 4
+       If you have MPU-401, uncomment 5
+
+NOTE:  The MPU-401 driver may or may not work, and is unfortunately
+unverifiable since no one I know has one.  If you can test this,
+please let me know!  Also note that you will have to change these
+settings if your soundcard is set for a non-standard address or IRQ.
+Please check your documentation (or verify with any provided DOS utilities
+that may have come with your card) and set the IRQ or address fields
+accordingly.
+
+Also:  Some systems with the OPTI chipset will require you to #define
+BROKEN_BUS_CLOCK in /sys/i386/sound/pas2_card.c.  Symptoms are that
+you will hear a lot of clicking and popping sounds, like a geiger counter,
+coming out of the PAS even when is not playing anything.
+
+Also:  You can configure more then one card on a single DMA using 
+ALLOW_CONFLICT_DMA.
+
+Probing problems:  Since the SB16 uses the same IRQ and addresses for
+the different drivers, some of the snd dirvers will not be probed because
+the kernel thinks there is a conflict.  This can be worked-around by
+setting the ALLOW_CONFLICT_IOADDR or ALLOW_CONFLICT_IRQ options.
+
+Warning: Setting the ALLOW_* options will will bypass checks for ALL drivers,
+so be careful when you use them!
+
+		- Jordan Hubbard (jkh@freefall.cdrom.com)
+		- Steven Wallace (swallace@freefall.cdrom.com)
+                - Sujal Patel (smpatel@wam.umd.edu)

@@ -25,7 +25,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: sb_midi.c,v 1.3 1994/08/02 07:40:43 davidg Exp $
  */
 
 #include "sound_config.h"
@@ -43,7 +42,7 @@
  * future version of this driver.
  */
 
-extern int      sb_dsp_ok;	/* Set to 1 atfer successful initialization */
+extern int      sb_dsp_ok;	/* Set to 1 after successful initialization */
 extern int      sbc_base;
 
 extern int      sb_midi_mode;

@@ -1,11 +1,6 @@
 /*
  *	DMA buffer calls
- *
- * $Id: sound_calls.h,v 1.6 1994/09/27 17:58:28 davidg Exp $
  */
-
-#ifndef _MACHINE_ISA_SOUND_H_
-#define _MACHINE_ISA_SOUND_H_
 
 int DMAbuf_open(int dev, int mode);
 int DMAbuf_release(int dev, int mode);
@@ -100,6 +95,7 @@ int pro_midi_write(int dev, snd_rw_buf *uio);
 int pro_midi_read(int dev, snd_rw_buf *uio);
 
 /*	From soundcard.c	*/
+long soundcard_init(long mem_start);
 void tenmicrosec(void);
 void request_sound_timer (int count);
 void sound_stop_timer(void);
@@ -229,7 +225,7 @@ void sound_timer_interrupt(void);
 /*	From ad1848.c */
 void ad1848_init (char *name, int io_base, int irq, int dma_playback, int dma_capture);
 int ad1848_detect (int io_base);
-void     ad1848_interrupt (int dev);
+void adintr (int dev);
 long attach_ms_sound(long mem_start, struct address_info * hw_config);
 int probe_ms_sound(struct address_info *hw_config);
 
@@ -245,5 +241,3 @@ int pss_ioctl (int dev, struct fileinfo *file,
 	   unsigned int cmd, unsigned int arg);
 int pss_lseek (int dev, struct fileinfo *file, off_t offset, int orig);
 long pss_init(long mem_start);
-
-#endif /* _MACHINE_ISA_SOUND_H_ */
