@@ -55,7 +55,7 @@
  *
  * W. Metzenthen   June 1994.
  *
- *  $Id: fpu_entry.c,v 1.11 1997/02/22 09:29:06 peter Exp $
+ *  $Id: fpu_entry.c,v 1.12 1997/06/14 15:11:03 bde Exp $
  *
  */
 
@@ -75,10 +75,6 @@
 #include <sys/systm.h>
 #include <sys/proc.h>
 #include <sys/kernel.h>
-
-#ifdef LKM
-#include <sys/lkm.h>
-#endif
 
 #include <machine/cpu.h>
 #include <machine/pcb.h>
@@ -512,9 +508,10 @@ gnufpu_unload(struct lkm_table *lkmtp, int cmd)
 }
 
 int
-gnufpu(struct lkm_table *lkmtp, int cmd, int ver)
+gnufpu_mod(struct lkm_table *lkmtp, int cmd, int ver)
 {
-	DISPATCH(lkmtp, cmd, ver, gnufpu_load, gnufpu_unload, lkm_nullcmd);
+	MOD_DISPATCH(gnufpu, lkmtp, cmd, ver, gnufpu_load, gnufpu_unload,
+	    lkm_nullcmd);
 }
 #else /* !LKM */
 
