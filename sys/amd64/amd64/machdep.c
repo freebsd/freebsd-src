@@ -386,12 +386,9 @@ osendsig(catcher, sig, mask, code)
 	}
 
 	/*
-	 * Copy the sigframe out to the user's stack.  If this fails,
-	 * try growing the stack and retrying the copy.
+	 * Copy the sigframe out to the user's stack.
 	 */
-	if (copyout(&sf, fp, sizeof(*fp)) != 0 &&
-	    (grow_stack(p, (int)fp) == 0 ||
-	    copyout(&sf, fp, sizeof(*fp)) != 0)) {
+	if (copyout(&sf, fp, sizeof(*fp)) != 0) {
 #ifdef DEBUG
 		printf("process %ld has trashed its stack\n", (long)p->p_pid);
 #endif
@@ -518,12 +515,9 @@ sendsig(catcher, sig, mask, code)
 	}
 
 	/*
-	 * Copy the sigframe out to the user's stack.  If this fails,
-	 * try growing the stack and retrying the copy.
+	 * Copy the sigframe out to the user's stack.
 	 */
-	if (copyout(&sf, sfp, sizeof(*sfp)) != 0 &&
-	    (grow_stack(p, (int)sfp) == 0 ||
-	    copyout(&sf, sfp, sizeof(*sfp)) != 0)) {
+	if (copyout(&sf, sfp, sizeof(*sfp)) != 0) {
 #ifdef DEBUG
 		printf("process %ld has trashed its stack\n", (long)p->p_pid);
 #endif
