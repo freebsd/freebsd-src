@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.48 1995/01/11 16:13:01 joerg Exp $
+ *	$Id: fd.c,v 1.49 1995/01/12 19:20:28 joerg Exp $
  *
  */
 
@@ -52,9 +52,6 @@
 #undef NFDC
 #endif
 #include "fd.h"
-
-/* Flags */
-#define FT_PROBE		0x1
 
 #if NFDC > 0
 
@@ -581,7 +578,7 @@ fdattach(struct isa_device *dev)
 #if NFT > 0
 			/* If BIOS says no floppy, or > 2nd device */
 			/* Probe for and attach a floppy tape.     */
-			if ((dev->id_flags & FT_PROBE) && ftattach(dev, fdup))
+			if (ftattach(dev, fdup))
 				continue;
 			if (fdsu < DRVS_PER_CTLR) 
 				fd->type = NO_TYPE;
