@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)specialreg.h	7.1 (Berkeley) 5/9/91
- *	$Id: specialreg.h,v 1.14 1997/07/21 17:53:51 fsmp Exp $
+ *	$Id: specialreg.h,v 1.15 1998/03/04 11:39:16 kato Exp $
  */
 
 #ifndef _MACHINE_SPECIALREG_H_
@@ -257,6 +257,11 @@
 #define RCR_WG	0x08	/* Write gathering. */
 #define	RCR_WT	0x10	/* Write-through. */
 #define	RCR_NLB	0x20	/* LBA# pin is not asserted. */
+
+/* AMD Write Allocate Top-Of-Memory and Control Register */
+#define	AMD_WT_ALLOC_TME	0x40000	/* top-of-memory enable */
+#define	AMD_WT_ALLOC_PRE	0x20000	/* programmable range enable */
+#define	AMD_WT_ALLOC_FRE	0x10000	/* fixed (A0000-FFFFF) range enable */
 
 
 #ifndef LOCORE

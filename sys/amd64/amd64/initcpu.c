@@ -1,5 +1,5 @@
 /*
- * Copyright (c) KATO Takenori, 1997.
+ * Copyright (c) KATO Takenori, 1997, 1998.
  * 
  * All rights reserved.  Unpublished rights reserved under the copyright
  * laws of Japan.
@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *		$Id: initcpu.c,v 1.12 1998/02/04 03:47:14 eivind Exp $
+ *		$Id: initcpu.c,v 1.13 1998/05/16 14:38:10 kato Exp $
  */
 
 #include "opt_cpu.h"
@@ -41,6 +41,11 @@
 #include <machine/specialreg.h>
 
 void initializecpu(void);
+#if defined(I586_CPU) && defined(CPU_WT_ALLOC)
+void	enable_K5_wt_alloc(void);
+void	enable_K6_wt_alloc(void);
+#endif
+
 #ifdef I486_CPU
 static void init_5x86(void);
 static void init_bluelightning(void);
@@ -439,7 +444,7 @@ static void
 init_ppro(void)
 {
 #ifndef SMP
-	quad_t	apicbase;
+	u_int64_t	apicbase;
 
 	/*
 	 * Local APIC should be diabled in UP kernel.
@@ -532,6 +537,121 @@ initializecpu(void)
 	}
 #endif /* PC98 && !UPGRADE_CPU_HW_CACHE */
 }
+
+#if defined(I586_CPU) && defined(CPU_WT_ALLOC)
+/*
+ * Enable write allocate feature of AMD processors.
+ * Following two functions require the Maxmem variable being set.
+ */
+void
+enable_K5_wt_alloc(void)
+{
+	u_int64_t	msr;
+
+	/*
+	 * Write allocate is supported only on models 1, 2, and 3, with
+	 * a stepping of 4 or greater.
+	 */
+	if (((cpu_id & 0xf0) > 0) && ((cpu_id & 0x0f) > 3)) {
+		disable_intr();
+		msr = rdmsr(0x83);		/* HWCR */
+		wrmsr(0x83, msr & !(0x10));
+
+		/*
+		 * We have to tell the chip where the top of memory is,
+		 * since video cards could have frame bufferes there,
+		 * memory-mapped I/O could be there, etc.
+		 */
+		if(Maxmem > 0)
+		  msr = Maxmem / 16;
+		else
+		  msr = 0;
+		msr |= AMD_WT_ALLOC_TME | AMD_WT_ALLOC_FRE;
+#ifdef PC98
+		if (!(inb(0x43b) & 4)) {
+			wrmsr(0x86, 0x0ff00f0);
+			msr |= AMD_WT_ALLOC_PRE;
+		}
+#else
+		/*
+		 * There is no way to know wheter 15-16M hole exists or not. 
+		 * Therefore, we disable write allocate for this range.
+		 */
+			wrmsr(0x86, 0x0ff00f0);
+			msr |= AMD_WT_ALLOC_PRE;
+#endif
+		wrmsr(0x85, msr);
+
+		msr=rdmsr(0x83);
+		wrmsr(0x83, msr|0x10); /* enable write allocate */
+
+		enable_intr();
+	}
+}
+
+void
+enable_K6_wt_alloc(void)
+{
+	quad_t	size;
+	u_int64_t	whcr;
+	u_long	eflags;
+
+	eflags = read_eflags();
+	disable_intr();
+	wbinvd();
+
+#ifdef CPU_DISABLE_CACHE
+	/*
+	 * Certain K6-2 box becomes unstable when write allocation is
+	 * enabled.
+	 */
+	/*
+	 * The AMD-K6 processer provides the 64-bit Test Register 12(TR12),
+	 * but only the Cache Inhibit(CI) (bit 3 of TR12) is suppported.
+	 * All other bits in TR12 have no effect on the processer's operation.
+	 * The I/O Trap Restart function (bit 9 of TR12) is always enabled
+	 * on the AMD-K6.
+	 */
+	wrmsr(0x0000000e, (u_int64_t)0x0008);
+#endif
+	/* Don't assume that memory size is aligned with 4M. */
+	if (Maxmem > 0)
+	  size = Maxmem / 256;
+	else
+	  size = 0;
+	size = (size + 3) / 4;
+
+	/* Limit is 508M bytes. */
+	if (size > 127)
+		size = 127;
+	whcr = rdmsr(0xc0000082);
+	whcr &= ~0x00feLL;
+	whcr |= (size << 1);
+
+#ifdef PC98
+	if (whcr & 0x00feLL) {
+		/*
+		 * If bit 2 of port 0x43b is 0, disable wrte allocate for the
+		 * 15-16M range.
+		 */
+		if (!(inb(0x43b) & 4))
+			whcr &= ~0x0001LL;
+		else
+			whcr |=  0x0001LL;
+	}
+#else
+	/*
+	 * There is no way to know wheter 15-16M hole exists or not. 
+	 * Therefore, we disable write allocate for this range.
+	 */
+	whcr &= 0x00feLL;
+#endif
+	wrmsr(0x0c0000082, whcr);
+
+	write_eflags(eflags);
+	enable_intr();
+}
+#endif /* I585_CPU && CPU_WT_ALLOC */
 
 #include "opt_ddb.h"
 #ifdef DDB
