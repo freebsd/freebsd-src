@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)specialreg.h	7.1 (Berkeley) 5/9/91
- *	$Id: specialreg.h,v 1.8 1996/01/30 22:55:06 mpp Exp $
+ *	$Id: specialreg.h,v 1.9 1996/06/03 19:37:38 sos Exp $
  */
 
 #ifndef _MACHINE_SPECIALREG_H_
@@ -59,6 +59,39 @@
 #define CR0_AM	0x00040000	/* Alignment Mask (set to enable AC flag) */
 #define CR0_NW  0x20000000      /* Not Write-through */
 #define CR0_CD  0x40000000      /* Cache Disable */
+
+/*
+ * Bits in PPro special registers
+ */
+#define	CR4_VME	0x00000001	/* Virtual 8086 mode extensions */
+#define	CR4_PVI	0x00000002	/* Protected-mode virtual interrupts */
+#define	CR4_TSD	0x00000004	/* Time stamp disable */
+#define	CR4_DE	0x00000008	/* Debugging extensions */
+#define	CR4_PSE	0x00000010	/* Page size extensions */
+#define	CR4_PAE	0x00000020	/* Physical address extension */
+#define	CR4_MCE	0x00000040	/* Machine check enable */
+#define	CR4_PGE	0x00000080	/* Page global enable */
+#define	CR4_PCE	0x00000100	/* Performance monitoring counter enable */
+
+/*
+ * CPUID instruction features register
+ */
+#define	CPUID_FPU	0x0001
+#define	CPUID_VME	0x0002
+#define	CPUID_DE	0x0004
+#define	CPUID_PSE	0x0008
+#define	CPUID_TSC	0x0010
+#define	CPUID_MSR	0x0020
+#define	CPUID_PAE	0x0040
+#define	CPUID_MCE	0x0080
+#define	CPUID_CX8	0x0100
+#define	CPUID_APIC	0x0200
+#define	CPUID_B10	0x0400
+#define	CPUID_B11	0x0800
+#define	CPUID_MTRR	0x1000
+#define	CPUID_PGE	0x2000
+#define	CPUID_MCA	0x4000
+#define	CPUID_CMOV	0x8000
 
 /*
  * Cyrix 486 DLC special registers, accessible as IO ports.
