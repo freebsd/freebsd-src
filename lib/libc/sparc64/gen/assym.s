@@ -13,3 +13,6 @@
 
 #define	SIG_BLOCK	1
 #define	SIG_SETMASK	3
+
+#define	FSR_RD_MASK	0xc0000000
+#define	FSR_RD_RD_Z	0x40000000
