@@ -1,5 +1,5 @@
 #
-# $Id$
+# $Id: Makefile,v 1.1 1996/08/18 17:59:48 peter Exp $
 #
 
 MAINTAINER=peter@FreeBSD.org
@@ -17,8 +17,8 @@ SRCS = adler32.c compress.c crc32.c gzio.c uncompr.c deflate.c trees.c \
        zutil.c inflate.c infblock.c inftrees.c infcodes.c infutil.c inffast.c
 
 beforeinstall:
-	${INSTALL} -c -m 644 -o ${BINOWN} -g ${BINGRP} zlib.h zconf.h \
-		${DESTDIR}/usr/include
+	${INSTALL} -c -m 644 -o ${BINOWN} -g ${BINGRP} ${.CURDIR}/zlib.h \
+		${.CURDIR}/zconf.h ${DESTDIR}/usr/include
 
 minigzip:	all minigzip.o
 	$(CC) -o minigzip minigzip.o -L. -lz
