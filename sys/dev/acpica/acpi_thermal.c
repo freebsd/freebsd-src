@@ -202,12 +202,6 @@ acpi_tz_attach(device_t dev)
 	goto out;
     
     /*
-     * XXX Call _INI if it exists.  ACPICA should do this but only handles
-     * Device objects for now.
-     */
-    AcpiEvaluateObject(sc->tz_handle, "_INI", NULL, NULL);
-
-    /*
      * Register for any Notify events sent to this zone.
      */
     AcpiInstallNotifyHandler(sc->tz_handle, ACPI_DEVICE_NOTIFY, 
