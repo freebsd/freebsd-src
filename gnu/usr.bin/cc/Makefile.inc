@@ -1,5 +1,5 @@
 #
-# $Id: Makefile.inc,v 1.10 1994/11/15 04:51:21 phk Exp $
+# $Id: Makefile.inc,v 1.11 1995/03/05 20:34:30 phk Exp $
 #
 
 CFLAGS+=	-I${.CURDIR} -I${.CURDIR}/../include
@@ -13,6 +13,7 @@ CFLAGS+=	-DSTANDARD_EXEC_PREFIX=\"/usr/libexec/\"
 CFLAGS+=	-DSTANDARD_STARTFILE_PREFIX=\"/usr/lib/\"
 CFLAGS+=	-DHAVE_PUTENV
 CFLAGS+=	-DGCC_NAME=\"cc\"
+CFLAGS+=	-DLINK_LIBGCC_SPECIAL_1
 
 .if exists(${.CURDIR}/../cc_int/obj)
 LIBDESTDIR=	${.CURDIR}/../cc_int/obj
