@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: main.c,v 1.10 1996/07/18 00:08:58 jkh Exp $ */
+/* $Id: main.c,v 1.11 1996/08/03 13:14:47 jkh Exp $ */
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -225,6 +225,8 @@ ftpget ()
 	ftp = ftpLogin(host, lp, ftp_pw, 0, verbose);
 	if (!ftp) 
 	    err(1, "Couldn't open FTP connection or login to %s.", host);
+
+	ftpVerbose (ftp, 0);
 
 	/* Time to set our defaults */
 	ftpBinary (ftp);
