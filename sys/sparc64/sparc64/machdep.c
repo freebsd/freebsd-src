@@ -521,6 +521,7 @@ int
 sigreturn(struct thread *td, struct sigreturn_args *uap)
 {
 	struct proc *p;
+	mcontext_t *mc;
 	ucontext_t uc;
 	int error;
 
@@ -536,7 +537,8 @@ sigreturn(struct thread *td, struct sigreturn_args *uap)
 		return (EFAULT);
 	}
 
-	error = set_mcontext(td, &uc.uc_mcontext);
+	mc = &uc.uc_mcontext;
+	error = set_mcontext(td, mc);
 	if (error != 0)
 		return (error);
 
@@ -547,7 +549,7 @@ sigreturn(struct thread *td, struct sigreturn_args *uap)
 	PROC_UNLOCK(p);
 
 	CTR4(KTR_SIG, "sigreturn: return td=%p pc=%#lx sp=%#lx tstate=%#lx",
-	    td, tf->tf_tpc, tf->tf_sp, tf->tf_tstate);
+	    td, mc->mc_tpc, mc->mc_sp, mc->mc_tstate);
 	return (EJUSTRETURN);
 }
 
