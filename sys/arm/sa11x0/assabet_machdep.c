@@ -49,6 +49,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_md.h"
+
 #define _ARM32_BUS_DMA_PRIVATE
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -131,7 +133,9 @@ extern int *end;
 struct pcpu __pcpu;
 struct pcpu *pcpup = &__pcpu;
 
-#define MDSIZE 8192
+#ifndef MD_ROOT_SIZE
+#error SIMICS needs MD_ROOT and MD_ROOT_SIZE
+#endif
 /* Physical and virtual addresses for some global pages */
 
 vm_paddr_t phys_avail[10];
@@ -218,7 +222,7 @@ initarm(void *arg, void *arg2)
 	fake_preload[i++] = MDROOT_ADDR;
 	fake_preload[i++] = MODINFO_SIZE;
 	fake_preload[i++] = sizeof(uint32_t);
-	fake_preload[i++] = MDSIZE * 1024;
+	fake_preload[i++] = MD_ROOT_SIZE * 1024;
 	fake_preload[i++] = 0;
 	fake_preload[i] = 0;
 	preload_metadata = (void *)fake_preload;
@@ -236,7 +240,6 @@ initarm(void *arg, void *arg2)
 	kerneldatasize = (u_int32_t)&end - (u_int32_t)KERNEL_TEXT_BASE;
 	symbolsize = 0;
 	freemempos = (vm_offset_t)round_page(physical_freestart);
-	printf("freemempos %p\n", (void*)freemempos);
 	memset((void *)freemempos, 0, 256*1024);
 		/* Define a macro to simplify memory allocation */
 #define	valloc_pages(var, np)			\
@@ -311,12 +314,10 @@ initarm(void *arg, void *arg2)
 	pmap_map_chunk(l1pagetable, KERNBASE, KERNBASE,
 	   (uint32_t)&end - KERNBASE, VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
 	/* Map the stack pages */
-	printf("avant irq %p %p\n", (void*)irqstack.pv_va, (void*)irqstack.pv_pa);
 	pmap_map_chunk(l1pagetable, irqstack.pv_va, irqstack.pv_pa,
 	    IRQ_STACK_SIZE * PAGE_SIZE, VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
-	printf("apres irq\n");
 	pmap_map_chunk(l1pagetable, md_addr.pv_va, md_addr.pv_pa,
-	    MDSIZE * 1024, VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
+	    MD_ROOT_SIZE * 1024, VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
 	pmap_map_chunk(l1pagetable, abtstack.pv_va, abtstack.pv_pa,
 	    ABT_STACK_SIZE * PAGE_SIZE, VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
 	pmap_map_chunk(l1pagetable, undstack.pv_va, undstack.pv_pa,
@@ -365,7 +366,6 @@ initarm(void *arg, void *arg2)
 	 * Since the ARM stacks use STMFD etc. we must set r13 to the top end
 	 * of the stack memory.
 	 */
-	printf("init subsystems: stacks\n");
 	set_stackptr(PSR_IRQ32_MODE,
 	    irqstack.pv_va + IRQ_STACK_SIZE * PAGE_SIZE);
 	set_stackptr(PSR_ABT32_MODE,
