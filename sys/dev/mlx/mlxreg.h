@@ -214,7 +214,7 @@ struct mlx_enquiry2	/* MLX_CMD_ENQUIRY2 */
     u_int16_t		me_clock_speed;
     u_int16_t		me_mem_speed;
     u_int16_t		me_hardware_speed;
-    u_int8_t		res4[10];
+    u_int8_t		res4[12];
     u_int16_t		me_max_commands;
     u_int16_t		me_max_sg;
     u_int16_t		me_max_dp;
@@ -235,7 +235,7 @@ struct mlx_enquiry2	/* MLX_CMD_ENQUIRY2 */
     u_int16_t		me_cacheline;
     u_int8_t		me_scsi_cap;
     u_int8_t		res9[5];
-    u_int16_t		me_fimware_build;
+    u_int16_t		me_firmware_build;
     u_int8_t		me_fault_mgmt_type;
     u_int8_t		res10;
     u_int32_t		me_firmware_features;

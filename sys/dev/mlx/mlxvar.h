@@ -105,13 +105,8 @@ struct mlx_softc
     bus_dmamap_t	mlx_sg_dmamap;	/* map for s/g buffers */
     
     /* controller limits and features */
-    int			mlx_hwid;	/* hardware identifier */
-    int			mlx_maxiop;	/* maximum number of I/O operations */
-    int			mlx_nchan;	/* number of active channels */
-    int			mlx_maxiosize;	/* largest I/O for this controller */
-    int			mlx_maxtarg;	/* maximum number of targets per channel */
-    int			mlx_maxtags;	/* maximum number of tags per device */
-    int			mlx_scsicap;	/* SCSI capabilities */
+    struct mlx_enquiry2	*mlx_enq2;
+    int			mlx_maxiop;	/* hard maximum number of commands */
     int			mlx_feature;	/* controller features/quirks */
 #define MLX_FEAT_PAUSEWORKS	(1<<0)	/* channel pause works as expected */
 
@@ -125,8 +120,6 @@ struct mlx_softc
     int			mlx_waitbufs;			/* number of bufs awaiting commands */
 
     /* controller status */
-    u_int8_t		mlx_fwminor;	/* firmware revision */
-    u_int8_t		mlx_fwmajor;
     int			mlx_geom;
 #define MLX_GEOM_128_32		0	/* geoemetry translation modes */
 #define MLX_GEOM_256_63		1
@@ -137,9 +130,8 @@ struct mlx_softc
 #define MLX_STATE_SUSPEND	(1<<3)	/* controller is suspended */
     struct callout_handle mlx_timeout;	/* periodic status monitor */
     time_t		mlx_lastpoll;	/* last time_second we polled for status */
-    u_int16_t		mlx_lastevent;	/* sequence number of the last event we recorded */
-    u_int16_t		mlx_currevent;	/* sequence number last time we looked */
-    int			mlx_polling;	/* if > 0, polling operations still running */
+    int			mlx_lastevent;	/* sequence number of the last event we recorded */
+    int			mlx_currevent;	/* sequence number last time we looked */
     int			mlx_rebuild;	/* if >= 0, drive is being rebuilt */
     u_int32_t		mlx_rebuildstat;/* blocks left to rebuild if active */
     int			mlx_check;	/* if >= 0, drive is being checked */
