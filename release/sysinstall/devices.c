@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.10 1995/05/08 01:27:06 jkh Exp $
+ * $Id: devices.c,v 1.11 1995/05/08 10:20:46 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -47,6 +47,14 @@
 /* Where we start displaying chunk information on the screen */
 #define CHUNK_START_ROW		5
 
+static char *cdrom_table[] = {
+    "cd0a",	"cd1a",		/* SCSI			*/
+    "mcd0a",	"mcd1a",	/* Mitsumi (old model)	*/
+    "scd0a",	"scd1a",	/* Sony CDROM		*/
+    "matcd0a",	"matcd1a",	/* Matsushita (SB)	*/
+    NULL,
+};
+
 /* Get all device information for a given device class */
 static Device *
 device_get_all(DeviceType which, int *ndevs)
@@ -66,11 +74,27 @@ device_get_all(DeviceType which, int *ndevs)
 		strcpy(devs[i].name, names[i]);
 		devs[i].type = DEVICE_TYPE_DISK;
 	    }
-	    devs[i].name[0] = '\0';
 	    free(names);
 	}
     }
-    /* put detection for other classes here just as soon as I figure out how */
+    if (which == DEVICE_TYPE_CDROM || which == DEVICE_TYPE_ANY) {
+	char try[FILENAME_MAX];
+	int i, fd;
+
+	for (i = 0; cdrom_table[i]; i++) {
+	    snprintf(try, FILENAME_MAX, "/mnt/dev/%s", cdrom_table[i]);
+	    fd = open(try);
+	    if (fd > 0) {
+		close(fd);
+		devs = safe_realloc(devs, sizeof(Device) * (*ndevs + 2));
+		strcpy(devs[*ndevs].name, cdrom_table[i]);
+		devs[(*ndevs)++].type = DEVICE_TYPE_CDROM;
+		break;
+	    }
+	}
+    }
+    /* Terminate the devices array */
+    devs[*ndevs].name[0] = '\0';
     return devs;
 }
 

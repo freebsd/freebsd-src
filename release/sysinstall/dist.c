@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.5 1995/05/04 03:51:16 jkh Exp $
+ * $Id: dist.c,v 1.1 1995/05/04 19:48:10 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -89,4 +89,45 @@ distSetEverything(char *str)
     Dists = DIST_ALL;
     SrcDists = DIST_SRC_ALL;
     return 0;
+}
+
+struct {
+    char *my_name;
+    unsigned int my_bit;
+} DistTable[] = {
+{ "bin", DIST_BIN },
+{ "games", DIST_GAMES },
+{ "manpages", DIST_MANPAGES },
+{ "proflibs", DIST_PROFLIBS },
+{ "dict", DIST_DICT },
+{ "src", DIST_SRC },
+{ "des", DIST_DES },
+{ "compat1x", DIST_COMPAT1X },
+{ "xf86311l", DIST_XFREE86 },
+{ NULL, 0 },
+};
+
+Boolean
+dist_extract(char *name)
+{
+    int fd;
+
+    return FALSE;
+}
+    
+void
+distExtractAll(void)
+{
+    int i, fd;
+
+    while (Dists) {
+	for (i = 0; DistTable[i].my_name; i++) {
+	    if (Dists & DistTable[i].my_bit) {
+		if (dist_extract(DistTable[i].my_name))
+		    Dists &= ~DistTable[i].my_bit;
+		else
+		    continue;
+	    }
+	}
+    }
 }
