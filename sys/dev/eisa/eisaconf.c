@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: eisaconf.c,v 1.37 1999/01/14 06:22:03 jdp Exp $
+ *	$Id: eisaconf.c,v 1.38 1999/04/18 15:50:33 peter Exp $
  */
 
 #include "opt_eisa.h"
@@ -179,6 +179,8 @@ eisa_probe(device_t dev)
 	struct eisa_device *e_dev;
 	int eisaBase = 0xc80;
 	eisa_id_t eisa_id;
+
+	device_set_desc(dev, "EISA bus");
 
 	for (slot = 0; slot < num_eisa_slots; eisaBase+=0x1000, slot++) {
 		int id_size = sizeof(eisa_id);
@@ -816,4 +818,3 @@ static driver_t eisa_driver = {
 };
 
 DRIVER_MODULE(eisa, isab, eisa_driver, eisa_devclass, 0, 0);
-
