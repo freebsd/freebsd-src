@@ -28,8 +28,8 @@
  * Test program for mbrtowc(), as specified by IEEE Std. 1003.1-2001 and
  * ISO/IEC 9899:1999.
  *
- * The function is tested with both the "C" ("POSIX") LC_CTYPE seting and
- * ja_JP.eucJP. Other encodings are not tested.
+ * The function is tested with both the "C" ("POSIX") LC_CTYPE setting and
+ * "ja_JP.eucJP". Other encodings are not tested.
  */
 
 #include <sys/cdefs.h>
@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <limits.h>
 #include <locale.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <wchar.h>
