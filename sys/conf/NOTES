@@ -216,6 +216,11 @@ options 	DDB
 #!options 	DDB_NOKLDSYM
 
 #
+# Print a stack trace of the current thread out on the console for a panic.
+#
+options 	DDB_TRACE
+
+#
 # Don't drop into DDB for a panic. Intended for unattended operation
 # where you may want to drop to DDB from the console, but still want
 # the machine to recover from a panic
