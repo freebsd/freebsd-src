@@ -30,7 +30,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)svc_unix.c 1.21 87/08/11 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)svc_unix.c	2.2 88/08/01 4.0 RPCSRC";*/
-static char *rcsid = "$Id: svc_unix.c,v 1.8 1996/12/30 15:19:08 peter Exp $";
+static char *rcsid = "$Id: svc_unix.c,v 1.2 1997/05/28 05:05:31 wpaul Exp $";
 #endif
 
 /*
@@ -467,6 +467,7 @@ svcunix_recv(xprt, msg)
 		msg->rm_call.cb_verf.oa_length = sizeof(cm);
 		return (TRUE);
 	}
+	cd->strm_stat = XPRT_DIED;	/* XXXX */
 	return (FALSE);
 }
 
