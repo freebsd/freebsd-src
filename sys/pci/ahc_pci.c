@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ahc_pci.c,v 1.17 1999/08/16 02:33:46 gibbs Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

@@ -1,4 +1,4 @@
-/* $Id: if_le_ioasic.c,v 1.1 1998/08/20 08:27:10 dfr Exp $ */
+/* $FreeBSD$ */
 /*	$NetBSD: if_le_ioasic.c,v 1.10 1998/01/19 02:49:48 thorpej Exp $	*/
 
 /*

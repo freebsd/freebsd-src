@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7xxx.seq,v 1.88 1999/05/14 05:07:25 gibbs Exp $
+ * $FreeBSD$
  */
 
 #include <dev/aic7xxx/aic7xxx.reg>

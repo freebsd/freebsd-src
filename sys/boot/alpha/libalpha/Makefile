@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.5 1998/10/14 09:53:25 peter Exp $
+# $FreeBSD$
 
 LIB=		alpha
 NOPIC=		true

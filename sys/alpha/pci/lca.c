@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: lca.c,v 1.9 1999/05/20 15:33:23 gallatin Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

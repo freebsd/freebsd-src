@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: gensetdefs.c,v 1.1 1998/06/10 10:52:41 dfr Exp $
+ * $FreeBSD$
  */
 
 #include <sys/types.h>

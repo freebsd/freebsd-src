@@ -29,7 +29,7 @@
  *
  *	BSDI setver.c,v 2.2 1996/04/08 19:33:04 bostic Exp
  *
- * $Id: setver.c,v 1.2 1996/09/22 05:53:09 miff Exp $
+ * $FreeBSD$
  */
 
 #include "doscmd.h"

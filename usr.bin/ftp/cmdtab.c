@@ -1,4 +1,4 @@
-/*	$Id$	*/
+/* $FreeBSD$	*/
 /*	$NetBSD: cmdtab.c,v 1.17 1997/08/18 10:20:17 lukem Exp $	*/
 
 /*
@@ -39,7 +39,7 @@
 #if 0
 static char sccsid[] = "@(#)cmdtab.c	8.4 (Berkeley) 10/9/94";
 #else
-__RCSID("$Id$");
+__RCSID("$FreeBSD$");
 __RCSID_SOURCE("$NetBSD: cmdtab.c,v 1.17 1997/08/18 10:20:17 lukem Exp $");
 #endif
 #endif /* not lint */

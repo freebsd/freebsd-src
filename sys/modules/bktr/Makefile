@@ -9,7 +9,7 @@
 # Note - as the driver requires contiguous memory, loading the driver once
 # memory has filled or become fragmented may fail.
 
-#	$Id: Makefile,v 1.1 1999/06/12 15:00:19 roger Exp $
+# $FreeBSD$
 
 S	= ${.CURDIR}/../..
 .PATH:  $S/pci

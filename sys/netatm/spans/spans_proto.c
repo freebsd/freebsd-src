@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: spans_proto.c,v 1.2 1998/09/17 09:35:00 phk Exp $
+ *	@(#) $FreeBSD$
  *
  */
 
@@ -41,7 +41,7 @@
 #include <netatm/spans/spans_var.h>
 
 #ifndef lint
-__RCSID("@(#) $Id: spans_proto.c,v 1.2 1998/09/17 09:35:00 phk Exp $");
+__RCSID("@(#) $FreeBSD$");
 #endif
 
 /*

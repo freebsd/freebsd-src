@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: procfs_type.c,v 1.4 1997/03/24 11:24:42 bde Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

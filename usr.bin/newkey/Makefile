@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1.1.1 1997/05/28 15:52:07 wpaul Exp $
+# $FreeBSD$
 
 PROG= newkey
 SRCS= newkey.c update.c generic.c

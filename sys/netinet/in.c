@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in.c	8.4 (Berkeley) 1/9/95
- *	$Id: in.c,v 1.40 1999/04/24 12:28:51 luigi Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

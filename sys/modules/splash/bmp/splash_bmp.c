@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: splash_bmp.c,v 1.8 1999/06/16 14:04:45 yokota Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: spans_cls.h,v 1.6 1998/05/18 19:11:17 mks Exp $
+ *	@(#) $FreeBSD$
  *
  */
 

@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $FreeBSD$ */
 /*	$NetBSD: tcdevs.h,v 1.12 1998/06/18 23:29:46 jonathan Exp $	*/
 
 /*

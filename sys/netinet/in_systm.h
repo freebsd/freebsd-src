@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_systm.h	8.1 (Berkeley) 6/10/93
- * $Id: in_systm.h,v 1.6 1998/06/07 17:12:14 dfr Exp $
+ * $FreeBSD$
  */
 
 #ifndef _NETINET_IN_SYSTM_H_

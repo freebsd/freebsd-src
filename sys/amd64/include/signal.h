@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)signal.h	8.1 (Berkeley) 6/11/93
- * $Id: signal.h,v 1.7 1997/02/22 09:35:12 peter Exp $
+ * $FreeBSD$
  */
 
 #ifndef _MACHINE_SIGNAL_H_

@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_interface.c,v 1.44 1999/04/28 01:03:17 luoqi Exp $
+ * $FreeBSD$
  */
 
 /*

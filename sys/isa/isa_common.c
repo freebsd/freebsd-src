@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: isa_common.c,v 1.4 1999/07/29 01:02:56 mdodd Exp $
+ * $FreeBSD$
  */
 /*
  * Modifications for Intel architecture by Garrett A. Wollman.

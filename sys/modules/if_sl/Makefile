@@ -1,4 +1,4 @@
-#       $Id: Makefile,v 1.8 1999/04/28 01:18:05 msmith Exp $
+# $FreeBSD$
 
 .PATH:  ${.CURDIR}/../../net
 KMOD=   if_sl

@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: str.c,v 1.9 1997/02/22 19:27:23 peter Exp $
+ * $FreeBSD$
  */
 
 #ifndef lint
@@ -43,7 +43,7 @@
 static char sccsid[] = "@(#)str.c	5.8 (Berkeley) 6/1/90";
 #else
 static const char rcsid[] =
-	"$Id$";
+  "$FreeBSD$";
 #endif
 #endif /* not lint */
 

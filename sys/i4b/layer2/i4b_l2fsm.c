@@ -27,7 +27,7 @@
  *	i4b_l2fsm.c - layer 2 FSM
  *	-------------------------
  *
- *	$Id: i4b_l2fsm.c,v 1.15 1999/03/16 15:29:06 hm Exp $ 
+ * $FreeBSD$ 
  *
  *      last edit-date: [Tue Mar 16 16:27:12 1999]
  *

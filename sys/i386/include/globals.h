@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: globals.h,v 1.2 1999/05/12 21:39:01 luoqi Exp $
+ * $FreeBSD$
  */
 
 #ifndef	_MACHINE_GLOBALS_H_

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: module.c,v 1.8 1999/02/22 13:12:37 dcs Exp $
+ * $FreeBSD$
  */
 
 /*

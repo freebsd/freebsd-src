@@ -38,7 +38,7 @@
  * from: Utah Hdr: vn.c 1.13 94/04/02
  *
  *	from: @(#)vn.c	8.6 (Berkeley) 4/1/94
- *	$Id: vn.c,v 1.85 1999/08/23 09:35:12 phk Exp $
+ * $FreeBSD$
  */
 
 /*

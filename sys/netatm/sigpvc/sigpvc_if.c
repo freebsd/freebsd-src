@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: sigpvc_if.c,v 1.4 1999/01/19 23:11:39 mks Exp $
+ *	@(#) $FreeBSD$
  *
  */
 
@@ -46,7 +46,7 @@
 #include <netatm/sigpvc/sigpvc_var.h>
 
 #ifndef lint
-__RCSID("@(#) $Id: sigpvc_if.c,v 1.4 1999/01/19 23:11:39 mks Exp $");
+__RCSID("@(#) $FreeBSD$");
 #endif
 
 

@@ -1,4 +1,4 @@
-#       $Id: Makefile,v 1.6 1998/02/01 18:12:12 bde Exp $ 
+# $FreeBSD$ 
 
 .PATH:  ${.CURDIR}/../../dev/ccd
 KMOD=   ccd

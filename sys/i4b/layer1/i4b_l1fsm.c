@@ -27,7 +27,7 @@
  *	i4b_l1fsm.c - isdn4bsd layer 1 I.430 state machine
  *	--------------------------------------------------
  *
- *	$Id: i4b_l1fsm.c,v 1.28 1999/02/14 19:51:02 hm Exp $ 
+ * $FreeBSD$ 
  *
  *      last edit-date: [Sun Feb 14 10:28:26 1999]
  *

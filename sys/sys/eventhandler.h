@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: eventhandler.h,v 1.1 1999/08/21 06:24:39 msmith Exp $
+ * $FreeBSD$
  */
 
 #include <sys/queue.h>

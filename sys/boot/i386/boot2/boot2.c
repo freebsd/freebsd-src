@@ -14,7 +14,7 @@
  */
 
 /*
- *	$Id: boot2.c,v 1.23 1999/04/05 07:36:30 rnordier Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: spans_cls.c,v 1.4 1999/01/27 22:42:22 dillon Exp $
+ *	@(#) $FreeBSD$
  *
  */
 
@@ -44,7 +44,7 @@
 #include <netatm/spans/spans_cls.h>
 
 #ifndef lint
-__RCSID("@(#) $Id: spans_cls.c,v 1.4 1999/01/27 22:42:22 dillon Exp $");
+__RCSID("@(#) $FreeBSD$");
 #endif
 
 

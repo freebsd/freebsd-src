@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: http.c,v 1.27 1999/05/18 19:37:37 jmg Exp $
+ * $FreeBSD$
  */
 
 #include <sys/types.h>

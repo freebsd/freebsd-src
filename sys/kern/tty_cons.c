@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons.c	7.2 (Berkeley) 5/9/91
- *	$Id: tty_cons.c,v 1.73 1999/08/13 10:52:22 phk Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

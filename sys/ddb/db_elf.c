@@ -1,4 +1,4 @@
-/* $Id: db_elf.c,v 1.5 1999/01/27 19:00:49 dillon Exp $ */
+/* $FreeBSD$ */
 /*	$NetBSD: db_elf.c,v 1.4 1998/05/03 18:49:54 thorpej Exp $	*/
 
 /*-

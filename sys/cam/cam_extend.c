@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: cam_extend.c,v 1.1 1998/09/15 06:33:23 gibbs Exp $
+ * $FreeBSD$
  */
 /*
  * XXX XXX XXX XXX  We should get DEVFS working so that we

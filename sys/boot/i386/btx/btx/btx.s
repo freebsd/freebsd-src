@@ -13,7 +13,7 @@
 # purpose.
 #
 
-#	$Id: btx.s,v 1.9 1999/01/22 13:07:17 rnordier Exp $
+# $FreeBSD$
 
 #
 # Memory layout.

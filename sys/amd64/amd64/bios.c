@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: bios.c,v 1.21 1999/08/25 06:56:36 msmith Exp $
+ * $FreeBSD$
  */
 
 /*

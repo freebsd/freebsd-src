@@ -27,7 +27,7 @@
  *	i4b_l4.h - kernel interface to userland header file
  *	---------------------------------------------------
  *
- *	$Id: i4b_l4.h,v 1.15 1999/03/18 14:33:41 hm Exp $ 
+ * $FreeBSD$ 
  *
  *      last edit-date: [Wed Mar 17 16:20:10 1999]
  *

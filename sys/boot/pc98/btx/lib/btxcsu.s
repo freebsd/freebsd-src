@@ -13,7 +13,7 @@
 # purpose.
 #
 
-#	$Id: btxcsu.s,v 1.2 1998/10/04 21:15:45 rnordier Exp $
+# $FreeBSD$
 
 #
 # BTX C startup code (ELF).

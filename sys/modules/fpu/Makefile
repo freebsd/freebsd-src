@@ -1,4 +1,4 @@
-#       $Id: Makefile,v 1.4 1997/07/20 08:46:27 bde Exp $
+# $FreeBSD$
 
 .PATH:  ${.CURDIR}/../../i386/i386
 KMOD=   fpu

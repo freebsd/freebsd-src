@@ -1,4 +1,4 @@
-/* $Id: dec_kn8ae.c,v 1.2 1998/06/14 13:44:42 dfr Exp $ */
+/* $FreeBSD$ */
 /* $NetBSD: dec_kn8ae.c,v 1.15 1998/02/13 00:12:50 thorpej Exp $ */
 
 /*

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_bmap.c	8.7 (Berkeley) 3/21/95
- * $Id: ufs_bmap.c,v 1.29 1999/08/08 18:43:03 phk Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

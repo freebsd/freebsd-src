@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.2 1998/10/11 11:27:48 rnordier Exp $
+# $FreeBSD$
 
 OBJS=		btxcsu.o btxsys.o btxv86.o
 AFLAGS+=	-elf

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: machdep.c,v 1.50 1999/08/22 18:50:43 msmith Exp $
+ * $FreeBSD$
  */
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.

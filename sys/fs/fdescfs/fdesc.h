@@ -35,7 +35,7 @@
  *
  *	@(#)fdesc.h	8.5 (Berkeley) 1/21/94
  *
- * $Id: fdesc.h,v 1.5 1997/02/22 09:40:14 peter Exp $
+ * $FreeBSD$
  */
 
 #ifdef KERNEL

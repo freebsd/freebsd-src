@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1.1.1 1999/07/19 18:07:44 rnordier Exp $
+# $FreeBSD$
 
 PROG=	kgzldr.o
 SRCS=	start.s boot.c inflate.c lib.c crt.s sio.s

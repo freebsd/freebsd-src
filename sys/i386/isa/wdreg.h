@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wdreg.h	7.1 (Berkeley) 5/9/91
- *	$Id: wdreg.h,v 1.26 1999/04/13 20:22:32 peter Exp $
+ * $FreeBSD$
  */
 
 /*

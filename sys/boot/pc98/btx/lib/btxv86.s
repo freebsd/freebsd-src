@@ -13,7 +13,7 @@
 # purpose.
 #
 
-#	$Id: btxv86.s,v 1.2 1998/10/22 20:22:07 msmith Exp $
+# $FreeBSD$
 
 #
 # BTX V86 interface.

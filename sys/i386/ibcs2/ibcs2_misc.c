@@ -45,7 +45,7 @@
  *
  *	@(#)sun_misc.c	8.1 (Berkeley) 6/18/93
  *
- * $Id: ibcs2_misc.c,v 1.31 1999/01/28 01:59:52 dillon Exp $
+ * $FreeBSD$
  */
 
 /*

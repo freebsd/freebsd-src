@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: chio.h,v 1.12 1998/09/15 10:07:26 gibbs Exp $
+ * $FreeBSD$
  */
 
 #ifndef	_SYS_CHIO_H_

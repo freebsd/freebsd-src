@@ -1,5 +1,5 @@
 /* 
- * $Id$ 
+ * $FreeBSD$ 
  * From: $NetBSD: prom_disp.S,v 1.2 1997/04/06 08:41:00 cgd Exp $ 
  */
 

@@ -38,7 +38,7 @@
  *	But we attach to the supio, so just see "isic" or "isicII".
  *	-----------------------------------------------------------
  *
- *	$Id: isic_supio.c,v 1.7 1999/03/24 10:09:03 hm Exp $ 
+ * $FreeBSD$ 
  *
  *      last edit-date: [Mon Mar 22 22:49:20 MET 1999]
  *

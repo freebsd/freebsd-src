@@ -13,7 +13,7 @@
 # purpose.
 #
 
-#	$Id: sio.s,v 1.2 1998/10/20 20:20:48 rnordier Exp $
+# $FreeBSD$
 
 		.set SIO_PRT,SIOPRT		# Base port
 		.set SIO_FMT,SIOFMT		# 8N1

@@ -13,7 +13,7 @@
 # purpose.
 #
 
-#	$Id: $
+# $FreeBSD$
 
 define(_al,0x0)dnl
 define(_cl,0x1)dnl

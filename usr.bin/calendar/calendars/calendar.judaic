@@ -1,7 +1,7 @@
 /*
  * Judaic
  *
- * $Id: calendar.judaic,v 1.5 1998/01/19 14:34:53 jgrosch Exp $
+ * $FreeBSD$
  */
 
 #ifndef _calendar_judaic_

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.17 1999/04/21 11:09:40 jkoshy Exp $
+# $FreeBSD$
 
 # This is the old aout only boot loader.
 .if	exists(${.CURDIR}/${MACHINE}/boot) && ${OBJFORMAT} == "aout"

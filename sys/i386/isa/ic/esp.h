@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: esp.h,v 1.4 1999/01/03 05:03:46 kato Exp $
+ * $FreeBSD$
  */
 
 #ifndef _IC_ESP_H_

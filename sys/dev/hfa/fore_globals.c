@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: fore_globals.c,v 1.2 1998/10/31 20:06:52 phk Exp $
+ *	@(#) $FreeBSD$
  *
  */
 
@@ -38,7 +38,7 @@
 #include <dev/hfa/fore_include.h>
 
 #ifndef lint
-__RCSID("@(#) $Id: fore_globals.c,v 1.2 1998/10/31 20:06:52 phk Exp $");
+__RCSID("@(#) $FreeBSD$");
 #endif
 
 

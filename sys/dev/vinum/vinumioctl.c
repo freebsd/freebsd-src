@@ -41,7 +41,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumioctl.c,v 1.9 1999/07/03 04:59:57 grog Exp grog $
+ * $FreeBSD$
  */
 
 #include <dev/vinum/vinumhdr.h>

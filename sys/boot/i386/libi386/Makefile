@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.12 1998/12/22 11:51:25 abial Exp $
+# $FreeBSD$
 #
 LIB=			i386
 NOPIC=

@@ -35,7 +35,7 @@
  *
  *	@(#)fdesc_vnops.c	8.9 (Berkeley) 1/21/94
  *
- * $Id: fdesc_vnops.c,v 1.42 1999/05/31 11:27:49 phk Exp $
+ * $FreeBSD$
  */
 
 /*

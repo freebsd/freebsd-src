@@ -62,7 +62,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *     $Id: wm_shrx.s,v 1.6 1997/02/22 09:29:29 peter Exp $
+ * $FreeBSD$
  *
  */
 

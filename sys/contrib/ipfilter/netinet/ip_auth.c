@@ -6,7 +6,7 @@
  * to the original author and the contributors.
  */
 #if !defined(lint)
-static const char rcsid[] = "@(#)$Id: ip_auth.c,v 1.5 1998/08/15 21:51:53 bde Exp $";
+static const char rcsid[] = "@(#)$FreeBSD$";
 #endif
 
 #if defined(KERNEL) && !defined(_KERNEL)

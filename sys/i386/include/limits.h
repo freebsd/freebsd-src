@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)limits.h	8.3 (Berkeley) 1/4/94
- * $Id: limits.h,v 1.12 1999/05/20 23:33:35 ache Exp $
+ * $FreeBSD$
  */
 
 #ifndef _MACHINE_LIMITS_H_

@@ -60,7 +60,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *     $Id: wm_sqrt.s,v 1.7 1997/04/22 06:54:57 jdp Exp $
+ * $FreeBSD$
  *
  */
 

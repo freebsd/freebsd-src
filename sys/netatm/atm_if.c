@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: atm_if.c,v 1.3 1998/12/04 22:54:52 archie Exp $
+ *	@(#) $FreeBSD$
  *
  */
 
@@ -38,7 +38,7 @@
 #include <netatm/kern_include.h>
 
 #ifndef lint
-__RCSID("@(#) $Id: atm_if.c,v 1.3 1998/12/04 22:54:52 archie Exp $");
+__RCSID("@(#) $FreeBSD$");
 #endif
 
 

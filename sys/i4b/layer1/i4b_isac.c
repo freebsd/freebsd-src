@@ -27,7 +27,7 @@
  *	i4b_isac.c - i4b siemens isdn chipset driver ISAC handler
  *	---------------------------------------------------------
  *
- *	$Id: i4b_isac.c,v 1.30 1999/02/14 19:51:01 hm Exp $ 
+ * $FreeBSD$ 
  *
  *      last edit-date: [Sun Feb 14 10:27:09 1999]
  *

@@ -27,7 +27,7 @@
  *	i4b_q931.c - Q931 received messages handling
  *	--------------------------------------------
  *
- *	$Id: i4b_q931.c,v 1.21 1999/04/27 10:08:13 hm Exp $ 
+ * $FreeBSD$ 
  *
  *      last edit-date: [Tue Apr 27 12:04:35 1999]
  *

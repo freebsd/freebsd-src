@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: rp.c,v 1.28 1999/05/31 11:26:24 phk Exp $
+ * $FreeBSD$
  */
 
 /* 

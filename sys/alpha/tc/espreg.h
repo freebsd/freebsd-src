@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $FreeBSD$ */
 /*	$NetBSD: espreg.h,v 1.2.4.1 1996/09/10 17:28:17 cgd Exp $	*/
 
 /*

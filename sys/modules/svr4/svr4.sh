@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# $Id: svr4.sh,v 1.1 1999/01/30 06:29:48 newton Exp $
+# $FreeBSD$
 
 STREAMS=`kldstat -v | egrep 'streams'`
 SVR4=`kldstat -v | egrep 'svr4elf'`

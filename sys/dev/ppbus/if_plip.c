@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  *
  *	From Id: lpt.c,v 1.55.2.1 1996/11/12 09:08:38 phk Exp
- *	$Id: if_plip.c,v 1.12 1999/02/14 16:19:16 nsouch Exp $
+ * $FreeBSD$
  */
 
 /*

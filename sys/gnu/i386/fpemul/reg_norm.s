@@ -61,7 +61,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *     $Id: reg_norm.s,v 1.6 1997/02/22 09:29:24 peter Exp $
+ * $FreeBSD$
  *
  */
 

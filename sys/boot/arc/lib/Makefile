@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.1.1.1 1999/07/28 20:28:45 se Exp $
+# $FreeBSD$
 
 LIB=		arc
 NOPIC=		true

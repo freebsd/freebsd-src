@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: strncpy.c,v 1.4 1997/02/22 09:40:04 peter Exp $
+ * $FreeBSD$
  */
 
 #include <string.h>

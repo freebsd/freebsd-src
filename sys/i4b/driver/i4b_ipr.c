@@ -27,7 +27,7 @@
  *	i4b_ipr.c - isdn4bsd IP over raw HDLC ISDN network driver
  *	---------------------------------------------------------
  *
- *	$Id: i4b_ipr.c,v 1.53 1999/07/22 18:30:15 hm Exp $
+ * $FreeBSD$
  *
  *	last edit-date: [Thu Jul 22 19:46:53 1999]
  *

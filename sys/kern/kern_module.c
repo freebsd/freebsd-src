@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_module.c,v 1.18 1999/05/20 00:00:58 peter Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

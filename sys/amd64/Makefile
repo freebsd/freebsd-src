@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.5 1998/05/31 22:40:49 steve Exp $
+# $FreeBSD$
 #	@(#)Makefile	8.1 (Berkeley) 6/11/93
 
 # Makefile for i386 links, tags file

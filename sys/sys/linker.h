@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: linker.h,v 1.14 1999/01/27 23:45:44 dillon Exp $
+ * $FreeBSD$
  */
 
 #ifndef _SYS_LINKER_H_

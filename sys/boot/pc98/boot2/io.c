@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:57  rpd
- *	$Id: io.c,v 1.13 1997/12/05 11:50:42 kato Exp $
+ * $FreeBSD$
  */
 
 #include "boot.h"

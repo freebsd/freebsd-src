@@ -36,7 +36,7 @@
  * future.
  */
 
-#ident "$Id: dpt_control.c,v 1.13 1999/05/30 16:51:20 phk Exp $"
+#ident "$FreeBSD$"
 
 #include "opt_dpt.h"
 

@@ -1,7 +1,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: readelf.c,v 1.4 1998/02/20 04:54:00 jb Exp $";
+  "$FreeBSD$";
 #endif /* not lint */
 
 #ifdef BUILTIN_ELF

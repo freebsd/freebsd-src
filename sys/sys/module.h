@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: module.h,v 1.10 1999/01/29 08:36:45 dillon Exp $
+ * $FreeBSD$
  */
 
 #ifndef _SYS_MODULE_H_

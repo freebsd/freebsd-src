@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfsv2.h	8.1 (Berkeley) 6/10/93
- * $Id: nfsv2.h,v 1.7 1997/02/22 09:42:52 peter Exp $
+ * $FreeBSD$
  */
 
 #include <nfs/nfsproto.h>

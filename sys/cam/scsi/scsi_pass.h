@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: scsi_pass.h,v 1.1 1998/09/15 06:36:34 gibbs Exp $
+ * $FreeBSD$
  */
 
 #ifndef _SCSI_PASS_H

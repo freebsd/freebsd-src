@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lockf.h	8.1 (Berkeley) 6/11/93
- * $Id: lockf.h,v 1.8 1997/09/07 05:27:16 bde Exp $
+ * $FreeBSD$
  */
 
 #ifndef _SYS_LOCKF_H_

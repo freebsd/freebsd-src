@@ -1,4 +1,4 @@
-/* $Id: dec_axppci_33.c,v 1.2 1999/04/23 19:53:37 dt Exp $ */
+/* $FreeBSD$ */
 /* $NetBSD: dec_axppci_33.c,v 1.38 1998/07/07 08:49:12 ross Exp $ */
 
 /*

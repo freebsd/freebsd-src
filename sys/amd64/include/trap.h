@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.h	5.4 (Berkeley) 5/9/91
- *	$Id: trap.h,v 1.8 1999/07/25 13:16:08 cracauer Exp $
+ * $FreeBSD$
  */
 
 #ifndef _MACHINE_TRAP_H_

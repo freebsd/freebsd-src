@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $FreeBSD$ */
 /* From: NetBSD: pal.h,v 1.1 1997/09/06 01:23:53 thorpej Exp */
 
 /* 

@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: compat.c,v 1.13 1999/07/31 20:38:22 hoek Exp $
+ * $FreeBSD$
  */
 
 #ifndef lint
@@ -43,7 +43,7 @@
 static char sccsid[] = "@(#)compat.c	8.2 (Berkeley) 3/19/94";
 #else
 static const char rcsid[] =
-	"$Id$";
+  "$FreeBSD$";
 #endif
 #endif /* not lint */
 

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nqnfs.h	8.3 (Berkeley) 3/30/95
- * $Id: nqnfs.h,v 1.17 1998/06/01 07:23:26 peter Exp $
+ * $FreeBSD$
  */
 
 

@@ -1,4 +1,4 @@
-/* $Id: asm_sbus.h,v 1.6 1999/03/17 05:04:38 mjacob Exp $ */
+/* $FreeBSD$ */
 /* release_03_25_99 */
 /*
  * SBus Qlogic Host Adapter Firmware Tables

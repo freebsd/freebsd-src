@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)set.c	8.2 (Berkeley) 2/28/94";
 #endif
 static const char rcsid[] =
-	"$Id$";
+  "$FreeBSD$";
 #endif /* not lint */
 
 #include <termios.h>

@@ -1,4 +1,4 @@
-/* $Id: endian.h,v 1.1 1998/01/10 10:13:14 jb Exp $ */
+/* $FreeBSD$ */
 /* From: NetBSD: endian.h,v 1.5 1997/10/09 15:42:19 bouyer Exp */
 
 /*

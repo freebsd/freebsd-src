@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_log.c	8.1 (Berkeley) 6/10/93
- * $Id: subr_log.c,v 1.36 1999/05/31 11:27:35 phk Exp $
+ * $FreeBSD$
  */
 
 /*

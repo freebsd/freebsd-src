@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: link_elf.c,v 1.17 1999/05/08 13:03:49 peter Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

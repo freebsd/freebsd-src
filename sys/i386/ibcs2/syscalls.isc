@@ -1,4 +1,4 @@
-	$Id: syscalls.isc,v 1.3 1997/02/22 09:33:35 peter Exp $
+ $FreeBSD$
 
 #include <sys/param.h>
 #include <sys/sysent.h>

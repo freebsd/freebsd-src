@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.14 (Berkeley) 5/21/95
- * $Id: spec_vnops.c,v 1.98 1999/08/25 00:26:34 julian Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tprintf.h	8.1 (Berkeley) 6/2/93
- * $Id: tprintf.h,v 1.7 1998/07/13 06:45:18 bde Exp $
+ * $FreeBSD$
  */
 
 #ifndef _SYS_TPRINTF_H_

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)DEFS.h	5.1 (Berkeley) 4/23/90
- *	$Id: asm.h,v 1.3 1997/04/15 14:06:34 bde Exp $
+ * $FreeBSD$
  */
 
 #ifndef _MACHINE_ASM_H_

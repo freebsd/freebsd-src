@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_input.c,v 1.24 1999/07/14 10:53:41 yokota Exp $
+ * $FreeBSD$
  */
 
 /*

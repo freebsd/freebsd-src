@@ -22,7 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: elf_machdep.c,v 1.4 1998/12/07 21:58:18 archie Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

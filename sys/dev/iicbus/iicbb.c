@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: iicbb.c,v 1.4 1999/05/08 21:59:04 dfr Exp $
+ * $FreeBSD$
  *
  */
 

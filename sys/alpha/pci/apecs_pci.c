@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: apecs_pci.c,v 1.2 1999/05/08 21:58:41 dfr Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

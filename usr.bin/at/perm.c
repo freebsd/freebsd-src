@@ -48,7 +48,7 @@
 
 /* File scope variables */
 
-static const char rcsid[] = "$Id: perm.c,v 1.6 1998/12/06 07:42:09 archie Exp $";
+static const char rcsid[] = "$FreeBSD$";
 
 /* Function declarations */
 

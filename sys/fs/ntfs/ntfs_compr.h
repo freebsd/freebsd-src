@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ntfs_compr.h,v 1.3 1999/04/20 21:06:43 semenu Exp $
+ * $FreeBSD$
  */
 
 #define NTFS_COMPBLOCK_SIZE	0x1000

@@ -37,7 +37,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumlock.c,v 1.10 1999/05/15 03:47:45 grog Exp grog $
+ * $FreeBSD$
  */
 
 #include <dev/vinum/vinumhdr.h>

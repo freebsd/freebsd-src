@@ -92,7 +92,7 @@ enum { ATQ, ATRM, AT, BATCH, CAT };	/* what program we want to run */
 
 /* File scope variables */
 
-static const char rcsid[] = "$Id: at.c,v 1.15 1998/12/06 07:42:09 archie Exp $";
+static const char rcsid[] = "$FreeBSD$";
 char *no_export[] =
 {
     "TERM", "TERMCAP", "DISPLAY", "_"

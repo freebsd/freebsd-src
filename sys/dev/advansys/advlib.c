@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: advlib.c,v 1.12 1999/04/19 21:27:36 gibbs Exp $
+ * $FreeBSD$
  */
 /*
  * Ported from:

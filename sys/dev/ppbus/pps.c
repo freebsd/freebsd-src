@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: pps.c,v 1.19 1999/05/31 11:25:00 phk Exp $
+ * $FreeBSD$
  *
  * This driver implements a draft-mogul-pps-api-02.txt PPS source.
  *

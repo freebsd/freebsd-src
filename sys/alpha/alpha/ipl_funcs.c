@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ipl_funcs.c,v 1.9 1998/12/24 06:05:48 mjacob Exp $
+ * $FreeBSD$
  */
 
 #include <sys/types.h>

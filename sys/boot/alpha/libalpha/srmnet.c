@@ -1,5 +1,5 @@
 /* 
- * $Id$
+ * $FreeBSD$
  * From: $NetBSD: if_prom.c,v 1.10 1997/09/06 14:08:33 drochner Exp $ 
  */
 

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cache.c	8.5 (Berkeley) 3/22/95
- * $Id: vfs_cache.c,v 1.38 1998/09/09 07:41:41 bde Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

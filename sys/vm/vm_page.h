@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_page.h,v 1.69 1999/08/17 04:02:33 alc Exp $
+ * $FreeBSD$
  */
 
 /*

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)unpcb.h	8.1 (Berkeley) 6/2/93
- * $Id: unpcb.h,v 1.7 1998/05/15 20:11:40 wollman Exp $
+ * $FreeBSD$
  */
 
 #ifndef _SYS_UNPCB_H_

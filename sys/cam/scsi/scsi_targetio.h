@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_targetio.h,v 1.2 1999/03/05 23:25:11 gibbs Exp $
+ * $FreeBSD$
  */
 
 #ifndef _CAM_SCSI_SCSI_TARGETIO_H_

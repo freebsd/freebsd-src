@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: commands.c,v 1.10 1999/02/01 06:08:20 jkh Exp $
+ * $FreeBSD$
  */
 
 #include <stand.h>

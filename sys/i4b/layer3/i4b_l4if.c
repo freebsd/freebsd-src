@@ -27,7 +27,7 @@
  *	i4b_l4if.c - Layer 3 interface to Layer 4
  *	-------------------------------------------
  *
- *	$Id: i4b_l4if.c,v 1.19 1999/04/27 14:47:58 hm Exp $ 
+ * $FreeBSD$ 
  *
  *      last edit-date: [Tue Apr 27 16:46:51 1999]
  *

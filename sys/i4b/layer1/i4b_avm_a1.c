@@ -35,7 +35,7 @@
  *	i4b_avm_a1.c - AVM A1/Fritz passive card driver for isdn4bsd
  *	------------------------------------------------------------
  *
- *	$Id: i4b_avm_a1.c,v 1.21 1999/02/14 09:44:58 hm Exp $ 
+ * $FreeBSD$ 
  *
  *      last edit-date: [Sun Feb 14 10:25:11 1999]
  *

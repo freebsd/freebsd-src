@@ -1,4 +1,4 @@
-#	$Id$
+# $FreeBSD$
 MAINTAINER= wosch
 
 MAN1=	killall.1

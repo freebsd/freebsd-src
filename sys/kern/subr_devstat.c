@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: subr_devstat.c,v 1.10 1999/04/11 02:27:06 eivind Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

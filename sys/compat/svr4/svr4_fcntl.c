@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * 
- * $Id: svr4_fcntl.c,v 1.3 1999/07/30 12:45:15 newton Exp $
+ * $FreeBSD$
  */
 #include <sys/param.h>
 #include <sys/systm.h>

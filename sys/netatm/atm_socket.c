@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: atm_socket.c,v 1.2 1998/10/31 20:06:54 phk Exp $
+ *	@(#) $FreeBSD$
  *
  */
 
@@ -38,7 +38,7 @@
 #include <netatm/kern_include.h>
 
 #ifndef lint
-__RCSID("@(#) $Id: atm_socket.c,v 1.2 1998/10/31 20:06:54 phk Exp $");
+__RCSID("@(#) $FreeBSD$");
 #endif
 
 

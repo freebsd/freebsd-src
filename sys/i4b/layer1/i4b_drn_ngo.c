@@ -27,7 +27,7 @@
  *	i4b_drn_ngo.c - Dr. Neuhaus Niccy GO@ and SAGEM Cybermod
  *	--------------------------------------------------------
  *
- *	$Id: i4b_drn_ngo.c,v 1.20 1999/02/14 09:44:58 hm Exp $
+ * $FreeBSD$
  *
  *      last edit-date: [Sun Feb 14 10:25:39 1999]
  *

@@ -1,4 +1,4 @@
-/* $Id: promcons.c,v 1.7 1999/05/09 08:57:47 phk Exp $ */
+/* $FreeBSD$ */
 /* $NetBSD: promcons.c,v 1.13 1998/03/21 22:52:59 mycroft Exp $ */
 
 /*

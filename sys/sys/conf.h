@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)conf.h	8.5 (Berkeley) 1/9/95
- * $Id: conf.h,v 1.78 1999/08/25 22:50:12 julian Exp $
+ * $FreeBSD$
  */
 
 #ifndef _SYS_CONF_H_

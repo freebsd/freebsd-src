@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_xpt_sim.h,v 1.3 1999/03/05 23:18:56 gibbs Exp $
+ * $FreeBSD$
  */
 
 #ifndef _CAM_CAM_XPT_SIM_H

@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)igmp.c	8.1 (Berkeley) 7/19/93
- * $Id: igmp.c,v 1.26 1998/12/12 21:45:49 dillon Exp $
+ * $FreeBSD$
  */
 
 /*

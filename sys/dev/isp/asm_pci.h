@@ -1,4 +1,4 @@
-/* $Id: asm_pci.h,v 1.12 1999/07/05 20:42:03 mjacob Exp $ */
+/* $FreeBSD$ */
 /* release_6_5_99 */
 /*
  * Copyright (c) 1995, 1996, 1997, 1998 by Qlogic Corporation

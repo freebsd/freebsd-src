@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)rtsock.c	8.5 (Berkeley) 11/2/94
- *	$Id: rtsock.c,v 1.39 1999/04/28 11:37:38 phk Exp $
+ * $FreeBSD$
  */
 
 

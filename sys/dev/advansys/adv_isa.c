@@ -44,7 +44,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: adv_isa.c,v 1.11 1999/05/08 18:20:57 peter Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

@@ -1,5 +1,5 @@
 /*
- * $Id: sliceio.h,v 1.1 1998/04/19 23:32:43 julian Exp $
+ * $FreeBSD$
  */
 
 #ifndef	_SYS_SLICEIO_H_

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: imgact.h,v 1.18 1998/12/30 10:38:59 dfr Exp $
+ * $FreeBSD$
  */
 
 #ifndef _SYS_IMGACT_H_

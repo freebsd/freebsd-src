@@ -1,4 +1,4 @@
-/* $Id: resource.h,v 1.1 1998/11/17 10:40:33 dfr Exp $ */
+/* $FreeBSD$ */
 /*
  * Copyright 1998 Massachusetts Institute of Technology
  *

@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $FreeBSD$ */
 
 /*
  * Copyright (c) 1995, 1996, 1997 Carnegie-Mellon University.

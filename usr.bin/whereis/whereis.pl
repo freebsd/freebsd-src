@@ -28,7 +28,7 @@
 #
 # Rewritten from scratch for FreeBSD after the 4.3BSD manual page.
 #
-# $Id: whereis.pl,v 1.6 1998/10/04 10:33:37 obrien Exp $
+# $FreeBSD$
 #
 
 sub usage

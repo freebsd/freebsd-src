@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)iso.h	8.6 (Berkeley) 5/10/95
- * $Id: iso.h,v 1.16 1997/05/07 13:23:04 joerg Exp $
+ * $FreeBSD$
  */
 
 #define ISODCL(from, to) (to - from + 1)

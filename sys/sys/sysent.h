@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sysent.h,v 1.19 1998/09/14 05:36:51 jdp Exp $
+ * $FreeBSD$
  */
 
 #ifndef _SYS_SYSENT_H_

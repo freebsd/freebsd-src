@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_tb.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $FreeBSD$
  */
 
 #include "tb.h"

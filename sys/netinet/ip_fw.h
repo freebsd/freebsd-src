@@ -11,7 +11,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.h,v 1.41 1999/08/11 15:34:46 luigi Exp $
+ * $FreeBSD$
  */
 
 #ifndef _IP_FW_H

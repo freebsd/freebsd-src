@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ntfs_vfsops.c,v 1.9 1999/08/13 10:29:29 phk Exp $
+ * $FreeBSD$
  */
 
 

@@ -1,4 +1,4 @@
-#	$Id$
+# $FreeBSD$
 
 PROG = rwall
 MAN1 = rwall.1

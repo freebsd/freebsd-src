@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: asnames.h,v 1.38 1999/07/29 01:49:19 msmith Exp $
+ * $FreeBSD$
  */
 
 #ifndef _MACHINE_ASNAMES_H_
