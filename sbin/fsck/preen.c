@@ -156,15 +156,15 @@ checkfstab(flags, maxrun, docheck, checkit)
 			maxrun = ndisks;
 		if (maxrun > ndisks)
 			maxrun = ndisks;
-		nextdisk = diskh.tqh_first;
+		nextdisk = TAILQ_FIRST(&diskh);
 		for (passno = 0; passno < maxrun; ++passno) {
 			if ((ret = startdisk(nextdisk, checkit)) != 0)
 				return ret;
-			nextdisk = nextdisk->d_entries.tqe_next;
+			nextdisk = TAILQ_NEXT(nextdisk, d_entries);
 		}
 
 		while ((pid = wait(&status)) != -1) {
-			for (d = diskh.tqh_first; d; d = d->d_entries.tqe_next)
+			TAILQ_FOREACH(d, &diskh, d_entries) 
 				if (d->d_pid == pid)
 					break;
 
@@ -179,7 +179,7 @@ checkfstab(flags, maxrun, docheck, checkit)
 			else
 				retcode = 0;
 
-			p = d->d_part.tqh_first;
+			p = TAILQ_FIRST(&d->d_part);
 
 			if (flags & (CHECK_DEBUG|CHECK_VERBOSE))
 				(void) printf("done %s: %s (%s) = 0x%x\n",
@@ -207,20 +207,20 @@ checkfstab(flags, maxrun, docheck, checkit)
 			d->d_pid = 0;
 			nrun--;
 
-			if (d->d_part.tqh_first == NULL)
+			if (TAILQ_EMPTY(&d->d_part))
 				ndisks--;
 
 			if (nextdisk == NULL) {
-				if (d->d_part.tqh_first) {
+				if (!TAILQ_EMPTY(&d->d_part)) {
 					if ((ret = startdisk(d, checkit)) != 0)
 						return ret;
 				}
 			} else if (nrun < maxrun && nrun < ndisks) {
 				for ( ;; ) {
-					nextdisk = nextdisk->d_entries.tqe_next;
+					nextdisk = TAILQ_NEXT(nextdisk, d_entries);
 					if (nextdisk == NULL)
-						nextdisk = diskh.tqh_first;
-					if (nextdisk->d_part.tqh_first != NULL
+						nextdisk = TAILQ_FIRST(&diskh);
+					if (!TAILQ_EMPTY(&nextdisk->d_part)
 					    && nextdisk->d_pid == 0)
 						break;
 				}
@@ -236,13 +236,13 @@ checkfstab(flags, maxrun, docheck, checkit)
 
 		(void) fprintf(stderr,
 			"THE FOLLOWING FILE SYSTEM%s HAD AN %s\n\t",
-			p->p_entries.tqe_next ? "S" : "",
+			TAILQ_NEXT(p, p_entries) ? "S" : "",
 			"UNEXPECTED INCONSISTENCY:");
 
-		for (; p; p = p->p_entries.tqe_next)
+		for (; p; p = TAILQ_NEXT(p, p_entries))
 			(void) fprintf(stderr,
 			    "%s: %s (%s)%s", p->p_type, p->p_devname,
-			    p->p_mntpt, p->p_entries.tqe_next ? ", " : "\n");
+			    p->p_mntpt, TAILQ_NEXT(p, p_entries) ? ", " : "\n");
 
 		return sumstatus;
 	}
@@ -267,7 +267,7 @@ finddisk(name)
 	if (p < name)
 		len = strlen(name);
 
-	for (d = diskh.tqh_first; d != NULL; d = d->d_entries.tqe_next)
+	TAILQ_FOREACH(d, &diskh, d_entries) 
 		if (strncmp(d->d_name, name, len) == 0 && d->d_name[len] == 0)
 			return d;
 
@@ -290,10 +290,9 @@ printpart()
 	struct diskentry *d;
 	struct partentry *p;
 
-	for (d = diskh.tqh_first; d != NULL; d = d->d_entries.tqe_next) {
+	TAILQ_FOREACH(d, &diskh, d_entries) {
 		(void) printf("disk %s: ", d->d_name);
-		for (p = d->d_part.tqh_first; p != NULL;
-		    p = p->p_entries.tqe_next)
+		TAILQ_FOREACH(p, &d->d_part, p_entries)
 			(void) printf("%s ", p->p_devname);
 		(void) printf("\n");
 	}
@@ -308,7 +307,7 @@ addpart(type, devname, mntpt, auxarg)
 	struct diskentry *d = finddisk(devname);
 	struct partentry *p;
 
-	for (p = d->d_part.tqh_first; p != NULL; p = p->p_entries.tqe_next)
+	TAILQ_FOREACH(p, &d->d_part, p_entries)
 		if (strcmp(p->p_devname, devname) == 0) {
 			warnx("%s in fstab more than once!\n", devname);
 			return;
