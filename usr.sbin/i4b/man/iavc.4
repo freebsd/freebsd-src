@@ -38,13 +38,14 @@
 NOTE:
 For the B1 ISA card
 .Pp
-.Dl hint.iavc.0.at="isa"
-.Dl hint.iavc.0.port="0x150"  
-.Dl hint.iavc.0.irq="5"
+.Bd -literal -offset indent
+hint.iavc.0.at="isa"
+hint.iavc.0.port="0x150"
+hint.iavc.0.irq="5"
+.Ed
 .Pp
 must be added to
 .Pa /boot/device.hints
-.Pp
 .Sh DESCRIPTION
 The
 .Nm
@@ -52,16 +53,20 @@ driver is used to access the AVM family of active cards to the
 .Xr i4bcapi 4
 driver and the
 .Em isdn4bsd
-package. Currently the AVM B1 PCI, the AVM B1 ISA and the AVM T1 PCI
+package.
+Currently the AVM B1 PCI, the AVM B1 ISA and the AVM T1 PCI
 cards are supported.
 .Sh STANDARDS
-CAPI 2.0 (http://www.capi.org/)
+CAPI 2.0
+.Pq Pa http://www.capi.org/
 .Sh SEE ALSO
 .Xr i4bcapi 4
 .Sh AUTHORS
+.An -nosplit
 The
 .Nm
 device driver was written by
-.An Juha-Matti Liukkonen (Cubical Solutions Ltd, Finnland) Aq jml@cubical.fi .
+.An Juha-Matti Liukkonen Aq jml@cubical.fi
+(Cubical Solutions Ltd, Finland).
 This manpage was written by
-.An Hellmuth Michaelis Aq hm@freebsd.org .
+.An Hellmuth Michaelis Aq hm@FreeBSD.org .
