@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC98,v 1.4 1996/09/07 02:13:23 asami Exp $
+#	$Id: GENERIC98,v 1.5 1996/09/12 11:09:16 asami Exp $
 
 # GENERIC98 -- Generic PC98 machine with WD/SBIC55 disks
 
@@ -25,7 +25,6 @@ maxusers	10
 
 options		"PC98"			#PC98
 options		MATH_EMULATE		#Support for x87 emulation
-#options		GPL_MATH_EMULATE	#GPL-licensed emulator
 options		INET			#InterNETworking
 options		FFS			#Berkeley Fast Filesystem
 options		NFS			#Network Filesystem
@@ -33,18 +32,20 @@ options		MSDOSFS			#MSDOS Filesystem
 options		"CD9660"		#ISO 9660 Filesystem
 options		PROCFS			#Process filesystem
 options		"COMPAT_43"		#Compatible with BSD 4.3 [KEEP THIS!]
-options		SYSVSHM			
-options		SYSVSEM
-options		SYSVMSG
-options		UCONSOLE		#Allow users to grab the console
-options		FAILSAFE		#Be conservative
-options		USERCONFIG		#boot -c editor
-options		VISUAL_USERCONFIG	#visual boot -c editor
-options		"MAXCONS=4"		#4 virtual consoles
+options		SCSI_DELAY=15		#Be pessimistic about Joe SCSI device
 options		BOUNCE_BUFFERS		#include support for DMA bounce buffers
 options		EPSON_BOUNCEDMA		#use bounce buufer for 15-16M
 #options		EPSON_MEMWIN		#EPSON memory window support
+options		UCONSOLE		#Allow users to grab the console
 options		"LINE30"
+options		FAILSAFE		#Be conservative
+options		USERCONFIG		#boot -c editor
+options		VISUAL_USERCONFIG	#visual boot -c editor
+
+options		SYSVSHM			
+options		SYSVSEM
+options		SYSVMSG
+
 options		AUTO_CLOCK
 options		COM_MULTIPORT
 
@@ -102,6 +103,7 @@ device		wcd	#IDE CD-ROM
 # for any number of installed devices.
 controller	ncr0
 controller	ahc0
+
 controller	sbic0	at isa? port "IO_SCSI" bio irq 5 drq 3 vector sbicintr
 #controller	sbic0	at isa? port "IO_SCSI" bio irq 5 drq 3 flags 0xff vector sbicintr
 controller	aic0	at isa? port 0x1840 bio irq 5 vector aicintr
@@ -115,6 +117,8 @@ device		st0
 device		cd0	#Only need one of these, the code dynamically grows
 
 device		od0
+
+device		mcd0	at isa? port 0x300 bio irq 10 vector mcdintr
 
 controller	matcd0	at isa? port? bio
 
@@ -161,18 +165,22 @@ device vx0
 # ed5: SIC-98
 # ed6: PC-9801-108
 # ed7: LA-98
+# ed8: C-NET(98)
+# ed9: C-NET(98)E/L
 #
 device ed0 at isa? port 0x00d0 net irq 6 vector edintr
-device ed1 at isa? port 0x00d8 net irq 6 flags 0x20000 vector edintr
-device ed2 at isa? port 0x00d8 net irq 6 flags 0x30000 vector edintr
-device ed3 at isa? port 0x00d8 net irq 6 flags 0x40000 vector edintr
-device ed4 at isa? port 0x56d0 net irq 5 flags 0x50000 vector edintr
-device ed5 at isa? port 0x00d0 net irq 6 iomem 0xd0000 iosiz 16384 flags 0x60000 vector edintr
-device ed6 at isa? port 0x00d0 net irq 6 flags 0x80000 vector edintr
-device ed7 at isa? port 0x00d0 net irq 6 flags 0x90000 vector edintr
+device ed1 at isa? port 0x00d8 net irq 6 flags 0x200000 vector edintr
+device ed2 at isa? port 0x00d8 net irq 6 flags 0x300000 vector edintr
+device ed3 at isa? port 0x00d8 net irq 6 flags 0x400000 vector edintr
+device ed4 at isa? port 0x56d0 net irq 5 flags 0x500000 vector edintr
+device ed5 at isa? port 0x00d0 net irq 6 iomem 0xd0000 iosiz 16384 flags 0x600000 vector edintr
+device ed6 at isa? port 0x00d0 net irq 6 flags 0x800000 vector edintr
+device ed7 at isa? port 0x00d0 net irq 6 flags 0x900000 vector edintr
+device ed8 at isa? port 0x00d0 net irq 6 flags 0xa00000 vector edintr
+device ed9 at isa? port 0x00d0 net irq 6 flags 0xb00000 vector edintr
 
 device fe0 at isa? port 0x00d0 net irq 3 vector feintr
-device zp0 at isa? port 0x0300 net irq 10 iomem 0xe0000 vector zpintr 
+device zp0 at isa? port 0x00d0 net irq 10 iomem 0xe0000 vector zpintr 
 device ep0 at isa? port 0x00d0 net irq 6 vector epintr
 
 #controller	snd0
@@ -180,9 +188,7 @@ device ep0 at isa? port 0x00d0 net irq 6 vector epintr
 #device	sbxvi0 	at isa? drq 3
 #device	sbmidi0	at isa? port 0x80d2
 #device	opl0	at isa? port 0x28d2
-
 #device pcm0    at isa? port 0xa460 irq 12 vector pcmintr
-
 #device	mss0	at isa? port 0xf40 irq12 drq 1 vectro adintr
 
 pseudo-device	loop

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.5 1996/09/07 02:13:39 asami Exp $
+ *	$Id: clock.c,v 1.6 1996/10/09 19:47:43 bde Exp $
  */
 
 /*
@@ -46,13 +46,13 @@
 
 /*
  * modified for PC98
- *	$Id: clock.c,v 1.5 1996/09/07 02:13:39 asami Exp $
+ *	$Id: clock.c,v 1.6 1996/10/09 19:47:43 bde Exp $
  */
 
 /*
  * Primitive clock interrupt routines.
  */
-#include "opt_ddb.h"
+
 #include "opt_clock.h"
 #include "opt_cpu.h"
 
@@ -414,16 +414,18 @@ rtcintr(struct clockframe frame)
 	}
 }
 
+#include "opt_ddb.h"
 #ifdef DDB
-static void
-DDB_printrtc(void)
+#include <ddb/ddb.h>
+
+DB_SHOW_COMMAND(rtc, rtc)
 {
 	printf("%02x/%02x/%02x %02x:%02x:%02x, A = %02x, B = %02x, C = %02x\n",
 	       rtcin(RTC_YEAR), rtcin(RTC_MONTH), rtcin(RTC_DAY),
 	       rtcin(RTC_HRS), rtcin(RTC_MIN), rtcin(RTC_SEC),
 	       rtcin(RTC_STATUSA), rtcin(RTC_STATUSB), rtcin(RTC_INTR));
 }
-#endif
+#endif /* DDB */
 #endif /* for PC98 */
 
 static int
@@ -768,7 +770,7 @@ startrtclock()
 	if (bootverbose) {
 		printf(
 		"Press a key on the console to abort clock calibration\n");
-		while (!cncheckc())
+		while (cncheckc() == -1)
 			calibrate_clocks();
 	}
 #endif

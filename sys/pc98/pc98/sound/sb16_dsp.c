@@ -84,7 +84,11 @@ static void     dsp_cleanup (void);
 static struct audio_operations sb16_dsp_operations =
 {
   "SoundBlaster 16",
+#ifdef PC98
+  NEEDS_RESTART,
+#else
   DMA_AUTOMODE,
+#endif
   AFMT_U8 | AFMT_S16_LE,
   NULL,
   sb16_dsp_open,

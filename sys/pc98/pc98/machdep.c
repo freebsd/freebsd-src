@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.7 1996/09/10 09:37:35 asami Exp $
+ *	$Id: machdep.c,v 1.8 1996/09/12 11:09:26 asami Exp $
  */
 
 #include "npx.h"
@@ -386,6 +386,10 @@ again:
 	callfree = callout;
 	for (i = 1; i < ncallout; i++)
 		callout[i-1].c_next = &callout[i];
+
+#if defined(USERCONFIG_BOOT) && defined(USERCONFIG)
+	boothowto |= RB_CONFIG;
+#endif
 
         if (boothowto & RB_CONFIG) {
 #ifdef USERCONFIG
@@ -1000,7 +1004,7 @@ init386(first)
 	/*
 	 * Initialize DMAC
 	 */
-	init_pc98_dmac();
+	pc98_init_dmac();
 #endif
 
 	/*
@@ -1096,9 +1100,7 @@ init386(first)
 #endif
 
 #ifdef PC98
-#ifdef EPSON_MEMWIN
-	init_epson_memwin();
-#endif
+	pc98_getmemsize();
 	biosbasemem = 640;                      /* 640KB */
 	biosextmem = (Maxmem * PAGE_SIZE - 0x100000)/1024;   /* extent memory */
 #else /* IBM-PC */
@@ -1226,12 +1228,6 @@ init386(first)
 		pa_indx++;
 	}
 
-#ifdef PC98
-#ifdef notyet
-	init_cpu_accel_mem();
-#endif
-#endif
-
 	for (target_page = avail_start; target_page < ptoa(Maxmem); target_page += PAGE_SIZE) {
 		int tmp, page_bad = FALSE;
 
@@ -1245,7 +1241,7 @@ init386(first)
 		 * map page into kernel: valid, read/write, non-cacheable
 		 */
 		*(int *)CMAP1 = PG_V | PG_RW | PG_N | target_page;
-		pmap_update();
+		invltlb();
 
 		tmp = *(int *)CADDR1;
 		/*
@@ -1315,7 +1311,7 @@ init386(first)
 	}
 
 	*(int *)CMAP1 = 0;
-	pmap_update();
+	invltlb();
 
 	/*
 	 * XXX
@@ -1372,6 +1368,9 @@ init386(first)
 	gdp->gd_dpl = SEL_UPL;
 	gdp->gd_p = 1;
 	gdp->gd_hioffset = ((int) &IDTVEC(syscall)) >>16;
+
+	/* XXX does this work? */
+	ldt[LBSDICALLS_SEL] = ldt[LSYS5CALLS_SEL];
 
 	/* transfer to user mode */
 

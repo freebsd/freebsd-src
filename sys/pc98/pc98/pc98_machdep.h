@@ -28,10 +28,7 @@
 #ifndef __PC98_PC98_PC98_MACHDEP_H__
 #define __PC98_PC98_PC98_MACHDEP_H__
 
-#ifdef EPSON_MEMWIN
-void init_epson_memwin __P((void));
-#endif
-void init_cpu_accel_mem __P((void));
-void init_pc98_dmac __P((void));
+void pc98_init_dmac __P((void));
+void pc98_getmemsize __P((void));
 
 #endif /* __PC98_PC98_PC98_MACHDEP_H__ */

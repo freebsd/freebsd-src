@@ -24,21 +24,21 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:03  rpd
- *	$Id: boot.h,v 1.1.1.1 1996/06/14 10:04:37 asami Exp $
+ *	$Id: boot.h,v 1.13 1996/09/14 07:38:14 bde Exp $
  */
 
-#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/time.h>
-#include <ufs/ufs/quota.h>
+
 #include <ufs/ffs/fs.h>
+#include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
 
-extern char *devs[], *iodest;
-extern char *name, dflname[];
+extern char *devs[];
+extern char *name;
 extern struct fs *fs;
 extern struct inode inode;
-extern int dosdev, unit, slice, part, maj, boff, poff, bnum, cnt;
+extern int dosdev, unit, slice, part, maj, boff, poff;
 extern unsigned long tw_chars;
 extern int loadflags;
 extern struct disklabel disklabel;

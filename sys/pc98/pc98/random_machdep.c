@@ -1,7 +1,7 @@
 /*
  * random_machdep.c -- A strong random number generator
  *
- * $Id: random_machdep.c,v 1.5 1996/09/07 02:14:17 asami Exp $
+ * $Id: random_machdep.c,v 1.6 1996/10/09 19:47:44 bde Exp $
  *
  * Version 0.95, last modified 18-Oct-95
  * 
@@ -48,6 +48,8 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/select.h>
+#include <sys/fcntl.h>
 
 #include <machine/clock.h>
 #include <machine/random.h>
@@ -97,6 +99,7 @@ struct random_bucket {
 	u_int	entropy_count;
 	int	input_rotate;
 	u_int32_t *pool;
+	struct	selinfo rsel;
 };
 
 /* There is one of these per entropy source */
@@ -130,6 +133,8 @@ rand_initialize(void)
 	random_state.entropy_count = 0;
 	random_state.pool = random_pool;
 	random_wait = NULL;
+	random_state.rsel.si_flags = 0;
+	random_state.rsel.si_pid = 0;
 }
 
 /*
@@ -237,6 +242,9 @@ add_timer_randomness(struct random_bucket *r, struct timer_rand_state *state,
 	/* Prevent overflow */
 	if (r->entropy_count > POOLBITS)
 		r->entropy_count = POOLBITS;
+
+	if (r->entropy_count >= 8)
+		selwakeup(&random_state.rsel);
 }
 
 void
@@ -491,3 +499,24 @@ write_random(const char *buf, u_int nbytes)
 	return nbytes;
 }
 #endif /* notused */
+
+int
+random_select(dev_t dev, int rw, struct proc *p)
+{
+	int s, ret;
+
+	if (rw == FWRITE)
+		return 1;	/* heh. */
+
+	s = splhigh();
+	if (random_state.entropy_count >= 8)
+		ret = 1;
+	else {
+		selrecord(p, &random_state.rsel);
+		ret = 0;
+	}
+	splx(s);
+
+	return ret;
+}
+
