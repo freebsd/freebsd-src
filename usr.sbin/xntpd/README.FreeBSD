@@ -1,3 +1,5 @@
+	$Id$
+
 This version of NTP was converted to the BSD-style Makefile system by
 Garrett Wollman (wollman@freefall.cdrom.com); it is based on version
 3.3s (late beta) from the University of Delaware.
@@ -8,6 +10,10 @@ in order to make this code exportable.  If you have a legal copy of
 to the AUTHDEFS in Makefile.inc.
 
 You can change CLOCKDEFS in the same file to add other reference clocks.
+
+This version of xntpd knows how to talk to the kernelized NTP PLL which is
+present in versions of FreeBSD-current after 21 April 1994.  When this code
+is more widely released, I'll provide the patches to Mills.
 
 ----------------------------------------------------
 Support for Conrad electronic's "DCF-77 Uhr, Mobil".
