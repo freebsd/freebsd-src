@@ -255,7 +255,7 @@ g_dev_close(dev_t dev, int flags, int fmt, struct thread *td)
 		i += hz / 10;
 	}
 	if (cp->acr == 0 && cp->acw == 0 && cp->nstart != cp->nend) {
-		printf("WARNING: Final close of geom_dev(%s) %s %s",
+		printf("WARNING: Final close of geom_dev(%s) %s %s\n",
 		    gp->name,
 		    "still has outstanding I/O after 10 seconds.",
 		    "Completing close anyway, panic may happen later.");
