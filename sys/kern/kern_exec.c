@@ -298,8 +298,10 @@ interpret:
 		PROC_UNLOCK(p);
 		/*
 		 * Turn off syscall tracing for set-id programs, except for
-		 * root.
+		 * root.  Record any set-id flags first to make sure that
+		 * we do not regain any tracing during a possible block.
 		 */
+		setsugid(p);
 		if (p->p_tracep && suser_xxx(oldcred, NULL, PRISON_ROOT)) {
 			p->p_traceflag = 0;
 			vrele(p->p_tracep);
@@ -313,7 +315,6 @@ interpret:
 			change_euid(newcred, attr.va_uid);
 		if (attr.va_mode & VSGID)
 			change_egid(newcred, attr.va_gid);
-		setsugid(p);
 		setugidsafety(p);
 	} else {
 		if (oldcred->cr_uid == oldcred->cr_ruid &&
