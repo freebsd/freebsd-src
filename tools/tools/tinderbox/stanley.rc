@@ -5,6 +5,7 @@
 #
 
 comment		= Tinderbox stress test
+sandbox		= /vol/vol1/users/des/tinderbox
 logdir		= /home/des/public_html/stanley
 branches	= CURRENT
 targets		= update, world, generic, lint
