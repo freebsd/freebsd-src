@@ -287,16 +287,19 @@ dmenuOpen(DMenu *menu, int *choice, int *scroll, int *curr, int *max, Boolean bu
 	dialog_clear_norefresh();
 	/* Pop up that dialog! */
 	if (menu->type & DMENU_NORMAL_TYPE)
-	    rval = dialog_menu((u_char *)menu->title, (u_char *)menu->prompt, -1, -1,
-			       menu_height(menu, n), -n, items, (char *)buttons, choice, scroll);
+	    rval = dialog_menu((u_char *)menu->title, (u_char *)menu->prompt,
+		-1, -1, menu_height(menu, n), -n, items,
+		(char *)(uintptr_t)buttons, choice, scroll);
 
 	else if (menu->type & DMENU_RADIO_TYPE)
-	    rval = dialog_radiolist((u_char *)menu->title, (u_char *)menu->prompt, -1, -1,
-				    menu_height(menu, n), -n, items, (char *)buttons);
+	    rval = dialog_radiolist((u_char *)menu->title,
+		(u_char *)menu->prompt, -1, -1, menu_height(menu, n), -n,
+		items, (char *)(uintptr_t)buttons);
 
 	else if (menu->type & DMENU_CHECKLIST_TYPE)
-	    rval = dialog_checklist((u_char *)menu->title, (u_char *)menu->prompt, -1, -1,
-				    menu_height(menu, n), -n, items, (char *)buttons);
+	    rval = dialog_checklist((u_char *)menu->title,
+		(u_char *)menu->prompt, -1, -1, menu_height(menu, n), -n,
+		items, (char *)(uintptr_t)buttons);
 	else
 	    msgFatal("Menu: `%s' is of an unknown type\n", menu->title);
 	if (exited) {
