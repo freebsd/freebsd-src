@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.181 1995/10/04 11:13:52 asami Exp $
+# $Id: bsd.port.mk,v 1.165.2.2 1995/10/05 20:58:10 davidg Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -264,6 +264,10 @@ PATCH_DIST_ARGS?=	-d ${WRKSRC} -E ${PATCH_DIST_STRIP}
 .else
 PATCH_ARGS?=	-d ${WRKSRC} --forward --quiet -E ${PATCH_STRIP}
 PATCH_DIST_ARGS?=	-d ${WRKSRC} --forward --quiet -E ${PATCH_DIST_STRIP}
+.endif
+.if defined(BATCH)
+PATCH_ARGS+=		--batch
+PATCH_DIST_ARGS+=	--batch
 .endif
 
 .if defined(PATCH_CHECK_ONLY)
