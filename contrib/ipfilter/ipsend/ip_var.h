@@ -44,7 +44,7 @@ struct ipq {
  * Note: ipf_next must be at same offset as ipq_next above
  */
 struct	ipasfrag {
-#if defined(vax) || defined(i386)
+#if defined(vax) || defined(i386) || defined(__i386__)
 	u_char	ip_hl:4,
 		ip_v:4;
 #endif
