@@ -33,18 +33,20 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swtch.s,v 1.30 1996/03/12 05:44:23 nate Exp $
+ *	$Id: swtch.s,v 1.31 1996/03/19 04:40:03 nate Exp $
  */
 
-#include "npx.h"	/* for NNPX */
-#include "opt_user_ldt.h" /* for USER_LDT */
-#include "assym.s"	/* for preprocessor defines */
-#include "apm.h"	/* for NAPM */
-#include <sys/errno.h>	/* for error codes */
+#include "apm.h"
+#include "npx.h"
+#include "opt_user_ldt.h"
 
-#include <machine/asmacros.h>	/* for miscellaneous assembly macros */
-#include <machine/spl.h>	/* for SWI_AST_MASK ... */
+#include <sys/errno.h>
 #include <sys/rtprio.h>
+
+#include <machine/asmacros.h>
+#include <machine/spl.h>
+
+#include "assym.s"
 
 
 /*****************************************************************************/
@@ -509,7 +511,7 @@ ENTRY(savectx)
 	popl	%ecx
 
 	pushl	%ecx
-	pushl	$108+8*2			/* XXX h/w state size + padding */
+	pushl	$PCB_SAVEFPU_SIZE
 	leal	PCB_SAVEFPU(%ecx),%ecx
 	pushl	%ecx
 	pushl	%eax
