@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)proc.h	8.15 (Berkeley) 5/19/95
- * $Id: proc.h,v 1.33 1997/03/03 09:51:12 ache Exp $
+ * $Id: proc.h,v 1.34 1997/04/07 07:16:02 peter Exp $
  */
 
 #ifndef _SYS_PROC_H_
@@ -92,7 +92,6 @@ struct	proc {
 	struct	pstats *p_stats;	/* Accounting/statistics (PROC ONLY). */
 	struct	plimit *p_limit;	/* Process limits. */
 	struct	vm_object *p_upages_obj;/* Upages object */
-	struct	vmspace *p_vmspace;	/* Address space. */
 	struct	sigacts *p_sigacts;	/* Signal actions, state (PROC ONLY). */
 
 #define	p_ucred		p_cred->pc_ucred
@@ -113,6 +112,8 @@ struct	proc {
 
 	pid_t	p_oppid;	 /* Save parent pid during ptrace. XXX */
 	int	p_dupfd;	 /* Sideways return value from fdopen. XXX */
+
+	struct	vmspace *p_vmspace;	/* Address space. */
 
 	/* scheduling */
 	u_int	p_estcpu;	 /* Time averaged value of p_cpticks. */
