@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.99 1999/04/18 18:44:21 jkh Exp $
+**  $Id: pcisupport.c,v 1.100 1999/04/20 11:36:36 kato Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -944,6 +944,12 @@ isab_match(device_t dev)
 	/* SiS -- vendor 0x1039 */
 	case 0x00081039:
 		return ("SiS 85c503 PCI-ISA bridge");
+
+	/* Cyrix -- vendor 0x1078 */
+	case 0x00001078:
+		return ("Cyrix Cx5520 PCI-ISA bridge");
+	case 0x01001078:
+		return ("Cyrix Cx5530 PCI-ISA bridge");
 
 	/* NEC -- vendor 0x1033 */
 	/* The "C-bus" is 16-bits bus on PC98. */
