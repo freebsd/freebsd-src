@@ -242,6 +242,8 @@ acpi_button_fixed_handler(void *context)
 {
     struct acpi_button_softc	*sc = (struct acpi_button_softc *)context;
 
+    ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
+
     if (context == NULL)
 	return_ACPI_STATUS (AE_BAD_PARAMETER);
 
