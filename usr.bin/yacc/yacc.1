@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)yacc.1	5.8 (Berkeley) 5/24/93
-.\"     $Id$
+.\"     $Id: yacc.1,v 1.6 1997/02/22 19:58:04 peter Exp $
 .\"
 .TH YACC 1 "May 24, 1993"
 .UC 6
@@ -42,6 +42,8 @@ yacc \- an LALR(1) parser generator
 .SH SYNOPSIS
 .B yacc [ -dlrtv ] [ -b
 .I file_prefix
+.B ] [ -o
+.I output_filename
 .B ] [ -p
 .I symbol_prefix
 .B ]
@@ -86,6 +88,16 @@ If the \fB-l\fR option is specified,
 .I yacc
 will not insert the #line directives.
 Any #line directives specified by the user will be retained.
+.TP
+\fB-o \fIoutput_filename\fR
+The
+.B -o
+option causes
+.I yacc
+to write the generated code to
+.IR output_filename
+instead of the default file,
+.IR y.tab.c .
 .TP
 \fB-p \fIsymbol_prefix\fR
 The
