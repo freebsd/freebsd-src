@@ -2,7 +2,7 @@
 
 PROG=	calendar
 SRCS=   calendar.c io.c day.c ostern.c
-INTER=		de_DE.ISO_8859-1
+INTER=		de_DE.ISO_8859-1 hr_HR.ISO_8859-2
 SHAREDIR=	/usr/share/calendar
 TEXTMODE?=	444
 
