@@ -63,7 +63,6 @@ options 	INVARIANT_SUPPORT
 options 	WITNESS
 
 options 	KTR
-options 	KTR_EXTEND
 options 	KTR_ENTRIES=1024
 options 	KTR_COMPILE="(KTR_INTR|KTR_PROC)"
 options 	KTR_MASK=0
