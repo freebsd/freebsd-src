@@ -9,13 +9,14 @@
 on your system. The converse is not such a safe statement.
 
 %%% copyright-cmetz-96
-This software is Copyright 1996-1998 by Craig Metz, All Rights Reserved.
-The Inner Net License Version 2 applies to this software.
+This software is Copyright 1996-2001 by Craig Metz, All Rights Reserved.
+The Inner Net License Version 3 applies to this software.
 You should have received a copy of the license with this software. If
 you didn't get a copy, you may request one from <license@inner.net>.
 
         History:
 
+	Modified by cmetz for OPIE 2.4. Use struct opie_key for key blocks.
 	Modified by cmetz for OPIE 2.31. Added a couple of new checks,
 		removed a few commented-out checks for functions that
 		no longer exist, added test-skip capability.
@@ -34,12 +35,13 @@ char buffer[1024];
 int testatob8()
 {
   static char testin[] = "0123456789abcdef";
-  static unsigned char testout[] = { 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef };
-    
-  if (!opieatob8(buffer, testin))
+  static unsigned char testout[sizeof(struct opie_otpkey)] = { 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef };
+  struct opie_otpkey key;
+
+  if (!opieatob8(&key, testin))
     return -1;
 
-  if (memcmp(buffer, testout, sizeof(testout)))
+  if (memcmp(&key, testout, sizeof(testout)))
     return -1;
   
   return 0;
@@ -47,10 +49,13 @@ int testatob8()
 
 int testbtoa8()
 {
-  static unsigned char testin[] = { 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef };
+  static unsigned char testin[sizeof(struct opie_otpkey)] = { 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef };
   static char testout[] = "0123456789abcdef";
+  struct opie_otpkey testin_aligned;
+
+  memcpy(&testin_aligned, testin, sizeof(struct opie_otpkey));
     
-  if (!opiebtoa8(buffer, testin))
+  if (!opiebtoa8(buffer, &testin_aligned))
     return -1;
 
   if (memcmp(buffer, testout, sizeof(testout)))
@@ -61,10 +66,13 @@ int testbtoa8()
 
 int testbtoe()
 {
-  static unsigned char testin[] = { 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef };
+  static unsigned char testin[sizeof(struct opie_otpkey)] = { 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef };
   static char testout[] = "AIM HEW BLUM FED MITE WARM";
+  struct opie_otpkey testin_aligned;
+  
+  memcpy(&testin_aligned, testin, sizeof(struct opie_otpkey));
 
-  if (!opiebtoe(buffer, testin))
+  if (!opiebtoe(buffer, &testin_aligned))
     return -1;
 
   if (memcmp(buffer, testout, sizeof(testout)))
@@ -76,12 +84,13 @@ int testbtoe()
 int testetob()
 {
   static char testin[] = "AIM HEW BLUM FED MITE WARM";
-  static unsigned char testout[] = { 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef };
+  static unsigned char testout[sizeof(struct opie_otpkey)] = { 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef };
+  struct opie_otpkey key;
 
-  if (opieetob(buffer, testin) != 1)
+  if (opieetob(&key, testin) != 1)
     return -1;
 
-  if (memcmp(buffer, testout, sizeof(testout)))
+  if (memcmp(&key, testout, sizeof(testout)))
     return -1;
   
   return 0;  
@@ -116,12 +125,15 @@ int testgetsequence()
 
 int testhashmd4()
 {
-  static unsigned char testin[] = { 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef };
-  static unsigned char testout[] = { 0x9f, 0x40, 0xfb, 0x84, 0xb, 0xf8, 0x7f, 0x4b };
+  static unsigned char testin[sizeof(struct opie_otpkey)] = { 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef };
+  static unsigned char testout[sizeof(struct opie_otpkey)] = { 0x9f, 0x40, 0xfb, 0x84, 0xb, 0xf8, 0x7f, 0x4b };
+  struct opie_otpkey testin_aligned;
 
-  opiehash(testin, 4);
+  memcpy(&testin_aligned, testin, sizeof(struct opie_otpkey));
 
-  if (memcmp(testin, testout, sizeof(testout)))
+  opiehash(&testin_aligned, 4);
+
+  if (memcmp(&testin_aligned, testout, sizeof(struct opie_otpkey)))
     return -1;
 
   return 0;
@@ -131,10 +143,13 @@ int testhashmd5()
 {
   static unsigned char testin[] = { 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef };
   static unsigned char testout[] = { 0x78, 0xdd, 0x1a, 0x37, 0xf8, 0x91, 0x54, 0xe1 };
+  struct opie_otpkey testin_aligned;
 
-  opiehash(testin, 5);
+  memcpy(&testin_aligned, testin, sizeof(struct opie_otpkey));
 
-  if (memcmp(testin, testout, sizeof(testout)))
+  opiehash(&testin_aligned, 5);
+
+  if (memcmp(&testin_aligned, testout, sizeof(struct opie_otpkey)))
     return -1;
 
   return 0;
@@ -151,12 +166,13 @@ int testkeycrunch()
 {
   static char testin1[] = "ke1234";
   static char testin2[] = "this is a test";
-  static unsigned char testout[] = { 0x2e, 0xd3, 0x5d, 0x74, 0x3e, 0xa9, 0xe9, 0xe8 };
+  static unsigned char testout[sizeof(struct opie_otpkey)] = { 0x2e, 0xd3, 0x5d, 0x74, 0x3e, 0xa9, 0xe9, 0xe8 };
+  struct opie_otpkey opie_otpkey;
 
-  if (opiekeycrunch(5, buffer, testin1, testin2))
+  if (opiekeycrunch(5, &opie_otpkey, testin1, testin2))
     return -1;
 
-  if (memcmp(buffer, testout, sizeof(testout)))
+  if (memcmp(&opie_otpkey, testout, sizeof(struct opie_otpkey)))
     return -1;
 
   return 0;

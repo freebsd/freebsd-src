@@ -6,6 +6,7 @@ PROG=	opiepasswd
 
 CFLAGS+=-I${.CURDIR}/../../lib/libopie
 CFLAGS+=-I${OPIE_DIST}
+CFLAGS+=-DINSECURE_OVERRIDE
 
 DPADD=	${LIBOPIE} ${LIBMD}
 LDADD=	-lopie -lmd
