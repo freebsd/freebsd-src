@@ -25,7 +25,7 @@ CFLAGS+= -I${.CURDIR}/../../sys
 CLEANFILES+= template.c
 
 MAN=	gbde.8
-LDADD=	-lmd  -lutil
+LDADD=	-lmd  -lutil -lgeom -lbsdxml -lsbuf
 
 .include <bsd.prog.mk>
 
