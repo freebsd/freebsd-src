@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ahc_pci.c,v 1.3 1998/12/07 21:58:45 archie Exp $
+ *	$Id: ahc_pci.c,v 1.4 1998/12/14 05:47:25 dillon Exp $
  */
 
 #include <pci.h>
@@ -55,6 +55,7 @@
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
 #include <cam/cam_sim.h>
+#include <cam/cam_xpt_sim.h>
 
 #include <cam/scsi/scsi_all.h>
 
