@@ -46,11 +46,13 @@
  * atomic_clear_int(P, V)	(*(u_int*)(P) &= ~(V))
  * atomic_add_int(P, V)		(*(u_int*)(P) += (V))
  * atomic_subtract_int(P, V)	(*(u_int*)(P) -= (V))
+ * atomic_readandclear_int(P)	(return  *(u_int*)P; *(u_int*)P = 0;)
  *
  * atomic_set_long(P, V)	(*(u_long*)(P) |= (V))
  * atomic_clear_long(P, V)	(*(u_long*)(P) &= ~(V))
  * atomic_add_long(P, V)	(*(u_long*)(P) += (V))
  * atomic_subtract_long(P, V)	(*(u_long*)(P) -= (V))
+ * atomic_readandclear_long(P)	(return  *(u_long*)P; *(u_long*)P = 0;)
  */
 
 /*
@@ -146,6 +148,40 @@ ATOMIC_ASM(clear,    long,  "andl %1,%0", ~v)
 ATOMIC_ASM(add,	     long,  "addl %1,%0",  v)
 ATOMIC_ASM(subtract, long,  "subl %1,%0",  v)
 
+#endif
+
+#define	atomic_readandclear_32	atomic_readandclear_int
+
+#ifndef WANT_FUNCTIONS
+static __inline u_int
+atomic_readandclear_int(volatile u_int *addr)
+{
+	u_int result;
+
+	__asm __volatile (
+	"	xorl	%0,%0 ;		"
+	"	xchgl	%1,%0 ;		"
+	"# atomic_readandclear_int"
+	: "=&r" (result)		/* 0 (result) */
+	: "m" (*addr));			/* 1 (addr) */
+
+	return (result);
+}
+
+static __inline u_long
+atomic_readandclear_long(volatile u_long *addr)
+{
+	u_long result;
+
+	__asm __volatile (
+	"	xorl	%0,%0 ;		"
+	"	xchgl	%1,%0 ;		"
+	"# atomic_readandclear_int"
+	: "=&r" (result)		/* 0 (result) */
+	: "m" (*addr));			/* 1 (addr) */
+
+	return (result);
+}
 #endif
 
 #endif /* ! _MACHINE_ATOMIC_H_ */
