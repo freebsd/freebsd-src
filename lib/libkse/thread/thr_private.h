@@ -593,6 +593,12 @@ struct pthread_specific_elem {
  */
 struct pthread {
 	/*
+	 * Thread mailbox is first so it cal be aligned properly.
+	 */
+	struct kse_thr_mailbox	tmbx;
+	void			*alloc_addr;	/* real address (unaligned) */
+
+	/*
 	 * Magic value to help recognize a valid thread structure
 	 * from an invalid one:
 	 */
@@ -626,10 +632,6 @@ struct pthread {
 	void			*arg;
 	struct pthread_attr	attr;
 
-	/*
-	 * Thread mailbox.
-	 */
-	struct kse_thr_mailbox	tmbx;
 	int			active;		/* thread running */
 	int			blocked;	/* thread blocked in kernel */
 	int			need_switchout;
