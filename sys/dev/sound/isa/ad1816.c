@@ -67,8 +67,6 @@ static int      	ad1816_wait_init(struct ad1816_info *ad1816, int x);
 static u_short		ad1816_read(struct ad1816_info *ad1816, u_int reg);
 static void     	ad1816_write(struct ad1816_info *ad1816, u_int reg, u_short data);
 
-static devclass_t pcm_devclass;
-
 static u_int32_t ad1816_fmt[] = {
 	AFMT_U8,
 	AFMT_STEREO | AFMT_U8,

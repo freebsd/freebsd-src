@@ -841,8 +841,6 @@ static driver_t pcmcsa_driver = {
 	sizeof(struct snddev_info),
 };
 
-static devclass_t pcm_devclass;
-
 DRIVER_MODULE(snd_csapcm, csa, pcmcsa_driver, pcm_devclass, 0, 0);
 MODULE_DEPEND(snd_csapcm, snd_pcm, PCM_MINVER, PCM_PREFVER, PCM_MAXVER);
 MODULE_DEPEND(snd_csapcm, snd_csa, 1, 1, 1);
