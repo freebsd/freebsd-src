@@ -1,7 +1,7 @@
 /* insecure.c: The opieinsecure() library function.
 
-%%% portions-copyright-cmetz
-Portions of this software are Copyright 1996 by Craig Metz, All Rights
+%%% portions-copyright-cmetz-96
+Portions of this software are Copyright 1996-1997 by Craig Metz, All Rights
 Reserved. The Inner Net License Version 2 applies to these portions of
 the software.
 You should have received a copy of the license with this software. If
@@ -14,6 +14,7 @@ License Agreement applies to this software.
 
         History:
 
+	Modified by cmetz for OPIE 2.31. Fixed a logic bug. Call endut[x]ent().
 	Modified by cmetz for OPIE 2.3. Added result caching. Use
 	     __opiegetutmpentry(). Ifdef around ut_host check. Eliminate
 	     unused variable.
@@ -37,6 +38,7 @@ License Agreement applies to this software.
 #if DOUTMPX
 #include <utmpx.h>
 #define utmp utmpx
+#define endutent endutxent
 #endif	/* DOUTMPX */
 
 #if HAVE_SYS_UTSNAME_H
@@ -44,6 +46,8 @@ License Agreement applies to this software.
 #endif /* HAVE_SYS_UTSNAME_H */
 
 #include "opie.h"
+
+char *remote_terms[] = { "xterm", "xterms", "kterm", NULL };
 
 int opieinsecure FUNCTION_NOARGS
 {
@@ -89,7 +93,7 @@ int opieinsecure FUNCTION_NOARGS
 		int n2 = s - display_name;
                 if (n < n2)
                   n2 = n;
-		if (!strncmp(utsname.nodename, display_name, n))
+		if (!strncmp(utsname.nodename, display_name, n2))
 		  insecure = 0;
 	      } /* endif display_name is '.' */
 	    } /* endif hostname != display_name */
@@ -106,12 +110,19 @@ int opieinsecure FUNCTION_NOARGS
      with an rlogin or telnet to our system.  If it were a local
      xterm, then the DISPLAY environment variable would
      have to exist. rja */
-  if (!display_name && !term_name && !strcmp("xterm", term_name))
-      return (result = 1);
+  if (!display_name && term_name) {
+    int i;
+    for (i = 0; remote_terms[i]; i++)
+      if (!strcmp(term_name, remote_terms[i]))
+        return (result = 1);
+  };
 
 #if HAVE_UT_HOST
   memset(&utmp, 0, sizeof(struct utmp));
-  if (!__opiegetutmpentry(ttyname(0), &utmp) && utmp.ut_host[0]) {
+  {
+  int i = __opiegetutmpentry(ttyname(0), &utmp);
+  endutent();
+  if (!i && utmp.ut_host[0]) {
     insecure = 1;
 
     if (s = strchr(utmp.ut_host, ':')) {
@@ -135,6 +146,7 @@ int opieinsecure FUNCTION_NOARGS
         }
     }
   }
+  };
 #endif /* HAVE_UT_HOST */
   if (insecure)
     return (result = 1);

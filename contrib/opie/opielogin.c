@@ -1,7 +1,7 @@
 /* opielogin.c: The infamous /bin/login
 
-%%% portions-copyright-cmetz
-Portions of this software are Copyright 1996 by Craig Metz, All Rights
+%%% portions-copyright-cmetz-96
+Portions of this software are Copyright 1996-1997 by Craig Metz, All Rights
 Reserved. The Inner Net License Version 2 applies to these portions of
 the software.
 You should have received a copy of the license with this software. If
@@ -14,6 +14,10 @@ License Agreement applies to this software.
 
 	History:
 
+	Modified by cmetz for OPIE 2.31. Use _PATH_NOLOGIN. Move Solaris
+	        drain bamage kluge after rflag check; it breaks rlogin.
+		Use TCSAFLUSH instead of TCSANOW (except where it flushes
+		data we need). Sleep before kluging for Solaris.
 	Modified by cmetz for OPIE 2.3. Process login environment files.
 	        Made logindevperm/fbtab handling more generic. Kluge around
                 Solaris drain bamage differently (maybe better?). Maybe
@@ -123,6 +127,9 @@ License Agreement applies to this software.
 #if HAVE_STDLIB_H
 #include <stdlib.h>
 #endif /* HAVE_STDLIB_H */
+#if HAVE_SYS_SELECT_H
+#include <sys/select.h>
+#endif /* HAVE_SYS_SELECT_H */
 
 #ifdef	QUOTA
 #include <sys/quota.h>
@@ -317,7 +324,7 @@ static VOIDRET catch FUNCTION((i), int i)
 static VOIDRET catchexit FUNCTION_NOARGS
 {
   int i;
-  tcsetattr(STDIN_FILENO, TCSANOW, &attr);
+  tcsetattr(STDIN_FILENO, TCSAFLUSH, &attr);
   putchar('\n');
   closelog();
   for (i = sysconf(_SC_OPEN_MAX); i > 2; i--)
@@ -644,43 +651,10 @@ int main FUNCTION((argc, argv), int argc AND char *argv[])
   }
 #endif /* DEBUG */
 
+  for (t = sysconf(_SC_OPEN_MAX); t > 2; t--)
+    close(t);
+
   openlog("login", LOG_ODELAY, LOG_AUTH);
-
-  {
-    struct termios termios;
-    fd_set fds;
-    struct timeval timeval;
-    
-    memset(&timeval, 0, sizeof(struct timeval));
-    
-    FD_ZERO(&fds);
-    FD_SET(0, &fds);
-
-    if (select(1, &fds, NULL, NULL, &timeval)) {
-#ifdef DEBUG
-      syslog(LOG_DEBUG, "reading user name from tty buffer");
-#endif /* DEBUG */
-
-      if (tcgetattr(0, &termios)) {
-#ifdef DEBUG
-	syslog(LOG_DEBUG, "tcgetattr(0, &termios) failed");
-#endif /* DEBUG */
-	exit(1);
-      }
-      
-      termios.c_lflag &= ~ECHO;
-      
-      if (tcsetattr(0, TCSANOW, &termios)) {
-#ifdef DEBUG
-	syslog(LOG_DEBUG, "tcsetattr(0, &termios) failed");
-#endif /* DEBUG */
-	exit(1);
-      }
-      
-      if ((i = read(0, name, sizeof(name)-1)) > 0)
-	name[i] = 0;
-    }
-  }
 
   /* initialisation */
   host[0] = '\0';
@@ -832,9 +806,6 @@ int main FUNCTION((argc, argv), int argc AND char *argv[])
     }
   }
 
-  for (t = sysconf(_SC_OPEN_MAX); t > 2; t--)
-    close(t);
-
 #ifdef TIOCNXCL
   /* BSDism:  not sure how to rewrite for POSIX.  rja */
   ioctl(0, TIOCNXCL, 0);	/* set non-exclusive use of tty */
@@ -848,6 +819,49 @@ int main FUNCTION((argc, argv), int argc AND char *argv[])
    across the network. */
   if (rflag)
     doremoteterm(term);
+  else {
+    struct termios termios;
+    fd_set fds;
+    struct timeval timeval;
+    
+    memset(&timeval, 0, sizeof(struct timeval));
+    
+    FD_ZERO(&fds);
+    FD_SET(0, &fds);
+
+#if HAVE_USLEEP
+    usleep(1);
+#endif /* HAVE_USLEEP */
+
+    if (select(1, &fds, NULL, NULL, &timeval)) {
+#ifdef DEBUG
+      syslog(LOG_DEBUG, "reading user name from tty buffer");
+#endif /* DEBUG */
+
+      if (tcgetattr(0, &termios)) {
+#ifdef DEBUG
+	syslog(LOG_DEBUG, "tcgetattr(0, &termios) failed");
+#endif /* DEBUG */
+	exit(1);
+      }
+      
+      termios.c_lflag &= ~ECHO;
+   
+      if (tcsetattr(0, TCSANOW, &termios)) {
+#ifdef DEBUG
+	syslog(LOG_DEBUG, "tcsetattr(0, &termios) failed");
+#endif /* DEBUG */
+	exit(1);
+      }
+
+      if ((i = read(0, name, sizeof(name)-1)) > 0)
+	name[i] = 0;
+      if ((p = strchr(name, '\r')))
+        *p = 0;
+      if ((p = strchr(name, '\n')))
+        *p = 0;
+    }
+  }
 
 /* Force termios portable control characters to the system default values as
 specified in termios.h. This should help the one-time password login feel the
@@ -975,7 +989,7 @@ completeness, but these are set within appropriate defines for portability. */
   attr.c_cflag |= HUPCL;	/* hangup on close */
 
   /* Set revised termio attributes */
-  if (tcsetattr(STDIN_FILENO, TCSANOW, &attr))
+  if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &attr))
     return (-1);
 
   atexit(catchexit);
@@ -1099,8 +1113,8 @@ completeness, but these are set within appropriate defines for portability. */
 #endif /* DEBUG */
 
       if (!pwok && !otpok) {
-        fprintf(stderr, "Can't authenticate %s!\n");
-	continue;
+        fprintf(stderr, "Can't authenticate %s!\n", name);
+        exit(1);
       }
 
 #if NEW_PROMPTS
@@ -1164,7 +1178,7 @@ completeness, but these are set within appropriate defines for portability. */
 
     /* If user not super-user, check for logins disabled. */
     if (thisuser.pw_uid) {
-      if (nlfd = fopen(NO_LOGINS_FILE, "r")) {
+      if (nlfd = fopen(_PATH_NOLOGIN, "r")) {
 	while ((c = getc(nlfd)) != EOF)
 	  putchar(c);
 	fflush(stdout);

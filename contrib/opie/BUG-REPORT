@@ -1,5 +1,5 @@
-OPIE Software Distribution, Release 2.3                      Bug Reporting Form
-=======================================                      ==================
+OPIE Software Distribution, Release 2.31                     Bug Reporting Form
+========================================                     ==================
 
 	Please make a copy of this file and then edit it with your favorite
 text editor to include the answers to the following questions:
@@ -72,8 +72,8 @@ it usually takes a week or two.
 Copyright
 =========
 
-%%% portions-copyright-cmetz
-Portions of this software are Copyright 1996 by Craig Metz, All Rights
+%%% portions-copyright-cmetz-96
+Portions of this software are Copyright 1996-1997 by Craig Metz, All Rights
 Reserved. The Inner Net License Version 2 applies to these portions of
 the software.
 You should have received a copy of the license with this software. If
