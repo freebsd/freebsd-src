@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.60 1996/05/09 09:42:15 jkh Exp $
+ * $Id: menus.c,v 1.61 1996/05/16 11:47:38 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -131,7 +131,7 @@ checkDistDeveloper(dialogMenuItem *self)
 static int
 checkDistXDeveloper(dialogMenuItem *self)
 {
-    return (Dists == (_DIST_DEVELOPER | DIST_XF86) && SrcDists == DIST_SRC_ALL);
+    return (Dists == (_DIST_DEVELOPER | DIST_XF86 | DIST_COMPAT21 ) && SrcDists == DIST_SRC_ALL);
 }
 
 static int
@@ -149,7 +149,7 @@ checkDistUser(dialogMenuItem *self)
 static int
 checkDistXUser(dialogMenuItem *self)
 {
-    return (Dists == (_DIST_USER | DIST_XF86));
+    return (Dists == (_DIST_USER | DIST_XF86 | DIST_COMPAT21));
 }
 
 static int
