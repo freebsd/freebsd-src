@@ -13,7 +13,7 @@
  *   the SMC Elite Ultra (8216), the 3Com 3c503, the NE1000 and NE2000,
  *   and a variety of similar clones.
  *
- * $Id: if_ed.c,v 1.51 1994/10/17 21:16:37 phk Exp $
+ * $Id: if_ed.c,v 1.52 1994/10/19 01:58:58 wollman Exp $
  */
 
 #include "ed.h"
@@ -111,6 +111,10 @@ int     ed_probe(struct isa_device *);
 void    ed_start(struct ifnet *);
 void    ed_reset(int);
 void    ed_watchdog(int);
+int	ed_probe_generic8390(struct ed_softc *);
+int	ed_probe_WD80x3(struct isa_device *);
+int	ed_probe_3Com(struct isa_device *);
+int	ed_probe_Novell(struct isa_device *);
 
 void    ds_getmcaf();
 
@@ -196,16 +200,18 @@ int
 ed_probe(isa_dev)
 	struct isa_device *isa_dev;
 {
-	struct ed_softc *sc = &ed_softc[isa_dev->id_unit];
 	int     nports;
 
-	if (nports = ed_probe_WD80x3(isa_dev))
+	nports = ed_probe_WD80x3(isa_dev);
+	if (nports)
 		return (nports);
 
-	if (nports = ed_probe_3Com(isa_dev))
+	nports = ed_probe_3Com(isa_dev);
+	if (nports)
 		return (nports);
 
-	if (nports = ed_probe_Novell(isa_dev))
+	nports = ed_probe_Novell(isa_dev);
+	if (nports)
 		return (nports);
 
 	return (0);
@@ -513,11 +519,11 @@ ed_probe_WD80x3(isa_dev)
 			    ((kvtop(sc->mem_start) >> 19) & ED_WD_LAAR_ADDRHI)));
 		}
 	} else {
-		if ((sc->type & ED_WD_SOFTCONFIG) ||
+		if (((sc->type & ED_WD_SOFTCONFIG) ||
 #ifdef TOSH_ETHER
 		    (sc->type == ED_TYPE_TOSHIBA1) || (sc->type == ED_TYPE_TOSHIBA4) ||
 #endif
-		    (sc->type == ED_TYPE_WD8013EBT) && (!sc->is790)) {
+		    (sc->type == ED_TYPE_WD8013EBT)) && (!sc->is790)) {
 			outb(sc->asic_addr + ED_WD_LAAR, (sc->wd_laar_proto =
 			    ((kvtop(sc->mem_start) >> 19) & ED_WD_LAAR_ADDRHI)));
 		}
@@ -554,7 +560,7 @@ ed_probe_WD80x3(isa_dev)
 
 	for (i = 0; i < memsize; ++i) {
 		if (sc->mem_start[i]) {
-			printf("ed%d: failed to clear shared memory at %x - check configuration\n",
+			printf("ed%d: failed to clear shared memory at %lx - check configuration\n",
 			    isa_dev->id_unit, kvtop(sc->mem_start + i));
 
 			/*
@@ -599,7 +605,7 @@ ed_probe_3Com(isa_dev)
 	struct ed_softc *sc = &ed_softc[isa_dev->id_unit];
 	int     i;
 	u_int   memsize;
-	u_char  isa16bit, sum;
+	u_char  isa16bit;
 
 	sc->asic_addr = isa_dev->id_iobase + ED_3COM_ASIC_OFFSET;
 	sc->nic_addr = isa_dev->id_iobase + ED_3COM_NIC_OFFSET;
@@ -847,7 +853,7 @@ ed_probe_3Com(isa_dev)
 
 	for (i = 0; i < memsize; ++i)
 		if (sc->mem_start[i]) {
-			printf("ed%d: failed to clear shared memory at %x - check configuration\n",
+			printf("ed%d: failed to clear shared memory at %lx - check configuration\n",
 			       isa_dev->id_unit, kvtop(sc->mem_start + i));
 			return (0);
 		}
@@ -864,7 +870,7 @@ ed_probe_Novell(isa_dev)
 {
 	struct ed_softc *sc = &ed_softc[isa_dev->id_unit];
 	u_int   memsize, n;
-	u_char  romdata[16], isa16bit = 0, tmp;
+	u_char  romdata[16], tmp;
 	static char test_pattern[32] = "THIS is A memory TEST pattern";
 	char    test_buffer[32];
 
@@ -1211,7 +1217,6 @@ ed_init(unit)
 	struct ed_softc *sc = &ed_softc[unit];
 	struct ifnet *ifp = &sc->arpcom.ac_if;
 	int     i, s;
-	u_char  command;
 
 
 	/* address not known */
@@ -1566,7 +1571,7 @@ ed_rint(unit)
 	int     unit;
 {
 	register struct ed_softc *sc = &ed_softc[unit];
-	u_char  boundry, current;
+	u_char  boundry;
 	u_short len;
 	struct ed_ring packet_hdr;
 	char   *packet_ptr;
@@ -1694,7 +1699,7 @@ edintr(unit)
 	/*
 	 * loop until there are no more new interrupts
 	 */
-	while (isr = inb(sc->nic_addr + ED_P0_ISR)) {
+	while ((isr = inb(sc->nic_addr + ED_P0_ISR)) != 0) {
 
 		/*
 		 * reset all the bits that we are 'acknowledging' by writing a
