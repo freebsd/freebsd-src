@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: strcoll.c,v 1.2 1995/02/16 17:01:09 ache Exp $
+ * $Id: strcoll.c,v 1.3 1995/02/18 01:38:58 ache Exp $
  */
 
 #include <stdlib.h>
@@ -39,7 +39,7 @@ strcoll(s, s2)
 	char *tt, *t, *tt2, *t2;
 
 	if (__collate_load_error)
-		return strcmp(s, s2);
+		return strcasecmp(s, s2);
 
 	len = len2 = 1;
 	ret = ret2 = 0;
