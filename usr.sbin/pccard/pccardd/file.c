@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: file.c,v 1.19 1999/07/23 01:33:34 hosokawa Exp $";
+	"$Id: file.c,v 1.20 1999/08/01 18:04:24 imp Exp $";
 #endif /* not lint */
 
 #include <stdio.h>
@@ -36,6 +36,8 @@ static const char rcsid[] =
 #include "cardd.h"
 
 static FILE *in;
+static int includes = 0;
+static FILE *files[MAXINCLUDES] = {NULL, };
 static int pushc, pusht;
 static int lineno;
 static char *filename;
@@ -54,6 +56,7 @@ static char *keys[] = {
 	"remove",		/* 11 */
 	"iosize",		/* 12 */
 	"debuglevel",		/* 13 */
+	"include",		/* 14 */
 	0
 };
 
@@ -70,6 +73,7 @@ static char *keys[] = {
 #define KWD_REMOVE		11
 #define KWD_IOSIZE		12
 #define KWD_DEBUGLEVEL		13
+#define KWD_INCLUDE		14
 
 struct flags {
 	char   *name;
@@ -88,6 +92,7 @@ static struct allocblk *ioblk_tok(int);
 static struct allocblk *memblk_tok(int);
 static struct driver *new_driver(char *);
 static int     iosize_tok(void);
+static void    file_include(char *);
 
 static void    addcmd(struct cmd **);
 static void    parse_card(void);
@@ -99,6 +104,7 @@ static void    parse_card(void);
 void
 readfile(char *name)
 {
+	int i;
 	struct card *cp;
 
 	in = fopen(name, "r");
@@ -106,6 +112,13 @@ readfile(char *name)
 		logerr(name);
 		die("readfile");
 	}
+	for (i = 0; i < MAXINCLUDES; i++) {
+		if (files[i]) {
+			fclose(files[i]);
+			files[i] = NULL;
+		}
+	}
+	files[includes = 0] = in;
 	parsefile();
 	for (cp = cards; cp; cp = cp->next) {
 		if (cp->config == 0)
@@ -119,7 +132,9 @@ parsefile(void)
 {
 	int     i;
 	int     irq_init = 0;
+	int     io_init = 0;
 	struct allocblk *bp;
+	char	*incl;
 
 	pushc = 0;
 	lineno = 1;
@@ -136,15 +151,18 @@ parsefile(void)
 		case KWD_IO:
 			/* reserved I/O blocks */
 			while ((bp = ioblk_tok(0)) != 0) {
-				if (bp->size == 0 || bp->addr == 0) {
-					free(bp);
-					continue;
+				if (!io_init) {
+					if (bp->size == 0 || bp->addr == 0) {
+						free(bp);
+						continue;
+					}
+					bit_nset(io_avail, bp->addr,
+						 bp->addr + bp->size - 1);
+					bp->next = pool_ioblks;
+					pool_ioblks = bp;
 				}
-				bit_nset(io_avail, bp->addr,
-					 bp->addr + bp->size - 1);
-				bp->next = pool_ioblks;
-				pool_ioblks = bp;
 			}
+			io_init = 1;
 			pusht = 1;
 			break;
 		case KWD_IRQ:
@@ -152,6 +170,7 @@ parsefile(void)
 			while ((i = irq_tok(0)) > 0)
 				if (!irq_init)
 					pool_irq[i] = 1;
+			irq_init = 1;
 			pusht = 1;
 			break;
 		case KWD_MEMORY:
@@ -176,6 +195,10 @@ parsefile(void)
 			i = debuglevel_tok(0);
 			if (i > 0)
 				debug_level = i;
+			break;
+		case KWD_INCLUDE:
+			incl = newstr(next_tok());
+			file_include(incl);
 			break;
 		default:
 			error("syntax error");
@@ -671,6 +694,12 @@ _next_tok(void)
 			}
 			break;
 		case EOF:
+			if (includes) {
+				fclose(in);
+				includes--;
+				in = files[includes];
+				return _next_tok();	/* recursive */
+			}
 			if (p != buf) {
 				*p++ = 0;
 				return (buf);
@@ -703,4 +732,23 @@ getline(void)
 			*p++ = c;
 	*p = 0;
 	return (newstr(buf));
+}
+
+/*
+ *	Include configuration file
+ */
+static void
+file_include(char *filename)
+{
+	FILE *fp;
+
+	includes++;
+	if (includes >= MAXINCLUDES) {
+		error("include nesting overflow");
+	}
+	if (!(fp = fopen(filename, "r"))) {
+		error("can't open include file");
+		includes--;
+	}
+	in = files[includes] = fp;
 }
