@@ -138,7 +138,7 @@ main(int argc, char **argv)
 	/* 'make world' glue */
 	objformat_path = getenv("OBJFORMAT_PATH");
 	if (objformat_path == NULL)
-		objformat_path = "/usr/libexec";
+		objformat_path = ROOTDIR;
 	path = strdup(objformat_path);
 
 	if (objformat_aout) {
