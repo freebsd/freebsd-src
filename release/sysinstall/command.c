@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: command.c,v 1.6 1995/05/18 09:01:44 jkh Exp $
+ * $Id: command.c,v 1.7 1995/05/18 23:36:21 gpalmer Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -172,7 +172,7 @@ command_execute(void)
 	    else {
 		/* It's a function pointer - call it with the key and the data */
 		func = (commandFunc)commandStack[i]->cmds[j].ptr;
-		msgNotify("Executing internal command @ %0x", func);
+		msgNotify("%x: Execute(%s, %s)", func, commandStack[i]->key, commandStack[i]->cmds[j].data);
 		ret = (*func)(commandStack[i]->key, commandStack[i]->cmds[j].data);
 		msgDebug("Function @ %x returns status %d\n", commandStack[i]->cmds[j].ptr, ret);
 	    }
