@@ -41,7 +41,6 @@
 #include <sys/systm.h>
 #include <sys/sysctl.h>
 #include <sys/libkern.h>
-#include <sys/sbuf.h>
 
 char	*kern_envp;
 
@@ -105,33 +104,35 @@ getenv_quad(const char *name, quad_t *data)
 static int
 sysctl_kernenv(SYSCTL_HANDLER_ARGS)
 {
-	const char *header[] = {
-	    "---Loader Environment---", "---Static Environment---" };
-	const int headerlen = 128;		/* conservative */
-	struct sbuf *sb;
-	int error, len;
-	char *cp;
+    int		*name = (int *)arg1;
+    u_int	namelen = arg2;
+    char	*cp;
+    int		i, error;
 
-	len = 0;
-	for (cp = kern_envp; cp != NULL; cp = kernenv_next(cp))
-		len += strlen(cp) + 1;
-	for (cp = static_hints; cp != NULL; cp = kernenv_next(cp))
-		len += strlen(cp) + 1;
-	sb = sbuf_new(NULL, NULL, len + headerlen, 0);
-	sbuf_printf(sb, "\n%s\n", header[0]);
-	for (cp = kern_envp; cp != NULL; cp = kernenv_next(cp))
-		sbuf_printf(sb, "%s\n", cp);
-	sbuf_printf(sb, "\n%s\n", header[1]);
-	for (cp = static_hints; cp != NULL; cp = kernenv_next(cp))
-		sbuf_printf(sb, "%s\n", cp);
-	sbuf_finish(sb);
-        error = SYSCTL_OUT(req, sbuf_data(sb), sbuf_len(sb));
-	sbuf_delete(sb);
-	return (error);
+    if (kern_envp == NULL)
+	return(ENOENT);
+    
+    name++;
+    namelen--;
+    
+    if (namelen != 1)
+	return(EINVAL);
+
+    cp = kern_envp;
+    for (i = 0; i < name[0]; i++) {
+	cp = kernenv_next(cp);
+	if (cp == NULL)
+	    break;
+    }
+    
+    if (cp == NULL)
+	return(ENOENT);
+    
+    error = SYSCTL_OUT(req, cp, strlen(cp) + 1);
+    return (error);
 }
 
-SYSCTL_OID(_kern, OID_AUTO, env, CTLTYPE_STRING | CTLFLAG_RD,
-    NULL, 0, sysctl_kernenv, "A", "Kernel environment");
+SYSCTL_NODE(_kern, OID_AUTO, environment, CTLFLAG_RD, sysctl_kernenv, "kernel environment space");
 
 /*
  * Find the next entry after the one which (cp) falls within, return a
