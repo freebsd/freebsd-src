@@ -38,7 +38,7 @@
 .Ft int
 .Fn rfork_thread "int flags" "void *stack" "int (*func)(void *arg)" "void *arg"
 .Sh DESCRIPTION
-.Fn rfork_thread 3
+.Fn rfork_thread
 is a helper function for
 .Xr rfork 2 .
 It arranges for a new process to be created and the child process will
@@ -49,7 +49,7 @@ Using this function should avoid the need to implement complex stack
 swap code.
 .Sh RETURN VALUES
 Upon successful completion,
-.Fn rfork_thread 3
+.Fn rfork_thread
 returns the process ID of the child process to the parent process.
 Otherwise, a value of -1 is returned
 to the parent process, no child process is created, and the global
@@ -58,7 +58,7 @@ variable
 is set to indicate the error.
 .Pp
 The child process context is not aware of a return from the
-.Fn rfork_thread 3
+.Fn rfork_thread
 function as it begins executing directly with the supplied function.
 .Sh ERRORS
 See
@@ -72,6 +72,6 @@ for error return codes.
 .Xr vfork 2
 .Sh HISTORY
 The
-.Fn rfork_thread 3
+.Fn rfork_thread
 function call first appeared in
-.Fx 5.0
+.Fx 5.0 .
