@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.156 1997/08/13 11:22:21 jkh Exp $
+#	$Id: Makefile,v 1.157 1997/08/13 12:56:12 danny Exp $
 
 # -rw-r--r--
 BINOWN= root
@@ -21,7 +21,6 @@ BIN2=	motd
 
 # -rwxr-xr-x root.wheel, for the new cron root.wheel
 BIN3=	netstart pccard_ether
-CRONDIRS= cron.d/daily cron.d/weekly cron.d/monthly
 
 MTREE=	BSD.include.dist BSD.local.dist BSD.root.dist BSD.usr.dist \
 	BSD.var.dist BSD.x11.dist
@@ -52,7 +51,6 @@ distribution:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 ${BIN1} ${DESTDIR}/etc; \
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 666 ${BIN2} ${DESTDIR}/etc; \
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 755 ${BIN3} ${DESTDIR}/etc; \
-	tar -cBf - ${CRONDIRS} | tar -xvpBf - -C ${DESTDIR}/etc; \
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 crontab ${DESTDIR}/etc; \
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 600 /dev/null \
 	    ${DESTDIR}/var/cron/log; \
