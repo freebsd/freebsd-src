@@ -110,7 +110,11 @@
     <sect3 id="proc">
       <title>Platform-Specific Hardware Support</title>
 
-      <para></para>
+      <para arch="alpha">Support for the floppy interface is broken on
+        DS10-class systems.  The kernel probes the hardware correctly but
+        the floppy does not work properly.  Booting and installing from 
+        floppies is not affected.
+      </para>
 
     </sect3>
 
