@@ -354,11 +354,6 @@ ndis_attach(dev)
 	}
 
 	sc->ndis_txpending = sc->ndis_maxpkts;
-	sc->ndis_mbufs = malloc(sizeof(struct mbuf) * sc->ndis_maxpkts,
-	    M_DEVBUF, M_NOWAIT);
-                
-	if (sc->ndis_mbufs == NULL)
-		goto fail;
 
 	sc->ndis_oidcnt = 0;
 	/* Get supported oid list. */
@@ -489,13 +484,12 @@ ndis_rxeof(adapter, packets, pktcnt)
 
 	for (i = 0; i < pktcnt; i++) {
 		p = packets[i];
+		/* Stash the softc here so ptom can use it. */
+		p->np_rsvd[0] = (uint32_t *)sc;
 		if (ndis_ptom(&m0, p)) {
 			printf ("ndis%d: ptom failed\n", sc->ndis_unit);
 			ndis_return_packet(sc, p);
 		} else {
-			MEXTADD(m0, m0->m_data, m0->m_pkthdr.len,
-			    ndis_return_packet, sc, 0, EXT_NET_DRV);
-			m0->m_ext.ext_buf = (void *)p; /* XXX */
 			m0->m_pkthdr.rcvif = ifp;
 			ifp->if_ipackets++;
 			(*ifp->if_input)(ifp, m0);
@@ -520,23 +514,24 @@ ndis_txeof(adapter, packet, status)
 	ndis_miniport_block	*block;
 	struct ifnet		*ifp;
 	int			idx;
+	struct mbuf		*m;
 
 	block = (ndis_miniport_block *)adapter;
 	sc = (struct ndis_softc *)block->nmb_ifp;
 	ifp = block->nmb_ifp;
 
-	if (packet->np_rsvd[1] != NULL) {
-		idx = (int)packet->np_rsvd[1];
-		ifp->if_opackets++;
-		if (sc->ndis_mbufs[idx] != NULL) {
-			m_freem(sc->ndis_mbufs[idx]);
-			sc->ndis_mbufs[idx] = NULL;
-		}
-		if (sc->ndis_sc)
-			bus_dmamap_unload(sc->ndis_ttag, sc->ndis_tmaps[idx]);
-	}
+	if (packet->np_rsvd[1] == NULL)
+		panic("NDIS driver corrupted reserved packet fields");
+
+	m = (struct mbuf *)packet->np_rsvd[1];
+	idx = (int)packet->np_rsvd[0];
+	ifp->if_opackets++;
+	m_freem(m);
+	if (sc->ndis_sc)
+		bus_dmamap_unload(sc->ndis_ttag, sc->ndis_tmaps[idx]);
 
 	ndis_free_packet(packet);
+	sc->ndis_txarray[idx] = NULL;
 	sc->ndis_txpending++;
 
 	ifp->if_timer = 0;
@@ -667,6 +662,7 @@ ndis_start(ifp)
 
 		NDIS_LOCK(sc);
 		sc->ndis_txarray[sc->ndis_txidx] = NULL;
+
 		if (ndis_mtop(m, &sc->ndis_txarray[sc->ndis_txidx])) {
 			NDIS_UNLOCK(sc);
 			IF_PREPEND(&ifp->if_snd, m);
@@ -678,9 +674,9 @@ ndis_start(ifp)
 		 * so we can free it later.
 		 */
 
-		sc->ndis_mbufs[sc->ndis_txidx] = m;
-		(sc->ndis_txarray[sc->ndis_txidx])->np_rsvd[1] =
+		(sc->ndis_txarray[sc->ndis_txidx])->np_rsvd[0] =
 		    (uint32_t *)sc->ndis_txidx;
+		(sc->ndis_txarray[sc->ndis_txidx])->np_rsvd[1] = (uint32_t *)m;
 
 		/*
 		 * Do scatter/gather processing, if driver requested it.
@@ -780,6 +776,9 @@ ndis_init(xsc)
 
 	if (error)
 		printf ("set filter failed: %d\n", error);
+
+	sc->ndis_txidx = 0;
+	sc->ndis_txpending = sc->ndis_maxpkts;
 
 	ifp->if_flags |= IFF_RUNNING;
 	ifp->if_flags &= ~IFF_OACTIVE;
@@ -955,7 +954,7 @@ ndis_shutdown(dev)
 	struct ndis_softc		*sc;
 
 	sc = device_get_softc(dev);
-/*	ndis_shutdown_nic(sc); */
+	ndis_shutdown_nic(sc);
 
 	return;
 }

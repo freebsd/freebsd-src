@@ -814,14 +814,16 @@ typedef struct ndis_packet_oob ndis_packet_oob;
 struct ndis_packet {
 	ndis_packet_private	np_private;
 	union {
+		/* For connectionless miniports. */
 		struct {
 			uint8_t		np_miniport_rsvd[2 * sizeof(void *)];
 			uint8_t		np_wrapper_rsvd[2 * sizeof(void *)];
-		} np_rsvd;
+		} np_clrsvd;
+		/* For de-serialized miniports */
 		struct {
 			uint8_t		np_miniport_rsvdex[3 * sizeof(void *)];
 			uint8_t		np_wrapper_rsvdex[sizeof(void *)];
-		} np_rsvdrx;
+		} np_dsrsvd;
 		struct {
 			uint8_t		np_mac_rsvd[4 * sizeof(void *)];
 		} np_macrsvd;
@@ -839,6 +841,9 @@ struct ndis_packet {
 };
 
 typedef struct ndis_packet ndis_packet;
+
+/* mbuf ext type for NDIS */
+#define EXT_NDIS		0x999
 
 struct ndis_filterdbs {
 	union {
