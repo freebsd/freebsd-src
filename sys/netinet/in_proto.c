@@ -93,7 +93,15 @@
 #endif
 
 extern	struct domain inetdomain;
-static	struct pr_usrreqs nousrreqs;
+
+/* Spacer for loadable protocols. */
+#define IPPROTOSPACER   \
+{ 0,		&inetdomain,	PROTO_SPACER,	0,	\
+  NULL,		NULL,		NULL,		NULL,	\
+  NULL,							\
+  NULL,		NULL,		NULL,		NULL,	\
+  &nousrreqs						\
+}
 
 struct protosw inetsw[] = {
 { 0,		&inetdomain,	0,		0,
@@ -239,7 +247,16 @@ struct protosw inetsw[] = {
   &rip_usrreqs
 },
 #endif	/* DEV_PFSYNC */
-	/* raw wildcard */
+/* Spacer n-times for loadable protocols. */
+IPPROTOSPACER,
+IPPROTOSPACER,
+IPPROTOSPACER,
+IPPROTOSPACER,
+IPPROTOSPACER,
+IPPROTOSPACER,
+IPPROTOSPACER,
+IPPROTOSPACER,
+/* raw wildcard */
 { SOCK_RAW,	&inetdomain,	0,		PR_ATOMIC|PR_ADDR,
   rip_input,	0,		0,		rip_ctloutput,
   0,
