@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.25 1995/02/02 09:08:00 davidg Exp $
+ * $Id: swap_pager.c,v 1.26 1995/02/21 01:22:44 davidg Exp $
  */
 
 /*
@@ -1608,8 +1608,12 @@ swap_pager_finish(spc)
 	vm_object_t object = spc->spc_m[0]->object;
 	int i;
 
-	if ((object->paging_in_progress -= spc->spc_count) == 0)
+	object->paging_in_progress -= spc->spc_count;
+	if ((object->paging_in_progress == 0) &&
+	    (object->flags & OBJ_PIPWNT)) {
+		object->flags &= ~OBJ_PIPWNT;
 		thread_wakeup((int) object);
+	}
 
 	/*
 	 * If no error mark as clean and inform the pmap system. If error,
