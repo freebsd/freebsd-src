@@ -167,6 +167,9 @@ aarpwhohas( struct arpcom *ac, struct sockaddr_at *sat )
 		sizeof( eh->ether_dhost ));
 	eh->ether_type = htons(sizeof(struct llc) + sizeof(struct ether_aarp));
 	M_PREPEND( m, sizeof( struct llc ), M_TRYWAIT );
+	if ( m == NULL ) {
+	    return;
+	}
 	llc = mtod( m, struct llc *);
 	llc->llc_dsap = llc->llc_ssap = LLC_SNAP_LSAP;
 	llc->llc_control = LLC_UI;
@@ -581,6 +584,9 @@ aarpprobe( void *arg )
 	eh->ether_type = htons( sizeof( struct llc ) +
 		sizeof( struct ether_aarp ));
 	M_PREPEND( m, sizeof( struct llc ), M_TRYWAIT );
+	if ( m == NULL ) {
+	    return;
+	}
 	llc = mtod( m, struct llc *);
 	llc->llc_dsap = llc->llc_ssap = LLC_SNAP_LSAP;
 	llc->llc_control = LLC_UI;
