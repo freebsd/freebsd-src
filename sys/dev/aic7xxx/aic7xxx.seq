@@ -39,7 +39,7 @@
  *
  *-M************************************************************************/
 
-VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.40 1996/05/31 06:30:15 gibbs Exp $"
+VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.16.4.16 1996/06/08 07:10:18 gibbs Exp $"
 
 #if defined(__NetBSD__)
 #include "../../../../dev/ic/aic7xxxreg.h"
@@ -340,11 +340,28 @@ data_phase_init:
 	or	FLAGS, DPHASE		/* We have seen a data phase */
 
 data_phase_loop:
+/* Guard against overruns */
+	test	SG_COUNT, 0xff jnz data_phase_inbounds
+/*
+ * Turn on 'Bit Bucket' mode, set the transfer count to
+ * 16meg and let the target run until it changes phase.
+ * When the transfer completes, notify the host that we
+ * had an overrun.
+ */
+	or	SXFRCTL1,BITBUCKET
+	mvi	STCNT0,0xff
+	mvi	STCNT1,0xff
+	mvi	STCNT2,0xff
+
+data_phase_inbounds:
 /* If we are the last SG block, don't set wideodd. */
 	cmp	SG_COUNT,0x01 jne data_phase_wideodd
 	and	DMAPARAMS, 0xbf		/* Turn off WIDEODD */
 data_phase_wideodd:
 	mov	DMAPARAMS  call dma
+
+/* Go tell the host about any overruns */
+	test	SXFRCTL1,BITBUCKET jnz data_phase_overrun
 
 /* Exit if we had an underrun */
 	test	SSTAT0,SDONE	jz data_phase_finish /* underrun STCNT != 0 */
@@ -445,6 +462,14 @@ data_phase_finish:
 	mov	SCB_RESID_DCNT1,STCNT1
 	mov	SCB_RESID_DCNT2,STCNT2
 	mov	SCB_RESID_SGCNT, SG_COUNT
+	jmp	ITloop
+
+data_phase_overrun:
+/*
+ * Turn off BITBUCKET mode and notify the host
+ */
+	and	SXFRCTL1,0x7f		/* ~BITBUCKET */
+	mvi	INTSTAT,DATA_OVERRUN
 	jmp	ITloop
 
 /*

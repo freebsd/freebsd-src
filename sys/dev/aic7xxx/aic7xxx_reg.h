@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7xxx_reg.h,v 1.11 1996/05/21 18:32:23 gibbs Exp $
+ *	$Id: aic7xxx_reg.h,v 1.2.2.7 1996/06/08 07:10:24 gibbs Exp $
  */
 
 /*
@@ -433,6 +433,11 @@
 						 * Target changed phase on us
 						 * when we were expecting
 						 * another msgin byte.
+						 */
+#define			DATA_OVERRUN	0xe1	/*
+						 * Target attempted to write
+						 * beyond the bounds of its
+						 * command.
 						 */
 #define 	BRKADRINT 0x08
 #define		SCSIINT	  0x04
