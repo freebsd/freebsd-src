@@ -45,44 +45,74 @@
 
 #include <machine/tte.h>
 
+#define	DCACHE_COLOR_BITS	(1)
+#define	DCACHE_COLORS		(1 << DCACHE_COLOR_BITS)
+#define	DCACHE_COLOR_MASK	(DCACHE_COLORS - 1)
+#define	DCACHE_COLOR(va)	(((va) >> PAGE_SHIFT) & DCACHE_COLOR_MASK)
+
 #define	PMAP_CONTEXT_MAX	8192
 
 #define	pmap_resident_count(pm)	(pm->pm_stats.resident_count)
 
+struct pv_entry;
+
 typedef	struct pmap *pmap_t;
+typedef struct pv_entry *pv_entry_t;
 
 struct md_page {
+	TAILQ_HEAD(, pv_entry) pv_list;
+	int	pv_list_count;
+	int	colors[DCACHE_COLORS];
 };
 
 struct pmap {
-	struct	stte pm_stte;
-	vm_object_t pm_object;
+	TAILQ_HEAD(,pv_entry) pm_pvlist;
+	struct	tte *pm_tsb;
+	struct	tte *pm_tsb_tte;
+	vm_object_t pm_tsb_obj;
 	u_int	pm_active;
 	u_int	pm_context;
 	u_int	pm_count;
-	u_int	pm_pages;
 	struct	pmap_statistics pm_stats;
+};
+
+struct pv_entry {
+	TAILQ_ENTRY(pv_entry) pv_list;
+	TAILQ_ENTRY(pv_entry) pv_plist;
+	pmap_t	pv_pmap;
+	vm_offset_t pv_va;
+	vm_page_t pv_m;
 };
 
 void	pmap_bootstrap(vm_offset_t ekva);
 vm_offset_t pmap_kextract(vm_offset_t va);
 void	pmap_kenter_flags(vm_offset_t va, vm_offset_t pa, u_long flags);
 
+int	pmap_cache_enter(vm_page_t m, vm_offset_t va);
+void	pmap_cache_remove(vm_page_t m, vm_offset_t va);
+
 #define	vtophys(va)	pmap_kextract(((vm_offset_t) (va)))
 
 extern	vm_offset_t avail_start;
 extern	vm_offset_t avail_end;
-extern	struct pmap *kernel_pmap;
+extern	struct pmap kernel_pmap_store;
+#define	kernel_pmap	(&kernel_pmap_store)
 extern	vm_offset_t phys_avail[];
 extern	vm_offset_t virtual_avail;
 extern	vm_offset_t virtual_end;
+extern	vm_offset_t kernel_page;
+
+extern	int pmap_pagedaemon_waken;
 
 extern	vm_offset_t msgbuf_phys;
 
 static __inline int
-pmap_track_modified(vm_offset_t va)
+pmap_track_modified(pmap_t pm, vm_offset_t va)
 {
-	return ((va < kmi.clean_sva) || (va >= kmi.clean_eva));
+	if (pm == kernel_pmap)
+		return ((va < kmi.clean_sva) || (va >= kmi.clean_eva));
+	else
+		return (1);
 }
 
 #endif /* !_MACHINE_PMAP_H_ */
