@@ -954,9 +954,9 @@ dotrim(const struct conf_entry *ent, char *log, int numdays, int flags)
 	}
 
 	if (noaction) {
-		printf("rm -f %s\n", file1);
-		printf("rm -f %s\n", zfile1);
-		printf("rm -f %s\n", jfile1);
+		printf("\trm -f %s\n", file1);
+		printf("\trm -f %s\n", zfile1);
+		printf("\trm -f %s\n", jfile1);
 	} else {
 		(void) unlink(file1);
 		(void) unlink(zfile1);
@@ -995,10 +995,10 @@ dotrim(const struct conf_entry *ent, char *log, int numdays, int flags)
 			}
 		}
 		if (noaction) {
-			printf("mv %s %s\n", zfile1, zfile2);
-			printf("chmod %o %s\n", ent->permissions, zfile2);
+			printf("\tmv %s %s\n", zfile1, zfile2);
+			printf("\tchmod %o %s\n", ent->permissions, zfile2);
 			if (ent->uid != (uid_t)-1 || ent->gid != (gid_t)-1)
-				printf("chown %u:%u %s\n",
+				printf("\tchown %u:%u %s\n",
 				    ent->uid, ent->gid, zfile2);
 		} else {
 			(void) rename(zfile1, zfile2);
@@ -1016,12 +1016,12 @@ dotrim(const struct conf_entry *ent, char *log, int numdays, int flags)
 
 	if (!_numdays) {
 		if (noaction)
-			printf("rm %s\n", log);
+			printf("\trm %s\n", log);
 		else
 			(void) unlink(log);
 	} else {
 		if (noaction)
-			printf("mv %s to %s\n", log, file1);
+			printf("\tmv %s to %s\n", log, file1);
 		else {
 			if (archtodir)
 				movefile(log, file1, ent->permissions, ent->uid,
@@ -1032,11 +1032,12 @@ dotrim(const struct conf_entry *ent, char *log, int numdays, int flags)
 	}
 
 	/* Now move the new log file into place */
-	if (noaction)
+	strlcpy(tfile, log, sizeof(tfile));
+	strlcat(tfile, ".XXXXXX", sizeof(tfile));
+	if (noaction) {
 		printf("Start new log...\n");
-	else {
-		strlcpy(tfile, log, sizeof(tfile));
-		strlcat(tfile, ".XXXXXX", sizeof(tfile));
+		printf("\tmktemp %s\n", tfile);
+	} else {
 		mkstemp(tfile);
 		fd = creat(tfile, ent->permissions);
 		if (fd < 0)
@@ -1051,9 +1052,10 @@ dotrim(const struct conf_entry *ent, char *log, int numdays, int flags)
 				err(1, "can't add status message to log");
 		}
 	}
-	if (noaction)
-		printf("chmod %o %s...\n", ent->permissions, log);
-	else {
+	if (noaction) {
+		printf("\tchmod %o %s\n", ent->permissions, tfile);
+		printf("\tmv %s %s\n", tfile, log);
+	} else {
 		(void) chmod(tfile, ent->permissions);
 		if (rename(tfile, log) < 0) {
 			err(1, "can't start new log");
@@ -1083,7 +1085,7 @@ dotrim(const struct conf_entry *ent, char *log, int numdays, int flags)
 	if (pid) {
 		if (noaction) {
 			notified = 1;
-			printf("kill -%d %d\n", ent->sig, (int) pid);
+			printf("\tkill -%d %d\n", ent->sig, (int) pid);
 		} else if (kill(pid, ent->sig))
 			warn("can't notify daemon, pid %d", (int) pid);
 		else {
@@ -1095,10 +1097,13 @@ dotrim(const struct conf_entry *ent, char *log, int numdays, int flags)
 	if ((flags & CE_COMPACT) || (flags & CE_BZCOMPACT)) {
 		if (need_notification && !notified)
 			warnx(
-			    "log %s not compressed because daemon not notified",
+			    "log %s.0 not compressed because daemon not notified",
 			    log);
 		else if (noaction)
-			printf("Compress %s.0\n", log);
+			if (flags & CE_COMPACT)
+				printf("\tgzip %s.0\n", log);
+			else
+				printf("\tbzip2 %s.0\n", log);
 		else {
 			if (notified) {
 				if (verbose)
@@ -1420,7 +1425,7 @@ createdir(char *dirpart)
 		res = lstat(mkdirpath, &st);
 		if (res != 0) {
 			if (noaction) {
-				printf("mkdir %s\n", mkdirpath);
+				printf("\tmkdir %s\n", mkdirpath);
 			} else {
 				res = mkdir(mkdirpath, 0755);
 				if (res != 0)
