@@ -32,12 +32,16 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)get_addrs.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
-#include <string.h>
+#include <err.h>
 #include <netdb.h>
-#include <stdio.h>
+#include <string.h>
 #include "talk.h"
 #include "talk_ctl.h"
 
@@ -51,22 +55,14 @@ get_addrs(my_machine_name, his_machine_name)
 	msg.pid = htonl(getpid());
 
 	hp = gethostbyname(his_machine_name);
-	if (hp == NULL) {
-		fprintf(stderr, "talk: %s: ", his_machine_name);
-		herror((char *)NULL);
-		exit(-1);
-	}
+	if (hp == NULL)
+		errx(1, "%s: %s", his_machine_name, hstrerror(h_errno));
 	bcopy(hp->h_addr, (char *) &his_machine_addr, hp->h_length);
-	if (get_iface(&his_machine_addr, &my_machine_addr) == -1) {
-		perror("failed to find my interface address");
-		exit(-1);
-	}
+	if (get_iface(&his_machine_addr, &my_machine_addr) == -1)
+		err(1, "failed to find my interface address");
 	/* find the server's port */
 	sp = getservbyname("ntalk", "udp");
-	if (sp == 0) {
-		fprintf(stderr, "talk: %s/%s: service is not registered.\n",
-		     "ntalk", "udp");
-		exit(-1);
-	}
+	if (sp == 0)
+		errx(1, "ntalk/udp: service is not registered");
 	daemon_port = sp->s_port;
 }

@@ -32,14 +32,17 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)look_up.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
+#include <errno.h>
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <netinet/in.h>
 #include <protocols/talkd.h>
-#include <errno.h>
 #include "talk_ctl.h"
 #include "talk.h"
 
