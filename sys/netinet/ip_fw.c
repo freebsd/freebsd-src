@@ -587,7 +587,7 @@ remove_dyn_rule(struct ip_fw_chain *chain, int force)
 }
 
 static struct ipfw_dyn_rule *
-lookup_dyn_rule(struct ipfw_flow_id *pkt)
+lookup_dyn_rule(struct ipfw_flow_id *pkt, int *match_direction)
 {
     /*
      * stateful ipfw extensions.
@@ -601,9 +601,19 @@ lookup_dyn_rule(struct ipfw_flow_id *pkt)
 	return NULL ;
     i = hash_packet( pkt );
     for (prev=NULL, q = ipfw_dyn_v[i] ; q != NULL ; ) {
-	switch (q->type) {
-        default:        /* bidirectional rule, no masks */
-            if ( pkt->proto == q->id.proto) {
+       if (TIME_LEQ( q->expire , time_second ) ) { /* expire entry */
+           old_q = q ;
+           if (prev != NULL)
+               prev->next = q = q->next ;
+           else
+               ipfw_dyn_v[i] = q = q->next ;
+           dyn_count-- ;
+           free(old_q, M_IPFW);
+           continue ;
+	}
+	if ( pkt->proto == q->id.proto) {
+	    switch (q->type) {
+	    default:        /* bidirectional rule, no masks */
 		if (pkt->src_ip == q->id.src_ip &&
 			pkt->dst_ip == q->id.dst_ip &&
 			pkt->src_port == q->id.src_port &&
@@ -618,66 +628,54 @@ lookup_dyn_rule(struct ipfw_flow_id *pkt)
 		   dir = 0 ; /* reverse match */
 		   goto found ;
 		}
+		break ;
 	    }
-	    break ;
-       }
-       if (TIME_LEQ( q->expire , time_second ) ) {
-           /* expire entry */
-           old_q = q ;
-           if (prev != NULL)
-               prev->next = q = q->next ;
-           else
-               ipfw_dyn_v[i] = q = q->next ;
-           dyn_count-- ;
-           free(old_q, M_IPFW);
-           continue ;
-       } else {
-           prev = q ;
-           q = q->next ;
-       }
+	}
+	prev = q ;
+	q = q->next ;
     }
     return NULL ; /* clearly not found */
 found:
-    if (q != NULL) { /* redundant check! */
-	if ( prev != NULL) { /* found and not in front */
-	    prev->next = q->next ;
-	    q->next = ipfw_dyn_v[i] ;
-	    ipfw_dyn_v[i] = q ;
-	}
-	if (pkt->proto == IPPROTO_TCP) {
-	    /* update state according to flags */
-	    u_char flags = pkt->flags & (TH_FIN|TH_SYN|TH_RST);
-	    q->state |= (dir == MATCH_FORWARD ) ? flags : (flags << 8);
-	    switch (q->state) {
-	    case TH_SYN :
-		/* opening */
-		q->expire = time_second + dyn_syn_lifetime ;
-		break ;
-	    case TH_SYN | (TH_SYN << 8) :
-		/* move to established */
-		q->expire = time_second + dyn_ack_lifetime ;
-		break ;
-	    case TH_SYN | (TH_SYN << 8) | TH_FIN :
-	    case TH_SYN | (TH_SYN << 8) | (TH_FIN << 8) :
-		/* one side tries to close */
-		q->expire = time_second + dyn_fin_lifetime ;
-		break ;
-	    case TH_SYN | (TH_SYN << 8) | TH_FIN | (TH_FIN << 8) :
-		/* both sides closed */
-		q->expire = time_second + dyn_fin_lifetime ;
-		break ;
-	    default:
-		/* reset or some invalid combination */
-		if ( (q->state & ((TH_RST << 8)|TH_RST)) == 0)
-		    printf("invalid state: 0x%x\n", q->state);
-		q->expire = time_second + dyn_rst_lifetime ;
-		break ;
-	    }
-	} else {
-	    /* should do something for UDP and others... */
-	    q->expire = time_second + dyn_short_lifetime ;
-	}
+    if ( prev != NULL) { /* found and not in front */
+	prev->next = q->next ;
+	q->next = ipfw_dyn_v[i] ;
+	ipfw_dyn_v[i] = q ;
     }
+    if (pkt->proto == IPPROTO_TCP) {
+	/* update state according to flags */
+	u_char flags = pkt->flags & (TH_FIN|TH_SYN|TH_RST);
+	q->state |= (dir == MATCH_FORWARD ) ? flags : (flags << 8);
+	switch (q->state) {
+	case TH_SYN :
+	    /* opening */
+	    q->expire = time_second + dyn_syn_lifetime ;
+	    break ;
+	case TH_SYN | (TH_SYN << 8) :
+	    /* move to established */
+	    q->expire = time_second + dyn_ack_lifetime ;
+	    break ;
+	case TH_SYN | (TH_SYN << 8) | TH_FIN :
+	case TH_SYN | (TH_SYN << 8) | (TH_FIN << 8) :
+	    /* one side tries to close */
+	    q->expire = time_second + dyn_fin_lifetime ;
+	    break ;
+	case TH_SYN | (TH_SYN << 8) | TH_FIN | (TH_FIN << 8) :
+	    /* both sides closed */
+	    q->expire = time_second + dyn_fin_lifetime ;
+	    break ;
+	default:
+	    /* reset or some invalid combination */
+	    if ( (q->state & ((TH_RST << 8)|TH_RST)) == 0)
+		printf("invalid state: 0x%x\n", q->state);
+	    q->expire = time_second + dyn_rst_lifetime ;
+	    break ;
+	}
+    } else {
+	/* should do something for UDP and others... */
+	q->expire = time_second + dyn_short_lifetime ;
+    }
+    if (match_direction)
+	*match_direction = dir ;
     return q ;
 }
 
@@ -753,7 +751,7 @@ install_state(struct ip_fw_chain *chain, struct ip **pip, struct ip *ip)
        (last_pkt.src_ip), (last_pkt.src_port),
        (last_pkt.dst_ip), (last_pkt.dst_port) );)
 
-    q = lookup_dyn_rule(&last_pkt) ;
+    q = lookup_dyn_rule(&last_pkt, NULL) ;
     if (q != NULL) {
        printf(" entry already present, done\n");
        return ;
@@ -769,7 +767,7 @@ install_state(struct ip_fw_chain *chain, struct ip **pip, struct ip *ip)
        add_dyn_rule(&last_pkt, NULL, chain);
        break ;
     }
-    q = lookup_dyn_rule(&last_pkt) ; /* XXX this just sets the lifetime ... */
+    q = lookup_dyn_rule(&last_pkt, NULL) ; /* XXX this just sets the lifetime ... */
 }
 #endif /* STATEFUL */
 
@@ -844,6 +842,7 @@ ip_fw_chk(struct ip **pip, int hlen,
 
 #if STATEFUL
 	int dyn_checked = 0 ; /* set after dyn.rules have been checked. */
+	int direction = MATCH_FORWARD ; /* dirty trick... */
 	struct ipfw_dyn_rule *q = NULL ;
 #endif
 	/* Grab and reset cookie */
@@ -990,12 +989,14 @@ again:
 			 dyn_checked == 0 ) {
 		    dyn_checked = 1 ;
 		    if (ip)
-			q = lookup_dyn_rule(&last_pkt);
+			q = lookup_dyn_rule(&last_pkt, &direction);
 		    if (q != NULL) {
-			DEB(printf("-- dynamic match 0x%08x %d -> 0x%08x %d\n",
+			DEB(printf("-- dynamic match 0x%08x %d %s 0x%08x %d\n",
 			    (q->id.src_ip), (q->id.src_port),
+			    (direction == MATCH_FORWARD ? "-->" : "<--"),
 			    (q->id.dst_ip), (q->id.dst_port) ); )
 			chain = q->chain ;
+			f = chain->rule ;
 			q->pcnt++ ;
 			if (ip)
 			    q->bcnt += ip->ip_len;
@@ -1247,13 +1248,10 @@ rnd_then_got_match:
 got_match:
 #if STATEFUL   /* stateful ipfw */
 		/*
-		 * If have a dynamic match (q != NULL) set f to the right rule;
-		 * else, if have keep-state, install a new dynamic entry.
-		 * The packet info is in last_pkt.
+		 * If not a dynamic match (q == NULL) and keep-state, install
+		 * a new dynamic entry.
 		 */
-		if (q != NULL)
-		    f = chain->rule ;
-		else if (f->fw_flg & IP_FW_F_KEEP_S)
+		if (q == NULL && f->fw_flg & IP_FW_F_KEEP_S)
 		    install_state(chain, pip, ip);
 #endif
 		*flow_id = chain ; /* XXX set flow id */
@@ -1305,7 +1303,8 @@ got_match:
 			 * your favourite deity] that ip_output doesn't modify
 			 * the new value of next_hop (which is dst there)
 			 */
-			if (next_hop != NULL) /* Make sure, first... */
+			if (next_hop != NULL /* Make sure, first... */
+			    && (q == NULL || direction == MATCH_FORWARD) )
 				*next_hop = &(f->fw_fwd_ip);
 			return(0); /* Allow the packet */
 #endif
