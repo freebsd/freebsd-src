@@ -56,149 +56,117 @@ all of these support routines are implemented in
 .Fx .
 .Pp
 Available functions, sorted by behavior, include:
-.Pp
-.Fn acl_add_perm
-.Pp
+.Bl -tag -width indent
+.It Fn acl_add_perm
 This function is described in
 .Xr acl_add_perm 3 ,
 and may be used to add permissions to a permission set.
-.Pp
-.Fn acl_calc_mask
-.Pp
+.It Fn acl_calc_mask
 This function is described in
 .Xr acl_calc_mask 3 ,
 and may be used to calculate and set the permissions associated with
-the ACL_MASK entry.
-.Pp
-.Fn acl_clear_perms
-.Pp
+the
+.Dv ACL_MASK
+entry.
+.It Fn acl_clear_perms
 This function is described in
 .Xr acl_clear_perms 3 ,
 and may be used to clear all permissions from a permission set.
-.Pp
-.Fn acl_copy_entry
-.Pp
+.It Fn acl_copy_entry
 This function is described in
 .Xr acl_copy_entry 3 ,
 and may be used to copy the contents of an ACL entry.
-.Pp
-.Fn acl_create_entry
-.Pp
+.It Fn acl_create_entry
 This function is described in
 .Xr acl_create_entry 3 ,
 and may be used to create an empty entry in an ACL.
-.Pp
+.It Xo
 .Fn acl_delete_def_file ,
 .Fn acl_delete_file_np ,
 .Fn acl_delete_fd_np
-.Pp
+.Xc
 These functions are described in
 .Xr acl_delete 3 ,
 and may be used to delete ACLs from file system objects.
-.Pp
-.Fn acl_delete_entry
-.Pp
+.It Fn acl_delete_entry
 This function is described in
 .Xr acl_delete_entry 3 ,
 and may be used to delete an entry from an ACL.
-.Pp
-.Fn acl_delete_perm
-.Pp
+.It Fn acl_delete_perm
 This function is described in
 .Xr acl_delete_perm 3 ,
 and may be used to delete permissions from a permset.
-.Pp
-.Fn acl_dup
-.Pp
+.It Fn acl_dup
 This function is described in
 .Xr acl_dup 3 ,
 and may be used to duplicate an ACL structure.
-.Pp
-.Fn acl_free
-.Pp
+.It Fn acl_free
 This function is described in
 .Xr acl_free 3 ,
 and may be used to free userland working ACL storage.
-.Pp
-.Fn acl_from_text
-.Pp
+.It Fn acl_from_text
 This function is described in
 .Xr acl_from_text 3 ,
 and may be used to convert a text-form ACL into working ACL state, if
 the ACL has POSIX.1e semantics.
-.Pp
+.It Xo
 .Fn acl_get_file ,
 .Fn acl_get_fd ,
 .Fn acl_get_fd_np
-.Pp
+.Xc
 These functions are described in
 .Xr acl_get 3 ,
 and may be used to retrieve ACLs from file system objects.
-.Pp
-.Fn acl_get_permset
-.Pp
+.It Fn acl_get_permset
 This function is described in
 .Xr acl_get_permset 3 ,
 and may be used to retrieve a permset from an ACL entry.
-.Pp
-.Fn acl_get_qualifier
-.Pp
+.It Fn acl_get_qualifier
 This function is described in
 .Xr acl_get_qualifier 3 ,
 and may be used to retrieve the qualifier from an ACL entry.
-.Pp
-.Fn acl_get_tag_type
-.Pp
+.It Fn acl_get_tag_type
 This function is described in
 .Xr acl_get_tag_type 3 ,
 and may be used to retrieve the tag type from an ACL entry.
-.Pp
-.Fn acl_init
-.Pp
+.It Fn acl_init
 This function is described in
 .Xr acl_init 3 ,
 and may be used to allocate a fresh (empty) ACL structure.
-.Pp
+.It Xo
 .Fn acl_set_file ,
 .Fn acl_set_fd ,
 .Fn acl_set_fd_np
-.Pp
+.Xc
 These functions are described in
 .Xr acl_set 3 ,
 and may be used to assign an ACL to a file system object.
-.Pp
-.Fn acl_set_permset
-.Pp
+.It Fn acl_set_permset
 This function is described in
 .Xr acl_set_permset 3 ,
 and may be used to set the permissions of an ACL entry from a permset.
-.Pp
-.Fn acl_set_qualifier
-.Pp
+.It Fn acl_set_qualifier
 This function is described in
 .Xr acl_set_qualifier 3 ,
 and may be used to set the qualifier of an ACL.
-.Pp
-.Fn acl_set_tag_type
-.Pp
+.It Fn acl_set_tag_type
 This function is described in
 .Xr acl_set_tag_type 3 ,
 and may be used to set the tag type of an ACL.
-.Pp
-.Fn acl_to_text
-.Pp
+.It Fn acl_to_text
 This function is described in
 .Xr acl_to_text 3 ,
 and may be used to generate a text-form of a POSIX.1e semantics ACL.
-.Pp
+.It Xo
 .Fn acl_valid ,
 .Fn acl_valid_file_np ,
 .Fn acl_valid_fd_np
-.Pp
-Thee functions are described in
+.Xc
+These functions are described in
 .Xr acl_valid 3 ,
 and may be used to validate an ACL as correct POSIX.1e-semantics, or
 as appropriate for a particular file system object regardless of semantics.
+.El
 .Pp
 Documentation of the internal kernel interfaces backing these calls may
 be found in
