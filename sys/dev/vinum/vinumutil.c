@@ -45,6 +45,7 @@
 #include <dev/vinum/statetexts.h>
 #ifndef _KERNEL
 #include <stdio.h>
+#include <string.h>
 extern jmp_buf command_fail;				    /* return on a failed command */
 #endif
 
