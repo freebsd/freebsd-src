@@ -55,7 +55,7 @@ fi
 #######################################################################
 
 cat >${TOP}/i386/conf/files.${UPPER} <<DONE
-i386/isa/${1}.c	 optional ${1} device-driver
+dev/${1}/${1}.c	 optional ${1}
 DONE
 
 #######################################################################
@@ -64,14 +64,14 @@ DONE
 cat >${TOP}/i386/conf/${UPPER} <<DONE
 # Configuration file for kernel type: ${UPPER}
 ident	${UPPER}
-# \$FreeBSD$"
+# \$Free\0x42SD: src/share/examples/drivers/make_device_driver.sh,v 1.8 2000/10/25 15:08:11 julian Exp $"
 DONE
 
 grep -v GENERIC < /sys/i386/conf/GENERIC >>${TOP}/i386/conf/${UPPER}
 
 cat >>${TOP}/i386/conf/${UPPER} <<DONE
-options	DDB		# trust me, you'll need this
-device ${1} at isa?
+options		DDB		# trust me, you'll need this
+device		${1}
 DONE
 
 if [ ! -d ${TOP}/dev/${1} ]
@@ -133,6 +133,8 @@ cat >${TOP}/dev/${1}/${1}.c <<DONE
 static int ${1}_isa_probe (device_t);
 static int ${1}_isa_attach (device_t);
 static int ${1}_isa_detach (device_t);
+static int ${1}_deallocate_resources(device_t device);
+static int ${1}_allocate_resources(device_t device);
 
 static d_open_t		${1}open;
 static d_close_t	${1}close;
@@ -190,7 +192,7 @@ struct ${1}_softc {
 
 typedef	struct ${1}_softc *sc_p;
 
-devclass_t ${1}_devclass;
+static devclass_t ${1}_devclass;
 
 static struct isa_pnp_id ${1}_ids[] = {
 	{0x12345678, "ABCco Widget"},
@@ -223,14 +225,6 @@ ${1}_isa_probe (device_t device)
 {
 	int error;
 	sc_p scp = device_get_softc(device);
-	bus_space_handle_t  bh;
-	bus_space_tag_t bt;
-	struct resource* res_ioport;	/* resource for port range */
-	struct resource* res_memory;	/* resource for mem range */
-	struct resource* res_irq;	/* resource for irq range */
-	struct resource* res_drq;	/* resource for dma channel */
-	int	size = 16; /* SIZE of port range used */
-
 
 	bzero(scp, sizeof(*scp));
 	scp->device = device;
@@ -248,67 +242,35 @@ ${1}_isa_probe (device_t device)
 	case 0:
 		/*
 		 * We found a PNP device.
-		 * Fall through into the code that just looks
-		 * for a non PNP device as that should 
-		 * act as a good filter for bad stuff.
+		 * Do nothing, as it's all done in attach()
 		 */
+		break;
 	case ENOENT:
 		/*
 		 * Well it didn't show up in the PNP tables
 		 * so look directly at known ports (if we have any)
 		 * in case we are looking for an old pre-PNP card.
 		 *
-		 * The ports etc should come from a 'hints' section
+		 * I think the ports etc should come from a 'hints' section
 		 * buried somewhere. XXX - still not figured out.
 		 * which is read in by code in isa/isahint.c
 		 */
-  
-        	res_ioport = bus_alloc_resource(device, SYS_RES_IOPORT,
-				&scp->rid_ioport, 0ul, ~0ul, size, RF_ACTIVE);
-        	if (res_ioport == NULL) {
-			error = ENXIO;
-			goto errexit;
-        	}
-		res_irq = bus_alloc_resource(device, SYS_RES_IRQ,
-				&scp->rid_irq, 0ul, ~0ul, 1, RF_SHAREABLE);
-        	if (res_irq == NULL) {
-			error = ENXIO;
-			goto errexit;
-        	}
-		res_drq = bus_alloc_resource(device, SYS_RES_DRQ,
-				&scp->rid_drq, 0ul, ~0ul, 1, RF_ACTIVE);
-        	if (res_drq == NULL) {
-			error = ENXIO;
-			goto errexit;
-        	}
-        	res_memory = bus_alloc_resource(device, SYS_RES_IOPORT,
-				&scp->rid_memory, 0ul, ~0ul, MSIZE, RF_ACTIVE);
-        	if (res_memory == NULL) {
-			error = ENXIO;
-			goto errexit;
-        	}
-
-                scp->res_ioport = res_ioport;
-                scp->res_memory = res_memory;
-                scp->res_drq = res_drq;
-                scp->res_irq = res_irq;
-		scp->bt = bt = rman_get_bustag(res_ioport);
-		scp->bh = bh = rman_get_bushandle(res_ioport);
-
+#if 0 /* till I work out how to find ht eport from the hints */
 		if ( ${UPPER}_INB(SOME_PORT) != EXPECTED_VALUE) {
 			/* 
-			 * It isn't what we expected,
-			 * so release everything and quit looking for it.
+			 * It isn't what we expected, so quit looking for it.
 			 */
-			goto errexit;
+			error = ENXIO;
+		} else {
+			/*
+			 * We found one..
+			 */
+			error = 0;
 		}
-		error = 0;
+#endif
 		break;
 	case  ENXIO:
 		/* not ours, leave imediatly */
-errexit:
-		/* cleanup anything we may have assigned. */
-		${1}_isa_detach(device);
 	default:
 		error = ENXIO;
 	}
@@ -322,21 +284,39 @@ errexit:
 static int
 ${1}_isa_attach (device_t device)
 {
-	int	unit = device_get_unit(device);
-	sc_p scp = device_get_softc(device);
-	device_t parent = device_get_parent(device);
+	int	unit	= device_get_unit(device);
+	sc_p	scp	= device_get_softc(device);
+	device_t parent	= device_get_parent(device);
+	bus_space_handle_t  bh;
+	bus_space_tag_t bt;
 
-	scp->dev = make_dev(&${1}_cdevsw, 0, 0, 0, 0600, "${1}%d", unit);
 	scp->dev->si_drv1 = scp;
-	/* register the interrupt handler as default */
+	scp->dev = make_dev(&${1}_cdevsw, 0,
+			UID_ROOT, GID_OPERATOR, 0600, "${1}%d", unit);
+
+	if (${1}_allocate_resources(device)) {
+		goto errexit;
+	}
+
+	scp->bt = bt = rman_get_bustag(scp->res_ioport);
+	scp->bh = bh = rman_get_bushandle(scp->res_ioport);
+
+	/* register the interrupt handler */
 	if (scp->res_irq) {
 		/* default to the tty mask for registration */  /* XXX */
 		if (BUS_SETUP_INTR(parent, device, scp->res_irq, INTR_TYPE_TTY,
-				${1}intr, device, &scp->intr_cookie) == 0) {
+				${1}intr, scp, &scp->intr_cookie) == 0) {
 			/* do something if successfull */
 		}
 	}
 	return 0;
+
+errexit:
+	/*
+	 * Undo anything we may have done
+	 */
+	${1}_isa_detach(device);
+	return (ENXIO);
 }
 
 static int
@@ -345,11 +325,79 @@ ${1}_isa_detach (device_t device)
 	sc_p scp = device_get_softc(device);
 	device_t parent = device_get_parent(device);
 
-	if (scp->res_irq != 0) {
+	/*
+	 * At this point stick a strong piece of wood into the device
+	 * to make sure it is stopped safely. The alternative is to 
+	 * simply REFUSE to detach if it's busy. What you do depends on 
+	 * your specific situation.
+	 */
+	/* ZAP some register */
+
+	/*
+	 * Take our interrupt handler out of the list of handlers
+	 * that can handle this irq.
+	 */
+	if (scp->intr_cookie != NULL) {
 		if (BUS_TEARDOWN_INTR(parent, device,
 			scp->res_irq, scp->intr_cookie) != 0) {
 				printf("intr teardown failed.. continuing\n");
 		}
+		scp->intr_cookie = NULL;
+	}
+
+	/*
+	 * deallocate any system resources we may have
+	 * allocated on behalf of this driver.
+	 */
+	return ${1}_deallocate_resources(device);
+}
+
+static int
+${1}_allocate_resources(device_t device)
+{
+	int error;
+	sc_p scp = device_get_softc(device);
+	int	size = 16; /* SIZE of port range used */
+
+	scp->res_ioport = bus_alloc_resource(device, SYS_RES_IOPORT,
+			&scp->rid_ioport, 0ul, ~0ul, size, RF_ACTIVE);
+	if (scp->res_ioport == NULL) {
+		goto errexit;
+	}
+
+	scp->res_irq = bus_alloc_resource(device, SYS_RES_IRQ,
+			&scp->rid_irq, 0ul, ~0ul, 1, RF_SHAREABLE);
+	if (scp->res_irq == NULL) {
+		goto errexit;
+	}
+
+	scp->res_drq = bus_alloc_resource(device, SYS_RES_DRQ,
+			&scp->rid_drq, 0ul, ~0ul, 1, RF_ACTIVE);
+	if (scp->res_drq == NULL) {
+		goto errexit;
+	}
+
+	scp->res_memory = bus_alloc_resource(device, SYS_RES_IOPORT,
+			&scp->rid_memory, 0ul, ~0ul, MSIZE, RF_ACTIVE);
+	if (scp->res_memory == NULL) {
+		goto errexit;
+	}
+
+	return (0);
+
+errexit:
+	error = ENXIO;
+	/* cleanup anything we may have assigned. */
+	${1}_deallocate_resources(device);
+	return (ENXIO); /* for want of a better idea */
+}
+
+static int
+${1}_deallocate_resources(device_t device)
+{
+	sc_p scp = device_get_softc(device);
+
+	if (scp->res_irq != 0) {
 		bus_deactivate_resource(device, SYS_RES_IRQ,
 			scp->rid_irq, scp->res_irq);
 		bus_release_resource(device, SYS_RES_IRQ,
@@ -386,8 +434,7 @@ ${1}_isa_detach (device_t device)
 static void
 ${1}intr(void *arg)
 {
-	/*device_t dev = (device_t)arg;*/
-	/* sc_p scp	= device_get_softc(dev);*/
+	sc_p scp	= arg;
 
 	/* 
 	 * well we got an interupt, now what?
