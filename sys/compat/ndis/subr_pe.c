@@ -62,7 +62,7 @@ __FBSDID("$FreeBSD$");
 
 #include <compat/ndis/pe_var.h>
 
-static u_int32_t pe_functbl_match(image_patch_table *, char *);
+static vm_offset_t pe_functbl_match(image_patch_table *, char *);
 
 /*
  * Check for an MS-DOS executable header. All Windows binaries
@@ -561,7 +561,7 @@ pe_functbl_match(functbl, name)
 
 	while (p->ipt_name != NULL) {
 		if (!strcmp(p->ipt_name, name))
-			return((uint32_t)p->ipt_func);
+			return((vm_offset_t)p->ipt_func);
 		p++;
 	}
 	printf ("no match for %s\n", name);
