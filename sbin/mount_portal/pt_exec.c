@@ -35,17 +35,16 @@
  * SUCH DAMAGE.
  *
  *	@(#)pt_exec.c	8.1 (Berkeley) 6/5/93
- *
- * $Id$
  */
 
-#include <stdio.h>
-#include <unistd.h>
-#include <stdlib.h>
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/param.h>
-#include <sys/syslog.h>
 
 #include "portald.h"
 
