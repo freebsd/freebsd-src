@@ -1140,7 +1140,7 @@ rl_dma_map_desc(arg, segs, nseg, mapsize, error)
 			cmdstat |= RL_TDESC_CMD_OWN;
 		if (idx == (RL_RX_DESC_CNT - 1))
 			cmdstat |= RL_TDESC_CMD_EOR;
-		d->rl_cmdstat = htole32(cmdstat);
+		d->rl_cmdstat = htole32(cmdstat | ctx->rl_flags);
 		i++;
 		if (i == nseg)
 			break;
@@ -1716,6 +1716,7 @@ rl_newbuf (sc, idx, m)
 	arg.sc = sc;
 	arg.rl_idx = idx;
 	arg.rl_maxsegs = 1;
+	arg.rl_flags = 0;
 	arg.rl_ring = sc->rl_ldata.rl_rx_list;
 
         error = bus_dmamap_load_mbuf(sc->rl_ldata.rl_mtag,
@@ -2373,11 +2374,26 @@ rl_encapcplus(sc, m_head, idx)
 	struct rl_dmaload_arg	arg;
 	bus_dmamap_t		map;
 	int			error;
-	u_int32_t		csumcmd = RL_TDESC_CMD_OWN;
 	struct m_tag		*mtag;
 
 	if (sc->rl_ldata.rl_tx_free < 4)
 		return(EFBIG);
+
+	/*
+	 * Set up checksum offload. Note: checksum offload bits must
+	 * appear in all descriptors of a multi-descriptor transmit
+	 * attempt. (This is according to testing done with an 8169
+	 * chip. I'm not sure if this is a requirement or a bug.)
+	 */
+
+	arg.rl_flags = 0;
+
+	if (m_head->m_pkthdr.csum_flags & CSUM_IP)
+		arg.rl_flags |= RL_TDESC_CMD_IPCSUM;
+	if (m_head->m_pkthdr.csum_flags & CSUM_TCP)
+		arg.rl_flags |= RL_TDESC_CMD_TCPCSUM;
+	if (m_head->m_pkthdr.csum_flags & CSUM_UDP)
+		arg.rl_flags |= RL_TDESC_CMD_UDPCSUM;
 
 	arg.sc = sc;
 	arg.rl_idx = *idx;
@@ -2439,24 +2455,13 @@ rl_encapcplus(sc, m_head, idx)
 		sc->rl_ldata.rl_tx_list[*idx].rl_vlanctl =
 		    htole32(htons(VLAN_TAG_VALUE(mtag)) | RL_TDESC_VLANCTL_TAG);
 
-	/*
-	 * Set up checksum offload. Note: checksum offload bits must
-	 * appear in the first descriptor of a multi-descriptor
-	 * transmission attempt.
-	 */
-
-	if (m_head->m_pkthdr.csum_flags & CSUM_IP)
-		csumcmd |= RL_TDESC_CMD_IPCSUM;
-	if (m_head->m_pkthdr.csum_flags & CSUM_TCP)
-		csumcmd |= RL_TDESC_CMD_TCPCSUM;
-	if (m_head->m_pkthdr.csum_flags & CSUM_UDP)
-		csumcmd |= RL_TDESC_CMD_UDPCSUM;
-
 	/* Transfer ownership of packet to the chip. */
 
-	sc->rl_ldata.rl_tx_list[arg.rl_idx].rl_cmdstat |= htole32(csumcmd);
+	sc->rl_ldata.rl_tx_list[arg.rl_idx].rl_cmdstat |=
+	    htole32(RL_TDESC_CMD_OWN);
 	if (*idx != arg.rl_idx)
-		sc->rl_ldata.rl_tx_list[*idx].rl_cmdstat |= htole32(csumcmd);
+		sc->rl_ldata.rl_tx_list[*idx].rl_cmdstat |=
+		    htole32(RL_TDESC_CMD_OWN);
 
 	RL_DESC_INC(arg.rl_idx);
 	*idx = arg.rl_idx;
