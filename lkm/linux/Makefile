@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.7 1996/03/10 08:42:31 sos Exp $
+#	$Id: Makefile,v 1.9 1997/01/10 05:48:49 mpp Exp $
 
 .PATH:	${.CURDIR}/../../sys/i386/linux
 KMOD=	linux_mod
@@ -7,7 +7,7 @@ SRCS=	linux.c linux_file.c linux_ioctl.c linux_misc.c linux_signal.c \
 	linux_dummy.c linux_sysent.c linux_sysvec.c linux_util.c \
 	imgact_linux.c vnode_if.h
 OBJS=	linux_locore.o
-NOMAN=
+MAN8=	linux.8
 
 CFLAGS+= -DLKM -I. -DCOMPAT_43 -DCOMPAT_LINUX #-DDEBUG
 EXPORT_SYMS=_linux_mod
