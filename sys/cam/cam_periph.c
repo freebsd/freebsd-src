@@ -2,7 +2,7 @@
  * Common functions for CAM "type" (peripheral) drivers.
  *
  * Copyright (c) 1997, 1998 Justin T. Gibbs.
- * Copyright (c) 1997, 1998, 1999 Kenneth D. Merry.
+ * Copyright (c) 1997, 1998, 1999, 2000 Kenneth D. Merry.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -54,10 +54,12 @@
 #include <cam/scsi/scsi_pass.h>
 
 static	u_int		camperiphnextunit(struct periph_driver *p_drv,
-					  u_int newunit, int wired);
+					  u_int newunit, int wired,
+					  path_id_t pathid, target_id_t target,
+					  lun_id_t lun);
 static	u_int		camperiphunit(struct periph_driver *p_drv,
-				      path_id_t path_id_t,
-				      target_id_t target, lun_id_t lun); 
+				      path_id_t pathid, target_id_t target,
+				      lun_id_t lun); 
 static	void		camperiphdone(struct cam_periph *periph, 
 					union ccb *done_ccb);
 static  void		camperiphfree(struct cam_periph *periph);
@@ -262,7 +264,8 @@ cam_periph_release(struct cam_periph *periph)
  * numbers that did not match a wiring entry.
  */
 static u_int
-camperiphnextunit(struct periph_driver *p_drv, u_int newunit, int wired)
+camperiphnextunit(struct periph_driver *p_drv, u_int newunit, int wired,
+		  path_id_t pathid, target_id_t target, lun_id_t lun)
 {
 	struct	cam_periph *periph;
 	char	*periph_name, *strval;
@@ -284,7 +287,9 @@ camperiphnextunit(struct periph_driver *p_drv, u_int newunit, int wired)
 				xpt_print_path(periph->path);
 				printf("Duplicate Wired Device entry!\n");
 				xpt_print_path(periph->path);
-				printf("Second device will not be wired\n");
+				printf("Second device (%s device at scbus%d "
+				       "target %d lun %d) will not be wired\n",
+				       periph_name, pathid, target, lun);
 				wired = 0;
 			}
 			continue;
@@ -361,7 +366,8 @@ camperiphunit(struct periph_driver *p_drv, path_id_t pathid,
 	 * if we have wildcard matches, we don't return the same
 	 * unit number twice.
 	 */
-	unit = camperiphnextunit(p_drv, unit, /*wired*/hit);
+	unit = camperiphnextunit(p_drv, unit, /*wired*/hit, pathid,
+				 target, lun);
 
 	return (unit);
 }
