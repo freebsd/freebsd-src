@@ -83,8 +83,7 @@ scd0    230     n/a     n/a     n/a     Sony CD-ROM
 sio0    3f8     4       n/a     n/a     Serial Port 0 (COM1)
 sio1    2f8     3       n/a     n/a     Serial Port 1 (COM2)
 
-lpt0    dyn     7       n/a     n/a     Printer Port 0
-lpt1    dyn     dyn     n/a     n/a     Printer Port 1
+ppc0    dyn     7       n/a     n/a     Parallel Port Chipset
 
 al0     dyn     dyn     n/a     dyn     ADMtek AL981 PCI based cards
 ax0     dyn     dyn     n/a     dyn     ASIX AX88140A PCI based cards
@@ -110,7 +109,6 @@ mx0     dyn     dyn     n/a     dyn     Macronix 98713/15/25 PCI based cards
 pn0     dyn     dyn     n/a     dyn     Lite-On PNIC PCI based cards
 rl0     dyn     dyn     n/a     dyn     RealTek 8129/8139 fast ethernet
 sf0     dyn     dyn     n/a     dyn     Adaptec AIC-6915 fast ethernet
-ste0    dyn     dyn     n/a     dyn     Sundance ST201 fast ethernet
 tl0     dyn     dyn     n/a     dyn     TI TNET100 'ThunderLAN' cards.
 wb0     dyn     dyn     n/a     dyn     Winbond W89C840F PCI based cards.
 vr0     dyn     dyn     n/a     dyn     VIA VT3043/VT86C100A PCI based cards.
@@ -280,20 +278,21 @@ gus:    Gravis Ultrasound - Ultrasound, Ultrasound 16, Ultrasound MAX
 gusxvi: Gravis Ultrasound 16-bit PCM
 hea:    Efficient ENI-155p ATM PCI adapter
 hfa:    FORE PCA-200E ATM PCI adapter
-isic:	isdn4bsd Siemens ISDN Chipset driver
 joy:    Joystick
 labpc:  National Instrument's Lab-PC and Lab-PC+
 meteor: Matrox Meteor frame-grabber card
-bktr:   Brooktree Bt848 / Bt 878 based frame-grabber cards.
+bktr:   Brooktree Bt848 / Bt878 based frame-grabber cards.
 mpu:    Roland MPU-401 stand-alone card
 mse:    Microsoft, Logitech, ATI bus mouse ports
 mss:    Microsoft Sound System
+nic:    Dr Neuhaus NICCY 3008, 3009 & 5000 ISDN cards
 opl:    Yamaha OPL-2 and OPL-3 FM - SB, SB Pro, SB 16, ProAudioSpectrum
 pas:    ProAudioSpectrum PCM and MIDI
 pca:    PCM audio ("/dev/audio") through your PC speaker
 pcm:    PCM audio on most modern ISA audio codecs
 psm:    PS/2 mouse port
 rc:     RISCom/8 multiport card
+rdp:	RealTek RTL 8002 Pocket Ethernet adapter
 sb:     SoundBlaster PCM - SoundBlaster, SB Pro, SB16, ProAudioSpectrum
 sbmidi: SoundBlaster 16 MIDI interface
 sbxvi:  SoundBlaster 16
@@ -386,7 +385,7 @@ The following CD-ROM type systems are supported at this time:
 (matcd) Matsushita/Panasonic (Creative SoundBlaster) proprietary
         interface (562/563 models)
 (scd)   Sony proprietary interface (all models)
-(acd)   ATAPI IDE interface
+(wcd)   ATAPI IDE interface
 
 The following drivers were supported under the old SCSI subsystem, but are
 NOT YET supported under the new CAM SCSI subsystem:
