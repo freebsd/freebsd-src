@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.87 1998/05/28 23:17:51 brian Exp $
+ * $Id: modem.c,v 1.88 1998/05/29 18:33:09 brian Exp $
  *
  *  TODO:
  */
@@ -281,7 +281,7 @@ modem_Timeout(void *data)
       if (ioctl(modem->fd, TIOCMGET, &modem->mbits) < 0) {
 	log_Printf(LogPHASE, "%s: ioctl error (%s)!\n", modem->link.name,
                   strerror(errno));
-        datalink_Down(modem->dl, 0);
+        datalink_Down(modem->dl, CLOSE_NORMAL);
 	return;
       }
     } else
@@ -293,7 +293,7 @@ modem_Timeout(void *data)
       else {
         log_Printf(LogDEBUG, "%s: online -> offline\n", modem->link.name);
         log_Printf(LogPHASE, "%s: Carrier lost\n", modem->link.name);
-        datalink_Down(modem->dl, 0);
+        datalink_Down(modem->dl, CLOSE_NORMAL);
       }
     } else
       log_Printf(LogDEBUG, "%s: Still %sline\n", modem->link.name,
@@ -855,7 +855,7 @@ modem_DescriptorWrite(struct descriptor *d, struct bundle *bundle,
       if (errno != EAGAIN) {
 	log_Printf(LogPHASE, "%s: write (%d): %s\n", modem->link.name,
                    modem->fd, strerror(errno));
-        datalink_Down(modem->dl, 0);
+        datalink_Down(modem->dl, CLOSE_NORMAL);
       }
     }
   }
@@ -951,7 +951,7 @@ modem_DescriptorRead(struct descriptor *d, struct bundle *bundle,
     else
       log_Printf(LogPHASE, "%s: read (%d): Got zero bytes\n",
                  p->link.name, p->fd);
-    datalink_Down(p->dl, 0);
+    datalink_Down(p->dl, CLOSE_NORMAL);
     return;
   }
   log_DumpBuff(LogASYNC, "ReadFromModem", rbuff, n);

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.129 1998/05/29 18:33:09 brian Exp $
+ * $Id: main.c,v 1.130 1998/06/06 20:50:57 brian Exp $
  *
  *	TODO:
  */
@@ -90,7 +90,7 @@ Cleanup(int excode)
 {
   SignalBundle->CleaningUp = 1;
   if (bundle_Phase(SignalBundle) != PHASE_DEAD)
-    bundle_Close(SignalBundle, NULL, 1);
+    bundle_Close(SignalBundle, NULL, CLOSE_STAYDOWN);
 }
 
 void
@@ -98,7 +98,7 @@ AbortProgram(int excode)
 {
   server_Close(SignalBundle);
   log_Printf(LogPHASE, "PPP Terminated (%s).\n", ex_desc(excode));
-  bundle_Close(SignalBundle, NULL, 1);
+  bundle_Close(SignalBundle, NULL, CLOSE_STAYDOWN);
   bundle_Destroy(SignalBundle);
   log_Close();
   exit(excode);

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.h,v 1.2 1998/05/21 21:44:57 brian Exp $
+ *	$Id: datalink.h,v 1.3 1998/05/28 23:15:35 brian Exp $
  */
 
 #define DATALINK_CLOSED  (0)
@@ -36,7 +36,12 @@
 #define DATALINK_AUTH    (7)
 #define DATALINK_OPEN    (8)
 
-#define DATALINK_MAXNAME (20)
+#define DATALINK_MAXNAME (20)   /* Maximum datalink::name length */
+
+/* How to close the link */
+#define CLOSE_NORMAL		0
+#define CLOSE_STAYDOWN		1
+#define CLOSE_LCP		2
 
 struct iovec;
 struct prompt;
@@ -50,6 +55,7 @@ struct datalink {
 
   struct chat chat;		/* For bringing the link up & down */
 
+  unsigned stayonline : 1;	/* stay online when LCP is closed ? */
   struct {
     unsigned run : 1;		/* run scripts ? */
     unsigned packetmode : 1;	/* Go into packet mode after login ? */
@@ -117,6 +123,7 @@ extern void datalink_Up(struct datalink *, int, int);
 extern void datalink_Close(struct datalink *, int);
 extern void datalink_Down(struct datalink *, int);
 extern void datalink_StayDown(struct datalink *);
+extern void datalink_DontHangup(struct datalink *);
 extern void datalink_AuthOk(struct datalink *);
 extern void datalink_AuthNotOk(struct datalink *);
 extern int datalink_Show(struct cmdargs const *);

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lqr.c,v 1.22.2.30 1998/05/08 01:15:08 brian Exp $
+ * $Id: lqr.c,v 1.25 1998/05/21 21:46:33 brian Exp $
  *
  *	o LQR based on RFC1333
  *
@@ -136,7 +136,7 @@ SendLqrReport(void *v)
       log_Printf(LogLQM, "%s: Too many LQR packets lost\n",
                 lcp->fsm.link->name);
       p->hdlc.lqm.method = 0;
-      datalink_Down(p->dl, 0);
+      datalink_Down(p->dl, CLOSE_NORMAL);
     } else {
       SendLqrData(lcp);
       p->hdlc.lqm.lqr.resent++;
@@ -151,7 +151,7 @@ SendLqrReport(void *v)
       log_Printf(LogLQM, "%s: Too many ECHO LQR packets lost\n",
                 lcp->fsm.link->name);
       p->hdlc.lqm.method = 0;
-      datalink_Down(p->dl, 0);
+      datalink_Down(p->dl, CLOSE_NORMAL);
     } else
       SendEchoReq(lcp);
   }

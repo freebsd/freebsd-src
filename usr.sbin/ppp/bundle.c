@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.14 1998/06/07 00:16:37 brian Exp $
+ *	$Id: bundle.c,v 1.15 1998/06/12 17:45:03 brian Exp $
  */
 
 #include <sys/param.h>
@@ -226,7 +226,7 @@ bundle_AutoLoadTimeout(void *v)
         last = dl;
 
     if (last)
-      datalink_Close(last, 1);
+      datalink_Close(last, CLOSE_STAYDOWN);
   }
 }
 
@@ -428,7 +428,7 @@ bundle_LayerFinish(void *v, struct fsm *fp)
     if (bundle_Phase(bundle) != PHASE_DEAD)
       bundle_NewPhase(bundle, PHASE_TERMINATE);
     for (dl = bundle->links; dl; dl = dl->next)
-      datalink_Close(dl, 0);
+      datalink_Close(dl, CLOSE_NORMAL);
     fsm_Down(fp);
     fsm_Close(fp);
   } else if (fp->proto == PROTO_LCP) {
@@ -454,7 +454,7 @@ bundle_LinkIsUp(const struct bundle *bundle)
 }
 
 void
-bundle_Close(struct bundle *bundle, const char *name, int staydown)
+bundle_Close(struct bundle *bundle, const char *name, int how)
 {
   /*
    * Please close the given datalink.
@@ -476,8 +476,14 @@ bundle_Close(struct bundle *bundle, const char *name, int staydown)
     if (name && !strcasecmp(name, dl->name))
       this_dl = dl;
     if (name == NULL || this_dl == dl) {
-      if (staydown)
-        datalink_StayDown(dl);
+      switch (how) {
+        case CLOSE_LCP:
+          datalink_DontHangup(dl);
+          /* fall through */
+        case CLOSE_STAYDOWN:
+          datalink_StayDown(dl);
+          break;
+      }
     } else if (dl->state != DATALINK_CLOSED && dl->state != DATALINK_HANGUP)
       others_active++;
   }
@@ -499,11 +505,11 @@ bundle_Close(struct bundle *bundle, const char *name, int staydown)
         fsm_Down(&bundle->ncp.ipcp.fsm);
       }
       for (dl = bundle->links; dl; dl = dl->next)
-        datalink_Close(dl, staydown);
+        datalink_Close(dl, how);
     }
   } else if (this_dl && this_dl->state != DATALINK_CLOSED &&
              this_dl->state != DATALINK_HANGUP)
-    datalink_Close(this_dl, staydown);
+    datalink_Close(this_dl, how);
 }
 
 void
@@ -512,7 +518,7 @@ bundle_Down(struct bundle *bundle)
   struct datalink *dl;
 
   for (dl = bundle->links; dl; dl = dl->next)
-    datalink_Down(dl, 1);
+    datalink_Down(dl, CLOSE_STAYDOWN);
 }
 
 static int
@@ -1254,7 +1260,7 @@ bundle_IdleTimeout(void *v)
 
   log_Printf(LogPHASE, "Idle timer expired.\n");
   bundle_StopIdleTimer(bundle);
-  bundle_Close(bundle, NULL, 1);
+  bundle_Close(bundle, NULL, CLOSE_STAYDOWN);
 }
 
 /*
