@@ -57,27 +57,27 @@
 #include <fs/hpfs/hpfs_subr.h>
 #include <fs/hpfs/hpfs_ioctl.h>
 
-static int	hpfs_de_uiomove __P((struct hpfsmount *, struct hpfsdirent *,
-				     struct uio *));
-static int	hpfs_ioctl __P((struct vop_ioctl_args *ap));
-static int	hpfs_read __P((struct vop_read_args *));
-static int	hpfs_write __P((struct vop_write_args *ap));
-static int	hpfs_getattr __P((struct vop_getattr_args *ap));
-static int	hpfs_setattr __P((struct vop_setattr_args *ap));
-static int	hpfs_inactive __P((struct vop_inactive_args *ap));
-static int	hpfs_print __P((struct vop_print_args *ap));
-static int	hpfs_reclaim __P((struct vop_reclaim_args *ap));
-static int	hpfs_strategy __P((struct vop_strategy_args *ap));
-static int	hpfs_access __P((struct vop_access_args *ap));
-static int	hpfs_open __P((struct vop_open_args *ap));
-static int	hpfs_close __P((struct vop_close_args *ap));
-static int	hpfs_readdir __P((struct vop_readdir_args *ap));
-static int	hpfs_lookup __P((struct vop_lookup_args *ap));
-static int	hpfs_create __P((struct vop_create_args *));
-static int	hpfs_remove __P((struct vop_remove_args *));
-static int	hpfs_bmap __P((struct vop_bmap_args *ap));
-static int	hpfs_fsync __P((struct vop_fsync_args *ap));
-static int	hpfs_pathconf __P((struct vop_pathconf_args *ap));
+static int	hpfs_de_uiomove(struct hpfsmount *, struct hpfsdirent *,
+				     struct uio *);
+static int	hpfs_ioctl(struct vop_ioctl_args *ap);
+static int	hpfs_read(struct vop_read_args *);
+static int	hpfs_write(struct vop_write_args *ap);
+static int	hpfs_getattr(struct vop_getattr_args *ap);
+static int	hpfs_setattr(struct vop_setattr_args *ap);
+static int	hpfs_inactive(struct vop_inactive_args *ap);
+static int	hpfs_print(struct vop_print_args *ap);
+static int	hpfs_reclaim(struct vop_reclaim_args *ap);
+static int	hpfs_strategy(struct vop_strategy_args *ap);
+static int	hpfs_access(struct vop_access_args *ap);
+static int	hpfs_open(struct vop_open_args *ap);
+static int	hpfs_close(struct vop_close_args *ap);
+static int	hpfs_readdir(struct vop_readdir_args *ap);
+static int	hpfs_lookup(struct vop_lookup_args *ap);
+static int	hpfs_create(struct vop_create_args *);
+static int	hpfs_remove(struct vop_remove_args *);
+static int	hpfs_bmap(struct vop_bmap_args *ap);
+static int	hpfs_fsync(struct vop_fsync_args *ap);
+static int	hpfs_pathconf(struct vop_pathconf_args *ap);
 
 static int
 hpfs_fsync(ap)

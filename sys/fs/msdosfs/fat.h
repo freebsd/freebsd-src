@@ -92,12 +92,12 @@
  */
 #define	DE_CLEAR	1	/* Zero out the blocks allocated */
 
-int pcbmap __P((struct denode *dep, u_long findcn, daddr_t *bnp, u_long *cnp, int* sp));
-int clusterfree __P((struct msdosfsmount *pmp, u_long cn, u_long *oldcnp));
-int clusteralloc __P((struct msdosfsmount *pmp, u_long start, u_long count, u_long fillwith, u_long *retcluster, u_long *got));
-int fatentry __P((int function, struct msdosfsmount *pmp, u_long cluster, u_long *oldcontents, u_long newcontents));
-int freeclusterchain __P((struct msdosfsmount *pmp, u_long startchain));
-int extendfile __P((struct denode *dep, u_long count, struct buf **bpp, u_long *ncp, int flags));
-void fc_purge __P((struct denode *dep, u_int frcn));
+int pcbmap(struct denode *dep, u_long findcn, daddr_t *bnp, u_long *cnp, int* sp);
+int clusterfree(struct msdosfsmount *pmp, u_long cn, u_long *oldcnp);
+int clusteralloc(struct msdosfsmount *pmp, u_long start, u_long count, u_long fillwith, u_long *retcluster, u_long *got);
+int fatentry(int function, struct msdosfsmount *pmp, u_long cluster, u_long *oldcontents, u_long newcontents);
+int freeclusterchain(struct msdosfsmount *pmp, u_long startchain);
+int extendfile(struct denode *dep, u_long count, struct buf **bpp, u_long *ncp, int flags);
+void fc_purge(struct denode *dep, u_int frcn);
 
 #endif	/* _KERNEL */

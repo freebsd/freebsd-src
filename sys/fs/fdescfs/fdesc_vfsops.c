@@ -58,12 +58,12 @@
 
 static MALLOC_DEFINE(M_FDESCMNT, "FDESC mount", "FDESC mount structure");
 
-static int	fdesc_mount __P((struct mount *mp, char *path, caddr_t data,
-				 struct nameidata *ndp, struct thread *td));
-static int	fdesc_unmount __P((struct mount *mp, int mntflags,
-				   struct thread *td));
-static int	fdesc_statfs __P((struct mount *mp, struct statfs *sbp,
-				  struct thread *td));
+static int	fdesc_mount(struct mount *mp, char *path, caddr_t data,
+				 struct nameidata *ndp, struct thread *td);
+static int	fdesc_unmount(struct mount *mp, int mntflags,
+				   struct thread *td);
+static int	fdesc_statfs(struct mount *mp, struct statfs *sbp,
+				  struct thread *td);
   
 /*
  * Mount the per-process file descriptors (/dev/fd)

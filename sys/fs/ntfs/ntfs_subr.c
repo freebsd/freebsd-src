@@ -55,10 +55,10 @@ MALLOC_DEFINE(M_NTFSRDATA, "NTFS res data", "NTFS resident data");
 MALLOC_DEFINE(M_NTFSRUN, "NTFS vrun", "NTFS vrun storage");
 MALLOC_DEFINE(M_NTFSDECOMP, "NTFS decomp", "NTFS decompression temporary");
 
-static int ntfs_ntlookupattr __P((struct ntfsmount *, const char *, int, int *, char **));
-static int ntfs_findvattr __P((struct ntfsmount *, struct ntnode *, struct ntvattr **, struct ntvattr **, u_int32_t, const char *, size_t, cn_t));
-static int ntfs_uastricmp __P((struct ntfsmount *, const wchar *, size_t, const char *, size_t));
-static int ntfs_uastrcmp __P((struct ntfsmount *, const wchar *, size_t, const char *, size_t));
+static int ntfs_ntlookupattr(struct ntfsmount *, const char *, int, int *, char **);
+static int ntfs_findvattr(struct ntfsmount *, struct ntnode *, struct ntvattr **, struct ntvattr **, u_int32_t, const char *, size_t, cn_t);
+static int ntfs_uastricmp(struct ntfsmount *, const wchar *, size_t, const char *, size_t);
+static int ntfs_uastrcmp(struct ntfsmount *, const wchar *, size_t, const char *, size_t);
 
 /* table for mapping Unicode chars into uppercase; it's filled upon first
  * ntfs mount, freed upon last ntfs umount */

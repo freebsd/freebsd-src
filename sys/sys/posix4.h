@@ -61,9 +61,9 @@ MALLOC_DECLARE(M_P31B);
 #define p31b_malloc(SIZE) malloc((SIZE), M_P31B, M_WAITOK)
 #define p31b_free(P) free((P), M_P31B)
 
-int p31b_proc __P((struct proc *, pid_t, struct proc **));
+int p31b_proc(struct proc *, pid_t, struct proc **);
 
-void p31b_setcfg __P((int, int));
+void p31b_setcfg(int, int);
 
 #ifdef _KPOSIX_PRIORITY_SCHEDULING
 

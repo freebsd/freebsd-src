@@ -389,11 +389,11 @@ MALLOC_DECLARE(M_HPFSNO);
 extern vop_t ** hpfs_vnodeop_p;
 
 /* Hash routines, too small to be separate header */
-void hpfs_hphashinit __P((void));
-void hpfs_hphashdestroy __P((void));
-struct hpfsnode *hpfs_hphashlookup __P((dev_t, lsn_t));
-struct hpfsnode *hpfs_hphashget __P((dev_t, lsn_t));
-int hpfs_hphashvget __P((dev_t, lsn_t, int, struct vnode **, struct thread *));
-void hpfs_hphashins __P((register struct hpfsnode *));
-void hpfs_hphashrem __P((register struct hpfsnode *));
+void hpfs_hphashinit(void);
+void hpfs_hphashdestroy(void);
+struct hpfsnode *hpfs_hphashlookup(dev_t, lsn_t);
+struct hpfsnode *hpfs_hphashget(dev_t, lsn_t);
+int hpfs_hphashvget(dev_t, lsn_t, int, struct vnode **, struct thread *);
+void hpfs_hphashins(register struct hpfsnode *);
+void hpfs_hphashrem(register struct hpfsnode *);
 extern struct lock hpfs_hphash_lock;

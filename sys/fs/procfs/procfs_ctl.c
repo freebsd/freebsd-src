@@ -108,7 +108,7 @@ static struct namemap signames[] = {
 	{ 0 },
 };
 
-static int	procfs_control __P((struct proc *curp, struct proc *p, int op));
+static int	procfs_control(struct proc *curp, struct proc *p, int op);
 
 static int
 procfs_control(struct proc *curp, struct proc *p, int op)

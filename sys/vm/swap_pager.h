@@ -84,25 +84,25 @@ extern int swap_pager_full;
 extern struct blist *swapblist;
 extern vm_zone_t swap_zone;
 
-void swap_pager_putpages __P((vm_object_t, vm_page_t *, int, boolean_t, int *));
-boolean_t swap_pager_haspage __P((vm_object_t object, vm_pindex_t pindex, int *before, int *after));
+void swap_pager_putpages(vm_object_t, vm_page_t *, int, boolean_t, int *);
+boolean_t swap_pager_haspage(vm_object_t object, vm_pindex_t pindex, int *before, int *after);
 
-int swap_pager_swp_alloc __P((vm_object_t, int));
-void swap_pager_copy __P((vm_object_t, vm_object_t, vm_pindex_t, int));
-void swap_pager_freespace __P((vm_object_t, vm_pindex_t, vm_size_t));
-void swap_pager_dmzspace __P((vm_object_t, vm_pindex_t, vm_size_t));
-void swap_pager_swap_init __P((void));
-int swap_pager_reserve __P((vm_object_t, vm_pindex_t, vm_size_t));
+int swap_pager_swp_alloc(vm_object_t, int);
+void swap_pager_copy(vm_object_t, vm_object_t, vm_pindex_t, int);
+void swap_pager_freespace(vm_object_t, vm_pindex_t, vm_size_t);
+void swap_pager_dmzspace(vm_object_t, vm_pindex_t, vm_size_t);
+void swap_pager_swap_init(void);
+int swap_pager_reserve(vm_object_t, vm_pindex_t, vm_size_t);
 
 /*
  * newswap functions
  */
 
-void swap_pager_page_removed __P((vm_page_t, vm_object_t));
+void swap_pager_page_removed(vm_page_t, vm_object_t);
 
 /* choose underlying swap device and queue up I/O */
 struct buf;
-void swstrategy __P((struct buf *bp));	/* probably needs to move elsewhere */
+void swstrategy(struct buf *bp);	/* probably needs to move elsewhere */
 
 #endif				/* _KERNEL */
 #endif				/* _SWAP_PAGER_ */

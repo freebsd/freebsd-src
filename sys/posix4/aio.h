@@ -91,18 +91,18 @@ struct aiocb {
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
-int aio_read __P((struct aiocb *));
-int aio_write __P((struct aiocb *));
+int aio_read(struct aiocb *);
+int aio_write(struct aiocb *);
 
-int lio_listio __P((int, aio_listio_ctl[], int, struct sigevent *));
+int lio_listio(int, aio_listio_ctl[], int, struct sigevent *);
 
-int aio_error __P((const struct aiocb *));
-ssize_t aio_return __P((struct aiocb *));
-int aio_cancel __P((int, struct aiocb *));
+int aio_error(const struct aiocb *);
+ssize_t aio_return(struct aiocb *);
+int aio_cancel(int, struct aiocb *);
 
-int aio_suspend __P((caio_listio_ctl[], int, const struct timespec *));
+int aio_suspend(caio_listio_ctl[], int, const struct timespec *);
 
-int aio_fsync __P((int, struct aiocb *));
+int aio_fsync(int, struct aiocb *);
 __END_DECLS
 
 #endif /* _KERNEL */

@@ -67,45 +67,45 @@ SYSCTL_INT(_vfs, OID_AUTO, uniondebug, CTLFLAG_RW, &uniondebug, 0, "");
 SYSCTL_INT(_vfs, OID_AUTO, uniondebug, CTLFLAG_RD, &uniondebug, 0, "");
 #endif
 
-static int	union_access __P((struct vop_access_args *ap));
-static int	union_advlock __P((struct vop_advlock_args *ap));
-static int	union_close __P((struct vop_close_args *ap));
-static int	union_create __P((struct vop_create_args *ap));
-static int	union_createvobject __P((struct vop_createvobject_args *ap));
-static int	union_destroyvobject __P((struct vop_destroyvobject_args *ap));
-static int	union_fsync __P((struct vop_fsync_args *ap));
-static int	union_getattr __P((struct vop_getattr_args *ap));
-static int	union_getvobject __P((struct vop_getvobject_args *ap));
-static int	union_inactive __P((struct vop_inactive_args *ap));
-static int	union_ioctl __P((struct vop_ioctl_args *ap));
-static int	union_lease __P((struct vop_lease_args *ap));
-static int	union_link __P((struct vop_link_args *ap));
-static int	union_lock __P((struct vop_lock_args *ap));
-static int	union_lookup __P((struct vop_lookup_args *ap));
-static int	union_lookup1 __P((struct vnode *udvp, struct vnode **dvp,
+static int	union_access(struct vop_access_args *ap);
+static int	union_advlock(struct vop_advlock_args *ap);
+static int	union_close(struct vop_close_args *ap);
+static int	union_create(struct vop_create_args *ap);
+static int	union_createvobject(struct vop_createvobject_args *ap);
+static int	union_destroyvobject(struct vop_destroyvobject_args *ap);
+static int	union_fsync(struct vop_fsync_args *ap);
+static int	union_getattr(struct vop_getattr_args *ap);
+static int	union_getvobject(struct vop_getvobject_args *ap);
+static int	union_inactive(struct vop_inactive_args *ap);
+static int	union_ioctl(struct vop_ioctl_args *ap);
+static int	union_lease(struct vop_lease_args *ap);
+static int	union_link(struct vop_link_args *ap);
+static int	union_lock(struct vop_lock_args *ap);
+static int	union_lookup(struct vop_lookup_args *ap);
+static int	union_lookup1(struct vnode *udvp, struct vnode **dvp,
 				   struct vnode **vpp,
-				   struct componentname *cnp));
-static int	union_mkdir __P((struct vop_mkdir_args *ap));
-static int	union_mknod __P((struct vop_mknod_args *ap));
-static int	union_open __P((struct vop_open_args *ap));
-static int	union_pathconf __P((struct vop_pathconf_args *ap));
-static int	union_print __P((struct vop_print_args *ap));
-static int	union_read __P((struct vop_read_args *ap));
-static int	union_readdir __P((struct vop_readdir_args *ap));
-static int	union_readlink __P((struct vop_readlink_args *ap));
-static int	union_getwritemount __P((struct vop_getwritemount_args *ap));
-static int	union_reclaim __P((struct vop_reclaim_args *ap));
-static int	union_remove __P((struct vop_remove_args *ap));
-static int	union_rename __P((struct vop_rename_args *ap));
-static int	union_revoke __P((struct vop_revoke_args *ap));
-static int	union_rmdir __P((struct vop_rmdir_args *ap));
-static int	union_poll __P((struct vop_poll_args *ap));
-static int	union_setattr __P((struct vop_setattr_args *ap));
-static int	union_strategy __P((struct vop_strategy_args *ap));
-static int	union_symlink __P((struct vop_symlink_args *ap));
-static int	union_unlock __P((struct vop_unlock_args *ap));
-static int	union_whiteout __P((struct vop_whiteout_args *ap));
-static int	union_write __P((struct vop_read_args *ap));
+				   struct componentname *cnp);
+static int	union_mkdir(struct vop_mkdir_args *ap);
+static int	union_mknod(struct vop_mknod_args *ap);
+static int	union_open(struct vop_open_args *ap);
+static int	union_pathconf(struct vop_pathconf_args *ap);
+static int	union_print(struct vop_print_args *ap);
+static int	union_read(struct vop_read_args *ap);
+static int	union_readdir(struct vop_readdir_args *ap);
+static int	union_readlink(struct vop_readlink_args *ap);
+static int	union_getwritemount(struct vop_getwritemount_args *ap);
+static int	union_reclaim(struct vop_reclaim_args *ap);
+static int	union_remove(struct vop_remove_args *ap);
+static int	union_rename(struct vop_rename_args *ap);
+static int	union_revoke(struct vop_revoke_args *ap);
+static int	union_rmdir(struct vop_rmdir_args *ap);
+static int	union_poll(struct vop_poll_args *ap);
+static int	union_setattr(struct vop_setattr_args *ap);
+static int	union_strategy(struct vop_strategy_args *ap);
+static int	union_symlink(struct vop_symlink_args *ap);
+static int	union_unlock(struct vop_unlock_args *ap);
+static int	union_whiteout(struct vop_whiteout_args *ap);
+static int	union_write(struct vop_read_args *ap);
 
 static __inline
 struct vnode *

@@ -93,10 +93,9 @@ union _qcvt {
 }
 
 static struct denode *
-		msdosfs_hashget __P((dev_t dev, u_long dirclust,
-				     u_long diroff));
-static void	msdosfs_hashins __P((struct denode *dep));
-static void	msdosfs_hashrem __P((struct denode *dep));
+		msdosfs_hashget(dev_t dev, u_long dirclust, u_long diroff);
+static void	msdosfs_hashins(struct denode *dep);
+static void	msdosfs_hashrem(struct denode *dep);
 
 /*ARGSUSED*/
 int 
