@@ -1,0 +1,87 @@
+.\" Copyright (c) 2003 Alexey Zelkin <phantom@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 13, 2003
+.Dt PTHREAD_SWITCH_ADD_NP 3
+.Os
+.Sh NAME
+.Nm pthread_switch_add_np ,
+.Nm pthread_switch_delete_np
+.Nd threads context switches debugging primitives
+.Sh LIBRARY
+.Lb libc_r
+.Sh SYNOPSIS
+.In pthread_np.h
+.Ft int
+.Fn pthread_switch_add_np "pthread_switch_routine_t routine"
+.Ft int
+.Fn pthread_switch_delete_np "pthread_switch_routine_t routine"
+.Sh DESCRIPTION
+The application is allowed to monitor thread context switches inside
+threading library.
+An application can install routine that gets called everytime a thread
+(explicitly created by the application with
+.Fn pthread_create
+function) gets context switched.
+This routine gets passed the pthread IDs of the threads that are
+being switched in and out.
+Installation and removal of these hooks may be done using
+.Fn pthread_switch_add_np
+and
+.Fn pthread_switch_delete_np
+functions respectively.
+.Sh RETURN VALUES
+If successful,
+functions return 0. 
+Otherwise, an error number is returned to indicate the error.
+.Sh ERRORS
+The
+.Fn pthread_switch_add_np
+may fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+NULL pointer passed as
+.Fa routine
+argument.
+.El
+The
+.Fn pthread_switch_delete_np
+may fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+.Fa routine
+argument is different from argument previously passed to
+.Fn pthread_switch_add_np
+.El
+.Sh SEE ALSO
+.Xr pthread_create 3
+.Sh AUTHORS
+The
+.Nm
+manpage was written by
+.An Alexey Zelkin
+.Aq phantom@FreeBSD.org
+
