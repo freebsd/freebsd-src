@@ -42,7 +42,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_disksubr.c	8.5 (Berkeley) 1/21/94
- * $Id: ufs_disksubr.c,v 1.14 1995/03/18 07:06:51 davidg Exp $
+ * $Id: ufs_disksubr.c,v 1.15 1995/05/30 08:15:33 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -80,11 +80,14 @@ disksort(ap, bp)
 	register struct buf *ap, *bp;
 {
 	register struct buf *bq;
+	int s;
 
+	s = splbio();
 	/* If the queue is empty, then it's easy. */
 	if (ap->b_actf == NULL) {
 		bp->b_actf = NULL;
 		ap->b_actf = bp;
+		splx(s);
 		return;
 	}
 
@@ -142,8 +145,10 @@ disksort(ap, bp)
 	 * Neither a second list nor a larger request... we go at the end of
 	 * the first list, which is the same as the end of the whole schebang.
 	 */
-insert:	bp->b_actf = bq->b_actf;
+insert:
+	bp->b_actf = bq->b_actf;
 	bq->b_actf = bp;
+	splx(s);
 }
 
 /*
