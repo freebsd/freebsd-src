@@ -1,4 +1,4 @@
-.\" $Id: atrun.man,v 1.3 1997/02/22 14:20:55 peter Exp $
+.\" $Id: atrun.man,v 1.4 1997/11/20 07:21:53 charnier Exp $
 .Dd April 12, 1995
 .Dt ATRUN 8
 .Os "FreeBSD 2.1"
@@ -13,29 +13,31 @@
 .Nm Atrun
 runs jobs queued by
 .Xr at 1 .
+.Pp
 Root's
 .Xr crontab 5
 file
 .Pa /etc/crontab
 has to contain the line
 .nf
-*/5     *       *       *       *       root    _ATLIB_DIR/atrun
+*/5     *       *       *       *       root    /usr/libexec/atrun
 .fi
-so
+so that
 .Xr atrun 8
-gets called every five minutes.
+gets invoked every five minutes.
 .Pp
-At every invocation, every job in lowercase queues whose starting time
-has passed is started.
-A maximum of one batch jobs (denoted by uppercase queues) are started
-each time
+At every invocation, 
 .Nm
-is invoked.
+will start all the jobs in the lowercase queues whose start
+time has elapsed.
+In addition, if the load average over the last minute was less than 
+the specified limit then a maximum of one batch job (denoted by the 
+uppercase queues) is started.
 .Sh OPTIONS
 .Bl -tag -width indent
 .It Fl l Ar load_avg
 Specify a limiting load factor, over which batch jobs should
-not be run, instead of the compiled \- in value of _LOADAVG_MX.
+not be run, instead of the compiled in default of 1.5.
 .It Fl d
 Debug; print error messages to standard error instead of using
 .Xr syslog 3 .
@@ -47,10 +49,10 @@ to work, you have to start up a
 .Xr cron 8
 daemon.
 .Sh FILES
-.Bl -tag -width _ATSPOOL_DIR -compact
-.It Pa _ATSPOOL_DIR
+.Bl -tag -width /var/at/spool -compact
+.It Pa /var/at/spool
 Directory containing output spool files
-.It Pa _ATJOB_DIR
+.It Pa /var/at/jobs
 Directory containing job files
 .El
 .Sh SEE ALSO
