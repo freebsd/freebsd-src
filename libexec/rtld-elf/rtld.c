@@ -126,6 +126,7 @@ static void trace_loaded_objects(Obj_Entry *obj);
 static void unlink_object(Obj_Entry *);
 static void unload_object(Obj_Entry *);
 static void unref_dag(Obj_Entry *);
+static void ref_dag(Obj_Entry *);
 
 void r_debug_state(struct r_debug*, struct link_map*);
 
@@ -361,7 +362,6 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     *obj_tail = obj_main;
     obj_tail = &obj_main->next;
     obj_count++;
-    obj_main->refcount++;
     /* Make sure we don't call the main program's init and fini functions. */
     obj_main->init = obj_main->fini = NULL;
 
@@ -383,8 +383,10 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 	die();
 
     /* Make a list of all objects loaded at startup. */
-    for (obj = obj_list;  obj != NULL;  obj = obj->next)
+    for (obj = obj_list;  obj != NULL;  obj = obj->next) {
 	objlist_push_tail(&list_main, obj);
+    	obj->refcount++;
+    }
 
     if (ld_tracing) {		/* We're done */
 	trace_loaded_objects(obj_main);
@@ -970,6 +972,8 @@ init_dag1(Obj_Entry *root, Obj_Entry *obj, DoneList *dlp)
 
     if (donelist_check(dlp, obj))
 	return;
+
+    obj->refcount++;
     objlist_push_tail(&obj->dldags, root);
     objlist_push_tail(&root->dagmembers, obj);
     for (needed = obj->needed;  needed != NULL;  needed = needed->next)
@@ -1223,7 +1227,6 @@ load_object(char *path)
     } else
 	free(path);
 
-    obj->refcount++;
     return obj;
 }
 
@@ -1579,6 +1582,7 @@ dlclose(void *handle)
 
     /* Unreference the object and its dependencies. */
     root->dl_refcount--;
+
     unref_dag(root);
 
     if (root->refcount == 0) {
@@ -1682,8 +1686,14 @@ dlopen(const char *name, int mode)
 		/* Make list of init functions to call. */
 		initlist_add_objects(obj, &obj->next, &initlist);
 	    }
-	} else if (ld_tracing)
-	    goto trace;
+	} else {
+
+	    /* Bump the reference counts for objects on this DAG. */
+	    ref_dag(obj);
+
+	    if (ld_tracing)
+		goto trace;
+	}
     }
 
     GDB_STATE(RT_CONSISTENT,obj ? &obj->linkmap : NULL);
@@ -2405,7 +2415,6 @@ unload_object(Obj_Entry *root)
 static void
 unlink_object(Obj_Entry *root)
 {
-    const Needed_Entry *needed;
     Objlist_Entry *elm;
 
     if (root->refcount == 0) {
@@ -2413,25 +2422,28 @@ unlink_object(Obj_Entry *root)
 	objlist_remove(&list_global, root);
 
     	/* Remove the object from all objects' DAG lists. */
-    	STAILQ_FOREACH(elm, &root->dagmembers , link)
+    	STAILQ_FOREACH(elm, &root->dagmembers , link) {
 	    objlist_remove(&elm->obj->dldags, root);
+	    if (elm->obj != root)
+		unlink_object(elm->obj);
+	}
     }
+}
 
-    for (needed = root->needed;  needed != NULL;  needed = needed->next)
-	if (needed->obj != NULL)
-	    unlink_object(needed->obj);
+static void
+ref_dag(Obj_Entry *root)
+{
+    Objlist_Entry *elm;
+
+    STAILQ_FOREACH(elm, &root->dagmembers , link)
+	elm->obj->refcount++;
 }
 
 static void
 unref_dag(Obj_Entry *root)
 {
-    const Needed_Entry *needed;
+    Objlist_Entry *elm;
 
-    if (root->refcount == 0)
-	return;
-    root->refcount--;
-    if (root->refcount == 0) 
-	for (needed = root->needed;  needed != NULL;  needed = needed->next)
-	    if (needed->obj != NULL)
-		unref_dag(needed->obj);
+    STAILQ_FOREACH(elm, &root->dagmembers , link)
+	elm->obj->refcount--;
 }
