@@ -90,6 +90,7 @@ extern int ncpus;
 #include <machine/md_var.h>
 #endif /* __i386__ */
 
+#include <machine/../linux/linux.h>
 #include <compat/linux/linux_ioctl.h>
 #include <compat/linux/linux_mib.h>
 #include <compat/linux/linux_util.h>
@@ -444,11 +445,15 @@ linprocfs_douptime(PFS_FILL_ARGS)
 static int
 linprocfs_doversion(PFS_FILL_ARGS)
 {
+	char osname[LINUX_MAX_UTSNAME];
+	char osrelease[LINUX_MAX_UTSNAME];
+
+	linux_get_osname(td->td_proc, osname);
+	linux_get_osrelease(td->td_proc, osrelease);
+
 	sbuf_printf(sb,
 	    "%s version %s (des@freebsd.org) (gcc version " __VERSION__ ")"
-	    " #4 Sun Dec 18 04:30:00 CET 1977\n",
-	    linux_get_osname(td->td_proc),
-	    linux_get_osrelease(td->td_proc));
+	    " #4 Sun Dec 18 04:30:00 CET 1977\n", osname, osrelease);
 	return (0);
 }
 

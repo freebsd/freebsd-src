@@ -19,6 +19,8 @@
 #include <sys/malloc.h>
 #include <sys/proc.h>
 #include <sys/jail.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <net/if.h>
@@ -71,6 +73,7 @@ jail(td, uap)
 
 	mtx_lock(&Giant);
 	MALLOC(pr, struct prison *, sizeof *pr , M_PRISON, M_WAITOK | M_ZERO);
+	mtx_init(&pr->pr_mtx, "jail mutex", MTX_DEF);
 	pr->pr_securelevel = securelevel;
 	error = copyinstr(j.hostname, &pr->pr_host, sizeof pr->pr_host, 0);
 	if (error)
@@ -108,19 +111,33 @@ void
 prison_free(struct prison *pr)
 {
 
+	mtx_lock(&pr->pr_mtx);
 	pr->pr_ref--;
 	if (pr->pr_ref == 0) {
+		mtx_unlock(&pr->pr_mtx);
+		mtx_destroy(&pr->pr_mtx);
 		if (pr->pr_linux != NULL)
 			FREE(pr->pr_linux, M_PRISON);
 		FREE(pr, M_PRISON);
+		return;
 	}
+	mtx_unlock(&pr->pr_mtx);
 }
 
 void
 prison_hold(struct prison *pr)
 {
 
+	mtx_lock(&pr->pr_mtx);
 	pr->pr_ref++;
+	mtx_unlock(&pr->pr_mtx);
+}
+
+u_int32_t
+prison_getip(struct ucred *cred)
+{
+
+	return (cred->cr_prison->pr_ip);
 }
 
 int

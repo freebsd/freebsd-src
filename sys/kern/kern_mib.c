@@ -48,6 +48,8 @@
 #include <sys/systm.h>
 #include <sys/sysctl.h>
 #include <sys/proc.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/jail.h>
 #include <sys/smp.h>
 
@@ -155,14 +157,34 @@ static int
 sysctl_hostname(SYSCTL_HANDLER_ARGS)
 {
 	struct prison *pr;
+	char tmphostname[MAXHOSTNAMELEN];
 	int error;
 
 	pr = req->td->td_proc->p_ucred->cr_prison;
 	if (pr != NULL) {
 		if (!jail_set_hostname_allowed && req->newptr)
 			return (EPERM);
-		error = sysctl_handle_string(oidp, pr->pr_host,
+		/*
+		 * Process is in jail, so make a local copy of jail
+		 * hostname to get/set so we don't have to hold the jail
+		 * mutex during the sysctl copyin/copyout activities.
+		 */
+		mtx_lock(&pr->pr_mtx);
+		bcopy(pr->pr_host, tmphostname, MAXHOSTNAMELEN);
+		mtx_unlock(&pr->pr_mtx);
+
+		error = sysctl_handle_string(oidp, tmphostname,
 		    sizeof pr->pr_host, req);
+
+		if (req->newptr != NULL && error == 0) {
+			/*
+			 * Copy the locally set hostname to the jail, if
+			 * appropriate.
+			 */
+			mtx_lock(&pr->pr_mtx);
+			bcopy(tmphostname, pr->pr_host, MAXHOSTNAMELEN);
+			mtx_unlock(&pr->pr_mtx);
+		}
 	} else
 		error = sysctl_handle_string(oidp,
 		    hostname, sizeof hostname, req);
@@ -194,9 +216,11 @@ sysctl_kern_securelvl(SYSCTL_HANDLER_ARGS)
 	 * If the process is in jail, return the maximum of the global and
 	 * local levels; otherwise, return the global level.
 	 */
-	if (pr != NULL)
+	if (pr != NULL) {
+		mtx_lock(&pr->pr_mtx);
 		level = imax(securelevel, pr->pr_securelevel);
-	else
+		mtx_unlock(&pr->pr_mtx);
+	} else
 		level = securelevel;
 	error = sysctl_handle_int(oidp, &level, 0, req);
 	if (error || !req->newptr)
@@ -206,10 +230,14 @@ sysctl_kern_securelvl(SYSCTL_HANDLER_ARGS)
 	 * global level, and local level if any.
 	 */
 	if (pr != NULL) {
+		mtx_lock(&pr->pr_mtx);
 		if (!regression_securelevel_nonmonotonic &&
-		    (level < imax(securelevel, pr->pr_securelevel)))
+		    (level < imax(securelevel, pr->pr_securelevel))) {
+			mtx_unlock(&pr->pr_mtx);
 			return (EPERM);
+		}
 		pr->pr_securelevel = level;
+		mtx_unlock(&pr->pr_mtx);
 	} else {
 		if (!regression_securelevel_nonmonotonic &&
 		    (level < securelevel))
