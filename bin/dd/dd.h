@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)dd.h	8.3 (Berkeley) 4/2/94
- *	$Id: dd.h,v 1.6 1997/02/22 14:02:45 peter Exp $
+ *	$Id: dd.h,v 1.7 1997/10/11 20:09:05 joerg Exp $
  */
 
 /* Input/output stream state. */
@@ -69,7 +69,7 @@ typedef struct {
 	u_long	out_part;		/* # of partial output blocks */
 	u_long	trunc;			/* # of truncated records */
 	u_long	swab;			/* # of odd-length swab blocks */
-	u_long	bytes;			/* # of bytes written */
+	u_int64_t	bytes;		/* # of bytes written */
 	double	start; 			/* start time of dd */
 } STAT;
 
