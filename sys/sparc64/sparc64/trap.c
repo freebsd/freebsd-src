@@ -470,7 +470,7 @@ trap_pfault(struct thread *td, struct trapframe *tf)
 	} else {
 		/*
 		 * This is a fault on kernel virtual memory.  Attempts to access
-		 * kernel memory from user mode cause priviledged action traps,
+		 * kernel memory from user mode cause privileged action traps,
 		 * not page fault.
 		 */
 		KASSERT(tf->tf_tstate & TSTATE_PRIV,
