@@ -191,6 +191,7 @@ main(int argc, char **argv)
 				    (struct chunk *)strtol(cmds[1], 0, 0)));
 			continue;
 		}
+#ifndef __ia64__
 		if (!strcasecmp(*cmds, "allfreebsd")) {
 			All_FreeBSD(d, 0);
 			continue;
@@ -209,6 +210,7 @@ main(int argc, char **argv)
 				      strtol(cmds[3], 0, 0));
 			continue;
 		}
+#endif
 		if (!strcasecmp(*cmds, "list")) {
 			cp = Disk_Names();
 			printf("Disks:");
