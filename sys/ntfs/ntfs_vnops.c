@@ -162,7 +162,9 @@ ntfs_read(ap)
 	register struct ntnode *ip = FTONT(fp);
 	struct uio *uio = ap->a_uio;
 	struct ntfsmount *ntmp = ip->i_mp;
-	u_int64_t toread;
+	struct buf *bp;
+	daddr_t cn;
+	int resid, off, toread;
 	int error;
 
 	dprintf(("ntfs_read: ino: %d, off: %d resid: %d, segflg: %d\n",ip->i_number,(u_int32_t)uio->uio_offset,uio->uio_resid,uio->uio_segflg));
@@ -171,23 +173,36 @@ ntfs_read(ap)
 
 	/* don't allow reading after end of file */
 	if (uio->uio_offset > fp->f_size)
-		toread = 0;
-	else
-		toread = min( uio->uio_resid, fp->f_size - uio->uio_offset );
-
-	dprintf((", toread: %d\n",(u_int32_t)toread));
-
-	if (toread == 0)
 		return (0);
 
-	error = ntfs_readattr(ntmp, ip, fp->f_attrtype,
-		fp->f_attrname, uio->uio_offset, toread, NULL, uio);
-	if (error) {
-		printf("ntfs_read: ntfs_readattr failed: %d\n",error);
-		return (error);
+	resid = min(uio->uio_resid, fp->f_size - uio->uio_offset);
+
+	dprintf((", resid: %d\n", resid));
+
+	error = 0;
+	while (resid) {
+		cn = ntfs_btocn(uio->uio_offset);
+		off = ntfs_btocnoff(uio->uio_offset);
+
+		toread = min(off + resid, ntfs_cntob(1));
+
+		error = bread(vp, cn, ntfs_cntob(1), NOCRED, &bp);
+		if (error) {
+			brelse(bp);
+			break;
+		}
+
+		error = uiomove(bp->b_data + off, toread - off, uio);
+		if(error) {
+			brelse(bp);
+			break;
+		}
+		brelse(bp);
+
+		resid -= toread - off;
 	}
 
-	return (0);
+	return (error);
 }
 
 #if !defined(__FreeBSD__)
