@@ -142,7 +142,7 @@
     <sect3>
       <title>Network Protocols</title>
 
-      <para>A new version of &man.ipfw.4 
+      <para>A new version of &man.ipfw.4; 
         (commonly referred to as <quote>IPFW2</quote>) has been added
         as an option.  It now uses
         variable-sized representation of rules in the kernel, similar
