@@ -57,9 +57,11 @@
 
 #include <sys/param.h>
 #include <sys/socket.h>
+#include <sys/uio.h>
 #include <netinet/in.h>
 
 #include <ctype.h>
+#include <errno.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -84,74 +86,96 @@
 #define FTP_FILE_ACTION_OK		250
 #define FTP_NEED_PASSWORD		331
 #define FTP_NEED_ACCOUNT		332
+#define FTP_SYNTAX_ERROR		500
 
-#define ENDL "\r\n"
+static char ENDL[2] = "\r\n";
 
 static struct url cached_host;
-static FILE *cached_socket;
+static int cached_socket;
 
-static char _ftp_last_reply[1024];
+static char *last_reply;
+static size_t lr_size, lr_length;
+static int last_code;
+
+#define isftpreply(foo) (isdigit(foo[0]) && isdigit(foo[1]) \
+			 && isdigit(foo[2]) && foo[3] == ' ')
+#define isftpinfo(foo) (isdigit(foo[0]) && isdigit(foo[1]) \
+			&& isdigit(foo[2]) && foo[3] == '-')
 
 /*
- * Get server response, check that first digit is a '2'
+ * Get server response
  */
 static int
-_ftp_chkerr(FILE *s)
+_ftp_chkerr(int cd)
 {
-    char *line;
-    size_t len;
-
     do {
-	if (((line = fgetln(s, &len)) == NULL) || (len < 4)) {
+	if (_fetch_getln(cd, &last_reply, &lr_size, &lr_length) == -1) {
 	    _fetch_syserr();
 	    return -1;
 	}
-    } while (len >= 4 && line[3] == '-');
-
-    while (len && isspace(line[len-1]))
-	len--;
-    snprintf(_ftp_last_reply, sizeof(_ftp_last_reply),
-	     "%*.*s", (int)len, (int)len, line);
-    
 #ifndef NDEBUG
-    fprintf(stderr, "\033[1m<<< ");
-    fprintf(stderr, "%*.*s\n", (int)len, (int)len, line);
-    fprintf(stderr, "\033[m");
+	_fetch_info("got reply '%.*s'", lr_length - 2, last_reply);
 #endif
+    } while (isftpinfo(last_reply));
+
+    while (lr_length && isspace(last_reply[lr_length-1]))
+	lr_length--;
+    last_reply[lr_length] = 0;
     
-    if (len < 4 || !isdigit(line[1]) || !isdigit(line[1])
-	|| !isdigit(line[2]) || (line[3] != ' ')) {
+    if (!isftpreply(last_reply)) {
+	_ftp_seterr(999);
 	return -1;
     }
 
-    return (line[0] - '0') * 100 + (line[1] - '0') * 10 + (line[2] - '0');
+    last_code = (last_reply[0] - '0') * 100
+	+ (last_reply[1] - '0') * 10
+	+ (last_reply[2] - '0');
+
+    return last_code;
 }
 
 /*
  * Send a command and check reply
  */
 static int
-_ftp_cmd(FILE *f, char *fmt, ...)
+_ftp_cmd(int cd, char *fmt, ...)
 {
     va_list ap;
+    struct iovec iov[2];
+    char *msg;
+    int r;
 
     va_start(ap, fmt);
-    vfprintf(f, fmt, ap);
-#ifndef NDEBUG
-    fprintf(stderr, "\033[1m>>> ");
-    vfprintf(stderr, fmt, ap);
-    fprintf(stderr, "\033[m");
-#endif
+    vasprintf(&msg, fmt, ap);
     va_end(ap);
     
-    return _ftp_chkerr(f);
+    if (msg == NULL) {
+	errno = ENOMEM;
+	_fetch_syserr();
+	return -1;
+    }
+#ifndef NDEBUG
+    _fetch_info("sending '%s'", msg);
+#endif
+    iov[0].iov_base = msg;
+    iov[0].iov_len = strlen(msg);
+    iov[1].iov_base = ENDL;
+    iov[1].iov_len = sizeof(ENDL);
+    r = writev(cd, iov, 2);
+    free(msg);
+    if (r == -1) {
+	_fetch_syserr();
+	return -1;
+    }
+    
+    return _ftp_chkerr(cd);
 }
 
 /*
  * Transfer file
  */
 static FILE *
-_ftp_transfer(FILE *cf, char *oper, char *file, char *mode, char *flags)
+_ftp_transfer(int cd, char *oper, char *file, char *mode, char *flags)
 {
     struct sockaddr_in sin;
     int pasv, high, verbose;
@@ -170,17 +194,19 @@ _ftp_transfer(FILE *cf, char *oper, char *file, char *mode, char *flags)
 	*s = 0;
 	if (verbose)
 	    _fetch_info("changing directory to %s", file);
-	if ((e = _ftp_cmd(cf, "CWD %s" ENDL, file)) != FTP_FILE_ACTION_OK) {
+	if ((e = _ftp_cmd(cd, "CWD %s", file)) != FTP_FILE_ACTION_OK) {
 	    *s = '/';
-	    _ftp_seterr(e);
+	    if (e != -1)
+		_ftp_seterr(e);
 	    return NULL;
 	}
 	*s++ = '/';
     } else {
 	if (verbose)
 	    _fetch_info("changing directory to /");
-	if ((e = _ftp_cmd(cf, "CWD /" ENDL)) != FTP_FILE_ACTION_OK) {
-	    _ftp_seterr(e);
+	if ((e = _ftp_cmd(cd, "CWD /")) != FTP_FILE_ACTION_OK) {
+	    if (e != -1)
+		_ftp_seterr(e);
 	    return NULL;
 	}
     }
@@ -201,14 +227,14 @@ _ftp_transfer(FILE *cf, char *oper, char *file, char *mode, char *flags)
 	/* send PASV command */
 	if (verbose)
 	    _fetch_info("setting passive mode");
-	if ((e = _ftp_cmd(cf, "PASV" ENDL)) != FTP_PASSIVE_MODE)
+	if ((e = _ftp_cmd(cd, "PASV")) != FTP_PASSIVE_MODE)
 	    goto ouch;
 
 	/*
 	 * Find address and port number. The reply to the PASV command
          * is IMHO the one and only weak point in the FTP protocol.
 	 */
-	ln = _ftp_last_reply;
+	ln = last_reply;
 	for (p = ln + 3; !isdigit(*p); p++)
 	    /* nothing */ ;
 	for (p--, i = 0; i < 6; i++) {
@@ -218,7 +244,7 @@ _ftp_transfer(FILE *cf, char *oper, char *file, char *mode, char *flags)
 
 	/* construct sockaddr for data socket */
 	l = sizeof(sin);
-	if (getpeername(fileno(cf), (struct sockaddr *)&sin, &l) == -1)
+	if (getpeername(cd, (struct sockaddr *)&sin, &l) == -1)
 	    goto sysouch;
 	bcopy(addr, (char *)&sin.sin_addr, 4);
 	bcopy(addr + 4, (char *)&sin.sin_port, 2);	
@@ -232,7 +258,7 @@ _ftp_transfer(FILE *cf, char *oper, char *file, char *mode, char *flags)
 	/* make the server initiate the transfer */
 	if (verbose)
 	    _fetch_info("initiating transfer");
-	e = _ftp_cmd(cf, "%s %s" ENDL, oper, s);
+	e = _ftp_cmd(cd, "%s %s", oper, s);
 	if (e != FTP_OPEN_DATA_CONNECTION)
 	    goto ouch;
 	
@@ -243,7 +269,7 @@ _ftp_transfer(FILE *cf, char *oper, char *file, char *mode, char *flags)
 	
 	/* find our own address, bind, and listen */
 	l = sizeof(sin);
-	if (getsockname(fileno(cf), (struct sockaddr *)&sin, &l) == -1)
+	if (getsockname(cd, (struct sockaddr *)&sin, &l) == -1)
 	    goto sysouch;
 	sin.sin_port = 0;
 	arg = high ? IP_PORTRANGE_HIGH : IP_PORTRANGE_DEFAULT;
@@ -262,7 +288,7 @@ _ftp_transfer(FILE *cf, char *oper, char *file, char *mode, char *flags)
 	    goto sysouch;
 	a = ntohl(sin.sin_addr.s_addr);
 	p = ntohs(sin.sin_port);
-	e = _ftp_cmd(cf, "PORT %d,%d,%d,%d,%d,%d" ENDL,
+	e = _ftp_cmd(cd, "PORT %d,%d,%d,%d,%d,%d",
 		     (a >> 24) & 0xff, (a >> 16) & 0xff,
 		     (a >> 8) & 0xff, a & 0xff,
 		     (p >> 8) & 0xff, p & 0xff);
@@ -272,7 +298,7 @@ _ftp_transfer(FILE *cf, char *oper, char *file, char *mode, char *flags)
 	/* make the server initiate the transfer */
 	if (verbose)
 	    _fetch_info("initiating transfer");
-	e = _ftp_cmd(cf, "%s %s" ENDL, oper, s);
+	e = _ftp_cmd(cd, "%s %s", oper, s);
 	if (e != FTP_OPEN_DATA_CONNECTION)
 	    goto ouch;
 	
@@ -293,7 +319,8 @@ sysouch:
     return NULL;
 
 ouch:
-    _ftp_seterr(e);
+    if (e != -1)
+	_ftp_seterr(e);
     close(sd);
     return NULL;
 }
@@ -301,12 +328,11 @@ ouch:
 /*
  * Log on to FTP server
  */
-static FILE *
+static int
 _ftp_connect(char *host, int port, char *user, char *pwd, char *flags)
 {
-    int sd, e, pp = FTP_DEFAULT_PORT, direct, verbose;
+    int cd, e, pp = FTP_DEFAULT_PORT, direct, verbose;
     char *p, *q;
-    FILE *f;
 
     direct = (flags && strchr(flags, 'd'));
     verbose = (flags && strchr(flags, 'v'));
@@ -319,43 +345,36 @@ _ftp_connect(char *host, int port, char *user, char *pwd, char *flags)
 	}
 	if (q)
 	    *q = 0;
-	sd = _fetch_connect(p, pp, verbose);
+	cd = _fetch_connect(p, pp, verbose);
 	if (q)
 	    *q = ':';
     } else {
 	/* no proxy, go straight to target */
-	sd = _fetch_connect(host, port, verbose);
+	cd = _fetch_connect(host, port, verbose);
 	p = NULL;
     }
 
     /* check connection */
-    if (sd == -1) {
+    if (cd == -1) {
 	_fetch_syserr();
-	return NULL;
-    }
-
-    /* streams make life easier */
-    if ((f = fdopen(sd, "r+")) == NULL) {
-	_fetch_syserr();
-	close(sd);
 	return NULL;
     }
 
     /* expect welcome message */
-    if ((e = _ftp_chkerr(f)) != FTP_SERVICE_READY)
+    if ((e = _ftp_chkerr(cd)) != FTP_SERVICE_READY)
 	goto fouch;
     
     /* send user name and password */
     if (!user || !*user)
 	user = FTP_ANONYMOUS_USER;
-    e = p ? _ftp_cmd(f, "USER %s@%s@%d" ENDL, user, host, port)
-	  : _ftp_cmd(f, "USER %s" ENDL, user);
+    e = p ? _ftp_cmd(cd, "USER %s@%s@%d", user, host, port)
+	  : _ftp_cmd(cd, "USER %s", user);
     
     /* did the server request a password? */
     if (e == FTP_NEED_PASSWORD) {
 	if (!pwd || !*pwd)
 	    pwd = FTP_ANONYMOUS_PASSWORD;
-	e = _ftp_cmd(f, "PASS %s" ENDL, pwd);
+	e = _ftp_cmd(cd, "PASS %s", pwd);
     }
 
     /* did the server request an account? */
@@ -368,18 +387,19 @@ _ftp_connect(char *host, int port, char *user, char *pwd, char *flags)
 
     /* might as well select mode and type at once */
 #ifdef FTP_FORCE_STREAM_MODE
-    if ((e = _ftp_cmd(f, "MODE S" ENDL)) != FTP_OK) /* default is S */
+    if ((e = _ftp_cmd(cd, "MODE S")) != FTP_OK) /* default is S */
 	goto fouch;
 #endif
-    if ((e = _ftp_cmd(f, "TYPE I" ENDL)) != FTP_OK) /* default is A */
+    if ((e = _ftp_cmd(cd, "TYPE I")) != FTP_OK) /* default is A */
 	goto fouch;
 
     /* done */
-    return f;
+    return cd;
     
 fouch:
-    _ftp_seterr(e);
-    fclose(f);
+    if (e != -1)
+	_ftp_seterr(e);
+    close(cd);
     return NULL;
 }
 
@@ -387,10 +407,10 @@ fouch:
  * Disconnect from server
  */
 static void
-_ftp_disconnect(FILE *f)
+_ftp_disconnect(int cd)
 {
-    (void)_ftp_cmd(f, "QUIT" ENDL);
-    fclose(f);
+    (void)_ftp_cmd(cd, "QUIT");
+    close(cd);
 }
 
 /*
@@ -409,34 +429,36 @@ _ftp_isconnected(struct url *url)
 /*
  * Check the cache, reconnect if no luck
  */
-static FILE *
+static int
 _ftp_cached_connect(struct url *url, char *flags)
 {
-    FILE *cf;
+    int e, cd;
 
-    cf = NULL;
+    cd = -1;
     
     /* set default port */
     if (!url->port)
 	url->port = FTP_DEFAULT_PORT;
     
     /* try to use previously cached connection */
-    if (_ftp_isconnected(url))
-	if (_ftp_cmd(cached_socket, "NOOP" ENDL) != -1)
-	    cf = cached_socket;
+    if (_ftp_isconnected(url)) {
+	e = _ftp_cmd(cached_socket, "NOOP");
+	if (e == FTP_OK || e == FTP_SYNTAX_ERROR)
+	    cd = cached_socket;
+    }
 
     /* connect to server */
-    if (!cf) {
-	cf = _ftp_connect(url->host, url->port, url->user, url->pwd, flags);
-	if (!cf)
-	    return NULL;
+    if (cd == -1) {
+	cd = _ftp_connect(url->host, url->port, url->user, url->pwd, flags);
+	if (cd == -1)
+	    return -1;
 	if (cached_socket)
 	    _ftp_disconnect(cached_socket);
-	cached_socket = cf;
+	cached_socket = cd;
 	memcpy(&cached_host, url, sizeof(struct url));
     }
 
-    return cf;
+    return cd;
 }
 
 /*
@@ -445,14 +467,14 @@ _ftp_cached_connect(struct url *url, char *flags)
 FILE *
 fetchGetFTP(struct url *url, char *flags)
 {
-    FILE *cf;
-
+    int cd;
+    
     /* connect to server */
-    if ((cf = _ftp_cached_connect(url, flags)) == NULL)
+    if ((cd = _ftp_cached_connect(url, flags)) == NULL)
 	return NULL;
     
     /* initiate the transfer */
-    return _ftp_transfer(cf, "RETR", url->doc, "r", flags);
+    return _ftp_transfer(cd, "RETR", url->doc, "r", flags);
 }
 
 /*
@@ -461,14 +483,14 @@ fetchGetFTP(struct url *url, char *flags)
 FILE *
 fetchPutFTP(struct url *url, char *flags)
 {
-    FILE *cf;
+    int cd;
 
     /* connect to server */
-    if ((cf = _ftp_cached_connect(url, flags)) == NULL)
+    if ((cd = _ftp_cached_connect(url, flags)) == NULL)
 	return NULL;
     
     /* initiate the transfer */
-    return _ftp_transfer(cf, (flags && strchr(flags, 'a')) ? "APPE" : "STOR",
+    return _ftp_transfer(cd, (flags && strchr(flags, 'a')) ? "APPE" : "STOR",
 			 url->doc, "w", flags);
 }
 
@@ -478,45 +500,44 @@ fetchPutFTP(struct url *url, char *flags)
 int
 fetchStatFTP(struct url *url, struct url_stat *us, char *flags)
 {
-    FILE *cf;
     char *ln, *s;
     struct tm tm;
     time_t t;
-    int e;
+    int e, cd;
 
     /* connect to server */
-    if ((cf = _ftp_cached_connect(url, flags)) == NULL)
+    if ((cd = _ftp_cached_connect(url, flags)) == NULL)
 	return -1;
 
     /* change directory */
     if (((s = strrchr(url->doc, '/')) != NULL) && (s != url->doc)) {
 	*s = 0;
-	if ((e = _ftp_cmd(cf, "CWD %s" ENDL, url->doc)) != FTP_FILE_ACTION_OK) {
+	if ((e = _ftp_cmd(cd, "CWD %s", url->doc)) != FTP_FILE_ACTION_OK) {
 	    *s = '/';
 	    goto ouch;
 	}
 	*s++ = '/';
     } else {
-	if ((e = _ftp_cmd(cf, "CWD /" ENDL)) != FTP_FILE_ACTION_OK)
+	if ((e = _ftp_cmd(cd, "CWD /")) != FTP_FILE_ACTION_OK)
 	    goto ouch;
     }
 
     /* s now points to file name */
     
-    if (_ftp_cmd(cf, "SIZE %s" ENDL, s) != FTP_FILE_STATUS)
+    if (_ftp_cmd(cd, "SIZE %s", s) != FTP_FILE_STATUS)
 	goto ouch;
-    for (ln = _ftp_last_reply + 4; *ln && isspace(*ln); ln++)
+    for (ln = last_reply + 4; *ln && isspace(*ln); ln++)
 	/* nothing */ ;
     for (us->size = 0; *ln && isdigit(*ln); ln++)
 	us->size = us->size * 10 + *ln - '0';
     if (*ln && !isspace(*ln)) {
-	_ftp_seterr(999); /* XXX should signal a FETCH_PROTO error */
+	_ftp_seterr(999);
 	return -1;
     }
 
-    if ((e = _ftp_cmd(cf, "MDTM %s" ENDL, s)) != FTP_FILE_STATUS)
+    if ((e = _ftp_cmd(cd, "MDTM %s", s)) != FTP_FILE_STATUS)
 	goto ouch;
-    for (ln = _ftp_last_reply + 4; *ln && isspace(*ln); ln++)
+    for (ln = last_reply + 4; *ln && isspace(*ln); ln++)
 	/* nothing */ ;
     t = time(NULL);
     us->mtime = localtime(&t)->tm_gmtoff;
@@ -533,7 +554,8 @@ fetchStatFTP(struct url *url, struct url_stat *us, char *flags)
     return 0;
 
 ouch:
-    _ftp_seterr(e);
+    if (e != -1)
+	_ftp_seterr(e);
     return -1;
 }
 
