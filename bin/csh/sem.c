@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)sem.c	8.1 (Berkeley) 5/31/93";
 #else
 static const char rcsid[] =
-	"$Id: sem.c,v 1.5 1997/02/22 14:02:07 peter Exp $";
+	"$Id: sem.c,v 1.6 1997/08/07 21:42:15 steve Exp $";
 #endif
 #endif /* not lint */
 
@@ -73,9 +73,9 @@ execute(t, wanttty, pipein, pipeout)
     int     pid = 0;
     int     pv[2];
 
-    static sigset_t csigmask;
+    static int csigmask;
 
-    static sigset_t ocsigmask;
+    static int ocsigmask;
     static int onosigchld = 0;
     static int nosigchld = 0;
 
@@ -229,7 +229,7 @@ execute(t, wanttty, pipein, pipeout)
 	    else {
 		int     ochild, osetintr, ohaderr, odidfds;
 		int     oSHIN, oSHOUT, oSHERR, oOLDSTD, otpgrp;
-		sigset_t omask;
+		int	omask;
 
 		/*
 		 * Prepare for the vfork by saving everything that the child

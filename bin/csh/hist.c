@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)hist.c	8.1 (Berkeley) 5/31/93";
 #else
 static const char rcsid[] =
-	"$Id: hist.c,v 1.4 1997/02/22 14:01:59 peter Exp $";
+	"$Id: hist.c,v 1.5 1997/08/07 21:42:10 steve Exp $";
 #endif
 #endif /* not lint */
 
@@ -130,7 +130,7 @@ dohist(v, t)
     if (getn(value(STRhistory)) == 0)
 	return;
     if (setintr)
-	(void) sigsetmask(sigblock((sigset_t) 0) & ~sigmask(SIGINT));
+	(void) sigsetmask(sigblock(0) & ~sigmask(SIGINT));
     while (*++v && **v == '-') {
 	Char   *vp = *v;
 
