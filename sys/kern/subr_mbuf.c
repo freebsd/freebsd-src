@@ -1463,7 +1463,7 @@ m_getcl(int how, short type, int flags)
 		_mext_init_ref(mb, &cl_refcntmap[cl2ref(mb->m_ext.ext_buf)]);
 	}
 #ifdef MAC
-	if ((type & M_PKTHDR) && (mac_init_mbuf(mb, how) != 0)) {
+	if ((flags & M_PKTHDR) && (mac_init_mbuf(mb, how) != 0)) {
 		m_free(mb);
 		return NULL;
 	}
