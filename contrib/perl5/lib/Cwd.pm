@@ -79,7 +79,7 @@ require Exporter;
 
 sub _backtick_pwd {
     my $cwd;
-    chop($cwd = `pwd`);
+    chop($cwd = `/bin/pwd`);
     $cwd;
 }
 
