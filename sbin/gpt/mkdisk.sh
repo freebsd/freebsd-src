@@ -7,5 +7,5 @@ sudo fdisk -f - md4 <<EOF
 g c567 h13 s17
 p 1 165 221 124865
 EOF
-sudo disklabel -w -r md4 pan60
+sudo bsdlabel -w -r md4 pan60
 sudo mdconfig -d -u 4
