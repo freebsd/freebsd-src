@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ethersubr.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ethersubr.c,v 1.44 1998/01/31 07:23:14 eivind Exp $
+ * $Id: if_ethersubr.c,v 1.45 1998/02/20 13:11:49 bde Exp $
  */
 
 #include "opt_atalk.h"
@@ -97,9 +97,14 @@ extern struct ifqueue pkintrq;
 #define llc_snap_org_code llc_un.type_snap.org_code
 #define llc_snap_ether_type llc_un.type_snap.ether_type
 
-extern u_char	at_org_code[ 3 ];
-extern u_char	aarp_org_code[ 3 ];
-#endif NETATALK
+extern u_char	at_org_code[3];
+extern u_char	aarp_org_code[3];
+#endif /* NETATALK */
+
+#include "vlan.h"
+#if NVLAN > 0
+#include <net/if_vlan_var.h>
+#endif /* NVLAN > 0 */
 
 static	int ether_resolvemulti __P((struct ifnet *, struct sockaddr **, 
 				    struct sockaddr *));
@@ -473,15 +478,25 @@ ether_input(ifp, eh, m)
 		return;
 	}
 	ifp->if_ibytes += m->m_pkthdr.len + sizeof (*eh);
-	if (bcmp((caddr_t)etherbroadcastaddr, (caddr_t)eh->ether_dhost,
-	    sizeof(etherbroadcastaddr)) == 0)
-		m->m_flags |= M_BCAST;
-	else if (eh->ether_dhost[0] & 1)
-		m->m_flags |= M_MCAST;
+	if (eh->ether_dhost[0] & 1) {
+		if (bcmp((caddr_t)etherbroadcastaddr, (caddr_t)eh->ether_dhost,
+			 sizeof(etherbroadcastaddr)) == 0)
+			m->m_flags |= M_BCAST;
+		else
+			m->m_flags |= M_MCAST;
+	}
 	if (m->m_flags & (M_BCAST|M_MCAST))
 		ifp->if_imcasts++;
 
 	ether_type = ntohs(eh->ether_type);
+
+#if NVLAN > 0
+	if (ether_type == vlan_proto) {
+		if (vlan_input(eh, m) < 0)
+			ifp->if_data.ifi_noproto++;
+		return;
+	}
+#endif /* NVLAN > 0 */
 
 	switch (ether_type) {
 #ifdef INET
