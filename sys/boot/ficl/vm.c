@@ -13,7 +13,13 @@
 ** of the interp.
 */
 
+#ifdef TESTMAIN
+#include <stdlib.h>
+#include <stdio.h>
+#include <ctype.h>
+#else
 #include <stand.h>
+#endif
 #include <stdarg.h>
 #include <string.h>
 #include "ficl.h"
