@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.138 1997/08/21 15:16:07 bde Exp $
+#	$Id: Makefile,v 1.139 1997/08/21 15:43:54 bde Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -484,7 +484,7 @@ includes:
 	cd ${.CURDIR}/lib/libskey &&		${MAKE} beforeinstall
 .if !defined(NOTCL) && exists (${.CURDIR}/contrib/tcl) && \
 	exists(${.CURDIR}/usr.bin/tclsh) && exists (${.CURDIR}/lib/libtcl)
-	cd ${.CURDIR}/lib/libtcl &&		${MAKE} beforeinstall
+	cd ${.CURDIR}/lib/libtcl &&		${MAKE} installhdrs
 .endif
 	cd ${.CURDIR}/lib/libtermcap &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libcom_err &&		${MAKE} beforeinstall
