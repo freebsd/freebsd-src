@@ -1,4 +1,5 @@
 # $NetBSD: Makefile,v 1.15 1998/03/28 00:21:35 thorpej Exp $
+# $FreeBSD$
 
 .include <../Makefile.inc>
 
@@ -38,5 +39,6 @@ start.o:	${.CURDIR}/../libalpha/start.S
 
 ${PROG}.sym: ${OBJS} ${LIBKERN}
 	${LD} -M -Ttext ${BOOT_RELOC} -N -e start -o ${PROG}.sym ${OBJS} \
-		${LIBSTAND} ${LIBALPHA} ${LIBSTAND} > ${.OBJDIR}/${PROG}.list
+		-L${DESTDIR}${LIBDIR} ${LIBSTAND} ${LIBALPHA} ${LIBSTAND} \
+		> ${.OBJDIR}/${PROG}.list
 	size ${PROG}.sym
