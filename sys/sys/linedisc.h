@@ -205,7 +205,6 @@ typedef int l_modem_t(struct tty *tp, int flag);
  */
 #define	D_MEMDISK	0x00010000	/* memory type disk */
 #define	D_NAGGED	0x00020000	/* nagged about missing make_dev() */
-#define	D_CANFREE	0x00040000	/* can free blocks */
 #define	D_TRACKCLOSE	0x00080000	/* track all closes */
 #define D_MMAP_ANON	0x00100000	/* special treatment in vm_mmap.c */
 #define D_KQFILTER	0x00200000	/* has kqfilter entry */
