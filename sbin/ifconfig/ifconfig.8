@@ -189,6 +189,16 @@ This action does not automatically disable routes using the interface.
 .\" IP encapsulation of
 .\" .Tn CLNP
 .\" packets is done differently.
+.It Cm lladdr Ar addr
+Set the link-level address on an interface. This can be used to
+e.g. set a new MAC address on an ethernet interface, though the
+mechanism used is not ethernet-specific. The address
+.Ar addr
+is specified as a series of colon-separated hex digits.
+If the interface is already
+up when this option is used, it will be briefly brought down and
+then brought back up again in order to insure that the receive
+filter in the underlying ethernet hardware is properly reprogrammed.
 .It Cm media Ar type
 If the driver supports the media selection system, set the media type
 of the interface to
