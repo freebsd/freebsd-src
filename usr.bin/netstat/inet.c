@@ -99,7 +99,7 @@ protopr(off, name)
 	kread(off, (char *)&head, sizeof (struct inpcbhead));
 	prev = (struct inpcb *)off;
 
-	for (next = head.lh_first; next != NULL; next = inpcb.list.le_next) {
+	for (next = head.lh_first; next != NULL; next = inpcb.inp_list.le_next) {
 		kread((u_long)next, (char *)&inpcb, sizeof (inpcb));
 		if (!aflag &&
 		  inet_lnaof(inpcb.inp_laddr) == INADDR_ANY) {
