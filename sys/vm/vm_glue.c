@@ -618,7 +618,6 @@ vm_forkproc(td, p2, td2, flags)
 	int flags;
 {
 	struct proc *p1 = td->td_proc;
-	struct user *up;
 
 	GIANT_REQUIRED;
 
@@ -652,22 +651,18 @@ vm_forkproc(td, p2, td2, flags)
 			shmfork(p1, p2);
 	}
 
-	/* XXXKSE this is unsatisfactory but should be adequate */
-	up = p2->p_uarea;
-	MPASS(p2->p_sigacts != NULL);
-
 	/*
-	 * p_stats currently points at fields in the user struct
-	 * but not at &u, instead at p_addr. Copy parts of
-	 * p_stats; zero the rest of p_stats (statistics).
+	 * p_stats currently points at fields in the user struct.
+	 * Copy parts of p_stats; zero the rest of p_stats (statistics).
 	 */
-	p2->p_stats = &up->u_stats;
-	bzero(&up->u_stats.pstat_startzero,
-	    (unsigned) ((caddr_t) &up->u_stats.pstat_endzero -
-		(caddr_t) &up->u_stats.pstat_startzero));
-	bcopy(&p1->p_stats->pstat_startcopy, &up->u_stats.pstat_startcopy,
-	    ((caddr_t) &up->u_stats.pstat_endcopy -
-		(caddr_t) &up->u_stats.pstat_startcopy));
+#define	RANGEOF(type, start, end) (offsetof(type, end) - offsetof(type, start))
+
+	p2->p_stats = &p2->p_uarea->u_stats;
+	bzero(&p2->p_stats->pstat_startzero,
+	    (unsigned) RANGEOF(struct pstats, pstat_startzero, pstat_endzero));
+	bcopy(&p1->p_stats->pstat_startcopy, &p2->p_stats->pstat_startcopy,
+	    (unsigned) RANGEOF(struct pstats, pstat_startcopy, pstat_endcopy));
+#undef RANGEOF
 
 	/*
 	 * cpu_fork will copy and update the pcb, set up the kernel stack,
