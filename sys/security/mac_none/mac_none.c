@@ -477,7 +477,7 @@ mac_none_check_cred_visible(struct ucred *u1, struct ucred *u2)
 
 static int
 mac_none_check_ifnet_relabel(struct ucred *cred, struct ifnet *ifnet,
-    struct label *newlabel)
+    struct label *ifnetlabel, struct label *newlabel)
 {
 
 	return (0);

@@ -559,7 +559,7 @@ mac_biba_element_to_string(char *string, size_t size,
 				    "%d+", bit);
 		}
 		if (string[pos - 1] == '+' || string[pos - 1] == ':')
-			string[--pos] = NULL;
+			string[--pos] = '\0';
 		return (pos);
 
 	default:
@@ -1360,7 +1360,7 @@ mac_biba_create_cred(struct ucred *cred_parent, struct ucred *cred_child)
 
 static void
 mac_biba_execve_transition(struct ucred *old, struct ucred *new,
-    struct vnode *vp, struct mac *vnodelabel)
+    struct vnode *vp, struct label *vnodelabel)
 {
 	struct mac_biba *source, *dest;
 
@@ -1373,7 +1373,7 @@ mac_biba_execve_transition(struct ucred *old, struct ucred *new,
 
 static int
 mac_biba_execve_will_transition(struct ucred *old, struct vnode *vp,
-    struct mac *vnodelabel)
+    struct label *vnodelabel)
 {
 
 	return (0);
@@ -1802,7 +1802,7 @@ mac_biba_check_socket_deliver(struct socket *so, struct label *socketlabel,
 }
 
 static int
-mac_biba_check_socket_relabel(struct ucred *cred, struct socket *socket,
+mac_biba_check_socket_relabel(struct ucred *cred, struct socket *so,
     struct label *socketlabel, struct label *newlabel)
 {
 	struct mac_biba *subj, *obj, *new;
