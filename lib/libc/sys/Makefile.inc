@@ -116,6 +116,7 @@ MLINKS+=fhopen.2 fhstat.2 fhopen.2 fhstatfs.2
 MLINKS+=getdirentries.2 getdents.2
 MLINKS+=getgid.2 getegid.2
 MLINKS+=getitimer.2 setitimer.2
+MLINKS+=getlogin.2 getlogin_r.3
 MLINKS+=getlogin.2 setlogin.2
 MLINKS+=getpgrp.2 getpgid.2
 MLINKS+=getpid.2 getppid.2
