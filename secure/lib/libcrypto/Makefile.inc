@@ -7,10 +7,7 @@ CFLAGS+= -DNO_IDEA
 .endif
 
 .if ${MACHINE_ARCH} == "i386"
-CFLAGS+= -DL_ENDIAN 
-.if !defined(NOPERL) && !defined(NO_PERL)
-CFLAGS+= -DSHA1_ASM -DBN_ASM -DMD5_ASM -DRMD160_ASM
-.endif
+CFLAGS+= -DL_ENDIAN -DSHA1_ASM -DBN_ASM -DMD5_ASM -DRMD160_ASM
 .elif ${MACHINE_ARCH} == "alpha"
 # no ENDIAN stuff defined for alpha (64-bit)
 .endif
