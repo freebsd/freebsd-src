@@ -13,7 +13,7 @@
 ## ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 ## SOFTWARE.
 
-# $Id: Makefile,v 1.4 2000/05/09 07:02:22 vixie Exp $
+# $Id: Makefile,v 1.6 2000/07/17 07:15:08 vixie Exp $
 
 DESTDIR=
 CC= cc
@@ -46,7 +46,8 @@ STRIP=-s
 
 PS=ps
 LDFLAGS=
-CFLAGS=	${CDEBUG} -I${PORTINCL} -I${INCL} -I${TOP}/lib/irs ${DEFS}
+CFLAGS=	${CDEBUG}
+CPPFLAGS= -I${PORTINCL} -I${INCL} -I${TOP}/lib/irs ${DEFS}
 
 VER= LOCAL-`date +%y%m%d.%H%M%S`
 HOSTNAMECMD= hostname || uname -n
@@ -61,6 +62,8 @@ all: ${PROG}${EXE}
 ${PROG}${EXE}: irpd.${O} tmp_version.${O} ${LIBBIND}
 	${CC} ${CDEBUG} ${LDFLAGS} -o ${PROG}${EXE} ${OBJS} tmp_version.${O} \
 		${LIBBIND} ${SYSLIBS}
+.c.${O}:
+	${CC} ${CPPFLAGS} ${CFLAGS} ${BOUNDS} -c $*.c
 
 tmp_version.${O}: tmp_version.c
 

@@ -80,12 +80,7 @@ main(int argc, char *argv[]) {
 		case 'p' :	res.retrans = atoi(optarg);
 				break;
 
-		case 'h' :	if (strlen(optarg) >= sizeof(name)) {
-					fprintf(stderr,
-						"Domain name too long (%s)\n", optarg);
-					exit(-1);
-				} else
-					strcpy(name, optarg);
+		case 'h' :	strcpy(name, optarg);
 				break;
 
 		case 'c' : {
@@ -163,12 +158,7 @@ main(int argc, char *argv[]) {
 		}
 	}
 	if (optind < argc)
-		if (strlen(argv[optind]) >= sizeof(name)) {
-			fprintf(stderr,
-				"Domain name too long (%s)\n", argv[optind]);
-			exit(-1);
-		} else
-			strcpy(name, argv[optind]);
+		strcpy(name, argv[optind]);
 
 	len = sizeof(answer);
 
