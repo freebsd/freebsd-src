@@ -15,14 +15,14 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id:$
+ * $Id: lcpproto.h,v 1.2 1995/02/26 12:17:37 amurai Exp $
  *
  *	TODO:
  */
 
 #ifndef _LCPPROTO_H_
 #define _LCPPROTO_H_
-#include "cdefs.h"
+#include <sys/cdefs.h>
 
 /*
  *  Definition of protocol numbers
