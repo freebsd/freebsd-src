@@ -74,7 +74,6 @@
 /* from NetBSD: if_ppp.c,v 1.15.2.2 1994/07/28 05:17:58 cgd Exp */
 
 #include "ppp.h"
-#if NPPP > 0
 
 #include "opt_inet.h"
 #include "opt_ipx.h"
@@ -1572,5 +1571,3 @@ done:
     *bp = 0;
     printf("%s\n", buf);
 }
-
-#endif	/* NPPP > 0 */

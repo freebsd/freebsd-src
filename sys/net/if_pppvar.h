@@ -98,7 +98,7 @@ struct ppp_softc {
 	int	sc_rawin_count;		/* # in sc_rawin */
 };
 
-extern struct ppp_softc ppp_softc[NPPP];
+extern struct ppp_softc ppp_softc[];
 
 struct	ppp_softc *pppalloc __P((pid_t pid));
 void	pppdealloc __P((struct ppp_softc *sc));
