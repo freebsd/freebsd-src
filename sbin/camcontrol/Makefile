@@ -9,7 +9,6 @@ SRCS+=	modeedit.c
 .else
 CFLAGS+= -DMINIMALISTIC
 .endif
-WARNS=	0
 DPADD=	${LIBCAM} ${LIBSBUF}
 LDADD=	-lcam -lsbuf
 MAN=	camcontrol.8
