@@ -147,12 +147,12 @@ from {alpha,i386}/INSTALL.TXT.
 
   <para arch="i386,alpha">For most CDROM or network installations, all you need to
   copy onto actual floppies from the <filename>floppies/</filename> directory are the
-  <filename>boot.flp</filename> and <filename>kernX.flp</filename>
+  <filename>boot.flp</filename> and <filename>kern<replaceable>X</replaceable>.flp</filename>
   images (for 1.44MB floppies).</para>
 
   <para arch="pc98">For a normal CDROM or network installation, all you need
   to copy onto actual floppies from the <filename>floppies/</filename>
-  directory are the <filename>boot.flp</filename> and <filename>kernX.flp</filename>
+  directory are the <filename>boot.flp</filename> and <filename>kern<replaceable>X</replaceable>.flp</filename>
   images (for 1.44MB floppies) or <filename>boot-small.flp</filename> and
   <filename>kern-small.flp</filename> images (for 1.2MB floppies).</para>
 
@@ -160,7 +160,7 @@ from {alpha,i386}/INSTALL.TXT.
   the
   <replaceable>release</replaceable><filename>/floppies/boot.flp</filename>,
   and all of the
-  <replaceable>release</replaceable><filename>/floppies/kernX.flp</filename>
+  <replaceable>release</replaceable><filename>/floppies/kern<replaceable>X</replaceable>.flp</filename>
   files from <ulink
   url="&release.url;"></ulink>
   or one of the many mirrors listed at <ulink
@@ -169,8 +169,8 @@ from {alpha,i386}/INSTALL.TXT.
     <ulink url="http://mirrorlist.FreeBSD.org/"></ulink> Web pages.
   </para>
 
-  <para arch="i386,alpha">Get approximately three blank, freshly formatted floppies and image copy
-  <filename>boot.flp</filename> onto one and the <filename>kernX.flp</filename> files 
+  <para arch="i386,alpha">Get several blank, freshly formatted floppies and image copy
+  <filename>boot.flp</filename> onto one and the <filename>kern<replaceable>X</replaceable>.flp</filename> files 
   onto the others.  These images are
   <emphasis>not</emphasis> DOS files.  You cannot simply copy them to a DOS or UFS floppy
   as regular files, you need to <quote>image</quote> copy them to the floppy with
@@ -178,8 +178,8 @@ from {alpha,i386}/INSTALL.TXT.
   <filename>tools</filename> directory on your CDROM or &os; FTP
   mirror) or the &man.dd.1; command in UNIX.</para>
 
-  <para arch="pc98">Get approximately three blank, freshly formatted floppies and image copy
-  <filename>boot.flp</filename> onto one and the <filename>kernX.flp</filename> files
+  <para arch="pc98">Get several blank, freshly formatted floppies and image copy
+  <filename>boot.flp</filename> onto one and the <filename>kern<replaceable>X</replaceable>.flp</filename> files
   onto the others.  These images are
   <emphasis>not</emphasis> DOS files.  You cannot simply copy them to a DOS or UFS floppy
   as regular files, you need to <quote>image</quote> copy them to the floppy with
@@ -194,10 +194,10 @@ from {alpha,i386}/INSTALL.TXT.
   <screen arch="pc98"><prompt>A></prompt> <userinput>rawrite</userinput></screen>
 
   <para arch="i386,alpha">Assuming that you'd copied <filename>fdimage.exe</filename> and <filename>boot.flp</filename> into a directory
-  somewhere.  You would do the same for the <filename>kernX.flp</filename> files, of course.</para>
+  somewhere.  You would do the same for the <filename>kern<replaceable>X</replaceable>.flp</filename> files, of course.</para>
 
   <para arch="pc98">Assuming that you'd copied <filename>rawrite.exe</filename> and <filename>boot.flp</filename> into a directory
-  somewhere.  You would do the same for the <filename>kernX.flp</filename> files, of course.</para>
+  somewhere.  You would do the same for the <filename>kern<replaceable>X</replaceable>.flp</filename> files, of course.</para>
 
   <para arch="i386,alpha,pc98">If you're creating the boot floppy from a UNIX machine, you
   may find that:</para>
@@ -273,7 +273,7 @@ from {alpha,i386}/INSTALL.TXT.
       you should start the installation by building
       a set of &os; boot floppies from the files
       <filename>floppies/boot.flp</filename> and
-      <filename>floppies/kernX.flp</filename> using the instructions
+      <filename>floppies/kern<replaceable>X</replaceable>.flp</filename> using the instructions
       found in <xref linkend="floppies">.  Restart your computer using
       the <filename>boot.flp</filename> disk; when prompted, insert
       the other disks as required.  Then, please go to
@@ -285,7 +285,7 @@ from {alpha,i386}/INSTALL.TXT.
       you should start the installation by building
       a set of &os; boot floppies from the files
       <filename>floppies/boot.flp</filename> and
-      <filename>floppies/kernX.flp</filename> using the instructions
+      <filename>floppies/kern<replaceable>X</replaceable>.flp</filename> using the instructions
       found in <xref linkend="floppies">.  Restart your computer using
       the <filename>boot.flp</filename> disk; when prompted, insert
       the other disks as required.  Then, please go to
@@ -307,7 +307,7 @@ from {alpha,i386}/INSTALL.TXT.
       from floppy disk. You should start the installation by building
       a set of &os; boot floppies from the
       <filename>floppies/boot.flp</filename> and
-      <filename>floppies/kernX.flp</filename> files using the instructions
+      <filename>floppies/kern<replaceable>X</replaceable>.flp</filename> files using the instructions
       found in <xref linkend="floppies">. From the SRM console prompt
       (<literal>&gt;&gt;&gt;</literal>), just insert the
       <filename>boot.flp</filename> floppy and type the following
@@ -835,10 +835,10 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
 	</step>
 	<step>
 	  <para>If booting from floppies, when access to the disk stops, insert
-	  the first of the <filename>kernX.flp</filename> disks and press
+	  the first of the <filename>kern<replaceable>X</replaceable>.flp</filename> disks and press
 	  <keycap>Enter</keycap>.  When access to this disk finishes, insert
-	  the next <filename>kernX.flp</filename> disk and press <keycap>Enter</keycap>,
-	  and repeat until all <filename>kernX.flp</filename> disks have been
+	  the next <filename>kern<replaceable>X</replaceable>.flp</filename> disk and press <keycap>Enter</keycap>,
+	  and repeat until all <filename>kern<replaceable>X</replaceable>.flp</filename> disks have been
 	  inserted.  When disk activity finishes, reinsert the <filename>boot.flp</filename>
 	  floppy disk and press <keycap>Enter</keycap>.</para>
 	</step>
