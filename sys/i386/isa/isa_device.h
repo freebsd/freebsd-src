@@ -38,9 +38,8 @@
 #define	_I386_ISA_ISA_DEVICE_H_
 
 #ifdef _KERNEL
-#ifndef _ISA_ISAVAR_H_
-#include <i386/isa/isa_dma.h>
-#endif
+#include <sys/bus.h>
+#include <isa/isavar.h>
 #include "opt_compat_oldisa.h"
 #endif
 
