@@ -58,6 +58,8 @@
 
 /* most of this code has been pilfered from my libdes speed.c program */
 
+#ifndef OPENSSL_NO_SPEED
+
 #undef SECONDS
 #define SECONDS		3	
 #define RSA_SECONDS	10
@@ -370,7 +372,9 @@ int MAIN(int, char **);
 
 int MAIN(int argc, char **argv)
 	{
+#ifndef OPENSSL_NO_ENGINE
 	ENGINE *e = NULL;
+#endif
 	unsigned char *buf=NULL,*buf2=NULL;
 	int mret=1;
 	long count=0,save_count=0;
@@ -590,6 +594,7 @@ int MAIN(int argc, char **argv)
 			j--;	/* Otherwise, -elapsed gets confused with
 				   an algorithm. */
 			}
+#ifndef OPENSSL_NO_ENGINE
 		else if	((argc > 0) && (strcmp(*argv,"-engine") == 0))
 			{
 			argc--;
@@ -606,6 +611,7 @@ int MAIN(int argc, char **argv)
 			   means all of them should be run) */
 			j--;
 			}
+#endif
 #ifdef HAVE_FORK
 		else if	((argc > 0) && (strcmp(*argv,"-multi") == 0))
 			{
@@ -865,7 +871,9 @@ int MAIN(int argc, char **argv)
 #if defined(TIMES) || defined(USE_TOD)
 			BIO_printf(bio_err,"-elapsed        measure time in real time instead of CPU user time.\n");
 #endif
+#ifndef OPENSSL_NO_ENGINE
 			BIO_printf(bio_err,"-engine e       use engine e, possibly a hardware device.\n");
+#endif
 			BIO_printf(bio_err,"-evp e          use EVP e.\n");
 			BIO_printf(bio_err,"-decrypt        time decryption instead of encryption (only EVP).\n");
 			BIO_printf(bio_err,"-mr             produce machine readable output.\n");
@@ -1393,6 +1401,7 @@ int MAIN(int argc, char **argv)
 				else
 					EVP_EncryptFinal_ex(&ctx,buf,&outl);
 				d=Time_F(STOP);
+				EVP_CIPHER_CTX_cleanup(&ctx);
 				}
 			if (evp_md)
 				{
@@ -1938,4 +1947,5 @@ static int do_multi(int multi)
 		}
 	return 1;
 	}
+#endif
 #endif
