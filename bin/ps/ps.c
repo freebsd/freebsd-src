@@ -70,7 +70,6 @@ __FBSDID("$FreeBSD$");
 #include <locale.h>
 #include <paths.h>
 #include <pwd.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
