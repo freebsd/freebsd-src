@@ -447,7 +447,7 @@ initsd(int sdno, int dowait)
     openlog("vinum", LOG_CONS | LOG_PERROR | LOG_PID, LOG_KERN);
     get_sd_info(&sd, sdno);
     sdsize = sd.sectors * DEV_BSIZE;			    /* size of subdisk in bytes */
-    sprintf(filename, VINUM_DIR "/rsd/%s", sd.name);
+    sprintf(filename, VINUM_DIR "/sd/%s", sd.name);
     setproctitle("initializing %s", filename);		    /* show what we're doing */
     syslog(LOG_INFO | LOG_KERN, "initializing subdisk %s", filename);
     if ((sdfh = open(filename, O_RDWR, S_IRWXU)) < 0) {	    /* no go */
