@@ -243,6 +243,16 @@ softdep_fsync_mountdev(vp)
 }
 
 int
+softdep_flushworklist(oldmnt, countp, p)
+	struct mount *oldmnt;
+	int *countp;
+	struct proc *p;
+{
+
+	return (0);
+}
+
+int
 softdep_sync_metadata(ap)
 	struct vop_fsync_args /* {
 		struct vnode *a_vp;
