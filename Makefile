@@ -86,9 +86,9 @@
 #
 TGTS=	afterdistribute all buildkernel buildworld checkdpadd clean \
 	cleandepend cleandir depend distribute distribworld everything \
-	hierarchy includes install installkernel reinstallkernel installmost \
-	installworld libraries lint maninstall mk most obj objlink regress \
-	rerelease tags update
+	hierarchy includes install installkernel kernel reinstallkernel \
+	installmost installworld libraries lint maninstall mk most obj \
+	objlink regress rerelease tags update
 
 PATH=	/sbin:/bin:/usr/sbin:/usr/bin
 MAKE=	PATH=${PATH} make -m ${.CURDIR}/share/mk -f Makefile.inc1
