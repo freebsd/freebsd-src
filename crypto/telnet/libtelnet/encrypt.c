@@ -104,10 +104,17 @@ static char *Name = "Noname";
 
 #define	typemask(x)	((x) > 0 ? 1 << ((x)-1) : 0)
 
-static long i_support_encrypt = typemask(ENCTYPE_DES_CFB64)
-				| typemask(ENCTYPE_DES_OFB64);
-static long i_support_decrypt = typemask(ENCTYPE_DES_CFB64)
-				| typemask(ENCTYPE_DES_OFB64);
+static long i_support_encrypt = 0
+#ifdef DES_ENCRYPTION
+ | typemask(ENCTYPE_DES_CFB64) | typemask(ENCTYPE_DES_OFB64)
+#endif
+ |0;
+static long i_support_decrypt = 0
+#ifdef DES_ENCRYPTION
+ | typemask(ENCTYPE_DES_CFB64) | typemask(ENCTYPE_DES_OFB64)
+#endif
+ |0;
+
 static long i_wont_support_encrypt = 0;
 static long i_wont_support_decrypt = 0;
 #define	I_SUPPORT_ENCRYPT	(i_support_encrypt & ~i_wont_support_encrypt)

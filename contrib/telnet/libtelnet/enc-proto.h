@@ -94,6 +94,7 @@ int encrypt_cmd P((int, char **));
 void encrypt_display P((void));
 #endif
 
+#ifdef DES_ENCRYPTION
 void krbdes_encrypt P((unsigned char *, int));
 int krbdes_decrypt P((int));
 int krbdes_is P((unsigned char *, int));
@@ -122,5 +123,6 @@ int ofb64_reply P((unsigned char *, int));
 void ofb64_session P((Session_Key *, int));
 int ofb64_keyid P((int, unsigned char *, int *));
 void ofb64_printsub P((unsigned char *, int, unsigned char *, int));
+#endif /* DES_ENCRYPTION */
 
 #endif	/* ENCRYPTION */
