@@ -13,6 +13,7 @@
 %token	HINTS
 %token	IDENT
 %token	MAXUSERS
+%token	PROFILE
 %token	OPTIONS
 %token	MAKEOPTIONS
 %token	SEMICOLON
@@ -145,6 +146,8 @@ Config_spec:
 		|
 	MAXUSERS NUMBER
 	      = { maxusers = $2; } |
+	PROFILE NUMBER
+	      = { profiling = $2; } |
 	HINTS ID
 	      = {
 		      hints = $2;
