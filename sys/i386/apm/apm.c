@@ -15,7 +15,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.77 1998/12/10 23:36:14 msmith Exp $
+ *	$Id: apm.c,v 1.78 1999/04/16 21:22:05 peter Exp $
  */
 
 #include "opt_devfs.h"
@@ -648,7 +648,11 @@ apm_probe(device_t dev)
 	struct vm86frame	vmf;
 	int			i;
 #endif
-	int			flags;
+	int			disabled, flags;
+
+	if (resource_int_value("apm", 0, "disabled", &disabled) == 0
+	    && disabled != 0)
+		return ENXIO;
 
 	device_set_desc(dev, "APM BIOS");
 
