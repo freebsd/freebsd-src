@@ -136,7 +136,7 @@ ext2_readdir(ap)
                 struct ucred *a_cred;
         } */ *ap;
 {
-        register struct uio *uio = ap->a_uio;
+        struct uio *uio = ap->a_uio;
         int count, error;
 
 	struct ext2_dir_entry_2 *edp, *dp;
@@ -292,10 +292,10 @@ ext2_lookup(ap)
 		struct componentname *a_cnp;
 	} */ *ap;
 {
-	register struct vnode *vdp;	/* vnode for directory being searched */
-	register struct inode *dp;	/* inode for directory being searched */
+	struct vnode *vdp;		/* vnode for directory being searched */
+	struct inode *dp;		/* inode for directory being searched */
 	struct buf *bp;			/* a buffer of directory entries */
-	register struct ext2_dir_entry_2 *ep; /* the current directory entry */
+	struct ext2_dir_entry_2 *ep;	/* the current directory entry */
 	int entryoffsetinblock;		/* offset of ep in bp's buffer */
 	enum {NONE, COMPACT, FOUND} slotstatus;
 	doff_t slotoffset;		/* offset of area with free space */
@@ -728,7 +728,7 @@ ext2_dirbad(ip, offset, how)
 static int
 ext2_dirbadentry(dp, de, entryoffsetinblock)
 	struct vnode *dp;
-	register struct ext2_dir_entry_2 *de;
+	struct ext2_dir_entry_2 *de;
 	int entryoffsetinblock;
 {
 	int	DIRBLKSIZ = VTOI(dp)->i_e2fs->s_blocksize;
@@ -769,10 +769,10 @@ int
 ext2_direnter(ip, dvp, cnp)
 	struct inode *ip;
 	struct vnode *dvp;
-	register struct componentname *cnp;
+	struct componentname *cnp;
 {
-	register struct ext2_dir_entry_2 *ep, *nep;
-	register struct inode *dp;
+	struct ext2_dir_entry_2 *ep, *nep;
+	struct inode *dp;
 	struct buf *bp;
 	struct ext2_dir_entry_2 newdir;
 	struct iovec aiov;
@@ -918,7 +918,7 @@ ext2_dirremove(dvp, cnp)
 	struct vnode *dvp;
 	struct componentname *cnp;
 {
-	register struct inode *dp;
+	struct inode *dp;
 	struct ext2_dir_entry_2 *ep;
 	struct buf *bp;
 	int error;
@@ -989,13 +989,13 @@ ext2_dirrewrite(dp, ip, cnp)
  */
 int
 ext2_dirempty(ip, parentino, cred)
-	register struct inode *ip;
+	struct inode *ip;
 	ino_t parentino;
 	struct ucred *cred;
 {
-	register off_t off;
+	off_t off;
 	struct dirtemplate dbuf;
-	register struct ext2_dir_entry_2 *dp = (struct ext2_dir_entry_2 *)&dbuf;
+	struct ext2_dir_entry_2 *dp = (struct ext2_dir_entry_2 *)&dbuf;
 	int error, count, namlen;
 		 
 #define	MINDIRSIZ (sizeof (struct dirtemplate) / 2)
