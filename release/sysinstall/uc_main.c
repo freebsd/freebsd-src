@@ -24,7 +24,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * library functions for userconfig library
  *
- * $Id: uc_main.c,v 1.9 1996/10/05 13:30:43 jkh Exp $
+ * $Id: uc_main.c,v 1.10 1996/10/05 16:33:05 jkh Exp $
  */
 
 #include <sys/types.h>
@@ -99,34 +99,38 @@ uc_open(char *name){
 	    free(kern);
 	    return NULL;
 	}
-	nl = (struct nlist *)malloc((size + 1) * sizeof(struct nlist));
+	kern->nl = nl = (struct nlist *)malloc((size + 1) * sizeof(struct nlist));
 	for (i = 0; i < size; i++) {
-	    char name[255];
+	    char *cp, name[255];
 	    int c1;
 	    unsigned int uc1;
 	    short d1;
 	    unsigned long v1;
 
-	    if (fscanf(fp, "%s %u %d %hd %ld\n", name, &uc1, &c1, &d1, &v1) == 5) {
-		nl[i].n_name = strdup(name);
+	    if (fgets(name, 255, fp) == NULL) {
+		msgDebug("Can't get name field for entry %d\n", i);
+		free(kern);
+		return NULL;
+	    }
+	    if ((cp = index(name, '\n')) != NULL)
+		*cp = '\0';
+	    nl[i].n_name = strdup(name);
+	    if (fscanf(fp, "%u %d %hd %ld\n", &uc1, &c1, &d1, &v1) == 5) {
 		nl[i].n_type = (unsigned char)uc1;
 		nl[i].n_other = (char)c1;
 		nl[i].n_desc = d1;
 		nl[i].n_value = v1;
 		if (isDebug())
-		    msgDebug("Entry %d, decoded: \"%s\", %d %d %hd %ld\n", i, nl[i].n_name, nl[i].n_type, nl[i].n_other, nl[i].n_desc, nl[i].n_value);
+		    msgDebug("uc_open: for entry %d, decoded: \"%s\", %d %d %hd %ld\n", i, nl[i].n_name, nl[i].n_type, nl[i].n_other, nl[i].n_desc, nl[i].n_value);
 	    }
 	    else {
-		nl[i].n_name = "";
 		nl[i].n_type = 0;
 		nl[i].n_other = 0;
 		nl[i].n_desc = 0;
 		nl[i].n_value = 0;
 	    }
 	}
-	nl[i].n_name = NULL;
 	fclose(fp);
-    	kern->nl = nl;
 	i = 0;
     }
     else
@@ -142,8 +146,8 @@ uc_open(char *name){
 #else
     {
 #endif
-	kern->nl=(struct nlist *)malloc(sizeof(nl));
-	bcopy(nl, kern->nl, sizeof(nl));
+	kern->nl=(struct nlist *)malloc(sizeof(_nl));
+	bcopy(_nl, kern->nl, sizeof(_nl));
     }
 	
     if (incore) {
