@@ -96,7 +96,7 @@ strerror(num)
 	 * supplied buffer, inverting the number string.
 	 */
 	strcpy(ebuf, unknown_prefix);
-	for (p = ebuf + sizeof unknown_prefix - 1; t >= tmp; )
+	for (p = ebuf + sizeof unknown_prefix - 1; t > tmp; )
 		*p++ = *--t;
 	*p = '\0';
 	return (ebuf);
