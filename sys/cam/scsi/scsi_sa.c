@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_sa.c,v 1.13 1999/01/11 18:26:25 mjacob Exp $
+ *      $Id: scsi_sa.c,v 1.14 1999/01/12 08:15:47 mjacob Exp $
  */
 
 #include <sys/param.h>
@@ -132,8 +132,8 @@ typedef enum {
 	SA_QUIRK_NOCOMP		= 0x01,	/* can't deal with compression at all */
 	SA_QUIRK_FIXED		= 0x02,	/* force fixed mode */
 	SA_QUIRK_VARIABLE	= 0x04,	/* force variable mode */
-	SA_QUIRK_2FM		= 0x05,	/* Two File Marks at EOD */
-	SA_QUIRK_NORRLS		= 0x06	/* Don't attempt RESERVE/RELEASE */
+	SA_QUIRK_2FM		= 0x08,	/* Two File Marks at EOD */
+	SA_QUIRK_NORRLS		= 0x10	/* Don't attempt RESERVE/RELEASE */
 } sa_quirks;
 
 struct sa_softc {
@@ -200,6 +200,18 @@ static struct sa_quirk_entry sa_quirk_table[] =
 	{
 		{ T_SEQUENTIAL, SIP_MEDIA_REMOVABLE, "HP",
 		  "T4000S*", "*"}, SA_QUIRK_FIXED, 512
+	},
+	{
+		{ T_SEQUENTIAL, SIP_MEDIA_REMOVABLE, "HP",
+		  "HP-88780*", "*"}, SA_QUIRK_VARIABLE|SA_QUIRK_2FM, 0
+	},
+	{
+		{ T_SEQUENTIAL, SIP_MEDIA_REMOVABLE, "KENNEDY",
+		  "*", "*"}, SA_QUIRK_VARIABLE|SA_QUIRK_2FM, 0
+	},
+	{
+		{ T_SEQUENTIAL, SIP_MEDIA_REMOVABLE, "M4 DATA",
+		  "123107 SCSI*", "*"}, SA_QUIRK_VARIABLE|SA_QUIRK_2FM, 0
 	},
 	{
 		{ T_SEQUENTIAL, SIP_MEDIA_REMOVABLE, "TANDBERG",
@@ -530,10 +542,10 @@ sastrategy(struct buf *bp)
 		 * Fixed block device.  The byte count must
 		 * be a multiple of our block size.
 		 */
-		if (((softc->blk_mask != ~0)
-		  && ((bp->b_bcount & softc->blk_mask) != 0))
-		 || ((softc->blk_mask == ~0)
-		  && ((bp->b_bcount % softc->min_blk) != 0))) {
+		if (((softc->blk_mask != ~0) &&
+		    ((bp->b_bcount & softc->blk_mask) != 0)) ||
+		    ((softc->blk_mask == ~0) &&
+		    ((bp->b_bcount % softc->min_blk) != 0))) {
 			xpt_print_path(periph->path);
 			printf("Invalid request.  Fixed block device "
 			       "requests must be a multiple "
@@ -541,32 +553,31 @@ sastrategy(struct buf *bp)
 			bp->b_error = EINVAL;
 			goto bad;
 		}
-	} else if ((bp->b_bcount > softc->max_blk)
-		|| (bp->b_bcount < softc->min_blk)
-		|| (bp->b_bcount & softc->blk_mask) != 0) {
+	} else if ((bp->b_bcount > softc->max_blk) ||
+		   (bp->b_bcount < softc->min_blk) ||
+		   (bp->b_bcount & softc->blk_mask) != 0) {
 
 		xpt_print_path(periph->path);
 		printf("Invalid request.  Variable block device "
-		       "requests must be ");
+		    "requests must be ");
 		if (softc->blk_mask != 0) {
-			printf("a multiple of %d ",
-			       (0x1 << softc->blk_gran));
+			printf("a multiple of %d ", (0x1 << softc->blk_gran));
 		}
-		printf("between %d and %d bytes\n",
-		       softc->min_blk, softc->max_blk);
+		printf("between %d and %d bytes\n", softc->min_blk,
+		    softc->max_blk);
 		bp->b_error = EINVAL;
 		goto bad;
         }
 	
 	/*
-	 * Mask interrupts so that the pack cannot be invalidated until
+	 * Mask interrupts so that the device cannot be invalidated until
 	 * after we are in the queue.  Otherwise, we might not properly
 	 * clean up one of the buffers.
 	 */
 	s = splbio();
 	
 	/*
-	 * Place it in the queue of disk activities for this disk
+	 * Place it at the end of the queue.
 	 */
 	bufq_insert_tail(&softc->buf_queue, bp);
 
@@ -575,7 +586,7 @@ sastrategy(struct buf *bp)
 	/*
 	 * Schedule ourselves for performing the work.
 	 */
-	xpt_schedule(periph, /* XXX priority */1);
+	xpt_schedule(periph, 1);
 
 	return;
 bad:
@@ -1402,22 +1413,13 @@ samount(struct cam_periph *periph, int oflags, dev_t dev)
 	 * open/mount that would invalidate a mount.  This
 	 * will also eat any pending UAs.
 	 */
-	scsi_test_unit_ready(csio,
-			     /*retries*/1,
-			     sadone,
-			     MSG_SIMPLE_Q_TAG,
-			     SSD_FULL_SIZE,
-			     /*timeout*/5000);
+	scsi_test_unit_ready(csio, 1, sadone,
+	    MSG_SIMPLE_Q_TAG, SSD_FULL_SIZE, 5000);
 
-	cam_periph_runccb(ccb, /*error handler*/NULL, /*cam_flags*/0,
-			  /*sense_flags*/0, &softc->device_stats);
+	cam_periph_runccb(ccb, NULL, 0, 0, &softc->device_stats);
 
 	if ((ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {	
-		cam_release_devq(ccb->ccb_h.path,
-				 /*relsim_flags*/0,
-				 /*reduction*/0, 
-				 /*timeout*/0,
-				 /*getcount_only*/0);
+		cam_release_devq(ccb->ccb_h.path, 0, 0, 0, 0);
 		softc->flags &= ~SA_FLAG_TAPE_MOUNTED;
 	}
 
@@ -1440,6 +1442,7 @@ samount(struct cam_periph *periph, int oflags, dev_t dev)
 		rblim = (struct  scsi_read_block_limits_data *)
 		    malloc(sizeof(*rblim), M_TEMP, M_WAITOK);
 
+		/* it is safe to retry this */
 		scsi_read_block_limits(csio, 5, sadone, MSG_SIMPLE_Q_TAG,
 		    rblim, SSD_FULL_SIZE, 5000);
 
@@ -1674,13 +1677,8 @@ exit:
 		if (rblim != NULL)
 			free(rblim, M_TEMP);
 
-		if (error != 0) {
-			cam_release_devq(ccb->ccb_h.path,
-					 /*relsim_flags*/0,
-					 /*reduction*/0, 
-					 /*timeout*/0,
-					 /*getcount_only*/0);
-		}
+		if (error != 0)
+			cam_release_devq(ccb->ccb_h.path, 0, 0, 0, 0);
 	} else
 		xpt_release_ccb(ccb);
 
@@ -1866,35 +1864,21 @@ retry:
 	else
 		ncomp_page = NULL;
 
-	scsi_mode_sense(&ccb->csio,
-			/*retries*/ 1,
-			/*cbfcnp*/ sadone,
-			/*tag_action*/ MSG_SIMPLE_Q_TAG,
-			/*dbd*/ FALSE,
-			/*page_code*/ SMS_PAGE_CTRL_CURRENT,
-			/*page*/ (params_to_get & SA_PARAM_COMPRESSION) ?
-				  SA_DATA_COMPRESSION_PAGE :
-				  SMS_VENDOR_SPECIFIC_PAGE,
-			/*param_buf*/ mode_buffer,
-			/*param_len*/ mode_buffer_len,
-			/*sense_len*/ SSD_FULL_SIZE,
-			/*timeout*/ 5000);
+	/* it is safe to retry this */
+	scsi_mode_sense(&ccb->csio, 5, sadone, MSG_SIMPLE_Q_TAG, FALSE,
+	    SMS_PAGE_CTRL_CURRENT, (params_to_get & SA_PARAM_COMPRESSION) ?
+	    SA_DATA_COMPRESSION_PAGE : SMS_VENDOR_SPECIFIC_PAGE,
+	    mode_buffer, mode_buffer_len, SSD_FULL_SIZE, 5000);
 
-	error = cam_periph_runccb(ccb, saerror, /*cam_flags*/ 0,
-				  /*sense_flags*/SF_NO_PRINT,
-				  &softc->device_stats);
+	error = cam_periph_runccb(ccb, saerror, 0,
+	    SF_NO_PRINT, &softc->device_stats);
 
 	if ((ccb->ccb_h.status & CAM_DEV_QFRZN) != 0)
-		cam_release_devq(ccb->ccb_h.path,
-				 /* relsim_flags */0,
-				 /* opening_reduction */0,
-				 /* timeout */0,
-				 /* getcount_only */ FALSE);
+		cam_release_devq(ccb->ccb_h.path, 0, 0, 0, FALSE);
 
 	status = ccb->ccb_h.status & CAM_STATUS_MASK;
 
-	if (error == EINVAL
-	 && (params_to_get & SA_PARAM_COMPRESSION) != 0) {
+	if (error == EINVAL && (params_to_get & SA_PARAM_COMPRESSION) != 0) {
 		/*
 		 * Most likely doesn't support the compression
 		 * page.  Remember this for the future and attempt
@@ -2308,26 +2292,16 @@ saprevent(struct cam_periph *periph, int action)
 		return;
 	}
 
-	ccb = cam_periph_getccb(periph, /*priority*/1);
+	ccb = cam_periph_getccb(periph, 1);
 
-	scsi_prevent(&ccb->csio,
-		     /*retries*/0,
-		     /*cbcfp*/sadone,
-		     MSG_SIMPLE_Q_TAG,
-		     action,
-		     SSD_FULL_SIZE,
-		     60000);
+	/* It is safe to retry this operation */
+	scsi_prevent(&ccb->csio, 5, sadone, MSG_SIMPLE_Q_TAG, action,
+	    SSD_FULL_SIZE, 60000);
 
-	error = cam_periph_runccb(ccb, saerror, /*cam_flags*/0,
-				  /*sense_flags*/0, &softc->device_stats);
+	error = cam_periph_runccb(ccb, saerror, 0, 0, &softc->device_stats);
 
 	if ((ccb->ccb_h.status & CAM_DEV_QFRZN) != 0)
-		cam_release_devq(ccb->ccb_h.path,
-				 /*relsim_flags*/0,
-				 /*reduction*/0, 
-				 /*timeout*/0,
-				 /*getcount_only*/0);
-		
+		cam_release_devq(ccb->ccb_h.path, 0, 0, 0, FALSE);
 
 	if (error == 0) {
 		if (action == PR_ALLOW)
@@ -2350,23 +2324,15 @@ sarewind(struct cam_periph *periph)
 
 	ccb = cam_periph_getccb(periph, /*priority*/1);
 
-	scsi_rewind(&ccb->csio,
-		    /*retries*/1,
-		    /*cbcfp*/sadone,
-		    MSG_SIMPLE_Q_TAG,
-		    /*immediate*/FALSE,
-		    SSD_FULL_SIZE,
-		    (SA_REWIND_TIMEOUT) * 60 * 1000);
+	/* It is safe to retry this operation */
+	scsi_rewind(&ccb->csio, 5, sadone, MSG_SIMPLE_Q_TAG, FALSE,
+	    SSD_FULL_SIZE, (SA_REWIND_TIMEOUT) * 60 * 1000);
 
-	error = cam_periph_runccb(ccb, saerror, /*cam_flags*/0,
-				  /*sense_flags*/0, &softc->device_stats);
+	error = cam_periph_runccb(ccb, saerror, 0, 0, &softc->device_stats);
 
 	if ((ccb->ccb_h.status & CAM_DEV_QFRZN) != 0)
-		cam_release_devq(ccb->ccb_h.path,
-				 /*relsim_flags*/0,
-				 /*reduction*/0, 
-				 /*timeout*/0,
-				 /*getcount_only*/0);
+		cam_release_devq(ccb->ccb_h.path, 0, 0, 0, FALSE);
+
 	xpt_release_ccb(ccb);
 	return (error);
 }
@@ -2382,24 +2348,21 @@ saspace(struct cam_periph *periph, int count, scsi_space_code code)
 
 	ccb = cam_periph_getccb(periph, /*priority*/1);
 
-	scsi_space(&ccb->csio,
-		   /*retries*/1,
-		   /*cbcfp*/sadone,
-		   MSG_SIMPLE_Q_TAG,
-		   code, count,
-		   SSD_FULL_SIZE,
-		   (SA_SPACE_TIMEOUT) * 60 * 1000);
+	/* This cannot be retried */
 
-	error = cam_periph_runccb(ccb, saerror, /*cam_flags*/0,
-				  /*sense_flags*/0, &softc->device_stats);
+	scsi_space(&ccb->csio, 0, sadone, MSG_SIMPLE_Q_TAG, code, count,
+	    SSD_FULL_SIZE, (SA_SPACE_TIMEOUT) * 60 * 1000);
+
+	error = cam_periph_runccb(ccb, saerror, 0, 0, &softc->device_stats);
 
 	if ((ccb->ccb_h.status & CAM_DEV_QFRZN) != 0)
-		cam_release_devq(ccb->ccb_h.path,
-				 /*relsim_flags*/0,
-				 /*reduction*/0, 
-				 /*timeout*/0,
-				 /*getcount_only*/0);
+		cam_release_devq(ccb->ccb_h.path, 0, 0, 0, FALSE);
+
 	xpt_release_ccb(ccb);
+	/*
+	 * XXX: If a spacing operation has failed, we need to invalidate
+	 * XXX: this mount.
+	 */
 	return (error);
 }
 
@@ -2414,17 +2377,18 @@ sawritefilemarks(struct cam_periph *periph, int nmarks, int setmarks)
 
 	ccb = cam_periph_getccb(periph, /*priority*/1);
 
-	scsi_write_filemarks(&ccb->csio, 1, sadone, MSG_SIMPLE_Q_TAG,
+	/* this *must* not be retried */
+	scsi_write_filemarks(&ccb->csio, 0, sadone, MSG_SIMPLE_Q_TAG,
 	    FALSE, setmarks, nmarks, SSD_FULL_SIZE, 60000);
 
 	error = cam_periph_runccb(ccb, saerror, 0, 0, &softc->device_stats);
 
 	if ((ccb->ccb_h.status & CAM_DEV_QFRZN) != 0)
-		cam_release_devq(ccb->ccb_h.path, 0, 0, 0, 0);
+		cam_release_devq(ccb->ccb_h.path, 0, 0, 0, FALSE);
 
 	/*
-	 * XXXX: Actually, we need to get back the actual number of filemarks
-	 * XXXX: written (there can be a residual).
+	 * XXXXX: Get back the actual number of filemarks written
+	 * (there can be a residual).
 	 */
 	if (error == 0 && nmarks) {
 		struct sa_softc *softc = (struct sa_softc *)periph->softc;
@@ -2524,26 +2488,14 @@ saretension(struct cam_periph *periph)
 
 	ccb = cam_periph_getccb(periph, /*priority*/1);
 
-	scsi_load_unload(&ccb->csio,
-			 /*retries*/ 1,
-			 /*cbfcnp*/ sadone,
-			 MSG_SIMPLE_Q_TAG,
-			 /*immediate*/ FALSE,
-			 /*eot*/ FALSE,
-			 /*reten*/ TRUE,
-			 /*load*/ TRUE,
-			 SSD_FULL_SIZE,
-			 60000);
+	/* It is safe to retry this operation */
+	scsi_load_unload(&ccb->csio, 5, sadone, MSG_SIMPLE_Q_TAG, FALSE,
+	    FALSE, TRUE,  TRUE, SSD_FULL_SIZE, (SA_ERASE_TIMEOUT) * 60 * 1000);
 
-	error = cam_periph_runccb(ccb, saerror, /*cam_flags*/0,
-				  /*sense_flags*/0, &softc->device_stats);
+	error = cam_periph_runccb(ccb, saerror, 0, 0, &softc->device_stats);
 
 	if ((ccb->ccb_h.status & CAM_DEV_QFRZN) != 0)
-		cam_release_devq(ccb->ccb_h.path,
-				 /*relsim_flags*/0,
-				 /*reduction*/0, 
-				 /*timeout*/0,
-				 /*getcount_only*/0);
+		cam_release_devq(ccb->ccb_h.path, 0, 0, 0, FALSE);
 	xpt_release_ccb(ccb);
 	return(error);
 }
@@ -2553,44 +2505,32 @@ sareservereleaseunit(struct cam_periph *periph, int reserve)
 {
 	union ccb *ccb;
 	struct sa_softc *softc;
-	int error, sflags;
+	int error, sflag;
 
 	softc = (struct sa_softc *)periph->softc;
 	if (softc->quirks & SA_QUIRK_NORRLS)
 		return (0);
 
 	if (CAM_DEBUGGED(periph->path, CAM_DEBUG_INFO))
-		sflags = SF_RETRY_UA;
+		sflag = SF_RETRY_UA;
 	else
-		sflags = SF_RETRY_UA|SF_QUIET_IR;
+		sflag = SF_RETRY_UA|SF_QUIET_IR;
 		
-	ccb = cam_periph_getccb(periph, /*priority*/ 1);
+	ccb = cam_periph_getccb(periph,  1);
 
-	scsi_reserve_release_unit(&ccb->csio,
-				  /*retries*/ 1,
-				  /*cbfcnp*/ sadone,
-				  /*tag_action*/ MSG_SIMPLE_Q_TAG,
-				  /*third_party*/ FALSE,
-				  /*third_party_id*/ 0,
-				  /*sense_len*/ SSD_FULL_SIZE,
-				  /*timeout*/ 5000,
-				  reserve);
+	/* It is safe to retry this operation */
+	scsi_reserve_release_unit(&ccb->csio, 5, sadone, MSG_SIMPLE_Q_TAG,
+	    FALSE,  0, SSD_FULL_SIZE,  5000, reserve);
 
 	/*
 	 * We set SF_RETRY_UA, since this is often the first command run
 	 * when a tape device is opened, and there may be a unit attention
 	 * condition pending.
 	 */
-	error = cam_periph_runccb(ccb, saerror, /*cam_flags*/0,
-				  /*sense_flags*/sflags,
-				  &softc->device_stats);
+	error = cam_periph_runccb(ccb, saerror, 0, sflag, &softc->device_stats);
 
 	if ((ccb->ccb_h.status & CAM_DEV_QFRZN) != 0)
-		cam_release_devq(ccb->ccb_h.path,
-				 /*relsim_flags*/0,
-				 /*reduction*/0, 
-				 /*timeout*/0,
-				 /*getcount_only*/0);
+		cam_release_devq(ccb->ccb_h.path, 0, 0, 0, FALSE);
 
 	xpt_release_ccb(ccb);
 
@@ -2617,26 +2557,14 @@ saloadunload(struct cam_periph *periph, int load)
 
 	ccb = cam_periph_getccb(periph, /*priority*/1);
 
-	scsi_load_unload(&ccb->csio,
-			 /*retries*/1,
-			 /*cbfcnp*/sadone,
-			 MSG_SIMPLE_Q_TAG,
-			 /*immediate*/FALSE,
-			 /*eot*/FALSE,
-			 /*reten*/FALSE,
-			 load,
-			 SSD_FULL_SIZE,
-			 60000);
+	/* It is safe to retry this operation */
+	scsi_load_unload(&ccb->csio, 5, sadone, MSG_SIMPLE_Q_TAG, FALSE,
+	    FALSE, FALSE, load, SSD_FULL_SIZE, 60000);
 
-	error = cam_periph_runccb(ccb, saerror, /*cam_flags*/0,
-				  /*sense_flags*/0, &softc->device_stats);
+	error = cam_periph_runccb(ccb, saerror, 0, 0, &softc->device_stats);
 
 	if ((ccb->ccb_h.status & CAM_DEV_QFRZN) != 0)
-		cam_release_devq(ccb->ccb_h.path,
-				 /*relsim_flags*/0,
-				 /*reduction*/0, 
-				 /*timeout*/0,
-				 /*getcount_only*/0);
+		cam_release_devq(ccb->ccb_h.path, 0, 0, 0, FALSE);
 	xpt_release_ccb(ccb);
 	return (error);
 }
