@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.139
+    Original revision: 1.145
 -->
 
 <!--
@@ -143,10 +143,6 @@
 
     <para arch="alpha">Linux 互換機能が thread に対応しました.</para>
 
-    <para arch="i386">pccard ドライバおよび &man.pccardc.8;
-      が複数の<quote>カード着脱音</quote>に対応しました.
-      &merged;</para>
-
     <para>PCI サブシステムに対して整頓と改良が数多く行なわれ,
       <filename>/usr/share/misc/pci_vendors</filename>
       には &man.pciconf.8;
@@ -285,29 +281,6 @@
       モジュール名およびバージョンと KLD ファイル名の対応を調べるようになりました.
       新しく追加されたユーティリティ &man.kldxref.8; は,
       これらのファイルを生成するために使用します.</para>
-
-    <para>比較的新しいマシンの多くで, PCCARD デバイスの割り込みを
-      ISA もしくは PCI のいずれかの割り込み経路に設定することが可能になりました.
-      &man.pcic.4; ドライバが更新され, 新たにその両方の割り込み経路に対応
-      (以前は ISA のみの対応でした) しています. &merged;
-      ほとんどのラップトップ型 PC における PCMCIA
-      デバイスの設定が簡単で柔軟に行なえるようになっています.
-      また, さまざまある PCI バスを使った Cardbus ブリッジ (Orinoco 社の PCI NIC
-      で使われています) にも対応しました.
-      PCI 割り込み経路制御が原因で,
-      マシンの異常停止やパニック等の問題が発生するものもありますが,
-      その場合は従来の ISA 割り込み経路制御に設定することで問題を解決できる可能性があります.
-      その際には <filename>/boot/loader.conf</filename>
-      にある次の行を書き換えてください.</para>
-
-    <programlisting>hw.pcic.intr_path="1"
-hw.pcic.irq="0"</programlisting>
-
-    <para>&os; を問題の発生するマシンにインストールする際は,
-      一番最初の起動中, ブートローダに次の行を入力すると良いでしょう.</para>
-
-    <screen><prompt>ok</prompt> <userinput>set hw.pcic.intr_path="1"</userinput>
-<prompt>ok</prompt> <userinput>set hw.pcic.irq="0"</userinput></screen>
 
     <sect3>
       <title>プロセッサ・マザーボードの対応状況</title>
@@ -869,6 +842,37 @@ hw.pcic.irq="0"</programlisting>
         カーネルオプションの設定により,
         メモリを多少余分に使って巨大なディレクトリの操作速度を向上させることが可能です.
         &merged;</para>
+    </sect3>
+
+     <sect3>
+      <title>PCCARD 対応</title>
+
+      <para arch="i386">pccard ドライバおよび &man.pccardc.8;
+        が複数の<quote>カード着脱音</quote>に対応しました.
+        &merged;</para>
+
+      <para>比較的新しいマシンの多くで, PCCARD デバイスの割り込みを
+        ISA もしくは PCI のいずれかの割り込み経路に設定することが可能になりました.
+        &man.pcic.4; ドライバが更新され, 新たにその両方の割り込み経路に対応
+        (以前は ISA のみの対応でした) しています. &merged;
+        ほとんどのラップトップ型 PC における PCMCIA
+        デバイスの設定が簡単で柔軟に行なえるようになっています.
+        また, さまざまある PCI バスを使った Cardbus ブリッジ (Orinoco 社の PCI NIC
+        で使われています) にも対応しました.
+        PCI 割り込み経路制御が原因で,
+        マシンの異常停止やパニック等の問題が発生するものもありますが,
+        その場合は従来の ISA 割り込み経路制御に設定することで問題を解決できる可能性があります.
+        その際には <filename>/boot/loader.conf</filename>
+        にある次の行を書き換えてください.</para>
+      
+      <programlisting>hw.pcic.intr_path="1"
+hw.pcic.irq="0"</programlisting>
+
+      <para>&os; を問題の発生するマシンにインストールする際は,
+        一番最初の起動中, ブートローダに次の行を入力すると良いでしょう.</para>
+
+      <screen><prompt>ok</prompt> <userinput>set hw.pcic.intr_path="1"</userinput>
+<prompt>ok</prompt> <userinput>set hw.pcic.irq="0"</userinput></screen>
     </sect3>
 
     <sect3>
@@ -1499,7 +1503,13 @@ hw.pcic.irq="0"</programlisting>
       &merged;</para>
 
     <para>&man.netstat.1; に, 統計情報をリセットする
-      <option>-z</option> オプションフラグが追加されました.</para>
+      <option>-z</option> オプションフラグが追加されました.
+      &merged;</para>
+
+    <para>&man.netstat.1; に, アドレスを数字で,
+      ポート番号をシンボルで表示する新しいオプション
+      <option>-S</option> が追加されました.
+      &merged;</para>
 
     <para>&man.sockstat.1; に, 
       <option>-c</option> および <option>-l</option>
@@ -1729,6 +1739,11 @@ hw.pcic.irq="0"</programlisting>
       <literal>stdin</literal> を使用することが可能)
       &merged;</para>
 
+    <para>&man.burncd.8; が新しくディスクアトワンス
+      (Disk At Once; DAO) モードに対応しました.
+      オプション <option>-d</option>
+      でこのモードを選ぶことが可能です.</para>
+
     <para>&man.dmesg.8; へ,
       &man.syslogd.8; の記録および <filename>/dev/console</filename>
       の出力が含まれているメッセージバッファ全体を表示するための
@@ -1791,6 +1806,7 @@ hw.pcic.irq="0"</programlisting>
       <option>-cnewer</option>, <option>-mnewer</option>,
       <option>-okdir</option>, <option>-newer[acm][acmt]</option>
       が追加されました.
+      後者のオプションでは, さまざまな時間単位で指定することが可能です.
       &merged;</para>
 
     <para>&man.tftpd.8; に新しいオプション <option>-c</option> および
@@ -1884,11 +1900,6 @@ hw.pcic.irq="0"</programlisting>
       <varname>CPUTYPE</varname> が追加されました.
       これは <application>OpenSSL</application> のようなコードのコンパイル時に,
       特定プロセッサ用の最適化を行なうようコンパイラを制御するためのものです.
-      &merged;</para>
-
-    <para>&man.cvs.1; が利用する <envar>CVS_RSH</envar> 環境変数の
-      既定値が <literal>rsh</literal> ではなく
-      <literal>ssh</literal> になりました.
       &merged;</para>
 
     <para>&man.ipfstat.8; に &man.top.1; 風の表示を行なう
@@ -2212,6 +2223,12 @@ hw.pcic.irq="0"</programlisting>
       これは &man.syslogd.8; を,
       利用可能なすべてのアドレスではなく指定アドレスへ bind させるためのものです.</para>
 
+    <para>&man.cat.1; が新しく UNIX ドメインソケットの読み出しに対応しました.
+      &merged;</para>
+
+    <para>&man.groups.1; および &man.whoami.1; シェルスクリプトは
+      &man.id.1; へ完全に統合され, 両方とも廃止されました.</para>
+
     <sect3>
       <title>寄贈ソフトウェア</title>
 
@@ -2244,9 +2261,6 @@ hw.pcic.irq="0"</programlisting>
       <para><application>bzip2</application> バージョン 1.0.1 が import されました.
         これによりベースシステムに &man.bzip2.1; プログラムおよび,
         <filename>libbz2</filename> ライブラリが導入されました.
-        &merged;</para>
-
-      <para><application>cvs</application> がバージョン 1.11.1p1 に更新されました.
         &merged;</para>
 
       <para>&man.ee.1; <application>Easy Editor</application>
@@ -2357,6 +2371,28 @@ hw.pcic.irq="0"</programlisting>
         デフォルトの最大 TTL 値を
         <varname>net.inet.ip.ttl</varname> sysctl 変数から得るようになりました.
         &merged;</para>
+
+      <sect4>
+        <title>CVS</title>
+
+        <para><application>cvs</application> がバージョン 1.11.1p1 に更新されました.
+          &merged;</para>
+
+        <para>&man.cvs.1; が利用する <envar>CVS_RSH</envar> 環境変数の
+          既定値が <literal>rsh</literal> ではなく
+          <literal>ssh</literal> になりました.
+          &merged;</para>
+
+        <para>&man.cvs.1; に新しいオプション <option>-T</option> が追加されました.
+          これはリポジトリから砂場 (sandbox) にある <filename>CVS/Template</filename>
+          ファイルを更新するためのものです.
+          &merged;</para>
+
+	<para>&man.cvs.1; <literal>diff</literal> に新しいオプション
+          <option>-j</option> が追加されました.
+          これはブランチタグのリビジョンとの比較を実現します.
+          &merged;</para>
+      </sect4>
 
       <sect4>
         <title>CVSup</title>
