@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: main.c,v 1.5 1995/05/30 00:06:47 rgrimes Exp $
+ *	$Id: main.c,v 1.6 1996/08/11 16:48:11 ache Exp $
  */
 
 #ifndef lint
@@ -57,9 +57,9 @@ static char *rcsid = "@(#)main.c,v 1.1 1994/02/01 00:34:42 alm Exp";
 #include <sys/ioctl.h>
 #include <sys/wait.h>
 #include <ctype.h>
-#include <setjmp.h>
-#include <pwd.h>
 #include <locale.h>
+#include <pwd.h>
+#include <setjmp.h>
 
 #include "ed.h"
 
@@ -100,10 +100,6 @@ char *dps = "*";		/* default command-line prompt */
 
 char *usage = "usage: %s [-] [-sx] [-p string] [name]\n";
 
-extern char errmsg[];
-extern int optind;
-extern char *optarg;
-
 /* ed: line editor */
 int
 main(argc, argv)
@@ -112,12 +108,17 @@ main(argc, argv)
 {
 	int c, n;
 	long status = 0;
+#if __GNUC__
+	/* Avoid longjmp clobbering */
+	(void) &argc;
+	(void) &argv;
+#endif
 
 	(void)setlocale(LC_ALL, "");
 
 	red = (n = strlen(argv[0])) > 2 && argv[0][n - 3] == 'r';
 top:
-	while ((c = getopt(argc, argv, "p:sx")) != EOF)
+	while ((c = getopt(argc, argv, "p:sx")) != -1)
 		switch(c) {
 		case 'p':				/* set prompt */
 			prompt = optarg;
