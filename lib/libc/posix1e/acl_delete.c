@@ -42,7 +42,7 @@ acl_delete_def_fd(int filedes)
 
 
 int
-acl_delete_default_file(const char *path_p)
+acl_delete_def_file(const char *path_p)
 {
 
 	return (acl_syscall_delete_file(path_p, ACL_TYPE_DEFAULT));
