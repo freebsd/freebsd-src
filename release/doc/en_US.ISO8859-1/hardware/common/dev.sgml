@@ -1149,11 +1149,16 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386">DEC EtherWORKS II NICs (DE200, DE201, DE202, and
-    DE422) (&man.le.4; driver)</para>
-
-    <para arch="i386">DEC EtherWORKS III NICs (DE203, DE204, and DE205)
-    (&man.le.4; driver)</para>
+    <para arch="i386">DEC EtherWORKS II and III NICs (&man.le.4; driver)
+      <itemizedlist>
+        <listitem>
+	  <para>DE200, DE201, DE202, DE422</para>
+	</listitem>
+        <listitem>
+	  <para>DE203, DE204, DE205</para>
+	</listitem>
+      </itemizedlist>
+    </para>
 
     <para arch="i386">DEC Etherworks NICs (DE305) (&man.ed.4; driver)</para>
 
@@ -1240,34 +1245,47 @@
     <para arch="i386">HP PC Lan+ cards (model numbers: 27247B and 27252A)
     (&man.ed.4; driver)</para>
 
-    <para>Intel EtherExpress NICs
+    <para arch="i386,alpha,ia64">Intel 82557- or 82559-based Fast Ethernet NICs (&man.fxp.4 driver)
       <itemizedlist>
-        <listitem arch="i386">
-	  <para>Intel EtherExpress 16 (&man.ie.4; driver)</para>
-        </listitem>
-        <listitem arch="i386">
-	  <para>Intel EtherExpress Pro/10 and Pro/10+ Ethernet
-	  (&man.ex.4; driver)</para>
-        </listitem>
-        <listitem arch="i386,alpha">
-	  <para>Intel EtherExpress Pro/100B PCI Fast Ethernet
-	  (&man.fxp.4; driver)</para>
+        <listitem>
+	  <para>Intel EtherExpress Pro/100B PCI Fast Ethernet</para>
         </listitem>
         <listitem>
-	  <para>Intel PRO/1000, PRO/1000-F, and PRO/1000-T Gigabit Ethernet
-	  (&man.wx.4; driver)</para>
+	  <para>Intel InBusiness 10/100 PCI Network Adapter</para>
         </listitem>
         <listitem>
-	  <para>Intel InBusiness 10/100 PCI Network Adapter
-	  (&man.fxp.4 driver)</para>
-        </listitem>
-        <listitem>
-	  <para>Intel PRO/100+ Management Adapter (&man.fxp.4 driver)</para>
+	  <para>Intel PRO/100+ Management Adapter</para>
         </listitem>
       </itemizedlist>
     </para>
 
-<!-- XXX ie.4 cards that are not 3C507 or EtherExpress 16 XXX -->
+    <para arch="i386">Intel 82595-based Ethernet NICs (&man.ex.4; driver)
+      <itemizedlist>
+        <listitem>
+	  <para>Intel EtherExpress Pro/10 and Pro/10+ Ethernet</para>
+        </listitem>
+      </itemizedlist>
+    </para>
+
+    <para arch="i386">Intel 82586-based Ethernet NICs (&man.ie.4; driver)
+      <itemizedlist>
+        <listitem>
+	  <para>3Com 3C507 Etherlink 16/TP</para>
+        </listitem>
+        <listitem>
+	  <para>AT&amp;T Starlan 10 and Starlan Fiber</para>
+        </listitem>
+        <listitem>
+	  <para>EN100</para>
+        </listitem>
+        <listitem>
+	  <para>Intel EtherExpress 16</para>
+        </listitem>
+        <listitem>
+	  <para>RACAL Interlan NI5210</para>
+        </listitem>
+      </itemizedlist>
+    </para>
 
     <para>Isolan AT 4141-0 (16 bit)</para>
 
@@ -1296,51 +1314,77 @@
       </itemizedlist>
     </para>
 
-    <para>3Com Ethernet and Fast Ethernet NICs
+    <para arch="i386">3Com 3C5x9 Etherlink III NICs (&man.ep.4; driver)
       <itemizedlist>
         <listitem>
-	  <para>3C450-TX HomeConnect adapter (&man.xl.4; driver)</para>
-        </listitem>
-        <listitem arch="i386">
-	  <para>3C501 (&man.el.4; driver)</para>
+	  <para>3C509</para>
         </listitem>
         <listitem>
-	  <para>3C503 Etherlink II (&man.ed.4; driver)</para>
+	  <para>3C529 MCA</para>
         </listitem>
-        <listitem arch="i386">
-	  <para>3C507 Etherlink 16/TP (&man.ie.4; driver)</para>
-        </listitem>
-        <listitem arch="i386">
-	  <para>3C509 (&man.ep.4; driver)</para>
-        </listitem>
-        <listitem arch="i386">
-	  <para>3C529 MCA (&man.ep.4; driver)</para>
-        </listitem>
-        <listitem arch="i386">
-	  <para>3C579 EISA (&man.ep.4; driver)</para>
+        <listitem>
+	  <para>3C579 EISA</para>
         </listitem>
         <listitem>
 	  <para>3C589/589B/589C/589D/589E/XE589ET/574TX/574B
-	  PC-card/PCMCIA (&man.ep.4; driver)</para>
+	  PC-card/PCMCIA</para>
         </listitem>
-        <listitem arch="i386">
-	  <para>3C590/592/595 (&man.vx.4; driver)</para>
-	</listitem>
+      </itemizedlist>
+    </para>
+
+    <para arch="i386">3Com 3C501 8-bit ISA Ethernet NIC 
+    (&man.el.4; driver)</para>
+
+    <para arch="i386,alpha">3Com Etherlink XL-based NICs (&man.xl.4; driver)
+      <itemizedlist>
 	<listitem>
-	  <para>3C900/905/905B/905C PCI (&man.xl.4; driver)</para>
+	  <para>3C900/905/905B/905C PCI</para>
         </listitem>
         <listitem>
-	  <para>3C556/556B MiniPCI (&man.xl.4; driver)</para>
+	  <para>3C556/556B MiniPCI</para>
         </listitem>
         <listitem>
-	  <para>EISA (Fast) Etherlink III / (Fast) Etherlink XL</para>
+	  <para>3C450-TX HomeConnect adapter</para>
         </listitem>
         <listitem>
-	  <para>3c980/3c980B Fast Etherlink XL server adapter
-	  (&man.xl.4; driver)</para>
+	  <para>3c980/3c980B Fast Etherlink XL server adapter</para>
         </listitem>
         <listitem>
-	  <para>3cSOHO100-TX OfficeConnect adapter (&man.xl.4; driver)</para>
+	  <para>3cSOHO100-TX OfficeConnect adapter</para>
+        </listitem>
+        <listitem>
+	  <para>Dell Optiplex GX1 on-board 3C918</para>
+        </listitem>
+        <listitem>
+	  <para>Dell On-board 3C920</para>
+        </listitem>
+        <listitem>
+	  <para>Dell Precision on-board 3C905B</para>
+        </listitem>
+        <listitem>
+	  <para>Dell Latitude laptop docking station embedded 3C905-TX</para>
+        </listitem>
+      </itemizedlist>
+    </para>
+
+    <para arch="i386">3Com 3C59X series NICs (&man.vx.4; driver)
+      <itemizedlist>
+        <listitem>
+	  <para>3C590 Etherlink III (PCI)</para>
+	</listitem>
+        <listitem>
+	  <para>3C595 Fast Etherlink III (PCI)</para>
+	</listitem>
+        <listitem>
+	  <para>3C592/3C597 (EISA)</para>
+	</listitem>
+      </itemizedlist>
+    </para>
+
+    <para>3Com Ethernet and Fast Ethernet NICs
+      <itemizedlist>
+        <listitem>
+	  <para>3C503 Etherlink II (&man.ed.4; driver)</para>
         </listitem>
       </itemizedlist>
     </para>
