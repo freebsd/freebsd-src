@@ -28,7 +28,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
 .\" THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: xl.4,v 1.2 1998/12/05 09:31:25 rnordier Exp $
+.\"	$Id: xl.4,v 1.3 1998/12/05 09:36:15 rnordier Exp $
 .\"
 .Dd August 16, 1998
 .Dt XL 4 i386
@@ -73,11 +73,11 @@ external PHYs or built-in autonegotiation logic. For 3c900 adapters,
 the driver will choose the mode specified in the EEPROM. The user can
 change this by adding media options to the
 .Pa /etc/rc.conf
-fine.
+file.
 .It 10baseT/UTP
 Set 10Mbps operation. The
 .Ar mediaopt
-option can abso be used to select either
+option can also be used to select either
 .Ar full-duplex
 or
 .Ar half-duplex modes.
