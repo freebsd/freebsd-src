@@ -39,6 +39,7 @@
 #include "aml/aml_env.h"
 
 struct aml_environ	asl_env;
+int			rflag;
 
 static u_int32_t
 asl_dump_pkglength(u_int8_t **dpp)
@@ -229,6 +230,364 @@ asl_dump_defscope(u_int8_t **dpp, int indent)
 }
 
 static void
+asl_dump_resourcebuffer(u_int8_t *dp, u_int8_t *end, int indent)
+{
+	u_int8_t	*p;
+	int		print, len, name, indep, i, ofs;
+
+	print = 0;
+	indep = 0;
+restart:
+	if (print) {
+		printf("\n");
+		print_indent(indent);
+		printf("/* ResourceTemplate() {\n");
+	}
+	for (p = dp; p < end; ) {
+		ofs = p - dp;
+		if (*p & 0x80) {	/* large resource */
+			if ((end - p) < 3) {
+				return;
+			}
+			name = *p;
+			len = ((int)*(p + 2) << 8) + *(p + 1);
+			p += 3;
+		} else {		/* small resource */
+			name = (*p >> 3) & 0x0f;
+			len = *p & 0x7;
+			p++;
+		}
+		if (name == 0xf) {	/* end tag */
+			if (print == 0) {
+				print = 1;
+				goto restart;
+			} else {
+				print_indent(indent);
+				printf("} */\n");
+				print_indent(indent);
+				break;
+			}
+		}
+		
+		if (print) {
+			print_indent(indent);
+			switch (name) {
+			case 0x06:
+				if (indep) {
+					printf("    }\n");
+					print_indent(indent);
+				}
+				printf("    StartDependentFn(");
+				if (len == 1) 
+					printf("%d, %d", 
+					       *p & 0x3,
+					       (*p >> 2) & 0x3);
+				printf(") {\n");
+				indep = 1;
+				continue;
+			case 0x07:
+				if (indep)
+					printf("    }\n");
+				print_indent(indent);
+				printf("    EndDependentFn() {}\n");
+				indep = 0;
+				continue;
+			}
+
+			printf("%s 0x%-04.4x  ", indep ? "    " : "", ofs);
+			switch (name) {
+			case 0x04:	/* IRQ() { } */
+			{
+				int i, first;
+
+				printf("IRQ(");
+				if (len == 3) {
+					printf("%s, Active%s, %s",
+					       *(p + 2) & 0x01 ? "Edge" : "Level",
+					       *(p + 2) & 0x08 ? "Low" : "High",
+					       *(p + 2) & 0x10 ? "Shared" :
+					       "Exclusive");
+				}
+				printf(")");
+				first = 1;
+				for (i = 0; i < 16; i++) {
+					if (*(p + (i / 8)) & (1 << (i % 8))) {
+						if (first) {
+							printf(" {");
+							first = 0;
+						} else {
+							printf(", ");
+						}
+						printf("%d", i);
+					}
+				}
+				if (!first)
+					printf("}");
+				printf("\n");
+				break;
+			}
+
+			case 0x05:	/* DMA() { } */
+			{
+				int i, first;
+
+				printf("DMA(%s, %sBusMaster, Transfer%s)",
+				       (*(p + 1) & 0x60) == 0 ? "Compatibility" :
+				       (*(p + 1) & 0x60) == 1 ? "TypeA" :
+				       (*(p + 1) & 0x60) == 2 ? "TypeB" : "TypeF",
+				       *(p + 1) & 0x04 ? "" : "Not",
+				       (*(p + 1) & 0x03) == 0 ? "8" :
+				       (*(p + 1) & 0x03) == 1 ? "8_16" : "16");
+				first = 1;
+				for (i = 0; i < 8; i++) {
+					if (*p & (1 << i)) {
+						if (first) {
+							printf(" {");
+							first = 0;
+						} else {
+							printf(", ");
+						}
+						printf("%d", i);
+					}
+				}
+				if (!first)
+					printf("}");
+				printf("\n");
+				break;
+			}
+			case 0x08:	/* IO() */
+				printf("IO(Decode%s, 0x%x, 0x%x, 0x%x, 0x%x)\n",
+				       *p & 0x01 ? "16" : "10",
+				       (int)*(u_int16_t *)(p + 1),
+				       (int)*(u_int16_t *)(p + 3),
+				       *(p + 5),
+				       *(p + 6));
+				break;
+
+			case 0x09:	/* FixedIO() */
+				printf("FixedIO(0x%x, 0x%x)\n",
+				       *p + ((int)*(p + 1) << 8),
+				       *(p + 2));
+				break;
+
+			case 0x0e:	/* VendorShort() { }*/
+			case 0x84:	/* VendorLong() { } */
+			{
+				int i, first;
+
+				printf("Vendor%s()", name == 0x0e ? "Short" : "Long");
+				first = 0;
+				for (i = 0; i < len; i++) {
+					if (first) {
+						printf(" {");
+						first = 0;
+					} else {
+						printf(", ");
+					}
+					printf("0x%02x", *(p + i));
+				}
+				if (!first)
+					printf("}");
+				printf("\n");
+				break;
+			}
+			case 0x81:	/* Memory24() */
+				printf("Memory24(Read%s, 0x%06x, 0x%06x, 0x%x, 0x%x)\n",
+				       *p & 0x01 ? "Write" : "Only",
+				       (u_int32_t)*(u_int16_t *)(p + 1) << 8,
+				       (u_int32_t)*(u_int16_t *)(p + 3) << 8,
+				       (int)*(u_int16_t *)(p + 5),
+				       (int)*(u_int16_t *)(p + 7));
+				break;
+
+			case 0x82:	/* Register() */
+				printf("Register(%s, %d, %d, 0x%016llx)\n",
+				       *p == 0x00 ? "SystemMemory" :
+				       *p == 0x01 ? "SystemIO" :
+				       *p == 0x02 ? "PCIConfigSpace" :
+				       *p == 0x03 ? "EmbeddedController" :
+				       *p == 0x04 ? "SMBus" :
+				       *p == 0x7f ? "FunctionalFixedHardware" : "Unknown",
+				       *(p + 1),
+				       *(p + 2),
+				       *(u_int64_t *)(p + 3));
+				break;
+				      
+			case 0x85:	/* Memory32() */
+				printf("Memory32(Read%s, 0x%08x, 0x%08x, 0x%x, 0x%x)\n",
+				       *p & 0x01 ? "Write" : "Only",
+				       *(u_int32_t *)(p + 1),
+				       *(u_int32_t *)(p + 5),
+				       *(u_int32_t *)(p + 9),
+				       *(u_int32_t *)(p + 13));
+				break;
+
+			case 0x86:	/* Memory32Fixed() */
+				printf("Memory32Fixed(Read%s, 0x%08x, 0x%x)\n",
+				       *p & 0x01 ? "Write" : "Only",
+				       *(u_int32_t *)(p + 1),
+				       *(u_int32_t *)(p + 5));
+				break;
+
+			case 0x87:	/* DWordMemory() / DWordIO() */
+			case 0x88:	/* WordMemory() / WordIO() */
+			case 0x8a:	/* QWordMemory() / QWordIO() */
+			{
+				u_int64_t granularity, minimum, maximum, translation, length;
+				char *size, *source;
+				int index, slen;
+
+				switch (name) {
+				case 0x87:
+					size = "D";
+					granularity = *(u_int32_t *)(p + 3);
+					minimum     = *(u_int32_t *)(p + 7);
+					maximum     = *(u_int32_t *)(p + 11);
+					translation = *(u_int32_t *)(p + 15);
+					length      = *(u_int32_t *)(p + 19);
+					index       = *(p + 23);
+					source      = p + 24;
+					slen        = len - 24;
+					break;
+				case 0x88:
+					size = "";
+					granularity = *(u_int16_t *)(p + 3);
+					minimum     = *(u_int16_t *)(p + 5);
+					maximum     = *(u_int16_t *)(p + 7);
+					translation = *(u_int16_t *)(p + 9);
+					length      = *(u_int16_t *)(p + 11);
+					index       = *(p + 13);
+					source      = p + 14;
+					slen        = len - 14;
+					break;
+				case 0x8a:
+					size = "Q";
+					granularity = *(u_int64_t *)(p + 3);
+					minimum     = *(u_int64_t *)(p + 11);
+					maximum     = *(u_int64_t *)(p + 19);
+					translation = *(u_int64_t *)(p + 27);
+					length      = *(u_int64_t *)(p + 35);
+					index       = *(p + 43);
+					source      = p + 44;
+					slen        = len - 44;
+					break;
+				}
+				switch(*p) {
+				case 0:
+					printf("%sWordMemory("
+					       "Resource%s, "
+					       "%sDecode, "
+					       "Min%sFixed, "
+					       "Max%sFixed, "
+					       "%s, "
+					       "Read%s, "
+					       "0x%llx, 0x%llx, 0x%llx, 0x%llx, 0x%llx, "
+					       "%d, '%.*s', "
+					       "AddressRange%s, "
+					       "Type%s)\n",
+					       size, 
+					       *(p + 1) & 0x01 ? "Consumer" : "Producer",
+					       *(p + 1) & 0x02 ? "Sub" : "Pos",
+					       *(p + 1) & 0x04 ? "" : "Not",
+					       *(p + 1) & 0x08 ? "" : "Not",
+					       (*(p + 2) >> 1) == 0 ? "NonCacheable" :
+					       (*(p + 2) >> 1) == 1 ? "Cacheable" :
+					       (*(p + 2) >> 1) == 2 ? "WriteCombining" : 
+					       "Prefetchable",
+					       *(p + 2) & 0x01 ? "Write" : "Only",
+					       granularity, minimum, maximum, translation, length,
+					       index, slen, source,
+					       ((*(p + 2) >> 3) & 0x03) == 0 ? "Memory" :
+					       ((*(p + 2) >> 3) & 0x03) == 1 ? "Reserved" :
+					       ((*(p + 2) >> 3) & 0x03) == 2 ? "ACPI" : "NVS",
+					       *(p + 2) & 0x20 ? "Translation" : "Static");
+					break;
+				case 1:
+					printf("%sWordIO("
+					       "Resource%s, "
+					       "Min%sFixed, "
+					       "Max%sFixed, "
+					       "%sDecode, "
+					       "%s, "
+					       "0x%llx, 0x%llx, 0x%llx, 0x%llx, 0x%llx, "
+					       "%d, '%.*s', "
+					       "Type%s, "
+					       "%sTranslation)\n",
+					       size, 
+					       *(p + 1) & 0x01 ? "Consumer" : "Producer",
+					       *(p + 1) & 0x04 ? "" : "Not",
+					       *(p + 1) & 0x08 ? "" : "Not",
+					       *(p + 1) & 0x02 ? "Sub" : "Pos",
+					       (*(p + 2) & 0x03) == 0 ? "EntireRange" :
+					       (*(p + 2) & 0x03) == 1 ? "NonISAOnlyRanges" :
+					       (*(p + 2) & 0x03) == 2 ? "ISAOnlyRanges" : "EntireRange",
+					       granularity, minimum, maximum, translation, length,
+					       index, slen, source,
+					       *(p + 2) & 0x10 ? "Translation" : "Static",
+					       *(p + 2) & 0x20 ? "Sparse" : "Dense");
+					break;
+				case 2:
+					printf("%sWordBus("
+					       "Resource%s, "
+					       "%sDecode, "
+					       "Min%sFixed, "
+					       "Max%sFixed, "
+					       "0x%llx, 0x%llx, 0x%llx, 0x%llx, 0x%llx, "
+						"%d, '%.*s')\n",
+					       size, 
+					       *(p + 1) & 0x01 ? "Consumer" : "Producer",
+					       *(p + 1) & 0x02 ? "Sub" : "Pos",
+					       *(p + 1) & 0x04 ? "" : "Not",
+					       *(p + 1) & 0x08 ? "" : "Not",
+					       granularity, minimum, maximum, translation, length,
+					       index, slen, source);
+					break;
+				default:
+					printf("%sWordUnknown()\n", size);
+				}
+				break;
+			}
+			case 0x89:	/* Interrupt() { } */
+			{
+				int i, first, pad, sl;
+				char *rp;
+
+				pad = *(p + 1) * 4;
+				rp = p + 1 + pad;
+				sl = len - pad - 3;
+				printf("Interrupt(Resource%s, %s, Active%s, %s, %d, %.*s)",
+				       *p & 0x01 ? "Producer" : "Consumer",
+				       *p & 0x02 ? "Edge" : "Level",
+				       *p & 0x04 ? "Low" : "High",
+				       *p & 0x08 ? "Shared" : "Exclusive",
+				       (int)*(p + 1 + pad),
+				       sl,
+				       rp);
+				first = 1;
+				for (i = 0; i < *(p + 1); i++) {
+					if (first) {
+						printf(" {");
+						first = 0;
+					} else {
+						printf(", ");
+					}
+					printf("%u", *(u_int32_t *)(p + 2 + (i * 4)));
+				}
+				if (!first)
+					printf("}");
+				printf("\n");
+				break;
+			}
+			default:
+				printf("Unknown(0x%x, %d)\n", name, len);
+				break;
+			}
+		}
+		p += len;
+	}
+}
+
+static void
 asl_dump_defbuffer(u_int8_t **dpp, int indent)
 {
 	u_int8_t	*dp;
@@ -242,12 +601,15 @@ asl_dump_defbuffer(u_int8_t **dpp, int indent)
 	end = start + pkglength;
 	printf("Buffer(");
 	asl_dump_termobj(&dp, indent);
+	start = dp;
 	printf(") {");
 	while (dp < end) {
 		printf("0x%x", *dp++);
 		if (dp < end)
 			printf(", ");
 	}
+	if (rflag)
+		asl_dump_resourcebuffer(start, end, indent);
 	printf(" }");
 
 	*dpp = dp;
