@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ipl_funcs.c,v 1.8 1997/08/28 09:51:32 smp Exp smp $
+ *	$Id: ipl_funcs.c,v 1.6 1997/08/29 18:45:23 fsmp Exp $
  */
 
 #include <sys/types.h>
@@ -96,7 +96,6 @@ splx(unsigned ipl)
 
 #else /* !SMP */
 
-#include <machine/param.h>
 #include <machine/smp.h>
 extern int bspEarly; /* XXX */
 
