@@ -104,12 +104,12 @@ nfs_dolock(ap)
 	 */
 	if (fl->l_len < 0)
 		return (EINVAL);
-	if (fl->l_whence == SEEK_END)
-		return (EOPNOTSUPP);
-	if (fl->l_start < 0)
-		return (EINVAL);
-	if (fl->l_len != 0 && (fl->l_len - 1 > OFF_MAX - fl->l_start))
-		return (EOVERFLOW);
+	if (fl->l_whence != SEEK_END) {
+		if (fl->l_start < 0)
+			return (EINVAL);
+		if (fl->l_len != 0 && (fl->l_len - 1 > OFF_MAX - fl->l_start))
+			return (EOVERFLOW);
+	}
 
 	/*
 	 * Fill in the information structure.
