@@ -330,6 +330,7 @@ gai_strerror(ecode)
 		if (p->code == ecode)
 			return (char *)p->str;
 	}
+	return "Unknown error";
 }
 
 void
