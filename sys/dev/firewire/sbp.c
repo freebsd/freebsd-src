@@ -2369,7 +2369,7 @@ END_DEBUG
 		cpi->version_num = 1; /* XXX??? */
 		cpi->hba_inquiry = PI_TAG_ABLE;
 		cpi->target_sprt = 0;
-		cpi->hba_misc = PIM_NOBUSRESET;
+		cpi->hba_misc = PIM_NOBUSRESET | PIM_NO_6_BYTE;
 		cpi->hba_eng_cnt = 0;
 		cpi->max_target = SBP_NUM_TARGETS - 1;
 		cpi->max_lun = SBP_NUM_LUNS - 1;
