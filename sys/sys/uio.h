@@ -85,14 +85,15 @@ struct uio {
 
 struct vm_object;
 
-void	uio_yield(void);
-int	uiomove(void *, int, struct uio *);
-int	uiomove_frombuf(void *buf, int buflen, struct uio *uio);
-int	uiomoveco(void *, int, struct uio *, struct vm_object *, int);
 int	copyinfrom(const void * __restrict src, void * __restrict dst,
 	    size_t len, int seg);
 int	copyinstrfrom(const void * __restrict src, void * __restrict dst,
 	    size_t len, size_t * __restrict copied, int seg);
+void	uio_yield(void);
+int	uiomove(void *cp, int n, struct uio *uio);
+int	uiomove_frombuf(void *buf, int buflen, struct uio *uio);
+int	uiomoveco(void *cp, int n, struct uio *uio, struct vm_object *obj,
+	    int disposable);
 
 #else /* !_KERNEL */
 
