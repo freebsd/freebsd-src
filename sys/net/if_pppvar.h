@@ -1,4 +1,5 @@
-/*	$Id: if_pppvar.h,v 1.1 1994/12/15 22:28:09 paulus Exp $	*/
+/*	from Id: if_pppvar.h,v 1.1 1994/12/15 22:28:09 paulus Exp	*/
+/*	$Id$	*/
 /*
  * if_pppvar.h - private structures and declarations for PPP.
  *
@@ -53,21 +54,22 @@
  */
 struct ppp_softc {
 	struct	ifnet sc_if;		/* network-visible interface */
-	u_int	sc_flags;		/* control/status bits; see if_ppp.h */
+/*hi*/	u_int	sc_flags;		/* control/status bits; see if_ppp.h */
 	void	*sc_devp;		/* pointer to device-dep structure */
 	void	(*sc_start) __P((struct ppp_softc *));	/* start output proc */
 	void	(*sc_ctlp) __P((struct ppp_softc *)); /* rcvd control pkt */
 	void	(*sc_relinq) __P((struct ppp_softc *)); /* relinquish ifunit */
+	void	(*sc_setmtu) __P((struct ppp_softc *)); /* set mtu */
 	short	sc_mru;			/* max receive unit */
 	pid_t	sc_xfer;		/* used in transferring unit */
-	struct	ifqueue sc_rawq;	/* received packets */
-	struct	ifqueue sc_inq;		/* queue of input packets for daemon */
-	struct	ifqueue sc_fastq;	/* interactive output packet q */
+/*hi*/	struct	ifqueue sc_rawq;	/* received packets */
+/*net*/	struct	ifqueue sc_inq;		/* queue of input packets for daemon */
+/*net*/	struct	ifqueue sc_fastq;	/* interactive output packet q */
 	struct	mbuf *sc_togo;		/* output packet ready to go */
 	struct	mbuf *sc_npqueue;	/* output packets not to be sent yet */
 	struct	mbuf **sc_npqtail;	/* ptr to last next ptr in npqueue */
 #ifdef	VJC
-	struct	vjcompress sc_comp; 	/* vjc control buffer */
+	struct	slcompress sc_comp; 	/* vjc control buffer */
 #endif
 	u_int	sc_bytessent;		/* count of octets sent */
 	u_int	sc_bytesrcvd;		/* count of octets received */
@@ -100,5 +102,7 @@ struct	ppp_softc *pppalloc __P((pid_t pid));
 void	pppdealloc __P((struct ppp_softc *sc));
 int	pppioctl __P((struct ppp_softc *sc, int cmd, caddr_t data,
 		      int flag, struct proc *p));
+int	pppoutput __P((struct ifnet *ifp, struct mbuf *m0,
+		       struct sockaddr *dst, struct rtentry *rtp));
 void	ppppktin __P((struct ppp_softc *sc, struct mbuf *m, int lost));
 struct	mbuf *ppp_dequeue __P((struct ppp_softc *sc));
