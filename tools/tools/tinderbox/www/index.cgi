@@ -149,7 +149,7 @@ MAIN:{
           src=\"valid-xhtml10.png\"
           alt=\"Valid XHTML 1.0!\" height=\"31\" width=\"88\" /></a>
       <a href=\"http://jigsaw.w3.org/css-validator/check/referer\"><img
-          src=\"valid-css.gif\"
+          src=\"valid-css.png\"
           alt=\"Valid CSS!\" height=\"31\" width=\"88\" /></a>
     </p>
   </body>
