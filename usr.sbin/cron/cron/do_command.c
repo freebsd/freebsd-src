@@ -109,7 +109,7 @@ child_process(e, u)
 	 * use wait() explictly.  so we have to disable the signal (which
 	 * was inherited from the parent).
 	 */
-	(void) signal(SIGCHLD, SIG_IGN);
+	(void) signal(SIGCHLD, SIG_DFL);
 #else
 	/* on system-V systems, we are ignoring SIGCLD.  we have to stop
 	 * ignoring it now or the wait() in cron_pclose() won't work.
