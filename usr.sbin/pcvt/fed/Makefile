@@ -1,3 +1,4 @@
+# $FreeBSD$
 
 .if !exists(${.CURDIR}/../Makefile.inc)
 error:
@@ -24,6 +25,6 @@ clean:
 	rm -f *.o fed *core* trace*
 
 install:
-	${INSTALL} -c -s -o bin -g bin fed $(DEST)
+	${INSTALL} ${COPY} -s -o bin -g bin fed $(DEST)
 
 .endif

@@ -166,7 +166,7 @@ ex_noperl.c: ex_perl.c
 CLEANFILES+=	ex_notcl.c ex_noperl.c
 
 afterinstall:
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 \
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 \
 		${CATALOGS:S;^;${SRCDIR}/catalog/;} \
 		${DESTDIR}/usr/share/vi/catalog
 	for l in ${NLLINKS}; do \
@@ -216,10 +216,10 @@ afterinstall:
 		ln -fs polish ${DESTDIR}/usr/share/vi/catalog/$$l.ISO_8859-2; \
 	done
 	ln -fs ru_SU.KOI8-R ${DESTDIR}/usr/share/vi/catalog/ru_RU.KOI8-R
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 \
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 \
 		${SRCDIR}/tcl_scripts/*.tcl \
 		${DESTDIR}/usr/share/vi/tcl
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 \
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 \
 		${SRCDIR}/perl_scripts/*.pl \
 		${DESTDIR}/usr/share/vi/perl
 .if defined(PERLINTERP)

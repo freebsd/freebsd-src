@@ -35,7 +35,7 @@ opt_compat.h:
 	echo "#define COMPAT_43 1" > opt_compat.h
 
 afterinstall:
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 		${.CURDIR}/linux.sh ${DESTDIR}/usr/sbin/linux
 
 .include <bsd.kmod.mk>

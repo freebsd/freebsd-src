@@ -89,7 +89,7 @@ install:
 		boot1 boot2 ${DESTDIR}${BINDIR}/
 
 install-boothelp:
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \
 		${.CURDIR}/boot.help ${DESTDIR}/
 
 .include <bsd.kern.mk>

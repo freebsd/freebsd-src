@@ -14,7 +14,7 @@ MLINKS=	mail.1 Mail.1 mail.1 mailx.1
 .PATH: ${.CURDIR}/misc
 
 etc-mailrc:
-	cd ${.CURDIR}/misc; ${INSTALL} -c -o root -g wheel \
+	cd ${.CURDIR}/misc; ${INSTALL} ${COPY} -o root -g wheel \
 	    -m 644 ${EFILES} ${DESTDIR}/etc
 
 .include <bsd.prog.mk>

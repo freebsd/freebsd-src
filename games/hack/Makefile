@@ -34,10 +34,10 @@ makedefs: makedefs.o
 	${CC} -static ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
 
 beforeinstall:
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} /dev/null \
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} /dev/null \
 	    ${DESTDIR}/var/games/hackdir/perm
 .if !exists(${DESTDIR}/var/games/hackdir/record)
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 460 /dev/null \
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 460 /dev/null \
 	    ${DESTDIR}/var/games/hackdir/record
 .endif
 #	rm -f ${DESTDIR}/var/games/hackdir/bones* \

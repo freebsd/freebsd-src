@@ -38,7 +38,7 @@ opt_svr4.h:
 .endif
 
 afterinstall:
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 		${.CURDIR}/svr4.sh ${DESTDIR}/usr/sbin/svr4
 
 .include <bsd.kmod.mk>

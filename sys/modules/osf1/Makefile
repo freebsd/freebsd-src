@@ -20,7 +20,7 @@ opt_osf1.h opt_simos.h opt_nfs.h:
 	touch ${.TARGET}
 
 afterinstall:
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 		${.CURDIR}/osf1.sh ${DESTDIR}/usr/bin/osf1
 
 .include <bsd.kmod.mk>

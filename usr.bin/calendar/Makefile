@@ -10,10 +10,10 @@ HR_LINKS=       hr_HR.ISO_8859-2
 TEXTMODE?=	444
 
 beforeinstall:
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${TEXTMODE} \
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${TEXTMODE} \
 	    ${.CURDIR}/calendars/calendar.* ${DESTDIR}${SHAREDIR}/calendar
 .for lang in ${INTER}
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${TEXTMODE} \
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${TEXTMODE} \
 		${.CURDIR}/calendars/${lang}/calendar.* \
 		${DESTDIR}${SHAREDIR}/calendar/${lang}; 
 .endfor

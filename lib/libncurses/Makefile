@@ -252,7 +252,7 @@ DOCSDIR= /usr/share/doc/ncurses
 DOCS=	ncurses-intro.html hackguide.html
 
 beforeinstall:	${HEADERS}
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${HEADERS} \
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 ${HEADERS} \
 	    ${DESTDIR}/usr/include
 	rm -f ${DESTDIR}/usr/include/ncurses.h
 	ln -s curses.h ${DESTDIR}/usr/include/ncurses.h
@@ -261,7 +261,7 @@ beforeinstall:	${HEADERS}
 afterinstall:
 .for file in ${DOCS}
 	cd ${.CURDIR}/../../contrib/ncurses/misc ; \
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${file} \
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 ${file} \
 		${DESTDIR}${DOCSDIR}
 .endfor
 .endif

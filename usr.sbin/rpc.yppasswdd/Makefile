@@ -57,7 +57,7 @@ yppasswd_private_svc.c: yppasswd_private.x
 	sed s/"static int _rpcsvcstate = _IDLE"/"extern int _rpcsvcstate"/g > ${.TARGET}
 
 afterinstall:
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 		${.CURDIR}/yppwupdate \
 		${DESTDIR}/usr/libexec/yppwupdate
 

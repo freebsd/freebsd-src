@@ -14,7 +14,7 @@ CFLAGS+= -DCOMPAT_IBCS2
 EXPORT_SYMS= _ibcs2_mod _ibcs2_emul_path _ibcs2_svr3_sysvec
 
 afterinstall:
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 		${.CURDIR}/ibcs2.sh ${DESTDIR}/usr/sbin/ibcs2
 
 .include <bsd.kmod.mk>
