@@ -51,12 +51,10 @@ static devclass_t	sc_devclass;
 
 static int	scprobe(device_t dev);
 static int	scattach(device_t dev);
-static int	scresume(device_t dev);
 
 static device_method_t sc_methods[] = {
 	DEVMETHOD(device_probe,         scprobe),
 	DEVMETHOD(device_attach,        scattach),
-	DEVMETHOD(device_resume,        scresume),
 	{ 0, 0 }
 };
 
@@ -83,12 +81,6 @@ static int
 scattach(device_t dev)
 {
 	return sc_attach_unit(device_get_unit(dev), device_get_flags(dev));
-}
-
-static int
-scresume(device_t dev)
-{
-	return sc_resume_unit(device_get_unit(dev));
 }
 
 int
