@@ -1,0 +1,72 @@
+IPv6 notes for BIND 4.9.3 Patch 2 Candidate 5 (and later?)
+Paul Vixie, May 20, 1996
+doc/misc/IPv6
+
+			*** Introduction ***
+
+The IPv6 support in this release is latent, in that its presence is not
+documented.  The support is not optional, since its presence ought not to
+affect anyone who does not go looking for it.  The support includes:
+
+	inet_ntop()	new function.
+	inet_pton()	new function.
+	RES_USE_INET6	causes gethostby*() to return either real IPv6
+			addresses (if available) or mapped (::FFFF:a.b.c.d)
+			addresses if only IPv4 address records are found.
+	gethostbyname()	can search for T_AAAA in preference to T_A.
+	gethostbyaddr()	can search in IP6.INT for PTR RR's.
+	named		can load, transfer, cache, and dump T_AAAA RRs.
+
+		*** Some notes on the new functions ***
+
+The inet_pton() and inet_ntop() functions differ from the current (as of
+this writing) IPv6 BSD API draft.  Discussions were held, primarily between
+myself and Rich Stevens, on the ipng@sunroof.eng.sun.com mailing list, and
+the BIND definitions of these functions are likely to go into the next draft.
+(If not, and BIND has to change its definitions of these functions, then you
+will know why I chose not to document them yet!)
+
+These functions can return error values, and as such the process of porting
+code that used inet_aton() to use inet_pton() is not just syntactic.  Not all
+nonzero values indicate success; consider "-1".  Likewise, inet_ntoa() is not
+just smaller than inet_ntop() -- it's a whole new approach.  Inet_ntop() does
+not return a static pointer, the caller has to supply a sized buffer.  Also,
+inet_ntop() can return NULL, so you should only printf() the result if you
+have verified that your arguments will be seen as error free.
+
+The inet_pton() function is much pickier about its input format than the old
+inet_aton() function has been.  You can't abbreviate 10.0.0.53 as 10.53 any
+more.  Hexadecimal isn't accepted.  You have to supply four decimal numeric
+strings, each of whose value is within the range from 0 to 255.  No spaces
+are allowed either before, after, or within an address.  If you need the older
+functionality with all the shortcuts and exceptions, continue using inet_aton()
+for your IPv4 address parsing needs.
+
+		   *** Some notes on RES_USE_INET6 ***
+
+You can set this by modifying _res.options after calling res_init(), or you
+can turn it on globally by setting "options inet6" in /etc/resolv.conf.  This
+latter option ought to be used carefully, since _all_ applications will then
+receive IPv6 style h_addr_list's from their gethostby*() calls.  Once you know
+that every application on your system can cope with IPv6 addressing, it is safe
+and reasonable to turn on the global option.  Otherwise, don't do it.
+
+		*** Some notes on mapped IPv4 addresses ***
+
+There are two IPv6 prefixes set aside for IPv4 address encapsulation.  See
+RFC 1884 for a detailed explaination.  The ::a.b.c.d form is used for
+tunnelling, which means wrapping an IPv4 header around IPv6 packets and using
+the existing IPv4 routing infrastructure to reach what are actually IPv6
+endpoints.  The ::FFFF:a.b.c.d form can be used on dual-stack (IPv4 and IPv6)
+hosts to signal a predominantly IPv6 stack that it should use ``native'' IPv4
+to reach a given destination, even though the socket's address family is
+AF_INET6.
+
+BIND supports both of these address forms, to the extent that inet_pton() will
+parse them, inet_ntop() will generate them, gethostby*() will map IPv4 into
+IPv6 if the RES_USE_INET6 option is set, and gethostbyaddr() will search the
+IN-ADDR.ARPA domain rather than the IP6.INT domain when it needs a PTR RR.
+This last bit of behaviour is still under discussion and it's not clear that
+tunnelled addresses should be mapped using IN-ADDR.ARPA.  In other words, this
+bit of behaviour may change in a subsequent BIND release.  So now you know
+another reason why none of this stuff is ``officially'' documented.
