@@ -1,4 +1,4 @@
-/* BT848 1.26 Driver for Brooktree's Bt848 based cards.
+/* BT848 1.27 Driver for Brooktree's Bt848 based cards.
    The Brooktree  BT848 Driver driver is based upon Mark Tinguely and
    Jim Lowe's driver for the Matrox Meteor PCI card . The 
    Philips SAA 7116 and SAA 7196 are very different chipsets than
@@ -215,6 +215,10 @@
                            section to the tuner_ioctl section
                            Changed Major device from 79 to 92 and reserved
                            our Major device number -- hasty@star-gate.com
+1.27                       Last batch of patches for radio support from
+                           Flemming Jacobsen <fj@trw.nl>.
+                           Added B849 PCI ID submitted by: 
+                           Tomi Vainio <tomppa@fidata.fi>
 */
 
 #define DDB(x) x
@@ -373,11 +377,13 @@ bktr_pci_match(pci_devaddr_t *pa)
 	unsigned id;
 
 	id = pci_inl(pa, PCI_VENDOR_ID);
-	if (id != BROOKTREE_848_ID) {
-		aprint_debug("bktr_pci_match got %x\n", id);
-		return 0;
+
+	if (id == BROOKTREE_848_ID || id == BROOKTREE_849_ID   ) {
+	  return 1;
 	}
-	return 1;
+	aprint_debug("bktr_pci_match got %x\n", id);
+	return 0;
+
 }
 
 pci_devres_t	bktr_res; /* XXX only remembers last one, helps debug */
@@ -656,8 +662,6 @@ static u_long	status_sum = 0;
 /*
  * misc. support routines.
  */
-static const struct CARDTYPE	cards[];
-static const struct TUNER	tuners[];
 static int			signCard( bktr_ptr_t bktr, int offset,
 					  int count, u_char* sig );
 static void			probeCard( bktr_ptr_t bktr, int verbose );
@@ -1263,6 +1267,7 @@ tuner_open( bktr_ptr_t bktr )
 		return( 0 );
 
 	bktr->tflags |= TUNER_OPEN;
+        bktr->tuner.radio_mode = 0;
 
 	/* enable drivers on the GPIO port that control the MUXes */
 	bktr->base->gpio_out_en = GPIO_AUDIOMUX_BITS;
@@ -2239,12 +2244,19 @@ tuner_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 			return( EIO );
 		break;
 	/* Ioctl's for running the tuner device in radio mode		*/
-#if 0
-	case RADIO_SETMODE:	/* XXX  Todo: implement me ...		*/
+
+	case RADIO_GETMODE:
+            *(unsigned char *)arg = bktr->tuner.radio_mode;
 	    break;
-	case RADIO_GETFREQ;	/* XXX  Todo: implement me ...		*/
-	    break;
-#endif
+
+	case RADIO_SETMODE:
+            bktr->tuner.radio_mode = *(unsigned char *)arg;
+            break;
+
+ 	case RADIO_GETFREQ:
+            *(unsigned long *)arg = (bktr->tuner.frequency+407)*5;
+            break;
+
 	case RADIO_SETFREQ:
 	    /* The argument to this ioctl is NOT freq*16. It is
 	    ** freq*100.
@@ -3748,7 +3760,7 @@ readEEProm( bktr_ptr_t bktr, int offset, int count, u_char *data )
  * Note:
  *   these entried MUST be kept in the order defined by the CARD_XXX defines!
  */
-const struct CARDTYPE cards[] = {
+static const struct CARDTYPE cards[] = {
 
 	/* CARD_UNKNOWN */
 	{ "Unknown",				/* the 'name' */
@@ -3841,7 +3853,7 @@ struct TUNER {
 	u_char		bandAddrs[ 3 ];
 };
  */
-const struct TUNER tuners[] = {
+static const struct TUNER tuners[] = {
 /* XXX FIXME: fill in the band-switch crosspoints */
 	/* NO_TUNER */
 	{ "<none>",				/* the 'name' */
@@ -3907,12 +3919,7 @@ const struct TUNER tuners[] = {
 	     TSA552x_FCONTROL,
 	     TSA552x_RADIO },
 	   { 0x00, 0x00 },			/* band-switch crosspoints */
-	   { 0xa0, 0x90, 0x30, 0xa5 } },	/* the band-switch values */
-	   					/* Radio: (for FM1216)
-						** 0xa4 sets radiomode
-						**    bit0 - AFC
-						**    bit1 - Mono
-						**    bit3 - Mute */
+	   { 0xa0, 0x90, 0x30, 0xa4 } },	/* the band-switch values */
 
 	/* PHILIPS_SECAM */
 	{ "Philips SECAM",			/* the 'name' */
@@ -3921,9 +3928,9 @@ const struct TUNER tuners[] = {
 	   { TSA552x_SCONTROL,			/* control byte for PLL */
 	     TSA552x_SCONTROL,
 	     TSA552x_SCONTROL,
-	     0x00 },
+	    TSA552x_RADIO },
 	   { 0x00, 0x00 },			/* band-switch crosspoints */
-	   { 0xa0, 0x90, 0x30,0x00 } },		/* the band-switch values */
+	   { 0xa0, 0x90, 0x30,0xa4 } },		/* the band-switch values */
 
 	/* TEMIC_PAL I */
 	{ "Temic PAL I",			/* the 'name' */
@@ -4460,6 +4467,8 @@ tv_freq( bktr_ptr_t bktr, int frequency )
 	if(!(band && control))			/* Don't try to set un-	*/
 	  return(-1);				/* supported modes.	*/
 
+         if(N==3) 
+	  band |= bktr->tuner.radio_mode;
 
 	/*
 	 * N = 16 * { fRF(pc) + fIF(pc) }
@@ -4621,7 +4630,11 @@ set_audio( bktr_ptr_t bktr, int cmd )
 
 	switch (cmd) {
 	case AUDIO_TUNER:
+#ifdef BKTR_REVERSEMUTE
+		bktr->audio_mux_select = 3;
+#else
 		bktr->audio_mux_select = 0;
+#endif
 		break;
 	case AUDIO_EXTERN:
 		bktr->audio_mux_select = 1;
@@ -4652,7 +4665,11 @@ set_audio( bktr_ptr_t bktr, int cmd )
 	bt848->gpio_reg_inp = (~GPIO_AUDIOMUX_BITS & 0xff);
 
 	if ( bktr->audio_mute_state == TRUE )
+#ifdef BKTR_REVERSEMUTE
+		idx = 0;
+#else
 		idx = 3;
+#endif
 	else
 		idx = bktr->audio_mux_select;
 
