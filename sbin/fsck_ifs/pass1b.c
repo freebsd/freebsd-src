@@ -32,18 +32,21 @@
  */
 
 #ifndef lint
-static const char sccsid[] = "@(#)pass1b.c	8.1 (Berkeley) 6/5/93";
+static const char sccsid[] = "@(#)pass1b.c	8.4 (Berkeley) 4/28/95";
 #endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/time.h>
+
 #include <ufs/ufs/dinode.h>
 #include <ufs/ffs/fs.h>
+
 #include <string.h>
+
 #include "fsck.h"
 
-int	pass1bcheck();
 static  struct dups *duphead;
+static int pass1bcheck __P((struct inodesc *));
 
 void
 pass1b()
@@ -53,7 +56,7 @@ pass1b()
 	struct inodesc idesc;
 	ino_t inumber;
 
-	bzero((char *)&idesc, sizeof(struct inodesc));
+	memset(&idesc, 0, sizeof(struct inodesc));
 	idesc.id_type = ADDR;
 	idesc.id_func = pass1bcheck;
 	duphead = duplist;
@@ -73,13 +76,13 @@ pass1b()
 	}
 }
 
-int
+static int
 pass1bcheck(idesc)
 	register struct inodesc *idesc;
 {
 	register struct dups *dlp;
 	int nfrags, res = KEEPON;
-	daddr_t blkno = idesc->id_blkno;
+	ufs_daddr_t blkno = idesc->id_blkno;
 
 	for (nfrags = idesc->id_numfrags; nfrags > 0; blkno++, nfrags--) {
 		if (chkrange(blkno, 1))
