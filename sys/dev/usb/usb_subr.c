@@ -853,20 +853,22 @@ usbd_probe_and_attach(device_ptr_t parent, usbd_device_handle dev,
 	usbd_interface_handle ifaces[256]; /* 256 is the absolute max */
 
 #if defined(__FreeBSD__)
-	/*
-	 * XXX uaa is a static var. Not a problem as it _should_ be used only
-	 * during probe and attach. Should be changed however.
-	 */
-	device_t bdev;
+	/* XXX FreeBSD may leak resources on failure cases -- fixme */
+ 	device_t bdev;
+	struct usb_attach_arg *uaap;
+
 	bdev = device_add_child(parent, NULL, -1);
 	if (!bdev) {
-	    printf("%s: Device creation failed\n", USBDEVNAME(dev->bus->bdev));
-	    return (USBD_INVAL);
+		device_printf(parent, "Device creation failed\n");
+		return (USBD_INVAL);
 	}
-	device_set_ivars(bdev, &uaa);
 	device_quiet(bdev);
+	uaap = malloc(sizeof(uaa), M_USB, M_NOWAIT);
+	if (uaap == NULL) {
+		return (USBD_INVAL);
+	}
+	device_set_ivars(bdev, uaap);
 #endif
-
 	uaa.device = dev;
 	uaa.iface = NULL;
 	uaa.ifaces = NULL;
@@ -888,15 +890,14 @@ usbd_probe_and_attach(device_ptr_t parent, usbd_device_handle dev,
 		return (USBD_NOMEM);
 	dev->subdevs[0] = bdev;
 	dev->subdevs[1] = 0;
+	*uaap = uaa;
 	dv = USB_DO_ATTACH(dev, bdev, parent, &uaa, usbd_print, usbd_submatch);
 	if (dv) {
 		return (USBD_NORMAL_COMPLETION);
-	} else {
-		tmpdv = dev->subdevs;
-		dev->subdevs = NULL;
-		free(tmpdv, M_USB);
 	}
-
+	tmpdv = dev->subdevs;
+	dev->subdevs = NULL;
+	free(tmpdv, M_USB);
 	DPRINTF(("usbd_probe_and_attach: no device specific driver found\n"));
 
 	DPRINTF(("usbd_probe_and_attach: looping over %d configurations\n",
@@ -915,10 +916,6 @@ usbd_probe_and_attach(device_ptr_t parent, usbd_device_handle dev,
 			printf("%s: port %d, set config at addr %d failed\n",
 			       USBDEVPTRNAME(parent), port, addr);
 #endif
-#if defined(__FreeBSD__)
-			device_delete_child(parent, bdev);
-#endif
-
  			return (err);
 		}
 		nifaces = dev->cdesc->bNumInterface;
@@ -929,18 +926,11 @@ usbd_probe_and_attach(device_ptr_t parent, usbd_device_handle dev,
 		uaa.nifaces = nifaces;
 		dev->subdevs = malloc((nifaces+1) * sizeof dv, M_USB,M_NOWAIT);
 		if (dev->subdevs == NULL) {
-#if defined(__FreeBSD__)
-			device_delete_child(parent, bdev);
-#endif
 			return (USBD_NOMEM);
 		}
 		dev->ifacenums = malloc((nifaces) * sizeof(*dev->ifacenums),
 		    M_USB,M_NOWAIT);
 		if (dev->ifacenums == NULL) {
-			free(tmpdv, M_USB);
-#if defined(__FreeBSD__)
-			device_delete_child(parent, bdev);
-#endif
 			return (USBD_NOMEM);
 		}
 
@@ -953,6 +943,7 @@ usbd_probe_and_attach(device_ptr_t parent, usbd_device_handle dev,
 			dev->subdevs[found] = bdev;
 			dev->subdevs[found + 1] = 0;
 			dev->ifacenums[found] = i;
+			*uaap = uaa;
 			dv = USB_DO_ATTACH(dev, bdev, parent, &uaa, usbd_print,
 					   usbd_submatch);
 			if (dv != NULL) {
@@ -963,11 +954,15 @@ usbd_probe_and_attach(device_ptr_t parent, usbd_device_handle dev,
 				/* create another child for the next iface */
 				bdev = device_add_child(parent, NULL, -1);
 				if (!bdev) {
-					printf("%s: Device creation failed\n",
-					USBDEVNAME(dev->bus->bdev));
+					device_printf(parent,
+					    "Device add failed\n");
 					return (USBD_NORMAL_COMPLETION);
 				}
-				device_set_ivars(bdev, &uaa);
+				uaap = malloc(sizeof(uaa), M_USB, M_NOWAIT);
+				if (uaap == NULL) {
+					return (USBD_NOMEM);
+				}
+				device_set_ivars(bdev, uaap);
 				device_quiet(bdev);
 #endif
 			} else {
@@ -976,8 +971,9 @@ usbd_probe_and_attach(device_ptr_t parent, usbd_device_handle dev,
 		}
 		if (found != 0) {
 #if defined(__FreeBSD__)
-			/* remove the last created child again; it is unused */
+			/* remove the last created child.  It is unused */
 			device_delete_child(parent, bdev);
+			/* free(uaap, M_USB); */ /* May be needed? xxx */
 #endif
 			return (USBD_NORMAL_COMPLETION);
 		}
@@ -1000,18 +996,19 @@ usbd_probe_and_attach(device_ptr_t parent, usbd_device_handle dev,
 	uaa.configno = UHUB_UNK_CONFIGURATION;
 	uaa.ifaceno = UHUB_UNK_INTERFACE;
 	dev->subdevs = malloc(2 * sizeof dv, M_USB, M_NOWAIT);
-	if (dev->subdevs == 0)
+	if (dev->subdevs == 0) {
 		return (USBD_NOMEM);
+	}
 	dev->subdevs[0] = bdev;
 	dev->subdevs[1] = 0;
+	*uaap = uaa;
 	dv = USB_DO_ATTACH(dev, bdev, parent, &uaa, usbd_print, usbd_submatch);
 	if (dv != NULL) {
 		return (USBD_NORMAL_COMPLETION);
-	} else {
-		tmpdv = dev->subdevs;
-		dev->subdevs = 0;
-		free(tmpdv, M_USB);
 	}
+	tmpdv = dev->subdevs;
+	dev->subdevs = 0;
+	free(tmpdv, M_USB);
 
 	/*
 	 * The generic attach failed, but leave the device as it is.
@@ -1019,9 +1016,6 @@ usbd_probe_and_attach(device_ptr_t parent, usbd_device_handle dev,
 	 * fully operational and not harming anyone.
 	 */
 	DPRINTF(("usbd_probe_and_attach: generic attach failed\n"));
-#if defined(__FreeBSD__)
-	device_delete_child(parent, bdev);
-#endif
  	return (USBD_NORMAL_COMPLETION);
 }
 

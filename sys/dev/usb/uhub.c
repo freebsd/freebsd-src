@@ -90,10 +90,9 @@ Static usbd_status uhub_explore(usbd_device_handle hub);
 Static void uhub_intr(usbd_xfer_handle, usbd_private_handle,usbd_status);
 
 #if defined(__FreeBSD__)
-Static bus_driver_added_t uhub_driver_added;
 Static bus_child_detached_t uhub_child_detached;
-int uhub_child_location_str(device_t, device_t, char*, size_t);
-int uhub_child_pnpinfo_str(device_t, device_t, char*, size_t);
+Static bus_child_location_str_t uhub_child_location_str;
+Static bus_child_pnpinfo_str_t uhub_child_pnpinfo_str;
 #endif
 
 
@@ -111,25 +110,26 @@ CFATTACH_DECL(uhub_uhub, sizeof(struct uhub_softc),
     uhub_match, uhub_attach, uhub_detach, uhub_activate);
 #elif defined(__FreeBSD__)
 USB_DECLARE_DRIVER_INIT(uhub,
-			DEVMETHOD(bus_driver_added, uhub_driver_added),
-			DEVMETHOD(bus_child_detached, uhub_child_detached),
-			DEVMETHOD(bus_child_pnpinfo_str, uhub_child_pnpinfo_str),
-			DEVMETHOD(bus_child_location_str, uhub_child_location_str),
-			DEVMETHOD(device_suspend, bus_generic_suspend),
-			DEVMETHOD(device_resume, bus_generic_resume),
-			DEVMETHOD(device_shutdown, bus_generic_shutdown)
-			);
+	DEVMETHOD(bus_child_detached, uhub_child_detached),
+	DEVMETHOD(bus_child_pnpinfo_str, uhub_child_pnpinfo_str),
+	DEVMETHOD(bus_child_location_str, uhub_child_location_str),
+	DEVMETHOD(bus_driver_added, bus_generic_driver_added),
+	DEVMETHOD(device_suspend, bus_generic_suspend),
+	DEVMETHOD(device_resume, bus_generic_resume),
+	DEVMETHOD(device_shutdown, bus_generic_shutdown)
+	);
 
 /* Create the driver instance for the hub connected to usb case. */
 devclass_t uhubroot_devclass;
 
 Static device_method_t uhubroot_methods[] = {
 	DEVMETHOD(bus_child_detached, uhub_child_detached),
+	DEVMETHOD(bus_child_location_str, uhub_child_location_str),
+	DEVMETHOD(bus_child_pnpinfo_str, uhub_child_pnpinfo_str),
+	DEVMETHOD(bus_driver_added, bus_generic_driver_added),
+
 	DEVMETHOD(device_probe, uhub_match),
 	DEVMETHOD(device_attach, uhub_attach),
-	DEVMETHOD(bus_child_pnpinfo_str, uhub_child_pnpinfo_str),
-	DEVMETHOD(bus_child_location_str, uhub_child_location_str),
-
 	DEVMETHOD(device_detach, uhub_detach),
 	DEVMETHOD(device_suspend, bus_generic_suspend),
 	DEVMETHOD(device_resume, bus_generic_resume),
@@ -713,18 +713,6 @@ uhub_child_detached(device_t self, device_t child)
 			}
 		}
 	}
-}
-
-Static void
-uhub_driver_added(device_t _dev, driver_t *_driver)
-{
-	/*
-	 * Don't do anything, as reprobing does not work currently.
-	 * In the future we should properly allocate ivars so we can
-	 * leave the devices attached to the newbus tree.  Once we do
-	 * that, then we can reprobe on driver loading with the
-	 * default driver added routines.
-	 */
 }
 #endif
 
