@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: smb_lib.h,v 1.22 2001/04/10 05:37:22 bp Exp $
+ * $Id: smb_lib.h,v 1.24 2001/12/20 15:19:43 bp Exp $
  */
 #ifndef _NETSMB_SMB_LIB_H_
 #define _NETSMB_SMB_LIB_H_
@@ -39,7 +39,7 @@
 
 #ifndef SMB_CFG_FILE
 #define	SMB_CFG_FILE	"/usr/local/etc/nsmb.conf"
-#endif /* SMB_CFG_FILE */
+#endif
 
 #define	STDPARAM_ARGS	'A':case 'B':case 'C':case 'E':case 'I': \
 		   case 'L':case 'M': \
@@ -210,7 +210,7 @@ int  smb_rq_dstring(struct mbdata *, const char *);
 int  smb_t2_request(struct smb_ctx *, int, int, const char *,
 	int, void *, int, void *, int *, void *, int *, void *);
 
-void smb_simplecrypt(char *dst, const char *src);
+char* smb_simplecrypt(char *dst, const char *src);
 int  smb_simpledecrypt(char *dst, const char *src);
 
 int  m_getm(struct mbuf *, size_t, struct mbuf **);

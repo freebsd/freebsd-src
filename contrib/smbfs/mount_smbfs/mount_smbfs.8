@@ -1,4 +1,4 @@
-.\" $Id: mount_smbfs.8,v 1.8 2000/06/09 13:52:56 bp Exp $
+.\" $Id: mount_smbfs.8,v 1.9 2001/12/20 15:11:45 bp Exp $
 .Dd Mar 10, 2000
 .Dt MOUNT_SMBFS 8
 .Os FreeBSD
@@ -100,7 +100,7 @@ The values must be specified as octal numbers.
 Default value for the file mode
 is taken from mount point, default value for the dir mode adds execute
 permission where the file mode gives read permission.
-
+.Pp
 Note that these permissions can differ from the rights granted by SMB
 server. 
 .It Fl u Ar uid , Fl g Ar gid
@@ -128,7 +128,6 @@ See
 .Pa ./examples/dot.nsmbrc
 for details.
 .El
-
 .Sh EXAMPLES
 The following examples illustrate how to connect to a SMB server
 .Em SAMBA
@@ -149,10 +148,8 @@ for smbfs mounts:
 .Bd -literal -offset indent
 //guest@samba/public    /smb/public     smbfs  rw,noauto 0   0
 .Ed
-
 .Sh BUGS
 Please report bugs to the author.
-
 .Sh AUTHORS
 .An Boris Popov Aq bp@butya.kz ,
 .Aq bp@freebsd.org
