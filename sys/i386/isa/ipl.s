@@ -36,7 +36,7 @@
  *
  *	@(#)ipl.s
  *
- *	$Id: ipl.s,v 1.8 1997/08/10 21:17:55 fsmp Exp $
+ *	$Id: ipl.s,v 1.8 1997/08/20 19:46:22 smp Exp $
  */
 
 
@@ -51,6 +51,10 @@
 /* current priority (all off) */
 	.globl	_cpl
 _cpl:	.long	HWI_MASK | SWI_MASK
+
+/* current INTerrupt level */
+	.globl	_cil
+_cil:	.long	0
 
 #ifndef APIC_IO
 /* interrupt mask enable (all h/w off) */
