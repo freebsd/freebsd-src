@@ -296,8 +296,6 @@ extern pnp_id pnp_devices[MAX_PNP_CARDS];
 extern struct pnp_cinfo pnp_ldn_overrides[MAX_PNP_LDN];
 extern int pnp_overrides_valid;
 
-extern struct linker_set pnpdevice_set;
-
 /*
  * these two functions are for use in drivers
  */
