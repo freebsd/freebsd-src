@@ -14,6 +14,9 @@ MFS_NAME=fs.PICOBSD
 MFS_MOUNTPOINT=`mktemp -d "/tmp/picobsd.XXXXXXXXXX"`
 export MFS_MOUNTPOINT
 
+PICO_OBJ=${OBJ}/picobsd/${TYPE}
+export PICO_OBJ
+
 # fail errno errcode
 # This function is used to trap errors and print msgs
 #
