@@ -459,6 +459,7 @@ tcp_input(m, off0)
 	tcpstat.tcps_rcvtotal++;
 
 	if (isipv6) {
+#ifdef INET6
 		/* IP6_EXTHDR_CHECK() is already done at tcp6_input() */
 		ip6 = mtod(m, struct ip6_hdr *);
 		tlen = sizeof(*ip6) + ntohs(ip6->ip6_plen) - off0;
@@ -480,6 +481,9 @@ tcp_input(m, off0)
 			/* XXX stat */
 			goto drop;
 		}
+#else
+		th = NULL;		/* XXX: avoid compiler warning */
+#endif
 	} else {
 		/*
 		 * Get IP and TCP header together in first mbuf.
@@ -546,9 +550,11 @@ tcp_input(m, off0)
 	tlen -= off;	/* tlen is used instead of ti->ti_len */
 	if (off > sizeof (struct tcphdr)) {
 		if (isipv6) {
+#ifdef INET6
 			IP6_EXTHDR_CHECK(m, off0, off, );
 			ip6 = mtod(m, struct ip6_hdr *);
 			th = (struct tcphdr *)((caddr_t)ip6 + off0);
+#endif
 		} else {
 			if (m->m_len < sizeof(struct ip) + off) {
 				if ((m = m_pullup(m, sizeof (struct ip) + off))
@@ -624,12 +630,14 @@ findpcb:
 						1, m->m_pkthdr.rcvif);
 		}
 	} else {
-		if (isipv6)
+		if (isipv6) {
+#ifdef INET6
 			inp = in6_pcblookup_hash(&tcbinfo,
 						 &ip6->ip6_src, th->th_sport,
 						 &ip6->ip6_dst, th->th_dport,
 						 1, m->m_pkthdr.rcvif);
-		else
+#endif
+		} else
 			inp = in_pcblookup_hash(&tcbinfo,
 						ip->ip_src, th->th_sport,
 						ip->ip_dst, th->th_dport,
@@ -667,12 +675,14 @@ findpcb:
 #endif
 
 			if (isipv6) {
+#ifdef INET6
 				strcpy(dbuf, "[");
 				strcpy(sbuf, "[");
 				strcat(dbuf, ip6_sprintf(&ip6->ip6_dst));
 				strcat(sbuf, ip6_sprintf(&ip6->ip6_src));
 				strcat(dbuf, "]");
 				strcat(sbuf, "]");
+#endif
 			} else {
 				strcpy(dbuf, inet_ntoa(ip->ip_dst));
 				strcpy(sbuf, inet_ntoa(ip->ip_src));
