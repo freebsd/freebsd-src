@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_pcb.c	8.4 (Berkeley) 5/24/95
- *	$Id: in_pcb.c,v 1.38 1998/01/27 09:15:03 davidg Exp $
+ *	$Id: in_pcb.c,v 1.39 1998/03/01 19:39:26 guido Exp $
  */
 
 #include <sys/param.h>
@@ -44,6 +44,7 @@
 #include <sys/proc.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
+#include <vm/vm_zone.h>		/* for zalloci, zfreei prototypes */
 
 #include <net/if.h>
 #include <net/route.h>
@@ -125,14 +126,15 @@ in_pcballoc(so, pcbinfo, p)
 {
 	register struct inpcb *inp;
 
-	MALLOC(inp, struct inpcb *, sizeof(*inp), M_PCB, 
-	       p ? M_WAITOK : M_NOWAIT);
+	inp = zalloci(pcbinfo->ipi_zone);
 	if (inp == NULL)
 		return (ENOBUFS);
 	bzero((caddr_t)inp, sizeof(*inp));
+	inp->inp_gencnt = ++pcbinfo->ipi_gencnt;
 	inp->inp_pcbinfo = pcbinfo;
 	inp->inp_socket = so;
 	LIST_INSERT_HEAD(pcbinfo->listhead, inp, inp_list);
+	pcbinfo->ipi_count++;
 	so->so_pcb = (caddr_t)inp;
 	return (0);
 }
@@ -464,7 +466,9 @@ in_pcbdetach(inp)
 	struct inpcb *inp;
 {
 	struct socket *so = inp->inp_socket;
+	struct inpcbinfo *ipi = inp->inp_pcbinfo;
 
+	inp->inp_gencnt = ++ipi->ipi_gencnt;
 	in_pcbremlists(inp);
 	so->so_pcb = 0;
 	sofree(so);
@@ -473,7 +477,7 @@ in_pcbdetach(inp)
 	if (inp->inp_route.ro_rt)
 		rtfree(inp->inp_route.ro_rt);
 	ip_freemoptions(inp->inp_moptions);
-	FREE(inp, M_PCB);
+	zfreei(ipi->ipi_zone, inp);
 }
 
 /*
@@ -879,4 +883,5 @@ in_pcbremlists(inp)
 		}
 	}
 	LIST_REMOVE(inp, inp_list);
+	inp->inp_pcbinfo->ipi_count--;
 }

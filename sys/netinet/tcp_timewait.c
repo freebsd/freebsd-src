@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_subr.c	8.2 (Berkeley) 5/24/95
- *	$Id: tcp_subr.c,v 1.41 1998/01/25 04:23:32 eivind Exp $
+ *	$Id: tcp_subr.c,v 1.42 1998/01/27 09:15:10 davidg Exp $
  */
 
 #include "opt_compat.h"
@@ -46,6 +46,7 @@
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/protosw.h>
+#include <vm/vm_zone.h>
 
 #include <net/route.h>
 #include <net/if.h>
@@ -94,6 +95,26 @@ static void	tcp_notify __P((struct inpcb *, int));
 #endif
 
 /*
+ * This is the actual shape of what we allocate using the zone
+ * allocator.  Doing it this way allows us to protect both structures
+ * using the same generation count, and also eliminates the overhead
+ * of allocating tcpcbs separately.  By hiding the structure here,
+ * we avoid changing most of the rest of the code (although it needs
+ * to be changed, eventually, for greater efficiency).
+ */
+#define ALIGNMENT	32
+#define	ALIGNM1		(ALIGNMENT-1)
+struct	inp_tp {
+	union {
+		struct	inpcb inp;
+		char	align[(sizeof(struct inpcb) + ALIGNM1) & ~ALIGNM1];
+	} inp_tp_u;
+	struct	tcpcb tcb;
+};
+#undef ALIGNMENT
+#undef ALIGNM1
+
+/*
  * Tcp initialization
  */
 void
@@ -107,6 +128,23 @@ tcp_init()
 	tcbinfo.listhead = &tcb;
 	tcbinfo.hashbase = hashinit(TCBHASHSIZE, M_PCB, &tcbinfo.hashmask);
 	tcbinfo.porthashbase = hashinit(TCBHASHSIZE, M_PCB, &tcbinfo.porthashmask);
+	/* For the moment, we just worry about putting inpcbs here. */
+	/*
+	 * Rationale for a maximum of `nmbclusters':
+	 * 	1) It's a convenient value, sized by config, based on
+	 *	   parameters already known to be tweakable as needed
+	 *	   for network-intensive systems.
+	 *	2) Under the Old World Order, when pcbs were stored in
+	 *	   mbufs, it was of course impossible to have more
+	 *	   pcbs than mbufs.
+	 *	3) The zone allocator doesn't allocate physical memory
+	 *	   for this many pcbs; it just sizes the virtual
+	 *	   address space appropriately.  Thus, even for very large
+	 *	   values of nmbclusters, we don't actually take up much
+	 *	   memory unless required.
+	 */
+	tcbinfo.ipi_zone = zinit("tcpcb", sizeof(struct inp_tp), nmbclusters,
+				 ZONE_INTERRUPT, 0);
 	if (max_protohdr < sizeof(struct tcpiphdr))
 		max_protohdr = sizeof(struct tcpiphdr);
 	if (max_linkhdr + sizeof(struct tcpiphdr) > MHLEN)
@@ -246,17 +284,18 @@ tcp_respond(tp, ti, m, ack, seq, flags)
 /*
  * Create a new TCP control block, making an
  * empty reassembly queue and hooking it to the argument
- * protocol control block.
+ * protocol control block.  The `inp' parameter must have
+ * come from the zone allocator set up in tcp_init().
  */
 struct tcpcb *
 tcp_newtcpcb(inp)
 	struct inpcb *inp;
 {
+	struct	inp_tp *it;
 	register struct tcpcb *tp;
 
-	tp = malloc(sizeof(*tp), M_PCB, M_NOWAIT);
-	if (tp == NULL)
-		return ((struct tcpcb *)0);
+	it = (struct inp_tp *)inp;
+	tp = &it->tcb;
 	bzero((char *) tp, sizeof(struct tcpcb));
 	tp->seg_next = tp->seg_prev = (struct tcpiphdr *)tp;
 	tp->t_maxseg = tp->t_maxopd = tcp_mssdflt;
@@ -265,7 +304,7 @@ tcp_newtcpcb(inp)
 		tp->t_flags = (TF_REQ_SCALE|TF_REQ_TSTMP);
 	if (tcp_do_rfc1644)
 		tp->t_flags |= TF_REQ_CC;
-	tp->t_inpcb = inp;
+	tp->t_inpcb = inp;	/* XXX */
 	/*
 	 * Init srtt to TCPTV_SRTTBASE (0), so we can tell that we have no
 	 * rtt estimate.  Set rttvar so that srtt + 4 * rttvar gives
@@ -279,7 +318,7 @@ tcp_newtcpcb(inp)
 	tp->snd_ssthresh = TCP_MAXWIN << TCP_MAX_WINSHIFT;
 	inp->inp_ip_ttl = ip_defttl;
 	inp->inp_ppcb = (caddr_t)tp;
-	return (tp);
+	return (tp);		/* XXX */
 }
 
 /*
@@ -418,7 +457,6 @@ tcp_close(tp)
 	if (tp->t_template)
 		(void) m_free(dtom(tp->t_template));
 	inp->inp_ppcb = NULL;
-	free(tp, M_PCB);
 	soisdisconnected(so);
 	in_pcbdetach(inp);
 	tcpstat.tcps_closed++;
