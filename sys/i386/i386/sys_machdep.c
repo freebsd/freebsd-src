@@ -68,7 +68,6 @@ static int i386_get_ldt	__P((struct proc *, char *));
 static int i386_set_ldt	__P((struct proc *, char *));
 static int i386_get_ioperm	__P((struct proc *, char *));
 static int i386_set_ioperm	__P((struct proc *, char *));
-int i386_extend_pcb	__P((struct proc *));
 
 #ifndef _SYS_SYSPROTO_H_
 struct sysarch_args {
@@ -128,7 +127,6 @@ i386_extend_pcb(struct proc *p)
 	ext = (struct pcb_ext *)kmem_alloc(kernel_map, ctob(IOPAGES+1));
 	if (ext == 0)
 		return (ENOMEM);
-	p->p_addr->u_pcb.pcb_ext = ext;
 	bzero(ext, sizeof(struct pcb_ext)); 
 	ext->ext_tss.tss_esp0 = (unsigned)p->p_addr + ctob(UPAGES) - 16;
 	ext->ext_tss.tss_ss0 = GSEL(GDATA_SEL, SEL_KPL);
@@ -150,15 +148,13 @@ i386_extend_pcb(struct proc *p)
 	ssd.ssd_base = (unsigned)&ext->ext_tss;
 	ssd.ssd_limit -= ((unsigned)&ext->ext_tss - (unsigned)ext);
 	ssdtosd(&ssd, &ext->ext_tssd);
+
+	KASSERT(p == curproc, ("giving a TSS to non-curproc"));
+	KASSERT(p->p_addr->u_pcb.pcb_ext == 0, ("already have a TSS!"));
+	mtx_lock_spin(&sched_lock);
+	p->p_addr->u_pcb.pcb_ext = ext;
 	
 	/* switch to the new TSS after syscall completes */
-	/*
-	 * XXX: The sched_lock here needs to be over a slightly larger area.
-	 * I have patches to more properly lock accesses to process ldt's
-	 * and tss's that still need to be reviewed, but this keeps us from
-	 * panic'ing on the mtx_assert() in need_resched() for the time being.
-	 */
-	mtx_lock_spin(&sched_lock);
 	need_resched(p);
 	mtx_unlock_spin(&sched_lock);
 
@@ -254,6 +250,7 @@ set_user_ldt(struct pcb *pcb)
 	if (pcb != PCPU_GET(curpcb))
 		return;
 
+	mtx_lock_spin(&sched_lock);
 	pcb_ldt = pcb->pcb_ldt;
 #ifdef SMP
 	gdt[PCPU_GET(cpuid) * NGDT + GUSERLDT_SEL].sd = pcb_ldt->ldt_sd;
@@ -262,17 +259,23 @@ set_user_ldt(struct pcb *pcb)
 #endif
 	lldt(GSEL(GUSERLDT_SEL, SEL_KPL));
 	PCPU_SET(currentldt, GSEL(GUSERLDT_SEL, SEL_KPL));
+	mtx_unlock_spin(&sched_lock);
 }
 
+/*
+ * Must be called with either sched_lock free or held but not recursed.
+ * If it does not return NULL, it will return with it owned.
+ */
 struct pcb_ldt *
 user_ldt_alloc(struct pcb *pcb, int len)
 {
 	struct pcb_ldt *pcb_ldt, *new_ldt;
 
+	if (mtx_owned(&sched_lock))
+		mtx_unlock_spin(&sched_lock);
+	mtx_assert(&sched_lock, MA_NOTOWNED);
 	MALLOC(new_ldt, struct pcb_ldt *, sizeof(struct pcb_ldt),
 		M_SUBPROC, M_WAITOK);
-	if (new_ldt == NULL)
-		return NULL;
 
 	new_ldt->ldt_len = len = NEW_MAX_LD(len);
 	new_ldt->ldt_base = (caddr_t)kmem_alloc(kernel_map,
@@ -284,6 +287,7 @@ user_ldt_alloc(struct pcb *pcb, int len)
 	new_ldt->ldt_refcnt = 1;
 	new_ldt->ldt_active = 0;
 
+	mtx_lock_spin(&sched_lock);
 	gdt_segs[GUSERLDT_SEL].ssd_base = (unsigned)new_ldt->ldt_base;
 	gdt_segs[GUSERLDT_SEL].ssd_limit = len * sizeof(union descriptor) - 1;
 	ssdtosd(&gdt_segs[GUSERLDT_SEL], &new_ldt->ldt_sd);
@@ -299,6 +303,10 @@ user_ldt_alloc(struct pcb *pcb, int len)
 	return new_ldt;
 }
 
+/*
+ * Must be called either with sched_lock free or held but not recursed.
+ * If pcb->pcb_ldt is not NULL, it will return with sched_lock released.
+ */
 void
 user_ldt_free(struct pcb *pcb)
 {
@@ -307,17 +315,22 @@ user_ldt_free(struct pcb *pcb)
 	if (pcb_ldt == NULL)
 		return;
 
+	if (!mtx_owned(&sched_lock))
+		mtx_lock_spin(&sched_lock);
+	mtx_assert(&sched_lock, MA_OWNED | MA_NOTRECURSED);
 	if (pcb == PCPU_GET(curpcb)) {
 		lldt(_default_ldt);
 		PCPU_SET(currentldt, _default_ldt);
 	}
 
+	pcb->pcb_ldt = NULL;
 	if (--pcb_ldt->ldt_refcnt == 0) {
+		mtx_unlock_spin(&sched_lock);
 		kmem_free(kernel_map, (vm_offset_t)pcb_ldt->ldt_base,
 			pcb_ldt->ldt_len * sizeof(union descriptor));
 		FREE(pcb_ldt, M_SUBPROC);
-	}
-	pcb->pcb_ldt = NULL;
+	} else
+		mtx_unlock_spin(&sched_lock);
 }
 
 static int
@@ -330,7 +343,6 @@ i386_get_ldt(p, args)
 	struct pcb_ldt *pcb_ldt = pcb->pcb_ldt;
 	int nldt, num;
 	union descriptor *lp;
-	int s;
 	struct i386_ldt_args ua, *uap = &ua;
 
 	if ((error = copyin(args, uap, sizeof(struct i386_ldt_args))) < 0)
@@ -345,8 +357,6 @@ i386_get_ldt(p, args)
 	if ((uap->start < 0) || (uap->num <= 0))
 		return(EINVAL);
 
-	s = splhigh();
-
 	if (pcb_ldt) {
 		nldt = pcb_ldt->ldt_len;
 		num = min(uap->num, nldt);
@@ -356,16 +366,13 @@ i386_get_ldt(p, args)
 		num = min(uap->num, nldt);
 		lp = &ldt[uap->start];
 	}
-	if (uap->start > nldt) {
-		splx(s);
+	if (uap->start > nldt)
 		return(EINVAL);
-	}
 
 	error = copyout(lp, uap->descs, num * sizeof(union descriptor));
 	if (!error)
 		p->p_retval[0] = num;
 
-	splx(s);
 	return(error);
 }
 
@@ -378,8 +385,10 @@ i386_set_ldt(p, args)
 	int largest_ld;
 	struct pcb *pcb = &p->p_addr->u_pcb;
 	struct pcb_ldt *pcb_ldt = pcb->pcb_ldt;
-	int s;
 	struct i386_ldt_args ua, *uap = &ua;
+	caddr_t old_ldt_base;
+	int old_ldt_len;
+	critical_t savecrit;
 
 	if ((error = copyin(args, uap, sizeof(struct i386_ldt_args))) < 0)
 		return(error);
@@ -405,14 +414,19 @@ i386_set_ldt(p, args)
 		if (new_ldt == NULL)
 			return ENOMEM;
 		if (pcb_ldt) {
+			old_ldt_base = pcb_ldt->ldt_base;
+			old_ldt_len = pcb_ldt->ldt_len;
 			pcb_ldt->ldt_sd = new_ldt->ldt_sd;
-			kmem_free(kernel_map, (vm_offset_t)pcb_ldt->ldt_base,
-				pcb_ldt->ldt_len * sizeof(union descriptor));
 			pcb_ldt->ldt_base = new_ldt->ldt_base;
 			pcb_ldt->ldt_len = new_ldt->ldt_len;
+			mtx_unlock_spin(&sched_lock);
+			kmem_free(kernel_map, (vm_offset_t)old_ldt_base,
+				old_ldt_len * sizeof(union descriptor));
 			FREE(new_ldt, M_SUBPROC);
-		} else
+		} else {
 			pcb->pcb_ldt = pcb_ldt = new_ldt;
+			mtx_unlock_spin(&sched_lock);
+		}
 #ifdef SMP
 		/* signal other cpus to reload ldt */
 		smp_rendezvous(NULL, (void (*)(void *))set_user_ldt, NULL, pcb);
@@ -453,6 +467,7 @@ i386_set_ldt(p, args)
 			 * for OS use only.
 			 */
 			return EACCES;
+			/*NOTREACHED*/
 
 		/* memory segment types */
 		case SDT_MEMEC:   /* memory execute only conforming */
@@ -460,8 +475,8 @@ i386_set_ldt(p, args)
 		case SDT_MEMERC:  /* memory execute read conforming */
 		case SDT_MEMERAC: /* memory execute read accessed conforming */
 			 /* Must be "present" if executable and conforming. */
-			 if (desc.sd.sd_p == 0)
-				 return (EACCES);
+			if (desc.sd.sd_p == 0)
+				return (EACCES);
 			break;
 		case SDT_MEMRO:   /* memory read only */
 		case SDT_MEMROA:  /* memory read only accessed */
@@ -486,15 +501,14 @@ i386_set_ldt(p, args)
 			return (EACCES);
 	}
 
-	s = splhigh();
-
 	/* Fill in range */
+	savecrit = critical_enter();
 	error = copyin(uap->descs, 
-		 &((union descriptor *)(pcb_ldt->ldt_base))[uap->start],
-		uap->num * sizeof(union descriptor));
+	    &((union descriptor *)(pcb_ldt->ldt_base))[uap->start],
+	    uap->num * sizeof(union descriptor));
 	if (!error)
 		p->p_retval[0] = uap->start;
+	critical_exit(savecrit);
 
-	splx(s);
 	return(error);
 }
