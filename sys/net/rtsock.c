@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)rtsock.c	8.5 (Berkeley) 11/2/94
+ *	@(#)rtsock.c	8.7 (Berkeley) 10/12/95
  * $FreeBSD$
  */
 
@@ -374,6 +374,8 @@ route_output(m, so)
 				if (ifp) {
 					ifpaddr = ifp->if_addrhead.tqh_first->ifa_addr;
 					ifaaddr = rt->rt_ifa->ifa_addr;
+					if (ifp->if_flags & IFF_POINTOPOINT)
+						brdaddr = rt->rt_ifa->ifa_dstaddr;
 					rtm->rtm_index = ifp->if_index;
 				} else {
 					ifpaddr = 0;
@@ -878,6 +880,12 @@ sysctl_dumpentry(rn, vw)
 	gate = rt->rt_gateway;
 	netmask = rt_mask(rt);
 	genmask = rt->rt_genmask;
+	if (rt->rt_ifp) {
+		ifpaddr = TAILQ_FIRST(&rt->rt_ifp->if_addrhead)->ifa_addr;
+		ifaaddr = rt->rt_ifa->ifa_addr;
+		if (rt->rt_ifp->if_flags & IFF_POINTOPOINT)
+			brdaddr = rt->rt_ifa->ifa_dstaddr;
+	}
 	size = rt_msg2(RTM_GET, &info, 0, w);
 	if (w->w_req && w->w_tmem) {
 		register struct rt_msghdr *rtm = (struct rt_msghdr *)w->w_tmem;
