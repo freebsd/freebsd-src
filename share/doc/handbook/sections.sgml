@@ -1,4 +1,4 @@
-<!-- $Id: sections.sgml,v 1.13 1996/06/07 15:56:40 alex Exp $ -->
+<!-- $Id: sections.sgml,v 1.14 1996/06/30 18:01:25 phk Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!-- Entities containing all the pieces of the handbook are -->
@@ -23,6 +23,7 @@
 <!ENTITY history SYSTEM "history.sgml">
 <!ENTITY hw SYSTEM "hw.sgml">
 <!ENTITY install SYSTEM "install.sgml">
+<!ENTITY isdn SYSTEM "isdn.sgml">
 <!ENTITY kerberos SYSTEM "kerberos.sgml">
 <!ENTITY kernelconfig SYSTEM "kernelconfig.sgml">
 <!ENTITY kerneldebug SYSTEM "kerneldebug.sgml">
