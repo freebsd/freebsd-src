@@ -1,10 +1,10 @@
-dnl $Id: configure.in,v 1.17 2001/12/01 02:00:48 lukem Exp $
+dnl $Id: configure.in,v 1.18 2002/05/23 02:42:55 lukem Exp $
 dnl
 dnl configure.in --
 dnl	process this file with autoconf to produce a configure script.
 dnl
 
-AC_REVISION($Revision: 1.17 $)dnl
+AC_REVISION($Revision: 1.18 $)dnl
 
 AC_INIT(lukemftpd.h)
 
@@ -165,6 +165,11 @@ AC_MSG_TRY_COMPILE(for crypt() declaration, ftp_cv_HAVE_CRYPT_D, [
 
 AC_MSG_TRY_COMPILE(for fclose() declaration, ftp_cv_HAVE_FCLOSE_D, [
 #include <stdio.h> ], [ int (*X)() = fclose ], [AC_DEFINE(HAVE_FCLOSE_D, 1)])
+
+AC_MSG_TRY_COMPILE(for FNM_CASEFOLD, ftp_cv_HAVE_FNM_CASEFOLD, [
+#include <fnmatch.h> ], [ int X = FNM_CASEFOLD ],
+[AC_DEFINE(HAVE_FNM_CASEFOLD, 1)],
+[LIBOBJS="$LIBOBJS fnmatch.o"])
 
 AC_MSG_TRY_COMPILE(for optarg declaration, ftp_cv_HAVE_OPTARG_D, [
 #include <stdlib.h>
