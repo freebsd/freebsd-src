@@ -286,7 +286,7 @@ SUBDIR=${MODULES_OVERRIDE}
 
 # Calling kldxref(8) for each module is expensive.
 .if !defined(NO_XREF)
-.MAKEFLAGS:=	${.MAKEFLAGS} -DNO_XREF
+.MAKEFLAGS+=	-DNO_XREF
 afterinstall:
 	@if type kldxref >/dev/null 2>&1; then \
 		${ECHO} kldxref ${DESTDIR}${KMODDIR}; \
