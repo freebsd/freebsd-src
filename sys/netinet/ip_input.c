@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.110 1998/12/21 22:40:54 luigi Exp $
+ * $Id: ip_input.c,v 1.111 1999/01/12 12:25:00 eivind Exp $
  *	$ANA: ip_input.c,v 1.5 1996/09/18 14:34:59 wollman Exp $
  */
 
@@ -1400,7 +1400,7 @@ ip_forward(m, srcrt)
 #endif
 
 
-	if (m->m_flags & M_BCAST || in_canforward(ip->ip_dst) == 0) {
+	if (m->m_flags & (M_BCAST|M_MCAST) || in_canforward(ip->ip_dst) == 0) {
 		ipstat.ips_cantforward++;
 		m_freem(m);
 		return;
