@@ -186,9 +186,6 @@ struct devfs_mount {
 
 #define VFSTODEVFS(mp)	((struct devfs_mount *)((mp)->mnt_data))
 
-extern vop_t **devfs_vnodeop_p;
-extern vop_t **devfs_specop_p;
-
 void devfs_rules_apply(struct devfs_mount *dm, struct devfs_dirent *de);
 void devfs_rules_init(void);
 int devfs_rules_ioctl(struct mount *mp, int cmd, caddr_t data, struct thread *td);
