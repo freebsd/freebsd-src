@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: istallion.c,v 1.19 1998/06/07 17:10:42 dfr Exp $
+ * $Id: istallion.c,v 1.20 1998/08/16 01:21:49 bde Exp $
  */
 
 /*****************************************************************************/
@@ -641,12 +641,13 @@ struct isa_driver	stlidriver = {
  */
 
 #define	CDEV_MAJOR	75
-
-static struct cdevsw stli_cdevsw = 
-	{ stliopen,	stliclose,	stliread,	stliwrite,
-	  stliioctl,	stlistop,	noreset,	stlidevtotty,
-	  ttpoll,	nommap,		NULL,		stli_drvname,
-	  NULL,		-1 };
+static	struct cdevsw	stli_cdevsw = {
+	stliopen,	stliclose,	stliread,	stliwrite,
+	stliioctl,	stlistop,	noreset,	stlidevtotty,
+	ttpoll,		nommap,		NULL,		stli_drvname,
+	NULL,		-1,		nodump,		nopsize,
+	D_TTY,
+};
 
 static stli_devsw_installed = 0;
 
@@ -988,7 +989,6 @@ stliopen_restart:
 			portp->initintios;
 		stli_initopen(portp);
 		wakeup(&portp->state);
-		ttsetwater(tp);
 		if ((portp->sigs & TIOCM_CD) || callout)
 			(*linesw[tp->t_line].l_modem)(tp, 1);
 	} else {

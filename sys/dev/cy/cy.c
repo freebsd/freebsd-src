@@ -27,7 +27,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: cy.c,v 1.69 1998/08/19 04:17:38 bde Exp $
+ *	$Id: cy.c,v 1.70 1998/08/20 05:21:50 bde Exp $
  */
 
 #include "opt_compat.h"
@@ -378,12 +378,13 @@ static	d_ioctl_t	sioioctl;
 static	d_stop_t	siostop;
 static	d_devtotty_t	siodevtotty;
 
-#define CDEV_MAJOR 48
-static struct cdevsw sio_cdevsw = {
+#define	CDEV_MAJOR	48
+static	struct cdevsw	sio_cdevsw = {
 	sioopen,	sioclose,	sioread,	siowrite,
 	sioioctl,	siostop,	noreset,	siodevtotty,
 	ttpoll,		nommap,		NULL,		driver_name,
-	NULL,		-1,
+	NULL,		-1,		nodump,		nopsize,
+	D_TTY,
 };
 
 static	int	comconsole = -1;

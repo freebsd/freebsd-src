@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_pty.c	8.4 (Berkeley) 2/20/95
- * $Id: tty_pty.c,v 1.52 1998/06/07 17:11:43 dfr Exp $
+ * $Id: tty_pty.c,v 1.53 1998/07/15 12:18:30 bde Exp $
  */
 
 /*
@@ -79,18 +79,23 @@ static	d_read_t	ptcread;
 static	d_write_t	ptcwrite;
 static	d_poll_t	ptcpoll;
 
-#define CDEV_MAJOR_S 5
-#define CDEV_MAJOR_C 6
-static struct cdevsw pts_cdevsw = 
-	{ ptsopen,	ptsclose,	ptsread,	ptswrite,	/*5*/
-	  ptyioctl,	ptsstop,	nullreset,	ptydevtotty,/* ttyp */
-	  ttpoll,	nommap,		NULL,	"pts",	NULL,	-1 };
+#define	CDEV_MAJOR_S	5
+static	struct cdevsw	pts_cdevsw = {
+	ptsopen,	ptsclose,	ptsread,	ptswrite,
+	ptyioctl,	ptsstop,	nullreset,	ptydevtotty,
+	ttpoll,		nommap,		NULL,		"pts",
+	NULL,		-1,		nodump,		nopsize,
+	D_TTY,
+};
 
-static struct cdevsw ptc_cdevsw = 
-	{ ptcopen,	ptcclose,	ptcread,	ptcwrite,	/*6*/
-	  ptyioctl,	nullstop,	nullreset,	ptydevtotty,/* ptyp */
-	  ptcpoll,	nommap,		NULL,	"ptc",	NULL,	-1 };
-
+#define	CDEV_MAJOR_C	6
+static	struct cdevsw	ptc_cdevsw = {
+	ptcopen,	ptcclose,	ptcread,	ptcwrite,
+	ptyioctl,	nullstop,	nullreset,	ptydevtotty,
+	ptcpoll,	nommap,		NULL,		"ptc",
+	NULL,		-1,		nodump,		nopsize,
+	D_TTY,
+};
 
 #if NPTY == 1
 #undef NPTY
@@ -178,7 +183,6 @@ ptsopen(dev, flag, devtype, p)
 		tp->t_lflag = TTYDEF_LFLAG;
 		tp->t_cflag = TTYDEF_CFLAG;
 		tp->t_ispeed = tp->t_ospeed = TTYDEF_SPEED;
-		ttsetwater(tp);		/* would be done in xxparam() */
 	} else if (tp->t_state&TS_XCLUDE && p->p_ucred->cr_uid != 0)
 		return (EBUSY);
 	if (tp->t_oproc)			/* Ctrlr still around. */

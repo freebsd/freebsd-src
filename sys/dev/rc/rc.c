@@ -98,11 +98,14 @@ static	d_ioctl_t	rcioctl;
 static	d_stop_t	rcstop;
 static	d_devtotty_t	rcdevtotty;
 
-#define CDEV_MAJOR 63
-static struct cdevsw rc_cdevsw = 
-	{ rcopen,       rcclose,        rcread,         rcwrite,        /*63*/
-	  rcioctl,      rcstop,         noreset,        rcdevtotty,/* rc */
-	  ttpoll,	nommap,		NULL,	"rc",	NULL,	-1 };
+#define	CDEV_MAJOR	63
+static	struct cdevsw	rc_cdevsw = {
+	rcopen,		rcclose,	rcread,		rcwrite,
+	rcioctl,	rcstop,		noreset,	rcdevtotty,
+	ttpoll,		nommap,		NULL,		"rc",
+	NULL,		-1,		nodump,		nopsize,
+	D_TTY,
+};
 
 /* Per-board structure */
 static struct rc_softc {
@@ -776,8 +779,6 @@ again:
 		if (error)
 			goto out;
 		(void) rc_modctl(rc, TIOCM_RTS|TIOCM_DTR, DMSET);
-
-		ttsetwater(tp);
 
 		if ((rc->rc_msvr & MSVR_CD) || CALLOUT(dev))
 			(*linesw[tp->t_line].l_modem)(tp, 1);

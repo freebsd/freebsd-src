@@ -788,8 +788,6 @@ struct isa_driver rpdriver = {
 	rpprobe, rpattach, "rp"
      };
 
-#define CDEV_MAJOR	81
-
 static	char	driver_name[] = "rp";
 
 static	d_open_t	rpopen;
@@ -800,11 +798,14 @@ static	d_ioctl_t	rpioctl;
 static	d_stop_t	rpstop;
 static	d_devtotty_t	rpdevtotty;
 
-static	struct cdevsw	rp_cdevsw =
-		{ rpopen,	rpclose,	rpread, 	rpwrite,
-		  rpioctl,	rpstop, 	noreset,	rpdevtotty,
-		  ttpoll,	nommap, 	NULL,		driver_name,
-		  NULL, 	-1};
+#define	CDEV_MAJOR	81
+static	struct cdevsw	rp_cdevsw = {
+	rpopen,		rpclose,	rpread,		rpwrite,
+	rpioctl,	rpstop,		noreset,	rpdevtotty,
+	ttpoll,		nommap,		NULL,		driver_name,
+	NULL,		-1,		nodump,		nopsize,
+	D_TTY,
+};
 
 static int rp_controller_port = 0;
 static int rp_num_ports_open = 0;
@@ -1399,8 +1400,6 @@ open_top:
 			splx(oldspl);
 			return(error);
 		}
-
-		ttsetwater(tp);
 
 		rp_num_ports_open++;
 
