@@ -117,7 +117,7 @@ int 	bats_nearby(void);
 void 	cave_init(void);
 void 	clear_things_in_cave(void);
 void 	display_room_stats __P((void));
-int 	getans __P((char *prompt));
+int 	getans __P((const char *prompt));
 void 	initialize_things_in_cave(void);
 void 	instructions(void);
 int 	int_compare __P((const void *va, const void *vb));
@@ -408,7 +408,7 @@ shoot(room_list)
 	char *room_list;
 {
 	int chance, next, roomcnt;
-	int j, arrow_location, link, ok;
+	int j, arrow_location, wumplink, ok;
 	char *p;
 
 	/*
@@ -449,24 +449,24 @@ shoot(room_list)
 			} else
 				arrow_location = next;
 		} else {
-			link = (random() % link_num);
-			if (link == player_loc)
+			wumplink = (random() % link_num);
+			if (wumplink == player_loc)
 				(void)printf(
 "*thunk*  The arrow can't find a way from %d to %d and flys back into\n\
 your room!\n",
 				    arrow_location, next);
-			else if (cave[arrow_location].tunnel[link] > room_num)
+			else if (cave[arrow_location].tunnel[wumplink] > room_num)
 				(void)printf(
 "*thunk*  The arrow flys randomly into a magic tunnel, thence into\n\
 room %d!\n",
-				    cave[arrow_location].tunnel[link]);
+				    cave[arrow_location].tunnel[wumplink]);
 			else
 				(void)printf(
 "*thunk*  The arrow can't find a way from %d to %d and flys randomly\n\
 into room %d!\n",
 				    arrow_location, next,
-				    cave[arrow_location].tunnel[link]);
-			arrow_location = cave[arrow_location].tunnel[link];
+				    cave[arrow_location].tunnel[wumplink]);
+			arrow_location = cave[arrow_location].tunnel[wumplink];
 			break;
 		}
 		chance = random() % 10;
@@ -519,7 +519,7 @@ The arrow is weakly shot and can go no further!\n");
 void
 cave_init()
 {
-	int i, j, k, link;
+	int i, j, k, wumplink;
 	int delta;
 
 	/*
@@ -542,31 +542,31 @@ cave_init()
 	while (!(delta = random() % room_num));
 
 	for (i = 1; i <= room_num; ++i) {
-		link = ((i + delta) % room_num) + 1;	/* connection */
-		cave[i].tunnel[0] = link;		/* forw link */
-		cave[link].tunnel[1] = i;		/* back link */
+		wumplink = ((i + delta) % room_num) + 1;	/* connection */
+		cave[i].tunnel[0] = wumplink;			/* forw link */
+		cave[wumplink].tunnel[1] = i;			/* back link */
 	}
 	/* now fill in the rest of the cave with random connections */
 	for (i = 1; i <= room_num; i++)
 		for (j = 2; j < link_num ; j++) {
 			if (cave[i].tunnel[j] != -1)
 				continue;
-try_again:		link = (random() % room_num) + 1;
+try_again:		wumplink = (random() % room_num) + 1;
 			/* skip duplicates */
 			for (k = 0; k < j; k++)
-				if (cave[i].tunnel[k] == link)
+				if (cave[i].tunnel[k] == wumplink)
 					goto try_again;
-			cave[i].tunnel[j] = link;
+			cave[i].tunnel[j] = wumplink;
 			if (random() % 2 == 1)
 				continue;
 			for (k = 0; k < link_num; ++k) {
 				/* if duplicate, skip it */
-				if (cave[link].tunnel[k] == i)
+				if (cave[wumplink].tunnel[k] == i)
 					k = link_num;
 
 				/* if open link, use it, force exit */
-				if (cave[link].tunnel[k] == -1) {
-					cave[link].tunnel[k] = i;
+				if (cave[wumplink].tunnel[k] == -1) {
+					cave[wumplink].tunnel[k] = i;
 					k = link_num;
 				}
 			}
@@ -645,7 +645,7 @@ initialize_things_in_cave()
 
 int
 getans(prompt)
-	char *prompt;
+	const char *prompt;
 {
 	char buf[20];
 
