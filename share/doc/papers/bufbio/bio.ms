@@ -7,6 +7,7 @@
 .\"
 .\" $FreeBSD$
 .\"
+.if n .ftr C R
 .nr PI 2n
 .TL
 The case for struct bio
