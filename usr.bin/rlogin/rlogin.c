@@ -40,7 +40,7 @@ static const char copyright[] =
 #ifndef lint
 static const char sccsid[] = "@(#)rlogin.c	8.1 (Berkeley) 6/6/93";
 static const char rcsid[] =
-	"$Id: rlogin.c,v 1.15 1997/08/05 06:46:46 charnier Exp $";
+	"$Id$";
 #endif /* not lint */
 
 /*
@@ -75,6 +75,7 @@ static const char rcsid[] =
 #include <des.h>
 #include <krb.h>
 
+#include "../../bin/rcp/pathnames.h"
 #include "krb.h"
 
 CREDENTIALS cred;
@@ -220,14 +221,12 @@ main(argc, argv)
 			usage();
 		}
 	optind += argoff;
-	argc -= optind;
-	argv += optind;
 
 	/* if haven't gotten a host yet, do so */
-	if (!host && !(host = *argv++))
+	if (!host && !(host = argv[optind++]))
 		usage();
 
-	if (*argv)
+	if (argv[optind])
 		usage();
 
 	if (!(pw = getpwuid(uid = getuid())))
@@ -276,15 +275,8 @@ main(argc, argv)
 	(void)signal(SIGUSR1, writeroob);
 
 #ifdef KERBEROS
-try_connect:
 	if (use_kerberos) {
-		struct hostent *hp;
-
-		/* Fully qualify hostname (needed for krb_realmofhost). */
-		hp = gethostbyname(host);
-		if (hp != NULL && !(host = strdup(hp->h_name)))
-			errx(1, "%s", strerror(ENOMEM));
-
+		setuid(getuid());
 		rem = KSUCCESS;
 		errno = 0;
 		if (dest_realm == NULL)
@@ -300,7 +292,9 @@ try_connect:
 			rem = krcmd(&host, sp->s_port, user, term, 0,
 			    dest_realm);
 		if (rem < 0) {
-			use_kerberos = 0;
+			int i;
+			char **newargv;
+
 			sp = getservbyname("login", "tcp");
 			if (sp == NULL)
 				errx(1, "unknown service login/tcp");
@@ -308,7 +302,15 @@ try_connect:
 				warn("remote host doesn't support Kerberos");
 			if (errno == ENOENT)
 				warn("can't provide Kerberos auth data");
-			goto try_connect;
+			newargv = malloc((argc + 2) * sizeof(*newargv));
+			if (newargv == NULL)
+				err(1, "malloc");
+			newargv[0] = argv[0];
+			newargv[1] = "-K";
+			for(i = 1; i < argc; ++i)
+			newargv[i + 1] = argv[i];
+			newargv[argc + 1] = NULL;
+			execv(_PATH_RLOGIN, newargv);
 		}
 	} else {
 #ifdef CRYPT
