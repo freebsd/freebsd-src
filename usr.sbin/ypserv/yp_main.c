@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yp_main.c,v 1.10 1996/12/25 18:10:34 wpaul Exp $
+ *	$Id: yp_main.c,v 1.11 1996/12/30 15:32:43 peter Exp $
  */
 
 /*
@@ -66,7 +66,7 @@
 
 #define	_RPCSVC_CLOSEDOWN 120
 #ifndef lint
-static const char rcsid[] = "$Id: yp_main.c,v 1.10 1996/12/25 18:10:34 wpaul Exp $";
+static const char rcsid[] = "$Id: yp_main.c,v 1.11 1996/12/30 15:32:43 peter Exp $";
 #endif /* not lint */
 int _rpcpmstart;		/* Started by a port monitor ? */
 static int _rpcfdtype;
@@ -110,7 +110,7 @@ yp_svc_run()
 	extern int forked;
 	int pid;
 	int fd_setsize = _rpc_dtablesize();
-	struct timeval timeout = { RESOLVER_TIMEOUT, 0 };
+	struct timeval timeout;
 
 	/* Establish the identity of the parent ypserv process. */
 	pid = getpid();
@@ -124,6 +124,8 @@ yp_svc_run()
 
 		FD_SET(resfd, &readfds);
 
+		timeout.tv_sec = RESOLVER_TIMEOUT;
+		timeout.tv_usec = 0;
 		switch (select(fd_setsize, &readfds, NULL, NULL,
 			       &timeout)) {
 		case -1:
