@@ -457,8 +457,10 @@ iso88025_input(ifp, th, m)
 #ifdef IPX
 	case ETHERTYPE_IPX_8022:	/* Thanks a bunch Novell */
 		if ((l->llc_control != LLC_UI) ||
-		    (l->llc_ssap != ETHERTYPE_IPX_8022))
+		    (l->llc_ssap != ETHERTYPE_IPX_8022)) {
+			ifp->if_noproto++;
 			goto dropanyway;
+		}
 
 		th->iso88025_shost[0] &= ~(TR_RII); 
 		m_adj(m, 3);
@@ -468,8 +470,10 @@ iso88025_input(ifp, th, m)
 	case LLC_SNAP_LSAP: {
 		u_int16_t type;
 		if ((l->llc_control != LLC_UI) ||
-		    (l->llc_ssap != LLC_SNAP_LSAP))
+		    (l->llc_ssap != LLC_SNAP_LSAP)) {
+			ifp->if_noproto++;
 			goto dropanyway;
+		}
 
 		if (l->llc_snap.org_code[0] != 0 ||
 		    l->llc_snap.org_code[1] != 0 ||
@@ -509,14 +513,15 @@ iso88025_input(ifp, th, m)
 #endif	/* NOT_YET */
 		default:
 			printf("iso88025_input: unexpected llc_snap ether_type  0x%02x\n", type);
-			m_freem(m);
-			return;
+			ifp->if_noproto++;
+			goto dropanyway;
 		}
 		break;
 	}
 	case LLC_ISO_LSAP:
 		switch (l->llc_control) {
 		case LLC_UI:
+			ifp->if_noproto++;
 			goto dropanyway;
 			break;
                 case LLC_XID:
@@ -539,8 +544,7 @@ iso88025_input(ifp, th, m)
 
 			if (th->iso88025_shost[0] & TR_RII) { /* XXX */
 				printf("iso88025_input: dropping source routed LLC_TEST\n");
-				m_free(m);
-				return;
+				goto dropanyway;
 			}
 			l->llc_dsap = l->llc_ssap;
 			l->llc_ssap = c;
@@ -564,19 +568,23 @@ iso88025_input(ifp, th, m)
 		}
 		default:
 			printf("iso88025_input: unexpected llc control 0x%02x\n", l->llc_control);
-			m_freem(m);
-			return;
+			ifp->if_noproto++;
+			goto dropanyway;
 		}
 		break;
 	default:
 		printf("iso88025_input: unknown dsap 0x%x\n", l->llc_dsap);
 		ifp->if_noproto++;
-	dropanyway:
-		m_freem(m);
-		return;
+		goto dropanyway;
 	}
 
 	netisr_dispatch(isr, m);
+	return;
+
+dropanyway:
+	ifp->if_iqdrops++;
+	if (m)
+		m_freem(m);
 	return;
 }
 
