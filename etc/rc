@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.165 1999/01/10 22:06:22 n_hibma Exp $
+#	$Id: rc,v 1.166 1999/01/11 09:07:38 asami Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -25,6 +25,15 @@ export PATH
 # Configure ccd devices.
 if [ -f /etc/ccd.conf ]; then
 	ccdconfig -C
+fi
+
+if [ -n $vinum_slices ]; then
+	if [ -r /modules/vinum.ko ]; then	# jkh paranoia
+		kldload vinum
+		vinum read $vinum_slices
+	else
+		echo "Can't find /modules/vinum.ko"
+	fi
 fi
 
 swapon -a
