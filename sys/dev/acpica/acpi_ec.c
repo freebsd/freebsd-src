@@ -152,7 +152,7 @@
 /*
  * Hooks for the ACPI CA debugging infrastructure
  */
-#define _COMPONENT	ACPI_EMBEDDED_CONTROLLER
+#define _COMPONENT	ACPI_EC
 MODULE_NAME("EC")
 
 struct acpi_ec_softc {
@@ -424,30 +424,35 @@ EcGpeQueryHandler(void *Context)
     return_VOID;
 }
 
-static void EcGpeHandler(void *Context)
+/*
+ * Handle a GPE sent to us.
+ */
+static void
+EcGpeHandler(void *Context)
 {
-	struct acpi_ec_softc *sc = Context;
-	int csrvalue;
-	/* 
-	 * If EC is locked, the intr must process EcRead/Write wait only.
-	 * Query request must be pending.
-	 */
-	if(EcIsLocked(sc)){
-		csrvalue = EC_GET_CSR(sc);
-		if(csrvalue & EC_EVENT_SCI)
-			sc->ec_pendquery = 1;
-		if((csrvalue & EC_FLAG_OUTPUT_BUFFER)
-		   || !(csrvalue & EC_FLAG_INPUT_BUFFER)){
-			sc->ec_csrvalue=csrvalue;
-			wakeup((void *)&sc->ec_csrvalue);
-		}
-	}else{
-		/*Queue GpeQuery Handler*/
-		if(AcpiOsQueueForExecution(OSD_PRIORITY_HIGH,
-		    EcGpeQueryHandler,Context) != AE_OK){
-			printf("QueryHandler Queuing Failed\n");
-		}
+    struct acpi_ec_softc *sc = Context;
+    int csrvalue;
+
+    /* 
+     * If EC is locked, the intr must process EcRead/Write wait only.
+     * Query request must be pending.
+     */
+    if (EcIsLocked(sc)){
+	csrvalue = EC_GET_CSR(sc);
+	if (csrvalue & EC_EVENT_SCI)
+	    sc->ec_pendquery = 1;
+	if ((csrvalue & EC_FLAG_OUTPUT_BUFFER)
+	    || !(csrvalue & EC_FLAG_INPUT_BUFFER)) {
+	    sc->ec_csrvalue = csrvalue;
+	    wakeup((void *)&sc->ec_csrvalue);
 	}
+    }else{
+	/* Queue GpeQuery Handler */
+	if (AcpiOsQueueForExecution(OSD_PRIORITY_HIGH,
+				    EcGpeQueryHandler,Context) != AE_OK){
+	    printf("QueryHandler Queuing Failed\n");
+	}
+    }
     return;
 }
 
@@ -513,33 +518,47 @@ EcSpaceHandler(UINT32 Function, ACPI_PHYSICAL_ADDRESS Address, UINT32 width, UIN
     return_ACPI_STATUS(Status);
 }
 
+/*
+ * Wait for an event interrupt for a specific condition.
+ */
 static ACPI_STATUS
 EcWaitEventIntr(struct acpi_ec_softc *sc, EC_EVENT Event)
 {
     EC_STATUS	EcStatus;
-    int i;
+    int		i;
+
+    FUNCTION_TRACE_U32(__func__, (UINT32)Event);
+
+    /* XXX this should test whether interrupts are available some other way */
     if(cold)
-	    return EcWaitEvent(sc, Event);
+	return_ACPI_STATUS(EcWaitEvent(sc, Event));
+
     if (!EcIsLocked(sc))
-	    device_printf(sc->ec_dev, "EcWaitEventIntr called without EC lock!\n");
+	device_printf(sc->ec_dev, "EcWaitEventIntr called without EC lock!\n");
+
     EcStatus = EC_GET_CSR(sc);
-    /*Too long?*/
-    for(i=0;i<10;i++){
+
+    /* XXX waiting too long? */
+    for(i = 0; i < 10; i++){
+	/*
+	 * Check EC status against the desired event.
+	 */
     	if ((Event == EC_EVENT_OUTPUT_BUFFER_FULL) &&
-		(EcStatus & EC_FLAG_OUTPUT_BUFFER))
-		return(AE_OK);
+	    (EcStatus & EC_FLAG_OUTPUT_BUFFER))
+	    return_ACPI_STATUS(AE_OK);
       
 	if ((Event == EC_EVENT_INPUT_BUFFER_EMPTY) && 
-		!(EcStatus & EC_FLAG_INPUT_BUFFER))
-		return(AE_OK);
+	    !(EcStatus & EC_FLAG_INPUT_BUFFER))
+	    return_ACPI_STATUS(AE_OK);
+	
 	sc->ec_csrvalue = 0;
-	if(tsleep(&sc->ec_csrvalue, 0,"ECTRANS",1) != EWOULDBLOCK){
-		EcStatus = sc->ec_csrvalue;
+	if (ACPI_MSLEEP(&sc->ec_csrvalue, &acpi_mutex, PZERO, "EcWait", 1) != EWOULDBLOCK){
+	    EcStatus = sc->ec_csrvalue;
 	}else{
-		EcStatus=EC_GET_CSR(sc);
+	    EcStatus = EC_GET_CSR(sc);
 	}
     }
-    return AE_ERROR;
+    return_ACPI_STATUS(AE_ERROR);
 }
 
 static ACPI_STATUS
@@ -605,7 +624,6 @@ EcQuery(struct acpi_ec_softc *sc, UINT8 *Data)
 	device_printf(sc->ec_dev, "timeout waiting for EC to respond to EC_COMMAND_QUERY\n");
     return(Status);
 }    
-
 
 static ACPI_STATUS
 EcTransaction(struct acpi_ec_softc *sc, EC_REQUEST *EcRequest)
