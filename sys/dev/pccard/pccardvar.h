@@ -356,3 +356,13 @@ enum {
 
 #define PCCARD_SOFTC(d) (struct pccard_softc *) device_get_softc(d)
 #define PCCARD_IVAR(d) (struct pccard_ivar *) device_get_ivars(d)
+
+#define PCCARD_S(a, b) PCMCIA_STR_ ## a ## _ ## b
+#define PCCARD_P(a, b) PCMCIA_PRODUCT_ ## a ## _ ## b
+#define PCCARD_C(a, b) PCMCIA_CIS_ ## a ## _ ## b
+#define PCMCIA_CARD(v, p, f) { PCCARD_S(v, p), PCMCIA_VENDOR_ ## v, \
+		PCCARD_P(v, p), f, PCCARD_C(v, p) }
+#define PCMCIA_CARD2(v1, p1, p2, f) \
+		{ PCMCIA_STR_ ## p2, PCMCIA_VENDOR_ ## v1, PCCARD_P(v1, p1), \
+		  f, PCMCIA_CIS_ ## p2}
+
