@@ -90,6 +90,7 @@ _strptime(const char *buf, const char *fmt, struct tm *tm)
 	const char *ptr;
 	int	i,
 		len;
+	int Ealternative, Oalternative;
 
 	ptr = fmt;
 	while (*ptr != 0) {
@@ -107,6 +108,9 @@ _strptime(const char *buf, const char *fmt, struct tm *tm)
 			continue;
 		}
 
+		Ealternative = 0;
+		Oalternative = 0;
+label:
 		c = *ptr++;
 		switch (c) {
 		case 0:
@@ -115,14 +119,28 @@ _strptime(const char *buf, const char *fmt, struct tm *tm)
 				return 0;
 			break;
 
-		case 'C':
+		case '+':
 			buf = _strptime(buf, Locale->date_fmt, tm);
 			if (buf == 0)
 				return 0;
 			break;
 
+		case 'C':
+			if (!isdigit((unsigned char)*buf))
+				return 0;
+
+			for (i = 0; *buf != 0 && isdigit((unsigned char)*buf); buf++) {
+				i *= 10;
+				i += *buf - '0';
+			}
+			if (i < 19)
+				return 0;
+
+			tm->tm_year = i * 100 - 1900;
+			break;
+
 		case 'c':
-			buf = _strptime(buf, "%x %X", tm);
+			buf = _strptime(buf, Locale->c_fmt, tm);
 			if (buf == 0)
 				return 0;
 			break;
@@ -132,6 +150,14 @@ _strptime(const char *buf, const char *fmt, struct tm *tm)
 			if (buf == 0)
 				return 0;
 			break;
+
+		case 'E':
+			Ealternative++;
+			goto label;
+
+		case 'O':
+			Oalternative++;
+			goto label;
 
 		case 'R':
 			buf = _strptime(buf, "%H:%M", tm);
@@ -158,7 +184,7 @@ _strptime(const char *buf, const char *fmt, struct tm *tm)
 			break;
 
 		case 'x':
-			buf = _strptime(buf, Locale->x_fmt, tm);
+			buf = _strptime(buf, Ealternative ? Locale->Ex_fmt : Locale->x_fmt, tm);
 			if (buf == 0)
 				return 0;
 			break;
@@ -338,17 +364,29 @@ _strptime(const char *buf, const char *fmt, struct tm *tm)
 		case 'b':
 		case 'h':
 			for (i = 0; i < asizeof(Locale->month); i++) {
-				len = strlen(Locale->month[i]);
-				if (strncasecmp(buf,
-						Locale->month[i],
-						len) == 0)
-					break;
-
-				len = strlen(Locale->mon[i]);
-				if (strncasecmp(buf,
-						Locale->mon[i],
-						len) == 0)
-					break;
+				if (Oalternative) {
+					if (c == 'B') {
+						len = strlen(Locale->alt_month[i]);
+						if (strncasecmp(buf,
+								Locale->alt_month[i],
+								len) == 0)
+							break;
+					}
+				} else {
+					if (c == 'B') {
+						len = strlen(Locale->month[i]);
+						if (strncasecmp(buf,
+								Locale->month[i],
+								len) == 0)
+							break;
+					} else {
+						len = strlen(Locale->mon[i]);
+						if (strncasecmp(buf,
+								Locale->mon[i],
+								len) == 0)
+							break;
+					}
+				}
 			}
 			if (i == asizeof(Locale->month))
 				return 0;
