@@ -593,6 +593,9 @@ int	vn_pollrecord __P((struct vnode *vp, struct proc *p, int events));
 int 	vn_rdwr __P((enum uio_rw rw, struct vnode *vp, caddr_t base,
 	    int len, off_t offset, enum uio_seg segflg, int ioflg,
 	    struct ucred *cred, int *aresid, struct proc *p));
+int	vn_rdwr_inchunks __P((enum uio_rw rw, struct vnode *vp, caddr_t base,
+	    int len, off_t offset, enum uio_seg segflg, int ioflg,
+	    struct ucred *cred, int *aresid, struct proc *p));
 int	vn_stat __P((struct vnode *vp, struct stat *sb, struct proc *p));
 dev_t	vn_todev __P((struct vnode *vp));
 int	vfs_cache_lookup __P((struct vop_lookup_args *ap));

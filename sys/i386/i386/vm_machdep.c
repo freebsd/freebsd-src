@@ -293,10 +293,8 @@ cpu_coredump(p, vp, cred)
 	      tempuser + ((caddr_t) p->p_md.md_regs - (caddr_t) p->p_addr),
 	      sizeof(struct trapframe));
 
-	error = vn_rdwr(UIO_WRITE, vp, (caddr_t) tempuser, 
-			ctob(UPAGES),
-			(off_t)0, UIO_SYSSPACE, IO_NODELOCKED|IO_UNIT, 
-			cred, (int *)NULL, p);
+	error = vn_rdwr(UIO_WRITE, vp, (caddr_t) tempuser, ctob(UPAGES),
+			(off_t)0, UIO_SYSSPACE, IO_UNIT, cred, (int *)NULL, p);
 
 	free(tempuser, M_TEMP);
 	
