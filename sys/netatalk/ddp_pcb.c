@@ -378,7 +378,6 @@ at_pcbconnect( struct ddpcb *ddp, struct mbuf *addr, struct proc *p)
 		if ( aa->aa_ifp == ifp &&
 			ntohs( net ) >= ntohs( aa->aa_firstnet ) &&
 			ntohs( net ) <= ntohs( aa->aa_lastnet )) {
-		    printf("at_pcbconnect: found ifp net=%u\n", ntohs(net));
 		    break;
 		}
 	    }
@@ -387,7 +386,6 @@ at_pcbconnect( struct ddpcb *ddp, struct mbuf *addr, struct proc *p)
 		( hintnet ? hintnet : sat->sat_addr.s_net ) ||
 		satosat( &ro->ro_dst )->sat_addr.s_node !=
 		sat->sat_addr.s_node )) {
-	    printf("at_pcbconnect: freeing ro->ro_rt=0x%x\n", ro->ro_rt);
 #ifdef ultrix
 	    rtfree( ro->ro_rt );
 #else ultrix
@@ -427,9 +425,6 @@ at_pcbconnect( struct ddpcb *ddp, struct mbuf *addr, struct proc *p)
 	}
     }
     if ( aa == 0 ) {
-	printf("at_pcbconnect: ro->ro_rt=0x%x\n", ro->ro_rt);
-	if (ro->ro_rt)
-	    printf("at_pcbconnect: ro->ro_rt->rt_ifp=0x%x", ro->ro_rt->rt_ifp);
 	return( ENETUNREACH );
     }
 
