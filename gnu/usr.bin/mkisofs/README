@@ -3,11 +3,6 @@ Note:
 mkisofs that allows you to merge arbitrary directory trees into the
 image you are creating.  You need to compile with -DADD_FILES for my
 changes to take effect.   Thanks to Ross Biro biro@yggdrasil.com.
-Note:
-	There is a feature which can be optionally compiled into
-mkisofs that allows you to merge arbitrary directory trees into the
-image you are creating.  You need to compile with -DADD_FILES for my
-changes to take effect.   Thanks to Ross Biro biro@yggdrasil.com.
 
 	This program requires a lot of virtual memory to run since it
 builds all of the directories in memory.  The exact requirements

@@ -745,35 +745,50 @@ FDECL2(scan_directory_tree,char *, path, struct directory_entry *, de){
 		    };
 	    }
 
-	    /* Here we handle a different kind of case.  Here we have a symlink,
-	       but we want to follow symlinks.  If we run across a directory loop,
-	       then we need to pretend that we are not following symlinks for this file.
-	       If this is the first time we have seen this, then make this seem
-	       as if there was no symlink there in the first place */
-
-	    else if(strcmp(d_entry->d_name, ".") &&
-	       strcmp(d_entry->d_name, "..")) {
-		    if(find_directory_hash(statbuf.st_dev, STAT_INODE(statbuf))){
-			    fprintf(stderr, "Infinite loop detected (%s)\n", whole_path);
-			    if(!use_RockRidge) continue;
-			    statbuf.st_size = 0;
-			    STAT_INODE(statbuf) = UNCACHED_INODE;
-			    statbuf.st_dev = (dev_t) UNCACHED_DEVICE;
-			    statbuf.st_mode = (statbuf.st_mode & ~S_IFMT) | S_IFREG;
+	    if( follow_links
+	       && S_ISDIR(statbuf.st_mode) ) 
+	      {
+		if(   strcmp(d_entry->d_name, ".")
+		   && strcmp(d_entry->d_name, "..") )
+		  {
+		    if(find_directory_hash(statbuf.st_dev, STAT_INODE(statbuf)))
+		      {
+			if(!use_RockRidge) 
+			  {
+			    fprintf(stderr, "Already cached directory seen (%s)\n", 
+				    whole_path);
+			    continue;
+			  }
+			statbuf.st_size = 0;
+			STAT_INODE(statbuf) = UNCACHED_INODE;
+			statbuf.st_dev = (dev_t) UNCACHED_DEVICE;
+			statbuf.st_mode = (statbuf.st_mode & ~S_IFMT) | S_IFREG;
 		    } else {
-			    lstatbuf = statbuf;
-			    add_directory_hash(statbuf.st_dev, STAT_INODE(statbuf));
-		    };
-	    };
-    };
+		      lstatbuf = statbuf;
+		      add_directory_hash(statbuf.st_dev, STAT_INODE(statbuf));
+		    }
+		  }
+	      }
+    }
 
+    /*
+     * Add directories to the cache so that we don't waste space even
+     * if we are supposed to be following symlinks.
+     */
+    if( follow_links
+       && strcmp(d_entry->d_name, ".")
+       && strcmp(d_entry->d_name, "..")
+       && S_ISDIR(statbuf.st_mode) ) 
+	  {
+	    add_directory_hash(statbuf.st_dev, STAT_INODE(statbuf));
+	  }
 #ifdef VMS
     if(!S_ISDIR(lstatbuf.st_mode) && (statbuf.st_fab_rfm != FAB$C_FIX &&
 				      statbuf.st_fab_rfm != FAB$C_STMLF)) {
       fprintf(stderr,"Warning - file %s has an unsupported VMS record"
 	      " format (%d)\n",
 	      whole_path, statbuf.st_fab_rfm);
-    };
+    }
 #endif
 
     if(S_ISREG(lstatbuf.st_mode) && (status = access(whole_path, R_OK))){
