@@ -32,6 +32,7 @@ struct system_info
     int    *cpustates;
     int    *memory;
     int    *swap;
+    struct timeval boottime;
 };
 
 /* cpu_states is an array of percentages * 10.  For example, 
