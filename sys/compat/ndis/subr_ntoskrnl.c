@@ -197,6 +197,7 @@ ntoskrnl_libinit()
 	mtx_init(&ntoskrnl_dispatchlock,
 	    "ntoskrnl dispatch lock", MTX_NDIS_LOCK, MTX_DEF);
 	KeInitializeSpinLock(&ntoskrnl_global);
+	KeInitializeSpinLock(&ntoskrnl_cancellock);
 	TAILQ_INIT(&ntoskrnl_reflist);
 
 	patch = ntoskrnl_functbl;
@@ -229,7 +230,6 @@ int
 ntoskrnl_libfini()
 {
 	image_patch_table	*patch;
-	mtx_destroy(&ntoskrnl_dispatchlock);
 
 	patch = ntoskrnl_functbl;
 	while (patch->ipt_func != NULL) {
@@ -238,6 +238,8 @@ ntoskrnl_libfini()
 	}
 
 	uma_zdestroy(mdl_zone);
+
+	mtx_destroy(&ntoskrnl_dispatchlock);
 
 	return(0);
 }
@@ -439,6 +441,8 @@ IoCreateDevice(drv, devextlen, devname, devtype, devchars, exclusive, newdev)
 			ExFreePool(dev);
 			return(STATUS_INSUFFICIENT_RESOURCES);
 		}
+
+		bzero(dev->do_devext, devextlen);
 	} else
 		dev->do_devext = NULL;
 
@@ -946,12 +950,10 @@ IoAttachDeviceToDeviceStack(src, dst)
 	device_object		*attached;
 
 	mtx_lock(&ntoskrnl_dispatchlock);
-
 	attached = IoGetAttachedDevice(dst);
 	attached->do_attacheddev = src;
 	src->do_attacheddev = NULL;
 	src->do_stacksize = attached->do_stacksize + 1;
-
 	mtx_unlock(&ntoskrnl_dispatchlock);
 
 	return(attached);
@@ -987,6 +989,7 @@ IoDetachDevice(topdev)
 	return;
 }
 
+/* Always called with dispatcher lock held. */
 static void
 ntoskrnl_wakeup(arg)
 	void			*arg;
@@ -998,7 +1001,6 @@ ntoskrnl_wakeup(arg)
 
 	obj = arg;
 
-	mtx_lock(&ntoskrnl_dispatchlock);
 	obj->dh_sigstate = TRUE;
 	e = obj->dh_waitlisthead.nle_flink;
 	while (e != &obj->dh_waitlisthead) {
@@ -1013,7 +1015,6 @@ ntoskrnl_wakeup(arg)
 			break;
 		e = e->nle_flink;
 	}
-	mtx_unlock(&ntoskrnl_dispatchlock);
 
 	return;
 }
@@ -1161,12 +1162,8 @@ KeWaitForSingleObject(obj, reason, mode, alertable, duetime)
 		}
 	}
 
-	mtx_unlock(&ntoskrnl_dispatchlock);
-
-	error = ndis_thsuspend(td->td_proc,
+	error = ndis_thsuspend(td->td_proc, &ntoskrnl_dispatchlock,
 	    duetime == NULL ? 0 : tvtohz(&tv));
-
-	mtx_lock(&ntoskrnl_dispatchlock);
 
 	/* We timed out. Leave the object alone and return status. */
 
@@ -1292,12 +1289,10 @@ KeWaitForMultipleObjects(cnt, obj, wtype, reason, mode,
 
 	while (wcnt) {
 		nanotime(&t1);
-		mtx_unlock(&ntoskrnl_dispatchlock);
 
-		error = ndis_thsuspend(td->td_proc,
+		error = ndis_thsuspend(td->td_proc, &ntoskrnl_dispatchlock,
 		    duetime == NULL ? 0 : tvtohz(&tv));
 
-		mtx_lock(&ntoskrnl_dispatchlock);
 		nanotime(&t2);
 
 		for (i = 0; i < cnt; i++) {
@@ -1680,6 +1675,7 @@ KeInitializeSpinLock(lock)
 	return;
 }
 
+#ifdef __i386__
 __fastcall void
 KefAcquireSpinLockAtDpcLevel(REGARGS1(kspin_lock *lock))
 {
@@ -1696,6 +1692,38 @@ KefReleaseSpinLockFromDpcLevel(REGARGS1(kspin_lock *lock))
 
 	return;
 }
+
+__stdcall uint8_t
+KeAcquireSpinLockRaiseToDpc(kspin_lock *lock)
+{
+        uint8_t                 oldirql;
+
+        if (KeGetCurrentIrql() > DISPATCH_LEVEL)
+                panic("IRQL_NOT_LESS_THAN_OR_EQUAL");
+
+        oldirql = KeRaiseIrql(DISPATCH_LEVEL);
+        KeAcquireSpinLockAtDpcLevel(lock);
+
+        return(oldirql);
+}
+#else
+__stdcall void
+KeAcquireSpinLockAtDpcLevel(kspin_lock *lock)
+{
+	while (atomic_cmpset_acq_int((volatile u_int *)lock, 0, 1) == 0)
+		/* sit and spin */;
+
+	return;
+}
+
+__stdcall void
+KefReleaseSpinLockFromDpcLevel(kspin_lock *lock)
+{
+	atomic_store_rel_int((volatile u_int *)lock, 0);
+
+	return;
+}
+#endif /* __i386__ */
 
 __fastcall uintptr_t
 InterlockedExchange(REGARGS2(volatile uint32_t *dst, uintptr_t val))
@@ -2115,10 +2143,9 @@ KeReleaseMutex(kmutex, kwait)
 	kmutex->km_acquirecnt--;
 	if (kmutex->km_acquirecnt == 0) {
 		kmutex->km_ownerthread = NULL;
-		mtx_unlock(&ntoskrnl_dispatchlock);
 		ntoskrnl_wakeup(&kmutex->km_header);
-	} else
-		mtx_unlock(&ntoskrnl_dispatchlock);
+	}
+	mtx_unlock(&ntoskrnl_dispatchlock);
 
 	return(kmutex->km_acquirecnt);
 }
@@ -2165,8 +2192,10 @@ KeSetEvent(kevent, increment, kwait)
 {
 	uint32_t		prevstate;
 
+	mtx_lock(&ntoskrnl_dispatchlock);
 	prevstate = kevent->k_header.dh_sigstate;
 	ntoskrnl_wakeup(&kevent->k_header);
+	mtx_unlock(&ntoskrnl_dispatchlock);
 
 	return(prevstate);
 }
@@ -2301,12 +2330,14 @@ PsTerminateSystemThread(status)
 {
 	struct nt_objref	*nr;
 
+	mtx_lock(&ntoskrnl_dispatchlock);
 	TAILQ_FOREACH(nr, &ntoskrnl_reflist, link) {
 		if (nr->no_obj != curthread->td_proc)
 			continue;
 		ntoskrnl_wakeup(&nr->no_dh);
 		break;
 	}
+	mtx_unlock(&ntoskrnl_dispatchlock);
 
 	ntoskrnl_kth--;
 
@@ -2350,6 +2381,8 @@ ntoskrnl_timercall(arg)
 
 	mtx_unlock(&Giant);
 
+	mtx_lock(&ntoskrnl_dispatchlock);
+
 	timer = arg;
 
 	timer->k_header.dh_inserted = FALSE;
@@ -2367,14 +2400,15 @@ ntoskrnl_timercall(arg)
 		tv.tv_sec = 0;
 		tv.tv_usec = timer->k_period * 1000;
 		timer->k_header.dh_inserted = TRUE;
-		timer->k_handle =
-		    timeout(ntoskrnl_timercall, timer, tvtohz(&tv));
+		timer->k_handle = timeout(ntoskrnl_timercall,
+		    timer, tvtohz(&tv));
 	}
 
 	if (timer->k_dpc != NULL)
 		KeInsertQueueDpc(timer->k_dpc, NULL, NULL);
 
 	ntoskrnl_wakeup(&timer->k_header);
+	mtx_unlock(&ntoskrnl_dispatchlock);
 
 	mtx_lock(&Giant);
 
@@ -2423,11 +2457,14 @@ ntoskrnl_run_dpc(arg)
 {
 	__stdcall kdpc_func	dpcfunc;
 	kdpc			*dpc;
+	uint8_t			irql;
 
 	dpc = arg;
 	dpcfunc = dpc->k_deferedfunc;
+	irql = KeRaiseIrql(DISPATCH_LEVEL);
 	MSCALL4(dpcfunc, dpc, dpc->k_deferredctx,
 	    dpc->k_sysarg1, dpc->k_sysarg2);
+	KeLowerIrql(irql);
 
 	return;
 }
@@ -2438,17 +2475,12 @@ KeInitializeDpc(dpc, dpcfunc, dpcctx)
 	void			*dpcfunc;
 	void			*dpcctx;
 {
-	uint8_t			irql;
 
 	if (dpc == NULL)
 		return;
 
-	KeInitializeSpinLock(&dpc->k_lock);
-
-	KeAcquireSpinLock(&dpc->k_lock, &irql);
 	dpc->k_deferedfunc = dpcfunc;
 	dpc->k_deferredctx = dpcctx;
-	KeReleaseSpinLock(&dpc->k_lock, irql);
 
 	return;
 }
@@ -2459,12 +2491,8 @@ KeInsertQueueDpc(dpc, sysarg1, sysarg2)
 	void			*sysarg1;
 	void			*sysarg2;
 {
-	uint8_t			irql;
-
-	KeAcquireSpinLock(&dpc->k_lock, &irql);
 	dpc->k_sysarg1 = sysarg1;
 	dpc->k_sysarg2 = sysarg2;
-	KeReleaseSpinLock(&dpc->k_lock, irql);
 
 	if (ndis_sched(ntoskrnl_run_dpc, dpc, NDIS_SWI))
 		return(FALSE);
@@ -2492,6 +2520,8 @@ KeSetTimerEx(timer, duetime, period, dpc)
 	struct timeval		tv;
 	uint64_t		curtime;
 	uint8_t			pending;
+
+	mtx_lock(&ntoskrnl_dispatchlock);
 
 	if (timer == NULL)
 		return(FALSE);
@@ -2526,6 +2556,8 @@ KeSetTimerEx(timer, duetime, period, dpc)
 	timer->k_header.dh_inserted = TRUE;
 	timer->k_handle = timeout(ntoskrnl_timercall, timer, tvtohz(&tv));
 
+	mtx_unlock(&ntoskrnl_dispatchlock);
+
 	return(pending);
 }
 
@@ -2547,14 +2579,15 @@ KeCancelTimer(timer)
 	if (timer == NULL)
 		return(FALSE);
 
+	mtx_lock(&ntoskrnl_dispatchlock);
+
 	if (timer->k_header.dh_inserted == TRUE) {
 		untimeout(ntoskrnl_timercall, timer, timer->k_handle);
-		if (timer->k_dpc != NULL)
-			KeRemoveQueueDpc(timer->k_dpc);
 		pending = TRUE;
 	} else
-		pending = FALSE;
+		pending = KeRemoveQueueDpc(timer->k_dpc);
 
+	mtx_unlock(&ntoskrnl_dispatchlock);
 
 	return(pending);
 }
@@ -2652,9 +2685,22 @@ image_patch_table ntoskrnl_functbl[] = {
 	IMPORT_FUNC(ExInterlockedPushEntrySList),
 	IMPORT_FUNC(ExAllocatePoolWithTag),
 	IMPORT_FUNC(ExFreePool),
+#ifdef __i386__
 	IMPORT_FUNC(KefAcquireSpinLockAtDpcLevel),
 	IMPORT_FUNC(KefReleaseSpinLockFromDpcLevel),
+	IMPORT_FUNC(KeAcquireSpinLockRaiseToDpc),
+#else
+	/*
+	 * For AMD64, we can get away with just mapping
+	 * KeAcquireSpinLockRaiseToDpc() directly to KfAcquireSpinLock()
+	 * because the calling conventions end up being the same.
+	 * On i386, we have to be careful because KfAcquireSpinLock()
+	 * is _fastcall but KeAcquireSpinLockRaiseToDpc() isn't.
+	 */
+	IMPORT_FUNC(KeAcquireSpinLockAtDpcLevel),
+	IMPORT_FUNC(KeReleaseSpinLockFromDpcLevel),
 	IMPORT_FUNC_MAP(KeAcquireSpinLockRaiseToDpc, KfAcquireSpinLock),
+#endif
 	IMPORT_FUNC_MAP(KeReleaseSpinLock, KfReleaseSpinLock),
 	IMPORT_FUNC(InterlockedIncrement),
 	IMPORT_FUNC(InterlockedDecrement),
