@@ -46,6 +46,7 @@ struct dinode;
 struct ext2_inode;
 struct inode;
 struct mount;
+struct vfsconf;
 struct vnode;
 
 int	ext2_alloc __P((struct inode *,

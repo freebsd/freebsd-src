@@ -50,7 +50,8 @@
 #include <sys/queue.h>
 #include <sys/mount.h>
 #include <sys/stat.h>
-#include <vm/vm.h>		/* for vnode_pager_setsize */
+#include <vm/vm.h>
+#include <vm/vm_extern.h>	/* for vnode_pager_setsize */
 #include <miscfs/union/union.h>
 
 #include <sys/proc.h>

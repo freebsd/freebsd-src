@@ -62,6 +62,7 @@
 static int	procfs_abortop __P((struct vop_abortop_args *));
 static int	procfs_access __P((struct vop_access_args *));
 static int	procfs_badop __P((void));
+static int	procfs_bmap __P((struct vop_bmap_args *));
 static int	procfs_close __P((struct vop_close_args *));
 static int	procfs_getattr __P((struct vop_getattr_args *));
 static int	procfs_inactive __P((struct vop_inactive_args *));
@@ -71,6 +72,7 @@ static int	procfs_open __P((struct vop_open_args *));
 static int	procfs_pathconf __P((struct vop_pathconf_args *ap));
 static int	procfs_print __P((struct vop_print_args *));
 static int	procfs_readdir __P((struct vop_readdir_args *));
+static int	procfs_readlink __P((struct vop_readlink_args *));
 static int	procfs_reclaim __P((struct vop_reclaim_args *));
 static int	procfs_setattr __P((struct vop_setattr_args *));
 
@@ -208,7 +210,7 @@ procfs_ioctl(ap)
  * usual no-op bmap, although returning
  * (EIO) would be a reasonable alternative.
  */
-int
+static int
 procfs_bmap(ap)
 	struct vop_bmap_args /* {
 		struct vnode *a_vp;
@@ -894,7 +896,7 @@ procfs_readdir(ap)
 /*
  * readlink reads the link of `curproc'
  */
-int
+static int
 procfs_readlink(ap)
 	struct vop_readlink_args *ap;
 {
