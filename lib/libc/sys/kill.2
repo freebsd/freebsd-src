@@ -72,7 +72,7 @@ the real or effective user ID of the receiving process must match
 that of the sending process or the user must have appropriate privileges
 (such as given by a set-user-ID program or the user is the super-user).
 A single exception is the signal SIGCONT, which may always be sent
-to any descendant of the current process.
+to any process with the same session ID as the caller.
 .Bl -tag -width Ds
 .It \&If Fa pid No \&is greater than zero :
 The
