@@ -299,6 +299,8 @@ g_disk_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp, struct g
 	struct disk *dp;
 
 	dp = gp->softc;
+	if (dp == NULL)
+		return;
 	if (indent == NULL) {
 		sbuf_printf(sb, " hd %u", dp->d_fwheads);
 		sbuf_printf(sb, " sc %u", dp->d_fwsectors);
@@ -366,9 +368,10 @@ disk_create(int unit, struct disk *dp, int flags, void *unused __unused, void * 
 	if (bootverbose || 1)
 		printf("GEOM: create disk %s%d dp=%p\n",
 		    dp->d_name, dp->d_unit, dp);
-	dp->d_devstat = devstat_new_entry(dp->d_name, dp->d_unit,
-	    dp->d_sectorsize, DEVSTAT_ALL_SUPPORTED,
-	    DEVSTAT_TYPE_DIRECT, DEVSTAT_PRIORITY_MAX);
+	if (dp->d_devstat == NULL)
+		dp->d_devstat = devstat_new_entry(dp->d_name, dp->d_unit,
+		    dp->d_sectorsize, DEVSTAT_ALL_SUPPORTED,
+		    DEVSTAT_TYPE_DIRECT, DEVSTAT_PRIORITY_MAX);
 	dp->d_geom = NULL;
 	g_post_event(g_disk_create, dp, M_WAITOK, dp, NULL);
 }
