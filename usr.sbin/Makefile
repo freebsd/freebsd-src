@@ -23,6 +23,7 @@ SUBDIR=	IPXrouted \
 	ctm \
 	dev_mkdb \
 	devinfo \
+	digictl \
 	diskpart \
 	edquota \
 	extattrctl \

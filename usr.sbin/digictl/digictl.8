@@ -1,0 +1,80 @@
+.\" $FreeBSD$
+.Dd May 1, 2001
+.Dt DIGICTL 8
+.Os
+.Sh NAME
+.Nm digictl
+.Nd Control Digiboard devices
+.Sh SYNOPSIS
+.Nm
+.Op Fl d Ar debug
+.Op Fl ir
+.Ar device ...
+.Sh DESCRIPTION
+The
+.Nm
+program provides control of the Digiboard installed with the given control
+.Ar device
+name.
+A digiboard control
+.Ar device
+is usually of the form
+.Dq /dev/digi Ns Ar N Ns No .ctl
+where
+.Ar N
+is the card number and starts at 0 for the first attached card.
+.Pp
+The following flags are recognised:
+.Bl -tag -width XXXX -offset XXXX
+.It Fl d Ar debug
+If the driver has been compiled with
+.Dv DEBUG
+defined, the following bits from the
+.Ar debug
+variable are used to enable diagnostics in the digiboard driver:
+.Bl -tag -width XXXXXXXXXXXX
+.It 1 ( Em INIT )
+Diagnostics during card attach, detach and initialisation.
+.It 2 ( Em OPEN )
+Diagnostics when opening a port.
+.It 4 ( Em CLOSE )
+Diagnostics when closing a port.
+.It 8 ( Em SET )
+Diagnostics when setting tty device flags.
+.It 16 ( Em INT )
+Diagnostics when processing card events.
+.It 32 ( Em READ )
+Reports return values from port reads.
+.It 64 ( Em WRITE )
+Reports return values from port writes.
+.It 128 ( Em RX )
+Reports receive queue flow control.
+.It 256 ( Em TX )
+Reports transmit queue flow control.
+.It 512 ( Em IRQ )
+Diagnostics during interrupts (enable these with care).
+.It 1024 ( Em MODEM )
+Diagnostics when setting modem status flags.
+.It 2048 ( Em RI )
+Reports when a RING is received.
+.El
+.It Fl i
+Display the card identification string and type id.
+.It Fl r
+Reinitialise the card.
+For boards with external port modules, it is possible to add or remove
+modules and dynamically reprobe the number of ports using this switch.
+All ports on the card must be closed in order to reinitialise the card.
+.Pp
+It is preferable to reinitialise the card rather than reload the entire
+digi module as reinitialisation only affects the specified board rather
+than affecting all attached boards.
+.El
+.Sh BUGS
+It should be possible to reinitialise a board without closing all of the
+existing ports.
+.Sh HISTORY
+The
+.Nm
+command first appeared in
+.Fx 5.0 .
