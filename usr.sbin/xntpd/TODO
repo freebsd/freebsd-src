@@ -1,5 +1,5 @@
 #
-# TODO,v 3.3 1993/11/09 23:20:16 kardel Exp
+# TODO,v 3.5 1994/01/25 19:03:55 kardel Exp
 #
 This file contains problems known to the authors that still need to be done.
 We would appreciate if you could spare some of your time to look through
@@ -18,17 +18,6 @@ Thank you for your help !
 	Piete Brooks
 
 Open issues:
-
-HPUX:
-	- Time warp
-	During the last few month disturbing reports about xntp setting
-	preposterous times during periods of high load have been reported
-	on HPUX 8 and 9. The theory is that the adjtimed message queue
-	gets deleted. Symptoms are that xntp() complains about interrupted
-	system calls in adjtime()-emulation and the time is set to some
-	invalid date. Also the adjtimed seems to have problems. We could
-	need some help here by an experienced HPUX guru.
-	Files affected: adjtime/*
 
 Apollo:
 	- terminal affiliation

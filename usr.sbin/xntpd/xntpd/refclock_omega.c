@@ -31,8 +31,10 @@
 #include <termio.h>
 #endif /* HAVE_SYSV_TTYS */
 
-#if defined(STREAM)
+#if defined(HAVE_TERMIOS)
 #include <termios.h>
+#endif
+#if defined(STREAM)
 #include <stropts.h>
 #if defined(OMEGACLK)
 #include <sys/clkdefs.h>
@@ -224,8 +226,8 @@ omega_init()
 	/*
 	 * Just zero the data arrays
 	 */
-	bzero((char *)omegaunits, sizeof omegaunits);
-	bzero((char *)unitinuse, sizeof unitinuse);
+	memset((char *)omegaunits, 0, sizeof omegaunits);
+	memset((char *)unitinuse, 0, sizeof unitinuse);
 
 	/*
 	 * Initialize fudge factors to default.
@@ -299,9 +301,9 @@ omega_start(unit, peer)
         }
     }
 #endif /* HAVE_SYSV_TTYS */
-#if defined(STREAM)
+#if defined(HAVE_TERMIOS)
 	/*
-	 * POSIX/STREAMS serial line parameters (termios interface)
+	 * POSIX serial line parameters (termios interface)
 	 *
 	 * The OMEGACLK option provides timestamping at the driver level. 
 	 * It requires the tty_clk streams module.
@@ -334,22 +336,24 @@ omega_start(unit, peer)
 		    "omega_start: tcflush(%s): %m", omegadev);
                 goto screwed;
         }
+    }
+#endif /* HAVE_TERMIOS */
+#ifdef STREAM
 #if defined(OMEGACLK)
-	if (ioctl(fd232, I_PUSH, "clk") < 0)
-		syslog(LOG_ERR,
-		    "omega_start: ioctl(%s, I_PUSH, clk): %m", omegadev);
-	if (ioctl(fd232, CLK_SETSTR, "\n") < 0)
-		syslog(LOG_ERR,
-		    "omega_start: ioctl(%s, CLK_SETSTR): %m", omegadev);
+    if (ioctl(fd232, I_PUSH, "clk") < 0)
+	    syslog(LOG_ERR,
+		"omega_start: ioctl(%s, I_PUSH, clk): %m", omegadev);
+    if (ioctl(fd232, CLK_SETSTR, "\n") < 0)
+	    syslog(LOG_ERR,
+		"omega_start: ioctl(%s, CLK_SETSTR): %m", omegadev);
 #endif /* OMEGACLK */
 #if defined(OMEGAPPS)
-	if (ioctl(fd232, I_PUSH, "ppsclock") < 0)
-		syslog(LOG_ERR,
-		    "omega_start: ioctl(%s, I_PUSH, ppsclock): %m", omegadev);
-	else
-		fdpps = fd232;
+    if (ioctl(fd232, I_PUSH, "ppsclock") < 0)
+	    syslog(LOG_ERR,
+		"omega_start: ioctl(%s, I_PUSH, ppsclock): %m", omegadev);
+    else
+	    fdpps = fd232;
 #endif /* OMEGAPPS */
-    }
 #endif /* STREAM */
 #if defined(HAVE_BSD_TTYS)
 	/*
@@ -412,7 +416,7 @@ omega_start(unit, peer)
 			    emalloc(sizeof(struct omegaunit));
 		}
 	}
-	bzero((char *)omega, sizeof(struct omegaunit));
+	memset((char *)omega, 0, sizeof(struct omegaunit));
 	omegaunits[unit] = omega;
 
 	/*
@@ -440,7 +444,7 @@ omega_start(unit, peer)
 	peer->rootdispersion = 0;
 	peer->stratum = stratumtouse[unit];
 	if (stratumtouse[unit] <= 1)
-		bcopy(OMEGAREFID, (char *)&peer->refid, 4);
+		memmove((char *)&peer->refid, OMEGAREFID, 4);
 	else
 		peer->refid = htonl(OMEGAHSREFID);
 	unitinuse[unit] = 1;
@@ -923,8 +927,8 @@ omega_control(unit, in, out)
 				peer = omega->peer;
 				peer->stratum = stratumtouse[unit];
 				if (stratumtouse[unit] <= 1)
-					bcopy(OMEGAREFID, (char *)&peer->refid,
-					    4);
+					memmove((char *)&peer->refid,
+						OMEGAREFID, 4);
 				else
 					peer->refid = htonl(OMEGAHSREFID);
 			}

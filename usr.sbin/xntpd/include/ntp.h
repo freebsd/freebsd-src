@@ -328,7 +328,7 @@ struct peer {
 #define FLAG_PREFER		0x80	/* this is the preferred peer */
 
 /*
- * Definitions for the clear() routine.  We use bzero() to clear
+ * Definitions for the clear() routine.  We use memset() to clear
  * the parts of the peer structure which go to zero.  These are
  * used to calculate the start address and length of the area.
  */
@@ -358,7 +358,8 @@ struct peer {
 #define	REFCLK_OMEGA_TRUETIME	11	/* TrueTime OM-DC OMEGA */
 #define REFCLK_IRIG_TPRO	12	/* KSI/Odetics TPRO-S IRIG */
 #define REFCLK_ATOM_LEITCH	13	/* Leitch CSD 5300 Master Clock */
-#define REFCLK_MSF_EES		14	/* reserved for Piete Brooks */
+#define REFCLK_MSF_EES		14	/* MSF EES M201, UK */
+#define	REFCLK_GPSTM_TRUETIME	15	/* TrueTime GPS/TM-TMD */
 
 /*
  * We tell reference clocks from real peers by giving the reference

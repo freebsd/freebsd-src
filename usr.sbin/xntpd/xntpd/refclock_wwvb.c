@@ -20,8 +20,10 @@
 #include <termio.h>
 #endif /* HAVE_SYSV_TTYS */
 
-#if defined(STREAM)
+#if defined(HAVE_TERMIOS)
 #include <termios.h>
+#endif
+#if defined(STREAM)
 #include <stropts.h>
 #if defined(WWVBCLK)
 #include <sys/clkdefs.h>
@@ -217,8 +219,8 @@ wwvb_init()
 	/*
 	 * Just zero the data arrays
 	 */
-	bzero((char *)wwvbunits, sizeof wwvbunits);
-	bzero((char *)unitinuse, sizeof unitinuse);
+	memset((char *)wwvbunits, 0, sizeof wwvbunits);
+	memset((char *)unitinuse, 0, sizeof unitinuse);
 
 	/*
 	 * Initialize fudge factors to default.
@@ -290,9 +292,9 @@ wwvb_start(unit, peer)
         }
     }
 #endif /* HAVE_SYSV_TTYS */
-#if defined(STREAM)
+#if defined(HAVE_TERMIOS)
 	/*
-	 * POSIX/STREAMS serial line parameters (termios interface)
+	 * POSIX serial line parameters (termios interface)
 	 *
 	 * The WWVBCLK option provides timestamping at the driver level. 
 	 * It requires the tty_clk streams module.
@@ -325,22 +327,24 @@ wwvb_start(unit, peer)
 		    "wwvb_start: tcflush(%s): %m", wwvbdev);
                 goto screwed;
         }
+    }
+#endif /* HAVE_TERMIOS */
+#ifdef STREAM
 #if defined(WWVBCLK)
-	if (ioctl(fd232, I_PUSH, "clk") < 0)
-		syslog(LOG_ERR,
-		    "wwvb_start: ioctl(%s, I_PUSH, clk): %m", wwvbdev);
-	if (ioctl(fd232, CLK_SETSTR, "\n") < 0)
-		syslog(LOG_ERR,
-		    "wwvb_start: ioctl(%s, CLK_SETSTR): %m", wwvbdev);
+    if (ioctl(fd232, I_PUSH, "clk") < 0)
+	    syslog(LOG_ERR,
+		"wwvb_start: ioctl(%s, I_PUSH, clk): %m", wwvbdev);
+    if (ioctl(fd232, CLK_SETSTR, "\n") < 0)
+	    syslog(LOG_ERR,
+		"wwvb_start: ioctl(%s, CLK_SETSTR): %m", wwvbdev);
 #endif /* WWVBCLK */
 #if defined(WWVBPPS)
-	if (ioctl(fd232, I_PUSH, "ppsclock") < 0)
-		syslog(LOG_ERR,
-		    "wwvb_start: ioctl(%s, I_PUSH, ppsclock): %m", wwvbdev);
-	else
-		fdpps = fd232;
+    if (ioctl(fd232, I_PUSH, "ppsclock") < 0)
+	    syslog(LOG_ERR,
+		"wwvb_start: ioctl(%s, I_PUSH, ppsclock): %m", wwvbdev);
+    else
+	    fdpps = fd232;
 #endif /* WWVBPPS */
-    }
 #endif /* STREAM */
 #if defined(HAVE_BSD_TTYS)
 	/*
@@ -403,7 +407,7 @@ wwvb_start(unit, peer)
 			    emalloc(sizeof(struct wwvbunit));
 		}
 	}
-	bzero((char *)wwvb, sizeof(struct wwvbunit));
+	memset((char *)wwvb, 0, sizeof(struct wwvbunit));
 	wwvbunits[unit] = wwvb;
 
 	/*
@@ -431,7 +435,7 @@ wwvb_start(unit, peer)
 	peer->rootdispersion = 0;
 	peer->stratum = stratumtouse[unit];
 	if (stratumtouse[unit] <= 1)
-	    bcopy(WWVBREFID, (char *)&peer->refid, 4);
+	    memmove((char *)&peer->refid, WWVBREFID, 4);
 	else
 	    peer->refid = htonl(WWVBHSREFID);
 	unitinuse[unit] = 1;
@@ -952,8 +956,8 @@ wwvb_control(unit, in, out)
 				peer = wwvb->peer;
 				peer->stratum = stratumtouse[unit];
 				if (stratumtouse[unit] <= 1)
-					bcopy(WWVBREFID, (char *)&peer->refid,
-					    4);
+					memmove((char *)&peer->refid,
+						WWVBREFID, 4);
 				else
 					peer->refid = htonl(WWVBHSREFID);
 			}

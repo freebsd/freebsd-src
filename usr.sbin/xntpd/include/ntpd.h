@@ -1,4 +1,4 @@
-/* ntpd.h,v 3.1 1993/07/06 01:07:03 jbj Exp
+/*
  * ntpd.h - Prototypes for xntpd.
  */
 
@@ -20,6 +20,35 @@ extern	u_short	ctlsysstatus	P((void));
 extern	void	init_control	P((void));
 extern	void	process_control	P((struct recvbuf *, int));
 extern	void	report_event	P((int, struct peer *));
+
+/* ntp_control.c */
+/*
+ * Structure for translation tables between internal system
+ * variable indices and text format.
+ */
+struct ctl_var {
+	u_short code;
+	u_short flags;
+	char *text;
+};
+/*
+ * Flag values
+ */
+#define	CAN_READ	0x01
+#define	CAN_WRITE	0x02
+
+#define DEF		0x20
+#define	PADDING		0x40
+#define	EOV		0x80
+
+#define	RO	(CAN_READ)
+#define	WO	(CAN_WRITE)
+#define	RW	(CAN_READ|CAN_WRITE)
+
+extern  char *  add_var P((struct ctl_var **, unsigned long, int));
+extern  void    free_varlist P((struct ctl_var *));
+extern  void    set_var P((struct ctl_var **, char *, unsigned long, int));
+extern  void    set_sys_var P((char *, unsigned long, int));
 
 /* ntp_intres.c */
 extern	void	ntp_intres	P((void));

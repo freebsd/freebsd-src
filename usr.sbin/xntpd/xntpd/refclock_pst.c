@@ -20,8 +20,10 @@
 #include <termio.h>
 #endif /* HAVE_SYSV_TTYS */
 
-#if defined(STREAM)
+#if defined(HAVE_TERMIOS)
 #include <termios.h>
+#endif
+#if defined(STREAM)
 #include <stropts.h>
 #if defined(PSTCLK)
 #include <sys/clkdefs.h>
@@ -435,8 +437,8 @@ pst_init()
 	/*
 	 * Just zero the data arrays
 	 */
-	bzero((char *)pstunits, sizeof pstunits);
-	bzero((char *)unitinuse, sizeof unitinuse);
+	memset((char *)pstunits, 0, sizeof pstunits);
+	memset((char *)unitinuse, 0, sizeof unitinuse);
 
 	/*
 	 * Initialize fudge factors to default.
@@ -513,9 +515,9 @@ pst_start(unit, peer)
         }
     }
 #endif /* HAVE_SYSV_TTYS */
-#if defined(STREAM)
+#if defined(HAVE_TERMIOS)
 	/*
-	 * POSIX/STREAMS serial line parameters (termios interface)
+	 * POSIX serial line parameters (termios interface)
 	 *
 	 * The PSTCLK option provides timestamping at the driver level. 
 	 * It requires the tty_clk streams module.
@@ -548,22 +550,24 @@ pst_start(unit, peer)
 		    "pst_start: tcflush(%s): %m", pstdev);
                 goto screwed;
         }
+    }
+#endif /* HAVE_TERMIOS */
+#ifdef STREAM
 #if defined(PSTCLK)
-	if (ioctl(fd232, I_PUSH, "clk") < 0)
-		syslog(LOG_ERR,
-		    "pst_start: ioctl(%s, I_PUSH, clk): %m", pstdev);
-	if (ioctl(fd232, CLK_SETSTR, "\n") < 0)
-		syslog(LOG_ERR,
-		    "pst_start: ioctl(%s, CLK_SETSTR): %m", pstdev);
+    if (ioctl(fd232, I_PUSH, "clk") < 0)
+	    syslog(LOG_ERR,
+		"pst_start: ioctl(%s, I_PUSH, clk): %m", pstdev);
+    if (ioctl(fd232, CLK_SETSTR, "\n") < 0)
+	    syslog(LOG_ERR,
+		"pst_start: ioctl(%s, CLK_SETSTR): %m", pstdev);
 #endif /* PSTCLK */
 #if defined(PSTPPS)
-	if (ioctl(fd232, I_PUSH, "ppsclock") < 0)
-		syslog(LOG_ERR,
-		    "pst_start: ioctl(%s, I_PUSH, ppsclock): %m", pstdev);
-	else
-		fdpps = fd232;
+    if (ioctl(fd232, I_PUSH, "ppsclock") < 0)
+	    syslog(LOG_ERR,
+		"pst_start: ioctl(%s, I_PUSH, ppsclock): %m", pstdev);
+    else
+	    fdpps = fd232;
 #endif /* PSTPPS */
-    }
 #endif /* STREAM */
 #if defined(HAVE_BSD_TTYS)
 	/*
@@ -625,7 +629,7 @@ pst_start(unit, peer)
 			pst = (struct pstunit *)emalloc(sizeof(struct pstunit));
 		}
 	}
-	bzero((char *)pst, sizeof(struct pstunit));
+	memset((char *)pst, 0, sizeof(struct pstunit));
 	pstunits[unit] = pst;
 
 	/*
@@ -658,7 +662,7 @@ pst_start(unit, peer)
 	peer->rootdispersion = 0;
 	peer->stratum = stratumtouse[unit];
 	if (stratumtouse[unit] <= 1)
-		bcopy(WWVREFID, (char *)&peer->refid, 4);
+		memmove((char *)&peer->refid, WWVREFID, 4);
 	else
 		peer->refid = htonl(PSTHSREFID);
 	pst->psttimer.event_time = current_time + PSTMINTIMEOUT;
@@ -1456,9 +1460,9 @@ pst_process(pst)
 	 */
 	if (stratumtouse[pst->unit] <= 1) {
 		if (pst->station >= 0)
-			bcopy(WWVREFID, (char *)&pst->peer->refid, 4);
+			memmove((char *)&pst->peer->refid, WWVREFID, 4);
 		else
-			bcopy(WWVHREFID, (char *)&pst->peer->refid, 4);
+			memmove((char *)&pst->peer->refid, WWVHREFID, 4);
 	}
 
 	/*

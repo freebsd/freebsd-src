@@ -81,11 +81,11 @@ else
     for i in $rcfg
     do
       sh $i config "$RCONFIG" "$PPSFEATURES" "$PPSOK" "$DEFS" "$REFCONF"
-      if [ "$PPSOK" -eq 1 ] && egrep -s -e '-D..*PPS' "$RCONFIG" >/dev/null 2>&1; then
+      if [ "$PPSOK" -eq 1 ] && egrep -e '-D..*PPS' "$RCONFIG" >/dev/null 2>&1; then
 	PPSOK=0
       fi
     done
-    if egrep -s -e '-D..*PPS' "$RCONFIG" >/dev/null 2>&1; then
+    if egrep -e '-D..*PPS' "$RCONFIG" >/dev/null 2>&1; then
       PPS="-DPPSPPS $PPS"
     fi
     CLOCKDEFS="`tr '\012' ' ' < $RCONFIG`"

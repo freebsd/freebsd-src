@@ -80,7 +80,8 @@ MD5auth2crypt(keyno, pkt, length)
     MD5Update(&ctx, (char *)(pkt) + length - 8, 8);
     MD5Final(&ctx);
 
-    bcopy((char *)ctx.digest, (char *) &pkt[NOCRYPT_LONGS + length/sizeof(U_LONG)],
-	  BLOCK_OCTETS);
-    return 4 + BLOCK_OCTETS;
+    memmove((char *) &pkt[NOCRYPT_LONGS + length/sizeof(U_LONG)],
+	    (char *) ctx.digest,	    
+	    BLOCK_OCTETS);
+    return (4 + BLOCK_OCTETS);
 }

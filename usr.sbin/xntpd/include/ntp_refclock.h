@@ -75,9 +75,9 @@ struct refclockstat {
 	LONG fudgeval2;
 	u_char currentstatus;
 	u_char lastevent;
-	u_char unused[1];
+	u_char unused;
+	struct ctl_var *kv_list;	/* additional variables */
 };
-
 
 /*
  * Reference clock I/O structure.  Used to provide an interface between

@@ -1,0 +1,29 @@
+
+Requirements:	kernel 0.99.14 or newer, libc 4.5 or newer
+------------
+
+	With this configuration, xntp should build an run right out of the
+box (see generic hints for how-to), with one big limitation: tickadj doesn't
+work yet. This is especially painful since PCs are usually equipped with
+untuned, badly-drifting quartzes, values up to 200 ppm being no exception.
+Because the loop filter algorithms are limited to compensating no more than
+100 ppm, currently only one workaround is possible:
+	Compile your own kernel and adjust linux/include/linux/timex.h, 
+line 67 (in pl14):
+
+#define CLOCK_TICK_RATE 1193180 /* Underlying HZ */
+
+	Since this is surely not true for your hardware, adjust the hundreds
+to match your quartz. Adding 100 compensates for a drift of -83.8 ppm
+(1/CLOCK_TICK_RATE). The number gets rounded to the nearest 100 so don't
+bother to tune any finer.
+
+Fixing tickadj is already in my work queue, so the previous comment should be
+obsolete RSN. If you really need to run xntp on any earlier versions of the
+kernel or libc, or have any other question not covered in the READMEs / hint
+files (sorry, necessary comment in the Linux community ;-) feel free to ask
+me (duwe@informatik.uni-erlangen.de)
+
+xntp3.3b of 1993/12/06 : remember to change #define ntp_adjtime adjtimex to
+__adjtimex in the Linux section (line 316). This is hopefully done if you
+(don't :-) see this paragraph in the xntp3.x distribution.

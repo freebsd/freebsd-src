@@ -19,7 +19,8 @@ if [ -f /bin/uname -o -f /usr/bin/uname ]; then
 		sinix-m)
 			guess=sinix-m
 			;;
-		sunos)  case "$3" in
+		sunos|solaris)
+			case "$3" in
 			4.1*) guess="sunos4" ;;
 			5.1)   guess="sunos5.1" ;;
 			5.*)   guess="sunos5.2" ;;
@@ -59,7 +60,7 @@ if [ -f /bin/uname -o -f /usr/bin/uname ]; then
 			guess="netbsd"
 			;;
 		# now the fun starts - there are vendors that
-		# do not really identify their OS un uname.
+		# do not really identify their OS in uname.
 		# Fine - now I look at our version and hope
 		# that nobody else had this marvellous idea.
 		# I am not willing to mention the vendor explicitly
@@ -106,6 +107,11 @@ fi
 
 if [ -f /netbsd ]; then
 	echo netbsd
+	exit 0
+fi
+
+if [ -f /lib/clib -a -f /lib/libc ]; then
+	echo domainos
 	exit 0
 fi
 

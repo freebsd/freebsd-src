@@ -1,13 +1,13 @@
 /*
- * /src/NTP/REPOSITORY/v3/parse/parsesolaris.c,v 3.4 1993/11/13 11:13:17 kardel Exp
+ * /src/NTP/REPOSITORY/v3/parse/parsesolaris.c,v 3.9 1994/01/25 19:05:26 kardel Exp
  *  
- * parsesolaris.c,v 3.4 1993/11/13 11:13:17 kardel Exp
+ * parsesolaris.c,v 3.9 1994/01/25 19:05:26 kardel Exp
  *
  * STREAMS module for reference clocks
  * (SunOS5.x - not fully tested - buyer beware ! - OS KILLERS may still be
  *  lurking in the code!)
  *
- * Copyright (c) 1993
+ * Copyright (c) 1993,1994
  * derived work from parsestreams.c ((c) 1991-1993, Frank Kardel) and
  * dcf77sync.c((c) Frank Kardel)
  * Frank Kardel, Friedrich-Alexander Universitaet Erlangen-Nuernberg
@@ -19,7 +19,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "parsesolaris.c,v 3.4 1993/11/13 11:13:17 kardel Exp";
+static char rcsid[] = "parsesolaris.c,v 3.9 1994/01/25 19:05:26 kardel Exp";
 #endif
 
 /*
@@ -139,7 +139,7 @@ int Strcmp(s, t)
 /*ARGSUSED*/
 int _init(void)
 {
-  static char revision[] = "3.4";
+  static char revision[] = "3.9";
   char *s, *S, *t;
   
   /*
@@ -668,6 +668,7 @@ static int parserput(queue_t *q, mblk_t *imp)
        * the service routine will move it to the next one
        */
       parseprintf(DD_RPUT,("parse: parserput - forward type 0x%x\n", type));
+
       if (canput(q->q_next) || (mp->b_datap->db_type > QPCTL))
 	{
 	  putnext(q, mp);
@@ -701,8 +702,9 @@ static int parserput(queue_t *q, mblk_t *imp)
 	  }
 	else
 	  {
+#if 0
 	    parseprintf(DD_RPUT,("parse: parserput - M_%s\n", (type == M_DATA) ? "DATA" : "BREAK"));
-
+#endif
 	    if (type == M_DATA)
 	      {
 		/*
@@ -787,7 +789,15 @@ static int parserput(queue_t *q, mblk_t *imp)
 	    else
 	      if (nmp) freemsg(nmp);
 	    parse_iodone(&parse->parse_io);
+	    freemsg(mp);
 	  }
+	else
+	  if (canput(q->q_next) || (mp->b_datap->db_type > QPCTL))
+	    {
+	      putnext(q, mp);
+	    }
+	  else
+	    putq(q, mp);
 	
 	if (status)
 	  {
@@ -929,6 +939,11 @@ static int init_zs_linemon(queue_t *q, queue_t *my_q)
       emergencyzs           = zs->zs_ops;
       
       zs->zs_ops = &szs->zsops; /* hook it up */
+      /*
+       * XXX: this is usually done via zsopinit() 
+       * - have yet to find a way to call that routine
+       */
+      zs->zs_xsint          = (void (*)())zs_xsisr;
       
       mutex_exit(zs->zs_excl);
 
@@ -961,6 +976,11 @@ static void close_zs_linemon(queue_t *q, queue_t *my_q)
       mutex_enter(zs->zs_excl);
 
       zs->zs_ops = szs->oldzsops; /* reset to previous handler functions */
+      /*
+       * XXX: revert xsint (usually done via zsopinit() - have still to find
+       * a way to call that bugger
+       */
+      zs->zs_xsint = zs->zs_ops->zsop_xsint;
 
       mutex_exit(zs->zs_excl);
 
@@ -970,6 +990,8 @@ static void close_zs_linemon(queue_t *q, queue_t *my_q)
       return;
     }
 }
+
+#define ZSRR0_IGNORE	(ZSRR0_CD|ZSRR0_SYNC|ZSRR0_CTS)
 
 #define MAXDEPTH 50		/* maximum allowed stream crawl */
 
@@ -1072,11 +1094,12 @@ static void zs_xsisr(struct zscom *zs)
 	}
 
       /*
-       * only pretend that CD has been handled
+       * only pretend that CD and ignored transistion (SYNC,CTS)
+       * have been handled
        */
-      za->za_rr0 = za->za_rr0 & ~ZSRR0_CD | zsstatus & ZSRR0_CD;
+      za->za_rr0 = (za->za_rr0 & ~ZSRR0_IGNORE) | (zsstatus & ZSRR0_IGNORE);
 
-      if (!((za->za_rr0 ^ zsstatus) & ~ZSRR0_CD))
+      if (((za->za_rr0 ^ zsstatus) & ~ZSRR0_IGNORE) == 0)
 	{
 	  /*
 	   * all done - kill status indication and return
@@ -1086,6 +1109,8 @@ static void zs_xsisr(struct zscom *zs)
 	}
     }      
 
+   parseprintf(DD_ISR, ("zs_xsisr: non CD event 0x%x for \"%s\"\n", 
+			(za->za_rr0 ^ zsstatus) & ~ZSRR0_CD,dname));
   /*
    * we are now gathered here to process some unusual external status
    * interrupts.
@@ -1154,6 +1179,21 @@ static void zs_xsisr(struct zscom *zs)
  * History:
  *
  * parsesolaris.c,v
+ * Revision 3.9  1994/01/25  19:05:26  kardel
+ * 94/01/23 reconcilation
+ *
+ * Revision 3.8  1994/01/23  17:22:04  kardel
+ * 1994 reconcilation
+ *
+ * Revision 3.7  1993/12/15  18:24:41  kardel
+ * Now also ignoring state changes on ZSRR0_{SYNC,CTS} to avoid zs driver bugs (Solaris 2.3)
+ *
+ * Revision 3.6  1993/12/15  12:48:53  kardel
+ * fixed message loss on M_*HANHUP messages
+ *
+ * Revision 3.5  1993/12/14  21:05:12  kardel
+ * PPS working now for SunOS 5.x zs external status hook
+ *
  * Revision 3.4  1993/11/13  11:13:17  kardel
  * Solaris 2.3 additional includes
  *
@@ -1165,6 +1205,5 @@ static void zs_xsisr(struct zscom *zs)
  *
  * Revision 3.1  1993/11/01  20:00:29  kardel
  * parse Solaris support (initial version)
- *
  *
  */

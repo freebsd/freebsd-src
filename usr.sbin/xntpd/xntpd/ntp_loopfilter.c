@@ -28,8 +28,10 @@
 #include <termio.h>
 #endif /* HAVE_SYSV_TTYS */
 
-#if defined(STREAM)
+#ifdef HAVE_TERMIOS
 #include <termios.h>
+#endif
+#if defined(STREAM)
 #include <stropts.h>
 #if defined(PPSCLK)
 #include <sys/clkdefs.h>
@@ -270,9 +272,9 @@ init_loopfilter()
 	 */
 	PPSCLK SUPPORT NOT AVAILABLE IN TERMIO INTERFACE
 #endif /* HAVE_SYSV_TTYS */
-#if defined(STREAM)
+#if defined(HAVE_TERMIOS)
 	/*
-	 * POSIX/STREAMS serial line parameters (termios interface)
+	 * POSIX serial line parameters (termios interface)
 	 *
 	 * The PPSCLK option provides timestamping at the driver level. 
 	 * It uses a 1-pps signal and level converter (gadget box) and
@@ -302,17 +304,19 @@ init_loopfilter()
 		    "loopfilter: tcflush(%s): %m", PPS_DEV);
                 goto screwed;
         }
-	while (ioctl(fd232, I_POP, 0 ) >= 0) ;
-	if (ioctl(fd232, I_PUSH, "clk") < 0) {
-		syslog(LOG_ERR,
-		    "loopfilter: ioctl(%s, I_PUSH, clk): %m", PPS_DEV);
-		goto screwed;
-	}
-	if (ioctl(fd232, CLK_SETSTR, PPS_XCPT) < 0) {
-		syslog(LOG_ERR,
-		    "loopfilter: ioctl(%s, CLK_SETSTR, PPS_XCPT): %m", PPS_DEV);
-		goto screwed;
-	}
+    }
+#endif /* HAVE_TERMIOS */
+#if defined(STREAM)
+    while (ioctl(fd232, I_POP, 0 ) >= 0) ;
+    if (ioctl(fd232, I_PUSH, "clk") < 0) {
+	    syslog(LOG_ERR,
+		"loopfilter: ioctl(%s, I_PUSH, clk): %m", PPS_DEV);
+	    goto screwed;
+    }
+    if (ioctl(fd232, CLK_SETSTR, PPS_XCPT) < 0) {
+	    syslog(LOG_ERR,
+		"loopfilter: ioctl(%s, CLK_SETSTR, PPS_XCPT): %m", PPS_DEV);
+	    goto screwed;
     }
 #endif /* STREAM */
 #if defined(HAVE_BSD_TTYS)
@@ -762,9 +766,9 @@ loop_config(item, lfp_value, int_value)
 
 #if defined(PPSCLK)
 	case LOOP_PPSBAUD:
-#if defined(STREAM)
+#if defined(HAVE_TERMIOS)
 		/*
-		 * System V STREAM serial line parameters
+		 * System V TERMIOS serial line parameters
 		 * (termios interface)
 		 */
     {		struct termios ttyb, *ttyp;
@@ -778,7 +782,7 @@ loop_config(item, lfp_value, int_value)
         	if (tcsetattr(fdpps, TCSANOW, ttyp) < 0)
 			return;
     }
-#endif /* STREAM */
+#endif /* HAVE_TERMIOS */
 #if defined(HAVE_BSD_TTYS)
 
 		/*

@@ -1,9 +1,9 @@
 /*
  * /src/NTP/REPOSITORY/v3/kernel/parsetest.c,v 3.4 1993/03/17 17:16:57 kardel Exp
  *
- * parsetest.c,v 3.4 1993/03/17 17:16:57 kardel Exp
+ * parsetest.c,v 3.10 1994/01/23 17:22:18 kardel Exp
  *
- * Copyright (c) 1989,1990,1991,1992,1993
+ * Copyright (c) 1989,1990,1991,1992,1993,1994
  * Frank Kardel Friedrich-Alexander Universitaet Erlangen-Nuernberg
  *                                    
  * This program is distributed in the hope that it will be useful,
@@ -198,7 +198,7 @@ main(argc, argv)
 	  parsetime_t parsetime;
 	  struct strioctl strioc;
 	  
-	  printf("parsetest.c,v 3.9 1993/10/10 21:18:49 kardel Exp\n");
+	  printf("parsetest.c,v 3.10 1994/01/23 17:22:18 kardel Exp\n");
 	  
 	  while (ioctl(fd, I_POP, 0) == 0)
 	    ;

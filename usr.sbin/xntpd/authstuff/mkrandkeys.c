@@ -34,14 +34,14 @@ char *argv[];
 	int numkeys;
 	U_LONG tmp;
 	char *passwd;
-	extern int optind;
-	extern char *optarg;
+	extern int ntp_optind;
+	extern char *ntp_optarg;
 	extern char *getpass();
 
 	numkeys = 0;
 	progname = argv[0];
 	passwd = NULL;
-	while ((c = getopt_l(argc, argv, "dnp:s")) != EOF)
+	while ((c = ntp_getopt(argc, argv, "dnp:s")) != EOF)
 		switch (c) {
 		case 'd':
 			++debug;
@@ -50,7 +50,7 @@ char *argv[];
 			std = 0;
 			break;
 		case 'p':
-			passwd = optarg;
+			passwd = ntp_optarg;
 			break;
 		case 's':
 			std = 1;
@@ -61,11 +61,11 @@ char *argv[];
 		}
 
 	numkeys = 0;
-	for (; !errflg && optind < argc; optind++) {
-		c = atoi(argv[optind]);
+	for (; !errflg && ntp_optind < argc; ntp_optind++) {
+		c = atoi(argv[ntp_optind]);
 		if (c <= 0 || c > 15) {
-			(void) fprintf("%s: invalid key number `%s'\n",
-			    progname, argv[optind]);
+			(void) fprintf(stderr, "%s: invalid key number `%s'\n",
+				       progname, argv[ntp_optind]);
 			exit(2);
 		}
 		dokey[c] = 1;

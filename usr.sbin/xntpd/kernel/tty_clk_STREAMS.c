@@ -62,7 +62,7 @@ struct priv_data_type
 char first_open=1;
 
 /*
- * God only knows why, but linking with strchr() and index() fail
+ * God only knows why, but linking with strchr() fails
  * on my system, so here's a renamed copy.
  */
 

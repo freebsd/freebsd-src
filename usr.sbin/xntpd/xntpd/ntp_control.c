@@ -1,4 +1,4 @@
-/* ntp_control.c,v 3.1 1993/07/06 01:11:13 jbj Exp
+/*
  * ntp_control.c - respond to control messages and send async traps
  */
 #include <stdio.h>
@@ -61,6 +61,7 @@ static	void	ctl_putpeer	P((int, struct peer *));
 static	void	ctl_putclock	P((int, struct refclockstat *, int));
 #endif	/* REFCLOCK */
 static	struct ctl_var *ctl_getitem	P((struct ctl_var *, char **));
+static  unsigned long count_var P((struct ctl_var *));
 static	void	control_unspec	P((struct recvbuf *, int));
 static	void	read_status	P((struct recvbuf *, int));
 static	void	read_variables	P((struct recvbuf *, int));
@@ -82,30 +83,6 @@ static	struct ctl_proc control_codes[] = {
 	{ CTL_OP_UNSETTRAP,	NOAUTH,	unset_trap },
 	{ NO_REQUEST,		0 }
 };
-
-
-/*
- * Structure for translation tables between internal system
- * variable indices and text format.
- */
-struct ctl_var {
-	u_short code;
-	u_short flags;
-	char *text;
-};
-
-/*
- * Flag values
- */
-#define	CAN_READ	0x1
-#define	CAN_WRITE	0x2
-#define	PADDING		0x80
-#define	EOV		0x40
-
-#define	RO	(CAN_READ)
-#define	WO	(CAN_WRITE)
-#define	RW	(CAN_READ|CAN_WRITE)
-
 
 /*
  * System variable values.  The array can be indexed by
@@ -132,9 +109,11 @@ static	struct ctl_var sys_var[] = {
 	{ CS_SYSTEM,	RO,	"system" },	/* 17 */
 	{ CS_KEYID,	RO,	"keyid" },	/* 18 */
 	{ CS_REFSKEW,	RO,	"refskew" },	/* 19 */
-	{ CS_VERSION,	RO,	"daemon_version" },	/* 20 */
+	{ CS_VARLIST,	RO,	"sys_var_list" },/* 20 */
 	{ 0,		EOV,	""	}
 };
+
+static	struct ctl_var *ext_sys_var = (struct ctl_var *)0;
 
 /*
  * System variables we print by default (in fuzzball order, more-or-less)
@@ -153,7 +132,6 @@ static	u_char def_sys_var[] = {
 	CS_OFFSET,
 	CS_DRIFT,
 	CS_COMPLIANCE,
-	CS_VERSION,
 	0
 };
 
@@ -197,6 +175,8 @@ static	struct ctl_var peer_var[] = {
 	{ CP_SENT,	RO,	"sent" },	/* 32 */
 	{ CP_FILTERROR,	RO,	"filterror" },	/* 33 */
 	{ CP_FLASH,	RO,	"flash" },	/* 34 */
+	{ CP_DISP,	PADDING,"" },		/* 35 */
+	{ CP_VARLIST,	RO,	"peer_var_list" }, /* 36 */
 	{ 0,		EOV,	""	}
 };
 
@@ -255,6 +235,7 @@ static	struct ctl_var clock_var[] = {
 	{ CC_FUDGEVAL2,	RO,	"fudgeval2" },	/* 10 */
 	{ CC_FLAGS,	RO,	"flags" },	/* 11 */
 	{ CC_DEVICE,	RO,	"device" },	/* 12 */
+	{ CC_VARLIST,	RO,	"clock_var_list" },/* 13 */
 	{ 0,		EOV,	""	}
 };
 
@@ -283,8 +264,15 @@ static	u_char def_clock_var[] = {
 /*
  * System and processor definitions.  These will change for the gizmo board.
  */
+#ifndef STR_SYSTEM
 #define	STR_SYSTEM	"UNIX"
+#endif
+#ifndef STR_PROCESSOR
 #define	STR_PROCESSOR	"unknown"
+#endif
+
+static char str_system[] = STR_SYSTEM;
+static char str_processor[] = STR_PROCESSOR;
 
 /*
  * Trap structures.  We only allow a few of these, and send
@@ -872,7 +860,7 @@ ctl_putdata(dp, dlen, bin)
 		ctl_flushpkt(CTL_MORE);
 	}
 
-	bcopy(dp, (char *)datapt, dlen);
+	memmove((char *)datapt, dp, dlen);
 	datapt += dlen;
 	datalinelen += dlen;
 }
@@ -900,7 +888,7 @@ ctl_putstr(tag, data, len)
 		*cp++ = '"';
 		if (len > (sizeof(buffer) - (cp - buffer) - 1))
 			len = sizeof(buffer) - (cp - buffer) - 1;
-		bcopy(data, cp, len);
+		memmove(cp, data, len);
 		cp += len;
 		*cp++ = '"';
 	}
@@ -1221,7 +1209,6 @@ static void
 ctl_putsys(varid)
 	int varid;
 {
-	extern char *Version;
 	l_fp tmp;
 
 	switch (varid) {
@@ -1280,12 +1267,12 @@ ctl_putsys(varid)
 		ctl_putuint(sys_var[CS_LEAPWARNING].text, (U_LONG)leap_warning);
 		break;
 	case CS_PROCESSOR:
-		ctl_putstr(sys_var[CS_PROCESSOR].text, STR_PROCESSOR,
-		    sizeof(STR_PROCESSOR) - 1);
+		ctl_putstr(sys_var[CS_PROCESSOR].text, str_processor,
+		    sizeof(str_processor) - 1);
 		break;
 	case CS_SYSTEM:
-		ctl_putstr(sys_var[CS_SYSTEM].text, STR_SYSTEM,
-		    sizeof(STR_SYSTEM) - 1);
+		ctl_putstr(sys_var[CS_SYSTEM].text, str_system,
+		    sizeof(str_system) - 1);
 		break;
 	case CS_KEYID:
 		ctl_putuint(sys_var[CS_KEYID].text, (U_LONG)0);
@@ -1293,9 +1280,66 @@ ctl_putsys(varid)
 	case CS_REFSKEW:
 		ctl_putlfp(sys_var[CS_REFSKEW].text, &sys_refskew);
 		break;
-	case CS_VERSION:
-		ctl_putstr(sys_var[CS_VERSION].text, Version,
-		    strlen(Version));
+	case CS_VARLIST:
+		{
+		  char buf[CTL_MAX_DATA_LEN];
+		  register char *s, *ss, *t, *be;
+		  register int i;
+		  register struct ctl_var *k;
+
+		  s = buf;
+		  be = buf + sizeof(buf) - strlen(sys_var[CS_VARLIST].text) - 4;
+		  if (s > be)
+		    break;	/* really long var name 8-( - Killer */
+		  
+		  strcpy(s, sys_var[CS_VARLIST].text);
+		  strcat(s, "=\"");
+		  s += strlen(s);
+		  t = s;
+
+		  for (k = sys_var; !(k->flags &EOV); k++)
+		    {
+		      if (k->flags & PADDING)
+			continue;
+
+		      i = strlen(k->text);
+		      if (s+i+1 >= be)
+			break;
+		      if (s != t)
+			*s++ = ',';
+		      strcpy(s, k->text);
+		      s += i;
+		    }
+
+		  for (k = ext_sys_var; k && !(k->flags &EOV); k++)
+		    {
+		      if (k->flags & PADDING)
+			continue;
+
+		      ss = k->text;
+		      if (!ss)
+			continue;
+
+		      while (*ss && *ss != '=')
+			ss++;
+
+		      i = ss - k->text;
+		      if (s+i+1 >= be)
+			break;
+		      if (s != t)
+			*s++ = ',';
+		      strncpy(s, k->text, i);
+		      s += i;
+		    }
+
+		  if (s+2 >= be)
+		    break;
+		  
+		  *s++ = '"';
+		  *s = '\0';
+
+		  ctl_putdata(buf, s - buf, 0);
+		}
 		break;
 	}
 }
@@ -1428,6 +1472,46 @@ ctl_putpeer(varid, peer)
 	case CP_SENT:
 		ctl_putuint(peer_var[CP_SENT].text, peer->sent);
 		break;
+	case CP_VARLIST:
+		{
+		  char buf[CTL_MAX_DATA_LEN];
+		  register char *s, *t, *be;
+		  register int i;
+		  register struct ctl_var *k;
+
+		  s = buf;
+		  be = buf + sizeof(buf) - strlen(peer_var[CP_VARLIST].text) - 4;
+		  if (s > be)
+		    break;	/* really long var name 8-( - Killer */
+		  
+		  strcpy(s, peer_var[CP_VARLIST].text);
+		  strcat(s, "=\"");
+		  s += strlen(s);
+		  t = s;
+
+		  for (k = peer_var; !(k->flags &EOV); k++)
+		    {
+		      if (k->flags & PADDING)
+			continue;
+
+		      i = strlen(k->text);
+		      if (s+i+1 >= be)
+			break;
+		      if (s != t)
+			*s++ = ',';
+		      strcpy(s, k->text);
+		      s += i;
+		    }
+
+		  if (s+2 >= be)
+		    break;
+		  
+		  *s++ = '"';
+		  *s = '\0';
+
+		  ctl_putdata(buf, s - buf, 0);
+		}
+		break;
 	}
 }
 
@@ -1501,6 +1585,68 @@ ctl_putclock(varid, clock, mustput)
 			    strlen(clock->clockdesc));
 		}
 		break;
+	case CC_VARLIST:
+		{
+		  char buf[CTL_MAX_DATA_LEN];
+		  register char *s, *ss, *t, *be;
+		  register int i;
+		  register struct ctl_var *k;
+
+		  s = buf;
+		  be = buf + sizeof(buf) - strlen(clock_var[CC_VARLIST].text) - 4;
+		  if (s > be)
+		    break;	/* really long var name 8-( - Killer */
+		  
+		  strcpy(s, clock_var[CC_VARLIST].text);
+		  strcat(s, "=\"");
+		  s += strlen(s);
+		  t = s;
+
+		  for (k = clock_var; !(k->flags &EOV); k++)
+		    {
+		      if (k->flags & PADDING)
+			continue;
+
+		      i = strlen(k->text);
+		      if (s+i+1 >= be)
+			break;
+		      if (s != t)
+			*s++ = ',';
+		      strcpy(s, k->text);
+		      s += i;
+		    }
+
+		  for (k = clock->kv_list; k && !(k->flags &EOV); k++)
+		    {
+		      if (k->flags & PADDING)
+			continue;
+
+		      ss = k->text;
+		      if (!ss)
+			continue;
+		      
+		      while (*ss && *ss != '=')
+			ss++;
+
+		      i = ss - k->text;
+		      if (s+i+1 >= be)
+			break;
+		      if (s != t)
+			*s++ = ',';
+		      strncpy(s, k->text, i);
+		      s += i;
+		      *s = '\0';
+		    }
+
+		  if (s+2 >= be)
+		    break;
+		  
+		  *s++ = '"';
+		  *s = '\0';
+
+		  ctl_putdata(buf, s - buf, 0);
+		}
+		break;
 	}
 }
 #endif
@@ -1517,6 +1663,7 @@ ctl_getitem(var_list, data)
 {
 	register struct ctl_var *v;
 	register char *cp, *tp;
+	static struct ctl_var eol = { 0, EOV, };
 	static char buf[128];
 
 	/*
@@ -1528,6 +1675,9 @@ ctl_getitem(var_list, data)
 
 	if (reqpt >= reqend)
 		return 0;
+
+	if (var_list == (struct ctl_var *)0)
+	  return &eol;
 	
 	/*
 	 * Look for a first character match on the tag.  If we find
@@ -1538,11 +1688,11 @@ ctl_getitem(var_list, data)
 	while (!(v->flags & EOV)) {
 		if (!(v->flags & PADDING) && *cp == *(v->text)) {
 			tp = v->text;
-			while (*tp != '\0' && cp < reqend && *cp == *tp) {
+			while (*tp != '\0' && *tp != '=' && cp < reqend && *cp == *tp) {
 				cp++;
 				tp++;
 			}
-			if (*tp == '\0') {
+			if ((*tp == '\0') || (*tp == '=')) {
 				while (cp < reqend && isspace(*cp))
 					cp++;
 				if (cp == reqend || *cp == ',') {
@@ -1685,8 +1835,8 @@ read_variables(rbufp, restrict)
 	register struct ctl_var *v;
 	register int i;
 	char *valuep;
-	u_char wants[(CS_MAXCODE>CP_MAXCODE) ? (CS_MAXCODE+1) : (CP_MAXCODE+1)];
-	int gotvar;
+	u_char *wants;
+	int gotvar = (CS_MAXCODE>CP_MAXCODE) ? (CS_MAXCODE+1) : (CP_MAXCODE+1);
 
 	if (res_associd == 0) {
 		/*
@@ -1696,12 +1846,24 @@ read_variables(rbufp, restrict)
 		rpkt.status = htons(ctlsysstatus());
 		if (res_authokay)
 			ctl_sys_num_events = 0;
-		bzero((char *)wants, CS_MAXCODE+1);
+		gotvar += count_var(ext_sys_var);
+		wants = (u_char *)emalloc(gotvar);
+		memset((char *)wants, 0, gotvar);
 		gotvar = 0;
 		while ((v = ctl_getitem(sys_var, &valuep)) != 0) {
 			if (v->flags & EOV) {
-				ctl_error(CERR_UNKNOWNVAR);
-				return;
+			        if ((v = ctl_getitem(ext_sys_var, &valuep)) != 0) {
+				        if (v->flags & EOV) {
+					        ctl_error(CERR_UNKNOWNVAR);
+						free((char *)wants);
+						return;
+					}
+					wants[CS_MAXCODE+1+v->code] = 1;
+					gotvar = 1;
+					continue;
+			       	} else {
+				        break; /* shouldn't happen ! */
+				}
 			}
 			wants[v->code] = 1;
 			gotvar = 1;
@@ -1710,12 +1872,21 @@ read_variables(rbufp, restrict)
 			for (i = 1; i <= CS_MAXCODE; i++)
 				if (wants[i])
 					ctl_putsys(i);
+			for (i = 0; ext_sys_var && !(ext_sys_var[i].flags & EOV); i++)
+			        if (wants[i+CS_MAXCODE+1])
+				        ctl_putdata(ext_sys_var[i].text,
+						    strlen(ext_sys_var[i].text), 0);
 		} else {
 			register u_char *cs;
+			register struct ctl_var *kv;
 
 			for (cs = def_sys_var; *cs != 0; cs++)
-				ctl_putsys((int)*cs);
+			        ctl_putsys((int)*cs);
+			for (kv = ext_sys_var; kv && !(kv->flags & EOV); kv++)
+			        if (kv->flags & DEF)
+				        ctl_putdata(kv->text, strlen(kv->text), 0);
 		}
+		free((char *)wants);
 	} else {
 		register struct peer *peer;
 
@@ -1732,11 +1903,13 @@ read_variables(rbufp, restrict)
 		rpkt.status = htons(ctlpeerstatus(peer));
 		if (res_authokay)
 			peer->num_events = 0;
-		bzero((char*)wants, CP_MAXCODE+1);
+		wants = (u_char *)emalloc(gotvar);
+		memset((char*)wants, 0, gotvar);
 		gotvar = 0;
 		while ((v = ctl_getitem(peer_var, &valuep)) != 0) {
 			if (v->flags & EOV) {
 				ctl_error(CERR_UNKNOWNVAR);
+				free((char *)wants);
 				return;
 			}
 			wants[v->code] = 1;
@@ -1752,6 +1925,7 @@ read_variables(rbufp, restrict)
 			for (cp = def_peer_var; *cp != 0; cp++)
 				ctl_putpeer((int)*cp, peer);
 		}
+		free((char *)wants);
 	}
 	ctl_flushpkt(0);
 }
@@ -1768,6 +1942,7 @@ write_variables(rbufp, restrict)
 	int restrict;
 {
 	register struct ctl_var *v;
+	register int ext_var;
 	char *valuep;
 	LONG val;
 	u_char leapind, leapwarn;
@@ -1795,37 +1970,60 @@ write_variables(rbufp, restrict)
 	 * Look through the variables.  Dump out at the first sign of trouble.
 	 */
 	while ((v = ctl_getitem(sys_var, &valuep)) != 0) {
+		ext_var = 0;
 		if (v->flags & EOV) {
-			ctl_error(CERR_UNKNOWNVAR);
-			return;
+			if ((v = ctl_getitem(ext_sys_var, &valuep)) != 0) {
+				if (v->flags & EOV) {
+					ctl_error(CERR_UNKNOWNVAR);
+					return;
+				}
+				ext_var = 1;
+			} else {
+				break;
+			}
 		}
 		if (!(v->flags & CAN_WRITE)) {
 			ctl_error(CERR_PERMISSION);
 			return;
 		}
-		if (*valuep == '\0' || !atoint(valuep, &val)) {
+		if (!ext_var && (*valuep == '\0' || !atoint(valuep, &val))) {
 			ctl_error(CERR_BADFMT);
 			return;
 		}
-		if ((val & ~LEAP_NOTINSYNC) != 0) {
+		if (!ext_var && (val & ~LEAP_NOTINSYNC) != 0) {
 			ctl_error(CERR_BADVALUE);
 			return;
 		}
 
-		/*
-		 * This one seems sane.  Save it.
-		 */
-		switch(v->code) {
-		case CS_LEAP:
-		case CS_LEAPIND:
-			leapind = (u_char)val;
-			break;
-		case CS_LEAPWARNING:
-			leapwarn = (u_char)val;
-			break;
-		default:
-			ctl_error(CERR_UNSPEC);		/* our fault, really */
-			return;
+		if (ext_var) {
+			char *s = emalloc(strlen(v->text)+strlen(valuep)+2);
+		        char *t, *tt = s;
+
+		        t = v->text;
+			while (*t && *t != '=')
+			  *tt++ = *t++;
+			
+			*tt++ = '=';
+			strcat(tt, valuep);
+
+			set_sys_var(s, strlen(s)+1, v->flags);
+			free(s);
+		} else {
+			/*
+			 * This one seems sane.  Save it.
+			 */
+			switch(v->code) {
+			case CS_LEAP:
+			case CS_LEAPIND:
+				leapind = (u_char)val;
+				break;
+			case CS_LEAPWARNING:
+				leapwarn = (u_char)val;
+				break;
+			default:
+				ctl_error(CERR_UNSPEC);		/* our fault, really */
+			  	return;
+			}
 		}
 	}
 
@@ -1861,7 +2059,7 @@ read_clock_status(rbufp, restrict)
 	register int i;
 	register struct peer *peer;
 	char *valuep;
-	u_char wants[CC_MAXCODE+1];
+	u_char *wants;
 	int gotvar;
 	struct refclockstat clock;
 
@@ -1898,18 +2096,33 @@ read_clock_status(rbufp, restrict)
 	/*
 	 * If we got here we have a peer which is a clock.  Get his status.
 	 */
+	clock.kv_list = (struct ctl_var *)0;
+	
 	refclock_control(&peer->srcadr, (struct refclockstat *)0, &clock);
 
 	/*
 	 * Look for variables in the packet.
 	 */
 	rpkt.status = htons(ctlclkstatus(&clock));
+	gotvar = CC_MAXCODE+1+count_var(clock.kv_list);
+	wants = (u_char *)emalloc(gotvar);
+	memset((char*)wants, 0, gotvar);
 	gotvar = 0;
-	bzero((char*)wants, CC_MAXCODE+1);
-	while ((v = ctl_getitem(sys_var, &valuep)) != 0) {
+	while ((v = ctl_getitem(clock_var, &valuep)) != 0) {
 		if (v->flags & EOV) {
-			ctl_error(CERR_UNKNOWNVAR);
-			return;
+		        if ((v = ctl_getitem(clock.kv_list, &valuep)) != 0) {
+			        if (v->flags & EOV) {
+				        ctl_error(CERR_UNKNOWNVAR);
+					free((char*)wants);
+					free_varlist(clock.kv_list);
+					return;
+				}
+				wants[CC_MAXCODE+1+v->code] = 1;
+				gotvar = 1;
+				continue;
+			} else {
+			        break; /* shouldn't happen ! */
+			}
 		}
 		wants[v->code] = 1;
 		gotvar = 1;
@@ -1919,12 +2132,24 @@ read_clock_status(rbufp, restrict)
 		for (i = 1; i <= CC_MAXCODE; i++)
 			if (wants[i])
 				ctl_putclock(i, &clock, 1);
+		for (i = 0; clock.kv_list && !(clock.kv_list[i].flags & EOV); i++)
+			if (wants[i+CC_MAXCODE+1])
+			        ctl_putdata(clock.kv_list[i].text,
+					    strlen(clock.kv_list[i].text), 0);
 	} else {
 		register u_char *cc;
+		register struct ctl_var *kv;
 
 		for (cc = def_clock_var; *cc != 0; cc++)
 			ctl_putclock((int)*cc, &clock, 0);
+		for (kv = clock.kv_list; kv && !(kv->flags & EOV); kv++)
+		  	if (kv->flags & DEF)
+			        ctl_putdata(kv->text, strlen(kv->text), 0);
 	}
+
+	free((char*)wants);
+	free_varlist(clock.kv_list);
+
 	ctl_flushpkt(0);
 #endif
 }
@@ -2237,13 +2462,23 @@ report_event(err, peer)
 		 */
 		if (err == EVNT_CLOCKEXCPT) {
 		        struct refclockstat clock;
-				refclock_control(&peer->srcadr,
+			struct ctl_var *kv;
+
+			clock.kv_list = (struct ctl_var *)0;
+
+			refclock_control(&peer->srcadr,
 					 (struct refclockstat *)0,
 					 &clock);
 			ctl_puthex("refclockstatus",
 				   (U_LONG)ctlclkstatus(&clock));
+
 			for (i = 1; i <= CC_MAXCODE; i++)
 			        	ctl_putclock(i, &clock, 0);
+			for (kv = clock.kv_list; kv && !(kv->flags & EOV); kv++)
+			        if (kv->flags & DEF)
+			                ctl_putdata(kv->text, strlen(kv->text), 0);
+
+			free_varlist(clock.kv_list);
 		}
 #endif /*REFCLOCK*/
 	} else {
@@ -2262,13 +2497,24 @@ report_event(err, peer)
 			 */
 			if (err == EVNT_PEERCLOCK) {
 			        struct refclockstat clock;
+				struct ctl_var *kv;
+
+				clock.kv_list = (struct ctl_var *)0;
+				
  				refclock_control(&peer->srcadr,
 						 (struct refclockstat *)0,
 						 &clock);
+
 				ctl_puthex("refclockstatus",
 					   (U_LONG)ctlclkstatus(&clock));
+
 				for (i = 1; i <= CC_MAXCODE; i++)
  			        	ctl_putclock(i, &clock, 0);
+				for (kv = clock.kv_list; kv && !(kv->flags & EOV); kv++)
+				        if (kv->flags & DEF)
+					        ctl_putdata(kv->text, strlen(kv->text), 0);
+
+				free_varlist(clock.kv_list);
 			}
 #endif /*REFCLOCK*/
 	}
@@ -2302,4 +2548,116 @@ ctl_clr_stats()
 	numctldatatooshort = 0;
 	numctlbadop = 0;
 	numasyncmsgs = 0;
+}
+
+static unsigned long
+count_var(k)
+  struct ctl_var *k;
+{
+  register unsigned long c;
+
+  c = 0;
+  while (k && !(k++->flags & EOV))
+    c++;
+
+  return c;
+}
+
+char *
+add_var(kv, size, def)
+     struct ctl_var **kv;
+     unsigned long size;
+     int def;
+{
+  register unsigned long c;
+  register struct ctl_var *k;
+
+  c = count_var(*kv);
+
+  k = *kv;
+  *kv  = (struct ctl_var *)emalloc((c+2)*sizeof(struct ctl_var));
+  if (k)
+    {
+      memmove((char *)*kv, (char *)k, sizeof(struct ctl_var)*c);
+      free((char *)k);
+    }
+
+  (*kv)[c].code  = c;
+  (*kv)[c].text  = (char *)emalloc(size);
+  (*kv)[c].flags = def;
+  (*kv)[c+1].code  = 0;
+  (*kv)[c+1].text  = (char *)0;
+  (*kv)[c+1].flags = EOV;
+  return (*kv)[c].text;
+}
+
+void
+set_var(kv, data, size, def)
+     struct ctl_var **kv;
+     char *data;
+     unsigned long size;
+     int def;
+{
+  register struct ctl_var *k;
+  register char *s, *t;
+
+  if (!data || !size)
+    return;
+
+  if ((k = *kv))
+    {
+      while (!(k->flags & EOV))
+	{
+	  s = data;
+	  t = k->text;
+	  if (t)
+	    {
+	      while (*t != '=' && *s - *t == 0)
+		{
+		  s++;
+		  t++;
+		}
+	      if (*s == *t && ((*t == '=') || !*t))
+		{
+		  free(k->text);
+		  k->text = (char *)emalloc(size);
+		  memmove(k->text, data, size);
+		  k->flags = def;
+		  return;
+		}
+	    }
+	  else
+	    {
+	      k->text = (char *)emalloc(size);
+	      memmove(k->text, data, size);
+	      k->flags = def;
+	      return;
+	    }
+	  k++;
+	}
+    }
+  t = add_var(kv, size, def);
+  memmove(t, data, size);
+}
+
+void
+set_sys_var(data, size, def)
+     char *data;
+     unsigned long size;
+     int def;
+{
+  set_var(&ext_sys_var, data, size, def);
+}
+
+void
+free_varlist(kv)
+     struct ctl_var *kv;
+{
+  struct ctl_var *k;
+  if (kv)
+    {
+      for (k = kv; !(k->flags & EOV); k++)
+	free(k->text);
+      free((char *)kv);
+    }
 }
