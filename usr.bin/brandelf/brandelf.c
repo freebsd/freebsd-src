@@ -67,7 +67,7 @@ main(int argc, char **argv)
 		switch (ch) {
 		case 'f':
 			if (change)
-				errx(1, "f option incompatable with t option");
+				errx(1, "f option incompatible with t option");
 			force = 1;
 			type = atoi(optarg);
 			if (errno == ERANGE || type < 0 || type > 255) {
@@ -85,7 +85,7 @@ main(int argc, char **argv)
 			break;
 		case 't':
 			if (force)
-				errx(1, "t option incompatable with f option");
+				errx(1, "t option incompatible with f option");
 			change = 1;
 			strtype = optarg;
 			break;
