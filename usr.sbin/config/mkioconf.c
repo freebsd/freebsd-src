@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mkioconf.c	8.2 (Berkeley) 1/21/94";
 #endif
 static const char rcsid[] =
-	"$Id: mkioconf.c,v 1.44 1998/10/23 17:05:06 bde Exp $";
+	"$Id: mkioconf.c,v 1.45 1998/11/15 18:07:35 dfr Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -720,8 +720,14 @@ isa_biotab(fp, table)
 		if (dp->d_unit == QUES || mp == 0 ||
 		    mp == TO_NEXUS || !eq(mp->d_name, table))
 			continue;
-		fprintf(fp, "{ -1, &%3sdriver, %8s,",
-			mp->d_name, mp->d_port);
+		fprintf(fp, "{ -1, &%3sdriver, ",
+			mp->d_name);
+		if (mp->d_port)
+			fprintf(fp, " %8s,", mp->d_port);
+		else if (mp->d_portn == -1)
+			fprintf(fp, "       %d,", mp->d_portn);
+		else
+			fprintf(fp, "   0x%04x,", mp->d_portn);
 		fprintf(fp, "%6s, %2d, C 0x%05X, %5d,   0, %3d, 0x%04X, %5d,    0,       0,       0, %6d, %8d,   0 },\n",
 			sirq(mp->d_irq), mp->d_drq, mp->d_maddr,
 			mp->d_msize, dp->d_unit,
