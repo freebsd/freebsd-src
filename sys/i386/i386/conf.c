@@ -41,7 +41,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.47 1994/12/25 23:25:54 ats Exp $
+ *	$Id: conf.c,v 1.48 1995/01/07 14:51:52 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -861,10 +861,14 @@ struct cdevsw	cdevsw[] =
 	{ pcdopen,	pcdclose,	rawread,	nowrite,	/*46*/
 	  pcdioctl,	nostop,		nullreset,	NULL,	/* panasonic cd */
 	  seltrue,	nommap,		pcdstrategy },
-        { gscopen,      gscclose,       gscread,        nowrite, /*47*/
-          gscioctl,     nostop,         nullreset,      NULL,    /* gsc */
+        { gscopen,      gscclose,       gscread,        nowrite,	/*47*/
+          gscioctl,     nostop,         nullreset,      NULL,	/* gsc */
           seltrue,      nommap,         NULL },
 
+	{ (d_open_t *)enxio, (d_close_t *)enxio, (d_rdwr_t *)enxio,	/*48*/
+	  (d_rdwr_t *)enxio, (d_ioctl_t *)enxio, (d_stop_t *)enxio,/* cyclades */
+	  (d_reset_t *)enxio, NULL, (d_select_t *)enxio,
+	  (d_mmap_t *)enxio, NULL },
 };
 int	nchrdev = sizeof (cdevsw) / sizeof (cdevsw[0]);
 
