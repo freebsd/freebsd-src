@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_subr.c	8.1 (Berkeley) 6/10/93
- * $Id: tcp_subr.c,v 1.3 1994/08/02 07:49:08 davidg Exp $
+ * $Id: tcp_subr.c,v 1.4 1994/10/02 17:48:44 phk Exp $
  */
 
 #include <sys/param.h>
@@ -326,8 +326,8 @@ tcp_close(tp)
 		 * before we start updating, then update on both good
 		 * and bad news.
 		 */
-		if ((rt->rt_rmx.rmx_locks & RTV_SSTHRESH) == 0 &&
-		    ((i = tp->snd_ssthresh)) && rt->rt_rmx.rmx_ssthresh ||
+		if (((rt->rt_rmx.rmx_locks & RTV_SSTHRESH) == 0 &&
+		    ((i = tp->snd_ssthresh) != 0) && rt->rt_rmx.rmx_ssthresh) ||
 		    i < (rt->rt_rmx.rmx_sendpipe / 2)) {
 			/*
 			 * convert the limit from user data bytes to
