@@ -166,7 +166,7 @@ ENTRY(xscale_setttb)
 #else
 	str	r2, [r3]
 #endif
-	mov	pc, lr
+	RET
 
 /*
  * TLB functions
@@ -177,7 +177,7 @@ ENTRY(xscale_setttb)
 ENTRY(xscale_tlb_flushID_SE)
 	mcr	p15, 0, r0, c8, c6, 1	/* flush D tlb single entry */
 	mcr	p15, 0, r0, c8, c5, 1	/* flush I tlb single entry */
-	mov	pc, lr
+	RET
 
 /*
  * Cache functions
@@ -317,7 +317,7 @@ ENTRY(xscale_cache_cleanD)
 	CPWAIT(r0)
 
 	XSCALE_CACHE_CLEAN_EPILOGUE
-	mov	pc, lr
+	RET
 
 /*
  * Clean the mini-data cache.
@@ -494,4 +494,4 @@ ENTRY(xscale_cpu_sleep)
 	mcr	p14, 0, r0, c7, c0, 0
 
 1:
-	mov	pc, lr
+	RET

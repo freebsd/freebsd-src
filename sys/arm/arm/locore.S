@@ -317,12 +317,12 @@ ENTRY_NP(Execute)
 ENTRY(setjmp)
 	stmia	r0, {r4-r14}
 	mov	r0, #0x00000000
-	mov	pc, lr
+	RET
 
 ENTRY(longjmp)
 	ldmia	r0, {r4-r14}
 	mov	r0, #0x00000001
-	mov	pc, lr
+	RET
 
 	.data
 	.global _C_LABEL(esym)

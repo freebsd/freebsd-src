@@ -49,7 +49,7 @@ __FBSDID("$FreeBSD$");
 	.align	0
 
 ENTRY(cpufunc_nullop)
-	mov	pc, lr
+	RET
 
 /*
  * Generic functions to read the internal coprocessor registers
@@ -63,23 +63,23 @@ ENTRY(cpufunc_nullop)
 
 ENTRY(cpufunc_id)
 	mrc	p15, 0, r0, c0, c0, 0
-	mov	pc, lr
+	RET
 
 ENTRY(cpu_get_control)
 	mrc	p15, 0, r0, c1, c0, 0
-	mov	pc, lr
+	RET
 
 ENTRY(cpu_read_cache_config)
 	mrc	p15, 0, r0, c0, c0, 1
-	mov	pc, lr
+	RET
 
 ENTRY(cpufunc_faultstatus)
 	mrc	p15, 0, r0, c5, c0, 0
-	mov	pc, lr
+	RET
 
 ENTRY(cpufunc_faultaddress)
 	mrc	p15, 0, r0, c6, c0, 0
-	mov	pc, lr
+	RET
 
 
 /*
@@ -96,12 +96,12 @@ ENTRY(cpufunc_faultaddress)
 #if 0 /* See below. */
 ENTRY(cpufunc_control)
 	mcr	p15, 0, r0, c1, c0, 0
-	mov	pc, lr
+	RET
 #endif
 
 ENTRY(cpufunc_domains)
 	mcr	p15, 0, r0, c3, c0, 0
-	mov	pc, lr
+	RET
 
 /*
  * Generic functions to read/modify/write the internal coprocessor registers
@@ -125,7 +125,7 @@ ENTRY(cpufunc_control)
 	mov	r0, r3			/* Return old value */
 	#endif
 
-	mov	pc, lr
+	RET
 .Lglou:
 	.asciz "plop %p\n"
 	.align 0

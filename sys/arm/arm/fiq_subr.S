@@ -73,7 +73,7 @@ ENTRY(fiq_getregs)
 	stmia	r0, {r8-r13}
 
 	BACK_TO_SVC_MODE
-	mov	pc, lr
+	RET
 
 /*
  * fiq_setregs:
@@ -87,7 +87,7 @@ ENTRY(fiq_setregs)
 	ldmia	r0, {r8-r13}
 
 	BACK_TO_SVC_MODE
-	mov	pc, lr
+	RET
 
 /*
  * fiq_nullhandler:

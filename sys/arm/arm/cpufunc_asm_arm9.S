@@ -52,7 +52,7 @@ ENTRY(arm9_setttb)
 	mcr	p15, 0, r0, c2, c0, 0	/* load new TTB */
 
 	mcr	p15, 0, r0, c8, c7, 0	/* invalidate I+D TLBs */
-	mov	pc, lr
+	RET
 
 /*
  * TLB functions
@@ -60,46 +60,46 @@ ENTRY(arm9_setttb)
 ENTRY(arm9_tlb_flushID_SE)
 	mcr	p15, 0, r0, c8, c6, 1	/* flush D tlb single entry */
 	mcr	p15, 0, r0, c8, c5, 1	/* flush I tlb single entry */
-	mov	pc, lr
+	RET
 
 /*
  * Cache functions
  */
 ENTRY(arm9_cache_flushID)
 	mcr	p15, 0, r0, c7, c7, 0	/* flush I+D cache */
-	mov	pc, lr
+	RET
 
 ENTRY(arm9_cache_flushID_SE)
 	mcr	p15, 0, r0, c7, c5, 1	/* flush one entry from I cache */
 	mcr	p15, 0, r0, c7, c6, 1	/* flush one entry from D cache */
-	mov	pc, lr
+	RET
 
 ENTRY(arm9_cache_flushI)
 	mcr	p15, 0, r0, c7, c5, 0	/* flush I cache */
-	mov	pc, lr
+	RET
 
 ENTRY(arm9_cache_flushI_SE)
 	mcr	p15, 0, r0, c7, c5, 1	/* flush one entry from I cache */
-	mov	pc, lr
+	RET
 
 ENTRY(arm9_cache_flushD)
 	mcr	p15, 0, r0, c7, c6, 0	/* flush D cache */
-	mov	pc, lr
+	RET
 
 ENTRY(arm9_cache_flushD_SE)
 	mcr	p15, 0, r0, c7, c6, 1	/* flush one entry from D cache */
-	mov	pc, lr
+	RET
 
 ENTRY(arm9_cache_cleanID)
 	mcr	p15, 0, r0, c7, c10, 4
-	mov	pc, lr
+	RET
 
 /*
  * Soft functions
  */
 ENTRY(arm9_cache_syncI) 
 	mcr	p15, 0, r0, c7, c7, 0	/* flush I+D caches */
-	mov	pc, lr
+	RET
 
 ENTRY_NP(arm9_cache_flushID_rng)
 	b	_C_LABEL(arm9_cache_flushID)
@@ -134,4 +134,4 @@ ENTRY(arm9_context_switch)
 	nop
 	nop
 	nop
-	mov	pc, lr
+	RET

@@ -274,7 +274,7 @@ ASENTRY_NP(L_cksumdata)
 	orrne	r2, r2, r6, lsl #24
 #endif
 	subs	r1, r1, r7		/* Update length */
-	moveq	pc, lr			/* All done? */
+	RETeq			/* All done? */
 
 	/* Buffer is now word aligned */
 .Lcksumdata_wordaligned:
@@ -366,7 +366,7 @@ ASENTRY_NP(L_cksumdata)
 #endif
 
 	adds	r1, r1, #0x40
-	moveq	pc, lr
+	RETeq
 	cmp	r1, #0x20
 
 #ifdef __XSCALE__
@@ -399,7 +399,7 @@ ASENTRY_NP(L_cksumdata)
 #endif
 	adc	r2, r2, #0x00
 	subs	r1, r1, #0x20
-	moveq	pc, lr
+	RETeq
 
 .Lcksumdata_less_than_32:
 	/* There are less than 32 bytes left */
@@ -442,7 +442,7 @@ ASENTRY_NP(L_cksumdata)
 	/* Deal with < 4 bytes remaining */
 .Lcksumdata_lessthan4:
 	adds	r1, r1, #0x04
-	moveq	pc, lr
+	RETeq
 
 	/* Deal with 1 to 3 remaining bytes, possibly misaligned */
 .Lcksumdata_endgame:
@@ -467,4 +467,4 @@ ASENTRY_NP(L_cksumdata)
 #endif
 	adds	r2, r2, r3
 	adc	r2, r2, #0x00
-	mov	pc, lr
+	RET

@@ -64,7 +64,7 @@ ENTRY(ffs)
 	/* now lookup in table indexed on top 6 bits of r0 */
 	ldrneb  r0, [ r2, r0, lsr #26 ]
 
-        mov   pc, lr
+	RET
 .text;
 .type .L_ffs_table, _ASM_TYPE_OBJECT;
 .L_ffs_table:
@@ -80,5 +80,5 @@ ENTRY(ffs)
 #else
 	clzne	r0, r0
 	rsbne	r0, r0, #32
-	mov	pc, lr
+	RET
 #endif

@@ -111,7 +111,7 @@ ENTRY(copyin)
 	ldrbt	ip, [r0], #0x01
 	strb	ip, [r1], #0x01
 	cmp	r2, #0x00		/* All done? */
-	moveq	pc, lr
+	RETeq
 
 	/* Destination buffer is now word aligned */
 .Lcopyin_wordaligned:
@@ -193,7 +193,7 @@ ENTRY(copyin)
 .Lcopyin_w_lessthan128:
 	adds	r2, r2, #0x80		/* Adjust for extra sub */
 	ldmeqfd	sp!, {r4-r9}
-	moveq	pc, lr			/* Return now if done */
+	RETeq
 	subs	r2, r2, #0x20
 	blt	.Lcopyin_w_lessthan32
 
@@ -218,7 +218,7 @@ ENTRY(copyin)
 .Lcopyin_w_lessthan32:
 	adds	r2, r2, #0x20		/* Adjust for extra sub */
 	ldmeqfd	sp!, {r4-r9}
-	moveq	pc, lr			/* Return now if done */
+	RETeq				/* Return now if done */
 
 	and	r4, r2, #0x18
 	rsb	r5, r4, #0x18
@@ -246,14 +246,14 @@ ENTRY(copyin)
 
 	/* Less than 8 bytes remaining */
 	ldmfd	sp!, {r4-r9}
-	moveq	pc, lr			/* Return now if done */
+	RETeq				/* Return now if done */
 	mov	r3, #0x00
 
 .Lcopyin_w_less_than8:
 	subs	r2, r2, #0x04
 	ldrget	ip, [r0], #0x04
 	strge	ip, [r1], #0x04
-	moveq	pc, lr			/* Return now if done */
+	RETeq				/* Return now if done */
 	addlt	r2, r2, #0x04
 	ldrbt	ip, [r0], #0x01
 	cmp	r2, #0x02
@@ -262,7 +262,7 @@ ENTRY(copyin)
 	ldrgtbt	ip, [r0]
 	strgeb	r2, [r1], #0x01
 	strgtb	ip, [r1]
-	mov	pc, lr
+	RET
 
 /*
  * At this point, it has not been possible to word align both buffers.
@@ -317,7 +317,7 @@ ENTRY(copyin)
 
 	adds	r2, r2, #0x10         
 	ldmeqfd	sp!, {r4-r7}
-	moveq	pc, lr			/* Return now if done */
+	RETeq				/* Return now if done */
 	subs	r2, r2, #0x04
 	sublt	r0, r0, #0x03
 	blt	.Lcopyin_l4
@@ -378,7 +378,7 @@ ENTRY(copyin)
 
 	adds	r2, r2, #0x10         
 	ldmeqfd	sp!, {r4-r7}
-	moveq	pc, lr			/* Return now if done */
+	RETeq				/* Return now if done */
 	subs	r2, r2, #0x04
 	sublt	r0, r0, #0x02
 	blt	.Lcopyin_l4
@@ -439,7 +439,7 @@ ENTRY(copyin)
 
 	adds	r2, r2, #0x10         
 	ldmeqfd	sp!, {r4-r7}
-	moveq	pc, lr			/* Return now if done */
+	RETeq				/* Return now if done */
 	subs	r2, r2, #0x04
 	sublt	r0, r0, #0x01
 	blt	.Lcopyin_l4
@@ -465,7 +465,7 @@ ENTRY(copyin)
 	ldmfd	sp!, {r4-r7}
 	mov	r3, #0x00
 	adds	r2, r2, #0x04
-	moveq	pc, lr
+	RETeq
 .Lcopyin_l4_2:
 	rsbs	r2, r2, #0x03
 	addne	pc, pc, r2, lsl #3
@@ -476,7 +476,7 @@ ENTRY(copyin)
 	strb	ip, [r1], #0x01
 	ldrbt	ip, [r0]
 	strb	ip, [r1]
-	mov	pc, lr
+	RET
 
 
 /*
@@ -541,7 +541,7 @@ ENTRY(copyout)
 	ldrb	ip, [r0], #0x01
 	strbt	ip, [r1], #0x01
 	cmp	r2, #0x00		/* All done? */
-	moveq	pc, lr
+	RETeq
 
 	/* Destination buffer is now word aligned */
 .Lcopyout_wordaligned:
@@ -639,7 +639,7 @@ ENTRY(copyout)
 .Lcopyout_w_lessthan128:
 	adds	r2, r2, #0x80		/* Adjust for extra sub */
 	ldmeqfd	sp!, {r4-r9}
-	moveq	pc, lr			/* Return now if done */
+	RETeq				/* Return now if done */
 	subs	r2, r2, #0x20
 	blt	.Lcopyout_w_lessthan32
 
@@ -668,7 +668,7 @@ ENTRY(copyout)
 .Lcopyout_w_lessthan32:
 	adds	r2, r2, #0x20		/* Adjust for extra sub */
 	ldmeqfd	sp!, {r4-r9}
-	moveq	pc, lr			/* Return now if done */
+	RETeq				/* Return now if done */
 
 	and	r4, r2, #0x18
 	rsb	r5, r4, #0x18
@@ -696,14 +696,14 @@ ENTRY(copyout)
 
 	/* Less than 8 bytes remaining */
 	ldmfd	sp!, {r4-r9}
-	moveq	pc, lr			/* Return now if done */
+	RETeq				/* Return now if done */
 	mov	r3, #0x00
 
 .Lcopyout_w_less_than8:
 	subs	r2, r2, #0x04
 	ldrge	ip, [r0], #0x04
 	strget	ip, [r1], #0x04
-	moveq	pc, lr			/* Return now if done */
+	RETeq				/* Return now if done */
 	addlt	r2, r2, #0x04
 	ldrb	ip, [r0], #0x01
 	cmp	r2, #0x02
@@ -712,7 +712,7 @@ ENTRY(copyout)
 	ldrgtb	ip, [r0]
 	strgebt	r2, [r1], #0x01
 	strgtbt	ip, [r1]
-	mov	pc, lr
+	RET
 
 /*
  * At this point, it has not been possible to word align both buffers.
@@ -767,7 +767,7 @@ ENTRY(copyout)
 
 	adds	r2, r2, #0x10         
 	ldmeqfd	sp!, {r4-r7}
-	moveq	pc, lr			/* Return now if done */
+	RETeq				/* Return now if done */
 	subs	r2, r2, #0x04
 	sublt	r0, r0, #0x03
 	blt	.Lcopyout_l4
@@ -828,7 +828,7 @@ ENTRY(copyout)
 
 	adds	r2, r2, #0x10         
 	ldmeqfd	sp!, {r4-r7}
-	moveq	pc, lr			/* Return now if done */
+	RETeq				/* Return now if done */
 	subs	r2, r2, #0x04
 	sublt	r0, r0, #0x02
 	blt	.Lcopyout_l4
@@ -889,7 +889,7 @@ ENTRY(copyout)
 
 	adds	r2, r2, #0x10         
 	ldmeqfd	sp!, {r4-r7}
-	moveq	pc, lr			/* Return now if done */
+	RETeq				/* Return now if done */
 	subs	r2, r2, #0x04
 	sublt	r0, r0, #0x01
 	blt	.Lcopyout_l4
@@ -915,7 +915,7 @@ ENTRY(copyout)
 	ldmfd	sp!, {r4-r7}
 	mov	r3, #0x00
 	adds	r2, r2, #0x04
-	moveq	pc, lr
+	RETeq
 .Lcopyout_l4_2:
 	rsbs	r2, r2, #0x03
 	addne	pc, pc, r2, lsl #3
@@ -926,7 +926,7 @@ ENTRY(copyout)
 	strbt	ip, [r1], #0x01
 	ldrb	ip, [r0]
 	strbt	ip, [r1]
-	mov	pc, lr
+	RET
 
 
 /*
@@ -990,7 +990,7 @@ ENTRY(kcopy)
 	ldrb	ip, [r0], #0x01
 	strb	ip, [r1], #0x01
 	cmp	r2, #0x00		/* All done? */
-	moveq	pc, lr
+	RETeq
 
 	/* Destination buffer is now word aligned */
 .Lkcopy_wordaligned:
@@ -1071,7 +1071,7 @@ ENTRY(kcopy)
 .Lkcopy_w_lessthan128:
 	adds	r2, r2, #0x80		/* Adjust for extra sub */
 	ldmeqfd	sp!, {r4-r9}
-	moveq	pc, lr			/* Return now if done */
+	RETeq				/* Return now if done */
 	subs	r2, r2, #0x20
 	blt	.Lkcopy_w_lessthan32
 
@@ -1096,7 +1096,7 @@ ENTRY(kcopy)
 .Lkcopy_w_lessthan32:
 	adds	r2, r2, #0x20		/* Adjust for extra sub */
 	ldmeqfd	sp!, {r4-r9}
-	moveq	pc, lr			/* Return now if done */
+	RETeq				/* Return now if done */
 
 	and	r4, r2, #0x18
 	rsb	r5, r4, #0x18
@@ -1124,14 +1124,14 @@ ENTRY(kcopy)
 
 	/* Less than 8 bytes remaining */
 	ldmfd	sp!, {r4-r9}
-	moveq	pc, lr			/* Return now if done */
+	RETeq				/* Return now if done */
 	mov	r3, #0x00
 
 .Lkcopy_w_less_than8:
 	subs	r2, r2, #0x04
 	ldrge	ip, [r0], #0x04
 	strge	ip, [r1], #0x04
-	moveq	pc, lr			/* Return now if done */
+	RETeq				/* Return now if done */
 	addlt	r2, r2, #0x04
 	ldrb	ip, [r0], #0x01
 	cmp	r2, #0x02
@@ -1140,7 +1140,7 @@ ENTRY(kcopy)
 	ldrgtb	ip, [r0]
 	strgeb	r2, [r1], #0x01
 	strgtb	ip, [r1]
-	mov	pc, lr
+	RET
 
 /*
  * At this point, it has not been possible to word align both buffers.
@@ -1195,7 +1195,7 @@ ENTRY(kcopy)
 
 	adds	r2, r2, #0x10         
 	ldmeqfd	sp!, {r4-r7}
-	moveq	pc, lr			/* Return now if done */
+	RETeq				/* Return now if done */
 	subs	r2, r2, #0x04
 	sublt	r0, r0, #0x03
 	blt	.Lkcopy_bad_endgame
@@ -1256,7 +1256,7 @@ ENTRY(kcopy)
 
 	adds	r2, r2, #0x10         
 	ldmeqfd	sp!, {r4-r7}
-	moveq	pc, lr			/* Return now if done */
+	RETeq				/* Return now if done */
 	subs	r2, r2, #0x04
 	sublt	r0, r0, #0x02
 	blt	.Lkcopy_bad_endgame
@@ -1317,7 +1317,7 @@ ENTRY(kcopy)
 
 	adds	r2, r2, #0x10         
 	ldmeqfd	sp!, {r4-r7}
-	moveq	pc, lr			/* Return now if done */
+	RETeq				/* Return now if done */
 	subs	r2, r2, #0x04
 	sublt	r0, r0, #0x01
 	blt	.Lkcopy_bad_endgame
@@ -1343,7 +1343,7 @@ ENTRY(kcopy)
 	ldmfd	sp!, {r4-r7}
 	mov	r3, #0x00
 	adds	r2, r2, #0x04
-	moveq	pc, lr
+	RETeq
 .Lkcopy_bad_endgame2:
 	rsbs	r2, r2, #0x03
 	addne	pc, pc, r2, lsl #3
@@ -1354,4 +1354,4 @@ ENTRY(kcopy)
 	strb	ip, [r1], #0x01
 	ldrb	ip, [r0]
 	strb	ip, [r1]
-	mov	pc, lr
+	RET
