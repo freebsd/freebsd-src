@@ -45,8 +45,8 @@ links: ${DEPEND_H}
 		done ;\
 	done
 	@ln -sf ${PERL5SRC}/ext/File/Glob/Glob.pm lib/File/Glob.pm
-	@mkdir lib/auto
-	@mkdir build
+	@-mkdir lib/auto
+	@-mkdir build
 	@ln -sf ${PERL5SRC}/config_h.SH config_h.sh
 	@ln -sf ${PERL5SRC}/cflags.SH cflags.sh
 	@ln -sf ${PERL5SRC}/ext/re/re.pm lib/re.pm
