@@ -117,6 +117,11 @@ static void	fdunused(struct filedesc *fdp, int fd);
 #define	NDSLOTS(x)	(((x) + NDENTRIES - 1) / NDENTRIES)
 
 /*
+ * Storage required per open file descriptor.
+ */
+#define OFILESIZE (sizeof(struct file *) + sizeof(char))
+
+/*
  * Basic allocation of descriptors:
  * one of the above, plus arrays for NDFILE descriptors.
  */
@@ -130,11 +135,6 @@ struct filedesc0 {
 	char	fd_dfileflags[NDFILE];
 	NDSLOTTYPE fd_dmap[NDSLOTS(NDFILE)];
 };
-
-/*
- * Storage required per open file descriptor.
- */
-#define OFILESIZE (sizeof(struct file *) + sizeof(char))
 
 /*
  * Descriptor management.
