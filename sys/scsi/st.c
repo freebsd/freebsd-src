@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- * $Id: st.c,v 1.65 1996/03/28 14:33:57 scrappy Exp $
+ * $Id: st.c,v 1.66 1996/03/29 04:35:09 scrappy Exp $
  */
 
 /*
@@ -138,22 +138,10 @@ struct scsi_data {
 		void	*nrst;
 		void	*erst;
 	/* end of aliases */
-		void	*rst_0;
-		void	*nrst_0;
-		void	*erst_0;
-		void	*ctl_0;
-		void	*rst_1;
-		void	*nrst_1;
-		void	*erst_1;
-		void	*ctl_1;
-		void	*rst_2;
-		void	*nrst_2;
-		void	*erst_2;
-		void	*ctl_2;
-		void	*rst_3;
-		void	*nrst_3;
-		void	*erst_3;
-		void	*ctl_3;
+		void	*rst_[4];
+		void	*nrst_[4];
+		void	*erst_[4];
+		void	*ctl_[4];
 		void	*ctl;
 	} devfs_token;
 #endif
@@ -276,7 +264,7 @@ stattach(struct scsi_link *sc_link)
 {
 	u_int32_t unit;
 #ifdef DEVFS
-	char name[64];
+	int ii;
 #endif /*DEVFS*/
 
 	struct scsi_data *st = sc_link->sd;
@@ -317,85 +305,40 @@ stattach(struct scsi_link *sc_link)
 	st->flags |= ST_INITIALIZED;
 	st_registerdev(unit);
 #ifdef	DEVFS
-/* XXX use these directly and change to devsw_add_devswf(). */
-#define ST_GID	GID_OPERATOR
-#define ST_UID	UID_ROOT
-	sprintf(name,"rst%ld.0",unit);
-	st->devfs_token.rst_0 = devfs_add_devsw( "/tape", name,
-					&st_cdevsw, (unit << 4 ) + 0,
-					DV_CHR,	ST_UID, ST_GID, 0660 );
-	sprintf(name,"nrst%ld.0",unit);
-	st->devfs_token.nrst_0 = devfs_add_devsw( "/tape", name,
-					&st_cdevsw, (unit << 4 ) + 1,
-					DV_CHR,	ST_UID, ST_GID, 0660 );
-	sprintf(name,"erst%ld.0",unit);
-	st->devfs_token.erst_0 = devfs_add_devsw( "/tape", name,
-					&st_cdevsw, (unit << 4 ) + 2,
-					DV_CHR,	ST_UID, ST_GID, 0660 );
-	sprintf(name,"st%ldctl.0",unit);
-	st->devfs_token.ctl_0 = devfs_add_devsw( "/tape", name,
-					&st_cdevsw, (unit << 4 ) + 3,
-					DV_CHR,	ST_UID, ST_GID, 0600 );
-	sprintf(name,"rst%ld.1",unit);
-	st->devfs_token.rst_1 = devfs_add_devsw( "/tape", name,
-					&st_cdevsw, (unit << 4 ) + 4,
-					DV_CHR,	ST_UID, ST_GID, 0660 );
-	sprintf(name,"nrst%ld.1",unit);
-	st->devfs_token.nrst_1 = devfs_add_devsw( "/tape", name,
-					&st_cdevsw, (unit << 4 ) + 5,
-					DV_CHR,	ST_UID, ST_GID, 0660 );
-	sprintf(name,"erst%ld.1",unit);
-	st->devfs_token.erst_1 = devfs_add_devsw( "/tape", name,
-					&st_cdevsw, (unit << 4 ) + 6,
-					DV_CHR,	ST_UID, ST_GID, 0660 );
-	sprintf(name,"st%ldctl.1",unit);
-	st->devfs_token.ctl_1 = devfs_add_devsw( "/tape", name,
-					&st_cdevsw, (unit << 4 ) + 7,
-					DV_CHR,	ST_UID, ST_GID, 0600 );
-	sprintf(name,"rst%ld.2",unit);
-	st->devfs_token.rst_2 = devfs_add_devsw( "/tape", name,
-					&st_cdevsw, (unit << 4 ) + 8,
-					DV_CHR,	ST_UID, ST_GID, 0660 );
-	sprintf(name,"nrst%ld.2",unit);
-	st->devfs_token.nrst_2 = devfs_add_devsw( "/tape", name,
-					&st_cdevsw, (unit << 4 ) + 9,
-					DV_CHR,	ST_UID, ST_GID, 0660 );
-	sprintf(name,"erst%ld.2",unit);
-	st->devfs_token.erst_2 = devfs_add_devsw( "/tape", name,
-					&st_cdevsw, (unit << 4 ) + 10,
-					DV_CHR,	ST_UID, ST_GID, 0660 );
-	sprintf(name,"st%ldctl.2",unit);
-	st->devfs_token.ctl_2 = devfs_add_devsw( "/tape", name,
-					&st_cdevsw, (unit << 4 ) + 11,
-					DV_CHR,	ST_UID, ST_GID, 0600 );
-	sprintf(name,"rst%ld.3",unit);
-	st->devfs_token.rst_3 = devfs_add_devsw( "/tape", name,
-					&st_cdevsw, (unit << 4 ) + 12,
-					DV_CHR,	ST_UID, ST_GID, 0660 );
-	sprintf(name,"nrst%ld.3",unit);
-	st->devfs_token.nrst_3 = devfs_add_devsw( "/tape", name,
-					&st_cdevsw, (unit << 4 ) + 13,
-					DV_CHR,	ST_UID, ST_GID, 0660 );
-	sprintf(name,"erst%ld.3",unit);
-	st->devfs_token.erst_3 = devfs_add_devsw( "/tape", name,
-					&st_cdevsw, (unit << 4 ) + 14,
-					DV_CHR,	ST_UID, ST_GID, 0660 );
-	sprintf(name,"st%ldctl.3",unit);
-	st->devfs_token.ctl_3 = devfs_add_devsw( "/tape", name,
-					&st_cdevsw, (unit << 4 ) + 15,
-					DV_CHR,	ST_UID, ST_GID, 0600 );
-	st->devfs_token.ctl = devfs_add_devswf(&st_cdevsw,
-					       (unit << 4 ) | SCSI_CONTROL_MASK,
-					       DV_CHR,
-					       UID_ROOT, GID_WHEEL, 0600,
-					       "rst%d.ctl", unit);
+	for(ii=0; ii<4; ii++) {
+		st->devfs_token.rst_[ii] = 
+			devfs_add_devswf(&st_cdevsw, 
+					 (unit << 4 ) + (ii * 4), DV_CHR, 
+					 UID_ROOT, GID_OPERATOR, 0660, 
+					 "rst%ld.%d", unit, ii);
+		st->devfs_token.nrst_[ii] = 
+			devfs_add_devswf(&st_cdevsw, 
+					 (unit << 4 ) + ((ii * 4) + 1), DV_CHR, 
+					 UID_ROOT, GID_OPERATOR, 0660, 
+					 "nrst%ld.%d", unit, ii);
+		st->devfs_token.erst_[ii] = 
+			devfs_add_devswf(&st_cdevsw, 
+					 (unit << 4 ) + ((ii * 4) + 2), DV_CHR,
+					 UID_ROOT, GID_OPERATOR, 0660, 
+					 "erst%ld.%d", unit, ii);
+		st->devfs_token.ctl_[ii] = 
+			devfs_add_devswf(&st_cdevsw, 
+					 (unit << 4 ) + ((ii * 4) + 3), DV_CHR,	
+					 UID_ROOT, GID_OPERATOR, 0600, 
+					 "st%ldctl.%d", unit, ii);
+	}
+
+	st->devfs_token.ctl = 
+		devfs_add_devswf(&st_cdevsw, (unit << 4 ) | SCSI_CONTROL_MASK,
+				 DV_CHR, UID_ROOT, GID_WHEEL, 0600,
+				 "rst%d.ctl", unit);
 	/** add links **/
-	sprintf(name,"rst%ld",unit);
-	st->devfs_token.rst = dev_link( "/", name, st->devfs_token.rst_0);
-	sprintf(name,"nrst%ld",unit);
-	st->devfs_token.nrst = dev_link( "/", name, st->devfs_token.nrst_0);
-	sprintf(name,"erst%ld",unit);
-	st->devfs_token.erst = dev_link( "/", name, st->devfs_token.erst_0);
+	st->devfs_token.rst = 
+		dev_link(st->devfs_token.rst_[0], "rst%ld", unit);
+	st->devfs_token.nrst = 
+		dev_link(st->devfs_token.nrst_[0], "nrst%ld", unit);
+	st->devfs_token.erst = 
+		dev_link(st->devfs_token.erst_[0], "erst%ld", unit);
 #endif
 	return 0;
 }
