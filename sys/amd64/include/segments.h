@@ -188,7 +188,7 @@ struct region_descriptor {
 #define	SEGEX_IDT	0x02	/* interrupt descriptor table */
 #define	SEGEX_TI	0x04	/* local descriptor table */
 				/* other bits are affected descriptor index */
-#define SEGEX_IDX(s)	((s)>>3)&0x1fff)
+#define SEGEX_IDX(s)	(((s)>>3)&0x1fff)
 
 /*
  * Size of IDT table
