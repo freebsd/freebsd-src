@@ -1,4 +1,4 @@
-$Id: majors.i386,v 1.66 1999/03/08 23:31:04 jkh Exp $
+$Id: majors.i386,v 1.67 1999/03/16 12:50:02 sos Exp $
 
 Hopefully, this list will one day be obsoleted by DEVFS, but for now
 this is the current allocation of device major numbers.
@@ -32,7 +32,7 @@ blkdev	name		comments
 16	scd		Sony CDROM interface
 17	matcd		Matsushita/Panasonic/Creative(SB) CDROM interface
 18	ata		"device independent" ATA/IDE driver
-19	acdb		ATAPI CDROM client of "wd"
+19	wcdb		ATAPI CDROM client of "wd"
 20	??		ATA disks
 21	ccd		concatenated disk
 22	gd		Geometry disk.
@@ -119,7 +119,7 @@ chrdev	name		comments
 66	labpc		National Instruments LabPC
 67	meteor		Matrox Meteor video capture
 68	si		Specialix SI/XIO (peter@freebsd.org)
-69	acd		ATAPI CDROM client of "wd"
+69	wcd		ATAPI CDROM client of "wd"
 71	asc		AmiScan driver
 72	stl		Stallion (cd1400 based) (gerg@stallion.oz.au)
 73	??		was qcam
