@@ -37,12 +37,8 @@
 #ifndef _SYS_UIO_H_
 #define	_SYS_UIO_H_
 
-/*
- * XXX
- * iov_base should be a void *.
- */
 struct iovec {
-	char	*iov_base;	/* Base address. */
+	void	*iov_base;	/* Base address. */
 	size_t	 iov_len;	/* Length. */
 };
 

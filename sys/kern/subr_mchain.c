@@ -278,7 +278,8 @@ mb_put_uio(struct mbchain *mbp, struct uio *uiop, int size)
 			return error;
 		uiop->uio_offset += left;
 		uiop->uio_resid -= left;
-		uiop->uio_iov->iov_base += left;
+		uiop->uio_iov->iov_base =
+		    (char *)uiop->uio_iov->iov_base + left;
 		uiop->uio_iov->iov_len -= left;
 		size -= left;
 	}
@@ -528,7 +529,8 @@ md_get_uio(struct mdchain *mdp, struct uio *uiop, int size)
 			return error;
 		uiop->uio_offset += left;
 		uiop->uio_resid -= left;
-		uiop->uio_iov->iov_base += left;
+		uiop->uio_iov->iov_base =
+		    (char *)uiop->uio_iov->iov_base + left;
 		uiop->uio_iov->iov_len -= left;
 		size -= left;
 	}

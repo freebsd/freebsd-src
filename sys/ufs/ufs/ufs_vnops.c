@@ -1868,7 +1868,7 @@ ufs_readdir(ap)
 		if (uio->uio_segflg != UIO_SYSSPACE || uio->uio_iovcnt != 1)
 			panic("ufs_readdir: unexpected uio from NFS server");
 		dpStart = (struct dirent *)
-		     (uio->uio_iov->iov_base - (uio->uio_offset - off));
+		    ((char *)uio->uio_iov->iov_base - (uio->uio_offset - off));
 		dpEnd = (struct dirent *) uio->uio_iov->iov_base;
 		for (dp = dpStart, ncookies = 0;
 		     dp < dpEnd;
