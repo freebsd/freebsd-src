@@ -44,13 +44,20 @@
 #include <net/if.h>
 #include <net/if_arp.h>
 #include <net/if_mib.h>
+#include <net/if_media.h>
 
 #include <dev/ed/if_edreg.h>
 #include <dev/ed/if_edvar.h>
 #include <dev/pccard/pccardvar.h>
 #include <dev/pccard/pccarddevs.h>
+#include <dev/mii/mii.h>
+#include <dev/mii/miivar.h>
 
 #include "card_if.h"
+/* "device miibus" required.  See GENERIC if you get errors here. */
+#include "miibus_if.h"
+
+MODULE_DEPEND(ed, miibus, 1, 1, 1);
 
 /*
  *      PC-Card (PCMCIA) specific code.
@@ -65,6 +72,10 @@ static int	ed_pccard_ax88190(device_t dev);
 
 static void	ax88190_geteprom(struct ed_softc *);
 static int	ed_pccard_memwrite(device_t dev, off_t offset, u_char byte);
+static void	ed_pccard_dlink_mii_reset(struct ed_softc *sc);
+static u_int	ed_pccard_dlink_mii_readbits(struct ed_softc *sc, int nbits);
+static void	ed_pccard_dlink_mii_writebits(struct ed_softc *sc, u_int val,
+    int nbits);
 static int	linksys;
 
 /*
@@ -659,6 +670,13 @@ ed_pccard_Linksys(device_t dev)
 	sc->isa16bit = 1;
 	sc->type = ED_TYPE_NE2000;
 	sc->type_str = "Linksys";
+
+	/* Probe for an MII bus, but continue as normal if there isn't one. */
+	ed_pccard_dlink_mii_reset(sc);
+	sc->mii_readbits = ed_pccard_dlink_mii_readbits;
+	sc->mii_writebits = ed_pccard_dlink_mii_writebits;
+	mii_phy_probe(dev, &sc->miibus, ed_ifmedia_upd, ed_ifmedia_sts);
+
 	return (1);
 }
 
@@ -694,11 +712,86 @@ ed_pccard_ax88190(device_t dev)
 	return (error);
 }
 
+/* MII bit-twiddling routines for cards using Dlink chipset */
+#define DLINK_MIISET(sc, x) ed_asic_outb(sc, ED_DLINK_MIIBUS, \
+    ed_asic_inb(sc, ED_DLINK_MIIBUS) | (x))
+#define DLINK_MIICLR(sc, x) ed_asic_outb(sc, ED_DLINK_MIIBUS, \
+    ed_asic_inb(sc, ED_DLINK_MIIBUS) & ~(x))
+
+static void
+ed_pccard_dlink_mii_reset(sc)
+	struct ed_softc *sc;
+{
+	ed_asic_outb(sc, ED_DLINK_MIIBUS, 0);
+	DELAY(10);
+	DLINK_MIISET(sc, ED_DLINK_MII_RESET2);
+	DELAY(10);
+	DLINK_MIISET(sc, ED_DLINK_MII_RESET1);
+	DELAY(10);
+	DLINK_MIICLR(sc, ED_DLINK_MII_RESET1);
+	DELAY(10);
+	DLINK_MIICLR(sc, ED_DLINK_MII_RESET2);
+	DELAY(10);
+}
+
+static void
+ed_pccard_dlink_mii_writebits(sc, val, nbits)
+	struct ed_softc *sc;
+	u_int val;
+	int nbits;
+{
+	int i;
+
+	DLINK_MIISET(sc, ED_DLINK_MII_DIROUT);
+
+	for (i = nbits - 1; i >= 0; i--) {
+		if ((val >> i) & 1)
+			DLINK_MIISET(sc, ED_DLINK_MII_DATAOUT);
+		else
+			DLINK_MIICLR(sc, ED_DLINK_MII_DATAOUT);
+		DELAY(10);
+		DLINK_MIISET(sc, ED_DLINK_MII_CLK);
+		DELAY(10);
+		DLINK_MIICLR(sc, ED_DLINK_MII_CLK);
+		DELAY(10);
+	}
+}
+
+static u_int
+ed_pccard_dlink_mii_readbits(sc, nbits)
+	struct ed_softc *sc;
+	int nbits;
+{
+	int i;
+	u_int val = 0;
+
+	DLINK_MIICLR(sc, ED_DLINK_MII_DIROUT);
+
+	for (i = nbits - 1; i >= 0; i--) {
+		DLINK_MIISET(sc, ED_DLINK_MII_CLK);
+		DELAY(10);
+		val <<= 1;
+		if (ed_asic_inb(sc, ED_DLINK_MIIBUS) & ED_DLINK_MII_DATATIN)
+			val++;
+		DLINK_MIICLR(sc, ED_DLINK_MII_CLK);
+		DELAY(10);
+	}
+
+	return val;
+}
+
 static device_method_t ed_pccard_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		pccard_compat_probe),
 	DEVMETHOD(device_attach,	pccard_compat_attach),
 	DEVMETHOD(device_detach,	ed_pccard_detach),
+
+	/* Bus interface */
+	DEVMETHOD(bus_child_detached,	ed_child_detached),
+
+	/* MII interface */
+	DEVMETHOD(miibus_readreg,	ed_miibus_readreg),
+	DEVMETHOD(miibus_writereg,	ed_miibus_writereg),
 
 	/* Card interface */
 	DEVMETHOD(card_compat_match,	ed_pccard_match),
@@ -714,3 +807,4 @@ static driver_t ed_pccard_driver = {
 };
 
 DRIVER_MODULE(if_ed, pccard, ed_pccard_driver, ed_devclass, 0, 0);
+DRIVER_MODULE(miibus, ed, miibus_driver, miibus_devclass, 0, 0);
