@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_elf.c,v 1.49 1999/02/05 03:43:18 newton Exp $
+ *	$Id: imgact_elf.c,v 1.50 1999/02/05 03:47:47 newton Exp $
  */
 
 #include "opt_rlimit.h"
@@ -554,7 +554,7 @@ exec_elf_imgact(struct image_params *imgp)
 	}
 
 	/* Lacking a recognized interpreter, try the default brand */
-	if (brand_info == NULL & fallback_elf_brand[0] != '\0') {
+	if (brand_info == NULL && fallback_elf_brand[0] != '\0') {
 		for (i = 0; i < MAX_BRANDS; i++) {
 			Elf_Brandinfo *bi = elf_brand_list[i];
 
