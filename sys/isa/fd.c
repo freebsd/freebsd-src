@@ -1669,6 +1669,7 @@ fdstrategy(struct bio *bp)
 		panic("fdstrategy: buf for nonexistent device (%#lx, %#lx)",
 		      (u_long)major(bp->bio_dev), (u_long)minor(bp->bio_dev));
 	fdc = fd->fdc;
+	bp->bio_resid = bp->bio_bcount;
 	if (fd->type == FDT_NONE || fd->ft == 0) {
 		bp->bio_error = ENXIO;
 		bp->bio_flags |= BIO_ERROR;
@@ -1712,9 +1713,7 @@ fdstrategy(struct bio *bp)
  	nblocks = fd->ft->size;
 	if (blknum + bp->bio_bcount / fdblk > nblocks) {
 		if (blknum >= nblocks) {
-			if (bp->bio_cmd == BIO_READ)
-				bp->bio_resid = bp->bio_bcount;
-			else {
+			if (bp->bio_cmd != BIO_READ) {
 				bp->bio_error = ENOSPC;
 				bp->bio_flags |= BIO_ERROR;
 			}
