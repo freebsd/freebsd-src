@@ -37,7 +37,7 @@ static int wdtest = 0;
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.55 1994/10/22 01:57:12 phk Exp $
+ *	$Id: wd.c,v 1.56 1994/10/23 21:27:40 wollman Exp $
  */
 
 /* TODO:
@@ -778,9 +778,7 @@ wdintr(int unit)
 	if (wdtab[unit].b_active == 2)
 		return;		/* intr in wdflushirq() */
 	if (!wdtab[unit].b_active) {
-#ifndef LAPTOP
 		printf("wdc%d: extra interrupt\n", unit);
-#endif
 		return;
 	}
 
@@ -1823,11 +1821,16 @@ wdtimeout(void *cdu)
 {
 	struct disk *du;
 	int	x;
+	static	int	timeouts;
 
 	du = (struct disk *)cdu;
 	x = splbio();
 	if (du->dk_timeout != 0 && --du->dk_timeout == 0) {
-		wderror((struct buf *)NULL, du, "interrupt timeout");
+		if(timeouts++ == 5)
+			wderror((struct buf *)NULL, du,
+   "Last time I say: interrupt timeout.  Probably a portable PC.");
+		else if(timeouts++ < 5)
+			wderror((struct buf *)NULL, du, "interrupt timeout");
 		wdunwedge(du);
 		wdflushirq(du, x);
 		du->dk_skip = 0;
