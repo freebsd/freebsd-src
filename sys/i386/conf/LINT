@@ -1395,7 +1395,7 @@ device pca0 at isa? port IO_TIMER1
 #    0x0020  Statclock is broken.
 #    0x0011  Limit APM protocol to 1.1 or 1.0
 #    0x0010  Limit APM protocol to 1.0
-#  If apm is omitted, some systems require sysctl -w kern.timcounter.method=1
+#  If apm is omitted, some systems require sysctl -w kern.timecounter.method=1
 #  for correct timekeeping.
 
 # Notes on the spigot:
