@@ -477,6 +477,7 @@ mi_switch(void)
 	 */
 	if (db_active) {
 		mtx_unlock_spin(&sched_lock);
+		db_print_backtrace();
 		db_error("Context switches not allowed in the debugger.");
 	}
 #endif
