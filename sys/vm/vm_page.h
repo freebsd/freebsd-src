@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_page.h,v 1.28 1996/06/08 06:48:35 dyson Exp $
+ * $Id: vm_page.h,v 1.29 1996/06/26 05:39:25 dyson Exp $
  */
 
 /*
@@ -220,6 +220,7 @@ extern vm_offset_t last_phys_addr;	/* physical address for last_page */
 				(m)->flags &= ~PG_BUSY; \
 				if ((m)->flags & PG_WANTED) { \
 					(m)->flags &= ~PG_WANTED; \
+					(m)->flags |= PG_REFERENCED; \
 					wakeup((caddr_t) (m)); \
 				} \
 			}
@@ -251,8 +252,7 @@ void vm_page_rename __P((vm_page_t, vm_object_t, vm_pindex_t));
 vm_offset_t vm_page_startup __P((vm_offset_t, vm_offset_t, vm_offset_t));
 void vm_page_unwire __P((vm_page_t));
 void vm_page_wire __P((vm_page_t));
-void vm_page_unqueue __P((vm_page_t));
-void vm_page_unqueue_nowakeup __P((vm_page_t));
+void vm_page_unqueue __P((vm_page_t, int));
 void vm_page_set_validclean __P((vm_page_t, int, int));
 void vm_page_set_invalid __P((vm_page_t, int, int));
 static __inline boolean_t vm_page_zero_fill __P((vm_page_t));
@@ -292,11 +292,11 @@ vm_page_protect(vm_page_t mem, int prot)
 {
 	if (prot == VM_PROT_NONE) {
 		if (mem->flags & (PG_WRITEABLE|PG_MAPPED)) {
-			pmap_page_protect(VM_PAGE_TO_PHYS(mem), prot);
+			pmap_page_protect(mem, prot);
 			mem->flags &= ~(PG_WRITEABLE|PG_MAPPED);
 		}
 	} else if ((prot == VM_PROT_READ) && (mem->flags & PG_WRITEABLE)) {
-		pmap_page_protect(VM_PAGE_TO_PHYS(mem), prot);
+		pmap_page_protect(mem, prot);
 		mem->flags &= ~PG_WRITEABLE;
 	}
 }

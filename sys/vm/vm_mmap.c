@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id: vm_mmap.c,v 1.43 1996/05/19 07:36:49 dyson Exp $
+ * $Id: vm_mmap.c,v 1.44 1996/05/31 00:38:00 dyson Exp $
  */
 
 /*
@@ -72,6 +72,7 @@
 #include <vm/vm_extern.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_page.h>
+#include <vm/loadaout.h>
 
 #ifndef _SYS_SYSPROTO_H_
 struct sbrk_args {
@@ -689,10 +690,10 @@ mincore(p, uap, retval)
 				if (m) {
 					mincoreinfo = MINCORE_INCORE;
 					if (m->dirty ||
-						pmap_is_modified(VM_PAGE_TO_PHYS(m)))
+						pmap_tc_modified(m))
 						mincoreinfo |= MINCORE_MODIFIED_OTHER;
 					if ((m->flags & PG_REFERENCED) ||
-						pmap_is_referenced(VM_PAGE_TO_PHYS(m)))
+						pmap_tc_referenced(VM_PAGE_TO_PHYS(m)))
 						mincoreinfo |= MINCORE_REFERENCED_OTHER;
 				}
 			}
@@ -844,7 +845,7 @@ vm_mmap(map, addr, size, prot, maxprot, flags, handle, foff)
 	vm_ooffset_t foff;
 {
 	boolean_t fitit;
-	vm_object_t object, object2;
+	vm_object_t object;
 	struct vnode *vp = NULL;
 	objtype_t type;
 	int rv = KERN_SUCCESS;
@@ -916,29 +917,13 @@ vm_mmap(map, addr, size, prot, maxprot, flags, handle, foff)
 		flags |= MAP_SHARED;
 	}
 
-	object2 = NULL;
 	docow = 0;
 	if ((flags & (MAP_ANON|MAP_SHARED)) == 0) {
-		docow = MAP_COPY_ON_WRITE;
-		if (objsize < size) {
-			object2 = vm_object_allocate( OBJT_DEFAULT,
-				OFF_TO_IDX(size - (foff & ~PAGE_MASK)));
-			object2->backing_object = object;
-			object2->backing_object_offset = foff;
-			TAILQ_INSERT_TAIL(&object->shadow_head,
-				object2, shadow_list);
-			++object->shadow_count;
-		} else {
-			docow |= MAP_COPY_NEEDED;
-		}
+		docow = MAP_COPY_ON_WRITE|MAP_COPY_NEEDED;
 	}
 
-	if (object2)
-		rv = vm_map_find(map, object2, 0, addr, size, fitit,
-			prot, maxprot, docow);
-	else
-		rv = vm_map_find(map, object, foff, addr, size, fitit,
-			prot, maxprot, docow);
+	rv = vm_map_find(map, object, foff, addr, size, fitit,
+		prot, maxprot, docow);
 
 
 	if (rv != KERN_SUCCESS) {
@@ -947,10 +932,7 @@ vm_mmap(map, addr, size, prot, maxprot, flags, handle, foff)
 		 * object if it's an unnamed anonymous mapping
 		 * or named anonymous without other references.
 		 */
-		if (object2)
-			vm_object_deallocate(object2);
-		else
-			vm_object_deallocate(object);
+		vm_object_deallocate(object);
 		goto out;
 	}
 
@@ -985,3 +967,171 @@ out:
 		return (EINVAL);
 	}
 }
+
+#ifdef notyet
+/*
+ * Efficient mapping of a .text+.data+.bss object
+ */
+int
+vm_mapaout(map, baseaddr, vp, foff, textsize, datasize, bsssize, addr)
+	vm_map_t map;
+	vm_offset_t baseaddr;
+	struct vnode *vp;
+	vm_ooffset_t foff;
+	register vm_size_t textsize, datasize, bsssize;
+	vm_offset_t *addr;
+{
+	vm_object_t object;
+	int rv;
+	vm_pindex_t objpsize;
+	struct proc *p = curproc;
+
+	vm_size_t totalsize;
+	vm_size_t textend;
+	struct vattr vat;
+	int error;
+	
+	textsize = round_page(textsize);
+	datasize = round_page(datasize);
+	bsssize = round_page(bsssize);
+	totalsize = textsize + datasize + bsssize;
+
+	vm_map_lock(map);
+	/*
+	 * If baseaddr == -1, then we need to search for space.  Otherwise,
+	 * we need to be loaded into a certain spot.
+	 */
+	if (baseaddr != (vm_offset_t) -1) {
+		if (vm_map_findspace(map, baseaddr, totalsize, addr)) {
+			goto outnomem;
+		}
+
+		if(*addr != baseaddr) {
+			goto outnomem;
+		}
+	} else {
+		baseaddr = round_page(p->p_vmspace->vm_daddr + MAXDSIZ);
+		if (vm_map_findspace(map, baseaddr, totalsize, addr)) {
+			goto outnomem;
+		}
+	}
+
+	if (foff & PAGE_MASK) {
+		vm_map_unlock(map);
+		return EINVAL;
+	}
+
+	/*
+	 * get the object size to allocate
+	 */
+	error = VOP_GETATTR(vp, &vat, p->p_ucred, p);
+	if (error) {
+		vm_map_unlock(map);
+		return error;
+	}
+	objpsize = OFF_TO_IDX(round_page(vat.va_size));
+
+	/*
+	 * Alloc/reference the object
+	 */
+	object = vm_pager_allocate(OBJT_VNODE, vp,
+		   objpsize, VM_PROT_ALL, foff);
+	if (object == NULL) {
+		goto outnomem;
+	}
+
+	/*
+	 * Insert .text into the map
+	 */
+	textend = *addr + textsize;
+	rv = vm_map_insert(map, object, foff,
+		*addr, textend,
+		VM_PROT_READ|VM_PROT_EXECUTE, VM_PROT_ALL,
+		MAP_COPY_ON_WRITE|MAP_COPY_NEEDED);
+	if (rv != KERN_SUCCESS) {
+		vm_object_deallocate(object);
+		goto out;
+	}
+	
+	/*
+	 * Insert .data into the map, if there is any to map.
+	 */
+	if (datasize != 0) {
+		object->ref_count++;
+		rv = vm_map_insert(map, object, foff + textsize,
+			textend, textend + datasize,
+			VM_PROT_ALL, VM_PROT_ALL,
+			MAP_COPY_ON_WRITE|MAP_COPY_NEEDED);
+		if (rv != KERN_SUCCESS) {
+			--object->ref_count;
+			vm_map_delete(map, *addr, textend);
+			goto out;
+		}
+	}
+
+	/*
+	 * Preload the page tables
+	 */
+	pmap_object_init_pt(map->pmap, *addr,
+		object, (vm_pindex_t) OFF_TO_IDX(foff),
+		textsize + datasize, 1);
+
+	/*
+	 * Get the space for bss.
+	 */
+	if (bsssize != 0) {
+		rv = vm_map_insert(map, NULL, 0,
+			textend + datasize,
+			*addr + totalsize,
+			VM_PROT_ALL, VM_PROT_ALL, 0);
+	}
+	if (rv != KERN_SUCCESS) {
+		vm_map_delete(map, *addr, textend + datasize + bsssize);
+	}
+
+out:
+	vm_map_unlock(map);
+	switch (rv) {
+	case KERN_SUCCESS:
+		return 0;
+	case KERN_INVALID_ADDRESS:
+	case KERN_NO_SPACE:
+		return ENOMEM;
+	case KERN_PROTECTION_FAILURE:
+		return EACCES;
+	default:
+		return EINVAL;
+	}
+outnomem:
+	vm_map_unlock(map);
+	return ENOMEM;
+}
+
+
+int
+mapaout(struct proc *p, struct mapaout_args *uap, int *retval)
+{
+
+	register struct filedesc *fdp = p->p_fd;
+	struct file *fp;
+	struct vnode *vp;
+	int rtval;
+
+	if (((unsigned) uap->fd) >= fdp->fd_nfiles ||
+	    (fp = fdp->fd_ofiles[uap->fd]) == NULL)
+		return (EBADF);
+	if (fp->f_type != DTYPE_VNODE)
+		return (EINVAL);
+
+	vp = (struct vnode *) fp->f_data;
+	if ((vp->v_type != VREG) && (vp->v_type != VCHR))
+		return (EINVAL);
+
+	rtval = vm_mapaout( &p->p_vmspace->vm_map,
+		uap->addr, vp, uap->offset,
+		uap->textsize, uap->datasize, uap->bsssize,
+		(vm_offset_t *)retval);
+
+	return rtval;
+}
+#endif
