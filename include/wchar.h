@@ -130,8 +130,6 @@ wchar_t	*wcscpy(wchar_t * __restrict, const wchar_t * __restrict);
 size_t	wcscspn(const wchar_t *, const wchar_t *);
 size_t	wcsftime(wchar_t * __restrict, size_t, const wchar_t * __restrict,
 	    const struct tm * __restrict);
-size_t	wcslcat(wchar_t *, const wchar_t *, size_t);
-size_t	wcslcpy(wchar_t *, const wchar_t *, size_t);
 size_t	wcslen(const wchar_t *);
 wchar_t	*wcsncat(wchar_t * __restrict, const wchar_t * __restrict,
 	    size_t);
@@ -159,6 +157,11 @@ wchar_t	*wmemset(wchar_t *, wchar_t, size_t);
 #if __XSI_VISIBLE
 int	wcswidth(const wchar_t *, size_t);
 int	wcwidth(wchar_t);
+#endif
+
+#if __BSD_VISIBLE
+size_t	wcslcat(wchar_t *, const wchar_t *, size_t);
+size_t	wcslcpy(wchar_t *, const wchar_t *, size_t);
 #endif
 __END_DECLS
 
