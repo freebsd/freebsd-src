@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.57 1995/03/23 16:09:01 bde Exp $
+ *      $Id: sd.c,v 1.59 1995/04/14 15:10:42 dufault Exp $
  */
 
 #define SPLSD splbio
@@ -61,7 +61,7 @@ errval	sd_get_parms __P((int unit, int flags));
 static	void	sdstrategy1 __P((struct buf *));
 
 int		sd_sense_handler __P((struct scsi_xfer *));
-void    sdstart __P((u_int32));
+void    sdstart __P((u_int32, u_int32));
 
 struct scsi_data {
 	u_int32 flags;
@@ -407,7 +407,7 @@ sd_strategy(struct buf *bp, struct scsi_link *sc_link)
 	 * Tell the device to get going on the transfer if it's
 	 * not doing anything, otherwise just wait for completion
 	 */
-	sdstart(unit);
+	sdstart(unit, 0);
 
 	splx(opri);
 	return /*0*/;
@@ -450,7 +450,7 @@ sdstrategy1(struct buf *bp)
  * sdstart() is called at SPLSD  from sdstrategy and scsi_done
  */
 void 
-sdstart(u_int32 unit)
+sdstart(u_int32 unit, u_int32 flags)
 {
 	register struct	scsi_link *sc_link = SCSI_LINK(&sd_switch, unit);
 	register struct scsi_data *sd = sc_link->sd;
@@ -525,7 +525,7 @@ sdstart(u_int32 unit)
 			SD_RETRIES,
 			10000,
 			bp,
-			SCSI_NOSLEEP | ((bp->b_flags & B_READ) ?
+			flags | ((bp->b_flags & B_READ) ?
 			    SCSI_DATA_IN : SCSI_DATA_OUT))
 		    == SUCCESSFULLY_QUEUED) {
 			sdqueues++;
