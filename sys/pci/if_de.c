@@ -1,5 +1,5 @@
 /*	$NetBSD: if_de.c,v 1.80 1998/09/25 18:06:53 matt Exp $	*/
-/*	$Id: if_de.c,v 1.87 1998/10/10 02:44:53 peter Exp $ */
+/*	$Id: if_de.c,v 1.88 1998/10/13 09:05:57 peter Exp $ */
 
 /*-
  * Copyright (c) 1994-1997 Matt Thomas (matt@3am-software.com)
@@ -5580,7 +5580,7 @@ tulip_pci_attach(
     int retval, idx;
     u_int32_t revinfo, cfdainfo, id;
 #if !defined(TULIP_IOMAPPED) && defined(__FreeBSD__)
-    vaddr_t pa_csrs;
+    vm_offset_t pa_csrs;
 #endif
     unsigned csroffset = TULIP_PCI_CSROFFSET;
     unsigned csrsize = TULIP_PCI_CSRSIZE;
@@ -5717,7 +5717,7 @@ tulip_pci_attach(
 #if defined(TULIP_IOMAPPED)
     retval = pci_map_port(config_id, PCI_CBIO, &csr_base);
 #else
-    retval = pci_map_mem(config_id, PCI_CBMA, (vaddr_t *) &csr_base, &pa_csrs);
+    retval = pci_map_mem(config_id, PCI_CBMA, (vm_offset_t *) &csr_base, &pa_csrs);
 #endif
     if (!retval) {
 	free((caddr_t) sc, M_DEVBUF);
@@ -5731,7 +5731,7 @@ tulip_pci_attach(
 #if defined(TULIP_IOMAPPED)
     csr_base = ia->ia_iobase;
 #else
-    csr_base = (vaddr_t) mapphys((vaddr_t) ia->ia_maddr, ia->ia_msize);
+    csr_base = (vm_offset_t) mapphys((vm_offset_t) ia->ia_maddr, ia->ia_msize);
 #endif
 #endif /* __bsdi__ */
 
