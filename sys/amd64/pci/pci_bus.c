@@ -370,7 +370,7 @@ nexus_pcib_probe(device_t dev)
 	 * we're going to end up duplicating it.
 	 */
 	if ((pci_devclass = devclass_find("pci")) && 
-		devclass_get_device(pci_devclass, 0))
+		devclass_get_device(pci_devclass, device_get_unit(dev)))
 		return ENXIO;
 
 	return 0;
