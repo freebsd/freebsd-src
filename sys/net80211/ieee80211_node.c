@@ -883,7 +883,7 @@ ieee80211_setup_node(struct ieee80211_node_table *nt,
 	int hash;
 
 	IEEE80211_DPRINTF(ic, IEEE80211_MSG_NODE,
-		"%s %s in %s table\n", __func__,
+		"%s %p<%s> in %s table\n", __func__, ni,
 		ether_sprintf(macaddr), nt->nt_name);
 
 	IEEE80211_ADDR_COPY(ni->ni_macaddr, macaddr);
@@ -962,9 +962,10 @@ _ieee80211_find_node(struct ieee80211_node_table *nt,
 			ieee80211_ref_node(ni);	/* mark referenced */
 #ifdef IEEE80211_DEBUG_REFCNT
 			IEEE80211_DPRINTF(nt->nt_ic, IEEE80211_MSG_NODE,
-			    "%s (%s:%u) %s refcnt %d\n", __func__, func, line,
-			     ether_sprintf(ni->ni_macaddr),
-			     ieee80211_node_refcnt(ni));
+			    "%s (%s:%u) %p<%s> refcnt %d\n", __func__,
+			    func, line,
+			    ni, ether_sprintf(ni->ni_macaddr),
+			    ieee80211_node_refcnt(ni));
 #endif
 			return ni;
 		}
@@ -1135,12 +1136,13 @@ ieee80211_find_node_with_channel(struct ieee80211_node_table *nt,
 			ieee80211_ref_node(ni);		/* mark referenced */
 			IEEE80211_DPRINTF(nt->nt_ic, IEEE80211_MSG_NODE,
 #ifdef IEEE80211_DEBUG_REFCNT
-			    "%s (%s:%u) %s refcnt %d\n", __func__, func, line,
+			    "%s (%s:%u) %p<%s> refcnt %d\n", __func__,
+			    func, line,
 #else
-			    "%s %s refcnt %d\n", __func__,
+			    "%s %p<%s> refcnt %d\n", __func__,
 #endif
-			     ether_sprintf(ni->ni_macaddr),
-			     ieee80211_node_refcnt(ni));
+			    ni, ether_sprintf(ni->ni_macaddr),
+			    ieee80211_node_refcnt(ni));
 			break;
 		}
 	}
@@ -1174,11 +1176,12 @@ ieee80211_find_node_with_ssid(struct ieee80211_node_table *nt,
 			ieee80211_ref_node(ni);		/* mark referenced */
 			IEEE80211_DPRINTF(ic, IEEE80211_MSG_NODE,
 #ifdef IEEE80211_DEBUG_REFCNT
-			    "%s (%s:%u) %s refcnt %d\n", __func__, func, line,
+			    "%s (%s:%u) %p<%s> refcnt %d\n", __func__,
+			    func, line,
 #else
-			    "%s %s refcnt %d\n", __func__,
+			    "%s %p<%s> refcnt %d\n", __func__,
 #endif
-			     ether_sprintf(ni->ni_macaddr),
+			     ni, ether_sprintf(ni->ni_macaddr),
 			     ieee80211_node_refcnt(ni));
 			break;
 		}
@@ -1187,7 +1190,6 @@ ieee80211_find_node_with_ssid(struct ieee80211_node_table *nt,
 	return ni;
 }
 
-
 static void
 _ieee80211_free_node(struct ieee80211_node *ni)
 {
@@ -1195,7 +1197,8 @@ _ieee80211_free_node(struct ieee80211_node *ni)
 	struct ieee80211_node_table *nt = ni->ni_table;
 
 	IEEE80211_DPRINTF(ic, IEEE80211_MSG_NODE,
-		"%s %s in %s table\n", __func__, ether_sprintf(ni->ni_macaddr),
+		"%s %p<%s> in %s table\n", __func__, ni,
+		ether_sprintf(ni->ni_macaddr),
 		nt != NULL ? nt->nt_name : "<gone>");
 
 	IEEE80211_AID_CLR(ni->ni_associd, ic->ic_aid_bitmap);
@@ -1217,7 +1220,7 @@ ieee80211_free_node(struct ieee80211_node *ni)
 
 #ifdef IEEE80211_DEBUG_REFCNT
 	IEEE80211_DPRINTF(ni->ni_ic, IEEE80211_MSG_NODE,
-		"%s (%s:%u) %s refcnt %d\n", __func__, func, line,
+		"%s (%s:%u) %p<%s> refcnt %d\n", __func__, func, line, ni,
 		 ether_sprintf(ni->ni_macaddr), ieee80211_node_refcnt(ni)-1);
 #endif
 	if (ieee80211_node_dectestref(ni)) {
@@ -1245,6 +1248,10 @@ static void
 node_reclaim(struct ieee80211_node_table *nt, struct ieee80211_node *ni)
 {
 
+	IEEE80211_DPRINTF(ni->ni_ic, IEEE80211_MSG_NODE,
+		"%s: remove %p<%s> from %s table, refcnt %d\n",
+		__func__, ni, ether_sprintf(ni->ni_macaddr),
+		nt->nt_name, ieee80211_node_refcnt(ni)-1);
 	if (!ieee80211_node_dectestref(ni)) {
 		/*
 		 * Other references are present, just remove the
@@ -1309,7 +1316,7 @@ ieee80211_timeout_scan_candidates(struct ieee80211_node_table *nt)
 			IEEE80211_DPRINTF(ic, IEEE80211_MSG_NODE,
 			    "[%s] scan candidate purged from cache "
 			    "(refcnt %u)\n", ether_sprintf(ni->ni_macaddr),
-			    ieee80211_node_refcnt(ni)-1);
+			    ieee80211_node_refcnt(ni));
 			node_reclaim(nt, ni);
 		}
 	}
@@ -1338,7 +1345,7 @@ ieee80211_timeout_stations(struct ieee80211_node_table *nt)
 	IEEE80211_SCAN_LOCK(nt);
 	gen = nt->nt_scangen++;
 	IEEE80211_DPRINTF(ic, IEEE80211_MSG_NODE,
-		"%s: sta scangen %u\n", __func__, gen);
+		"%s: %s scangen %u\n", __func__, nt->nt_name, gen);
 restart:
 	IEEE80211_NODE_LOCK(nt);
 	TAILQ_FOREACH(ni, &nt->nt_node, ni_list) {
