@@ -30,7 +30,7 @@ static unsigned char *welcome[] = {
     "2. Release Notes",
      "Read the 2.0 Release Notes (recommended).",
     "3. Troubleshooting",
-    "Read this if you're having trouble getting installed."
+    "Read this in case of trouble.",
     "4. COPYRIGHT",
     "Read FreeBSD Copyright Information.",
     "5. Install",
@@ -46,7 +46,7 @@ stage0()
 {
 evil_goto:
     if (dialog_menu("Welcome to FreeBSD!",
-		    "Use ALT-F2 and ALT-F1 to toggle between debugging\ninformation screen (ALT-F2) or this dialog screen (ALT-F1)\n\nPlease select one of the following options:", 15, 75, 7, 7, welcome, selection))
+		    "Use ALT-F2 and ALT-F1 to toggle between debugging\ninformation screen (ALT-F2) or this dialog screen (ALT-F1)\n\nPlease select one of the following options:", 18, 75, 7, 7, welcome, selection))
 	ExitSysinstall();
 
     switch (atoi(selection)) {
