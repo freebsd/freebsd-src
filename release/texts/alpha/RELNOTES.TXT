@@ -86,6 +86,9 @@ logger(1) can now send messages directly to a remote syslog.
 OpenSSL has been upgraded to 0.9.5a, which includes numerous bugfixes
 and enhancements.
 
+finger(1) now has the ability to support fingering aliases, via the
+finger.conf(5) file.
+
 
 2. Supported Configurations
 ---------------------------
