@@ -92,24 +92,30 @@ isp_attach(struct ispsoftc *isp)
 	/*
 	 * Construct our SIM entry.
 	 */
+	ISPLOCK_2_CAMLOCK(isp);
 	sim = cam_sim_alloc(isp_action, isp_poll, "isp", isp,
 	    device_get_unit(isp->isp_dev), 1, isp->isp_maxcmds, devq);
 	if (sim == NULL) {
 		cam_simq_free(devq);
+		CAMLOCK_2_ISPLOCK(isp);
 		return;
 	}
+	CAMLOCK_2_ISPLOCK(isp);
 
 	isp->isp_osinfo.ehook.ich_func = isp_intr_enable;
 	isp->isp_osinfo.ehook.ich_arg = isp;
+	ISPLOCK_2_CAMLOCK(isp);
 	if (config_intrhook_establish(&isp->isp_osinfo.ehook) != 0) {
+		cam_sim_free(sim, TRUE);
+		CAMLOCK_2_ISPLOCK(isp);
 		isp_prt(isp, ISP_LOGERR,
 		    "could not establish interrupt enable hook");
-		cam_sim_free(sim, TRUE);
 		return;
 	}
 
 	if (xpt_bus_register(sim, primary) != CAM_SUCCESS) {
 		cam_sim_free(sim, TRUE);
+		CAMLOCK_2_ISPLOCK(isp);
 		return;
 	}
 
@@ -118,6 +124,7 @@ isp_attach(struct ispsoftc *isp)
 		xpt_bus_deregister(cam_sim_path(sim));
 		cam_sim_free(sim, TRUE);
 		config_intrhook_disestablish(&isp->isp_osinfo.ehook);
+		CAMLOCK_2_ISPLOCK(isp);
 		return;
 	}
 
@@ -127,6 +134,7 @@ isp_attach(struct ispsoftc *isp)
 	csa.callback = isp_cam_async;
 	csa.callback_arg = sim;
 	xpt_action((union ccb *)&csa);
+	CAMLOCK_2_ISPLOCK(isp);
 	isp->isp_sim = sim;
 	isp->isp_path = path;
 	/*
@@ -134,14 +142,17 @@ isp_attach(struct ispsoftc *isp)
 	 * don't have dual channel FC cards.
 	 */
 	if (IS_FC(isp)) {
+		ISPLOCK_2_CAMLOCK(isp);
+		/* XXX: LOCK VIOLATION */
 		cv_init(&isp->isp_osinfo.kthread_cv, "isp_kthread_cv");
 		if (kthread_create(isp_kthread, isp, &isp->isp_osinfo.kproc,
 		    RFHIGHPID, "%s: fc_thrd",
 		    device_get_nameunit(isp->isp_dev))) {
-			isp_prt(isp, ISP_LOGERR, "could not create kthread");
 			xpt_bus_deregister(cam_sim_path(sim));
 			cam_sim_free(sim, TRUE);
 			config_intrhook_disestablish(&isp->isp_osinfo.ehook);
+			CAMLOCK_2_ISPLOCK(isp);
+			isp_prt(isp, ISP_LOGERR, "could not create kthread");
 			return;
 		}
 	}
@@ -151,6 +162,7 @@ isp_attach(struct ispsoftc *isp)
 	 * If we have a second channel, construct SIM entry for that.
 	 */
 	if (IS_DUALBUS(isp)) {
+		ISPLOCK_2_CAMLOCK(isp);
 		sim = cam_sim_alloc(isp_action, isp_poll, "isp", isp,
 		    device_get_unit(isp->isp_dev), 1, isp->isp_maxcmds, devq);
 		if (sim == NULL) {
@@ -165,6 +177,7 @@ isp_attach(struct ispsoftc *isp)
 			xpt_free_path(isp->isp_path);
 			cam_sim_free(sim, TRUE);
 			config_intrhook_disestablish(&isp->isp_osinfo.ehook);
+			CAMLOCK_2_ISPLOCK(isp);
 			return;
 		}
 
@@ -175,6 +188,7 @@ isp_attach(struct ispsoftc *isp)
 			xpt_bus_deregister(cam_sim_path(sim));
 			cam_sim_free(sim, TRUE);
 			config_intrhook_disestablish(&isp->isp_osinfo.ehook);
+			CAMLOCK_2_ISPLOCK(isp);
 			return;
 		}
 
@@ -184,6 +198,7 @@ isp_attach(struct ispsoftc *isp)
 		csa.callback = isp_cam_async;
 		csa.callback_arg = sim;
 		xpt_action((union ccb *)&csa);
+		CAMLOCK_2_ISPLOCK(isp);
 		isp->isp_sim2 = sim;
 		isp->isp_path2 = path;
 	}
@@ -2448,15 +2463,18 @@ isp_async(struct ispsoftc *isp, ispasync_t cmd, void *arg)
 		bus = (tgt >> 16) & 0xffff;
 		tgt &= 0xffff;
 		sdp += bus;
+		ISPLOCK_2_CAMLOCK(isp);
 		if (xpt_create_path(&tmppath, NULL,
 		    cam_sim_path(bus? isp->isp_sim2 : isp->isp_sim),
 		    tgt, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
+			CAMLOCK_2_ISPLOCK(isp);
 			isp_prt(isp, ISP_LOGWARN,
 			    "isp_async cannot make temp path for %d.%d",
 			    tgt, bus);
 			rv = -1;
 			break;
 		}
+		CAMLOCK_2_ISPLOCK(isp);
 		flags = sdp->isp_devparam[tgt].cur_dflags;
 #ifdef	CAM_NEW_TRAN_CODE
 		cts.type = CTS_TYPE_CURRENT_SETTINGS;
@@ -2600,16 +2618,16 @@ isp_async(struct ispsoftc *isp, ispasync_t cmd, void *arg)
 		    (u_int32_t) (lp->node_wwn >> 32),
 		    (u_int32_t) (lp->node_wwn & 0xffffffffLL));
 
+		ISPLOCK_2_CAMLOCK(isp);
 		if (xpt_create_path(&tmppath, NULL, cam_sim_path(isp->isp_sim),
 		    (target_id_t)tgt, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
+			CAMLOCK_2_ISPLOCK(isp);
                         break;
                 }
 		if (lp->valid && (lp->roles &
 		    (SVC3_INI_ROLE >> SVC3_ROLE_SHIFT))) {
-			ISPLOCK_2_CAMLOCK(isp);
 			xpt_async(AC_FOUND_DEVICE, tmppath, NULL);
 		} else {
-			ISPLOCK_2_CAMLOCK(isp);
 			xpt_async(AC_LOST_DEVICE, tmppath, NULL);
 		}
 		CAMLOCK_2_ISPLOCK(isp);
