@@ -1,4 +1,4 @@
-$Id: majors.i386,v 1.39 1998/04/22 05:10:51 msmith Exp $
+$Id: majors.i386,v 1.40 1998/05/09 17:52:26 msmith Exp $
 
 Hopefully, this list will one day be obsoleted by DEVFS, but for now
 this is the current allocation of device major numbers.
@@ -41,6 +41,7 @@ blkdev	name		comments
 25	vinum		RAID fs
 26	sw		VM internal swap device
 27	myx		Mylex RAID (ulf@alameda.net)
+
 chrdev	name		comments
 0	cn		console
 1	ctty		/dev/tty
@@ -141,3 +142,4 @@ chrdev	name		comments
 96	altq		alternate queueing (including cbq, red, wfq)
 97	myx		Mylex RAID controller (ulf@alameda.net)
 98	loe		Loopback pseudo-ethernet (sbabkin@dcn.att.com)
+99	tau		Cronyx/Tau serial adaptor
