@@ -839,24 +839,7 @@ static int
 mn_reset(struct softc *sc)
 {
 	u_int32_t u;
-	int i, j;
-
-	u = 0;
-	for(i = 5; i >= 0; i-- ) {
-		sc->m32x->gpdir = i;
-		for (j = 0; j < 8; j ++) {
-			sc->m32x->gpdata = j;
-			u += sc->m32x->gpdata;
-		}
-	}
-	if (u != 0xe4) {
-		printf("mn%d: WARNING: Controller failed to initialize.\n",
-		    sc->unit);
-#if 0
-		return (0);
-#endif
-		printf("mn%d: %x\n", sc->unit, u);
-	}
+	int i;
 
 	sc->m32x->ccba = vtophys(&sc->m32_mem.csa);
 	sc->m32_mem.csa = vtophys(&sc->m32_mem.ccb);
@@ -1273,7 +1256,7 @@ mn_attach (pcici_t tag, int unit)
 	printf("mn%d: Munich32X", sc->unit);
 	switch (pci_class & 0xff) {
 	case 0x13:
-		printf(" Rev 1.3");
+		printf(" Rev 2.2");
 		break;
 	default:
 		printf(" Rev 0x%x\n", pci_class & 0xff);
@@ -1291,6 +1274,9 @@ mn_attach (pcici_t tag, int unit)
 		break;
 	case 0x10:
 		printf("-LH Rev 1.1\n");
+		break;
+	case 0x13:
+		printf("-LH Rev 1.3\n");
 		break;
 	default:
 		printf(" Rev 0x%x\n", sc->f54r->vstr);
