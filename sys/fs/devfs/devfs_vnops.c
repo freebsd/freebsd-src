@@ -1052,6 +1052,9 @@ devfs_reclaim(ap)
 	dev = vp->v_rdev;
 	vp->v_rdev = NULL;
 
+	if (dev == NULL)
+		return (0);
+
 	dev_lock();
 	if (de != NULL)
 		LIST_REMOVE(de, de_alias);
