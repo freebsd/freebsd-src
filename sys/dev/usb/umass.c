@@ -2939,6 +2939,7 @@ umass_atapi_transform(struct umass_softc *sc, unsigned char *cmd, int cmdlen,
 	case READ_10:
 	case WRITE_10:
 	case POSITION_TO_ELEMENT:	/* SEEK_10 */
+	case SYNCHRONIZE_CACHE:
 	case MODE_SELECT_10:
 	case MODE_SENSE_10:
 	case 0x42: /* READ_SUBCHANNEL */
