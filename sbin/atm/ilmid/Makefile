@@ -33,5 +33,6 @@ MAN=	ilmid.8
 CFLAGS+=	-I${.CURDIR}/../../../sys
 LDADD+=		-latm
 DPADD+=		${LIBATM}
+WARNS=		6
 
 .include <bsd.prog.mk>
