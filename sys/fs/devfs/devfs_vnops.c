@@ -660,7 +660,7 @@ devfs_badop()
 	return (EIO);
 }
 
-vop_t	**devfs_vnodeop_p;
+static vop_t **devfs_vnodeop_p;
 static struct vnodeopv_entry_desc devfs_vnodeop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) vop_defaultop },
 	{ &vop_access_desc,		(vop_t *) devfs_access },
@@ -697,7 +697,7 @@ foo(ap)
 }
 #endif
 
-vop_t	**devfs_specop_p;
+static vop_t **devfs_specop_p;
 static struct vnodeopv_entry_desc devfs_specop_entries[] = {
 #if 1
 	{ &vop_default_desc,		(vop_t *) spec_vnoperate },

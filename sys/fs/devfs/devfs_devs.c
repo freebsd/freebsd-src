@@ -56,6 +56,9 @@ static int devfs_noverflowwant = NDEVFSOVERFLOW;
 static int devfs_noverflow;
 static unsigned devfs_generation;
 
+static void devfs_attemptoverflow(int insist);
+static struct devfs_dirent *devfs_find (struct devfs_dirent *dd, const char *name, int namelen);
+
 SYSCTL_NODE(_vfs, OID_AUTO, devfs, CTLFLAG_RW, 0, "DEVFS filesystem");
 SYSCTL_UINT(_vfs_devfs, OID_AUTO, noverflow, CTLFLAG_RW,
 	&devfs_noverflowwant, 0, "Size of DEVFS overflow table");
@@ -132,7 +135,7 @@ devfs_itod (int inode)
 	return (NULL);
 }
 
-void
+static void
 devfs_attemptoverflow(int insist)
 {
 	dev_t **ot;
@@ -171,7 +174,7 @@ bail:
 	return;
 }
 
-struct devfs_dirent *
+static struct devfs_dirent *
 devfs_find(struct devfs_dirent *dd, const char *name, int namelen)
 {
 	struct devfs_dirent *de;
