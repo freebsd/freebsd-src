@@ -93,15 +93,6 @@ struct	procsig {
 #define	PS_NOCLDSTOP	0x0002	/* No SIGCHLD when children stop. */
 
 /*
- * pasleep structure, used by asleep() syscall to hold requested priority
- * and timeout values for await().
- */
-struct	pasleep {
-	int	as_priority;	/* Async priority. */
-	int	as_timo;	/* Async timeout. */
-};
-
-/*
  * pargs, used to hold a copy of the command line, if it had a sane length.
  */
 struct	pargs {
@@ -274,7 +265,6 @@ struct	proc {
 
 	struct proc *p_peers;	/* (c) */
 	struct proc *p_leader;	/* (c) */
-	struct	pasleep p_asleep;	/* (k) Used by asleep()/await(). */
 	void	*p_emuldata;	/* (c) Emulator state data. */
 	struct trapframe *p_frame; /* (k) */
 };
