@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)write.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: write.c,v 1.8 1997/09/15 00:08:19 ache Exp $";
+	"$Id: write.c,v 1.9 1997/09/15 00:17:38 ache Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -312,7 +312,8 @@ wr_fputs(s)
 			PUTC('\r');
 		} else if (((*s & 0x80) && *s < 0xA0) ||
 			   /* disable upper controls */
-			   (!isprint(*s) && !isspace(*s) && *s != '\007')
+			   (!isprint(*s) && !isspace(*s) &&
+			    *s != '\a' && *s != '\b')
 			  ) {
 			if (*s & 0x80) {
 				*s &= ~0x80;
