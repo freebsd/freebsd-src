@@ -404,19 +404,6 @@
     </para>
 
     <para arch="i386">3ware Escalade ATA RAID controllers (&man.twe.4; driver)
-      <itemizedlist>
-        <listitem arch="i386">
-          <para>5000 series</para>
-	</listitem>
-
-        <listitem arch="i386">
-          <para>6000 series</para>
-	</listitem>
-
-        <listitem arch="i386">
-          <para>7000 series</para>
-	</listitem>
-      </itemizedlist>
     </para>
 
     <para arch="i386,pc98,alpha,sparc64">LSI/SymBios (formerly NCR) 53C810, 53C810a, 53C815, 53C825,
