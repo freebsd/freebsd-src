@@ -235,6 +235,9 @@ TUNABLE_INT("debug.acpi.do_powerstate", &acpi_do_powerstate);
 SYSCTL_INT(_debug_acpi, OID_AUTO, do_powerstate, CTLFLAG_RW,
     &acpi_do_powerstate, 1, "Turn off devices when suspending.");
 
+/* Allow users to override quirks. */
+TUNABLE_INT("debug.acpi.quirks", &acpi_quirks);
+
 /*
  * ACPI can only be loaded as a module by the loader; activating it after
  * system bootstrap time is not useful, and can be fatal to the system.
@@ -300,9 +303,10 @@ acpi_Startup(void)
     }
 
     /* Set up any quirks we have for this system. */
-    acpi_table_quirks(&acpi_quirks);
+    if (acpi_quirks == 0)
+	acpi_table_quirks(&acpi_quirks);
 
-    /* If the user manually set the disabled hint to 0, override any quirk. */
+    /* If the user manually set the disabled hint to 0, force-enable ACPI. */
     if (resource_int_value("acpi", 0, "disabled", &val) == 0 && val == 0)
 	acpi_quirks &= ~ACPI_Q_BROKEN;
     if (acpi_quirks & ACPI_Q_BROKEN) {
