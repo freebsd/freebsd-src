@@ -1204,7 +1204,7 @@ _aio_aqueue(struct proc *p, struct aiocb *job, struct aio_liojob *lj, int type)
 	struct socket *so;
 	int s;
 	int error;
-	int opcode;
+	int opcode, user_opcode;
 	struct aiocblist *aiocbe;
 	struct aioproclist *aiop;
 	struct kaioinfo *ki;
@@ -1243,6 +1243,7 @@ _aio_aqueue(struct proc *p, struct aiocb *job, struct aio_liojob *lj, int type)
 	aiocbe->uuaiocb = job;
 
 	/* Get the opcode. */
+	user_opcode = aiocbe->uaiocb.aio_lio_opcode;
 	if (type != LIO_NOP)
 		aiocbe->uaiocb.aio_lio_opcode = type;
 	opcode = aiocbe->uaiocb.aio_lio_opcode;
@@ -1323,13 +1324,12 @@ _aio_aqueue(struct proc *p, struct aiocb *job, struct aio_liojob *lj, int type)
 		 * via aio_lio_opcode, which is an int.  Use the SIGEV_KEVENT-
 		 * based method instead.
 		 */
-		struct kevent *kevp;
-
-		kevp = (struct kevent *)(uintptr_t)job->aio_lio_opcode;
-		if (kevp == NULL)
+		if (user_opcode == LIO_NOP || user_opcode == LIO_READ ||
+		    user_opcode == LIO_WRITE)
 			goto no_kqueue;
 
-		error = copyin(kevp, &kev, sizeof(kev));
+		error = copyin((struct kevent *)(uintptr_t)user_opcode,
+		    &kev, sizeof(kev));
 		if (error)
 			goto aqueue_fail;
 	}
@@ -1340,9 +1340,10 @@ _aio_aqueue(struct proc *p, struct aiocb *job, struct aio_liojob *lj, int type)
 		goto aqueue_fail;
 	}
 	kq = (struct kqueue *)kq_fp->f_data;
-	kev.ident = (uintptr_t)aiocbe;
+	kev.ident = (uintptr_t)aiocbe->uuaiocb;
 	kev.filter = EVFILT_AIO;
 	kev.flags = EV_ADD | EV_ENABLE | EV_FLAG1;
+	kev.data = (intptr_t)aiocbe;
 	error = kqueue_register(kq, &kev, p);
 aqueue_fail:
 	if (error) {
@@ -2242,7 +2243,7 @@ struct filterops aio_filtops =
 static int
 filt_aioattach(struct knote *kn)
 {
-	struct aiocblist *aiocbe = (struct aiocblist *)kn->kn_id;
+	struct aiocblist *aiocbe = (struct aiocblist *)kn->kn_sdata;
 
 	/*
 	 * The aiocbe pointer must be validated before using it, so
@@ -2261,7 +2262,7 @@ filt_aioattach(struct knote *kn)
 static void
 filt_aiodetach(struct knote *kn)
 {
-	struct aiocblist *aiocbe = (struct aiocblist *)kn->kn_id;
+	struct aiocblist *aiocbe = (struct aiocblist *)kn->kn_sdata;
 
 	SLIST_REMOVE(&aiocbe->klist, kn, knote, kn_selnext);
 }
@@ -2270,7 +2271,7 @@ filt_aiodetach(struct knote *kn)
 static int
 filt_aio(struct knote *kn, long hint)
 {
-	struct aiocblist *aiocbe = (struct aiocblist *)kn->kn_id;
+	struct aiocblist *aiocbe = (struct aiocblist *)kn->kn_sdata;
 
 	kn->kn_data = aiocbe->uaiocb._aiocb_private.error;
 	if (aiocbe->jobstate != JOBST_JOBFINISHED &&
