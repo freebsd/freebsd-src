@@ -1,4 +1,4 @@
-$Id: majors.pc98,v 1.39 1998/09/14 10:43:26 kato Exp $
+$Id: majors.pc98,v 1.40 1998/09/15 14:10:56 kato Exp $
 
 Hopefully, this list will one day be obsoleted by DEVFS, but for now
 this is the current allocation of device major numbers.
@@ -148,3 +148,4 @@ chrdev	name		comments
 104	xpt		CAM Transport Layer Services
 105	iic		I2C bus generic i/o
 106	smb		System Management Bus generic i/o
+107	3dfx		3Dfx driver (shocking@prth.pgs.com)
