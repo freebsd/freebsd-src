@@ -87,6 +87,19 @@ user does not exist in either the local password database of the
 NIS password maps,
 .Nm passwd
 returns an error.
+.Pp
+When changing an NIS password, unprivileged users are required to provide
+their old password for authentication (the
+.Xr rpc.yppasswdd 8
+daemon requires the original password before
+it will allow any changes to the NIS password maps).
+This restriction applies even to the
+super-user, with one important exception: the password authentication is
+bypassed for the super-user on the NIS master server. This means that
+the super-user on the NIS master server can make unrestricted changes to
+anyone's NIS password. The super-user on NIS client systems and NIS slave
+servers still needs to provide a password before the update will be processed.
+.Pp
 The following additional options are supported for use with NIS:
 .Bl -tag -width flag
 .It Fl y
@@ -114,17 +127,39 @@ default,
 will try to change the NIS password. The
 .Fl l
 flag can be used to change the local password instead.
-.El
+.It Fl d Ar domain
+Specify what domain to use when changing an NIS password. By default,
+.Nm passwd
+assumes that the system default domain should be used. This flag is
+primarily for use by the superuser on the NIS master server: a single
+NIS server can support multiple domains. It is also possible that the
+domainname on the NIS master may not be set (it is not necessary for
+an NIS server to also be a client) in which case the
+.Nm passwd
+command needs to be told what domain to operate on.
+.It Fl s Ar host
+Specify the name of an NIS server. This option, in conjunction
+with the
+.Fl d
+option, can be used to change an NIS password on a non-local NIS
+server. When a domain is specified with the
+.Fl d
+option and
+.Nm passwd
+is unable to determine the name of the NIS master server (possibly because
+the local domainname isn't set), the name of the NIS master is assumed to
+be ``localhost''. This can be overriden with the
+.Fl s
+flag. The specified hostname need not be the name of an NIS master: the
+name of the NIS master for a given map can be determined by querying any
+NIS server (master or slave) in a domain, so specifying the name of a
+slave server will work equally well.
 .Pp
-When changing an NIS password, the user is required to provide
-the old password for authentication (the
-.Xr yppasswdd 8
-daemon requires the original password before
-it will allow any changes to the NIS password maps).
-This restriction applies even to the
-super-user: the only way for an administrator to override a
-user's NIS password is by modifying the NIS password maps on
-the master NIS server.
+.It Fl o
+Do not automatically override the password authentication checks for the
+super-user on the NIS master server; assume 'old' mode instead. This
+flag is of limited practical use but is useful for testing.
+.El
 .Sh FILES
 .Bl -tag -width /etc/master.passwd -compact
 .It Pa /etc/master.passwd

@@ -40,7 +40,7 @@ static char copyright[] =
 #ifndef lint
 static char sccsid[] = "From: @(#)chpass.c	8.4 (Berkeley) 4/2/94";
 static char rcsid[] =
-	"$Id: chpass.c,v 1.5 1995/09/02 03:56:17 wpaul Exp $";
+	"$Id: chpass.c,v 1.5 1996/02/23 14:33:05 wpaul Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -63,13 +63,14 @@ static char rcsid[] =
 #include <pw_util.h>
 #include "pw_copy.h"
 #ifdef YP
+#include <rpcsvc/yp.h>
+int yp_errno = YP_TRUE;
 #include "pw_yp.h"
 #endif
 
 #include "chpass.h"
 #include "pathnames.h"
 
-char *progname = "chpass";
 char *tempname;
 uid_t uid;
 
@@ -92,7 +93,7 @@ main(argc, argv)
 
 	op = EDITENTRY;
 #ifdef YP
-	while ((ch = getopt(argc, argv, "a:p:s:ly")) != EOF)
+	while ((ch = getopt(argc, argv, "a:p:s:d:h:oly")) != EOF)
 #else
 	while ((ch = getopt(argc, argv, "a:p:s:")) != EOF)
 #endif
@@ -110,11 +111,42 @@ main(argc, argv)
 			arg = optarg;
 			break;
 #ifdef YP
+		case 'h':
+#ifdef PARAMOID
+			if (getuid()) {
+				warnx("Only the superuser can use the -d flag");
+			} else {
+#endif
+				yp_server = optarg;
+#ifdef PARANOID
+			}
+#endif
+			break;
+		case 'd':
+#ifdef PARANOID
+			if (getuid()) {
+				warnx("Only the superuser can use the -d flag");
+			} else {
+#endif
+				yp_domain = optarg;
+				if (yp_server == NULL)
+					yp_server = "localhost";
+#ifdef PARANOID
+			}
+#endif
+			break;
 		case 'l':
-			force_local = 1;
+			if (getuid()) {
+				warnx("Only the superuser can use the -h flag");
+			} else {
+				force_local = 1;
+			}
 			break;
 		case 'y':
-			force_yp = 1;
+			_use_yp = force_yp = 1;
+			break;
+		case 'o':
+			force_old++;
 			break;
 #endif
 		case '?':
@@ -128,6 +160,15 @@ main(argc, argv)
 
 	if (op == EDITENTRY || op == NEWSH || op == NEWPW)
 		switch(argc) {
+#ifdef YP
+		case 0:
+			GETPWUID(uid)
+			get_yp_master(1); /* XXX just to set the suser flag */
+			break;
+		case 1:
+			GETPWNAM(*argv)
+			get_yp_master(1); /* XXX just to set the suser flag */
+#else
 		case 0:
 			if (!(pw = getpwuid(uid)))
 				errx(1, "unknown user: uid %u", uid);
@@ -135,39 +176,13 @@ main(argc, argv)
 		case 1:
 			if (!(pw = getpwnam(*argv)))
 				errx(1, "unknown user: %s", *argv);
+#endif
 			if (uid && uid != pw->pw_uid)
 				baduser();
 			break;
 		default:
 			usage();
 		}
-
-#ifdef YP
-	pw->pw_name = strdup(pw->pw_name);
-	_use_yp = use_yp(pw->pw_name);
-	if (_use_yp == USER_YP_ONLY) {
-		if (!force_local) {
-			_use_yp = 1;
-			pw = (struct passwd *)&yp_password;
-		} else
-			errx(1, "unknown local user: %s.", pw->pw_name);
-	} else if (_use_yp == USER_LOCAL_ONLY) {
-		if (!force_yp) {
-			_use_yp = 0;
-			pw = (struct passwd *)&local_password;
-		} else
-			errx(1, "unknown NIS user: %s.", pw->pw_name);
-	} else if (_use_yp == USER_YP_AND_LOCAL) {
-		if (!force_local) {
-			_use_yp = 1;
-			pw = (struct passwd *)&yp_password;
-		} else {
-			_use_yp = 0;
-			pw = (struct passwd *)&local_password;
-		}
-	}
-#endif /* YP */
-
 	if (op == NEWSH) {
 		/* protect p_shell -- it thinks NULL is /bin/sh */
 		if (!arg[0])
@@ -258,7 +273,7 @@ usage()
 
 	(void)fprintf(stderr,
 #ifdef YP
-		"usage: chpass [-l] [-y] [-a list] [-p encpass] [-s shell] [user]\n");
+		"usage: chpass [-l] [-y] [-d domain [-h host]] [-a list] [-p encpass] [-s shell] [user]\n");
 #else
 		"usage: chpass [-a list] [-p encpass] [-s shell] [user]\n");
 #endif
