@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.59 1996/10/06 02:10:54 jkh Exp $
+ * $Id: media.c,v 1.60 1996/10/09 09:53:38 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -262,6 +262,10 @@ mediaSetFTP(dialogMenuItem *self)
     static Boolean network_init = 1;
     int what = DITEM_RESTORE;
 
+    /* If we've been through here before ... */
+    if (!network_init && msgYesNo("Re-use old FTP site selection values?"))
+	variable_unset(VAR_FTP_PATH);
+
     cp = variable_get(VAR_FTP_PATH);
     if (!cp) {
 	dialog_clear_norefresh();
@@ -298,12 +302,12 @@ mediaSetFTP(dialogMenuItem *self)
     dialog_clear_norefresh();
     if (network_init || msgYesNo("You've already done the network configuration once,\n"
 			       "would you like to skip over it now?") != 0) {
+	if (mediaDevice)
+	    mediaDevice->shutdown(mediaDevice);
 	if (!tcpDeviceSelect()) {
 	    variable_unset(VAR_FTP_PATH);
 	    return DITEM_FAILURE | what;
 	}
-	if (!network_init)
-	    mediaDevice->shutdown(mediaDevice);
 	if (!mediaDevice || !mediaDevice->init(mediaDevice)) {
 	    if (isDebug())
 		msgDebug("mediaSetFTP: Net device init failed.\n");
