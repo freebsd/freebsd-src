@@ -204,7 +204,7 @@ char	*argv[];
 			}
 			break;
 		case 0:
-			rval |= execl(*argv, *argv, (char *)NULL) != 0;
+			execl(*argv, *argv, (char *)NULL);
 			warn("%s", *argv);
 			_exit(1);
 		}
