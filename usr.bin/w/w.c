@@ -323,6 +323,17 @@ main(argc, argv)
 			}
 			p = hp->h_name;
 		}
+		if (nflag && inet_addr(p) == INADDR_NONE) {
+			hp = gethostbyname(p);
+
+			if (hp != NULL) {
+				struct in_addr in;
+
+				memmove(&in, hp->h_addr, sizeof(in));
+				p = inet_ntoa(in);
+			} else
+				herror("gethostbyname");
+		}
 		if (x) {
 			(void)snprintf(buf, sizeof(buf), "%s:%.*s", p,
 			    ep->utmp.ut_host + UT_HOSTSIZE - x, x);
