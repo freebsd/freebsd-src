@@ -24,22 +24,22 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id$ 
+ *	$Id: pcaudio.c,v 1.3 1994/05/20 12:24:15 sos Exp $ 
  */
-
-#include "param.h"
-#include "uio.h"
-#include "ioctl.h"
-#include "sound/ulaw.h"
-#include "machine/cpufunc.h"
-#include "machine/pio.h"
-#include "machine/pcaudioio.h"
-#include "i386/isa/isa.h"
-#include "i386/isa/isa_device.h"
-#include "i386/isa/timerreg.h"
 
 #include "pca.h"
 #if NPCA > 0
+
+#include <sys/param.h>
+#include <sys/uio.h>
+#include <sys/ioctl.h>
+#include <sound/ulaw.h>
+#include <machine/cpufunc.h>
+#include <machine/pio.h>
+#include <machine/pcaudioio.h>
+#include <i386/isa/isa.h>
+#include <i386/isa/isa_device.h>
+#include <i386/isa/timerreg.h>
 
 #define BUF_SIZE 	8192
 #define SAMPLE_RATE	8000

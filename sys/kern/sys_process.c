@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: sys_process.c,v 1.4 1994/08/08 13:00:14 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -43,7 +43,7 @@
 #include <vm/vm_page.h>
 #include <vm/vm_kern.h>
 
-#include "user.h"
+#include <sys/user.h>
 
 int
 pread (struct proc *procp, unsigned int addr, unsigned int *retval) {

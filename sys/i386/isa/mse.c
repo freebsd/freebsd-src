@@ -11,7 +11,7 @@
  * this software for any purpose.  It is provided "as is"
  * without express or implied warranty.
  *
- * $Id$
+ * $Id: mse.c,v 1.5 1994/08/02 07:39:39 davidg Exp $
  */
 /*
  * Driver for the Logitech and ATI Inport Bus mice for use with 386bsd and
@@ -44,18 +44,18 @@
 
 #include "mse.h"
 #if NMSE > 0
-#include "param.h"
-#include "proc.h"
-#include "user.h"
-#include "buf.h"
-#include "systm.h"
-#include "kernel.h"
-#include "ioctl.h"
-#include "tty.h"
-#include "uio.h"
+#include <sys/param.h>
+#include <sys/proc.h>
+#include <sys/user.h>
+#include <sys/buf.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/ioctl.h>
+#include <sys/tty.h>
+#include <sys/uio.h>
 
-#include "i386/isa/isa_device.h"
-#include "i386/isa/icu.h"
+#include <i386/isa/isa_device.h>
+#include <i386/isa/icu.h>
 
 static int mseprobe(struct isa_device *);
 static int mseattach(struct isa_device *);

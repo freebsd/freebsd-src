@@ -4,22 +4,22 @@
  * v1.4 by Eric S. Raymond (esr@snark.thyrsus.com) Aug 1993
  * modified for FreeBSD by Andrew A. Chernov <ache@astral.msk.su>
  *
- *    $Id: spkr.c,v 1.7 1994/01/25 23:04:27 ache Exp $
+ *    $Id: spkr.c,v 1.8 1994/04/21 14:21:50 sos Exp $
  */
 
 #include "speaker.h"
 
 #if NSPEAKER > 0
 
-#include "param.h"
-#include "systm.h"
-#include "kernel.h"
-#include "errno.h"
-#include "buf.h"
-#include "uio.h"
-#include "i386/isa/isa.h"
-#include "i386/isa/timerreg.h"
-#include "machine/speaker.h"
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/errno.h>
+#include <sys/buf.h>
+#include <sys/uio.h>
+#include <i386/isa/isa.h>
+#include <i386/isa/timerreg.h>
+#include <machine/speaker.h>
 
 /**************** MACHINE DEPENDENT PART STARTS HERE *************************
  *

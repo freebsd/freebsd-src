@@ -34,26 +34,26 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)sys_machdep.c	5.5 (Berkeley) 1/19/91
- *	$Id: sys_machdep.c,v 1.3 1993/10/16 14:15:10 rgrimes Exp $
+ *	$Id: sys_machdep.c,v 1.4 1994/01/31 10:27:01 davidg Exp $
  */
 
-#include "param.h"
-#include "systm.h"
-#include "ioctl.h"
-#include "file.h"
-#include "time.h"
-#include "proc.h"
-#include "uio.h"
-#include "kernel.h"
-#include "mtio.h"
-#include "buf.h"
-#include "trace.h"
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/ioctl.h>
+#include <sys/file.h>
+#include <sys/time.h>
+#include <sys/proc.h>
+#include <sys/uio.h>
+#include <sys/kernel.h>
+#include <sys/mtio.h>
+#include <sys/buf.h>
+#include <sys/trace.h>
 
 #ifdef USER_LDT
-#include "user.h"
-#include "machine/cpu.h"
-#include "machine/sysarch.h"
-#include "vm/vm_kern.h"		/* for kernel_map */
+#include <sys/user.h>
+#include <machine/cpu.h>
+#include <machine/sysarch.h>
+#include <vm/vm_kern.h>		/* for kernel_map */
 #endif
 
 #ifdef TRACE

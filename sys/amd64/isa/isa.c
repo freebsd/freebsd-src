@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa.c,v 1.18 1994/05/25 08:59:24 rgrimes Exp $
+ *	$Id: isa.c,v 1.19 1994/08/10 04:39:52 wollman Exp $
  */
 
 /*
@@ -47,24 +47,24 @@
  * isa_dmastart()
  */
 
-#include "param.h"
-#include "systm.h"		/* isn't it a joy */
-#include "kernel.h"		/* to have three of these */
-#include "conf.h"
-#include "file.h"
-#include "buf.h"
-#include "uio.h"
-#include "syslog.h"
-#include "malloc.h"
-#include "rlist.h"
-#include "machine/segments.h"
-#include "vm/vm.h"
+#include <sys/param.h>
+#include <sys/systm.h>		/* isn't it a joy */
+#include <sys/kernel.h>		/* to have three of these */
+#include <sys/conf.h>
+#include <sys/file.h>
+#include <sys/buf.h>
+#include <sys/uio.h>
+#include <sys/syslog.h>
+#include <sys/malloc.h>
+#include <sys/rlist.h>
+#include <machine/segments.h>
+#include <vm/vm.h>
 #include <machine/spl.h>
-#include "i386/isa/isa_device.h"
-#include "i386/isa/isa.h"
-#include "i386/isa/icu.h"
-#include "i386/isa/ic/i8237.h"
-#include "i386/isa/ic/i8042.h"
+#include <i386/isa/isa_device.h>
+#include <i386/isa/isa.h>
+#include <i386/isa/icu.h>
+#include <i386/isa/ic/i8237.h>
+#include <i386/isa/ic/i8042.h>
 
 /*
 **  Register definitions for DMA controller 1 (channels 0..3):

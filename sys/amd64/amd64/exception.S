@@ -30,23 +30,23 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: exception.s,v 1.2 1994/01/03 07:55:20 davidg Exp $
+ *	$Id: exception.s,v 1.3 1994/04/02 07:00:23 davidg Exp $
  */
 
 #include "npx.h"				/* NNPX */
 
 #include "assym.s"				/* system defines */
 
-#include "errno.h"				/* error return codes */
+#include <sys/errno.h>				/* error return codes */
 
-#include "machine/spl.h"			/* SWI_AST_MASK ... */
+#include <machine/spl.h>			/* SWI_AST_MASK ... */
 
-#include "machine/psl.h"			/* PSL_I */
+#include <machine/psl.h>			/* PSL_I */
 
-#include "machine/trap.h"			/* trap codes */
-#include "syscall.h"				/* syscall numbers */
+#include <machine/trap.h>			/* trap codes */
+#include <sys/syscall.h>			/* syscall numbers */
 
-#include "machine/asmacros.h"			/* miscellaneous macros */
+#include <machine/asmacros.h>			/* miscellaneous macros */
 
 #define	KDSEL		0x10			/* kernel data selector */
 #define	SEL_RPL_MASK	0x0003

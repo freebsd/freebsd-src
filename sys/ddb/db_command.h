@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_command.h,v 1.2 1993/10/16 16:47:12 rgrimes Exp $
+ *	$Id: db_command.h,v 1.3 1993/11/07 17:39:22 wollman Exp $
  */
 
 #ifndef _DDB_DB_COMMAND_H_
@@ -37,8 +37,8 @@
  * Command loop declarations.
  */
 
-#include "param.h"
-#include "proc.h"
+#include <sys/param.h>
+#include <sys/proc.h>
 #include <machine/db_machdep.h>
 
 extern void	db_command_loop();
