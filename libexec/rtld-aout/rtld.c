@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: rtld.c,v 1.53 1998/05/26 20:12:51 sos Exp $
+ *	$Id: rtld.c,v 1.54 1998/06/07 03:53:06 brian Exp $
  */
 
 #include <sys/param.h>
@@ -252,6 +252,7 @@ static struct nzlist	*lookup_in_obj __P((char *, unsigned long,
 static struct rt_symbol	*enter_rts __P((char *, unsigned long, long, int,
     caddr_t, long, struct so_map *));
 static void		*sym_addr __P((char *));
+static struct nzlist *	lookup_errno_hack(char *, struct so_map	**, int);
 static void		die __P((void));
 static void		generror __P((char *, ...));
 static int		maphints __P((void));
@@ -1502,6 +1503,13 @@ lookup(name, src_map, real_def_only)
 			return rtsp->rt_sp;
 		}
 
+		/*
+		 * Just before giving up, check for the __error() hack.
+		 */
+		np = lookup_errno_hack(name, src_map, real_def_only);
+		if (np != NULL)
+			return np;
+
 		/* No definition was found for the symbol. */
 		return NULL;
 	}
@@ -1595,6 +1603,67 @@ sym_addr(name)
 		errx(1, "Program has no symbol \"%s\"", name);
 	return ((smp == NULL) ? NULL : smp->som_addr) + np->nz_value;
 }
+
+
+/*
+ * Help old a.out binaries that are broken by the new errno macro.  They
+ * can be missing __error() through no fault of their own.  In particular,
+ * old a.out binaries can link against an old libc that does not contain
+ * __error(), yet still require __error() because of other libraries that
+ * have been recompiled since the errno change.  This locates the backward
+ * compatible work-alike we have hidden here in ld.so.
+ */
+static struct nzlist *
+lookup_errno_hack(sym, src_map, real_def_only)
+	char		*sym;
+	struct so_map	**src_map;
+	int		 real_def_only;
+{
+	struct so_map	*smp;
+	struct nzlist	*np;
+
+	if (strcmp(sym, "___error") != 0)
+		return NULL;
+
+	/*
+	 * Specifically find the ld.so link map because most routines
+	 * skip over it during normal operation.
+	 */
+	for (smp = link_map_head; ; smp = smp->som_next)
+		if (LM_PRIVATE(smp)->spd_flags & RTLD_RTLD)
+			break;
+
+	/*
+	 * Actually, ld.so uses errno via the new macro, so it has a copy
+	 * of __error() lying around.  The really neat but obscure hack
+	 * is to just use that one, but to be really clear about what
+	 * is going on, we use an explicit __error() substitute.
+	 */
+	np = lookup("___error_unthreaded_hack", &smp, real_def_only);
+	if (np != NULL)
+		*src_map = smp;
+
+#ifdef DEBUG
+	if (np == NULL)
+		xprintf(" HACK: %s fudge not found, oops\n", sym);
+	else
+		xprintf(" HACK: %s fudge in %s\n", sym, smp->som_path);
+#endif
+
+	return np;
+}
+
+
+/*
+ * Just like __error_unthreaded(), but for those poor orphaned a.out
+ * binaries from way back that are bamboozled by the new errno macro.
+ */
+int *
+__error_unthreaded_hack()
+{
+	return &errno;
+}
+
 
 /*
  * This routine is called from the jumptable to resolve
