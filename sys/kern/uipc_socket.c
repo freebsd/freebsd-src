@@ -1784,7 +1784,7 @@ filt_soread(struct knote *kn, long hint)
 {
 	struct socket *so = (struct socket *)kn->kn_fp->f_data;
 
-	kn->kn_data = so->so_rcv.sb_cc;
+	kn->kn_data = so->so_rcv.sb_cc - so->so_rcv.sb_ctl;
 	if (so->so_state & SS_CANTRCVMORE) {
 		kn->kn_flags |= EV_EOF;
 		kn->kn_fflags = so->so_error;
