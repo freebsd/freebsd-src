@@ -50,14 +50,6 @@
 
     <para arch="i386">A driver for AGP hardware has been added. &merged;</para>
 
-    <para>SMP support has been largely reworked, incorporating code
-    from BSD/OS 5.0.  One of the main features of SMPng (<quote>SMP Next
-    Generation</quote>) is to allow more processes to run in kernel, without
-    the need for spin locks that can dramatically reduce the
-    efficiency of multiple processors.  Interrupt handlers now have
-    contexts associated with them that allow them to be blocked, which
-    reduces the need to lock out interrupts.</para>
-
     <para>The kernel and modules have been moved to the directory
     <filename>/boot/kernel</filename>, so they can be easily
     manipulated together.  The boot loader has been updated to make
@@ -176,6 +168,15 @@
     <sect3>
       <title>Processor/Motherboard Support</title>
 
+      <para>SMP support has been largely reworked, incorporating code
+      from BSD/OS 5.0.  One of the main features of SMPng (<quote>SMP
+      Next Generation</quote>) is to allow more processes to run in
+      kernel, without the need for spin locks that can dramatically
+      reduce the efficiency of multiple processors.  Interrupt
+      handlers now have contexts associated with them that allow them
+      to be blocked, which reduces the need to lock out
+      interrupts.</para>
+
       <para arch="i386">Support for the 80386 processor has been
       removed from the <filename>GENERIC</filename> kernel, as this
       code seriously pessimizes performance on other ia32
@@ -213,6 +214,9 @@
       (EV4 and EV5) to emulate instructions of the newer Alpha CPU 
       generations. This enables the use of binary-only programs like Adobe
       Acrobat 4 on EV4 and EV5.</para>
+
+      <para arch="alpha">SMP support for the alpha is now operational.</para>
+
     </sect3>
 
     <sect3>

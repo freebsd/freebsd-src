@@ -424,7 +424,7 @@ The directory layout preference algorithm for FFS has been changed to
 improve its speed on large filesystems.
 
 The wx(4) driver now supports the Intel PRO1000-F and PRO1000-T
-(10/100/1000) adapters.
+(10/100/1000) adapters. [MERGED]
 
 The labpc(4) driver has been removed due to bitrot.
 
