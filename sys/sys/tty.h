@@ -168,7 +168,7 @@ struct xtty {
 #define	OBUFSIZ	100
 
 #ifndef TTYHOG
-#define	TTYHOG	1024
+#define	TTYHOG	8192
 #endif
 
 #ifdef _KERNEL
