@@ -93,11 +93,11 @@ usage(void)
 int
 main(int argc, char *argv[])
 {
-	FILE		*firmware_file = NULL;
-	char		 buffer[80], path[NG_PATHSIZ],
-			*firmware_filename = NULL;
-	u_int8_t	*firmware = NULL;
-	int		 firmware_size, opt, cs, ds;
+	FILE	*firmware_file = NULL;
+	char	 buffer[80], path[NG_PATHSIZ],
+		*firmware_filename = NULL;
+	uint8_t	*firmware = NULL;
+	int	 firmware_size, opt, cs, ds;
 
 	memset(path, 0, sizeof(path));
 	openlog(BT3CFW_IDENT, LOG_NDELAY|LOG_PID|LOG_PERROR, LOG_USER);
@@ -123,8 +123,8 @@ main(int argc, char *argv[])
 		usage();
 		/* NOT REACHED */
 
-	firmware = (u_int8_t *) calloc(BT3CFW_MAX_FIRMWARE_SIZE,
-					sizeof(u_int8_t));
+	firmware = (uint8_t *) calloc(BT3CFW_MAX_FIRMWARE_SIZE,
+					sizeof(uint8_t));
 	if (firmware == NULL) {
 		syslog(LOG_ERR, "Could not allocate firmware buffer");
 		exit(255);
@@ -147,7 +147,7 @@ main(int argc, char *argv[])
 
 		if (buffer[1] == '3') {
 			ng_bt3c_firmware_block_ep	*block = NULL;
-			u_int16_t			*data = NULL;
+			uint16_t			*data = NULL;
 
 			block = (ng_bt3c_firmware_block_ep *)
 						(firmware + firmware_size);
@@ -185,7 +185,7 @@ main(int argc, char *argv[])
 				cs += hexa2int8(buffer + 2 + i * 2);
 
 			/* Data + second part of the cheksum: data */
-			data = (u_int16_t *)(block + 1);
+			data = (uint16_t *)(block + 1);
 			for (i = 0; i < block->block_size; i++) {
 				data[i] = hexa2int16(buffer + (i * 4) + 12);
 				cs += (((data[i] & 0xff00) >> 8) & 0xff);

@@ -50,7 +50,7 @@ hci_read_failed_contact_counter(int s, int argc, char **argv)
 		if (sscanf(argv[0], "%d", &n) != 1 || n <= 0 || n > 0x0eff)
 			return (USAGE);
   
-		cp.con_handle = (u_int16_t) (n & 0x0fff);
+		cp.con_handle = (uint16_t) (n & 0x0fff);
 		cp.con_handle = htole16(cp.con_handle);
 		break;
 
@@ -92,7 +92,7 @@ hci_reset_failed_contact_counter(int s, int argc, char **argv)
 		if (sscanf(argv[0], "%d", &n) != 1 || n <= 0 || n > 0x0eff)
 			return (USAGE);
   
-		cp.con_handle = (u_int16_t) (n & 0x0fff);
+		cp.con_handle = (uint16_t) (n & 0x0fff);
 		cp.con_handle = htole16(cp.con_handle);
 		break;
 
@@ -131,7 +131,7 @@ hci_get_link_quality(int s, int argc, char **argv)
 		if (sscanf(argv[0], "%d", &n) != 1 || n <= 0 || n > 0x0eff)
 			return (USAGE);
   
-		cp.con_handle = (u_int16_t) (n & 0x0fff);
+		cp.con_handle = (uint16_t) (n & 0x0fff);
 		cp.con_handle = htole16(cp.con_handle);
 		break;
 
@@ -173,7 +173,7 @@ hci_read_rssi(int s, int argc, char **argv)
 		if (sscanf(argv[0], "%d", &n) != 1 || n <= 0 || n > 0x0eff)
 			return (USAGE);
   
-		cp.con_handle = (u_int16_t) (n & 0x0fff);
+		cp.con_handle = (uint16_t) (n & 0x0fff);
 		cp.con_handle = htole16(cp.con_handle);
 		break;
 
