@@ -1,5 +1,5 @@
 /* $FreeBSD$ */
-/* $Id: isp_freebsd_cam.h,v 1.2 1998/09/15 09:59:37 gibbs Exp $ */
+/* $Id: isp_freebsd_cam.h,v 1.3 1998/09/16 16:42:40 mjacob Exp $ */
 /*
  * Qlogic ISP SCSI Host Adapter FreeBSD Wrapper Definitions (CAM version)
  *---------------------------------------
@@ -70,6 +70,7 @@ struct isposinfo {
 	struct cam_sim		*sim;
 	struct cam_path		*path;
 	struct callout_handle	watchid;
+	volatile char		simqfrozen;
 };
 
 #define	isp_sim		isp_osinfo.sim
@@ -164,6 +165,10 @@ struct isposinfo {
 			xpt_freeze_devq((sccb)->ccb_h.path, 1); \
 			(sccb)->ccb_h.status |= CAM_DEV_QFRZN; \
 		} \
+	} \
+	if ((XS_ISP((sccb)))->isp_osinfo.simqfrozen) { \
+		(sccb)->ccb_h.status |= CAM_RELEASE_SIMQ; \
+		(XS_ISP((sccb)))->isp_osinfo.simqfrozen = 0; \
 	} \
 	(sccb)->ccb_h.status &= ~CAM_SIM_QUEUED; \
 	xpt_done((union ccb *)(sccb))
