@@ -18,7 +18,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: main.c,v 1.5 1995/10/31 21:21:26 peter Exp $";
+static char rcsid[] = "$Id: main.c,v 1.6 1996/08/11 17:29:33 pst Exp $";
 #endif
 
 #include <stdio.h>
@@ -330,7 +330,7 @@ main(argc, argv)
 	hungup = 0;
 	kill_link = 0;
 
-	if (!default_device)
+	if (!default_device && !nodetach)
 	    setsid();
 
 	/* run connection script */
@@ -369,7 +369,7 @@ main(argc, argv)
 	set_up_tty(fd, 0);
 
 	/* attach to the controlling tty for signals */
-	if (!default_device && ioctl(fd, TIOCSCTTY) < 0) {
+	if (!default_device && !nodetach && ioctl(fd, TIOCSCTTY) < 0) {
 	    syslog(LOG_ERR, "ioctl(TIOCSCTTY) : %m");
 	    die(1);
 	}
