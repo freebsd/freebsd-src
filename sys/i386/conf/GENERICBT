@@ -1,20 +1,19 @@
 #
 # GENERICBT -- Generic machine with WD/BTx family disks
 #
-#	$Id: GENERICBT,v 1.36 1994/08/09 08:17:09 davidg Exp $
+#	$Id: GENERICBT,v 1.37 1994/08/31 06:17:20 davidg Exp $
 #
 
 machine		"i386"
 cpu		"I386_CPU"
 cpu		"I486_CPU"
+cpu		"I586_CPU"
 ident		GENERICBT
 maxusers	10
 
 options		MATH_EMULATE		#Support for x87 emulation
 options		INET			#InterNETworking
 #options		GATEWAY			#Host is a Gateway (forwards packets)
-options		MULTICAST		#IP Multicasting support
-options		MROUTING		#IP Multicast Routing
 options		FFS			#Berkeley Fast File System
 options		LFS			#Log File System
 options		MFS			#Memory File System
