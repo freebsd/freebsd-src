@@ -1,12 +1,8 @@
-#	@(#)Makefile	8.1 (Berkeley) 7/19/93
+# $FreeBSD$
 
 PROG=	limits
-SRCS=	limits.c
-
 CFLAGS+=-Wall
-LDADD+= -lutil
-DPADD+= ${LIBUTIL}
-
-BINMODE=0555
+DPADD=	${LIBUTIL}
+LDADD=	-lutil
 
 .include <bsd.prog.mk>
