@@ -8,6 +8,6 @@ MAN1= rpcgen.1
 # This is a kludge to work around the fact that this program
 # uses 'inline' as a variable name.
 #
-CFLAGS+=-Dinline=rpcgen_inline -I${.CURDIR}/../../include -I${.CURDIR}/../../sys/i386/include -I${.CURDIR}/../../include/rpc -I${.CURDIR}/../../sys/sys
+CFLAGS+=-Dinline=rpcgen_inline
 
 .include <bsd.prog.mk>
