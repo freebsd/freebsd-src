@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.9 1994/03/21 14:37:01 ache Exp $
+ *	$Id: autoconf.c,v 1.10 1994/03/21 14:53:08 ache Exp $
  */
 
 /*
@@ -166,7 +166,7 @@ setroot()
 	adaptor = (bootdev >> B_ADAPTORSHIFT) & B_ADAPTORMASK;
 	unit = (bootdev >> B_UNITSHIFT) & B_UNITMASK;
 	if (majdev == FDMAJOR) {
-		part = 0;
+		part = 3;       /* raw */
 		mindev = unit << FDUNITSHIFT;
 	}
 	else {
