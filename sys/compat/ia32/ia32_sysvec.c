@@ -157,6 +157,14 @@ SYSINIT(oia32, SI_SUB_EXEC, SI_ORDER_ANY,
 	(sysinit_cfunc_t) elf32_insert_brand_entry,
 	&ia32_brand_oinfo);
 
+
+void
+elf32_dump_thread(struct thread *td __unused, void *dst __unused,
+    size_t *off __unused)
+{
+}
+
+
 /* XXX may be freebsd32 MI */
 static register_t *
 ia32_copyout_strings(struct image_params *imgp)
