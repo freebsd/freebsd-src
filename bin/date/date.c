@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: date.c,v 1.2 1994/09/24 02:54:36 davidg Exp $
+ *	$Id: date.c,v 1.3 1994/12/26 12:59:28 bde Exp $
  */
 
 #ifndef lint
@@ -123,7 +123,7 @@ main(argc, argv)
 	if (!rflag && time(&tval) == -1)
 		err(1, "time");
 
-	format = "%a %b %e %H:%M:%S %Z %Y\n";
+	format = "%a %b %e %H:%M:%S %Z %Y";
 
 	/* allow the operands in any order */
 	if (*argv && **argv == '+') {
@@ -140,7 +140,7 @@ main(argc, argv)
 		format = *argv + 1;
 
 	(void)strftime(buf, sizeof(buf), format, localtime(&tval));
-	(void)printf("%s", buf);
+	(void)printf("%s\n", buf);
 	exit(retval);
 }
 
