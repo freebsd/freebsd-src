@@ -819,7 +819,7 @@ usbd_setup_pipe(usbd_device_handle dev, usbd_interface_handle iface,
 	if (UE_GET_ADDR(ep->edesc->bEndpointAddress) != USB_CONTROL_ENDPOINT) {
 		err = usbd_clear_endpoint_stall(p);
 		/*
-		 * Some devices reject this command, so ignore a STALL. */
+		 * Some devices reject this command, so ignore a STALL.
 		 * Some device just time out on this command, so ignore
 		 * that too.
 		 */
