@@ -1,4 +1,4 @@
-#	$Id: options,v 1.73 1998/05/19 08:58:42 phk Exp $
+#	$Id: options,v 1.74 1998/05/24 01:29:52 jkh Exp $
 #
 #        On the handling of kernel options   
 # 
@@ -173,6 +173,8 @@ IPFIREWALL		opt_ipfw.h
 IPFIREWALL_VERBOSE	opt_ipfw.h
 IPFIREWALL_VERBOSE_LIMIT	opt_ipfw.h
 IPFIREWALL_DEFAULT_TO_ACCEPT	opt_ipfw.h
+#temp option to change ipfw/divert semantics. Should become standard.
+IPFW_DIVERT_RESTART	opt_ipfw.h
 IPX			opt_ipx.h
 IPXIP			opt_ipx.h
 IPTUNNEL		opt_ipx.h
