@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)vmstat.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: vmstat.c,v 1.33 1999/02/15 14:15:28 bde Exp $";
+	"$Id: vmstat.c,v 1.34 1999/05/10 00:33:32 imp Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -503,9 +503,6 @@ dovmstat(interval, reps)
 		}
 		(void)printf("%2d%2d%2d",
 		    total.t_rq - 1, total.t_dw + total.t_pw, total.t_sw);
-#ifdef pgtok
-#undef pgtok
-#endif
 #define pgtok(a) ((a) * sum.v_page_size >> 10)
 #define	rate(x)	(((x) + halfuptime) / uptime)	/* round */
 		(void)printf("%8ld%6ld ",
@@ -795,7 +792,7 @@ dointr()
 	(void)printf("Total        %8ld %8ld\n", inttotal, inttotal / uptime);
 }
 
-#define MAX_KMSTATS 200
+#define	MAX_KMSTATS	200
 
 void
 domem()
@@ -806,14 +803,13 @@ domem()
 	int len, size, first, nkms;
 	long totuse = 0, totfree = 0, totreq = 0;
 	const char *name;
-	struct malloc_type kmemstats[MAX_KMSTATS], *kmsp, *first_kmsp;
+	struct malloc_type kmemstats[MAX_KMSTATS], *kmsp;
 	char *kmemnames[MAX_KMSTATS];
 	char buf[1024];
 	struct kmembuckets buckets[MINBUCKET + 16];
 
 	kread(X_KMEMBUCKETS, buckets, sizeof(buckets));
 	kread(X_KMEMSTATISTICS, &kmsp, sizeof(kmsp));
-	first_kmsp = kmsp;
 	for (nkms = 0; nkms < MAX_KMSTATS && kmsp != NULL; nkms++) {
 		if (sizeof(kmemstats[0]) != kvm_read(kd, (u_long)kmsp,
 		    &kmemstats[nkms], sizeof(kmemstats[0])))
@@ -825,11 +821,9 @@ domem()
 		buf[sizeof(buf) - 1] = '\0';
 		kmemstats[nkms].ks_shortdesc = strdup(buf);
 		kmsp = kmemstats[nkms].ks_next;
-		if (kmsp == first_kmsp)
-			break;
 	}
-	if (kmsp != NULL && nkms >= MAX_KMSTATS)
-		warnx("Truncated to the first %d types.", MAX_KMSTATS);
+	if (kmsp != NULL)
+		warnx("truncated to the first %d memory types", nkms);
 	(void)printf("Memory statistics by bucket size\n");
 	(void)printf(
 	    "Size   In Use   Free   Requests  HighWater  Couldfree\n");
