@@ -74,7 +74,7 @@ static int			nostd;
 static int			justread;
 static int			merge;
 static int			rescan;
-static char			*hints_file;
+static const char		*hints_file;
 
 struct shlib_list {
 	/* Internal list of shared libraries found */
@@ -99,9 +99,7 @@ static int		readhints(void);
 static void		usage(void);
 
 int
-main(argc, argv)
-int	argc;
-char	*argv[];
+main(int argc, char **argv)
 {
 	int		i, c;
 	int		rval = 0;
@@ -380,10 +378,8 @@ int	dewey[], ndewey;
 }
 
 
-int
-hinthash(cp, vmajor)
-char	*cp;
-int	vmajor;
+static int
+hinthash(char *cp, int vmajor)
 {
 	int	k = 0;
 
@@ -406,7 +402,7 @@ buildhints()
 	int			strtab_sz = 0;	/* Total length of strings */
 	int			nhints = 0;	/* Total number of hints */
 	int			fd;
-	char			*tmpfile;
+	char			*_tmpfile;
 
 	for (shp = shlib_head; shp; shp = shp->next) {
 		strtab_sz += 1 + strlen(shp->name);
@@ -447,20 +443,20 @@ buildhints()
 		  (hinthash(shp->name, shp->major) % hdr.hh_nbucket);
 
 		if (bp->hi_pathx) {
-			int	i;
+			int	j;
 
-			for (i = 0; i < hdr.hh_nbucket; i++) {
-				if (blist[i].hi_pathx == 0)
+			for (j = 0; j < hdr.hh_nbucket; j++) {
+				if (blist[j].hi_pathx == 0)
 					break;
 			}
-			if (i == hdr.hh_nbucket) {
+			if (j == hdr.hh_nbucket) {
 				warnx("bummer!");
 				return -1;
 			}
 			while (bp->hi_next != -1)
 				bp = &blist[bp->hi_next];
-			bp->hi_next = i;
-			bp = blist + i;
+			bp->hi_next = j;
+			bp = blist + j;
 		}
 
 		/* Insert strings in string table */
@@ -486,10 +482,10 @@ buildhints()
 		errx(1, "str_index(%d) != strtab_sz(%d)", str_index, strtab_sz);
 	}
 
-	tmpfile = concat(hints_file, ".XXXXXXXXXX", "");
+	_tmpfile = concat(hints_file, ".XXXXXXXXXX", "");
 	umask(0);	/* Create with exact permissions */
-	if ((fd = mkstemp(tmpfile)) == -1) {
-		warn("%s", tmpfile);
+	if ((fd = mkstemp(_tmpfile)) == -1) {
+		warn("%s", _tmpfile);
 		return -1;
 	}
 	fchmod(fd, 0444);
@@ -500,7 +496,7 @@ buildhints()
 		return -1;
 	}
 	if (write(fd, blist, hdr.hh_nbucket * sizeof(struct hints_bucket)) !=
-				hdr.hh_nbucket * sizeof(struct hints_bucket)) {
+				(ssize_t)(hdr.hh_nbucket * sizeof(struct hints_bucket))) {
 		warn("%s", hints_file);
 		return -1;
 	}
@@ -519,7 +515,7 @@ buildhints()
 		return -1;
 	}
 
-	if (rename(tmpfile, hints_file) != 0) {
+	if (rename(_tmpfile, hints_file) != 0) {
 		warn("%s", hints_file);
 		return -1;
 	}
@@ -578,7 +574,6 @@ readhints()
 	}
 	close(fd);
 
-	blist = (struct hints_bucket *)((char *)addr + hdr->hh_hashtab);
 	strtab = (char *)addr + hdr->hh_strtab;
 
 	if (hdr->hh_version >= LD_HINTS_VERSION_2)
@@ -590,16 +585,25 @@ readhints()
 	if (rescan)
 		return 0;
 
+	blist = malloc(sizeof(struct hints_bucket) * hdr->hh_nbucket);
+	if (blist == NULL)
+		err(1, "readhints");
+	memcpy(blist, (char *)addr + hdr->hh_hashtab,
+		sizeof(struct hints_bucket) * hdr->hh_nbucket);
+
+
 	for (i = 0; i < hdr->hh_nbucket; i++) {
 		struct hints_bucket	*bp = &blist[i];
 
 		/* Sanity check */
 		if (bp->hi_namex >= hdr->hh_strtab_sz) {
 			warnx("bad name index: %#x", bp->hi_namex);
+			free(blist);
 			return -1;
 		}
 		if (bp->hi_pathx >= hdr->hh_strtab_sz) {
 			warnx("bad path index: %#x", bp->hi_pathx);
+			free(blist);
 			return -1;
 		}
 
@@ -615,6 +619,7 @@ readhints()
 		shlib_tail = &shp->next;
 	}
 
+	free(blist);
 	return 0;
 }
 
