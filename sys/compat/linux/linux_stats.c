@@ -76,7 +76,7 @@ newstat_copyout(struct stat *buf, void *ubuf)
 	 * in FreeBSD but block devices under Linux.
 	 */
 	if (S_ISCHR(tbuf.st_mode) &&
-	    (dev = udev2dev(buf->st_rdev, 0)) != NODEV) {
+	    (dev = udev2dev(buf->st_rdev)) != NODEV) {
 		cdevsw = devsw(dev);
 		if (cdevsw != NULL && (cdevsw->d_flags & D_DISK)) {
 			tbuf.st_mode &= ~S_IFMT;
@@ -365,8 +365,8 @@ linux_ustat(struct thread *td, struct linux_ustat_args *args)
 	 * dev_t returned from previous syscalls. Just return a bzeroed
 	 * ustat in that case.
 	 */
-	dev = makedev(args->dev >> 8, args->dev & 0xFF);
-	if (vfinddev(dev, VCHR, &vp)) {
+	dev = udev2dev(makeudev(args->dev >> 8, args->dev & 0xFF));
+	if (dev != NODEV && vfinddev(dev, VCHR, &vp)) {
 		if (vp->v_mount == NULL)
 			return (EINVAL);
 #ifdef MAC
@@ -414,7 +414,7 @@ stat64_copyout(struct stat *buf, void *ubuf)
 	 * in FreeBSD but block devices under Linux.
 	 */
 	if (S_ISCHR(lbuf.st_mode) &&
-	    (dev = udev2dev(buf->st_rdev, 0)) != NODEV) {
+	    (dev = udev2dev(buf->st_rdev)) != NODEV) {
 		cdevsw = devsw(dev);
 		if (cdevsw != NULL && (cdevsw->d_flags & D_DISK)) {
 			lbuf.st_mode &= ~S_IFMT;

@@ -3105,7 +3105,7 @@ static int cx_modevent (module_t mod, int type, void *unused)
 	static int load_count = 0;
 	struct cdevsw *cdsw;
 
-	dev = makedev (CDEV_MAJOR, 0);
+	dev = udev2dev (makeudev(CDEV_MAJOR, 0));
 	switch (type) {
 	case MOD_LOAD:
 		if ((cdsw = devsw (dev)) && cdsw->d_maj == CDEV_MAJOR) {
