@@ -1,87 +1,99 @@
-			Linux sound-driver module
-			(c) Peter Trattler
-			License: GPL (Gnu Public License)
+Building a loadable sound driver
+================================
+
+Loadable module support in version 3.5 of VoxWare is mostly rewritten since
+the previous version (3.0.1). This means that some things have changed.
+
+To compile the sound driver as a loadable module you have to perform
+the following steps:
+
+1) Install modules-1.2.8.tar.gz package (or later if available).
+2a) Check that symbol remap_page_range is defined in linux/init/ksyms.c.
+Insert a line containing "X(remap_page_range)," if required. The driver will
+not load if this line is missing.
+2b) Recompile kernel with soundcard support disabled.
+3) Boot the new kernel.
+4) cd to the sound driver source directory (this directory). It's no
+longer required that the sound driver sources are installed in the
+kernel source tree (linux/drivers/sound). When installing a separately
+distributed sound driver you may install the sources for example to
+/usr/src/sound.
+5) Execute make in the sound driver source directory. Enter
+configuration parameters as described in Readme.cards. Then just wait until
+the driver is compiled OK.
+6) Copy sound.o to the directory where insmod expects to find it. 
+("make install" copies it to /lib/modules/misc).
+7) Use command "insmod sound" to load the driver.
+
+8) The sound driver can be removed using command "rmmod sound".
 
 
-Idea:
+Parameters accepted by the loadable sound driver
+================================================
 
-I've modified the sources for the sound driver to allow simply insert and
-remove the sound driver from the kernel by calling (only available for Linux)
+Setting DMA buffer size
+-----------------------
 
-	insmod /usr/src/linux/modules/sound.o
+The driver allocates a DMA buffer (or two for full duplex devices)
+every time the audio device (/dev/dsp or /dev/audio) is opened
+and frees it when the device is closed. Size of this buffer is defined
+when the driver is configured (the last question). The buffer size
+can be redefined when loading the driver if required (note that this is 
+an optional feature which is not normally required). The buffer size
+is redefined by adding dma_pagesize= parameter to the insmod command line.
+For example:
 
-and
+	insmod sound dma_buffsize=32768
 
-	rmmod sound
+Minimum buffer size is 4096 and the maximum depends on the DMA channe. 
+For 8 bit channels (0 to 3) the limit is 64k and for 16 bit ones (5 to 7)
+it's 128k. Driver selects a suitable buffer size automaticly in case
+you try to spesify an invalid size.
 
-This may be useful if you are doing one of the following things:
+Q: What is the right DMA buffer size?
 
-1) Debugging the sound driver
-2) Creating a new device within the sound-driver
-3) You do not the sound driver all the time (as it wastes quite a lot of
-memory for its buffers)
+A: It depends on the sampling rate, machine speed and the load of the system.
+Large buffers are required on slow machines, when recording/playing CD-quality
+audio or when there are other processes running on the same system. Also
+recording to hard disk is likely to require large buffers.
 
+Very small buffers are sufficient when you are just playing 8kHz audio files 
+on an empty P133 system. Using a 128k byffer just wastes 120k (or 250k)
+of valuable physical RAM memory. 
 
-Compilation:
+The right buffer sice can be easily found by making some experiments
+with the dma_buffsize= parameter. I use usually 16k buffers on a DX4/100 system
+and 64k on an old 386 system. 
 
-Go to /usr/src/linux and make the following steps:
+NOTE!	DMA buffers are used only by /dev/audio# and /dev/dsp# devices.
+	Other device files don't use them but there are two exceptions:
+	GUS driver uses DMA buffers when loading samples to the card.
+	Ensoniq SoundScape driver uses them when doanloading the microcode
+	file (sndscape.co[012]) to the card. Using large buffers doesn't
+	increase performance in these cases.
 
-a) configure the sound driver: To do that call "make config" and enable the
-sound-driver -- you will be asked different questions about your
-sound-hardware (remember not to use a too big DMA-Buffer size; you
-should use 16kB, if you have 16Bit devices, otherwise you can use 32kB)
+Configuring device parameters when loading the driver
+-----------------------------------------------------
 
-b) disable the sound driver in the kernel: call make config again but answer
-'N' to "Sound card support"
+The loadable version of the sound driver accepts now the same
+sound= parameter that has been available in the LILO command line.
+In this way it's possible to change I/O port, IRQ and DMA addresses
+and to enable/disable various cards at load time. Normally
+the driver uses the configuration parameters entered when compiling
+and configuring the driver.
+Look at Readme.linux for more info.
 
-c) run "make modules"; the sound-driver sound.o should end up in
-/usr/src/linux/modules
+NOTE!	This method is not normally required. You should use it only when
+	you have to use different configuration than normally. The sound=
+	command line parameter is error phrone and not recommended.
 
+Debugging and tracing
+---------------------
 
-If memory is tight:
+Modularized sound driver doesn't display messages during initialization as
+the kernel compiled one does. This feature can be turned on by adding
+init_trace=1 to the insmod command line.
 
-I've allocated at about 70kB for the sound-drivers internal tables. If this
-is too much, 'insmod sound.o' will generate the following warning
-...
-use 'insmod memsize=xxxx'
-...
-You can only use this command, if you have (I think) at least
-modules-1.1.87 or up. You can also switch debugging on by running the command
+For example:
 
-insmod sound.o debugmem=1
-
-
-Files I changed:
-
-I've only changed the files soundcard.c(most changes) and some changes within
-the Makefile, sound_config.h and the Makefile in /usr/src/linux/drivers
-
-
-Bugs:
-
-a) As the kmalloc (..., GFP_DMA) caused some unexpected errors (I don't know if
-it is my fault), I created some code, which is (by default) enabled by
-
-#define KMALLOC_DMA_BROKEN 1 (within soundcard.c).
-
-It trys to allocate a large enough region, so that the complete dma-buffer
-can be occupied in this space. If it does not fit within this region it
-doubles the size of it. But this can cause problems, if the sound-buffer is
-too big (as kmalloc can only handle regions at up to circa 100kB).
-
-So take care to use for 8Bit devices a sound-DMA-buffer of 32kB (maximum)
-and for 16Bit devices a maximum of 16kB. Otherwise the allocation scheme
-might fail.
-
-b) Buffers allocated by the different sound devices via calls to kmalloc are
-not freed, if the sound driver is removed again (these buffers tend to be
-quite small -- so it does not harm a lot)
-
-c) If there is not enough (kernel-) memory available, the installation of
-the sound-driver fails. (This happens quite often, if you did not install the
-driver right after booting -- [PS: I've only got 5MB of Ram, so this might
-be the source for this problem])
-
-
-Author:
-	Peter Trattler (peter@sbox.tu-graz.ac.at)
+	insmod sound init_trace=1
