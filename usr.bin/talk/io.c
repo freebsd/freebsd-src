@@ -47,6 +47,7 @@ static const char rcsid[] =
 
 #include <errno.h>
 #include <string.h>
+#include <sys/filio.h>
 #include "talk.h"
 
 #define A_LONG_TIME 10000000
