@@ -10,12 +10,15 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_mac.h"
+
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/errno.h>
 #include <sys/sysproto.h>
+#include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/proc.h>
 #include <sys/taskqueue.h>
