@@ -235,22 +235,23 @@ and is not preceded by a flag byte.
 .Xr rlogind 8 ,
 .Xr syslogd 8
 .Sh FILES
-.Bl -tag -width /etc/hosts -compact
+.Bl -tag -width /var/run/nologin -compact
 .It Pa /etc/hosts
 .It Pa /etc/hosts.equiv
 .It Pa /etc/login.conf
 .It Ev $HOME Ns Pa /.rhosts
 .It Pa /var/run/nologin
+.Pp
 .It Pa /etc/pam.conf
-if
+If
 .Nm
 is configured with PAM support, it uses
 .Pa /etc/pam.conf
 entries with service name
 .Dq rsh .
-authentication modules requiring passwords (such as
+Authentication modules requiring passwords (such as
 .Nm pam_unix )
-are not supported
+are not supported.
 .El
 .Sh BUGS
 The authentication procedure used here assumes the integrity
