@@ -265,7 +265,7 @@ parsefmt(const char *p)
 	}
 	free(tempstr1);
 	if (!vhead)
-		errx(1, "no valid keywords");
+		errx(1, "no valid keywords (type ps -L for a list)");
 }
 
 static VAR *
