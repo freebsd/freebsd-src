@@ -2,7 +2,8 @@ $FreeBSD$
 *LSM.am-utils
 *Makefile.*
 *README.autofs
-*ac*
+*ac*.m4
+*acconfig.h
 *aux
 *buildall
 *config*
@@ -95,7 +96,6 @@ $FreeBSD$
 *conf/trap/trap_aix3.h
 *conf/trap/trap_aux.h
 *conf/trap/trap_dgux.h
-*conf/trap/trap_freebsd3.h
 *conf/trap/trap_hcx.h
 *conf/trap/trap_hpux.h
 *conf/trap/trap_hpux11.h
