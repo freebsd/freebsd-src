@@ -28,5 +28,15 @@ c_sfe(cilist *a) /* check */
 	return(0);
 }
 integer e_wsfe(Void)
-{	return(e_rsfe());
+{
+#ifdef ALWAYS_FLUSH
+	int n;
+	n = en_fio();
+	f__fmtbuf=NULL;
+	if (!n && fflush(f__cf))
+		err(f__elist->cierr, errno, "write end");
+	return n;
+#else
+	return(e_rsfe());
+#endif
 }

@@ -152,6 +152,5 @@ integer e_rdfe(Void)
 }
 integer e_wdfe(Void)
 {
-	(void) en_fio();
-	return(0);
+	return en_fio();
 }

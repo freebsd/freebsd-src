@@ -23,6 +23,7 @@
 #define TYLOGICAL1 12
 #define TYLOGICAL2 13
 #ifdef Allow_TYQUAD
+#undef TYQUAD
 #define TYQUAD 14
 #endif
 
