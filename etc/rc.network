@@ -824,9 +824,11 @@ network_pass4() {
 		;;
 	esac
 
-	[ "${log_in_vain}" -ne 0 ] && echo -n " log_in_vain=${log_in_vain}"
-	sysctl net.inet.tcp.log_in_vain="${log_in_vain}" >/dev/null
-	sysctl net.inet.udp.log_in_vain="${log_in_vain}" >/dev/null
+	if [ "${log_in_vain}" -ne 0 ]; then
+		echo -n " log_in_vain=${log_in_vain}"
+		sysctl net.inet.tcp.log_in_vain="${log_in_vain}" >/dev/null
+		sysctl net.inet.udp.log_in_vain="${log_in_vain}" >/dev/null
+	fi
 
 	echo '.'
 	network_pass4_done=YES
