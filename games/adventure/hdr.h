@@ -171,7 +171,8 @@ u_long crc (const char *ptr, int nr);
 void crc_start (void);
 int dark (void);
 void datime (int *d, int *t);
-char *decr (int, int, int, int, int);
+char *decr (const unsigned char, const unsigned char, const unsigned char,
+	    const unsigned char, const unsigned char);
 void die (int entry);
 void done (int entry);
 void drop (int object,int where);
