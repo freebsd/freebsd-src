@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.46 1996/10/08 22:18:34 bde Exp $
+#	$Id: Makefile,v 1.47 1996/10/08 22:35:48 bde Exp $
 #
 
 PROG=	boot
@@ -16,6 +16,9 @@ CFLAGS+=	${CWARNFLAGS}
 
 # Probe the keyboard and use the serial console if the keyboard isn't found.
 #CFLAGS+=	-DPROBE_KEYBOARD
+
+# Probe the keyboard lock and use the serial console if the keyboard is locked.
+CFLAGS+=	-DPROBE_KEYBOARD_LOCK
 
 # Force use of the serial console (after probing the keyboard if
 # PROBE_KEYBOARD is defined).
