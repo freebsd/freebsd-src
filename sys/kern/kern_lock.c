@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_lock.c	8.18 (Berkeley) 5/21/95
- * $Id: kern_lock.c,v 1.23 1999/01/20 14:49:11 eivind Exp $
+ * $Id: kern_lock.c,v 1.23.2.2 1999/05/13 23:47:45 dg Exp $
  */
 
 #include "opt_lint.h"
@@ -206,6 +206,12 @@ debuglockmgr(lkp, flags, interlkp, p, name, file, line)
 
 	case LK_SHARED:
 		if (lkp->lk_lockholder != pid) {
+			if ((lkp->lk_flags & LK_SHARE_NONZERO) != 0 &&
+			    (flags & LK_CANRECURSE) != 0) {
+				sharelock(lkp, 1);
+				COUNT(p, 1);
+				break;
+			}
 			error = acquire(lkp, extflags,
 				LK_HAVE_EXCL | LK_WANT_EXCL | LK_WANT_UPGRADE);
 			if (error)
