@@ -27,7 +27,7 @@
  * Much of register handling is based on NetBSD CMI8x38 audio driver
  * by Takuya Shiozaki <AoiMoe@imou.to>.  Chen-Li Tien
  * <cltien@cmedia.com.tw> clarified points regarding the DMA related
- * registers and the 8738 mixer devices.  His Linux was driver a also
+ * registers and the 8738 mixer devices.  His Linux driver was also a
  * useful reference point.
  *
  * TODO: MIDI

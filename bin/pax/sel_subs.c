@@ -306,11 +306,11 @@ grp_match(ARCHD *arcn)
  * -T flag). The user may specify any number of different file time ranges.
  * Time ranges are checked one at a time until a match is found (if at all).
  * If the file has a mtime (and/or ctime) which lies within one of the time
- * ranges, the file is selected. Time ranges may have a lower and/or a upper
+ * ranges, the file is selected. Time ranges may have a lower and/or an upper
  * value. These ranges are inclusive. When no time ranges are supplied to pax
  * with the -T option, all members in the archive will be selected by the time
  * range routines. When only a lower range is supplied, only files with a
- * mtime (and/or ctime) equal to or younger are selected. When only a upper
+ * mtime (and/or ctime) equal to or younger are selected. When only an upper
  * range is supplied, only files with a mtime (and/or ctime) equal to or older
  * are selected. When the lower time range is equal to the upper time range,
  * only files with a mtime (or ctime) of exactly that time are selected.

@@ -1593,7 +1593,7 @@ snp?)
 	;;
 
 # dufault@hda.com: If I do much more work on other A-D boards
-# then eventually we'll have a "ad" and "dio" interface and some of these
+# then eventually we'll have an "ad" and "dio" interface and some of these
 # "labpcaio" ones will be gone.
 # labpcaio: D-A and A-D.
 # labpcdio: Digital in and Digital out.

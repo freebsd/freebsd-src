@@ -47,7 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <wctype.h>
 
 /*
- * Convert a wide character string to a intmax_t integer.
+ * Convert a wide character string to an intmax_t integer.
  */
 intmax_t
 wcstoimax(const wchar_t * __restrict nptr, wchar_t ** __restrict endptr,

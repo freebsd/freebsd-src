@@ -208,7 +208,7 @@ put_stream_line(FILE *fp, const char *s, int len)
 	return 0;
 }
 
-/* get_extended_line: get a an extended line from stdin */
+/* get_extended_line: get an extended line from stdin */
 char *
 get_extended_line(int *sizep, int nonl)
 {

@@ -2182,7 +2182,7 @@ ing.ps.gz>
                             -34-
 
 
-This  is  a ICMP router discovery broadcast.  We can tell by
+This  is an ICMP router discovery broadcast.  We can tell by
 the ICMP type 9/0.
 
 Finally, ipmon also lets us look at the NAT table in action.

@@ -3212,7 +3212,7 @@ again:
 				if (xfer > 0)
 					cp += tsiz;
 			}
-			/* And null pad to a int32_t boundary */
+			/* And null pad to an int32_t boundary. */
 			for (i = 0; i < rem; i++)
 				*bp++ = '\0';
 			nfsm_clget;
@@ -3539,7 +3539,7 @@ again:
 				if (xfer > 0)
 					cp += tsiz;
 			}
-			/* And null pad to a int32_t boundary */
+			/* And null pad to an int32_t boundary. */
 			for (i = 0; i < rem; i++)
 				*bp++ = '\0';
 

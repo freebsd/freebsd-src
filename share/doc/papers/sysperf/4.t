@@ -31,11 +31,13 @@
 .\"
 .\"	@(#)4.t	5.1 (Berkeley) 4/17/91
 .\"
+.\"	$FreeBSD$
+.\"
 .ds RH Performance Improvements
 .NH
 Performance Improvements
 .PP
-This section outlines the changes made to the system 
+This section outlines the changes made to the system
 since the 4.2BSD distribution.
 The changes reported here were made in response
 to the problems described in Section 3.
@@ -79,7 +81,7 @@ The inner loop performs a linear search through a directory looking
 for a particular pathname component.
 .PP
 Our first idea was to reduce the number of iterations
-around the inner loop of \fInamei\fP by observing that many programs 
+around the inner loop of \fInamei\fP by observing that many programs
 step through a directory performing an operation on each entry in turn.
 To improve performance for processes doing directory scans,
 the system keeps track of the directory offset of the last component of the
@@ -99,7 +101,7 @@ delim off
 .EN
 .PP
 The cost of the cache is about 20 lines of code
-(about 0.2 kilobytes) 
+(about 0.2 kilobytes)
 and 16 bytes per process, with the cached data
 stored in a process's \fIuser\fP vector.
 .PP
@@ -162,7 +164,7 @@ For each path name component,
 for the needed name.
 If it exists, the directory search can be completely eliminated.
 .PP
-The system already maintained a cache of recently accessed inodes, 
+The system already maintained a cache of recently accessed inodes,
 so the initial name cache
 maintained a simple name-inode association that was used to
 check each component of a path name during name translations.
@@ -172,7 +174,7 @@ but eventually decided to have a separate data structure that
 kept names with pointers to the inode table.
 Tagging inodes has two drawbacks;
 many inodes such as those associated with login ports remain in
-the inode table for a long period of time, but are never looked 
+the inode table for a long period of time, but are never looked
 up by name.
 Other inodes, such as those describing directories are looked up
 frequently by many different names (\fIe.g.\fP ``..'').
@@ -183,7 +185,7 @@ of the inode table, so that machines with small amounts of memory
 can reduce the size of the cache (or even eliminate it)
 without modifying the inode table structure.
 .PP
-Another issue to be considered is how the name cache should 
+Another issue to be considered is how the name cache should
 hold references to the inode table.
 Normally processes hold ``hard references'' by incrementing the
 reference count in the inode they reference.
@@ -219,7 +221,7 @@ searching through the entire cache;
 instead all you need to do is assign a new capability to the inode.
 .PP
 The cost of the name cache is about 200 lines of code
-(about 1.2 kilobytes) 
+(about 1.2 kilobytes)
 and 48 bytes per cache entry.
 Depending on the size of the system,
 about 200 to 1000 entries will normally be configured,
@@ -304,7 +306,7 @@ it is impossible to statically select the most efficient input mode to use.
 .PP
 We therefore changed the terminal multiplexor handlers
 to dynamically choose between the use of the silo and the use of
-per-character interrupts. 
+per-character interrupts.
 At low input rates the handler processes characters on an
 interrupt basis, avoiding the overhead
 of checking each interface on each clock interrupt.
@@ -389,7 +391,7 @@ As most of the clock-based events need not be done at high priority,
 the system schedules a lower priority software interrupt to do the less
 time-critical events such as cpu scheduling and timeout processing.
 Often there are no such events, and the software interrupt handler
-finds nothing to do and returns. 
+finds nothing to do and returns.
 The high priority event now checks to see if there are low priority
 events to process;
 if there is nothing to do, the software interrupt is not requested.
@@ -533,7 +535,7 @@ run over the assembly language and replace calls to small
 routines with the code for the body of the routine, often
 a single VAX instruction.
 While this optimization eliminated the cost of the subroutine
-call and return, 
+call and return,
 it did not eliminate the pushing and popping of several arguments
 to the routine.
 The \fIsed\fP script has been replaced by a more intelligent expander,
@@ -587,7 +589,7 @@ dramatically improved simply by enlarging the size of the hash table.
 .NH 2
 Improvements to Libraries and Utilities
 .PP
-Intuitively, changes to the kernel would seem to have the greatest 
+Intuitively, changes to the kernel would seem to have the greatest
 payoff since they affect all programs that run on the system.
 However, the kernel has been tuned many times before, so the
 opportunity for significant improvement was small.
@@ -661,7 +663,7 @@ on the entire mail system.  The first problem identified was a bug
 in the \fIsyslog\fP program.  The mail delivery program, \fIsendmail\fP
 logs all mail transactions through this process with the 4.2BSD interprocess
 communication facilities.  \fISyslog\fP then records the information in
-a log file.  Unfortunately, \fIsyslog\fP was performing a \fIsync\fP 
+a log file.  Unfortunately, \fIsyslog\fP was performing a \fIsync\fP
 operation after each message it received, whether it was logged to a file
 or not.  This wreaked havoc on the effectiveness of the
 buffer cache and explained, to a large
@@ -670,22 +672,22 @@ heavy load on the system (one syslog message was generated for each
 message recipient causing almost a continuous sequence of sync operations).
 .PP
 The hashed data base files were
-installed in all mail programs, resulting in a order of magnitude
+installed in all mail programs, resulting in an order of magnitude
 speedup on large distribution lists.  The code in \fI/bin/mail\fP
 that notifies the \fIcomsat\fP program when mail has been delivered to
 a user was changed to cache host table lookups, resulting in a similar
-speedup on large distribution lists. 
+speedup on large distribution lists.
 .PP
 Next, the file locking facilities
 provided in 4.2BSD, \fIflock\fP\|(2), were used in place of the old
-locking mechanism. 
+locking mechanism.
 The mail system previously used \fIlink\fP and \fIunlink\fP in
-implementing file locking primitives. 
+implementing file locking primitives.
 Because these operations usually modify the contents of directories
 they require synchronous disk operations and cannot take
 advantage of the name cache maintained by the system.
 Unlink requires that the entry be found in the directory so that
-it can be removed; 
+it can be removed;
 link requires that the directory be scanned to insure that the name
 does not already exist.
 By contrast the advisory locking facility in 4.2BSD is
@@ -698,7 +700,7 @@ compiling it without debugging code reduced the overhead by another 20%.
 Network Servers
 .PP
 With the introduction of the network facilities in 4.2BSD,
-a myriad of services became available, each of which 
+a myriad of services became available, each of which
 required its own daemon process.
 Many of these daemons were rarely if ever used,
 yet they lay asleep in the process table consuming

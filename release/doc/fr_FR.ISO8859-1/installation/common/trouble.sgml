@@ -182,7 +182,7 @@
 
 	  <para>Unfortunately, the only program capable of reading
 	  them is the 3COM supplied DOS program.  This program must be
-	  run on a absolutely clean system (no other drivers must be
+	  run on an absolutely clean system (no other drivers must be
 	  running), and the program will whine about CARD-Services not
 	  being found, but it will continue.  This is necessary to
 	  read the NVRAM values.  You want to know the IRQ, port, and

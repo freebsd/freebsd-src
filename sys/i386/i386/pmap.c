@@ -1164,7 +1164,7 @@ _pmap_unwire_pte_hold(pmap_t pmap, vm_page_t m)
 		if ((pmap->pm_pdir[PTDPTDI] & PG_FRAME) ==
 		    (PTDpde & PG_FRAME)) {
 			/*
-			 * Do a invltlb to make the invalidated mapping
+			 * Do an invltlb to make the invalidated mapping
 			 * take effect immediately.
 			 */
 			pteva = VM_MAXUSER_ADDRESS + i386_ptob(m->pindex);

@@ -52,7 +52,7 @@
  * i.e., it uses MAC addresses.  This should not be a surprise since
  * it uses an ethernet controller as a major hw item.
  * It can broadcast, unicast or apparently multicast in a base cell 
- * using a omni-directional antennae that is 
+ * using an omni-directional antennae that is 
  * about 800 feet around the base cell barring walls and metal.  
  * With directional antennae, it can be used point to point over a mile
  * or so apparently (haven't tried that).

@@ -147,7 +147,7 @@ JMR 4-Bay
 
 JMR Fortra
 
-	I rather like this box. The blue LEDs are a very nice touch- you 
+	I rather like this box. The blue LEDs are a very nice touch- you
 	can see them very clearly from 50 feet away.
 
 	I paid 2000$ for one used.
@@ -159,7 +159,7 @@ Sun A5X00
 	code in /usr/share/examples) for power/thermal/slot monitoring.
 
 	Approx Cost: The last I saw for a price list item on this was 22K$
-	for a unpopulated (no disk drive) A5X00.
+	for an unpopulated (no disk drive) A5X00.
 
 
 DataDirect E1000 RAID
@@ -175,7 +175,7 @@ DataDirect E1000 RAID
 Veritas ServPoint
 
 	This is a software storage virtualization engine that
-	runs on Sparc/Solaris in target mode for frontend 
+	runs on Sparc/Solaris in target mode for frontend
 	and with other FC or SCSI as the backend storage. FreeBSD
 	has been used extensively to test it.
 

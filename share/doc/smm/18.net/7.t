@@ -31,6 +31,8 @@
 .\"
 .\"	@(#)7.t	8.1 (Berkeley) 6/8/93
 .\"
+.\"	$FreeBSD$
+.\"
 .nr H2 1
 .br
 .ne 30v
@@ -115,7 +117,7 @@ to carry out this request (if possible).  A ``listen'' request
 always precedes a request to accept a connection.
 .IP PRU_CONNECT
 .br
-The ``connect'' request indicates the user wants to a establish
+The ``connect'' request indicates the user wants to establish
 an association.  The \fIaddr\fP parameter supplied describes
 the peer to be connected to.  The effect of a connect request
 may vary depending on the protocol.  Virtual circuit protocols,

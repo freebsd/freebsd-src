@@ -2435,7 +2435,7 @@ add_ports(ipfw_insn *cmd, char *av, u_char proto, int opcode)
  *
  * The syntax for a rule starts with the action, followed by an
  * optional log action, and the various match patterns.
- * In the assembled microcode, the first opcode must be a O_PROBE_STATE
+ * In the assembled microcode, the first opcode must be an O_PROBE_STATE
  * (generated if the rule includes a keep-state option), then the
  * various match patterns, the "log" action, and the actual action.
  *

@@ -912,7 +912,7 @@ mse_getlogi(tag, handle, dx, dy, but)
  * Routines for the ATI Inport bus mouse.
  */
 /*
- * Test for a ATI Inport bus mouse and return 1 if it is.
+ * Test for an ATI Inport bus mouse and return 1 if it is.
  * (do not enable interrupts)
  */
 static int

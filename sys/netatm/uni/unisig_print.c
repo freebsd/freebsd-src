@@ -178,7 +178,7 @@ find_type(tbl, type)
  * Print an ATM address
  *
  * Arguments:
- *	p	pointer to a Atm_address
+ *	p	pointer to an Atm_address
  *
  * Returns:
  *	none

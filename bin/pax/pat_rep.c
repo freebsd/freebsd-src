@@ -296,7 +296,7 @@ pat_chk(void)
  *	NOTE: When the -c option is used, we are called when there was no match
  *	by pat_match() (that means we did match before the inverted sense of
  *	the logic). Now this seems really strange at first, but with -c  we
- *	need to keep track of those patterns that cause a archive member to NOT
+ *	need to keep track of those patterns that cause an archive member to NOT
  *	be selected (it found an archive member with a specified pattern)
  * Return:
  *	0 if the pattern pointed at by arcn->pat was tagged as creating a
@@ -471,9 +471,9 @@ pat_match(ARCHD *arcn)
 		return(cflag ? 0 : 1);
 
 	/*
-	 * we had a match, now when we invert the sense (-c) we reject this
+	 * We had a match, now when we invert the sense (-c) we reject this
 	 * member. However we have to tag the pattern a being successful, (in a
-	 * match, not in selecting a archive member) so we call pat_sel() here.
+	 * match, not in selecting an archive member) so we call pat_sel() here.
 	 */
 	arcn->pat = pt;
 	if (!cflag)

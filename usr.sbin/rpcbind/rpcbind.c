@@ -97,7 +97,7 @@ int rpcbindlockfd;
 
 #ifdef WARMSTART
 /* Local Variable */
-static int warmstart = 0;	/* Grab a old copy of registrations */
+static int warmstart = 0;	/* Grab an old copy of registrations. */
 #endif
 
 #ifdef PORTMAP
@@ -339,7 +339,7 @@ init_transport(struct netconfig *nconf)
 					hints.ai_flags &= AI_NUMERICHOST;
 				} else {
 					/*
-					 * Skip if we have a AF_INET6 adress
+					 * Skip if we have an AF_INET6 adress.
 					 */
 					if (inet_pton(AF_INET6,
 					    hosts[nhostsbak], host_addr) == 1)
@@ -352,7 +352,7 @@ init_transport(struct netconfig *nconf)
 					hints.ai_flags &= AI_NUMERICHOST;
 				} else {
 					/*
-					 * Skip if we have a AF_INET adress
+					 * Skip if we have an AF_INET adress.
 					 */
 					if (inet_pton(AF_INET, hosts[nhostsbak],
 					    host_addr) == 1)

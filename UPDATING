@@ -30,7 +30,7 @@ NOTE TO PEOPLE WHO THINK THAT 5.0-CURRENT IS SLOW:
 	A name change in /etc/netconfig has been reverted to stay
 	compatible with with suns TIRPC and also with NetBSD. You need
 	to run mergemaster after make world. A new libc does still work
-	with a outdated /etc/netconfig for some time, but you'll get
+	with an outdated /etc/netconfig for some time, but you'll get
 	a warning. This warning will be removed in 20030301.
 
 20021202:
@@ -267,7 +267,7 @@ http://www.freebsd.org/cgi/mid.cgi?db=mid&id=<20011207155805.R8975@blossom.cjcla
 	MACHINE_ARCH to indicate the target.  In the future, one will
 	set TARGET_MACHINE where you set MACHINE now.  At the moment,
 	setting MACHINE alone for same MACHINE_ARCH machines works
-	(eg, you can build pc98 on a i386 machine and vice versa).
+	(eg, you can build pc98 on an i386 machine and vice versa).
 
 20010927:
 	Some weird problems result from using ACPI on some machines.

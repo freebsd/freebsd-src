@@ -31,6 +31,8 @@
 .\"
 .\"	@(#)3.t	8.1 (Berkeley) 6/8/93
 .\"
+.\"	$FreeBSD$
+.\"
 .\".ds RH "Network Library Routines
 .bp
 .nr H1 3
@@ -245,7 +247,7 @@ struct	protoent {
 .DE
 .PP
 In the NS domain, protocols are indicated by the "client type"
-field of a IDP header.  No protocol database exists; see section
+field of an IDP header.  No protocol database exists; see section
 5 for more information.
 .NH 2
 Service names

@@ -85,7 +85,7 @@ use of the Sun RPC library.
 .sh 1 "Mount Problems"
 .pp
 There are several problems that can be encountered at the time of an NFS
-mount, ranging from a unresponsive NFS server (crashed, network partitioned
+mount, ranging from an unresponsive NFS server (crashed, network partitioned
 from client, etc.) to various interoperability problems between different
 NFS implementations.
 .pp

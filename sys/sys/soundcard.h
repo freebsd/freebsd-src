@@ -364,7 +364,7 @@ struct patch_info {
  *
  * The low_note and high_note fields define the minimum and maximum note
  * frequencies for which this sample is valid. It is possible to define
- * more than one samples for a instrument number at the same time. The
+ * more than one samples for an instrument number at the same time. The
  * low_note and high_note fields are used to select the most suitable one.
  *
  * The fields base_note, high_note and low_note should contain
@@ -446,7 +446,7 @@ struct patmgr_info {	/* Note! size must be < 4k since kmalloc() is used */
 	  u_long key;	/* Don't worry. Reserved for communication
 	  			   between the patch manager and the driver. */
 #define PM_K_EVENT		1 /* Event from the /dev/sequencer driver */
-#define PM_K_COMMAND		2 /* Request from a application */
+#define PM_K_COMMAND		2 /* Request from an application */
 #define PM_K_RESPONSE		3 /* From patmgr to application */
 #define PM_ERROR		4 /* Error returned by the patmgr */
 	  int device;

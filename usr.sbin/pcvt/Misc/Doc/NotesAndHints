@@ -1,3 +1,5 @@
+# $FreeBSD$
+
 Random Notes and Hints                Last Edit-Date: [Sun Apr  2 18:28:09 1995]
 --------------------------------------------------------------------------------
 
@@ -16,16 +18,16 @@ below.
 
 ] Just for the record, in case someone else is asking for this: Al's
 ] confirmation that pcvt w/ PCVT_SCANSET=2 works for the ThinkPad:
-] 
+]
 ] As Al Elia wrote:
 ] | Date: Mon, 28 Nov 1994 18:24:42 GMT
 ] | From: Al Elia <aelia%aelia.student.harvard.edu@sax.sax.de>
 ] | Message-Id: <199411281824.SAA01554@aelia.student.harvard.edu>
 ] | To: joerg_wunsch@bonnie.tcd-dresden.de
 ] | Subject: Re: Anyone got FreeBSD 1.1.5.1 running on a ThinkPad?
-] | 
+] |
 ] | PCVT_SCANSET=2 worked...I had put in PCVT_SCAN_SET=2 (Doh!)
-] | 
+] |
 ] | --Al Elia
 ] | <aelia@aelia.student.harvard,edu>
 
@@ -106,7 +108,7 @@ There used to be an entry in the BugList:
 
 This was solved some time ago:
 
-	On another note: if I use stty xtabs, the 'printf "\t\t\t\t\t\t\t" 
+	On another note: if I use stty xtabs, the 'printf "\t\t\t\t\t\t\t"
 	bug goes away. With stty xtabs the tab handling is done in the kernel.
 
 (See also below: "Vttest shows strange results")
@@ -169,11 +171,11 @@ board has a programmable clock generator and you run X and you switch from
 132 col mode into X and back.
 
 I have currently no idea how to solve this, other than having a similar
-scheme as XFree86 applied to pcvt: Letting the user probe his board by using 
+scheme as XFree86 applied to pcvt: Letting the user probe his board by using
 SuperProbe and recompiling pcvt according to the result.
 
 I stumbled a bit deeper into this with my ELSA Winner 1000, which is equipped
-with a ICD2061 clock synthesizer chip. For 132 column mode to work properly,
+with an ICD2061 clock synthesizer chip. For 132 column mode to work properly,
 clock generator 2 must deliver 40 MHz to the S3 VGA chip, but this value has
 to be programmed or initialized. If this VGA board has ever been switched
 into 132 colums, i.e. in my case from a DOS program, it will continue to do
@@ -231,7 +233,7 @@ try to issue the command: "scon -p8,60,60,60", EXPERIMENT !!!
 
 How to change the color palette on VGA cards:
 ===============================================================================
-	
+
 try out the following commands:
 
 	/usr/local/bin/scon -d/dev/ttyv0 -pblack:0,0,0 -pblue:20,20,40

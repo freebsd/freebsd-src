@@ -18,7 +18,7 @@ Contents:
 	Layer 2
 	Layer 3
 	Debugging control
-	Layer 4    
+	Layer 4
 	ISDN protocol trace
 
 
@@ -43,7 +43,7 @@ Functional block diagram
  | debug |  |     Layer 4 - common call control interface        |   |  ISDN  |
  |control|  |                                                    |   | trace  |
  +:-:-:--+  +----------------------------------------------------+   +--------+
-  : : :          ^                                          ^              ^ 
+  : : :          ^                                          ^              ^
   : : :     Call |           various ptr arrays             | Call         %
   . . .  Control |             in i4b_l3l4.h                | Control      %
                  V                                          V              %
@@ -111,14 +111,14 @@ Layer 1
    routines. These routines handle the card/manufacturer specific stuff
    required to talk to a particular card.
 
-   This addresses of the read/write routines are put into a arrays found
+   The addresses of the read/write routines are put into an array found
    in struct isic_softc and they are later called by the macros:
 
    ISAC_READ(r), ISAC_WRITE(r,v), ISAC_RDFIFO(b,s), ISAC_WRFIFO(b,s),
    HSCX_READ(n,r), HSCX_WRITE(n,r,v), HSCX_RDFIFO(n,b,s), HSCX_WRFIFO(n,b,s)
 
    (see file layer1/i4b_l1.h)
-   
+
    Files currently used for this purpose are
    	- i4b_avm_a1.c    AVM A1 and AVM Fritz!Card drivers
    	- i4b_ctx_s0P.c   Creatix S0 PnP (experimental!)
@@ -256,7 +256,7 @@ Debugging control
     sources. It is only usable for passive cards.
 
 
-Layer 4    
+Layer 4
 =======
 
 (7) Layer 4 is "just" an abstraction layer used to shield the differences

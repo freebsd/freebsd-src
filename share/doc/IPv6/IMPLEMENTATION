@@ -187,7 +187,7 @@ even if instructed not to do so (especially in promiscuous mode).
 In such cases DAD may fail, because DAD engine sees inbound NS packet
 (actually from the node itself) and considers it as a sign of duplicate.
 In this case, drivers should be corrected to honor IFF_SIMPLEX behavior.
-For example, you may need to check source MAC address on a inbound packet,
+For example, you may need to check source MAC address on an inbound packet,
 and reject it if it is from the node itself.
 You may also want to look at #if condition marked "heuristics" in
 sys/netinet6/nd6_nbr.c:nd6_dad_timer() as workaround (note that the code

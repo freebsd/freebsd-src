@@ -34,7 +34,7 @@ which ultimately reduces the chances of livelock in the system.
 In the normal, interrupt-based mode, devices generate an interrupt
 whenever they need attention.
 This in turn causes a
-context switch and the execution of a interrupt handler
+context switch and the execution of an interrupt handler
 which performs whatever processing is needed by the device.
 The duration of the interrupt handler is potentially unbounded
 unless the device driver has been programmed with real-time

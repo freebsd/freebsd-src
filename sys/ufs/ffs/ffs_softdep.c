@@ -992,7 +992,7 @@ static long	num_inodedep;	/* number of inodedep allocated */
 static struct sema inodedep_in_progress;
 
 /*
- * Look up a inodedep. Return 1 if found, 0 if not found.
+ * Look up an inodedep. Return 1 if found, 0 if not found.
  * If not found, allocate if DEPALLOC flag is passed.
  * Found or allocated entry is returned in inodedeppp.
  * This routine must be called with splbio interrupts blocked.

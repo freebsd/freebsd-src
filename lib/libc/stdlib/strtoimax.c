@@ -43,7 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <inttypes.h>
 
 /*
- * Convert a string to a intmax_t integer.
+ * Convert a string to an intmax_t integer.
  *
  * Assumes that the upper and lower case
  * alphabets and digits are each contiguous.

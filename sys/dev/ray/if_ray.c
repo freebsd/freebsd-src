@@ -774,8 +774,8 @@ ray_init_user(struct ray_softc *sc)
 	 *		init_download	- download the network to the card
 	 *		init_mcast	- reset multicast list
 	 *		init_sj		- find or start a BSS
-	 *		init_auth	- authenticate with a ESSID if needed
-	 *		init_assoc	- associate with a ESSID if needed
+	 *		init_auth	- authenticate with an ESSID if needed
+	 *		init_assoc	- associate with an ESSID if needed
 	 *
 	 * They are only actually executed if the card is not running.
 	 * We may enter this routine from a simple change of IP

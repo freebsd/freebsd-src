@@ -1660,7 +1660,7 @@ rf_DispatchKernelIO(queue, req)
 	/* splx(s); */ /* want to test this */
 	return (0);
 }
-/* this is the callback function associated with a I/O invoked from
+/* This is the callback function associated with an I/O invoked from
    kernel code.
  */
 static void 

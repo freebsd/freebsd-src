@@ -304,7 +304,7 @@ struct com_s {
 	Port_t	sts_port;
 	Port_t	in_modem_port;
 	Port_t	intr_ctrl_port;
-	Port_t	rsabase;	/* iobase address of a I/O-DATA RSA board */
+	Port_t	rsabase;	/* Iobase address of an I/O-DATA RSA board. */
 	int	intr_enable;
 	int	pc98_prev_modem_status;
 	int	pc98_modem_delta;

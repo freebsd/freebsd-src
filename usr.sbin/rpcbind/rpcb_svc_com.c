@@ -1385,7 +1385,7 @@ add_pmaplist(RPCB *arg)
 		/* It is TCP */
 		pmap.pm_prot = IPPROTO_TCP;
 	} else
-		/* Not a IP protocol */
+		/* Not an IP protocol */
 		return (0);
 
 	/* interpret the universal address for TCP/IP */
@@ -1437,7 +1437,7 @@ del_pmaplist(RPCB *arg)
 	} else if (arg->r_netid[0] == NULL) {
 		prot = 0;	/* Remove all occurrences */
 	} else {
-		/* Not a IP protocol */
+		/* Not an IP protocol */
 		return (0);
 	}
 	for (prevpml = NULL, pml = list_pml; pml; /* cstyle */) {

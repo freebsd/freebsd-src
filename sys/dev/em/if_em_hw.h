@@ -280,7 +280,7 @@ void em_write_reg_io(struct em_hw *hw, uint32_t offset, uint32_t value);
 #define HALF_DUPLEX 1
 #define FULL_DUPLEX 2
 
-/* The sizes (in bytes) of a ethernet packet */
+/* The sizes (in bytes) of an ethernet packet */
 #define ENET_HEADER_SIZE             14
 #define MAXIMUM_ETHERNET_FRAME_SIZE  1518 /* With FCS */
 #define MINIMUM_ETHERNET_FRAME_SIZE  64   /* With FCS */

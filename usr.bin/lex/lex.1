@@ -3132,7 +3132,7 @@ can't figure this out, and it will plan for possibly needing to back up
 when it has scanned a token like "auto" and then the next character
 is something other than a newline or a letter.  Previously it would
 then just match the "auto" rule and be done, but now it has no "auto"
-rule, only a "auto\\n" rule.  To eliminate the possibility of backing up,
+rule, only an "auto\\n" rule.  To eliminate the possibility of backing up,
 we could either duplicate all rules but without final newlines, or,
 since we never expect to encounter such an input and therefore don't
 how it's classified, we can introduce one more catch-all rule, this

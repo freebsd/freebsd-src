@@ -117,7 +117,7 @@
 
 /* ALERT */
 
-#define MSG_ALERT_LEN		4	/* length of a alert message */
+#define MSG_ALERT_LEN		4	/* length of an alert message */
 
 #endif /* _I4B_Q931_H_ */
 

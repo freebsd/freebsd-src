@@ -31,7 +31,7 @@
 #define _IF_ARREGS_H_
 
 #define NCHAN			2    /* A HD64570 chip have 2 channels */
-#define NPORT			4    /* A ArNet board can have 4 ports or */
+#define NPORT			4    /* An ArNet board can have 4 ports or */
 				     /* channels */
 
 #define AR_BUF_SIZ		512

@@ -368,7 +368,7 @@ extern struct hash_entry *ccltab[CCL_HASH_SIZE];
  * use_read - if true (-f, -F, or -Cr) then use read() for scanner input;
  *   otherwise, use fread().
  * yytext_is_array - if true (i.e., %array directive), then declare
- *   yytext as a array instead of a character pointer.  Nice and inefficient.
+ *   yytext as an array instead of a character pointer.  Nice and inefficient.
  * do_yywrap - do yywrap() processing on EOF.  If false, EOF treated as
  *   "no more files".
  * csize - size of character set for the scanner we're generating;

@@ -40,7 +40,7 @@
 #endif
 
 /*
- * Shell interpreter image activator. A interpreter name beginning
+ * Shell interpreter image activator. An interpreter name beginning
  *	at imgp->stringbase is the minimal successful exit requirement.
  */
 int

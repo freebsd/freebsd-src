@@ -988,7 +988,7 @@ ASR_queue_s (
 } /* ASR_queue_s */
 
 /*
- *	Send a message synchronously to a Asr_softc_t
+ *	Send a message synchronously to an Asr_softc_t.
  */
 STATIC int
 ASR_queue_c (

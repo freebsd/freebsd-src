@@ -744,7 +744,7 @@ vi_list_or_eof(EditLine *el, int c)
 	if (el->el_line.cursor == el->el_line.lastchar &&
 	    el->el_line.cursor == el->el_line.buffer) {
 #endif
-		term_overwrite(el, STReof, 4);	/* then do a EOF */
+		term_overwrite(el, STReof, 4);	/* then do an EOF */
 		term__flush();
 		return (CC_EOF);
 #ifdef notyet

@@ -31,6 +31,8 @@
 .\"
 .\"	@(#)motivation.ms	6.2 (Berkeley) 4/16/91
 .\"
+.\"	$FreeBSD$
+.\"
 .ds RH Motivation
 .NH
 Motivation
@@ -45,7 +47,7 @@ DEC has become, with the introduction of the UDA50/RA81 system,
 cost competitive
 in the area of disk storage for the first time.
 Emulex's entry into the VAX 11/780 SBI controller
-field, the SC780, represented a important choice for us to examine, given
+field, the SC780, represented an important choice for us to examine, given
 our previous success with their VAX 11/750 SC750 controller and
 their UNIBUS controllers.
 The Fujitsu 2351A

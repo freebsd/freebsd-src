@@ -2943,7 +2943,7 @@ Static int
 umass_atapi_transform(struct umass_softc *sc, unsigned char *cmd, int cmdlen,
 		      unsigned char **rcmd, int *rcmdlen)
 {
-	/* A ATAPI command is always 12 bytes in length */
+	/* An ATAPI command is always 12 bytes in length. */
 	KASSERT(*rcmdlen >= ATAPI_COMMAND_LENGTH,
 		("rcmdlen = %d < %d, buffer too small",
 		 *rcmdlen, ATAPI_COMMAND_LENGTH));

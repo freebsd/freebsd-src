@@ -294,7 +294,7 @@ __END_DECLS
 
 /* TODO
  *
- * Need a error string mechanism from the functions instead of warn()
+ * Need an error string mechanism from the functions instead of warn()
  *
  * Make sure only FreeBSD start at offset==0
  *

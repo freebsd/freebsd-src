@@ -39,7 +39,7 @@ __FBSDID("$FreeBSD$");
 /*
  * char *
  * inet_neta(src, dst, size)
- *	format a in_addr_t network number into presentation format.
+ *	format an in_addr_t network number into presentation format.
  * return:
  *	pointer to dst, or NULL if an error occurred (check errno).
  * note:
