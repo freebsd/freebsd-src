@@ -37,7 +37,7 @@
  *
  *      @(#)bpf.c	8.2 (Berkeley) 3/28/94
  *
- * $Id: bpf.c,v 1.31 1997/03/24 12:12:35 bde Exp $
+ * $Id: bpf.c,v 1.32 1997/09/02 01:18:28 bde Exp $
  */
 
 #include "bpfilter.h"
@@ -68,6 +68,7 @@
 #include <sys/stream.h>
 #endif
 #include <sys/uio.h>
+#include <sys/poll.h>
 
 #include <sys/socket.h>
 #include <sys/socketvar.h>
@@ -140,13 +141,13 @@ static	d_close_t	bpfclose;
 static	d_read_t	bpfread;
 static	d_write_t	bpfwrite;
 static	d_ioctl_t	bpfioctl;
-static	d_select_t	bpfselect;
+static	d_poll_t	bpfpoll;
 
 #define CDEV_MAJOR 23
 static struct cdevsw bpf_cdevsw = 
  	{ bpfopen,	bpfclose,	bpfread,	bpfwrite,	/*23*/
  	  bpfioctl,	nostop,		nullreset,	nodevtotty,/* bpf */
- 	  bpfselect,	nommap,		NULL,	"bpf",	NULL,	-1 };
+ 	  bpfpoll,	nommap,		NULL,	"bpf",	NULL,	-1 };
 
 
 static int
@@ -991,68 +992,35 @@ bpf_ifname(ifp, ifr)
 }
 
 /*
- * The new select interface passes down the proc pointer; the old select
- * stubs had to grab it out of the user struct.  This glue allows either case.
- */
-#if BSD >= 199103
-#define bpf_select bpfselect
-#else
-static	int
-bpfselect(dev, rw)
-	register dev_t dev;
-	int rw;
-{
-	return (bpf_select(dev, rw, u.u_procp));
-}
-#endif
-
-/*
- * Support for select() system call
+ * Support for select() and poll() system calls
  *
  * Return true iff the specific operation will not block indefinitely.
  * Otherwise, return false but make a note that a selwakeup() must be done.
  */
 int
-bpf_select(dev, rw, p)
+bpfpoll(dev, events, p)
 	register dev_t dev;
-	int rw;
+	int events;
 	struct proc *p;
 {
 	register struct bpf_d *d;
 	register int s;
+	int revents = 0;
 
-	if (rw != FREAD)
-		return (0);
 	/*
 	 * An imitation of the FIONREAD ioctl code.
 	 */
 	d = &bpf_dtab[minor(dev)];
 
 	s = splimp();
-	if (d->bd_hlen != 0 || (d->bd_immediate && d->bd_slen != 0)) {
-		/*
-		 * There is data waiting.
-		 */
-		splx(s);
-		return (1);
-	}
-#if BSD >= 199103
-	selrecord(p, &d->bd_sel);
-#else
-	/*
-	 * No data ready.  If there's already a select() waiting on this
-	 * minor device then this is a collision.  This shouldn't happen
-	 * because minors really should not be shared, but if a process
-	 * forks while one of these is open, it is possible that both
-	 * processes could select on the same descriptor.
-	 */
-	if (d->bd_selproc && d->bd_selproc->p_wchan == (caddr_t)&selwait)
-		d->bd_selcoll = 1;
-	else
-		d->bd_selproc = p;
-#endif
+	if (events & (POLLIN | POLLRDNORM))
+		if (d->bd_hlen != 0 || (d->bd_immediate && d->bd_slen != 0))
+			revents |= events & (POLLIN | POLLRDNORM);
+		else
+			selrecord(p, &d->bd_sel);
+
 	splx(s);
-	return (0);
+	return (revents);
 }
 
 /*
