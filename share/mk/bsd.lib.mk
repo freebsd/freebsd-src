@@ -1,5 +1,5 @@
 #	from: @(#)bsd.lib.mk	5.26 (Berkeley) 5/2/91
-#	$Id: bsd.lib.mk,v 1.86 1999/03/23 03:06:25 bde Exp $
+#	$Id: bsd.lib.mk,v 1.87 1999/06/24 22:50:19 jmg Exp $
 #
 
 .if !target(__initialized__)
@@ -266,18 +266,27 @@ beforeinstall:
 SHLINSTALLFLAGS+= -fschg
 .endif
 
+_INSTALLFLAGS:=	${INSTALLFLAGS}
+.for ie in ${INSTALLFLAGS_EDIT}
+_INSTALLFLAGS:=	${_INSTALLFLAGS${ie}}
+.endfor
+_SHLINSTALLFLAGS:=	${INSTALLFLAGS}
+.for ie in ${INSTALLFLAGS_EDIT}
+_SHLINSTALLFLAGS:=	${_SHLINSTALLFLAGS${ie}}
+.endfor
+
 realinstall: beforeinstall
 .if !defined(INTERNALLIB)
 	${INSTALL} ${COPY} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
-	    ${INSTALLFLAGS} lib${LIB}.a ${DESTDIR}${LIBDIR}
+	    ${_INSTALLFLAGS} lib${LIB}.a ${DESTDIR}${LIBDIR}
 .if !defined(NOPROFILE)
 	${INSTALL} ${COPY} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
-	    ${INSTALLFLAGS} lib${LIB}_p.a ${DESTDIR}${LIBDIR}
+	    ${_INSTALLFLAGS} lib${LIB}_p.a ${DESTDIR}${LIBDIR}
 .endif
 .endif
 .if defined(SHLIB_NAME)
 	${INSTALL} ${COPY} ${STRIP} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
-	    ${INSTALLFLAGS} ${SHLINSTALLFLAGS} \
+	    ${_INSTALLFLAGS} ${_SHLINSTALLFLAGS} \
 	    ${SHLIB_NAME} ${DESTDIR}${SHLIBDIR}
 .if defined(SHLIB_LINK)
 	ln -sf ${SHLIB_NAME} ${DESTDIR}${SHLIBDIR}/${SHLIB_LINK}
@@ -285,7 +294,7 @@ realinstall: beforeinstall
 .endif
 .if defined(INSTALL_PIC_ARCHIVE)
 	${INSTALL} ${COPY} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
-	    ${INSTALLFLAGS} lib${LIB}_pic.a ${DESTDIR}${LIBDIR}
+	    ${_INSTALLFLAGS} lib${LIB}_pic.a ${DESTDIR}${LIBDIR}
 .endif
 .if defined(LINKS) && !empty(LINKS)
 	@set ${LINKS}; \
