@@ -1235,7 +1235,7 @@ vinum_help(int argc, char *argv[], char *argv0[])
 	"        Create a volume label.\n"
 	"l | list [-r] [-s] [-v] [-V] [volume | plex | subdisk]\n"
 	"        List information about specified objects.\n"
-	"ld [-r] [-s] [-v] [-V] [volume]\n"
+	"ld [-r] [-s] [-v] [-V] [drive]\n"
 	"        List information about drives.\n"
 	"ls [-r] [-s] [-v] [-V] [subdisk]\n"
 	"        List information about subdisks.\n"
