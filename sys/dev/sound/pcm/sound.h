@@ -255,6 +255,7 @@ int sndstat_register(device_t dev, char *str, sndstat_handler handler);
 int sndstat_registerfile(char *str);
 int sndstat_unregister(device_t dev);
 int sndstat_unregisterfile(char *str);
+int sndstat_busy(void);
 
 #define SND_DECLARE_FILE(version) \
 	_SND_DECLARE_FILE(__LINE__, version)

@@ -371,6 +371,12 @@ sndstat_uninit(void)
 	return 0;
 }
 
+int
+sndstat_busy(void)
+{
+	return (sndstat_isopen);
+}
+
 static void
 sndstat_sysinit(void *p)
 {

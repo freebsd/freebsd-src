@@ -609,19 +609,24 @@ pcm_unregister(device_t dev)
 
 	snd_mtxlock(d->lock);
 	if (d->inprog) {
-		device_printf(dev, "unregister: operation in progress");
+		device_printf(dev, "unregister: operation in progress\n");
+		snd_mtxunlock(d->lock);
+		return EBUSY;
+	}
+	if (sndstat_busy() != 0) {
+		device_printf(dev, "unregister: sndstat busy\n");
 		snd_mtxunlock(d->lock);
 		return EBUSY;
 	}
 	SLIST_FOREACH(sce, &d->channels, link) {
 		if (sce->channel->refcount > 0) {
-			device_printf(dev, "unregister: channel busy");
+			device_printf(dev, "unregister: channel busy\n");
 			snd_mtxunlock(d->lock);
 			return EBUSY;
 		}
 	}
 	if (mixer_uninit(dev)) {
-		device_printf(dev, "unregister: mixer busy");
+		device_printf(dev, "unregister: mixer busy\n");
 		snd_mtxunlock(d->lock);
 		return EBUSY;
 	}

@@ -288,10 +288,10 @@ dsp_open(dev_t i_dev, int flags, int mode, struct thread *td)
 	        	chn_reset(rdch, fmt);
 			if (flags & O_NONBLOCK)
 				rdch->flags |= CHN_F_NBIO;
-		} else {
+		} else
 			CHN_LOCK(rdch);
-			pcm_chnref(rdch, 1);
-		}
+
+		pcm_chnref(rdch, 1);
 	 	CHN_UNLOCK(rdch);
 	}
 	if (wrch) {
@@ -299,10 +299,10 @@ dsp_open(dev_t i_dev, int flags, int mode, struct thread *td)
 	        	chn_reset(wrch, fmt);
 			if (flags & O_NONBLOCK)
 				wrch->flags |= CHN_F_NBIO;
-		} else {
+		} else
 			CHN_LOCK(wrch);
-			pcm_chnref(wrch, 1);
-		}
+
+		pcm_chnref(wrch, 1);
 	 	CHN_UNLOCK(wrch);
 	}
 	splx(s);
