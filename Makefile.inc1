@@ -20,7 +20,7 @@
 #	-DNO_PORTSUPDATE do not update ports in ${MAKE} update
 #	-DNO_DOCUPDATE do not update doc in ${MAKE} update
 #	LOCAL_DIRS="list of dirs" to add additional dirs to the SUBDIR list
-#	MACHINE_ARCH="machine arch" to crossbuild world to a different arch
+#	TARGET_ARCH="arch" to crossbuild world to a different arch
 
 #
 # The intended user-driven targets are:
@@ -121,13 +121,19 @@ SUPFLAGS+=	-h ${SUPHOST}
 
 MAKEOBJDIRPREFIX?=	/usr/obj
 TARGET_ARCH?=	${MACHINE_ARCH}
+TARGET?=	${MACHINE}
+.if make(buildworld)
 BUILD_ARCH!=	sysctl -n hw.machine_arch
-.if ${BUILD_ARCH} == ${MACHINE_ARCH}
+.if ${MACHINE_ARCH} != ${BUILD_ARCH}
+.error To cross-build, set TARGET_ARCH.
+.endif
+.endif
+.if ${MACHINE_ARCH} == ${TARGET_ARCH}
 OBJTREE=	${MAKEOBJDIRPREFIX}
 .else
-OBJTREE=	${MAKEOBJDIRPREFIX}/${MACHINE_ARCH}
+OBJTREE=	${MAKEOBJDIRPREFIX}/${TARGET_ARCH}
 .endif
-WORLDTMP=	${OBJTREE}${.CURDIR}/${BUILD_ARCH}
+WORLDTMP=	${OBJTREE}${.CURDIR}/${MACHINE_ARCH}
 # /usr/games added for fortune which depend on strfile
 STRICTTMPPATH=	${WORLDTMP}/usr/sbin:${WORLDTMP}/usr/bin:${WORLDTMP}/usr/games
 TMPPATH=	${STRICTTMPPATH}:${PATH}
@@ -158,42 +164,35 @@ INSTALLTMP=	${TMPDIR}/install.${TMPPID}
 #	This stage installs a previously built world.
 #
 
-# Common environment for bootstrap related stages
-BOOTSTRAPENV=	MAKEOBJDIRPREFIX=${WORLDTMP} \
-		DESTDIR=${WORLDTMP} \
-		INSTALL="sh ${.CURDIR}/tools/install.sh" \
-		MACHINE_ARCH=${BUILD_ARCH} \
-		TOOLS_PREFIX=${WORLDTMP} \
-		PATH=${TMPPATH}
-
 # Common environment for world related stages
 CROSSENV=	MAKEOBJDIRPREFIX=${OBJTREE} \
+		MACHINE_ARCH=${TARGET_ARCH} \
+		MACHINE=${TARGET} \
 		COMPILER_PATH=${WORLDTMP}/usr/libexec:${WORLDTMP}/usr/bin \
 		LIBRARY_PATH=${WORLDTMP}${SHLIBDIR}:${WORLDTMP}/usr/lib \
 		OBJFORMAT_PATH=${WORLDTMP}/usr/libexec \
 		CFLAGS="-nostdinc ${CFLAGS}" \
+		CXXINCLUDES="-nostdinc++ ${CXXINCLUDES}" \
 		PERL5LIB=${WORLDTMP}/usr/libdata/perl/5.00503 \
 		GROFF_BIN_PATH=${WORLDTMP}/usr/bin \
 		GROFF_FONT_PATH=${WORLDTMP}/usr/share/groff_font \
 		GROFF_TMAC_PATH=${WORLDTMP}/usr/share/tmac
 
 # bootstrap-tool stage
-BMAKEENV=	${BOOTSTRAPENV}
+BMAKEENV=	MAKEOBJDIRPREFIX=${WORLDTMP} \
+		DESTDIR= \
+		INSTALL="sh ${.CURDIR}/tools/install.sh"
 BMAKE=		${BMAKEENV} ${MAKE} -f Makefile.inc1 -DBOOTSTRAPPING \
 		-DNOHTML -DNOINFO -DNOMAN -DNOPIC -DNOPROFILE -DNOSHARED
 
 # build-tool stage
 TMAKEENV=	MAKEOBJDIRPREFIX=${OBJTREE} \
-		INSTALL="sh ${.CURDIR}/tools/install.sh" \
-		PATH=${TMPPATH}
-TMAKE=		${TMAKEENV} ${MAKE} -f Makefile.inc1
+		DESTDIR= \
+		INSTALL="sh ${.CURDIR}/tools/install.sh"
+TMAKE=		${TMAKEENV} ${MAKE} -f Makefile.inc1 -DBOOTSTRAPPING
 
 # cross-tool stage
-XMAKEENV=	${BOOTSTRAPENV} \
-		TARGET_ARCH=${MACHINE_ARCH}
-XMAKE=		${XMAKEENV} ${MAKE} -f Makefile.inc1 -DBOOTSTRAPPING \
-		-DNO_FORTRAN -DNO_GDB -DNOHTML -DNOINFO -DNOMAN \
-		-DNOPIC -DNOPROFILE -DNOSHARED
+XMAKE=		TOOLS_PREFIX=${WORLDTMP} ${BMAKE} -DNO_FORTRAN -DNO_GDB
 
 # world stage
 WMAKEENV=	${CROSSENV} \
@@ -230,10 +229,6 @@ USRDIRS=	usr/bin usr/lib/compat/aout usr/games usr/libdata/ldscripts \
 		usr/share/groff_font/devutf8 \
 		usr/share/tmac/mdoc usr/share/tmac/mm
 
-.if ${MACHINE_ARCH} == "i386" && ${MACHINE} == "pc98"
-USRDIRS+=	usr/libexec/aout
-.endif
-
 INCDIRS=	arpa g++/std isc objc protocols readline rpc rpcsvc openssl \
 		security ss
 
@@ -250,13 +245,6 @@ buildworld:
 	@echo "--------------------------------------------------------------"
 .if !defined(NOCLEAN)
 	rm -rf ${WORLDTMP}
-.else
-	for dir in bin games include lib sbin share; do \
-		rm -rf ${WORLDTMP}/usr/$$dir; \
-	done
-	# XXX - Work-around for broken cc/cc_tools/Makefile.
-	# This is beyond dirty...
-	rm -f ${OBJTREE}${.CURDIR}/gnu/usr.bin/cc/cc_tools/.depend
 .endif
 .for _dir in ${USRDIRS}
 	mkdir -p ${WORLDTMP}/${_dir}
@@ -275,13 +263,13 @@ buildworld:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 2: cleaning up the object tree"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}; ${TMAKE} ${CLEANDIR:S/^/par-/}
+	cd ${.CURDIR}; ${WMAKE} ${CLEANDIR:S/^/par-/}
 .endif
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 2: rebuilding the object tree"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}; ${TMAKE} par-obj
+	cd ${.CURDIR}; ${WMAKE} par-obj
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 2: build tools"
@@ -373,13 +361,13 @@ distribworld:
 #
 # Which kernels to build and/or install is specified by setting
 # KERNCONF. If not defined a GENERIC kernel is built/installed.
-# Only the existing (depending MACHINE) config files are used
+# Only the existing (depending TARGET) config files are used
 # for building kernels and only the first of these is designated
 # as the one being installed.
 #
-# Note that we have to use MACHINE instead of MACHINE_ARCH when
-# we're in kernel-land. Since only MACHINE_ARCH is (expected) to
-# be set to cross-build, we have to make sure MACHINE is set
+# Note that we have to use TARGET instead of TARGET_ARCH when
+# we're in kernel-land. Since only TARGET_ARCH is (expected) to
+# be set to cross-build, we have to make sure TARGET is set
 # properly.
 
 .if !defined(KERNCONF) && defined(KERNEL)
@@ -390,15 +378,15 @@ KERNCONF?=	GENERIC
 .endif
 INSTKERNNAME?=	kernel
 
-# The only exotic MACHINE_ARCH/MACHINE combination valid at this
-# time is i386/pc98. In all other cases set MACHINE equal to
-# MACHINE_ARCH.
-.if ${MACHINE_ARCH} != "i386" || ${MACHINE} != "pc98"
-MACHINE=	${MACHINE_ARCH}
+# The only exotic TARGET_ARCH/TARGET combination valid at this
+# time is i386/pc98. In all other cases set TARGET equal to
+# TARGET_ARCH.
+.if ${TARGET_ARCH} != "i386" || ${TARGET} != "pc98"
+TARGET=		${TARGET_ARCH}
 .endif
 
 KRNLSRCDIR=	${.CURDIR}/sys
-KRNLCONFDIR=	${KRNLSRCDIR}/${MACHINE}/conf
+KRNLCONFDIR=	${KRNLSRCDIR}/${TARGET}/conf
 KRNLOBJDIR=	${OBJTREE}${KRNLSRCDIR}
 
 BUILDKERNELS=
@@ -443,10 +431,10 @@ buildkernel:
 .if !defined(NOCLEAN) && !defined(NO_KERNELCLEAN)
 .if defined(MODULES_WITH_WORLD) || defined(NO_MODULES) || !exists(${KRNLSRCDIR}/modules)
 	cd ${KRNLOBJDIR}/${_kernel}; \
-	    ${KMAKEENV} MACHINE=${MACHINE} ${MAKE} KERNEL=${INSTKERNNAME} clean
+	    ${KMAKEENV} ${MAKE} KERNEL=${INSTKERNNAME} clean
 .else
 	cd ${KRNLOBJDIR}/${_kernel}; \
-	    ${KMAKEENV} MACHINE=${MACHINE} ${MAKE} KERNEL=${INSTKERNNAME} clean cleandir
+	    ${KMAKEENV} ${MAKE} KERNEL=${INSTKERNNAME} clean cleandir
 .endif
 .endif
 	cd ${KRNLOBJDIR}/${_kernel}; \
@@ -454,10 +442,10 @@ buildkernel:
 		    ${MAKE} -f ${KRNLSRCDIR}/dev/aic7xxx/aicasm/Makefile
 .if !defined(NO_KERNELDEPEND)
 	cd ${KRNLOBJDIR}/${_kernel}; \
-	    ${KMAKEENV} MACHINE=${MACHINE} ${MAKE} KERNEL=${INSTKERNNAME} depend
+	    ${KMAKEENV} ${MAKE} KERNEL=${INSTKERNNAME} depend
 .endif
 	cd ${KRNLOBJDIR}/${_kernel}; \
-	    ${KMAKEENV} MACHINE=${MACHINE} ${MAKE} KERNEL=${INSTKERNNAME} all
+	    ${KMAKEENV} ${MAKE} KERNEL=${INSTKERNNAME} all
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Kernel build for ${_kernel} completed on `LC_ALL=C date`"
 	@echo "--------------------------------------------------------------"
@@ -470,10 +458,10 @@ buildkernel:
 #
 installkernel:
 	cd ${KRNLOBJDIR}/${INSTALLKERNEL}; \
-	    ${CROSSENV} MACHINE=${MACHINE} ${MAKE} KERNEL=${INSTKERNNAME} install
+	    ${CROSSENV} ${MAKE} KERNEL=${INSTKERNNAME} install
 reinstallkernel:
 	cd ${KRNLOBJDIR}/${INSTALLKERNEL}; \
-	    ${CROSSENV} MACHINE=${MACHINE} ${MAKE} KERNEL=${INSTKERNNAME} reinstall
+	    ${CROSSENV} ${MAKE} KERNEL=${INSTKERNNAME} reinstall
 
 #
 # kernel
@@ -580,7 +568,7 @@ bootstrap-tools:
 		${MAKE} obj; \
 		${MAKE} depend; \
 		${MAKE} all; \
-		${MAKE} install
+		${MAKE} DESTDIR=${MAKEOBJDIRPREFIX} install
 .endfor
 
 #
@@ -598,6 +586,10 @@ _share=	share/syscons/scrnmaps
 _fortran= gnu/usr.bin/cc/f771
 .endif
 
+.if !defined(NOPERL)
+_perl=	gnu/usr.bin/perl/miniperl
+.endif
+
 .if exists(${.CURDIR}/kerberosIV) && exists(${.CURDIR}/crypto) && \
     !defined(NOCRYPT) && defined(MAKE_KERBEROS4)
 _libroken4= kerberosIV/lib/libroken
@@ -608,29 +600,14 @@ _libroken4= kerberosIV/lib/libroken
 _libkrb5= kerberos5/lib/libasn1 kerberos5/lib/libhdb kerberos5/lib/libsl
 .endif
 
-.if !defined(NOPERL)
-_perl=	gnu/usr.bin/perl
-.endif
-
 build-tools:
 .for _tool in bin/csh bin/sh ${_games} gnu/usr.bin/cc/cc_tools ${_fortran} \
-    ${_libroken4} ${_libkrb5} lib/libncurses ${_share} ${_perl} usr.bin/file
+    ${_perl} ${_libroken4} ${_libkrb5} lib/libncurses ${_share} usr.bin/file
 	cd ${.CURDIR}/${_tool}; ${MAKE} build-tools
 .endfor
 
 #
 # cross-tools: Build cross-building tools
-#
-# WARNING: Because the bootstrap tools are expected to run on the
-# build-machine, MACHINE_ARCH is *always* set to BUILD_ARCH when this
-# target is being made. TARGET_ARCH is *always* set to reflect the
-# target-machine (which you can set by specifying MACHINE_ARCH on
-# make's command-line, get it?).
-# The reason is simple: we build these tools not to be run on the
-# architecture we're cross-building, but on the architecture we're
-# currently building on (ie the host-machine) and we expect these
-# tools to produce output for the architecture we're trying to
-# cross-build.
 #
 .if ${TARGET_ARCH} == "alpha" && ${MACHINE_ARCH} != "alpha"
 _elf2exe=	usr.sbin/elf2exe
@@ -640,19 +617,14 @@ _elf2exe=	usr.sbin/elf2exe
 _btxld=	usr.sbin/btxld
 .endif
 
-# XXX - MACHINE should actually be TARGET. But we don't set that...
-.if ${TARGET_ARCH} == "i386" && ${MACHINE} == "pc98"
-_aout_tools=	usr.bin/size usr.bin/strip gnu/usr.bin/as gnu/usr.bin/ld
-.endif
-
 cross-tools:
-.for _tool in ${_aout_tools} ${_btxld} ${_elf2exe} usr.bin/genassym \
+.for _tool in ${_btxld} ${_elf2exe} usr.bin/genassym \
     usr.bin/gensetdefs gnu/usr.bin/binutils usr.bin/objformat gnu/usr.bin/cc
 	cd ${.CURDIR}/${_tool}; \
 		${MAKE} obj; \
 		${MAKE} depend; \
 		${MAKE} all; \
-		${MAKE} install
+		${MAKE} DESTDIR=${MAKEOBJDIRPREFIX} install
 .endfor
 
 #

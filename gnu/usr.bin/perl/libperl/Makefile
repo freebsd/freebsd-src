@@ -20,9 +20,6 @@ NO_PERL_SCRIPT_MAKE=	true
 
 .include <bsd.lib.mk>
 
-build-tools:	cleandepend
-	cd ${.CURDIR} && ${MAKE} lib${LIB}.a
-
 config.h:	links
 	@sh config_h.sh
 

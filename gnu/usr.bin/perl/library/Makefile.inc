@@ -2,7 +2,6 @@
 
 PERL5SRC?=	${.CURDIR}/../../../../../contrib/perl5
 PERL5LIBSRC?=	${.CURDIR}/../../libperl
-MINIPERL=	${.OBJDIR}/../../miniperl/miniperl
 
 MODULEDIR?=	${MODULE}
 
