@@ -60,13 +60,14 @@
 #include <sys/vnode.h>
 #include <sys/proc.h>
 #include <sys/dirent.h>
+#include <sys/extattr.h>
 
+#include <machine/limits.h>
 #include <miscfs/union/union.h>
-
+#include <sys/sysctl.h>
 #include <vm/vm.h>
 #include <vm/vm_object.h>
 #include <vm/vm_zone.h>
-#include <sys/sysctl.h>
 
 static int change_dir __P((struct nameidata *ndp, struct proc *p));
 static void checkdirs __P((struct vnode *olddp));
@@ -3361,4 +3362,194 @@ fhstatfs(p, uap)
 		sp = &sb;
 	}
 	return (copyout(sp, SCARG(uap, buf), sizeof(*sp)));
+}
+
+/*
+ * Syscall to push extended attribute configuration information into the
+ * VFS.  Accepts a path, which it converts to a mountpoint, as well as
+ * a command (int cmd), and attribute name and misc data.  For now, the
+ * attribute name is left in userspace for consumption by the VFS_op.
+ * It will probably be changed to be copied into sysspace by the
+ * syscall in the future, once issues with various consumers of the
+ * attribute code have raised their hands.
+ *
+ * Currently this is used only by UFS Extended Attributes.
+ */
+int
+extattrctl(p, uap)
+	struct proc *p;
+	struct extattrctl_args *uap;
+{
+	struct nameidata nd;
+	struct mount *mp;
+	int error;
+
+	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, SCARG(uap, path), p);
+	if ((error = namei(&nd)) != 0)
+		return (error);
+	mp = nd.ni_vp->v_mount;
+	NDFREE(&nd, 0);
+	return (VFS_EXTATTRCTL(mp, SCARG(uap, cmd), SCARG(uap, attrname),
+	    SCARG(uap, arg), p));
+}
+
+/*
+ * Syscall to set a named extended attribute on a file or directory.
+ * Accepts attribute name, and a uio structure pointing to the data to set.
+ * The uio is consumed in the style of writev().  The real work happens
+ * in VOP_SETEXTATTR().
+ */
+int
+extattr_set_file(p, uap)
+	struct proc *p;
+	struct extattr_set_file_args *uap;
+{
+	struct nameidata nd;
+	struct uio auio;
+	struct iovec *iov, *needfree = NULL, aiov[UIO_SMALLIOV];
+	char attrname[EXTATTR_MAXNAMELEN];
+	u_int iovlen, cnt;
+	int error, i;
+
+	error = copyin(SCARG(uap, attrname), attrname, EXTATTR_MAXNAMELEN);
+	if (error)
+		return (error);
+	NDINIT(&nd, LOOKUP, LOCKLEAF | FOLLOW, UIO_USERSPACE, SCARG(uap, path),
+	    p);
+	if ((error = namei(&nd)) != 0)
+		return(error);
+	iovlen = uap->iovcnt * sizeof(struct iovec);
+	if (uap->iovcnt > UIO_SMALLIOV) {
+		if (uap->iovcnt > UIO_MAXIOV) {
+			error = EINVAL;
+			goto done;
+		}
+		MALLOC(iov, struct iovec *, iovlen, M_IOV, M_WAITOK);
+		needfree = iov;
+	} else
+		iov = aiov;
+	auio.uio_iov = iov;
+	auio.uio_iovcnt = uap->iovcnt;
+	auio.uio_rw = UIO_WRITE;
+	auio.uio_segflg = UIO_USERSPACE;
+	auio.uio_procp = p;
+	auio.uio_offset = 0;
+	if ((error = copyin((caddr_t)uap->iovp, (caddr_t)iov, iovlen)))
+		goto done;
+	auio.uio_resid = 0;
+	for (i = 0; i < uap->iovcnt; i++) {
+		if (iov->iov_len > INT_MAX - auio.uio_resid) {
+			error = EINVAL;
+			goto done;
+		}
+		auio.uio_resid += iov->iov_len;
+		iov++;
+	}
+	cnt = auio.uio_resid;
+	error = VOP_SETEXTATTR(nd.ni_vp, attrname, &auio, p->p_cred->pc_ucred,
+	    p);
+	if (auio.uio_resid != cnt && (error == ERESTART ||
+	    error == EINTR || error == EWOULDBLOCK))
+		error = 0;
+	cnt -= auio.uio_resid;
+	p->p_retval[0] = cnt;
+done:
+	if (needfree)
+		FREE(needfree, M_IOV);
+	NDFREE(&nd, 0);
+	return (error);
+}
+
+/*
+ * Syscall to get a named extended attribute on a file or directory.
+ * Accepts attribute name, and a uio structure pointing to a buffer for the
+ * data.  The uio is consumed in the style of readv().  The real work
+ * happens in VOP_GETEXTATTR();
+ */
+int
+extattr_get_file(p, uap)
+	struct proc *p;
+	struct extattr_get_file_args *uap;
+{
+	struct nameidata nd;
+	struct uio auio;
+	struct iovec *iov, *needfree, aiov[UIO_SMALLIOV];
+	char attrname[EXTATTR_MAXNAMELEN];
+	u_int iovlen, cnt;
+	int error, i;
+
+	error = copyin(SCARG(uap, attrname), attrname, EXTATTR_MAXNAMELEN);
+	if (error)
+		return (error);
+	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, SCARG(uap, path), p);
+	if ((error = namei(&nd)) != 0)
+		return (error);
+	iovlen = uap->iovcnt * sizeof (struct iovec);
+	if (uap->iovcnt > UIO_SMALLIOV) {
+		if (uap->iovcnt > UIO_MAXIOV) {
+			NDFREE(&nd, 0);
+			return (EINVAL);
+		}
+		MALLOC(iov, struct iovec *, iovlen, M_IOV, M_WAITOK);
+		needfree = iov;
+	} else {
+		iov = aiov;
+		needfree = NULL;
+	}
+	auio.uio_iov = iov;
+	auio.uio_iovcnt = uap->iovcnt;
+	auio.uio_rw = UIO_READ;
+	auio.uio_segflg = UIO_USERSPACE;
+	auio.uio_procp = p;
+	auio.uio_offset = 0;
+	if ((error = copyin((caddr_t)uap->iovp, (caddr_t)iov, iovlen)))
+		goto done;
+	auio.uio_resid = 0;
+	for (i = 0; i < uap->iovcnt; i++) {
+		if (iov->iov_len > INT_MAX - auio.uio_resid) {
+			error = EINVAL;
+			goto done;
+		}
+		auio.uio_resid += iov->iov_len;
+		iov++;
+	}
+	cnt = auio.uio_resid;
+	error = VOP_GETEXTATTR(nd.ni_vp, attrname, &auio, p->p_cred->pc_ucred,
+	    p);
+	if (auio.uio_resid != cnt && (error == ERESTART ||
+	    error == EINTR || error == EWOULDBLOCK))
+		error = 0;
+	cnt -= auio.uio_resid;
+	p->p_retval[0] = cnt;
+done:
+	if (needfree)
+		FREE(needfree, M_IOV);
+	NDFREE(&nd, 0);
+	return(error);
+}
+
+/*
+ * Syscall to delete a named extended attribute from a file or directory.
+ * Accepts attribute name.  The real work happens in VOP_SETEXTATTR().
+ */
+int
+extattr_delete_file(p, uap)
+	struct proc *p;
+	struct extattr_delete_file_args *uap;
+{
+	struct nameidata nd;
+	char attrname[EXTATTR_MAXNAMELEN];
+	int	error;
+
+	error = copyin(SCARG(uap, attrname), attrname, EXTATTR_MAXNAMELEN);
+	if (error)
+		return(error);
+	NDINIT(&nd, LOOKUP, LOCKLEAF | FOLLOW, UIO_USERSPACE, SCARG(uap, path),
+	    p);
+	if ((error = namei(&nd)) != 0)
+		return(error);
+	error = VOP_SETEXTATTR(nd.ni_vp, attrname, NULL, p->p_cred->pc_ucred,
+	    p);
+	NDFREE(&nd, 0);
+	return(error);
 }

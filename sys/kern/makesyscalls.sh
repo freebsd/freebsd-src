@@ -112,6 +112,7 @@ s/\$//g
 		printf "#ifndef %s\n", sysproto_h > sysarg
 		printf "#define\t%s\n\n", sysproto_h > sysarg
 		printf "#include <sys/signal.h>\n\n" > sysarg
+		printf "#include <sys/acl.h>\n\n" > sysarg
 		printf "struct proc;\n\n" > sysarg
 		printf "#define\tPAD_(t)\t(sizeof(register_t) <= sizeof(t) ? \\\n" > sysarg
 		printf "\t\t0 : sizeof(register_t) - sizeof(t))\n\n" > sysarg

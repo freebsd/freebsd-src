@@ -93,7 +93,8 @@ static struct vfsops nwfs_vfsops = {
 	vfs_stdcheckexp,
 	vfs_stdvptofh,		/* shouldn't happen */
 	nwfs_init,
-	nwfs_uninit
+	nwfs_uninit,
+	vfs_stdextattrctl,
 };
 
 
