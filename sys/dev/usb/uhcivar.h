@@ -193,7 +193,9 @@ typedef struct uhci_softc {
 	void *sc_shutdownhook;		/* cookie from shutdown hook */
 #endif
 
+#if defined(__NetBSD__) || defined(__OpenBSD__)
 	device_ptr_t sc_child;		/* /dev/usb# device */
+#endif
 } uhci_softc_t;
 
 usbd_status	uhci_init(uhci_softc_t *);
