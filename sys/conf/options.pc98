@@ -8,8 +8,6 @@ PMAP_SHPGPERPROC	opt_pmap.h
 DISABLE_PG_G		opt_pmap.h
 PPC_PROBE_CHIPSET	opt_ppc.h
 PPC_DEBUG		opt_ppc.h
-SHOW_BUSYBUFS
-PANIC_REBOOT_WAIT_TIME	opt_panic.h
 MAXMEM
 PERFMON			opt_perfmon.h
 POWERFAIL_NMI		opt_trap.h

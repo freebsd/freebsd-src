@@ -12,9 +12,6 @@ PAGE_SIZE_16K		opt_global.h
 PPC_PROBE_CHIPSET       opt_ppc.h
 PPC_DEBUG               opt_ppc.h
 
-SHOW_BUSYBUFS
-PANIC_REBOOT_WAIT_TIME	opt_panic.h
-
 MAXCONS			opt_syscons.h
 SC_ALT_MOUSE_IMAGE	opt_syscons.h
 SC_CUT_SPACES2TABS	opt_syscons.h
