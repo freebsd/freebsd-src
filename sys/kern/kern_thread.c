@@ -296,7 +296,6 @@ ksegrp_link(struct ksegrp *kg, struct proc *p)
 
 	TAILQ_INIT(&kg->kg_threads);
 	TAILQ_INIT(&kg->kg_runq);	/* links with td_runq */
-	TAILQ_INIT(&kg->kg_slpq);	/* links with td_runq */
 	TAILQ_INIT(&kg->kg_upcalls);	/* all upcall structure in ksegrp */
 	kg->kg_proc = p;
 	/*
@@ -304,7 +303,6 @@ ksegrp_link(struct ksegrp *kg, struct proc *p)
 	 * and may not need clearing
 	 */
 	kg->kg_numthreads = 0;
-	kg->kg_runnable   = 0;
 	kg->kg_numupcalls = 0;
 	/* link it in now that it's consistent */
 	p->p_numksegrps++;

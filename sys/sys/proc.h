@@ -465,13 +465,11 @@ struct ksegrp {
 	TAILQ_ENTRY(ksegrp) kg_ksegrp;	/* (*) Queue of KSEGs in kg_proc. */
 	TAILQ_HEAD(, thread) kg_threads;/* (td_kglist) All threads. */
 	TAILQ_HEAD(, thread) kg_runq;	/* (td_runq) waiting RUNNABLE threads */
-	TAILQ_HEAD(, thread) kg_slpq;	/* (td_runq) NONRUNNABLE threads. */
 	TAILQ_HEAD(, kse_upcall) kg_upcalls;	/* All upcalls in the group. */
 
 #define	kg_startzero kg_estcpu
 	u_int		kg_estcpu;	/* (j) Sum of the same field in KSEs. */
 	u_int		kg_slptime;	/* (j) How long completely blocked. */
-	int		kg_runnable;	/* (j) Num runnable threads on queue. */
 	int		kg_numupcalls;	/* (j) Num upcalls. */
 	int		kg_upsleeps;	/* (c) Num threads in kse_release(). */
 	struct kse_thr_mailbox *kg_completed; /* (c) Completed thread mboxes. */
