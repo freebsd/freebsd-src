@@ -346,7 +346,7 @@ static void
 usage(void)
 {
 	fprintf(stderr,
-	    "usage: whois [-aAdgiIlmQrR6] [-c country-code | -h hostname] "
+	    "usage: whois [-aAbdgiIlmQrR6] [-c country-code | -h hostname] "
 	    "[-p port] name ...\n");
 	exit(EX_USAGE);
 }
