@@ -221,18 +221,23 @@ struct fxp_cb_mcs {
 	volatile u_int8_t mc_addr[MAXMCADDR][6];
 };
 
+#define MAXUCODESIZE 192
+struct fxp_cb_ucode {
+	void *fill[2];
+	u_int16_t cb_status;
+	u_int16_t cb_command;
+	u_int32_t link_addr;
+	u_int32_t ucode[MAXUCODESIZE];
+};
+
 /*
  * Number of DMA segments in a TxCB. Note that this is carefully
  * chosen to make the total struct size an even power of two. It's
  * critical that no TxCB be split across a page boundry since
  * no attempt is made to allocate physically contiguous memory.
- * 
  */
-#ifdef __alpha__ /* XXX - should be conditional on pointer size */
-#define FXP_NTXSEG      28
-#else
-#define FXP_NTXSEG      29
-#endif
+#define FXP_TXCB_FIXED  16              /* cb_status .. tbd_number */
+#define FXP_NTXSEG      ((256 - (sizeof(void *) * 2) - FXP_TXCB_FIXED) / 8)
 
 struct fxp_tbd {
 	volatile u_int32_t tb_addr;
@@ -270,7 +275,7 @@ struct fxp_cb_tx {
 #define FXP_CB_COMMAND_CONFIG	0x2
 #define FXP_CB_COMMAND_MCAS	0x3
 #define FXP_CB_COMMAND_XMIT	0x4
-#define FXP_CB_COMMAND_RESRV	0x5
+#define FXP_CB_COMMAND_UCODE	0x5
 #define FXP_CB_COMMAND_DUMP	0x6
 #define FXP_CB_COMMAND_DIAG	0x7
 /* command flags */
@@ -368,3 +373,14 @@ struct fxp_stats {
 #define FXP_PHY_82555		7
 #define FXP_PHY_DP83840A	10
 #define FXP_PHY_82555B		11
+
+/*
+ * Chip revision values.
+ */
+#define FXP_REV_82557		1       /* catchall 82557 chip type */
+#define FXP_REV_82558_A4	4	/* 82558 A4 stepping */
+#define FXP_REV_82558_B0	5	/* 82558 B0 stepping */
+#define FXP_REV_82559_A0	8	/* 82559 A0 stepping */
+#define FXP_REV_82559S_A	9	/* 82559S A stepping */
+#define FXP_REV_82550		12
+#define FXP_REV_82550_C		13	/* 82550 C stepping */
