@@ -825,16 +825,14 @@ key_do_allocsa_policy(sah, state)
 		 * permanent.
 		 */
 		if (d->lft_c->sadb_lifetime_addtime != 0) {
-
 			struct mbuf *m, *result;
 
 			key_sa_chgstate(d, SADB_SASTATE_DEAD);
-			key_freesav(d);
 
 			m = key_setsadbmsg(SADB_DELETE, 0,
-					sav->sah->saidx.proto, 0, 0, d->refcnt);
+			    d->sah->saidx.proto, 0, 0, d->refcnt - 1);
 			if (!m)
-				return NULL;
+				goto msgfail;
 			result = m;
 
 			/* set sadb_address for saidx's. */
@@ -843,7 +841,7 @@ key_do_allocsa_policy(sah, state)
 				d->sah->saidx.src.ss_len << 3,
 				IPSEC_ULPROTO_ANY);
 			if (!m)
-				return NULL;
+				goto msgfail;
 			m_cat(result, m);
 
 			/* set sadb_address for saidx's. */
@@ -852,20 +850,20 @@ key_do_allocsa_policy(sah, state)
 				d->sah->saidx.src.ss_len << 3,
 				IPSEC_ULPROTO_ANY);
 			if (!m)
-				return NULL;
+				goto msgfail;
 			m_cat(result, m);
 
 			/* create SA extension */
 			m = key_setsadbsa(d);
 			if (!m)
-				return NULL;
+				goto msgfail;
 			m_cat(result, m);
 
 			if (result->m_len < sizeof(struct sadb_msg)) {
 				result = m_pullup(result,
 						sizeof(struct sadb_msg));
 				if (result == NULL)
-					return NULL;
+					goto msgfail;
 			}
 
 			result->m_pkthdr.len = 0;
@@ -876,7 +874,9 @@ key_do_allocsa_policy(sah, state)
 
 			if (key_sendup_mbuf(NULL, result,
 					KEY_SENDUP_REGISTERED))
-				return NULL;
+				goto msgfail;
+		 msgfail:
+			key_freesav(d);
 		}
 	}
 
@@ -6483,6 +6483,7 @@ key_expire(sav)
 	mtod(result, struct sadb_msg *)->sadb_msg_len =
 	    PFKEY_UNIT64(result->m_pkthdr.len);
 
+	splx(s);
 	return key_sendup_mbuf(NULL, result, KEY_SENDUP_REGISTERED);
 
  fail:
