@@ -15,6 +15,7 @@
 #	-DNOLIBC_R do not build libc_r.
 #	-DNO_FORTRAN do not build g77 and related libraries.
 #	-DNO_KERNELCONFIG do not run config in ${MAKE} buildkernel
+#	-DNO_KERNELCLEAN do not run ${MAKE} clean in ${MAKE} buildkernel
 #	-DNO_KERNELDEPEND do not run ${MAKE} depend in ${MAKE} buildkernel
 #	-DNO_PORTSUPDATE do not update ports in ${MAKE} update
 #	-DNO_DOCUPDATE do not update doc in ${MAKE} update
@@ -335,7 +336,7 @@ reinstall:
 # buildkernel and installkernel
 #
 # Which kernels to build and/or install is specified by setting
-# KERNEL. If not defined a GENERIC kernel is built/installed.
+# KERNCONF. If not defined a GENERIC kernel is built/installed.
 # Only the existing (depending MACHINE) config files are used
 # for building kernels and only the first of these is designated
 # as the one being installed.
@@ -345,7 +346,13 @@ reinstall:
 # be set to cross-build, we have to make sure MACHINE is set
 # properly.
 
-KERNEL?=	GENERIC
+.if !defined(KERNCONF) && defined(KERNEL)
+KERNCONF=	${KERNEL}
+KERNWARN=	yes
+.else
+KERNCONF?=	GENERIC
+.endif
+INSTKERNNAME?=	kernel
 
 # The only exotic MACHINE_ARCH/MACHINE combination valid at this
 # time is i386/pc98. In all other cases set MACHINE equal to
@@ -358,13 +365,9 @@ KRNLSRCDIR=	${.CURDIR}/sys
 KRNLCONFDIR=	${KRNLSRCDIR}/${MACHINE}/conf
 KRNLOBJDIR=	${OBJTREE}${KRNLSRCDIR}
 
-.if !defined(NOCLEAN)
-CONFIGARGS+=	-r
-.endif
-
 BUILDKERNELS=
 INSTALLKERNEL=
-.for _kernel in ${KERNEL}
+.for _kernel in ${KERNCONF}
 .if exists(${KRNLCONFDIR}/${_kernel})
 BUILDKERNELS+=	${_kernel}
 .if empty(INSTALLKERNEL)
@@ -379,6 +382,15 @@ INSTALLKERNEL= ${_kernel}
 # Builds all kernels defined by BUILDKERNELS.
 #
 buildkernel:
+.if empty(BUILDKERNELS)
+	@echo ">>> ERROR: Missing kernel configuration file(s) (${KERNCONF})."
+	@false
+.endif
+.if defined(KERNWARN)
+	@echo "--------------------------------------------------------------"
+	@echo ">>> WARNING: KERNEL= setting should be changed to KERNCONF="
+	@echo "--------------------------------------------------------------"
+.endif
 	@echo
 .for _kernel in ${BUILDKERNELS}
 	@echo "--------------------------------------------------------------"
@@ -391,15 +403,19 @@ buildkernel:
 		PATH=${TMPPATH} \
 		    config ${CONFIGARGS} -d ${KRNLOBJDIR}/${_kernel} ${_kernel}
 .endif
+.if !defined(NOCLEAN) && !defined(NO_KERNELCLEAN)
+	cd ${KRNLOBJDIR}/${_kernel}; \
+	    ${KMAKEENV} MACHINE=${MACHINE} ${MAKE} KERNEL=${INSTKERNNAME} clean
+.endif
 	cd ${KRNLOBJDIR}/${_kernel}; \
 		MAKESRCPATH=${KRNLSRCDIR}/dev/aic7xxx/aicasm \
 		    ${MAKE} -f ${KRNLSRCDIR}/dev/aic7xxx/aicasm/Makefile
 .if !defined(NO_KERNELDEPEND)
 	cd ${KRNLOBJDIR}/${_kernel}; \
-		${WMAKEENV} MACHINE=${MACHINE} ${MAKE} KERNEL=kernel depend
+	    ${KMAKEENV} MACHINE=${MACHINE} ${MAKE} KERNEL=${INSTKERNNAME} depend
 .endif
 	cd ${KRNLOBJDIR}/${_kernel}; \
-		${WMAKEENV} MACHINE=${MACHINE} ${MAKE} KERNEL=kernel all
+	    ${KMAKEENV} MACHINE=${MACHINE} ${MAKE} KERNEL=${INSTKERNNAME} all
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Kernel build for ${_kernel} completed on `LC_TIME=C date`"
 	@echo "--------------------------------------------------------------"
@@ -412,7 +428,10 @@ buildkernel:
 #
 installkernel:
 	cd ${KRNLOBJDIR}/${INSTALLKERNEL}; \
-		${CROSSENV} MACHINE=${MACHINE} ${MAKE} KERNEL=kernel install
+	    ${CROSSENV} MACHINE=${MACHINE} ${MAKE} KERNEL=${INSTKERNNAME} install
+reinstallkernel:
+	cd ${KRNLOBJDIR}/${INSTALLKERNEL}; \
+	    ${CROSSENV} MACHINE=${MACHINE} ${MAKE} KERNEL=${INSTKERNNAME} reinstall
 
 #
 # kernel
