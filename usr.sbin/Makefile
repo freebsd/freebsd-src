@@ -105,8 +105,6 @@ SUBDIR=	ac \
 	ngctl \
 	nghook \
 	nologin \
-	${_nslookup} \
-	${_nsupdate} \
 	ntp \
 	${_ofwdump} \
 	${_pccard} \
