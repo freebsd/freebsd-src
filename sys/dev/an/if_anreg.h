@@ -95,7 +95,7 @@
 /*
  * Size of aux. memory space ... probably not needed DJA 
  */
-#define AN_AUXMEMSIZE		(256 * 1024)
+#define AN_AUX_MEM_SIZE		(256 * 1024)
 
 /*
  * Hermes register definitions and what little I know about them.
@@ -181,10 +181,11 @@ struct an_card_tx_desc
 	u_int64_t	an_phys;
 };
 
-#define AN_RID_BUFFER_SIZE	2048
-#define AN_RX_BUFFER_SIZE	1840
-#define AN_TX_BUFFER_SIZE	1840
-#define AN_HOST_DESC_OFFSET 0x8
+#define AN_RID_BUFFER_SIZE	AN_MAX_DATALEN
+#define AN_RX_BUFFER_SIZE	AN_HOSTBUFSIZ
+#define AN_TX_BUFFER_SIZE	AN_HOSTBUFSIZ
+/*#define AN_HOST_DESC_OFFSET	0xC sort of works */
+#define AN_HOST_DESC_OFFSET	0x800
 #define AN_RX_DESC_OFFSET  (AN_HOST_DESC_OFFSET + \
     sizeof(struct an_card_rid_desc))
 #define AN_TX_DESC_OFFSET (AN_RX_DESC_OFFSET + \
@@ -243,7 +244,7 @@ struct an_reply {
 /* memory handle management registers */
 #define AN_RX_FID		0x20
 #define AN_ALLOC_FID		0x22
-#define AN_TX_CMP_FID		0x24
+#define AN_TX_CMP_FID(x)	(x ? 0x1a : 0x24)
 
 /*
  * Buffer Access Path (BAP) registers.
@@ -276,16 +277,23 @@ struct an_reply {
 /* Events */
 #define AN_EV_CLR_STUCK_BUSY	0x4000	/* clear stuck busy bit */
 #define AN_EV_WAKEREQUEST	0x2000	/* awaken from PSP mode */
+#define AN_EV_MIC		0x1000	/* Message Integrity Check*/
 #define AN_EV_AWAKE		0x0100	/* station woke up from PSP mode*/
 #define AN_EV_LINKSTAT		0x0080	/* link status available */
 #define AN_EV_CMD		0x0010	/* command completed */
 #define AN_EV_ALLOC		0x0008	/* async alloc/reclaim completed */
+#define AN_EV_TX_CPY		0x0400
 #define AN_EV_TX_EXC		0x0004	/* async xmit completed with failure */
 #define AN_EV_TX		0x0002	/* async xmit completed succesfully */
 #define AN_EV_RX		0x0001	/* async rx completed */
 
-#define AN_INTRS	\
-	(AN_EV_RX|AN_EV_TX|AN_EV_TX_EXC|AN_EV_ALLOC|AN_EV_LINKSTAT)
+#define AN_INTRS(x)	\
+	( x ? (AN_EV_RX|AN_EV_TX|AN_EV_TX_EXC|AN_EV_TX_CPY|AN_EV_ALLOC \
+	       |AN_EV_LINKSTAT|AN_EV_MIC) \
+	  : \
+	      (AN_EV_RX|AN_EV_TX|AN_EV_TX_EXC|AN_EV_ALLOC \
+	       |AN_EV_LINKSTAT|AN_EV_MIC) \
+	      )
 
 /* Host software registers */
 #define AN_SW0(x)		(x ? 0x50 : 0x28)
@@ -458,7 +466,7 @@ struct an_softc	{
 	bus_dma_tag_t		an_dtag;
 	struct an_ltv_genconfig	an_config;
 	struct an_ltv_caps	an_caps;
-	struct an_ltv_ssidlist	an_ssidlist;
+	struct an_ltv_ssidlist_new	an_ssidlist;
 	struct an_ltv_aplist	an_aplist;
         struct an_ltv_key	an_temp_keys[4];
 	int			an_tx_rate;
