@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: md.c,v 1.10 1994/06/15 22:40:44 rich Exp $
+ *	$Id: md.c,v 1.11 1994/12/23 22:31:12 nate Exp $
  */
 
 #include <sys/param.h>
@@ -58,9 +58,10 @@ unsigned char		*addr;
 		return get_short(addr);
 	case 2:
 		return get_long(addr);
+	default:
+		errx(1, "Unsupported relocation size: %x",
+		    RELOC_TARGET_SIZE(rp));
 	}
-	errx(1, "Unsupported relocation size: %x", RELOC_TARGET_SIZE(rp));
-	return 0;
 }
 
 /*
@@ -76,15 +77,17 @@ int			relocatable_output;
 	switch (RELOC_TARGET_SIZE(rp)) {
 	case 0:
 		put_byte(addr, relocation);
-		return;
+		break;
 	case 1:
 		put_short(addr, relocation);
-		return;
+		break;
 	case 2:
 		put_long(addr, relocation);
-		return;
+		break;
+	default:
+		errx(1, "Unsupported relocation size: %x",
+		    RELOC_TARGET_SIZE(rp));
 	}
-	errx(1, "Unsupported relocation size: %x", RELOC_TARGET_SIZE(rp));
 }
 
 /*
@@ -257,7 +260,7 @@ int		magic, flags;
 #endif
 
 	/* TEXT_START depends on the value of outheader.a_entry.  */
-	if (!(link_mode & SHAREABLE)) /*WAS: if (entry_symbol) */
+	if (!(link_mode & SHAREABLE))
 		hp->a_entry = PAGSIZ;
 }
 #endif /* RTLD */
@@ -305,15 +308,15 @@ int n;
 	for (; n; n--, r++) {
 		r->r_address = md_swap_long(r->r_address);
 		bits = ((int *)r)[1];
-		r->r_symbolnum = md_swap_long(bits & 0xffffff00);
+		r->r_symbolnum = md_swap_long(bits) & 0x00ffffff;
 		r->r_pcrel = (bits & 1);
-		r->r_length = ((bits >> 1) & 3);
-		r->r_extern = ((bits >> 3) & 1);
-		r->r_baserel = ((bits >> 4) & 1);
-		r->r_jmptable = ((bits >> 5) & 1);
-		r->r_relative = ((bits >> 6) & 1);
+		r->r_length = (bits >> 1) & 3;
+		r->r_extern = (bits >> 3) & 1;
+		r->r_baserel = (bits >> 4) & 1;
+		r->r_jmptable = (bits >> 5) & 1;
+		r->r_relative = (bits >> 6) & 1;
 #ifdef N_SIZE
-		r->r_copy = ((bits >> 7) & 1);
+		r->r_copy = (bits >> 7) & 1;
 #endif
 	}
 }
@@ -327,15 +330,15 @@ int n;
 
 	for (; n; n--, r++) {
 		r->r_address = md_swap_long(r->r_address);
-		bits = (md_swap_long(r->r_symbolnum) & 0xffffff00);
+		bits = md_swap_long(r->r_symbolnum) & 0xffffff00;
 		bits |= (r->r_pcrel & 1);
-		bits |= ((r->r_length << 1) & 6);
-		bits |= ((r->r_extern << 3) & 8);
-		bits |= ((r->r_baserel << 4) & 0x10);
-		bits |= ((r->r_jmptable << 5) & 0x20);
-		bits |= ((r->r_relative << 6) & 0x40);
+		bits |= (r->r_length & 3) << 1;
+		bits |= (r->r_extern & 1) << 3;
+		bits |= (r->r_baserel & 1) << 4;
+		bits |= (r->r_jmptable & 1) << 5;
+		bits |= (r->r_relative & 1) << 6;
 #ifdef N_SIZE
-		bits |= ((r->r_copy << 7) & 0x80);
+		bits |= (r->r_copy & 1) << 7;
 #endif
 		((int *)r)[1] = bits;
 	}
