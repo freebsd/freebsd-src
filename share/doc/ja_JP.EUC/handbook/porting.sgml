@@ -1,6 +1,6 @@
-<!-- $Id: porting.sgml,v 1.2 1996/12/02 13:49:26 max Exp $ -->
+<!-- $Id: porting.sgml,v 1.3 1996/12/02 14:21:34 max Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.44 -->
+<!-- Original revision: 1.48 -->
 
 <sect1><heading>フリーソフトウェアの移植<label id="porting"></heading>
 
@@ -115,9 +115,12 @@ Portsコレクションについてのさらに細かい内部の働きについては, そちらのファイルを
 2.0.5-RELEASE:                   199504
 2.2-current (2.1以前):           199508
 2.1.0-RELEASE:                   199511
-2.2-current (2.1.5以降):         199512
+2.2-current (2.1.5以前):         199512
 2.1.5-RELEASE:                   199607
-2.2-current (1996年7月12日現在): 199608  (リリースが出る毎に変わります)
+2.2-current (2.1.6以前):         199608
+2.1.6-RELEASE:                   199612
+2.2-RELEASE:                     199701
+3.0-current (1997年2月現在)      199702  (リリースが出る毎に変わります)
 </verb></tscreen>
 見ての通り, これは年・月というフォーマットになっています.
 
@@ -850,6 +853,13 @@ FETCH_DEPENDS=  ncftp2:${PORTSDIR}/net/ncftp2
 	  れないようにしますが, オリジナルのソースファイルとpackage
 	  はFTPでは取れるようにしておきます.
 
+	<item>もしも, 生成される package が個々のサイトで独自に構築さ
+	  れる必要があったり, ライセンスによって生成されるバイナリが
+	  配布できない場合には, <tt>NO_PACKAGE</tt> 変数を設定してくだ
+	  さい. そのような package が FTP サイトに置かれたり, リリース
+	  時の CDROM へ入らないようにします. ただし, いずれの場合も 
+	  distfile は(FTP や CDROM に)含まれるようになります.
+	
 	<item>Portが, 使用者によっては法律上の問題が生じる時 (暗号化ソフ
 	  トウェアなど), または「商用利用を禁ずる」とライセンスに書い
 	  てある場合には<tt>RESTRICTED</tt>という変数にその理由を入れ
@@ -970,6 +980,34 @@ MAN8=      baz.8
 	  たものです. どのようにこれらを使用するかは以下の例を見てください.
 
       <sect3>
+	<heading>INSTALL package スクリプト<heading>
+	  バイナリパッケージが pkg_add でインストールされるときに, 実行
+	  される必要があるコマンドがあれば, pkg/INSTALL スクリプトを使っ
+	  て実行することができます. このスクリプトは自動的に package 
+	  に加えられ, pkg_add によって2度実行されます. はじめは 
+	  `<tt>INSTALL ${PKGNAME} PRE-INSTALL</tt>' と実行され, 2度目
+	  には, '`<tt>INSTALL ${PKGNAME} POST-INSTALL</tt>' と実行され
+	  ます. どちらのモードで実行されているかは, `<tt>&dollar;2</tt>'
+	  を調べることによってわかります.
+	  環境変数 `<tt>PKG_PREFIX</tt>' には package がインストールさ
+	  れる directory が設定されます. 詳細は man
+	  <tt>pkg_add(1)</tt> を見てください.
+	  注意すべきことは, port を `<tt>make install</tt>' で
+	  インストールするときには, このスクリプトは自動的に実行されな
+	  いということです. もし, 実行される必要があるならば, port の
+	  Makefile で明示的に呼ぶ必要があります.
+
+      <sect3>
+	<heading>REQ package スクリプト<heading>
+	  <p>パッケージが(インストールされるシステムの状態によって)
+	  インストールされるべきか, されないべきか区別する必要があると
+	  きには, 「要件(requirements)」スクリプト pkg/REQ を作ること
+	  ができます. これは, インストール及びデインストール
+	  (package の削除)の時に自動的に実行され, それらが処理されるべ
+	  きかを決定します. 詳細は, man <tt>pkg_create(1)</tt> と man
+	  <tt>pkg_add(1)</tt> を見てください.
+	
+      <sect3>
 	<heading>付加的ドキュメント</heading>
 
 	<p>普通のマニュアルやinfoファイルのほかにユーザにとって有用だ
@@ -992,7 +1030,7 @@ MAN8=      baz.8
 <tscreen><verb>
  post-install:
  .if !defined(NOPORTDOCS)
-	 mkdir -p ${PREFIX}/share/doc/xv
+	 ${MKDIR} -p ${PREFIX}/share/doc/xv
 	 ${INSTALL_DATA} ${WRKSRC}/docs/xvdocs.ps ${PREFIX}/share/doc/xv
  .endif
 </verb></tscreen>
@@ -1001,6 +1039,13 @@ MAN8=      baz.8
 	  うにしてください. (packageが<tt>/etc/make.conf</tt>内の
 	  変数を読む方法は今のところ存在しませんので,
 	  <tt>NOPORTDOCS</tt>については気にしないでください.)
+
+	<p>(Packageの)インストールを行っているユーザに対してメッセージ
+	  を表示したい場合には, そのメッセージを <tt>pkg/DISPLAY</tt>
+	  に置くこともできます. この機能は, pkg_add したあとの
+	  追加のインストール手順や, ライセンス情報を表示するのに便利で
+	  す. (注意: DISPLAY ファイルは pkg/PLIST に加える必要はありま
+	  せん.
 
       <sect3>
 	<heading>DIST_SUBDIR</heading>
@@ -1116,7 +1161,7 @@ MAN8=      baz.8
 	  ないコマンド), `<tt>sbin</tt>' に管理者用のコマンド,
 	  `<tt>info</tt>' に GNU Info 用のドキュメント, そして 
 	  `<tt>share</tt>' にアーキテクチャに依存しないファイルが入り
-	  ます. 詳細については<tt>hier(7)</tt>を見てくださ
+	  ます. 詳細については man <tt>hier(7)</tt> を見てくださ
 	  い. <tt>/usr</tt>の構成方針はほとんどそのまま 
 	  <tt>/usr/local</tt>にもあてはまります.
 
@@ -1183,12 +1228,14 @@ lib/libtcl.so.7.3
  
  [Port自体, およびオリジナルのソースを取ってくるところを記述する部分.
   最初は必ずDISTNAME, そして必要ならPKGNAME, CATEGORIES, 続いて
-  MASTER_SITES, そして必要ならEXTRACT_SUFXかDISTFILESが続きます]
+  MASTER_SITESがおかれ, さらに MASTER_SITE_SUBDIR がおかれることもあり
+  ます. そのあと, EXTRACT_SUFX か DISTFILES を指定することも可能です]
  DISTNAME=	xdvi
  PKGNAME=	xdvi-pl18
  CATEGORIES=	print
  [最後のスラッシュを忘れないように ("/")!]
- MASTER_SITES=	ftp://crl.dec.com/pub/X11/contrib/applications/
+ MASTER_SITES= ${MASTER_SITE_XCONTRIB}
+ MASTER_SITE_SUBDIR= applications
  [ソースファイルが標準の ".tar.gz" 形式でない時にこれを使いましょう]
  EXTRACT_SUFX=	.tar.Z
  
