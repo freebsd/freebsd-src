@@ -89,7 +89,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
-#include <sys/user.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -112,6 +111,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/katelib.h>
 #include <machine/cpu.h>
 #include <machine/intr.h>
+#include <machine/pcb.h>
 #include <machine/proc.h>
 #include <machine/swi.h>
 #if !defined(DDB)

@@ -39,7 +39,6 @@
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
-#include <sys/user.h>
 
 #include <machine/atomic.h>
 #include <machine/pmap.h>

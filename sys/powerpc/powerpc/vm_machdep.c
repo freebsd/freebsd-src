@@ -89,6 +89,7 @@
 #include <machine/fpu.h>
 #include <machine/frame.h>
 #include <machine/md_var.h>
+#include <machine/pcb.h>
 
 #include <dev/ofw/openfirm.h>
 
@@ -98,8 +99,6 @@
 #include <vm/vm_page.h>
 #include <vm/vm_map.h>
 #include <vm/vm_extern.h>
-
-#include <sys/user.h>
 
 /*
  * Finish a fork operation, with process p2 nearly set up.

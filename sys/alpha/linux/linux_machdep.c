@@ -36,10 +36,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/mount.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/resource.h>
+#include <sys/resourcevar.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysproto.h>
 #include <sys/unistd.h>
-#include <sys/user.h>
+
+#include <machine/pcb.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>

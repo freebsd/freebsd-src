@@ -58,7 +58,6 @@
 #include <sys/sf_buf.h>
 #include <sys/sysctl.h>
 #include <sys/unistd.h>
-#include <sys/user.h>
 #include <sys/vmmeter.h>
 
 #include <dev/ofw/openfirm.h>
@@ -83,6 +82,7 @@
 #include <machine/md_var.h>
 #include <machine/ofw_machdep.h>
 #include <machine/ofw_mem.h>
+#include <machine/pcb.h>
 #include <machine/tlb.h>
 #include <machine/tstate.h>
 
