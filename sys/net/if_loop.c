@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_loop.c	8.1 (Berkeley) 6/10/93
- * $Id: if_loop.c,v 1.33 1998/06/12 03:48:09 julian Exp $
+ * $Id: if_loop.c,v 1.34 1998/06/12 20:03:26 julian Exp $
  */
 
 /*
@@ -144,6 +144,19 @@ looutput(ifp, m, dst, rt)
 	}
 	ifp->if_opackets++;
 	ifp->if_obytes += m->m_pkthdr.len;
+#if 1	/* XXX */
+	switch (dst->sa_family) {
+	case AF_INET:
+	case AF_IPX:
+	case AF_NS:
+	case AF_ISO:
+	case AF_APPLETALK:
+	default:
+		printf("looutput: af=%d unexpected", dst->sa_family);
+		m_freem(m);
+		return (EAFNOSUPPORT);
+	}
+#endif
 	return(if_simloop(ifp, m, dst, 0));
 }
 
