@@ -1,5 +1,5 @@
 # Makefile for libpcap
-# $Id: Makefile,v 1.5 1996/05/07 23:19:02 wosch Exp $
+# $Id: Makefile,v 1.7 1996/06/02 17:09:03 phk Exp $
 
 LIB=    pcap
 
@@ -11,7 +11,7 @@ SRCS=	\
 
 CLEANFILES+= lex.yy.c tokdefs.h grammar.c scanner.c
 # CFLAGS+=-Wall -I. -I${.CURDIR} -DFDDI -Dyylval=pcap_lval
-CFLAGS+=-DFDDI -I. -I${.CURDIR}
+CFLAGS+=-DFDDI -I. -I${.CURDIR} -DETHER_SERVICE
 MAN3=	pcap.3
 
 beforeinstall:
