@@ -9,13 +9,16 @@ HARDWARE.TXT    compat1x        info		src             tools
 INSTALL.TXT     compat20        dict            manpages        packages
 README.TXT      compat21        des             doc
 RELNOTES.TXT    compat22        floppies        ports
-XF86333
+XF86336
 
 If you want to do a CDROM, FTP or NFS installation from this
-distribution directory, all you need to do is make a 1.44MB floppy
-from the floppies/boot.flp image file (see floppies/README.TXT for
-instructions on how to do this), boot it and follow the instructions.
-See INSTALL.TXT for more information.
+distribution directory, all you need to do is make the 1.44MB boot
+floppies from the floppies directory (see floppies/README.TXT for
+instructions on how to do this), boot them and follow the instructions.
+The rest of the data needed during the installation will be obtained
+automatically based on your selections.  If you've never installed
+FreeBSD before, you also want to read the INSTALL.TXT file for 
+instructions.
 
 If you're trying to do some other type of installation or are merely
 curious about how a distribution is organized, what follows is a more
@@ -24,7 +27,7 @@ thorough description of each item in more detail:
 1. The *.TXT files obviously contain documentation (this file is
    LAYOUT.TXT) and should be read before starting an installation.
 
-2. The XF86333 directory contains the XFree86 project's 3.3.3.1 release and
+2. The XF86336 directory contains the XFree86 project's 3.3.6 release and
    consists of a series of gzip'd tar files which contain each component
    of the XFree86 distribution.
 
@@ -49,7 +52,7 @@ thorough description of each item in more detail:
    command.
 
    The ports collection may be installed like any other distribution
-   and requires about 50MB unpacked.  More information on the ports
+   and requires about 100MB unpacked.  More information on the ports
    collection may be obtained from http://www.freebsd.org/ports or
    locally from ``file:/usr/share/doc/handbook'' if you've installed
    the doc distribution.
