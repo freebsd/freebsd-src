@@ -24,9 +24,9 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id: atkbd.4,v 1.3 1999/05/16 20:48:21 mph Exp $
+.\" $Id: atkbd.4,v 1.4 1999/05/20 09:55:51 yokota Exp $
 .\"
-.Dd February 9, 1999
+.Dd May 21, 1999
 .Dt ATKBD 4
 .Os FreeBSD
 .Sh NAME
@@ -34,6 +34,9 @@
 .Nd
 the AT keyboard interface
 .Sh SYNOPSIS
+.Cd "options ATKBD_DFLT_KEYMAP"
+.Cd "makeoptions ATKBD_DFLT_KEYMAP"=\&"_keymap_name_\&"
+.Cd "options KBD_DISABLE_KEYMAP_LOAD"
 .Cd "device atkbd0 at atkbdc? irq 1"
 .Sh DESCRIPTION
 The
@@ -58,7 +61,26 @@ The
 .Em irq
 number must always be 1; there is no provision of changing the number.
 .Sh DRIVER CONFIGURATION
-.\".Ss Kernel Configuration Options
+.Ss Kernel Configuration Options
+The following kernel configuration options control the
+.Nm
+driver.
+.Bl -tag -width ATKBD_DFLT
+.It Em ATKBD_DFLT_KEYMAP
+This option sets the defauilt, built-in keymap of the
+.Nm
+driver to the named keymap.
+See
+.Sx EXAMPLE
+below.
+.It Em KBD_DISABLE_KEYMAP_LOAD
+The keymap can be modified by the
+.Xr kbdcontrol 1
+command.
+This option will disable this feature and prevent the user from
+changing key assignment.
+.El
+.Pp
 .Ss Driver Flags
 The
 .Nm
@@ -86,11 +108,29 @@ Certain keyboards, such as those on some ThinkPad models, behave
 like the old XT keyboard and require this option.
 .El
 .\".Sh FILES
-.\".Sh EXAMPLE
+.Sh EXAMPLE
+The 
+.Nm
+driver requires the keyboard controller
+.Nm atkbdc .
+Thus, the kernel configuration file should contain the following lines.
+.Pp
+.Dl "device atkbdc0 at isa"
+.Dl "device atkbd0 at atkbdc? irq 1"
+.Pp
+The following example shows how to set the default, built-in keymap
+to
+.Pa jp.106.kbd .
+.Pp
+.Dl "options ATKBD_DFLT_KEYMAP"
+.Dl "makeoptions ATKBD_DFLT_KEYMAP"=\&"jp.106\&"
+.Dl "device atkbd0 at atkbdc? irq 1"
+.Pp
 .\".Sh DIAGNOSTICS
 .\".Sh CAVEATS
 .\".Sh BUGS
 .Sh SEE ALSO
+.Xr kbdcontrol 1 ,
 .Xr atkbdc 4 ,
 .Xr pcvt 4 ,
 .Xr psm 4 ,
