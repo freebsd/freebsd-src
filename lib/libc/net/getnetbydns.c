@@ -141,6 +141,7 @@ static	char *net_aliases[MAXALIASES], netbuf[PACKETSZ];
 	ancount = ntohs(hp->ancount); /* #/records in the answer section */
 	qdcount = ntohs(hp->qdcount); /* #/entries in the question section */
 	bp = netbuf;
+	ep = netbuf + sizeof(netbuf);
 	cp = answer->buf + HFIXEDSZ;
 	if (!qdcount) {
 		if (hp->aa)
