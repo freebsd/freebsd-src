@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.10.2.2 1996/12/04 16:00:40 phk Exp $
+ **      $Id: userconfig.c,v 1.10.2.3 1996/12/14 14:48:23 joerg Exp $
  **/
 
 /**
@@ -136,7 +136,7 @@ getchar(void)
     if (next == userconfig_from_boot) {
 	if (strncmp(next, "USERCONFIG\n", 11)) {
 	    next++;
-	    strcpy(next, "quit\n");
+	    strcpy(next, "intro\n");
 	} else {
 	    next += 11;
 	}
@@ -223,11 +223,10 @@ static DEVCLASS_INFO devclass_names[] = {
 static DEV_INFO device_info[] = {
 /*---Name-----   ---Description---------------------------------------------- */
 #ifdef PC98
-{"sbic",        "PC-9801-55 SCSI Interface",		0,		CLS_STORAGE},
 {"bs",          "PC-9801-55 SCSI Interface",        0, CLS_STORAGE},
 {"ahc",         "Adaptec 274x/284x/294x SCSI controller",	0,	CLS_STORAGE},
 {"aic",         "Adaptec 152x SCSI and compatible sound cards",	0,      CLS_STORAGE},
-{"ncr",         "NCR 53C810 SCSI controller",		FLG_FIXED,	CLS_STORAGE},
+{"ncr",         "NCR/Symbios 53C810/15/25/60/75 SCSI controller",FLG_FIXED,CLS_STORAGE},
 {"wdc",         "IDE/ESDI/MFM disk controller",		0,		CLS_STORAGE},
 {"fdc",         "Floppy disk controller",		FLG_FIXED,	CLS_STORAGE},
 {"mcd",         "Mitsumi CD-ROM",			0,		CLS_STORAGE},
@@ -243,7 +242,7 @@ static DEV_INFO device_info[] = {
 {"nca",         "ProAudio Spectrum SCSI and compatibles",	0,	CLS_STORAGE},
 {"sea",         "Seagate ST01/ST02 SCSI and compatibles",	0,	CLS_STORAGE},
 {"wds",         "Western Digitial WD7000 SCSI controller",	0,	CLS_STORAGE},
-{"ncr",         "NCR 53C810 SCSI controller",		FLG_FIXED,	CLS_STORAGE},
+{"ncr",         "NCR/Symbios 53C810/15/25/60/75 SCSI controller",FLG_FIXED,CLS_STORAGE},
 {"wdc",         "IDE/ESDI/MFM disk controller",		0,		CLS_STORAGE},
 {"fdc",         "Floppy disk controller",		FLG_FIXED,	CLS_STORAGE},
 {"mcd",         "Mitsumi CD-ROM",			0,		CLS_STORAGE},
@@ -251,6 +250,7 @@ static DEV_INFO device_info[] = {
 {"matcdc",       "Matsushita/Panasonic/Creative CDROM",	0,		CLS_STORAGE},
 {"wt",          "Wangtek/Archive QIC-02 Tape drive",	0,		CLS_STORAGE},
 #endif
+{"amd",		"Tekram DC-390(T) / AMD 53c974 based PCI SCSI",	FLG_FIXED, CLS_STORAGE},
 
 #ifdef PC98
 {"ed",          "NS8390 Ethernet adapters",	0,	CLS_NETWORK},
@@ -1703,13 +1703,8 @@ editparams(DEV_LIST *dev)
     ep_iobase:
 	if (dev->iobase > 0)
 	{
-#ifdef PC98
 	    puthelp("  IO Port address (Hexadecimal, 0x1-0xffff)");
 	    ret = editval(18,18,5,1,0x1,0xffff,&(dev->iobase),(dev->attrib & FLG_FIXIOBASE));
-#else
-	    puthelp("  IO Port address (Hexadecimal, 0x1-0x2000)");
-	    ret = editval(18,18,5,1,0x1,0x2000,&(dev->iobase),(dev->attrib & FLG_FIXIOBASE));
-#endif
 	    switch(ret)
 	    {
 	    case KEY_EXIT:
@@ -2257,7 +2252,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.10.2.2 1996/12/04 16:00:40 phk Exp $
+ *      $Id: userconfig.c,v 1.10.2.3 1996/12/14 14:48:23 joerg Exp $
  */
 
 #include "scbus.h"
@@ -2317,6 +2312,13 @@ static int introfunc(CmdParm *);
 
 static int lineno;
 
+/* XXX hack */
+#include "eisa.h"
+#if NEISA > 0
+extern int num_eisa_slots;
+static int set_num_eisa_slots(CmdParm *);
+#endif /* NEISA > 0 */
+
 static CmdParm addr_parms[] = {
     { PARM_DEVSPEC, {} },
     { PARM_ADDR, {} },
@@ -2334,10 +2336,20 @@ static CmdParm dev_parms[] = {
     { -1, {} },
 };
 
+#if NEISA > 0
+static CmdParm int_arg[] = {
+    { PARM_INT, {} },
+    { -1, {} },
+};
+#endif /* NEISA > 0 */
+
 static Cmd CmdList[] = {
     { "?", 	helpfunc, 		NULL },		/* ? (help)	*/
     { "di",	set_device_disable,	dev_parms },	/* disable dev	*/
     { "dr",	set_device_drq,		int_parms },	/* drq dev #	*/
+#if NEISA > 0
+    { "ei",	set_num_eisa_slots,	int_arg },	/* # EISA slots */
+#endif /* NEISA > 0 */
     { "en",	set_device_enable,	dev_parms },	/* enable dev	*/
     { "ex", 	quitfunc, 		NULL },		/* exit (quit)	*/
     { "f",	set_device_flags,	int_parms },	/* flags dev mask */
@@ -2488,6 +2500,9 @@ list_devices(CmdParm *parms)
     if (lsdevtab(&isa_devtab_tty[0])) return 0;
     if (lsdevtab(&isa_devtab_net[0])) return 0;
     if (lsdevtab(&isa_devtab_null[0])) return 0;
+#if NEISA > 0
+    printf("\nNumber of EISA slots to probe: %d\n", num_eisa_slots);
+#endif /* NEISA > 0 */
     return 0;
 }
 
@@ -2577,6 +2592,18 @@ set_device_disable(CmdParm *parms)
     return 0;
 }
 
+#if NEISA > 0
+static int
+set_num_eisa_slots(CmdParm *parms)
+{
+    int num_slots;
+
+    num_slots = parms[0].parm.iparm;
+    num_eisa_slots = (num_slots <= 16 ? num_slots : 10);
+    return 0;
+}
+#endif /* NEISA > 0 */
+
 static int
 quitfunc(CmdParm *parms)
 {
@@ -2597,6 +2624,9 @@ helpfunc(CmdParm *parms)
     printf("flags <devname> <mask>\tSet device flags\n");
     printf("enable <devname>\tEnable device\n");
     printf("disable <devname>\tDisable device (will not be probed)\n");
+#if NEISA > 0
+    printf("eisa <number>\t\tSet the number of EISA slots to probe\n");
+#endif /* NEISA > 0 */
     printf("quit\t\t\tExit this configuration utility\n");
     printf("reset\t\t\tReset CPU\n");
 #ifdef VISUAL_USERCONFIG
