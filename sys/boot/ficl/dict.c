@@ -3,7 +3,7 @@
 ** Forth Inspired Command Language - dictionary methods
 ** Author: John Sadler (john_sadler@alum.mit.edu)
 ** Created: 19 July 1997
-** $Id: dict.c,v 1.6 2000-06-17 07:43:44-07 jsadler Exp jsadler $
+** $Id: dict.c,v 1.14 2001/12/05 07:21:34 jsadler Exp $
 *******************************************************************/
 /*
 ** This file implements the dictionary -- FICL's model of 
@@ -21,6 +21,11 @@
 ** All rights reserved.
 **
 ** Get the latest Ficl release at http://ficl.sourceforge.net
+**
+** I am interested in hearing from anyone who uses ficl. If you have
+** a problem, a success story, a defect, an enhancement request, or
+** if you would like to contribute to the ficl release, please
+** contact me by email at the address above.
 **
 ** L I C E N S E  and  D I S C L A I M E R
 ** 
@@ -44,20 +49,12 @@
 ** LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 ** OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 ** SUCH DAMAGE.
-**
-** I am interested in hearing from anyone who uses ficl. If you have
-** a problem, a success story, a defect, an enhancement request, or
-** if you would like to contribute to the ficl release, please send
-** contact me by email at the address above.
-**
-** $Id: dict.c,v 1.8 2001-04-26 21:41:45-07 jsadler Exp jsadler $
 */
 
 /* $FreeBSD$ */
 
 #ifdef TESTMAIN
 #include <stdio.h>
-#include <stdlib.h>
 #include <ctype.h>
 #else
 #include <stand.h>
@@ -304,16 +301,19 @@ int dictCellsUsed(FICL_DICT *pDict)
 /**************************************************************************
                         d i c t C h e c k
 ** Checks the dictionary for corruption and throws appropriate
-** errors
+** errors.
+** Input: +n number of ADDRESS UNITS (not Cells) proposed to allot
+**        -n number of ADDRESS UNITS proposed to de-allot
+**         0 just do a consistency check
 **************************************************************************/
-void dictCheck(FICL_DICT *pDict, FICL_VM *pVM, int nCells)
+void dictCheck(FICL_DICT *pDict, FICL_VM *pVM, int n)
 {
-    if ((nCells >= 0) && (dictCellsAvail(pDict) < nCells))
+    if ((n >= 0) && (dictCellsAvail(pDict) * (int)sizeof(CELL) < n))
     {
         vmThrowErr(pVM, "Error: dictionary full");
     }
 
-    if ((nCells <= 0) && (dictCellsUsed(pDict) < -nCells))
+    if ((n <= 0) && (dictCellsUsed(pDict) * (int)sizeof(CELL) < -n))
     {
         vmThrowErr(pVM, "Error: dictionary underflow");
     }
@@ -396,6 +396,7 @@ FICL_DICT  *dictCreateHashed(unsigned nCells, unsigned nHash)
     memset(pDict, 0, sizeof (FICL_DICT));
     pDict->dict = ficlMalloc(nAlloc);
     assert(pDict->dict);
+
     pDict->size = nCells;
     dictEmpty(pDict, nHash);
     return pDict;
@@ -460,6 +461,84 @@ void dictEmpty(FICL_DICT *pDict, unsigned nHash)
 
 
 /**************************************************************************
+                        d i c t H a s h S u m m a r y
+** Calculate a figure of merit for the dictionary hash table based
+** on the average search depth for all the words in the dictionary,
+** assuming uniform distribution of target keys. The figure of merit
+** is the ratio of the total search depth for all keys in the table
+** versus a theoretical optimum that would be achieved if the keys
+** were distributed into the table as evenly as possible. 
+** The figure would be worse if the hash table used an open
+** addressing scheme (i.e. collisions resolved by searching the
+** table for an empty slot) for a given size table.
+**************************************************************************/
+#if FICL_WANT_FLOAT
+void dictHashSummary(FICL_VM *pVM)
+{
+    FICL_DICT *dp = vmGetDict(pVM);
+    FICL_HASH *pFHash;
+    FICL_WORD **pHash;
+    unsigned size;
+    FICL_WORD *pFW;
+    unsigned i;
+    int nMax = 0;
+    int nWords = 0;
+    int nFilled;
+    double avg = 0.0;
+    double best;
+    int nAvg, nRem, nDepth;
+
+    dictCheck(dp, pVM, 0);
+
+    pFHash = dp->pSearch[dp->nLists - 1];
+    pHash  = pFHash->table;
+    size   = pFHash->size;
+    nFilled = size;
+
+    for (i = 0; i < size; i++)
+    {
+        int n = 0;
+        pFW = pHash[i];
+
+        while (pFW)
+        {
+            ++n;
+            ++nWords;
+            pFW = pFW->link;
+        }
+
+        avg += (double)(n * (n+1)) / 2.0;
+
+        if (n > nMax)
+            nMax = n;
+        if (n == 0)
+            --nFilled;
+    }
+
+    /* Calc actual avg search depth for this hash */
+    avg = avg / nWords;
+
+    /* Calc best possible performance with this size hash */
+    nAvg = nWords / size;
+    nRem = nWords % size;
+    nDepth = size * (nAvg * (nAvg+1))/2 + (nAvg+1)*nRem;
+    best = (double)nDepth/nWords;
+
+    sprintf(pVM->pad, 
+        "%d bins, %2.0f%% filled, Depth: Max=%d, Avg=%2.1f, Best=%2.1f, Score: %2.0f%%", 
+        size,
+        (double)nFilled * 100.0 / size, nMax,
+        avg, 
+        best,
+        100.0 * best / avg);
+
+    ficlTextOut(pVM, pVM->pad, 1);
+
+    return;
+}
+#endif
+
+/**************************************************************************
                         d i c t I n c l u d e s
 ** Returns TRUE iff the given pointer is within the address range of 
 ** the dictionary.
@@ -470,7 +549,6 @@ int dictIncludes(FICL_DICT *pDict, void *p)
         &&  (p <  (void *)(&pDict->dict + pDict->size)) 
            );
 }
-
 
 /**************************************************************************
                         d i c t L o o k u p
@@ -501,15 +579,16 @@ FICL_WORD *dictLookup(FICL_DICT *pDict, STRINGINFO si)
 
 
 /**************************************************************************
-                        d i c t L o o k u p L o c
+                        f i c l L o o k u p L o c
 ** Same as dictLookup, but looks in system locals dictionary first...
 ** Assumes locals dictionary has only one wordlist...
 **************************************************************************/
 #if FICL_WANT_LOCALS
-FICL_WORD *dictLookupLoc(FICL_DICT *pDict, STRINGINFO si)
+FICL_WORD *ficlLookupLoc(FICL_SYSTEM *pSys, STRINGINFO si)
 {
     FICL_WORD *pFW = NULL;
-    FICL_HASH *pHash = ficlGetLoc()->pForthWords;
+	FICL_DICT *pDict = pSys->dp;
+    FICL_HASH *pHash = ficlGetLoc(pSys)->pForthWords;
     int i;
     UNS16 hashCode   = hashHashCode(si);
 

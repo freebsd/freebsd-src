@@ -3,11 +3,16 @@
 ** Forth Inspired Command Language - 64 bit math support routines
 ** Author: John Sadler (john_sadler@alum.mit.edu)
 ** Created: 25 January 1998
-** $Id: math64.h,v 1.5 2001-04-26 21:41:53-07 jsadler Exp jsadler $
+** $Id: math64.h,v 1.9 2001/12/05 07:21:34 jsadler Exp $
 *******************************************************************/
 /*
 ** Copyright (c) 1997-2001 John Sadler (john_sadler@alum.mit.edu)
 ** All rights reserved.
+**
+** I am interested in hearing from anyone who uses ficl. If you have
+** a problem, a success story, a defect, an enhancement request, or
+** if you would like to contribute to the ficl release, please 
+** contact me by email at the address above.
 **
 ** Get the latest Ficl release at http://ficl.sourceforge.net
 **
@@ -33,13 +38,6 @@
 ** LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 ** OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 ** SUCH DAMAGE.
-**
-** I am interested in hearing from anyone who uses ficl. If you have
-** a problem, a success story, a defect, an enhancement request, or
-** if you would like to contribute to the ficl release, please send
-** contact me by email at the address above.
-**
-** $Id: math64.h,v 1.5 2001-04-26 21:41:53-07 jsadler Exp jsadler $
 */
 
 /* $FreeBSD$ */
