@@ -149,8 +149,11 @@ device		apm
 device		pmtimer
 
 # PCCARD (PCMCIA) support
-device		card		# pccard bus
-device		pcic		# PCMCIA bridge
+# Pcmcia and cardbus bridge support
+device		pccbb			# cardbus (yenta) bridge
+#device		pcic			# ExCA ISA and PCI bridges
+device		pccard			# PC Card (16-bit) bus
+device		cardbus			# CardBus (32-bit) bus
 
 # Serial (COM) ports
 device		sio		# 8250, 16[45]50 based serial ports
