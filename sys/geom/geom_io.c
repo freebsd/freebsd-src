@@ -178,12 +178,7 @@ g_io_setattr(const char *attr, struct g_consumer *cp, int len, void *ptr)
 		bp->bio_length = len;
 		bp->bio_data = ptr;
 		g_io_request(bp, cp);
-		while ((bp->bio_flags & BIO_DONE) == 0) {
-			mtx_lock(&Giant);
-			tsleep(bp, 0, "setattr", hz / 10);
-			mtx_unlock(&Giant);
-		}
-		error = bp->bio_error;
+		error = biowait(bp, "gsetattr");
 		g_destroy_bio(bp);
 		if (error == EBUSY)
 			tsleep(&error, 0, "setattr_busy", hz);
@@ -207,13 +202,8 @@ g_io_getattr(const char *attr, struct g_consumer *cp, int *len, void *ptr)
 		bp->bio_length = *len;
 		bp->bio_data = ptr;
 		g_io_request(bp, cp);
-		while ((bp->bio_flags & BIO_DONE) == 0) {
-			mtx_lock(&Giant);
-			tsleep(bp, 0, "getattr", hz / 10);
-			mtx_unlock(&Giant);
-		}
+		error = biowait(bp, "ggetattr");
 		*len = bp->bio_completed;
-		error = bp->bio_error;
 		g_destroy_bio(bp);
 		if (error == EBUSY)
 			tsleep(&error, 0, "getattr_busy", hz);
@@ -346,13 +336,8 @@ g_io_schedule_up(struct thread *tp __unused)
 
 		cp = bp->bio_from;
 
-		bp->bio_flags |= BIO_DONE;
 		atomic_add_int(&cp->biocount, -1);
-		if (bp->bio_done != NULL) {
-			bp->bio_done(bp);
-		} else {
-			wakeup(bp);
-		}
+		biodone(bp);
 	}
 }
 
@@ -372,12 +357,7 @@ g_read_data(struct g_consumer *cp, off_t offset, off_t length, int *error)
 		ptr = g_malloc(length, M_WAITOK);
 		bp->bio_data = ptr;
 		g_io_request(bp, cp);
-		while ((bp->bio_flags & BIO_DONE) == 0) {
-			mtx_lock(&Giant);
-			tsleep(bp, 0, "g_read_data", hz / 10);
-			mtx_unlock(&Giant);
-		}
-		errorc = bp->bio_error;
+		errorc = biowait(bp, "gread");
 		if (error != NULL)
 			*error = errorc;
 		g_destroy_bio(bp);
