@@ -900,8 +900,8 @@ ngether_newhook(node_p node, hook_p hook, const char *name)
  * Just respond to the generic TEXT_STATUS message
  */
 static	int
-ngether_rcvmsg(node_p node,
-	struct ng_mesg *msg, const char *retaddr, struct ng_mesg **resp)
+ngether_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
+			struct ng_mesg **resp, hook_p lasthook)
 {
 	struct ifnet	*ifp;
 	int error = 0;
@@ -965,7 +965,8 @@ ngether_rcvmsg(node_p node,
  * Queue it for output.
  */
 static	int
-ngether_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
+ngether_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
+			struct mbuf **ret_m, meta_p *ret_meta)
 {
 	struct ifnet *ifp;
 	int	error = 0;
