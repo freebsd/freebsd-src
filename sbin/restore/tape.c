@@ -54,6 +54,7 @@ static const char rcsid[] =
 #include <protocols/dumprestore.h>
 
 #include <errno.h>
+#include <paths.h>
 #include <setjmp.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -63,7 +64,6 @@ static const char rcsid[] =
 
 #include "restore.h"
 #include "extern.h"
-#include "pathnames.h"
 
 static long	fssize = MAXBSIZE;
 static int	mt = -1;
