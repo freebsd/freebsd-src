@@ -47,6 +47,7 @@ MAN=	aac.4 \
 	ef.4 \
 	em.4 \
 	faith.4 \
+	fast_ipsec.4 \
 	fd.4 \
 	fdc.4 \
 	firewire.4 \
