@@ -867,29 +867,11 @@ rt_Update(struct bundle *bundle, const struct sockaddr *dst,
     rtmes.m_rtm.rtm_addrs |= RTA_DST;
     p += memcpy_roundup(p, dst, dst->sa_len);
   }
-
-#ifdef __FreeBSD__
-  /*
-   * In order to update the default route under FreeBSD, only the destination
-   * address should be specified.  If the (empty) mask or the gateway
-   * address are used, the update fails...
-   * Conversely, if the gateway and mask are omitted under OpenBSD, the
-   * update will fail.
-   */
-  if (dst)
-    ncprange_setsa(&ncpdst, dst, mask);
-  else
-    ncprange_init(&ncpdst);
-
-  if (!ncprange_isdefault(&ncpdst))
-#endif
-  {
-    rtmes.m_rtm.rtm_addrs |= RTA_GATEWAY;
-    p += memcpy_roundup(p, gw, gw->sa_len);
-    if (mask) {
-      rtmes.m_rtm.rtm_addrs |= RTA_NETMASK;
-      p += memcpy_roundup(p, mask, mask->sa_len);
-    }
+  rtmes.m_rtm.rtm_addrs |= RTA_GATEWAY;
+  p += memcpy_roundup(p, gw, gw->sa_len);
+  if (mask) {
+    rtmes.m_rtm.rtm_addrs |= RTA_NETMASK;
+    p += memcpy_roundup(p, mask, mask->sa_len);
   }
 
   rtmes.m_rtm.rtm_msglen = p - (char *)&rtmes;
