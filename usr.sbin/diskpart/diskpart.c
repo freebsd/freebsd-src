@@ -358,9 +358,9 @@ struct disklabel *
 promptfordisk(name)
 	char *name;
 {
-	register struct disklabel *dp = &disk;
-	register struct field *fp;
-	register i;
+	struct disklabel *dp = &disk;
+	struct field *fp;
+	int i, len;
 	char buf[BUFSIZ], **tp, *cp;
 
 	strncpy(dp->d_typename, name, sizeof(dp->d_typename));
@@ -376,8 +376,7 @@ promptfordisk(name)
 		if (buf[0] == 0)
 			dp->d_type = 1;
 		else {
-			int len = strlen(buf);
-
+			len = strlen(buf);
 			if (buf[len - 1] == '\n')
 				buf[len - 1] = '\0';
 			dp->d_type = gettype(buf, dktypenames);
@@ -394,6 +393,9 @@ gettype:
 	dp->d_flags = 0;
 	fprintf(stderr, "type (winchester|removable|simulated)? ");
 	(void) fgets(buf, BUFSIZ, stdin);
+	len = strlen(buf);
+	if (buf[len - 1] == '\n')
+	    buf[len - 1] = '\0';
 	if (strcmp(buf, "removable") == 0)
 		dp->d_flags = D_REMOVABLE;
 	else if (strcmp(buf, "simulated") == 0)
