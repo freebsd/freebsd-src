@@ -1,5 +1,7 @@
 #include <sys/types.h>
 
+#include <scsi/scsiconf.h>
+
 /* XXX There should be a way for a type driver to have its own
  *     private senses and add them when it is added.
  */
