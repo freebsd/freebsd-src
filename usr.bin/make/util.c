@@ -61,6 +61,8 @@ __FBSDID("$FreeBSD$");
 #include "targ.h"
 #include "util.h"
 
+static void enomem(void) __dead2;
+
 /*-
  * Debug --
  *	Print a debugging message given its format.
@@ -247,7 +249,7 @@ erealloc(void *ptr, size_t size)
  * enomem --
  *	die when out of memory.
  */
-void
+static void
 enomem(void)
 {
 	err(2, NULL);
