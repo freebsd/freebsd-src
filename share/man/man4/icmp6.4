@@ -62,11 +62,11 @@
 .Dd March 13, 2000
 .Dt ICMP6 4
 .Os KAME
-."
+.\"
 .Sh NAME
 .Nm icmp6
 .Nd Internet Control Message Protocol for IPv6
-."
+.\"
 .Sh SYNOPSIS
 .Fd #include <sys/types.h>
 .Fd #include <sys/socket.h>
@@ -74,7 +74,7 @@
 .Fd #include <netinet/icmp6.h>
 .Ft int
 .Fn socket AF_INET6 SOCK_RAW proto
-."
+.\"
 .Sh DESCRIPTION
 .Tn ICMPv6
 is the error and control message protocol used
@@ -230,7 +230,7 @@ an internal data structure;
 when an attempt is made to create a
 socket with a network address for which no network interface exists.
 .El
-."
+.\"
 .Sh SEE ALSO
 .Xr send 2 ,
 .Xr recv 2 ,
@@ -253,7 +253,7 @@ socket with a network address for which no network interface exists.
 .%D December 1998
 .%T "Internet Control Message Protocol (ICMPv6) for the Internet Protocol Version 6 (IPv6) Specification"
 .Re
-."
+.\"
 .Sh HISTORY
 The implementation is based on KAME stack
 .Po
