@@ -184,7 +184,9 @@ static void      xe_phy_writereg	(struct xe_softc *scp, u_int16_t reg, u_int16_t
  * Debugging functions
  */
 static void      xe_mii_dump		(struct xe_softc *scp);
-void      xe_reg_dump		(struct xe_softc *scp);
+#if 0
+static void      xe_reg_dump		(struct xe_softc *scp);
+#endif
 
 /*
  * Debug logging levels - set with hw.xe.debug sysctl
@@ -206,12 +208,16 @@ SYSCTL_INT(_hw_xe, OID_AUTO, debug, CTLFLAG_RW,
 #define DEVPRINTF(level, arg) if (xe_debug >= (level)) device_printf arg
 #define DPRINTF(level, arg) if (xe_debug >= (level)) printf arg
 #define XE_MII_DUMP(scp) if (xe_debug >= 3) xe_mii_dump(scp)
+#if 0
 #define XE_REG_DUMP(scp) if (xe_debug >= 3) xe_reg_dump(scp)
+#endif
 #else
 #define DEVPRINTF(level, arg)
 #define DPRINTF(level, arg)
 #define XE_MII_DUMP(scp)
+#if 0
 #define XE_REG_DUMP(scp)
+#endif
 #endif
 
 
@@ -1828,6 +1834,7 @@ xe_mii_dump(struct xe_softc *scp) {
   (void)splx(s);
 }
 
+#if 0
 void
 xe_reg_dump(struct xe_softc *scp) {
   int page, i, s;
@@ -1865,6 +1872,7 @@ xe_reg_dump(struct xe_softc *scp) {
 
   (void)splx(s);
 }
+#endif
 
 int
 xe_activate(device_t dev)
