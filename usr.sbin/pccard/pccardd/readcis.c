@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: readcis.c,v 1.10 1997/10/06 11:36:08 charnier Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -498,8 +498,7 @@ read_one_tuplelist(int fd, int flags, off_t offs)
 		total++;
 		tp->length = length;
 #ifdef	DEBUG
-		fprintf(stderr, "Tuple code = 0x%x, len = %d\n",
-		    code, length);
+		printf("Tuple code = 0x%x, len = %d\n", code, length);
 #endif
 		if (length == 0xFF) {
 			length = tp->length = 0;

@@ -24,13 +24,21 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+/*
+ * Code cleanup, bug-fix and extension
+ * by:
+ *     Tatsumi Hosokawa <hosokawa@jp.FreeBSD.org>
+ *     Nate Williams <nate@FreeBSD.org>
+ */
+
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: util.c,v 1.10 1997/10/06 11:36:08 charnier Exp $";
 #endif /* not lint */
 
 #include <err.h>
 #include <fcntl.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -38,16 +46,41 @@ static const char rcsid[] =
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <syslog.h>
+#ifdef	SYSINSTALL
+#include <dialog.h>
+#endif
 #include "cardd.h"
 
+static int do_log = 0;
 
 void
-log_1s(char *msg, char *arg)
+log_setup(void)
 {
+#ifndef SYSINSTALL
+	do_log = 1;
+	openlog("pccardd", LOG_PID, LOG_DAEMON);
+#endif
+}
+
+void
+log_1s(const char *fmt, ...)
+{
+	va_list ap;
+	char s[256];
+
+	va_start(ap, fmt);
+	vsprintf(s, fmt, ap);
+
 	if (do_log)
-		syslog(LOG_ERR, msg, arg);
-	else
-		warnx(msg, arg);
+		syslog(LOG_ERR, s);
+	else {
+#ifdef SYSINSTALL
+		dialog_clear();
+		msgConfirm(s);
+#else
+		warnx("%s", s);
+#endif
+	}
 }
 
 void
@@ -55,8 +88,14 @@ logerr(char *msg)
 {
 	if (do_log)
 		syslog(LOG_ERR, "%s: %m", msg);
-	else
+	else {
+#ifdef	SYSINSTALL
+		dialog_clear();
+		msgConfirm(msg);
+#else
 		warn("%s", msg);
+#endif
+	}
 }
 
 /*
@@ -67,8 +106,17 @@ die(char *msg)
 {
 	if (do_log)
 		syslog(LOG_CRIT, "fatal error: %s", msg);
-	else
+	else {
+#ifdef SYSINSTALL		
+		char s[256];
+
+		sprintf(s, "cardd fatal error: %s\n", msg);
+		dialog_clear();
+		msgConfirm(s);
+#else
 		warnx("fatal error: %s", msg);
+#endif
+	}
 	closelog();
 	exit(1);
 }
@@ -218,7 +266,7 @@ execute(struct cmd *cmdp)
 			continue;
 #ifdef	DEBUG
 		fprintf(stderr, "Executing [%s]\n", cmd);
-#endif				/* DEBUG */
+#endif
 		system(cmd);
 	}
 }
