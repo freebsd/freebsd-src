@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: soundcard.h,v 1.10 1994/11/14 14:13:13 bde Exp $
+ * $Id: soundcard.h,v 1.11 1995/02/13 22:48:54 jkh Exp $
  */
 
  /* 
@@ -63,28 +63,6 @@
  * IOCTL Commands for /dev/sequencer
  */
 
-#ifndef _IOWR
-/*	@(#)ioctlp.h */
-
-/* Ioctl's have the command encoded in the lower word,
- * and the size of any in or out parameters in the upper
- * word.  The high 2 bits of the upper word are used
- * to encode the in/out status of the parameter; for now
- * we restrict parameters to at most 128 bytes.
- */
-/* #define	IOCTYPE		(0xff<<8) */
-#define	IOCPARM_MASK	0x7f		/* parameters must be < 128 bytes */
-#define	IOC_VOID	0x00000000	/* no parameters */
-#define	IOC_OUT		0x20000000	/* copy out parameters */
-#define	IOC_IN		0x40000000	/* copy in parameters */
-#define	IOC_INOUT	(IOC_IN|IOC_OUT)
-/* the 0x20000000 is so we can distinguish new ioctl's from old */
-#define	_IO(x,y)	((int)(IOC_VOID|(x<<8)|y))
-#define	_IOR(x,y,t)	((int)(IOC_OUT|((sizeof(t)&IOCPARM_MASK)<<16)|(x<<8)|y))
-#define	_IOW(x,y,t)	((int)(IOC_IN|((sizeof(t)&IOCPARM_MASK)<<16)|(x<<8)|y))
-/* this should be _IORW, but stdio got there first */
-#define	_IOWR(x,y,t)	((int)(IOC_INOUT|((sizeof(t)&IOCPARM_MASK)<<16)|(x<<8)|y))
-#endif  /* !_IOWR */
 
 #define SNDCTL_SEQ_RESET		_IO  ('Q', 0)
 #define SNDCTL_SEQ_SYNC			_IO  ('Q', 1)
