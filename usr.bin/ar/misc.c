@@ -36,6 +36,8 @@
 
 #ifndef lint
 static const char sccsid[] = "@(#)misc.c	8.3 (Berkeley) 4/2/94";
+static const char rcsid[] =
+  "$FreeBSD$";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -43,6 +45,7 @@ static const char sccsid[] = "@(#)misc.c	8.3 (Berkeley) 4/2/94";
 #include <dirent.h>
 #include <err.h>
 #include <errno.h>
+#include <libgen.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -113,21 +116,12 @@ orphans(argv)
 		warnx("%s: not found in archive", *argv);
 }
 
-char *
-rname(path)
-	char *path;
-{
-	char *ind;
-
-	return ((ind = strrchr(path, '/')) ? ind + 1 : path);
-}
-
 int
 compare(dest)
 	char *dest;
 {
 	int maxname = (options & AR_TR) ? OLDARMAXNAME : MAXNAMLEN;
-	return (!strncmp(chdr.name, rname(dest), maxname));
+	return (!strncmp(chdr.name, basename(dest), maxname));
 }
 
 void
