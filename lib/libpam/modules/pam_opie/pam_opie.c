@@ -2,9 +2,7 @@
  * Copyright 2000 James Bloom
  * All rights reserved.
  * Based upon code Copyright 1998 Juniper Networks, Inc. 
- * Copyright (c) 2001 Networks Associates Technology, Inc.
- * All rights reserved.
- * Copyright (c) 2002 Networks Associates Technology, Inc.
+ * Copyright (c) 2001,2002 Networks Associates Technology, Inc.
  * All rights reserved.
  *
  * Portions of this software were developed for the FreeBSD Project by
@@ -124,7 +122,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused, int argc, const char
 	
 	for (i = 0; i < 2; i++) {
 		snprintf(prompt, sizeof prompt, promptstr[i], challenge);
-		retval = pam_get_authtok(pamh, &response, prompt);
+		retval = pam_get_authtok(pamh, PAM_AUTHTOK, &response, prompt);
 		if (retval != PAM_SUCCESS) {
 			opieunlock();
 			PAM_RETURN(retval);

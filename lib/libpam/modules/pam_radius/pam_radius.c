@@ -1,7 +1,7 @@
 /*-
  * Copyright 1998 Juniper Networks, Inc.
  * All rights reserved.
- * Copyright (c) 2001 Networks Associates Technology, Inc.
+ * Copyright (c) 2001,2002 Networks Associates Technology, Inc.
  * All rights reserved.
  *
  * Portions of this software were developed for the FreeBSD Project by
@@ -63,7 +63,7 @@ static struct opttab other_options[] = {
 };
 
 #define	MAX_CHALLENGE_MSGS	10
-#define	PASSWORD_PROMPT		"RADIUS password:"
+#define	PASSWORD_PROMPT		"RADIUS Password:"
 
 static int	 build_access_request(struct rad_handle *, const char *,
 		    const char *, const void *, size_t);
@@ -237,7 +237,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused, int argc, const char
 
 	PAM_LOG("Got user: %s", user);
 
-	retval = pam_get_authtok(pamh, &pass, PASSWORD_PROMPT);
+	retval = pam_get_authtok(pamh, PAM_AUTHTOK, &pass, PASSWORD_PROMPT);
 	if (retval != PAM_SUCCESS)
 		PAM_RETURN(retval);
 

@@ -2,7 +2,14 @@
  * Copyright 2001 Mark R V Murray
  * Copyright Frank Cusack fcusack@fcusack.com 1999-2000
  * All rights reserved
+ * Copyright (c) 2002 Networks Associates Technology, Inc.
+ * All rights reserved.
  * 
+ * Portions of this software were developed for the FreeBSD Project by
+ * ThinkSec AS and NAI Labs, the Security Research Division of Network
+ * Associates, Inc.  under DARPA/SPAWAR contract N66001-01-C-8035
+ * ("CBOSS"), as part of the DARPA CHATS research program.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -200,7 +207,7 @@ __FBSDID("$FreeBSD$");
 #include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <strings.h>
+#include <string.h>
 #include <syslog.h>
 #include <unistd.h>
 
@@ -229,7 +236,6 @@ static void	compat_free_data_contents(krb5_context, krb5_data *);
 #define USER_PROMPT		"Username: "
 #define PASSWORD_PROMPT		"Password:"
 #define NEW_PASSWORD_PROMPT	"New Password:"
-#define NEW_PASSWORD_PROMPT_2	"New Password (again):"
 
 enum { PAM_OPT_AUTH_AS_SELF=PAM_OPT_STD_MAX, PAM_OPT_CCACHE, PAM_OPT_FORWARDABLE, PAM_OPT_NO_CCACHE, PAM_OPT_REUSE_CCACHE };
 
@@ -258,7 +264,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused, int argc, const char
 	struct passwd *pwd;
 	int retval;
 	const char *sourceuser, *user, *pass, *service;
-	char *principal, *princ_name, *cache_name, luser[32];	
+	char *principal, *princ_name, *cache_name, luser[32], *srvdup;
 
 	pam_std_option(&options, other_options, argc, argv);
 
@@ -339,7 +345,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused, int argc, const char
 	PAM_LOG("Got principal: %s", princ_name);
 
 	/* Get password */
-	retval = pam_get_pass(pamh, &pass, PASSWORD_PROMPT, &options);
+	retval = pam_get_authtok(pamh, PAM_AUTHTOK, &pass, PASSWORD_PROMPT);
 	if (retval != PAM_SUCCESS)
 		goto cleanup2;
 
@@ -420,8 +426,14 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused, int argc, const char
 	PAM_LOG("Credentials stashed");
 
 	/* Verify them */
-	if (verify_krb_v5_tgt(pam_context, ccache, (char *)service,
-	    pam_test_option(&options, PAM_OPT_FORWARDABLE, NULL)) == -1) {
+	if ((srvdup = strdup(service)) == NULL) {
+		retval = PAM_BUF_ERR;
+		goto cleanup;
+	}
+	krbret = verify_krb_v5_tgt(pam_context, ccache, srvdup,
+	    pam_test_option(&options, PAM_OPT_FORWARDABLE, NULL));
+	free(srvdup);
+	if (krbret == -1) {
 		PAM_VERBOSE_ERROR("Kerberos 5 error");
 		krb5_cc_destroy(pam_context, ccache);
 		retval = PAM_AUTH_ERR;
@@ -809,8 +821,8 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags, int argc, const char **argv)
 	krb5_data result_code_string, result_string;
 	struct options options;
 	int result_code, retval;
-	const char *user, *pass, *pass2;
-	char *princ_name;
+	const char *user, *pass;
+	char *princ_name, *passdup;
 
 	pam_std_option(&options, other_options, argc, argv);
 
@@ -857,7 +869,7 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags, int argc, const char **argv)
 	PAM_LOG("Got principal: %s", princ_name);
 
 	/* Get password */
-	retval = pam_get_pass(pamh, &pass, PASSWORD_PROMPT, &options);
+	retval = pam_get_authtok(pamh, PAM_OLDAUTHTOK, &pass, PASSWORD_PROMPT);
 	if (retval != PAM_SUCCESS)
 		goto cleanup2;
 
@@ -876,27 +888,26 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags, int argc, const char **argv)
 	PAM_LOG("Credentials established");
 
 	/* Now get the new password */
-	retval = pam_get_pass(pamh, &pass, NEW_PASSWORD_PROMPT, &options);
-	if (retval != PAM_SUCCESS)
-		goto cleanup;
-
-	retval = pam_get_pass(pamh, &pass2, NEW_PASSWORD_PROMPT_2, &options);
-	if (retval != PAM_SUCCESS)
-		goto cleanup;
-
-	PAM_LOG("Got new password twice");
-
-	if (strcmp(pass, pass2) != 0) {
-		PAM_LOG("Error strcmp(): passwords are different");
-		retval = PAM_AUTHTOK_ERR;
-		goto cleanup;
+	for (;;) {
+		retval = pam_get_authtok(pamh,
+		    PAM_AUTHTOK, &pass, NEW_PASSWORD_PROMPT);
+		if (retval != PAM_TRY_AGAIN)
+			break;
+		pam_error(pamh, "Mismatch; try again, EOF to quit.");
 	}
+	if (retval != PAM_SUCCESS)
+		goto cleanup;
 
-	PAM_LOG("New passwords are the same");
+	PAM_LOG("Got new password");
 
 	/* Change it */
-	krbret = krb5_change_password(pam_context, &creds, (char *)pass,
+	if ((passdup = strdup(pass)) == NULL) {
+		retval = PAM_BUF_ERR;
+		goto cleanup;
+	}
+	krbret = krb5_change_password(pam_context, &creds, passdup,
 	    &result_code, &result_code_string, &result_string);
+	free(passdup);
 	if (krbret != 0) {
 		PAM_LOG("Error krb5_change_password(): %s",
 		    error_message(krbret));

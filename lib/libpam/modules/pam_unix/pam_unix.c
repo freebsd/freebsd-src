@@ -76,21 +76,13 @@ __FBSDID("$FreeBSD$");
 #include <security/pam_modules.h>
 #include <security/pam_mod_misc.h>
 
-#define USER_PROMPT		"Username: "
-#define PASSWORD_PROMPT		"Password:"
-#define PASSWORD_PROMPT_EXPIRED	"\nPassword expired\nOld Password:"
-#define NEW_PASSWORD_PROMPT_1	"New Password:"
-#define NEW_PASSWORD_PROMPT_2	"New Password (again):"
 #define PASSWORD_HASH		"md5"
 #define DEFAULT_WARN		(2L * 7L * 86400L)  /* Two weeks */
-#define	MAX_TRIES		3
 #define	SALTSIZE		32
 
 static void makesalt(char []);
 
-static char password_prompt_def[] =	PASSWORD_PROMPT;
 static char password_hash[] =		PASSWORD_HASH;
-static char blank[] =			"";
 static char colon[] =			":";
 
 enum {
@@ -149,7 +141,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused, int argc, const char
 
 	lc = login_getclass(NULL);
 	password_prompt = login_getcapstr(lc, "passwd_prompt",
-	    password_prompt_def, password_prompt_def);
+	    password_prompt, NULL);
 	login_close(lc);
 	lc = NULL;
 
@@ -167,7 +159,8 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused, int argc, const char
 			PAM_RETURN(PAM_SUCCESS);
 		}
 		else {
-			retval = pam_get_authtok(pamh, &pass, password_prompt);
+			retval = pam_get_authtok(pamh, PAM_AUTHTOK,
+			    &pass, password_prompt);
 			if (retval != PAM_SUCCESS)
 				PAM_RETURN(retval);
 			PAM_LOG("Got password");
@@ -190,7 +183,8 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused, int argc, const char
 		 * User unknown.
 		 * Encrypt a dummy password so as to not give away too much.
 		 */
-		retval = pam_get_authtok(pamh, &pass, password_prompt);
+		retval = pam_get_authtok(pamh,
+		    PAM_AUTHTOK, &pass, password_prompt);
 		if (retval != PAM_SUCCESS)
 			PAM_RETURN(retval);
 		PAM_LOG("Got password");
@@ -240,7 +234,7 @@ pam_sm_acct_mgmt(pam_handle_t *pamh, int flags __unused, int argc, const char **
 
 	PAM_LOG("Options processed");
 
-	retval = pam_get_item(pamh, PAM_USER, (const void **)&user);
+	retval = pam_get_user(pamh, &user, NULL);
 	if (retval != PAM_SUCCESS)
 		PAM_RETURN(retval);
 
@@ -375,9 +369,9 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags, int argc, const char **argv)
 {
 	struct options options;
 	struct passwd *pwd;
-	int retval, retry, res, got;
-	const char *user, *pass;
-	char *new_pass, *new_pass_, *encrypted, *usrdup;
+	const char *user, *pass, *new_pass;
+	char *encrypted, *usrdup;
+	int retval, res;
 
 	pam_std_option(&options, other_options, argc, argv);
 
@@ -403,83 +397,48 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags, int argc, const char **argv)
 			/*
 			 * No password case. XXX Are we giving too much away
 			 * by not prompting for a password?
+			 * XXX check PAM_DISALLOW_NULL_AUTHTOK
 			 */
-			PAM_LOG("No password, and null password OK");
+			PAM_LOG("Got password");
 			PAM_RETURN(PAM_SUCCESS);
 		}
 		else {
-			retval = pam_get_authtok(pamh, &pass,
-			    PASSWORD_PROMPT_EXPIRED);
+			retval = pam_get_authtok(pamh,
+			    PAM_OLDAUTHTOK, &pass, NULL);
 			if (retval != PAM_SUCCESS)
 				PAM_RETURN(retval);
-			PAM_LOG("Got password: %s", pass);
+			PAM_LOG("Got password");
 		}
 		encrypted = crypt(pass, pwd->pw_passwd);
 		if (pass[0] == '\0' && pwd->pw_passwd[0] != '\0')
 			encrypted = colon;
 
-		PAM_LOG("Encrypted password 1 is: %s", encrypted);
-		PAM_LOG("Encrypted password 2 is: %s", pwd->pw_passwd);
-
-		if (strcmp(encrypted, pwd->pw_passwd) != 0)
+		if (strcmp(encrypted, pwd->pw_passwd) != 0) {
+			pam_set_item(pamh, PAM_OLDAUTHTOK, NULL);
 			PAM_RETURN(PAM_AUTH_ERR);
-
-		retval = pam_set_item(pamh, PAM_OLDAUTHTOK, (const void *)pass);
-		pass = NULL;
-		if (retval != PAM_SUCCESS)
-			PAM_RETURN(retval);
-
-		PAM_LOG("Stashed old password");
-
-		retval = pam_set_item(pamh, PAM_AUTHTOK, (const void *)pass);
-		if (retval != PAM_SUCCESS)
-			PAM_RETURN(retval);
-
-		PAM_LOG("Voided old password");
+		}
 
 		PAM_RETURN(PAM_SUCCESS);
 	}
 	else if (flags & PAM_UPDATE_AUTHTOK) {
 		PAM_LOG("UPDATE round; checking user password");
 
-		retval = pam_get_item(pamh, PAM_OLDAUTHTOK,
-		    (const void **)&pass);
+		retval = pam_get_authtok(pamh, PAM_OLDAUTHTOK, &pass, NULL);
 		if (retval != PAM_SUCCESS)
 			PAM_RETURN(retval);
 
-		PAM_LOG("Got old password: %s", pass);
+		PAM_LOG("Got old password");
 
-		got = 0;
-		retry = 0;
-		while (retry++ < MAX_TRIES) {
-			new_pass = NULL;
-			retval = pam_prompt(pamh, PAM_PROMPT_ECHO_OFF,
-			    &new_pass, "%s", NEW_PASSWORD_PROMPT_1);
-
-			if (new_pass == NULL)
-				new_pass = blank;
-
-			if (retval == PAM_SUCCESS) {
-				new_pass_ = NULL;
-				retval = pam_prompt(pamh, PAM_PROMPT_ECHO_OFF,
-				    &new_pass_, "%s", NEW_PASSWORD_PROMPT_2);
-
-				if (new_pass_ == NULL)
-					new_pass_ = blank;
-
-				if (retval == PAM_SUCCESS) {
-					if (strcmp(new_pass, new_pass_) == 0) {
-						got = 1; 
-						break;
-					}
-					else
-						PAM_VERBOSE_ERROR("Password mismatch");
-				}
-			}
+		for (;;) {
+			retval = pam_get_authtok(pamh,
+			    PAM_AUTHTOK, &new_pass, NULL);
+			if (retval != PAM_TRY_AGAIN)
+				break;
+			pam_error(pamh, "Mismatch; try again, EOF to quit.");
 		}
 
-		if (!got) {
-			PAM_VERBOSE_ERROR("Unable to get valid password");
+		if (retval != PAM_SUCCESS) {
+			PAM_VERBOSE_ERROR("Unable to get new password");
 			PAM_RETURN(PAM_PERM_DENIED);
 		}
 
@@ -523,10 +482,6 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags, int argc, const char **argv)
 #else
 		retval = local_passwd(user, new_pass);
 #endif
-
-		/* XXX wipe the mem as well */
-		pass = NULL;
-		new_pass = NULL;
 	}
 	else {
 		/* Very bad juju */
@@ -556,7 +511,6 @@ local_passwd(const char *user, const char *pass)
 {
 	login_cap_t * lc;
 	struct passwd *pwd;
-	struct timeval tv;
 	int pfd, tfd;
 	char *crypt_type, salt[SALTSIZE + 1];
 
@@ -598,16 +552,13 @@ local_passwd(const char *user, const char *pass)
 int
 yp_passwd(const char *user __unused, const char *pass)
 {
+	struct yppasswd yppwd;
 	struct master_yppasswd master_yppwd;
 	struct passwd *pwd;
 	struct rpc_err err;
-	struct timeval tv;
-	struct yppasswd yppwd;
 	CLIENT *clnt;
 	login_cap_t *lc;
 	int    *status;
-	gid_t gid;
-	pid_t pid;
 	uid_t uid;
 	char   *master, sockname[] = YP_SOCKNAME, salt[SALTSIZE + 1];
 
