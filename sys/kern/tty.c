@@ -1283,19 +1283,20 @@ ttypoll(struct cdev *dev, int events, struct thread *td)
 
 	s = spltty();
 	if (events & (POLLIN | POLLRDNORM)) {
-		if (ttnread(tp) > 0 || ISSET(tp->t_state, TS_ZOMBIE))
+		if (ttnread(tp) > 0)
 			revents |= events & (POLLIN | POLLRDNORM);
 		else
 			selrecord(td, &tp->t_rsel);
 	}
 	if (events & (POLLOUT | POLLWRNORM)) {
-		if ((tp->t_outq.c_cc <= tp->t_olowat &&
-		     ISSET(tp->t_state, TS_CONNECTED))
-		    || ISSET(tp->t_state, TS_ZOMBIE))
+		if (tp->t_outq.c_cc <= tp->t_olowat &&
+		    ISSET(tp->t_state, TS_CONNECTED))
 			revents |= events & (POLLOUT | POLLWRNORM);
 		else
 			selrecord(td, &tp->t_wsel);
 	}
+	if (ISSET(tp->t_state, TS_ZOMBIE))
+		revents |= POLLERR;
 	splx(s);
 	return (revents);
 }
