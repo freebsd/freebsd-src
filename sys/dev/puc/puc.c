@@ -130,6 +130,35 @@ puc_port_bar_index(struct puc_softc *sc, int bar)
 	return (i);
 }
 
+static int
+puc_probe_ilr(struct puc_softc *sc, struct resource *res)
+{
+	u_char t1, t2;
+	int i;
+
+	switch (sc->sc_desc->ilr_type) {
+	case PUC_ILR_TYPE_DIGI:
+		sc->ilr_st = rman_get_bustag(res);
+		sc->ilr_sh = rman_get_bushandle(res);
+		for (i = 0; i < 2; i++) {
+			t1 = bus_space_read_1(sc->ilr_st, sc->ilr_sh,
+			    sc->sc_desc->ilr_offset[i]);
+			t1 = ~t1;
+			bus_space_write_1(sc->ilr_st, sc->ilr_sh,
+			    sc->sc_desc->ilr_offset[i], t1);
+			t2 = bus_space_read_1(sc->ilr_st, sc->ilr_sh,
+			    sc->sc_desc->ilr_offset[i]);
+			if (t2 == t1)
+				return (0);
+		}
+		return (1);
+
+	default:
+		break;
+	}
+	return (0);
+}
+
 int
 puc_attach(device_t dev, const struct puc_device_description *desc)
 {
@@ -195,6 +224,14 @@ puc_attach(device_t dev, const struct puc_device_description *desc)
 		}
 		sc->sc_bar_mappings[bidx].type = type;
 		sc->sc_bar_mappings[bidx].res = res;
+
+		if (sc->sc_desc->ilr_type != PUC_ILR_TYPE_NONE) {
+			sc->ilr_enabled = puc_probe_ilr(sc, res);
+			if (sc->ilr_enabled)
+				device_printf(dev, "ILR enabled\n");
+			else
+				device_printf(dev, "ILR disabled\n");
+		}
 #ifdef PUC_DEBUG
 		printf("%s rid %d bst %x, start %x, end %x\n",
 		    (type == SYS_RES_MEMORY) ? "memory" : "port", rid,
@@ -307,22 +344,47 @@ puc_attach(device_t dev, const struct puc_device_description *desc)
 	return (0);
 }
 
+static u_int32_t
+puc_ilr_read(struct puc_softc *sc)
+{
+	u_int32_t mask;
+	int i;
+
+	mask = 0;
+	switch (sc->sc_desc->ilr_type) {
+	case PUC_ILR_TYPE_DIGI:
+		for (i = 1; i >= 0; i--) {
+			mask = (mask << 8) | (bus_space_read_1(sc->ilr_st,
+			    sc->ilr_sh, sc->sc_desc->ilr_offset[i]) & 0xff);
+		}
+		break;
+
+	default:
+		mask = 0xffffffff;
+		break;
+	}
+	return (mask);
+}
+
 /*
- * This is just a brute force interrupt handler. It just calls all the
- * registered handlers sequencially.
- *
- * Later on we should maybe have a different handler for boards that can
- * tell us which device generated the interrupt.
+ * This is an interrupt handler. For boards that can't tell us which
+ * device generated the interrupt it just calls all the registered
+ * handlers sequencially, but for boards that can tell us which
+ * device(s) generated the interrupt it calls only handlers for devices
+ * that actually generated the interrupt.
  */
 static void
 puc_intr(void *arg)
 {
 	int i;
+	u_int32_t ilr_mask;
 	struct puc_softc *sc;
 
 	sc = (struct puc_softc *)arg;
+	ilr_mask = sc->ilr_enabled ? puc_ilr_read(sc) : 0xffffffff;
 	for (i = 0; i < PUC_MAX_PORTS; i++)
-		if (sc->sc_ports[i].ihand != NULL)
+		if (sc->sc_ports[i].ihand != NULL &&
+		    ((ilr_mask >> i) & 0x00000001))
 			(sc->sc_ports[i].ihand)(sc->sc_ports[i].ihandarg);
 }
 
