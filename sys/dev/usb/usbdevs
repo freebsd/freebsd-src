@@ -63,6 +63,7 @@ vendor TI		0x0451	Texas Instruments
 vendor ANALOGDEVICES	0x0456	Analog Devices, Inc.
 vendor KYE		0x0458	KYE Systems Corp.
 vendor MICROSOFT	0x045e	Microsoft
+vendor SUPRA		0x045a	Supra
 vendor PRIMAX		0x0461	Primax Electronics
 vendor AMP		0x0464	AMP, Inc.
 vendor CHERRY		0x046a	Cherry Mikroschalter GmbH
@@ -223,6 +224,7 @@ vendor BOCASYSTEMS	0x0a43	Boca Systems, Inc.
 vendor BROADCOM		0x0a5c	Broadcom Corp.
 vendor MOTOROLA		0x1063	Motorola
 vendor PLX		0x10b5	PLX
+vendor BELKIN2		0x1293  Belkin Components (second entry)
 vendor INSIDEOUT	0x1608	Inside Out Networks
 vendor ENTREGA		0x1645	Entrega
 vendor ACTIONTEC	0x1668	Actiontec Electronics, Inc.
@@ -265,6 +267,10 @@ product ELECOM MOUSE29UO	0x0002	mouse 29UO
 /* AKS products */
 product AKS USBHASP		0x0001	USB-HASP 0.06
 
+/* ALCOR products */
+product ALCOR STRONGMAN		0x9213	Strong Man Keyboard hub
+product ALCOR STRONGMAN_KBD	0x9410	Strong Man Keyboard
+
 /* Altec Lansing products */
 product ALTEC ADA70		0x0070	ADA70 Speakers
 product ALTEC ASC495		0xff05	ASC495 Speakers
@@ -285,6 +291,7 @@ product ATEN UC10T		0x2002	10Mbps ethernet adapter
 
 /* Belkin products */
 /*product BELKIN F5U111		0x????	F5U111 Ethernet adapter*/
+product BELKIN2 F5U002		0x0002  F5U002 Parallel printer adapter
 
 /* Billionton products */
 product BILLIONTON USB100	0x0986	USB100N 10/100 FastEthernet Adapter
@@ -401,6 +408,7 @@ product INSIDEOUT EDGEPORT4	0x0001	EdgePort/4 serial ports
 product INSYSTEM F5U002		0x0002	Parallel printer adapter
 product INSYSTEM ISD110		0x0200  IDE adapter ISD110
 product INSYSTEM ISD105		0x0202  IDE adapter ISD105
+product INSYSTEM USBCABLE	0x081a	USB cable
 
 /* Intel products */
 product INTEL TESTBOARD		0x9890	82930 test board
@@ -580,6 +588,9 @@ product STMICRO COMMUNICATOR	0x7554	USB Communicator
 /* Sun Microsystems products */
 product SUN KEYBOARD		0x0005	Type 6 USB
 /* XXX The above is a North American PC style keyboard possibly */
+
+/* Supra products */
+product SUPRA SUPRAEXPRESS56K	0x07da	Supra Express 56K modem
 
 /* Telex Communications products */
 product TELEX MIC1		0x0001	Enhanced USB Microphone
