@@ -115,6 +115,17 @@ except that the error indicator for the stream is also cleared
 (see
 .Xr clearerr 3 ) .
 .Pp
+Since
+.Fn rewind
+does not return a value,
+an application wishing to detect errors should clear
+.Va errno ,
+then call
+.Fn rewind ,
+and if
+.Va errno
+is non-zero, assume an error has occurred.
+.Pp
 The
 .Fn fseeko
 function is identical to
@@ -168,8 +179,9 @@ and
 and
 .Fn ftello
 return the current offset.
-Otherwise, \-1 is returned and the global variable errno is set to
-indicate the error.
+Otherwise, \-1 is returned and the global variable
+.Va errno
+is set to indicate the error.
 .Sh ERRORS
 .Bl -tag -width Er
 .It Bq Er EBADF
@@ -180,20 +192,25 @@ is not a seekable stream.
 .It Bq Er EINVAL
 The
 .Fa whence
-argument is invalid.
-The resulting file-position
+argument is invalid or
+the resulting file-position
 indicator would be set to a negative value.
 .It Bq Er EOVERFLOW
 The resulting file offset would be a value which
-cannot be represented correctly in an object of type off_t
+cannot be represented correctly in an object of type
+.Fa off_t
 for
 .Fn fseeko
 and
 .Fn ftello
-or long for
+or
+.Fa long
+for
 .Fn fseek
 and
 .Fn ftell .
+.It Bq Er ESPIPE
+The file descriptor underlying stream is associated with a pipe or FIFO.
 .El
 .Pp
 The functions
