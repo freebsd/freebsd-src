@@ -130,6 +130,7 @@ static ndis_status ndis_encode_parm(ndis_miniport_block *,
 	struct sysctl_oid *, ndis_parm_type, ndis_config_parm **);
 static ndis_status ndis_decode_parm(ndis_miniport_block *,
 	ndis_config_parm *, char *);
+static int my_strcasecmp(const char *, const char *, int);
 __stdcall static void ndis_read_cfg(ndis_status *, ndis_config_parm **,
 	ndis_handle, ndis_unicode_string *, ndis_parm_type);
 __stdcall static void ndis_write_cfg(ndis_status *, ndis_handle,
