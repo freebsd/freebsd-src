@@ -60,8 +60,8 @@ links: ${DEPEND_H}
 	@ln -sf ${PERL5SRC}/writemain.SH writemain.sh
 	@ln -sf ${PERL5SRC}/regcomp.c regcomp.c
 	@ln -sf ${PERL5SRC}/regexec.c regexec.c
-	@sed "s;^optimize=.*$$;optimize=\'${CFLAGS}\';" \
-		${PERL5LIBSRC}/config.SH-${OBJFORMAT}.${MACHINE_ARCH} > config.sh
+	@ln -sf ${PERL5LIBSRC}/config.SH-${OBJFORMAT}.${MACHINE_ARCH} \
+		config.sh
 	@touch ${.TARGET}
 
 scripts: links
