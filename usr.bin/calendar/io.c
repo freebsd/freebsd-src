@@ -129,9 +129,23 @@ cal()
 				continue;
 			if (p > buf && p[-1] == '*')
 				var = 1;
-			if (printing)
-				(void)fprintf(fp, "%.2d/%.2d%c%s\n", month, 
-				    day, var ? '*' : ' ', p);
+			if (printing) {
+				struct tm tm;
+				char dbuf[30];
+
+				tm.tm_sec = 0;  /* unused */
+				tm.tm_min = 0;  /* unused */
+				tm.tm_hour = 0; /* unused */
+				tm.tm_wday = 0; /* unused */
+				tm.tm_mon = month - 1;
+				tm.tm_mday = day;
+				tm.tm_year = tp->tm_year; /* unused */
+				(void)strftime(dbuf, sizeof(dbuf), "%c", &tm);
+				dbuf[10] = '\0';
+				(void)fprintf(fp, "%s%c%s\n",
+				    dbuf + 4/* skip weekdays */,
+				    var ? '*' : ' ', p);
+			}
 		}
 		else if (printing)
 			fprintf(fp, "%s\n", buf);

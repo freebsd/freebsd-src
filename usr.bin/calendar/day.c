@@ -101,10 +101,6 @@ void setnnames(void)
 			free(fndays[i].name);
 		fndays[i].name = strdup(buf);
 		fndays[i].len = strlen(buf);
-#ifdef DEBUG
-		printf("ndays[%d] = %s, fndays[%d] = %s\n",
-			i, ndays[i].name, i, fndays[i].name);
-#endif
 	}
 
 	for (i = 0; i < 12; i++) {
@@ -130,10 +126,6 @@ void setnnames(void)
 			free(fnmonths[i].name);
 		fnmonths[i].name = strdup(buf);
 		fnmonths[i].len = strlen(buf);
-#ifdef DEBUG
-		printf("nmonths[%d] = %s, fnmonths[%d] = %s\n",
-			i, nmonths[i].name, i, fnmonths[i].name);
-#endif
 	}
 }
 
@@ -177,6 +169,7 @@ time_t Mktime (date)
     tm.tm_sec = 0;
     tm.tm_min = 0;
     tm.tm_hour = 0;
+    tm.tm_wday = 0;
     tm.tm_mday = tp->tm_mday;
     tm.tm_mon = tp->tm_mon;
     tm.tm_year = tp->tm_year;
@@ -356,9 +349,6 @@ isnow(endp, monthp, dayp, varp)
 	    }
 	}
 	   
-#if DEBUG 
-	fprintf(stderr, "day2: day %d yday %d\n", day, tp->tm_yday); 
-#endif
 	if (!(flags & F_EASTER)) {
 	    *monthp = month;
 	    *dayp = day;
@@ -372,6 +362,9 @@ isnow(endp, monthp, dayp, varp)
 	    *varp = 1;
 	}
 
+#if DEBUG 
+	fprintf(stderr, "day2: day %d(%d) yday %d\n", *dayp, day, tp->tm_yday);
+#endif
 	/* if today or today + offset days */
 	if (day >= tp->tm_yday - f_dayBefore && 
 	    day <= tp->tm_yday + offset + f_dayAfter)
