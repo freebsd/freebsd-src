@@ -1077,4 +1077,5 @@ rtinit(ifa, cmd, flags)
 	return (error);
 }
 
-SYSINIT(route, SI_SUB_PROTO_DOMAIN, SI_ORDER_ANY, route_init, 0);
+/* This must be before ip6_init2(), which is now SI_ORDER_MIDDLE */
+SYSINIT(route, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, route_init, 0);

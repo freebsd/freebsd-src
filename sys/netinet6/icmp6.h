@@ -386,8 +386,8 @@ struct rr_pco_use {		/* use prefix part */
 	u_int32_t	rpu_flags;
 	struct	in6_addr rpu_prefix;
 };
-#define	ICMP6_RR_PCOUSE_RAFLAGS_ONLINK	0x20
-#define	ICMP6_RR_PCOUSE_RAFLAGS_AUTO	0x10
+#define	ICMP6_RR_PCOUSE_RAFLAGS_ONLINK	0x80
+#define	ICMP6_RR_PCOUSE_RAFLAGS_AUTO	0x40
 
 #if BYTE_ORDER == BIG_ENDIAN
 #define	ICMP6_RR_PCOUSE_FLAGS_DECRVLTIME     0x80000000

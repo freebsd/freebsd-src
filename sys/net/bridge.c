@@ -575,7 +575,8 @@ bdg_forward (struct mbuf **m0, struct ifnet *dst)
 	     * pass the pkt to dummynet. Need to include m, dst, rule.
 	     * Dummynet consumes the packet in all cases.
 	     */
-	    dummynet_io((off & 0xffff), DN_TO_BDG_FWD, m, dst, NULL, 0, rule);
+	    dummynet_io((off & 0xffff), DN_TO_BDG_FWD, m, dst, NULL, 0, rule,
+			0);
 	    if (canfree) /* dummynet has consumed the original one */
 		*m0 = NULL ;
 	    return 0 ;

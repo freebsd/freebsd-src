@@ -38,6 +38,10 @@
 
 #ifdef KERNEL
 
+#ifdef SYSCTL_DECL
+SYSCTL_DECL(_net_inet6_ipsec6);
+#endif
+
 extern struct	ipsecstat ipsec6stat;
 extern struct	secpolicy ip6_def_policy;
 extern int	ip6_esp_trans_deflev;

@@ -63,6 +63,8 @@
  * $FreeBSD$
  */
 
+#include "opt_ipsec.h"
+
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
@@ -98,6 +100,7 @@
 
 #ifdef IPSEC
 #include <netinet6/ipsec.h>
+#include <netinet6/ipsec6.h>
 #endif /*IPSEC*/
 
 #include "faith.h"
@@ -251,11 +254,10 @@ udp6_input(mp, offp, proto)
 				/*
 				 * Check AH/ESP integrity.
 				 */
-				if (last != NULL &&
-				    ipsec6_in_reject_so(m, last->inp_socket)) {
+				if (ipsec6_in_reject_so(m, last->inp_socket))
 					ipsec6stat.in_polvio++;
 					/* do not inject data into pcb */
-				} else
+				else
 #endif /*IPSEC*/
 				if ((n = m_copy(m, 0, M_COPYALL)) != NULL) {
 					/*
@@ -310,7 +312,7 @@ udp6_input(mp, offp, proto)
 		/*
 		 * Check AH/ESP integrity.
 		 */
-		if (last != NULL && ipsec6_in_reject_so(m, last->inp_socket)) {
+		if (ipsec6_in_reject_so(m, last->inp_socket)) {
 			ipsec6stat.in_polvio++;
 			goto bad;
 		}
@@ -358,7 +360,7 @@ udp6_input(mp, offp, proto)
 	/*
 	 * Check AH/ESP integrity.
 	 */
-	if (in6p != NULL && ipsec6_in_reject_so(m, in6p->in6p_socket)) {
+	if (ipsec6_in_reject_so(m, in6p->in6p_socket)) {
 		ipsec6stat.in_polvio++;
 		goto bad;
 	}
@@ -475,7 +477,7 @@ udp6_getcred SYSCTL_HANDLER_ARGS
 				 addrs[1].sin6_port,
 				 &addrs[0].sin6_addr, addrs[0].sin6_port,
 				 1, NULL);
-	if (!inp || !inp->inp_socket || !inp->inp_socket->so_cred) {
+	if (!inp || !inp->inp_socket) {
 		error = ENOENT;
 		goto out;
 	}
@@ -556,8 +558,10 @@ udp6_output(in6p, m, addr6, control, p)
 	 * Stuff checksum and output datagram.
 	 */
 	ip6 = mtod(m, struct ip6_hdr *);
-	ip6->ip6_flow	= in6p->in6p_flowinfo & IPV6_FLOWINFO_MASK;
-	ip6->ip6_vfc 	= IPV6_VERSION;
+	ip6->ip6_flow = (ip6->ip6_flow & ~IPV6_FLOWINFO_MASK) |
+		(in6p->in6p_flowinfo & IPV6_FLOWINFO_MASK);
+	ip6->ip6_vfc = (ip6->ip6_vfc & ~IPV6_VERSION_MASK) |
+		(IPV6_VERSION & IPV6_VERSION_MASK);
 	/* ip6_plen will be filled in ip6_output. */
 	ip6->ip6_nxt	= IPPROTO_UDP;
 	ip6->ip6_hlim   = in6_selecthlim(in6p,
@@ -584,7 +588,7 @@ udp6_output(in6p, m, addr6, control, p)
 	m->m_pkthdr.rcvif = (struct ifnet *)in6p->in6p_socket;
 #endif /*IPSEC*/
 	error = ip6_output(m, in6p->in6p_outputopts, &in6p->in6p_route,
-			    0, in6p->in6p_moptions, NULL);
+			    IPV6_SOCKINMRCVIF, in6p->in6p_moptions, NULL);
 
 	if (addr6) {
 		in6_pcbdisconnect(in6p);

@@ -34,6 +34,8 @@
  * $FreeBSD$
  */
 
+#include "opt_ipsec.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
@@ -54,6 +56,16 @@
 #include <netinet/ip_icmp.h>
 #include <netinet/ip_var.h>
 #include <netinet/icmp_var.h>
+
+#ifdef IPSEC
+#include <netinet6/ipsec.h>
+#include <netkey/key.h>
+#endif
+
+#include "faith.h"
+#if defined(NFAITH) && NFAITH > 0
+#include <net/if_types.h>
+#endif
 
 /*
  * ICMP routines: error generation, receive packet processing, and
@@ -219,10 +231,11 @@ static struct sockaddr_in icmpgw = { sizeof (struct sockaddr_in), AF_INET };
  * Process a received ICMP message.
  */
 void
-icmp_input(m, hlen)
+icmp_input(m, off, proto)
 	register struct mbuf *m;
-	int hlen;
+	int off, proto;
 {
+	int hlen = off;
 	register struct icmp *icp;
 	register struct ip *ip = mtod(m, struct ip *);
 	int icmplen = ip->ip_len;
@@ -263,10 +276,34 @@ icmp_input(m, hlen)
 	m->m_len += hlen;
 	m->m_data -= hlen;
 
+#if defined(NFAITH) && 0 < NFAITH
+	if (m->m_pkthdr.rcvif && m->m_pkthdr.rcvif->if_type == IFT_FAITH) {
+		/*
+		 * Deliver very specific ICMP type only.
+		 */
+		switch (icp->icmp_type) {
+		case ICMP_UNREACH:
+		case ICMP_TIMXCEED:
+			break;
+		default:
+			goto freeit;
+		}
+	}
+#endif
+
 #ifdef ICMPPRINTFS
 	if (icmpprintfs)
 		printf("icmp_input, type %d code %d\n", icp->icmp_type,
 		    icp->icmp_code);
+#endif
+
+#ifdef IPSEC
+	/* drop it if it does not match the policy */
+	/* XXX Is there meaning of check in here ? */
+	if (ipsec4_in_reject(m, NULL)) {
+		ipsecstat.in_polvio++;
+		goto freeit;
+	}
 #endif
 
 	/*
@@ -394,6 +431,10 @@ icmp_input(m, hlen)
 		}
 
 #endif
+		/*
+		 * XXX if the packet contains [IPv4 AH TCP], we can't make a
+		 * notification to TCP layer.
+		 */
 		ctlfunc = inetsw[ip_protox[icp->icmp_ip.ip_p]].pr_ctlinput;
 		if (ctlfunc)
 			(*ctlfunc)(code, (struct sockaddr *)&icmpsrc,
@@ -518,6 +559,9 @@ reflect:
 		  (struct sockaddr *)0, RTF_GATEWAY | RTF_HOST,
 		  (struct sockaddr *)&icmpgw, (struct rtentry **)0);
 		pfctlinput(PRC_REDIRECT_HOST, (struct sockaddr *)&icmpsrc);
+#ifdef IPSEC
+		key_sa_routechange((struct sockaddr *)&icmpsrc);
+#endif
 		break;
 
 	/*
@@ -535,7 +579,7 @@ reflect:
 	}
 
 raw:
-	rip_input(m, hlen);
+	rip_input(m, off, proto);
 	return;
 
 freeit:

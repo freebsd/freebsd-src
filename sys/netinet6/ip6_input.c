@@ -64,6 +64,8 @@
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
  */
 
+#include "opt_ipsec.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
@@ -209,7 +211,8 @@ ip6_init2(dummy)
 }
 
 /* cheat */
-SYSINIT(netinet6init2, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, ip6_init2, NULL);
+/* This must be after route_init(), which is now SI_ORDER_THIRD */
+SYSINIT(netinet6init2, SI_SUB_PROTO_DOMAIN, SI_ORDER_MIDDLE, ip6_init2, NULL);
 
 /*
  * IP6 input interrupt handling. Just pass the packet to ip6_input.

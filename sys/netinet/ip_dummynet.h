@@ -44,6 +44,7 @@ struct dn_pkt {
         int     delay;		/* stays queued until delay=0		*/
         struct ifnet *ifp;	/* interface, for ip_output		*/
         struct route ro;	/* route, for ip_output. MUST COPY	*/
+	int	flags;		/* flags, for ip_output			*/
 
 #ifdef   DUMMYNET_DEBUG
         struct timeval beg, mid;        /* testing only */
@@ -109,7 +110,7 @@ void dn_rule_delete(void *r);		/* used in ip_fw.c */
 int dummynet_io(int pipe, int dir,
 	struct mbuf *m, struct ifnet *ifp, struct route *ro,
 	struct sockaddr_in * dst,
-	struct ip_fw_chain *rule);
+	struct ip_fw_chain *rule, int flags);
 #endif /* KERNEL */
 
 #endif /* _IP_DUMMYNET_H */
