@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.90 1998/10/29 10:18:49 obrien Exp $
+ * $Id: media.c,v 1.91 1998/10/29 10:38:57 obrien Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -387,6 +387,7 @@ mediaSetFTP(dialogMenuItem *self)
 	msgDebug("port # = `%d'\n", FtpPort);
     }
     if (variable_get(VAR_NAMESERVER)) {
+	msgNotify("Looking up host %s.", hostname);
     	if (isDebug())
 	    msgDebug("Starting DNS.\n");
 	kickstart_dns();
