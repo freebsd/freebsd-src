@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp_strat.c,v 1.30 1996/12/09 08:22:13 jkh Exp $
+ * $Id: ftp.c,v 1.19 1996/12/11 09:34:59 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -88,8 +88,8 @@ try:
 	SAFE_STRCPY(password, variable_get(VAR_FTP_PASS));
     else
 	sprintf(password, "installer@%s", variable_get(VAR_HOSTNAME));
-    msgNotify("Logging in as %s..", login_name);
-    if ((OpenConn = ftpLogin(hostname, login_name, password, FtpPort, isDebug(), &code)) != 0) {
+    msgNotify("Logging in to %s@%s..", login_name, hostname);
+    if ((OpenConn = ftpLogin(hostname, login_name, password, FtpPort, isDebug(), &code)) == NULL) {
 	if (variable_get(VAR_NO_CONFIRM))
 	    msgNotify("Couldn't open FTP connection to %s, errcode = %d", hostname, code);
 	else
