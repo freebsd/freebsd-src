@@ -451,24 +451,17 @@ extern int vfs_badlock_panic;
 extern int vfs_badlock_print;
 
 /*
- * [dfr] Kludge until I get around to fixing all the vfs locking.
+ * This only exists to supress warnings from unlocked specfs accesses.  It is
+ * no longer ok to have an unlocked VFS.
  */
-#define IS_LOCKING_VFS(vp)	(  ((vp)->v_tag == VT_UFS		\
-				 || (vp)->v_tag == VT_NFS		\
-				 || (vp)->v_tag == VT_LFS		\
-				 || (vp)->v_tag == VT_ISOFS		\
-				 || (vp)->v_tag == VT_MSDOSFS		\
-				 || (vp)->v_tag == VT_DEVFS		\
-				 || (vp)->v_tag == VT_UDF		\
-				 || (vp)->v_tag == VT_PSEUDOFS		\
-				 || (vp)->v_tag == VT_PROCFS)		\
-				 && (vp)->v_type != VCHR)
+
+#define IGNORE_LOCK(vp)	((vp)->v_type == VCHR)
 
 #define ASSERT_VOP_LOCKED(vp, str)					\
 do {									\
 	struct vnode *_vp = (vp);					\
 									\
-	if (_vp && IS_LOCKING_VFS(_vp) && !VOP_ISLOCKED(_vp, NULL)) {	\
+	if (_vp && !IGNORE_LOCK(_vp) && !VOP_ISLOCKED(_vp, NULL)) {	\
 		if (vfs_badlock_print)					\
 			printf("%s: %p is not locked but should be\n",	\
 			    str, _vp);					\
@@ -482,7 +475,7 @@ do {									\
 	struct vnode *_vp = (vp);					\
 	int lockstate;							\
 									\
-	if (_vp && IS_LOCKING_VFS(_vp)) {				\
+	if (_vp && !IGNORE_LOCK(_vp)) {					\
 		lockstate = VOP_ISLOCKED(_vp, curthread);		\
 		if (lockstate == LK_EXCLUSIVE) {			\
 			if (vfs_badlock_print)				\
@@ -498,8 +491,8 @@ do {									\
 do {									\
 	struct vnode *_vp = (vp);					\
 									\
-	if (_vp && IS_LOCKING_VFS(_vp) &&				\
-	    VOP_ISLOCKED(_vp, curthread) != LK_EXCLUSIVE)			\
+	if (_vp && !IGNORE_LOCK(_vp) &&					\
+	    VOP_ISLOCKED(_vp, curthread) != LK_EXCLUSIVE)		\
 		panic("%s: %p is not exclusive locked but should be",	\
 		    str, _vp);						\
 } while (0)
@@ -508,8 +501,8 @@ do {									\
 do {									\
 	struct vnode *_vp = (vp);					\
 									\
-	if (_vp && IS_LOCKING_VFS(_vp) &&				\
-	    VOP_ISLOCKED(_vp, curthread) != LK_EXCLOTHER)			\
+	if (_vp && !IGNORE_LOCK(_vp) &&					\
+	    VOP_ISLOCKED(_vp, curthread) != LK_EXCLOTHER)		\
 		panic("%s: %p is not exclusive locked by another thread",	\
 		    str, _vp);						\
 } while (0)
@@ -518,7 +511,7 @@ do {									\
 do {									\
 	struct vnode *_vp = (vp);					\
 									\
-	if (_vp && IS_LOCKING_VFS(_vp) &&				\
+	if (_vp && !IGNORE_LOCK(_vp) &&					\
 	    VOP_ISLOCKED(_vp, NULL) != LK_SHARED)			\
 		panic("%s: %p is not locked shared but should be",	\
 		    str, _vp);						\
@@ -526,6 +519,8 @@ do {									\
 
 void vop_rename_pre(void *a);
 void vop_strategy_pre(void *a);
+void vop_lookup_pre(void *a);
+void vop_lookup_post(void *a, int rc);
 
 #else
 
