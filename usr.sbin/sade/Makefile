@@ -18,7 +18,7 @@ CFLAGS+= -DPC98
 DPADD=	${LIBDIALOG} ${LIBNCURSES} ${LIBUTIL} ${LIBDISK} ${LIBFTPIO}
 LDADD=	-ldialog -lncurses -lutil -ldisk -lftpio
 
-CLEANFILES=	makedevs.c rtermcap rtermcap.tmp dumpnlist
+CLEANFILES=	makedevs.c rtermcap
 CLEANFILES+=	keymap.tmp keymap.h
 
 makedevs.c:	Makefile rtermcap
