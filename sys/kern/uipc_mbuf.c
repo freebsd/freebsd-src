@@ -956,7 +956,7 @@ void
 m_print(const struct mbuf *m)
 {
 	int len;
-	struct mbuf *m2;
+	const struct mbuf *m2;
 
 	len = m->m_pkthdr.len;
 	m2 = m;
