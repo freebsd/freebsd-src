@@ -699,7 +699,9 @@ trap(int vector, struct trapframe *framep)
 		/*
 		 * Additionally check the privilege level. We don't want to
 		 * panic when we're in the gateway page, running at user
-		 * level. This happens for the signal trampolines.
+		 * level. This happens for the signal trampolines. Note that
+		 * when that happens, user is defined as 0 above. We need to
+		 * set user to 1 to force calling userret() and do_ast().
 		 */
 		if (!TRAPF_USERMODE(framep)) {
 			/* Check for copyin/copyout fault. */
@@ -711,7 +713,8 @@ trap(int vector, struct trapframe *framep)
 				goto out;
 			}
 			goto dopanic;
-		}
+		} else
+			user = 1;
 		ucode = va;	
 		i = (rv == KERN_PROTECTION_FAILURE) ? SIGBUS : SIGSEGV;
 		break;
