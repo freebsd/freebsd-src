@@ -75,6 +75,7 @@ extern void output_file_directive ();
    .ident string is patterned after the ones produced by native svr4
    C compilers.  */
 
+#undef  IDENT_ASM_OP
 #define IDENT_ASM_OP ".ident"
 
 #ifdef IDENTIFY_WITH_IDENT
@@ -83,6 +84,7 @@ extern void output_file_directive ();
  fprintf(FILE, "\t%s \"GCC (%s) %s\"\n", IDENT_ASM_OP,	\
 	 lang_identify(), version_string)
 #else
+#undef  ASM_FILE_END
 #define ASM_FILE_END(FILE)					\
 do {				 				\
      if (!flag_no_ident)					\
@@ -102,6 +104,7 @@ do {				 				\
 /* This is how to allocate empty space in some section.  The .zero
    pseudo-op is used for this on most svr4 assemblers.  */
 
+#undef  SKIP_ASM_OP
 #define SKIP_ASM_OP	".zero"
 
 #undef ASM_OUTPUT_SKIP
@@ -116,6 +119,7 @@ do {				 				\
    make sure that the location counter for the .rodata section gets pro-
    perly re-aligned prior to the actual beginning of the jump table.  */
 
+#undef  ALIGN_ASM_OP
 #define ALIGN_ASM_OP ".align"
 
 #ifndef ASM_OUTPUT_BEFORE_CASE_LABEL
@@ -134,6 +138,7 @@ do {				 				\
    library routines (e.g. .udiv) be explicitly declared as .globl
    in each assembly file where they are referenced.  */
 
+#undef  ASM_OUTPUT_EXTERNAL_LIBCALL
 #define ASM_OUTPUT_EXTERNAL_LIBCALL(FILE, FUN)				\
   ASM_GLOBALIZE_LABEL (FILE, XSTR (FUN, 0))
 
@@ -142,6 +147,7 @@ do {				 				\
    the linker seems to want the alignment of data objects
    to depend on their types.  We do exactly that here.  */
 
+#undef  COMMON_ASM_OP
 #define COMMON_ASM_OP	".comm"
 
 #undef ASM_OUTPUT_ALIGNED_COMMON
@@ -212,8 +218,10 @@ do {									\
    EXTRA_SECTIONS, EXTRA_SECTION_FUNCTIONS, SELECT_SECTION, and
    SELECT_RTX_SECTION.  We do both here just to be on the safe side.  */
 
+#undef  USE_CONST_SECTION
 #define USE_CONST_SECTION	1
 
+#undef  CONST_SECTION_ASM_OP
 #define CONST_SECTION_ASM_OP	".section\t.rodata"
 
 /* Define the pseudo-ops used to switch to the .ctors and .dtors sections.
@@ -231,7 +239,9 @@ do {									\
    errors unless the .ctors and .dtors sections are marked as writable
    via the SHF_WRITE attribute.)  */
 
+#undef  CTORS_SECTION_ASM_OP
 #define CTORS_SECTION_ASM_OP	".section\t.ctors,\"aw\""
+#undef  DTORS_SECTION_ASM_OP
 #define DTORS_SECTION_ASM_OP	".section\t.dtors,\"aw\""
 
 /* Handle the small data sections.  */
@@ -245,7 +255,9 @@ do {									\
    The definitions say how to change sections to the .init and .fini
    sections.  This is the same for all known svr4 assemblers.  */
 
+#undef  INIT_SECTION_ASM_OP
 #define INIT_SECTION_ASM_OP	".section\t.init"
+#undef  FINI_SECTION_ASM_OP
 #define FINI_SECTION_ASM_OP	".section\t.fini"
 
 /* A default list of other sections which we might be "in" at any given
@@ -310,6 +322,7 @@ void FN ()								\
 
 /* A C statement (sans semicolon) to output an element in the table of
    global constructors.  */
+#undef  ASM_OUTPUT_CONSTRUCTOR
 #define ASM_OUTPUT_CONSTRUCTOR(FILE,NAME)				\
   do {									\
     ctors_section ();							\
@@ -320,6 +333,7 @@ void FN ()								\
 
 /* A C statement (sans semicolon) to output an element in the table of
    global destructors.  */
+#undef  ASM_OUTPUT_DESTRUCTOR
 #define ASM_OUTPUT_DESTRUCTOR(FILE,NAME)       				\
   do {									\
     dtors_section ();                   				\
@@ -378,11 +392,14 @@ void FN ()								\
    different pseudo-op names for these, they may be overridden in the
    file which includes this one.  */
 
+#undef  TYPE_ASM_OP
 #define TYPE_ASM_OP	".type"
+#undef  SIZE_ASM_OP
 #define SIZE_ASM_OP	".size"
 
 /* This is how we tell the assembler that a symbol is weak.  */
 
+#undef  ASM_WEAKEN_LABEL
 #define ASM_WEAKEN_LABEL(FILE,NAME) \
   do { fputs ("\t.weak\t", FILE); assemble_name (FILE, NAME); \
        fputc ('\n', FILE); } while (0)
@@ -418,6 +435,7 @@ void FN ()								\
 
 /* Write the extra assembler code needed to declare an object properly.  */
 
+#undef  ASM_DECLARE_OBJECT_NAME
 #define ASM_DECLARE_OBJECT_NAME(FILE, NAME, DECL)			\
   do {									\
     fprintf (FILE, "\t%s\t ", TYPE_ASM_OP);				\
@@ -442,6 +460,7 @@ void FN ()								\
    size_directive_output was set
    by ASM_DECLARE_OBJECT_NAME when it was run for the same decl.  */
 
+#undef  ASM_FINISH_DECLARE_OBJECT
 #define ASM_FINISH_DECLARE_OBJECT(FILE, DECL, TOP_LEVEL, AT_END)	\
 do {									\
   char *name = XSTR (XEXP (DECL_RTL (DECL), 0), 0);			\
@@ -496,6 +515,7 @@ do {									\
    should define this to zero.  */
 
 #define STRING_LIMIT	((unsigned) 256)
+#undef  STRING_ASM_OP
 #define STRING_ASM_OP	".string"
 
 /* GAS is the only Alpha/ELF assembler.  */
