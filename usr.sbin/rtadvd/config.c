@@ -1,3 +1,4 @@
+/*	$FreeBSD$	*/
 /*	$KAME: config.c,v 1.11 2000/05/16 13:34:13 itojun Exp $	*/
 
 /*
@@ -27,8 +28,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #include <sys/param.h>

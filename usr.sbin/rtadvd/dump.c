@@ -1,3 +1,4 @@
+/*	$FreeBSD$	*/
 /*	$KAME: dump.c,v 1.10 2000/05/23 11:31:25 itojun Exp $	*/
 
 /*
@@ -27,8 +28,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 #include <sys/types.h>
 #include <sys/socket.h>
