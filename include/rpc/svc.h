@@ -144,11 +144,6 @@ struct svc_req {
 #define svc_getrpccaller(x) (&(x)->xp_rtaddr)
 
 /*
- * FreeBSD-only definition to get the creds of the caller (AF_LOCAL).
- */
-#define __svc_getcallercreds(x) ((struct cmsgcred *)(x)->xp_p2)
-
-/*
  * Operations defined on an SVCXPRT handle
  *
  * SVCXPRT		*xprt;
