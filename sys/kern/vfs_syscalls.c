@@ -418,6 +418,8 @@ checkdirs(olddp, newdp)
 	ALLPROC_LOCK(AP_SHARED);
 	LIST_FOREACH(p, &allproc, p_list) {
 		fdp = p->p_fd;
+		if (fdp == NULL)
+			continue;
 		if (fdp->fd_cdir == olddp) {
 			vrele(fdp->fd_cdir);
 			VREF(newdp);
