@@ -869,7 +869,6 @@ rl_attach(dev)
 
 	mtx_init(&sc->rl_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF | MTX_RECURSE);
-	RL_LOCK(sc);
 
 	/*
 	 * Handle power management nonsense.
@@ -952,18 +951,6 @@ rl_attach(dev)
 		goto fail;
 	}
 
-	error = bus_setup_intr(dev, sc->rl_irq, INTR_TYPE_NET,
-	    rl_intr, sc, &sc->rl_intrhand);
-
-	if (error) {
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->rl_irq);
-		bus_release_resource(dev, RL_RES, RL_RID, sc->rl_res);
-		printf("rl%d: couldn't set up irq\n", unit);
-		goto fail;
-	}
-
-	callout_handle_init(&sc->rl_stat_ch);
-
 	/* Reset the adapter. */
 	rl_reset(sc);
 	sc->rl_eecmd_read = RL_EECMD_READ_6BIT;
@@ -999,7 +986,6 @@ rl_attach(dev)
 		sc->rl_type = RL_8129;
 	else {
 		printf("rl%d: unknown device ID: %x\n", unit, rl_did);
-		bus_teardown_intr(dev, sc->rl_irq, sc->rl_intrhand);
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->rl_irq);
 		bus_release_resource(dev, RL_RES, RL_RID, sc->rl_res);
 		error = ENXIO;
@@ -1045,7 +1031,6 @@ rl_attach(dev)
 
 	if (sc->rl_cdata.rl_rx_buf == NULL) {
 		printf("rl%d: no memory for list buffers!\n", unit);
-		bus_teardown_intr(dev, sc->rl_irq, sc->rl_intrhand);
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->rl_irq);
 		bus_release_resource(dev, RL_RES, RL_RID, sc->rl_res);
 		bus_dma_tag_destroy(sc->rl_tag);
@@ -1061,7 +1046,6 @@ rl_attach(dev)
 	if (mii_phy_probe(dev, &sc->rl_miibus,
 	    rl_ifmedia_upd, rl_ifmedia_sts)) {
 		printf("rl%d: MII without any phy!\n", sc->rl_unit);
-		bus_teardown_intr(dev, sc->rl_irq, sc->rl_intrhand);
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->rl_irq);
 		bus_release_resource(dev, RL_RES, RL_RID, sc->rl_res);
 		bus_dmamem_free(sc->rl_tag,
@@ -1089,11 +1073,23 @@ rl_attach(dev)
 	 * Call MI attach routine.
 	 */
 	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
-	RL_UNLOCK(sc);
-	return(0);
 
+	error = bus_setup_intr(dev, sc->rl_irq, INTR_TYPE_NET,
+	    rl_intr, sc, &sc->rl_intrhand);
+
+	if (error) {
+		printf("rl%d: couldn't set up irq\n", unit);
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->rl_irq);
+		bus_release_resource(dev, RL_RES, RL_RID, sc->rl_res);
+		bus_dmamem_free(sc->rl_tag,
+		    sc->rl_cdata.rl_rx_buf, sc->rl_cdata.rl_rx_dmamap);
+		bus_dma_tag_destroy(sc->rl_tag);
+		goto fail;
+	}
+
+	callout_handle_init(&sc->rl_stat_ch);
+	return(0);
 fail:
-	RL_UNLOCK(sc);
 	mtx_destroy(&sc->rl_mtx);
 	return(error);
 }
