@@ -855,32 +855,24 @@ dinfo(dn, lc, now, then)
 	if (then != NULL) {
 		/* Calculate relative to previous sample */
 		elapsed_time = now->snap_time - then->snap_time;
-		device_busy = devstat_compute_etime(
-		    &now->dinfo->devices[di].busy_time,
-		    &then->dinfo->devices[di].busy_time);
 	} else {
 		/* Calculate relative to device creation */
 	        elapsed_time = now->snap_time - devstat_compute_etime(
 		    &now->dinfo->devices[di].creation_time, NULL);
-		device_busy = devstat_compute_etime(
-		    &now->dinfo->devices[di].busy_time, NULL);
 	}
 
 	if (devstat_compute_statistics(&now->dinfo->devices[di], then ?
 	    &then->dinfo->devices[di] : NULL, elapsed_time,
-	    DSM_KB_PER_TRANSFER, &kb_per_transfer, DSM_TRANSFERS_PER_SECOND,
-	    &transfers_per_second, DSM_MB_PER_SECOND, &mb_per_second,
+	    DSM_KB_PER_TRANSFER, &kb_per_transfer,
+	    DSM_TRANSFERS_PER_SECOND, &transfers_per_second,
+	    DSM_MB_PER_SECOND, &mb_per_second,
+	    DSM_BUSY_PCT, &device_busy,
 	    DSM_NONE) != 0)
 		errx(1, "%s", devstat_errbuf);
-
-	if (device_busy > elapsed_time)
-		/* this normally happens after one or more periods
-		 * where the device has been 100% busy, correct it */
-		device_busy = elapsed_time;
 
 	lc = DISKCOL + lc * 6;
 	putlongdouble(kb_per_transfer, DISKROW + 1, lc, 5, 2, 0);
 	putlongdouble(transfers_per_second, DISKROW + 2, lc, 5, 0, 0);
 	putlongdouble(mb_per_second, DISKROW + 3, lc, 5, 2, 0);
-	putlongdouble(device_busy * 100 / elapsed_time, DISKROW + 4, lc, 5, 0, 0);
+	putlongdouble(device_busy, DISKROW + 4, lc, 5, 0, 0);
 }
