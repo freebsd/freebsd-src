@@ -40,14 +40,6 @@
 /* Global locks */
 extern struct mtx	clock_lock;
 
-/*
- * Debugging
- */
-#define	ASS_IEN		MPASS2(read_eflags() & PSL_I, "fl & PSL_I")
-#define	ASS_IDIS	MPASS2((read_eflags() & PSL_I) == 0, "!(fl & PSL_I)")
-#define ASS_SIEN(mpp)	MPASS2((mpp)->mtx_saveintr & PSL_I,		\
-			"mpp->mtx_saveintr & PSL_I")
-
 #define	mtx_legal2block()	(read_eflags() & PSL_I)
 #define	mtx_intr_enable(mutex)	(mutex)->mtx_saveintr |= PSL_I
 
