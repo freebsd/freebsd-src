@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.1.2.23 1998/03/16 22:52:01 brian Exp $
+ *	$Id: datalink.c,v 1.1.2.24 1998/03/16 22:53:41 brian Exp $
  */
 
 #include <sys/param.h>
@@ -122,7 +122,6 @@ datalink_HangupDone(struct datalink *dl)
       dl->dial_tries = dl->cfg.max_dial;
       dl->reconnect_tries--;
     } else {
-      dl->dial_tries--;
       if (dl->phone.next == NULL)
         datalink_StartDialTimer(dl, dl->cfg.dial_timeout);
       else
