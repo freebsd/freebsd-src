@@ -443,7 +443,7 @@ ufs_extattr_get(struct vnode *vp, char *name, struct uio *uio,
 	struct mount	*mp = vp->v_mount;
 	struct ufsmount	*ump = VFSTOUFS(mp);
 	struct inode	*ip = VTOI(vp);
-	off_t	base_offset, old_offset, offset;
+	off_t	base_offset, offset;
 	size_t	size, old_size;
 	int	error = 0;
 
@@ -459,10 +459,12 @@ ufs_extattr_get(struct vnode *vp, char *name, struct uio *uio,
 		return (error);
 
 	/*
-	 * Early rejection of offsets that are invalid
+	 * Allow only offsets of zero to encourage the read/replace
+	 * extended attribute semantic.  Otherwise we can't guarantee
+	 * atomicity, as we don't provide locks for extended
+	 * attributes.
 	 */
-	if (uio->uio_offset >= attribute->uele_fileheader.uef_size ||
-	    uio->uio_offset < 0)
+	if (uio->uio_offset != 0)
 		return (ENXIO);
 
 	/*
@@ -529,28 +531,24 @@ ufs_extattr_get(struct vnode *vp, char *name, struct uio *uio,
 	}
 
 	/* allow for offset into the attr data */
-	offset = base_offset + sizeof(struct ufs_extattr_header) +
-	    uio->uio_offset;
+	uio->uio_offset = base_offset + sizeof(struct ufs_extattr_header);
 
 	/*
 	 * Figure out maximum to transfer -- use buffer size and local data
 	 * limit.
 	 */
-	size = MIN(uio->uio_resid, ueh.ueh_len - uio->uio_offset);
-
-	old_offset = uio->uio_offset;
-	uio->uio_offset = offset;
+	size = MIN(uio->uio_resid, ueh.ueh_len);
 	old_size = uio->uio_resid;
 	uio->uio_resid = size;
 
 	error = VOP_READ(attribute->uele_backing_vnode, uio, 0,
 	    ump->um_extattr.uepm_ucred);
 	if (error) {
-		uio->uio_offset = old_offset;
+		uio->uio_offset = 0;
 		goto vopunlock_exit;
 	}
 
-	uio->uio_offset = old_offset;
+	uio->uio_offset = 0;
 	uio->uio_resid = old_size - (size - uio->uio_resid);
 
 vopunlock_exit:
