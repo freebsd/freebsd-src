@@ -610,7 +610,7 @@ devfs_readdir(ap)
 		}
 		*ap->a_ncookies = ncookies;
 		*ap->a_cookies = cookiebuf;
-    }
+	}
 	lockmgr(&dmp->dm_lock, LK_RELEASE, 0, curthread);
 	uio->uio_offset = off;
 	return (error);
