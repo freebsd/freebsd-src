@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_linux.c,v 1.5 1995/12/09 08:17:22 peter Exp $
+ *	$Id: imgact_linux.c,v 1.6 1995/12/14 22:35:42 bde Exp $
  */
 
 #include <sys/param.h>
@@ -126,7 +126,8 @@ exec_linux_imgact(imgp)
 	 */
 	vmaddr = virtual_offset;
 	error = vm_map_find(&vmspace->vm_map, NULL, 0, &vmaddr,
-		    	    round_page(a_out->a_text), FALSE);
+		    	    round_page(a_out->a_text), FALSE,
+				VM_PROT_ALL, VM_PROT_ALL, 0);
 	if (error)
 	    return error;
 
@@ -155,7 +156,8 @@ exec_linux_imgact(imgp)
 	 */
 	vmaddr = virtual_offset + a_out->a_text;
 	error = vm_map_find(&vmspace->vm_map, NULL, 0, &vmaddr,
-		      	    round_page(a_out->a_data + bss_size), FALSE);
+		      	    round_page(a_out->a_data + bss_size), FALSE,
+				VM_PROT_ALL, VM_PROT_ALL, 0);
 	if (error)
 	    return error;
 
@@ -215,7 +217,7 @@ exec_linux_imgact(imgp)
 	if (bss_size != 0) {
 	    vmaddr = virtual_offset + a_out->a_text + a_out->a_data;
 	    error = vm_map_find(&vmspace->vm_map, NULL, 0, &vmaddr, 
-				bss_size, FALSE);
+				bss_size, FALSE, VM_PROT_ALL, VM_PROT_ALL, 0);
 	    if (error)
 		return (error);
 	}
