@@ -605,7 +605,6 @@ pcn_attach(dev)
 	ifp->if_mtu = ETHERMTU;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = pcn_ioctl;
-	ifp->if_output = ether_output;
 	ifp->if_start = pcn_start;
 	ifp->if_watchdog = pcn_watchdog;
 	ifp->if_init = pcn_init;
